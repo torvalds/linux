@@ -1228,7 +1228,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	vm->scratch_pte =
 		gen8_pte_encode(vm->scratch_page.daddr,
 				I915_CACHE_LLC,
-				PTE_READ_ONLY);
+				vm->has_read_only);
 
 	vm->scratch_pt = alloc_pt(vm);
 	if (IS_ERR(vm->scratch_pt)) {
@@ -1548,8 +1548,13 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 
 	ppgtt_init(i915, ppgtt);
 
-	/* From bdw, there is support for read-only pages in the PPGTT. */
-	ppgtt->vm.has_read_only = true;
+	/*
+	 * From bdw, there is hw support for read-only pages in the PPGTT.
+	 *
+	 * Gen11 has HSDES#:1807136187 unresolved. Disable ro support
+	 * for now.
+	 */
+	ppgtt->vm.has_read_only = INTEL_GEN(i915) != 11;
 
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.

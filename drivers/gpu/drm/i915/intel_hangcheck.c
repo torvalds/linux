@@ -221,8 +221,8 @@ static void hangcheck_declare_hang(struct drm_i915_private *i915,
 				   unsigned int stuck)
 {
 	struct intel_engine_cs *engine;
+	intel_engine_mask_t tmp;
 	char msg[80];
-	unsigned int tmp;
 	int len;
 
 	/* If some rings hung but others were still busy, only

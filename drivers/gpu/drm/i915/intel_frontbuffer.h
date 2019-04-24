@@ -24,8 +24,18 @@
 #ifndef __INTEL_FRONTBUFFER_H__
 #define __INTEL_FRONTBUFFER_H__
 
+#include "i915_gem_object.h"
+
 struct drm_i915_private;
 struct drm_i915_gem_object;
+
+enum fb_op_origin {
+	ORIGIN_GTT,
+	ORIGIN_CPU,
+	ORIGIN_CS,
+	ORIGIN_FLIP,
+	ORIGIN_DIRTYFB,
+};
 
 void intel_frontbuffer_flip_prepare(struct drm_i915_private *dev_priv,
 				    unsigned frontbuffer_bits);

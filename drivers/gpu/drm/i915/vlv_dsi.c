@@ -23,16 +23,20 @@
  * Author: Jani Nikula <jani.nikula@intel.com>
  */
 
+#include <linux/gpio/consumer.h>
+#include <linux/slab.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include <drm/i915_drm.h>
 #include <drm/drm_mipi_dsi.h>
-#include <linux/slab.h>
-#include <linux/gpio/consumer.h>
+#include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_connector.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_panel.h"
 
 /* return pixels in terms of txbyteclkhs */
 static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,

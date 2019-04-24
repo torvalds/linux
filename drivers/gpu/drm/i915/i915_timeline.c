@@ -253,7 +253,6 @@ int i915_timeline_init(struct drm_i915_private *i915,
 	spin_lock_init(&timeline->lock);
 	mutex_init(&timeline->mutex);
 
-	INIT_ACTIVE_REQUEST(&timeline->barrier);
 	INIT_ACTIVE_REQUEST(&timeline->last_request);
 	INIT_LIST_HEAD(&timeline->requests);
 
@@ -326,7 +325,6 @@ void i915_timeline_fini(struct i915_timeline *timeline)
 {
 	GEM_BUG_ON(timeline->pin_count);
 	GEM_BUG_ON(!list_empty(&timeline->requests));
-	GEM_BUG_ON(i915_active_request_isset(&timeline->barrier));
 
 	i915_syncmap_free(&timeline->sync);
 

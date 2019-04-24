@@ -976,20 +976,16 @@ gen5_irq_disable(struct intel_engine_cs *engine)
 static void
 i9xx_irq_enable(struct intel_engine_cs *engine)
 {
-	GEM_BUG_ON(engine->id != RCS0);
-
 	engine->i915->irq_mask &= ~engine->irq_enable_mask;
-	ENGINE_WRITE(engine, RING_IMR, engine->i915->irq_mask);
-	ENGINE_POSTING_READ(engine, RING_IMR);
+	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
+	intel_uncore_posting_read_fw(engine->uncore, GEN2_IMR);
 }
 
 static void
 i9xx_irq_disable(struct intel_engine_cs *engine)
 {
-	GEM_BUG_ON(engine->id != RCS0);
-
 	engine->i915->irq_mask |= engine->irq_enable_mask;
-	ENGINE_WRITE(engine, RING_IMR, engine->i915->irq_mask);
+	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
 }
 
 static void
@@ -998,7 +994,7 @@ i8xx_irq_enable(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	dev_priv->irq_mask &= ~engine->irq_enable_mask;
-	I915_WRITE16(IMR, dev_priv->irq_mask);
+	I915_WRITE16(GEN2_IMR, dev_priv->irq_mask);
 	POSTING_READ16(RING_IMR(engine->mmio_base));
 }
 
@@ -1008,7 +1004,7 @@ i8xx_irq_disable(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	dev_priv->irq_mask |= engine->irq_enable_mask;
-	I915_WRITE16(IMR, dev_priv->irq_mask);
+	I915_WRITE16(GEN2_IMR, dev_priv->irq_mask);
 }
 
 static int
@@ -1512,9 +1508,16 @@ err_unpin:
 	return err;
 }
 
+static void ring_context_reset(struct intel_context *ce)
+{
+	intel_ring_reset(ce->ring, 0);
+}
+
 static const struct intel_context_ops ring_context_ops = {
 	.pin = ring_context_pin,
 	.unpin = ring_context_unpin,
+
+	.reset = ring_context_reset,
 	.destroy = ring_context_destroy,
 };
 
@@ -1583,16 +1586,6 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 
 	dev_priv->engine[engine->id] = NULL;
 	kfree(engine);
-}
-
-void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	/* Restart from the beginning of the rings for convenience */
-	for_each_engine(engine, dev_priv, id)
-		intel_ring_reset(engine->buffer, 0);
 }
 
 static int load_pd_dir(struct i915_request *rq,

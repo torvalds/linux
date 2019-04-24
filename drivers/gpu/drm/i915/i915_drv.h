@@ -66,13 +66,14 @@
 #include "intel_device_info.h"
 #include "intel_display.h"
 #include "intel_dpll_mgr.h"
+#include "intel_frontbuffer.h"
 #include "intel_lrc.h"
 #include "intel_opregion.h"
 #include "intel_ringbuffer.h"
+#include "intel_uc.h"
 #include "intel_uncore.h"
 #include "intel_wopcm.h"
 #include "intel_workarounds.h"
-#include "intel_uc.h"
 
 #include "i915_gem.h"
 #include "i915_gem_context.h"
@@ -92,8 +93,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20190328"
-#define DRIVER_TIMESTAMP	1553776914
+#define DRIVER_DATE		"20190417"
+#define DRIVER_TIMESTAMP	1555492067
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -282,7 +283,8 @@ struct drm_i915_display_funcs {
 	void (*get_cdclk)(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_state *cdclk_state);
 	void (*set_cdclk)(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state);
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe);
 	int (*get_fifo_size)(struct drm_i915_private *dev_priv,
 			     enum i9xx_plane_id i9xx_plane);
 	int (*compute_pipe_wm)(struct intel_crtc_state *cstate);
@@ -325,6 +327,7 @@ struct drm_i915_display_funcs {
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
 
+	int (*color_check)(struct intel_crtc_state *crtc_state);
 	/*
 	 * Program double buffered color management registers during
 	 * vblank evasion. The registers should then latch during the
@@ -372,14 +375,6 @@ enum i915_cache_level {
 };
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
-
-enum fb_op_origin {
-	ORIGIN_GTT,
-	ORIGIN_CPU,
-	ORIGIN_CS,
-	ORIGIN_FLIP,
-	ORIGIN_DIRTYFB,
-};
 
 struct intel_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
@@ -1628,6 +1623,8 @@ struct drm_i915_private {
 		struct intel_cdclk_state actual;
 		/* The current hardware cdclk state */
 		struct intel_cdclk_state hw;
+
+		int force_min_cdclk;
 	} cdclk;
 
 	/**
@@ -1706,8 +1703,11 @@ struct drm_i915_private {
 
 	struct intel_l3_parity l3_parity;
 
-	/* Cannot be determined by PCIID. You must always read a register. */
-	u32 edram_cap;
+	/*
+	 * edram size in MB.
+	 * Cannot be determined by PCIID. You must always read a register.
+	 */
+	u32 edram_size_mb;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -1747,6 +1747,7 @@ struct drm_i915_private {
 	 *
 	 */
 	struct mutex av_mutex;
+	int audio_power_refcount;
 
 	struct {
 		struct mutex mutex;
@@ -1994,7 +1995,6 @@ struct drm_i915_private {
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
-		void (*resume)(struct drm_i915_private *);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 
 		struct i915_gt_timelines {
@@ -2298,7 +2298,69 @@ static inline unsigned int i915_sg_segment_size(void)
 #define IS_REVID(p, since, until) \
 	(INTEL_REVID(p) >= (since) && INTEL_REVID(p) <= (until))
 
-#define IS_PLATFORM(dev_priv, p) (INTEL_INFO(dev_priv)->platform_mask & BIT(p))
+static __always_inline unsigned int
+__platform_mask_index(const struct intel_runtime_info *info,
+		      enum intel_platform p)
+{
+	const unsigned int pbits =
+		BITS_PER_TYPE(info->platform_mask[0]) - INTEL_SUBPLATFORM_BITS;
+
+	/* Expand the platform_mask array if this fails. */
+	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
+		     pbits * ARRAY_SIZE(info->platform_mask));
+
+	return p / pbits;
+}
+
+static __always_inline unsigned int
+__platform_mask_bit(const struct intel_runtime_info *info,
+		    enum intel_platform p)
+{
+	const unsigned int pbits =
+		BITS_PER_TYPE(info->platform_mask[0]) - INTEL_SUBPLATFORM_BITS;
+
+	return p % pbits + INTEL_SUBPLATFORM_BITS;
+}
+
+static inline u32
+intel_subplatform(const struct intel_runtime_info *info, enum intel_platform p)
+{
+	const unsigned int pi = __platform_mask_index(info, p);
+
+	return info->platform_mask[pi] & INTEL_SUBPLATFORM_BITS;
+}
+
+static __always_inline bool
+IS_PLATFORM(const struct drm_i915_private *i915, enum intel_platform p)
+{
+	const struct intel_runtime_info *info = RUNTIME_INFO(i915);
+	const unsigned int pi = __platform_mask_index(info, p);
+	const unsigned int pb = __platform_mask_bit(info, p);
+
+	BUILD_BUG_ON(!__builtin_constant_p(p));
+
+	return info->platform_mask[pi] & BIT(pb);
+}
+
+static __always_inline bool
+IS_SUBPLATFORM(const struct drm_i915_private *i915,
+	       enum intel_platform p, unsigned int s)
+{
+	const struct intel_runtime_info *info = RUNTIME_INFO(i915);
+	const unsigned int pi = __platform_mask_index(info, p);
+	const unsigned int pb = __platform_mask_bit(info, p);
+	const unsigned int msb = BITS_PER_TYPE(info->platform_mask[0]) - 1;
+	const u32 mask = info->platform_mask[pi];
+
+	BUILD_BUG_ON(!__builtin_constant_p(p));
+	BUILD_BUG_ON(!__builtin_constant_p(s));
+	BUILD_BUG_ON((s) >= INTEL_SUBPLATFORM_BITS);
+
+	/* Shift and test on the MSB position so sign flag can be used. */
+	return ((mask << (msb - pb)) & (mask << (msb - s))) & BIT(msb);
+}
+
+#define IS_MOBILE(dev_priv)	(INTEL_INFO(dev_priv)->is_mobile)
 
 #define IS_I830(dev_priv)	IS_PLATFORM(dev_priv, INTEL_I830)
 #define IS_I845G(dev_priv)	IS_PLATFORM(dev_priv, INTEL_I845G)
@@ -2313,11 +2375,11 @@ static inline unsigned int i915_sg_segment_size(void)
 #define IS_G45(dev_priv)	IS_PLATFORM(dev_priv, INTEL_G45)
 #define IS_GM45(dev_priv)	IS_PLATFORM(dev_priv, INTEL_GM45)
 #define IS_G4X(dev_priv)	(IS_G45(dev_priv) || IS_GM45(dev_priv))
-#define IS_PINEVIEW_G(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa001)
-#define IS_PINEVIEW_M(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa011)
 #define IS_PINEVIEW(dev_priv)	IS_PLATFORM(dev_priv, INTEL_PINEVIEW)
 #define IS_G33(dev_priv)	IS_PLATFORM(dev_priv, INTEL_G33)
-#define IS_IRONLAKE_M(dev_priv)	(INTEL_DEVID(dev_priv) == 0x0046)
+#define IS_IRONLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IRONLAKE)
+#define IS_IRONLAKE_M(dev_priv) \
+	(IS_PLATFORM(dev_priv, INTEL_IRONLAKE) && IS_MOBILE(dev_priv))
 #define IS_IVYBRIDGE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IVYBRIDGE)
 #define IS_IVB_GT1(dev_priv)	(IS_IVYBRIDGE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 1)
@@ -2333,46 +2395,34 @@ static inline unsigned int i915_sg_segment_size(void)
 #define IS_CANNONLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_CANNONLAKE)
 #define IS_ICELAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ICELAKE)
 #define IS_ELKHARTLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_ELKHARTLAKE)
-#define IS_MOBILE(dev_priv)	(INTEL_INFO(dev_priv)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
-#define IS_BDW_ULT(dev_priv)	(IS_BROADWELL(dev_priv) && \
-				 ((INTEL_DEVID(dev_priv) & 0xf) == 0x6 ||	\
-				 (INTEL_DEVID(dev_priv) & 0xf) == 0xb ||	\
-				 (INTEL_DEVID(dev_priv) & 0xf) == 0xe))
-/* ULX machines are also considered ULT. */
-#define IS_BDW_ULX(dev_priv)	(IS_BROADWELL(dev_priv) && \
-				 (INTEL_DEVID(dev_priv) & 0xf) == 0xe)
+#define IS_BDW_ULT(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_BROADWELL, INTEL_SUBPLATFORM_ULT)
+#define IS_BDW_ULX(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_BROADWELL, INTEL_SUBPLATFORM_ULX)
 #define IS_BDW_GT3(dev_priv)	(IS_BROADWELL(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 3)
-#define IS_HSW_ULT(dev_priv)	(IS_HASWELL(dev_priv) && \
-				 (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0A00)
+#define IS_HSW_ULT(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_HASWELL, INTEL_SUBPLATFORM_ULT)
 #define IS_HSW_GT3(dev_priv)	(IS_HASWELL(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 3)
 #define IS_HSW_GT1(dev_priv)	(IS_HASWELL(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 1)
 /* ULX machines are also considered ULT. */
-#define IS_HSW_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x0A0E || \
-				 INTEL_DEVID(dev_priv) == 0x0A1E)
-#define IS_SKL_ULT(dev_priv)	(INTEL_DEVID(dev_priv) == 0x1906 || \
-				 INTEL_DEVID(dev_priv) == 0x1913 || \
-				 INTEL_DEVID(dev_priv) == 0x1916 || \
-				 INTEL_DEVID(dev_priv) == 0x1921 || \
-				 INTEL_DEVID(dev_priv) == 0x1926)
-#define IS_SKL_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x190E || \
-				 INTEL_DEVID(dev_priv) == 0x1915 || \
-				 INTEL_DEVID(dev_priv) == 0x191E)
-#define IS_KBL_ULT(dev_priv)	(INTEL_DEVID(dev_priv) == 0x5906 || \
-				 INTEL_DEVID(dev_priv) == 0x5913 || \
-				 INTEL_DEVID(dev_priv) == 0x5916 || \
-				 INTEL_DEVID(dev_priv) == 0x5921 || \
-				 INTEL_DEVID(dev_priv) == 0x5926)
-#define IS_KBL_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x590E || \
-				 INTEL_DEVID(dev_priv) == 0x5915 || \
-				 INTEL_DEVID(dev_priv) == 0x591E)
-#define IS_AML_ULX(dev_priv)	(INTEL_DEVID(dev_priv) == 0x591C || \
-				 INTEL_DEVID(dev_priv) == 0x87C0 || \
-				 INTEL_DEVID(dev_priv) == 0x87CA)
+#define IS_HSW_ULX(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_HASWELL, INTEL_SUBPLATFORM_ULX)
+#define IS_SKL_ULT(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_SKYLAKE, INTEL_SUBPLATFORM_ULT)
+#define IS_SKL_ULX(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_SKYLAKE, INTEL_SUBPLATFORM_ULX)
+#define IS_KBL_ULT(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_KABYLAKE, INTEL_SUBPLATFORM_ULT)
+#define IS_KBL_ULX(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_KABYLAKE, INTEL_SUBPLATFORM_ULX)
+#define IS_AML_ULX(dev_priv) \
+	(IS_SUBPLATFORM(dev_priv, INTEL_KABYLAKE, INTEL_SUBPLATFORM_AML) || \
+	 IS_SUBPLATFORM(dev_priv, INTEL_COFFEELAKE, INTEL_SUBPLATFORM_AML))
 #define IS_SKL_GT2(dev_priv)	(IS_SKYLAKE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 2)
 #define IS_SKL_GT3(dev_priv)	(IS_SKYLAKE(dev_priv) && \
@@ -2383,16 +2433,16 @@ static inline unsigned int i915_sg_segment_size(void)
 				 INTEL_INFO(dev_priv)->gt == 2)
 #define IS_KBL_GT3(dev_priv)	(IS_KABYLAKE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 3)
-#define IS_CFL_ULT(dev_priv)	(IS_COFFEELAKE(dev_priv) && \
-				 (INTEL_DEVID(dev_priv) & 0x00F0) == 0x00A0)
+#define IS_CFL_ULT(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_COFFEELAKE, INTEL_SUBPLATFORM_ULT)
 #define IS_CFL_GT2(dev_priv)	(IS_COFFEELAKE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 2)
 #define IS_CFL_GT3(dev_priv)	(IS_COFFEELAKE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 3)
-#define IS_CNL_WITH_PORT_F(dev_priv)   (IS_CANNONLAKE(dev_priv) && \
-					(INTEL_DEVID(dev_priv) & 0x0004) == 0x0004)
-#define IS_ICL_WITH_PORT_F(dev_priv)   (IS_ICELAKE(dev_priv) && \
-					INTEL_DEVID(dev_priv) != 0x8A51)
+#define IS_CNL_WITH_PORT_F(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_CANNONLAKE, INTEL_SUBPLATFORM_PORTF)
+#define IS_ICL_WITH_PORT_F(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_ICELAKE, INTEL_SUBPLATFORM_PORTF)
 
 #define IS_ALPHA_SUPPORT(intel_info) ((intel_info)->is_alpha_support)
 
@@ -2451,7 +2501,6 @@ static inline unsigned int i915_sg_segment_size(void)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))
 #define IS_GEN9_BC(dev_priv)	(IS_GEN(dev_priv, 9) && !IS_LP(dev_priv))
 
-#define ALL_ENGINES	(~0u)
 #define HAS_ENGINE(dev_priv, id) (INTEL_INFO(dev_priv)->engine_mask & BIT(id))
 
 #define ENGINE_INSTANCES_MASK(dev_priv, first, count) ({		\
@@ -2467,7 +2516,7 @@ static inline unsigned int i915_sg_segment_size(void)
 
 #define HAS_LLC(dev_priv)	(INTEL_INFO(dev_priv)->has_llc)
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
-#define HAS_EDRAM(dev_priv)	(!!((dev_priv)->edram_cap & EDRAM_ENABLED))
+#define HAS_EDRAM(dev_priv)	((dev_priv)->edram_size_mb)
 #define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
 				 IS_BROADWELL(dev_priv)) && HAS_EDRAM(dev_priv))
 
@@ -2860,6 +2909,7 @@ static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
 	int pass = 2;
 	do {
 		rcu_barrier();
+		i915_gem_drain_freed_objects(i915);
 		drain_workqueue(i915->wq);
 	} while (--pass);
 }

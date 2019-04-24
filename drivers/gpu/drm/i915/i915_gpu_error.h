@@ -263,7 +263,7 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 
 struct i915_gpu_state *i915_capture_gpu_state(struct drm_i915_private *i915);
 void i915_capture_error_state(struct drm_i915_private *dev_priv,
-			      unsigned long engine_mask,
+			      intel_engine_mask_t engine_mask,
 			      const char *error_msg);
 
 static inline struct i915_gpu_state *

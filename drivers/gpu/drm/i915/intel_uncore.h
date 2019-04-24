@@ -178,16 +178,16 @@ intel_uncore_has_fifo(const struct intel_uncore *uncore)
 }
 
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
-int intel_uncore_init(struct intel_uncore *uncore);
-void intel_uncore_prune(struct intel_uncore *uncore);
+void intel_uncore_init_early(struct intel_uncore *uncore);
+int intel_uncore_init_mmio(struct intel_uncore *uncore);
+void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore);
 bool intel_uncore_unclaimed_mmio(struct intel_uncore *uncore);
 bool intel_uncore_arm_unclaimed_mmio_detection(struct intel_uncore *uncore);
-void intel_uncore_fini(struct intel_uncore *uncore);
+void intel_uncore_fini_mmio(struct intel_uncore *uncore);
 void intel_uncore_suspend(struct intel_uncore *uncore);
 void intel_uncore_resume_early(struct intel_uncore *uncore);
 void intel_uncore_runtime_resume(struct intel_uncore *uncore);
 
-u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
 void assert_forcewakes_inactive(struct intel_uncore *uncore);
 void assert_forcewakes_active(struct intel_uncore *uncore,
 			      enum forcewake_domains fw_domains);
@@ -369,11 +369,26 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
 #define intel_uncore_write64_fw(...) __raw_uncore_write64(__VA_ARGS__)
 #define intel_uncore_posting_read_fw(...) ((void)intel_uncore_read_fw(__VA_ARGS__))
 
-static inline void intel_uncore_rmw_or_fw(struct intel_uncore *uncore,
-					  i915_reg_t reg, u32 or_val)
+static inline void intel_uncore_rmw(struct intel_uncore *uncore,
+				    i915_reg_t reg, u32 clear, u32 set)
 {
-	intel_uncore_write_fw(uncore, reg,
-			      intel_uncore_read_fw(uncore, reg) | or_val);
+	u32 val;
+
+	val = intel_uncore_read(uncore, reg);
+	val &= ~clear;
+	val |= set;
+	intel_uncore_write(uncore, reg, val);
+}
+
+static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
+				       i915_reg_t reg, u32 clear, u32 set)
+{
+	u32 val;
+
+	val = intel_uncore_read_fw(uncore, reg);
+	val &= ~clear;
+	val |= set;
+	intel_uncore_write_fw(uncore, reg, val);
 }
 
 #define raw_reg_read(base, reg) \

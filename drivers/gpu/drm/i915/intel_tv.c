@@ -33,9 +33,12 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_connector.h"
+#include "intel_drv.h"
+#include "intel_tv.h"
 
 enum tv_margin {
 	TV_MARGIN_LEFT, TV_MARGIN_TOP,

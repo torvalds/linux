@@ -714,6 +714,99 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+#undef INTEL_VGA_DEVICE
+#define INTEL_VGA_DEVICE(id, info) (id)
+
+static const u16 subplatform_ult_ids[] = {
+	INTEL_HSW_ULT_GT1_IDS(0),
+	INTEL_HSW_ULT_GT2_IDS(0),
+	INTEL_HSW_ULT_GT3_IDS(0),
+	INTEL_BDW_ULT_GT1_IDS(0),
+	INTEL_BDW_ULT_GT2_IDS(0),
+	INTEL_BDW_ULT_GT3_IDS(0),
+	INTEL_BDW_ULT_RSVD_IDS(0),
+	INTEL_SKL_ULT_GT1_IDS(0),
+	INTEL_SKL_ULT_GT2_IDS(0),
+	INTEL_SKL_ULT_GT3_IDS(0),
+	INTEL_KBL_ULT_GT1_IDS(0),
+	INTEL_KBL_ULT_GT2_IDS(0),
+	INTEL_KBL_ULT_GT3_IDS(0),
+	INTEL_CFL_U_GT2_IDS(0),
+	INTEL_CFL_U_GT3_IDS(0),
+	INTEL_WHL_U_GT1_IDS(0),
+	INTEL_WHL_U_GT2_IDS(0),
+	INTEL_WHL_U_GT3_IDS(0)
+};
+
+static const u16 subplatform_ulx_ids[] = {
+	INTEL_HSW_ULX_GT1_IDS(0),
+	INTEL_HSW_ULX_GT2_IDS(0),
+	INTEL_BDW_ULX_GT1_IDS(0),
+	INTEL_BDW_ULX_GT2_IDS(0),
+	INTEL_BDW_ULX_GT3_IDS(0),
+	INTEL_BDW_ULX_RSVD_IDS(0),
+	INTEL_SKL_ULX_GT1_IDS(0),
+	INTEL_SKL_ULX_GT2_IDS(0),
+	INTEL_KBL_ULX_GT1_IDS(0),
+	INTEL_KBL_ULX_GT2_IDS(0)
+};
+
+static const u16 subplatform_aml_ids[] = {
+	INTEL_AML_KBL_GT2_IDS(0),
+	INTEL_AML_CFL_GT2_IDS(0)
+};
+
+static const u16 subplatform_portf_ids[] = {
+	INTEL_CNL_PORT_F_IDS(0),
+	INTEL_ICL_PORT_F_IDS(0)
+};
+
+static bool find_devid(u16 id, const u16 *p, unsigned int num)
+{
+	for (; num; num--, p++) {
+		if (*p == id)
+			return true;
+	}
+
+	return false;
+}
+
+void intel_device_info_subplatform_init(struct drm_i915_private *i915)
+{
+	const struct intel_device_info *info = INTEL_INFO(i915);
+	const struct intel_runtime_info *rinfo = RUNTIME_INFO(i915);
+	const unsigned int pi = __platform_mask_index(rinfo, info->platform);
+	const unsigned int pb = __platform_mask_bit(rinfo, info->platform);
+	u16 devid = INTEL_DEVID(i915);
+	u32 mask = 0;
+
+	/* Make sure IS_<platform> checks are working. */
+	RUNTIME_INFO(i915)->platform_mask[pi] = BIT(pb);
+
+	/* Find and mark subplatform bits based on the PCI device id. */
+	if (find_devid(devid, subplatform_ult_ids,
+		       ARRAY_SIZE(subplatform_ult_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ULT);
+	} else if (find_devid(devid, subplatform_ulx_ids,
+			      ARRAY_SIZE(subplatform_ulx_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ULX);
+		if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
+			/* ULX machines are also considered ULT. */
+			mask |= BIT(INTEL_SUBPLATFORM_ULT);
+		}
+	} else if (find_devid(devid, subplatform_aml_ids,
+			      ARRAY_SIZE(subplatform_aml_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_AML);
+	} else if (find_devid(devid, subplatform_portf_ids,
+			      ARRAY_SIZE(subplatform_portf_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_PORTF);
+	}
+
+	GEM_BUG_ON(mask & ~INTEL_SUBPLATFORM_BITS);
+
+	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
+}
+
 /**
  * intel_device_info_runtime_init - initialize runtime info
  * @dev_priv: the i915 device

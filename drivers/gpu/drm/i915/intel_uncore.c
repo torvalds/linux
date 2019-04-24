@@ -21,12 +21,13 @@
  * IN THE SOFTWARE.
  */
 
-#include "i915_drv.h"
-#include "intel_drv.h"
-#include "i915_vgpu.h"
-
-#include <asm/iosf_mbi.h>
 #include <linux/pm_runtime.h>
+#include <asm/iosf_mbi.h>
+
+#include "i915_drv.h"
+#include "i915_vgpu.h"
+#include "intel_drv.h"
+#include "intel_pm.h"
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 #define GT_FIFO_TIMEOUT_MS	 10
@@ -418,51 +419,6 @@ intel_uncore_forcewake_reset(struct intel_uncore *uncore)
 	spin_unlock_irqrestore(&uncore->lock, irqflags);
 
 	return fw; /* track the lost user forcewake domains */
-}
-
-static u64 gen9_edram_size(struct drm_i915_private *dev_priv)
-{
-	const unsigned int ways[8] = { 4, 8, 12, 16, 16, 16, 16, 16 };
-	const unsigned int sets[4] = { 1, 1, 2, 2 };
-	const u32 cap = dev_priv->edram_cap;
-
-	return EDRAM_NUM_BANKS(cap) *
-		ways[EDRAM_WAYS_IDX(cap)] *
-		sets[EDRAM_SETS_IDX(cap)] *
-		1024 * 1024;
-}
-
-u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_EDRAM(dev_priv))
-		return 0;
-
-	/* The needed capability bits for size calculation
-	 * are not there with pre gen9 so return 128MB always.
-	 */
-	if (INTEL_GEN(dev_priv) < 9)
-		return 128 * 1024 * 1024;
-
-	return gen9_edram_size(dev_priv);
-}
-
-static void intel_uncore_edram_detect(struct drm_i915_private *dev_priv)
-{
-	if (IS_HASWELL(dev_priv) ||
-	    IS_BROADWELL(dev_priv) ||
-	    INTEL_GEN(dev_priv) >= 9) {
-		dev_priv->edram_cap = __raw_uncore_read32(&dev_priv->uncore,
-							  HSW_EDRAM_CAP);
-
-		/* NB: We can't write IDICR yet because we do not have gt funcs
-		 * set up */
-	} else {
-		dev_priv->edram_cap = 0;
-	}
-
-	if (HAS_EDRAM(dev_priv))
-		DRM_INFO("Found %lluMB of eDRAM\n",
-			 intel_uncore_edram_size(dev_priv) / (1024 * 1024));
 }
 
 static bool
@@ -1569,8 +1525,12 @@ static void uncore_mmio_cleanup(struct intel_uncore *uncore)
 	pci_iounmap(pdev, uncore->regs);
 }
 
+void intel_uncore_init_early(struct intel_uncore *uncore)
+{
+	spin_lock_init(&uncore->lock);
+}
 
-int intel_uncore_init(struct intel_uncore *uncore)
+int intel_uncore_init_mmio(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore_to_i915(uncore);
 	int ret;
@@ -1584,7 +1544,6 @@ int intel_uncore_init(struct intel_uncore *uncore)
 	if (INTEL_GEN(i915) > 5 && !intel_vgpu_active(i915))
 		uncore->flags |= UNCORE_HAS_FORCEWAKE;
 
-	intel_uncore_edram_detect(i915);
 	intel_uncore_fw_domains_init(uncore);
 	__intel_uncore_early_sanitize(uncore, 0);
 
@@ -1650,7 +1609,7 @@ int intel_uncore_init(struct intel_uncore *uncore)
  * the forcewake domains. Prune them, to make sure they only reference existing
  * engines.
  */
-void intel_uncore_prune(struct intel_uncore *uncore)
+void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore_to_i915(uncore);
 
@@ -1681,7 +1640,7 @@ void intel_uncore_prune(struct intel_uncore *uncore)
 	}
 }
 
-void intel_uncore_fini(struct intel_uncore *uncore)
+void intel_uncore_fini_mmio(struct intel_uncore *uncore)
 {
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(uncore_to_i915(uncore));

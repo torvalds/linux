@@ -233,7 +233,7 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 {
 	int last_prio;
 
-	if (!intel_engine_has_preemption(engine))
+	if (!engine->preempt_context)
 		return false;
 
 	if (i915_request_completed(rq))
@@ -429,13 +429,13 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	return active;
 }
 
-void
+struct i915_request *
 execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 {
 	struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
 
-	__unwind_incomplete_requests(engine);
+	return __unwind_incomplete_requests(engine);
 }
 
 static inline void
@@ -893,96 +893,6 @@ invalidate_csb_entries(const u32 *first, const u32 *last)
 	clflush((void *)last);
 }
 
-static void reset_csb_pointers(struct intel_engine_execlists *execlists)
-{
-	const unsigned int reset_value = GEN8_CSB_ENTRIES - 1;
-
-	/*
-	 * After a reset, the HW starts writing into CSB entry [0]. We
-	 * therefore have to set our HEAD pointer back one entry so that
-	 * the *first* entry we check is entry 0. To complicate this further,
-	 * as we don't wait for the first interrupt after reset, we have to
-	 * fake the HW write to point back to the last entry so that our
-	 * inline comparison of our cached head position against the last HW
-	 * write works even before the first interrupt.
-	 */
-	execlists->csb_head = reset_value;
-	WRITE_ONCE(*execlists->csb_write, reset_value);
-
-	invalidate_csb_entries(&execlists->csb_status[0],
-			       &execlists->csb_status[GEN8_CSB_ENTRIES - 1]);
-}
-
-static void nop_submission_tasklet(unsigned long data)
-{
-	/* The driver is wedged; don't process any more events. */
-}
-
-static void execlists_cancel_requests(struct intel_engine_cs *engine)
-{
-	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct i915_request *rq, *rn;
-	struct rb_node *rb;
-	unsigned long flags;
-
-	GEM_TRACE("%s\n", engine->name);
-
-	/*
-	 * Before we call engine->cancel_requests(), we should have exclusive
-	 * access to the submission state. This is arranged for us by the
-	 * caller disabling the interrupt generation, the tasklet and other
-	 * threads that may then access the same state, giving us a free hand
-	 * to reset state. However, we still need to let lockdep be aware that
-	 * we know this state may be accessed in hardirq context, so we
-	 * disable the irq around this manipulation and we want to keep
-	 * the spinlock focused on its duties and not accidentally conflate
-	 * coverage to the submission's irq state. (Similarly, although we
-	 * shouldn't need to disable irq around the manipulation of the
-	 * submission's irq state, we also wish to remind ourselves that
-	 * it is irq state.)
-	 */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
-
-	/* Cancel the requests on the HW and clear the ELSP tracker. */
-	execlists_cancel_port_requests(execlists);
-	execlists_user_end(execlists);
-
-	/* Mark all executing requests as skipped. */
-	list_for_each_entry(rq, &engine->timeline.requests, link) {
-		if (!i915_request_signaled(rq))
-			dma_fence_set_error(&rq->fence, -EIO);
-
-		i915_request_mark_complete(rq);
-	}
-
-	/* Flush the queued requests to the timeline list (for retiring). */
-	while ((rb = rb_first_cached(&execlists->queue))) {
-		struct i915_priolist *p = to_priolist(rb);
-		int i;
-
-		priolist_for_each_request_consume(rq, rn, p, i) {
-			list_del_init(&rq->sched.link);
-			__i915_request_submit(rq);
-			dma_fence_set_error(&rq->fence, -EIO);
-			i915_request_mark_complete(rq);
-		}
-
-		rb_erase_cached(&p->node, &execlists->queue);
-		i915_priolist_free(p);
-	}
-
-	/* Remaining _unready_ requests will be nop'ed when submitted */
-
-	execlists->queue_priority_hint = INT_MIN;
-	execlists->queue = RB_ROOT_CACHED;
-	GEM_BUG_ON(port_isset(execlists->port));
-
-	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
-	execlists->tasklet.func = nop_submission_tasklet;
-
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
-}
-
 static inline bool
 reset_in_progress(const struct intel_engine_execlists *execlists)
 {
@@ -994,6 +904,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
 	const u32 * const buf = execlists->csb_status;
+	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
 
 	lockdep_assert_held(&engine->timeline.lock);
@@ -1029,7 +940,7 @@ static void process_csb(struct intel_engine_cs *engine)
 		unsigned int status;
 		unsigned int count;
 
-		if (++head == GEN8_CSB_ENTRIES)
+		if (++head == num_entries)
 			head = 0;
 
 		/*
@@ -1151,7 +1062,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	 * the wash as hardware, working or not, will need to do the
 	 * invalidation before.
 	 */
-	invalidate_csb_entries(&buf[0], &buf[GEN8_CSB_ENTRIES - 1]);
+	invalidate_csb_entries(&buf[0], &buf[num_entries - 1]);
 }
 
 static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
@@ -1379,9 +1290,33 @@ static int execlists_context_pin(struct intel_context *ce)
 	return __execlists_context_pin(ce, ce->engine);
 }
 
+static void execlists_context_reset(struct intel_context *ce)
+{
+	/*
+	 * Because we emit WA_TAIL_DWORDS there may be a disparity
+	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
+	 * that stored in context. As we only write new commands from
+	 * ce->ring->tail onwards, everything before that is junk. If the GPU
+	 * starts reading from its RING_HEAD from the context, it may try to
+	 * execute that junk and die.
+	 *
+	 * The contexts that are stilled pinned on resume belong to the
+	 * kernel, and are local to each engine. All other contexts will
+	 * have their head/tail sanitized upon pinning before use, so they
+	 * will never see garbage,
+	 *
+	 * So to avoid that we reset the context images upon resume. For
+	 * simplicity, we just zero everything out.
+	 */
+	intel_ring_reset(ce->ring, 0);
+	__execlists_update_reg_state(ce, ce->engine);
+}
+
 static const struct intel_context_ops execlists_context_ops = {
 	.pin = execlists_context_pin,
 	.unpin = execlists_context_unpin,
+
+	.reset = execlists_context_reset,
 	.destroy = execlists_context_destroy,
 };
 
@@ -1451,10 +1386,11 @@ static int emit_pdps(struct i915_request *rq)
 	*cs++ = MI_LOAD_REGISTER_IMM(2 * GEN8_3LVL_PDPES) | MI_LRI_FORCE_POSTED;
 	for (i = GEN8_3LVL_PDPES; i--; ) {
 		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
+		u32 base = engine->mmio_base;
 
-		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(engine, i));
+		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(base, i));
 		*cs++ = upper_32_bits(pd_daddr);
-		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(engine, i));
+		*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(base, i));
 		*cs++ = lower_32_bits(pd_daddr);
 	}
 	*cs++ = MI_NOOP;
@@ -1823,17 +1759,9 @@ static void enable_execlists(struct intel_engine_cs *engine)
 
 	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
-	/*
-	 * Make sure we're not enabling the new 12-deep CSB
-	 * FIFO as that requires a slightly updated handling
-	 * in the ctx switch irq. Since we're currently only
-	 * using only 2 elements of the enhanced execlists the
-	 * deeper FIFO it's not needed and it's not worth adding
-	 * more statements to the irq handler to support it.
-	 */
 	if (INTEL_GEN(dev_priv) >= 11)
 		I915_WRITE(RING_MODE_GEN7(engine),
-			   _MASKED_BIT_DISABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
+			   _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
 	else
 		I915_WRITE(RING_MODE_GEN7(engine),
 			   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
@@ -1903,7 +1831,6 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 
 	/* And flush any current direct submission. */
 	spin_lock_irqsave(&engine->timeline.lock, flags);
-	process_csb(engine); /* drain preemption events */
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
@@ -1924,14 +1851,48 @@ static bool lrc_regs_ok(const struct i915_request *rq)
 	return true;
 }
 
-static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
+static void reset_csb_pointers(struct intel_engine_execlists *execlists)
+{
+	const unsigned int reset_value = execlists->csb_size - 1;
+
+	/*
+	 * After a reset, the HW starts writing into CSB entry [0]. We
+	 * therefore have to set our HEAD pointer back one entry so that
+	 * the *first* entry we check is entry 0. To complicate this further,
+	 * as we don't wait for the first interrupt after reset, we have to
+	 * fake the HW write to point back to the last entry so that our
+	 * inline comparison of our cached head position against the last HW
+	 * write works even before the first interrupt.
+	 */
+	execlists->csb_head = reset_value;
+	WRITE_ONCE(*execlists->csb_write, reset_value);
+	wmb(); /* Make sure this is visible to HW (paranoia?) */
+
+	invalidate_csb_entries(&execlists->csb_status[0],
+			       &execlists->csb_status[reset_value]);
+}
+
+static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct intel_context *ce;
 	struct i915_request *rq;
-	unsigned long flags;
 	u32 *regs;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	process_csb(engine); /* drain preemption events */
+
+	/* Following the reset, we need to reload the CSB read/write pointers */
+	reset_csb_pointers(&engine->execlists);
+
+	/*
+	 * Save the currently executing context, even if we completed
+	 * its request, it was still running at the time of the
+	 * reset and will have been clobbered.
+	 */
+	if (!port_isset(execlists->port))
+		goto out_clear;
+
+	ce = port_request(execlists->port)->hw_context;
 
 	/*
 	 * Catch up with any missed context-switch interrupts.
@@ -1946,12 +1907,13 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 	/* Push back any incomplete requests for replay after the reset. */
 	rq = __unwind_incomplete_requests(engine);
-
-	/* Following the reset, we need to reload the CSB read/write pointers */
-	reset_csb_pointers(&engine->execlists);
-
 	if (!rq)
-		goto out_unlock;
+		goto out_replay;
+
+	if (rq->hw_context != ce) { /* caught just before a CS event */
+		rq = NULL;
+		goto out_replay;
+	}
 
 	/*
 	 * If this request hasn't started yet, e.g. it is waiting on a
@@ -1966,7 +1928,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * perfectly and we do not need to flag the result as being erroneous.
 	 */
 	if (!i915_request_started(rq) && lrc_regs_ok(rq))
-		goto out_unlock;
+		goto out_replay;
 
 	/*
 	 * If the request was innocent, we leave the request in the ELSP
@@ -1981,7 +1943,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 */
 	i915_reset_request(rq, stalled);
 	if (!stalled && lrc_regs_ok(rq))
-		goto out_unlock;
+		goto out_replay;
 
 	/*
 	 * We want a simple context + ring to execute the breadcrumb update.
@@ -1991,21 +1953,103 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	regs = rq->hw_context->lrc_reg_state;
+	regs = ce->lrc_reg_state;
 	if (engine->pinned_default_state) {
 		memcpy(regs, /* skip restoring the vanilla PPHWSP */
 		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
 		       engine->context_size - PAGE_SIZE);
 	}
+	execlists_init_reg_state(regs, ce, engine, ce->ring);
 
 	/* Rerun the request; its payload has been neutered (if guilty). */
-	rq->ring->head = intel_ring_wrap(rq->ring, rq->head);
-	intel_ring_update_space(rq->ring);
+out_replay:
+	ce->ring->head =
+		rq ? intel_ring_wrap(ce->ring, rq->head) : ce->ring->tail;
+	intel_ring_update_space(ce->ring);
+	__execlists_update_reg_state(ce, engine);
 
-	execlists_init_reg_state(regs, rq->hw_context, engine, rq->ring);
-	__execlists_update_reg_state(rq->hw_context, engine);
+out_clear:
+	execlists_clear_all_active(execlists);
+}
 
-out_unlock:
+static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
+{
+	unsigned long flags;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	__execlists_reset(engine, stalled);
+
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+static void nop_submission_tasklet(unsigned long data)
+{
+	/* The driver is wedged; don't process any more events. */
+}
+
+static void execlists_cancel_requests(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_request *rq, *rn;
+	struct rb_node *rb;
+	unsigned long flags;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	/*
+	 * Before we call engine->cancel_requests(), we should have exclusive
+	 * access to the submission state. This is arranged for us by the
+	 * caller disabling the interrupt generation, the tasklet and other
+	 * threads that may then access the same state, giving us a free hand
+	 * to reset state. However, we still need to let lockdep be aware that
+	 * we know this state may be accessed in hardirq context, so we
+	 * disable the irq around this manipulation and we want to keep
+	 * the spinlock focused on its duties and not accidentally conflate
+	 * coverage to the submission's irq state. (Similarly, although we
+	 * shouldn't need to disable irq around the manipulation of the
+	 * submission's irq state, we also wish to remind ourselves that
+	 * it is irq state.)
+	 */
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	__execlists_reset(engine, true);
+
+	/* Mark all executing requests as skipped. */
+	list_for_each_entry(rq, &engine->timeline.requests, link) {
+		if (!i915_request_signaled(rq))
+			dma_fence_set_error(&rq->fence, -EIO);
+
+		i915_request_mark_complete(rq);
+	}
+
+	/* Flush the queued requests to the timeline list (for retiring). */
+	while ((rb = rb_first_cached(&execlists->queue))) {
+		struct i915_priolist *p = to_priolist(rb);
+		int i;
+
+		priolist_for_each_request_consume(rq, rn, p, i) {
+			list_del_init(&rq->sched.link);
+			__i915_request_submit(rq);
+			dma_fence_set_error(&rq->fence, -EIO);
+			i915_request_mark_complete(rq);
+		}
+
+		rb_erase_cached(&p->node, &execlists->queue);
+		i915_priolist_free(p);
+	}
+
+	/* Remaining _unready_ requests will be nop'ed when submitted */
+
+	execlists->queue_priority_hint = INT_MIN;
+	execlists->queue = RB_ROOT_CACHED;
+	GEM_BUG_ON(port_isset(execlists->port));
+
+	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
+	execlists->tasklet.func = nop_submission_tasklet;
+
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
@@ -2035,7 +2079,7 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 {
 	u32 *cs;
 
-	cs = intel_ring_begin(rq, 6);
+	cs = intel_ring_begin(rq, 4);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -2046,19 +2090,37 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 	 * particular all the gen that do not need the w/a at all!), if we
 	 * took care to make sure that on every switch into this context
 	 * (both ordinary and for preemption) that arbitrartion was enabled
-	 * we would be fine. However, there doesn't seem to be a downside to
-	 * being paranoid and making sure it is set before each batch and
-	 * every context-switch.
-	 *
-	 * Note that if we fail to enable arbitration before the request
-	 * is complete, then we do not see the context-switch interrupt and
-	 * the engine hangs (with RING_HEAD == RING_TAIL).
-	 *
-	 * That satisfies both the GPGPU w/a and our heavy-handed paranoia.
+	 * we would be fine.  However, for gen8 there is another w/a that
+	 * requires us to not preempt inside GPGPU execution, so we keep
+	 * arbitration disabled for gen8 batches. Arbitration will be
+	 * re-enabled before we close the request
+	 * (engine->emit_fini_breadcrumb).
 	 */
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+
+	/* FIXME(BDW+): Address space and security selectors. */
+	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
+		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8));
+	*cs++ = lower_32_bits(offset);
+	*cs++ = upper_32_bits(offset);
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int gen9_emit_bb_start(struct i915_request *rq,
+			      u64 offset, u32 len,
+			      const unsigned int flags)
+{
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 6);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 
-	/* FIXME(BDW): Address space and security selectors. */
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
 		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8));
 	*cs++ = lower_32_bits(offset);
@@ -2309,6 +2371,8 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->execlists.tasklet.func = execlists_submission_tasklet;
 
 	engine->reset.prepare = execlists_reset_prepare;
+	engine->reset.reset = execlists_reset;
+	engine->reset.finish = execlists_reset_finish;
 
 	engine->park = NULL;
 	engine->unpark = NULL;
@@ -2316,7 +2380,8 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
 	if (!intel_vgpu_active(engine->i915))
 		engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
-	if (engine->preempt_context)
+	if (engine->preempt_context &&
+	    HAS_LOGICAL_RING_PREEMPTION(engine->i915))
 		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 }
 
@@ -2350,7 +2415,10 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		 * until a more refined solution exists.
 		 */
 	}
-	engine->emit_bb_start = gen8_emit_bb_start;
+	if (IS_GEN(engine->i915, 8))
+		engine->emit_bb_start = gen8_emit_bb_start;
+	else
+		engine->emit_bb_start = gen9_emit_bb_start;
 }
 
 static inline void
@@ -2428,6 +2496,11 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 
 	execlists->csb_write =
 		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
+
+	if (INTEL_GEN(engine->i915) < 11)
+		execlists->csb_size = GEN8_CSB_ENTRIES;
+	else
+		execlists->csb_size = GEN11_CSB_ENTRIES;
 
 	reset_csb_pointers(execlists);
 
@@ -2707,14 +2780,14 @@ static void execlists_init_reg_state(u32 *regs,
 
 	CTX_REG(regs, CTX_CTX_TIMESTAMP, RING_CTX_TIMESTAMP(base), 0);
 	/* PDP values well be assigned later if needed */
-	CTX_REG(regs, CTX_PDP3_UDW, GEN8_RING_PDP_UDW(engine, 3), 0);
-	CTX_REG(regs, CTX_PDP3_LDW, GEN8_RING_PDP_LDW(engine, 3), 0);
-	CTX_REG(regs, CTX_PDP2_UDW, GEN8_RING_PDP_UDW(engine, 2), 0);
-	CTX_REG(regs, CTX_PDP2_LDW, GEN8_RING_PDP_LDW(engine, 2), 0);
-	CTX_REG(regs, CTX_PDP1_UDW, GEN8_RING_PDP_UDW(engine, 1), 0);
-	CTX_REG(regs, CTX_PDP1_LDW, GEN8_RING_PDP_LDW(engine, 1), 0);
-	CTX_REG(regs, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(engine, 0), 0);
-	CTX_REG(regs, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0), 0);
+	CTX_REG(regs, CTX_PDP3_UDW, GEN8_RING_PDP_UDW(base, 3), 0);
+	CTX_REG(regs, CTX_PDP3_LDW, GEN8_RING_PDP_LDW(base, 3), 0);
+	CTX_REG(regs, CTX_PDP2_UDW, GEN8_RING_PDP_UDW(base, 2), 0);
+	CTX_REG(regs, CTX_PDP2_LDW, GEN8_RING_PDP_LDW(base, 2), 0);
+	CTX_REG(regs, CTX_PDP1_UDW, GEN8_RING_PDP_UDW(base, 1), 0);
+	CTX_REG(regs, CTX_PDP1_LDW, GEN8_RING_PDP_LDW(base, 1), 0);
+	CTX_REG(regs, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(base, 0), 0);
+	CTX_REG(regs, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(base, 0), 0);
 
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
 		/* 64b PPGTT (48bit canonical)
@@ -2872,31 +2945,6 @@ error_deref_obj:
 	return ret;
 }
 
-void intel_lr_context_resume(struct drm_i915_private *i915)
-{
-	struct i915_gem_context *ctx;
-	struct intel_context *ce;
-
-	/*
-	 * Because we emit WA_TAIL_DWORDS there may be a disparity
-	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
-	 * that stored in context. As we only write new commands from
-	 * ce->ring->tail onwards, everything before that is junk. If the GPU
-	 * starts reading from its RING_HEAD from the context, it may try to
-	 * execute that junk and die.
-	 *
-	 * So to avoid that we reset the context images upon resume. For
-	 * simplicity, we just zero everything out.
-	 */
-	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		list_for_each_entry(ce, &ctx->active_engines, active_link) {
-			GEM_BUG_ON(!ce->ring);
-			intel_ring_reset(ce->ring, 0);
-			__execlists_update_reg_state(ce, ce->engine);
-		}
-	}
-}
-
 void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   struct drm_printer *m,
 				   void (*show_request)(struct drm_printer *m,
@@ -2955,6 +3003,37 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 	}
 
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+void intel_lr_context_reset(struct intel_engine_cs *engine,
+			    struct intel_context *ce,
+			    u32 head,
+			    bool scrub)
+{
+	/*
+	 * We want a simple context + ring to execute the breadcrumb update.
+	 * We cannot rely on the context being intact across the GPU hang,
+	 * so clear it and rebuild just what we need for the breadcrumb.
+	 * All pending requests for this context will be zapped, and any
+	 * future request will be after userspace has had the opportunity
+	 * to recreate its own state.
+	 */
+	if (scrub) {
+		u32 *regs = ce->lrc_reg_state;
+
+		if (engine->pinned_default_state) {
+			memcpy(regs, /* skip restoring the vanilla PPHWSP */
+			       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
+			       engine->context_size - PAGE_SIZE);
+		}
+		execlists_init_reg_state(regs, ce, engine, ce->ring);
+	}
+
+	/* Rerun the request; its payload has been neutered (if guilty). */
+	ce->ring->head = head;
+	intel_ring_update_space(ce->ring);
+
+	__execlists_update_reg_state(ce, engine);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

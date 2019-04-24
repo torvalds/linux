@@ -17,6 +17,33 @@
 
 static LIST_HEAD(globals);
 
+static atomic_t active;
+static atomic_t epoch;
+static struct park_work {
+	struct rcu_work work;
+	int epoch;
+} park;
+
+static void i915_globals_shrink(void)
+{
+	struct i915_global *global;
+
+	/*
+	 * kmem_cache_shrink() discards empty slabs and reorders partially
+	 * filled slabs to prioritise allocating from the mostly full slabs,
+	 * with the aim of reducing fragmentation.
+	 */
+	list_for_each_entry(global, &globals, link)
+		global->shrink();
+}
+
+static void __i915_globals_park(struct work_struct *work)
+{
+	/* Confirm nothing woke up in the last grace period */
+	if (park.epoch == atomic_read(&epoch))
+		i915_globals_shrink();
+}
+
 void __init i915_global_register(struct i915_global *global)
 {
 	GEM_BUG_ON(!global->shrink);
@@ -57,44 +84,12 @@ int __init i915_globals_init(void)
 		}
 	}
 
+	INIT_RCU_WORK(&park.work, __i915_globals_park);
 	return 0;
-}
-
-static void i915_globals_shrink(void)
-{
-	struct i915_global *global;
-
-	/*
-	 * kmem_cache_shrink() discards empty slabs and reorders partially
-	 * filled slabs to prioritise allocating from the mostly full slabs,
-	 * with the aim of reducing fragmentation.
-	 */
-	list_for_each_entry(global, &globals, link)
-		global->shrink();
-}
-
-static atomic_t active;
-static atomic_t epoch;
-struct park_work {
-	struct rcu_work work;
-	int epoch;
-};
-
-static void __i915_globals_park(struct work_struct *work)
-{
-	struct park_work *wrk = container_of(work, typeof(*wrk), work.work);
-
-	/* Confirm nothing woke up in the last grace period */
-	if (wrk->epoch == atomic_read(&epoch))
-		i915_globals_shrink();
-
-	kfree(wrk);
 }
 
 void i915_globals_park(void)
 {
-	struct park_work *wrk;
-
 	/*
 	 * Defer shrinking the global slab caches (and other work) until
 	 * after a RCU grace period has completed with no activity. This
@@ -107,13 +102,8 @@ void i915_globals_park(void)
 	if (!atomic_dec_and_test(&active))
 		return;
 
-	wrk = kmalloc(sizeof(*wrk), GFP_KERNEL);
-	if (!wrk)
-		return;
-
-	wrk->epoch = atomic_inc_return(&epoch);
-	INIT_RCU_WORK(&wrk->work, __i915_globals_park);
-	queue_rcu_work(system_wq, &wrk->work);
+	park.epoch = atomic_inc_return(&epoch);
+	queue_rcu_work(system_wq, &park.work);
 }
 
 void i915_globals_unpark(void)
@@ -125,8 +115,8 @@ void i915_globals_unpark(void)
 void __exit i915_globals_exit(void)
 {
 	/* Flush any residual park_work */
-	rcu_barrier();
-	flush_scheduled_work();
+	atomic_inc(&epoch);
+	flush_rcu_work(&park.work);
 
 	__i915_globals_cleanup();
 

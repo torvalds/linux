@@ -569,7 +569,7 @@ void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 
 	wa_init_start(wal, "context");
 
-	if (IS_ICELAKE(i915))
+	if (IS_GEN(i915, 11))
 		icl_ctx_workarounds_init(engine);
 	else if (IS_CANNONLAKE(i915))
 		cnl_ctx_workarounds_init(engine);
@@ -729,9 +729,9 @@ cfl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
+wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
 	u32 mcr_slice_subslice_mask;
 
 	/*
@@ -747,14 +747,15 @@ wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
 	 * something more complex that requires checking the range of every
 	 * MMIO read).
 	 */
-	if (INTEL_GEN(dev_priv) >= 10 &&
+	if (INTEL_GEN(i915) >= 10 &&
 	    is_power_of_2(sseu->slice_mask)) {
 		/*
 		 * read FUSE3 for enabled L3 Bank IDs, if L3 Bank matches
 		 * enabled subslice, no need to redirect MCR packet
 		 */
 		u32 slice = fls(sseu->slice_mask);
-		u32 fuse3 = I915_READ(GEN10_MIRROR_FUSE3);
+		u32 fuse3 =
+			intel_uncore_read(&i915->uncore, GEN10_MIRROR_FUSE3);
 		u8 ss_mask = sseu->subslice_mask[slice];
 
 		u8 enabled_mask = (ss_mask | ss_mask >>
@@ -768,7 +769,7 @@ wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
 		WARN_ON((enabled_mask & disabled_mask) != enabled_mask);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (INTEL_GEN(i915) >= 11)
 		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
 					  GEN11_MCR_SUBSLICE_MASK;
 	else
@@ -788,7 +789,7 @@ wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
 	wa_write_masked_or(wal,
 			   GEN8_MCR_SELECTOR,
 			   mcr_slice_subslice_mask,
-			   intel_calculate_mcr_s_ss_select(dev_priv));
+			   intel_calculate_mcr_s_ss_select(i915));
 }
 
 static void
@@ -867,7 +868,7 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	if (IS_ICELAKE(i915))
+	if (IS_GEN(i915, 11))
 		icl_gt_workarounds_init(i915, wal);
 	else if (IS_CANNONLAKE(i915))
 		cnl_gt_workarounds_init(i915, wal);
@@ -897,15 +898,14 @@ void intel_gt_init_workarounds(struct drm_i915_private *i915)
 }
 
 static enum forcewake_domains
-wal_get_fw_for_rmw(struct drm_i915_private *dev_priv,
-		   const struct i915_wa_list *wal)
+wal_get_fw_for_rmw(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 {
 	enum forcewake_domains fw = 0;
 	struct i915_wa *wa;
 	unsigned int i;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		fw |= intel_uncore_forcewake_for_reg(&dev_priv->uncore,
+		fw |= intel_uncore_forcewake_for_reg(uncore,
 						     wa->reg,
 						     FW_REG_READ |
 						     FW_REG_WRITE);
@@ -914,7 +914,7 @@ wal_get_fw_for_rmw(struct drm_i915_private *dev_priv,
 }
 
 static void
-wa_list_apply(struct drm_i915_private *dev_priv, const struct i915_wa_list *wal)
+wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 {
 	enum forcewake_domains fw;
 	unsigned long flags;
@@ -924,27 +924,22 @@ wa_list_apply(struct drm_i915_private *dev_priv, const struct i915_wa_list *wal)
 	if (!wal->count)
 		return;
 
-	fw = wal_get_fw_for_rmw(dev_priv, wal);
+	fw = wal_get_fw_for_rmw(uncore, wal);
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	intel_uncore_forcewake_get__locked(&dev_priv->uncore, fw);
+	spin_lock_irqsave(&uncore->lock, flags);
+	intel_uncore_forcewake_get__locked(uncore, fw);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
-		u32 val = I915_READ_FW(wa->reg);
-
-		val &= ~wa->mask;
-		val |= wa->val;
-
-		I915_WRITE_FW(wa->reg, val);
+		intel_uncore_rmw_fw(uncore, wa->reg, wa->mask, wa->val);
 	}
 
-	intel_uncore_forcewake_put__locked(&dev_priv->uncore, fw);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
+	intel_uncore_forcewake_put__locked(uncore, fw);
+	spin_unlock_irqrestore(&uncore->lock, flags);
 }
 
-void intel_gt_apply_workarounds(struct drm_i915_private *dev_priv)
+void intel_gt_apply_workarounds(struct drm_i915_private *i915)
 {
-	wa_list_apply(dev_priv, &dev_priv->gt_wa_list);
+	wa_list_apply(&i915->uncore, &i915->gt_wa_list);
 }
 
 static bool
@@ -961,7 +956,7 @@ wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 	return true;
 }
 
-static bool wa_list_verify(struct drm_i915_private *dev_priv,
+static bool wa_list_verify(struct intel_uncore *uncore,
 			   const struct i915_wa_list *wal,
 			   const char *from)
 {
@@ -970,15 +965,17 @@ static bool wa_list_verify(struct drm_i915_private *dev_priv,
 	bool ok = true;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		ok &= wa_verify(wa, I915_READ(wa->reg), wal->name, from);
+		ok &= wa_verify(wa,
+				intel_uncore_read(uncore, wa->reg),
+				wal->name, from);
 
 	return ok;
 }
 
-bool intel_gt_verify_workarounds(struct drm_i915_private *dev_priv,
+bool intel_gt_verify_workarounds(struct drm_i915_private *i915,
 				 const char *from)
 {
-	return wa_list_verify(dev_priv, &dev_priv->gt_wa_list, from);
+	return wa_list_verify(&i915->uncore, &i915->gt_wa_list, from);
 }
 
 static void
@@ -1064,7 +1061,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 
 	wa_init_start(w, "whitelist");
 
-	if (IS_ICELAKE(i915))
+	if (IS_GEN(i915, 11))
 		icl_whitelist_build(w);
 	else if (IS_CANNONLAKE(i915))
 		cnl_whitelist_build(w);
@@ -1088,8 +1085,8 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 
 void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	const struct i915_wa_list *wal = &engine->whitelist;
+	struct intel_uncore *uncore = engine->uncore;
 	const u32 base = engine->mmio_base;
 	struct i915_wa *wa;
 	unsigned int i;
@@ -1098,13 +1095,15 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 		return;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		I915_WRITE(RING_FORCE_TO_NONPRIV(base, i),
-			   i915_mmio_reg_offset(wa->reg));
+		intel_uncore_write(uncore,
+				   RING_FORCE_TO_NONPRIV(base, i),
+				   i915_mmio_reg_offset(wa->reg));
 
 	/* And clear the rest just in case of garbage */
 	for (; i < RING_MAX_NONPRIV_SLOTS; i++)
-		I915_WRITE(RING_FORCE_TO_NONPRIV(base, i),
-			   i915_mmio_reg_offset(RING_NOPID(base)));
+		intel_uncore_write(uncore,
+				   RING_FORCE_TO_NONPRIV(base, i),
+				   i915_mmio_reg_offset(RING_NOPID(base)));
 }
 
 static void
@@ -1112,7 +1111,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (IS_ICELAKE(i915)) {
+	if (IS_GEN(i915, 11)) {
 		/* This is not an Wa. Enable for better image quality */
 		wa_masked_en(wal,
 			     _3D_CHICKEN3,
@@ -1253,7 +1252,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 
 void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 {
-	wa_list_apply(engine->i915, &engine->wa_list);
+	wa_list_apply(engine->uncore, &engine->wa_list);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

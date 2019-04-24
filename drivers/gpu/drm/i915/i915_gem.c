@@ -50,6 +50,7 @@
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 #include "intel_mocs.h"
+#include "intel_pm.h"
 #include "intel_workarounds.h"
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
@@ -308,7 +309,7 @@ static void __start_cpu_write(struct drm_i915_gem_object *obj)
 		obj->cache_dirty = true;
 }
 
-static void
+void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
 				bool needs_clflush)
@@ -2202,7 +2203,6 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 	struct page *page;
 
 	__i915_gem_object_release_shmem(obj, pages, true);
-
 	i915_gem_gtt_finish_pages(obj, pages);
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
@@ -2789,7 +2789,11 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	u64 remain, offset;
 	unsigned int pg;
 
-	/* Before we instantiate/pin the backing store for our use, we
+	/* Caller already validated user args */
+	GEM_BUG_ON(!access_ok(user_data, arg->size));
+
+	/*
+	 * Before we instantiate/pin the backing store for our use, we
 	 * can prepopulate the shmemfs filp efficiently using a write into
 	 * the pagecache. We avoid the penalty of instantiating all the
 	 * pages, important if the user is just writing to a few and never
@@ -2803,7 +2807,8 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	if (obj->mm.madv != I915_MADV_WILLNEED)
 		return -EFAULT;
 
-	/* Before the pages are instantiated the object is treated as being
+	/*
+	 * Before the pages are instantiated the object is treated as being
 	 * in the CPU domain. The pages will be clflushed as required before
 	 * use, and we can freely write into the pages directly. If userspace
 	 * races pwrite with any other operation; corruption will ensue -
@@ -2819,10 +2824,20 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 		struct page *page;
 		void *data, *vaddr;
 		int err;
+		char c;
 
 		len = PAGE_SIZE - pg;
 		if (len > remain)
 			len = remain;
+
+		/* Prefault the user page to reduce potential recursion */
+		err = __get_user(c, user_data);
+		if (err)
+			return err;
+
+		err = __get_user(c, user_data + len - 1);
+		if (err)
+			return err;
 
 		err = pagecache_write_begin(obj->base.filp, mapping,
 					    offset, len, 0,
@@ -2830,9 +2845,11 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 		if (err < 0)
 			return err;
 
-		vaddr = kmap(page);
-		unwritten = copy_from_user(vaddr + pg, user_data, len);
-		kunmap(page);
+		vaddr = kmap_atomic(page);
+		unwritten = __copy_from_user_inatomic(vaddr + pg,
+						      user_data,
+						      len);
+		kunmap_atomic(vaddr);
 
 		err = pagecache_write_end(obj->base.filp, mapping,
 					  offset, len, len - unwritten,
@@ -2840,8 +2857,9 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 		if (err < 0)
 			return err;
 
+		/* We don't handle -EFAULT, leave it to the caller to check */
 		if (unwritten)
-			return -EFAULT;
+			return -ENODEV;
 
 		remain -= len;
 		user_data += len;
@@ -3824,16 +3842,16 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 	return vma;
 }
 
-static __always_inline unsigned int __busy_read_flag(unsigned int id)
+static __always_inline u32 __busy_read_flag(u8 id)
 {
-	if (id == I915_ENGINE_CLASS_INVALID)
-		return 0xffff0000;
+	if (id == (u8)I915_ENGINE_CLASS_INVALID)
+		return 0xffff0000u;
 
 	GEM_BUG_ON(id >= 16);
-	return 0x10000 << id;
+	return 0x10000u << id;
 }
 
-static __always_inline unsigned int __busy_write_id(unsigned int id)
+static __always_inline u32 __busy_write_id(u8 id)
 {
 	/*
 	 * The uABI guarantees an active writer is also amongst the read
@@ -3844,15 +3862,14 @@ static __always_inline unsigned int __busy_write_id(unsigned int id)
 	 * last_read - hence we always set both read and write busy for
 	 * last_write.
 	 */
-	if (id == I915_ENGINE_CLASS_INVALID)
-		return 0xffffffff;
+	if (id == (u8)I915_ENGINE_CLASS_INVALID)
+		return 0xffffffffu;
 
 	return (id + 1) | __busy_read_flag(id);
 }
 
 static __always_inline unsigned int
-__busy_set_if_active(const struct dma_fence *fence,
-		     unsigned int (*flag)(unsigned int id))
+__busy_set_if_active(const struct dma_fence *fence, u32 (*flag)(u8 id))
 {
 	const struct i915_request *rq;
 
@@ -3872,6 +3889,8 @@ __busy_set_if_active(const struct dma_fence *fence,
 	if (i915_request_completed(rq))
 		return 0;
 
+	/* Beware type-expansion follies! */
+	BUILD_BUG_ON(!typecheck(u8, rq->engine->uabi_class));
 	return flag(rq->engine->uabi_class);
 }
 
@@ -4494,7 +4513,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	i915->gt.resume(i915);
+	intel_gt_resume(i915);
 
 	if (i915_gem_init_hw(i915))
 		goto err_wedged;
@@ -4834,13 +4853,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		dev_priv->gt.resume = intel_lr_context_resume;
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv))
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
-	} else {
-		dev_priv->gt.resume = intel_legacy_submission_resume;
+	else
 		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
-	}
 
 	i915_timelines_init(dev_priv);
 

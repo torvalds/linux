@@ -31,8 +31,9 @@
 #include "i915_drv.h"
 #include "i915_globals.h"
 #include "i915_selftest.h"
+#include "intel_fbdev.h"
 
-#define PLATFORM(x) .platform = (x), .platform_mask = BIT(x)
+#define PLATFORM(x) .platform = (x)
 #define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
 
 #define I845_PIPE_OFFSETS \
@@ -116,8 +117,16 @@
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
 	}
 
-#define BDW_COLORS \
-	.color = { .degamma_lut_size = 512, .gamma_lut_size = 512 }
+#define I9XX_COLORS \
+	.color = { .gamma_lut_size = 256 }
+#define I965_COLORS \
+	.color = { .gamma_lut_size = 129, \
+		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	}
+#define ILK_COLORS \
+	.color = { .gamma_lut_size = 1024 }
+#define IVB_COLORS \
+	.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
 #define CHV_COLORS \
 	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257, \
 		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
@@ -150,6 +159,7 @@
 	.has_coherent_ggtt = false, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
+	I9XX_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES
 
 #define I845_FEATURES \
@@ -166,6 +176,7 @@
 	.has_coherent_ggtt = false, \
 	I845_PIPE_OFFSETS, \
 	I845_CURSOR_OFFSETS, \
+	I9XX_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_i830_info = {
@@ -199,6 +210,7 @@ static const struct intel_device_info intel_i865g_info = {
 	.has_coherent_ggtt = true, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
+	I9XX_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_i915g_info = {
@@ -257,7 +269,14 @@ static const struct intel_device_info intel_g33_info = {
 	.display.has_overlay = 1,
 };
 
-static const struct intel_device_info intel_pineview_info = {
+static const struct intel_device_info intel_pineview_g_info = {
+	GEN3_FEATURES,
+	PLATFORM(INTEL_PINEVIEW),
+	.display.has_hotplug = 1,
+	.display.has_overlay = 1,
+};
+
+static const struct intel_device_info intel_pineview_m_info = {
 	GEN3_FEATURES,
 	PLATFORM(INTEL_PINEVIEW),
 	.is_mobile = 1,
@@ -276,6 +295,7 @@ static const struct intel_device_info intel_pineview_info = {
 	.has_coherent_ggtt = true, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
+	I965_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_i965g_info = {
@@ -325,6 +345,7 @@ static const struct intel_device_info intel_gm45_info = {
 	.has_rc6 = 0, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
+	ILK_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_ironlake_d_info = {
@@ -353,6 +374,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.ppgtt_size = 31, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
+	ILK_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES
 
 #define SNB_D_PLATFORM \
@@ -399,6 +421,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
+	IVB_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES
 
 #define IVB_D_PLATFORM \
@@ -457,6 +480,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	I9XX_PIPE_OFFSETS,
 	I9XX_CURSOR_OFFSETS,
+	I965_COLORS,
 	GEN_DEFAULT_PAGE_SIZES,
 };
 
@@ -494,7 +518,6 @@ static const struct intel_device_info intel_haswell_gt3_info = {
 #define GEN8_FEATURES \
 	G75_FEATURES, \
 	GEN(8), \
-	BDW_COLORS, \
 	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
 		      I915_GTT_PAGE_SIZE_2M, \
 	.has_logical_ring_contexts = 1, \
@@ -629,7 +652,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.display.has_ipc = 1, \
 	HSW_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
-	BDW_COLORS, \
+	IVB_COLORS, \
 	GEN9_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_broxton_info = {
@@ -761,7 +784,8 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_I965GM_IDS(&intel_i965gm_info),
 	INTEL_GM45_IDS(&intel_gm45_info),
 	INTEL_G45_IDS(&intel_g45_info),
-	INTEL_PINEVIEW_IDS(&intel_pineview_info),
+	INTEL_PINEVIEW_G_IDS(&intel_pineview_g_info),
+	INTEL_PINEVIEW_M_IDS(&intel_pineview_m_info),
 	INTEL_IRONLAKE_D_IDS(&intel_ironlake_d_info),
 	INTEL_IRONLAKE_M_IDS(&intel_ironlake_m_info),
 	INTEL_SNB_D_GT1_IDS(&intel_sandybridge_d_gt1_info),

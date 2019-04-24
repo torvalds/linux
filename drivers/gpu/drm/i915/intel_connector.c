@@ -23,12 +23,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
+
 #include "i915_drv.h"
+#include "intel_connector.h"
+#include "intel_drv.h"
+#include "intel_hdcp.h"
+#include "intel_panel.h"
 
 int intel_connector_init(struct intel_connector *connector)
 {

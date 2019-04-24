@@ -673,9 +673,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 	if (!pages)
 		return;
 
-	if (obj->mm.madv != I915_MADV_WILLNEED)
-		obj->mm.dirty = false;
-
+	__i915_gem_object_release_shmem(obj, pages, true);
 	i915_gem_gtt_finish_pages(obj, pages);
 
 	for_each_sgt_page(page, sgt_iter, pages) {

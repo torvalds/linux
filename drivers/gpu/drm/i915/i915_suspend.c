@@ -25,8 +25,10 @@
  */
 
 #include <drm/i915_drm.h>
-#include "intel_drv.h"
+
 #include "i915_reg.h"
+#include "intel_drv.h"
+#include "intel_fbc.h"
 
 static void i915_save_display(struct drm_i915_private *dev_priv)
 {

@@ -40,8 +40,10 @@
 
 #include <drm/drm_fourcc.h>
 
-#include "intel_drv.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
+#include "intel_fbc.h"
+#include "intel_frontbuffer.h"
 
 static inline bool fbc_supported(struct drm_i915_private *dev_priv)
 {

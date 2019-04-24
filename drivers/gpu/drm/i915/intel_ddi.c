@@ -26,9 +26,19 @@
  */
 
 #include <drm/drm_scdc_helper.h>
+
 #include "i915_drv.h"
+#include "intel_audio.h"
+#include "intel_connector.h"
+#include "intel_ddi.h"
+#include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_hdcp.h"
+#include "intel_hdmi.h"
+#include "intel_lspcon.h"
+#include "intel_panel.h"
+#include "intel_psr.h"
 
 struct ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */
@@ -3847,14 +3857,16 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 		ret = intel_hdmi_compute_config(encoder, pipe_config, conn_state);
 	else
 		ret = intel_dp_compute_config(encoder, pipe_config, conn_state);
+	if (ret)
+		return ret;
 
-	if (IS_GEN9_LP(dev_priv) && ret)
+	if (IS_GEN9_LP(dev_priv))
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
-	return ret;
+	return 0;
 
 }
 

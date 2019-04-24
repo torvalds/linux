@@ -11,13 +11,16 @@
 #include <linux/types.h>
 #include <linux/srcu.h>
 
+#include "intel_engine_types.h"
+
 struct drm_i915_private;
+struct i915_request;
 struct intel_engine_cs;
 struct intel_guc;
 
 __printf(4, 5)
 void i915_handle_error(struct drm_i915_private *i915,
-		       u32 engine_mask,
+		       intel_engine_mask_t engine_mask,
 		       unsigned long flags,
 		       const char *fmt, ...);
 #define I915_ERROR_CAPTURE BIT(0)
@@ -25,7 +28,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 void i915_clear_error_registers(struct drm_i915_private *i915);
 
 void i915_reset(struct drm_i915_private *i915,
-		unsigned int stalled_mask,
+		intel_engine_mask_t stalled_mask,
 		const char *reason);
 int i915_reset_engine(struct intel_engine_cs *engine,
 		      const char *reason);
@@ -41,7 +44,8 @@ int i915_terminally_wedged(struct drm_i915_private *i915);
 bool intel_has_gpu_reset(struct drm_i915_private *i915);
 bool intel_has_reset_engine(struct drm_i915_private *i915);
 
-int intel_gpu_reset(struct drm_i915_private *i915, u32 engine_mask);
+int intel_gpu_reset(struct drm_i915_private *i915,
+		    intel_engine_mask_t engine_mask);
 
 int intel_reset_guc(struct drm_i915_private *i915);
 

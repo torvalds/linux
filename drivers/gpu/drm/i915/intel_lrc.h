@@ -36,12 +36,10 @@
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
 #define   CTX_CTRL_RS_CTX_ENABLE		(1 << 1)
 #define	  CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT	(1 << 2)
-#define RING_CONTEXT_STATUS_BUF_BASE(base)	_MMIO((base) + 0x370)
-#define RING_CONTEXT_STATUS_BUF_LO(base, i)	_MMIO((base) + 0x370 + (i) * 8)
-#define RING_CONTEXT_STATUS_BUF_HI(base, i)	_MMIO((base) + 0x370 + (i) * 8 + 4)
 #define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
 #define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)
 #define RING_EXECLIST_CONTROL(base)		_MMIO((base) + 0x550)
+
 #define	  EL_CTRL_LOAD				(1 << 0)
 
 /* The docs specify that the write pointer wraps around after 5h, "After status
@@ -55,10 +53,11 @@
 #define GEN8_CSB_PTR_MASK 0x7
 #define GEN8_CSB_READ_PTR_MASK (GEN8_CSB_PTR_MASK << 8)
 #define GEN8_CSB_WRITE_PTR_MASK (GEN8_CSB_PTR_MASK << 0)
-#define GEN8_CSB_WRITE_PTR(csb_status) \
-	(((csb_status) & GEN8_CSB_WRITE_PTR_MASK) >> 0)
-#define GEN8_CSB_READ_PTR(csb_status) \
-	(((csb_status) & GEN8_CSB_READ_PTR_MASK) >> 8)
+
+#define GEN11_CSB_ENTRIES 12
+#define GEN11_CSB_PTR_MASK 0xf
+#define GEN11_CSB_READ_PTR_MASK (GEN11_CSB_PTR_MASK << 8)
+#define GEN11_CSB_WRITE_PTR_MASK (GEN11_CSB_PTR_MASK << 0)
 
 enum {
 	INTEL_CONTEXT_SCHEDULE_IN = 0,
@@ -102,8 +101,12 @@ struct drm_printer;
 struct drm_i915_private;
 struct i915_gem_context;
 
-void intel_lr_context_resume(struct drm_i915_private *dev_priv);
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
+
+void intel_lr_context_reset(struct intel_engine_cs *engine,
+			    struct intel_context *ce,
+			    u32 head,
+			    bool scrub);
 
 void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   struct drm_printer *m,

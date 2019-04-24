@@ -165,7 +165,7 @@ void execlists_user_end(struct intel_engine_execlists *execlists);
 void
 execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
 
-void
+struct i915_request *
 execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
 
 static inline unsigned int
@@ -267,8 +267,6 @@ static inline void intel_ring_put(struct intel_ring *ring)
 
 void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);
-
-void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
 
 int __must_check intel_ring_cacheline_align(struct i915_request *rq);
 
@@ -390,7 +388,7 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine);
 void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine);
 
-bool intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
+void intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
 static inline void
@@ -399,7 +397,7 @@ intel_engine_queue_breadcrumbs(struct intel_engine_cs *engine)
 	irq_work_queue(&engine->breadcrumbs.irq_work);
 }
 
-bool intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine);
+void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine);
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
@@ -463,6 +461,7 @@ static inline void intel_engine_reset(struct intel_engine_cs *engine,
 }
 
 void intel_engines_sanitize(struct drm_i915_private *i915, bool force);
+void intel_gt_resume(struct drm_i915_private *i915);
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);

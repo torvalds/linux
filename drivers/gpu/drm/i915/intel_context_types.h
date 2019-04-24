@@ -24,6 +24,7 @@ struct intel_context_ops {
 	int (*pin)(struct intel_context *ce);
 	void (*unpin)(struct intel_context *ce);
 
+	void (*reset)(struct intel_context *ce);
 	void (*destroy)(struct kref *kref);
 };
 

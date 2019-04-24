@@ -25,22 +25,34 @@
  *
  */
 
-#include <linux/i2c.h>
-#include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/types.h>
+#include <linux/i2c.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 #include <asm/byteorder.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_hdcp.h>
 #include <drm/drm_probe_helper.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_audio.h"
+#include "intel_connector.h"
+#include "intel_ddi.h"
+#include "intel_dp.h"
+#include "intel_drv.h"
+#include "intel_hdcp.h"
+#include "intel_hdmi.h"
+#include "intel_lspcon.h"
+#include "intel_lvds.h"
+#include "intel_panel.h"
+#include "intel_psr.h"
 
 #define DP_DPRX_ESI_LEN 14
 
@@ -1883,6 +1895,9 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	int pipe_bpp;
 	int ret;
 
+	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
+		intel_dp_supports_fec(intel_dp, pipe_config);
+
 	if (!intel_dp_supports_dsc(intel_dp, pipe_config))
 		return -EINVAL;
 
@@ -1966,6 +1981,14 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	return 0;
 }
 
+int intel_dp_min_bpp(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB)
+		return 6 * 3;
+	else
+		return 8 * 3;
+}
+
 static int
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
@@ -1989,7 +2012,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.min_lane_count = 1;
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = 6 * 3;
+	limits.min_bpp = intel_dp_min_bpp(pipe_config);
 	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 
 	if (intel_dp_is_edp(intel_dp)) {
@@ -2091,7 +2114,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		to_intel_digital_connector_state(conn_state);
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_CONSTANT_N);
-	int ret;
+	int ret, output_bpp;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -2136,9 +2159,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return -EINVAL;
 
-	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
-				  intel_dp_supports_fec(intel_dp, pipe_config);
-
 	ret = intel_dp_compute_link_config(encoder, pipe_config, conn_state);
 	if (ret < 0)
 		return ret;
@@ -2146,25 +2166,22 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
 
-	if (!pipe_config->dsc_params.compression_enable)
-		intel_link_compute_m_n(pipe_config->pipe_bpp,
-				       pipe_config->lane_count,
-				       adjusted_mode->crtc_clock,
-				       pipe_config->port_clock,
-				       &pipe_config->dp_m_n,
-				       constant_n);
+	if (pipe_config->dsc_params.compression_enable)
+		output_bpp = pipe_config->dsc_params.compressed_bpp;
 	else
-		intel_link_compute_m_n(pipe_config->dsc_params.compressed_bpp,
-				       pipe_config->lane_count,
-				       adjusted_mode->crtc_clock,
-				       pipe_config->port_clock,
-				       &pipe_config->dp_m_n,
-				       constant_n);
+		output_bpp = pipe_config->pipe_bpp;
+
+	intel_link_compute_m_n(output_bpp,
+			       pipe_config->lane_count,
+			       adjusted_mode->crtc_clock,
+			       pipe_config->port_clock,
+			       &pipe_config->dp_m_n,
+			       constant_n);
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		dev_priv->drrs.type == SEAMLESS_DRRS_SUPPORT) {
 			pipe_config->has_drrs = true;
-			intel_link_compute_m_n(pipe_config->pipe_bpp,
+			intel_link_compute_m_n(output_bpp,
 					       pipe_config->lane_count,
 					       intel_connector->panel.downclock_mode->clock,
 					       pipe_config->port_clock,

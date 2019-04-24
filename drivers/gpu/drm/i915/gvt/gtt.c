@@ -2504,6 +2504,7 @@ static void clean_spt_oos(struct intel_gvt *gvt)
 	list_for_each_safe(pos, n, &gtt->oos_page_free_list_head) {
 		oos_page = container_of(pos, struct intel_vgpu_oos_page, list);
 		list_del(&oos_page->list);
+		free_page((unsigned long)oos_page->mem);
 		kfree(oos_page);
 	}
 }
@@ -2522,6 +2523,12 @@ static int setup_spt_oos(struct intel_gvt *gvt)
 		oos_page = kzalloc(sizeof(*oos_page), GFP_KERNEL);
 		if (!oos_page) {
 			ret = -ENOMEM;
+			goto fail;
+		}
+		oos_page->mem = (void *)__get_free_pages(GFP_KERNEL, 0);
+		if (!oos_page->mem) {
+			ret = -ENOMEM;
+			kfree(oos_page);
 			goto fail;
 		}
 

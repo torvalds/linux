@@ -25,9 +25,13 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
-#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_mipi_dsi.h>
+
+#include "intel_connector.h"
+#include "intel_ddi.h"
 #include "intel_dsi.h"
+#include "intel_panel.h"
 
 static inline int header_credits_available(struct drm_i915_private *dev_priv,
 					   enum transcoder dsi_trans)
@@ -1148,13 +1152,11 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 		intel_wakeref_t wakeref;
 
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
-		if (wakeref) {
-			intel_display_power_put(dev_priv,
-						port == PORT_A ?
-						POWER_DOMAIN_PORT_DDI_A_IO :
-						POWER_DOMAIN_PORT_DDI_B_IO,
-						wakeref);
-		}
+		intel_display_power_put(dev_priv,
+					port == PORT_A ?
+					POWER_DOMAIN_PORT_DDI_A_IO :
+					POWER_DOMAIN_PORT_DDI_B_IO,
+					wakeref);
 	}
 
 	/* set mode to DDI */

@@ -26,19 +26,30 @@
  *	Jesse Barnes <jesse.barnes@intel.com>
  */
 
-#include <linux/i2c.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/hdmi.h>
+#include <linux/i2c.h>
+#include <linux/slab.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_hdcp.h>
 #include <drm/drm_scdc_helper.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include <drm/intel_lpe_audio.h>
+
 #include "i915_drv.h"
+#include "intel_audio.h"
+#include "intel_connector.h"
+#include "intel_ddi.h"
+#include "intel_dp.h"
+#include "intel_drv.h"
+#include "intel_hdcp.h"
+#include "intel_hdmi.h"
+#include "intel_lspcon.h"
+#include "intel_sdvo.h"
+#include "intel_panel.h"
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
 {

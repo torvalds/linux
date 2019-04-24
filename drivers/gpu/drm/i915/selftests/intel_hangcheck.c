@@ -1124,7 +1124,8 @@ static int igt_reset_engines(void *arg)
 	return 0;
 }
 
-static u32 fake_hangcheck(struct drm_i915_private *i915, u32 mask)
+static u32 fake_hangcheck(struct drm_i915_private *i915,
+			  intel_engine_mask_t mask)
 {
 	u32 count = i915_reset_count(&i915->gpu_error);
 
