@@ -137,7 +137,6 @@ struct stm32_cryp {
 
 	struct crypto_engine    *engine;
 
-	struct mutex            lock; /* protects req / areq */
 	struct ablkcipher_request *req;
 	struct aead_request     *areq;
 
@@ -645,18 +644,13 @@ static void stm32_cryp_finish_req(struct stm32_cryp *cryp, int err)
 	pm_runtime_mark_last_busy(cryp->dev);
 	pm_runtime_put_autosuspend(cryp->dev);
 
-	if (is_gcm(cryp) || is_ccm(cryp)) {
+	if (is_gcm(cryp) || is_ccm(cryp))
 		crypto_finalize_aead_request(cryp->engine, cryp->areq, err);
-		cryp->areq = NULL;
-	} else {
+	else
 		crypto_finalize_ablkcipher_request(cryp->engine, cryp->req,
 						   err);
-		cryp->req = NULL;
-	}
 
 	memset(cryp->ctx->key, 0, cryp->ctx->keylen);
-
-	mutex_unlock(&cryp->lock);
 }
 
 static int stm32_cryp_cpu_start(struct stm32_cryp *cryp)
@@ -933,8 +927,6 @@ static int stm32_cryp_prepare_req(struct ablkcipher_request *req,
 	if (!cryp)
 		return -ENODEV;
 
-	mutex_lock(&cryp->lock);
-
 	rctx = req ? ablkcipher_request_ctx(req) : aead_request_ctx(areq);
 	rctx->mode &= FLG_MODE_MASK;
 
@@ -946,6 +938,7 @@ static int stm32_cryp_prepare_req(struct ablkcipher_request *req,
 
 	if (req) {
 		cryp->req = req;
+		cryp->areq = NULL;
 		cryp->total_in = req->nbytes;
 		cryp->total_out = cryp->total_in;
 	} else {
@@ -971,6 +964,7 @@ static int stm32_cryp_prepare_req(struct ablkcipher_request *req,
 		 *          <---------- total_out ----------------->
 		 */
 		cryp->areq = areq;
+		cryp->req = NULL;
 		cryp->authsize = crypto_aead_authsize(crypto_aead_reqtfm(areq));
 		cryp->total_in = areq->assoclen + areq->cryptlen;
 		if (is_encrypt(cryp))
@@ -992,19 +986,19 @@ static int stm32_cryp_prepare_req(struct ablkcipher_request *req,
 	if (cryp->in_sg_len < 0) {
 		dev_err(cryp->dev, "Cannot get in_sg_len\n");
 		ret = cryp->in_sg_len;
-		goto out;
+		return ret;
 	}
 
 	cryp->out_sg_len = sg_nents_for_len(cryp->out_sg, cryp->total_out);
 	if (cryp->out_sg_len < 0) {
 		dev_err(cryp->dev, "Cannot get out_sg_len\n");
 		ret = cryp->out_sg_len;
-		goto out;
+		return ret;
 	}
 
 	ret = stm32_cryp_copy_sgs(cryp);
 	if (ret)
-		goto out;
+		return ret;
 
 	scatterwalk_start(&cryp->in_walk, cryp->in_sg);
 	scatterwalk_start(&cryp->out_walk, cryp->out_sg);
@@ -1016,10 +1010,6 @@ static int stm32_cryp_prepare_req(struct ablkcipher_request *req,
 	}
 
 	ret = stm32_cryp_hw_init(cryp);
-out:
-	if (ret)
-		mutex_unlock(&cryp->lock);
-
 	return ret;
 }
 
@@ -1958,8 +1948,6 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	cryp->dev = dev;
-
-	mutex_init(&cryp->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	cryp->regs = devm_ioremap_resource(dev, res);
