@@ -83,6 +83,7 @@ static void __init ipmi_hardcode_init_one(const char *si_type_str,
 
 	memset(&p, 0, sizeof(p));
 
+	p.iftype = IPMI_PLAT_IF_SI;
 	if (!si_type_str || !*si_type_str || strcmp(si_type_str, "kcs") == 0) {
 		p.type = SI_KCS;
 	} else if (strcmp(si_type_str, "smic") == 0) {

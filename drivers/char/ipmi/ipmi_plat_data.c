@@ -12,7 +12,7 @@ struct platform_device *ipmi_platform_add(const char *name, unsigned int inst,
 					  struct ipmi_plat_data *p)
 {
 	struct platform_device *pdev;
-	unsigned int num_r = 1, size, pidx = 0;
+	unsigned int num_r = 1, size = 0, pidx = 0;
 	struct resource r[4];
 	struct property_entry pr[6];
 	u32 flags;
@@ -21,19 +21,22 @@ struct platform_device *ipmi_platform_add(const char *name, unsigned int inst,
 	memset(pr, 0, sizeof(pr));
 	memset(r, 0, sizeof(r));
 
-	if (p->type == SI_BT)
-		size = 3;
-	else if (p->type == SI_TYPE_INVALID)
-		size = 0;
-	else
-		size = 2;
+	if (p->iftype == IPMI_PLAT_IF_SI) {
+		if (p->type == SI_BT)
+			size = 3;
+		else if (p->type != SI_TYPE_INVALID)
+			size = 2;
 
-	if (p->regsize == 0)
-		p->regsize = DEFAULT_REGSIZE;
-	if (p->regspacing == 0)
-		p->regspacing = p->regsize;
+		if (p->regsize == 0)
+			p->regsize = DEFAULT_REGSIZE;
+		if (p->regspacing == 0)
+			p->regspacing = p->regsize;
 
-	pr[pidx++] = PROPERTY_ENTRY_U8("ipmi-type", p->type);
+		pr[pidx++] = PROPERTY_ENTRY_U8("ipmi-type", p->type);
+	} else if (p->iftype == IPMI_PLAT_IF_SSIF) {
+		pr[pidx++] = PROPERTY_ENTRY_U16("i2c-addr", p->addr);
+	}
+
 	if (p->slave_addr)
 		pr[pidx++] = PROPERTY_ENTRY_U8("slave-addr", p->slave_addr);
 	pr[pidx++] = PROPERTY_ENTRY_U8("addr-source", p->addr_source);
