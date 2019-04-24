@@ -239,13 +239,13 @@ static void fsnotify_drop_object(unsigned int type, void *objp)
 
 void fsnotify_put_mark(struct fsnotify_mark *mark)
 {
-	struct fsnotify_mark_connector *conn;
+	struct fsnotify_mark_connector *conn = READ_ONCE(mark->connector);
 	void *objp = NULL;
 	unsigned int type = FSNOTIFY_OBJ_TYPE_DETACHED;
 	bool free_conn = false;
 
 	/* Catch marks that were actually never attached to object */
-	if (!mark->connector) {
+	if (!conn) {
 		if (refcount_dec_and_test(&mark->refcnt))
 			fsnotify_final_mark_destroy(mark);
 		return;
@@ -255,10 +255,9 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	 * We have to be careful so that traversals of obj_list under lock can
 	 * safely grab mark reference.
 	 */
-	if (!refcount_dec_and_lock(&mark->refcnt, &mark->connector->lock))
+	if (!refcount_dec_and_lock(&mark->refcnt, &conn->lock))
 		return;
 
-	conn = mark->connector;
 	hlist_del_init_rcu(&mark->obj_list);
 	if (hlist_empty(&conn->list)) {
 		objp = fsnotify_detach_connector_from_object(conn, &type);
@@ -266,7 +265,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	} else {
 		__fsnotify_recalc_mask(conn);
 	}
-	mark->connector = NULL;
+	WRITE_ONCE(mark->connector, NULL);
 	spin_unlock(&conn->lock);
 
 	fsnotify_drop_object(type, objp);
@@ -620,7 +619,7 @@ restart:
 	/* mark should be the last entry.  last is the current last entry */
 	hlist_add_behind_rcu(&mark->obj_list, &last->obj_list);
 added:
-	mark->connector = conn;
+	WRITE_ONCE(mark->connector, conn);
 out_err:
 	spin_unlock(&conn->lock);
 	spin_unlock(&mark->lock);
@@ -808,6 +807,7 @@ void fsnotify_init_mark(struct fsnotify_mark *mark,
 	refcount_set(&mark->refcnt, 1);
 	fsnotify_get_group(group);
 	mark->group = group;
+	WRITE_ONCE(mark->connector, NULL);
 }
 
 /*
