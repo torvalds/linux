@@ -1798,12 +1798,6 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
 		 * write new data to them.
 		 */
 		smp_store_release(&ring->r.head, ctx->cached_sq_head);
-
-		/*
-		 * write side barrier of head update, app has read side. See
-		 * comment at the top of this file
-		 */
-		smp_wmb();
 	}
 }
 
