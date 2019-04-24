@@ -1122,22 +1122,34 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	return 0;
 }
 
+static struct irq_domain *stm32_pctrl_get_irq_domain(struct device_node *np)
+{
+	struct device_node *parent;
+	struct irq_domain *domain;
+
+	if (!of_find_property(np, "interrupt-parent", NULL))
+		return NULL;
+
+	parent = of_irq_find_parent(np);
+	if (!parent)
+		return ERR_PTR(-ENXIO);
+
+	domain = irq_find_host(parent);
+	if (!domain)
+		/* domain not registered yet */
+		return ERR_PTR(-EPROBE_DEFER);
+
+	return domain;
+}
+
 static int stm32_pctrl_dt_setup_irq(struct platform_device *pdev,
 			   struct stm32_pinctrl *pctl)
 {
-	struct device_node *np = pdev->dev.of_node, *parent;
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct regmap *rm;
 	int offset, ret, i;
 	int mask, mask_width;
-
-	parent = of_irq_find_parent(np);
-	if (!parent)
-		return -ENXIO;
-
-	pctl->domain = irq_find_host(parent);
-	if (!pctl->domain)
-		return -ENXIO;
 
 	pctl->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(pctl->regmap))
@@ -1264,6 +1276,11 @@ int stm32_pctl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pctl);
 
+	/* check for IRQ controller (may require deferred probe) */
+	pctl->domain = stm32_pctrl_get_irq_domain(np);
+	if (IS_ERR(pctl->domain))
+		return PTR_ERR(pctl->domain);
+
 	/* hwspinlock is optional */
 	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
 	if (hwlock_id < 0) {
@@ -1294,7 +1311,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_find_property(np, "interrupt-parent", NULL)) {
+	if (pctl->domain) {
 		ret = stm32_pctrl_dt_setup_irq(pdev, pctl);
 		if (ret)
 			return ret;
