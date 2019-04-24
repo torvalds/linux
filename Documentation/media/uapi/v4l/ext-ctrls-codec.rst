@@ -759,6 +759,32 @@ enum v4l2_mpeg_video_h264_level -
 
 
 
+.. _v4l2-mpeg-video-mpeg2-level:
+
+``V4L2_CID_MPEG_VIDEO_MPEG2_LEVEL``
+    (enum)
+
+enum v4l2_mpeg_video_mpeg2_level -
+    The level information for the MPEG2 elementary stream. Applicable to
+    MPEG2 codecs. Possible values are:
+
+
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_LOW``
+      - Low Level (LL)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_MAIN``
+      - Main Level (ML)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH_1440``
+      - High-1440 Level (H-14)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH``
+      - High Level (HL)
+
+
+
 .. _v4l2-mpeg-video-mpeg4-level:
 
 ``V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL``
@@ -842,6 +868,36 @@ enum v4l2_mpeg_video_h264_profile -
       - Stereo High profile
     * - ``V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH``
       - Multiview High profile
+
+
+
+.. _v4l2-mpeg-video-mpeg2-profile:
+
+``V4L2_CID_MPEG_VIDEO_MPEG2_PROFILE``
+    (enum)
+
+enum v4l2_mpeg_video_mpeg2_profile -
+    The profile information for MPEG2. Applicable to MPEG2 codecs.
+    Possible values are:
+
+
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_SIMPLE``
+      - Simple profile (SP)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_MAIN``
+      - Main profile (MP)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_SNR_SCALABLE``
+      - SNR Scalable profile (SNR)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_SPATIALLY_SCALABLE``
+      - Spatially Scalable profile (Spt)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_HIGH``
+      - High profile (HP)
+    * - ``V4L2_MPEG_VIDEO_MPEG2_PROFILE_MULTIVIEW``
+      - Multi-view profile (MVP)
 
 
 
