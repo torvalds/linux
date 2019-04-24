@@ -8,3 +8,4 @@ the Linux ACPI support.
 .. toctree::
    :maxdepth: 1
 
+   initrd_table_override
