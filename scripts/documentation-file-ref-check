@@ -30,6 +30,34 @@ print "Finding broken references. This may take a while...  " if ($fix);
 
 my %broken_ref;
 
+my $doc_fix = 0;
+
+open IN, "git grep ':doc:\`' Documentation/|"
+     or die "Failed to run git grep";
+while (<IN>) {
+	next if (!m,^([^:]+):.*\:doc\:\`([^\`]+)\`,);
+
+	my $d = $1;
+	my $doc_ref = $2;
+
+	my $f = $doc_ref;
+
+	$d =~ s,(.*/).*,$1,;
+	$f =~ s,.*\<([^\>]+)\>,$1,;
+
+	$f ="$d$f.rst";
+
+	next if (grep -e, glob("$f"));
+
+	if ($fix && !$doc_fix) {
+		print STDERR "\nWARNING: Currently, can't fix broken :doc:`` fields\n";
+	}
+	$doc_fix++;
+
+	print STDERR "$f: :doc:`$doc_ref`\n";
+}
+close IN;
+
 open IN, "git grep 'Documentation/'|"
      or die "Failed to run git grep";
 while (<IN>) {
@@ -103,6 +131,7 @@ while (<IN>) {
 		}
 	}
 }
+close IN;
 
 exit 0 if (!$fix);
 
