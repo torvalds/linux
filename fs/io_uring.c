@@ -431,8 +431,11 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 	unsigned tail;
 
 	tail = ctx->cached_cq_tail;
-	/* See comment at the top of the file */
-	smp_rmb();
+	/*
+	 * writes to the cq entry need to come after reading head; the
+	 * control dependency is enough as we're using WRITE_ONCE to
+	 * fill the cq entry
+	 */
 	if (tail - READ_ONCE(ring->r.head) == ring->ring_entries)
 		return NULL;
 
