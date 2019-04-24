@@ -1372,8 +1372,8 @@ EXPORT_SYMBOL(drm_gem_unlock_reservations);
  * drm_gem_fence_array_add - Adds the fence to an array of fences to be
  * waited on, deduplicating fences from the same context.
  *
- * @fence_array array of dma_fence * for the job to block on.
- * @fence the dma_fence to add to the list of dependencies.
+ * @fence_array: array of dma_fence * for the job to block on.
+ * @fence: the dma_fence to add to the list of dependencies.
  *
  * Returns:
  * 0 on success, or an error on failing to expand the array.
@@ -1423,9 +1423,9 @@ EXPORT_SYMBOL(drm_gem_fence_array_add);
  * GEM objects used in the job but before updating the reservations with your
  * own fences.
  *
- * @fence_array array of dma_fence * for the job to block on.
- * @obj the gem object to add new dependencies from.
- * @write whether the job might write the object (so we need to depend on
+ * @fence_array: array of dma_fence * for the job to block on.
+ * @obj: the gem object to add new dependencies from.
+ * @write: whether the job might write the object (so we need to depend on
  * shared fences in the reservation object).
  */
 int drm_gem_fence_array_add_implicit(struct xarray *fence_array,
