@@ -93,8 +93,8 @@ void parse_core_table_entry(struct core_table_entry *cte, const u64 read_val, co
 int  probe_core_basic(unsigned int core_num, struct kp2000_device *pcard, char *name, const struct core_table_entry cte)
 {
     struct mfd_cell  cell = {0};
-    struct resource  resources[2] = {0};
-    
+    struct resource  resources[2];
+
     struct kpc_core_device_platdata  core_pdata = {
         .card_id           = pcard->card_id,
         .build_version     = pcard->build_version,
@@ -112,6 +112,8 @@ int  probe_core_basic(unsigned int core_num, struct kp2000_device *pcard, char *
     cell.id = core_num;
     cell.num_resources = 2;
     
+    memset(&resources, 0, sizeof(resources));
+
     resources[0].start = cte.offset;
     resources[0].end   = cte.offset + (cte.length - 1);
     resources[0].flags = IORESOURCE_MEM;
@@ -311,8 +313,8 @@ int  probe_core_uio(unsigned int core_num, struct kp2000_device *pcard, char *na
 static int  create_dma_engine_core(struct kp2000_device *pcard, size_t engine_regs_offset, int engine_num, int irq_num)
 {
     struct mfd_cell  cell = {0};
-    struct resource  resources[2] = {0};
-    
+    struct resource  resources[2];
+
     dev_dbg(&pcard->pdev->dev, "create_dma_core(pcard = [%p], engine_regs_offset = %zx, engine_num = %d)\n", pcard, engine_regs_offset, engine_num);
     
     cell.platform_data = NULL;
@@ -321,6 +323,8 @@ static int  create_dma_engine_core(struct kp2000_device *pcard, size_t engine_re
     cell.name = KP_DRIVER_NAME_DMA_CONTROLLER;
     cell.num_resources = 2;
     
+    memset(&resources, 0, sizeof(resources));
+
     resources[0].start = engine_regs_offset;
     resources[0].end   = engine_regs_offset + (KPC_DMA_ENGINE_SIZE - 1);
     resources[0].flags = IORESOURCE_MEM;
