@@ -127,7 +127,7 @@ static const struct komeda_product_data komeda_products[] = {
 	},
 };
 
-const struct of_device_id komeda_of_match[] = {
+static const struct of_device_id komeda_of_match[] = {
 	{ .compatible = "arm,mali-d71", .data = &komeda_products[MALI_D71], },
 	{},
 };

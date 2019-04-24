@@ -47,8 +47,9 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
  * RETURNS:
  * Zero for success or -errno
  */
-int komeda_plane_atomic_check(struct drm_plane *plane,
-			      struct drm_plane_state *state)
+static int
+komeda_plane_atomic_check(struct drm_plane *plane,
+			  struct drm_plane_state *state)
 {
 	struct komeda_plane *kplane = to_kplane(plane);
 	struct komeda_plane_state *kplane_st = to_kplane_st(state);
@@ -87,8 +88,9 @@ int komeda_plane_atomic_check(struct drm_plane *plane,
 /* plane doesn't represent a real HW, so there is no HW update for plane.
  * komeda handles all the HW update in crtc->atomic_flush
  */
-void komeda_plane_atomic_update(struct drm_plane *plane,
-				struct drm_plane_state *old_state)
+static void
+komeda_plane_atomic_update(struct drm_plane *plane,
+			   struct drm_plane_state *old_state)
 {
 }
 

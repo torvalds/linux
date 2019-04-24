@@ -20,7 +20,7 @@ static inline bool is_switching_user(void *old, void *new)
 	return old != new;
 }
 
-struct komeda_pipeline_state *
+static struct komeda_pipeline_state *
 komeda_pipeline_get_state(struct komeda_pipeline *pipe,
 			  struct drm_atomic_state *state)
 {
@@ -45,7 +45,7 @@ komeda_pipeline_get_old_state(struct komeda_pipeline *pipe,
 	return NULL;
 }
 
-struct komeda_pipeline_state *
+static struct komeda_pipeline_state *
 komeda_pipeline_get_new_state(struct komeda_pipeline *pipe,
 			      struct drm_atomic_state *state)
 {
@@ -58,7 +58,7 @@ komeda_pipeline_get_new_state(struct komeda_pipeline *pipe,
 }
 
 /* Assign pipeline for crtc */
-struct komeda_pipeline_state *
+static struct komeda_pipeline_state *
 komeda_pipeline_get_state_and_set_crtc(struct komeda_pipeline *pipe,
 				       struct drm_atomic_state *state,
 				       struct drm_crtc *crtc)
@@ -505,8 +505,9 @@ int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
 	return 0;
 }
 
-void komeda_pipeline_unbound_components(struct komeda_pipeline *pipe,
-					struct komeda_pipeline_state *new)
+static void
+komeda_pipeline_unbound_components(struct komeda_pipeline *pipe,
+				   struct komeda_pipeline_state *new)
 {
 	struct drm_atomic_state *drm_st = new->obj.state;
 	struct komeda_pipeline_state *old = priv_to_pipe_st(pipe->obj.state);

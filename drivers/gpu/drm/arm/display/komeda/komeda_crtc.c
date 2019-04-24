@@ -52,7 +52,7 @@ komeda_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
-u32 komeda_calc_mclk(struct komeda_crtc_state *kcrtc_st)
+static u32 komeda_calc_mclk(struct komeda_crtc_state *kcrtc_st)
 {
 	unsigned long mclk = kcrtc_st->base.adjusted_mode.clock * 1000;
 
@@ -350,7 +350,7 @@ static bool komeda_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
+static struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 	.atomic_check	= komeda_crtc_atomic_check,
 	.atomic_flush	= komeda_crtc_atomic_flush,
 	.atomic_enable	= komeda_crtc_atomic_enable,
