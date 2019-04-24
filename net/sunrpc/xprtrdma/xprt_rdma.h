@@ -121,31 +121,32 @@ struct rpcrdma_regbuf {
 	struct ib_sge		rg_iov;
 	struct ib_device	*rg_device;
 	enum dma_data_direction	rg_direction;
-	__be32			rg_base[0] __attribute__ ((aligned(256)));
+	void			*rg_data;
 };
 
-static inline u64
-rdmab_addr(struct rpcrdma_regbuf *rb)
+static inline u64 rdmab_addr(struct rpcrdma_regbuf *rb)
 {
 	return rb->rg_iov.addr;
 }
 
-static inline u32
-rdmab_length(struct rpcrdma_regbuf *rb)
+static inline u32 rdmab_length(struct rpcrdma_regbuf *rb)
 {
 	return rb->rg_iov.length;
 }
 
-static inline u32
-rdmab_lkey(struct rpcrdma_regbuf *rb)
+static inline u32 rdmab_lkey(struct rpcrdma_regbuf *rb)
 {
 	return rb->rg_iov.lkey;
 }
 
-static inline struct ib_device *
-rdmab_device(struct rpcrdma_regbuf *rb)
+static inline struct ib_device *rdmab_device(struct rpcrdma_regbuf *rb)
 {
 	return rb->rg_device;
+}
+
+static inline void *rdmab_data(const struct rpcrdma_regbuf *rb)
+{
+	return rb->rg_data;
 }
 
 #define RPCRDMA_DEF_GFP		(GFP_NOIO | __GFP_NOWARN)

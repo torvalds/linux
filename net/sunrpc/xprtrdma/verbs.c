@@ -1013,12 +1013,12 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt, gfp_t flags)
 		return NULL;
 
 	rb = rpcrdma_alloc_regbuf(RPCRDMA_HDRBUF_SIZE, DMA_TO_DEVICE, flags);
-	if (IS_ERR(rb)) {
+	if (!rb) {
 		kfree(req);
 		return NULL;
 	}
 	req->rl_rdmabuf = rb;
-	xdr_buf_init(&req->rl_hdrbuf, rb->rg_base, rdmab_length(rb));
+	xdr_buf_init(&req->rl_hdrbuf, rdmab_data(rb), rdmab_length(rb));
 	req->rl_buffer = buffer;
 	INIT_LIST_HEAD(&req->rl_registered);
 
@@ -1040,9 +1040,9 @@ static bool rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt, bool temp)
 
 	rep->rr_rdmabuf = rpcrdma_alloc_regbuf(cdata->inline_rsize,
 					       DMA_FROM_DEVICE, GFP_KERNEL);
-	if (IS_ERR(rep->rr_rdmabuf))
+	if (!rep->rr_rdmabuf)
 		goto out_free;
-	xdr_buf_init(&rep->rr_hdrbuf, rep->rr_rdmabuf->rg_base,
+	xdr_buf_init(&rep->rr_hdrbuf, rdmab_data(rep->rr_rdmabuf),
 		     rdmab_length(rep->rr_rdmabuf));
 
 	rep->rr_cqe.done = rpcrdma_wc_receive;
@@ -1354,8 +1354,7 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
  * @direction: direction of data movement
  * @flags: GFP flags
  *
- * Returns an ERR_PTR, or a pointer to a regbuf, a buffer that
- * can be persistently DMA-mapped for I/O.
+ * Returns a pointer to a rpcrdma_regbuf object, or NULL.
  *
  * xprtrdma uses a regbuf for posting an outgoing RDMA SEND, or for
  * receiving the payload of RDMA RECV operations. During Long Calls
@@ -1367,14 +1366,18 @@ rpcrdma_alloc_regbuf(size_t size, enum dma_data_direction direction,
 {
 	struct rpcrdma_regbuf *rb;
 
-	rb = kmalloc(sizeof(*rb) + size, flags);
-	if (rb == NULL)
-		return ERR_PTR(-ENOMEM);
+	rb = kmalloc(sizeof(*rb), flags);
+	if (!rb)
+		return NULL;
+	rb->rg_data = kmalloc(size, flags);
+	if (!rb->rg_data) {
+		kfree(rb);
+		return NULL;
+	}
 
 	rb->rg_device = NULL;
 	rb->rg_direction = direction;
 	rb->rg_iov.length = size;
-
 	return rb;
 }
 
@@ -1392,7 +1395,7 @@ __rpcrdma_dma_map_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 		return false;
 
 	rb->rg_iov.addr = ib_dma_map_single(device,
-					    (void *)rb->rg_base,
+					    rdmab_data(rb),
 					    rdmab_length(rb),
 					    rb->rg_direction);
 	if (ib_dma_mapping_error(device, rdmab_addr(rb))) {
@@ -1427,6 +1430,8 @@ void
 rpcrdma_free_regbuf(struct rpcrdma_regbuf *rb)
 {
 	rpcrdma_dma_unmap_regbuf(rb);
+	if (rb)
+		kfree(rb->rg_data);
 	kfree(rb);
 }
 
