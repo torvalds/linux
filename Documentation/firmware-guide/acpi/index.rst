@@ -13,6 +13,7 @@ ACPI Support
    enumeration
    osi
    method-customizing
+   method-tracing
    DSD-properties-rules
    debug
    gpio-properties
