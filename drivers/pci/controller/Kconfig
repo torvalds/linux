@@ -181,7 +181,7 @@ config PCIE_ALTERA
 	  FPGA.
 
 config PCIE_ALTERA_MSI
-	bool "Altera PCIe MSI feature"
+	tristate "Altera PCIe MSI feature"
 	depends on PCIE_ALTERA
 	depends on PCI_MSI_IRQ_DOMAIN
 	help
