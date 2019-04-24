@@ -297,15 +297,6 @@ size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt)
 		     (ia->ri_max_segs - 2) * ia->ri_max_frwr_depth);
 }
 
-static void
-__frwr_sendcompletion_flush(struct ib_wc *wc, const char *wr)
-{
-	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_err("rpcrdma: %s: %s (%u/0x%x)\n",
-		       wr, ib_wc_status_msg(wc->status),
-		       wc->status, wc->vendor_err);
-}
-
 /**
  * frwr_wc_fastreg - Invoked by RDMA provider for a flushed FastReg WC
  * @cq:	completion queue (ignored)
@@ -320,10 +311,8 @@ frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 			container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		frwr->fr_state = FRWR_FLUSHED_FR;
-		__frwr_sendcompletion_flush(wc, "fastreg");
-	}
 	trace_xprtrdma_wc_fastreg(wc, frwr);
 }
 
@@ -341,10 +330,8 @@ frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 						 fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		frwr->fr_state = FRWR_FLUSHED_LI;
-		__frwr_sendcompletion_flush(wc, "localinv");
-	}
 	trace_xprtrdma_wc_li(wc, frwr);
 }
 
@@ -363,12 +350,10 @@ frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 						 fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		frwr->fr_state = FRWR_FLUSHED_LI;
-		__frwr_sendcompletion_flush(wc, "localinv");
-	}
-	complete(&frwr->fr_linv_done);
 	trace_xprtrdma_wc_li_wake(wc, frwr);
+	complete(&frwr->fr_linv_done);
 }
 
 /**
