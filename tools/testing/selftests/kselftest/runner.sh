@@ -2,17 +2,20 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Runs a set of tests in a given subdirectory.
+export KSFT_TAP_LEVEL=1
 export skip_rc=4
 export logfile=/dev/stdout
+export per_test_logging=
 
 run_one()
 {
-	TEST="$1"
-	NUM="$2"
+	DIR="$1"
+	TEST="$2"
+	NUM="$3"
 
 	BASENAME_TEST=$(basename $TEST)
 
-	TEST_HDR_MSG="selftests: "`basename $PWD`:" $BASENAME_TEST"
+	TEST_HDR_MSG="selftests: $DIR: $BASENAME_TEST"
 	echo "$TEST_HDR_MSG"
 	echo "========================================"
 	if [ ! -x "$TEST" ]; then
@@ -29,4 +32,20 @@ run_one()
 		fi)
 		cd - >/dev/null
 	fi
+}
+
+run_many()
+{
+	echo "TAP version 13"
+	DIR=$(basename "$PWD")
+	test_num=0
+	for TEST in "$@"; do
+		BASENAME_TEST=$(basename $TEST)
+		test_num=$(( test_num + 1 ))
+		if [ -n "$per_test_logging" ]; then
+			logfile="/tmp/$BASENAME_TEST"
+			cat /dev/null > "$logfile"
+		fi
+		run_one "$DIR" "$TEST" "$test_num"
+	done
 }

@@ -67,19 +67,11 @@ endif
 
 .ONESHELL:
 define RUN_TESTS
-	@export KSFT_TAP_LEVEL=`echo 1`;		\
-	test_num=`echo 0`;				\
-	. $(selfdir)/kselftest/runner.sh;		\
-	echo "TAP version 13";				\
-	for TEST in $(1); do				\
-		BASENAME_TEST=`basename $$TEST`;	\
-		test_num=`echo $$test_num+1 | bc`;	\
-		if [ "X$(summary)" != "X" ]; then	\
-		        logfile="/tmp/$$BASENAME_TEST";	\
-			cat /dev/null > "$$logfile";	\
-		fi;					\
-		run_one "$$BASENAME_TEST" "$$test_num";	\
-	done;
+	@. $(selfdir)/kselftest/runner.sh;	\
+	if [ "X$(summary)" != "X" ]; then       \
+		per_test_logging=1;		\
+	fi;                                     \
+	run_many $(1)
 endef
 
 run_tests: all
@@ -117,12 +109,11 @@ else
 endif
 
 emit_tests:
-	@test_num=`echo 0`;				\
 	for TEST in $(TEST_GEN_PROGS) $(TEST_CUSTOM_PROGS) $(TEST_PROGS); do \
 		BASENAME_TEST=`basename $$TEST`;	\
-		test_num=`echo $$test_num+1 | bc`;	\
-		echo "run_one \"$$BASENAME_TEST\" \"$$test_num\"";	\
-	done;
+		echo "	\\";				\
+		echo -n "	\"$$BASENAME_TEST\"";	\
+	done;						\
 
 # define if isn't already. It is undefined in make O= case.
 ifeq ($(RM),)
