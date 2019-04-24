@@ -700,6 +700,317 @@ out:
 	return err;
 }
 
+static int read_whitelisted_registers(struct i915_gem_context *ctx,
+				      struct intel_engine_cs *engine,
+				      struct i915_vma *results)
+{
+	intel_wakeref_t wakeref;
+	struct i915_request *rq;
+	int i, err = 0;
+	u32 srm, *cs;
+
+	rq = ERR_PTR(-ENODEV);
+	with_intel_runtime_pm(engine->i915, wakeref)
+		rq = i915_request_alloc(engine, ctx);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	srm = MI_STORE_REGISTER_MEM;
+	if (INTEL_GEN(ctx->i915) >= 8)
+		srm++;
+
+	cs = intel_ring_begin(rq, 4 * engine->whitelist.count);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		goto err_req;
+	}
+
+	for (i = 0; i < engine->whitelist.count; i++) {
+		u64 offset = results->node.start + sizeof(u32) * i;
+
+		*cs++ = srm;
+		*cs++ = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
+		*cs++ = lower_32_bits(offset);
+		*cs++ = upper_32_bits(offset);
+	}
+	intel_ring_advance(rq, cs);
+
+err_req:
+	i915_request_add(rq);
+
+	if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0)
+		err = -EIO;
+
+	return err;
+}
+
+static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
+				       struct intel_engine_cs *engine)
+{
+	intel_wakeref_t wakeref;
+	struct i915_request *rq;
+	struct i915_vma *batch;
+	int i, err = 0;
+	u32 *cs;
+
+	batch = create_batch(ctx);
+	if (IS_ERR(batch))
+		return PTR_ERR(batch);
+
+	cs = i915_gem_object_pin_map(batch->obj, I915_MAP_WC);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		goto err_batch;
+	}
+
+	*cs++ = MI_LOAD_REGISTER_IMM(engine->whitelist.count);
+	for (i = 0; i < engine->whitelist.count; i++) {
+		*cs++ = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
+		*cs++ = 0xffffffff;
+	}
+	*cs++ = MI_BATCH_BUFFER_END;
+
+	i915_gem_object_flush_map(batch->obj);
+	i915_gem_chipset_flush(ctx->i915);
+
+	rq = ERR_PTR(-ENODEV);
+	with_intel_runtime_pm(engine->i915, wakeref)
+		rq = i915_request_alloc(engine, ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+
+	if (engine->emit_init_breadcrumb) { /* Be nice if we hang */
+		err = engine->emit_init_breadcrumb(rq);
+		if (err)
+			goto err_request;
+	}
+
+	/* Perform the writes from an unprivileged "user" batch */
+	err = engine->emit_bb_start(rq, batch->node.start, 0, 0);
+
+err_request:
+	i915_request_add(rq);
+	if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0)
+		err = -EIO;
+
+err_unpin:
+	i915_gem_object_unpin_map(batch->obj);
+err_batch:
+	i915_vma_unpin_and_release(&batch, 0);
+	return err;
+}
+
+struct regmask {
+	i915_reg_t reg;
+	unsigned long gen_mask;
+};
+
+static bool find_reg(struct drm_i915_private *i915,
+		     i915_reg_t reg,
+		     const struct regmask *tbl,
+		     unsigned long count)
+{
+	u32 offset = i915_mmio_reg_offset(reg);
+
+	while (count--) {
+		if (INTEL_INFO(i915)->gen_mask & tbl->gen_mask &&
+		    i915_mmio_reg_offset(tbl->reg) == offset)
+			return true;
+		tbl++;
+	}
+
+	return false;
+}
+
+static bool pardon_reg(struct drm_i915_private *i915, i915_reg_t reg)
+{
+	/* Alas, we must pardon some whitelists. Mistakes already made */
+	static const struct regmask pardon[] = {
+		{ GEN9_CTX_PREEMPT_REG, INTEL_GEN_MASK(9, 9) },
+		{ GEN8_L3SQCREG4, INTEL_GEN_MASK(9, 9) },
+	};
+
+	return find_reg(i915, reg, pardon, ARRAY_SIZE(pardon));
+}
+
+static bool result_eq(struct intel_engine_cs *engine,
+		      u32 a, u32 b, i915_reg_t reg)
+{
+	if (a != b && !pardon_reg(engine->i915, reg)) {
+		pr_err("Whitelisted register 0x%4x not context saved: A=%08x, B=%08x\n",
+		       i915_mmio_reg_offset(reg), a, b);
+		return false;
+	}
+
+	return true;
+}
+
+static bool writeonly_reg(struct drm_i915_private *i915, i915_reg_t reg)
+{
+	/* Some registers do not seem to behave and our writes unreadable */
+	static const struct regmask wo[] = {
+		{ GEN9_SLICE_COMMON_ECO_CHICKEN1, INTEL_GEN_MASK(9, 9) },
+	};
+
+	return find_reg(i915, reg, wo, ARRAY_SIZE(wo));
+}
+
+static bool result_neq(struct intel_engine_cs *engine,
+		       u32 a, u32 b, i915_reg_t reg)
+{
+	if (a == b && !writeonly_reg(engine->i915, reg)) {
+		pr_err("Whitelist register 0x%4x:%08x was unwritable\n",
+		       i915_mmio_reg_offset(reg), a);
+		return false;
+	}
+
+	return true;
+}
+
+static int
+check_whitelisted_registers(struct intel_engine_cs *engine,
+			    struct i915_vma *A,
+			    struct i915_vma *B,
+			    bool (*fn)(struct intel_engine_cs *engine,
+				       u32 a, u32 b,
+				       i915_reg_t reg))
+{
+	u32 *a, *b;
+	int i, err;
+
+	a = i915_gem_object_pin_map(A->obj, I915_MAP_WB);
+	if (IS_ERR(a))
+		return PTR_ERR(a);
+
+	b = i915_gem_object_pin_map(B->obj, I915_MAP_WB);
+	if (IS_ERR(b)) {
+		err = PTR_ERR(b);
+		goto err_a;
+	}
+
+	err = 0;
+	for (i = 0; i < engine->whitelist.count; i++) {
+		if (!fn(engine, a[i], b[i], engine->whitelist.list[i].reg))
+			err = -EINVAL;
+	}
+
+	i915_gem_object_unpin_map(B->obj);
+err_a:
+	i915_gem_object_unpin_map(A->obj);
+	return err;
+}
+
+static int live_isolated_whitelist(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct {
+		struct i915_gem_context *ctx;
+		struct i915_vma *scratch[2];
+	} client[2] = {};
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int i, err = 0;
+
+	/*
+	 * Check that a write into a whitelist register works, but
+	 * invisible to a second context.
+	 */
+
+	if (!intel_engines_has_context_isolation(i915))
+		return 0;
+
+	if (!i915->kernel_context->ppgtt)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(client); i++) {
+		struct i915_gem_context *c;
+
+		c = kernel_context(i915);
+		if (IS_ERR(c)) {
+			err = PTR_ERR(c);
+			goto err;
+		}
+
+		client[i].scratch[0] = create_scratch(&c->ppgtt->vm, 1024);
+		if (IS_ERR(client[i].scratch[0])) {
+			err = PTR_ERR(client[i].scratch[0]);
+			kernel_context_close(c);
+			goto err;
+		}
+
+		client[i].scratch[1] = create_scratch(&c->ppgtt->vm, 1024);
+		if (IS_ERR(client[i].scratch[1])) {
+			err = PTR_ERR(client[i].scratch[1]);
+			i915_vma_unpin_and_release(&client[i].scratch[0], 0);
+			kernel_context_close(c);
+			goto err;
+		}
+
+		client[i].ctx = c;
+	}
+
+	for_each_engine(engine, i915, id) {
+		if (!engine->whitelist.count)
+			continue;
+
+		/* Read default values */
+		err = read_whitelisted_registers(client[0].ctx, engine,
+						 client[0].scratch[0]);
+		if (err)
+			goto err;
+
+		/* Try to overwrite registers (should only affect ctx0) */
+		err = scrub_whitelisted_registers(client[0].ctx, engine);
+		if (err)
+			goto err;
+
+		/* Read values from ctx1, we expect these to be defaults */
+		err = read_whitelisted_registers(client[1].ctx, engine,
+						 client[1].scratch[0]);
+		if (err)
+			goto err;
+
+		/* Verify that both reads return the same default values */
+		err = check_whitelisted_registers(engine,
+						  client[0].scratch[0],
+						  client[1].scratch[0],
+						  result_eq);
+		if (err)
+			goto err;
+
+		/* Read back the updated values in ctx0 */
+		err = read_whitelisted_registers(client[0].ctx, engine,
+						 client[0].scratch[1]);
+		if (err)
+			goto err;
+
+		/* User should be granted privilege to overwhite regs */
+		err = check_whitelisted_registers(engine,
+						  client[0].scratch[0],
+						  client[0].scratch[1],
+						  result_neq);
+		if (err)
+			goto err;
+	}
+
+err:
+	for (i = 0; i < ARRAY_SIZE(client); i++) {
+		if (!client[i].ctx)
+			break;
+
+		i915_vma_unpin_and_release(&client[i].scratch[1], 0);
+		i915_vma_unpin_and_release(&client[i].scratch[0], 0);
+		kernel_context_close(client[i].ctx);
+	}
+
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+
+	return err;
+}
+
 static bool verify_gt_engine_wa(struct drm_i915_private *i915,
 				struct wa_lists *lists, const char *str)
 {
@@ -844,6 +1155,7 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_dirty_whitelist),
 		SUBTEST(live_reset_whitelist),
+		SUBTEST(live_isolated_whitelist),
 		SUBTEST(live_gpu_reset_gt_engine_workarounds),
 		SUBTEST(live_engine_reset_gt_engine_workarounds),
 	};
