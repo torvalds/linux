@@ -40,6 +40,7 @@
 #include "dcn20_optc.h"
 #include "dcn20_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
+#include "dcn10/dcn10_resource.h"
 #include "dcn20_opp.h"
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
@@ -2448,7 +2449,7 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_dsc_from_stream_resource = dcn20_remove_dsc_from_stream_resource,
 #endif
-	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
+	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
 };
 
 bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
