@@ -2485,6 +2485,21 @@ static int nfs_compare_super_address(struct nfs_server *server1,
 	return 1;
 }
 
+static int nfs_compare_userns(const struct nfs_server *old,
+		const struct nfs_server *new)
+{
+	const struct user_namespace *oldns = &init_user_ns;
+	const struct user_namespace *newns = &init_user_ns;
+
+	if (old->client && old->client->cl_cred)
+		oldns = old->client->cl_cred->user_ns;
+	if (new->client && new->client->cl_cred)
+		newns = new->client->cl_cred->user_ns;
+	if (oldns != newns)
+		return 0;
+	return 1;
+}
+
 static int nfs_compare_super(struct super_block *sb, void *data)
 {
 	struct nfs_sb_mountdata *sb_mntdata = data;
@@ -2497,6 +2512,8 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 	if (old->flags & NFS_MOUNT_UNSHARED)
 		return 0;
 	if (memcmp(&old->fsid, &server->fsid, sizeof(old->fsid)) != 0)
+		return 0;
+	if (!nfs_compare_userns(old, server))
 		return 0;
 	return nfs_compare_mount_options(sb, server, mntflags);
 }
