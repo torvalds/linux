@@ -188,12 +188,10 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	rv = device_property_read_u8(&pdev->dev, "slave-addr", &slave_addr);
-	if (rv) {
-		dev_warn(&pdev->dev, "device has no slave-addr property\n");
+	if (rv)
 		io.slave_addr = 0x20;
-	} else {
+	else
 		io.slave_addr = slave_addr;
-	}
 
 	io.irq = platform_get_irq(pdev, 0);
 	if (io.irq > 0)
