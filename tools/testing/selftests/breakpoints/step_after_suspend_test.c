@@ -173,6 +173,7 @@ int main(int argc, char **argv)
 	int opt;
 	bool do_suspend = true;
 	bool succeeded = true;
+	unsigned int tests = 0;
 	cpu_set_t available_cpus;
 	int err;
 	int cpu;
@@ -190,6 +191,13 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+
+	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+		if (!CPU_ISSET(cpu, &available_cpus))
+			continue;
+		tests++;
+	}
+	ksft_set_plan(tests);
 
 	if (do_suspend)
 		suspend();
