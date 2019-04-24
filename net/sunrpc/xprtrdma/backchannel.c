@@ -28,10 +28,10 @@ static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
 	unsigned int i;
 
 	for (i = 0; i < (count << 1); i++) {
-		struct rpcrdma_regbuf *rb;
 		size_t size;
 
-		req = rpcrdma_req_create(r_xprt, GFP_KERNEL);
+		size = min_t(size_t, r_xprt->rx_data.inline_rsize, PAGE_SIZE);
+		req = rpcrdma_req_create(r_xprt, size, GFP_KERNEL);
 		if (!req)
 			return -ENOMEM;
 		rqst = &req->rl_slot;
@@ -42,20 +42,10 @@ static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
 		spin_lock(&xprt->bc_pa_lock);
 		list_add(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);
 		spin_unlock(&xprt->bc_pa_lock);
-
-		size = r_xprt->rx_data.inline_rsize;
-		rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, GFP_KERNEL);
-		if (!rb)
-			goto out_fail;
-		req->rl_sendbuf = rb;
-		xdr_buf_init(&rqst->rq_snd_buf, rdmab_data(rb),
-			     min_t(size_t, size, PAGE_SIZE));
+		xdr_buf_init(&rqst->rq_snd_buf, rdmab_data(req->rl_sendbuf),
+			     size);
 	}
 	return 0;
-
-out_fail:
-	rpcrdma_req_destroy(req);
-	return -ENOMEM;
 }
 
 /**

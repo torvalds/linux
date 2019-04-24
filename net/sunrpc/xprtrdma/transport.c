@@ -591,7 +591,7 @@ rpcrdma_get_sendbuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 {
 	struct rpcrdma_regbuf *rb;
 
-	if (req->rl_sendbuf && rdmab_length(req->rl_sendbuf) >= size)
+	if (likely(rdmab_length(req->rl_sendbuf) >= size))
 		return true;
 
 	rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, flags);
@@ -621,7 +621,7 @@ rpcrdma_get_recvbuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 {
 	struct rpcrdma_regbuf *rb;
 
-	if (req->rl_recvbuf && rdmab_length(req->rl_recvbuf) >= size)
+	if (likely(rdmab_length(req->rl_recvbuf) >= size))
 		return true;
 
 	rb = rpcrdma_alloc_regbuf(size, DMA_NONE, flags);
