@@ -25,9 +25,10 @@
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
-#include "i915_reset.h"
-#include "intel_ringbuffer.h"
+
+#include "intel_engine.h"
 #include "intel_lrc.h"
+#include "intel_reset.h"
 
 /* Haswell does have the CXT_SIZE register however it does not appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
@@ -1756,6 +1757,5 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftests/mock_engine.c"
-#include "selftests/intel_engine_cs.c"
+#include "selftest_engine_cs.c"
 #endif

@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/srcu.h>
 
-#include "intel_engine_types.h"
+#include "gt/intel_engine_types.h"
 
 struct drm_i915_private;
 struct i915_request;

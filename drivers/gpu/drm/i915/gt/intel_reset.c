@@ -9,7 +9,7 @@
 
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
-#include "i915_reset.h"
+#include "intel_reset.h"
 
 #include "intel_guc.h"
 

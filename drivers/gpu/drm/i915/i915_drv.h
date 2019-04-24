@@ -62,18 +62,19 @@
 #include "i915_reg.h"
 #include "i915_utils.h"
 
+#include "gt/intel_lrc.h"
+#include "gt/intel_engine.h"
+#include "gt/intel_workarounds.h"
+
 #include "intel_bios.h"
 #include "intel_device_info.h"
 #include "intel_display.h"
 #include "intel_dpll_mgr.h"
 #include "intel_frontbuffer.h"
-#include "intel_lrc.h"
 #include "intel_opregion.h"
-#include "intel_ringbuffer.h"
 #include "intel_uc.h"
 #include "intel_uncore.h"
 #include "intel_wopcm.h"
-#include "intel_workarounds.h"
 
 #include "i915_gem.h"
 #include "i915_gem_context.h"

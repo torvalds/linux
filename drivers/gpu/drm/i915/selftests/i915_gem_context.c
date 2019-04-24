@@ -24,8 +24,9 @@
 
 #include <linux/prime_numbers.h>
 
-#include "../i915_reset.h"
-#include "../i915_selftest.h"
+#include "gt/intel_reset.h"
+#include "i915_selftest.h"
+
 #include "i915_random.h"
 #include "igt_flush_test.h"
 #include "igt_live_test.h"

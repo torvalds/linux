@@ -133,13 +133,12 @@
  */
 #include <linux/interrupt.h>
 
-#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_gem_render_state.h"
-#include "i915_reset.h"
 #include "i915_vgpu.h"
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
+#include "intel_reset.h"
 #include "intel_workarounds.h"
 
 #define RING_EXECLIST_QFULL		(1 << 0x2)
@@ -2905,5 +2904,5 @@ void intel_lr_context_reset(struct intel_engine_cs *engine,
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftests/intel_lrc.c"
+#include "selftest_lrc.c"
 #endif

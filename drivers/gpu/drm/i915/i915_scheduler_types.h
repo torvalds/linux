@@ -9,8 +9,8 @@
 
 #include <linux/list.h>
 
+#include "gt/intel_engine_types.h"
 #include "i915_priolist_types.h"
-#include "intel_engine_types.h"
 
 struct drm_i915_private;
 struct i915_request;

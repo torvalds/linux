@@ -22,8 +22,8 @@
  *
  */
 
+#include "intel_reset.h"
 #include "i915_drv.h"
-#include "i915_reset.h"
 
 struct hangcheck {
 	u64 acthd;
@@ -330,5 +330,5 @@ void intel_hangcheck_init(struct drm_i915_private *i915)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftests/intel_hangcheck.c"
+#include "selftest_hangcheck.c"
 #endif

@@ -7,8 +7,9 @@
 #include "i915_drv.h"
 #include "i915_gem_context.h"
 #include "i915_globals.h"
+
 #include "intel_context.h"
-#include "intel_ringbuffer.h"
+#include "intel_engine.h"
 
 static struct i915_global_context {
 	struct i915_global base;

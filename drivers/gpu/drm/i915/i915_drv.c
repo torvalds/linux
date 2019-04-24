@@ -47,10 +47,12 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/i915_drm.h>
 
+#include "gt/intel_workarounds.h"
+#include "gt/intel_reset.h"
+
 #include "i915_drv.h"
 #include "i915_pmu.h"
 #include "i915_query.h"
-#include "i915_reset.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_audio.h"
@@ -62,7 +64,6 @@
 #include "intel_pm.h"
 #include "intel_sprite.h"
 #include "intel_uc.h"
-#include "intel_workarounds.h"
 
 static struct drm_driver driver;
 

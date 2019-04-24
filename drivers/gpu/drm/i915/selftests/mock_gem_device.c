@@ -25,7 +25,8 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
-#include "mock_engine.h"
+#include "gt/mock_engine.h"
+
 #include "mock_context.h"
 #include "mock_request.h"
 #include "mock_gem_device.h"

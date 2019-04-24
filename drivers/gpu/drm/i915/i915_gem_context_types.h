@@ -17,8 +17,9 @@
 #include <linux/rcupdate.h>
 #include <linux/types.h>
 
+#include "gt/intel_context_types.h"
+
 #include "i915_scheduler.h"
-#include "intel_context_types.h"
 
 struct pid;
 

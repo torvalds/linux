@@ -25,8 +25,9 @@
 #include <linux/circ_buf.h>
 #include <trace/events/dma_fence.h>
 
+#include "gt/intel_lrc_reg.h"
+
 #include "intel_guc_submission.h"
-#include "intel_lrc_reg.h"
 #include "i915_drv.h"
 
 #define GUC_PREEMPT_FINISHED		0x1

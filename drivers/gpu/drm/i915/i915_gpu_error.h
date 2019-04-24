@@ -13,8 +13,9 @@
 
 #include <drm/drm_mm.h>
 
+#include "gt/intel_engine.h"
+
 #include "intel_device_info.h"
-#include "intel_ringbuffer.h"
 #include "intel_uc_fw.h"
 
 #include "i915_gem.h"

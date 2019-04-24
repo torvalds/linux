@@ -20,9 +20,11 @@
  * SOFTWARE.
  */
 
+#include "i915_drv.h"
+
+#include "intel_engine.h"
 #include "intel_mocs.h"
 #include "intel_lrc.h"
-#include "intel_ringbuffer.h"
 
 /* structures required */
 struct drm_i915_mocs_entry {

@@ -24,14 +24,14 @@
 
 #include <linux/kthread.h>
 
-#include "../i915_selftest.h"
-#include "i915_random.h"
-#include "igt_flush_test.h"
-#include "igt_reset.h"
-#include "igt_wedge_me.h"
+#include "i915_selftest.h"
+#include "selftests/i915_random.h"
+#include "selftests/igt_flush_test.h"
+#include "selftests/igt_reset.h"
+#include "selftests/igt_wedge_me.h"
 
-#include "mock_context.h"
-#include "mock_drm.h"
+#include "selftests/mock_context.h"
+#include "selftests/mock_drm.h"
 
 #define IGT_IDLE_TIMEOUT 50 /* ms; time to wait after flushing between tests */
 

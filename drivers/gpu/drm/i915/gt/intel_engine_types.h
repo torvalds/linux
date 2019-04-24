@@ -14,14 +14,13 @@
 #include <linux/types.h>
 
 #include "i915_gem.h"
+#include "i915_gem_batch_pool.h"
+#include "i915_pmu.h"
 #include "i915_priolist_types.h"
 #include "i915_selftest.h"
 #include "i915_timeline_types.h"
 #include "intel_sseu.h"
 #include "intel_workarounds_types.h"
-
-#include "i915_gem_batch_pool.h"
-#include "i915_pmu.h"
 
 #define I915_MAX_SLICES	3
 #define I915_MAX_SUBSLICES 8

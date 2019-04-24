@@ -86,13 +86,16 @@
  */
 
 #include <linux/log2.h>
+
 #include <drm/i915_drm.h>
+
+#include "gt/intel_lrc_reg.h"
+#include "gt/intel_workarounds.h"
+
 #include "i915_drv.h"
 #include "i915_globals.h"
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
-#include "intel_lrc_reg.h"
-#include "intel_workarounds.h"
 
 #define I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE (1 << 1)
 #define I915_CONTEXT_PARAM_VM 0x9

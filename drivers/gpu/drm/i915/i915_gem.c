@@ -39,19 +39,20 @@
 #include <linux/dma-buf.h>
 #include <linux/mman.h>
 
+#include "gt/intel_mocs.h"
+#include "gt/intel_reset.h"
+#include "gt/intel_workarounds.h"
+
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gemfs.h"
 #include "i915_globals.h"
-#include "i915_reset.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
-#include "intel_mocs.h"
 #include "intel_pm.h"
-#include "intel_workarounds.h"
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 

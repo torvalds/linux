@@ -35,32 +35,53 @@ subdir-ccflags-y += \
 # Extra header tests
 include $(src)/Makefile.header-test
 
+subdir-ccflags-y += -I$(src)
+
 # Please keep these build lists sorted!
 
 # core driver code
 i915-y += i915_drv.o \
 	  i915_irq.o \
-	  i915_memcpy.o \
-	  i915_mm.o \
 	  i915_params.o \
 	  i915_pci.o \
-	  i915_reset.o \
 	  i915_suspend.o \
-	  i915_sw_fence.o \
-	  i915_syncmap.o \
 	  i915_sysfs.o \
-	  i915_user_extensions.o \
 	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o \
-	  intel_workarounds.o
+	  intel_uncore.o
+
+# core library code
+i915-y += \
+	i915_memcpy.o \
+	i915_mm.o \
+	i915_sw_fence.o \
+	i915_syncmap.o \
+	i915_user_extensions.o
 
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 
-# GEM code
+# "Graphics Technology" (aka we talk to the gpu)
+obj-y += gt/
+gt-y += \
+	gt/intel_breadcrumbs.o \
+	gt/intel_context.o \
+	gt/intel_engine_cs.o \
+	gt/intel_hangcheck.o \
+	gt/intel_lrc.o \
+	gt/intel_reset.o \
+	gt/intel_ringbuffer.o \
+	gt/intel_mocs.o \
+	gt/intel_sseu.o \
+	gt/intel_workarounds.o
+gt-$(CONFIG_DRM_I915_SELFTEST) += \
+	gt/mock_engine.o
+i915-y += $(gt-y)
+
+# GEM (Graphics Execution Management) code
 i915-y += \
 	  i915_active.o \
 	  i915_cmd_parser.o \
@@ -88,15 +109,6 @@ i915-y += \
 	  i915_timeline.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
-	  intel_breadcrumbs.o \
-	  intel_context.o \
-	  intel_engine_cs.o \
-	  intel_hangcheck.o \
-	  intel_lrc.o \
-	  intel_mocs.o \
-	  intel_ringbuffer.o \
-	  intel_sseu.o \
-	  intel_uncore.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support

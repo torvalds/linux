@@ -6,8 +6,9 @@
 
 #include "igt_reset.h"
 
+#include "gt/intel_engine.h"
+
 #include "../i915_drv.h"
-#include "../intel_ringbuffer.h"
 
 void igt_global_reset_lock(struct drm_i915_private *i915)
 {

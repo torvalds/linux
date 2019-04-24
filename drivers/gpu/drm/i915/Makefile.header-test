@@ -13,13 +13,11 @@ header_test := \
 	intel_cdclk.h \
 	intel_color.h \
 	intel_connector.h \
-	intel_context_types.h \
 	intel_crt.h \
 	intel_csr.h \
 	intel_ddi.h \
 	intel_dp.h \
 	intel_dvo.h \
-	intel_engine_types.h \
 	intel_fbc.h \
 	intel_fbdev.h \
 	intel_frontbuffer.h \
@@ -33,9 +31,7 @@ header_test := \
 	intel_psr.h \
 	intel_sdvo.h \
 	intel_sprite.h \
-	intel_sseu.h \
-	intel_tv.h \
-	intel_workarounds_types.h
+	intel_tv.h
 
 quiet_cmd_header_test = HDRTEST $@
       cmd_header_test = echo "\#include \"$(<F)\"" > $@

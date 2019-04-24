@@ -22,7 +22,8 @@
  *
  */
 
-#include "mock_engine.h"
+#include "gt/mock_engine.h"
+
 #include "mock_request.h"
 
 struct i915_request *

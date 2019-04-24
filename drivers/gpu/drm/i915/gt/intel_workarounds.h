@@ -4,12 +4,16 @@
  * Copyright © 2014-2018 Intel Corporation
  */
 
-#ifndef _I915_WORKAROUNDS_H_
-#define _I915_WORKAROUNDS_H_
+#ifndef _INTEL_WORKAROUNDS_H_
+#define _INTEL_WORKAROUNDS_H_
 
 #include <linux/slab.h>
 
 #include "intel_workarounds_types.h"
+
+struct drm_i915_private;
+struct i915_request;
+struct intel_engine_cs;
 
 static inline void intel_wa_list_free(struct i915_wa_list *wal)
 {

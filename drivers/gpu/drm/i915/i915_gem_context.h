@@ -27,9 +27,10 @@
 
 #include "i915_gem_context_types.h"
 
+#include "gt/intel_context.h"
+
 #include "i915_gem.h"
 #include "i915_scheduler.h"
-#include "intel_context.h"
 #include "intel_device_info.h"
 
 struct drm_device;

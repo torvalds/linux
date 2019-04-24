@@ -29,7 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 
-#include "../intel_ringbuffer.h"
+#include "gt/intel_engine.h"
 
 struct mock_engine {
 	struct intel_engine_cs base;

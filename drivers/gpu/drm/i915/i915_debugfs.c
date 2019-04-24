@@ -32,7 +32,8 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_fourcc.h>
 
-#include "i915_reset.h"
+#include "gt/intel_reset.h"
+
 #include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbc.h"

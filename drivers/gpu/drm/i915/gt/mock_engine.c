@@ -22,8 +22,11 @@
  *
  */
 
+#include "i915_drv.h"
+#include "intel_context.h"
+
 #include "mock_engine.h"
-#include "mock_request.h"
+#include "selftests/mock_request.h"
 
 struct mock_ring {
 	struct intel_ring base;
@@ -268,8 +271,9 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	timer_setup(&engine->hw_delay, hw_delay_complete, 0);
 	INIT_LIST_HEAD(&engine->hw_queue);
 
-	if (pin_context(i915->kernel_context, &engine->base,
-			&engine->base.kernel_context))
+	engine->base.kernel_context =
+		intel_context_pin(i915->kernel_context, &engine->base);
+	if (IS_ERR(engine->base.kernel_context))
 		goto err_breadcrumbs;
 
 	return &engine->base;

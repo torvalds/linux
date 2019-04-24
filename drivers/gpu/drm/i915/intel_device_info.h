@@ -27,9 +27,11 @@
 
 #include <uapi/drm/i915_drm.h>
 
-#include "intel_engine_types.h"
+#include "gt/intel_engine_types.h"
+#include "gt/intel_context_types.h"
+#include "gt/intel_sseu.h"
+
 #include "intel_display.h"
-#include "intel_sseu.h"
 
 struct drm_printer;
 struct drm_i915_private;

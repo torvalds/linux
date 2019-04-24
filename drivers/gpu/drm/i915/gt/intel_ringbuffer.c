@@ -33,9 +33,8 @@
 
 #include "i915_drv.h"
 #include "i915_gem_render_state.h"
-#include "i915_reset.h"
 #include "i915_trace.h"
-#include "intel_drv.h"
+#include "intel_reset.h"
 #include "intel_workarounds.h"
 
 /* Rough estimate of the typical request size, performing a flush,

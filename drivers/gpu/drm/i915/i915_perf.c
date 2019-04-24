@@ -195,6 +195,8 @@
 #include <linux/sizes.h>
 #include <linux/uuid.h>
 
+#include "gt/intel_lrc_reg.h"
+
 #include "i915_drv.h"
 #include "i915_oa_hsw.h"
 #include "i915_oa_bdw.h"
@@ -210,7 +212,6 @@
 #include "i915_oa_cflgt3.h"
 #include "i915_oa_cnl.h"
 #include "i915_oa_icl.h"
-#include "intel_lrc_reg.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such

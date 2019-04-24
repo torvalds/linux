@@ -6,8 +6,10 @@
 
 #include <linux/irq.h>
 #include <linux/pm_runtime.h>
+
+#include "gt/intel_engine.h"
+
 #include "i915_pmu.h"
-#include "intel_ringbuffer.h"
 #include "i915_drv.h"
 
 /* Frequency for the sampling timer for events which need it. */

@@ -6,15 +6,13 @@
 
 #include <linux/prime_numbers.h>
 
-#include "../i915_reset.h"
-
-#include "../i915_selftest.h"
-#include "igt_flush_test.h"
-#include "igt_live_test.h"
-#include "igt_spinner.h"
-#include "i915_random.h"
-
-#include "mock_context.h"
+#include "gt/intel_reset.h"
+#include "i915_selftest.h"
+#include "selftests/i915_random.h"
+#include "selftests/igt_flush_test.h"
+#include "selftests/igt_live_test.h"
+#include "selftests/igt_spinner.h"
+#include "selftests/mock_context.h"
 
 static int live_sanitycheck(void *arg)
 {
