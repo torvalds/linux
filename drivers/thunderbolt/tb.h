@@ -225,7 +225,7 @@ struct tb_path {
 	enum tb_path_port ingress_fc_enable;
 	enum tb_path_port egress_fc_enable;
 
-	int priority:3;
+	unsigned int priority:3;
 	int weight:4;
 	bool drop_packages;
 	bool activated;
