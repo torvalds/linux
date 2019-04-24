@@ -116,24 +116,13 @@ else
 	$(error Error: set INSTALL_PATH to use install)
 endif
 
-define EMIT_TESTS
+emit_tests:
 	@test_num=`echo 0`;				\
 	for TEST in $(TEST_GEN_PROGS) $(TEST_CUSTOM_PROGS) $(TEST_PROGS); do \
 		BASENAME_TEST=`basename $$TEST`;	\
 		test_num=`echo $$test_num+1 | bc`;	\
-		TEST_HDR_MSG="selftests: "`basename $$PWD`:" $$BASENAME_TEST";	\
-		echo "echo $$TEST_HDR_MSG";	\
-		if [ ! -x $$TEST ]; then	\
-			echo "echo \"$$TEST_HDR_MSG: Warning: file $$BASENAME_TEST is not executable, correct this.\"";		\
-			echo "echo \"not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]\""; \
-		else
-			echo "(./$$BASENAME_TEST >> \$$OUTPUT 2>&1 && echo \"ok 1..$$test_num $$TEST_HDR_MSG [PASS]\") || (if [ \$$? -eq \$$skip ]; then echo \"not ok 1..$$test_num $$TEST_HDR_MSG [SKIP]\"; else echo \"not ok 1..$$test_num $$TEST_HDR_MSG [FAIL]\"; fi;)"; \
-		fi;		\
+		echo "run_one \"$$BASENAME_TEST\" \"$$test_num\"";	\
 	done;
-endef
-
-emit_tests:
-	$(EMIT_TESTS)
 
 # define if isn't already. It is undefined in make O= case.
 ifeq ($(RM),)
