@@ -5,7 +5,6 @@
 #include <linux/types.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <asm/io.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
