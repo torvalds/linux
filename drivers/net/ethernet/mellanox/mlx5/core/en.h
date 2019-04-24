@@ -409,14 +409,17 @@ struct mlx5e_xdp_info_fifo {
 
 struct mlx5e_xdp_wqe_info {
 	u8 num_wqebbs;
-	u8 num_ds;
+	u8 num_pkts;
 };
 
 struct mlx5e_xdp_mpwqe {
 	/* Current MPWQE session */
 	struct mlx5e_tx_wqe *wqe;
 	u8                   ds_count;
+	u8                   pkt_count;
 	u8                   max_ds_count;
+	u8                   complete;
+	u8                   inline_on;
 };
 
 struct mlx5e_xdpsq;
@@ -428,7 +431,6 @@ struct mlx5e_xdpsq {
 	/* dirtied @completion */
 	u32                        xdpi_fifo_cc;
 	u16                        cc;
-	bool                       redirect_flush;
 
 	/* dirtied @xmit */
 	u32                        xdpi_fifo_pc ____cacheline_aligned_in_smp;
@@ -461,10 +463,10 @@ struct mlx5e_xdpsq {
 
 struct mlx5e_icosq {
 	/* data path */
+	u16                        cc;
+	u16                        pc;
 
-	/* dirtied @xmit */
-	u16                        pc ____cacheline_aligned_in_smp;
-
+	struct mlx5_wqe_ctrl_seg  *doorbell_cseg;
 	struct mlx5e_cq            cq;
 
 	/* write@xmit, read@completion */
@@ -531,7 +533,8 @@ typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
 enum mlx5e_rq_flag {
-	MLX5E_RQ_FLAG_XDP_XMIT = BIT(0),
+	MLX5E_RQ_FLAG_XDP_XMIT,
+	MLX5E_RQ_FLAG_XDP_REDIRECT,
 };
 
 struct mlx5e_rq_frag_info {
@@ -562,8 +565,10 @@ struct mlx5e_rq {
 			struct mlx5e_mpw_info *info;
 			mlx5e_fp_skb_from_cqe_mpwrq skb_from_cqe_mpwrq;
 			u16                    num_strides;
+			u16                    actual_wq_head;
 			u8                     log_stride_sz;
-			bool                   umr_in_progress;
+			u8                     umr_in_progress;
+			u8                     umr_last_bulk;
 		} mpwqe;
 	};
 	struct {
@@ -773,6 +778,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more);
 
+void mlx5e_trigger_irq(struct mlx5e_icosq *sq);
 void mlx5e_completion_event(struct mlx5_core_cq *mcq);
 void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event);
 int mlx5e_napi_poll(struct napi_struct *napi, int budget);

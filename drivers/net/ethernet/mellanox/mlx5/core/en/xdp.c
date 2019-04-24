@@ -85,7 +85,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 		if (unlikely(err))
 			goto xdp_abort;
 		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags);
-		rq->xdpsq.redirect_flush = true;
+		__set_bit(MLX5E_RQ_FLAG_XDP_REDIRECT, rq->flags);
 		mlx5e_page_dma_unmap(rq, di);
 		rq->stats->xdp_redirect++;
 		return true;
@@ -105,6 +105,7 @@ xdp_abort:
 static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 {
 	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
+	struct mlx5e_xdpsq_stats *stats = sq->stats;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u8  wqebbs;
 	u16 pi;
@@ -112,7 +113,9 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 	mlx5e_xdpsq_fetch_wqe(sq, &session->wqe);
 
 	prefetchw(session->wqe->data);
-	session->ds_count = MLX5E_XDP_TX_EMPTY_DS_COUNT;
+	session->ds_count  = MLX5E_XDP_TX_EMPTY_DS_COUNT;
+	session->pkt_count = 0;
+	session->complete  = 0;
 
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
@@ -131,6 +134,10 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 		       MLX5E_XDP_MPW_MAX_WQEBBS);
 
 	session->max_ds_count = MLX5_SEND_WQEBB_NUM_DS * wqebbs;
+
+	mlx5e_xdp_update_inline_state(sq);
+
+	stats->mpwqe++;
 }
 
 static void mlx5e_xdp_mpwqe_complete(struct mlx5e_xdpsq *sq)
@@ -147,7 +154,7 @@ static void mlx5e_xdp_mpwqe_complete(struct mlx5e_xdpsq *sq)
 	cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_count);
 
 	wi->num_wqebbs = DIV_ROUND_UP(ds_count, MLX5_SEND_WQEBB_NUM_DS);
-	wi->num_ds     = ds_count - MLX5E_XDP_TX_EMPTY_DS_COUNT;
+	wi->num_pkts   = session->pkt_count;
 
 	sq->pc += wi->num_wqebbs;
 
@@ -162,11 +169,9 @@ static bool mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq,
 	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
-	dma_addr_t dma_addr    = xdpi->dma_addr;
 	struct xdp_frame *xdpf = xdpi->xdpf;
-	unsigned int dma_len   = xdpf->len;
 
-	if (unlikely(sq->hw_mtu < dma_len)) {
+	if (unlikely(sq->hw_mtu < xdpf->len)) {
 		stats->err++;
 		return false;
 	}
@@ -183,9 +188,10 @@ static bool mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq,
 		mlx5e_xdp_mpwqe_session_start(sq);
 	}
 
-	mlx5e_xdp_mpwqe_add_dseg(sq, dma_addr, dma_len);
+	mlx5e_xdp_mpwqe_add_dseg(sq, xdpi, stats);
 
-	if (unlikely(session->ds_count == session->max_ds_count))
+	if (unlikely(session->complete ||
+		     session->ds_count == session->max_ds_count))
 		mlx5e_xdp_mpwqe_complete(sq);
 
 	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, xdpi);
@@ -299,7 +305,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 
 			sqcc += wi->num_wqebbs;
 
-			for (j = 0; j < wi->num_ds; j++) {
+			for (j = 0; j < wi->num_pkts; j++) {
 				struct mlx5e_xdp_info xdpi =
 					mlx5e_xdpi_fifo_pop(xdpi_fifo);
 
@@ -340,7 +346,7 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 
 		sq->cc += wi->num_wqebbs;
 
-		for (i = 0; i < wi->num_ds; i++) {
+		for (i = 0; i < wi->num_pkts; i++) {
 			struct mlx5e_xdp_info xdpi =
 				mlx5e_xdpi_fifo_pop(xdpi_fifo);
 
@@ -419,9 +425,9 @@ void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq)
 
 	mlx5e_xmit_xdp_doorbell(xdpsq);
 
-	if (xdpsq->redirect_flush) {
+	if (test_bit(MLX5E_RQ_FLAG_XDP_REDIRECT, rq->flags)) {
 		xdp_do_flush_map();
-		xdpsq->redirect_flush = false;
+		__clear_bit(MLX5E_RQ_FLAG_XDP_REDIRECT, rq->flags);
 	}
 }
 
