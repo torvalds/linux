@@ -72,6 +72,7 @@ struct rpc_clnt {
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
 	struct rpc_xprt_iter	cl_xpi;
+	const struct cred	*cl_cred;
 };
 
 /*
@@ -126,6 +127,7 @@ struct rpc_create_args {
 	unsigned long		flags;
 	char			*client_name;
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
+	const struct cred	*cred;
 };
 
 struct rpc_add_xprt_test {

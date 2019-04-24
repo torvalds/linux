@@ -500,6 +500,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
+		.cred		= current_cred(),
 	};
 
 	if (test_bit(NFS_CS_DISCRTRY, &clp->cl_flags))
