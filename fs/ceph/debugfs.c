@@ -124,18 +124,48 @@ static int mdsc_show(struct seq_file *s, void *p)
 	return 0;
 }
 
+static int caps_show_cb(struct inode *inode, struct ceph_cap *cap, void *p)
+{
+	struct seq_file *s = p;
+
+	seq_printf(s, "0x%-17lx%-17s%-17s\n", inode->i_ino,
+		   ceph_cap_string(cap->issued),
+		   ceph_cap_string(cap->implemented));
+	return 0;
+}
+
 static int caps_show(struct seq_file *s, void *p)
 {
 	struct ceph_fs_client *fsc = s->private;
-	int total, avail, used, reserved, min;
+	struct ceph_mds_client *mdsc = fsc->mdsc;
+	int total, avail, used, reserved, min, i;
 
 	ceph_reservation_status(fsc, &total, &avail, &used, &reserved, &min);
 	seq_printf(s, "total\t\t%d\n"
 		   "avail\t\t%d\n"
 		   "used\t\t%d\n"
 		   "reserved\t%d\n"
-		   "min\t%d\n",
+		   "min\t\t%d\n\n",
 		   total, avail, used, reserved, min);
+	seq_printf(s, "ino                issued           implemented\n");
+	seq_printf(s, "-----------------------------------------------\n");
+
+	mutex_lock(&mdsc->mutex);
+	for (i = 0; i < mdsc->max_sessions; i++) {
+		struct ceph_mds_session *session;
+
+		session = __ceph_lookup_mds_session(mdsc, i);
+		if (!session)
+			continue;
+		mutex_unlock(&mdsc->mutex);
+		mutex_lock(&session->s_mutex);
+		ceph_iterate_session_caps(session, caps_show_cb, s);
+		mutex_unlock(&session->s_mutex);
+		ceph_put_mds_session(session);
+		mutex_lock(&mdsc->mutex);
+	}
+	mutex_unlock(&mdsc->mutex);
+
 	return 0;
 }
 
