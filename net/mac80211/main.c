@@ -1060,6 +1060,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		wiphy_ext_feature_set(local->hw.wiphy,
 				      NL80211_EXT_FEATURE_EXT_KEY_ID);
 
+	/* Mac80211 and therefore all cards only using SW crypto are able to
+	 * handle PTK rekeys correctly
+	 */
+	if (!local->ops->set_key)
+		wiphy_ext_feature_set(local->hw.wiphy,
+				      NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+
 	/*
 	 * Calculate scan IE length -- we need this to alloc
 	 * memory and to subtract from the driver limit. It
