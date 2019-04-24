@@ -80,6 +80,20 @@
 			#interrupt-cells = <3>;
 		};
 
+		sctrl: system-controller@50010000 {
+			compatible = "bitmain,bm1880-sctrl", "syscon",
+				     "simple-mfd";
+			reg = <0x0 0x50010000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x50010000 0x1000>;
+
+			pinctrl: pinctrl@50 {
+				compatible = "bitmain,bm1880-pinctrl";
+				reg = <0x50 0x4B0>;
+			};
+		};
+
 		gpio0: gpio@50027000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
