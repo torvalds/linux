@@ -745,7 +745,7 @@
 			reg = <0x10ab000 0x1000>, /* TM */
 			      <0x10aa000 0x1000>; /* SROT */
 
-			#qcom,sensors = <12>;
+			#qcom,sensors = <14>;
 			#thermal-sensor-cells = <1>;
 		};
 
