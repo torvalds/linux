@@ -13,3 +13,4 @@ ACPI Support
    method-customizing
    DSD-properties-rules
    gpio-properties
+   i2c-muxes
