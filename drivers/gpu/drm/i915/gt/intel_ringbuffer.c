@@ -1510,6 +1510,9 @@ static const struct intel_context_ops ring_context_ops = {
 	.pin = ring_context_pin,
 	.unpin = ring_context_unpin,
 
+	.enter = intel_context_enter_engine,
+	.exit = intel_context_exit_engine,
+
 	.reset = ring_context_reset,
 	.destroy = ring_context_destroy,
 };

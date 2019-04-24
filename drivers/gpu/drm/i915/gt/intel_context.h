@@ -73,6 +73,27 @@ static inline void __intel_context_pin(struct intel_context *ce)
 
 void intel_context_unpin(struct intel_context *ce);
 
+void intel_context_enter_engine(struct intel_context *ce);
+void intel_context_exit_engine(struct intel_context *ce);
+
+static inline void intel_context_enter(struct intel_context *ce)
+{
+	if (!ce->active_count++)
+		ce->ops->enter(ce);
+}
+
+static inline void intel_context_mark_active(struct intel_context *ce)
+{
+	++ce->active_count;
+}
+
+static inline void intel_context_exit(struct intel_context *ce)
+{
+	GEM_BUG_ON(!ce->active_count);
+	if (!--ce->active_count)
+		ce->ops->exit(ce);
+}
+
 static inline struct intel_context *intel_context_get(struct intel_context *ce)
 {
 	kref_get(&ce->ref);

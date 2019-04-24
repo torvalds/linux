@@ -157,6 +157,9 @@ static const struct intel_context_ops mock_context_ops = {
 	.pin = mock_context_pin,
 	.unpin = mock_context_unpin,
 
+	.enter = intel_context_enter_engine,
+	.exit = intel_context_exit_engine,
+
 	.destroy = mock_context_destroy,
 };
 

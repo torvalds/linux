@@ -266,3 +266,20 @@ int __init i915_global_context_init(void)
 	i915_global_register(&global.base);
 	return 0;
 }
+
+void intel_context_enter_engine(struct intel_context *ce)
+{
+	struct drm_i915_private *i915 = ce->gem_context->i915;
+
+	if (!i915->gt.active_requests++)
+		i915_gem_unpark(i915);
+}
+
+void intel_context_exit_engine(struct intel_context *ce)
+{
+	struct drm_i915_private *i915 = ce->gem_context->i915;
+
+	GEM_BUG_ON(!i915->gt.active_requests);
+	if (!--i915->gt.active_requests)
+		i915_gem_park(i915);
+}

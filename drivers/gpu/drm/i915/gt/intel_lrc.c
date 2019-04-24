@@ -1315,6 +1315,9 @@ static const struct intel_context_ops execlists_context_ops = {
 	.pin = execlists_context_pin,
 	.unpin = execlists_context_unpin,
 
+	.enter = intel_context_enter_engine,
+	.exit = intel_context_exit_engine,
+
 	.reset = execlists_context_reset,
 	.destroy = execlists_context_destroy,
 };

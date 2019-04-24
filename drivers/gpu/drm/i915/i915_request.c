@@ -131,19 +131,6 @@ i915_request_remove_from_client(struct i915_request *request)
 	spin_unlock(&file_priv->mm.lock);
 }
 
-static void reserve_gt(struct drm_i915_private *i915)
-{
-	if (!i915->gt.active_requests++)
-		i915_gem_unpark(i915);
-}
-
-static void unreserve_gt(struct drm_i915_private *i915)
-{
-	GEM_BUG_ON(!i915->gt.active_requests);
-	if (!--i915->gt.active_requests)
-		i915_gem_park(i915);
-}
-
 static void advance_ring(struct i915_request *request)
 {
 	struct intel_ring *ring = request->ring;
@@ -301,11 +288,10 @@ static void i915_request_retire(struct i915_request *request)
 
 	i915_request_remove_from_client(request);
 
-	intel_context_unpin(request->hw_context);
-
 	__retire_engine_upto(request->engine, request);
 
-	unreserve_gt(request->i915);
+	intel_context_exit(request->hw_context);
+	intel_context_unpin(request->hw_context);
 
 	i915_sched_node_fini(&request->sched);
 	i915_request_put(request);
@@ -659,8 +645,8 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	if (IS_ERR(ce))
 		return ERR_CAST(ce);
 
-	reserve_gt(i915);
 	mutex_lock(&ce->ring->timeline->mutex);
+	intel_context_enter(ce);
 
 	/* Move our oldest request to the slab-cache (if not in use!) */
 	rq = list_first_entry(&ce->ring->request_list, typeof(*rq), ring_link);
@@ -791,8 +777,8 @@ err_unwind:
 err_free:
 	kmem_cache_free(global.slab_requests, rq);
 err_unreserve:
+	intel_context_exit(ce);
 	mutex_unlock(&ce->ring->timeline->mutex);
-	unreserve_gt(i915);
 	intel_context_unpin(ce);
 	return ERR_PTR(ret);
 }

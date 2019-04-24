@@ -25,6 +25,9 @@ struct intel_context_ops {
 	int (*pin)(struct intel_context *ce);
 	void (*unpin)(struct intel_context *ce);
 
+	void (*enter)(struct intel_context *ce);
+	void (*exit)(struct intel_context *ce);
+
 	void (*reset)(struct intel_context *ce);
 	void (*destroy)(struct kref *kref);
 };
@@ -45,6 +48,8 @@ struct intel_context {
 
 	u32 *lrc_reg_state;
 	u64 lrc_desc;
+
+	unsigned int active_count; /* notionally protected by timeline->mutex */
 
 	atomic_t pin_count;
 	struct mutex pin_mutex; /* guards pinning and associated on-gpuing */
