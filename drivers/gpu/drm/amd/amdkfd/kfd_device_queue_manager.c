@@ -794,9 +794,13 @@ static int register_process(struct device_queue_manager *dqm,
 	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 
 	dqm->processes_count++;
-	kfd_inc_compute_active(dqm->dev);
 
 	dqm_unlock(dqm);
+
+	/* Outside the DQM lock because under the DQM lock we can't do
+	 * reclaim or take other locks that others hold while reclaiming.
+	 */
+	kfd_inc_compute_active(dqm->dev);
 
 	return retval;
 }
@@ -818,7 +822,6 @@ static int unregister_process(struct device_queue_manager *dqm,
 			list_del(&cur->list);
 			kfree(cur);
 			dqm->processes_count--;
-			kfd_dec_compute_active(dqm->dev);
 			goto out;
 		}
 	}
@@ -826,6 +829,13 @@ static int unregister_process(struct device_queue_manager *dqm,
 	retval = 1;
 out:
 	dqm_unlock(dqm);
+
+	/* Outside the DQM lock because under the DQM lock we can't do
+	 * reclaim or take other locks that others hold while reclaiming.
+	 */
+	if (!retval)
+		kfd_dec_compute_active(dqm->dev);
+
 	return retval;
 }
 
@@ -1519,6 +1529,7 @@ static int process_termination_nocpsch(struct device_queue_manager *dqm,
 	struct queue *q, *next;
 	struct device_process_node *cur, *next_dpn;
 	int retval = 0;
+	bool found = false;
 
 	dqm_lock(dqm);
 
@@ -1537,12 +1548,19 @@ static int process_termination_nocpsch(struct device_queue_manager *dqm,
 			list_del(&cur->list);
 			kfree(cur);
 			dqm->processes_count--;
-			kfd_dec_compute_active(dqm->dev);
+			found = true;
 			break;
 		}
 	}
 
 	dqm_unlock(dqm);
+
+	/* Outside the DQM lock because under the DQM lock we can't do
+	 * reclaim or take other locks that others hold while reclaiming.
+	 */
+	if (found)
+		kfd_dec_compute_active(dqm->dev);
+
 	return retval;
 }
 
@@ -1588,6 +1606,7 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 	struct device_process_node *cur, *next_dpn;
 	enum kfd_unmap_queues_filter filter =
 		KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES;
+	bool found = false;
 
 	retval = 0;
 
@@ -1624,7 +1643,7 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 			list_del(&cur->list);
 			kfree(cur);
 			dqm->processes_count--;
-			kfd_dec_compute_active(dqm->dev);
+			found = true;
 			break;
 		}
 	}
@@ -1637,6 +1656,12 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 	}
 
 	dqm_unlock(dqm);
+
+	/* Outside the DQM lock because under the DQM lock we can't do
+	 * reclaim or take other locks that others hold while reclaiming.
+	 */
+	if (found)
+		kfd_dec_compute_active(dqm->dev);
 
 	/* Lastly, free mqd resources.
 	 * Do uninit_mqd() after dqm_unlock to avoid circular locking.
