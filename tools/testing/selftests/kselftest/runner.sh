@@ -19,7 +19,12 @@ run_one()
 	echo "$TEST_HDR_MSG"
 	echo "========================================"
 	if [ ! -x "$TEST" ]; then
-		echo "$TEST_HDR_MSG: Warning: file $TEST is not executable, correct this."
+		echo -n "$TEST_HDR_MSG: Warning: file $TEST is "
+		if [ ! -e "$TEST" ]; then
+			echo "missing!"
+		else
+			echo "not executable, correct this."
+		fi
 		echo "not ok $test_num $TEST_HDR_MSG"
 	else
 		cd `dirname $TEST` > /dev/null
