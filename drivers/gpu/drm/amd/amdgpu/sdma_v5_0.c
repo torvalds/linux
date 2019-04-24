@@ -565,7 +565,8 @@ static int sdma_v5_0_gfx_resume(struct amdgpu_device *adev)
 	u32 doorbell;
 	u32 doorbell_offset;
 	u32 temp;
-	u32 wptr_gpu_addr, wptr_poll_cntl;
+	u32 wptr_poll_cntl;
+	u64 wptr_gpu_addr;
 	int i, r;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
