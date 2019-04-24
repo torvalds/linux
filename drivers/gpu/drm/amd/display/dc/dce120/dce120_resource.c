@@ -837,7 +837,8 @@ static const struct resource_funcs dce120_res_pool_funcs = {
 	.link_enc_create = dce120_link_encoder_create,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
-	.add_stream_to_ctx = dce112_add_stream_to_ctx
+	.add_stream_to_ctx = dce112_add_stream_to_ctx,
+	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
 };
 
 static void bw_calcs_data_update_from_pplib(struct dc *dc)

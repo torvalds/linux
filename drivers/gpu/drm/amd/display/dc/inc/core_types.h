@@ -123,6 +123,11 @@ struct resource_funcs {
 	enum dc_status (*get_default_swizzle_mode)(
 			struct dc_plane_state *plane_state);
 
+	struct stream_encoder *(*find_first_free_match_stream_enc_for_link)(
+			struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			struct dc_stream_state *stream);
+
 };
 
 struct audio_support{

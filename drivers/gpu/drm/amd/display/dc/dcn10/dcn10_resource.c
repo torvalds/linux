@@ -1243,7 +1243,8 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_plane = dcn10_validate_plane,
 	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
-	.get_default_swizzle_mode = dcn10_get_default_swizzle_mode
+	.get_default_swizzle_mode = dcn10_get_default_swizzle_mode,
+	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
