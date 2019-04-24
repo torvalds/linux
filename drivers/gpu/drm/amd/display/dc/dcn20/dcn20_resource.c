@@ -2446,8 +2446,9 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
-	.remove_dsc_from_stream_resource = dcn20_remove_dsc_from_stream_resource
+	.remove_dsc_from_stream_resource = dcn20_remove_dsc_from_stream_resource,
 #endif
+	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
 };
 
 bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
