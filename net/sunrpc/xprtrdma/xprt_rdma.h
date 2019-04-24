@@ -97,6 +97,7 @@ struct rpcrdma_ep {
 	wait_queue_head_t 	rep_connect_wait;
 	struct rpcrdma_connect_private	rep_cm_private;
 	struct rdma_conn_param	rep_remote_cma;
+	unsigned int		rep_max_requests;	/* set by /proc */
 	unsigned int		rep_inline_send;	/* negotiated */
 	unsigned int		rep_inline_recv;	/* negotiated */
 	int			rep_receive_count;
@@ -414,16 +415,6 @@ enum {
 };
 
 /*
- * Internal structure for transport instance creation. This
- * exists primarily for modularity.
- *
- * This data should be set with mount options
- */
-struct rpcrdma_create_data_internal {
-	unsigned int	max_requests;	/* max requests (slots) in flight */
-};
-
-/*
  * Statistics for RPCRDMA
  */
 struct rpcrdma_stats {
@@ -467,13 +458,11 @@ struct rpcrdma_xprt {
 	struct rpcrdma_ia	rx_ia;
 	struct rpcrdma_ep	rx_ep;
 	struct rpcrdma_buffer	rx_buf;
-	struct rpcrdma_create_data_internal rx_data;
 	struct delayed_work	rx_connect_worker;
 	struct rpcrdma_stats	rx_stats;
 };
 
 #define rpcx_to_rdmax(x) container_of(x, struct rpcrdma_xprt, rx_xprt)
-#define rpcx_to_rdmad(x) (rpcx_to_rdmax(x)->rx_data)
 
 static inline const char *
 rpcrdma_addrstr(const struct rpcrdma_xprt *r_xprt)
@@ -507,9 +496,8 @@ void rpcrdma_ia_close(struct rpcrdma_ia *);
 /*
  * Endpoint calls - xprtrdma/verbs.c
  */
-int rpcrdma_ep_create(struct rpcrdma_ep *, struct rpcrdma_ia *,
-				struct rpcrdma_create_data_internal *);
-void rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
+int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt);
+void rpcrdma_ep_destroy(struct rpcrdma_xprt *r_xprt);
 int rpcrdma_ep_connect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 void rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 
@@ -583,8 +571,7 @@ rpcrdma_data_dir(bool writing)
 /* Memory registration calls xprtrdma/frwr_ops.c
  */
 bool frwr_is_supported(struct ib_device *device);
-int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
-	      struct rpcrdma_create_data_internal *cdata);
+int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep);
 int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr);
 void frwr_release_mr(struct rpcrdma_mr *mr);
 size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt);
@@ -630,6 +617,7 @@ static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
 
 /* RPC/RDMA module init - xprtrdma/transport.c
  */
+extern unsigned int xprt_rdma_slot_table_entries;
 extern unsigned int xprt_rdma_max_inline_read;
 extern unsigned int xprt_rdma_max_inline_write;
 void xprt_rdma_format_addresses(struct rpc_xprt *xprt, struct sockaddr *sap);

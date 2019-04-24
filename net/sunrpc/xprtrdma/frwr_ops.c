@@ -194,12 +194,11 @@ out_list_err:
  * frwr_open - Prepare an endpoint for use with FRWR
  * @ia: interface adapter this endpoint will use
  * @ep: endpoint to prepare
- * @cdata: transport parameters
  *
  * On success, sets:
  *	ep->rep_attr.cap.max_send_wr
  *	ep->rep_attr.cap.max_recv_wr
- *	cdata->max_requests
+ *	ep->rep_max_requests
  *	ia->ri_max_segs
  *
  * And these FRWR-related fields:
@@ -208,8 +207,7 @@ out_list_err:
  *
  * On failure, a negative errno is returned.
  */
-int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
-	      struct rpcrdma_create_data_internal *cdata)
+int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 {
 	struct ib_device_attr *attrs = &ia->ri_id->device->attrs;
 	int max_qp_wr, depth, delta;
@@ -258,19 +256,18 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	max_qp_wr -= 1;
 	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
 		return -ENOMEM;
-	if (cdata->max_requests > max_qp_wr)
-		cdata->max_requests = max_qp_wr;
-	ep->rep_attr.cap.max_send_wr = cdata->max_requests * depth;
+	if (ep->rep_max_requests > max_qp_wr)
+		ep->rep_max_requests = max_qp_wr;
+	ep->rep_attr.cap.max_send_wr = ep->rep_max_requests * depth;
 	if (ep->rep_attr.cap.max_send_wr > max_qp_wr) {
-		cdata->max_requests = max_qp_wr / depth;
-		if (!cdata->max_requests)
+		ep->rep_max_requests = max_qp_wr / depth;
+		if (!ep->rep_max_requests)
 			return -EINVAL;
-		ep->rep_attr.cap.max_send_wr = cdata->max_requests *
-					       depth;
+		ep->rep_attr.cap.max_send_wr = ep->rep_max_requests * depth;
 	}
 	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
 	ep->rep_attr.cap.max_send_wr += 1; /* for ib_drain_sq */
-	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
+	ep->rep_attr.cap.max_recv_wr = ep->rep_max_requests;
 	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
 	ep->rep_attr.cap.max_recv_wr += 1; /* for ib_drain_rq */
 

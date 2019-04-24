@@ -476,18 +476,22 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 	ia->ri_pd = NULL;
 }
 
-/*
- * Create unconnected endpoint.
+/**
+ * rpcrdma_ep_create - Create unconnected endpoint
+ * @r_xprt: transport to instantiate
+ *
+ * Returns zero on success, or a negative errno.
  */
-int
-rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
-		  struct rpcrdma_create_data_internal *cdata)
+int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 {
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_connect_private *pmsg = &ep->rep_cm_private;
 	struct ib_cq *sendcq, *recvcq;
 	unsigned int max_sge;
 	int rc;
 
+	ep->rep_max_requests = xprt_rdma_slot_table_entries;
 	ep->rep_inline_send = xprt_rdma_max_inline_write;
 	ep->rep_inline_recv = xprt_rdma_max_inline_read;
 
@@ -499,7 +503,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	}
 	ia->ri_max_send_sges = max_sge;
 
-	rc = frwr_open(ia, ep, cdata);
+	rc = frwr_open(ia, ep);
 	if (rc)
 		return rc;
 
@@ -521,7 +525,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 		ep->rep_attr.cap.max_send_sge,
 		ep->rep_attr.cap.max_recv_sge);
 
-	ep->rep_send_batch = cdata->max_requests >> 3;
+	ep->rep_send_batch = ep->rep_max_requests >> 3;
 	ep->rep_send_count = ep->rep_send_batch;
 	init_waitqueue_head(&ep->rep_connect_wait);
 	ep->rep_receive_count = 0;
@@ -584,16 +588,16 @@ out1:
 	return rc;
 }
 
-/*
- * rpcrdma_ep_destroy
+/**
+ * rpcrdma_ep_destroy - Disconnect and destroy endpoint.
+ * @r_xprt: transport instance to shut down
  *
- * Disconnect and destroy endpoint. After this, the only
- * valid operations on the ep are to free it (if dynamically
- * allocated) or re-create it.
  */
-void
-rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
+void rpcrdma_ep_destroy(struct rpcrdma_xprt *r_xprt)
 {
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+
 	if (ia->ri_id && ia->ri_id->qp) {
 		rpcrdma_ep_disconnect(ep, ia);
 		rdma_destroy_qp(ia->ri_id);
@@ -623,7 +627,7 @@ rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt,
 		goto out1;
 
 	rc = -ENOMEM;
-	err = rpcrdma_ep_create(ep, ia, &r_xprt->rx_data);
+	err = rpcrdma_ep_create(r_xprt);
 	if (err) {
 		pr_err("rpcrdma: rpcrdma_ep_create returned %d\n", err);
 		goto out2;
@@ -640,7 +644,7 @@ rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt,
 	return 0;
 
 out3:
-	rpcrdma_ep_destroy(ep, ia);
+	rpcrdma_ep_destroy(r_xprt);
 out2:
 	rpcrdma_ia_close(ia);
 out1:
@@ -1082,14 +1086,19 @@ out:
 	return false;
 }
 
-int
-rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
+/**
+ * rpcrdma_buffer_create - Create initial set of req/rep objects
+ * @r_xprt: transport instance to (re)initialize
+ *
+ * Returns zero on success, otherwise a negative errno.
+ */
+int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	int i, rc;
 
 	buf->rb_flags = 0;
-	buf->rb_max_requests = r_xprt->rx_data.max_requests;
+	buf->rb_max_requests = r_xprt->rx_ep.rep_max_requests;
 	buf->rb_bc_srv_max_requests = 0;
 	spin_lock_init(&buf->rb_mrlock);
 	spin_lock_init(&buf->rb_lock);
