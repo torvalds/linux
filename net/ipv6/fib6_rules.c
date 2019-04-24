@@ -94,9 +94,11 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags, pol_lookup_t lookup)
 {
 	if (net->ipv6.fib6_has_custom_rules) {
+		struct fib6_result res = {};
 		struct fib_lookup_arg arg = {
 			.lookup_ptr = lookup,
 			.lookup_data = skb,
+			.result = &res,
 			.flags = FIB_LOOKUP_NOREF,
 		};
 
@@ -106,8 +108,8 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 		fib_rules_lookup(net->ipv6.fib6_rules_ops,
 				 flowi6_to_flowi(fl6), flags, &arg);
 
-		if (arg.result)
-			return arg.result;
+		if (res.rt6)
+			return &res.rt6->dst;
 	} else {
 		struct rt6_info *rt;
 
@@ -191,6 +193,7 @@ static int fib6_rule_action_alt(struct fib_rule *rule, struct flowi *flp,
 static int __fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 			      int flags, struct fib_lookup_arg *arg)
 {
+	struct fib6_result *res = arg->result;
 	struct flowi6 *flp6 = &flp->u.ip6;
 	struct rt6_info *rt = NULL;
 	struct fib6_table *table;
@@ -245,7 +248,7 @@ again:
 discard_pkt:
 	dst_hold(&rt->dst);
 out:
-	arg->result = rt;
+	res->rt6 = rt;
 	return err;
 }
 
@@ -260,8 +263,12 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 
 static bool fib6_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg)
 {
-	struct rt6_info *rt = (struct rt6_info *) arg->result;
+	struct fib6_result *res = arg->result;
+	struct rt6_info *rt = res->rt6;
 	struct net_device *dev = NULL;
+
+	if (!rt)
+		return false;
 
 	if (rt->rt6i_idev)
 		dev = rt->rt6i_idev->dev;

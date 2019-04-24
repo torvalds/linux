@@ -195,6 +195,7 @@ struct fib6_result {
 	struct fib6_info	*f6i;
 	u32			fib6_flags;
 	u8			fib6_type;
+	struct rt6_info		*rt6;
 };
 
 #define for_each_fib6_node_rt_rcu(fn)					\
