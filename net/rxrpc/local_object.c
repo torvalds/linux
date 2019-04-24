@@ -304,7 +304,8 @@ nomem:
 	ret = -ENOMEM;
 sock_error:
 	mutex_unlock(&rxnet->local_mutex);
-	kfree(local);
+	if (local)
+		call_rcu(&local->rcu, rxrpc_local_rcu);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 
