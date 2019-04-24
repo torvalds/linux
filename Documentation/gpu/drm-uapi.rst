@@ -85,7 +85,9 @@ leads to a few additional requirements:
 - The userspace side must be fully reviewed and tested to the standards of that
   userspace project. For e.g. mesa this means piglit testcases and review on the
   mailing list. This is again to ensure that the new interface actually gets the
-  job done.
+  job done.  The userspace-side reviewer should also provide at least an
+  Acked-by on the kernel uAPI patch indicating that they've looked at how the
+  kernel side is implementing the new feature being used.
 
 - The userspace patches must be against the canonical upstream, not some vendor
   fork. This is to make sure that no one cheats on the review and testing
