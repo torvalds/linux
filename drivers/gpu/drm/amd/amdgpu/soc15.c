@@ -608,12 +608,24 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
-		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
-			if (adev->asic_type == CHIP_VEGA20)
-				amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-			else
-				amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+
+		/* For Vega10 SR-IOV, PSP need to be initialized before IH */
+		if (amdgpu_sriov_vf(adev)) {
+			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+				if (adev->asic_type == CHIP_VEGA20)
+					amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+				else
+					amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+			}
+			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+		} else {
+			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+				if (adev->asic_type == CHIP_VEGA20)
+					amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+				else
+					amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+			}
 		}
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
