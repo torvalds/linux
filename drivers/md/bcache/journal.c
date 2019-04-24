@@ -147,7 +147,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 {
 #define read_bucket(b)							\
 	({								\
-		int ret = journal_read_bucket(ca, list, b);		\
+		ret = journal_read_bucket(ca, list, b);			\
 		__set_bit(b, bitmap);					\
 		if (ret < 0)						\
 			return ret;					\
@@ -156,6 +156,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 
 	struct cache *ca;
 	unsigned int iter;
+	int ret = 0;
 
 	for_each_cache(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
@@ -267,7 +268,7 @@ bsearch:
 					    struct journal_replay,
 					    list)->j.seq;
 
-	return 0;
+	return ret;
 #undef read_bucket
 }
 
