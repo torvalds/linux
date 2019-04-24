@@ -2167,6 +2167,8 @@ static uint32_t vegam_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU75_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU75_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU75_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU75_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
