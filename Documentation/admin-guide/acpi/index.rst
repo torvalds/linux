@@ -10,3 +10,4 @@ the Linux ACPI support.
 
    initrd_table_override
    dsdt-override
+   cppc_sysfs
