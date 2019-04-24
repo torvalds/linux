@@ -76,7 +76,6 @@
 static void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf);
-static int rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt, bool temp);
 static void rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb);
 static void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);
 
@@ -1029,25 +1028,20 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt, gfp_t flags)
 	return req;
 }
 
-static int
-rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt, bool temp)
+static bool rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt, bool temp)
 {
 	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_rep *rep;
-	int rc;
 
-	rc = -ENOMEM;
 	rep = kzalloc(sizeof(*rep), GFP_KERNEL);
 	if (rep == NULL)
 		goto out;
 
 	rep->rr_rdmabuf = rpcrdma_alloc_regbuf(cdata->inline_rsize,
 					       DMA_FROM_DEVICE, GFP_KERNEL);
-	if (IS_ERR(rep->rr_rdmabuf)) {
-		rc = PTR_ERR(rep->rr_rdmabuf);
+	if (IS_ERR(rep->rr_rdmabuf))
 		goto out_free;
-	}
 	xdr_buf_init(&rep->rr_hdrbuf, rep->rr_rdmabuf->rg_base,
 		     rdmab_length(rep->rr_rdmabuf));
 
@@ -1063,12 +1057,12 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt, bool temp)
 	spin_lock(&buf->rb_lock);
 	list_add(&rep->rr_list, &buf->rb_recv_bufs);
 	spin_unlock(&buf->rb_lock);
-	return 0;
+	return true;
 
 out_free:
 	kfree(rep);
 out:
-	return rc;
+	return false;
 }
 
 int
@@ -1124,8 +1118,7 @@ out:
 	return rc;
 }
 
-static void
-rpcrdma_destroy_rep(struct rpcrdma_rep *rep)
+static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep)
 {
 	rpcrdma_free_regbuf(rep->rr_rdmabuf);
 	kfree(rep);
@@ -1205,7 +1198,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 		rep = list_first_entry(&buf->rb_recv_bufs,
 				       struct rpcrdma_rep, rr_list);
 		list_del(&rep->rr_list);
-		rpcrdma_destroy_rep(rep);
+		rpcrdma_rep_destroy(rep);
 	}
 
 	while (!list_empty(&buf->rb_send_bufs)) {
@@ -1334,7 +1327,7 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 	}
 	spin_unlock(&buffers->rb_lock);
 	if (rep)
-		rpcrdma_destroy_rep(rep);
+		rpcrdma_rep_destroy(rep);
 }
 
 /*
@@ -1351,7 +1344,7 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
 		list_add(&rep->rr_list, &buffers->rb_recv_bufs);
 		spin_unlock(&buffers->rb_lock);
 	} else {
-		rpcrdma_destroy_rep(rep);
+		rpcrdma_rep_destroy(rep);
 	}
 }
 
@@ -1500,7 +1493,7 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 			list_del(&rep->rr_list);
 		spin_unlock(&buf->rb_lock);
 		if (!rep) {
-			if (rpcrdma_create_rep(r_xprt, temp))
+			if (!rpcrdma_rep_create(r_xprt, temp))
 				break;
 			continue;
 		}
