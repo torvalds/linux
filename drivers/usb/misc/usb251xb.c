@@ -374,18 +374,31 @@ out_err:
 }
 
 #ifdef CONFIG_OF
+static void usb251xb_get_ports_field(struct usb251xb *hub,
+				    const char *prop_name, u8 port_cnt, u8 *fld)
+{
+	struct device *dev = hub->dev;
+	struct property *prop;
+	const __be32 *p;
+	u32 port;
+
+	of_property_for_each_u32(dev->of_node, prop_name, prop, p, port) {
+		if ((port >= 1) && (port <= port_cnt))
+			*fld |= BIT(port);
+		else
+			dev_warn(dev, "port %u doesn't exist\n", port);
+	}
+}
+
 static int usb251xb_get_ofdata(struct usb251xb *hub,
 			       struct usb251xb_data *data)
 {
 	struct device *dev = hub->dev;
 	struct device_node *np = dev->of_node;
-	int len, err, i;
-	u32 port, property_u32 = 0;
-	const u32 *cproperty_u32;
+	int len, err;
+	u32 property_u32 = 0;
 	const char *cproperty_char;
 	char str[USB251XB_STRING_BUFSIZE / 2];
-	struct property *prop;
-	const __be32 *p;
 
 	if (!np) {
 		dev_err(dev, "failed to get ofdata\n");
@@ -487,46 +500,16 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		hub->conf_data3 |= BIT(0);
 
 	hub->non_rem_dev = USB251XB_DEF_NON_REMOVABLE_DEVICES;
-	cproperty_u32 = of_get_property(np, "non-removable-ports", &len);
-	if (cproperty_u32 && (len / sizeof(u32)) > 0) {
-		for (i = 0; i < len / sizeof(u32); i++) {
-			u32 port = be32_to_cpu(cproperty_u32[i]);
-
-			if ((port >= 1) && (port <= data->port_cnt))
-				hub->non_rem_dev |= BIT(port);
-			else
-				dev_warn(dev, "NRD port %u doesn't exist\n",
-					port);
-		}
-	}
+	usb251xb_get_ports_field(hub, "non-removable-ports", data->port_cnt,
+				 &hub->non_rem_dev);
 
 	hub->port_disable_sp = USB251XB_DEF_PORT_DISABLE_SELF;
-	cproperty_u32 = of_get_property(np, "sp-disabled-ports", &len);
-	if (cproperty_u32 && (len / sizeof(u32)) > 0) {
-		for (i = 0; i < len / sizeof(u32); i++) {
-			u32 port = be32_to_cpu(cproperty_u32[i]);
-
-			if ((port >= 1) && (port <= data->port_cnt))
-				hub->port_disable_sp |= BIT(port);
-			else
-				dev_warn(dev, "PDS port %u doesn't exist\n",
-					port);
-		}
-	}
+	usb251xb_get_ports_field(hub, "sp-disabled-ports", data->port_cnt,
+				 &hub->port_disable_sp);
 
 	hub->port_disable_bp = USB251XB_DEF_PORT_DISABLE_BUS;
-	cproperty_u32 = of_get_property(np, "bp-disabled-ports", &len);
-	if (cproperty_u32 && (len / sizeof(u32)) > 0) {
-		for (i = 0; i < len / sizeof(u32); i++) {
-			u32 port = be32_to_cpu(cproperty_u32[i]);
-
-			if ((port >= 1) && (port <= data->port_cnt))
-				hub->port_disable_bp |= BIT(port);
-			else
-				dev_warn(dev, "PDB port %u doesn't exist\n",
-					port);
-		}
-	}
+	usb251xb_get_ports_field(hub, "bp-disabled-ports", data->port_cnt,
+				 &hub->port_disable_bp);
 
 	hub->max_power_sp = USB251XB_DEF_MAX_POWER_SELF;
 	if (!of_property_read_u32(np, "sp-max-total-current-microamp",
@@ -589,10 +572,8 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	 * register controls the USB DP/DM signal swapping for each port.
 	 */
 	hub->port_swap = USB251XB_DEF_PORT_SWAP;
-	of_property_for_each_u32(np, "swap-dx-lanes", prop, p, port) {
-		if (port <= data->port_cnt)
-			hub->port_swap |= BIT(port);
-	}
+	usb251xb_get_ports_field(hub, "swap-dx-lanes", data->port_cnt,
+				 &hub->port_swap);
 
 	/* The following parameters are currently not exposed to devicetree, but
 	 * may be as soon as needed.
