@@ -103,12 +103,14 @@ struct rpcrdma_ep {
 
 /* Pre-allocate extra Work Requests for handling backward receives
  * and sends. This is a fixed value because the Work Queues are
- * allocated when the forward channel is set up.
+ * allocated when the forward channel is set up, long before the
+ * backchannel is provisioned. This value is two times
+ * NFS4_DEF_CB_SLOT_TABLE_SIZE.
  */
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
-#define RPCRDMA_BACKWARD_WRS		(8)
+#define RPCRDMA_BACKWARD_WRS (32)
 #else
-#define RPCRDMA_BACKWARD_WRS		(0)
+#define RPCRDMA_BACKWARD_WRS (0)
 #endif
 
 /* Registered buffer -- registered kmalloc'd memory for RDMA SEND/RECV
