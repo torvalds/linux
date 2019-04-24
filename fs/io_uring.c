@@ -1846,8 +1846,6 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct sqe_submit *s)
 	/* drop invalid entries */
 	ctx->cached_sq_head++;
 	ring->dropped++;
-	/* See comment at the top of this file */
-	smp_wmb();
 	return false;
 }
 
