@@ -1173,6 +1173,7 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			err = sock->ops->gettstamp(sock, argp,
 						   cmd == SIOCGSTAMP_OLD,
 						   !IS_ENABLED(CONFIG_64BIT));
+			break;
 		case SIOCGSTAMP_NEW:
 		case SIOCGSTAMPNS_NEW:
 			if (!sock->ops->gettstamp) {
