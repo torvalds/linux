@@ -148,17 +148,46 @@
 	};
 };
 
+&pinctrl {
+	pinctrl_uart0_default: pinctrl-uart0-default {
+		pinmux {
+			groups = "uart0_grp";
+			function = "uart0";
+		};
+	};
+
+	pinctrl_uart1_default: pinctrl-uart1-default {
+		pinmux {
+			groups = "uart1_grp";
+			function = "uart1";
+		};
+	};
+
+	pinctrl_uart2_default: pinctrl-uart2-default {
+		pinmux {
+			groups = "uart2_grp";
+			function = "uart2";
+		};
+	};
+};
+
 &uart0 {
 	status = "okay";
 	clocks = <&uart_clk>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0_default>;
 };
 
 &uart1 {
 	status = "okay";
 	clocks = <&uart_clk>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_default>;
 };
 
 &uart2 {
 	status = "okay";
 	clocks = <&uart_clk>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_default>;
 };
