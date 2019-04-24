@@ -1174,6 +1174,9 @@ int ltdc_load(struct drm_device *ddev)
 
 	for (i = 0; i < MAX_IRQ; i++) {
 		irq = platform_get_irq(pdev, i);
+		if (irq == -EPROBE_DEFER)
+			goto err;
+
 		if (irq < 0)
 			continue;
 
