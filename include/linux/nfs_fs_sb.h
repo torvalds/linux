@@ -241,6 +241,9 @@ struct nfs_server {
 
 	/* XDR related information */
 	unsigned int		read_hdrsize;
+
+	/* User namespace info */
+	const struct cred	*cred;
 };
 
 /* Server capabilities */

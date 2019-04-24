@@ -91,6 +91,7 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 		.proto = ds_proto,
 		.net = mds_clp->cl_net,
 		.timeparms = &ds_timeout,
+		.cred = mds_srv->cred,
 	};
 	struct nfs_client *clp;
 	char buf[INET6_ADDRSTRLEN + 1];
