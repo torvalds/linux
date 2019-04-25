@@ -290,10 +290,6 @@ struct iwl_cmd_meta {
 	u32 tbs;
 };
 
-
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
-
 /*
  * The FH will write back to the first TB only, so we need to copy some data
  * into the buffer regardless of whether it should be mapped or not.

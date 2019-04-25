@@ -138,7 +138,7 @@ void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
 		if (le32_to_cpu(hdr->tlv_version) != 1)
 			continue;
 
-		IWL_DEBUG_FW(trans, "Read TLV %x, apply point %d\n",
+		IWL_DEBUG_FW(trans, "WRT: read TLV 0x%x, apply point %d\n",
 			     le32_to_cpu(tlv->type), apply);
 
 		if (WARN_ON(apply >= IWL_FW_INI_APPLY_NUM))
