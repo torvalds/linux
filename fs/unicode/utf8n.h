@@ -76,6 +76,9 @@ extern int utf8nagemin(const struct utf8data *data, const char *s, size_t len);
 extern ssize_t utf8len(const struct utf8data *data, const char *s);
 extern ssize_t utf8nlen(const struct utf8data *data, const char *s, size_t len);
 
+/* Needed in struct utf8cursor below. */
+#define UTF8HANGULLEAF	(12)
+
 /*
  * Cursor structure used by the normalizer.
  */
@@ -89,6 +92,7 @@ struct utf8cursor {
 	unsigned int	slen;
 	short int	ccc;
 	short int	nccc;
+	unsigned char	hangul[UTF8HANGULLEAF];
 };
 
 /*

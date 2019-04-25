@@ -99,6 +99,38 @@ static inline int utf8clen(const char *s)
 }
 
 /*
+ * Decode a 3-byte UTF-8 sequence.
+ */
+static unsigned int
+utf8decode3(const char *str)
+{
+	unsigned int		uc;
+
+	uc = *str++ & 0x0F;
+	uc <<= 6;
+	uc |= *str++ & 0x3F;
+	uc <<= 6;
+	uc |= *str++ & 0x3F;
+
+	return uc;
+}
+
+/*
+ * Encode a 3-byte UTF-8 sequence.
+ */
+static int
+utf8encode3(char *str, unsigned int val)
+{
+	str[2] = (val & 0x3F) | 0x80;
+	val >>= 6;
+	str[1] = (val & 0x3F) | 0x80;
+	val >>= 6;
+	str[0] = val | 0xE0;
+
+	return 3;
+}
+
+/*
  * utf8trie_t
  *
  * A compact binary tree, used to decode UTF-8 characters.
@@ -159,7 +191,8 @@ typedef const unsigned char utf8trie_t;
  *          characters with the Default_Ignorable_Code_Point property.
  *          These do affect normalization, as they all have CCC 0.
  *
- * The decompositions in the trie have been fully expanded.
+ * The decompositions in the trie have been fully expanded, with the
+ * exception of Hangul syllables, which are decomposed algorithmically.
  *
  * Casefolding, if applicable, is also done using decompositions.
  *
@@ -179,6 +212,105 @@ typedef const unsigned char utf8leaf_t;
 #define STOPPER		(0)
 #define	DECOMPOSE	(255)
 
+/* Marker for hangul syllable decomposition. */
+#define HANGUL		((char)(255))
+/* Size of the synthesized leaf used for Hangul syllable decomposition. */
+#define UTF8HANGULLEAF	(12)
+
+/*
+ * Hangul decomposition (algorithm from Section 3.12 of Unicode 6.3.0)
+ *
+ * AC00;<Hangul Syllable, First>;Lo;0;L;;;;;N;;;;;
+ * D7A3;<Hangul Syllable, Last>;Lo;0;L;;;;;N;;;;;
+ *
+ * SBase = 0xAC00
+ * LBase = 0x1100
+ * VBase = 0x1161
+ * TBase = 0x11A7
+ * LCount = 19
+ * VCount = 21
+ * TCount = 28
+ * NCount = 588 (VCount * TCount)
+ * SCount = 11172 (LCount * NCount)
+ *
+ * Decomposition:
+ *   SIndex = s - SBase
+ *
+ * LV (Canonical/Full)
+ *   LIndex = SIndex / NCount
+ *   VIndex = (Sindex % NCount) / TCount
+ *   LPart = LBase + LIndex
+ *   VPart = VBase + VIndex
+ *
+ * LVT (Canonical)
+ *   LVIndex = (SIndex / TCount) * TCount
+ *   TIndex = (Sindex % TCount)
+ *   LVPart = SBase + LVIndex
+ *   TPart = TBase + TIndex
+ *
+ * LVT (Full)
+ *   LIndex = SIndex / NCount
+ *   VIndex = (Sindex % NCount) / TCount
+ *   TIndex = (Sindex % TCount)
+ *   LPart = LBase + LIndex
+ *   VPart = VBase + VIndex
+ *   if (TIndex == 0) {
+ *          d = <LPart, VPart>
+ *   } else {
+ *          TPart = TBase + TIndex
+ *          d = <LPart, TPart, VPart>
+ *   }
+ */
+
+/* Constants */
+#define SB	(0xAC00)
+#define LB	(0x1100)
+#define VB	(0x1161)
+#define TB	(0x11A7)
+#define LC	(19)
+#define VC	(21)
+#define TC	(28)
+#define NC	(VC * TC)
+#define SC	(LC * NC)
+
+/* Algorithmic decomposition of hangul syllable. */
+static utf8leaf_t *
+utf8hangul(const char *str, unsigned char *hangul)
+{
+	unsigned int	si;
+	unsigned int	li;
+	unsigned int	vi;
+	unsigned int	ti;
+	unsigned char	*h;
+
+	/* Calculate the SI, LI, VI, and TI values. */
+	si = utf8decode3(str) - SB;
+	li = si / NC;
+	vi = (si % NC) / TC;
+	ti = si % TC;
+
+	/* Fill in base of leaf. */
+	h = hangul;
+	LEAF_GEN(h) = 2;
+	LEAF_CCC(h) = DECOMPOSE;
+	h += 2;
+
+	/* Add LPart, a 3-byte UTF-8 sequence. */
+	h += utf8encode3((char *)h, li + LB);
+
+	/* Add VPart, a 3-byte UTF-8 sequence. */
+	h += utf8encode3((char *)h, vi + VB);
+
+	/* Add TPart if required, also a 3-byte UTF-8 sequence. */
+	if (ti)
+		h += utf8encode3((char *)h, ti + TB);
+
+	/* Terminate string. */
+	h[0] = '\0';
+
+	return hangul;
+}
+
 /*
  * Use trie to scan s, touching at most len bytes.
  * Returns the leaf if one exists, NULL otherwise.
@@ -187,8 +319,8 @@ typedef const unsigned char utf8leaf_t;
  * is well-formed and corresponds to a known unicode code point.  The
  * shorthand for this will be "is valid UTF-8 unicode".
  */
-static utf8leaf_t *utf8nlookup(const struct utf8data *data, const char *s,
-			       size_t len)
+static utf8leaf_t *utf8nlookup(const struct utf8data *data,
+			       unsigned char *hangul, const char *s, size_t len)
 {
 	utf8trie_t	*trie = NULL;
 	int		offlen;
@@ -228,8 +360,7 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data, const char *s,
 				trie++;
 			} else {
 				/* No right node. */
-				node = 0;
-				trie = NULL;
+				return NULL;
 			}
 		} else {
 			/* Left leg */
@@ -239,8 +370,7 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data, const char *s,
 				trie += offlen + 1;
 			} else if (*trie & RIGHTPATH) {
 				/* No left node. */
-				node = 0;
-				trie = NULL;
+				return NULL;
 			} else {
 				/* Left node after this node */
 				node = (*trie & TRIENODE);
@@ -248,6 +378,14 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data, const char *s,
 			}
 		}
 	}
+	/*
+	 * Hangul decomposition is done algorithmically. These are the
+	 * codepoints >= 0xAC00 and <= 0xD7A3. Their UTF-8 encoding is
+	 * always 3 bytes long, so s has been advanced twice, and the
+	 * start of the sequence is at s-2.
+	 */
+	if (LEAF_CCC(trie) == DECOMPOSE && LEAF_STR(trie)[0] == HANGUL)
+		trie = utf8hangul(s - 2, hangul);
 	return trie;
 }
 
@@ -257,9 +395,10 @@ static utf8leaf_t *utf8nlookup(const struct utf8data *data, const char *s,
  *
  * Forwards to utf8nlookup().
  */
-static utf8leaf_t *utf8lookup(const struct utf8data *data, const char *s)
+static utf8leaf_t *utf8lookup(const struct utf8data *data,
+			      unsigned char *hangul, const char *s)
 {
-	return utf8nlookup(data, s, (size_t)-1);
+	return utf8nlookup(data, hangul, s, (size_t)-1);
 }
 
 /*
@@ -272,11 +411,13 @@ int utf8agemax(const struct utf8data *data, const char *s)
 	utf8leaf_t	*leaf;
 	int		age = 0;
 	int		leaf_age;
+	unsigned char	hangul[UTF8HANGULLEAF];
 
 	if (!data)
 		return -1;
+
 	while (*s) {
-		leaf = utf8lookup(data, s);
+		leaf = utf8lookup(data, hangul, s);
 		if (!leaf)
 			return -1;
 
@@ -299,12 +440,13 @@ int utf8agemin(const struct utf8data *data, const char *s)
 	utf8leaf_t	*leaf;
 	int		age;
 	int		leaf_age;
+	unsigned char	hangul[UTF8HANGULLEAF];
 
 	if (!data)
 		return -1;
 	age = data->maxage;
 	while (*s) {
-		leaf = utf8lookup(data, s);
+		leaf = utf8lookup(data, hangul, s);
 		if (!leaf)
 			return -1;
 		leaf_age = utf8agetab[LEAF_GEN(leaf)];
@@ -325,11 +467,13 @@ int utf8nagemax(const struct utf8data *data, const char *s, size_t len)
 	utf8leaf_t	*leaf;
 	int		age = 0;
 	int		leaf_age;
+	unsigned char	hangul[UTF8HANGULLEAF];
 
 	if (!data)
 		return -1;
+
 	while (len && *s) {
-		leaf = utf8nlookup(data, s, len);
+		leaf = utf8nlookup(data, hangul, s, len);
 		if (!leaf)
 			return -1;
 		leaf_age = utf8agetab[LEAF_GEN(leaf)];
@@ -351,12 +495,13 @@ int utf8nagemin(const struct utf8data *data, const char *s, size_t len)
 	utf8leaf_t	*leaf;
 	int		leaf_age;
 	int		age;
+	unsigned char	hangul[UTF8HANGULLEAF];
 
 	if (!data)
 		return -1;
 	age = data->maxage;
 	while (len && *s) {
-		leaf = utf8nlookup(data, s, len);
+		leaf = utf8nlookup(data, hangul, s, len);
 		if (!leaf)
 			return -1;
 		leaf_age = utf8agetab[LEAF_GEN(leaf)];
@@ -379,11 +524,12 @@ ssize_t utf8len(const struct utf8data *data, const char *s)
 {
 	utf8leaf_t	*leaf;
 	size_t		ret = 0;
+	unsigned char	hangul[UTF8HANGULLEAF];
 
 	if (!data)
 		return -1;
 	while (*s) {
-		leaf = utf8lookup(data, s);
+		leaf = utf8lookup(data, hangul, s);
 		if (!leaf)
 			return -1;
 		if (utf8agetab[LEAF_GEN(leaf)] > data->maxage)
@@ -406,11 +552,12 @@ ssize_t utf8nlen(const struct utf8data *data, const char *s, size_t len)
 {
 	utf8leaf_t	*leaf;
 	size_t		ret = 0;
+	unsigned char	hangul[UTF8HANGULLEAF];
 
 	if (!data)
 		return -1;
 	while (len && *s) {
-		leaf = utf8nlookup(data, s, len);
+		leaf = utf8nlookup(data, hangul, s, len);
 		if (!leaf)
 			return -1;
 		if (utf8agetab[LEAF_GEN(leaf)] > data->maxage)
@@ -533,10 +680,12 @@ int utf8byte(struct utf8cursor *u8c)
 		}
 
 		/* Look up the data for the current character. */
-		if (u8c->p)
-			leaf = utf8lookup(u8c->data, u8c->s);
-		else
-			leaf = utf8nlookup(u8c->data, u8c->s, u8c->len);
+		if (u8c->p) {
+			leaf = utf8lookup(u8c->data, u8c->hangul, u8c->s);
+		} else {
+			leaf = utf8nlookup(u8c->data, u8c->hangul,
+					   u8c->s, u8c->len);
+		}
 
 		/* No leaf found implies that the input is a binary blob. */
 		if (!leaf)
@@ -557,7 +706,9 @@ int utf8byte(struct utf8cursor *u8c)
 				ccc = STOPPER;
 				goto ccc_mismatch;
 			}
-			leaf = utf8lookup(u8c->data, u8c->s);
+
+			leaf = utf8lookup(u8c->data, u8c->hangul, u8c->s);
+			ccc = LEAF_CCC(leaf);
 		}
 
 		/*
