@@ -3756,10 +3756,13 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	if (!edesc)
 		return ret;
 
-	state->buf_dma = dma_map_single(ctx->dev, buf, buflen, DMA_TO_DEVICE);
-	if (dma_mapping_error(ctx->dev, state->buf_dma)) {
-		dev_err(ctx->dev, "unable to map src\n");
-		goto unmap;
+	if (buflen) {
+		state->buf_dma = dma_map_single(ctx->dev, buf, buflen,
+						DMA_TO_DEVICE);
+		if (dma_mapping_error(ctx->dev, state->buf_dma)) {
+			dev_err(ctx->dev, "unable to map src\n");
+			goto unmap;
+		}
 	}
 
 	edesc->dst_dma = dma_map_single(ctx->dev, req->result, digestsize,
@@ -3772,9 +3775,17 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 
 	memset(&req_ctx->fd_flt, 0, sizeof(req_ctx->fd_flt));
 	dpaa2_fl_set_final(in_fle, true);
-	dpaa2_fl_set_format(in_fle, dpaa2_fl_single);
-	dpaa2_fl_set_addr(in_fle, state->buf_dma);
-	dpaa2_fl_set_len(in_fle, buflen);
+	/*
+	 * crypto engine requires the input entry to be present when
+	 * "frame list" FD is used.
+	 * Since engine does not support FMT=2'b11 (unused entry type), leaving
+	 * in_fle zeroized (except for "Final" flag) is the best option.
+	 */
+	if (buflen) {
+		dpaa2_fl_set_format(in_fle, dpaa2_fl_single);
+		dpaa2_fl_set_addr(in_fle, state->buf_dma);
+		dpaa2_fl_set_len(in_fle, buflen);
+	}
 	dpaa2_fl_set_format(out_fle, dpaa2_fl_single);
 	dpaa2_fl_set_addr(out_fle, edesc->dst_dma);
 	dpaa2_fl_set_len(out_fle, digestsize);
