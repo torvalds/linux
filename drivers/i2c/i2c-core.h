@@ -54,6 +54,17 @@ static inline int __i2c_lock_bus_helper(struct i2c_adapter *adap)
 	return ret;
 }
 
+static inline int __i2c_check_suspended(struct i2c_adapter *adap)
+{
+	if (test_bit(I2C_ALF_IS_SUSPENDED, &adap->locked_flags)) {
+		if (!test_and_set_bit(I2C_ALF_SUSPEND_REPORTED, &adap->locked_flags))
+			dev_WARN(&adap->dev, "Transfer while suspended\n");
+		return -ESHUTDOWN;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_ACPI
 const struct acpi_device_id *
 i2c_acpi_match_device(const struct acpi_device_id *matches,
