@@ -9,6 +9,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
+#include <linux/refcount.h>
 
 #define TMC_RSZ			0x004
 #define TMC_STS			0x00c
@@ -133,6 +134,7 @@ struct etr_buf_operations;
 
 /**
  * struct etr_buf - Details of the buffer used by ETR
+ * refcount	; Number of sources currently using this etr_buf.
  * @mode	: Mode of the ETR buffer, contiguous, Scatter Gather etc.
  * @full	: Trace data overflow
  * @size	: Size of the buffer.
@@ -143,6 +145,7 @@ struct etr_buf_operations;
  * @private	: Backend specific information for the buf
  */
 struct etr_buf {
+	refcount_t			refcount;
 	enum etr_mode			mode;
 	bool				full;
 	ssize_t				size;
