@@ -40,8 +40,34 @@ void afs_lock_may_be_available(struct afs_vnode *vnode)
  */
 static void afs_schedule_lock_extension(struct afs_vnode *vnode)
 {
-	queue_delayed_work(afs_lock_manager, &vnode->lock_work,
-			   AFS_LOCKWAIT * HZ / 2);
+	ktime_t expires_at, now, duration;
+	u64 duration_j;
+
+	expires_at = ktime_add_ms(vnode->locked_at, AFS_LOCKWAIT * 1000 / 2);
+	now = ktime_get_real();
+	duration = ktime_sub(expires_at, now);
+	if (duration <= 0)
+		duration_j = 0;
+	else
+		duration_j = nsecs_to_jiffies(ktime_to_ns(duration));
+
+	queue_delayed_work(afs_lock_manager, &vnode->lock_work, duration_j);
+}
+
+/*
+ * In the case of successful completion of a lock operation, record the time
+ * the reply appeared and start the lock extension timer.
+ */
+void afs_lock_op_done(struct afs_call *call)
+{
+	struct afs_vnode *vnode = call->reply[0];
+
+	if (call->error == 0) {
+		spin_lock(&vnode->lock);
+		vnode->locked_at = call->reply_time;
+		afs_schedule_lock_extension(vnode);
+		spin_unlock(&vnode->lock);
+	}
 }
 
 /*

@@ -638,6 +638,7 @@ struct afs_vnode {
 	struct list_head	granted_locks;	/* locks granted on this file */
 	struct delayed_work	lock_work;	/* work to be done in locking */
 	struct key		*lock_key;	/* Key to be used in lock ops */
+	ktime_t			locked_at;	/* Time at which lock obtained */
 	enum afs_lock_state	lock_state : 8;
 	afs_lock_type_t		lock_type : 8;
 
@@ -905,6 +906,7 @@ extern void afs_put_read(struct afs_read *);
  */
 extern struct workqueue_struct *afs_lock_manager;
 
+extern void afs_lock_op_done(struct afs_call *);
 extern void afs_lock_work(struct work_struct *);
 extern void afs_lock_may_be_available(struct afs_vnode *);
 extern int afs_lock(struct file *, int, struct file_lock *);

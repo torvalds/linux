@@ -1801,6 +1801,7 @@ static const struct afs_call_type yfs_RXYFSSetLock = {
 	.name		= "YFS.SetLock",
 	.op		= yfs_FS_SetLock,
 	.deliver	= yfs_deliver_fs_xxxx_lock,
+	.done		= afs_lock_op_done,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1811,6 +1812,7 @@ static const struct afs_call_type yfs_RXYFSExtendLock = {
 	.name		= "YFS.ExtendLock",
 	.op		= yfs_FS_ExtendLock,
 	.deliver	= yfs_deliver_fs_xxxx_lock,
+	.done		= afs_lock_op_done,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1847,6 +1849,7 @@ int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
+	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1884,6 +1887,7 @@ int yfs_fs_extend_lock(struct afs_fs_cursor *fc)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
+	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
