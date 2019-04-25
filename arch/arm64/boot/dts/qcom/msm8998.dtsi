@@ -536,7 +536,7 @@
 			};
 		};
 
-		cluster0-mhm-thermal {
+		clust0-mhm-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -551,7 +551,7 @@
 			};
 		};
 
-		cluster1-mhm-thermal {
+		clust1-mhm-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
