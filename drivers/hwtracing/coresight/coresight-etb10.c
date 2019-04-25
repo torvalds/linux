@@ -341,11 +341,10 @@ static int etb_disable(struct coresight_device *csdev)
 		return -EBUSY;
 	}
 
-	/* Disable the ETB only if it needs to */
-	if (drvdata->mode != CS_MODE_DISABLED) {
-		etb_disable_hw(drvdata);
-		drvdata->mode = CS_MODE_DISABLED;
-	}
+	/* Complain if we (somehow) got out of sync */
+	WARN_ON_ONCE(drvdata->mode == CS_MODE_DISABLED);
+	etb_disable_hw(drvdata);
+	drvdata->mode = CS_MODE_DISABLED;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	dev_dbg(drvdata->dev, "ETB disabled\n");
