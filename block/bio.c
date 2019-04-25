@@ -724,11 +724,6 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	if (((bio->bi_iter.bi_size + len) >> 9) > queue_max_hw_sectors(q))
 		return 0;
 
-	/*
-	 * For filesystems with a blocksize smaller than the pagesize
-	 * we will often be called with the same page as last time and
-	 * a consecutive offset.  Optimize this special case.
-	 */
 	if (bio->bi_vcnt > 0) {
 		bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
 
@@ -760,10 +755,6 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	if (bio->bi_phys_segments >= queue_max_segments(q))
 		return 0;
 
-	/*
-	 * setup the new entry, we might clear it again later if we
-	 * cannot add the page
-	 */
 	bvec = &bio->bi_io_vec[bio->bi_vcnt];
 	bvec->bv_page = page;
 	bvec->bv_len = len;
