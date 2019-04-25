@@ -4,9 +4,7 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/slice.h>
-#elif defined(CONFIG_PPC64)
-#include <asm/nohash/64/slice.h>
-#elif defined(CONFIG_PPC_MMU_NOHASH)
+#elif defined(CONFIG_PPC_MMU_NOHASH_32)
 #include <asm/nohash/32/slice.h>
 #endif
 
