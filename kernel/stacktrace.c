@@ -30,12 +30,6 @@ void stack_trace_print(unsigned long *entries, unsigned int nr_entries,
 }
 EXPORT_SYMBOL_GPL(stack_trace_print);
 
-void print_stack_trace(struct stack_trace *trace, int spaces)
-{
-	stack_trace_print(trace->entries, trace->nr_entries, spaces);
-}
-EXPORT_SYMBOL_GPL(print_stack_trace);
-
 /**
  * stack_trace_snprint - Print the entries in the stack trace into a buffer
  * @buf:	Pointer to the print buffer
@@ -71,14 +65,6 @@ int stack_trace_snprint(char *buf, size_t size, unsigned long *entries,
 	return total;
 }
 EXPORT_SYMBOL_GPL(stack_trace_snprint);
-
-int snprint_stack_trace(char *buf, size_t size,
-			struct stack_trace *trace, int spaces)
-{
-	return stack_trace_snprint(buf, size, trace->entries,
-				   trace->nr_entries, spaces);
-}
-EXPORT_SYMBOL_GPL(snprint_stack_trace);
 
 /*
  * Architectures that do not implement save_stack_trace_*()
