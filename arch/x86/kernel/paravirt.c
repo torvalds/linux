@@ -163,10 +163,10 @@ unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
 {
 	unsigned insn_len = end - start;
 
-	if (insn_len > len || start == NULL)
-		insn_len = len;
-	else
-		memcpy(insnbuf, start, insn_len);
+	/* Alternative instruction is too large for the patch site and we cannot continue: */
+	BUG_ON(insn_len > len || start == NULL);
+
+	memcpy(insnbuf, start, insn_len);
 
 	return insn_len;
 }
