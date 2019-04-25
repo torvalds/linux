@@ -195,7 +195,7 @@ static void nsim_free(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	nsim_devlink_exit(ns);
+	nsim_dev_exit(ns);
 	device_unregister(&ns->dev);
 	/* netdev and vf state will be freed out of device_release() */
 	nsim_sdev_put(ns->sdev);
@@ -506,17 +506,17 @@ static int nsim_newlink(struct net *src_net, struct net_device *dev,
 	SET_NETDEV_DEV(dev, &ns->dev);
 	ns->netdev = dev;
 
-	err = nsim_devlink_init(ns);
+	err = nsim_dev_init(ns);
 	if (err)
 		goto err_unreg_dev;
 
 	err = register_netdevice(dev);
 	if (err)
-		goto err_devlink_exit;
+		goto err_dev_exit;
 	return 0;
 
-err_devlink_exit:
-	nsim_devlink_exit(ns);
+err_dev_exit:
+	nsim_dev_exit(ns);
 err_unreg_dev:
 	device_unregister(&ns->dev);
 err_sdev_put:

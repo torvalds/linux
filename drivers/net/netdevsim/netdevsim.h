@@ -154,8 +154,8 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6_FIB_RULES,
 };
 
-int nsim_devlink_init(struct netdevsim *ns);
-void nsim_devlink_exit(struct netdevsim *ns);
+int nsim_dev_init(struct netdevsim *ns);
+void nsim_dev_exit(struct netdevsim *ns);
 
 struct nsim_fib_data *nsim_fib_create(void);
 void nsim_fib_destroy(struct nsim_fib_data *fib_data);
