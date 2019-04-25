@@ -8,7 +8,7 @@
 set -x
 
 # listen for UDP packets on localhost, port 60001 (run in background)
-../../netcat -l -u -p 60001 &
+../netcat -l -u -p 60001 &
 
 # get pid of netcat
 pid=$!
