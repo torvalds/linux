@@ -165,6 +165,10 @@
 					compatible = "aspeed,g4-pinctrl";
 				};
 
+				p2a: p2a-control {
+					compatible = "aspeed,ast2400-p2a-ctrl";
+					status = "disabled";
+				};
 			};
 
 			rng: hwrng@1e6e2078 {
