@@ -138,16 +138,14 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 
 	regmap_update_bits(regmap, ATMEL_HLCDC_CFG(0), mask, cfg);
 
-	cfg = 0;
+	state = drm_crtc_state_to_atmel_hlcdc_crtc_state(c->state);
+	cfg = state->output_mode << 8;
 
 	if (adj->flags & DRM_MODE_FLAG_NVSYNC)
 		cfg |= ATMEL_HLCDC_VSPOL;
 
 	if (adj->flags & DRM_MODE_FLAG_NHSYNC)
 		cfg |= ATMEL_HLCDC_HSPOL;
-
-	state = drm_crtc_state_to_atmel_hlcdc_crtc_state(c->state);
-	cfg |= state->output_mode << 8;
 
 	regmap_update_bits(regmap, ATMEL_HLCDC_CFG(5),
 			   ATMEL_HLCDC_HSPOL | ATMEL_HLCDC_VSPOL |
