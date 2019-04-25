@@ -273,17 +273,17 @@ _bpftool()
                                 "$cur" ) )
                             return 0
                             ;;
-                    *)
-                        _bpftool_once_attr 'file'
-                        if _bpftool_search_list 'xlated'; then
-                            COMPREPLY+=( $( compgen -W 'opcodes visual linum' -- \
-                                "$cur" ) )
-                        else
-                            COMPREPLY+=( $( compgen -W 'opcodes linum' -- \
-                                "$cur" ) )
-                        fi
-                        return 0
-                        ;;
+                        *)
+                            _bpftool_once_attr 'file'
+                            if _bpftool_search_list 'xlated'; then
+                                COMPREPLY+=( $( compgen -W 'opcodes visual linum' -- \
+                                    "$cur" ) )
+                            else
+                                COMPREPLY+=( $( compgen -W 'opcodes linum' -- \
+                                    "$cur" ) )
+                            fi
+                            return 0
+                            ;;
                     esac
                     ;;
                 pin)
