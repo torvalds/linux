@@ -915,6 +915,27 @@ KBUILD_CFLAGS	+= $(CC_FLAGS_LTO)
 export CC_FLAGS_LTO
 endif
 
+ifdef CONFIG_CFI_CLANG
+CC_FLAGS_CFI	:= -fsanitize=cfi \
+		   -fsanitize-cfi-cross-dso \
+		   -fno-sanitize-cfi-canonical-jump-tables \
+		   -fno-sanitize-blacklist
+
+ifdef CONFIG_CFI_PERMISSIVE
+CC_FLAGS_CFI	+= -fsanitize-recover=cfi \
+		   -fno-sanitize-trap=cfi
+else
+ifndef CONFIG_UBSAN_TRAP
+CC_FLAGS_CFI	+= -ftrap-function=__ubsan_handle_cfi_check_fail_abort
+endif
+endif
+
+# If LTO flags are filtered out, we must also filter out CFI.
+CC_FLAGS_LTO	+= $(CC_FLAGS_CFI)
+KBUILD_CFLAGS	+= $(CC_FLAGS_CFI)
+export CC_FLAGS_CFI
+endif
+
 ifdef CONFIG_DEBUG_FORCE_FUNCTION_ALIGN_32B
 KBUILD_CFLAGS += -falign-functions=32
 endif

@@ -573,6 +573,22 @@
 	. = ALIGN((align));						\
 	__end_rodata = .;
 
+
+/*
+ * .text..L.cfi.jumptable.* contain Control-Flow Integrity (CFI)
+ * jump table entries.
+ */
+#ifdef CONFIG_CFI_CLANG
+#define TEXT_CFI_JT							\
+		. = ALIGN(PMD_SIZE);					\
+		__cfi_jt_start = .;					\
+		*(.text..L.cfi.jumptable .text..L.cfi.jumptable.*)	\
+		. = ALIGN(PMD_SIZE);					\
+		__cfi_jt_end = .;
+#else
+#define TEXT_CFI_JT
+#endif
+
 /*
  * Non-instrumentable text section
  */
@@ -599,6 +615,7 @@
 		NOINSTR_TEXT						\
 		*(.text..refcount)					\
 		*(.ref.text)						\
+		TEXT_CFI_JT						\
 	MEM_KEEP(init.text*)						\
 	MEM_KEEP(exit.text*)						\
 
