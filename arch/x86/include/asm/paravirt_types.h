@@ -672,8 +672,8 @@ u64 _paravirt_ident_64(u64);
 
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch_site {
-	u8 *instr; 		/* original instructions */
-	u8 instrtype;		/* type of this instruction */
+	u8 *instr;		/* original instructions */
+	u8 type;		/* type of this instruction */
 	u8 len;			/* length of original instruction */
 };
 
