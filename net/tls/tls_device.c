@@ -567,7 +567,7 @@ void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)
 
 	rx_ctx = tls_offload_ctx_rx(tls_ctx);
 	resync_req = atomic64_read(&rx_ctx->resync_req);
-	req_seq = ntohl(resync_req >> 32) - ((u32)TLS_HEADER_SIZE - 1);
+	req_seq = (resync_req >> 32) - ((u32)TLS_HEADER_SIZE - 1);
 	is_req_pending = resync_req;
 
 	if (unlikely(is_req_pending) && req_seq == seq &&
