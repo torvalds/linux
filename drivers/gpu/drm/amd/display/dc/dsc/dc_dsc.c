@@ -826,10 +826,16 @@ bool dc_dsc_compute_bandwidth_range(
 	struct dc_dsc_config config;
 
 	get_dsc_enc_caps(dc, &dsc_enc_caps, timing->pix_clk_100hz);
-	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
-			&dsc_enc_caps,
-			0,
-			timing, &config);
+
+	is_dsc_possible = intersect_dsc_caps(dsc_sink_caps, &dsc_enc_caps,
+			timing->pixel_encoding, &dsc_common_caps);
+
+	if (is_dsc_possible)
+		is_dsc_possible = setup_dsc_config(dsc_sink_caps,
+				&dsc_enc_caps,
+				0,
+				timing, &config);
+
 	if (is_dsc_possible)
 		get_dsc_bandwidth_range(min_bpp, max_bpp, &dsc_common_caps, timing, range);
 
