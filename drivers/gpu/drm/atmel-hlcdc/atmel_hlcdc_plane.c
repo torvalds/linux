@@ -382,7 +382,7 @@ atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
 			cfg |= ATMEL_HLCDC_LAYER_LAEN;
 		else
 			cfg |= ATMEL_HLCDC_LAYER_GAEN |
-			       ATMEL_HLCDC_LAYER_GA(state->base.alpha >> 8);
+			       ATMEL_HLCDC_LAYER_GA(state->base.alpha);
 	}
 
 	if (state->disc_h && state->disc_w)
