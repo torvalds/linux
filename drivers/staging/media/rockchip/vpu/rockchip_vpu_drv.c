@@ -271,10 +271,8 @@ static int rockchip_vpu_open(struct file *filp)
 	filp->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
 
-	if (vdev == vpu->vfd_enc) {
-		rockchip_vpu_enc_reset_dst_fmt(vpu, ctx);
-		rockchip_vpu_enc_reset_src_fmt(vpu, ctx);
-	}
+	rockchip_vpu_enc_reset_dst_fmt(vpu, ctx);
+	rockchip_vpu_enc_reset_src_fmt(vpu, ctx);
 
 	ret = rockchip_vpu_ctrls_setup(vpu, ctx);
 	if (ret) {
