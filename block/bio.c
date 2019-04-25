@@ -731,9 +731,7 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 		    offset == bvec->bv_offset + bvec->bv_len) {
 			if (put_same_page)
 				put_page(page);
- bvec_merge:
 			bvec->bv_len += len;
-			bio->bi_iter.bi_size += len;
 			goto done;
 		}
 
@@ -745,8 +743,10 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 			return 0;
 
 		if (page_is_mergeable(bvec, page, len, offset, false) &&
-				can_add_page_to_seg(q, bvec, page, len, offset))
-			goto bvec_merge;
+		    can_add_page_to_seg(q, bvec, page, len, offset)) {
+			bvec->bv_len += len;
+			goto done;
+		}
 	}
 
 	if (bio_full(bio))
@@ -760,9 +760,8 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	bvec->bv_len = len;
 	bvec->bv_offset = offset;
 	bio->bi_vcnt++;
-	bio->bi_iter.bi_size += len;
-
  done:
+	bio->bi_iter.bi_size += len;
 	bio->bi_phys_segments = bio->bi_vcnt;
 	bio_set_flag(bio, BIO_SEG_VALID);
 	return len;
