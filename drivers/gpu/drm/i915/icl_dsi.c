@@ -29,6 +29,7 @@
 #include <drm/drm_mipi_dsi.h>
 
 #include "intel_atomic.h"
+#include "intel_combo_phy.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_dsi.h"
@@ -364,30 +365,10 @@ static void gen11_dsi_power_up_lanes(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
-	u32 tmp;
-	u32 lane_mask;
 
-	switch (intel_dsi->lane_count) {
-	case 1:
-		lane_mask = PWR_DOWN_LN_3_1_0;
-		break;
-	case 2:
-		lane_mask = PWR_DOWN_LN_3_1;
-		break;
-	case 3:
-		lane_mask = PWR_DOWN_LN_3;
-		break;
-	case 4:
-	default:
-		lane_mask = PWR_UP_ALL_LANES;
-		break;
-	}
-
-	for_each_dsi_port(port, intel_dsi->ports) {
-		tmp = I915_READ(ICL_PORT_CL_DW10(port));
-		tmp &= ~PWR_DOWN_LN_MASK;
-		I915_WRITE(ICL_PORT_CL_DW10(port), tmp | lane_mask);
-	}
+	for_each_dsi_port(port, intel_dsi->ports)
+		intel_combo_phy_power_up_lanes(dev_priv, port, true,
+					       intel_dsi->lane_count, false);
 }
 
 static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)

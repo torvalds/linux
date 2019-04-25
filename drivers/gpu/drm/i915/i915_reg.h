@@ -1813,7 +1813,6 @@ enum i915_power_well_id {
 #define  PWR_DOWN_LN_3			(0x8 << 4)
 #define  PWR_DOWN_LN_2_1_0		(0x7 << 4)
 #define  PWR_DOWN_LN_1_0		(0x3 << 4)
-#define  PWR_DOWN_LN_1			(0x2 << 4)
 #define  PWR_DOWN_LN_3_1		(0xa << 4)
 #define  PWR_DOWN_LN_3_1_0		(0xb << 4)
 #define  PWR_DOWN_LN_MASK		(0xf << 4)
