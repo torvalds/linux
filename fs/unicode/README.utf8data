@@ -1,39 +1,54 @@
 The utf8data.h file in this directory is generated from the Unicode
-Character Database for version 11.0.0 of the Unicode standard.
+Character Database for version 12.1.0 of the Unicode standard.
 
 The full set of files can be found here:
 
-  http://www.unicode.org/Public/11.0.0/ucd/
+  http://www.unicode.org/Public/12.1.0/ucd/
+
+Note!
+
+The URL's listed below are not stable.  That's because Unicode 12.1.0
+has not been officially released yet; it is scheduled to be released
+on May 8, 2019.  We taking Unicode 12.1.0 a few weeks early because it
+contains a new Japanese character which is required in order to
+specify Japenese dates after May 1, 2019, when Crown Prince Naruhito
+ascends to the Chrysanthemum Throne.  (Isn't internationalization fun?
+The abdication of Emperor Akihito of Japan is requiring dozens of
+software packages to be updated with only a month's notice.  :-)
+
+We will update the URL's (and any needed changes to the checksums)
+after the final Unicode 12.1.0 is released.
 
 Individual source links:
 
-  http://www.unicode.org/Public/11.0.0/ucd/CaseFolding.txt
-  http://www.unicode.org/Public/11.0.0/ucd/DerivedAge.txt
-  http://www.unicode.org/Public/11.0.0/ucd/extracted/DerivedCombiningClass.txt
-  http://www.unicode.org/Public/11.0.0/ucd/DerivedCoreProperties.txt
-  http://www.unicode.org/Public/11.0.0/ucd/NormalizationCorrections.txt
-  http://www.unicode.org/Public/11.0.0/ucd/NormalizationTest.txt
-  http://www.unicode.org/Public/11.0.0/ucd/UnicodeData.txt
+  https://www.unicode.org/Public/12.1.0/ucd/CaseFolding-12.1.0d2.txt
+  https://www.unicode.org/Public/12.1.0/ucd/DerivedAge-12.1.0d3.txt
+  https://www.unicode.org/Public/12.1.0/ucd/extracted/DerivedCombiningClass-12.1.0d2.txt
+  https://www.unicode.org/Public/12.1.0/ucd/DerivedCoreProperties-12.1.0d2.txt
+  https://www.unicode.org/Public/12.1.0/ucd/NormalizationCorrections-12.1.0d1.txt
+  https://www.unicode.org/Public/12.1.0/ucd/NormalizationTest-12.1.0d3.txt
+  https://www.unicode.org/Public/12.1.0/ucd/UnicodeData-12.1.0d2.txt
 
 md5sums (verify by running "md5sum -c README.utf8data"):
 
-  414436796cf097df55f798e1585448ee  CaseFolding.txt
-  6032a595fbb782694456491d86eecfac  DerivedAge.txt
-  3240997d671297ac754ab0d27577acf7  DerivedCombiningClass.txt
-  2a4fe257d9d8184518e036194d2248ec  DerivedCoreProperties.txt
-  4e7d383fa0dd3cd9d49d64e5b7b7c9e0  NormalizationCorrections.txt
-  c9500c5b8b88e584469f056023ecc3f2  NormalizationTest.txt
-  acc291106c3758d2025f8d7bd5518bee  UnicodeData.txt
+  900e76da1d822a160fd6b8c0b1d70094  CaseFolding.txt
+  131256380bff4fea8ad4a851616f2f10  DerivedAge.txt
+  e731a4089b30002144e107e3d6f8d1fa  DerivedCombiningClass.txt
+  a47c9fbd7ff92a9b261ba9831e68778a  DerivedCoreProperties.txt
+  fcab6dad15e440879d92f315978f93d3  NormalizationCorrections.txt
+  f9ff1c55a60decf436100f791b44aa98  NormalizationTest.txt
+  755f6af699f8c8d2d958da411f78f6c6  UnicodeData.txt
 
 sha1sums (verify by running "sha1sum -c README.utf8data"):
 
-  9184727adf7bd20e36312a68581d12ba3ffb9854  CaseFolding.txt
-  86c55b3eb89de61704da16af9c3f22854f61b57d  DerivedAge.txt
-  b615703f62b1dbc5110e91acc3ff8b3789a067cf  DerivedCombiningClass.txt
-  f8b07ef116d7dc21a94f26e70178ed2acf8713e9  DerivedCoreProperties.txt
-  a5fafb8998c0b8153a2a58430b8a35c811db0abc  NormalizationCorrections.txt
-  070cdcb00cd4f0860e476750e404c59c2ebe9b25  NormalizationTest.txt
-  0e060fafb08d6722fbec56d9f9ebe8509f01d0ee  UnicodeData.txt
+  dc9245f6803c4ac99555c361f5052e0b13eb779b  CaseFolding.txt
+  3281104f237184cdb5d869e86eb8573678ada7da  DerivedAge.txt
+  2f5f995ccb96e0fa84b15151b35d5e2681535175  DerivedCombiningClass.txt
+  5b8698a3fcd5018e1987f296b02e2c17e696415e  DerivedCoreProperties.txt
+  cd83935fbc012345d8792d2c704f69497e753835  NormalizationCorrections.txt
+  ea419aae505b337b0d99a83fa83fe58ddff7c19f  NormalizationTest.txt
+  dc973c0fc93d6f09d9ab9f70d1c9f89c447f0526  UnicodeData.txt
+
 
 To update to the newer version of the Unicode standard, the latest
 released version of the UCD can be found here:
@@ -46,8 +61,8 @@ cd to this directory (fs/unicode) and run this command:
 	make C=../.. objdir=../.. utf8data.h.new
 
 After sanity checking the newly generated utf8data.h.new file (the
-version generated from the 11.0.0 UCD should be 4,061 lines long, and
-have a total size of 320k) and/or comparing it with the older version
+version generated from the 12.1.0 UCD should be 4,109 lines long, and
+have a total size of 324k) and/or comparing it with the older version
 of utf8data.h, rename it to utf8data.h.
 
 If you are a kernel developer updating to a newer version of the

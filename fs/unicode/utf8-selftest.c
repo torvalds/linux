@@ -26,8 +26,8 @@ unsigned int failed_tests;
 unsigned int total_tests;
 
 /* Tests will be based on this version. */
-#define latest_maj 11
-#define latest_min 0
+#define latest_maj 12
+#define latest_min 1
 #define latest_rev 0
 
 #define _test(cond, func, line, fmt, ...) do {				\
@@ -243,7 +243,7 @@ static void check_utf8_nfdicf(void)
 static void check_utf8_comparisons(void)
 {
 	int i;
-	struct unicode_map *table = utf8_load("11.0.0");
+	struct unicode_map *table = utf8_load("12.1.0");
 
 	if (IS_ERR(table)) {
 		pr_err("%s: Unable to load utf8 %d.%d.%d. Skipping.\n",
@@ -286,7 +286,7 @@ static void check_supported_versions(void)
 	test(utf8version_is_supported(latest_maj, latest_min, latest_rev));
 
 	/* Next versions don't exist. */
-	test(!utf8version_is_supported(12, 0, 0));
+	test(!utf8version_is_supported(13, 0, 0));
 	test(!utf8version_is_supported(0, 0, 0));
 	test(!utf8version_is_supported(-1, -1, -1));
 }
