@@ -776,7 +776,7 @@ success:
 		ti = afs_iget(dir->i_sb, key, &cookie->fids[i],
 			      &cookie->statuses[i],
 			      &cookie->callbacks[i],
-			      cbi);
+			      cbi, dvnode);
 		if (i == 0) {
 			inode = ti;
 		} else {
@@ -1125,7 +1125,7 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 		return;
 
 	inode = afs_iget(fc->vnode->vfs_inode.i_sb, fc->key,
-			 newfid, newstatus, newcb, fc->cbi);
+			 newfid, newstatus, newcb, fc->cbi, fc->vnode);
 	if (IS_ERR(inode)) {
 		/* ENOMEM or EINTR at a really inconvenient time - just abandon
 		 * the new directory on the server.

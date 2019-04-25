@@ -29,10 +29,36 @@ static const struct inode_operations afs_symlink_inode_operations = {
 	.listxattr	= afs_listxattr,
 };
 
+static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *parent_vnode)
+{
+	static unsigned long once_only;
+
+	pr_warn("kAFS: AFS vnode with undefined type %u\n",
+		vnode->status.type);
+	pr_warn("kAFS: A=%d m=%o s=%llx v=%llx\n",
+		vnode->status.abort_code,
+		vnode->status.mode,
+		vnode->status.size,
+		vnode->status.data_version);
+	pr_warn("kAFS: vnode %llx:%llx:%x\n",
+		vnode->fid.vid,
+		vnode->fid.vnode,
+		vnode->fid.unique);
+	if (parent_vnode)
+		pr_warn("kAFS: dir %llx:%llx:%x\n",
+			parent_vnode->fid.vid,
+			parent_vnode->fid.vnode,
+			parent_vnode->fid.unique);
+
+	if (!test_and_set_bit(0, &once_only))
+		dump_stack();
+}
+
 /*
  * Initialise an inode from the vnode status.
  */
-static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
+static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key,
+				      struct afs_vnode *parent_vnode)
 {
 	struct inode *inode = AFS_VNODE_TO_I(vnode);
 
@@ -80,7 +106,7 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 		inode_nohighmem(inode);
 		break;
 	default:
-		printk("kAFS: AFS vnode with undefined type\n");
+		dump_vnode(vnode, parent_vnode);
 		read_sequnlock_excl(&vnode->cb_lock);
 		return afs_protocol_error(NULL, -EBADMSG, afs_eproto_file_type);
 	}
@@ -270,7 +296,8 @@ static void afs_get_inode_cache(struct afs_vnode *vnode)
  */
 struct inode *afs_iget(struct super_block *sb, struct key *key,
 		       struct afs_fid *fid, struct afs_file_status *status,
-		       struct afs_callback *cb, struct afs_cb_interest *cbi)
+		       struct afs_callback *cb, struct afs_cb_interest *cbi,
+		       struct afs_vnode *parent_vnode)
 {
 	struct afs_iget_data data = { .fid = *fid };
 	struct afs_super_info *as;
@@ -327,7 +354,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 		vnode->cb_expires_at += ktime_get_real_seconds();
 	}
 
-	ret = afs_inode_init_from_status(vnode, key);
+	ret = afs_inode_init_from_status(vnode, key, parent_vnode);
 	if (ret < 0)
 		goto bad_inode;
 

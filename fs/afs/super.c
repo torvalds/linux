@@ -453,7 +453,7 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 		fid.vnode	= 1;
 		fid.vnode_hi	= 0;
 		fid.unique	= 1;
-		inode = afs_iget(sb, ctx->key, &fid, NULL, NULL, NULL);
+		inode = afs_iget(sb, ctx->key, &fid, NULL, NULL, NULL, NULL);
 	}
 
 	if (IS_ERR(inode))
