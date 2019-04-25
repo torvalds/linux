@@ -173,13 +173,13 @@ static void icl_update_output_csc(struct intel_crtc *crtc,
 	I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_LO(pipe), preoff[2]);
 
 	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe), coeff[0] << 16 | coeff[1]);
-	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BY(pipe), coeff[2]);
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BY(pipe), coeff[2] << 16);
 
 	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe), coeff[3] << 16 | coeff[4]);
-	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BU(pipe), coeff[5]);
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BU(pipe), coeff[5] << 16);
 
 	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe), coeff[6] << 16 | coeff[7]);
-	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BV(pipe), coeff[8]);
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BV(pipe), coeff[8] << 16);
 
 	I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), postoff[0]);
 	I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), postoff[1]);
