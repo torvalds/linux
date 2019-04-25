@@ -485,12 +485,12 @@ static int catu_disable(struct coresight_device *csdev, void *__unused)
 	return rc;
 }
 
-const struct coresight_ops_helper catu_helper_ops = {
+static const struct coresight_ops_helper catu_helper_ops = {
 	.enable = catu_enable,
 	.disable = catu_disable,
 };
 
-const struct coresight_ops catu_ops = {
+static const struct coresight_ops catu_ops = {
 	.helper_ops = &catu_helper_ops,
 };
 
