@@ -335,8 +335,9 @@ pointers for specific protocol implementations:
   				      struct socket *newsock, int flags);
   	int		(*getname)   (struct socket *sock,
   				      struct sockaddr *addr,
-  				      int *sockaddr_len, int peer);
+  				      int peer);
   	//...
+  }
 
 The initialization of the ``ops`` field from :c:type:`struct socket`` is done in
 the :c:func:`__sock_create` function, by calling the :c:func:`create` function,
