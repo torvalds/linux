@@ -205,7 +205,7 @@ EXPORT_SYMBOL(devm_extcon_register_notifier);
 
 /**
  * devm_extcon_unregister_notifier()
-			- Resource-managed extcon_unregister_notifier()
+ *			- Resource-managed extcon_unregister_notifier()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
  * @id:		the unique id among the extcon enumeration
