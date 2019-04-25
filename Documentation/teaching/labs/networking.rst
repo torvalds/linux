@@ -323,7 +323,7 @@ pointers for specific protocol implementations:
   	int		family;
   	struct module	*owner;
   	int		(*release)   (struct socket *sock);
-  	int		(*bind)	     (struct socket *sock,
+  	int		(*bind)      (struct socket *sock,
   				      struct sockaddr *myaddr,
   				      int sockaddr_len);
   	int		(*connect)   (struct socket *sock,
