@@ -10,12 +10,12 @@
 #define PEND(d, m)							\
 	(PSTART(d, m) + sizeof(patch_data_##d.m))
 
-#define PATCH(d, m, ibuf, len)						\
-	paravirt_patch_insns(ibuf, len, PSTART(d, m), PEND(d, m))
+#define PATCH(d, m, insn_buff, len)						\
+	paravirt_patch_insns(insn_buff, len, PSTART(d, m), PEND(d, m))
 
-#define PATCH_CASE(ops, m, data, ibuf, len)				\
+#define PATCH_CASE(ops, m, data, insn_buff, len)				\
 	case PARAVIRT_PATCH(ops.m):					\
-		return PATCH(data, ops##_##m, ibuf, len)
+		return PATCH(data, ops##_##m, insn_buff, len)
 
 #ifdef CONFIG_PARAVIRT_XXL
 struct patch_xxl {
@@ -57,10 +57,10 @@ static const struct patch_xxl patch_data_xxl = {
 # endif
 };
 
-unsigned int paravirt_patch_ident_64(void *insnbuf, unsigned int len)
+unsigned int paravirt_patch_ident_64(void *insn_buff, unsigned int len)
 {
 #ifdef CONFIG_X86_64
-	return PATCH(xxl, mov64, insnbuf, len);
+	return PATCH(xxl, mov64, insn_buff, len);
 #endif
 	return 0;
 }
@@ -83,44 +83,44 @@ static const struct patch_lock patch_data_lock = {
 };
 #endif /* CONFIG_PARAVIRT_SPINLOCKS */
 
-unsigned int native_patch(u8 type, void *ibuf, unsigned long addr,
+unsigned int native_patch(u8 type, void *insn_buff, unsigned long addr,
 			  unsigned int len)
 {
 	switch (type) {
 
 #ifdef CONFIG_PARAVIRT_XXL
-	PATCH_CASE(irq, restore_fl, xxl, ibuf, len);
-	PATCH_CASE(irq, save_fl, xxl, ibuf, len);
-	PATCH_CASE(irq, irq_enable, xxl, ibuf, len);
-	PATCH_CASE(irq, irq_disable, xxl, ibuf, len);
+	PATCH_CASE(irq, restore_fl, xxl, insn_buff, len);
+	PATCH_CASE(irq, save_fl, xxl, insn_buff, len);
+	PATCH_CASE(irq, irq_enable, xxl, insn_buff, len);
+	PATCH_CASE(irq, irq_disable, xxl, insn_buff, len);
 
-	PATCH_CASE(mmu, read_cr2, xxl, ibuf, len);
-	PATCH_CASE(mmu, read_cr3, xxl, ibuf, len);
-	PATCH_CASE(mmu, write_cr3, xxl, ibuf, len);
+	PATCH_CASE(mmu, read_cr2, xxl, insn_buff, len);
+	PATCH_CASE(mmu, read_cr3, xxl, insn_buff, len);
+	PATCH_CASE(mmu, write_cr3, xxl, insn_buff, len);
 
 # ifdef CONFIG_X86_64
-	PATCH_CASE(cpu, usergs_sysret64, xxl, ibuf, len);
-	PATCH_CASE(cpu, swapgs, xxl, ibuf, len);
-	PATCH_CASE(cpu, wbinvd, xxl, ibuf, len);
+	PATCH_CASE(cpu, usergs_sysret64, xxl, insn_buff, len);
+	PATCH_CASE(cpu, swapgs, xxl, insn_buff, len);
+	PATCH_CASE(cpu, wbinvd, xxl, insn_buff, len);
 # else
-	PATCH_CASE(cpu, iret, xxl, ibuf, len);
+	PATCH_CASE(cpu, iret, xxl, insn_buff, len);
 # endif
 #endif
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 	case PARAVIRT_PATCH(lock.queued_spin_unlock):
 		if (pv_is_native_spin_unlock())
-			return PATCH(lock, queued_spin_unlock, ibuf, len);
+			return PATCH(lock, queued_spin_unlock, insn_buff, len);
 		break;
 
 	case PARAVIRT_PATCH(lock.vcpu_is_preempted):
 		if (pv_is_native_vcpu_is_preempted())
-			return PATCH(lock, vcpu_is_preempted, ibuf, len);
+			return PATCH(lock, vcpu_is_preempted, insn_buff, len);
 		break;
 #endif
 	default:
 		break;
 	}
 
-	return paravirt_patch_default(type, ibuf, addr, len);
+	return paravirt_patch_default(type, insn_buff, addr, len);
 }
