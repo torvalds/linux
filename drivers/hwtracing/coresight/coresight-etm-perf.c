@@ -134,8 +134,7 @@ static void free_event_data(struct work_struct *work)
 	if (event_data->snk_config && !WARN_ON(cpumask_empty(mask))) {
 		cpu = cpumask_first(mask);
 		sink = coresight_get_sink(etm_event_cpu_path(event_data, cpu));
-		if (sink_ops(sink)->free_buffer)
-			sink_ops(sink)->free_buffer(event_data->snk_config);
+		sink_ops(sink)->free_buffer(event_data->snk_config);
 	}
 
 	for_each_cpu(cpu, mask) {
@@ -215,7 +214,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 		sink = coresight_get_enabled_sink(true);
 	}
 
-	if (!sink || !sink_ops(sink)->alloc_buffer)
+	if (!sink)
 		goto err;
 
 	mask = &event_data->mask;
@@ -259,6 +258,9 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 	/* If we don't have any CPUs ready for tracing, abort */
 	cpu = cpumask_first(mask);
 	if (cpu >= nr_cpu_ids)
+		goto err;
+
+	if (!sink_ops(sink)->alloc_buffer || !sink_ops(sink)->free_buffer)
 		goto err;
 
 	/* Allocate the sink buffer for this session */
