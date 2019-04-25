@@ -150,40 +150,6 @@ static void slice_mask_for_free(struct mm_struct *mm, struct slice_mask *ret,
 			__set_bit(i, ret->high_slices);
 }
 
-#ifdef CONFIG_PPC_BOOK3S_64
-static struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
-{
-#ifdef CONFIG_PPC_64K_PAGES
-	if (psize == MMU_PAGE_64K)
-		return mm_ctx_slice_mask_64k(&ctx);
-#endif
-	if (psize == MMU_PAGE_4K)
-		return mm_ctx_slice_mask_4k(&ctx);
-#ifdef CONFIG_HUGETLB_PAGE
-	if (psize == MMU_PAGE_16M)
-		return mm_ctx_slice_mask_16m(&ctx);
-	if (psize == MMU_PAGE_16G)
-		return mm_ctx_slice_mask_16g(&ctx);
-#endif
-	BUG();
-}
-#elif defined(CONFIG_PPC_8xx)
-static struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
-{
-	if (psize == mmu_virtual_psize)
-		return &ctx->mask_base_psize;
-#ifdef CONFIG_HUGETLB_PAGE
-	if (psize == MMU_PAGE_512K)
-		return &ctx->mask_512k;
-	if (psize == MMU_PAGE_8M)
-		return &ctx->mask_8m;
-#endif
-	BUG();
-}
-#else
-#error "Must define the slice masks for page sizes supported by the platform"
-#endif
-
 static bool slice_check_range_fits(struct mm_struct *mm,
 			   const struct slice_mask *available,
 			   unsigned long start, unsigned long len)

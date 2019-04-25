@@ -184,7 +184,23 @@
 #define LOW_SLICE_ARRAY_SZ	SLICE_ARRAY_SIZE
 #endif
 
+#if defined(CONFIG_PPC_4K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_4K
+#elif defined(CONFIG_PPC_16K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_16K
+#define PTE_FRAG_NR		4
+#define PTE_FRAG_SIZE_SHIFT	12
+#define PTE_FRAG_SIZE		(1UL << 12)
+#else
+#error "Unsupported PAGE_SIZE"
+#endif
+
+#define mmu_linear_psize	MMU_PAGE_8M
+
 #ifndef __ASSEMBLY__
+
+#include <linux/mmdebug.h>
+
 struct slice_mask {
 	u64 low_slices;
 	DECLARE_BITMAP(high_slices, 0);
@@ -255,6 +271,19 @@ static inline struct slice_mask *mm_ctx_slice_mask_8m(mm_context_t *ctx)
 	return &ctx->mask_8m;
 }
 #endif
+
+static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
+{
+#ifdef CONFIG_HUGETLB_PAGE
+	if (psize == MMU_PAGE_512K)
+		return &ctx->mask_512k;
+	if (psize == MMU_PAGE_8M)
+		return &ctx->mask_8m;
+#endif
+	BUG_ON(psize != mmu_virtual_psize);
+
+	return &ctx->mask_base_psize;
+}
 #endif /* CONFIG_PPC_MM_SLICE */
 
 #define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
@@ -305,18 +334,5 @@ extern s32 patch__dtlbmiss_exit_1, patch__dtlbmiss_exit_2, patch__dtlbmiss_exit_
 extern s32 patch__itlbmiss_perf, patch__dtlbmiss_perf;
 
 #endif /* !__ASSEMBLY__ */
-
-#if defined(CONFIG_PPC_4K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_4K
-#elif defined(CONFIG_PPC_16K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_16K
-#define PTE_FRAG_NR		4
-#define PTE_FRAG_SIZE_SHIFT	12
-#define PTE_FRAG_SIZE		(1UL << 12)
-#else
-#error "Unsupported PAGE_SIZE"
-#endif
-
-#define mmu_linear_psize	MMU_PAGE_8M
 
 #endif /* _ASM_POWERPC_MMU_8XX_H_ */

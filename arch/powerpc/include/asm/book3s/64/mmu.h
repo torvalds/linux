@@ -203,6 +203,23 @@ static inline struct slice_mask *mm_ctx_slice_mask_16g(mm_context_t *ctx)
 }
 #endif
 
+static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
+{
+#ifdef CONFIG_PPC_64K_PAGES
+	if (psize == MMU_PAGE_64K)
+		return mm_ctx_slice_mask_64k(&ctx);
+#endif
+#ifdef CONFIG_HUGETLB_PAGE
+	if (psize == MMU_PAGE_16M)
+		return mm_ctx_slice_mask_16m(&ctx);
+	if (psize == MMU_PAGE_16G)
+		return mm_ctx_slice_mask_16g(&ctx);
+#endif
+	BUG_ON(psize != MMU_PAGE_4K);
+
+	return mm_ctx_slice_mask_4k(&ctx);
+}
+
 #ifdef CONFIG_PPC_SUBPAGE_PROT
 static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
 {
