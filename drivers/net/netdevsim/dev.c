@@ -199,7 +199,7 @@ static int __nsim_dev_init(struct netdevsim *ns)
 	if (err)
 		goto err_fib_destroy;
 
-	err = devlink_register(devlink, &ns->dev);
+	err = devlink_register(devlink, &ns->nsim_bus_dev->dev);
 	if (err)
 		goto err_resources_unregister;
 

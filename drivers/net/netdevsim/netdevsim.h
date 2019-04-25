@@ -85,13 +85,10 @@ struct netdevsim {
 	u64 tx_bytes;
 	struct u64_stats_sync syncp;
 
-	struct device dev;
+	struct nsim_bus_dev *nsim_bus_dev;
 	struct netdevsim_shared_dev *sdev;
 
 	struct dentry *ddir;
-
-	unsigned int num_vfs;
-	struct nsim_vf_config *vfconfigs;
 
 	struct bpf_prog	*bpf_offloaded;
 	u32 bpf_offloaded_id;
@@ -184,14 +181,26 @@ static inline bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 }
 #endif
 
-static inline struct netdevsim *to_nsim(struct device *ptr)
-{
-	return container_of(ptr, struct netdevsim, dev);
-}
+struct nsim_vf_config {
+	int link_state;
+	u16 min_tx_rate;
+	u16 max_tx_rate;
+	u16 vlan;
+	__be16 vlan_proto;
+	u16 qos;
+	u8 vf_mac[ETH_ALEN];
+	bool spoofchk_enabled;
+	bool trusted;
+	bool rss_query_enabled;
+};
 
-int nsim_num_vf(struct device *dev);
+struct nsim_bus_dev {
+	struct device dev;
+	unsigned int num_vfs;
+	struct nsim_vf_config *vfconfigs;
+};
 
-extern struct bus_type nsim_bus;
-
+struct nsim_bus_dev *nsim_bus_dev_new(void);
+void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev);
 int nsim_bus_init(void);
 void nsim_bus_exit(void);
