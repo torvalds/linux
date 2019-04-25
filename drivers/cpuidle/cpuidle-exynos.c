@@ -84,7 +84,7 @@ static struct cpuidle_driver exynos_idle_driver = {
 		[1] = {
 			.enter			= exynos_enter_lowpower,
 			.exit_latency		= 300,
-			.target_residency	= 100000,
+			.target_residency	= 10000,
 			.name			= "C1",
 			.desc			= "ARM power down",
 		},

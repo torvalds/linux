@@ -328,9 +328,23 @@ int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 int cpuidle_enter(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		  int index)
 {
+	int ret = 0;
+
+	/*
+	 * Store the next hrtimer, which becomes either next tick or the next
+	 * timer event, whatever expires first. Additionally, to make this data
+	 * useful for consumers outside cpuidle, we rely on that the governor's
+	 * ->select() callback have decided, whether to stop the tick or not.
+	 */
+	WRITE_ONCE(dev->next_hrtimer, tick_nohz_get_next_hrtimer());
+
 	if (cpuidle_state_is_coupled(drv, index))
-		return cpuidle_enter_state_coupled(dev, drv, index);
-	return cpuidle_enter_state(dev, drv, index);
+		ret = cpuidle_enter_state_coupled(dev, drv, index);
+	else
+		ret = cpuidle_enter_state(dev, drv, index);
+
+	WRITE_ONCE(dev->next_hrtimer, 0);
+	return ret;
 }
 
 /**
@@ -511,6 +525,7 @@ static void __cpuidle_device_init(struct cpuidle_device *dev)
 {
 	memset(dev->states_usage, 0, sizeof(dev->states_usage));
 	dev->last_residency = 0;
+	dev->next_hrtimer = 0;
 }
 
 /**
