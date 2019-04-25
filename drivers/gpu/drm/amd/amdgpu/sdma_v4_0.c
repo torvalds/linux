@@ -849,7 +849,7 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	wptr_poll_cntl = RREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL);
 	wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
 				       SDMA0_GFX_RB_WPTR_POLL_CNTL,
-				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev));
+				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev)? 1 : 0);
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL, wptr_poll_cntl);
 
 	/* enable DMA RB */
@@ -940,7 +940,7 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 	wptr_poll_cntl = RREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_CNTL);
 	wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
 				       SDMA0_PAGE_RB_WPTR_POLL_CNTL,
-				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev));
+				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev)? 1 : 0);
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_CNTL, wptr_poll_cntl);
 
 	/* enable DMA RB */
