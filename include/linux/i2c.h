@@ -694,7 +694,8 @@ struct i2c_adapter {
 	int retries;
 	struct device dev;		/* the adapter device */
 	unsigned long locked_flags;	/* owned by the I2C core */
-#define I2C_ALF_IS_SUSPENDED	0
+#define I2C_ALF_IS_SUSPENDED		0
+#define I2C_ALF_SUSPEND_REPORTED	1
 
 	int nr;
 	char name[48];
