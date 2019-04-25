@@ -25,8 +25,6 @@
 
 #include "netdevsim.h"
 
-static struct dentry *nsim_ddir;
-
 static int nsim_get_port_parent_id(struct net_device *dev,
 				   struct netdev_phys_item_id *ppid)
 {
@@ -42,11 +40,11 @@ static int nsim_init(struct net_device *dev)
 	char dev_link_name[32];
 	int err;
 
-	ns->ddir = debugfs_create_dir(netdev_name(dev), nsim_ddir);
+	ns->ddir = debugfs_create_dir("0", ns->nsim_dev->ports_ddir);
 	if (IS_ERR_OR_NULL(ns->ddir))
 		return -ENOMEM;
 
-	sprintf(dev_link_name, "../../" DRV_NAME "_dev/%u",
+	sprintf(dev_link_name, "../../../" DRV_NAME "%u",
 		ns->nsim_dev->nsim_bus_dev->dev.id);
 	debugfs_create_symlink("dev", ns->ddir, dev_link_name);
 
@@ -403,13 +401,9 @@ static int __init nsim_module_init(void)
 {
 	int err;
 
-	nsim_ddir = debugfs_create_dir(DRV_NAME, NULL);
-	if (IS_ERR_OR_NULL(nsim_ddir))
-		return -ENOMEM;
-
 	err = nsim_dev_init();
 	if (err)
-		goto err_debugfs_destroy;
+		return err;
 
 	err = nsim_bus_init();
 	if (err)
@@ -425,8 +419,6 @@ err_bus_exit:
 	nsim_bus_exit();
 err_dev_exit:
 	nsim_dev_exit();
-err_debugfs_destroy:
-	debugfs_remove_recursive(nsim_ddir);
 	return err;
 }
 
@@ -435,7 +427,6 @@ static void __exit nsim_module_exit(void)
 	rtnl_link_unregister(&nsim_link_ops);
 	nsim_bus_exit();
 	nsim_dev_exit();
-	debugfs_remove_recursive(nsim_ddir);
 }
 
 module_init(nsim_module_init);

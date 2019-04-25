@@ -306,6 +306,8 @@ class DebugfsDir:
 
         _, out = cmd('ls ' + path)
         for f in out.split():
+            if f == "ports":
+                continue
             p = os.path.join(path, f)
             if os.path.isfile(p):
                 _, out = cmd('cat %s/%s' % (path, f))
@@ -334,7 +336,7 @@ class NetdevSim:
 
         self.ns = ""
 
-        self.dfs_dir = '/sys/kernel/debug/netdevsim/%s' % (self.dev['ifname'])
+        self.dfs_dir = '/sys/kernel/debug/netdevsim/netdevsim0/ports/0/'
         self.dev_dir = self.dfs_dir + '/dev/'
         self.dfs_refresh()
 

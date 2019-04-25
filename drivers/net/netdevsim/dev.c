@@ -27,17 +27,21 @@ static struct dentry *nsim_dev_ddir;
 
 static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 {
-	char dev_ddir_name[10];
+	char dev_ddir_name[16];
 
-	sprintf(dev_ddir_name, "%u", nsim_dev->nsim_bus_dev->dev.id);
+	sprintf(dev_ddir_name, DRV_NAME "%u", nsim_dev->nsim_bus_dev->dev.id);
 	nsim_dev->ddir = debugfs_create_dir(dev_ddir_name, nsim_dev_ddir);
 	if (IS_ERR_OR_NULL(nsim_dev->ddir))
 		return PTR_ERR_OR_ZERO(nsim_dev->ddir) ?: -EINVAL;
+	nsim_dev->ports_ddir = debugfs_create_dir("ports", nsim_dev->ddir);
+	if (IS_ERR_OR_NULL(nsim_dev->ports_ddir))
+		return PTR_ERR_OR_ZERO(nsim_dev->ports_ddir) ?: -EINVAL;
 	return 0;
 }
 
 static void nsim_dev_debugfs_exit(struct nsim_dev *nsim_dev)
 {
+	debugfs_remove_recursive(nsim_dev->ports_ddir);
 	debugfs_remove_recursive(nsim_dev->ddir);
 }
 
@@ -273,7 +277,7 @@ void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 
 int nsim_dev_init(void)
 {
-	nsim_dev_ddir = debugfs_create_dir(DRV_NAME "_dev", NULL);
+	nsim_dev_ddir = debugfs_create_dir(DRV_NAME, NULL);
 	if (IS_ERR_OR_NULL(nsim_dev_ddir))
 		return -ENOMEM;
 	return 0;
