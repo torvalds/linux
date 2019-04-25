@@ -188,3 +188,10 @@ static inline struct netdevsim *to_nsim(struct device *ptr)
 {
 	return container_of(ptr, struct netdevsim, dev);
 }
+
+int nsim_num_vf(struct device *dev);
+
+extern struct bus_type nsim_bus;
+
+int nsim_bus_init(void);
+void nsim_bus_exit(void);

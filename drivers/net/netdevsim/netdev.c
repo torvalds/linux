@@ -42,18 +42,12 @@ struct nsim_vf_config {
 
 static struct dentry *nsim_ddir;
 
-static int nsim_num_vf(struct device *dev)
+int nsim_num_vf(struct device *dev)
 {
 	struct netdevsim *ns = to_nsim(dev);
 
 	return ns->num_vfs;
 }
-
-static struct bus_type nsim_bus = {
-	.name		= DRV_NAME,
-	.dev_name	= DRV_NAME,
-	.num_vf		= nsim_num_vf,
-};
 
 static int nsim_vfs_enable(struct netdevsim *ns, unsigned int num_vfs)
 {
@@ -544,18 +538,18 @@ static int __init nsim_module_init(void)
 	if (err)
 		goto err_debugfs_destroy;
 
-	err = bus_register(&nsim_bus);
+	err = nsim_bus_init();
 	if (err)
 		goto err_sdev_exit;
 
 	err = rtnl_link_register(&nsim_link_ops);
 	if (err)
-		goto err_unreg_bus;
+		goto err_bus_exit;
 
 	return 0;
 
-err_unreg_bus:
-	bus_unregister(&nsim_bus);
+err_bus_exit:
+	nsim_bus_exit();
 err_sdev_exit:
 	nsim_sdev_exit();
 err_debugfs_destroy:
@@ -566,7 +560,7 @@ err_debugfs_destroy:
 static void __exit nsim_module_exit(void)
 {
 	rtnl_link_unregister(&nsim_link_ops);
-	bus_unregister(&nsim_bus);
+	nsim_bus_exit();
 	nsim_sdev_exit();
 	debugfs_remove_recursive(nsim_ddir);
 }
