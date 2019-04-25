@@ -99,6 +99,13 @@ jobs:
      MKARG: "dpdk=yes"
    <<: *do_steps
 
+  i386:
+   docker:
+     - image: luckytmp/circleci-i386:latest
+   environment:
+     CROSS_COMPILE: ""
+   <<: *do_steps
+
   mingw32:
    docker:
      - image: lkldocker/circleci-mingw:0.6
@@ -165,6 +172,7 @@ workflows:
      - android-aarch64
      - freebsd11_x86_64
      - checkpatch
+     - i386
   nightly:
     triggers:
       - schedule:

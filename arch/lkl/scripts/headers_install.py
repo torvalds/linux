@@ -178,6 +178,9 @@ p = re.compile("enum\s+(\w*)\s*{([^}]*)}", re.M|re.S)
 q = re.compile("(\w+)\s*(,|=[^,]*|$)", re.M|re.S)
 find_enums(p, q, defines)
 
+# needed for i386
+defines.add("__NR_stime")
+
 def process_header(h):
     print("  REPLACE\t%s" % (out_dir + "/" + os.path.basename(h)))
     replace(h)

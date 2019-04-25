@@ -10,7 +10,7 @@ function prepfs()
 
     file=`mktemp`
 
-    dd if=/dev/zero of=$file bs=1024 count=102400
+    dd if=/dev/zero of=$file bs=1024 count=204800
 
     yes | mkfs.$1 $file
 
