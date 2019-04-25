@@ -151,32 +151,32 @@ static void slice_mask_for_free(struct mm_struct *mm, struct slice_mask *ret,
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
+static struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
 {
 #ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
-		return mm_ctx_slice_mask_64k(&mm->context);
+		return mm_ctx_slice_mask_64k(&ctx);
 #endif
 	if (psize == MMU_PAGE_4K)
-		return mm_ctx_slice_mask_4k(&mm->context);
+		return mm_ctx_slice_mask_4k(&ctx);
 #ifdef CONFIG_HUGETLB_PAGE
 	if (psize == MMU_PAGE_16M)
-		return mm_ctx_slice_mask_16m(&mm->context);
+		return mm_ctx_slice_mask_16m(&ctx);
 	if (psize == MMU_PAGE_16G)
-		return mm_ctx_slice_mask_16g(&mm->context);
+		return mm_ctx_slice_mask_16g(&ctx);
 #endif
 	BUG();
 }
 #elif defined(CONFIG_PPC_8xx)
-static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
+static struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
 {
 	if (psize == mmu_virtual_psize)
-		return &mm->context.mask_base_psize;
+		return &ctx->mask_base_psize;
 #ifdef CONFIG_HUGETLB_PAGE
 	if (psize == MMU_PAGE_512K)
-		return &mm->context.mask_512k;
+		return &ctx->mask_512k;
 	if (psize == MMU_PAGE_8M)
-		return &mm->context.mask_8m;
+		return &ctx->mask_8m;
 #endif
 	BUG();
 }
@@ -246,7 +246,7 @@ static void slice_convert(struct mm_struct *mm,
 	slice_dbg("slice_convert(mm=%p, psize=%d)\n", mm, psize);
 	slice_print_mask(" mask", mask);
 
-	psize_mask = slice_mask_for_size(mm, psize);
+	psize_mask = slice_mask_for_size(&mm->context, psize);
 
 	/* We need to use a spinlock here to protect against
 	 * concurrent 64k -> 4k demotion ...
@@ -263,7 +263,7 @@ static void slice_convert(struct mm_struct *mm,
 
 		/* Update the slice_mask */
 		old_psize = (lpsizes[index] >> (mask_index * 4)) & 0xf;
-		old_mask = slice_mask_for_size(mm, old_psize);
+		old_mask = slice_mask_for_size(&mm->context, old_psize);
 		old_mask->low_slices &= ~(1u << i);
 		psize_mask->low_slices |= 1u << i;
 
@@ -282,7 +282,7 @@ static void slice_convert(struct mm_struct *mm,
 
 		/* Update the slice_mask */
 		old_psize = (hpsizes[index] >> (mask_index * 4)) & 0xf;
-		old_mask = slice_mask_for_size(mm, old_psize);
+		old_mask = slice_mask_for_size(&mm->context, old_psize);
 		__clear_bit(i, old_mask->high_slices);
 		__set_bit(i, psize_mask->high_slices);
 
@@ -538,7 +538,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/* First make up a "good" mask of slices that have the right size
 	 * already
 	 */
-	maskp = slice_mask_for_size(mm, psize);
+	maskp = slice_mask_for_size(&mm->context, psize);
 
 	/*
 	 * Here "good" means slices that are already the right page size,
@@ -565,7 +565,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	 * a pointer to good mask for the next code to use.
 	 */
 	if (IS_ENABLED(CONFIG_PPC_64K_PAGES) && psize == MMU_PAGE_64K) {
-		compat_maskp = slice_mask_for_size(mm, MMU_PAGE_4K);
+		compat_maskp = slice_mask_for_size(&mm->context, MMU_PAGE_4K);
 		if (fixed)
 			slice_or_mask(&good_mask, maskp, compat_maskp);
 		else
@@ -760,7 +760,7 @@ void slice_init_new_context_exec(struct mm_struct *mm)
 	/*
 	 * Slice mask cache starts zeroed, fill the default size cache.
 	 */
-	mask = slice_mask_for_size(mm, psize);
+	mask = slice_mask_for_size(&mm->context, psize);
 	mask->low_slices = ~0UL;
 	if (SLICE_NUM_HIGH)
 		bitmap_fill(mask->high_slices, SLICE_NUM_HIGH);
@@ -819,14 +819,14 @@ int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 
 	VM_BUG_ON(radix_enabled());
 
-	maskp = slice_mask_for_size(mm, psize);
+	maskp = slice_mask_for_size(&mm->context, psize);
 #ifdef CONFIG_PPC_64K_PAGES
 	/* We need to account for 4k slices too */
 	if (psize == MMU_PAGE_64K) {
 		const struct slice_mask *compat_maskp;
 		struct slice_mask available;
 
-		compat_maskp = slice_mask_for_size(mm, MMU_PAGE_4K);
+		compat_maskp = slice_mask_for_size(&mm->context, MMU_PAGE_4K);
 		slice_or_mask(&available, maskp, compat_maskp);
 		return !slice_check_range_fits(mm, &available, addr, len);
 	}
