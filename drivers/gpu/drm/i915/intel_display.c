@@ -9652,6 +9652,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	for_each_set_bit(panel_transcoder,
 			 &panel_transcoder_mask,
 			 ARRAY_SIZE(INTEL_INFO(dev_priv)->trans_offsets)) {
+		bool force_thru = false;
 		enum pipe trans_pipe;
 
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(panel_transcoder));
@@ -9673,6 +9674,8 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 			     transcoder_name(panel_transcoder));
 			/* fall through */
 		case TRANS_DDI_EDP_INPUT_A_ONOFF:
+			force_thru = true;
+			/* fall through */
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			trans_pipe = PIPE_A;
 			break;
@@ -9684,8 +9687,10 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 			break;
 		}
 
-		if (trans_pipe == crtc->pipe)
+		if (trans_pipe == crtc->pipe) {
 			pipe_config->cpu_transcoder = panel_transcoder;
+			pipe_config->pch_pfit.force_thru = force_thru;
+		}
 	}
 
 	/*
@@ -11520,10 +11525,11 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      pipe_config->gmch_pfit.pgm_ratios,
 			      pipe_config->gmch_pfit.lvds_border_bits);
 	else
-		DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x, %s\n",
+		DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x, %s, force thru: %s\n",
 			      pipe_config->pch_pfit.pos,
 			      pipe_config->pch_pfit.size,
-		              enableddisabled(pipe_config->pch_pfit.enabled));
+			      enableddisabled(pipe_config->pch_pfit.enabled),
+			      yesno(pipe_config->pch_pfit.force_thru));
 
 	DRM_DEBUG_KMS("ips: %i, double wide: %i\n",
 		      pipe_config->ips_enabled, pipe_config->double_wide);
@@ -11645,7 +11651,6 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	saved_state->scaler_state = crtc_state->scaler_state;
 	saved_state->shared_dpll = crtc_state->shared_dpll;
 	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
-	saved_state->pch_pfit.force_thru = crtc_state->pch_pfit.force_thru;
 	saved_state->crc_enabled = crtc_state->crc_enabled;
 	if (IS_G4X(dev_priv) ||
 	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
@@ -11937,7 +11942,6 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 			  struct intel_crtc_state *pipe_config,
 			  bool adjust)
 {
-	struct intel_crtc *crtc = to_intel_crtc(current_config->base.crtc);
 	bool ret = true;
 	bool fixup_inherited = adjust &&
 		(current_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
@@ -12163,9 +12167,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	 * Changing the EDP transcoder input mux
 	 * (A_ONOFF vs. A_ON) requires a full modeset.
 	 */
-	if (IS_HASWELL(dev_priv) && crtc->pipe == PIPE_A &&
-	    current_config->cpu_transcoder == TRANSCODER_EDP)
-		PIPE_CONF_CHECK_BOOL(pch_pfit.enabled);
+	PIPE_CONF_CHECK_BOOL(pch_pfit.force_thru);
 
 	if (!adjust) {
 		PIPE_CONF_CHECK_I(pipe_src_w);
