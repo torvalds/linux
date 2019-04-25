@@ -223,6 +223,7 @@ out:
 static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 {
 	int ret = 0;
+	pid_t pid;
 	unsigned long flags;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	struct perf_output_handle *handle = data;
@@ -233,18 +234,39 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 		if (drvdata->reading)
 			break;
 		/*
-		 * In Perf mode there can be only one writer per sink.  There
-		 * is also no need to continue if the ETB/ETF is already
-		 * operated from sysFS.
+		 * No need to continue if the ETB/ETF is already operated
+		 * from sysFS.
 		 */
-		if (drvdata->mode != CS_MODE_DISABLED)
+		if (drvdata->mode == CS_MODE_SYSFS) {
+			ret = -EBUSY;
 			break;
+		}
+
+		/* Get a handle on the pid of the process to monitor */
+		pid = task_pid_nr(handle->event->owner);
+
+		if (drvdata->pid != -1 && drvdata->pid != pid) {
+			ret = -EBUSY;
+			break;
+		}
 
 		ret = tmc_set_etf_buffer(csdev, handle);
 		if (ret)
 			break;
+
+		/*
+		 * No HW configuration is needed if the sink is already in
+		 * use for this session.
+		 */
+		if (drvdata->pid == pid) {
+			atomic_inc(csdev->refcnt);
+			break;
+		}
+
 		ret  = tmc_etb_enable_hw(drvdata);
 		if (!ret) {
+			/* Associate with monitored process. */
+			drvdata->pid = pid;
 			drvdata->mode = CS_MODE_PERF;
 			atomic_inc(csdev->refcnt);
 		}
@@ -300,6 +322,8 @@ static int tmc_disable_etf_sink(struct coresight_device *csdev)
 	/* Complain if we (somehow) got out of sync */
 	WARN_ON_ONCE(drvdata->mode == CS_MODE_DISABLED);
 	tmc_etb_disable_hw(drvdata);
+	/* Dissociate from monitored process. */
+	drvdata->pid = -1;
 	drvdata->mode = CS_MODE_DISABLED;
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -414,7 +438,7 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 	u32 *buf_ptr;
 	u64 read_ptr, write_ptr;
 	u32 status;
-	unsigned long offset, to_read, flags;
+	unsigned long offset, to_read = 0, flags;
 	struct cs_buffers *buf = sink_config;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -426,6 +450,11 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 		return 0;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	/* Don't do anything if another tracer is using this sink */
+	if (atomic_read(csdev->refcnt) != 1)
+		goto out;
+
 	CS_UNLOCK(drvdata->base);
 
 	tmc_flush_and_stop(drvdata);
@@ -519,6 +548,7 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 		to_read = buf->nr_pages << PAGE_SHIFT;
 	}
 	CS_LOCK(drvdata->base);
+out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	return to_read;
