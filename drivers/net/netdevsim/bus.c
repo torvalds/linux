@@ -6,6 +6,8 @@
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
@@ -13,6 +15,8 @@
 #include "netdevsim.h"
 
 static DEFINE_IDA(nsim_bus_dev_ids);
+static LIST_HEAD(nsim_bus_dev_list);
+static DEFINE_MUTEX(nsim_bus_dev_list_lock);
 
 static struct nsim_bus_dev *to_nsim_bus_dev(struct device *dev)
 {
@@ -113,6 +117,83 @@ static struct device_type nsim_bus_dev_type = {
 	.release = nsim_bus_dev_release,
 };
 
+static ssize_t
+new_device_store(struct bus_type *bus, const char *buf, size_t count)
+{
+	struct nsim_bus_dev *nsim_bus_dev;
+	unsigned int port_count;
+	unsigned int id;
+	int err;
+
+	err = sscanf(buf, "%u %u", &id, &port_count);
+	switch (err) {
+	case 1:
+		port_count = 1;
+		/* pass through */
+	case 2:
+		if (id > INT_MAX) {
+			pr_err("Value of \"id\" is too big.\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		pr_err("Format for adding new device is \"id port_count\" (uint uint).\n");
+		return -EINVAL;
+	}
+	nsim_bus_dev = nsim_bus_dev_new(id, port_count);
+	if (IS_ERR(nsim_bus_dev))
+		return PTR_ERR(nsim_bus_dev);
+
+	mutex_lock(&nsim_bus_dev_list_lock);
+	list_add_tail(&nsim_bus_dev->list, &nsim_bus_dev_list);
+	mutex_unlock(&nsim_bus_dev_list_lock);
+
+	return count;
+}
+static BUS_ATTR_WO(new_device);
+
+static ssize_t
+del_device_store(struct bus_type *bus, const char *buf, size_t count)
+{
+	struct nsim_bus_dev *nsim_bus_dev, *tmp;
+	unsigned int id;
+	int err;
+
+	err = sscanf(buf, "%u", &id);
+	switch (err) {
+	case 1:
+		if (id > INT_MAX) {
+			pr_err("Value of \"id\" is too big.\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		pr_err("Format for deleting device is \"id\" (uint).\n");
+		return -EINVAL;
+	}
+
+	err = -ENOENT;
+	mutex_lock(&nsim_bus_dev_list_lock);
+	list_for_each_entry_safe(nsim_bus_dev, tmp, &nsim_bus_dev_list, list) {
+		if (nsim_bus_dev->dev.id != id)
+			continue;
+		list_del(&nsim_bus_dev->list);
+		nsim_bus_dev_del(nsim_bus_dev);
+		err = 0;
+		break;
+	}
+	mutex_unlock(&nsim_bus_dev_list_lock);
+	return !err ? count : err;
+}
+static BUS_ATTR_WO(del_device);
+
+static struct attribute *nsim_bus_attrs[] = {
+	&bus_attr_new_device.attr,
+	&bus_attr_del_device.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(nsim_bus);
+
 int nsim_num_vf(struct device *dev)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
@@ -123,10 +204,11 @@ int nsim_num_vf(struct device *dev)
 static struct bus_type nsim_bus = {
 	.name		= DRV_NAME,
 	.dev_name	= DRV_NAME,
+	.bus_groups	= nsim_bus_groups,
 	.num_vf		= nsim_num_vf,
 };
 
-struct nsim_bus_dev *nsim_bus_dev_new(void)
+struct nsim_bus_dev *nsim_bus_dev_new(unsigned int id, unsigned int port_count)
 {
 	struct nsim_bus_dev *nsim_bus_dev;
 	int err;
@@ -135,12 +217,15 @@ struct nsim_bus_dev *nsim_bus_dev_new(void)
 	if (!nsim_bus_dev)
 		return ERR_PTR(-ENOMEM);
 
-	err = ida_alloc(&nsim_bus_dev_ids, GFP_KERNEL);
+	err = ida_alloc_range(&nsim_bus_dev_ids,
+			      id == ~0 ? 0 : id, id, GFP_KERNEL);
 	if (err < 0)
 		goto err_nsim_bus_dev_free;
 	nsim_bus_dev->dev.id = err;
 	nsim_bus_dev->dev.bus = &nsim_bus;
 	nsim_bus_dev->dev.type = &nsim_bus_dev_type;
+	nsim_bus_dev->port_count = port_count;
+
 	err = device_register(&nsim_bus_dev->dev);
 	if (err)
 		goto err_nsim_bus_dev_id_free;
@@ -185,6 +270,14 @@ err_bus_unregister:
 
 void nsim_bus_exit(void)
 {
+	struct nsim_bus_dev *nsim_bus_dev, *tmp;
+
+	mutex_lock(&nsim_bus_dev_list_lock);
+	list_for_each_entry_safe(nsim_bus_dev, tmp, &nsim_bus_dev_list, list) {
+		list_del(&nsim_bus_dev->list);
+		nsim_bus_dev_del(nsim_bus_dev);
+	}
+	mutex_unlock(&nsim_bus_dev_list_lock);
 	driver_unregister(&nsim_driver);
 	bus_unregister(&nsim_bus);
 }

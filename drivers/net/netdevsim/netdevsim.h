@@ -196,11 +196,13 @@ struct nsim_vf_config {
 
 struct nsim_bus_dev {
 	struct device dev;
+	struct list_head list;
+	unsigned int port_count;
 	unsigned int num_vfs;
 	struct nsim_vf_config *vfconfigs;
 };
 
-struct nsim_bus_dev *nsim_bus_dev_new(void);
+struct nsim_bus_dev *nsim_bus_dev_new(unsigned int id, unsigned int port_count);
 void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev);
 int nsim_bus_init(void);
 void nsim_bus_exit(void);

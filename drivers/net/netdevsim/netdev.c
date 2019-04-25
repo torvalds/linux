@@ -386,7 +386,7 @@ static int nsim_newlink(struct net *src_net, struct net_device *dev,
 	if (IS_ERR(ns->sdev))
 		return PTR_ERR(ns->sdev);
 
-	ns->nsim_bus_dev = nsim_bus_dev_new();
+	ns->nsim_bus_dev = nsim_bus_dev_new(~0, 0);
 	if (IS_ERR(ns->nsim_bus_dev)) {
 		err = PTR_ERR(ns->nsim_bus_dev);
 		goto err_sdev_put;
