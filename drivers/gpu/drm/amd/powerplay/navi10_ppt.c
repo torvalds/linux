@@ -1030,6 +1030,47 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 	return ret;
 }
 
+static int navi10_get_profiling_clk_mask(struct smu_context *smu,
+					 enum amd_dpm_forced_level level,
+					 uint32_t *sclk_mask,
+					 uint32_t *mclk_mask,
+					 uint32_t *soc_mask)
+{
+	int ret = 0;
+	uint32_t level_count = 0;
+
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+		if (sclk_mask)
+			*sclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+		if (mclk_mask)
+			*mclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+		if(sclk_mask) {
+			ret = smu_get_dpm_level_count(smu, SMU_SCLK, &level_count);
+			if (ret)
+				return ret;
+			*sclk_mask = level_count - 1;
+		}
+
+		if(mclk_mask) {
+			ret = smu_get_dpm_level_count(smu, SMU_MCLK, &level_count);
+			if (ret)
+				return ret;
+			*sclk_mask = level_count - 1;
+		}
+
+		if(soc_mask) {
+			ret = smu_get_dpm_level_count(smu, SMU_SOCCLK, &level_count);
+			if (ret)
+				return ret;
+			*sclk_mask = level_count - 1;
+		}
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1061,6 +1102,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,
 	.get_power_profile_mode = navi10_get_power_profile_mode,
 	.set_power_profile_mode = navi10_set_power_profile_mode,
+	.get_profiling_clk_mask = navi10_get_profiling_clk_mask,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
