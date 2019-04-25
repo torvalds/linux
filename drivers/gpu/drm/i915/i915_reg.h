@@ -8866,6 +8866,7 @@ enum {
 #define   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC	(1 << 7)
 
 #define GEN10_SAMPLER_MODE		_MMIO(0xE18C)
+#define   GEN11_SAMPLER_ENABLE_HEADLESS_MSG	REG_BIT(5)
 
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1(slice)		_MMIO(0xB008 + (slice) * 0x200) /* L3CD Error Status 1 */

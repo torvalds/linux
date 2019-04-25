@@ -573,6 +573,10 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
+
+	/* allow headerless messages for preemptible GPGPU context */
+	WA_SET_BIT_MASKED(GEN10_SAMPLER_MODE,
+			  GEN11_SAMPLER_ENABLE_HEADLESS_MSG);
 }
 
 static void
