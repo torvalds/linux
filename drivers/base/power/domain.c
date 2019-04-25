@@ -1499,10 +1499,11 @@ static int genpd_get_cpu(struct generic_pm_domain *genpd, struct device *dev)
 	return -1;
 }
 
-static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
+static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
+			    struct device *base_dev)
 {
 	struct generic_pm_domain_data *gpd_data;
-	int ret, cpu;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -1513,7 +1514,7 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 	if (IS_ERR(gpd_data))
 		return PTR_ERR(gpd_data);
 
-	cpu = genpd_get_cpu(genpd, dev);
+	gpd_data->cpu = genpd_get_cpu(genpd, base_dev);
 
 	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
 	if (ret)
@@ -1521,7 +1522,7 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 
 	genpd_lock(genpd);
 
-	genpd_set_cpumask(genpd, cpu);
+	genpd_set_cpumask(genpd, gpd_data->cpu);
 	dev_pm_domain_set(dev, &genpd->domain);
 
 	genpd->device_count++;
@@ -1549,7 +1550,7 @@ int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 	int ret;
 
 	mutex_lock(&gpd_list_lock);
-	ret = genpd_add_device(genpd, dev);
+	ret = genpd_add_device(genpd, dev, dev);
 	mutex_unlock(&gpd_list_lock);
 
 	return ret;
@@ -1561,14 +1562,13 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 {
 	struct generic_pm_domain_data *gpd_data;
 	struct pm_domain_data *pdd;
-	int cpu, ret = 0;
+	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
 	pdd = dev->power.subsys_data->domain_data;
 	gpd_data = to_gpd_data(pdd);
 	dev_pm_qos_remove_notifier(dev, &gpd_data->nb);
-	cpu = genpd_get_cpu(genpd, dev);
 
 	genpd_lock(genpd);
 
@@ -1580,7 +1580,7 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 	genpd->device_count--;
 	genpd->max_off_time_changed = true;
 
-	genpd_clear_cpumask(genpd, cpu);
+	genpd_clear_cpumask(genpd, gpd_data->cpu);
 	dev_pm_domain_set(dev, NULL);
 
 	list_del_init(&pdd->list_node);
@@ -2256,7 +2256,7 @@ int of_genpd_add_device(struct of_phandle_args *genpdspec, struct device *dev)
 		goto out;
 	}
 
-	ret = genpd_add_device(genpd, dev);
+	ret = genpd_add_device(genpd, dev, dev);
 
 out:
 	mutex_unlock(&gpd_list_lock);
@@ -2426,7 +2426,7 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
 
 	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
 
-	ret = genpd_add_device(pd, dev);
+	ret = genpd_add_device(pd, dev, base_dev);
 	mutex_unlock(&gpd_list_lock);
 
 	if (ret < 0) {
