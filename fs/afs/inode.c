@@ -111,7 +111,11 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key,
 		return afs_protocol_error(NULL, -EBADMSG, afs_eproto_file_type);
 	}
 
-	inode->i_blocks		= 0;
+	/*
+	 * Estimate 512 bytes  blocks used, rounded up to nearest 1K
+	 * for consistency with other AFS clients.
+	 */
+	inode->i_blocks		= ((i_size_read(inode) + 1023) >> 10) << 1;
 	vnode->invalid_before	= vnode->status.data_version;
 
 	read_sequnlock_excl(&vnode->cb_lock);
