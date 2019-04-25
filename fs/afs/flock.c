@@ -409,7 +409,7 @@ static void afs_defer_unlock(struct afs_vnode *vnode)
  * whether we think that we have a locking permit.
  */
 static int afs_do_setlk_check(struct afs_vnode *vnode, struct key *key,
-			      afs_lock_type_t type, bool can_sleep)
+			      enum afs_flock_mode mode, afs_lock_type_t type)
 {
 	afs_access_t access;
 	int ret;
@@ -437,13 +437,9 @@ static int afs_do_setlk_check(struct afs_vnode *vnode, struct key *key,
 	if (type == AFS_LOCK_READ) {
 		if (!(access & (AFS_ACE_INSERT | AFS_ACE_WRITE | AFS_ACE_LOCK)))
 			return -EACCES;
-		if (vnode->status.lock_count == -1 && !can_sleep)
-			return -EAGAIN; /* Write locked */
 	} else {
 		if (!(access & (AFS_ACE_INSERT | AFS_ACE_WRITE)))
 			return -EACCES;
-		if (vnode->status.lock_count != 0 && !can_sleep)
-			return -EAGAIN; /* Locked */
 	}
 
 	return 0;
@@ -456,23 +452,47 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 {
 	struct inode *inode = locks_inode(file);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
+	enum afs_flock_mode mode = AFS_FS_S(inode->i_sb)->flock_mode;
 	afs_lock_type_t type;
 	struct key *key = afs_file_key(file);
+	bool partial, no_server_lock = false;
 	int ret;
 
-	_enter("{%llx:%llu},%u", vnode->fid.vid, vnode->fid.vnode, fl->fl_type);
+	if (mode == afs_flock_mode_unset)
+		mode = afs_flock_mode_openafs;
+
+	_enter("{%llx:%llu},%llu-%llu,%u,%u",
+	       vnode->fid.vid, vnode->fid.vnode,
+	       fl->fl_start, fl->fl_end, fl->fl_type, mode);
 
 	fl->fl_ops = &afs_lock_ops;
 	INIT_LIST_HEAD(&fl->fl_u.afs.link);
 	fl->fl_u.afs.state = AFS_LOCK_PENDING;
 
+	partial = (fl->fl_start != 0 || fl->fl_end != OFFSET_MAX);
 	type = (fl->fl_type == F_RDLCK) ? AFS_LOCK_READ : AFS_LOCK_WRITE;
+	if (mode == afs_flock_mode_write && partial)
+		type = AFS_LOCK_WRITE;
 
-	ret = afs_do_setlk_check(vnode, key, type, fl->fl_flags & FL_SLEEP);
+	ret = afs_do_setlk_check(vnode, key, mode, type);
 	if (ret < 0)
 		return ret;
 
 	trace_afs_flock_op(vnode, fl, afs_flock_op_set_lock);
+
+	/* AFS3 protocol only supports full-file locks and doesn't provide any
+	 * method of upgrade/downgrade, so we need to emulate for partial-file
+	 * locks.
+	 *
+	 * The OpenAFS client only gets a server lock for a full-file lock and
+	 * keeps partial-file locks local.  Allow this behaviour to be emulated
+	 * (as the default).
+	 */
+	if (mode == afs_flock_mode_local ||
+	    (partial && mode == afs_flock_mode_openafs)) {
+		no_server_lock = true;
+		goto skip_server_lock;
+	}
 
 	spin_lock(&vnode->lock);
 	list_add_tail(&fl->fl_u.afs.link, &vnode->pending_locks);
@@ -499,6 +519,18 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 			list_move_tail(&fl->fl_u.afs.link, &vnode->granted_locks);
 			fl->fl_u.afs.state = AFS_LOCK_GRANTED;
 			goto vnode_is_locked_u;
+		}
+	}
+
+	if (vnode->lock_state == AFS_VNODE_LOCK_NONE &&
+	    !(fl->fl_flags & FL_SLEEP)) {
+		ret = -EAGAIN;
+		if (type == AFS_LOCK_READ) {
+			if (vnode->status.lock_count == -1)
+				goto lock_is_contended; /* Write locked */
+		} else {
+			if (vnode->status.lock_count != 0)
+				goto lock_is_contended; /* Locked */
 		}
 	}
 
@@ -571,6 +603,7 @@ vnode_is_locked:
 	/* the lock has been granted by the server... */
 	ASSERTCMP(fl->fl_u.afs.state, ==, AFS_LOCK_GRANTED);
 
+skip_server_lock:
 	/* ... but the VFS still needs to distribute access on this client. */
 	trace_afs_flock_ev(vnode, fl, afs_flock_vfs_locking, 0);
 	ret = locks_lock_file_wait(file, fl);
@@ -649,6 +682,8 @@ vfs_rejected_lock:
 	 * deal with.
 	 */
 	_debug("vfs refused %d", ret);
+	if (no_server_lock)
+		goto error;
 	spin_lock(&vnode->lock);
 	list_del_init(&fl->fl_u.afs.link);
 	afs_defer_unlock(vnode);

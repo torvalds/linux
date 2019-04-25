@@ -539,6 +539,41 @@ TRACE_EVENT(afs_make_fs_call,
 		      __print_symbolic(__entry->op, afs_fs_operations))
 	    );
 
+TRACE_EVENT(afs_make_fs_calli,
+	    TP_PROTO(struct afs_call *call, const struct afs_fid *fid,
+		     unsigned int i),
+
+	    TP_ARGS(call, fid, i),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call		)
+		    __field(unsigned int,		i		)
+		    __field(enum afs_fs_operation,	op		)
+		    __field_struct(struct afs_fid,	fid		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call->debug_id;
+		    __entry->i = i;
+		    __entry->op = call->operation_ID;
+		    if (fid) {
+			    __entry->fid = *fid;
+		    } else {
+			    __entry->fid.vid = 0;
+			    __entry->fid.vnode = 0;
+			    __entry->fid.unique = 0;
+		    }
+			   ),
+
+	    TP_printk("c=%08x %06llx:%06llx:%06x %s i=%u",
+		      __entry->call,
+		      __entry->fid.vid,
+		      __entry->fid.vnode,
+		      __entry->fid.unique,
+		      __print_symbolic(__entry->op, afs_fs_operations),
+		      __entry->i)
+	    );
+
 TRACE_EVENT(afs_make_fs_call1,
 	    TP_PROTO(struct afs_call *call, const struct afs_fid *fid,
 		     const char *name),

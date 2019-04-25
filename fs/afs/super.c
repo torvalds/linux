@@ -67,19 +67,30 @@ static atomic_t afs_count_active_inodes;
 enum afs_param {
 	Opt_autocell,
 	Opt_dyn,
+	Opt_flock,
 	Opt_source,
 };
 
 static const struct fs_parameter_spec afs_param_specs[] = {
 	fsparam_flag  ("autocell",	Opt_autocell),
 	fsparam_flag  ("dyn",		Opt_dyn),
+	fsparam_enum  ("flock",		Opt_flock),
 	fsparam_string("source",	Opt_source),
+	{}
+};
+
+static const struct fs_parameter_enum afs_param_enums[] = {
+	{ Opt_flock,	"local",	afs_flock_mode_local },
+	{ Opt_flock,	"openafs",	afs_flock_mode_openafs },
+	{ Opt_flock,	"strict",	afs_flock_mode_strict },
+	{ Opt_flock,	"write",	afs_flock_mode_write },
 	{}
 };
 
 static const struct fs_parameter_description afs_fs_parameters = {
 	.name		= "kAFS",
 	.specs		= afs_param_specs,
+	.enums		= afs_param_enums,
 };
 
 /*
@@ -182,11 +193,22 @@ static int afs_show_devname(struct seq_file *m, struct dentry *root)
 static int afs_show_options(struct seq_file *m, struct dentry *root)
 {
 	struct afs_super_info *as = AFS_FS_S(root->d_sb);
+	const char *p = NULL;
 
 	if (as->dyn_root)
 		seq_puts(m, ",dyn");
 	if (test_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(d_inode(root))->flags))
 		seq_puts(m, ",autocell");
+	switch (as->flock_mode) {
+	case afs_flock_mode_unset:	break;
+	case afs_flock_mode_local:	p = "local";	break;
+	case afs_flock_mode_openafs:	p = "openafs";	break;
+	case afs_flock_mode_strict:	p = "strict";	break;
+	case afs_flock_mode_write:	p = "write";	break;
+	}
+	if (p)
+		seq_printf(m, ",flock=%s", p);
+
 	return 0;
 }
 
@@ -313,6 +335,10 @@ static int afs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	case Opt_dyn:
 		ctx->dyn_root = true;
+		break;
+
+	case Opt_flock:
+		ctx->flock_mode = result.uint_32;
 		break;
 
 	default:
@@ -466,6 +492,7 @@ static struct afs_super_info *afs_alloc_sbi(struct fs_context *fc)
 	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
 	if (as) {
 		as->net_ns = get_net(fc->net_ns);
+		as->flock_mode = ctx->flock_mode;
 		if (ctx->dyn_root) {
 			as->dyn_root = true;
 		} else {

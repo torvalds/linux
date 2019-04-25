@@ -36,11 +36,24 @@
 struct pagevec;
 struct afs_call;
 
+/*
+ * Partial file-locking emulation mode.  (The problem being that AFS3 only
+ * allows whole-file locks and no upgrading/downgrading).
+ */
+enum afs_flock_mode {
+	afs_flock_mode_unset,
+	afs_flock_mode_local,	/* Local locking only */
+	afs_flock_mode_openafs,	/* Don't get server lock for a partial lock */
+	afs_flock_mode_strict,	/* Always get a server lock for a partial lock */
+	afs_flock_mode_write,	/* Get an exclusive server lock for a partial lock */
+};
+
 struct afs_fs_context {
 	bool			force;		/* T to force cell type */
 	bool			autocell;	/* T if set auto mount operation */
 	bool			dyn_root;	/* T if dynamic root */
 	bool			no_cell;	/* T if the source is "none" (for dynroot) */
+	enum afs_flock_mode	flock_mode;	/* Partial file-locking emulation mode */
 	afs_voltype_t		type;		/* type of volume requested */
 	unsigned int		volnamesz;	/* size of volume name */
 	const char		*volname;	/* name of volume to mount */
@@ -221,6 +234,7 @@ struct afs_super_info {
 	struct net		*net_ns;	/* Network namespace */
 	struct afs_cell		*cell;		/* The cell in which the volume resides */
 	struct afs_volume	*volume;	/* volume record */
+	enum afs_flock_mode	flock_mode:8;	/* File locking emulation mode */
 	bool			dyn_root;	/* True if dynamic root */
 };
 
