@@ -785,7 +785,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	struct drm_i915_private *i915 = engine->i915;
 	struct intel_context *ce;
 	struct i915_request *rq;
-	int ret;
 
 	/*
 	 * Preempt contexts are reserved for exclusive use to inject a
@@ -793,14 +792,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * request!
 	 */
 	GEM_BUG_ON(ctx == i915->preempt_context);
-
-	/*
-	 * ABI: Before userspace accesses the GPU (e.g. execbuffer), report
-	 * EIO if the GPU is already wedged.
-	 */
-	ret = i915_terminally_wedged(i915);
-	if (ret)
-		return ERR_PTR(ret);
 
 	/*
 	 * Pinning the contexts may generate requests in order to acquire
