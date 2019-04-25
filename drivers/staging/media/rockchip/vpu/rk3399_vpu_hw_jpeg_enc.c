@@ -69,9 +69,9 @@ static void rk3399_vpu_jpeg_enc_set_buffers(struct rockchip_vpu_dev *vpu,
 
 	WARN_ON(pix_fmt->num_planes > 3);
 
-	vepu_write_relaxed(vpu, ctx->bounce_dma_addr,
+	vepu_write_relaxed(vpu, ctx->jpeg_enc.bounce_buffer.dma,
 			   VEPU_REG_ADDR_OUTPUT_STREAM);
-	vepu_write_relaxed(vpu, ctx->bounce_size,
+	vepu_write_relaxed(vpu, ctx->jpeg_enc.bounce_buffer.size,
 			   VEPU_REG_STR_BUF_LIMIT);
 
 	if (pix_fmt->num_planes == 1) {

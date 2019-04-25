@@ -63,10 +63,15 @@ static void rockchip_vpu_job_finish(struct rockchip_vpu_dev *vpu,
 	avail_size = vb2_plane_size(&dst->vb2_buf, 0) -
 		     ctx->vpu_dst_fmt->header_size;
 	if (bytesused <= avail_size) {
-		if (ctx->bounce_buf) {
+		/*
+		 * The bounce buffer is only for the JPEG encoder.
+		 * TODO: Rework the JPEG encoder to eliminate the need
+		 * for a bounce buffer.
+		 */
+		if (ctx->jpeg_enc.bounce_buffer.cpu) {
 			memcpy(vb2_plane_vaddr(&dst->vb2_buf, 0) +
 			       ctx->vpu_dst_fmt->header_size,
-			       ctx->bounce_buf, bytesused);
+			       ctx->jpeg_enc.bounce_buffer.cpu, bytesused);
 		}
 		dst->vb2_buf.planes[0].bytesused =
 			ctx->vpu_dst_fmt->header_size + bytesused;

@@ -124,10 +124,7 @@ struct rockchip_vpu_dev {
  * @jpeg_quality:	User-specified JPEG compression quality.
  *
  * @codec_ops:		Set of operations related to codec mode.
- *
- * @bounce_dma_addr:	Bounce buffer bus address.
- * @bounce_buf:		Bounce buffer pointer.
- * @bounce_size:	Bounce buffer size.
+ * @jpeg_enc:		JPEG-encoding context.
  */
 struct rockchip_vpu_ctx {
 	struct rockchip_vpu_dev *dev;
@@ -146,9 +143,10 @@ struct rockchip_vpu_ctx {
 
 	const struct rockchip_vpu_codec_ops *codec_ops;
 
-	dma_addr_t bounce_dma_addr;
-	void *bounce_buf;
-	size_t bounce_size;
+	/* Specific for particular codec modes. */
+	union {
+		struct rockchip_vpu_jpeg_enc_hw_ctx jpeg_enc;
+	};
 };
 
 /**

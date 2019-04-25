@@ -515,6 +515,7 @@ static int rockchip_vpu_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(q);
 	enum rockchip_vpu_codec_mode codec_mode;
+	int ret = 0;
 
 	if (V4L2_TYPE_IS_OUTPUT(q->type))
 		ctx->sequence_out = 0;
@@ -527,17 +528,10 @@ static int rockchip_vpu_start_streaming(struct vb2_queue *q, unsigned int count)
 	vpu_debug(4, "Codec mode = %d\n", codec_mode);
 	ctx->codec_ops = &ctx->dev->variant->codec_ops[codec_mode];
 
-	/* A bounce buffer is needed for the JPEG payload */
-	if (!V4L2_TYPE_IS_OUTPUT(q->type)) {
-		ctx->bounce_size = ctx->dst_fmt.plane_fmt[0].sizeimage -
-				  ctx->vpu_dst_fmt->header_size;
-		ctx->bounce_buf = dma_alloc_attrs(ctx->dev->dev,
-						  ctx->bounce_size,
-						  &ctx->bounce_dma_addr,
-						  GFP_KERNEL,
-						  DMA_ATTR_ALLOC_SINGLE_PAGES);
-	}
-	return 0;
+	if (!V4L2_TYPE_IS_OUTPUT(q->type))
+		if (ctx->codec_ops && ctx->codec_ops->init)
+			ret = ctx->codec_ops->init(ctx);
+	return ret;
 }
 
 static void rockchip_vpu_stop_streaming(struct vb2_queue *q)
@@ -545,11 +539,8 @@ static void rockchip_vpu_stop_streaming(struct vb2_queue *q)
 	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(q);
 
 	if (!V4L2_TYPE_IS_OUTPUT(q->type))
-		dma_free_attrs(ctx->dev->dev,
-			       ctx->bounce_size,
-			       ctx->bounce_buf,
-			       ctx->bounce_dma_addr,
-			       DMA_ATTR_ALLOC_SINGLE_PAGES);
+		if (ctx->codec_ops && ctx->codec_ops->exit)
+			ctx->codec_ops->exit(ctx);
 
 	/*
 	 * The mem2mem framework calls v4l2_m2m_cancel_job before
