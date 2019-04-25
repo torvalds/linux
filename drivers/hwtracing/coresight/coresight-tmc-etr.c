@@ -1160,28 +1160,23 @@ out:
 }
 
 /*
- * tmc_etr_setup_perf_buf: Allocate ETR buffer for use by perf.
+ * alloc_etr_buf: Allocate ETR buffer for use by perf.
  * The size of the hardware buffer is dependent on the size configured
  * via sysfs and the perf ring buffer size. We prefer to allocate the
  * largest possible size, scaling down the size by half until it
  * reaches a minimum limit (1M), beyond which we give up.
  */
-static struct etr_perf_buffer *
-tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
-		       int nr_pages, void **pages, bool snapshot)
+static struct etr_buf *
+alloc_etr_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
+	      int nr_pages, void **pages, bool snapshot)
 {
 	int node, cpu = event->cpu;
 	struct etr_buf *etr_buf;
-	struct etr_perf_buffer *etr_perf;
 	unsigned long size;
 
 	if (cpu == -1)
 		cpu = smp_processor_id();
 	node = cpu_to_node(cpu);
-
-	etr_perf = kzalloc_node(sizeof(*etr_perf), GFP_KERNEL, node);
-	if (!etr_perf)
-		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Try to match the perf ring buffer size if it is larger
@@ -1205,6 +1200,32 @@ tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
 			goto done;
 		size /= 2;
 	} while (size >= TMC_ETR_PERF_MIN_BUF_SIZE);
+
+	return ERR_PTR(-ENOMEM);
+
+done:
+	return etr_buf;
+}
+
+static struct etr_perf_buffer *
+tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
+		       int nr_pages, void **pages, bool snapshot)
+{
+	int node, cpu = event->cpu;
+	struct etr_buf *etr_buf;
+	struct etr_perf_buffer *etr_perf;
+
+	if (cpu == -1)
+		cpu = smp_processor_id();
+	node = cpu_to_node(cpu);
+
+	etr_perf = kzalloc_node(sizeof(*etr_perf), GFP_KERNEL, node);
+	if (!etr_perf)
+		return ERR_PTR(-ENOMEM);
+
+	etr_buf = alloc_etr_buf(drvdata, event, nr_pages, pages, snapshot);
+	if (!IS_ERR(etr_buf))
+		goto done;
 
 	kfree(etr_perf);
 	return ERR_PTR(-ENOMEM);
