@@ -2697,36 +2697,37 @@ static int hns3_set_gro_and_checksum(struct hns3_enet_ring *ring,
 }
 
 static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
-				     struct sk_buff *skb)
+				     struct sk_buff *skb, u32 rss_hash)
 {
 	struct hnae3_handle *handle = ring->tqp->handle;
 	enum pkt_hash_types rss_type;
-	struct hns3_desc *desc;
-	int last_bd;
 
-	/* When driver handle the rss type, ring->next_to_clean indicates the
-	 * first descriptor of next packet, need -1 here.
-	 */
-	last_bd = (ring->next_to_clean - 1 + ring->desc_num) % ring->desc_num;
-	desc = &ring->desc[last_bd];
-
-	if (le32_to_cpu(desc->rx.rss_hash))
+	if (rss_hash)
 		rss_type = handle->kinfo.rss_type;
 	else
 		rss_type = PKT_HASH_TYPE_NONE;
 
-	skb_set_hash(skb, le32_to_cpu(desc->rx.rss_hash), rss_type);
+	skb_set_hash(skb, rss_hash, rss_type);
 }
 
-static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb,
-			      struct hns3_desc *desc)
+static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
-	u32 bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
-	u32 l234info = le32_to_cpu(desc->rx.l234_info);
 	enum hns3_pkt_l2t_type l2_frame_type;
+	u32 bd_base_info, l234info;
+	struct hns3_desc *desc;
 	unsigned int len;
-	int ret;
+	int pre_ntc, ret;
+
+	/* bdinfo handled below is only valid on the last BD of the
+	 * current packet, and ring->next_to_clean indicates the first
+	 * descriptor of next packet, so need - 1 below.
+	 */
+	pre_ntc = ring->next_to_clean ? (ring->next_to_clean - 1) :
+					(ring->desc_num - 1);
+	desc = &ring->desc[pre_ntc];
+	bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
+	l234info = le32_to_cpu(desc->rx.l234_info);
 
 	/* Based on hw strategy, the tag offloaded will be stored at
 	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
@@ -2787,6 +2788,8 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	u64_stats_update_end(&ring->syncp);
 
 	ring->tqp_vector->rx_group.total_bytes += len;
+
+	hns3_set_rx_skb_rss_type(ring, skb, le32_to_cpu(desc->rx.rss_hash));
 	return 0;
 }
 
@@ -2856,14 +2859,13 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 		       ALIGN(ring->pull_len, sizeof(long)));
 	}
 
-	ret = hns3_handle_bdinfo(ring, skb, desc);
+	ret = hns3_handle_bdinfo(ring, skb);
 	if (unlikely(ret)) {
 		dev_kfree_skb_any(skb);
 		return ret;
 	}
 
 	*out_skb = skb;
-	hns3_set_rx_skb_rss_type(ring, skb);
 
 	return 0;
 }
