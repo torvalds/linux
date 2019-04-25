@@ -360,7 +360,6 @@ static int tipc_udp_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (b && test_bit(0, &b->up)) {
 		tipc_rcv(sock_net(sk), skb, b);
-		rcu_read_unlock();
 		return 0;
 	}
 
