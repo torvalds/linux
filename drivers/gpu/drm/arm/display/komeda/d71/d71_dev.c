@@ -502,7 +502,7 @@ static void d71_init_fmt_tbl(struct komeda_dev *mdev)
 	table->n_formats = ARRAY_SIZE(d71_format_caps_table);
 }
 
-static struct komeda_dev_funcs d71_chip_funcs = {
+static const struct komeda_dev_funcs d71_chip_funcs = {
 	.init_format_table = d71_init_fmt_tbl,
 	.enum_resources	= d71_enum_resources,
 	.cleanup	= d71_cleanup,
@@ -514,7 +514,7 @@ static struct komeda_dev_funcs d71_chip_funcs = {
 	.flush		= d71_flush,
 };
 
-struct komeda_dev_funcs *
+const struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg_base, struct komeda_chip_info *chip)
 {
 	chip->arch_id	= malidp_read32(reg_base, GLB_ARCH_ID);

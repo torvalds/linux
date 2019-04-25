@@ -60,7 +60,7 @@ struct komeda_chip_info {
 
 struct komeda_product_data {
 	u32 product_id;
-	struct komeda_dev_funcs *(*identify)(u32 __iomem *reg,
+	const struct komeda_dev_funcs *(*identify)(u32 __iomem *reg,
 					     struct komeda_chip_info *info);
 };
 
@@ -173,7 +173,7 @@ struct komeda_dev {
 	struct komeda_pipeline *pipelines[KOMEDA_MAX_PIPELINES];
 
 	/** @funcs: chip funcs to access to HW */
-	struct komeda_dev_funcs *funcs;
+	const struct komeda_dev_funcs *funcs;
 	/**
 	 * @chip_data:
 	 *
@@ -192,7 +192,7 @@ komeda_product_match(struct komeda_dev *mdev, u32 target)
 	return MALIDP_CORE_ID_PRODUCT_ID(mdev->chip.core_id) == target;
 }
 
-struct komeda_dev_funcs *
+const struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg, struct komeda_chip_info *chip);
 
 struct komeda_dev *komeda_dev_create(struct device *dev);

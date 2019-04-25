@@ -269,7 +269,7 @@ err_cleanup:
 void komeda_dev_destroy(struct komeda_dev *mdev)
 {
 	struct device *dev = mdev->dev;
-	struct komeda_dev_funcs *funcs = mdev->funcs;
+	const struct komeda_dev_funcs *funcs = mdev->funcs;
 	int i;
 
 	sysfs_remove_group(&dev->kobj, &komeda_sysfs_attr_group);
