@@ -513,6 +513,34 @@ config LTO_CLANG
 
 endchoice
 
+config CFI
+	bool
+
+config CFI_PERMISSIVE
+	bool "Use CFI in permissive mode"
+	depends on CFI
+	help
+	  When selected, Control Flow Integrity (CFI) violations result in a
+	  warning instead of a kernel panic. This option is useful for finding
+	  CFI violations in drivers during development.
+
+config CFI_CLANG
+	bool "Use clang Control Flow Integrity (CFI) (EXPERIMENTAL)"
+	depends on LTO_CLANG
+	depends on KALLSYMS
+	select CFI
+	help
+	  This option enables clang Control Flow Integrity (CFI), which adds
+	  runtime checking for indirect function calls.
+
+config CFI_CLANG_SHADOW
+	bool "Use CFI shadow to speed up cross-module checks"
+	default y
+	depends on CFI_CLANG
+	help
+	  If you select this option, the kernel builds a fast look-up table of
+	  CFI check functions in loaded modules to reduce overhead.
+
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool
 	help
