@@ -336,7 +336,7 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 			napi_gro_receive(&card->napi, skb);
 			break;
 		case QETH_HEADER_TYPE_OSN:
-			if (card->info.type == QETH_CARD_TYPE_OSN) {
+			if (IS_OSN(card)) {
 				skb_push(skb, sizeof(struct qeth_hdr));
 				skb_copy_to_linear_data(skb, hdr,
 						sizeof(struct qeth_hdr));
@@ -387,8 +387,7 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 	}
 
 	/* some devices don't support a custom MAC address: */
-	if (card->info.type == QETH_CARD_TYPE_OSM ||
-	    card->info.type == QETH_CARD_TYPE_OSX)
+	if (IS_OSM(card) || IS_OSX(card))
 		return (rc) ? rc : -EADDRNOTAVAIL;
 	eth_hw_addr_random(card->dev);
 
@@ -733,7 +732,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 		card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
-	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
+	if (IS_OSD(card) && !IS_VM_NIC(card)) {
 		card->dev->features |= NETIF_F_SG;
 		/* OSA 3S and earlier has no RX/TX support */
 		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM)) {
@@ -843,8 +842,7 @@ static int qeth_l2_set_online(struct ccwgroup_device *gdev)
 	/* softsetup */
 	QETH_DBF_TEXT(SETUP, 2, "softsetp");
 
-	if ((card->info.type == QETH_CARD_TYPE_OSD) ||
-	    (card->info.type == QETH_CARD_TYPE_OSX)) {
+	if (IS_OSD(card) || IS_OSX(card)) {
 		rc = qeth_l2_start_ipassists(card);
 		if (rc)
 			goto out_remove;
@@ -1468,9 +1466,8 @@ static struct qeth_cmd_buffer *qeth_sbp_build_cmd(struct qeth_card *card,
 						  enum qeth_ipa_sbp_cmd sbp_cmd,
 						  unsigned int cmd_length)
 {
-	enum qeth_ipa_cmds ipa_cmd = (card->info.type == QETH_CARD_TYPE_IQD) ?
-					IPA_CMD_SETBRIDGEPORT_IQD :
-					IPA_CMD_SETBRIDGEPORT_OSA;
+	enum qeth_ipa_cmds ipa_cmd = IS_IQD(card) ? IPA_CMD_SETBRIDGEPORT_IQD :
+						    IPA_CMD_SETBRIDGEPORT_OSA;
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
 
