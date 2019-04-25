@@ -1976,19 +1976,14 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 		hdr->hdr.l3.vlan_id = ntohs(veth->h_vlan_TCI);
 	}
 
+	l3_hdr->flags = qeth_l3_cast_type_to_flag(cast_type);
+
 	/* OSA only: */
 	if (!ipv) {
-		hdr->hdr.l3.flags = QETH_HDR_PASSTHRU;
-		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest,
-					    skb->dev->broadcast))
-			hdr->hdr.l3.flags |= QETH_CAST_BROADCAST;
-		else
-			hdr->hdr.l3.flags |= (cast_type == RTN_MULTICAST) ?
-				QETH_CAST_MULTICAST : QETH_CAST_UNICAST;
+		l3_hdr->flags |= QETH_HDR_PASSTHRU;
 		return;
 	}
 
-	hdr->hdr.l3.flags = qeth_l3_cast_type_to_flag(cast_type);
 	rcu_read_lock();
 	if (ipv == 4) {
 		struct rtable *rt = skb_rtable(skb);
