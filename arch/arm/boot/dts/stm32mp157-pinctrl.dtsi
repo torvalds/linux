@@ -287,6 +287,25 @@
 				};
 			};
 
+			i2s2_pins_a: i2s2-0 {
+				pins {
+					pinmux = <STM32_PINMUX('I', 3, AF5)>, /* I2S2_SDO */
+						 <STM32_PINMUX('B', 9, AF5)>, /* I2S2_WS */
+						 <STM32_PINMUX('A', 9, AF5)>; /* I2S2_CK */
+					slew-rate = <1>;
+					drive-push-pull;
+					bias-disable;
+				};
+			};
+
+			i2s2_pins_sleep_a: i2s2-1 {
+				pins {
+					pinmux = <STM32_PINMUX('I', 3, ANALOG)>, /* I2S2_SDO */
+						 <STM32_PINMUX('B', 9, ANALOG)>, /* I2S2_WS */
+						 <STM32_PINMUX('A', 9, ANALOG)>; /* I2S2_CK */
+				};
+			};
+
 			ltdc_pins_a: ltdc-a-0 {
 				pins {
 					pinmux = <STM32_PINMUX('G',  7, AF14)>, /* LCD_CLK */
