@@ -2391,3 +2391,125 @@ int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
+
+/*
+ * deliver reply data to an FS.FetchACL
+ */
+static int afs_deliver_fs_fetch_acl(struct afs_call *call)
+{
+	struct afs_vnode *vnode = call->reply[1];
+	struct afs_acl *acl;
+	const __be32 *bp;
+	unsigned int size;
+	int ret;
+
+	_enter("{%u}", call->unmarshall);
+
+	switch (call->unmarshall) {
+	case 0:
+		afs_extract_to_tmp(call);
+		call->unmarshall++;
+
+		/* extract the returned data length */
+	case 1:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		size = call->count2 = ntohl(call->tmp);
+		size = round_up(size, 4);
+
+		acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
+		if (!acl)
+			return -ENOMEM;
+		call->reply[0] = acl;
+		acl->size = call->count2;
+		afs_extract_begin(call, acl->data, size);
+		call->unmarshall++;
+
+		/* extract the returned data */
+	case 2:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		afs_extract_to_buf(call, (21 + 6) * 4);
+		call->unmarshall++;
+
+		/* extract the metadata */
+	case 3:
+		ret = afs_extract_data(call, false);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer;
+		ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+					&vnode->status.data_version, NULL);
+		if (ret < 0)
+			return ret;
+		xdr_decode_AFSVolSync(&bp, call->reply[2]);
+
+		call->unmarshall++;
+
+	case 4:
+		break;
+	}
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+static void afs_destroy_fs_fetch_acl(struct afs_call *call)
+{
+	kfree(call->reply[0]);
+	afs_flat_call_destructor(call);
+}
+
+/*
+ * FS.FetchACL operation type
+ */
+static const struct afs_call_type afs_RXFSFetchACL = {
+	.name		= "FS.FetchACL",
+	.op		= afs_FS_FetchACL,
+	.deliver	= afs_deliver_fs_fetch_acl,
+	.destructor	= afs_destroy_fs_fetch_acl,
+};
+
+/*
+ * Fetch the ACL for a file.
+ */
+struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *fc)
+{
+	struct afs_vnode *vnode = fc->vnode;
+	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
+	__be32 *bp;
+
+	_enter(",%x,{%llx:%llu},,",
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+
+	call = afs_alloc_flat_call(net, &afs_RXFSFetchACL, 16, (21 + 6) * 4);
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	call->key = fc->key;
+	call->reply[0] = NULL;
+	call->reply[1] = vnode;
+	call->reply[2] = NULL; /* volsync */
+	call->ret_reply0 = true;
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp[0] = htonl(FSFETCHACL);
+	bp[1] = htonl(vnode->fid.vid);
+	bp[2] = htonl(vnode->fid.vnode);
+	bp[3] = htonl(vnode->fid.unique);
+
+	call->cb_break = fc->cb_break;
+	afs_use_fs_server(call, fc->cbi);
+	trace_afs_make_fs_call(call, &vnode->fid);
+	afs_make_call(&fc->ac, call, GFP_KERNEL);
+	return (struct afs_acl *)afs_wait_for_call_to_complete(call, &fc->ac);
+}

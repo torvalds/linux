@@ -33,6 +33,7 @@ enum afs_call_trace {
 
 enum afs_fs_operation {
 	afs_FS_FetchData		= 130,	/* AFS Fetch file data */
+	afs_FS_FetchACL			= 131,	/* AFS Fetch file ACL */
 	afs_FS_FetchStatus		= 132,	/* AFS Fetch file status */
 	afs_FS_StoreData		= 133,	/* AFS Store file data */
 	afs_FS_StoreStatus		= 135,	/* AFS Store file status */

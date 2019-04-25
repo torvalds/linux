@@ -977,6 +977,13 @@ extern int afs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
 			       struct afs_fid *, struct afs_file_status *,
 			       struct afs_callback *, struct afs_volsync *);
 
+struct afs_acl {
+	u32	size;
+	u8	data[];
+};
+
+extern struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *);
+
 /*
  * fs_probe.c
  */

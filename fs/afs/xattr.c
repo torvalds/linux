@@ -16,6 +16,7 @@
 #include "internal.h"
 
 static const char afs_xattr_list[] =
+	"afs.acl\0"
 	"afs.cell\0"
 	"afs.fid\0"
 	"afs.volume";
@@ -32,6 +33,57 @@ ssize_t afs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	memcpy(buffer, afs_xattr_list, sizeof(afs_xattr_list));
 	return sizeof(afs_xattr_list);
 }
+
+/*
+ * Get a file's ACL.
+ */
+static int afs_xattr_get_acl(const struct xattr_handler *handler,
+			     struct dentry *dentry,
+			     struct inode *inode, const char *name,
+			     void *buffer, size_t size)
+{
+	struct afs_fs_cursor fc;
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_acl *acl = NULL;
+	struct key *key;
+	int ret;
+
+	key = afs_request_key(vnode->volume->cell);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			acl = afs_fs_fetch_acl(&fc);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	if (ret == 0) {
+		ret = acl->size;
+		if (size > 0) {
+			ret = -ERANGE;
+			if (acl->size > size)
+				return -ERANGE;
+			memcpy(buffer, acl->data, acl->size);
+			ret = acl->size;
+		}
+		kfree(acl);
+	}
+
+	key_put(key);
+	return ret;
+}
+
+static const struct xattr_handler afs_xattr_afs_acl_handler = {
+	.name	= "afs.acl",
+	.get	= afs_xattr_get_acl,
+};
 
 /*
  * Get the name of the cell on which a file resides.
@@ -123,6 +175,7 @@ static const struct xattr_handler afs_xattr_afs_volume_handler = {
 };
 
 const struct xattr_handler *afs_xattr_handlers[] = {
+	&afs_xattr_afs_acl_handler,
 	&afs_xattr_afs_cell_handler,
 	&afs_xattr_afs_fid_handler,
 	&afs_xattr_afs_volume_handler,
