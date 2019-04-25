@@ -973,7 +973,6 @@ static void coresight_device_release(struct device *dev)
 {
 	struct coresight_device *csdev = to_coresight_device(dev);
 
-	kfree(csdev->conns);
 	kfree(csdev->refcnt);
 	kfree(csdev);
 }
