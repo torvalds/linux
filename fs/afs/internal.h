@@ -983,6 +983,7 @@ struct afs_acl {
 };
 
 extern struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *);
+extern int afs_fs_store_acl(struct afs_fs_cursor *, const struct afs_acl *);
 
 /*
  * fs_probe.c

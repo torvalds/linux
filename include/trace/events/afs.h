@@ -36,6 +36,7 @@ enum afs_fs_operation {
 	afs_FS_FetchACL			= 131,	/* AFS Fetch file ACL */
 	afs_FS_FetchStatus		= 132,	/* AFS Fetch file status */
 	afs_FS_StoreData		= 133,	/* AFS Store file data */
+	afs_FS_StoreACL			= 134,	/* AFS Store file ACL */
 	afs_FS_StoreStatus		= 135,	/* AFS Store file status */
 	afs_FS_RemoveFile		= 136,	/* AFS Remove a file */
 	afs_FS_CreateFile		= 137,	/* AFS Create a file */

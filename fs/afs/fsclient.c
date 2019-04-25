@@ -836,9 +836,10 @@ int afs_fs_create(struct afs_fs_cursor *fc,
 }
 
 /*
- * deliver reply data to an FS.RemoveFile or FS.RemoveDir
+ * Deliver reply data to any operation that returns file status and volume
+ * sync.
  */
-static int afs_deliver_fs_remove(struct afs_call *call)
+static int afs_deliver_fs_status_and_vol(struct afs_call *call)
 {
 	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
@@ -868,14 +869,14 @@ static int afs_deliver_fs_remove(struct afs_call *call)
 static const struct afs_call_type afs_RXFSRemoveFile = {
 	.name		= "FS.RemoveFile",
 	.op		= afs_FS_RemoveFile,
-	.deliver	= afs_deliver_fs_remove,
+	.deliver	= afs_deliver_fs_status_and_vol,
 	.destructor	= afs_flat_call_destructor,
 };
 
 static const struct afs_call_type afs_RXFSRemoveDir = {
 	.name		= "FS.RemoveDir",
 	.op		= afs_FS_RemoveDir,
-	.deliver	= afs_deliver_fs_remove,
+	.deliver	= afs_deliver_fs_status_and_vol,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -2512,4 +2513,56 @@ struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *fc)
 	trace_afs_make_fs_call(call, &vnode->fid);
 	afs_make_call(&fc->ac, call, GFP_KERNEL);
 	return (struct afs_acl *)afs_wait_for_call_to_complete(call, &fc->ac);
+}
+
+/*
+ * FS.StoreACL operation type
+ */
+static const struct afs_call_type afs_RXFSStoreACL = {
+	.name		= "FS.StoreACL",
+	.op		= afs_FS_StoreACL,
+	.deliver	= afs_deliver_fs_status_and_vol,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Fetch the ACL for a file.
+ */
+int afs_fs_store_acl(struct afs_fs_cursor *fc, const struct afs_acl *acl)
+{
+	struct afs_vnode *vnode = fc->vnode;
+	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
+	size_t size;
+	__be32 *bp;
+
+	_enter(",%x,{%llx:%llu},,",
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+
+	size = round_up(acl->size, 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSStoreACL,
+				   5 * 4 + size, (21 + 6) * 4);
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return -ENOMEM;
+	}
+
+	call->key = fc->key;
+	call->reply[0] = vnode;
+	call->reply[2] = NULL; /* volsync */
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp[0] = htonl(FSSTOREACL);
+	bp[1] = htonl(vnode->fid.vid);
+	bp[2] = htonl(vnode->fid.vnode);
+	bp[3] = htonl(vnode->fid.unique);
+	bp[4] = htonl(acl->size);
+	memcpy(&bp[5], acl->data, acl->size);
+	if (acl->size != size)
+		memset((void *)&bp[5] + acl->size, 0, size - acl->size);
+
+	trace_afs_make_fs_call(call, &vnode->fid);
+	afs_make_call(&fc->ac, call, GFP_KERNEL);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }

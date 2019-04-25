@@ -80,9 +80,57 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 	return ret;
 }
 
+/*
+ * Set a file's AFS3 ACL.
+ */
+static int afs_xattr_set_acl(const struct xattr_handler *handler,
+                             struct dentry *dentry,
+                             struct inode *inode, const char *name,
+                             const void *buffer, size_t size, int flags)
+{
+	struct afs_fs_cursor fc;
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_acl *acl = NULL;
+	struct key *key;
+	int ret;
+
+	if (flags == XATTR_CREATE)
+		return -EINVAL;
+
+	key = afs_request_key(vnode->volume->cell);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	acl = kmalloc(sizeof(*acl) + size, GFP_KERNEL);
+	if (!acl) {
+		key_put(key);
+		return -ENOMEM;
+	}
+
+	acl->size = size;
+	memcpy(acl->data, buffer, size);
+
+	ret = -ERESTARTSYS;
+	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			afs_fs_store_acl(&fc, acl);
+		}
+
+		afs_check_for_remote_deletion(&fc, fc.vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		ret = afs_end_vnode_operation(&fc);
+	}
+
+	kfree(acl);
+	key_put(key);
+	return ret;
+}
+
 static const struct xattr_handler afs_xattr_afs_acl_handler = {
-	.name	= "afs.acl",
-	.get	= afs_xattr_get_acl,
+	.name   = "afs.acl",
+	.get    = afs_xattr_get_acl,
+	.set    = afs_xattr_set_acl,
 };
 
 /*
