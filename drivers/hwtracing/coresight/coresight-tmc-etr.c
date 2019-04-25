@@ -1167,12 +1167,17 @@ out:
  * reaches a minimum limit (1M), beyond which we give up.
  */
 static struct etr_perf_buffer *
-tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, int node, int nr_pages,
-		       void **pages, bool snapshot)
+tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
+		       int nr_pages, void **pages, bool snapshot)
 {
+	int node, cpu = event->cpu;
 	struct etr_buf *etr_buf;
 	struct etr_perf_buffer *etr_perf;
 	unsigned long size;
+
+	if (cpu == -1)
+		cpu = smp_processor_id();
+	node = cpu_to_node(cpu);
 
 	etr_perf = kzalloc_node(sizeof(*etr_perf), GFP_KERNEL, node);
 	if (!etr_perf)
@@ -1211,16 +1216,13 @@ done:
 
 
 static void *tmc_alloc_etr_buffer(struct coresight_device *csdev,
-				  int cpu, void **pages, int nr_pages,
-				  bool snapshot)
+				  struct perf_event *event, void **pages,
+				  int nr_pages, bool snapshot)
 {
 	struct etr_perf_buffer *etr_perf;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
-	if (cpu == -1)
-		cpu = smp_processor_id();
-
-	etr_perf = tmc_etr_setup_perf_buf(drvdata, cpu_to_node(cpu),
+	etr_perf = tmc_etr_setup_perf_buf(drvdata, event,
 					  nr_pages, pages, snapshot);
 	if (IS_ERR(etr_perf)) {
 		dev_dbg(drvdata->dev, "Unable to allocate ETR buffer\n");
