@@ -34,9 +34,9 @@ struct dpcd_dsc_basic_capabilities {
 		struct {
 			// Byte 0
 			struct {
-
-				unsigned char dsc_support				:1; // Bit0
-				unsigned char reserved					:7;
+				unsigned char dsc_support		:1; // Bit0
+				unsigned char dsc_passthrough_support	:1; // Bit1
+				unsigned char reserved			:6;
 			} dsc_support;
 
 			// Byte 1
