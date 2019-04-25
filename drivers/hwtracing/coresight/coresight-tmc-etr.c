@@ -9,6 +9,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/vmalloc.h>
 #include "coresight-catu.h"
 #include "coresight-etm-perf.h"
@@ -25,6 +26,7 @@ struct etr_flat_buf {
 /*
  * etr_perf_buffer - Perf buffer used for ETR
  * @etr_buf		- Actual buffer used by the ETR
+ * @pid			- The PID this etr_perf_buffer belongs to.
  * @snaphost		- Perf session mode
  * @head		- handle->head at the beginning of the session.
  * @nr_pages		- Number of pages in the ring buffer.
@@ -32,6 +34,7 @@ struct etr_flat_buf {
  */
 struct etr_perf_buffer {
 	struct etr_buf		*etr_buf;
+	pid_t			pid;
 	bool			snapshot;
 	unsigned long		head;
 	int			nr_pages;
@@ -1277,6 +1280,7 @@ static void *tmc_alloc_etr_buffer(struct coresight_device *csdev,
 		return NULL;
 	}
 
+	etr_perf->pid = task_pid_nr(event->owner);
 	etr_perf->snapshot = snapshot;
 	etr_perf->nr_pages = nr_pages;
 	etr_perf->pages = pages;
