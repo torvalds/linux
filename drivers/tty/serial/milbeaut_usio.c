@@ -525,8 +525,6 @@ static int mlb_usio_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto failed;
 	}
-	port->mapbase = res->start;
-	port->membase = ioremap(res->start, (res->end - res->start + 1));
 	port->membase = devm_ioremap(&pdev->dev, res->start,
 				resource_size(res));
 
@@ -548,16 +546,12 @@ static int mlb_usio_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(&mlb_usio_uart_driver, port);
 	if (ret) {
 		dev_err(&pdev->dev, "Adding port failed: %d\n", ret);
-		goto failed1;
+		goto failed;
 	}
 	return 0;
 
-failed1:
-	iounmap(port->membase);
-
 failed:
 	clk_disable_unprepare(clk);
-	clk_put(clk);
 
 	return ret;
 }
@@ -569,7 +563,6 @@ static int mlb_usio_remove(struct platform_device *pdev)
 
 	uart_remove_one_port(&mlb_usio_uart_driver, port);
 	clk_disable_unprepare(clk);
-	clk_put(clk);
 
 	return 0;
 }
