@@ -77,7 +77,7 @@ static void nsim_free(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	nsim_dev_exit(ns);
+	nsim_dev_destroy(ns->nsim_dev);
 	nsim_bus_dev_del(ns->nsim_bus_dev);
 	/* netdev and vf state will be freed out of device_release() */
 	nsim_sdev_put(ns->sdev);
@@ -395,17 +395,19 @@ static int nsim_newlink(struct net *src_net, struct net_device *dev,
 	SET_NETDEV_DEV(dev, &ns->nsim_bus_dev->dev);
 	ns->netdev = dev;
 
-	err = nsim_dev_init(ns);
-	if (err)
+	ns->nsim_dev = nsim_dev_create_with_ns(ns->nsim_bus_dev, ns);
+	if (IS_ERR(ns->nsim_dev)) {
+		err = PTR_ERR(ns->nsim_dev);
 		goto err_dev_del;
+	}
 
 	err = register_netdevice(dev);
 	if (err)
-		goto err_dev_exit;
+		goto err_dev_destroy;
 	return 0;
 
-err_dev_exit:
-	nsim_dev_exit(ns);
+err_dev_destroy:
+	nsim_dev_destroy(ns->nsim_dev);
 err_dev_del:
 	nsim_bus_dev_del(ns->nsim_bus_dev);
 err_sdev_put:

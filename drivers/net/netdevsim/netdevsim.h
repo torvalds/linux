@@ -80,6 +80,7 @@ struct nsim_ipsec {
 
 struct netdevsim {
 	struct net_device *netdev;
+	struct nsim_dev *nsim_dev;
 
 	u64 tx_packets;
 	u64 tx_bytes;
@@ -102,7 +103,6 @@ struct netdevsim {
 	bool bpf_xdpoffload_accept;
 
 	bool bpf_map_accept;
-	struct devlink *devlink;
 	struct nsim_ipsec ipsec;
 };
 
@@ -151,8 +151,14 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6_FIB_RULES,
 };
 
-int nsim_dev_init(struct netdevsim *ns);
-void nsim_dev_exit(struct netdevsim *ns);
+struct nsim_dev {
+	struct nsim_fib_data *fib_data;
+};
+
+struct nsim_dev *
+nsim_dev_create_with_ns(struct nsim_bus_dev *nsim_bus_dev,
+			struct netdevsim *ns);
+void nsim_dev_destroy(struct nsim_dev *nsim_dev);
 
 struct nsim_fib_data *nsim_fib_create(void);
 void nsim_fib_destroy(struct nsim_fib_data *fib_data);

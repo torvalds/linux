@@ -21,10 +21,6 @@
 
 #include "netdevsim.h"
 
-struct nsim_dev {
-	struct nsim_fib_data *fib_data;
-};
-
 static u64 nsim_dev_ipv4_fib_resource_occ_get(void *priv)
 {
 	struct nsim_dev *nsim_dev = priv;
@@ -178,7 +174,7 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.reload = nsim_dev_reload,
 };
 
-static int __nsim_dev_init(struct netdevsim *ns)
+static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
 {
 	struct nsim_dev *nsim_dev;
 	struct devlink *devlink;
@@ -186,7 +182,7 @@ static int __nsim_dev_init(struct netdevsim *ns)
 
 	devlink = devlink_alloc(&nsim_dev_devlink_ops, sizeof(*nsim_dev));
 	if (!devlink)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	nsim_dev = devlink_priv(devlink);
 
 	nsim_dev->fib_data = nsim_fib_create();
@@ -199,13 +195,11 @@ static int __nsim_dev_init(struct netdevsim *ns)
 	if (err)
 		goto err_fib_destroy;
 
-	err = devlink_register(devlink, &ns->nsim_bus_dev->dev);
+	err = devlink_register(devlink, &nsim_bus_dev->dev);
 	if (err)
 		goto err_resources_unregister;
 
-	ns->devlink = devlink;
-
-	return 0;
+	return nsim_dev;
 
 err_resources_unregister:
 	devlink_resources_unregister(devlink, NULL);
@@ -213,26 +207,26 @@ err_fib_destroy:
 	nsim_fib_destroy(nsim_dev->fib_data);
 err_devlink_free:
 	devlink_free(devlink);
-
-	return err;
+	return ERR_PTR(err);
 }
 
-int nsim_dev_init(struct netdevsim *ns)
+struct nsim_dev *
+nsim_dev_create_with_ns(struct nsim_bus_dev *nsim_bus_dev,
+			struct netdevsim *ns)
 {
-	int err;
+	struct nsim_dev *nsim_dev;
 
 	dev_hold(ns->netdev);
 	rtnl_unlock();
-	err = __nsim_dev_init(ns);
+	nsim_dev = nsim_dev_create(nsim_bus_dev);
 	rtnl_lock();
 	dev_put(ns->netdev);
-	return err;
+	return nsim_dev;
 }
 
-void nsim_dev_exit(struct netdevsim *ns)
+void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 {
-	struct devlink *devlink = ns->devlink;
-	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+	struct devlink *devlink = priv_to_devlink(nsim_dev);
 
 	devlink_unregister(devlink);
 	devlink_resources_unregister(devlink, NULL);
