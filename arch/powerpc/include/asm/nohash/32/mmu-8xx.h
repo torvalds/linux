@@ -216,10 +216,8 @@ typedef struct {
 	unsigned char high_slices_psize[0];
 	unsigned long slb_addr_limit;
 	struct slice_mask mask_base_psize; /* 4k or 16k */
-# ifdef CONFIG_HUGETLB_PAGE
 	struct slice_mask mask_512k;
 	struct slice_mask mask_8m;
-# endif
 #endif
 	void *pte_frag;
 } mm_context_t;
@@ -257,12 +255,11 @@ static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long li
 
 static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
 {
-#ifdef CONFIG_HUGETLB_PAGE
 	if (psize == MMU_PAGE_512K)
 		return &ctx->mask_512k;
 	if (psize == MMU_PAGE_8M)
 		return &ctx->mask_8m;
-#endif
+
 	BUG_ON(psize != mmu_virtual_psize);
 
 	return &ctx->mask_base_psize;
