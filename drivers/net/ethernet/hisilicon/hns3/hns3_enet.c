@@ -2214,14 +2214,22 @@ static void hns3_reuse_buffer(struct hns3_enet_ring *ring, int i)
 static void hns3_nic_reclaim_one_desc(struct hns3_enet_ring *ring, int *bytes,
 				      int *pkts)
 {
-	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_clean];
+	int ntc = ring->next_to_clean;
+	struct hns3_desc_cb *desc_cb;
 
+	desc_cb = &ring->desc_cb[ntc];
 	(*pkts) += (desc_cb->type == DESC_TYPE_SKB);
 	(*bytes) += desc_cb->length;
 	/* desc_cb will be cleaned, after hnae3_free_buffer_detach*/
-	hns3_free_buffer_detach(ring, ring->next_to_clean);
+	hns3_free_buffer_detach(ring, ntc);
 
-	ring_ptr_move_fw(ring, next_to_clean);
+	if (++ntc == ring->desc_num)
+		ntc = 0;
+
+	/* This smp_store_release() pairs with smp_load_acquire() in
+	 * ring_space called by hns3_nic_net_xmit.
+	 */
+	smp_store_release(&ring->next_to_clean, ntc);
 }
 
 static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
