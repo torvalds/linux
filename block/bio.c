@@ -709,7 +709,7 @@ static bool can_add_page_to_seg(struct request_queue *q,
  *
  *	This should only be used by passthrough bios.
  */
-int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
+static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,
 		bool put_same_page)
 {
@@ -776,7 +776,6 @@ int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	bio_set_flag(bio, BIO_SEG_VALID);
 	return len;
 }
-EXPORT_SYMBOL(__bio_add_pc_page);
 
 int bio_add_pc_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset)
