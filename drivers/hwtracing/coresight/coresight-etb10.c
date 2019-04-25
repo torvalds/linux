@@ -5,6 +5,7 @@
  * Description: CoreSight Embedded Trace Buffer driver
  */
 
+#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -159,14 +160,15 @@ static int etb_enable_sysfs(struct coresight_device *csdev)
 		goto out;
 	}
 
-	/* Nothing to do, the tracer is already enabled. */
-	if (drvdata->mode == CS_MODE_SYSFS)
-		goto out;
+	if (drvdata->mode == CS_MODE_DISABLED) {
+		ret = etb_enable_hw(drvdata);
+		if (ret)
+			goto out;
 
-	ret = etb_enable_hw(drvdata);
-	if (!ret)
 		drvdata->mode = CS_MODE_SYSFS;
+	}
 
+	atomic_inc(csdev->refcnt);
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 	return ret;
@@ -196,8 +198,10 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 		goto out;
 
 	ret = etb_enable_hw(drvdata);
-	if (!ret)
+	if (!ret) {
 		drvdata->mode = CS_MODE_PERF;
+		atomic_inc(csdev->refcnt);
+	}
 
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -331,6 +335,11 @@ static int etb_disable(struct coresight_device *csdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	if (atomic_dec_return(csdev->refcnt)) {
+		spin_unlock_irqrestore(&drvdata->spinlock, flags);
+		return -EBUSY;
+	}
 
 	/* Disable the ETB only if it needs to */
 	if (drvdata->mode != CS_MODE_DISABLED) {

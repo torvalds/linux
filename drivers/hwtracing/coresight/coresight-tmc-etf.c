@@ -4,6 +4,7 @@
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
  */
 
+#include <linux/atomic.h>
 #include <linux/circ_buf.h>
 #include <linux/coresight.h>
 #include <linux/perf_event.h>
@@ -183,8 +184,10 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 	 * sink is already enabled no memory is needed and the HW need not be
 	 * touched.
 	 */
-	if (drvdata->mode == CS_MODE_SYSFS)
+	if (drvdata->mode == CS_MODE_SYSFS) {
+		atomic_inc(csdev->refcnt);
 		goto out;
+	}
 
 	/*
 	 * If drvdata::buf isn't NULL, memory was allocated for a previous
@@ -203,11 +206,13 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 	}
 
 	ret = tmc_etb_enable_hw(drvdata);
-	if (!ret)
+	if (!ret) {
 		drvdata->mode = CS_MODE_SYSFS;
-	else
+		atomic_inc(csdev->refcnt);
+	} else {
 		/* Free up the buffer if we failed to enable */
 		used = false;
+	}
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
@@ -242,8 +247,10 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 		if (ret)
 			break;
 		ret  = tmc_etb_enable_hw(drvdata);
-		if (!ret)
+		if (!ret) {
 			drvdata->mode = CS_MODE_PERF;
+			atomic_inc(csdev->refcnt);
+		}
 	} while (0);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
@@ -282,7 +289,13 @@ static int tmc_disable_etf_sink(struct coresight_device *csdev)
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
+
 	if (drvdata->reading) {
+		spin_unlock_irqrestore(&drvdata->spinlock, flags);
+		return -EBUSY;
+	}
+
+	if (atomic_dec_return(csdev->refcnt)) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		return -EBUSY;
 	}
