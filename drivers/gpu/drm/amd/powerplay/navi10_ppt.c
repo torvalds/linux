@@ -1071,6 +1071,45 @@ static int navi10_get_profiling_clk_mask(struct smu_context *smu,
 	return ret;
 }
 
+static int navi10_notify_smc_dispaly_config(struct smu_context *smu)
+{
+	struct smu_clocks min_clocks = {0};
+	struct pp_display_clock_request clock_req;
+	int ret = 0;
+
+	min_clocks.dcef_clock = smu->display_config->min_dcef_set_clk;
+	min_clocks.dcef_clock_in_sr = smu->display_config->min_dcef_deep_sleep_set_clk;
+	min_clocks.memory_clock = smu->display_config->min_mem_set_clock;
+
+	if (smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
+		clock_req.clock_type = amd_pp_dcef_clock;
+		clock_req.clock_freq_in_khz = min_clocks.dcef_clock * 10;
+		if (!smu_display_clock_voltage_request(smu, &clock_req)) {
+			if (smu_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
+				ret = smu_send_smc_msg_with_param(smu,
+								  SMU_MSG_SetMinDeepSleepDcefclk,
+								  min_clocks.dcef_clock_in_sr/100);
+				if (ret) {
+					pr_err("Attempt to set divider for DCEFCLK Failed!");
+					return ret;
+				}
+			}
+		} else {
+			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+		ret = smu_set_hard_freq_range(smu, SMU_UCLK, min_clocks.memory_clock/100, 0);
+		if (ret) {
+			pr_err("[%s] Set hard min uclk failed!", __func__);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1093,6 +1132,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
 	.pre_display_config_changed = navi10_pre_display_config_changed,
 	.display_config_changed = navi10_display_config_changed,
+	.notify_smc_dispaly_config = navi10_notify_smc_dispaly_config,
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.get_gpu_power = navi10_get_gpu_power,
