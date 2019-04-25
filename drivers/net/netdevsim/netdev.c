@@ -32,24 +32,24 @@ static int nsim_get_port_parent_id(struct net_device *dev,
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	ppid->id_len = sizeof(ns->sdev->switch_id);
-	memcpy(&ppid->id, &ns->sdev->switch_id, ppid->id_len);
+	ppid->id_len = sizeof(ns->nsim_dev->nsim_bus_dev->dev.id);
+	memcpy(&ppid->id, &ns->nsim_dev->nsim_bus_dev->dev.id, ppid->id_len);
 	return 0;
 }
 
 static int nsim_init(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	char sdev_link_name[32];
+	char dev_link_name[32];
 	int err;
 
 	ns->ddir = debugfs_create_dir(netdev_name(dev), nsim_ddir);
 	if (IS_ERR_OR_NULL(ns->ddir))
 		return -ENOMEM;
 
-	sprintf(sdev_link_name, "../../" DRV_NAME "_sdev/%u",
-		ns->sdev->switch_id);
-	debugfs_create_symlink("sdev", ns->ddir, sdev_link_name);
+	sprintf(dev_link_name, "../../" DRV_NAME "_dev/%u",
+		ns->nsim_dev->nsim_bus_dev->dev.id);
+	debugfs_create_symlink("dev", ns->ddir, dev_link_name);
 
 	err = nsim_bpf_init(ns);
 	if (err)
@@ -80,7 +80,6 @@ static void nsim_free(struct net_device *dev)
 	nsim_dev_destroy(ns->nsim_dev);
 	nsim_bus_dev_del(ns->nsim_bus_dev);
 	/* netdev and vf state will be freed out of device_release() */
-	nsim_sdev_put(ns->sdev);
 }
 
 static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -366,31 +365,11 @@ static int nsim_newlink(struct net *src_net, struct net_device *dev,
 			struct netlink_ext_ack *extack)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct netdevsim *joinns = NULL;
 	int err;
 
-	if (tb[IFLA_LINK]) {
-		struct net_device *joindev;
-
-		joindev = __dev_get_by_index(src_net,
-					     nla_get_u32(tb[IFLA_LINK]));
-		if (!joindev)
-			return -ENODEV;
-		if (joindev->netdev_ops != &nsim_netdev_ops)
-			return -EINVAL;
-
-		joinns = netdev_priv(joindev);
-	}
-
-	ns->sdev = nsim_sdev_get(joinns);
-	if (IS_ERR(ns->sdev))
-		return PTR_ERR(ns->sdev);
-
 	ns->nsim_bus_dev = nsim_bus_dev_new(~0, 0);
-	if (IS_ERR(ns->nsim_bus_dev)) {
-		err = PTR_ERR(ns->nsim_bus_dev);
-		goto err_sdev_put;
-	}
+	if (IS_ERR(ns->nsim_bus_dev))
+		return PTR_ERR(ns->nsim_bus_dev);
 
 	SET_NETDEV_DEV(dev, &ns->nsim_bus_dev->dev);
 	ns->netdev = dev;
@@ -410,8 +389,6 @@ err_dev_destroy:
 	nsim_dev_destroy(ns->nsim_dev);
 err_dev_del:
 	nsim_bus_dev_del(ns->nsim_bus_dev);
-err_sdev_put:
-	nsim_sdev_put(ns->sdev);
 	return err;
 }
 
@@ -431,13 +408,13 @@ static int __init nsim_module_init(void)
 	if (IS_ERR_OR_NULL(nsim_ddir))
 		return -ENOMEM;
 
-	err = nsim_sdev_init();
+	err = nsim_dev_init();
 	if (err)
 		goto err_debugfs_destroy;
 
 	err = nsim_bus_init();
 	if (err)
-		goto err_sdev_exit;
+		goto err_dev_exit;
 
 	err = rtnl_link_register(&nsim_link_ops);
 	if (err)
@@ -447,8 +424,8 @@ static int __init nsim_module_init(void)
 
 err_bus_exit:
 	nsim_bus_exit();
-err_sdev_exit:
-	nsim_sdev_exit();
+err_dev_exit:
+	nsim_dev_exit();
 err_debugfs_destroy:
 	debugfs_remove_recursive(nsim_ddir);
 	return err;
@@ -458,7 +435,7 @@ static void __exit nsim_module_exit(void)
 {
 	rtnl_link_unregister(&nsim_link_ops);
 	nsim_bus_exit();
-	nsim_sdev_exit();
+	nsim_dev_exit();
 	debugfs_remove_recursive(nsim_ddir);
 }
 

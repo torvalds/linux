@@ -15,11 +15,30 @@
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  */
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
 
 #include "netdevsim.h"
+
+static struct dentry *nsim_dev_ddir;
+
+static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
+{
+	char dev_ddir_name[10];
+
+	sprintf(dev_ddir_name, "%u", nsim_dev->nsim_bus_dev->dev.id);
+	nsim_dev->ddir = debugfs_create_dir(dev_ddir_name, nsim_dev_ddir);
+	if (IS_ERR_OR_NULL(nsim_dev->ddir))
+		return PTR_ERR_OR_ZERO(nsim_dev->ddir) ?: -EINVAL;
+	return 0;
+}
+
+static void nsim_dev_debugfs_exit(struct nsim_dev *nsim_dev)
+{
+	debugfs_remove_recursive(nsim_dev->ddir);
+}
 
 static u64 nsim_dev_ipv4_fib_resource_occ_get(void *priv)
 {
@@ -184,6 +203,7 @@ static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
 	if (!devlink)
 		return ERR_PTR(-ENOMEM);
 	nsim_dev = devlink_priv(devlink);
+	nsim_dev->nsim_bus_dev = nsim_bus_dev;
 
 	nsim_dev->fib_data = nsim_fib_create();
 	if (IS_ERR(nsim_dev->fib_data)) {
@@ -199,8 +219,20 @@ static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
 	if (err)
 		goto err_resources_unregister;
 
+	err = nsim_dev_debugfs_init(nsim_dev);
+	if (err)
+		goto err_dl_unregister;
+
+	err = nsim_bpf_dev_init(nsim_dev);
+	if (err)
+		goto err_debugfs_exit;
+
 	return nsim_dev;
 
+err_debugfs_exit:
+	nsim_dev_debugfs_exit(nsim_dev);
+err_dl_unregister:
+	devlink_unregister(devlink);
 err_resources_unregister:
 	devlink_resources_unregister(devlink, NULL);
 err_fib_destroy:
@@ -228,8 +260,23 @@ void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 {
 	struct devlink *devlink = priv_to_devlink(nsim_dev);
 
+	nsim_bpf_dev_exit(nsim_dev);
+	nsim_dev_debugfs_exit(nsim_dev);
 	devlink_unregister(devlink);
 	devlink_resources_unregister(devlink, NULL);
 	nsim_fib_destroy(nsim_dev->fib_data);
 	devlink_free(devlink);
+}
+
+int nsim_dev_init(void)
+{
+	nsim_dev_ddir = debugfs_create_dir(DRV_NAME "_dev", NULL);
+	if (IS_ERR_OR_NULL(nsim_dev_ddir))
+		return -ENOMEM;
+	return 0;
+}
+
+void nsim_dev_exit(void)
+{
+	debugfs_remove_recursive(nsim_dev_ddir);
 }

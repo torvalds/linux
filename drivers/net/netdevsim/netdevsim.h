@@ -26,37 +26,6 @@
 
 #define NSIM_EA(extack, msg)	NL_SET_ERR_MSG_MOD((extack), msg)
 
-struct bpf_prog;
-struct bpf_offload_dev;
-struct dentry;
-struct nsim_vf_config;
-struct nsim_fib_data;
-
-struct netdevsim_shared_dev {
-	unsigned int refcnt;
-	u32 switch_id;
-
-	struct dentry *ddir;
-
-	struct bpf_offload_dev *bpf_dev;
-
-	bool bpf_bind_accept;
-	u32 bpf_bind_verifier_delay;
-
-	struct dentry *ddir_bpf_bound_progs;
-	u32 prog_id_gen;
-
-	struct list_head bpf_bound_progs;
-	struct list_head bpf_bound_maps;
-};
-
-struct netdevsim;
-
-struct netdevsim_shared_dev *nsim_sdev_get(struct netdevsim *joinns);
-void nsim_sdev_put(struct netdevsim_shared_dev *sdev);
-int nsim_sdev_init(void);
-void nsim_sdev_exit(void);
-
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
 
@@ -87,7 +56,6 @@ struct netdevsim {
 	struct u64_stats_sync syncp;
 
 	struct nsim_bus_dev *nsim_bus_dev;
-	struct netdevsim_shared_dev *sdev;
 
 	struct dentry *ddir;
 
@@ -107,6 +75,8 @@ struct netdevsim {
 };
 
 #ifdef CONFIG_BPF_SYSCALL
+int nsim_bpf_dev_init(struct nsim_dev *nsim_dev);
+void nsim_bpf_dev_exit(struct nsim_dev *nsim_dev);
 int nsim_bpf_init(struct netdevsim *ns);
 void nsim_bpf_uninit(struct netdevsim *ns);
 int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf);
@@ -114,6 +84,15 @@ int nsim_bpf_disable_tc(struct netdevsim *ns);
 int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 			       void *type_data, void *cb_priv);
 #else
+
+static inline int nsim_bpf_dev_init(struct nsim_dev *nsim_dev)
+{
+	return 0;
+}
+
+static inline void nsim_bpf_dev_exit(struct nsim_dev *nsim_dev)
+{
+}
 static inline int nsim_bpf_init(struct netdevsim *ns)
 {
 	return 0;
@@ -152,13 +131,24 @@ enum nsim_resource_id {
 };
 
 struct nsim_dev {
+	struct nsim_bus_dev *nsim_bus_dev;
 	struct nsim_fib_data *fib_data;
+	struct dentry *ddir;
+	struct bpf_offload_dev *bpf_dev;
+	bool bpf_bind_accept;
+	u32 bpf_bind_verifier_delay;
+	struct dentry *ddir_bpf_bound_progs;
+	u32 prog_id_gen;
+	struct list_head bpf_bound_progs;
+	struct list_head bpf_bound_maps;
 };
 
 struct nsim_dev *
 nsim_dev_create_with_ns(struct nsim_bus_dev *nsim_bus_dev,
 			struct netdevsim *ns);
 void nsim_dev_destroy(struct nsim_dev *nsim_dev);
+int nsim_dev_init(void);
+void nsim_dev_exit(void);
 
 struct nsim_fib_data *nsim_fib_create(void);
 void nsim_fib_destroy(struct nsim_fib_data *fib_data);
