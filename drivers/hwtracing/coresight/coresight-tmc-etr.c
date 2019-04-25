@@ -1207,6 +1207,33 @@ done:
 	return etr_buf;
 }
 
+static struct etr_buf *
+get_perf_etr_buf_per_thread(struct tmc_drvdata *drvdata,
+			    struct perf_event *event, int nr_pages,
+			    void **pages, bool snapshot)
+{
+	struct etr_buf *etr_buf;
+
+	/*
+	 * In per-thread mode the etr_buf isn't shared, so just go ahead
+	 * with memory allocation.
+	 */
+	etr_buf = alloc_etr_buf(drvdata, event, nr_pages, pages, snapshot);
+
+	return etr_buf;
+}
+
+static struct etr_buf *
+get_perf_etr_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
+		 int nr_pages, void **pages, bool snapshot)
+{
+	if (event->cpu == -1)
+		return get_perf_etr_buf_per_thread(drvdata, event, nr_pages,
+						   pages, snapshot);
+
+	return ERR_PTR(-ENOENT);
+}
+
 static struct etr_perf_buffer *
 tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
 		       int nr_pages, void **pages, bool snapshot)
@@ -1223,7 +1250,7 @@ tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
 	if (!etr_perf)
 		return ERR_PTR(-ENOMEM);
 
-	etr_buf = alloc_etr_buf(drvdata, event, nr_pages, pages, snapshot);
+	etr_buf = get_perf_etr_buf(drvdata, event, nr_pages, pages, snapshot);
 	if (!IS_ERR(etr_buf))
 		goto done;
 
