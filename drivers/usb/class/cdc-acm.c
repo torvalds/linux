@@ -468,7 +468,6 @@ static void acm_read_bulk_callback(struct urb *urb)
 {
 	struct acm_rb *rb = urb->context;
 	struct acm *acm = rb->instance;
-	unsigned long flags;
 	int status = urb->status;
 	bool stopped = false;
 	bool stalled = false;
@@ -525,15 +524,10 @@ static void acm_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	/* throttle device if requested by tty */
-	spin_lock_irqsave(&acm->read_lock, flags);
-	acm->throttled = acm->throttle_req;
-	if (!acm->throttled) {
-		spin_unlock_irqrestore(&acm->read_lock, flags);
-		acm_submit_read_urb(acm, rb->index, GFP_ATOMIC);
-	} else {
-		spin_unlock_irqrestore(&acm->read_lock, flags);
-	}
+	if (test_bit(ACM_THROTTLED, &acm->flags))
+		return;
+
+	acm_submit_read_urb(acm, rb->index, GFP_ATOMIC);
 }
 
 /* data interface wrote those outgoing bytes */
@@ -670,10 +664,7 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 	/*
 	 * Unthrottle device in case the TTY was closed while throttled.
 	 */
-	spin_lock_irq(&acm->read_lock);
-	acm->throttled = 0;
-	acm->throttle_req = 0;
-	spin_unlock_irq(&acm->read_lock);
+	clear_bit(ACM_THROTTLED, &acm->flags);
 
 	retval = acm_submit_read_urbs(acm, GFP_KERNEL);
 	if (retval)
@@ -841,27 +832,19 @@ static void acm_tty_throttle(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 
-	spin_lock_irq(&acm->read_lock);
-	acm->throttle_req = 1;
-	spin_unlock_irq(&acm->read_lock);
+	set_bit(ACM_THROTTLED, &acm->flags);
 }
 
 static void acm_tty_unthrottle(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
-	unsigned int was_throttled;
 
-	spin_lock_irq(&acm->read_lock);
-	was_throttled = acm->throttled;
-	acm->throttled = 0;
-	acm->throttle_req = 0;
-	spin_unlock_irq(&acm->read_lock);
+	clear_bit(ACM_THROTTLED, &acm->flags);
 
 	/* Matches the smp_mb__after_atomic() in acm_read_bulk_callback(). */
 	smp_mb();
 
-	if (was_throttled)
-		acm_submit_read_urbs(acm, GFP_KERNEL);
+	acm_submit_read_urbs(acm, GFP_KERNEL);
 }
 
 static int acm_tty_break_ctl(struct tty_struct *tty, int state)
