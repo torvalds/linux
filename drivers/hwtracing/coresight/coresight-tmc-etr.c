@@ -8,6 +8,7 @@
 #include <linux/coresight.h>
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
+#include <linux/refcount.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
@@ -1222,7 +1223,11 @@ get_perf_etr_buf_per_thread(struct tmc_drvdata *drvdata,
 	 * with memory allocation.
 	 */
 	etr_buf = alloc_etr_buf(drvdata, event, nr_pages, pages, snapshot);
+	if (IS_ERR(etr_buf))
+		goto out;
 
+	refcount_set(&etr_buf->refcount, 1);
+out:
 	return etr_buf;
 }
 
