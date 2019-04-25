@@ -138,8 +138,11 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 			       drvdata->base + TRCCNTVRn(i));
 	}
 
-	/* Resource selector pair 0 is always implemented and reserved */
-	for (i = 0; i < drvdata->nr_resource * 2; i++)
+	/*
+	 * Resource selector pair 0 is always implemented and reserved.  As
+	 * such start at 2.
+	 */
+	for (i = 2; i < drvdata->nr_resource * 2; i++)
 		writel_relaxed(config->res_ctrl[i],
 			       drvdata->base + TRCRSCTLRn(i));
 
