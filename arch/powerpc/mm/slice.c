@@ -118,13 +118,11 @@ static int slice_high_has_vma(struct mm_struct *mm, unsigned long slice)
 	unsigned long start = slice << SLICE_HIGH_SHIFT;
 	unsigned long end = start + (1ul << SLICE_HIGH_SHIFT);
 
-#ifdef CONFIG_PPC64
 	/* Hack, so that each addresses is controlled by exactly one
 	 * of the high or low area bitmaps, the first high area starts
 	 * at 4GB, not 0 */
 	if (start == 0)
-		start = SLICE_LOW_TOP;
-#endif
+		start = (unsigned long)SLICE_LOW_TOP;
 
 	return !slice_area_is_free(mm, start, end - start);
 }
