@@ -830,7 +830,7 @@ int afs_fs_create(struct afs_fs_cursor *fc,
 	*bp++ = 0; /* segment size */
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call1(call, &vnode->fid, name);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
@@ -926,7 +926,7 @@ int afs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	}
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &dvnode->fid);
+	trace_afs_make_fs_call1(call, &dvnode->fid, name);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
@@ -1019,7 +1019,7 @@ int afs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	*bp++ = htonl(vnode->fid.unique);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call1(call, &vnode->fid, name);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
@@ -1134,7 +1134,7 @@ int afs_fs_symlink(struct afs_fs_cursor *fc,
 	*bp++ = 0; /* segment size */
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call1(call, &vnode->fid, name);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
@@ -1253,7 +1253,7 @@ int afs_fs_rename(struct afs_fs_cursor *fc,
 	}
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &orig_dvnode->fid);
+	trace_afs_make_fs_call2(call, &orig_dvnode->fid, orig_name, new_name);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
 }

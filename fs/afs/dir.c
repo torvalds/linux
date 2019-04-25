@@ -908,8 +908,14 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 			(void *)(unsigned long)dvnode->status.data_version;
 	}
 	d = d_splice_alias(inode, dentry);
-	if (!IS_ERR_OR_NULL(d))
+	if (!IS_ERR_OR_NULL(d)) {
 		d->d_fsdata = dentry->d_fsdata;
+		trace_afs_lookup(dvnode, &d->d_name,
+				 inode ? AFS_FS_I(inode) : NULL);
+	} else {
+		trace_afs_lookup(dvnode, &dentry->d_name,
+				 inode ? AFS_FS_I(inode) : NULL);
+	}
 	return d;
 }
 

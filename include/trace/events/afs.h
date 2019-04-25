@@ -539,6 +539,88 @@ TRACE_EVENT(afs_make_fs_call,
 		      __print_symbolic(__entry->op, afs_fs_operations))
 	    );
 
+TRACE_EVENT(afs_make_fs_call1,
+	    TP_PROTO(struct afs_call *call, const struct afs_fid *fid,
+		     const char *name),
+
+	    TP_ARGS(call, fid, name),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call		)
+		    __field(enum afs_fs_operation,	op		)
+		    __field_struct(struct afs_fid,	fid		)
+		    __array(char,			name, 24	)
+			     ),
+
+	    TP_fast_assign(
+		    int __len = strlen(name);
+		    __len = min(__len, 23);
+		    __entry->call = call->debug_id;
+		    __entry->op = call->operation_ID;
+		    if (fid) {
+			    __entry->fid = *fid;
+		    } else {
+			    __entry->fid.vid = 0;
+			    __entry->fid.vnode = 0;
+			    __entry->fid.unique = 0;
+		    }
+		    memcpy(__entry->name, name, __len);
+		    __entry->name[__len] = 0;
+			   ),
+
+	    TP_printk("c=%08x %06llx:%06llx:%06x %s \"%s\"",
+		      __entry->call,
+		      __entry->fid.vid,
+		      __entry->fid.vnode,
+		      __entry->fid.unique,
+		      __print_symbolic(__entry->op, afs_fs_operations),
+		      __entry->name)
+	    );
+
+TRACE_EVENT(afs_make_fs_call2,
+	    TP_PROTO(struct afs_call *call, const struct afs_fid *fid,
+		     const char *name, const char *name2),
+
+	    TP_ARGS(call, fid, name, name2),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call		)
+		    __field(enum afs_fs_operation,	op		)
+		    __field_struct(struct afs_fid,	fid		)
+		    __array(char,			name, 24	)
+		    __array(char,			name2, 24	)
+			     ),
+
+	    TP_fast_assign(
+		    int __len = strlen(name);
+		    int __len2 = strlen(name2);
+		    __len = min(__len, 23);
+		    __len2 = min(__len2, 23);
+		    __entry->call = call->debug_id;
+		    __entry->op = call->operation_ID;
+		    if (fid) {
+			    __entry->fid = *fid;
+		    } else {
+			    __entry->fid.vid = 0;
+			    __entry->fid.vnode = 0;
+			    __entry->fid.unique = 0;
+		    }
+		    memcpy(__entry->name, name, __len);
+		    __entry->name[__len] = 0;
+		    memcpy(__entry->name2, name2, __len2);
+		    __entry->name2[__len2] = 0;
+			   ),
+
+	    TP_printk("c=%08x %06llx:%06llx:%06x %s \"%s\" \"%s\"",
+		      __entry->call,
+		      __entry->fid.vid,
+		      __entry->fid.vnode,
+		      __entry->fid.unique,
+		      __print_symbolic(__entry->op, afs_fs_operations),
+		      __entry->name,
+		      __entry->name2)
+	    );
+
 TRACE_EVENT(afs_make_vl_call,
 	    TP_PROTO(struct afs_call *call),
 
@@ -736,6 +818,38 @@ TRACE_EVENT(afs_call_state,
 		      __entry->ret, __entry->abort)
 	    );
 
+TRACE_EVENT(afs_lookup,
+	    TP_PROTO(struct afs_vnode *dvnode, const struct qstr *name,
+		     struct afs_vnode *vnode),
+
+	    TP_ARGS(dvnode, name, vnode),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	dfid		)
+		    __field_struct(struct afs_fid,	fid		)
+		    __array(char,			name, 24	)
+			     ),
+
+	    TP_fast_assign(
+		    int __len = min_t(int, name->len, 23);
+		    __entry->dfid = dvnode->fid;
+		    if (vnode) {
+			    __entry->fid = vnode->fid;
+		    } else {
+			    __entry->fid.vid = 0;
+			    __entry->fid.vnode = 0;
+			    __entry->fid.unique = 0;
+		    }
+		    memcpy(__entry->name, name->name, __len);
+		    __entry->name[__len] = 0;
+			   ),
+
+	    TP_printk("d=%llx:%llx:%x \"%s\" f=%llx:%x",
+		      __entry->dfid.vid, __entry->dfid.vnode, __entry->dfid.unique,
+		      __entry->name,
+		      __entry->fid.vnode, __entry->fid.unique)
+	    );
+
 TRACE_EVENT(afs_edit_dir,
 	    TP_PROTO(struct afs_vnode *dvnode,
 		     enum afs_edit_dir_reason why,
@@ -757,12 +871,12 @@ TRACE_EVENT(afs_edit_dir,
 		    __field(unsigned short,		slot		)
 		    __field(unsigned int,		f_vnode		)
 		    __field(unsigned int,		f_unique	)
-		    __array(char,			name, 18	)
+		    __array(char,			name, 24	)
 			     ),
 
 	    TP_fast_assign(
 		    int __len = strlen(name);
-		    __len = min(__len, 17);
+		    __len = min(__len, 23);
 		    __entry->vnode	= dvnode->fid.vnode;
 		    __entry->unique	= dvnode->fid.unique;
 		    __entry->why	= why;
@@ -775,7 +889,7 @@ TRACE_EVENT(afs_edit_dir,
 		    __entry->name[__len] = 0;
 			   ),
 
-	    TP_printk("d=%x:%x %s %s %u[%u] f=%x:%x %s",
+	    TP_printk("d=%x:%x %s %s %u[%u] f=%x:%x \"%s\"",
 		      __entry->vnode, __entry->unique,
 		      __print_symbolic(__entry->why, afs_edit_dir_reasons),
 		      __print_symbolic(__entry->op, afs_edit_dir_ops),
@@ -992,6 +1106,32 @@ TRACE_EVENT(afs_silly_rename,
 	    TP_printk("%llx:%llx:%x done=%u",
 		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
 		      __entry->done)
+	    );
+
+TRACE_EVENT(afs_get_tree,
+	    TP_PROTO(struct afs_cell *cell, struct afs_volume *volume),
+
+	    TP_ARGS(cell, volume),
+
+	    TP_STRUCT__entry(
+		    __field(u64,			vid		)
+		    __array(char,			cell, 24	)
+		    __array(char,			volume, 24	)
+			     ),
+
+	    TP_fast_assign(
+		    int __len;
+		    __entry->vid = volume->vid;
+		    __len = min_t(int, cell->name_len, 23);
+		    memcpy(__entry->cell, cell->name, __len);
+		    __entry->cell[__len] = 0;
+		    __len = min_t(int, volume->name_len, 23);
+		    memcpy(__entry->volume, volume->name, __len);
+		    __entry->volume[__len] = 0;
+			   ),
+
+	    TP_printk("--- MOUNT %s:%s %llx",
+		      __entry->cell, __entry->volume, __entry->vid)
 	    );
 
 #endif /* _TRACE_AFS_H */
