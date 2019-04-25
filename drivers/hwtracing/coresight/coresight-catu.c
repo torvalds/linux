@@ -557,8 +557,9 @@ static int catu_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->csdev = coresight_register(&catu_desc);
 	if (IS_ERR(drvdata->csdev))
 		ret = PTR_ERR(drvdata->csdev);
+	else
+		pm_runtime_put(&adev->dev);
 out:
-	pm_runtime_put(&adev->dev);
 	return ret;
 }
 
