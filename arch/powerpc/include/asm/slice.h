@@ -36,6 +36,11 @@ void slice_setup_new_exec(void);
 
 static inline void slice_init_new_context_exec(struct mm_struct *mm) {}
 
+static inline unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
+{
+	return 0;
+}
+
 #endif /* CONFIG_PPC_MM_SLICES */
 
 #endif /* __ASSEMBLY__ */
