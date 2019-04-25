@@ -153,6 +153,9 @@ static struct device_type nsim_bus_dev_type = {
 	.release = nsim_bus_dev_release,
 };
 
+static struct nsim_bus_dev *
+nsim_bus_dev_new(unsigned int id, unsigned int port_count);
+
 static ssize_t
 new_device_store(struct bus_type *bus, const char *buf, size_t count)
 {
@@ -187,6 +190,8 @@ new_device_store(struct bus_type *bus, const char *buf, size_t count)
 	return count;
 }
 static BUS_ATTR_WO(new_device);
+
+static void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev);
 
 static ssize_t
 del_device_store(struct bus_type *bus, const char *buf, size_t count)
@@ -261,7 +266,8 @@ static struct bus_type nsim_bus = {
 	.num_vf		= nsim_num_vf,
 };
 
-struct nsim_bus_dev *nsim_bus_dev_new(unsigned int id, unsigned int port_count)
+static struct nsim_bus_dev *
+nsim_bus_dev_new(unsigned int id, unsigned int port_count)
 {
 	struct nsim_bus_dev *nsim_bus_dev;
 	int err;
@@ -270,8 +276,7 @@ struct nsim_bus_dev *nsim_bus_dev_new(unsigned int id, unsigned int port_count)
 	if (!nsim_bus_dev)
 		return ERR_PTR(-ENOMEM);
 
-	err = ida_alloc_range(&nsim_bus_dev_ids,
-			      id == ~0 ? 0 : id, id, GFP_KERNEL);
+	err = ida_alloc_range(&nsim_bus_dev_ids, id, id, GFP_KERNEL);
 	if (err < 0)
 		goto err_nsim_bus_dev_free;
 	nsim_bus_dev->dev.id = err;
@@ -291,19 +296,7 @@ err_nsim_bus_dev_free:
 	return ERR_PTR(err);
 }
 
-struct nsim_bus_dev *nsim_bus_dev_new_with_ns(struct netdevsim *ns)
-{
-	struct nsim_bus_dev *nsim_bus_dev;
-
-	dev_hold(ns->netdev);
-	rtnl_unlock();
-	nsim_bus_dev = nsim_bus_dev_new(~0, 0);
-	rtnl_lock();
-	dev_put(ns->netdev);
-	return nsim_bus_dev;
-}
-
-void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
+static void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
 {
 	device_unregister(&nsim_bus_dev->dev);
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);

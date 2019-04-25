@@ -25,59 +25,6 @@
 
 #include "netdevsim.h"
 
-static int nsim_get_port_parent_id(struct net_device *dev,
-				   struct netdev_phys_item_id *ppid)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-
-	memcpy(ppid, &ns->nsim_dev->switch_id, sizeof(*ppid));
-	return 0;
-}
-
-static int nsim_init(struct net_device *dev)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-	char dev_link_name[32];
-	int err;
-
-	ns->ddir = debugfs_create_dir("0", ns->nsim_dev->ports_ddir);
-	if (IS_ERR_OR_NULL(ns->ddir))
-		return -ENOMEM;
-
-	sprintf(dev_link_name, "../../../" DRV_NAME "%u",
-		ns->nsim_dev->nsim_bus_dev->dev.id);
-	debugfs_create_symlink("dev", ns->ddir, dev_link_name);
-
-	err = nsim_bpf_init(ns);
-	if (err)
-		goto err_debugfs_destroy;
-
-	nsim_ipsec_init(ns);
-
-	return 0;
-
-err_debugfs_destroy:
-	debugfs_remove_recursive(ns->ddir);
-	return err;
-}
-
-static void nsim_uninit(struct net_device *dev)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-
-	nsim_ipsec_teardown(ns);
-	debugfs_remove_recursive(ns->ddir);
-	nsim_bpf_uninit(ns);
-}
-
-static void nsim_free(struct net_device *dev)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-
-	nsim_bus_dev_del(ns->nsim_bus_dev);
-	/* netdev and vf state will be freed out of device_release() */
-}
-
 static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
@@ -299,8 +246,6 @@ nsim_set_features(struct net_device *dev, netdev_features_t features)
 }
 
 static const struct net_device_ops nsim_netdev_ops = {
-	.ndo_init		= nsim_init,
-	.ndo_uninit		= nsim_uninit,
 	.ndo_start_xmit		= nsim_start_xmit,
 	.ndo_set_rx_mode	= nsim_set_rx_mode,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -318,17 +263,12 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
 	.ndo_bpf		= nsim_bpf,
-	.ndo_get_port_parent_id	= nsim_get_port_parent_id,
 };
 
 static void nsim_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	eth_hw_addr_random(dev);
-
-	dev->netdev_ops = &nsim_netdev_ops;
-	dev->needs_free_netdev = true;
-	dev->priv_destructor = nsim_free;
 
 	dev->tx_queue_len = 0;
 	dev->flags |= IFF_NOARP;
@@ -344,50 +284,70 @@ static void nsim_setup(struct net_device *dev)
 	dev->max_mtu = ETH_MAX_MTU;
 }
 
-static int nsim_validate(struct nlattr *tb[], struct nlattr *data[],
-			 struct netlink_ext_ack *extack)
+struct netdevsim *
+nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 {
-	if (tb[IFLA_ADDRESS]) {
-		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
-			return -EINVAL;
-		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
-	}
-	return 0;
-}
-
-static int nsim_newlink(struct net *src_net, struct net_device *dev,
-			struct nlattr *tb[], struct nlattr *data[],
-			struct netlink_ext_ack *extack)
-{
-	struct netdevsim *ns = netdev_priv(dev);
+	struct net_device *dev;
+	struct netdevsim *ns;
 	int err;
 
+	dev = alloc_netdev(sizeof(*ns), "eth%d", NET_NAME_UNKNOWN, nsim_setup);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	ns = netdev_priv(dev);
 	ns->netdev = dev;
-	ns->nsim_bus_dev = nsim_bus_dev_new_with_ns(ns);
-	if (IS_ERR(ns->nsim_bus_dev))
-		return PTR_ERR(ns->nsim_bus_dev);
-
+	ns->nsim_dev = nsim_dev;
+	ns->nsim_dev_port = nsim_dev_port;
+	ns->nsim_bus_dev = nsim_dev->nsim_bus_dev;
 	SET_NETDEV_DEV(dev, &ns->nsim_bus_dev->dev);
+	dev->netdev_ops = &nsim_netdev_ops;
 
-	ns->nsim_dev = dev_get_drvdata(&ns->nsim_bus_dev->dev);
+	rtnl_lock();
+	err = nsim_bpf_init(ns);
+	if (err)
+		goto err_free_netdev;
+
+	nsim_ipsec_init(ns);
 
 	err = register_netdevice(dev);
 	if (err)
-		goto err_dev_del;
-	return 0;
+		goto err_ipsec_teardown;
+	rtnl_unlock();
 
-err_dev_del:
-	nsim_bus_dev_del(ns->nsim_bus_dev);
-	return err;
+	return ns;
+
+err_ipsec_teardown:
+	nsim_ipsec_teardown(ns);
+	nsim_bpf_uninit(ns);
+	rtnl_unlock();
+err_free_netdev:
+	free_netdev(dev);
+	return ERR_PTR(err);
+}
+
+void nsim_destroy(struct netdevsim *ns)
+{
+	struct net_device *dev = ns->netdev;
+
+	rtnl_lock();
+	unregister_netdevice(dev);
+	nsim_ipsec_teardown(ns);
+	nsim_bpf_uninit(ns);
+	rtnl_unlock();
+	free_netdev(dev);
+}
+
+static int nsim_validate(struct nlattr *tb[], struct nlattr *data[],
+			 struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG_MOD(extack, "Please use: echo \"[ID] [PORT_COUNT]\" > /sys/bus/netdevsim/new_device");
+	return -EOPNOTSUPP;
 }
 
 static struct rtnl_link_ops nsim_link_ops __read_mostly = {
 	.kind		= DRV_NAME,
-	.priv_size	= sizeof(struct netdevsim),
-	.setup		= nsim_setup,
 	.validate	= nsim_validate,
-	.newlink	= nsim_newlink,
 };
 
 static int __init nsim_module_init(void)

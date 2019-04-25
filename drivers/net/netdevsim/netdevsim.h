@@ -51,14 +51,13 @@ struct nsim_ipsec {
 struct netdevsim {
 	struct net_device *netdev;
 	struct nsim_dev *nsim_dev;
+	struct nsim_dev_port *nsim_dev_port;
 
 	u64 tx_packets;
 	u64 tx_bytes;
 	struct u64_stats_sync syncp;
 
 	struct nsim_bus_dev *nsim_bus_dev;
-
-	struct dentry *ddir;
 
 	struct bpf_prog	*bpf_offloaded;
 	u32 bpf_offloaded_id;
@@ -74,6 +73,10 @@ struct netdevsim {
 	bool bpf_map_accept;
 	struct nsim_ipsec ipsec;
 };
+
+struct netdevsim *
+nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port);
+void nsim_destroy(struct netdevsim *ns);
 
 #ifdef CONFIG_BPF_SYSCALL
 int nsim_bpf_dev_init(struct nsim_dev *nsim_dev);
@@ -136,6 +139,7 @@ struct nsim_dev_port {
 	struct devlink_port devlink_port;
 	unsigned int port_index;
 	struct dentry *ddir;
+	struct netdevsim *ns;
 };
 
 struct nsim_dev {
@@ -212,8 +216,5 @@ struct nsim_bus_dev {
 	struct nsim_vf_config *vfconfigs;
 };
 
-struct nsim_bus_dev *nsim_bus_dev_new(unsigned int id, unsigned int port_count);
-struct nsim_bus_dev *nsim_bus_dev_new_with_ns(struct netdevsim *ns);
-void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev);
 int nsim_bus_init(void);
 void nsim_bus_exit(void);
