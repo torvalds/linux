@@ -581,8 +581,11 @@ union l4_hdr_info {
 
 static inline int ring_space(struct hns3_enet_ring *ring)
 {
-	int begin = ring->next_to_clean;
-	int end = ring->next_to_use;
+	/* This smp_load_acquire() pairs with smp_store_release() in
+	 * hns3_nic_reclaim_one_desc called by hns3_clean_tx_ring.
+	 */
+	int begin = smp_load_acquire(&ring->next_to_clean);
+	int end = READ_ONCE(ring->next_to_use);
 
 	return ((end >= begin) ? (ring->desc_num - end + begin) :
 			(begin - end)) - 1;
