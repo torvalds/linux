@@ -156,9 +156,11 @@ enum afs_flock_event {
 	afs_flock_acquired,
 	afs_flock_callback_break,
 	afs_flock_defer_unlock,
+	afs_flock_extend_fail,
 	afs_flock_fail_other,
 	afs_flock_fail_perm,
 	afs_flock_no_lockers,
+	afs_flock_release_fail,
 	afs_flock_timestamp,
 	afs_flock_try_to_lock,
 	afs_flock_vfs_lock,
@@ -323,15 +325,18 @@ enum afs_flock_operation {
 	EM(AFS_VNODE_LOCK_GRANTED,		"GRANTED")		\
 	EM(AFS_VNODE_LOCK_EXTENDING,		"EXTENDING")		\
 	EM(AFS_VNODE_LOCK_NEED_UNLOCK,		"NEED_UNLOCK")		\
-	E_(AFS_VNODE_LOCK_UNLOCKING,		"UNLOCKING")		\
+	EM(AFS_VNODE_LOCK_UNLOCKING,		"UNLOCKING")		\
+	E_(AFS_VNODE_LOCK_DELETED,		"DELETED")
 
 #define afs_flock_events						\
 	EM(afs_flock_acquired,			"Acquired")		\
 	EM(afs_flock_callback_break,		"Callback")		\
 	EM(afs_flock_defer_unlock,		"D-Unlock")		\
+	EM(afs_flock_extend_fail,		"Ext_Fail")		\
 	EM(afs_flock_fail_other,		"ErrOther")		\
 	EM(afs_flock_fail_perm,			"ErrPerm ")		\
 	EM(afs_flock_no_lockers,		"NoLocker")		\
+	EM(afs_flock_release_fail,		"Rel_Fail")		\
 	EM(afs_flock_timestamp,			"Timestmp")		\
 	EM(afs_flock_try_to_lock,		"TryToLck")		\
 	EM(afs_flock_vfs_lock,			"VFSLock ")		\

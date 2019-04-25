@@ -599,6 +599,7 @@ enum afs_lock_state {
 	AFS_VNODE_LOCK_EXTENDING,	/* We're extending a lock on the server */
 	AFS_VNODE_LOCK_NEED_UNLOCK,	/* We need to unlock on the server */
 	AFS_VNODE_LOCK_UNLOCKING,	/* We're telling the server to unlock */
+	AFS_VNODE_LOCK_DELETED,		/* The vnode has been deleted whilst we have a lock */
 };
 
 /*

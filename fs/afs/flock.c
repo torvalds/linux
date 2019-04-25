@@ -158,6 +158,28 @@ static void afs_next_locker(struct afs_vnode *vnode, int error)
 }
 
 /*
+ * Kill off all waiters in the the pending lock queue due to the vnode being
+ * deleted.
+ */
+static void afs_kill_lockers_enoent(struct afs_vnode *vnode)
+{
+	struct file_lock *p;
+
+	afs_set_lock_state(vnode, AFS_VNODE_LOCK_DELETED);
+
+	while (!list_empty(&vnode->pending_locks)) {
+		p = list_entry(vnode->pending_locks.next,
+			       struct file_lock, fl_u.afs.link);
+		list_del_init(&p->fl_u.afs.link);
+		p->fl_u.afs.state = -ENOENT;
+		wake_up(&p->fl_wait);
+	}
+
+	key_put(vnode->lock_key);
+	vnode->lock_key = NULL;
+}
+
+/*
  * Get a lock on a file
  */
 static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
@@ -278,13 +300,19 @@ again:
 		/* attempt to release the server lock; if it fails, we just
 		 * wait 5 minutes and it'll expire anyway */
 		ret = afs_release_lock(vnode, vnode->lock_key);
-		if (ret < 0)
+		if (ret < 0) {
+			trace_afs_flock_ev(vnode, NULL, afs_flock_release_fail,
+					   ret);
 			printk(KERN_WARNING "AFS:"
 			       " Failed to release lock on {%llx:%llx} error %d\n",
 			       vnode->fid.vid, vnode->fid.vnode, ret);
+		}
 
 		spin_lock(&vnode->lock);
-		afs_next_locker(vnode, 0);
+		if (ret == -ENOENT)
+			afs_kill_lockers_enoent(vnode);
+		else
+			afs_next_locker(vnode, 0);
 		spin_unlock(&vnode->lock);
 		return;
 
@@ -304,11 +332,20 @@ again:
 		ret = afs_extend_lock(vnode, key); /* RPC */
 		key_put(key);
 
-		if (ret < 0)
+		if (ret < 0) {
+			trace_afs_flock_ev(vnode, NULL, afs_flock_extend_fail,
+					   ret);
 			pr_warning("AFS: Failed to extend lock on {%llx:%llx} error %d\n",
 				   vnode->fid.vid, vnode->fid.vnode, ret);
+		}
 
 		spin_lock(&vnode->lock);
+
+		if (ret == -ENOENT) {
+			afs_kill_lockers_enoent(vnode);
+			spin_unlock(&vnode->lock);
+			return;
+		}
 
 		if (vnode->lock_state != AFS_VNODE_LOCK_EXTENDING)
 			goto again;
@@ -330,6 +367,11 @@ again:
 	case AFS_VNODE_LOCK_WAITING_FOR_CB:
 		_debug("retry");
 		afs_next_locker(vnode, 0);
+		spin_unlock(&vnode->lock);
+		return;
+
+	case AFS_VNODE_LOCK_DELETED:
+		afs_kill_lockers_enoent(vnode);
 		spin_unlock(&vnode->lock);
 		return;
 
@@ -435,6 +477,10 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 	spin_lock(&vnode->lock);
 	list_add_tail(&fl->fl_u.afs.link, &vnode->pending_locks);
 
+	ret = -ENOENT;
+	if (vnode->lock_state == AFS_VNODE_LOCK_DELETED)
+		goto error_unlock;
+
 	/* If we've already got a lock on the server then try to move to having
 	 * the VFS grant the requested lock.  Note that this means that other
 	 * clients may get starved out.
@@ -487,6 +533,13 @@ try_to_lock:
 		trace_afs_flock_ev(vnode, fl, afs_flock_fail_perm, ret);
 		list_del_init(&fl->fl_u.afs.link);
 		afs_next_locker(vnode, ret);
+		goto error_unlock;
+
+	case -ENOENT:
+		fl->fl_u.afs.state = ret;
+		trace_afs_flock_ev(vnode, fl, afs_flock_fail_other, ret);
+		list_del_init(&fl->fl_u.afs.link);
+		afs_kill_lockers_enoent(vnode);
 		goto error_unlock;
 
 	default:
@@ -637,6 +690,9 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 	int ret, lock_count;
 
 	_enter("");
+
+	if (vnode->lock_state == AFS_VNODE_LOCK_DELETED)
+		return -ENOENT;
 
 	fl->fl_type = F_UNLCK;
 
