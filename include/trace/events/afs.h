@@ -947,6 +947,23 @@ TRACE_EVENT(afs_flock_op,
 		      __entry->from, __entry->len, __entry->flags)
 	    );
 
+TRACE_EVENT(afs_reload_dir,
+	    TP_PROTO(struct afs_vnode *vnode),
+
+	    TP_ARGS(vnode),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->fid = vnode->fid;
+			   ),
+
+	    TP_printk("%llx:%llx:%x",
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */

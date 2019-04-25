@@ -309,6 +309,7 @@ retry:
 		goto error;
 
 	if (!test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags)) {
+		trace_afs_reload_dir(dvnode);
 		ret = afs_fetch_data(dvnode, key, req);
 		if (ret < 0)
 			goto error_unlock;
