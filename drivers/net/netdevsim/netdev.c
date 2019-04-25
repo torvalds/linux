@@ -174,25 +174,14 @@ static int nsim_init(struct net_device *dev)
 	if (err)
 		goto err_debugfs_destroy;
 
-	ns->dev.id = nsim_dev_id++;
-	ns->dev.bus = &nsim_bus;
-	ns->dev.type = &nsim_dev_type;
-	err = device_register(&ns->dev);
-	if (err)
-		goto err_bpf_uninit;
-
-	SET_NETDEV_DEV(dev, &ns->dev);
-
 	err = nsim_devlink_setup(ns);
 	if (err)
-		goto err_unreg_dev;
+		goto err_bpf_uninit;
 
 	nsim_ipsec_init(ns);
 
 	return 0;
 
-err_unreg_dev:
-	device_unregister(&ns->dev);
 err_bpf_uninit:
 	nsim_bpf_uninit(ns);
 err_debugfs_destroy:
@@ -514,11 +503,22 @@ static int nsim_newlink(struct net *src_net, struct net_device *dev,
 	if (IS_ERR(ns->sdev))
 		return PTR_ERR(ns->sdev);
 
-	err = register_netdevice(dev);
+	ns->dev.id = nsim_dev_id++;
+	ns->dev.bus = &nsim_bus;
+	ns->dev.type = &nsim_dev_type;
+	err = device_register(&ns->dev);
 	if (err)
 		goto err_sdev_put;
+
+	SET_NETDEV_DEV(dev, &ns->dev);
+
+	err = register_netdevice(dev);
+	if (err)
+		goto err_unreg_dev;
 	return 0;
 
+err_unreg_dev:
+	device_unregister(&ns->dev);
 err_sdev_put:
 	nsim_sdev_put(ns->sdev);
 	return err;
