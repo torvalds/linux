@@ -865,8 +865,6 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	}
 
 	if (!(netdev->features & NETIF_F_HW_TLS_RX)) {
-		pr_err_ratelimited("%s: netdev %s with no TLS offload\n",
-				   __func__, netdev->name);
 		rc = -ENOTSUPP;
 		goto release_netdev;
 	}
@@ -894,11 +892,8 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_RX,
 					     &ctx->crypto_recv.info,
 					     tcp_sk(sk)->copied_seq);
-	if (rc) {
-		pr_err_ratelimited("%s: The netdev has refused to offload this socket\n",
-				   __func__);
+	if (rc)
 		goto free_sw_resources;
-	}
 
 	tls_device_attach(ctx, sk, netdev);
 	goto release_netdev;
