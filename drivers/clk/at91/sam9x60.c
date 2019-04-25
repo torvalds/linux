@@ -21,7 +21,7 @@ static const struct clk_master_layout sam9x60_master_layout = {
 	.offset = 0x28,
 };
 
-static struct clk_range plla_outputs[] = {
+static const struct clk_range plla_outputs[] = {
 	{ .min = 300000000, .max = 600000000 },
 };
 
@@ -31,7 +31,7 @@ static const struct clk_pll_characteristics plla_characteristics = {
 	.output = plla_outputs,
 };
 
-static struct clk_range upll_outputs[] = {
+static const struct clk_range upll_outputs[] = {
 	{ .min = 300000000, .max = 500000000 },
 };
 

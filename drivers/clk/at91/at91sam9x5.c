@@ -17,7 +17,7 @@ static u8 plla_out[] = { 0, 1, 2, 3, 0, 1, 2, 3 };
 
 static u16 plla_icpll[] = { 0, 0, 0, 0, 1, 1, 1, 1 };
 
-static struct clk_range plla_outputs[] = {
+static const struct clk_range plla_outputs[] = {
 	{ .min = 745000000, .max = 800000000 },
 	{ .min = 695000000, .max = 750000000 },
 	{ .min = 645000000, .max = 700000000 },
