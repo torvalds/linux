@@ -161,7 +161,6 @@ static int nsim_init(struct net_device *dev)
 	char sdev_link_name[32];
 	int err;
 
-	ns->netdev = dev;
 	ns->ddir = debugfs_create_dir(netdev_name(dev), nsim_ddir);
 	if (IS_ERR_OR_NULL(ns->ddir))
 		return -ENOMEM;
@@ -174,16 +173,10 @@ static int nsim_init(struct net_device *dev)
 	if (err)
 		goto err_debugfs_destroy;
 
-	err = nsim_devlink_setup(ns);
-	if (err)
-		goto err_bpf_uninit;
-
 	nsim_ipsec_init(ns);
 
 	return 0;
 
-err_bpf_uninit:
-	nsim_bpf_uninit(ns);
 err_debugfs_destroy:
 	debugfs_remove_recursive(ns->ddir);
 	return err;
@@ -194,7 +187,6 @@ static void nsim_uninit(struct net_device *dev)
 	struct netdevsim *ns = netdev_priv(dev);
 
 	nsim_ipsec_teardown(ns);
-	nsim_devlink_teardown(ns);
 	debugfs_remove_recursive(ns->ddir);
 	nsim_bpf_uninit(ns);
 }
@@ -203,6 +195,7 @@ static void nsim_free(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
+	nsim_devlink_exit(ns);
 	device_unregister(&ns->dev);
 	/* netdev and vf state will be freed out of device_release() */
 	nsim_sdev_put(ns->sdev);
@@ -511,12 +504,19 @@ static int nsim_newlink(struct net *src_net, struct net_device *dev,
 		goto err_sdev_put;
 
 	SET_NETDEV_DEV(dev, &ns->dev);
+	ns->netdev = dev;
+
+	err = nsim_devlink_init(ns);
+	if (err)
+		goto err_unreg_dev;
 
 	err = register_netdevice(dev);
 	if (err)
-		goto err_unreg_dev;
+		goto err_devlink_exit;
 	return 0;
 
+err_devlink_exit:
+	nsim_devlink_exit(ns);
 err_unreg_dev:
 	device_unregister(&ns->dev);
 err_sdev_put:
@@ -548,18 +548,12 @@ static int __init nsim_module_init(void)
 	if (err)
 		goto err_sdev_exit;
 
-	err = nsim_devlink_init();
+	err = rtnl_link_register(&nsim_link_ops);
 	if (err)
 		goto err_unreg_bus;
 
-	err = rtnl_link_register(&nsim_link_ops);
-	if (err)
-		goto err_dl_fini;
-
 	return 0;
 
-err_dl_fini:
-	nsim_devlink_exit();
 err_unreg_bus:
 	bus_unregister(&nsim_bus);
 err_sdev_exit:
@@ -572,7 +566,6 @@ err_debugfs_destroy:
 static void __exit nsim_module_exit(void)
 {
 	rtnl_link_unregister(&nsim_link_ops);
-	nsim_devlink_exit();
 	bus_unregister(&nsim_bus);
 	nsim_sdev_exit();
 	debugfs_remove_recursive(nsim_ddir);

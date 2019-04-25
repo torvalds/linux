@@ -30,6 +30,7 @@ struct bpf_prog;
 struct bpf_offload_dev;
 struct dentry;
 struct nsim_vf_config;
+struct nsim_fib_data;
 
 struct netdevsim_shared_dev {
 	unsigned int refcnt;
@@ -153,16 +154,15 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6_FIB_RULES,
 };
 
-int nsim_devlink_setup(struct netdevsim *ns);
-void nsim_devlink_teardown(struct netdevsim *ns);
+int nsim_devlink_init(struct netdevsim *ns);
+void nsim_devlink_exit(struct netdevsim *ns);
 
-int nsim_devlink_init(void);
-void nsim_devlink_exit(void);
-
-int nsim_fib_init(void);
-void nsim_fib_exit(void);
-u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max);
-int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
+struct nsim_fib_data *nsim_fib_create(void);
+void nsim_fib_destroy(struct nsim_fib_data *fib_data);
+u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
+		     enum nsim_resource_id res_id, bool max);
+int nsim_fib_set_max(struct nsim_fib_data *fib_data,
+		     enum nsim_resource_id res_id, u64 val,
 		     struct netlink_ext_ack *extack);
 
 #if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
