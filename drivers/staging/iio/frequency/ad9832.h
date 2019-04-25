@@ -23,7 +23,6 @@
  */
 
 struct ad9832_platform_data {
-	unsigned long		mclk;
 	unsigned long		freq0;
 	unsigned long		freq1;
 	unsigned short		phase0;

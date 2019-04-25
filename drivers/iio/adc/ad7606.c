@@ -31,12 +31,16 @@
  * Scales are computed as 5000/32768 and 10000/32768 respectively,
  * so that when applied to the raw values they provide mV values
  */
-static const unsigned int scale_avail[2] = {
+static const unsigned int ad7606_scale_avail[2] = {
 	152588, 305176
 };
 
 static const unsigned int ad7606_oversampling_avail[7] = {
 	1, 2, 4, 8, 16, 32, 64,
+};
+
+static const unsigned int ad7616_oversampling_avail[8] = {
+	1, 2, 4, 8, 16, 32, 64, 128,
 };
 
 static int ad7606_reset(struct ad7606_state *st)
@@ -154,7 +158,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
-		*val2 = scale_avail[st->range];
+		*val2 = st->scale_avail[st->range];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = st->oversampling;
@@ -163,19 +167,29 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static ssize_t ad7606_show_avail(char *buf, const unsigned int *vals,
+				 unsigned int n, bool micros)
+{
+	size_t len = 0;
+	int i;
+
+	for (i = 0; i < n; i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+			micros ? "0.%06u " : "%u ", vals[i]);
+	}
+	buf[len - 1] = '\n';
+
+	return len;
+}
+
 static ssize_t in_voltage_scale_available_show(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
 {
-	int i, len = 0;
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
-	for (i = 0; i < ARRAY_SIZE(scale_avail); i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
-				 scale_avail[i]);
-
-	buf[len - 1] = '\n';
-
-	return len;
+	return ad7606_show_avail(buf, st->scale_avail, st->num_scales, true);
 }
 
 static IIO_DEVICE_ATTR_RO(in_voltage_scale_available, 0);
@@ -193,7 +207,7 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
-		i = find_closest(val2, scale_avail, ARRAY_SIZE(scale_avail));
+		i = find_closest(val2, st->scale_avail, st->num_scales);
 		gpiod_set_value(st->gpio_range, i);
 		st->range = i;
 		mutex_unlock(&st->lock);
@@ -202,15 +216,20 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		if (val2)
 			return -EINVAL;
-		i = find_closest(val, ad7606_oversampling_avail,
-				 ARRAY_SIZE(ad7606_oversampling_avail));
+		i = find_closest(val, st->oversampling_avail,
+				 st->num_os_ratios);
 
 		values[0] = i;
 
 		mutex_lock(&st->lock);
 		gpiod_set_array_value(ARRAY_SIZE(values), st->gpio_os->desc,
 				      st->gpio_os->info, values);
-		st->oversampling = ad7606_oversampling_avail[i];
+
+		/* AD7616 requires a reset to update value */
+		if (st->chip_info->os_req_reset)
+			ad7606_reset(st);
+
+		st->oversampling = st->oversampling_avail[i];
 		mutex_unlock(&st->lock);
 
 		return 0;
@@ -219,11 +238,23 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static IIO_CONST_ATTR(oversampling_ratio_available, "1 2 4 8 16 32 64");
+static ssize_t ad7606_oversampling_ratio_avail(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
+
+	return ad7606_show_avail(buf, st->oversampling_avail,
+				 st->num_os_ratios, false);
+}
+
+static IIO_DEVICE_ATTR(oversampling_ratio_available, 0444,
+		       ad7606_oversampling_ratio_avail, NULL, 0);
 
 static struct attribute *ad7606_attributes_os_and_range[] = {
 	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
-	&iio_const_attr_oversampling_ratio_available.dev_attr.attr,
+	&iio_dev_attr_oversampling_ratio_available.dev_attr.attr,
 	NULL,
 };
 
@@ -232,7 +263,7 @@ static const struct attribute_group ad7606_attribute_group_os_and_range = {
 };
 
 static struct attribute *ad7606_attributes_os[] = {
-	&iio_const_attr_oversampling_ratio_available.dev_attr.attr,
+	&iio_dev_attr_oversampling_ratio_available.dev_attr.attr,
 	NULL,
 };
 
@@ -292,6 +323,36 @@ static const struct iio_chan_spec ad7606_channels[] = {
 	AD7606_CHANNEL(7),
 };
 
+/*
+ * The current assumption that this driver makes for AD7616, is that it's
+ * working in Hardware Mode with Serial, Burst and Sequencer modes activated.
+ * To activate them, following pins must be pulled high:
+ *	-SER/PAR
+ *	-SEQEN
+ * And following pins must be pulled low:
+ *	-WR/BURST
+ *	-DB4/SER1W
+ */
+static const struct iio_chan_spec ad7616_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(16),
+	AD7606_CHANNEL(0),
+	AD7606_CHANNEL(1),
+	AD7606_CHANNEL(2),
+	AD7606_CHANNEL(3),
+	AD7606_CHANNEL(4),
+	AD7606_CHANNEL(5),
+	AD7606_CHANNEL(6),
+	AD7606_CHANNEL(7),
+	AD7606_CHANNEL(8),
+	AD7606_CHANNEL(9),
+	AD7606_CHANNEL(10),
+	AD7606_CHANNEL(11),
+	AD7606_CHANNEL(12),
+	AD7606_CHANNEL(13),
+	AD7606_CHANNEL(14),
+	AD7606_CHANNEL(15),
+};
+
 static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	/* More devices added in future */
 	[ID_AD7605_4] = {
@@ -301,17 +362,27 @@ static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	[ID_AD7606_8] = {
 		.channels = ad7606_channels,
 		.num_channels = 9,
-		.has_oversampling = true,
+		.oversampling_avail = ad7606_oversampling_avail,
+		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	},
 	[ID_AD7606_6] = {
 		.channels = ad7606_channels,
 		.num_channels = 7,
-		.has_oversampling = true,
+		.oversampling_avail = ad7606_oversampling_avail,
+		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	},
 	[ID_AD7606_4] = {
 		.channels = ad7606_channels,
 		.num_channels = 5,
-		.has_oversampling = true,
+		.oversampling_avail = ad7606_oversampling_avail,
+		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
+	},
+	[ID_AD7616] = {
+		.channels = ad7616_channels,
+		.num_channels = 17,
+		.oversampling_avail = ad7616_oversampling_avail,
+		.oversampling_num = ARRAY_SIZE(ad7616_oversampling_avail),
+		.os_req_reset = true,
 	},
 };
 
@@ -343,7 +414,7 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 	if (IS_ERR(st->gpio_frstdata))
 		return PTR_ERR(st->gpio_frstdata);
 
-	if (!st->chip_info->has_oversampling)
+	if (!st->chip_info->oversampling_num)
 		return 0;
 
 	st->gpio_os = devm_gpiod_get_array_optional(dev,
@@ -467,6 +538,8 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	/* tied to logic low, analog input range is +/- 5V */
 	st->range = 0;
 	st->oversampling = 1;
+	st->scale_avail = ad7606_scale_avail;
+	st->num_scales = ARRAY_SIZE(ad7606_scale_avail);
 
 	st->reg = devm_regulator_get(dev, "avcc");
 	if (IS_ERR(st->reg))
@@ -483,6 +556,11 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		return ret;
 
 	st->chip_info = &ad7606_chip_info_tbl[id];
+
+	if (st->chip_info->oversampling_num) {
+		st->oversampling_avail = st->chip_info->oversampling_avail;
+		st->num_os_ratios = st->chip_info->oversampling_num;
+	}
 
 	ret = ad7606_request_gpios(st);
 	if (ret)

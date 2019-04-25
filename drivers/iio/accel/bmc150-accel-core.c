@@ -394,7 +394,7 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 
 	if (ret < 0) {
 		dev_err(dev,
-			"Failed: bmc150_accel_set_power_state for %d\n", on);
+			"Failed: %s for %d\n", __func__, on);
 		if (on)
 			pm_runtime_put_noidle(dev);
 

@@ -865,7 +865,7 @@ static int mpu3050_power_up(struct mpu3050 *mpu3050)
 		dev_err(mpu3050->dev, "error setting power mode\n");
 		return ret;
 	}
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	return 0;
 }
