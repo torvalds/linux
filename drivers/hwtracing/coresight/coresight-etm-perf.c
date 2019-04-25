@@ -120,22 +120,34 @@ out:
 	return ret;
 }
 
+static void free_sink_buffer(struct etm_event_data *event_data)
+{
+	int cpu;
+	cpumask_t *mask = &event_data->mask;
+	struct coresight_device *sink;
+
+	if (WARN_ON(cpumask_empty(mask)))
+		return;
+
+	if (!event_data->snk_config)
+		return;
+
+	cpu = cpumask_first(mask);
+	sink = coresight_get_sink(etm_event_cpu_path(event_data, cpu));
+	sink_ops(sink)->free_buffer(event_data->snk_config);
+}
+
 static void free_event_data(struct work_struct *work)
 {
 	int cpu;
 	cpumask_t *mask;
 	struct etm_event_data *event_data;
-	struct coresight_device *sink;
 
 	event_data = container_of(work, struct etm_event_data, work);
 	mask = &event_data->mask;
 
 	/* Free the sink buffers, if there are any */
-	if (event_data->snk_config && !WARN_ON(cpumask_empty(mask))) {
-		cpu = cpumask_first(mask);
-		sink = coresight_get_sink(etm_event_cpu_path(event_data, cpu));
-		sink_ops(sink)->free_buffer(event_data->snk_config);
-	}
+	free_sink_buffer(event_data);
 
 	for_each_cpu(cpu, mask) {
 		struct list_head **ppath;
