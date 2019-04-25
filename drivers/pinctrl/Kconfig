@@ -110,7 +110,8 @@ config PINCTRL_AMD
 
 config PINCTRL_BM1880
 	bool "Bitmain BM1880 Pinctrl driver"
-	depends on ARCH_BITMAIN
+	depends on OF && (ARCH_BITMAIN || COMPILE_TEST)
+	default ARCH_BITMAIN
 	select PINMUX
 	help
 	  Pinctrl driver for Bitmain BM1880 SoC.
