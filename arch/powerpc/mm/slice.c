@@ -704,11 +704,7 @@ void slice_init_new_context_exec(struct mm_struct *mm)
 	 * case of fork it is just inherited from the mm being
 	 * duplicated.
 	 */
-#ifdef CONFIG_PPC64
-	mm_ctx_set_slb_addr_limit(&mm->context, DEFAULT_MAP_WINDOW_USER64);
-#else
-	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW;
-#endif
+	mm_ctx_set_slb_addr_limit(&mm->context, SLB_ADDR_LIMIT_DEFAULT);
 	mm_ctx_set_user_psize(&mm->context, psize);
 
 	/*

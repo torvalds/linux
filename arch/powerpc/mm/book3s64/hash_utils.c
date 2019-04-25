@@ -1058,7 +1058,7 @@ void __init hash__early_init_mmu(void)
 	htab_initialize();
 
 	init_mm.context.hash_context = &init_hash_mm_context;
-	init_mm.context.hash_context->slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	mm_ctx_set_slb_addr_limit(&init_mm.context, SLB_ADDR_LIMIT_DEFAULT);
 
 	pr_info("Initializing hash mmu with SLB\n");
 	/* Initialize SLB management */
