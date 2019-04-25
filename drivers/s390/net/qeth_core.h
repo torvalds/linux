@@ -484,14 +484,12 @@ struct qeth_qdio_out_q {
 	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	struct qeth_out_q_stats stats;
-	int queue_no;
+	u8 next_buf_to_fill;
+	u8 max_elements;
+	u8 queue_no;
+	u8 do_pack;
 	struct qeth_card *card;
 	atomic_t state;
-	int do_pack;
-	/*
-	 * index of buffer to be filled by driver; state EMPTY or PACKING
-	 */
-	int next_buf_to_fill;
 	/*
 	 * number of buffers that are currently filled (PRIMED)
 	 * -> these buffers are hardware-owned

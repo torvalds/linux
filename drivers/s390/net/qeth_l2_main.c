@@ -581,7 +581,7 @@ static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 	}
 
 	elements += qeth_count_elements(skb, hd_len);
-	if (elements > QETH_MAX_BUFFER_ELEMENTS(card)) {
+	if (elements > queue->max_elements) {
 		rc = -E2BIG;
 		goto out;
 	}
