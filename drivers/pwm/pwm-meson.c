@@ -470,7 +470,7 @@ static int meson_pwm_init_channels(struct meson_pwm *meson,
 
 		init.name = name;
 		init.ops = &clk_mux_ops;
-		init.flags = CLK_IS_BASIC;
+		init.flags = 0;
 		init.parent_names = meson->data->parent_names;
 		init.num_parents = meson->data->num_parents;
 
