@@ -32,8 +32,7 @@ static int nsim_get_port_parent_id(struct net_device *dev,
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	ppid->id_len = sizeof(ns->nsim_dev->nsim_bus_dev->dev.id);
-	memcpy(&ppid->id, &ns->nsim_dev->nsim_bus_dev->dev.id, ppid->id_len);
+	memcpy(ppid, &ns->nsim_dev->switch_id, sizeof(*ppid));
 	return 0;
 }
 

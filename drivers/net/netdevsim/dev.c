@@ -17,6 +17,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/random.h>
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
 
@@ -204,6 +205,8 @@ static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
 		return ERR_PTR(-ENOMEM);
 	nsim_dev = devlink_priv(devlink);
 	nsim_dev->nsim_bus_dev = nsim_bus_dev;
+	nsim_dev->switch_id.id_len = sizeof(nsim_dev->switch_id.id);
+	get_random_bytes(nsim_dev->switch_id.id, nsim_dev->switch_id.id_len);
 
 	nsim_dev->fib_data = nsim_fib_create();
 	if (IS_ERR(nsim_dev->fib_data)) {
