@@ -2386,6 +2386,7 @@ static int qeth_alloc_qdio_queues(struct qeth_card *card)
 			goto out_freeoutq;
 		QETH_DBF_TEXT_(SETUP, 2, "outq %i", i);
 		QETH_DBF_HEX(SETUP, 2, &card->qdio.out_qs[i], sizeof(void *));
+		card->qdio.out_qs[i]->card = card;
 		card->qdio.out_qs[i]->queue_no = i;
 		/* give outbound qeth_qdio_buffers their qdio_buffers */
 		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
@@ -2697,7 +2698,7 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 
 int qeth_init_qdio_queues(struct qeth_card *card)
 {
-	int i, j;
+	unsigned int i;
 	int rc;
 
 	QETH_DBF_TEXT(SETUP, 2, "initqdqs");
@@ -2728,11 +2729,6 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 	for (i = 0; i < card->qdio.no_out_queues; ++i) {
 		qdio_reset_buffers(card->qdio.out_qs[i]->qdio_bufs,
 				   QDIO_MAX_BUFFERS_PER_Q);
-		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
-			qeth_clear_output_buffer(card->qdio.out_qs[i],
-						 card->qdio.out_qs[i]->bufs[j]);
-		}
-		card->qdio.out_qs[i]->card = card;
 		card->qdio.out_qs[i]->next_buf_to_fill = 0;
 		card->qdio.out_qs[i]->do_pack = 0;
 		atomic_set(&card->qdio.out_qs[i]->used_buffers, 0);
