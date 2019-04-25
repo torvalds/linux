@@ -3487,6 +3487,7 @@ err:
 	}
 
 	devm_kfree(&pdev->dev, priv->ring_data);
+	priv->ring_data = NULL;
 	return ret;
 }
 
@@ -3495,12 +3496,16 @@ static void hns3_put_ring_config(struct hns3_nic_priv *priv)
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
 
+	if (!priv->ring_data)
+		return;
+
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
 		devm_kfree(priv->dev, priv->ring_data[i].ring);
 		devm_kfree(priv->dev,
 			   priv->ring_data[i + h->kinfo.num_tqps].ring);
 	}
 	devm_kfree(priv->dev, priv->ring_data);
+	priv->ring_data = NULL;
 }
 
 static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
@@ -3920,8 +3925,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_dbg_uninit(handle);
 
-	priv->ring_data = NULL;
-
 out_netdev_free:
 	free_netdev(netdev);
 }
@@ -4268,12 +4271,10 @@ err_uninit_ring:
 	hns3_uninit_all_ring(priv);
 err_uninit_vector:
 	hns3_nic_uninit_vector_data(priv);
-	priv->ring_data = NULL;
 err_dealloc_vector:
 	hns3_nic_dealloc_vector_data(priv);
 err_put_ring:
 	hns3_put_ring_config(priv);
-	priv->ring_data = NULL;
 
 	return ret;
 }
@@ -4335,7 +4336,6 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 		netdev_err(netdev, "uninit ring error\n");
 
 	hns3_put_ring_config(priv);
-	priv->ring_data = NULL;
 
 	return ret;
 }
