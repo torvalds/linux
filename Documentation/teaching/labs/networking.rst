@@ -1020,7 +1020,7 @@ packet has the ``SYN`` flag set in the TCP header and the ``ACK`` flag cleared.
   addresses`` section). The following is an example code snippet that uses
   ``%pI4``:
 
-  .. code-block: c
+  .. code-block:: c
 
     printk("IP address is %pI4\n", &iph->saddr);
 
