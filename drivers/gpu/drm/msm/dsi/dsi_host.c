@@ -1049,7 +1049,7 @@ static void dsi_wait4video_done(struct msm_dsi_host *msm_host)
 	ret = wait_for_completion_timeout(&msm_host->video_comp,
 			msecs_to_jiffies(70));
 
-	if (ret <= 0)
+	if (ret == 0)
 		DRM_DEV_ERROR(dev, "wait for video done timed out\n");
 
 	dsi_intr_ctrl(msm_host, DSI_IRQ_MASK_VIDEO_DONE, 0);
