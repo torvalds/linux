@@ -615,12 +615,13 @@ struct hl_va_range {
  *                     DRAM mapping.
  * @cs_lock: spinlock to protect cs_sequence.
  * @dram_phys_mem: amount of used physical DRAM memory by this context.
- * @thread_restore_token: token to prevent multiple threads of the same context
- *				from running the restore phase. Only one thread
- *				should run it.
- * @thread_restore_wait_token: token to prevent the threads that didn't run
- *				the restore phase from moving to their execution
- *				phase before the restore phase has finished.
+ * @thread_ctx_switch_token: token to prevent multiple threads of the same
+ *				context	from running the context switch phase.
+ *				Only a single thread should run it.
+ * @thread_ctx_switch_wait_token: token to prevent the threads that didn't run
+ *				the context switch phase from moving to their
+ *				execution phase before the context switch phase
+ *				has finished.
  * @asid: context's unique address space ID in the device's MMU.
  */
 struct hl_ctx {
@@ -640,8 +641,8 @@ struct hl_ctx {
 	u64			*dram_default_hops;
 	spinlock_t		cs_lock;
 	atomic64_t		dram_phys_mem;
-	atomic_t		thread_restore_token;
-	u32			thread_restore_wait_token;
+	atomic_t		thread_ctx_switch_token;
+	u32			thread_ctx_switch_wait_token;
 	u32			asid;
 };
 
