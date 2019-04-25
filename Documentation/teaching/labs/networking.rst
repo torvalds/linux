@@ -108,7 +108,7 @@ Creation is similar to calling the :c:func:`socket` function in user-space, but 
 The parameters of these calls are as follows:
 
   * ``net``, where it is present, used as reference to the network namespace used;
-    we will usually initialize it with ``init_net:`;
+    we will usually initialize it with ``init_net``;
   * ``family`` represents the family of protocols used in the transfer of
     information; they usually begin with the ``PF_`` (Protocol Family) string;
     the constants representing the family of protocols used are found in
@@ -332,14 +332,14 @@ pointers for specific protocol implementations:
   	int		(*socketpair)(struct socket *sock1,
   				      struct socket *sock2);
   	int		(*accept)    (struct socket *sock,
-  				      struct socket *newsock, int flags);
+  				      struct socket *newsock, int flags, bool kern);
   	int		(*getname)   (struct socket *sock,
   				      struct sockaddr *addr,
   				      int peer);
   	//...
   }
 
-The initialization of the ``ops`` field from :c:type:`struct socket`` is done in
+The initialization of the ``ops`` field from :c:type:`struct socket` is done in
 the :c:func:`__sock_create` function, by calling the :c:func:`create` function,
 specific to each protocol; an equivalent call is the implementation of the
 :c:func:`__sock_create` function:
@@ -1212,21 +1212,21 @@ system call handler or `Sending/receiving messages`_.
 
 .. hint::
 
-  The ``msg_name`` field of the :c:type:`struct msghdr`` structure must be
-  initialized to the destination address (pointer to:c:type:`struct sockaddr``)
+  The ``msg_name`` field of the :c:type:`struct msghdr` structure must be
+  initialized to the destination address (pointer to :c:type:`struct sockaddr`)
   and the ``msg_namelen`` field to the address size.
 
-  Initialize the ``msg_flags`` field of the :c:type:`struct msghdr`` structure
+  Initialize the ``msg_flags`` field of the :c:type:`struct msghdr` structure
   to ``0``.
 
   Initialize the ``msg_control`` and ``msg_controllen`` fields of the
-  :c:type:`struct msghdr`` structure to ``NULL`` and ``0`` respectively.
+  :c:type:`struct msghdr` structure to ``NULL`` and ``0`` respectively.
 
 For sending the message use :c:func:`kernel_sendmsg`.
 
 The message transmission parameters are retrieved from the kernel-space. Cast
 the :c:type:`struct iovec` structure pointer to a :c:type:`struct kvec` pointer
-in the :c:func:`kernel_sendmsg call`.
+in the :c:func:`kernel_sendmsg` call.
 
 .. hint::
 
