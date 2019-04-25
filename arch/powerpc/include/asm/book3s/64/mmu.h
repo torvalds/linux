@@ -179,45 +179,21 @@ static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long li
 	ctx->hash_context->slb_addr_limit = limit;
 }
 
-#ifdef CONFIG_PPC_64K_PAGES
-static inline struct slice_mask *mm_ctx_slice_mask_64k(mm_context_t *ctx)
-{
-	return &ctx->hash_context->mask_64k;
-}
-#endif
-
-static inline struct slice_mask *mm_ctx_slice_mask_4k(mm_context_t *ctx)
-{
-	return &ctx->hash_context->mask_4k;
-}
-
-#ifdef CONFIG_HUGETLB_PAGE
-static inline struct slice_mask *mm_ctx_slice_mask_16m(mm_context_t *ctx)
-{
-	return &ctx->hash_context->mask_16m;
-}
-
-static inline struct slice_mask *mm_ctx_slice_mask_16g(mm_context_t *ctx)
-{
-	return &ctx->hash_context->mask_16g;
-}
-#endif
-
 static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
 {
 #ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
-		return mm_ctx_slice_mask_64k(&ctx);
+		return &ctx->hash_context->mask_64k;
 #endif
 #ifdef CONFIG_HUGETLB_PAGE
 	if (psize == MMU_PAGE_16M)
-		return mm_ctx_slice_mask_16m(&ctx);
+		return &ctx->hash_context->mask_16m;
 	if (psize == MMU_PAGE_16G)
-		return mm_ctx_slice_mask_16g(&ctx);
+		return &ctx->hash_context->mask_16g;
 #endif
 	BUG_ON(psize != MMU_PAGE_4K);
 
-	return mm_ctx_slice_mask_4k(&ctx);
+	return &ctx->hash_context->mask_4k;
 }
 
 #ifdef CONFIG_PPC_SUBPAGE_PROT

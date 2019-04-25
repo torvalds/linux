@@ -255,23 +255,6 @@ static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long li
 	ctx->slb_addr_limit = limit;
 }
 
-static inline struct slice_mask *mm_ctx_slice_mask_base(mm_context_t *ctx)
-{
-	return &ctx->mask_base_psize;
-}
-
-#ifdef CONFIG_HUGETLB_PAGE
-static inline struct slice_mask *mm_ctx_slice_mask_512k(mm_context_t *ctx)
-{
-	return &ctx->mask_512k;
-}
-
-static inline struct slice_mask *mm_ctx_slice_mask_8m(mm_context_t *ctx)
-{
-	return &ctx->mask_8m;
-}
-#endif
-
 static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
 {
 #ifdef CONFIG_HUGETLB_PAGE
