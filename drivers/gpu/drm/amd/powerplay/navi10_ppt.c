@@ -859,6 +859,177 @@ static int navi10_get_fan_speed_percent(struct smu_context *smu,
 	return ret;
 }
 
+static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	uint32_t i, size = 0;
+	uint16_t workload_type = 0;
+	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	static const char *title[] = {
+			"PROFILE_INDEX(NAME)",
+			"CLOCK_TYPE(NAME)",
+			"FPS",
+			"MinFreqType",
+			"MinActiveFreqType",
+			"MinActiveFreq",
+			"BoosterFreqType",
+			"BoosterFreq",
+			"PD_Data_limit_c",
+			"PD_Data_error_coeff",
+			"PD_Data_error_rate_coeff"};
+	int result = 0;
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
+			title[0], title[1], title[2], title[3], title[4], title[5],
+			title[6], title[7], title[8], title[9], title[10]);
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+		workload_type = smu_workload_get_type(smu, i);
+		result = smu_update_table(smu,
+					  SMU_TABLE_ACTIVITY_MONITOR_COEFF | workload_type << 16,
+					  (void *)(&activity_monitor), false);
+		if (result) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return result;
+		}
+
+		size += sprintf(buf + size, "%2d %14s%s:\n",
+			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			0,
+			"GFXCLK",
+			activity_monitor.Gfx_FPS,
+			activity_monitor.Gfx_MinFreqStep,
+			activity_monitor.Gfx_MinActiveFreqType,
+			activity_monitor.Gfx_MinActiveFreq,
+			activity_monitor.Gfx_BoosterFreqType,
+			activity_monitor.Gfx_BoosterFreq,
+			activity_monitor.Gfx_PD_Data_limit_c,
+			activity_monitor.Gfx_PD_Data_error_coeff,
+			activity_monitor.Gfx_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			1,
+			"SOCCLK",
+			activity_monitor.Soc_FPS,
+			activity_monitor.Soc_MinFreqStep,
+			activity_monitor.Soc_MinActiveFreqType,
+			activity_monitor.Soc_MinActiveFreq,
+			activity_monitor.Soc_BoosterFreqType,
+			activity_monitor.Soc_BoosterFreq,
+			activity_monitor.Soc_PD_Data_limit_c,
+			activity_monitor.Soc_PD_Data_error_coeff,
+			activity_monitor.Soc_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			2,
+			"MEMLK",
+			activity_monitor.Mem_FPS,
+			activity_monitor.Mem_MinFreqStep,
+			activity_monitor.Mem_MinActiveFreqType,
+			activity_monitor.Mem_MinActiveFreq,
+			activity_monitor.Mem_BoosterFreqType,
+			activity_monitor.Mem_BoosterFreq,
+			activity_monitor.Mem_PD_Data_limit_c,
+			activity_monitor.Mem_PD_Data_error_coeff,
+			activity_monitor.Mem_PD_Data_error_rate_coeff);
+	}
+
+	return size;
+}
+
+static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	int workload_type, ret = 0;
+
+	smu->power_profile_mode = input[size];
+
+	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		if (size < 0)
+			return -EINVAL;
+
+		ret = smu_update_table(smu,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       (void *)(&activity_monitor), false);
+		if (ret) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return ret;
+		}
+
+		switch (input[0]) {
+		case 0: /* Gfxclk */
+			activity_monitor.Gfx_FPS = input[1];
+			activity_monitor.Gfx_MinFreqStep = input[2];
+			activity_monitor.Gfx_MinActiveFreqType = input[3];
+			activity_monitor.Gfx_MinActiveFreq = input[4];
+			activity_monitor.Gfx_BoosterFreqType = input[5];
+			activity_monitor.Gfx_BoosterFreq = input[6];
+			activity_monitor.Gfx_PD_Data_limit_c = input[7];
+			activity_monitor.Gfx_PD_Data_error_coeff = input[8];
+			activity_monitor.Gfx_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 1: /* Socclk */
+			activity_monitor.Soc_FPS = input[1];
+			activity_monitor.Soc_MinFreqStep = input[2];
+			activity_monitor.Soc_MinActiveFreqType = input[3];
+			activity_monitor.Soc_MinActiveFreq = input[4];
+			activity_monitor.Soc_BoosterFreqType = input[5];
+			activity_monitor.Soc_BoosterFreq = input[6];
+			activity_monitor.Soc_PD_Data_limit_c = input[7];
+			activity_monitor.Soc_PD_Data_error_coeff = input[8];
+			activity_monitor.Soc_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 2: /* Memlk */
+			activity_monitor.Mem_FPS = input[1];
+			activity_monitor.Mem_MinFreqStep = input[2];
+			activity_monitor.Mem_MinActiveFreqType = input[3];
+			activity_monitor.Mem_MinActiveFreq = input[4];
+			activity_monitor.Mem_BoosterFreqType = input[5];
+			activity_monitor.Mem_BoosterFreq = input[6];
+			activity_monitor.Mem_PD_Data_limit_c = input[7];
+			activity_monitor.Mem_PD_Data_error_coeff = input[8];
+			activity_monitor.Mem_PD_Data_error_rate_coeff = input[9];
+			break;
+		}
+
+		ret = smu_update_table(smu,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       (void *)(&activity_monitor), true);
+		if (ret) {
+			pr_err("[%s] Failed to set activity monitor!", __func__);
+			return ret;
+		}
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
+	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+				    1 << workload_type);
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -888,6 +1059,8 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.is_dpm_running = navi10_is_dpm_running,
 	.set_thermal_fan_table = navi10_set_thermal_fan_table,
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,
+	.get_power_profile_mode = navi10_get_power_profile_mode,
+	.set_power_profile_mode = navi10_set_power_profile_mode,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
