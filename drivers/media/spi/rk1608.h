@@ -122,7 +122,6 @@ struct rk1608_state {
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *gain;
 	struct v4l2_ctrl_handler ctrl_handler;
-	s64 link_freqs;
 	u32 max_speed_hz;
 	u32 min_speed_hz;
 	struct preisp_hdrae_para_s hdrae_para;

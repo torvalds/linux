@@ -503,13 +503,15 @@ static int rk1608_lsb_w32(struct spi_device *spi, s32 addr, s32 data)
 static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
 				  struct msg_init *msg, int id)
 {
+	u32 idx = pdata->dphy[id]->fmt_inf_idx;
+
 	msg->msg_head.size = sizeof(struct msg_init);
 	msg->msg_head.type = id_msg_init_sensor_t;
 	msg->msg_head.id.camera_id = id;
 	msg->msg_head.mux.sync = 1;
 	msg->in_mipi_phy = pdata->dphy[id]->in_mipi;
 	msg->out_mipi_phy = pdata->dphy[id]->out_mipi;
-	msg->mipi_lane = pdata->dphy[id]->mipi_lane;
+	msg->mipi_lane = pdata->dphy[id]->fmt_inf[idx].mipi_lane;
 	msg->bayer = 0;
 	memcpy(msg->sensor_name, pdata->dphy[id]->sensor_name,
 	       sizeof(msg->sensor_name));
@@ -525,17 +527,19 @@ static int rk1608_msg_set_input_size(struct rk1608_state *pdata,
 {
 	u32 i;
 	u32 msg_size = sizeof(struct msg);
+	u32 idx = pdata->dphy[id]->fmt_inf_idx;
+	struct rk1608_fmt_inf *fmt_inf = &pdata->dphy[id]->fmt_inf[idx];
 
 	for (i = 0; i < 4; i++) {
-		if (pdata->dphy[id]->in_ch[i].width == 0)
+		if (fmt_inf->in_ch[i].width == 0)
 			break;
 
-		msg->channel[i].width = pdata->dphy[id]->in_ch[i].width;
-		msg->channel[i].height = pdata->dphy[id]->in_ch[i].height;
-		msg->channel[i].data_id = pdata->dphy[id]->in_ch[i].data_id;
+		msg->channel[i].width = fmt_inf->in_ch[i].width;
+		msg->channel[i].height = fmt_inf->in_ch[i].height;
+		msg->channel[i].data_id = fmt_inf->in_ch[i].data_id;
 		msg->channel[i].decode_format =
-			pdata->dphy[id]->in_ch[i].decode_format;
-		msg->channel[i].flag = pdata->dphy[id]->in_ch[i].flag;
+			fmt_inf->in_ch[i].decode_format;
+		msg->channel[i].flag = fmt_inf->in_ch[i].flag;
 		msg_size += sizeof(struct preisp_vc_cfg);
 	}
 
@@ -552,17 +556,19 @@ static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 {
 	u32 i;
 	u32 msg_size = sizeof(struct msg_out_size_head);
+	u32 idx = pdata->dphy[id]->fmt_inf_idx;
+	struct rk1608_fmt_inf *fmt_inf = &pdata->dphy[id]->fmt_inf[idx];
 
 	for (i = 0; i < 4; i++) {
-		if (pdata->dphy[id]->out_ch[i].width == 0)
+		if (fmt_inf->out_ch[i].width == 0)
 			break;
 
-		msg->channel[i].width = pdata->dphy[id]->out_ch[i].width;
-		msg->channel[i].height = pdata->dphy[id]->out_ch[i].height;
-		msg->channel[i].data_id = pdata->dphy[id]->out_ch[i].data_id;
+		msg->channel[i].width = fmt_inf->out_ch[i].width;
+		msg->channel[i].height = fmt_inf->out_ch[i].height;
+		msg->channel[i].data_id = fmt_inf->out_ch[i].data_id;
 		msg->channel[i].decode_format =
-			pdata->dphy[id]->out_ch[i].decode_format;
-		msg->channel[i].flag = pdata->dphy[id]->out_ch[i].flag;
+			fmt_inf->out_ch[i].decode_format;
+		msg->channel[i].flag = fmt_inf->out_ch[i].flag;
 		msg_size += sizeof(struct preisp_vc_cfg);
 	}
 
@@ -570,12 +576,12 @@ static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 	msg->head.msg_head.type = id_msg_set_output_size_t;
 	msg->head.msg_head.id.camera_id = id;
 	msg->head.msg_head.mux.sync = 1;
-	msg->head.width = pdata->dphy[id]->mf.width;
-	msg->head.height = pdata->dphy[id]->mf.height;
+	msg->head.width = fmt_inf->mf.width;
+	msg->head.height = fmt_inf->mf.height;
 	msg->head.mipi_clk = pdata->dphy[id]->link_freqs;
-	msg->head.line_length_pclk = pdata->dphy[id]->htotal;
-	msg->head.frame_length_lines = pdata->dphy[id]->vtotal;
-	msg->head.mipi_lane = pdata->dphy[id]->mipi_lane;
+	msg->head.line_length_pclk = fmt_inf->htotal;
+	msg->head.frame_length_lines = fmt_inf->vtotal;
+	msg->head.mipi_lane = fmt_inf->mipi_lane;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->head.msg_head);
 }
@@ -973,6 +979,21 @@ static int rk1608_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int rk1608_set_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_format *fmt)
+{
+	struct rk1608_state *pdata = to_state(sd);
+
+	v4l2_subdev_call(pdata->sensor[sd->grp_id],
+			 pad,
+			 set_fmt,
+			 cfg,
+			 fmt);
+
+	return 0;
+}
+
 static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rk1608_state *pdata = to_state(sd);
@@ -1131,9 +1152,14 @@ static const struct v4l2_subdev_core_ops rk1608_core_ops = {
 	.ioctl	 = rk1608_ioctl,
 };
 
+static const struct v4l2_subdev_pad_ops rk1608_subdev_pad_ops = {
+	.set_fmt	= rk1608_set_fmt,
+};
+
 static const struct v4l2_subdev_ops rk1608_subdev_ops = {
 	.core	= &rk1608_core_ops,
 	.video	= &rk1608_subdev_video_ops,
+	.pad	= &rk1608_subdev_pad_ops,
 };
 
 /**

@@ -123,10 +123,10 @@ static int rk1608_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct rk1608_dphy *pdata = to_state(sd);
 
-	if (code->index > 0)
+	if (code->index > pdata->fmt_inf_num)
 		return -EINVAL;
 
-	code->code = pdata->mf.code;
+	code->code = pdata->fmt_inf[code->index].mf.code;
 
 	return 0;
 }
@@ -137,16 +137,16 @@ static int rk1608_enum_frame_sizes(struct v4l2_subdev *sd,
 {
 	struct rk1608_dphy *pdata = to_state(sd);
 
-	if (fse->index > 0)
+	if (fse->index > pdata->fmt_inf_num)
 		return -EINVAL;
 
-	if (fse->code != pdata->mf.code)
+	if (fse->code != pdata->fmt_inf[fse->index].mf.code)
 		return -EINVAL;
 
-	fse->min_width  = pdata->mf.width;
-	fse->max_width  = pdata->mf.width;
-	fse->max_height = pdata->mf.height;
-	fse->min_height = pdata->mf.height;
+	fse->min_width  = pdata->fmt_inf[fse->index].mf.width;
+	fse->max_width  = pdata->fmt_inf[fse->index].mf.width;
+	fse->max_height = pdata->fmt_inf[fse->index].mf.height;
+	fse->min_height = pdata->fmt_inf[fse->index].mf.height;
 
 	return 0;
 }
@@ -157,14 +157,24 @@ static int rk1608_get_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	struct rk1608_dphy *pdata = to_state(sd);
+	u32 idx = pdata->fmt_inf_idx;
 
-	mf->code = pdata->mf.code;
-	mf->width = pdata->mf.width;
-	mf->height = pdata->mf.height;
-	mf->field = pdata->mf.field;
-	mf->colorspace = pdata->mf.colorspace;
+	mf->code = pdata->fmt_inf[idx].mf.code;
+	mf->width = pdata->fmt_inf[idx].mf.width;
+	mf->height = pdata->fmt_inf[idx].mf.height;
+	mf->field = pdata->fmt_inf[idx].mf.field;
+	mf->colorspace = pdata->fmt_inf[idx].mf.colorspace;
 
 	return 0;
+}
+
+static int rk1608_get_reso_dist(struct rk1608_fmt_inf *fmt_inf,
+				struct v4l2_subdev_format *fmt)
+{
+	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
+
+	return abs(fmt_inf->mf.width - framefmt->width) +
+	       abs(fmt_inf->mf.height - framefmt->height);
 }
 
 static int rk1608_set_fmt(struct v4l2_subdev *sd,
@@ -173,6 +183,24 @@ static int rk1608_set_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_ctrl *remote_ctrl;
 	struct rk1608_dphy *pdata = to_state(sd);
+	u32 i, idx = 0;
+	int dist;
+	int cur_best_fit_dist = -1;
+
+	for (i = 0; i < pdata->fmt_inf_num; i++) {
+		dist = rk1608_get_reso_dist(&pdata->fmt_inf[i], fmt);
+		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+			cur_best_fit_dist = dist;
+			idx = i;
+		}
+	}
+
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
+		return -ENOTTY;
+
+	pdata->fmt_inf_idx = idx;
+
+	v4l2_subdev_call(pdata->rk1608_sd, pad, set_fmt, cfg, fmt);
 
 	pdata->rk1608_sd->grp_id = pdata->sd.grp_id;
 	remote_ctrl = v4l2_ctrl_find(pdata->rk1608_sd->ctrl_handler,
@@ -341,6 +369,7 @@ static int rk1608_initialize_controls(struct rk1608_dphy *dphy)
 	u32 i;
 	int ret;
 	s64 pixel_rate, pixel_bit;
+	u32 idx = dphy->fmt_inf_idx;
 	struct v4l2_ctrl_handler *handler;
 	unsigned long flags = V4L2_CTRL_FLAG_VOLATILE |
 			      V4L2_CTRL_FLAG_EXECUTE_ON_WRITE;
@@ -356,7 +385,7 @@ static int rk1608_initialize_controls(struct rk1608_dphy *dphy)
 	if (dphy->link_freq)
 		dphy->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	switch (dphy->data_type) {
+	switch (dphy->fmt_inf[idx].data_type) {
 	case 0x2b:
 		pixel_bit = 10;
 		break;
@@ -367,7 +396,7 @@ static int rk1608_initialize_controls(struct rk1608_dphy *dphy)
 		pixel_bit = 8;
 		break;
 	}
-	pixel_rate = dphy->link_freqs * dphy->mipi_lane * 2;
+	pixel_rate = dphy->link_freqs * dphy->fmt_inf[idx].mipi_lane * 2;
 	do_div(pixel_rate, pixel_bit);
 	dphy->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 					     V4L2_CID_PIXEL_RATE,
@@ -456,90 +485,143 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 {
 	int ret = 0;
 	struct device_node *node = dphy->dev->of_node;
+	struct device_node *parent_node = of_node_get(node);
+	struct device_node *prev_node = NULL;
+	u32 idx = 0;
 
 	ret = of_property_read_u32(node, "id", &dphy->sd.grp_id);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get id!");
+
 	ret = of_property_read_u32(node, "cam_nums", &dphy->cam_nums);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get cam_nums!");
-	ret = of_property_read_u32(node, "data_type", &dphy->data_type);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get data_type!");
+
 	ret = of_property_read_u32(node, "in_mipi", &dphy->in_mipi);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get in_mipi!");
+
 	ret = of_property_read_u32(node, "out_mipi", &dphy->out_mipi);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get out_mipi!");
-	ret = of_property_read_u32(node, "mipi_lane", &dphy->mipi_lane);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get mipi_lane!");
-	ret = of_property_read_u32(node, "sensor_i2c_bus", &dphy->i2c_bus);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get sensor_i2c_bus!");
-	ret = of_property_read_u32(node, "sensor_i2c_addr", &dphy->i2c_addr);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get sensor_i2c_addr!");
-	ret = of_property_read_u32(node, "field", &dphy->mf.field);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get field!");
-	ret = of_property_read_u32(node, "colorspace", &dphy->mf.colorspace);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get colorspace!");
-	ret = of_property_read_u32(node, "code", &dphy->mf.code);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get code!");
-	ret = of_property_read_u32(node, "width", &dphy->mf.width);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get width!");
-	ret = of_property_read_u32(node, "height", &dphy->mf.height);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get height!");
-	ret = of_property_read_u32(node, "htotal", &dphy->htotal);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get htotal!");
-	ret = of_property_read_u32(node, "vtotal", &dphy->vtotal);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get vtotal!");
+
 	ret = of_property_read_u64(node, "link-freqs", &dphy->link_freqs);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get link_freqs!");
+
+	ret = of_property_read_u32(node, "sensor_i2c_bus", &dphy->i2c_bus);
+	if (ret)
+		dev_warn(dphy->dev, "Can not get sensor_i2c_bus!");
+
+	ret = of_property_read_u32(node, "sensor_i2c_addr", &dphy->i2c_addr);
+	if (ret)
+		dev_warn(dphy->dev, "Can not get sensor_i2c_addr!");
+
 	ret = of_property_read_string(node, "sensor-name", &dphy->sensor_name);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get sensor-name!");
-	ret = of_property_read_u32_array(node, "inch0-info",
-		(u32 *)&dphy->in_ch[0], 5);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get inch0-info!");
-	ret = of_property_read_u32_array(node, "inch1-info",
-		(u32 *)&dphy->in_ch[1], 5);
-	if (ret)
-		dev_info(dphy->dev, "Can not get inch1-info!");
-	ret = of_property_read_u32_array(node, "inch2-info",
-		(u32 *)&dphy->in_ch[2], 5);
-	if (ret)
-		dev_info(dphy->dev, "Can not get inch2-info!");
-	ret = of_property_read_u32_array(node, "inch3-info",
-		(u32 *)&dphy->in_ch[3], 5);
-	if (ret)
-		dev_info(dphy->dev, "Can not get inch3-info!");
-	ret = of_property_read_u32_array(node, "outch0-info",
-		(u32 *)&dphy->out_ch[0], 5);
-	if (ret)
-		dev_warn(dphy->dev, "Can not get outch0-info!");
-	ret = of_property_read_u32_array(node, "outch1-info",
-		(u32 *)&dphy->out_ch[1], 5);
-	if (ret)
-		dev_info(dphy->dev, "Can not get outch1-info!");
-	ret = of_property_read_u32_array(node, "outch2-info",
-		(u32 *)&dphy->out_ch[2], 5);
-	if (ret)
-		dev_info(dphy->dev, "Can not get outch2-info!");
-	ret = of_property_read_u32_array(node, "outch3-info",
-		(u32 *)&dphy->out_ch[3], 5);
-	if (ret)
-		dev_info(dphy->dev, "Can not get outch3-info!");
+
+	node = NULL;
+	while (!IS_ERR_OR_NULL(node =
+				of_get_next_child(parent_node, prev_node))) {
+		if (!strncasecmp(node->name,
+				 "format-config",
+				 strlen("format-config"))) {
+			ret = of_property_read_u32(node, "data_type",
+				&dphy->fmt_inf[idx].data_type);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get data_type!");
+
+			ret = of_property_read_u32(node, "mipi_lane",
+				&dphy->fmt_inf[idx].mipi_lane);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get mipi_lane!");
+
+			ret = of_property_read_u32(node, "field",
+				&dphy->fmt_inf[idx].mf.field);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get field!");
+
+			ret = of_property_read_u32(node, "colorspace",
+				&dphy->fmt_inf[idx].mf.colorspace);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get colorspace!");
+
+			ret = of_property_read_u32(node, "code",
+				&dphy->fmt_inf[idx].mf.code);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get code!");
+
+			ret = of_property_read_u32(node, "width",
+				&dphy->fmt_inf[idx].mf.width);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get width!");
+
+			ret = of_property_read_u32(node, "height",
+				&dphy->fmt_inf[idx].mf.height);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get height!");
+
+			ret = of_property_read_u32(node, "htotal",
+				&dphy->fmt_inf[idx].htotal);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get htotal!");
+
+			ret = of_property_read_u32(node, "vtotal",
+				&dphy->fmt_inf[idx].vtotal);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get vtotal!");
+
+			ret = of_property_read_u32_array(node, "inch0-info",
+				(u32 *)&dphy->fmt_inf[idx].in_ch[0], 5);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get inch0-info!");
+
+			ret = of_property_read_u32_array(node, "inch1-info",
+				(u32 *)&dphy->fmt_inf[idx].in_ch[1], 5);
+			if (ret)
+				dev_info(dphy->dev, "Can not get inch1-info!");
+
+			ret = of_property_read_u32_array(node, "inch2-info",
+				(u32 *)&dphy->fmt_inf[idx].in_ch[2], 5);
+			if (ret)
+				dev_info(dphy->dev, "Can not get inch2-info!");
+
+			ret = of_property_read_u32_array(node, "inch3-info",
+				(u32 *)&dphy->fmt_inf[idx].in_ch[3], 5);
+			if (ret)
+				dev_info(dphy->dev, "Can not get inch3-info!");
+
+			ret = of_property_read_u32_array(node, "outch0-info",
+				(u32 *)&dphy->fmt_inf[idx].out_ch[0], 5);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get outch0-info!");
+
+			ret = of_property_read_u32_array(node, "outch1-info",
+				(u32 *)&dphy->fmt_inf[idx].out_ch[1], 5);
+			if (ret)
+				dev_info(dphy->dev, "Can not get outch1-info!");
+
+			ret = of_property_read_u32_array(node, "outch2-info",
+				(u32 *)&dphy->fmt_inf[idx].out_ch[2], 5);
+			if (ret)
+				dev_info(dphy->dev, "Can not get outch2-info!");
+
+			ret = of_property_read_u32_array(node, "outch3-info",
+				(u32 *)&dphy->fmt_inf[idx].out_ch[3], 5);
+			if (ret)
+				dev_info(dphy->dev, "Can not get outch3-info!");
+
+			idx++;
+		}
+
+		of_node_put(prev_node);
+		prev_node = node;
+	}
+	dphy->fmt_inf_num = idx;
+
+	of_node_put(prev_node);
+	of_node_put(parent_node);
 
 	return ret;
 }
