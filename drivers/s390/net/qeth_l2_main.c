@@ -161,15 +161,6 @@ static void qeth_l2_drain_rx_mode_cache(struct qeth_card *card)
 	}
 }
 
-static int qeth_l2_get_cast_type(struct sk_buff *skb)
-{
-	if (is_broadcast_ether_addr(skb->data))
-		return RTN_BROADCAST;
-	if (is_multicast_ether_addr(skb->data))
-		return RTN_MULTICAST;
-	return RTN_UNICAST;
-}
-
 static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
 				struct qeth_hdr *hdr, struct sk_buff *skb,
 				int ipv, int cast_type, unsigned int data_len)
@@ -611,7 +602,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 		rc = qeth_l2_xmit_osn(card, skb, queue);
 	else
 		rc = qeth_xmit(card, skb, queue, qeth_get_ip_version(skb),
-			       qeth_l2_get_cast_type(skb), qeth_l2_fill_header);
+			       qeth_get_ether_cast_type(skb),
+			       qeth_l2_fill_header);
 
 	if (!rc) {
 		QETH_TXQ_STAT_INC(queue, tx_packets);
@@ -631,7 +623,7 @@ static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 	if (IS_IQD(card))
 		return qeth_iqd_select_queue(dev, skb,
-					     qeth_l2_get_cast_type(skb),
+					     qeth_get_ether_cast_type(skb),
 					     sb_dev);
 	return qeth_get_priority_queue(card, skb);
 }

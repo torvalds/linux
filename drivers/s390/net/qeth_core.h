@@ -881,6 +881,16 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	}
 }
 
+static inline int qeth_get_ether_cast_type(struct sk_buff *skb)
+{
+	u8 *addr = eth_hdr(skb)->h_dest;
+
+	if (is_multicast_ether_addr(addr))
+		return is_broadcast_ether_addr(addr) ? RTN_BROADCAST :
+						       RTN_MULTICAST;
+	return RTN_UNICAST;
+}
+
 static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,
 				u8 flags)
 {

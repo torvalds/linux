@@ -1918,13 +1918,7 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 				RTN_MULTICAST : RTN_UNICAST;
 	default:
 		/* ... and MAC address */
-		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest,
-					    skb->dev->broadcast))
-			return RTN_BROADCAST;
-		if (is_multicast_ether_addr(eth_hdr(skb)->h_dest))
-			return RTN_MULTICAST;
-		/* default to unicast */
-		return RTN_UNICAST;
+		return qeth_get_ether_cast_type(skb);
 	}
 }
 
