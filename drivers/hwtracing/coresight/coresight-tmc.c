@@ -340,6 +340,8 @@ static inline bool tmc_etr_can_use_sg(struct tmc_drvdata *drvdata)
 static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 			     u32 devid, void *dev_caps)
 {
+	int rc;
+
 	u32 dma_mask = 0;
 
 	/* Set the unadvertised capabilities */
@@ -369,7 +371,10 @@ static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 		dma_mask = 40;
 	}
 
-	return dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
+	rc = dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
+	if (rc)
+		dev_err(drvdata->dev, "Failed to setup DMA mask: %d\n", rc);
+	return rc;
 }
 
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
