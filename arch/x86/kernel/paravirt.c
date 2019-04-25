@@ -73,21 +73,21 @@ struct branch {
 static unsigned paravirt_patch_call(void *insnbuf, const void *target,
 				    unsigned long addr, unsigned len)
 {
+	const int call_len = 5;
 	struct branch *b = insnbuf;
-	unsigned long delta = (unsigned long)target - (addr+5);
+	unsigned long delta = (unsigned long)target - (addr+call_len);
 
-	if (len < 5) {
-#ifdef CONFIG_RETPOLINE
-		WARN_ONCE(1, "Failing to patch indirect CALL in %ps\n", (void *)addr);
-#endif
-		return len;	/* call too long for patch site */
+	if (len < call_len) {
+		pr_warn("paravirt: Failed to patch indirect CALL at %ps\n", (void *)addr);
+		/* Kernel might not be viable if patching fails, bail out: */
+		BUG_ON(1);
 	}
 
 	b->opcode = 0xe8; /* call */
 	b->delta = delta;
-	BUILD_BUG_ON(sizeof(*b) != 5);
+	BUILD_BUG_ON(sizeof(*b) != call_len);
 
-	return 5;
+	return call_len;
 }
 
 #ifdef CONFIG_PARAVIRT_XXL
