@@ -26,6 +26,7 @@ static int afs_dir_open(struct inode *inode, struct file *file);
 static int afs_readdir(struct file *file, struct dir_context *ctx);
 static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
 static int afs_d_delete(const struct dentry *dentry);
+static void afs_d_iput(struct dentry *dentry, struct inode *inode);
 static int afs_lookup_one_filldir(struct dir_context *ctx, const char *name, int nlen,
 				  loff_t fpos, u64 ino, unsigned dtype);
 static int afs_lookup_filldir(struct dir_context *ctx, const char *name, int nlen,
@@ -85,6 +86,7 @@ const struct dentry_operations afs_fs_dentry_operations = {
 	.d_delete	= afs_d_delete,
 	.d_release	= afs_d_release,
 	.d_automount	= afs_d_automount,
+	.d_iput		= afs_d_iput,
 };
 
 struct afs_lookup_one_cookie {
@@ -1084,6 +1086,16 @@ zap:
 }
 
 /*
+ * Clean up sillyrename files on dentry removal.
+ */
+static void afs_d_iput(struct dentry *dentry, struct inode *inode)
+{
+	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
+		afs_silly_iput(dentry, inode);
+	iput(inode);
+}
+
+/*
  * handle dentry release
  */
 void afs_d_release(struct dentry *dentry)
@@ -1225,6 +1237,12 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 			goto error_key;
 	}
 
+	if (vnode) {
+		ret = down_write_killable(&vnode->rmdir_lock);
+		if (ret < 0)
+			goto error_key;
+	}
+
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
@@ -1243,6 +1261,8 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 		}
 	}
 
+	if (vnode)
+		up_write(&vnode->rmdir_lock);
 error_key:
 	key_put(key);
 error:
@@ -1259,9 +1279,9 @@ error:
  * However, if we didn't have a callback promise outstanding, or it was
  * outstanding on a different server, then it won't break it either...
  */
-static int afs_dir_remove_link(struct dentry *dentry, struct key *key,
-			       unsigned long d_version_before,
-			       unsigned long d_version_after)
+int afs_dir_remove_link(struct dentry *dentry, struct key *key,
+			unsigned long d_version_before,
+			unsigned long d_version_after)
 {
 	bool dir_valid;
 	int ret = 0;
@@ -1308,6 +1328,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode = NULL;
 	struct key *key;
 	unsigned long d_version = (unsigned long)dentry->d_fsdata;
+	bool need_rehash = false;
 	u64 data_version = dvnode->status.data_version;
 	int ret;
 
@@ -1330,6 +1351,21 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 		if (ret < 0)
 			goto error_key;
 	}
+
+	spin_lock(&dentry->d_lock);
+	if (vnode && d_count(dentry) > 1) {
+		spin_unlock(&dentry->d_lock);
+		/* Start asynchronous writeout of the inode */
+		write_inode_now(d_inode(dentry), 0);
+		ret = afs_sillyrename(dvnode, vnode, dentry, key);
+		goto error_key;
+	}
+	if (!d_unhashed(dentry)) {
+		/* Prevent a race with RCU lookup. */
+		__d_drop(dentry);
+		need_rehash = true;
+	}
+	spin_unlock(&dentry->d_lock);
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
@@ -1361,6 +1397,9 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 			afs_edit_dir_remove(dvnode, &dentry->d_name,
 					    afs_edit_dir_for_unlink);
 	}
+
+	if (need_rehash && ret < 0 && ret != -ENOENT)
+		d_rehash(dentry);
 
 error_key:
 	key_put(key);
@@ -1582,12 +1621,18 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct afs_fs_cursor fc;
 	struct afs_vnode *orig_dvnode, *new_dvnode, *vnode;
+	struct dentry *tmp = NULL, *rehash = NULL;
+	struct inode *new_inode;
 	struct key *key;
 	u64 orig_data_version, new_data_version;
 	bool new_negative = d_is_negative(new_dentry);
 	int ret;
 
 	if (flags)
+		return -EINVAL;
+
+	/* Don't allow silly-rename files be moved around. */
+	if (old_dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		return -EINVAL;
 
 	vnode = AFS_FS_I(d_inode(old_dentry));
@@ -1608,12 +1653,48 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto error;
 	}
 
+	/* For non-directories, check whether the target is busy and if so,
+	 * make a copy of the dentry and then do a silly-rename.  If the
+	 * silly-rename succeeds, the copied dentry is hashed and becomes the
+	 * new target.
+	 */
+	if (d_is_positive(new_dentry) && !d_is_dir(new_dentry)) {
+		/* To prevent any new references to the target during the
+		 * rename, we unhash the dentry in advance.
+		 */
+		if (!d_unhashed(new_dentry)) {
+			d_drop(new_dentry);
+			rehash = new_dentry;
+		}
+
+		if (d_count(new_dentry) > 2) {
+			/* copy the target dentry's name */
+			ret = -ENOMEM;
+			tmp = d_alloc(new_dentry->d_parent,
+				      &new_dentry->d_name);
+			if (!tmp)
+				goto error_rehash;
+
+			ret = afs_sillyrename(new_dvnode,
+					      AFS_FS_I(d_inode(new_dentry)),
+					      new_dentry, key);
+			if (ret)
+				goto error_rehash;
+
+			new_dentry = tmp;
+			rehash = NULL;
+			new_negative = true;
+			orig_data_version = orig_dvnode->status.data_version;
+			new_data_version = new_dvnode->status.data_version;
+		}
+	}
+
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, orig_dvnode, key)) {
 		if (orig_dvnode != new_dvnode) {
 			if (mutex_lock_interruptible_nested(&new_dvnode->io_lock, 1) < 0) {
 				afs_end_vnode_operation(&fc);
-				goto error_key;
+				goto error_rehash;
 			}
 		}
 		while (afs_select_fileserver(&fc)) {
@@ -1630,25 +1711,42 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			mutex_unlock(&new_dvnode->io_lock);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
-			goto error_key;
+			goto error_rehash;
 	}
 
 	if (ret == 0) {
+		if (rehash)
+			d_rehash(rehash);
 		if (test_bit(AFS_VNODE_DIR_VALID, &orig_dvnode->flags))
 		    afs_edit_dir_remove(orig_dvnode, &old_dentry->d_name,
-					afs_edit_dir_for_rename);
+					afs_edit_dir_for_rename_0);
 
 		if (!new_negative &&
 		    test_bit(AFS_VNODE_DIR_VALID, &new_dvnode->flags))
 			afs_edit_dir_remove(new_dvnode, &new_dentry->d_name,
-					    afs_edit_dir_for_rename);
+					    afs_edit_dir_for_rename_1);
 
 		if (test_bit(AFS_VNODE_DIR_VALID, &new_dvnode->flags))
 			afs_edit_dir_add(new_dvnode, &new_dentry->d_name,
-					 &vnode->fid,  afs_edit_dir_for_rename);
+					 &vnode->fid, afs_edit_dir_for_rename_2);
+
+		new_inode = d_inode(new_dentry);
+		if (new_inode) {
+			spin_lock(&new_inode->i_lock);
+			if (new_inode->i_nlink > 0)
+				drop_nlink(new_inode);
+			spin_unlock(&new_inode->i_lock);
+		}
+		d_move(old_dentry, new_dentry);
+		goto error_tmp;
 	}
 
-error_key:
+error_rehash:
+	if (rehash)
+		d_rehash(rehash);
+error_tmp:
+	if (tmp)
+		dput(tmp);
 	key_put(key);
 error:
 	_leave(" = %d", ret);

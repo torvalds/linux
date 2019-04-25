@@ -108,8 +108,12 @@ enum afs_edit_dir_reason {
 	afs_edit_dir_for_create,
 	afs_edit_dir_for_link,
 	afs_edit_dir_for_mkdir,
-	afs_edit_dir_for_rename,
+	afs_edit_dir_for_rename_0,
+	afs_edit_dir_for_rename_1,
+	afs_edit_dir_for_rename_2,
 	afs_edit_dir_for_rmdir,
+	afs_edit_dir_for_silly_0,
+	afs_edit_dir_for_silly_1,
 	afs_edit_dir_for_symlink,
 	afs_edit_dir_for_unlink,
 };
@@ -161,6 +165,7 @@ enum afs_flock_event {
 	afs_flock_fail_perm,
 	afs_flock_no_lockers,
 	afs_flock_release_fail,
+	afs_flock_silly_delete,
 	afs_flock_timestamp,
 	afs_flock_try_to_lock,
 	afs_flock_vfs_lock,
@@ -273,8 +278,12 @@ enum afs_flock_operation {
 	EM(afs_edit_dir_for_create,		"Create") \
 	EM(afs_edit_dir_for_link,		"Link  ") \
 	EM(afs_edit_dir_for_mkdir,		"MkDir ") \
-	EM(afs_edit_dir_for_rename,		"Rename") \
+	EM(afs_edit_dir_for_rename_0,		"Renam0") \
+	EM(afs_edit_dir_for_rename_1,		"Renam1") \
+	EM(afs_edit_dir_for_rename_2,		"Renam2") \
 	EM(afs_edit_dir_for_rmdir,		"RmDir ") \
+	EM(afs_edit_dir_for_silly_0,		"S_Ren0") \
+	EM(afs_edit_dir_for_silly_1,		"S_Ren1") \
 	EM(afs_edit_dir_for_symlink,		"Symlnk") \
 	E_(afs_edit_dir_for_unlink,		"Unlink")
 
@@ -337,6 +346,7 @@ enum afs_flock_operation {
 	EM(afs_flock_fail_perm,			"ErrPerm ")		\
 	EM(afs_flock_no_lockers,		"NoLocker")		\
 	EM(afs_flock_release_fail,		"Rel_Fail")		\
+	EM(afs_flock_silly_delete,		"SillyDel")		\
 	EM(afs_flock_timestamp,			"Timestmp")		\
 	EM(afs_flock_try_to_lock,		"TryToLck")		\
 	EM(afs_flock_vfs_lock,			"VFSLock ")		\
@@ -962,6 +972,26 @@ TRACE_EVENT(afs_reload_dir,
 
 	    TP_printk("%llx:%llx:%x",
 		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique)
+	    );
+
+TRACE_EVENT(afs_silly_rename,
+	    TP_PROTO(struct afs_vnode *vnode, bool done),
+
+	    TP_ARGS(vnode, done),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid		)
+		    __field(bool,			done		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->fid = vnode->fid;
+		    __entry->done = done;
+			   ),
+
+	    TP_printk("%llx:%llx:%x done=%u",
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->done)
 	    );
 
 #endif /* _TRACE_AFS_H */

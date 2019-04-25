@@ -300,7 +300,7 @@ again:
 		/* attempt to release the server lock; if it fails, we just
 		 * wait 5 minutes and it'll expire anyway */
 		ret = afs_release_lock(vnode, vnode->lock_key);
-		if (ret < 0) {
+		if (ret < 0 && vnode->lock_state != AFS_VNODE_LOCK_DELETED) {
 			trace_afs_flock_ev(vnode, NULL, afs_flock_release_fail,
 					   ret);
 			printk(KERN_WARNING "AFS:"

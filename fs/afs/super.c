@@ -45,7 +45,7 @@ struct file_system_type afs_fs_type = {
 	.init_fs_context	= afs_init_fs_context,
 	.parameters		= &afs_fs_parameters,
 	.kill_sb		= afs_kill_super,
-	.fs_flags		= 0,
+	.fs_flags		= FS_RENAME_DOES_D_MOVE,
 };
 MODULE_ALIAS_FS("afs");
 
@@ -655,6 +655,8 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
 	vnode->cb_type		= 0;
 	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
+
+	init_rwsem(&vnode->rmdir_lock);
 
 	_leave(" = %p", &vnode->vfs_inode);
 	return &vnode->vfs_inode;

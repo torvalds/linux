@@ -621,6 +621,8 @@ struct afs_vnode {
 	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
 	struct rw_semaphore	validate_lock;	/* lock for validating this vnode */
+	struct rw_semaphore	rmdir_lock;	/* Lock for rmdir vs sillyrename */
+	struct key		*silly_key;	/* Silly rename key */
 	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
@@ -866,6 +868,7 @@ extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
 extern void afs_d_release(struct dentry *);
+extern int afs_dir_remove_link(struct dentry *, struct key *, unsigned long, unsigned long);
 
 /*
  * dir_edit.c
@@ -873,6 +876,13 @@ extern void afs_d_release(struct dentry *);
 extern void afs_edit_dir_add(struct afs_vnode *, struct qstr *, struct afs_fid *,
 			     enum afs_edit_dir_reason);
 extern void afs_edit_dir_remove(struct afs_vnode *, struct qstr *, enum afs_edit_dir_reason);
+
+/*
+ * dir_silly.c
+ */
+extern int afs_sillyrename(struct afs_vnode *, struct afs_vnode *,
+			   struct dentry *, struct key *);
+extern int afs_silly_iput(struct dentry *, struct inode *);
 
 /*
  * dynroot.c
