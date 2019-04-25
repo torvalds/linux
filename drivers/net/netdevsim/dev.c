@@ -17,6 +17,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/list.h>
 #include <linux/random.h>
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
@@ -43,6 +44,30 @@ static void nsim_dev_debugfs_exit(struct nsim_dev *nsim_dev)
 {
 	debugfs_remove_recursive(nsim_dev->ports_ddir);
 	debugfs_remove_recursive(nsim_dev->ddir);
+}
+
+static int nsim_dev_port_debugfs_init(struct nsim_dev *nsim_dev,
+				      struct nsim_dev_port *nsim_dev_port)
+{
+	char port_ddir_name[16];
+	char dev_link_name[32];
+
+	sprintf(port_ddir_name, "%u", nsim_dev_port->port_index);
+	nsim_dev_port->ddir = debugfs_create_dir(port_ddir_name,
+						 nsim_dev->ports_ddir);
+	if (IS_ERR_OR_NULL(nsim_dev_port->ddir))
+		return -ENOMEM;
+
+	sprintf(dev_link_name, "../../../" DRV_NAME "%u",
+		nsim_dev->nsim_bus_dev->dev.id);
+	debugfs_create_symlink("dev", nsim_dev_port->ddir, dev_link_name);
+
+	return 0;
+}
+
+static void nsim_dev_port_debugfs_exit(struct nsim_dev_port *nsim_dev_port)
+{
+	debugfs_remove_recursive(nsim_dev_port->ddir);
 }
 
 static u64 nsim_dev_ipv4_fib_resource_occ_get(void *priv)
@@ -198,7 +223,8 @@ static const struct devlink_ops nsim_dev_devlink_ops = {
 	.reload = nsim_dev_reload,
 };
 
-static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
+static struct nsim_dev *
+nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev, unsigned int port_count)
 {
 	struct nsim_dev *nsim_dev;
 	struct devlink *devlink;
@@ -211,6 +237,7 @@ static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
 	nsim_dev->nsim_bus_dev = nsim_bus_dev;
 	nsim_dev->switch_id.id_len = sizeof(nsim_dev->switch_id.id);
 	get_random_bytes(nsim_dev->switch_id.id, nsim_dev->switch_id.id_len);
+	INIT_LIST_HEAD(&nsim_dev->port_list);
 
 	nsim_dev->fib_data = nsim_fib_create();
 	if (IS_ERR(nsim_dev->fib_data)) {
@@ -249,20 +276,6 @@ err_devlink_free:
 	return ERR_PTR(err);
 }
 
-struct nsim_dev *
-nsim_dev_create_with_ns(struct nsim_bus_dev *nsim_bus_dev,
-			struct netdevsim *ns)
-{
-	struct nsim_dev *nsim_dev;
-
-	dev_hold(ns->netdev);
-	rtnl_unlock();
-	nsim_dev = nsim_dev_create(nsim_bus_dev);
-	rtnl_lock();
-	dev_put(ns->netdev);
-	return nsim_dev;
-}
-
 void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 {
 	struct devlink *devlink = priv_to_devlink(nsim_dev);
@@ -273,6 +286,93 @@ void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 	devlink_resources_unregister(devlink, NULL);
 	nsim_fib_destroy(nsim_dev->fib_data);
 	devlink_free(devlink);
+}
+
+static int nsim_dev_port_add(struct nsim_dev *nsim_dev, unsigned int port_index)
+{
+	struct nsim_dev_port *nsim_dev_port;
+	struct devlink_port *devlink_port;
+	int err;
+
+	nsim_dev_port = kzalloc(sizeof(*nsim_dev_port), GFP_KERNEL);
+	if (!nsim_dev_port)
+		return -ENOMEM;
+	nsim_dev_port->port_index = port_index;
+
+	devlink_port = &nsim_dev_port->devlink_port;
+	devlink_port_attrs_set(devlink_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
+			       port_index + 1, 0, 0,
+			       nsim_dev->switch_id.id,
+			       nsim_dev->switch_id.id_len);
+	err = devlink_port_register(priv_to_devlink(nsim_dev), devlink_port,
+				    port_index);
+	if (err)
+		goto err_port_free;
+
+	err = nsim_dev_port_debugfs_init(nsim_dev, nsim_dev_port);
+	if (err)
+		goto err_dl_port_unregister;
+
+	list_add(&nsim_dev_port->list, &nsim_dev->port_list);
+
+	return 0;
+
+err_dl_port_unregister:
+	devlink_port_unregister(devlink_port);
+err_port_free:
+	kfree(nsim_dev_port);
+	return err;
+}
+
+static void nsim_dev_port_del(struct nsim_dev_port *nsim_dev_port)
+{
+	struct devlink_port *devlink_port = &nsim_dev_port->devlink_port;
+
+	list_del(&nsim_dev_port->list);
+	nsim_dev_port_debugfs_exit(nsim_dev_port);
+	devlink_port_unregister(devlink_port);
+	kfree(nsim_dev_port);
+}
+
+static void nsim_dev_port_del_all(struct nsim_dev *nsim_dev)
+{
+	struct nsim_dev_port *nsim_dev_port, *tmp;
+
+	list_for_each_entry_safe(nsim_dev_port, tmp,
+				 &nsim_dev->port_list, list)
+		nsim_dev_port_del(nsim_dev_port);
+}
+
+int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
+{
+	struct nsim_dev *nsim_dev;
+	int i;
+	int err;
+
+	nsim_dev = nsim_dev_create(nsim_bus_dev, nsim_bus_dev->port_count);
+	if (IS_ERR(nsim_dev))
+		return PTR_ERR(nsim_dev);
+	dev_set_drvdata(&nsim_bus_dev->dev, nsim_dev);
+
+	for (i = 0; i < nsim_bus_dev->port_count; i++) {
+		err = nsim_dev_port_add(nsim_dev, i);
+		if (err)
+			goto err_port_del_all;
+	}
+	return 0;
+
+err_port_del_all:
+	nsim_dev_port_del_all(nsim_dev);
+	nsim_dev_destroy(nsim_dev);
+	return err;
+}
+
+void nsim_dev_remove(struct nsim_bus_dev *nsim_bus_dev)
+{
+	struct nsim_dev *nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
+
+	nsim_dev_port_del_all(nsim_dev);
+	nsim_dev_destroy(nsim_dev);
 }
 
 int nsim_dev_init(void)

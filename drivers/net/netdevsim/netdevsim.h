@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
+#include <net/devlink.h>
 #include <net/xdp.h>
 
 #define DRV_NAME	"netdevsim"
@@ -130,6 +131,13 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6_FIB_RULES,
 };
 
+struct nsim_dev_port {
+	struct list_head list;
+	struct devlink_port devlink_port;
+	unsigned int port_index;
+	struct dentry *ddir;
+};
+
 struct nsim_dev {
 	struct nsim_bus_dev *nsim_bus_dev;
 	struct nsim_fib_data *fib_data;
@@ -143,14 +151,13 @@ struct nsim_dev {
 	struct list_head bpf_bound_progs;
 	struct list_head bpf_bound_maps;
 	struct netdev_phys_item_id switch_id;
+	struct list_head port_list;
 };
 
-struct nsim_dev *
-nsim_dev_create_with_ns(struct nsim_bus_dev *nsim_bus_dev,
-			struct netdevsim *ns);
-void nsim_dev_destroy(struct nsim_dev *nsim_dev);
 int nsim_dev_init(void);
 void nsim_dev_exit(void);
+int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev);
+void nsim_dev_remove(struct nsim_bus_dev *nsim_bus_dev);
 
 struct nsim_fib_data *nsim_fib_create(void);
 void nsim_fib_destroy(struct nsim_fib_data *fib_data);
@@ -201,6 +208,7 @@ struct nsim_bus_dev {
 };
 
 struct nsim_bus_dev *nsim_bus_dev_new(unsigned int id, unsigned int port_count);
+struct nsim_bus_dev *nsim_bus_dev_new_with_ns(struct netdevsim *ns);
 void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev);
 int nsim_bus_init(void);
 void nsim_bus_exit(void);

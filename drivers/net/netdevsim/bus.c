@@ -194,6 +194,21 @@ static struct attribute *nsim_bus_attrs[] = {
 };
 ATTRIBUTE_GROUPS(nsim_bus);
 
+static int nsim_bus_probe(struct device *dev)
+{
+	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+
+	return nsim_dev_probe(nsim_bus_dev);
+}
+
+static int nsim_bus_remove(struct device *dev)
+{
+	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+
+	nsim_dev_remove(nsim_bus_dev);
+	return 0;
+}
+
 int nsim_num_vf(struct device *dev)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
@@ -205,6 +220,8 @@ static struct bus_type nsim_bus = {
 	.name		= DRV_NAME,
 	.dev_name	= DRV_NAME,
 	.bus_groups	= nsim_bus_groups,
+	.probe		= nsim_bus_probe,
+	.remove		= nsim_bus_remove,
 	.num_vf		= nsim_num_vf,
 };
 
@@ -236,6 +253,18 @@ err_nsim_bus_dev_id_free:
 err_nsim_bus_dev_free:
 	kfree(nsim_bus_dev);
 	return ERR_PTR(err);
+}
+
+struct nsim_bus_dev *nsim_bus_dev_new_with_ns(struct netdevsim *ns)
+{
+	struct nsim_bus_dev *nsim_bus_dev;
+
+	dev_hold(ns->netdev);
+	rtnl_unlock();
+	nsim_bus_dev = nsim_bus_dev_new(~0, 0);
+	rtnl_lock();
+	dev_put(ns->netdev);
+	return nsim_bus_dev;
 }
 
 void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
