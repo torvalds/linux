@@ -152,12 +152,17 @@ struct nsim_dev {
 	struct list_head bpf_bound_maps;
 	struct netdev_phys_item_id switch_id;
 	struct list_head port_list;
+	struct mutex port_list_lock; /* protects port list */
 };
 
 int nsim_dev_init(void);
 void nsim_dev_exit(void);
 int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev);
 void nsim_dev_remove(struct nsim_bus_dev *nsim_bus_dev);
+int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
+		      unsigned int port_index);
+int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
+		      unsigned int port_index);
 
 struct nsim_fib_data *nsim_fib_create(void);
 void nsim_fib_destroy(struct nsim_fib_data *fib_data);

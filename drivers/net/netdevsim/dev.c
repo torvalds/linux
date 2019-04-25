@@ -18,6 +18,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/random.h>
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
@@ -238,6 +239,7 @@ nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev, unsigned int port_count)
 	nsim_dev->switch_id.id_len = sizeof(nsim_dev->switch_id.id);
 	get_random_bytes(nsim_dev->switch_id.id, nsim_dev->switch_id.id_len);
 	INIT_LIST_HEAD(&nsim_dev->port_list);
+	mutex_init(&nsim_dev->port_list_lock);
 
 	nsim_dev->fib_data = nsim_fib_create();
 	if (IS_ERR(nsim_dev->fib_data)) {
@@ -285,10 +287,12 @@ void nsim_dev_destroy(struct nsim_dev *nsim_dev)
 	devlink_unregister(devlink);
 	devlink_resources_unregister(devlink, NULL);
 	nsim_fib_destroy(nsim_dev->fib_data);
+	mutex_destroy(&nsim_dev->port_list_lock);
 	devlink_free(devlink);
 }
 
-static int nsim_dev_port_add(struct nsim_dev *nsim_dev, unsigned int port_index)
+static int __nsim_dev_port_add(struct nsim_dev *nsim_dev,
+			       unsigned int port_index)
 {
 	struct nsim_dev_port *nsim_dev_port;
 	struct devlink_port *devlink_port;
@@ -324,7 +328,7 @@ err_port_free:
 	return err;
 }
 
-static void nsim_dev_port_del(struct nsim_dev_port *nsim_dev_port)
+static void __nsim_dev_port_del(struct nsim_dev_port *nsim_dev_port)
 {
 	struct devlink_port *devlink_port = &nsim_dev_port->devlink_port;
 
@@ -340,7 +344,7 @@ static void nsim_dev_port_del_all(struct nsim_dev *nsim_dev)
 
 	list_for_each_entry_safe(nsim_dev_port, tmp,
 				 &nsim_dev->port_list, list)
-		nsim_dev_port_del(nsim_dev_port);
+		__nsim_dev_port_del(nsim_dev_port);
 }
 
 int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
@@ -355,7 +359,7 @@ int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
 	dev_set_drvdata(&nsim_bus_dev->dev, nsim_dev);
 
 	for (i = 0; i < nsim_bus_dev->port_count; i++) {
-		err = nsim_dev_port_add(nsim_dev, i);
+		err = __nsim_dev_port_add(nsim_dev, i);
 		if (err)
 			goto err_port_del_all;
 	}
@@ -373,6 +377,49 @@ void nsim_dev_remove(struct nsim_bus_dev *nsim_bus_dev)
 
 	nsim_dev_port_del_all(nsim_dev);
 	nsim_dev_destroy(nsim_dev);
+}
+
+static struct nsim_dev_port *
+__nsim_dev_port_lookup(struct nsim_dev *nsim_dev, unsigned int port_index)
+{
+	struct nsim_dev_port *nsim_dev_port;
+
+	list_for_each_entry(nsim_dev_port, &nsim_dev->port_list, list)
+		if (nsim_dev_port->port_index == port_index)
+			return nsim_dev_port;
+	return NULL;
+}
+
+int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
+		      unsigned int port_index)
+{
+	struct nsim_dev *nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
+	int err;
+
+	mutex_lock(&nsim_dev->port_list_lock);
+	if (__nsim_dev_port_lookup(nsim_dev, port_index))
+		err = -EEXIST;
+	else
+		err = __nsim_dev_port_add(nsim_dev, port_index);
+	mutex_unlock(&nsim_dev->port_list_lock);
+	return err;
+}
+
+int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
+		      unsigned int port_index)
+{
+	struct nsim_dev *nsim_dev = dev_get_drvdata(&nsim_bus_dev->dev);
+	struct nsim_dev_port *nsim_dev_port;
+	int err = 0;
+
+	mutex_lock(&nsim_dev->port_list_lock);
+	nsim_dev_port = __nsim_dev_port_lookup(nsim_dev, port_index);
+	if (!nsim_dev_port)
+		err = -ENOENT;
+	else
+		__nsim_dev_port_del(nsim_dev_port);
+	mutex_unlock(&nsim_dev->port_list_lock);
+	return err;
 }
 
 int nsim_dev_init(void)

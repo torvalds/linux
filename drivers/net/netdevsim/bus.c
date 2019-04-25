@@ -91,8 +91,44 @@ static struct device_attribute nsim_bus_dev_numvfs_attr =
 	__ATTR(sriov_numvfs, 0664, nsim_bus_dev_numvfs_show,
 	       nsim_bus_dev_numvfs_store);
 
+static ssize_t
+new_port_store(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t count)
+{
+	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+	unsigned int port_index;
+	int ret;
+
+	ret = kstrtouint(buf, 0, &port_index);
+	if (ret)
+		return ret;
+	ret = nsim_dev_port_add(nsim_bus_dev, port_index);
+	return ret ? ret : count;
+}
+
+static struct device_attribute nsim_bus_dev_new_port_attr = __ATTR_WO(new_port);
+
+static ssize_t
+del_port_store(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t count)
+{
+	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+	unsigned int port_index;
+	int ret;
+
+	ret = kstrtouint(buf, 0, &port_index);
+	if (ret)
+		return ret;
+	ret = nsim_dev_port_del(nsim_bus_dev, port_index);
+	return ret ? ret : count;
+}
+
+static struct device_attribute nsim_bus_dev_del_port_attr = __ATTR_WO(del_port);
+
 static struct attribute *nsim_bus_dev_attrs[] = {
 	&nsim_bus_dev_numvfs_attr.attr,
+	&nsim_bus_dev_new_port_attr.attr,
+	&nsim_bus_dev_del_port_attr.attr,
 	NULL,
 };
 
