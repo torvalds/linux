@@ -276,7 +276,7 @@ static int tmc_enable_etf_sink(struct coresight_device *csdev,
 	return 0;
 }
 
-static void tmc_disable_etf_sink(struct coresight_device *csdev)
+static int tmc_disable_etf_sink(struct coresight_device *csdev)
 {
 	unsigned long flags;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -284,7 +284,7 @@ static void tmc_disable_etf_sink(struct coresight_device *csdev)
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	if (drvdata->reading) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
-		return;
+		return -EBUSY;
 	}
 
 	/* Disable the TMC only if it needs to */
@@ -296,6 +296,7 @@ static void tmc_disable_etf_sink(struct coresight_device *csdev)
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	dev_dbg(drvdata->dev, "TMC-ETB/ETF disabled\n");
+	return 0;
 }
 
 static int tmc_enable_etf_link(struct coresight_device *csdev,

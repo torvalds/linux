@@ -239,9 +239,13 @@ static int coresight_enable_sink(struct coresight_device *csdev,
 
 static void coresight_disable_sink(struct coresight_device *csdev)
 {
+	int ret;
+
 	if (atomic_dec_return(csdev->refcnt) == 0) {
 		if (sink_ops(csdev)->disable) {
-			sink_ops(csdev)->disable(csdev);
+			ret = sink_ops(csdev)->disable(csdev);
+			if (ret)
+				return;
 			csdev->enable = false;
 		}
 	}
