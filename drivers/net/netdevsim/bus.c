@@ -4,6 +4,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
@@ -11,7 +12,7 @@
 
 #include "netdevsim.h"
 
-static u32 nsim_bus_dev_id;
+static DEFINE_IDA(nsim_bus_dev_ids);
 
 static struct nsim_bus_dev *to_nsim_bus_dev(struct device *dev)
 {
@@ -134,14 +135,19 @@ struct nsim_bus_dev *nsim_bus_dev_new(void)
 	if (!nsim_bus_dev)
 		return ERR_PTR(-ENOMEM);
 
-	nsim_bus_dev->dev.id = nsim_bus_dev_id++;
+	err = ida_alloc(&nsim_bus_dev_ids, GFP_KERNEL);
+	if (err < 0)
+		goto err_nsim_bus_dev_free;
+	nsim_bus_dev->dev.id = err;
 	nsim_bus_dev->dev.bus = &nsim_bus;
 	nsim_bus_dev->dev.type = &nsim_bus_dev_type;
 	err = device_register(&nsim_bus_dev->dev);
 	if (err)
-		goto err_nsim_bus_dev_free;
+		goto err_nsim_bus_dev_id_free;
 	return nsim_bus_dev;
 
+err_nsim_bus_dev_id_free:
+	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
 err_nsim_bus_dev_free:
 	kfree(nsim_bus_dev);
 	return ERR_PTR(err);
@@ -150,6 +156,7 @@ err_nsim_bus_dev_free:
 void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
 {
 	device_unregister(&nsim_bus_dev->dev);
+	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
 	kfree(nsim_bus_dev);
 }
 
