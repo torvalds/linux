@@ -5337,8 +5337,8 @@ static int hclge_set_serdes_loopback(struct hclge_dev *hdev, bool en,
 #define HCLGE_SERDES_RETRY_MS	10
 #define HCLGE_SERDES_RETRY_NUM	100
 
-#define HCLGE_MAC_LINK_STATUS_MS   20
-#define HCLGE_MAC_LINK_STATUS_NUM  10
+#define HCLGE_MAC_LINK_STATUS_MS   10
+#define HCLGE_MAC_LINK_STATUS_NUM  100
 #define HCLGE_MAC_LINK_STATUS_DOWN 0
 #define HCLGE_MAC_LINK_STATUS_UP   1
 
