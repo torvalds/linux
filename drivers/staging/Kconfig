@@ -16,8 +16,8 @@ menuconfig STAGING
 
 	  If you wish to work on these drivers, to help improve them, or
 	  to report problems you have with them, please see the
-	  driver_name.README file in the drivers/staging/ directory to
-	  see what needs to be worked on, and who to contact.
+	  drivers/staging/<driver_name>/TODO file to see what needs to be
+	  worked on, and who to contact.
 
 	  If in doubt, say N here.
 
