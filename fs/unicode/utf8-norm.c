@@ -38,6 +38,12 @@ int utf8version_is_supported(u8 maj, u8 min, u8 rev)
 }
 EXPORT_SYMBOL(utf8version_is_supported);
 
+int utf8version_latest(void)
+{
+	return utf8vers;
+}
+EXPORT_SYMBOL(utf8version_latest);
+
 /*
  * UTF-8 valid ranges.
  *

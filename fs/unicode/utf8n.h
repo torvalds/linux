@@ -32,6 +32,7 @@
 
 /* Highest unicode version supported by the data tables. */
 extern int utf8version_is_supported(u8 maj, u8 min, u8 rev);
+extern int utf8version_latest(void);
 
 /*
  * Look for the correct const struct utf8data for a unicode version.
