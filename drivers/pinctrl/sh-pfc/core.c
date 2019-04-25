@@ -803,8 +803,8 @@ static void sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			       info->groups[i].name);
 			sh_pfc_errors++;
 		} else if (refcnts[i] > 1) {
-			pr_err("%s: group %s referred by %u functions\n",
-			       drvname, info->groups[i].name, refcnts[i]);
+			pr_warn("%s: group %s referenced by %u functions\n",
+				drvname, info->groups[i].name, refcnts[i]);
 			sh_pfc_warnings++;
 		}
 	}
