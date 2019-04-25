@@ -1653,8 +1653,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "fail(%d) to query msix int status bd num\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		return ret;
 	}
 
@@ -1675,8 +1673,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "query all mpf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
 	}
 
@@ -1710,8 +1706,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "clear all mpf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
 	}
 
@@ -1725,8 +1719,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "query all pf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
 	}
 
@@ -1767,8 +1759,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "clear all pf msix int cmd failed (%d)\n",
 			ret);
-		/* reset everything for now */
-		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 	}
 
 	/* query and clear mac tnl interruptions */
