@@ -46,8 +46,8 @@ cd to this directory (fs/unicode) and run this command:
 	make C=../.. objdir=../.. utf8data.h.new
 
 After sanity checking the newly generated utf8data.h.new file (the
-version generated from the 11.0.0 UCD should be 13,834 lines long, and
-have a total size of 1104k) and/or comparing it with the older version
+version generated from the 11.0.0 UCD should be 4,061 lines long, and
+have a total size of 320k) and/or comparing it with the older version
 of utf8data.h, rename it to utf8data.h.
 
 If you are a kernel developer updating to a newer version of the
