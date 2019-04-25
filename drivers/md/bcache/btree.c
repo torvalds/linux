@@ -429,12 +429,11 @@ static void do_btree_node_write(struct btree *b)
 		       bset_sector_offset(&b->keys, i));
 
 	if (!bch_bio_alloc_pages(b->bio, __GFP_NOWARN|GFP_NOWAIT)) {
-		int j;
 		struct bio_vec *bv;
 		void *addr = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
 		struct bvec_iter_all iter_all;
 
-		bio_for_each_segment_all(bv, b->bio, j, iter_all) {
+		bio_for_each_segment_all(bv, b->bio, iter_all) {
 			memcpy(page_address(bv->bv_page), addr, PAGE_SIZE);
 			addr += PAGE_SIZE;
 		}

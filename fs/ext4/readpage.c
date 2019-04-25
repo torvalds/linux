@@ -71,7 +71,6 @@ static inline bool ext4_bio_encrypted(struct bio *bio)
 static void mpage_end_io(struct bio *bio)
 {
 	struct bio_vec *bv;
-	int i;
 	struct bvec_iter_all iter_all;
 
 	if (ext4_bio_encrypted(bio)) {
@@ -82,7 +81,7 @@ static void mpage_end_io(struct bio *bio)
 			return;
 		}
 	}
-	bio_for_each_segment_all(bv, bio, i, iter_all) {
+	bio_for_each_segment_all(bv, bio, iter_all) {
 		struct page *page = bv->bv_page;
 
 		if (!bio->bi_status) {

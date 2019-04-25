@@ -98,7 +98,6 @@ xfs_destroy_ioend(
 
 	for (bio = &ioend->io_inline_bio; bio; bio = next) {
 		struct bio_vec	*bvec;
-		int		i;
 		struct bvec_iter_all iter_all;
 
 		/*
@@ -111,7 +110,7 @@ xfs_destroy_ioend(
 			next = bio->bi_private;
 
 		/* walk each page on bio, ending page IO on them */
-		bio_for_each_segment_all(bvec, bio, i, iter_all)
+		bio_for_each_segment_all(bvec, bio, iter_all)
 			xfs_finish_page_writeback(inode, bvec, error);
 		bio_put(bio);
 	}
