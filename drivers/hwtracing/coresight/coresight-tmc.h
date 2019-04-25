@@ -8,7 +8,9 @@
 #define _CORESIGHT_TMC_H
 
 #include <linux/dma-mapping.h>
+#include <linux/idr.h>
 #include <linux/miscdevice.h>
+#include <linux/mutex.h>
 #include <linux/refcount.h>
 
 #define TMC_RSZ			0x004
@@ -173,6 +175,8 @@ struct etr_buf {
  * @trigger_cntr: amount of words to store after a trigger.
  * @etr_caps:	Bitmask of capabilities of the TMC ETR, inferred from the
  *		device configuration register (DEVID)
+ * @idr:	Holds etr_bufs allocated for this ETR.
+ * @idr_mutex:	Access serialisation for idr.
  * @perf_data:	PERF buffer for ETR.
  * @sysfs_data:	SYSFS buffer for ETR.
  */
@@ -194,6 +198,8 @@ struct tmc_drvdata {
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;
 	u32			etr_caps;
+	struct idr		idr;
+	struct mutex		idr_mutex;
 	struct etr_buf		*sysfs_buf;
 	void			*perf_data;
 };

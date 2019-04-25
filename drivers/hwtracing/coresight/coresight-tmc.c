@@ -8,10 +8,12 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -449,6 +451,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = tmc_etr_setup_caps(drvdata, devid, id->data);
 		if (ret)
 			goto out;
+		idr_init(&drvdata->idr);
+		mutex_init(&drvdata->idr_mutex);
 		break;
 	case TMC_CONFIG_TYPE_ETF:
 		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
