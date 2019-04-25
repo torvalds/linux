@@ -566,7 +566,8 @@ static int __init etm_perf_init(void)
 {
 	int ret;
 
-	etm_pmu.capabilities		= PERF_PMU_CAP_EXCLUSIVE;
+	etm_pmu.capabilities		= (PERF_PMU_CAP_EXCLUSIVE |
+					   PERF_PMU_CAP_ITRACE);
 
 	etm_pmu.attr_groups		= etm_pmu_attr_groups;
 	etm_pmu.task_ctx_nr		= perf_sw_context;
