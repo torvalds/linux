@@ -77,6 +77,7 @@ configure specific aspects of kernel behavior to your liking.
    LSM/index
    mm/index
    perf-security
+   acpi/index
 
 .. only::  subproject and html
 

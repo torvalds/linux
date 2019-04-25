@@ -35,6 +35,16 @@ trying to get it to work optimally on a given system.
 
    admin-guide/index
 
+Firmware-related documentation
+------------------------------
+The following holds information on the kernel's expectations regarding the
+platform firmwares.
+
+.. toctree::
+   :maxdepth: 2
+
+   firmware-guide/index
+
 Application-developer documentation
 -----------------------------------
 
