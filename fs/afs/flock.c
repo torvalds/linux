@@ -32,6 +32,8 @@ static inline void afs_set_lock_state(struct afs_vnode *vnode, enum afs_lock_sta
 	vnode->lock_state = state;
 }
 
+static atomic_t afs_file_lock_debug_id;
+
 /*
  * if the callback is broken on this vnode, then the lock may now be available
  */
@@ -45,6 +47,7 @@ void afs_lock_may_be_available(struct afs_vnode *vnode)
 	spin_lock(&vnode->lock);
 	if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
 		afs_next_locker(vnode, 0);
+	trace_afs_flock_ev(vnode, NULL, afs_flock_callback_break, 0);
 	spin_unlock(&vnode->lock);
 }
 
@@ -78,6 +81,7 @@ void afs_lock_op_done(struct afs_call *call)
 
 	if (call->error == 0) {
 		spin_lock(&vnode->lock);
+		trace_afs_flock_ev(vnode, NULL, afs_flock_timestamp, 0);
 		vnode->locked_at = call->reply_time;
 		afs_schedule_lock_extension(vnode);
 		spin_unlock(&vnode->lock);
@@ -100,6 +104,7 @@ static void afs_grant_locks(struct afs_vnode *vnode)
 
 		list_move_tail(&p->fl_u.afs.link, &vnode->granted_locks);
 		p->fl_u.afs.state = AFS_LOCK_GRANTED;
+		trace_afs_flock_op(vnode, p, afs_flock_op_grant);
 		wake_up(&p->fl_wait);
 	}
 }
@@ -142,9 +147,11 @@ static void afs_next_locker(struct afs_vnode *vnode, int error)
 	if (next) {
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_SETTING);
 		next->fl_u.afs.state = AFS_LOCK_YOUR_TRY;
+		trace_afs_flock_op(vnode, next, afs_flock_op_wake);
 		wake_up(&next->fl_wait);
 	} else {
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_NONE);
+		trace_afs_flock_ev(vnode, NULL, afs_flock_no_lockers, 0);
 	}
 
 	_leave("");
@@ -264,8 +271,8 @@ again:
 	_debug("wstate %u for %p", vnode->lock_state, vnode);
 	switch (vnode->lock_state) {
 	case AFS_VNODE_LOCK_NEED_UNLOCK:
-		_debug("unlock");
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_UNLOCKING);
+		trace_afs_flock_ev(vnode, NULL, afs_flock_work_unlocking, 0);
 		spin_unlock(&vnode->lock);
 
 		/* attempt to release the server lock; if it fails, we just
@@ -291,6 +298,7 @@ again:
 
 		key = key_get(vnode->lock_key);
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_EXTENDING);
+		trace_afs_flock_ev(vnode, NULL, afs_flock_work_extending, 0);
 		spin_unlock(&vnode->lock);
 
 		ret = afs_extend_lock(vnode, key); /* RPC */
@@ -349,6 +357,7 @@ static void afs_defer_unlock(struct afs_vnode *vnode)
 		cancel_delayed_work(&vnode->lock_work);
 
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_NEED_UNLOCK);
+		trace_afs_flock_ev(vnode, NULL, afs_flock_defer_unlock, 0);
 		queue_delayed_work(afs_lock_manager, &vnode->lock_work, 0);
 	}
 }
@@ -421,6 +430,8 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 	if (ret < 0)
 		return ret;
 
+	trace_afs_flock_op(vnode, fl, afs_flock_op_set_lock);
+
 	spin_lock(&vnode->lock);
 	list_add_tail(&fl->fl_u.afs.link, &vnode->pending_locks);
 
@@ -457,7 +468,7 @@ try_to_lock:
 	 * though we don't wait for the reply (it's not too bad a problem - the
 	 * lock will expire in 5 mins anyway).
 	 */
-	_debug("not locked");
+	trace_afs_flock_ev(vnode, fl, afs_flock_try_to_lock, 0);
 	vnode->lock_key = key_get(key);
 	vnode->lock_type = type;
 	afs_set_lock_state(vnode, AFS_VNODE_LOCK_SETTING);
@@ -473,12 +484,14 @@ try_to_lock:
 	case -EPERM:
 	case -EACCES:
 		fl->fl_u.afs.state = ret;
+		trace_afs_flock_ev(vnode, fl, afs_flock_fail_perm, ret);
 		list_del_init(&fl->fl_u.afs.link);
 		afs_next_locker(vnode, ret);
 		goto error_unlock;
 
 	default:
 		fl->fl_u.afs.state = ret;
+		trace_afs_flock_ev(vnode, fl, afs_flock_fail_other, ret);
 		list_del_init(&fl->fl_u.afs.link);
 		afs_next_locker(vnode, 0);
 		goto error_unlock;
@@ -488,14 +501,13 @@ try_to_lock:
 		 * will have to retry.  The server will break the outstanding
 		 * callbacks on a file when a lock is released.
 		 */
-		_debug("would block");
 		ASSERT(list_empty(&vnode->granted_locks));
 		ASSERTCMP(vnode->pending_locks.next, ==, &fl->fl_u.afs.link);
 		goto lock_is_contended;
 
 	case 0:
-		_debug("acquired");
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_GRANTED);
+		trace_afs_flock_ev(vnode, fl, afs_flock_acquired, type);
 		afs_grant_locks(vnode);
 		goto vnode_is_locked_u;
 	}
@@ -507,7 +519,9 @@ vnode_is_locked:
 	ASSERTCMP(fl->fl_u.afs.state, ==, AFS_LOCK_GRANTED);
 
 	/* ... but the VFS still needs to distribute access on this client. */
+	trace_afs_flock_ev(vnode, fl, afs_flock_vfs_locking, 0);
 	ret = locks_lock_file_wait(file, fl);
+	trace_afs_flock_ev(vnode, fl, afs_flock_vfs_lock, ret);
 	if (ret < 0)
 		goto vfs_rejected_lock;
 
@@ -528,6 +542,7 @@ lock_is_contended:
 	}
 
 	afs_set_lock_state(vnode, AFS_VNODE_LOCK_WAITING_FOR_CB);
+	trace_afs_flock_ev(vnode, fl, afs_flock_would_block, ret);
 	queue_delayed_work(afs_lock_manager, &vnode->lock_work, HZ * 5);
 
 need_to_wait:
@@ -538,10 +553,10 @@ need_to_wait:
 	 */
 	spin_unlock(&vnode->lock);
 
-	_debug("sleep");
+	trace_afs_flock_ev(vnode, fl, afs_flock_waiting, 0);
 	ret = wait_event_interruptible(fl->fl_wait,
 				       fl->fl_u.afs.state != AFS_LOCK_PENDING);
-	_debug("wait = %d", ret);
+	trace_afs_flock_ev(vnode, fl, afs_flock_waited, ret);
 
 	if (fl->fl_u.afs.state >= 0 && fl->fl_u.afs.state != AFS_LOCK_GRANTED) {
 		spin_lock(&vnode->lock);
@@ -602,6 +617,8 @@ static int afs_do_unlk(struct file *file, struct file_lock *fl)
 
 	_enter("{%llx:%llu},%u", vnode->fid.vid, vnode->fid.vnode, fl->fl_type);
 
+	trace_afs_flock_op(vnode, fl, afs_flock_op_unlock);
+
 	/* Flush all pending writes before doing anything with locks. */
 	vfs_fsync(file, 0);
 
@@ -655,6 +672,8 @@ error:
 int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	enum afs_flock_operation op;
+	int ret;
 
 	_enter("{%llx:%llu},%d,{t=%x,fl=%x,r=%Ld:%Ld}",
 	       vnode->fid.vid, vnode->fid.vnode, cmd,
@@ -667,9 +686,23 @@ int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (IS_GETLK(cmd))
 		return afs_do_getlk(file, fl);
+
+	fl->fl_u.afs.debug_id = atomic_inc_return(&afs_file_lock_debug_id);
+	trace_afs_flock_op(vnode, fl, afs_flock_op_lock);
+
 	if (fl->fl_type == F_UNLCK)
-		return afs_do_unlk(file, fl);
-	return afs_do_setlk(file, fl);
+		ret = afs_do_unlk(file, fl);
+	else
+		ret = afs_do_setlk(file, fl);
+
+	switch (ret) {
+	case 0:		op = afs_flock_op_return_ok; break;
+	case -EAGAIN:	op = afs_flock_op_return_eagain; break;
+	case -EDEADLK:	op = afs_flock_op_return_edeadlk; break;
+	default:	op = afs_flock_op_return_error; break;
+	}
+	trace_afs_flock_op(vnode, fl, op);
+	return ret;
 }
 
 /*
@@ -678,6 +711,8 @@ int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct afs_vnode *vnode = AFS_FS_I(locks_inode(file));
+	enum afs_flock_operation op;
+	int ret;
 
 	_enter("{%llx:%llu},%d,{t=%x,fl=%x}",
 	       vnode->fid.vid, vnode->fid.vnode, cmd,
@@ -693,10 +728,23 @@ int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
 
+	fl->fl_u.afs.debug_id = atomic_inc_return(&afs_file_lock_debug_id);
+	trace_afs_flock_op(vnode, fl, afs_flock_op_flock);
+
 	/* we're simulating flock() locks using posix locks on the server */
 	if (fl->fl_type == F_UNLCK)
-		return afs_do_unlk(file, fl);
-	return afs_do_setlk(file, fl);
+		ret = afs_do_unlk(file, fl);
+	else
+		ret = afs_do_setlk(file, fl);
+
+	switch (ret) {
+	case 0:		op = afs_flock_op_return_ok; break;
+	case -EAGAIN:	op = afs_flock_op_return_eagain; break;
+	case -EDEADLK:	op = afs_flock_op_return_edeadlk; break;
+	default:	op = afs_flock_op_return_error; break;
+	}
+	trace_afs_flock_op(vnode, fl, op);
+	return ret;
 }
 
 /*
@@ -711,7 +759,10 @@ static void afs_fl_copy_lock(struct file_lock *new, struct file_lock *fl)
 
 	_enter("");
 
+	new->fl_u.afs.debug_id = atomic_inc_return(&afs_file_lock_debug_id);
+
 	spin_lock(&vnode->lock);
+	trace_afs_flock_op(vnode, new, afs_flock_op_copy_lock);
 	list_add(&new->fl_u.afs.link, &fl->fl_u.afs.link);
 	spin_unlock(&vnode->lock);
 }
@@ -728,6 +779,7 @@ static void afs_fl_release_private(struct file_lock *fl)
 
 	spin_lock(&vnode->lock);
 
+	trace_afs_flock_op(vnode, fl, afs_flock_op_release_lock);
 	list_del_init(&fl->fl_u.afs.link);
 	if (list_empty(&vnode->granted_locks))
 		afs_defer_unlock(vnode);

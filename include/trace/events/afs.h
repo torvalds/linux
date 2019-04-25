@@ -152,6 +152,40 @@ enum afs_file_error {
 	afs_file_error_writeback_fail,
 };
 
+enum afs_flock_event {
+	afs_flock_acquired,
+	afs_flock_callback_break,
+	afs_flock_defer_unlock,
+	afs_flock_fail_other,
+	afs_flock_fail_perm,
+	afs_flock_no_lockers,
+	afs_flock_timestamp,
+	afs_flock_try_to_lock,
+	afs_flock_vfs_lock,
+	afs_flock_vfs_locking,
+	afs_flock_waited,
+	afs_flock_waiting,
+	afs_flock_work_extending,
+	afs_flock_work_retry,
+	afs_flock_work_unlocking,
+	afs_flock_would_block,
+};
+
+enum afs_flock_operation {
+	afs_flock_op_copy_lock,
+	afs_flock_op_flock,
+	afs_flock_op_grant,
+	afs_flock_op_lock,
+	afs_flock_op_release_lock,
+	afs_flock_op_return_ok,
+	afs_flock_op_return_eagain,
+	afs_flock_op_return_edeadlk,
+	afs_flock_op_return_error,
+	afs_flock_op_set_lock,
+	afs_flock_op_unlock,
+	afs_flock_op_wake,
+};
+
 #endif /* end __AFS_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
 /*
@@ -277,6 +311,52 @@ enum afs_file_error {
 	EM(afs_file_error_mntpt,		"MNTPT_READ_FAILED")	\
 	E_(afs_file_error_writeback_fail,	"WRITEBACK_FAILED")
 
+#define afs_flock_types							\
+	EM(F_RDLCK,				"RDLCK")		\
+	EM(F_WRLCK,				"WRLCK")		\
+	E_(F_UNLCK,				"UNLCK")
+
+#define afs_flock_states						\
+	EM(AFS_VNODE_LOCK_NONE,			"NONE")			\
+	EM(AFS_VNODE_LOCK_WAITING_FOR_CB,	"WAIT_FOR_CB")		\
+	EM(AFS_VNODE_LOCK_SETTING,		"SETTING")		\
+	EM(AFS_VNODE_LOCK_GRANTED,		"GRANTED")		\
+	EM(AFS_VNODE_LOCK_EXTENDING,		"EXTENDING")		\
+	EM(AFS_VNODE_LOCK_NEED_UNLOCK,		"NEED_UNLOCK")		\
+	E_(AFS_VNODE_LOCK_UNLOCKING,		"UNLOCKING")		\
+
+#define afs_flock_events						\
+	EM(afs_flock_acquired,			"Acquired")		\
+	EM(afs_flock_callback_break,		"Callback")		\
+	EM(afs_flock_defer_unlock,		"D-Unlock")		\
+	EM(afs_flock_fail_other,		"ErrOther")		\
+	EM(afs_flock_fail_perm,			"ErrPerm ")		\
+	EM(afs_flock_no_lockers,		"NoLocker")		\
+	EM(afs_flock_timestamp,			"Timestmp")		\
+	EM(afs_flock_try_to_lock,		"TryToLck")		\
+	EM(afs_flock_vfs_lock,			"VFSLock ")		\
+	EM(afs_flock_vfs_locking,		"VFSLking")		\
+	EM(afs_flock_waited,			"Waited  ")		\
+	EM(afs_flock_waiting,			"Waiting ")		\
+	EM(afs_flock_work_extending,		"Extendng")		\
+	EM(afs_flock_work_retry,		"Retry   ")		\
+	EM(afs_flock_work_unlocking,		"Unlcking")		\
+	E_(afs_flock_would_block,		"EWOULDBL")
+
+#define afs_flock_operations						\
+	EM(afs_flock_op_copy_lock,		"COPY    ")		\
+	EM(afs_flock_op_flock,			"->flock ")		\
+	EM(afs_flock_op_grant,			"GRANT   ")		\
+	EM(afs_flock_op_lock,			"->lock  ")		\
+	EM(afs_flock_op_release_lock,		"RELEASE ")		\
+	EM(afs_flock_op_return_ok,		"<-OK    ")		\
+	EM(afs_flock_op_return_edeadlk,		"<-EDEADL")		\
+	EM(afs_flock_op_return_eagain,		"<-EAGAIN")		\
+	EM(afs_flock_op_return_error,		"<-ERROR ")		\
+	EM(afs_flock_op_set_lock,		"SET     ")		\
+	EM(afs_flock_op_unlock,			"UNLOCK  ")		\
+	E_(afs_flock_op_wake,			"WAKE    ")
+
 /*
  * Export enum symbols via userspace.
  */
@@ -293,6 +373,8 @@ afs_edit_dir_reasons;
 afs_eproto_causes;
 afs_io_errors;
 afs_file_errors;
+afs_flock_types;
+afs_flock_operations;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -794,6 +876,70 @@ TRACE_EVENT(afs_cm_no_server_u,
 
 	    TP_printk("c=%08x op=%u %pU",
 		      __entry->call, __entry->op_id, &__entry->uuid)
+	    );
+
+TRACE_EVENT(afs_flock_ev,
+	    TP_PROTO(struct afs_vnode *vnode, struct file_lock *fl,
+		     enum afs_flock_event event, int error),
+
+	    TP_ARGS(vnode, fl, event, error),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid		)
+		    __field(enum afs_flock_event,	event		)
+		    __field(enum afs_lock_state,	state		)
+		    __field(int,			error		)
+		    __field(unsigned int,		debug_id	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->fid = vnode->fid;
+		    __entry->event = event;
+		    __entry->state = vnode->lock_state;
+		    __entry->error = error;
+		    __entry->debug_id = fl ? fl->fl_u.afs.debug_id : 0;
+			   ),
+
+	    TP_printk("%llx:%llx:%x %04x %s s=%s e=%d",
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->debug_id,
+		      __print_symbolic(__entry->event, afs_flock_events),
+		      __print_symbolic(__entry->state, afs_flock_states),
+		      __entry->error)
+	    );
+
+TRACE_EVENT(afs_flock_op,
+	    TP_PROTO(struct afs_vnode *vnode, struct file_lock *fl,
+		     enum afs_flock_operation op),
+
+	    TP_ARGS(vnode, fl, op),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid		)
+		    __field(loff_t,			from		)
+		    __field(loff_t,			len		)
+		    __field(enum afs_flock_operation,	op		)
+		    __field(unsigned char,		type		)
+		    __field(unsigned int,		flags		)
+		    __field(unsigned int,		debug_id	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->fid = vnode->fid;
+		    __entry->from = fl->fl_start;
+		    __entry->len = fl->fl_end - fl->fl_start + 1;
+		    __entry->op = op;
+		    __entry->type = fl->fl_type;
+		    __entry->flags = fl->fl_flags;
+		    __entry->debug_id = fl->fl_u.afs.debug_id;
+			   ),
+
+	    TP_printk("%llx:%llx:%x %04x %s t=%s R=%llx/%llx f=%x",
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->debug_id,
+		      __print_symbolic(__entry->op, afs_flock_operations),
+		      __print_symbolic(__entry->type, afs_flock_types),
+		      __entry->from, __entry->len, __entry->flags)
 	    );
 
 #endif /* _TRACE_AFS_H */
