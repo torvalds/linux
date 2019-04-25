@@ -160,6 +160,38 @@ error:
 }
 
 /*
+ * Check the contents of a directory that we've just read.
+ */
+static bool afs_dir_check_pages(struct afs_vnode *dvnode, struct afs_read *req)
+{
+	struct afs_xdr_dir_page *dbuf;
+	unsigned int i, j, qty = PAGE_SIZE / sizeof(union afs_xdr_dir_block);
+
+	for (i = 0; i < req->nr_pages; i++)
+		if (!afs_dir_check_page(dvnode, req->pages[i], req->actual_len))
+			goto bad;
+	return true;
+
+bad:
+	pr_warn("DIR %llx:%llx f=%llx l=%llx al=%llx r=%llx\n",
+		dvnode->fid.vid, dvnode->fid.vnode,
+		req->file_size, req->len, req->actual_len, req->remain);
+	pr_warn("DIR %llx %x %x %x\n",
+		req->pos, req->index, req->nr_pages, req->offset);
+
+	for (i = 0; i < req->nr_pages; i++) {
+		dbuf = kmap(req->pages[i]);
+		for (j = 0; j < qty; j++) {
+			union afs_xdr_dir_block *block = &dbuf->blocks[j];
+
+			pr_warn("[%02x] %32phN\n", i * qty + j, block);
+		}
+		kunmap(req->pages[i]);
+	}
+	return false;
+}
+
+/*
  * open an AFS directory file
  */
 static int afs_dir_open(struct inode *inode, struct file *file)
@@ -288,10 +320,8 @@ retry:
 
 		/* Validate the data we just read. */
 		ret = -EIO;
-		for (i = 0; i < req->nr_pages; i++)
-			if (!afs_dir_check_page(dvnode, req->pages[i],
-						req->actual_len))
-				goto error_unlock;
+		if (!afs_dir_check_pages(dvnode, req))
+			goto error_unlock;
 
 		// TODO: Trim excess pages
 
