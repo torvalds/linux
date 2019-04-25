@@ -352,7 +352,7 @@ static int rockchip_vpu_video_device_register(struct rockchip_vpu_dev *vpu)
 	vpu->vfd_enc = vfd;
 	video_set_drvdata(vfd, vpu);
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to register video device\n");
 		goto err_free_dev;
