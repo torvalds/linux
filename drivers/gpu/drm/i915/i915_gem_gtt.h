@@ -397,8 +397,6 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory_pointer pdp;	/* GEN8+ */
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
-
-	u32 user_handle;
 };
 
 struct gen6_hw_ppgtt {

@@ -772,8 +772,7 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (err < 0)
 		goto err_unlock;
 
-	GEM_BUG_ON(err == 0); /* reserved for default/unassigned ppgtt */
-	ppgtt->user_handle = err;
+	GEM_BUG_ON(err == 0); /* reserved for invalid/unassigned ppgtt */
 
 	mutex_unlock(&file_priv->vm_idr_lock);
 
@@ -811,10 +810,6 @@ int i915_gem_vm_destroy_ioctl(struct drm_device *dev, void *data,
 		return err;
 
 	ppgtt = idr_remove(&file_priv->vm_idr, id);
-	if (ppgtt) {
-		GEM_BUG_ON(ppgtt->user_handle != id);
-		ppgtt->user_handle = 0;
-	}
 
 	mutex_unlock(&file_priv->vm_idr_lock);
 	if (!ppgtt)
@@ -925,18 +920,15 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	if (ret)
 		goto err_put;
 
-	if (!ppgtt->user_handle) {
-		ret = idr_alloc(&file_priv->vm_idr, ppgtt, 0, 0, GFP_KERNEL);
-		GEM_BUG_ON(!ret);
-		if (ret < 0)
-			goto err_unlock;
+	ret = idr_alloc(&file_priv->vm_idr, ppgtt, 0, 0, GFP_KERNEL);
+	GEM_BUG_ON(!ret);
+	if (ret < 0)
+		goto err_unlock;
 
-		ppgtt->user_handle = ret;
-		i915_ppgtt_get(ppgtt);
-	}
+	i915_ppgtt_get(ppgtt);
 
 	args->size = 0;
-	args->value = ppgtt->user_handle;
+	args->value = ret;
 
 	ret = 0;
 err_unlock:
@@ -1027,10 +1019,8 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 		return err;
 
 	ppgtt = idr_find(&file_priv->vm_idr, args->value);
-	if (ppgtt) {
-		GEM_BUG_ON(ppgtt->user_handle != args->value);
+	if (ppgtt)
 		i915_ppgtt_get(ppgtt);
-	}
 	mutex_unlock(&file_priv->vm_idr_lock);
 	if (!ppgtt)
 		return -ENOENT;
