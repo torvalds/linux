@@ -13,6 +13,16 @@ config PHY_MTK_TPHY
 	  multi-ports is first version, otherwise is second veriosn,
 	  so you can easily distinguish them by banks layout.
 
+config PHY_MTK_UFS
+	tristate "MediaTek UFS M-PHY driver"
+	depends on ARCH_MEDIATEK && OF
+	select GENERIC_PHY
+	help
+	  Support for UFS M-PHY on MediaTek chipsets.
+	  Enable this to provide vendor-specific probing,
+	  initialization, power on and power off flow of
+	  specified M-PHYs.
+
 config PHY_MTK_XSPHY
     tristate "MediaTek XS-PHY Driver"
     depends on ARCH_MEDIATEK && OF
