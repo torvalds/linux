@@ -160,14 +160,12 @@ struct skcipher_edesc {
 
 /*
  * ahash_edesc - s/w-extended ahash descriptor
- * @dst_dma: I/O virtual address of req->result
  * @qm_sg_dma: I/O virtual address of h/w link table
  * @src_nents: number of segments in input scatterlist
  * @qm_sg_bytes: length of dma mapped qm_sg space
  * @sgt: pointer to h/w link table
  */
 struct ahash_edesc {
-	dma_addr_t dst_dma;
 	dma_addr_t qm_sg_dma;
 	int src_nents;
 	int qm_sg_bytes;
