@@ -336,6 +336,8 @@ static struct vmbus_channel *alloc_channel(void)
 	tasklet_init(&channel->callback_event,
 		     vmbus_on_event, (unsigned long)channel);
 
+	hv_ringbuffer_pre_init(channel);
+
 	return channel;
 }
 
@@ -345,6 +347,7 @@ static struct vmbus_channel *alloc_channel(void)
 static void free_channel(struct vmbus_channel *channel)
 {
 	tasklet_kill(&channel->callback_event);
+	vmbus_remove_channel_attr_group(channel);
 
 	kobject_put(&channel->kobj);
 }

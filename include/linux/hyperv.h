@@ -141,6 +141,11 @@ struct hv_ring_buffer_info {
 
 	u32 ring_datasize;		/* < ring_size */
 	u32 priv_read_index;
+	/*
+	 * The ring buffer mutex lock. This lock prevents the ring buffer from
+	 * being freed while the ring buffer is being accessed.
+	 */
+	struct mutex ring_buffer_mutex;
 };
 
 
@@ -1206,7 +1211,7 @@ struct hv_ring_buffer_debug_info {
 };
 
 
-int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
+int hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 				struct hv_ring_buffer_debug_info *debug_info);
 
 /* Vmbus interface */
