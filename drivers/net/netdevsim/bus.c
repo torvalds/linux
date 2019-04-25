@@ -153,12 +153,31 @@ void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
 	kfree(nsim_bus_dev);
 }
 
+static struct device_driver nsim_driver = {
+	.name		= DRV_NAME,
+	.bus		= &nsim_bus,
+	.owner		= THIS_MODULE,
+};
+
 int nsim_bus_init(void)
 {
-	return bus_register(&nsim_bus);
+	int err;
+
+	err = bus_register(&nsim_bus);
+	if (err)
+		return err;
+	err = driver_register(&nsim_driver);
+	if (err)
+		goto err_bus_unregister;
+	return 0;
+
+err_bus_unregister:
+	bus_unregister(&nsim_bus);
+	return err;
 }
 
 void nsim_bus_exit(void)
 {
+	driver_unregister(&nsim_driver);
 	bus_unregister(&nsim_bus);
 }
