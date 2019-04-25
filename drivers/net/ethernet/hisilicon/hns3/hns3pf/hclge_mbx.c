@@ -212,8 +212,7 @@ static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
 }
 
 static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
-				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
-				    bool gen_resp)
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
 	const u8 *mac_addr = (const u8 *)(&mbx_req->msg[2]);
 	struct hclge_dev *hdev = vport->back;
@@ -249,7 +248,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 		return -EIO;
 	}
 
-	if (gen_resp)
+	if (mbx_req->mbx_need_resp & HCLGE_MBX_NEED_RESP_BIT)
 		hclge_gen_resp_to_vf(vport, mbx_req, status, NULL, 0);
 
 	return 0;
@@ -597,7 +596,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					ret);
 			break;
 		case HCLGE_MBX_SET_UNICAST:
-			ret = hclge_set_vf_uc_mac_addr(vport, req, true);
+			ret = hclge_set_vf_uc_mac_addr(vport, req);
 			if (ret)
 				dev_err(&hdev->pdev->dev,
 					"PF fail(%d) to set VF UC MAC Addr\n",

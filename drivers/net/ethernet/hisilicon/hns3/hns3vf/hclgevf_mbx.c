@@ -98,6 +98,8 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 	}
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
+	req->mbx_need_resp |= need_resp ? HCLGE_MBX_NEED_RESP_BIT :
+					  ~HCLGE_MBX_NEED_RESP_BIT;
 	req->msg[0] = code;
 	req->msg[1] = subcode;
 	memcpy(&req->msg[2], msg_data, msg_len);
