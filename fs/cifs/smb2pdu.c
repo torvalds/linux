@@ -2622,12 +2622,17 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		trace_smb3_fsctl_err(xid, persistent_fid, tcon->tid,
 				ses->Suid, 0, opcode, rc);
 
-	if ((rc != 0) && (rc != -EINVAL)) {
+	if ((rc != 0) && (rc != -EINVAL) && (rc != -E2BIG)) {
 		cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
 		goto ioctl_exit;
 	} else if (rc == -EINVAL) {
 		if ((opcode != FSCTL_SRV_COPYCHUNK_WRITE) &&
 		    (opcode != FSCTL_SRV_COPYCHUNK)) {
+			cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
+			goto ioctl_exit;
+		}
+	} else if (rc == -E2BIG) {
+		if (opcode != FSCTL_QUERY_ALLOCATED_RANGES) {
 			cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
 			goto ioctl_exit;
 		}

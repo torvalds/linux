@@ -868,6 +868,11 @@ struct fsctl_get_integrity_information_rsp {
 	__le32	ClusterSizeInBytes;
 } __packed;
 
+struct file_allocated_range_buffer {
+	__le64	file_offset;
+	__le64	length;
+} __packed;
+
 /* Integrity ChecksumAlgorithm choices for above */
 #define	CHECKSUM_TYPE_NONE	0x0000
 #define	CHECKSUM_TYPE_CRC64	0x0002

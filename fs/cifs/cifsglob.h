@@ -493,6 +493,9 @@ struct smb_version_operations {
 			 char *full_path,
 			 umode_t mode,
 			 dev_t device_number);
+	/* version specific fiemap implementation */
+	int (*fiemap)(struct cifs_tcon *tcon, struct cifsFileInfo *,
+		      struct fiemap_extent_info *, u64, u64);
 };
 
 struct smb_version_values {
