@@ -545,21 +545,20 @@ static struct wc_entry *writecache_find_entry(struct dm_writecache *wc,
 		e = container_of(node, struct wc_entry, rb_node);
 		if (read_original_sector(wc, e) == block)
 			break;
+
 		node = (read_original_sector(wc, e) >= block ?
 			e->rb_node.rb_left : e->rb_node.rb_right);
 		if (unlikely(!node)) {
-			if (!(flags & WFE_RETURN_FOLLOWING)) {
+			if (!(flags & WFE_RETURN_FOLLOWING))
 				return NULL;
-			}
 			if (read_original_sector(wc, e) >= block) {
-				break;
+				return e;
 			} else {
 				node = rb_next(&e->rb_node);
-				if (unlikely(!node)) {
+				if (unlikely(!node))
 					return NULL;
-				}
 				e = container_of(node, struct wc_entry, rb_node);
-				break;
+				return e;
 			}
 		}
 	}
