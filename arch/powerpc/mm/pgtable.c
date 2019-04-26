@@ -369,39 +369,37 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 			hpdp = (hugepd_t *)&pud;
 			goto out_huge;
 		}
-		{
-			pdshift = PMD_SHIFT;
-			pmdp = pmd_offset(&pud, ea);
-			pmd  = READ_ONCE(*pmdp);
-			/*
-			 * A hugepage collapse is captured by pmd_none, because
-			 * it mark the pmd none and do a hpte invalidate.
-			 */
-			if (pmd_none(pmd))
-				return NULL;
+		pdshift = PMD_SHIFT;
+		pmdp = pmd_offset(&pud, ea);
+		pmd  = READ_ONCE(*pmdp);
+		/*
+		 * A hugepage collapse is captured by pmd_none, because
+		 * it mark the pmd none and do a hpte invalidate.
+		 */
+		if (pmd_none(pmd))
+			return NULL;
 
-			if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
-				if (is_thp)
-					*is_thp = true;
-				ret_pte = (pte_t *) pmdp;
-				goto out;
-			}
-			/*
-			 * pmd_large check below will handle the swap pmd pte
-			 * we need to do both the check because they are config
-			 * dependent.
-			 */
-			if (pmd_huge(pmd) || pmd_large(pmd)) {
-				ret_pte = (pte_t *) pmdp;
-				goto out;
-			}
-			if (is_hugepd(__hugepd(pmd_val(pmd)))) {
-				hpdp = (hugepd_t *)&pmd;
-				goto out_huge;
-			}
-
-			return pte_offset_kernel(&pmd, ea);
+		if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
+			if (is_thp)
+				*is_thp = true;
+			ret_pte = (pte_t *)pmdp;
+			goto out;
 		}
+		/*
+		 * pmd_large check below will handle the swap pmd pte
+		 * we need to do both the check because they are config
+		 * dependent.
+		 */
+		if (pmd_huge(pmd) || pmd_large(pmd)) {
+			ret_pte = (pte_t *)pmdp;
+			goto out;
+		}
+		if (is_hugepd(__hugepd(pmd_val(pmd)))) {
+			hpdp = (hugepd_t *)&pmd;
+			goto out_huge;
+		}
+
+		return pte_offset_kernel(&pmd, ea);
 	}
 out_huge:
 	if (!hpdp)
