@@ -50,7 +50,6 @@ mock_context(struct drm_i915_private *i915,
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
 	INIT_LIST_HEAD(&ctx->hw_id_link);
-	INIT_LIST_HEAD(&ctx->active_engines);
 	mutex_init(&ctx->mutex);
 
 	ret = i915_gem_context_pin_hw_id(ctx);

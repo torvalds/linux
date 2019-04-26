@@ -1675,7 +1675,6 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 	i915_request_add(rq);
-	GEM_BUG_ON(list_empty(&ctx->active_engines));
 
 	counter = 0;
 	context_barrier_inject_fault = BIT(RCS0);

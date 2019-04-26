@@ -34,6 +34,7 @@
 
 #include "gt/intel_reset.h"
 
+#include "i915_gem_context.h"
 #include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbc.h"
@@ -397,14 +398,17 @@ static void print_context_stats(struct seq_file *m,
 	struct i915_gem_context *ctx;
 
 	list_for_each_entry(ctx, &i915->contexts.list, link) {
+		struct i915_gem_engines_iter it;
 		struct intel_context *ce;
 
-		list_for_each_entry(ce, &ctx->active_engines, active_link) {
+		for_each_gem_engine(ce,
+				    i915_gem_context_lock_engines(ctx), it) {
 			if (ce->state)
 				per_file_stats(0, ce->state->obj, &kstats);
 			if (ce->ring)
 				per_file_stats(0, ce->ring->vma->obj, &kstats);
 		}
+		i915_gem_context_unlock_engines(ctx);
 
 		if (!IS_ERR_OR_NULL(ctx->file_priv)) {
 			struct file_stats stats = { .vm = &ctx->ppgtt->vm, };
@@ -1882,6 +1886,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
+		struct i915_gem_engines_iter it;
 		struct intel_context *ce;
 
 		seq_puts(m, "HW context ");
@@ -1906,7 +1911,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, ctx->remap_slice ? 'R' : 'r');
 		seq_putc(m, '\n');
 
-		list_for_each_entry(ce, &ctx->active_engines, active_link) {
+		for_each_gem_engine(ce,
+				    i915_gem_context_lock_engines(ctx), it) {
 			seq_printf(m, "%s: ", ce->engine->name);
 			if (ce->state)
 				describe_obj(m, ce->state->obj);
@@ -1914,6 +1920,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 				describe_ctx_ring(m, ce->ring);
 			seq_putc(m, '\n');
 		}
+		i915_gem_context_unlock_engines(ctx);
 
 		seq_putc(m, '\n');
 	}

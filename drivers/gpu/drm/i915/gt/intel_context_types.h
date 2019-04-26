@@ -38,7 +38,6 @@ struct intel_context {
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *active;
 
-	struct list_head active_link;
 	struct list_head signal_link;
 	struct list_head signals;
 

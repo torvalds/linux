@@ -165,7 +165,6 @@ struct i915_gem_context {
 	atomic_t hw_id_pin_count;
 	struct list_head hw_id_link;
 
-	struct list_head active_engines;
 	struct mutex mutex;
 
 	struct i915_sched_attr sched;

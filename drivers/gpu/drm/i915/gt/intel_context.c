@@ -49,7 +49,6 @@ int __intel_context_do_pin(struct intel_context *ce)
 		return -EINTR;
 
 	if (likely(!atomic_read(&ce->pin_count))) {
-		struct i915_gem_context *ctx = ce->gem_context;
 		intel_wakeref_t wakeref;
 
 		err = 0;
@@ -58,11 +57,7 @@ int __intel_context_do_pin(struct intel_context *ce)
 		if (err)
 			goto err;
 
-		i915_gem_context_get(ctx);
-
-		mutex_lock(&ctx->mutex);
-		list_add(&ce->active_link, &ctx->active_engines);
-		mutex_unlock(&ctx->mutex);
+		i915_gem_context_get(ce->gem_context); /* for ctx->ppgtt */
 
 		intel_context_get(ce);
 		smp_mb__before_atomic(); /* flush pin before it is visible */
@@ -90,10 +85,6 @@ void intel_context_unpin(struct intel_context *ce)
 
 	if (likely(atomic_dec_and_test(&ce->pin_count))) {
 		ce->ops->unpin(ce);
-
-		mutex_lock(&ce->gem_context->mutex);
-		list_del(&ce->active_link);
-		mutex_unlock(&ce->gem_context->mutex);
 
 		i915_gem_context_put(ce->gem_context);
 		intel_context_put(ce);
