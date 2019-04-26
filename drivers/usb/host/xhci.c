@@ -893,7 +893,7 @@ static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
 	struct xhci_port **ports;
 	int port_index;
 	unsigned long flags;
-	u32 t1, t2;
+	u32 t1, t2, portsc;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
@@ -902,10 +902,15 @@ static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
 	ports = xhci->usb3_rhub.ports;
 	while (port_index--) {
 		t1 = readl(ports[port_index]->addr);
+		portsc = t1;
 		t1 = xhci_port_state_to_neutral(t1);
 		t2 = t1 & ~PORT_WAKE_BITS;
-		if (t1 != t2)
+		if (t1 != t2) {
 			writel(t2, ports[port_index]->addr);
+			xhci_dbg(xhci, "disable wake bits port %d-%d, portsc: 0x%x, write: 0x%x\n",
+				 xhci->usb3_rhub.hcd->self.busnum,
+				 port_index + 1, portsc, t2);
+		}
 	}
 
 	/* disable usb2 ports Wake bits */
@@ -913,12 +918,16 @@ static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
 	ports = xhci->usb2_rhub.ports;
 	while (port_index--) {
 		t1 = readl(ports[port_index]->addr);
+		portsc = t1;
 		t1 = xhci_port_state_to_neutral(t1);
 		t2 = t1 & ~PORT_WAKE_BITS;
-		if (t1 != t2)
+		if (t1 != t2) {
 			writel(t2, ports[port_index]->addr);
+			xhci_dbg(xhci, "disable wake bits port %d-%d, portsc: 0x%x, write: 0x%x\n",
+				 xhci->usb2_rhub.hcd->self.busnum,
+				 port_index + 1, portsc, t2);
+		}
 	}
-
 	spin_unlock_irqrestore(&xhci->lock, flags);
 }
 
