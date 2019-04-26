@@ -464,7 +464,6 @@ static void vlv_get_cdclk(struct drm_i915_private *dev_priv,
 {
 	u32 val;
 
-	mutex_lock(&dev_priv->pcu_lock);
 	vlv_iosf_sb_get(dev_priv,
 			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
 
@@ -477,7 +476,6 @@ static void vlv_get_cdclk(struct drm_i915_private *dev_priv,
 
 	vlv_iosf_sb_put(dev_priv,
 			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	if (IS_VALLEYVIEW(dev_priv))
 		cdclk_state->voltage_level = (val & DSPFREQGUAR_MASK) >>
@@ -556,7 +554,6 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 			BIT(VLV_IOSF_SB_BUNIT) |
 			BIT(VLV_IOSF_SB_PUNIT));
 
-	mutex_lock(&dev_priv->pcu_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK;
 	val |= (cmd << DSPFREQGUAR_SHIFT);
@@ -566,7 +563,6 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
 	}
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	if (cdclk == 400000) {
 		u32 divider;
@@ -639,7 +635,6 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	 */
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
-	mutex_lock(&dev_priv->pcu_lock);
 	vlv_punit_get(dev_priv);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK_CHV;
@@ -652,7 +647,6 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	}
 
 	vlv_punit_put(dev_priv);
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_update_cdclk(dev_priv);
 
@@ -731,10 +725,8 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 		 "trying to change cdclk frequency with cdclk not enabled\n"))
 		return;
 
-	mutex_lock(&dev_priv->pcu_lock);
 	ret = sandybridge_pcode_write(dev_priv,
 				      BDW_PCODE_DISPLAY_FREQ_CHANGE_REQ, 0x0);
-	mutex_unlock(&dev_priv->pcu_lock);
 	if (ret) {
 		DRM_ERROR("failed to inform pcode about cdclk change\n");
 		return;
@@ -783,10 +775,8 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 			LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
 		DRM_ERROR("Switching back to LCPLL failed\n");
 
-	mutex_lock(&dev_priv->pcu_lock);
 	sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
 				cdclk_state->voltage_level);
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	I915_WRITE(CDCLK_FREQ, DIV_ROUND_CLOSEST(cdclk, 1000) - 1);
 
@@ -1025,12 +1015,10 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	 */
 	WARN_ON_ONCE(IS_SKYLAKE(dev_priv) && vco == 8640000);
 
-	mutex_lock(&dev_priv->pcu_lock);
 	ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				SKL_CDCLK_PREPARE_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE, 3);
-	mutex_unlock(&dev_priv->pcu_lock);
 	if (ret) {
 		DRM_ERROR("Failed to inform PCU about cdclk change (%d)\n",
 			  ret);
@@ -1094,10 +1082,8 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	POSTING_READ(CDCLK_CTL);
 
 	/* inform PCU of the change */
-	mutex_lock(&dev_priv->pcu_lock);
 	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				cdclk_state->voltage_level);
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_update_cdclk(dev_priv);
 }
@@ -1394,12 +1380,9 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	 * requires us to wait up to 150usec, but that leads to timeouts;
 	 * the 2ms used here is based on experiment.
 	 */
-	mutex_lock(&dev_priv->pcu_lock);
 	ret = sandybridge_pcode_write_timeout(dev_priv,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
 					      0x80000000, 150, 2);
-	mutex_unlock(&dev_priv->pcu_lock);
-
 	if (ret) {
 		DRM_ERROR("PCode CDCLK freq change notify failed (err %d, freq %d)\n",
 			  ret, cdclk);
@@ -1429,7 +1412,6 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	if (pipe != INVALID_PIPE)
 		intel_wait_for_vblank(dev_priv, pipe);
 
-	mutex_lock(&dev_priv->pcu_lock);
 	/*
 	 * The timeout isn't specified, the 2ms used here is based on
 	 * experiment.
@@ -1439,8 +1421,6 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	ret = sandybridge_pcode_write_timeout(dev_priv,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
 					      cdclk_state->voltage_level, 150, 2);
-	mutex_unlock(&dev_priv->pcu_lock);
-
 	if (ret) {
 		DRM_ERROR("PCode CDCLK freq set failed, (err %d, freq %d)\n",
 			  ret, cdclk);
@@ -1663,12 +1643,10 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 	u32 val, divider;
 	int ret;
 
-	mutex_lock(&dev_priv->pcu_lock);
 	ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				SKL_CDCLK_PREPARE_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE, 3);
-	mutex_unlock(&dev_priv->pcu_lock);
 	if (ret) {
 		DRM_ERROR("Failed to inform PCU about cdclk change (%d)\n",
 			  ret);
@@ -1707,10 +1685,8 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 		intel_wait_for_vblank(dev_priv, pipe);
 
 	/* inform PCU of the change */
-	mutex_lock(&dev_priv->pcu_lock);
 	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				cdclk_state->voltage_level);
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_update_cdclk(dev_priv);
 
@@ -1849,12 +1825,10 @@ static void icl_set_cdclk(struct drm_i915_private *dev_priv,
 	unsigned int vco = cdclk_state->vco;
 	int ret;
 
-	mutex_lock(&dev_priv->pcu_lock);
 	ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				SKL_CDCLK_PREPARE_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE, 3);
-	mutex_unlock(&dev_priv->pcu_lock);
 	if (ret) {
 		DRM_ERROR("Failed to inform PCU about cdclk change (%d)\n",
 			  ret);
@@ -1876,10 +1850,8 @@ static void icl_set_cdclk(struct drm_i915_private *dev_priv,
 	I915_WRITE(CDCLK_CTL, ICL_CDCLK_CD2X_PIPE_NONE |
 			      skl_cdclk_decimal(cdclk));
 
-	mutex_lock(&dev_priv->pcu_lock);
 	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				cdclk_state->voltage_level);
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_update_cdclk(dev_priv);
 

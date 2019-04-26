@@ -317,7 +317,6 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 {
 	u32 val;
 
-	mutex_lock(&dev_priv->pcu_lock);
 	vlv_punit_get(dev_priv);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
@@ -334,14 +333,12 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 		DRM_ERROR("timed out waiting for Punit DDR DVFS request\n");
 
 	vlv_punit_put(dev_priv);
-	mutex_unlock(&dev_priv->pcu_lock);
 }
 
 static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 {
 	u32 val;
 
-	mutex_lock(&dev_priv->pcu_lock);
 	vlv_punit_get(dev_priv);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
@@ -352,7 +349,6 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
 
 	vlv_punit_put(dev_priv);
-	mutex_unlock(&dev_priv->pcu_lock);
 }
 
 #define FW_WM(value, plane) \
@@ -2821,11 +2817,9 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
-		mutex_lock(&dev_priv->pcu_lock);
 		ret = sandybridge_pcode_read(dev_priv,
 					     GEN9_PCODE_READ_MEM_LATENCY,
 					     &val);
-		mutex_unlock(&dev_priv->pcu_lock);
 
 		if (ret) {
 			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
@@ -2842,11 +2836,9 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 
 		/* read the second set of memory latencies[4:7] */
 		val = 1; /* data0 to be programmed to 1 for second set */
-		mutex_lock(&dev_priv->pcu_lock);
 		ret = sandybridge_pcode_read(dev_priv,
 					     GEN9_PCODE_READ_MEM_LATENCY,
 					     &val);
-		mutex_unlock(&dev_priv->pcu_lock);
 		if (ret) {
 			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
 			return;
@@ -3681,13 +3673,10 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 		return 0;
 
 	DRM_DEBUG_KMS("Enabling SAGV\n");
-	mutex_lock(&dev_priv->pcu_lock);
-
 	ret = sandybridge_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
 				      GEN9_SAGV_ENABLE);
 
 	/* We don't need to wait for SAGV when enabling */
-	mutex_unlock(&dev_priv->pcu_lock);
 
 	/*
 	 * Some skl systems, pre-release machines in particular,
@@ -3718,15 +3707,11 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 		return 0;
 
 	DRM_DEBUG_KMS("Disabling SAGV\n");
-	mutex_lock(&dev_priv->pcu_lock);
-
 	/* bspec says to keep retrying for at least 1 ms */
 	ret = skl_pcode_request(dev_priv, GEN9_PCODE_SAGV_CONTROL,
 				GEN9_SAGV_DISABLE,
 				GEN9_SAGV_IS_DISABLED, GEN9_SAGV_IS_DISABLED,
 				1);
-	mutex_unlock(&dev_priv->pcu_lock);
-
 	/*
 	 * Some skl systems, pre-release machines in particular,
 	 * don't actually have SAGV.
@@ -6143,7 +6128,6 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 	wm->level = VLV_WM_LEVEL_PM2;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		mutex_lock(&dev_priv->pcu_lock);
 		vlv_punit_get(dev_priv);
 
 		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
@@ -6175,7 +6159,6 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		}
 
 		vlv_punit_put(dev_priv);
-		mutex_unlock(&dev_priv->pcu_lock);
 	}
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
@@ -6804,7 +6787,7 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 
-	mutex_lock(&dev_priv->pcu_lock);
+	mutex_lock(&rps->lock);
 	if (rps->enabled) {
 		u8 freq;
 
@@ -6827,7 +6810,7 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 					rps->max_freq_softlimit)))
 			DRM_DEBUG_DRIVER("Failed to set idle frequency\n");
 	}
-	mutex_unlock(&dev_priv->pcu_lock);
+	mutex_unlock(&rps->lock);
 }
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
@@ -6841,7 +6824,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 	 */
 	gen6_disable_rps_interrupts(dev_priv);
 
-	mutex_lock(&dev_priv->pcu_lock);
+	mutex_lock(&rps->lock);
 	if (rps->enabled) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			vlv_set_rps_idle(dev_priv);
@@ -6851,7 +6834,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN6_PMINTRMSK,
 			   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
 	}
-	mutex_unlock(&dev_priv->pcu_lock);
+	mutex_unlock(&rps->lock);
 }
 
 void gen6_rps_boost(struct i915_request *rq)
@@ -6891,7 +6874,7 @@ int intel_set_rps(struct drm_i915_private *dev_priv, u8 val)
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	int err;
 
-	lockdep_assert_held(&dev_priv->pcu_lock);
+	lockdep_assert_held(&rps->lock);
 	GEM_BUG_ON(val > rps->max_freq);
 	GEM_BUG_ON(val < rps->min_freq);
 
@@ -7464,7 +7447,7 @@ static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 	unsigned int max_gpu_freq, min_gpu_freq;
 	struct cpufreq_policy *policy;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
+	lockdep_assert_held(&rps->lock);
 
 	if (rps->max_freq <= rps->min_freq)
 		return;
@@ -8549,8 +8532,6 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 		pm_runtime_get(&dev_priv->drm.pdev->dev);
 	}
 
-	mutex_lock(&dev_priv->pcu_lock);
-
 	/* Initialize RPS limits (for userspace) */
 	if (IS_CHERRYVIEW(dev_priv))
 		cherryview_init_gt_powersave(dev_priv);
@@ -8581,8 +8562,6 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	rps->boost_freq = rps->max_freq;
 	rps->idle_freq = rps->min_freq;
 	rps->cur_freq = rps->idle_freq;
-
-	mutex_unlock(&dev_priv->pcu_lock);
 }
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
@@ -8608,7 +8587,7 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 
 static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
 {
-	lockdep_assert_held(&i915->pcu_lock);
+	lockdep_assert_held(&i915->gt_pm.rps.lock);
 
 	if (!i915->gt_pm.llc_pstate.enabled)
 		return;
@@ -8620,7 +8599,7 @@ static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
 
 static void intel_disable_rc6(struct drm_i915_private *dev_priv)
 {
-	lockdep_assert_held(&dev_priv->pcu_lock);
+	lockdep_assert_held(&dev_priv->gt_pm.rps.lock);
 
 	if (!dev_priv->gt_pm.rc6.enabled)
 		return;
@@ -8639,7 +8618,7 @@ static void intel_disable_rc6(struct drm_i915_private *dev_priv)
 
 static void intel_disable_rps(struct drm_i915_private *dev_priv)
 {
-	lockdep_assert_held(&dev_priv->pcu_lock);
+	lockdep_assert_held(&dev_priv->gt_pm.rps.lock);
 
 	if (!dev_priv->gt_pm.rps.enabled)
 		return;
@@ -8660,19 +8639,19 @@ static void intel_disable_rps(struct drm_i915_private *dev_priv)
 
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->pcu_lock);
+	mutex_lock(&dev_priv->gt_pm.rps.lock);
 
 	intel_disable_rc6(dev_priv);
 	intel_disable_rps(dev_priv);
 	if (HAS_LLC(dev_priv))
 		intel_disable_llc_pstate(dev_priv);
 
-	mutex_unlock(&dev_priv->pcu_lock);
+	mutex_unlock(&dev_priv->gt_pm.rps.lock);
 }
 
 static inline void intel_enable_llc_pstate(struct drm_i915_private *i915)
 {
-	lockdep_assert_held(&i915->pcu_lock);
+	lockdep_assert_held(&i915->gt_pm.rps.lock);
 
 	if (i915->gt_pm.llc_pstate.enabled)
 		return;
@@ -8684,7 +8663,7 @@ static inline void intel_enable_llc_pstate(struct drm_i915_private *i915)
 
 static void intel_enable_rc6(struct drm_i915_private *dev_priv)
 {
-	lockdep_assert_held(&dev_priv->pcu_lock);
+	lockdep_assert_held(&dev_priv->gt_pm.rps.lock);
 
 	if (dev_priv->gt_pm.rc6.enabled)
 		return;
@@ -8709,7 +8688,7 @@ static void intel_enable_rps(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 
-	lockdep_assert_held(&dev_priv->pcu_lock);
+	lockdep_assert_held(&rps->lock);
 
 	if (rps->enabled)
 		return;
@@ -8744,7 +8723,7 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 	if (intel_vgpu_active(dev_priv))
 		return;
 
-	mutex_lock(&dev_priv->pcu_lock);
+	mutex_lock(&dev_priv->gt_pm.rps.lock);
 
 	if (HAS_RC6(dev_priv))
 		intel_enable_rc6(dev_priv);
@@ -8753,7 +8732,7 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 	if (HAS_LLC(dev_priv))
 		intel_enable_llc_pstate(dev_priv);
 
-	mutex_unlock(&dev_priv->pcu_lock);
+	mutex_unlock(&dev_priv->gt_pm.rps.lock);
 }
 
 static void ibx_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -9769,22 +9748,20 @@ static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv)
 	}
 }
 
-int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
+static int
+__sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
 	int status;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
+	lockdep_assert_held(&dev_priv->sb_lock);
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
 	 * use te fw I915_READ variants to reduce the amount of work
 	 * required when reading/writing.
 	 */
 
-	if (I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
-		DRM_DEBUG_DRIVER("warning: pcode (read from mbox %x) mailbox access failed for %ps\n",
-				 mbox, __builtin_return_address(0));
+	if (I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY)
 		return -EAGAIN;
-	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, *val);
 	I915_WRITE_FW(GEN6_PCODE_DATA1, 0);
@@ -9792,11 +9769,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 
 	if (__intel_wait_for_register_fw(&dev_priv->uncore,
 					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
-					 500, 0, NULL)) {
-		DRM_ERROR("timeout waiting for pcode read (from mbox %x) to finish for %ps\n",
-			  mbox, __builtin_return_address(0));
+					 500, 0, NULL))
 		return -ETIMEDOUT;
-	}
 
 	*val = I915_READ_FW(GEN6_PCODE_DATA);
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
@@ -9806,33 +9780,40 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	else
 		status = gen6_check_mailbox_status(dev_priv);
 
-	if (status) {
-		DRM_DEBUG_DRIVER("warning: pcode (read from mbox %x) mailbox access failed for %ps: %d\n",
-				 mbox, __builtin_return_address(0), status);
-		return status;
-	}
-
-	return 0;
+	return status;
 }
 
-int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
-				    u32 mbox, u32 val,
-				    int fast_timeout_us, int slow_timeout_ms)
+int
+sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
 	int status;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
+	mutex_lock(&dev_priv->sb_lock);
+	status = __sandybridge_pcode_read(dev_priv, mbox, val);
+	mutex_unlock(&dev_priv->sb_lock);
+
+	if (status) {
+		DRM_DEBUG_DRIVER("warning: pcode (read from mbox %x) mailbox access failed for %ps: %d\n",
+				 mbox, __builtin_return_address(0), status);
+	}
+
+	return status;
+}
+
+static int __sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
+					     u32 mbox, u32 val,
+					     int fast_timeout_us,
+					     int slow_timeout_ms)
+{
+	int status;
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
 	 * use te fw I915_READ variants to reduce the amount of work
 	 * required when reading/writing.
 	 */
 
-	if (I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
-		DRM_DEBUG_DRIVER("warning: pcode (write of 0x%08x to mbox %x) mailbox access failed for %ps\n",
-				 val, mbox, __builtin_return_address(0));
+	if (I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY)
 		return -EAGAIN;
-	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, val);
 	I915_WRITE_FW(GEN6_PCODE_DATA1, 0);
@@ -9841,11 +9822,8 @@ int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
 	if (__intel_wait_for_register_fw(&dev_priv->uncore,
 					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
 					 fast_timeout_us, slow_timeout_ms,
-					 NULL)) {
-		DRM_ERROR("timeout waiting for pcode write of 0x%08x to mbox %x to finish for %ps\n",
-			  val, mbox, __builtin_return_address(0));
+					 NULL))
 		return -ETIMEDOUT;
-	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
 
@@ -9854,13 +9832,28 @@ int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
 	else
 		status = gen6_check_mailbox_status(dev_priv);
 
+	return status;
+}
+
+int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
+				    u32 mbox, u32 val,
+				    int fast_timeout_us,
+				    int slow_timeout_ms)
+{
+	int status;
+
+	mutex_lock(&dev_priv->sb_lock);
+	status = __sandybridge_pcode_write_timeout(dev_priv, mbox, val,
+						   fast_timeout_us,
+						   slow_timeout_ms);
+	mutex_unlock(&dev_priv->sb_lock);
+
 	if (status) {
 		DRM_DEBUG_DRIVER("warning: pcode (write of 0x%08x to mbox %x) mailbox access failed for %ps: %d\n",
 				 val, mbox, __builtin_return_address(0), status);
-		return status;
 	}
 
-	return 0;
+	return status;
 }
 
 static bool skl_pcode_try_request(struct drm_i915_private *dev_priv, u32 mbox,
@@ -9869,7 +9862,7 @@ static bool skl_pcode_try_request(struct drm_i915_private *dev_priv, u32 mbox,
 {
 	u32 val = request;
 
-	*status = sandybridge_pcode_read(dev_priv, mbox, &val);
+	*status = __sandybridge_pcode_read(dev_priv, mbox, &val);
 
 	return *status || ((val & reply_mask) == reply);
 }
@@ -9899,7 +9892,7 @@ int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
 	u32 status;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
+	mutex_lock(&dev_priv->sb_lock);
 
 #define COND skl_pcode_try_request(dev_priv, mbox, request, reply_mask, reply, \
 				   &status)
@@ -9935,6 +9928,7 @@ int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
 	preempt_enable();
 
 out:
+	mutex_unlock(&dev_priv->sb_lock);
 	return ret ? ret : status;
 #undef COND
 }
@@ -10004,7 +9998,7 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 
 void intel_pm_setup(struct drm_i915_private *dev_priv)
 {
-	mutex_init(&dev_priv->pcu_lock);
+	mutex_init(&dev_priv->gt_pm.rps.lock);
 	mutex_init(&dev_priv->gt_pm.rps.power.mutex);
 
 	atomic_set(&dev_priv->gt_pm.rps.num_waiters, 0);

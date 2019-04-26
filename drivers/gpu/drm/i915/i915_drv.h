@@ -648,6 +648,8 @@ struct intel_rps_ei {
 };
 
 struct intel_rps {
+	struct mutex lock; /* protects enabling and the worker */
+
 	/*
 	 * work, interrupts_enabled and pm_iir are protected by
 	 * dev_priv->irq_lock
@@ -1709,14 +1711,6 @@ struct drm_i915_private {
 	 * Cannot be determined by PCIID. You must always read a register.
 	 */
 	u32 edram_size_mb;
-
-	/*
-	 * Protects RPS/RC6 register access and PCU communication.
-	 * Must be taken after struct_mutex if nested. Note that
-	 * this lock may be held for long periods of time when
-	 * talking to hw - so only take it when talking to hw!
-	 */
-	struct mutex pcu_lock;
 
 	/* gen6+ GT PM state */
 	struct intel_gen6_power_mgmt gt_pm;

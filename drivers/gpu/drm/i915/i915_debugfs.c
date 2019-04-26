@@ -1046,8 +1046,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 rpmodectl, freq_sts;
 
-		mutex_lock(&dev_priv->pcu_lock);
-
 		rpmodectl = I915_READ(GEN6_RP_CONTROL);
 		seq_printf(m, "Video Turbo Mode: %s\n",
 			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
@@ -1082,7 +1080,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
 			   intel_gpu_freq(dev_priv, rps->efficient_freq));
-		mutex_unlock(&dev_priv->pcu_lock);
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		u32 rp_state_limits;
 		u32 gt_perf_status;
@@ -1487,12 +1484,9 @@ static int gen6_drpc_info(struct seq_file *m)
 		gen9_powergate_status = I915_READ(GEN9_PWRGT_DOMAIN_STATUS);
 	}
 
-	if (INTEL_GEN(dev_priv) <= 7) {
-		mutex_lock(&dev_priv->pcu_lock);
+	if (INTEL_GEN(dev_priv) <= 7)
 		sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS,
 				       &rc6vids);
-		mutex_unlock(&dev_priv->pcu_lock);
-	}
 
 	seq_printf(m, "RC1e Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
@@ -1756,16 +1750,9 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	unsigned int max_gpu_freq, min_gpu_freq;
 	intel_wakeref_t wakeref;
 	int gpu_freq, ia_freq;
-	int ret;
 
 	if (!HAS_LLC(dev_priv))
 		return -ENODEV;
-
-	wakeref = intel_runtime_pm_get(dev_priv);
-
-	ret = mutex_lock_interruptible(&dev_priv->pcu_lock);
-	if (ret)
-		goto out;
 
 	min_gpu_freq = rps->min_freq;
 	max_gpu_freq = rps->max_freq;
@@ -1777,6 +1764,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
+	wakeref = intel_runtime_pm_get(dev_priv);
 	for (gpu_freq = min_gpu_freq; gpu_freq <= max_gpu_freq; gpu_freq++) {
 		ia_freq = gpu_freq;
 		sandybridge_pcode_read(dev_priv,
@@ -1790,12 +1778,9 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
 	}
-
-	mutex_unlock(&dev_priv->pcu_lock);
-
-out:
 	intel_runtime_pm_put(dev_priv, wakeref);
-	return ret;
+
+	return 0;
 }
 
 static int i915_opregion(struct seq_file *m, void *unused)
@@ -2032,13 +2017,11 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 
 	with_intel_runtime_pm_if_in_use(dev_priv, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-			mutex_lock(&dev_priv->pcu_lock);
 			vlv_punit_get(dev_priv);
 			act_freq = vlv_punit_read(dev_priv,
 						  PUNIT_REG_GPU_FREQ_STS);
 			vlv_punit_put(dev_priv);
 			act_freq = (act_freq >> 8) & 0xff;
-			mutex_unlock(&dev_priv->pcu_lock);
 		} else {
 			act_freq = intel_get_cagf(dev_priv,
 						  I915_READ(GEN6_RPSTAT1));

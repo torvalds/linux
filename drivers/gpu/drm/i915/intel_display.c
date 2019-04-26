@@ -5331,10 +5331,8 @@ void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
 	WARN_ON(!(crtc_state->active_planes & ~BIT(PLANE_CURSOR)));
 
 	if (IS_BROADWELL(dev_priv)) {
-		mutex_lock(&dev_priv->pcu_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL,
 						IPS_ENABLE | IPS_PCODE_CONTROL));
-		mutex_unlock(&dev_priv->pcu_lock);
 		/* Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
 		 * mailbox." Moreover, the mailbox may return a bogus state,
@@ -5364,9 +5362,7 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 		return;
 
 	if (IS_BROADWELL(dev_priv)) {
-		mutex_lock(&dev_priv->pcu_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
-		mutex_unlock(&dev_priv->pcu_lock);
 		/*
 		 * Wait for PCODE to finish disabling IPS. The BSpec specified
 		 * 42ms timeout value leads to occasional timeouts so use 100ms
@@ -9506,11 +9502,9 @@ static u32 hsw_read_dcomp(struct drm_i915_private *dev_priv)
 static void hsw_write_dcomp(struct drm_i915_private *dev_priv, u32 val)
 {
 	if (IS_HASWELL(dev_priv)) {
-		mutex_lock(&dev_priv->pcu_lock);
 		if (sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP,
 					    val))
 			DRM_DEBUG_KMS("Failed to write to D_COMP\n");
-		mutex_unlock(&dev_priv->pcu_lock);
 	} else {
 		I915_WRITE(D_COMP_BDW, val);
 		POSTING_READ(D_COMP_BDW);
