@@ -128,6 +128,8 @@ static int vcn_v2_5_sw_init(void *handle)
 		return r;
 
 	ring = &adev->vcn.ring_dec;
+	ring->use_doorbell = true;
+	ring->doorbell_index = adev->doorbell_index.vcn.vcn_ring0_1 << 1;
 	sprintf(ring->name, "vcn_dec");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.irq, 0);
 	if (r)
@@ -153,6 +155,8 @@ static int vcn_v2_5_sw_init(void *handle)
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.ring_enc[i];
+		ring->use_doorbell = true;
+		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + i;
 		sprintf(ring->name, "vcn_enc%d", i);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.irq, 0);
 		if (r)
@@ -160,6 +164,8 @@ static int vcn_v2_5_sw_init(void *handle)
 	}
 
 	ring = &adev->vcn.ring_jpeg;
+	ring->use_doorbell = true;
+	ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 1;
 	sprintf(ring->name, "vcn_jpeg");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.irq, 0);
 	if (r)
@@ -879,7 +885,10 @@ static uint64_t vcn_v2_5_dec_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	return RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR);
+	if (ring->use_doorbell)
+		return adev->wb.wb[ring->wptr_offs];
+	else
+		return RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR);
 }
 
 /**
@@ -893,7 +902,12 @@ static void vcn_v2_5_dec_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
+	if (ring->use_doorbell) {
+		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
+	} else {
+		WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
+	}
 }
 
 static const struct amdgpu_ring_funcs vcn_v2_5_dec_ring_vm_funcs = {
@@ -954,10 +968,17 @@ static uint64_t vcn_v2_5_enc_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vcn.ring_enc[0])
-		return RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR);
-	else
-		return RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2);
+	if (ring == &adev->vcn.ring_enc[0]) {
+		if (ring->use_doorbell)
+			return adev->wb.wb[ring->wptr_offs];
+		else
+			return RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR);
+	} else {
+		if (ring->use_doorbell)
+			return adev->wb.wb[ring->wptr_offs];
+		else
+			return RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2);
+	}
 }
 
 /**
@@ -971,10 +992,21 @@ static void vcn_v2_5_enc_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vcn.ring_enc[0])
-		WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR, lower_32_bits(ring->wptr));
-	else
-		WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2, lower_32_bits(ring->wptr));
+	if (ring == &adev->vcn.ring_enc[0]) {
+		if (ring->use_doorbell) {
+			adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+			WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
+		} else {
+			WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR, lower_32_bits(ring->wptr));
+		}
+	} else {
+		if (ring->use_doorbell) {
+			adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+			WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
+		} else {
+			WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2, lower_32_bits(ring->wptr));
+		}
+	}
 }
 
 static const struct amdgpu_ring_funcs vcn_v2_5_enc_ring_vm_funcs = {
@@ -1032,7 +1064,10 @@ static uint64_t vcn_v2_5_jpeg_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	return RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
+	if (ring->use_doorbell)
+		return adev->wb.wb[ring->wptr_offs];
+	else
+		return RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
 }
 
 /**
@@ -1046,7 +1081,12 @@ static void vcn_v2_5_jpeg_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, lower_32_bits(ring->wptr));
+	if (ring->use_doorbell) {
+		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
+	} else {
+		WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, lower_32_bits(ring->wptr));
+	}
 }
 
 static const struct amdgpu_ring_funcs vcn_v2_5_jpeg_ring_vm_funcs = {
