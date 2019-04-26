@@ -368,7 +368,7 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 		else /* Must be SM4 since due to sethkey registration */
 			ctx_p->cpp.alg = CC_CPP_SM4;
 		ctx_p->key_type = CC_POLICY_PROTECTED_KEY;
-		dev_dbg(dev, "policy protedcted key alg: %d slot: %d.\n",
+		dev_dbg(dev, "policy protected key alg: %d slot: %d.\n",
 			ctx_p->cpp.alg, ctx_p->cpp.slot);
 		break;
 
