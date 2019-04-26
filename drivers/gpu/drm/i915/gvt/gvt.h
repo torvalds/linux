@@ -149,9 +149,9 @@ struct intel_vgpu_submission_ops {
 struct intel_vgpu_submission {
 	struct intel_vgpu_execlist execlist[I915_NUM_ENGINES];
 	struct list_head workload_q_head[I915_NUM_ENGINES];
+	struct intel_context *shadow[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
-	struct i915_gem_context *shadow_ctx;
 	union {
 		u64 i915_context_pml4;
 		u64 i915_context_pdps[GEN8_3LVL_PDPES];
