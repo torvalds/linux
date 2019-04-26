@@ -5,26 +5,6 @@
 #include <linux/threads.h>
 #include <linux/slab.h>
 
-/*
- * Functions that deal with pagetables that could be at any level of
- * the table need to be passed an "index_size" so they know how to
- * handle allocation.  For PTE pages (which are linked to a struct
- * page for now, and drawn from the main get_free_pages() pool), the
- * allocation size will be (2^index_size * sizeof(pointer)) and
- * allocations are drawn from the kmem_cache in PGT_CACHE(index_size).
- *
- * The maximum index size needs to be big enough to allow any
- * pagetable sizes we need, but small enough to fit in the low bits of
- * any page table pointer.  In other words all pagetables, even tiny
- * ones, must be aligned to allow at least enough low 0 bits to
- * contain this value.  This value is also used as a mask, so it must
- * be one less than a power of two.
- */
-#define MAX_PGTABLE_INDEX_SIZE	0xf
-
-extern struct kmem_cache *pgtable_cache[];
-#define PGT_CACHE(shift) pgtable_cache[shift]
-
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	return kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
@@ -69,7 +49,6 @@ static inline void pgtable_free(void *table, unsigned index_size)
 	}
 }
 
-#define check_pgt_cache()	do { } while (0)
 #define get_hugepd_cache_index(x)  (x)
 
 #ifdef CONFIG_SMP

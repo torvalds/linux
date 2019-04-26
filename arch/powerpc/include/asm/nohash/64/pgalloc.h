@@ -18,26 +18,6 @@ struct vmemmap_backing {
 };
 extern struct vmemmap_backing *vmemmap_list;
 
-/*
- * Functions that deal with pagetables that could be at any level of
- * the table need to be passed an "index_size" so they know how to
- * handle allocation.  For PTE pages (which are linked to a struct
- * page for now, and drawn from the main get_free_pages() pool), the
- * allocation size will be (2^index_size * sizeof(pointer)) and
- * allocations are drawn from the kmem_cache in PGT_CACHE(index_size).
- *
- * The maximum index size needs to be big enough to allow any
- * pagetable sizes we need, but small enough to fit in the low bits of
- * any page table pointer.  In other words all pagetables, even tiny
- * ones, must be aligned to allow at least enough low 0 bits to
- * contain this value.  This value is also used as a mask, so it must
- * be one less than a power of two.
- */
-#define MAX_PGTABLE_INDEX_SIZE	0xf
-
-extern struct kmem_cache *pgtable_cache[];
-#define PGT_CACHE(shift) pgtable_cache[shift]
-
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	return kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
@@ -139,7 +119,5 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 	pgtable_free_tlb(tlb, pmd, PMD_CACHE_INDEX)
 #define __pud_free_tlb(tlb, pud, addr)		      \
 	pgtable_free_tlb(tlb, pud, PUD_INDEX_SIZE)
-
-#define check_pgt_cache()	do { } while (0)
 
 #endif /* _ASM_POWERPC_PGALLOC_64_H */
