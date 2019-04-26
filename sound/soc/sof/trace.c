@@ -43,6 +43,15 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 	if (ret)
 		return ret;
 
+	if (!sdev->dtrace_is_enabled && sdev->dtrace_draining) {
+		/*
+		 * tracing has ended and all traces have been
+		 * read by client, return EOF
+		 */
+		sdev->dtrace_draining = false;
+		return 0;
+	}
+
 	/* wait for available trace data from FW */
 	init_waitqueue_entry(&wait, current);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -104,10 +113,23 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	return count;
 }
 
+static int sof_dfsentry_trace_release(struct inode *inode, struct file *file)
+{
+	struct snd_sof_dfsentry *dfse = inode->i_private;
+	struct snd_sof_dev *sdev = dfse->sdev;
+
+	/* avoid duplicate traces at next open */
+	if (!sdev->dtrace_is_enabled)
+		sdev->host_offset = 0;
+
+	return 0;
+}
+
 static const struct file_operations sof_dfs_trace_fops = {
 	.open = simple_open,
 	.read = sof_dfsentry_trace_read,
 	.llseek = default_llseek,
+	.release = sof_dfsentry_trace_release,
 };
 
 static int trace_debugfs_create(struct snd_sof_dev *sdev)
@@ -155,6 +177,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	params.stream_tag = 0;
 
 	sdev->host_offset = 0;
+	sdev->dtrace_draining = false;
 
 	ret = snd_sof_dma_trace_init(sdev, &params.stream_tag);
 	if (ret < 0) {
@@ -291,6 +314,8 @@ void snd_sof_release_trace(struct snd_sof_dev *sdev)
 			"error: fail in snd_sof_dma_trace_release %d\n", ret);
 
 	sdev->dtrace_is_enabled = false;
+	sdev->dtrace_draining = true;
+	wake_up(&sdev->trace_sleep);
 }
 EXPORT_SYMBOL(snd_sof_release_trace);
 
