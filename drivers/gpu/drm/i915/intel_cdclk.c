@@ -557,7 +557,8 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	}
 	mutex_unlock(&dev_priv->pcu_lock);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_iosf_sb_get(dev_priv,
+			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_BUNIT));
 
 	if (cdclk == 400000) {
 		u32 divider;
@@ -591,7 +592,8 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 		val |= 3000 / 250; /* 3.0 usec */
 	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_iosf_sb_put(dev_priv,
+			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_BUNIT));
 
 	intel_update_cdclk(dev_priv);
 

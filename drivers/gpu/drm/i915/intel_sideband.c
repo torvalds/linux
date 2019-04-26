@@ -73,6 +73,22 @@ static void __vlv_punit_put(struct drm_i915_private *i915)
 	iosf_mbi_punit_release();
 }
 
+void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports)
+{
+	if (ports & BIT(VLV_IOSF_SB_PUNIT))
+		__vlv_punit_get(i915);
+
+	mutex_lock(&i915->sb_lock);
+}
+
+void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports)
+{
+	mutex_unlock(&i915->sb_lock);
+
+	if (ports & BIT(VLV_IOSF_SB_PUNIT))
+		__vlv_punit_put(i915);
+}
+
 static int vlv_sideband_rw(struct drm_i915_private *i915,
 			   u32 devfn, u32 port, u32 opcode,
 			   u32 addr, u32 *val)
@@ -82,6 +98,8 @@ static int vlv_sideband_rw(struct drm_i915_private *i915,
 	int err;
 
 	lockdep_assert_held(&i915->sb_lock);
+	if (port == IOSF_PORT_PUNIT)
+		iosf_mbi_assert_punit_acquired();
 
 	/* Flush the previous comms, just in case it failed last time. */
 	if (intel_wait_for_register(uncore,
@@ -125,16 +143,14 @@ u32 vlv_punit_read(struct drm_i915_private *i915, u32 addr)
 {
 	u32 val = 0;
 
-	WARN_ON(!mutex_is_locked(&i915->pcu_lock));
+	lockdep_assert_held(&i915->pcu_lock);
 
-	mutex_lock(&i915->sb_lock);
-	__vlv_punit_get(i915);
+	vlv_punit_get(i915);
 
 	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
 			SB_CRRDDA_NP, addr, &val);
 
-	__vlv_punit_put(i915);
-	mutex_unlock(&i915->sb_lock);
+	vlv_punit_put(i915);
 
 	return val;
 }
@@ -143,16 +159,14 @@ int vlv_punit_write(struct drm_i915_private *i915, u32 addr, u32 val)
 {
 	int err;
 
-	WARN_ON(!mutex_is_locked(&i915->pcu_lock));
+	lockdep_assert_held(&i915->pcu_lock);
 
-	mutex_lock(&i915->sb_lock);
-	__vlv_punit_get(i915);
+	vlv_punit_get(i915);
 
 	err = vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
 			      SB_CRWRDA_NP, addr, &val);
 
-	__vlv_punit_put(i915);
-	mutex_unlock(&i915->sb_lock);
+	vlv_punit_put(i915);
 
 	return err;
 }
@@ -177,12 +191,10 @@ u32 vlv_nc_read(struct drm_i915_private *i915, u8 addr)
 {
 	u32 val = 0;
 
-	WARN_ON(!mutex_is_locked(&i915->pcu_lock));
-
-	mutex_lock(&i915->sb_lock);
+	vlv_nc_get(i915);
 	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_NC,
 			SB_CRRDDA_NP, addr, &val);
-	mutex_unlock(&i915->sb_lock);
+	vlv_nc_put(i915);
 
 	return val;
 }
@@ -281,7 +293,8 @@ u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 		   enum intel_sbi_destination destination)
 {
 	u32 value = 0;
-	WARN_ON(!mutex_is_locked(&dev_priv->sb_lock));
+
+	lockdep_assert_held(&dev_priv->sb_lock);
 
 	if (intel_wait_for_register(&dev_priv->uncore,
 				    SBI_CTL_STAT, SBI_BUSY, 0,
@@ -321,7 +334,7 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 {
 	u32 tmp;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->sb_lock));
+	lockdep_assert_held(&dev_priv->sb_lock);
 
 	if (intel_wait_for_register(&dev_priv->uncore,
 				    SBI_CTL_STAT, SBI_BUSY, 0,

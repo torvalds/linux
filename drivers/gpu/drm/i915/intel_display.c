@@ -152,10 +152,10 @@ int vlv_get_hpll_vco(struct drm_i915_private *dev_priv)
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
 	/* Obtain SKU information */
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_cck_get(dev_priv);
 	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
 		CCK_FUSE_HPLL_FREQ_MASK;
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_cck_put(dev_priv);
 
 	return vco_freq[hpll_freq] * 1000;
 }
@@ -166,9 +166,9 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 	u32 val;
 	int divider;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_cck_get(dev_priv);
 	val = vlv_cck_read(dev_priv, reg);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_cck_put(dev_priv);
 
 	divider = val & CCK_FREQUENCY_VALUES;
 
@@ -1093,9 +1093,9 @@ void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
 	u32 val;
 	bool cur_state;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_cck_get(dev_priv);
 	val = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_cck_put(dev_priv);
 
 	cur_state = val & DSI_PLL_VCO_EN;
 	I915_STATE_WARN(cur_state != state,
@@ -1405,14 +1405,14 @@ static void _chv_enable_pll(struct intel_crtc *crtc,
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	u32 tmp;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Enable back the 10bit clock to display controller */
 	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
 	tmp |= DPIO_DCLKP_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), tmp);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 
 	/*
 	 * Need to wait > 100ns between dclkp clock enable bit and PLL enable.
@@ -1569,14 +1569,14 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Disable 10bit clock to display controller */
 	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
 	val &= ~DPIO_DCLKP_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), val);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
@@ -7276,7 +7276,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
 		return;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	bestn = pipe_config->dpll.n;
 	bestm1 = pipe_config->dpll.m1;
@@ -7353,7 +7353,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW7(pipe), coreclk);
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW11(pipe), 0x87871000);
-	mutex_unlock(&dev_priv->sb_lock);
+
+	vlv_dpio_put(dev_priv);
 }
 
 static void chv_prepare_pll(struct intel_crtc *crtc,
@@ -7386,7 +7387,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	dpio_val = 0;
 	loopfilter = 0;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* p1 and p2 divider */
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW13(port),
@@ -7458,7 +7459,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port)) |
 			DPIO_AFC_RECAL);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }
 
 /**
@@ -8084,9 +8085,9 @@ static void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
 		return;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 	mdiv = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW3(pipe));
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 
 	clock.m1 = (mdiv >> DPIO_M1DIV_SHIFT) & 7;
 	clock.m2 = mdiv & DPIO_M2DIV_MASK;
@@ -8195,13 +8196,13 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
 		return;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 	cmn_dw13 = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW13(port));
 	pll_dw0 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW0(port));
 	pll_dw1 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW1(port));
 	pll_dw2 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW2(port));
 	pll_dw3 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW3(port));
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 
 	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
 	clock.m2 = (pll_dw0 & 0xff) << 22;

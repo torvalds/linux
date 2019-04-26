@@ -1569,7 +1569,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 				    1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Enable dynamic power down */
 	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW28);
@@ -1592,7 +1592,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 		vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, tmp);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 
 	dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
@@ -1655,9 +1655,9 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 	else
 		reg = _CHV_CMN_DW6_CH1;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 	val = vlv_dpio_read(dev_priv, pipe, reg);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 
 	/*
 	 * This assumes !override is only used when the port is disabled.

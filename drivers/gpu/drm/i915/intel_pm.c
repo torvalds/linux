@@ -7803,9 +7803,9 @@ static void cherryview_init_gt_powersave(struct drm_i915_private *dev_priv)
 
 	vlv_init_gpll_ref_freq(dev_priv);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_cck_get(dev_priv);
 	val = vlv_cck_read(dev_priv, CCK_FUSE_REG);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_cck_put(dev_priv);
 
 	switch ((val >> 2) & 0x7) {
 	case 3:

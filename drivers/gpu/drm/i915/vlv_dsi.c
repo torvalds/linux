@@ -248,7 +248,7 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 
 static void band_gap_reset(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_flisdsi_get(dev_priv);
 
 	vlv_flisdsi_write(dev_priv, 0x08, 0x0001);
 	vlv_flisdsi_write(dev_priv, 0x0F, 0x0005);
@@ -257,7 +257,7 @@ static void band_gap_reset(struct drm_i915_private *dev_priv)
 	vlv_flisdsi_write(dev_priv, 0x0F, 0x0000);
 	vlv_flisdsi_write(dev_priv, 0x08, 0x0000);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_flisdsi_put(dev_priv);
 }
 
 static int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
@@ -515,11 +515,11 @@ static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_flisdsi_get(dev_priv);
 	/* program rcomp for compliance, reduce from 50 ohms to 45 ohms
 	 * needed everytime after power gate */
 	vlv_flisdsi_write(dev_priv, 0x04, 0x0004);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_flisdsi_put(dev_priv);
 
 	/* bandgap reset is needed after everytime we do power gate */
 	band_gap_reset(dev_priv);

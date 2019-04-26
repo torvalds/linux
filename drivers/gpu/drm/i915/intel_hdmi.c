@@ -2630,12 +2630,12 @@ static void chv_hdmi_post_disable(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Assert data lane reset */
 	chv_data_lane_soft_reset(encoder, old_crtc_state, true);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }
 
 static void chv_hdmi_pre_enable(struct intel_encoder *encoder,
