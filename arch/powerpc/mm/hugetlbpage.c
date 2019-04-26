@@ -549,13 +549,6 @@ unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
 	return vma_kernel_pagesize(vma);
 }
 
-static inline bool is_power_of_4(unsigned long x)
-{
-	if (is_power_of_2(x))
-		return (__ilog2(x) % 2) ? false : true;
-	return false;
-}
-
 static int __init add_huge_page_size(unsigned long long size)
 {
 	int shift = __ffs(size);
@@ -563,36 +556,12 @@ static int __init add_huge_page_size(unsigned long long size)
 
 	/* Check that it is a page size supported by the hardware and
 	 * that it fits within pagetable and slice limits. */
-	if (size <= PAGE_SIZE)
-		return -EINVAL;
-#if defined(CONFIG_PPC_FSL_BOOK3E)
-	if (!is_power_of_4(size))
-		return -EINVAL;
-#elif !defined(CONFIG_PPC_8xx)
-	if (!is_power_of_2(size) || (shift > SLICE_HIGH_SHIFT))
-		return -EINVAL;
-#endif
-
-	if ((mmu_psize = shift_to_mmu_psize(shift)) < 0)
+	if (size <= PAGE_SIZE || !is_power_of_2(size))
 		return -EINVAL;
 
-#ifdef CONFIG_PPC_BOOK3S_64
-	/*
-	 * We need to make sure that for different page sizes reported by
-	 * firmware we only add hugetlb support for page sizes that can be
-	 * supported by linux page table layout.
-	 * For now we have
-	 * Radix: 2M and 1G
-	 * Hash: 16M and 16G
-	 */
-	if (radix_enabled()) {
-		if (mmu_psize != MMU_PAGE_2M && mmu_psize != MMU_PAGE_1G)
-			return -EINVAL;
-	} else {
-		if (mmu_psize != MMU_PAGE_16M && mmu_psize != MMU_PAGE_16G)
-			return -EINVAL;
-	}
-#endif
+	mmu_psize = check_and_get_huge_psize(size);
+	if (mmu_psize < 0)
+		return -EINVAL;
 
 	BUG_ON(mmu_psize_defs[mmu_psize].shift != shift);
 

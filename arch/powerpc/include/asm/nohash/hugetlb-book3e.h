@@ -34,4 +34,12 @@ static inline void hugepd_populate(hugepd_t *hpdp, pte_t *new, unsigned int pshi
 	*hpdp = __hugepd(((unsigned long)new & ~PD_HUGE) | pshift);
 }
 
+static inline int check_and_get_huge_psize(int shift)
+{
+	if (shift & 1)	/* Not a power of 4 */
+		return -EINVAL;
+
+	return shift_to_mmu_psize(shift);
+}
+
 #endif /* _ASM_POWERPC_NOHASH_HUGETLB_BOOK3E_H */

@@ -36,4 +36,9 @@ static inline void hugepd_populate(hugepd_t *hpdp, pte_t *new, unsigned int pshi
 			 (pshift == PAGE_SHIFT_8M ? _PMD_PAGE_8M : _PMD_PAGE_512K));
 }
 
+static inline int check_and_get_huge_psize(int shift)
+{
+	return shift_to_mmu_psize(shift);
+}
+
 #endif /* _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H */
