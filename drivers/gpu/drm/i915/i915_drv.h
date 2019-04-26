@@ -3420,16 +3420,6 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv);
 extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct intel_display_error_state *error);
 
-int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val);
-int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv, u32 mbox,
-				    u32 val, int fast_timeout_us,
-				    int slow_timeout_ms);
-#define sandybridge_pcode_write(dev_priv, mbox, val)	\
-	sandybridge_pcode_write_timeout(dev_priv, mbox, val, 500, 0)
-
-int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
-		      u32 reply_mask, u32 reply, int timeout_base_ms);
-
 /* intel_dpio_phy.c */
 void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 			     enum dpio_phy *phy, enum dpio_channel *ch);

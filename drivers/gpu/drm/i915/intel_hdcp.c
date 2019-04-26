@@ -16,6 +16,7 @@
 #include "i915_reg.h"
 #include "intel_drv.h"
 #include "intel_hdcp.h"
+#include "intel_sideband.h"
 
 #define KEY_LOAD_TRIES	5
 #define ENCRYPT_STATUS_CHANGE_TIMEOUT_MS	50
