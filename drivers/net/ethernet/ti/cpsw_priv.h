@@ -434,4 +434,8 @@ struct addr_sync_ctx {
 	int flush;		/* flush flag */
 };
 
+int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
+		     int ale_ageout, phys_addr_t desc_mem_phys,
+		     int descs_pool_size);
+
 #endif /* DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_ */
