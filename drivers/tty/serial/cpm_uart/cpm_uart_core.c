@@ -576,8 +576,6 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	/*
 	 * Set up parity check flag
 	 */
-#define RELEVANT_IFLAG(iflag) (iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 	port->read_status_mask = (BD_SC_EMPTY | BD_SC_OV);
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= BD_SC_FR | BD_SC_PR;
