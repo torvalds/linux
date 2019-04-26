@@ -1368,7 +1368,7 @@ xfs_fs_remount(
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 			return error;
 		}
-		xfs_icache_enable_reclaim(mp);
+		xfs_start_block_reaping(mp);
 
 		/* Create the per-AG metadata reservation pool .*/
 		error = xfs_fs_reserve_ag_blocks(mp);
@@ -1382,7 +1382,7 @@ xfs_fs_remount(
 		 * Cancel background eofb scanning so it cannot race with the
 		 * final log force+buftarg wait and deadlock the remount.
 		 */
-		xfs_icache_disable_reclaim(mp);
+		xfs_stop_block_reaping(mp);
 
 		/* Get rid of any leftover CoW reservations... */
 		error = xfs_icache_free_cowblocks(mp, NULL);
@@ -1426,7 +1426,7 @@ xfs_fs_freeze(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	xfs_icache_disable_reclaim(mp);
+	xfs_stop_block_reaping(mp);
 	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
 	return xfs_sync_sb(mp, true);
@@ -1440,7 +1440,7 @@ xfs_fs_unfreeze(
 
 	xfs_restore_resvblks(mp);
 	xfs_log_work_queue(mp);
-	xfs_icache_enable_reclaim(mp);
+	xfs_start_block_reaping(mp);
 	return 0;
 }
 
