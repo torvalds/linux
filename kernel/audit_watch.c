@@ -255,18 +255,19 @@ static void audit_watch_log_rule_change(struct audit_krule *r, struct audit_watc
 
 /* Update inode info in audit rules based on filesystem event. */
 static void audit_update_watch(struct audit_parent *parent,
-			       const char *dname, dev_t dev,
+			       const struct qstr *dname, dev_t dev,
 			       unsigned long ino, unsigned invalidating)
 {
 	struct audit_watch *owatch, *nwatch, *nextw;
 	struct audit_krule *r, *nextr;
 	struct audit_entry *oentry, *nentry;
+	const unsigned char *name = dname->name;
 
 	mutex_lock(&audit_filter_mutex);
 	/* Run all of the watches on this parent looking for the one that
 	 * matches the given dname */
 	list_for_each_entry_safe(owatch, nextw, &parent->watches, wlist) {
-		if (audit_compare_dname_path(dname, owatch->path,
+		if (audit_compare_dname_path(name, owatch->path,
 					     AUDIT_NAME_FULL))
 			continue;
 
@@ -507,9 +508,9 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO) && inode)
-		audit_update_watch(parent, dname->name, inode->i_sb->s_dev, inode->i_ino, 0);
+		audit_update_watch(parent, dname, inode->i_sb->s_dev, inode->i_ino, 0);
 	else if (mask & (FS_DELETE|FS_MOVED_FROM))
-		audit_update_watch(parent, dname->name, AUDIT_DEV_UNSET, AUDIT_INO_UNSET, 1);
+		audit_update_watch(parent, dname, AUDIT_DEV_UNSET, AUDIT_INO_UNSET, 1);
 	else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))
 		audit_remove_parent_watches(parent);
 
