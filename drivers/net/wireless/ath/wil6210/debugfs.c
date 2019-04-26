@@ -63,7 +63,9 @@ static void wil_print_desc_edma(struct seq_file *s, struct wil6210_priv *wil,
 			&ring->va[idx].rx.enhanced;
 		u16 buff_id = le16_to_cpu(rx_d->mac.buff_id);
 
-		has_skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
+		if (wil->rx_buff_mgmt.buff_arr &&
+		    wil_val_in_range(buff_id, 0, wil->rx_buff_mgmt.size))
+			has_skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
 		seq_printf(s, "%c", (has_skb) ? _h : _s);
 	} else {
 		struct wil_tx_enhanced_desc *d =
@@ -71,9 +73,9 @@ static void wil_print_desc_edma(struct seq_file *s, struct wil6210_priv *wil,
 			&ring->va[idx].tx.enhanced;
 
 		num_of_descs = (u8)d->mac.d[2];
-		has_skb = ring->ctx[idx].skb;
+		has_skb = ring->ctx && ring->ctx[idx].skb;
 		if (num_of_descs >= 1)
-			seq_printf(s, "%c", ring->ctx[idx].skb ? _h : _s);
+			seq_printf(s, "%c", has_skb ? _h : _s);
 		else
 			/* num_of_descs == 0, it's a frag in a list of descs */
 			seq_printf(s, "%c", has_skb ? 'h' : _s);
@@ -84,7 +86,7 @@ static void wil_print_ring(struct seq_file *s, struct wil6210_priv *wil,
 			   const char *name, struct wil_ring *ring,
 			   char _s, char _h)
 {
-	void __iomem *x = wmi_addr(wil, ring->hwtail);
+	void __iomem *x;
 	u32 v;
 
 	seq_printf(s, "RING %s = {\n", name);
@@ -96,7 +98,21 @@ static void wil_print_ring(struct seq_file *s, struct wil6210_priv *wil,
 	else
 		seq_printf(s, "  swtail = %d\n", ring->swtail);
 	seq_printf(s, "  swhead = %d\n", ring->swhead);
+	if (wil->use_enhanced_dma_hw) {
+		int ring_id = ring->is_rx ?
+			WIL_RX_DESC_RING_ID : ring - wil->ring_tx;
+		/* SUBQ_CONS is a table of 32 entries, one for each Q pair.
+		 * lower 16bits are for even ring_id and upper 16bits are for
+		 * odd ring_id
+		 */
+		x = wmi_addr(wil, RGF_DMA_SCM_SUBQ_CONS + 4 * (ring_id / 2));
+		v = readl_relaxed(x);
+
+		v = (ring_id % 2 ? (v >> 16) : (v & 0xffff));
+		seq_printf(s, "  hwhead = %u\n", v);
+	}
 	seq_printf(s, "  hwtail = [0x%08x] -> ", ring->hwtail);
+	x = wmi_addr(wil, ring->hwtail);
 	if (x) {
 		v = readl(x);
 		seq_printf(s, "0x%08x = %d\n", v, v);
@@ -188,7 +204,7 @@ DEFINE_SHOW_ATTRIBUTE(ring);
 static void wil_print_sring(struct seq_file *s, struct wil6210_priv *wil,
 			    struct wil_status_ring *sring)
 {
-	void __iomem *x = wmi_addr(wil, sring->hwtail);
+	void __iomem *x;
 	int sring_idx = sring - wil->srings;
 	u32 v;
 
@@ -199,7 +215,19 @@ static void wil_print_sring(struct seq_file *s, struct wil6210_priv *wil,
 	seq_printf(s, "  size   = %d\n", sring->size);
 	seq_printf(s, "  elem_size   = %zu\n", sring->elem_size);
 	seq_printf(s, "  swhead = %d\n", sring->swhead);
+	if (wil->use_enhanced_dma_hw) {
+		/* COMPQ_PROD is a table of 32 entries, one for each Q pair.
+		 * lower 16bits are for even ring_id and upper 16bits are for
+		 * odd ring_id
+		 */
+		x = wmi_addr(wil, RGF_DMA_SCM_COMPQ_PROD + 4 * (sring_idx / 2));
+		v = readl_relaxed(x);
+
+		v = (sring_idx % 2 ? (v >> 16) : (v & 0xffff));
+		seq_printf(s, "  hwhead = %u\n", v);
+	}
 	seq_printf(s, "  hwtail = [0x%08x] -> ", sring->hwtail);
+	x = wmi_addr(wil, sring->hwtail);
 	if (x) {
 		v = readl_relaxed(x);
 		seq_printf(s, "0x%08x = %d\n", v, v);
@@ -1091,19 +1119,18 @@ static int txdesc_show(struct seq_file *s, void *data)
 
 	if (wil->use_enhanced_dma_hw) {
 		if (tx) {
-			skb = ring->ctx[txdesc_idx].skb;
-		} else {
+			skb = ring->ctx ? ring->ctx[txdesc_idx].skb : NULL;
+		} else if (wil->rx_buff_mgmt.buff_arr) {
 			struct wil_rx_enhanced_desc *rx_d =
 				(struct wil_rx_enhanced_desc *)
 				&ring->va[txdesc_idx].rx.enhanced;
 			u16 buff_id = le16_to_cpu(rx_d->mac.buff_id);
 
 			if (!wil_val_in_range(buff_id, 0,
-					      wil->rx_buff_mgmt.size)) {
+					      wil->rx_buff_mgmt.size))
 				seq_printf(s, "invalid buff_id %d\n", buff_id);
-				return 0;
-			}
-			skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
+			else
+				skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
 		}
 	} else {
 		skb = ring->ctx[txdesc_idx].skb;
@@ -1136,7 +1163,7 @@ static int status_msg_show(struct seq_file *s, void *data)
 	struct wil6210_priv *wil = s->private;
 	int sring_idx = dbg_sring_index;
 	struct wil_status_ring *sring;
-	bool tx = sring_idx == wil->tx_sring_idx ? 1 : 0;
+	bool tx;
 	u32 status_msg_idx = dbg_status_msg_index;
 	u32 *u;
 
@@ -1146,6 +1173,7 @@ static int status_msg_show(struct seq_file *s, void *data)
 	}
 
 	sring = &wil->srings[sring_idx];
+	tx = !sring->is_rx;
 
 	if (!sring->va) {
 		seq_printf(s, "No %cX status ring\n", tx ? 'T' : 'R');
