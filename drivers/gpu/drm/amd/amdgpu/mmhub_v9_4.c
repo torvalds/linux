@@ -114,12 +114,11 @@ static void mmhub_v9_4_init_system_aperture_regs(struct amdgpu_device *adev,
 	WREG32_SOC15_OFFSET(MMHUB, 0,
 			    mmVMSHAREDVC0_MC_VM_SYSTEM_APERTURE_LOW_ADDR,
 			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
-			    min(adev->gmc.vram_start, adev->gmc.agp_start)
-			    >> 18);
+			    min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 	WREG32_SOC15_OFFSET(MMHUB, 0,
 			    mmVMSHAREDVC0_MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
 			    hubid * MMHUB_INSTANCE_REGISTER_OFFSET,
-			    max(adev->gmc.vram_end, adev->gmc.agp_end) >> 18);
+			    max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
 	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
