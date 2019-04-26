@@ -49,11 +49,6 @@ static inline int tlb1_next(void)
 #endif /* !PPC64 */
 #endif /* FSL */
 
-static inline int mmu_get_tsize(int psize)
-{
-	return mmu_psize_defs[psize].enc;
-}
-
 #if defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_PPC64)
 #include <asm/paca.h>
 
