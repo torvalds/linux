@@ -43,6 +43,4 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
 		*pmdp = __pmd(__pa(pte_page) | _PMD_USER | _PMD_PRESENT);
 }
 
-#define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
-
 #endif /* _ASM_POWERPC_PGALLOC_32_H */

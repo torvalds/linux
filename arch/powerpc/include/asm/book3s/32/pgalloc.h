@@ -37,8 +37,6 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
 	*pmdp = __pmd(__pa(pte_page) | _PMD_PRESENT);
 }
 
-#define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
-
 static inline void pgtable_free(void *table, unsigned index_size)
 {
 	if (!index_size) {

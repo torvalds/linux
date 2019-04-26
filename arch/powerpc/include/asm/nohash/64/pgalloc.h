@@ -59,8 +59,6 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 	pmd_set(pmd, (unsigned long)pte_page);
 }
 
-#define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
-
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
 	return kmem_cache_alloc(PGT_CACHE(PMD_CACHE_INDEX),

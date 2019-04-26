@@ -72,4 +72,9 @@ static inline void check_pgt_cache(void) { }
 #include <asm/nohash/pgalloc.h>
 #endif
 
+static inline pgtable_t pmd_pgtable(pmd_t pmd)
+{
+	return (pgtable_t)pmd_page_vaddr(pmd);
+}
+
 #endif /* _ASM_POWERPC_PGALLOC_H */
