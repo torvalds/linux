@@ -59,8 +59,11 @@ ctnl_timeout_parse_policy(void *timeout,
 	if (!tb)
 		return -ENOMEM;
 
-	ret = nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max, attr,
-			       l4proto->ctnl_timeout.nla_policy, NULL);
+	ret = nla_parse_nested_deprecated(tb,
+					  l4proto->ctnl_timeout.nlattr_max,
+					  attr,
+					  l4proto->ctnl_timeout.nla_policy,
+					  NULL);
 	if (ret < 0)
 		goto err;
 

@@ -220,8 +220,8 @@ static int ncsi_pkg_info_all_nl(struct sk_buff *skb,
 	void *hdr;
 	int rc;
 
-	rc = genlmsg_parse(cb->nlh, &ncsi_genl_family, attrs, NCSI_ATTR_MAX,
-			   ncsi_genl_policy, NULL);
+	rc = genlmsg_parse_deprecated(cb->nlh, &ncsi_genl_family, attrs, NCSI_ATTR_MAX,
+				      ncsi_genl_policy, NULL);
 	if (rc)
 		return rc;
 

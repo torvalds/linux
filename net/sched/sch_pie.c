@@ -216,7 +216,8 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_PIE_MAX, opt, pie_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_PIE_MAX, opt, pie_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 

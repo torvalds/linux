@@ -1223,11 +1223,13 @@ static int mpls_netconf_valid_get_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(struct netconfmsg), tb,
-				   NETCONFA_MAX, devconf_mpls_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(struct netconfmsg),
+					      tb, NETCONFA_MAX,
+					      devconf_mpls_policy, extack);
 
-	err = nlmsg_parse_strict(nlh, sizeof(struct netconfmsg), tb,
-				 NETCONFA_MAX, devconf_mpls_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(struct netconfmsg),
+					    tb, NETCONFA_MAX,
+					    devconf_mpls_policy, extack);
 	if (err)
 		return err;
 
@@ -1788,8 +1790,8 @@ static int rtm_to_route_config(struct sk_buff *skb,
 	int index;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_mpls_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+				     rtm_mpls_policy, extack);
 	if (err < 0)
 		goto errout;
 
@@ -2106,8 +2108,8 @@ static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 		cb->answer_flags = NLM_F_DUMP_FILTERED;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
-				 rtm_mpls_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+					    rtm_mpls_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -2290,8 +2292,8 @@ static int mpls_valid_getroute_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
-				   rtm_mpls_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+					      rtm_mpls_policy, extack);
 
 	rtm = nlmsg_data(nlh);
 	if ((rtm->rtm_dst_len && rtm->rtm_dst_len != 20) ||
@@ -2306,8 +2308,8 @@ static int mpls_valid_getroute_req(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
-				 rtm_mpls_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+					    rtm_mpls_policy, extack);
 	if (err)
 		return err;
 

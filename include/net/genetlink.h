@@ -165,7 +165,7 @@ static inline struct nlmsghdr *genlmsg_nlhdr(void *user_hdr)
 }
 
 /**
- * genlmsg_parse - parse attributes of a genetlink message
+ * genlmsg_parse_deprecated - parse attributes of a genetlink message
  * @nlh: netlink message header
  * @family: genetlink message family
  * @tb: destination array with maxtype+1 elements
@@ -173,14 +173,14 @@ static inline struct nlmsghdr *genlmsg_nlhdr(void *user_hdr)
  * @policy: validation policy
  * @extack: extended ACK report struct
  */
-static inline int genlmsg_parse(const struct nlmsghdr *nlh,
-				const struct genl_family *family,
-				struct nlattr *tb[], int maxtype,
-				const struct nla_policy *policy,
-				struct netlink_ext_ack *extack)
+static inline int genlmsg_parse_deprecated(const struct nlmsghdr *nlh,
+					   const struct genl_family *family,
+					   struct nlattr *tb[], int maxtype,
+					   const struct nla_policy *policy,
+					   struct netlink_ext_ack *extack)
 {
-	return nlmsg_parse(nlh, family->hdrsize + GENL_HDRLEN, tb, maxtype,
-			   policy, extack);
+	return __nlmsg_parse(nlh, family->hdrsize + GENL_HDRLEN, tb, maxtype,
+			     policy, NL_VALIDATE_LIBERAL, extack);
 }
 
 /**

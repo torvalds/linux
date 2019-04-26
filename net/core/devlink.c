@@ -3674,9 +3674,10 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	if (!attrs)
 		return -ENOMEM;
 
-	err = nlmsg_parse(cb->nlh, GENL_HDRLEN + devlink_nl_family.hdrsize,
-			  attrs, DEVLINK_ATTR_MAX, devlink_nl_family.policy,
-			  cb->extack);
+	err = nlmsg_parse_deprecated(cb->nlh,
+				     GENL_HDRLEN + devlink_nl_family.hdrsize,
+				     attrs, DEVLINK_ATTR_MAX,
+				     devlink_nl_family.policy, cb->extack);
 	if (err)
 		goto out_free;
 

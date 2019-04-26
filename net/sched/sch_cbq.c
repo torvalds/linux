@@ -1149,7 +1149,8 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_CBQ_MAX, opt, cbq_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -1473,7 +1474,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_CBQ_MAX, opt, cbq_policy,
+					  extack);
 	if (err < 0)
 		return err;
 

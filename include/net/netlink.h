@@ -369,21 +369,48 @@ struct nl_info {
 	bool			skip_notify;
 };
 
+/**
+ * enum netlink_validation - netlink message/attribute validation levels
+ * @NL_VALIDATE_LIBERAL: Old-style "be liberal" validation, not caring about
+ *	extra data at the end of the message, attributes being longer than
+ *	they should be, or unknown attributes being present.
+ * @NL_VALIDATE_TRAILING: Reject junk data encountered after attribute parsing.
+ * @NL_VALIDATE_MAXTYPE: Reject attributes > max type; Together with _TRAILING
+ *	this is equivalent to the old nla_parse_strict()/nlmsg_parse_strict().
+ * @NL_VALIDATE_UNSPEC: Reject attributes with NLA_UNSPEC in the policy.
+ *	This can safely be set by the kernel when the given policy has no
+ *	NLA_UNSPEC anymore, and can thus be used to ensure policy entries
+ *	are enforced going forward.
+ * @NL_VALIDATE_STRICT_ATTRS: strict attribute policy parsing (e.g.
+ *	U8, U16, U32 must have exact size, etc.)
+ */
+enum netlink_validation {
+	NL_VALIDATE_LIBERAL = 0,
+	NL_VALIDATE_TRAILING = BIT(0),
+	NL_VALIDATE_MAXTYPE = BIT(1),
+	NL_VALIDATE_UNSPEC = BIT(2),
+	NL_VALIDATE_STRICT_ATTRS = BIT(3),
+};
+
+#define NL_VALIDATE_DEPRECATED_STRICT (NL_VALIDATE_TRAILING |\
+				       NL_VALIDATE_MAXTYPE)
+#define NL_VALIDATE_STRICT (NL_VALIDATE_TRAILING |\
+			    NL_VALIDATE_MAXTYPE |\
+			    NL_VALIDATE_UNSPEC |\
+			    NL_VALIDATE_STRICT_ATTRS)
+
 int netlink_rcv_skb(struct sk_buff *skb,
 		    int (*cb)(struct sk_buff *, struct nlmsghdr *,
 			      struct netlink_ext_ack *));
 int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 portid,
 		 unsigned int group, int report, gfp_t flags);
 
-int nla_validate(const struct nlattr *head, int len, int maxtype,
-		 const struct nla_policy *policy,
-		 struct netlink_ext_ack *extack);
-int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
-	      int len, const struct nla_policy *policy,
-	      struct netlink_ext_ack *extack);
-int nla_parse_strict(struct nlattr **tb, int maxtype, const struct nlattr *head,
-		     int len, const struct nla_policy *policy,
-		     struct netlink_ext_ack *extack);
+int __nla_validate(const struct nlattr *head, int len, int maxtype,
+		   const struct nla_policy *policy, unsigned int validate,
+		   struct netlink_ext_ack *extack);
+int __nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
+		int len, const struct nla_policy *policy, unsigned int validate,
+		struct netlink_ext_ack *extack);
 int nla_policy_len(const struct nla_policy *, int);
 struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype);
 size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize);
@@ -512,42 +539,121 @@ nlmsg_next(const struct nlmsghdr *nlh, int *remaining)
 }
 
 /**
- * nlmsg_parse - parse attributes of a netlink message
+ * nla_parse_deprecated - Parse a stream of attributes into a tb buffer
+ * @tb: destination array with maxtype+1 elements
+ * @maxtype: maximum attribute type to be expected
+ * @head: head of attribute stream
+ * @len: length of attribute stream
+ * @policy: validation policy
+ * @extack: extended ACK pointer
+ *
+ * Parses a stream of attributes and stores a pointer to each attribute in
+ * the tb array accessible via the attribute type. Attributes with a type
+ * exceeding maxtype will be ignored and attributes from the policy are not
+ * always strictly validated (only for new attributes).
+ *
+ * Returns 0 on success or a negative error code.
+ */
+static inline int nla_parse_deprecated(struct nlattr **tb, int maxtype,
+				       const struct nlattr *head, int len,
+				       const struct nla_policy *policy,
+				       struct netlink_ext_ack *extack)
+{
+	return __nla_parse(tb, maxtype, head, len, policy,
+			   NL_VALIDATE_LIBERAL, extack);
+}
+
+/**
+ * nla_parse_deprecated_strict - Parse a stream of attributes into a tb buffer
+ * @tb: destination array with maxtype+1 elements
+ * @maxtype: maximum attribute type to be expected
+ * @head: head of attribute stream
+ * @len: length of attribute stream
+ * @policy: validation policy
+ * @extack: extended ACK pointer
+ *
+ * Parses a stream of attributes and stores a pointer to each attribute in
+ * the tb array accessible via the attribute type. Attributes with a type
+ * exceeding maxtype will be rejected as well as trailing data, but the
+ * policy is not completely strictly validated (only for new attributes).
+ *
+ * Returns 0 on success or a negative error code.
+ */
+static inline int nla_parse_deprecated_strict(struct nlattr **tb, int maxtype,
+					      const struct nlattr *head,
+					      int len,
+					      const struct nla_policy *policy,
+					      struct netlink_ext_ack *extack)
+{
+	return __nla_parse(tb, maxtype, head, len, policy,
+			   NL_VALIDATE_DEPRECATED_STRICT, extack);
+}
+
+/**
+ * __nlmsg_parse - parse attributes of a netlink message
  * @nlh: netlink message header
  * @hdrlen: length of family specific header
  * @tb: destination array with maxtype+1 elements
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
+ * @validate: validation strictness
  * @extack: extended ACK report struct
  *
  * See nla_parse()
  */
-static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
+static inline int __nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
+				struct nlattr *tb[], int maxtype,
+				const struct nla_policy *policy,
+				unsigned int validate,
+				struct netlink_ext_ack *extack)
+{
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
+		NL_SET_ERR_MSG(extack, "Invalid header length");
+		return -EINVAL;
+	}
+
+	return __nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
+			   nlmsg_attrlen(nlh, hdrlen), policy, validate,
+			   extack);
+}
+
+/**
+ * nlmsg_parse_deprecated - parse attributes of a netlink message
+ * @nlh: netlink message header
+ * @hdrlen: length of family specific header
+ * @tb: destination array with maxtype+1 elements
+ * @maxtype: maximum attribute type to be expected
+ * @extack: extended ACK report struct
+ *
+ * See nla_parse_deprecated()
+ */
+static inline int nlmsg_parse_deprecated(const struct nlmsghdr *nlh, int hdrlen,
+					 struct nlattr *tb[], int maxtype,
+					 const struct nla_policy *policy,
+					 struct netlink_ext_ack *extack)
+{
+	return __nlmsg_parse(nlh, hdrlen, tb, maxtype, policy,
+			     NL_VALIDATE_LIBERAL, extack);
+}
+
+/**
+ * nlmsg_parse_deprecated_strict - parse attributes of a netlink message
+ * @nlh: netlink message header
+ * @hdrlen: length of family specific header
+ * @tb: destination array with maxtype+1 elements
+ * @maxtype: maximum attribute type to be expected
+ * @extack: extended ACK report struct
+ *
+ * See nla_parse_deprecated_strict()
+ */
+static inline int
+nlmsg_parse_deprecated_strict(const struct nlmsghdr *nlh, int hdrlen,
 			      struct nlattr *tb[], int maxtype,
 			      const struct nla_policy *policy,
 			      struct netlink_ext_ack *extack)
 {
-	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
-		NL_SET_ERR_MSG(extack, "Invalid header length");
-		return -EINVAL;
-	}
-
-	return nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
-			 nlmsg_attrlen(nlh, hdrlen), policy, extack);
-}
-
-static inline int nlmsg_parse_strict(const struct nlmsghdr *nlh, int hdrlen,
-				     struct nlattr *tb[], int maxtype,
-				     const struct nla_policy *policy,
-				     struct netlink_ext_ack *extack)
-{
-	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
-		NL_SET_ERR_MSG(extack, "Invalid header length");
-		return -EINVAL;
-	}
-
-	return nla_parse_strict(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
-				nlmsg_attrlen(nlh, hdrlen), policy, extack);
+	return __nlmsg_parse(nlh, hdrlen, tb, maxtype, policy,
+			     NL_VALIDATE_DEPRECATED_STRICT, extack);
 }
 
 /**
@@ -566,25 +672,52 @@ static inline struct nlattr *nlmsg_find_attr(const struct nlmsghdr *nlh,
 }
 
 /**
- * nlmsg_validate - validate a netlink message including attributes
+ * nla_validate_deprecated - Validate a stream of attributes
+ * @head: head of attribute stream
+ * @len: length of attribute stream
+ * @maxtype: maximum attribute type to be expected
+ * @policy: validation policy
+ * @validate: validation strictness
+ * @extack: extended ACK report struct
+ *
+ * Validates all attributes in the specified attribute stream against the
+ * specified policy. Validation is done in liberal mode.
+ * See documenation of struct nla_policy for more details.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+static inline int nla_validate_deprecated(const struct nlattr *head, int len,
+					  int maxtype,
+					  const struct nla_policy *policy,
+					  struct netlink_ext_ack *extack)
+{
+	return __nla_validate(head, len, maxtype, policy, NL_VALIDATE_LIBERAL,
+			      extack);
+}
+
+
+/**
+ * nlmsg_validate_deprecated - validate a netlink message including attributes
  * @nlh: netlinket message header
  * @hdrlen: length of familiy specific header
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
  * @extack: extended ACK report struct
  */
-static inline int nlmsg_validate(const struct nlmsghdr *nlh,
-				 int hdrlen, int maxtype,
-				 const struct nla_policy *policy,
-				 struct netlink_ext_ack *extack)
+static inline int nlmsg_validate_deprecated(const struct nlmsghdr *nlh,
+					    int hdrlen, int maxtype,
+					    const struct nla_policy *policy,
+					    struct netlink_ext_ack *extack)
 {
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
 
-	return nla_validate(nlmsg_attrdata(nlh, hdrlen),
-			    nlmsg_attrlen(nlh, hdrlen), maxtype, policy,
-			    extack);
+	return __nla_validate(nlmsg_attrdata(nlh, hdrlen),
+			      nlmsg_attrlen(nlh, hdrlen), maxtype,
+			      policy, NL_VALIDATE_LIBERAL, extack);
 }
+
+
 
 /**
  * nlmsg_report - need to report back to application?
@@ -899,22 +1032,22 @@ nla_find_nested(const struct nlattr *nla, int attrtype)
 }
 
 /**
- * nla_parse_nested - parse nested attributes
+ * nla_parse_nested_deprecated - parse nested attributes
  * @tb: destination array with maxtype+1 elements
  * @maxtype: maximum attribute type to be expected
  * @nla: attribute containing the nested attributes
  * @policy: validation policy
  * @extack: extended ACK report struct
  *
- * See nla_parse()
+ * See nla_parse_deprecated()
  */
-static inline int nla_parse_nested(struct nlattr *tb[], int maxtype,
-				   const struct nlattr *nla,
-				   const struct nla_policy *policy,
-				   struct netlink_ext_ack *extack)
+static inline int nla_parse_nested_deprecated(struct nlattr *tb[], int maxtype,
+					      const struct nlattr *nla,
+					      const struct nla_policy *policy,
+					      struct netlink_ext_ack *extack)
 {
-	return nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy,
-			 extack);
+	return __nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy,
+			   NL_VALIDATE_LIBERAL, extack);
 }
 
 /**
@@ -1489,6 +1622,7 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  * @start: container attribute
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
+ * @validate: validation strictness
  * @extack: extended ACK report struct
  *
  * Validates all attributes in the nested attribute stream against the
@@ -1497,12 +1631,22 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  *
  * Returns 0 on success or a negative error code.
  */
-static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
-				      const struct nla_policy *policy,
-				      struct netlink_ext_ack *extack)
+static inline int __nla_validate_nested(const struct nlattr *start, int maxtype,
+					const struct nla_policy *policy,
+					unsigned int validate,
+					struct netlink_ext_ack *extack)
 {
-	return nla_validate(nla_data(start), nla_len(start), maxtype, policy,
-			    extack);
+	return __nla_validate(nla_data(start), nla_len(start), maxtype, policy,
+			      validate, extack);
+}
+
+static inline int
+nla_validate_nested_deprecated(const struct nlattr *start, int maxtype,
+			       const struct nla_policy *policy,
+			       struct netlink_ext_ack *extack)
+{
+	return __nla_validate_nested(start, maxtype, policy,
+				     NL_VALIDATE_LIBERAL, extack);
 }
 
 /**

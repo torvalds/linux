@@ -239,8 +239,8 @@ static int ip_tun_build_state(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, LWTUNNEL_IP_MAX, attr, ip_tun_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP_MAX, attr,
+					  ip_tun_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -356,8 +356,8 @@ static int ip6_tun_build_state(struct nlattr *attr,
 	struct nlattr *tb[LWTUNNEL_IP6_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, LWTUNNEL_IP6_MAX, attr, ip6_tun_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, LWTUNNEL_IP6_MAX, attr,
+					  ip6_tun_policy, extack);
 	if (err < 0)
 		return err;
 

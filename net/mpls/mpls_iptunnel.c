@@ -178,8 +178,8 @@ static int mpls_build_state(struct nlattr *nla,
 	u8 n_labels;
 	int ret;
 
-	ret = nla_parse_nested(tb, MPLS_IPTUNNEL_MAX, nla,
-			       mpls_iptunnel_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, MPLS_IPTUNNEL_MAX, nla,
+					  mpls_iptunnel_policy, extack);
 	if (ret < 0)
 		return ret;
 

@@ -884,7 +884,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		}
 	}
 
-	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_U32_MAX, opt, u32_policy,
+					  extack);
 	if (err < 0)
 		return err;
 

@@ -351,7 +351,8 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_ETF_MAX, opt, etf_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_ETF_MAX, opt, etf_policy,
+					  extack);
 	if (err < 0)
 		return err;
 

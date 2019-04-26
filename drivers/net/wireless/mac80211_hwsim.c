@@ -409,8 +409,8 @@ static int mac80211_hwsim_vendor_cmd_test(struct wiphy *wiphy,
 	int err;
 	u32 val;
 
-	err = nla_parse(tb, QCA_WLAN_VENDOR_ATTR_MAX, data, data_len,
-			hwsim_vendor_test_policy, NULL);
+	err = nla_parse_deprecated(tb, QCA_WLAN_VENDOR_ATTR_MAX, data,
+				   data_len, hwsim_vendor_test_policy, NULL);
 	if (err)
 		return err;
 	if (!tb[QCA_WLAN_VENDOR_ATTR_TEST])
@@ -1936,8 +1936,8 @@ static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
 	struct sk_buff *skb;
 	int err, ps;
 
-	err = nla_parse(tb, HWSIM_TM_ATTR_MAX, data, len,
-			hwsim_testmode_policy, NULL);
+	err = nla_parse_deprecated(tb, HWSIM_TM_ATTR_MAX, data, len,
+				   hwsim_testmode_policy, NULL);
 	if (err)
 		return err;
 

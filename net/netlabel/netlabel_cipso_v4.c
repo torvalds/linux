@@ -99,9 +99,10 @@ static int netlbl_cipsov4_add_common(struct genl_info *info,
 
 	doi_def->doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
 
-	if (nla_validate_nested(info->attrs[NLBL_CIPSOV4_A_TAGLST],
-				NLBL_CIPSOV4_A_MAX,
-				netlbl_cipsov4_genl_policy, NULL) != 0)
+	if (nla_validate_nested_deprecated(info->attrs[NLBL_CIPSOV4_A_TAGLST],
+					   NLBL_CIPSOV4_A_MAX,
+					   netlbl_cipsov4_genl_policy,
+					   NULL) != 0)
 		return -EINVAL;
 
 	nla_for_each_nested(nla, info->attrs[NLBL_CIPSOV4_A_TAGLST], nla_rem)
@@ -146,9 +147,10 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 	    !info->attrs[NLBL_CIPSOV4_A_MLSLVLLST])
 		return -EINVAL;
 
-	if (nla_validate_nested(info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
-				NLBL_CIPSOV4_A_MAX,
-				netlbl_cipsov4_genl_policy, NULL) != 0)
+	if (nla_validate_nested_deprecated(info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
+					   NLBL_CIPSOV4_A_MAX,
+					   netlbl_cipsov4_genl_policy,
+					   NULL) != 0)
 		return -EINVAL;
 
 	doi_def = kmalloc(sizeof(*doi_def), GFP_KERNEL);
@@ -170,9 +172,10 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 			    info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
 			    nla_a_rem)
 		if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSLVL) {
-			if (nla_validate_nested(nla_a, NLBL_CIPSOV4_A_MAX,
-						netlbl_cipsov4_genl_policy,
-						NULL) != 0)
+			if (nla_validate_nested_deprecated(nla_a,
+							   NLBL_CIPSOV4_A_MAX,
+							   netlbl_cipsov4_genl_policy,
+							   NULL) != 0)
 				goto add_std_failure;
 			nla_for_each_nested(nla_b, nla_a, nla_b_rem)
 				switch (nla_type(nla_b)) {
@@ -234,19 +237,20 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 		}
 
 	if (info->attrs[NLBL_CIPSOV4_A_MLSCATLST]) {
-		if (nla_validate_nested(info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
-					NLBL_CIPSOV4_A_MAX,
-					netlbl_cipsov4_genl_policy, NULL) != 0)
+		if (nla_validate_nested_deprecated(info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
+						   NLBL_CIPSOV4_A_MAX,
+						   netlbl_cipsov4_genl_policy,
+						   NULL) != 0)
 			goto add_std_failure;
 
 		nla_for_each_nested(nla_a,
 				    info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
 				    nla_a_rem)
 			if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSCAT) {
-				if (nla_validate_nested(nla_a,
-							NLBL_CIPSOV4_A_MAX,
-							netlbl_cipsov4_genl_policy,
-							NULL) != 0)
+				if (nla_validate_nested_deprecated(nla_a,
+								   NLBL_CIPSOV4_A_MAX,
+								   netlbl_cipsov4_genl_policy,
+								   NULL) != 0)
 					goto add_std_failure;
 				nla_for_each_nested(nla_b, nla_a, nla_b_rem)
 					switch (nla_type(nla_b)) {

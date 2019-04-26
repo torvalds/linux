@@ -1012,7 +1012,8 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	if (err)
 		return err;
 
-	err = nla_parse_nested(tb, TCA_HTB_MAX, opt, htb_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_HTB_MAX, opt, htb_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -1310,7 +1311,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	if (!opt)
 		goto failure;
 
-	err = nla_parse_nested(tb, TCA_HTB_MAX, opt, htb_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_HTB_MAX, opt, htb_policy,
+					  NULL);
 	if (err < 0)
 		goto failure;
 

@@ -343,8 +343,8 @@ static int bpf_parse_prog(struct nlattr *attr, struct bpf_lwt_prog *prog,
 	int ret;
 	u32 fd;
 
-	ret = nla_parse_nested(tb, LWT_BPF_PROG_MAX, attr, bpf_prog_policy,
-			       NULL);
+	ret = nla_parse_nested_deprecated(tb, LWT_BPF_PROG_MAX, attr,
+					  bpf_prog_policy, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -385,7 +385,8 @@ static int bpf_build_state(struct nlattr *nla,
 	if (family != AF_INET && family != AF_INET6)
 		return -EAFNOSUPPORT;
 
-	ret = nla_parse_nested(tb, LWT_BPF_MAX, nla, bpf_nl_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, LWT_BPF_MAX, nla, bpf_nl_policy,
+					  extack);
 	if (ret < 0)
 		return ret;
 

@@ -718,8 +718,8 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 	int err, remaining;
 	struct rtmsg *rtm;
 
-	err = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipv4_policy,
-			     extack);
+	err = nlmsg_validate_deprecated(nlh, sizeof(*rtm), RTA_MAX,
+					rtm_ipv4_policy, extack);
 	if (err < 0)
 		goto errout;
 
@@ -896,8 +896,8 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 	filter->rt_type  = rtm->rtm_type;
 	filter->table_id = rtm->rtm_table;
 
-	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
-				 rtm_ipv4_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+					    rtm_ipv4_policy, extack);
 	if (err < 0)
 		return err;
 

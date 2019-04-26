@@ -4239,8 +4239,8 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	unsigned int pref;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv6_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+				     rtm_ipv6_policy, extack);
 	if (err < 0)
 		goto errout;
 
@@ -4886,8 +4886,8 @@ static int inet6_rtm_valid_getroute_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
-				   rtm_ipv6_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+					      rtm_ipv6_policy, extack);
 
 	rtm = nlmsg_data(nlh);
 	if ((rtm->rtm_src_len && rtm->rtm_src_len != 128) ||
@@ -4903,8 +4903,8 @@ static int inet6_rtm_valid_getroute_req(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
-				 rtm_ipv6_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+					    rtm_ipv6_policy, extack);
 	if (err)
 		return err;
 

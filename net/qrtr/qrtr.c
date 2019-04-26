@@ -1091,7 +1091,8 @@ static int qrtr_addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ASSERT_RTNL();
 
-	rc = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, qrtr_policy, extack);
+	rc = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+				    qrtr_policy, extack);
 	if (rc < 0)
 		return rc;
 

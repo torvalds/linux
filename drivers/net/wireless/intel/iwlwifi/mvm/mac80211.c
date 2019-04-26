@@ -4465,8 +4465,8 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 	int err;
 	u32 noa_duration;
 
-	err = nla_parse(tb, IWL_MVM_TM_ATTR_MAX, data, len, iwl_mvm_tm_policy,
-			NULL);
+	err = nla_parse_deprecated(tb, IWL_MVM_TM_ATTR_MAX, data, len,
+				   iwl_mvm_tm_policy, NULL);
 	if (err)
 		return err;
 

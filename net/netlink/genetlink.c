@@ -577,8 +577,9 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 		attrbuf = family->attrbuf;
 
 	if (attrbuf) {
-		err = nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
-				  family->policy, extack);
+		err = nlmsg_parse_deprecated(nlh, hdrlen, attrbuf,
+					     family->maxattr, family->policy,
+					     extack);
 		if (err < 0)
 			goto out;
 	}

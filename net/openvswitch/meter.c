@@ -227,9 +227,9 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 		struct nlattr *attr[OVS_BAND_ATTR_MAX + 1];
 		u32 band_max_delta_t;
 
-		err = nla_parse((struct nlattr **)&attr, OVS_BAND_ATTR_MAX,
-				nla_data(nla), nla_len(nla), band_policy,
-				NULL);
+		err = nla_parse_deprecated((struct nlattr **)&attr,
+					   OVS_BAND_ATTR_MAX, nla_data(nla),
+					   nla_len(nla), band_policy, NULL);
 		if (err)
 			goto exit_free_meter;
 

@@ -328,9 +328,9 @@ static int __tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
 	if (err)
 		goto doit_out;
 
-	err = nla_parse(attrbuf, tipc_genl_family.maxattr,
-			(const struct nlattr *)trans_buf->data,
-			trans_buf->len, NULL, NULL);
+	err = nla_parse_deprecated(attrbuf, tipc_genl_family.maxattr,
+				   (const struct nlattr *)trans_buf->data,
+				   trans_buf->len, NULL, NULL);
 	if (err)
 		goto doit_out;
 
@@ -378,8 +378,8 @@ static int tipc_nl_compat_bearer_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
 
-	err = nla_parse_nested(bearer, TIPC_NLA_BEARER_MAX,
-			       attrs[TIPC_NLA_BEARER], NULL, NULL);
+	err = nla_parse_nested_deprecated(bearer, TIPC_NLA_BEARER_MAX,
+					  attrs[TIPC_NLA_BEARER], NULL, NULL);
 	if (err)
 		return err;
 
@@ -514,24 +514,26 @@ static int tipc_nl_compat_link_stat_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_LINK])
 		return -EINVAL;
 
-	err = nla_parse_nested(link, TIPC_NLA_LINK_MAX, attrs[TIPC_NLA_LINK],
-			       NULL, NULL);
+	err = nla_parse_nested_deprecated(link, TIPC_NLA_LINK_MAX,
+					  attrs[TIPC_NLA_LINK], NULL, NULL);
 	if (err)
 		return err;
 
 	if (!link[TIPC_NLA_LINK_PROP])
 		return -EINVAL;
 
-	err = nla_parse_nested(prop, TIPC_NLA_PROP_MAX,
-			       link[TIPC_NLA_LINK_PROP], NULL, NULL);
+	err = nla_parse_nested_deprecated(prop, TIPC_NLA_PROP_MAX,
+					  link[TIPC_NLA_LINK_PROP], NULL,
+					  NULL);
 	if (err)
 		return err;
 
 	if (!link[TIPC_NLA_LINK_STATS])
 		return -EINVAL;
 
-	err = nla_parse_nested(stats, TIPC_NLA_STATS_MAX,
-			       link[TIPC_NLA_LINK_STATS], NULL, NULL);
+	err = nla_parse_nested_deprecated(stats, TIPC_NLA_STATS_MAX,
+					  link[TIPC_NLA_LINK_STATS], NULL,
+					  NULL);
 	if (err)
 		return err;
 
@@ -645,8 +647,8 @@ static int tipc_nl_compat_link_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_LINK])
 		return -EINVAL;
 
-	err = nla_parse_nested(link, TIPC_NLA_LINK_MAX, attrs[TIPC_NLA_LINK],
-			       NULL, NULL);
+	err = nla_parse_nested_deprecated(link, TIPC_NLA_LINK_MAX,
+					  attrs[TIPC_NLA_LINK], NULL, NULL);
 	if (err)
 		return err;
 
@@ -869,16 +871,18 @@ static int tipc_nl_compat_name_table_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_NAME_TABLE])
 		return -EINVAL;
 
-	err = nla_parse_nested(nt, TIPC_NLA_NAME_TABLE_MAX,
-			       attrs[TIPC_NLA_NAME_TABLE], NULL, NULL);
+	err = nla_parse_nested_deprecated(nt, TIPC_NLA_NAME_TABLE_MAX,
+					  attrs[TIPC_NLA_NAME_TABLE], NULL,
+					  NULL);
 	if (err)
 		return err;
 
 	if (!nt[TIPC_NLA_NAME_TABLE_PUBL])
 		return -EINVAL;
 
-	err = nla_parse_nested(publ, TIPC_NLA_PUBL_MAX,
-			       nt[TIPC_NLA_NAME_TABLE_PUBL], NULL, NULL);
+	err = nla_parse_nested_deprecated(publ, TIPC_NLA_PUBL_MAX,
+					  nt[TIPC_NLA_NAME_TABLE_PUBL], NULL,
+					  NULL);
 	if (err)
 		return err;
 
@@ -937,8 +941,8 @@ static int __tipc_nl_compat_publ_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_PUBL])
 		return -EINVAL;
 
-	err = nla_parse_nested(publ, TIPC_NLA_PUBL_MAX, attrs[TIPC_NLA_PUBL],
-			       NULL, NULL);
+	err = nla_parse_nested_deprecated(publ, TIPC_NLA_PUBL_MAX,
+					  attrs[TIPC_NLA_PUBL], NULL, NULL);
 	if (err)
 		return err;
 
@@ -1007,8 +1011,8 @@ static int tipc_nl_compat_sk_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_SOCK])
 		return -EINVAL;
 
-	err = nla_parse_nested(sock, TIPC_NLA_SOCK_MAX, attrs[TIPC_NLA_SOCK],
-			       NULL, NULL);
+	err = nla_parse_nested_deprecated(sock, TIPC_NLA_SOCK_MAX,
+					  attrs[TIPC_NLA_SOCK], NULL, NULL);
 	if (err)
 		return err;
 
@@ -1019,8 +1023,9 @@ static int tipc_nl_compat_sk_dump(struct tipc_nl_compat_msg *msg,
 		u32 node;
 		struct nlattr *con[TIPC_NLA_CON_MAX + 1];
 
-		err = nla_parse_nested(con, TIPC_NLA_CON_MAX,
-				       sock[TIPC_NLA_SOCK_CON], NULL, NULL);
+		err = nla_parse_nested_deprecated(con, TIPC_NLA_CON_MAX,
+						  sock[TIPC_NLA_SOCK_CON],
+						  NULL, NULL);
 
 		if (err)
 			return err;
@@ -1059,8 +1064,8 @@ static int tipc_nl_compat_media_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_MEDIA])
 		return -EINVAL;
 
-	err = nla_parse_nested(media, TIPC_NLA_MEDIA_MAX,
-			       attrs[TIPC_NLA_MEDIA], NULL, NULL);
+	err = nla_parse_nested_deprecated(media, TIPC_NLA_MEDIA_MAX,
+					  attrs[TIPC_NLA_MEDIA], NULL, NULL);
 	if (err)
 		return err;
 
@@ -1079,8 +1084,8 @@ static int tipc_nl_compat_node_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_NODE])
 		return -EINVAL;
 
-	err = nla_parse_nested(node, TIPC_NLA_NODE_MAX, attrs[TIPC_NLA_NODE],
-			       NULL, NULL);
+	err = nla_parse_nested_deprecated(node, TIPC_NLA_NODE_MAX,
+					  attrs[TIPC_NLA_NODE], NULL, NULL);
 	if (err)
 		return err;
 
@@ -1126,8 +1131,8 @@ static int tipc_nl_compat_net_dump(struct tipc_nl_compat_msg *msg,
 	if (!attrs[TIPC_NLA_NET])
 		return -EINVAL;
 
-	err = nla_parse_nested(net, TIPC_NLA_NET_MAX, attrs[TIPC_NLA_NET],
-			       NULL, NULL);
+	err = nla_parse_nested_deprecated(net, TIPC_NLA_NET_MAX,
+					  attrs[TIPC_NLA_NET], NULL, NULL);
 	if (err)
 		return err;
 

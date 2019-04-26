@@ -1611,9 +1611,7 @@ static int parse_sa_config(struct nlattr **attrs, struct nlattr **tb_sa)
 	if (!attrs[MACSEC_ATTR_SA_CONFIG])
 		return -EINVAL;
 
-	if (nla_parse_nested(tb_sa, MACSEC_SA_ATTR_MAX,
-			     attrs[MACSEC_ATTR_SA_CONFIG],
-			     macsec_genl_sa_policy, NULL))
+	if (nla_parse_nested_deprecated(tb_sa, MACSEC_SA_ATTR_MAX, attrs[MACSEC_ATTR_SA_CONFIG], macsec_genl_sa_policy, NULL))
 		return -EINVAL;
 
 	return 0;
@@ -1624,9 +1622,7 @@ static int parse_rxsc_config(struct nlattr **attrs, struct nlattr **tb_rxsc)
 	if (!attrs[MACSEC_ATTR_RXSC_CONFIG])
 		return -EINVAL;
 
-	if (nla_parse_nested(tb_rxsc, MACSEC_RXSC_ATTR_MAX,
-			     attrs[MACSEC_ATTR_RXSC_CONFIG],
-			     macsec_genl_rxsc_policy, NULL))
+	if (nla_parse_nested_deprecated(tb_rxsc, MACSEC_RXSC_ATTR_MAX, attrs[MACSEC_ATTR_RXSC_CONFIG], macsec_genl_rxsc_policy, NULL))
 		return -EINVAL;
 
 	return 0;
