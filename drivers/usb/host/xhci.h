@@ -2401,6 +2401,35 @@ static inline const char *xhci_decode_trb(u32 field0, u32 field1, u32 field2,
 	return str;
 }
 
+static inline const char *xhci_decode_ctrl_ctx(unsigned long drop,
+					       unsigned long add)
+{
+	static char	str[1024];
+	unsigned int	bit;
+	int		ret = 0;
+
+	if (drop) {
+		ret = sprintf(str, "Drop:");
+		for_each_set_bit(bit, &drop, 32)
+			ret += sprintf(str + ret, " %d%s",
+				       bit / 2,
+				       bit % 2 ? "in":"out");
+		ret += sprintf(str + ret, ", ");
+	}
+
+	if (add) {
+		ret += sprintf(str + ret, "Add:%s%s",
+			       (add & SLOT_FLAG) ? " slot":"",
+			       (add & EP0_FLAG) ? " ep0":"");
+		add &= ~(SLOT_FLAG | EP0_FLAG);
+		for_each_set_bit(bit, &add, 32)
+			ret += sprintf(str + ret, " %d%s",
+				       bit / 2,
+				       bit % 2 ? "in":"out");
+	}
+	return str;
+}
+
 static inline const char *xhci_decode_slot_context(u32 info, u32 info2,
 		u32 tt_info, u32 state)
 {

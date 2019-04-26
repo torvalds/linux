@@ -432,6 +432,31 @@ DEFINE_EVENT(xhci_log_slot_ctx, xhci_configure_endpoint,
 	TP_ARGS(ctx)
 );
 
+DECLARE_EVENT_CLASS(xhci_log_ctrl_ctx,
+	TP_PROTO(struct xhci_input_control_ctx *ctrl_ctx),
+	TP_ARGS(ctrl_ctx),
+	TP_STRUCT__entry(
+		__field(u32, drop)
+		__field(u32, add)
+	),
+	TP_fast_assign(
+		__entry->drop = le32_to_cpu(ctrl_ctx->drop_flags);
+		__entry->add = le32_to_cpu(ctrl_ctx->add_flags);
+	),
+	TP_printk("%s", xhci_decode_ctrl_ctx(__entry->drop, __entry->add)
+	)
+);
+
+DEFINE_EVENT(xhci_log_ctrl_ctx, xhci_address_ctrl_ctx,
+	TP_PROTO(struct xhci_input_control_ctx *ctrl_ctx),
+	TP_ARGS(ctrl_ctx)
+);
+
+DEFINE_EVENT(xhci_log_ctrl_ctx, xhci_configure_endpoint_ctrl_ctx,
+	TP_PROTO(struct xhci_input_control_ctx *ctrl_ctx),
+	TP_ARGS(ctrl_ctx)
+);
+
 DECLARE_EVENT_CLASS(xhci_log_ring,
 	TP_PROTO(struct xhci_ring *ring),
 	TP_ARGS(ring),
