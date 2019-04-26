@@ -6,6 +6,8 @@
 #ifndef DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_
 #define DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_
 
+#include "davinci_cpdma.h"
+
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
 			 NETIF_MSG_DRV		| NETIF_MSG_LINK	| \
 			 NETIF_MSG_IFUP		| NETIF_MSG_INTR	| \
@@ -269,44 +271,6 @@ struct cpsw_host_regs {
 	u32	cpdma_rx_chan_map;
 };
 
-struct cpsw_hw_stats {
-	u32	rxgoodframes;
-	u32	rxbroadcastframes;
-	u32	rxmulticastframes;
-	u32	rxpauseframes;
-	u32	rxcrcerrors;
-	u32	rxaligncodeerrors;
-	u32	rxoversizedframes;
-	u32	rxjabberframes;
-	u32	rxundersizedframes;
-	u32	rxfragments;
-	u32	__pad_0[2];
-	u32	rxoctets;
-	u32	txgoodframes;
-	u32	txbroadcastframes;
-	u32	txmulticastframes;
-	u32	txpauseframes;
-	u32	txdeferredframes;
-	u32	txcollisionframes;
-	u32	txsinglecollframes;
-	u32	txmultcollframes;
-	u32	txexcessivecollisions;
-	u32	txlatecollisions;
-	u32	txunderrun;
-	u32	txcarriersenseerrors;
-	u32	txoctets;
-	u32	octetframes64;
-	u32	octetframes65t127;
-	u32	octetframes128t255;
-	u32	octetframes256t511;
-	u32	octetframes512t1023;
-	u32	octetframes1024tup;
-	u32	netoctets;
-	u32	rxsofoverruns;
-	u32	rxmofoverruns;
-	u32	rxdmaoverruns;
-};
-
 struct cpsw_slave_data {
 	struct device_node *phy_node;
 	char		phy_id[MII_BUS_ID_SIZE];
@@ -368,6 +332,7 @@ struct cpsw_common {
 	u32				coal_intvl;
 	u32				bus_freq_mhz;
 	int				rx_packet_max;
+	int				descs_pool_size;
 	struct cpsw_slave		*slaves;
 	struct cpdma_ctlr		*dma;
 	struct cpsw_vector		txv[CPSW_MAX_QUEUES];
@@ -399,9 +364,6 @@ struct cpsw_priv {
 	struct cpsw_common *cpsw;
 };
 
-#define CPSW_STATS_COMMON_LEN	ARRAY_SIZE(cpsw_gstrings_stats)
-#define CPSW_STATS_CH_LEN	ARRAY_SIZE(cpsw_gstrings_ch_stats)
-
 #define ndev_to_cpsw(ndev) (((struct cpsw_priv *)netdev_priv(ndev))->cpsw)
 #define napi_to_cpsw(napi)	container_of(napi, struct cpsw_common, napi)
 
@@ -424,5 +386,44 @@ struct addr_sync_ctx {
 int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		     int ale_ageout, phys_addr_t desc_mem_phys,
 		     int descs_pool_size);
+void cpsw_split_res(struct cpsw_common *cpsw);
+int cpsw_fill_rx_channels(struct cpsw_priv *priv);
+void cpsw_intr_enable(struct cpsw_common *cpsw);
+void cpsw_intr_disable(struct cpsw_common *cpsw);
+void cpsw_tx_handler(void *token, int len, int status);
+
+/* ethtool */
+u32 cpsw_get_msglevel(struct net_device *ndev);
+void cpsw_set_msglevel(struct net_device *ndev, u32 value);
+int cpsw_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal);
+int cpsw_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal);
+int cpsw_get_sset_count(struct net_device *ndev, int sset);
+void cpsw_get_strings(struct net_device *ndev, u32 stringset, u8 *data);
+void cpsw_get_ethtool_stats(struct net_device *ndev,
+			    struct ethtool_stats *stats, u64 *data);
+void cpsw_get_pauseparam(struct net_device *ndev,
+			 struct ethtool_pauseparam *pause);
+void cpsw_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol);
+int cpsw_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol);
+int cpsw_get_regs_len(struct net_device *ndev);
+void cpsw_get_regs(struct net_device *ndev, struct ethtool_regs *regs, void *p);
+int cpsw_ethtool_op_begin(struct net_device *ndev);
+void cpsw_ethtool_op_complete(struct net_device *ndev);
+void cpsw_get_channels(struct net_device *ndev, struct ethtool_channels *ch);
+int cpsw_get_link_ksettings(struct net_device *ndev,
+			    struct ethtool_link_ksettings *ecmd);
+int cpsw_set_link_ksettings(struct net_device *ndev,
+			    const struct ethtool_link_ksettings *ecmd);
+int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata);
+int cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata);
+int cpsw_nway_reset(struct net_device *ndev);
+void cpsw_get_ringparam(struct net_device *ndev,
+			struct ethtool_ringparam *ering);
+int cpsw_set_ringparam(struct net_device *ndev,
+		       struct ethtool_ringparam *ering);
+int cpsw_set_channels_common(struct net_device *ndev,
+			     struct ethtool_channels *chs,
+			     cpdma_handler_fn rx_handler);
+int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info);
 
 #endif /* DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_ */
