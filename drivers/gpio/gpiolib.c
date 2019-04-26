@@ -2503,7 +2503,11 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  * @chip: GPIO chip
  * @hwnum: hardware number of the GPIO for which to request the descriptor
  * @label: label for the GPIO
- * @flags: flags for this GPIO or 0 if default
+ * @lflags: lookup flags for this GPIO or 0 if default, this can be used to
+ * specify things like line inversion semantics with the machine flags
+ * such as GPIO_OUT_LOW
+ * @dflags: descriptor request flags for this GPIO or 0 if default, this
+ * can be used to specify consumer semantics such as open drain
  *
  * Function allows GPIO chip drivers to request and use their own GPIO
  * descriptors via gpiolib API. Difference to gpiod_request() is that this
@@ -2517,9 +2521,9 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  */
 struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
 					    const char *label,
-					    enum gpiod_flags flags)
+					    enum gpio_lookup_flags lflags,
+					    enum gpiod_flags dflags)
 {
-	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	struct gpio_desc *desc = gpiochip_get_desc(chip, hwnum);
 	int err;
 
@@ -2532,7 +2536,7 @@ struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	err = gpiod_configure_flags(desc, label, lflags, flags);
+	err = gpiod_configure_flags(desc, label, lflags, dflags);
 	if (err) {
 		chip_err(chip, "setup of own GPIO %s failed\n", label);
 		gpiod_free_commit(desc);
@@ -4420,27 +4424,12 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 	chip = gpiod_to_chip(desc);
 	hwnum = gpio_chip_hwgpio(desc);
 
-	/*
-	 * FIXME: not very elegant that we call gpiod_configure_flags()
-	 * twice here (once inside gpiochip_request_own_desc() and
-	 * again here), but the gpiochip_request_own_desc() is external
-	 * and cannot really pass the lflags so this is the lesser evil
-	 * at the moment. Pass zero as dflags on this first call so we
-	 * don't screw anything up.
-	 */
-	local_desc = gpiochip_request_own_desc(chip, hwnum, name, 0);
+	local_desc = gpiochip_request_own_desc(chip, hwnum, name,
+					       lflags, dflags);
 	if (IS_ERR(local_desc)) {
 		status = PTR_ERR(local_desc);
 		pr_err("requesting hog GPIO %s (chip %s, offset %d) failed, %d\n",
 		       name, chip->label, hwnum, status);
-		return status;
-	}
-
-	status = gpiod_configure_flags(desc, name, lflags, dflags);
-	if (status < 0) {
-		pr_err("setup of hog GPIO %s (chip %s, offset %d) failed, %d\n",
-		       name, chip->label, hwnum, status);
-		gpiochip_free_own_desc(desc);
 		return status;
 	}
 

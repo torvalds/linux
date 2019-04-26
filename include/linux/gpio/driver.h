@@ -18,6 +18,7 @@ struct seq_file;
 struct gpio_device;
 struct module;
 enum gpiod_flags;
+enum gpio_lookup_flags;
 
 #ifdef CONFIG_GPIOLIB
 
@@ -614,7 +615,8 @@ gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 
 struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
 					    const char *label,
-					    enum gpiod_flags flags);
+					    enum gpio_lookup_flags lflags,
+					    enum gpiod_flags dflags);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
 void devprop_gpiochip_set_names(struct gpio_chip *chip,
