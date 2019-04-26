@@ -86,7 +86,7 @@ static void mt76x0u_mac_stop(struct mt76x02_dev *dev)
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
-	mt76u_stop_stat_wk(&dev->mt76);
+	mt76u_stop_tx(&dev->mt76);
 	mt76x02u_exit_beacon_config(dev);
 
 	if (test_bit(MT76_REMOVED, &dev->mt76.state))
@@ -313,7 +313,7 @@ static int __maybe_unused mt76x0_suspend(struct usb_interface *usb_intf,
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
 
-	mt76u_stop_queues(&dev->mt76);
+	mt76u_stop_rx(&dev->mt76);
 	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
 	mt76x0_chip_onoff(dev, false, false);
 
@@ -323,15 +323,11 @@ static int __maybe_unused mt76x0_suspend(struct usb_interface *usb_intf,
 static int __maybe_unused mt76x0_resume(struct usb_interface *usb_intf)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
-	struct mt76_usb *usb = &dev->mt76.usb;
 	int ret;
 
-	ret = mt76u_submit_rx_buffers(&dev->mt76);
+	ret = mt76u_resume_rx(&dev->mt76);
 	if (ret < 0)
 		goto err;
-
-	tasklet_enable(&usb->rx_tasklet);
-	tasklet_enable(&dev->mt76.tx_tasklet);
 
 	ret = mt76x0u_init_hardware(dev);
 	if (ret)

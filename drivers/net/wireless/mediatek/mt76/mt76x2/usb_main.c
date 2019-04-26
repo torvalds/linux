@@ -42,6 +42,7 @@ static void mt76x2u_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	mt76u_stop_tx(&dev->mt76);
 	mt76x2u_stop_hw(dev);
 	mutex_unlock(&dev->mt76.mutex);
 }

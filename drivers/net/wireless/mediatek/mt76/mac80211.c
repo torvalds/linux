@@ -390,7 +390,7 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(mt76_rx);
 
-static bool mt76_has_tx_pending(struct mt76_dev *dev)
+bool mt76_has_tx_pending(struct mt76_dev *dev)
 {
 	struct mt76_queue *q;
 	int i;
@@ -403,6 +403,7 @@ static bool mt76_has_tx_pending(struct mt76_dev *dev)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(mt76_has_tx_pending);
 
 void mt76_set_channel(struct mt76_dev *dev)
 {
