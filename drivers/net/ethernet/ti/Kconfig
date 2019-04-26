@@ -44,16 +44,10 @@ config TI_CPSW_PHY_SEL
 	  This driver supports configuring of the phy mode connected to
 	  the CPSW. DEPRECATED: use PHY_TI_GMII_SEL.
 
-config TI_CPSW_ALE
-	tristate "TI CPSW ALE Support"
-	---help---
-	  This driver supports TI's CPSW ALE module.
-
 config TI_CPSW
 	tristate "TI CPSW Switch Support"
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
 	select TI_DAVINCI_MDIO
-	select TI_CPSW_ALE
 	select MFD_SYSCON
 	select REGMAP
 	---help---
@@ -82,7 +76,6 @@ config TI_CPTS_MOD
 
 config TI_KEYSTONE_NETCP
 	tristate "TI Keystone NETCP Core Support"
-	select TI_CPSW_ALE
 	select TI_DAVINCI_MDIO
 	depends on OF
 	depends on KEYSTONE_NAVIGATOR_DMA && KEYSTONE_NAVIGATOR_QMSS
