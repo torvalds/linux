@@ -1096,6 +1096,21 @@ void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu)
 			arch_spin_unlock(&sb->lock);
 		}
 	}
+
+	/* Disable vcpu's escalation interrupt */
+	if (vcpu->arch.xive_esc_on) {
+		__raw_readq((void __iomem *)(vcpu->arch.xive_esc_vaddr +
+					     XIVE_ESB_SET_PQ_01));
+		vcpu->arch.xive_esc_on = false;
+	}
+
+	/*
+	 * Clear pointers to escalation interrupt ESB.
+	 * This is safe because the vcpu->mutex is held, preventing
+	 * any other CPU from concurrently executing a KVM_RUN ioctl.
+	 */
+	vcpu->arch.xive_esc_vaddr = 0;
+	vcpu->arch.xive_esc_raddr = 0;
 }
 
 void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
