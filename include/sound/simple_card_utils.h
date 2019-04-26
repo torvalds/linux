@@ -133,6 +133,8 @@ int asoc_simple_parse_routing(struct snd_soc_card *card,
 				      char *prefix);
 int asoc_simple_parse_widgets(struct snd_soc_card *card,
 				      char *prefix);
+int asoc_simple_parse_pin_switches(struct snd_soc_card *card,
+				   char *prefix);
 
 int asoc_simple_init_jack(struct snd_soc_card *card,
 			       struct asoc_simple_jack *sjack,
