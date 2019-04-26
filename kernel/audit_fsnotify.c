@@ -164,7 +164,7 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 static int audit_mark_handle_event(struct fsnotify_group *group,
 				    struct inode *to_tell,
 				    u32 mask, const void *data, int data_type,
-				    const unsigned char *dname, u32 cookie,
+				    const struct qstr *dname, u32 cookie,
 				    struct fsnotify_iter_info *iter_info)
 {
 	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
@@ -188,7 +188,7 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {
-		if (audit_compare_dname_path(dname, audit_mark->path, AUDIT_NAME_FULL))
+		if (audit_compare_dname_path(dname->name, audit_mark->path, AUDIT_NAME_FULL))
 			return 0;
 		audit_update_mark(audit_mark, inode);
 	} else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))
