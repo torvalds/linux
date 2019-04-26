@@ -2059,7 +2059,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	}
 
 	/* TODO: remove this once SDIO support is fully implemented */
-	ath10k_warn(ar, "WARNING: ath10k SDIO support is incomplete, don't expect anything to work!\n");
+	ath10k_warn(ar, "WARNING: ath10k SDIO support is work-in-progress, problems may arise!\n");
 
 	return 0;
 
