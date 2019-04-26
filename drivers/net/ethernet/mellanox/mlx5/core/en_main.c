@@ -951,7 +951,11 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 	if (params->rx_dim_enabled)
 		__set_bit(MLX5E_RQ_STATE_AM, &c->rq.state);
 
-	if (MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_NO_CSUM_COMPLETE))
+	/* We disable csum_complete when XDP is enabled since
+	 * XDP programs might manipulate packets which will render
+	 * skb->checksum incorrect.
+	 */
+	if (MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_NO_CSUM_COMPLETE) || c->xdp)
 		__set_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &c->rq.state);
 
 	return 0;
@@ -2937,6 +2941,14 @@ int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
 	return 0;
 }
 
+int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv)
+{
+	struct mlx5e_channels new_channels = {};
+
+	new_channels.params = priv->channels.params;
+	return mlx5e_safe_switch_channels(priv, &new_channels, NULL);
+}
+
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
 	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
@@ -3765,7 +3777,7 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 	if (params->xdp_prog &&
 	    !mlx5e_rx_is_linear_skb(priv->mdev, &new_channels.params)) {
 		netdev_err(netdev, "MTU(%d) > %d is not allowed while XDP enabled\n",
-			   new_mtu, MLX5E_XDP_MAX_MTU);
+			   new_mtu, mlx5e_xdp_max_mtu(params));
 		err = -EINVAL;
 		goto out;
 	}
@@ -4161,11 +4173,10 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 	if (!report_failed)
 		goto unlock;
 
-	mlx5e_close_locked(priv->netdev);
-	err = mlx5e_open_locked(priv->netdev);
+	err = mlx5e_safe_reopen_channels(priv);
 	if (err)
 		netdev_err(priv->netdev,
-			   "mlx5e_open_locked failed recovering from a tx_timeout, err(%d).\n",
+			   "mlx5e_safe_reopen_channels failed recovering from a tx_timeout, err(%d).\n",
 			   err);
 
 unlock:
@@ -4201,7 +4212,8 @@ static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
 
 	if (!mlx5e_rx_is_linear_skb(priv->mdev, &new_channels.params)) {
 		netdev_warn(netdev, "XDP is not allowed with MTU(%d) > %d\n",
-			    new_channels.params.sw_mtu, MLX5E_XDP_MAX_MTU);
+			    new_channels.params.sw_mtu,
+			    mlx5e_xdp_max_mtu(&new_channels.params));
 		return -EINVAL;
 	}
 
@@ -4553,7 +4565,7 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 {
 	enum mlx5e_traffic_types tt;
 
-	rss_params->hfunc = ETH_RSS_HASH_XOR;
+	rss_params->hfunc = ETH_RSS_HASH_TOP;
 	netdev_rss_key_fill(rss_params->toeplitz_hash_key,
 			    sizeof(rss_params->toeplitz_hash_key));
 	mlx5e_build_default_indir_rqt(rss_params->indirection_rqt,

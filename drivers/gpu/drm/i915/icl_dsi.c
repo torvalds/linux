@@ -323,6 +323,21 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder)
 	}
 }
 
+static void get_dsi_io_power_domains(struct drm_i915_private *dev_priv,
+				     struct intel_dsi *intel_dsi)
+{
+	enum port port;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		WARN_ON(intel_dsi->io_wakeref[port]);
+		intel_dsi->io_wakeref[port] =
+			intel_display_power_get(dev_priv,
+						port == PORT_A ?
+						POWER_DOMAIN_PORT_DDI_A_IO :
+						POWER_DOMAIN_PORT_DDI_B_IO);
+	}
+}
+
 static void gen11_dsi_enable_io_power(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -336,13 +351,7 @@ static void gen11_dsi_enable_io_power(struct intel_encoder *encoder)
 		I915_WRITE(ICL_DSI_IO_MODECTL(port), tmp);
 	}
 
-	for_each_dsi_port(port, intel_dsi->ports) {
-		intel_dsi->io_wakeref[port] =
-			intel_display_power_get(dev_priv,
-						port == PORT_A ?
-						POWER_DOMAIN_PORT_DDI_A_IO :
-						POWER_DOMAIN_PORT_DDI_B_IO);
-	}
+	get_dsi_io_power_domains(dev_priv, intel_dsi);
 }
 
 static void gen11_dsi_power_up_lanes(struct intel_encoder *encoder)
@@ -589,6 +598,12 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
 	}
 	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+	}
+	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+
 	POSTING_READ(DPCLKA_CFGCR0_ICL);
 
 	mutex_unlock(&dev_priv->dpll_lock);
@@ -1117,7 +1132,7 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 			DRM_ERROR("DDI port:%c buffer not idle\n",
 				  port_name(port));
 	}
-	gen11_dsi_ungate_clocks(encoder);
+	gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
@@ -1218,20 +1233,11 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static u64 gen11_dsi_get_power_domains(struct intel_encoder *encoder,
-				       struct intel_crtc_state *crtc_state)
+static void gen11_dsi_get_power_domains(struct intel_encoder *encoder,
+					struct intel_crtc_state *crtc_state)
 {
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	u64 domains = 0;
-	enum port port;
-
-	for_each_dsi_port(port, intel_dsi->ports)
-		if (port == PORT_A)
-			domains |= BIT_ULL(POWER_DOMAIN_PORT_DDI_A_IO);
-		else
-			domains |= BIT_ULL(POWER_DOMAIN_PORT_DDI_B_IO);
-
-	return domains;
+	get_dsi_io_power_domains(to_i915(encoder->base.dev),
+				 enc_to_intel_dsi(&encoder->base));
 }
 
 static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,

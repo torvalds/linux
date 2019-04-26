@@ -681,7 +681,7 @@ struct atl1_sft_stats {
 	u64 scc;		/* packets TX after a single collision */
 	u64 mcc;		/* packets TX after multiple collisions */
 	u64 latecol;		/* TX packets w/ late collisions */
-	u64 tx_underun;		/* TX packets aborted due to TX FIFO underrun
+	u64 tx_underrun;	/* TX packets aborted due to TX FIFO underrun
 				 * or TRD FIFO underrun */
 	u64 tx_trunc;		/* TX packets truncated due to size > MTU */
 	u64 rx_pause;		/* num Pause packets received. */

@@ -2023,7 +2023,6 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
  * If the boolean frontswap is true, only unuse pages_to_unuse pages;
  * pages_to_unuse==0 means all pages; ignored if frontswap is false
  */
-#define SWAP_UNUSE_MAX_TRIES 3
 int try_to_unuse(unsigned int type, bool frontswap,
 		 unsigned long pages_to_unuse)
 {
@@ -2035,7 +2034,6 @@ int try_to_unuse(unsigned int type, bool frontswap,
 	struct page *page;
 	swp_entry_t entry;
 	unsigned int i;
-	int retries = 0;
 
 	if (!si->inuse_pages)
 		return 0;
@@ -2053,11 +2051,9 @@ retry:
 
 	spin_lock(&mmlist_lock);
 	p = &init_mm.mmlist;
-	while ((p = p->next) != &init_mm.mmlist) {
-		if (signal_pending(current)) {
-			retval = -EINTR;
-			break;
-		}
+	while (si->inuse_pages &&
+	       !signal_pending(current) &&
+	       (p = p->next) != &init_mm.mmlist) {
 
 		mm = list_entry(p, struct mm_struct, mmlist);
 		if (!mmget_not_zero(mm))
@@ -2084,7 +2080,9 @@ retry:
 	mmput(prev_mm);
 
 	i = 0;
-	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
+	while (si->inuse_pages &&
+	       !signal_pending(current) &&
+	       (i = find_next_to_unuse(si, i, frontswap)) != 0) {
 
 		entry = swp_entry(type, i);
 		page = find_get_page(swap_address_space(entry), i);
@@ -2117,14 +2115,18 @@ retry:
 	 * If yes, we would need to do retry the unuse logic again.
 	 * Under global memory pressure, swap entries can be reinserted back
 	 * into process space after the mmlist loop above passes over them.
-	 * Its not worth continuosuly retrying to unuse the swap in this case.
-	 * So we try SWAP_UNUSE_MAX_TRIES times.
+	 *
+	 * Limit the number of retries? No: when mmget_not_zero() above fails,
+	 * that mm is likely to be freeing swap from exit_mmap(), which proceeds
+	 * at its own independent pace; and even shmem_writepage() could have
+	 * been preempted after get_swap_page(), temporarily hiding that swap.
+	 * It's easy and robust (though cpu-intensive) just to keep retrying.
 	 */
-	if (++retries >= SWAP_UNUSE_MAX_TRIES)
-		retval = -EBUSY;
-	else if (si->inuse_pages)
-		goto retry;
-
+	if (si->inuse_pages) {
+		if (!signal_pending(current))
+			goto retry;
+		retval = -EINTR;
+	}
 out:
 	return (retval == FRONTSWAP_PAGES_UNUSED) ? 0 : retval;
 }

@@ -1009,16 +1009,18 @@ The kernel interface functions are as follows:
 
  (*) Check call still alive.
 
-	u32 rxrpc_kernel_check_life(struct socket *sock,
-				    struct rxrpc_call *call);
+	bool rxrpc_kernel_check_life(struct socket *sock,
+				     struct rxrpc_call *call,
+				     u32 *_life);
 	void rxrpc_kernel_probe_life(struct socket *sock,
 				     struct rxrpc_call *call);
 
-     The first function returns a number that is updated when ACKs are received
-     from the peer (notably including PING RESPONSE ACKs which we can elicit by
-     sending PING ACKs to see if the call still exists on the server).  The
-     caller should compare the numbers of two calls to see if the call is still
-     alive after waiting for a suitable interval.
+     The first function passes back in *_life a number that is updated when
+     ACKs are received from the peer (notably including PING RESPONSE ACKs
+     which we can elicit by sending PING ACKs to see if the call still exists
+     on the server).  The caller should compare the numbers of two calls to see
+     if the call is still alive after waiting for a suitable interval.  It also
+     returns true as long as the call hasn't yet reached the completed state.
 
      This allows the caller to work out if the server is still contactable and
      if the call is still alive on the server while waiting for the server to

@@ -882,6 +882,8 @@ static struct virtqueue *vring_create_virtqueue_split(
 					  GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
 		if (queue)
 			break;
+		if (!may_reduce_num)
+			return NULL;
 	}
 
 	if (!num)

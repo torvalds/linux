@@ -6231,8 +6231,6 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @ac: AC number to return packets from.
  *
- * Should only be called between calls to ieee80211_txq_schedule_start()
- * and ieee80211_txq_schedule_end().
  * Returns the next txq if successful, %NULL if no queue is eligible. If a txq
  * is returned, it should be returned with ieee80211_return_txq() after the
  * driver has finished scheduling it.
@@ -6240,38 +6238,23 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac);
 
 /**
- * ieee80211_return_txq - return a TXQ previously acquired by ieee80211_next_txq()
- *
- * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @txq: pointer obtained from station or virtual interface
- *
- * Should only be called between calls to ieee80211_txq_schedule_start()
- * and ieee80211_txq_schedule_end().
- */
-void ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq);
-
-/**
- * ieee80211_txq_schedule_start - acquire locks for safe scheduling of an AC
+ * ieee80211_txq_schedule_start - start new scheduling round for TXQs
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @ac: AC number to acquire locks for
  *
- * Acquire locks needed to schedule TXQs from the given AC. Should be called
- * before ieee80211_next_txq() or ieee80211_return_txq().
+ * Should be called before ieee80211_next_txq() or ieee80211_return_txq().
+ * The driver must not call multiple TXQ scheduling rounds concurrently.
  */
-void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
-	__acquires(txq_lock);
+void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac);
 
-/**
- * ieee80211_txq_schedule_end - release locks for safe scheduling of an AC
- *
- * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @ac: AC number to acquire locks for
- *
- * Release locks previously acquired by ieee80211_txq_schedule_end().
- */
-void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
-	__releases(txq_lock);
+/* (deprecated) */
+static inline void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
+{
+}
+
+void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq, bool force);
 
 /**
  * ieee80211_schedule_txq - schedule a TXQ for transmission
@@ -6279,12 +6262,34 @@ void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @txq: pointer obtained from station or virtual interface
  *
- * Schedules a TXQ for transmission if it is not already scheduled. Takes a
- * lock, which means it must *not* be called between
- * ieee80211_txq_schedule_start() and ieee80211_txq_schedule_end()
+ * Schedules a TXQ for transmission if it is not already scheduled,
+ * even if mac80211 does not have any packets buffered.
+ *
+ * The driver may call this function if it has buffered packets for
+ * this TXQ internally.
  */
-void ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
-	__acquires(txq_lock) __releases(txq_lock);
+static inline void
+ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+{
+	__ieee80211_schedule_txq(hw, txq, true);
+}
+
+/**
+ * ieee80211_return_txq - return a TXQ previously acquired by ieee80211_next_txq()
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @txq: pointer obtained from station or virtual interface
+ * @force: schedule txq even if mac80211 does not have any buffered packets.
+ *
+ * The driver may set force=true if it has buffered packets for this TXQ
+ * internally.
+ */
+static inline void
+ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq,
+		     bool force)
+{
+	__ieee80211_schedule_txq(hw, txq, force);
+}
 
 /**
  * ieee80211_txq_may_transmit - check whether TXQ is allowed to transmit

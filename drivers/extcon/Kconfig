@@ -116,7 +116,7 @@ config EXTCON_PALMAS
 
 config EXTCON_PTN5150
 	tristate "NXP PTN5150 CC LOGIC USB EXTCON support"
-	depends on I2C && GPIOLIB || COMPILE_TEST
+	depends on I2C && (GPIOLIB || COMPILE_TEST)
 	select REGMAP_I2C
 	help
 	  Say Y here to enable support for USB peripheral and USB host

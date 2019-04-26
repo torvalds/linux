@@ -1034,7 +1034,7 @@ static inline struct aio_kiocb *aio_get_req(struct kioctx *ctx)
 		return NULL;
 
 	if (unlikely(!get_reqs_available(ctx))) {
-		kfree(req);
+		kmem_cache_free(kiocb_cachep, req);
 		return NULL;
 	}
 
@@ -1794,7 +1794,7 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 		 */
 		eventfd = eventfd_ctx_fdget(iocb->aio_resfd);
 		if (IS_ERR(eventfd))
-			return PTR_ERR(req->ki_eventfd);
+			return PTR_ERR(eventfd);
 
 		req->ki_eventfd = eventfd;
 	}

@@ -56,12 +56,12 @@ situation from a state where some tasks are stalled but the CPU is
 still doing productive work. As such, time spent in this subset of the
 stall state is tracked separately and exported in the "full" averages.
 
-The ratios are tracked as recent trends over ten, sixty, and three
-hundred second windows, which gives insight into short term events as
-well as medium and long term trends. The total absolute stall time is
-tracked and exported as well, to allow detection of latency spikes
-which wouldn't necessarily make a dent in the time averages, or to
-average trends over custom time frames.
+The ratios (in %) are tracked as recent trends over ten, sixty, and
+three hundred second windows, which gives insight into short term events
+as well as medium and long term trends. The total absolute stall time
+(in us) is tracked and exported as well, to allow detection of latency
+spikes which wouldn't necessarily make a dent in the time averages,
+or to average trends over custom time frames.
 
 Cgroup2 interface
 =================
