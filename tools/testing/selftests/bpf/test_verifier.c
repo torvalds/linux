@@ -47,12 +47,13 @@
 #include "bpf_rlimit.h"
 #include "bpf_rand.h"
 #include "bpf_util.h"
+#include "test_btf.h"
 #include "../../../include/linux/filter.h"
 
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_TEST_INSNS	1000000
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	17
+#define MAX_NR_MAPS	18
 #define MAX_TEST_RUNS	8
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
@@ -85,6 +86,7 @@ struct bpf_test {
 	int fixup_map_array_ro[MAX_FIXUPS];
 	int fixup_map_array_wo[MAX_FIXUPS];
 	int fixup_map_array_small[MAX_FIXUPS];
+	int fixup_sk_storage_map[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
 	uint32_t retval, retval_unpriv, insn_processed;
@@ -497,24 +499,6 @@ static int create_cgroup_storage(bool percpu)
 	return fd;
 }
 
-#define BTF_INFO_ENC(kind, kind_flag, vlen) \
-	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
-#define BTF_TYPE_ENC(name, info, size_or_type) \
-	(name), (info), (size_or_type)
-#define BTF_INT_ENC(encoding, bits_offset, nr_bits) \
-	((encoding) << 24 | (bits_offset) << 16 | (nr_bits))
-#define BTF_TYPE_INT_ENC(name, encoding, bits_offset, bits, sz) \
-	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_INT, 0, 0), sz), \
-	BTF_INT_ENC(encoding, bits_offset, bits)
-#define BTF_MEMBER_ENC(name, type, bits_offset) \
-	(name), (type), (bits_offset)
-
-struct btf_raw_data {
-	__u32 raw_types[64];
-	const char *str_sec;
-	__u32 str_sec_size;
-};
-
 /* struct bpf_spin_lock {
  *   int val;
  * };
@@ -589,6 +573,31 @@ static int create_map_spin_lock(void)
 	return fd;
 }
 
+static int create_sk_storage_map(void)
+{
+	struct bpf_create_map_attr attr = {
+		.name = "test_map",
+		.map_type = BPF_MAP_TYPE_SK_STORAGE,
+		.key_size = 4,
+		.value_size = 8,
+		.max_entries = 0,
+		.map_flags = BPF_F_NO_PREALLOC,
+		.btf_key_type_id = 1,
+		.btf_value_type_id = 3,
+	};
+	int fd, btf_fd;
+
+	btf_fd = load_btf();
+	if (btf_fd < 0)
+		return -1;
+	attr.btf_fd = btf_fd;
+	fd = bpf_create_map_xattr(&attr);
+	close(attr.btf_fd);
+	if (fd < 0)
+		printf("Failed to create sk_storage_map\n");
+	return fd;
+}
+
 static char bpf_vlog[UINT_MAX >> 8];
 
 static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
@@ -611,6 +620,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	int *fixup_map_array_ro = test->fixup_map_array_ro;
 	int *fixup_map_array_wo = test->fixup_map_array_wo;
 	int *fixup_map_array_small = test->fixup_map_array_small;
+	int *fixup_sk_storage_map = test->fixup_sk_storage_map;
 
 	if (test->fill_helper) {
 		test->fill_insns = calloc(MAX_TEST_INSNS, sizeof(struct bpf_insn));
@@ -764,6 +774,13 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 			prog[*fixup_map_array_small].imm = map_fds[16];
 			fixup_map_array_small++;
 		} while (*fixup_map_array_small);
+	}
+	if (*fixup_sk_storage_map) {
+		map_fds[17] = create_sk_storage_map();
+		do {
+			prog[*fixup_sk_storage_map].imm = map_fds[17];
+			fixup_sk_storage_map++;
+		} while (*fixup_sk_storage_map);
 	}
 }
 
