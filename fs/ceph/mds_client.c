@@ -2089,13 +2089,14 @@ static inline  u64 __get_oldest_tid(struct ceph_mds_client *mdsc)
  * Encode hidden .snap dirs as a double /, i.e.
  *   foo/.snap/bar -> foo//bar
  */
-char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
+char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *pbase,
 			   int stop_on_nosnap)
 {
 	struct dentry *temp;
 	char *path;
 	int len, pos;
 	unsigned seq;
+	u64 base;
 
 	if (!dentry)
 		return ERR_PTR(-EINVAL);
@@ -2151,6 +2152,7 @@ retry:
 			path[--pos] = '/';
 		temp = temp->d_parent;
 	}
+	base = ceph_ino(d_inode(temp));
 	rcu_read_unlock();
 	if (pos != 0 || read_seqretry(&rename_lock, seq)) {
 		pr_err("build_path did not end path lookup where "
@@ -2163,10 +2165,10 @@ retry:
 		goto retry;
 	}
 
-	*base = ceph_ino(d_inode(temp));
+	*pbase = base;
 	*plen = len;
 	dout("build_path on %p %d built %llx '%.*s'\n",
-	     dentry, d_count(dentry), *base, len, path);
+	     dentry, d_count(dentry), base, len, path);
 	return path;
 }
 
