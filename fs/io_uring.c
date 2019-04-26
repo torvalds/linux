@@ -338,7 +338,7 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 	tail = ctx->cached_cq_tail;
 	/* See comment at the top of the file */
 	smp_rmb();
-	if (tail + 1 == READ_ONCE(ring->r.head))
+	if (tail - READ_ONCE(ring->r.head) == ring->ring_entries)
 		return NULL;
 
 	ctx->cached_cq_tail++;
@@ -682,11 +682,9 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 		list_add_tail(&req->list, &ctx->poll_list);
 }
 
-static void io_file_put(struct io_submit_state *state, struct file *file)
+static void io_file_put(struct io_submit_state *state)
 {
-	if (!state) {
-		fput(file);
-	} else if (state->file) {
+	if (state->file) {
 		int diff = state->has_refs - state->used_refs;
 
 		if (diff)
@@ -711,7 +709,7 @@ static struct file *io_file_get(struct io_submit_state *state, int fd)
 			state->ios_left--;
 			return state->file;
 		}
-		io_file_put(state, NULL);
+		io_file_put(state);
 	}
 	state->file = fget_many(fd, state->ios_left);
 	if (!state->file)
@@ -1671,7 +1669,7 @@ out:
 static void io_submit_state_end(struct io_submit_state *state)
 {
 	blk_finish_plug(&state->plug);
-	io_file_put(state, NULL);
+	io_file_put(state);
 	if (state->free_reqs)
 		kmem_cache_free_bulk(req_cachep, state->free_reqs,
 					&state->reqs[state->cur_req]);
@@ -1920,6 +1918,10 @@ static int io_sq_thread(void *data)
 		unuse_mm(cur_mm);
 		mmput(cur_mm);
 	}
+
+	if (kthread_should_park())
+		kthread_parkme();
+
 	return 0;
 }
 
@@ -2054,6 +2056,7 @@ static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 	if (ctx->sqo_thread) {
 		ctx->sqo_stop = 1;
 		mb();
+		kthread_park(ctx->sqo_thread);
 		kthread_stop(ctx->sqo_thread);
 		ctx->sqo_thread = NULL;
 	}
@@ -2236,10 +2239,6 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 	mmgrab(current->mm);
 	ctx->sqo_mm = current->mm;
 
-	ctx->sq_thread_idle = msecs_to_jiffies(p->sq_thread_idle);
-	if (!ctx->sq_thread_idle)
-		ctx->sq_thread_idle = HZ;
-
 	ret = -EINVAL;
 	if (!cpu_possible(p->sq_thread_cpu))
 		goto err;
@@ -2249,10 +2248,18 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 		if (!capable(CAP_SYS_ADMIN))
 			goto err;
 
+		ctx->sq_thread_idle = msecs_to_jiffies(p->sq_thread_idle);
+		if (!ctx->sq_thread_idle)
+			ctx->sq_thread_idle = HZ;
+
 		if (p->flags & IORING_SETUP_SQ_AFF) {
 			int cpu;
 
 			cpu = array_index_nospec(p->sq_thread_cpu, NR_CPUS);
+			ret = -EINVAL;
+			if (!cpu_possible(p->sq_thread_cpu))
+				goto err;
+
 			ctx->sqo_thread = kthread_create_on_cpu(io_sq_thread,
 							ctx, cpu,
 							"io_uring-sq");
@@ -2922,11 +2929,23 @@ SYSCALL_DEFINE2(io_uring_setup, u32, entries,
 
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
+	__releases(ctx->uring_lock)
+	__acquires(ctx->uring_lock)
 {
 	int ret;
 
 	percpu_ref_kill(&ctx->refs);
+
+	/*
+	 * Drop uring mutex before waiting for references to exit. If another
+	 * thread is currently inside io_uring_enter() it might need to grab
+	 * the uring_lock to make progress. If we hold it here across the drain
+	 * wait, then we can deadlock. It's safe to drop the mutex here, since
+	 * no new references will come in after we've killed the percpu ref.
+	 */
+	mutex_unlock(&ctx->uring_lock);
 	wait_for_completion(&ctx->ctx_done);
+	mutex_lock(&ctx->uring_lock);
 
 	switch (opcode) {
 	case IORING_REGISTER_BUFFERS:

@@ -730,9 +730,10 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 			}
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-			if (!(flags & TTM_PAGE_FLAG_DMA32)) {
-				for (j = 0; j < HPAGE_PMD_NR; ++j)
-					if (p++ != pages[i + j])
+			if (!(flags & TTM_PAGE_FLAG_DMA32) &&
+			    (npages - i) >= HPAGE_PMD_NR) {
+				for (j = 1; j < HPAGE_PMD_NR; ++j)
+					if (++p != pages[i + j])
 					    break;
 
 				if (j == HPAGE_PMD_NR)
@@ -759,15 +760,15 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 		unsigned max_size, n2free;
 
 		spin_lock_irqsave(&huge->lock, irq_flags);
-		while (i < npages) {
+		while ((npages - i) >= HPAGE_PMD_NR) {
 			struct page *p = pages[i];
 			unsigned j;
 
 			if (!p)
 				break;
 
-			for (j = 0; j < HPAGE_PMD_NR; ++j)
-				if (p++ != pages[i + j])
+			for (j = 1; j < HPAGE_PMD_NR; ++j)
+				if (++p != pages[i + j])
 				    break;
 
 			if (j != HPAGE_PMD_NR)

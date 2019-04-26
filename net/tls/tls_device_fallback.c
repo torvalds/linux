@@ -194,6 +194,9 @@ static void update_chksum(struct sk_buff *skb, int headln)
 
 static void complete_skb(struct sk_buff *nskb, struct sk_buff *skb, int headln)
 {
+	struct sock *sk = skb->sk;
+	int delta;
+
 	skb_copy_header(nskb, skb);
 
 	skb_put(nskb, skb->len);
@@ -201,11 +204,15 @@ static void complete_skb(struct sk_buff *nskb, struct sk_buff *skb, int headln)
 	update_chksum(nskb, headln);
 
 	nskb->destructor = skb->destructor;
-	nskb->sk = skb->sk;
+	nskb->sk = sk;
 	skb->destructor = NULL;
 	skb->sk = NULL;
-	refcount_add(nskb->truesize - skb->truesize,
-		     &nskb->sk->sk_wmem_alloc);
+
+	delta = nskb->truesize - skb->truesize;
+	if (likely(delta < 0))
+		WARN_ON_ONCE(refcount_sub_and_test(-delta, &sk->sk_wmem_alloc));
+	else if (delta)
+		refcount_add(delta, &sk->sk_wmem_alloc);
 }
 
 /* This function may be called after the user socket is already

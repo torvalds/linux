@@ -265,6 +265,7 @@ find_or_allocate_block(struct nfs4_lockowner *lo, struct knfsd_fh *fh,
 static void
 free_blocked_lock(struct nfsd4_blocked_lock *nbl)
 {
+	locks_delete_block(&nbl->nbl_lock);
 	locks_release_private(&nbl->nbl_lock);
 	kfree(nbl);
 }
@@ -293,9 +294,16 @@ remove_blocked_locks(struct nfs4_lockowner *lo)
 		nbl = list_first_entry(&reaplist, struct nfsd4_blocked_lock,
 					nbl_lru);
 		list_del_init(&nbl->nbl_lru);
-		locks_delete_block(&nbl->nbl_lock);
 		free_blocked_lock(nbl);
 	}
+}
+
+static void
+nfsd4_cb_notify_lock_prepare(struct nfsd4_callback *cb)
+{
+	struct nfsd4_blocked_lock	*nbl = container_of(cb,
+						struct nfsd4_blocked_lock, nbl_cb);
+	locks_delete_block(&nbl->nbl_lock);
 }
 
 static int
@@ -325,6 +333,7 @@ nfsd4_cb_notify_lock_release(struct nfsd4_callback *cb)
 }
 
 static const struct nfsd4_callback_ops nfsd4_cb_notify_lock_ops = {
+	.prepare	= nfsd4_cb_notify_lock_prepare,
 	.done		= nfsd4_cb_notify_lock_done,
 	.release	= nfsd4_cb_notify_lock_release,
 };
@@ -4863,7 +4872,6 @@ nfs4_laundromat(struct nfsd_net *nn)
 		nbl = list_first_entry(&reaplist,
 					struct nfsd4_blocked_lock, nbl_lru);
 		list_del_init(&nbl->nbl_lru);
-		locks_delete_block(&nbl->nbl_lock);
 		free_blocked_lock(nbl);
 	}
 out:

@@ -904,7 +904,9 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	goto release_netdev;
 
 free_sw_resources:
+	up_read(&device_offload_lock);
 	tls_sw_free_resources_rx(sk);
+	down_read(&device_offload_lock);
 release_ctx:
 	ctx->priv_ctx_rx = NULL;
 release_netdev:
@@ -939,8 +941,6 @@ void tls_device_offload_cleanup_rx(struct sock *sk)
 	}
 out:
 	up_read(&device_offload_lock);
-	kfree(tls_ctx->rx.rec_seq);
-	kfree(tls_ctx->rx.iv);
 	tls_sw_release_resources_rx(sk);
 }
 

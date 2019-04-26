@@ -3124,6 +3124,7 @@ F:	drivers/cpufreq/bmips-cpufreq.c
 BROADCOM BMIPS MIPS ARCHITECTURE
 M:	Kevin Cernekee <cernekee@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
+L:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-mips@vger.kernel.org
 T:	git git://github.com/broadcom/stblinux.git
 S:	Maintained
@@ -7336,7 +7337,6 @@ F:	Documentation/devicetree/bindings/i3c/
 F:	Documentation/driver-api/i3c
 F:	drivers/i3c/
 F:	include/linux/i3c/
-F:	include/dt-bindings/i3c/
 
 I3C DRIVER FOR SYNOPSYS DESIGNWARE
 M:	Vitor Soares <vitor.soares@synopsys.com>
@@ -8711,6 +8711,7 @@ F:	scripts/leaking_addresses.pl
 LED SUBSYSTEM
 M:	Jacek Anaszewski <jacek.anaszewski@gmail.com>
 M:	Pavel Machek <pavel@ucw.cz>
+R:	Dan Murphy <dmurphy@ti.com>
 L:	linux-leds@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/j.anaszewski/linux-leds.git
 S:	Maintained

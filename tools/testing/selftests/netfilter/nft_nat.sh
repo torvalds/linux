@@ -347,6 +347,7 @@ EOF
 test_masquerade6()
 {
 	local family=$1
+	local natflags=$1
 	local lret=0
 
 	ip netns exec ns0 sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
@@ -380,7 +381,7 @@ ip netns exec ns0 nft -f - <<EOF
 table $family nat {
 	chain postrouting {
 		type nat hook postrouting priority 0; policy accept;
-		meta oif veth0 masquerade
+		meta oif veth0 masquerade $natflags
 	}
 }
 EOF
@@ -391,7 +392,11 @@ EOF
 
 	ip netns exec ns2 ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
+<<<<<<< HEAD
 		echo "ERROR: cannot ping ns1 from ns2 with active $family masquerading"
+=======
+		echo "ERROR: cannot ping ns1 from ns2 with active ipv6 masquerade $natflags"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 		lret=1
 	fi
 
@@ -428,20 +433,38 @@ EOF
 		fi
 	done
 
+<<<<<<< HEAD
 	ip netns exec ns0 nft flush chain $family nat postrouting
+=======
+	ip netns exec ns2 ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
+	if [ $? -ne 0 ] ; then
+		echo "ERROR: cannot ping ns1 from ns2 with active ipv6 masquerade $natflags (attempt 2)"
+		lret=1
+	fi
+
+	ip netns exec ns0 nft flush chain ip6 nat postrouting
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 	if [ $? -ne 0 ]; then
 		echo "ERROR: Could not flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
+<<<<<<< HEAD
 	test $lret -eq 0 && echo "PASS: $family IPv6 masquerade for ns2"
+=======
+	test $lret -eq 0 && echo "PASS: IPv6 masquerade $natflags for ns2"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 
 	return $lret
 }
 
 test_masquerade()
 {
+<<<<<<< HEAD
 	local family=$1
+=======
+	local natflags=$1
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 	local lret=0
 
 	ip netns exec ns0 sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
@@ -449,7 +472,7 @@ test_masquerade()
 
 	ip netns exec ns2 ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: canot ping ns1 from ns2"
+		echo "ERROR: cannot ping ns1 from ns2 $natflags"
 		lret=1
 	fi
 
@@ -475,7 +498,7 @@ ip netns exec ns0 nft -f - <<EOF
 table $family nat {
 	chain postrouting {
 		type nat hook postrouting priority 0; policy accept;
-		meta oif veth0 masquerade
+		meta oif veth0 masquerade $natflags
 	}
 }
 EOF
@@ -486,7 +509,11 @@ EOF
 
 	ip netns exec ns2 ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
+<<<<<<< HEAD
 		echo "ERROR: cannot ping ns1 from ns2 with active $family masquerading"
+=======
+		echo "ERROR: cannot ping ns1 from ns2 with active ip masquere $natflags"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 		lret=1
 	fi
 
@@ -522,13 +549,27 @@ EOF
 		fi
 	done
 
+<<<<<<< HEAD
 	ip netns exec ns0 nft flush chain $family nat postrouting
+=======
+	ip netns exec ns2 ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
+	if [ $? -ne 0 ] ; then
+		echo "ERROR: cannot ping ns1 from ns2 with active ip masquerade $natflags (attempt 2)"
+		lret=1
+	fi
+
+	ip netns exec ns0 nft flush chain ip nat postrouting
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 	if [ $? -ne 0 ]; then
 		echo "ERROR: Could not flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
+<<<<<<< HEAD
 	test $lret -eq 0 && echo "PASS: $family IP masquerade for ns2"
+=======
+	test $lret -eq 0 && echo "PASS: IP masquerade $natflags for ns2"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 
 	return $lret
 }
@@ -802,11 +843,20 @@ $test_inet_nat && test_local_dnat inet
 $test_inet_nat && test_local_dnat6 inet
 
 reset_counters
+<<<<<<< HEAD
 test_masquerade ip
 test_masquerade6 ip6
 reset_counters
 $test_inet_nat && test_masquerade inet
 $test_inet_nat && test_masquerade6 inet
+=======
+test_masquerade ""
+test_masquerade6 ""
+
+reset_counters
+test_masquerade "fully-random"
+test_masquerade6 "fully-random"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 
 reset_counters
 test_redirect ip

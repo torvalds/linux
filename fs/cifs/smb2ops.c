@@ -2389,6 +2389,8 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, &err_iov,
 		       &resp_buftype);
+	if (!rc)
+		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	if (!rc || !err_iov.iov_base) {
 		rc = -ENOENT;
 		goto free_path;
