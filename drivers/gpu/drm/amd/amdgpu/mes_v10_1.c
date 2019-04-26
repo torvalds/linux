@@ -308,10 +308,36 @@ static int mes_v10_1_allocate_eop_buf(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int mes_v10_1_ring_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	int r;
+
+	ring = &adev->mes.ring;
+
+	ring->me = 3;
+	ring->pipe = 0;
+	ring->queue = 0;
+
+	ring->ring_obj = NULL;
+	ring->use_doorbell = true;
+	ring->doorbell_index = adev->doorbell_index.mes_ring << 1;
+	ring->eop_gpu_addr = adev->mes.eop_gpu_addr;
+	sprintf(ring->name, "mes_%d.%d.%d", ring->me, ring->pipe, ring->queue);
+
+	r = amdgpu_ring_init(adev, ring, 1024, NULL, 0, AMDGPU_RING_PRIO_DEFAULT);
+	if (r)
+		return r;
+
+	return 0;
+}
+
 static int mes_v10_1_sw_init(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->mes.adev = adev;
 
 	r = mes_v10_1_init_microcode(adev);
 	if (r)
