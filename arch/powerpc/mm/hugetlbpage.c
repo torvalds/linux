@@ -26,9 +26,6 @@
 #include <asm/hugetlb.h>
 #include <asm/pte-walk.h>
 
-
-#ifdef CONFIG_HUGETLB_PAGE
-
 #define PAGE_SHIFT_64K	16
 #define PAGE_SHIFT_512K	19
 #define PAGE_SHIFT_8M	23
@@ -753,8 +750,6 @@ void flush_dcache_icache_hugepage(struct page *page)
 		}
 	}
 }
-
-#endif /* CONFIG_HUGETLB_PAGE */
 
 int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
