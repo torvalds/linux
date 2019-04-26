@@ -97,7 +97,7 @@ static int br_fill_vlan_tinfo(struct sk_buff *skb, u16 vid,
 	__be32 tid = tunnel_id_to_key32(tunnel_id);
 	struct nlattr *tmap;
 
-	tmap = nla_nest_start(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
+	tmap = nla_nest_start_noflag(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
 	if (!tmap)
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_BRIDGE_VLAN_TUNNEL_ID,

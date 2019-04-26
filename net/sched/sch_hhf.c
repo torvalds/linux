@@ -654,7 +654,7 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 

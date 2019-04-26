@@ -401,7 +401,7 @@ ip_set_get_h16(const struct nlattr *attr)
 	return ntohs(nla_get_be16(attr));
 }
 
-#define ipset_nest_start(skb, attr) nla_nest_start(skb, attr | NLA_F_NESTED)
+#define ipset_nest_start(skb, attr) nla_nest_start(skb, attr)
 #define ipset_nest_end(skb, start)  nla_nest_end(skb, start)
 
 static inline int nla_put_ipaddr4(struct sk_buff *skb, int type, __be32 ipaddr)

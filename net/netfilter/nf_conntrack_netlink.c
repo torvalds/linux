@@ -63,7 +63,7 @@ static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 	int ret = 0;
 	struct nlattr *nest_parms;
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_PROTO | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_PROTO);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (nla_put_u8(skb, CTA_PROTO_NUM, tuple->dst.protonum))
@@ -104,7 +104,7 @@ static int ctnetlink_dump_tuples_ip(struct sk_buff *skb,
 	int ret = 0;
 	struct nlattr *nest_parms;
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_IP | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_IP);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -187,7 +187,7 @@ static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
 	if (!l4proto->to_nlattr)
 		return 0;
 
-	nest_proto = nla_nest_start(skb, CTA_PROTOINFO | NLA_F_NESTED);
+	nest_proto = nla_nest_start(skb, CTA_PROTOINFO);
 	if (!nest_proto)
 		goto nla_put_failure;
 
@@ -215,7 +215,7 @@ static int ctnetlink_dump_helpinfo(struct sk_buff *skb,
 	if (!helper)
 		goto out;
 
-	nest_helper = nla_nest_start(skb, CTA_HELP | NLA_F_NESTED);
+	nest_helper = nla_nest_start(skb, CTA_HELP);
 	if (!nest_helper)
 		goto nla_put_failure;
 	if (nla_put_string(skb, CTA_HELP_NAME, helper->name))
@@ -249,7 +249,7 @@ dump_counters(struct sk_buff *skb, struct nf_conn_acct *acct,
 		bytes = atomic64_read(&counter[dir].bytes);
 	}
 
-	nest_count = nla_nest_start(skb, attr | NLA_F_NESTED);
+	nest_count = nla_nest_start(skb, attr);
 	if (!nest_count)
 		goto nla_put_failure;
 
@@ -293,7 +293,7 @@ ctnetlink_dump_timestamp(struct sk_buff *skb, const struct nf_conn *ct)
 	if (!tstamp)
 		return 0;
 
-	nest_count = nla_nest_start(skb, CTA_TIMESTAMP | NLA_F_NESTED);
+	nest_count = nla_nest_start(skb, CTA_TIMESTAMP);
 	if (!nest_count)
 		goto nla_put_failure;
 
@@ -337,7 +337,7 @@ static int ctnetlink_dump_secctx(struct sk_buff *skb, const struct nf_conn *ct)
 		return 0;
 
 	ret = -1;
-	nest_secctx = nla_nest_start(skb, CTA_SECCTX | NLA_F_NESTED);
+	nest_secctx = nla_nest_start(skb, CTA_SECCTX);
 	if (!nest_secctx)
 		goto nla_put_failure;
 
@@ -397,7 +397,7 @@ static int ctnetlink_dump_master(struct sk_buff *skb, const struct nf_conn *ct)
 	if (!(ct->status & IPS_EXPECTED))
 		return 0;
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_MASTER | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_MASTER);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, master_tuple(ct)) < 0)
@@ -415,7 +415,7 @@ dump_ct_seq_adj(struct sk_buff *skb, const struct nf_ct_seqadj *seq, int type)
 {
 	struct nlattr *nest_parms;
 
-	nest_parms = nla_nest_start(skb, type | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, type);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -467,7 +467,7 @@ static int ctnetlink_dump_ct_synproxy(struct sk_buff *skb, struct nf_conn *ct)
 	if (!synproxy)
 		return 0;
 
-	nest_parms = nla_nest_start(skb, CTA_SYNPROXY | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_SYNPROXY);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -528,7 +528,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 
 	zone = nf_ct_zone(ct);
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL)) < 0)
@@ -538,7 +538,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 		goto nla_put_failure;
 	nla_nest_end(skb, nest_parms);
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_REPLY)) < 0)
@@ -720,7 +720,7 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 
 	zone = nf_ct_zone(ct);
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL)) < 0)
@@ -730,7 +730,7 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		goto nla_put_failure;
 	nla_nest_end(skb, nest_parms);
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_REPLY)) < 0)
@@ -2400,7 +2400,7 @@ static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 
 	zone = nf_ct_zone(ct);
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL)) < 0)
@@ -2410,7 +2410,7 @@ static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 		goto nla_put_failure;
 	nla_nest_end(skb, nest_parms);
 
-	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_REPLY);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, nf_ct_tuple(ct, IP_CT_DIR_REPLY)) < 0)
@@ -2472,7 +2472,7 @@ ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct,
 {
 	struct nlattr *nest_parms;
 
-	nest_parms = nla_nest_start(skb, ct_attr | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, ct_attr);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -2644,7 +2644,7 @@ static int ctnetlink_exp_dump_tuple(struct sk_buff *skb,
 {
 	struct nlattr *nest_parms;
 
-	nest_parms = nla_nest_start(skb, type | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, type);
 	if (!nest_parms)
 		goto nla_put_failure;
 	if (ctnetlink_dump_tuples(skb, tuple) < 0)
@@ -2671,7 +2671,7 @@ static int ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	m.src.u.all = mask->src.u.all;
 	m.dst.protonum = tuple->dst.protonum;
 
-	nest_parms = nla_nest_start(skb, CTA_EXPECT_MASK | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_EXPECT_MASK);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -2743,7 +2743,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 #if IS_ENABLED(CONFIG_NF_NAT)
 	if (!nf_inet_addr_cmp(&exp->saved_addr, &any_addr) ||
 	    exp->saved_proto.all) {
-		nest_parms = nla_nest_start(skb, CTA_EXPECT_NAT | NLA_F_NESTED);
+		nest_parms = nla_nest_start(skb, CTA_EXPECT_NAT);
 		if (!nest_parms)
 			goto nla_put_failure;
 

@@ -414,7 +414,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 
 	if (event == RTM_NEWLINK && port) {
 		struct nlattr *nest
-			= nla_nest_start(skb, IFLA_PROTINFO | NLA_F_NESTED);
+			= nla_nest_start(skb, IFLA_PROTINFO);
 
 		if (nest == NULL || br_port_fill_attrs(skb, port) < 0)
 			goto nla_put_failure;
@@ -439,7 +439,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			rcu_read_unlock();
 			goto done;
 		}
-		af = nla_nest_start(skb, IFLA_AF_SPEC);
+		af = nla_nest_start_noflag(skb, IFLA_AF_SPEC);
 		if (!af) {
 			rcu_read_unlock();
 			goto nla_put_failure;
@@ -1569,7 +1569,7 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	nest = nla_nest_start(skb, LINK_XSTATS_TYPE_BRIDGE);
+	nest = nla_nest_start_noflag(skb, LINK_XSTATS_TYPE_BRIDGE);
 	if (!nest)
 		return -EMSGSIZE;
 

@@ -853,7 +853,7 @@ static int put_nla_bpf(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	if (!slwt->bpf.prog)
 		return 0;
 
-	nest = nla_nest_start(skb, SEG6_LOCAL_BPF);
+	nest = nla_nest_start_noflag(skb, SEG6_LOCAL_BPF);
 	if (!nest)
 		return -EMSGSIZE;
 

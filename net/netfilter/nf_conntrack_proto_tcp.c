@@ -1192,7 +1192,7 @@ static int tcp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	struct nf_ct_tcp_flags tmp = {};
 
 	spin_lock_bh(&ct->lock);
-	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_TCP | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_TCP);
 	if (!nest_parms)
 		goto nla_put_failure;
 

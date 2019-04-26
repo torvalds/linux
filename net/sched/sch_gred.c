@@ -772,7 +772,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (gred_offload_dump_stats(sch))
 		goto nla_put_failure;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_GRED_DPS, sizeof(sopt), &sopt))
@@ -790,7 +790,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	/* Old style all-in-one dump of VQs */
-	parms = nla_nest_start(skb, TCA_GRED_PARMS);
+	parms = nla_nest_start_noflag(skb, TCA_GRED_PARMS);
 	if (parms == NULL)
 		goto nla_put_failure;
 
@@ -841,7 +841,7 @@ append_opt:
 	nla_nest_end(skb, parms);
 
 	/* Dump the VQs again, in more structured way */
-	vqs = nla_nest_start(skb, TCA_GRED_VQ_LIST);
+	vqs = nla_nest_start_noflag(skb, TCA_GRED_VQ_LIST);
 	if (!vqs)
 		goto nla_put_failure;
 
@@ -852,7 +852,7 @@ append_opt:
 		if (!q)
 			continue;
 
-		vq = nla_nest_start(skb, TCA_GRED_VQ_ENTRY);
+		vq = nla_nest_start_noflag(skb, TCA_GRED_VQ_ENTRY);
 		if (!vq)
 			goto nla_put_failure;
 

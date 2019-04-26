@@ -5752,7 +5752,7 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	    nla_put_u8(skb, IFLA_OPERSTATE,
 		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN))
 		goto nla_put_failure;
-	protoinfo = nla_nest_start(skb, IFLA_PROTINFO);
+	protoinfo = nla_nest_start_noflag(skb, IFLA_PROTINFO);
 	if (!protoinfo)
 		goto nla_put_failure;
 

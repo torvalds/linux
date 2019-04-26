@@ -542,7 +542,7 @@ static int qdisc_dump_stab(struct sk_buff *skb, struct qdisc_size_table *stab)
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_STAB);
+	nest = nla_nest_start_noflag(skb, TCA_STAB);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_STAB_BASE, sizeof(stab->szopts), &stab->szopts))

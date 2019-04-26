@@ -432,7 +432,7 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	tcm->tcm_handle = TC_H_MAKE(TC_H_MAJ(sch->handle), cl - 1);
 	tcm->tcm_info = p->q->handle;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put_u8(skb, TCA_DSMARK_MASK, p->mv[cl - 1].mask) ||
@@ -451,7 +451,7 @@ static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	struct nlattr *opts = NULL;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put_u16(skb, TCA_DSMARK_INDICES, p->indices))

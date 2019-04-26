@@ -453,7 +453,7 @@ static int bpf_fill_lwt_prog(struct sk_buff *skb, int attr,
 	if (!prog->prog)
 		return 0;
 
-	nest = nla_nest_start(skb, attr);
+	nest = nla_nest_start_noflag(skb, attr);
 	if (!nest)
 		return -EMSGSIZE;
 

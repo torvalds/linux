@@ -108,14 +108,15 @@ err_out:
 static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 				 struct tcf_pedit_key_ex *keys_ex, int n)
 {
-	struct nlattr *keys_start = nla_nest_start(skb, TCA_PEDIT_KEYS_EX);
+	struct nlattr *keys_start = nla_nest_start_noflag(skb,
+							  TCA_PEDIT_KEYS_EX);
 
 	if (!keys_start)
 		goto nla_failure;
 	for (; n > 0; n--) {
 		struct nlattr *key_start;
 
-		key_start = nla_nest_start(skb, TCA_PEDIT_KEY_EX);
+		key_start = nla_nest_start_noflag(skb, TCA_PEDIT_KEY_EX);
 		if (!key_start)
 			goto nla_failure;
 

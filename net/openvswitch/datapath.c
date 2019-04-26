@@ -463,7 +463,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 			  nla_data(upcall_info->userdata));
 
 	if (upcall_info->egress_tun_info) {
-		nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_EGRESS_TUN_KEY);
+		nla = nla_nest_start_noflag(user_skb,
+					    OVS_PACKET_ATTR_EGRESS_TUN_KEY);
 		if (!nla) {
 			err = -EMSGSIZE;
 			goto out;
@@ -475,7 +476,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	}
 
 	if (upcall_info->actions_len) {
-		nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_ACTIONS);
+		nla = nla_nest_start_noflag(user_skb, OVS_PACKET_ATTR_ACTIONS);
 		if (!nla) {
 			err = -EMSGSIZE;
 			goto out;
@@ -776,7 +777,7 @@ static int ovs_flow_cmd_fill_actions(const struct sw_flow *flow,
 	 * This can only fail for dump operations because the skb is always
 	 * properly sized for single flows.
 	 */
-	start = nla_nest_start(skb, OVS_FLOW_ATTR_ACTIONS);
+	start = nla_nest_start_noflag(skb, OVS_FLOW_ATTR_ACTIONS);
 	if (start) {
 		const struct sw_flow_actions *sf_acts;
 

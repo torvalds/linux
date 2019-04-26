@@ -1057,7 +1057,7 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	gopt.defcls = q->defcls;
 	gopt.debug = 0;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_HTB_INIT, sizeof(gopt), &gopt) ||
@@ -1086,7 +1086,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	if (!cl->level && cl->leaf.q)
 		tcm->tcm_info = cl->leaf.q->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

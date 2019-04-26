@@ -449,7 +449,7 @@ static int cbs_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_cbs_qopt opt = { };
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 

@@ -619,7 +619,7 @@ static int qfq_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle	= cl->common.classid;
 	tcm->tcm_info	= cl->qdisc->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_u32(skb, TCA_QFQ_WEIGHT, cl->agg->class_weight) ||

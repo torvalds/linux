@@ -1200,7 +1200,7 @@ static int nft_dump_stats(struct sk_buff *skb, struct nft_stats __percpu *stats)
 		total.pkts += pkts;
 		total.bytes += bytes;
 	}
-	nest = nla_nest_start(skb, NFTA_CHAIN_COUNTERS);
+	nest = nla_nest_start_noflag(skb, NFTA_CHAIN_COUNTERS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -1248,7 +1248,7 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 		const struct nf_hook_ops *ops = &basechain->ops;
 		struct nlattr *nest;
 
-		nest = nla_nest_start(skb, NFTA_CHAIN_HOOK);
+		nest = nla_nest_start_noflag(skb, NFTA_CHAIN_HOOK);
 		if (nest == NULL)
 			goto nla_put_failure;
 		if (nla_put_be32(skb, NFTA_HOOK_HOOKNUM, htonl(ops->hooknum)))
@@ -2059,7 +2059,8 @@ static int nf_tables_fill_expr_info(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (expr->ops->dump) {
-		struct nlattr *data = nla_nest_start(skb, NFTA_EXPR_DATA);
+		struct nlattr *data = nla_nest_start_noflag(skb,
+							    NFTA_EXPR_DATA);
 		if (data == NULL)
 			goto nla_put_failure;
 		if (expr->ops->dump(skb, expr) < 0)
@@ -2078,7 +2079,7 @@ int nft_expr_dump(struct sk_buff *skb, unsigned int attr,
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, attr);
+	nest = nla_nest_start_noflag(skb, attr);
 	if (!nest)
 		goto nla_put_failure;
 	if (nf_tables_fill_expr_info(skb, expr) < 0)
@@ -2289,7 +2290,7 @@ static int nf_tables_fill_rule_info(struct sk_buff *skb, struct net *net,
 			goto nla_put_failure;
 	}
 
-	list = nla_nest_start(skb, NFTA_RULE_EXPRESSIONS);
+	list = nla_nest_start_noflag(skb, NFTA_RULE_EXPRESSIONS);
 	if (list == NULL)
 		goto nla_put_failure;
 	nft_rule_for_each_expr(expr, next, rule) {
@@ -3258,7 +3259,7 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 	if (nla_put(skb, NFTA_SET_USERDATA, set->udlen, set->udata))
 		goto nla_put_failure;
 
-	desc = nla_nest_start(skb, NFTA_SET_DESC);
+	desc = nla_nest_start_noflag(skb, NFTA_SET_DESC);
 	if (desc == NULL)
 		goto nla_put_failure;
 	if (set->size &&
@@ -3908,7 +3909,7 @@ static int nf_tables_fill_setelem(struct sk_buff *skb,
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, NFTA_LIST_ELEM);
+	nest = nla_nest_start_noflag(skb, NFTA_LIST_ELEM);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -4052,7 +4053,7 @@ static int nf_tables_dump_set(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nla_put_string(skb, NFTA_SET_ELEM_LIST_SET, set->name))
 		goto nla_put_failure;
 
-	nest = nla_nest_start(skb, NFTA_SET_ELEM_LIST_ELEMENTS);
+	nest = nla_nest_start_noflag(skb, NFTA_SET_ELEM_LIST_ELEMENTS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -4124,7 +4125,7 @@ static int nf_tables_fill_setelem_info(struct sk_buff *skb,
 	if (nla_put_string(skb, NFTA_SET_NAME, set->name))
 		goto nla_put_failure;
 
-	nest = nla_nest_start(skb, NFTA_SET_ELEM_LIST_ELEMENTS);
+	nest = nla_nest_start_noflag(skb, NFTA_SET_ELEM_LIST_ELEMENTS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -5014,7 +5015,7 @@ static int nft_object_dump(struct sk_buff *skb, unsigned int attr,
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, attr);
+	nest = nla_nest_start_noflag(skb, attr);
 	if (!nest)
 		goto nla_put_failure;
 	if (obj->ops->dump(skb, obj, reset) < 0)
@@ -5831,14 +5832,14 @@ static int nf_tables_fill_flowtable_info(struct sk_buff *skb, struct net *net,
 			 NFTA_FLOWTABLE_PAD))
 		goto nla_put_failure;
 
-	nest = nla_nest_start(skb, NFTA_FLOWTABLE_HOOK);
+	nest = nla_nest_start_noflag(skb, NFTA_FLOWTABLE_HOOK);
 	if (!nest)
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_FLOWTABLE_HOOK_NUM, htonl(flowtable->hooknum)) ||
 	    nla_put_be32(skb, NFTA_FLOWTABLE_HOOK_PRIORITY, htonl(flowtable->priority)))
 		goto nla_put_failure;
 
-	nest_devs = nla_nest_start(skb, NFTA_FLOWTABLE_HOOK_DEVS);
+	nest_devs = nla_nest_start_noflag(skb, NFTA_FLOWTABLE_HOOK_DEVS);
 	if (!nest_devs)
 		goto nla_put_failure;
 
@@ -7264,7 +7265,7 @@ int nft_verdict_dump(struct sk_buff *skb, int type, const struct nft_verdict *v)
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, type);
+	nest = nla_nest_start_noflag(skb, type);
 	if (!nest)
 		goto nla_put_failure;
 
@@ -7377,7 +7378,7 @@ int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 	struct nlattr *nest;
 	int err;
 
-	nest = nla_nest_start(skb, attr);
+	nest = nla_nest_start_noflag(skb, attr);
 	if (nest == NULL)
 		return -1;
 
