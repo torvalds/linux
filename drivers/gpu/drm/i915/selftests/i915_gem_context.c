@@ -1094,7 +1094,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 
 	wakeref = intel_runtime_pm_get(i915);
 
-	ce = intel_context_instance(ctx, i915->engine[RCS0]);
+	ce = i915_gem_context_get_engine(ctx, RCS0);
 	if (IS_ERR(ce)) {
 		ret = PTR_ERR(ce);
 		goto out_rpm;

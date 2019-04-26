@@ -17,7 +17,7 @@ static struct i915_global_context {
 	struct kmem_cache *slab_ce;
 } global;
 
-struct intel_context *intel_context_alloc(void)
+static struct intel_context *intel_context_alloc(void)
 {
 	return kmem_cache_zalloc(global.slab_ce, GFP_KERNEL);
 }
@@ -28,104 +28,17 @@ void intel_context_free(struct intel_context *ce)
 }
 
 struct intel_context *
-intel_context_lookup(struct i915_gem_context *ctx,
+intel_context_create(struct i915_gem_context *ctx,
 		     struct intel_engine_cs *engine)
 {
-	struct intel_context *ce = NULL;
-	struct rb_node *p;
-
-	spin_lock(&ctx->hw_contexts_lock);
-	p = ctx->hw_contexts.rb_node;
-	while (p) {
-		struct intel_context *this =
-			rb_entry(p, struct intel_context, node);
-
-		if (this->engine == engine) {
-			GEM_BUG_ON(this->gem_context != ctx);
-			ce = this;
-			break;
-		}
-
-		if (this->engine < engine)
-			p = p->rb_right;
-		else
-			p = p->rb_left;
-	}
-	spin_unlock(&ctx->hw_contexts_lock);
-
-	return ce;
-}
-
-struct intel_context *
-__intel_context_insert(struct i915_gem_context *ctx,
-		       struct intel_engine_cs *engine,
-		       struct intel_context *ce)
-{
-	struct rb_node **p, *parent;
-	int err = 0;
-
-	spin_lock(&ctx->hw_contexts_lock);
-
-	parent = NULL;
-	p = &ctx->hw_contexts.rb_node;
-	while (*p) {
-		struct intel_context *this;
-
-		parent = *p;
-		this = rb_entry(parent, struct intel_context, node);
-
-		if (this->engine == engine) {
-			err = -EEXIST;
-			ce = this;
-			break;
-		}
-
-		if (this->engine < engine)
-			p = &parent->rb_right;
-		else
-			p = &parent->rb_left;
-	}
-	if (!err) {
-		rb_link_node(&ce->node, parent, p);
-		rb_insert_color(&ce->node, &ctx->hw_contexts);
-	}
-
-	spin_unlock(&ctx->hw_contexts_lock);
-
-	return ce;
-}
-
-void __intel_context_remove(struct intel_context *ce)
-{
-	struct i915_gem_context *ctx = ce->gem_context;
-
-	spin_lock(&ctx->hw_contexts_lock);
-	rb_erase(&ce->node, &ctx->hw_contexts);
-	spin_unlock(&ctx->hw_contexts_lock);
-}
-
-struct intel_context *
-intel_context_instance(struct i915_gem_context *ctx,
-		       struct intel_engine_cs *engine)
-{
-	struct intel_context *ce, *pos;
-
-	ce = intel_context_lookup(ctx, engine);
-	if (likely(ce))
-		return intel_context_get(ce);
+	struct intel_context *ce;
 
 	ce = intel_context_alloc();
 	if (!ce)
 		return ERR_PTR(-ENOMEM);
 
 	intel_context_init(ce, ctx, engine);
-
-	pos = __intel_context_insert(ctx, engine, ce);
-	if (unlikely(pos != ce)) /* Beaten! Use their HW context instead */
-		intel_context_free(ce);
-
-	GEM_BUG_ON(intel_context_lookup(ctx, engine) != pos);
-	return intel_context_get(pos);
+	return ce;
 }
 
 int __intel_context_do_pin(struct intel_context *ce)
@@ -204,6 +117,8 @@ intel_context_init(struct intel_context *ce,
 		   struct i915_gem_context *ctx,
 		   struct intel_engine_cs *engine)
 {
+	GEM_BUG_ON(!engine->cops);
+
 	kref_init(&ce->ref);
 
 	ce->gem_context = ctx;
@@ -253,4 +168,19 @@ void intel_context_enter_engine(struct intel_context *ce)
 void intel_context_exit_engine(struct intel_context *ce)
 {
 	intel_engine_pm_put(ce->engine);
+}
+
+struct i915_request *intel_context_create_request(struct intel_context *ce)
+{
+	struct i915_request *rq;
+	int err;
+
+	err = intel_context_pin(ce);
+	if (unlikely(err))
+		return ERR_PTR(err);
+
+	rq = i915_request_create(ce);
+	intel_context_unpin(ce);
+
+	return rq;
 }

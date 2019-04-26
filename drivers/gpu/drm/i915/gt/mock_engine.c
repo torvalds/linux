@@ -23,6 +23,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_gem_context.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
 
@@ -286,7 +287,7 @@ int mock_engine_init(struct intel_engine_cs *engine)
 	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
 
 	engine->kernel_context =
-		intel_context_instance(i915->kernel_context, engine);
+		i915_gem_context_get_engine(i915->kernel_context, engine->id);
 	if (IS_ERR(engine->kernel_context))
 		goto err_timeline;
 

@@ -2076,9 +2076,7 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 	return file_priv->bsd_engine;
 }
 
-#define I915_USER_RINGS (4)
-
-static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
+static const enum intel_engine_id user_ring_map[] = {
 	[I915_EXEC_DEFAULT]	= RCS0,
 	[I915_EXEC_RENDER]	= RCS0,
 	[I915_EXEC_BLT]		= BCS0,
@@ -2086,10 +2084,8 @@ static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
 	[I915_EXEC_VEBOX]	= VECS0
 };
 
-static int eb_pin_context(struct i915_execbuffer *eb,
-			  struct intel_engine_cs *engine)
+static int eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
 {
-	struct intel_context *ce;
 	int err;
 
 	/*
@@ -2100,21 +2096,16 @@ static int eb_pin_context(struct i915_execbuffer *eb,
 	if (err)
 		return err;
 
-	ce = intel_context_instance(eb->gem_context, engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
-
 	/*
 	 * Pinning the contexts may generate requests in order to acquire
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
 	err = intel_context_pin(ce);
-	intel_context_put(ce);
 	if (err)
 		return err;
 
-	eb->engine = engine;
+	eb->engine = ce->engine;
 	eb->context = ce;
 	return 0;
 }
@@ -2124,25 +2115,19 @@ static void eb_unpin_context(struct i915_execbuffer *eb)
 	intel_context_unpin(eb->context);
 }
 
-static int
-eb_select_engine(struct i915_execbuffer *eb,
-		 struct drm_file *file,
-		 struct drm_i915_gem_execbuffer2 *args)
+static unsigned int
+eb_select_legacy_ring(struct i915_execbuffer *eb,
+		      struct drm_file *file,
+		      struct drm_i915_gem_execbuffer2 *args)
 {
 	struct drm_i915_private *i915 = eb->i915;
 	unsigned int user_ring_id = args->flags & I915_EXEC_RING_MASK;
-	struct intel_engine_cs *engine;
 
-	if (user_ring_id > I915_USER_RINGS) {
-		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
-		return -EINVAL;
-	}
-
-	if ((user_ring_id != I915_EXEC_BSD) &&
-	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
+	if (user_ring_id != I915_EXEC_BSD &&
+	    (args->flags & I915_EXEC_BSD_MASK)) {
 		DRM_DEBUG("execbuf with non bsd ring but with invalid "
 			  "bsd dispatch flags: %d\n", (int)(args->flags));
-		return -EINVAL;
+		return -1;
 	}
 
 	if (user_ring_id == I915_EXEC_BSD && HAS_ENGINE(i915, VCS1)) {
@@ -2157,20 +2142,39 @@ eb_select_engine(struct i915_execbuffer *eb,
 		} else {
 			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
 				  bsd_idx);
-			return -EINVAL;
+			return -1;
 		}
 
-		engine = i915->engine[_VCS(bsd_idx)];
-	} else {
-		engine = i915->engine[user_ring_map[user_ring_id]];
+		return _VCS(bsd_idx);
 	}
 
-	if (!engine) {
-		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
-		return -EINVAL;
+	if (user_ring_id >= ARRAY_SIZE(user_ring_map)) {
+		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
+		return -1;
 	}
 
-	return eb_pin_context(eb, engine);
+	return user_ring_map[user_ring_id];
+}
+
+static int
+eb_select_engine(struct i915_execbuffer *eb,
+		 struct drm_file *file,
+		 struct drm_i915_gem_execbuffer2 *args)
+{
+	struct intel_context *ce;
+	unsigned int idx;
+	int err;
+
+	idx = eb_select_legacy_ring(eb, file, args);
+
+	ce = i915_gem_context_get_engine(eb->gem_context, idx);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	err = eb_pin_context(eb, ce);
+	intel_context_put(ce);
+
+	return err;
 }
 
 static void

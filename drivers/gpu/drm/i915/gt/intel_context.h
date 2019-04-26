@@ -12,23 +12,15 @@
 #include "intel_context_types.h"
 #include "intel_engine_types.h"
 
-struct intel_context *intel_context_alloc(void);
-void intel_context_free(struct intel_context *ce);
-
 void intel_context_init(struct intel_context *ce,
 			struct i915_gem_context *ctx,
 			struct intel_engine_cs *engine);
 
-/**
- * intel_context_lookup - Find the matching HW context for this (ctx, engine)
- * @ctx - the parent GEM context
- * @engine - the target HW engine
- *
- * May return NULL if the HW context hasn't been instantiated (i.e. unused).
- */
 struct intel_context *
-intel_context_lookup(struct i915_gem_context *ctx,
+intel_context_create(struct i915_gem_context *ctx,
 		     struct intel_engine_cs *engine);
+
+void intel_context_free(struct intel_context *ce);
 
 /**
  * intel_context_lock_pinned - Stablises the 'pinned' status of the HW context
@@ -70,17 +62,6 @@ static inline void intel_context_unlock_pinned(struct intel_context *ce)
 {
 	mutex_unlock(&ce->pin_mutex);
 }
-
-struct intel_context *
-__intel_context_insert(struct i915_gem_context *ctx,
-		       struct intel_engine_cs *engine,
-		       struct intel_context *ce);
-void
-__intel_context_remove(struct intel_context *ce);
-
-struct intel_context *
-intel_context_instance(struct i915_gem_context *ctx,
-		       struct intel_engine_cs *engine);
 
 int __intel_context_do_pin(struct intel_context *ce);
 
@@ -143,5 +124,7 @@ static inline void intel_context_timeline_unlock(struct intel_context *ce)
 {
 	mutex_unlock(&ce->ring->timeline->mutex);
 }
+
+struct i915_request *intel_context_create_request(struct intel_context *ce);
 
 #endif /* __INTEL_CONTEXT_H__ */

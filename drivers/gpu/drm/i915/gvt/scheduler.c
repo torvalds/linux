@@ -1183,7 +1183,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 		INIT_LIST_HEAD(&s->workload_q_head[i]);
 		s->shadow[i] = ERR_PTR(-EINVAL);
 
-		ce = intel_context_instance(ctx, engine);
+		ce = i915_gem_context_get_engine(ctx, i);
 		if (IS_ERR(ce)) {
 			ret = PTR_ERR(ce);
 			goto out_shadow_ctx;

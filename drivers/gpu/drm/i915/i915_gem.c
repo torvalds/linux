@@ -4289,8 +4289,9 @@ out:
 
 static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 {
-	struct i915_gem_context *ctx;
 	struct intel_engine_cs *engine;
+	struct i915_gem_context *ctx;
+	struct i915_gem_engines *e;
 	enum intel_engine_id id;
 	int err = 0;
 
@@ -4307,18 +4308,21 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
+	e = i915_gem_context_lock_engines(ctx);
+
 	for_each_engine(engine, i915, id) {
+		struct intel_context *ce = e->engines[id];
 		struct i915_request *rq;
 
-		rq = i915_request_alloc(engine, ctx);
+		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto out_ctx;
+			goto err_active;
 		}
 
 		err = 0;
-		if (engine->init_context)
-			err = engine->init_context(rq);
+		if (rq->engine->init_context)
+			err = rq->engine->init_context(rq);
 
 		i915_request_add(rq);
 		if (err)
@@ -4332,15 +4336,10 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	}
 
 	for_each_engine(engine, i915, id) {
-		struct intel_context *ce;
-		struct i915_vma *state;
+		struct intel_context *ce = e->engines[id];
+		struct i915_vma *state = ce->state;
 		void *vaddr;
 
-		ce = intel_context_lookup(ctx, engine);
-		if (!ce)
-			continue;
-
-		state = ce->state;
 		if (!state)
 			continue;
 
@@ -4396,6 +4395,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	}
 
 out_ctx:
+	i915_gem_context_unlock_engines(ctx);
 	i915_gem_context_set_closed(ctx);
 	i915_gem_context_put(ctx);
 	return err;

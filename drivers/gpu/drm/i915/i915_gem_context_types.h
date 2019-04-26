@@ -29,6 +29,18 @@ struct i915_hw_ppgtt;
 struct i915_timeline;
 struct intel_ring;
 
+struct i915_gem_engines {
+	struct rcu_work rcu;
+	struct drm_i915_private *i915;
+	unsigned int num_engines;
+	struct intel_context *engines[];
+};
+
+struct i915_gem_engines_iter {
+	unsigned int idx;
+	const struct i915_gem_engines *engines;
+};
+
 /**
  * struct i915_gem_context - client state
  *
@@ -41,6 +53,30 @@ struct i915_gem_context {
 
 	/** file_priv: owning file descriptor */
 	struct drm_i915_file_private *file_priv;
+
+	/**
+	 * @engines: User defined engines for this context
+	 *
+	 * Various uAPI offer the ability to lookup up an
+	 * index from this array to select an engine operate on.
+	 *
+	 * Multiple logically distinct instances of the same engine
+	 * may be defined in the array, as well as composite virtual
+	 * engines.
+	 *
+	 * Execbuf uses the I915_EXEC_RING_MASK as an index into this
+	 * array to select which HW context + engine to execute on. For
+	 * the default array, the user_ring_map[] is used to translate
+	 * the legacy uABI onto the approprate index (e.g. both
+	 * I915_EXEC_DEFAULT and I915_EXEC_RENDER select the same
+	 * context, and I915_EXEC_BSD is weird). For a use defined
+	 * array, execbuf uses I915_EXEC_RING_MASK as a plain index.
+	 *
+	 * User defined by I915_CONTEXT_PARAM_ENGINE (when the
+	 * CONTEXT_USER_ENGINES flag is set).
+	 */
+	struct i915_gem_engines __rcu *engines;
+	struct mutex engines_mutex; /* guards writes to engines */
 
 	struct i915_timeline *timeline;
 
@@ -133,10 +169,6 @@ struct i915_gem_context {
 	struct mutex mutex;
 
 	struct i915_sched_attr sched;
-
-	/** hw_contexts: per-engine logical HW state */
-	struct rb_root hw_contexts;
-	spinlock_t hw_contexts_lock;
 
 	/** ring_size: size for allocating the per-engine ring buffer */
 	u32 ring_size;

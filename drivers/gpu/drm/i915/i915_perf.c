@@ -1203,35 +1203,35 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 static struct intel_context *oa_pin_context(struct drm_i915_private *i915,
 					    struct i915_gem_context *ctx)
 {
-	struct intel_engine_cs *engine = i915->engine[RCS0];
+	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
 	int err;
 
-	ce = intel_context_instance(ctx, engine);
-	if (IS_ERR(ce))
-		return ce;
-
 	err = i915_mutex_lock_interruptible(&i915->drm);
-	if (err) {
-		intel_context_put(ce);
-		return ERR_PTR(err);
-	}
-
-	/*
-	 * As the ID is the gtt offset of the context's vma we
-	 * pin the vma to ensure the ID remains fixed.
-	 *
-	 * NB: implied RCS engine...
-	 */
-	err = intel_context_pin(ce);
-	mutex_unlock(&i915->drm.struct_mutex);
-	intel_context_put(ce);
 	if (err)
 		return ERR_PTR(err);
 
-	i915->perf.oa.pinned_ctx = ce;
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		if (ce->engine->class != RENDER_CLASS)
+			continue;
 
-	return ce;
+		/*
+		 * As the ID is the gtt offset of the context's vma we
+		 * pin the vma to ensure the ID remains fixed.
+		 */
+		err = intel_context_pin(ce);
+		if (err == 0) {
+			i915->perf.oa.pinned_ctx = ce;
+			break;
+		}
+	}
+	i915_gem_context_unlock_engines(ctx);
+
+	mutex_unlock(&i915->drm.struct_mutex);
+	if (err)
+		return ERR_PTR(err);
+
+	return i915->perf.oa.pinned_ctx;
 }
 
 /**
@@ -1717,7 +1717,6 @@ gen8_update_reg_state_unlocked(struct intel_context *ce,
 static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				       const struct i915_oa_config *oa_config)
 {
-	struct intel_engine_cs *engine = dev_priv->engine[RCS0];
 	unsigned int map_type = i915_coherent_map_type(dev_priv);
 	struct i915_gem_context *ctx;
 	struct i915_request *rq;
@@ -1746,30 +1745,43 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		struct intel_context *ce = intel_context_lookup(ctx, engine);
-		u32 *regs;
+		struct i915_gem_engines_iter it;
+		struct intel_context *ce;
 
-		/* OA settings will be set upon first use */
-		if (!ce || !ce->state)
-			continue;
+		for_each_gem_engine(ce,
+				    i915_gem_context_lock_engines(ctx),
+				    it) {
+			u32 *regs;
 
-		regs = i915_gem_object_pin_map(ce->state->obj, map_type);
-		if (IS_ERR(regs))
-			return PTR_ERR(regs);
+			if (ce->engine->class != RENDER_CLASS)
+				continue;
 
-		ce->state->obj->mm.dirty = true;
-		regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
+			/* OA settings will be set upon first use */
+			if (!ce->state)
+				continue;
 
-		gen8_update_reg_state_unlocked(ce, regs, oa_config);
+			regs = i915_gem_object_pin_map(ce->state->obj,
+						       map_type);
+			if (IS_ERR(regs)) {
+				i915_gem_context_unlock_engines(ctx);
+				return PTR_ERR(regs);
+			}
 
-		i915_gem_object_unpin_map(ce->state->obj);
+			ce->state->obj->mm.dirty = true;
+			regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
+
+			gen8_update_reg_state_unlocked(ce, regs, oa_config);
+
+			i915_gem_object_unpin_map(ce->state->obj);
+		}
+		i915_gem_context_unlock_engines(ctx);
 	}
 
 	/*
 	 * Apply the configuration by doing one context restore of the edited
 	 * context image.
 	 */
-	rq = i915_request_create(engine->kernel_context);
+	rq = i915_request_create(dev_priv->engine[RCS0]->kernel_context);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 

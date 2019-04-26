@@ -732,7 +732,7 @@ static int pin_context(struct i915_gem_context *ctx,
 	struct intel_context *ce;
 	int err;
 
-	ce = intel_context_instance(ctx, engine);
+	ce = i915_gem_context_get_engine(ctx, engine->id);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 

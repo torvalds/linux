@@ -150,7 +150,7 @@ lookup_user_engine(struct i915_gem_context *ctx, u16 class, u16 instance)
 	if (!engine)
 		return ERR_PTR(-EINVAL);
 
-	return intel_context_instance(ctx, engine);
+	return i915_gem_context_get_engine(ctx, engine->id);
 }
 
 static inline int new_hw_id(struct drm_i915_private *i915, gfp_t gfp)
@@ -242,10 +242,51 @@ static void release_hw_id(struct i915_gem_context *ctx)
 	mutex_unlock(&i915->contexts.mutex);
 }
 
+static void __free_engines(struct i915_gem_engines *e, unsigned int count)
+{
+	while (count--) {
+		if (!e->engines[count])
+			continue;
+
+		intel_context_put(e->engines[count]);
+	}
+	kfree(e);
+}
+
+static void free_engines(struct i915_gem_engines *e)
+{
+	__free_engines(e, e->num_engines);
+}
+
+static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
+{
+	struct intel_engine_cs *engine;
+	struct i915_gem_engines *e;
+	enum intel_engine_id id;
+
+	e = kzalloc(struct_size(e, engines, I915_NUM_ENGINES), GFP_KERNEL);
+	if (!e)
+		return ERR_PTR(-ENOMEM);
+
+	e->i915 = ctx->i915;
+	for_each_engine(engine, ctx->i915, id) {
+		struct intel_context *ce;
+
+		ce = intel_context_create(ctx, engine);
+		if (IS_ERR(ce)) {
+			__free_engines(e, id);
+			return ERR_CAST(ce);
+		}
+
+		e->engines[id] = ce;
+	}
+	e->num_engines = id;
+
+	return e;
+}
+
 static void i915_gem_context_free(struct i915_gem_context *ctx)
 {
-	struct intel_context *it, *n;
-
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 	GEM_BUG_ON(!list_empty(&ctx->active_engines));
@@ -253,8 +294,8 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	release_hw_id(ctx);
 	i915_ppgtt_put(ctx->ppgtt);
 
-	rbtree_postorder_for_each_entry_safe(it, n, &ctx->hw_contexts, node)
-		intel_context_put(it);
+	free_engines(rcu_access_pointer(ctx->engines));
+	mutex_destroy(&ctx->engines_mutex);
 
 	if (ctx->timeline)
 		i915_timeline_put(ctx->timeline);
@@ -363,6 +404,8 @@ static struct i915_gem_context *
 __create_context(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
+	struct i915_gem_engines *e;
+	int err;
 	int i;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -376,8 +419,13 @@ __create_context(struct drm_i915_private *dev_priv)
 	INIT_LIST_HEAD(&ctx->active_engines);
 	mutex_init(&ctx->mutex);
 
-	ctx->hw_contexts = RB_ROOT;
-	spin_lock_init(&ctx->hw_contexts_lock);
+	mutex_init(&ctx->engines_mutex);
+	e = default_engines(ctx);
+	if (IS_ERR(e)) {
+		err = PTR_ERR(e);
+		goto err_free;
+	}
+	RCU_INIT_POINTER(ctx->engines, e);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
@@ -399,6 +447,10 @@ __create_context(struct drm_i915_private *dev_priv)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
 
 	return ctx;
+
+err_free:
+	kfree(ctx);
+	return ERR_PTR(err);
 }
 
 static struct i915_hw_ppgtt *
@@ -857,7 +909,8 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 {
 	struct drm_i915_private *i915 = ctx->i915;
 	struct context_barrier_task *cb;
-	struct intel_context *ce, *next;
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
 	int err = 0;
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
@@ -870,20 +923,19 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 	i915_active_init(i915, &cb->base, cb_retire);
 	i915_active_acquire(&cb->base);
 
-	rbtree_postorder_for_each_entry_safe(ce, next, &ctx->hw_contexts, node) {
-		struct intel_engine_cs *engine = ce->engine;
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		struct i915_request *rq;
 
-		if (!(engine->mask & engines))
+		if (!(ce->engine->mask & engines))
 			continue;
 
 		if (I915_SELFTEST_ONLY(context_barrier_inject_fault &
-				       engine->mask)) {
+				       ce->engine->mask)) {
 			err = -ENXIO;
 			break;
 		}
 
-		rq = i915_request_alloc(engine, ctx);
+		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			break;
@@ -899,6 +951,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		if (err)
 			break;
 	}
+	i915_gem_context_unlock_engines(ctx);
 
 	cb->task = err ? NULL : task; /* caller needs to unwind instead */
 	cb->data = data;
@@ -1727,6 +1780,23 @@ int __i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
 out_unlock:
 	mutex_unlock(&i915->contexts.mutex);
 	return err;
+}
+
+/* GEM context-engines iterator: for_each_gem_engine() */
+struct intel_context *
+i915_gem_engines_iter_next(struct i915_gem_engines_iter *it)
+{
+	const struct i915_gem_engines *e = it->engines;
+	struct intel_context *ctx;
+
+	do {
+		if (it->idx >= e->num_engines)
+			return NULL;
+
+		ctx = e->engines[it->idx++];
+	} while (!ctx);
+
+	return ctx;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

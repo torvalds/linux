@@ -176,6 +176,64 @@ static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 	kref_put(&ctx->ref, i915_gem_context_release);
 }
 
+static inline struct i915_gem_engines *
+i915_gem_context_engines(struct i915_gem_context *ctx)
+{
+	return rcu_dereference_protected(ctx->engines,
+					 lockdep_is_held(&ctx->engines_mutex));
+}
+
+static inline struct i915_gem_engines *
+i915_gem_context_lock_engines(struct i915_gem_context *ctx)
+	__acquires(&ctx->engines_mutex)
+{
+	mutex_lock(&ctx->engines_mutex);
+	return i915_gem_context_engines(ctx);
+}
+
+static inline void
+i915_gem_context_unlock_engines(struct i915_gem_context *ctx)
+	__releases(&ctx->engines_mutex)
+{
+	mutex_unlock(&ctx->engines_mutex);
+}
+
+static inline struct intel_context *
+i915_gem_context_lookup_engine(struct i915_gem_context *ctx, unsigned int idx)
+{
+	return i915_gem_context_engines(ctx)->engines[idx];
+}
+
+static inline struct intel_context *
+i915_gem_context_get_engine(struct i915_gem_context *ctx, unsigned int idx)
+{
+	struct intel_context *ce = ERR_PTR(-EINVAL);
+
+	rcu_read_lock(); {
+		struct i915_gem_engines *e = rcu_dereference(ctx->engines);
+		if (likely(idx < e->num_engines && e->engines[idx]))
+			ce = intel_context_get(e->engines[idx]);
+	} rcu_read_unlock();
+
+	return ce;
+}
+
+static inline void
+i915_gem_engines_iter_init(struct i915_gem_engines_iter *it,
+			   struct i915_gem_engines *engines)
+{
+	GEM_BUG_ON(!engines);
+	it->engines = engines;
+	it->idx = 0;
+}
+
+struct intel_context *
+i915_gem_engines_iter_next(struct i915_gem_engines_iter *it);
+
+#define for_each_gem_engine(ce, engines, it) \
+	for (i915_gem_engines_iter_init(&(it), (engines)); \
+	     ((ce) = i915_gem_engines_iter_next(&(it)));)
+
 struct i915_lut_handle *i915_lut_handle_alloc(void);
 void i915_lut_handle_free(struct i915_lut_handle *lut);
 
