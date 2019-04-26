@@ -27,8 +27,8 @@ struct cpdma_params {
 	int			num_chan;
 	bool			has_soft_reset;
 	int			min_packet_size;
-	u32			desc_mem_phys;
-	u32			desc_hw_addr;
+	dma_addr_t		desc_mem_phys;
+	dma_addr_t		desc_hw_addr;
 	int			desc_mem_size;
 	int			desc_align;
 	u32			bus_freq_mhz;
