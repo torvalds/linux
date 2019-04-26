@@ -1534,54 +1534,6 @@ static const struct intel_context_ops ring_context_ops = {
 	.destroy = ring_context_destroy,
 };
 
-static int intel_init_ring_buffer(struct intel_engine_cs *engine)
-{
-	struct i915_timeline *timeline;
-	struct intel_ring *ring;
-	int err;
-
-	err = intel_engine_setup_common(engine);
-	if (err)
-		return err;
-
-	timeline = i915_timeline_create(engine->i915, engine->status_page.vma);
-	if (IS_ERR(timeline)) {
-		err = PTR_ERR(timeline);
-		goto err;
-	}
-	GEM_BUG_ON(timeline->has_initial_breadcrumb);
-
-	ring = intel_engine_create_ring(engine, timeline, 32 * PAGE_SIZE);
-	i915_timeline_put(timeline);
-	if (IS_ERR(ring)) {
-		err = PTR_ERR(ring);
-		goto err;
-	}
-
-	err = intel_ring_pin(ring);
-	if (err)
-		goto err_ring;
-
-	GEM_BUG_ON(engine->buffer);
-	engine->buffer = ring;
-
-	err = intel_engine_init_common(engine);
-	if (err)
-		goto err_unpin;
-
-	GEM_BUG_ON(ring->timeline->hwsp_ggtt != engine->status_page.vma);
-
-	return 0;
-
-err_unpin:
-	intel_ring_unpin(ring);
-err_ring:
-	intel_ring_put(ring);
-err:
-	intel_engine_cleanup_common(engine);
-	return err;
-}
-
 void intel_engine_cleanup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -2190,24 +2142,6 @@ static int gen6_ring_flush(struct i915_request *rq, u32 mode)
 	return gen6_flush_dw(rq, mode, MI_INVALIDATE_TLB);
 }
 
-static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
-				struct intel_engine_cs *engine)
-{
-	if (INTEL_GEN(dev_priv) >= 6) {
-		engine->irq_enable = gen6_irq_enable;
-		engine->irq_disable = gen6_irq_disable;
-	} else if (INTEL_GEN(dev_priv) >= 5) {
-		engine->irq_enable = gen5_irq_enable;
-		engine->irq_disable = gen5_irq_disable;
-	} else if (INTEL_GEN(dev_priv) >= 3) {
-		engine->irq_enable = i9xx_irq_enable;
-		engine->irq_disable = i9xx_irq_disable;
-	} else {
-		engine->irq_enable = i8xx_irq_enable;
-		engine->irq_disable = i8xx_irq_disable;
-	}
-}
-
 static void i9xx_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = i9xx_submit_request;
@@ -2223,13 +2157,33 @@ static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 	engine->submit_request = gen6_bsd_submit_request;
 }
 
-static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
-				      struct intel_engine_cs *engine)
+static void setup_irq(struct intel_engine_cs *engine)
 {
-	/* gen8+ are only supported with execlists */
-	GEM_BUG_ON(INTEL_GEN(dev_priv) >= 8);
+	struct drm_i915_private *i915 = engine->i915;
 
-	intel_ring_init_irq(dev_priv, engine);
+	if (INTEL_GEN(i915) >= 6) {
+		engine->irq_enable = gen6_irq_enable;
+		engine->irq_disable = gen6_irq_disable;
+	} else if (INTEL_GEN(i915) >= 5) {
+		engine->irq_enable = gen5_irq_enable;
+		engine->irq_disable = gen5_irq_disable;
+	} else if (INTEL_GEN(i915) >= 3) {
+		engine->irq_enable = i9xx_irq_enable;
+		engine->irq_disable = i9xx_irq_disable;
+	} else {
+		engine->irq_enable = i8xx_irq_enable;
+		engine->irq_disable = i8xx_irq_disable;
+	}
+}
+
+static void setup_common(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+
+	/* gen8+ are only supported with execlists */
+	GEM_BUG_ON(INTEL_GEN(i915) >= 8);
+
+	setup_irq(engine);
 
 	engine->resume = xcs_resume;
 	engine->reset.prepare = reset_prepare;
@@ -2245,117 +2199,96 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	 * engine->emit_init_breadcrumb().
 	 */
 	engine->emit_fini_breadcrumb = i9xx_emit_breadcrumb;
-	if (IS_GEN(dev_priv, 5))
+	if (IS_GEN(i915, 5))
 		engine->emit_fini_breadcrumb = gen5_emit_breadcrumb;
 
 	engine->set_default_submission = i9xx_set_default_submission;
 
-	if (INTEL_GEN(dev_priv) >= 6)
+	if (INTEL_GEN(i915) >= 6)
 		engine->emit_bb_start = gen6_emit_bb_start;
-	else if (INTEL_GEN(dev_priv) >= 4)
+	else if (INTEL_GEN(i915) >= 4)
 		engine->emit_bb_start = i965_emit_bb_start;
-	else if (IS_I830(dev_priv) || IS_I845G(dev_priv))
+	else if (IS_I830(i915) || IS_I845G(i915))
 		engine->emit_bb_start = i830_emit_bb_start;
 	else
 		engine->emit_bb_start = i915_emit_bb_start;
 }
 
-int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
+static void setup_rcs(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
+	struct drm_i915_private *i915 = engine->i915;
 
-	intel_ring_default_vfuncs(dev_priv, engine);
-
-	if (HAS_L3_DPF(dev_priv))
+	if (HAS_L3_DPF(i915))
 		engine->irq_keep_mask = GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 
-	if (INTEL_GEN(dev_priv) >= 7) {
+	if (INTEL_GEN(i915) >= 7) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen7_render_ring_flush;
 		engine->emit_fini_breadcrumb = gen7_rcs_emit_breadcrumb;
-	} else if (IS_GEN(dev_priv, 6)) {
+	} else if (IS_GEN(i915, 6)) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen6_render_ring_flush;
 		engine->emit_fini_breadcrumb = gen6_rcs_emit_breadcrumb;
-	} else if (IS_GEN(dev_priv, 5)) {
+	} else if (IS_GEN(i915, 5)) {
 		engine->emit_flush = gen4_render_ring_flush;
 	} else {
-		if (INTEL_GEN(dev_priv) < 4)
+		if (INTEL_GEN(i915) < 4)
 			engine->emit_flush = gen2_render_ring_flush;
 		else
 			engine->emit_flush = gen4_render_ring_flush;
 		engine->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 
-	if (IS_HASWELL(dev_priv))
+	if (IS_HASWELL(i915))
 		engine->emit_bb_start = hsw_emit_bb_start;
 
 	engine->resume = rcs_resume;
-
-	ret = intel_init_ring_buffer(engine);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
-int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
+static void setup_vcs(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
 
-	intel_ring_default_vfuncs(dev_priv, engine);
-
-	if (INTEL_GEN(dev_priv) >= 6) {
+	if (INTEL_GEN(i915) >= 6) {
 		/* gen6 bsd needs a special wa for tail updates */
-		if (IS_GEN(dev_priv, 6))
+		if (IS_GEN(i915, 6))
 			engine->set_default_submission = gen6_bsd_set_default_submission;
 		engine->emit_flush = gen6_bsd_ring_flush;
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 
-		if (IS_GEN(dev_priv, 6))
+		if (IS_GEN(i915, 6))
 			engine->emit_fini_breadcrumb = gen6_xcs_emit_breadcrumb;
 		else
 			engine->emit_fini_breadcrumb = gen7_xcs_emit_breadcrumb;
 	} else {
 		engine->emit_flush = bsd_ring_flush;
-		if (IS_GEN(dev_priv, 5))
+		if (IS_GEN(i915, 5))
 			engine->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
 		else
 			engine->irq_enable_mask = I915_BSD_USER_INTERRUPT;
 	}
-
-	return intel_init_ring_buffer(engine);
 }
 
-int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
+static void setup_bcs(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	GEM_BUG_ON(INTEL_GEN(dev_priv) < 6);
-
-	intel_ring_default_vfuncs(dev_priv, engine);
+	struct drm_i915_private *i915 = engine->i915;
 
 	engine->emit_flush = gen6_ring_flush;
 	engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
-	if (IS_GEN(dev_priv, 6))
+	if (IS_GEN(i915, 6))
 		engine->emit_fini_breadcrumb = gen6_xcs_emit_breadcrumb;
 	else
 		engine->emit_fini_breadcrumb = gen7_xcs_emit_breadcrumb;
-
-	return intel_init_ring_buffer(engine);
 }
 
-int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
+static void setup_vecs(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
 
-	GEM_BUG_ON(INTEL_GEN(dev_priv) < 7);
-
-	intel_ring_default_vfuncs(dev_priv, engine);
+	GEM_BUG_ON(INTEL_GEN(i915) < 7);
 
 	engine->emit_flush = gen6_ring_flush;
 	engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
@@ -2363,6 +2296,73 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 	engine->irq_disable = hsw_vebox_irq_disable;
 
 	engine->emit_fini_breadcrumb = gen7_xcs_emit_breadcrumb;
+}
 
-	return intel_init_ring_buffer(engine);
+int intel_ring_submission_setup(struct intel_engine_cs *engine)
+{
+	setup_common(engine);
+
+	switch (engine->class) {
+	case RENDER_CLASS:
+		setup_rcs(engine);
+		break;
+	case VIDEO_DECODE_CLASS:
+		setup_vcs(engine);
+		break;
+	case COPY_ENGINE_CLASS:
+		setup_bcs(engine);
+		break;
+	case VIDEO_ENHANCEMENT_CLASS:
+		setup_vecs(engine);
+		break;
+	default:
+		MISSING_CASE(engine->class);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+int intel_ring_submission_init(struct intel_engine_cs *engine)
+{
+	struct i915_timeline *timeline;
+	struct intel_ring *ring;
+	int err;
+
+	timeline = i915_timeline_create(engine->i915, engine->status_page.vma);
+	if (IS_ERR(timeline)) {
+		err = PTR_ERR(timeline);
+		goto err;
+	}
+	GEM_BUG_ON(timeline->has_initial_breadcrumb);
+
+	ring = intel_engine_create_ring(engine, timeline, 32 * PAGE_SIZE);
+	i915_timeline_put(timeline);
+	if (IS_ERR(ring)) {
+		err = PTR_ERR(ring);
+		goto err;
+	}
+
+	err = intel_ring_pin(ring);
+	if (err)
+		goto err_ring;
+
+	GEM_BUG_ON(engine->buffer);
+	engine->buffer = ring;
+
+	err = intel_engine_init_common(engine);
+	if (err)
+		goto err_unpin;
+
+	GEM_BUG_ON(ring->timeline->hwsp_ggtt != engine->status_page.vma);
+
+	return 0;
+
+err_unpin:
+	intel_ring_unpin(ring);
+err_ring:
+	intel_ring_put(ring);
+err:
+	intel_engine_cleanup_common(engine);
+	return err;
 }

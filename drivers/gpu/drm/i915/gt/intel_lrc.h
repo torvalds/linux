@@ -66,8 +66,9 @@ enum {
 
 /* Logical Rings */
 void intel_logical_ring_cleanup(struct intel_engine_cs *engine);
-int logical_render_ring_init(struct intel_engine_cs *engine);
-int logical_xcs_ring_init(struct intel_engine_cs *engine);
+
+int intel_execlists_submission_setup(struct intel_engine_cs *engine);
+int intel_execlists_submission_init(struct intel_engine_cs *engine);
 
 /* Logical Ring Contexts */
 

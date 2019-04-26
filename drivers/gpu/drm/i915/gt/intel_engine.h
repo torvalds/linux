@@ -362,14 +362,12 @@ __intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
 	return (head - tail - CACHELINE_BYTES) & (size - 1);
 }
 
-int intel_engine_setup_common(struct intel_engine_cs *engine);
+int intel_engines_setup(struct drm_i915_private *i915);
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
-int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
-int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
-int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
-int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
+int intel_ring_submission_setup(struct intel_engine_cs *engine);
+int intel_ring_submission_init(struct intel_engine_cs *engine);
 
 int intel_engine_stop_cs(struct intel_engine_cs *engine);
 void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine);

@@ -4517,6 +4517,12 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		goto err_ggtt;
 	}
 
+	ret = intel_engines_setup(dev_priv);
+	if (ret) {
+		GEM_BUG_ON(ret == -EIO);
+		goto err_unlock;
+	}
+
 	ret = i915_gem_contexts_init(dev_priv);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);

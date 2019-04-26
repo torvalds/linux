@@ -42,6 +42,8 @@ struct mock_engine {
 struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 				    const char *name,
 				    int id);
+int mock_engine_init(struct intel_engine_cs *engine);
+
 void mock_engine_flush(struct intel_engine_cs *engine);
 void mock_engine_reset(struct intel_engine_cs *engine);
 void mock_engine_free(struct intel_engine_cs *engine);

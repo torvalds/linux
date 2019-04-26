@@ -1077,7 +1077,8 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	GEM_BUG_ON(engine->id != RCS0);
+	if (engine->class != RENDER_CLASS)
+		return;
 
 	wa_init_start(w, "whitelist");
 

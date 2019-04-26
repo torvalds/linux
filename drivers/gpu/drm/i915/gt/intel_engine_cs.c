@@ -50,35 +50,24 @@
 
 struct engine_class_info {
 	const char *name;
-	int (*init_legacy)(struct intel_engine_cs *engine);
-	int (*init_execlists)(struct intel_engine_cs *engine);
-
 	u8 uabi_class;
 };
 
 static const struct engine_class_info intel_engine_classes[] = {
 	[RENDER_CLASS] = {
 		.name = "rcs",
-		.init_execlists = logical_render_ring_init,
-		.init_legacy = intel_init_render_ring_buffer,
 		.uabi_class = I915_ENGINE_CLASS_RENDER,
 	},
 	[COPY_ENGINE_CLASS] = {
 		.name = "bcs",
-		.init_execlists = logical_xcs_ring_init,
-		.init_legacy = intel_init_blt_ring_buffer,
 		.uabi_class = I915_ENGINE_CLASS_COPY,
 	},
 	[VIDEO_DECODE_CLASS] = {
 		.name = "vcs",
-		.init_execlists = logical_xcs_ring_init,
-		.init_legacy = intel_init_bsd_ring_buffer,
 		.uabi_class = I915_ENGINE_CLASS_VIDEO,
 	},
 	[VIDEO_ENHANCEMENT_CLASS] = {
 		.name = "vecs",
-		.init_execlists = logical_xcs_ring_init,
-		.init_legacy = intel_init_vebox_ring_buffer,
 		.uabi_class = I915_ENGINE_CLASS_VIDEO_ENHANCE,
 	},
 };
@@ -416,48 +405,39 @@ cleanup:
 
 /**
  * intel_engines_init() - init the Engine Command Streamers
- * @dev_priv: i915 device private
+ * @i915: i915 device private
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init(struct drm_i915_private *dev_priv)
+int intel_engines_init(struct drm_i915_private *i915)
 {
+	int (*init)(struct intel_engine_cs *engine);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id, err_id;
 	int err;
 
-	for_each_engine(engine, dev_priv, id) {
-		const struct engine_class_info *class_info =
-			&intel_engine_classes[engine->class];
-		int (*init)(struct intel_engine_cs *engine);
+	if (HAS_EXECLISTS(i915))
+		init = intel_execlists_submission_init;
+	else
+		init = intel_ring_submission_init;
 
-		if (HAS_EXECLISTS(dev_priv))
-			init = class_info->init_execlists;
-		else
-			init = class_info->init_legacy;
-
-		err = -EINVAL;
+	for_each_engine(engine, i915, id) {
 		err_id = id;
-
-		if (GEM_DEBUG_WARN_ON(!init))
-			goto cleanup;
 
 		err = init(engine);
 		if (err)
 			goto cleanup;
-
-		GEM_BUG_ON(!engine->submit_request);
 	}
 
 	return 0;
 
 cleanup:
-	for_each_engine(engine, dev_priv, id) {
+	for_each_engine(engine, i915, id) {
 		if (id >= err_id) {
 			kfree(engine);
-			dev_priv->engine[id] = NULL;
+			i915->engine[id] = NULL;
 		} else {
-			dev_priv->gt.cleanup_engine(engine);
+			i915->gt.cleanup_engine(engine);
 		}
 	}
 	return err;
@@ -575,16 +555,7 @@ err:
 	return ret;
 }
 
-/**
- * intel_engines_setup_common - setup engine state not requiring hw access
- * @engine: Engine to setup.
- *
- * Initializes @engine@ structure members shared between legacy and execlists
- * submission modes which do not require hardware access.
- *
- * Typically done early in the submission mode specific engine setup stage.
- */
-int intel_engine_setup_common(struct intel_engine_cs *engine)
+static int intel_engine_setup_common(struct intel_engine_cs *engine)
 {
 	int err;
 
@@ -615,6 +586,52 @@ int intel_engine_setup_common(struct intel_engine_cs *engine)
 
 err_hwsp:
 	cleanup_status_page(engine);
+	return err;
+}
+
+/**
+ * intel_engines_setup- setup engine state not requiring hw access
+ * @i915: Device to setup.
+ *
+ * Initializes engine structure members shared between legacy and execlists
+ * submission modes which do not require hardware access.
+ *
+ * Typically done early in the submission mode specific engine setup stage.
+ */
+int intel_engines_setup(struct drm_i915_private *i915)
+{
+	int (*setup)(struct intel_engine_cs *engine);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err;
+
+	if (HAS_EXECLISTS(i915))
+		setup = intel_execlists_submission_setup;
+	else
+		setup = intel_ring_submission_setup;
+
+	for_each_engine(engine, i915, id) {
+		err = intel_engine_setup_common(engine);
+		if (err)
+			goto cleanup;
+
+		err = setup(engine);
+		if (err)
+			goto cleanup;
+
+		GEM_BUG_ON(!engine->cops);
+	}
+
+	return 0;
+
+cleanup:
+	for_each_engine(engine, i915, id) {
+		if (engine->cops)
+			i915->gt.cleanup_engine(engine);
+		else
+			kfree(engine);
+		i915->engine[id] = NULL;
+	}
 	return err;
 }
 

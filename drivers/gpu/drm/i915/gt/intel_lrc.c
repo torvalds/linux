@@ -1697,8 +1697,8 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	unsigned int i;
 	int ret;
 
-	if (GEM_DEBUG_WARN_ON(engine->id != RCS0))
-		return -EINVAL;
+	if (engine->class != RENDER_CLASS)
+		return 0;
 
 	switch (INTEL_GEN(engine->i915)) {
 	case 11:
@@ -2444,15 +2444,8 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
 
-static int
-logical_ring_setup(struct intel_engine_cs *engine)
+int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 {
-	int err;
-
-	err = intel_engine_setup_common(engine);
-	if (err)
-		return err;
-
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
 
@@ -2462,10 +2455,16 @@ logical_ring_setup(struct intel_engine_cs *engine)
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
 
+	if (engine->class == RENDER_CLASS) {
+		engine->init_context = gen8_init_rcs_context;
+		engine->emit_flush = gen8_emit_flush_render;
+		engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
+	}
+
 	return 0;
 }
 
-static int logical_ring_init(struct intel_engine_cs *engine)
+int intel_execlists_submission_init(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -2477,6 +2476,15 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 		return ret;
 
 	intel_engine_init_workarounds(engine);
+	intel_engine_init_whitelist(engine);
+
+	if (intel_init_workaround_bb(engine))
+		/*
+		 * We continue even if we fail to initialize WA batch
+		 * because we only expect rare glitches but nothing
+		 * critical to prevent us from using GPU
+		 */
+		DRM_ERROR("WA batch buffer initialization failed\n");
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = i915->uncore.regs +
@@ -2507,50 +2515,6 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	reset_csb_pointers(execlists);
 
 	return 0;
-}
-
-int logical_render_ring_init(struct intel_engine_cs *engine)
-{
-	int ret;
-
-	ret = logical_ring_setup(engine);
-	if (ret)
-		return ret;
-
-	/* Override some for render ring. */
-	engine->init_context = gen8_init_rcs_context;
-	engine->emit_flush = gen8_emit_flush_render;
-	engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
-
-	ret = logical_ring_init(engine);
-	if (ret)
-		return ret;
-
-	ret = intel_init_workaround_bb(engine);
-	if (ret) {
-		/*
-		 * We continue even if we fail to initialize WA batch
-		 * because we only expect rare glitches but nothing
-		 * critical to prevent us from using GPU
-		 */
-		DRM_ERROR("WA batch buffer initialization failed: %d\n",
-			  ret);
-	}
-
-	intel_engine_init_whitelist(engine);
-
-	return 0;
-}
-
-int logical_xcs_ring_init(struct intel_engine_cs *engine)
-{
-	int err;
-
-	err = logical_ring_setup(engine);
-	if (err)
-		return err;
-
-	return logical_ring_init(engine);
 }
 
 static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
