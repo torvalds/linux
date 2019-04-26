@@ -71,7 +71,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	for(i=0; i<ARRAY_SIZE(ieee80211_modes); i++) {
-		if(network->mode&(1<<i)) {
+		if (network->mode & BIT(i)) {
 			sprintf(pname,ieee80211_modes[i].mode_string,ieee80211_modes[i].mode_size);
 			pname +=ieee80211_modes[i].mode_size;
 		}
@@ -379,7 +379,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		sec.key_sizes[key] = len;
 		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 				       (*crypt)->priv);
-		sec.flags |= (1 << key);
+		sec.flags |= BIT(key);
 		/* This ensures a key will be activated if no key is
 		 * explicitely set */
 		if (key == sec.active_key)
@@ -400,7 +400,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
 					       (*crypt)->priv);
 			sec.key_sizes[key] = 13;
-			sec.flags |= (1 << key);
+			sec.flags |= BIT(key);
 		}
 
 		/* No key data - just set the default TX key index */
@@ -621,7 +621,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	if (ext->alg != IW_ENCODE_ALG_NONE) {
 		//memcpy(sec.keys[idx], ext->key, ext->key_len);
 		sec.key_sizes[idx] = ext->key_len;
-		sec.flags |= (1 << idx);
+		sec.flags |= BIT(idx);
 		if (ext->alg == IW_ENCODE_ALG_WEP) {
 		      //  sec.encode_alg[idx] = SEC_ALG_WEP;
 			sec.flags |= SEC_LEVEL;
