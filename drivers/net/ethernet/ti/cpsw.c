@@ -38,6 +38,7 @@
 #include "cpsw.h"
 #include "cpsw_ale.h"
 #include "cpsw_priv.h"
+#include "cpsw_sl.h"
 #include "cpts.h"
 #include "davinci_cpdma.h"
 
@@ -826,29 +827,32 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 	slave_port = cpsw_get_slave_port(slave->slave_num);
 
 	if (phy->link) {
-		mac_control = cpsw->data.mac_control;
+		mac_control = CPSW_SL_CTL_GMII_EN;
+
+		if (phy->speed == 1000)
+			mac_control |= CPSW_SL_CTL_GIG;
+		if (phy->duplex)
+			mac_control |= CPSW_SL_CTL_FULLDUPLEX;
+
+		/* set speed_in input in case RMII mode is used in 100Mbps */
+		if (phy->speed == 100)
+			mac_control |= CPSW_SL_CTL_IFCTL_A;
+		/* in band mode only works in 10Mbps RGMII mode */
+		else if ((phy->speed == 10) && phy_interface_is_rgmii(phy))
+			mac_control |= CPSW_SL_CTL_EXT_EN; /* In Band mode */
+
+		if (priv->rx_pause)
+			mac_control |= CPSW_SL_CTL_RX_FLOW_EN;
+
+		if (priv->tx_pause)
+			mac_control |= CPSW_SL_CTL_TX_FLOW_EN;
+
+		if (mac_control != slave->mac_control)
+			cpsw_sl_ctl_set(slave->mac_sl, mac_control);
 
 		/* enable forwarding */
 		cpsw_ale_control_set(cpsw->ale, slave_port,
 				     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
-
-		if (phy->speed == 1000)
-			mac_control |= BIT(7);	/* GIGABITEN	*/
-		if (phy->duplex)
-			mac_control |= BIT(0);	/* FULLDUPLEXEN	*/
-
-		/* set speed_in input in case RMII mode is used in 100Mbps */
-		if (phy->speed == 100)
-			mac_control |= BIT(15);
-		/* in band mode only works in 10Mbps RGMII mode */
-		else if ((phy->speed == 10) && phy_interface_is_rgmii(phy))
-			mac_control |= BIT(18); /* In Band mode */
-
-		if (priv->rx_pause)
-			mac_control |= BIT(3);
-
-		if (priv->tx_pause)
-			mac_control |= BIT(4);
 
 		*link = true;
 
@@ -862,12 +866,14 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 		/* disable forwarding */
 		cpsw_ale_control_set(cpsw->ale, slave_port,
 				     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
+
+		cpsw_sl_wait_for_idle(slave->mac_sl, 100);
+
+		cpsw_sl_ctl_reset(slave->mac_sl);
 	}
 
-	if (mac_control != slave->mac_control) {
+	if (mac_control != slave->mac_control)
 		phy_print_status(phy);
-		writel_relaxed(mac_control, &slave->sliver->mac_control);
-	}
 
 	slave->mac_control = mac_control;
 }
@@ -1103,24 +1109,18 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 			     ALE_PORT_DROP_UNKNOWN_VLAN, 1);
 }
 
-static void soft_reset_slave(struct cpsw_slave *slave)
-{
-	char name[32];
-
-	snprintf(name, sizeof(name), "slave-%d", slave->slave_num);
-	soft_reset(name, &slave->sliver->soft_reset);
-}
-
 static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
 	u32 slave_port;
 	struct phy_device *phy;
 	struct cpsw_common *cpsw = priv->cpsw;
 
-	soft_reset_slave(slave);
+	cpsw_sl_reset(slave->mac_sl, 100);
+	cpsw_sl_ctl_reset(slave->mac_sl);
 
 	/* setup priority mapping */
-	writel_relaxed(RX_PRIORITY_MAPPING, &slave->sliver->rx_pri_map);
+	cpsw_sl_reg_write(slave->mac_sl, CPSW_SL_RX_PRI_MAP,
+			  RX_PRIORITY_MAPPING);
 
 	switch (cpsw->version) {
 	case CPSW_VERSION_1:
@@ -1146,7 +1146,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	}
 
 	/* setup max packet size, and mac address */
-	writel_relaxed(cpsw->rx_packet_max, &slave->sliver->rx_maxlen);
+	cpsw_sl_reg_write(slave->mac_sl, CPSW_SL_RX_MAXLEN,
+			  cpsw->rx_packet_max);
 	cpsw_set_slave_mac(slave, priv);
 
 	slave->mac_control = 0;	/* no link yet */
@@ -1309,7 +1310,8 @@ static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_common *cpsw)
 	slave->phy = NULL;
 	cpsw_ale_control_set(cpsw->ale, slave_port,
 			     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
-	soft_reset_slave(slave);
+	cpsw_sl_reset(slave->mac_sl, 100);
+	cpsw_sl_ctl_reset(slave->mac_sl);
 }
 
 static int cpsw_tc_to_fifo(int tc, int num_tc)

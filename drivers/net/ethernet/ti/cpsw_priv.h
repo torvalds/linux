@@ -269,19 +269,6 @@ struct cpsw_host_regs {
 	u32	cpdma_rx_chan_map;
 };
 
-struct cpsw_sliver_regs {
-	u32	id_ver;
-	u32	mac_control;
-	u32	mac_status;
-	u32	soft_reset;
-	u32	rx_maxlen;
-	u32	__reserved_0;
-	u32	rx_pause;
-	u32	tx_pause;
-	u32	__reserved_1;
-	u32	rx_pri_map;
-};
-
 struct cpsw_hw_stats {
 	u32	rxgoodframes;
 	u32	rxbroadcastframes;
@@ -344,13 +331,13 @@ struct cpsw_platform_data {
 
 struct cpsw_slave {
 	void __iomem			*regs;
-	struct cpsw_sliver_regs __iomem	*sliver;
 	int				slave_num;
 	u32				mac_control;
 	struct cpsw_slave_data		*data;
 	struct phy_device		*phy;
 	struct net_device		*ndev;
 	u32				port_vlan;
+	struct cpsw_sl			*mac_sl;
 };
 
 static inline u32 slave_read(struct cpsw_slave *slave, u32 offset)

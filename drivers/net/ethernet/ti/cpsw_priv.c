@@ -16,6 +16,7 @@
 #include "cpts.h"
 #include "cpsw_ale.h"
 #include "cpsw_priv.h"
+#include "cpsw_sl.h"
 #include "davinci_cpdma.h"
 
 int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
@@ -78,8 +79,10 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		slave->slave_num = i;
 		slave->data	= &cpsw->data.slave_data[i];
 		slave->regs	= regs + slave_offset;
-		slave->sliver	= regs + sliver_offset;
 		slave->port_vlan = slave->data->dual_emac_res_vlan;
+		slave->mac_sl = cpsw_sl_get("cpsw", dev, regs + sliver_offset);
+		if (IS_ERR(slave->mac_sl))
+			return PTR_ERR(slave->mac_sl);
 
 		slave_offset  += slave_size;
 		sliver_offset += SLIVER_SIZE;
