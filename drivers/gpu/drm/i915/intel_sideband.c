@@ -273,81 +273,63 @@ void vlv_flisdsi_write(struct drm_i915_private *i915, u32 reg, u32 val)
 }
 
 /* SBI access */
-u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
-		   enum intel_sbi_destination destination)
+static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
+			enum intel_sbi_destination destination,
+			u32 *val, bool is_read)
 {
-	u32 value = 0;
+	struct intel_uncore *uncore = &i915->uncore;
+	u32 cmd;
 
-	lockdep_assert_held(&dev_priv->sb_lock);
+	lockdep_assert_held(&i915->sb_lock);
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    SBI_CTL_STAT, SBI_BUSY, 0,
-				    100)) {
+	if (intel_wait_for_register_fw(uncore,
+				       SBI_CTL_STAT, SBI_BUSY, 0,
+				       100)) {
 		DRM_ERROR("timeout waiting for SBI to become ready\n");
-		return 0;
+		return -EBUSY;
 	}
 
-	I915_WRITE(SBI_ADDR, (reg << 16));
-	I915_WRITE(SBI_DATA, 0);
+	intel_uncore_write_fw(uncore, SBI_ADDR, (u32)reg << 16);
+	intel_uncore_write_fw(uncore, SBI_DATA, is_read ? 0 : *val);
 
 	if (destination == SBI_ICLK)
-		value = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRRD;
+		cmd = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRRD;
 	else
-		value = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IORD;
-	I915_WRITE(SBI_CTL_STAT, value | SBI_BUSY);
+		cmd = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IORD;
+	if (!is_read)
+		cmd |= BIT(8);
+	intel_uncore_write_fw(uncore, SBI_CTL_STAT, cmd | SBI_BUSY);
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    SBI_CTL_STAT,
-				    SBI_BUSY,
-				    0,
-				    100)) {
+	if (__intel_wait_for_register_fw(uncore,
+					 SBI_CTL_STAT, SBI_BUSY, 0,
+					 100, 100, &cmd)) {
 		DRM_ERROR("timeout waiting for SBI to complete read\n");
-		return 0;
+		return -ETIMEDOUT;
 	}
 
-	if (I915_READ(SBI_CTL_STAT) & SBI_RESPONSE_FAIL) {
+	if (cmd & SBI_RESPONSE_FAIL) {
 		DRM_ERROR("error during SBI read of reg %x\n", reg);
-		return 0;
+		return -ENXIO;
 	}
 
-	return I915_READ(SBI_DATA);
+	if (is_read)
+		*val = intel_uncore_read_fw(uncore, SBI_DATA);
+
+	return 0;
 }
 
-void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
+u32 intel_sbi_read(struct drm_i915_private *i915, u16 reg,
+		   enum intel_sbi_destination destination)
+{
+	u32 result = 0;
+
+	intel_sbi_rw(i915, reg, destination, &result, true);
+
+	return result;
+}
+
+void intel_sbi_write(struct drm_i915_private *i915, u16 reg, u32 value,
 		     enum intel_sbi_destination destination)
 {
-	u32 tmp;
-
-	lockdep_assert_held(&dev_priv->sb_lock);
-
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    SBI_CTL_STAT, SBI_BUSY, 0,
-				    100)) {
-		DRM_ERROR("timeout waiting for SBI to become ready\n");
-		return;
-	}
-
-	I915_WRITE(SBI_ADDR, (reg << 16));
-	I915_WRITE(SBI_DATA, value);
-
-	if (destination == SBI_ICLK)
-		tmp = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRWR;
-	else
-		tmp = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IOWR;
-	I915_WRITE(SBI_CTL_STAT, SBI_BUSY | tmp);
-
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    SBI_CTL_STAT,
-				    SBI_BUSY,
-				    0,
-				    100)) {
-		DRM_ERROR("timeout waiting for SBI to complete write\n");
-		return;
-	}
-
-	if (I915_READ(SBI_CTL_STAT) & SBI_RESPONSE_FAIL) {
-		DRM_ERROR("error during SBI write of %x to reg %x\n",
-			  value, reg);
-		return;
-	}
+	intel_sbi_rw(i915, reg, destination, &value, false);
 }
