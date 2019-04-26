@@ -584,7 +584,7 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 {
 	struct ad5758_state *st = iio_priv(indio_dev);
 	bool pwr_down;
-	unsigned int dc_dc_mode, dac_config_mode, val;
+	unsigned int dac_config_mode, val;
 	unsigned long int dac_config_msk;
 	int ret;
 
@@ -593,13 +593,10 @@ static ssize_t ad5758_write_powerdown(struct iio_dev *indio_dev,
 		return ret;
 
 	mutex_lock(&st->lock);
-	if (pwr_down) {
-		dc_dc_mode = AD5758_DCDC_MODE_POWER_OFF;
+	if (pwr_down)
 		val = 0;
-	} else {
-		dc_dc_mode = st->dc_dc_mode;
+	else
 		val = 1;
-	}
 
 	dac_config_mode = AD5758_DAC_CONFIG_OUT_EN_MODE(val) |
 			  AD5758_DAC_CONFIG_INT_EN_MODE(val);
