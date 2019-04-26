@@ -1205,12 +1205,13 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	     unsigned int status)
 {
 	void __iomem *base = host->base;
-	bool sbc;
+	bool sbc, busy_resp;
 
 	if (!cmd)
 		return;
 
 	sbc = (cmd == host->mrq->sbc);
+	busy_resp = !!(cmd->flags & MMC_RSP_BUSY);
 
 	/*
 	 * We need to be one of these interrupts to be considered worth
@@ -1224,8 +1225,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	/*
 	 * ST Micro variant: handle busy detection.
 	 */
-	if (host->variant->busy_detect) {
-		bool busy_resp = !!(cmd->flags & MMC_RSP_BUSY);
+	if (busy_resp && host->variant->busy_detect) {
 
 		/* We are busy with a command, return */
 		if (host->busy_status &&
@@ -1238,7 +1238,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 		 * that the special busy status bit is still set before
 		 * proceeding.
 		 */
-		if (!host->busy_status && busy_resp &&
+		if (!host->busy_status &&
 		    !(status & (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT)) &&
 		    (readl(base + MMCISTATUS) & host->variant->busy_detect_flag)) {
 
