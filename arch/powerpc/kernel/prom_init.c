@@ -1264,8 +1264,14 @@ static void __init prom_check_platform_support(void)
 	int prop_len = prom_getproplen(prom.chosen,
 				       "ibm,arch-vec-5-platform-support");
 
-	/* First copy the architecture vec template */
-	ibm_architecture_vec = ibm_architecture_vec_template;
+	/*
+	 * First copy the architecture vec template
+	 *
+	 * use memcpy() instead of *vec = *vec_template so that GCC replaces it
+	 * by __memcpy() when KASAN is active
+	 */
+	memcpy(&ibm_architecture_vec, &ibm_architecture_vec_template,
+	       sizeof(ibm_architecture_vec));
 
 	if (prop_len > 1) {
 		int i;
