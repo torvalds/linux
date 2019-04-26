@@ -36,7 +36,7 @@
 
 #include <mm/mmu_decl.h>
 
-struct hash_pte *Hash, *Hash_end;
+struct hash_pte *Hash;
 unsigned long Hash_size, Hash_mask;
 unsigned long _SDR1;
 static unsigned int hash_mb, hash_mb2;
@@ -344,8 +344,6 @@ void __init MMU_init_hw(void)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
 		      __func__, Hash_size, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
-
-	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);
 
 	printk("Total memory = %lldMB; using %ldkB for hash table (at %p)\n",
 	       (unsigned long long)(total_memory >> 20), Hash_size >> 10, Hash);

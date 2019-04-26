@@ -104,7 +104,7 @@ extern int __map_without_bats;
 extern unsigned int rtas_data, rtas_size;
 
 struct hash_pte;
-extern struct hash_pte *Hash, *Hash_end;
+extern struct hash_pte *Hash;
 extern unsigned long Hash_size, Hash_mask;
 extern u8 early_hash[];
 
