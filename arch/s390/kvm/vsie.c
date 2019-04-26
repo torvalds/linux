@@ -290,6 +290,7 @@ static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	u8 ecb3_flags;
 	u32 ecd_flags;
 	int apie_h;
+	int apie_s;
 	int key_msk = test_kvm_facility(vcpu->kvm, 76);
 	int fmt_o = crycbd_o & CRYCB_FORMAT_MASK;
 	int fmt_h = vcpu->arch.sie_block->crycbd & CRYCB_FORMAT_MASK;
@@ -298,7 +299,8 @@ static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->crycbd = 0;
 
 	apie_h = vcpu->arch.sie_block->eca & ECA_APIE;
-	if (!apie_h && (!key_msk || fmt_o == CRYCB_FORMAT0))
+	apie_s = apie_h & scb_o->eca;
+	if (!apie_s && (!key_msk || (fmt_o == CRYCB_FORMAT0)))
 		return 0;
 
 	if (!crycb_addr)
@@ -309,7 +311,7 @@ static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		    ((crycb_addr + 128) & PAGE_MASK))
 			return set_validity_icpt(scb_s, 0x003CU);
 
-	if (apie_h && (scb_o->eca & ECA_APIE)) {
+	if (apie_s) {
 		ret = setup_apcb(vcpu, &vsie_page->crycb, crycb_addr,
 				 vcpu->kvm->arch.crypto.crycb,
 				 fmt_o, fmt_h);
