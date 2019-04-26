@@ -205,17 +205,22 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 				 int auto_ack, int merge_pending)
 {
 	unsigned char __state = 0;
-	int i;
+	int i = 1;
 
 	if (is_qebsm(q))
 		return qdio_do_eqbs(q, state, bufnr, count, auto_ack);
 
 	/* get initial state: */
 	__state = q->slsb.val[bufnr];
+
+	/* Bail out early if there is no work on the queue: */
+	if (__state & SLSB_OWNER_CU)
+		goto out;
+
 	if (merge_pending && __state == SLSB_P_OUTPUT_PENDING)
 		__state = SLSB_P_OUTPUT_EMPTY;
 
-	for (i = 1; i < count; i++) {
+	for (; i < count; i++) {
 		bufnr = next_buf(bufnr);
 
 		/* merge PENDING into EMPTY: */
@@ -228,6 +233,8 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 		if (q->slsb.val[bufnr] != __state)
 			break;
 	}
+
+out:
 	*state = __state;
 	return i;
 }
