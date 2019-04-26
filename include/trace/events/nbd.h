@@ -7,6 +7,57 @@
 
 #include <linux/tracepoint.h>
 
+DECLARE_EVENT_CLASS(nbd_transport_event,
+
+	TP_PROTO(struct request *req, u64 handle),
+
+	TP_ARGS(req, handle),
+
+	TP_STRUCT__entry(
+		__field(struct request *, req)
+		__field(u64, handle)
+	),
+
+	TP_fast_assign(
+		__entry->req = req;
+		__entry->handle = handle;
+	),
+
+	TP_printk(
+		"nbd transport event: request %p, handle 0x%016llx",
+		__entry->req,
+		__entry->handle
+	)
+);
+
+DEFINE_EVENT(nbd_transport_event, nbd_header_sent,
+
+	TP_PROTO(struct request *req, u64 handle),
+
+	TP_ARGS(req, handle)
+);
+
+DEFINE_EVENT(nbd_transport_event, nbd_payload_sent,
+
+	TP_PROTO(struct request *req, u64 handle),
+
+	TP_ARGS(req, handle)
+);
+
+DEFINE_EVENT(nbd_transport_event, nbd_header_received,
+
+	TP_PROTO(struct request *req, u64 handle),
+
+	TP_ARGS(req, handle)
+);
+
+DEFINE_EVENT(nbd_transport_event, nbd_payload_received,
+
+	TP_PROTO(struct request *req, u64 handle),
+
+	TP_ARGS(req, handle)
+);
+
 DECLARE_EVENT_CLASS(nbd_send_request,
 
 	TP_PROTO(struct nbd_request *nbd_request, int index,
