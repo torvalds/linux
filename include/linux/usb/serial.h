@@ -23,9 +23,6 @@
 /* The maximum number of ports one device can grab at once */
 #define MAX_NUM_PORTS		16
 
-/* parity check flag */
-#define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 /* USB serial flags */
 #define USB_SERIAL_WRITE_BUSY	0
 #define USB_SERIAL_THROTTLED	1
