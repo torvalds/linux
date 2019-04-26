@@ -22,8 +22,6 @@
  */
 #define MAX_PGTABLE_INDEX_SIZE	0xf
 
-extern void __bad_pte(pmd_t *pmd);
-
 extern struct kmem_cache *pgtable_cache[];
 #define PGT_CACHE(shift) pgtable_cache[shift]
 
