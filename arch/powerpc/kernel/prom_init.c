@@ -631,17 +631,14 @@ static void __init early_cmdline_parse(void)
 	const char *opt;
 
 	char *p;
-	int l __maybe_unused = 0;
+	int l = 0;
 
 	prom_cmd_line[0] = 0;
 	p = prom_cmd_line;
 	if ((long)prom.chosen > 0)
 		l = prom_getprop(prom.chosen, "bootargs", p, COMMAND_LINE_SIZE-1);
-#ifdef CONFIG_CMDLINE
-	if (l <= 0 || p[0] == '\0') /* dbl check */
-		strlcpy(prom_cmd_line,
-			CONFIG_CMDLINE, sizeof(prom_cmd_line));
-#endif /* CONFIG_CMDLINE */
+	if (IS_ENABLED(CONFIG_CMDLINE_BOOL) && (l <= 0 || p[0] == '\0')) /* dbl check */
+		strlcpy(prom_cmd_line, CONFIG_CMDLINE, sizeof(prom_cmd_line));
 	prom_printf("command line: %s\n", prom_cmd_line);
 
 #ifdef CONFIG_PPC64

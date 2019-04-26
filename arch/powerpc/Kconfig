@@ -831,9 +831,9 @@ config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
 
 config CMDLINE
-	string "Initial kernel command string"
-	depends on CMDLINE_BOOL
-	default "console=ttyS0,9600 console=tty0 root=/dev/sda2"
+	string "Initial kernel command string" if CMDLINE_BOOL
+	default "console=ttyS0,9600 console=tty0 root=/dev/sda2" if CMDLINE_BOOL
+	default ""
 	help
 	  On some platforms, there is currently no way for the boot loader to
 	  pass arguments to the kernel. For these platforms, you can supply
