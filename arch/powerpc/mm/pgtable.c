@@ -339,12 +339,16 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	 */
 	if (pgd_none(pgd))
 		return NULL;
-	else if (pgd_huge(pgd)) {
-		ret_pte = (pte_t *) pgdp;
+
+	if (pgd_huge(pgd)) {
+		ret_pte = (pte_t *)pgdp;
 		goto out;
-	} else if (is_hugepd(__hugepd(pgd_val(pgd))))
+	}
+	if (is_hugepd(__hugepd(pgd_val(pgd)))) {
 		hpdp = (hugepd_t *)&pgd;
-	else {
+		goto out_huge;
+	}
+	{
 		/*
 		 * Even if we end up with an unmap, the pgtable will not
 		 * be freed, because we do an rcu free and here we are
@@ -356,12 +360,16 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 
 		if (pud_none(pud))
 			return NULL;
-		else if (pud_huge(pud)) {
+
+		if (pud_huge(pud)) {
 			ret_pte = (pte_t *) pudp;
 			goto out;
-		} else if (is_hugepd(__hugepd(pud_val(pud))))
+		}
+		if (is_hugepd(__hugepd(pud_val(pud)))) {
 			hpdp = (hugepd_t *)&pud;
-		else {
+			goto out_huge;
+		}
+		{
 			pdshift = PMD_SHIFT;
 			pmdp = pmd_offset(&pud, ea);
 			pmd  = READ_ONCE(*pmdp);
@@ -386,12 +394,16 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 			if (pmd_huge(pmd) || pmd_large(pmd)) {
 				ret_pte = (pte_t *) pmdp;
 				goto out;
-			} else if (is_hugepd(__hugepd(pmd_val(pmd))))
+			}
+			if (is_hugepd(__hugepd(pmd_val(pmd)))) {
 				hpdp = (hugepd_t *)&pmd;
-			else
-				return pte_offset_kernel(&pmd, ea);
+				goto out_huge;
+			}
+
+			return pte_offset_kernel(&pmd, ea);
 		}
 	}
+out_huge:
 	if (!hpdp)
 		return NULL;
 
