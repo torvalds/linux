@@ -348,59 +348,59 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 		hpdp = (hugepd_t *)&pgd;
 		goto out_huge;
 	}
-	{
-		/*
-		 * Even if we end up with an unmap, the pgtable will not
-		 * be freed, because we do an rcu free and here we are
-		 * irq disabled
-		 */
-		pdshift = PUD_SHIFT;
-		pudp = pud_offset(&pgd, ea);
-		pud  = READ_ONCE(*pudp);
 
-		if (pud_none(pud))
-			return NULL;
+	/*
+	 * Even if we end up with an unmap, the pgtable will not
+	 * be freed, because we do an rcu free and here we are
+	 * irq disabled
+	 */
+	pdshift = PUD_SHIFT;
+	pudp = pud_offset(&pgd, ea);
+	pud  = READ_ONCE(*pudp);
 
-		if (pud_huge(pud)) {
-			ret_pte = (pte_t *) pudp;
-			goto out;
-		}
-		if (is_hugepd(__hugepd(pud_val(pud)))) {
-			hpdp = (hugepd_t *)&pud;
-			goto out_huge;
-		}
-		pdshift = PMD_SHIFT;
-		pmdp = pmd_offset(&pud, ea);
-		pmd  = READ_ONCE(*pmdp);
-		/*
-		 * A hugepage collapse is captured by pmd_none, because
-		 * it mark the pmd none and do a hpte invalidate.
-		 */
-		if (pmd_none(pmd))
-			return NULL;
+	if (pud_none(pud))
+		return NULL;
 
-		if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
-			if (is_thp)
-				*is_thp = true;
-			ret_pte = (pte_t *)pmdp;
-			goto out;
-		}
-		/*
-		 * pmd_large check below will handle the swap pmd pte
-		 * we need to do both the check because they are config
-		 * dependent.
-		 */
-		if (pmd_huge(pmd) || pmd_large(pmd)) {
-			ret_pte = (pte_t *)pmdp;
-			goto out;
-		}
-		if (is_hugepd(__hugepd(pmd_val(pmd)))) {
-			hpdp = (hugepd_t *)&pmd;
-			goto out_huge;
-		}
-
-		return pte_offset_kernel(&pmd, ea);
+	if (pud_huge(pud)) {
+		ret_pte = (pte_t *)pudp;
+		goto out;
 	}
+	if (is_hugepd(__hugepd(pud_val(pud)))) {
+		hpdp = (hugepd_t *)&pud;
+		goto out_huge;
+	}
+	pdshift = PMD_SHIFT;
+	pmdp = pmd_offset(&pud, ea);
+	pmd  = READ_ONCE(*pmdp);
+	/*
+	 * A hugepage collapse is captured by pmd_none, because
+	 * it mark the pmd none and do a hpte invalidate.
+	 */
+	if (pmd_none(pmd))
+		return NULL;
+
+	if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
+		if (is_thp)
+			*is_thp = true;
+		ret_pte = (pte_t *)pmdp;
+		goto out;
+	}
+	/*
+	 * pmd_large check below will handle the swap pmd pte
+	 * we need to do both the check because they are config
+	 * dependent.
+	 */
+	if (pmd_huge(pmd) || pmd_large(pmd)) {
+		ret_pte = (pte_t *)pmdp;
+		goto out;
+	}
+	if (is_hugepd(__hugepd(pmd_val(pmd)))) {
+		hpdp = (hugepd_t *)&pmd;
+		goto out_huge;
+	}
+
+	return pte_offset_kernel(&pmd, ea);
+
 out_huge:
 	if (!hpdp)
 		return NULL;
