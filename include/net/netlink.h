@@ -539,6 +539,31 @@ nlmsg_next(const struct nlmsghdr *nlh, int *remaining)
 }
 
 /**
+ * nla_parse - Parse a stream of attributes into a tb buffer
+ * @tb: destination array with maxtype+1 elements
+ * @maxtype: maximum attribute type to be expected
+ * @head: head of attribute stream
+ * @len: length of attribute stream
+ * @policy: validation policy
+ * @extack: extended ACK pointer
+ *
+ * Parses a stream of attributes and stores a pointer to each attribute in
+ * the tb array accessible via the attribute type. Attributes with a type
+ * exceeding maxtype will be rejected, policy must be specified, attributes
+ * will be validated in the strictest way possible.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+static inline int nla_parse(struct nlattr **tb, int maxtype,
+			    const struct nlattr *head, int len,
+			    const struct nla_policy *policy,
+			    struct netlink_ext_ack *extack)
+{
+	return __nla_parse(tb, maxtype, head, len, policy,
+			   NL_VALIDATE_STRICT, extack);
+}
+
+/**
  * nla_parse_deprecated - Parse a stream of attributes into a tb buffer
  * @tb: destination array with maxtype+1 elements
  * @maxtype: maximum attribute type to be expected
@@ -615,6 +640,27 @@ static inline int __nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
 	return __nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
 			   nlmsg_attrlen(nlh, hdrlen), policy, validate,
 			   extack);
+}
+
+/**
+ * nlmsg_parse - parse attributes of a netlink message
+ * @nlh: netlink message header
+ * @hdrlen: length of family specific header
+ * @tb: destination array with maxtype+1 elements
+ * @maxtype: maximum attribute type to be expected
+ * @validate: validation strictness
+ * @extack: extended ACK report struct
+ *
+ * See nla_parse()
+ */
+static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
+			      struct nlattr *tb[], int maxtype,
+			      const struct nla_policy *policy,
+			      struct netlink_ext_ack *extack)
+{
+	return __nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
+			   nlmsg_attrlen(nlh, hdrlen), policy,
+			   NL_VALIDATE_STRICT, extack);
 }
 
 /**
@@ -695,6 +741,28 @@ static inline int nla_validate_deprecated(const struct nlattr *head, int len,
 			      extack);
 }
 
+/**
+ * nla_validate - Validate a stream of attributes
+ * @head: head of attribute stream
+ * @len: length of attribute stream
+ * @maxtype: maximum attribute type to be expected
+ * @policy: validation policy
+ * @validate: validation strictness
+ * @extack: extended ACK report struct
+ *
+ * Validates all attributes in the specified attribute stream against the
+ * specified policy. Validation is done in strict mode.
+ * See documenation of struct nla_policy for more details.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+static inline int nla_validate(const struct nlattr *head, int len, int maxtype,
+			       const struct nla_policy *policy,
+			       struct netlink_ext_ack *extack)
+{
+	return __nla_validate(head, len, maxtype, policy, NL_VALIDATE_STRICT,
+			      extack);
+}
 
 /**
  * nlmsg_validate_deprecated - validate a netlink message including attributes
@@ -1029,6 +1097,25 @@ static inline struct nlattr *
 nla_find_nested(const struct nlattr *nla, int attrtype)
 {
 	return nla_find(nla_data(nla), nla_len(nla), attrtype);
+}
+
+/**
+ * nla_parse_nested - parse nested attributes
+ * @tb: destination array with maxtype+1 elements
+ * @maxtype: maximum attribute type to be expected
+ * @nla: attribute containing the nested attributes
+ * @policy: validation policy
+ * @extack: extended ACK report struct
+ *
+ * See nla_parse()
+ */
+static inline int nla_parse_nested(struct nlattr *tb[], int maxtype,
+				   const struct nlattr *nla,
+				   const struct nla_policy *policy,
+				   struct netlink_ext_ack *extack)
+{
+	return __nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy,
+			   NL_VALIDATE_STRICT, extack);
 }
 
 /**
