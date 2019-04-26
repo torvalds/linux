@@ -236,8 +236,8 @@ static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
 	return NULL;
 }
 
-void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
-			const struct drm_encoder *encoder)
+static void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
+			       const struct drm_encoder *encoder)
 {
 	int ret = -ENOTSUPP;
 

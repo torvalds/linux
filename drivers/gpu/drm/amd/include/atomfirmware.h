@@ -494,6 +494,9 @@ enum atombios_firmware_capability
   ATOM_FIRMWARE_CAP_FIRMWARE_POSTED = 0x00000001,
   ATOM_FIRMWARE_CAP_GPU_VIRTUALIZATION  = 0x00000002,
   ATOM_FIRMWARE_CAP_WMI_SUPPORT  = 0x00000040,
+  ATOM_FIRMWARE_CAP_HWEMU_ENABLE  = 0x00000080,
+  ATOM_FIRMWARE_CAP_HWEMU_UMC_CFG = 0x00000100,
+  ATOM_FIRMWARE_CAP_SRAM_ECC      = 0x00000200,
 };
 
 enum atom_cooling_solution_id{
@@ -526,6 +529,35 @@ struct atom_firmware_info_v3_2 {
   uint16_t bootup_mvpp_mv;
   uint32_t zfbstartaddrin16mb;
   uint32_t reserved2[3];
+};
+
+struct atom_firmware_info_v3_3
+{
+  struct atom_common_table_header table_header;
+  uint32_t firmware_revision;
+  uint32_t bootup_sclk_in10khz;
+  uint32_t bootup_mclk_in10khz;
+  uint32_t firmware_capability;             // enum atombios_firmware_capability
+  uint32_t main_call_parser_entry;          /* direct address of main parser call in VBIOS binary. */
+  uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+  uint16_t bootup_vddc_mv;
+  uint16_t bootup_vddci_mv;
+  uint16_t bootup_mvddc_mv;
+  uint16_t bootup_vddgfx_mv;
+  uint8_t  mem_module_id;
+  uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+  uint8_t  reserved1[2];
+  uint32_t mc_baseaddr_high;
+  uint32_t mc_baseaddr_low;
+  uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+  uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+  uint8_t  board_i2c_feature_slave_addr;
+  uint8_t  reserved3;
+  uint16_t bootup_mvddq_mv;
+  uint16_t bootup_mvpp_mv;
+  uint32_t zfbstartaddrin16mb;
+  uint32_t pplib_pptable_id;                // if pplib_pptable_id!=0, pplib get powerplay table inside driver instead of from VBIOS
+  uint32_t reserved2[2];
 };
 
 /* 
@@ -1226,16 +1258,17 @@ struct  atom_gfx_info_v2_3 {
   uint32_t rm21_sram_vmin_value;
 };
 
-struct  atom_gfx_info_v2_4 {
+struct  atom_gfx_info_v2_4
+{
   struct  atom_common_table_header  table_header;
   uint8_t gfxip_min_ver;
   uint8_t gfxip_max_ver;
-  uint8_t gc_num_se;
-  uint8_t max_tile_pipes;
-  uint8_t gc_num_cu_per_sh;
-  uint8_t gc_num_sh_per_se;
-  uint8_t gc_num_rb_per_se;
-  uint8_t gc_num_tccs;
+  uint8_t max_shader_engines;
+  uint8_t reserved;
+  uint8_t max_cu_per_sh;
+  uint8_t max_sh_per_se;
+  uint8_t max_backends_per_se;
+  uint8_t max_texture_channel_caches;
   uint32_t regaddr_cp_dma_src_addr;
   uint32_t regaddr_cp_dma_src_addr_hi;
   uint32_t regaddr_cp_dma_dst_addr;
@@ -1780,6 +1813,56 @@ struct atom_umc_info_v3_1
   uint32_t mem_refclk_10khz;
 };
 
+// umc_info.umc_config
+enum atom_umc_config_def {
+  UMC_CONFIG__ENABLE_1KB_INTERLEAVE_MODE  =   0x00000001,
+  UMC_CONFIG__DEFAULT_MEM_ECC_ENABLE      =   0x00000002,
+  UMC_CONFIG__ENABLE_HBM_LANE_REPAIR      =   0x00000004,
+  UMC_CONFIG__ENABLE_BANK_HARVESTING      =   0x00000008,
+  UMC_CONFIG__ENABLE_PHY_REINIT           =   0x00000010,
+  UMC_CONFIG__DISABLE_UCODE_CHKSTATUS     =   0x00000020,
+};
+
+struct atom_umc_info_v3_2
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t ucode_version;
+  uint32_t ucode_rom_startaddr;
+  uint32_t ucode_length;
+  uint16_t umc_reg_init_offset;
+  uint16_t customer_ucode_name_offset;
+  uint16_t mclk_ss_percentage;
+  uint16_t mclk_ss_rate_10hz;
+  uint8_t umcip_min_ver;
+  uint8_t umcip_max_ver;
+  uint8_t vram_type;              //enum of atom_dgpu_vram_type
+  uint8_t umc_config;
+  uint32_t mem_refclk_10khz;
+  uint32_t pstate_uclk_10khz[4];
+  uint16_t umcgoldenoffset;
+  uint16_t densitygoldenoffset;
+};
+
+struct atom_umc_info_v3_3
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t ucode_reserved;
+  uint32_t ucode_rom_startaddr;
+  uint32_t ucode_length;
+  uint16_t umc_reg_init_offset;
+  uint16_t customer_ucode_name_offset;
+  uint16_t mclk_ss_percentage;
+  uint16_t mclk_ss_rate_10hz;
+  uint8_t umcip_min_ver;
+  uint8_t umcip_max_ver;
+  uint8_t vram_type;              //enum of atom_dgpu_vram_type
+  uint8_t umc_config;
+  uint32_t mem_refclk_10khz;
+  uint32_t pstate_uclk_10khz[4];
+  uint16_t umcgoldenoffset;
+  uint16_t densitygoldenoffset;
+  uint32_t reserved[4];
+};
 
 /* 
   ***************************************************************************

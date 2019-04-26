@@ -45,6 +45,11 @@ enum signal_type {
 };
 
 /* help functions for signal types manipulation */
+static inline bool dc_is_hdmi_tmds_signal(enum signal_type signal)
+{
+	return (signal == SIGNAL_TYPE_HDMI_TYPE_A);
+}
+
 static inline bool dc_is_hdmi_signal(enum signal_type signal)
 {
 	return (signal == SIGNAL_TYPE_HDMI_TYPE_A);

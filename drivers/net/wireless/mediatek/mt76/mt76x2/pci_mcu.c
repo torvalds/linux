@@ -165,9 +165,30 @@ error:
 	return -ENOENT;
 }
 
+static int
+mt76pci_mcu_restart(struct mt76_dev *mdev)
+{
+	struct mt76x02_dev *dev;
+	int ret;
+
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
+
+	mt76x02_mcu_cleanup(dev);
+	mt76x2_mac_reset(dev, true);
+
+	ret = mt76pci_load_firmware(dev);
+	if (ret)
+		return ret;
+
+	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
+
+	return 0;
+}
+
 int mt76x2_mcu_init(struct mt76x02_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x2_mcu_ops = {
+		.mcu_restart = mt76pci_mcu_restart,
 		.mcu_send_msg = mt76x02_mcu_msg_send,
 	};
 	int ret;

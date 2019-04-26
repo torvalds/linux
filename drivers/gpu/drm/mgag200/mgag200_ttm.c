@@ -178,7 +178,6 @@ int mgag200_mm_init(struct mga_device *mdev)
 	ret = ttm_bo_device_init(&mdev->ttm.bdev,
 				 &mgag200_bo_driver,
 				 dev->anon_inode->i_mapping,
-				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -345,13 +344,8 @@ int mgag200_bo_push_sysram(struct mgag200_bo *bo)
 
 int mgag200_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct mga_device *mdev;
+	struct drm_file *file_priv = filp->private_data;
+	struct mga_device *mdev = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	mdev = file_priv->minor->dev->dev_private;
 	return ttm_bo_mmap(filp, vma, &mdev->ttm.bdev);
 }

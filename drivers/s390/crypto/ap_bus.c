@@ -810,10 +810,17 @@ static int ap_device_remove(struct device *dev)
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	struct ap_driver *ap_drv = ap_dev->drv;
 
+	/* prepare ap queue device removal */
 	if (is_queue_dev(dev))
-		ap_queue_remove(to_ap_queue(dev));
+		ap_queue_prepare_remove(to_ap_queue(dev));
+
+	/* driver's chance to clean up gracefully */
 	if (ap_drv->remove)
 		ap_drv->remove(ap_dev);
+
+	/* now do the ap queue device remove */
+	if (is_queue_dev(dev))
+		ap_queue_remove(to_ap_queue(dev));
 
 	/* Remove queue/card from list of active queues/cards */
 	spin_lock_bh(&ap_list_lock);
@@ -859,6 +866,16 @@ void ap_bus_force_rescan(void)
 	flush_work(&ap_scan_work);
 }
 EXPORT_SYMBOL(ap_bus_force_rescan);
+
+/*
+* A config change has happened, force an ap bus rescan.
+*/
+void ap_bus_cfg_chg(void)
+{
+	AP_DBF(DBF_INFO, "%s config change, forcing bus rescan\n", __func__);
+
+	ap_bus_force_rescan();
+}
 
 /*
  * hex2bitmap() - parse hex mask string and set bitmap.

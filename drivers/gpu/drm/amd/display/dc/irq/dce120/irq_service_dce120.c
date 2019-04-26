@@ -84,6 +84,11 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 	.ack = NULL
 };
 
+static const struct irq_source_info_funcs vupdate_irq_info_funcs = {
+	.set = NULL,
+	.ack = NULL
+};
+
 #define BASE_INNER(seg) \
 	DCE_BASE__INST0_SEG ## seg
 
@@ -140,7 +145,7 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 		IRQ_REG_ENTRY(CRTC, reg_num,\
 			CRTC_INTERRUPT_CONTROL, CRTC_V_UPDATE_INT_MSK,\
 			CRTC_V_UPDATE_INT_STATUS, CRTC_V_UPDATE_INT_CLEAR),\
-		.funcs = &vblank_irq_info_funcs\
+		.funcs = &vupdate_irq_info_funcs\
 	}
 
 #define vblank_int_entry(reg_num)\

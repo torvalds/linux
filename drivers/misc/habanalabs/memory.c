@@ -56,9 +56,9 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	u64 paddr = 0;
-	u32 total_size, num_pgs, num_curr_pgs, page_size, page_shift;
-	int handle, rc, i;
+	u64 paddr = 0, total_size, num_pgs, i;
+	u32 num_curr_pgs, page_size, page_shift;
+	int handle, rc;
 	bool contiguous;
 
 	num_curr_pgs = 0;
@@ -73,7 +73,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 		paddr = (u64) gen_pool_alloc(vm->dram_pg_pool, total_size);
 		if (!paddr) {
 			dev_err(hdev->dev,
-				"failed to allocate %u huge contiguous pages\n",
+				"failed to allocate %llu huge contiguous pages\n",
 				num_pgs);
 			return -ENOMEM;
 		}
@@ -93,7 +93,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 	phys_pg_pack->flags = args->flags;
 	phys_pg_pack->contiguous = contiguous;
 
-	phys_pg_pack->pages = kcalloc(num_pgs, sizeof(u64), GFP_KERNEL);
+	phys_pg_pack->pages = kvmalloc_array(num_pgs, sizeof(u64), GFP_KERNEL);
 	if (!phys_pg_pack->pages) {
 		rc = -ENOMEM;
 		goto pages_arr_err;
@@ -148,7 +148,7 @@ page_err:
 			gen_pool_free(vm->dram_pg_pool, phys_pg_pack->pages[i],
 					page_size);
 
-	kfree(phys_pg_pack->pages);
+	kvfree(phys_pg_pack->pages);
 pages_arr_err:
 	kfree(phys_pg_pack);
 pages_pack_err:
@@ -267,7 +267,7 @@ static void free_phys_pg_pack(struct hl_device *hdev,
 		struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_vm *vm = &hdev->vm;
-	int i;
+	u64 i;
 
 	if (!phys_pg_pack->created_from_userptr) {
 		if (phys_pg_pack->contiguous) {
@@ -288,7 +288,7 @@ static void free_phys_pg_pack(struct hl_device *hdev,
 		}
 	}
 
-	kfree(phys_pg_pack->pages);
+	kvfree(phys_pg_pack->pages);
 	kfree(phys_pg_pack);
 }
 
@@ -519,7 +519,7 @@ static inline int add_va_block(struct hl_device *hdev,
  * - Return the start address of the virtual block
  */
 static u64 get_va_block(struct hl_device *hdev,
-		struct hl_va_range *va_range, u32 size, u64 hint_addr,
+		struct hl_va_range *va_range, u64 size, u64 hint_addr,
 		bool is_userptr)
 {
 	struct hl_vm_va_block *va_block, *new_va_block = NULL;
@@ -577,7 +577,8 @@ static u64 get_va_block(struct hl_device *hdev,
 	}
 
 	if (!new_va_block) {
-		dev_err(hdev->dev, "no available va block for size %u\n", size);
+		dev_err(hdev->dev, "no available va block for size %llu\n",
+				size);
 		goto out;
 	}
 
@@ -648,8 +649,8 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct scatterlist *sg;
 	dma_addr_t dma_addr;
-	u64 page_mask;
-	u32 npages, total_npages, page_size = PAGE_SIZE;
+	u64 page_mask, total_npages;
+	u32 npages, page_size = PAGE_SIZE;
 	bool first = true, is_huge_page_opt = true;
 	int rc, i, j;
 
@@ -691,7 +692,8 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 	page_mask = ~(((u64) page_size) - 1);
 
-	phys_pg_pack->pages = kcalloc(total_npages, sizeof(u64), GFP_KERNEL);
+	phys_pg_pack->pages = kvmalloc_array(total_npages, sizeof(u64),
+						GFP_KERNEL);
 	if (!phys_pg_pack->pages) {
 		rc = -ENOMEM;
 		goto page_pack_arr_mem_err;
@@ -750,9 +752,9 @@ static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
 		struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_device *hdev = ctx->hdev;
-	u64 next_vaddr = vaddr, paddr;
+	u64 next_vaddr = vaddr, paddr, mapped_pg_cnt = 0, i;
 	u32 page_size = phys_pg_pack->page_size;
-	int i, rc = 0, mapped_pg_cnt = 0;
+	int rc = 0;
 
 	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
 		paddr = phys_pg_pack->pages[i];
@@ -764,7 +766,7 @@ static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
 		rc = hl_mmu_map(ctx, next_vaddr, paddr, page_size);
 		if (rc) {
 			dev_err(hdev->dev,
-				"map failed for handle %u, npages: %d, mapped: %d",
+				"map failed for handle %u, npages: %llu, mapped: %llu",
 				phys_pg_pack->handle, phys_pg_pack->npages,
 				mapped_pg_cnt);
 			goto err;
@@ -985,10 +987,10 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 	struct hl_vm_hash_node *hnode = NULL;
 	struct hl_userptr *userptr = NULL;
 	enum vm_type_t *vm_type;
-	u64 next_vaddr;
+	u64 next_vaddr, i;
 	u32 page_size;
 	bool is_userptr;
-	int i, rc;
+	int rc;
 
 	/* protect from double entrance */
 	mutex_lock(&ctx->mem_hash_lock);

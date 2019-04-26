@@ -47,7 +47,7 @@ static void rcar_du_vsp_complete(void *private, unsigned int status, u32 crc)
 void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 {
 	const struct drm_display_mode *mode = &crtc->crtc.state->adjusted_mode;
-	struct rcar_du_device *rcdu = crtc->group->dev;
+	struct rcar_du_device *rcdu = crtc->dev;
 	struct vsp1_du_lif_config cfg = {
 		.width = mode->hdisplay,
 		.height = mode->vdisplay,

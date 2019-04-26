@@ -88,13 +88,6 @@ enum dscl_mode_sel {
 	DSCL_MODE_DSCL_BYPASS = 6
 };
 
-enum gamut_remap_select {
-	GAMUT_REMAP_BYPASS = 0,
-	GAMUT_REMAP_COEFF,
-	GAMUT_REMAP_COMA_COEFF,
-	GAMUT_REMAP_COMB_COEFF
-};
-
 static const struct dpp_input_csc_matrix dpp_input_csc_matrix[] = {
 	{COLOR_SPACE_SRGB,
 		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },

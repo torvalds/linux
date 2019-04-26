@@ -102,6 +102,8 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 	if (err)
 		return err;
 
+	set_bit(qid, vsi->af_xdp_zc_qps);
+
 	if_running = netif_running(vsi->netdev) && i40e_enabled_xdp_vsi(vsi);
 
 	if (if_running) {
@@ -148,6 +150,7 @@ static int i40e_xsk_umem_disable(struct i40e_vsi *vsi, u16 qid)
 			return err;
 	}
 
+	clear_bit(qid, vsi->af_xdp_zc_qps);
 	i40e_xsk_umem_dma_unmap(vsi, umem);
 
 	if (if_running) {

@@ -90,12 +90,8 @@ int vboxfb_create(struct drm_fb_helper *helper,
 	if (IS_ERR(info->screen_base))
 		return PTR_ERR(info->screen_base);
 
-	info->par = helper;
-
 	fb = &vbox->afb.base;
 	helper->fb = fb;
-
-	strcpy(info->fix.id, "vboxdrmfb");
 
 	info->fbops = &vboxfb_ops;
 
@@ -106,9 +102,7 @@ int vboxfb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = pci_resource_start(pdev, 0);
 	info->apertures->ranges[0].size = pci_resource_len(pdev, 0);
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, helper, sizes->fb_width,
-			       sizes->fb_height);
+	drm_fb_helper_fill_info(info, helper, sizes);
 
 	gpu_addr = vbox_bo_gpu_offset(bo);
 	info->fix.smem_start = info->apertures->ranges[0].base + gpu_addr;

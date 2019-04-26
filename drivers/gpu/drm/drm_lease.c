@@ -111,7 +111,7 @@ static bool _drm_has_leased(struct drm_master *master, int id)
  */
 bool _drm_lease_held(struct drm_file *file_priv, int id)
 {
-	if (file_priv == NULL || file_priv->master == NULL)
+	if (!file_priv || !file_priv->master)
 		return true;
 
 	return _drm_lease_held_master(file_priv->master, id);
@@ -133,7 +133,7 @@ bool drm_lease_held(struct drm_file *file_priv, int id)
 	struct drm_master *master;
 	bool ret;
 
-	if (file_priv == NULL || file_priv->master == NULL)
+	if (!file_priv || !file_priv->master || !file_priv->master->lessor)
 		return true;
 
 	master = file_priv->master;
@@ -159,7 +159,7 @@ uint32_t drm_lease_filter_crtcs(struct drm_file *file_priv, uint32_t crtcs_in)
 	int count_in, count_out;
 	uint32_t crtcs_out = 0;
 
-	if (file_priv == NULL || file_priv->master == NULL)
+	if (!file_priv || !file_priv->master || !file_priv->master->lessor)
 		return crtcs_in;
 
 	master = file_priv->master;
@@ -220,8 +220,6 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 		error = 0;
 		if (!idr_find(&dev->mode_config.object_idr, object))
 			error = -ENOENT;
-		else if (!_drm_lease_held_master(lessor, object))
-			error = -EACCES;
 		else if (_drm_has_leased(lessor, object))
 			error = -EBUSY;
 
@@ -403,11 +401,6 @@ static int fill_object_idr(struct drm_device *dev,
 	/* step one - get references to all the mode objects
 	   and check for validity. */
 	for (o = 0; o < object_count; o++) {
-		if ((int) object_ids[o] < 0) {
-			ret = -EINVAL;
-			goto out_free_objects;
-		}
-
 		objects[o] = drm_mode_object_find(dev, lessor_priv,
 						  object_ids[o],
 						  DRM_MODE_OBJECT_ANY);

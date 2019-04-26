@@ -163,7 +163,7 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	/* XXX for emulation, Refer to closed source code.*/
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, L2_PDE0_CACHE_TAG_GENERATION_MODE,
 			    0);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 0);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, IDENTITY_MODE_FRAGMENT_SIZE, 0);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL, tmp);
@@ -255,7 +255,7 @@ static void mmhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 				    block_size);
 		/* Send no-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
-				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
+				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 1);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT1_CNTL, i, tmp);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32, i*2, 0);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32, i*2, 0);

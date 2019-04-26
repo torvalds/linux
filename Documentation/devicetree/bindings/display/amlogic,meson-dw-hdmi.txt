@@ -37,6 +37,7 @@ Required properties:
 	- GXL (S905X, S905D) : "amlogic,meson-gxl-dw-hdmi"
 	- GXM (S912) : "amlogic,meson-gxm-dw-hdmi"
 	followed by the common "amlogic,meson-gx-dw-hdmi"
+	- G12A (S905X2, S905Y2, S905D2) : "amlogic,meson-g12a-dw-hdmi"
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The HDMI interrupt number
 - clocks, clock-names : must have the phandles to the HDMI iahb and isfr clocks,
@@ -66,6 +67,9 @@ corresponding to each HDMI output and input.
  S905X (GXL)	VENC Input	TMDS Output
  S905D (GXL)	VENC Input	TMDS Output
  S912 (GXM)	VENC Input	TMDS Output
+ S905X2 (G12A)	VENC Input	TMDS Output
+ S905Y2 (G12A)	VENC Input	TMDS Output
+ S905D2 (G12A)	VENC Input	TMDS Output
 
 Example:
 

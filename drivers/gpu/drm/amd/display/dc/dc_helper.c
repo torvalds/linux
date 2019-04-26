@@ -51,20 +51,16 @@ static inline void set_reg_field_value_masks(
 	field_value_mask->mask = field_value_mask->mask | mask;
 }
 
-uint32_t generic_reg_update_ex(const struct dc_context *ctx,
-		uint32_t addr, uint32_t reg_val, int n,
+static void set_reg_field_values(struct dc_reg_value_masks *field_value_mask,
+		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
-		...)
+		va_list ap)
 {
-	struct dc_reg_value_masks field_value_mask = {0};
 	uint32_t shift, mask, field_value;
 	int i = 1;
 
-	va_list ap;
-	va_start(ap, field_value1);
-
 	/* gather all bits value/mask getting updated in this register */
-	set_reg_field_value_masks(&field_value_mask,
+	set_reg_field_value_masks(field_value_mask,
 			field_value1, mask1, shift1);
 
 	while (i < n) {
@@ -72,10 +68,48 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 		mask = va_arg(ap, uint32_t);
 		field_value = va_arg(ap, uint32_t);
 
-		set_reg_field_value_masks(&field_value_mask,
+		set_reg_field_value_masks(field_value_mask,
 				field_value, mask, shift);
 		i++;
 	}
+}
+
+uint32_t generic_reg_update_ex(const struct dc_context *ctx,
+		uint32_t addr, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
+		...)
+{
+	struct dc_reg_value_masks field_value_mask = {0};
+	uint32_t reg_val;
+	va_list ap;
+
+	va_start(ap, field_value1);
+
+	set_reg_field_values(&field_value_mask, addr, n, shift1, mask1,
+			field_value1, ap);
+
+	va_end(ap);
+
+	/* mmio write directly */
+	reg_val = dm_read_reg(ctx, addr);
+	reg_val = (reg_val & ~field_value_mask.mask) | field_value_mask.value;
+	dm_write_reg(ctx, addr, reg_val);
+	return reg_val;
+}
+
+uint32_t generic_reg_set_ex(const struct dc_context *ctx,
+		uint32_t addr, uint32_t reg_val, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
+		...)
+{
+	struct dc_reg_value_masks field_value_mask = {0};
+	va_list ap;
+
+	va_start(ap, field_value1);
+
+	set_reg_field_values(&field_value_mask, addr, n, shift1, mask1,
+			field_value1, ap);
+
 	va_end(ap);
 
 
@@ -83,6 +117,24 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 	reg_val = (reg_val & ~field_value_mask.mask) | field_value_mask.value;
 	dm_write_reg(ctx, addr, reg_val);
 	return reg_val;
+}
+
+uint32_t dm_read_reg_func(
+	const struct dc_context *ctx,
+	uint32_t address,
+	const char *func_name)
+{
+	uint32_t value;
+#ifdef DM_CHECK_ADDR_0
+	if (address == 0) {
+		DC_ERR("invalid register read; address = 0\n");
+		return 0;
+	}
+#endif
+	value = cgs_read_register(ctx->cgs_device, address);
+	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
+
+	return value;
 }
 
 uint32_t generic_reg_get(const struct dc_context *ctx, uint32_t addr,
@@ -235,7 +287,7 @@ uint32_t generic_reg_get(const struct dc_context *ctx,
 }
 */
 
-uint32_t generic_reg_wait(const struct dc_context *ctx,
+void generic_reg_wait(const struct dc_context *ctx,
 	uint32_t addr, uint32_t shift, uint32_t mask, uint32_t condition_value,
 	unsigned int delay_between_poll_us, unsigned int time_out_num_tries,
 	const char *func_name, int line)
@@ -265,7 +317,7 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 				DC_LOG_DC("REG_WAIT taking a while: %dms in %s line:%d\n",
 						delay_between_poll_us * i / 1000,
 						func_name, line);
-			return reg_val;
+			return;
 		}
 	}
 
@@ -275,8 +327,6 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 
 	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
 		BREAK_TO_DEBUGGER();
-
-	return reg_val;
 }
 
 void generic_write_indirect_reg(const struct dc_context *ctx,

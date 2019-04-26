@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include "mt7603.h"
+#include "mac.h"
 #include "eeprom.h"
 
 static int
@@ -386,6 +387,15 @@ mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 }
 
 static void
+mt7603_ps_set_more_data(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+
+	hdr = (struct ieee80211_hdr *) &skb->data[MT_TXD_SIZE];
+	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+}
+
+static void
 mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *sta,
 			       u16 tids, int nframes,
@@ -399,6 +409,8 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 
 	__skb_queue_head_init(&list);
 
+	mt7603_wtbl_set_ps(dev, msta, false);
+
 	spin_lock_bh(&dev->ps_lock);
 	skb_queue_walk_safe(&msta->psq, skb, tmp) {
 		if (!nframes)
@@ -409,10 +421,14 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 
 		skb_set_queue_mapping(skb, MT_TXQ_PSD);
 		__skb_unlink(skb, &msta->psq);
+		mt7603_ps_set_more_data(skb);
 		__skb_queue_tail(&list, skb);
 		nframes--;
 	}
 	spin_unlock_bh(&dev->ps_lock);
+
+	if (!skb_queue_empty(&list))
+		ieee80211_sta_eosp(sta);
 
 	mt7603_ps_tx_list(dev, &list);
 

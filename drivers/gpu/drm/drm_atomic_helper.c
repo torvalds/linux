@@ -1034,7 +1034,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			funcs->atomic_disable(crtc, old_crtc_state);
 		else if (funcs->disable)
 			funcs->disable(crtc);
-		else
+		else if (funcs->dpms)
 			funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
 		if (!(dev->irq_enabled && dev->num_crtcs))
@@ -1277,10 +1277,9 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		if (new_crtc_state->enable) {
 			DRM_DEBUG_ATOMIC("enabling [CRTC:%d:%s]\n",
 					 crtc->base.id, crtc->name);
-
 			if (funcs->atomic_enable)
 				funcs->atomic_enable(crtc, old_crtc_state);
-			else
+			else if (funcs->commit)
 				funcs->commit(crtc);
 		}
 	}

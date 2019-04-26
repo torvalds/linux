@@ -320,6 +320,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x9876, &carrizo_device_info },	/* Carrizo */
 	{ 0x9877, &carrizo_device_info },	/* Carrizo */
 	{ 0x15DD, &raven_device_info },		/* Raven */
+	{ 0x15D8, &raven_device_info },		/* Raven */
 #endif
 	{ 0x67A0, &hawaii_device_info },	/* Hawaii */
 	{ 0x67A1, &hawaii_device_info },	/* Hawaii */
@@ -465,6 +466,8 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	mutex_init(&kfd->doorbell_mutex);
 	memset(&kfd->doorbell_available_index, 0,
 		sizeof(kfd->doorbell_available_index));
+
+	atomic_set(&kfd->sram_ecc_flag, 0);
 
 	return kfd;
 }
@@ -661,6 +664,9 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 		return ret;
 	count = atomic_dec_return(&kfd_locked);
 	WARN_ONCE(count != 0, "KFD reset ref. error");
+
+	atomic_set(&kfd->sram_ecc_flag, 0);
+
 	return 0;
 }
 
@@ -1022,6 +1028,12 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 
 	kfree(mem_obj);
 	return 0;
+}
+
+void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
+{
+	if (kfd)
+		atomic_inc(&kfd->sram_ecc_flag);
 }
 
 #if defined(CONFIG_DEBUG_FS)

@@ -156,9 +156,9 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	if (IS_ERR(fence))
 		return NULL;
 
-	if (job->done_fence)
-		dma_fence_put(job->done_fence);
-	job->done_fence = dma_fence_get(fence);
+	if (job->irq_fence)
+		dma_fence_put(job->irq_fence);
+	job->irq_fence = dma_fence_get(fence);
 
 	trace_v3d_submit_cl(dev, q == V3D_RENDER, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
@@ -199,9 +199,9 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 		return NULL;
 
 	v3d->tfu_job = job;
-	if (job->done_fence)
-		dma_fence_put(job->done_fence);
-	job->done_fence = dma_fence_get(fence);
+	if (job->irq_fence)
+		dma_fence_put(job->irq_fence);
+	job->irq_fence = dma_fence_get(fence);
 
 	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqno);
 

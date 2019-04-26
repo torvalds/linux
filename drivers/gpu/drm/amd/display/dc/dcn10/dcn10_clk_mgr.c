@@ -43,23 +43,6 @@
 #define DC_LOGGER \
 	clk_mgr->ctx->logger
 
-void dcn1_pplib_apply_display_requirements(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
-
-	pp_display_cfg->min_engine_clock_khz = dc->res_pool->clk_mgr->clks.dcfclk_khz;
-	pp_display_cfg->min_memory_clock_khz = dc->res_pool->clk_mgr->clks.fclk_khz;
-	pp_display_cfg->min_engine_clock_deep_sleep_khz = dc->res_pool->clk_mgr->clks.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = dc->res_pool->clk_mgr->clks.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfclock_khz = dc->res_pool->clk_mgr->clks.dcfclk_khz;
-	pp_display_cfg->disp_clk_khz = dc->res_pool->clk_mgr->clks.dispclk_khz;
-	dce110_fill_display_configs(context, pp_display_cfg);
-
-	dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
-}
-
 static int dcn1_determine_dppclk_threshold(struct clk_mgr *clk_mgr, struct dc_clocks *new_clocks)
 {
 	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
@@ -167,11 +150,11 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dc *dc = clk_mgr->ctx->dc;
 	struct dc_debug_options *debug = &dc->debug;
-	struct dc_clocks *new_clocks = &context->bw.dcn.clk;
+	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct pp_smu_display_requirement_rv *smu_req_cur =
 			&dc->res_pool->pp_smu_req;
 	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
-	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
+	struct pp_smu_funcs_rv *pp_smu = NULL;
 	bool send_request_to_increase = false;
 	bool send_request_to_lower = false;
 	int display_count;
@@ -179,7 +162,8 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	bool enter_display_off = false;
 
 	display_count = get_active_display_cnt(dc, context);
-
+	if (dc->res_pool->pp_smu)
+		pp_smu = &dc->res_pool->pp_smu->rv_funcs;
 	if (display_count == 0)
 		enter_display_off = true;
 
@@ -189,7 +173,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 		 * if function pointer not set up, this message is
 		 * sent as part of pplib_apply_display_requirements.
 		 */
-		if (pp_smu->set_display_count)
+		if (pp_smu && pp_smu->set_display_count)
 			pp_smu->set_display_count(&pp_smu->pp_smu, display_count);
 
 		smu_req.display_count = display_count;
@@ -239,17 +223,13 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	 */
 	if (send_request_to_increase) {
 		/*use dcfclk to request voltage*/
-		if (pp_smu->set_hard_min_fclk_by_freq &&
+		if (pp_smu && pp_smu->set_hard_min_fclk_by_freq &&
 				pp_smu->set_hard_min_dcfclk_by_freq &&
 				pp_smu->set_min_deep_sleep_dcfclk) {
 
 			pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_fclk_mhz);
 			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_dcefclk_mhz);
 			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, smu_req.min_deep_sleep_dcefclk_mhz);
-		} else {
-			if (pp_smu->set_display_requirement)
-				pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-			dcn1_pplib_apply_display_requirements(dc, context);
 		}
 	}
 
@@ -265,17 +245,13 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 
 	if (!send_request_to_increase && send_request_to_lower) {
 		/*use dcfclk to request voltage*/
-		if (pp_smu->set_hard_min_fclk_by_freq &&
+		if (pp_smu && pp_smu->set_hard_min_fclk_by_freq &&
 				pp_smu->set_hard_min_dcfclk_by_freq &&
 				pp_smu->set_min_deep_sleep_dcfclk) {
 
 			pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_fclk_mhz);
 			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_dcefclk_mhz);
 			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, smu_req.min_deep_sleep_dcefclk_mhz);
-		} else {
-			if (pp_smu->set_display_requirement)
-				pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-			dcn1_pplib_apply_display_requirements(dc, context);
 		}
 	}
 

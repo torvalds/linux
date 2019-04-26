@@ -2388,7 +2388,7 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 	return dev;
 }
 
-static void pcie_report_downtraining(struct pci_dev *dev)
+void pcie_report_downtraining(struct pci_dev *dev)
 {
 	if (!pci_is_pcie(dev))
 		return;

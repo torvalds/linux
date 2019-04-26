@@ -500,5 +500,30 @@
         "matchPattern": "^[ \t]+index [0-9]+ ref",
         "matchCount": "0",
         "teardown": []
+    },
+    {
+        "id": "d128",
+        "name": "Replace csum action with invalid goto chain control",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action csum iph index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action csum iph goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action csum index 90",
+        "matchPattern": "action order [0-9]*: csum \\(iph\\) action pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
     }
 ]

@@ -387,7 +387,7 @@ static void _dpu_plane_set_ot_limit(struct drm_plane *plane,
 	ot_params.width = drm_rect_width(&pdpu->pipe_cfg.src_rect);
 	ot_params.height = drm_rect_height(&pdpu->pipe_cfg.src_rect);
 	ot_params.is_wfd = !pdpu->is_rt_pipe;
-	ot_params.frame_rate = crtc->mode.vrefresh;
+	ot_params.frame_rate = drm_mode_vrefresh(&crtc->mode);
 	ot_params.vbif_idx = VBIF_RT;
 	ot_params.clk_ctrl = pdpu->pipe_hw->cap->clk_ctrl;
 	ot_params.rd = true;

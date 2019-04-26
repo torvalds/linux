@@ -340,8 +340,8 @@ v3d_exec_cleanup(struct kref *ref)
 	dma_fence_put(exec->bin.in_fence);
 	dma_fence_put(exec->render.in_fence);
 
-	dma_fence_put(exec->bin.done_fence);
-	dma_fence_put(exec->render.done_fence);
+	dma_fence_put(exec->bin.irq_fence);
+	dma_fence_put(exec->render.irq_fence);
 
 	dma_fence_put(exec->bin_done_fence);
 	dma_fence_put(exec->render_done_fence);
@@ -374,7 +374,7 @@ v3d_tfu_job_cleanup(struct kref *ref)
 	unsigned int i;
 
 	dma_fence_put(job->in_fence);
-	dma_fence_put(job->done_fence);
+	dma_fence_put(job->irq_fence);
 
 	for (i = 0; i < ARRAY_SIZE(job->bo); i++) {
 		if (job->bo[i])

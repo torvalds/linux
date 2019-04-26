@@ -601,6 +601,7 @@ static int br_ip4_multicast_add_group(struct net_bridge *br,
 	if (ipv4_is_local_multicast(group))
 		return 0;
 
+	memset(&br_group, 0, sizeof(br_group));
 	br_group.u.ip4 = group;
 	br_group.proto = htons(ETH_P_IP);
 	br_group.vid = vid;
@@ -1497,6 +1498,7 @@ static void br_ip4_multicast_leave_group(struct net_bridge *br,
 
 	own_query = port ? &port->ip4_own_query : &br->ip4_own_query;
 
+	memset(&br_group, 0, sizeof(br_group));
 	br_group.u.ip4 = group;
 	br_group.proto = htons(ETH_P_IP);
 	br_group.vid = vid;
@@ -1520,6 +1522,7 @@ static void br_ip6_multicast_leave_group(struct net_bridge *br,
 
 	own_query = port ? &port->ip6_own_query : &br->ip6_own_query;
 
+	memset(&br_group, 0, sizeof(br_group));
 	br_group.u.ip6 = *group;
 	br_group.proto = htons(ETH_P_IPV6);
 	br_group.vid = vid;

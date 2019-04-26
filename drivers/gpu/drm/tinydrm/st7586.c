@@ -22,6 +22,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_rect.h>
@@ -77,7 +78,7 @@ static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 	if (!buf)
 		return;
 
-	tinydrm_xrgb8888_to_gray8(buf, vaddr, fb, clip);
+	drm_fb_xrgb8888_to_gray8(buf, vaddr, fb, clip);
 	src = buf;
 
 	for (y = clip->y1; y < clip->y2; y++) {
@@ -407,7 +408,7 @@ static int st7586_probe(struct spi_device *spi)
 	DRM_DEBUG_KMS("preferred_depth=%u, rotation = %u\n",
 		      drm->mode_config.preferred_depth, rotation);
 
-	drm_fbdev_generic_setup(drm, 32);
+	drm_fbdev_generic_setup(drm, 0);
 
 	return 0;
 }

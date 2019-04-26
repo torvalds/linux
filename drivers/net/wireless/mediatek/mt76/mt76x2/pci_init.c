@@ -77,7 +77,7 @@ mt76x2_fixup_xtal(struct mt76x02_dev *dev)
 	}
 }
 
-static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
+int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 {
 	const u8 *macaddr = dev->mt76.macaddr;
 	u32 val;

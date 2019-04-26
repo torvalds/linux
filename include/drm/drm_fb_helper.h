@@ -68,10 +68,8 @@ struct drm_fb_helper_crtc {
  * according to the largest width/height (so it is large enough for all CRTCs
  * to scanout).  But the fbdev width/height is sized to the minimum width/
  * height of all the displays.  This ensures that fbcon fits on the smallest
- * of the attached displays.
- *
- * So what is passed to drm_fb_helper_fill_var() should be fb_width/fb_height,
- * rather than the surface size.
+ * of the attached displays. fb_width/fb_height is used by
+ * drm_fb_helper_fill_info() to fill out the &fb_info.var structure.
  */
 struct drm_fb_helper_surface_size {
 	u32 fb_width;
@@ -104,29 +102,6 @@ struct drm_fb_helper_funcs {
 	 */
 	int (*fb_probe)(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes);
-
-	/**
-	 * @initial_config:
-	 *
-	 * Driver callback to setup an initial fbdev display configuration.
-	 * Drivers can use this callback to tell the fbdev emulation what the
-	 * preferred initial configuration is. This is useful to implement
-	 * smooth booting where the fbdev (and subsequently all userspace) never
-	 * changes the mode, but always inherits the existing configuration.
-	 *
-	 * This callback is optional.
-	 *
-	 * RETURNS:
-	 *
-	 * The driver should return true if a suitable initial configuration has
-	 * been filled out and false when the fbdev helper should fall back to
-	 * the default probing logic.
-	 */
-	bool (*initial_config)(struct drm_fb_helper *fb_helper,
-			       struct drm_fb_helper_crtc **crtcs,
-			       struct drm_display_mode **modes,
-			       struct drm_fb_offset *offsets,
-			       bool *enabled, int width, int height);
 };
 
 struct drm_fb_helper_connector {
@@ -289,10 +264,9 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
 struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper);
-void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
-			    uint32_t fb_width, uint32_t fb_height);
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
-			    uint32_t depth);
+void drm_fb_helper_fill_info(struct fb_info *info,
+			     struct drm_fb_helper *fb_helper,
+			     struct drm_fb_helper_surface_size *sizes);
 
 void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper);
 
@@ -418,14 +392,10 @@ static inline void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 {
 }
 
-static inline void drm_fb_helper_fill_var(struct fb_info *info,
-					  struct drm_fb_helper *fb_helper,
-					  uint32_t fb_width, uint32_t fb_height)
-{
-}
-
-static inline void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
-					  uint32_t depth)
+static inline void
+drm_fb_helper_fill_info(struct fb_info *info,
+			struct drm_fb_helper *fb_helper,
+			struct drm_fb_helper_surface_size *sizes)
 {
 }
 

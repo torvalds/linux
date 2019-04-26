@@ -370,12 +370,13 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 		spin_unlock(&hdev->hw_queues_mirror_lock);
 	}
 
-	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node) {
+	atomic_inc(&hdev->cs_active_cnt);
+
+	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
 		if (job->ext_queue)
 			ext_hw_queue_schedule_job(job);
 		else
 			int_hw_queue_schedule_job(job);
-	}
 
 	cs->submitted = true;
 

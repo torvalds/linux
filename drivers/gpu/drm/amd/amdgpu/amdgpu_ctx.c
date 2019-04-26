@@ -26,6 +26,7 @@
 #include <drm/drm_auth.h>
 #include "amdgpu.h"
 #include "amdgpu_sched.h"
+#include "amdgpu_ras.h"
 
 #define to_amdgpu_ctx_entity(e)	\
 	container_of((e), struct amdgpu_ctx_entity, entity)
@@ -344,6 +345,7 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 {
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr;
+	uint32_t ras_counter;
 
 	if (!fpriv)
 		return -EINVAL;
@@ -367,6 +369,21 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 
 	if (atomic_read(&ctx->guilty))
 		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_GUILTY;
+
+	/*query ue count*/
+	ras_counter = amdgpu_ras_query_error_count(adev, false);
+	/*ras counter is monotonic increasing*/
+	if (ras_counter != ctx->ras_counter_ue) {
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RAS_UE;
+		ctx->ras_counter_ue = ras_counter;
+	}
+
+	/*query ce count*/
+	ras_counter = amdgpu_ras_query_error_count(adev, true);
+	if (ras_counter != ctx->ras_counter_ce) {
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RAS_CE;
+		ctx->ras_counter_ce = ras_counter;
+	}
 
 	mutex_unlock(&mgr->lock);
 	return 0;
@@ -541,32 +558,26 @@ void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
 	idr_init(&mgr->ctx_handles);
 }
 
-void amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr)
+long amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr, long timeout)
 {
 	unsigned num_entities = amdgput_ctx_total_num_entities();
 	struct amdgpu_ctx *ctx;
 	struct idr *idp;
 	uint32_t id, i;
-	long max_wait = MAX_WAIT_SCHED_ENTITY_Q_EMPTY;
 
 	idp = &mgr->ctx_handles;
 
 	mutex_lock(&mgr->lock);
 	idr_for_each_entry(idp, ctx, id) {
-
-		if (!ctx->adev) {
-			mutex_unlock(&mgr->lock);
-			return;
-		}
-
 		for (i = 0; i < num_entities; i++) {
 			struct drm_sched_entity *entity;
 
 			entity = &ctx->entities[0][i].entity;
-			max_wait = drm_sched_entity_flush(entity, max_wait);
+			timeout = drm_sched_entity_flush(entity, timeout);
 		}
 	}
 	mutex_unlock(&mgr->lock);
+	return timeout;
 }
 
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
@@ -579,10 +590,6 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 	idp = &mgr->ctx_handles;
 
 	idr_for_each_entry(idp, ctx, id) {
-
-		if (!ctx->adev)
-			return;
-
 		if (kref_read(&ctx->refcount) != 1) {
 			DRM_ERROR("ctx %p is still alive\n", ctx);
 			continue;

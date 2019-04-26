@@ -387,6 +387,28 @@ static const struct resource_caps res_cap_83 = {
 		.num_ddc = 2,
 };
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCE_RGB,
+
+	.pixel_format_support = {
+			.argb8888 = true,
+			.nv12 = false,
+			.fp16 = false
+	},
+
+	.max_upscale_factor = {
+			.argb8888 = 16000,
+			.nv12 = 1,
+			.fp16 = 1
+	},
+
+	.max_downscale_factor = {
+			.argb8888 = 250,
+			.nv12 = 1,
+			.fp16 = 1
+	}
+};
+
 static const struct dce_dmcu_registers dmcu_regs = {
 		DMCU_DCE80_REG_LIST()
 };
@@ -790,7 +812,8 @@ static void destruct(struct dce110_resource_pool *pool)
 
 bool dce80_validate_bandwidth(
 	struct dc *dc,
-	struct dc_state *context)
+	struct dc_state *context,
+	bool fast_validate)
 {
 	int i;
 	bool at_least_one_pipe = false;
@@ -802,11 +825,11 @@ bool dce80_validate_bandwidth(
 
 	if (at_least_one_pipe) {
 		/* TODO implement when needed but for now hardcode max value*/
-		context->bw.dce.dispclk_khz = 681000;
-		context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
+		context->bw_ctx.bw.dce.dispclk_khz = 681000;
+		context->bw_ctx.bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
 	} else {
-		context->bw.dce.dispclk_khz = 0;
-		context->bw.dce.yclk_khz = 0;
+		context->bw_ctx.bw.dce.dispclk_khz = 0;
+		context->bw_ctx.bw.dce.yclk_khz = 0;
 	}
 
 	return true;
@@ -1032,6 +1055,10 @@ static bool dce80_construct(
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
+
 	dc->caps.disable_dp_clk_share = true;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
@@ -1237,6 +1264,10 @@ static bool dce81_construct(
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
+
 	dc->caps.disable_dp_clk_share = true;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
@@ -1438,6 +1469,10 @@ static bool dce83_construct(
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
+
 	dc->caps.disable_dp_clk_share = true;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,

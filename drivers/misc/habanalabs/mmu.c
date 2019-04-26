@@ -832,7 +832,7 @@ err:
 int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size)
 {
 	struct hl_device *hdev = ctx->hdev;
-	u64 real_virt_addr;
+	u64 real_virt_addr, real_phys_addr;
 	u32 real_page_size, npages;
 	int i, rc, mapped_cnt = 0;
 
@@ -857,14 +857,16 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size)
 
 	npages = page_size / real_page_size;
 	real_virt_addr = virt_addr;
+	real_phys_addr = phys_addr;
 
 	for (i = 0 ; i < npages ; i++) {
-		rc = _hl_mmu_map(ctx, real_virt_addr, phys_addr,
+		rc = _hl_mmu_map(ctx, real_virt_addr, real_phys_addr,
 				real_page_size);
 		if (rc)
 			goto err;
 
 		real_virt_addr += real_page_size;
+		real_phys_addr += real_page_size;
 		mapped_cnt++;
 	}
 

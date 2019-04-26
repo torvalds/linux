@@ -114,9 +114,9 @@
 			reg = <2>;
 		};
 
-		switch@0 {
+		switch@10 {
 			compatible = "qca,qca8334";
-			reg = <0>;
+			reg = <10>;
 
 			switch_ports: ports {
 				#address-cells = <1>;
@@ -125,7 +125,7 @@
 				ethphy0: port@0 {
 					reg = <0>;
 					label = "cpu";
-					phy-mode = "rgmii";
+					phy-mode = "rgmii-id";
 					ethernet = <&fec>;
 
 					fixed-link {

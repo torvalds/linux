@@ -27,6 +27,7 @@
 #include "vega20_inc.h"
 #include "vega20_ppsmc.h"
 #include "vega20_baco.h"
+#include "vega20_smumgr.h"
 
 
 
@@ -100,4 +101,15 @@ int vega20_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 	}
 
 	return 0;
+}
+
+int vega20_baco_apply_vdci_flush_workaround(struct pp_hwmgr *hwmgr)
+{
+	int ret = 0;
+
+	ret = vega20_set_pptable_driver_address(hwmgr);
+	if (ret)
+		return ret;
+
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_BacoWorkAroundFlushVDCI);
 }

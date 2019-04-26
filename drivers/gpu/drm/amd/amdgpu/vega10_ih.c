@@ -136,6 +136,25 @@ static uint32_t vega10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl
 	return ih_rb_cntl;
 }
 
+static uint32_t vega10_ih_doorbell_rptr(struct amdgpu_ih_ring *ih)
+{
+	u32 ih_doorbell_rtpr = 0;
+
+	if (ih->use_doorbell) {
+		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr,
+						 IH_DOORBELL_RPTR, OFFSET,
+						 ih->doorbell_index);
+		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr,
+						 IH_DOORBELL_RPTR,
+						 ENABLE, 1);
+	} else {
+		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr,
+						 IH_DOORBELL_RPTR,
+						 ENABLE, 0);
+	}
+	return ih_doorbell_rtpr;
+}
+
 /**
  * vega10_ih_irq_init - init and enable the interrupt ring
  *
@@ -150,8 +169,8 @@ static uint32_t vega10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl
 static int vega10_ih_irq_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ih_ring *ih;
+	u32 ih_rb_cntl;
 	int ret = 0;
-	u32 ih_rb_cntl, ih_doorbell_rtpr;
 	u32 tmp;
 
 	/* disable irqs */
@@ -177,23 +196,11 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		     upper_32_bits(ih->wptr_addr) & 0xFFFF);
 
 	/* set rptr, wptr to 0 */
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR, 0);
+	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
 
-	ih_doorbell_rtpr = RREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR);
-	if (adev->irq.ih.use_doorbell) {
-		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr,
-						 IH_DOORBELL_RPTR, OFFSET,
-						 adev->irq.ih.doorbell_index);
-		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr,
-						 IH_DOORBELL_RPTR,
-						 ENABLE, 1);
-	} else {
-		ih_doorbell_rtpr = REG_SET_FIELD(ih_doorbell_rtpr,
-						 IH_DOORBELL_RPTR,
-						 ENABLE, 0);
-	}
-	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR, ih_doorbell_rtpr);
+	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR,
+		     vega10_ih_doorbell_rptr(ih));
 
 	ih = &adev->irq.ih1;
 	if (ih->ring_size) {
@@ -203,11 +210,18 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 
 		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
 		ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
+		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
+					   WPTR_OVERFLOW_ENABLE, 0);
+		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
+					   RB_FULL_DRAIN_ENABLE, 1);
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
 
 		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, 0);
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING1, 0);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, 0);
+
+		WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING1,
+			     vega10_ih_doorbell_rptr(ih));
 	}
 
 	ih = &adev->irq.ih2;
@@ -216,13 +230,16 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI_RING2,
 			     (ih->gpu_addr >> 40) & 0xff);
 
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
+		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
 		ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2, ih_rb_cntl);
 
 		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, 0);
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING2, 0);
+		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, 0);
+
+		WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING2,
+			     vega10_ih_doorbell_rptr(ih));
 	}
 
 	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL);
@@ -449,19 +466,22 @@ static int vega10_ih_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (adev->asic_type == CHIP_VEGA10) {
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
-		if (r)
-			return r;
-
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
-		if (r)
-			return r;
-	}
-
-	/* TODO add doorbell for IH1 & IH2 as well */
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = adev->doorbell_index.ih << 1;
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
+	if (r)
+		return r;
+
+	adev->irq.ih1.use_doorbell = true;
+	adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
+	if (r)
+		return r;
+
+	adev->irq.ih2.use_doorbell = true;
+	adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
 
 	r = amdgpu_irq_init(adev);
 

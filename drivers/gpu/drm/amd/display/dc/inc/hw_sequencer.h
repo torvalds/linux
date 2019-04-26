@@ -176,6 +176,10 @@ struct hw_sequencer_funcs {
 				struct dc *dc,
 				struct pipe_ctx *pipe,
 				bool lock);
+	void (*pipe_control_lock_global)(
+				struct dc *dc,
+				struct pipe_ctx *pipe,
+				bool lock);
 	void (*blank_pixel_data)(
 			struct dc *dc,
 			struct pipe_ctx *pipe_ctx,

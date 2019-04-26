@@ -24,6 +24,9 @@
 #ifndef __AMDGPU_IH_H__
 #define __AMDGPU_IH_H__
 
+/* Maximum number of IVs processed at once */
+#define AMDGPU_IH_MAX_NUM_IVS	32
+
 struct amdgpu_device;
 struct amdgpu_iv_entry;
 

@@ -408,7 +408,7 @@ static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
 	loff_t num_pages = obj->size >> PAGE_SHIFT;
 	struct page *page;
 
-	if (vmf->pgoff > num_pages || WARN_ON_ONCE(!shmem->pages))
+	if (vmf->pgoff >= num_pages || WARN_ON_ONCE(!shmem->pages))
 		return VM_FAULT_SIGBUS;
 
 	page = shmem->pages[vmf->pgoff];

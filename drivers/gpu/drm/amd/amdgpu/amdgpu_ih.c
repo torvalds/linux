@@ -142,6 +142,7 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
  */
 int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 {
+	unsigned int count = AMDGPU_IH_MAX_NUM_IVS;
 	u32 wptr;
 
 	if (!ih->enabled || adev->shutdown)
@@ -159,7 +160,7 @@ restart_ih:
 	/* Order reading of wptr vs. reading of IH ring data */
 	rmb();
 
-	while (ih->rptr != wptr) {
+	while (ih->rptr != wptr && --count) {
 		amdgpu_irq_dispatch(adev, ih);
 		ih->rptr &= ih->ptr_mask;
 	}

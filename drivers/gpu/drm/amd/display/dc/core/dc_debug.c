@@ -351,19 +351,19 @@ void context_clock_trace(
 	DC_LOGGER_INIT(dc->ctx->logger);
 	CLOCK_TRACE("Current: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
 			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
-			context->bw.dcn.clk.dispclk_khz,
-			context->bw.dcn.clk.dppclk_khz,
-			context->bw.dcn.clk.dcfclk_khz,
-			context->bw.dcn.clk.dcfclk_deep_sleep_khz,
-			context->bw.dcn.clk.fclk_khz,
-			context->bw.dcn.clk.socclk_khz);
+			context->bw_ctx.bw.dcn.clk.dispclk_khz,
+			context->bw_ctx.bw.dcn.clk.dppclk_khz,
+			context->bw_ctx.bw.dcn.clk.dcfclk_khz,
+			context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz,
+			context->bw_ctx.bw.dcn.clk.fclk_khz,
+			context->bw_ctx.bw.dcn.clk.socclk_khz);
 	CLOCK_TRACE("Calculated: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
 			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
-			context->bw.dcn.clk.dispclk_khz,
-			context->bw.dcn.clk.dppclk_khz,
-			context->bw.dcn.clk.dcfclk_khz,
-			context->bw.dcn.clk.dcfclk_deep_sleep_khz,
-			context->bw.dcn.clk.fclk_khz,
-			context->bw.dcn.clk.socclk_khz);
+			context->bw_ctx.bw.dcn.clk.dispclk_khz,
+			context->bw_ctx.bw.dcn.clk.dppclk_khz,
+			context->bw_ctx.bw.dcn.clk.dcfclk_khz,
+			context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz,
+			context->bw_ctx.bw.dcn.clk.fclk_khz,
+			context->bw_ctx.bw.dcn.clk.socclk_khz);
 #endif
 }

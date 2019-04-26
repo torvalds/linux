@@ -130,8 +130,8 @@ struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 	int ret;
 
 	shmem_obj = drm_gem_shmem_create(dev, unaligned_size);
-	if (!shmem_obj)
-		return NULL;
+	if (IS_ERR(shmem_obj))
+		return ERR_CAST(shmem_obj);
 	bo = to_v3d_bo(&shmem_obj->base);
 
 	ret = v3d_bo_create_finish(&shmem_obj->base);

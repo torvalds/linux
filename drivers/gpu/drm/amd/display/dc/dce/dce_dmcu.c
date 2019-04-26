@@ -213,9 +213,6 @@ static bool dce_dmcu_setup_psr(struct dmcu *dmcu,
 	link->link_enc->funcs->psr_program_secondary_packet(link->link_enc,
 			psr_context->sdpTransmitLineNumDeadline);
 
-	if (psr_context->psr_level.bits.SKIP_SMU_NOTIFICATION)
-		REG_UPDATE(SMU_INTERRUPT_CONTROL, DC_SMU_INT_ENABLE, 1);
-
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 					dmcu_wait_reg_ready_interval,
@@ -594,7 +591,7 @@ static bool dcn10_dmcu_setup_psr(struct dmcu *dmcu,
 	link->link_enc->funcs->psr_program_secondary_packet(link->link_enc,
 			psr_context->sdpTransmitLineNumDeadline);
 
-	if (psr_context->psr_level.bits.SKIP_SMU_NOTIFICATION)
+	if (psr_context->allow_smu_optimizations)
 		REG_UPDATE(SMU_INTERRUPT_CONTROL, DC_SMU_INT_ENABLE, 1);
 
 	/* waitDMCUReadyForCmd */
@@ -615,6 +612,7 @@ static bool dcn10_dmcu_setup_psr(struct dmcu *dmcu,
 			psr_context->psrFrameCaptureIndicationReq;
 	masterCmdData1.bits.aux_chan = psr_context->channel;
 	masterCmdData1.bits.aux_repeat = psr_context->aux_repeats;
+	masterCmdData1.bits.allow_smu_optimizations = psr_context->allow_smu_optimizations;
 	dm_write_reg(dmcu->ctx, REG(MASTER_COMM_DATA_REG1),
 					masterCmdData1.u32All);
 
@@ -634,6 +632,7 @@ static bool dcn10_dmcu_setup_psr(struct dmcu *dmcu,
 	masterCmdData3.bits.psr_level = psr_context->psr_level.u32all;
 	dm_write_reg(dmcu->ctx, REG(MASTER_COMM_DATA_REG3),
 			masterCmdData3.u32All);
+
 
 	/* setDMCUParam_Cmd */
 	REG_UPDATE(MASTER_COMM_CMD_REG,

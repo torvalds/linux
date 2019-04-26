@@ -116,8 +116,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 		goto out_release_fbi;
 	}
 
-	info->par = hi_fbdev;
-
 	hi_fbdev->fb = hibmc_framebuffer_init(priv->dev, &mode_cmd, gobj);
 	if (IS_ERR(hi_fbdev->fb)) {
 		ret = PTR_ERR(hi_fbdev->fb);
@@ -129,14 +127,9 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	priv->fbdev->size = size;
 	hi_fbdev->helper.fb = &hi_fbdev->fb->fb;
 
-	strcpy(info->fix.id, "hibmcdrmfb");
-
 	info->fbops = &hibmc_drm_fb_ops;
 
-	drm_fb_helper_fill_fix(info, hi_fbdev->fb->fb.pitches[0],
-			       hi_fbdev->fb->fb.format->depth);
-	drm_fb_helper_fill_var(info, &priv->fbdev->helper, sizes->fb_width,
-			       sizes->fb_height);
+	drm_fb_helper_fill_info(info, &priv->fbdev->helper, sizes);
 
 	info->screen_base = bo->kmap.virtual;
 	info->screen_size = size;

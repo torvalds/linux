@@ -231,8 +231,6 @@ config DRM_AMDGPU
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
 
-source "drivers/gpu/drm/amd/lib/Kconfig"
-
 source "drivers/gpu/drm/nouveau/Kconfig"
 
 source "drivers/gpu/drm/i915/Kconfig"
@@ -256,6 +254,9 @@ config DRM_VKMS
 	  a VKMS.
 
 	  If M is selected the module will be called vkms.
+
+config DRM_ATI_PCIGART
+        bool
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
@@ -337,12 +338,19 @@ source "drivers/gpu/drm/xen/Kconfig"
 
 source "drivers/gpu/drm/vboxvideo/Kconfig"
 
+source "drivers/gpu/drm/lima/Kconfig"
+
+source "drivers/gpu/drm/panfrost/Kconfig"
+
+source "drivers/gpu/drm/aspeed/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
 	bool "Enable legacy drivers (DANGEROUS)"
 	depends on DRM && MMU
 	select DRM_VM
+	select DRM_ATI_PCIGART if PCI
 	help
 	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
 	  APIs to user-space, which can be used to circumvent access

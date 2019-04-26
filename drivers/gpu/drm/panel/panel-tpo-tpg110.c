@@ -390,8 +390,6 @@ static int tpg110_get_modes(struct drm_panel *panel)
 	struct tpg110 *tpg = to_tpg110(panel);
 	struct drm_display_mode *mode;
 
-	strncpy(connector->display_info.name, tpg->panel_mode->name,
-		DRM_DISPLAY_INFO_LEN);
 	connector->display_info.width_mm = tpg->width;
 	connector->display_info.height_mm = tpg->height;
 	connector->display_info.bus_flags = tpg->panel_mode->bus_flags;

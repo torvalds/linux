@@ -21,6 +21,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
@@ -218,12 +219,12 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			tinydrm_swab16(dst, src, fb, clip);
+			drm_fb_swab16(dst, src, fb, clip);
 		else
-			tinydrm_memcpy(dst, src, fb, clip);
+			drm_fb_memcpy(dst, src, fb, clip);
 		break;
 	case DRM_FORMAT_XRGB8888:
-		tinydrm_xrgb8888_to_rgb565(dst, src, fb, clip, swap);
+		drm_fb_xrgb8888_to_rgb565(dst, src, fb, clip, swap);
 		break;
 	default:
 		dev_err_once(fb->dev->dev, "Format is not supported: %s\n",

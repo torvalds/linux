@@ -90,6 +90,18 @@ static irqreturn_t meson_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static int meson_dumb_create(struct drm_file *file, struct drm_device *dev,
+			     struct drm_mode_create_dumb *args)
+{
+	/*
+	 * We need 64bytes aligned stride, and PAGE aligned size
+	 */
+	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8), SZ_64);
+	args->size = PAGE_ALIGN(args->pitch * args->height);
+
+	return drm_gem_cma_dumb_create_internal(file, dev, args);
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver meson_driver = {
@@ -112,7 +124,7 @@ static struct drm_driver meson_driver = {
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 
 	/* GEM Ops */
-	.dumb_create		= drm_gem_cma_dumb_create,
+	.dumb_create		= meson_dumb_create,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
@@ -317,12 +329,14 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto free_drm;
+		goto uninstall_irq;
 
 	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
+uninstall_irq:
+	drm_irq_uninstall(drm);
 free_drm:
 	drm_dev_put(drm);
 
@@ -336,8 +350,8 @@ static int meson_drv_bind(struct device *dev)
 
 static void meson_drv_unbind(struct device *dev)
 {
-	struct drm_device *drm = dev_get_drvdata(dev);
-	struct meson_drm *priv = drm->dev_private;
+	struct meson_drm *priv = dev_get_drvdata(dev);
+	struct drm_device *drm = priv->drm;
 
 	if (priv->canvas) {
 		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
@@ -347,6 +361,7 @@ static void meson_drv_unbind(struct device *dev)
 	}
 
 	drm_dev_unregister(drm);
+	drm_irq_uninstall(drm);
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
 	drm_dev_put(drm);
@@ -444,6 +459,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "amlogic,meson-gxbb-vpu" },
 	{ .compatible = "amlogic,meson-gxl-vpu" },
 	{ .compatible = "amlogic,meson-gxm-vpu" },
+	{ .compatible = "amlogic,meson-g12a-vpu" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
