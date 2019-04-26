@@ -32,12 +32,6 @@
 #define EMMC_VENDOR_PART_NUM		4
 #define EMMC_VENDOR_TAG			0x524B5644
 
-struct rk_sys_req {
-	u32	tag;
-	u32	len;
-	u8	data[512];
-};
-
 struct rk_vendor_req {
 	u32 tag;
 	u16 id;
@@ -65,12 +59,14 @@ struct vendor_info {
 	u32	version2;
 };
 
+#ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 #define READ_SECTOR_IO		_IOW('r', 0x04, unsigned int)
 #define WRITE_SECTOR_IO		_IOW('r', 0x05, unsigned int)
 #define END_WRITE_SECTOR_IO	_IOW('r', 0x52, unsigned int)
 #define GET_FLASH_INFO_IO	_IOW('r', 0x1A, unsigned int)
 #define GET_BAD_BLOCK_IO	_IOW('r', 0x03, unsigned int)
 #define GET_LOCK_FLAG_IO	_IOW('r', 0x53, unsigned int)
+#endif
 
 #define VENDOR_REQ_TAG		0x56524551
 #define VENDOR_READ_IO		_IOW('v', 0x01, unsigned int)
@@ -78,13 +74,13 @@ struct vendor_info {
 
 static u8 *g_idb_buffer;
 static struct vendor_info *g_vendor;
-
+static DEFINE_MUTEX(vendor_ops_mutex);
 extern int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz,
 			    int write);
 
 static int emmc_vendor_ops(u8 *buffer, u32 addr, u32 n_sec, int write)
 {
-	u32 i, ret;
+	u32 i, ret = 0;
 
 	for (i = 0; i < n_sec; i++)
 		ret = rk_emmc_transfer(buffer + i * 512, addr + i, 512, write);
@@ -173,7 +169,7 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
 	struct vendor_item *next_item;
 
 	if (!g_vendor)
-		return -1;
+		return -ENOMEM;
 
 	p_data = g_vendor->data;
 	item_num = g_vendor->item_num;
@@ -248,6 +244,7 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
 	return(-1);
 }
 
+#ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 static int id_blk_read_data(u32 index, u32 n_sec, u8 *buf)
 {
 	u32 i;
@@ -319,6 +316,7 @@ static int emmc_write_idblock(u32 size, u8 *buf, u32 *id_blk_tbl)
 		return 0;
 	return (-1);
 }
+#endif
 
 static int vendor_storage_open(struct inode *inode, struct file *file)
 {
@@ -330,6 +328,7 @@ static int vendor_storage_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 static const u32 g_crc32_tbl[256] = {
 	0x00000000, 0x04c10db7, 0x09821b6e, 0x0d4316d9,
 	0x130436dc, 0x17c53b6b, 0x1a862db2, 0x1e472005,
@@ -406,22 +405,23 @@ static u32 rk_crc_32(unsigned char *buf, u32 len)
 		crc = (crc << 8) ^ g_crc32_tbl[(crc >> 24) ^ *buf++];
 	return crc;
 }
+#endif
 
 static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
 				 unsigned long arg)
 {
 	long ret = -1;
-	u32 size;
-	struct rk_sys_req *s_req;
+	int size;
 	struct rk_vendor_req *v_req;
 	u32 *page_buf;
 
 	page_buf = kmalloc(4096, GFP_KERNEL);
 	if (!page_buf)
-		return ret;
+		return -ENOMEM;
+
+	mutex_lock(&vendor_ops_mutex);
 
 	v_req = (struct rk_vendor_req *)page_buf;
-	s_req = (struct rk_sys_req *)page_buf;
 
 	switch (cmd) {
 	case VENDOR_READ_IO:
@@ -461,6 +461,7 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
 		}
 	} break;
 
+#ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	case READ_SECTOR_IO:
 	{
 		if (copy_from_user(page_buf, (void __user *)arg, 512)) {
@@ -477,7 +478,8 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
 				goto exit;
 			}
 		} else {
-			return -EFAULT;
+			ret = -EFAULT;
+			goto exit;
 		}
 		ret = 0;
 	} break;
@@ -566,13 +568,14 @@ static long vendor_storage_ioctl(struct file *file, unsigned int cmd,
 		}
 		ret = 0;
 	} break;
+#endif
 
 	default:
-		ret = -EFAULT;
+		ret = -EINVAL;
 		goto exit;
 	}
 exit:
-	pr_info("ret = %lx\n", ret);
+	mutex_unlock(&vendor_ops_mutex);
 	kfree(page_buf);
 	return ret;
 }
@@ -607,7 +610,7 @@ static int vendor_init_thread(void *arg)
 		ret = misc_register(&vender_storage_dev);
 		rk_vendor_register(emmc_vendor_read, emmc_vendor_write);
 	}
-	pr_info("vendor storage:20160801 ret = %d\n", ret);
+	pr_info("vendor storage:20190527 ret = %d\n", ret);
 	return ret;
 }
 
