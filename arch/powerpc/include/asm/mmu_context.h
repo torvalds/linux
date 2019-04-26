@@ -228,13 +228,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 #endif
 }
 
-#ifdef CONFIG_PPC_BOOK3E_64
-static inline void arch_exit_mmap(struct mm_struct *mm)
-{
-}
-#else
 extern void arch_exit_mmap(struct mm_struct *mm);
-#endif
 
 static inline void arch_unmap(struct mm_struct *mm,
 			      struct vm_area_struct *vma,

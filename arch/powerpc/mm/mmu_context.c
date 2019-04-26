@@ -98,7 +98,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	switch_mmu_context(prev, next, tsk);
 }
 
-#ifdef CONFIG_PPC32
+#ifndef CONFIG_PPC_BOOK3S_64
 void arch_exit_mmap(struct mm_struct *mm)
 {
 	void *frag = pte_frag_get(&mm->context);
