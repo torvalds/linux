@@ -963,11 +963,9 @@ requeue:
 		dev_kfree_skb_any(new_skb);
 }
 
-static void cpsw_split_res(struct net_device *ndev)
+static void cpsw_split_res(struct cpsw_common *cpsw)
 {
-	struct cpsw_priv *priv = netdev_priv(ndev);
 	u32 consumed_rate = 0, bigest_rate = 0;
-	struct cpsw_common *cpsw = priv->cpsw;
 	struct cpsw_vector *txv = cpsw->txv;
 	int i, ch_weight, rlim_ch_num = 0;
 	int budget, bigest_rate_ch = 0;
@@ -1341,7 +1339,7 @@ static void cpsw_adjust_link(struct net_device *ndev)
 
 	if (link) {
 		if (cpsw_need_resplit(cpsw))
-			cpsw_split_res(ndev);
+			cpsw_split_res(cpsw);
 
 		netif_carrier_on(ndev);
 		if (netif_running(ndev))
@@ -2107,7 +2105,7 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	for_each_slave(priv, cpsw_slave_stop, cpsw);
 
 	if (cpsw_need_resplit(cpsw))
-		cpsw_split_res(ndev);
+		cpsw_split_res(cpsw);
 
 	cpsw->usage_count--;
 	pm_runtime_put_sync(cpsw->dev);
@@ -2594,7 +2592,7 @@ static int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 		netdev_get_tx_queue(slave->ndev, queue)->tx_maxrate = rate;
 	}
 
-	cpsw_split_res(ndev);
+	cpsw_split_res(cpsw);
 	return ret;
 }
 
@@ -3063,7 +3061,7 @@ static int cpsw_set_channels(struct net_device *ndev,
 	}
 
 	if (cpsw->usage_count)
-		cpsw_split_res(ndev);
+		cpsw_split_res(cpsw);
 
 	ret = cpsw_resume_data_pass(ndev);
 	if (!ret)
@@ -3698,7 +3696,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	netif_tx_napi_add(ndev, &cpsw->napi_tx,
 			  cpsw->quirk_irq ? cpsw_tx_poll : cpsw_tx_mq_poll,
 			  CPSW_POLL_WEIGHT);
-	cpsw_split_res(ndev);
+	cpsw_split_res(cpsw);
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, &pdev->dev);
