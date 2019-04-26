@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_NOHASH_PGALLOC_H
 
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 #ifdef CONFIG_PPC64
@@ -15,6 +16,17 @@ static inline void tlb_flush_pgtable(struct mmu_gather *tlb,
 
 }
 #endif /* !CONFIG_PPC_BOOK3E */
+
+static inline pgd_t *pgd_alloc(struct mm_struct *mm)
+{
+	return kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
+			pgtable_gfp_flags(mm, GFP_KERNEL));
+}
+
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+	kmem_cache_free(PGT_CACHE(PGD_INDEX_SIZE), pgd);
+}
 
 #ifdef CONFIG_PPC64
 #include <asm/nohash/64/pgalloc.h>
