@@ -400,6 +400,14 @@ struct ath10k_peer {
 
 	/* protected by ar->data_lock */
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
+	union htt_rx_pn_t tids_last_pn[ATH10K_TXRX_NUM_EXT_TIDS];
+	bool tids_last_pn_valid[ATH10K_TXRX_NUM_EXT_TIDS];
+	union htt_rx_pn_t frag_tids_last_pn[ATH10K_TXRX_NUM_EXT_TIDS];
+	u32 frag_tids_seq[ATH10K_TXRX_NUM_EXT_TIDS];
+	struct {
+		enum htt_security_types sec_type;
+		int pn_len;
+	} rx_pn[ATH10K_HTT_TXRX_PEER_SECURITY_MAX];
 };
 
 struct ath10k_txq {
