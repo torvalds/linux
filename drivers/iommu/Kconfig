@@ -359,6 +359,31 @@ config ARM_SMMU
 	  Say Y here if your SoC includes an IOMMU device implementing
 	  the ARM SMMU architecture.
 
+config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
+	bool "Default to disabling bypass on ARM SMMU v1 and v2"
+	depends on ARM_SMMU
+	default y
+	help
+	  Say Y here to (by default) disable bypass streams such that
+	  incoming transactions from devices that are not attached to
+	  an iommu domain will report an abort back to the device and
+	  will not be allowed to pass through the SMMU.
+
+	  Any old kernels that existed before this KConfig was
+	  introduced would default to _allowing_ bypass (AKA the
+	  equivalent of NO for this config).  However the default for
+	  this option is YES because the old behavior is insecure.
+
+	  There are few reasons to allow unmatched stream bypass, and
+	  even fewer good ones.  If saying YES here breaks your board
+	  you should work on fixing your board.  This KConfig option
+	  is expected to be removed in the future and we'll simply
+	  hardcode the bypass disable in the code.
+
+	  NOTE: the kernel command line parameter
+	  'arm-smmu.disable_bypass' will continue to override this
+	  config.
+
 config ARM_SMMU_V3
 	bool "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
 	depends on ARM64
