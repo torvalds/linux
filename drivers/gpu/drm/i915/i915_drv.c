@@ -886,6 +886,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->backlight_lock);
 
 	mutex_init(&dev_priv->sb_lock);
+	pm_qos_add_request(&dev_priv->sb_qos,
+			   PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+
 	mutex_init(&dev_priv->av_mutex);
 	mutex_init(&dev_priv->wm.wm_mutex);
 	mutex_init(&dev_priv->pps_mutex);
@@ -945,6 +948,9 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 	i915_gem_cleanup_early(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 	i915_engines_cleanup(dev_priv);
+
+	pm_qos_remove_request(&dev_priv->sb_qos);
+	mutex_destroy(&dev_priv->sb_lock);
 }
 
 /**
