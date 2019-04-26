@@ -773,10 +773,8 @@ out_free:
 static void ccw_transport_features(struct virtio_device *vdev)
 {
 	/*
-	 * There shouldn't be anything that precludes supporting packed.
-	 * TODO: Remove the limitation after having another look into this.
+	 * Currently nothing to do here.
 	 */
-	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
 }
 
 static int virtio_ccw_finalize_features(struct virtio_device *vdev)
