@@ -2209,6 +2209,7 @@ static void nl802154_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_GET_WPAN_PHY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_get_wpan_phy,
 		.dumpit = nl802154_dump_wpan_phy,
 		.done = nl802154_dump_wpan_phy_done,
@@ -2218,6 +2219,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_GET_INTERFACE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_get_interface,
 		.dumpit = nl802154_dump_interface,
 		/* can be retrieved by unprivileged users */
@@ -2226,6 +2228,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_NEW_INTERFACE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_new_interface,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
@@ -2233,6 +2236,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_DEL_INTERFACE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_del_interface,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
@@ -2240,6 +2244,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_CHANNEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_channel,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
@@ -2247,6 +2252,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_CCA_MODE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_cca_mode,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
@@ -2254,6 +2260,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_CCA_ED_LEVEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_cca_ed_level,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
@@ -2261,6 +2268,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_TX_POWER,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_tx_power,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
@@ -2268,6 +2276,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_WPAN_PHY_NETNS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_wpan_phy_netns,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
@@ -2275,6 +2284,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_PAN_ID,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_pan_id,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2282,6 +2292,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_SHORT_ADDR,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_short_addr,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2289,6 +2300,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_BACKOFF_EXPONENT,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_backoff_exponent,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2296,6 +2308,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_MAX_CSMA_BACKOFFS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_max_csma_backoffs,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2303,6 +2316,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_MAX_FRAME_RETRIES,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_max_frame_retries,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2310,6 +2324,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_LBT_MODE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_lbt_mode,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2317,6 +2332,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_SET_ACKREQ_DEFAULT,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_ackreq_default,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2325,6 +2341,7 @@ static const struct genl_ops nl802154_ops[] = {
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	{
 		.cmd = NL802154_CMD_SET_SEC_PARAMS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_set_llsec_params,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2332,6 +2349,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_GET_SEC_KEY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		/* TODO .doit by matching key id? */
 		.dumpit = nl802154_dump_llsec_key,
 		.flags = GENL_ADMIN_PERM,
@@ -2340,6 +2358,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_NEW_SEC_KEY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_add_llsec_key,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2347,6 +2366,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_DEL_SEC_KEY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_del_llsec_key,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2355,6 +2375,7 @@ static const struct genl_ops nl802154_ops[] = {
 	/* TODO unique identifier must short+pan OR extended_addr */
 	{
 		.cmd = NL802154_CMD_GET_SEC_DEV,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		/* TODO .doit by matching extended_addr? */
 		.dumpit = nl802154_dump_llsec_dev,
 		.flags = GENL_ADMIN_PERM,
@@ -2363,6 +2384,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_NEW_SEC_DEV,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_add_llsec_dev,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2370,6 +2392,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_DEL_SEC_DEV,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_del_llsec_dev,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2378,6 +2401,7 @@ static const struct genl_ops nl802154_ops[] = {
 	/* TODO remove complete devkey, put it as nested? */
 	{
 		.cmd = NL802154_CMD_GET_SEC_DEVKEY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		/* TODO doit by matching ??? */
 		.dumpit = nl802154_dump_llsec_devkey,
 		.flags = GENL_ADMIN_PERM,
@@ -2386,6 +2410,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_NEW_SEC_DEVKEY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_add_llsec_devkey,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2393,6 +2418,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_DEL_SEC_DEVKEY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_del_llsec_devkey,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2400,6 +2426,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_GET_SEC_LEVEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		/* TODO .doit by matching frame_type? */
 		.dumpit = nl802154_dump_llsec_seclevel,
 		.flags = GENL_ADMIN_PERM,
@@ -2408,6 +2435,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_NEW_SEC_LEVEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nl802154_add_llsec_seclevel,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
@@ -2415,6 +2443,7 @@ static const struct genl_ops nl802154_ops[] = {
 	},
 	{
 		.cmd = NL802154_CMD_DEL_SEC_LEVEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		/* TODO match frame_type only? */
 		.doit = nl802154_del_llsec_seclevel,
 		.flags = GENL_ADMIN_PERM,

@@ -121,6 +121,12 @@ static inline int genl_err_attr(struct genl_info *info, int err,
 	return err;
 }
 
+enum genl_validate_flags {
+	GENL_DONT_VALIDATE_STRICT		= BIT(0),
+	GENL_DONT_VALIDATE_DUMP			= BIT(1),
+	GENL_DONT_VALIDATE_DUMP_STRICT		= BIT(2),
+};
+
 /**
  * struct genl_ops - generic netlink operations
  * @cmd: command identifier
@@ -141,6 +147,7 @@ struct genl_ops {
 	u8			cmd;
 	u8			internal_flags;
 	u8			flags;
+	u8			validate;
 };
 
 int genl_register_family(struct genl_family *family);

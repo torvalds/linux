@@ -16,21 +16,25 @@ static const struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 static const struct genl_ops ila_nl_ops[] = {
 	{
 		.cmd = ILA_CMD_ADD,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = ila_xlat_nl_cmd_add_mapping,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = ILA_CMD_DEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = ila_xlat_nl_cmd_del_mapping,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = ILA_CMD_FLUSH,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = ila_xlat_nl_cmd_flush,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = ILA_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = ila_xlat_nl_cmd_get_mapping,
 		.start = ila_xlat_nl_dump_start,
 		.dumpit = ila_xlat_nl_dump,

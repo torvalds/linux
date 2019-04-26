@@ -441,21 +441,25 @@ static int tcmu_genl_set_features(struct sk_buff *skb, struct genl_info *info)
 static const struct genl_ops tcmu_genl_ops[] = {
 	{
 		.cmd	= TCMU_CMD_SET_FEATURES,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
 		.doit	= tcmu_genl_set_features,
 	},
 	{
 		.cmd	= TCMU_CMD_ADDED_DEVICE_DONE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
 		.doit	= tcmu_genl_add_dev_done,
 	},
 	{
 		.cmd	= TCMU_CMD_REMOVED_DEVICE_DONE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
 		.doit	= tcmu_genl_rm_dev_done,
 	},
 	{
 		.cmd	= TCMU_CMD_RECONFIG_DEVICE_DONE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
 		.doit	= tcmu_genl_reconfig_dev_done,
 	},

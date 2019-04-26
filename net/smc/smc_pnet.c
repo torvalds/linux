@@ -612,6 +612,7 @@ static int smc_pnet_flush(struct sk_buff *skb, struct genl_info *info)
 static const struct genl_ops smc_pnet_ops[] = {
 	{
 		.cmd = SMC_PNETID_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = smc_pnet_get,
 		.dumpit = smc_pnet_dump,
@@ -619,16 +620,19 @@ static const struct genl_ops smc_pnet_ops[] = {
 	},
 	{
 		.cmd = SMC_PNETID_ADD,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = smc_pnet_add
 	},
 	{
 		.cmd = SMC_PNETID_DEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = smc_pnet_del
 	},
 	{
 		.cmd = SMC_PNETID_FLUSH,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = smc_pnet_flush
 	}

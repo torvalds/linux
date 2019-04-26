@@ -536,6 +536,24 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 		if (ops->dumpit == NULL)
 			return -EOPNOTSUPP;
 
+		if (!(ops->validate & GENL_DONT_VALIDATE_DUMP)) {
+			unsigned int validate = NL_VALIDATE_STRICT;
+			int hdrlen = GENL_HDRLEN + family->hdrsize;
+
+			if (ops->validate & GENL_DONT_VALIDATE_DUMP_STRICT)
+				validate = NL_VALIDATE_LIBERAL;
+
+			if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
+				return -EINVAL;
+
+			rc = __nla_validate(nlmsg_attrdata(nlh, hdrlen),
+					    nlmsg_attrlen(nlh, hdrlen),
+					    family->maxattr, family->policy,
+					    validate, extack);
+			if (rc)
+				return rc;
+		}
+
 		if (!family->parallel_ops) {
 			struct netlink_dump_control c = {
 				.module = family->module,
@@ -577,9 +595,13 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 		attrbuf = family->attrbuf;
 
 	if (attrbuf) {
-		err = nlmsg_parse_deprecated(nlh, hdrlen, attrbuf,
-					     family->maxattr, family->policy,
-					     extack);
+		enum netlink_validation validate = NL_VALIDATE_STRICT;
+
+		if (ops->validate & GENL_DONT_VALIDATE_STRICT)
+			validate = NL_VALIDATE_LIBERAL;
+
+		err = __nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
+				    family->policy, validate, extack);
 		if (err < 0)
 			goto out;
 	}
@@ -939,6 +961,7 @@ static int genl_ctrl_event(int event, const struct genl_family *family,
 static const struct genl_ops genl_ctrl_ops[] = {
 	{
 		.cmd		= CTRL_CMD_GETFAMILY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= ctrl_getfamily,
 		.dumpit		= ctrl_dumpfamily,
 	},
