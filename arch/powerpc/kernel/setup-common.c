@@ -800,12 +800,6 @@ void arch_setup_pdev_archdata(struct platform_device *pdev)
 static __init void print_system_info(void)
 {
 	pr_info("-----------------------------------------------------\n");
-#ifdef CONFIG_PPC_BOOK3S_64
-	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
-#endif
-#ifdef CONFIG_PPC_BOOK3S_32
-	pr_info("Hash_size         = 0x%lx\n", Hash_size);
-#endif
 	pr_info("phys_mem_size     = 0x%llx\n",
 		(unsigned long long)memblock_phys_mem_size());
 
@@ -827,21 +821,7 @@ static __init void print_system_info(void)
 	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
 #endif
 
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (htab_address)
-		pr_info("htab_address      = 0x%p\n", htab_address);
-	if (htab_hash_mask)
-		pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
-	pr_info("kernel vmalloc start   = 0x%lx\n", KERN_VIRT_START);
-	pr_info("kernel IO start        = 0x%lx\n", KERN_IO_START);
-	pr_info("kernel vmemmap start   = 0x%lx\n", (unsigned long)vmemmap);
-#endif
-#ifdef CONFIG_PPC_BOOK3S_32
-	if (Hash)
-		pr_info("Hash              = 0x%p\n", Hash);
-	if (Hash_mask)
-		pr_info("Hash_mask         = 0x%lx\n", Hash_mask);
-#endif
+	print_system_hash_info();
 
 	if (PHYSICAL_START > 0)
 		pr_info("physical_start    = 0x%llx\n",

@@ -37,7 +37,7 @@
 #include <mm/mmu_decl.h>
 
 struct hash_pte *Hash;
-unsigned long Hash_size, Hash_mask;
+static unsigned long Hash_size, Hash_mask;
 unsigned long _SDR1;
 static unsigned int hash_mb, hash_mb2;
 
@@ -399,6 +399,13 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01000000));
 	else /* Anything else has 256M mapped */
 		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
+}
+
+void __init print_system_hash_info(void)
+{
+	pr_info("Hash_size         = 0x%lx\n", Hash_size);
+	if (Hash_mask)
+		pr_info("Hash_mask         = 0x%lx\n", Hash_mask);
 }
 
 #ifdef CONFIG_PPC_KUEP

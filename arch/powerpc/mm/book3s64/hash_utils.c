@@ -66,6 +66,8 @@
 #include <asm/pte-walk.h>
 #include <asm/asm-prototypes.h>
 
+#include <mm/mmu_decl.h>
+
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else
@@ -1945,3 +1947,14 @@ static int __init hash64_debugfs(void)
 }
 machine_device_initcall(pseries, hash64_debugfs);
 #endif /* CONFIG_DEBUG_FS */
+
+void __init print_system_hash_info(void)
+{
+	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
+
+	if (htab_hash_mask)
+		pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+	pr_info("kernel vmalloc start   = 0x%lx\n", KERN_VIRT_START);
+	pr_info("kernel IO start        = 0x%lx\n", KERN_IO_START);
+	pr_info("kernel vmemmap start   = 0x%lx\n", (unsigned long)vmemmap);
+}
