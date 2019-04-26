@@ -28,6 +28,7 @@
 
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
+#define KSZPHY_OMSO_FACTORY_TEST		BIT(15)
 #define KSZPHY_OMSO_B_CAST_OFF			BIT(9)
 #define KSZPHY_OMSO_NAND_TREE_ON		BIT(5)
 #define KSZPHY_OMSO_RMII_OVERRIDE		BIT(1)
@@ -338,6 +339,18 @@ static int ksz8041_config_aneg(struct phy_device *phydev)
 	}
 
 	return genphy_config_aneg(phydev);
+}
+
+static int ksz8081_config_init(struct phy_device *phydev)
+{
+	/* KSZPHY_OMSO_FACTORY_TEST is set at de-assertion of the reset line
+	 * based on the RXER (KSZ8081RNA/RND) or TXC (KSZ8081MNX/RNB) pin. If a
+	 * pull-down is missing, the factory test mode should be cleared by
+	 * manually writing a 0.
+	 */
+	phy_clear_bits(phydev, MII_KSZPHY_OMSO, KSZPHY_OMSO_FACTORY_TEST);
+
+	return kszphy_config_init(phydev);
 }
 
 static int ksz8061_config_init(struct phy_device *phydev)
@@ -1038,7 +1051,7 @@ static struct phy_driver ksphy_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.driver_data	= &ksz8081_type,
 	.probe		= kszphy_probe,
-	.config_init	= kszphy_config_init,
+	.config_init	= ksz8081_config_init,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= kszphy_config_intr,
 	.get_sset_count = kszphy_get_sset_count,
