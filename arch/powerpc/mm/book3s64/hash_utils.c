@@ -37,6 +37,7 @@
 #include <linux/context_tracking.h>
 #include <linux/libfdt.h>
 #include <linux/pkeys.h>
+#include <linux/hugetlb.h>
 
 #include <asm/debugfs.h>
 #include <asm/processor.h>
