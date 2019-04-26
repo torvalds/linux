@@ -7441,8 +7441,15 @@ static int bnxt_cfg_rx_mode(struct bnxt *bp)
 
 skip_uc:
 	rc = bnxt_hwrm_cfa_l2_set_rx_mask(bp, 0);
+	if (rc && vnic->mc_list_count) {
+		netdev_info(bp->dev, "Failed setting MC filters rc: %d, turning on ALL_MCAST mode\n",
+			    rc);
+		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST;
+		vnic->mc_list_count = 0;
+		rc = bnxt_hwrm_cfa_l2_set_rx_mask(bp, 0);
+	}
 	if (rc)
-		netdev_err(bp->dev, "HWRM cfa l2 rx mask failure rc: %x\n",
+		netdev_err(bp->dev, "HWRM cfa l2 rx mask failure rc: %d\n",
 			   rc);
 
 	return rc;
