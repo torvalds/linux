@@ -9704,12 +9704,10 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	}
 }
 
-static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
+static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv,
+					    u32 mbox)
 {
-	u32 flags =
-		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
-
-	switch (flags) {
+	switch (mbox & GEN6_PCODE_ERROR_MASK) {
 	case GEN6_PCODE_SUCCESS:
 		return 0;
 	case GEN6_PCODE_UNIMPLEMENTED_CMD:
@@ -9722,17 +9720,15 @@ static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
 	case GEN6_PCODE_TIMEOUT:
 		return -ETIMEDOUT;
 	default:
-		MISSING_CASE(flags);
+		MISSING_CASE(mbox & GEN6_PCODE_ERROR_MASK);
 		return 0;
 	}
 }
 
-static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv)
+static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv,
+					    u32 mbox)
 {
-	u32 flags =
-		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
-
-	switch (flags) {
+	switch (mbox & GEN6_PCODE_ERROR_MASK) {
 	case GEN6_PCODE_SUCCESS:
 		return 0;
 	case GEN6_PCODE_ILLEGAL_CMD:
@@ -9744,19 +9740,21 @@ static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv)
 	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
 		return -EOVERFLOW;
 	default:
-		MISSING_CASE(flags);
+		MISSING_CASE(mbox & GEN6_PCODE_ERROR_MASK);
 		return 0;
 	}
 }
 
-static int
-__sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
+static int __sandybridge_pcode_rw(struct drm_i915_private *dev_priv,
+				  u32 mbox, u32 *val,
+				  int fast_timeout_us,
+				  int slow_timeout_ms,
+				  bool is_read)
 {
-	int status;
-
 	lockdep_assert_held(&dev_priv->sb_lock);
 
-	/* GEN6_PCODE_* are outside of the forcewake domain, we can
+	/*
+	 * GEN6_PCODE_* are outside of the forcewake domain, we can
 	 * use te fw I915_READ variants to reduce the amount of work
 	 * required when reading/writing.
 	 */
@@ -9770,70 +9768,37 @@ __sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 
 	if (__intel_wait_for_register_fw(&dev_priv->uncore,
 					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
-					 500, 0, NULL))
+					 fast_timeout_us,
+					 slow_timeout_ms,
+					 &mbox))
 		return -ETIMEDOUT;
 
-	*val = I915_READ_FW(GEN6_PCODE_DATA);
-	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
+	if (is_read)
+		*val = I915_READ_FW(GEN6_PCODE_DATA);
 
 	if (INTEL_GEN(dev_priv) > 6)
-		status = gen7_check_mailbox_status(dev_priv);
+		return gen7_check_mailbox_status(dev_priv, mbox);
 	else
-		status = gen6_check_mailbox_status(dev_priv);
-
-	return status;
+		return gen6_check_mailbox_status(dev_priv, mbox);
 }
 
 int
 sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
-	int status;
+	int err;
 
 	mutex_lock(&dev_priv->sb_lock);
-	status = __sandybridge_pcode_read(dev_priv, mbox, val);
+	err = __sandybridge_pcode_rw(dev_priv, mbox, val,
+				     500, 0,
+				     true);
 	mutex_unlock(&dev_priv->sb_lock);
 
-	if (status) {
+	if (err) {
 		DRM_DEBUG_DRIVER("warning: pcode (read from mbox %x) mailbox access failed for %ps: %d\n",
-				 mbox, __builtin_return_address(0), status);
+				 mbox, __builtin_return_address(0), err);
 	}
 
-	return status;
-}
-
-static int __sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
-					     u32 mbox, u32 val,
-					     int fast_timeout_us,
-					     int slow_timeout_ms)
-{
-	int status;
-
-	/* GEN6_PCODE_* are outside of the forcewake domain, we can
-	 * use te fw I915_READ variants to reduce the amount of work
-	 * required when reading/writing.
-	 */
-
-	if (I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY)
-		return -EAGAIN;
-
-	I915_WRITE_FW(GEN6_PCODE_DATA, val);
-	I915_WRITE_FW(GEN6_PCODE_DATA1, 0);
-	I915_WRITE_FW(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
-
-	if (__intel_wait_for_register_fw(&dev_priv->uncore,
-					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
-					 fast_timeout_us, slow_timeout_ms,
-					 NULL))
-		return -ETIMEDOUT;
-
-	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
-
-	if (INTEL_GEN(dev_priv) > 6)
-		status = gen7_check_mailbox_status(dev_priv);
-	else
-		status = gen6_check_mailbox_status(dev_priv);
-
-	return status;
+	return err;
 }
 
 int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
@@ -9841,31 +9806,31 @@ int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
 				    int fast_timeout_us,
 				    int slow_timeout_ms)
 {
-	int status;
+	int err;
 
 	mutex_lock(&dev_priv->sb_lock);
-	status = __sandybridge_pcode_write_timeout(dev_priv, mbox, val,
-						   fast_timeout_us,
-						   slow_timeout_ms);
+	err = __sandybridge_pcode_rw(dev_priv, mbox, &val,
+				     fast_timeout_us, slow_timeout_ms,
+				     false);
 	mutex_unlock(&dev_priv->sb_lock);
 
-	if (status) {
+	if (err) {
 		DRM_DEBUG_DRIVER("warning: pcode (write of 0x%08x to mbox %x) mailbox access failed for %ps: %d\n",
-				 val, mbox, __builtin_return_address(0), status);
+				 val, mbox, __builtin_return_address(0), err);
 	}
 
-	return status;
+	return err;
 }
 
 static bool skl_pcode_try_request(struct drm_i915_private *dev_priv, u32 mbox,
 				  u32 request, u32 reply_mask, u32 reply,
 				  u32 *status)
 {
-	u32 val = request;
+	*status = __sandybridge_pcode_rw(dev_priv, mbox, &request,
+					 500, 0,
+					 true);
 
-	*status = __sandybridge_pcode_read(dev_priv, mbox, &val);
-
-	return *status || ((val & reply_mask) == reply);
+	return *status || ((request & reply_mask) == reply);
 }
 
 /**
