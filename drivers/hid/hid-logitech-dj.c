@@ -1064,7 +1064,7 @@ static void logi_dj_recv_forward_input_report(struct hid_device *hdev,
 	int i;
 
 	if (report > REPORT_TYPE_RFREPORT_LAST) {
-		hid_err(hdev, "Unexpect input report number %d\n", report);
+		hid_err(hdev, "Unexpected input report number %d\n", report);
 		return;
 	}
 
