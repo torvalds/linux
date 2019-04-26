@@ -1761,6 +1761,9 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 		}
 	}
 
+	if (!_desc)
+		goto mem_error;
+
 	/* first descriptor may also be the last.
 	 * in this case d pointer is invalid
 	 */
