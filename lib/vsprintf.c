@@ -670,8 +670,9 @@ char *string(char *buf, char *end, const char *s,
 	return string_nocheck(buf, end, s, spec);
 }
 
-char *pointer_string(char *buf, char *end, const void *ptr,
-		     struct printf_spec spec)
+static char *pointer_string(char *buf, char *end,
+			    const void *ptr,
+			    struct printf_spec spec)
 {
 	spec.base = 16;
 	spec.flags |= SMALL;
