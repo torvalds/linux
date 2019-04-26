@@ -2588,6 +2588,9 @@ static bool drm_fb_helper_firmware_config(struct drm_fb_helper *fb_helper,
 	int num_connectors_detected = 0;
 	struct drm_modeset_acquire_ctx ctx;
 
+	if (!drm_drv_uses_atomic_modeset(dev))
+		return false;
+
 	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
 	if (!save_enabled)
 		return false;

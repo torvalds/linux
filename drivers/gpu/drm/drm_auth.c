@@ -108,8 +108,6 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 	master->dev = dev;
 
 	/* initialize the tree of output resource lessees */
-	master->lessor = NULL;
-	master->lessee_id = 0;
 	INIT_LIST_HEAD(&master->lessees);
 	INIT_LIST_HEAD(&master->lessee_list);
 	idr_init(&master->leases);
