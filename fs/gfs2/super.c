@@ -394,6 +394,7 @@ static int init_threads(struct gfs2_sbd *sdp)
 
 fail:
 	kthread_stop(sdp->sd_logd_process);
+	sdp->sd_logd_process = NULL;
 	return error;
 }
 
@@ -451,8 +452,12 @@ fail:
 	freeze_gh.gh_flags |= GL_NOCACHE;
 	gfs2_glock_dq_uninit(&freeze_gh);
 fail_threads:
-	kthread_stop(sdp->sd_quotad_process);
-	kthread_stop(sdp->sd_logd_process);
+	if (sdp->sd_quotad_process)
+		kthread_stop(sdp->sd_quotad_process);
+	sdp->sd_quotad_process = NULL;
+	if (sdp->sd_logd_process)
+		kthread_stop(sdp->sd_logd_process);
+	sdp->sd_logd_process = NULL;
 	return error;
 }
 
@@ -853,8 +858,12 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 		return error;
 
 	flush_workqueue(gfs2_delete_workqueue);
-	kthread_stop(sdp->sd_quotad_process);
-	kthread_stop(sdp->sd_logd_process);
+	if (sdp->sd_quotad_process)
+		kthread_stop(sdp->sd_quotad_process);
+	sdp->sd_quotad_process = NULL;
+	if (sdp->sd_logd_process)
+		kthread_stop(sdp->sd_logd_process);
+	sdp->sd_logd_process = NULL;
 
 	gfs2_quota_sync(sdp->sd_vfs, 0);
 	gfs2_statfs_sync(sdp->sd_vfs, 0);
@@ -1273,8 +1282,6 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 			error = gfs2_make_fs_ro(sdp);
 		else
 			error = gfs2_make_fs_rw(sdp);
-		if (error)
-			return error;
 	}
 
 	sdp->sd_args = args;
@@ -1300,7 +1307,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	spin_unlock(&gt->gt_spin);
 
 	gfs2_online_uevent(sdp);
-	return 0;
+	return error;
 }
 
 /**
