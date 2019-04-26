@@ -382,7 +382,7 @@ int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 {
 	if (need_siga_sync(q))
 		qdio_siga_sync_q(q);
-	return get_buf_states(q, bufnr, state, 1, 0, 0);
+	return get_buf_state(q, bufnr, state, 0);
 }
 
 static inline void qdio_stop_polling(struct qdio_q *q)
