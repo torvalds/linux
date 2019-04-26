@@ -38,6 +38,7 @@ config PPC_8xx
 	select SYS_SUPPORTS_HUGETLBFS
 	select PPC_HAVE_KUEP
 	select PPC_HAVE_KUAP
+	select PPC_MM_SLICES if HUGETLB_PAGE
 
 config 40x
 	bool "AMCC 40x"
@@ -79,6 +80,7 @@ config PPC_BOOK3S_64
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select IRQ_WORK
+	select PPC_MM_SLICES
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -401,8 +403,6 @@ config PPC_BOOK3E_MMU
 
 config PPC_MM_SLICES
 	bool
-	default y if PPC_BOOK3S_64
-	default y if PPC_8xx && HUGETLB_PAGE
 
 config PPC_HAVE_PMU_SUPPORT
        bool
