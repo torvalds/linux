@@ -284,6 +284,8 @@ struct vba_vars_st {
 	unsigned int VTAPsChroma[DC__NUM_DPP__MAX];
 	unsigned int HTotal[DC__NUM_DPP__MAX];
 	unsigned int VTotal[DC__NUM_DPP__MAX];
+	unsigned int VTotal_Max[DC__NUM_DPP__MAX];
+	unsigned int VTotal_Min[DC__NUM_DPP__MAX];
 	int DPPPerPlane[DC__NUM_DPP__MAX];
 	double PixelClock[DC__NUM_DPP__MAX];
 	double PixelClockBackEnd[DC__NUM_DPP__MAX];

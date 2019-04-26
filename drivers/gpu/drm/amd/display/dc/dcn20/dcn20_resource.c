@@ -1671,6 +1671,8 @@ int dcn20_populate_dml_pipes_from_context(
 			/* Unknown link capabilities, so assume max */
 			pipes[pipe_cnt].dout.dp_lanes = 4;
 		}
+		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
+		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
 
 		pipes[pipe_cnt].dout.output_bpp = res_ctx->pipe_ctx[i].stream->timing.display_color_depth;
 		switch (res_ctx->pipe_ctx[i].stream->signal) {
@@ -1749,6 +1751,8 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.scale_taps.vtaps = 1;
 			pipes[pipe_cnt].pipe.src.is_hsplit = 0;
 			pipes[pipe_cnt].pipe.dest.odm_combine = 0;
+			pipes[pipe_cnt].pipe.dest.vtotal_min = timing->v_total;
+			pipes[pipe_cnt].pipe.dest.vtotal_max = timing->v_total;
 		} else {
 			struct dc_plane_state *pln = res_ctx->pipe_ctx[i].plane_state;
 			struct scaler_data *scl = &res_ctx->pipe_ctx[i].plane_res.scl_data;

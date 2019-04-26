@@ -2698,8 +2698,12 @@ static void dml20_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPer
 					VStartupMargin = dml_min(VStartupMargin, Margin);
 		}
 
-		if (mode_lib->vba.UseMaximumVStartup)
-			mode_lib->vba.VStartup[k] = mode_lib->vba.MaxVStartupLines[mode_lib->vba.BlendingAndTiming[k]];
+		if (mode_lib->vba.UseMaximumVStartup) {
+			if (mode_lib->vba.VTotal_Max[k] == mode_lib->vba.VTotal[k]) {
+				//only use max vstart if it is not drr or lateflip.
+				mode_lib->vba.VStartup[k] = mode_lib->vba.MaxVStartupLines[mode_lib->vba.BlendingAndTiming[k]];
+			}
+		}
 	}
 }
 }
