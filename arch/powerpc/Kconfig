@@ -390,7 +390,7 @@ source "kernel/Kconfig.hz"
 
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
-	depends on HUGETLB_PAGE
+	depends on HUGETLB_PAGE && PPC_BOOK3S_64
 	default y
 
 config MATH_EMULATION

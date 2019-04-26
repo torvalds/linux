@@ -28,9 +28,6 @@
 
 bool hugetlb_disabled = false;
 
-unsigned int HPAGE_SHIFT;
-EXPORT_SYMBOL(HPAGE_SHIFT);
-
 #define hugepd_none(hpd)	(hpd_val(hpd) == 0)
 
 #define PTE_T_ORDER	(__builtin_ffs(sizeof(pte_t)) - __builtin_ffs(sizeof(void *)))
@@ -645,23 +642,9 @@ static int __init hugetlbpage_init(void)
 #endif
 	}
 
-#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
-	/* Default hpage size = 4M on FSL_BOOK3E and 512k on 8xx */
-	if (mmu_psize_defs[MMU_PAGE_4M].shift)
-		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_4M].shift;
-	else if (mmu_psize_defs[MMU_PAGE_512K].shift)
-		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_512K].shift;
-#else
-	/* Set default large page size. Currently, we pick 16M or 1M
-	 * depending on what is available
-	 */
-	if (mmu_psize_defs[MMU_PAGE_16M].shift)
-		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_16M].shift;
-	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
-		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_1M].shift;
-	else if (mmu_psize_defs[MMU_PAGE_2M].shift)
-		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_2M].shift;
-#endif
+	if (IS_ENABLED(HUGETLB_PAGE_SIZE_VARIABLE))
+		hugetlbpage_init_default();
+
 	return 0;
 }
 

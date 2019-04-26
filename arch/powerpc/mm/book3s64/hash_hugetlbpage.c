@@ -15,6 +15,9 @@
 #include <asm/cacheflush.h>
 #include <asm/machdep.h>
 
+unsigned int hpage_shift;
+EXPORT_SYMBOL(hpage_shift);
+
 extern long hpte_insert_repeating(unsigned long hash, unsigned long vpn,
 				  unsigned long pa, unsigned long rlags,
 				  unsigned long vflags, int psize, int ssize);
@@ -149,4 +152,17 @@ void huge_ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr
 		return radix__huge_ptep_modify_prot_commit(vma, addr, ptep,
 							   old_pte, pte);
 	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+}
+
+void hugetlbpage_init_default(void)
+{
+	/* Set default large page size. Currently, we pick 16M or 1M
+	 * depending on what is available
+	 */
+	if (mmu_psize_defs[MMU_PAGE_16M].shift)
+		hpage_shift = mmu_psize_defs[MMU_PAGE_16M].shift;
+	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
+		hpage_shift = mmu_psize_defs[MMU_PAGE_1M].shift;
+	else if (mmu_psize_defs[MMU_PAGE_2M].shift)
+		hpage_shift = mmu_psize_defs[MMU_PAGE_2M].shift;
 }
