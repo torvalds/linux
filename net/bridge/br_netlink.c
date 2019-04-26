@@ -413,9 +413,9 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (event == RTM_NEWLINK && port) {
-		struct nlattr *nest
-			= nla_nest_start(skb, IFLA_PROTINFO);
+		struct nlattr *nest;
 
+		nest = nla_nest_start(skb, IFLA_PROTINFO);
 		if (nest == NULL || br_port_fill_attrs(skb, port) < 0)
 			goto nla_put_failure;
 		nla_nest_end(skb, nest);
