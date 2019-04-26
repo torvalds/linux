@@ -1312,6 +1312,32 @@ static ssize_t amdgpu_get_busy_percent(struct device *dev,
 }
 
 /**
+ * DOC: mem_busy_percent
+ *
+ * The amdgpu driver provides a sysfs API for reading how busy the VRAM
+ * is as a percentage.  The file mem_busy_percent is used for this.
+ * The SMU firmware computes a percentage of load based on the
+ * aggregate activity level in the IP cores.
+ */
+static ssize_t amdgpu_get_memory_busy_percent(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int r, value, size = sizeof(value);
+
+	/* read the IP busy sensor */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MEM_LOAD,
+				   (void *)&value, &size);
+
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
+/**
  * DOC: pcie_bw
  *
  * The amdgpu driver provides a sysfs API for estimating how much data
@@ -1380,6 +1406,8 @@ static DEVICE_ATTR(pp_od_clk_voltage, S_IRUGO | S_IWUSR,
 		amdgpu_set_pp_od_clk_voltage);
 static DEVICE_ATTR(gpu_busy_percent, S_IRUGO,
 		amdgpu_get_busy_percent, NULL);
+static DEVICE_ATTR(mem_busy_percent, S_IRUGO,
+		amdgpu_get_memory_busy_percent, NULL);
 static DEVICE_ATTR(pcie_bw, S_IRUGO, amdgpu_get_pcie_bw, NULL);
 static DEVICE_ATTR(ppfeatures, S_IRUGO | S_IWUSR,
 		amdgpu_get_ppfeature_status,
@@ -2762,6 +2790,16 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"gpu_busy_level\n");
 		return ret;
 	}
+	/* APU does not have its own dedicated memory */
+	if (!(adev->flags & AMD_IS_APU)) {
+		ret = device_create_file(adev->dev,
+				&dev_attr_mem_busy_percent);
+		if (ret) {
+			DRM_ERROR("failed to create device file	"
+					"mem_busy_percent\n");
+			return ret;
+		}
+	}
 	/* PCIe Perf counters won't work on APU nodes */
 	if (!(adev->flags & AMD_IS_APU)) {
 		ret = device_create_file(adev->dev, &dev_attr_pcie_bw);
@@ -2827,6 +2865,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev,
 				&dev_attr_pp_od_clk_voltage);
 	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
+	if (!(adev->flags & AMD_IS_APU))
+		device_remove_file(adev->dev, &dev_attr_mem_busy_percent);
 	if (!(adev->flags & AMD_IS_APU))
 		device_remove_file(adev->dev, &dev_attr_pcie_bw);
 	if ((adev->asic_type >= CHIP_VEGA10) &&
