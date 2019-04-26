@@ -1460,8 +1460,6 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 			    hdev->set_bdaddr)
 				ret = hdev->set_bdaddr(hdev,
 						       &hdev->public_addr);
-			else
-				ret = -EADDRNOTAVAIL;
 		}
 
 setup_failed:
