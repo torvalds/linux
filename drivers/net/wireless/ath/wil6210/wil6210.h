@@ -461,15 +461,6 @@ static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
 	*tid = (cidxtid >> 4) & 0xf;
 }
 
-/**
- * wil_cid_valid - check cid is valid
- * @cid: CID value
- */
-static inline bool wil_cid_valid(u8 cid)
-{
-	return (cid >= 0 && cid < max_assoc_sta);
-}
-
 struct wil6210_mbox_ring {
 	u32 base;
 	u16 entry_size; /* max. size of mbox entry, incl. all headers */
@@ -950,6 +941,8 @@ struct wil6210_priv {
 	struct wil6210_vif *vifs[WIL_MAX_VIFS];
 	struct mutex vif_mutex; /* protects access to VIF entries */
 	atomic_t connected_vifs;
+	u32 max_assoc_sta; /* max sta's supported by the driver and the FW */
+
 	/* profile */
 	struct cfg80211_chan_def monitor_chandef;
 	u32 monitor_flags;
@@ -1145,6 +1138,14 @@ static inline void wil_s(struct wil6210_priv *wil, u32 reg, u32 val)
 static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 {
 	wil_w(wil, reg, wil_r(wil, reg) & ~val);
+}
+
+/**
+ * wil_cid_valid - check cid is valid
+ */
+static inline bool wil_cid_valid(struct wil6210_priv *wil, u8 cid)
+{
+	return (cid >= 0 && cid < wil->max_assoc_sta);
 }
 
 void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len);
