@@ -158,9 +158,13 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy, unsigned int validate,
 			struct netlink_ext_ack *extack)
 {
+	u16 strict_start_type = policy[0].strict_start_type;
 	const struct nla_policy *pt;
 	int minlen = 0, attrlen = nla_len(nla), type = nla_type(nla);
 	int err = -ERANGE;
+
+	if (strict_start_type && type >= strict_start_type)
+		validate |= NL_VALIDATE_STRICT;
 
 	if (type <= 0 || type > maxtype)
 		return 0;

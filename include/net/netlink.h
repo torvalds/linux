@@ -299,6 +299,24 @@ struct nla_policy {
 		};
 		int (*validate)(const struct nlattr *attr,
 				struct netlink_ext_ack *extack);
+		/* This entry is special, and used for the attribute at index 0
+		 * only, and specifies special data about the policy, namely it
+		 * specifies the "boundary type" where strict length validation
+		 * starts for any attribute types >= this value, also, strict
+		 * nesting validation starts here.
+		 *
+		 * Additionally, it means that NLA_UNSPEC is actually NLA_REJECT
+		 * for any types >= this, so need to use NLA_MIN_LEN to get the
+		 * previous pure { .len = xyz } behaviour. The advantage of this
+		 * is that types not specified in the policy will be rejected.
+		 *
+		 * For completely new families it should be set to 1 so that the
+		 * validation is enforced for all attributes. For existing ones
+		 * it should be set at least when new attributes are added to
+		 * the enum used by the policy, and be set to the new value that
+		 * was added to enforce strict validation from thereon.
+		 */
+		u16 strict_start_type;
 	};
 };
 
