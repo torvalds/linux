@@ -397,7 +397,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	data->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->regs = devm_ioremap_resource(dev, res);
+	data->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(data->regs))
 		return PTR_ERR(data->regs);
 
