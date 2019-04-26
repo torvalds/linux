@@ -1758,7 +1758,7 @@ static void hclgevf_keep_alive_task(struct work_struct *work)
 
 	hdev = container_of(work, struct hclgevf_dev, keep_alive_task);
 
-	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
+	if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state))
 		return;
 
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_KEEP_ALIVE, 0, NULL,
@@ -2050,8 +2050,10 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
 
-	for (i = 0; i < handle->kinfo.num_tqps; i++)
-		hclgevf_reset_tqp(handle, i);
+	if (hdev->reset_type != HNAE3_VF_RESET)
+		for (i = 0; i < handle->kinfo.num_tqps; i++)
+			if (hclgevf_reset_tqp(handle, i))
+				break;
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);

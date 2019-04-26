@@ -84,11 +84,14 @@ struct hclgevf_mbx_resp_status {
 struct hclge_mbx_vf_to_pf_cmd {
 	u8 rsv;
 	u8 mbx_src_vfid; /* Auto filled by IMP */
-	u8 rsv1[2];
+	u8 mbx_need_resp;
+	u8 rsv1[1];
 	u8 msg_len;
 	u8 rsv2[3];
 	u8 msg[HCLGE_MBX_MAX_MSG_SIZE];
 };
+
+#define HCLGE_MBX_NEED_RESP_BIT		BIT(0)
 
 struct hclge_mbx_pf_to_vf_cmd {
 	u8 dest_vfid;
@@ -111,7 +114,7 @@ struct hclgevf_mbx_arq_ring {
 	struct hclgevf_dev *hdev;
 	u32 head;
 	u32 tail;
-	u32 count;
+	atomic_t count;
 	u16 msg_q[HCLGE_MBX_MAX_ARQ_MSG_NUM][HCLGE_MBX_MAX_ARQ_MSG_SIZE];
 };
 
