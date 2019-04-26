@@ -894,3 +894,21 @@ xchk_ilock_inverted(
 	}
 	return -EDEADLOCK;
 }
+
+/* Pause background reaping of resources. */
+void
+xchk_stop_reaping(
+	struct xfs_scrub	*sc)
+{
+	sc->flags |= XCHK_REAPING_DISABLED;
+	xfs_stop_block_reaping(sc->mp);
+}
+
+/* Restart background reaping of resources. */
+void
+xchk_start_reaping(
+	struct xfs_scrub	*sc)
+{
+	xfs_start_block_reaping(sc->mp);
+	sc->flags &= ~XCHK_REAPING_DISABLED;
+}
