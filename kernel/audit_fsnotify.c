@@ -188,7 +188,7 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {
-		if (audit_compare_dname_path(dname->name, audit_mark->path, AUDIT_NAME_FULL))
+		if (audit_compare_dname_path(dname, audit_mark->path, AUDIT_NAME_FULL))
 			return 0;
 		audit_update_mark(audit_mark, inode);
 	} else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))

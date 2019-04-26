@@ -261,13 +261,12 @@ static void audit_update_watch(struct audit_parent *parent,
 	struct audit_watch *owatch, *nwatch, *nextw;
 	struct audit_krule *r, *nextr;
 	struct audit_entry *oentry, *nentry;
-	const unsigned char *name = dname->name;
 
 	mutex_lock(&audit_filter_mutex);
 	/* Run all of the watches on this parent looking for the one that
 	 * matches the given dname */
 	list_for_each_entry_safe(owatch, nextw, &parent->watches, wlist) {
-		if (audit_compare_dname_path(name, owatch->path,
+		if (audit_compare_dname_path(dname, owatch->path,
 					     AUDIT_NAME_FULL))
 			continue;
 
