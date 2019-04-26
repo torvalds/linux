@@ -9,7 +9,7 @@ obj-$(CONFIG_44x)		+= 44x.o
 obj-$(CONFIG_PPC_8xx)		+= 8xx.o
 obj-$(CONFIG_PPC_FSL_BOOK3E)	+= fsl_booke.o
 ifdef CONFIG_HUGETLB_PAGE
-obj-$(CONFIG_PPC_BOOK3E_MMU)	+= book3e_hugetlbpage.o
+obj-$(CONFIG_PPC_FSL_BOOK3E)	+= book3e_hugetlbpage.o
 endif
 
 # Disable kcov instrumentation on sensitive code

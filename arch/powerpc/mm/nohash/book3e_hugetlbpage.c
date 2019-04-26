@@ -11,8 +11,9 @@
 
 #include <asm/mmu.h>
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
 #ifdef CONFIG_PPC64
+#include <asm/paca.h>
+
 static inline int tlb1_next(void)
 {
 	struct paca_struct *paca = get_paca();
@@ -29,28 +30,6 @@ static inline int tlb1_next(void)
 	tcd->esel_next = next;
 	return this;
 }
-#else
-static inline int tlb1_next(void)
-{
-	int index, ncams;
-
-	ncams = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
-
-	index = this_cpu_read(next_tlbcam_idx);
-
-	/* Just round-robin the entries and wrap when we hit the end */
-	if (unlikely(index == ncams - 1))
-		__this_cpu_write(next_tlbcam_idx, tlbcam_index);
-	else
-		__this_cpu_inc(next_tlbcam_idx);
-
-	return index;
-}
-#endif /* !PPC64 */
-#endif /* FSL */
-
-#if defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_PPC64)
-#include <asm/paca.h>
 
 static inline void book3e_tlb_lock(void)
 {
@@ -93,6 +72,23 @@ static inline void book3e_tlb_unlock(void)
 	paca->tcd_ptr->lock = 0;
 }
 #else
+static inline int tlb1_next(void)
+{
+	int index, ncams;
+
+	ncams = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
+
+	index = this_cpu_read(next_tlbcam_idx);
+
+	/* Just round-robin the entries and wrap when we hit the end */
+	if (unlikely(index == ncams - 1))
+		__this_cpu_write(next_tlbcam_idx, tlbcam_index);
+	else
+		__this_cpu_inc(next_tlbcam_idx);
+
+	return index;
+}
+
 static inline void book3e_tlb_lock(void)
 {
 }
@@ -134,10 +130,7 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 	unsigned long psize, tsize, shift;
 	unsigned long flags;
 	struct mm_struct *mm;
-
-#ifdef CONFIG_PPC_FSL_BOOK3E
 	int index;
-#endif
 
 	if (unlikely(is_kernel_addr(ea)))
 		return;
@@ -161,11 +154,9 @@ void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 		return;
 	}
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
 	/* We have to use the CAM(TLB1) on FSL parts for hugepages */
 	index = tlb1_next();
 	mtspr(SPRN_MAS0, MAS0_ESEL(index) | MAS0_TLBSEL(1));
-#endif
 
 	mas1 = MAS1_VALID | MAS1_TID(mm->context.id) | MAS1_TSIZE(tsize);
 	mas2 = ea & ~((1UL << shift) - 1);
