@@ -168,6 +168,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_SK_REUSEPORT,
 	BPF_PROG_TYPE_FLOW_DISSECTOR,
 	BPF_PROG_TYPE_CGROUP_SYSCTL,
+	BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE,
 };
 
 enum bpf_attach_type {
@@ -1737,11 +1738,18 @@ union bpf_attr {
  * 		error if an eBPF program tries to set a callback that is not
  * 		supported in the current kernel.
  *
- * 		The supported callback values that *argval* can combine are:
+ * 		*argval* is a flag array which can combine these flags:
  *
  * 		* **BPF_SOCK_OPS_RTO_CB_FLAG** (retransmission time out)
  * 		* **BPF_SOCK_OPS_RETRANS_CB_FLAG** (retransmission)
  * 		* **BPF_SOCK_OPS_STATE_CB_FLAG** (TCP state change)
+ *
+ * 		Therefore, this function can be used to clear a callback flag by
+ * 		setting the appropriate bit to zero. e.g. to disable the RTO
+ * 		callback:
+ *
+ * 		**bpf_sock_ops_cb_flags_set(bpf_sock,**
+ * 			**bpf_sock->bpf_sock_ops_cb_flags & ~BPF_SOCK_OPS_RTO_CB_FLAG)**
  *
  * 		Here are some examples of where one could call such eBPF
  * 		program:
