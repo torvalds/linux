@@ -10,8 +10,6 @@
  * BATs
  */
 
-#include <asm/page.h>
-
 /* Block size masks */
 #define BL_128K	0x000
 #define BL_256K 0x001
@@ -49,8 +47,6 @@ struct ppc_bat {
 	u32 batu;
 	u32 batl;
 };
-
-typedef pte_t *pgtable_t;
 #endif /* !__ASSEMBLY__ */
 
 /*
