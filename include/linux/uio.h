@@ -60,7 +60,7 @@ struct iov_iter {
 
 static inline enum iter_type iov_iter_type(const struct iov_iter *i)
 {
-	return i->type & ~(READ | WRITE);
+	return i->type & ~(READ | WRITE | ITER_BVEC_FLAG_NO_REF);
 }
 
 static inline bool iter_is_iovec(const struct iov_iter *i)
