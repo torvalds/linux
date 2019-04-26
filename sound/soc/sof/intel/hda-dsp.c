@@ -453,3 +453,19 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
 
 	return 0;
 }
+
+void hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct sof_intel_hda_stream *hda_stream;
+	struct hdac_ext_stream *stream;
+	struct hdac_stream *s;
+
+	/* set internal flag for BE */
+	list_for_each_entry(s, &bus->stream_list, list) {
+		stream = stream_to_hdac_ext_stream(s);
+		hda_stream = container_of(stream, struct sof_intel_hda_stream,
+					  hda_stream);
+		hda_stream->hw_params_upon_resume = 1;
+	}
+}

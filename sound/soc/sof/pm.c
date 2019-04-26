@@ -227,6 +227,9 @@ static void sof_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 				spcm->hw_params_upon_resume[dir] = 1;
 		}
 	}
+
+	/* set internal flag for BE */
+	snd_sof_dsp_hw_params_upon_resume(sdev);
 }
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
