@@ -1584,7 +1584,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 			netdev_warn(bp->dev, "RX buffer error %x\n", rx_err);
 			bnxt_sched_reset(bp, rxr);
 		}
-		goto next_rx;
+		goto next_rx_no_len;
 	}
 
 	len = le32_to_cpu(rxcmp->rx_cmp_len_flags_type) >> RX_CMP_LEN_SHIFT;
@@ -1665,11 +1665,12 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	rc = 1;
 
 next_rx:
-	rxr->rx_prod = NEXT_RX(prod);
-	rxr->rx_next_cons = NEXT_RX(cons);
-
 	cpr->rx_packets += 1;
 	cpr->rx_bytes += len;
+
+next_rx_no_len:
+	rxr->rx_prod = NEXT_RX(prod);
+	rxr->rx_next_cons = NEXT_RX(cons);
 
 next_rx_no_prod_no_len:
 	*raw_cons = tmp_raw_cons;
