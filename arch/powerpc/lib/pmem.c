@@ -76,14 +76,12 @@ long __copy_from_user_flushcache(void *dest, const void __user *src,
 	return copied;
 }
 
-void *memcpy_flushcache(void *dest, const void *src, size_t size)
+void memcpy_flushcache(void *dest, const void *src, size_t size)
 {
 	unsigned long start = (unsigned long) dest;
 
 	memcpy(dest, src, size);
 	clean_pmem_range(start, start + size);
-
-	return dest;
 }
 EXPORT_SYMBOL(memcpy_flushcache);
 
