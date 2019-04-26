@@ -3260,6 +3260,8 @@ static void onenand_check_features(struct mtd_info *mtd)
 
 	/* Lock scheme */
 	switch (density) {
+	case ONENAND_DEVICE_DENSITY_8Gb:
+		this->options |= ONENAND_HAS_NOP_1;
 	case ONENAND_DEVICE_DENSITY_4Gb:
 		if (ONENAND_IS_DDP(this))
 			this->options |= ONENAND_HAS_2PLANE;
