@@ -176,6 +176,7 @@ struct snd_sof_dsp_ops {
 	int debug_map_count; /* optional */
 	void (*dbg_dump)(struct snd_sof_dev *sof_dev,
 			 u32 flags); /* optional */
+	void (*ipc_dump)(struct snd_sof_dev *sof_dev); /* optional */
 
 	/* host DMA trace initialization */
 	int (*trace_init)(struct snd_sof_dev *sdev,
