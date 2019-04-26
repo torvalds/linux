@@ -27,5 +27,14 @@
 
 #define KASAN_SHADOW_SIZE	(KASAN_SHADOW_END - KASAN_SHADOW_START)
 
+#ifdef CONFIG_KASAN
+void kasan_early_init(void);
+void kasan_mmu_init(void);
+void kasan_init(void);
+#else
+static inline void kasan_init(void) { }
+static inline void kasan_mmu_init(void) { }
+#endif
+
 #endif /* __ASSEMBLY */
 #endif

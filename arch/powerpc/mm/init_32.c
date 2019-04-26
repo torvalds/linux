@@ -46,6 +46,7 @@
 #include <asm/sections.h>
 #include <asm/hugetlb.h>
 #include <asm/kup.h>
+#include <asm/kasan.h>
 
 #include <mm/mmu_decl.h>
 
@@ -178,6 +179,8 @@ void __init MMU_init(void)
 #ifdef CONFIG_BOOTX_TEXT
 	btext_unmap();
 #endif
+
+	kasan_mmu_init();
 
 	setup_kup();
 
