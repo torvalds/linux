@@ -183,6 +183,7 @@ enum {
 	NLA_REJECT,
 	NLA_EXACT_LEN,
 	NLA_EXACT_LEN_WARN,
+	NLA_MIN_LEN,
 	__NLA_TYPE_MAX,
 };
 
@@ -212,6 +213,7 @@ enum nla_policy_validation {
  *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
  *    NLA_FLAG             Unused
  *    NLA_BINARY           Maximum length of attribute payload
+ *    NLA_MIN_LEN          Minimum length of attribute payload
  *    NLA_NESTED,
  *    NLA_NESTED_ARRAY     Length verification is done by checking len of
  *                         nested header (or empty); len field is used if
@@ -230,6 +232,7 @@ enum nla_policy_validation {
  *                         it is rejected.
  *    NLA_EXACT_LEN_WARN   Attribute should have exactly this length, a warning
  *                         is logged if it is longer, shorter is rejected.
+ *    NLA_MIN_LEN          Minimum length of attribute payload
  *    All other            Minimum length of attribute payload
  *
  * Meaning of `validation_data' field:
@@ -281,7 +284,7 @@ enum nla_policy_validation {
  * static const struct nla_policy my_policy[ATTR_MAX+1] = {
  * 	[ATTR_FOO] = { .type = NLA_U16 },
  *	[ATTR_BAR] = { .type = NLA_STRING, .len = BARSIZ },
- *	[ATTR_BAZ] = { .len = sizeof(struct mystruct) },
+ *	[ATTR_BAZ] = { .type = NLA_EXACT_LEN, .len = sizeof(struct mystruct) },
  *	[ATTR_GOO] = { .type = NLA_BITFIELD32, .validation_data = &myvalidflags },
  * };
  */
@@ -302,6 +305,7 @@ struct nla_policy {
 #define NLA_POLICY_EXACT_LEN(_len)	{ .type = NLA_EXACT_LEN, .len = _len }
 #define NLA_POLICY_EXACT_LEN_WARN(_len)	{ .type = NLA_EXACT_LEN_WARN, \
 					  .len = _len }
+#define NLA_POLICY_MIN_LEN(_len)	{ .type = NLA_MIN_LEN, .len = _len }
 
 #define NLA_POLICY_ETH_ADDR		NLA_POLICY_EXACT_LEN(ETH_ALEN)
 #define NLA_POLICY_ETH_ADDR_COMPAT	NLA_POLICY_EXACT_LEN_WARN(ETH_ALEN)

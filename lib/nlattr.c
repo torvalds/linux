@@ -278,10 +278,17 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			}
 		}
 		break;
+
+	case NLA_UNSPEC:
+	case NLA_MIN_LEN:
+		if (attrlen < pt->len)
+			goto out_err;
+		break;
+
 	default:
 		if (pt->len)
 			minlen = pt->len;
-		else if (pt->type != NLA_UNSPEC)
+		else
 			minlen = nla_attr_minlen[pt->type];
 
 		if (attrlen < minlen)
