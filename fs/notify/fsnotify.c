@@ -179,10 +179,10 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 		take_dentry_name_snapshot(&name, dentry);
 		if (path)
 			ret = fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
-				       name.name.name, 0);
+				       &name.name, 0);
 		else
 			ret = fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
-				       name.name.name, 0);
+				       &name.name, 0);
 		release_dentry_name_snapshot(&name);
 	}
 
@@ -325,7 +325,7 @@ static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
  * notification event in whatever means they feel necessary.
  */
 int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-	     const unsigned char *file_name, u32 cookie)
+	     const struct qstr *file_name, u32 cookie)
 {
 	struct fsnotify_iter_info iter_info = {};
 	struct super_block *sb = to_tell->i_sb;
@@ -379,7 +379,7 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	 */
 	while (fsnotify_iter_select_report_types(&iter_info)) {
 		ret = send_to_group(to_tell, mask, data, data_is, cookie,
-				    file_name, &iter_info);
+				    file_name->name, &iter_info);
 
 		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
 			goto out;
