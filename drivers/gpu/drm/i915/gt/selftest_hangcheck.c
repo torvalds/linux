@@ -29,6 +29,7 @@
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 #include "selftests/igt_flush_test.h"
+#include "selftests/igt_gem_utils.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_wedge_me.h"
 
@@ -175,7 +176,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 	if (err)
 		goto unpin_vma;
 
-	rq = i915_request_alloc(engine, h->ctx);
+	rq = igt_request_alloc(h->ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto unpin_hws;
@@ -455,7 +456,7 @@ static int igt_reset_nop(void *arg)
 			for (i = 0; i < 16; i++) {
 				struct i915_request *rq;
 
-				rq = i915_request_alloc(engine, ctx);
+				rq = igt_request_alloc(ctx, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					break;
@@ -554,7 +555,7 @@ static int igt_reset_nop_engine(void *arg)
 			for (i = 0; i < 16; i++) {
 				struct i915_request *rq;
 
-				rq = i915_request_alloc(engine, ctx);
+				rq = igt_request_alloc(ctx, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					break;
@@ -800,7 +801,7 @@ static int active_engine(void *data)
 		struct i915_request *new;
 
 		mutex_lock(&engine->i915->drm.struct_mutex);
-		new = i915_request_alloc(engine, ctx[idx]);
+		new = igt_request_alloc(ctx[idx], engine);
 		if (IS_ERR(new)) {
 			mutex_unlock(&engine->i915->drm.struct_mutex);
 			err = PTR_ERR(new);

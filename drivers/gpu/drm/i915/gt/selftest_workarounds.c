@@ -8,6 +8,7 @@
 #include "intel_reset.h"
 
 #include "selftests/igt_flush_test.h"
+#include "selftests/igt_gem_utils.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_spinner.h"
 #include "selftests/igt_wedge_me.h"
@@ -102,7 +103,7 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	if (err)
 		goto err_obj;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_pin;
@@ -511,7 +512,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 		i915_gem_object_unpin_map(batch->obj);
 		i915_gem_chipset_flush(ctx->i915);
 
-		rq = i915_request_alloc(engine, ctx);
+		rq = igt_request_alloc(ctx, engine);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto out_batch;
@@ -701,14 +702,11 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 				      struct intel_engine_cs *engine,
 				      struct i915_vma *results)
 {
-	intel_wakeref_t wakeref;
 	struct i915_request *rq;
 	int i, err = 0;
 	u32 srm, *cs;
 
-	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(engine->i915, wakeref)
-		rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -744,7 +742,6 @@ err_req:
 static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 				       struct intel_engine_cs *engine)
 {
-	intel_wakeref_t wakeref;
 	struct i915_request *rq;
 	struct i915_vma *batch;
 	int i, err = 0;
@@ -770,9 +767,7 @@ static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 	i915_gem_object_flush_map(batch->obj);
 	i915_gem_chipset_flush(ctx->i915);
 
-	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(engine->i915, wakeref)
-		rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;

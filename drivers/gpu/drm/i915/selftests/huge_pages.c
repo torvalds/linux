@@ -26,6 +26,7 @@
 
 #include <linux/prime_numbers.h>
 
+#include "igt_gem_utils.h"
 #include "mock_drm.h"
 #include "i915_random.h"
 
@@ -980,7 +981,7 @@ static int gpu_write(struct i915_vma *vma,
 	if (IS_ERR(batch))
 		return PTR_ERR(batch);
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_batch;

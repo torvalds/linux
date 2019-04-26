@@ -29,6 +29,7 @@
 
 #include "i915_random.h"
 #include "igt_flush_test.h"
+#include "igt_gem_utils.h"
 #include "igt_live_test.h"
 #include "igt_reset.h"
 #include "igt_spinner.h"
@@ -91,7 +92,7 @@ static int live_nop_switch(void *arg)
 
 		times[0] = ktime_get_raw();
 		for (n = 0; n < nctx; n++) {
-			rq = i915_request_alloc(engine, ctx[n]);
+			rq = igt_request_alloc(ctx[n], engine);
 			if (IS_ERR(rq)) {
 				err = PTR_ERR(rq);
 				goto out_unlock;
@@ -121,7 +122,7 @@ static int live_nop_switch(void *arg)
 			times[1] = ktime_get_raw();
 
 			for (n = 0; n < prime; n++) {
-				rq = i915_request_alloc(engine, ctx[n % nctx]);
+				rq = igt_request_alloc(ctx[n % nctx], engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					goto out_unlock;
@@ -301,7 +302,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		goto err_vma;
 	}
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_batch;
@@ -1350,7 +1351,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto err_unpin;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -1445,7 +1446,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto err_unpin;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -1669,7 +1670,7 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 
-	rq = i915_request_alloc(i915->engine[RCS0], ctx);
+	rq = igt_request_alloc(ctx, i915->engine[RCS0]);
 	if (IS_ERR(rq)) {
 		pr_err("Request allocation failed!\n");
 		goto out;

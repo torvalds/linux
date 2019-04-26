@@ -770,44 +770,6 @@ err_unlock:
 	return rq;
 }
 
-/**
- * i915_request_alloc - allocate a request structure
- *
- * @engine: engine that we wish to issue the request on.
- * @ctx: context that the request will be associated with.
- *
- * Returns a pointer to the allocated request if successful,
- * or an error code if not.
- */
-struct i915_request *
-i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
-{
-	struct drm_i915_private *i915 = engine->i915;
-	struct intel_context *ce;
-	struct i915_request *rq;
-
-	/*
-	 * Preempt contexts are reserved for exclusive use to inject a
-	 * preemption context switch. They are never to be used for any trivial
-	 * request!
-	 */
-	GEM_BUG_ON(ctx == i915->preempt_context);
-
-	/*
-	 * Pinning the contexts may generate requests in order to acquire
-	 * GGTT space, so do this first before we reserve a seqno for
-	 * ourselves.
-	 */
-	ce = i915_gem_context_get_engine(ctx, engine->id);
-	if (IS_ERR(ce))
-		return ERR_CAST(ce);
-
-	rq = intel_context_create_request(ce);
-	intel_context_put(ce);
-
-	return rq;
-}
-
 static int
 emit_semaphore_wait(struct i915_request *to,
 		    struct i915_request *from,

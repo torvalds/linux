@@ -267,7 +267,7 @@ static struct i915_request *
 __live_request_alloc(struct i915_gem_context *ctx,
 		     struct intel_engine_cs *engine)
 {
-	return i915_request_alloc(engine, ctx);
+	return igt_request_alloc(ctx, engine);
 }
 
 static int __igt_breadcrumbs_smoketest(void *arg)
@@ -1074,7 +1074,7 @@ max_batches(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	if (HAS_EXECLISTS(ctx->i915))
 		return INT_MAX;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
 	} else {
