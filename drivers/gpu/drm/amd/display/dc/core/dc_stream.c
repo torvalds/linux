@@ -168,7 +168,7 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	struct dc_stream_state *new_stream;
 
 	new_stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
-	if (stream == NULL)
+	if (!new_stream)
 		return NULL;
 
 	memcpy(new_stream, stream, sizeof(struct dc_stream_state));
