@@ -66,6 +66,7 @@ struct virtio_ccw_device {
 	bool device_lost;
 	unsigned int config_ready;
 	void *airq_info;
+	u64 dma_mask;
 };
 
 struct vq_info_block_legacy {
@@ -539,8 +540,8 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 		info->info_block->s.desc = queue;
 		info->info_block->s.index = i;
 		info->info_block->s.num = info->num;
-		info->info_block->s.avail = (__u64)virtqueue_get_avail(vq);
-		info->info_block->s.used = (__u64)virtqueue_get_used(vq);
+		info->info_block->s.avail = (__u64)virtqueue_get_avail_addr(vq);
+		info->info_block->s.used = (__u64)virtqueue_get_used_addr(vq);
 		ccw->count = sizeof(info->info_block->s);
 	}
 	ccw->cmd_code = CCW_CMD_SET_VQ;
@@ -772,10 +773,8 @@ out_free:
 static void ccw_transport_features(struct virtio_device *vdev)
 {
 	/*
-	 * Packed ring isn't enabled on virtio_ccw for now,
-	 * because virtio_ccw uses some legacy accessors,
-	 * e.g. virtqueue_get_avail() and virtqueue_get_used()
-	 * which aren't available in packed ring currently.
+	 * There shouldn't be anything that precludes supporting packed.
+	 * TODO: Remove the limitation after having another look into this.
 	 */
 	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
 }
@@ -1258,6 +1257,16 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 		ret = -ENOMEM;
 		goto out_free;
 	}
+
+	vcdev->vdev.dev.parent = &cdev->dev;
+	cdev->dev.dma_mask = &vcdev->dma_mask;
+	/* we are fine with common virtio infrastructure using 64 bit DMA */
+	ret = dma_set_mask_and_coherent(&cdev->dev, DMA_BIT_MASK(64));
+	if (ret) {
+		dev_warn(&cdev->dev, "Failed to enable 64-bit DMA.\n");
+		goto out_free;
+	}
+
 	vcdev->config_block = kzalloc(sizeof(*vcdev->config_block),
 				   GFP_DMA | GFP_KERNEL);
 	if (!vcdev->config_block) {
@@ -1272,7 +1281,6 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 
 	vcdev->is_thinint = virtio_ccw_use_airq; /* at least try */
 
-	vcdev->vdev.dev.parent = &cdev->dev;
 	vcdev->vdev.dev.release = virtio_ccw_release_dev;
 	vcdev->vdev.config = &virtio_ccw_config_ops;
 	vcdev->cdev = cdev;
