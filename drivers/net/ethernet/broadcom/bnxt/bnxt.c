@@ -5131,10 +5131,10 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	for (i = 0; i < bp->tx_nr_rings; i++) {
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		struct bnxt_ring_struct *ring = &txr->tx_ring_struct;
-		u32 cmpl_ring_id;
 
-		cmpl_ring_id = bnxt_cp_ring_for_tx(bp, txr);
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
+			u32 cmpl_ring_id = bnxt_cp_ring_for_tx(bp, txr);
+
 			hwrm_ring_free_send_msg(bp, ring,
 						RING_FREE_REQ_RING_TYPE_TX,
 						close_path ? cmpl_ring_id :
@@ -5147,10 +5147,10 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring = &rxr->rx_ring_struct;
 		u32 grp_idx = rxr->bnapi->index;
-		u32 cmpl_ring_id;
 
-		cmpl_ring_id = bnxt_cp_ring_for_rx(bp, rxr);
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
+			u32 cmpl_ring_id = bnxt_cp_ring_for_rx(bp, rxr);
+
 			hwrm_ring_free_send_msg(bp, ring,
 						RING_FREE_REQ_RING_TYPE_RX,
 						close_path ? cmpl_ring_id :
@@ -5169,10 +5169,10 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring = &rxr->rx_agg_ring_struct;
 		u32 grp_idx = rxr->bnapi->index;
-		u32 cmpl_ring_id;
 
-		cmpl_ring_id = bnxt_cp_ring_for_rx(bp, rxr);
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
+			u32 cmpl_ring_id = bnxt_cp_ring_for_rx(bp, rxr);
+
 			hwrm_ring_free_send_msg(bp, ring, type,
 						close_path ? cmpl_ring_id :
 						INVALID_HW_RING_ID);
