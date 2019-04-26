@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
@@ -463,6 +464,9 @@ static int soc_pcm_components_close(struct snd_pcm_substream *substream,
 			continue;
 
 		component->driver->ops->close(substream);
+
+		if (component->driver->module_get_upon_open)
+			module_put(component->dev->driver->owner);
 	}
 
 	return 0;
@@ -512,6 +516,10 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		if (!component->driver->ops ||
 		    !component->driver->ops->open)
 			continue;
+
+		if (component->driver->module_get_upon_open &&
+		    !try_module_get(component->dev->driver->owner))
+			return -ENODEV;
 
 		ret = component->driver->ops->open(substream);
 		if (ret < 0) {
