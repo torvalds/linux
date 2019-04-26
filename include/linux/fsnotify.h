@@ -178,7 +178,7 @@ static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 	take_dentry_name_snapshot(&name, dentry);
 
 	fsnotify(d_inode(parent), mask, d_inode(dentry), FSNOTIFY_EVENT_INODE,
-		 name.name, 0);
+		 name.name.name, 0);
 
 	release_dentry_name_snapshot(&name);
 	dput(parent);
