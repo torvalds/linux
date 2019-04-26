@@ -1451,3 +1451,24 @@ xfs_force_summary_recalc(
 
 	xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);
 }
+
+/*
+ * Update the in-core delayed block counter.
+ *
+ * We prefer to update the counter without having to take a spinlock for every
+ * counter update (i.e. batching).  Each change to delayed allocation
+ * reservations can change can easily exceed the default percpu counter
+ * batching, so we use a larger batch factor here.
+ *
+ * Note that we don't currently have any callers requiring fast summation
+ * (e.g. percpu_counter_read) so we can use a big batch value here.
+ */
+#define XFS_DELALLOC_BATCH	(4096)
+void
+xfs_mod_delalloc(
+	struct xfs_mount	*mp,
+	int64_t			delta)
+{
+	percpu_counter_add_batch(&mp->m_delalloc_blks, delta,
+			XFS_DELALLOC_BATCH);
+}
