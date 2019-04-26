@@ -957,7 +957,6 @@ __sseu_finish(struct drm_i915_private *i915,
 	      const char *name,
 	      unsigned int flags,
 	      struct i915_gem_context *ctx,
-	      struct i915_gem_context *kctx,
 	      struct intel_engine_cs *engine,
 	      struct drm_i915_gem_object *obj,
 	      unsigned int expected,
@@ -979,7 +978,8 @@ __sseu_finish(struct drm_i915_private *i915,
 	if (ret)
 		goto out;
 
-	ret = __read_slice_count(i915, kctx, engine, obj, NULL, &rpcs);
+	ret = __read_slice_count(i915, i915->kernel_context, engine, obj,
+				 NULL, &rpcs);
 	ret = __check_rpcs(name, rpcs, ret, slices, "Kernel context", "!");
 
 out:
@@ -1011,22 +1011,17 @@ __sseu_test(struct drm_i915_private *i915,
 	    struct intel_sseu sseu)
 {
 	struct igt_spinner *spin = NULL;
-	struct i915_gem_context *kctx;
 	int ret;
-
-	kctx = kernel_context(i915);
-	if (IS_ERR(kctx))
-		return PTR_ERR(kctx);
 
 	ret = __sseu_prepare(i915, name, flags, ctx, engine, &spin);
 	if (ret)
-		goto out_context;
+		return ret;
 
 	ret = __i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
 	if (ret)
 		goto out_spin;
 
-	ret = __sseu_finish(i915, name, flags, ctx, kctx, engine, obj,
+	ret = __sseu_finish(i915, name, flags, ctx, engine, obj,
 			    hweight32(sseu.slice_mask), spin);
 
 out_spin:
@@ -1035,10 +1030,6 @@ out_spin:
 		igt_spinner_fini(spin);
 		kfree(spin);
 	}
-
-out_context:
-	kernel_context_close(kctx);
-
 	return ret;
 }
 
