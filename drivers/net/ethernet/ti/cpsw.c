@@ -3399,7 +3399,8 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 	struct cpsw_priv		*priv_sl2;
 	int ret = 0;
 
-	ndev = alloc_etherdev_mq(sizeof(struct cpsw_priv), CPSW_MAX_QUEUES);
+	ndev = devm_alloc_etherdev_mqs(cpsw->dev, sizeof(struct cpsw_priv),
+				       CPSW_MAX_QUEUES, CPSW_MAX_QUEUES);
 	if (!ndev) {
 		dev_err(cpsw->dev, "cpsw: error allocating net_device\n");
 		return -ENOMEM;
@@ -3433,11 +3434,8 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, cpsw->dev);
 	ret = register_netdev(ndev);
-	if (ret) {
+	if (ret)
 		dev_err(cpsw->dev, "cpsw: error registering net device\n");
-		free_netdev(ndev);
-		ret = -ENODEV;
-	}
 
 	return ret;
 }
@@ -3481,7 +3479,8 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	cpsw->dev = dev;
 
-	ndev = alloc_etherdev_mq(sizeof(struct cpsw_priv), CPSW_MAX_QUEUES);
+	ndev = devm_alloc_etherdev_mqs(dev, sizeof(struct cpsw_priv),
+				       CPSW_MAX_QUEUES, CPSW_MAX_QUEUES);
 	if (!ndev) {
 		dev_err(dev, "error allocating net_device\n");
 		return -ENOMEM;
@@ -3499,7 +3498,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (IS_ERR(mode)) {
 		ret = PTR_ERR(mode);
 		dev_err(dev, "gpio request failed, ret %d\n", ret);
-		goto clean_ndev_ret;
+		return ret;
 	}
 
 	/*
@@ -3768,8 +3767,6 @@ clean_dt_ret:
 	pm_runtime_put_sync(&pdev->dev);
 clean_runtime_disable_ret:
 	pm_runtime_disable(&pdev->dev);
-clean_ndev_ret:
-	free_netdev(priv->ndev);
 	return ret;
 }
 
@@ -3794,9 +3791,6 @@ static int cpsw_remove(struct platform_device *pdev)
 	cpsw_remove_dt(pdev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	if (cpsw->data.dual_emac)
-		free_netdev(cpsw->slaves[1].ndev);
-	free_netdev(ndev);
 	return 0;
 }
 
