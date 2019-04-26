@@ -100,6 +100,11 @@ static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 	return hugepd_page(hpd) + idx;
 }
 
+static inline void hugepd_populate(hugepd_t *hpdp, pte_t *new, unsigned int pshift)
+{
+	*hpdp = __hugepd(__pa(new) | HUGEPD_VAL_BITS | (shift_to_mmu_psize(pshift) << 2));
+}
+
 void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 
 #endif

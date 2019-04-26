@@ -28,4 +28,10 @@ static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 
 void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 
+static inline void hugepd_populate(hugepd_t *hpdp, pte_t *new, unsigned int pshift)
+{
+	/* We use the old format for PPC_FSL_BOOK3E */
+	*hpdp = __hugepd(((unsigned long)new & ~PD_HUGE) | pshift);
+}
+
 #endif /* _ASM_POWERPC_NOHASH_HUGETLB_BOOK3E_H */

@@ -26,12 +26,6 @@
 #include <asm/hugetlb.h>
 #include <asm/pte-walk.h>
 
-#define PAGE_SHIFT_64K	16
-#define PAGE_SHIFT_512K	19
-#define PAGE_SHIFT_8M	23
-#define PAGE_SHIFT_16M	24
-#define PAGE_SHIFT_16G	34
-
 bool hugetlb_disabled = false;
 
 unsigned int HPAGE_SHIFT;
@@ -95,19 +89,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	for (i = 0; i < num_hugepd; i++, hpdp++) {
 		if (unlikely(!hugepd_none(*hpdp)))
 			break;
-		else {
-#ifdef CONFIG_PPC_BOOK3S_64
-			*hpdp = __hugepd(__pa(new) | HUGEPD_VAL_BITS |
-					 (shift_to_mmu_psize(pshift) << 2));
-#elif defined(CONFIG_PPC_8xx)
-			*hpdp = __hugepd(__pa(new) | _PMD_USER |
-					 (pshift == PAGE_SHIFT_8M ? _PMD_PAGE_8M :
-					  _PMD_PAGE_512K) | _PMD_PRESENT);
-#else
-			/* We use the old format for PPC_FSL_BOOK3E */
-			*hpdp = __hugepd(((unsigned long)new & ~PD_HUGE) | pshift);
-#endif
-		}
+		hugepd_populate(hpdp, new, pshift);
 	}
 	/* If we bailed from the for loop early, an error occurred, clean up */
 	if (i < num_hugepd) {

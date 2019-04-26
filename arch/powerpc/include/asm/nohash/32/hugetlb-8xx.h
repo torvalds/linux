@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H
 #define _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H
 
+#define PAGE_SHIFT_8M		23
+
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
 	BUG_ON(!hugepd_ok(hpd));
@@ -26,6 +28,12 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 				      unsigned long vmaddr)
 {
 	flush_tlb_page(vma, vmaddr);
+}
+
+static inline void hugepd_populate(hugepd_t *hpdp, pte_t *new, unsigned int pshift)
+{
+	*hpdp = __hugepd(__pa(new) | _PMD_USER | _PMD_PRESENT |
+			 (pshift == PAGE_SHIFT_8M ? _PMD_PAGE_8M : _PMD_PAGE_512K));
 }
 
 #endif /* _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H */
