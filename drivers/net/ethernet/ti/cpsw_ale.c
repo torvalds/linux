@@ -355,7 +355,7 @@ int cpsw_ale_add_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 	cpsw_ale_set_vlan_entry_type(ale_entry, flags, vid);
 
 	cpsw_ale_set_addr(ale_entry, addr);
-	cpsw_ale_set_super(ale_entry, (flags & ALE_BLOCKED) ? 1 : 0);
+	cpsw_ale_set_super(ale_entry, (flags & ALE_SUPER) ? 1 : 0);
 	cpsw_ale_set_mcast_state(ale_entry, mcast_state);
 
 	mask = cpsw_ale_get_port_mask(ale_entry,
