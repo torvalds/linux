@@ -34,7 +34,7 @@ bool cc_dump_bytes;
 module_param_named(dump_bytes, cc_dump_bytes, bool, 0600);
 MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as debugging aid");
 
-bool cc_sec_disable;
+static bool cc_sec_disable;
 module_param_named(sec_disable, cc_sec_disable, bool, 0600);
 MODULE_PARM_DESC(cc_sec_disable, "Disable security functions");
 
