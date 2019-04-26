@@ -1205,11 +1205,17 @@ static struct intel_context *oa_pin_context(struct drm_i915_private *i915,
 {
 	struct intel_engine_cs *engine = i915->engine[RCS0];
 	struct intel_context *ce;
-	int ret;
+	int err;
 
-	ret = i915_mutex_lock_interruptible(&i915->drm);
-	if (ret)
-		return ERR_PTR(ret);
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return ce;
+
+	err = i915_mutex_lock_interruptible(&i915->drm);
+	if (err) {
+		intel_context_put(ce);
+		return ERR_PTR(err);
+	}
 
 	/*
 	 * As the ID is the gtt offset of the context's vma we
@@ -1217,10 +1223,11 @@ static struct intel_context *oa_pin_context(struct drm_i915_private *i915,
 	 *
 	 * NB: implied RCS engine...
 	 */
-	ce = intel_context_pin(ctx, engine);
+	err = intel_context_pin(ce);
 	mutex_unlock(&i915->drm.struct_mutex);
-	if (IS_ERR(ce))
-		return ce;
+	intel_context_put(ce);
+	if (err)
+		return ERR_PTR(err);
 
 	i915->perf.oa.pinned_ctx = ce;
 

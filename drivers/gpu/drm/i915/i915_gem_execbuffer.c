@@ -2100,14 +2100,19 @@ static int eb_pin_context(struct i915_execbuffer *eb,
 	if (err)
 		return err;
 
+	ce = intel_context_instance(eb->gem_context, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
 	/*
 	 * Pinning the contexts may generate requests in order to acquire
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	ce = intel_context_pin(eb->gem_context, engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
+	err = intel_context_pin(ce);
+	intel_context_put(ce);
+	if (err)
+		return err;
 
 	eb->engine = engine;
 	eb->context = ce;

@@ -785,6 +785,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	struct drm_i915_private *i915 = engine->i915;
 	struct intel_context *ce;
 	struct i915_request *rq;
+	int err;
 
 	/*
 	 * Preempt contexts are reserved for exclusive use to inject a
@@ -798,13 +799,21 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	ce = intel_context_pin(ctx, engine);
+	ce = intel_context_instance(ctx, engine);
 	if (IS_ERR(ce))
 		return ERR_CAST(ce);
+
+	err = intel_context_pin(ce);
+	if (err) {
+		rq = ERR_PTR(err);
+		goto err_put;
+	}
 
 	rq = i915_request_create(ce);
 	intel_context_unpin(ce);
 
+err_put:
+	intel_context_put(ce);
 	return rq;
 }
 

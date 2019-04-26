@@ -104,7 +104,7 @@ void __intel_context_remove(struct intel_context *ce)
 	spin_unlock(&ctx->hw_contexts_lock);
 }
 
-static struct intel_context *
+struct intel_context *
 intel_context_instance(struct i915_gem_context *ctx,
 		       struct intel_engine_cs *engine)
 {
@@ -112,7 +112,7 @@ intel_context_instance(struct i915_gem_context *ctx,
 
 	ce = intel_context_lookup(ctx, engine);
 	if (likely(ce))
-		return ce;
+		return intel_context_get(ce);
 
 	ce = intel_context_alloc();
 	if (!ce)
@@ -125,7 +125,7 @@ intel_context_instance(struct i915_gem_context *ctx,
 		intel_context_free(ce);
 
 	GEM_BUG_ON(intel_context_lookup(ctx, engine) != pos);
-	return pos;
+	return intel_context_get(pos);
 }
 
 struct intel_context *
@@ -139,30 +139,30 @@ intel_context_pin_lock(struct i915_gem_context *ctx,
 	if (IS_ERR(ce))
 		return ce;
 
-	if (mutex_lock_interruptible(&ce->pin_mutex))
+	if (mutex_lock_interruptible(&ce->pin_mutex)) {
+		intel_context_put(ce);
 		return ERR_PTR(-EINTR);
+	}
 
 	return ce;
 }
 
-struct intel_context *
-intel_context_pin(struct i915_gem_context *ctx,
-		  struct intel_engine_cs *engine)
+void intel_context_pin_unlock(struct intel_context *ce)
+	__releases(ce->pin_mutex)
 {
-	struct intel_context *ce;
+	mutex_unlock(&ce->pin_mutex);
+	intel_context_put(ce);
+}
+
+int __intel_context_do_pin(struct intel_context *ce)
+{
 	int err;
 
-	ce = intel_context_instance(ctx, engine);
-	if (IS_ERR(ce))
-		return ce;
-
-	if (likely(atomic_inc_not_zero(&ce->pin_count)))
-		return ce;
-
 	if (mutex_lock_interruptible(&ce->pin_mutex))
-		return ERR_PTR(-EINTR);
+		return -EINTR;
 
 	if (likely(!atomic_read(&ce->pin_count))) {
+		struct i915_gem_context *ctx = ce->gem_context;
 		intel_wakeref_t wakeref;
 
 		err = 0;
@@ -172,7 +172,6 @@ intel_context_pin(struct i915_gem_context *ctx,
 			goto err;
 
 		i915_gem_context_get(ctx);
-		GEM_BUG_ON(ce->gem_context != ctx);
 
 		mutex_lock(&ctx->mutex);
 		list_add(&ce->active_link, &ctx->active_engines);
@@ -186,11 +185,11 @@ intel_context_pin(struct i915_gem_context *ctx,
 	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
 
 	mutex_unlock(&ce->pin_mutex);
-	return ce;
+	return 0;
 
 err:
 	mutex_unlock(&ce->pin_mutex);
-	return ERR_PTR(err);
+	return err;
 }
 
 void intel_context_unpin(struct intel_context *ce)

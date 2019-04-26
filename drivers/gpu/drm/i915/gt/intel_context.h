@@ -49,11 +49,7 @@ intel_context_is_pinned(struct intel_context *ce)
 	return atomic_read(&ce->pin_count);
 }
 
-static inline void intel_context_pin_unlock(struct intel_context *ce)
-__releases(ce->pin_mutex)
-{
-	mutex_unlock(&ce->pin_mutex);
-}
+void intel_context_pin_unlock(struct intel_context *ce);
 
 struct intel_context *
 __intel_context_insert(struct i915_gem_context *ctx,
@@ -63,7 +59,18 @@ void
 __intel_context_remove(struct intel_context *ce);
 
 struct intel_context *
-intel_context_pin(struct i915_gem_context *ctx, struct intel_engine_cs *engine);
+intel_context_instance(struct i915_gem_context *ctx,
+		       struct intel_engine_cs *engine);
+
+int __intel_context_do_pin(struct intel_context *ce);
+
+static inline int intel_context_pin(struct intel_context *ce)
+{
+	if (likely(atomic_inc_not_zero(&ce->pin_count)))
+		return 0;
+
+	return __intel_context_do_pin(ce);
+}
 
 static inline void __intel_context_pin(struct intel_context *ce)
 {

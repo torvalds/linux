@@ -713,10 +713,16 @@ static int pin_context(struct i915_gem_context *ctx,
 		       struct intel_context **out)
 {
 	struct intel_context *ce;
+	int err;
 
-	ce = intel_context_pin(ctx, engine);
+	ce = intel_context_instance(ctx, engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
+
+	err = intel_context_pin(ce);
+	intel_context_put(ce);
+	if (err)
+		return err;
 
 	*out = ce;
 	return 0;

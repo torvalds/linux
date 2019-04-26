@@ -239,6 +239,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 				    int id)
 {
 	struct mock_engine *engine;
+	int err;
 
 	GEM_BUG_ON(id >= I915_NUM_ENGINES);
 
@@ -278,8 +279,13 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&engine->hw_queue);
 
 	engine->base.kernel_context =
-		intel_context_pin(i915->kernel_context, &engine->base);
+		intel_context_instance(i915->kernel_context, &engine->base);
 	if (IS_ERR(engine->base.kernel_context))
+		goto err_breadcrumbs;
+
+	err = intel_context_pin(engine->base.kernel_context);
+	intel_context_put(engine->base.kernel_context);
+	if (err)
 		goto err_breadcrumbs;
 
 	return &engine->base;
