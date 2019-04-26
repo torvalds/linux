@@ -318,6 +318,7 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 	u32 val;
 
 	mutex_lock(&dev_priv->pcu_lock);
+	vlv_punit_get(dev_priv);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
 	if (enable)
@@ -332,6 +333,7 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 		      FORCE_DDR_FREQ_REQ_ACK) == 0, 3))
 		DRM_ERROR("timed out waiting for Punit DDR DVFS request\n");
 
+	vlv_punit_put(dev_priv);
 	mutex_unlock(&dev_priv->pcu_lock);
 }
 
@@ -340,6 +342,7 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 	u32 val;
 
 	mutex_lock(&dev_priv->pcu_lock);
+	vlv_punit_get(dev_priv);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	if (enable)
@@ -348,6 +351,7 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 		val &= ~DSP_MAXFIFO_PM5_ENABLE;
 	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
 
+	vlv_punit_put(dev_priv);
 	mutex_unlock(&dev_priv->pcu_lock);
 }
 
@@ -6140,6 +6144,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&dev_priv->pcu_lock);
+		vlv_punit_get(dev_priv);
 
 		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 		if (val & DSP_MAXFIFO_PM5_ENABLE)
@@ -6169,6 +6174,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 				wm->level = VLV_WM_LEVEL_DDR_DVFS;
 		}
 
+		vlv_punit_put(dev_priv);
 		mutex_unlock(&dev_priv->pcu_lock);
 	}
 
@@ -6743,7 +6749,9 @@ static int valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	if (val != dev_priv->gt_pm.rps.cur_freq) {
+		vlv_punit_get(dev_priv);
 		err = vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+		vlv_punit_put(dev_priv);
 		if (err)
 			return err;
 
@@ -7755,6 +7763,11 @@ static void valleyview_init_gt_powersave(struct drm_i915_private *dev_priv)
 
 	valleyview_setup_pctx(dev_priv);
 
+	vlv_iosf_sb_get(dev_priv,
+			BIT(VLV_IOSF_SB_PUNIT) |
+			BIT(VLV_IOSF_SB_NC) |
+			BIT(VLV_IOSF_SB_CCK));
+
 	vlv_init_gpll_ref_freq(dev_priv);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
@@ -7792,6 +7805,11 @@ static void valleyview_init_gt_powersave(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
 			 intel_gpu_freq(dev_priv, rps->min_freq),
 			 rps->min_freq);
+
+	vlv_iosf_sb_put(dev_priv,
+			BIT(VLV_IOSF_SB_PUNIT) |
+			BIT(VLV_IOSF_SB_NC) |
+			BIT(VLV_IOSF_SB_CCK));
 }
 
 static void cherryview_init_gt_powersave(struct drm_i915_private *dev_priv)
@@ -7801,11 +7819,14 @@ static void cherryview_init_gt_powersave(struct drm_i915_private *dev_priv)
 
 	cherryview_setup_pctx(dev_priv);
 
+	vlv_iosf_sb_get(dev_priv,
+			BIT(VLV_IOSF_SB_PUNIT) |
+			BIT(VLV_IOSF_SB_NC) |
+			BIT(VLV_IOSF_SB_CCK));
+
 	vlv_init_gpll_ref_freq(dev_priv);
 
-	vlv_cck_get(dev_priv);
 	val = vlv_cck_read(dev_priv, CCK_FUSE_REG);
-	vlv_cck_put(dev_priv);
 
 	switch ((val >> 2) & 0x7) {
 	case 3:
@@ -7837,6 +7858,11 @@ static void cherryview_init_gt_powersave(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
 			 intel_gpu_freq(dev_priv, rps->min_freq),
 			 rps->min_freq);
+
+	vlv_iosf_sb_put(dev_priv,
+			BIT(VLV_IOSF_SB_PUNIT) |
+			BIT(VLV_IOSF_SB_NC) |
+			BIT(VLV_IOSF_SB_CCK));
 
 	WARN_ONCE((rps->max_freq | rps->efficient_freq | rps->rp1_freq |
 		   rps->min_freq) & 1,
@@ -7925,12 +7951,14 @@ static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
 		   GEN6_RP_DOWN_IDLE_AVG);
 
 	/* Setting Fixed Bias */
-	val = VLV_OVERRIDE_EN |
-		  VLV_SOC_TDP_EN |
-		  CHV_BIAS_CPU_50_SOC_50;
+	vlv_punit_get(dev_priv);
+
+	val = VLV_OVERRIDE_EN | VLV_SOC_TDP_EN | CHV_BIAS_CPU_50_SOC_50;
 	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+
+	vlv_punit_put(dev_priv);
 
 	/* RPS code assumes GPLL is used */
 	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");
@@ -8008,13 +8036,15 @@ static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_CONT);
 
+	vlv_punit_get(dev_priv);
+
 	/* Setting Fixed Bias */
-	val = VLV_OVERRIDE_EN |
-		  VLV_SOC_TDP_EN |
-		  VLV_BIAS_CPU_125_SOC_875;
+	val = VLV_OVERRIDE_EN | VLV_SOC_TDP_EN | VLV_BIAS_CPU_125_SOC_875;
 	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+
+	vlv_punit_put(dev_priv);
 
 	/* RPS code assumes GPLL is used */
 	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");

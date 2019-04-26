@@ -152,10 +152,8 @@ int vlv_get_hpll_vco(struct drm_i915_private *dev_priv)
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
 	/* Obtain SKU information */
-	vlv_cck_get(dev_priv);
 	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
 		CCK_FUSE_HPLL_FREQ_MASK;
-	vlv_cck_put(dev_priv);
 
 	return vco_freq[hpll_freq] * 1000;
 }
@@ -166,10 +164,7 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 	u32 val;
 	int divider;
 
-	vlv_cck_get(dev_priv);
 	val = vlv_cck_read(dev_priv, reg);
-	vlv_cck_put(dev_priv);
-
 	divider = val & CCK_FREQUENCY_VALUES;
 
 	WARN((val & CCK_FREQUENCY_STATUS) !=
@@ -182,11 +177,18 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 			   const char *name, u32 reg)
 {
+	int hpll;
+
+	vlv_cck_get(dev_priv);
+
 	if (dev_priv->hpll_freq == 0)
 		dev_priv->hpll_freq = vlv_get_hpll_vco(dev_priv);
 
-	return vlv_get_cck_clock(dev_priv, name, reg,
-				 dev_priv->hpll_freq);
+	hpll = vlv_get_cck_clock(dev_priv, name, reg, dev_priv->hpll_freq);
+
+	vlv_cck_put(dev_priv);
+
+	return hpll;
 }
 
 static void intel_update_czclk(struct drm_i915_private *dev_priv)

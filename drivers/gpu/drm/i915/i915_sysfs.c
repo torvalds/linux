@@ -259,25 +259,25 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	intel_wakeref_t wakeref;
-	int ret;
+	u32 freq;
 
 	wakeref = intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->pcu_lock);
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		u32 freq;
+		vlv_punit_get(dev_priv);
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
+		vlv_punit_put(dev_priv);
+
+		freq = (freq >> 8) & 0xff;
 	} else {
-		ret = intel_gpu_freq(dev_priv,
-				     intel_get_cagf(dev_priv,
-						    I915_READ(GEN6_RPSTAT1)));
+		freq = intel_get_cagf(dev_priv, I915_READ(GEN6_RPSTAT1));
 	}
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_runtime_pm_put(dev_priv, wakeref);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
+	return snprintf(buf, PAGE_SIZE, "%d\n", intel_gpu_freq(dev_priv, freq));
 }
 
 static ssize_t gt_cur_freq_mhz_show(struct device *kdev,

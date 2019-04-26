@@ -145,30 +145,18 @@ u32 vlv_punit_read(struct drm_i915_private *i915, u32 addr)
 
 	lockdep_assert_held(&i915->pcu_lock);
 
-	vlv_punit_get(i915);
-
 	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
 			SB_CRRDDA_NP, addr, &val);
-
-	vlv_punit_put(i915);
 
 	return val;
 }
 
 int vlv_punit_write(struct drm_i915_private *i915, u32 addr, u32 val)
 {
-	int err;
-
 	lockdep_assert_held(&i915->pcu_lock);
 
-	vlv_punit_get(i915);
-
-	err = vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
-			      SB_CRWRDA_NP, addr, &val);
-
-	vlv_punit_put(i915);
-
-	return err;
+	return vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
+			       SB_CRWRDA_NP, addr, &val);
 }
 
 u32 vlv_bunit_read(struct drm_i915_private *i915, u32 reg)
@@ -191,10 +179,8 @@ u32 vlv_nc_read(struct drm_i915_private *i915, u8 addr)
 {
 	u32 val = 0;
 
-	vlv_nc_get(i915);
 	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_NC,
 			SB_CRRDDA_NP, addr, &val);
-	vlv_nc_put(i915);
 
 	return val;
 }

@@ -464,13 +464,19 @@ static void vlv_get_cdclk(struct drm_i915_private *dev_priv,
 {
 	u32 val;
 
+	mutex_lock(&dev_priv->pcu_lock);
+	vlv_iosf_sb_get(dev_priv,
+			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
+
 	cdclk_state->vco = vlv_get_hpll_vco(dev_priv);
 	cdclk_state->cdclk = vlv_get_cck_clock(dev_priv, "cdclk",
 					       CCK_DISPLAY_CLOCK_CONTROL,
 					       cdclk_state->vco);
 
-	mutex_lock(&dev_priv->pcu_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
+
+	vlv_iosf_sb_put(dev_priv,
+			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	if (IS_VALLEYVIEW(dev_priv))
@@ -545,6 +551,11 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	 */
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
+	vlv_iosf_sb_get(dev_priv,
+			BIT(VLV_IOSF_SB_CCK) |
+			BIT(VLV_IOSF_SB_BUNIT) |
+			BIT(VLV_IOSF_SB_PUNIT));
+
 	mutex_lock(&dev_priv->pcu_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK;
@@ -556,9 +567,6 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 		DRM_ERROR("timed out waiting for CDclk change\n");
 	}
 	mutex_unlock(&dev_priv->pcu_lock);
-
-	vlv_iosf_sb_get(dev_priv,
-			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_BUNIT));
 
 	if (cdclk == 400000) {
 		u32 divider;
@@ -593,7 +601,9 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
 
 	vlv_iosf_sb_put(dev_priv,
-			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_BUNIT));
+			BIT(VLV_IOSF_SB_CCK) |
+			BIT(VLV_IOSF_SB_BUNIT) |
+			BIT(VLV_IOSF_SB_PUNIT));
 
 	intel_update_cdclk(dev_priv);
 
@@ -630,6 +640,7 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	mutex_lock(&dev_priv->pcu_lock);
+	vlv_punit_get(dev_priv);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK_CHV;
 	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
@@ -639,6 +650,8 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
 	}
+
+	vlv_punit_put(dev_priv);
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	intel_update_cdclk(dev_priv);
