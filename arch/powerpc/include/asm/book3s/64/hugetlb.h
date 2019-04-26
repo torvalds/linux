@@ -62,4 +62,44 @@ extern pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
 extern void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 					 unsigned long addr, pte_t *ptep,
 					 pte_t old_pte, pte_t new_pte);
+/*
+ * This should work for other subarchs too. But right now we use the
+ * new format only for 64bit book3s
+ */
+static inline pte_t *hugepd_page(hugepd_t hpd)
+{
+	BUG_ON(!hugepd_ok(hpd));
+	/*
+	 * We have only four bits to encode, MMU page size
+	 */
+	BUILD_BUG_ON((MMU_PAGE_COUNT - 1) > 0xf);
+	return __va(hpd_val(hpd) & HUGEPD_ADDR_MASK);
+}
+
+static inline unsigned int hugepd_mmu_psize(hugepd_t hpd)
+{
+	return (hpd_val(hpd) & HUGEPD_SHIFT_MASK) >> 2;
+}
+
+static inline unsigned int hugepd_shift(hugepd_t hpd)
+{
+	return mmu_psize_to_shift(hugepd_mmu_psize(hpd));
+}
+static inline void flush_hugetlb_page(struct vm_area_struct *vma,
+				      unsigned long vmaddr)
+{
+	if (radix_enabled())
+		return radix__flush_hugetlb_page(vma, vmaddr);
+}
+
+static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
+				    unsigned int pdshift)
+{
+	unsigned long idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(hpd);
+
+	return hugepd_page(hpd) + idx;
+}
+
+void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
+
 #endif
