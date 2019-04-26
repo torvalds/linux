@@ -165,6 +165,12 @@ struct qeth_vnicc_info {
 	bool rx_bcast_enabled;
 };
 
+static inline int qeth_is_adp_supported(struct qeth_ipa_info *ipa,
+		enum qeth_ipa_setadp_cmd func)
+{
+	return (ipa->supported_funcs & func);
+}
+
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
 		enum qeth_ipa_funcs func)
 {
@@ -178,9 +184,7 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 }
 
 #define qeth_adp_supported(c, f) \
-	qeth_is_ipa_supported(&c->options.adp, f)
-#define qeth_adp_enabled(c, f) \
-	qeth_is_ipa_enabled(&c->options.adp, f)
+	qeth_is_adp_supported(&c->options.adp, f)
 #define qeth_is_supported(c, f) \
 	qeth_is_ipa_supported(&c->options.ipa4, f)
 #define qeth_is_enabled(c, f) \
@@ -370,34 +374,6 @@ enum qeth_header_ids {
 #define QETH_HDR_EXT_CSUM_TRANSP_REQ  0x20
 #define QETH_HDR_EXT_UDP	      0x40 /*bit off for TCP*/
 
-enum qeth_qdio_buffer_states {
-	/*
-	 * inbound: read out by driver; owned by hardware in order to be filled
-	 * outbound: owned by driver in order to be filled
-	 */
-	QETH_QDIO_BUF_EMPTY,
-	/*
-	 * inbound: filled by hardware; owned by driver in order to be read out
-	 * outbound: filled by driver; owned by hardware in order to be sent
-	 */
-	QETH_QDIO_BUF_PRIMED,
-	/*
-	 * inbound: not applicable
-	 * outbound: identified to be pending in TPQ
-	 */
-	QETH_QDIO_BUF_PENDING,
-	/*
-	 * inbound: not applicable
-	 * outbound: found in completion queue
-	 */
-	QETH_QDIO_BUF_IN_CQ,
-	/*
-	 * inbound: not applicable
-	 * outbound: handled via transfer pending / completion queue
-	 */
-	QETH_QDIO_BUF_HANDLED_DELAYED,
-};
-
 enum qeth_qdio_info_states {
 	QETH_QDIO_UNINITIALIZED,
 	QETH_QDIO_ALLOCATED,
@@ -427,6 +403,19 @@ struct qeth_qdio_q {
 	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_buffer bufs[QDIO_MAX_BUFFERS_PER_Q];
 	int next_buf_to_init;
+};
+
+enum qeth_qdio_out_buffer_state {
+	/* Owned by driver, in order to be filled. */
+	QETH_QDIO_BUF_EMPTY,
+	/* Filled by driver; owned by hardware in order to be sent. */
+	QETH_QDIO_BUF_PRIMED,
+	/* Identified to be pending in TPQ. */
+	QETH_QDIO_BUF_PENDING,
+	/* Found in completion queue. */
+	QETH_QDIO_BUF_IN_CQ,
+	/* Handled via transfer pending / completion queue. */
+	QETH_QDIO_BUF_HANDLED_DELAYED,
 };
 
 struct qeth_qdio_out_buffer {
@@ -495,14 +484,12 @@ struct qeth_qdio_out_q {
 	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	struct qeth_out_q_stats stats;
-	int queue_no;
+	u8 next_buf_to_fill;
+	u8 max_elements;
+	u8 queue_no;
+	u8 do_pack;
 	struct qeth_card *card;
 	atomic_t state;
-	int do_pack;
-	/*
-	 * index of buffer to be filled by driver; state EMPTY or PACKING
-	 */
-	int next_buf_to_fill;
 	/*
 	 * number of buffers that are currently filled (PRIMED)
 	 * -> these buffers are hardware-owned
@@ -648,7 +635,6 @@ struct qeth_seqno {
 	__u32 pdu_hdr;
 	__u32 pdu_hdr_ack;
 	__u16 ipa;
-	__u32 pkt_seqno;
 };
 
 struct qeth_reply {
@@ -679,7 +665,7 @@ struct qeth_card_info {
 	__u16 func_level;
 	char mcl_level[QETH_MCL_LENGTH + 1];
 	u8 open_when_online:1;
-	int guestlan;
+	u8 is_vm_nic:1;
 	int mac_bits;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
@@ -893,6 +879,16 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	default:
 		return 0;
 	}
+}
+
+static inline int qeth_get_ether_cast_type(struct sk_buff *skb)
+{
+	u8 *addr = eth_hdr(skb)->h_dest;
+
+	if (is_multicast_ether_addr(addr))
+		return is_broadcast_ether_addr(addr) ? RTN_BROADCAST :
+						       RTN_MULTICAST;
+	return RTN_UNICAST;
 }
 
 static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,

@@ -206,7 +206,7 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	if (card->info.type != QETH_CARD_TYPE_IQD)
+	if (!IS_IQD(card))
 		return -EPERM;
 	if (card->options.cq == QETH_CQ_ENABLED)
 		return -EPERM;
@@ -258,7 +258,7 @@ static ssize_t qeth_l3_dev_hsuid_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	if (card->info.type != QETH_CARD_TYPE_IQD)
+	if (!IS_IQD(card))
 		return -EPERM;
 
 	memcpy(tmp_hsuid, card->options.hsuid, sizeof(tmp_hsuid));
@@ -276,7 +276,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	if (card->info.type != QETH_CARD_TYPE_IQD)
+	if (!IS_IQD(card))
 		return -EPERM;
 	if (card->state != CARD_STATE_DOWN)
 		return -EPERM;
