@@ -31,6 +31,7 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+
 #include <asm/byteorder.h>
 
 #include <drm/drm_atomic_helper.h>
@@ -53,6 +54,7 @@
 #include "intel_lvds.h"
 #include "intel_panel.h"
 #include "intel_psr.h"
+#include "intel_sideband.h"
 
 #define DP_DPRX_ESI_LEN 14
 

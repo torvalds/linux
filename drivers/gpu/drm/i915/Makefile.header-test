@@ -30,6 +30,7 @@ header_test := \
 	intel_pipe_crc.h \
 	intel_pm.h \
 	intel_psr.h \
+	intel_sideband.h \
 	intel_sdvo.h \
 	intel_sprite.h \
 	intel_tv.h \

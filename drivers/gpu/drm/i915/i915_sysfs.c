@@ -29,7 +29,9 @@
 #include <linux/module.h>
 #include <linux/stat.h>
 #include <linux/sysfs.h>
+
 #include "intel_drv.h"
+#include "intel_sideband.h"
 #include "i915_drv.h"
 
 static inline struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)

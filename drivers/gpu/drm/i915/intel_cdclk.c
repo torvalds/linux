@@ -23,6 +23,7 @@
 
 #include "intel_cdclk.h"
 #include "intel_drv.h"
+#include "intel_sideband.h"
 
 /**
  * DOC: CDCLK / RAWCLK

@@ -38,6 +38,7 @@
 #include "intel_fbc.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
+#include "intel_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 
 /**

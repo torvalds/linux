@@ -26,9 +26,11 @@
  */
 
 #include <linux/kernel.h>
-#include "intel_drv.h"
+
 #include "i915_drv.h"
+#include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_sideband.h"
 
 static const u16 lfsr_converts[] = {
 	426, 469, 234, 373, 442, 221, 110, 311, 411,		/* 62 - 70 */

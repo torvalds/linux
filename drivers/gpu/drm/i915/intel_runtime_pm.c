@@ -37,6 +37,7 @@
 #include "intel_csr.h"
 #include "intel_dp.h"
 #include "intel_drv.h"
+#include "intel_sideband.h"
 
 /**
  * DOC: runtime pm

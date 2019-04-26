@@ -24,18 +24,23 @@
  *
  */
 
-#include <drm/drm_crtc.h>
-#include <drm/drm_edid.h>
-#include <drm/i915_drm.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/slab.h>
-#include <video/mipi_display.h>
+
 #include <asm/intel-mid.h>
 #include <asm/unaligned.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/i915_drm.h>
+
+#include <video/mipi_display.h>
+
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_sideband.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
 #define MIPI_VIRTUAL_CHANNEL_SHIFT	1

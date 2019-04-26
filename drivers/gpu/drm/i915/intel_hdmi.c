@@ -50,6 +50,7 @@
 #include "intel_lspcon.h"
 #include "intel_sdvo.h"
 #include "intel_panel.h"
+#include "intel_sideband.h"
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
 {

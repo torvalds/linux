@@ -23,6 +23,7 @@
 
 #include "intel_dp.h"
 #include "intel_drv.h"
+#include "intel_sideband.h"
 
 /**
  * DOC: DPIO
