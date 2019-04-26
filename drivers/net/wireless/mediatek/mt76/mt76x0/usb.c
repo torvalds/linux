@@ -81,8 +81,10 @@ static void mt76x0u_cleanup(struct mt76x02_dev *dev)
 	mt76u_queues_deinit(&dev->mt76);
 }
 
-static void mt76x0u_mac_stop(struct mt76x02_dev *dev)
+static void mt76x0u_stop(struct ieee80211_hw *hw)
 {
+	struct mt76x02_dev *dev = hw->priv;
+
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
@@ -106,11 +108,9 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	mutex_lock(&dev->mt76.mutex);
-
 	ret = mt76x0_mac_start(dev);
 	if (ret)
-		goto out;
+		return ret;
 
 	mt76x0_phy_calibrate(dev, true);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mt76.mac_work,
@@ -118,19 +118,7 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
-
-out:
-	mutex_unlock(&dev->mt76.mutex);
-	return ret;
-}
-
-static void mt76x0u_stop(struct ieee80211_hw *hw)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-	mt76x0u_mac_stop(dev);
-	mutex_unlock(&dev->mt76.mutex);
+	return 0;
 }
 
 static const struct ieee80211_ops mt76x0u_ops = {
