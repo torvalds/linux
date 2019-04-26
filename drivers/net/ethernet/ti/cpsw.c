@@ -3507,9 +3507,6 @@ static int cpsw_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_enable(dev);
 
-	/* Select default pin state */
-	pinctrl_pm_select_default_state(dev);
-
 	/* Need to enable clocks with runtime PM api to access module
 	 * registers
 	 */
