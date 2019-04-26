@@ -1504,9 +1504,6 @@ void wait_lapic_expire(struct kvm_vcpu *vcpu)
 	u32 timer_advance_ns = apic->lapic_timer.timer_advance_ns;
 	u64 guest_tsc, tsc_deadline, ns;
 
-	if (!lapic_in_kernel(vcpu))
-		return;
-
 	if (apic->lapic_timer.expired_tscdeadline == 0)
 		return;
 
