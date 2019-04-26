@@ -2810,6 +2810,12 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, TDLS_WIDER_BW);
+
+	/* We only have SW crypto and only implement the A-MPDU API
+	 * (but don't really build A-MPDUs) so can have extended key
+	 * support
+	 */
+	ieee80211_hw_set(hw, EXT_KEY_ID_NATIVE);
 	if (rctbl)
 		ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
@@ -3900,6 +3906,8 @@ static int __init init_mac80211_hwsim(void)
 		param.p2p_device = support_p2p_device;
 		param.use_chanctx = channels > 1;
 		param.iftypes = HWSIM_IFTYPE_SUPPORT_MASK;
+		if (param.p2p_device)
+			param.iftypes |= BIT(NL80211_IFTYPE_P2P_DEVICE);
 
 		err = mac80211_hwsim_new_radio(NULL, &param);
 		if (err < 0)

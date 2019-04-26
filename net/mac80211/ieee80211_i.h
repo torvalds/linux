@@ -1269,7 +1269,7 @@ struct ieee80211_local {
 
 	/*
 	 * Key mutex, protects sdata's key_list and sta_info's
-	 * key pointers (write access, they're RCU.)
+	 * key pointers and ptk_idx (write access, they're RCU.)
 	 */
 	struct mutex key_mtx;
 
@@ -1384,6 +1384,7 @@ struct ieee80211_local {
 		struct dentry *rcdir;
 		struct dentry *keys;
 	} debugfs;
+	bool force_tx_status;
 #endif
 
 	/*
@@ -1505,7 +1506,6 @@ struct ieee802_11_elems {
 	const struct ieee80211_bss_max_idle_period_ie *max_idle_period_ie;
 	const struct ieee80211_multiple_bssid_configuration *mbssid_config_ie;
 	const struct ieee80211_bssid_index *bssid_index;
-	const u8 *nontransmitted_bssid_profile;
 	u8 max_bssid_indicator;
 	u8 dtim_count;
 	u8 dtim_period;
@@ -1761,7 +1761,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev);
 void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev,
-				  u32 info_flags);
+				  u32 info_flags,
+				  u32 ctrl_flags);
 void ieee80211_purge_tx_queue(struct ieee80211_hw *hw,
 			      struct sk_buff_head *skbs);
 struct sk_buff *
@@ -1778,6 +1779,8 @@ void ieee80211_clear_fast_xmit(struct sta_info *sta);
 int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 			      const u8 *buf, size_t len,
 			      const u8 *dest, __be16 proto, bool unencrypted);
+int ieee80211_probe_mesh_link(struct wiphy *wiphy, struct net_device *dev,
+			      const u8 *buf, size_t len);
 
 /* HT */
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
