@@ -100,6 +100,7 @@ static void aspeed_p2a_disable_bridge(struct aspeed_p2a_ctrl *p2a_ctrl)
 static int aspeed_p2a_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long vsize;
+	pgprot_t prot;
 	struct aspeed_p2a_user *priv = file->private_data;
 	struct aspeed_p2a_ctrl *ctrl = priv->parent;
 
@@ -107,7 +108,7 @@ static int aspeed_p2a_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vsize = vma->vm_end - vma->vm_start;
-	pgprot_t prot = vma->vm_page_prot;
+	prot = vma->vm_page_prot;
 
 	if (vma->vm_pgoff + vsize > ctrl->mem_base + ctrl->mem_size)
 		return -EINVAL;
