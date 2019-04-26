@@ -2514,7 +2514,7 @@ relock:
 		 */
 		if (unlikely(cgroup_task_frozen(current))) {
 			spin_unlock_irq(&sighand->siglock);
-			cgroup_leave_frozen(true);
+			cgroup_leave_frozen(false);
 			goto relock;
 		}
 
