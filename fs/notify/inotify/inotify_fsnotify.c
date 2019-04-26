@@ -89,7 +89,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 			return 0;
 	}
 	if (file_name) {
-		len = strlen(file_name->name);
+		len = file_name->len;
 		alloc_len += len + 1;
 	}
 
