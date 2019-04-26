@@ -993,10 +993,11 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 	struct iscsi_conn *conn = NULL;
 	struct qedi_ctx *qedi;
 	int ret = 0;
-	int wait_delay = 20 * HZ;
+	int wait_delay;
 	int abrt_conn = 0;
 	int count = 10;
 
+	wait_delay = 60 * HZ + DEF_MAX_RT_TIME;
 	qedi_ep = ep->dd_data;
 	qedi = qedi_ep->qedi;
 
@@ -1166,7 +1167,7 @@ static void qedi_offload_work(struct work_struct *work)
 	struct qedi_endpoint *qedi_ep =
 		container_of(work, struct qedi_endpoint, offload_work);
 	struct qedi_ctx *qedi;
-	int wait_delay = 20 * HZ;
+	int wait_delay = 5 * HZ;
 	int ret;
 
 	qedi = qedi_ep->qedi;
