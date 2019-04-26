@@ -1940,6 +1940,9 @@ void wil_halp_vote(struct wil6210_priv *wil)
 	unsigned long rc;
 	unsigned long to_jiffies = msecs_to_jiffies(WAIT_FOR_HALP_VOTE_MS);
 
+	if (wil->hw_version >= HW_VER_TALYN_MB)
+		return;
+
 	mutex_lock(&wil->halp.lock);
 
 	wil_dbg_irq(wil, "halp_vote: start, HALP ref_cnt (%d)\n",
@@ -1971,6 +1974,9 @@ void wil_halp_vote(struct wil6210_priv *wil)
 
 void wil_halp_unvote(struct wil6210_priv *wil)
 {
+	if (wil->hw_version >= HW_VER_TALYN_MB)
+		return;
+
 	WARN_ON(wil->halp.ref_cnt == 0);
 
 	mutex_lock(&wil->halp.lock);
