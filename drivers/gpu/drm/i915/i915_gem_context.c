@@ -141,6 +141,18 @@ static void lut_close(struct i915_gem_context *ctx)
 	rcu_read_unlock();
 }
 
+static struct intel_context *
+lookup_user_engine(struct i915_gem_context *ctx, u16 class, u16 instance)
+{
+	struct intel_engine_cs *engine;
+
+	engine = intel_engine_lookup_user(ctx->i915, class, instance);
+	if (!engine)
+		return ERR_PTR(-EINVAL);
+
+	return intel_context_instance(ctx, engine);
+}
+
 static inline int new_hw_id(struct drm_i915_private *i915, gfp_t gfp)
 {
 	unsigned int max;
@@ -1132,19 +1144,17 @@ out_add:
 }
 
 static int
-__i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
-				    struct intel_engine_cs *engine,
-				    struct intel_sseu sseu)
+__intel_context_reconfigure_sseu(struct intel_context *ce,
+				 struct intel_sseu sseu)
 {
-	struct intel_context *ce;
-	int ret = 0;
+	int ret;
 
-	GEM_BUG_ON(INTEL_GEN(ctx->i915) < 8);
-	GEM_BUG_ON(engine->id != RCS0);
+	GEM_BUG_ON(INTEL_GEN(ce->gem_context->i915) < 8);
+	GEM_BUG_ON(ce->engine->id != RCS0);
 
-	ce = intel_context_pin_lock(ctx, engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
+	ret = intel_context_lock_pinned(ce);
+	if (ret)
+		return ret;
 
 	/* Nothing to do if unmodified. */
 	if (!memcmp(&ce->sseu, &sseu, sizeof(sseu)))
@@ -1155,24 +1165,23 @@ __i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
 		ce->sseu = sseu;
 
 unlock:
-	intel_context_pin_unlock(ce);
+	intel_context_unlock_pinned(ce);
 	return ret;
 }
 
 static int
-i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
-				  struct intel_engine_cs *engine,
-				  struct intel_sseu sseu)
+intel_context_reconfigure_sseu(struct intel_context *ce, struct intel_sseu sseu)
 {
+	struct drm_i915_private *i915 = ce->gem_context->i915;
 	int ret;
 
-	ret = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
+	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 	if (ret)
 		return ret;
 
-	ret = __i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
+	ret = __intel_context_reconfigure_sseu(ce, sseu);
 
-	mutex_unlock(&ctx->i915->drm.struct_mutex);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	return ret;
 }
@@ -1280,7 +1289,7 @@ static int set_sseu(struct i915_gem_context *ctx,
 {
 	struct drm_i915_private *i915 = ctx->i915;
 	struct drm_i915_gem_context_param_sseu user_sseu;
-	struct intel_engine_cs *engine;
+	struct intel_context *ce;
 	struct intel_sseu sseu;
 	int ret;
 
@@ -1297,27 +1306,31 @@ static int set_sseu(struct i915_gem_context *ctx,
 	if (user_sseu.flags || user_sseu.rsvd)
 		return -EINVAL;
 
-	engine = intel_engine_lookup_user(i915,
-					  user_sseu.engine.engine_class,
-					  user_sseu.engine.engine_instance);
-	if (!engine)
-		return -EINVAL;
+	ce = lookup_user_engine(ctx,
+				user_sseu.engine.engine_class,
+				user_sseu.engine.engine_instance);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
 
 	/* Only render engine supports RPCS configuration. */
-	if (engine->class != RENDER_CLASS)
-		return -ENODEV;
+	if (ce->engine->class != RENDER_CLASS) {
+		ret = -ENODEV;
+		goto out_ce;
+	}
 
 	ret = user_to_context_sseu(i915, &user_sseu, &sseu);
 	if (ret)
-		return ret;
+		goto out_ce;
 
-	ret = i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
+	ret = intel_context_reconfigure_sseu(ce, sseu);
 	if (ret)
-		return ret;
+		goto out_ce;
 
 	args->size = sizeof(user_sseu);
 
-	return 0;
+out_ce:
+	intel_context_put(ce);
+	return ret;
 }
 
 static int ctx_setparam(struct drm_i915_file_private *fpriv,
@@ -1522,8 +1535,8 @@ static int get_sseu(struct i915_gem_context *ctx,
 		    struct drm_i915_gem_context_param *args)
 {
 	struct drm_i915_gem_context_param_sseu user_sseu;
-	struct intel_engine_cs *engine;
 	struct intel_context *ce;
+	int err;
 
 	if (args->size == 0)
 		goto out;
@@ -1537,22 +1550,25 @@ static int get_sseu(struct i915_gem_context *ctx,
 	if (user_sseu.flags || user_sseu.rsvd)
 		return -EINVAL;
 
-	engine = intel_engine_lookup_user(ctx->i915,
-					  user_sseu.engine.engine_class,
-					  user_sseu.engine.engine_instance);
-	if (!engine)
-		return -EINVAL;
-
-	ce = intel_context_pin_lock(ctx, engine); /* serialises with set_sseu */
+	ce = lookup_user_engine(ctx,
+				user_sseu.engine.engine_class,
+				user_sseu.engine.engine_instance);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
+
+	err = intel_context_lock_pinned(ce); /* serialises with set_sseu */
+	if (err) {
+		intel_context_put(ce);
+		return err;
+	}
 
 	user_sseu.slice_mask = ce->sseu.slice_mask;
 	user_sseu.subslice_mask = ce->sseu.subslice_mask;
 	user_sseu.min_eus_per_subslice = ce->sseu.min_eus_per_subslice;
 	user_sseu.max_eus_per_subslice = ce->sseu.max_eus_per_subslice;
 
-	intel_context_pin_unlock(ce);
+	intel_context_unlock_pinned(ce);
+	intel_context_put(ce);
 
 	if (copy_to_user(u64_to_user_ptr(args->value), &user_sseu,
 			 sizeof(user_sseu)))

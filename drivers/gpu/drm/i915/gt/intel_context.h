@@ -31,25 +31,45 @@ intel_context_lookup(struct i915_gem_context *ctx,
 		     struct intel_engine_cs *engine);
 
 /**
- * intel_context_pin_lock - Stablises the 'pinned' status of the HW context
- * @ctx - the parent GEM context
- * @engine - the target HW engine
+ * intel_context_lock_pinned - Stablises the 'pinned' status of the HW context
+ * @ce - the context
  *
  * Acquire a lock on the pinned status of the HW context, such that the context
  * can neither be bound to the GPU or unbound whilst the lock is held, i.e.
  * intel_context_is_pinned() remains stable.
  */
-struct intel_context *
-intel_context_pin_lock(struct i915_gem_context *ctx,
-		       struct intel_engine_cs *engine);
+static inline int intel_context_lock_pinned(struct intel_context *ce)
+	__acquires(ce->pin_mutex)
+{
+	return mutex_lock_interruptible(&ce->pin_mutex);
+}
 
+/**
+ * intel_context_is_pinned - Reports the 'pinned' status
+ * @ce - the context
+ *
+ * While in use by the GPU, the context, along with its ring and page
+ * tables is pinned into memory and the GTT.
+ *
+ * Returns: true if the context is currently pinned for use by the GPU.
+ */
 static inline bool
 intel_context_is_pinned(struct intel_context *ce)
 {
 	return atomic_read(&ce->pin_count);
 }
 
-void intel_context_pin_unlock(struct intel_context *ce);
+/**
+ * intel_context_unlock_pinned - Releases the earlier locking of 'pinned' status
+ * @ce - the context
+ *
+ * Releases the lock earlier acquired by intel_context_unlock_pinned().
+ */
+static inline void intel_context_unlock_pinned(struct intel_context *ce)
+	__releases(ce->pin_mutex)
+{
+	mutex_unlock(&ce->pin_mutex);
+}
 
 struct intel_context *
 __intel_context_insert(struct i915_gem_context *ctx,

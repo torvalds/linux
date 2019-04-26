@@ -128,32 +128,6 @@ intel_context_instance(struct i915_gem_context *ctx,
 	return intel_context_get(pos);
 }
 
-struct intel_context *
-intel_context_pin_lock(struct i915_gem_context *ctx,
-		       struct intel_engine_cs *engine)
-	__acquires(ce->pin_mutex)
-{
-	struct intel_context *ce;
-
-	ce = intel_context_instance(ctx, engine);
-	if (IS_ERR(ce))
-		return ce;
-
-	if (mutex_lock_interruptible(&ce->pin_mutex)) {
-		intel_context_put(ce);
-		return ERR_PTR(-EINTR);
-	}
-
-	return ce;
-}
-
-void intel_context_pin_unlock(struct intel_context *ce)
-	__releases(ce->pin_mutex)
-{
-	mutex_unlock(&ce->pin_mutex);
-	intel_context_put(ce);
-}
-
 int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;

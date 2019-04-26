@@ -1017,7 +1017,7 @@ __sseu_test(struct drm_i915_private *i915,
 	if (ret)
 		return ret;
 
-	ret = __i915_gem_context_reconfigure_sseu(ce->gem_context, ce->engine, sseu);
+	ret = __intel_context_reconfigure_sseu(ce, sseu);
 	if (ret)
 		goto out_spin;
 
