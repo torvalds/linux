@@ -2061,9 +2061,91 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 	return 0;
 }
 
+static void ath10k_htt_rx_mpdu_desc_pn_hl(struct htt_hl_rx_desc *rx_desc,
+					  union htt_rx_pn_t *pn,
+					  int pn_len_bits)
+{
+	switch (pn_len_bits) {
+	case 48:
+		pn->pn48 = __le32_to_cpu(rx_desc->pn_31_0) +
+			   ((u64)(__le32_to_cpu(rx_desc->u0.pn_63_32) & 0xFFFF) << 32);
+		break;
+	case 24:
+		pn->pn24 = __le32_to_cpu(rx_desc->pn_31_0);
+		break;
+	};
+}
+
+static bool ath10k_htt_rx_pn_cmp48(union htt_rx_pn_t *new_pn,
+				   union htt_rx_pn_t *old_pn)
+{
+	return ((new_pn->pn48 & 0xffffffffffffULL) <=
+		(old_pn->pn48 & 0xffffffffffffULL));
+}
+
+static bool ath10k_htt_rx_pn_check_replay_hl(struct ath10k *ar,
+					     struct ath10k_peer *peer,
+					     struct htt_rx_indication_hl *rx)
+{
+	bool last_pn_valid, pn_invalid = false;
+	enum htt_txrx_sec_cast_type sec_index;
+	enum htt_security_types sec_type;
+	union htt_rx_pn_t new_pn = {0};
+	struct htt_hl_rx_desc *rx_desc;
+	union htt_rx_pn_t *last_pn;
+	u32 rx_desc_info, tid;
+	int num_mpdu_ranges;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	if (!peer)
+		return false;
+
+	if (!(rx->fw_desc.flags & FW_RX_DESC_FLAGS_FIRST_MSDU))
+		return false;
+
+	num_mpdu_ranges = MS(__le32_to_cpu(rx->hdr.info1),
+			     HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES);
+
+	rx_desc = (struct htt_hl_rx_desc *)&rx->mpdu_ranges[num_mpdu_ranges];
+	rx_desc_info = __le32_to_cpu(rx_desc->info);
+
+	if (!MS(rx_desc_info, HTT_RX_DESC_HL_INFO_ENCRYPTED))
+		return false;
+
+	tid = MS(rx->hdr.info0, HTT_RX_INDICATION_INFO0_EXT_TID);
+	last_pn_valid = peer->tids_last_pn_valid[tid];
+	last_pn = &peer->tids_last_pn[tid];
+
+	if (MS(rx_desc_info, HTT_RX_DESC_HL_INFO_MCAST_BCAST))
+		sec_index = HTT_TXRX_SEC_MCAST;
+	else
+		sec_index = HTT_TXRX_SEC_UCAST;
+
+	sec_type = peer->rx_pn[sec_index].sec_type;
+	ath10k_htt_rx_mpdu_desc_pn_hl(rx_desc, &new_pn, peer->rx_pn[sec_index].pn_len);
+
+	if (sec_type != HTT_SECURITY_AES_CCMP &&
+	    sec_type != HTT_SECURITY_TKIP &&
+	    sec_type != HTT_SECURITY_TKIP_NOMIC)
+		return false;
+
+	if (last_pn_valid)
+		pn_invalid = ath10k_htt_rx_pn_cmp48(&new_pn, last_pn);
+	else
+		peer->tids_last_pn_valid[tid] = 1;
+
+	if (!pn_invalid)
+		last_pn->pn48 = new_pn.pn48;
+
+	return pn_invalid;
+}
+
 static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 					 struct htt_rx_indication_hl *rx,
-					 struct sk_buff *skb)
+					 struct sk_buff *skb,
+					 enum htt_rx_pn_check_type check_pn_type,
+					 enum htt_rx_tkip_demic_type tkip_mic_type)
 {
 	struct ath10k *ar = htt->ar;
 	struct ath10k_peer *peer;
@@ -2107,6 +2189,10 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 		goto err;
 	}
 
+	if (check_pn_type == HTT_RX_PN_CHECK &&
+	    ath10k_htt_rx_pn_check_replay_hl(ar, peer, rx))
+		goto err;
+
 	/* Strip off all headers before the MAC header before delivery to
 	 * mac80211
 	 */
@@ -2114,6 +2200,7 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 		      sizeof(rx->ppdu) + sizeof(rx->prefix) +
 		      sizeof(rx->fw_desc) +
 		      sizeof(*mpdu_ranges) * num_mpdu_ranges + rx_desc_len;
+
 	skb_pull(skb, tot_hdr_len);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -2161,6 +2248,10 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 				   RX_FLAG_IV_STRIPPED |
 				   RX_FLAG_MMIC_STRIPPED;
 	}
+
+	if (tkip_mic_type == HTT_RX_TKIP_MIC)
+		rx_status->flag &= ~RX_FLAG_IV_STRIPPED &
+				   ~RX_FLAG_MMIC_STRIPPED;
 
 	ieee80211_rx_ni(ar->hw, skb);
 
@@ -3343,7 +3434,9 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 			return ath10k_htt_rx_proc_rx_ind_hl(htt,
 							    &resp->rx_ind_hl,
-							    skb);
+							    skb,
+							    HTT_RX_PN_CHECK,
+							    HTT_RX_NON_TKIP_MIC);
 		else
 			ath10k_htt_rx_proc_rx_ind_ll(htt, &resp->rx_ind);
 		break;
