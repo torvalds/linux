@@ -60,13 +60,8 @@
 #define _PAGE_SPECIAL	_PAGE_SW0
 
 /* Base page size */
-#ifdef CONFIG_PPC_64K_PAGES
-#define _PAGE_PSIZE	_PAGE_PSIZE_64K
-#define PTE_RPN_SHIFT	(28)
-#else
 #define _PAGE_PSIZE	_PAGE_PSIZE_4K
 #define	PTE_RPN_SHIFT	(24)
-#endif
 
 #define PTE_WIMGE_SHIFT (19)
 #define PTE_BAP_SHIFT	(2)

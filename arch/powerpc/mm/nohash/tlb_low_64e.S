@@ -24,11 +24,7 @@
 #include <asm/kvm_booke_hv_asm.h>
 #include <asm/feature-fixups.h>
 
-#ifdef CONFIG_PPC_64K_PAGES
-#define VPTE_PMD_SHIFT	(PTE_INDEX_SIZE+1)
-#else
 #define VPTE_PMD_SHIFT	(PTE_INDEX_SIZE)
-#endif
 #define VPTE_PUD_SHIFT	(VPTE_PMD_SHIFT + PMD_INDEX_SIZE)
 #define VPTE_PGD_SHIFT	(VPTE_PUD_SHIFT + PUD_INDEX_SIZE)
 #define VPTE_INDEX_SIZE (VPTE_PGD_SHIFT + PGD_INDEX_SIZE)
@@ -167,13 +163,11 @@ MMU_FTR_SECTION_ELSE
 	ldx	r14,r14,r15		/* grab pgd entry */
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 
-#ifndef CONFIG_PPC_64K_PAGES
 	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
 	cmpdi	cr0,r14,0
 	bge	tlb_miss_fault_bolted	/* Bad pgd entry or hugepage; bail */
 	ldx	r14,r14,r15		/* grab pud entry */
-#endif /* CONFIG_PPC_64K_PAGES */
 
 	rldicl	r15,r16,64-PMD_SHIFT+3,64-PMD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
@@ -682,18 +676,7 @@ normal_tlb_miss:
 	 * order to handle the weird page table format used by linux
 	 */
 	ori	r10,r15,0x1
-#ifdef CONFIG_PPC_64K_PAGES
-	/* For the top bits, 16 bytes per PTE */
-	rldicl	r14,r16,64-(PAGE_SHIFT-4),PAGE_SHIFT-4+4
-	/* Now create the bottom bits as 0 in position 0x8000 and
-	 * the rest calculated for 8 bytes per PTE
-	 */
-	rldicl	r15,r16,64-(PAGE_SHIFT-3),64-15
-	/* Insert the bottom bits in */
-	rlwimi	r14,r15,0,16,31
-#else
 	rldicl	r14,r16,64-(PAGE_SHIFT-3),PAGE_SHIFT-3+4
-#endif
 	sldi	r15,r10,60
 	clrrdi	r14,r14,3
 	or	r10,r15,r14
@@ -732,11 +715,7 @@ finish_normal_tlb_miss:
 
 	/* Check page size, if not standard, update MAS1 */
 	rldicl	r11,r14,64-8,64-8
-#ifdef CONFIG_PPC_64K_PAGES
-	cmpldi	cr0,r11,BOOK3E_PAGESZ_64K
-#else
 	cmpldi	cr0,r11,BOOK3E_PAGESZ_4K
-#endif
 	beq-	1f
 	mfspr	r11,SPRN_MAS1
 	rlwimi	r11,r14,31,21,24
@@ -857,14 +836,12 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 	cmpdi	cr0,r15,0
 	bge	virt_page_table_tlb_miss_fault
 
-#ifndef CONFIG_PPC_64K_PAGES
 	/* Get to PUD entry */
 	rldicl	r11,r16,64-VPTE_PUD_SHIFT,64-PUD_INDEX_SIZE-3
 	clrrdi	r10,r11,3
 	ldx	r15,r10,r15
 	cmpdi	cr0,r15,0
 	bge	virt_page_table_tlb_miss_fault
-#endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Get to PMD entry */
 	rldicl	r11,r16,64-VPTE_PMD_SHIFT,64-PMD_INDEX_SIZE-3
@@ -1106,14 +1083,12 @@ htw_tlb_miss:
 	cmpdi	cr0,r15,0
 	bge	htw_tlb_miss_fault
 
-#ifndef CONFIG_PPC_64K_PAGES
 	/* Get to PUD entry */
 	rldicl	r11,r16,64-(PUD_SHIFT-3),64-PUD_INDEX_SIZE-3
 	clrrdi	r10,r11,3
 	ldx	r15,r10,r15
 	cmpdi	cr0,r15,0
 	bge	htw_tlb_miss_fault
-#endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Get to PMD entry */
 	rldicl	r11,r16,64-(PMD_SHIFT-3),64-PMD_INDEX_SIZE-3
@@ -1132,9 +1107,7 @@ htw_tlb_miss:
 	 * 4K page we need to extract a bit from the virtual address and
 	 * insert it into the "PA52" bit of the RPN.
 	 */
-#ifndef CONFIG_PPC_64K_PAGES
 	rlwimi	r15,r16,32-9,20,20
-#endif
 	/* Now we build the MAS:
 	 *
 	 * MAS 0   :	Fully setup with defaults in MAS4 and TLBnCFG
@@ -1144,11 +1117,7 @@ htw_tlb_miss:
 	 * MAS 2   :	Use defaults
 	 * MAS 3+7 :	Needs to be done
 	 */
-#ifdef CONFIG_PPC_64K_PAGES
-	ori	r10,r15,(BOOK3E_PAGESZ_64K << MAS3_SPSIZE_SHIFT)
-#else
 	ori	r10,r15,(BOOK3E_PAGESZ_4K << MAS3_SPSIZE_SHIFT)
-#endif
 
 BEGIN_MMU_FTR_SECTION
 	srdi	r16,r10,32

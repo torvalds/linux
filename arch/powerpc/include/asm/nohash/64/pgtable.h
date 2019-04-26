@@ -10,10 +10,6 @@
 #include <asm/barrier.h>
 #include <asm/asm-const.h>
 
-#ifdef CONFIG_PPC_64K_PAGES
-#error "Page size not supported"
-#endif
-
 #define FIRST_USER_ADDRESS	0UL
 
 /*

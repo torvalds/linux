@@ -433,11 +433,7 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 		unsigned long rid = (address & rmask) | 0x1000000000000000ul;
 		unsigned long vpte = address & ~rmask;
 
-#ifdef CONFIG_PPC_64K_PAGES
-		vpte = (vpte >> (PAGE_SHIFT - 4)) & ~0xfffful;
-#else
 		vpte = (vpte >> (PAGE_SHIFT - 3)) & ~0xffful;
-#endif
 		vpte |= rid;
 		__flush_tlb_page(tlb->mm, vpte, tsize, 0);
 	}
@@ -625,21 +621,12 @@ static void early_init_this_mmu(void)
 
 	case PPC_HTW_IBM:
 		mas4 |= MAS4_INDD;
-#ifdef CONFIG_PPC_64K_PAGES
-		mas4 |=	BOOK3E_PAGESZ_256M << MAS4_TSIZED_SHIFT;
-		mmu_pte_psize = MMU_PAGE_256M;
-#else
 		mas4 |=	BOOK3E_PAGESZ_1M << MAS4_TSIZED_SHIFT;
 		mmu_pte_psize = MMU_PAGE_1M;
-#endif
 		break;
 
 	case PPC_HTW_NONE:
-#ifdef CONFIG_PPC_64K_PAGES
-		mas4 |=	BOOK3E_PAGESZ_64K << MAS4_TSIZED_SHIFT;
-#else
 		mas4 |=	BOOK3E_PAGESZ_4K << MAS4_TSIZED_SHIFT;
-#endif
 		mmu_pte_psize = mmu_virtual_psize;
 		break;
 	}
