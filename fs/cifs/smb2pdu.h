@@ -1078,6 +1078,7 @@ struct smb2_flush_rsp {
 
 /* For read request Flags field below, following flag is defined for SMB3.02 */
 #define SMB2_READFLAG_READ_UNBUFFERED	0x01
+#define SMB2_READFLAG_REQUEST_COMPRESSED 0x02 /* See MS-SMB2 2.2.19 */
 
 /* Channel field for read and write: exactly one of following flags can be set*/
 #define SMB2_CHANNEL_NONE	cpu_to_le32(0x00000000)
