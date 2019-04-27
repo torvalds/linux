@@ -6728,7 +6728,7 @@ long tg_get_cfs_percent(struct task_group *tg)
 }
 
 static s64 cpu_cfs_quota_read_s64(struct cgroup_subsys_state *css,
-				  struct cftype *cft)
+				   struct cftype *cft)
 {
 	return tg_get_cfs_quota(css_tg(css));
 }
@@ -6746,19 +6746,19 @@ static u64 cpu_cfs_period_read_u64(struct cgroup_subsys_state *css,
 }
 
 static int cpu_cfs_period_write_u64(struct cgroup_subsys_state *css,
-				    struct cftype *cftype, u64 cfs_period_us)
+				   struct cftype *cftype, u64 cfs_period_us)
 {
 	return tg_set_cfs_period(css_tg(css), cfs_period_us);
 }
 
 static s64 cpu_cfs_percent_read_u64(struct cgroup_subsys_state *css,
-				    struct cftype *cft)
+				   struct cftype *cft)
 {
 	return tg_get_cfs_percent(css_tg(css));
 }
 
 static int cpu_cfs_percent_write_u64(struct cgroup_subsys_state *css,
-				    struct cftype *cftype, u64 cfs_percent)
+				   struct cftype *cftype, u64 cfs_percent)
 {
 	return tg_set_cfs_percent(css_tg(css), cfs_percent);
 }
