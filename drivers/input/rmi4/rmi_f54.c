@@ -456,25 +456,15 @@ static int rmi_f54_vidioc_fmt(struct file *file, void *priv,
 static int rmi_f54_vidioc_enum_fmt(struct file *file, void *priv,
 				   struct v4l2_fmtdesc *fmt)
 {
+	struct f54_data *f54 = video_drvdata(file);
+
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	switch (fmt->index) {
-	case 0:
-		fmt->pixelformat = V4L2_TCH_FMT_DELTA_TD16;
-		break;
-
-	case 1:
-		fmt->pixelformat = V4L2_TCH_FMT_DELTA_TD08;
-		break;
-
-	case 2:
-		fmt->pixelformat = V4L2_TCH_FMT_TU16;
-		break;
-
-	default:
+	if (fmt->index)
 		return -EINVAL;
-	}
+
+	fmt->pixelformat = f54->format.pixelformat;
 
 	return 0;
 }
