@@ -692,6 +692,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 		return -ENOMEM;
 
 	rmi_f54_create_input_map(f54);
+	rmi_f54_set_input(f54, 0);
 
 	/* register video device */
 	strlcpy(f54->v4l2.name, F54_NAME, sizeof(f54->v4l2.name));
