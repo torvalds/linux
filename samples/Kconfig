@@ -20,8 +20,7 @@ config SAMPLE_TRACE_PRINTK
 	 test various trace_printk() calls from a module.
 
 config SAMPLE_KOBJECT
-	tristate "Build kobject examples -- loadable modules only"
-	depends on m
+	tristate "Build kobject examples"
 	help
 	  This config option will allow you to build a number of
 	  different kobject sample modules showing how to use kobjects,
