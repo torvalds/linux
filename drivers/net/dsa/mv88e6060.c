@@ -19,17 +19,6 @@ static int reg_read(struct mv88e6060_priv *priv, int addr, int reg)
 	return mdiobus_read_nested(priv->bus, priv->sw_addr + addr, reg);
 }
 
-#define REG_READ(addr, reg)					\
-	({							\
-		int __ret;					\
-								\
-		__ret = reg_read(priv, addr, reg);		\
-		if (__ret < 0)					\
-			return __ret;				\
-		__ret;						\
-	})
-
-
 static int reg_write(struct mv88e6060_priv *priv, int addr, int reg, u16 val)
 {
 	return mdiobus_write_nested(priv->bus, priv->sw_addr + addr, reg, val);
@@ -88,7 +77,9 @@ static int mv88e6060_switch_reset(struct mv88e6060_priv *priv)
 
 	/* Set all ports to the disabled state. */
 	for (i = 0; i < MV88E6060_PORTS; i++) {
-		ret = REG_READ(REG_PORT(i), PORT_CONTROL);
+		ret = reg_read(priv, REG_PORT(i), PORT_CONTROL);
+		if (ret < 0)
+			return ret;
 		ret = reg_write(priv, REG_PORT(i), PORT_CONTROL,
 				ret & ~PORT_CONTROL_STATE_MASK);
 		if (ret)
@@ -108,7 +99,10 @@ static int mv88e6060_switch_reset(struct mv88e6060_priv *priv)
 	/* Wait up to one second for reset to complete. */
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-		ret = REG_READ(REG_GLOBAL, GLOBAL_STATUS);
+		ret = reg_read(priv, REG_GLOBAL, GLOBAL_STATUS);
+		if (ret < 0)
+			return ret;
+
 		if (ret & GLOBAL_STATUS_INIT_READY)
 			break;
 
