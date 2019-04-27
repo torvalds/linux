@@ -221,7 +221,7 @@ struct io_kiocb {
 	struct list_head	list;
 	unsigned int		flags;
 	refcount_t		refs;
-#define REQ_F_FORCE_NONBLOCK	1	/* inline submission attempt */
+#define REQ_F_NOWAIT		1	/* must not punt to workers */
 #define REQ_F_IOPOLL_COMPLETED	2	/* polled IO has completed */
 #define REQ_F_FIXED_FILE	4	/* ctx owns file */
 #define REQ_F_SEQ_PREV		8	/* sequential with previous */
@@ -774,10 +774,14 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 	ret = kiocb_set_rw_flags(kiocb, READ_ONCE(sqe->rw_flags));
 	if (unlikely(ret))
 		return ret;
-	if (force_nonblock) {
+
+	/* don't allow async punt if RWF_NOWAIT was requested */
+	if (kiocb->ki_flags & IOCB_NOWAIT)
+		req->flags |= REQ_F_NOWAIT;
+
+	if (force_nonblock)
 		kiocb->ki_flags |= IOCB_NOWAIT;
-		req->flags |= REQ_F_FORCE_NONBLOCK;
-	}
+
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		if (!(kiocb->ki_flags & IOCB_DIRECT) ||
 		    !kiocb->ki_filp->f_op->iopoll)
@@ -1436,8 +1440,7 @@ restart:
 		struct sqe_submit *s = &req->submit;
 		const struct io_uring_sqe *sqe = s->sqe;
 
-		/* Ensure we clear previously set forced non-block flag */
-		req->flags &= ~REQ_F_FORCE_NONBLOCK;
+		/* Ensure we clear previously set non-block flag */
 		req->rw.ki_flags &= ~IOCB_NOWAIT;
 
 		ret = 0;
@@ -1623,7 +1626,7 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 		goto out;
 
 	ret = __io_submit_sqe(ctx, req, s, true);
-	if (ret == -EAGAIN) {
+	if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
 		struct io_uring_sqe *sqe_copy;
 
 		sqe_copy = kmalloc(sizeof(*sqe_copy), GFP_KERNEL);
