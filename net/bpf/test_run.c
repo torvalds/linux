@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/filter.h>
 #include <linux/sched/signal.h>
+#include <net/bpf_sk_storage.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
@@ -335,6 +336,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 				     sizeof(struct __sk_buff));
 out:
 	kfree_skb(skb);
+	bpf_sk_storage_free(sk);
 	kfree(sk);
 	kfree(ctx);
 	return ret;
