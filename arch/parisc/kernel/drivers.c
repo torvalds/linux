@@ -38,6 +38,7 @@
 #include <asm/io.h>
 #include <asm/pdc.h>
 #include <asm/parisc-device.h>
+#include <asm/ropes.h>
 
 /* See comments in include/asm-parisc/pci.h */
 const struct dma_map_ops *hppa_dma_ops __read_mostly;
@@ -255,6 +256,30 @@ static struct parisc_device *find_device_by_addr(unsigned long hpa)
 
 	ret = for_each_padev(find_device, &d);
 	return ret ? d.dev : NULL;
+}
+
+static int __init is_IKE_device(struct device *dev, void *data)
+{
+	struct parisc_device *pdev = to_parisc_device(dev);
+
+	if (!check_dev(dev))
+		return 0;
+	if (pdev->id.hw_type != HPHW_BCPORT)
+		return 0;
+	if (IS_IKE(pdev) ||
+		(pdev->id.hversion == REO_MERCED_PORT) ||
+		(pdev->id.hversion == REOG_MERCED_PORT)) {
+			return 1;
+	}
+	return 0;
+}
+
+int __init machine_has_merced_bus(void)
+{
+	int ret;
+
+	ret = for_each_padev(is_IKE_device, NULL);
+	return ret ? 1 : 0;
 }
 
 /**
