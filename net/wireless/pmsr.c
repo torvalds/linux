@@ -25,7 +25,8 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 	}
 
 	/* no validation needed - was already done via nested policy */
-	nla_parse_nested(tb, NL80211_PMSR_FTM_REQ_ATTR_MAX, ftmreq, NULL, NULL);
+	nla_parse_nested_deprecated(tb, NL80211_PMSR_FTM_REQ_ATTR_MAX, ftmreq,
+				    NULL, NULL);
 
 	if (tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE])
 		preamble = nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE]);
@@ -139,7 +140,8 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	int err, rem;
 
 	/* no validation needed - was already done via nested policy */
-	nla_parse_nested(tb, NL80211_PMSR_PEER_ATTR_MAX, peer, NULL, NULL);
+	nla_parse_nested_deprecated(tb, NL80211_PMSR_PEER_ATTR_MAX, peer,
+				    NULL, NULL);
 
 	if (!tb[NL80211_PMSR_PEER_ATTR_ADDR] ||
 	    !tb[NL80211_PMSR_PEER_ATTR_CHAN] ||
@@ -154,9 +156,9 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	/* reuse info->attrs */
 	memset(info->attrs, 0, sizeof(*info->attrs) * (NL80211_ATTR_MAX + 1));
 	/* need to validate here, we don't want to have validation recursion */
-	err = nla_parse_nested(info->attrs, NL80211_ATTR_MAX,
-			       tb[NL80211_PMSR_PEER_ATTR_CHAN],
-			       nl80211_policy, info->extack);
+	err = nla_parse_nested_deprecated(info->attrs, NL80211_ATTR_MAX,
+					  tb[NL80211_PMSR_PEER_ATTR_CHAN],
+					  nl80211_policy, info->extack);
 	if (err)
 		return err;
 
@@ -165,9 +167,9 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 		return err;
 
 	/* no validation needed - was already done via nested policy */
-	nla_parse_nested(req, NL80211_PMSR_REQ_ATTR_MAX,
-			 tb[NL80211_PMSR_PEER_ATTR_REQ],
-			 NULL, NULL);
+	nla_parse_nested_deprecated(req, NL80211_PMSR_REQ_ATTR_MAX,
+				    tb[NL80211_PMSR_PEER_ATTR_REQ], NULL,
+				    NULL);
 
 	if (!req[NL80211_PMSR_REQ_ATTR_DATA]) {
 		NL_SET_ERR_MSG_ATTR(info->extack,

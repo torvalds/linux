@@ -538,7 +538,8 @@ static void gred_vq_apply(struct gred_sched *table, const struct nlattr *entry)
 	struct nlattr *tb[TCA_GRED_VQ_MAX + 1];
 	u32 dp;
 
-	nla_parse_nested(tb, TCA_GRED_VQ_MAX, entry, gred_vq_policy, NULL);
+	nla_parse_nested_deprecated(tb, TCA_GRED_VQ_MAX, entry,
+				    gred_vq_policy, NULL);
 
 	dp = nla_get_u32(tb[TCA_GRED_VQ_DP]);
 
@@ -568,8 +569,8 @@ static int gred_vq_validate(struct gred_sched *table, u32 cdp,
 	int err;
 	u32 dp;
 
-	err = nla_parse_nested(tb, TCA_GRED_VQ_MAX, entry, gred_vq_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, TCA_GRED_VQ_MAX, entry,
+					  gred_vq_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -610,8 +611,8 @@ static int gred_vqs_validate(struct gred_sched *table, u32 cdp,
 	const struct nlattr *attr;
 	int rem, err;
 
-	err = nla_validate_nested(vqs, TCA_GRED_VQ_ENTRY_MAX,
-				  gred_vqe_policy, extack);
+	err = nla_validate_nested_deprecated(vqs, TCA_GRED_VQ_ENTRY_MAX,
+					     gred_vqe_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -650,7 +651,8 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_GRED_MAX, opt, gred_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -737,7 +739,8 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_GRED_MAX, opt, gred_policy,
+					  extack);
 	if (err < 0)
 		return err;
 

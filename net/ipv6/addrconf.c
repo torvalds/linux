@@ -611,11 +611,13 @@ static int inet6_netconf_valid_get_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(struct netconfmsg), tb,
-				   NETCONFA_MAX, devconf_ipv6_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(struct netconfmsg),
+					      tb, NETCONFA_MAX,
+					      devconf_ipv6_policy, extack);
 
-	err = nlmsg_parse_strict(nlh, sizeof(struct netconfmsg), tb,
-				 NETCONFA_MAX, devconf_ipv6_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(struct netconfmsg),
+					    tb, NETCONFA_MAX,
+					    devconf_ipv6_policy, extack);
 	if (err)
 		return err;
 
@@ -4565,8 +4567,8 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 ifa_flags;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+				     ifa_ipv6_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -4729,8 +4731,8 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct ifa6_config cfg;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+				     ifa_ipv6_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -5086,8 +5088,8 @@ static int inet6_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 		fillargs->flags |= NLM_F_DUMP_FILTERED;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
-				 ifa_ipv6_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
+					    ifa_ipv6_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -5237,11 +5239,11 @@ static int inet6_rtm_valid_getaddr_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX,
-				   ifa_ipv6_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+					      ifa_ipv6_policy, extack);
 
-	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
-				 ifa_ipv6_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
+					    ifa_ipv6_policy, extack);
 	if (err)
 		return err;
 
@@ -5667,8 +5669,8 @@ static int inet6_validate_link_af(const struct net_device *dev,
 	if (dev && !__in6_dev_get(dev))
 		return -EAFNOSUPPORT;
 
-	return nla_parse_nested(tb, IFLA_INET6_MAX, nla, inet6_af_policy,
-				NULL);
+	return nla_parse_nested_deprecated(tb, IFLA_INET6_MAX, nla,
+					   inet6_af_policy, NULL);
 }
 
 static int check_addr_gen_mode(int mode)
@@ -5700,7 +5702,7 @@ static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla)
 	if (!idev)
 		return -EAFNOSUPPORT;
 
-	if (nla_parse_nested(tb, IFLA_INET6_MAX, nla, NULL, NULL) < 0)
+	if (nla_parse_nested_deprecated(tb, IFLA_INET6_MAX, nla, NULL, NULL) < 0)
 		BUG();
 
 	if (tb[IFLA_INET6_TOKEN]) {

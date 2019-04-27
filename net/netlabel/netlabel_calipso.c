@@ -321,24 +321,28 @@ static int netlbl_calipso_remove(struct sk_buff *skb, struct genl_info *info)
 static const struct genl_ops netlbl_calipso_ops[] = {
 	{
 	.cmd = NLBL_CALIPSO_C_ADD,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
 	.doit = netlbl_calipso_add,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CALIPSO_C_REMOVE,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
 	.doit = netlbl_calipso_remove,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CALIPSO_C_LIST,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
 	.doit = netlbl_calipso_list,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CALIPSO_C_LISTALL,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
 	.doit = NULL,
 	.dumpit = netlbl_calipso_listall,

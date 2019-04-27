@@ -884,8 +884,9 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX,
-			       nla, geneve_opt_policy, extack);
+	err = nla_parse_nested_deprecated(tb,
+					  TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX,
+					  nla, geneve_opt_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -947,18 +948,18 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 	const struct nlattr *nla_enc_key, *nla_opt_key, *nla_opt_msk = NULL;
 	int err, option_len, key_depth, msk_depth = 0;
 
-	err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS],
-				  TCA_FLOWER_KEY_ENC_OPTS_MAX,
-				  enc_opts_policy, extack);
+	err = nla_validate_nested_deprecated(tb[TCA_FLOWER_KEY_ENC_OPTS],
+					     TCA_FLOWER_KEY_ENC_OPTS_MAX,
+					     enc_opts_policy, extack);
 	if (err)
 		return err;
 
 	nla_enc_key = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS]);
 
 	if (tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]) {
-		err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
-					  TCA_FLOWER_KEY_ENC_OPTS_MAX,
-					  enc_opts_policy, extack);
+		err = nla_validate_nested_deprecated(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
+						     TCA_FLOWER_KEY_ENC_OPTS_MAX,
+						     enc_opts_policy, extack);
 		if (err)
 			return err;
 
@@ -1513,8 +1514,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout_mask_alloc;
 	}
 
-	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS],
-			       fl_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
+					  tca[TCA_OPTIONS], fl_policy, NULL);
 	if (err < 0)
 		goto errout_tb;
 
@@ -1852,8 +1853,8 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
 	if (!tb)
 		return ERR_PTR(-ENOBUFS);
-	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS],
-			       fl_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
+					  tca[TCA_OPTIONS], fl_policy, NULL);
 	if (err)
 		goto errout_tb;
 

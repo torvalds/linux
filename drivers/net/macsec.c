@@ -1611,9 +1611,7 @@ static int parse_sa_config(struct nlattr **attrs, struct nlattr **tb_sa)
 	if (!attrs[MACSEC_ATTR_SA_CONFIG])
 		return -EINVAL;
 
-	if (nla_parse_nested(tb_sa, MACSEC_SA_ATTR_MAX,
-			     attrs[MACSEC_ATTR_SA_CONFIG],
-			     macsec_genl_sa_policy, NULL))
+	if (nla_parse_nested_deprecated(tb_sa, MACSEC_SA_ATTR_MAX, attrs[MACSEC_ATTR_SA_CONFIG], macsec_genl_sa_policy, NULL))
 		return -EINVAL;
 
 	return 0;
@@ -1624,9 +1622,7 @@ static int parse_rxsc_config(struct nlattr **attrs, struct nlattr **tb_rxsc)
 	if (!attrs[MACSEC_ATTR_RXSC_CONFIG])
 		return -EINVAL;
 
-	if (nla_parse_nested(tb_rxsc, MACSEC_RXSC_ATTR_MAX,
-			     attrs[MACSEC_ATTR_RXSC_CONFIG],
-			     macsec_genl_rxsc_policy, NULL))
+	if (nla_parse_nested_deprecated(tb_rxsc, MACSEC_RXSC_ATTR_MAX, attrs[MACSEC_ATTR_RXSC_CONFIG], macsec_genl_rxsc_policy, NULL))
 		return -EINVAL;
 
 	return 0;
@@ -2641,50 +2637,60 @@ done:
 static const struct genl_ops macsec_genl_ops[] = {
 	{
 		.cmd = MACSEC_CMD_GET_TXSC,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit = macsec_dump_txsc,
 	},
 	{
 		.cmd = MACSEC_CMD_ADD_RXSC,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_add_rxsc,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_DEL_RXSC,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_del_rxsc,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_UPD_RXSC,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_upd_rxsc,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_ADD_TXSA,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_add_txsa,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_DEL_TXSA,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_del_txsa,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_UPD_TXSA,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_upd_txsa,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_ADD_RXSA,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_add_rxsa,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_DEL_RXSA,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_del_rxsa,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = MACSEC_CMD_UPD_RXSA,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = macsec_upd_rxsa,
 		.flags = GENL_ADMIN_PERM,
 	},

@@ -387,8 +387,8 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_FQ_CODEL_MAX, opt, fq_codel_policy,
-			       NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FQ_CODEL_MAX, opt,
+					  fq_codel_policy, NULL);
 	if (err < 0)
 		return err;
 	if (tb[TCA_FQ_CODEL_FLOWS]) {

@@ -776,9 +776,9 @@ int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
-			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_BEARER_MAX,
+					  info->attrs[TIPC_NLA_BEARER],
+					  tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -825,9 +825,9 @@ int __tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
-			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_BEARER_MAX,
+					  info->attrs[TIPC_NLA_BEARER],
+					  tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -870,9 +870,9 @@ int __tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
-			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_BEARER_MAX,
+					  info->attrs[TIPC_NLA_BEARER],
+					  tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -921,9 +921,9 @@ int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
-			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_BEARER_MAX,
+					  info->attrs[TIPC_NLA_BEARER],
+					  tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -964,9 +964,9 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
-			       info->attrs[TIPC_NLA_BEARER],
-			       tipc_nl_bearer_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_BEARER_MAX,
+					  info->attrs[TIPC_NLA_BEARER],
+					  tipc_nl_bearer_policy, info->extack);
 	if (err)
 		return err;
 
@@ -1107,9 +1107,9 @@ int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_MEDIA])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_MEDIA_MAX,
-			       info->attrs[TIPC_NLA_MEDIA],
-			       tipc_nl_media_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_MEDIA_MAX,
+					  info->attrs[TIPC_NLA_MEDIA],
+					  tipc_nl_media_policy, info->extack);
 	if (err)
 		return err;
 
@@ -1155,9 +1155,9 @@ int __tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_MEDIA])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_MEDIA_MAX,
-			       info->attrs[TIPC_NLA_MEDIA],
-			       tipc_nl_media_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_MEDIA_MAX,
+					  info->attrs[TIPC_NLA_MEDIA],
+					  tipc_nl_media_policy, info->extack);
 
 	if (!attrs[TIPC_NLA_MEDIA_NAME])
 		return -EINVAL;

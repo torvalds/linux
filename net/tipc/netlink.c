@@ -143,93 +143,114 @@ const struct nla_policy tipc_nl_udp_policy[TIPC_NLA_UDP_MAX + 1] = {
 static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_BEARER_DISABLE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_bearer_disable,
 	},
 	{
 		.cmd	= TIPC_NL_BEARER_ENABLE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_bearer_enable,
 	},
 	{
 		.cmd	= TIPC_NL_BEARER_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_bearer_get,
 		.dumpit	= tipc_nl_bearer_dump,
 	},
 	{
 		.cmd	= TIPC_NL_BEARER_ADD,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_bearer_add,
 	},
 	{
 		.cmd	= TIPC_NL_BEARER_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_bearer_set,
 	},
 	{
 		.cmd	= TIPC_NL_SOCK_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.start = tipc_dump_start,
 		.dumpit	= tipc_nl_sk_dump,
 		.done	= tipc_dump_done,
 	},
 	{
 		.cmd	= TIPC_NL_PUBL_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit	= tipc_nl_publ_dump,
 	},
 	{
 		.cmd	= TIPC_NL_LINK_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit   = tipc_nl_node_get_link,
 		.dumpit	= tipc_nl_node_dump_link,
 	},
 	{
 		.cmd	= TIPC_NL_LINK_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_node_set_link,
 	},
 	{
 		.cmd	= TIPC_NL_LINK_RESET_STATS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit   = tipc_nl_node_reset_link_stats,
 	},
 	{
 		.cmd	= TIPC_NL_MEDIA_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_media_get,
 		.dumpit	= tipc_nl_media_dump,
 	},
 	{
 		.cmd	= TIPC_NL_MEDIA_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_media_set,
 	},
 	{
 		.cmd	= TIPC_NL_NODE_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit	= tipc_nl_node_dump,
 	},
 	{
 		.cmd	= TIPC_NL_NET_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit	= tipc_nl_net_dump,
 	},
 	{
 		.cmd	= TIPC_NL_NET_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_net_set,
 	},
 	{
 		.cmd	= TIPC_NL_NAME_TABLE_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit	= tipc_nl_name_table_dump,
 	},
 	{
 		.cmd	= TIPC_NL_MON_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_node_set_monitor,
 	},
 	{
 		.cmd	= TIPC_NL_MON_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_node_get_monitor,
 		.dumpit	= tipc_nl_node_dump_monitor,
 	},
 	{
 		.cmd	= TIPC_NL_MON_PEER_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit	= tipc_nl_node_dump_monitor_peer,
 	},
 	{
 		.cmd	= TIPC_NL_PEER_REMOVE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= tipc_nl_peer_rm,
 	},
 #ifdef CONFIG_TIPC_MEDIA_UDP
 	{
 		.cmd	= TIPC_NL_UDP_GET_REMOTEIP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit	= tipc_udp_nl_dump_remoteip,
 	},
 #endif
@@ -255,8 +276,8 @@ int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
 	if (!*attr)
 		return -EOPNOTSUPP;
 
-	return nlmsg_parse(nlh, GENL_HDRLEN, *attr, maxattr, tipc_nl_policy,
-			   NULL);
+	return nlmsg_parse_deprecated(nlh, GENL_HDRLEN, *attr, maxattr,
+				      tipc_nl_policy, NULL);
 }
 
 int __init tipc_netlink_start(void)

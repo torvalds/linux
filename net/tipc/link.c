@@ -2148,8 +2148,8 @@ int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[])
 {
 	int err;
 
-	err = nla_parse_nested(props, TIPC_NLA_PROP_MAX, prop,
-			       tipc_nl_prop_policy, NULL);
+	err = nla_parse_nested_deprecated(props, TIPC_NLA_PROP_MAX, prop,
+					  tipc_nl_prop_policy, NULL);
 	if (err)
 		return err;
 

@@ -419,21 +419,25 @@ static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 static const struct genl_ops wimax_gnl_ops[] = {
 	{
 		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = wimax_gnl_doit_msg_from_user,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RESET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = wimax_gnl_doit_reset,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RFKILL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = wimax_gnl_doit_rfkill,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_STATE_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
 		.doit = wimax_gnl_doit_state_get,
 	},

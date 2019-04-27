@@ -484,7 +484,8 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, route4_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_ROUTE4_MAX, opt,
+					  route4_policy, NULL);
 	if (err < 0)
 		return err;
 

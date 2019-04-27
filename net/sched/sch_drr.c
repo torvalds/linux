@@ -70,7 +70,8 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_DRR_MAX, opt, drr_policy,
+					  extack);
 	if (err < 0)
 		return err;
 

@@ -223,7 +223,8 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	if (opt == NULL)
 		return -EINVAL;
 
-	error = nla_parse_nested(tb, TCA_ATM_MAX, opt, atm_policy, NULL);
+	error = nla_parse_nested_deprecated(tb, TCA_ATM_MAX, opt, atm_policy,
+					    NULL);
 	if (error < 0)
 		return error;
 

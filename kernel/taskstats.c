@@ -649,12 +649,14 @@ err:
 static const struct genl_ops taskstats_ops[] = {
 	{
 		.cmd		= TASKSTATS_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= taskstats_user_cmd,
 		/* policy enforced later */
 		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_HASPOL,
 	},
 	{
 		.cmd		= CGROUPSTATS_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= cgroupstats_user_cmd,
 		/* policy enforced later */
 		.flags		= GENL_CMD_CAP_HASPOL,
@@ -677,8 +679,9 @@ static int taskstats_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	return nlmsg_validate(info->nlhdr, GENL_HDRLEN, TASKSTATS_CMD_ATTR_MAX,
-			      policy, info->extack);
+	return nlmsg_validate_deprecated(info->nlhdr, GENL_HDRLEN,
+					 TASKSTATS_CMD_ATTR_MAX, policy,
+					 info->extack);
 }
 
 static struct genl_family family __ro_after_init = {

@@ -2498,8 +2498,8 @@ static int ipmr_rtm_valid_getroute_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
-				   rtm_ipv4_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+					      rtm_ipv4_policy, extack);
 
 	rtm = nlmsg_data(nlh);
 	if ((rtm->rtm_src_len && rtm->rtm_src_len != 32) ||
@@ -2510,8 +2510,8 @@ static int ipmr_rtm_valid_getroute_req(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
-				 rtm_ipv4_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+					    rtm_ipv4_policy, extack);
 	if (err)
 		return err;
 
@@ -2674,8 +2674,8 @@ static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
 	struct rtmsg *rtm;
 	int ret, rem;
 
-	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy,
-			     extack);
+	ret = nlmsg_validate_deprecated(nlh, sizeof(*rtm), RTA_MAX,
+					rtm_ipmr_policy, extack);
 	if (ret < 0)
 		goto out;
 	rtm = nlmsg_data(nlh);

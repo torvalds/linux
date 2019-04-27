@@ -2877,8 +2877,8 @@ static int inet_rtm_valid_getroute_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
-				   rtm_ipv4_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+					      rtm_ipv4_policy, extack);
 
 	rtm = nlmsg_data(nlh);
 	if ((rtm->rtm_src_len && rtm->rtm_src_len != 32) ||
@@ -2896,8 +2896,8 @@ static int inet_rtm_valid_getroute_req(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
-				 rtm_ipv4_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+					    rtm_ipv4_policy, extack);
 	if (err)
 		return err;
 

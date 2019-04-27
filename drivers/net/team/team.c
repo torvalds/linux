@@ -2510,9 +2510,11 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			err = -EINVAL;
 			goto team_put;
 		}
-		err = nla_parse_nested(opt_attrs, TEAM_ATTR_OPTION_MAX,
-				       nl_option, team_nl_option_policy,
-				       info->extack);
+		err = nla_parse_nested_deprecated(opt_attrs,
+						  TEAM_ATTR_OPTION_MAX,
+						  nl_option,
+						  team_nl_option_policy,
+						  info->extack);
 		if (err)
 			goto team_put;
 		if (!opt_attrs[TEAM_ATTR_OPTION_NAME] ||
@@ -2755,20 +2757,24 @@ static int team_nl_cmd_port_list_get(struct sk_buff *skb,
 static const struct genl_ops team_nl_ops[] = {
 	{
 		.cmd = TEAM_CMD_NOOP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = team_nl_cmd_noop,
 	},
 	{
 		.cmd = TEAM_CMD_OPTIONS_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = team_nl_cmd_options_set,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = TEAM_CMD_OPTIONS_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = team_nl_cmd_options_get,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
 		.cmd = TEAM_CMD_PORT_LIST_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = team_nl_cmd_port_list_get,
 		.flags = GENL_ADMIN_PERM,
 	},

@@ -119,9 +119,10 @@ static struct nfc_dev *__get_device_from_cb(struct netlink_callback *cb)
 	int rc;
 	u32 idx;
 
-	rc = nlmsg_parse(cb->nlh, GENL_HDRLEN + nfc_genl_family.hdrsize,
-			 attrbuf, nfc_genl_family.maxattr, nfc_genl_policy,
-			 NULL);
+	rc = nlmsg_parse_deprecated(cb->nlh,
+				    GENL_HDRLEN + nfc_genl_family.hdrsize,
+				    attrbuf, nfc_genl_family.maxattr,
+				    nfc_genl_policy, NULL);
 	if (rc < 0)
 		return ERR_PTR(rc);
 
@@ -1177,8 +1178,9 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 	tlvs_len = 0;
 
 	nla_for_each_nested(attr, info->attrs[NFC_ATTR_LLC_SDP], rem) {
-		rc = nla_parse_nested(sdp_attrs, NFC_SDP_ATTR_MAX, attr,
-				      nfc_sdp_genl_policy, info->extack);
+		rc = nla_parse_nested_deprecated(sdp_attrs, NFC_SDP_ATTR_MAX,
+						 attr, nfc_sdp_genl_policy,
+						 info->extack);
 
 		if (rc != 0) {
 			rc = -EINVAL;
@@ -1667,82 +1669,101 @@ EXPORT_SYMBOL(nfc_vendor_cmd_reply);
 static const struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_GET_DEVICE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_get_device,
 		.dumpit = nfc_genl_dump_devices,
 		.done = nfc_genl_dump_devices_done,
 	},
 	{
 		.cmd = NFC_CMD_DEV_UP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dev_up,
 	},
 	{
 		.cmd = NFC_CMD_DEV_DOWN,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dev_down,
 	},
 	{
 		.cmd = NFC_CMD_START_POLL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_start_poll,
 	},
 	{
 		.cmd = NFC_CMD_STOP_POLL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_stop_poll,
 	},
 	{
 		.cmd = NFC_CMD_DEP_LINK_UP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dep_link_up,
 	},
 	{
 		.cmd = NFC_CMD_DEP_LINK_DOWN,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_dep_link_down,
 	},
 	{
 		.cmd = NFC_CMD_GET_TARGET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit = nfc_genl_dump_targets,
 		.done = nfc_genl_dump_targets_done,
 	},
 	{
 		.cmd = NFC_CMD_LLC_GET_PARAMS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_llc_get_params,
 	},
 	{
 		.cmd = NFC_CMD_LLC_SET_PARAMS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_llc_set_params,
 	},
 	{
 		.cmd = NFC_CMD_LLC_SDREQ,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_llc_sdreq,
 	},
 	{
 		.cmd = NFC_CMD_FW_DOWNLOAD,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_fw_download,
 	},
 	{
 		.cmd = NFC_CMD_ENABLE_SE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_enable_se,
 	},
 	{
 		.cmd = NFC_CMD_DISABLE_SE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_disable_se,
 	},
 	{
 		.cmd = NFC_CMD_GET_SE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit = nfc_genl_dump_ses,
 		.done = nfc_genl_dump_ses_done,
 	},
 	{
 		.cmd = NFC_CMD_SE_IO,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_se_io,
 	},
 	{
 		.cmd = NFC_CMD_ACTIVATE_TARGET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_activate_target,
 	},
 	{
 		.cmd = NFC_CMD_VENDOR,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_vendor_cmd,
 	},
 	{
 		.cmd = NFC_CMD_DEACTIVATE_TARGET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit = nfc_genl_deactivate_target,
 	},
 };

@@ -68,6 +68,7 @@ static int user_cmd(struct sk_buff *skb, struct genl_info *info)
 static const struct genl_ops dlm_nl_ops[] = {
 	{
 		.cmd	= DLM_CMD_HELLO,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit	= user_cmd,
 	},
 };

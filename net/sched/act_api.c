@@ -849,7 +849,8 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	int err;
 
 	if (name == NULL) {
-		err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL, extack);
+		err = nla_parse_nested_deprecated(tb, TCA_ACT_MAX, nla, NULL,
+						  extack);
 		if (err < 0)
 			goto err_out;
 		err = -EINVAL;
@@ -964,7 +965,8 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 	int err;
 	int i;
 
-	err = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_ACT_MAX_PRIO, nla, NULL,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -1099,7 +1101,7 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 	int index;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_ACT_MAX, nla, NULL, extack);
 	if (err < 0)
 		goto err_out;
 
@@ -1153,7 +1155,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 
 	b = skb_tail_pointer(skb);
 
-	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_ACT_MAX, nla, NULL, extack);
 	if (err < 0)
 		goto err_out;
 
@@ -1282,7 +1284,8 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	size_t attr_size = 0;
 	struct tc_action *actions[TCA_ACT_MAX_PRIO] = {};
 
-	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, extack);
+	ret = nla_parse_nested_deprecated(tb, TCA_ACT_MAX_PRIO, nla, NULL,
+					  extack);
 	if (ret < 0)
 		return ret;
 
@@ -1384,8 +1387,8 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n,
 	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	ret = nlmsg_parse(n, sizeof(struct tcamsg), tca, TCA_ROOT_MAX, NULL,
-			  extack);
+	ret = nlmsg_parse_deprecated(n, sizeof(struct tcamsg), tca,
+				     TCA_ROOT_MAX, NULL, extack);
 	if (ret < 0)
 		return ret;
 
@@ -1436,13 +1439,12 @@ static struct nlattr *find_dump_kind(struct nlattr **nla)
 	if (tb1 == NULL)
 		return NULL;
 
-	if (nla_parse(tb, TCA_ACT_MAX_PRIO, nla_data(tb1),
-		      NLMSG_ALIGN(nla_len(tb1)), NULL, NULL) < 0)
+	if (nla_parse_deprecated(tb, TCA_ACT_MAX_PRIO, nla_data(tb1), NLMSG_ALIGN(nla_len(tb1)), NULL, NULL) < 0)
 		return NULL;
 
 	if (tb[1] == NULL)
 		return NULL;
-	if (nla_parse_nested(tb2, TCA_ACT_MAX, tb[1], NULL, NULL) < 0)
+	if (nla_parse_nested_deprecated(tb2, TCA_ACT_MAX, tb[1], NULL, NULL) < 0)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND];
 
@@ -1466,8 +1468,8 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	u32 msecs_since = 0;
 	u32 act_count = 0;
 
-	ret = nlmsg_parse(cb->nlh, sizeof(struct tcamsg), tb, TCA_ROOT_MAX,
-			  tcaa_policy, cb->extack);
+	ret = nlmsg_parse_deprecated(cb->nlh, sizeof(struct tcamsg), tb,
+				     TCA_ROOT_MAX, tcaa_policy, cb->extack);
 	if (ret < 0)
 		return ret;
 

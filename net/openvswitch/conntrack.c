@@ -2186,16 +2186,19 @@ exit_err:
 
 static struct genl_ops ct_limit_genl_ops[] = {
 	{ .cmd = OVS_CT_LIMIT_CMD_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   * privilege. */
 		.doit = ovs_ct_limit_cmd_set,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_DEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   * privilege. */
 		.doit = ovs_ct_limit_cmd_del,
 	},
 	{ .cmd = OVS_CT_LIMIT_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,		  /* OK for unprivileged users. */
 		.doit = ovs_ct_limit_cmd_get,
 	},

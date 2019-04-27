@@ -227,9 +227,9 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 		struct nlattr *attr[OVS_BAND_ATTR_MAX + 1];
 		u32 band_max_delta_t;
 
-		err = nla_parse((struct nlattr **)&attr, OVS_BAND_ATTR_MAX,
-				nla_data(nla), nla_len(nla), band_policy,
-				NULL);
+		err = nla_parse_deprecated((struct nlattr **)&attr,
+					   OVS_BAND_ATTR_MAX, nla_data(nla),
+					   nla_len(nla), band_policy, NULL);
 		if (err)
 			goto exit_free_meter;
 
@@ -526,20 +526,24 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 
 static struct genl_ops dp_meter_genl_ops[] = {
 	{ .cmd = OVS_METER_CMD_FEATURES,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,		  /* OK for unprivileged users. */
 		.doit = ovs_meter_cmd_features
 	},
 	{ .cmd = OVS_METER_CMD_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   *  privilege.
 					   */
 		.doit = ovs_meter_cmd_set,
 	},
 	{ .cmd = OVS_METER_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,		  /* OK for unprivileged users. */
 		.doit = ovs_meter_cmd_get,
 	},
 	{ .cmd = OVS_METER_CMD_DEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   *  privilege.
 					   */

@@ -437,12 +437,14 @@ fail:
 static const struct genl_ops hsr_ops[] = {
 	{
 		.cmd = HSR_C_GET_NODE_STATUS,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,
 		.doit = hsr_get_node_status,
 		.dumpit = NULL,
 	},
 	{
 		.cmd = HSR_C_GET_NODE_LIST,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,
 		.doit = hsr_get_node_list,
 		.dumpit = NULL,

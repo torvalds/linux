@@ -2531,7 +2531,8 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_CAKE_MAX, opt, cake_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_CAKE_MAX, opt, cake_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
