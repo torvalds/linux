@@ -450,9 +450,12 @@ EXPORT_SYMBOL(kobject_add);
  * @parent: pointer to the parent of this kobject.
  * @fmt: the name of the kobject.
  *
- * This function combines the call to kobject_init() and
- * kobject_add().  The same type of error handling after a call to
- * kobject_add() and kobject lifetime rules are the same here.
+ * This function combines the call to kobject_init() and kobject_add().
+ *
+ * If this function returns an error, kobject_put() must be called to
+ * properly clean up the memory associated with the object.  This is the
+ * same type of error handling after a call to kobject_add() and kobject
+ * lifetime rules are the same here.
  */
 int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
 			 struct kobject *parent, const char *fmt, ...)
