@@ -270,11 +270,9 @@ static int ctrl_set_rotate(struct bm2835_mmal_dev *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = vchiq_mmal_port_parameter_set(dev->instance, &camera->output[2],
+	return vchiq_mmal_port_parameter_set(dev->instance, &camera->output[2],
 					    mmal_ctrl->mmal_id,
 					    &u32_value, sizeof(u32_value));
-
-	return ret;
 }
 
 static int ctrl_set_flip(struct bm2835_mmal_dev *dev,
@@ -313,11 +311,9 @@ static int ctrl_set_flip(struct bm2835_mmal_dev *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = vchiq_mmal_port_parameter_set(dev->instance, &camera->output[2],
+	return vchiq_mmal_port_parameter_set(dev->instance, &camera->output[2],
 					    mmal_ctrl->mmal_id,
 					    &u32_value, sizeof(u32_value));
-
-	return ret;
 }
 
 static int ctrl_set_exposure(struct bm2835_mmal_dev *dev,
