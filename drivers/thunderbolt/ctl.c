@@ -720,7 +720,7 @@ int tb_cfg_error(struct tb_ctl *ctl, u64 route, u32 port,
 		.port = port,
 		.error = error,
 	};
-	tb_ctl_info(ctl, "resetting error on %llx:%x.\n", route, port);
+	tb_ctl_dbg(ctl, "resetting error on %llx:%x.\n", route, port);
 	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_ERROR);
 }
 
