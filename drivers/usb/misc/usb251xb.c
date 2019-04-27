@@ -223,6 +223,7 @@ static const struct usb251xb_data usb2517i_data = {
 	.product_str = "USB2517i",
 };
 
+#ifdef CONFIG_GPIOLIB
 static int usb251xb_check_dev_children(struct device *dev, void *child)
 {
 	if (dev->type == &i2c_adapter_type) {
@@ -253,6 +254,12 @@ static int usb251x_check_gpio_chip(struct usb251xb *hub)
 
 	return 0;
 }
+#else
+static int usb251x_check_gpio_chip(struct usb251xb *hub)
+{
+	return 0;
+}
+#endif
 
 static void usb251xb_reset(struct usb251xb *hub, int state)
 {
