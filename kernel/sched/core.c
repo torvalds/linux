@@ -6751,13 +6751,13 @@ static int cpu_cfs_period_write_u64(struct cgroup_subsys_state *css,
 	return tg_set_cfs_period(css_tg(css), cfs_period_us);
 }
 
-static s64 cpu_cfs_bandwidth_read_u64(struct cgroup_subsys_state *css,
+static s64 cpu_cfs_percent_read_u64(struct cgroup_subsys_state *css,
 				    struct cftype *cft)
 {
 	return tg_get_cfs_percent(css_tg(css));
 }
 
-static int cpu_cfs_bandwidth_write_u64(struct cgroup_subsys_state *css,
+static int cpu_cfs_percent_write_u64(struct cgroup_subsys_state *css,
 				    struct cftype *cftype, u64 cfs_percent)
 {
 	return tg_set_cfs_percent(css_tg(css), cfs_percent);
@@ -6921,8 +6921,8 @@ static struct cftype cpu_legacy_files[] = {
 	},
 	{
 		.name = "cfs_percent",
-		.read_s64 = cpu_cfs_bandwidth_read_u64,
-		.write_u64 = cpu_cfs_bandwidth_write_u64,
+		.read_s64 = cpu_cfs_percent_read_u64,
+		.write_u64 = cpu_cfs_percent_write_u64,
 	}
 #endif
 #ifdef CONFIG_RT_GROUP_SCHED
