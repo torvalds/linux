@@ -277,6 +277,23 @@ struct tls_context {
 	void (*unhash)(struct sock *sk);
 };
 
+enum tls_offload_ctx_dir {
+	TLS_OFFLOAD_CTX_DIR_RX,
+	TLS_OFFLOAD_CTX_DIR_TX,
+};
+
+struct tlsdev_ops {
+	int (*tls_dev_add)(struct net_device *netdev, struct sock *sk,
+			   enum tls_offload_ctx_dir direction,
+			   struct tls_crypto_info *crypto_info,
+			   u32 start_offload_tcp_sn);
+	void (*tls_dev_del)(struct net_device *netdev,
+			    struct tls_context *ctx,
+			    enum tls_offload_ctx_dir direction);
+	void (*tls_dev_resync_rx)(struct net_device *netdev,
+				  struct sock *sk, u32 seq, u64 rcd_sn);
+};
+
 struct tls_offload_context_rx {
 	/* sw must be the first member of tls_offload_context_rx */
 	struct tls_sw_context_rx sw;
@@ -317,7 +334,6 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx);
 int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_device_sendpage(struct sock *sk, struct page *page,
 			int offset, size_t size, int flags);
-void tls_device_sk_destruct(struct sock *sk);
 void tls_device_free_resources_tx(struct sock *sk);
 void tls_device_init(void);
 void tls_device_cleanup(void);
@@ -336,7 +352,6 @@ static inline u32 tls_record_start_seq(struct tls_record_info *rec)
 	return rec->end_seq - rec->len;
 }
 
-void tls_sk_destruct(struct sock *sk, struct tls_context *ctx);
 int tls_push_sg(struct sock *sk, struct tls_context *ctx,
 		struct scatterlist *sg, u16 first_offset,
 		int flags);
@@ -547,7 +562,7 @@ static inline void tls_offload_rx_resync_request(struct sock *sk, __be32 seq)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *rx_ctx = tls_offload_ctx_rx(tls_ctx);
 
-	atomic64_set(&rx_ctx->resync_req, ((((uint64_t)seq) << 32) | 1));
+	atomic64_set(&rx_ctx->resync_req, ((u64)ntohl(seq) << 32) | 1);
 }
 
 
