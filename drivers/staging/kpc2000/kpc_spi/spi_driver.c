@@ -407,14 +407,14 @@ kp_spi_cleanup(struct spi_device *spidev)
 static int
 kp_spi_probe(struct platform_device *pldev)
 {
-    struct kpc_core_device_platdata *drvdata = (struct kpc_core_device_platdata *)pldev->dev.platform_data;
+    struct kpc_core_device_platdata *drvdata;
     struct spi_master *master = spi_alloc_master(&pldev->dev, sizeof(struct kp_spi));
     struct kp_spi *kpspi;
     struct resource *r;
     int status = 0;
     int i;
 
-    drvdata = (struct kpc_core_device_platdata *)pldev->dev.platform_data;
+    drvdata = pldev->dev.platform_data;
     if (!drvdata){
         dev_err(&pldev->dev, "kp_spi_probe: platform_data is NULL!\n");
         return -ENODEV;
