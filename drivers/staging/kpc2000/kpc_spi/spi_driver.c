@@ -408,7 +408,7 @@ static int
 kp_spi_probe(struct platform_device *pldev)
 {
     struct kpc_core_device_platdata *drvdata;
-    struct spi_master *master = spi_alloc_master(&pldev->dev, sizeof(struct kp_spi));
+    struct spi_master *master;
     struct kp_spi *kpspi;
     struct resource *r;
     int status = 0;
