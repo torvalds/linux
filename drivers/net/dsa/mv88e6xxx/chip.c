@@ -4656,56 +4656,6 @@ static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
 	return chip->info->tag_protocol;
 }
 
-#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
-static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
-				       struct device *host_dev, int sw_addr,
-				       void **priv)
-{
-	struct mv88e6xxx_chip *chip;
-	struct mii_bus *bus;
-	int err;
-
-	bus = dsa_host_dev_to_mii_bus(host_dev);
-	if (!bus)
-		return NULL;
-
-	chip = mv88e6xxx_alloc_chip(dsa_dev);
-	if (!chip)
-		return NULL;
-
-	/* Legacy SMI probing will only support chips similar to 88E6085 */
-	chip->info = &mv88e6xxx_table[MV88E6085];
-
-	err = mv88e6xxx_smi_init(chip, bus, sw_addr);
-	if (err)
-		goto free;
-
-	err = mv88e6xxx_detect(chip);
-	if (err)
-		goto free;
-
-	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_switch_reset(chip);
-	mutex_unlock(&chip->reg_lock);
-	if (err)
-		goto free;
-
-	mv88e6xxx_phy_init(chip);
-
-	err = mv88e6xxx_mdios_register(chip, NULL);
-	if (err)
-		goto free;
-
-	*priv = chip;
-
-	return chip->info->name;
-free:
-	devm_kfree(dsa_dev, chip);
-
-	return NULL;
-}
-#endif
-
 static int mv88e6xxx_port_mdb_prepare(struct dsa_switch *ds, int port,
 				      const struct switchdev_obj_port_mdb *mdb)
 {
@@ -4760,9 +4710,6 @@ static int mv88e6xxx_port_egress_floods(struct dsa_switch *ds, int port,
 }
 
 static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
-#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
-	.probe			= mv88e6xxx_drv_probe,
-#endif
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
 	.adjust_link		= mv88e6xxx_adjust_link,
@@ -4806,10 +4753,6 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_txtstamp		= mv88e6xxx_port_txtstamp,
 	.port_rxtstamp		= mv88e6xxx_port_rxtstamp,
 	.get_ts_info		= mv88e6xxx_get_ts_info,
-};
-
-static struct dsa_switch_driver mv88e6xxx_switch_drv = {
-	.ops			= &mv88e6xxx_switch_ops,
 };
 
 static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
@@ -5053,19 +4996,7 @@ static struct mdio_driver mv88e6xxx_driver = {
 	},
 };
 
-static int __init mv88e6xxx_init(void)
-{
-	register_switch_driver(&mv88e6xxx_switch_drv);
-	return mdio_driver_register(&mv88e6xxx_driver);
-}
-module_init(mv88e6xxx_init);
-
-static void __exit mv88e6xxx_cleanup(void)
-{
-	mdio_driver_unregister(&mv88e6xxx_driver);
-	unregister_switch_driver(&mv88e6xxx_switch_drv);
-}
-module_exit(mv88e6xxx_cleanup);
+mdio_module_driver(mv88e6xxx_driver);
 
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>");
 MODULE_DESCRIPTION("Driver for Marvell 88E6XXX ethernet switch chips");
