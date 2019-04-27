@@ -473,6 +473,19 @@ build_preauth_ctxt(struct smb2_preauth_neg_context *pneg_ctxt)
 }
 
 static void
+build_compression_ctxt(struct smb2_compression_capabilities_context *pneg_ctxt)
+{
+	pneg_ctxt->ContextType = SMB2_COMPRESSION_CAPABILITIES;
+	pneg_ctxt->DataLength =
+		cpu_to_le16(sizeof(struct smb2_compression_capabilities_context)
+			  - sizeof(struct smb2_neg_context));
+	pneg_ctxt->CompressionAlgorithmCount = cpu_to_le16(3);
+	pneg_ctxt->CompressionAlgorithms[0] = SMB3_COMPRESS_LZ77;
+	pneg_ctxt->CompressionAlgorithms[1] = SMB3_COMPRESS_LZ77_HUFF;
+	pneg_ctxt->CompressionAlgorithms[2] = SMB3_COMPRESS_LZNT1;
+}
+
+static void
 build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
 {
 	pneg_ctxt->ContextType = SMB2_ENCRYPTION_CAPABILITIES;
@@ -538,10 +551,17 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	*total_len += ctxt_len;
 	pneg_ctxt += ctxt_len;
 
+	build_compression_ctxt((struct smb2_compression_capabilities_context *)
+				pneg_ctxt);
+	ctxt_len = DIV_ROUND_UP(
+		sizeof(struct smb2_compression_capabilities_context), 8) * 8;
+	*total_len += ctxt_len;
+	pneg_ctxt += ctxt_len;
+
 	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 	*total_len += sizeof(struct smb2_posix_neg_context);
 
-	req->NegotiateContextCount = cpu_to_le16(3);
+	req->NegotiateContextCount = cpu_to_le16(4);
 }
 
 static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
@@ -557,6 +577,27 @@ static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
 		printk_once(KERN_WARNING "illegal SMB3 hash algorithm count\n");
 	if (ctxt->HashAlgorithms != SMB2_PREAUTH_INTEGRITY_SHA512)
 		printk_once(KERN_WARNING "unknown SMB3 hash algorithm\n");
+}
+
+static void decode_compress_ctx(struct TCP_Server_Info *server,
+			 struct smb2_compression_capabilities_context *ctxt)
+{
+	unsigned int len = le16_to_cpu(ctxt->DataLength);
+
+	/* sizeof compress context is a one element compression capbility struct */
+	if (len < 10) {
+		printk_once(KERN_WARNING "server sent bad compression cntxt\n");
+		return;
+	}
+	if (le16_to_cpu(ctxt->CompressionAlgorithmCount) != 1) {
+		printk_once(KERN_WARNING "illegal SMB3 compress algorithm count\n");
+		return;
+	}
+	if (le16_to_cpu(ctxt->CompressionAlgorithms[0]) > 3) {
+		printk_once(KERN_WARNING "unknown compression algorithm\n");
+		return;
+	}
+	server->compress_algorithm = ctxt->CompressionAlgorithms[0];
 }
 
 static int decode_encrypt_ctx(struct TCP_Server_Info *server,
@@ -623,6 +664,9 @@ static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 		else if (pctx->ContextType == SMB2_ENCRYPTION_CAPABILITIES)
 			rc = decode_encrypt_ctx(server,
 				(struct smb2_encryption_neg_context *)pctx);
+		else if (pctx->ContextType == SMB2_COMPRESSION_CAPABILITIES)
+			decode_compress_ctx(server,
+				(struct smb2_compression_capabilities_context *)pctx);
 		else if (pctx->ContextType == SMB2_POSIX_EXTENSIONS_AVAILABLE)
 			server->posix_ext_supported = true;
 		else

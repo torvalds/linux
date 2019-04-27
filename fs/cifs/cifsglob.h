@@ -734,6 +734,7 @@ struct TCP_Server_Info {
 #endif /* STATS2 */
 	unsigned int	max_read;
 	unsigned int	max_write;
+	__le16	compress_algorithm;
 	__le16	cipher_type;
 	 /* save initital negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];

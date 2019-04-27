@@ -332,6 +332,12 @@ skip_rdma:
 #endif
 		seq_printf(m, "\nNumber of credits: %d Dialect 0x%x",
 			server->credits,  server->dialect);
+		if (server->compress_algorithm == SMB3_COMPRESS_LZNT1)
+			seq_printf(m, " COMPRESS_LZNT1");
+		else if (server->compress_algorithm == SMB3_COMPRESS_LZ77)
+			seq_printf(m, " COMPRESS_LZ77");
+		else if (server->compress_algorithm == SMB3_COMPRESS_LZ77_HUFF)
+			seq_printf(m, " COMPRESS_LZ77_HUFF");
 		if (server->sign)
 			seq_printf(m, " signed");
 		if (server->posix_ext_supported)
