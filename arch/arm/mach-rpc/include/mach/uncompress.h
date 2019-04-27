@@ -118,29 +118,22 @@ static void arch_decomp_setup(void)
 	struct tag *t = (struct tag *)params;
 	unsigned int nr_pages = 0, page_size = PAGE_SIZE;
 
-	if (t->hdr.tag == ATAG_CORE)
-	{
-		for (; t->hdr.size; t = tag_next(t))
-		{
-			if (t->hdr.tag == ATAG_VIDEOTEXT)
-			{
+	if (t->hdr.tag == ATAG_CORE) {
+		for (; t->hdr.size; t = tag_next(t)) {
+			if (t->hdr.tag == ATAG_VIDEOTEXT) {
 				video_num_rows = t->u.videotext.video_lines;
 				video_num_cols = t->u.videotext.video_cols;
-				bytes_per_char_h = t->u.videotext.video_points;
-				bytes_per_char_v = t->u.videotext.video_points;
 				video_x = t->u.videotext.x;
 				video_y = t->u.videotext.y;
-			}
-
-			if (t->hdr.tag == ATAG_MEM)
-			{
+			} else if (t->hdr.tag == ATAG_VIDEOLFB) {
+				bytes_per_char_h = t->u.videolfb.lfb_depth;
+				bytes_per_char_v = 8;
+			} else if (t->hdr.tag == ATAG_MEM) {
 				page_size = PAGE_SIZE;
 				nr_pages += (t->u.mem.size / PAGE_SIZE);
 			}
 		}
-	}
-	else
-	{
+	} else {
 		nr_pages = params->nr_pages;
 		page_size = params->page_size;
 		video_num_rows = params->video_num_rows;
