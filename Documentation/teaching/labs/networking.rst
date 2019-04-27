@@ -1153,7 +1153,7 @@ structure`_ sections.
 For the kernel-space ``accept`` equivalent, see the system call handler for
 :c:func:`sys_accept4`. Follow the :c:func:`lnet_sock_accept` implementation, and
 how the ``sock->ops->accept`` call is used. Use ``0`` as the value for the
-second to last argument (``flags``), and ``false`` for the last argument
+second to last argument (``flags``), and ``true`` for the last argument
 (``kern``).
 
 .. note::
