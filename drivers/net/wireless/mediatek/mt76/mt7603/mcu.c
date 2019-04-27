@@ -252,6 +252,9 @@ running:
 	mt76_clear(dev, MT_SCH_4, BIT(8));
 
 	dev->mcu_running = true;
+	snprintf(dev->mt76.hw->wiphy->fw_version,
+		 sizeof(dev->mt76.hw->wiphy->fw_version),
+		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
 	dev_info(dev->mt76.dev, "firmware init done\n");
 
 out:
