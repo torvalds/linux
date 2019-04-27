@@ -14,10 +14,8 @@
 #include <net/dsa.h>
 #include "mv88e6060.h"
 
-static int reg_read(struct dsa_switch *ds, int addr, int reg)
+static int reg_read(struct mv88e6060_priv *priv, int addr, int reg)
 {
-	struct mv88e6060_priv *priv = ds->priv;
-
 	return mdiobus_read_nested(priv->bus, priv->sw_addr + addr, reg);
 }
 
@@ -25,17 +23,15 @@ static int reg_read(struct dsa_switch *ds, int addr, int reg)
 	({							\
 		int __ret;					\
 								\
-		__ret = reg_read(ds, addr, reg);		\
+		__ret = reg_read(priv, addr, reg);		\
 		if (__ret < 0)					\
 			return __ret;				\
 		__ret;						\
 	})
 
 
-static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
+static int reg_write(struct mv88e6060_priv *priv, int addr, int reg, u16 val)
 {
-	struct mv88e6060_priv *priv = ds->priv;
-
 	return mdiobus_write_nested(priv->bus, priv->sw_addr + addr, reg, val);
 }
 
@@ -43,7 +39,7 @@ static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 	({							\
 		int __ret;					\
 								\
-		__ret = reg_write(ds, addr, reg, val);		\
+		__ret = reg_write(priv, addr, reg, val);		\
 		if (__ret < 0)					\
 			return __ret;				\
 	})
@@ -93,7 +89,7 @@ static const char *mv88e6060_drv_probe(struct device *dsa_dev,
 	return name;
 }
 
-static int mv88e6060_switch_reset(struct dsa_switch *ds)
+static int mv88e6060_switch_reset(struct mv88e6060_priv *priv)
 {
 	int i;
 	int ret;
@@ -129,7 +125,7 @@ static int mv88e6060_switch_reset(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6060_setup_global(struct dsa_switch *ds)
+static int mv88e6060_setup_global(struct mv88e6060_priv *priv)
 {
 	/* Disable discarding of frames with excessive collisions,
 	 * set the maximum frame size to 1536 bytes, and mask all
@@ -145,7 +141,7 @@ static int mv88e6060_setup_global(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
+static int mv88e6060_setup_port(struct mv88e6060_priv *priv, int p)
 {
 	int addr = REG_PORT(p);
 
@@ -155,7 +151,7 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	 * port, enable Ingress and Egress Trailer tagging mode.
 	 */
 	REG_WRITE(addr, PORT_CONTROL,
-		  dsa_is_cpu_port(ds, p) ?
+		  dsa_is_cpu_port(priv->ds, p) ?
 			PORT_CONTROL_TRAILER |
 			PORT_CONTROL_INGRESS_MODE |
 			PORT_CONTROL_STATE_FORWARDING :
@@ -168,8 +164,8 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	 */
 	REG_WRITE(addr, PORT_VLAN_MAP,
 		  ((p & 0xf) << PORT_VLAN_MAP_DBNUM_SHIFT) |
-		   (dsa_is_cpu_port(ds, p) ? dsa_user_ports(ds) :
-		    BIT(dsa_to_port(ds, p)->cpu_dp->index)));
+		   (dsa_is_cpu_port(priv->ds, p) ? dsa_user_ports(priv->ds) :
+		    BIT(dsa_to_port(priv->ds, p)->cpu_dp->index)));
 
 	/* Port Association Vector: when learning source addresses
 	 * of packets, add the address to the address database using
@@ -181,7 +177,7 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	return 0;
 }
 
-static int mv88e6060_setup_addr(struct dsa_switch *ds)
+static int mv88e6060_setup_addr(struct mv88e6060_priv *priv)
 {
 	u8 addr[ETH_ALEN];
 	u16 val;
@@ -204,25 +200,28 @@ static int mv88e6060_setup_addr(struct dsa_switch *ds)
 
 static int mv88e6060_setup(struct dsa_switch *ds)
 {
+	struct mv88e6060_priv *priv = ds->priv;
 	int ret;
 	int i;
 
-	ret = mv88e6060_switch_reset(ds);
+	priv->ds = ds;
+
+	ret = mv88e6060_switch_reset(priv);
 	if (ret < 0)
 		return ret;
 
 	/* @@@ initialise atu */
 
-	ret = mv88e6060_setup_global(ds);
+	ret = mv88e6060_setup_global(priv);
 	if (ret < 0)
 		return ret;
 
-	ret = mv88e6060_setup_addr(ds);
+	ret = mv88e6060_setup_addr(priv);
 	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < MV88E6060_PORTS; i++) {
-		ret = mv88e6060_setup_port(ds, i);
+		ret = mv88e6060_setup_port(priv, i);
 		if (ret < 0)
 			return ret;
 	}
@@ -239,25 +238,27 @@ static int mv88e6060_port_to_phy_addr(int port)
 
 static int mv88e6060_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
+	struct mv88e6060_priv *priv = ds->priv;
 	int addr;
 
 	addr = mv88e6060_port_to_phy_addr(port);
 	if (addr == -1)
 		return 0xffff;
 
-	return reg_read(ds, addr, regnum);
+	return reg_read(priv, addr, regnum);
 }
 
 static int
 mv88e6060_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 {
+	struct mv88e6060_priv *priv = ds->priv;
 	int addr;
 
 	addr = mv88e6060_port_to_phy_addr(port);
 	if (addr == -1)
 		return 0xffff;
 
-	return reg_write(ds, addr, regnum, val);
+	return reg_write(priv, addr, regnum, val);
 }
 
 static const struct dsa_switch_ops mv88e6060_switch_ops = {
