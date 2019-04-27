@@ -35,15 +35,6 @@ static int reg_write(struct mv88e6060_priv *priv, int addr, int reg, u16 val)
 	return mdiobus_write_nested(priv->bus, priv->sw_addr + addr, reg, val);
 }
 
-#define REG_WRITE(addr, reg, val)				\
-	({							\
-		int __ret;					\
-								\
-		__ret = reg_write(priv, addr, reg, val);		\
-		if (__ret < 0)					\
-			return __ret;				\
-	})
-
 static const char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 {
 	int ret;
@@ -98,17 +89,21 @@ static int mv88e6060_switch_reset(struct mv88e6060_priv *priv)
 	/* Set all ports to the disabled state. */
 	for (i = 0; i < MV88E6060_PORTS; i++) {
 		ret = REG_READ(REG_PORT(i), PORT_CONTROL);
-		REG_WRITE(REG_PORT(i), PORT_CONTROL,
-			  ret & ~PORT_CONTROL_STATE_MASK);
+		ret = reg_write(priv, REG_PORT(i), PORT_CONTROL,
+				ret & ~PORT_CONTROL_STATE_MASK);
+		if (ret)
+			return ret;
 	}
 
 	/* Wait for transmit queues to drain. */
 	usleep_range(2000, 4000);
 
 	/* Reset the switch. */
-	REG_WRITE(REG_GLOBAL, GLOBAL_ATU_CONTROL,
-		  GLOBAL_ATU_CONTROL_SWRESET |
-		  GLOBAL_ATU_CONTROL_LEARNDIS);
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_ATU_CONTROL,
+			GLOBAL_ATU_CONTROL_SWRESET |
+			GLOBAL_ATU_CONTROL_LEARNDIS);
+	if (ret)
+		return ret;
 
 	/* Wait up to one second for reset to complete. */
 	timeout = jiffies + 1 * HZ;
@@ -127,59 +122,67 @@ static int mv88e6060_switch_reset(struct mv88e6060_priv *priv)
 
 static int mv88e6060_setup_global(struct mv88e6060_priv *priv)
 {
+	int ret;
+
 	/* Disable discarding of frames with excessive collisions,
 	 * set the maximum frame size to 1536 bytes, and mask all
 	 * interrupt sources.
 	 */
-	REG_WRITE(REG_GLOBAL, GLOBAL_CONTROL, GLOBAL_CONTROL_MAX_FRAME_1536);
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_CONTROL,
+			GLOBAL_CONTROL_MAX_FRAME_1536);
+	if (ret)
+		return ret;
 
 	/* Disable automatic address learning.
 	 */
-	REG_WRITE(REG_GLOBAL, GLOBAL_ATU_CONTROL,
-		  GLOBAL_ATU_CONTROL_LEARNDIS);
-
-	return 0;
+	return reg_write(priv, REG_GLOBAL, GLOBAL_ATU_CONTROL,
+			 GLOBAL_ATU_CONTROL_LEARNDIS);
 }
 
 static int mv88e6060_setup_port(struct mv88e6060_priv *priv, int p)
 {
 	int addr = REG_PORT(p);
+	int ret;
 
 	/* Do not force flow control, disable Ingress and Egress
 	 * Header tagging, disable VLAN tunneling, and set the port
 	 * state to Forwarding.  Additionally, if this is the CPU
 	 * port, enable Ingress and Egress Trailer tagging mode.
 	 */
-	REG_WRITE(addr, PORT_CONTROL,
-		  dsa_is_cpu_port(priv->ds, p) ?
+	ret = reg_write(priv, addr, PORT_CONTROL,
+			dsa_is_cpu_port(priv->ds, p) ?
 			PORT_CONTROL_TRAILER |
 			PORT_CONTROL_INGRESS_MODE |
 			PORT_CONTROL_STATE_FORWARDING :
 			PORT_CONTROL_STATE_FORWARDING);
+	if (ret)
+		return ret;
 
 	/* Port based VLAN map: give each port its own address
 	 * database, allow the CPU port to talk to each of the 'real'
 	 * ports, and allow each of the 'real' ports to only talk to
 	 * the CPU port.
 	 */
-	REG_WRITE(addr, PORT_VLAN_MAP,
-		  ((p & 0xf) << PORT_VLAN_MAP_DBNUM_SHIFT) |
-		   (dsa_is_cpu_port(priv->ds, p) ? dsa_user_ports(priv->ds) :
-		    BIT(dsa_to_port(priv->ds, p)->cpu_dp->index)));
+	ret = reg_write(priv, addr, PORT_VLAN_MAP,
+			((p & 0xf) << PORT_VLAN_MAP_DBNUM_SHIFT) |
+			(dsa_is_cpu_port(priv->ds, p) ?
+			 dsa_user_ports(priv->ds) :
+			 BIT(dsa_to_port(priv->ds, p)->cpu_dp->index)));
+	if (ret)
+		return ret;
 
 	/* Port Association Vector: when learning source addresses
 	 * of packets, add the address to the address database using
 	 * a port bitmap that has only the bit for this port set and
 	 * the other bits clear.
 	 */
-	REG_WRITE(addr, PORT_ASSOC_VECTOR, BIT(p));
-
-	return 0;
+	return reg_write(priv, addr, PORT_ASSOC_VECTOR, BIT(p));
 }
 
 static int mv88e6060_setup_addr(struct mv88e6060_priv *priv)
 {
 	u8 addr[ETH_ALEN];
+	int ret;
 	u16 val;
 
 	eth_random_addr(addr);
@@ -191,11 +194,17 @@ static int mv88e6060_setup_addr(struct mv88e6060_priv *priv)
 	 */
 	val &= 0xfeff;
 
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_01, val);
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_23, (addr[2] << 8) | addr[3]);
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_45, (addr[4] << 8) | addr[5]);
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_MAC_01, val);
+	if (ret)
+		return ret;
 
-	return 0;
+	ret = reg_write(priv, REG_GLOBAL, GLOBAL_MAC_23,
+			(addr[2] << 8) | addr[3]);
+	if (ret)
+		return ret;
+
+	return reg_write(priv, REG_GLOBAL, GLOBAL_MAC_45,
+			 (addr[4] << 8) | addr[5]);
 }
 
 static int mv88e6060_setup(struct dsa_switch *ds)
