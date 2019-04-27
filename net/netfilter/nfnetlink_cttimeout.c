@@ -184,7 +184,7 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 			 htonl(refcount_read(&timeout->refcnt))))
 		goto nla_put_failure;
 
-	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA);
 	if (!nest_parms)
 		goto nla_put_failure;
 
@@ -401,7 +401,7 @@ cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, l4proto->l4proto))
 		goto nla_put_failure;
 
-	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, CTA_TIMEOUT_DATA);
 	if (!nest_parms)
 		goto nla_put_failure;
 

@@ -187,7 +187,7 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_NET);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NET);
 	if (!attrs)
 		goto msg_full;
 

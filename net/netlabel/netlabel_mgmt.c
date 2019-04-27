@@ -315,7 +315,7 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_ADDRSELECT:
-		nla_a = nla_nest_start(skb, NLBL_MGMT_A_SELECTORLIST);
+		nla_a = nla_nest_start_noflag(skb, NLBL_MGMT_A_SELECTORLIST);
 		if (nla_a == NULL)
 			return -ENOMEM;
 
@@ -323,7 +323,8 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 			struct netlbl_domaddr4_map *map4;
 			struct in_addr addr_struct;
 
-			nla_b = nla_nest_start(skb, NLBL_MGMT_A_ADDRSELECTOR);
+			nla_b = nla_nest_start_noflag(skb,
+						      NLBL_MGMT_A_ADDRSELECTOR);
 			if (nla_b == NULL)
 				return -ENOMEM;
 
@@ -357,7 +358,8 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 		netlbl_af6list_foreach_rcu(iter6, &entry->def.addrsel->list6) {
 			struct netlbl_domaddr6_map *map6;
 
-			nla_b = nla_nest_start(skb, NLBL_MGMT_A_ADDRSELECTOR);
+			nla_b = nla_nest_start_noflag(skb,
+						      NLBL_MGMT_A_ADDRSELECTOR);
 			if (nla_b == NULL)
 				return -ENOMEM;
 

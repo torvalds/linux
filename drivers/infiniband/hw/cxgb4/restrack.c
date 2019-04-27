@@ -149,7 +149,7 @@ static int fill_res_qp_entry(struct sk_buff *msg,
 	if (qhp->ucontext)
 		return 0;
 
-	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -216,7 +216,7 @@ static int fill_res_ep_entry(struct sk_buff *msg,
 	if (!uep)
 		return 0;
 
-	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err_free_uep;
 
@@ -387,7 +387,7 @@ static int fill_res_cq_entry(struct sk_buff *msg,
 	if (ibcq->uobject)
 		return 0;
 
-	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -447,7 +447,7 @@ static int fill_res_mr_entry(struct sk_buff *msg,
 	if (!stag)
 		return 0;
 
-	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 

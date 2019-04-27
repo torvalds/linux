@@ -462,7 +462,7 @@ nfnl_cthelper_dump_tuple(struct sk_buff *skb,
 {
 	struct nlattr *nest_parms;
 
-	nest_parms = nla_nest_start(skb, NFCTH_TUPLE | NLA_F_NESTED);
+	nest_parms = nla_nest_start(skb, NFCTH_TUPLE);
 	if (nest_parms == NULL)
 		goto nla_put_failure;
 
@@ -487,7 +487,7 @@ nfnl_cthelper_dump_policy(struct sk_buff *skb,
 	int i;
 	struct nlattr *nest_parms1, *nest_parms2;
 
-	nest_parms1 = nla_nest_start(skb, NFCTH_POLICY | NLA_F_NESTED);
+	nest_parms1 = nla_nest_start(skb, NFCTH_POLICY);
 	if (nest_parms1 == NULL)
 		goto nla_put_failure;
 
@@ -496,8 +496,7 @@ nfnl_cthelper_dump_policy(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	for (i = 0; i < helper->expect_class_max + 1; i++) {
-		nest_parms2 = nla_nest_start(skb,
-				(NFCTH_POLICY_SET+i) | NLA_F_NESTED);
+		nest_parms2 = nla_nest_start(skb, (NFCTH_POLICY_SET + i));
 		if (nest_parms2 == NULL)
 			goto nla_put_failure;
 

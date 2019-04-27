@@ -523,7 +523,7 @@ int tipc_udp_nl_add_bearer_data(struct tipc_nl_msg *msg, struct tipc_bearer *b)
 	if (!ub)
 		return -ENODEV;
 
-	nest = nla_nest_start(msg->skb, TIPC_NLA_BEARER_UDP_OPTS);
+	nest = nla_nest_start_noflag(msg->skb, TIPC_NLA_BEARER_UDP_OPTS);
 	if (!nest)
 		goto msg_full;
 

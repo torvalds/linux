@@ -420,22 +420,22 @@ static int nl80211_pmsr_send_result(struct sk_buff *msg,
 {
 	struct nlattr *pmsr, *peers, *peer, *resp, *data, *typedata;
 
-	pmsr = nla_nest_start(msg, NL80211_ATTR_PEER_MEASUREMENTS);
+	pmsr = nla_nest_start_noflag(msg, NL80211_ATTR_PEER_MEASUREMENTS);
 	if (!pmsr)
 		goto error;
 
-	peers = nla_nest_start(msg, NL80211_PMSR_ATTR_PEERS);
+	peers = nla_nest_start_noflag(msg, NL80211_PMSR_ATTR_PEERS);
 	if (!peers)
 		goto error;
 
-	peer = nla_nest_start(msg, 1);
+	peer = nla_nest_start_noflag(msg, 1);
 	if (!peer)
 		goto error;
 
 	if (nla_put(msg, NL80211_PMSR_PEER_ATTR_ADDR, ETH_ALEN, res->addr))
 		goto error;
 
-	resp = nla_nest_start(msg, NL80211_PMSR_PEER_ATTR_RESP);
+	resp = nla_nest_start_noflag(msg, NL80211_PMSR_PEER_ATTR_RESP);
 	if (!resp)
 		goto error;
 
@@ -452,11 +452,11 @@ static int nl80211_pmsr_send_result(struct sk_buff *msg,
 	if (res->final && nla_put_flag(msg, NL80211_PMSR_RESP_ATTR_FINAL))
 		goto error;
 
-	data = nla_nest_start(msg, NL80211_PMSR_RESP_ATTR_DATA);
+	data = nla_nest_start_noflag(msg, NL80211_PMSR_RESP_ATTR_DATA);
 	if (!data)
 		goto error;
 
-	typedata = nla_nest_start(msg, res->type);
+	typedata = nla_nest_start_noflag(msg, res->type);
 	if (!typedata)
 		goto error;
 
