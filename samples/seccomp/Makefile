@@ -40,5 +40,5 @@ HOSTLDLIBS_bpf-fancy += $(MFLAG)
 HOSTLDLIBS_dropper += $(MFLAG)
 HOSTLDLIBS_user-trap += $(MFLAG)
 endif
-always := $(hostprogs-m)
+always := $(hostprogs-y)
 endif
