@@ -910,8 +910,6 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 			   PCR_MATRIX(BIT(MT7530_CPU_PORT)));
 	priv->ports[port].pm = PCR_MATRIX(BIT(MT7530_CPU_PORT));
 
-	mt7530_port_set_vlan_unaware(ds, port);
-
 	mutex_unlock(&priv->reg_mutex);
 }
 
@@ -1025,6 +1023,8 @@ mt7530_port_vlan_filtering(struct dsa_switch *ds, int port,
 		 */
 		mt7530_port_set_vlan_aware(ds, port);
 		mt7530_port_set_vlan_aware(ds, MT7530_CPU_PORT);
+	} else {
+		mt7530_port_set_vlan_unaware(ds, port);
 	}
 
 	return 0;
