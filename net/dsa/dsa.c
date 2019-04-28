@@ -27,6 +27,9 @@
 
 #include "dsa_priv.h"
 
+static LIST_HEAD(dsa_tag_drivers_list);
+static DEFINE_MUTEX(dsa_tag_drivers_lock);
+
 static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
@@ -76,15 +79,40 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 	[DSA_TAG_PROTO_NONE] = &none_ops,
 };
 
+static void dsa_tag_driver_register(struct dsa_tag_driver *dsa_tag_driver,
+				    struct module *owner)
+{
+	dsa_tag_driver->owner = owner;
+
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_add_tail(&dsa_tag_driver->list, &dsa_tag_drivers_list);
+	mutex_unlock(&dsa_tag_drivers_lock);
+}
+
 void dsa_tag_drivers_register(struct dsa_tag_driver *dsa_tag_driver_array[],
 			      unsigned int count, struct module *owner)
 {
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		dsa_tag_driver_register(dsa_tag_driver_array[i], owner);
+}
+
+static void dsa_tag_driver_unregister(struct dsa_tag_driver *dsa_tag_driver)
+{
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_del(&dsa_tag_driver->list);
+	mutex_unlock(&dsa_tag_drivers_lock);
 }
 EXPORT_SYMBOL_GPL(dsa_tag_drivers_register);
 
 void dsa_tag_drivers_unregister(struct dsa_tag_driver *dsa_tag_driver_array[],
 				unsigned int count)
 {
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		dsa_tag_driver_unregister(dsa_tag_driver_array[i]);
 }
 EXPORT_SYMBOL_GPL(dsa_tag_drivers_unregister);
 
