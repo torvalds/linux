@@ -17,6 +17,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/regulator/consumer.h>
+#include <linux/completion.h>
 #include <linux/rk-preisp.h>
 #include <linux/rk-camera-module.h>
 #include <media/v4l2-ctrls.h>
@@ -26,6 +27,12 @@
 
 #define ENABLE_DMA_BUFFER 1
 #define SPI_BUFSIZ  max(32, SMP_CACHE_BYTES)
+
+struct rk1608_power_work {
+	struct work_struct wk;
+	struct rk1608_state *pdata;
+	struct completion work_fin;
+};
 
 /**
  * Rk1608 is used as the Pre-ISP to link on Soc, which mainly has two
@@ -868,16 +875,34 @@ int rk1608_set_power(struct rk1608_state *pdata, int on)
 	return 0;
 }
 
+static void rk1608_poweron_func(struct work_struct *work)
+{
+	struct rk1608_power_work *pwork = (struct rk1608_power_work *)work;
+
+	rk1608_power_on(pwork->pdata);
+	complete(&pwork->work_fin);
+}
+
 static int rk1608_sensor_power(struct v4l2_subdev *sd, int on)
 {
 	struct rk1608_state *pdata = to_state(sd);
+	struct rk1608_power_work work;
 
 	mutex_lock(&pdata->lock);
 	if (on) {
-		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, s_power, on);
-		if (!pdata->power_count)
-			rk1608_power_on(pdata);
+		if (!pdata->power_count) {
+			INIT_WORK(&work.wk, rk1608_poweron_func);
+			init_completion(&work.work_fin);
+			work.pdata = pdata;
+			schedule_work(&work.wk);
 
+			v4l2_subdev_call(pdata->sensor[sd->grp_id],
+					 core, s_power, on);
+			if (!wait_for_completion_timeout(&work.work_fin,
+					msecs_to_jiffies(1000)))
+				dev_err(pdata->dev,
+					"wait for preisp power on timeout!");
+		}
 	} else if (!on && pdata->power_count == 1) {
 		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, s_power, on);
 		rk1608_power_off(pdata);
