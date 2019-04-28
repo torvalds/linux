@@ -536,7 +536,7 @@
 			};
 		};
 
-		cluster0-mhm-thermal {
+		clust0-mhm-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -551,7 +551,7 @@
 			};
 		};
 
-		cluster1-mhm-thermal {
+		clust1-mhm-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -745,7 +745,7 @@
 			reg = <0x10ab000 0x1000>, /* TM */
 			      <0x10aa000 0x1000>; /* SROT */
 
-			#qcom,sensors = <12>;
+			#qcom,sensors = <14>;
 			#thermal-sensor-cells = <1>;
 		};
 
