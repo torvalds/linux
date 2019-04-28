@@ -51,6 +51,13 @@ properties:
           - const: i2se,duckbill-2
           - const: fsl,imx28
 
+      - description: i.MX50 based Boards
+        items:
+          - enum:
+              - fsl,imx50-evk
+              - kobo,aura
+          - const: fsl,imx50
+
       - description: i.MX51 Babbage Board
         items:
           - enum:
@@ -67,6 +74,7 @@ properties:
               - fsl,imx53-evk
               - fsl,imx53-qsb
               - fsl,imx53-smd
+              - menlo,m53menlo
           - const: fsl,imx53
 
       - description: i.MX6Q based Boards
@@ -90,6 +98,7 @@ properties:
       - description: i.MX6DL based Boards
         items:
           - enum:
+              - eckelmann,imx6dl-ci4x10
               - fsl,imx6dl-sabreauto      # i.MX6 DualLite/Solo SABRE Automotive Board
               - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
               - technologic,imx6dl-ts4900
@@ -137,10 +146,18 @@ properties:
           - const: fsl,imx6ull # This seems odd. Should be last?
           - const: fsl,imx6ulz
 
+      - description: i.MX7S based Boards
+        items:
+          - enum:
+              - tq,imx7s-mba7             # i.MX7S TQ MBa7 with TQMa7S SoM
+          - const: fsl,imx7s
+
       - description: i.MX7D based Boards
         items:
           - enum:
               - fsl,imx7d-sdb             # i.MX7 SabreSD Board
+              - tq,imx7d-mba7             # i.MX7D TQ MBa7 with TQMa7D SoM
+              - zii,imx7d-rpu2            # ZII RPU2 Board
           - const: fsl,imx7d
 
       - description:
@@ -153,6 +170,12 @@ properties:
           - const: compulab,sbc-imx7
           - const: compulab,cl-som-imx7
           - const: fsl,imx7d
+
+      - description: i.MX8MM based Boards
+        items:
+          - enum:
+              - fsl,imx8mm-evk            # i.MX8MM EVK Board
+          - const: fsl,imx8mm
 
       - description: i.MX8QXP based Boards
         items:
@@ -175,6 +198,19 @@ properties:
               - fsl,vf600
               - fsl,vf610
               - fsl,vf610m4
+
+      - description: ZII's VF610 based Boards
+        items:
+          - enum:
+              - zii,vf610cfu1      # ZII VF610 CFU1 Board
+              - zii,vf610dev-c     # ZII VF610 Development Board, Rev C
+              - zii,vf610dev-b     # ZII VF610 Development Board, Rev B
+              - zii,vf610scu4-aib  # ZII VF610 SCU4 AIB
+              - zii,vf610dtu       # ZII VF610 SSMB DTU Board
+              - zii,vf610spu3      # ZII VF610 SSMB SPU3 Board
+              - zii,vf610spb4      # ZII VF610 SPB4 Board
+          - const: zii,vf610dev
+          - const: fsl,vf610
 
       - description: LS1012A based Boards
         items:
