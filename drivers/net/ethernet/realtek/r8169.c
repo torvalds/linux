@@ -4083,14 +4083,6 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	phy_speed_up(tp->phydev);
 
 	genphy_soft_reset(tp->phydev);
-
-	/* It was reported that several chips end up with 10MBit/Half on a
-	 * 1GBit link after resuming from S3. For whatever reason the PHY on
-	 * these chips doesn't properly start a renegotiation when soft-reset.
-	 * Explicitly requesting a renegotiation fixes this.
-	 */
-	if (tp->phydev->autoneg == AUTONEG_ENABLE)
-		phy_restart_aneg(tp->phydev);
 }
 
 static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
