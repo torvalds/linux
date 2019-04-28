@@ -1170,6 +1170,26 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
+static int navi10_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size)
+{
+	int ret = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
+		*(uint32_t *)data = pptable->FanMaximumRpm;
+		*size = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1204,6 +1224,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.set_power_profile_mode = navi10_set_power_profile_mode,
 	.get_profiling_clk_mask = navi10_get_profiling_clk_mask,
 	.set_watermarks_table = navi10_set_watermarks_table,
+	.read_sensor = navi10_read_sensor,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
