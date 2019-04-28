@@ -76,6 +76,18 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 	[DSA_TAG_PROTO_NONE] = &none_ops,
 };
 
+void dsa_tag_drivers_register(struct dsa_tag_driver *dsa_tag_driver_array[],
+			      unsigned int count, struct module *owner)
+{
+}
+EXPORT_SYMBOL_GPL(dsa_tag_drivers_register);
+
+void dsa_tag_drivers_unregister(struct dsa_tag_driver *dsa_tag_driver_array[],
+				unsigned int count)
+{
+}
+EXPORT_SYMBOL_GPL(dsa_tag_drivers_unregister);
+
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 {
 	return ops->name;

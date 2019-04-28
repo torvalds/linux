@@ -141,6 +141,7 @@ const struct dsa_device_ops ksz9477_netdev_ops = {
 	.overhead = KSZ9477_INGRESS_TAG_LEN,
 };
 
+DSA_TAG_DRIVER(ksz9477_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9477);
 
 #define KSZ9893_TAIL_TAG_OVERRIDE	BIT(5)
@@ -178,5 +179,14 @@ const struct dsa_device_ops ksz9893_netdev_ops = {
 	.overhead = KSZ_INGRESS_TAG_LEN,
 };
 
-MODULE_LICENSE("GPL");
+DSA_TAG_DRIVER(ksz9893_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9893);
+
+static struct dsa_tag_driver *dsa_tag_driver_array[] = {
+	&DSA_TAG_DRIVER_NAME(ksz9477_netdev_ops),
+	&DSA_TAG_DRIVER_NAME(ksz9893_netdev_ops),
+};
+
+module_dsa_tag_drivers(dsa_tag_driver_array);
+
+MODULE_LICENSE("GPL");

@@ -175,6 +175,7 @@ const struct dsa_device_ops brcm_netdev_ops = {
 	.overhead = BRCM_TAG_LEN,
 };
 
+DSA_TAG_DRIVER(brcm_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM);
 #endif
 
@@ -203,5 +204,18 @@ const struct dsa_device_ops brcm_prepend_netdev_ops = {
 };
 #endif
 
-MODULE_LICENSE("GPL");
+DSA_TAG_DRIVER(brcm_prepend_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND);
+
+static struct dsa_tag_driver *dsa_tag_driver_array[] =	{
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM)
+	&DSA_TAG_DRIVER_NAME(brcm_netdev_ops),
+#endif
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
+	&DSA_TAG_DRIVER_NAME(brcm_prepend_netdev_ops),
+#endif
+};
+
+module_dsa_tag_drivers(dsa_tag_driver_array);
+
+MODULE_LICENSE("GPL");

@@ -87,3 +87,5 @@ const struct dsa_device_ops trailer_netdev_ops = {
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_TRAILER);
+
+module_dsa_tag_driver(trailer_netdev_ops);

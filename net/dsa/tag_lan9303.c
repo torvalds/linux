@@ -138,3 +138,5 @@ const struct dsa_device_ops lan9303_netdev_ops = {
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_LAN9303);
+
+module_dsa_tag_driver(lan9303_netdev_ops);

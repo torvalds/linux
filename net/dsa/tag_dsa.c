@@ -161,3 +161,5 @@ const struct dsa_device_ops dsa_netdev_ops = {
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_DSA);
+
+module_dsa_tag_driver(dsa_netdev_ops);
