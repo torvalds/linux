@@ -125,20 +125,49 @@ const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 
 const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
 {
+	struct dsa_tag_driver *dsa_tag_driver;
 	const struct dsa_device_ops *ops;
+	char module_name[128];
+	bool found = false;
 
-	if (tag_protocol >= DSA_TAG_LAST)
-		return ERR_PTR(-EINVAL);
-	ops = dsa_device_ops[tag_protocol];
+	snprintf(module_name, 127, "%s%d", DSA_TAG_DRIVER_ALIAS,
+		 tag_protocol);
 
-	if (!ops)
-		return ERR_PTR(-ENOPROTOOPT);
+	request_module(module_name);
+
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
+		ops = dsa_tag_driver->ops;
+		if (ops->proto == tag_protocol) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		if (!try_module_get(dsa_tag_driver->owner))
+			ops = ERR_PTR(-ENOPROTOOPT);
+	} else {
+		ops = ERR_PTR(-ENOPROTOOPT);
+	}
+
+	mutex_unlock(&dsa_tag_drivers_lock);
 
 	return ops;
 }
 
 void dsa_tag_driver_put(const struct dsa_device_ops *ops)
 {
+	struct dsa_tag_driver *dsa_tag_driver;
+
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
+		if (dsa_tag_driver->ops == ops) {
+			module_put(dsa_tag_driver->owner);
+			break;
+		}
+	}
+	mutex_unlock(&dsa_tag_drivers_lock);
 }
 
 static int dev_is_class(struct device *dev, void *class)
