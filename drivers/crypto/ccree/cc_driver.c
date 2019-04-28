@@ -103,7 +103,7 @@ static u32 cc_read_idr(struct cc_drvdata *drvdata, const u32 *idr_offsets)
 	int i;
 	union {
 		u8 regs[CC_NUM_IDRS];
-		u32 val;
+		__le32 val;
 	} idr;
 
 	for (i = 0; i < CC_NUM_IDRS; ++i)
