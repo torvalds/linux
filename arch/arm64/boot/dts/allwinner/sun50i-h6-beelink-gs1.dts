@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ or MIT)
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2019 Clément Péron <peron.clem@gmail.com>
  */
 
 /dts-v1/;
@@ -10,8 +10,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Pine H64";
-	compatible = "pine64,pine-h64", "allwinner,sun50i-h6";
+	model = "Beelink GS1";
+	compatible = "azw,beelink-gs1", "allwinner,sun50i-h6";
 
 	aliases {
 		ethernet0 = &emac;
@@ -36,31 +36,29 @@
 	leds {
 		compatible = "gpio-leds";
 
-		heartbeat {
-			label = "pine-h64:green:heartbeat";
+		power {
+			label = "beelink:white:power";
 			gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
-		};
-
-		link {
-			label = "pine-h64:white:link";
-			gpios = <&r_pio 0 3 GPIO_ACTIVE_HIGH>; /* PL3 */
-		};
-
-		status {
-			label = "pine-h64:blue:status";
-			gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
+			default-state = "on";
 		};
 	};
 
-	reg_usb_vbus: vbus {
+	reg_vcc5v: vcc5v {
+		/* board wide 5V supply directly from the DC jack */
 		compatible = "regulator-fixed";
-		regulator-name = "usb-vbus";
+		regulator-name = "vcc-5v";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		startup-delay-us = <100000>;
-		gpio = <&r_pio 0 5 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		regulator-always-on;
 	};
+};
+
+&de {
+	status = "okay";
+};
+
+&ehci0 {
+	status = "okay";
 };
 
 &emac {
@@ -69,19 +67,6 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ext_rgmii_phy>;
 	phy-supply = <&reg_aldo2>;
-	allwinner,rx-delay-ps = <200>;
-	allwinner,tx-delay-ps = <200>;
-	status = "okay";
-};
-
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <1>;
-	};
-};
-
-&de {
 	status = "okay";
 };
 
@@ -95,12 +80,11 @@
 	};
 };
 
-&ehci0 {
-	status = "okay";
-};
-
-&ehci3 {
-	status = "okay";
+&mdio {
+	ext_rgmii_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+	};
 };
 
 &mmc0 {
@@ -123,8 +107,9 @@
 	status = "okay";
 };
 
-&ohci3 {
-	status = "okay";
+&pio {
+	vcc-pd-supply = <&reg_cldo1>;
+	vcc-pg-supply = <&reg_aldo1>;
 };
 
 &r_i2c {
@@ -138,6 +123,14 @@
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		x-powers,self-working-mode;
+		vina-supply = <&reg_vcc5v>;
+		vinb-supply = <&reg_vcc5v>;
+		vinc-supply = <&reg_vcc5v>;
+		vind-supply = <&reg_vcc5v>;
+		vine-supply = <&reg_vcc5v>;
+		aldoin-supply = <&reg_vcc5v>;
+		bldoin-supply = <&reg_vcc5v>;
+		cldoin-supply = <&reg_vcc5v>;
 
 		regulators {
 			reg_aldo1: aldo1 {
@@ -155,11 +148,10 @@
 			};
 
 			reg_aldo3: aldo3 {
-				/* This regulator is connected with CLDO1 */
 				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc-3v3-1";
+				regulator-name = "vcc25-dram";
 			};
 
 			reg_bldo1: bldo1 {
@@ -188,11 +180,10 @@
 			};
 
 			reg_cldo1: cldo1 {
-				/* This regulator is connected with ALDO3 */
 				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc-3v3-2";
+				regulator-name = "vcc-3v3";
 			};
 
 			reg_cldo2: cldo2 {
@@ -239,12 +230,17 @@
 			};
 		};
 	};
+};
 
-	pcf8563: rtc@51 {
-		compatible = "nxp,pcf8563";
-		reg = <0x51>;
-		#clock-cells = <0>;
-	};
+&r_pio {
+	/*
+	 * PL0 and PL1 are used for PMIC I2C
+	 * don't enable the pl-supply else
+	 * it will fail at boot
+	 *
+	 * vcc-pl-supply = <&reg_aldo1>;
+	 */
+	vcc-pm-supply = <&reg_aldo1>;
 };
 
 &uart0 {
@@ -259,7 +255,6 @@
 };
 
 &usb2phy {
-	usb0_vbus-supply = <&reg_usb_vbus>;
-	usb3_vbus-supply = <&reg_usb_vbus>;
+	usb0_vbus-supply = <&reg_vcc5v>;
 	status = "okay";
 };
