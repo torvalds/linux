@@ -157,6 +157,11 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&vdd_gpu>;
+	status = "okay";
+};
+
 &hdmi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_cec>;
