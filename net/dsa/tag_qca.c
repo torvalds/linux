@@ -99,7 +99,7 @@ static int qca_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	return 0;
 }
 
-const struct dsa_device_ops qca_netdev_ops = {
+static const struct dsa_device_ops qca_netdev_ops = {
 	.name	= "qca",
 	.proto	= DSA_TAG_PROTO_QCA,
 	.xmit	= qca_tag_xmit,

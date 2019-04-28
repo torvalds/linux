@@ -77,7 +77,7 @@ static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 	return skb;
 }
 
-const struct dsa_device_ops trailer_netdev_ops = {
+static const struct dsa_device_ops trailer_netdev_ops = {
 	.name	= "trailer",
 	.proto	= DSA_TAG_PROTO_TRAILER,
 	.xmit	= trailer_xmit,

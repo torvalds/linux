@@ -128,7 +128,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	return skb;
 }
 
-const struct dsa_device_ops lan9303_netdev_ops = {
+static const struct dsa_device_ops lan9303_netdev_ops = {
 	.name = "lan9303",
 	.proto	= DSA_TAG_PROTO_LAN9303,
 	.xmit = lan9303_xmit,

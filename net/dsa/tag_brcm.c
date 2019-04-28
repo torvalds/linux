@@ -167,7 +167,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	return nskb;
 }
 
-const struct dsa_device_ops brcm_netdev_ops = {
+static const struct dsa_device_ops brcm_netdev_ops = {
 	.name	= "brcm",
 	.proto	= DSA_TAG_PROTO_BRCM,
 	.xmit	= brcm_tag_xmit,
@@ -195,7 +195,7 @@ static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
 	return brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
 }
 
-const struct dsa_device_ops brcm_prepend_netdev_ops = {
+static const struct dsa_device_ops brcm_prepend_netdev_ops = {
 	.name	= "brcm-prepend",
 	.proto	= DSA_TAG_PROTO_BRCM_PREPEND,
 	.xmit	= brcm_tag_xmit_prepend,

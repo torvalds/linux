@@ -103,7 +103,7 @@ static struct sk_buff *gswip_tag_rcv(struct sk_buff *skb,
 	return skb;
 }
 
-const struct dsa_device_ops gswip_netdev_ops = {
+static const struct dsa_device_ops gswip_netdev_ops = {
 	.name = "gwsip",
 	.proto	= DSA_TAG_PROTO_GSWIP,
 	.xmit = gswip_tag_xmit,

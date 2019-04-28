@@ -133,7 +133,7 @@ static struct sk_buff *ksz9477_rcv(struct sk_buff *skb, struct net_device *dev,
 	return ksz_common_rcv(skb, dev, port, len);
 }
 
-const struct dsa_device_ops ksz9477_netdev_ops = {
+static const struct dsa_device_ops ksz9477_netdev_ops = {
 	.name	= "ksz9477",
 	.proto	= DSA_TAG_PROTO_KSZ9477,
 	.xmit	= ksz9477_xmit,
@@ -171,7 +171,7 @@ static struct sk_buff *ksz9893_xmit(struct sk_buff *skb,
 	return nskb;
 }
 
-const struct dsa_device_ops ksz9893_netdev_ops = {
+static const struct dsa_device_ops ksz9893_netdev_ops = {
 	.name	= "ksz9893",
 	.proto	= DSA_TAG_PROTO_KSZ9893,
 	.xmit	= ksz9893_xmit,
