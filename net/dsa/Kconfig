@@ -4,7 +4,7 @@ config HAVE_NET_DSA
 
 # Drivers must select NET_DSA and the appropriate tagging format
 
-config NET_DSA
+menuconfig NET_DSA
 	tristate "Distributed Switch Architecture"
 	depends on HAVE_NET_DSA
 	depends on BRIDGE || BRIDGE=n
@@ -26,39 +26,84 @@ config NET_DSA_LEGACY
 
 	  This feature is scheduled for removal in 4.17.
 
-# tagging formats
+config NET_DSA_TAG_BRCM_COMMON
+	tristate
+	default n
+
 config NET_DSA_TAG_BRCM
-	bool
+	tristate "Tag driver for Broadcom switches using in-frame headers"
+	select NET_DSA_TAG_BRCM_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Broadcom switches which place the tag after the MAC source address.
+
 
 config NET_DSA_TAG_BRCM_PREPEND
-	bool
-
-config NET_DSA_TAG_DSA
-	bool
-
-config NET_DSA_TAG_EDSA
-	bool
+	tristate "Tag driver for Broadcom switches using prepended headers"
+	select NET_DSA_TAG_BRCM_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Broadcom switches which places the tag before the Ethernet header
+	  (prepended).
 
 config NET_DSA_TAG_GSWIP
-	bool
+	tristate "Tag driver for Lantiq / Intel GSWIP switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Lantiq / Intel GSWIP switches.
 
-config NET_DSA_TAG_KSZ
-	bool
+config NET_DSA_TAG_DSA
+	tristate "Tag driver for Marvell switches using DSA headers"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Marvell switches which use DSA headers.
 
-config NET_DSA_TAG_KSZ9477
-	bool
-	select NET_DSA_TAG_KSZ
-
-config NET_DSA_TAG_LAN9303
-	bool
+config NET_DSA_TAG_EDSA
+	tristate "Tag driver for Marvell switches using EtherType DSA headers"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  Marvell switches which use EtherType DSA headers.
 
 config NET_DSA_TAG_MTK
-	bool
+	tristate "Tag driver for Mediatek switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for
+	  Mediatek switches.
 
-config NET_DSA_TAG_TRAILER
-	bool
+config NET_DSA_TAG_KSZ_COMMON
+	tristate
+	default n
+
+config NET_DSA_TAG_KSZ
+	tristate "Tag driver for Microchip 9893 family of switches"
+	select NET_DSA_TAG_KSZ_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Microchip 9893 family of switches.
+
+config NET_DSA_TAG_KSZ9477
+	tristate "Tag driver for Microchip 9477 family of switches"
+	select NET_DSA_TAG_KSZ_COMMON
+	help
+	  Say Y if you want to enable support for tagging frames for the
+	  Microchip 9477 family of switches.
 
 config NET_DSA_TAG_QCA
-	bool
+	tristate "Tag driver for Qualcomm Atheros QCA8K switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for
+	  the Qualcomm Atheros QCA8K switches.
+
+config NET_DSA_TAG_LAN9303
+	tristate "Tag driver for SMSC/Microchip LAN9303 family of switches"
+	help
+	  Say Y or M if you want to enable support for tagging frames for the
+	  SMSC/Microchip LAN9303 family of switches.
+
+config NET_DSA_TAG_TRAILER
+	tristate "Tag driver for switches using a trailer tag"
+	help
+	  Say Y or M if you want to enable support for tagging frames at
+	  with a trailed. e.g. Marvell 88E6060.
 
 endif
