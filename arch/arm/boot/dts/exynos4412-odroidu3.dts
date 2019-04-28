@@ -66,6 +66,11 @@
 	};
 };
 
+&adc {
+	vdd-supply = <&ldo10_reg>;
+	/* Nothing connected to ADC inputs, keep it disabled */
+};
+
 /* Supply for LAN9730/SMSC95xx */
 &buck8_reg {
 	regulator-name = "BUCK8_P3V3";
