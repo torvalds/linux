@@ -577,7 +577,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	enum dsa_tag_protocol tag_protocol;
 
 	tag_protocol = ds->ops->get_tag_protocol(ds, dp->index);
-	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+	tag_ops = dsa_tag_driver_get(tag_protocol);
 	if (IS_ERR(tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
 		return PTR_ERR(tag_ops);
