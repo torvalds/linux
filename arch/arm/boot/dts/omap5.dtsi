@@ -161,6 +161,9 @@
 		l4_per: interconnect@48000000 {
 		};
 
+		l4_abe: interconnect@40100000 {
+		};
+
 		ocmcram: ocmcram@40300000 {
 			compatible = "mmio-sram";
 			reg = <0x40300000 0x20000>; /* 128k */
@@ -200,115 +203,6 @@
 			ti,hwmods = "mmu_ipu";
 			#iommu-cells = <0>;
 			ti,iommu-bus-err-back;
-		};
-
-		mcpdm: mcpdm@40132000 {
-			compatible = "ti,omap4-mcpdm";
-			reg = <0x40132000 0x7f>, /* MPU private access */
-			      <0x49032000 0x7f>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "mcpdm";
-			dmas = <&sdma 65>,
-			       <&sdma 66>;
-			dma-names = "up_link", "dn_link";
-			status = "disabled";
-		};
-
-		dmic: dmic@4012e000 {
-			compatible = "ti,omap4-dmic";
-			reg = <0x4012e000 0x7f>, /* MPU private access */
-			      <0x4902e000 0x7f>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "dmic";
-			dmas = <&sdma 67>;
-			dma-names = "up_link";
-			status = "disabled";
-		};
-
-		mcbsp1: mcbsp@40122000 {
-			compatible = "ti,omap4-mcbsp";
-			reg = <0x40122000 0xff>, /* MPU private access */
-			      <0x49022000 0xff>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "common";
-			ti,buffer-size = <128>;
-			ti,hwmods = "mcbsp1";
-			dmas = <&sdma 33>,
-			       <&sdma 34>;
-			dma-names = "tx", "rx";
-			status = "disabled";
-		};
-
-		mcbsp2: mcbsp@40124000 {
-			compatible = "ti,omap4-mcbsp";
-			reg = <0x40124000 0xff>, /* MPU private access */
-			      <0x49024000 0xff>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "common";
-			ti,buffer-size = <128>;
-			ti,hwmods = "mcbsp2";
-			dmas = <&sdma 17>,
-			       <&sdma 18>;
-			dma-names = "tx", "rx";
-			status = "disabled";
-		};
-
-		mcbsp3: mcbsp@40126000 {
-			compatible = "ti,omap4-mcbsp";
-			reg = <0x40126000 0xff>, /* MPU private access */
-			      <0x49026000 0xff>; /* L3 Interconnect */
-			reg-names = "mpu", "dma";
-			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "common";
-			ti,buffer-size = <128>;
-			ti,hwmods = "mcbsp3";
-			dmas = <&sdma 19>,
-			       <&sdma 20>;
-			dma-names = "tx", "rx";
-			status = "disabled";
-		};
-
-		timer5: timer@40138000 {
-			compatible = "ti,omap5430-timer";
-			reg = <0x40138000 0x80>,
-			      <0x49038000 0x80>;
-			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer5";
-			ti,timer-dsp;
-			ti,timer-pwm;
-		};
-
-		timer6: timer@4013a000 {
-			compatible = "ti,omap5430-timer";
-			reg = <0x4013a000 0x80>,
-			      <0x4903a000 0x80>;
-			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer6";
-			ti,timer-dsp;
-			ti,timer-pwm;
-		};
-
-		timer7: timer@4013c000 {
-			compatible = "ti,omap5430-timer";
-			reg = <0x4013c000 0x80>,
-			      <0x4903c000 0x80>;
-			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer7";
-			ti,timer-dsp;
-		};
-
-		timer8: timer@4013e000 {
-			compatible = "ti,omap5430-timer";
-			reg = <0x4013e000 0x80>,
-			      <0x4903e000 0x80>;
-			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-			ti,hwmods = "timer8";
-			ti,timer-dsp;
-			ti,timer-pwm;
 		};
 
 		dmm@4e000000 {
@@ -517,3 +411,6 @@
 &core_thermal {
 	coefficients = <0 2000>;
 };
+
+#include "omap5-l4-abe.dtsi"
+#include "omap54xx-clocks.dtsi"
