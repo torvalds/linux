@@ -921,9 +921,7 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 		if (pcpu_rt) {
 			struct fib6_info *from;
 
-			from = rcu_dereference_protected(pcpu_rt->from,
-					     lockdep_is_held(&table->tb6_lock));
-			rcu_assign_pointer(pcpu_rt->from, NULL);
+			from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
 			fib6_info_release(from);
 		}
 	}
