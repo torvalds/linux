@@ -44,6 +44,8 @@ static const struct dsa_device_ops none_ops = {
 	.rcv	= NULL,
 };
 
+DSA_TAG_DRIVER(none_ops);
+
 const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 #ifdef CONFIG_NET_DSA_TAG_BRCM
 	[DSA_TAG_PROTO_BRCM] = &brcm_netdev_ops,
@@ -352,12 +354,17 @@ static int __init dsa_init_module(void)
 
 	dev_add_pack(&dsa_pack_type);
 
+	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(none_ops),
+				THIS_MODULE);
+
 	return 0;
 }
 module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
+
 	dsa_slave_unregister_notifier();
 	dev_remove_pack(&dsa_pack_type);
 	dsa_legacy_unregister();
