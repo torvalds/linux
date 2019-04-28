@@ -36,6 +36,7 @@ static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 
 static const struct dsa_device_ops none_ops = {
 	.name	= "none",
+	.proto	= DSA_TAG_PROTO_NONE,
 	.xmit	= dsa_slave_notag_xmit,
 	.rcv	= NULL,
 };

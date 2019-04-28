@@ -100,6 +100,7 @@ static int mtk_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 
 const struct dsa_device_ops mtk_netdev_ops = {
 	.name		= "mtk",
+	.proto		= DSA_TAG_PROTO_MTK,
 	.xmit		= mtk_tag_xmit,
 	.rcv		= mtk_tag_rcv,
 	.flow_dissect	= mtk_tag_flow_dissect,

@@ -135,6 +135,7 @@ static struct sk_buff *ksz9477_rcv(struct sk_buff *skb, struct net_device *dev,
 
 const struct dsa_device_ops ksz9477_netdev_ops = {
 	.name	= "ksz9477",
+	.proto	= DSA_TAG_PROTO_KSZ9477,
 	.xmit	= ksz9477_xmit,
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ9477_INGRESS_TAG_LEN,
@@ -171,6 +172,7 @@ static struct sk_buff *ksz9893_xmit(struct sk_buff *skb,
 
 const struct dsa_device_ops ksz9893_netdev_ops = {
 	.name	= "ksz9893",
+	.proto	= DSA_TAG_PROTO_KSZ9893,
 	.xmit	= ksz9893_xmit,
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ_INGRESS_TAG_LEN,

@@ -70,6 +70,7 @@ struct dsa_device_ops {
 			    int *offset);
 	unsigned int overhead;
 	const char *name;
+	enum dsa_tag_protocol proto;
 };
 
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
