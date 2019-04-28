@@ -233,6 +233,11 @@ struct dsa_switch {
 	 */
 	bool			vlan_filtering_is_global;
 
+	/* In case vlan_filtering_is_global is set, the VLAN awareness state
+	 * should be retrieved from here and not from the per-port settings.
+	 */
+	bool			vlan_filtering;
+
 	unsigned long		*bitmap;
 	unsigned long		_bitmap;
 
