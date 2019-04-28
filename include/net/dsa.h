@@ -305,6 +305,16 @@ static inline unsigned int dsa_upstream_port(struct dsa_switch *ds, int port)
 	return dsa_towards_port(ds, cpu_dp->ds->index, cpu_dp->index);
 }
 
+static inline bool dsa_port_is_vlan_filtering(const struct dsa_port *dp)
+{
+	const struct dsa_switch *ds = dp->ds;
+
+	if (ds->vlan_filtering_is_global)
+		return ds->vlan_filtering;
+	else
+		return dp->vlan_filtering;
+}
+
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
 struct dsa_switch_ops {
