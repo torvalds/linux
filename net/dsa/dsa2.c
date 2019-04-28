@@ -335,6 +335,8 @@ static void dsa_port_teardown(struct dsa_port *dp)
 	case DSA_PORT_TYPE_UNUSED:
 		break;
 	case DSA_PORT_TYPE_CPU:
+		dsa_tag_driver_put(dp->tag_ops);
+		/* fall-through */
 	case DSA_PORT_TYPE_DSA:
 		dsa_port_link_unregister_of(dp);
 		break;

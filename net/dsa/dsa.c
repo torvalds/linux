@@ -137,6 +137,10 @@ const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
 	return ops;
 }
 
+void dsa_tag_driver_put(const struct dsa_device_ops *ops)
+{
+}
+
 static int dev_is_class(struct device *dev, void *class)
 {
 	if (dev->class != NULL && !strcmp(dev->class->name, class))

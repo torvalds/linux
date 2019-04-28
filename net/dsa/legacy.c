@@ -163,6 +163,8 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		dst->cpu_dp->dst = dst;
 	}
 
+	dsa_tag_driver_put(dst->cpu_dp->tag_ops);
+
 	memcpy(ds->rtable, cd->rtable, sizeof(ds->rtable));
 
 	/*

@@ -85,6 +85,7 @@ struct dsa_slave_priv {
 
 /* dsa.c */
 const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol);
+void dsa_tag_driver_put(const struct dsa_device_ops *ops);
 
 bool dsa_schedule_work(struct work_struct *work);
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops);
