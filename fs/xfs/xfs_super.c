@@ -66,7 +66,7 @@ static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
 enum {
 	Opt_logbufs, Opt_logbsize, Opt_logdev, Opt_rtdev, Opt_biosize,
 	Opt_wsync, Opt_noalign, Opt_swalloc, Opt_sunit, Opt_swidth, Opt_nouuid,
-	Opt_mtpt, Opt_grpid, Opt_nogrpid, Opt_bsdgroups, Opt_sysvgroups,
+	Opt_grpid, Opt_nogrpid, Opt_bsdgroups, Opt_sysvgroups,
 	Opt_allocsize, Opt_norecovery, Opt_inode64, Opt_inode32, Opt_ikeep,
 	Opt_noikeep, Opt_largeio, Opt_nolargeio, Opt_attr2, Opt_noattr2,
 	Opt_filestreams, Opt_quota, Opt_noquota, Opt_usrquota, Opt_grpquota,
@@ -87,7 +87,6 @@ static const match_table_t tokens = {
 	{Opt_sunit,	"sunit=%u"},	/* data volume stripe unit */
 	{Opt_swidth,	"swidth=%u"},	/* data volume stripe width */
 	{Opt_nouuid,	"nouuid"},	/* ignore filesystem UUID */
-	{Opt_mtpt,	"mtpt"},	/* filesystem mount point */
 	{Opt_grpid,	"grpid"},	/* group-ID from parent directory */
 	{Opt_nogrpid,	"nogrpid"},	/* group-ID from current process */
 	{Opt_bsdgroups,	"bsdgroups"},	/* group-ID from parent directory */
@@ -236,9 +235,6 @@ xfs_parseargs(
 			if (!mp->m_logname)
 				return -ENOMEM;
 			break;
-		case Opt_mtpt:
-			xfs_warn(mp, "%s option not allowed on this system", p);
-			return -EINVAL;
 		case Opt_rtdev:
 			kfree(mp->m_rtname);
 			mp->m_rtname = match_strdup(args);
