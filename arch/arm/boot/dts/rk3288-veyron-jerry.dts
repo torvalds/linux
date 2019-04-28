@@ -11,7 +11,10 @@
 
 / {
 	model = "Google Jerry";
-	compatible = "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
+	compatible = "google,veyron-jerry-rev15", "google,veyron-jerry-rev14",
+		     "google,veyron-jerry-rev13", "google,veyron-jerry-rev12",
+		     "google,veyron-jerry-rev11", "google,veyron-jerry-rev10",
+		     "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
 		     "google,veyron-jerry-rev5", "google,veyron-jerry-rev4",
 		     "google,veyron-jerry-rev3", "google,veyron-jerry",
 		     "google,veyron", "rockchip,rk3288";
@@ -61,7 +64,9 @@
 
 &rk808 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pmic_int_l>;
+	pinctrl-0 = <&pmic_int_l &dvs_1 &dvs_2>;
+	dvs-gpios = <&gpio7 RK_PB4 GPIO_ACTIVE_HIGH>,
+		    <&gpio7 RK_PB7 GPIO_ACTIVE_HIGH>;
 
 	regulators {
 		mic_vcc: LDO_REG2 {

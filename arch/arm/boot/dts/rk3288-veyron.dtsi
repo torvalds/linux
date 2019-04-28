@@ -95,6 +95,23 @@
 		regulator-boot-on;
 		vin-supply = <&vcc_5v>;
 	};
+
+	vdd_logic: vdd-logic {
+		compatible = "pwm-regulator";
+		regulator-name = "vdd_logic";
+
+		pwms = <&pwm1 0 1994 0>;
+		pwm-supply = <&vcc33_sys>;
+
+		pwm-dutycycle-range = <0x7b 0>;
+		pwm-dutycycle-unit = <0x94>;
+
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <950000>;
+		regulator-max-microvolt = <1350000>;
+		regulator-ramp-delay = <4000>;
+	};
 };
 
 &cpu0 {
