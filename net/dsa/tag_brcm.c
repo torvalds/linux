@@ -55,6 +55,9 @@
 #define BRCM_EG_TC_MASK		0x7
 #define BRCM_EG_PID_MASK	0x1f
 
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM) || \
+	IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
+
 static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 					struct net_device *dev,
 					unsigned int offset)
@@ -139,8 +142,9 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 
 	return skb;
 }
+#endif
 
-#ifdef CONFIG_NET_DSA_TAG_BRCM
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM)
 static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
@@ -179,7 +183,7 @@ DSA_TAG_DRIVER(brcm_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM);
 #endif
 
-#ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
 static struct sk_buff *brcm_tag_xmit_prepend(struct sk_buff *skb,
 					     struct net_device *dev)
 {
