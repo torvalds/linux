@@ -35,6 +35,7 @@ static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops none_ops = {
+	.name	= "none",
 	.xmit	= dsa_slave_notag_xmit,
 	.rcv	= NULL,
 };
@@ -76,49 +77,7 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 {
-	const char *protocol_name[DSA_TAG_LAST] = {
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-		[DSA_TAG_PROTO_BRCM] = "brcm",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
-		[DSA_TAG_PROTO_BRCM_PREPEND] = "brcm-prepend",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_DSA
-		[DSA_TAG_PROTO_DSA] = "dsa",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-		[DSA_TAG_PROTO_EDSA] = "edsa",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_GSWIP
-		[DSA_TAG_PROTO_GSWIP] = "gswip",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_KSZ9477
-		[DSA_TAG_PROTO_KSZ9477] = "ksz9477",
-		[DSA_TAG_PROTO_KSZ9893] = "ksz9893",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_LAN9303
-		[DSA_TAG_PROTO_LAN9303] = "lan9303",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_MTK
-		[DSA_TAG_PROTO_MTK] = "mtk",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_QCA
-		[DSA_TAG_PROTO_QCA] = "qca",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-		[DSA_TAG_PROTO_TRAILER] = "trailer",
-#endif
-		[DSA_TAG_PROTO_NONE] = "none",
-	};
-	unsigned int i;
-
-	BUILD_BUG_ON(ARRAY_SIZE(protocol_name) != DSA_TAG_LAST);
-
-	for (i = 0; i < ARRAY_SIZE(dsa_device_ops); i++)
-		if (ops == dsa_device_ops[i])
-			return protocol_name[i];
-
-	return protocol_name[DSA_TAG_PROTO_NONE];
+	return ops->name;
 };
 
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)

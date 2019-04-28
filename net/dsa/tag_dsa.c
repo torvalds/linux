@@ -151,6 +151,7 @@ static int dsa_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 }
 
 const struct dsa_device_ops dsa_netdev_ops = {
+	.name	= "dsa",
 	.xmit	= dsa_xmit,
 	.rcv	= dsa_rcv,
 	.flow_dissect   = dsa_tag_flow_dissect,

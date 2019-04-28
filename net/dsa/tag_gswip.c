@@ -104,6 +104,7 @@ static struct sk_buff *gswip_tag_rcv(struct sk_buff *skb,
 }
 
 const struct dsa_device_ops gswip_netdev_ops = {
+	.name = "gwsip",
 	.xmit = gswip_tag_xmit,
 	.rcv = gswip_tag_rcv,
 	.overhead = GSWIP_RX_HEADER_LEN,

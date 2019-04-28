@@ -56,6 +56,7 @@ struct dsa_device_ops {
 	int (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
 			    int *offset);
 	unsigned int overhead;
+	const char *name;
 };
 
 struct dsa_switch_tree {

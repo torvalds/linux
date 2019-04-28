@@ -100,6 +100,7 @@ static int qca_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 }
 
 const struct dsa_device_ops qca_netdev_ops = {
+	.name	= "qca",
 	.xmit	= qca_tag_xmit,
 	.rcv	= qca_tag_rcv,
 	.flow_dissect = qca_tag_flow_dissect,

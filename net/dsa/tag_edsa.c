@@ -170,6 +170,7 @@ static int edsa_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 }
 
 const struct dsa_device_ops edsa_netdev_ops = {
+	.name	= "edsa",
 	.xmit	= edsa_xmit,
 	.rcv	= edsa_rcv,
 	.flow_dissect   = edsa_tag_flow_dissect,
