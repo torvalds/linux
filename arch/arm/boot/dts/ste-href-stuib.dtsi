@@ -190,5 +190,18 @@
 				};
 			};
 		};
+
+		mcde@a0350000 {
+			status = "okay";
+
+			dsi@a0351000 {
+				panel {
+					compatible = "samsung,s6d16d0";
+					reg = <0>;
+					vdd1-supply = <&ab8500_ldo_aux1_reg>;
+					reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+				};
+			};
+		};
 	};
 };
