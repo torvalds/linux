@@ -1851,6 +1851,14 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		0xc70a),
 	 .driver_data = recvr_type_bluetooth},
+	{ /* Logitech MX5500 HID++ / bluetooth receiver keyboard intf. */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		0xc71b),
+	 .driver_data = recvr_type_bluetooth},
+	{ /* Logitech MX5500 HID++ / bluetooth receiver mouse intf. */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		0xc71c),
+	 .driver_data = recvr_type_bluetooth},
 	{}
 };
 
