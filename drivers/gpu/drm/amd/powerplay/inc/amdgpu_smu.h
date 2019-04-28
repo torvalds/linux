@@ -439,9 +439,15 @@ struct smu_dpm_context {
 	struct mclock_latency_table *mclk_latency_table;
 };
 
+struct smu_power_gate {
+	bool uvd_gated;
+	bool vce_gated;
+};
+
 struct smu_power_context {
 	void *power_context;
 	uint32_t power_context_size;
+	struct smu_power_gate power_gate;
 };
 
 
