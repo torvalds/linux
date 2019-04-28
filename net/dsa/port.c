@@ -158,15 +158,19 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans)
 {
 	struct dsa_switch *ds = dp->ds;
+	int err;
 
 	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
-	if (ds->ops->port_vlan_filtering)
-		return ds->ops->port_vlan_filtering(ds, dp->index,
-						    vlan_filtering);
-
+	if (ds->ops->port_vlan_filtering) {
+		err = ds->ops->port_vlan_filtering(ds, dp->index,
+						   vlan_filtering);
+		if (err)
+			return err;
+		dp->vlan_filtering = vlan_filtering;
+	}
 	return 0;
 }
 
