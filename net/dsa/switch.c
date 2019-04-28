@@ -196,7 +196,7 @@ static int dsa_port_vlan_check(struct dsa_switch *ds, int port,
 	if (!dp->bridge_dev)
 		return err;
 
-	/* dsa_slave_vlan_rx_{add,kill}_vid() cannot use the prepare pharse and
+	/* dsa_slave_vlan_rx_{add,kill}_vid() cannot use the prepare phase and
 	 * already checks whether there is an overlapping bridge VLAN entry
 	 * with the same VID, so here we only need to check that if we are
 	 * adding a bridge VLAN entry there is not an overlapping VLAN device
