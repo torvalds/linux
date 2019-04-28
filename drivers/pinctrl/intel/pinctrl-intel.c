@@ -1555,10 +1555,12 @@ intel_gpio_is_requested(struct gpio_chip *chip, int base, unsigned int size)
 static u32
 intel_gpio_update_pad_mode(void __iomem *hostown, u32 mask, u32 value)
 {
-	u32 curr = readl(hostown);
-	u32 updated = (curr & ~mask) | (value & mask);
+	u32 curr, updated;
 
+	curr = readl(hostown);
+	updated = (curr & ~mask) | (value & mask);
 	writel(updated, hostown);
+
 	return curr;
 }
 
