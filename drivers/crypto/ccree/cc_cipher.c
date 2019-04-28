@@ -642,15 +642,7 @@ static void cc_setup_key_desc(struct crypto_tfm *tfm,
 	int direction = req_ctx->gen_ctx.op_type;
 	dma_addr_t key_dma_addr = ctx_p->user.key_dma_addr;
 	unsigned int key_len = ctx_p->keylen;
-	unsigned int du_size = nbytes;
 	unsigned int din_size;
-
-	struct cc_crypto_alg *cc_alg =
-		container_of(tfm->__crt_alg, struct cc_crypto_alg,
-			     skcipher_alg.base);
-
-	if (cc_alg->data_unit)
-		du_size = cc_alg->data_unit;
 
 	switch (cipher_mode) {
 	case DRV_CIPHER_CBC:
