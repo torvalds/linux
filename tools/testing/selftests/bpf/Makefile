@@ -74,6 +74,8 @@ all: $(TEST_CUSTOM_PROGS)
 $(OUTPUT)/urandom_read: $(OUTPUT)/%: %.c
 	$(CC) -o $@ $< -Wl,--build-id
 
+$(OUTPUT)/test_maps: map_tests/*.c
+
 BPFOBJ := $(OUTPUT)/libbpf.a
 
 $(TEST_GEN_PROGS): $(BPFOBJ)
@@ -232,6 +234,27 @@ $(PROG_TESTS_H): $(PROG_TESTS_DIR) $(PROG_TESTS_FILES)
 		  echo '#endif' \
 		 ) > $(PROG_TESTS_H))
 
+TEST_MAPS_CFLAGS := -I. -I$(OUTPUT)
+MAP_TESTS_DIR = $(OUTPUT)/map_tests
+$(MAP_TESTS_DIR):
+	mkdir -p $@
+MAP_TESTS_H := $(MAP_TESTS_DIR)/tests.h
+test_maps.c: $(MAP_TESTS_H)
+$(OUTPUT)/test_maps: CFLAGS += $(TEST_MAPS_CFLAGS)
+MAP_TESTS_FILES := $(wildcard map_tests/*.c)
+$(MAP_TESTS_H): $(MAP_TESTS_DIR) $(MAP_TESTS_FILES)
+	$(shell ( cd map_tests/; \
+		  echo '/* Generated header, do not edit */'; \
+		  echo '#ifdef DECLARE'; \
+		  ls *.c 2> /dev/null | \
+			sed -e 's@\([^\.]*\)\.c@extern void test_\1(void);@'; \
+		  echo '#endif'; \
+		  echo '#ifdef CALL'; \
+		  ls *.c 2> /dev/null | \
+			sed -e 's@\([^\.]*\)\.c@test_\1();@'; \
+		  echo '#endif' \
+		 ) > $(MAP_TESTS_H))
+
 VERIFIER_TESTS_H := $(OUTPUT)/verifier/tests.h
 test_verifier.c: $(VERIFIER_TESTS_H)
 $(OUTPUT)/test_verifier: CFLAGS += $(TEST_VERIFIER_CFLAGS)
@@ -251,4 +274,4 @@ $(OUTPUT)/verifier/tests.h: $(VERIFIER_TESTS_DIR) $(VERIFIER_TEST_FILES)
 		 ) > $(VERIFIER_TESTS_H))
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS) $(ALU32_BUILD_DIR) \
-	$(VERIFIER_TESTS_H) $(PROG_TESTS_H)
+	$(VERIFIER_TESTS_H) $(PROG_TESTS_H) $(MAP_TESTS_H)

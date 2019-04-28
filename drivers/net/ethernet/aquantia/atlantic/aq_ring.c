@@ -354,7 +354,8 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 
 			hdr_len = buff->len;
 			if (hdr_len > AQ_CFG_RX_HDR_SIZE)
-				hdr_len = eth_get_headlen(aq_buf_vaddr(&buff->rxdata),
+				hdr_len = eth_get_headlen(skb->dev,
+							  aq_buf_vaddr(&buff->rxdata),
 							  AQ_CFG_RX_HDR_SIZE);
 
 			memcpy(__skb_put(skb, hdr_len), aq_buf_vaddr(&buff->rxdata),

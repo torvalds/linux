@@ -526,7 +526,8 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 			return -EACCES;
 		if (map->map_type != BPF_MAP_TYPE_HASH &&
 		    map->map_type != BPF_MAP_TYPE_ARRAY &&
-		    map->map_type != BPF_MAP_TYPE_CGROUP_STORAGE)
+		    map->map_type != BPF_MAP_TYPE_CGROUP_STORAGE &&
+		    map->map_type != BPF_MAP_TYPE_SK_STORAGE)
 			return -ENOTSUPP;
 		if (map->spin_lock_off + sizeof(struct bpf_spin_lock) >
 		    map->value_size) {
@@ -1789,11 +1790,15 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 	}
 	raw_tp->btp = btp;
 
-	prog = bpf_prog_get_type(attr->raw_tracepoint.prog_fd,
-				 BPF_PROG_TYPE_RAW_TRACEPOINT);
+	prog = bpf_prog_get(attr->raw_tracepoint.prog_fd);
 	if (IS_ERR(prog)) {
 		err = PTR_ERR(prog);
 		goto out_free_tp;
+	}
+	if (prog->type != BPF_PROG_TYPE_RAW_TRACEPOINT &&
+	    prog->type != BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE) {
+		err = -EINVAL;
+		goto out_put_prog;
 	}
 
 	err = bpf_probe_register(raw_tp->btp, prog);
@@ -2009,6 +2014,8 @@ static int bpf_prog_query(const union bpf_attr *attr,
 		break;
 	case BPF_LIRC_MODE2:
 		return lirc_prog_query(attr, uattr);
+	case BPF_FLOW_DISSECTOR:
+		return skb_flow_dissector_prog_query(attr, uattr);
 	default:
 		return -EINVAL;
 	}

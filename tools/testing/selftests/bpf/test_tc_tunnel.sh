@@ -97,6 +97,9 @@ if [[ "$#" -eq "0" ]]; then
 	echo "ip6ip6"
 	$0 ipv6 ip6tnl none 100
 
+	echo "sit"
+	$0 ipv6 sit none 100
+
 	for mac in none mpls eth ; do
 		echo "ip gre $mac"
 		$0 ipv4 gre $mac 100
@@ -211,11 +214,20 @@ else
 	targs=""
 fi
 
+# tunnel address family differs from inner for SIT
+if [[ "${tuntype}" == "sit" ]]; then
+	link_addr1="${ns1_v4}"
+	link_addr2="${ns2_v4}"
+else
+	link_addr1="${addr1}"
+	link_addr2="${addr2}"
+fi
+
 # serverside, insert decap module
 # server is still running
 # client can connect again
 ip netns exec "${ns2}" ip link add name testtun0 type "${ttype}" \
-	${tmode} remote "${addr1}" local "${addr2}" $targs
+	${tmode} remote "${link_addr1}" local "${link_addr2}" $targs
 
 expect_tun_fail=0
 
@@ -258,6 +270,12 @@ else
 	client_connect
 	verify_data
 	server_listen
+fi
+
+# bpf_skb_net_shrink does not take tunnel flags yet, cannot update L3.
+if [[ "${tuntype}" == "sit" ]]; then
+	echo OK
+	exit 0
 fi
 
 # serverside, use BPF for decap

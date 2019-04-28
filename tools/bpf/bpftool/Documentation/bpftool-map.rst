@@ -258,4 +258,5 @@ SEE ALSO
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
 	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8)
+	**bpftool-perf**\ (8),
+	**bpftool-btf**\ (8)

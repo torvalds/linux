@@ -10742,6 +10742,7 @@ L:	linux-block@vger.kernel.org
 L:	nbd@other.debian.org
 F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
+F:	include/trace/events/nbd.h
 F:	include/uapi/linux/nbd.h
 
 NETWORK DROP MONITOR

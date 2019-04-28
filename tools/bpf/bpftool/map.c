@@ -46,6 +46,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE]	= "percpu_cgroup_storage",
 	[BPF_MAP_TYPE_QUEUE]			= "queue",
 	[BPF_MAP_TYPE_STACK]			= "stack",
+	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
@@ -724,7 +725,7 @@ static int dump_map_elem(int fd, void *key, void *value,
 	} else {
 		const char *msg = NULL;
 
-		if (errno == ENOENT)
+		if (lookup_errno == ENOENT)
 			msg = "<no entry>";
 		else if (lookup_errno == ENOSPC &&
 			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)

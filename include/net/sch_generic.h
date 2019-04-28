@@ -364,13 +364,10 @@ struct tcf_proto {
 };
 
 struct qdisc_skb_cb {
-	union {
-		struct {
-			unsigned int		pkt_len;
-			u16			slave_dev_queue_mapping;
-			u16			tc_classid;
-		};
-		struct bpf_flow_keys *flow_keys;
+	struct {
+		unsigned int		pkt_len;
+		u16			slave_dev_queue_mapping;
+		u16			tc_classid;
 	};
 #define QDISC_CB_PRIV_LEN 20
 	unsigned char		data[QDISC_CB_PRIV_LEN];
