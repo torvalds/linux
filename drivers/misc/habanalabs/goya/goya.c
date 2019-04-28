@@ -389,33 +389,26 @@ static int goya_pci_bars_map(struct hl_device *hdev)
 	return 0;
 }
 
-/*
- * goya_set_ddr_bar_base - set DDR bar to map specific device address
- *
- * @hdev: pointer to hl_device structure
- * @addr: address in DDR. Must be aligned to DDR bar size
- *
- * This function configures the iATU so that the DDR bar will start at the
- * specified addr.
- *
- */
-static int goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
+static u64 goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
 {
 	struct goya_device *goya = hdev->asic_specific;
+	u64 old_addr = addr;
 	int rc;
 
 	if ((goya) && (goya->ddr_bar_cur_addr == addr))
-		return 0;
+		return old_addr;
 
 	/* Inbound Region 1 - Bar 4 - Point to DDR */
 	rc = hl_pci_set_dram_bar_base(hdev, 1, 4, addr);
 	if (rc)
-		return rc;
+		return U64_MAX;
 
-	if (goya)
+	if (goya) {
+		old_addr = goya->ddr_bar_cur_addr;
 		goya->ddr_bar_cur_addr = addr;
+	}
 
-	return 0;
+	return old_addr;
 }
 
 /*
@@ -2215,11 +2208,10 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 	 * Before pushing u-boot/linux to device, need to set the ddr bar to
 	 * base address of dram
 	 */
-	rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE);
-	if (rc) {
+	if (goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE) == U64_MAX) {
 		dev_err(hdev->dev,
 			"failed to map DDR bar to DRAM base address\n");
-		return rc;
+		return -EIO;
 	}
 
 	if (hdev->pldm) {
@@ -2454,12 +2446,12 @@ static int goya_hw_init(struct hl_device *hdev)
 	 * After CPU initialization is finished, change DDR bar mapping inside
 	 * iATU to point to the start address of the MMU page tables
 	 */
-	rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
-		(MMU_PAGE_TABLES_ADDR & ~(prop->dram_pci_bar_size - 0x1ull)));
-	if (rc) {
+	if (goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
+			(MMU_PAGE_TABLES_ADDR &
+			~(prop->dram_pci_bar_size - 0x1ull))) == U64_MAX) {
 		dev_err(hdev->dev,
 			"failed to map DDR bar to MMU page tables\n");
-		return rc;
+		return -EIO;
 	}
 
 	rc = goya_mmu_init(hdev);
@@ -3958,6 +3950,7 @@ void goya_restore_phase_topology(struct hl_device *hdev)
 static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 ddr_bar_addr;
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
@@ -3975,15 +3968,16 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
-		rc = goya_set_ddr_bar_base(hdev, bar_base_addr);
-		if (!rc) {
+		ddr_bar_addr = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (ddr_bar_addr != U64_MAX) {
 			*val = readl(hdev->pcie_bar[DDR_BAR_ID] +
 						(addr - bar_base_addr));
 
-			rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
-				(MMU_PAGE_TABLES_ADDR &
-					~(prop->dram_pci_bar_size - 0x1ull)));
+			ddr_bar_addr = goya_set_ddr_bar_base(hdev,
+							ddr_bar_addr);
 		}
+		if (ddr_bar_addr == U64_MAX)
+			rc = -EIO;
 	} else {
 		rc = -EFAULT;
 	}
@@ -4008,6 +4002,7 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 ddr_bar_addr;
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
@@ -4025,15 +4020,16 @@ static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
-		rc = goya_set_ddr_bar_base(hdev, bar_base_addr);
-		if (!rc) {
+		ddr_bar_addr = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (ddr_bar_addr != U64_MAX) {
 			writel(val, hdev->pcie_bar[DDR_BAR_ID] +
 						(addr - bar_base_addr));
 
-			rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
-				(MMU_PAGE_TABLES_ADDR &
-					~(prop->dram_pci_bar_size - 0x1ull)));
+			ddr_bar_addr = goya_set_ddr_bar_base(hdev,
+							ddr_bar_addr);
 		}
+		if (ddr_bar_addr == U64_MAX)
+			rc = -EIO;
 	} else {
 		rc = -EFAULT;
 	}

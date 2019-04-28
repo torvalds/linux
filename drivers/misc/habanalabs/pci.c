@@ -259,7 +259,10 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 	/* Point to DRAM */
 	if (!hdev->asic_funcs->set_dram_bar_base)
 		return -EINVAL;
-	rc |= hdev->asic_funcs->set_dram_bar_base(hdev, dram_base_address);
+	if (hdev->asic_funcs->set_dram_bar_base(hdev, dram_base_address) ==
+								U64_MAX)
+		return -EIO;
+
 
 	/* Outbound Region 0 - Point to Host */
 	host_phys_end_addr = prop->host_phys_base_address + host_phys_size - 1;
