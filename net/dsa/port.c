@@ -203,6 +203,9 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	if (!dsa_port_can_apply_vlan_filtering(dp, vlan_filtering))
 		return -EINVAL;
 
+	if (dsa_port_is_vlan_filtering(dp) == vlan_filtering)
+		return 0;
+
 	err = ds->ops->port_vlan_filtering(ds, dp->index,
 					   vlan_filtering);
 	if (err)
