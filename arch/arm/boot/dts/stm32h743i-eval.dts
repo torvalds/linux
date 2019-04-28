@@ -70,13 +70,20 @@
 		regulator-always-on;
 	};
 
+	v2v9_sd: regulator-v2v9_sd {
+		compatible = "regulator-fixed";
+		regulator-name = "v2v9_sd";
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-always-on;
+	};
+
 	usbotg_hs_phy: usb-phy {
 		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
 		clocks = <&rcc USB1ULPI_CK>;
 		clock-names = "main_clk";
 	};
-
 };
 
 &adc_12 {
@@ -120,6 +127,20 @@
 			reg = <0>;
 		};
 	};
+};
+
+&sdmmc1 {
+	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_a>;
+	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_dir_pins_a>;
+	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a &sdmmc1_dir_sleep_pins_a>;
+	broken-cd;
+	st,sig-dir;
+	st,neg-edge;
+	st,use-ckin;
+	bus-width = <4>;
+	vmmc-supply = <&v2v9_sd>;
+	status = "okay";
 };
 
 &usart1 {
