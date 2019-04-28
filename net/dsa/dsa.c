@@ -346,10 +346,6 @@ static int __init dsa_init_module(void)
 	if (rc)
 		return rc;
 
-	rc = dsa_legacy_register();
-	if (rc)
-		return rc;
-
 	dev_add_pack(&dsa_pack_type);
 
 	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(none_ops),
@@ -365,7 +361,6 @@ static void __exit dsa_cleanup_module(void)
 
 	dsa_slave_unregister_notifier();
 	dev_remove_pack(&dsa_pack_type);
-	dsa_legacy_unregister();
 	destroy_workqueue(dsa_owq);
 }
 module_exit(dsa_cleanup_module);
