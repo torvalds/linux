@@ -547,7 +547,7 @@
 	sd {
 		sdmmc0_pwr_h: sdmmc0-pwr-h {
 			rockchip,pins =
-				<RK_GPIO0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
