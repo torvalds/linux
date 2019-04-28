@@ -390,6 +390,18 @@
 		status = "disabled";
 	};
 
+	crypto: crypto@ff0b0000 {
+		compatible = "rockchip,px30-crypto";
+		reg = <0x0 0xff0b0000 0x0 0x400>, <0x0 0xff0b0480 0x0 0x3B80>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CRYPTO >, <&cru HCLK_CRYPTO >,
+			 <&cru SCLK_CRYPTO>, <&cru SCLK_CRYPTO_APK>;
+		clock-names = "aclk", "hclk", "sclk", "apb_pclk";
+		resets = <&cru SRST_CRYPTO>;
+		reset-names = "crypto-rst";
+		status = "disabled";
+	};
+
 	gic: interrupt-controller@ff131000 {
 		compatible = "arm,gic-400";
 		#interrupt-cells = <3>;
