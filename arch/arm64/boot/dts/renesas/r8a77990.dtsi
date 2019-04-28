@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the R-Car E3 (R8A77990) SoC
  *
@@ -1656,7 +1656,7 @@
 		};
 
 		csi40: csi2@feaa0000 {
-			compatible = "renesas,r8a77990-csi2", "renesas,rcar-gen3-csi2";
+			compatible = "renesas,r8a77990-csi2";
 			reg = <0 0xfeaa0000 0 0x10000>;
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 716>;
