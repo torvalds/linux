@@ -406,15 +406,19 @@ static __printf(3, 0) int kobject_add_varg(struct kobject *kobj,
  * is assigned to the kobject, then the kobject will be located in the
  * root of the sysfs tree.
  *
- * If this function returns an error, kobject_put() must be called to
- * properly clean up the memory associated with the object.
- * Under no instance should the kobject that is passed to this function
- * be directly freed with a call to kfree(), that can leak memory.
- *
  * Note, no "add" uevent will be created with this call, the caller should set
  * up all of the necessary sysfs files for the object and then call
  * kobject_uevent() with the UEVENT_ADD parameter to ensure that
  * userspace is properly notified of this kobject's creation.
+ *
+ * Return: If this function returns an error, kobject_put() must be
+ *         called to properly clean up the memory associated with the
+ *         object.  Under no instance should the kobject that is passed
+ *         to this function be directly freed with a call to kfree(),
+ *         that can leak memory.
+ *
+ *         If this call returns successfully and you later need to unwind
+ *         kobject_add() for the error path you should call kobject_del().
  */
 int kobject_add(struct kobject *kobj, struct kobject *parent,
 		const char *fmt, ...)
@@ -589,6 +593,9 @@ EXPORT_SYMBOL_GPL(kobject_move);
 /**
  * kobject_del - unlink kobject from hierarchy.
  * @kobj: object.
+ *
+ * This is the function that should be called to delete an object
+ * successfully added via kobject_add().
  */
 void kobject_del(struct kobject *kobj)
 {
