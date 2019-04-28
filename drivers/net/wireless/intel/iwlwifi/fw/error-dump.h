@@ -67,6 +67,7 @@
 #include <linux/types.h>
 
 #define IWL_FW_ERROR_DUMP_BARKER	0x14789632
+#define IWL_FW_INI_ERROR_DUMP_BARKER	0x14789633
 
 /**
  * enum iwl_fw_error_dump_type - types of data in the dump file
@@ -282,9 +283,6 @@ struct iwl_fw_error_dump_mem {
  * different dump formats
  */
 #define IWL_INI_DUMP_VER 1
-
-/* This bit is used to differentiate the legacy dump from the ini dump */
-#define INI_DUMP_BIT BIT(31)
 
 /**
  * struct iwl_fw_ini_fifo_hdr - fifo range header

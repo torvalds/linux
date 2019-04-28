@@ -1690,7 +1690,7 @@ iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt,
 
 	num_of_ranges = ops->get_num_of_ranges(fwrt, reg);
 
-	(*data)->type = cpu_to_le32(type | INI_DUMP_BIT);
+	(*data)->type = cpu_to_le32(type);
 	(*data)->len = cpu_to_le32(size);
 
 	header->region_id = reg->region_id;
@@ -1935,7 +1935,7 @@ iwl_fw_error_ini_dump_file(struct iwl_fw_runtime *fwrt,
 	if (!dump_file)
 		return NULL;
 
-	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
+	dump_file->barker = cpu_to_le32(IWL_FW_INI_ERROR_DUMP_BARKER);
 	dump_data = (void *)dump_file->data;
 	dump_file->file_len = cpu_to_le32(size);
 
