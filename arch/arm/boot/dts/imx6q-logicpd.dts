@@ -21,6 +21,8 @@
 
 	panel-lvds0 {
 		compatible = "okaya,rs800480t-7x0gp";
+		power-supply = <&reg_lcd_reset>;
+		backlight = <&backlight>;
 
 		port {
 			panel_in_lvds0: endpoint {
@@ -38,7 +40,6 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-always-on;
 		vin-supply = <&reg_3v3>;
 		startup-delay-us = <500000>;
 	};
@@ -52,7 +53,6 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-always-on;
 		vin-supply = <&reg_lcd>;
 	};
 };

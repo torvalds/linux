@@ -52,7 +52,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	stmpe610@41 {
+	touchscreen@41 {
 		compatible = "st,stmpe610";
 		reg = <0x41>;
 		id = <0>;

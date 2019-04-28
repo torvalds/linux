@@ -1,23 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 
 /*
- * Device tree file for ZII's SSMB SPU3 board
+ * Device tree file for ZII's SPB4 board
  *
- * SSMB - SPU3 Switch Management Board
- * SPU - Seat Power Unit
+ * SPB - Seat Power Box
  *
- * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
- *
- * Based on an original 'vf610-twr.dts' which is Copyright 2015,
- * Freescale Semiconductor, Inc.
+ * Copyright (C) 2019 Zodiac Inflight Innovations
  */
 
 /dts-v1/;
 #include "vf610.dtsi"
 
 / {
-	model = "ZII VF610 SSMB SPU3 Board";
-	compatible = "zii,vf610spu3", "zii,vf610dev", "fsl,vf610";
+	model = "ZII VF610 SPB4 Board";
+	compatible = "zii,vf610spb4", "zii,vf610dev", "fsl,vf610";
 
 	chosen {
 		stdout-path = &uart0;
@@ -40,7 +36,7 @@
 		};
 	};
 
-	reg_vcc_3v3_mcu: regulator {
+	reg_vcc_3v3_mcu: regulator-vcc-3v3-mcu {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3_mcu";
 		regulator-min-microvolt = <3300000>;
@@ -62,12 +58,7 @@
 	bus-num = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_dspi1>;
-	/*
-	 * Some SPU3s come with SPI-NOR chip DNPed, so we leave this
-	 * node disabled by default and rely on bootloader to enable
-	 * it when appropriate.
-	 */
-	status = "disabled";
+	status = "okay";
 
 	flash@0 {
 		#address-cells = <1>;
@@ -75,11 +66,6 @@
 		compatible = "m25p128", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
-
-		partition@0 {
-			label = "m25p128-0";
-			reg = <0x0 0x01000000>;
-		};
 	};
 };
 
@@ -194,16 +180,11 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	gpio6: io-expander@22 {
+	io-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
 		#gpio-cells = <2>;
-	};
-
-	lm75@48 {
-		compatible = "national,lm75";
-		reg = <0x48>;
 	};
 
 	eeprom@50 {
@@ -232,6 +213,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
 
 	rave-sp {
 		compatible = "zii,rave-sp-rdu2";
@@ -253,8 +240,14 @@
 	};
 };
 
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
 &wdoga5 {
-	status = "disabled";
+       status = "disabled";
 };
 
 &iomuxc {
@@ -347,6 +340,20 @@
 		fsl,pins = <
 			VF610_PAD_PTB23__UART1_TX		0x21a2
 			VF610_PAD_PTB24__UART1_RX		0x21a1
+		>;
+	};
+
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			VF610_PAD_PTD0__UART2_TX		0x21a2
+			VF610_PAD_PTD1__UART2_RX		0x21a1
+		>;
+	};
+
+	pinctrl_uart3: uart3grp {
+		fsl,pins = <
+			VF610_PAD_PTA30__UART3_TX		0x21a2
+			VF610_PAD_PTA31__UART3_RX		0x21a1
 		>;
 	};
 };
