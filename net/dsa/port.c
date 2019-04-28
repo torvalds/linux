@@ -154,6 +154,39 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
 }
 
+static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
+					      bool vlan_filtering)
+{
+	struct dsa_switch *ds = dp->ds;
+	int i;
+
+	if (!ds->vlan_filtering_is_global)
+		return true;
+
+	/* For cases where enabling/disabling VLAN awareness is global to the
+	 * switch, we need to handle the case where multiple bridges span
+	 * different ports of the same switch device and one of them has a
+	 * different setting than what is being requested.
+	 */
+	for (i = 0; i < ds->num_ports; i++) {
+		struct net_device *other_bridge;
+
+		other_bridge = dsa_to_port(ds, i)->bridge_dev;
+		if (!other_bridge)
+			continue;
+		/* If it's the same bridge, it also has same
+		 * vlan_filtering setting => no need to check
+		 */
+		if (other_bridge == dp->bridge_dev)
+			continue;
+		if (br_vlan_enabled(other_bridge) != vlan_filtering) {
+			dev_err(ds->dev, "VLAN filtering is a global setting\n");
+			return false;
+		}
+	}
+	return true;
+}
+
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans)
 {
@@ -164,13 +197,18 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
-	if (ds->ops->port_vlan_filtering) {
-		err = ds->ops->port_vlan_filtering(ds, dp->index,
-						   vlan_filtering);
-		if (err)
-			return err;
-		dp->vlan_filtering = vlan_filtering;
-	}
+	if (!ds->ops->port_vlan_filtering)
+		return 0;
+
+	if (!dsa_port_can_apply_vlan_filtering(dp, vlan_filtering))
+		return -EINVAL;
+
+	err = ds->ops->port_vlan_filtering(ds, dp->index,
+					   vlan_filtering);
+	if (err)
+		return err;
+
+	dp->vlan_filtering = vlan_filtering;
 	return 0;
 }
 
