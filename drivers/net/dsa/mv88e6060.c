@@ -276,15 +276,72 @@ static struct dsa_switch_driver mv88e6060_switch_drv = {
 	.ops		= &mv88e6060_switch_ops,
 };
 
+static int mv88e6060_probe(struct mdio_device *mdiodev)
+{
+	struct device *dev = &mdiodev->dev;
+	struct mv88e6060_priv *priv;
+	struct dsa_switch *ds;
+	const char *name;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->bus = mdiodev->bus;
+	priv->sw_addr = mdiodev->addr;
+
+	name = mv88e6060_get_name(priv->bus, priv->sw_addr);
+	if (!name)
+		return -ENODEV;
+
+	dev_info(dev, "switch %s detected\n", name);
+
+	ds = dsa_switch_alloc(dev, MV88E6060_PORTS);
+	if (!ds)
+		return -ENOMEM;
+
+	ds->priv = priv;
+	ds->dev = dev;
+	ds->ops = &mv88e6060_switch_ops;
+
+	dev_set_drvdata(dev, ds);
+
+	return dsa_register_switch(ds);
+}
+
+static void mv88e6060_remove(struct mdio_device *mdiodev)
+{
+	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+
+	dsa_unregister_switch(ds);
+}
+
+static const struct of_device_id mv88e6060_of_match[] = {
+	{
+		.compatible = "marvell,mv88e6060",
+	},
+	{ /* sentinel */ },
+};
+
+static struct mdio_driver mv88e6060_driver = {
+	.probe	= mv88e6060_probe,
+	.remove = mv88e6060_remove,
+	.mdiodrv.driver = {
+		.name = "mv88e6060",
+		.of_match_table = mv88e6060_of_match,
+	},
+};
+
 static int __init mv88e6060_init(void)
 {
 	register_switch_driver(&mv88e6060_switch_drv);
-	return 0;
+	return mdio_driver_register(&mv88e6060_driver);
 }
 module_init(mv88e6060_init);
 
 static void __exit mv88e6060_cleanup(void)
 {
+	mdio_driver_unregister(&mv88e6060_driver);
 	unregister_switch_driver(&mv88e6060_switch_drv);
 }
 module_exit(mv88e6060_cleanup);
