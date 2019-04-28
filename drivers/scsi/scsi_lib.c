@@ -541,9 +541,9 @@ static void scsi_uninit_cmd(struct scsi_cmnd *cmd)
 static void scsi_mq_free_sgtables(struct scsi_cmnd *cmd)
 {
 	if (cmd->sdb.table.nents)
-		sg_free_table_chained(&cmd->sdb.table, true);
+		sg_free_table_chained(&cmd->sdb.table, SG_CHUNK_SIZE);
 	if (scsi_prot_sg_count(cmd))
-		sg_free_table_chained(&cmd->prot_sdb->table, true);
+		sg_free_table_chained(&cmd->prot_sdb->table, SG_CHUNK_SIZE);
 }
 
 static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
@@ -976,7 +976,8 @@ static blk_status_t scsi_init_sgtable(struct request *req,
 	 * If sg table allocation fails, requeue request later.
 	 */
 	if (unlikely(sg_alloc_table_chained(&sdb->table,
-			blk_rq_nr_phys_segments(req), sdb->table.sgl)))
+			blk_rq_nr_phys_segments(req), sdb->table.sgl,
+			SG_CHUNK_SIZE)))
 		return BLK_STS_RESOURCE;
 
 	/* 
@@ -1030,7 +1031,8 @@ blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 		ivecs = blk_rq_count_integrity_sg(rq->q, rq->bio);
 
 		if (sg_alloc_table_chained(&prot_sdb->table, ivecs,
-				prot_sdb->table.sgl)) {
+				prot_sdb->table.sgl,
+				SG_CHUNK_SIZE)) {
 			ret = BLK_STS_RESOURCE;
 			goto out_free_sgtables;
 		}
