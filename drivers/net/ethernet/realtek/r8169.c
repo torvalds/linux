@@ -1280,6 +1280,12 @@ static bool r8168_check_dash(struct rtl8169_private *tp)
 	}
 }
 
+static void rtl_reset_packet_filter(struct rtl8169_private *tp)
+{
+	rtl_eri_clear_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+}
+
 struct exgmac_reg {
 	u16 addr;
 	u16 mask;
@@ -1357,9 +1363,7 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 			rtl_eri_write(tp, 0x1bc, ERIAR_MASK_1111, 0x0000001f);
 			rtl_eri_write(tp, 0x1dc, ERIAR_MASK_1111, 0x0000003f);
 		}
-		/* Reset packet filter */
-		rtl_eri_clear_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
-		rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+		rtl_reset_packet_filter(tp);
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
 		   tp->mac_version == RTL_GIGA_MAC_VER_36) {
 		if (phydev->speed == SPEED_1000) {
@@ -5031,8 +5035,7 @@ static void rtl_hw_start_8168f(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, 0x00100002);
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00100006);
-	rtl_eri_clear_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
-	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+	rtl_reset_packet_filter(tp);
 	rtl_eri_set_bits(tp, 0x1b0, ERIAR_MASK_0001, BIT(4));
 	rtl_eri_set_bits(tp, 0x1d0, ERIAR_MASK_0001, BIT(4));
 	rtl_eri_write(tp, 0xcc, ERIAR_MASK_1111, 0x00000050);
@@ -5097,8 +5100,7 @@ static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 
 	rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
-	rtl_eri_clear_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
-	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+	rtl_reset_packet_filter(tp);
 	rtl_eri_write(tp, 0x2f8, ERIAR_MASK_0011, 0x1d8f);
 
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
@@ -5196,8 +5198,7 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 
 	rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
-	rtl_eri_clear_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
-	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+	rtl_reset_packet_filter(tp);
 
 	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_1111, BIT(4));
 
@@ -5280,8 +5281,7 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 
 	rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
-	rtl_eri_clear_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
-	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+	rtl_reset_packet_filter(tp);
 
 	rtl_eri_set_bits(tp, 0xd4, ERIAR_MASK_1111, 0x1f80);
 
@@ -5480,8 +5480,7 @@ static void rtl_hw_start_8402(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, 0x00000002);
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00000006);
-	rtl_eri_clear_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
-	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
+	rtl_reset_packet_filter(tp);
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
 	rtl_w0w1_eri(tp, 0x0d4, ERIAR_MASK_0011, 0x0e00, 0xff00);
