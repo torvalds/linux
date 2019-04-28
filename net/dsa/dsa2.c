@@ -335,6 +335,8 @@ static void dsa_port_teardown(struct dsa_port *dp)
 	case DSA_PORT_TYPE_UNUSED:
 		break;
 	case DSA_PORT_TYPE_CPU:
+		dsa_tag_driver_put(dp->tag_ops);
+		/* fall-through */
 	case DSA_PORT_TYPE_DSA:
 		dsa_port_link_unregister_of(dp);
 		break;
@@ -577,7 +579,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	enum dsa_tag_protocol tag_protocol;
 
 	tag_protocol = ds->ops->get_tag_protocol(ds, dp->index);
-	tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+	tag_ops = dsa_tag_driver_get(tag_protocol);
 	if (IS_ERR(tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
 		return PTR_ERR(tag_ops);

@@ -152,7 +152,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		enum dsa_tag_protocol tag_protocol;
 
 		tag_protocol = ops->get_tag_protocol(ds, dst->cpu_dp->index);
-		tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+		tag_ops = dsa_tag_driver_get(tag_protocol);
 		if (IS_ERR(tag_ops))
 			return PTR_ERR(tag_ops);
 
@@ -162,6 +162,8 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		dst->cpu_dp->rcv = dst->cpu_dp->tag_ops->rcv;
 		dst->cpu_dp->dst = dst;
 	}
+
+	dsa_tag_driver_put(dst->cpu_dp->tag_ops);
 
 	memcpy(ds->rtable, cd->rtable, sizeof(ds->rtable));
 

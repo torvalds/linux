@@ -84,7 +84,9 @@ struct dsa_slave_priv {
 };
 
 /* dsa.c */
-const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
+const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol);
+void dsa_tag_driver_put(const struct dsa_device_ops *ops);
+
 bool dsa_schedule_work(struct work_struct *work);
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops);
 
@@ -200,34 +202,4 @@ dsa_slave_to_master(const struct net_device *dev)
 /* switch.c */
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
-
-/* tag_brcm.c */
-extern const struct dsa_device_ops brcm_netdev_ops;
-extern const struct dsa_device_ops brcm_prepend_netdev_ops;
-
-/* tag_dsa.c */
-extern const struct dsa_device_ops dsa_netdev_ops;
-
-/* tag_edsa.c */
-extern const struct dsa_device_ops edsa_netdev_ops;
-
-/* tag_gswip.c */
-extern const struct dsa_device_ops gswip_netdev_ops;
-
-/* tag_ksz.c */
-extern const struct dsa_device_ops ksz9477_netdev_ops;
-extern const struct dsa_device_ops ksz9893_netdev_ops;
-
-/* tag_lan9303.c */
-extern const struct dsa_device_ops lan9303_netdev_ops;
-
-/* tag_mtk.c */
-extern const struct dsa_device_ops mtk_netdev_ops;
-
-/* tag_qca.c */
-extern const struct dsa_device_ops qca_netdev_ops;
-
-/* tag_trailer.c */
-extern const struct dsa_device_ops trailer_netdev_ops;
-
 #endif
