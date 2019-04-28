@@ -176,4 +176,5 @@ const struct dsa_device_ops ksz9893_netdev_ops = {
 	.overhead = KSZ_INGRESS_TAG_LEN,
 };
 
+MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9893);

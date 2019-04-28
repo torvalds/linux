@@ -110,4 +110,5 @@ const struct dsa_device_ops gswip_netdev_ops = {
 	.overhead = GSWIP_RX_HEADER_LEN,
 };
 
+MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_GSWIP);

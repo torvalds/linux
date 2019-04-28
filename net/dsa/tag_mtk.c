@@ -106,4 +106,5 @@ const struct dsa_device_ops mtk_netdev_ops = {
 	.overhead	= MTK_HDR_LEN,
 };
 
+MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MTK);

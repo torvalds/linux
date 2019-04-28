@@ -107,4 +107,5 @@ const struct dsa_device_ops qca_netdev_ops = {
 	.overhead = QCA_HDR_LEN,
 };
 
+MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_QCA);

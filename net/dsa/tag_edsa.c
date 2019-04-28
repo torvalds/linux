@@ -177,4 +177,5 @@ const struct dsa_device_ops edsa_netdev_ops = {
 	.overhead = EDSA_HLEN,
 };
 
+MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_EDSA);

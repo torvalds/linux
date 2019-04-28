@@ -201,4 +201,5 @@ const struct dsa_device_ops brcm_prepend_netdev_ops = {
 };
 #endif
 
+MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND);
