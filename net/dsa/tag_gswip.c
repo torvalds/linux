@@ -109,3 +109,5 @@ const struct dsa_device_ops gswip_netdev_ops = {
 	.rcv = gswip_tag_rcv,
 	.overhead = GSWIP_RX_HEADER_LEN,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_GSWIP);

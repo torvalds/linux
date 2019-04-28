@@ -176,3 +176,5 @@ const struct dsa_device_ops edsa_netdev_ops = {
 	.flow_dissect   = edsa_tag_flow_dissect,
 	.overhead = EDSA_HLEN,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_EDSA);

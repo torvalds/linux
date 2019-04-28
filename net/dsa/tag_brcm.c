@@ -173,6 +173,8 @@ const struct dsa_device_ops brcm_netdev_ops = {
 	.rcv	= brcm_tag_rcv,
 	.overhead = BRCM_TAG_LEN,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM);
 #endif
 
 #ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
@@ -198,3 +200,5 @@ const struct dsa_device_ops brcm_prepend_netdev_ops = {
 	.overhead = BRCM_TAG_LEN,
 };
 #endif
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND);

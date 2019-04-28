@@ -83,3 +83,5 @@ const struct dsa_device_ops trailer_netdev_ops = {
 	.rcv	= trailer_rcv,
 	.overhead = 4,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_TRAILER);

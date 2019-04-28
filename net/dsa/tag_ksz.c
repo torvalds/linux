@@ -140,6 +140,8 @@ const struct dsa_device_ops ksz9477_netdev_ops = {
 	.overhead = KSZ9477_INGRESS_TAG_LEN,
 };
 
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9477);
+
 #define KSZ9893_TAIL_TAG_OVERRIDE	BIT(5)
 #define KSZ9893_TAIL_TAG_LOOKUP		BIT(6)
 
@@ -173,3 +175,5 @@ const struct dsa_device_ops ksz9893_netdev_ops = {
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ_INGRESS_TAG_LEN,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9893);

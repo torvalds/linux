@@ -134,3 +134,5 @@ const struct dsa_device_ops lan9303_netdev_ops = {
 	.rcv = lan9303_rcv,
 	.overhead = LAN9303_TAG_LEN,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_LAN9303);

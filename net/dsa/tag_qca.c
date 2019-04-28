@@ -106,3 +106,5 @@ const struct dsa_device_ops qca_netdev_ops = {
 	.flow_dissect = qca_tag_flow_dissect,
 	.overhead = QCA_HDR_LEN,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_QCA);

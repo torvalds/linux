@@ -105,3 +105,5 @@ const struct dsa_device_ops mtk_netdev_ops = {
 	.flow_dissect	= mtk_tag_flow_dissect,
 	.overhead	= MTK_HDR_LEN,
 };
+
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MTK);
