@@ -55,15 +55,14 @@ released version of the UCD can be found here:
 
   http://www.unicode.org/Public/UCD/latest/
 
-To build the utf8data.h file, from a kernel tree that has been built,
-cd to this directory (fs/unicode) and run this command:
+Then, build under fs/unicode/ with REGENERATE_UTF8DATA=1:
 
-	make C=../.. objdir=../.. utf8data.h.new
+	make REGENERATE_UTF8DATA=1 fs/unicode/
 
-After sanity checking the newly generated utf8data.h.new file (the
+After sanity checking the newly generated utf8data.h file (the
 version generated from the 12.1.0 UCD should be 4,109 lines long, and
 have a total size of 324k) and/or comparing it with the older version
-of utf8data.h, rename it to utf8data.h.
+of utf8data.h_shipped, rename it to utf8data.h_shipped.
 
 If you are a kernel developer updating to a newer version of the
 Unicode Character Database, please update this README.utf8data file

@@ -177,6 +177,7 @@ mkprep
 mkregtable
 mktables
 mktree
+mkutf8data
 modpost
 modules.builtin
 modules.order
@@ -255,6 +256,7 @@ vsyscall_32.lds
 wanxlfw.inc
 uImage
 unifdef
+utf8data.h
 wakeup.bin
 wakeup.elf
 wakeup.lds
