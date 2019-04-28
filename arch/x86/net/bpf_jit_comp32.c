@@ -698,19 +698,12 @@ static inline void emit_ia32_neg64(const u8 dst[], bool dstk, u8 **pprog)
 		      STACK_VAR(dst_hi));
 	}
 
-	/* xor ecx,ecx */
-	EMIT2(0x31, add_2reg(0xC0, IA32_ECX, IA32_ECX));
-	/* sub dreg_lo,ecx */
-	EMIT2(0x2B, add_2reg(0xC0, dreg_lo, IA32_ECX));
-	/* mov dreg_lo,ecx */
-	EMIT2(0x89, add_2reg(0xC0, dreg_lo, IA32_ECX));
-
-	/* xor ecx,ecx */
-	EMIT2(0x31, add_2reg(0xC0, IA32_ECX, IA32_ECX));
-	/* sbb dreg_hi,ecx */
-	EMIT2(0x19, add_2reg(0xC0, dreg_hi, IA32_ECX));
-	/* mov dreg_hi,ecx */
-	EMIT2(0x89, add_2reg(0xC0, dreg_hi, IA32_ECX));
+	/* neg dreg_lo */
+	EMIT2(0xF7, add_1reg(0xD8, dreg_lo));
+	/* adc dreg_hi,0x0 */
+	EMIT3(0x83, add_1reg(0xD0, dreg_hi), 0x00);
+	/* neg dreg_hi */
+	EMIT2(0xF7, add_1reg(0xD8, dreg_hi));
 
 	if (dstk) {
 		/* mov dword ptr [ebp+off],dreg_lo */
