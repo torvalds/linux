@@ -92,6 +92,9 @@ SoCs:
 - DRA718
   compatible = "ti,dra718", "ti,dra722", "ti,dra72", "ti,dra7"
 
+- AM5748
+  compatible = "ti,am5748", "ti,dra762", "ti,dra7"
+
 - AM5728
   compatible = "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
 
@@ -183,6 +186,9 @@ Boards:
 
 - AM57XX SBC-AM57x
   compatible = "compulab,sbc-am57x", "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
+
+- AM5748 IDK
+  compatible = "ti,am5748-idk", "ti,am5748", "ti,dra762", "ti,dra7";
 
 - AM5728 IDK
   compatible = "ti,am5728-idk", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
