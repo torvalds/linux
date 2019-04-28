@@ -136,25 +136,25 @@
 &pinctrl {
 	usb-host {
 		host_drv: host-drv {
-			rockchip,pins = <RK_GPIO0 6 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 
 	usb-otg {
 		otg_drv: otg-drv {
-			rockchip,pins = <RK_GPIO0 5 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 
 	sdmmc {
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <RK_GPIO3 7 RK_FUNC_GPIO &pcfg_pull_default>;
+			rockchip,pins = <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 
 	sdio {
 		wifi_pwr: wifi-pwr {
-			rockchip,pins = <RK_GPIO3 24 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
