@@ -91,6 +91,9 @@ static int __isp_pipeline_prepare(struct rkisp1_pipeline *p,
 	p->num_subdevs = 0;
 	memset(p->subdevs, 0, sizeof(p->subdevs));
 
+	if (dev->isp_inp == INP_DMARX_ISP)
+		return 0;
+
 	while (1) {
 		struct media_pad *pad = NULL;
 
@@ -116,6 +119,10 @@ static int __isp_pipeline_prepare(struct rkisp1_pipeline *p,
 		if (me->num_pads == 1)
 			break;
 	}
+
+	if (!p->num_subdevs)
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -167,6 +174,11 @@ static int __isp_pipeline_s_isp_clk(struct rkisp1_pipeline *p)
 	struct v4l2_ctrl *ctrl;
 	u64 data_rate;
 	int i;
+
+	if (dev->isp_inp == INP_DMARX_ISP) {
+		clk_set_rate(dev->clks[0], 400 * 1000000UL);
+		return 0;
+	}
 
 	/* find the subdev of active sensor */
 	sd = p->subdevs[0];
@@ -220,11 +232,11 @@ static int rkisp1_pipeline_open(struct rkisp1_pipeline *p,
 		return 0;
 
 	/* go through media graphic and get subdevs */
-	if (prepare)
-		__isp_pipeline_prepare(p, me);
-
-	if (!p->num_subdevs)
-		return -EINVAL;
+	if (prepare) {
+		ret = __isp_pipeline_prepare(p, me);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = __isp_pipeline_s_isp_clk(p);
 	if (ret < 0)
@@ -591,9 +603,13 @@ static int rkisp1_register_platform_subdevs(struct rkisp1_device *dev)
 	if (ret < 0)
 		goto err_unreg_isp_subdev;
 
-	ret = rkisp1_register_stats_vdev(&dev->stats_vdev, &dev->v4l2_dev, dev);
+	ret = rkisp1_register_dmarx_vdev(dev);
 	if (ret < 0)
 		goto err_unreg_stream_vdev;
+
+	ret = rkisp1_register_stats_vdev(&dev->stats_vdev, &dev->v4l2_dev, dev);
+	if (ret < 0)
+		goto err_unreg_dmarx_vdev;
 
 	ret = rkisp1_register_params_vdev(&dev->params_vdev, &dev->v4l2_dev,
 					  dev);
@@ -612,6 +628,8 @@ err_unreg_params_vdev:
 	rkisp1_unregister_params_vdev(&dev->params_vdev);
 err_unreg_stats_vdev:
 	rkisp1_unregister_stats_vdev(&dev->stats_vdev);
+err_unreg_dmarx_vdev:
+	rkisp1_unregister_dmarx_vdev(dev);
 err_unreg_stream_vdev:
 	rkisp1_unregister_stream_vdevs(dev);
 err_unreg_isp_subdev:

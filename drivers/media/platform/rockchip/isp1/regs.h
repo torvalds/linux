@@ -91,6 +91,8 @@
 #define CIF_ISP_ACQ_PROP_IN_SEL_10B_MSB		(2 << 12)
 #define CIF_ISP_ACQ_PROP_IN_SEL_8B_ZERO		(3 << 12)
 #define CIF_ISP_ACQ_PROP_IN_SEL_8B_MSB		(4 << 12)
+#define CIF_ISP_ACQ_PROP_DMA_RGB		BIT(15)
+#define CIF_ISP_ACQ_PROP_DMA_YUV		BIT(16)
 
 /* VI_DPCL */
 #define CIF_VI_DPCL_DMA_JPEG			(0 << 0)
@@ -232,17 +234,17 @@
 #define CIF_MI_STATUS_SP_Y_FIFO_FULL		BIT(4)
 
 /* MI_DMA_CTRL */
-#define CIF_MI_DMA_CTRL_BURST_LEN_LUM_16	(0 << 0)
-#define CIF_MI_DMA_CTRL_BURST_LEN_LUM_32	(1 << 0)
-#define CIF_MI_DMA_CTRL_BURST_LEN_LUM_64	(2 << 0)
-#define CIF_MI_DMA_CTRL_BURST_LEN_CHROM_16	(0 << 2)
-#define CIF_MI_DMA_CTRL_BURST_LEN_CHROM_32	(1 << 2)
-#define CIF_MI_DMA_CTRL_BURST_LEN_CHROM_64	(2 << 2)
+#define CIF_MI_DMA_CTRL_BURST_LEN_LUM_4		(0 << 0)
+#define CIF_MI_DMA_CTRL_BURST_LEN_LUM_8		BIT(0)
+#define CIF_MI_DMA_CTRL_BURST_LEN_LUM_16	BIT(1)
+#define CIF_MI_DMA_CTRL_BURST_LEN_CHROM_4	(0 << 2)
+#define CIF_MI_DMA_CTRL_BURST_LEN_CHROM_8	BIT(2)
+#define CIF_MI_DMA_CTRL_BURST_LEN_CHROM_16	BIT(3)
 #define CIF_MI_DMA_CTRL_READ_FMT_PLANAR		(0 << 4)
 #define CIF_MI_DMA_CTRL_READ_FMT_SPLANAR	(1 << 4)
+#define CIF_MI_DMA_CTRL_READ_FMT_PACKED         (2 << 4)
 #define CIF_MI_DMA_CTRL_FMT_YUV400		(0 << 6)
 #define CIF_MI_DMA_CTRL_FMT_YUV420		(1 << 6)
-#define CIF_MI_DMA_CTRL_READ_FMT_PACKED		(2 << 4)
 #define CIF_MI_DMA_CTRL_FMT_YUV422		(2 << 6)
 #define CIF_MI_DMA_CTRL_FMT_YUV444		(3 << 6)
 #define CIF_MI_DMA_CTRL_BYTE_SWAP		BIT(8)
@@ -1939,6 +1941,54 @@ static inline void mi_mipi_raw0_disable(void __iomem *base)
 static inline void mi_ctrl2(void __iomem *base, u32 val)
 {
 	writel(val, base + CIF_MI_CTRL2);
+}
+
+static inline void mi_dmarx_ready_enable(struct rkisp1_stream *stream)
+{
+	void __iomem *base = stream->ispdev->base_addr;
+	void __iomem *addr = base + CIF_MI_IMSC;
+
+	writel(CIF_MI_DMA_READY | readl(addr), addr);
+}
+
+static inline void mi_dmarx_ready_disable(struct rkisp1_stream *stream)
+{
+	void __iomem *base = stream->ispdev->base_addr;
+	void __iomem *addr = base + CIF_MI_IMSC;
+
+	writel(~CIF_MI_DMA_READY & readl(addr), addr);
+}
+
+static inline void dmarx_set_uv_swap(void __iomem *base)
+{
+	void __iomem *addr = base + CIF_MI_XTD_FORMAT_CTRL;
+	u32 reg = readl(addr) & ~BIT(2);
+
+	writel(reg | CIF_MI_XTD_FMT_CTRL_DMA_CB_CR_SWAP, addr);
+}
+
+static inline void dmarx_set_y_width(void __iomem *base, u32 val)
+{
+	writel(val, base + CIF_MI_DMA_Y_PIC_WIDTH);
+}
+
+static inline void dmarx_set_y_line_length(void __iomem *base, u32 val)
+{
+	writel(val, base + CIF_MI_DMA_Y_LLENGTH);
+}
+
+static inline void dmarx_ctrl(void __iomem *base, u32 val)
+{
+	void __iomem *addr = base + CIF_MI_DMA_CTRL;
+
+	writel(val | readl(addr), addr);
+}
+
+static inline void mi_dmarx_start(void __iomem *base)
+{
+	void __iomem *addr = base + CIF_MI_DMA_START;
+
+	writel(CIF_MI_DMA_START_ENABLE, addr);
 }
 
 #endif /* _RKISP1_REGS_H */

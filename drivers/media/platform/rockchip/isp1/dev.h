@@ -36,6 +36,7 @@
 #define _RKISP1_DEV_H
 
 #include "capture.h"
+#include "dmarx.h"
 #include "rkisp1.h"
 #include "isp_params.h"
 #include "isp_stats.h"
@@ -52,6 +53,7 @@
 #define GRP_ID_ISP			BIT(2)
 #define GRP_ID_ISP_MP			BIT(3)
 #define GRP_ID_ISP_SP			BIT(4)
+#define GRP_ID_ISP_DMARX		BIT(5)
 
 #define RKISP1_MAX_BUS_CLK	8
 #define RKISP1_MAX_SENSOR	2
@@ -75,6 +77,13 @@ enum rkisp1_isp_state {
 	ISP_STOP = 0,
 	ISP_START,
 	ISP_ERROR
+};
+
+enum rkisp1_isp_inp {
+	INP_INVAL = 0,
+	INP_CSI,
+	INP_DVP,
+	INP_DMARX_ISP,
 };
 
 /*
@@ -138,6 +147,7 @@ struct rkisp1_device {
 	struct rkisp1_stream stream[RKISP1_MAX_STREAM];
 	struct rkisp1_isp_stats_vdev stats_vdev;
 	struct rkisp1_isp_params_vdev params_vdev;
+	struct rkisp1_dmarx_device dmarx_dev;
 	struct rkisp1_pipeline pipe;
 	struct iommu_domain *domain;
 	enum rkisp1_isp_ver isp_ver;
@@ -153,6 +163,7 @@ struct rkisp1_device {
 	struct v4l2_subdev *hdr_sensor;
 	enum rkisp1_isp_state isp_state;
 	unsigned int isp_err_cnt;
+	enum rkisp1_isp_inp isp_inp;
 };
 
 #endif

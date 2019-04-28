@@ -6,4 +6,5 @@ video_rkisp1-objs += rkisp1.o \
 			regs.o \
 			isp_stats.o \
 			isp_params.o \
-			capture.o
+			capture.o \
+			dmarx.o
