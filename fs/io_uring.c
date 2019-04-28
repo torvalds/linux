@@ -740,7 +740,7 @@ static bool io_file_supports_async(struct file *file)
 }
 
 static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
-		      bool force_nonblock, struct io_submit_state *state)
+		      bool force_nonblock)
 {
 	const struct io_uring_sqe *sqe = s->sqe;
 	struct io_ring_ctx *ctx = req->ctx;
@@ -938,7 +938,7 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 }
 
 static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
-		   bool force_nonblock, struct io_submit_state *state)
+		   bool force_nonblock)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw;
@@ -947,7 +947,7 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 	size_t iov_count;
 	int ret;
 
-	ret = io_prep_rw(req, s, force_nonblock, state);
+	ret = io_prep_rw(req, s, force_nonblock);
 	if (ret)
 		return ret;
 	file = kiocb->ki_filp;
@@ -985,7 +985,7 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 }
 
 static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
-		    bool force_nonblock, struct io_submit_state *state)
+		    bool force_nonblock)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw;
@@ -994,7 +994,7 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 	size_t iov_count;
 	int ret;
 
-	ret = io_prep_rw(req, s, force_nonblock, state);
+	ret = io_prep_rw(req, s, force_nonblock);
 	if (ret)
 		return ret;
 
@@ -1336,8 +1336,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 }
 
 static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
-			   const struct sqe_submit *s, bool force_nonblock,
-			   struct io_submit_state *state)
+			   const struct sqe_submit *s, bool force_nonblock)
 {
 	int ret, opcode;
 
@@ -1353,18 +1352,18 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	case IORING_OP_READV:
 		if (unlikely(s->sqe->buf_index))
 			return -EINVAL;
-		ret = io_read(req, s, force_nonblock, state);
+		ret = io_read(req, s, force_nonblock);
 		break;
 	case IORING_OP_WRITEV:
 		if (unlikely(s->sqe->buf_index))
 			return -EINVAL;
-		ret = io_write(req, s, force_nonblock, state);
+		ret = io_write(req, s, force_nonblock);
 		break;
 	case IORING_OP_READ_FIXED:
-		ret = io_read(req, s, force_nonblock, state);
+		ret = io_read(req, s, force_nonblock);
 		break;
 	case IORING_OP_WRITE_FIXED:
-		ret = io_write(req, s, force_nonblock, state);
+		ret = io_write(req, s, force_nonblock);
 		break;
 	case IORING_OP_FSYNC:
 		ret = io_fsync(req, s->sqe, force_nonblock);
@@ -1457,7 +1456,7 @@ restart:
 			s->has_user = cur_mm != NULL;
 			s->needs_lock = true;
 			do {
-				ret = __io_submit_sqe(ctx, req, s, false, NULL);
+				ret = __io_submit_sqe(ctx, req, s, false);
 				/*
 				 * We can get EAGAIN for polled IO even though
 				 * we're forcing a sync submission from here,
@@ -1623,7 +1622,7 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 	if (unlikely(ret))
 		goto out;
 
-	ret = __io_submit_sqe(ctx, req, s, true, state);
+	ret = __io_submit_sqe(ctx, req, s, true);
 	if (ret == -EAGAIN) {
 		struct io_uring_sqe *sqe_copy;
 
@@ -1739,7 +1738,8 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct sqe_submit *s)
 	head = ctx->cached_sq_head;
 	/* See comment at the top of this file */
 	smp_rmb();
-	if (head == READ_ONCE(ring->r.tail))
+	/* make sure SQ entry isn't read before tail */
+	if (head == smp_load_acquire(&ring->r.tail))
 		return false;
 
 	head = READ_ONCE(ring->array[head & ctx->sq_mask]);
@@ -1864,7 +1864,8 @@ static int io_sq_thread(void *data)
 
 			/* Tell userspace we may need a wakeup call */
 			ctx->sq_ring->flags |= IORING_SQ_NEED_WAKEUP;
-			smp_wmb();
+			/* make sure to read SQ tail after writing flags */
+			smp_mb();
 
 			if (!io_get_sqring(ctx, &sqes[0])) {
 				if (kthread_should_stop()) {
@@ -2574,7 +2575,8 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &ctx->cq_wait, wait);
 	/* See comment at the top of this file */
 	smp_rmb();
-	if (READ_ONCE(ctx->sq_ring->r.tail) + 1 != ctx->cached_sq_head)
+	if (READ_ONCE(ctx->sq_ring->r.tail) - ctx->cached_sq_head !=
+	    ctx->sq_ring->ring_entries)
 		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (READ_ONCE(ctx->cq_ring->r.head) != ctx->cached_cq_tail)
 		mask |= EPOLLIN | EPOLLRDNORM;
@@ -2933,6 +2935,14 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	__acquires(ctx->uring_lock)
 {
 	int ret;
+
+	/*
+	 * We're inside the ring mutex, if the ref is already dying, then
+	 * someone else killed the ctx or is already going through
+	 * io_uring_register().
+	 */
+	if (percpu_ref_is_dying(&ctx->refs))
+		return -ENXIO;
 
 	percpu_ref_kill(&ctx->refs);
 
