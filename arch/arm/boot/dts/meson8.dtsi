@@ -541,6 +541,11 @@
 	compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
 };
 
+&rtc {
+	compatible = "amlogic,meson8-rtc";
+	resets = <&reset RESET_RTC>;
+};
+
 &saradc {
 	compatible = "amlogic,meson8-saradc", "amlogic,meson-saradc";
 	clocks = <&clkc CLKID_XTAL>,
