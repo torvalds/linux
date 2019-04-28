@@ -48,27 +48,6 @@ static enum dsa_tag_protocol mv88e6060_get_tag_protocol(struct dsa_switch *ds,
 	return DSA_TAG_PROTO_TRAILER;
 }
 
-static const char *mv88e6060_drv_probe(struct device *dsa_dev,
-				       struct device *host_dev, int sw_addr,
-				       void **_priv)
-{
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
-	struct mv88e6060_priv *priv;
-	const char *name;
-
-	name = mv88e6060_get_name(bus, sw_addr);
-	if (name) {
-		priv = devm_kzalloc(dsa_dev, sizeof(*priv), GFP_KERNEL);
-		if (!priv)
-			return NULL;
-		*_priv = priv;
-		priv->bus = bus;
-		priv->sw_addr = sw_addr;
-	}
-
-	return name;
-}
-
 static int mv88e6060_switch_reset(struct mv88e6060_priv *priv)
 {
 	int i;
@@ -266,14 +245,9 @@ mv88e6060_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 
 static const struct dsa_switch_ops mv88e6060_switch_ops = {
 	.get_tag_protocol = mv88e6060_get_tag_protocol,
-	.probe		= mv88e6060_drv_probe,
 	.setup		= mv88e6060_setup,
 	.phy_read	= mv88e6060_phy_read,
 	.phy_write	= mv88e6060_phy_write,
-};
-
-static struct dsa_switch_driver mv88e6060_switch_drv = {
-	.ops		= &mv88e6060_switch_ops,
 };
 
 static int mv88e6060_probe(struct mdio_device *mdiodev)
@@ -332,19 +306,7 @@ static struct mdio_driver mv88e6060_driver = {
 	},
 };
 
-static int __init mv88e6060_init(void)
-{
-	register_switch_driver(&mv88e6060_switch_drv);
-	return mdio_driver_register(&mv88e6060_driver);
-}
-module_init(mv88e6060_init);
-
-static void __exit mv88e6060_cleanup(void)
-{
-	mdio_driver_unregister(&mv88e6060_driver);
-	unregister_switch_driver(&mv88e6060_switch_drv);
-}
-module_exit(mv88e6060_cleanup);
+mdio_module_driver(mv88e6060_driver);
 
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>");
 MODULE_DESCRIPTION("Driver for Marvell 88E6060 ethernet switch chip");
