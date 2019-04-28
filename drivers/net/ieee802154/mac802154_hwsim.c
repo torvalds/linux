@@ -920,9 +920,9 @@ static __init int hwsim_init_module(void)
 	return 0;
 
 platform_drv:
-	genl_unregister_family(&hwsim_genl_family);
-platform_dev:
 	platform_device_unregister(mac802154hwsim_dev);
+platform_dev:
+	genl_unregister_family(&hwsim_genl_family);
 	return rc;
 }
 
