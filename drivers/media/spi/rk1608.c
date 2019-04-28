@@ -1015,6 +1015,11 @@ static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		    pdata->hdrae_exp.short_gain_reg == hdrae_exp->short_gain_reg)
 			break;
 
+		if (!pdata->sensor_cnt) {
+			dev_info(pdata->dev, "set Aec before stream on");
+			break;
+		}
+
 		pdata->hdrae_exp = *hdrae_exp;
 
 		/* hdr exposure start */
