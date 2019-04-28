@@ -46,6 +46,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "TBS A711 Tablet";
@@ -96,6 +97,13 @@
 				remote-endpoint = <&tcon0_out_lcd>;
 			};
 		};
+	};
+
+	reg_gps: reg-gps {
+		compatible = "regulator-fixed";
+		regulator-name = "gps";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
 	};
 
 	reg_vbat: reg-vbat {
@@ -156,6 +164,18 @@
 	status = "okay";
 };
 
+&i2c1 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	accelerometer@18 {
+		compatible = "bosch,bma250";
+		reg = <0x18>;
+		interrupt-parent = <&pio>;
+		interrupts = <7 10 IRQ_TYPE_EDGE_RISING>; /* PH10 / EINT10 */
+	};
+};
+
 &mmc0 {
 	vmmc-supply = <&reg_dcdc1>;
 	pinctrl-names = "default";
@@ -198,6 +218,25 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_pin>;
 	status = "okay";
+};
+
+&r_lradc {
+	vref-supply = <&reg_aldo2>;
+	status = "okay";
+
+	button@210 {
+		label = "Volume Up";
+		linux,code = <KEY_VOLUMEUP>;
+		channel = <0>;
+		voltage = <210000>;
+	};
+
+	button@410 {
+		label = "Volume Down";
+		linux,code = <KEY_VOLUMEDOWN>;
+		channel = <0>;
+		voltage = <410000>;
+	};
 };
 
 &r_rsb {
@@ -391,8 +430,7 @@
 };
 
 &tcon0_out {
-	tcon0_out_lcd: endpoint@0 {
-		reg = <0>;
+	tcon0_out_lcd: endpoint {
 		remote-endpoint = <&panel_input>;
 	};
 };
@@ -407,7 +445,34 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	uart-has-rtscts;
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm20702a1";
+		clocks = <&ac100_rtc 1>;
+		clock-names = "lpo";
+		vbat-supply = <&reg_vbat>;
+		vddio-supply = <&reg_dldo1>;
+		device-wakeup-gpios = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
+		host-wakeup-gpios = <&r_pio 0 5 GPIO_ACTIVE_HIGH>; /* PL5 */
+		shutdown-gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
+		max-speed = <1500000>;
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pb_pins>;
+	status = "okay";
+
+	gnss {
+		compatible = "u-blox,neo-6m";
+
+		v-bckp-supply = <&reg_rtc_ldo>;
+		vcc-supply = <&reg_gps>;
+		current-speed = <9600>;
+	};
 };
 
 &usb_otg {
@@ -418,7 +483,7 @@
 &usbphy {
 	usb0_id_det-gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>; /* PH11 */
 	usb0_vbus-supply = <&reg_drivevbus>;
-	usb1_vbus_supply = <&reg_vmain>;
-	usb2_vbus_supply = <&reg_vmain>;
+	usb1_vbus-supply = <&reg_vmain>;
+	usb2_vbus-supply = <&reg_vmain>;
 	status = "okay";
 };
