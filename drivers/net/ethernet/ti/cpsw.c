@@ -2004,6 +2004,18 @@ static int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 	}
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void cpsw_ndo_poll_controller(struct net_device *ndev)
+{
+	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
+
+	cpsw_intr_disable(cpsw);
+	cpsw_rx_interrupt(cpsw->irqs_table[0], cpsw);
+	cpsw_tx_interrupt(cpsw->irqs_table[1], cpsw);
+	cpsw_intr_enable(cpsw);
+}
+#endif
+
 static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,
