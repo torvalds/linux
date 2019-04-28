@@ -321,6 +321,18 @@ struct hl_cs_job;
 #define HL_EQ_LENGTH			64
 #define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 
+#define HL_CPU_PKT_SHIFT		5
+#define HL_CPU_PKT_SIZE			(1 << HL_CPU_PKT_SHIFT)
+#define HL_CPU_PKT_MASK			(~((1 << HL_CPU_PKT_SHIFT) - 1))
+#define HL_CPU_MAX_PKTS_IN_CB		32
+#define HL_CPU_CB_SIZE			(HL_CPU_PKT_SIZE * \
+					 HL_CPU_MAX_PKTS_IN_CB)
+#define HL_CPU_CB_QUEUE_SIZE		(HL_QUEUE_LENGTH * HL_CPU_CB_SIZE)
+
+/* KMD <-> ArmCP shared memory size (EQ + PQ + CPU CB queue) */
+#define HL_CPU_ACCESSIBLE_MEM_SIZE	(HL_EQ_SIZE_IN_BYTES + \
+					 HL_QUEUE_SIZE_IN_BYTES + \
+					 HL_CPU_CB_QUEUE_SIZE)
 
 /**
  * struct hl_hw_queue - describes a H/W transport queue.

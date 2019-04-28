@@ -284,8 +284,9 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 
 	BUILD_BUG_ON(HL_EQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
 
-	p = hdev->asic_funcs->dma_alloc_coherent(hdev, HL_EQ_SIZE_IN_BYTES,
-				&q->bus_address, GFP_KERNEL | __GFP_ZERO);
+	p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
+							HL_EQ_SIZE_IN_BYTES,
+							&q->bus_address);
 	if (!p)
 		return -ENOMEM;
 
@@ -308,8 +309,9 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 {
 	flush_workqueue(hdev->eq_wq);
 
-	hdev->asic_funcs->dma_free_coherent(hdev, HL_EQ_SIZE_IN_BYTES,
-			(void *) (uintptr_t) q->kernel_address, q->bus_address);
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
+					HL_EQ_SIZE_IN_BYTES,
+					(void *) (uintptr_t) q->kernel_address);
 }
 
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
