@@ -9,8 +9,9 @@
 
 #include "gt/intel_engine.h"
 
-#include "i915_pmu.h"
 #include "i915_drv.h"
+#include "i915_pmu.h"
+#include "intel_pm.h"
 
 /* Frequency for the sampling timer for events which need it. */
 #define FREQUENCY 200

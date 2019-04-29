@@ -9904,6 +9904,12 @@ u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 	return mul_u64_u32_div(time_hw, mul, div);
 }
 
+u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
+			   i915_reg_t reg)
+{
+	return DIV_ROUND_UP_ULL(intel_rc6_residency_ns(dev_priv, reg), 1000);
+}
+
 u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat)
 {
 	u32 cagf;

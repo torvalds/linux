@@ -3370,19 +3370,6 @@ void icl_combo_phys_uninit(struct drm_i915_private *dev_priv);
 void cnl_combo_phys_init(struct drm_i915_private *dev_priv);
 void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv);
 
-int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
-int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
-u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
-			   const i915_reg_t reg);
-
-u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat1);
-
-static inline u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
-					 const i915_reg_t reg)
-{
-	return DIV_ROUND_UP_ULL(intel_rc6_residency_ns(dev_priv, reg), 1000);
-}
-
 #define __I915_REG_OP(op__, dev_priv__, ...) \
 	intel_uncore_##op__(&(dev_priv__)->uncore, __VA_ARGS__)
 
