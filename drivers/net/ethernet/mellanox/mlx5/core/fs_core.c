@@ -2504,6 +2504,9 @@ static int init_rdma_rx_root_ns(struct mlx5_flow_steering *steering)
 	if (!steering->rdma_rx_root_ns)
 		return -ENOMEM;
 
+	steering->rdma_rx_root_ns->def_miss_action =
+		MLX5_FLOW_TABLE_MISS_ACTION_SWITCH_DOMAIN;
+
 	/* Create single prio */
 	prio = fs_create_prio(&steering->rdma_rx_root_ns->ns, 0, 1);
 	if (IS_ERR(prio)) {
@@ -2748,7 +2751,8 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 			goto err;
 	}
 
-	if (MLX5_CAP_FLOWTABLE_RDMA_RX(dev, ft_support)) {
+	if (MLX5_CAP_FLOWTABLE_RDMA_RX(dev, ft_support) &&
+	    MLX5_CAP_FLOWTABLE_RDMA_RX(dev, table_miss_action_domain)) {
 		err = init_rdma_rx_root_ns(steering);
 		if (err)
 			goto err;

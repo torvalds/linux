@@ -172,9 +172,14 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	case FS_FT_OP_MOD_NORMAL:
 		if (next_ft) {
 			MLX5_SET(create_flow_table_in, in,
-				 flow_table_context.table_miss_action, 1);
+				 flow_table_context.table_miss_action,
+				 MLX5_FLOW_TABLE_MISS_ACTION_FWD);
 			MLX5_SET(create_flow_table_in, in,
 				 flow_table_context.table_miss_id, next_ft->id);
+		} else {
+			MLX5_SET(create_flow_table_in, in,
+				 flow_table_context.table_miss_action,
+				 ns->def_miss_action);
 		}
 		break;
 
@@ -246,13 +251,15 @@ static int mlx5_cmd_modify_flow_table(struct mlx5_flow_root_namespace *ns,
 			 MLX5_MODIFY_FLOW_TABLE_MISS_TABLE_ID);
 		if (next_ft) {
 			MLX5_SET(modify_flow_table_in, in,
-				 flow_table_context.table_miss_action, 1);
+				 flow_table_context.table_miss_action,
+				 MLX5_FLOW_TABLE_MISS_ACTION_FWD);
 			MLX5_SET(modify_flow_table_in, in,
 				 flow_table_context.table_miss_id,
 				 next_ft->id);
 		} else {
 			MLX5_SET(modify_flow_table_in, in,
-				 flow_table_context.table_miss_action, 0);
+				 flow_table_context.table_miss_action,
+				 ns->def_miss_action);
 		}
 	}
 
