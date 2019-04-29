@@ -5647,6 +5647,32 @@ discard:
 }
 EXPORT_SYMBOL(tcp_rcv_established);
 
+void tcp_init_transfer(struct sock *sk, int bpf_op)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tcp_mtup_init(sk);
+	icsk->icsk_af_ops->rebuild_header(sk);
+	tcp_init_metrics(sk);
+
+	/* Initialize the congestion window to start the transfer.
+	 * Cut cwnd down to 1 per RFC5681 if SYN or SYN-ACK has been
+	 * retransmitted. In light of RFC6298 more aggressive 1sec
+	 * initRTO, we only reset cwnd when more than 1 SYN/SYN-ACK
+	 * retransmission has occurred.
+	 */
+	if (tp->total_retrans > 1 && tp->undo_marker)
+		tp->snd_cwnd = 1;
+	else
+		tp->snd_cwnd = tcp_init_cwnd(tp, __sk_dst_get(sk));
+	tp->snd_cwnd_stamp = tcp_jiffies32;
+
+	tcp_call_bpf(sk, bpf_op, 0, NULL);
+	tcp_init_congestion_control(sk);
+	tcp_init_buffer_space(sk);
+}
+
 void tcp_finish_connect(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
