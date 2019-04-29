@@ -496,18 +496,21 @@ static void ecard_dump_irq_state(void)
 	printk("Expansion card IRQ state:\n");
 
 	for (ec = cards; ec; ec = ec->next) {
+		const char *claimed;
+
 		if (ec->slot_no == 8)
 			continue;
 
-		printk("  %d: %sclaimed, ",
-		       ec->slot_no, ec->claimed ? "" : "not ");
+		claimed = ec->claimed ? "" : "not ";
 
 		if (ec->ops && ec->ops->irqpending &&
 		    ec->ops != &ecard_default_ops)
-			printk("irq %spending\n",
+			printk("  %d: %sclaimed irq %spending\n",
+			       ec->slot_no, claimed,
 			       ec->ops->irqpending(ec) ? "" : "not ");
 		else
-			printk("irqaddr %p, mask = %02X, status = %02X\n",
+			printk("  %d: %sclaimed irqaddr %p, mask = %02X, status = %02X\n",
+			       ec->slot_no, claimed,
 			       ec->irqaddr, ec->irqmask, readb(ec->irqaddr));
 	}
 }
