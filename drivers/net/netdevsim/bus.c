@@ -168,7 +168,7 @@ new_device_store(struct bus_type *bus, const char *buf, size_t count)
 	switch (err) {
 	case 1:
 		port_count = 1;
-		/* pass through */
+		/* fall through */
 	case 2:
 		if (id > INT_MAX) {
 			pr_err("Value of \"id\" is too big.\n");
