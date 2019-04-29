@@ -2023,8 +2023,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->stream == NULL)
 			continue;
 
-		if (pipe_ctx->stream == pipe_ctx_old->stream)
+		if (pipe_ctx->stream == pipe_ctx_old->stream &&
+			pipe_ctx->stream->link->link_state_valid) {
 			continue;
+		}
 
 		if (pipe_ctx_old->stream && !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
 			continue;

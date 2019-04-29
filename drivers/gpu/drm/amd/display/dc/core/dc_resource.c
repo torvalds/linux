@@ -2642,6 +2642,10 @@ bool pipe_need_reprogram(
 	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
+	if (false == pipe_ctx_old->stream->link->link_state_valid &&
+		false == pipe_ctx_old->stream->dpms_off)
+		return true;
+
 	return false;
 }
 
