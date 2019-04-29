@@ -517,7 +517,7 @@ reset:
 	 * initRTO, we only reset cwnd when more than 1 SYN/SYN-ACK
 	 * retransmission has occurred.
 	 */
-	if (tp->total_retrans > 1)
+	if (tp->total_retrans > 1 && tp->undo_marker)
 		tp->snd_cwnd = 1;
 	else
 		tp->snd_cwnd = tcp_init_cwnd(tp, dst);
