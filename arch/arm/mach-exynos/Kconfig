@@ -49,6 +49,7 @@ config S5P_DEV_MFC
 
 config ARCH_EXYNOS3
 	bool "SAMSUNG EXYNOS3"
+	default y
 	select ARM_CPU_SUSPEND if PM
 	help
 	  Samsung EXYNOS3 (Cortex-A7) SoC based systems
