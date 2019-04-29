@@ -3675,10 +3675,20 @@ int omap_hwmod_init_module(struct device *dev,
 	if (error)
 		return error;
 
+	if (data->cfg->quirks & SYSC_QUIRK_NO_IDLE)
+		oh->flags |= HWMOD_NO_IDLE;
 	if (data->cfg->quirks & SYSC_QUIRK_NO_IDLE_ON_INIT)
 		oh->flags |= HWMOD_INIT_NO_IDLE;
 	if (data->cfg->quirks & SYSC_QUIRK_NO_RESET_ON_INIT)
 		oh->flags |= HWMOD_INIT_NO_RESET;
+	if (data->cfg->quirks & SYSC_QUIRK_USE_CLOCKACT)
+		oh->flags |= HWMOD_SET_DEFAULT_CLOCKACT;
+	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE)
+		oh->flags |= HWMOD_SWSUP_SIDLE;
+	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_SIDLE_ACT)
+		oh->flags |= HWMOD_SWSUP_SIDLE_ACT;
+	if (data->cfg->quirks & SYSC_QUIRK_SWSUP_MSTANDBY)
+		oh->flags |= HWMOD_SWSUP_MSTANDBY;
 
 	error = omap_hwmod_check_module(dev, oh, data, sysc_fields,
 					rev_offs, sysc_offs, syss_offs,
