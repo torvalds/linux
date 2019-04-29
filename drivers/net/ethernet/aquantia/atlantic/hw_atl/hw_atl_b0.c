@@ -388,10 +388,10 @@ err_exit:
 static int hw_atl_b0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 {
 	static u32 aq_hw_atl_igcr_table_[4][2] = {
-		{ 0x20000000U, 0x20000000U }, /* AQ_IRQ_INVALID */
-		{ 0x20000080U, 0x20000080U }, /* AQ_IRQ_LEGACY */
-		{ 0x20000021U, 0x20000025U }, /* AQ_IRQ_MSI */
-		{ 0x20000022U, 0x20000026U }  /* AQ_IRQ_MSIX */
+		[AQ_HW_IRQ_INVALID] = { 0x20000000U, 0x20000000U },
+		[AQ_HW_IRQ_LEGACY]  = { 0x20000080U, 0x20000080U },
+		[AQ_HW_IRQ_MSI]     = { 0x20000021U, 0x20000025U },
+		[AQ_HW_IRQ_MSIX]    = { 0x20000022U, 0x20000026U },
 	};
 
 	int err = 0;
