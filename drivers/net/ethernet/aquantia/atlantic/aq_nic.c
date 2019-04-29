@@ -161,6 +161,20 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 	return 0;
 }
 
+static irqreturn_t aq_linkstate_threaded_isr(int irq, void *private)
+{
+	struct aq_nic_s *self = private;
+
+	if (!self)
+		return IRQ_NONE;
+
+	aq_nic_update_link_status(self);
+
+	self->aq_hw_ops->hw_irq_enable(self->aq_hw,
+				       BIT(self->aq_nic_cfg.link_irq_vec));
+	return IRQ_HANDLED;
+}
+
 static void aq_nic_service_timer_cb(struct timer_list *t)
 {
 	struct aq_nic_s *self = from_timer(self, t, service_timer);
