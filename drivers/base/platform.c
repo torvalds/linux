@@ -890,7 +890,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 	if (len != -ENODEV)
 		return len;
 
-	len = snprintf(buf, PAGE_SIZE, "platform:%s\n", dev_name(&pdev->dev));
+	len = snprintf(buf, PAGE_SIZE, "platform:%s\n", pdev->name);
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
@@ -966,7 +966,7 @@ static int platform_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return rc;
 
 	add_uevent_var(env, "MODALIAS=%s%s", PLATFORM_MODULE_PREFIX,
-			dev_name(&pdev->dev));
+			pdev->name);
 	return 0;
 }
 
@@ -975,7 +975,7 @@ static const struct platform_device_id *platform_match_id(
 			struct platform_device *pdev)
 {
 	while (id->name[0]) {
-		if (strcmp(dev_name(&pdev->dev), id->name) == 0) {
+		if (strcmp(pdev->name, id->name) == 0) {
 			pdev->id_entry = id;
 			return id;
 		}
@@ -1019,7 +1019,7 @@ static int platform_match(struct device *dev, struct device_driver *drv)
 		return platform_match_id(pdrv->id_table, pdev) != NULL;
 
 	/* fall-back to driver name match */
-	return (strcmp(dev_name(&pdev->dev), drv->name) == 0);
+	return (strcmp(pdev->name, drv->name) == 0);
 }
 
 #ifdef CONFIG_PM_SLEEP
