@@ -697,10 +697,9 @@ unsigned int OnProbeReq(struct adapter *padapter, union recv_frame *precv_frame)
 					psta->aid = 0;
 					DBG_871X("no room for more AIDs\n");
 					return _SUCCESS;
-				} else {
-					pstapriv->sta_aid[psta->aid - 1] = psta;
-					DBG_871X("allocate new AID = (%d)\n", psta->aid);
 				}
+				pstapriv->sta_aid[psta->aid - 1] = psta;
+				DBG_871X("allocate new AID = (%d)\n", psta->aid);
 			}
 
 			psta->qos_option = 1;
