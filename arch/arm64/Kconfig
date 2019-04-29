@@ -298,7 +298,7 @@ menu "Kernel Features"
 menu "ARM errata workarounds via the alternatives framework"
 
 config ARM64_WORKAROUND_CLEAN_CACHE
-	def_bool n
+	bool
 
 config ARM64_ERRATUM_826319
 	bool "Cortex-A53: 826319: System might deadlock if a write cannot complete until read data is accepted"
@@ -465,13 +465,13 @@ config ARM64_ERRATUM_1024718
 	bool "Cortex-A55: 1024718: Update of DBM/AP bits without break before make might result in incorrect update"
 	default y
 	help
-	  This option adds work around for Arm Cortex-A55 Erratum 1024718.
+	  This option adds a workaround for ARM Cortex-A55 Erratum 1024718.
 
 	  Affected Cortex-A55 cores (r0p0, r0p1, r1p0) could cause incorrect
 	  update of the hardware dirty bit when the DBM/AP bits are updated
-	  without a break-before-make. The work around is to disable the usage
+	  without a break-before-make. The workaround is to disable the usage
 	  of hardware DBM locally on the affected cores. CPUs not affected by
-	  erratum will continue to use the feature.
+	  this erratum will continue to use the feature.
 
 	  If unsure, say Y.
 
@@ -480,7 +480,7 @@ config ARM64_ERRATUM_1188873
 	default y
 	select ARM_ARCH_TIMER_OOL_WORKAROUND
 	help
-	  This option adds work arounds for ARM Cortex-A76 erratum 1188873
+	  This option adds a workaround for ARM Cortex-A76 erratum 1188873.
 
 	  Affected Cortex-A76 cores (r0p0, r1p0, r2p0) could cause
 	  register corruption when accessing the timer registers from
@@ -492,7 +492,7 @@ config ARM64_ERRATUM_1165522
 	bool "Cortex-A76: Speculative AT instruction using out-of-context translation regime could cause subsequent request to generate an incorrect translation"
 	default y
 	help
-	  This option adds work arounds for ARM Cortex-A76 erratum 1165522
+	  This option adds a workaround for ARM Cortex-A76 erratum 1165522.
 
 	  Affected Cortex-A76 cores (r0p0, r1p0, r2p0) could end-up with
 	  corrupted TLBs by speculating an AT instruction during a guest
@@ -505,7 +505,7 @@ config ARM64_ERRATUM_1286807
 	default y
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
-	  This option adds workaround for ARM Cortex-A76 erratum 1286807
+	  This option adds a workaround for ARM Cortex-A76 erratum 1286807.
 
 	  On the affected Cortex-A76 cores (r0p0 to r3p0), if a virtual
 	  address for a cacheable mapping of a location is being
@@ -522,10 +522,10 @@ config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y
 	help
-	  Enable workaround for erratum 22375, 24313.
+	  Enable workaround for errata 22375 and 24313.
 
 	  This implements two gicv3-its errata workarounds for ThunderX. Both
-	  with small impact affecting only ITS table allocation.
+	  with a small impact affecting only ITS table allocation.
 
 	    erratum 22375: only alloc 8MB table size
 	    erratum 24313: ignore memory access type
@@ -589,9 +589,6 @@ config QCOM_FALKOR_ERRATUM_1003
 
 config ARM64_WORKAROUND_REPEAT_TLBI
 	bool
-	help
-	  Enable the repeat TLBI workaround for Falkor erratum 1009 and
-	  Cortex-A76 erratum 1286807.
 
 config QCOM_FALKOR_ERRATUM_1009
 	bool "Falkor E1009: Prematurely complete a DSB after a TLBI"
@@ -627,7 +624,7 @@ config HISILICON_ERRATUM_161600802
 	bool "Hip07 161600802: Erroneous redistributor VLPI base"
 	default y
 	help
-	  The HiSilicon Hip07 SoC usees the wrong redistributor base
+	  The HiSilicon Hip07 SoC uses the wrong redistributor base
 	  when issued ITS commands such as VMOVP and VMAPP, and requires
 	  a 128kB offset to be applied to the target address in this commands.
 
@@ -647,7 +644,7 @@ config FUJITSU_ERRATUM_010001
 	bool "Fujitsu-A64FX erratum E#010001: Undefined fault may occur wrongly"
 	default y
 	help
-	  This option adds workaround for Fujitsu-A64FX erratum E#010001.
+	  This option adds a workaround for Fujitsu-A64FX erratum E#010001.
 	  On some variants of the Fujitsu-A64FX cores ver(1.0, 1.1), memory
 	  accesses may cause undefined fault (Data abort, DFSC=0b111111).
 	  This fault occurs under a specific hardware condition when a
@@ -658,7 +655,7 @@ config FUJITSU_ERRATUM_010001
 	  case-4  TTBR1_EL2 with TCR_EL2.NFD1 == 1.
 
 	  The workaround is to ensure these bits are clear in TCR_ELx.
-	  The workaround only affect the Fujitsu-A64FX.
+	  The workaround only affects the Fujitsu-A64FX.
 
 	  If unsure, say Y.
 
@@ -1408,7 +1405,7 @@ config ARM64_PSEUDO_NMI
 	help
 	  Adds support for mimicking Non-Maskable Interrupts through the use of
 	  GIC interrupt priority. This support requires version 3 or later of
-	  Arm GIC.
+	  ARM GIC.
 
 	  This high priority configuration for interrupts needs to be
 	  explicitly enabled by setting the kernel parameter
