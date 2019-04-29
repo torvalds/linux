@@ -39,6 +39,7 @@
 #include "i915_drv.h"
 #include "intel_connector.h"
 #include "intel_drv.h"
+#include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
 #include "intel_panel.h"
 #include "intel_sdvo.h"

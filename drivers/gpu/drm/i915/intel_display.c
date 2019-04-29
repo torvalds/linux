@@ -58,6 +58,7 @@
 #include "intel_dvo.h"
 #include "intel_fbc.h"
 #include "intel_fbdev.h"
+#include "intel_fifo_underrun.h"
 #include "intel_frontbuffer.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"

@@ -29,6 +29,7 @@ header_test := \
 	intel_dvo_dev.h \
 	intel_fbc.h \
 	intel_fbdev.h \
+	intel_fifo_underrun.h \
 	intel_frontbuffer.h \
 	intel_hdcp.h \
 	intel_hdmi.h \
