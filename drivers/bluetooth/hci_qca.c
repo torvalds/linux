@@ -54,9 +54,6 @@
 #define HCI_IBS_WAKE_ACK	0xFC
 #define HCI_MAX_IBS_SIZE	10
 
-/* Controller states */
-#define STATE_IN_BAND_SLEEP_ENABLED	1
-
 #define IBS_WAKE_RETRANS_TIMEOUT_MS	100
 #define IBS_TX_IDLE_TIMEOUT_MS		2000
 #define CMD_TRANS_TIMEOUT_MS		100
@@ -66,6 +63,10 @@
 
 /* Controller debug log header */
 #define QCA_DEBUG_HANDLE	0x2EDC
+
+enum qca_flags {
+	QCA_IBS_ENABLED,
+};
 
 /* HCI_IBS transmit side sleep protocol states */
 enum tx_ibs_states {
@@ -792,7 +793,7 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* Don't go to sleep in middle of patch download or
 	 * Out-Of-Band(GPIOs control) sleep is selected.
 	 */
-	if (!test_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags)) {
+	if (!test_bit(QCA_IBS_ENABLED, &qca->flags)) {
 		skb_queue_tail(&qca->txq, skb);
 		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 		return 0;
@@ -1202,7 +1203,7 @@ static int qca_setup(struct hci_uart *hu)
 		return ret;
 
 	/* Patch downloading has to be done without IBS mode */
-	clear_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
+	clear_bit(QCA_IBS_ENABLED, &qca->flags);
 
 	if (qca_is_wcn399x(soc_type)) {
 		bt_dev_info(hdev, "setting up wcn3990");
@@ -1246,7 +1247,7 @@ static int qca_setup(struct hci_uart *hu)
 	/* Setup patch / NVM configurations */
 	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, soc_ver);
 	if (!ret) {
-		set_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
+		set_bit(QCA_IBS_ENABLED, &qca->flags);
 		qca_debugfs_init(hdev);
 	} else if (ret == -ENOENT) {
 		/* No patch/nvm-config found, run with original fw/config */
@@ -1315,7 +1316,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	 * data in skb's.
 	 */
 	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
-	clear_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
+	clear_bit(QCA_IBS_ENABLED, &qca->flags);
 	qca_flush(hu);
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 
