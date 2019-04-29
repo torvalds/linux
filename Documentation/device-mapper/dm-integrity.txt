@@ -79,6 +79,10 @@ interleave_sectors:number
 	a power of two. If the device is already formatted, the value from
 	the superblock is used.
 
+meta_device:device
+	Don't interleave the data and metadata on on device. Use a
+	separate device for metadata.
+
 buffer_sectors:number
 	The number of sectors in one buffer. The value is rounded down to
 	a power of two.
@@ -167,7 +171,11 @@ The layout of the formatted block device:
 	  provides (i.e. the size of the device minus the size of all
 	  metadata and padding). The user of this target should not send
 	  bios that access data beyond the "provided data sectors" limit.
-	* flags - a flag is set if journal_mac is used
+	* flags
+	  SB_FLAG_HAVE_JOURNAL_MAC - a flag is set if journal_mac is used
+	  SB_FLAG_RECALCULATING - recalculating is in progress
+	* log2(sectors per block)
+	* a position where recalculating finished
 * journal
 	The journal is divided into sections, each section contains:
 	* metadata area (4kiB), it contains journal entries

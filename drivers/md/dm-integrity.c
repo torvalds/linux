@@ -3081,10 +3081,12 @@ bad:
  *		buffer_sectors
  *		journal_watermark
  *		commit_time
+ *		meta_device
+ *		block_size
  *		internal_hash
  *		journal_crypt
  *		journal_mac
- *		block_size
+ *		recalculate
  */
 static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
