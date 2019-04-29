@@ -3320,12 +3320,6 @@ void intel_dsc_disable(const struct intel_crtc_state *crtc_state);
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 
-/* overlay */
-extern struct intel_overlay_error_state *
-intel_overlay_capture_error_state(struct drm_i915_private *dev_priv);
-extern void intel_overlay_print_error_state(struct drm_i915_error_state_buf *e,
-					    struct intel_overlay_error_state *error);
-
 extern struct intel_display_error_state *
 intel_display_capture_error_state(struct drm_i915_private *dev_priv);
 extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,

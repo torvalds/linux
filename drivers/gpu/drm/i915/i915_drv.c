@@ -64,6 +64,7 @@
 #include "intel_drv.h"
 #include "intel_fbdev.h"
 #include "intel_hotplug.h"
+#include "intel_overlay.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
 #include "intel_uc.h"

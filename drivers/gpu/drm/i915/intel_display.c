@@ -64,6 +64,7 @@
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_lvds.h"
+#include "intel_overlay.h"
 #include "intel_pipe_crc.h"
 #include "intel_pm.h"
 #include "intel_psr.h"

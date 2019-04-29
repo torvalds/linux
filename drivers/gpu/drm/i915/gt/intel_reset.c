@@ -15,6 +15,7 @@
 #include "intel_reset.h"
 
 #include "intel_guc.h"
+#include "intel_overlay.h"
 
 #define RESET_MAX_RETRIES 3
 

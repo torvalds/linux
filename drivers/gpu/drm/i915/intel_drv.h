@@ -1779,16 +1779,6 @@ void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);
 /* intel_dsi_dcs_backlight.c */
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
 
-/* intel_overlay.c */
-void intel_overlay_setup(struct drm_i915_private *dev_priv);
-void intel_overlay_cleanup(struct drm_i915_private *dev_priv);
-int intel_overlay_switch_off(struct intel_overlay *overlay);
-int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file_priv);
-int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-void intel_overlay_reset(struct drm_i915_private *dev_priv);
-
 /* intel_runtime_pm.c */
 void intel_runtime_pm_init_early(struct drm_i915_private *dev_priv);
 int intel_power_domains_init(struct drm_i915_private *);
