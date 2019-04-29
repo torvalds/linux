@@ -203,6 +203,7 @@ config THERMAL_EMULATION
 config THERMAL_MMIO
 	tristate "Generic Thermal MMIO driver"
 	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This option enables the generic thermal MMIO driver that will use
 	  memory-mapped reads to get the temperature.  Any HW/System that
