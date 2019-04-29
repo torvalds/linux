@@ -1803,10 +1803,6 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 
-/* intel_dp_link_training.c */
-void intel_dp_start_link_train(struct intel_dp *intel_dp);
-void intel_dp_stop_link_train(struct intel_dp *intel_dp);
-
 /* intel_vdsc.c */
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config);

@@ -22,6 +22,7 @@
  */
 
 #include "intel_dp.h"
+#include "intel_dp_link_training.h"
 #include "intel_drv.h"
 
 static void
