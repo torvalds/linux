@@ -24,6 +24,7 @@
  */
 
 #include <drm/drmP.h>
+#include <trace/events/dma_fence.h>
 #include "virtgpu_drv.h"
 
 static const char *virtio_get_driver_name(struct dma_fence *f)
@@ -96,6 +97,8 @@ int virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	dma_fence_get(&fence->f);
 	list_add_tail(&fence->node, &drv->fences);
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
+
+	trace_dma_fence_emit(&fence->f);
 
 	cmd_hdr->flags |= cpu_to_le32(VIRTIO_GPU_FLAG_FENCE);
 	cmd_hdr->fence_id = cpu_to_le64(fence->f.seqno);
