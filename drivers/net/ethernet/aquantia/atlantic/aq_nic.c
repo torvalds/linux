@@ -355,8 +355,7 @@ int aq_nic_start(struct aq_nic_s *self)
 	if (err)
 		goto err_exit;
 	timer_setup(&self->service_timer, aq_nic_service_timer_cb, 0);
-	mod_timer(&self->service_timer, jiffies +
-		  AQ_CFG_SERVICE_TIMER_INTERVAL);
+	aq_nic_service_timer_cb(&self->service_timer);
 
 	if (self->aq_nic_cfg.is_polling) {
 		timer_setup(&self->polling_timer, aq_nic_polling_timer_cb, 0);
