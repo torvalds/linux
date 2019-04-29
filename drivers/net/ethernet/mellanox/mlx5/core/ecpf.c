@@ -26,7 +26,7 @@ static int mlx5_peer_pf_disable_hca(struct mlx5_core_dev *dev)
 
 	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
 	MLX5_SET(disable_hca_in, in, function_id, 0);
-	MLX5_SET(enable_hca_in, in, embedded_cpu_function, 0);
+	MLX5_SET(disable_hca_in, in, embedded_cpu_function, 0);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
