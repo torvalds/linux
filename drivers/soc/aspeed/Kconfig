@@ -17,3 +17,4 @@ config ASPEED_LPC_SNOOP
 	  the host to an arbitrary LPC I/O port.
 
 
+endmenu
