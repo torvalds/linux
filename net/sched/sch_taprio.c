@@ -46,6 +46,8 @@ struct sched_gate_list {
 	struct rcu_head rcu;
 	struct list_head entries;
 	size_t num_entries;
+	ktime_t cycle_close_time;
+	s64 cycle_time;
 	s64 base_time;
 };
 
@@ -103,6 +105,22 @@ static void switch_schedules(struct taprio_sched *q,
 
 	*oper = *admin;
 	*admin = NULL;
+}
+
+static ktime_t get_cycle_time(struct sched_gate_list *sched)
+{
+	struct sched_entry *entry;
+	ktime_t cycle = 0;
+
+	if (sched->cycle_time != 0)
+		return sched->cycle_time;
+
+	list_for_each_entry(entry, &sched->entries, list)
+		cycle = ktime_add_ns(cycle, entry->interval);
+
+	sched->cycle_time = cycle;
+
+	return cycle;
 }
 
 static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -256,6 +274,18 @@ done:
 	return skb;
 }
 
+static bool should_restart_cycle(const struct sched_gate_list *oper,
+				 const struct sched_entry *entry)
+{
+	if (list_is_last(&entry->list, &oper->entries))
+		return true;
+
+	if (ktime_compare(entry->close_time, oper->cycle_close_time) == 0)
+		return true;
+
+	return false;
+}
+
 static bool should_change_schedules(const struct sched_gate_list *admin,
 				    const struct sched_gate_list *oper,
 				    ktime_t close_time)
@@ -309,13 +339,17 @@ static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 		goto first_run;
 	}
 
-	if (list_is_last(&entry->list, &oper->entries))
+	if (should_restart_cycle(oper, entry)) {
 		next = list_first_entry(&oper->entries, struct sched_entry,
 					list);
-	else
+		oper->cycle_close_time = ktime_add_ns(oper->cycle_close_time,
+						      oper->cycle_time);
+	} else {
 		next = list_next_entry(entry, list);
+	}
 
 	close_time = ktime_add_ns(entry->close_time, next->interval);
+	close_time = min_t(ktime_t, close_time, oper->cycle_close_time);
 
 	if (should_change_schedules(admin, oper, close_time)) {
 		/* Set things so the next time this runs, the new
@@ -360,6 +394,7 @@ static const struct nla_policy taprio_policy[TCA_TAPRIO_ATTR_MAX + 1] = {
 	[TCA_TAPRIO_ATTR_SCHED_BASE_TIME]      = { .type = NLA_S64 },
 	[TCA_TAPRIO_ATTR_SCHED_SINGLE_ENTRY]   = { .type = NLA_NESTED },
 	[TCA_TAPRIO_ATTR_SCHED_CLOCKID]        = { .type = NLA_S32 },
+	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]     = { .type = NLA_S64 },
 };
 
 static int fill_sched_entry(struct nlattr **tb, struct sched_entry *entry,
@@ -461,6 +496,9 @@ static int parse_taprio_schedule(struct nlattr **tb,
 	if (tb[TCA_TAPRIO_ATTR_SCHED_BASE_TIME])
 		new->base_time = nla_get_s64(tb[TCA_TAPRIO_ATTR_SCHED_BASE_TIME]);
 
+	if (tb[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME])
+		new->cycle_time = nla_get_s64(tb[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]);
+
 	if (tb[TCA_TAPRIO_ATTR_SCHED_ENTRY_LIST])
 		err = parse_sched_list(
 			tb[TCA_TAPRIO_ATTR_SCHED_ENTRY_LIST], new, extack);
@@ -537,7 +575,6 @@ static int taprio_get_start_time(struct Qdisc *sch,
 				 ktime_t *start)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
-	struct sched_entry *entry;
 	ktime_t now, base, cycle;
 	s64 n;
 
@@ -549,11 +586,7 @@ static int taprio_get_start_time(struct Qdisc *sch,
 		return 0;
 	}
 
-	/* Calculate the cycle_time, by summing all the intervals.
-	 */
-	cycle = 0;
-	list_for_each_entry(entry, &sched->entries, list)
-		cycle = ktime_add_ns(cycle, entry->interval);
+	cycle = get_cycle_time(sched);
 
 	/* The qdisc is expected to have at least one sched_entry.  Moreover,
 	 * any entry must have 'interval' > 0. Thus if the cycle time is zero,
@@ -575,9 +608,15 @@ static void setup_first_close_time(struct taprio_sched *q,
 				   struct sched_gate_list *sched, ktime_t base)
 {
 	struct sched_entry *first;
+	ktime_t cycle;
 
 	first = list_first_entry(&sched->entries,
 				 struct sched_entry, list);
+
+	cycle = get_cycle_time(sched);
+
+	/* FIXME: find a better place to do this */
+	sched->cycle_close_time = ktime_add_ns(base, cycle);
 
 	first->close_time = ktime_add_ns(base, first->interval);
 	taprio_set_budget(q, first);
@@ -963,6 +1002,10 @@ static int dump_schedule(struct sk_buff *msg,
 
 	if (nla_put_s64(msg, TCA_TAPRIO_ATTR_SCHED_BASE_TIME,
 			root->base_time, TCA_TAPRIO_PAD))
+		return -1;
+
+	if (nla_put_s64(msg, TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME,
+			root->cycle_time, TCA_TAPRIO_PAD))
 		return -1;
 
 	entry_list = nla_nest_start_noflag(msg,
