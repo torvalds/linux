@@ -343,7 +343,7 @@ flr_done:
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)
-		&& amdgpu_lockup_timeout == MAX_SCHEDULE_TIMEOUT)
+		&& adev->sdma_timeout == MAX_SCHEDULE_TIMEOUT)
 		amdgpu_device_gpu_recover(adev, NULL);
 }
 

@@ -910,8 +910,10 @@ def_value:
  * Validates certain module parameters and updates
  * the associated values used by the driver (all asics).
  */
-static void amdgpu_device_check_arguments(struct amdgpu_device *adev)
+static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 {
+	int ret = 0;
+
 	if (amdgpu_sched_jobs < 4) {
 		dev_warn(adev->dev, "sched jobs (%d) must be at least 4\n",
 			 amdgpu_sched_jobs);
@@ -956,12 +958,15 @@ static void amdgpu_device_check_arguments(struct amdgpu_device *adev)
 		amdgpu_vram_page_split = 1024;
 	}
 
-	if (amdgpu_lockup_timeout == 0) {
-		dev_warn(adev->dev, "lockup_timeout msut be > 0, adjusting to 10000\n");
-		amdgpu_lockup_timeout = 10000;
+	ret = amdgpu_device_get_job_timeout_settings(adev);
+	if (ret) {
+		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
+		return ret;
 	}
 
 	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
+
+	return ret;
 }
 
 /**
@@ -2473,7 +2478,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->lock_reset);
 	mutex_init(&adev->virt.dpm_mutex);
 
-	amdgpu_device_check_arguments(adev);
+	r = amdgpu_device_check_arguments(adev);
+	if (r)
+		return r;
 
 	spin_lock_init(&adev->mmio_idx_lock);
 	spin_lock_init(&adev->smc_idx_lock);
