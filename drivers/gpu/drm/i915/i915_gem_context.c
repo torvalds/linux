@@ -924,14 +924,14 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		struct i915_request *rq;
 
-		if (!(ce->engine->mask & engines))
-			continue;
-
 		if (I915_SELFTEST_ONLY(context_barrier_inject_fault &
 				       ce->engine->mask)) {
 			err = -ENXIO;
 			break;
 		}
+
+		if (!(ce->engine->mask & engines) || !ce->state)
+			continue;
 
 		rq = intel_context_create_request(ce);
 		if (IS_ERR(rq)) {

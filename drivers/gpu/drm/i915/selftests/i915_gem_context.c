@@ -1665,7 +1665,7 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 	if (counter == 0) {
-		pr_err("Did not retire immediately for all inactive engines\n");
+		pr_err("Did not retire immediately for all unused engines\n");
 		err = -EINVAL;
 		goto out;
 	}
