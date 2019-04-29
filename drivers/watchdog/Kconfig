@@ -1261,6 +1261,15 @@ config HP_WATCHDOG
 	  To compile this driver as a module, choose M here: the module will be
 	  called hpwdt.
 
+config HPWDT_NMI_DECODING
+	bool "NMI support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
+	depends on HP_WATCHDOG
+	default y
+	help
+	  Enables the NMI handler for the watchdog pretimeout NMI and the iLO
+	  "Generate NMI to System" virtual button.  When an NMI is claimed
+	  by the driver, panic is called.
+
 config KEMPLD_WDT
 	tristate "Kontron COM Watchdog Timer"
 	depends on MFD_KEMPLD
@@ -1271,15 +1280,6 @@ config KEMPLD_WDT
 
 	  This driver can also be built as a module. If so, the module will be
 	  called kempld_wdt.
-
-config HPWDT_NMI_DECODING
-	bool "NMI support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
-	depends on HP_WATCHDOG
-	default y
-	help
-	  Enables the NMI handler for the watchdog pretimeout NMI and the iLO
-	  "Generate NMI to System" virtual button.  When an NMI is claimed
-	  by the driver, panic is called.
 
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
@@ -1729,7 +1729,7 @@ config BCM_KONA_WDT
 
 config BCM_KONA_WDT_DEBUG
 	bool "DEBUGFS support for BCM Kona Watchdog"
-	depends on BCM_KONA_WDT || COMPILE_TEST
+	depends on BCM_KONA_WDT
 	help
 	  If enabled, adds /sys/kernel/debug/bcm_kona_wdt/info which provides
 	  access to the driver's internal data structures as well as watchdog
