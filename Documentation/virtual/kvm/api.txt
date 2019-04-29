@@ -1079,7 +1079,7 @@ yet and must be cleared on entry.
 
 4.35 KVM_SET_USER_MEMORY_REGION
 
-Capability: KVM_CAP_USER_MEM
+Capability: KVM_CAP_USER_MEMORY
 Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_userspace_memory_region (in)
