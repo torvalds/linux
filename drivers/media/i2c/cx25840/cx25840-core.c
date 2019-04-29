@@ -1649,32 +1649,46 @@ static void log_audio_status(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-/* This load_fw operation must be called to load the driver's firmware.
-   Without this the audio standard detection will fail and you will
-   only get mono.
-
-   Since loading the firmware is often problematic when the driver is
-   compiled into the kernel I recommend postponing calling this function
-   until the first open of the video device. Another reason for
-   postponing it is that loading this firmware takes a long time (seconds)
-   due to the slow i2c bus speed. So it will speed up the boot process if
-   you can avoid loading the fw as long as the video device isn't used.  */
-static int cx25840_load_fw(struct v4l2_subdev *sd)
+static int cx25840_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
+	if (is_cx2583x(state))
+		cx25836_initialize(client);
+	else if (is_cx2388x(state))
+		cx23885_initialize(client);
+	else if (is_cx231xx(state))
+		cx231xx_initialize(client);
+	else
+		cx25840_initialize(client);
+
+	state->is_initialized = 1;
+
+	return 0;
+}
+
+/*
+ * This load_fw operation must be called to load the driver's firmware.
+ * This will load the firmware on the first invocation (further ones are NOP).
+ * Without this the audio standard detection will fail and you will
+ * only get mono.
+ * Alternatively, you can call the reset operation instead of this one.
+ *
+ * Since loading the firmware is often problematic when the driver is
+ * compiled into the kernel I recommend postponing calling this function
+ * until the first open of the video device. Another reason for
+ * postponing it is that loading this firmware takes a long time (seconds)
+ * due to the slow i2c bus speed. So it will speed up the boot process if
+ * you can avoid loading the fw as long as the video device isn't used.
+ */
+static int cx25840_load_fw(struct v4l2_subdev *sd)
+{
+	struct cx25840_state *state = to_state(sd);
+
 	if (!state->is_initialized) {
 		/* initialize and load firmware */
-		state->is_initialized = 1;
-		if (is_cx2583x(state))
-			cx25836_initialize(client);
-		else if (is_cx2388x(state))
-			cx23885_initialize(client);
-		else if (is_cx231xx(state))
-			cx231xx_initialize(client);
-		else
-			cx25840_initialize(client);
+		cx25840_reset(sd, 0);
 	}
 	return 0;
 }
@@ -1934,22 +1948,6 @@ static int cx25840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 			return -EINVAL;
 	}
 	state->audmode = vt->audmode;
-	return 0;
-}
-
-static int cx25840_reset(struct v4l2_subdev *sd, u32 val)
-{
-	struct cx25840_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (is_cx2583x(state))
-		cx25836_initialize(client);
-	else if (is_cx2388x(state))
-		cx23885_initialize(client);
-	else if (is_cx231xx(state))
-		cx231xx_initialize(client);
-	else
-		cx25840_initialize(client);
 	return 0;
 }
 
