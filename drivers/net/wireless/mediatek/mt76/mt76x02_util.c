@@ -650,7 +650,7 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 		mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
 			       MT_BEACON_TIME_CFG_INTVAL,
 			       info->beacon_int << 4);
-		dev->beacon_int = info->beacon_int;
+		dev->mt76.beacon_int = info->beacon_int;
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED)

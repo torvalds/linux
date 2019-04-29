@@ -147,7 +147,7 @@ static void mt76x02u_restart_pre_tbtt_timer(struct mt76x02_dev *dev)
 	dev_dbg(dev->mt76.dev, "TSF: %llu us TBTT %u us\n", tsf, tbtt);
 
 	/* Convert beacon interval in TU (1024 usec) to nsec */
-	time = ((1000000000ull * dev->beacon_int) >> 10);
+	time = ((1000000000ull * dev->mt76.beacon_int) >> 10);
 
 	/* Adjust time to trigger hrtimer 8ms before TBTT */
 	if (tbtt < PRE_TBTT_USEC)
@@ -217,7 +217,7 @@ static void mt76x02u_beacon_enable(struct mt76x02_dev *dev, bool en)
 {
 	int i;
 
-	if (WARN_ON_ONCE(!dev->beacon_int))
+	if (WARN_ON_ONCE(!dev->mt76.beacon_int))
 		return;
 
 	if (en) {

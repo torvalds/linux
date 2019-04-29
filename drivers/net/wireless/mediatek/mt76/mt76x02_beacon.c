@@ -167,7 +167,7 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 void
 mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
 {
-	u32 timer_val = dev->beacon_int << 4;
+	u32 timer_val = dev->mt76.beacon_int << 4;
 
 	dev->tbtt_count++;
 

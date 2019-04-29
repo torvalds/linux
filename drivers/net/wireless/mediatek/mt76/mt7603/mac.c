@@ -1268,7 +1268,7 @@ static void mt7603_dma_sched_reset(struct mt7603_dev *dev)
 
 static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 {
-	int beacon_int = dev->beacon_int;
+	int beacon_int = dev->mt76.beacon_int;
 	u32 mask = dev->mt76.mmio.irqmask;
 	int i;
 

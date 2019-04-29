@@ -469,6 +469,8 @@ struct mt76_dev {
 	u8 antenna_mask;
 	u16 chainmask;
 
+	int beacon_int;
+
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
 	struct debugfs_blob_wrapper eeprom;

@@ -107,7 +107,6 @@ struct mt76x02_dev {
 	u8 beacon_data_mask;
 
 	u8 tbtt_count;
-	u16 beacon_int;
 
 	u32 tx_hang_reset;
 	u8 tx_hang_check;

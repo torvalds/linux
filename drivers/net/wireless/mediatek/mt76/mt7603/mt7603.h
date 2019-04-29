@@ -109,7 +109,6 @@ struct mt7603_dev {
 
 	ktime_t survey_time;
 	ktime_t ed_time;
-	int beacon_int;
 
 	struct mt76_queue q_rx;
 
