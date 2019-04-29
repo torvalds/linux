@@ -53,7 +53,7 @@
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
  */
 #ifdef CONFIG_COMPAT
-#ifdef CONFIG_ARM64_64K_PAGES
+#if defined(CONFIG_ARM64_64K_PAGES) && defined(CONFIG_KUSER_HELPERS)
 /*
  * With CONFIG_ARM64_64K_PAGES enabled, the last page is occupied
  * by the compat vectors page.
