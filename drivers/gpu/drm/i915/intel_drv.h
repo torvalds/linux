@@ -1789,9 +1789,6 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 void intel_overlay_reset(struct drm_i915_private *dev_priv);
 
-/* intel_quirks.c */
-void intel_init_quirks(struct drm_i915_private *dev_priv);
-
 /* intel_runtime_pm.c */
 void intel_runtime_pm_init_early(struct drm_i915_private *dev_priv);
 int intel_power_domains_init(struct drm_i915_private *);

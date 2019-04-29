@@ -67,6 +67,7 @@
 #include "intel_pipe_crc.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
+#include "intel_quirks.h"
 #include "intel_sdvo.h"
 #include "intel_sideband.h"
 #include "intel_sprite.h"
