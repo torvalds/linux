@@ -708,7 +708,7 @@ static int bpf_fd_sk_storage_update_elem(struct bpf_map *map, void *key,
 	if (sock) {
 		sdata = sk_storage_update(sock->sk, map, value, map_flags);
 		sockfd_put(sock);
-		return IS_ERR(sdata) ? PTR_ERR(sdata) : 0;
+		return PTR_ERR_OR_ZERO(sdata);
 	}
 
 	return err;
