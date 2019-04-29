@@ -214,6 +214,7 @@ static const struct of_device_id rockchip_clock_pvtm_match[] = {
 		.compatible = "rockchip,rk3368-pvtm-clock",
 		.data = (void *)&rk3368_pvtm_data,
 	},
+	{}
 };
 
 static int rockchip_clock_pvtm_probe(struct platform_device *pdev)
