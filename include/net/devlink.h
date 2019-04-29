@@ -32,6 +32,7 @@ struct devlink {
 	struct list_head region_list;
 	u32 snapshot_id;
 	struct list_head reporter_list;
+	struct mutex reporters_lock; /* protects reporter_list */
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
