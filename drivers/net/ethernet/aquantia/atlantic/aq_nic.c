@@ -700,7 +700,14 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	unsigned int i = 0U;
 	unsigned int count = 0U;
 	struct aq_vec_s *aq_vec = NULL;
-	struct aq_stats_s *stats = self->aq_hw_ops->hw_get_hw_stats(self->aq_hw);
+	struct aq_stats_s *stats;
+
+	if (self->aq_fw_ops->update_stats) {
+		mutex_lock(&self->fwreq_mutex);
+		self->aq_fw_ops->update_stats(self->aq_hw);
+		mutex_unlock(&self->fwreq_mutex);
+	}
+	stats = self->aq_hw_ops->hw_get_hw_stats(self->aq_hw);
 
 	if (!stats)
 		goto err_exit;
