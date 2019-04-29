@@ -368,4 +368,13 @@ static struct pci_driver aq_pci_ops = {
 	.shutdown = aq_pci_shutdown,
 };
 
-module_pci_driver(aq_pci_ops);
+int aq_pci_func_register_driver(void)
+{
+	return pci_register_driver(&aq_pci_ops);
+}
+
+void aq_pci_func_unregister_driver(void)
+{
+	pci_unregister_driver(&aq_pci_ops);
+}
+
