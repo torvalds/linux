@@ -406,7 +406,6 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	const struct imx_gpc_dt_data *of_id_data = of_id->data;
 	struct device_node *pgc_node;
 	struct regmap *regmap;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -417,8 +416,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	    !pgc_node)
 		return 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
