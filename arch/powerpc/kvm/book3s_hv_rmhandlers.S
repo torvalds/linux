@@ -969,17 +969,27 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 
 #ifdef CONFIG_KVM_XICS
 	/* We are entering the guest on that thread, push VCPU to XIVE */
-	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
-	cmpldi	cr0, r10, 0
-	beq	no_xive
 	ld	r11, VCPU_XIVE_SAVED_STATE(r4)
 	li	r9, TM_QW1_OS
+	lwz	r8, VCPU_XIVE_CAM_WORD(r4)
+	li	r7, TM_QW1_OS + TM_WORD2
+	mfmsr	r0
+	andi.	r0, r0, MSR_DR		/* in real mode? */
+	beq	2f
+	ld	r10, HSTATE_XIVE_TIMA_VIRT(r13)
+	cmpldi	cr1, r10, 0
+	beq     cr1, no_xive
+	eieio
+	stdx	r11,r9,r10
+	stwx	r8,r7,r10
+	b	3f
+2:	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
+	cmpldi	cr1, r10, 0
+	beq	cr1, no_xive
 	eieio
 	stdcix	r11,r9,r10
-	lwz	r11, VCPU_XIVE_CAM_WORD(r4)
-	li	r9, TM_QW1_OS + TM_WORD2
-	stwcix	r11,r9,r10
-	li	r9, 1
+	stwcix	r8,r7,r10
+3:	li	r9, 1
 	stb	r9, VCPU_XIVE_PUSHED(r4)
 	eieio
 
@@ -998,12 +1008,16 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	 * on, we mask it.
 	 */
 	lbz	r0, VCPU_XIVE_ESC_ON(r4)
-	cmpwi	r0,0
-	beq	1f
-	ld	r10, VCPU_XIVE_ESC_RADDR(r4)
+	cmpwi	cr1, r0,0
+	beq	cr1, 1f
 	li	r9, XIVE_ESB_SET_PQ_01
+	beq	4f			/* in real mode? */
+	ld	r10, VCPU_XIVE_ESC_VADDR(r4)
+	ldx	r0, r10, r9
+	b	5f
+4:	ld	r10, VCPU_XIVE_ESC_RADDR(r4)
 	ldcix	r0, r10, r9
-	sync
+5:	sync
 
 	/* We have a possible subtle race here: The escalation interrupt might
 	 * have fired and be on its way to the host queue while we mask it,
