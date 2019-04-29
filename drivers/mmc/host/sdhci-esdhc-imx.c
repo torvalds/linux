@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/pm_qos.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sdio.h>
@@ -156,6 +157,8 @@
 #define ESDHC_FLAG_HS400_ES		BIT(11)
 /* The IP has Host Controller Interface for Command Queuing */
 #define ESDHC_FLAG_CQHCI		BIT(12)
+/* need request pmqos during low power */
+#define ESDHC_FLAG_PMQOS		BIT(13)
 
 struct esdhc_soc_data {
 	u32 flags;
@@ -204,6 +207,12 @@ static const struct esdhc_soc_data usdhc_imx7d_data = {
 			| ESDHC_FLAG_HS400,
 };
 
+static struct esdhc_soc_data usdhc_imx7ulp_data = {
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
+			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
+			| ESDHC_FLAG_PMQOS,
+};
+
 static struct esdhc_soc_data usdhc_imx8qxp_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
@@ -229,6 +238,7 @@ struct pltfm_imx_data {
 		WAIT_FOR_INT,        /* sent CMD12, waiting for response INT */
 	} multiblock_status;
 	u32 is_ddr;
+	struct pm_qos_request pm_qos_req;
 };
 
 static const struct platform_device_id imx_esdhc_devtype[] = {
@@ -257,6 +267,7 @@ static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-usdhc", .data = &usdhc_imx6q_data, },
 	{ .compatible = "fsl,imx6ull-usdhc", .data = &usdhc_imx6ull_data, },
 	{ .compatible = "fsl,imx7d-usdhc", .data = &usdhc_imx7d_data, },
+	{ .compatible = "fsl,imx7ulp-usdhc", .data = &usdhc_imx7ulp_data, },
 	{ .compatible = "fsl,imx8qxp-usdhc", .data = &usdhc_imx8qxp_data, },
 	{ /* sentinel */ }
 };
@@ -1436,6 +1447,10 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	imx_data->socdata = of_id ? of_id->data : (struct esdhc_soc_data *)
 						  pdev->id_entry->driver_data;
 
+	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
+		pm_qos_add_request(&imx_data->pm_qos_req,
+			PM_QOS_CPU_DMA_LATENCY, 0);
+
 	imx_data->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imx_data->clk_ipg)) {
 		err = PTR_ERR(imx_data->clk_ipg);
@@ -1557,6 +1572,8 @@ disable_ipg_clk:
 disable_per_clk:
 	clk_disable_unprepare(imx_data->clk_per);
 free_sdhci:
+	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
+		pm_qos_remove_request(&imx_data->pm_qos_req);
 	sdhci_pltfm_free(pdev);
 	return err;
 }
@@ -1577,6 +1594,9 @@ static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 	clk_disable_unprepare(imx_data->clk_per);
 	clk_disable_unprepare(imx_data->clk_ipg);
 	clk_disable_unprepare(imx_data->clk_ahb);
+
+	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
+		pm_qos_remove_request(&imx_data->pm_qos_req);
 
 	sdhci_pltfm_free(pdev);
 
@@ -1649,6 +1669,9 @@ static int sdhci_esdhc_runtime_suspend(struct device *dev)
 	}
 	clk_disable_unprepare(imx_data->clk_ahb);
 
+	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
+		pm_qos_remove_request(&imx_data->pm_qos_req);
+
 	return ret;
 }
 
@@ -1659,9 +1682,13 @@ static int sdhci_esdhc_runtime_resume(struct device *dev)
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 	int err;
 
+	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
+		pm_qos_add_request(&imx_data->pm_qos_req,
+			PM_QOS_CPU_DMA_LATENCY, 0);
+
 	err = clk_prepare_enable(imx_data->clk_ahb);
 	if (err)
-		return err;
+		goto remove_pm_qos_request;
 
 	if (!sdhci_sdio_irq_enabled(host)) {
 		err = clk_prepare_enable(imx_data->clk_per);
@@ -1690,6 +1717,9 @@ disable_per_clk:
 		clk_disable_unprepare(imx_data->clk_per);
 disable_ahb_clk:
 	clk_disable_unprepare(imx_data->clk_ahb);
+remove_pm_qos_request:
+	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
+		pm_qos_remove_request(&imx_data->pm_qos_req);
 	return err;
 }
 #endif
