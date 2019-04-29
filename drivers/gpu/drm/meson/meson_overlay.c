@@ -578,6 +578,9 @@ int meson_overlay_create(struct meson_drm *priv)
 
 	drm_plane_helper_add(plane, &meson_overlay_helper_funcs);
 
+	/* For now, VD Overlay plane is always on the back */
+	drm_plane_create_zpos_immutable_property(plane, 0);
+
 	priv->overlay_plane = plane;
 
 	DRM_DEBUG_DRIVER("\n");
