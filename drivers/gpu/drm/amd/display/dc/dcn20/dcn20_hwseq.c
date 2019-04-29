@@ -679,13 +679,8 @@ enum dc_status dcn20_enable_stream_timing(
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	enum dc_color_space color_space;
-	struct tg_color black_color = {0};
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
-	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
-	enum controller_dp_test_pattern dpg_pattern = CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR;
 
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
@@ -734,44 +729,16 @@ enum dc_status dcn20_enable_stream_timing(
 		pipe_ctx->stream_res.tg->funcs->setup_global_lock(
 				pipe_ctx->stream_res.tg);
 
-	/* program otg blank color */
-	color_space = stream->output_color_space;
-	color_space_to_black_color(dc, color_space, &black_color);
-
-	if (odm_pipe) {
-
-		if (dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
-			dpg_pattern = CONTROLLER_DP_TEST_PATTERN_COLORRAMP;
-
-		width /= 2;
-
+	if (odm_pipe)
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
 				odm_pipe->stream_res.opp,
 				true);
-
-		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
-				odm_pipe->stream_res.opp,
-				dpg_pattern,
-				stream->timing.display_color_depth,
-				&black_color,
-				width,
-				height);
-	}
-
-	if (dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
-		dpg_pattern = CONTROLLER_DP_TEST_PATTERN_COLORSQUARES;
 
 	pipe_ctx->stream_res.opp->funcs->opp_pipe_clock_control(
 			pipe_ctx->stream_res.opp,
 			true);
 
-	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(
-			pipe_ctx->stream_res.opp,
-			dpg_pattern,
-			stream->timing.display_color_depth,
-			&black_color,
-			width,
-			height);
+	dc->hwss.blank_pixel_data(dc, pipe_ctx, true);
 
 	/* VTG is  within DCHUB command block. DCFCLK is always on */
 	if (false == pipe_ctx->stream_res.tg->funcs->enable_crtc(pipe_ctx->stream_res.tg)) {
@@ -1022,19 +989,17 @@ void dcn20_blank_pixel_data(
 		struct pipe_ctx *pipe_ctx,
 		bool blank)
 {
-	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
 	struct stream_resource *stream_res = &pipe_ctx->stream_res;
 	struct dc_stream_state *stream = pipe_ctx->stream;
+	enum dc_color_space color_space = stream->output_color_space;
 	enum controller_dp_test_pattern test_pattern = CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR;
 	struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
-
 
 	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 
-	/* program opp dpg blank color */
-	color_space = stream->output_color_space;
+	/* get opp dpg blank color */
 	color_space_to_black_color(dc, color_space, &black_color);
 
 	if (bot_odm_pipe)
@@ -1043,9 +1008,12 @@ void dcn20_blank_pixel_data(
 	if (blank) {
 		if (stream_res->abm)
 			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm);
-	} else
-		test_pattern = CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
 
+		if (dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
+			test_pattern = CONTROLLER_DP_TEST_PATTERN_COLORSQUARES;
+	} else {
+		test_pattern = CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
+	}
 
 	stream_res->opp->funcs->opp_set_disp_pattern_generator(
 			stream_res->opp,
@@ -1058,7 +1026,8 @@ void dcn20_blank_pixel_data(
 	if (bot_odm_pipe) {
 		bot_odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
 				bot_odm_pipe->stream_res.opp,
-				test_pattern,
+				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE ?
+						CONTROLLER_DP_TEST_PATTERN_COLORRAMP : test_pattern,
 				stream->timing.display_color_depth,
 				&black_color,
 				width,
