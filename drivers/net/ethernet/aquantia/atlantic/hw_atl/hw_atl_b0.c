@@ -443,6 +443,11 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 				   ((HW_ATL_B0_ERR_INT << 0x18) | (1U << 0x1F)) |
 			    ((HW_ATL_B0_ERR_INT << 0x10) | (1U << 0x17)), 0U);
 
+	/* Enable link interrupt */
+	if (aq_nic_cfg->link_irq_vec)
+		hw_atl_reg_gen_irq_map_set(self, BIT(7) |
+					   aq_nic_cfg->link_irq_vec, 3U);
+
 	hw_atl_b0_hw_offload_set(self, aq_nic_cfg);
 
 err_exit:

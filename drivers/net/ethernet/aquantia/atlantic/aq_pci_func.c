@@ -140,26 +140,27 @@ err_exit:
 }
 
 int aq_pci_func_alloc_irq(struct aq_nic_s *self, unsigned int i,
-			  char *name, void *aq_vec, cpumask_t *affinity_mask)
+			  char *name, irq_handler_t irq_handler,
+			  void *irq_arg, cpumask_t *affinity_mask)
 {
 	struct pci_dev *pdev = self->pdev;
 	int err;
 
 	if (pdev->msix_enabled || pdev->msi_enabled)
-		err = request_irq(pci_irq_vector(pdev, i), aq_vec_isr, 0,
-				  name, aq_vec);
+		err = request_irq(pci_irq_vector(pdev, i), irq_handler, 0,
+				  name, irq_arg);
 	else
 		err = request_irq(pci_irq_vector(pdev, i), aq_vec_isr_legacy,
-				  IRQF_SHARED, name, aq_vec);
+				  IRQF_SHARED, name, irq_arg);
 
 	if (err >= 0) {
 		self->msix_entry_mask |= (1 << i);
-		self->aq_vec[i] = aq_vec;
 
-		if (pdev->msix_enabled)
+		if (pdev->msix_enabled && affinity_mask)
 			irq_set_affinity_hint(pci_irq_vector(pdev, i),
 					      affinity_mask);
 	}
+
 	return err;
 }
 
@@ -167,16 +168,22 @@ void aq_pci_func_free_irqs(struct aq_nic_s *self)
 {
 	struct pci_dev *pdev = self->pdev;
 	unsigned int i;
+	void *irq_data;
 
 	for (i = 32U; i--;) {
 		if (!((1U << i) & self->msix_entry_mask))
 			continue;
-		if (i >= AQ_CFG_VECS_MAX)
+		if (self->aq_nic_cfg.link_irq_vec &&
+		    i == self->aq_nic_cfg.link_irq_vec)
+			irq_data = self;
+		else if (i < AQ_CFG_VECS_MAX)
+			irq_data = self->aq_vec[i];
+		else
 			continue;
 
 		if (pdev->msix_enabled)
 			irq_set_affinity_hint(pci_irq_vector(pdev, i), NULL);
-		free_irq(pci_irq_vector(pdev, i), self->aq_vec[i]);
+		free_irq(pci_irq_vector(pdev, i), irq_data);
 		self->msix_entry_mask &= ~(1U << i);
 	}
 }
@@ -269,6 +276,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	numvecs = min((u8)AQ_CFG_VECS_DEF,
 		      aq_nic_get_cfg(self)->aq_hw_caps->msix_irqs);
 	numvecs = min(numvecs, num_online_cpus());
+	numvecs += AQ_HW_SERVICE_IRQS;
 	/*enable interrupts */
 #if !AQ_CFG_FORCE_LEGACY_INT
 	err = pci_alloc_irq_vectors(self->pdev, 1, numvecs,

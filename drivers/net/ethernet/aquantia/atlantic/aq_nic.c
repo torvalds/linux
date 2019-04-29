@@ -14,6 +14,7 @@
 #include "aq_vec.h"
 #include "aq_hw.h"
 #include "aq_pci_func.h"
+#include "aq_main.h"
 
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -92,7 +93,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	/*rss rings */
 	cfg->vecs = min(cfg->aq_hw_caps->vecs, AQ_CFG_VECS_DEF);
 	cfg->vecs = min(cfg->vecs, num_online_cpus());
-	cfg->vecs = min(cfg->vecs, self->irqvecs);
+	if (self->irqvecs > AQ_HW_SERVICE_IRQS)
+		cfg->vecs = min(cfg->vecs, self->irqvecs - AQ_HW_SERVICE_IRQS);
 	/* cfg->vecs should be power of 2 for RSS */
 	if (cfg->vecs >= 8U)
 		cfg->vecs = 8U;
@@ -115,6 +117,15 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 		cfg->is_rss = 0U;
 		cfg->vecs = 1U;
 	}
+
+	/* Check if we have enough vectors allocated for
+	 * link status IRQ. If no - we'll know link state from
+	 * slower service task.
+	 */
+	if (AQ_HW_SERVICE_IRQS > 0 && cfg->vecs + 1 <= self->irqvecs)
+		cfg->link_irq_vec = cfg->vecs;
+	else
+		cfg->link_irq_vec = 0;
 
 	cfg->link_speed_msk &= cfg->aq_hw_caps->link_speed_msk;
 	cfg->features = cfg->aq_hw_caps->hw_features;
@@ -178,7 +189,6 @@ static irqreturn_t aq_linkstate_threaded_isr(int irq, void *private)
 static void aq_nic_service_timer_cb(struct timer_list *t)
 {
 	struct aq_nic_s *self = from_timer(self, t, service_timer);
-	int ctimer = AQ_CFG_SERVICE_TIMER_INTERVAL;
 	int err = 0;
 
 	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
@@ -193,12 +203,8 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 
 	aq_nic_update_ndev_stats(self);
 
-	/* If no link - use faster timer rate to detect link up asap */
-	if (!netif_carrier_ok(self->ndev))
-		ctimer = max(ctimer / 2, 1);
-
 err_exit:
-	mod_timer(&self->service_timer, jiffies + ctimer);
+	mod_timer(&self->service_timer, jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
 }
 
 static void aq_nic_polling_timer_cb(struct timer_list *t)
@@ -359,11 +365,23 @@ int aq_nic_start(struct aq_nic_s *self)
 	} else {
 		for (i = 0U, aq_vec = self->aq_vec[0];
 			self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
-			err = aq_pci_func_alloc_irq(self, i,
-						    self->ndev->name, aq_vec,
+			err = aq_pci_func_alloc_irq(self, i, self->ndev->name,
+						    aq_vec_isr, aq_vec,
 						    aq_vec_get_affinity_mask(aq_vec));
 			if (err < 0)
 				goto err_exit;
+		}
+
+		if (self->aq_nic_cfg.link_irq_vec) {
+			int irqvec = pci_irq_vector(self->pdev,
+						   self->aq_nic_cfg.link_irq_vec);
+			err = request_threaded_irq(irqvec, NULL,
+						   aq_linkstate_threaded_isr,
+						   IRQF_SHARED,
+						   self->ndev->name, self);
+			if (err < 0)
+				goto err_exit;
+			self->msix_entry_mask |= (1 << self->aq_nic_cfg.link_irq_vec);
 		}
 
 		err = self->aq_hw_ops->hw_irq_enable(self->aq_hw,
