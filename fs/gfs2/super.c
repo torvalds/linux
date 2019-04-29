@@ -1023,20 +1023,14 @@ static int gfs2_freeze(struct super_block *sb)
 		if (!error)
 			break;
 
-		switch (error) {
-		case -EBUSY:
+		if (error == -EBUSY)
 			fs_err(sdp, "waiting for recovery before freeze\n");
-			break;
-
-		default:
+		else
 			fs_err(sdp, "error freezing FS: %d\n", error);
-			break;
-		}
 
 		fs_err(sdp, "retrying...\n");
 		msleep(1000);
 	}
-	error = 0;
 	set_bit(SDF_FS_FROZEN, &sdp->sd_flags);
 out:
 	mutex_unlock(&sdp->sd_freeze_mutex);
