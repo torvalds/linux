@@ -7,8 +7,10 @@
  */
 
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "intel_vdsc.h"
 
 enum ROW_INDEX_BPP {
 	ROW_INDEX_6BPP = 0,

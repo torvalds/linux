@@ -58,6 +58,7 @@
 #include "intel_panel.h"
 #include "intel_psr.h"
 #include "intel_sideband.h"
+#include "intel_vdsc.h"
 
 #define DP_DPRX_ESI_LEN 14
 

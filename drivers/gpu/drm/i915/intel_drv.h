@@ -1766,12 +1766,6 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 
-/* intel_vdsc.c */
-int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
-				struct intel_crtc_state *pipe_config);
-enum intel_display_power_domain
-intel_dsc_power_domain(const struct intel_crtc_state *crtc_state);
-
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
 void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);

@@ -73,6 +73,7 @@
 #include "intel_sideband.h"
 #include "intel_sprite.h"
 #include "intel_tv.h"
+#include "intel_vdsc.h"
 
 /* Primary plane formats for gen <= 3 */
 static const u32 i8xx_primary_formats[] = {

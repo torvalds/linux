@@ -50,6 +50,7 @@ header_test := \
 	intel_sprite.h \
 	intel_tv.h \
 	intel_uncore.h \
+	intel_vdsc.h \
 	intel_wakeref.h
 
 quiet_cmd_header_test = HDRTEST $@
