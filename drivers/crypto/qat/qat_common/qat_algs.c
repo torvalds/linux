@@ -1096,6 +1096,14 @@ static int qat_alg_ablkcipher_encrypt(struct ablkcipher_request *req)
 	return -EINPROGRESS;
 }
 
+static int qat_alg_ablkcipher_blk_encrypt(struct ablkcipher_request *req)
+{
+	if (req->nbytes % AES_BLOCK_SIZE != 0)
+		return -EINVAL;
+
+	return qat_alg_ablkcipher_encrypt(req);
+}
+
 static int qat_alg_ablkcipher_decrypt(struct ablkcipher_request *req)
 {
 	struct crypto_ablkcipher *atfm = crypto_ablkcipher_reqtfm(req);
@@ -1145,6 +1153,13 @@ static int qat_alg_ablkcipher_decrypt(struct ablkcipher_request *req)
 	return -EINPROGRESS;
 }
 
+static int qat_alg_ablkcipher_blk_decrypt(struct ablkcipher_request *req)
+{
+	if (req->nbytes % AES_BLOCK_SIZE != 0)
+		return -EINVAL;
+
+	return qat_alg_ablkcipher_decrypt(req);
+}
 static int qat_alg_aead_init(struct crypto_aead *tfm,
 			     enum icp_qat_hw_auth_algo hash,
 			     const char *hash_name)
@@ -1304,8 +1319,8 @@ static struct crypto_alg qat_algs[] = { {
 	.cra_u = {
 		.ablkcipher = {
 			.setkey = qat_alg_ablkcipher_cbc_setkey,
-			.decrypt = qat_alg_ablkcipher_decrypt,
-			.encrypt = qat_alg_ablkcipher_encrypt,
+			.decrypt = qat_alg_ablkcipher_blk_decrypt,
+			.encrypt = qat_alg_ablkcipher_blk_encrypt,
 			.min_keysize = AES_MIN_KEY_SIZE,
 			.max_keysize = AES_MAX_KEY_SIZE,
 			.ivsize = AES_BLOCK_SIZE,
@@ -1348,8 +1363,8 @@ static struct crypto_alg qat_algs[] = { {
 	.cra_u = {
 		.ablkcipher = {
 			.setkey = qat_alg_ablkcipher_xts_setkey,
-			.decrypt = qat_alg_ablkcipher_decrypt,
-			.encrypt = qat_alg_ablkcipher_encrypt,
+			.decrypt = qat_alg_ablkcipher_blk_decrypt,
+			.encrypt = qat_alg_ablkcipher_blk_encrypt,
 			.min_keysize = 2 * AES_MIN_KEY_SIZE,
 			.max_keysize = 2 * AES_MAX_KEY_SIZE,
 			.ivsize = AES_BLOCK_SIZE,
