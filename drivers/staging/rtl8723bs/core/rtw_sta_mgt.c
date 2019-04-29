@@ -75,7 +75,6 @@ u32 _rtw_init_sta_priv(struct	sta_priv *pstapriv)
 
 	psta = (struct sta_info *)(pstapriv->pstainfo_buf);
 
-
 	for (i = 0; i < NUM_STA; i++) {
 		_rtw_init_stainfo(psta);
 
@@ -393,7 +392,6 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	);
 	pstapriv->asoc_sta_count--;
 
-
 	/*  re-init sta_info; 20061114 will be init in alloc_stainfo */
 	/* _rtw_init_sta_xmit_priv(&psta->sta_xmitpriv); */
 	/* _rtw_init_sta_recv_priv(&psta->sta_recvpriv); */
@@ -435,7 +433,6 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 	if (!(psta->state & WIFI_AP_STATE))
 		rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, false);
-
 
 	/* release mac id for non-bc/mc station, */
 	rtw_release_macid(pstapriv->padapter, psta);
@@ -582,7 +579,6 @@ exit:
 	return _SUCCESS;
 }
 
-
 struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
 {
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -616,7 +612,6 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 
 	}
 	spin_unlock_bh(&(pacl_node_q->lock));
-
 
 	if (pacl_list->mode == 1) /* accept unless in deny list */
 		res = !match;
