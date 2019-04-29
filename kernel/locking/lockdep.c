@@ -3256,7 +3256,7 @@ void lockdep_hardirqs_on(unsigned long ip)
 	/*
 	 * See the fine text that goes along with this variable definition.
 	 */
-	if (DEBUG_LOCKS_WARN_ON(unlikely(early_boot_irqs_disabled)))
+	if (DEBUG_LOCKS_WARN_ON(early_boot_irqs_disabled))
 		return;
 
 	/*
