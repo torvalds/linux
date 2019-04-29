@@ -20,12 +20,14 @@
  * OF THIS SOFTWARE.
  */
 
-#ifndef _INTEL_DVO_H
-#define _INTEL_DVO_H
+#ifndef __INTEL_DVO_DEV_H__
+#define __INTEL_DVO_DEV_H__
 
 #include <linux/i2c.h>
+
 #include <drm/drm_crtc.h>
-#include "intel_drv.h"
+
+#include "i915_reg.h"
 
 struct intel_dvo_device {
 	const char *name;
@@ -135,4 +137,4 @@ extern const struct intel_dvo_dev_ops tfp410_ops;
 extern const struct intel_dvo_dev_ops ch7017_ops;
 extern const struct intel_dvo_dev_ops ns2501_ops;
 
-#endif /* _INTEL_DVO_H */
+#endif /* __INTEL_DVO_DEV_H__ */

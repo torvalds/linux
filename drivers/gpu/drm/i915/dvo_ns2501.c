@@ -26,9 +26,10 @@
  *
  */
 
-#include "dvo.h"
-#include "i915_reg.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
+#include "intel_drv.h"
+#include "intel_dvo_dev.h"
 
 #define NS2501_VID 0x1305
 #define NS2501_DID 0x6726

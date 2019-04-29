@@ -32,11 +32,11 @@
 #include <drm/drm_crtc.h>
 #include <drm/i915_drm.h>
 
-#include "dvo.h"
 #include "i915_drv.h"
 #include "intel_connector.h"
 #include "intel_drv.h"
 #include "intel_dvo.h"
+#include "intel_dvo_dev.h"
 #include "intel_panel.h"
 
 #define SIL164_ADDR	0x38

@@ -29,7 +29,8 @@
  *
  */
 
-#include "dvo.h"
+#include "intel_drv.h"
+#include "intel_dvo_dev.h"
 
 /*
  * register definitions for the i82807aa.

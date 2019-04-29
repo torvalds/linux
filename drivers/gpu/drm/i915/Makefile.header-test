@@ -24,6 +24,7 @@ header_test := \
 	intel_dp.h \
 	intel_drv.h \
 	intel_dvo.h \
+	intel_dvo_dev.h \
 	intel_fbc.h \
 	intel_fbdev.h \
 	intel_frontbuffer.h \

@@ -25,7 +25,8 @@
  *
  */
 
-#include "dvo.h"
+#include "intel_drv.h"
+#include "intel_dvo_dev.h"
 
 #define CH7017_TV_DISPLAY_MODE		0x00
 #define CH7017_FLICKER_FILTER		0x01
