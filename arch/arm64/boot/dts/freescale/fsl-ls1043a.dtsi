@@ -18,6 +18,7 @@
 	#size-cells = <2>;
 
 	aliases {
+		crypto = &crypto;
 		fman0 = &fman0;
 		ethernet0 = &enet0;
 		ethernet1 = &enet1;
@@ -296,7 +297,6 @@
 			interrupts = <0 99 0x4>;
 			clock-names = "qspi_en", "qspi";
 			clocks = <&clockgen 4 0>, <&clockgen 4 0>;
-			big-endian;
 			status = "disabled";
 		};
 

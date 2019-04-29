@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2019 Zodiac Inflight Innovations
+ */
+
+/dts-v1/;
+
+#include "imx8mq-zii-ultra.dtsi"
+
+/ {
+	model = "ZII i.MX8MQ Ultra RMB3 Board";
+	compatible = "zii,imx8mq-ultra-rmb3", "zii,imx8mq-ultra", "fsl,imx8mq";
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nor_flash: flash@0 {
+		compatible = "st,n25q128a13", "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&i2c2 {
+	temp-sense@48 {
+		compatible = "national,lm75";
+		reg = <0x48>;
+	};
+};
+
+&i2c4 {
+	touchscreen@20 {
+		compatible = "syna,rmi4-i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ts>;
+		reg = <0x20>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rmi4-f01@1 {
+			reg = <0x1>;
+			syna,nosleep-mode = <2>;
+		};
+
+		rmi4-f11@11 {
+			reg = <0x11>;
+			touchscreen-inverted-x;
+			touchscreen-swapped-x-y;
+			syna,sensor-type = <1>;
+		};
+
+		rmi4-f12@12 {
+			reg = <0x12>;
+			touchscreen-inverted-x;
+			touchscreen-swapped-x-y;
+			syna,sensor-type = <1>;
+		};
+	};
+
+	touchscreen@2a {
+		compatible = "eeti,exc3000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ts>;
+		reg = <0x2a>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+		status = "disabled";
+	};
+};
+
+&usbhub {
+	swap-dx-lanes = <0>;
+};
+
+&iomuxc {
+	pinctrl_ecspi1: ecspi1grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_ECSPI1_SS0_GPIO5_IO9	0x19
+			MX8MQ_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK	0x82
+			MX8MQ_IOMUXC_ECSPI1_MISO_ECSPI1_MISO	0x82
+			MX8MQ_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI	0x82
+		>;
+	};
+};
