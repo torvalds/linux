@@ -62,6 +62,7 @@
 #include "intel_frontbuffer.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
+#include "intel_hotplug.h"
 #include "intel_lvds.h"
 #include "intel_pipe_crc.h"
 #include "intel_pm.h"

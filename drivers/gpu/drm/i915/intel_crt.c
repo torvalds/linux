@@ -40,6 +40,7 @@
 #include "intel_ddi.h"
 #include "intel_drv.h"
 #include "intel_fifo_underrun.h"
+#include "intel_hotplug.h"
 
 /* Here's the desired hotplug mode */
 #define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_PERIOD_128 |		\

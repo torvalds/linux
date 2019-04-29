@@ -36,6 +36,7 @@ header_test := \
 	intel_frontbuffer.h \
 	intel_hdcp.h \
 	intel_hdmi.h \
+	intel_hotplug.h \
 	intel_lspcon.h \
 	intel_lvds.h \
 	intel_panel.h \

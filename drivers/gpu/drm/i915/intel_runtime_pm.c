@@ -38,6 +38,7 @@
 #include "intel_csr.h"
 #include "intel_dp.h"
 #include "intel_drv.h"
+#include "intel_hotplug.h"
 #include "intel_sideband.h"
 
 /**
