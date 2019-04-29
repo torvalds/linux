@@ -72,6 +72,7 @@
 #include "intel_dpll_mgr.h"
 #include "intel_frontbuffer.h"
 #include "intel_opregion.h"
+#include "intel_runtime_pm.h"
 #include "intel_uc.h"
 #include "intel_uncore.h"
 #include "intel_wakeref.h"
