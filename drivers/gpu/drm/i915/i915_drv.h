@@ -3364,12 +3364,6 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *old_crtc_state);
 
-/* intel_combo_phy.c */
-void icl_combo_phys_init(struct drm_i915_private *dev_priv);
-void icl_combo_phys_uninit(struct drm_i915_private *dev_priv);
-void cnl_combo_phys_init(struct drm_i915_private *dev_priv);
-void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv);
-
 #define __I915_REG_OP(op__, dev_priv__, ...) \
 	intel_uncore_##op__(&(dev_priv__)->uncore, __VA_ARGS__)
 

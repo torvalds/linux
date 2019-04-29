@@ -3,6 +3,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "intel_combo_phy.h"
 #include "intel_drv.h"
 
 #define for_each_combo_port(__dev_priv, __port) \

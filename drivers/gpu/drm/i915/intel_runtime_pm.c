@@ -34,6 +34,7 @@
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_cdclk.h"
+#include "intel_combo_phy.h"
 #include "intel_crt.h"
 #include "intel_csr.h"
 #include "intel_dp.h"

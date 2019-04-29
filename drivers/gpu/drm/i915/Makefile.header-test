@@ -19,6 +19,7 @@ header_test := \
 	intel_bios.h \
 	intel_cdclk.h \
 	intel_color.h \
+	intel_combo_phy.h \
 	intel_connector.h \
 	intel_crt.h \
 	intel_csr.h \
