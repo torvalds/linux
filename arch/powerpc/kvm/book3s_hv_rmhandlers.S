@@ -622,9 +622,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPID,r7
 	isync
 
-	/* See if we need to flush the TLB. Hash has to be done in RM */
+	/* See if we need to flush the TLB. */
 	mr	r3, r9			/* kvm pointer */
-	bl	kvmppc_hpt_check_need_tlb_flush
+	lhz	r4, PACAPACAINDEX(r13)	/* physical cpu number */
+	li	r5, 0			/* nested vcpu pointer */
+	bl	kvmppc_check_need_tlb_flush
 	nop
 	ld	r5, HSTATE_KVM_VCORE(r13)
 

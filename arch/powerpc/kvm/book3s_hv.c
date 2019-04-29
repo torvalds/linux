@@ -2584,37 +2584,6 @@ static void kvmppc_prepare_radix_vcpu(struct kvm_vcpu *vcpu, int pcpu)
 	}
 }
 
-static void kvmppc_radix_check_need_tlb_flush(struct kvm *kvm, int pcpu,
-					      struct kvm_nested_guest *nested)
-{
-	cpumask_t *need_tlb_flush;
-	int lpid;
-
-	if (!cpu_has_feature(CPU_FTR_HVMODE))
-		return;
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		pcpu &= ~0x3UL;
-
-	if (nested) {
-		lpid = nested->shadow_lpid;
-		need_tlb_flush = &nested->need_tlb_flush;
-	} else {
-		lpid = kvm->arch.lpid;
-		need_tlb_flush = &kvm->arch.need_tlb_flush;
-	}
-
-	mtspr(SPRN_LPID, lpid);
-	isync();
-	smp_mb();
-
-	if (cpumask_test_cpu(pcpu, need_tlb_flush)) {
-		radix__local_flush_tlb_lpid_guest(lpid);
-		/* Clear the bit after the TLB flush */
-		cpumask_clear_cpu(pcpu, need_tlb_flush);
-	}
-}
-
 static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 {
 	int cpu;
@@ -3307,20 +3276,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	for (sub = 0; sub < core_info.n_subcores; ++sub)
 		spin_unlock(&core_info.vc[sub]->lock);
-
-	if (kvm_is_radix(vc->kvm)) {
-		/*
-		 * Do we need to flush the process scoped TLB for the LPAR?
-		 *
-		 * On POWER9, individual threads can come in here, but the
-		 * TLB is shared between the 4 threads in a core, hence
-		 * invalidating on one thread invalidates for all.
-		 * Thus we make all 4 threads use the same bit here.
-		 *
-		 * Hash must be flushed in realmode in order to use tlbiel.
-		 */
-		kvmppc_radix_check_need_tlb_flush(vc->kvm, pcpu, NULL);
-	}
 
 	guest_enter_irqoff();
 
@@ -4050,7 +4005,7 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 			  unsigned long lpcr)
 {
 	int trap, r, pcpu;
-	int srcu_idx;
+	int srcu_idx, lpid;
 	struct kvmppc_vcore *vc;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_nested_guest *nested = vcpu->arch.nested;
@@ -4126,8 +4081,12 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 	vc->vcore_state = VCORE_RUNNING;
 	trace_kvmppc_run_core(vc, 0);
 
-	if (cpu_has_feature(CPU_FTR_HVMODE))
-		kvmppc_radix_check_need_tlb_flush(kvm, pcpu, nested);
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		lpid = nested ? nested->shadow_lpid : kvm->arch.lpid;
+		mtspr(SPRN_LPID, lpid);
+		isync();
+		kvmppc_check_need_tlb_flush(kvm, pcpu, nested);
+	}
 
 	trace_hardirqs_on();
 	guest_enter_irqoff();
