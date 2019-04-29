@@ -222,6 +222,9 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 		return -EFAULT;
 
 	offset = round_up(qat_get_inter_state_size(ctx->qat_hash_alg), 8);
+	if (offset < 0)
+		return -EFAULT;
+
 	hash_state_out = (__be32 *)(hash->sha.state1 + offset);
 	hash512_state_out = (__be64 *)hash_state_out;
 
