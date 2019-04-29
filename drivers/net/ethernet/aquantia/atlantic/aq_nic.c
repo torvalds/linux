@@ -186,25 +186,34 @@ static irqreturn_t aq_linkstate_threaded_isr(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-static void aq_nic_service_timer_cb(struct timer_list *t)
+static void aq_nic_service_task(struct work_struct *work)
 {
-	struct aq_nic_s *self = from_timer(self, t, service_timer);
-	int err = 0;
+	struct aq_nic_s *self = container_of(work, struct aq_nic_s,
+					     service_task);
+	int err;
 
 	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
-		goto err_exit;
+		return;
 
 	err = aq_nic_update_link_status(self);
 	if (err)
-		goto err_exit;
+		return;
 
+	mutex_lock(&self->fwreq_mutex);
 	if (self->aq_fw_ops->update_stats)
 		self->aq_fw_ops->update_stats(self->aq_hw);
+	mutex_unlock(&self->fwreq_mutex);
 
 	aq_nic_update_ndev_stats(self);
+}
 
-err_exit:
+static void aq_nic_service_timer_cb(struct timer_list *t)
+{
+	struct aq_nic_s *self = from_timer(self, t, service_timer);
+
 	mod_timer(&self->service_timer, jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
+
+	aq_ndev_schedule_work(&self->service_task);
 }
 
 static void aq_nic_polling_timer_cb(struct timer_list *t)
@@ -358,6 +367,9 @@ int aq_nic_start(struct aq_nic_s *self)
 	err = aq_nic_update_interrupt_moderation_settings(self);
 	if (err)
 		goto err_exit;
+
+	INIT_WORK(&self->service_task, aq_nic_service_task);
+
 	timer_setup(&self->service_timer, aq_nic_service_timer_cb, 0);
 	aq_nic_service_timer_cb(&self->service_timer);
 
@@ -910,6 +922,7 @@ int aq_nic_stop(struct aq_nic_s *self)
 	netif_carrier_off(self->ndev);
 
 	del_timer_sync(&self->service_timer);
+	cancel_work_sync(&self->service_task);
 
 	self->aq_hw_ops->hw_irq_disable(self->aq_hw, AQ_CFG_IRQ_MASK);
 
