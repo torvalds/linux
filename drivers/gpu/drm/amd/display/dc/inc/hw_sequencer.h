@@ -277,6 +277,7 @@ struct hw_sequencer_funcs {
 
 	void (*setup_periodic_interrupt)(struct pipe_ctx *pipe_ctx, enum vline_select vline);
 	void (*setup_vupdate_interrupt)(struct pipe_ctx *pipe_ctx);
+	bool (*did_underflow_occur)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*update_odm)(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);

@@ -2003,4 +2003,5 @@ void dcn20_hw_sequencer_construct(struct dc *dc)
 	dc->hwss.reset_hw_ctx_wrap = dcn20_reset_hw_ctx_wrap;
 	dc->hwss.update_mpcc = dcn20_update_mpcc;
 	dc->hwss.set_flip_control_gsl = dcn20_set_flip_control_gsl;
+	dc->hwss.did_underflow_occur = dcn10_did_underflow_occur;
 }
