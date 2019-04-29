@@ -22,6 +22,7 @@ header_test := \
 	intel_csr.h \
 	intel_ddi.h \
 	intel_dp.h \
+	intel_dpll_mgr.h \
 	intel_drv.h \
 	intel_dvo.h \
 	intel_dvo_dev.h \
