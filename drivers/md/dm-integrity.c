@@ -246,7 +246,7 @@ struct dm_integrity_c {
 
 struct dm_integrity_range {
 	sector_t logical_sector;
-	unsigned n_sectors;
+	sector_t n_sectors;
 	bool waiting;
 	union {
 		struct rb_node node;
@@ -1695,7 +1695,7 @@ retry:
 			unsigned ws, we, range_sectors;
 
 			dio->range.n_sectors = min(dio->range.n_sectors,
-						   ic->free_sectors << ic->sb->log2_sectors_per_block);
+						   (sector_t)ic->free_sectors << ic->sb->log2_sectors_per_block);
 			if (unlikely(!dio->range.n_sectors)) {
 				if (from_map)
 					goto offload_to_thread;
@@ -2153,7 +2153,7 @@ next_chunk:
 	get_area_and_offset(ic, range.logical_sector, &area, &offset);
 	range.n_sectors = min((sector_t)RECALC_SECTORS, ic->provided_data_sectors - range.logical_sector);
 	if (!ic->meta_dev)
-		range.n_sectors = min(range.n_sectors, (1U << ic->sb->log2_interleave_sectors) - (unsigned)offset);
+		range.n_sectors = min(range.n_sectors, ((sector_t)1U << ic->sb->log2_interleave_sectors) - (unsigned)offset);
 
 	if (unlikely(!add_new_range(ic, &range, true)))
 		wait_and_add_new_range(ic, &range);
