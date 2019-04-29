@@ -32,6 +32,7 @@
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_dp.h"
+#include "intel_dp_mst.h"
 #include "intel_drv.h"
 
 static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
