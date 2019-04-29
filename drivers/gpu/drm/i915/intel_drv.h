@@ -1581,43 +1581,6 @@ intel_atomic_get_new_crtc_state(struct intel_atomic_state *state,
 								 &crtc->base));
 }
 
-/* i915_irq.c */
-void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen6_unmask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
-void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv);
-void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv);
-void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv);
-void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
-void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
-
-static inline u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915,
-					    u32 mask)
-{
-	return mask & ~i915->gt_pm.rps.pm_intrmsk_mbz;
-}
-
-void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
-static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * We only use drm_irq_uninstall() at unload and VT switch, so
-	 * this is the only thing we need to check.
-	 */
-	return dev_priv->runtime_pm.irqs_enabled;
-}
-
-int intel_get_crtc_scanline(struct intel_crtc *crtc);
-void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
-				     u8 pipe_mask);
-void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
-				     u8 pipe_mask);
-void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);
-
 /* intel_display.c */
 void intel_plane_destroy(struct drm_plane *plane);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);

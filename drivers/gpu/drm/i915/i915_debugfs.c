@@ -35,6 +35,7 @@
 #include "gt/intel_reset.h"
 
 #include "i915_gem_context.h"
+#include "i915_irq.h"
 #include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbc.h"

@@ -34,6 +34,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "intel_drv.h"
 #include "intel_fbc.h"
 #include "intel_pm.h"
