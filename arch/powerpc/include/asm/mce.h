@@ -31,7 +31,7 @@ enum MCE_Version {
 enum MCE_Severity {
 	MCE_SEV_NO_ERROR = 0,
 	MCE_SEV_WARNING = 1,
-	MCE_SEV_ERROR_SYNC = 2,
+	MCE_SEV_SEVERE = 2,
 	MCE_SEV_FATAL = 3,
 };
 
@@ -110,73 +110,74 @@ enum MCE_LinkErrorType {
 };
 
 struct machine_check_event {
-	enum MCE_Version	version:8;	/* 0x00 */
-	uint8_t			in_use;		/* 0x01 */
-	enum MCE_Severity	severity:8;	/* 0x02 */
-	enum MCE_Initiator	initiator:8;	/* 0x03 */
-	enum MCE_ErrorType	error_type:8;	/* 0x04 */
-	enum MCE_Disposition	disposition:8;	/* 0x05 */
-	uint16_t		cpu;		/* 0x06 */
-	uint64_t		gpr3;		/* 0x08 */
-	uint64_t		srr0;		/* 0x10 */
-	uint64_t		srr1;		/* 0x18 */
-	union {					/* 0x20 */
+	enum MCE_Version	version:8;
+	u8			in_use;
+	enum MCE_Severity	severity:8;
+	enum MCE_Initiator	initiator:8;
+	enum MCE_ErrorType	error_type:8;
+	enum MCE_Disposition	disposition:8;
+	bool			sync_error;
+	u16			cpu;
+	u64			gpr3;
+	u64			srr0;
+	u64			srr1;
+	union {
 		struct {
 			enum MCE_UeErrorType ue_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		physical_address_provided;
-			uint8_t		reserved_1[5];
-			uint64_t	effective_address;
-			uint64_t	physical_address;
-			uint8_t		reserved_2[8];
+			u8		effective_address_provided;
+			u8		physical_address_provided;
+			u8		reserved_1[5];
+			u64		effective_address;
+			u64		physical_address;
+			u8		reserved_2[8];
 		} ue_error;
 
 		struct {
 			enum MCE_SlbErrorType slb_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
+			u8		effective_address_provided;
+			u8		reserved_1[6];
+			u64		effective_address;
+			u8		reserved_2[16];
 		} slb_error;
 
 		struct {
 			enum MCE_EratErrorType erat_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
+			u8		effective_address_provided;
+			u8		reserved_1[6];
+			u64		effective_address;
+			u8		reserved_2[16];
 		} erat_error;
 
 		struct {
 			enum MCE_TlbErrorType tlb_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
+			u8		effective_address_provided;
+			u8		reserved_1[6];
+			u64		effective_address;
+			u8		reserved_2[16];
 		} tlb_error;
 
 		struct {
 			enum MCE_UserErrorType user_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
+			u8		effective_address_provided;
+			u8		reserved_1[6];
+			u64		effective_address;
+			u8		reserved_2[16];
 		} user_error;
 
 		struct {
 			enum MCE_RaErrorType ra_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
+			u8		effective_address_provided;
+			u8		reserved_1[6];
+			u64		effective_address;
+			u8		reserved_2[16];
 		} ra_error;
 
 		struct {
 			enum MCE_LinkErrorType link_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
+			u8		effective_address_provided;
+			u8		reserved_1[6];
+			u64		effective_address;
+			u8		reserved_2[16];
 		} link_error;
 	} u;
 };
@@ -194,6 +195,7 @@ struct mce_error_info {
 	} u;
 	enum MCE_Severity	severity:8;
 	enum MCE_Initiator	initiator:8;
+	bool			sync_error;
 };
 
 #define MAX_MC_EVT	100

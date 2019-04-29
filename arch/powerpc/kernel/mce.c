@@ -122,6 +122,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 
 	mce->initiator = mce_err->initiator;
 	mce->severity = mce_err->severity;
+	mce->sync_error = mce_err->sync_error;
 
 	/*
 	 * Populate the mce error_type and type-specific error_type.
@@ -376,9 +377,9 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		break;
 	case MCE_SEV_WARNING:
 		level = KERN_WARNING;
-		sevstr = "";
+		sevstr = "Warning";
 		break;
-	case MCE_SEV_ERROR_SYNC:
+	case MCE_SEV_SEVERE:
 		level = KERN_ERR;
 		sevstr = "Severe";
 		break;

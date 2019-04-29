@@ -505,7 +505,7 @@ static int opal_recover_mce(struct pt_regs *regs,
 		recovered = 0;
 	}
 
-	if (!recovered && evt->severity == MCE_SEV_ERROR_SYNC) {
+	if (!recovered && evt->sync_error) {
 		/*
 		 * Try to kill processes if we get a synchronous machine check
 		 * (e.g., one caused by execution of this instruction). This
