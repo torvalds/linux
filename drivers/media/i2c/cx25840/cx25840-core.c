@@ -1702,7 +1702,8 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
+	u32 HSC, VSC, Vsrc, Hsrc, Vadd;
+	int filter;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
 	if (format->pad || fmt->code != MEDIA_BUS_FMT_FIXED)
@@ -1727,28 +1728,46 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 		Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
 	}
 
-	Vlines = fmt->height;
-	if (!state->generic_mode)
-		Vlines += is_50Hz ? 4 : 7;
+	if (!state->generic_mode) {
+		Vadd = is_50Hz ? 4 : 7;
 
-	/*
-	 * We keep 1 margin for the Vsrc < Vlines check since the
-	 * cx23888 reports a Vsrc of 486 instead of 487 for the NTSC
-	 * height. Without that margin the cx23885 fails in this
-	 * check.
-	 */
-	if ((fmt->width == 0) || (Vlines == 0) ||
-	    (fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
-	    (Vlines * 8 < Vsrc) || (Vsrc + 1 < Vlines)) {
-		v4l_err(client, "%dx%d is not a valid size!\n",
-				fmt->width, fmt->height);
-		return -ERANGE;
+		/*
+		 * cx23888 in 525-line mode is programmed for 486 active lines
+		 * while other chips use 487 active lines.
+		 *
+		 * See reg 0x428 bits [21:12] in cx23888_std_setup() vs
+		 * vactive in cx25840_std_setup().
+		 */
+		if (is_cx23888(state) && !is_50Hz)
+			Vadd--;
+	} else
+		Vadd = 0;
+
+	if (Hsrc == 0 ||
+	    Vsrc <= Vadd) {
+		v4l_err(client,
+			"chip reported picture size (%u x %u) is far too small\n",
+			(unsigned int)Hsrc, (unsigned int)Vsrc);
+		/*
+		 * that's the best we can do since the output picture
+		 * size is completely unknown in this case
+		 */
+		return -EINVAL;
 	}
+
+	fmt->width = clamp(fmt->width, (Hsrc + 15) / 16, Hsrc);
+
+	if (Vadd * 8 >= Vsrc)
+		fmt->height = clamp(fmt->height, (u32)1, Vsrc - Vadd);
+	else
+		fmt->height = clamp(fmt->height, (Vsrc - Vadd * 8 + 7) / 8,
+				    Vsrc - Vadd);
+
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
 
 	HSC = (Hsrc * (1 << 20)) / fmt->width - (1 << 20);
-	VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
+	VSC = (1 << 16) - (Vsrc * (1 << 9) / (fmt->height + Vadd) - (1 << 9));
 	VSC &= 0x1fff;
 
 	if (fmt->width >= 385)
@@ -1760,8 +1779,10 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 	else
 		filter = 3;
 
-	v4l_dbg(1, cx25840_debug, client, "decoder set size %dx%d -> scale  %ux%u\n",
-			fmt->width, fmt->height, HSC, VSC);
+	v4l_dbg(1, cx25840_debug, client,
+		"decoder set size %u x %u with scale %x x %x\n",
+		(unsigned int)fmt->width, (unsigned int)fmt->height,
+		(unsigned int)HSC, (unsigned int)VSC);
 
 	/* HSCALE=HSC */
 	if (is_cx23888(state)) {
