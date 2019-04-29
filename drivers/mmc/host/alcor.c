@@ -117,6 +117,9 @@ static void alcor_reset(struct alcor_sdmmc_host *host, u8 val)
 	dev_err(host->dev, "%s: timeout\n", __func__);
 }
 
+/*
+ * Perform DMA I/O of a single page.
+ */
 static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 {
 	struct alcor_pci_priv *priv = host->alcor_pci;
@@ -153,12 +156,26 @@ static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host)
 		ctrl |= AU6601_DATA_WRITE;
 
 	if (data->host_cookie == COOKIE_MAPPED) {
+		/*
+		 * For DMA transfers, this function is called just once,
+		 * at the start of the operation. The hardware can only
+		 * perform DMA I/O on a single page at a time, so here
+		 * we kick off the transfer with the first page, and expect
+		 * subsequent pages to be transferred upon IRQ events
+		 * indicating that the single-page DMA was completed.
+		 */
 		alcor_data_set_dma(host);
 		ctrl |= AU6601_DATA_DMA_MODE;
 		host->dma_on = 1;
 		alcor_write32(priv, data->sg_count * 0x1000,
 			       AU6601_REG_BLOCK_SIZE);
 	} else {
+		/*
+		 * For PIO transfers, we break down each operation
+		 * into several sector-sized transfers. When one sector has
+		 * complete, the IRQ handler will call this function again
+		 * to kick off the transfer of the next sector.
+		 */
 		alcor_write32(priv, data->blksz, AU6601_REG_BLOCK_SIZE);
 	}
 
@@ -776,8 +793,12 @@ static void alcor_pre_req(struct mmc_host *mmc,
 		return;
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
-	 * non-word-aligned buffers or lengths. Also, we don't bother
-	 * with all the DMA setup overhead for short transfers.
+	 * non-word-aligned buffers or lengths. A future improvement
+	 * could be made to use temporary DMA bounce-buffers when these
+	 * requirements are not met.
+	 *
+	 * Also, we don't bother with all the DMA setup overhead for
+	 * short transfers.
 	 */
 	if (data->blocks * data->blksz < AU6601_MAX_DMA_BLOCK_SIZE)
 		return;
@@ -787,6 +808,8 @@ static void alcor_pre_req(struct mmc_host *mmc,
 
 	for_each_sg(data->sg, sg, data->sg_len, i) {
 		if (sg->length != AU6601_MAX_DMA_BLOCK_SIZE)
+			return;
+		if (sg->offset != 0)
 			return;
 	}
 
@@ -1038,26 +1061,21 @@ static void alcor_init_mmc(struct alcor_sdmmc_host *host)
 	mmc->ops = &alcor_sdc_ops;
 
 	/* The hardware does DMA data transfer of 4096 bytes to/from a single
-	 * buffer address. Scatterlists are not supported, but upon DMA
-	 * completion (signalled via IRQ), the original vendor driver does
-	 * then immediately set up another DMA transfer of the next 4096
-	 * bytes.
+	 * buffer address. Scatterlists are not supported at the hardware
+	 * level, however we can work with them at the driver level,
+	 * provided that each segment is exactly 4096 bytes in size.
+	 * Upon DMA completion of a single segment (signalled via IRQ), we
+	 * immediately proceed to transfer the next segment from the
+	 * scatterlist.
 	 *
-	 * This means that we need to handle the I/O in 4096 byte chunks.
-	 * Lacking a way to limit the sglist entries to 4096 bytes, we instead
-	 * impose that only one segment is provided, with maximum size 4096,
-	 * which also happens to be the minimum size. This means that the
-	 * single-entry sglist handled by this driver can be handed directly
-	 * to the hardware, nice and simple.
-	 *
-	 * Unfortunately though, that means we only do 4096 bytes I/O per
-	 * MMC command. A future improvement would be to make the driver
-	 * accept sg lists and entries of any size, and simply iterate
-	 * through them 4096 bytes at a time.
+	 * The overall request is limited to 240 sectors, matching the
+	 * original vendor driver.
 	 */
 	mmc->max_segs = AU6601_MAX_DMA_SEGMENTS;
 	mmc->max_seg_size = AU6601_MAX_DMA_BLOCK_SIZE;
-	mmc->max_req_size = mmc->max_seg_size;
+	mmc->max_blk_count = 240;
+	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
+	dma_set_max_seg_size(host->dev, mmc->max_seg_size);
 }
 
 static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)
