@@ -28,6 +28,7 @@
 #include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"

@@ -40,6 +40,7 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_connector.h"
 #include "intel_drv.h"
 #include "intel_lvds.h"

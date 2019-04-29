@@ -34,6 +34,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
+#include "intel_atomic.h"
 #include "intel_drv.h"
 #include "intel_hdcp.h"
 #include "intel_sprite.h"
@@ -410,4 +411,16 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
 	drm_atomic_state_default_clear(&state->base);
 	state->dpll_set = state->modeset = false;
+}
+
+struct intel_crtc_state *
+intel_atomic_get_crtc_state(struct drm_atomic_state *state,
+			    struct intel_crtc *crtc)
+{
+	struct drm_crtc_state *crtc_state;
+	crtc_state = drm_atomic_get_crtc_state(state, &crtc->base);
+	if (IS_ERR(crtc_state))
+		return ERR_CAST(crtc_state);
+
+	return to_intel_crtc_state(crtc_state);
 }

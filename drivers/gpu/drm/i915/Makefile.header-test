@@ -13,6 +13,7 @@ header_test := \
 	i915_reg.h \
 	i915_scheduler_types.h \
 	i915_timeline_types.h \
+	intel_atomic.h \
 	intel_atomic_plane.h \
 	intel_audio.h \
 	intel_bios.h \

@@ -29,6 +29,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include "intel_atomic.h"
 #include "intel_drv.h"
 #include "intel_pipe_crc.h"
 
