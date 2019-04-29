@@ -23,14 +23,24 @@
  * PSCI standard.
  */
 
-#ifndef __ASM_ARM_TRUSTED_FOUNDATIONS_H
-#define __ASM_ARM_TRUSTED_FOUNDATIONS_H
+#ifndef __FIRMWARE_TRUSTED_FOUNDATIONS_H
+#define __FIRMWARE_TRUSTED_FOUNDATIONS_H
 
 #include <linux/printk.h>
 #include <linux/bug.h>
 #include <linux/of.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/types.h>
+
+#include <asm/hardware/cache-l2x0.h>
+#include <asm/outercache.h>
+
+#define TF_PM_MODE_LP0			0
+#define TF_PM_MODE_LP1			1
+#define TF_PM_MODE_LP1_NO_MC_CLK	2
+#define TF_PM_MODE_LP2			3
+#define TF_PM_MODE_LP2_NOFLUSH_L2	4
 
 struct trusted_foundations_platform_data {
 	unsigned int version_major;
@@ -41,8 +51,12 @@ struct trusted_foundations_platform_data {
 
 void register_trusted_foundations(struct trusted_foundations_platform_data *pd);
 void of_register_trusted_foundations(void);
+bool trusted_foundations_registered(void);
 
 #else /* CONFIG_TRUSTED_FOUNDATIONS */
+static inline void tf_dummy_write_sec(unsigned long val, unsigned int reg)
+{
+}
 
 static inline void register_trusted_foundations(
 				   struct trusted_foundations_platform_data *pd)
@@ -53,6 +67,10 @@ static inline void register_trusted_foundations(
 	 */
 	pr_err("No support for Trusted Foundations, continuing in degraded mode.\n");
 	pr_err("Secondary processors as well as CPU PM will be disabled.\n");
+#if IS_ENABLED(CONFIG_CACHE_L2X0)
+	pr_err("L2X0 cache will be kept disabled.\n");
+	outer_cache.write_sec = tf_dummy_write_sec;
+#endif
 #if IS_ENABLED(CONFIG_SMP)
 	setup_max_cpus = 0;
 #endif
@@ -67,6 +85,11 @@ static inline void of_register_trusted_foundations(void)
 	 */
 	if (of_find_compatible_node(NULL, NULL, "tlm,trusted-foundations"))
 		register_trusted_foundations(NULL);
+}
+
+static inline bool trusted_foundations_registered(void)
+{
+	return false;
 }
 #endif /* CONFIG_TRUSTED_FOUNDATIONS */
 

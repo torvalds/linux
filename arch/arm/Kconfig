@@ -900,8 +900,6 @@ config PLAT_PXA
 config PLAT_VERSATILE
 	bool
 
-source "arch/arm/firmware/Kconfig"
-
 source "arch/arm/mm/Kconfig"
 
 config IWMMXT
