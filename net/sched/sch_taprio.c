@@ -48,6 +48,7 @@ struct sched_gate_list {
 	size_t num_entries;
 	ktime_t cycle_close_time;
 	s64 cycle_time;
+	s64 cycle_time_extension;
 	s64 base_time;
 };
 
@@ -290,7 +291,7 @@ static bool should_change_schedules(const struct sched_gate_list *admin,
 				    const struct sched_gate_list *oper,
 				    ktime_t close_time)
 {
-	ktime_t next_base_time;
+	ktime_t next_base_time, extension_time;
 
 	if (!admin)
 		return false;
@@ -301,6 +302,20 @@ static bool should_change_schedules(const struct sched_gate_list *admin,
 	 * the next schedule base_time.
 	 */
 	if (ktime_compare(next_base_time, close_time) <= 0)
+		return true;
+
+	/* This is the cycle_time_extension case, if the close_time
+	 * plus the amount that can be extended would fall after the
+	 * next schedule base_time, we can extend the current schedule
+	 * for that amount.
+	 */
+	extension_time = ktime_add_ns(close_time, oper->cycle_time_extension);
+
+	/* FIXME: the IEEE 802.1Q-2018 Specification isn't clear about
+	 * how precisely the extension should be made. So after
+	 * conformance testing, this logic may change.
+	 */
+	if (ktime_compare(next_base_time, extension_time) <= 0)
 		return true;
 
 	return false;
@@ -390,11 +405,12 @@ static const struct nla_policy taprio_policy[TCA_TAPRIO_ATTR_MAX + 1] = {
 	[TCA_TAPRIO_ATTR_PRIOMAP]	       = {
 		.len = sizeof(struct tc_mqprio_qopt)
 	},
-	[TCA_TAPRIO_ATTR_SCHED_ENTRY_LIST]     = { .type = NLA_NESTED },
-	[TCA_TAPRIO_ATTR_SCHED_BASE_TIME]      = { .type = NLA_S64 },
-	[TCA_TAPRIO_ATTR_SCHED_SINGLE_ENTRY]   = { .type = NLA_NESTED },
-	[TCA_TAPRIO_ATTR_SCHED_CLOCKID]        = { .type = NLA_S32 },
-	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]     = { .type = NLA_S64 },
+	[TCA_TAPRIO_ATTR_SCHED_ENTRY_LIST]           = { .type = NLA_NESTED },
+	[TCA_TAPRIO_ATTR_SCHED_BASE_TIME]            = { .type = NLA_S64 },
+	[TCA_TAPRIO_ATTR_SCHED_SINGLE_ENTRY]         = { .type = NLA_NESTED },
+	[TCA_TAPRIO_ATTR_SCHED_CLOCKID]              = { .type = NLA_S32 },
+	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]           = { .type = NLA_S64 },
+	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION] = { .type = NLA_S64 },
 };
 
 static int fill_sched_entry(struct nlattr **tb, struct sched_entry *entry,
@@ -495,6 +511,9 @@ static int parse_taprio_schedule(struct nlattr **tb,
 
 	if (tb[TCA_TAPRIO_ATTR_SCHED_BASE_TIME])
 		new->base_time = nla_get_s64(tb[TCA_TAPRIO_ATTR_SCHED_BASE_TIME]);
+
+	if (tb[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION])
+		new->cycle_time_extension = nla_get_s64(tb[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION]);
 
 	if (tb[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME])
 		new->cycle_time = nla_get_s64(tb[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]);
@@ -1006,6 +1025,10 @@ static int dump_schedule(struct sk_buff *msg,
 
 	if (nla_put_s64(msg, TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME,
 			root->cycle_time, TCA_TAPRIO_PAD))
+		return -1;
+
+	if (nla_put_s64(msg, TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION,
+			root->cycle_time_extension, TCA_TAPRIO_PAD))
 		return -1;
 
 	entry_list = nla_nest_start_noflag(msg,
