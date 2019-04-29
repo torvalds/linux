@@ -1766,9 +1766,6 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 
-/* intel_dsi_dcs_backlight.c */
-int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
-
 /* intel_runtime_pm.c */
 void intel_runtime_pm_init_early(struct drm_i915_private *dev_priv);
 int intel_power_domains_init(struct drm_i915_private *);
