@@ -1809,9 +1809,6 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 enum intel_display_power_domain
 intel_dsc_power_domain(const struct intel_crtc_state *crtc_state);
 
-/* intel_dp_aux_backlight.c */
-int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector);
-
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
 void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);

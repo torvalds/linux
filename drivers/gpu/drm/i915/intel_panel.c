@@ -35,6 +35,7 @@
 #include <linux/pwm.h>
 
 #include "intel_connector.h"
+#include "intel_dp_aux_backlight.h"
 #include "intel_drv.h"
 #include "intel_panel.h"
 
