@@ -7,6 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <sound/pcm_params.h>
@@ -796,8 +797,8 @@ static int intel_prop_read(struct sdw_bus *bus)
 
 	/* BIOS is not giving some values correctly. So, lets override them */
 	bus->prop.num_freq = 1;
-	bus->prop.freq = devm_kcalloc(bus->dev, sizeof(*bus->prop.freq),
-					bus->prop.num_freq, GFP_KERNEL);
+	bus->prop.freq = devm_kcalloc(bus->dev, bus->prop.num_freq,
+				      sizeof(*bus->prop.freq), GFP_KERNEL);
 	if (!bus->prop.freq)
 		return -ENOMEM;
 
