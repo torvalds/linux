@@ -151,7 +151,7 @@ fib_rule6_test()
 	fib_check_iproute_support "ipproto" "ipproto"
 	if [ $? -eq 0 ]; then
 		match="ipproto ipv6-icmp"
-		fib_rule6_test_match_n_redirect "$match" "$match" "ipproto icmp match"
+		fib_rule6_test_match_n_redirect "$match" "$match" "ipproto ipv6-icmp match"
 	fi
 }
 
