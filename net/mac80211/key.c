@@ -268,11 +268,9 @@ int ieee80211_set_tx_key(struct ieee80211_key *key)
 {
 	struct sta_info *sta = key->sta;
 	struct ieee80211_local *local = key->local;
-	struct ieee80211_key *old;
 
 	assert_key_lock(local);
 
-	old = key_mtx_dereference(local, sta->ptk[sta->ptk_idx]);
 	sta->ptk_idx = key->conf.keyidx;
 	ieee80211_check_fast_xmit(sta);
 
