@@ -600,8 +600,7 @@ int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages)
 		return 0;
 	}
 
-	mlx5_core_dbg(dev, "Waiting for %d pages from %s\n", prev_pages,
-		      dev->priv.name);
+	mlx5_core_dbg(dev, "Waiting for %d pages\n", prev_pages);
 	while (*pages) {
 		if (time_after(jiffies, end)) {
 			mlx5_core_warn(dev, "aborting while there are %d pending pages\n", *pages);
@@ -614,6 +613,6 @@ int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages)
 		msleep(50);
 	}
 
-	mlx5_core_dbg(dev, "All pages received from %s\n", dev->priv.name);
+	mlx5_core_dbg(dev, "All pages received\n");
 	return 0;
 }

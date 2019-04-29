@@ -56,7 +56,6 @@
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
-	MLX5_MAX_NAME_LEN = 16,
 };
 
 enum {
@@ -514,7 +513,6 @@ struct mlx5_rl_table {
 };
 
 struct mlx5_priv {
-	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	*eq_table;
 
 	/* pages stuff */
@@ -641,6 +639,7 @@ struct mlx5_fw_tracer;
 struct mlx5_vxlan;
 
 struct mlx5_core_dev {
+	struct device *device;
 	struct pci_dev	       *pdev;
 	/* sync pci state */
 	struct mutex		pci_status_mutex;
