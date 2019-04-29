@@ -2417,6 +2417,10 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 			dwc2_gadget_incr_frame_num(hs_ep);
 	}
 
+	/* Set actual frame number for completed transfers */
+	if (!using_desc_dma(hsotg) && hs_ep->isochronous)
+		req->frame_number = hsotg->frame_number;
+
 	dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, result);
 }
 
