@@ -178,6 +178,7 @@ mktables
 mktree
 modpost
 modules.builtin
+modules.builtin.modinfo
 modules.order
 modversions.h*
 nconf
