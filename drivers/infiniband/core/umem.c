@@ -101,17 +101,21 @@ static struct scatterlist *ib_umem_add_sg_table(struct scatterlist *sg,
 		 * at i
 		 */
 		for (len = 0; i != npages &&
-			      first_pfn + len == page_to_pfn(page_list[i]);
+			      first_pfn + len == page_to_pfn(page_list[i]) &&
+			      len < (max_seg_sz >> PAGE_SHIFT);
 		     len++)
 			i++;
 
 		/* Squash N contiguous pages from page_list into current sge */
-		if (update_cur_sg &&
-		    ((max_seg_sz - sg->length) >= (len << PAGE_SHIFT))) {
-			sg_set_page(sg, sg_page(sg),
-				    sg->length + (len << PAGE_SHIFT), 0);
+		if (update_cur_sg) {
+			if ((max_seg_sz - sg->length) >= (len << PAGE_SHIFT)) {
+				sg_set_page(sg, sg_page(sg),
+					    sg->length + (len << PAGE_SHIFT),
+					    0);
+				update_cur_sg = false;
+				continue;
+			}
 			update_cur_sg = false;
-			continue;
 		}
 
 		/* Squash N contiguous pages into next sge or first sge */
