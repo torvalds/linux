@@ -321,7 +321,7 @@ cpu's hardware control block.
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
 Capability: basic
-Architectures: x86
+Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in/out)
 Returns: 0 on success, -1 on error
@@ -3810,7 +3810,7 @@ to I/O ports.
 4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
 
 Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
-Architectures: x86
+Architectures: x86, arm, arm64, mips
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in)
 Returns: 0 on success, -1 on error
@@ -4799,7 +4799,7 @@ and injected exceptions.
 
 7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
 
-Architectures: all
+Architectures: x86, arm, arm64, mips
 Parameters: args[0] whether feature should be enabled or not
 
 With this capability enabled, KVM_GET_DIRTY_LOG will not automatically
