@@ -14,6 +14,7 @@ header_test := \
 	i915_timeline_types.h \
 	intel_atomic_plane.h \
 	intel_audio.h \
+	intel_bios.h \
 	intel_cdclk.h \
 	intel_color.h \
 	intel_connector.h \

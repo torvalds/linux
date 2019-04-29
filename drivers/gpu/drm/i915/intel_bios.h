@@ -30,6 +30,8 @@
 #ifndef _INTEL_BIOS_H_
 #define _INTEL_BIOS_H_
 
+#include <linux/types.h>
+
 enum intel_backlight_type {
 	INTEL_BACKLIGHT_PMIC,
 	INTEL_BACKLIGHT_LPSS,
