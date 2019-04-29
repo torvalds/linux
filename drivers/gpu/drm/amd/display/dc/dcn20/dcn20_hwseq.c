@@ -1206,6 +1206,9 @@ static void dcn20_program_all_pipe_in_tree(
 				pipe_ctx->pipe_dlg_param.vupdate_offset,
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
+		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
+				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+
 		dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
 
 		if (dc->hwss.update_odm)
@@ -1441,6 +1444,9 @@ bool dcn20_update_bandwidth(
 					pipe_ctx->pipe_dlg_param.vstartup_start,
 					pipe_ctx->pipe_dlg_param.vupdate_offset,
 					pipe_ctx->pipe_dlg_param.vupdate_width);
+
+			pipe_ctx->stream_res.tg->funcs->set_vtg_params(
+					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
 
 			dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
 		}

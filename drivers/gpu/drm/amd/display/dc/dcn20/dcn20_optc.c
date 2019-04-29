@@ -434,6 +434,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.get_optc_source = optc2_get_optc_source,
 		.set_gsl = optc2_set_gsl,
 		.set_gsl_source_select = optc2_set_gsl_source_select,
+		.set_vtg_params = optc1_set_vtg_params,
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)
