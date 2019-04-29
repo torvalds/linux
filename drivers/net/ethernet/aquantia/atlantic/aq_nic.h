@@ -26,7 +26,8 @@ struct aq_nic_cfg_s {
 	u64 features;
 	u32 rxds;		/* rx ring size, descriptors # */
 	u32 txds;		/* tx ring size, descriptors # */
-	u32 vecs;		/* vecs==allocated irqs */
+	u32 vecs;		/* allocated rx/tx vectors */
+	u32 link_irq_vec;
 	u32 irq_type;
 	u32 itr;
 	u16 rx_itr;

@@ -88,6 +88,8 @@ struct aq_stats_s {
 #define AQ_HW_IRQ_MSI     2U
 #define AQ_HW_IRQ_MSIX    3U
 
+#define AQ_HW_SERVICE_IRQS   1U
+
 #define AQ_HW_POWER_STATE_D0   0U
 #define AQ_HW_POWER_STATE_D3   3U
 
