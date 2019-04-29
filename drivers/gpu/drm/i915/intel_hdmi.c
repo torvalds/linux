@@ -863,19 +863,6 @@ static void g4x_set_infoframes(struct intel_encoder *encoder,
 			      &crtc_state->infoframes.hdmi);
 }
 
-static bool hdmi_sink_is_deep_color(const struct drm_connector_state *conn_state)
-{
-	struct drm_connector *connector = conn_state->connector;
-
-	/*
-	 * HDMI cloning is only supported on g4x which doesn't
-	 * support deep color or GCP infoframes anyway so no
-	 * need to worry about multiple HDMI sinks here.
-	 */
-
-	return connector->display_info.bpc > 8;
-}
-
 /*
  * Determine if default_phase=1 can be indicated in the GCP infoframe.
  *
@@ -980,8 +967,8 @@ static void intel_hdmi_compute_gcp_infoframe(struct intel_encoder *encoder,
 	crtc_state->infoframes.enable |=
 		intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GENERAL_CONTROL);
 
-	/* Indicate color depth whenever the sink supports deep color */
-	if (hdmi_sink_is_deep_color(conn_state))
+	/* Indicate color indication for deep color mode */
+	if (crtc_state->pipe_bpp > 24)
 		crtc_state->infoframes.gcp |= GCP_COLOR_INDICATION;
 
 	/* Enable default_phase whenever the display mode is suitably aligned */
