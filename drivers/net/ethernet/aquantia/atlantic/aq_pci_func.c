@@ -20,6 +20,7 @@
 #include "hw_atl/hw_atl_a0.h"
 #include "hw_atl/hw_atl_b0.h"
 #include "aq_filters.h"
+#include "aq_drvinfo.h"
 
 static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_0001), },
@@ -288,6 +289,8 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	err = aq_nic_ndev_register(self);
 	if (err < 0)
 		goto err_register;
+
+	aq_drvinfo_init(ndev);
 
 	return 0;
 
