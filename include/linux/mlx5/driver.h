@@ -512,6 +512,12 @@ struct mlx5_rl_table {
 	struct mlx5_rl_entry   *rl_entry;
 };
 
+struct mlx5_core_roce {
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_group *fg;
+	struct mlx5_flow_handle *allow_rule;
+};
+
 struct mlx5_priv {
 	struct mlx5_eq_table	*eq_table;
 
@@ -565,6 +571,7 @@ struct mlx5_priv {
 	struct mlx5_lag		*lag;
 	struct mlx5_devcom	*devcom;
 	unsigned long		pci_dev_data;
+	struct mlx5_core_roce	roce;
 	struct mlx5_fc_stats		fc_stats;
 	struct mlx5_rl_table            rl_table;
 
