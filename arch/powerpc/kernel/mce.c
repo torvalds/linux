@@ -123,6 +123,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	mce->initiator = mce_err->initiator;
 	mce->severity = mce_err->severity;
 	mce->sync_error = mce_err->sync_error;
+	mce->error_class = mce_err->error_class;
 
 	/*
 	 * Populate the mce error_type and type-specific error_type.
@@ -363,6 +364,13 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		"Store (timeout)",
 		"Page table walk Load/Store (timeout)",
 	};
+	static const char *mc_error_class[] = {
+		"Unknown",
+		"Hardware error",
+		"Probable Hardware error (some chance of software cause)",
+		"Software error",
+		"Probable Software error (some chance of hardware cause)",
+	};
 
 	/* Print things out */
 	if (evt->version != MCE_V1) {
@@ -487,6 +495,10 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		printk("%sMCE: CPU%d: NIP: [%016llx] %pS%s\n",
 			level, evt->cpu, evt->srr0, (void *)evt->srr0, pa_str);
 	}
+
+	subtype = evt->error_class < ARRAY_SIZE(mc_error_class) ?
+		mc_error_class[evt->error_class] : "Unknown";
+	printk("%sMCE: CPU%d: %s\n", level, evt->cpu, subtype);
 }
 EXPORT_SYMBOL_GPL(machine_check_print_event_info);
 

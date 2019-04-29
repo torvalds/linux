@@ -56,6 +56,14 @@ enum MCE_ErrorType {
 	MCE_ERROR_TYPE_LINK = 7,
 };
 
+enum MCE_ErrorClass {
+	MCE_ECLASS_UNKNOWN = 0,
+	MCE_ECLASS_HARDWARE,
+	MCE_ECLASS_HARD_INDETERMINATE,
+	MCE_ECLASS_SOFTWARE,
+	MCE_ECLASS_SOFT_INDETERMINATE,
+};
+
 enum MCE_UeErrorType {
 	MCE_UE_ERROR_INDETERMINATE = 0,
 	MCE_UE_ERROR_IFETCH = 1,
@@ -115,6 +123,7 @@ struct machine_check_event {
 	enum MCE_Severity	severity:8;
 	enum MCE_Initiator	initiator:8;
 	enum MCE_ErrorType	error_type:8;
+	enum MCE_ErrorClass	error_class:8;
 	enum MCE_Disposition	disposition:8;
 	bool			sync_error;
 	u16			cpu;
@@ -195,6 +204,7 @@ struct mce_error_info {
 	} u;
 	enum MCE_Severity	severity:8;
 	enum MCE_Initiator	initiator:8;
+	enum MCE_ErrorClass	error_class:8;
 	bool			sync_error;
 };
 
