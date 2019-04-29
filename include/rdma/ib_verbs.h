@@ -2221,8 +2221,6 @@ struct ib_cache {
 	struct ib_event_handler event_handler;
 };
 
-struct iw_cm_verbs;
-
 struct ib_port_immutable {
 	int                           pkey_tbl_len;
 	int                           gid_tbl_len;
@@ -2304,6 +2302,8 @@ struct ib_counters_read_attr {
 };
 
 struct uverbs_attr_bundle;
+struct iw_cm_id;
+struct iw_cm_conn_param;
 
 #define INIT_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)                      \
 	.size_##ib_struct =                                                    \
@@ -2581,6 +2581,19 @@ struct ib_device_ops {
 	 */
 	void (*dealloc_driver)(struct ib_device *dev);
 
+	/* iWarp CM callbacks */
+	void (*iw_add_ref)(struct ib_qp *qp);
+	void (*iw_rem_ref)(struct ib_qp *qp);
+	struct ib_qp *(*iw_get_qp)(struct ib_device *device, int qpn);
+	int (*iw_connect)(struct iw_cm_id *cm_id,
+			  struct iw_cm_conn_param *conn_param);
+	int (*iw_accept)(struct iw_cm_id *cm_id,
+			 struct iw_cm_conn_param *conn_param);
+	int (*iw_reject)(struct iw_cm_id *cm_id, const void *pdata,
+			 u8 pdata_len);
+	int (*iw_create_listen)(struct iw_cm_id *cm_id, int backlog);
+	int (*iw_destroy_listen)(struct iw_cm_id *cm_id);
+
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 	DECLARE_RDMA_OBJ_SIZE(ib_srq);
@@ -2620,8 +2633,6 @@ struct ib_device {
 	struct ib_port_data *port_data;
 
 	int			      num_comp_vectors;
-
-	struct iw_cm_verbs	     *iwcm;
 
 	struct module               *owner;
 	union {
@@ -2675,6 +2686,10 @@ struct ib_device {
 	struct mutex compat_devs_mutex;
 	/* Maintains compat devices for each net namespace */
 	struct xarray compat_devs;
+
+	/* Used by iWarp CM */
+	char iw_ifname[IFNAMSIZ];
+	u32 iw_driver_flags;
 };
 
 struct ib_client {

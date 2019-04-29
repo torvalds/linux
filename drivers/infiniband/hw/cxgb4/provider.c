@@ -510,6 +510,14 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.get_dma_mr = c4iw_get_dma_mr,
 	.get_hw_stats = c4iw_get_mib,
 	.get_port_immutable = c4iw_port_immutable,
+	.iw_accept = c4iw_accept_cr,
+	.iw_add_ref = c4iw_qp_add_ref,
+	.iw_connect = c4iw_connect,
+	.iw_create_listen = c4iw_create_listen,
+	.iw_destroy_listen = c4iw_destroy_listen,
+	.iw_get_qp = c4iw_get_qp,
+	.iw_reject = c4iw_reject_cr,
+	.iw_rem_ref = c4iw_qp_rem_ref,
 	.map_mr_sg = c4iw_map_mr_sg,
 	.mmap = c4iw_mmap,
 	.modify_qp = c4iw_ib_modify_qp,
@@ -588,36 +596,20 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 
-	dev->ibdev.iwcm = kzalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
-	if (!dev->ibdev.iwcm) {
-		ret = -ENOMEM;
-		goto err_dealloc_ctx;
-	}
-
-	dev->ibdev.iwcm->connect = c4iw_connect;
-	dev->ibdev.iwcm->accept = c4iw_accept_cr;
-	dev->ibdev.iwcm->reject = c4iw_reject_cr;
-	dev->ibdev.iwcm->create_listen = c4iw_create_listen;
-	dev->ibdev.iwcm->destroy_listen = c4iw_destroy_listen;
-	dev->ibdev.iwcm->add_ref = c4iw_qp_add_ref;
-	dev->ibdev.iwcm->rem_ref = c4iw_qp_rem_ref;
-	dev->ibdev.iwcm->get_qp = c4iw_get_qp;
-	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.lldi.ports[0]->name,
-	       sizeof(dev->ibdev.iwcm->ifname));
+	memcpy(dev->ibdev.iw_ifname, dev->rdev.lldi.ports[0]->name,
+	       sizeof(dev->ibdev.iw_ifname));
 
 	rdma_set_device_sysfs_group(&dev->ibdev, &c4iw_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_CXGB4;
 	ib_set_device_ops(&dev->ibdev, &c4iw_dev_ops);
 	ret = set_netdevs(&dev->ibdev, &dev->rdev);
 	if (ret)
-		goto err_kfree_iwcm;
+		goto err_dealloc_ctx;
 	ret = ib_register_device(&dev->ibdev, "cxgb4_%d");
 	if (ret)
-		goto err_kfree_iwcm;
+		goto err_dealloc_ctx;
 	return;
 
-err_kfree_iwcm:
-	kfree(dev->ibdev.iwcm);
 err_dealloc_ctx:
 	pr_err("%s - Failed registering iwarp device: %d\n",
 	       pci_name(ctx->lldi.pdev), ret);
@@ -629,6 +621,5 @@ void c4iw_unregister_device(struct c4iw_dev *dev)
 {
 	pr_debug("c4iw_dev %p\n", dev);
 	ib_unregister_device(&dev->ibdev);
-	kfree(dev->ibdev.iwcm);
 	return;
 }

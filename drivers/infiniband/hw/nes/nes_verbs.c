@@ -3577,6 +3577,14 @@ static const struct ib_device_ops nes_dev_ops = {
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = nes_get_dma_mr,
 	.get_port_immutable = nes_port_immutable,
+	.iw_accept = nes_accept,
+	.iw_add_ref = nes_add_ref,
+	.iw_connect = nes_connect,
+	.iw_create_listen = nes_create_listen,
+	.iw_destroy_listen = nes_destroy_listen,
+	.iw_get_qp = nes_get_qp,
+	.iw_reject = nes_reject,
+	.iw_rem_ref = nes_rem_ref,
 	.map_mr_sg = nes_map_mr_sg,
 	.mmap = nes_mmap,
 	.modify_qp = nes_modify_qp,
@@ -3641,23 +3649,9 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.num_comp_vectors = 1;
 	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
 
-	nesibdev->ibdev.iwcm = kzalloc(sizeof(*nesibdev->ibdev.iwcm), GFP_KERNEL);
-	if (nesibdev->ibdev.iwcm == NULL) {
-		ib_dealloc_device(&nesibdev->ibdev);
-		return NULL;
-	}
-	nesibdev->ibdev.iwcm->add_ref = nes_add_ref;
-	nesibdev->ibdev.iwcm->rem_ref = nes_rem_ref;
-	nesibdev->ibdev.iwcm->get_qp = nes_get_qp;
-	nesibdev->ibdev.iwcm->connect = nes_connect;
-	nesibdev->ibdev.iwcm->accept = nes_accept;
-	nesibdev->ibdev.iwcm->reject = nes_reject;
-	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
-	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
-
 	ib_set_device_ops(&nesibdev->ibdev, &nes_dev_ops);
-	memcpy(nesibdev->ibdev.iwcm->ifname, netdev->name,
-	       sizeof(nesibdev->ibdev.iwcm->ifname));
+	memcpy(nesibdev->ibdev.iw_ifname, netdev->name,
+	       sizeof(nesibdev->ibdev.iw_ifname));
 
 	return nesibdev;
 }
@@ -3718,7 +3712,6 @@ void nes_destroy_ofa_device(struct nes_ib_device *nesibdev)
 
 	nes_unregister_ofa_device(nesibdev);
 
-	kfree(nesibdev->ibdev.iwcm);
 	ib_dealloc_device(&nesibdev->ibdev);
 }
 

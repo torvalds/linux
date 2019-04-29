@@ -148,6 +148,14 @@ static const struct attribute_group qedr_attr_group = {
 
 static const struct ib_device_ops qedr_iw_dev_ops = {
 	.get_port_immutable = qedr_iw_port_immutable,
+	.iw_accept = qedr_iw_accept,
+	.iw_add_ref = qedr_iw_qp_add_ref,
+	.iw_connect = qedr_iw_connect,
+	.iw_create_listen = qedr_iw_create_listen,
+	.iw_destroy_listen = qedr_iw_destroy_listen,
+	.iw_get_qp = qedr_iw_get_qp,
+	.iw_reject = qedr_iw_reject,
+	.iw_rem_ref = qedr_iw_qp_rem_ref,
 	.query_gid = qedr_iw_query_gid,
 };
 
@@ -157,21 +165,8 @@ static int qedr_iw_register_device(struct qedr_dev *dev)
 
 	ib_set_device_ops(&dev->ibdev, &qedr_iw_dev_ops);
 
-	dev->ibdev.iwcm = kzalloc(sizeof(*dev->ibdev.iwcm), GFP_KERNEL);
-	if (!dev->ibdev.iwcm)
-		return -ENOMEM;
-
-	dev->ibdev.iwcm->connect = qedr_iw_connect;
-	dev->ibdev.iwcm->accept = qedr_iw_accept;
-	dev->ibdev.iwcm->reject = qedr_iw_reject;
-	dev->ibdev.iwcm->create_listen = qedr_iw_create_listen;
-	dev->ibdev.iwcm->destroy_listen = qedr_iw_destroy_listen;
-	dev->ibdev.iwcm->add_ref = qedr_iw_qp_add_ref;
-	dev->ibdev.iwcm->rem_ref = qedr_iw_qp_rem_ref;
-	dev->ibdev.iwcm->get_qp = qedr_iw_get_qp;
-
-	memcpy(dev->ibdev.iwcm->ifname,
-	       dev->ndev->name, sizeof(dev->ibdev.iwcm->ifname));
+	memcpy(dev->ibdev.iw_ifname,
+	       dev->ndev->name, sizeof(dev->ibdev.iw_ifname));
 
 	return 0;
 }

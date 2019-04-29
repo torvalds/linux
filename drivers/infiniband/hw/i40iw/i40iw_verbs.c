@@ -2704,6 +2704,14 @@ static const struct ib_device_ops i40iw_dev_ops = {
 	.get_dma_mr = i40iw_get_dma_mr,
 	.get_hw_stats = i40iw_get_hw_stats,
 	.get_port_immutable = i40iw_port_immutable,
+	.iw_accept = i40iw_accept,
+	.iw_add_ref = i40iw_add_ref,
+	.iw_connect = i40iw_connect,
+	.iw_create_listen = i40iw_create_listen,
+	.iw_destroy_listen = i40iw_destroy_listen,
+	.iw_get_qp = i40iw_get_qp,
+	.iw_reject = i40iw_reject,
+	.iw_rem_ref = i40iw_rem_ref,
 	.map_mr_sg = i40iw_map_mr_sg,
 	.mmap = i40iw_mmap,
 	.modify_qp = i40iw_modify_qp,
@@ -2767,22 +2775,8 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.phys_port_cnt = 1;
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
-	iwibdev->ibdev.iwcm = kzalloc(sizeof(*iwibdev->ibdev.iwcm), GFP_KERNEL);
-	if (!iwibdev->ibdev.iwcm) {
-		ib_dealloc_device(&iwibdev->ibdev);
-		return NULL;
-	}
-
-	iwibdev->ibdev.iwcm->add_ref = i40iw_add_ref;
-	iwibdev->ibdev.iwcm->rem_ref = i40iw_rem_ref;
-	iwibdev->ibdev.iwcm->get_qp = i40iw_get_qp;
-	iwibdev->ibdev.iwcm->connect = i40iw_connect;
-	iwibdev->ibdev.iwcm->accept = i40iw_accept;
-	iwibdev->ibdev.iwcm->reject = i40iw_reject;
-	iwibdev->ibdev.iwcm->create_listen = i40iw_create_listen;
-	iwibdev->ibdev.iwcm->destroy_listen = i40iw_destroy_listen;
-	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
-	       sizeof(iwibdev->ibdev.iwcm->ifname));
+	memcpy(iwibdev->ibdev.iw_ifname, netdev->name,
+	       sizeof(iwibdev->ibdev.iw_ifname));
 	ib_set_device_ops(&iwibdev->ibdev, &i40iw_dev_ops);
 
 	return iwibdev;
@@ -2813,8 +2807,6 @@ void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
 		return;
 
 	ib_unregister_device(&iwibdev->ibdev);
-	kfree(iwibdev->ibdev.iwcm);
-	iwibdev->ibdev.iwcm = NULL;
 	wait_event_timeout(iwibdev->iwdev->close_wq,
 			   !atomic64_read(&iwibdev->iwdev->use_count),
 			   I40IW_EVENT_TIMEOUT);
@@ -2842,8 +2834,6 @@ int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 
 	return 0;
 error:
-	kfree(iwdev->iwibdev->ibdev.iwcm);
-	iwdev->iwibdev->ibdev.iwcm = NULL;
 	ib_dealloc_device(&iwdev->iwibdev->ibdev);
 	return ret;
 }

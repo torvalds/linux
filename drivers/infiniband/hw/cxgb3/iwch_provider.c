@@ -1321,6 +1321,14 @@ static const struct ib_device_ops iwch_dev_ops = {
 	.get_dma_mr = iwch_get_dma_mr,
 	.get_hw_stats = iwch_get_mib,
 	.get_port_immutable = iwch_port_immutable,
+	.iw_accept = iwch_accept_cr,
+	.iw_add_ref = iwch_qp_add_ref,
+	.iw_connect = iwch_connect,
+	.iw_create_listen = iwch_create_listen,
+	.iw_destroy_listen = iwch_destroy_listen,
+	.iw_get_qp = iwch_get_qp,
+	.iw_reject = iwch_reject_cr,
+	.iw_rem_ref = iwch_qp_rem_ref,
 	.map_mr_sg = iwch_map_mr_sg,
 	.mmap = iwch_mmap,
 	.modify_qp = iwch_ib_modify_qp,
@@ -1340,8 +1348,6 @@ static const struct ib_device_ops iwch_dev_ops = {
 
 int iwch_register_device(struct iwch_dev *dev)
 {
-	int ret;
-
 	pr_debug("%s iwch_dev %p\n", __func__, dev);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
@@ -1379,34 +1385,18 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.dev.parent = &dev->rdev.rnic_info.pdev->dev;
 	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
 
-	dev->ibdev.iwcm = kzalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
-	if (!dev->ibdev.iwcm)
-		return -ENOMEM;
-
-	dev->ibdev.iwcm->connect = iwch_connect;
-	dev->ibdev.iwcm->accept = iwch_accept_cr;
-	dev->ibdev.iwcm->reject = iwch_reject_cr;
-	dev->ibdev.iwcm->create_listen = iwch_create_listen;
-	dev->ibdev.iwcm->destroy_listen = iwch_destroy_listen;
-	dev->ibdev.iwcm->add_ref = iwch_qp_add_ref;
-	dev->ibdev.iwcm->rem_ref = iwch_qp_rem_ref;
-	dev->ibdev.iwcm->get_qp = iwch_get_qp;
-	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.t3cdev_p->lldev->name,
-	       sizeof(dev->ibdev.iwcm->ifname));
+	memcpy(dev->ibdev.iw_ifname, dev->rdev.t3cdev_p->lldev->name,
+	       sizeof(dev->ibdev.iw_ifname));
 
 	dev->ibdev.driver_id = RDMA_DRIVER_CXGB3;
 	rdma_set_device_sysfs_group(&dev->ibdev, &iwch_attr_group);
 	ib_set_device_ops(&dev->ibdev, &iwch_dev_ops);
-	ret = ib_register_device(&dev->ibdev, "cxgb3_%d");
-	if (ret)
-		kfree(dev->ibdev.iwcm);
-	return ret;
+	return ib_register_device(&dev->ibdev, "cxgb3_%d");
 }
 
 void iwch_unregister_device(struct iwch_dev *dev)
 {
 	pr_debug("%s iwch_dev %p\n", __func__, dev);
 	ib_unregister_device(&dev->ibdev);
-	kfree(dev->ibdev.iwcm);
 	return;
 }

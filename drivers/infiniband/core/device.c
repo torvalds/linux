@@ -2370,6 +2370,14 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, get_vf_config);
 	SET_DEVICE_OP(dev_ops, get_vf_stats);
 	SET_DEVICE_OP(dev_ops, init_port);
+	SET_DEVICE_OP(dev_ops, iw_accept);
+	SET_DEVICE_OP(dev_ops, iw_add_ref);
+	SET_DEVICE_OP(dev_ops, iw_connect);
+	SET_DEVICE_OP(dev_ops, iw_create_listen);
+	SET_DEVICE_OP(dev_ops, iw_destroy_listen);
+	SET_DEVICE_OP(dev_ops, iw_get_qp);
+	SET_DEVICE_OP(dev_ops, iw_reject);
+	SET_DEVICE_OP(dev_ops, iw_rem_ref);
 	SET_DEVICE_OP(dev_ops, map_mr_sg);
 	SET_DEVICE_OP(dev_ops, map_phys_fmr);
 	SET_DEVICE_OP(dev_ops, mmap);
