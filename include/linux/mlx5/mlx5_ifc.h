@@ -86,6 +86,11 @@ enum {
 
 enum {
 	MLX5_GENERAL_OBJ_TYPES_CAP_SW_ICM = (1ULL << MLX5_OBJ_TYPE_SW_ICM),
+	MLX5_GENERAL_OBJ_TYPES_CAP_GENEVE_TLV_OPT = (1ULL << 11),
+};
+
+enum {
+	MLX5_OBJ_TYPE_GENEVE_TLV_OPT = 0x000b,
 };
 
 enum {
@@ -339,7 +344,8 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         inner_tcp_flags[0x1];
 	u8         reserved_at_37[0x9];
 
-	u8         reserved_at_40[0x5];
+	u8         geneve_tlv_option_0_data[0x1];
+	u8         reserved_at_41[0x4];
 	u8         outer_first_mpls_over_udp[0x4];
 	u8         outer_first_mpls_over_gre[0x4];
 	u8         inner_first_mpls[0x4];
@@ -526,6 +532,12 @@ struct mlx5_ifc_fte_match_set_misc2_bits {
 	u8         metadata_reg_a[0x20];
 
 	u8         reserved_at_1a0[0x60];
+};
+
+struct mlx5_ifc_fte_match_set_misc3_bits {
+	u8         reserved_at_0[0x120];
+	u8         geneve_tlv_option_0_data[0x20];
+	u8         reserved_at_140[0xc0];
 };
 
 struct mlx5_ifc_cmd_pas_bits {
@@ -1247,9 +1259,13 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   num_of_uars_per_page[0x20];
 
 	u8         flex_parser_protocols[0x20];
-	u8         reserved_at_560[0x20];
 
-	u8         reserved_at_580[0x3c];
+	u8         max_geneve_tlv_options[0x8];
+	u8         reserved_at_568[0x3];
+	u8         max_geneve_tlv_option_data_len[0x5];
+	u8         reserved_at_570[0x10];
+
+	u8         reserved_at_580[0x1c];
 	u8         mini_cqe_resp_stride_index[0x1];
 	u8         cqe_128_always[0x1];
 	u8         cqe_compression_128[0x1];
@@ -1283,7 +1299,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         uctx_cap[0x20];
 
-	u8	   reserved_at_6c0[0x140];
+	u8         reserved_at_6c0[0x4];
+	u8         flex_parser_id_geneve_tlv_option_0[0x4];
+	u8         reserved_at_6c8[0x138];
 };
 
 enum mlx5_flow_destination_type {
@@ -1341,7 +1359,9 @@ struct mlx5_ifc_fte_match_param_bits {
 
 	struct mlx5_ifc_fte_match_set_misc2_bits misc_parameters_2;
 
-	u8         reserved_at_800[0x800];
+	struct mlx5_ifc_fte_match_set_misc3_bits misc_parameters_3;
+
+	u8         reserved_at_a00[0x600];
 };
 
 enum {
@@ -4850,6 +4870,7 @@ enum {
 	MLX5_QUERY_FLOW_GROUP_OUT_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS  = 0x1,
 	MLX5_QUERY_FLOW_GROUP_OUT_MATCH_CRITERIA_ENABLE_INNER_HEADERS    = 0x2,
 	MLX5_QUERY_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_2 = 0x3,
+	MLX5_QUERY_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS_3 = 0x4,
 };
 
 struct mlx5_ifc_query_flow_group_out_bits {
@@ -9545,6 +9566,20 @@ struct mlx5_ifc_sw_icm_bits {
 	u8         sw_icm_start_addr[0x40];
 
 	u8         reserved_at_c0[0x140];
+}; 
+
+struct mlx5_ifc_geneve_tlv_option_bits {
+	u8         modify_field_select[0x40];
+
+	u8         reserved_at_40[0x18];
+	u8         geneve_option_fte_index[0x8];
+
+	u8         option_class[0x10];
+	u8         option_type[0x8];
+	u8         reserved_at_78[0x3];
+	u8         option_data_length[0x5];
+
+	u8         reserved_at_80[0x180];
 };
 
 struct mlx5_ifc_create_umem_in_bits {
@@ -9587,6 +9622,11 @@ struct mlx5_ifc_destroy_uctx_in_bits {
 struct mlx5_ifc_create_sw_icm_in_bits {
 	struct mlx5_ifc_general_obj_in_cmd_hdr_bits   hdr;
 	struct mlx5_ifc_sw_icm_bits		      sw_icm;
+};
+
+struct mlx5_ifc_create_geneve_tlv_option_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits   hdr;
+	struct mlx5_ifc_geneve_tlv_option_bits        geneve_tlv_opt;
 };
 
 struct mlx5_ifc_mtrc_string_db_param_bits {
