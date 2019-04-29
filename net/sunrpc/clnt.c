@@ -1814,7 +1814,14 @@ call_encode(struct rpc_task *task)
 			rpc_delay(task, HZ >> 4);
 			break;
 		case -EKEYEXPIRED:
-			task->tk_action = call_refresh;
+			if (!task->tk_cred_retry) {
+				rpc_exit(task, task->tk_status);
+			} else {
+				task->tk_action = call_refresh;
+				task->tk_cred_retry--;
+				dprintk("RPC: %5u %s: retry refresh creds\n",
+					task->tk_pid, __func__);
+			}
 			break;
 		default:
 			rpc_call_rpcerror(task, task->tk_status);
