@@ -200,12 +200,13 @@ static void complete_skb(struct sk_buff *nskb, struct sk_buff *skb, int headln)
 
 	skb_put(nskb, skb->len);
 	memcpy(nskb->data, skb->data, headln);
-	update_chksum(nskb, headln);
 
 	nskb->destructor = skb->destructor;
 	nskb->sk = sk;
 	skb->destructor = NULL;
 	skb->sk = NULL;
+
+	update_chksum(nskb, headln);
 
 	delta = nskb->truesize - skb->truesize;
 	if (likely(delta < 0))
