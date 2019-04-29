@@ -3548,10 +3548,8 @@ static void dm_integrity_dtr(struct dm_target *ti)
 		destroy_workqueue(ic->writer_wq);
 	if (ic->recalc_wq)
 		destroy_workqueue(ic->recalc_wq);
-	if (ic->recalc_buffer)
-		vfree(ic->recalc_buffer);
-	if (ic->recalc_tags)
-		kvfree(ic->recalc_tags);
+	vfree(ic->recalc_buffer);
+	kvfree(ic->recalc_tags);
 	if (ic->bufio)
 		dm_bufio_client_destroy(ic->bufio);
 	mempool_exit(&ic->journal_io_mempool);
