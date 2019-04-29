@@ -16,9 +16,7 @@ struct npe_regs {
 };
 
 struct npe {
-	struct resource *mem_res;
 	struct npe_regs __iomem *regs;
-	u32 regs_phys;
 	int id;
 	int valid;
 };

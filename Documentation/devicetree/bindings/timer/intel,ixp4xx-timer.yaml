@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2018 Linaro Ltd.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/timer/intel-ixp4xx-timer.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Intel IXP4xx XScale Networking Processors Timers
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: This timer is found in the Intel IXP4xx processors.
+
+properties:
+  compatible:
+    items:
+      - const: intel,ixp4xx-timer
+
+  reg:
+    description: Should contain registers location and length
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: Timer 1 interrupt
+      - description: Timer 2 interrupt
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    timer@c8005000 {
+        compatible = "intel,ixp4xx-timer";
+        reg = <0xc8005000 0x100>;
+        interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+    };

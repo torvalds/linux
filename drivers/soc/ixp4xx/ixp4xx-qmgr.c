@@ -12,10 +12,13 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <mach/qmgr.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
-static struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
-static struct resource *mem_res;
+static struct qmgr_regs __iomem *qmgr_regs;
+static int qmgr_irq_1;
+static int qmgr_irq_2;
 static spinlock_t qmgr_lock;
 static u32 used_sram_bitmap[4]; /* 128 16-dword pages */
 static void (*irq_handlers[QUEUES])(void *pdev);
@@ -24,6 +27,94 @@ static void *irq_pdevs[QUEUES];
 #if DEBUG_QMGR
 char qmgr_queue_descs[QUEUES][32];
 #endif
+
+void qmgr_put_entry(unsigned int queue, u32 val)
+{
+#if DEBUG_QMGR
+	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+
+	printk(KERN_DEBUG "Queue %s(%i) put %X\n",
+	       qmgr_queue_descs[queue], queue, val);
+#endif
+	__raw_writel(val, &qmgr_regs->acc[queue][0]);
+}
+
+u32 qmgr_get_entry(unsigned int queue)
+{
+	u32 val;
+	val = __raw_readl(&qmgr_regs->acc[queue][0]);
+#if DEBUG_QMGR
+	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+
+	printk(KERN_DEBUG "Queue %s(%i) get %X\n",
+	       qmgr_queue_descs[queue], queue, val);
+#endif
+	return val;
+}
+
+static int __qmgr_get_stat1(unsigned int queue)
+{
+	return (__raw_readl(&qmgr_regs->stat1[queue >> 3])
+		>> ((queue & 7) << 2)) & 0xF;
+}
+
+static int __qmgr_get_stat2(unsigned int queue)
+{
+	BUG_ON(queue >= HALF_QUEUES);
+	return (__raw_readl(&qmgr_regs->stat2[queue >> 4])
+		>> ((queue & 0xF) << 1)) & 0x3;
+}
+
+/**
+ * qmgr_stat_empty() - checks if a hardware queue is empty
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue is empty.
+ */
+int qmgr_stat_empty(unsigned int queue)
+{
+	BUG_ON(queue >= HALF_QUEUES);
+	return __qmgr_get_stat1(queue) & QUEUE_STAT1_EMPTY;
+}
+
+/**
+ * qmgr_stat_below_low_watermark() - checks if a queue is below low watermark
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue is below low watermark.
+ */
+int qmgr_stat_below_low_watermark(unsigned int queue)
+{
+	if (queue >= HALF_QUEUES)
+		return (__raw_readl(&qmgr_regs->statne_h) >>
+			(queue - HALF_QUEUES)) & 0x01;
+	return __qmgr_get_stat1(queue) & QUEUE_STAT1_NEARLY_EMPTY;
+}
+
+/**
+ * qmgr_stat_full() - checks if a hardware queue is full
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue is full.
+ */
+int qmgr_stat_full(unsigned int queue)
+{
+	if (queue >= HALF_QUEUES)
+		return (__raw_readl(&qmgr_regs->statf_h) >>
+			(queue - HALF_QUEUES)) & 0x01;
+	return __qmgr_get_stat1(queue) & QUEUE_STAT1_FULL;
+}
+
+/**
+ * qmgr_stat_overflow() - checks if a hardware queue experienced overflow
+ * @queue:	queue number
+ *
+ * Returns non-zero value if the queue experienced overflow.
+ */
+int qmgr_stat_overflow(unsigned int queue)
+{
+	return __qmgr_get_stat2(queue) & QUEUE_STAT2_OVERFLOW;
+}
 
 void qmgr_set_irq(unsigned int queue, int src,
 		  void (*handler)(void *pdev), void *pdev)
@@ -95,7 +186,7 @@ static irqreturn_t qmgr_irq2_a0(int irq, void *pdev)
 
 static irqreturn_t qmgr_irq(int irq, void *pdev)
 {
-	int i, half = (irq == IRQ_IXP4XX_QM1 ? 0 : 1);
+	int i, half = (irq == qmgr_irq_1 ? 0 : 1);
 	u32 req_bitmap = __raw_readl(&qmgr_regs->irqstat[half]);
 
 	if (!req_bitmap)
@@ -282,16 +373,29 @@ void qmgr_release_queue(unsigned int queue)
 	module_put(THIS_MODULE);
 }
 
-static int qmgr_init(void)
+static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 {
 	int i, err;
 	irq_handler_t handler1, handler2;
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+	int irq1, irq2;
 
-	mem_res = request_mem_region(IXP4XX_QMGR_BASE_PHYS,
-				     IXP4XX_QMGR_REGION_SIZE,
-				     "IXP4xx Queue Manager");
-	if (mem_res == NULL)
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+	qmgr_regs = devm_ioremap_resource(dev, res);
+	if (!qmgr_regs)
+		return -ENOMEM;
+
+	irq1 = platform_get_irq(pdev, 0);
+	if (irq1 <= 0)
+		return irq1 ? irq1 : -EINVAL;
+	qmgr_irq_1 = irq1;
+	irq2 = platform_get_irq(pdev, 1);
+	if (irq2 <= 0)
+		return irq2 ? irq2 : -EINVAL;
+	qmgr_irq_2 = irq2;
 
 	/* reset qmgr registers */
 	for (i = 0; i < 4; i++) {
@@ -316,50 +420,62 @@ static int qmgr_init(void)
 	} else
 		handler1 = handler2 = qmgr_irq;
 
-	err = request_irq(IRQ_IXP4XX_QM1, handler1, 0, "IXP4xx Queue Manager",
-			  NULL);
+	err = devm_request_irq(dev, irq1, handler1, 0, "IXP4xx Queue Manager",
+			       NULL);
 	if (err) {
-		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
-		       IRQ_IXP4XX_QM1, err);
-		goto error_irq;
+		dev_err(dev, "failed to request IRQ%i (%i)\n",
+			irq1, err);
+		return err;
 	}
 
-	err = request_irq(IRQ_IXP4XX_QM2, handler2, 0, "IXP4xx Queue Manager",
-			  NULL);
+	err = devm_request_irq(dev, irq2, handler2, 0, "IXP4xx Queue Manager",
+			       NULL);
 	if (err) {
-		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
-		       IRQ_IXP4XX_QM2, err);
-		goto error_irq2;
+		dev_err(dev, "failed to request IRQ%i (%i)\n",
+			irq2, err);
+		return err;
 	}
 
 	used_sram_bitmap[0] = 0xF; /* 4 first pages reserved for config */
 	spin_lock_init(&qmgr_lock);
 
-	printk(KERN_INFO "IXP4xx Queue Manager initialized.\n");
+	dev_info(dev, "IXP4xx Queue Manager initialized.\n");
 	return 0;
-
-error_irq2:
-	free_irq(IRQ_IXP4XX_QM1, NULL);
-error_irq:
-	release_mem_region(IXP4XX_QMGR_BASE_PHYS, IXP4XX_QMGR_REGION_SIZE);
-	return err;
 }
 
-static void qmgr_remove(void)
+static int ixp4xx_qmgr_remove(struct platform_device *pdev)
 {
-	free_irq(IRQ_IXP4XX_QM1, NULL);
-	free_irq(IRQ_IXP4XX_QM2, NULL);
-	synchronize_irq(IRQ_IXP4XX_QM1);
-	synchronize_irq(IRQ_IXP4XX_QM2);
-	release_mem_region(IXP4XX_QMGR_BASE_PHYS, IXP4XX_QMGR_REGION_SIZE);
+	synchronize_irq(qmgr_irq_1);
+	synchronize_irq(qmgr_irq_2);
+	return 0;
 }
 
-module_init(qmgr_init);
-module_exit(qmgr_remove);
+static const struct of_device_id ixp4xx_qmgr_of_match[] = {
+	{
+		.compatible = "intel,ixp4xx-ahb-queue-manager",
+        },
+	{},
+};
+
+static struct platform_driver ixp4xx_qmgr_driver = {
+	.driver = {
+		.name           = "ixp4xx-qmgr",
+		.of_match_table = of_match_ptr(ixp4xx_qmgr_of_match),
+	},
+	.probe = ixp4xx_qmgr_probe,
+	.remove = ixp4xx_qmgr_remove,
+};
+module_platform_driver(ixp4xx_qmgr_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Krzysztof Halasa");
 
+EXPORT_SYMBOL(qmgr_put_entry);
+EXPORT_SYMBOL(qmgr_get_entry);
+EXPORT_SYMBOL(qmgr_stat_empty);
+EXPORT_SYMBOL(qmgr_stat_below_low_watermark);
+EXPORT_SYMBOL(qmgr_stat_full);
+EXPORT_SYMBOL(qmgr_stat_overflow);
 EXPORT_SYMBOL(qmgr_set_irq);
 EXPORT_SYMBOL(qmgr_enable_irq);
 EXPORT_SYMBOL(qmgr_disable_irq);

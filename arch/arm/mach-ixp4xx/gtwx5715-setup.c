@@ -36,6 +36,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 /* GPIO 5,6,7 and 12 are hard wired to the Kendin KS8995M Switch
    and operate as an SPI type interface.  The details of the interface
    are available on Kendin/Micrel's web site. */

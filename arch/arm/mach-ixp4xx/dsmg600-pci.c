@@ -22,6 +22,8 @@
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 
+#include "irqs.h"
+
 #define MAX_DEV		4
 #define IRQ_LINES	3
 
