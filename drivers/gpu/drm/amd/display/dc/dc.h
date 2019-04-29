@@ -329,6 +329,7 @@ struct dc_debug_options {
 	int sr_exit_time_ns;
 	int sr_enter_plus_exit_time_ns;
 	int urgent_latency_ns;
+	uint32_t underflow_assert_delay_us;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
 	bool optimized_watermark;

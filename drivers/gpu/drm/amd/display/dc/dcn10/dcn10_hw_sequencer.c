@@ -360,6 +360,23 @@ void dcn10_log_hw_state(struct dc *dc,
 	DTN_INFO_END();
 }
 
+bool dcn10_did_underflow_occur(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	if (tg->funcs->is_optc_underflow_occurred(tg)) {
+		tg->funcs->clear_optc_underflow(tg);
+		return true;
+	}
+
+	if (hubp->funcs->hubp_get_underflow_status(hubp)) {
+		hubp->funcs->hubp_clear_underflow(hubp);
+		return true;
+	}
+	return false;
+}
+
 static void enable_power_gating_plane(
 	struct dce_hwseq *hws,
 	bool enable)
@@ -2332,6 +2349,7 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 	struct timing_generator *tg;
+	uint32_t underflow_check_delay_us;
 	bool removed_pipe[4] = { false };
 	bool interdependent_update = false;
 	struct pipe_ctx *top_pipe_to_program =
@@ -2346,10 +2364,21 @@ static void dcn10_apply_ctx_for_surface(
 	interdependent_update = top_pipe_to_program->plane_state &&
 		top_pipe_to_program->plane_state->update_flags.bits.full_update;
 
+	underflow_check_delay_us = dc->debug.underflow_assert_delay_us;
+
+	if (underflow_check_delay_us != 0xFFFFFFFF && dc->hwss.did_underflow_occur)
+		ASSERT(dc->hwss.did_underflow_occur(dc, top_pipe_to_program));
+
 	if (interdependent_update)
 		lock_all_pipes(dc, context, true);
 	else
 		dcn10_pipe_control_lock(dc, top_pipe_to_program, true);
+
+	if (underflow_check_delay_us != 0xFFFFFFFF)
+		udelay(underflow_check_delay_us);
+
+	if (underflow_check_delay_us != 0xFFFFFFFF && dc->hwss.did_underflow_occur)
+		ASSERT(dc->hwss.did_underflow_occur(dc, top_pipe_to_program));
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
@@ -3022,7 +3051,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_stream_gating = NULL,
 	.enable_stream_gating = NULL,
 	.setup_periodic_interrupt = dcn10_setup_periodic_interrupt,
-	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt
+	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt,
+	.did_underflow_occur = dcn10_did_underflow_occur
 };
 
 

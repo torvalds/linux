@@ -71,6 +71,8 @@ void dcn10_get_hdr_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
 
+bool dcn10_did_underflow_occur(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
 void update_dchubp_dpp(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
