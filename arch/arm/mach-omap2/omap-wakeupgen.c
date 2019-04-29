@@ -436,13 +436,13 @@ static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
-		if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+		if (omap_type() == OMAP2_DEVICE_TYPE_GP || soc_is_am43xx())
 			irq_save_context();
 		else
 			irq_save_secure_context();
 		break;
 	case CPU_CLUSTER_PM_EXIT:
-		if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+		if (omap_type() == OMAP2_DEVICE_TYPE_GP || soc_is_am43xx())
 			irq_restore_context();
 		break;
 	}
