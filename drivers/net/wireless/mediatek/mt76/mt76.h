@@ -470,6 +470,7 @@ struct mt76_dev {
 	u16 chainmask;
 
 	int beacon_int;
+	u8 beacon_mask;
 
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;

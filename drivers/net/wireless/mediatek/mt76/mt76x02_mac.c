@@ -1045,7 +1045,7 @@ void mt76x02_mac_work(struct work_struct *work)
 		dev->aggr_stats[idx++] += val >> 16;
 	}
 
-	if (!dev->beacon_mask)
+	if (!dev->mt76.beacon_mask)
 		mt76x02_check_mac_err(dev);
 
 	if (dev->ed_monitor)

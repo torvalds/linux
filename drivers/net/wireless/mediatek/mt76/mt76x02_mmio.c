@@ -437,7 +437,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 	}
 
 	dev->vif_mask = 0;
-	dev->beacon_mask = 0;
+	dev->mt76.beacon_mask = 0;
 }
 
 static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
@@ -461,7 +461,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	if (restart)
 		mt76x02_reset_state(dev);
 
-	if (dev->beacon_mask)
+	if (dev->mt76.beacon_mask)
 		mt76_clear(dev, MT_BEACON_TIME_CFG,
 			   MT_BEACON_TIME_CFG_BEACON_TX |
 			   MT_BEACON_TIME_CFG_TBTT_EN);
@@ -493,7 +493,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	if (dev->ed_monitor)
 		mt76_set(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
 
-	if (dev->beacon_mask && !restart)
+	if (dev->mt76.beacon_mask && !restart)
 		mt76_set(dev, MT_BEACON_TIME_CFG,
 			 MT_BEACON_TIME_CFG_BEACON_TX |
 			 MT_BEACON_TIME_CFG_TBTT_EN);

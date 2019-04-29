@@ -119,23 +119,23 @@ static void
 __mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev, u8 vif_idx,
 				bool val, struct sk_buff *skb)
 {
-	u8 old_mask = dev->beacon_mask;
+	u8 old_mask = dev->mt76.beacon_mask;
 	bool en;
 	u32 reg;
 
 	if (val) {
-		dev->beacon_mask |= BIT(vif_idx);
+		dev->mt76.beacon_mask |= BIT(vif_idx);
 		if (skb)
 			mt76x02_mac_set_beacon(dev, vif_idx, skb);
 	} else {
-		dev->beacon_mask &= ~BIT(vif_idx);
+		dev->mt76.beacon_mask &= ~BIT(vif_idx);
 		mt76x02_mac_set_beacon(dev, vif_idx, NULL);
 	}
 
-	if (!!old_mask == !!dev->beacon_mask)
+	if (!!old_mask == !!dev->mt76.beacon_mask)
 		return;
 
-	en = dev->beacon_mask;
+	en = dev->mt76.beacon_mask;
 
 	reg = MT_BEACON_TIME_CFG_BEACON_TX |
 	      MT_BEACON_TIME_CFG_TBTT_EN |
@@ -156,7 +156,7 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 	if (mt76_is_usb(dev))
 		skb = ieee80211_beacon_get(mt76_hw(dev), vif);
 
-	if (!dev->beacon_mask)
+	if (!dev->mt76.beacon_mask)
 		dev->tbtt_count = 0;
 
 	__mt76x02_mac_set_beacon_enable(dev, vif_idx, val, skb);
@@ -203,7 +203,7 @@ mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct sk_buff *skb = NULL;
 
-	if (!(dev->beacon_mask & BIT(mvif->idx)))
+	if (!(dev->mt76.beacon_mask & BIT(mvif->idx)))
 		return;
 
 	skb = ieee80211_beacon_get(mt76_hw(dev), vif);
@@ -223,7 +223,7 @@ mt76x02_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
 
-	if (!(dev->beacon_mask & BIT(mvif->idx)))
+	if (!(dev->mt76.beacon_mask & BIT(mvif->idx)))
 		return;
 
 	skb = ieee80211_get_buffered_bc(mt76_hw(dev), vif);

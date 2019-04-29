@@ -125,8 +125,6 @@ struct mt7603_dev {
 
 	s8 sensitivity;
 
-	u8 beacon_mask;
-
 	u8 beacon_check;
 	u8 tx_hang_check;
 	u8 tx_dma_check;

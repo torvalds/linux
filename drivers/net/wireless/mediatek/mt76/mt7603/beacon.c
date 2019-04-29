@@ -16,7 +16,7 @@ mt7603_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
 	struct sk_buff *skb = NULL;
 
-	if (!(dev->beacon_mask & BIT(mvif->idx)))
+	if (!(dev->mt76.beacon_mask & BIT(mvif->idx)))
 		return;
 
 	skb = ieee80211_beacon_get(mt76_hw(dev), vif);
@@ -48,7 +48,7 @@ mt7603_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
 
-	if (!(dev->beacon_mask & BIT(mvif->idx)))
+	if (!(dev->mt76.beacon_mask & BIT(mvif->idx)))
 		return;
 
 	skb = ieee80211_get_buffered_bc(mt76_hw(dev), vif);
@@ -134,7 +134,7 @@ void mt7603_pre_tbtt_tasklet(unsigned long arg)
 out:
 	mt76_queue_tx_cleanup(dev, MT_TXQ_BEACON, false);
 	if (dev->mt76.q_tx[MT_TXQ_BEACON].q->queued >
-	    hweight8(dev->beacon_mask))
+	    hweight8(dev->mt76.beacon_mask))
 		dev->beacon_check++;
 }
 
@@ -144,12 +144,12 @@ void mt7603_beacon_set_timer(struct mt7603_dev *dev, int idx, int intval)
 
 	if (idx >= 0) {
 		if (intval)
-			dev->beacon_mask |= BIT(idx);
+			dev->mt76.beacon_mask |= BIT(idx);
 		else
-			dev->beacon_mask &= ~BIT(idx);
+			dev->mt76.beacon_mask &= ~BIT(idx);
 	}
 
-	if (!dev->beacon_mask || (!intval && idx < 0)) {
+	if (!dev->mt76.beacon_mask || (!intval && idx < 0)) {
 		mt7603_irq_disable(dev, MT_INT_MAC_IRQ3);
 		mt76_clear(dev, MT_ARB_SCR, MT_ARB_SCR_BCNQ_OPMODE_MASK);
 		mt76_wr(dev, MT_HW_INT_MASK(3), 0);
@@ -174,10 +174,11 @@ void mt7603_beacon_set_timer(struct mt7603_dev *dev, int idx, int intval)
 
 	mt76_set(dev, MT_WF_ARB_BCN_START,
 		 MT_WF_ARB_BCN_START_BSSn(0) |
-		 ((dev->beacon_mask >> 1) * MT_WF_ARB_BCN_START_BSS0n(1)));
+		 ((dev->mt76.beacon_mask >> 1) *
+		  MT_WF_ARB_BCN_START_BSS0n(1)));
 	mt7603_irq_enable(dev, MT_INT_MAC_IRQ3);
 
-	if (dev->beacon_mask & ~BIT(0))
+	if (dev->mt76.beacon_mask & ~BIT(0))
 		mt76_set(dev, MT_LPON_SBTOR(0), MT_LPON_SBTOR_SUB_BSS_EN);
 	else
 		mt76_clear(dev, MT_LPON_SBTOR(0), MT_LPON_SBTOR_SUB_BSS_EN);

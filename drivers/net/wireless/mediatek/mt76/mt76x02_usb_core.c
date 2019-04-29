@@ -175,7 +175,7 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 	struct sk_buff *skb;
 	int i, nbeacons;
 
-	if (!dev->beacon_mask)
+	if (!dev->mt76.beacon_mask)
 		return;
 
 	mt76x02_resync_beacon_timer(dev);
@@ -184,7 +184,7 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 		IEEE80211_IFACE_ITER_RESUME_ALL,
 		mt76x02_update_beacon_iter, dev);
 
-	nbeacons = hweight8(dev->beacon_mask);
+	nbeacons = hweight8(dev->mt76.beacon_mask);
 	mt76x02_enqueue_buffered_bc(dev, &data, N_BCN_SLOTS - nbeacons);
 
 	for (i = nbeacons; i < N_BCN_SLOTS; i++) {
@@ -207,7 +207,8 @@ static enum hrtimer_restart mt76x02u_pre_tbtt_interrupt(struct hrtimer *timer)
 
 static void mt76x02u_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
 {
-	if (en && dev->beacon_mask && !hrtimer_active(&dev->pre_tbtt_timer))
+	if (en && dev->mt76.beacon_mask &&
+	    !hrtimer_active(&dev->pre_tbtt_timer))
 		mt76x02u_start_pre_tbtt_timer(dev);
 	if (!en)
 		mt76x02u_stop_pre_tbtt_timer(dev);
