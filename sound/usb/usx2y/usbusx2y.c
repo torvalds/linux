@@ -293,10 +293,8 @@ int usX2Y_In04_init(struct usX2Ydev *usX2Y)
 	if (! (usX2Y->In04urb = usb_alloc_urb(0, GFP_KERNEL)))
 		return -ENOMEM;
 
-	if (! (usX2Y->In04Buf = kmalloc(21, GFP_KERNEL))) {
-		usb_free_urb(usX2Y->In04urb);
+	if (! (usX2Y->In04Buf = kmalloc(21, GFP_KERNEL)))
 		return -ENOMEM;
-	}
 	 
 	init_waitqueue_head(&usX2Y->In04WaitQueue);
 	usb_fill_int_urb(usX2Y->In04urb, usX2Y->dev, usb_rcvintpipe(usX2Y->dev, 0x4),
