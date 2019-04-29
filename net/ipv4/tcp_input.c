@@ -2252,7 +2252,7 @@ static bool tcp_skb_spurious_retrans(const struct tcp_sock *tp,
  */
 static inline bool tcp_packet_delayed(const struct tcp_sock *tp)
 {
-	return !tp->retrans_stamp ||
+	return tp->retrans_stamp &&
 	       tcp_tsopt_ecr_before(tp, tp->retrans_stamp);
 }
 
@@ -3521,7 +3521,7 @@ static void tcp_xmit_recovery(struct sock *sk, int rexmit)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (rexmit == REXMIT_NONE)
+	if (rexmit == REXMIT_NONE || sk->sk_state == TCP_SYN_SENT)
 		return;
 
 	if (unlikely(rexmit == 2)) {
