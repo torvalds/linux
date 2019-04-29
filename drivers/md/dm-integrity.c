@@ -761,12 +761,12 @@ static void complete_journal_io(unsigned long error, void *context)
 	complete_journal_op(comp);
 }
 
-static void rw_journal(struct dm_integrity_c *ic, int op, int op_flags, unsigned section,
-		       unsigned n_sections, struct journal_completion *comp)
+static void rw_journal_sectors(struct dm_integrity_c *ic, int op, int op_flags,
+			       unsigned sector, unsigned n_sectors, struct journal_completion *comp)
 {
 	struct dm_io_request io_req;
 	struct dm_io_region io_loc;
-	unsigned sector, n_sectors, pl_index, pl_offset;
+	unsigned pl_index, pl_offset;
 	int r;
 
 	if (unlikely(dm_integrity_failed(ic))) {
@@ -774,9 +774,6 @@ static void rw_journal(struct dm_integrity_c *ic, int op, int op_flags, unsigned
 			complete_journal_io(-1UL, comp);
 		return;
 	}
-
-	sector = section * ic->journal_section_sectors;
-	n_sectors = n_sections * ic->journal_section_sectors;
 
 	pl_index = sector >> (PAGE_SHIFT - SECTOR_SHIFT);
 	pl_offset = (sector << SECTOR_SHIFT) & (PAGE_SIZE - 1);
@@ -808,6 +805,17 @@ static void rw_journal(struct dm_integrity_c *ic, int op, int op_flags, unsigned
 			complete_journal_io(-1UL, comp);
 		}
 	}
+}
+
+static void rw_journal(struct dm_integrity_c *ic, int op, int op_flags, unsigned section,
+		       unsigned n_sections, struct journal_completion *comp)
+{
+	unsigned sector, n_sectors;
+
+	sector = section * ic->journal_section_sectors;
+	n_sectors = n_sections * ic->journal_section_sectors;
+
+	rw_journal_sectors(ic, op, op_flags, sector, n_sectors, comp);
 }
 
 static void write_journal(struct dm_integrity_c *ic, unsigned commit_start, unsigned commit_sections)
