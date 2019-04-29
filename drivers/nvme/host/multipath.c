@@ -429,7 +429,7 @@ static int nvme_update_ana_state(struct nvme_ctrl *ctrl,
 	unsigned *nr_change_groups = data;
 	struct nvme_ns *ns;
 
-	dev_info(ctrl->device, "ANA group %d: %s.\n",
+	dev_dbg(ctrl->device, "ANA group %d: %s.\n",
 			le32_to_cpu(desc->grpid),
 			nvme_ana_state_names[desc->state]);
 
