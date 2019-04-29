@@ -259,6 +259,8 @@ struct aq_fw_ops {
 
 	int (*update_stats)(struct aq_hw_s *self);
 
+	int (*get_phy_temp)(struct aq_hw_s *self, int *temp);
+
 	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
 
 	int (*set_flow_control)(struct aq_hw_s *self);
