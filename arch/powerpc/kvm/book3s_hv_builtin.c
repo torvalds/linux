@@ -805,3 +805,32 @@ void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu)
 		vcpu->arch.doorbell_request = 0;
 	}
 }
+
+void kvmppc_hpt_check_need_tlb_flush(struct kvm *kvm)
+{
+	int pcpu = raw_smp_processor_id();
+	unsigned long rb, set;
+
+	/*
+	 * On POWER9, individual threads can come in here, but the
+	 * TLB is shared between the 4 threads in a core, hence
+	 * invalidating on one thread invalidates for all.
+	 * Thus we make all 4 threads use the same bit.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pcpu = cpu_first_thread_sibling(pcpu);
+
+	if (cpumask_test_cpu(pcpu, &kvm->arch.need_tlb_flush)) {
+		rb = PPC_BIT(52);	/* IS = 2 */
+		for (set = 0; set < kvm->arch.tlb_sets; ++set) {
+			asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+				     : : "r" (rb), "i" (0), "i" (0), "i" (0),
+				       "r" (0) : "memory");
+			rb += PPC_BIT(51);	/* increment set number */
+		}
+		asm volatile("ptesync": : :"memory");
+
+		/* Clear the bit after the TLB flush */
+		cpumask_clear_cpu(pcpu, &kvm->arch.need_tlb_flush);
+	}
+}

@@ -623,40 +623,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	isync
 
 	/* See if we need to flush the TLB. Hash has to be done in RM */
-	lhz	r6,PACAPACAINDEX(r13)	/* test_bit(cpu, need_tlb_flush) */
-BEGIN_FTR_SECTION
-	/*
-	 * On POWER9, individual threads can come in here, but the
-	 * TLB is shared between the 4 threads in a core, hence
-	 * invalidating on one thread invalidates for all.
-	 * Thus we make all 4 threads use the same bit here.
-	 */
-	clrrdi	r6,r6,2
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	clrldi	r7,r6,64-6		/* extract bit number (6 bits) */
-	srdi	r6,r6,6			/* doubleword number */
-	sldi	r6,r6,3			/* address offset */
-	add	r6,r6,r9
-	addi	r6,r6,KVM_NEED_FLUSH	/* dword in kvm->arch.need_tlb_flush */
-	li	r8,1
-	sld	r8,r8,r7
-	ld	r7,0(r6)
-	and.	r7,r7,r8
-	beq	22f
-	/* Flush the TLB of any entries for this LPID */
-	lwz	r0,KVM_TLB_SETS(r9)
-	mtctr	r0
-	li	r7,0x800		/* IS field = 0b10 */
-	ptesync
-	li	r0,0			/* RS for P9 version of tlbiel */
-28:	tlbiel	r7			/* On P9, rs=0, RIC=0, PRS=0, R=0 */
-	addi	r7,r7,0x1000
-	bdnz	28b
-	ptesync
-23:	ldarx	r7,0,r6			/* clear the bit after TLB flushed */
-	andc	r7,r7,r8
-	stdcx.	r7,0,r6
-	bne	23b
+	mr	r3, r9			/* kvm pointer */
+	bl	kvmppc_hpt_check_need_tlb_flush
+	nop
+	ld	r5, HSTATE_KVM_VCORE(r13)
 
 	/* Add timebase offset onto timebase */
 22:	ld	r8,VCORE_TB_OFFSET(r5)
