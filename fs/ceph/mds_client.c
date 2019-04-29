@@ -2172,56 +2172,20 @@ retry:
 	return path;
 }
 
-/* Duplicate the dentry->d_name.name safely */
-static int clone_dentry_name(struct dentry *dentry, const char **ppath,
-			     int *ppathlen)
-{
-	u32 len;
-	char *name;
-
-retry:
-	len = READ_ONCE(dentry->d_name.len);
-	name = kmalloc(len + 1, GFP_NOFS);
-	if (!name)
-		return -ENOMEM;
-
-	spin_lock(&dentry->d_lock);
-	if (dentry->d_name.len != len) {
-		spin_unlock(&dentry->d_lock);
-		kfree(name);
-		goto retry;
-	}
-	memcpy(name, dentry->d_name.name, len);
-	spin_unlock(&dentry->d_lock);
-
-	name[len] = '\0';
-	*ppath = name;
-	*ppathlen = len;
-	return 0;
-}
-
 static int build_dentry_path(struct dentry *dentry, struct inode *dir,
 			     const char **ppath, int *ppathlen, u64 *pino,
 			     bool *pfreepath, bool parent_locked)
 {
-	int ret;
 	char *path;
 
 	rcu_read_lock();
 	if (!dir)
 		dir = d_inode_rcu(dentry->d_parent);
-	if (dir && ceph_snap(dir) == CEPH_NOSNAP) {
+	if (dir && parent_locked && ceph_snap(dir) == CEPH_NOSNAP) {
 		*pino = ceph_ino(dir);
 		rcu_read_unlock();
-		if (parent_locked) {
-			*ppath = dentry->d_name.name;
-			*ppathlen = dentry->d_name.len;
-		} else {
-			ret = clone_dentry_name(dentry, ppath, ppathlen);
-			if (ret)
-				return ret;
-			*pfreepath = true;
-		}
+		*ppath = dentry->d_name.name;
+		*ppathlen = dentry->d_name.len;
 		return 0;
 	}
 	rcu_read_unlock();
