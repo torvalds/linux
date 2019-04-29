@@ -492,6 +492,12 @@ extern int ceph_iterate_session_caps(struct ceph_mds_session *session,
 				     void *arg);
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 
+static inline void ceph_mdsc_free_path(char *path, int len)
+{
+	if (path)
+		__putname(path - (PATH_MAX - 1 - len));
+}
+
 extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
 				  int stop_on_nosnap);
 

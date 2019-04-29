@@ -2094,39 +2094,24 @@ char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *pbase,
 {
 	struct dentry *temp;
 	char *path;
-	int len, pos;
+	int pos;
 	unsigned seq;
 	u64 base;
 
 	if (!dentry)
 		return ERR_PTR(-EINVAL);
 
-retry:
-	len = 0;
-	seq = read_seqbegin(&rename_lock);
-	rcu_read_lock();
-	for (temp = dentry; !IS_ROOT(temp);) {
-		struct inode *inode = d_inode(temp);
-		if (inode && ceph_snap(inode) == CEPH_SNAPDIR)
-			len++;  /* slash only */
-		else if (stop_on_nosnap && inode &&
-			 ceph_snap(inode) == CEPH_NOSNAP)
-			break;
-		else
-			len += 1 + temp->d_name.len;
-		temp = temp->d_parent;
-	}
-	rcu_read_unlock();
-	if (len)
-		len--;  /* no leading '/' */
-
-	path = kmalloc(len+1, GFP_NOFS);
+	path = __getname();
 	if (!path)
 		return ERR_PTR(-ENOMEM);
-	pos = len;
-	path[pos] = 0;	/* trailing null */
+retry:
+	pos = PATH_MAX - 1;
+	path[pos] = '\0';
+
+	seq = read_seqbegin(&rename_lock);
 	rcu_read_lock();
-	for (temp = dentry; !IS_ROOT(temp) && pos != 0; ) {
+	temp = dentry;
+	for (;;) {
 		struct inode *inode;
 
 		spin_lock(&temp->d_lock);
@@ -2144,32 +2129,38 @@ retry:
 				spin_unlock(&temp->d_lock);
 				break;
 			}
-			strncpy(path + pos, temp->d_name.name,
-				temp->d_name.len);
+			memcpy(path + pos, temp->d_name.name, temp->d_name.len);
 		}
 		spin_unlock(&temp->d_lock);
-		if (pos)
-			path[--pos] = '/';
 		temp = temp->d_parent;
+
+		/* Are we at the root? */
+		if (IS_ROOT(temp))
+			break;
+
+		/* Are we out of buffer? */
+		if (--pos < 0)
+			break;
+
+		path[pos] = '/';
 	}
 	base = ceph_ino(d_inode(temp));
 	rcu_read_unlock();
-	if (pos != 0 || read_seqretry(&rename_lock, seq)) {
+	if (pos < 0 || read_seqretry(&rename_lock, seq)) {
 		pr_err("build_path did not end path lookup where "
-		       "expected, namelen is %d, pos is %d\n", len, pos);
+		       "expected, pos is %d\n", pos);
 		/* presumably this is only possible if racing with a
 		   rename of one of the parent directories (we can not
 		   lock the dentries above us to prevent this, but
 		   retrying should be harmless) */
-		kfree(path);
 		goto retry;
 	}
 
 	*pbase = base;
-	*plen = len;
+	*plen = PATH_MAX - 1 - pos;
 	dout("build_path on %p %d built %llx '%.*s'\n",
-	     dentry, d_count(dentry), base, len, path);
-	return path;
+	     dentry, d_count(dentry), base, *plen, path + pos);
+	return path + pos;
 }
 
 static int build_dentry_path(struct dentry *dentry, struct inode *dir,
@@ -2376,10 +2367,10 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 
 out_free2:
 	if (freepath2)
-		kfree((char *)path2);
+		ceph_mdsc_free_path((char *)path2, pathlen2);
 out_free1:
 	if (freepath1)
-		kfree((char *)path1);
+		ceph_mdsc_free_path((char *)path1, pathlen1);
 out:
 	return msg;
 }
@@ -3451,7 +3442,7 @@ out_freeflocks:
 		ceph_pagelist_encode_string(pagelist, path, pathlen);
 		ceph_pagelist_append(pagelist, &rec, sizeof(rec.v1));
 out_freepath:
-		kfree(path);
+		ceph_mdsc_free_path(path, pathlen);
 	}
 
 out_err:
