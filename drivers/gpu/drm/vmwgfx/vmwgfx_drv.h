@@ -1309,6 +1309,11 @@ extern int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev,
 					      void *data,
 					      struct drm_file *file_priv);
 
+int vmw_gb_surface_define(struct vmw_private *dev_priv,
+			  uint32_t user_accounting_size,
+			  const struct vmw_surface_metadata *req,
+			  struct vmw_surface **srf_out);
+
 /*
  * Shader management - vmwgfx_shader.c
  */

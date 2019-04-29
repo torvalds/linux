@@ -1144,8 +1144,8 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 			       struct vmw_buffer_object *bo_mob,
 			       struct vmw_surface **srf_out)
 {
+	struct vmw_surface_metadata metadata = {0};
 	uint32_t format;
-	struct drm_vmw_size content_base_size = {0};
 	struct vmw_resource *res;
 	unsigned int bytes_pp;
 	struct drm_format_name_buf format_name;
@@ -1175,22 +1175,15 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	content_base_size.width  = mode_cmd->pitches[0] / bytes_pp;
-	content_base_size.height = mode_cmd->height;
-	content_base_size.depth  = 1;
+	metadata.format = format;
+	metadata.mip_levels[0] = 1;
+	metadata.num_sizes = 1;
+	metadata.base_size.width = mode_cmd->pitches[0] / bytes_pp;
+	metadata.base_size.height =  mode_cmd->height;
+	metadata.base_size.depth = 1;
+	metadata.scanout = true;
 
-	ret = vmw_surface_gb_priv_define(dev,
-					 0, /* kernel visible only */
-					 0, /* flags */
-					 format,
-					 true, /* can be a scanout buffer */
-					 1, /* num of mip levels */
-					 0,
-					 0,
-					 content_base_size,
-					 SVGA3D_MS_PATTERN_NONE,
-					 SVGA3D_MS_QUALITY_NONE,
-					 srf_out);
+	ret = vmw_gb_surface_define(vmw_priv(dev), 0, &metadata, srf_out);
 	if (ret) {
 		DRM_ERROR("Failed to allocate proxy content buffer\n");
 		return ret;

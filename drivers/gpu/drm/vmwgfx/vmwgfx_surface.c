@@ -1320,7 +1320,6 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	return 0;
 }
 
-
 /**
  * vmw_gb_surface_define_ioctl - Ioctl function implementing
  * the user surface define functionality.
@@ -1377,173 +1376,6 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * vmw_surface_gb_priv_define - Define a private GB surface
- *
- * @dev:  Pointer to a struct drm_device
- * @user_accounting_size:  Used to track user-space memory usage, set
- *                         to 0 for kernel mode only memory
- * @svga3d_flags: SVGA3d surface flags for the device
- * @format: requested surface format
- * @for_scanout: true if inteded to be used for scanout buffer
- * @num_mip_levels:  number of MIP levels
- * @multisample_count:
- * @array_size: Surface array size.
- * @size: width, heigh, depth of the surface requested
- * @multisample_pattern: Multisampling pattern when msaa is supported
- * @quality_level: Precision settings
- * @user_srf_out: allocated user_srf.  Set to NULL on failure.
- *
- * GB surfaces allocated by this function will not have a user mode handle, and
- * thus will only be visible to vmwgfx.  For optimization reasons the
- * surface may later be given a user mode handle by another function to make
- * it available to user mode drivers.
- */
-int vmw_surface_gb_priv_define(struct drm_device *dev,
-			       uint32_t user_accounting_size,
-			       SVGA3dSurfaceAllFlags svga3d_flags,
-			       SVGA3dSurfaceFormat format,
-			       bool for_scanout,
-			       uint32_t num_mip_levels,
-			       uint32_t multisample_count,
-			       uint32_t array_size,
-			       struct drm_vmw_size size,
-			       SVGA3dMSPattern multisample_pattern,
-			       SVGA3dMSQualityLevel quality_level,
-			       struct vmw_surface **srf_out)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_user_surface *user_srf;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
-	struct vmw_surface *srf;
-	struct vmw_surface_metadata *metadata;
-	int ret;
-	u32 num_layers = 1;
-	u32 sample_count = 1;
-
-	*srf_out = NULL;
-
-	if (for_scanout) {
-		if (!svga3dsurface_is_screen_target_format(format)) {
-			VMW_DEBUG_USER("Invalid Screen Target surface format.");
-			return -EINVAL;
-		}
-
-		if (size.width > dev_priv->texture_max_width ||
-		    size.height > dev_priv->texture_max_height) {
-			VMW_DEBUG_USER("%ux%u\n, exceeds max surface size %ux%u",
-				       size.width, size.height,
-				       dev_priv->texture_max_width,
-				       dev_priv->texture_max_height);
-			return -EINVAL;
-		}
-	} else {
-		const struct svga3d_surface_desc *desc;
-
-		desc = svga3dsurface_get_desc(format);
-		if (unlikely(desc->block_desc == SVGA3DBLOCKDESC_NONE)) {
-			VMW_DEBUG_USER("Invalid surface format.\n");
-			return -EINVAL;
-		}
-	}
-
-	/* array_size must be null for non-GL3 host. */
-	if (array_size > 0 && !has_sm4_context(dev_priv)) {
-		VMW_DEBUG_USER("Tried to create DX surface on non-DX host.\n");
-		return -EINVAL;
-	}
-
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   user_accounting_size, &ctx);
-	if (unlikely(ret != 0)) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for surface"
-				  " creation.\n");
-		goto out_unlock;
-	}
-
-	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
-	if (unlikely(!user_srf)) {
-		ret = -ENOMEM;
-		goto out_no_user_srf;
-	}
-
-	*srf_out  = &user_srf->srf;
-	user_srf->size = user_accounting_size;
-	user_srf->prime.base.shareable = false;
-	user_srf->prime.base.tfile     = NULL;
-
-	srf = &user_srf->srf;
-	metadata = &srf->metadata;
-	metadata->flags = svga3d_flags;
-	metadata->format = format;
-	metadata->scanout = for_scanout;
-	metadata->mip_levels[0] = num_mip_levels;
-	metadata->num_sizes = 1;
-	metadata->sizes = NULL;
-	srf->offsets = NULL;
-	metadata->base_size = size;
-	metadata->autogen_filter = SVGA3D_TEX_FILTER_NONE;
-	metadata->array_size = array_size;
-	metadata->multisample_count = multisample_count;
-	metadata->multisample_pattern = multisample_pattern;
-	metadata->quality_level = quality_level;
-
-	if (array_size)
-		num_layers = array_size;
-	else if (svga3d_flags & SVGA3D_SURFACE_CUBEMAP)
-		num_layers = SVGA3D_MAX_SURFACE_FACES;
-
-	if (metadata->flags & SVGA3D_SURFACE_MULTISAMPLE)
-		sample_count = metadata->multisample_count;
-
-	srf->res.backup_size =
-		svga3dsurface_get_serialized_size_extended(metadata->format,
-							   metadata->base_size,
-							   metadata->mip_levels[0],
-							   num_layers,
-							   sample_count);
-
-	if (metadata->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
-		srf->res.backup_size += sizeof(SVGA3dDXSOState);
-
-	/*
-	 * Don't set SVGA3D_SURFACE_SCREENTARGET flag for a scanout surface with
-	 * size greater than STDU max width/height. This is really a workaround
-	 * to support creation of big framebuffer requested by some user-space
-	 * for whole topology. That big framebuffer won't really be used for
-	 * binding with screen target as during prepare_fb a separate surface is
-	 * created so it's safe to ignore SVGA3D_SURFACE_SCREENTARGET flag.
-	 */
-	if (dev_priv->active_display_unit == vmw_du_screen_target &&
-	    for_scanout && size.width <= dev_priv->stdu_max_width &&
-	    size.height <= dev_priv->stdu_max_height)
-		metadata->flags |= SVGA3D_SURFACE_SCREENTARGET;
-
-	/*
-	 * From this point, the generic resource management functions
-	 * destroy the object on failure.
-	 */
-	ret = vmw_surface_init(dev_priv, srf, vmw_user_surface_free);
-
-	ttm_read_unlock(&dev_priv->reservation_sem);
-	return ret;
-
-out_no_user_srf:
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), user_accounting_size);
-
-out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
-	return ret;
-}
-
-/**
  * vmw_gb_surface_define_ext_ioctl - Ioctl function implementing
  * the user surface define functionality.
  *
@@ -1596,43 +1428,55 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 			       struct drm_vmw_gb_surface_create_rep *rep,
 			       struct drm_file *file_priv)
 {
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_user_surface *user_srf;
+	struct vmw_surface_metadata metadata = {0};
 	struct vmw_surface *srf;
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	int ret;
+	int ret = 0;
 	uint32_t size;
 	uint32_t backup_handle = 0;
 	SVGA3dSurfaceAllFlags svga3d_flags_64 =
 		SVGA3D_FLAGS_64(req->svga3d_flags_upper_32_bits,
 				req->base.svga3d_flags);
 
+	/* array_size must be null for non-GL3 host. */
+	if (req->base.array_size > 0 && !has_sm4_context(dev_priv)) {
+		VMW_DEBUG_USER("SM4 surface not supported.\n");
+		return -EINVAL;
+	}
+
 	if (!has_sm4_1_context(dev_priv)) {
-		/*
-		 * If SM4_1 is not support then cannot send 64-bit flag to
-		 * device.
-		 */
 		if (req->svga3d_flags_upper_32_bits != 0)
-			return -EINVAL;
+			ret = -EINVAL;
 
 		if (req->base.multisample_count != 0)
-			return -EINVAL;
+			ret = -EINVAL;
 
 		if (req->multisample_pattern != SVGA3D_MS_PATTERN_NONE)
-			return -EINVAL;
+			ret = -EINVAL;
 
 		if (req->quality_level != SVGA3D_MS_QUALITY_NONE)
-			return -EINVAL;
+			ret = -EINVAL;
+
+		if (ret) {
+			VMW_DEBUG_USER("SM4.1 surface not supported.\n");
+			return ret;
+		}
 	}
 
 	if ((svga3d_flags_64 & SVGA3D_SURFACE_MULTISAMPLE) &&
-	    req->base.multisample_count == 0)
+	    req->base.multisample_count == 0) {
+		VMW_DEBUG_USER("Invalid sample count.\n");
 		return -EINVAL;
+	}
 
-	if (req->base.mip_levels > DRM_VMW_MAX_MIP_LEVELS)
+	if (req->base.mip_levels > DRM_VMW_MAX_MIP_LEVELS) {
+		VMW_DEBUG_USER("Invalid mip level.\n");
 		return -EINVAL;
+	}
 
 	if (unlikely(vmw_user_surface_size == 0))
 		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
@@ -1640,22 +1484,24 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 
 	size = vmw_user_surface_size;
 
+	metadata.flags = svga3d_flags_64;
+	metadata.format = req->base.format;
+	metadata.mip_levels[0] = req->base.mip_levels;
+	metadata.multisample_count = req->base.multisample_count;
+	metadata.multisample_pattern = req->multisample_pattern;
+	metadata.quality_level = req->quality_level;
+	metadata.array_size = req->base.array_size;
+	metadata.num_sizes = 1;
+	metadata.base_size = req->base.base_size;
+	metadata.scanout = req->base.drm_surface_flags &
+		drm_vmw_surface_flag_scanout;
+
 	/* Define a surface based on the parameters. */
-	ret = vmw_surface_gb_priv_define(dev,
-					 size,
-					 svga3d_flags_64,
-					 req->base.format,
-					 req->base.drm_surface_flags &
-					 drm_vmw_surface_flag_scanout,
-					 req->base.mip_levels,
-					 req->base.multisample_count,
-					 req->base.array_size,
-					 req->base.base_size,
-					 req->multisample_pattern,
-					 req->quality_level,
-					 &srf);
-	if (unlikely(ret != 0))
+	ret = vmw_gb_surface_define(dev_priv, size, &metadata, &srf);
+	if (ret != 0) {
+		VMW_DEBUG_USER("Failed to define surface.\n");
 		return ret;
+	}
 
 	user_srf = container_of(srf, struct vmw_user_surface, srf);
 	if (drm_is_primary_client(file_priv))
@@ -2164,4 +2010,148 @@ static int vmw_surface_clean(struct vmw_resource *res)
 	vmw_fifo_commit(dev_priv, alloc_size);
 
 	return 0;
+}
+
+/*
+ * vmw_gb_surface_define - Define a private GB surface
+ *
+ * @dev_priv: Pointer to a device private.
+ * @user_accounting_size:  Used to track user-space memory usage, set
+ *                         to 0 for kernel mode only memory
+ * @metadata: Metadata representing the surface to create.
+ * @user_srf_out: allocated user_srf. Set to NULL on failure.
+ *
+ * GB surfaces allocated by this function will not have a user mode handle, and
+ * thus will only be visible to vmwgfx.  For optimization reasons the
+ * surface may later be given a user mode handle by another function to make
+ * it available to user mode drivers.
+ */
+int vmw_gb_surface_define(struct vmw_private *dev_priv,
+			  uint32_t user_accounting_size,
+			  const struct vmw_surface_metadata *req,
+			  struct vmw_surface **srf_out)
+{
+	struct vmw_surface_metadata *metadata;
+	struct vmw_user_surface *user_srf;
+	struct vmw_surface *srf;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
+	u32 sample_count = 1;
+	u32 num_layers = 1;
+	int ret;
+
+	*srf_out = NULL;
+
+	if (req->scanout) {
+		if (!svga3dsurface_is_screen_target_format(req->format)) {
+			VMW_DEBUG_USER("Invalid Screen Target surface format.");
+			return -EINVAL;
+		}
+
+		if (req->base_size.width > dev_priv->texture_max_width ||
+		    req->base_size.height > dev_priv->texture_max_height) {
+			VMW_DEBUG_USER("%ux%u\n, exceed max surface size %ux%u",
+				       req->base_size.width,
+				       req->base_size.height,
+				       dev_priv->texture_max_width,
+				       dev_priv->texture_max_height);
+			return -EINVAL;
+		}
+	} else {
+		const struct svga3d_surface_desc *desc =
+			svga3dsurface_get_desc(req->format);
+
+		if (desc->block_desc == SVGA3DBLOCKDESC_NONE) {
+			VMW_DEBUG_USER("Invalid surface format.\n");
+			return -EINVAL;
+		}
+	}
+
+	if (req->autogen_filter != SVGA3D_TEX_FILTER_NONE)
+		return -EINVAL;
+
+	if (req->num_sizes != 1)
+		return -EINVAL;
+
+	if (req->sizes != NULL)
+		return -EINVAL;
+
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
+				   user_accounting_size, &ctx);
+	if (ret != 0) {
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("Out of graphics memory for surface.\n");
+		goto out_unlock;
+	}
+
+	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
+	if (unlikely(!user_srf)) {
+		ret = -ENOMEM;
+		goto out_no_user_srf;
+	}
+
+	*srf_out  = &user_srf->srf;
+	user_srf->size = user_accounting_size;
+	user_srf->prime.base.shareable = false;
+	user_srf->prime.base.tfile = NULL;
+
+	srf = &user_srf->srf;
+	srf->metadata = *req;
+	srf->offsets = NULL;
+
+	metadata = &srf->metadata;
+
+	if (metadata->array_size)
+		num_layers = req->array_size;
+	else if (metadata->flags & SVGA3D_SURFACE_CUBEMAP)
+		num_layers = SVGA3D_MAX_SURFACE_FACES;
+
+	if (metadata->flags & SVGA3D_SURFACE_MULTISAMPLE)
+		sample_count = metadata->multisample_count;
+
+	srf->res.backup_size =
+		svga3dsurface_get_serialized_size_extended(metadata->format,
+							   metadata->base_size,
+							   metadata->mip_levels[0],
+							   num_layers,
+							   sample_count);
+
+	if (metadata->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
+		srf->res.backup_size += sizeof(SVGA3dDXSOState);
+
+	/*
+	 * Don't set SVGA3D_SURFACE_SCREENTARGET flag for a scanout surface with
+	 * size greater than STDU max width/height. This is really a workaround
+	 * to support creation of big framebuffer requested by some user-space
+	 * for whole topology. That big framebuffer won't really be used for
+	 * binding with screen target as during prepare_fb a separate surface is
+	 * created so it's safe to ignore SVGA3D_SURFACE_SCREENTARGET flag.
+	 */
+	if (dev_priv->active_display_unit == vmw_du_screen_target &&
+	    metadata->scanout &&
+	    metadata->base_size.width <= dev_priv->stdu_max_width &&
+	    metadata->base_size.height <= dev_priv->stdu_max_height)
+		metadata->flags |= SVGA3D_SURFACE_SCREENTARGET;
+
+	/*
+	 * From this point, the generic resource management functions
+	 * destroy the object on failure.
+	 */
+	ret = vmw_surface_init(dev_priv, srf, vmw_user_surface_free);
+
+	ttm_read_unlock(&dev_priv->reservation_sem);
+	return ret;
+
+out_no_user_srf:
+	ttm_mem_global_free(vmw_mem_glob(dev_priv), user_accounting_size);
+
+out_unlock:
+	ttm_read_unlock(&dev_priv->reservation_sem);
+	return ret;
 }
