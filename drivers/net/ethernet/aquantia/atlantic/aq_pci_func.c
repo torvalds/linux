@@ -43,9 +43,6 @@ static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC111S), },
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC112S), },
 
-	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC111E), },
-	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC112E), },
-
 	{}
 };
 
@@ -75,9 +72,6 @@ static const struct aq_board_revision_s hw_atl_boards[] = {
 	{ AQ_DEVICE_ID_AQC109S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc109s, },
 	{ AQ_DEVICE_ID_AQC111S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc111s, },
 	{ AQ_DEVICE_ID_AQC112S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc112s, },
-
-	{ AQ_DEVICE_ID_AQC111E,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc111e, },
-	{ AQ_DEVICE_ID_AQC112E,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc112e, },
 };
 
 MODULE_DEVICE_TABLE(pci, aq_pci_tbl);
