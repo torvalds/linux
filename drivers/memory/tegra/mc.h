@@ -35,7 +35,7 @@ static inline void mc_writel(struct tegra_mc *mc, u32 value,
 	writel_relaxed(value, mc->regs + offset);
 }
 
-extern const struct tegra_mc_reset_ops terga_mc_reset_ops_common;
+extern const struct tegra_mc_reset_ops tegra_mc_reset_ops_common;
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 extern const struct tegra_mc_soc tegra20_mc_soc;
