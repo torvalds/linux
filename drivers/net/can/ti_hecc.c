@@ -5,6 +5,7 @@
  * specs for the same is available at <http://www.ti.com>
  *
  * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2019 Jeroen Hofstee <jhofstee@victronenergy.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -34,6 +35,7 @@
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 #include <linux/can/led.h>
+#include <linux/can/rx-offload.h>
 
 #define DRV_NAME "ti_hecc"
 #define HECC_MODULE_VERSION     "0.7"
@@ -63,29 +65,15 @@ MODULE_VERSION(HECC_MODULE_VERSION);
 #define HECC_TX_PRIO_MASK	(MAX_TX_PRIO << HECC_MB_TX_SHIFT)
 #define HECC_TX_MB_MASK		(HECC_MAX_TX_MBOX - 1)
 #define HECC_TX_MASK		((HECC_MAX_TX_MBOX - 1) | HECC_TX_PRIO_MASK)
-#define HECC_TX_MBOX_MASK	(~(BIT(HECC_MAX_TX_MBOX) - 1))
-#define HECC_DEF_NAPI_WEIGHT	HECC_MAX_RX_MBOX
 
-/*
- * Important Note: RX mailbox configuration
- * RX mailboxes are further logically split into two - main and buffer
- * mailboxes. The goal is to get all packets into main mailboxes as
- * driven by mailbox number and receive priority (higher to lower) and
- * buffer mailboxes are used to receive pkts while main mailboxes are being
- * processed. This ensures in-order packet reception.
+/* RX mailbox configuration
  *
- * Here are the recommended values for buffer mailbox. Note that RX mailboxes
- * start after TX mailboxes:
- *
- * HECC_MAX_RX_MBOX		HECC_RX_BUFFER_MBOX	No of buffer mailboxes
- * 28				12			8
- * 16				20			4
+ * The remaining mailboxes are used for reception and are delivered
+ * based on their timestamp, to avoid a hardware race when CANME is
+ * changed while CAN-bus traffic is being received.
  */
-
 #define HECC_MAX_RX_MBOX	(HECC_MAX_MAILBOXES - HECC_MAX_TX_MBOX)
-#define HECC_RX_BUFFER_MBOX	12 /* as per table above */
 #define HECC_RX_FIRST_MBOX	(HECC_MAX_MAILBOXES - 1)
-#define HECC_RX_HIGH_MBOX_MASK	(~(BIT(HECC_RX_BUFFER_MBOX) - 1))
 
 /* TI HECC module registers */
 #define HECC_CANME		0x0	/* Mailbox enable */
@@ -116,6 +104,9 @@ MODULE_VERSION(HECC_MODULE_VERSION);
 #define HECC_CANTOS		0x64	/* HECC only: Time-out status */
 #define HECC_CANTIOCE		0x68	/* SCC only:Enhanced TX I/O control */
 #define HECC_CANRIOCE		0x6C	/* SCC only:Enhanced RX I/O control */
+
+/* TI HECC RAM registers */
+#define HECC_CANMOTS		0x80	/* Message object time stamp */
 
 /* Mailbox registers */
 #define HECC_CANMID		0x0
@@ -193,7 +184,7 @@ static const struct can_bittiming_const ti_hecc_bittiming_const = {
 
 struct ti_hecc_priv {
 	struct can_priv can;	/* MUST be first member/field */
-	struct napi_struct napi;
+	struct can_rx_offload offload;
 	struct net_device *ndev;
 	struct clk *clk;
 	void __iomem *base;
@@ -203,7 +194,6 @@ struct ti_hecc_priv {
 	spinlock_t mbx_lock; /* CANME register needs protection */
 	u32 tx_head;
 	u32 tx_tail;
-	u32 rx_next;
 	struct regulator *reg_xceiver;
 };
 
@@ -225,6 +215,11 @@ static inline int get_tx_head_prio(struct ti_hecc_priv *priv)
 static inline void hecc_write_lam(struct ti_hecc_priv *priv, u32 mbxno, u32 val)
 {
 	__raw_writel(val, priv->hecc_ram + mbxno * 4);
+}
+
+static inline u32 hecc_read_stamp(struct ti_hecc_priv *priv, u32 mbxno)
+{
+	return __raw_readl(priv->hecc_ram + HECC_CANMOTS + mbxno * 4);
 }
 
 static inline void hecc_write_mbx(struct ti_hecc_priv *priv, u32 mbxno,
@@ -375,7 +370,6 @@ static void ti_hecc_start(struct net_device *ndev)
 	ti_hecc_reset(ndev);
 
 	priv->tx_head = priv->tx_tail = HECC_TX_MASK;
-	priv->rx_next = HECC_RX_FIRST_MBOX;
 
 	/* Enable local and global acceptance mask registers */
 	hecc_write(priv, HECC_CANGAM, HECC_SET_REG);
@@ -526,21 +520,17 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
-static int ti_hecc_rx_pkt(struct ti_hecc_priv *priv, int mbxno)
+static inline struct ti_hecc_priv *rx_offload_to_priv(struct can_rx_offload *offload)
 {
-	struct net_device_stats *stats = &priv->ndev->stats;
-	struct can_frame *cf;
-	struct sk_buff *skb;
-	u32 data, mbx_mask;
-	unsigned long flags;
+	return container_of(offload, struct ti_hecc_priv, offload);
+}
 
-	skb = alloc_can_skb(priv->ndev, &cf);
-	if (!skb) {
-		if (printk_ratelimit())
-			netdev_err(priv->ndev,
-				"ti_hecc_rx_pkt: alloc_can_skb() failed\n");
-		return -ENOMEM;
-	}
+static unsigned int ti_hecc_mailbox_read(struct can_rx_offload *offload,
+					 struct can_frame *cf,
+					 u32 *timestamp, unsigned int mbxno)
+{
+	struct ti_hecc_priv *priv = rx_offload_to_priv(offload);
+	u32 data, mbx_mask;
 
 	mbx_mask = BIT(mbxno);
 	data = hecc_read_mbx(priv, mbxno, HECC_CANMID);
@@ -558,100 +548,19 @@ static int ti_hecc_rx_pkt(struct ti_hecc_priv *priv, int mbxno)
 		data = hecc_read_mbx(priv, mbxno, HECC_CANMDH);
 		*(__be32 *)(cf->data + 4) = cpu_to_be32(data);
 	}
-	spin_lock_irqsave(&priv->mbx_lock, flags);
-	hecc_clear_bit(priv, HECC_CANME, mbx_mask);
-	hecc_write(priv, HECC_CANRMP, mbx_mask);
-	/* enable mailbox only if it is part of rx buffer mailboxes */
-	if (priv->rx_next < HECC_RX_BUFFER_MBOX)
-		hecc_set_bit(priv, HECC_CANME, mbx_mask);
-	spin_unlock_irqrestore(&priv->mbx_lock, flags);
 
-	stats->rx_bytes += cf->can_dlc;
-	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
-	netif_receive_skb(skb);
-	stats->rx_packets++;
+	*timestamp = hecc_read_stamp(priv, mbxno);
 
-	return 0;
-}
-
-/*
- * ti_hecc_rx_poll - HECC receive pkts
- *
- * The receive mailboxes start from highest numbered mailbox till last xmit
- * mailbox. On CAN frame reception the hardware places the data into highest
- * numbered mailbox that matches the CAN ID filter. Since all receive mailboxes
- * have same filtering (ALL CAN frames) packets will arrive in the highest
- * available RX mailbox and we need to ensure in-order packet reception.
- *
- * To ensure the packets are received in the right order we logically divide
- * the RX mailboxes into main and buffer mailboxes. Packets are received as per
- * mailbox priotity (higher to lower) in the main bank and once it is full we
- * disable further reception into main mailboxes. While the main mailboxes are
- * processed in NAPI, further packets are received in buffer mailboxes.
- *
- * We maintain a RX next mailbox counter to process packets and once all main
- * mailboxe packets are passed to the upper stack we enable all of them but
- * continue to process packets received in buffer mailboxes. With each packet
- * received from buffer mailbox we enable it immediately so as to handle the
- * overflow from higher mailboxes.
- */
-static int ti_hecc_rx_poll(struct napi_struct *napi, int quota)
-{
-	struct net_device *ndev = napi->dev;
-	struct ti_hecc_priv *priv = netdev_priv(ndev);
-	u32 num_pkts = 0;
-	u32 mbx_mask;
-	unsigned long pending_pkts, flags;
-
-	if (!netif_running(ndev))
-		return 0;
-
-	while ((pending_pkts = hecc_read(priv, HECC_CANRMP)) &&
-		num_pkts < quota) {
-		mbx_mask = BIT(priv->rx_next); /* next rx mailbox to process */
-		if (mbx_mask & pending_pkts) {
-			if (ti_hecc_rx_pkt(priv, priv->rx_next) < 0)
-				return num_pkts;
-			++num_pkts;
-		} else if (priv->rx_next > HECC_RX_BUFFER_MBOX) {
-			break; /* pkt not received yet */
-		}
-		--priv->rx_next;
-		if (priv->rx_next == HECC_RX_BUFFER_MBOX) {
-			/* enable high bank mailboxes */
-			spin_lock_irqsave(&priv->mbx_lock, flags);
-			mbx_mask = hecc_read(priv, HECC_CANME);
-			mbx_mask |= HECC_RX_HIGH_MBOX_MASK;
-			hecc_write(priv, HECC_CANME, mbx_mask);
-			spin_unlock_irqrestore(&priv->mbx_lock, flags);
-		} else if (priv->rx_next == HECC_MAX_TX_MBOX - 1) {
-			priv->rx_next = HECC_RX_FIRST_MBOX;
-			break;
-		}
-	}
-
-	/* Enable packet interrupt if all pkts are handled */
-	if (hecc_read(priv, HECC_CANRMP) == 0) {
-		napi_complete(napi);
-		/* Re-enable RX mailbox interrupts */
-		mbx_mask = hecc_read(priv, HECC_CANMIM);
-		mbx_mask |= HECC_TX_MBOX_MASK;
-		hecc_write(priv, HECC_CANMIM, mbx_mask);
-	} else {
-		/* repoll is done only if whole budget is used */
-		num_pkts = quota;
-	}
-
-	return num_pkts;
+	return 1;
 }
 
 static int ti_hecc_error(struct net_device *ndev, int int_status,
 	int err_status)
 {
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &ndev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
+	u32 timestamp;
 
 	/* propagate the error condition to the can stack */
 	skb = alloc_can_err_skb(ndev, &cf);
@@ -732,9 +641,8 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 		}
 	}
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
-	netif_rx(skb);
+	timestamp = hecc_read(priv, HECC_CANLNT);
+	can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
 
 	return 0;
 }
@@ -744,8 +652,8 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 	struct net_device *ndev = (struct net_device *)dev_id;
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
-	u32 mbxno, mbx_mask, int_status, err_status;
-	unsigned long ack, flags;
+	u32 mbxno, mbx_mask, int_status, err_status, stamp;
+	unsigned long flags, rx_pending;
 
 	int_status = hecc_read(priv,
 		(priv->use_hecc1int) ? HECC_CANGIF1 : HECC_CANGIF0);
@@ -769,11 +677,11 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 			spin_lock_irqsave(&priv->mbx_lock, flags);
 			hecc_clear_bit(priv, HECC_CANME, mbx_mask);
 			spin_unlock_irqrestore(&priv->mbx_lock, flags);
-			stats->tx_bytes += hecc_read_mbx(priv, mbxno,
-						HECC_CANMCF) & 0xF;
+			stamp = hecc_read_stamp(priv, mbxno);
+			stats->tx_bytes += can_rx_offload_get_echo_skb(&priv->offload,
+									mbxno, stamp);
 			stats->tx_packets++;
 			can_led_event(ndev, CAN_LED_EVENT_TX);
-			can_get_echo_skb(ndev, mbxno);
 			--priv->tx_tail;
 		}
 
@@ -784,12 +692,11 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 		((priv->tx_head & HECC_TX_MASK) == HECC_TX_MASK)))
 			netif_wake_queue(ndev);
 
-		/* Disable RX mailbox interrupts and let NAPI reenable them */
-		if (hecc_read(priv, HECC_CANRMP)) {
-			ack = hecc_read(priv, HECC_CANMIM);
-			ack &= BIT(HECC_MAX_TX_MBOX) - 1;
-			hecc_write(priv, HECC_CANMIM, ack);
-			napi_schedule(&priv->napi);
+		/* offload RX mailboxes and let NAPI deliver them */
+		while ((rx_pending = hecc_read(priv, HECC_CANRMP))) {
+			can_rx_offload_irq_offload_timestamp(&priv->offload,
+							     rx_pending);
+			hecc_write(priv, HECC_CANRMP, rx_pending);
 		}
 	}
 
@@ -831,7 +738,7 @@ static int ti_hecc_open(struct net_device *ndev)
 	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 
 	ti_hecc_start(ndev);
-	napi_enable(&priv->napi);
+	can_rx_offload_enable(&priv->offload);
 	netif_start_queue(ndev);
 
 	return 0;
@@ -842,7 +749,7 @@ static int ti_hecc_close(struct net_device *ndev)
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
 
 	netif_stop_queue(ndev);
-	napi_disable(&priv->napi);
+	can_rx_offload_disable(&priv->offload);
 	ti_hecc_stop(ndev);
 	free_irq(ndev->irq, ndev);
 	close_candev(ndev);
@@ -962,8 +869,6 @@ static int ti_hecc_probe(struct platform_device *pdev)
 		goto probe_exit_candev;
 	}
 	priv->can.clock.freq = clk_get_rate(priv->clk);
-	netif_napi_add(ndev, &priv->napi, ti_hecc_rx_poll,
-		HECC_DEF_NAPI_WEIGHT);
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
@@ -971,10 +876,19 @@ static int ti_hecc_probe(struct platform_device *pdev)
 		goto probe_exit_clk;
 	}
 
+	priv->offload.mailbox_read = ti_hecc_mailbox_read;
+	priv->offload.mb_first = HECC_RX_FIRST_MBOX;
+	priv->offload.mb_last = HECC_MAX_TX_MBOX;
+	err = can_rx_offload_add_timestamp(ndev, &priv->offload);
+	if (err) {
+		dev_err(&pdev->dev, "can_rx_offload_add_timestamp() failed\n");
+		goto probe_exit_clk;
+	}
+
 	err = register_candev(ndev);
 	if (err) {
 		dev_err(&pdev->dev, "register_candev() failed\n");
-		goto probe_exit_clk;
+		goto probe_exit_offload;
 	}
 
 	devm_can_led_init(ndev);
@@ -984,6 +898,8 @@ static int ti_hecc_probe(struct platform_device *pdev)
 
 	return 0;
 
+probe_exit_offload:
+	can_rx_offload_del(&priv->offload);
 probe_exit_clk:
 	clk_put(priv->clk);
 probe_exit_candev:
@@ -1000,6 +916,7 @@ static int ti_hecc_remove(struct platform_device *pdev)
 	unregister_candev(ndev);
 	clk_disable_unprepare(priv->clk);
 	clk_put(priv->clk);
+	can_rx_offload_del(&priv->offload);
 	free_candev(ndev);
 
 	return 0;
