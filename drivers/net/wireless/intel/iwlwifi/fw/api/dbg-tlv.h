@@ -473,6 +473,8 @@ enum iwl_fw_ini_debug_flow {
  * @IWL_FW_INI_REGION_CSR: CSR registers
  * @IWL_FW_INI_REGION_NOTIFICATION: FW notification data
  * @IWL_FW_INI_REGION_DHC: dhc response to dump
+ * @IWL_FW_INI_REGION_LMAC_ERROR_TABLE: lmac error table
+ * @IWL_FW_INI_REGION_UMAC_ERROR_TABLE: umac error table
  * @IWL_FW_INI_REGION_NUM: number of region types
  */
 enum iwl_fw_ini_region_type {
@@ -490,6 +492,8 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_CSR,
 	IWL_FW_INI_REGION_NOTIFICATION,
 	IWL_FW_INI_REGION_DHC,
+	IWL_FW_INI_REGION_LMAC_ERROR_TABLE,
+	IWL_FW_INI_REGION_UMAC_ERROR_TABLE,
 	IWL_FW_INI_REGION_NUM
 }; /* FW_DEBUG_TLV_REGION_TYPE_E_VER_1 */
 

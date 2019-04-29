@@ -230,19 +230,43 @@ static u16 rs_fw_he_ieee80211_mcs_to_rs_mcs(u16 mcs)
 
 static void
 rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
-			   const struct ieee80211_sta_he_cap *he_cap,
+			   struct ieee80211_supported_band *sband,
 			   struct iwl_tlc_config_cmd *cmd)
 {
-	u16 mcs_160 = le16_to_cpu(sta->he_cap.he_mcs_nss_supp.rx_mcs_160);
-	u16 mcs_80 = le16_to_cpu(sta->he_cap.he_mcs_nss_supp.rx_mcs_80);
+	const struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
+	u16 mcs_160 = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_160);
+	u16 mcs_80 = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_80);
+	u16 tx_mcs_80 =
+		le16_to_cpu(sband->iftype_data->he_cap.he_mcs_nss_supp.tx_mcs_80);
+	u16 tx_mcs_160 =
+		le16_to_cpu(sband->iftype_data->he_cap.he_mcs_nss_supp.tx_mcs_160);
 	int i;
 
 	for (i = 0; i < sta->rx_nss && i < MAX_NSS; i++) {
 		u16 _mcs_160 = (mcs_160 >> (2 * i)) & 0x3;
 		u16 _mcs_80 = (mcs_80 >> (2 * i)) & 0x3;
+		u16 _tx_mcs_160 = (tx_mcs_160 >> (2 * i)) & 0x3;
+		u16 _tx_mcs_80 = (tx_mcs_80 >> (2 * i)) & 0x3;
 
+		/* If one side doesn't support - mark both as not supporting */
+		if (_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
+		    _tx_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
+			_mcs_80 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+			_tx_mcs_80 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		}
+		if (_mcs_80 > _tx_mcs_80)
+			_mcs_80 = _tx_mcs_80;
 		cmd->ht_rates[i][0] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_80));
+
+		/* If one side doesn't support - mark both as not supporting */
+		if (_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
+		    _tx_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
+			_mcs_160 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+			_tx_mcs_160 = IEEE80211_HE_MCS_NOT_SUPPORTED;
+		}
+		if (_mcs_160 > _tx_mcs_160)
+			_mcs_160 = _tx_mcs_160;
 		cmd->ht_rates[i][1] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_160));
 	}
@@ -271,7 +295,7 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 	/* HT/VHT rates */
 	if (he_cap && he_cap->has_he) {
 		cmd->mode = IWL_TLC_MNG_MODE_HE;
-		rs_fw_he_set_enabled_rates(sta, he_cap, cmd);
+		rs_fw_he_set_enabled_rates(sta, sband, cmd);
 	} else if (vht_cap && vht_cap->vht_supported) {
 		cmd->mode = IWL_TLC_MNG_MODE_VHT;
 		rs_fw_vht_set_enabled_rates(sta, vht_cap, cmd);

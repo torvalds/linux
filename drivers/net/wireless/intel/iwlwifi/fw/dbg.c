@@ -917,11 +917,8 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
 		dump_data->len = cpu_to_le32(sizeof(*dump_info));
 		dump_info = (void *)dump_data->data;
-		dump_info->device_family =
-			fwrt->trans->cfg->device_family ==
-			IWL_DEVICE_FAMILY_7000 ?
-				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
-				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
+		dump_info->hw_type =
+			cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
 		dump_info->hw_step =
 			cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
@@ -1754,12 +1751,18 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 			continue;
 		}
 
+		/* currently the driver supports always on domain only */
+		if (le32_to_cpu(reg->domain) != IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON)
+			continue;
+
 		switch (le32_to_cpu(reg->region_type)) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
 		case IWL_FW_INI_REGION_PERIPHERY_AUX:
 		case IWL_FW_INI_REGION_CSR:
+		case IWL_FW_INI_REGION_LMAC_ERROR_TABLE:
+		case IWL_FW_INI_REGION_UMAC_ERROR_TABLE:
 			size += hdr_len + iwl_dump_ini_mem_get_size(fwrt, reg);
 			break;
 		case IWL_FW_INI_REGION_TXF:
@@ -1821,6 +1824,8 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 
 		switch (le32_to_cpu(reg->region_type)) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
+		case IWL_FW_INI_REGION_LMAC_ERROR_TABLE:
+		case IWL_FW_INI_REGION_UMAC_ERROR_TABLE:
 			ops.get_num_of_ranges = iwl_dump_ini_mem_ranges;
 			ops.get_size = iwl_dump_ini_mem_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
@@ -2464,15 +2469,20 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 {
 	void *iter = (void *)tlv->region_config;
 	int i, size = le32_to_cpu(tlv->num_regions);
+	const char *err_st =
+		"WRT: ext=%d. Invalid region %s %d for apply point %d\n";
 
 	for (i = 0; i < size; i++) {
 		struct iwl_fw_ini_region_cfg *reg = iter, **active;
 		int id = le32_to_cpu(reg->region_id);
 		u32 type = le32_to_cpu(reg->region_type);
 
-		if (WARN(id >= ARRAY_SIZE(fwrt->dump.active_regs),
-			 "WRT: ext=%d. Invalid region id %d for apply point %d\n",
-			 ext, id, pnt))
+		if (WARN(id >= ARRAY_SIZE(fwrt->dump.active_regs), err_st, ext,
+			 "id", id, pnt))
+			break;
+
+		if (WARN(type == 0 || type >= IWL_FW_INI_REGION_NUM, err_st,
+			 ext, "type", type, pnt))
 			break;
 
 		active = &fwrt->dump.active_regs[id];
@@ -2498,7 +2508,9 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 			 type == IWL_FW_INI_REGION_PERIPHERY_AUX ||
 			 type == IWL_FW_INI_REGION_INTERNAL_BUFFER ||
 			 type == IWL_FW_INI_REGION_PAGING ||
-			 type == IWL_FW_INI_REGION_CSR)
+			 type == IWL_FW_INI_REGION_CSR ||
+			 type == IWL_FW_INI_REGION_LMAC_ERROR_TABLE ||
+			 type == IWL_FW_INI_REGION_UMAC_ERROR_TABLE)
 			iter += le32_to_cpu(reg->internal.num_of_ranges) *
 				sizeof(__le32);
 
@@ -2610,6 +2622,20 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 			active->trig->occurrences = cpu_to_le32(-1);
 
 		active->active = true;
+
+		if (id == IWL_FW_TRIGGER_ID_PERIODIC_TRIGGER) {
+			u32 collect_interval = le32_to_cpu(trig->trigger_data);
+
+			/* the minimum allowed interval is 50ms */
+			if (collect_interval < 50) {
+				collect_interval = 50;
+				trig->trigger_data =
+					cpu_to_le32(collect_interval);
+			}
+
+			mod_timer(&fwrt->dump.periodic_trig,
+				  jiffies + msecs_to_jiffies(collect_interval));
+		}
 next:
 		iter += sizeof(*trig) + trig_regs_size;
 
@@ -2690,8 +2716,34 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
 
 void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt)
 {
+	del_timer(&fwrt->dump.periodic_trig);
 	iwl_fw_dbg_collect_sync(fwrt);
 
 	iwl_trans_stop_device(fwrt->trans);
 }
 IWL_EXPORT_SYMBOL(iwl_fwrt_stop_device);
+
+void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t)
+{
+	struct iwl_fw_runtime *fwrt;
+	enum iwl_fw_ini_trigger_id id = IWL_FW_TRIGGER_ID_PERIODIC_TRIGGER;
+	int ret;
+	typeof(fwrt->dump) *dump_ptr = container_of(t, typeof(fwrt->dump),
+						    periodic_trig);
+
+	fwrt = container_of(dump_ptr, typeof(*fwrt), dump);
+
+	ret = _iwl_fw_dbg_ini_collect(fwrt, id);
+	if (!ret || ret == -EBUSY) {
+		struct iwl_fw_ini_trigger *trig =
+			fwrt->dump.active_trigs[id].trig;
+		u32 occur = le32_to_cpu(trig->occurrences);
+		u32 collect_interval = le32_to_cpu(trig->trigger_data);
+
+		if (!occur)
+			return;
+
+		mod_timer(&fwrt->dump.periodic_trig,
+			  jiffies + msecs_to_jiffies(collect_interval));
+	}
+}

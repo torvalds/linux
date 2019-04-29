@@ -385,11 +385,13 @@ void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
 {
+	del_timer(&fwrt->dump.periodic_trig);
 	flush_delayed_work(&fwrt->dump.wk);
 }
 
 static inline void iwl_fw_cancel_dump(struct iwl_fw_runtime *fwrt)
 {
+	del_timer(&fwrt->dump.periodic_trig);
 	cancel_delayed_work_sync(&fwrt->dump.wk);
 }
 
@@ -468,4 +470,5 @@ static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 	}
 }
 
+void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t);
 #endif  /* __iwl_fw_dbg_h__ */
