@@ -95,6 +95,10 @@ struct mlx5e_tirc_config {
 enum mlx5e_tunnel_types {
 	MLX5E_TT_IPV4_GRE,
 	MLX5E_TT_IPV6_GRE,
+	MLX5E_TT_IPV4_IPIP,
+	MLX5E_TT_IPV6_IPIP,
+	MLX5E_TT_IPV4_IPV6,
+	MLX5E_TT_IPV6_IPV6,
 	MLX5E_NUM_TUNNEL_TT,
 };
 
