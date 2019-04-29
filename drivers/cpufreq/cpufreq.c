@@ -619,50 +619,52 @@ static struct cpufreq_governor *find_governor(const char *str_governor)
 	return NULL;
 }
 
+static int cpufreq_parse_policy(char *str_governor,
+				struct cpufreq_policy *policy)
+{
+	if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
+		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
+		return 0;
+	}
+	if (!strncasecmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
+		policy->policy = CPUFREQ_POLICY_POWERSAVE;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 /**
- * cpufreq_parse_governor - parse a governor string
+ * cpufreq_parse_governor - parse a governor string only for !setpolicy
  */
 static int cpufreq_parse_governor(char *str_governor,
 				  struct cpufreq_policy *policy)
 {
-	if (cpufreq_driver->setpolicy) {
-		if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
-			policy->policy = CPUFREQ_POLICY_PERFORMANCE;
-			return 0;
-		}
+	struct cpufreq_governor *t;
 
-		if (!strncasecmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
-			policy->policy = CPUFREQ_POLICY_POWERSAVE;
-			return 0;
-		}
-	} else {
-		struct cpufreq_governor *t;
+	mutex_lock(&cpufreq_governor_mutex);
+
+	t = find_governor(str_governor);
+	if (!t) {
+		int ret;
+
+		mutex_unlock(&cpufreq_governor_mutex);
+
+		ret = request_module("cpufreq_%s", str_governor);
+		if (ret)
+			return -EINVAL;
 
 		mutex_lock(&cpufreq_governor_mutex);
 
 		t = find_governor(str_governor);
-		if (!t) {
-			int ret;
+	}
+	if (t && !try_module_get(t->owner))
+		t = NULL;
 
-			mutex_unlock(&cpufreq_governor_mutex);
+	mutex_unlock(&cpufreq_governor_mutex);
 
-			ret = request_module("cpufreq_%s", str_governor);
-			if (ret)
-				return -EINVAL;
-
-			mutex_lock(&cpufreq_governor_mutex);
-
-			t = find_governor(str_governor);
-		}
-		if (t && !try_module_get(t->owner))
-			t = NULL;
-
-		mutex_unlock(&cpufreq_governor_mutex);
-
-		if (t) {
-			policy->governor = t;
-			return 0;
-		}
+	if (t) {
+		policy->governor = t;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -784,8 +786,13 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (cpufreq_parse_governor(str_governor, &new_policy))
-		return -EINVAL;
+	if (cpufreq_driver->setpolicy) {
+		if (cpufreq_parse_policy(str_governor, &new_policy))
+			return -EINVAL;
+	} else {
+		if (cpufreq_parse_governor(str_governor, &new_policy))
+			return -EINVAL;
+	}
 
 	ret = cpufreq_set_policy(policy, &new_policy);
 
@@ -1051,32 +1058,39 @@ __weak struct cpufreq_governor *cpufreq_default_governor(void)
 
 static int cpufreq_init_policy(struct cpufreq_policy *policy)
 {
-	struct cpufreq_governor *gov = NULL;
+	struct cpufreq_governor *gov = NULL, *def_gov = NULL;
 	struct cpufreq_policy new_policy;
 
 	memcpy(&new_policy, policy, sizeof(*policy));
 
-	/* Update governor of new_policy to the governor used before hotplug */
-	gov = find_governor(policy->last_governor);
-	if (gov) {
-		pr_debug("Restoring governor %s for cpu %d\n",
+	def_gov = cpufreq_default_governor();
+
+	if (has_target()) {
+		/*
+		 * Update governor of new_policy to the governor used before
+		 * hotplug
+		 */
+		gov = find_governor(policy->last_governor);
+		if (gov) {
+			pr_debug("Restoring governor %s for cpu %d\n",
 				policy->governor->name, policy->cpu);
+		} else {
+			if (!def_gov)
+				return -ENODATA;
+			gov = def_gov;
+		}
+		new_policy.governor = gov;
 	} else {
-		gov = cpufreq_default_governor();
-		if (!gov)
-			return -ENODATA;
-	}
-
-	new_policy.governor = gov;
-
-	/* Use the default policy if there is no last_policy. */
-	if (cpufreq_driver->setpolicy) {
-		if (policy->last_policy)
+		/* Use the default policy if there is no last_policy. */
+		if (policy->last_policy) {
 			new_policy.policy = policy->last_policy;
-		else
-			cpufreq_parse_governor(gov->name, &new_policy);
+		} else {
+			if (!def_gov)
+				return -ENODATA;
+			cpufreq_parse_policy(def_gov->name, &new_policy);
+		}
 	}
-	/* set default policy */
+
 	return cpufreq_set_policy(policy, &new_policy);
 }
 
