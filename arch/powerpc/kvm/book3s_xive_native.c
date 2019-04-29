@@ -973,21 +973,47 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	struct kvm *kvm = xive->kvm;
 	struct kvm_vcpu *vcpu;
 	int i;
+	int was_ready;
 
 	debugfs_remove(xive->dentry);
 
 	pr_devel("Releasing xive native device\n");
 
 	/*
-	 * When releasing the KVM device fd, the vCPUs can still be
-	 * running and we should clean up the vCPU interrupt
-	 * presenters first.
+	 * Clearing mmu_ready temporarily while holding kvm->lock
+	 * is a way of ensuring that no vcpus can enter the guest
+	 * until we drop kvm->lock.  Doing kick_all_cpus_sync()
+	 * ensures that any vcpu executing inside the guest has
+	 * exited the guest.  Once kick_all_cpus_sync() has finished,
+	 * we know that no vcpu can be executing the XIVE push or
+	 * pull code or accessing the XIVE MMIO regions.
+	 *
+	 * Since this is the device release function, we know that
+	 * userspace does not have any open fd or mmap referring to
+	 * the device.  Therefore there can not be any of the
+	 * device attribute set/get, mmap, or page fault functions
+	 * being executed concurrently, and similarly, the
+	 * connect_vcpu and set/clr_mapped functions also cannot
+	 * be being executed.
 	 */
-	kvm_for_each_vcpu(i, vcpu, kvm)
-		kvmppc_xive_native_cleanup_vcpu(vcpu);
+	was_ready = kvm->arch.mmu_ready;
+	kvm->arch.mmu_ready = 0;
+	kick_all_cpus_sync();
 
-	if (kvm)
-		kvm->arch.xive = NULL;
+	/*
+	 * We should clean up the vCPU interrupt presenters first.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		/*
+		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
+		 * (i.e. kvmppc_xive_native_[gs]et_vp) can be being done.
+		 */
+		mutex_lock(&vcpu->mutex);
+		kvmppc_xive_native_cleanup_vcpu(vcpu);
+		mutex_unlock(&vcpu->mutex);
+	}
+
+	kvm->arch.xive = NULL;
 
 	for (i = 0; i <= xive->max_sbid; i++) {
 		if (xive->src_blocks[i])
@@ -999,6 +1025,8 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	if (xive->vp_base != XIVE_INVALID_VP)
 		xive_native_free_vp_block(xive->vp_base);
 
+	kvm->arch.mmu_ready = was_ready;
+
 	/*
 	 * A reference of the kvmppc_xive pointer is now kept under
 	 * the xive_devices struct of the machine for reuse. It is
@@ -1009,6 +1037,9 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	kfree(dev);
 }
 
+/*
+ * Create a XIVE device.  kvm->lock is held.
+ */
 static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 {
 	struct kvmppc_xive *xive;

@@ -846,7 +846,8 @@ int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
 
 	/*
 	 * We can't update the state of a "pushed" VCPU, but that
-	 * shouldn't happen.
+	 * shouldn't happen because the vcpu->mutex makes running a
+	 * vcpu mutually exclusive with doing one_reg get/set on it.
 	 */
 	if (WARN_ON(vcpu->arch.xive_pushed))
 		return -EIO;
@@ -1835,7 +1836,7 @@ void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
 }
 
 /*
- * Called when device fd is closed
+ * Called when device fd is closed.  kvm->lock is held.
  */
 static void kvmppc_xive_release(struct kvm_device *dev)
 {
@@ -1843,21 +1844,46 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	struct kvm *kvm = xive->kvm;
 	struct kvm_vcpu *vcpu;
 	int i;
+	int was_ready;
 
 	pr_devel("Releasing xive device\n");
 
-	/*
-	 * When releasing the KVM device fd, the vCPUs can still be
-	 * running and we should clean up the vCPU interrupt
-	 * presenters first.
-	 */
-	kvm_for_each_vcpu(i, vcpu, kvm)
-		kvmppc_xive_cleanup_vcpu(vcpu);
-
 	debugfs_remove(xive->dentry);
 
-	if (kvm)
-		kvm->arch.xive = NULL;
+	/*
+	 * Clearing mmu_ready temporarily while holding kvm->lock
+	 * is a way of ensuring that no vcpus can enter the guest
+	 * until we drop kvm->lock.  Doing kick_all_cpus_sync()
+	 * ensures that any vcpu executing inside the guest has
+	 * exited the guest.  Once kick_all_cpus_sync() has finished,
+	 * we know that no vcpu can be executing the XIVE push or
+	 * pull code, or executing a XICS hcall.
+	 *
+	 * Since this is the device release function, we know that
+	 * userspace does not have any open fd referring to the
+	 * device.  Therefore there can not be any of the device
+	 * attribute set/get functions being executed concurrently,
+	 * and similarly, the connect_vcpu and set/clr_mapped
+	 * functions also cannot be being executed.
+	 */
+	was_ready = kvm->arch.mmu_ready;
+	kvm->arch.mmu_ready = 0;
+	kick_all_cpus_sync();
+
+	/*
+	 * We should clean up the vCPU interrupt presenters first.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		/*
+		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
+		 * (i.e. kvmppc_xive_[gs]et_icp) can be done concurrently.
+		 */
+		mutex_lock(&vcpu->mutex);
+		kvmppc_xive_cleanup_vcpu(vcpu);
+		mutex_unlock(&vcpu->mutex);
+	}
+
+	kvm->arch.xive = NULL;
 
 	/* Mask and free interrupts */
 	for (i = 0; i <= xive->max_sbid; i++) {
@@ -1869,6 +1895,8 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 
 	if (xive->vp_base != XIVE_INVALID_VP)
 		xive_native_free_vp_block(xive->vp_base);
+
+	kvm->arch.mmu_ready = was_ready;
 
 	/*
 	 * A reference of the kvmppc_xive pointer is now kept under
@@ -1906,6 +1934,9 @@ struct kvmppc_xive *kvmppc_xive_get_device(struct kvm *kvm, u32 type)
 	return xive;
 }
 
+/*
+ * Create a XICS device with XIVE backend.  kvm->lock is held.
+ */
 static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 {
 	struct kvmppc_xive *xive;
