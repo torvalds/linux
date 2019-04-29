@@ -53,10 +53,15 @@ enum cx25840_media_pads {
  * @mute:		audio mute V4L2 control (non-cx2583x devices only)
  * @pvr150_workaround:	whether we enable workaround for Hauppauge PVR150
  *			hardware bug (audio dropping out)
+ * @generic_mode:	whether we disable ivtv-specific hacks
+ *			this mode gets turned on when the bridge driver calls
+ *			cx25840 subdevice init core op
  * @radio:		set if we are currently in the radio mode, otherwise
  *			the current mode is non-radio (that is, video)
  * @std:		currently set video standard
  * @vid_input:		currently set video input
+ * @vid_config:	currently set video output configuration
+ *			only used in the generic mode
  * @aud_input:		currently set audio input
  * @audclk_freq:	currently set audio sample rate
  * @audmode:		currently set audio mode (when in non-radio mode)
@@ -83,9 +88,11 @@ struct cx25840_state {
 		struct v4l2_ctrl *mute;
 	};
 	int pvr150_workaround;
+	bool generic_mode;
 	int radio;
 	v4l2_std_id std;
 	enum cx25840_video_input vid_input;
+	u32 vid_config;
 	enum cx25840_audio_input aud_input;
 	u32 audclk_freq;
 	int audmode;
@@ -116,6 +123,14 @@ static inline bool is_cx2583x(struct cx25840_state *state)
 {
 	return state->id == CX25836 ||
 	       state->id == CX25837;
+}
+
+static inline bool is_cx2584x(struct cx25840_state *state)
+{
+	return state->id == CX25840 ||
+	       state->id == CX25841 ||
+	       state->id == CX25842 ||
+	       state->id == CX25843;
 }
 
 static inline bool is_cx231xx(struct cx25840_state *state)
