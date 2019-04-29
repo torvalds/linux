@@ -6,7 +6,20 @@
  * (C) Copyright 2018 - Will Deacon <will.deacon@arm.com>
  */
 
-#define RSEQ_SIG	0xd428bc00	/* BRK #0x45E0 */
+/*
+ * aarch64 -mbig-endian generates mixed endianness code vs data:
+ * little-endian code and big-endian data. Ensure the RSEQ_SIG signature
+ * matches code endianness.
+ */
+#define RSEQ_SIG_CODE	0xd428bc00	/* BRK #0x45E0.  */
+
+#ifdef __AARCH64EB__
+#define RSEQ_SIG_DATA	0x00bc28d4	/* BRK #0x45E0.  */
+#else
+#define RSEQ_SIG_DATA	RSEQ_SIG_CODE
+#endif
+
+#define RSEQ_SIG	RSEQ_SIG_DATA
 
 #define rseq_smp_mb()	__asm__ __volatile__ ("dmb ish" ::: "memory")
 #define rseq_smp_rmb()	__asm__ __volatile__ ("dmb ishld" ::: "memory")
@@ -121,7 +134,7 @@ do {										\
 
 #define RSEQ_ASM_DEFINE_ABORT(label, abort_label)				\
 	"	b	222f\n"							\
-	"	.inst 	"	__rseq_str(RSEQ_SIG) "\n"			\
+	"	.inst 	"	__rseq_str(RSEQ_SIG_CODE) "\n"			\
 	__rseq_str(label) ":\n"							\
 	"	b	%l[" __rseq_str(abort_label) "]\n"			\
 	"222:\n"
