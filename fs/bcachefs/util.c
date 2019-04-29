@@ -143,10 +143,10 @@ void bch2_flags_to_text(struct printbuf *out,
 		nr++;
 
 	while (flags && (bit = __ffs(flags)) < nr) {
-		pr_buf(out, "%s", list[bit]);
 		if (!first)
 			pr_buf(out, ",");
 		first = false;
+		pr_buf(out, "%s", list[bit]);
 		flags ^= 1 << bit;
 	}
 }
