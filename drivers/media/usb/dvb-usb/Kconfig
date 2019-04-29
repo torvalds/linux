@@ -139,11 +139,23 @@ config DVB_USB_CXUSB
 	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
-	  Currently, only DVB and ATSC modes are supported, analog mode
-	  shall be added in the future. Devices that require this module:
+	  DVB and ATSC modes are supported, for a basic analog mode support
+	  see the next option ("Analog support for the Conexant USB2.0 hybrid
+	  reference design").
+	  Devices that require this module:
 
 	  Medion MD95700 hybrid USB2.0 device.
 	  DViCO FusionHDTV (Bluebird) USB2.0 devices
+
+config DVB_USB_CXUSB_ANALOG
+	bool "Analog support for the Conexant USB2.0 hybrid reference design"
+	depends on DVB_USB_CXUSB && VIDEO_V4L2
+	select VIDEO_CX25840
+	select VIDEOBUF2_VMALLOC
+	help
+	  Say Y here to enable basic analog mode support for the Conexant
+	  USB2.0 hybrid reference design.
+	  Currently this mode is supported only on a Medion MD95700 device.
 
 config DVB_USB_M920X
 	tristate "Uli m920x DVB-T USB2.0 support"
