@@ -161,7 +161,7 @@ static void mt76x02_tx_tasklet(unsigned long data)
 	mt76_txq_schedule_all(&dev->mt76);
 }
 
-int mt76x02_poll_tx(struct napi_struct *napi, int budget)
+static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct mt76x02_dev *dev = container_of(napi, struct mt76x02_dev, tx_napi);
 	int i;
