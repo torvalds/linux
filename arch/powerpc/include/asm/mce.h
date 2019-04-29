@@ -116,7 +116,7 @@ struct machine_check_event {
 	enum MCE_Initiator	initiator:8;	/* 0x03 */
 	enum MCE_ErrorType	error_type:8;	/* 0x04 */
 	enum MCE_Disposition	disposition:8;	/* 0x05 */
-	uint8_t			reserved_1[2];	/* 0x06 */
+	uint16_t		cpu;		/* 0x06 */
 	uint64_t		gpr3;		/* 0x08 */
 	uint64_t		srr0;		/* 0x10 */
 	uint64_t		srr1;		/* 0x18 */
