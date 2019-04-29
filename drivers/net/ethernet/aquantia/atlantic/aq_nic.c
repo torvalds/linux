@@ -753,11 +753,12 @@ static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
 	struct net_device *ndev = self->ndev;
 	struct aq_stats_s *stats = self->aq_hw_ops->hw_get_hw_stats(self->aq_hw);
 
-	ndev->stats.rx_packets = stats->uprc + stats->mprc + stats->bprc;
-	ndev->stats.rx_bytes = stats->ubrc + stats->mbrc + stats->bbrc;
+	ndev->stats.rx_packets = stats->dma_pkt_rc;
+	ndev->stats.rx_bytes = stats->dma_oct_rc;
 	ndev->stats.rx_errors = stats->erpr;
-	ndev->stats.tx_packets = stats->uptc + stats->mptc + stats->bptc;
-	ndev->stats.tx_bytes = stats->ubtc + stats->mbtc + stats->bbtc;
+	ndev->stats.rx_dropped = stats->dpc;
+	ndev->stats.tx_packets = stats->dma_pkt_tc;
+	ndev->stats.tx_bytes = stats->dma_oct_tc;
 	ndev->stats.tx_errors = stats->erpt;
 	ndev->stats.multicast = stats->mprc;
 }
