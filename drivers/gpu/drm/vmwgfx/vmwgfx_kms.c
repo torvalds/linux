@@ -905,14 +905,14 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	 */
 
 	/* Surface must be marked as a scanout. */
-	if (unlikely(!surface->scanout))
+	if (unlikely(!surface->metadata.scanout))
 		return -EINVAL;
 
-	if (unlikely(surface->mip_levels[0] != 1 ||
-		     surface->num_sizes != 1 ||
-		     surface->base_size.width < mode_cmd->width ||
-		     surface->base_size.height < mode_cmd->height ||
-		     surface->base_size.depth != 1)) {
+	if (unlikely(surface->metadata.mip_levels[0] != 1 ||
+		     surface->metadata.num_sizes != 1 ||
+		     surface->metadata.base_size.width < mode_cmd->width ||
+		     surface->metadata.base_size.height < mode_cmd->height ||
+		     surface->metadata.base_size.depth != 1)) {
 		DRM_ERROR("Incompatible surface dimensions "
 			  "for requested mode.\n");
 		return -EINVAL;
@@ -941,7 +941,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	 * For DX, surface format validation is done when surface->scanout
 	 * is set.
 	 */
-	if (!has_sm4_context(dev_priv) && format != surface->format) {
+	if (!has_sm4_context(dev_priv) && format != surface->metadata.format) {
 		DRM_ERROR("Invalid surface format for requested mode.\n");
 		return -EINVAL;
 	}
@@ -2516,7 +2516,7 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 			 int increment)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
-	struct drm_vmw_size *size = &vmw_res_to_srf(res)->base_size;
+	struct drm_vmw_size *size = &vmw_res_to_srf(res)->metadata.base_size;
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdUpdateGBImage body;

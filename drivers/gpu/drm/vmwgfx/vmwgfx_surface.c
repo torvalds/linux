@@ -199,7 +199,7 @@ struct vmw_surface_destroy {
  */
 static inline uint32_t vmw_surface_dma_size(const struct vmw_surface *srf)
 {
-	return srf->num_sizes * sizeof(struct vmw_surface_dma);
+	return srf->metadata.num_sizes * sizeof(struct vmw_surface_dma);
 }
 
 
@@ -213,7 +213,7 @@ static inline uint32_t vmw_surface_dma_size(const struct vmw_surface *srf)
  */
 static inline uint32_t vmw_surface_define_size(const struct vmw_surface *srf)
 {
-	return sizeof(struct vmw_surface_define) + srf->num_sizes *
+	return sizeof(struct vmw_surface_define) + srf->metadata.num_sizes *
 		sizeof(SVGA3dSize);
 }
 
@@ -262,7 +262,8 @@ static void vmw_surface_define_encode(const struct vmw_surface *srf,
 	uint32_t cmd_len;
 	int i;
 
-	cmd_len = sizeof(cmd->body) + srf->num_sizes * sizeof(SVGA3dSize);
+	cmd_len = sizeof(cmd->body) + srf->metadata.num_sizes *
+		sizeof(SVGA3dSize);
 
 	cmd->header.id = SVGA_3D_CMD_SURFACE_DEFINE;
 	cmd->header.size = cmd_len;
@@ -272,16 +273,16 @@ static void vmw_surface_define_encode(const struct vmw_surface *srf,
 	 * since driver internally stores as 64 bit.
 	 * For legacy surface define only 32 bit flag is supported.
 	 */
-	cmd->body.surfaceFlags = (SVGA3dSurface1Flags)srf->flags;
-	cmd->body.format = srf->format;
+	cmd->body.surfaceFlags = (SVGA3dSurface1Flags)srf->metadata.flags;
+	cmd->body.format = srf->metadata.format;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
-		cmd->body.face[i].numMipLevels = srf->mip_levels[i];
+		cmd->body.face[i].numMipLevels = srf->metadata.mip_levels[i];
 
 	cmd += 1;
 	cmd_size = (SVGA3dSize *) cmd;
-	src_size = srf->sizes;
+	src_size = srf->metadata.sizes;
 
-	for (i = 0; i < srf->num_sizes; ++i, cmd_size++, src_size++) {
+	for (i = 0; i < srf->metadata.num_sizes; ++i, cmd_size++, src_size++) {
 		cmd_size->width = src_size->width;
 		cmd_size->height = src_size->height;
 		cmd_size->depth = src_size->depth;
@@ -305,15 +306,15 @@ static void vmw_surface_dma_encode(struct vmw_surface *srf,
 	uint32_t i;
 	struct vmw_surface_dma *cmd = (struct vmw_surface_dma *)cmd_space;
 	const struct svga3d_surface_desc *desc =
-		svga3dsurface_get_desc(srf->format);
+		svga3dsurface_get_desc(srf->metadata.format);
 
-	for (i = 0; i < srf->num_sizes; ++i) {
+	for (i = 0; i < srf->metadata.num_sizes; ++i) {
 		SVGA3dCmdHeader *header = &cmd->header;
 		SVGA3dCmdSurfaceDMA *body = &cmd->body;
 		SVGA3dCopyBox *cb = &cmd->cb;
 		SVGA3dCmdSurfaceDMASuffix *suffix = &cmd->suffix;
 		const struct vmw_surface_offset *cur_offset = &srf->offsets[i];
-		const struct drm_vmw_size *cur_size = &srf->sizes[i];
+		const struct drm_vmw_size *cur_size = &srf->metadata.sizes[i];
 
 		header->id = SVGA_3D_CMD_SURFACE_DMA;
 		header->size = sizeof(*body) + sizeof(*cb) + sizeof(*suffix);
@@ -669,7 +670,7 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	if (user_srf->master)
 		drm_master_put(&user_srf->master);
 	kfree(srf->offsets);
-	kfree(srf->sizes);
+	kfree(srf->metadata.sizes);
 	kfree(srf->snooper.image);
 	ttm_prime_object_kfree(user_srf, prime);
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
@@ -728,6 +729,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_user_surface *user_srf;
 	struct vmw_surface *srf;
+	struct vmw_surface_metadata *metadata;
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
 	union drm_vmw_surface_create_arg *arg =
@@ -793,43 +795,45 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	}
 
 	srf = &user_srf->srf;
+	metadata = &srf->metadata;
 	res = &srf->res;
 
 	/* Driver internally stores as 64-bit flags */
-	srf->flags = (SVGA3dSurfaceAllFlags)req->flags;
-	srf->format = req->format;
-	srf->scanout = req->scanout;
+	metadata->flags = (SVGA3dSurfaceAllFlags)req->flags;
+	metadata->format = req->format;
+	metadata->scanout = req->scanout;
 
-	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
-	srf->num_sizes = num_sizes;
+	memcpy(metadata->mip_levels, req->mip_levels,
+	       sizeof(metadata->mip_levels));
+	metadata->num_sizes = num_sizes;
 	user_srf->size = size;
-	srf->sizes = memdup_user((struct drm_vmw_size __user *)(unsigned long)
-				 req->size_addr,
-				 sizeof(*srf->sizes) * srf->num_sizes);
-	if (IS_ERR(srf->sizes)) {
-		ret = PTR_ERR(srf->sizes);
+	metadata->sizes =
+		memdup_user((struct drm_vmw_size __user *)(unsigned long)
+			    req->size_addr,
+			    sizeof(*metadata->sizes) * metadata->num_sizes);
+	if (IS_ERR(metadata->sizes)) {
+		ret = PTR_ERR(metadata->sizes);
 		goto out_no_sizes;
 	}
-	srf->offsets = kmalloc_array(srf->num_sizes,
-				     sizeof(*srf->offsets),
+	srf->offsets = kmalloc_array(metadata->num_sizes, sizeof(*srf->offsets),
 				     GFP_KERNEL);
 	if (unlikely(!srf->offsets)) {
 		ret = -ENOMEM;
 		goto out_no_offsets;
 	}
 
-	srf->base_size = *srf->sizes;
-	srf->autogen_filter = SVGA3D_TEX_FILTER_NONE;
-	srf->multisample_count = 0;
-	srf->multisample_pattern = SVGA3D_MS_PATTERN_NONE;
-	srf->quality_level = SVGA3D_MS_QUALITY_NONE;
+	metadata->base_size = *srf->metadata.sizes;
+	metadata->autogen_filter = SVGA3D_TEX_FILTER_NONE;
+	metadata->multisample_count = 0;
+	metadata->multisample_pattern = SVGA3D_MS_PATTERN_NONE;
+	metadata->quality_level = SVGA3D_MS_QUALITY_NONE;
 
 	cur_bo_offset = 0;
 	cur_offset = srf->offsets;
-	cur_size = srf->sizes;
+	cur_size = metadata->sizes;
 
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i) {
-		for (j = 0; j < srf->mip_levels[i]; ++j) {
+		for (j = 0; j < metadata->mip_levels[i]; ++j) {
 			uint32_t stride = svga3dsurface_calculate_pitch
 				(desc, cur_size);
 
@@ -843,11 +847,11 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 	res->backup_size = cur_bo_offset;
-	if (srf->scanout &&
-	    srf->num_sizes == 1 &&
-	    srf->sizes[0].width == 64 &&
-	    srf->sizes[0].height == 64 &&
-	    srf->format == SVGA3D_A8R8G8B8) {
+	if (metadata->scanout &&
+	    metadata->num_sizes == 1 &&
+	    metadata->sizes[0].width == 64 &&
+	    metadata->sizes[0].height == 64 &&
+	    metadata->format == SVGA3D_A8R8G8B8) {
 
 		srf->snooper.image = kzalloc(64 * 64 * 4, GFP_KERNEL);
 		if (!srf->snooper.image) {
@@ -911,7 +915,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 out_no_copy:
 	kfree(srf->offsets);
 out_no_offsets:
-	kfree(srf->sizes);
+	kfree(metadata->sizes);
 out_no_sizes:
 	ttm_prime_object_kfree(user_srf, prime);
 out_no_user_srf:
@@ -1031,18 +1035,19 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	srf = &user_srf->srf;
 
 	/* Downcast of flags when sending back to user space */
-	rep->flags = (uint32_t)srf->flags;
-	rep->format = srf->format;
-	memcpy(rep->mip_levels, srf->mip_levels, sizeof(srf->mip_levels));
+	rep->flags = (uint32_t)srf->metadata.flags;
+	rep->format = srf->metadata.format;
+	memcpy(rep->mip_levels, srf->metadata.mip_levels,
+	       sizeof(srf->metadata.mip_levels));
 	user_sizes = (struct drm_vmw_size __user *)(unsigned long)
 	    rep->size_addr;
 
 	if (user_sizes)
-		ret = copy_to_user(user_sizes, &srf->base_size,
-				   sizeof(srf->base_size));
+		ret = copy_to_user(user_sizes, &srf->metadata.base_size,
+				   sizeof(srf->metadata.base_size));
 	if (unlikely(ret != 0)) {
 		VMW_DEBUG_USER("copy_to_user failed %p %u\n", user_sizes,
-			       srf->num_sizes);
+			       srf->metadata.num_sizes);
 		ttm_ref_object_base_unref(tfile, base->handle, TTM_REF_USAGE);
 		ret = -EFAULT;
 	}
@@ -1062,6 +1067,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_surface *srf = vmw_res_to_srf(res);
+	struct vmw_surface_metadata *metadata = &srf->metadata;
 	uint32_t cmd_len, cmd_id, submit_len;
 	int ret;
 	struct {
@@ -1092,11 +1098,11 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	if (has_sm4_1_context(dev_priv) && srf->array_size > 0) {
+	if (has_sm4_1_context(dev_priv) && metadata->array_size > 0) {
 		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V3;
 		cmd_len = sizeof(cmd3->body);
 		submit_len = sizeof(*cmd3);
-	} else if (srf->array_size > 0) {
+	} else if (metadata->array_size > 0) {
 		/* VMW_SM_4 support verified at creation time. */
 		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V2;
 		cmd_len = sizeof(cmd2->body);
@@ -1115,46 +1121,46 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	if (has_sm4_1_context(dev_priv) && srf->array_size > 0) {
+	if (has_sm4_1_context(dev_priv) && metadata->array_size > 0) {
 		cmd3->header.id = cmd_id;
 		cmd3->header.size = cmd_len;
 		cmd3->body.sid = srf->res.id;
-		cmd3->body.surfaceFlags = srf->flags;
-		cmd3->body.format = srf->format;
-		cmd3->body.numMipLevels = srf->mip_levels[0];
-		cmd3->body.multisampleCount = srf->multisample_count;
-		cmd3->body.multisamplePattern = srf->multisample_pattern;
-		cmd3->body.qualityLevel = srf->quality_level;
-		cmd3->body.autogenFilter = srf->autogen_filter;
-		cmd3->body.size.width = srf->base_size.width;
-		cmd3->body.size.height = srf->base_size.height;
-		cmd3->body.size.depth = srf->base_size.depth;
-		cmd3->body.arraySize = srf->array_size;
-	} else if (srf->array_size > 0) {
+		cmd3->body.surfaceFlags = metadata->flags;
+		cmd3->body.format = metadata->format;
+		cmd3->body.numMipLevels = metadata->mip_levels[0];
+		cmd3->body.multisampleCount = metadata->multisample_count;
+		cmd3->body.multisamplePattern = metadata->multisample_pattern;
+		cmd3->body.qualityLevel = metadata->quality_level;
+		cmd3->body.autogenFilter = metadata->autogen_filter;
+		cmd3->body.size.width = metadata->base_size.width;
+		cmd3->body.size.height = metadata->base_size.height;
+		cmd3->body.size.depth = metadata->base_size.depth;
+		cmd3->body.arraySize = metadata->array_size;
+	} else if (metadata->array_size > 0) {
 		cmd2->header.id = cmd_id;
 		cmd2->header.size = cmd_len;
 		cmd2->body.sid = srf->res.id;
-		cmd2->body.surfaceFlags = srf->flags;
-		cmd2->body.format = srf->format;
-		cmd2->body.numMipLevels = srf->mip_levels[0];
-		cmd2->body.multisampleCount = srf->multisample_count;
-		cmd2->body.autogenFilter = srf->autogen_filter;
-		cmd2->body.size.width = srf->base_size.width;
-		cmd2->body.size.height = srf->base_size.height;
-		cmd2->body.size.depth = srf->base_size.depth;
-		cmd2->body.arraySize = srf->array_size;
+		cmd2->body.surfaceFlags = metadata->flags;
+		cmd2->body.format = metadata->format;
+		cmd2->body.numMipLevels = metadata->mip_levels[0];
+		cmd2->body.multisampleCount = metadata->multisample_count;
+		cmd2->body.autogenFilter = metadata->autogen_filter;
+		cmd2->body.size.width = metadata->base_size.width;
+		cmd2->body.size.height = metadata->base_size.height;
+		cmd2->body.size.depth = metadata->base_size.depth;
+		cmd2->body.arraySize = metadata->array_size;
 	} else {
 		cmd->header.id = cmd_id;
 		cmd->header.size = cmd_len;
 		cmd->body.sid = srf->res.id;
-		cmd->body.surfaceFlags = srf->flags;
-		cmd->body.format = srf->format;
-		cmd->body.numMipLevels = srf->mip_levels[0];
-		cmd->body.multisampleCount = srf->multisample_count;
-		cmd->body.autogenFilter = srf->autogen_filter;
-		cmd->body.size.width = srf->base_size.width;
-		cmd->body.size.height = srf->base_size.height;
-		cmd->body.size.depth = srf->base_size.depth;
+		cmd->body.surfaceFlags = metadata->flags;
+		cmd->body.format = metadata->format;
+		cmd->body.numMipLevels = metadata->mip_levels[0];
+		cmd->body.multisampleCount = metadata->multisample_count;
+		cmd->body.autogenFilter = metadata->autogen_filter;
+		cmd->body.size.width = metadata->base_size.width;
+		cmd->body.size.height = metadata->base_size.height;
+		cmd->body.size.depth = metadata->base_size.depth;
 	}
 
 	vmw_fifo_commit(dev_priv, submit_len);
@@ -1412,6 +1418,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 		.no_wait_gpu = false
 	};
 	struct vmw_surface *srf;
+	struct vmw_surface_metadata *metadata;
 	int ret;
 	u32 num_layers = 1;
 	u32 sample_count = 1;
@@ -1473,36 +1480,37 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	user_srf->prime.base.tfile     = NULL;
 
 	srf = &user_srf->srf;
-	srf->flags             = svga3d_flags;
-	srf->format            = format;
-	srf->scanout           = for_scanout;
-	srf->mip_levels[0]     = num_mip_levels;
-	srf->num_sizes         = 1;
-	srf->sizes             = NULL;
-	srf->offsets           = NULL;
-	srf->base_size         = size;
-	srf->autogen_filter    = SVGA3D_TEX_FILTER_NONE;
-	srf->array_size        = array_size;
-	srf->multisample_count = multisample_count;
-	srf->multisample_pattern = multisample_pattern;
-	srf->quality_level = quality_level;
+	metadata = &srf->metadata;
+	metadata->flags = svga3d_flags;
+	metadata->format = format;
+	metadata->scanout = for_scanout;
+	metadata->mip_levels[0] = num_mip_levels;
+	metadata->num_sizes = 1;
+	metadata->sizes = NULL;
+	srf->offsets = NULL;
+	metadata->base_size = size;
+	metadata->autogen_filter = SVGA3D_TEX_FILTER_NONE;
+	metadata->array_size = array_size;
+	metadata->multisample_count = multisample_count;
+	metadata->multisample_pattern = multisample_pattern;
+	metadata->quality_level = quality_level;
 
 	if (array_size)
 		num_layers = array_size;
 	else if (svga3d_flags & SVGA3D_SURFACE_CUBEMAP)
 		num_layers = SVGA3D_MAX_SURFACE_FACES;
 
-	if (srf->flags & SVGA3D_SURFACE_MULTISAMPLE)
-		sample_count = srf->multisample_count;
+	if (metadata->flags & SVGA3D_SURFACE_MULTISAMPLE)
+		sample_count = metadata->multisample_count;
 
-	srf->res.backup_size   =
-		svga3dsurface_get_serialized_size_extended(srf->format,
-							   srf->base_size,
-							   srf->mip_levels[0],
+	srf->res.backup_size =
+		svga3dsurface_get_serialized_size_extended(metadata->format,
+							   metadata->base_size,
+							   metadata->mip_levels[0],
 							   num_layers,
 							   sample_count);
 
-	if (srf->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
+	if (metadata->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
 		srf->res.backup_size += sizeof(SVGA3dDXSOState);
 
 	/*
@@ -1516,7 +1524,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	if (dev_priv->active_display_unit == vmw_du_screen_target &&
 	    for_scanout && size.width <= dev_priv->stdu_max_width &&
 	    size.height <= dev_priv->stdu_max_height)
-		srf->flags |= SVGA3D_SURFACE_SCREENTARGET;
+		metadata->flags |= SVGA3D_SURFACE_SCREENTARGET;
 
 	/*
 	 * From this point, the generic resource management functions
@@ -1762,6 +1770,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct vmw_surface *srf;
 	struct vmw_user_surface *user_srf;
+	struct vmw_surface_metadata *metadata;
 	struct ttm_base_object *base;
 	uint32_t backup_handle;
 	int ret = -EINVAL;
@@ -1777,6 +1786,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 		DRM_ERROR("Shared GB surface is missing a backup buffer.\n");
 		goto out_bad_resource;
 	}
+	metadata = &srf->metadata;
 
 	mutex_lock(&dev_priv->cmdbuf_mutex); /* Protect res->backup */
 	ret = vmw_user_bo_reference(tfile, srf->res.backup, &backup_handle);
@@ -1790,15 +1800,15 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 		goto out_bad_resource;
 	}
 
-	rep->creq.base.svga3d_flags = SVGA3D_FLAGS_LOWER_32(srf->flags);
-	rep->creq.base.format = srf->format;
-	rep->creq.base.mip_levels = srf->mip_levels[0];
+	rep->creq.base.svga3d_flags = SVGA3D_FLAGS_LOWER_32(metadata->flags);
+	rep->creq.base.format = metadata->format;
+	rep->creq.base.mip_levels = metadata->mip_levels[0];
 	rep->creq.base.drm_surface_flags = 0;
-	rep->creq.base.multisample_count = srf->multisample_count;
-	rep->creq.base.autogen_filter = srf->autogen_filter;
-	rep->creq.base.array_size = srf->array_size;
+	rep->creq.base.multisample_count = metadata->multisample_count;
+	rep->creq.base.autogen_filter = metadata->autogen_filter;
+	rep->creq.base.array_size = metadata->array_size;
 	rep->creq.base.buffer_handle = backup_handle;
-	rep->creq.base.base_size = srf->base_size;
+	rep->creq.base.base_size = metadata->base_size;
 	rep->crep.handle = user_srf->prime.base.handle;
 	rep->crep.backup_size = srf->res.backup_size;
 	rep->crep.buffer_handle = backup_handle;
@@ -1808,9 +1818,9 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 
 	rep->creq.version = drm_vmw_gb_surface_v1;
 	rep->creq.svga3d_flags_upper_32_bits =
-		SVGA3D_FLAGS_UPPER_32(srf->flags);
-	rep->creq.multisample_pattern = srf->multisample_pattern;
-	rep->creq.quality_level = srf->quality_level;
+		SVGA3D_FLAGS_UPPER_32(metadata->flags);
+	rep->creq.multisample_pattern = metadata->multisample_pattern;
+	rep->creq.quality_level = metadata->quality_level;
 	rep->creq.must_be_zero = 0;
 
 out_bad_resource:
@@ -1968,7 +1978,7 @@ static void vmw_surface_dirty_range_add(struct vmw_resource *res, size_t start,
 		    start >= res->backup_offset + res->backup_size))
 		return;
 
-	if (srf->format == SVGA3D_BUFFER)
+	if (srf->metadata.format == SVGA3D_BUFFER)
 		vmw_surface_buf_dirty_range_add(res, start, end);
 	else
 		vmw_surface_tex_dirty_range_add(res, start, end);
@@ -2058,6 +2068,7 @@ static int vmw_surface_dirty_sync(struct vmw_resource *res)
 static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 {
 	struct vmw_surface *srf = vmw_res_to_srf(res);
+	const struct vmw_surface_metadata *metadata = &srf->metadata;
 	struct vmw_surface_dirty *dirty;
 	u32 num_layers = 1;
 	u32 num_mip;
@@ -2070,12 +2081,12 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 	};
 	int ret;
 
-	if (srf->array_size)
-		num_layers = srf->array_size;
-	else if (srf->flags & SVGA3D_SURFACE_CUBEMAP)
+	if (metadata->array_size)
+		num_layers = metadata->array_size;
+	else if (metadata->flags & SVGA3D_SURFACE_CUBEMAP)
 		num_layers *= SVGA3D_MAX_SURFACE_FACES;
 
-	num_mip = srf->mip_levels[0];
+	num_mip = metadata->mip_levels[0];
 	if (!num_mip)
 		num_mip = 1;
 
@@ -2096,9 +2107,10 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 		goto out_no_dirty;
 	}
 
-	num_samples = max_t(u32, 1, srf->multisample_count);
-	ret = svga3dsurface_setup_cache(&srf->base_size, srf->format, num_mip,
-					num_layers, num_samples, &dirty->cache);
+	num_samples = max_t(u32, 1, metadata->multisample_count);
+	ret = svga3dsurface_setup_cache(&metadata->base_size, metadata->format,
+					num_mip, num_layers, num_samples,
+					&dirty->cache);
 	if (ret)
 		goto out_no_cache;
 
