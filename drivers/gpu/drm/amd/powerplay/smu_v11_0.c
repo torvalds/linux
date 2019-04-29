@@ -223,20 +223,27 @@ static int smu_v11_0_check_fw_status(struct smu_context *smu)
 
 static int smu_v11_0_check_fw_version(struct smu_context *smu)
 {
-	uint32_t smu_version = 0xff;
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	uint16_t smu_major;
+	uint8_t smu_minor, smu_debug;
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion);
+	ret = smu_get_smc_version(smu, &if_version, &smu_version);
 	if (ret)
-		goto err;
+		return ret;
 
-	ret = smu_read_smc_arg(smu, &smu_version);
-	if (ret)
-		goto err;
+	smu_major = (smu_version >> 16) & 0xffff;
+	smu_minor = (smu_version >> 8) & 0xff;
+	smu_debug = (smu_version >> 0) & 0xff;
 
-	if (smu_version != smu->smc_if_version)
+	pr_info("SMU Driver IF Version = 0x%08x, SMU FW Version = 0x%08x (%d.%d.%d)\n",
+		if_version, smu_version, smu_major, smu_minor, smu_debug);
+
+	if (if_version != smu->smc_if_version) {
+		pr_err("SMU driver if version not matched\n");
 		ret = -EINVAL;
-err:
+	}
+
 	return ret;
 }
 

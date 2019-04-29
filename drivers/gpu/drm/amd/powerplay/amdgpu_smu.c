@@ -30,6 +30,36 @@
 #include "atom.h"
 #include "amd_pcie.h"
 
+int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t *smu_version)
+{
+	int ret = 0;
+
+	if (!if_version && !smu_version)
+		return -EINVAL;
+
+	if (if_version) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion);
+		if (ret)
+			return ret;
+
+		ret = smu_read_smc_arg(smu, if_version);
+		if (ret)
+			return ret;
+	}
+
+	if (smu_version) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetSmuVersion);
+		if (ret)
+			return ret;
+
+		ret = smu_read_smc_arg(smu, smu_version);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 			   bool gate)
 {

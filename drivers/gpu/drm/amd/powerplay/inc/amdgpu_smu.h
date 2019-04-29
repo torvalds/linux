@@ -767,4 +767,5 @@ extern int smu_dpm_set_power_gate(struct smu_context *smu,uint32_t block_type, b
 extern int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
 			   enum amd_pp_task task_id);
+int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t *smu_version);
 #endif
