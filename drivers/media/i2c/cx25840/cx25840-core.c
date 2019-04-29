@@ -1772,7 +1772,7 @@ static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 /* Query the current detected video format */
-static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
+static int cx25840_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -1800,8 +1800,9 @@ static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 	u32 fmt = (cx25840_read4(client, 0x40c) >> 8) & 0xf;
 	*std = stds[ fmt ];
 
-	v4l_dbg(1, cx25840_debug, client, "g_std fmt = %x, v4l2_std_id = 0x%x\n",
-		fmt, (unsigned int)stds[ fmt ]);
+	v4l_dbg(1, cx25840_debug, client,
+		"querystd fmt = %x, v4l2_std_id = 0x%x\n",
+		fmt, (unsigned int)stds[fmt]);
 
 	return 0;
 }
@@ -5081,7 +5082,7 @@ static const struct v4l2_subdev_audio_ops cx25840_audio_ops = {
 
 static const struct v4l2_subdev_video_ops cx25840_video_ops = {
 	.s_std = cx25840_s_std,
-	.g_std = cx25840_g_std,
+	.querystd = cx25840_querystd,
 	.s_routing = cx25840_s_video_routing,
 	.s_stream = cx25840_s_stream,
 	.g_input_status = cx25840_g_input_status,
