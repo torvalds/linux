@@ -1001,6 +1001,12 @@ static void wait_and_add_new_range(struct dm_integrity_c *ic, struct dm_integrit
 	} while (unlikely(new_range->waiting));
 }
 
+static void add_new_range_and_wait(struct dm_integrity_c *ic, struct dm_integrity_range *new_range)
+{
+	if (unlikely(!add_new_range(ic, new_range, true)))
+		wait_and_add_new_range(ic, new_range);
+}
+
 static void init_journal_node(struct journal_node *node)
 {
 	RB_CLEAR_NODE(&node->node);
@@ -1995,8 +2001,7 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 			io->range.n_sectors = (k - j) << ic->sb->log2_sectors_per_block;
 
 			spin_lock_irq(&ic->endio_wait.lock);
-			if (unlikely(!add_new_range(ic, &io->range, true)))
-				wait_and_add_new_range(ic, &io->range);
+			add_new_range_and_wait(ic, &io->range);
 
 			if (likely(!from_replay)) {
 				struct journal_node *section_node = &ic->journal_tree[i * ic->journal_section_entries];
@@ -2155,8 +2160,7 @@ next_chunk:
 	if (!ic->meta_dev)
 		range.n_sectors = min(range.n_sectors, ((sector_t)1U << ic->sb->log2_interleave_sectors) - (unsigned)offset);
 
-	if (unlikely(!add_new_range(ic, &range, true)))
-		wait_and_add_new_range(ic, &range);
+	add_new_range_and_wait(ic, &range);
 
 	spin_unlock_irq(&ic->endio_wait.lock);
 
