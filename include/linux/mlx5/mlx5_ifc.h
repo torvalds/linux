@@ -307,7 +307,11 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         outer_gre_protocol[0x1];
 	u8         outer_gre_key[0x1];
 	u8         outer_vxlan_vni[0x1];
-	u8         reserved_at_1a[0x5];
+	u8         outer_geneve_vni[0x1];
+	u8         outer_geneve_oam[0x1];
+	u8         outer_geneve_protocol_type[0x1];
+	u8         outer_geneve_opt_len[0x1];
+	u8         reserved_at_1e[0x1];
 	u8         source_eswitch_port[0x1];
 
 	u8         inner_dmac[0x1];
@@ -480,7 +484,9 @@ struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         vxlan_vni[0x18];
 	u8         reserved_at_b8[0x8];
 
-	u8         reserved_at_c0[0x20];
+	u8         geneve_vni[0x18];
+	u8         reserved_at_d8[0x7];
+	u8         geneve_oam[0x1];
 
 	u8         reserved_at_e0[0xc];
 	u8         outer_ipv6_flow_label[0x14];
@@ -488,7 +494,11 @@ struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         reserved_at_100[0xc];
 	u8         inner_ipv6_flow_label[0x14];
 
-	u8         reserved_at_120[0x28];
+	u8         reserved_at_120[0xa];
+	u8         geneve_opt_len[0x6];
+	u8         geneve_protocol_type[0x10];
+
+	u8         reserved_at_140[0x8];
 	u8         bth_dst_qp[0x18];
 	u8	   reserved_at_160[0x20];
 	u8	   outer_esp_spi[0x20];
