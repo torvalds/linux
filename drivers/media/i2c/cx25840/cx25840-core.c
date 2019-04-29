@@ -1822,6 +1822,15 @@ static int cx25840_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
+static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct cx25840_state *state = to_state(sd);
+
+	*std = state->std;
+
+	return 0;
+}
+
 static int cx25840_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct cx25840_state *state = to_state(sd);
@@ -5081,6 +5090,7 @@ static const struct v4l2_subdev_audio_ops cx25840_audio_ops = {
 };
 
 static const struct v4l2_subdev_video_ops cx25840_video_ops = {
+	.g_std = cx25840_g_std,
 	.s_std = cx25840_s_std,
 	.querystd = cx25840_querystd,
 	.s_routing = cx25840_s_video_routing,
