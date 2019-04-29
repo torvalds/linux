@@ -181,7 +181,7 @@ static int mlx5_netdev_event(struct notifier_block *this,
 							  ibdev->rep->vport);
 			if (rep_ndev == ndev)
 				roce->netdev = ndev;
-		} else if (ndev->dev.parent == &mdev->pdev->dev) {
+		} else if (ndev->dev.parent == mdev->device) {
 			roce->netdev = ndev;
 		}
 		write_unlock(&roce->netdev_lock);
@@ -5666,7 +5666,8 @@ static int mlx5_ib_init_multiport_master(struct mlx5_ib_dev *dev)
 			}
 
 			if (bound) {
-				dev_dbg(&mpi->mdev->pdev->dev, "removing port from unaffiliated list.\n");
+				dev_dbg(mpi->mdev->device,
+					"removing port from unaffiliated list.\n");
 				mlx5_ib_dbg(dev, "port %d bound\n", i + 1);
 				list_del(&mpi->list);
 				break;
@@ -5865,7 +5866,7 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
 	dev->ib_dev.phys_port_cnt	= dev->num_ports;
 	dev->ib_dev.num_comp_vectors    = mlx5_comp_vectors_count(mdev);
-	dev->ib_dev.dev.parent		= &mdev->pdev->dev;
+	dev->ib_dev.dev.parent		= mdev->device;
 
 	mutex_init(&dev->cap_mask_mutex);
 	INIT_LIST_HEAD(&dev->qp_list);
@@ -6554,7 +6555,8 @@ static void *mlx5_ib_add_slave_port(struct mlx5_core_dev *mdev)
 
 	if (!bound) {
 		list_add_tail(&mpi->list, &mlx5_ib_unaffiliated_port_list);
-		dev_dbg(&mdev->pdev->dev, "no suitable IB device found to bind to, added to unaffiliated list.\n");
+		dev_dbg(mdev->device,
+			"no suitable IB device found to bind to, added to unaffiliated list.\n");
 	}
 	mutex_unlock(&mlx5_ib_multiport_mutex);
 
