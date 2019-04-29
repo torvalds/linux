@@ -2341,32 +2341,33 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 }
 
 static int domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
-                         struct scatterlist *sg, unsigned long phys_pfn,
-                         unsigned long nr_pages, int prot)
+			  struct scatterlist *sg, unsigned long phys_pfn,
+			  unsigned long nr_pages, int prot)
 {
-       int ret;
-       struct intel_iommu *iommu;
+	int ret;
+	struct intel_iommu *iommu;
 
-       /* Do the real mapping first */
-       ret = __domain_mapping(domain, iov_pfn, sg, phys_pfn, nr_pages, prot);
-       if (ret)
-               return ret;
+	/* Do the real mapping first */
+	ret = __domain_mapping(domain, iov_pfn, sg, phys_pfn, nr_pages, prot);
+	if (ret)
+		return ret;
 
-       /* Notify about the new mapping */
-       if (domain_type_is_vm(domain)) {
-	       /* VM typed domains can have more than one IOMMUs */
-	       int iommu_id;
-	       for_each_domain_iommu(iommu_id, domain) {
-		       iommu = g_iommus[iommu_id];
-		       __mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
-	       }
-       } else {
-	       /* General domains only have one IOMMU */
-	       iommu = domain_get_iommu(domain);
-	       __mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
-       }
+	/* Notify about the new mapping */
+	if (domain_type_is_vm(domain)) {
+		/* VM typed domains can have more than one IOMMUs */
+		int iommu_id;
 
-       return 0;
+		for_each_domain_iommu(iommu_id, domain) {
+			iommu = g_iommus[iommu_id];
+			__mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
+		}
+	} else {
+		/* General domains only have one IOMMU */
+		iommu = domain_get_iommu(domain);
+		__mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
+	}
+
+	return 0;
 }
 
 static inline int domain_sg_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
@@ -4083,7 +4084,7 @@ static int init_iommu_hw(void)
 				iommu_disable_protect_mem_regions(iommu);
 			continue;
 		}
-	
+
 		iommu_flush_write_buffer(iommu);
 
 		iommu_set_root_entry(iommu);
