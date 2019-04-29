@@ -58,6 +58,7 @@ enum {
 static inline void update_##name(struct btrfs_space_info *sinfo,	\
 				 s64 bytes)				\
 {									\
+	lockdep_assert_held(&sinfo->lock);				\
 	if (bytes < 0 && sinfo->name < -bytes) {			\
 		WARN_ON(1);						\
 		sinfo->name = 0;					\
