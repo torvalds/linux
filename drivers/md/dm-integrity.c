@@ -2677,37 +2677,37 @@ static void dm_integrity_set(struct dm_target *ti, struct dm_integrity_c *ic)
 	blk_queue_max_integrity_segments(disk->queue, UINT_MAX);
 }
 
-static void dm_integrity_free_page_list(struct dm_integrity_c *ic, struct page_list *pl)
+static void dm_integrity_free_page_list(struct page_list *pl)
 {
 	unsigned i;
 
 	if (!pl)
 		return;
-	for (i = 0; i < ic->journal_pages; i++)
-		if (pl[i].page)
-			__free_page(pl[i].page);
+	for (i = 0; pl[i].page; i++)
+		__free_page(pl[i].page);
 	kvfree(pl);
 }
 
-static struct page_list *dm_integrity_alloc_page_list(struct dm_integrity_c *ic)
+static struct page_list *dm_integrity_alloc_page_list(unsigned n_pages)
 {
-	size_t page_list_desc_size = ic->journal_pages * sizeof(struct page_list);
 	struct page_list *pl;
 	unsigned i;
 
-	pl = kvmalloc(page_list_desc_size, GFP_KERNEL | __GFP_ZERO);
+	pl = kvmalloc_array(n_pages + 1, sizeof(struct page_list), GFP_KERNEL | __GFP_ZERO);
 	if (!pl)
 		return NULL;
 
-	for (i = 0; i < ic->journal_pages; i++) {
+	for (i = 0; i < n_pages; i++) {
 		pl[i].page = alloc_page(GFP_KERNEL);
 		if (!pl[i].page) {
-			dm_integrity_free_page_list(ic, pl);
+			dm_integrity_free_page_list(pl);
 			return NULL;
 		}
 		if (i)
 			pl[i - 1].next = &pl[i];
 	}
+	pl[i].page = NULL;
+	pl[i].next = NULL;
 
 	return pl;
 }
@@ -2860,7 +2860,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 	}
 	ic->journal_pages = journal_pages;
 
-	ic->journal = dm_integrity_alloc_page_list(ic);
+	ic->journal = dm_integrity_alloc_page_list(ic->journal_pages);
 	if (!ic->journal) {
 		*error = "Could not allocate memory for journal";
 		r = -ENOMEM;
@@ -2892,7 +2892,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 		DEBUG_print("cipher %s, block size %u iv size %u\n",
 			    ic->journal_crypt_alg.alg_string, blocksize, ivsize);
 
-		ic->journal_io = dm_integrity_alloc_page_list(ic);
+		ic->journal_io = dm_integrity_alloc_page_list(ic->journal_pages);
 		if (!ic->journal_io) {
 			*error = "Could not allocate memory for journal io";
 			r = -ENOMEM;
@@ -2916,7 +2916,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				goto bad;
 			}
 
-			ic->journal_xor = dm_integrity_alloc_page_list(ic);
+			ic->journal_xor = dm_integrity_alloc_page_list(ic->journal_pages);
 			if (!ic->journal_xor) {
 				*error = "Could not allocate memory for journal xor";
 				r = -ENOMEM;
@@ -3573,9 +3573,9 @@ static void dm_integrity_dtr(struct dm_target *ti)
 		dm_put_device(ti, ic->dev);
 	if (ic->meta_dev)
 		dm_put_device(ti, ic->meta_dev);
-	dm_integrity_free_page_list(ic, ic->journal);
-	dm_integrity_free_page_list(ic, ic->journal_io);
-	dm_integrity_free_page_list(ic, ic->journal_xor);
+	dm_integrity_free_page_list(ic->journal);
+	dm_integrity_free_page_list(ic->journal_io);
+	dm_integrity_free_page_list(ic->journal_xor);
 	if (ic->journal_scatterlist)
 		dm_integrity_free_journal_scatterlist(ic, ic->journal_scatterlist);
 	if (ic->journal_io_scatterlist)
