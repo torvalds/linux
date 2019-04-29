@@ -193,7 +193,7 @@ unsigned int aq_pci_func_get_irq_type(struct aq_nic_s *self)
 	if (self->pdev->msix_enabled)
 		return AQ_HW_IRQ_MSIX;
 	if (self->pdev->msi_enabled)
-		return AQ_HW_IRQ_MSIX;
+		return AQ_HW_IRQ_MSI;
 	return AQ_HW_IRQ_LEGACY;
 }
 
