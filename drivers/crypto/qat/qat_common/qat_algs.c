@@ -131,7 +131,6 @@ struct qat_alg_ablkcipher_ctx {
 	struct icp_qat_fw_la_bulk_req dec_fw_req;
 	struct qat_crypto_instance *inst;
 	struct crypto_tfm *tfm;
-	spinlock_t lock;	/* protects qat_alg_ablkcipher_ctx struct */
 };
 
 static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
@@ -912,7 +911,6 @@ static int qat_alg_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 	struct qat_alg_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 	struct device *dev;
 
-	spin_lock(&ctx->lock);
 	if (ctx->enc_cd) {
 		/* rekeying */
 		dev = &GET_DEV(ctx->inst->accel_dev);
@@ -925,29 +923,22 @@ static int qat_alg_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 		int node = get_current_node();
 		struct qat_crypto_instance *inst =
 				qat_crypto_get_instance_node(node);
-		if (!inst) {
-			spin_unlock(&ctx->lock);
+		if (!inst)
 			return -EINVAL;
-		}
 
 		dev = &GET_DEV(inst->accel_dev);
 		ctx->inst = inst;
 		ctx->enc_cd = dma_alloc_coherent(dev, sizeof(*ctx->enc_cd),
 						 &ctx->enc_cd_paddr,
 						 GFP_ATOMIC);
-		if (!ctx->enc_cd) {
-			spin_unlock(&ctx->lock);
+		if (!ctx->enc_cd)
 			return -ENOMEM;
-		}
 		ctx->dec_cd = dma_alloc_coherent(dev, sizeof(*ctx->dec_cd),
 						 &ctx->dec_cd_paddr,
 						 GFP_ATOMIC);
-		if (!ctx->dec_cd) {
-			spin_unlock(&ctx->lock);
+		if (!ctx->dec_cd)
 			goto out_free_enc;
-		}
 	}
-	spin_unlock(&ctx->lock);
 	if (qat_alg_ablkcipher_init_sessions(ctx, key, keylen, mode))
 		goto out_free_all;
 
@@ -1119,7 +1110,6 @@ static int qat_alg_ablkcipher_init(struct crypto_tfm *tfm)
 {
 	struct qat_alg_ablkcipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	spin_lock_init(&ctx->lock);
 	tfm->crt_ablkcipher.reqsize = sizeof(struct qat_crypto_request);
 	ctx->tfm = tfm;
 	return 0;
