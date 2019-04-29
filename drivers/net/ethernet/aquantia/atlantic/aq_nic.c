@@ -234,8 +234,10 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 	if (err)
 		goto err_exit;
 
+	mutex_lock(&self->fwreq_mutex);
 	err = self->aq_fw_ops->get_mac_permanent(self->aq_hw,
 			    self->ndev->dev_addr);
+	mutex_unlock(&self->fwreq_mutex);
 	if (err)
 		goto err_exit;
 
@@ -304,7 +306,9 @@ int aq_nic_init(struct aq_nic_s *self)
 	unsigned int i = 0U;
 
 	self->power_state = AQ_HW_POWER_STATE_D0;
+	mutex_lock(&self->fwreq_mutex);
 	err = self->aq_hw_ops->hw_reset(self->aq_hw);
+	mutex_unlock(&self->fwreq_mutex);
 	if (err < 0)
 		goto err_exit;
 
@@ -871,7 +875,9 @@ int aq_nic_set_link_ksettings(struct aq_nic_s *self,
 		self->aq_nic_cfg.is_autoneg = false;
 	}
 
+	mutex_lock(&self->fwreq_mutex);
 	err = self->aq_fw_ops->set_link_speed(self->aq_hw, rate);
+	mutex_unlock(&self->fwreq_mutex);
 	if (err < 0)
 		goto err_exit;
 
@@ -931,14 +937,22 @@ void aq_nic_deinit(struct aq_nic_s *self)
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_deinit(aq_vec);
 
-	self->aq_fw_ops->deinit(self->aq_hw);
+	if (likely(self->aq_fw_ops->deinit)) {
+		mutex_lock(&self->fwreq_mutex);
+		self->aq_fw_ops->deinit(self->aq_hw);
+		mutex_unlock(&self->fwreq_mutex);
+	}
 
 	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
-	    self->aq_hw->aq_nic_cfg->wol) {
-		self->aq_fw_ops->set_power(self->aq_hw,
-					   self->power_state,
-					   self->ndev->dev_addr);
-	}
+	    self->aq_hw->aq_nic_cfg->wol)
+		if (likely(self->aq_fw_ops->set_power)) {
+			mutex_lock(&self->fwreq_mutex);
+			self->aq_fw_ops->set_power(self->aq_hw,
+						   self->power_state,
+						   self->ndev->dev_addr);
+			mutex_unlock(&self->fwreq_mutex);
+		}
+
 
 err_exit:;
 }

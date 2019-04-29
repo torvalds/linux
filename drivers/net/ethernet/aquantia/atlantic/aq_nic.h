@@ -105,6 +105,8 @@ struct aq_nic_s {
 	struct pci_dev *pdev;
 	unsigned int msix_entry_mask;
 	u32 irqvecs;
+	/* mutex to serialize FW interface access operations */
+	struct mutex fwreq_mutex;
 	struct aq_hw_rx_fltrs_s aq_hw_rx_fltrs;
 };
 
