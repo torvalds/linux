@@ -631,6 +631,7 @@ ccg_cmd_write_flash_row(struct ucsi_ccg *uc, u16 row,
 	ret = i2c_master_send(client, buf, CCG4_ROW_SIZE + 2);
 	if (ret != CCG4_ROW_SIZE + 2) {
 		dev_err(uc->dev, "REG_FLASH_RW_MEM write fail %d\n", ret);
+		mutex_unlock(&uc->lock);
 		return ret < 0 ? ret : -EIO;
 	}
 
