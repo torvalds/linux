@@ -265,7 +265,8 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 		return port->irq;
 
 	port->clk_port = devm_clk_get(dev, "port");
-	if (!IS_ERR(port->clk_port)) {
+	ret = PTR_ERR_OR_ZERO(port->clk_port);
+	if (!ret) {
 		ret = clk_prepare_enable(port->clk_port);
 		if (ret)
 			return ret;
@@ -273,16 +274,17 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 					       port->clk_port);
 		if (ret)
 			return ret;
-	} else if (port->clk_port == ERR_PTR(-EPROBE_DEFER)) {
+	} else if (ret == -EPROBE_DEFER) {
 		/*
 		 * Percolate deferrals, for anything else,
 		 * just live without the clocking.
 		 */
-		return PTR_ERR(port->clk_port);
+		return ret;
 	}
 
 	port->clk_gpio = devm_clk_get(dev, "gpio");
-	if (!IS_ERR(port->clk_gpio)) {
+	ret = PTR_ERR_OR_ZERO(port->clk_gpio);
+	if (!ret) {
 		ret = clk_prepare_enable(port->clk_gpio);
 		if (ret)
 			return ret;
@@ -290,8 +292,8 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 					       port->clk_gpio);
 		if (ret)
 			return ret;
-	} else if (port->clk_gpio == ERR_PTR(-EPROBE_DEFER)) {
-		return PTR_ERR(port->clk_gpio);
+	} else if (ret == -EPROBE_DEFER) {
+		return ret;
 	}
 
 	gc = &port->gc;
