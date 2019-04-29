@@ -55,10 +55,12 @@ enum {
  * Declare a helper function to detect underflow of various space info members
  */
 #define DECLARE_SPACE_INFO_UPDATE(name)					\
-static inline void update_##name(struct btrfs_space_info *sinfo,	\
+static inline void update_##name(struct btrfs_fs_info *fs_info,		\
+				 struct btrfs_space_info *sinfo,	\
 				 s64 bytes)				\
 {									\
 	lockdep_assert_held(&sinfo->lock);				\
+	trace_update_##name(fs_info, sinfo, sinfo->name, bytes);	\
 	if (bytes < 0 && sinfo->name < -bytes) {			\
 		WARN_ON(1);						\
 		sinfo->name = 0;					\
@@ -4209,7 +4211,7 @@ commit_trans:
 					      data_sinfo->flags, bytes, 1);
 		return -ENOSPC;
 	}
-	update_bytes_may_use(data_sinfo, bytes);
+	update_bytes_may_use(fs_info, data_sinfo, bytes);
 	trace_btrfs_space_reservation(fs_info, "space_info",
 				      data_sinfo->flags, bytes, 1);
 	spin_unlock(&data_sinfo->lock);
@@ -4262,7 +4264,7 @@ void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
 
 	data_sinfo = fs_info->data_sinfo;
 	spin_lock(&data_sinfo->lock);
-	update_bytes_may_use(data_sinfo, -len);
+	update_bytes_may_use(fs_info, data_sinfo, -len);
 	trace_btrfs_space_reservation(fs_info, "space_info",
 				      data_sinfo->flags, len, 0);
 	spin_unlock(&data_sinfo->lock);
@@ -5169,13 +5171,13 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	 * If not things get more complicated.
 	 */
 	if (used + orig_bytes <= space_info->total_bytes) {
-		update_bytes_may_use(space_info, orig_bytes);
+		update_bytes_may_use(fs_info, space_info, orig_bytes);
 		trace_btrfs_space_reservation(fs_info, "space_info",
 					      space_info->flags, orig_bytes, 1);
 		ret = 0;
 	} else if (can_overcommit(fs_info, space_info, orig_bytes, flush,
 				  system_chunk)) {
-		update_bytes_may_use(space_info, orig_bytes);
+		update_bytes_may_use(fs_info, space_info, orig_bytes);
 		trace_btrfs_space_reservation(fs_info, "space_info",
 					      space_info->flags, orig_bytes, 1);
 		ret = 0;
@@ -5503,7 +5505,7 @@ again:
 		flush = BTRFS_RESERVE_FLUSH_ALL;
 		goto again;
 	}
-	update_bytes_may_use(space_info, -num_bytes);
+	update_bytes_may_use(fs_info, space_info, -num_bytes);
 	trace_btrfs_space_reservation(fs_info, "space_info",
 				      space_info->flags, num_bytes, 0);
 	spin_unlock(&space_info->lock);
@@ -5531,7 +5533,8 @@ again:
 						      ticket->bytes, 1);
 			list_del_init(&ticket->list);
 			num_bytes -= ticket->bytes;
-			update_bytes_may_use(space_info, ticket->bytes);
+			update_bytes_may_use(fs_info, space_info,
+					     ticket->bytes);
 			ticket->bytes = 0;
 			space_info->tickets_id++;
 			wake_up(&ticket->wait);
@@ -5539,7 +5542,7 @@ again:
 			trace_btrfs_space_reservation(fs_info, "space_info",
 						      space_info->flags,
 						      num_bytes, 1);
-			update_bytes_may_use(space_info, num_bytes);
+			update_bytes_may_use(fs_info, space_info, num_bytes);
 			ticket->bytes -= num_bytes;
 			num_bytes = 0;
 		}
@@ -5832,14 +5835,14 @@ static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 			num_bytes = min(num_bytes,
 					block_rsv->size - block_rsv->reserved);
 			block_rsv->reserved += num_bytes;
-			update_bytes_may_use(sinfo, num_bytes);
+			update_bytes_may_use(fs_info, sinfo, num_bytes);
 			trace_btrfs_space_reservation(fs_info, "space_info",
 						      sinfo->flags, num_bytes,
 						      1);
 		}
 	} else if (block_rsv->reserved > block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
-		update_bytes_may_use(sinfo, -num_bytes);
+		update_bytes_may_use(fs_info, sinfo, -num_bytes);
 		trace_btrfs_space_reservation(fs_info, "space_info",
 				      sinfo->flags, num_bytes, 0);
 		block_rsv->reserved = block_rsv->size;
@@ -6302,7 +6305,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			old_val -= num_bytes;
 			btrfs_set_block_group_used(&cache->item, old_val);
 			cache->pinned += num_bytes;
-			update_bytes_pinned(cache->space_info, num_bytes);
+			update_bytes_pinned(info, cache->space_info, num_bytes);
 			cache->space_info->bytes_used -= num_bytes;
 			cache->space_info->disk_used -= num_bytes * factor;
 			spin_unlock(&cache->lock);
@@ -6377,7 +6380,7 @@ static int pin_down_extent(struct btrfs_block_group_cache *cache,
 	spin_lock(&cache->space_info->lock);
 	spin_lock(&cache->lock);
 	cache->pinned += num_bytes;
-	update_bytes_pinned(cache->space_info, num_bytes);
+	update_bytes_pinned(fs_info, cache->space_info, num_bytes);
 	if (reserved) {
 		cache->reserved -= num_bytes;
 		cache->space_info->bytes_reserved -= num_bytes;
@@ -6586,7 +6589,7 @@ static int btrfs_add_reserved_bytes(struct btrfs_block_group_cache *cache,
 	} else {
 		cache->reserved += num_bytes;
 		space_info->bytes_reserved += num_bytes;
-		update_bytes_may_use(space_info, -ram_bytes);
+		update_bytes_may_use(cache->fs_info, space_info, -ram_bytes);
 		if (delalloc)
 			cache->delalloc_bytes += num_bytes;
 	}
@@ -6742,7 +6745,7 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 		spin_lock(&space_info->lock);
 		spin_lock(&cache->lock);
 		cache->pinned -= len;
-		update_bytes_pinned(space_info, -len);
+		update_bytes_pinned(fs_info, space_info, -len);
 
 		trace_btrfs_space_reservation(fs_info, "pinned",
 					      space_info->flags, len, 0);
@@ -6763,7 +6766,8 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 				to_add = min(len, global_rsv->size -
 					     global_rsv->reserved);
 				global_rsv->reserved += to_add;
-				update_bytes_may_use(space_info, to_add);
+				update_bytes_may_use(fs_info, space_info,
+						     to_add);
 				if (global_rsv->reserved >= global_rsv->size)
 					global_rsv->full = 1;
 				trace_btrfs_space_reservation(fs_info,
@@ -11024,7 +11028,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		spin_lock(&space_info->lock);
 		spin_lock(&block_group->lock);
 
-		update_bytes_pinned(space_info, -block_group->pinned);
+		update_bytes_pinned(fs_info, space_info, -block_group->pinned);
 		space_info->bytes_readonly += block_group->pinned;
 		percpu_counter_add_batch(&space_info->total_bytes_pinned,
 				   -block_group->pinned,
