@@ -15,6 +15,7 @@
 #include <linux/rbtree.h>
 #include <linux/delay.h>
 #include <linux/random.h>
+#include <linux/reboot.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/async_tx.h>
@@ -257,6 +258,8 @@ struct dm_integrity_c {
 	struct alg_spec journal_mac_alg;
 
 	atomic64_t number_of_mismatches;
+
+	struct notifier_block reboot_notifier;
 };
 
 struct dm_integrity_range {
@@ -2717,10 +2720,26 @@ clear_journal:
 		init_journal_node(&ic->journal_tree[i]);
 }
 
+static int dm_integrity_reboot(struct notifier_block *n, unsigned long code, void *x)
+{
+	struct dm_integrity_c *ic = container_of(n, struct dm_integrity_c, reboot_notifier);
+
+	if (ic->mode == 'B') {
+		DEBUG_print("dm_integrity_reboot\n");
+		cancel_delayed_work_sync(&ic->bitmap_flush_work);
+		queue_delayed_work(ic->commit_wq, &ic->bitmap_flush_work, 0);
+		flush_workqueue(ic->commit_wq);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static void dm_integrity_postsuspend(struct dm_target *ti)
 {
 	struct dm_integrity_c *ic = (struct dm_integrity_c *)ti->private;
 	int r;
+
+	WARN_ON(unregister_reboot_notifier(&ic->reboot_notifier));
 
 	del_timer_sync(&ic->autocommit_timer);
 
@@ -2829,6 +2848,11 @@ static void dm_integrity_resume(struct dm_target *ti)
 			recalc_write_super(ic);
 		}
 	}
+
+	ic->reboot_notifier.notifier_call = dm_integrity_reboot;
+	ic->reboot_notifier.next = NULL;
+	ic->reboot_notifier.priority = INT_MAX - 1;	/* be notified after md and before hardware drivers */
+	WARN_ON(register_reboot_notifier(&ic->reboot_notifier));
 }
 
 static void dm_integrity_status(struct dm_target *ti, status_type_t type,
