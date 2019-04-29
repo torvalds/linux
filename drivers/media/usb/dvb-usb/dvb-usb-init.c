@@ -133,6 +133,10 @@ static int dvb_usb_exit(struct dvb_usb_device *d)
 	dvb_usb_i2c_exit(d);
 	deb_info("state should be zero now: %x\n", d->state);
 	d->state = DVB_USB_STATE_INIT;
+
+	if (d->priv != NULL && d->props.priv_destroy != NULL)
+		d->props.priv_destroy(d);
+
 	kfree(d->priv);
 	kfree(d);
 	return 0;
@@ -153,6 +157,15 @@ static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 		if (d->priv == NULL) {
 			err("no memory for priv in 'struct dvb_usb_device'");
 			return -ENOMEM;
+		}
+
+		if (d->props.priv_init != NULL) {
+			ret = d->props.priv_init(d);
+			if (ret != 0) {
+				kfree(d->priv);
+				d->priv = NULL;
+				return ret;
+			}
 		}
 	}
 
