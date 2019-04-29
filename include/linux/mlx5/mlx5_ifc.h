@@ -598,7 +598,7 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_receive;
 
-	u8         reserved_at_400[0x200];
+	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_receive_rdma;
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_receive_sniffer;
 
