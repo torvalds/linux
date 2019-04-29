@@ -3281,22 +3281,6 @@ static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 }
 extern void intel_i2c_reset(struct drm_i915_private *dev_priv);
 
-/* intel_bios.c */
-void intel_bios_init(struct drm_i915_private *dev_priv);
-void intel_bios_cleanup(struct drm_i915_private *dev_priv);
-bool intel_bios_is_valid_vbt(const void *buf, size_t size);
-bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
-bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
-bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port port);
-bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
-bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port);
-bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
-bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
-				     enum port port);
-bool intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
-				enum port port);
-enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
-
 /* intel_acpi.c */
 #ifdef CONFIG_ACPI
 extern void intel_register_dsm_handler(void);
