@@ -745,6 +745,18 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 	return false;
 }
 
+static uint64_t soc15_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+	uint64_t nak_r, nak_g;
+
+	/* Get the number of NAKs received and generated */
+	nak_r = RREG32_PCIE(smnPCIE_RX_NUM_NAK);
+	nak_g = RREG32_PCIE(smnPCIE_RX_NUM_NAK_GENERATED);
+
+	/* Add the total number of NAKs, i.e the number of replays */
+	return (nak_r + nak_g);
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -762,6 +774,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.init_doorbell_index = &vega10_doorbell_index_init,
 	.get_pcie_usage = &soc15_get_pcie_usage,
 	.need_reset_on_init = &soc15_need_reset_on_init,
+	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 };
 
 static const struct amdgpu_asic_funcs vega20_asic_funcs =
@@ -781,6 +794,7 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.init_doorbell_index = &vega20_doorbell_index_init,
 	.get_pcie_usage = &soc15_get_pcie_usage,
 	.need_reset_on_init = &soc15_need_reset_on_init,
+	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 };
 
 static int soc15_common_early_init(void *handle)
