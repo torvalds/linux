@@ -243,12 +243,7 @@ transfer_to_handler_cont:
 
 reenable_mmu:
 	/*
-	 * The trace_hardirqs_off will use CALLER_ADDR0 and CALLER_ADDR1.
-	 * If from user mode there is only one stack frame on the stack, and
-	 * accessing CALLER_ADDR1 will cause oops. So we need create a dummy
-	 * stack frame to make trace_hardirqs_off happy.
-	 *
-	 * This is handy because we also need to save a bunch of GPRs,
+	 * We save a bunch of GPRs,
 	 * r3 can be different from GPR3(r1) at this point, r9 and r11
 	 * contains the old MSR and handler address respectively,
 	 * r4 & r5 can contain page fault arguments that need to be passed
@@ -950,18 +945,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	 */
 	andi.	r10,r9,MSR_EE
 	beq	1f
-	/*
-	 * Since the ftrace irqsoff latency trace checks CALLER_ADDR1,
-	 * which is the stack frame here, we need to force a stack frame
-	 * in case we came from user space.
-	 */
 	stwu	r1,-32(r1)
 	mflr	r0
 	stw	r0,4(r1)
-	stwu	r1,-32(r1)
 	bl	trace_hardirqs_on
-	lwz	r1,0(r1)
-	lwz	r1,0(r1)
+	addi	r1, r1, 32
 	lwz	r9,_MSR(r1)
 1:
 #endif /* CONFIG_TRACE_IRQFLAGS */
