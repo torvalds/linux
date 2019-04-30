@@ -88,7 +88,7 @@ static void mdev_release_parent(struct kref *kref)
 	put_device(dev);
 }
 
-static inline struct mdev_parent *mdev_get_parent(struct mdev_parent *parent)
+static struct mdev_parent *mdev_get_parent(struct mdev_parent *parent)
 {
 	if (parent)
 		kref_get(&parent->ref);
@@ -96,7 +96,7 @@ static inline struct mdev_parent *mdev_get_parent(struct mdev_parent *parent)
 	return parent;
 }
 
-static inline void mdev_put_parent(struct mdev_parent *parent)
+static void mdev_put_parent(struct mdev_parent *parent)
 {
 	if (parent)
 		kref_put(&parent->ref, mdev_release_parent);
