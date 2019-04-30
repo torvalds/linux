@@ -2396,8 +2396,12 @@ static int io_account_mem(struct user_struct *user, unsigned long nr_pages)
 
 static void io_mem_free(void *ptr)
 {
-	struct page *page = virt_to_head_page(ptr);
+	struct page *page;
 
+	if (!ptr)
+		return;
+
+	page = virt_to_head_page(ptr);
 	if (put_page_testzero(page))
 		free_compound_page(page);
 }
@@ -2816,17 +2820,12 @@ static int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 		return -EOVERFLOW;
 
 	ctx->sq_sqes = io_mem_alloc(size);
-	if (!ctx->sq_sqes) {
-		io_mem_free(ctx->sq_ring);
+	if (!ctx->sq_sqes)
 		return -ENOMEM;
-	}
 
 	cq_ring = io_mem_alloc(struct_size(cq_ring, cqes, p->cq_entries));
-	if (!cq_ring) {
-		io_mem_free(ctx->sq_ring);
-		io_mem_free(ctx->sq_sqes);
+	if (!cq_ring)
 		return -ENOMEM;
-	}
 
 	ctx->cq_ring = cq_ring;
 	cq_ring->ring_mask = p->cq_entries - 1;
