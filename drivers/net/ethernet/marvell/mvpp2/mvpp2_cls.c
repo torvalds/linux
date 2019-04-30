@@ -1057,17 +1057,28 @@ static int mvpp2_port_c2_tcam_rule_add(struct mvpp2_port *port,
 	c2.tcam[4] |= MVPP22_CLS_C2_TCAM_EN(MVPP22_CLS_C2_LU_TYPE(MVPP2_CLS_LU_TYPE_MASK));
 	c2.tcam[4] |= MVPP22_CLS_C2_LU_TYPE(rule->loc);
 
-	/* Mark packet as "forwarded to software", needed for RSS */
-	c2.act |= MVPP22_CLS_C2_ACT_FWD(MVPP22_C2_FWD_SW_LOCK);
+	if (act->id == FLOW_ACTION_DROP) {
+		c2.act = MVPP22_CLS_C2_ACT_COLOR(MVPP22_C2_COL_RED_LOCK);
+	} else {
+		/* We want to keep the default color derived from the Header
+		 * Parser drop entries, for VLAN and MAC filtering. This will
+		 * assign a default color of Green or Red, and we want matches
+		 * with a non-drop action to keep that color.
+		 */
+		c2.act = MVPP22_CLS_C2_ACT_COLOR(MVPP22_C2_COL_NO_UPD_LOCK);
 
-	c2.act |= MVPP22_CLS_C2_ACT_QHIGH(MVPP22_C2_UPD_LOCK) |
-		   MVPP22_CLS_C2_ACT_QLOW(MVPP22_C2_UPD_LOCK);
+		/* Mark packet as "forwarded to software", needed for RSS */
+		c2.act |= MVPP22_CLS_C2_ACT_FWD(MVPP22_C2_FWD_SW_LOCK);
 
-	qh = ((act->queue.index + port->first_rxq) >> 3) & MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
-	ql = (act->queue.index + port->first_rxq) & MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+		c2.act |= MVPP22_CLS_C2_ACT_QHIGH(MVPP22_C2_UPD_LOCK) |
+			   MVPP22_CLS_C2_ACT_QLOW(MVPP22_C2_UPD_LOCK);
 
-	c2.attr[0] = MVPP22_CLS_C2_ATTR0_QHIGH(qh) |
-		      MVPP22_CLS_C2_ATTR0_QLOW(ql);
+		qh = ((act->queue.index + port->first_rxq) >> 3) & MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
+		ql = (act->queue.index + port->first_rxq) & MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+
+		c2.attr[0] = MVPP22_CLS_C2_ATTR0_QHIGH(qh) |
+			      MVPP22_CLS_C2_ATTR0_QLOW(ql);
+	}
 
 	c2.valid = true;
 
@@ -1183,7 +1194,7 @@ static int mvpp2_cls_rfs_parse_rule(struct mvpp2_rfs_rule *rule)
 	struct flow_action_entry *act;
 
 	act = &flow->action.entries[0];
-	if (act->id != FLOW_ACTION_QUEUE)
+	if (act->id != FLOW_ACTION_QUEUE && act->id != FLOW_ACTION_DROP)
 		return -EOPNOTSUPP;
 
 	/* For now, only use the C2 engine which has a HEK size limited to 64

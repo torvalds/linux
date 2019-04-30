@@ -136,6 +136,7 @@
 #define     MVPP22_CLS_C2_ACT_FWD(act)		(((act) & 0x7) << 13)
 #define     MVPP22_CLS_C2_ACT_QHIGH(act)	(((act) & 0x3) << 11)
 #define     MVPP22_CLS_C2_ACT_QLOW(act)		(((act) & 0x3) << 9)
+#define     MVPP22_CLS_C2_ACT_COLOR(act)	((act) & 0x7)
 #define MVPP22_CLS_C2_ATTR0			0x1b64
 #define     MVPP22_CLS_C2_ATTR0_QHIGH(qh)	(((qh) & 0x1f) << 24)
 #define     MVPP22_CLS_C2_ATTR0_QHIGH_MASK	0x1f
