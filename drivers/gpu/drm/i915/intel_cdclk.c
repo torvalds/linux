@@ -2265,6 +2265,15 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	    IS_VALLEYVIEW(dev_priv))
 		min_cdclk = max(320000, min_cdclk);
 
+	/*
+	 * On Geminilake once the CDCLK gets as low as 79200
+	 * picture gets unstable, despite that values are
+	 * correct for DSI PLL and DE PLL.
+	 */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
+	    IS_GEMINILAKE(dev_priv))
+		min_cdclk = max(158400, min_cdclk);
+
 	if (min_cdclk > dev_priv->max_cdclk_freq) {
 		DRM_DEBUG_KMS("required cdclk (%d kHz) exceeds max (%d kHz)\n",
 			      min_cdclk, dev_priv->max_cdclk_freq);
