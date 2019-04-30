@@ -17,7 +17,7 @@ struct anybuss_host;
 struct anybuss_client {
 	struct device dev;
 	struct anybuss_host *host;
-	__be16 fieldbus_type;
+	__be16 anybus_id;
 	/*
 	 * these can be optionally set by the client to receive event
 	 * notifications from the host.
@@ -30,7 +30,7 @@ struct anybuss_client_driver {
 	struct device_driver driver;
 	int (*probe)(struct anybuss_client *adev);
 	int (*remove)(struct anybuss_client *adev);
-	u16 fieldbus_type;
+	u16 anybus_id;
 };
 
 int anybuss_client_driver_register(struct anybuss_client_driver *drv);

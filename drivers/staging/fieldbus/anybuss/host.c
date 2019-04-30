@@ -1173,7 +1173,7 @@ static int anybus_bus_match(struct device *dev,
 	struct anybuss_client *adev =
 		to_anybuss_client(dev);
 
-	return adrv->fieldbus_type == be16_to_cpu(adev->fieldbus_type);
+	return adrv->anybus_id == be16_to_cpu(adev->anybus_id);
 }
 
 static int anybus_bus_probe(struct device *dev)
@@ -1372,7 +1372,7 @@ anybuss_host_common_probe(struct device *dev,
 		ret = -ENOMEM;
 		goto err_kthread;
 	}
-	cd->client->fieldbus_type = fieldbus_type;
+	cd->client->anybus_id = fieldbus_type;
 	cd->client->host = cd;
 	cd->client->dev.bus = &anybus_bus;
 	cd->client->dev.parent = dev;

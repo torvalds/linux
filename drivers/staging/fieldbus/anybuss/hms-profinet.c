@@ -208,7 +208,7 @@ static struct anybuss_client_driver profinet_driver = {
 		.name   = "hms-profinet",
 		.owner	= THIS_MODULE,
 	},
-	.fieldbus_type = 0x0089,
+	.anybus_id = 0x0089,
 };
 
 static int __init profinet_init(void)
