@@ -17,7 +17,7 @@ struct anybuss_host;
 struct anybuss_client {
 	struct device dev;
 	struct anybuss_host *host;
-	u16 fieldbus_type;
+	__be16 fieldbus_type;
 	/*
 	 * these can be optionally set by the client to receive event
 	 * notifications from the host.
