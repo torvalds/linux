@@ -158,6 +158,24 @@ static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+static void cnl_ipc_dump(struct snd_sof_dev *sdev)
+{
+	u32 hipcctl;
+	u32 hipcida;
+	u32 hipctdr;
+
+	/* read IPC status */
+	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
+	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
+
+	/* dump the IPC regs */
+	/* TODO: parse the raw msg */
+	dev_err(sdev->dev,
+		"error: host status 0x%8.8x dsp status 0x%8.8x mask 0x%8.8x\n",
+		hipcida, hipctdr, hipcctl);
+}
+
 /* cannonlake ops */
 const struct snd_sof_dsp_ops sof_cnl_ops = {
 	/* probe and remove */
@@ -189,6 +207,7 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.debug_map	= cnl_dsp_debugfs,
 	.debug_map_count	= ARRAY_SIZE(cnl_dsp_debugfs),
 	.dbg_dump	= hda_dsp_dump,
+	.ipc_dump	= cnl_ipc_dump,
 
 	/* stream callbacks */
 	.pcm_open	= hda_dsp_pcm_open,
