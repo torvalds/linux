@@ -84,12 +84,23 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int status;
 	int ret;
+	int i;
 
 	/* step 1: power up corex */
 	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
 		goto err;
+	}
+
+	/* DSP is powered up, set all SSPs to slave mode */
+	for (i = 0; i < chip->ssp_count; i++) {
+		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
+						 chip->ssp_base_offset
+						 + i * SSP_DEV_MEM_SIZE
+						 + SSP_SSC1_OFFSET,
+						 SSP_SET_SLAVE,
+						 SSP_SET_SLAVE);
 	}
 
 	/* step 2: purge FW request */
