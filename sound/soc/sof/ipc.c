@@ -762,6 +762,15 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 		return -EINVAL;
 	}
 
+	if (v->abi_version > SOF_ABI_VERSION) {
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
+			dev_warn(sdev->dev, "warn: FW ABI is more recent than kernel\n");
+		} else {
+			dev_err(sdev->dev, "error: FW ABI is more recent than kernel\n");
+			return -EINVAL;
+		}
+	}
+
 	if (ready->debug.bits.build) {
 		dev_info(sdev->dev,
 			 "Firmware debug build %d on %s-%s - options:\n"
