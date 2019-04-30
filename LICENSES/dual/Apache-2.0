@@ -1,6 +1,10 @@
 Valid-License-Identifier: Apache-2.0
 SPDX-URL: https://spdx.org/licenses/Apache-2.0.html
 Usage-Guide:
+  Do NOT use. The Apache-2.0 is not GPL2 compatible. It may only be used
+  for dual-licensed files where the other license is GPL2 compatible.
+  If you end up using this it MUST be used together with a GPL2 compatible
+  license using "OR".
   To use the Apache License version 2.0 put the following SPDX tag/value
   pair into a comment according to the placement guidelines in the
   licensing rules documentation:
