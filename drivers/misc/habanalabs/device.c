@@ -1147,7 +1147,13 @@ int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr,
 	 * either by the direct access of the device or by another core
 	 */
 	u32 *paddr = (u32 *) (uintptr_t) addr;
-	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us);
+	ktime_t timeout;
+
+	/* timeout should be longer when working with simulator */
+	if (!hdev->pdev)
+		timeout_us *= 10;
+
+	timeout = ktime_add_us(ktime_get(), timeout_us);
 
 	might_sleep();
 

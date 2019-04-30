@@ -1042,7 +1042,12 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 
 #define hl_poll_timeout(hdev, addr, val, cond, sleep_us, timeout_us) \
 ({ \
-	ktime_t __timeout = ktime_add_us(ktime_get(), timeout_us); \
+	ktime_t __timeout; \
+	/* timeout should be longer when working with simulator */ \
+	if (hdev->pdev) \
+		__timeout = ktime_add_us(ktime_get(), timeout_us); \
+	else \
+		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		(val) = RREG32(addr); \
