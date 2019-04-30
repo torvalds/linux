@@ -206,6 +206,7 @@ static int __init dc_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rtc);
 
 	rtc->rtc_dev->ops = &dc_rtc_ops;
+	rtc->rtc_dev->range_max = U32_MAX;
 
 	return rtc_register_device(rtc->rtc_dev);
 }
