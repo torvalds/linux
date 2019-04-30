@@ -92,7 +92,7 @@ int temac_indirect_busywait(struct temac_local *lp)
 			WARN_ON(1);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(500, 1000);
 	}
 	return 0;
 }
