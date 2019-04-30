@@ -5864,11 +5864,8 @@ void cgroup_post_fork(struct task_struct *child)
 		 * the task into the frozen state.
 		 */
 		if (unlikely(cgroup_task_freeze(child))) {
-			struct cgroup *cgrp;
-
 			spin_lock(&child->sighand->siglock);
 			WARN_ON_ONCE(child->frozen);
-			cgrp = cset->dfl_cgrp;
 			child->jobctl |= JOBCTL_TRAP_FREEZE;
 			spin_unlock(&child->sighand->siglock);
 
