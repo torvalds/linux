@@ -2454,7 +2454,7 @@ void __init trap_init(void)
 	else
 		set_handler(0x080, &except_vec3_generic, 0x80);
 
-	local_flush_icache_range(ebase, ebase + 0x400);
+	local_flush_icache_range(ebase, ebase + vec_size);
 
 	sort_extable(__start___dbe_table, __stop___dbe_table);
 
