@@ -342,6 +342,35 @@ stack_ovf:
 	SYNC
 	RFI
 
+#ifndef CONFIG_BOOKE	/* to be removed once BOOKE uses fast syscall entry */
+#ifdef CONFIG_TRACE_IRQFLAGS
+trace_syscall_entry_irq_off:
+	/*
+	 * Syscall shouldn't happen while interrupts are disabled,
+	 * so let's do a warning here.
+	 */
+0:	trap
+	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
+	bl	trace_hardirqs_on
+
+	/* Now enable for real */
+	LOAD_MSR_KERNEL(r10, MSR_KERNEL | MSR_EE)
+	mtmsr	r10
+
+	REST_GPR(0, r1)
+	REST_4GPRS(3, r1)
+	REST_2GPRS(7, r1)
+	b	DoSyscall
+#endif /* CONFIG_TRACE_IRQFLAGS */
+
+	.globl	transfer_to_syscall
+transfer_to_syscall:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	andi.	r12,r9,MSR_EE
+	beq-	trace_syscall_entry_irq_off
+#endif /* CONFIG_TRACE_IRQFLAGS */
+#endif /* !CONFIG_BOOKE */
+
 /*
  * Handle a system call.
  */
@@ -353,9 +382,11 @@ _GLOBAL(DoSyscall)
 	stw	r3,ORIG_GPR3(r1)
 	li	r12,0
 	stw	r12,RESULT(r1)
+#ifdef CONFIG_BOOKE	/* to be removed once BOOKE uses fast syscall entry */
 	lwz	r11,_CCR(r1)	/* Clear SO bit in CR */
 	rlwinm	r11,r11,0,4,2
 	stw	r11,_CCR(r1)
+#endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/* Make sure interrupts are enabled */
 	mfmsr	r11
@@ -1219,6 +1250,7 @@ load_dbcr0:
 
 	.section .bss
 	.align	4
+	.global global_dbcr0
 global_dbcr0:
 	.space	8*NR_CPUS
 	.previous

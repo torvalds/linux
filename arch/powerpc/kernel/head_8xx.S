@@ -185,8 +185,7 @@ Alignment:
 /* System call */
 	. = 0xc00
 SystemCall:
-	EXCEPTION_PROLOG
-	EXC_XFER_SYS(0xc00, DoSyscall)
+	SYSCALL_ENTRY	0xc00
 
 /* Single step - not used on 601 */
 	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
