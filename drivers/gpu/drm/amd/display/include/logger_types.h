@@ -66,6 +66,9 @@
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #define DC_LOG_DSC(...) DRM_DEBUG_KMS(__VA_ARGS__)
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0) || defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#define DC_LOG_DWB(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#endif
 
 struct dal_logger;
 

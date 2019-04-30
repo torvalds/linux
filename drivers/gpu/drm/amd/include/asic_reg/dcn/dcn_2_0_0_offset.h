@@ -889,6 +889,8 @@
 #define mmCNV_TEST_CRC_BLUE_BASE_IDX                                                                   2
 #define mmWB_DEBUG_CTRL                                                                                0x01f2
 #define mmWB_DEBUG_CTRL_BASE_IDX                                                                       2
+#define mmWB_DBG_MODE                                                                                  0x01f3
+#define mmWB_DBG_MODE_BASE_IDX                                                                         2
 #define mmWB_HW_DEBUG                                                                                  0x01f4
 #define mmWB_HW_DEBUG_BASE_IDX                                                                         2
 #define mmWB_SOFT_RESET                                                                                0x01f5
@@ -1065,6 +1067,8 @@
 #define mmMCIF_WB0_MCIF_WB_SELF_REFRESH_CONTROL_BASE_IDX                                               2
 #define mmMCIF_WB0_MULTI_LEVEL_QOS_CTRL                                                                0x02d9
 #define mmMCIF_WB0_MULTI_LEVEL_QOS_CTRL_BASE_IDX                                                       2
+#define mmMCIF_WB0_MCIF_WB_SECURITY_LEVEL                                                              0x02da
+#define mmMCIF_WB0_MCIF_WB_SECURITY_LEVEL_BASE_IDX                                                     2
 #define mmMCIF_WB0_MCIF_WB_BUF_LUMA_SIZE                                                               0x02db
 #define mmMCIF_WB0_MCIF_WB_BUF_LUMA_SIZE_BASE_IDX                                                      2
 #define mmMCIF_WB0_MCIF_WB_BUF_CHROMA_SIZE                                                             0x02dc

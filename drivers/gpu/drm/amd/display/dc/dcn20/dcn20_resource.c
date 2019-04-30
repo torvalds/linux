@@ -64,6 +64,9 @@
 
 #include "nbio/nbio_2_3_offset.h"
 
+#include "dcn20/dcn20_dwb.h"
+#include "dcn20/dcn20_mmhubbub.h"
+
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
 
@@ -468,6 +471,40 @@ static const struct dcn2_dpp_shift tf_shift = {
 
 static const struct dcn2_dpp_mask tf_mask = {
 		TF_REG_LIST_SH_MASK_DCN20(_MASK)
+};
+
+#define dwbc_regs_dcn2(id)\
+[id] = {\
+	DWBC_COMMON_REG_LIST_DCN2_0(id),\
+		}
+
+static const struct dcn20_dwbc_registers dwbc20_regs[] = {
+	dwbc_regs_dcn2(0),
+};
+
+static const struct dcn20_dwbc_shift dwbc20_shift = {
+	DWBC_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT)
+};
+
+static const struct dcn20_dwbc_mask dwbc20_mask = {
+	DWBC_COMMON_MASK_SH_LIST_DCN2_0(_MASK)
+};
+
+#define mcif_wb_regs_dcn2(id)\
+[id] = {\
+	MCIF_WB_COMMON_REG_LIST_DCN2_0(id),\
+		}
+
+static const struct dcn20_mmhubbub_registers mcif_wb20_regs[] = {
+	mcif_wb_regs_dcn2(0),
+};
+
+static const struct dcn20_mmhubbub_shift mcif_wb20_shift = {
+	MCIF_WB_COMMON_MASK_SH_LIST_DCN2_0(__SHIFT)
+};
+
+static const struct dcn20_mmhubbub_mask mcif_wb20_mask = {
+	MCIF_WB_COMMON_MASK_SH_LIST_DCN2_0(_MASK)
 };
 
 static const struct dcn20_mpc_registers mpc_regs = {
@@ -1085,6 +1122,17 @@ static void destruct(struct dcn20_resource_pool *pool)
 		if (pool->base.timing_generators[i] != NULL)	{
 			kfree(DCN10TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
+		}
+	}
+
+	for (i = 0; i < pool->base.res_cap->num_dwb; i++) {
+		if (pool->base.dwbc[i] != NULL) {
+			kfree(TO_DCN20_DWBC(pool->base.dwbc[i]));
+			pool->base.dwbc[i] = NULL;
+		}
+		if (pool->base.mcif_wb[i] != NULL) {
+			kfree(TO_DCN20_MMHUBBUB(pool->base.mcif_wb[i]));
+			pool->base.mcif_wb[i] = NULL;
 		}
 	}
 
@@ -2384,6 +2432,58 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 #endif
 };
 
+bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
+{
+	int i;
+	uint32_t pipe_count = pool->res_cap->num_dwb;
+
+	ASSERT(pipe_count > 0);
+
+	for (i = 0; i < pipe_count; i++) {
+		struct dcn20_dwbc *dwbc20 = kzalloc(sizeof(struct dcn20_dwbc),
+						    GFP_KERNEL);
+
+		if (!dwbc20) {
+			dm_error("DC: failed to create dwbc20!\n");
+			return false;
+		}
+		dcn20_dwbc_construct(dwbc20, ctx,
+				&dwbc20_regs[i],
+				&dwbc20_shift,
+				&dwbc20_mask,
+				i);
+		pool->dwbc[i] = &dwbc20->base;
+	}
+	return true;
+}
+
+bool dcn20_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
+{
+	int i;
+	uint32_t pipe_count = pool->res_cap->num_dwb;
+
+	ASSERT(pipe_count > 0);
+
+	for (i = 0; i < pipe_count; i++) {
+		struct dcn20_mmhubbub *mcif_wb20 = kzalloc(sizeof(struct dcn20_mmhubbub),
+						    GFP_KERNEL);
+
+		if (!mcif_wb20) {
+			dm_error("DC: failed to create mcif_wb20!\n");
+			return false;
+		}
+
+		dcn20_mmhubbub_construct(mcif_wb20, ctx,
+				&mcif_wb20_regs[i],
+				&mcif_wb20_shift,
+				&mcif_wb20_mask,
+				i);
+
+		pool->mcif_wb[i] = &mcif_wb20->base;
+	}
+	return true;
+}
+
 struct pp_smu_funcs *dcn20_pp_smu_create(struct dc_context *ctx)
 {
 	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
@@ -2971,6 +3071,17 @@ static bool construct(
 		}
 	}
 #endif
+
+	if (!dcn20_dwbc_create(ctx, &pool->base)) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create dwbc!\n");
+		goto create_fail;
+	}
+	if (!dcn20_mmhubbub_create(ctx, &pool->base)) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create mcif_wb!\n");
+		goto create_fail;
+	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?

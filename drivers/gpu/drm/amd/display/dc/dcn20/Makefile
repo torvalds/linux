@@ -10,7 +10,6 @@ ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 DCN20 += dcn20_dsc.o
 endif
 
-
 CFLAGS_dcn20_resource.o := -mhard-float -msse -mpreferred-stack-boundary=4
 
 AMD_DAL_DCN20 = $(addprefix $(AMDDALPATH)/dc/dcn20/,$(DCN20))
