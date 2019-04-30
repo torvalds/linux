@@ -230,6 +230,8 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 		goto err_alloc;
 	}
 
+	attrs->context = ucontext;
+
 	ucontext->res.type = RDMA_RESTRACK_CTX;
 	ucontext->device = ib_dev;
 	ucontext->cg_obj = cg_obj;
