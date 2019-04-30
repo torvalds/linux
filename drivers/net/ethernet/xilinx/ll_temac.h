@@ -334,6 +334,9 @@ struct temac_local {
 
 	/* Connection to PHY device */
 	struct device_node *phy_node;
+	/* For non-device-tree devices */
+	char phy_name[MII_BUS_ID_SIZE + 3];
+	phy_interface_t phy_interface;
 
 	/* MDIO bus data */
 	struct mii_bus *mii_bus;	/* MII bus reference */
