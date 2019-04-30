@@ -1082,6 +1082,10 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDefineGBSurface_v3 body;
 	} *cmd3;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDefineGBSurface_v4 body;
+	} *cmd4;
 
 	if (likely(res->id != -1))
 		return 0;
@@ -1098,7 +1102,11 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	if (has_sm4_1_context(dev_priv) && metadata->array_size > 0) {
+	if (has_sm5_context(dev_priv) && metadata->array_size > 0) {
+		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V4;
+		cmd_len = sizeof(cmd4->body);
+		submit_len = sizeof(*cmd4);
+	} else if (has_sm4_1_context(dev_priv) && metadata->array_size > 0) {
 		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V3;
 		cmd_len = sizeof(cmd3->body);
 		submit_len = sizeof(*cmd3);
@@ -1116,12 +1124,29 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 	cmd = VMW_FIFO_RESERVE(dev_priv, submit_len);
 	cmd2 = (typeof(cmd2))cmd;
 	cmd3 = (typeof(cmd3))cmd;
+	cmd4 = (typeof(cmd4))cmd;
 	if (unlikely(!cmd)) {
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
 
-	if (has_sm4_1_context(dev_priv) && metadata->array_size > 0) {
+	if (has_sm5_context(dev_priv) && metadata->array_size > 0) {
+		cmd4->header.id = cmd_id;
+		cmd4->header.size = cmd_len;
+		cmd4->body.sid = srf->res.id;
+		cmd4->body.surfaceFlags = metadata->flags;
+		cmd4->body.format = metadata->format;
+		cmd4->body.numMipLevels = metadata->mip_levels[0];
+		cmd4->body.multisampleCount = metadata->multisample_count;
+		cmd4->body.multisamplePattern = metadata->multisample_pattern;
+		cmd4->body.qualityLevel = metadata->quality_level;
+		cmd4->body.autogenFilter = metadata->autogen_filter;
+		cmd4->body.size.width = metadata->base_size.width;
+		cmd4->body.size.height = metadata->base_size.height;
+		cmd4->body.size.depth = metadata->base_size.depth;
+		cmd4->body.arraySize = metadata->array_size;
+		cmd4->body.bufferByteStride = metadata->buffer_byte_stride;
+	} else if (has_sm4_1_context(dev_priv) && metadata->array_size > 0) {
 		cmd3->header.id = cmd_id;
 		cmd3->header.size = cmd_len;
 		cmd3->body.sid = srf->res.id;
@@ -1341,6 +1366,7 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	req_ext.svga3d_flags_upper_32_bits = 0;
 	req_ext.multisample_pattern = SVGA3D_MS_PATTERN_NONE;
 	req_ext.quality_level = SVGA3D_MS_QUALITY_NONE;
+	req_ext.buffer_byte_stride = 0;
 	req_ext.must_be_zero = 0;
 
 	return vmw_gb_surface_define_internal(dev, &req_ext, rep, file_priv);
@@ -1467,6 +1493,11 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		}
 	}
 
+	if (req->buffer_byte_stride > 0 && !has_sm5_context(dev_priv)) {
+		VMW_DEBUG_USER("SM5 surface not supported.\n");
+		return -EINVAL;
+	}
+
 	if ((svga3d_flags_64 & SVGA3D_SURFACE_MULTISAMPLE) &&
 	    req->base.multisample_count == 0) {
 		VMW_DEBUG_USER("Invalid sample count.\n");
@@ -1491,6 +1522,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	metadata.multisample_pattern = req->multisample_pattern;
 	metadata.quality_level = req->quality_level;
 	metadata.array_size = req->base.array_size;
+	metadata.buffer_byte_stride = req->buffer_byte_stride;
 	metadata.num_sizes = 1;
 	metadata.base_size = req->base.base_size;
 	metadata.scanout = req->base.drm_surface_flags &

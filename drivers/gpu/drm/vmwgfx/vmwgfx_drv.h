@@ -238,6 +238,7 @@ struct vmw_surface_offset;
  * @array_size: Number of array elements for a 1D/2D texture. For cubemap
                 texture number of faces * array_size. This should be 0 for pre
 		SM4 device.
+ * @buffer_byte_stride: Buffer byte stride.
  * @num_sizes: Size of @sizes. For GB surface this should always be 1.
  * @base_size: Surface dimension.
  * @sizes: Array representing mip sizes. Legacy only.
@@ -255,6 +256,7 @@ struct vmw_surface_metadata {
 	u32 autogen_filter;
 	u32 array_size;
 	u32 num_sizes;
+	u32 buffer_byte_stride;
 	struct drm_vmw_size base_size;
 	struct drm_vmw_size *sizes;
 	bool scanout;
