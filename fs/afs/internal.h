@@ -1371,6 +1371,19 @@ extern int yfs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
 				     struct afs_callback *, unsigned int,
 				     struct afs_volsync *);
 
+struct yfs_acl {
+	struct afs_acl	*acl;		/* Dir/file/symlink ACL */
+	struct afs_acl	*vol_acl;	/* Whole volume ACL */
+	u32		inherit_flag;	/* True if ACL is inherited from parent dir */
+	u32		num_cleaned;	/* Number of ACEs removed due to subject removal */
+	unsigned int	flags;
+#define YFS_ACL_WANT_ACL	0x01	/* Set if caller wants ->acl */
+#define YFS_ACL_WANT_VOL_ACL	0x02	/* Set if caller wants ->vol_acl */
+};
+
+extern void yfs_free_opaque_acl(struct yfs_acl *);
+extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *, unsigned int);
+
 /*
  * Miscellaneous inline functions.
  */
