@@ -218,16 +218,42 @@ struct ti_sci_rm_core_ops {
 };
 
 /**
+ * struct ti_sci_rm_irq_ops: IRQ management operations
+ * @set_irq:		Set an IRQ route between the requested source
+ *			and destination
+ * @set_event_map:	Set an Event based peripheral irq to Interrupt
+ *			Aggregator.
+ * @free_irq:		Free an an IRQ route between the requested source
+ *			destination.
+ * @free_event_map:	Free an event based peripheral irq to Interrupt
+ *			Aggregator.
+ */
+struct ti_sci_rm_irq_ops {
+	int (*set_irq)(const struct ti_sci_handle *handle, u16 src_id,
+		       u16 src_index, u16 dst_id, u16 dst_host_irq);
+	int (*set_event_map)(const struct ti_sci_handle *handle, u16 src_id,
+			     u16 src_index, u16 ia_id, u16 vint,
+			     u16 global_event, u8 vint_status_bit);
+	int (*free_irq)(const struct ti_sci_handle *handle, u16 src_id,
+			u16 src_index, u16 dst_id, u16 dst_host_irq);
+	int (*free_event_map)(const struct ti_sci_handle *handle, u16 src_id,
+			      u16 src_index, u16 ia_id, u16 vint,
+			      u16 global_event, u8 vint_status_bit);
+};
+
+/**
  * struct ti_sci_ops - Function support for TI SCI
  * @dev_ops:	Device specific operations
  * @clk_ops:	Clock specific operations
  * @rm_core_ops:	Resource management core operations.
+ * @rm_irq_ops:		IRQ management specific operations
  */
 struct ti_sci_ops {
 	struct ti_sci_core_ops core_ops;
 	struct ti_sci_dev_ops dev_ops;
 	struct ti_sci_clk_ops clk_ops;
 	struct ti_sci_rm_core_ops rm_core_ops;
+	struct ti_sci_rm_irq_ops rm_irq_ops;
 };
 
 /**
