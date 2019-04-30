@@ -360,9 +360,7 @@ error_rtc_device_register:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-
-static int snvs_rtc_suspend_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -372,7 +370,7 @@ static int snvs_rtc_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int snvs_rtc_resume_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_resume_noirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -383,17 +381,8 @@ static int snvs_rtc_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops snvs_rtc_pm_ops = {
-	.suspend_noirq = snvs_rtc_suspend_noirq,
-	.resume_noirq = snvs_rtc_resume_noirq,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(snvs_rtc_suspend_noirq, snvs_rtc_resume_noirq)
 };
-
-#define SNVS_RTC_PM_OPS	(&snvs_rtc_pm_ops)
-
-#else
-
-#define SNVS_RTC_PM_OPS	NULL
-
-#endif
 
 static const struct of_device_id snvs_dt_ids[] = {
 	{ .compatible = "fsl,sec-v4.0-mon-rtc-lp", },
@@ -404,7 +393,7 @@ MODULE_DEVICE_TABLE(of, snvs_dt_ids);
 static struct platform_driver snvs_rtc_driver = {
 	.driver = {
 		.name	= "snvs_rtc",
-		.pm	= SNVS_RTC_PM_OPS,
+		.pm	= &snvs_rtc_pm_ops,
 		.of_match_table = snvs_dt_ids,
 	},
 	.probe		= snvs_rtc_probe,
