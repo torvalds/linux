@@ -373,17 +373,24 @@ static struct rk_crypto_tmp *crypto_v2_algs[] = {
 
 	&rk_v2_ecb_des3_ede_alg,	/* ecb(des3_ede) */
 	&rk_v2_cbc_des3_ede_alg,	/* cbc(des3_ede) */
+
+	&rk_v2_ahash_sha1,		/* sha1 */
+	&rk_v2_ahash_sha256,		/* sha256 */
+	&rk_v2_ahash_sha512,		/* sha512 */
+	&rk_v2_ahash_md5,		/* md5 */
 };
 
 static char *px30_algs_name[] = {
 	"ecb(aes)", "cbc(aes)", "xts(aes)",
 	"ecb(des)", "cbc(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)",
+	"sha1", "sha256", "sha512", "md5",
 };
 
 static char *rv1126_algs_name[] = {
 	"ecb(des)", "cbc(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)",
+	"sha1", "sha256", "sha512", "md5",
 };
 
 static const struct rk_crypto_soc_data px30_soc_data =

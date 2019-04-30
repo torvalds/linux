@@ -33,6 +33,11 @@ extern struct rk_crypto_tmp rk_v2_cbc_des_alg;
 extern struct rk_crypto_tmp rk_v2_ecb_des3_ede_alg;
 extern struct rk_crypto_tmp rk_v2_cbc_des3_ede_alg;
 
+extern struct rk_crypto_tmp rk_v2_ahash_sha1;
+extern struct rk_crypto_tmp rk_v2_ahash_sha256;
+extern struct rk_crypto_tmp rk_v2_ahash_sha512;
+extern struct rk_crypto_tmp rk_v2_ahash_md5;
+
 int rk_hw_crypto_v2_init(struct device *dev, void *hw_info);
 void rk_hw_crypto_v2_deinit(struct device *dev, void *hw_info);
 #endif

@@ -1,0 +1,480 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Hash acceleration support for Rockchip Crypto v2
+ *
+ * Copyright (c) 2020, Rockchip Electronics Co., Ltd
+ *
+ * Author: Lin Jinhan <troy.lin@rock-chips.com>
+ *
+ * Some ideas are from marvell/cesa.c and s5p-sss.c driver.
+ */
+
+#include <linux/slab.h>
+#include <linux/iopoll.h>
+
+#include "rk_crypto_core.h"
+#include "rk_crypto_v2.h"
+#include "rk_crypto_v2_reg.h"
+
+struct rk_hash_ctx {
+	u32 reserved;
+};
+
+#define RK_HASH_CTX_MAGIC	0x1A1A1A1A
+#define RK_POLL_PERIOD_US	100
+#define RK_POLL_TIMEOUT_US	50000
+#define HASH_MAX_SIZE		PAGE_SIZE
+
+static const u8 null_hash_md5_value[] = {
+	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+	0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e
+};
+
+static const u8 null_hash_sha1_value[] = {
+	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
+	0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
+	0xaf, 0xd8, 0x07, 0x09
+};
+
+static const u8 null_hash_sha256_value[] = {
+	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
+	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
+	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
+	0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
+};
+
+static const u8 null_hash_sha512_value[] = {
+	0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd,
+	0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d, 0x80, 0x07,
+	0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc,
+	0x83, 0xf4, 0xa9, 0x21, 0xd3, 0x6c, 0xe9, 0xce,
+	0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0,
+	0xff, 0x83, 0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f,
+	0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
+	0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e
+};
+
+static const u32 hash_algo2bc[] = {
+	[HASH_ALGO_MD5]    = CRYPTO_MD5,
+	[HASH_ALGO_SHA1]   = CRYPTO_SHA1,
+	[HASH_ALGO_SHA256] = CRYPTO_SHA256,
+	[HASH_ALGO_SHA512] = CRYPTO_SHA512,
+};
+
+static void word2byte(u32 word, u8 *ch, u32 endian)
+{
+	/* 0: Big-Endian 1: Little-Endian */
+	if (endian == BIG_ENDIAN) {
+		ch[0] = (word >> 24) & 0xff;
+		ch[1] = (word >> 16) & 0xff;
+		ch[2] = (word >> 8) & 0xff;
+		ch[3] = (word >> 0) & 0xff;
+	} else if (endian == LITTLE_ENDIAN) {
+		ch[0] = (word >> 0) & 0xff;
+		ch[1] = (word >> 8) & 0xff;
+		ch[2] = (word >> 16) & 0xff;
+		ch[3] = (word >> 24) & 0xff;
+	} else {
+		ch[0] = 0;
+		ch[1] = 0;
+		ch[2] = 0;
+		ch[3] = 0;
+	}
+}
+
+
+static struct rk_crypto_tmp *rk_ahash_get_algt(struct crypto_ahash *tfm)
+{
+	struct ahash_alg *alg = __crypto_ahash_alg(tfm->base.__crt_alg);
+
+	return container_of(alg, struct rk_crypto_tmp, alg.hash);
+}
+
+static int zero_message_process(struct ahash_request *req)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	int rk_digest_size = crypto_ahash_digestsize(tfm);
+	struct rk_crypto_tmp *algt = rk_ahash_get_algt(tfm);
+
+	switch (algt->algo) {
+	case HASH_ALGO_MD5:
+		memcpy(req->result, null_hash_md5_value, rk_digest_size);
+		break;
+	case HASH_ALGO_SHA1:
+		memcpy(req->result, null_hash_sha1_value, rk_digest_size);
+		break;
+	case HASH_ALGO_SHA256:
+		memcpy(req->result, null_hash_sha256_value, rk_digest_size);
+		break;
+	case HASH_ALGO_SHA512:
+		memcpy(req->result, null_hash_sha512_value, rk_digest_size);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rk_crypto_irq_handle(int irq, void *dev_id)
+{
+	struct rk_crypto_info *dev  = platform_get_drvdata(dev_id);
+	u32 interrupt_status;
+	struct rk_hw_crypto_v2_info *hw_info =
+			(struct rk_hw_crypto_v2_info *)dev->hw_info;
+
+	interrupt_status = CRYPTO_READ(dev, CRYPTO_DMA_INT_ST);
+	CRYPTO_WRITE(dev, CRYPTO_DMA_INT_ST, interrupt_status);
+
+	if (interrupt_status != CRYPTO_SRC_ITEM_DONE_INT_ST) {
+		dev_err(dev->dev, "DMA desc = %p\n", hw_info->desc);
+		dev_err(dev->dev, "DMA addr_in = %08x\n",
+			(u32)dev->addr_in);
+		dev_err(dev->dev, "DMA addr_out = %08x\n",
+			(u32)dev->addr_out);
+		dev_err(dev->dev, "DMA count = %08x\n", dev->count);
+		dev_err(dev->dev, "DMA desc_dma = %08x\n",
+			(u32)hw_info->desc_dma);
+		dev_err(dev->dev, "DMA Error status = %08x\n",
+			interrupt_status);
+		dev_err(dev->dev, "DMA CRYPTO_DMA_LLI_ADDR status = %08x\n",
+			CRYPTO_READ(dev, CRYPTO_DMA_LLI_ADDR));
+		dev_err(dev->dev, "DMA CRYPTO_DMA_ST status = %08x\n",
+			CRYPTO_READ(dev, CRYPTO_DMA_ST));
+		dev_err(dev->dev, "DMA CRYPTO_DMA_STATE status = %08x\n",
+			CRYPTO_READ(dev, CRYPTO_DMA_STATE));
+		dev_err(dev->dev, "DMA CRYPTO_DMA_LLI_RADDR status = %08x\n",
+			CRYPTO_READ(dev, CRYPTO_DMA_LLI_RADDR));
+		dev_err(dev->dev, "DMA CRYPTO_DMA_SRC_RADDR status = %08x\n",
+			CRYPTO_READ(dev, CRYPTO_DMA_SRC_RADDR));
+		dev_err(dev->dev, "DMA CRYPTO_DMA_DST_RADDR status = %08x\n",
+			CRYPTO_READ(dev, CRYPTO_DMA_DST_RADDR));
+		dev->err = -EFAULT;
+	}
+
+	return 0;
+}
+
+static void rk_ahash_crypto_complete(struct crypto_async_request *base, int err)
+{
+	if (base->complete)
+		base->complete(base, err);
+}
+
+static inline void clear_hash_out_reg(struct rk_crypto_info *dev)
+{
+	int i;
+
+	/*clear out register*/
+	for (i = 0; i < 16; i++)
+		CRYPTO_WRITE(dev, CRYPTO_HASH_DOUT_0 + 4 * i, 0);
+}
+
+static int rk_ahash_init(struct ahash_request *req)
+{
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags &
+					CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	return crypto_ahash_init(&rctx->fallback_req);
+}
+
+static int rk_ahash_update(struct ahash_request *req)
+{
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags &
+					CRYPTO_TFM_REQ_MAY_SLEEP;
+	rctx->fallback_req.nbytes = req->nbytes;
+	rctx->fallback_req.src = req->src;
+
+	return crypto_ahash_update(&rctx->fallback_req);
+}
+
+static int rk_ahash_final(struct ahash_request *req)
+{
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags &
+					CRYPTO_TFM_REQ_MAY_SLEEP;
+	rctx->fallback_req.result = req->result;
+
+	return crypto_ahash_final(&rctx->fallback_req);
+}
+
+static int rk_ahash_finup(struct ahash_request *req)
+{
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags &
+					CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	rctx->fallback_req.nbytes = req->nbytes;
+	rctx->fallback_req.src = req->src;
+	rctx->fallback_req.result = req->result;
+
+	return crypto_ahash_finup(&rctx->fallback_req);
+}
+
+static int rk_ahash_import(struct ahash_request *req, const void *in)
+{
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags &
+					CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	return crypto_ahash_import(&rctx->fallback_req, in);
+}
+
+static int rk_ahash_export(struct ahash_request *req, void *out)
+{
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
+	rctx->fallback_req.base.flags = req->base.flags &
+					CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	return crypto_ahash_export(&rctx->fallback_req, out);
+}
+
+static int rk_ahash_digest(struct ahash_request *req)
+{
+	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+	struct rk_crypto_info *dev = tctx->dev;
+
+	CRYPTO_TRACE("calc data %u bytes.", req->nbytes);
+
+	if (!req->nbytes)
+		return zero_message_process(req);
+	else
+		return dev->enqueue(dev, &req->base);
+}
+
+static void rk_ahash_dma_start(struct rk_crypto_info *dev)
+{
+	struct rk_hw_crypto_v2_info *hw_info =
+			(struct rk_hw_crypto_v2_info *)dev->hw_info;
+
+	CRYPTO_TRACE();
+
+	memset(hw_info->desc, 0x00, sizeof(*hw_info->desc));
+
+	hw_info->desc->src_addr = dev->addr_in;
+	hw_info->desc->src_len  = dev->count;
+	hw_info->desc->next_addr = 0;
+	hw_info->desc->dma_ctrl = 0x00000401;
+	hw_info->desc->user_define = 0x7;
+
+	dma_sync_single_for_device(dev->dev, hw_info->desc_dma,
+				   sizeof(*hw_info->desc), DMA_TO_DEVICE);
+	CRYPTO_WRITE(dev, CRYPTO_DMA_LLI_ADDR, hw_info->desc_dma);
+	CRYPTO_WRITE(dev, CRYPTO_HASH_CTL,
+		     (CRYPTO_HASH_ENABLE <<
+		      CRYPTO_WRITE_MASK_SHIFT) |
+		      CRYPTO_HASH_ENABLE);
+
+	CRYPTO_WRITE(dev, CRYPTO_DMA_CTL, 0x00010001);/* start */
+}
+
+static int rk_ahash_set_data_start(struct rk_crypto_info *dev)
+{
+	int err;
+
+	CRYPTO_TRACE();
+
+	err = dev->load_data(dev, dev->sg_src, dev->sg_dst);
+	if (!err)
+		rk_ahash_dma_start(dev);
+	return err;
+}
+
+static int rk_ahash_start(struct rk_crypto_info *dev)
+{
+	struct ahash_request *req = ahash_request_cast(dev->async_req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_crypto_tmp *algt = rk_ahash_get_algt(tfm);
+	u32 reg_ctrl = 0;
+
+	CRYPTO_TRACE();
+
+	dev->total = req->nbytes;
+	dev->left_bytes = req->nbytes;
+	dev->aligned = 0;
+	dev->align_size = 4;
+	dev->sg_dst = NULL;
+	dev->sg_src = req->src;
+	dev->first = req->src;
+	dev->src_nents = sg_nents(req->src);
+
+	if (algt->algo >= ARRAY_SIZE(hash_algo2bc))
+		goto exit;
+
+	reg_ctrl |= hash_algo2bc[algt->algo];
+	clear_hash_out_reg(dev);
+
+	reg_ctrl |= CRYPTO_HW_PAD_ENABLE;
+	CRYPTO_WRITE(dev, CRYPTO_HASH_CTL, reg_ctrl | CRYPTO_WRITE_MASK_ALL);
+
+	CRYPTO_WRITE(dev, CRYPTO_FIFO_CTL, 0x00030003);
+	CRYPTO_WRITE(dev, CRYPTO_DMA_INT_EN, 0x7f);
+
+	return rk_ahash_set_data_start(dev);
+exit:
+	CRYPTO_WRITE(dev, CRYPTO_HASH_CTL, CRYPTO_WRITE_MASK_ALL | 0);
+	return -1;
+}
+
+static int rk_ahash_get_result(struct rk_crypto_info *dev, uint8_t *data, uint32_t data_len)
+{
+	int ret;
+	u32 i, offset;
+	u32 reg_ctrl = 0;
+
+	ret = readl_poll_timeout_atomic(dev->reg + CRYPTO_HASH_VALID, reg_ctrl,
+					reg_ctrl & CRYPTO_HASH_IS_VALID,
+					RK_POLL_PERIOD_US,
+					RK_POLL_TIMEOUT_US);
+	if (ret)
+		goto exit;
+
+	offset = CRYPTO_HASH_DOUT_0;
+	for (i = 0; i < data_len / 4; i++, offset += 4)
+		word2byte(CRYPTO_READ(dev, offset),
+			  data + i * 4, BIG_ENDIAN);
+
+	if (data_len % 4) {
+		uint8_t tmp_buf[4];
+
+		word2byte(CRYPTO_READ(dev, offset), tmp_buf, BIG_ENDIAN);
+		memcpy(data + i * 4, tmp_buf, data_len % 4);
+	}
+
+	CRYPTO_WRITE(dev, CRYPTO_HASH_VALID, CRYPTO_HASH_IS_VALID);
+
+exit:
+	return ret;
+}
+
+static int rk_ahash_crypto_rx(struct rk_crypto_info *dev)
+{
+	int err = 0;
+	struct ahash_request *req = ahash_request_cast(dev->async_req);
+	struct crypto_ahash *tfm;
+
+	CRYPTO_TRACE();
+
+	dev->unload_data(dev);
+	CRYPTO_TRACE("left bytes = %u", dev->left_bytes);
+	if (dev->left_bytes) {
+		if (dev->aligned) {
+			if (sg_is_last(dev->sg_src)) {
+				dev_warn(dev->dev, "[%s:%d], Lack of data\n",
+					 __func__, __LINE__);
+				err = -ENOMEM;
+				goto out_rx;
+			}
+			dev->sg_src = sg_next(dev->sg_src);
+		}
+		err = rk_ahash_set_data_start(dev);
+	} else {
+		/*
+		 * it will take some time to process date after last dma
+		 * transmission.
+		 */
+
+		tfm = crypto_ahash_reqtfm(req);
+
+		err = rk_ahash_get_result(dev, req->result, crypto_ahash_digestsize(tfm));
+
+		dev->complete(dev->async_req, err);
+		tasklet_schedule(&dev->queue_task);
+	}
+
+out_rx:
+	return err;
+
+}
+
+static int rk_cra_hash_init(struct crypto_tfm *tfm)
+{
+	struct rk_crypto_tmp *algt = rk_ahash_get_algt(__crypto_ahash_cast(tfm));
+	const char *alg_name = crypto_tfm_alg_name(tfm);
+	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	memset(ctx, 0x00, sizeof(*ctx));
+
+	ctx->dev = algt->dev;
+	ctx->dev->start = rk_ahash_start;
+	ctx->dev->update = rk_ahash_crypto_rx;
+	ctx->dev->complete = rk_ahash_crypto_complete;
+	ctx->dev->irq_handle = rk_crypto_irq_handle;
+
+	/* for fallback */
+	ctx->fallback_tfm = crypto_alloc_ahash(alg_name, 0,
+					       CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(ctx->fallback_tfm)) {
+		dev_err(ctx->dev->dev, "Could not load fallback driver.\n");
+		return PTR_ERR(ctx->fallback_tfm);
+	}
+
+	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
+				 sizeof(struct rk_ahash_rctx) +
+				 crypto_ahash_reqsize(ctx->fallback_tfm));
+
+	ctx->dev->enable_clk(ctx->dev);
+
+	return 0;
+}
+
+static void rk_cra_hash_exit(struct crypto_tfm *tfm)
+{
+	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	CRYPTO_TRACE();
+
+	/* clear HASH_CTL */
+	CRYPTO_WRITE(ctx->dev, CRYPTO_HASH_CTL, CRYPTO_WRITE_MASK_ALL | 0);
+
+	ctx->dev->disable_clk(ctx->dev);
+
+	if (ctx->fallback_tfm)
+		crypto_free_ahash(ctx->fallback_tfm);
+}
+
+struct rk_crypto_tmp rk_v2_ahash_md5 = RK_HASH_ALGO_INIT(MD5, md5);
+struct rk_crypto_tmp rk_v2_ahash_sha1 = RK_HASH_ALGO_INIT(SHA1, sha1);
+struct rk_crypto_tmp rk_v2_ahash_sha256 = RK_HASH_ALGO_INIT(SHA256, sha256);
+struct rk_crypto_tmp rk_v2_ahash_sha512 = RK_HASH_ALGO_INIT(SHA512, sha512);
+

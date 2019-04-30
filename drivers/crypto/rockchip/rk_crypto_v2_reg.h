@@ -105,6 +105,7 @@
 #define CRYPTO_MD5			_SBF(4, 0x01)
 #define CRYPTO_SHA256			_SBF(4, 0x02)
 #define CRYPTO_SHA224			_SBF(4, 0x03)
+#define CRYPTO_SM3			_SBF(4, 0x06)
 #define CRYPTO_SHA512			_SBF(4, 0x08)
 #define CRYPTO_SHA384			_SBF(4, 0x09)
 #define CRYPTO_SHA512_224		_SBF(4, 0x0A)
