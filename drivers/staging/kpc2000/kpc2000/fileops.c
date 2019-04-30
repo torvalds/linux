@@ -91,6 +91,8 @@ long  kp2000_cdev_ioctl(struct file *filp, unsigned int ioctl_num, unsigned long
 	case KP2000_IOCTL_GET_EVERYTHING: {
 		struct kp2000_regs temp;
 		int ret;
+
+		memset(&temp, 0, sizeof(temp));
 		temp.card_id = pcard->card_id;
 		temp.build_version = pcard->build_version;
 		temp.build_datestamp = pcard->build_datestamp;
