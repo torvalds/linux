@@ -2428,6 +2428,9 @@ static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
 
 	mutex_lock(&chip->reg_lock);
 
+	if (mv88e6xxx_port_set_state(chip, port, BR_STATE_DISABLED))
+		dev_err(chip->dev, "failed to disable port\n");
+
 	if (chip->info->ops->serdes_irq_free)
 		chip->info->ops->serdes_irq_free(chip, port);
 
