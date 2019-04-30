@@ -151,6 +151,27 @@ void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 	kfree(irq);
 }
 
+void vgic_flush_pending_lpis(struct kvm_vcpu *vcpu)
+{
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct vgic_irq *irq, *tmp;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&vgic_cpu->ap_list_lock, flags);
+
+	list_for_each_entry_safe(irq, tmp, &vgic_cpu->ap_list_head, ap_list) {
+		if (irq->intid >= VGIC_MIN_LPI) {
+			raw_spin_lock(&irq->irq_lock);
+			list_del(&irq->ap_list);
+			irq->vcpu = NULL;
+			raw_spin_unlock(&irq->irq_lock);
+			vgic_put_irq(vcpu->kvm, irq);
+		}
+	}
+
+	raw_spin_unlock_irqrestore(&vgic_cpu->ap_list_lock, flags);
+}
+
 void vgic_irq_set_phys_pending(struct vgic_irq *irq, bool pending)
 {
 	WARN_ON(irq_set_irqchip_state(irq->host_irq,
