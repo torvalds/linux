@@ -47,13 +47,7 @@ static void idle_work_handler(struct work_struct *work)
 	struct drm_i915_private *i915 =
 		container_of(work, typeof(*i915), gem.idle_work.work);
 
-	if (!mutex_trylock(&i915->drm.struct_mutex)) {
-		/* Currently busy, come back later */
-		mod_delayed_work(i915->wq,
-				 &i915->gem.idle_work,
-				 msecs_to_jiffies(50));
-		return;
-	}
+	mutex_lock(&i915->drm.struct_mutex);
 
 	intel_wakeref_lock(&i915->gt.wakeref);
 	if (!intel_wakeref_active(&i915->gt.wakeref))
