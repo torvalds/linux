@@ -131,11 +131,16 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *link_dev;
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct sof_intel_hda_stream *hda_stream;
 	struct hda_pipe_params p_params = {0};
 	struct hdac_ext_link *link;
 	int stream_tag;
 
 	link_dev = snd_soc_dai_get_dma_data(dai, substream);
+
+	hda_stream = container_of(link_dev, struct sof_intel_hda_stream,
+				  hda_stream);
+	hda_stream->hw_params_upon_resume = 0;
 
 	link = snd_hdac_ext_bus_get_link(bus, codec_dai->component->name);
 	if (!link)
@@ -168,22 +173,22 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 static int hda_link_pcm_prepare(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct hdac_ext_stream *link_dev =
+				snd_soc_dai_get_dma_data(dai, substream);
+	struct sof_intel_hda_stream *hda_stream;
 	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(dai->component);
-	struct snd_sof_pcm *spcm;
+				snd_soc_component_get_drvdata(dai->component);
+	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	int stream = substream->stream;
 
-	spcm = snd_sof_find_spcm_dai(sdev, rtd);
-	if (!spcm)
-		return -EINVAL;
+	hda_stream = container_of(link_dev, struct sof_intel_hda_stream,
+				  hda_stream);
 
 	/* setup hw_params again only if resuming from system suspend */
-	if (!spcm->hw_params_upon_resume[stream])
+	if (!hda_stream->hw_params_upon_resume)
 		return 0;
 
-	dev_dbg(sdev->dev, "hda: prepare stream %d dir %d\n",
-		spcm->pcm.pcm_id, substream->stream);
+	dev_dbg(sdev->dev, "hda: prepare stream dir %d\n", substream->stream);
 
 	return hda_link_hw_params(substream, &rtd->dpcm[stream].hw_params,
 				  dai);
