@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 config CLKDEV_LOOKUP
 	bool
@@ -297,6 +298,7 @@ config COMMON_CLK_FIXED_MMIO
 	  Support for Memory Mapped IO Fixed clocks
 
 source "drivers/clk/actions/Kconfig"
+source "drivers/clk/analogbits/Kconfig"
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/imgtec/Kconfig"
