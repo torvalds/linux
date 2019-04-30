@@ -644,8 +644,10 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 
+	/* FIXME precompute the ELD in .compute_config() */
 	if (!connector->eld[0])
-		return;
+		DRM_DEBUG_KMS("Bogus ELD on [CONNECTOR:%d:%s]\n",
+			      connector->base.id, connector->name);
 
 	DRM_DEBUG_DRIVER("ELD on [CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 			 connector->base.id,
