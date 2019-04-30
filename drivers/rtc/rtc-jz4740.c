@@ -176,11 +176,11 @@ static int jz4740_rtc_read_time(struct device *dev, struct rtc_time *time)
 	return 0;
 }
 
-static int jz4740_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int jz4740_rtc_set_time(struct device *dev, struct rtc_time *time)
 {
 	struct jz4740_rtc *rtc = dev_get_drvdata(dev);
 
-	return jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, secs);
+	return jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, rtc_tm_to_time64(time));
 }
 
 static int jz4740_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -223,7 +223,7 @@ static int jz4740_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 
 static const struct rtc_class_ops jz4740_rtc_ops = {
 	.read_time	= jz4740_rtc_read_time,
-	.set_mmss	= jz4740_rtc_set_mmss,
+	.set_time	= jz4740_rtc_set_time,
 	.read_alarm	= jz4740_rtc_read_alarm,
 	.set_alarm	= jz4740_rtc_set_alarm,
 	.alarm_irq_enable = jz4740_rtc_alarm_irq_enable,
