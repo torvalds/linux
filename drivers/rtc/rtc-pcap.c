@@ -149,10 +149,12 @@ static int __init pcap_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcap_rtc);
 
-	pcap_rtc->rtc = devm_rtc_device_register(&pdev->dev, "pcap",
-					&pcap_rtc_ops, THIS_MODULE);
+	pcap_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(pcap_rtc->rtc))
 		return PTR_ERR(pcap_rtc->rtc);
+
+	pcap_rtc->rtc->ops = &pcap_rtc_ops;
+	pcap_rtc->rtc->range_max = (1 << 14) * 86400ULL - 1;
 
 	timer_irq = pcap_to_irq(pcap_rtc->pcap, PCAP_IRQ_1HZ);
 	alarm_irq = pcap_to_irq(pcap_rtc->pcap, PCAP_IRQ_TODA);
@@ -167,7 +169,7 @@ static int __init pcap_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return 0;
+	return rtc_register_device(pcap_rtc->rtc);
 }
 
 static int __exit pcap_rtc_remove(struct platform_device *pdev)
