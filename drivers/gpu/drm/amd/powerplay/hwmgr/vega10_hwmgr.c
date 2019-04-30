@@ -5016,7 +5016,7 @@ static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,
 	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info = hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table = table_info->vdd_dep_on_socclk;
-	struct vega10_single_dpm_table *dpm_table = &data->golden_dpm_table.soc_table;
+	struct vega10_single_dpm_table *dpm_table = &data->golden_dpm_table.mem_table;
 
 	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep_on_socclk =
 							&data->odn_dpm_table.vdd_dep_on_socclk;
@@ -5040,7 +5040,8 @@ static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,
 					break;
 			}
 			if (j == od_vddc_lookup_table->count) {
-				od_vddc_lookup_table->entries[j-1].us_vdd =
+				j = od_vddc_lookup_table->count - 1;
+				od_vddc_lookup_table->entries[j].us_vdd =
 					podn_vdd_dep->entries[i].vddc;
 				data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
 			}
@@ -5048,23 +5049,35 @@ static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,
 		}
 		dpm_table = &data->dpm_table.soc_table;
 		for (i = 0; i < dep_table->count; i++) {
-			if (dep_table->entries[i].vddInd == podn_vdd_dep->entries[dep_table->count-1].vddInd &&
-					dep_table->entries[i].clk < podn_vdd_dep->entries[dep_table->count-1].clk) {
+			if (dep_table->entries[i].vddInd == podn_vdd_dep->entries[podn_vdd_dep->count-1].vddInd &&
+					dep_table->entries[i].clk < podn_vdd_dep->entries[podn_vdd_dep->count-1].clk) {
 				data->need_update_dpm_table |= DPMTABLE_UPDATE_SOCCLK;
-				podn_vdd_dep_on_socclk->entries[i].clk = podn_vdd_dep->entries[dep_table->count-1].clk;
-				dpm_table->dpm_levels[i].value = podn_vdd_dep_on_socclk->entries[i].clk;
+				for (; (i < dep_table->count) &&
+				       (dep_table->entries[i].clk < podn_vdd_dep->entries[podn_vdd_dep->count - 1].clk); i++) {
+					podn_vdd_dep_on_socclk->entries[i].clk = podn_vdd_dep->entries[podn_vdd_dep->count-1].clk;
+					dpm_table->dpm_levels[i].value = podn_vdd_dep_on_socclk->entries[i].clk;
+				}
+				break;
+			} else {
+				dpm_table->dpm_levels[i].value = dep_table->entries[i].clk;
+				podn_vdd_dep_on_socclk->entries[i].vddc = dep_table->entries[i].vddc;
+				podn_vdd_dep_on_socclk->entries[i].vddInd = dep_table->entries[i].vddInd;
+				podn_vdd_dep_on_socclk->entries[i].clk = dep_table->entries[i].clk;
 			}
 		}
 		if (podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].clk <
-					podn_vdd_dep->entries[dep_table->count-1].clk) {
+					podn_vdd_dep->entries[podn_vdd_dep->count - 1].clk) {
 			data->need_update_dpm_table |= DPMTABLE_UPDATE_SOCCLK;
-			podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].clk = podn_vdd_dep->entries[dep_table->count-1].clk;
-			dpm_table->dpm_levels[podn_vdd_dep_on_socclk->count - 1].value = podn_vdd_dep->entries[dep_table->count-1].clk;
+			podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].clk =
+				podn_vdd_dep->entries[podn_vdd_dep->count - 1].clk;
+			dpm_table->dpm_levels[podn_vdd_dep_on_socclk->count - 1].value =
+				podn_vdd_dep->entries[podn_vdd_dep->count - 1].clk;
 		}
 		if (podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].vddInd <
-					podn_vdd_dep->entries[dep_table->count-1].vddInd) {
+					podn_vdd_dep->entries[podn_vdd_dep->count - 1].vddInd) {
 			data->need_update_dpm_table |= DPMTABLE_UPDATE_SOCCLK;
-			podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].vddInd = podn_vdd_dep->entries[dep_table->count-1].vddInd;
+			podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].vddInd =
+				podn_vdd_dep->entries[podn_vdd_dep->count - 1].vddInd;
 		}
 	}
 }
