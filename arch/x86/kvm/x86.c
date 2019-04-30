@@ -8290,7 +8290,7 @@ static void __get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->rdx = kvm_rdx_read(vcpu);
 	regs->rsi = kvm_rsi_read(vcpu);
 	regs->rdi = kvm_rdi_read(vcpu);
-	regs->rsp = kvm_register_read(vcpu, VCPU_REGS_RSP);
+	regs->rsp = kvm_rsp_read(vcpu);
 	regs->rbp = kvm_rbp_read(vcpu);
 #ifdef CONFIG_X86_64
 	regs->r8 = kvm_r8_read(vcpu);
@@ -8326,7 +8326,7 @@ static void __set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	kvm_rdx_write(vcpu, regs->rdx);
 	kvm_rsi_write(vcpu, regs->rsi);
 	kvm_rdi_write(vcpu, regs->rdi);
-	kvm_register_write(vcpu, VCPU_REGS_RSP, regs->rsp);
+	kvm_rsp_write(vcpu, regs->rsp);
 	kvm_rbp_write(vcpu, regs->rbp);
 #ifdef CONFIG_X86_64
 	kvm_r8_write(vcpu, regs->r8);

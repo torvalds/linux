@@ -65,6 +65,16 @@ static inline void kvm_rip_write(struct kvm_vcpu *vcpu, unsigned long val)
 	kvm_register_write(vcpu, VCPU_REGS_RIP, val);
 }
 
+static inline unsigned long kvm_rsp_read(struct kvm_vcpu *vcpu)
+{
+	return kvm_register_read(vcpu, VCPU_REGS_RSP);
+}
+
+static inline void kvm_rsp_write(struct kvm_vcpu *vcpu, unsigned long val)
+{
+	kvm_register_write(vcpu, VCPU_REGS_RSP, val);
+}
+
 static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 {
 	might_sleep();  /* on svm */
