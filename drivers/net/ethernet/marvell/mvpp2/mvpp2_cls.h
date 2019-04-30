@@ -125,11 +125,18 @@ struct mvpp2_cls_c2_entry {
 #define MVPP22_CLS_C2_N_ENTRIES		256
 
 /* Number of per-port dedicated entries in the C2 TCAM */
-#define MVPP22_CLS_C2_PORT_RANGE	8
+#define MVPP22_CLS_C2_PORT_N_FLOWS	MVPP2_N_RFS_ENTRIES_PER_FLOW
 
-#define MVPP22_CLS_C2_PORT_FIRST(p)	(MVPP22_CLS_C2_N_ENTRIES - \
-					((p) * MVPP22_CLS_C2_PORT_RANGE))
-#define MVPP22_CLS_C2_RSS_ENTRY(p)	(MVPP22_CLS_C2_PORT_FIRST(p) - 1)
+/* Each port has oen range per flow type + one entry controling the global RSS
+ * setting and the default rx queue
+ */
+#define MVPP22_CLS_C2_PORT_RANGE	(MVPP22_CLS_C2_PORT_N_FLOWS + 1)
+#define MVPP22_CLS_C2_PORT_FIRST(p)	((p) * MVPP22_CLS_C2_PORT_RANGE)
+#define MVPP22_CLS_C2_RSS_ENTRY(p)	(MVPP22_CLS_C2_PORT_FIRST((p) + 1) - 1)
+
+#define MVPP22_CLS_C2_PORT_FLOW_FIRST(p)	(MVPP22_CLS_C2_PORT_FIRST(p))
+
+#define MVPP22_CLS_C2_RFS_LOC(p, loc)	(MVPP22_CLS_C2_PORT_FLOW_FIRST(p) + (loc))
 
 /* Packet flow ID */
 enum mvpp2_prs_flow {
@@ -159,10 +166,6 @@ enum mvpp2_prs_flow {
 	MVPP2_FL_LAST,
 };
 
-enum mvpp2_cls_lu_type {
-	MVPP2_CLS_LU_ALL = 0,
-};
-
 /* LU Type defined for all engines, and specified in the flow table */
 #define MVPP2_CLS_LU_TYPE_MASK			0x3f
 
@@ -182,11 +185,16 @@ struct mvpp2_cls_flow {
 	struct mvpp2_prs_result_info prs_ri;
 };
 
-#define MVPP2_CLS_FLT_ENTRIES_PER_FLOW		(MVPP2_MAX_PORTS + 1)
+#define MVPP2_CLS_FLT_ENTRIES_PER_FLOW		(MVPP2_MAX_PORTS + 1 + 16)
 #define MVPP2_CLS_FLT_FIRST(id)			(((id) - MVPP2_FL_START) * \
 						 MVPP2_CLS_FLT_ENTRIES_PER_FLOW)
-#define MVPP2_CLS_FLT_C2_RSS_ENTRY(id)		(MVPP2_CLS_FLT_FIRST(id))
-#define MVPP2_CLS_FLT_HASH_ENTRY(port, id)	(MVPP2_CLS_FLT_C2_RSS_ENTRY(id) + (port) + 1)
+
+#define MVPP2_CLS_FLT_C2_RFS(port, id, rfs_n)	(MVPP2_CLS_FLT_FIRST(id) + \
+						 ((port) * MVPP2_MAX_PORTS) + \
+						 (rfs_n))
+
+#define MVPP2_CLS_FLT_C2_RSS_ENTRY(id)		(MVPP2_CLS_FLT_C2_RFS(MVPP2_MAX_PORTS, id, 0))
+#define MVPP2_CLS_FLT_HASH_ENTRY(port, id)	(MVPP2_CLS_FLT_C2_RSS_ENTRY(id) + 1 + (port))
 #define MVPP2_CLS_FLT_LAST(id)			(MVPP2_CLS_FLT_FIRST(id) + \
 						 MVPP2_CLS_FLT_ENTRIES_PER_FLOW - 1)
 
@@ -210,6 +218,12 @@ struct mvpp2_cls_flow {
 #define for_each_cls_flow_id_with_type(i, type)				      \
 	for_each_cls_flow_id((i))					      \
 		if (cls_flows[(i)].flow_type != (type))			      \
+			continue;					      \
+		else
+
+#define for_each_cls_flow_id_containing_type(i, type)			      \
+	for_each_cls_flow_id((i))					      \
+		if ((cls_flows[(i)].flow_type & (type)) != (type))	      \
 			continue;					      \
 		else
 
@@ -259,5 +273,14 @@ u32 mvpp2_cls_c2_hit_count(struct mvpp2 *priv, int c2_index);
 
 void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
 		       struct mvpp2_cls_c2_entry *c2);
+
+int mvpp2_ethtool_cls_rule_get(struct mvpp2_port *port,
+			       struct ethtool_rxnfc *rxnfc);
+
+int mvpp2_ethtool_cls_rule_ins(struct mvpp2_port *port,
+			       struct ethtool_rxnfc *info);
+
+int mvpp2_ethtool_cls_rule_del(struct mvpp2_port *port,
+			       struct ethtool_rxnfc *info);
 
 #endif
