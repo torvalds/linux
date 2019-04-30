@@ -35,6 +35,7 @@
 #include <asm/thread_info.h>
 #include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
+#include <asm/cpuidle.h>
 
 /* Sign-extend HDEC if not on POWER9 */
 #define EXTEND_HDEC(reg)			\
@@ -45,6 +46,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 /* Values in HSTATE_NAPPING(r13) */
 #define NAPPING_CEDE	1
 #define NAPPING_NOVCPU	2
+#define NAPPING_UNSPLIT	3
 
 /* Stack frame offsets for kvmppc_hv_entry */
 #define SFS			208
@@ -290,17 +292,19 @@ kvm_novcpu_exit:
 	b	kvmhv_switch_to_host
 
 /*
- * We come in here when wakened from nap mode.
- * Relocation is off and most register values are lost.
- * r13 points to the PACA.
+ * We come in here when wakened from Linux offline idle code.
+ * Relocation is off
  * r3 contains the SRR1 wakeup value, SRR1 is trashed.
  */
-	.globl	kvm_start_guest
-kvm_start_guest:
-	/* Set runlatch bit the minute you wake up from nap */
-	mfspr	r0, SPRN_CTRLF
-	ori 	r0, r0, 1
-	mtspr	SPRN_CTRLT, r0
+_GLOBAL(idle_kvm_start_guest)
+	ld	r4,PACAEMERGSP(r13)
+	mfcr	r5
+	mflr	r0
+	std	r1,0(r4)
+	std	r5,8(r4)
+	std	r0,16(r4)
+	subi	r1,r4,STACK_FRAME_OVERHEAD
+	SAVE_NVGPRS(r1)
 
 	/*
 	 * Could avoid this and pass it through in r3. For now,
@@ -308,27 +312,23 @@ kvm_start_guest:
 	 */
 	mtspr	SPRN_SRR1,r3
 
-	ld	r2,PACATOC(r13)
-
 	li	r0,0
 	stb	r0,PACA_FTRACE_ENABLED(r13)
 
 	li	r0,KVM_HWTHREAD_IN_KVM
 	stb	r0,HSTATE_HWTHREAD_STATE(r13)
 
-	/* NV GPR values from power7_idle() will no longer be valid */
-	li	r0,1
-	stb	r0,PACA_NAPSTATELOST(r13)
-
-	/* were we napping due to cede? */
+	/* kvm cede / napping does not come through here */
 	lbz	r0,HSTATE_NAPPING(r13)
-	cmpwi	r0,NAPPING_CEDE
-	beq	kvm_end_cede
-	cmpwi	r0,NAPPING_NOVCPU
-	beq	kvm_novcpu_wakeup
+	twnei	r0,0
 
-	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
+	b	1f
+
+kvm_unsplit_wakeup:
+	li	r0, 0
+	stb	r0, HSTATE_NAPPING(r13)
+
+1:
 
 	/*
 	 * We weren't napping due to cede, so this must be a secondary
@@ -437,19 +437,25 @@ kvm_no_guest:
 	lbz	r3, HSTATE_HWTHREAD_REQ(r13)
 	cmpwi	r3, 0
 	bne	54f
-/*
- * We jump to pnv_wakeup_loss, which will return to the caller
- * of power7_nap in the powernv cpu offline loop.  The value we
- * put in r3 becomes the return value for power7_nap. pnv_wakeup_loss
- * requires SRR1 in r12.
- */
+
+	/*
+	 * Jump to idle_return_gpr_loss, which returns to the
+	 * idle_kvm_start_guest caller.
+	 */
 	li	r3, LPCR_PECE0
 	mfspr	r4, SPRN_LPCR
 	rlwimi	r4, r3, 0, LPCR_PECE0 | LPCR_PECE1
 	mtspr	SPRN_LPCR, r4
-	li	r3, 0
-	mfspr	r12,SPRN_SRR1
-	b	pnv_wakeup_loss
+	/* set up r3 for return */
+	mfspr	r3,SPRN_SRR1
+	REST_NVGPRS(r1)
+	addi	r1, r1, STACK_FRAME_OVERHEAD
+	ld	r0, 16(r1)
+	ld	r5, 8(r1)
+	ld	r1, 0(r1)
+	mtlr	r0
+	mtcr	r5
+	blr
 
 53:	HMT_LOW
 	ld	r5, HSTATE_KVM_VCORE(r13)
@@ -534,6 +540,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	lbz	r0, KVM_SPLIT_DO_NAP(r3)
 	cmpwi	r0, 0
 	beq	57f
+	li	r3, NAPPING_UNSPLIT
+	stb	r3, HSTATE_NAPPING(r13)
 	li	r3, (LPCR_PECEDH | LPCR_PECE0) >> 4
 	mfspr	r5, SPRN_LPCR
 	rlwimi	r5, r3, 4, (LPCR_PECEDP | LPCR_PECEDH | LPCR_PECE0 | LPCR_PECE1)
@@ -822,18 +830,21 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_IAMR, r5
 	mtspr	SPRN_PSPB, r6
 	mtspr	SPRN_FSCR, r7
-	ld	r5, VCPU_DAWR(r4)
-	ld	r6, VCPU_DAWRX(r4)
-	ld	r7, VCPU_CIABR(r4)
-	ld	r8, VCPU_TAR(r4)
 	/*
 	 * Handle broken DAWR case by not writing it. This means we
 	 * can still store the DAWR register for migration.
 	 */
-BEGIN_FTR_SECTION
+	LOAD_REG_ADDR(r5, dawr_force_enable)
+	lbz	r5, 0(r5)
+	cmpdi	r5, 0
+	beq	1f
+	ld	r5, VCPU_DAWR(r4)
+	ld	r6, VCPU_DAWRX(r4)
 	mtspr	SPRN_DAWR, r5
 	mtspr	SPRN_DAWRX, r6
-END_FTR_SECTION_IFSET(CPU_FTR_DAWR)
+1:
+	ld	r7, VCPU_CIABR(r4)
+	ld	r8, VCPU_TAR(r4)
 	mtspr	SPRN_CIABR, r7
 	mtspr	SPRN_TAR, r8
 	ld	r5, VCPU_IC(r4)
@@ -2513,11 +2524,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	blr
 
 2:
-BEGIN_FTR_SECTION
-	/* POWER9 with disabled DAWR */
+	LOAD_REG_ADDR(r11, dawr_force_enable)
+	lbz	r11, 0(r11)
+	cmpdi	r11, 0
 	li	r3, H_HARDWARE
-	blr
-END_FTR_SECTION_IFCLR(CPU_FTR_DAWR)
+	beqlr
 	/* Emulate H_SET_DABR/X on P8 for the sake of compat mode guests */
 	rlwimi	r5, r4, 5, DAWRX_DR | DAWRX_DW
 	rlwimi	r5, r4, 2, DAWRX_WT
@@ -2654,6 +2665,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	lis	r3, LPCR_PECEDP@h	/* Do wake on privileged doorbell */
 
+	/* Go back to host stack */
+	ld	r1, HSTATE_HOST_R1(r13)
+
 	/*
 	 * Take a nap until a decrementer or external or doobell interrupt
 	 * occurs, with PECE1 and PECE0 set in LPCR.
@@ -2682,26 +2696,42 @@ BEGIN_FTR_SECTION
 	 *		requested level = 0 (just stop dispatching)
 	 */
 	lis	r3, (PSSCR_EC | PSSCR_ESL)@h
-	mtspr	SPRN_PSSCR, r3
 	/* Set LPCR_PECE_HVEE bit to enable wakeup by HV interrupts */
 	li	r4, LPCR_PECE_HVEE@higher
 	sldi	r4, r4, 32
 	or	r5, r5, r4
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+FTR_SECTION_ELSE
+	li	r3, PNV_THREAD_NAP
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPCR,r5
 	isync
-	li	r0, 0
-	std	r0, HSTATE_SCRATCH0(r13)
-	ptesync
-	ld	r0, HSTATE_SCRATCH0(r13)
-1:	cmpd	r0, r0
-	bne	1b
+
 BEGIN_FTR_SECTION
-	nap
+	bl	isa300_idle_stop_mayloss
 FTR_SECTION_ELSE
-	PPC_STOP
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
-	b	.
+	bl	isa206_idle_insn_mayloss
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
+
+	mfspr	r0, SPRN_CTRLF
+	ori	r0, r0, 1
+	mtspr	SPRN_CTRLT, r0
+
+	mtspr	SPRN_SRR1, r3
+
+	li	r0, 0
+	stb	r0, PACA_FTRACE_ENABLED(r13)
+
+	li	r0, KVM_HWTHREAD_IN_KVM
+	stb	r0, HSTATE_HWTHREAD_STATE(r13)
+
+	lbz	r0, HSTATE_NAPPING(r13)
+	cmpwi	r0, NAPPING_CEDE
+	beq	kvm_end_cede
+	cmpwi	r0, NAPPING_NOVCPU
+	beq	kvm_novcpu_wakeup
+	cmpwi	r0, NAPPING_UNSPLIT
+	beq	kvm_unsplit_wakeup
+	twi	31,0,0 /* Nap state must not be zero */
 
 33:	mr	r4, r3
 	li	r3, 0
@@ -2709,11 +2739,10 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	b	34f
 
 kvm_end_cede:
+	/* Woken by external or decrementer interrupt */
+
 	/* get vcpu pointer */
 	ld	r4, HSTATE_KVM_VCPU(r13)
-
-	/* Woken by external or decrementer interrupt */
-	ld	r1, HSTATE_HOST_R1(r13)
 
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	addi	r3, r4, VCPU_TB_RMINTR

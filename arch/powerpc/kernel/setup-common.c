@@ -401,8 +401,8 @@ void __init check_for_initrd(void)
 
 #ifdef CONFIG_SMP
 
-int threads_per_core, threads_per_subcore, threads_shift;
-cpumask_t threads_core_mask;
+int threads_per_core, threads_per_subcore, threads_shift __read_mostly;
+cpumask_t threads_core_mask __read_mostly;
 EXPORT_SYMBOL_GPL(threads_per_core);
 EXPORT_SYMBOL_GPL(threads_per_subcore);
 EXPORT_SYMBOL_GPL(threads_shift);

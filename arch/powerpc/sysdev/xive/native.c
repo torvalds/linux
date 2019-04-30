@@ -437,6 +437,12 @@ void xive_native_sync_source(u32 hw_irq)
 }
 EXPORT_SYMBOL_GPL(xive_native_sync_source);
 
+void xive_native_sync_queue(u32 hw_irq)
+{
+	opal_xive_sync(XIVE_SYNC_QUEUE, hw_irq);
+}
+EXPORT_SYMBOL_GPL(xive_native_sync_queue);
+
 static const struct xive_ops xive_native_ops = {
 	.populate_irq_data	= xive_native_populate_irq_data,
 	.configure_irq		= xive_native_configure_irq,
@@ -711,3 +717,96 @@ bool xive_native_has_single_escalation(void)
 	return xive_has_single_esc;
 }
 EXPORT_SYMBOL_GPL(xive_native_has_single_escalation);
+
+int xive_native_get_queue_info(u32 vp_id, u32 prio,
+			       u64 *out_qpage,
+			       u64 *out_qsize,
+			       u64 *out_qeoi_page,
+			       u32 *out_escalate_irq,
+			       u64 *out_qflags)
+{
+	__be64 qpage;
+	__be64 qsize;
+	__be64 qeoi_page;
+	__be32 escalate_irq;
+	__be64 qflags;
+	s64 rc;
+
+	rc = opal_xive_get_queue_info(vp_id, prio, &qpage, &qsize,
+				      &qeoi_page, &escalate_irq, &qflags);
+	if (rc) {
+		pr_err("OPAL failed to get queue info for VCPU %d/%d : %lld\n",
+		       vp_id, prio, rc);
+		return -EIO;
+	}
+
+	if (out_qpage)
+		*out_qpage = be64_to_cpu(qpage);
+	if (out_qsize)
+		*out_qsize = be32_to_cpu(qsize);
+	if (out_qeoi_page)
+		*out_qeoi_page = be64_to_cpu(qeoi_page);
+	if (out_escalate_irq)
+		*out_escalate_irq = be32_to_cpu(escalate_irq);
+	if (out_qflags)
+		*out_qflags = be64_to_cpu(qflags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xive_native_get_queue_info);
+
+int xive_native_get_queue_state(u32 vp_id, u32 prio, u32 *qtoggle, u32 *qindex)
+{
+	__be32 opal_qtoggle;
+	__be32 opal_qindex;
+	s64 rc;
+
+	rc = opal_xive_get_queue_state(vp_id, prio, &opal_qtoggle,
+				       &opal_qindex);
+	if (rc) {
+		pr_err("OPAL failed to get queue state for VCPU %d/%d : %lld\n",
+		       vp_id, prio, rc);
+		return -EIO;
+	}
+
+	if (qtoggle)
+		*qtoggle = be32_to_cpu(opal_qtoggle);
+	if (qindex)
+		*qindex = be32_to_cpu(opal_qindex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xive_native_get_queue_state);
+
+int xive_native_set_queue_state(u32 vp_id, u32 prio, u32 qtoggle, u32 qindex)
+{
+	s64 rc;
+
+	rc = opal_xive_set_queue_state(vp_id, prio, qtoggle, qindex);
+	if (rc) {
+		pr_err("OPAL failed to set queue state for VCPU %d/%d : %lld\n",
+		       vp_id, prio, rc);
+		return -EIO;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xive_native_set_queue_state);
+
+int xive_native_get_vp_state(u32 vp_id, u64 *out_state)
+{
+	__be64 state;
+	s64 rc;
+
+	rc = opal_xive_get_vp_state(vp_id, &state);
+	if (rc) {
+		pr_err("OPAL failed to get vp state for VCPU %d : %lld\n",
+		       vp_id, rc);
+		return -EIO;
+	}
+
+	if (out_state)
+		*out_state = be64_to_cpu(state);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xive_native_get_vp_state);
