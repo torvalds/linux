@@ -1802,14 +1802,6 @@ static void io_commit_sqring(struct io_ring_ctx *ctx)
 }
 
 /*
- * Undo last io_get_sqring()
- */
-static void io_drop_sqring(struct io_ring_ctx *ctx)
-{
-	ctx->cached_sq_head--;
-}
-
-/*
  * Fetch an sqe, if one is available. Note that s->sqe will point to memory
  * that is mapped by userspace. This means that care needs to be taken to
  * ensure that reads are stable, as we cannot rely on userspace always
@@ -2018,7 +2010,7 @@ static int io_sq_thread(void *data)
 static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 {
 	struct io_submit_state state, *statep = NULL;
-	int i, ret = 0, submit = 0;
+	int i, submit = 0;
 
 	if (to_submit > IO_PLUG_THRESHOLD) {
 		io_submit_state_start(&state, ctx, to_submit);
@@ -2027,6 +2019,7 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 
 	for (i = 0; i < to_submit; i++) {
 		struct sqe_submit s;
+		int ret;
 
 		if (!io_get_sqring(ctx, &s))
 			break;
@@ -2034,21 +2027,18 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 		s.has_user = true;
 		s.needs_lock = false;
 		s.needs_fixed_file = false;
+		submit++;
 
 		ret = io_submit_sqe(ctx, &s, statep);
-		if (ret) {
-			io_drop_sqring(ctx);
-			break;
-		}
-
-		submit++;
+		if (ret)
+			io_cqring_add_event(ctx, s.sqe->user_data, ret, 0);
 	}
 	io_commit_sqring(ctx);
 
 	if (statep)
 		io_submit_state_end(statep);
 
-	return submit ? submit : ret;
+	return submit;
 }
 
 static unsigned io_cqring_events(struct io_cq_ring *ring)
@@ -2779,23 +2769,11 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		mutex_lock(&ctx->uring_lock);
 		submitted = io_ring_submit(ctx, to_submit);
 		mutex_unlock(&ctx->uring_lock);
-
-		if (submitted < 0)
-			goto out_ctx;
 	}
 	if (flags & IORING_ENTER_GETEVENTS) {
 		unsigned nr_events = 0;
 
 		min_complete = min(min_complete, ctx->cq_entries);
-
-		/*
-		 * The application could have included the 'to_submit' count
-		 * in how many events it wanted to wait for. If we failed to
-		 * submit the desired count, we may need to adjust the number
-		 * of events to poll/wait for.
-		 */
-		if (submitted < to_submit)
-			min_complete = min_t(unsigned, submitted, min_complete);
 
 		if (ctx->flags & IORING_SETUP_IOPOLL) {
 			mutex_lock(&ctx->uring_lock);
