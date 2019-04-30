@@ -315,12 +315,12 @@ void enabled_wait(void);
 /*
  * Function to drop a processor into disabled wait state
  */
-static inline void __noreturn disabled_wait(unsigned long code)
+static inline void __noreturn disabled_wait(void)
 {
 	psw_t psw;
 
 	psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
-	psw.addr = code;
+	psw.addr = _THIS_IP_;
 	__load_psw(psw);
 	while (1);
 }

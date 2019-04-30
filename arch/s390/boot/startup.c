@@ -57,7 +57,7 @@ void error(char *x)
 	sclp_early_printk(x);
 	sclp_early_printk("\n\n -- System halted");
 
-	disabled_wait(0xdeadbeef);
+	disabled_wait();
 }
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED

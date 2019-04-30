@@ -920,7 +920,7 @@ static void __reipl_run(void *unused)
 	case IPL_TYPE_FCP_DUMP:
 		break;
 	}
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	disabled_wait();
 }
 
 static void reipl_run(struct shutdown_trigger *trigger)
@@ -1375,7 +1375,7 @@ static void stop_run(struct shutdown_trigger *trigger)
 {
 	if (strcmp(trigger->name, ON_PANIC_STR) == 0 ||
 	    strcmp(trigger->name, ON_RESTART_STR) == 0)
-		disabled_wait((unsigned long) __builtin_return_address(0));
+		disabled_wait();
 	smp_stop_cpu();
 }
 
