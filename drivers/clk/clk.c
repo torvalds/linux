@@ -327,8 +327,7 @@ static struct clk_core *clk_core_lookup(const char *name)
 /**
  * clk_core_get - Find the clk_core parent of a clk
  * @core: clk to find parent of
- * @name: name to search for (if string based)
- * @index: index to use for search (if DT index based)
+ * @p_index: parent index to search for
  *
  * This is the preferred method for clk providers to find the parent of a
  * clk when that parent is external to the clk controller. The parent_names
@@ -360,9 +359,10 @@ static struct clk_core *clk_core_lookup(const char *name)
  * provider knows about the clk but it isn't provided on this system.
  * A valid clk_core pointer when the clk can be found in the provider.
  */
-static struct clk_core *clk_core_get(struct clk_core *core, const char *name,
-				     int index)
+static struct clk_core *clk_core_get(struct clk_core *core, u8 p_index)
 {
+	const char *name = core->parents[p_index].fw_name;
+	int index = core->parents[p_index].index;
 	struct clk_hw *hw = ERR_PTR(-ENOENT);
 	struct device *dev = core->dev;
 	const char *dev_id = dev ? dev_name(dev) : NULL;
@@ -400,7 +400,7 @@ static void clk_core_fill_parent_index(struct clk_core *core, u8 index)
 		if (!parent)
 			parent = ERR_PTR(-EPROBE_DEFER);
 	} else {
-		parent = clk_core_get(core, entry->fw_name, entry->index);
+		parent = clk_core_get(core, index);
 		if (IS_ERR(parent) && PTR_ERR(parent) == -ENOENT)
 			parent = clk_core_lookup(entry->name);
 	}
@@ -1612,20 +1612,37 @@ static int clk_fetch_parent_index(struct clk_core *core,
 		return -EINVAL;
 
 	for (i = 0; i < core->num_parents; i++) {
+		/* Found it first try! */
 		if (core->parents[i].core == parent)
 			return i;
 
+		/* Something else is here, so keep looking */
 		if (core->parents[i].core)
 			continue;
 
-		/* Fallback to comparing globally unique names */
-		if (!strcmp(parent->name, core->parents[i].name)) {
-			core->parents[i].core = parent;
-			return i;
+		/* Maybe core hasn't been cached but the hw is all we know? */
+		if (core->parents[i].hw) {
+			if (core->parents[i].hw == parent->hw)
+				break;
+
+			/* Didn't match, but we're expecting a clk_hw */
+			continue;
 		}
+
+		/* Maybe it hasn't been cached (clk_set_parent() path) */
+		if (parent == clk_core_get(core, i))
+			break;
+
+		/* Fallback to comparing globally unique names */
+		if (!strcmp(parent->name, core->parents[i].name))
+			break;
 	}
 
-	return -EINVAL;
+	if (i == core->num_parents)
+		return -EINVAL;
+
+	core->parents[i].core = parent;
+	return i;
 }
 
 /*
