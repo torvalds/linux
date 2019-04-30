@@ -63,7 +63,7 @@ enum {
 
 static unsigned long quirk;
 
-static int quirk_override;
+static int quirk_override = -1;
 module_param_named(quirk, quirk_override, int, 0444);
 MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
@@ -516,7 +516,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		quirk = BYT_CHT_ES8316_INTMIC_IN1_MAP |
 			BYT_CHT_ES8316_MONO_SPEAKER;
 	}
-	if (quirk_override) {
+	if (quirk_override != -1) {
 		dev_info(dev, "Overriding quirk 0x%x => 0x%x\n",
 			 (unsigned int)quirk,
 			 quirk_override);
