@@ -72,6 +72,9 @@ void mt7603_pre_tbtt_tasklet(unsigned long arg)
 	struct sk_buff *skb;
 	int i, nframes;
 
+	if (mt76_hw(dev)->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+		return;
+
 	data.dev = dev;
 	__skb_queue_head_init(&data.q);
 

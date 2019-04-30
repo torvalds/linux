@@ -133,10 +133,12 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 	bool failed = false;
 
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
+	mt7603_beacon_set_timer(dev, -1, 0);
 	mt76_set_channel(&dev->mt76);
 	mt7603_mac_stop(dev);
 
@@ -186,7 +188,11 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 	mt7603_init_edcca(dev);
 
 out:
+	if (!(mt76_hw(dev)->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+		mt7603_beacon_set_timer(dev, -1, dev->mt76.beacon_int);
 	mutex_unlock(&dev->mt76.mutex);
+
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	if (failed)
 		mt7603_mac_work(&dev->mt76.mac_work.work);
@@ -535,7 +541,6 @@ mt7603_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt7603_dev *dev = hw->priv;
 
 	set_bit(MT76_SCANNING, &dev->mt76.state);
-	mt7603_beacon_set_timer(dev, -1, 0);
 }
 
 static void
@@ -544,7 +549,6 @@ mt7603_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct mt7603_dev *dev = hw->priv;
 
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
-	mt7603_beacon_set_timer(dev, -1, dev->mt76.beacon_int);
 }
 
 static void
