@@ -103,10 +103,14 @@ _ENTRY(saved_ksp_limit)
  * turned off (i.e. using physical addresses). We assume SPRG_THREAD has
  * the physical address of the current task thread_struct.
  */
-#define NORMAL_EXCEPTION_PROLOG						     \
+#define EXCEPTION_PROLOG						     \
 	mtspr	SPRN_SPRG_SCRATCH0,r10;	/* save two registers to work with */\
 	mtspr	SPRN_SPRG_SCRATCH1,r11;					     \
 	mfcr	r10;			/* save CR in r10 for now	   */\
+	EXCEPTION_PROLOG_1;						     \
+	EXCEPTION_PROLOG_2
+
+#define EXCEPTION_PROLOG_1						     \
 	mfspr	r11,SPRN_SRR1;		/* check whether user or kernel    */\
 	andi.	r11,r11,MSR_PR;						     \
 	tophys(r11,r1);							     \
@@ -115,7 +119,9 @@ _ENTRY(saved_ksp_limit)
 	lwz	r11,TASK_STACK-THREAD(r11); /* this thread's kernel stack */\
 	addi	r11,r11,THREAD_SIZE;					     \
 	tophys(r11,r11);						     \
-1:	subi	r11,r11,INT_FRAME_SIZE;	/* Allocate an exception frame     */\
+1:	subi	r11,r11,INT_FRAME_SIZE	/* Allocate an exception frame     */
+
+#define EXCEPTION_PROLOG_2						     \
 	stw	r10,_CCR(r11);          /* save various registers	   */\
 	stw	r12,GPR12(r11);						     \
 	stw	r9,GPR9(r11);						     \
@@ -205,7 +211,7 @@ label:
 
 #define EXCEPTION(n, label, hdlr, xfer)				\
 	START_EXCEPTION(n, label);				\
-	NORMAL_EXCEPTION_PROLOG;				\
+	EXCEPTION_PROLOG;				\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
 	xfer(n, hdlr)
 
@@ -396,7 +402,7 @@ label:
  * This is caused by a fetch from non-execute or guarded pages.
  */
 	START_EXCEPTION(0x0400, InstructionAccess)
-	NORMAL_EXCEPTION_PROLOG
+	EXCEPTION_PROLOG
 	mr	r4,r12			/* Pass SRR0 as arg2 */
 	li	r5,0			/* Pass zero as arg3 */
 	EXC_XFER_LITE(0x400, handle_page_fault)
@@ -406,7 +412,7 @@ label:
 
 /* 0x0600 - Alignment Exception */
 	START_EXCEPTION(0x0600, Alignment)
-	NORMAL_EXCEPTION_PROLOG
+	EXCEPTION_PROLOG
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR and save it */
 	stw	r4,_DEAR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -414,7 +420,7 @@ label:
 
 /* 0x0700 - Program Exception */
 	START_EXCEPTION(0x0700, ProgramCheck)
-	NORMAL_EXCEPTION_PROLOG
+	EXCEPTION_PROLOG
 	mfspr	r4,SPRN_ESR		/* Grab the ESR and save it */
 	stw	r4,_ESR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -427,7 +433,7 @@ label:
 
 /* 0x0C00 - System Call Exception */
 	START_EXCEPTION(0x0C00,	SystemCall)
-	NORMAL_EXCEPTION_PROLOG
+	EXCEPTION_PROLOG
 	EXC_XFER_EE_LITE(0xc00, DoSyscall)
 
 	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_EE)
@@ -733,7 +739,7 @@ label:
 
 	/* Programmable Interval Timer (PIT) Exception. (from 0x1000) */
 Decrementer:
-	NORMAL_EXCEPTION_PROLOG
+	EXCEPTION_PROLOG
 	lis	r0,TSR_PIS@h
 	mtspr	SPRN_TSR,r0		/* Clear the PIT exception */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -741,7 +747,7 @@ Decrementer:
 
 	/* Fixed Interval Timer (FIT) Exception. (from 0x1010) */
 FITException:
-	NORMAL_EXCEPTION_PROLOG
+	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	EXC_XFER_EE(0x1010, unknown_exception)
 
@@ -759,7 +765,7 @@ WDTException:
  * if they can't resolve the lightweight TLB fault.
  */
 DataAccess:
-	NORMAL_EXCEPTION_PROLOG
+	EXCEPTION_PROLOG
 	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
 	stw	r5,_ESR(r11)
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
