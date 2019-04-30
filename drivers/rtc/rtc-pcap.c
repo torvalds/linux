@@ -92,9 +92,10 @@ static int pcap_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int pcap_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int pcap_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pcap_rtc *pcap_rtc = dev_get_drvdata(dev);
+	unsigned long secs = rtc_tm_to_time64(tm);
 	u32 tod, days;
 
 	tod = secs % SEC_PER_DAY;
@@ -125,9 +126,9 @@ static int pcap_rtc_alarm_irq_enable(struct device *dev, unsigned int en)
 
 static const struct rtc_class_ops pcap_rtc_ops = {
 	.read_time = pcap_rtc_read_time,
+	.set_time = pcap_rtc_set_time,
 	.read_alarm = pcap_rtc_read_alarm,
 	.set_alarm = pcap_rtc_set_alarm,
-	.set_mmss = pcap_rtc_set_mmss,
 	.alarm_irq_enable = pcap_rtc_alarm_irq_enable,
 };
 
