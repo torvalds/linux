@@ -2599,8 +2599,18 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	/* Setup Switch Port Registers */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
-		if (dsa_is_unused_port(ds, i))
+		if (dsa_is_unused_port(ds, i)) {
+			err = mv88e6xxx_port_set_state(chip, i,
+						       BR_STATE_DISABLED);
+			if (err)
+				goto unlock;
+
+			err = mv88e6xxx_serdes_power(chip, i, false);
+			if (err)
+				goto unlock;
+
 			continue;
+		}
 
 		err = mv88e6xxx_setup_port(chip, i);
 		if (err)
