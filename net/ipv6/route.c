@@ -3454,11 +3454,8 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 
 	rcu_read_lock();
 	from = rcu_dereference(rt->from);
-	/* This fib6_info_hold() is safe here because we hold reference to rt
-	 * and rt already holds reference to fib6_info.
-	 */
-	fib6_info_hold(from);
-	rcu_read_unlock();
+	if (!from)
+		goto out;
 
 	nrt = ip6_rt_cache_alloc(from, &msg->dest, NULL);
 	if (!nrt)
@@ -3470,10 +3467,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 
 	nrt->rt6i_gateway = *(struct in6_addr *)neigh->primary_key;
 
-	/* No need to remove rt from the exception table if rt is
-	 * a cached route because rt6_insert_exception() will
-	 * takes care of it
-	 */
+	/* rt6_insert_exception() will take care of duplicated exceptions */
 	if (rt6_insert_exception(nrt, from)) {
 		dst_release_immediate(&nrt->dst);
 		goto out;
@@ -3486,7 +3480,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 out:
-	fib6_info_release(from);
+	rcu_read_unlock();
 	neigh_release(neigh);
 }
 
@@ -4991,16 +4985,20 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	rcu_read_lock();
 	from = rcu_dereference(rt->from);
-
-	if (fibmatch)
-		err = rt6_fill_node(net, skb, from, NULL, NULL, NULL, iif,
-				    RTM_NEWROUTE, NETLINK_CB(in_skb).portid,
-				    nlh->nlmsg_seq, 0);
-	else
-		err = rt6_fill_node(net, skb, from, dst, &fl6.daddr,
-				    &fl6.saddr, iif, RTM_NEWROUTE,
-				    NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
-				    0);
+	if (from) {
+		if (fibmatch)
+			err = rt6_fill_node(net, skb, from, NULL, NULL, NULL,
+					    iif, RTM_NEWROUTE,
+					    NETLINK_CB(in_skb).portid,
+					    nlh->nlmsg_seq, 0);
+		else
+			err = rt6_fill_node(net, skb, from, dst, &fl6.daddr,
+					    &fl6.saddr, iif, RTM_NEWROUTE,
+					    NETLINK_CB(in_skb).portid,
+					    nlh->nlmsg_seq, 0);
+	} else {
+		err = -ENETUNREACH;
+	}
 	rcu_read_unlock();
 
 	if (err < 0) {
