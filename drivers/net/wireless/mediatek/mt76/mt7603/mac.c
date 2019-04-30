@@ -1279,7 +1279,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	mt76_txq_schedule_all(&dev->mt76);
 
 	tasklet_disable(&dev->mt76.tx_tasklet);
-	tasklet_disable(&dev->pre_tbtt_tasklet);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	napi_disable(&dev->mt76.napi[0]);
 	napi_disable(&dev->mt76.napi[1]);
 
@@ -1328,7 +1328,7 @@ skip_dma_reset:
 	tasklet_enable(&dev->mt76.tx_tasklet);
 	tasklet_schedule(&dev->mt76.tx_tasklet);
 
-	tasklet_enable(&dev->pre_tbtt_tasklet);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 	mt7603_beacon_set_timer(dev, -1, beacon_int);
 
 	napi_enable(&dev->mt76.napi[0]);

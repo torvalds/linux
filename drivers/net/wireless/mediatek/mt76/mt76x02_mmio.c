@@ -68,9 +68,9 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 static void mt76x02e_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
 {
 	if (en)
-		tasklet_enable(&dev->pre_tbtt_tasklet);
+		tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 	else
-		tasklet_disable(&dev->pre_tbtt_tasklet);
+		tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 }
 
 static void mt76x02e_beacon_enable(struct mt76x02_dev *dev, bool en)
@@ -198,7 +198,7 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 
 	tasklet_init(&dev->mt76.tx_tasklet, mt76x02_tx_tasklet,
 		     (unsigned long) dev);
-	tasklet_init(&dev->pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
+	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
 	spin_lock_init(&dev->txstatus_fifo_lock);
@@ -285,7 +285,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	}
 
 	if (intr & MT_INT_PRE_TBTT)
-		tasklet_schedule(&dev->pre_tbtt_tasklet);
+		tasklet_schedule(&dev->mt76.pre_tbtt_tasklet);
 
 	/* send buffered multicast frames now */
 	if (intr & MT_INT_TBTT) {
@@ -449,7 +449,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	ieee80211_stop_queues(dev->mt76.hw);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
-	tasklet_disable(&dev->pre_tbtt_tasklet);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	tasklet_disable(&dev->mt76.tx_tasklet);
 	napi_disable(&dev->tx_napi);
 
@@ -508,7 +508,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	napi_enable(&dev->tx_napi);
 	napi_schedule(&dev->tx_napi);
 
-	tasklet_enable(&dev->pre_tbtt_tasklet);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++) {
 		napi_enable(&dev->mt76.napi[i]);

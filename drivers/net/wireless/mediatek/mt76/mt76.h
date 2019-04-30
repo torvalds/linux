@@ -469,6 +469,7 @@ struct mt76_dev {
 	u8 antenna_mask;
 	u16 chainmask;
 
+	struct tasklet_struct pre_tbtt_tasklet;
 	int beacon_int;
 	u8 beacon_mask;
 
