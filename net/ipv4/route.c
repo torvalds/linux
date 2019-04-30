@@ -1470,9 +1470,8 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 	return ret;
 }
 
-static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
+static bool rt_cache_route(struct fib_nh_common *nhc, struct rtable *rt)
 {
-	struct fib_nh_common *nhc = &nh->nh_common;
 	struct rtable *orig, *prev, **p;
 	bool ret = true;
 
@@ -1576,7 +1575,6 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 
 	if (fi) {
 		struct fib_nh_common *nhc = FIB_RES_NHC(*res);
-		struct fib_nh *nh;
 
 		if (nhc->nhc_gw_family && nhc->nhc_scope == RT_SCOPE_LINK) {
 			rt->rt_gw_family = nhc->nhc_gw_family;
@@ -1589,15 +1587,19 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 
 		ip_dst_init_metrics(&rt->dst, fi->fib_metrics);
 
-		nh = container_of(nhc, struct fib_nh, nh_common);
 #ifdef CONFIG_IP_ROUTE_CLASSID
-		rt->dst.tclassid = nh->nh_tclassid;
+		{
+			struct fib_nh *nh;
+
+			nh = container_of(nhc, struct fib_nh, nh_common);
+			rt->dst.tclassid = nh->nh_tclassid;
+		}
 #endif
-		rt->dst.lwtstate = lwtstate_get(nh->fib_nh_lws);
+		rt->dst.lwtstate = lwtstate_get(nhc->nhc_lwtstate);
 		if (unlikely(fnhe))
 			cached = rt_bind_exception(rt, fnhe, daddr, do_cache);
 		else if (do_cache)
-			cached = rt_cache_route(nh, rt);
+			cached = rt_cache_route(nhc, rt);
 		if (unlikely(!cached)) {
 			/* Routes we intend to cache in nexthop exception or
 			 * FIB nexthop have the DST_NOCACHE bit clear.
@@ -2139,7 +2141,6 @@ local_input:
 
 	if (do_cache) {
 		struct fib_nh_common *nhc = FIB_RES_NHC(*res);
-		struct fib_nh *nh;
 
 		rth->dst.lwtstate = lwtstate_get(nhc->nhc_lwtstate);
 		if (lwtunnel_input_redirect(rth->dst.lwtstate)) {
@@ -2148,8 +2149,7 @@ local_input:
 			rth->dst.input = lwtunnel_input;
 		}
 
-		nh = container_of(nhc, struct fib_nh, nh_common);
-		if (unlikely(!rt_cache_route(nh, rth)))
+		if (unlikely(!rt_cache_route(nhc, rth)))
 			rt_add_uncached_list(rth);
 	}
 	skb_dst_set(skb, &rth->dst);
