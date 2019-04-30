@@ -480,6 +480,68 @@ static int mes_v10_1_mqd_init(struct amdgpu_ring *ring)
 	return 0;
 }
 
+static void mes_v10_1_queue_init_register(struct amdgpu_ring *ring)
+{
+	struct v10_compute_mqd *mqd = ring->mqd_ptr;
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t data = 0;
+
+	mutex_lock(&adev->srbm_mutex);
+	nv_grbm_select(adev, 3, 0, 0, 0);
+
+	/* set CP_HQD_VMID.VMID = 0. */
+	data = RREG32_SOC15(GC, 0, mmCP_HQD_VMID);
+	data = REG_SET_FIELD(data, CP_HQD_VMID, VMID, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_VMID, data);
+
+	/* set CP_HQD_PQ_DOORBELL_CONTROL.DOORBELL_EN=0 */
+	data = RREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL);
+	data = REG_SET_FIELD(data, CP_HQD_PQ_DOORBELL_CONTROL,
+			     DOORBELL_EN, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL, data);
+
+	/* set CP_MQD_BASE_ADDR/HI with the MQD base address */
+	WREG32_SOC15(GC, 0, mmCP_MQD_BASE_ADDR, mqd->cp_mqd_base_addr_lo);
+	WREG32_SOC15(GC, 0, mmCP_MQD_BASE_ADDR_HI, mqd->cp_mqd_base_addr_hi);
+
+	/* set CP_MQD_CONTROL.VMID=0 */
+	data = RREG32_SOC15(GC, 0, mmCP_MQD_CONTROL);
+	data = REG_SET_FIELD(data, CP_MQD_CONTROL, VMID, 0);
+	WREG32_SOC15(GC, 0, mmCP_MQD_CONTROL, 0);
+
+	/* set CP_HQD_PQ_BASE/HI with the ring buffer base address */
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_BASE, mqd->cp_hqd_pq_base_lo);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_BASE_HI, mqd->cp_hqd_pq_base_hi);
+
+	/* set CP_HQD_PQ_RPTR_REPORT_ADDR/HI */
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_RPTR_REPORT_ADDR,
+		     mqd->cp_hqd_pq_rptr_report_addr_lo);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
+		     mqd->cp_hqd_pq_rptr_report_addr_hi);
+
+	/* set CP_HQD_PQ_CONTROL */
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_CONTROL, mqd->cp_hqd_pq_control);
+
+	/* set CP_HQD_PQ_WPTR_POLL_ADDR/HI */
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_WPTR_POLL_ADDR,
+		     mqd->cp_hqd_pq_wptr_poll_addr_lo);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_WPTR_POLL_ADDR_HI,
+		     mqd->cp_hqd_pq_wptr_poll_addr_hi);
+
+	/* set CP_HQD_PQ_DOORBELL_CONTROL */
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL,
+		     mqd->cp_hqd_pq_doorbell_control);
+
+	/* set CP_HQD_PERSISTENT_STATE.PRELOAD_SIZE=0x53 */
+	WREG32_SOC15(GC, 0, mmCP_HQD_PERSISTENT_STATE, mqd->cp_hqd_persistent_state);
+
+	/* set CP_HQD_ACTIVE.ACTIVE=1 */
+	WREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE, mqd->cp_hqd_active);
+
+	nv_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+}
+
 static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
