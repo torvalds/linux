@@ -4764,7 +4764,7 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 static int nested_vmx_eptp_switching(struct kvm_vcpu *vcpu,
 				     struct vmcs12 *vmcs12)
 {
-	u32 index = vcpu->arch.regs[VCPU_REGS_RCX];
+	u32 index = kvm_rcx_read(vcpu);
 	u64 address;
 	bool accessed_dirty;
 	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
@@ -4810,7 +4810,7 @@ static int handle_vmfunc(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12;
-	u32 function = vcpu->arch.regs[VCPU_REGS_RAX];
+	u32 function = kvm_rax_read(vcpu);
 
 	/*
 	 * VMFUNC is only supported for nested guests, but we always enable the
@@ -4896,7 +4896,7 @@ static bool nested_vmx_exit_handled_io(struct kvm_vcpu *vcpu,
 static bool nested_vmx_exit_handled_msr(struct kvm_vcpu *vcpu,
 	struct vmcs12 *vmcs12, u32 exit_reason)
 {
-	u32 msr_index = vcpu->arch.regs[VCPU_REGS_RCX];
+	u32 msr_index = kvm_rcx_read(vcpu);
 	gpa_t bitmap;
 
 	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS))
