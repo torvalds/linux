@@ -154,8 +154,10 @@ int intel_pasid_alloc_table(struct device *dev)
 	order = size ? get_order(size) : 0;
 	pages = alloc_pages_node(info->iommu->node,
 				 GFP_KERNEL | __GFP_ZERO, order);
-	if (!pages)
+	if (!pages) {
+		kfree(pasid_table);
 		return -ENOMEM;
+	}
 
 	pasid_table->table = page_address(pages);
 	pasid_table->order = order;
