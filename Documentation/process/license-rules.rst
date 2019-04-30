@@ -234,13 +234,13 @@ kernel, can be broken down into:
 
 |
 
-2. Not recommended licenses:
+2. Deprecated licenses:
 
    These licenses should only be used for existing code or for importing
    code from a different project.  These licenses are available from the
    directory::
 
-      LICENSES/other/
+      LICENSES/deprecated/
 
    in the kernel source tree.
 
@@ -250,12 +250,12 @@ kernel, can be broken down into:
 
    Examples::
 
-      LICENSES/other/ISC
+      LICENSES/deprecated/ISC
 
    Contains the Internet Systems Consortium license text and the required
    metatags::
 
-      LICENSES/other/GPL-1.0
+      LICENSES/deprecated/GPL-1.0
 
    Contains the GPL version 1 license text and the required metatags.
 
