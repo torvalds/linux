@@ -453,6 +453,8 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 		uverbs_fill_udata(&pbundle->bundle,
 				  &pbundle->bundle.driver_udata,
 				  UVERBS_ATTR_UHW_IN, UVERBS_ATTR_UHW_OUT);
+	else
+		pbundle->bundle.driver_udata = (struct ib_udata){};
 
 	if (destroy_bkey != UVERBS_API_ATTR_BKEY_LEN) {
 		struct uverbs_obj_attr *destroy_attr =
