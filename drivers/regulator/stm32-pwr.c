@@ -102,7 +102,6 @@ static int stm32_pwr_reg_disable(struct regulator_dev *rdev)
 }
 
 static const struct regulator_ops stm32_pwr_reg_ops = {
-	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= stm32_pwr_reg_enable,
 	.disable	= stm32_pwr_reg_disable,
 	.is_enabled	= stm32_pwr_reg_is_enabled,
@@ -115,7 +114,6 @@ static const struct regulator_ops stm32_pwr_reg_ops = {
 		.of_match = of_match_ptr(_name), \
 		.n_voltages = 1, \
 		.type = REGULATOR_VOLTAGE, \
-		.min_uV = _volt, \
 		.fixed_uV = _volt, \
 		.ops = &stm32_pwr_reg_ops, \
 		.enable_mask = _en, \
