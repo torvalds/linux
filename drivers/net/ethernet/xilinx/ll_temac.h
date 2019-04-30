@@ -375,6 +375,10 @@ struct temac_local {
 	int tx_bd_next;
 	int tx_bd_tail;
 	int rx_bd_ci;
+
+	/* DMA channel control setup */
+	u32 tx_chnl_ctrl;
+	u32 rx_chnl_ctrl;
 };
 
 /* Wrappers for temac_ior()/temac_iow() function pointers above */

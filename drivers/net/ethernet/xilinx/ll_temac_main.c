@@ -304,18 +304,15 @@ static int temac_dma_bd_init(struct net_device *ndev)
 		lp->rx_bd_v[i].app0 = cpu_to_be32(STS_CTRL_APP0_IRQONEND);
 	}
 
-	lp->dma_out(lp, TX_CHNL_CTRL, 0x10220400 |
-					  CHNL_CTRL_IRQ_EN |
-					  CHNL_CTRL_IRQ_DLY_EN |
-					  CHNL_CTRL_IRQ_COAL_EN);
-	/* 0x10220483 */
-	/* 0x00100483 */
-	lp->dma_out(lp, RX_CHNL_CTRL, 0xff070000 |
-					  CHNL_CTRL_IRQ_EN |
-					  CHNL_CTRL_IRQ_DLY_EN |
-					  CHNL_CTRL_IRQ_COAL_EN |
-					  CHNL_CTRL_IRQ_IOE);
-	/* 0xff010283 */
+	/* Configure DMA channel (irq setup) */
+	lp->dma_out(lp, TX_CHNL_CTRL, lp->tx_chnl_ctrl |
+		    0x00000400 | // Use 1 Bit Wide Counters. Currently Not Used!
+		    CHNL_CTRL_IRQ_EN | CHNL_CTRL_IRQ_ERR_EN |
+		    CHNL_CTRL_IRQ_DLY_EN | CHNL_CTRL_IRQ_COAL_EN);
+	lp->dma_out(lp, RX_CHNL_CTRL, lp->rx_chnl_ctrl |
+		    CHNL_CTRL_IRQ_IOE |
+		    CHNL_CTRL_IRQ_EN | CHNL_CTRL_IRQ_ERR_EN |
+		    CHNL_CTRL_IRQ_DLY_EN | CHNL_CTRL_IRQ_COAL_EN);
 
 	lp->dma_out(lp, RX_CURDESC_PTR,  lp->rx_bd_p);
 	lp->dma_out(lp, RX_TAILDESC_PTR,
@@ -1191,6 +1188,13 @@ static int temac_probe(struct platform_device *pdev)
 		lp->rx_irq = irq_of_parse_and_map(dma_np, 0);
 		lp->tx_irq = irq_of_parse_and_map(dma_np, 1);
 
+		/* Use defaults for IRQ delay/coalescing setup.  These
+		 * are configuration values, so does not belong in
+		 * device-tree.
+		 */
+		lp->tx_chnl_ctrl = 0x10220000;
+		lp->rx_chnl_ctrl = 0xff070000;
+
 		/* Finished with the DMA node; drop the reference */
 		of_node_put(dma_np);
 	} else if (pdata) {
@@ -1214,6 +1218,18 @@ static int temac_probe(struct platform_device *pdev)
 		/* Get DMA RX and TX interrupts */
 		lp->rx_irq = platform_get_irq(pdev, 0);
 		lp->tx_irq = platform_get_irq(pdev, 1);
+
+		/* IRQ delay/coalescing setup */
+		if (pdata->tx_irq_timeout || pdata->tx_irq_count)
+			lp->tx_chnl_ctrl = (pdata->tx_irq_timeout << 24) |
+				(pdata->tx_irq_count << 16);
+		else
+			lp->tx_chnl_ctrl = 0x10220000;
+		if (pdata->rx_irq_timeout || pdata->rx_irq_count)
+			lp->rx_chnl_ctrl = (pdata->rx_irq_timeout << 24) |
+				(pdata->rx_irq_count << 16);
+		else
+			lp->rx_chnl_ctrl = 0xff070000;
 	}
 
 	/* Error handle returned DMA RX and TX interrupts */

@@ -22,6 +22,11 @@ struct ll_temac_platform_data {
 	 * they share the same DCR bus bridge.
 	 */
 	struct mutex *indirect_mutex;
+	/* DMA channel control setup */
+	u8 tx_irq_timeout;	/* TX Interrupt Delay Time-out */
+	u8 tx_irq_count;	/* TX Interrupt Coalescing Threshold Count */
+	u8 rx_irq_timeout;	/* RX Interrupt Delay Time-out */
+	u8 rx_irq_count;	/* RX Interrupt Coalescing Threshold Count */
 };
 
 #endif /* __LINUX_XILINX_LL_TEMAC_H */
