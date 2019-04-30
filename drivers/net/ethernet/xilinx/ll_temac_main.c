@@ -344,7 +344,7 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 	struct temac_local *lp = netdev_priv(ndev);
 
 	/* set up unicast MAC address filter set its mac address */
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	temac_indirect_out32(lp, XTE_UAW0_OFFSET,
 			     (ndev->dev_addr[0]) |
 			     (ndev->dev_addr[1] << 8) |
@@ -355,7 +355,7 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 	temac_indirect_out32(lp, XTE_UAW1_OFFSET,
 			     (ndev->dev_addr[4] & 0x000000ff) |
 			     (ndev->dev_addr[5] << 8));
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 }
 
 static int temac_init_mac_address(struct net_device *ndev, const void *address)
@@ -384,7 +384,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 	u32 multi_addr_msw, multi_addr_lsw, val;
 	int i;
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC) ||
 	    netdev_mc_count(ndev) > MULTICAST_CAM_TABLE_NUM) {
 		/*
@@ -423,7 +423,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 		temac_indirect_out32(lp, XTE_MAW1_OFFSET, 0);
 		dev_info(&ndev->dev, "Promiscuous mode disabled.\n");
 	}
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 }
 
 static struct temac_option {
@@ -515,7 +515,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 	struct temac_option *tp = &temac_options[0];
 	int reg;
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	while (tp->opt) {
 		reg = temac_indirect_in32(lp, tp->reg) & ~tp->m_or;
 		if (options & tp->opt)
@@ -524,7 +524,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 		tp++;
 	}
 	lp->options |= options;
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 
 	return 0;
 }
@@ -543,7 +543,7 @@ static void temac_device_reset(struct net_device *ndev)
 
 	dev_dbg(&ndev->dev, "%s()\n", __func__);
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	/* Reset the receiver and wait for it to finish reset */
 	temac_indirect_out32(lp, XTE_RXC1_OFFSET, XTE_RXC1_RXRST_MASK);
 	timeout = 1000;
@@ -595,7 +595,7 @@ static void temac_device_reset(struct net_device *ndev)
 	temac_indirect_out32(lp, XTE_TXC_OFFSET, 0);
 	temac_indirect_out32(lp, XTE_FCC_OFFSET, XTE_FCC_RXFLO_MASK);
 
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 
 	/* Sync default options with HW
 	 * but leave receiver and transmitter disabled.  */
@@ -623,7 +623,7 @@ static void temac_adjust_link(struct net_device *ndev)
 	/* hash together the state values to decide if something has changed */
 	link_state = phy->speed | (phy->duplex << 1) | phy->link;
 
-	mutex_lock(&lp->indirect_mutex);
+	mutex_lock(lp->indirect_mutex);
 	if (lp->last_link != link_state) {
 		mii_speed = temac_indirect_in32(lp, XTE_EMCFG_OFFSET);
 		mii_speed &= ~XTE_EMCFG_LINKSPD_MASK;
@@ -639,7 +639,7 @@ static void temac_adjust_link(struct net_device *ndev)
 		lp->last_link = link_state;
 		phy_print_status(phy);
 	}
-	mutex_unlock(&lp->indirect_mutex);
+	mutex_unlock(lp->indirect_mutex);
 }
 
 #ifdef CONFIG_64BIT
@@ -1091,7 +1091,21 @@ static int temac_probe(struct platform_device *pdev)
 	lp->dev = &pdev->dev;
 	lp->options = XTE_OPTION_DEFAULTS;
 	spin_lock_init(&lp->rx_lock);
-	mutex_init(&lp->indirect_mutex);
+
+	/* Setup mutex for synchronization of indirect register access */
+	if (pdata) {
+		if (!pdata->indirect_mutex) {
+			dev_err(&pdev->dev,
+				"indirect_mutex missing in platform_data\n");
+			return -EINVAL;
+		}
+		lp->indirect_mutex = pdata->indirect_mutex;
+	} else {
+		lp->indirect_mutex = devm_kmalloc(&pdev->dev,
+						  sizeof(*lp->indirect_mutex),
+						  GFP_KERNEL);
+		mutex_init(lp->indirect_mutex);
+	}
 
 	/* map device registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

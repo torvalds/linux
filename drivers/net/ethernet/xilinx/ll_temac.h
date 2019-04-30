@@ -358,7 +358,10 @@ struct temac_local {
 
 	struct sk_buff **rx_skb;
 	spinlock_t rx_lock;
-	struct mutex indirect_mutex;
+	/* For synchronization of indirect register access.  Must be
+	 * shared mutex between interfaces in same TEMAC block.
+	 */
+	struct mutex *indirect_mutex;
 	u32 options;			/* Current options word */
 	int last_link;
 	unsigned int temac_features;
