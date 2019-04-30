@@ -344,9 +344,9 @@ static void mvpp2_cls_flow_write(struct mvpp2 *priv,
 				 struct mvpp2_cls_flow_entry *fe)
 {
 	mvpp2_write(priv, MVPP2_CLS_FLOW_INDEX_REG, fe->index);
-	mvpp2_write(priv, MVPP2_CLS_FLOW_TBL0_REG,  fe->data[0]);
-	mvpp2_write(priv, MVPP2_CLS_FLOW_TBL1_REG,  fe->data[1]);
-	mvpp2_write(priv, MVPP2_CLS_FLOW_TBL2_REG,  fe->data[2]);
+	mvpp2_write(priv, MVPP2_CLS_FLOW_TBL0_REG, fe->data[0]);
+	mvpp2_write(priv, MVPP2_CLS_FLOW_TBL1_REG, fe->data[1]);
+	mvpp2_write(priv, MVPP2_CLS_FLOW_TBL2_REG, fe->data[2]);
 }
 
 u32 mvpp2_cls_lookup_hits(struct mvpp2 *priv, int index)
