@@ -354,24 +354,34 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 		u8 buffer_mode;
 		u8 len;
 		u8 pad[2];
-		struct req_data data[255];
-	} req = {
+	} req_hdr = {
 		.buffer_mode = 1,
 		.len = ARRAY_SIZE(req_fields) - 1,
 	};
-	u8 *eep = (u8 *)dev->mt76.eeprom.data;
-	int i;
+	const int size = 0xff * sizeof(struct req_data);
+	u8 *req, *eep = (u8 *)dev->mt76.eeprom.data;
+	int i, ret, len = sizeof(req_hdr) + size;
+	struct req_data *data;
 
-	BUILD_BUG_ON(ARRAY_SIZE(req_fields) > ARRAY_SIZE(req.data));
+	BUILD_BUG_ON(ARRAY_SIZE(req_fields) * sizeof(*data) > size);
 
+	req = kmalloc(len, GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	memcpy(req, &req_hdr, sizeof(req_hdr));
+	data = (struct req_data *)(req + sizeof(req_hdr));
+	memset(data, 0, size);
 	for (i = 0; i < ARRAY_SIZE(req_fields); i++) {
-		req.data[i].addr = cpu_to_le16(req_fields[i]);
-		req.data[i].val = eep[req_fields[i]];
-		req.data[i].pad = 0;
+		data[i].addr = cpu_to_le16(req_fields[i]);
+		data[i].val = eep[req_fields[i]];
 	}
 
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
-				   &req, sizeof(req), true);
+	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
+				  req, len, true);
+	kfree(req);
+
+	return ret;
 }
 
 static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
