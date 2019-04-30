@@ -192,6 +192,10 @@ static int __init dc_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->regs))
 		return PTR_ERR(rtc->regs);
 
+	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -200,12 +204,10 @@ static int __init dc_rtc_probe(struct platform_device *pdev)
 		return ret;
 
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, pdev->name,
-						&dc_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc_dev))
-		return PTR_ERR(rtc->rtc_dev);
 
-	return 0;
+	rtc->rtc_dev->ops = &dc_rtc_ops;
+
+	return rtc_register_device(rtc->rtc_dev);
 }
 
 static const struct of_device_id dc_dt_ids[] = {
