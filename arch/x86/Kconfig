@@ -838,6 +838,7 @@ config JAILHOUSE_GUEST
 config ACRN_GUEST
 	bool "ACRN Guest support"
 	depends on X86_64
+	select X86_HV_CALLBACK_VECTOR
 	help
 	  This option allows to run Linux as guest in the ACRN hypervisor. ACRN is
 	  a flexible, lightweight reference open-source hypervisor, built with
