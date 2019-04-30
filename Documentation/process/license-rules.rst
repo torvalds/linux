@@ -255,9 +255,9 @@ kernel, can be broken down into:
    Contains the Internet Systems Consortium license text and the required
    metatags::
 
-      LICENSES/other/ZLib
+      LICENSES/other/GPL-1.0
 
-   Contains the ZLIB license text and the required metatags.
+   Contains the GPL version 1 license text and the required metatags.
 
    Metatags:
 
