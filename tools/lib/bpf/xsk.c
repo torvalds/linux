@@ -387,21 +387,17 @@ static void xsk_delete_bpf_maps(struct xsk_socket *xsk)
 {
 	close(xsk->qidconf_map_fd);
 	close(xsk->xsks_map_fd);
+	xsk->qidconf_map_fd = -1;
+	xsk->xsks_map_fd = -1;
 }
 
-static int xsk_update_bpf_maps(struct xsk_socket *xsk, int qidconf_value,
-			       int xsks_value)
+static int xsk_lookup_bpf_maps(struct xsk_socket *xsk)
 {
-	bool qidconf_map_updated = false, xsks_map_updated = false;
+	__u32 i, *map_ids, num_maps, prog_len = sizeof(struct bpf_prog_info);
+	__u32 map_len = sizeof(struct bpf_map_info);
 	struct bpf_prog_info prog_info = {};
-	__u32 prog_len = sizeof(prog_info);
 	struct bpf_map_info map_info;
-	__u32 map_len = sizeof(map_info);
-	__u32 *map_ids;
-	int reset_value = 0;
-	__u32 num_maps;
-	unsigned int i;
-	int err;
+	int fd, err;
 
 	err = bpf_obj_get_info_by_fd(xsk->prog_fd, &prog_info, &prog_len);
 	if (err)
@@ -422,66 +418,71 @@ static int xsk_update_bpf_maps(struct xsk_socket *xsk, int qidconf_value,
 		goto out_map_ids;
 
 	for (i = 0; i < prog_info.nr_map_ids; i++) {
-		int fd;
+		if (xsk->qidconf_map_fd != -1 && xsk->xsks_map_fd != -1)
+			break;
 
 		fd = bpf_map_get_fd_by_id(map_ids[i]);
-		if (fd < 0) {
-			err = -errno;
-			goto out_maps;
-		}
+		if (fd < 0)
+			continue;
 
 		err = bpf_obj_get_info_by_fd(fd, &map_info, &map_len);
-		if (err)
-			goto out_maps;
-
-		if (!strcmp(map_info.name, "qidconf_map")) {
-			err = bpf_map_update_elem(fd, &xsk->queue_id,
-						  &qidconf_value, 0);
-			if (err)
-				goto out_maps;
-			qidconf_map_updated = true;
-			xsk->qidconf_map_fd = fd;
-		} else if (!strcmp(map_info.name, "xsks_map")) {
-			err = bpf_map_update_elem(fd, &xsk->queue_id,
-						  &xsks_value, 0);
-			if (err)
-				goto out_maps;
-			xsks_map_updated = true;
-			xsk->xsks_map_fd = fd;
+		if (err) {
+			close(fd);
+			continue;
 		}
 
-		if (qidconf_map_updated && xsks_map_updated)
-			break;
-	}
+		if (!strcmp(map_info.name, "qidconf_map")) {
+			xsk->qidconf_map_fd = fd;
+			continue;
+		}
 
-	if (!(qidconf_map_updated && xsks_map_updated)) {
-		err = -ENOENT;
-		goto out_maps;
+		if (!strcmp(map_info.name, "xsks_map")) {
+			xsk->xsks_map_fd = fd;
+			continue;
+		}
+
+		close(fd);
 	}
 
 	err = 0;
-	goto out_success;
+	if (xsk->qidconf_map_fd < 0 || xsk->xsks_map_fd < 0) {
+		err = -ENOENT;
+		xsk_delete_bpf_maps(xsk);
+	}
 
-out_maps:
-	if (qidconf_map_updated)
-		(void)bpf_map_update_elem(xsk->qidconf_map_fd, &xsk->queue_id,
-					  &reset_value, 0);
-	if (xsks_map_updated)
-		(void)bpf_map_update_elem(xsk->xsks_map_fd, &xsk->queue_id,
-					  &reset_value, 0);
-out_success:
-	if (qidconf_map_updated)
-		close(xsk->qidconf_map_fd);
-	if (xsks_map_updated)
-		close(xsk->xsks_map_fd);
 out_map_ids:
 	free(map_ids);
 	return err;
 }
 
+static void xsk_clear_bpf_maps(struct xsk_socket *xsk)
+{
+	int qid = false;
+
+	(void)bpf_map_update_elem(xsk->qidconf_map_fd, &xsk->queue_id, &qid, 0);
+	(void)bpf_map_delete_elem(xsk->xsks_map_fd, &xsk->queue_id);
+}
+
+static int xsk_set_bpf_maps(struct xsk_socket *xsk)
+{
+	int qid = true, fd = xsk->fd, err;
+
+	err = bpf_map_update_elem(xsk->qidconf_map_fd, &xsk->queue_id, &qid, 0);
+	if (err)
+		goto out;
+
+	err = bpf_map_update_elem(xsk->xsks_map_fd, &xsk->queue_id, &fd, 0);
+	if (err)
+		goto out;
+
+	return 0;
+out:
+	xsk_clear_bpf_maps(xsk);
+	return err;
+}
+
 static int xsk_setup_xdp_prog(struct xsk_socket *xsk)
 {
-	bool prog_attached = false;
 	__u32 prog_id = 0;
 	int err;
 
@@ -491,7 +492,6 @@ static int xsk_setup_xdp_prog(struct xsk_socket *xsk)
 		return err;
 
 	if (!prog_id) {
-		prog_attached = true;
 		err = xsk_create_bpf_maps(xsk);
 		if (err)
 			return err;
@@ -501,20 +501,21 @@ static int xsk_setup_xdp_prog(struct xsk_socket *xsk)
 			goto out_maps;
 	} else {
 		xsk->prog_fd = bpf_prog_get_fd_by_id(prog_id);
+		err = xsk_lookup_bpf_maps(xsk);
+		if (err)
+			goto out_load;
 	}
 
-	err = xsk_update_bpf_maps(xsk, true, xsk->fd);
+	err = xsk_set_bpf_maps(xsk);
 	if (err)
 		goto out_load;
 
 	return 0;
 
 out_load:
-	if (prog_attached)
-		close(xsk->prog_fd);
+	close(xsk->prog_fd);
 out_maps:
-	if (prog_attached)
-		xsk_delete_bpf_maps(xsk);
+	xsk_delete_bpf_maps(xsk);
 	return err;
 }
 
@@ -642,6 +643,9 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 		goto out_mmap_tx;
 	}
 
+	xsk->qidconf_map_fd = -1;
+	xsk->xsks_map_fd = -1;
+
 	if (!(xsk->config.libbpf_flags & XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)) {
 		err = xsk_setup_xdp_prog(xsk);
 		if (err)
@@ -706,7 +710,8 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 	if (!xsk)
 		return;
 
-	(void)xsk_update_bpf_maps(xsk, 0, 0);
+	xsk_clear_bpf_maps(xsk);
+	xsk_delete_bpf_maps(xsk);
 
 	optlen = sizeof(off);
 	err = getsockopt(xsk->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
