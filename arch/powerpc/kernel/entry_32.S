@@ -217,7 +217,6 @@ transfer_to_handler_cont:
 	 */
 	tophys(r12, r1)
 	lwz	r12,_MSR(r12)
-	xor	r12,r10,r12
 	andi.	r12,r12,MSR_EE
 	bne	1f
 
@@ -258,17 +257,12 @@ reenable_mmu:
 	 * the rest is restored from the exception frame.
 	 */
 
-	/* Are we enabling or disabling interrupts ? */
-	andi.	r0,r10,MSR_EE
-
 	stwu	r1,-32(r1)
 	stw	r9,8(r1)
 	stw	r11,12(r1)
 	stw	r3,16(r1)
 	stw	r4,20(r1)
 	stw	r5,24(r1)
-
-	bne-	0f
 
 	/* If we are disabling interrupts (normal case), simply log it with
 	 * lockdep
@@ -287,19 +281,6 @@ reenable_mmu:
 	mtctr	r11
 	mtlr	r9
 	bctr				/* jump to handler */
-
-	/* If we are enabling interrupt, this is a syscall. They shouldn't
-	 * happen while interrupts are disabled, so let's do a warning here.
-	 */
-0:	trap
-	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
-	bl	trace_hardirqs_on
-
-	/* Now enable for real */
-	mfmsr	r10
-	ori	r10,r10,MSR_EE
-	mtmsr	r10
-	b	2b
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
 #if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
