@@ -205,7 +205,7 @@ static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
 }
 
 /**
- * struct ntb_ctx_ops - ntb device operations
+ * struct ntb_dev_ops - ntb device operations
  * @port_number:	See ntb_port_number().
  * @peer_port_count:	See ntb_peer_port_count().
  * @peer_port_number:	See ntb_peer_port_number().
@@ -404,7 +404,7 @@ struct ntb_client {
 #define drv_ntb_client(__drv) container_of((__drv), struct ntb_client, drv)
 
 /**
- * struct ntb_device - ntb device
+ * struct ntb_dev - ntb device
  * @dev:		Linux device object.
  * @pdev:		PCI device entry of the ntb.
  * @topo:		Detected topology of the ntb.
