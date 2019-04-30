@@ -90,6 +90,16 @@
 			 <RZA2_PINMUX(PORT3, 4, 1)>, /* ET1_MDIO */
 			 <RZA2_PINMUX(PORTL, 1, 5)>; /* IRQ5 */
 	};
+
+	sdhi0_pins: sdhi0 {
+		pinmux = <RZA2_PINMUX(PORT5, 0, 3)>,	/* SD0_CD */
+			 <RZA2_PINMUX(PORT5, 1, 3)>;	/* SD0_WP */
+	};
+
+	sdhi1_pins: sdhi1 {
+		pinmux = <RZA2_PINMUX(PORT5, 4, 3)>,	/* SD1_CD */
+			 <RZA2_PINMUX(PORT5, 5, 3)>;	/* SD1_WP */
+	};
 };
 
 /* High resolution System tick timers */
@@ -129,4 +139,18 @@
 	phy1: ethernet-phy@1 {
 		reg = <0>;
 	};
+};
+
+&sdhi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi0_pins>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&sdhi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi1_pins>;
+	bus-width = <4>;
+	status = "okay";
 };
