@@ -53,6 +53,21 @@ config SND_SOC_SOF_NOCODEC
 	  Say Y if you need this nocodec fallback option
 	  If unsure select "N".
 
+config SND_SOC_SOF_STRICT_ABI_CHECKS
+	bool "SOF strict ABI checks"
+	help
+	  This option enables strict ABI checks for firmware and topology
+	  files.
+	  When these files are more recent than the kernel, the kernel
+	  will handle the functionality it supports and may report errors
+	  during topology creation or run-time usage if new functionality
+	  is invoked.
+	  This option will stop topology creation and firmware load upfront.
+	  It is intended for SOF CI/releases and not for users or distros.
+	  Say Y if you want strict ABI checks for an SOF release
+	  If you are not involved in SOF releases and CI development
+	  select "N".
+
 config SND_SOC_SOF_DEBUG
 	bool "SOF debugging features"
 	help
