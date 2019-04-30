@@ -105,5 +105,7 @@ const struct sof_intel_dsp_desc apl_chip_info = {
 	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
 	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
 	.rom_init_timeout	= 150,
+	.ssp_count = APL_SSP_COUNT,
+	.ssp_base_offset = APL_SSP_BASE_OFFSET,
 };
 EXPORT_SYMBOL(apl_chip_info);

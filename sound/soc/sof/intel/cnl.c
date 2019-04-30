@@ -246,5 +246,7 @@ const struct sof_intel_dsp_desc cnl_chip_info = {
 	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
 	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
 	.rom_init_timeout	= 300,
+	.ssp_count = CNL_SSP_COUNT,
+	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
 EXPORT_SYMBOL(cnl_chip_info);
