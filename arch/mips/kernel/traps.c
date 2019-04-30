@@ -2284,18 +2284,27 @@ void __init trap_init(void)
 	extern char except_vec3_generic;
 	extern char except_vec4;
 	extern char except_vec3_r4000;
-	unsigned long i;
+	unsigned long i, vec_size;
+	phys_addr_t ebase_pa;
 
 	check_wait();
 
-	if (cpu_has_veic || cpu_has_vint) {
-		unsigned long size = 0x200 + VECTORSPACING*64;
-		phys_addr_t ebase_pa;
+	if (!cpu_has_mips_r2_r6) {
+		ebase = CAC_BASE;
+		ebase_pa = virt_to_phys((void *)ebase);
+		vec_size = 0x400;
 
-		ebase_pa = memblock_phys_alloc(size, 1 << fls(size));
+		memblock_reserve(ebase_pa, vec_size);
+	} else {
+		if (cpu_has_veic || cpu_has_vint)
+			vec_size = 0x200 + VECTORSPACING*64;
+		else
+			vec_size = PAGE_SIZE;
+
+		ebase_pa = memblock_phys_alloc(vec_size, 1 << fls(vec_size));
 		if (!ebase_pa)
 			panic("%s: Failed to allocate %lu bytes align=0x%x\n",
-			      __func__, size, 1 << fls(size));
+			      __func__, vec_size, 1 << fls(vec_size));
 
 		/*
 		 * Try to ensure ebase resides in KSeg0 if possible.
@@ -2312,20 +2321,6 @@ void __init trap_init(void)
 			ebase = CKSEG0ADDR(ebase_pa);
 		else
 			ebase = (unsigned long)phys_to_virt(ebase_pa);
-	} else {
-		ebase = CAC_BASE;
-
-		if (cpu_has_mips_r2_r6) {
-			if (cpu_has_ebase_wg) {
-#ifdef CONFIG_64BIT
-				ebase = (read_c0_ebase_64() & ~0xfff);
-#else
-				ebase = (read_c0_ebase() & ~0xfff);
-#endif
-			} else {
-				ebase += (read_c0_ebase() & 0x3ffff000);
-			}
-		}
 	}
 
 	if (cpu_has_mmips) {
