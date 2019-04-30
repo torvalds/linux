@@ -59,6 +59,7 @@ unsigned bch2_dev_has_data(struct bch_fs *, struct bch_dev *);
 
 int bch2_replicas_gc_end(struct bch_fs *, int);
 int bch2_replicas_gc_start(struct bch_fs *, unsigned);
+int bch2_replicas_gc2(struct bch_fs *);
 
 int bch2_replicas_set_usage(struct bch_fs *,
 			    struct bch_replicas_entry *,

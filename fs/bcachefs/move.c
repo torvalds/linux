@@ -619,64 +619,6 @@ out:
 	return ret;
 }
 
-static int bch2_gc_data_replicas(struct bch_fs *c)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct bkey_s_c k;
-	int ret;
-
-	bch2_trans_init(&trans, c);
-
-	mutex_lock(&c->replicas_gc_lock);
-	bch2_replicas_gc_start(c, (1 << BCH_DATA_USER)|(1 << BCH_DATA_CACHED));
-
-	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		ret = bch2_mark_bkey_replicas(c, k);
-		if (ret)
-			break;
-	}
-	ret = bch2_trans_exit(&trans) ?: ret;
-
-	bch2_replicas_gc_end(c, ret);
-	mutex_unlock(&c->replicas_gc_lock);
-
-	return ret;
-}
-
-static int bch2_gc_btree_replicas(struct bch_fs *c)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct btree *b;
-	unsigned id;
-	int ret = 0;
-
-	bch2_trans_init(&trans, c);
-
-	mutex_lock(&c->replicas_gc_lock);
-	bch2_replicas_gc_start(c, 1 << BCH_DATA_BTREE);
-
-	for (id = 0; id < BTREE_ID_NR; id++) {
-		for_each_btree_node(&trans, iter, id, POS_MIN,
-				    BTREE_ITER_PREFETCH, b) {
-			ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(&b->key));
-
-			bch2_trans_cond_resched(&trans);
-		}
-
-		ret = bch2_trans_iter_free(&trans, iter) ?: ret;
-	}
-
-	bch2_trans_exit(&trans);
-
-	bch2_replicas_gc_end(c, ret);
-	mutex_unlock(&c->replicas_gc_lock);
-
-	return ret;
-}
-
 static int bch2_move_btree(struct bch_fs *c,
 			   move_pred_fn pred,
 			   void *arg,
@@ -803,14 +745,14 @@ int bch2_data_job(struct bch_fs *c,
 			bch2_journal_meta(&c->journal);
 		}
 
-		ret = bch2_gc_btree_replicas(c) ?: ret;
+		ret = bch2_replicas_gc2(c) ?: ret;
 
 		ret = bch2_move_data(c, NULL,
 				     writepoint_hashed((unsigned long) current),
 				     op.start,
 				     op.end,
 				     rereplicate_pred, c, stats) ?: ret;
-		ret = bch2_gc_data_replicas(c) ?: ret;
+		ret = bch2_replicas_gc2(c) ?: ret;
 		break;
 	case BCH_DATA_OP_MIGRATE:
 		if (op.migrate.dev >= c->sb.nr_devices)
@@ -820,14 +762,14 @@ int bch2_data_job(struct bch_fs *c,
 		ret = bch2_journal_flush_device_pins(&c->journal, op.migrate.dev);
 
 		ret = bch2_move_btree(c, migrate_pred, &op, stats) ?: ret;
-		ret = bch2_gc_btree_replicas(c) ?: ret;
+		ret = bch2_replicas_gc2(c) ?: ret;
 
 		ret = bch2_move_data(c, NULL,
 				     writepoint_hashed((unsigned long) current),
 				     op.start,
 				     op.end,
 				     migrate_pred, &op, stats) ?: ret;
-		ret = bch2_gc_data_replicas(c) ?: ret;
+		ret = bch2_replicas_gc2(c) ?: ret;
 		break;
 	default:
 		ret = -EINVAL;

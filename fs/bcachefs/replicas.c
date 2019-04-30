@@ -571,6 +571,64 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	return 0;
 }
 
+int bch2_replicas_gc2(struct bch_fs *c)
+{
+	struct bch_replicas_cpu new = { 0 };
+	unsigned i, nr;
+	int ret = 0;
+
+	bch2_journal_meta(&c->journal);
+retry:
+	nr		= READ_ONCE(c->replicas.nr);
+	new.entry_size	= READ_ONCE(c->replicas.entry_size);
+	new.entries	= kcalloc(nr, new.entry_size, GFP_KERNEL);
+	if (!new.entries)
+		return -ENOMEM;
+
+	mutex_lock(&c->sb_lock);
+	percpu_down_write(&c->mark_lock);
+
+	if (nr			!= c->replicas.nr ||
+	    new.entry_size	!= c->replicas.entry_size) {
+		percpu_up_write(&c->mark_lock);
+		mutex_unlock(&c->sb_lock);
+		kfree(new.entries);
+		goto retry;
+	}
+
+	for (i = 0; i < c->replicas.nr; i++) {
+		struct bch_replicas_entry *e =
+			cpu_replicas_entry(&c->replicas, i);
+
+		if (e->data_type == BCH_DATA_JOURNAL ||
+		    c->usage_base->replicas[i] ||
+		    percpu_u64_get(&c->usage[0]->replicas[i]) ||
+		    percpu_u64_get(&c->usage[1]->replicas[i]))
+			memcpy(cpu_replicas_entry(&new, new.nr++),
+			       e, new.entry_size);
+	}
+
+	bch2_cpu_replicas_sort(&new);
+
+	if (bch2_cpu_replicas_to_sb_replicas(c, &new)) {
+		ret = -ENOSPC;
+		goto err;
+	}
+
+	ret = replicas_table_update(c, &new);
+err:
+	kfree(new.entries);
+
+	percpu_up_write(&c->mark_lock);
+
+	if (!ret)
+		bch2_write_super(c);
+
+	mutex_unlock(&c->sb_lock);
+
+	return ret;
+}
+
 int bch2_replicas_set_usage(struct bch_fs *c,
 			    struct bch_replicas_entry *r,
 			    u64 sectors)

@@ -48,10 +48,6 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   POS_MIN, BTREE_ITER_PREFETCH);
 
-	mutex_lock(&c->replicas_gc_lock);
-	bch2_replicas_gc_start(c, (1 << BCH_DATA_USER)|(1 << BCH_DATA_CACHED));
-
-
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
 		if (!bkey_extent_is_data(k.k) ||
@@ -97,12 +93,9 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 			break;
 	}
 
+	ret = bch2_trans_exit(&trans) ?: ret;
+
 	BUG_ON(ret == -EINTR);
-
-	bch2_trans_exit(&trans);
-
-	bch2_replicas_gc_end(c, ret);
-	mutex_unlock(&c->replicas_gc_lock);
 
 	return ret;
 }
@@ -122,9 +115,6 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 	bch2_trans_init(&trans, c);
 	closure_init_stack(&cl);
-
-	mutex_lock(&c->replicas_gc_lock);
-	bch2_replicas_gc_start(c, 1 << BCH_DATA_BTREE);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		for_each_btree_node(&trans, iter, id, POS_MIN,
@@ -178,10 +168,9 @@ retry:
 
 	ret = 0;
 err:
-	bch2_trans_exit(&trans);
+	ret = bch2_trans_exit(&trans) ?: ret;
 
-	ret = bch2_replicas_gc_end(c, ret);
-	mutex_unlock(&c->replicas_gc_lock);
+	BUG_ON(ret == -EINTR);
 
 	return ret;
 }
@@ -189,5 +178,6 @@ err:
 int bch2_dev_data_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
 	return bch2_dev_usrdata_drop(c, dev_idx, flags) ?:
-		bch2_dev_metadata_drop(c, dev_idx, flags);
+		bch2_dev_metadata_drop(c, dev_idx, flags) ?:
+		bch2_replicas_gc2(c);
 }
