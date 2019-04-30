@@ -4398,7 +4398,6 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 				u64 val, bool is_dram)
 {
 	struct packet_lin_dma *lin_dma_pkt;
-	struct hl_cs_parser parser;
 	struct hl_cs_job *job;
 	u32 cb_size, ctl;
 	struct hl_cb *cb;
@@ -4438,36 +4437,16 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 	job->user_cb->cs_cnt++;
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
+	job->patched_cb = job->user_cb;
+	job->job_cb_size = job->user_cb_size +
+			sizeof(struct packet_msg_prot) * 2;
 
 	hl_debugfs_add_job(hdev, job);
 
-	parser.ctx_id = HL_KERNEL_ASID_ID;
-	parser.cs_sequence = 0;
-	parser.job_id = job->id;
-	parser.hw_queue_id = job->hw_queue_id;
-	parser.job_userptr_list = &job->userptr_list;
-	parser.user_cb = job->user_cb;
-	parser.user_cb_size = job->user_cb_size;
-	parser.ext_queue = job->ext_queue;
-	parser.use_virt_addr = hdev->mmu_enable;
-
-	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to parse kernel CB\n");
-		goto free_job;
-	}
-
-	job->patched_cb = parser.patched_cb;
-	job->job_cb_size = parser.patched_cb_size;
-	job->patched_cb->cs_cnt++;
-
 	rc = goya_send_job_on_qman0(hdev, job);
 
-	job->patched_cb->cs_cnt--;
 	hl_cb_put(job->patched_cb);
 
-free_job:
-	hl_userptr_delete_list(hdev, &job->userptr_list);
 	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
 	cb->cs_cnt--;
