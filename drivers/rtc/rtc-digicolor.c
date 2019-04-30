@@ -106,11 +106,11 @@ static int dc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int dc_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int dc_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct dc_rtc *rtc = dev_get_drvdata(dev);
 
-	return dc_rtc_write(rtc, secs);
+	return dc_rtc_write(rtc, rtc_tm_to_time64(tm));
 }
 
 static int dc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
@@ -161,7 +161,7 @@ static int dc_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static const struct rtc_class_ops dc_rtc_ops = {
 	.read_time		= dc_rtc_read_time,
-	.set_mmss		= dc_rtc_set_mmss,
+	.set_time		= dc_rtc_set_time,
 	.read_alarm		= dc_rtc_read_alarm,
 	.set_alarm		= dc_rtc_set_alarm,
 	.alarm_irq_enable	= dc_rtc_alarm_irq_enable,
