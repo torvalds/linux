@@ -44,6 +44,8 @@
 #include <asm/export.h>
 #include <asm/asm-405.h>
 
+#include "head_32.h"
+
 /* As with the other PowerPC ports, it is expected that when code
  * execution begins here, the following registers contain valid, yet
  * optional, information:
@@ -97,52 +99,6 @@ _ENTRY(crit_srr1)
 	.space	4
 _ENTRY(saved_ksp_limit)
 	.space	4
-
-/*
- * Exception vector entry code. This code runs with address translation
- * turned off (i.e. using physical addresses). We assume SPRG_THREAD has
- * the physical address of the current task thread_struct.
- */
-#define EXCEPTION_PROLOG						     \
-	mtspr	SPRN_SPRG_SCRATCH0,r10;	/* save two registers to work with */\
-	mtspr	SPRN_SPRG_SCRATCH1,r11;					     \
-	mfcr	r10;			/* save CR in r10 for now	   */\
-	EXCEPTION_PROLOG_1;						     \
-	EXCEPTION_PROLOG_2
-
-#define EXCEPTION_PROLOG_1						     \
-	mfspr	r11,SPRN_SRR1;		/* check whether user or kernel    */\
-	andi.	r11,r11,MSR_PR;						     \
-	tophys(r11,r1);							     \
-	beq	1f;							     \
-	mfspr	r11,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
-	lwz	r11,TASK_STACK-THREAD(r11); /* this thread's kernel stack */\
-	addi	r11,r11,THREAD_SIZE;					     \
-	tophys(r11,r11);						     \
-1:	subi	r11,r11,INT_FRAME_SIZE	/* Allocate an exception frame     */
-
-#define EXCEPTION_PROLOG_2						     \
-	stw	r10,_CCR(r11);          /* save various registers	   */\
-	stw	r12,GPR12(r11);						     \
-	stw	r9,GPR9(r11);						     \
-	mfspr	r10,SPRN_SPRG_SCRATCH0;					     \
-	stw	r10,GPR10(r11);						     \
-	mfspr	r12,SPRN_SPRG_SCRATCH1;					     \
-	stw	r12,GPR11(r11);						     \
-	mflr	r10;							     \
-	stw	r10,_LINK(r11);						     \
-	mfspr	r12,SPRN_SRR0;						     \
-	stw	r1,GPR1(r11);						     \
-	mfspr	r9,SPRN_SRR1;						     \
-	stw	r1,0(r11);						     \
-	tovirt(r1,r11);			/* set new kernel sp */	\
-	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
-	stw	r0,GPR0(r11);						     \
-	lis	r10, STACK_FRAME_REGS_MARKER@ha; /* exception frame marker */\
-	addi	r10, r10, STACK_FRAME_REGS_MARKER@l;			     \
-	stw	r10, 8(r11);						     \
-	SAVE_4GPRS(3, r11);						     \
-	SAVE_2GPRS(7, r11)
 
 /*
  * Exception prolog for critical exceptions.  This is a little different
@@ -205,16 +161,6 @@ _ENTRY(saved_ksp_limit)
 /*
  * Exception vectors.
  */
-#define	START_EXCEPTION(n, label)					     \
-	. = n;								     \
-label:
-
-#define EXCEPTION(n, label, hdlr, xfer)				\
-	START_EXCEPTION(n, label);				\
-	EXCEPTION_PROLOG;				\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
-	xfer(n, hdlr)
-
 #define CRITICAL_EXCEPTION(n, label, hdlr)			\
 	START_EXCEPTION(n, label);				\
 	CRITICAL_EXCEPTION_PROLOG;				\
@@ -222,36 +168,6 @@ label:
 	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
 			  NOCOPY, crit_transfer_to_handler,	\
 			  ret_from_crit_exc)
-
-#define EXC_XFER_TEMPLATE(hdlr, trap, msr, copyee, tfer, ret)	\
-	li	r10,trap;					\
-	stw	r10,_TRAP(r11);					\
-	lis	r10,msr@h;					\
-	ori	r10,r10,msr@l;					\
-	copyee(r10, r9);					\
-	bl	tfer;		 				\
-	.long	hdlr;						\
-	.long	ret
-
-#define COPY_EE(d, s)		rlwimi d,s,0,16,16
-#define NOCOPY(d, s)
-
-#define EXC_XFER_STD(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n, MSR_KERNEL, NOCOPY, transfer_to_handler_full, \
-			  ret_from_except_full)
-
-#define EXC_XFER_LITE(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, NOCOPY, transfer_to_handler, \
-			  ret_from_except)
-
-#define EXC_XFER_EE(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n, MSR_KERNEL, COPY_EE, transfer_to_handler_full, \
-			  ret_from_except_full)
-
-#define EXC_XFER_EE_LITE(n, hdlr)	\
-	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, COPY_EE, transfer_to_handler, \
-			  ret_from_except)
-
 
 /*
  * 0x0100 - Critical Interrupt Exception
