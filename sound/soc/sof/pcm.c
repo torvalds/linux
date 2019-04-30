@@ -52,6 +52,48 @@ static int sof_pcm_dsp_params(struct snd_sof_pcm *spcm, struct snd_pcm_substream
 	return ret;
 }
 
+/*
+ * sof pcm period elapse work
+ */
+static void sof_pcm_period_elapsed_work(struct work_struct *work)
+{
+	struct snd_sof_pcm_stream *sps =
+		container_of(work, struct snd_sof_pcm_stream,
+			     period_elapsed_work);
+
+	snd_pcm_period_elapsed(sps->substream);
+}
+
+/*
+ * sof pcm period elapse, this could be called at irq thread context.
+ */
+void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component =
+		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct snd_sof_pcm *spcm;
+
+	spcm = snd_sof_find_spcm_dai(sdev, rtd);
+	if (!spcm) {
+		dev_err(sdev->dev,
+			"error: period elapsed for unknown stream!\n");
+		return;
+	}
+
+	/*
+	 * snd_pcm_period_elapsed() can be called in interrupt context
+	 * before IRQ_HANDLED is returned. Inside snd_pcm_period_elapsed(),
+	 * when the PCM is done draining or xrun happened, a STOP IPC will
+	 * then be sent and this IPC will hit IPC timeout.
+	 * To avoid sending IPC before the previous IPC is handled, we
+	 * schedule delayed work here to call the snd_pcm_period_elapsed().
+	 */
+	schedule_work(&spcm->stream[substream->stream].period_elapsed_work);
+}
+EXPORT_SYMBOL(snd_sof_pcm_period_elapsed);
+
 /* this may get called several times by oss emulation */
 static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
@@ -169,6 +211,9 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));
 
+	INIT_WORK(&spcm->stream[substream->stream].period_elapsed_work,
+		  sof_pcm_period_elapsed_work);
+
 	return ret;
 }
 
@@ -203,6 +248,9 @@ static int sof_pcm_hw_free(struct snd_pcm_substream *substream)
 				 sizeof(stream), &reply, sizeof(reply));
 
 	snd_pcm_lib_free_pages(substream);
+
+	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
+
 	return ret;
 }
 

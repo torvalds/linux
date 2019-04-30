@@ -274,6 +274,7 @@ struct snd_sof_pcm_stream {
 	struct snd_dma_buffer page_table;
 	struct sof_ipc_stream_posn posn;
 	struct snd_pcm_substream *substream;
+	struct work_struct period_elapsed_work;
 };
 
 /* ALSA SOF PCM device */
@@ -495,6 +496,7 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_sof_dev *sdev,
 					   int *direction);
 struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_sof_dev *sdev,
 					     unsigned int pcm_id);
+void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream);
 
 /*
  * Stream IPC
