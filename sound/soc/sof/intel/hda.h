@@ -383,6 +383,9 @@ struct sof_intel_hda_dev {
 	/* if position update IPC needed */
 	u32 no_ipc_position;
 
+	/* the maximum number of streams (playback + capture) supported */
+	u32 stream_max;
+
 	int irq;
 
 	/* DMIC device */

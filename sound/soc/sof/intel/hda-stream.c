@@ -500,6 +500,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 	struct hdac_ext_stream *stream;
 	struct hdac_stream *hstream;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
+	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
 	int sd_offset;
 	int i, num_playback, num_capture, num_total, ret;
 	u32 gcap;
@@ -656,6 +657,9 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 		list_add_tail(&hstream->list, &bus->stream_list);
 	}
+
+	/* store total stream count (playback + capture) from GCAP */
+	sof_hda->stream_max = num_total;
 
 	return 0;
 }
