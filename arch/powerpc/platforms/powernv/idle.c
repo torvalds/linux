@@ -296,7 +296,6 @@ struct p7_sprs {
 	/* per subcore */
 	u64 sdr1;
 	u64 rpr;
-	u64 amor;
 
 	/* per thread */
 	u64 lpcr;
@@ -306,6 +305,12 @@ struct p7_sprs {
 	u64 spurr;
 	u64 dscr;
 	u64 wort;
+
+	/* per thread SPRs that get lost in shallow states */
+	u64 amr;
+	u64 iamr;
+	u64 amor;
+	u64 uamor;
 };
 
 static unsigned long power7_idle_insn(unsigned long type)
@@ -342,7 +347,6 @@ static unsigned long power7_idle_insn(unsigned long type)
 
 			sprs.sdr1	= mfspr(SPRN_SDR1);
 			sprs.rpr	= mfspr(SPRN_RPR);
-			sprs.amor	= mfspr(SPRN_AMOR);
 
 			sprs.lpcr	= mfspr(SPRN_LPCR);
 			if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
@@ -374,12 +378,32 @@ static unsigned long power7_idle_insn(unsigned long type)
 		atomic_unlock_thread_idle();
 	}
 
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		sprs.amr	= mfspr(SPRN_AMR);
+		sprs.iamr	= mfspr(SPRN_IAMR);
+		sprs.amor	= mfspr(SPRN_AMOR);
+		sprs.uamor	= mfspr(SPRN_UAMOR);
+	}
+
 	local_paca->thread_idle_state = type;
 	srr1 = isa206_idle_insn_mayloss(type);		/* go idle */
 	local_paca->thread_idle_state = PNV_THREAD_RUNNING;
 
 	WARN_ON_ONCE(!srr1);
 	WARN_ON_ONCE(mfmsr() & (MSR_IR|MSR_DR));
+
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS) {
+			/*
+			 * We don't need an isync after the mtsprs here because
+			 * the upcoming mtmsrd is execution synchronizing.
+			 */
+			mtspr(SPRN_AMR,		sprs.amr);
+			mtspr(SPRN_IAMR,	sprs.iamr);
+			mtspr(SPRN_AMOR,	sprs.amor);
+			mtspr(SPRN_UAMOR,	sprs.uamor);
+		}
+	}
 
 	if (unlikely((srr1 & SRR1_WAKEMASK_P8) == SRR1_WAKEHMI))
 		hmi_exception_realmode(NULL);
@@ -444,7 +468,6 @@ core_woken:
 	/* Per-subcore SPRs */
 	mtspr(SPRN_SDR1,	sprs.sdr1);
 	mtspr(SPRN_RPR,		sprs.rpr);
-	mtspr(SPRN_AMOR,	sprs.amor);
 
 subcore_woken:
 	/*
@@ -560,7 +583,6 @@ struct p9_sprs {
 	u64 rpr;
 	u64 tscr;
 	u64 ldbar;
-	u64 amor;
 
 	/* per thread */
 	u64 lpcr;
@@ -576,6 +598,12 @@ struct p9_sprs {
 	u32 mmcr0;
 	u32 mmcr1;
 	u64 mmcr2;
+
+	/* per thread SPRs that get lost in shallow states */
+	u64 amr;
+	u64 iamr;
+	u64 amor;
+	u64 uamor;
 };
 
 static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
@@ -652,12 +680,16 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 		sprs.rpr	= mfspr(SPRN_RPR);
 		sprs.tscr	= mfspr(SPRN_TSCR);
 		sprs.ldbar	= mfspr(SPRN_LDBAR);
-		sprs.amor	= mfspr(SPRN_AMOR);
 
 		sprs_saved = true;
 
 		atomic_start_thread_idle();
 	}
+
+	sprs.amr	= mfspr(SPRN_AMR);
+	sprs.iamr	= mfspr(SPRN_IAMR);
+	sprs.amor	= mfspr(SPRN_AMOR);
+	sprs.uamor	= mfspr(SPRN_UAMOR);
 
 	srr1 = isa300_idle_stop_mayloss(psscr);		/* go idle */
 
@@ -672,6 +704,15 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 
 	if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS) {
 		unsigned long mmcra;
+
+		/*
+		 * We don't need an isync after the mtsprs here because the
+		 * upcoming mtmsrd is execution synchronizing.
+		 */
+		mtspr(SPRN_AMR,		sprs.amr);
+		mtspr(SPRN_IAMR,	sprs.iamr);
+		mtspr(SPRN_AMOR,	sprs.amor);
+		mtspr(SPRN_UAMOR,	sprs.uamor);
 
 		/*
 		 * Workaround for POWER9 DD2.0, if we lost resources, the ERAT
@@ -722,7 +763,6 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 	mtspr(SPRN_RPR,		sprs.rpr);
 	mtspr(SPRN_TSCR,	sprs.tscr);
 	mtspr(SPRN_LDBAR,	sprs.ldbar);
-	mtspr(SPRN_AMOR,	sprs.amor);
 
 	if (pls >= pnv_first_tb_loss_level) {
 		/* TB loss */
