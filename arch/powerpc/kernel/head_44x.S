@@ -281,7 +281,7 @@ interrupt_base:
 	FP_UNAVAILABLE_EXCEPTION
 #else
 	EXCEPTION(0x2010, BOOKE_INTERRUPT_FP_UNAVAIL, \
-		  FloatingPointUnavailable, unknown_exception, EXC_XFER_EE)
+		  FloatingPointUnavailable, unknown_exception, EXC_XFER_STD)
 #endif
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
@@ -290,7 +290,7 @@ interrupt_base:
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2020, BOOKE_INTERRUPT_AP_UNAVAIL, \
-		  AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
+		  AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_STD)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
@@ -298,7 +298,7 @@ interrupt_base:
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
 	EXCEPTION(0x1010, BOOKE_INTERRUPT_FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */

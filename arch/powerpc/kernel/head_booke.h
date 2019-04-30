@@ -255,14 +255,6 @@ label:
 	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL | MSR_EE, NOCOPY, transfer_to_handler, \
 			  ret_from_except)
 
-#define EXC_XFER_EE(n, hdlr)		\
-	EXC_XFER_TEMPLATE(hdlr, n, MSR_KERNEL, COPY_EE, transfer_to_handler_full, \
-			  ret_from_except_full)
-
-#define EXC_XFER_EE_LITE(n, hdlr)	\
-	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, COPY_EE, transfer_to_handler, \
-			  ret_from_except)
-
 /* Check for a single step debug exception while in an exception
  * handler before state has been saved.  This is to catch the case
  * where an instruction that we are trying to single step causes
@@ -405,7 +397,7 @@ label:
 	mfspr   r4,SPRN_DEAR;           /* Grab the DEAR and save it */	      \
 	stw     r4,_DEAR(r11);						      \
 	addi    r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_EE(0x0600, alignment_exception)
+	EXC_XFER_STD(0x0600, alignment_exception)
 
 #define PROGRAM_EXCEPTION						      \
 	START_EXCEPTION(Program)					      \
@@ -430,7 +422,7 @@ label:
 	bl	load_up_fpu;		/* if from user, just load it up */   \
 	b	fast_exception_return;					      \
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_EE_LITE(0x800, kernel_fp_unavailable_exception)
+	EXC_XFER_STD(0x800, kernel_fp_unavailable_exception)
 
 #ifndef __ASSEMBLY__
 struct exception_regs {

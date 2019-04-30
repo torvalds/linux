@@ -167,7 +167,7 @@ Alignment:
 	mfspr	r5,SPRN_DSISR
 	stw	r5,_DSISR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE(0x600, alignment_exception)
+	EXC_XFER_STD(0x600, alignment_exception)
 
 /* Program check exception */
 	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
@@ -179,8 +179,8 @@ Alignment:
 /* Decrementer */
 	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
 
-	EXCEPTION(0xa00, Trap_0a, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0xb00, Trap_0b, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0xa00, Trap_0a, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0xb00, Trap_0b, unknown_exception, EXC_XFER_STD)
 
 /* System call */
 	. = 0xc00
@@ -190,8 +190,8 @@ SystemCall:
 
 /* Single step - not used on 601 */
 	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
-	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0xf00, Trap_0f, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0xf00, Trap_0f, unknown_exception, EXC_XFER_STD)
 
 /* On the MPC8xx, this is a software emulation interrupt.  It occurs
  * for all unimplemented and illegal instructions.
@@ -521,13 +521,13 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
 	EXC_XFER_LITE(0x300, handle_page_fault)
 
-	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1700, Trap_17, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1a00, Trap_1a, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1b00, Trap_1b, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1700, Trap_17, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1a00, Trap_1a, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1b00, Trap_1b, unknown_exception, EXC_XFER_STD)
 
 /* On the MPC8xx, these next four traps are used for development
  * support of breakpoints and such.  Someday I will get around to
@@ -549,7 +549,7 @@ DataBreakpoint:
 	mfspr	r4,SPRN_BAR
 	stw	r4,_DAR(r11)
 	mfspr	r5,SPRN_DSISR
-	EXC_XFER_EE(0x1c00, do_break)
+	EXC_XFER_STD(0x1c00, do_break)
 11:
 	mtcr	r10
 	mfspr	r10, SPRN_SPRG_SCRATCH0
@@ -569,10 +569,10 @@ InstructionBreakpoint:
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	rfi
 #else
-	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_STD)
 #endif
-	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_STD)
 
 	. = 0x2000
 

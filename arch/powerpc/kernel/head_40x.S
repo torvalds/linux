@@ -332,7 +332,7 @@ _ENTRY(saved_ksp_limit)
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR and save it */
 	stw	r4,_DEAR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE(0x600, alignment_exception)
+	EXC_XFER_STD(0x600, alignment_exception)
 
 /* 0x0700 - Program Exception */
 	START_EXCEPTION(0x0700, ProgramCheck)
@@ -342,19 +342,19 @@ _ENTRY(saved_ksp_limit)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x700, program_check_exception)
 
-	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x0900, Trap_09, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x0A00, Trap_0A, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x0B00, Trap_0B, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0900, Trap_09, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0A00, Trap_0A, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0B00, Trap_0B, unknown_exception, EXC_XFER_STD)
 
 /* 0x0C00 - System Call Exception */
 	START_EXCEPTION(0x0C00,	SystemCall)
 	EXCEPTION_PROLOG
 	EXC_XFER_SYS(0xc00, DoSyscall)
 
-	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x0E00, Trap_0E, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0E00, Trap_0E, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_STD)
 
 /* 0x1000 - Programmable Interval Timer (PIT) Exception */
 	. = 0x1000
@@ -571,25 +571,25 @@ _ENTRY(saved_ksp_limit)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	b	InstructionAccess
 
-	EXCEPTION(0x1300, Trap_13, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1400, Trap_14, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1300, Trap_13, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1400, Trap_14, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_STD)
 #ifdef CONFIG_IBM405_ERR51
 	/* 405GP errata 51 */
 	START_EXCEPTION(0x1700, Trap_17)
 	b DTLBMiss
 #else
-	EXCEPTION(0x1700, Trap_17, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1700, Trap_17, unknown_exception, EXC_XFER_STD)
 #endif
-	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1A00, Trap_1A, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1B00, Trap_1B, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1C00, Trap_1C, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1D00, Trap_1D, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1E00, Trap_1E, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x1F00, Trap_1F, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1A00, Trap_1A, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1B00, Trap_1B, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1C00, Trap_1C, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1D00, Trap_1D, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1E00, Trap_1E, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1F00, Trap_1F, unknown_exception, EXC_XFER_STD)
 
 /* Check for a single step debug exception while in an exception
  * handler before state has been saved.  This is to catch the case
@@ -665,7 +665,7 @@ Decrementer:
 FITException:
 	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
-	EXC_XFER_EE(0x1010, unknown_exception)
+	EXC_XFER_STD(0x1010, unknown_exception)
 
 	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
 WDTException:

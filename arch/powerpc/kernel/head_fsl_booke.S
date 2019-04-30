@@ -383,7 +383,7 @@ interrupt_base:
 	EXC_XFER_LITE(0x0300, handle_page_fault)
 1:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE_LITE(0x0300, CacheLockingException)
+	EXC_XFER_LITE(0x0300, CacheLockingException)
 
 	/* Instruction Storage Interrupt */
 	INSTRUCTION_STORAGE_EXCEPTION
@@ -404,10 +404,10 @@ interrupt_base:
 #ifdef CONFIG_E200
 	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
 	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
-		  program_check_exception, EXC_XFER_EE)
+		  program_check_exception, EXC_XFER_STD)
 #else
 	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 #endif
 #endif
 
@@ -418,7 +418,7 @@ interrupt_base:
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, \
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
@@ -426,7 +426,7 @@ interrupt_base:
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
 	EXCEPTION(0x3100, FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 
 	/* Watchdog Timer Interrupt */
 #ifdef CONFIG_BOOKE_WDT
@@ -636,25 +636,25 @@ END_BTB_FLUSH_SECTION
 	bl	load_up_spe
 	b	fast_exception_return
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE_LITE(0x2010, KernelSPE)
+	EXC_XFER_LITE(0x2010, KernelSPE)
 #elif defined(CONFIG_SPE_POSSIBLE)
 	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
 	EXCEPTION(0x2030, SPE_FP_DATA, SPEFloatingPointData,
-		  SPEFloatingPointException, EXC_XFER_EE)
+		  SPEFloatingPointException, EXC_XFER_STD)
 
 	/* SPE Floating Point Round */
 	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
-		  SPEFloatingPointRoundException, EXC_XFER_EE)
+		  SPEFloatingPointRoundException, EXC_XFER_STD)
 #elif defined(CONFIG_SPE_POSSIBLE)
 	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData,
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 #endif /* CONFIG_SPE_POSSIBLE */
 
 
@@ -677,10 +677,10 @@ END_BTB_FLUSH_SECTION
 			   unknown_exception)
 
 	/* Hypercall */
-	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception, EXC_XFER_STD)
 
 	/* Embedded Hypervisor Privilege */
-	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_STD)
 
 interrupt_end:
 
