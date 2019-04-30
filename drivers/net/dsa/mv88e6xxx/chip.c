@@ -4894,11 +4894,16 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (err)
 		goto out;
 
-	chip->irq = of_irq_get(np, 0);
-	if (chip->irq == -EPROBE_DEFER) {
-		err = chip->irq;
-		goto out;
+	if (np) {
+		chip->irq = of_irq_get(np, 0);
+		if (chip->irq == -EPROBE_DEFER) {
+			err = chip->irq;
+			goto out;
+		}
 	}
+
+	if (pdata)
+		chip->irq = pdata->irq;
 
 	/* Has to be performed before the MDIO bus is created, because
 	 * the PHYs will link their interrupts to these interrupt
