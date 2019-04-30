@@ -258,6 +258,7 @@ static int temac_dma_bd_init(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	struct sk_buff *skb;
+	dma_addr_t skb_dma_addr;
 	int i;
 
 	lp->rx_skb = devm_kcalloc(&ndev->dev, RX_BD_NUM, sizeof(*lp->rx_skb),
@@ -280,13 +281,13 @@ static int temac_dma_bd_init(struct net_device *ndev)
 		goto out;
 
 	for (i = 0; i < TX_BD_NUM; i++) {
-		lp->tx_bd_v[i].next = lp->tx_bd_p +
-				sizeof(*lp->tx_bd_v) * ((i + 1) % TX_BD_NUM);
+		lp->tx_bd_v[i].next = cpu_to_be32(lp->tx_bd_p
+				+ sizeof(*lp->tx_bd_v) * ((i + 1) % TX_BD_NUM));
 	}
 
 	for (i = 0; i < RX_BD_NUM; i++) {
-		lp->rx_bd_v[i].next = lp->rx_bd_p +
-				sizeof(*lp->rx_bd_v) * ((i + 1) % RX_BD_NUM);
+		lp->rx_bd_v[i].next = cpu_to_be32(lp->rx_bd_p
+				+ sizeof(*lp->rx_bd_v) * ((i + 1) % RX_BD_NUM));
 
 		skb = netdev_alloc_skb_ip_align(ndev,
 						XTE_MAX_JUMBO_FRAME_SIZE);
@@ -295,12 +296,12 @@ static int temac_dma_bd_init(struct net_device *ndev)
 
 		lp->rx_skb[i] = skb;
 		/* returns physical address of skb->data */
-		lp->rx_bd_v[i].phys = dma_map_single(ndev->dev.parent,
-						     skb->data,
-						     XTE_MAX_JUMBO_FRAME_SIZE,
-						     DMA_FROM_DEVICE);
-		lp->rx_bd_v[i].len = XTE_MAX_JUMBO_FRAME_SIZE;
-		lp->rx_bd_v[i].app0 = STS_CTRL_APP0_IRQONEND;
+		skb_dma_addr = dma_map_single(ndev->dev.parent, skb->data,
+					      XTE_MAX_JUMBO_FRAME_SIZE,
+					      DMA_FROM_DEVICE);
+		lp->rx_bd_v[i].phys = cpu_to_be32(skb_dma_addr);
+		lp->rx_bd_v[i].len = cpu_to_be32(XTE_MAX_JUMBO_FRAME_SIZE);
+		lp->rx_bd_v[i].app0 = cpu_to_be32(STS_CTRL_APP0_IRQONEND);
 	}
 
 	lp->dma_out(lp, TX_CHNL_CTRL, 0x10220400 |
@@ -676,11 +677,11 @@ static void temac_start_xmit_done(struct net_device *ndev)
 	struct sk_buff *skb;
 
 	cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
-	stat = cur_p->app0;
+	stat = be32_to_cpu(cur_p->app0);
 
 	while (stat & STS_CTRL_APP0_CMPLT) {
-		dma_unmap_single(ndev->dev.parent, cur_p->phys, cur_p->len,
-				 DMA_TO_DEVICE);
+		dma_unmap_single(ndev->dev.parent, be32_to_cpu(cur_p->phys),
+				 be32_to_cpu(cur_p->len), DMA_TO_DEVICE);
 		skb = (struct sk_buff *)ptr_from_txbd(cur_p);
 		if (skb)
 			dev_consume_skb_irq(skb);
@@ -691,14 +692,14 @@ static void temac_start_xmit_done(struct net_device *ndev)
 		cur_p->app4 = 0;
 
 		ndev->stats.tx_packets++;
-		ndev->stats.tx_bytes += cur_p->len;
+		ndev->stats.tx_bytes += be32_to_cpu(cur_p->len);
 
 		lp->tx_bd_ci++;
 		if (lp->tx_bd_ci >= TX_BD_NUM)
 			lp->tx_bd_ci = 0;
 
 		cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
-		stat = cur_p->app0;
+		stat = be32_to_cpu(cur_p->app0);
 	}
 
 	netif_wake_queue(ndev);
@@ -732,7 +733,7 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	struct cdmac_bd *cur_p;
-	dma_addr_t start_p, tail_p;
+	dma_addr_t start_p, tail_p, skb_dma_addr;
 	int ii;
 	unsigned long num_frag;
 	skb_frag_t *frag;
@@ -753,15 +754,17 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		unsigned int csum_start_off = skb_checksum_start_offset(skb);
 		unsigned int csum_index_off = csum_start_off + skb->csum_offset;
 
-		cur_p->app0 |= 1; /* TX Checksum Enabled */
-		cur_p->app1 = (csum_start_off << 16) | csum_index_off;
+		cur_p->app0 |= cpu_to_be32(0x000001); /* TX Checksum Enabled */
+		cur_p->app1 = cpu_to_be32((csum_start_off << 16)
+					  | csum_index_off);
 		cur_p->app2 = 0;  /* initial checksum seed */
 	}
 
-	cur_p->app0 |= STS_CTRL_APP0_SOP;
-	cur_p->len = skb_headlen(skb);
-	cur_p->phys = dma_map_single(ndev->dev.parent, skb->data,
-				     skb_headlen(skb), DMA_TO_DEVICE);
+	cur_p->app0 |= cpu_to_be32(STS_CTRL_APP0_SOP);
+	skb_dma_addr = dma_map_single(ndev->dev.parent, skb->data,
+				      skb_headlen(skb), DMA_TO_DEVICE);
+	cur_p->len = cpu_to_be32(skb_headlen(skb));
+	cur_p->phys = cpu_to_be32(skb_dma_addr);
 	ptr_to_txbd((void *)skb, cur_p);
 
 	for (ii = 0; ii < num_frag; ii++) {
@@ -770,14 +773,16 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			lp->tx_bd_tail = 0;
 
 		cur_p = &lp->tx_bd_v[lp->tx_bd_tail];
-		cur_p->phys = dma_map_single(ndev->dev.parent,
-					     skb_frag_address(frag),
-					     skb_frag_size(frag), DMA_TO_DEVICE);
-		cur_p->len = skb_frag_size(frag);
+		skb_dma_addr = dma_map_single(ndev->dev.parent,
+					      skb_frag_address(frag),
+					      skb_frag_size(frag),
+					      DMA_TO_DEVICE);
+		cur_p->phys = cpu_to_be32(skb_dma_addr);
+		cur_p->len = cpu_to_be32(skb_frag_size(frag));
 		cur_p->app0 = 0;
 		frag++;
 	}
-	cur_p->app0 |= STS_CTRL_APP0_EOP;
+	cur_p->app0 |= cpu_to_be32(STS_CTRL_APP0_EOP);
 
 	tail_p = lp->tx_bd_p + sizeof(*lp->tx_bd_v) * lp->tx_bd_tail;
 	lp->tx_bd_tail++;
@@ -799,7 +804,7 @@ static void ll_temac_recv(struct net_device *ndev)
 	struct sk_buff *skb, *new_skb;
 	unsigned int bdstat;
 	struct cdmac_bd *cur_p;
-	dma_addr_t tail_p;
+	dma_addr_t tail_p, skb_dma_addr;
 	int length;
 	unsigned long flags;
 
@@ -808,14 +813,14 @@ static void ll_temac_recv(struct net_device *ndev)
 	tail_p = lp->rx_bd_p + sizeof(*lp->rx_bd_v) * lp->rx_bd_ci;
 	cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
 
-	bdstat = cur_p->app0;
+	bdstat = be32_to_cpu(cur_p->app0);
 	while ((bdstat & STS_CTRL_APP0_CMPLT)) {
 
 		skb = lp->rx_skb[lp->rx_bd_ci];
-		length = cur_p->app4 & 0x3FFF;
+		length = be32_to_cpu(cur_p->app4) & 0x3FFF;
 
-		dma_unmap_single(ndev->dev.parent, cur_p->phys, length,
-				 DMA_FROM_DEVICE);
+		dma_unmap_single(ndev->dev.parent, be32_to_cpu(cur_p->phys),
+				 length, DMA_FROM_DEVICE);
 
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, ndev);
@@ -826,7 +831,12 @@ static void ll_temac_recv(struct net_device *ndev)
 		    (skb->protocol == htons(ETH_P_IP)) &&
 		    (skb->len > 64)) {
 
-			skb->csum = cur_p->app3 & 0xFFFF;
+			/* Convert from device endianness (be32) to cpu
+			 * endiannes, and if necessary swap the bytes
+			 * (back) for proper IP checksum byte order
+			 * (be16).
+			 */
+			skb->csum = htons(be32_to_cpu(cur_p->app3) & 0xFFFF);
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		}
 
@@ -843,11 +853,12 @@ static void ll_temac_recv(struct net_device *ndev)
 			return;
 		}
 
-		cur_p->app0 = STS_CTRL_APP0_IRQONEND;
-		cur_p->phys = dma_map_single(ndev->dev.parent, new_skb->data,
-					     XTE_MAX_JUMBO_FRAME_SIZE,
-					     DMA_FROM_DEVICE);
-		cur_p->len = XTE_MAX_JUMBO_FRAME_SIZE;
+		cur_p->app0 = cpu_to_be32(STS_CTRL_APP0_IRQONEND);
+		skb_dma_addr = dma_map_single(ndev->dev.parent, new_skb->data,
+					      XTE_MAX_JUMBO_FRAME_SIZE,
+					      DMA_FROM_DEVICE);
+		cur_p->phys = cpu_to_be32(skb_dma_addr);
+		cur_p->len = cpu_to_be32(XTE_MAX_JUMBO_FRAME_SIZE);
 		lp->rx_skb[lp->rx_bd_ci] = new_skb;
 
 		lp->rx_bd_ci++;
@@ -855,7 +866,7 @@ static void ll_temac_recv(struct net_device *ndev)
 			lp->rx_bd_ci = 0;
 
 		cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
-		bdstat = cur_p->app0;
+		bdstat = be32_to_cpu(cur_p->app0);
 	}
 	lp->dma_out(lp, RX_TAILDESC_PTR, tail_p);
 
