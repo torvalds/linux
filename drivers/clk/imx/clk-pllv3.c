@@ -444,6 +444,7 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		break;
 	case IMX_PLLV3_USB_VF610:
 		pll->div_shift = 1;
+		/* fall through */
 	case IMX_PLLV3_USB:
 		ops = &clk_pllv3_ops;
 		pll->powerup_set = true;
@@ -451,6 +452,7 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_AV_IMX7:
 		pll->num_offset = PLL_IMX7_NUM_OFFSET;
 		pll->denom_offset = PLL_IMX7_DENOM_OFFSET;
+		/* fall through */
 	case IMX_PLLV3_AV:
 		ops = &clk_pllv3_av_ops;
 		break;
