@@ -32,6 +32,8 @@
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 
+static int mes_v10_1_hw_fini(void *handle);
+
 #define MES_EOP_SIZE   2048
 
 static void mes_v10_1_ring_set_wptr(struct amdgpu_ring *ring)
@@ -569,6 +571,25 @@ static int mes_v10_1_kiq_enable_queue(struct amdgpu_device *adev)
 }
 #endif
 
+static int mes_v10_1_queue_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = mes_v10_1_mqd_init(&adev->mes.ring);
+	if (r)
+		return r;
+
+#if 0
+	r = mes_v10_1_kiq_enable_queue(adev);
+	if (r)
+		return r;
+#else
+	mes_v10_1_queue_init_register(&adev->mes.ring);
+#endif
+
+	return 0;
+}
+
 static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
@@ -640,6 +661,10 @@ static int mes_v10_1_sw_init(void *handle)
 	if (r)
 		return r;
 
+	r = mes_v10_1_ring_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -679,6 +704,12 @@ static int mes_v10_1_hw_init(void *handle)
 	}
 
 	mes_v10_1_enable(adev, true);
+
+	r = mes_v10_1_queue_init(adev);
+	if (r) {
+		mes_v10_1_hw_fini(adev);
+		return r;
+	}
 
 	return 0;
 }
