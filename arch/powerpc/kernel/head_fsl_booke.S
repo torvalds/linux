@@ -413,8 +413,7 @@ interrupt_base:
 
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
-	NORMAL_EXCEPTION_PROLOG(SYSCALL)
-	EXC_XFER_SYS(0x0c00, DoSyscall)
+	SYSCALL_ENTRY   0xc00 SYSCALL
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, \

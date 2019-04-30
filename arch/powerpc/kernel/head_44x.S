@@ -285,8 +285,7 @@ interrupt_base:
 #endif
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
-	NORMAL_EXCEPTION_PROLOG(BOOKE_INTERRUPT_SYSCALL)
-	EXC_XFER_SYS(0x0c00, DoSyscall)
+	SYSCALL_ENTRY   0xc00 BOOKE_INTERRUPT_SYSCALL
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2020, BOOKE_INTERRUPT_AP_UNAVAIL, \
