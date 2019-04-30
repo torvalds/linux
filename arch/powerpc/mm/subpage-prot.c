@@ -90,16 +90,18 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 static void subpage_prot_clear(unsigned long addr, unsigned long len)
 {
 	struct mm_struct *mm = current->mm;
-	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
+	struct subpage_prot_table *spt;
 	u32 **spm, *spp;
 	unsigned long i;
 	size_t nw;
 	unsigned long next, limit;
 
-	if (!spt)
-		return ;
-
 	down_write(&mm->mmap_sem);
+
+	spt = mm_ctx_subpage_prot(&mm->context);
+	if (!spt)
+		goto err_out;
+
 	limit = addr + len;
 	if (limit > spt->maxaddr)
 		limit = spt->maxaddr;
@@ -127,6 +129,8 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 		/* now flush any existing HPTEs for the range */
 		hpte_flush_range(mm, addr, nw);
 	}
+
+err_out:
 	up_write(&mm->mmap_sem);
 }
 
@@ -189,7 +193,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		unsigned long, len, u32 __user *, map)
 {
 	struct mm_struct *mm = current->mm;
-	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
+	struct subpage_prot_table *spt;
 	u32 **spm, *spp;
 	unsigned long i;
 	size_t nw;
@@ -219,6 +223,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 
 	down_write(&mm->mmap_sem);
 
+	spt = mm_ctx_subpage_prot(&mm->context);
 	if (!spt) {
 		/*
 		 * Allocate subpage prot table if not already done.
