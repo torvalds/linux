@@ -70,8 +70,9 @@ unsigned long __pfn_to_mfn(unsigned long pfn)
 		entry = rb_entry(n, struct xen_p2m_entry, rbnode_phys);
 		if (entry->pfn <= pfn &&
 				entry->pfn + entry->nr_pages > pfn) {
+			unsigned long mfn = entry->mfn + (pfn - entry->pfn);
 			read_unlock_irqrestore(&p2m_lock, irqflags);
-			return entry->mfn + (pfn - entry->pfn);
+			return mfn;
 		}
 		if (pfn < entry->pfn)
 			n = n->rb_left;
