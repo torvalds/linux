@@ -40,7 +40,6 @@ static u32 ready_mask_table[STM32PWR_REG_NUM_REGS] = {
 
 struct stm32_pwr_reg {
 	void __iomem *base;
-	const struct regulator_desc *desc;
 	u32 ready_mask;
 };
 
@@ -61,7 +60,7 @@ static int stm32_pwr_reg_is_enabled(struct regulator_dev *rdev)
 
 	val = readl_relaxed(priv->base + REG_PWR_CR3);
 
-	return (val & priv->desc->enable_mask);
+	return (val & rdev->desc->enable_mask);
 }
 
 static int stm32_pwr_reg_enable(struct regulator_dev *rdev)
@@ -71,7 +70,7 @@ static int stm32_pwr_reg_enable(struct regulator_dev *rdev)
 	u32 val;
 
 	val = readl_relaxed(priv->base + REG_PWR_CR3);
-	val |= priv->desc->enable_mask;
+	val |= rdev->desc->enable_mask;
 	writel_relaxed(val, priv->base + REG_PWR_CR3);
 
 	/* use an arbitrary timeout of 20ms */
@@ -90,7 +89,7 @@ static int stm32_pwr_reg_disable(struct regulator_dev *rdev)
 	u32 val;
 
 	val = readl_relaxed(priv->base + REG_PWR_CR3);
-	val &= ~priv->desc->enable_mask;
+	val &= ~rdev->desc->enable_mask;
 	writel_relaxed(val, priv->base + REG_PWR_CR3);
 
 	/* use an arbitrary timeout of 20ms */
@@ -153,7 +152,6 @@ static int stm32_pwr_regulator_probe(struct platform_device *pdev)
 		if (!priv)
 			return -ENOMEM;
 		priv->base = base;
-		priv->desc = &stm32_pwr_desc[i];
 		priv->ready_mask = ready_mask_table[i];
 		config.driver_data = priv;
 
