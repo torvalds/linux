@@ -723,6 +723,9 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_pplib_wm_range = true,
 		.disable_stutter = true,
 		.scl_reset_length10 = true,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		.disable_dsc_power_gate = true,
+#endif
 };
 
 void dcn20_dpp_destroy(struct dpp **dpp)
