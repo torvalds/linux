@@ -1141,7 +1141,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	/* Program all planes within new context*/
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_link *link = context->streams[i]->link;
-		struct dc_stream_status *status;
 
 		if (!context->streams[i]->mode_changed)
 			continue;
@@ -1165,9 +1164,6 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 					dc->hwss.setup_stereo(pipe, dc);
 			}
 		}
-
-		status = dc_stream_get_status_from_state(context, context->streams[i]);
-		context->streams[i]->out.otg_offset = status->primary_otg_inst;
 
 		CONN_MSG_MODE(link, "{%dx%d, %dx%d@%dKhz}",
 				context->streams[i]->timing.h_addressable,
