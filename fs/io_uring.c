@@ -2319,10 +2319,6 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 	mmgrab(current->mm);
 	ctx->sqo_mm = current->mm;
 
-	ret = -EINVAL;
-	if (!cpu_possible(p->sq_thread_cpu))
-		goto err;
-
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		ret = -EPERM;
 		if (!capable(CAP_SYS_ADMIN))
@@ -2333,11 +2329,11 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 			ctx->sq_thread_idle = HZ;
 
 		if (p->flags & IORING_SETUP_SQ_AFF) {
-			int cpu;
+			int cpu = array_index_nospec(p->sq_thread_cpu,
+							nr_cpu_ids);
 
-			cpu = array_index_nospec(p->sq_thread_cpu, NR_CPUS);
 			ret = -EINVAL;
-			if (!cpu_possible(p->sq_thread_cpu))
+			if (!cpu_possible(cpu))
 				goto err;
 
 			ctx->sqo_thread = kthread_create_on_cpu(io_sq_thread,
