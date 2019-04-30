@@ -30,6 +30,9 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 	struct sk_buff *skb;
 	int i;
 
+	if (mt76_hw(dev)->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+		return;
+
 	mt76x02_resync_beacon_timer(dev);
 
 	ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
