@@ -157,6 +157,9 @@ static int jz4740_rtc_read_time(struct device *dev, struct rtc_time *time)
 	uint32_t secs, secs2;
 	int timeout = 5;
 
+	if (jz4740_rtc_reg_read(rtc, JZ_REG_RTC_SCRATCHPAD) != 0x12345678)
+		return -EINVAL;
+
 	/* If the seconds register is read while it is updated, it can contain a
 	 * bogus value. This can be avoided by making sure that two consecutive
 	 * reads have the same value.
@@ -180,8 +183,13 @@ static int jz4740_rtc_read_time(struct device *dev, struct rtc_time *time)
 static int jz4740_rtc_set_time(struct device *dev, struct rtc_time *time)
 {
 	struct jz4740_rtc *rtc = dev_get_drvdata(dev);
+	int ret;
 
-	return jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, rtc_tm_to_time64(time));
+	ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, rtc_tm_to_time64(time));
+	if (ret)
+		return ret;
+
+	return jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SCRATCHPAD, 0x12345678);
 }
 
 static int jz4740_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -308,7 +316,6 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_rtc *rtc;
-	uint32_t scratchpad;
 	struct resource *mem;
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	const struct of_device_id *of_id = of_match_device(
@@ -374,16 +381,6 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request rtc irq: %d\n", ret);
 		return ret;
-	}
-
-	scratchpad = jz4740_rtc_reg_read(rtc, JZ_REG_RTC_SCRATCHPAD);
-	if (scratchpad != 0x12345678) {
-		ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SCRATCHPAD, 0x12345678);
-		ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, 0);
-		if (ret) {
-			dev_err(&pdev->dev, "Could not write to RTC registers\n");
-			return ret;
-		}
 	}
 
 	if (np && of_device_is_system_power_controller(np)) {
