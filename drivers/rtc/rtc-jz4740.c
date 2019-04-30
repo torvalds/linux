@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/reboot.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -346,6 +347,12 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
+	ret = dev_pm_set_wake_irq(&pdev->dev, rtc->irq);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set wake irq: %d\n", ret);
+		return ret;
+	}
+
 	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
@@ -403,35 +410,6 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int jz4740_rtc_suspend(struct device *dev)
-{
-	struct jz4740_rtc *rtc = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(rtc->irq);
-	return 0;
-}
-
-static int jz4740_rtc_resume(struct device *dev)
-{
-	struct jz4740_rtc *rtc = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		disable_irq_wake(rtc->irq);
-	return 0;
-}
-
-static const struct dev_pm_ops jz4740_pm_ops = {
-	.suspend = jz4740_rtc_suspend,
-	.resume  = jz4740_rtc_resume,
-};
-#define JZ4740_RTC_PM_OPS (&jz4740_pm_ops)
-
-#else
-#define JZ4740_RTC_PM_OPS NULL
-#endif  /* CONFIG_PM */
-
 static const struct platform_device_id jz4740_rtc_ids[] = {
 	{ "jz4740-rtc", ID_JZ4740 },
 	{ "jz4780-rtc", ID_JZ4780 },
@@ -443,7 +421,6 @@ static struct platform_driver jz4740_rtc_driver = {
 	.probe	 = jz4740_rtc_probe,
 	.driver	 = {
 		.name  = "jz4740-rtc",
-		.pm    = JZ4740_RTC_PM_OPS,
 		.of_match_table = of_match_ptr(jz4740_rtc_of_match),
 	},
 	.id_table = jz4740_rtc_ids,
