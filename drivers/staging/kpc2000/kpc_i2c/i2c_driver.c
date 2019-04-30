@@ -632,7 +632,7 @@ int pi2c_probe(struct platform_device *pldev)
     priv->adapter.algo = &smbus_algorithm;
     
     res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
-    priv->smba = (unsigned long)ioremap_nocache(res->start, res->end - res->start);
+    priv->smba = (unsigned long)ioremap_nocache(res->start, resource_size(res));
     
     priv->pldev = pldev;
     pldev->dev.platform_data = priv;

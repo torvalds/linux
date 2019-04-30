@@ -452,7 +452,7 @@ kp_spi_probe(struct platform_device *pldev)
         goto free_master;
     }
     
-    kpspi->phys = (unsigned long)ioremap_nocache(r->start, r->end - r->start);
+    kpspi->phys = (unsigned long)ioremap_nocache(r->start, resource_size(r));
     kpspi->base = (u64 __iomem *)kpspi->phys;
     
     status = spi_register_master(master);
