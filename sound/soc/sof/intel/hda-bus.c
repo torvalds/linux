@@ -80,8 +80,6 @@ static const struct hdac_io_ops io_ops = {
 void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev,
 		      const struct hdac_ext_bus_ops *ext_ops)
 {
-	static int idx;
-
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
 
@@ -90,7 +88,12 @@ void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev,
 
 	bus->irq = -1;
 	bus->ext_ops = ext_ops;
-	bus->idx = idx++;
+
+	/*
+	 * There is only one HDA bus atm. keep the index as 0.
+	 * Need to fix when there are more than one HDA bus.
+	 */
+	bus->idx = 0;
 
 	spin_lock_init(&bus->reg_lock);
 
