@@ -156,6 +156,7 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 	rc = xen_add_phys_to_mach_entry(p2m_entry);
 	if (rc < 0) {
 		write_unlock_irqrestore(&p2m_lock, irqflags);
+		kfree(p2m_entry);
 		return false;
 	}
 	write_unlock_irqrestore(&p2m_lock, irqflags);
