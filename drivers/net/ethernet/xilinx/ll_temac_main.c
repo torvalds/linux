@@ -63,14 +63,24 @@
  * Low level register access functions
  */
 
-u32 temac_ior(struct temac_local *lp, int offset)
+u32 _temac_ior_be(struct temac_local *lp, int offset)
 {
-	return in_be32(lp->regs + offset);
+	return ioread32be(lp->regs + offset);
 }
 
-void temac_iow(struct temac_local *lp, int offset, u32 value)
+void _temac_iow_be(struct temac_local *lp, int offset, u32 value)
 {
-	out_be32(lp->regs + offset, value);
+	return iowrite32be(value, lp->regs + offset);
+}
+
+u32 _temac_ior_le(struct temac_local *lp, int offset)
+{
+	return ioread32(lp->regs + offset);
+}
+
+void _temac_iow_le(struct temac_local *lp, int offset, u32 value)
+{
+	return iowrite32(value, lp->regs + offset);
 }
 
 int temac_indirect_busywait(struct temac_local *lp)
@@ -121,23 +131,35 @@ void temac_indirect_out32(struct temac_local *lp, int reg, u32 value)
 }
 
 /**
- * temac_dma_in32 - Memory mapped DMA read, this function expects a
- * register input that is based on DCR word addresses which
- * are then converted to memory mapped byte addresses
+ * temac_dma_in32_* - Memory mapped DMA read, these function expects a
+ * register input that is based on DCR word addresses which are then
+ * converted to memory mapped byte addresses.  To be assigned to
+ * lp->dma_in32.
  */
-static u32 temac_dma_in32(struct temac_local *lp, int reg)
+static u32 temac_dma_in32_be(struct temac_local *lp, int reg)
 {
-	return in_be32(lp->sdma_regs + (reg << 2));
+	return ioread32be(lp->sdma_regs + (reg << 2));
+}
+
+static u32 temac_dma_in32_le(struct temac_local *lp, int reg)
+{
+	return ioread32(lp->sdma_regs + (reg << 2));
 }
 
 /**
- * temac_dma_out32 - Memory mapped DMA read, this function expects a
- * register input that is based on DCR word addresses which
- * are then converted to memory mapped byte addresses
+ * temac_dma_out32_* - Memory mapped DMA read, these function expects
+ * a register input that is based on DCR word addresses which are then
+ * converted to memory mapped byte addresses.  To be assigned to
+ * lp->dma_out32.
  */
-static void temac_dma_out32(struct temac_local *lp, int reg, u32 value)
+static void temac_dma_out32_be(struct temac_local *lp, int reg, u32 value)
 {
-	out_be32(lp->sdma_regs + (reg << 2), value);
+	iowrite32be(value, lp->sdma_regs + (reg << 2));
+}
+
+static void temac_dma_out32_le(struct temac_local *lp, int reg, u32 value)
+{
+	iowrite32(value, lp->sdma_regs + (reg << 2));
 }
 
 /* DMA register access functions can be DCR based or memory mapped.
@@ -1024,6 +1046,7 @@ static int temac_probe(struct platform_device *pdev)
 	struct resource *res;
 	const void *addr;
 	__be32 *p;
+	bool little_endian;
 	int rc = 0;
 
 	/* Init network device structure */
@@ -1066,6 +1089,24 @@ static int temac_probe(struct platform_device *pdev)
 	if (IS_ERR(lp->regs)) {
 		dev_err(&pdev->dev, "could not map TEMAC registers\n");
 		return PTR_ERR(lp->regs);
+	}
+
+	/* Select register access functions with the specified
+	 * endianness mode.  Default for OF devices is big-endian.
+	 */
+	little_endian = false;
+	if (temac_np) {
+		if (of_get_property(temac_np, "little-endian", NULL))
+			little_endian = true;
+	} else if (pdata) {
+		little_endian = pdata->reg_little_endian;
+	}
+	if (little_endian) {
+		lp->temac_ior = _temac_ior_le;
+		lp->temac_iow = _temac_iow_le;
+	} else {
+		lp->temac_ior = _temac_ior_be;
+		lp->temac_iow = _temac_iow_be;
 	}
 
 	/* Setup checksum offload, but default to off if not specified */
@@ -1111,8 +1152,13 @@ static int temac_probe(struct platform_device *pdev)
 				of_node_put(dma_np);
 				return PTR_ERR(lp->sdma_regs);
 			}
-			lp->dma_in = temac_dma_in32;
-			lp->dma_out = temac_dma_out32;
+			if (of_get_property(dma_np, "little-endian", NULL)) {
+				lp->dma_in = temac_dma_in32_le;
+				lp->dma_out = temac_dma_out32_le;
+			} else {
+				lp->dma_in = temac_dma_in32_be;
+				lp->dma_out = temac_dma_out32_be;
+			}
 			dev_dbg(&pdev->dev, "MEM base: %p\n", lp->sdma_regs);
 		}
 
@@ -1132,8 +1178,13 @@ static int temac_probe(struct platform_device *pdev)
 				"could not map DMA registers\n");
 			return PTR_ERR(lp->sdma_regs);
 		}
-		lp->dma_in = temac_dma_in32;
-		lp->dma_out = temac_dma_out32;
+		if (pdata->dma_little_endian) {
+			lp->dma_in = temac_dma_in32_le;
+			lp->dma_out = temac_dma_out32_le;
+		} else {
+			lp->dma_in = temac_dma_in32_be;
+			lp->dma_out = temac_dma_out32_be;
+		}
 
 		/* Get DMA RX and TX interrupts */
 		lp->rx_irq = platform_get_irq(pdev, 0);
