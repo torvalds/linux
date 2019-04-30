@@ -820,7 +820,7 @@ static void ll_temac_recv(struct net_device *ndev)
 		length = be32_to_cpu(cur_p->app4) & 0x3FFF;
 
 		dma_unmap_single(ndev->dev.parent, be32_to_cpu(cur_p->phys),
-				 length, DMA_FROM_DEVICE);
+				 XTE_MAX_JUMBO_FRAME_SIZE, DMA_FROM_DEVICE);
 
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, ndev);
