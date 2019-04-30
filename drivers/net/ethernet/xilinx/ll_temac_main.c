@@ -619,11 +619,39 @@ static void temac_adjust_link(struct net_device *ndev)
 	mutex_unlock(&lp->indirect_mutex);
 }
 
+#ifdef CONFIG_64BIT
+
+void ptr_to_txbd(void *p, struct cdmac_bd *bd)
+{
+	bd->app3 = (u32)(((u64)p) >> 32);
+	bd->app4 = (u32)((u64)p & 0xFFFFFFFF);
+}
+
+void *ptr_from_txbd(struct cdmac_bd *bd)
+{
+	return (void *)(((u64)(bd->app3) << 32) | bd->app4);
+}
+
+#else
+
+void ptr_to_txbd(void *p, struct cmdac_bd *bd)
+{
+	bd->app4 = (u32)p;
+}
+
+void *ptr_from_txbd(struct cdmac_bd *bd)
+{
+	return (void *)(bd->app4);
+}
+
+#endif
+
 static void temac_start_xmit_done(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	struct cdmac_bd *cur_p;
 	unsigned int stat = 0;
+	struct sk_buff *skb;
 
 	cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
 	stat = cur_p->app0;
@@ -631,8 +659,9 @@ static void temac_start_xmit_done(struct net_device *ndev)
 	while (stat & STS_CTRL_APP0_CMPLT) {
 		dma_unmap_single(ndev->dev.parent, cur_p->phys, cur_p->len,
 				 DMA_TO_DEVICE);
-		if (cur_p->app4)
-			dev_consume_skb_irq((struct sk_buff *)cur_p->app4);
+		skb = (struct sk_buff *)ptr_from_txbd(cur_p);
+		if (skb)
+			dev_consume_skb_irq(skb);
 		cur_p->app0 = 0;
 		cur_p->app1 = 0;
 		cur_p->app2 = 0;
@@ -711,7 +740,7 @@ temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	cur_p->len = skb_headlen(skb);
 	cur_p->phys = dma_map_single(ndev->dev.parent, skb->data,
 				     skb_headlen(skb), DMA_TO_DEVICE);
-	cur_p->app4 = (unsigned long)skb;
+	ptr_to_txbd((void *)skb, cur_p);
 
 	for (ii = 0; ii < num_frag; ii++) {
 		lp->tx_bd_tail++;
