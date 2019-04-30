@@ -1568,10 +1568,11 @@ restart:
 					break;
 				cond_resched();
 			} while (1);
-
-			/* drop submission reference */
-			io_put_req(req);
 		}
+
+		/* drop submission reference */
+		io_put_req(req);
+
 		if (ret) {
 			io_cqring_add_event(ctx, sqe->user_data, ret, 0);
 			io_put_req(req);
