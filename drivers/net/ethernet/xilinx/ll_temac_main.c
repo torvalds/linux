@@ -225,7 +225,6 @@ static void temac_dma_bd_release(struct net_device *ndev)
 		dma_free_coherent(ndev->dev.parent,
 				sizeof(*lp->tx_bd_v) * TX_BD_NUM,
 				lp->tx_bd_v, lp->tx_bd_p);
-	kfree(lp->rx_skb);
 }
 
 /**
@@ -237,7 +236,8 @@ static int temac_dma_bd_init(struct net_device *ndev)
 	struct sk_buff *skb;
 	int i;
 
-	lp->rx_skb = kcalloc(RX_BD_NUM, sizeof(*lp->rx_skb), GFP_KERNEL);
+	lp->rx_skb = devm_kcalloc(&ndev->dev, RX_BD_NUM, sizeof(*lp->rx_skb),
+				  GFP_KERNEL);
 	if (!lp->rx_skb)
 		goto out;
 
@@ -987,7 +987,7 @@ static int temac_of_probe(struct platform_device *op)
 	int rc = 0;
 
 	/* Init network device structure */
-	ndev = alloc_etherdev(sizeof(*lp));
+	ndev = devm_alloc_etherdev(&pdev->dev, sizeof(*lp));
 	if (!ndev)
 		return -ENOMEM;
 
@@ -1020,11 +1020,10 @@ static int temac_of_probe(struct platform_device *op)
 	mutex_init(&lp->indirect_mutex);
 
 	/* map device registers */
-	lp->regs = of_iomap(op->dev.of_node, 0);
+	lp->regs = devm_of_iomap(&op->dev, op->dev.of_node, 0, NULL);
 	if (!lp->regs) {
 		dev_err(&op->dev, "could not map temac regs.\n");
-		rc = -ENOMEM;
-		goto nodev;
+		return -ENOMEM;
 	}
 
 	/* Setup checksum offload, but default to off if not specified */
@@ -1043,15 +1042,14 @@ static int temac_of_probe(struct platform_device *op)
 	np = of_parse_phandle(op->dev.of_node, "llink-connected", 0);
 	if (!np) {
 		dev_err(&op->dev, "could not find DMA node\n");
-		rc = -ENODEV;
-		goto err_iounmap;
+		return -ENODEV;
 	}
 
 	/* Setup the DMA register accesses, could be DCR or memory mapped */
 	if (temac_dcr_setup(lp, op, np)) {
 
 		/* no DCR in the device tree, try non-DCR */
-		lp->sdma_regs = of_iomap(np, 0);
+		lp->sdma_regs = devm_of_iomap(&op->dev, np, 0, NULL);
 		if (lp->sdma_regs) {
 			lp->dma_in = temac_dma_in32;
 			lp->dma_out = temac_dma_out32;
@@ -1059,7 +1057,7 @@ static int temac_of_probe(struct platform_device *op)
 		} else {
 			dev_err(&op->dev, "unable to map DMA registers\n");
 			of_node_put(np);
-			goto err_iounmap;
+			return -ENOMEM;
 		}
 	}
 
@@ -1070,8 +1068,7 @@ static int temac_of_probe(struct platform_device *op)
 
 	if (!lp->rx_irq || !lp->tx_irq) {
 		dev_err(&op->dev, "could not determine irqs\n");
-		rc = -ENOMEM;
-		goto err_iounmap_2;
+		return -ENOMEM;
 	}
 
 
@@ -1079,12 +1076,11 @@ static int temac_of_probe(struct platform_device *op)
 	addr = of_get_mac_address(op->dev.of_node);
 	if (!addr) {
 		dev_err(&op->dev, "could not find MAC address\n");
-		rc = -ENODEV;
-		goto err_iounmap_2;
+		return -ENODEV;
 	}
 	temac_init_mac_address(ndev, addr);
 
-	rc = temac_mdio_setup(lp, op->dev.of_node);
+	rc = temac_mdio_setup(lp, pdev);
 	if (rc)
 		dev_warn(&op->dev, "error registering MDIO bus\n");
 
@@ -1096,7 +1092,7 @@ static int temac_of_probe(struct platform_device *op)
 	rc = sysfs_create_group(&lp->dev->kobj, &temac_attr_group);
 	if (rc) {
 		dev_err(lp->dev, "Error creating sysfs files\n");
-		goto err_iounmap_2;
+		goto err_sysfs_create;
 	}
 
 	rc = register_netdev(lp->ndev);
@@ -1107,16 +1103,11 @@ static int temac_of_probe(struct platform_device *op)
 
 	return 0;
 
- err_register_ndev:
+err_register_ndev:
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
- err_iounmap_2:
-	if (lp->sdma_regs)
-		iounmap(lp->sdma_regs);
- err_iounmap:
-	iounmap(lp->regs);
- nodev:
-	free_netdev(ndev);
-	ndev = NULL;
+err_sysfs_create:
+	of_node_put(lp->phy_node);
+	temac_mdio_teardown(lp);
 	return rc;
 }
 
@@ -1125,15 +1116,10 @@ static int temac_of_remove(struct platform_device *op)
 	struct net_device *ndev = platform_get_drvdata(op);
 	struct temac_local *lp = netdev_priv(ndev);
 
-	temac_mdio_teardown(lp);
 	unregister_netdev(ndev);
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
 	of_node_put(lp->phy_node);
-	lp->phy_node = NULL;
-	iounmap(lp->regs);
-	if (lp->sdma_regs)
-		iounmap(lp->sdma_regs);
-	free_netdev(ndev);
+	temac_mdio_teardown(lp);
 	return 0;
 }
 

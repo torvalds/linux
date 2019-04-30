@@ -57,8 +57,9 @@ static int temac_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
 	return 0;
 }
 
-int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
+int temac_mdio_setup(struct temac_local *lp, struct platform_device *pdev)
 {
+	struct device_node *np = dev_of_node(&pdev->dev);
 	struct mii_bus *bus;
 	u32 bus_hz;
 	int clk_div;
@@ -81,7 +82,7 @@ int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
 	temac_indirect_out32(lp, XTE_MC_OFFSET, 1 << 6 | clk_div);
 	mutex_unlock(&lp->indirect_mutex);
 
-	bus = mdiobus_alloc();
+	bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!bus)
 		return -ENOMEM;
 
@@ -98,23 +99,16 @@ int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
 
 	rc = of_mdiobus_register(bus, np);
 	if (rc)
-		goto err_register;
+		return rc;
 
 	mutex_lock(&lp->indirect_mutex);
 	dev_dbg(lp->dev, "MDIO bus registered;  MC:%x\n",
 		temac_indirect_in32(lp, XTE_MC_OFFSET));
 	mutex_unlock(&lp->indirect_mutex);
 	return 0;
-
- err_register:
-	mdiobus_free(bus);
-	return rc;
 }
 
 void temac_mdio_teardown(struct temac_local *lp)
 {
 	mdiobus_unregister(lp->mii_bus);
-	mdiobus_free(lp->mii_bus);
-	lp->mii_bus = NULL;
 }
-

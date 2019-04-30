@@ -378,7 +378,7 @@ void temac_indirect_out32(struct temac_local *lp, int reg, u32 value);
 
 
 /* xilinx_temac_mdio.c */
-int temac_mdio_setup(struct temac_local *lp, struct device_node *np);
+int temac_mdio_setup(struct temac_local *lp, struct platform_device *pdev);
 void temac_mdio_teardown(struct temac_local *lp);
 
 #endif /* XILINX_LL_TEMAC_H */
