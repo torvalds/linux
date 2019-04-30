@@ -159,12 +159,12 @@ static void rt_fibinfo_free(struct rtable __rcu **rtp)
 	dst_release_immediate(&rt->dst);
 }
 
-static void free_nh_exceptions(struct fib_nh *nh)
+static void free_nh_exceptions(struct fib_nh_common *nhc)
 {
 	struct fnhe_hash_bucket *hash;
 	int i;
 
-	hash = rcu_dereference_protected(nh->nh_exceptions, 1);
+	hash = rcu_dereference_protected(nhc->nhc_exceptions, 1);
 	if (!hash)
 		return;
 	for (i = 0; i < FNHE_HASH_SIZE; i++) {
@@ -214,6 +214,7 @@ void fib_nh_common_release(struct fib_nh_common *nhc)
 	lwtstate_put(nhc->nhc_lwtstate);
 	rt_fibinfo_free_cpus(nhc->nhc_pcpu_rth_output);
 	rt_fibinfo_free(&nhc->nhc_rth_input);
+	free_nh_exceptions(nhc);
 }
 EXPORT_SYMBOL_GPL(fib_nh_common_release);
 
@@ -224,7 +225,6 @@ void fib_nh_release(struct net *net, struct fib_nh *fib_nh)
 		net->ipv4.fib_num_tclassid_users--;
 #endif
 	fib_nh_common_release(&fib_nh->nh_common);
-	free_nh_exceptions(fib_nh);
 }
 
 /* Release a nexthop info record */
@@ -1713,12 +1713,12 @@ static int call_fib_nh_notifiers(struct fib_nh *nh,
  * - if the new MTU is greater than the PMTU, don't make any change
  * - otherwise, unlock and set PMTU
  */
-static void nh_update_mtu(struct fib_nh *nh, u32 new, u32 orig)
+static void nh_update_mtu(struct fib_nh_common *nhc, u32 new, u32 orig)
 {
 	struct fnhe_hash_bucket *bucket;
 	int i;
 
-	bucket = rcu_dereference_protected(nh->nh_exceptions, 1);
+	bucket = rcu_dereference_protected(nhc->nhc_exceptions, 1);
 	if (!bucket)
 		return;
 
@@ -1749,7 +1749,7 @@ void fib_sync_mtu(struct net_device *dev, u32 orig_mtu)
 
 	hlist_for_each_entry(nh, head, nh_hash) {
 		if (nh->fib_nh_dev == dev)
-			nh_update_mtu(nh, dev->mtu, orig_mtu);
+			nh_update_mtu(&nh->nh_common, dev->mtu, orig_mtu);
 	}
 }
 
