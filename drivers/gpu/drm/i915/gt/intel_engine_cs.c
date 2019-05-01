@@ -319,6 +319,12 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->class = info->class;
 	engine->instance = info->instance;
 
+	/*
+	 * To be overridden by the backend on setup. However to facilitate
+	 * cleanup on error during setup, we always provide the destroy vfunc.
+	 */
+	engine->destroy = (typeof(engine->destroy))kfree;
+
 	engine->uabi_class = intel_engine_classes[info->class].uabi_class;
 
 	engine->context_size = __intel_engine_context_size(dev_priv,
@@ -344,17 +350,30 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 }
 
 /**
+ * intel_engines_cleanup() - free the resources allocated for Command Streamers
+ * @i915: the i915 devic
+ */
+void intel_engines_cleanup(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id) {
+		engine->destroy(engine);
+		i915->engine[id] = NULL;
+	}
+}
+
+/**
  * intel_engines_init_mmio() - allocate and prepare the Engine Command Streamers
- * @dev_priv: i915 device private
+ * @i915: the i915 device
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
+int intel_engines_init_mmio(struct drm_i915_private *i915)
 {
-	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
-	const unsigned int engine_mask = INTEL_INFO(dev_priv)->engine_mask;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	struct intel_device_info *device_info = mkwrite_device_info(i915);
+	const unsigned int engine_mask = INTEL_INFO(i915)->engine_mask;
 	unsigned int mask = 0;
 	unsigned int i;
 	int err;
@@ -367,10 +386,10 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
-		if (!HAS_ENGINE(dev_priv, i))
+		if (!HAS_ENGINE(i915, i))
 			continue;
 
-		err = intel_engine_setup(dev_priv, i);
+		err = intel_engine_setup(i915, i);
 		if (err)
 			goto cleanup;
 
@@ -386,20 +405,19 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 		device_info->engine_mask = mask;
 
 	/* We always presume we have at least RCS available for later probing */
-	if (WARN_ON(!HAS_ENGINE(dev_priv, RCS0))) {
+	if (WARN_ON(!HAS_ENGINE(i915, RCS0))) {
 		err = -ENODEV;
 		goto cleanup;
 	}
 
-	RUNTIME_INFO(dev_priv)->num_engines = hweight32(mask);
+	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
 
-	i915_check_and_clear_faults(dev_priv);
+	i915_check_and_clear_faults(i915);
 
 	return 0;
 
 cleanup:
-	for_each_engine(engine, dev_priv, id)
-		kfree(engine);
+	intel_engines_cleanup(i915);
 	return err;
 }
 
@@ -413,7 +431,7 @@ int intel_engines_init(struct drm_i915_private *i915)
 {
 	int (*init)(struct intel_engine_cs *engine);
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id, err_id;
+	enum intel_engine_id id;
 	int err;
 
 	if (HAS_EXECLISTS(i915))
@@ -422,8 +440,6 @@ int intel_engines_init(struct drm_i915_private *i915)
 		init = intel_ring_submission_init;
 
 	for_each_engine(engine, i915, id) {
-		err_id = id;
-
 		err = init(engine);
 		if (err)
 			goto cleanup;
@@ -432,14 +448,7 @@ int intel_engines_init(struct drm_i915_private *i915)
 	return 0;
 
 cleanup:
-	for_each_engine(engine, i915, id) {
-		if (id >= err_id) {
-			kfree(engine);
-			i915->engine[id] = NULL;
-		} else {
-			i915->gt.cleanup_engine(engine);
-		}
-	}
+	intel_engines_cleanup(i915);
 	return err;
 }
 
@@ -619,19 +628,16 @@ int intel_engines_setup(struct drm_i915_private *i915)
 		if (err)
 			goto cleanup;
 
+		/* We expect the backend to take control over its state */
+		GEM_BUG_ON(engine->destroy == (typeof(engine->destroy))kfree);
+
 		GEM_BUG_ON(!engine->cops);
 	}
 
 	return 0;
 
 cleanup:
-	for_each_engine(engine, i915, id) {
-		if (engine->cops)
-			i915->gt.cleanup_engine(engine);
-		else
-			kfree(engine);
-		i915->engine[id] = NULL;
-	}
+	intel_engines_cleanup(i915);
 	return err;
 }
 

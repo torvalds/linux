@@ -362,7 +362,11 @@ __intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
 	return (head - tail - CACHELINE_BYTES) & (size - 1);
 }
 
+int intel_engines_init_mmio(struct drm_i915_private *i915);
 int intel_engines_setup(struct drm_i915_private *i915);
+int intel_engines_init(struct drm_i915_private *i915);
+void intel_engines_cleanup(struct drm_i915_private *i915);
+
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 

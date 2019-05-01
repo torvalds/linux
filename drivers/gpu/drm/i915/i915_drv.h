@@ -1986,8 +1986,6 @@ struct drm_i915_private {
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
-		void (*cleanup_engine)(struct intel_engine_cs *engine);
-
 		struct i915_gt_timelines {
 			struct mutex mutex; /* protects list, tainted by GPU */
 			struct list_head active_list;
@@ -2713,9 +2711,6 @@ extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
-int intel_engines_init_mmio(struct drm_i915_private *dev_priv);
-int intel_engines_init(struct drm_i915_private *dev_priv);
-
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv);
 
 static inline void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
@@ -3050,7 +3045,6 @@ int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
 int __must_check i915_gem_init_hw(struct drm_i915_private *dev_priv);
 void i915_gem_init_swizzling(struct drm_i915_private *dev_priv);
 void i915_gem_fini(struct drm_i915_private *dev_priv);
-void i915_gem_cleanup_engines(struct drm_i915_private *dev_priv);
 int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
 			   unsigned int flags, long timeout);
 void i915_gem_suspend(struct drm_i915_private *dev_priv);

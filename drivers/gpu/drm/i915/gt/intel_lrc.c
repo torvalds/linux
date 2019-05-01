@@ -2331,40 +2331,6 @@ static int gen8_init_rcs_context(struct i915_request *rq)
 	return i915_gem_render_state_emit(rq);
 }
 
-/**
- * intel_logical_ring_cleanup() - deallocate the Engine Command Streamer
- * @engine: Engine Command Streamer.
- */
-void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv;
-
-	/*
-	 * Tasklet cannot be active at this point due intel_mark_active/idle
-	 * so this is just for documentation.
-	 */
-	if (WARN_ON(test_bit(TASKLET_STATE_SCHED,
-			     &engine->execlists.tasklet.state)))
-		tasklet_kill(&engine->execlists.tasklet);
-
-	dev_priv = engine->i915;
-
-	if (engine->buffer) {
-		WARN_ON((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
-	}
-
-	if (engine->cleanup)
-		engine->cleanup(engine);
-
-	intel_engine_cleanup_common(engine);
-
-	lrc_destroy_wa_ctx(engine);
-
-	engine->i915 = NULL;
-	dev_priv->engine[engine->id] = NULL;
-	kfree(engine);
-}
-
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = execlists_submit_request;
@@ -2387,10 +2353,27 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 }
 
+static void execlists_destroy(struct intel_engine_cs *engine)
+{
+	/*
+	 * Tasklet cannot be active at this point due intel_mark_active/idle
+	 * so this is just for documentation.
+	 */
+	if (GEM_DEBUG_WARN_ON(test_bit(TASKLET_STATE_SCHED,
+				       &engine->execlists.tasklet.state)))
+		tasklet_kill(&engine->execlists.tasklet);
+
+	intel_engine_cleanup_common(engine);
+	lrc_destroy_wa_ctx(engine);
+	kfree(engine);
+}
+
 static void
 logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
 	/* Default vfuncs which can be overriden by each engine. */
+
+	engine->destroy = execlists_destroy;
 	engine->resume = execlists_resume;
 
 	engine->reset.prepare = execlists_reset_prepare;

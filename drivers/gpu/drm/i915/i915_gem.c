@@ -4476,11 +4476,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv))
-		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
-	else
-		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
-
 	i915_timelines_init(dev_priv);
 
 	ret = i915_gem_init_userptr(dev_priv);
@@ -4601,7 +4596,7 @@ err_uc_init:
 err_pm:
 	if (ret != -EIO) {
 		intel_cleanup_gt_powersave(dev_priv);
-		i915_gem_cleanup_engines(dev_priv);
+		intel_engines_cleanup(dev_priv);
 	}
 err_context:
 	if (ret != -EIO)
@@ -4661,7 +4656,7 @@ void i915_gem_fini(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 	intel_uc_fini(dev_priv);
-	i915_gem_cleanup_engines(dev_priv);
+	intel_engines_cleanup(dev_priv);
 	i915_gem_contexts_fini(dev_priv);
 	i915_gem_fini_scratch(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -4682,16 +4677,6 @@ void i915_gem_fini(struct drm_i915_private *dev_priv)
 void i915_gem_init_mmio(struct drm_i915_private *i915)
 {
 	i915_gem_sanitize(i915);
-}
-
-void
-i915_gem_cleanup_engines(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		dev_priv->gt.cleanup_engine(engine);
 }
 
 void

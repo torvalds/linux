@@ -420,7 +420,7 @@ struct intel_engine_cs {
 	 */
 	void		(*cancel_requests)(struct intel_engine_cs *engine);
 
-	void		(*cleanup)(struct intel_engine_cs *engine);
+	void		(*destroy)(struct intel_engine_cs *engine);
 
 	struct intel_engine_execlists execlists;
 

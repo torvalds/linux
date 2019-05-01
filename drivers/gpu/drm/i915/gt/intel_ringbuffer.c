@@ -1534,25 +1534,6 @@ static const struct intel_context_ops ring_context_ops = {
 	.destroy = ring_context_destroy,
 };
 
-void intel_engine_cleanup(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	WARN_ON(INTEL_GEN(dev_priv) > 2 &&
-		(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
-
-	intel_ring_unpin(engine->buffer);
-	intel_ring_put(engine->buffer);
-
-	if (engine->cleanup)
-		engine->cleanup(engine);
-
-	intel_engine_cleanup_common(engine);
-
-	dev_priv->engine[engine->id] = NULL;
-	kfree(engine);
-}
-
 static int load_pd_dir(struct i915_request *rq,
 		       const struct i915_hw_ppgtt *ppgtt)
 {
@@ -2157,6 +2138,20 @@ static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 	engine->submit_request = gen6_bsd_submit_request;
 }
 
+static void ring_destroy(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	WARN_ON(INTEL_GEN(dev_priv) > 2 &&
+		(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
+
+	intel_ring_unpin(engine->buffer);
+	intel_ring_put(engine->buffer);
+
+	intel_engine_cleanup_common(engine);
+	kfree(engine);
+}
+
 static void setup_irq(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -2184,6 +2179,8 @@ static void setup_common(struct intel_engine_cs *engine)
 	GEM_BUG_ON(INTEL_GEN(i915) >= 8);
 
 	setup_irq(engine);
+
+	engine->destroy = ring_destroy;
 
 	engine->resume = xcs_resume;
 	engine->reset.prepare = reset_prepare;
