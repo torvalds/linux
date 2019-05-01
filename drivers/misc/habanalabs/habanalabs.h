@@ -453,19 +453,19 @@ enum hl_pll_frequency {
  * @cb_mmap: maps a CB.
  * @ring_doorbell: increment PI on a given QMAN.
  * @flush_pq_write: flush PQ entry write if necessary, WARN if flushing failed.
- * @dma_alloc_coherent: Allocate coherent DMA memory by calling
- *                      dma_alloc_coherent(). This is ASIC function because its
- *                      implementation is not trivial when the driver is loaded
- *                      in simulation mode (not upstreamed).
- * @dma_free_coherent: Free coherent DMA memory by calling dma_free_coherent().
- *                     This is ASIC function because its implementation is not
- *                     trivial when the driver is loaded in simulation mode
- *                     (not upstreamed).
+ * @asic_dma_alloc_coherent: Allocate coherent DMA memory by calling
+ *                           dma_alloc_coherent(). This is ASIC function because
+ *                           its implementation is not trivial when the driver
+ *                           is loaded in simulation mode (not upstreamed).
+ * @asic_dma_free_coherent:  Free coherent DMA memory by calling
+ *                           dma_free_coherent(). This is ASIC function because
+ *                           its implementation is not trivial when the driver
+ *                           is loaded in simulation mode (not upstreamed).
  * @get_int_queue_base: get the internal queue base address.
  * @test_queues: run simple test on all queues for sanity check.
- * @dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
- *                   size of allocation is HL_DMA_POOL_BLK_SIZE.
- * @dma_pool_free: free small DMA allocation from pool.
+ * @asic_dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
+ *                        size of allocation is HL_DMA_POOL_BLK_SIZE.
+ * @asic_dma_pool_free: free small DMA allocation from pool.
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
  * @hl_dma_unmap_sg: DMA unmap scatter-gather list.
@@ -521,16 +521,16 @@ struct hl_asic_funcs {
 			u64 kaddress, phys_addr_t paddress, u32 size);
 	void (*ring_doorbell)(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
 	void (*flush_pq_write)(struct hl_device *hdev, u64 *pq, u64 exp_val);
-	void* (*dma_alloc_coherent)(struct hl_device *hdev, size_t size,
+	void* (*asic_dma_alloc_coherent)(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flag);
-	void (*dma_free_coherent)(struct hl_device *hdev, size_t size,
+	void (*asic_dma_free_coherent)(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle);
 	void* (*get_int_queue_base)(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle, u16 *queue_len);
 	int (*test_queues)(struct hl_device *hdev);
-	void* (*dma_pool_zalloc)(struct hl_device *hdev, size_t size,
+	void* (*asic_dma_pool_zalloc)(struct hl_device *hdev, size_t size,
 				gfp_t mem_flags, dma_addr_t *dma_handle);
-	void (*dma_pool_free)(struct hl_device *hdev, void *vaddr,
+	void (*asic_dma_pool_free)(struct hl_device *hdev, void *vaddr,
 				dma_addr_t dma_addr);
 	void* (*cpu_accessible_dma_pool_alloc)(struct hl_device *hdev,
 				size_t size, dma_addr_t *dma_handle);

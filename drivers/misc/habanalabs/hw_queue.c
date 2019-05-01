@@ -425,7 +425,7 @@ static int ext_and_cpu_hw_queue_init(struct hl_device *hdev,
 							HL_QUEUE_SIZE_IN_BYTES,
 							&q->bus_address);
 	else
-		p = hdev->asic_funcs->dma_alloc_coherent(hdev,
+		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
 						HL_QUEUE_SIZE_IN_BYTES,
 						&q->bus_address,
 						GFP_KERNEL | __GFP_ZERO);
@@ -457,7 +457,7 @@ free_queue:
 					HL_QUEUE_SIZE_IN_BYTES,
 					(void *) (uintptr_t) q->kernel_address);
 	else
-		hdev->asic_funcs->dma_free_coherent(hdev,
+		hdev->asic_funcs->asic_dma_free_coherent(hdev,
 					HL_QUEUE_SIZE_IN_BYTES,
 					(void *) (uintptr_t) q->kernel_address,
 					q->bus_address);
@@ -587,7 +587,7 @@ static void hw_queue_fini(struct hl_device *hdev, struct hl_hw_queue *q)
 					HL_QUEUE_SIZE_IN_BYTES,
 					(void *) (uintptr_t) q->kernel_address);
 	else
-		hdev->asic_funcs->dma_free_coherent(hdev,
+		hdev->asic_funcs->asic_dma_free_coherent(hdev,
 					HL_QUEUE_SIZE_IN_BYTES,
 					(void *) (uintptr_t) q->kernel_address,
 					q->bus_address);

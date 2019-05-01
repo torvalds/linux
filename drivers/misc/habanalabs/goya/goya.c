@@ -646,7 +646,7 @@ static int goya_sw_init(struct hl_device *hdev)
 	}
 
 	hdev->cpu_accessible_dma_mem =
-			hdev->asic_funcs->dma_alloc_coherent(hdev,
+			hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
 					HL_CPU_ACCESSIBLE_MEM_SIZE,
 					&hdev->cpu_accessible_dma_address,
 					GFP_KERNEL | __GFP_ZERO);
@@ -681,7 +681,8 @@ static int goya_sw_init(struct hl_device *hdev)
 free_cpu_pq_pool:
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 free_cpu_pq_dma_mem:
-	hdev->asic_funcs->dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE,
+	hdev->asic_funcs->asic_dma_free_coherent(hdev,
+			HL_CPU_ACCESSIBLE_MEM_SIZE,
 			hdev->cpu_accessible_dma_mem,
 			hdev->cpu_accessible_dma_address);
 free_dma_pool:
@@ -704,7 +705,8 @@ static int goya_sw_fini(struct hl_device *hdev)
 
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 
-	hdev->asic_funcs->dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE,
+	hdev->asic_funcs->asic_dma_free_coherent(hdev,
+			HL_CPU_ACCESSIBLE_MEM_SIZE,
 			hdev->cpu_accessible_dma_mem,
 			hdev->cpu_accessible_dma_address);
 
@@ -2818,7 +2820,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 		return -EBUSY;
 	}
 
-	fence_ptr = hdev->asic_funcs->dma_pool_zalloc(hdev, 4, GFP_KERNEL,
+	fence_ptr = hdev->asic_funcs->asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL,
 							&fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
@@ -2867,7 +2869,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	}
 
 free_fence_ptr:
-	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_ptr,
+	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_ptr,
 					fence_dma_addr);
 
 	goya_qman0_set_security(hdev, false);
@@ -2901,7 +2903,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 
 	fence_val = GOYA_QMAN0_FENCE_VAL;
 
-	fence_ptr = hdev->asic_funcs->dma_pool_zalloc(hdev, 4, GFP_KERNEL,
+	fence_ptr = hdev->asic_funcs->asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL,
 							&fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
@@ -2911,7 +2913,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 
 	*fence_ptr = 0;
 
-	fence_pkt = hdev->asic_funcs->dma_pool_zalloc(hdev,
+	fence_pkt = hdev->asic_funcs->asic_dma_pool_zalloc(hdev,
 					sizeof(struct packet_msg_prot),
 					GFP_KERNEL, &pkt_dma_addr);
 	if (!fence_pkt) {
@@ -2955,10 +2957,10 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 	}
 
 free_pkt:
-	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_pkt,
+	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_pkt,
 					pkt_dma_addr);
 free_fence_ptr:
-	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_ptr,
+	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_ptr,
 					fence_dma_addr);
 	return rc;
 }
@@ -4755,12 +4757,12 @@ static const struct hl_asic_funcs goya_funcs = {
 	.cb_mmap = goya_cb_mmap,
 	.ring_doorbell = goya_ring_doorbell,
 	.flush_pq_write = goya_flush_pq_write,
-	.dma_alloc_coherent = goya_dma_alloc_coherent,
-	.dma_free_coherent = goya_dma_free_coherent,
+	.asic_dma_alloc_coherent = goya_dma_alloc_coherent,
+	.asic_dma_free_coherent = goya_dma_free_coherent,
 	.get_int_queue_base = goya_get_int_queue_base,
 	.test_queues = goya_test_queues,
-	.dma_pool_zalloc = goya_dma_pool_zalloc,
-	.dma_pool_free = goya_dma_pool_free,
+	.asic_dma_pool_zalloc = goya_dma_pool_zalloc,
+	.asic_dma_pool_free = goya_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = goya_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = goya_cpu_accessible_dma_pool_free,
 	.hl_dma_unmap_sg = goya_dma_unmap_sg,
