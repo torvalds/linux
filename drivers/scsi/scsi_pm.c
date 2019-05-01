@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	scsi_pm.c	Copyright (C) 2010 Alan Stern
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  scsi_error.c Copyright (C) 1997 Eric Youngdale
  *
