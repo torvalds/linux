@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: GPL-2.0
 #include "sas_internal.h"
 
 #include <linux/kernel.h>
