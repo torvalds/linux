@@ -1229,8 +1229,11 @@ static void print_request(struct drm_printer *m,
 		   i915_request_completed(rq) ? "!" :
 		   i915_request_started(rq) ? "*" :
 		   "",
+		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+			    &rq->fence.flags) ? "+" :
 		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			    &rq->fence.flags) ?  "+" : "",
+			    &rq->fence.flags) ? "-" :
+		   "",
 		   buf,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   name);
