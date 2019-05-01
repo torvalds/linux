@@ -120,6 +120,21 @@ u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *eve
 	return count;
 }
 
+void uncore_mmio_exit_box(struct intel_uncore_box *box)
+{
+	if (box->io_addr)
+		iounmap(box->io_addr);
+}
+
+u64 uncore_mmio_read_counter(struct intel_uncore_box *box,
+			     struct perf_event *event)
+{
+	if (!box->io_addr)
+		return 0;
+
+	return readq(box->io_addr + event->hw.event_base);
+}
+
 /*
  * generic get constraint function for shared match/mask registers.
  */

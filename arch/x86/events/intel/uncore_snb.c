@@ -428,11 +428,6 @@ static void snb_uncore_imc_init_box(struct intel_uncore_box *box)
 	box->hrtimer_duration = UNCORE_SNB_IMC_HRTIMER_INTERVAL;
 }
 
-static void snb_uncore_imc_exit_box(struct intel_uncore_box *box)
-{
-	iounmap(box->io_addr);
-}
-
 static void snb_uncore_imc_enable_box(struct intel_uncore_box *box)
 {}
 
@@ -444,13 +439,6 @@ static void snb_uncore_imc_enable_event(struct intel_uncore_box *box, struct per
 
 static void snb_uncore_imc_disable_event(struct intel_uncore_box *box, struct perf_event *event)
 {}
-
-static u64 snb_uncore_imc_read_counter(struct intel_uncore_box *box, struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-
-	return (u64)*(unsigned int *)(box->io_addr + hwc->event_base);
-}
 
 /*
  * Keep the custom event_init() function compatible with old event
@@ -578,13 +566,13 @@ static struct pmu snb_uncore_imc_pmu = {
 
 static struct intel_uncore_ops snb_uncore_imc_ops = {
 	.init_box	= snb_uncore_imc_init_box,
-	.exit_box	= snb_uncore_imc_exit_box,
+	.exit_box	= uncore_mmio_exit_box,
 	.enable_box	= snb_uncore_imc_enable_box,
 	.disable_box	= snb_uncore_imc_disable_box,
 	.disable_event	= snb_uncore_imc_disable_event,
 	.enable_event	= snb_uncore_imc_enable_event,
 	.hw_config	= snb_uncore_imc_hw_config,
-	.read_counter	= snb_uncore_imc_read_counter,
+	.read_counter	= uncore_mmio_read_counter,
 };
 
 static struct intel_uncore_type snb_uncore_imc = {
