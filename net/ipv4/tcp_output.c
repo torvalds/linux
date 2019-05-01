@@ -3247,7 +3247,11 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 		skb->skb_mstamp_ns = cookie_init_timestamp(req);
 	else
 #endif
+	{
 		skb->skb_mstamp_ns = tcp_clock_ns();
+		if (!tcp_rsk(req)->snt_synack) /* Timestamp first SYNACK */
+			tcp_rsk(req)->snt_synack = tcp_skb_timestamp_us(skb);
+	}
 
 #ifdef CONFIG_TCP_MD5SIG
 	rcu_read_lock();
