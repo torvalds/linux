@@ -53,6 +53,18 @@ void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value)
 	writel(value, hw->mmio + reg);
 }
 
+/* Most of 64-bit registers are in LSW, MSW form.
+   Counters are normally implemented by HW as latched pairs:
+   reading LSW first locks MSW, to overcome LSW overflow
+ */
+u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg)
+{
+	u64 value = aq_hw_read_reg(hw, reg);
+
+	value |= (u64)aq_hw_read_reg(hw, reg + 4) << 32;
+	return value;
+}
+
 int aq_hw_err_from_flags(struct aq_hw_s *hw)
 {
 	int err = 0;

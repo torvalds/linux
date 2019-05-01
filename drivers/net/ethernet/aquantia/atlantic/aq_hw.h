@@ -88,6 +88,8 @@ struct aq_stats_s {
 #define AQ_HW_IRQ_MSI     2U
 #define AQ_HW_IRQ_MSIX    3U
 
+#define AQ_HW_SERVICE_IRQS   1U
+
 #define AQ_HW_POWER_STATE_D0   0U
 #define AQ_HW_POWER_STATE_D3   3U
 
@@ -258,6 +260,8 @@ struct aq_fw_ops {
 	int (*update_link_status)(struct aq_hw_s *self);
 
 	int (*update_stats)(struct aq_hw_s *self);
+
+	int (*get_phy_temp)(struct aq_hw_s *self, int *temp);
 
 	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
 

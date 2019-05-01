@@ -49,11 +49,6 @@ u32 hw_atl_glb_soft_res_get(struct aq_hw_s *aq_hw)
 				  HW_ATL_GLB_SOFT_RES_SHIFT);
 }
 
-u32 hw_atl_reg_rx_dma_stat_counter7get(struct aq_hw_s *aq_hw)
-{
-	return aq_hw_read_reg(aq_hw, HW_ATL_RX_DMA_STAT_COUNTER7_ADR);
-}
-
 u32 hw_atl_reg_glb_mif_id_get(struct aq_hw_s *aq_hw)
 {
 	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_MIF_ID_ADR);
@@ -65,44 +60,24 @@ u32 hw_atl_rpb_rx_dma_drop_pkt_cnt_get(struct aq_hw_s *aq_hw)
 	return aq_hw_read_reg(aq_hw, HW_ATL_RPB_RX_DMA_DROP_PKT_CNT_ADR);
 }
 
-u32 hw_atl_stats_rx_dma_good_octet_counterlsw_get(struct aq_hw_s *aq_hw)
+u64 hw_atl_stats_rx_dma_good_octet_counter_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_OCTET_COUNTERLSW);
+	return aq_hw_read_reg64(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_OCTET_COUNTERLSW);
 }
 
-u32 hw_atl_stats_rx_dma_good_pkt_counterlsw_get(struct aq_hw_s *aq_hw)
+u64 hw_atl_stats_rx_dma_good_pkt_counter_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_PKT_COUNTERLSW);
+	return aq_hw_read_reg64(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_PKT_COUNTERLSW);
 }
 
-u32 hw_atl_stats_tx_dma_good_octet_counterlsw_get(struct aq_hw_s *aq_hw)
+u64 hw_atl_stats_tx_dma_good_octet_counter_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_OCTET_COUNTERLSW);
+	return aq_hw_read_reg64(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_OCTET_COUNTERLSW);
 }
 
-u32 hw_atl_stats_tx_dma_good_pkt_counterlsw_get(struct aq_hw_s *aq_hw)
+u64 hw_atl_stats_tx_dma_good_pkt_counter_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_PKT_COUNTERLSW);
-}
-
-u32 hw_atl_stats_rx_dma_good_octet_countermsw_get(struct aq_hw_s *aq_hw)
-{
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_OCTET_COUNTERMSW);
-}
-
-u32 hw_atl_stats_rx_dma_good_pkt_countermsw_get(struct aq_hw_s *aq_hw)
-{
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_PKT_COUNTERMSW);
-}
-
-u32 hw_atl_stats_tx_dma_good_octet_countermsw_get(struct aq_hw_s *aq_hw)
-{
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_OCTET_COUNTERMSW);
-}
-
-u32 hw_atl_stats_tx_dma_good_pkt_countermsw_get(struct aq_hw_s *aq_hw)
-{
-	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_PKT_COUNTERMSW);
+	return aq_hw_read_reg64(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_PKT_COUNTERLSW);
 }
 
 /* interrupt */

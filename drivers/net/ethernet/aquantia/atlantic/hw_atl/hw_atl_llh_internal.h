@@ -58,9 +58,6 @@
 /* preprocessor definitions for msm rx unicast octets counter register 0 */
 #define HW_ATL_MAC_MSM_RX_UCST_OCTETS_COUNTER0_ADR 0x000001b8u
 
-/* preprocessor definitions for rx dma statistics counter 7 */
-#define HW_ATL_RX_DMA_STAT_COUNTER7_ADR 0x00006818u
-
 /* preprocessor definitions for msm tx unicast frames counter register */
 #define HW_ATL_MAC_MSM_TX_UCST_FRM_CNT_ADR 0x00000108u
 
