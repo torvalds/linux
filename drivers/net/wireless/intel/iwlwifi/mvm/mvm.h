@@ -1306,6 +1306,12 @@ static inline bool iwl_mvm_is_adaptive_dwell_v2_supported(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_ADAPTIVE_DWELL_V2);
 }
 
+static inline bool iwl_mvm_is_adwell_hb_ap_num_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_ADWELL_HB_DEF_N_AP);
+}
+
 static inline bool iwl_mvm_is_oce_supported(struct iwl_mvm *mvm)
 {
 	/* OCE should never be enabled for LMAC scan FWs */
