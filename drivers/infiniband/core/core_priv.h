@@ -304,6 +304,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	qp->device = dev;
 	qp->pd = pd;
 	qp->uobject = uobj;
+	qp->real_qp = qp;
 	/*
 	 * We don't track XRC QPs for now, because they don't have PD
 	 * and more importantly they are created internaly by driver,
