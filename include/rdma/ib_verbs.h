@@ -74,6 +74,36 @@ extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
 extern struct workqueue_struct *ib_comp_unbound_wq;
 
+__printf(3, 4) __cold
+void ibdev_printk(const char *level, const struct ib_device *ibdev,
+		  const char *format, ...);
+__printf(2, 3) __cold
+void ibdev_emerg(const struct ib_device *ibdev, const char *format, ...);
+__printf(2, 3) __cold
+void ibdev_alert(const struct ib_device *ibdev, const char *format, ...);
+__printf(2, 3) __cold
+void ibdev_crit(const struct ib_device *ibdev, const char *format, ...);
+__printf(2, 3) __cold
+void ibdev_err(const struct ib_device *ibdev, const char *format, ...);
+__printf(2, 3) __cold
+void ibdev_warn(const struct ib_device *ibdev, const char *format, ...);
+__printf(2, 3) __cold
+void ibdev_notice(const struct ib_device *ibdev, const char *format, ...);
+__printf(2, 3) __cold
+void ibdev_info(const struct ib_device *ibdev, const char *format, ...);
+
+#if defined(CONFIG_DYNAMIC_DEBUG)
+#define ibdev_dbg(__dev, format, args...)                       \
+	dynamic_ibdev_dbg(__dev, format, ##args)
+#elif defined(DEBUG)
+#define ibdev_dbg(__dev, format, args...)                       \
+	ibdev_printk(KERN_DEBUG, __dev, format, ##args)
+#else
+__printf(2, 3) __cold
+static inline
+void ibdev_dbg(const struct ib_device *ibdev, const char *format, ...) {}
+#endif
+
 union ib_gid {
 	u8	raw[16];
 	struct {

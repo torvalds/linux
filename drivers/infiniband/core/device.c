@@ -197,6 +197,66 @@ static int ib_security_change(struct notifier_block *nb, unsigned long event,
 static void ib_policy_change_task(struct work_struct *work);
 static DECLARE_WORK(ib_policy_change_work, ib_policy_change_task);
 
+static void __ibdev_printk(const char *level, const struct ib_device *ibdev,
+			   struct va_format *vaf)
+{
+	if (ibdev && ibdev->dev.parent)
+		dev_printk_emit(level[1] - '0',
+				ibdev->dev.parent,
+				"%s %s %s: %pV",
+				dev_driver_string(ibdev->dev.parent),
+				dev_name(ibdev->dev.parent),
+				dev_name(&ibdev->dev),
+				vaf);
+	else if (ibdev)
+		printk("%s%s: %pV",
+		       level, dev_name(&ibdev->dev), vaf);
+	else
+		printk("%s(NULL ib_device): %pV", level, vaf);
+}
+
+void ibdev_printk(const char *level, const struct ib_device *ibdev,
+		  const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	__ibdev_printk(level, ibdev, &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(ibdev_printk);
+
+#define define_ibdev_printk_level(func, level)                  \
+void func(const struct ib_device *ibdev, const char *fmt, ...)  \
+{                                                               \
+	struct va_format vaf;                                   \
+	va_list args;                                           \
+								\
+	va_start(args, fmt);                                    \
+								\
+	vaf.fmt = fmt;                                          \
+	vaf.va = &args;                                         \
+								\
+	__ibdev_printk(level, ibdev, &vaf);                     \
+								\
+	va_end(args);                                           \
+}                                                               \
+EXPORT_SYMBOL(func);
+
+define_ibdev_printk_level(ibdev_emerg, KERN_EMERG);
+define_ibdev_printk_level(ibdev_alert, KERN_ALERT);
+define_ibdev_printk_level(ibdev_crit, KERN_CRIT);
+define_ibdev_printk_level(ibdev_err, KERN_ERR);
+define_ibdev_printk_level(ibdev_warn, KERN_WARNING);
+define_ibdev_printk_level(ibdev_notice, KERN_NOTICE);
+define_ibdev_printk_level(ibdev_info, KERN_INFO);
+
 static struct notifier_block ibdev_lsm_nb = {
 	.notifier_call = ib_security_change,
 };
