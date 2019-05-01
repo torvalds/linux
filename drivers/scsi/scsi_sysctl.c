@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2003 Christoph Hellwig.
- *	Released under GPL v2.
  */
 
 #include <linux/errno.h>
