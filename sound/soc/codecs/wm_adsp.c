@@ -2445,7 +2445,7 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 	wmfw_v3_parse_id_header(dsp, &halo_id.fw, n_algs);
 
 	ret = wm_halo_create_regions(dsp, halo_id.fw.id,
-				     halo_id.ym_base, halo_id.ym_base);
+				     halo_id.xm_base, halo_id.ym_base);
 	if (ret)
 		return ret;
 
