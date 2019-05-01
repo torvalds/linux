@@ -870,7 +870,7 @@ static int add_one_compat_dev(struct ib_device *device,
 	ret = device_add(&cdev->dev);
 	if (ret)
 		goto add_err;
-	ret = ib_setup_port_attrs(cdev, false);
+	ret = ib_setup_port_attrs(cdev);
 	if (ret)
 		goto port_err;
 

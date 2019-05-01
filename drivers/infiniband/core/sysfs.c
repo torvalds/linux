@@ -1015,10 +1015,10 @@ err_free_stats:
 	return;
 }
 
-static int add_port(struct ib_core_device *coredev,
-		    int port_num, bool alloc_stats)
+static int add_port(struct ib_core_device *coredev, int port_num)
 {
 	struct ib_device *device = rdma_device_to_ibdev(&coredev->dev);
+	bool is_full_dev = &device->coredev == coredev;
 	struct ib_port *p;
 	struct ib_port_attr attr;
 	int i;
@@ -1057,7 +1057,7 @@ static int add_port(struct ib_core_device *coredev,
 		goto err_put;
 	}
 
-	if (device->ops.process_mad && alloc_stats) {
+	if (device->ops.process_mad && is_full_dev) {
 		p->pma_table = get_counter_table(device, port_num);
 		ret = sysfs_create_group(&p->kobj, p->pma_table);
 		if (ret)
@@ -1113,7 +1113,7 @@ static int add_port(struct ib_core_device *coredev,
 	if (ret)
 		goto err_free_pkey;
 
-	if (device->ops.init_port) {
+	if (device->ops.init_port && is_full_dev) {
 		ret = device->ops.init_port(device, port_num, &p->kobj);
 		if (ret)
 			goto err_remove_pkey;
@@ -1124,7 +1124,7 @@ static int add_port(struct ib_core_device *coredev,
 	 * port, so holder should be device. Therefore skip per port conunter
 	 * initialization.
 	 */
-	if (device->ops.alloc_hw_stats && port_num && alloc_stats)
+	if (device->ops.alloc_hw_stats && port_num && is_full_dev)
 		setup_hw_stats(device, p, port_num);
 
 	list_add_tail(&p->kobj.entry, &coredev->port_list);
@@ -1308,7 +1308,7 @@ void ib_free_port_attrs(struct ib_core_device *coredev)
 	kobject_put(coredev->ports_kobj);
 }
 
-int ib_setup_port_attrs(struct ib_core_device *coredev, bool alloc_stats)
+int ib_setup_port_attrs(struct ib_core_device *coredev)
 {
 	struct ib_device *device = rdma_device_to_ibdev(&coredev->dev);
 	unsigned int port;
@@ -1320,7 +1320,7 @@ int ib_setup_port_attrs(struct ib_core_device *coredev, bool alloc_stats)
 		return -ENOMEM;
 
 	rdma_for_each_port (device, port) {
-		ret = add_port(coredev, port, alloc_stats);
+		ret = add_port(coredev, port);
 		if (ret)
 			goto err_put;
 	}
@@ -1336,7 +1336,7 @@ int ib_device_register_sysfs(struct ib_device *device)
 {
 	int ret;
 
-	ret = ib_setup_port_attrs(&device->coredev, true);
+	ret = ib_setup_port_attrs(&device->coredev);
 	if (ret)
 		return ret;
 
