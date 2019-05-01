@@ -82,7 +82,7 @@ static void ext_queue_submit_bd(struct hl_device *hdev, struct hl_hw_queue *q,
 	bd += hl_pi_2_offset(q->pi);
 	bd->ctl = __cpu_to_le32(ctl);
 	bd->len = __cpu_to_le32(len);
-	bd->ptr = __cpu_to_le64(ptr + hdev->asic_prop.host_phys_base_address);
+	bd->ptr = __cpu_to_le64(ptr);
 
 	q->pi = hl_queue_inc_ptr(q->pi);
 	hdev->asic_funcs->ring_doorbell(hdev, q->hw_queue_id, q->pi);
@@ -263,9 +263,7 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 	 * checked in hl_queue_sanity_checks
 	 */
 	cq = &hdev->completion_queue[q->hw_queue_id];
-	cq_addr = cq->bus_address +
-			hdev->asic_prop.host_phys_base_address;
-	cq_addr += cq->pi * sizeof(struct hl_cq_entry);
+	cq_addr = cq->bus_address + cq->pi * sizeof(struct hl_cq_entry);
 
 	hdev->asic_funcs->add_end_of_cb_packets(cb->kernel_address, len,
 						cq_addr,

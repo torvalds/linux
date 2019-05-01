@@ -249,8 +249,7 @@ int hl_fw_armcp_info_get(struct hl_device *hdev)
 
 	pkt.ctl = cpu_to_le32(ARMCP_PACKET_INFO_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.addr = cpu_to_le64(armcp_info_dma_addr +
-				prop->host_phys_base_address);
+	pkt.addr = cpu_to_le64(armcp_info_dma_addr);
 	pkt.data_max_size = cpu_to_le32(sizeof(struct armcp_info));
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -281,7 +280,6 @@ out:
 
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 {
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct armcp_packet pkt = {};
 	void *eeprom_info_cpu_addr;
 	dma_addr_t eeprom_info_dma_addr;
@@ -301,8 +299,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 
 	pkt.ctl = cpu_to_le32(ARMCP_PACKET_EEPROM_DATA_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.addr = cpu_to_le64(eeprom_info_dma_addr +
-				prop->host_phys_base_address);
+	pkt.addr = cpu_to_le64(eeprom_info_dma_addr);
 	pkt.data_max_size = cpu_to_le32(max_size);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),

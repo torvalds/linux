@@ -236,6 +236,8 @@ int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
  * @hdev: Pointer to hl_device structure.
  * @sram_base_address: SRAM base address.
  * @dram_base_address: DRAM base address.
+ * @host_phys_base_address: Base physical address of host memory for device
+ *                          transactions.
  * @host_phys_size: Size of host memory for device transactions.
  *
  * This is needed in case the firmware doesn't initialize the iATU.
@@ -243,7 +245,8 @@ int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
  * Return: 0 on success, negative value for failure.
  */
 int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
-			u64 dram_base_address, u64 host_phys_size)
+			u64 dram_base_address, u64 host_phys_base_address,
+			u64 host_phys_size)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 host_phys_end_addr;
@@ -265,11 +268,11 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 
 
 	/* Outbound Region 0 - Point to Host */
-	host_phys_end_addr = prop->host_phys_base_address + host_phys_size - 1;
+	host_phys_end_addr = host_phys_base_address + host_phys_size - 1;
 	rc |= hl_pci_iatu_write(hdev, 0x008,
-				lower_32_bits(prop->host_phys_base_address));
+				lower_32_bits(host_phys_base_address));
 	rc |= hl_pci_iatu_write(hdev, 0x00C,
-				upper_32_bits(prop->host_phys_base_address));
+				upper_32_bits(host_phys_base_address));
 	rc |= hl_pci_iatu_write(hdev, 0x010, lower_32_bits(host_phys_end_addr));
 	rc |= hl_pci_iatu_write(hdev, 0x014, 0);
 	rc |= hl_pci_iatu_write(hdev, 0x018, 0);

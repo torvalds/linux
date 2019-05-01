@@ -135,8 +135,6 @@ enum hl_device_hw_state {
  * @dram_user_base_address: DRAM physical start address for user access.
  * @dram_size: DRAM total size.
  * @dram_pci_bar_size: size of PCI bar towards DRAM.
- * @host_phys_base_address: base physical address of host memory for
- *				transactions that the device generates.
  * @max_power_default: max power of the device after reset
  * @va_space_host_start_address: base address of virtual memory range for
  *                               mapping host memory.
@@ -184,7 +182,6 @@ struct asic_fixed_properties {
 	u64			dram_user_base_address;
 	u64			dram_size;
 	u64			dram_pci_bar_size;
-	u64			host_phys_base_address;
 	u64			max_power_default;
 	u64			va_space_host_start_address;
 	u64			va_space_host_end_address;
@@ -537,11 +534,11 @@ struct hl_asic_funcs {
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
 	void (*hl_dma_unmap_sg)(struct hl_device *hdev,
-				struct scatterlist *sg, int nents,
+				struct scatterlist *sgl, int nents,
 				enum dma_data_direction dir);
 	int (*cs_parser)(struct hl_device *hdev, struct hl_cs_parser *parser);
 	int (*asic_dma_map_sg)(struct hl_device *hdev,
-				struct scatterlist *sg, int nents,
+				struct scatterlist *sgl, int nents,
 				enum dma_data_direction dir);
 	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
 					struct sg_table *sgt);
@@ -1450,7 +1447,8 @@ int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data);
 int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
 				u64 addr);
 int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
-			u64 dram_base_address, u64 host_phys_size);
+			u64 dram_base_address, u64 host_phys_base_address,
+			u64 host_phys_size);
 int hl_pci_init(struct hl_device *hdev, u8 dma_mask);
 void hl_pci_fini(struct hl_device *hdev);
 int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);

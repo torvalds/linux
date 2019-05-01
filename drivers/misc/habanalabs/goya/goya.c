@@ -345,7 +345,6 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
 
-	prop->host_phys_base_address = HOST_PHYS_BASE;
 	prop->va_space_host_start_address = VA_HOST_SPACE_START;
 	prop->va_space_host_end_address = VA_HOST_SPACE_END;
 	prop->va_space_dram_start_address = VA_DDR_SPACE_START;
@@ -422,7 +421,7 @@ static u64 goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
 static int goya_init_iatu(struct hl_device *hdev)
 {
 	return hl_pci_init_iatu(hdev, SRAM_BASE_ADDR, DRAM_PHYS_BASE,
-				HOST_PHYS_SIZE);
+				HOST_PHYS_BASE, HOST_PHYS_SIZE);
 }
 
 /*
@@ -804,7 +803,6 @@ void goya_init_dma_qmans(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct hl_hw_queue *q;
-	dma_addr_t bus_address;
 	int i;
 
 	if (goya->hw_cap_initialized & HW_CAP_DMA)
@@ -813,10 +811,7 @@ void goya_init_dma_qmans(struct hl_device *hdev)
 	q = &hdev->kernel_queues[0];
 
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++, q++) {
-		bus_address = q->bus_address +
-				hdev->asic_prop.host_phys_base_address;
-
-		goya_init_dma_qman(hdev, i, bus_address);
+		goya_init_dma_qman(hdev, i, q->bus_address);
 		goya_init_dma_ch(hdev, i);
 	}
 
@@ -957,7 +952,6 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct hl_eq *eq;
-	dma_addr_t bus_address;
 	u32 status;
 	struct hl_hw_queue *cpu_pq = &hdev->kernel_queues[GOYA_QUEUE_ID_CPU_PQ];
 	int err;
@@ -970,19 +964,18 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 
 	eq = &hdev->event_queue;
 
-	bus_address = cpu_pq->bus_address +
-			hdev->asic_prop.host_phys_base_address;
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_0, lower_32_bits(bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_1, upper_32_bits(bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_0,
+			lower_32_bits(cpu_pq->bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_1,
+			upper_32_bits(cpu_pq->bus_address));
 
-	bus_address = eq->bus_address + hdev->asic_prop.host_phys_base_address;
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_2, lower_32_bits(bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_3, upper_32_bits(bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_2, lower_32_bits(eq->bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_3, upper_32_bits(eq->bus_address));
 
-	bus_address = hdev->cpu_accessible_dma_address +
-			hdev->asic_prop.host_phys_base_address;
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_8, lower_32_bits(bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_9, upper_32_bits(bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_8,
+			lower_32_bits(hdev->cpu_accessible_dma_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_9,
+			upper_32_bits(hdev->cpu_accessible_dma_address));
 
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_5, HL_QUEUE_SIZE_IN_BYTES);
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_4, HL_EQ_SIZE_IN_BYTES);
@@ -2731,13 +2724,23 @@ void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val)
 static void *goya_dma_alloc_coherent(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flags)
 {
-	return dma_alloc_coherent(&hdev->pdev->dev, size, dma_handle, flags);
+	void *kernel_addr = dma_alloc_coherent(&hdev->pdev->dev, size,
+						dma_handle, flags);
+
+	/* Shift to the device's base physical address of host memory */
+	if (kernel_addr)
+		*dma_handle += HOST_PHYS_BASE;
+
+	return kernel_addr;
 }
 
 static void goya_dma_free_coherent(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle)
 {
-	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, dma_handle);
+	/* Cancel the device's base physical address of host memory */
+	dma_addr_t fixed_dma_handle = dma_handle - HOST_PHYS_BASE;
+
+	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, fixed_dma_handle);
 }
 
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
@@ -2848,8 +2851,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 			(1 << GOYA_PKT_CTL_MB_SHIFT);
 	fence_pkt->ctl = cpu_to_le32(tmp);
 	fence_pkt->value = cpu_to_le32(GOYA_QMAN0_FENCE_VAL);
-	fence_pkt->addr = cpu_to_le64(fence_dma_addr +
-					hdev->asic_prop.host_phys_base_address);
+	fence_pkt->addr = cpu_to_le64(fence_dma_addr);
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, GOYA_QUEUE_ID_DMA_0,
 					job->job_cb_size, cb->bus_address);
@@ -2928,8 +2930,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 			(1 << GOYA_PKT_CTL_MB_SHIFT);
 	fence_pkt->ctl = cpu_to_le32(tmp);
 	fence_pkt->value = cpu_to_le32(fence_val);
-	fence_pkt->addr = cpu_to_le64(fence_dma_addr +
-					hdev->asic_prop.host_phys_base_address);
+	fence_pkt->addr = cpu_to_le64(fence_dma_addr);
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id,
 					sizeof(struct packet_msg_prot),
@@ -3001,16 +3002,27 @@ int goya_test_queues(struct hl_device *hdev)
 static void *goya_dma_pool_zalloc(struct hl_device *hdev, size_t size,
 					gfp_t mem_flags, dma_addr_t *dma_handle)
 {
+	void *kernel_addr;
+
 	if (size > GOYA_DMA_POOL_BLK_SIZE)
 		return NULL;
 
-	return dma_pool_zalloc(hdev->dma_pool, mem_flags, dma_handle);
+	kernel_addr =  dma_pool_zalloc(hdev->dma_pool, mem_flags, dma_handle);
+
+	/* Shift to the device's base physical address of host memory */
+	if (kernel_addr)
+		*dma_handle += HOST_PHYS_BASE;
+
+	return kernel_addr;
 }
 
 static void goya_dma_pool_free(struct hl_device *hdev, void *vaddr,
 				dma_addr_t dma_addr)
 {
-	dma_pool_free(hdev->dma_pool, vaddr, dma_addr);
+	/* Cancel the device's base physical address of host memory */
+	dma_addr_t fixed_dma_addr = dma_addr - HOST_PHYS_BASE;
+
+	dma_pool_free(hdev->dma_pool, vaddr, fixed_dma_addr);
 }
 
 void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
@@ -3025,19 +3037,33 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 	hl_fw_cpu_accessible_dma_pool_free(hdev, size, vaddr);
 }
 
-static int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sg,
+static int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sgl,
 				int nents, enum dma_data_direction dir)
 {
-	if (!dma_map_sg(&hdev->pdev->dev, sg, nents, dir))
+	struct scatterlist *sg;
+	int i;
+
+	if (!dma_map_sg(&hdev->pdev->dev, sgl, nents, dir))
 		return -ENOMEM;
+
+	/* Shift to the device's base physical address of host memory */
+	for_each_sg(sgl, sg, nents, i)
+		sg->dma_address += HOST_PHYS_BASE;
 
 	return 0;
 }
 
-static void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sg,
+static void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sgl,
 				int nents, enum dma_data_direction dir)
 {
-	dma_unmap_sg(&hdev->pdev->dev, sg, nents, dir);
+	struct scatterlist *sg;
+	int i;
+
+	/* Cancel the device's base physical address of host memory */
+	for_each_sg(sgl, sg, nents, i)
+		sg->dma_address -= HOST_PHYS_BASE;
+
+	dma_unmap_sg(&hdev->pdev->dev, sgl, nents, dir);
 }
 
 u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt)
@@ -3588,8 +3614,6 @@ static int goya_patch_dma_packet(struct hl_device *hdev,
 				GOYA_PKT_LIN_DMA_CTL_WRCOMP_MASK);
 		new_dma_pkt->ctl = cpu_to_le32(ctl);
 		new_dma_pkt->tsize = cpu_to_le32((u32) len);
-
-		dma_addr += hdev->asic_prop.host_phys_base_address;
 
 		if (dir == DMA_TO_DEVICE) {
 			new_dma_pkt->src_addr = cpu_to_le64(dma_addr);
