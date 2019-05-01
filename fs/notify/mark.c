@@ -619,6 +619,11 @@ restart:
 	/* mark should be the last entry.  last is the current last entry */
 	hlist_add_behind_rcu(&mark->obj_list, &last->obj_list);
 added:
+	/*
+	 * Since connector is attached to object using cmpxchg() we are
+	 * guaranteed that connector initialization is fully visible by anyone
+	 * seeing mark->connector set.
+	 */
 	WRITE_ONCE(mark->connector, conn);
 out_err:
 	spin_unlock(&conn->lock);
