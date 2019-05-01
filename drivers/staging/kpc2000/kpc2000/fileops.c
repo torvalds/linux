@@ -10,6 +10,7 @@
 #include <linux/uaccess.h>    /* copy_*_user */
 #include <linux/rwsem.h>
 #include <linux/idr.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/device.h>
 #include <linux/sched.h>
 #include "pcie.h"

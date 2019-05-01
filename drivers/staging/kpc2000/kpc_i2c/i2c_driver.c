@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <asm/io.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>

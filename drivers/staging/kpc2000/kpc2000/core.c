@@ -10,6 +10,7 @@
 #include <linux/mfd/core.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
