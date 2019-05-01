@@ -53,6 +53,7 @@ struct intel_instdone {
 
 struct intel_engine_hangcheck {
 	u64 acthd;
+	u32 last_ring;
 	u32 last_seqno;
 	u32 next_seqno;
 	unsigned long action_timestamp;
