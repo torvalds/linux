@@ -683,6 +683,12 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		goto remove_opps;
 	}
 
+	err = devfreq_add_governor(&tegra_devfreq_governor);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to add governor: %d\n", err);
+		goto unreg_notifier;
+	}
+
 	tegra_devfreq_profile.initial_freq = clk_get_rate(tegra->emc_clock);
 	tegra->devfreq = devfreq_add_device(&pdev->dev,
 					    &tegra_devfreq_profile,
@@ -690,7 +696,7 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 					    NULL);
 	if (IS_ERR(tegra->devfreq)) {
 		err = PTR_ERR(tegra->devfreq);
-		goto unreg_notifier;
+		goto remove_governor;
 	}
 
 	err = devm_request_threaded_irq(&pdev->dev, tegra->irq, NULL,
@@ -705,6 +711,9 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 
 remove_devfreq:
 	devfreq_remove_device(tegra->devfreq);
+
+remove_governor:
+	devfreq_remove_governor(&tegra_devfreq_governor);
 
 unreg_notifier:
 	clk_notifier_unregister(tegra->emc_clock, &tegra->rate_change_nb);
@@ -723,6 +732,7 @@ static int tegra_devfreq_remove(struct platform_device *pdev)
 	struct tegra_devfreq *tegra = platform_get_drvdata(pdev);
 
 	devfreq_remove_device(tegra->devfreq);
+	devfreq_remove_governor(&tegra_devfreq_governor);
 
 	clk_notifier_unregister(tegra->emc_clock, &tegra->rate_change_nb);
 	dev_pm_opp_remove_all_dynamic(&pdev->dev);
@@ -748,36 +758,7 @@ static struct platform_driver tegra_devfreq_driver = {
 		.of_match_table = tegra_devfreq_of_match,
 	},
 };
-
-static int __init tegra_devfreq_init(void)
-{
-	int ret = 0;
-
-	ret = devfreq_add_governor(&tegra_devfreq_governor);
-	if (ret) {
-		pr_err("%s: failed to add governor: %d\n", __func__, ret);
-		return ret;
-	}
-
-	ret = platform_driver_register(&tegra_devfreq_driver);
-	if (ret)
-		devfreq_remove_governor(&tegra_devfreq_governor);
-
-	return ret;
-}
-module_init(tegra_devfreq_init)
-
-static void __exit tegra_devfreq_exit(void)
-{
-	int ret = 0;
-
-	platform_driver_unregister(&tegra_devfreq_driver);
-
-	ret = devfreq_remove_governor(&tegra_devfreq_governor);
-	if (ret)
-		pr_err("%s: failed to remove governor: %d\n", __func__, ret);
-}
-module_exit(tegra_devfreq_exit)
+module_platform_driver(tegra_devfreq_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Tegra devfreq driver");
