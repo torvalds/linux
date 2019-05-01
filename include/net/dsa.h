@@ -161,6 +161,7 @@ struct dsa_port {
 	const char		*mac;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
+	bool			vlan_filtering;
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
@@ -227,6 +228,16 @@ struct dsa_switch {
 	/* Number of switch port queues */
 	unsigned int		num_tx_queues;
 
+	/* Disallow bridge core from requesting different VLAN awareness
+	 * settings on ports if not hardware-supported
+	 */
+	bool			vlan_filtering_is_global;
+
+	/* In case vlan_filtering_is_global is set, the VLAN awareness state
+	 * should be retrieved from here and not from the per-port settings.
+	 */
+	bool			vlan_filtering;
+
 	unsigned long		*bitmap;
 	unsigned long		_bitmap;
 
@@ -292,6 +303,16 @@ static inline unsigned int dsa_upstream_port(struct dsa_switch *ds, int port)
 		return port;
 
 	return dsa_towards_port(ds, cpu_dp->ds->index, cpu_dp->index);
+}
+
+static inline bool dsa_port_is_vlan_filtering(const struct dsa_port *dp)
+{
+	const struct dsa_switch *ds = dp->ds;
+
+	if (ds->vlan_filtering_is_global)
+		return ds->vlan_filtering;
+	else
+		return dp->vlan_filtering;
 }
 
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
