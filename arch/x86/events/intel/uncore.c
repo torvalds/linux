@@ -8,6 +8,7 @@
 static struct intel_uncore_type *empty_uncore[] = { NULL, };
 struct intel_uncore_type **uncore_msr_uncores = empty_uncore;
 struct intel_uncore_type **uncore_pci_uncores = empty_uncore;
+struct intel_uncore_type **uncore_mmio_uncores = empty_uncore;
 
 static bool pcidrv_registered;
 struct pci_driver *uncore_pci_driver;
@@ -1178,12 +1179,14 @@ static int uncore_event_cpu_offline(unsigned int cpu)
 		target = -1;
 
 	uncore_change_context(uncore_msr_uncores, cpu, target);
+	uncore_change_context(uncore_mmio_uncores, cpu, target);
 	uncore_change_context(uncore_pci_uncores, cpu, target);
 
 unref:
 	/* Clear the references */
 	die = topology_logical_die_id(cpu);
 	uncore_box_unref(uncore_msr_uncores, die);
+	uncore_box_unref(uncore_mmio_uncores, die);
 	return 0;
 }
 
@@ -1252,12 +1255,13 @@ static int uncore_box_ref(struct intel_uncore_type **types,
 
 static int uncore_event_cpu_online(unsigned int cpu)
 {
-	int ret, die, target;
+	int die, target, msr_ret, mmio_ret;
 
 	die = topology_logical_die_id(cpu);
-	ret = uncore_box_ref(uncore_msr_uncores, die, cpu);
-	if (ret)
-		return ret;
+	msr_ret = uncore_box_ref(uncore_msr_uncores, die, cpu);
+	mmio_ret = uncore_box_ref(uncore_mmio_uncores, die, cpu);
+	if (msr_ret && mmio_ret)
+		return -ENOMEM;
 
 	/*
 	 * Check if there is an online cpu in the package
@@ -1269,7 +1273,10 @@ static int uncore_event_cpu_online(unsigned int cpu)
 
 	cpumask_set_cpu(cpu, &uncore_cpu_mask);
 
-	uncore_change_context(uncore_msr_uncores, -1, cpu);
+	if (!msr_ret)
+		uncore_change_context(uncore_msr_uncores, -1, cpu);
+	if (!mmio_ret)
+		uncore_change_context(uncore_mmio_uncores, -1, cpu);
 	uncore_change_context(uncore_pci_uncores, -1, cpu);
 	return 0;
 }
@@ -1317,12 +1324,35 @@ err:
 	return ret;
 }
 
+static int __init uncore_mmio_init(void)
+{
+	struct intel_uncore_type **types = uncore_mmio_uncores;
+	int ret;
+
+	ret = uncore_types_init(types, true);
+	if (ret)
+		goto err;
+
+	for (; *types; types++) {
+		ret = type_pmu_register(*types);
+		if (ret)
+			goto err;
+	}
+	return 0;
+err:
+	uncore_types_exit(uncore_mmio_uncores);
+	uncore_mmio_uncores = empty_uncore;
+	return ret;
+}
+
+
 #define X86_UNCORE_MODEL_MATCH(model, init)	\
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&init }
 
 struct intel_uncore_init_fun {
 	void	(*cpu_init)(void);
 	int	(*pci_init)(void);
+	void	(*mmio_init)(void);
 };
 
 static const struct intel_uncore_init_fun nhm_uncore_init __initconst = {
@@ -1437,7 +1467,7 @@ static int __init intel_uncore_init(void)
 {
 	const struct x86_cpu_id *id;
 	struct intel_uncore_init_fun *uncore_init;
-	int pret = 0, cret = 0, ret;
+	int pret = 0, cret = 0, mret = 0, ret;
 
 	id = x86_match_cpu(intel_uncore_match);
 	if (!id)
@@ -1460,7 +1490,12 @@ static int __init intel_uncore_init(void)
 		cret = uncore_cpu_init();
 	}
 
-	if (cret && pret)
+	if (uncore_init->mmio_init) {
+		uncore_init->mmio_init();
+		mret = uncore_mmio_init();
+	}
+
+	if (cret && pret && mret)
 		return -ENODEV;
 
 	/* Install hotplug callbacks to setup the targets for each package */
@@ -1474,6 +1509,7 @@ static int __init intel_uncore_init(void)
 
 err:
 	uncore_types_exit(uncore_msr_uncores);
+	uncore_types_exit(uncore_mmio_uncores);
 	uncore_pci_exit();
 	return ret;
 }
@@ -1483,6 +1519,7 @@ static void __exit intel_uncore_exit(void)
 {
 	cpuhp_remove_state(CPUHP_AP_PERF_X86_UNCORE_ONLINE);
 	uncore_types_exit(uncore_msr_uncores);
+	uncore_types_exit(uncore_mmio_uncores);
 	uncore_pci_exit();
 }
 module_exit(intel_uncore_exit);
