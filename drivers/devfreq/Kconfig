@@ -93,8 +93,10 @@ config ARM_EXYNOS_BUS_DEVFREQ
 	  This does not yet operate with optimal voltages.
 
 config ARM_TEGRA_DEVFREQ
-	tristate "Tegra DEVFREQ Driver"
-	depends on ARCH_TEGRA_124_SOC
+	tristate "NVIDIA Tegra30/114/124/210 DEVFREQ Driver"
+	depends on ARCH_TEGRA_3x_SOC || ARCH_TEGRA_114_SOC || \
+		ARCH_TEGRA_132_SOC || ARCH_TEGRA_124_SOC || \
+		ARCH_TEGRA_210_SOC
 	select PM_OPP
 	help
 	  This adds the DEVFREQ driver for the Tegra family of SoCs.
