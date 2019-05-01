@@ -1033,7 +1033,7 @@ static struct sdw_cdns_pdi *cdns_find_pdi(struct sdw_cdns *cdns,
 	int i;
 
 	for (i = 0; i < num; i++) {
-		if (pdi[i].assigned == true)
+		if (pdi[i].assigned)
 			continue;
 		pdi[i].assigned = true;
 		return &pdi[i];
@@ -1084,7 +1084,7 @@ static int cdns_get_num_pdi(struct sdw_cdns *cdns,
 	int i, pdis = 0;
 
 	for (i = 0; i < num; i++) {
-		if (pdi[i].assigned == true)
+		if (pdi[i].assigned)
 			continue;
 
 		if (pdi[i].ch_count < ch_count)
