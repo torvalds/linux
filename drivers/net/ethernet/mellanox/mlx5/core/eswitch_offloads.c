@@ -37,6 +37,7 @@
 #include <linux/mlx5/fs.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
+#include "rdma.h"
 #include "en.h"
 #include "fs_core.h"
 #include "lib/devcom.h"
@@ -1710,6 +1711,8 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 		esw->host_info.num_vfs = vf_nvports;
 	}
 
+	mlx5_rdma_enable_roce(esw->dev);
+
 	return 0;
 
 err_reps:
@@ -1748,6 +1751,7 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 		num_vfs = esw->dev->priv.sriov.num_vfs;
 	}
 
+	mlx5_rdma_disable_roce(esw->dev);
 	esw_offloads_devcom_cleanup(esw);
 	esw_offloads_unload_all_reps(esw, num_vfs);
 	esw_offloads_steering_cleanup(esw);

@@ -56,7 +56,6 @@
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
-	MLX5_MAX_NAME_LEN = 16,
 };
 
 enum {
@@ -513,8 +512,13 @@ struct mlx5_rl_table {
 	struct mlx5_rl_entry   *rl_entry;
 };
 
+struct mlx5_core_roce {
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_group *fg;
+	struct mlx5_flow_handle *allow_rule;
+};
+
 struct mlx5_priv {
-	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	*eq_table;
 
 	/* pages stuff */
@@ -567,6 +571,7 @@ struct mlx5_priv {
 	struct mlx5_lag		*lag;
 	struct mlx5_devcom	*devcom;
 	unsigned long		pci_dev_data;
+	struct mlx5_core_roce	roce;
 	struct mlx5_fc_stats		fc_stats;
 	struct mlx5_rl_table            rl_table;
 
@@ -643,6 +648,7 @@ struct mlx5_fw_tracer;
 struct mlx5_vxlan;
 
 struct mlx5_core_dev {
+	struct device *device;
 	struct pci_dev	       *pdev;
 	/* sync pci state */
 	struct mutex		pci_status_mutex;

@@ -664,7 +664,8 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	}
 
 	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d (log) data %d packets %d\n",
-		   hp->tirn, hp->pair->rqn[0], hp->pair->peer_mdev->priv.name,
+		   hp->tirn, hp->pair->rqn[0],
+		   dev_name(hp->pair->peer_mdev->device),
 		   hp->pair->sqn[0], match_prio, params.log_data_size, params.log_num_packets);
 
 	hpe->hp = hp;
@@ -701,7 +702,7 @@ static void mlx5e_hairpin_flow_del(struct mlx5e_priv *priv,
 		hpe = list_entry(next, struct mlx5e_hairpin_entry, flows);
 
 		netdev_dbg(priv->netdev, "del hairpin: peer %s\n",
-			   hpe->hp->pair->peer_mdev->priv.name);
+			   dev_name(hpe->hp->pair->peer_mdev->device));
 
 		mlx5e_hairpin_destroy(hpe->hp);
 		hash_del(&hpe->hairpin_hlist);

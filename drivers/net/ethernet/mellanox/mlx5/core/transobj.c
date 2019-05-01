@@ -182,16 +182,24 @@ out:
 }
 EXPORT_SYMBOL_GPL(mlx5_core_query_sq_state);
 
+int mlx5_core_create_tir_out(struct mlx5_core_dev *dev,
+			     u32 *in, int inlen,
+			     u32 *out, int outlen)
+{
+	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
+
+	return mlx5_cmd_exec(dev, in, inlen, out, outlen);
+}
+EXPORT_SYMBOL(mlx5_core_create_tir_out);
+
 int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *tirn)
 {
-	u32 out[MLX5_ST_SZ_DW(create_tir_out)] = {0};
+	u32 out[MLX5_ST_SZ_DW(create_tir_out)] = {};
 	int err;
 
-	MLX5_SET(create_tir_in, in, opcode, MLX5_CMD_OP_CREATE_TIR);
-
-	memset(out, 0, sizeof(out));
-	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+	err = mlx5_core_create_tir_out(dev, in, inlen,
+				       out, sizeof(out));
 	if (!err)
 		*tirn = MLX5_GET(create_tir_out, out, tirn);
 

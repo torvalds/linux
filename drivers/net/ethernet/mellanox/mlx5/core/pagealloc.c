@@ -200,7 +200,7 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 		rb_erase(&fwp->rb_node, &dev->priv.page_root);
 		if (fwp->free_count != 1)
 			list_del(&fwp->list);
-		dma_unmap_page(&dev->pdev->dev, addr & MLX5_U64_4K_PAGE_MASK,
+		dma_unmap_page(dev->device, addr & MLX5_U64_4K_PAGE_MASK,
 			       PAGE_SIZE, DMA_BIDIRECTIONAL);
 		__free_page(fwp->page);
 		kfree(fwp);
@@ -211,11 +211,12 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 
 static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 {
+	struct device *device = dev->device;
+	int nid = dev_to_node(device);
 	struct page *page;
 	u64 zero_addr = 1;
 	u64 addr;
 	int err;
-	int nid = dev_to_node(&dev->pdev->dev);
 
 	page = alloc_pages_node(nid, GFP_HIGHUSER, 0);
 	if (!page) {
@@ -223,9 +224,8 @@ static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 		return -ENOMEM;
 	}
 map:
-	addr = dma_map_page(&dev->pdev->dev, page, 0,
-			    PAGE_SIZE, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(&dev->pdev->dev, addr)) {
+	addr = dma_map_page(device, page, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(device, addr)) {
 		mlx5_core_warn(dev, "failed dma mapping page\n");
 		err = -ENOMEM;
 		goto err_mapping;
@@ -240,8 +240,7 @@ map:
 	err = insert_page(dev, addr, page, func_id);
 	if (err) {
 		mlx5_core_err(dev, "failed to track allocated page\n");
-		dma_unmap_page(&dev->pdev->dev, addr, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
+		dma_unmap_page(device, addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 	}
 
 err_mapping:
@@ -249,7 +248,7 @@ err_mapping:
 		__free_page(page);
 
 	if (zero_addr == 0)
-		dma_unmap_page(&dev->pdev->dev, zero_addr, PAGE_SIZE,
+		dma_unmap_page(device, zero_addr, PAGE_SIZE,
 			       DMA_BIDIRECTIONAL);
 
 	return err;
@@ -600,8 +599,7 @@ int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages)
 		return 0;
 	}
 
-	mlx5_core_dbg(dev, "Waiting for %d pages from %s\n", prev_pages,
-		      dev->priv.name);
+	mlx5_core_dbg(dev, "Waiting for %d pages\n", prev_pages);
 	while (*pages) {
 		if (time_after(jiffies, end)) {
 			mlx5_core_warn(dev, "aborting while there are %d pending pages\n", *pages);
@@ -614,6 +612,6 @@ int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages)
 		msleep(50);
 	}
 
-	mlx5_core_dbg(dev, "All pages received from %s\n", dev->priv.name);
+	mlx5_core_dbg(dev, "All pages received\n");
 	return 0;
 }

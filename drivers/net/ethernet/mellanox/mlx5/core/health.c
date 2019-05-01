@@ -380,7 +380,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 
 	strcpy(name, "mlx5_health");
-	strcat(name, dev->priv.name);
+	strcat(name, dev_name(dev->device));
 	health->wq = create_singlethread_workqueue(name);
 	kfree(name);
 	if (!health->wq)

@@ -721,7 +721,6 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
 	struct mlx5_priv *priv = &dev->priv;
 	int err = 0;
 
-	dev->pdev = pdev;
 	priv->pci_dev_data = id->driver_data;
 
 	pci_set_drvdata(dev->pdev, dev);
@@ -1222,13 +1221,10 @@ static const struct devlink_ops mlx5_devlink_ops = {
 #endif
 };
 
-static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx, const char *name)
+static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	int err;
-
-	strncpy(priv->name, name, MLX5_MAX_NAME_LEN);
-	priv->name[MLX5_MAX_NAME_LEN - 1] = 0;
 
 	dev->profile = &profile[profile_idx];
 
@@ -1247,9 +1243,10 @@ static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx, const char
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	spin_lock_init(&priv->mkey_lock);
 
-	priv->dbg_root = debugfs_create_dir(name, mlx5_debugfs_root);
+	priv->dbg_root = debugfs_create_dir(dev_name(dev->device),
+					    mlx5_debugfs_root);
 	if (!priv->dbg_root) {
-		pr_err("mlx5_core: %s error, Cannot create debugfs dir, aborting\n", name);
+		dev_err(dev->device, "mlx5_core: error, Cannot create debugfs dir, aborting\n");
 		return -ENOMEM;
 	}
 
@@ -1292,8 +1289,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	dev = devlink_priv(devlink);
+	dev->device = &pdev->dev;
+	dev->pdev = pdev;
 
-	err = mlx5_mdev_init(dev, prof_sel, dev_name(&pdev->dev));
+	err = mlx5_mdev_init(dev, prof_sel);
 	if (err)
 		goto mdev_init_err;
 
