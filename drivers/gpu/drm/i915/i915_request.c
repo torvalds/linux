@@ -799,6 +799,21 @@ err_unreserve:
 }
 
 static int
+i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
+{
+	if (list_is_first(&signal->ring_link, &signal->ring->request_list))
+		return 0;
+
+	signal = list_prev_entry(signal, ring_link);
+	if (i915_timeline_sync_is_later(rq->timeline, &signal->fence))
+		return 0;
+
+	return i915_sw_fence_await_dma_fence(&rq->submit,
+					     &signal->fence, 0,
+					     I915_FENCE_GFP);
+}
+
+static int
 emit_semaphore_wait(struct i915_request *to,
 		    struct i915_request *from,
 		    gfp_t gfp)
@@ -815,6 +830,10 @@ emit_semaphore_wait(struct i915_request *to,
 		return i915_sw_fence_await_dma_fence(&to->submit,
 						     &from->fence, 0,
 						     I915_FENCE_GFP);
+
+	err = i915_request_await_start(to, from);
+	if (err < 0)
+		return err;
 
 	err = i915_sw_fence_await_dma_fence(&to->semaphore,
 					    &from->fence, 0,
