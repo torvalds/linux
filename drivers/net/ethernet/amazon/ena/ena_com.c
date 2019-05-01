@@ -731,7 +731,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 	if (rc)
 		pr_err("Cannot set LLQ configuration: %d\n", rc);
 
-	return 0;
+	return rc;
 }
 
 static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *comp_ctx,
