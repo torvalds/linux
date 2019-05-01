@@ -415,10 +415,10 @@ static struct sdw_slave *sdw_get_slave(struct sdw_bus *bus, int i)
 static int sdw_compare_devid(struct sdw_slave *slave, struct sdw_slave_id id)
 {
 
-	if ((slave->id.unique_id != id.unique_id) ||
-	    (slave->id.mfg_id != id.mfg_id) ||
-	    (slave->id.part_id != id.part_id) ||
-	    (slave->id.class_id != id.class_id))
+	if (slave->id.unique_id != id.unique_id ||
+	    slave->id.mfg_id != id.mfg_id ||
+	    slave->id.part_id != id.part_id ||
+	    slave->id.class_id != id.class_id)
 		return -ENODEV;
 
 	return 0;
@@ -896,8 +896,8 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		}
 
 		/* Update the Slave driver */
-		if (slave_notify && (slave->ops) &&
-					(slave->ops->interrupt_callback)) {
+		if (slave_notify && slave->ops &&
+		    slave->ops->interrupt_callback) {
 			slave_intr.control_port = clear;
 			memcpy(slave_intr.port, &port_status,
 			       sizeof(slave_intr.port));
@@ -955,7 +955,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 static int sdw_update_slave_status(struct sdw_slave *slave,
 				   enum sdw_slave_status status)
 {
-	if ((slave->ops) && (slave->ops->update_status))
+	if (slave->ops && slave->ops->update_status)
 		return slave->ops->update_status(slave, status);
 
 	return 0;
