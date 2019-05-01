@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
 #include <linux/bits.h>
+#include "smu_v11_0_i2c.h"
 
 #define EEPROM_I2C_TARGET_ADDR 0xA0
 
@@ -118,7 +119,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-	/*TODO Add MI-60 */
+		ret = smu_v11_0_i2c_eeprom_control_init(&control->eeprom_accessor);
 		break;
 
 	default:
@@ -170,7 +171,7 @@ void amdgpu_ras_eeprom_fini(struct amdgpu_ras_eeprom_control *control)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		/*TODO Add MI-60 */
+		smu_v11_0_i2c_eeprom_control_fini(&control->eeprom_accessor);
 		break;
 
 	default:
