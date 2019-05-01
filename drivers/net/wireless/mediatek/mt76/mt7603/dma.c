@@ -139,15 +139,30 @@ static void
 mt7603_tx_tasklet(unsigned long data)
 {
 	struct mt7603_dev *dev = (struct mt7603_dev *)data;
+
+	mt76_txq_schedule_all(&dev->mt76);
+}
+
+static int mt7603_poll_tx(struct napi_struct *napi, int budget)
+{
+	struct mt7603_dev *dev;
 	int i;
 
+	dev = container_of(napi, struct mt7603_dev, mt76.tx_napi);
 	dev->tx_dma_check = 0;
+
 	for (i = MT_TXQ_MCU; i >= 0; i--)
 		mt76_queue_tx_cleanup(dev, i, false);
 
-	mt76_txq_schedule_all(&dev->mt76);
+	if (napi_complete_done(napi, 0))
+		mt7603_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
-	mt7603_irq_enable(dev, MT_INT_TX_DONE_ALL);
+	for (i = MT_TXQ_MCU; i >= 0; i--)
+		mt76_queue_tx_cleanup(dev, i, false);
+
+	tasklet_schedule(&dev->mt76.tx_tasklet);
+
+	return 0;
 }
 
 int mt7603_dma_init(struct mt7603_dev *dev)
@@ -216,7 +231,15 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 		return ret;
 
 	mt76_wr(dev, MT_DELAY_INT_CFG, 0);
-	return mt76_init_queues(dev);
+	ret = mt76_init_queues(dev);
+	if (ret)
+		return ret;
+
+	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->mt76.tx_napi,
+			  mt7603_poll_tx, NAPI_POLL_WEIGHT);
+	napi_enable(&dev->mt76.tx_napi);
+
+	return 0;
 }
 
 void mt7603_dma_cleanup(struct mt7603_dev *dev)
@@ -227,5 +250,6 @@ void mt7603_dma_cleanup(struct mt7603_dev *dev)
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 
 	tasklet_kill(&dev->mt76.tx_tasklet);
+	netif_napi_del(&dev->mt76.tx_napi);
 	mt76_dma_cleanup(&dev->mt76);
 }
