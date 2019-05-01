@@ -411,7 +411,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 
 		block = tmp;
 		sector_div(size, dd->sect_per_block);
-		if (block > size || block < 0) {
+		if (block > size) {
 			DMERR("selected block value out of range");
 			return result;
 		}
