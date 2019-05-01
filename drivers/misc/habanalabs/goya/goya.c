@@ -3213,31 +3213,29 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 		return -EFAULT;
 	}
 
-	if (parser->ctx_id != HL_KERNEL_ASID_ID) {
-		if (sram_addr) {
-			if (!hl_mem_area_inside_range(device_memory_addr,
-					le32_to_cpu(user_dma_pkt->tsize),
-					hdev->asic_prop.sram_user_base_address,
-					hdev->asic_prop.sram_end_address)) {
+	if (sram_addr) {
+		if (!hl_mem_area_inside_range(device_memory_addr,
+				le32_to_cpu(user_dma_pkt->tsize),
+				hdev->asic_prop.sram_user_base_address,
+				hdev->asic_prop.sram_end_address)) {
 
-				dev_err(hdev->dev,
-					"SRAM address 0x%llx + 0x%x is invalid\n",
-					device_memory_addr,
-					user_dma_pkt->tsize);
-				return -EFAULT;
-			}
-		} else {
-			if (!hl_mem_area_inside_range(device_memory_addr,
-					le32_to_cpu(user_dma_pkt->tsize),
-					hdev->asic_prop.dram_user_base_address,
-					hdev->asic_prop.dram_end_address)) {
+			dev_err(hdev->dev,
+				"SRAM address 0x%llx + 0x%x is invalid\n",
+				device_memory_addr,
+				user_dma_pkt->tsize);
+			return -EFAULT;
+		}
+	} else {
+		if (!hl_mem_area_inside_range(device_memory_addr,
+				le32_to_cpu(user_dma_pkt->tsize),
+				hdev->asic_prop.dram_user_base_address,
+				hdev->asic_prop.dram_end_address)) {
 
-				dev_err(hdev->dev,
-					"DRAM address 0x%llx + 0x%x is invalid\n",
-					device_memory_addr,
-					user_dma_pkt->tsize);
-				return -EFAULT;
-			}
+			dev_err(hdev->dev,
+				"DRAM address 0x%llx + 0x%x is invalid\n",
+				device_memory_addr,
+				user_dma_pkt->tsize);
+			return -EFAULT;
 		}
 	}
 
