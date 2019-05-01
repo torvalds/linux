@@ -538,6 +538,8 @@ int knl_uncore_pci_init(void);
 void knl_uncore_cpu_init(void);
 int skx_uncore_pci_init(void);
 void skx_uncore_cpu_init(void);
+int snr_uncore_pci_init(void);
+void snr_uncore_cpu_init(void);
 
 /* uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);
