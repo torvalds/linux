@@ -452,6 +452,7 @@ struct mt76_dev {
 	int tx_dma_idx[4];
 
 	struct tasklet_struct tx_tasklet;
+	struct napi_struct tx_napi;
 	struct delayed_work mac_work;
 
 	wait_queue_head_t tx_wait;

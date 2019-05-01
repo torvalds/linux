@@ -166,7 +166,8 @@ static void mt76x02_tx_tasklet(unsigned long data)
 
 static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 {
-	struct mt76x02_dev *dev = container_of(napi, struct mt76x02_dev, tx_napi);
+	struct mt76x02_dev *dev = container_of(napi, struct mt76x02_dev,
+					       mt76.tx_napi);
 	int i;
 
 	mt76x02_mac_poll_tx_status(dev, false);
@@ -245,9 +246,9 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->tx_napi, mt76x02_poll_tx,
-			  NAPI_POLL_WEIGHT);
-	napi_enable(&dev->tx_napi);
+	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->mt76.tx_napi,
+			  mt76x02_poll_tx, NAPI_POLL_WEIGHT);
+	napi_enable(&dev->mt76.tx_napi);
 
 	return 0;
 }
@@ -303,7 +304,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 
 	if (intr & (MT_INT_TX_STAT | MT_INT_TX_DONE_ALL)) {
 		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
-		napi_schedule(&dev->tx_napi);
+		napi_schedule(&dev->mt76.tx_napi);
 	}
 
 	if (intr & MT_INT_GPTIMER) {
@@ -334,7 +335,7 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
 {
 	tasklet_kill(&dev->mt76.tx_tasklet);
-	netif_napi_del(&dev->tx_napi);
+	netif_napi_del(&dev->mt76.tx_napi);
 	mt76_dma_cleanup(&dev->mt76);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_cleanup);
@@ -454,7 +455,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	tasklet_disable(&dev->mt76.tx_tasklet);
-	napi_disable(&dev->tx_napi);
+	napi_disable(&dev->mt76.tx_napi);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
 		napi_disable(&dev->mt76.napi[i]);
@@ -508,8 +509,8 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
 	tasklet_enable(&dev->mt76.tx_tasklet);
-	napi_enable(&dev->tx_napi);
-	napi_schedule(&dev->tx_napi);
+	napi_enable(&dev->mt76.tx_napi);
+	napi_schedule(&dev->mt76.tx_napi);
 
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
