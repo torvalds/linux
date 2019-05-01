@@ -238,7 +238,7 @@ static int intel_shim_init(struct sdw_intel *sdw)
 	ret = intel_clear_bit(shim, SDW_SHIM_SYNC, sync_reg,
 			      SDW_SHIM_SYNC_SYNCCPU);
 	if (ret < 0)
-		dev_err(sdw->cdns.dev, "Failed to set sync period: %d", ret);
+		dev_err(sdw->cdns.dev, "Failed to set sync period: %d\n", ret);
 
 	return ret;
 }
@@ -456,7 +456,7 @@ static int intel_post_bank_switch(struct sdw_bus *bus)
 	ret = intel_clear_bit(shim, SDW_SHIM_SYNC, sync_reg,
 			      SDW_SHIM_SYNC_SYNCGO);
 	if (ret < 0)
-		dev_err(sdw->cdns.dev, "Post bank switch failed: %d", ret);
+		dev_err(sdw->cdns.dev, "Post bank switch failed: %d\n", ret);
 
 	return ret;
 }
@@ -556,7 +556,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!dma->nr_ports) {
-		dev_err(dai->dev, "ports/resources not available");
+		dev_err(dai->dev, "ports/resources not available\n");
 		return -EINVAL;
 	}
 
@@ -607,7 +607,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	ret = sdw_stream_add_master(&cdns->bus, &sconfig,
 				    pconfig, dma->nr_ports, dma->stream);
 	if (ret) {
-		dev_err(cdns->dev, "add master to stream failed:%d", ret);
+		dev_err(cdns->dev, "add master to stream failed:%d\n", ret);
 		goto stream_error;
 	}
 
@@ -635,7 +635,7 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 
 	ret = sdw_stream_remove_master(&cdns->bus, dma->stream);
 	if (ret < 0)
-		dev_err(dai->dev, "remove master from stream %s failed: %d",
+		dev_err(dai->dev, "remove master from stream %s failed: %d\n",
 			dma->stream->name, ret);
 
 	intel_port_cleanup(dma);
@@ -884,7 +884,7 @@ static int intel_probe(struct platform_device *pdev)
 	/* Register DAIs */
 	ret = intel_register_dai(sdw);
 	if (ret) {
-		dev_err(sdw->cdns.dev, "DAI registration failed: %d", ret);
+		dev_err(sdw->cdns.dev, "DAI registration failed: %d\n", ret);
 		snd_soc_unregister_component(sdw->cdns.dev);
 		goto err_dai;
 	}

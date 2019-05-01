@@ -346,10 +346,10 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 	for (i = 0; i < 2; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
 			no_ack = 1;
-			dev_err(cdns->dev, "Program SCP Ack not received");
+			dev_err(cdns->dev, "Program SCP Ack not received\n");
 			if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
 				nack = 1;
-				dev_err(cdns->dev, "Program SCP NACK received");
+				dev_err(cdns->dev, "Program SCP NACK received\n");
 			}
 		}
 	}
@@ -357,11 +357,11 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 	/* For NACK, NO ack, don't return err if we are in Broadcast mode */
 	if (nack) {
 		dev_err(cdns->dev,
-			"SCP_addrpage NACKed for Slave %d", msg->dev_num);
+			"SCP_addrpage NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
 	} else if (no_ack) {
 		dev_dbg(cdns->dev,
-			"SCP_addrpage ignored for Slave %d", msg->dev_num);
+			"SCP_addrpage ignored for Slave %d\n", msg->dev_num);
 		return SDW_CMD_IGNORED;
 	}
 
@@ -665,7 +665,7 @@ int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns)
 	ret = cdns_clear_bit(cdns, CDNS_MCP_CONFIG_UPDATE,
 			     CDNS_MCP_CONFIG_UPDATE_BIT);
 	if (ret < 0)
-		dev_err(cdns->dev, "Config update timedout");
+		dev_err(cdns->dev, "Config update timedout\n");
 
 	return ret;
 }
@@ -853,7 +853,7 @@ int cdns_bus_conf(struct sdw_bus *bus, struct sdw_bus_params *params)
 	int divider;
 
 	if (!params->curr_dr_freq) {
-		dev_err(cdns->dev, "NULL curr_dr_freq");
+		dev_err(cdns->dev, "NULL curr_dr_freq\n");
 		return -EINVAL;
 	}
 
