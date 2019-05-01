@@ -93,7 +93,6 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 	parser.user_cb_size = job->user_cb_size;
 	parser.ext_queue = job->ext_queue;
 	job->patched_cb = NULL;
-	parser.use_virt_addr = hdev->mmu_enable;
 
 	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
 	if (job->ext_queue) {

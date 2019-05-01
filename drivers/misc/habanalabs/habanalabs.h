@@ -779,8 +779,6 @@ struct hl_cs_job {
  * @patched_cb_size: the size of the CB after parsing.
  * @ext_queue: whether the job is for external queue or internal queue.
  * @job_id: the id of the related job inside the related CS.
- * @use_virt_addr: whether to treat the addresses in the CB as virtual during
- *			parsing.
  */
 struct hl_cs_parser {
 	struct hl_cb		*user_cb;
@@ -793,7 +791,6 @@ struct hl_cs_parser {
 	u32			patched_cb_size;
 	u8			ext_queue;
 	u8			job_id;
-	u8			use_virt_addr;
 };
 
 

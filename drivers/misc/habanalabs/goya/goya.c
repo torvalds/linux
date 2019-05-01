@@ -3903,7 +3903,7 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 	if (!parser->ext_queue)
 		return goya_parse_cb_no_ext_queue(hdev, parser);
 
-	if ((goya->hw_cap_initialized & HW_CAP_MMU) && parser->use_virt_addr)
+	if (goya->hw_cap_initialized & HW_CAP_MMU)
 		return goya_parse_cb_mmu(hdev, parser);
 	else
 		return goya_parse_cb_no_mmu(hdev, parser);
