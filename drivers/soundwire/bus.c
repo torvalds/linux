@@ -49,7 +49,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	}
 
 	/*
-	 * Device numbers in SoundWire are 0 thru 15. Enumeration device
+	 * Device numbers in SoundWire are 0 through 15. Enumeration device
 	 * number (0), Broadcast device number (15), Group numbers (12 and
 	 * 13) and Master device number (14) are not used for assignment so
 	 * mask these and other higher bits.
@@ -282,7 +282,7 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 	if (addr < SDW_REG_OPTIONAL_PAGE) { /* 32k but no page */
 		if (slave && !slave->prop.paging_support)
 			return 0;
-		/* no need for else as that will fall thru to paging */
+		/* no need for else as that will fall-through to paging */
 	}
 
 	/* paging mandatory */
