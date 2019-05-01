@@ -384,9 +384,9 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	pBA->start_seq_ctrl = *pBaStartSeqCtrl;
 	//for half N mode we only aggregate 1 frame
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-	pBA->param_set.field.buffer_size = 1;
+		pBA->param_set.field.buffer_size = 1;
 	else
-	pBA->param_set.field.buffer_size = 32;
+		pBA->param_set.field.buffer_size = 32;
 	ActivateBAEntry(ieee, pBA, pBA->timeout_value);
 	ieee80211_send_ADDBARsp(ieee, dst, pBA, ADDBA_STATUS_SUCCESS);
 
