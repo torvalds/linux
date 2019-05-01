@@ -318,7 +318,7 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 	}
 }
 
-bool is_discard_enabled(struct cache_set *s)
+static bool is_discard_enabled(struct cache_set *s)
 {
 	struct cache *ca;
 	unsigned int i;
