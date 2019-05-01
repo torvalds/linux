@@ -241,8 +241,6 @@ static int ipheth_carrier_set(struct ipheth_device *dev)
 	struct usb_device *udev;
 	int retval;
 
-	if (!dev)
-		return 0;
 	if (!dev->confirmed_pairing)
 		return 0;
 
