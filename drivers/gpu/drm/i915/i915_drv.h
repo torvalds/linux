@@ -2824,15 +2824,15 @@ static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
 	 * grace period so that we catch work queued via RCU from the first
 	 * pass. As neither drain_workqueue() nor flush_workqueue() report
 	 * a result, we make an assumption that we only don't require more
-	 * than 2 passes to catch all recursive RCU delayed work.
+	 * than 3 passes to catch all _recursive_ RCU delayed work.
 	 *
 	 */
-	int pass = 2;
+	int pass = 3;
 	do {
 		rcu_barrier();
 		i915_gem_drain_freed_objects(i915);
-		drain_workqueue(i915->wq);
 	} while (--pass);
+	drain_workqueue(i915->wq);
 }
 
 struct i915_vma * __must_check
