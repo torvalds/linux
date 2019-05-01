@@ -159,6 +159,8 @@ struct tegra_devfreq {
 	struct notifier_block	rate_change_nb;
 
 	struct tegra_devfreq_device devices[ARRAY_SIZE(actmon_device_configs)];
+
+	int irq;
 };
 
 struct tegra_actmon_emc_ratio {
@@ -405,6 +407,8 @@ static void tegra_actmon_disable_interrupts(struct tegra_devfreq *tegra)
 	u32 val;
 	unsigned int i;
 
+	disable_irq(tegra->irq);
+
 	for (i = 0; i < ARRAY_SIZE(tegra->devices); i++) {
 		dev = &tegra->devices[i];
 
@@ -415,9 +419,14 @@ static void tegra_actmon_disable_interrupts(struct tegra_devfreq *tegra)
 		val &= ~ACTMON_DEV_CTRL_CONSECUTIVE_ABOVE_WMARK_EN;
 
 		device_writel(dev, val, ACTMON_DEV_CTRL);
+
+		device_writel(dev, ACTMON_INTR_STATUS_CLEAR,
+			      ACTMON_DEV_INTR_STATUS);
 	}
 
 	actmon_write_barrier(tegra);
+
+	enable_irq(tegra->irq);
 }
 
 static void tegra_actmon_configure_device(struct tegra_devfreq *tegra,
@@ -592,7 +601,6 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	struct resource *res;
 	unsigned int i;
 	unsigned long rate;
-	int irq;
 	int err;
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
@@ -661,15 +669,16 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		dev_pm_opp_add(&pdev->dev, rate, 0);
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", irq);
-		return irq;
+	tegra->irq = platform_get_irq(pdev, 0);
+	if (tegra->irq < 0) {
+		err = tegra->irq;
+		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", err);
+		return err;
 	}
 
 	platform_set_drvdata(pdev, tegra);
 
-	err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+	err = devm_request_threaded_irq(&pdev->dev, tegra->irq, NULL,
 					actmon_thread_isr, IRQF_ONESHOT,
 					"tegra-devfreq", tegra);
 	if (err) {
