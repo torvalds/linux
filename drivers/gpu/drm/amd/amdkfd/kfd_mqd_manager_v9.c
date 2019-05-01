@@ -247,10 +247,7 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 
 	update_cu_mask(mm, mqd, q);
 
-	q->is_active = (q->queue_size > 0 &&
-			q->queue_address != 0 &&
-			q->queue_percent > 0 &&
-			!q->is_evicted);
+	q->is_active = QUEUE_IS_ACTIVE(*q);
 
 	return 0;
 }
@@ -402,10 +399,7 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdma_queue_id = q->sdma_queue_id;
 	m->sdmax_rlcx_dummy_reg = SDMA_RLC_DUMMY_DEFAULT;
 
-	q->is_active = (q->queue_size > 0 &&
-			q->queue_address != 0 &&
-			q->queue_percent > 0 &&
-			!q->is_evicted);
+	q->is_active = QUEUE_IS_ACTIVE(*q);
 
 	return 0;
 }

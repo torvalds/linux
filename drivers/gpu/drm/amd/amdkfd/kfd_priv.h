@@ -430,6 +430,11 @@ struct queue_properties {
 	uint32_t *cu_mask;
 };
 
+#define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
+			    (q).queue_address != 0 &&	\
+			    (q).queue_percent > 0 &&	\
+			    !(q).is_evicted)
+
 /**
  * struct queue
  *

@@ -289,13 +289,11 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	}
 	q->properties.vmid = qpd->vmid;
 	/*
-	 * Eviction state logic: we only mark active queues as evicted
-	 * to avoid the overhead of restoring inactive queues later
+	 * Eviction state logic: mark all queues as evicted, even ones
+	 * not currently active. Restoring inactive queues later only
+	 * updates the is_evicted flag but is a no-op otherwise.
 	 */
-	if (qpd->evicted)
-		q->properties.is_evicted = (q->properties.queue_size > 0 &&
-					    q->properties.queue_percent > 0 &&
-					    q->properties.queue_address != 0);
+	q->properties.is_evicted = !!qpd->evicted;
 
 	q->properties.tba_addr = qpd->tba_addr;
 	q->properties.tma_addr = qpd->tma_addr;
@@ -518,14 +516,6 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	}
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
-	/*
-	 * Eviction state logic: we only mark active queues as evicted
-	 * to avoid the overhead of restoring inactive queues later
-	 */
-	if (pdd->qpd.evicted)
-		q->properties.is_evicted = (q->properties.queue_size > 0 &&
-					    q->properties.queue_percent > 0 &&
-					    q->properties.queue_address != 0);
 
 	/* Save previous activity state for counters */
 	prev_active = q->properties.is_active;
@@ -590,7 +580,7 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 	struct queue *q;
 	struct mqd_manager *mqd_mgr;
 	struct kfd_process_device *pdd;
-	int retval = 0;
+	int retval, ret = 0;
 
 	dqm_lock(dqm);
 	if (qpd->evicted++ > 0) /* already evicted, do nothing */
@@ -600,25 +590,31 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 	pr_info_ratelimited("Evicting PASID %u queues\n",
 			    pdd->process->pasid);
 
-	/* unactivate all active queues on the qpd */
+	/* Mark all queues as evicted. Deactivate all active queues on
+	 * the qpd.
+	 */
 	list_for_each_entry(q, &qpd->queues_list, list) {
+		q->properties.is_evicted = true;
 		if (!q->properties.is_active)
 			continue;
+
 		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 				q->properties.type)];
-		q->properties.is_evicted = true;
 		q->properties.is_active = false;
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
 				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN,
 				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
-		if (retval)
-			goto out;
+		if (retval && !ret)
+			/* Return the first error, but keep going to
+			 * maintain a consistent eviction state
+			 */
+			ret = retval;
 		dqm->queue_count--;
 	}
 
 out:
 	dqm_unlock(dqm);
-	return retval;
+	return ret;
 }
 
 static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
@@ -636,11 +632,14 @@ static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
 	pr_info_ratelimited("Evicting PASID %u queues\n",
 			    pdd->process->pasid);
 
-	/* unactivate all active queues on the qpd */
+	/* Mark all queues as evicted. Deactivate all active queues on
+	 * the qpd.
+	 */
 	list_for_each_entry(q, &qpd->queues_list, list) {
+		q->properties.is_evicted = true;
 		if (!q->properties.is_active)
 			continue;
-		q->properties.is_evicted = true;
+
 		q->properties.is_active = false;
 		dqm->queue_count--;
 	}
@@ -662,7 +661,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd_mgr;
 	struct kfd_process_device *pdd;
 	uint64_t pd_base;
-	int retval = 0;
+	int retval, ret = 0;
 
 	pdd = qpd_to_pdd(qpd);
 	/* Retrieve PD base */
@@ -696,22 +695,28 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 	 */
 	mm = get_task_mm(pdd->process->lead_thread);
 	if (!mm) {
-		retval = -EFAULT;
+		ret = -EFAULT;
 		goto out;
 	}
 
-	/* activate all active queues on the qpd */
+	/* Remove the eviction flags. Activate queues that are not
+	 * inactive for other reasons.
+	 */
 	list_for_each_entry(q, &qpd->queues_list, list) {
-		if (!q->properties.is_evicted)
+		q->properties.is_evicted = false;
+		if (!QUEUE_IS_ACTIVE(q->properties))
 			continue;
+
 		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 				q->properties.type)];
-		q->properties.is_evicted = false;
 		q->properties.is_active = true;
 		retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe,
 				       q->queue, &q->properties, mm);
-		if (retval)
-			goto out;
+		if (retval && !ret)
+			/* Return the first error, but keep going to
+			 * maintain a consistent eviction state
+			 */
+			ret = retval;
 		dqm->queue_count++;
 	}
 	qpd->evicted = 0;
@@ -719,7 +724,7 @@ out:
 	if (mm)
 		mmput(mm);
 	dqm_unlock(dqm);
-	return retval;
+	return ret;
 }
 
 static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
@@ -751,16 +756,16 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 
 	/* activate all active queues on the qpd */
 	list_for_each_entry(q, &qpd->queues_list, list) {
-		if (!q->properties.is_evicted)
-			continue;
 		q->properties.is_evicted = false;
+		if (!QUEUE_IS_ACTIVE(q->properties))
+			continue;
+
 		q->properties.is_active = true;
 		dqm->queue_count++;
 	}
 	retval = execute_queues_cpsch(dqm,
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
-	if (!retval)
-		qpd->evicted = 0;
+	qpd->evicted = 0;
 out:
 	dqm_unlock(dqm);
 	return retval;
@@ -1199,13 +1204,12 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 	/*
-	 * Eviction state logic: we only mark active queues as evicted
-	 * to avoid the overhead of restoring inactive queues later
+	 * Eviction state logic: mark all queues as evicted, even ones
+	 * not currently active. Restoring inactive queues later only
+	 * updates the is_evicted flag but is a no-op otherwise.
 	 */
-	if (qpd->evicted)
-		q->properties.is_evicted = (q->properties.queue_size > 0 &&
-					    q->properties.queue_percent > 0 &&
-					    q->properties.queue_address != 0);
+	q->properties.is_evicted = !!qpd->evicted;
+
 	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	q->properties.tba_addr = qpd->tba_addr;
 	q->properties.tma_addr = qpd->tma_addr;
