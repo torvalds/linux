@@ -250,6 +250,5 @@ void mt7603_dma_cleanup(struct mt7603_dev *dev)
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 
 	tasklet_kill(&dev->mt76.tx_tasklet);
-	netif_napi_del(&dev->mt76.tx_napi);
 	mt76_dma_cleanup(&dev->mt76);
 }

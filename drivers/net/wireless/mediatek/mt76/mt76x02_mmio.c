@@ -335,7 +335,6 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
 {
 	tasklet_kill(&dev->mt76.tx_tasklet);
-	netif_napi_del(&dev->mt76.tx_napi);
 	mt76_dma_cleanup(&dev->mt76);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_cleanup);
