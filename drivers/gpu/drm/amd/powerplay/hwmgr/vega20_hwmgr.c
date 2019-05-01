@@ -4089,6 +4089,24 @@ static int vega20_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega20_smu_i2c_bus_access(struct pp_hwmgr *hwmgr, bool acquire)
+{
+	int res;
+
+	/* I2C bus access can happen very early, when SMU not loaded yet */
+	if (!vega20_is_smc_ram_running(hwmgr))
+		return 0;
+
+	res = smum_send_msg_to_smc_with_parameter(hwmgr,
+						  (acquire ?
+						  PPSMC_MSG_RequestI2CBus :
+						  PPSMC_MSG_ReleaseI2CBus),
+						  0);
+
+	PP_ASSERT_WITH_CODE(!res, "[SmuI2CAccessBus] Failed to access bus!", return res);
+	return res;
+}
+
 static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	/* init/fini related */
 	.backend_init = vega20_hwmgr_backend_init,
@@ -4156,6 +4174,7 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	.get_asic_baco_state = vega20_baco_get_state,
 	.set_asic_baco_state = vega20_baco_set_state,
 	.set_mp1_state = vega20_set_mp1_state,
+	.smu_i2c_bus_access = vega20_smu_i2c_bus_access,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)
