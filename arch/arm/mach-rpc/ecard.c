@@ -70,17 +70,21 @@ struct expcard_blacklist {
 	unsigned short	 manufacturer;
 	unsigned short	 product;
 	const char	*type;
+	void (*init)(ecard_t *ec);
 };
 
 static ecard_t *cards;
 static ecard_t *slot_to_expcard[MAX_ECARDS];
 static unsigned int ectcr;
 
+static void atomwide_3p_quirk(ecard_t *ec);
+
 /* List of descriptions of cards which don't have an extended
  * identification, or chunk directories containing a description.
  */
 static struct expcard_blacklist __initdata blacklist[] = {
-	{ MANU_ACORN, PROD_ACORN_ETHER1, "Acorn Ether1" }
+	{ MANU_ACORN, PROD_ACORN_ETHER1, "Acorn Ether1" },
+	{ MANU_ATOMWIDE, PROD_ATOMWIDE_3PSERIAL, NULL, atomwide_3p_quirk },
 };
 
 asmlinkage extern int
@@ -871,6 +875,16 @@ void __iomem *ecardm_iomap(struct expansion_card *ec, unsigned int res,
 }
 EXPORT_SYMBOL(ecardm_iomap);
 
+static void atomwide_3p_quirk(ecard_t *ec)
+{
+	void __iomem *addr = __ecard_address(ec, ECARD_IOC, ECARD_SYNC);
+	unsigned int i;
+
+	/* Disable interrupts on each port */
+	for (i = 0x2000; i <= 0x2800; i += 0x0400)
+		writeb(0, addr + i + 4);	
+}
+
 /*
  * Probe for an expansion card.
  *
@@ -927,7 +941,10 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 	for (i = 0; i < ARRAY_SIZE(blacklist); i++)
 		if (blacklist[i].manufacturer == ec->cid.manufacturer &&
 		    blacklist[i].product == ec->cid.product) {
-			ec->card_desc = blacklist[i].type;
+		    	if (blacklist[i].type)
+				ec->card_desc = blacklist[i].type;
+			if (blacklist[i].init)
+				blacklist[i].init(ec);
 			break;
 		}
 
