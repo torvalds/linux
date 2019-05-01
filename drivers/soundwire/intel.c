@@ -473,7 +473,7 @@ static struct sdw_cdns_port *intel_alloc_port(struct sdw_intel *sdw,
 	int i, ret = 0;
 
 	for (i = 0; i < cdns->num_ports; i++) {
-		if (cdns->ports[i].assigned == true)
+		if (cdns->ports[i].assigned)
 			continue;
 
 		port = &cdns->ports[i];
