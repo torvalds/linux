@@ -43,7 +43,6 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(NOLINK)
 	PHY_STATE_STR(FORCING)
 	PHY_STATE_STR(HALTED)
-	PHY_STATE_STR(RESUMING)
 	}
 
 	return NULL;
@@ -859,10 +858,7 @@ void phy_start(struct phy_device *phydev)
 			goto out;
 	}
 
-	if (phydev->state == PHY_READY)
-		phydev->state = PHY_UP;
-	else
-		phydev->state = PHY_RESUMING;
+	phydev->state = PHY_UP;
 
 	phy_start_machine(phydev);
 out:
@@ -897,7 +893,6 @@ void phy_state_machine(struct work_struct *work)
 		break;
 	case PHY_NOLINK:
 	case PHY_RUNNING:
-	case PHY_RESUMING:
 		err = phy_check_link_status(phydev);
 		break;
 	case PHY_FORCING:

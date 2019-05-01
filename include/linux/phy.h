@@ -308,13 +308,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  *
  * HALTED: PHY is up, but no polling or interrupts are done. Or
  * PHY is in an error state.
- *
- * - phy_start moves to RESUMING
- *
- * RESUMING: PHY was halted, but now wants to run again.
- * - If we are forcing, or aneg is done, timer moves to RUNNING
- * - If aneg is not done, timer moves to AN
- * - phy_stop moves to HALTED
+ * - phy_start moves to UP
  */
 enum phy_state {
 	PHY_DOWN = 0,
@@ -324,7 +318,6 @@ enum phy_state {
 	PHY_RUNNING,
 	PHY_NOLINK,
 	PHY_FORCING,
-	PHY_RESUMING
 };
 
 /**
