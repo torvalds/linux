@@ -163,6 +163,7 @@ struct pci2phy_map {
 };
 
 struct pci2phy_map *__find_pci2phy_map(int segment);
+int uncore_pcibus_to_physid(struct pci_bus *bus);
 
 ssize_t uncore_event_show(struct kobject *kobj,
 			  struct kobj_attribute *attr, char *buf);
@@ -555,6 +556,7 @@ int skx_uncore_pci_init(void);
 void skx_uncore_cpu_init(void);
 int snr_uncore_pci_init(void);
 void snr_uncore_cpu_init(void);
+void snr_uncore_mmio_init(void);
 
 /* uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

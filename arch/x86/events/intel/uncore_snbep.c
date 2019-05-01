@@ -374,6 +374,19 @@
 #define SNR_PCIE3_PCI_PMON_CTR0			0x4e8
 #define SNR_PCIE3_PCI_PMON_BOX_CTL		0x4e4
 
+/* SNR IMC */
+#define SNR_IMC_MMIO_PMON_FIXED_CTL		0x54
+#define SNR_IMC_MMIO_PMON_FIXED_CTR		0x38
+#define SNR_IMC_MMIO_PMON_CTL0			0x40
+#define SNR_IMC_MMIO_PMON_CTR0			0x8
+#define SNR_IMC_MMIO_PMON_BOX_CTL		0x22800
+#define SNR_IMC_MMIO_OFFSET			0x4000
+#define SNR_IMC_MMIO_SIZE			0x4000
+#define SNR_IMC_MMIO_BASE_OFFSET		0xd0
+#define SNR_IMC_MMIO_BASE_MASK			0x1FFFFFFF
+#define SNR_IMC_MMIO_MEM0_OFFSET		0xd8
+#define SNR_IMC_MMIO_MEM0_MASK			0x7FF
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(event2, event, "config:0-6");
 DEFINE_UNCORE_FORMAT_ATTR(event_ext, event, "config:0-7,21");
@@ -4368,6 +4381,190 @@ int snr_uncore_pci_init(void)
 	uncore_pci_uncores = snr_pci_uncores;
 	uncore_pci_driver = &snr_uncore_pci_driver;
 	return 0;
+}
+
+static struct pci_dev *snr_uncore_get_mc_dev(int id)
+{
+	struct pci_dev *mc_dev = NULL;
+	int phys_id, pkg;
+
+	while (1) {
+		mc_dev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x3451, mc_dev);
+		if (!mc_dev)
+			break;
+		phys_id = uncore_pcibus_to_physid(mc_dev->bus);
+		if (phys_id < 0)
+			continue;
+		pkg = topology_phys_to_logical_pkg(phys_id);
+		if (pkg < 0)
+			continue;
+		else if (pkg == id)
+			break;
+	}
+	return mc_dev;
+}
+
+static void snr_uncore_mmio_init_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = snr_uncore_get_mc_dev(box->dieid);
+	unsigned int box_ctl = uncore_mmio_box_ctl(box);
+	resource_size_t addr;
+	u32 pci_dword;
+
+	if (!pdev)
+		return;
+
+	pci_read_config_dword(pdev, SNR_IMC_MMIO_BASE_OFFSET, &pci_dword);
+	addr = (pci_dword & SNR_IMC_MMIO_BASE_MASK) << 23;
+
+	pci_read_config_dword(pdev, SNR_IMC_MMIO_MEM0_OFFSET, &pci_dword);
+	addr |= (pci_dword & SNR_IMC_MMIO_MEM0_MASK) << 12;
+
+	addr += box_ctl;
+
+	box->io_addr = ioremap(addr, SNR_IMC_MMIO_SIZE);
+	if (!box->io_addr)
+		return;
+
+	writel(IVBEP_PMON_BOX_CTL_INT, box->io_addr);
+}
+
+static void snr_uncore_mmio_disable_box(struct intel_uncore_box *box)
+{
+	u32 config;
+
+	if (!box->io_addr)
+		return;
+
+	config = readl(box->io_addr);
+	config |= SNBEP_PMON_BOX_CTL_FRZ;
+	writel(config, box->io_addr);
+}
+
+static void snr_uncore_mmio_enable_box(struct intel_uncore_box *box)
+{
+	u32 config;
+
+	if (!box->io_addr)
+		return;
+
+	config = readl(box->io_addr);
+	config &= ~SNBEP_PMON_BOX_CTL_FRZ;
+	writel(config, box->io_addr);
+}
+
+static void snr_uncore_mmio_enable_event(struct intel_uncore_box *box,
+					   struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!box->io_addr)
+		return;
+
+	writel(hwc->config | SNBEP_PMON_CTL_EN,
+	       box->io_addr + hwc->config_base);
+}
+
+static void snr_uncore_mmio_disable_event(struct intel_uncore_box *box,
+					    struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!box->io_addr)
+		return;
+
+	writel(hwc->config, box->io_addr + hwc->config_base);
+}
+
+static struct intel_uncore_ops snr_uncore_mmio_ops = {
+	.init_box	= snr_uncore_mmio_init_box,
+	.exit_box	= uncore_mmio_exit_box,
+	.disable_box	= snr_uncore_mmio_disable_box,
+	.enable_box	= snr_uncore_mmio_enable_box,
+	.disable_event	= snr_uncore_mmio_disable_event,
+	.enable_event	= snr_uncore_mmio_enable_event,
+	.read_counter	= uncore_mmio_read_counter,
+};
+
+static struct uncore_event_desc snr_uncore_imc_events[] = {
+	INTEL_UNCORE_EVENT_DESC(clockticks,      "event=0x00,umask=0x00"),
+	INTEL_UNCORE_EVENT_DESC(cas_count_read,  "event=0x04,umask=0x0f"),
+	INTEL_UNCORE_EVENT_DESC(cas_count_read.scale, "6.103515625e-5"),
+	INTEL_UNCORE_EVENT_DESC(cas_count_read.unit, "MiB"),
+	INTEL_UNCORE_EVENT_DESC(cas_count_write, "event=0x04,umask=0x30"),
+	INTEL_UNCORE_EVENT_DESC(cas_count_write.scale, "6.103515625e-5"),
+	INTEL_UNCORE_EVENT_DESC(cas_count_write.unit, "MiB"),
+	{ /* end: all zeroes */ },
+};
+
+static struct intel_uncore_type snr_uncore_imc = {
+	.name		= "imc",
+	.num_counters   = 4,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 48,
+	.fixed_ctr_bits	= 48,
+	.fixed_ctr	= SNR_IMC_MMIO_PMON_FIXED_CTR,
+	.fixed_ctl	= SNR_IMC_MMIO_PMON_FIXED_CTL,
+	.event_descs	= snr_uncore_imc_events,
+	.perf_ctr	= SNR_IMC_MMIO_PMON_CTR0,
+	.event_ctl	= SNR_IMC_MMIO_PMON_CTL0,
+	.event_mask	= SNBEP_PMON_RAW_EVENT_MASK,
+	.box_ctl	= SNR_IMC_MMIO_PMON_BOX_CTL,
+	.mmio_offset	= SNR_IMC_MMIO_OFFSET,
+	.ops		= &snr_uncore_mmio_ops,
+	.format_group	= &skx_uncore_format_group,
+};
+
+enum perf_uncore_snr_imc_freerunning_type_id {
+	SNR_IMC_DCLK,
+	SNR_IMC_DDR,
+
+	SNR_IMC_FREERUNNING_TYPE_MAX,
+};
+
+static struct freerunning_counters snr_imc_freerunning[] = {
+	[SNR_IMC_DCLK]	= { 0x22b0, 0x0, 0, 1, 48 },
+	[SNR_IMC_DDR]	= { 0x2290, 0x8, 0, 2, 48 },
+};
+
+static struct uncore_event_desc snr_uncore_imc_freerunning_events[] = {
+	INTEL_UNCORE_EVENT_DESC(dclk,		"event=0xff,umask=0x10"),
+
+	INTEL_UNCORE_EVENT_DESC(read,		"event=0xff,umask=0x20"),
+	INTEL_UNCORE_EVENT_DESC(read.scale,	"3.814697266e-6"),
+	INTEL_UNCORE_EVENT_DESC(read.unit,	"MiB"),
+	INTEL_UNCORE_EVENT_DESC(write,		"event=0xff,umask=0x21"),
+	INTEL_UNCORE_EVENT_DESC(write.scale,	"3.814697266e-6"),
+	INTEL_UNCORE_EVENT_DESC(write.unit,	"MiB"),
+};
+
+static struct intel_uncore_ops snr_uncore_imc_freerunning_ops = {
+	.init_box	= snr_uncore_mmio_init_box,
+	.exit_box	= uncore_mmio_exit_box,
+	.read_counter	= uncore_mmio_read_counter,
+	.hw_config	= uncore_freerunning_hw_config,
+};
+
+static struct intel_uncore_type snr_uncore_imc_free_running = {
+	.name			= "imc_free_running",
+	.num_counters		= 3,
+	.num_boxes		= 1,
+	.num_freerunning_types	= SNR_IMC_FREERUNNING_TYPE_MAX,
+	.freerunning		= snr_imc_freerunning,
+	.ops			= &snr_uncore_imc_freerunning_ops,
+	.event_descs		= snr_uncore_imc_freerunning_events,
+	.format_group		= &skx_uncore_iio_freerunning_format_group,
+};
+
+static struct intel_uncore_type *snr_mmio_uncores[] = {
+	&snr_uncore_imc,
+	&snr_uncore_imc_free_running,
+	NULL,
+};
+
+void snr_uncore_mmio_init(void)
+{
+	uncore_mmio_uncores = snr_mmio_uncores;
 }
 
 /* end of SNR uncore support */
