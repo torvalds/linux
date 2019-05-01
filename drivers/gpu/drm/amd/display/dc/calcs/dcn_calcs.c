@@ -711,7 +711,7 @@ bool dcn_validate_bandwidth(
 
 	const struct resource_pool *pool = dc->res_pool;
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;
-	int i, input_idx;
+	int i, input_idx, k;
 	int vesa_sync_start, asic_blank_end, asic_blank_start;
 	bool bw_limit_pass;
 	float bw_limit;
@@ -1020,6 +1020,43 @@ bool dcn_validate_bandwidth(
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
 		context->bw_ctx.dml.soc.sr_exit_time_us = v->sr_exit_time;
 		mode_support_and_system_configuration(v);
+	}
+
+	display_pipe_configuration(v);
+
+	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
+		if (v->source_scan[k] == dcn_bw_hor)
+			v->swath_width_y[k] = v->viewport_width[k] / v->dpp_per_plane[k];
+		else
+			v->swath_width_y[k] = v->viewport_height[k] / v->dpp_per_plane[k];
+	}
+	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
+		if (v->source_pixel_format[k] == dcn_bw_rgb_sub_64) {
+			v->byte_per_pixel_dety[k] = 8.0;
+			v->byte_per_pixel_detc[k] = 0.0;
+		} else if (v->source_pixel_format[k] == dcn_bw_rgb_sub_32) {
+			v->byte_per_pixel_dety[k] = 4.0;
+			v->byte_per_pixel_detc[k] = 0.0;
+		} else if (v->source_pixel_format[k] == dcn_bw_rgb_sub_16) {
+			v->byte_per_pixel_dety[k] = 2.0;
+			v->byte_per_pixel_detc[k] = 0.0;
+		} else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_8) {
+			v->byte_per_pixel_dety[k] = 1.0;
+			v->byte_per_pixel_detc[k] = 2.0;
+		} else {
+			v->byte_per_pixel_dety[k] = 4.0f / 3.0f;
+			v->byte_per_pixel_detc[k] = 8.0f / 3.0f;
+		}
+	}
+
+	v->total_data_read_bandwidth = 0.0;
+	for (k = 0; k <= v->number_of_active_planes - 1; k++) {
+		v->read_bandwidth_plane_luma[k] = v->swath_width_y[k] * v->dpp_per_plane[k] *
+				dcn_bw_ceil2(v->byte_per_pixel_dety[k], 1.0) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k];
+		v->read_bandwidth_plane_chroma[k] = v->swath_width_y[k] / 2.0 * v->dpp_per_plane[k] *
+				dcn_bw_ceil2(v->byte_per_pixel_detc[k], 2.0) / (v->htotal[k] / v->pixel_clock[k]) * v->v_ratio[k] / 2.0;
+		v->total_data_read_bandwidth = v->total_data_read_bandwidth +
+				v->read_bandwidth_plane_luma[k] + v->read_bandwidth_plane_chroma[k];
 	}
 
 	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
