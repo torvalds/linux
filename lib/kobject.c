@@ -603,12 +603,13 @@ EXPORT_SYMBOL_GPL(kobject_move);
 void kobject_del(struct kobject *kobj)
 {
 	struct kernfs_node *sd;
-	const struct kobj_type *ktype = get_ktype(kobj);
+	const struct kobj_type *ktype;
 
 	if (!kobj)
 		return;
 
 	sd = kobj->sd;
+	ktype = get_ktype(kobj);
 
 	if (ktype)
 		sysfs_remove_groups(kobj, ktype->default_groups);
