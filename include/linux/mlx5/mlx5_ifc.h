@@ -1265,7 +1265,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_geneve_tlv_option_data_len[0x5];
 	u8         reserved_at_570[0x10];
 
-	u8         reserved_at_580[0x1c];
+	u8         reserved_at_580[0x3c];
 	u8         mini_cqe_resp_stride_index[0x1];
 	u8         cqe_128_always[0x1];
 	u8         cqe_compression_128[0x1];
@@ -9566,7 +9566,7 @@ struct mlx5_ifc_sw_icm_bits {
 	u8         sw_icm_start_addr[0x40];
 
 	u8         reserved_at_c0[0x140];
-}; 
+};
 
 struct mlx5_ifc_geneve_tlv_option_bits {
 	u8         modify_field_select[0x40];
