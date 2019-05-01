@@ -258,7 +258,7 @@ struct kfd_dev {
 	bool interrupts_active;
 
 	/* Debug manager */
-	struct kfd_dbgmgr           *dbgmgr;
+	struct kfd_dbgmgr *dbgmgr;
 
 	/* Firmware versions */
 	uint16_t mec_fw_version;

@@ -149,7 +149,8 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		};
 
 		/* this is going to have a few of the MSBs set that we need to
-		 * clear */
+		 * clear
+		 */
 		bitmap_complement(gpu_resources.queue_bitmap,
 				  adev->gfx.mec.queue_bitmap,
 				  KGD_MAX_QUEUES);
@@ -163,7 +164,8 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				  gpu_resources.queue_bitmap);
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
-		 * nbits is not compile time constant */
+		 * nbits is not compile time constant
+		 */
 		last_valid_bit = 1 /* only first MEC can have compute queues */
 				* adev->gfx.mec.num_pipe_per_mec
 				* adev->gfx.mec.num_queue_per_pipe;

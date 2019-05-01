@@ -1410,7 +1410,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 			ret = map_bo_to_gpuvm(adev, entry, ctx.sync,
 					      is_invalid_userptr);
 			if (ret) {
-				pr_err("Failed to map radeon bo to gpuvm\n");
+				pr_err("Failed to map bo to gpuvm\n");
 				goto map_bo_to_gpuvm_failed;
 			}
 

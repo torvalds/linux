@@ -522,7 +522,7 @@ static int kfd_ioctl_set_trap_handler(struct file *filep,
 	struct kfd_process_device *pdd;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);
