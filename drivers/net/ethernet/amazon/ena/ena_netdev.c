@@ -224,28 +224,23 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	if (!tx_ring->tx_buffer_info) {
 		tx_ring->tx_buffer_info = vzalloc(size);
 		if (!tx_ring->tx_buffer_info)
-			return -ENOMEM;
+			goto err_tx_buffer_info;
 	}
 
 	size = sizeof(u16) * tx_ring->ring_size;
 	tx_ring->free_tx_ids = vzalloc_node(size, node);
 	if (!tx_ring->free_tx_ids) {
 		tx_ring->free_tx_ids = vzalloc(size);
-		if (!tx_ring->free_tx_ids) {
-			vfree(tx_ring->tx_buffer_info);
-			return -ENOMEM;
-		}
+		if (!tx_ring->free_tx_ids)
+			goto err_free_tx_ids;
 	}
 
 	size = tx_ring->tx_max_header_size;
 	tx_ring->push_buf_intermediate_buf = vzalloc_node(size, node);
 	if (!tx_ring->push_buf_intermediate_buf) {
 		tx_ring->push_buf_intermediate_buf = vzalloc(size);
-		if (!tx_ring->push_buf_intermediate_buf) {
-			vfree(tx_ring->tx_buffer_info);
-			vfree(tx_ring->free_tx_ids);
-			return -ENOMEM;
-		}
+		if (!tx_ring->push_buf_intermediate_buf)
+			goto err_push_buf_intermediate_buf;
 	}
 
 	/* Req id ring for TX out of order completions */
@@ -259,6 +254,15 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	tx_ring->next_to_clean = 0;
 	tx_ring->cpu = ena_irq->cpu;
 	return 0;
+
+err_push_buf_intermediate_buf:
+	vfree(tx_ring->free_tx_ids);
+	tx_ring->free_tx_ids = NULL;
+err_free_tx_ids:
+	vfree(tx_ring->tx_buffer_info);
+	tx_ring->tx_buffer_info = NULL;
+err_tx_buffer_info:
+	return -ENOMEM;
 }
 
 /* ena_free_tx_resources - Free I/O Tx Resources per Queue
@@ -378,6 +382,7 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 		rx_ring->free_rx_ids = vzalloc(size);
 		if (!rx_ring->free_rx_ids) {
 			vfree(rx_ring->rx_buffer_info);
+			rx_ring->rx_buffer_info = NULL;
 			return -ENOMEM;
 		}
 	}
