@@ -4285,7 +4285,7 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 
 	if (val & ADSP2_WDT_TIMEOUT_STS_MASK) {
 		adsp_err(dsp, "watchdog timeout error\n");
-		wm_adsp_stop_watchdog(dsp);
+		dsp->ops->stop_watchdog(dsp);
 		wm_adsp_fatal_error(dsp);
 	}
 
@@ -4396,7 +4396,7 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 	mutex_lock(&dsp->pwr_lock);
 
 	adsp_warn(dsp, "WDT Expiry Fault\n");
-	wm_halo_stop_watchdog(dsp);
+	dsp->ops->stop_watchdog(dsp);
 	wm_adsp_fatal_error(dsp);
 
 	mutex_unlock(&dsp->pwr_lock);
