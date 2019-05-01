@@ -1,17 +1,13 @@
-/*
- * Device driver for regulators in Hi6421 IC
- *
- * Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
- *              http://www.hisilicon.com
- * Copyright (c) <2013-2014> Linaro Ltd.
- *              http://www.linaro.org
- *
- * Author: Guodong Xu <guodong.xu@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Device driver for regulators in Hi6421 IC
+//
+// Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
+//              http://www.hisilicon.com
+// Copyright (c) <2013-2014> Linaro Ltd.
+//              http://www.linaro.org
+//
+// Author: Guodong Xu <guodong.xu@linaro.org>
 
 #include <linux/slab.h>
 #include <linux/device.h>
