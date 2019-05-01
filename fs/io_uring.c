@@ -333,7 +333,7 @@ struct io_kiocb {
 #define REQ_F_IO_DRAIN		32	/* drain existing IO first */
 #define REQ_F_IO_DRAINED	64	/* drain done */
 	u64			user_data;
-	u32			error;
+	u32			error;	/* iopoll result from callback */
 	u32			sequence;
 
 	struct work_struct	work;
@@ -1520,7 +1520,6 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		spin_unlock(&poll->head->lock);
 	}
 	if (mask) { /* no async, we'd stolen it */
-		req->error = mangle_poll(mask);
 		ipt.error = 0;
 		io_poll_complete(ctx, req, mask);
 	}
