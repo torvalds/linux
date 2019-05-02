@@ -2965,6 +2965,10 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	/* GPU Load */
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD, (void *)&value, &size))
 		seq_printf(m, "GPU Load: %u %%\n", value);
+	/* MEM Load */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MEM_LOAD, (void *)&value, &size))
+		seq_printf(m, "MEM Load: %u %%\n", value);
+
 	seq_printf(m, "\n");
 
 	/* SMC feature mask */
