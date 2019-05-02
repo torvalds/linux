@@ -99,15 +99,15 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 {
 	struct iomd_dma *idma = dev_id;
 	unsigned long base = idma->base;
+	unsigned int state = idma->state;
+	unsigned int status;
 
 	do {
-		unsigned int status;
-
 		status = iomd_readb(base + ST);
 		if (!(status & DMA_ST_INT))
-			return IRQ_HANDLED;
+			goto out;
 
-		if ((idma->state ^ status) & DMA_ST_AB)
+		if ((state ^ status) & DMA_ST_AB)
 			iomd_get_next_sg(idma);
 
 		switch (status & (DMA_ST_OFL | DMA_ST_AB)) {
@@ -115,14 +115,14 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 		case DMA_ST_AB:				/* .IB */
 			iomd_writel(idma->cur_addr, base + CURA);
 			iomd_writel(idma->cur_len, base + ENDA);
-			idma->state = DMA_ST_AB;
+			state = DMA_ST_AB;
 			break;
 
 		case DMA_ST_OFL | DMA_ST_AB:		/* OIB */
 		case 0:					/* .IA */
 			iomd_writel(idma->cur_addr, base + CURB);
 			iomd_writel(idma->cur_len, base + ENDB);
-			idma->state = 0;
+			state = 0;
 			break;
 		}
 
@@ -131,9 +131,10 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 			break;
 	} while (1);
 
-	idma->state = ~DMA_ST_AB;
+	state = ~DMA_ST_AB;
 	disable_irq_nosync(irq);
-
+out:
+	idma->state = state;
 	return IRQ_HANDLED;
 }
 
