@@ -2648,16 +2648,8 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	struct cifsInodeInfo *cifsi;
 	struct cifsFileInfo *cfile = file->private_data;
 	struct file_zero_data_information fsctl_buf;
-	struct smb_rqst rqst[2];
-	int resp_buftype[2];
-	struct kvec rsp_iov[2];
-	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
-	struct kvec si_iov[1];
-	unsigned int size[1];
-	void *data[1];
 	long rc;
 	unsigned int xid;
-	int num = 0, flags = 0;
 	__le64 eof;
 
 	xid = get_xid();
@@ -2684,22 +2676,11 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	fsctl_buf.FileOffset = cpu_to_le64(offset);
 	fsctl_buf.BeyondFinalZero = cpu_to_le64(offset + len);
 
-	if (smb3_encryption_required(tcon))
-		flags |= CIFS_TRANSFORM_REQ;
-
-	memset(rqst, 0, sizeof(rqst));
-	resp_buftype[0] = resp_buftype[1] = CIFS_NO_BUFFER;
-	memset(rsp_iov, 0, sizeof(rsp_iov));
-
-
-	memset(&io_iov, 0, sizeof(io_iov));
-	rqst[num].rq_iov = io_iov;
-	rqst[num].rq_nvec = SMB2_IOCTL_IOV_SIZE;
-	rc = SMB2_ioctl_init(tcon, &rqst[num++], cfile->fid.persistent_fid,
-			     cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
-			     true /* is_fctl */, (char *)&fsctl_buf,
-			     sizeof(struct file_zero_data_information),
-			     CIFSMaxBufSize);
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA, true,
+			(char *)&fsctl_buf,
+			sizeof(struct file_zero_data_information),
+			0, NULL, NULL);
 	if (rc)
 		goto zero_range_exit;
 
@@ -2707,33 +2688,12 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	 * do we also need to change the size of the file?
 	 */
 	if (keep_size == false && i_size_read(inode) < offset + len) {
-		smb2_set_next_command(tcon, &rqst[0]);
-
-		memset(&si_iov, 0, sizeof(si_iov));
-		rqst[num].rq_iov = si_iov;
-		rqst[num].rq_nvec = 1;
-
 		eof = cpu_to_le64(offset + len);
-		size[0] = 8; /* sizeof __le64 */
-		data[0] = &eof;
-
-		rc = SMB2_set_info_init(tcon, &rqst[num++],
-					cfile->fid.persistent_fid,
-					cfile->fid.persistent_fid,
-					current->tgid,
-					FILE_END_OF_FILE_INFORMATION,
-					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_related(&rqst[1]);
+		rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
+				  cfile->fid.volatile_fid, cfile->pid, &eof);
 	}
 
-	rc = compound_send_recv(xid, ses, flags, num, rqst,
-				resp_buftype, rsp_iov);
-
  zero_range_exit:
-	SMB2_ioctl_free(&rqst[0]);
-	SMB2_set_info_free(&rqst[1]);
-	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
-	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	free_xid(xid);
 	if (rc)
 		trace_smb3_zero_err(xid, cfile->fid.persistent_fid, tcon->tid,
