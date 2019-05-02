@@ -35,7 +35,6 @@
  * platform_device->driver_data ... points to spi_gpio
  *
  * spi->controller_state ... reserved for bitbang framework code
- * spi->controller_data ... holds chipselect GPIO
  *
  * spi->master->dev.driver_data ... points to spi_gpio->bitbang
  */
