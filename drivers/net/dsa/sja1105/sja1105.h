@@ -48,11 +48,14 @@ struct sja1105_info {
 	const struct sja1105_table_ops *static_ops;
 	const struct sja1105_regs *regs;
 	int (*reset_cmd)(const void *ctx, const void *data);
+	int (*setup_rgmii_delay)(const void *ctx, int port);
 	const char *name;
 };
 
 struct sja1105_private {
 	struct sja1105_static_config static_config;
+	bool rgmii_rx_delay[SJA1105_NUM_PORTS];
+	bool rgmii_tx_delay[SJA1105_NUM_PORTS];
 	const struct sja1105_info *info;
 	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
