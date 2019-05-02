@@ -56,6 +56,7 @@ const struct ib_gid_attr *rdma_find_gid_by_filter(
 
 int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
 			    u16 *vlan_id, u8 *smac);
+struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
 
 /**
  * ib_get_cached_pkey - Returns a cached PKey table entry

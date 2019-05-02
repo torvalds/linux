@@ -1249,6 +1249,7 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
 	read_unlock_irqrestore(&table->rwlock, flags);
 	return ndev;
 }
+EXPORT_SYMBOL(rdma_read_gid_attr_ndev_rcu);
 
 static int get_lower_dev_vlan(struct net_device *lower_dev, void *data)
 {
