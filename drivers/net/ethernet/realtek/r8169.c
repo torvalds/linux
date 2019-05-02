@@ -1286,21 +1286,6 @@ static void rtl_reset_packet_filter(struct rtl8169_private *tp)
 	rtl_eri_set_bits(tp, 0xdc, ERIAR_MASK_0001, BIT(0));
 }
 
-struct exgmac_reg {
-	u16 addr;
-	u16 mask;
-	u32 val;
-};
-
-static void rtl_write_exgmac_batch(struct rtl8169_private *tp,
-				   const struct exgmac_reg *r, int len)
-{
-	while (len-- > 0) {
-		rtl_eri_write(tp, r->addr, r->mask, r->val);
-		r++;
-	}
-}
-
 DECLARE_RTL_COND(rtl_efusear_cond)
 {
 	return RTL_R32(tp, EFUSEAR) & EFUSEAR_FLAG;
@@ -3288,14 +3273,11 @@ static void rtl_rar_exgmac_set(struct rtl8169_private *tp, u8 *addr)
 		addr[2] | (addr[3] << 8),
 		addr[4] | (addr[5] << 8)
 	};
-	const struct exgmac_reg e[] = {
-		{ .addr = 0xe0, ERIAR_MASK_1111, .val = w[0] | (w[1] << 16) },
-		{ .addr = 0xe4, ERIAR_MASK_1111, .val = w[2] },
-		{ .addr = 0xf0, ERIAR_MASK_1111, .val = w[0] << 16 },
-		{ .addr = 0xf4, ERIAR_MASK_1111, .val = w[1] | (w[2] << 16) }
-	};
 
-	rtl_write_exgmac_batch(tp, e, ARRAY_SIZE(e));
+	rtl_eri_write(tp, 0xe0, ERIAR_MASK_1111, w[0] | (w[1] << 16));
+	rtl_eri_write(tp, 0xe4, ERIAR_MASK_1111, w[2]);
+	rtl_eri_write(tp, 0xf0, ERIAR_MASK_1111, w[0] << 16);
+	rtl_eri_write(tp, 0xf4, ERIAR_MASK_1111, w[1] | (w[2] << 16));
 }
 
 static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
