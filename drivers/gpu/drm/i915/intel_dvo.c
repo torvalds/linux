@@ -39,6 +39,11 @@
 #include "intel_dvo_dev.h"
 #include "intel_panel.h"
 
+#define INTEL_DVO_CHIP_NONE	0
+#define INTEL_DVO_CHIP_LVDS	1
+#define INTEL_DVO_CHIP_TMDS	2
+#define INTEL_DVO_CHIP_TVOUT	4
+
 #define SIL164_ADDR	0x38
 #define CH7xxx_ADDR	0x76
 #define TFP410_ADDR	0x38
