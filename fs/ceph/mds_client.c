@@ -1855,7 +1855,8 @@ again:
 		num_cap_releases--;
 
 		head = msg->front.iov_base;
-		le32_add_cpu(&head->num, 1);
+		put_unaligned_le32(get_unaligned_le32(&head->num) + 1,
+				   &head->num);
 		item = msg->front.iov_base + msg->front.iov_len;
 		item->ino = cpu_to_le64(cap->cap_ino);
 		item->cap_id = cpu_to_le64(cap->cap_id);
