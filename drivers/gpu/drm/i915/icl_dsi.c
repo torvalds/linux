@@ -1212,7 +1212,11 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	/* FIXME: adapt icl_ddi_clock_get() for DSI and use that? */
 	pipe_config->port_clock =
 		cnl_calc_wrpll_link(dev_priv, &pipe_config->dpll_hw_state);
+
 	pipe_config->base.adjusted_mode.crtc_clock = intel_dsi->pclk;
+	if (intel_dsi->dual_link)
+		pipe_config->base.adjusted_mode.crtc_clock *= 2;
+
 	gen11_dsi_get_timings(encoder, pipe_config);
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 	pipe_config->pipe_bpp = bdw_get_pipemisc_bpp(crtc);
