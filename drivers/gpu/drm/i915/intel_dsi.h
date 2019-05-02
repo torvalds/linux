@@ -28,6 +28,9 @@
 #include <drm/drm_mipi_dsi.h>
 #include "intel_drv.h"
 
+#define INTEL_DSI_VIDEO_MODE	0
+#define INTEL_DSI_COMMAND_MODE	1
+
 /* Dual Link support */
 #define DSI_DUAL_LINK_NONE		0
 #define DSI_DUAL_LINK_FRONT_BACK	1

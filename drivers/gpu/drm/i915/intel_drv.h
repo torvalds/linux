@@ -184,9 +184,6 @@ enum intel_output_type {
 	INTEL_OUTPUT_DP_MST = 11,
 };
 
-#define INTEL_DSI_VIDEO_MODE	0
-#define INTEL_DSI_COMMAND_MODE	1
-
 struct intel_framebuffer {
 	struct drm_framebuffer base;
 	struct intel_rotation_info rot_info;
