@@ -2890,7 +2890,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	 */
 	i915_gem_runtime_suspend(dev_priv);
 
-	intel_uc_suspend(dev_priv);
+	intel_uc_runtime_suspend(dev_priv);
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
