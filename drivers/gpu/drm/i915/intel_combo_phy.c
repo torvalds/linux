@@ -148,7 +148,7 @@ static bool cnl_combo_phy_verify_state(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-void cnl_combo_phys_init(struct drm_i915_private *dev_priv)
+static void cnl_combo_phys_init(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
@@ -168,7 +168,7 @@ void cnl_combo_phys_init(struct drm_i915_private *dev_priv)
 	I915_WRITE(CNL_PORT_CL1CM_DW5, val);
 }
 
-void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv)
+static void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
@@ -256,7 +256,7 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 	I915_WRITE(ICL_PORT_CL_DW10(port), val);
 }
 
-void icl_combo_phys_init(struct drm_i915_private *dev_priv)
+static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 {
 	enum port port;
 
@@ -285,7 +285,7 @@ void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 	}
 }
 
-void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
+static void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 {
 	enum port port;
 
@@ -305,4 +305,20 @@ void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 		val &= ~COMP_INIT;
 		I915_WRITE(ICL_PORT_COMP_DW0(port), val);
 	}
+}
+
+void intel_combo_phy_init(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) >= 11)
+		icl_combo_phys_init(i915);
+	else if (IS_CANNONLAKE(i915))
+		cnl_combo_phys_init(i915);
+}
+
+void intel_combo_phy_uninit(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) >= 11)
+		icl_combo_phys_uninit(i915);
+	else if (IS_CANNONLAKE(i915))
+		cnl_combo_phys_uninit(i915);
 }

@@ -1140,7 +1140,7 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 		 * PHY's HW context for port B is lost after DC transitions,
 		 * so we need to restore it manually.
 		 */
-		icl_combo_phys_init(dev_priv);
+		intel_combo_phy_init(dev_priv);
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
@@ -3779,7 +3779,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	/* 2-3. */
-	cnl_combo_phys_init(dev_priv);
+	intel_combo_phy_init(dev_priv);
 
 	/*
 	 * 4. Enable Power Well 1 (PG1).
@@ -3828,7 +3828,7 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 	usleep_range(10, 30);		/* 10 us delay per Bspec */
 
 	/* 5. */
-	cnl_combo_phys_uninit(dev_priv);
+	intel_combo_phy_uninit(dev_priv);
 }
 
 void icl_display_core_init(struct drm_i915_private *dev_priv,
@@ -3843,7 +3843,7 @@ void icl_display_core_init(struct drm_i915_private *dev_priv,
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	/* 2. Initialize all combo phys */
-	icl_combo_phys_init(dev_priv);
+	intel_combo_phy_init(dev_priv);
 
 	/*
 	 * 3. Enable Power Well 1 (PG1).
@@ -3893,7 +3893,7 @@ void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 
 	/* 5. */
-	icl_combo_phys_uninit(dev_priv);
+	intel_combo_phy_uninit(dev_priv);
 }
 
 static void chv_phy_control_init(struct drm_i915_private *dev_priv)
