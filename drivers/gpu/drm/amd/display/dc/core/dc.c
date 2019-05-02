@@ -1333,74 +1333,94 @@ static bool is_surface_in_context(
 static enum surface_update_type get_plane_info_update_type(const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
+	enum surface_update_type update_type = UPDATE_TYPE_FAST;
 
 	if (!u->plane_info)
 		return UPDATE_TYPE_FAST;
 
-	if (u->plane_info->color_space != u->surface->color_space)
+	if (u->plane_info->color_space != u->surface->color_space) {
 		update_flags->bits.color_space_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+	}
 
-	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror)
+	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror) {
 		update_flags->bits.horizontal_mirror_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+	}
 
-	if (u->plane_info->rotation != u->surface->rotation)
+	if (u->plane_info->rotation != u->surface->rotation) {
 		update_flags->bits.rotation_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+	}
 
-	if (u->plane_info->format != u->surface->format)
+	if (u->plane_info->format != u->surface->format) {
 		update_flags->bits.pixel_format_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+	}
 
-	if (u->plane_info->stereo_format != u->surface->stereo_format)
+	if (u->plane_info->stereo_format != u->surface->stereo_format) {
 		update_flags->bits.stereo_format_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+	}
 
-	if (u->plane_info->per_pixel_alpha != u->surface->per_pixel_alpha)
+	if (u->plane_info->per_pixel_alpha != u->surface->per_pixel_alpha) {
 		update_flags->bits.per_pixel_alpha_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+	}
 
-	if (u->plane_info->global_alpha_value != u->surface->global_alpha_value)
+	if (u->plane_info->global_alpha_value != u->surface->global_alpha_value) {
 		update_flags->bits.global_alpha_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+	}
 
-	if (u->plane_info->sdr_white_level != u->surface->sdr_white_level)
+	if (u->plane_info->sdr_white_level != u->surface->sdr_white_level) {
 		update_flags->bits.sdr_white_level = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+	}
 
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
 			|| u->plane_info->dcc.grph.independent_64b_blks != u->surface->dcc.grph.independent_64b_blks
-			|| u->plane_info->dcc.grph.meta_pitch != u->surface->dcc.grph.meta_pitch)
+			|| u->plane_info->dcc.grph.meta_pitch != u->surface->dcc.grph.meta_pitch) {
 		update_flags->bits.dcc_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+	}
 
 	if (resource_pixel_format_to_bpp(u->plane_info->format) !=
-			resource_pixel_format_to_bpp(u->surface->format))
+			resource_pixel_format_to_bpp(u->surface->format)) {
 		/* different bytes per element will require full bandwidth
 		 * and DML calculation
 		 */
 		update_flags->bits.bpp_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+	}
 
 	if (u->plane_info->plane_size.grph.surface_pitch != u->surface->plane_size.grph.surface_pitch
 			|| u->plane_info->plane_size.video.luma_pitch != u->surface->plane_size.video.luma_pitch
-			|| u->plane_info->plane_size.video.chroma_pitch != u->surface->plane_size.video.chroma_pitch)
+			|| u->plane_info->plane_size.video.chroma_pitch != u->surface->plane_size.video.chroma_pitch) {
 		update_flags->bits.plane_size_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+	}
 
 
 	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
 			sizeof(union dc_tiling_info)) != 0) {
 		update_flags->bits.swizzle_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_MED);
+
 		/* todo: below are HW dependent, we should add a hook to
 		 * DCE/N resource and validated there.
 		 */
-		if (u->plane_info->tiling_info.gfx9.swizzle != DC_SW_LINEAR)
+		if (u->plane_info->tiling_info.gfx9.swizzle != DC_SW_LINEAR) {
 			/* swizzled mode requires RQ to be setup properly,
 			 * thus need to run DML to calculate RQ settings
 			 */
 			update_flags->bits.bandwidth_change = 1;
+			elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+		}
 	}
 
-	if (update_flags->bits.rotation_change
-			|| update_flags->bits.stereo_format_change
-			|| update_flags->bits.pixel_format_change
-			|| update_flags->bits.bpp_change
-			|| update_flags->bits.bandwidth_change
-			|| update_flags->bits.output_tf_change)
-		return UPDATE_TYPE_FULL;
-
-	return update_flags->raw ? UPDATE_TYPE_MED : UPDATE_TYPE_FAST;
+	/* This should be UPDATE_TYPE_FAST if nothing has changed. */
+	return update_type;
 }
 
 static enum surface_update_type get_scaling_info_update_type(
@@ -1464,9 +1484,6 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 	update_flags->raw = 0; // Reset all flags
 
-	if (u->flip_addr)
-		update_flags->bits.addr_update = 1;
-
 	if (!is_surface_in_context(context, u->surface)) {
 		update_flags->bits.new_plane = 1;
 		return UPDATE_TYPE_FULL;
@@ -1482,6 +1499,9 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 	type = get_scaling_info_update_type(u);
 	elevate_update_type(&overall_type, type);
+
+	if (u->flip_addr)
+		update_flags->bits.addr_update = 1;
 
 	if (u->in_transfer_func)
 		update_flags->bits.in_transfer_func_change = 1;
