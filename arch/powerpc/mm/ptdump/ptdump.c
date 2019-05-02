@@ -31,7 +31,7 @@
 #include "ptdump.h"
 
 #ifdef CONFIG_PPC32
-#define KERN_VIRT_START	0
+#define KERN_VIRT_START	PAGE_OFFSET
 #endif
 
 /*
@@ -68,6 +68,8 @@ struct pg_state {
 	unsigned long last_pa;
 	unsigned int level;
 	u64 current_flags;
+	bool check_wx;
+	unsigned long wx_pages;
 };
 
 struct addr_marker {
@@ -181,6 +183,20 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 
 }
 
+static void note_prot_wx(struct pg_state *st, unsigned long addr)
+{
+	if (!st->check_wx)
+		return;
+
+	if (!((st->current_flags & pgprot_val(PAGE_KERNEL_X)) == pgprot_val(PAGE_KERNEL_X)))
+		return;
+
+	WARN_ONCE(1, "powerpc/mm: Found insecure W+X mapping at address %p/%pS\n",
+		  (void *)st->start_address, (void *)st->start_address);
+
+	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
+}
+
 static void note_page(struct pg_state *st, unsigned long addr,
 	       unsigned int level, u64 val)
 {
@@ -210,6 +226,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 
 		/* Check the PTE flags */
 		if (st->current_flags) {
+			note_prot_wx(st, addr);
 			dump_addr(st, addr);
 
 			/* Dump all the flags */
@@ -386,6 +403,30 @@ static void build_pgtable_complete_mask(void)
 			for (j = 0; j < pg_level[i].num; j++)
 				pg_level[i].mask |= pg_level[i].flag[j].mask;
 }
+
+#ifdef CONFIG_PPC_DEBUG_WX
+void ptdump_check_wx(void)
+{
+	struct pg_state st = {
+		.seq = NULL,
+		.marker = address_markers,
+		.check_wx = true,
+	};
+
+	if (radix_enabled())
+		st.start_address = PAGE_OFFSET;
+	else
+		st.start_address = KERN_VIRT_START;
+
+	walk_pagetables(&st);
+
+	if (st.wx_pages)
+		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n",
+			st.wx_pages);
+	else
+		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+}
+#endif
 
 static int ptdump_init(void)
 {

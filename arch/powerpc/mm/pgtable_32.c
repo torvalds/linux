@@ -396,6 +396,9 @@ void mark_rodata_ro(void)
 		   PFN_DOWN((unsigned long)__start_rodata);
 
 	change_page_attr(page, numpages, PAGE_KERNEL_RO);
+
+	// mark_initmem_nx() should have already run by now
+	ptdump_check_wx();
 }
 #endif
 
