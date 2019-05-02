@@ -27,9 +27,9 @@
 
 struct iomd_dma {
 	struct dma_struct	dma;
-	unsigned int		state;
-	unsigned long		base;		/* Controller base address */
+	void __iomem		*base;		/* Controller base address */
 	int			irq;		/* Controller IRQ */
+	unsigned int		state;
 	dma_addr_t		cur_addr;
 	unsigned int		cur_len;
 	dma_addr_t		dma_addr;
@@ -98,12 +98,12 @@ static void iomd_get_next_sg(struct iomd_dma *idma)
 static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 {
 	struct iomd_dma *idma = dev_id;
-	unsigned long base = idma->base;
+	void __iomem *base = idma->base;
 	unsigned int state = idma->state;
 	unsigned int status, cur, end;
 
 	do {
-		status = iomd_readb(base + ST);
+		status = readb(base + ST);
 		if (!(status & DMA_ST_INT))
 			goto out;
 
@@ -119,8 +119,8 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 			cur = CURB;
 			end = ENDB;
 		}
-		iomd_writel(idma->cur_addr, base + cur);
-		iomd_writel(idma->cur_len, base + end);
+		writel(idma->cur_addr, base + cur);
+		writel(idma->cur_len, base + end);
 
 		if (status & DMA_ST_OFL &&
 		    idma->cur_len == (DMA_END_S|DMA_END_L))
@@ -152,7 +152,7 @@ static void iomd_free_dma(unsigned int chan, dma_t *dma)
 static void iomd_enable_dma(unsigned int chan, dma_t *dma)
 {
 	struct iomd_dma *idma = container_of(dma, struct iomd_dma, dma);
-	unsigned long dma_base = idma->base;
+	void __iomem *base = idma->base;
 	unsigned int ctrl = TRANSFER_SIZE | DMA_CR_E;
 
 	if (idma->dma.invalid) {
@@ -175,27 +175,27 @@ static void iomd_enable_dma(unsigned int chan, dma_t *dma)
 		idma->dma_addr = idma->dma.sg->dma_address;
 		idma->dma_len = idma->dma.sg->length;
 
-		iomd_writeb(DMA_CR_C, dma_base + CR);
+		writeb(DMA_CR_C, base + CR);
 		idma->state = DMA_ST_AB;
 	}
 
 	if (idma->dma.dma_mode == DMA_MODE_READ)
 		ctrl |= DMA_CR_D;
 
-	iomd_writeb(ctrl, dma_base + CR);
+	writeb(ctrl, base + CR);
 	enable_irq(idma->irq);
 }
 
 static void iomd_disable_dma(unsigned int chan, dma_t *dma)
 {
 	struct iomd_dma *idma = container_of(dma, struct iomd_dma, dma);
-	unsigned long dma_base = idma->base;
+	void __iomem *base = idma->base;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	if (idma->state != ~DMA_ST_AB)
 		disable_irq(idma->irq);
-	iomd_writeb(0, dma_base + CR);
+	writeb(0, base + CR);
 	local_irq_restore(flags);
 }
 
@@ -358,17 +358,17 @@ static int __init rpc_dma_init(void)
 	 */
 	iomd_writeb(DMA_EXT_IO3|DMA_EXT_IO2, IOMD_DMAEXT);
 
-	iomd_dma[DMA_0].base	= IOMD_IO0CURA;
+	iomd_dma[DMA_0].base	= IOMD_BASE + IOMD_IO0CURA;
 	iomd_dma[DMA_0].irq	= IRQ_DMA0;
-	iomd_dma[DMA_1].base	= IOMD_IO1CURA;
+	iomd_dma[DMA_1].base	= IOMD_BASE + IOMD_IO1CURA;
 	iomd_dma[DMA_1].irq	= IRQ_DMA1;
-	iomd_dma[DMA_2].base	= IOMD_IO2CURA;
+	iomd_dma[DMA_2].base	= IOMD_BASE + IOMD_IO2CURA;
 	iomd_dma[DMA_2].irq	= IRQ_DMA2;
-	iomd_dma[DMA_3].base	= IOMD_IO3CURA;
+	iomd_dma[DMA_3].base	= IOMD_BASE + IOMD_IO3CURA;
 	iomd_dma[DMA_3].irq	= IRQ_DMA3;
-	iomd_dma[DMA_S0].base	= IOMD_SD0CURA;
+	iomd_dma[DMA_S0].base	= IOMD_BASE + IOMD_SD0CURA;
 	iomd_dma[DMA_S0].irq	= IRQ_DMAS0;
-	iomd_dma[DMA_S1].base	= IOMD_SD1CURA;
+	iomd_dma[DMA_S1].base	= IOMD_BASE + IOMD_SD1CURA;
 	iomd_dma[DMA_S1].irq	= IRQ_DMAS1;
 
 	for (i = DMA_0; i <= DMA_S1; i++) {
