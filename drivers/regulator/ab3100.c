@@ -353,14 +353,14 @@ static int ab3100_get_voltage_regulator_external(struct regulator_dev *reg)
 		return 0;
 }
 
-static struct regulator_ops regulator_ops_fixed = {
+static const struct regulator_ops regulator_ops_fixed = {
 	.list_voltage = regulator_list_voltage_linear,
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
 };
 
-static struct regulator_ops regulator_ops_variable = {
+static const struct regulator_ops regulator_ops_variable = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
@@ -369,7 +369,7 @@ static struct regulator_ops regulator_ops_variable = {
 	.list_voltage = regulator_list_voltage_table,
 };
 
-static struct regulator_ops regulator_ops_variable_sleepable = {
+static const struct regulator_ops regulator_ops_variable_sleepable = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
@@ -385,14 +385,14 @@ static struct regulator_ops regulator_ops_variable_sleepable = {
  * is an on/off switch plain an simple. The external
  * voltage is defined in the board set-up if any.
  */
-static struct regulator_ops regulator_ops_external = {
+static const struct regulator_ops regulator_ops_external = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
 	.get_voltage = ab3100_get_voltage_regulator_external,
 };
 
-static struct regulator_desc
+static const struct regulator_desc
 ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 	{
 		.name = "LDO_A",
@@ -499,7 +499,7 @@ static int ab3100_regulator_register(struct platform_device *pdev,
 				     struct device_node *np,
 				     unsigned long id)
 {
-	struct regulator_desc *desc;
+	const struct regulator_desc *desc;
 	struct ab3100_regulator *reg;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
@@ -688,7 +688,7 @@ static int ab3100_regulators_probe(struct platform_device *pdev)
 
 	/* Register the regulators */
 	for (i = 0; i < AB3100_NUM_REGULATORS; i++) {
-		struct regulator_desc *desc = &ab3100_regulator_desc[i];
+		const struct regulator_desc *desc = &ab3100_regulator_desc[i];
 
 		err = ab3100_regulator_register(pdev, plfdata, NULL, NULL,
 						desc->id);
