@@ -11673,6 +11673,14 @@ L:	linux-i2c@vger.kernel.org
 S:	Orphan
 F:	drivers/i2c/busses/i2c-pasemi.c
 
+PACKING
+M:	Vladimir Oltean <olteanv@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	lib/packing.c
+F:	include/linux/packing.h
+F:	Documentation/packing.txt
+
 PADATA PARALLEL EXECUTION MECHANISM
 M:	Steffen Klassert <steffen.klassert@secunet.com>
 L:	linux-crypto@vger.kernel.org
