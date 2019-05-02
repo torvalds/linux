@@ -4101,9 +4101,6 @@ static void intel_update_pipe_config(const struct intel_crtc_state *old_crtc_sta
 			ironlake_pfit_disable(old_crtc_state);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
-		bdw_set_pipemisc(new_crtc_state);
-
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_set_pipe_chicken(crtc);
 }
@@ -14172,6 +14169,9 @@ static void intel_begin_crtc_commit(struct intel_atomic_state *state,
 		intel_update_pipe_config(old_crtc_state, new_crtc_state);
 	else if (INTEL_GEN(dev_priv) >= 9)
 		skl_detach_scalers(new_crtc_state);
+
+	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
+		bdw_set_pipemisc(new_crtc_state);
 
 out:
 	if (dev_priv->display.atomic_update_watermarks)
