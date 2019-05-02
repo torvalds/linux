@@ -251,6 +251,13 @@ static int sja1105_init_static_vlan(struct sja1105_private *priv)
 	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
 
 	/* The static VLAN table will only contain the initial pvid of 0.
+	 * All other VLANs are to be configured through dynamic entries,
+	 * and kept in the static configuration table as backing memory.
+	 * The pvid of 0 is sufficient to pass traffic while the ports are
+	 * standalone and when vlan_filtering is disabled. When filtering
+	 * gets enabled, the switchdev core sets up the VLAN ID 1 and sets
+	 * it as the new pvid. Actually 'pvid 1' still comes up in 'bridge
+	 * vlan' even when vlan_filtering is off, but it has no effect.
 	 */
 	if (table->entry_count) {
 		kfree(table->entries);
@@ -391,8 +398,11 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.vlmask = 0,
 		/* Only update correctionField for 1-step PTP (L2 transport) */
 		.ignore2stf = 0,
-		.tpid = ETH_P_8021Q,
-		.tpid2 = ETH_P_8021Q,
+		/* Forcefully disable VLAN filtering by telling
+		 * the switch that VLAN has a different EtherType.
+		 */
+		.tpid = ETH_P_SJA1105,
+		.tpid2 = ETH_P_SJA1105,
 	};
 	struct sja1105_table *table;
 	int i;
@@ -954,10 +964,231 @@ static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
 	sja1105_bridge_member(ds, port, br, false);
 }
 
+/* For situations where we need to change a setting at runtime that is only
+ * available through the static configuration, resetting the switch in order
+ * to upload the new static config is unavoidable. Back up the settings we
+ * modify at runtime (currently only MAC) and restore them after uploading,
+ * such that this operation is relatively seamless.
+ */
+static int sja1105_static_config_reload(struct sja1105_private *priv)
+{
+	struct sja1105_mac_config_entry *mac;
+	int speed_mbps[SJA1105_NUM_PORTS];
+	int rc, i;
+
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+
+	/* Back up settings changed by sja1105_adjust_port_config and
+	 * and restore their defaults.
+	 */
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		speed_mbps[i] = sja1105_speed[mac[i].speed];
+		mac[i].speed = SJA1105_SPEED_AUTO;
+	}
+
+	/* Reset switch and send updated static configuration */
+	rc = sja1105_static_config_upload(priv);
+	if (rc < 0)
+		goto out;
+
+	/* Configure the CGU (PLLs) for MII and RMII PHYs.
+	 * For these interfaces there is no dynamic configuration
+	 * needed, since PLLs have same settings at all speeds.
+	 */
+	rc = sja1105_clocking_setup(priv);
+	if (rc < 0)
+		goto out;
+
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		bool enabled = (speed_mbps[i] != 0);
+
+		rc = sja1105_adjust_port_config(priv, i, speed_mbps[i],
+						enabled);
+		if (rc < 0)
+			goto out;
+	}
+out:
+	return rc;
+}
+
+/* The TPID setting belongs to the General Parameters table,
+ * which can only be partially reconfigured at runtime (and not the TPID).
+ * So a switch reset is required.
+ */
+static int sja1105_change_tpid(struct sja1105_private *priv,
+			       u16 tpid, u16 tpid2)
+{
+	struct sja1105_general_params_entry *general_params;
+	struct sja1105_table *table;
+
+	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
+	general_params = table->entries;
+	general_params->tpid = tpid;
+	general_params->tpid2 = tpid2;
+	return sja1105_static_config_reload(priv);
+}
+
+static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
+{
+	struct sja1105_mac_config_entry *mac;
+
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+
+	mac[port].vlanid = pvid;
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
+					   &mac[port], true);
+}
+
+static int sja1105_is_vlan_configured(struct sja1105_private *priv, u16 vid)
+{
+	struct sja1105_vlan_lookup_entry *vlan;
+	int count, i;
+
+	vlan = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entries;
+	count = priv->static_config.tables[BLK_IDX_VLAN_LOOKUP].entry_count;
+
+	for (i = 0; i < count; i++)
+		if (vlan[i].vlanid == vid)
+			return i;
+
+	/* Return an invalid entry index if not found */
+	return -1;
+}
+
+static int sja1105_vlan_apply(struct sja1105_private *priv, int port, u16 vid,
+			      bool enabled, bool untagged)
+{
+	struct sja1105_vlan_lookup_entry *vlan;
+	struct sja1105_table *table;
+	bool keep = true;
+	int match, rc;
+
+	table = &priv->static_config.tables[BLK_IDX_VLAN_LOOKUP];
+
+	match = sja1105_is_vlan_configured(priv, vid);
+	if (match < 0) {
+		/* Can't delete a missing entry. */
+		if (!enabled)
+			return 0;
+		rc = sja1105_table_resize(table, table->entry_count + 1);
+		if (rc)
+			return rc;
+		match = table->entry_count - 1;
+	}
+	/* Assign pointer after the resize (it's new memory) */
+	vlan = table->entries;
+	vlan[match].vlanid = vid;
+	if (enabled) {
+		vlan[match].vlan_bc |= BIT(port);
+		vlan[match].vmemb_port |= BIT(port);
+	} else {
+		vlan[match].vlan_bc &= ~BIT(port);
+		vlan[match].vmemb_port &= ~BIT(port);
+	}
+	/* Also unset tag_port if removing this VLAN was requested,
+	 * just so we don't have a confusing bitmap (no practical purpose).
+	 */
+	if (untagged || !enabled)
+		vlan[match].tag_port &= ~BIT(port);
+	else
+		vlan[match].tag_port |= BIT(port);
+	/* If there's no port left as member of this VLAN,
+	 * it's time for it to go.
+	 */
+	if (!vlan[match].vmemb_port)
+		keep = false;
+
+	dev_dbg(priv->ds->dev,
+		"%s: port %d, vid %llu, broadcast domain 0x%llx, "
+		"port members 0x%llx, tagged ports 0x%llx, keep %d\n",
+		__func__, port, vlan[match].vlanid, vlan[match].vlan_bc,
+		vlan[match].vmemb_port, vlan[match].tag_port, keep);
+
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_VLAN_LOOKUP, vid,
+					  &vlan[match], keep);
+	if (rc < 0)
+		return rc;
+
+	if (!keep)
+		return sja1105_table_delete_entry(table, match);
+
+	return 0;
+}
+
 static enum dsa_tag_protocol
 sja1105_get_tag_protocol(struct dsa_switch *ds, int port)
 {
 	return DSA_TAG_PROTO_NONE;
+}
+
+/* This callback needs to be present */
+static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_vlan *vlan)
+{
+	return 0;
+}
+
+static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
+{
+	struct sja1105_private *priv = ds->priv;
+	int rc;
+
+	if (enabled)
+		/* Enable VLAN filtering. */
+		rc = sja1105_change_tpid(priv, ETH_P_8021Q, ETH_P_8021AD);
+	else
+		/* Disable VLAN filtering. */
+		rc = sja1105_change_tpid(priv, ETH_P_SJA1105, ETH_P_SJA1105);
+	if (rc)
+		dev_err(ds->dev, "Failed to change VLAN Ethertype\n");
+
+	return rc;
+}
+
+static void sja1105_vlan_add(struct dsa_switch *ds, int port,
+			     const struct switchdev_obj_port_vlan *vlan)
+{
+	struct sja1105_private *priv = ds->priv;
+	u16 vid;
+	int rc;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
+		rc = sja1105_vlan_apply(priv, port, vid, true, vlan->flags &
+					BRIDGE_VLAN_INFO_UNTAGGED);
+		if (rc < 0) {
+			dev_err(ds->dev, "Failed to add VLAN %d to port %d: %d\n",
+				vid, port, rc);
+			return;
+		}
+		if (vlan->flags & BRIDGE_VLAN_INFO_PVID) {
+			rc = sja1105_pvid_apply(ds->priv, port, vid);
+			if (rc < 0) {
+				dev_err(ds->dev, "Failed to set pvid %d on port %d: %d\n",
+					vid, port, rc);
+				return;
+			}
+		}
+	}
+}
+
+static int sja1105_vlan_del(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_vlan *vlan)
+{
+	struct sja1105_private *priv = ds->priv;
+	u16 vid;
+	int rc;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
+		rc = sja1105_vlan_apply(priv, port, vid, false, vlan->flags &
+					BRIDGE_VLAN_INFO_UNTAGGED);
+		if (rc < 0) {
+			dev_err(ds->dev, "Failed to remove VLAN %d from port %d: %d\n",
+				vid, port, rc);
+			return rc;
+		}
+	}
+	return 0;
 }
 
 /* The programming model for the SJA1105 switch is "all-at-once" via static
@@ -1005,6 +1236,15 @@ static int sja1105_setup(struct dsa_switch *ds)
 		dev_err(ds->dev, "Failed to configure MII clocking: %d\n", rc);
 		return rc;
 	}
+	/* On SJA1105, VLAN filtering per se is always enabled in hardware.
+	 * The only thing we can do to disable it is lie about what the 802.1Q
+	 * EtherType is.
+	 * So it will still try to apply VLAN filtering, but all ingress
+	 * traffic (except frames received with EtherType of ETH_P_SJA1105)
+	 * will be internally tagged with a distorted VLAN header where the
+	 * TPID is ETH_P_SJA1105, and the VLAN ID is the port pvid.
+	 */
+	ds->vlan_filtering_is_global = true;
 
 	return 0;
 }
@@ -1018,6 +1258,10 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_fdb_del		= sja1105_fdb_del,
 	.port_bridge_join	= sja1105_bridge_join,
 	.port_bridge_leave	= sja1105_bridge_leave,
+	.port_vlan_prepare	= sja1105_vlan_prepare,
+	.port_vlan_filtering	= sja1105_vlan_filtering,
+	.port_vlan_add		= sja1105_vlan_add,
+	.port_vlan_del		= sja1105_vlan_del,
 	.port_mdb_prepare	= sja1105_mdb_prepare,
 	.port_mdb_add		= sja1105_mdb_add,
 	.port_mdb_del		= sja1105_mdb_del,

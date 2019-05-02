@@ -240,6 +240,9 @@ int sja1105_static_config_init(struct sja1105_static_config *config,
 			       u64 device_id);
 void sja1105_static_config_free(struct sja1105_static_config *config);
 
+int sja1105_table_delete_entry(struct sja1105_table *table, int i);
+int sja1105_table_resize(struct sja1105_table *table, size_t new_count);
+
 u32 sja1105_crc32(const void *buf, size_t len);
 
 void sja1105_pack(void *buf, const u64 *val, int start, int end, size_t len);

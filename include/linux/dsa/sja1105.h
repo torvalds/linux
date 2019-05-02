@@ -7,6 +7,10 @@
 #ifndef _NET_DSA_SJA1105_H
 #define _NET_DSA_SJA1105_H
 
+#include <linux/etherdevice.h>
+
+#define ETH_P_SJA1105				ETH_P_DSA_8021Q
+
 /* The switch can only be convinced to stay in unmanaged mode and not trap any
  * link-local traffic by actually telling it to filter frames sent at the
  * 00:00:00:00:00:00 destination MAC.

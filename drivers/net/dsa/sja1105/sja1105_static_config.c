@@ -947,3 +947,41 @@ void sja1105_static_config_free(struct sja1105_static_config *config)
 		}
 	}
 }
+
+int sja1105_table_delete_entry(struct sja1105_table *table, int i)
+{
+	size_t entry_size = table->ops->unpacked_entry_size;
+	u8 *entries = table->entries;
+
+	if (i > table->entry_count)
+		return -ERANGE;
+
+	memmove(entries + i * entry_size, entries + (i + 1) * entry_size,
+		(table->entry_count - i) * entry_size);
+
+	table->entry_count--;
+
+	return 0;
+}
+
+/* No pointers to table->entries should be kept when this is called. */
+int sja1105_table_resize(struct sja1105_table *table, size_t new_count)
+{
+	size_t entry_size = table->ops->unpacked_entry_size;
+	void *new_entries, *old_entries = table->entries;
+
+	if (new_count > table->ops->max_entry_count)
+		return -ERANGE;
+
+	new_entries = kcalloc(new_count, entry_size, GFP_KERNEL);
+	if (!new_entries)
+		return -ENOMEM;
+
+	memcpy(new_entries, old_entries, min(new_count, table->entry_count) *
+		entry_size);
+
+	table->entries = new_entries;
+	table->entry_count = new_count;
+	kfree(old_entries);
+	return 0;
+}
