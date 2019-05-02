@@ -22,6 +22,7 @@ struct sja1105_regs {
 	u64 device_id;
 	u64 prod_id;
 	u64 status;
+	u64 port_control;
 	u64 rgu;
 	u64 config;
 	u64 rmii_pll1;
