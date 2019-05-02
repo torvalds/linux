@@ -691,9 +691,9 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 			return -ENOMEM;
 
 		if (type == INTEL_PDI_BD || type == INTEL_PDI_OUT) {
-			dais[i].playback.stream_name = kasprintf(GFP_KERNEL,
-							"SDW%d Tx%d",
-							cdns->instance, i);
+			dais[i].playback.stream_name =
+				kasprintf(GFP_KERNEL, "SDW%d Tx%d",
+					  cdns->instance, i);
 			if (!dais[i].playback.stream_name) {
 				kfree(dais[i].name);
 				return -ENOMEM;
@@ -706,9 +706,9 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 		}
 
 		if (type == INTEL_PDI_BD || type == INTEL_PDI_IN) {
-			dais[i].capture.stream_name = kasprintf(GFP_KERNEL,
-							"SDW%d Rx%d",
-							cdns->instance, i);
+			dais[i].capture.stream_name =
+				kasprintf(GFP_KERNEL, "SDW%d Rx%d",
+					  cdns->instance, i);
 			if (!dais[i].capture.stream_name) {
 				kfree(dais[i].name);
 				kfree(dais[i].playback.stream_name);
@@ -749,40 +749,40 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	/* Create PCM DAIs */
 	stream = &cdns->pcm;
 
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN,
-			stream->num_in, off, stream->num_ch_in, true);
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, stream->num_in,
+			       off, stream->num_ch_in, true);
 	if (ret)
 		return ret;
 
 	off += cdns->pcm.num_in;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT,
-			cdns->pcm.num_out, off, stream->num_ch_out, true);
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT, cdns->pcm.num_out,
+			       off, stream->num_ch_out, true);
 	if (ret)
 		return ret;
 
 	off += cdns->pcm.num_out;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD,
-			cdns->pcm.num_bd, off, stream->num_ch_bd, true);
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pcm.num_bd,
+			       off, stream->num_ch_bd, true);
 	if (ret)
 		return ret;
 
 	/* Create PDM DAIs */
 	stream = &cdns->pdm;
 	off += cdns->pcm.num_bd;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN,
-			cdns->pdm.num_in, off, stream->num_ch_in, false);
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, cdns->pdm.num_in,
+			       off, stream->num_ch_in, false);
 	if (ret)
 		return ret;
 
 	off += cdns->pdm.num_in;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT,
-			cdns->pdm.num_out, off, stream->num_ch_out, false);
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT, cdns->pdm.num_out,
+			       off, stream->num_ch_out, false);
 	if (ret)
 		return ret;
 
 	off += cdns->pdm.num_bd;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD,
-			cdns->pdm.num_bd, off, stream->num_ch_bd, false);
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pdm.num_bd,
+			       off, stream->num_ch_bd, false);
 	if (ret)
 		return ret;
 
