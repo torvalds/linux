@@ -190,7 +190,7 @@ struct extent_buffer {
 	int spinning_writers;
 	atomic_t spinning_readers;
 	atomic_t read_locks;
-	atomic_t write_locks;
+	int write_locks;
 	struct list_head leak_list;
 #endif
 };
