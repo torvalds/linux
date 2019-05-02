@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-// Copyright(c) 2015-17 Intel Corporation.
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2015-17 Intel Corporation. */
 
 #ifndef __SOUNDWIRE_TYPES_H
 #define __SOUNDWIRE_TYPES_H
