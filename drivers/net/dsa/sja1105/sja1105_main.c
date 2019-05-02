@@ -179,6 +179,9 @@ static int sja1105_init_static_fdb(struct sja1105_private *priv)
 
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP];
 
+	/* We only populate the FDB table through dynamic
+	 * L2 Address Lookup entries
+	 */
 	if (table->entry_count) {
 		kfree(table->entries);
 		table->entry_count = 0;
@@ -689,6 +692,191 @@ static void sja1105_adjust_link(struct dsa_switch *ds, int port,
 		sja1105_adjust_port_config(priv, port, phydev->speed, true);
 }
 
+/* First-generation switches have a 4-way set associative TCAM that
+ * holds the FDB entries. An FDB index spans from 0 to 1023 and is comprised of
+ * a "bin" (grouping of 4 entries) and a "way" (an entry within a bin).
+ * For the placement of a newly learnt FDB entry, the switch selects the bin
+ * based on a hash function, and the way within that bin incrementally.
+ */
+static inline int sja1105et_fdb_index(int bin, int way)
+{
+	return bin * SJA1105ET_FDB_BIN_SIZE + way;
+}
+
+static int sja1105_is_fdb_entry_in_bin(struct sja1105_private *priv, int bin,
+				       const u8 *addr, u16 vid,
+				       struct sja1105_l2_lookup_entry *match,
+				       int *last_unused)
+{
+	int way;
+
+	for (way = 0; way < SJA1105ET_FDB_BIN_SIZE; way++) {
+		struct sja1105_l2_lookup_entry l2_lookup = {0};
+		int index = sja1105et_fdb_index(bin, way);
+
+		/* Skip unused entries, optionally marking them
+		 * into the return value
+		 */
+		if (sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
+						index, &l2_lookup)) {
+			if (last_unused)
+				*last_unused = way;
+			continue;
+		}
+
+		if (l2_lookup.macaddr == ether_addr_to_u64(addr) &&
+		    l2_lookup.vlanid == vid) {
+			if (match)
+				*match = l2_lookup;
+			return way;
+		}
+	}
+	/* Return an invalid entry index if not found */
+	return -1;
+}
+
+static int sja1105_fdb_add(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	struct sja1105_l2_lookup_entry l2_lookup = {0};
+	struct sja1105_private *priv = ds->priv;
+	struct device *dev = ds->dev;
+	int last_unused = -1;
+	int bin, way;
+
+	bin = sja1105_fdb_hash(priv, addr, vid);
+
+	way = sja1105_is_fdb_entry_in_bin(priv, bin, addr, vid,
+					  &l2_lookup, &last_unused);
+	if (way >= 0) {
+		/* We have an FDB entry. Is our port in the destination
+		 * mask? If yes, we need to do nothing. If not, we need
+		 * to rewrite the entry by adding this port to it.
+		 */
+		if (l2_lookup.destports & BIT(port))
+			return 0;
+		l2_lookup.destports |= BIT(port);
+	} else {
+		int index = sja1105et_fdb_index(bin, way);
+
+		/* We don't have an FDB entry. We construct a new one and
+		 * try to find a place for it within the FDB table.
+		 */
+		l2_lookup.macaddr = ether_addr_to_u64(addr);
+		l2_lookup.destports = BIT(port);
+		l2_lookup.vlanid = vid;
+
+		if (last_unused >= 0) {
+			way = last_unused;
+		} else {
+			/* Bin is full, need to evict somebody.
+			 * Choose victim at random. If you get these messages
+			 * often, you may need to consider changing the
+			 * distribution function:
+			 * static_config[BLK_IDX_L2_LOOKUP_PARAMS].entries->poly
+			 */
+			get_random_bytes(&way, sizeof(u8));
+			way %= SJA1105ET_FDB_BIN_SIZE;
+			dev_warn(dev, "Warning, FDB bin %d full while adding entry for %pM. Evicting entry %u.\n",
+				 bin, addr, way);
+			/* Evict entry */
+			sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+						     index, NULL, false);
+		}
+	}
+	l2_lookup.index = sja1105et_fdb_index(bin, way);
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					    l2_lookup.index, &l2_lookup,
+					    true);
+}
+
+static int sja1105_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	struct sja1105_l2_lookup_entry l2_lookup = {0};
+	struct sja1105_private *priv = ds->priv;
+	int index, bin, way;
+	bool keep;
+
+	bin = sja1105_fdb_hash(priv, addr, vid);
+	way = sja1105_is_fdb_entry_in_bin(priv, bin, addr, vid,
+					  &l2_lookup, NULL);
+	if (way < 0)
+		return 0;
+	index = sja1105et_fdb_index(bin, way);
+
+	/* We have an FDB entry. Is our port in the destination mask? If yes,
+	 * we need to remove it. If the resulting port mask becomes empty, we
+	 * need to completely evict the FDB entry.
+	 * Otherwise we just write it back.
+	 */
+	if (l2_lookup.destports & BIT(port))
+		l2_lookup.destports &= ~BIT(port);
+	if (l2_lookup.destports)
+		keep = true;
+	else
+		keep = false;
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					    index, &l2_lookup, keep);
+}
+
+static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
+			    dsa_fdb_dump_cb_t *cb, void *data)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct device *dev = ds->dev;
+	int i;
+
+	for (i = 0; i < SJA1105_MAX_L2_LOOKUP_COUNT; i++) {
+		struct sja1105_l2_lookup_entry l2_lookup = {0};
+		u8 macaddr[ETH_ALEN];
+		int rc;
+
+		rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
+						 i, &l2_lookup);
+		/* No fdb entry at i, not an issue */
+		if (rc == -EINVAL)
+			continue;
+		if (rc) {
+			dev_err(dev, "Failed to dump FDB: %d\n", rc);
+			return rc;
+		}
+
+		/* FDB dump callback is per port. This means we have to
+		 * disregard a valid entry if it's not for this port, even if
+		 * only to revisit it later. This is inefficient because the
+		 * 1024-sized FDB table needs to be traversed 4 times through
+		 * SPI during a 'bridge fdb show' command.
+		 */
+		if (!(l2_lookup.destports & BIT(port)))
+			continue;
+		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
+		cb(macaddr, l2_lookup.vlanid, false, data);
+	}
+	return 0;
+}
+
+/* This callback needs to be present */
+static int sja1105_mdb_prepare(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_mdb *mdb)
+{
+	return 0;
+}
+
+static void sja1105_mdb_add(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_mdb *mdb)
+{
+	sja1105_fdb_add(ds, port, mdb->addr, mdb->vid);
+}
+
+static int sja1105_mdb_del(struct dsa_switch *ds, int port,
+			   const struct switchdev_obj_port_mdb *mdb)
+{
+	return sja1105_fdb_del(ds, port, mdb->addr, mdb->vid);
+}
+
 static int sja1105_bridge_member(struct dsa_switch *ds, int port,
 				 struct net_device *br, bool member)
 {
@@ -791,8 +979,14 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
 	.setup			= sja1105_setup,
 	.adjust_link		= sja1105_adjust_link,
+	.port_fdb_dump		= sja1105_fdb_dump,
+	.port_fdb_add		= sja1105_fdb_add,
+	.port_fdb_del		= sja1105_fdb_del,
 	.port_bridge_join	= sja1105_bridge_join,
 	.port_bridge_leave	= sja1105_bridge_leave,
+	.port_mdb_prepare	= sja1105_mdb_prepare,
+	.port_mdb_add		= sja1105_mdb_add,
+	.port_mdb_del		= sja1105_mdb_del,
 };
 
 static int sja1105_check_device_id(struct sja1105_private *priv)
