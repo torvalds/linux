@@ -232,7 +232,7 @@ void soc15_grbm_select(struct amdgpu_device *adev,
 	grbm_gfx_cntl = REG_SET_FIELD(grbm_gfx_cntl, GRBM_GFX_CNTL, VMID, vmid);
 	grbm_gfx_cntl = REG_SET_FIELD(grbm_gfx_cntl, GRBM_GFX_CNTL, QUEUEID, queue);
 
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_CNTL), grbm_gfx_cntl);
+	WREG32_SOC15_RLC_SHADOW(GC, 0, mmGRBM_GFX_CNTL, grbm_gfx_cntl);
 }
 
 static void soc15_vga_set_state(struct amdgpu_device *adev, bool state)
@@ -387,7 +387,15 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 			tmp &= ~(entry->and_mask);
 			tmp |= entry->or_mask;
 		}
-		WREG32(reg, tmp);
+
+		if (reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3) ||
+			reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE) ||
+			reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE_1) ||
+			reg == SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG))
+			WREG32_RLC(reg, tmp);
+		else
+			WREG32(reg, tmp);
+
 	}
 
 }
