@@ -541,10 +541,6 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
 				  GEN11_TDL_CLOCK_GATING_FIX_DISABLE);
 
-	/* WaEnableStateCacheRedirectToCS:icl */
-	WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN1,
-			  GEN11_STATE_CACHE_REDIRECT_TO_CS);
-
 	/* Wa_2006665173:icl (pre-prod) */
 	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_A0))
 		WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
@@ -1050,6 +1046,9 @@ static void icl_whitelist_build(struct i915_wa_list *w)
 
 	/* WaAllowUMDToModifySamplerMode:icl */
 	whitelist_reg(w, GEN10_SAMPLER_MODE);
+
+	/* WaEnableStateCacheRedirectToCS:icl */
+	whitelist_reg(w, GEN9_SLICE_COMMON_ECO_CHICKEN1);
 }
 
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
