@@ -264,7 +264,8 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	bio_for_each_segment_all(bvec, &bio, i, iter_all) {
 		if (should_dirty && !PageCompound(bvec->bv_page))
 			set_page_dirty_lock(bvec->bv_page);
-		put_page(bvec->bv_page);
+		if (!bio_flagged(&bio, BIO_NO_PAGE_REF))
+			put_page(bvec->bv_page);
 	}
 
 	if (unlikely(bio.bi_status))
