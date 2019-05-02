@@ -167,7 +167,7 @@ struct extent_buffer {
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
 
-	atomic_t blocking_writers;
+	int blocking_writers;
 	atomic_t blocking_readers;
 	bool lock_nested;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */

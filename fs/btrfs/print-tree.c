@@ -155,7 +155,7 @@ static void print_eb_refs_lock(struct extent_buffer *eb)
 "refs %u lock (w:%d r:%d bw:%d br:%d sw:%d sr:%d) lock_owner %u current %u",
 		   atomic_read(&eb->refs), atomic_read(&eb->write_locks),
 		   atomic_read(&eb->read_locks),
-		   atomic_read(&eb->blocking_writers),
+		   eb->blocking_writers,
 		   atomic_read(&eb->blocking_readers),
 		   atomic_read(&eb->spinning_writers),
 		   atomic_read(&eb->spinning_readers),
