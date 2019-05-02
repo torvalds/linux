@@ -1117,6 +1117,7 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 
 err_free_spt:
 	ppgtt_free_spt(spt);
+	spt = NULL;
 err:
 	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
 		     spt, we->val64, we->type);
