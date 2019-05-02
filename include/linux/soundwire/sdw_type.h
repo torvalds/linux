@@ -11,7 +11,7 @@ extern struct bus_type sdw_bus_type;
 #define sdw_register_driver(drv) \
 	__sdw_register_driver(drv, THIS_MODULE)
 
-int __sdw_register_driver(struct sdw_driver *drv, struct module *);
+int __sdw_register_driver(struct sdw_driver *drv, struct module *owner);
 void sdw_unregister_driver(struct sdw_driver *drv);
 
 int sdw_slave_modalias(const struct sdw_slave *slave, char *buf, size_t size);
