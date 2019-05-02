@@ -28,7 +28,7 @@ config SOUNDWIRE_INTEL
 	select SOUNDWIRE_CADENCE
 	select SOUNDWIRE_BUS
 	depends on X86 && ACPI && SND_SOC
-	---help---
+	help
 	  SoundWire Intel Master driver.
 	  If you have an Intel platform which has a SoundWire Master then
 	  enable this config option to get the SoundWire support for that
