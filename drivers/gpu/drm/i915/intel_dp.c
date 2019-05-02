@@ -5227,12 +5227,15 @@ static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 	u32 dpsp;
 
 	/*
-	 * WARN if we got a legacy port HPD, but VBT didn't mark the port as
+	 * Complain if we got a legacy port HPD, but VBT didn't mark the port as
 	 * legacy. Treat the port as legacy from now on.
 	 */
-	if (WARN_ON(!intel_dig_port->tc_legacy_port &&
-		    I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port)))
+	if (!intel_dig_port->tc_legacy_port &&
+	    I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port)) {
+		DRM_ERROR("VBT incorrectly claims port %c is not TypeC legacy\n",
+			  port_name(port));
 		intel_dig_port->tc_legacy_port = true;
+	}
 	is_legacy = intel_dig_port->tc_legacy_port;
 
 	/*
