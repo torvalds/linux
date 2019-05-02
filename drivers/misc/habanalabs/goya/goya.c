@@ -660,7 +660,7 @@ static int goya_sw_init(struct hl_device *hdev)
 		dev_err(hdev->dev,
 			"Failed to create CPU accessible DMA pool\n");
 		rc = -ENOMEM;
-		goto free_cpu_pq_dma_mem;
+		goto free_cpu_dma_mem;
 	}
 
 	rc = gen_pool_add(hdev->cpu_accessible_dma_pool,
@@ -679,7 +679,7 @@ static int goya_sw_init(struct hl_device *hdev)
 
 free_cpu_accessible_dma_pool:
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
-free_cpu_pq_dma_mem:
+free_cpu_dma_mem:
 	hdev->asic_funcs->asic_dma_free_coherent(hdev,
 			HL_CPU_ACCESSIBLE_MEM_SIZE,
 			hdev->cpu_accessible_dma_mem,
