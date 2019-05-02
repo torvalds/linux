@@ -934,7 +934,7 @@ static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 	struct rbd_client *rbdc;
 	int ret;
 
-	mutex_lock_nested(&client_mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock(&client_mutex);
 	rbdc = rbd_client_find(ceph_opts);
 	if (rbdc) {
 		ceph_destroy_options(ceph_opts);
