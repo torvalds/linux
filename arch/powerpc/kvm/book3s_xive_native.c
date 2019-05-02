@@ -235,7 +235,7 @@ static vm_fault_t xive_native_esb_fault(struct vm_fault *vmf)
 	arch_spin_unlock(&sb->lock);
 
 	if (WARN_ON(!page)) {
-		pr_err("%s: acessing invalid ESB page for source %lx !\n",
+		pr_err("%s: accessing invalid ESB page for source %lx !\n",
 		       __func__, irq);
 		return VM_FAULT_SIGBUS;
 	}
