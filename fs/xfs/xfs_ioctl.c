@@ -788,11 +788,8 @@ xfs_ioc_fsgeometry(
 {
 	struct xfs_fsop_geom	fsgeo;
 	size_t			len;
-	int			error;
 
-	error = xfs_fs_geometry(&mp->m_sb, &fsgeo, struct_version);
-	if (error)
-		return error;
+	xfs_fs_geometry(&mp->m_sb, &fsgeo, struct_version);
 
 	if (struct_version <= 3)
 		len = sizeof(struct xfs_fsop_geom_v1);
@@ -2046,9 +2043,7 @@ xfs_file_ioctl(
 	case XFS_IOC_FSCOUNTS: {
 		xfs_fsop_counts_t out;
 
-		error = xfs_fs_counts(mp, &out);
-		if (error)
-			return error;
+		xfs_fs_counts(mp, &out);
 
 		if (copy_to_user(arg, &out, sizeof(out)))
 			return -EFAULT;
