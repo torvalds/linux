@@ -100,7 +100,7 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 	struct iomd_dma *idma = dev_id;
 	unsigned long base = idma->base;
 	unsigned int state = idma->state;
-	unsigned int status;
+	unsigned int status, cur, end;
 
 	do {
 		status = iomd_readb(base + ST);
@@ -110,21 +110,17 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 		if ((state ^ status) & DMA_ST_AB)
 			iomd_get_next_sg(idma);
 
-		switch (status & (DMA_ST_OFL | DMA_ST_AB)) {
-		case DMA_ST_OFL:			/* OIA */
-		case DMA_ST_AB:				/* .IB */
-			iomd_writel(idma->cur_addr, base + CURA);
-			iomd_writel(idma->cur_len, base + ENDA);
-			state = DMA_ST_AB;
-			break;
-
-		case DMA_ST_OFL | DMA_ST_AB:		/* OIB */
-		case 0:					/* .IA */
-			iomd_writel(idma->cur_addr, base + CURB);
-			iomd_writel(idma->cur_len, base + ENDB);
-			state = 0;
-			break;
+		// This efficiently implements state = OFL != AB ? AB : 0
+		state = ((status >> 2) ^ status) & DMA_ST_AB;
+		if (state) {
+			cur = CURA;
+			end = ENDA;
+		} else {
+			cur = CURB;
+			end = ENDB;
 		}
+		iomd_writel(idma->cur_addr, base + cur);
+		iomd_writel(idma->cur_len, base + end);
 
 		if (status & DMA_ST_OFL &&
 		    idma->cur_len == (DMA_END_S|DMA_END_L))
