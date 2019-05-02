@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * spi-mt7621.c -- MediaTek MT7621 SPI controller driver
- *
- * Copyright (C) 2011 Sergiy <piratfm@gmail.com>
- * Copyright (C) 2011-2013 Gabor Juhos <juhosg@openwrt.org>
- * Copyright (C) 2014-2015 Felix Fietkau <nbd@nbd.name>
- *
- * Some parts are based on spi-orion.c:
- *   Author: Shadi Ammouri <shadi@marvell.com>
- *   Copyright (C) 2007-2008 Marvell Ltd.
- */
+//
+// spi-mt7621.c -- MediaTek MT7621 SPI controller driver
+//
+// Copyright (C) 2011 Sergiy <piratfm@gmail.com>
+// Copyright (C) 2011-2013 Gabor Juhos <juhosg@openwrt.org>
+// Copyright (C) 2014-2015 Felix Fietkau <nbd@nbd.name>
+//
+// Some parts are based on spi-orion.c:
+//   Author: Shadi Ammouri <shadi@marvell.com>
+//   Copyright (C) 2007-2008 Marvell Ltd.
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -52,7 +51,7 @@
 #define MT7621_LSB_FIRST	BIT(3)
 
 struct mt7621_spi {
-	struct spi_master	*master;
+	struct spi_controller	*master;
 	void __iomem		*base;
 	unsigned int		sys_freq;
 	unsigned int		speed;
@@ -64,7 +63,7 @@ struct mt7621_spi {
 
 static inline struct mt7621_spi *spidev_to_mt7621_spi(struct spi_device *spi)
 {
-	return spi_master_get_devdata(spi->master);
+	return spi_controller_get_devdata(spi->master);
 }
 
 static inline u32 mt7621_spi_read(struct mt7621_spi *rs, u32 reg)
@@ -77,29 +76,25 @@ static inline void mt7621_spi_write(struct mt7621_spi *rs, u32 reg, u32 val)
 	iowrite32(val, rs->base + reg);
 }
 
-static void mt7621_spi_reset(struct mt7621_spi *rs)
+static void mt7621_spi_set_cs(struct spi_device *spi, int enable)
 {
-	u32 master = mt7621_spi_read(rs, MT7621_SPI_MASTER);
+	struct mt7621_spi *rs = spidev_to_mt7621_spi(spi);
+	int cs = spi->chip_select;
+	u32 polar = 0;
+	u32 master;
 
 	/*
 	 * Select SPI device 7, enable "more buffer mode" and disable
 	 * full-duplex (only half-duplex really works on this chip
 	 * reliably)
 	 */
+	master = mt7621_spi_read(rs, MT7621_SPI_MASTER);
 	master |= MASTER_RS_SLAVE_SEL | MASTER_MORE_BUFMODE;
 	master &= ~MASTER_FULL_DUPLEX;
-
 	mt7621_spi_write(rs, MT7621_SPI_MASTER, master);
+
 	rs->pending_write = 0;
-}
 
-static void mt7621_spi_set_cs(struct spi_device *spi, int enable)
-{
-	struct mt7621_spi *rs = spidev_to_mt7621_spi(spi);
-	int cs = spi->chip_select;
-	u32 polar = 0;
-
-	mt7621_spi_reset(rs);
 	if (enable)
 		polar = BIT(cs);
 	mt7621_spi_write(rs, MT7621_SPI_POLAR, polar);
@@ -163,13 +158,14 @@ static inline int mt7621_spi_wait_till_ready(struct mt7621_spi *rs)
 static void mt7621_spi_read_half_duplex(struct mt7621_spi *rs,
 					int rx_len, u8 *buf)
 {
+	int tx_len;
+
 	/*
 	 * Combine with any pending write, and perform one or more half-duplex
 	 * transactions reading 'len' bytes. Data to be written is already in
 	 * MT7621_SPI_DATA.
 	 */
-	int tx_len = rs->pending_write;
-
+	tx_len = rs->pending_write;
 	rs->pending_write = 0;
 
 	while (rx_len || tx_len) {
@@ -209,8 +205,8 @@ static inline void mt7621_spi_flush(struct mt7621_spi *rs)
 static void mt7621_spi_write_half_duplex(struct mt7621_spi *rs,
 					 int tx_len, const u8 *buf)
 {
-	int val = 0;
 	int len = rs->pending_write;
+	int val = 0;
 
 	if (len & 3) {
 		val = mt7621_spi_read(rs, MT7621_SPI_OPCODE + (len & ~3));
@@ -238,6 +234,7 @@ static void mt7621_spi_write_half_duplex(struct mt7621_spi *rs,
 		}
 		tx_len -= 1;
 	}
+
 	if (len & 3) {
 		if (len < 4) {
 			val = swab32(val);
@@ -245,13 +242,14 @@ static void mt7621_spi_write_half_duplex(struct mt7621_spi *rs,
 		}
 		mt7621_spi_write(rs, MT7621_SPI_OPCODE + (len & ~3), val);
 	}
+
 	rs->pending_write = len;
 }
 
-static int mt7621_spi_transfer_one_message(struct spi_master *master,
+static int mt7621_spi_transfer_one_message(struct spi_controller *master,
 					   struct spi_message *m)
 {
-	struct mt7621_spi *rs = spi_master_get_devdata(master);
+	struct mt7621_spi *rs = spi_controller_get_devdata(master);
 	struct spi_device *spi = m->spi;
 	unsigned int speed = spi->max_speed_hz;
 	struct spi_transfer *t = NULL;
@@ -268,11 +266,14 @@ static int mt7621_spi_transfer_one_message(struct spi_master *master,
 		goto msg_done;
 	}
 
+	/* Assert CS */
 	mt7621_spi_set_cs(spi, 1);
+
 	m->actual_length = 0;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if ((t->rx_buf) && (t->tx_buf)) {
-			/* This controller will shift some extra data out
+			/*
+			 * This controller will shift some extra data out
 			 * of spi_opcode if (mosi_bit_cnt > 0) &&
 			 * (cmd_bit_cnt == 0). So the claimed full-duplex
 			 * support is broken since we have no way to read
@@ -287,8 +288,9 @@ static int mt7621_spi_transfer_one_message(struct spi_master *master,
 		}
 		m->actual_length += t->len;
 	}
-	mt7621_spi_flush(rs);
 
+	/* Flush data and deassert CS */
+	mt7621_spi_flush(rs);
 	mt7621_spi_set_cs(spi, 0);
 
 msg_done:
@@ -303,7 +305,7 @@ static int mt7621_spi_setup(struct spi_device *spi)
 	struct mt7621_spi *rs = spidev_to_mt7621_spi(spi);
 
 	if ((spi->max_speed_hz == 0) ||
-		(spi->max_speed_hz > (rs->sys_freq / 2)))
+	    (spi->max_speed_hz > (rs->sys_freq / 2)))
 		spi->max_speed_hz = (rs->sys_freq / 2);
 
 	if (spi->max_speed_hz < (rs->sys_freq / 4097)) {
@@ -324,7 +326,7 @@ MODULE_DEVICE_TABLE(of, mt7621_spi_match);
 static int mt7621_spi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct spi_master *master;
+	struct spi_controller *master;
 	struct mt7621_spi *rs;
 	void __iomem *base;
 	struct resource *r;
@@ -361,7 +363,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	}
 
 	master->mode_bits = SPI_LSB_FIRST;
-
+	master->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	master->setup = mt7621_spi_setup;
 	master->transfer_one_message = mt7621_spi_transfer_one_message;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
@@ -370,7 +372,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, master);
 
-	rs = spi_master_get_devdata(master);
+	rs = spi_controller_get_devdata(master);
 	rs->base = base;
 	rs->clk = clk;
 	rs->master = master;
@@ -385,21 +387,18 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mt7621_spi_reset(rs);
-
-	return spi_register_master(master);
+	return devm_spi_register_controller(&pdev->dev, master);
 }
 
 static int mt7621_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *master;
 	struct mt7621_spi *rs;
 
 	master = dev_get_drvdata(&pdev->dev);
-	rs = spi_master_get_devdata(master);
+	rs = spi_controller_get_devdata(master);
 
-	clk_disable(rs->clk);
-	spi_unregister_master(master);
+	clk_disable_unprepare(rs->clk);
 
 	return 0;
 }

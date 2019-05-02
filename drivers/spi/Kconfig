@@ -426,6 +426,12 @@ config SPI_MT65XX
 	  say Y or M here.If you are not sure, say N.
 	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
+config SPI_MT7621
+	tristate "MediaTek MT7621 SPI Controller"
+	depends on RALINK || COMPILE_TEST
+	help
+	  This selects a driver for the MediaTek MT7621 SPI Controller.
+
 config SPI_NPCM_PSPI
 	tristate "Nuvoton NPCM PSPI Controller"
 	depends on ARCH_NPCM || COMPILE_TEST
@@ -842,9 +848,17 @@ config SPI_XTENSA_XTFPGA
 	  16 bit words in SPI mode 0, automatically asserting CS on transfer
 	  start and deasserting on end.
 
+config SPI_ZYNQ_QSPI
+	tristate "Xilinx Zynq QSPI controller"
+	depends on ARCH_ZYNQ || COMPILE_TEST
+	help
+	  This enables support for the Zynq Quad SPI controller
+	  in master mode.
+	  This controller only supports SPI memory interface.
+
 config SPI_ZYNQMP_GQSPI
 	tristate "Xilinx ZynqMP GQSPI controller"
-	depends on SPI_MASTER && HAS_DMA
+	depends on (SPI_MASTER && HAS_DMA) || COMPILE_TEST
 	help
 	  Enables Xilinx GQSPI controller driver for Zynq UltraScale+ MPSoC.
 

@@ -106,8 +106,6 @@ source "drivers/staging/mt7621-pci-phy/Kconfig"
 
 source "drivers/staging/mt7621-pinctrl/Kconfig"
 
-source "drivers/staging/mt7621-spi/Kconfig"
-
 source "drivers/staging/mt7621-dma/Kconfig"
 
 source "drivers/staging/ralink-gdma/Kconfig"
