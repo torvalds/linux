@@ -52,6 +52,7 @@ static int sdw_find_row_index(int row)
 	pr_warn("Requested row not found, selecting lowest row no: 48\n");
 	return 0;
 }
+
 static int _sdw_program_slave_port_params(struct sdw_bus *bus,
 					  struct sdw_slave *slave,
 					  struct sdw_transport_params *t_params,
