@@ -455,7 +455,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	upcall->dp_ifindex = dp_ifindex;
 
 	err = ovs_nla_put_key(key, key, OVS_PACKET_ATTR_KEY, false, user_skb);
-	BUG_ON(err);
+	if (err)
+		goto out;
 
 	if (upcall_info->userdata)
 		__nla_put(user_skb, OVS_PACKET_ATTR_USERDATA,
@@ -471,7 +472,9 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		}
 		err = ovs_nla_put_tunnel_info(user_skb,
 					      upcall_info->egress_tun_info);
-		BUG_ON(err);
+		if (err)
+			goto out;
+
 		nla_nest_end(user_skb, nla);
 	}
 
