@@ -241,26 +241,6 @@ iomap_read_page_end_io(struct bio_vec *bvec, int error)
 }
 
 static void
-iomap_read_inline_data(struct inode *inode, struct page *page,
-		struct iomap *iomap)
-{
-	size_t size = i_size_read(inode);
-	void *addr;
-
-	if (PageUptodate(page))
-		return;
-
-	BUG_ON(page->index);
-	BUG_ON(size > PAGE_SIZE - offset_in_page(iomap->inline_data));
-
-	addr = kmap_atomic(page);
-	memcpy(addr, iomap->inline_data, size);
-	memset(addr + size, 0, PAGE_SIZE - size);
-	kunmap_atomic(addr);
-	SetPageUptodate(page);
-}
-
-static void
 iomap_read_end_io(struct bio *bio)
 {
 	int error = blk_status_to_errno(bio->bi_status);
@@ -280,6 +260,26 @@ struct iomap_readpage_ctx {
 	struct bio		*bio;
 	struct list_head	*pages;
 };
+
+static void
+iomap_read_inline_data(struct inode *inode, struct page *page,
+		struct iomap *iomap)
+{
+	size_t size = i_size_read(inode);
+	void *addr;
+
+	if (PageUptodate(page))
+		return;
+
+	BUG_ON(page->index);
+	BUG_ON(size > PAGE_SIZE - offset_in_page(iomap->inline_data));
+
+	addr = kmap_atomic(page);
+	memcpy(addr, iomap->inline_data, size);
+	memset(addr + size, 0, PAGE_SIZE - size);
+	kunmap_atomic(addr);
+	SetPageUptodate(page);
+}
 
 static loff_t
 iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
