@@ -17,24 +17,8 @@ static void i915_gem_park(struct drm_i915_private *i915)
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	for_each_engine(engine, i915, id) {
-		/*
-		 * We are committed now to parking the engines, make sure there
-		 * will be no more interrupts arriving later and the engines
-		 * are truly idle.
-		 */
-		if (wait_for(intel_engine_is_idle(engine), 10)) {
-			struct drm_printer p = drm_debug_printer(__func__);
-
-			dev_err(i915->drm.dev,
-				"%s is not idle before parking\n",
-				engine->name);
-			intel_engine_dump(engine, &p, NULL);
-		}
-		tasklet_kill(&engine->execlists.tasklet);
-
+	for_each_engine(engine, i915, id)
 		i915_gem_batch_pool_fini(&engine->batch_pool);
-	}
 
 	i915_timelines_park(i915);
 	i915_vma_parked(i915);
