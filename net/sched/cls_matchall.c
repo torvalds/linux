@@ -32,6 +32,9 @@ static int mall_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	struct cls_mall_head *head = rcu_dereference_bh(tp->root);
 
+	if (unlikely(!head))
+		return -1;
+
 	if (tc_skip_sw(head->flags))
 		return -1;
 
