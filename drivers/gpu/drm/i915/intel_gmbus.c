@@ -26,13 +26,17 @@
  *	Eric Anholt <eric@anholt.net>
  *	Chris Wilson <chris@chris-wilson.co.uk>
  */
-#include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
+
 #include <linux/export.h>
+#include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
+
 #include <drm/drm_hdcp.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_drv.h"
+#include "intel_gmbus.h"
 
 struct gmbus_pin {
 	const char *name;
@@ -134,7 +138,7 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 }
 
 void
-intel_i2c_reset(struct drm_i915_private *dev_priv)
+intel_gmbus_reset(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(GMBUS0, 0);
 	I915_WRITE(GMBUS4, 0);
@@ -256,7 +260,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
-	intel_i2c_reset(dev_priv);
+	intel_gmbus_reset(dev_priv);
 
 	if (IS_PINEVIEW(dev_priv))
 		pnv_gmbus_clock_gating(dev_priv, false);
@@ -811,7 +815,7 @@ static const struct i2c_lock_operations gmbus_lock_ops = {
  * intel_gmbus_setup - instantiate all Intel i2c GMBuses
  * @dev_priv: i915 device private
  */
-int intel_setup_gmbus(struct drm_i915_private *dev_priv)
+int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct intel_gmbus *bus;
@@ -872,7 +876,7 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 			goto err;
 	}
 
-	intel_i2c_reset(dev_priv);
+	intel_gmbus_reset(dev_priv);
 
 	return 0;
 
@@ -918,7 +922,14 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 	mutex_unlock(&dev_priv->gmbus_mutex);
 }
 
-void intel_teardown_gmbus(struct drm_i915_private *dev_priv)
+bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
+{
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
+
+	return bus->force_bit;
+}
+
+void intel_gmbus_teardown(struct drm_i915_private *dev_priv)
 {
 	struct intel_gmbus *bus;
 	unsigned int pin;

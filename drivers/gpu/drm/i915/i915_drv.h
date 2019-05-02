@@ -3235,23 +3235,6 @@ extern int i915_restore_state(struct drm_i915_private *dev_priv);
 void i915_setup_sysfs(struct drm_i915_private *dev_priv);
 void i915_teardown_sysfs(struct drm_i915_private *dev_priv);
 
-/* intel_i2c.c */
-extern int intel_setup_gmbus(struct drm_i915_private *dev_priv);
-extern void intel_teardown_gmbus(struct drm_i915_private *dev_priv);
-extern bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
-				     unsigned int pin);
-extern int intel_gmbus_output_aksv(struct i2c_adapter *adapter);
-
-extern struct i2c_adapter *
-intel_gmbus_get_adapter(struct drm_i915_private *dev_priv, unsigned int pin);
-extern void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed);
-extern void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
-static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
-{
-	return container_of(adapter, struct intel_gmbus, adapter)->force_bit;
-}
-extern void intel_i2c_reset(struct drm_i915_private *dev_priv);
-
 /* intel_device_info.c */
 static inline struct intel_device_info *
 mkwrite_device_info(struct drm_i915_private *dev_priv)

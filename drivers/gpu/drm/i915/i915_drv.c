@@ -65,6 +65,7 @@
 #include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbdev.h"
+#include "intel_gmbus.h"
 #include "intel_hotplug.h"
 #include "intel_overlay.h"
 #include "intel_pipe_crc.h"
@@ -705,7 +706,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_csr;
 
-	intel_setup_gmbus(dev_priv);
+	intel_gmbus_setup(dev_priv);
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
@@ -740,7 +741,7 @@ cleanup_modeset:
 	intel_modeset_cleanup(dev);
 cleanup_irq:
 	drm_irq_uninstall(dev);
-	intel_teardown_gmbus(dev_priv);
+	intel_gmbus_teardown(dev_priv);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
 	intel_power_domains_fini_hw(dev_priv);

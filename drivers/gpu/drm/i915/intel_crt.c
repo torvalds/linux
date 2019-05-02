@@ -40,6 +40,7 @@
 #include "intel_ddi.h"
 #include "intel_drv.h"
 #include "intel_fifo_underrun.h"
+#include "intel_gmbus.h"
 #include "intel_hotplug.h"
 
 /* Here's the desired hotplug mode */

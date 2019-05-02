@@ -41,6 +41,7 @@
 #include "intel_connector.h"
 #include "intel_drv.h"
 #include "intel_fifo_underrun.h"
+#include "intel_gmbus.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_panel.h"

@@ -42,6 +42,7 @@ header_test := \
 	intel_fbdev.h \
 	intel_fifo_underrun.h \
 	intel_frontbuffer.h \
+	intel_gmbus.h \
 	intel_hdcp.h \
 	intel_hdmi.h \
 	intel_hotplug.h \

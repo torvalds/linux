@@ -62,6 +62,7 @@
 #include "intel_fbdev.h"
 #include "intel_fifo_underrun.h"
 #include "intel_frontbuffer.h"
+#include "intel_gmbus.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
@@ -16641,7 +16642,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_overlay_cleanup(dev_priv);
 
-	intel_teardown_gmbus(dev_priv);
+	intel_gmbus_teardown(dev_priv);
 
 	destroy_workqueue(dev_priv->modeset_wq);
 

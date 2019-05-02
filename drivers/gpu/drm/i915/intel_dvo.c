@@ -37,6 +37,7 @@
 #include "intel_drv.h"
 #include "intel_dvo.h"
 #include "intel_dvo_dev.h"
+#include "intel_gmbus.h"
 #include "intel_panel.h"
 
 #define INTEL_DVO_CHIP_NONE	0
