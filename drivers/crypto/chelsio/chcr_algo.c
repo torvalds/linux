@@ -1094,8 +1094,8 @@ static int chcr_final_cipher_iv(struct ablkcipher_request *req,
 	int ret = 0;
 
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR)
-		ctr_add_iv(iv, req->info, (reqctx->processed /
-			   AES_BLOCK_SIZE));
+		ctr_add_iv(iv, req->info, DIV_ROUND_UP(reqctx->processed,
+						       AES_BLOCK_SIZE));
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
 		ret = chcr_update_tweak(req, iv, 1);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
