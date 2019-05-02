@@ -7,6 +7,14 @@ config CLK_BCM_63XX
 	  Enable common clock framework support for Broadcom BCM63xx DSL SoCs
 	  based on the ARM architecture
 
+config CLK_BCM_63XX_GATE
+	bool "Broadcom BCM63xx gated clock support"
+	depends on BMIPS_GENERIC || COMPILE_TEST
+	default BMIPS_GENERIC
+	help
+	  Enable common clock framework support for Broadcom BCM63xx DSL SoCs
+	  based on the MIPS architecture
+
 config CLK_BCM_KONA
 	bool "Broadcom Kona CCU clock support"
 	depends on ARCH_BCM_MOBILE || COMPILE_TEST
