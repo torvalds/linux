@@ -26,11 +26,11 @@
 
 #include <drm/drm_edid.h>
 #include <drm/i915_component.h>
-#include <drm/intel_lpe_audio.h>
 
 #include "i915_drv.h"
 #include "intel_audio.h"
 #include "intel_drv.h"
+#include "intel_lpe_audio.h"
 
 /**
  * DOC: High Definition Audio over HDMI and Display Port

@@ -43,6 +43,7 @@
 #include "intel_drv.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hotplug.h"
+#include "intel_lpe_audio.h"
 #include "intel_psr.h"
 
 /**
