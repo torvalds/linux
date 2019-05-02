@@ -45,6 +45,7 @@
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_dp.h"
+#include "intel_dpio_phy.h"
 #include "intel_drv.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdcp.h"

@@ -28,6 +28,7 @@ header_test := \
 	intel_dp_aux_backlight.h \
 	intel_dp_link_training.h \
 	intel_dp_mst.h \
+	intel_dpio_phy.h \
 	intel_dpll_mgr.h \
 	intel_drv.h \
 	intel_dsi.h \

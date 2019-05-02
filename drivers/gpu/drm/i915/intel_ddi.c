@@ -34,6 +34,7 @@
 #include "intel_ddi.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
+#include "intel_dpio_phy.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"

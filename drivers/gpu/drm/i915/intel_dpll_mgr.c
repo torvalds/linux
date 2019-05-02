@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "intel_dpio_phy.h"
 #include "intel_dpll_mgr.h"
 #include "intel_drv.h"
 
