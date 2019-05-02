@@ -8,3 +8,4 @@ Distributed Switch Architecture
    dsa
    bcm_sf2
    lan9303
+   sja1105
