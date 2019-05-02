@@ -8944,7 +8944,8 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 			PIPEMISC_YUV420_MODE_FULL_BLEND;
 
 	if (INTEL_GEN(dev_priv) >= 11 &&
-	    (crtc_state->active_planes & ~icl_hdr_plane_mask()) == 0)
+	    (crtc_state->active_planes & ~(icl_hdr_plane_mask() |
+					   BIT(PLANE_CURSOR))) == 0)
 		val |= PIPEMISC_HDR_MODE_PRECISION;
 
 	I915_WRITE(PIPEMISC(crtc->pipe), val);
