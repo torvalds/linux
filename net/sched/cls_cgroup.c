@@ -32,6 +32,8 @@ static int cls_cgroup_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	struct cls_cgroup_head *head = rcu_dereference_bh(tp->root);
 	u32 classid = task_get_classid(skb);
 
+	if (unlikely(!head))
+		return -1;
 	if (!classid)
 		return -1;
 	if (!tcf_em_tree_match(skb, &head->ematches, NULL))
