@@ -98,6 +98,7 @@ struct tegra_adma_chan_regs {
 	unsigned int src_addr;
 	unsigned int trg_addr;
 	unsigned int fifo_ctrl;
+	unsigned int cmd;
 	unsigned int tc;
 };
 
@@ -127,6 +128,7 @@ struct tegra_adma_chan {
 	enum dma_transfer_direction	sreq_dir;
 	unsigned int			sreq_index;
 	bool				sreq_reserved;
+	struct tegra_adma_chan_regs	ch_regs;
 
 	/* Transfer count and position info */
 	unsigned int			tx_buf_count;
@@ -635,8 +637,30 @@ static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
 static int tegra_adma_runtime_suspend(struct device *dev)
 {
 	struct tegra_adma *tdma = dev_get_drvdata(dev);
+	struct tegra_adma_chan_regs *ch_reg;
+	struct tegra_adma_chan *tdc;
+	int i;
 
 	tdma->global_cmd = tdma_read(tdma, ADMA_GLOBAL_CMD);
+	if (!tdma->global_cmd)
+		goto clk_disable;
+
+	for (i = 0; i < tdma->nr_channels; i++) {
+		tdc = &tdma->channels[i];
+		ch_reg = &tdc->ch_regs;
+		ch_reg->cmd = tdma_ch_read(tdc, ADMA_CH_CMD);
+		/* skip if channel is not active */
+		if (!ch_reg->cmd)
+			continue;
+		ch_reg->tc = tdma_ch_read(tdc, ADMA_CH_TC);
+		ch_reg->src_addr = tdma_ch_read(tdc, ADMA_CH_LOWER_SRC_ADDR);
+		ch_reg->trg_addr = tdma_ch_read(tdc, ADMA_CH_LOWER_TRG_ADDR);
+		ch_reg->ctrl = tdma_ch_read(tdc, ADMA_CH_CTRL);
+		ch_reg->fifo_ctrl = tdma_ch_read(tdc, ADMA_CH_FIFO_CTRL);
+		ch_reg->config = tdma_ch_read(tdc, ADMA_CH_CONFIG);
+	}
+
+clk_disable:
 	clk_disable_unprepare(tdma->ahub_clk);
 
 	return 0;
@@ -645,7 +669,9 @@ static int tegra_adma_runtime_suspend(struct device *dev)
 static int tegra_adma_runtime_resume(struct device *dev)
 {
 	struct tegra_adma *tdma = dev_get_drvdata(dev);
-	int ret;
+	struct tegra_adma_chan_regs *ch_reg;
+	struct tegra_adma_chan *tdc;
+	int ret, i;
 
 	ret = clk_prepare_enable(tdma->ahub_clk);
 	if (ret) {
@@ -653,6 +679,24 @@ static int tegra_adma_runtime_resume(struct device *dev)
 		return ret;
 	}
 	tdma_write(tdma, ADMA_GLOBAL_CMD, tdma->global_cmd);
+
+	if (!tdma->global_cmd)
+		return 0;
+
+	for (i = 0; i < tdma->nr_channels; i++) {
+		tdc = &tdma->channels[i];
+		ch_reg = &tdc->ch_regs;
+		/* skip if channel was not active earlier */
+		if (!ch_reg->cmd)
+			continue;
+		tdma_ch_write(tdc, ADMA_CH_TC, ch_reg->tc);
+		tdma_ch_write(tdc, ADMA_CH_LOWER_SRC_ADDR, ch_reg->src_addr);
+		tdma_ch_write(tdc, ADMA_CH_LOWER_TRG_ADDR, ch_reg->trg_addr);
+		tdma_ch_write(tdc, ADMA_CH_CTRL, ch_reg->ctrl);
+		tdma_ch_write(tdc, ADMA_CH_FIFO_CTRL, ch_reg->fifo_ctrl);
+		tdma_ch_write(tdc, ADMA_CH_CONFIG, ch_reg->config);
+		tdma_ch_write(tdc, ADMA_CH_CMD, ch_reg->cmd);
+	}
 
 	return 0;
 }
