@@ -356,7 +356,8 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
 
 		if (type == 0 || type > maxtype) {
 			if (validate & NL_VALIDATE_MAXTYPE) {
-				NL_SET_ERR_MSG(extack, "Unknown attribute type");
+				NL_SET_ERR_MSG_ATTR(extack, nla,
+						    "Unknown attribute type");
 				return -EINVAL;
 			}
 			continue;
