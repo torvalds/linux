@@ -100,8 +100,6 @@ DEFINE_MUTEX(drm_global_mutex);
  * :ref:`IOCTL support in the userland interfaces chapter<drm_driver_ioctl>`.
  */
 
-static int drm_open_helper(struct file *filp, struct drm_minor *minor);
-
 /**
  * drm_file_alloc - allocate file context
  * @minor: minor to allocate on
@@ -273,76 +271,6 @@ static void drm_close_helper(struct file *filp)
 	drm_file_free(file_priv);
 }
 
-static int drm_setup(struct drm_device * dev)
-{
-	int ret;
-
-	if (dev->driver->firstopen &&
-	    drm_core_check_feature(dev, DRIVER_LEGACY)) {
-		ret = dev->driver->firstopen(dev);
-		if (ret != 0)
-			return ret;
-	}
-
-	ret = drm_legacy_dma_setup(dev);
-	if (ret < 0)
-		return ret;
-
-
-	DRM_DEBUG("\n");
-	return 0;
-}
-
-/**
- * drm_open - open method for DRM file
- * @inode: device inode
- * @filp: file pointer.
- *
- * This function must be used by drivers as their &file_operations.open method.
- * It looks up the correct DRM device and instantiates all the per-file
- * resources for it. It also calls the &drm_driver.open driver callback.
- *
- * RETURNS:
- *
- * 0 on success or negative errno value on falure.
- */
-int drm_open(struct inode *inode, struct file *filp)
-{
-	struct drm_device *dev;
-	struct drm_minor *minor;
-	int retcode;
-	int need_setup = 0;
-
-	minor = drm_minor_acquire(iminor(inode));
-	if (IS_ERR(minor))
-		return PTR_ERR(minor);
-
-	dev = minor->dev;
-	if (!dev->open_count++)
-		need_setup = 1;
-
-	/* share address_space across all char-devs of a single device */
-	filp->f_mapping = dev->anon_inode->i_mapping;
-
-	retcode = drm_open_helper(filp, minor);
-	if (retcode)
-		goto err_undo;
-	if (need_setup) {
-		retcode = drm_setup(dev);
-		if (retcode) {
-			drm_close_helper(filp);
-			goto err_undo;
-		}
-	}
-	return 0;
-
-err_undo:
-	dev->open_count--;
-	drm_minor_release(minor);
-	return retcode;
-}
-EXPORT_SYMBOL(drm_open);
-
 /*
  * Check whether DRI will run on this CPU.
  *
@@ -423,6 +351,56 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 
 	return 0;
 }
+
+/**
+ * drm_open - open method for DRM file
+ * @inode: device inode
+ * @filp: file pointer.
+ *
+ * This function must be used by drivers as their &file_operations.open method.
+ * It looks up the correct DRM device and instantiates all the per-file
+ * resources for it. It also calls the &drm_driver.open driver callback.
+ *
+ * RETURNS:
+ *
+ * 0 on success or negative errno value on falure.
+ */
+int drm_open(struct inode *inode, struct file *filp)
+{
+	struct drm_device *dev;
+	struct drm_minor *minor;
+	int retcode;
+	int need_setup = 0;
+
+	minor = drm_minor_acquire(iminor(inode));
+	if (IS_ERR(minor))
+		return PTR_ERR(minor);
+
+	dev = minor->dev;
+	if (!dev->open_count++)
+		need_setup = 1;
+
+	/* share address_space across all char-devs of a single device */
+	filp->f_mapping = dev->anon_inode->i_mapping;
+
+	retcode = drm_open_helper(filp, minor);
+	if (retcode)
+		goto err_undo;
+	if (need_setup) {
+		retcode = drm_legacy_setup(dev);
+		if (retcode) {
+			drm_close_helper(filp);
+			goto err_undo;
+		}
+	}
+	return 0;
+
+err_undo:
+	dev->open_count--;
+	drm_minor_release(minor);
+	return retcode;
+}
+EXPORT_SYMBOL(drm_open);
 
 void drm_lastclose(struct drm_device * dev)
 {
