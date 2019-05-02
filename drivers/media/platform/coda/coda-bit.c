@@ -2309,7 +2309,6 @@ irqreturn_t coda_irq_handler(int irq, void *data)
 	if (ctx == NULL) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Instance released before the end of transaction\n");
-		mutex_unlock(&dev->coda_mutex);
 		return IRQ_HANDLED;
 	}
 
