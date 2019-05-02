@@ -37,6 +37,10 @@ static const u8 jz4725b_cgu_cpccr_div_table[] = {
 	1, 2, 3, 4, 6, 8,
 };
 
+static const u8 jz4725b_cgu_pll_half_div_table[] = {
+	2, 1,
+};
+
 static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 
 	/* External clocks */
@@ -70,7 +74,10 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 	[JZ4725B_CLK_PLL_HALF] = {
 		"pll half", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 21, 1, 1, -1, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 21, 1, 1, -1, -1, -1,
+			jz4725b_cgu_pll_half_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_CCLK] = {
