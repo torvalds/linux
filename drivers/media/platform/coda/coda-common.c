@@ -2507,9 +2507,12 @@ err_clk_per:
 static int coda_register_device(struct coda_dev *dev, int i)
 {
 	struct video_device *vfd = &dev->vfd[i];
+	enum coda_inst_type type;
+	int ret;
 
 	if (i >= dev->devtype->num_vdevs)
 		return -EINVAL;
+	type = dev->devtype->vdevs[i]->type;
 
 	strscpy(vfd->name, dev->devtype->vdevs[i]->name, sizeof(vfd->name));
 	vfd->fops	= &coda_fops;
@@ -2525,7 +2528,12 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	v4l2_disable_ioctl(vfd, VIDIOC_G_CROP);
 	v4l2_disable_ioctl(vfd, VIDIOC_S_CROP);
 
-	return video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	if (!ret)
+		v4l2_info(&dev->v4l2_dev, "%s registered as %s\n",
+			  type == CODA_INST_ENCODER ? "encoder" : "decoder",
+			  video_device_node_name(vfd));
+	return ret;
 }
 
 static void coda_copy_firmware(struct coda_dev *dev, const u8 * const buf,
@@ -2638,9 +2646,6 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 			goto rel_vfd;
 		}
 	}
-
-	v4l2_info(&dev->v4l2_dev, "codec registered as /dev/video[%d-%d]\n",
-		  dev->vfd[0].num, dev->vfd[i - 1].num);
 
 	pm_runtime_put_sync(&pdev->dev);
 	return;
