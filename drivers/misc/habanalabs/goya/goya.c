@@ -670,14 +670,14 @@ static int goya_sw_init(struct hl_device *hdev)
 		dev_err(hdev->dev,
 			"Failed to add memory to CPU accessible DMA pool\n");
 		rc = -EFAULT;
-		goto free_cpu_pq_pool;
+		goto free_cpu_accessible_dma_pool;
 	}
 
 	spin_lock_init(&goya->hw_queues_lock);
 
 	return 0;
 
-free_cpu_pq_pool:
+free_cpu_accessible_dma_pool:
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 free_cpu_pq_dma_mem:
 	hdev->asic_funcs->asic_dma_free_coherent(hdev,
