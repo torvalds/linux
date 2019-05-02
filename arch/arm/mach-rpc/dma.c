@@ -30,7 +30,8 @@ struct iomd_dma {
 	unsigned int		state;
 	unsigned long		base;		/* Controller base address */
 	int			irq;		/* Controller IRQ */
-	struct scatterlist	cur_sg;		/* Current controller buffer */
+	dma_addr_t		cur_addr;
+	unsigned int		cur_len;
 	dma_addr_t		dma_addr;
 	unsigned int		dma_len;
 };
@@ -53,13 +54,13 @@ typedef enum {
 #define CR	(IOMD_IO0CR - IOMD_IO0CURA)
 #define ST	(IOMD_IO0ST - IOMD_IO0CURA)
 
-static void iomd_get_next_sg(struct scatterlist *sg, struct iomd_dma *idma)
+static void iomd_get_next_sg(struct iomd_dma *idma)
 {
 	unsigned long end, offset, flags = 0;
 
 	if (idma->dma.sg) {
-		sg->dma_address = idma->dma_addr;
-		offset = sg->dma_address & ~PAGE_MASK;
+		idma->cur_addr = idma->dma_addr;
+		offset = idma->cur_addr & ~PAGE_MASK;
 
 		end = offset + idma->dma_len;
 
@@ -69,7 +70,7 @@ static void iomd_get_next_sg(struct scatterlist *sg, struct iomd_dma *idma)
 		if (offset + TRANSFER_SIZE >= end)
 			flags |= DMA_END_L;
 
-		sg->length = end - TRANSFER_SIZE;
+		idma->cur_len = end - TRANSFER_SIZE;
 
 		idma->dma_len -= end - offset;
 		idma->dma_addr += end - offset;
@@ -87,11 +88,11 @@ static void iomd_get_next_sg(struct scatterlist *sg, struct iomd_dma *idma)
 		}
 	} else {
 		flags = DMA_END_S | DMA_END_L;
-		sg->dma_address = 0;
-		sg->length = 0;
+		idma->cur_addr = 0;
+		idma->cur_len = 0;
 	}
 
-	sg->length |= flags;
+	idma->cur_len |= flags;
 }
 
 static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
@@ -107,26 +108,26 @@ static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 			return IRQ_HANDLED;
 
 		if ((idma->state ^ status) & DMA_ST_AB)
-			iomd_get_next_sg(&idma->cur_sg, idma);
+			iomd_get_next_sg(idma);
 
 		switch (status & (DMA_ST_OFL | DMA_ST_AB)) {
 		case DMA_ST_OFL:			/* OIA */
 		case DMA_ST_AB:				/* .IB */
-			iomd_writel(idma->cur_sg.dma_address, base + CURA);
-			iomd_writel(idma->cur_sg.length, base + ENDA);
+			iomd_writel(idma->cur_addr, base + CURA);
+			iomd_writel(idma->cur_len, base + ENDA);
 			idma->state = DMA_ST_AB;
 			break;
 
 		case DMA_ST_OFL | DMA_ST_AB:		/* OIB */
 		case 0:					/* .IA */
-			iomd_writel(idma->cur_sg.dma_address, base + CURB);
-			iomd_writel(idma->cur_sg.length, base + ENDB);
+			iomd_writel(idma->cur_addr, base + CURB);
+			iomd_writel(idma->cur_len, base + ENDB);
 			idma->state = 0;
 			break;
 		}
 
 		if (status & DMA_ST_OFL &&
-		    idma->cur_sg.length == (DMA_END_S|DMA_END_L))
+		    idma->cur_len == (DMA_END_S|DMA_END_L))
 			break;
 	} while (1);
 
