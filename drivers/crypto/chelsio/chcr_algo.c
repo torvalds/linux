@@ -200,17 +200,10 @@ void chcr_verify_tag(struct aead_request *req, u8 *input, int *err)
 
 static int chcr_inc_wrcount(struct chcr_dev *dev)
 {
-	int err = 0;
-
-	spin_lock_bh(&dev->lock_chcr_dev);
 	if (dev->state == CHCR_DETACH)
-		err = 1;
-	else
-		atomic_inc(&dev->inflight);
-
-	spin_unlock_bh(&dev->lock_chcr_dev);
-
-	return err;
+		return 1;
+	atomic_inc(&dev->inflight);
+	return 0;
 }
 
 static inline void chcr_dec_wrcount(struct chcr_dev *dev)
