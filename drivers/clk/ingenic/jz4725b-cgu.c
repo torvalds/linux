@@ -33,6 +33,10 @@ static const s8 pll_od_encoding[4] = {
 	0x0, 0x1, -1, 0x3,
 };
 
+static const u8 jz4725b_cgu_cpccr_div_table[] = {
+	1, 2, 3, 4, 6, 8,
+};
+
 static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 
 	/* External clocks */
@@ -72,31 +76,46 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 	[JZ4725B_CLK_CCLK] = {
 		"cclk", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_HCLK] = {
 		"hclk", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_PCLK] = {
 		"pclk", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_MCLK] = {
 		"mclk", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_IPU] = {
 		"ipu", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 16, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 16, 1, 4, 22, -1, -1,
+			jz4725b_cgu_cpccr_div_table,
+		},
 		.gate = { CGU_REG_CLKGR, 13 },
 	},
 
