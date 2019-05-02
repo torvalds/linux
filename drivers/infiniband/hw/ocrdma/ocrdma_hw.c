@@ -2496,7 +2496,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	int status;
 	struct rdma_ah_attr *ah_attr = &attrs->ah_attr;
 	const struct ib_gid_attr *sgid_attr;
-	u32 vlan_id = 0xFFFF;
+	u16 vlan_id = 0xFFFF;
 	u8 mac_addr[6], hdr_type;
 	union {
 		struct sockaddr     _sockaddr;
@@ -2526,8 +2526,9 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	       sizeof(cmd->params.dgid));
 
 	sgid_attr = ah_attr->grh.sgid_attr;
-	vlan_id = rdma_vlan_dev_vlan_id(sgid_attr->ndev);
-	memcpy(mac_addr, sgid_attr->ndev->dev_addr, ETH_ALEN);
+	status = rdma_read_gid_l2_fields(sgid_attr, &vlan_id, &mac_addr[0]);
+	if (status)
+		return status;
 
 	qp->sgid_idx = grh->sgid_index;
 	memcpy(&cmd->params.sgid[0], &sgid_attr->gid.raw[0],

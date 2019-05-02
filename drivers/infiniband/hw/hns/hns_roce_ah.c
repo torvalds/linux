@@ -49,20 +49,22 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
 	u16 vlan_tag = 0xffff;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	bool vlan_en = false;
+	int ret;
+
+	gid_attr = ah_attr->grh.sgid_attr;
+	ret = rdma_read_gid_l2_fields(gid_attr, &vlan_tag, NULL);
+	if (ret)
+		return ret;
 
 	/* Get mac address */
 	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
 
-	gid_attr = ah_attr->grh.sgid_attr;
-	if (is_vlan_dev(gid_attr->ndev)) {
-		vlan_tag = vlan_dev_vlan_id(gid_attr->ndev);
+	if (vlan_tag < VLAN_CFI_MASK) {
 		vlan_en = true;
-	}
-
-	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) &
 			     HNS_ROCE_VLAN_SL_BIT_MASK) <<
 			     HNS_ROCE_VLAN_SL_SHIFT;
+	}
 
 	ah->av.port_pd = cpu_to_le32(to_hr_pd(ibah->pd)->pdn |
 				     (rdma_ah_get_port_num(ah_attr) <<

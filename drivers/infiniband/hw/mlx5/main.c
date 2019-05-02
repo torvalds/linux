@@ -574,52 +574,22 @@ out:
 	return err;
 }
 
-struct mlx5_ib_vlan_info {
-	u16 vlan_id;
-	bool vlan;
-};
-
-static int get_lower_dev_vlan(struct net_device *lower_dev, void *data)
-{
-	struct mlx5_ib_vlan_info *vlan_info = data;
-
-	if (is_vlan_dev(lower_dev)) {
-		vlan_info->vlan = true;
-		vlan_info->vlan_id = vlan_dev_vlan_id(lower_dev);
-	}
-	/* We are interested only in first level vlan device, so
-	 * always return 1 to stop iterating over next level devices.
-	 */
-	return 1;
-}
-
 static int set_roce_addr(struct mlx5_ib_dev *dev, u8 port_num,
 			 unsigned int index, const union ib_gid *gid,
 			 const struct ib_gid_attr *attr)
 {
 	enum ib_gid_type gid_type = IB_GID_TYPE_IB;
-	struct mlx5_ib_vlan_info vlan_info = { };
+	u16 vlan_id = 0xffff;
 	u8 roce_version = 0;
 	u8 roce_l3_type = 0;
 	u8 mac[ETH_ALEN];
+	int ret;
 
 	if (gid) {
 		gid_type = attr->gid_type;
-		ether_addr_copy(mac, attr->ndev->dev_addr);
-
-		if (is_vlan_dev(attr->ndev)) {
-			vlan_info.vlan = true;
-			vlan_info.vlan_id = vlan_dev_vlan_id(attr->ndev);
-		} else {
-			/* If the netdev is upper device and if it's lower
-			 * lower device is vlan device, consider vlan id of
-			 * the lower vlan device for this gid entry.
-			 */
-			rcu_read_lock();
-			netdev_walk_all_lower_dev_rcu(attr->ndev,
-					get_lower_dev_vlan, &vlan_info);
-			rcu_read_unlock();
-		}
+		ret = rdma_read_gid_l2_fields(attr, &vlan_id, &mac[0]);
+		if (ret)
+			return ret;
 	}
 
 	switch (gid_type) {
@@ -640,7 +610,7 @@ static int set_roce_addr(struct mlx5_ib_dev *dev, u8 port_num,
 
 	return mlx5_core_roce_gid_set(dev->mdev, index, roce_version,
 				      roce_l3_type, gid->raw, mac,
-				      vlan_info.vlan, vlan_info.vlan_id,
+				      vlan_id < VLAN_CFI_MASK, vlan_id,
 				      port_num);
 }
 

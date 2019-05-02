@@ -175,13 +175,14 @@ int ocrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
 	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
 		ocrdma_init_service_level(dev);
 
+	sgid_attr = attr->grh.sgid_attr;
+	status = rdma_read_gid_l2_fields(sgid_attr, &vlan_tag, NULL);
+	if (status)
+		return status;
+
 	status = ocrdma_alloc_av(dev, ah);
 	if (status)
 		goto av_err;
-
-	sgid_attr = attr->grh.sgid_attr;
-	if (is_vlan_dev(sgid_attr->ndev))
-		vlan_tag = vlan_dev_vlan_id(sgid_attr->ndev);
 
 	/* Get network header type for this GID */
 	ah->hdr_type = rdma_gid_attr_network_type(sgid_attr);

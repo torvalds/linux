@@ -360,8 +360,9 @@ int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context)
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(attr->device, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
 
-	if ((attr->ndev) && is_vlan_dev(attr->ndev))
-		vlan_id = vlan_dev_vlan_id(attr->ndev);
+	rc = rdma_read_gid_l2_fields(attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
 
 	rc = bnxt_qplib_add_sgid(sgid_tbl, (struct bnxt_qplib_gid *)&attr->gid,
 				 rdev->qplib_res.netdev->dev_addr,
@@ -1637,8 +1638,11 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 				qp_attr->ah_attr.roce.dmac);
 
 		sgid_attr = qp_attr->ah_attr.grh.sgid_attr;
-		memcpy(qp->qplib_qp.smac, sgid_attr->ndev->dev_addr,
-		       ETH_ALEN);
+		rc = rdma_read_gid_l2_fields(sgid_attr, NULL,
+					     &qp->qplib_qp.smac[0]);
+		if (rc)
+			return rc;
+
 		nw_type = rdma_gid_attr_network_type(sgid_attr);
 		switch (nw_type) {
 		case RDMA_NETWORK_IPV4:
@@ -1857,8 +1861,10 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 
 	memset(&qp->qp1_hdr, 0, sizeof(qp->qp1_hdr));
 
-	if (is_vlan_dev(sgid_attr->ndev))
-		vlan_id = vlan_dev_vlan_id(sgid_attr->ndev);
+	rc = rdma_read_gid_l2_fields(sgid_attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
+
 	/* Get network header type for this GID */
 	nw_type = rdma_gid_attr_network_type(sgid_attr);
 	switch (nw_type) {

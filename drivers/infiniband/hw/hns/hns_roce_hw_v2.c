@@ -37,6 +37,7 @@
 #include <linux/types.h>
 #include <net/addrconf.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_cache.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
 
@@ -3984,10 +3985,12 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 
 		if (is_roce_protocol) {
 			gid_attr = attr->ah_attr.grh.sgid_attr;
-			vlan = rdma_vlan_dev_vlan_id(gid_attr->ndev);
+			ret = rdma_read_gid_l2_fields(gid_attr, &vlan, NULL);
+			if (ret)
+				goto out;
 		}
 
-		if (is_vlan_dev(gid_attr->ndev)) {
+		if (vlan < VLAN_CFI_MASK) {
 			roce_set_bit(context->byte_76_srqn_op_en,
 				     V2_QPC_BYTE_76_RQ_VLAN_EN_S, 1);
 			roce_set_bit(qpc_mask->byte_76_srqn_op_en,

@@ -1050,10 +1050,13 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 	enum rdma_network_type nw_type;
 	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 	u32 ipv4_addr;
+	int ret;
 	int i;
 
 	gid_attr = grh->sgid_attr;
-	qp_params->vlan_id = rdma_vlan_dev_vlan_id(gid_attr->ndev);
+	ret = rdma_read_gid_l2_fields(gid_attr, &qp_params->vlan_id, NULL);
+	if (ret)
+		return ret;
 
 	nw_type = rdma_gid_attr_network_type(gid_attr);
 	switch (nw_type) {
