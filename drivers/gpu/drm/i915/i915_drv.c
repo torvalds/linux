@@ -51,6 +51,7 @@
 #include "gt/intel_reset.h"
 #include "gt/intel_workarounds.h"
 
+#include "i915_debugfs.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_pmu.h"
@@ -66,6 +67,7 @@
 #include "intel_fbdev.h"
 #include "intel_hotplug.h"
 #include "intel_overlay.h"
+#include "intel_pipe_crc.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
 #include "intel_uc.h"

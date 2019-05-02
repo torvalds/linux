@@ -34,6 +34,7 @@
 
 #include "gt/intel_reset.h"
 
+#include "i915_debugfs.h"
 #include "i915_gem_context.h"
 #include "i915_irq.h"
 #include "intel_csr.h"

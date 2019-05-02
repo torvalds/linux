@@ -4,6 +4,7 @@
 # Test the headers are compilable as standalone units
 header_test := \
 	i915_active_types.h \
+	i915_debugfs.h \
 	i915_drv.h \
 	i915_gem_context_types.h \
 	i915_gem_pm.h \
