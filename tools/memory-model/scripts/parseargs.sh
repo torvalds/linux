@@ -83,7 +83,7 @@ do
 			echo "Cannot create directory --destdir '$LKMM_DESTDIR'"
 			usage
 		fi
-		if test -d "$LKMM_DESTDIR" -a -w "$LKMM_DESTDIR" -a -x "$LKMM_DESTDIR"
+		if test -d "$LKMM_DESTDIR" -a -x "$LKMM_DESTDIR"
 		then
 			:
 		else
@@ -126,6 +126,10 @@ do
 		checkarg --timeout "(timeout spec)" "$#" "$2" '^\([0-9]\+[smhd]\?\|\)$' '^--'
 		LKMM_TIMEOUT="$2"
 		shift
+		;;
+	--)
+		shift
+		break
 		;;
 	*)
 		echo Unknown argument $1
