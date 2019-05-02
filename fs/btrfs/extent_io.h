@@ -187,7 +187,7 @@ struct extent_buffer {
 	wait_queue_head_t read_lock_wq;
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
-	atomic_t spinning_writers;
+	int spinning_writers;
 	atomic_t spinning_readers;
 	atomic_t read_locks;
 	atomic_t write_locks;

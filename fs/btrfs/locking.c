@@ -15,19 +15,19 @@
 #ifdef CONFIG_BTRFS_DEBUG
 static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb)
 {
-	WARN_ON(atomic_read(&eb->spinning_writers));
-	atomic_inc(&eb->spinning_writers);
+	WARN_ON(eb->spinning_writers);
+	eb->spinning_writers++;
 }
 
 static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb)
 {
-	WARN_ON(atomic_read(&eb->spinning_writers) != 1);
-	atomic_dec(&eb->spinning_writers);
+	WARN_ON(eb->spinning_writers != 1);
+	eb->spinning_writers--;
 }
 
 static void btrfs_assert_no_spinning_writers(struct extent_buffer *eb)
 {
-	WARN_ON(atomic_read(&eb->spinning_writers));
+	WARN_ON(eb->spinning_writers);
 }
 
 static void btrfs_assert_spinning_readers_get(struct extent_buffer *eb)

@@ -4876,7 +4876,7 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	BUG_ON(len > MAX_INLINE_EXTENT_BUFFER_SIZE);
 
 #ifdef CONFIG_BTRFS_DEBUG
-	atomic_set(&eb->spinning_writers, 0);
+	eb->spinning_writers = 0;
 	atomic_set(&eb->spinning_readers, 0);
 	atomic_set(&eb->read_locks, 0);
 	atomic_set(&eb->write_locks, 0);

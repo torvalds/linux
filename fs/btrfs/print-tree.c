@@ -157,7 +157,7 @@ static void print_eb_refs_lock(struct extent_buffer *eb)
 		   atomic_read(&eb->read_locks),
 		   eb->blocking_writers,
 		   atomic_read(&eb->blocking_readers),
-		   atomic_read(&eb->spinning_writers),
+		   eb->spinning_writers,
 		   atomic_read(&eb->spinning_readers),
 		   eb->lock_owner, current->pid);
 #endif
