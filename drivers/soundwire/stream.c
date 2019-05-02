@@ -89,7 +89,7 @@ static int _sdw_program_slave_port_params(struct sdw_bus *bus,
 
 	/*
 	 * Data ports are FULL, SIMPLE and REDUCED. This function handles
-	 * FULL and REDUCED only and and beyond this point only FULL is
+	 * FULL and REDUCED only and beyond this point only FULL is
 	 * handled, so bail out if we are not FULL data port type
 	 */
 	if (type != SDW_DPN_FULL)
@@ -233,7 +233,7 @@ static int sdw_program_master_port_params(struct sdw_bus *bus,
 
 	/*
 	 * we need to set transport and port parameters for the port.
-	 * Transport parameters refers to the smaple interval, offsets and
+	 * Transport parameters refers to the sample interval, offsets and
 	 * hstart/stop etc of the data. Port parameters refers to word
 	 * length, flow mode etc of the port
 	 */
