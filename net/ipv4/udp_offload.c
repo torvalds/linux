@@ -384,7 +384,7 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 
 		/* Terminate the flow on len mismatch or if it grow "too much".
 		 * Under small packet flood GRO count could elsewhere grow a lot
-		 * leading to execessive truesize values.
+		 * leading to excessive truesize values.
 		 * On len mismatch merge the first packet shorter than gso_size,
 		 * otherwise complete the GRO packet.
 		 */
