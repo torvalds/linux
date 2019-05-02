@@ -537,21 +537,25 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 			return -EOPNOTSUPP;
 
 		if (!(ops->validate & GENL_DONT_VALIDATE_DUMP)) {
-			unsigned int validate = NL_VALIDATE_STRICT;
 			int hdrlen = GENL_HDRLEN + family->hdrsize;
-
-			if (ops->validate & GENL_DONT_VALIDATE_DUMP_STRICT)
-				validate = NL_VALIDATE_LIBERAL;
 
 			if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 				return -EINVAL;
 
-			rc = __nla_validate(nlmsg_attrdata(nlh, hdrlen),
-					    nlmsg_attrlen(nlh, hdrlen),
-					    family->maxattr, family->policy,
-					    validate, extack);
-			if (rc)
-				return rc;
+			if (family->maxattr) {
+				unsigned int validate = NL_VALIDATE_STRICT;
+
+				if (ops->validate &
+				    GENL_DONT_VALIDATE_DUMP_STRICT)
+					validate = NL_VALIDATE_LIBERAL;
+				rc = __nla_validate(nlmsg_attrdata(nlh, hdrlen),
+						    nlmsg_attrlen(nlh, hdrlen),
+						    family->maxattr,
+						    family->policy,
+						    validate, extack);
+				if (rc)
+					return rc;
+			}
 		}
 
 		if (!family->parallel_ops) {
