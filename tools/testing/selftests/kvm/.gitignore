@@ -1,6 +1,7 @@
 /x86_64/cr4_cpuid_sync_test
 /x86_64/evmcs_test
 /x86_64/hyperv_cpuid
+/x86_64/kvm_create_max_vcpus
 /x86_64/platform_info_test
 /x86_64/set_sregs_test
 /x86_64/smm_test
