@@ -3357,50 +3357,6 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 #define INTEL_BROADCAST_RGB_FULL 1
 #define INTEL_BROADCAST_RGB_LIMITED 2
 
-static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
-{
-	unsigned long j = msecs_to_jiffies(m);
-
-	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
-}
-
-static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
-{
-	/* nsecs_to_jiffies64() does not guard against overflow */
-	if (NSEC_PER_SEC % HZ &&
-	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
-		return MAX_JIFFY_OFFSET;
-
-        return min_t(u64, MAX_JIFFY_OFFSET, nsecs_to_jiffies64(n) + 1);
-}
-
-/*
- * If you need to wait X milliseconds between events A and B, but event B
- * doesn't happen exactly after event A, you record the timestamp (jiffies) of
- * when event A happened, then just before event B you call this function and
- * pass the timestamp as the first argument, and X as the second argument.
- */
-static inline void
-wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
-{
-	unsigned long target_jiffies, tmp_jiffies, remaining_jiffies;
-
-	/*
-	 * Don't re-read the value of "jiffies" every time since it may change
-	 * behind our back and break the math.
-	 */
-	tmp_jiffies = jiffies;
-	target_jiffies = timestamp_jiffies +
-			 msecs_to_jiffies_timeout(to_wait_ms);
-
-	if (time_after(target_jiffies, tmp_jiffies)) {
-		remaining_jiffies = target_jiffies - tmp_jiffies;
-		while (remaining_jiffies)
-			remaining_jiffies =
-			    schedule_timeout_uninterruptible(remaining_jiffies);
-	}
-}
-
 void i915_memcpy_init_early(struct drm_i915_private *dev_priv);
 bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
 
