@@ -33,7 +33,6 @@
 #define SOF_RT5682_SSP_AMP_MASK			(GENMASK(8, 6))
 #define SOF_RT5682_SSP_AMP_SHIFT		6
 
-
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0);
@@ -431,14 +430,15 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		if (!links[id].cpu_dai_name)
 			goto devm_err;
 
-		idisp_components[i-1].name = "ehdaudio0D2";
-		idisp_components[i-1].dai_name = devm_kasprintf(dev, GFP_KERNEL,
-								"intel-hdmi-"
-								"hifi%d", i);
-		if (!idisp_components[i-1].dai_name)
+		idisp_components[i - 1].name = "ehdaudio0D2";
+		idisp_components[i - 1].dai_name = devm_kasprintf(dev,
+								  GFP_KERNEL,
+								  "intel-hdmi-hifi%d",
+								  i);
+		if (!idisp_components[i - 1].dai_name)
 			goto devm_err;
 
-		links[id].codecs = &idisp_components[i-1];
+		links[id].codecs = &idisp_components[i - 1];
 		links[id].num_codecs = 1;
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
