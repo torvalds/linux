@@ -108,6 +108,18 @@ static struct addr_marker address_markers[] = {
 	{ -1,	NULL },
 };
 
+#define pt_dump_seq_printf(m, fmt, args...)	\
+({						\
+	if (m)					\
+		seq_printf(m, fmt, ##args);	\
+})
+
+#define pt_dump_seq_putc(m, c)		\
+({					\
+	if (m)				\
+		seq_putc(m, c);		\
+})
+
 static void dump_flag_info(struct pg_state *st, const struct flag_info
 		*flag, u64 pte, int num)
 {
@@ -125,19 +137,19 @@ static void dump_flag_info(struct pg_state *st, const struct flag_info
 			val = pte & flag->val;
 			if (flag->shift)
 				val = val >> flag->shift;
-			seq_printf(st->seq, "  %s:%llx", flag->set, val);
+			pt_dump_seq_printf(st->seq, "  %s:%llx", flag->set, val);
 		} else {
 			if ((pte & flag->mask) == flag->val)
 				s = flag->set;
 			else
 				s = flag->clear;
 			if (s)
-				seq_printf(st->seq, "  %s", s);
+				pt_dump_seq_printf(st->seq, "  %s", s);
 		}
 		st->current_flags &= ~flag->mask;
 	}
 	if (st->current_flags != 0)
-		seq_printf(st->seq, "  unknown flags:%llx", st->current_flags);
+		pt_dump_seq_printf(st->seq, "  unknown flags:%llx", st->current_flags);
 }
 
 static void dump_addr(struct pg_state *st, unsigned long addr)
@@ -152,12 +164,12 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 #define REG		"0x%08lx"
 #endif
 
-	seq_printf(st->seq, REG "-" REG " ", st->start_address, addr - 1);
+	pt_dump_seq_printf(st->seq, REG "-" REG " ", st->start_address, addr - 1);
 	if (st->start_pa == st->last_pa && st->start_address + PAGE_SIZE != addr) {
-		seq_printf(st->seq, "[" REG "]", st->start_pa);
+		pt_dump_seq_printf(st->seq, "[" REG "]", st->start_pa);
 		delta = PAGE_SIZE >> 10;
 	} else {
-		seq_printf(st->seq, " " REG " ", st->start_pa);
+		pt_dump_seq_printf(st->seq, " " REG " ", st->start_pa);
 		delta = (addr - st->start_address) >> 10;
 	}
 	/* Work out what appropriate unit to use */
@@ -165,7 +177,7 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 		delta >>= 10;
 		unit++;
 	}
-	seq_printf(st->seq, "%9lu%c", delta, *unit);
+	pt_dump_seq_printf(st->seq, "%9lu%c", delta, *unit);
 
 }
 
@@ -182,7 +194,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 		st->start_address = addr;
 		st->start_pa = pa;
 		st->last_pa = pa;
-		seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
+		pt_dump_seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
 	/*
 	 * Dump the section of virtual memory when:
 	 *   - the PTE flags from one entry to the next differs.
@@ -206,7 +218,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 					  st->current_flags,
 					  pg_level[st->level].num);
 
-			seq_putc(st->seq, '\n');
+			pt_dump_seq_putc(st->seq, '\n');
 		}
 
 		/*
@@ -215,7 +227,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 		 */
 		while (addr >= st->marker[1].start_address) {
 			st->marker++;
-			seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
+			pt_dump_seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
 		}
 		st->start_address = addr;
 		st->start_pa = pa;
