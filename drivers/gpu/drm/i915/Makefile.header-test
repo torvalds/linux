@@ -14,6 +14,7 @@ header_test := \
 	i915_reg.h \
 	i915_scheduler_types.h \
 	i915_timeline_types.h \
+	i915_utils.h \
 	intel_acpi.h \
 	intel_atomic.h \
 	intel_atomic_plane.h \

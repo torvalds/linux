@@ -25,6 +25,10 @@
 #ifndef __I915_UTILS_H
 #define __I915_UTILS_H
 
+#include <linux/list.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
 #if 0
@@ -151,8 +155,6 @@ static inline u64 ptr_to_u64(const void *ptr)
 	mask &= ~BIT(__idx);						\
 	__idx;								\
 })
-
-#include <linux/list.h>
 
 static inline void __list_del_many(struct list_head *head,
 				   struct list_head *first)
