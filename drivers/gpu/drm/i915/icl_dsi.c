@@ -1206,6 +1206,7 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 
 	/* FIXME: adapt icl_ddi_clock_get() for DSI and use that? */
@@ -1214,6 +1215,7 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	pipe_config->base.adjusted_mode.crtc_clock = intel_dsi->pclk;
 	gen11_dsi_get_timings(encoder, pipe_config);
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
+	pipe_config->pipe_bpp = bdw_get_pipemisc_bpp(crtc);
 }
 
 static int gen11_dsi_compute_config(struct intel_encoder *encoder,
@@ -1229,6 +1231,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode =
 					&pipe_config->base.adjusted_mode;
 
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 	intel_pch_panel_fitting(crtc, pipe_config, conn_state->scaling_mode);
 
