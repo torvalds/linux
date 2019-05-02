@@ -7,7 +7,7 @@
 
 &cbass_wakeup {
 	dmsc: dmsc {
-		compatible = "ti,k2g-sci";
+		compatible = "ti,am654-sci";
 		ti,host-id = <12>;
 		#address-cells = <1>;
 		#size-cells = <1>;
