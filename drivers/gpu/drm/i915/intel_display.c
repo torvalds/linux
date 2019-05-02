@@ -7750,9 +7750,14 @@ static void intel_get_pipe_timings(struct intel_crtc *crtc,
 	tmp = I915_READ(HTOTAL(cpu_transcoder));
 	pipe_config->base.adjusted_mode.crtc_hdisplay = (tmp & 0xffff) + 1;
 	pipe_config->base.adjusted_mode.crtc_htotal = ((tmp >> 16) & 0xffff) + 1;
-	tmp = I915_READ(HBLANK(cpu_transcoder));
-	pipe_config->base.adjusted_mode.crtc_hblank_start = (tmp & 0xffff) + 1;
-	pipe_config->base.adjusted_mode.crtc_hblank_end = ((tmp >> 16) & 0xffff) + 1;
+
+	if (!transcoder_is_dsi(cpu_transcoder)) {
+		tmp = I915_READ(HBLANK(cpu_transcoder));
+		pipe_config->base.adjusted_mode.crtc_hblank_start =
+							(tmp & 0xffff) + 1;
+		pipe_config->base.adjusted_mode.crtc_hblank_end =
+						((tmp >> 16) & 0xffff) + 1;
+	}
 	tmp = I915_READ(HSYNC(cpu_transcoder));
 	pipe_config->base.adjusted_mode.crtc_hsync_start = (tmp & 0xffff) + 1;
 	pipe_config->base.adjusted_mode.crtc_hsync_end = ((tmp >> 16) & 0xffff) + 1;
@@ -7760,9 +7765,14 @@ static void intel_get_pipe_timings(struct intel_crtc *crtc,
 	tmp = I915_READ(VTOTAL(cpu_transcoder));
 	pipe_config->base.adjusted_mode.crtc_vdisplay = (tmp & 0xffff) + 1;
 	pipe_config->base.adjusted_mode.crtc_vtotal = ((tmp >> 16) & 0xffff) + 1;
-	tmp = I915_READ(VBLANK(cpu_transcoder));
-	pipe_config->base.adjusted_mode.crtc_vblank_start = (tmp & 0xffff) + 1;
-	pipe_config->base.adjusted_mode.crtc_vblank_end = ((tmp >> 16) & 0xffff) + 1;
+
+	if (!transcoder_is_dsi(cpu_transcoder)) {
+		tmp = I915_READ(VBLANK(cpu_transcoder));
+		pipe_config->base.adjusted_mode.crtc_vblank_start =
+							(tmp & 0xffff) + 1;
+		pipe_config->base.adjusted_mode.crtc_vblank_end =
+						((tmp >> 16) & 0xffff) + 1;
+	}
 	tmp = I915_READ(VSYNC(cpu_transcoder));
 	pipe_config->base.adjusted_mode.crtc_vsync_start = (tmp & 0xffff) + 1;
 	pipe_config->base.adjusted_mode.crtc_vsync_end = ((tmp >> 16) & 0xffff) + 1;

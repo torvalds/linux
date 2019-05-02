@@ -1175,6 +1175,33 @@ static void gen11_dsi_disable(struct intel_encoder *encoder,
 	gen11_dsi_disable_io_power(encoder);
 }
 
+static void gen11_dsi_get_timings(struct intel_encoder *encoder,
+				  struct intel_crtc_state *pipe_config)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct drm_display_mode *adjusted_mode =
+					&pipe_config->base.adjusted_mode;
+
+	if (intel_dsi->dual_link) {
+		adjusted_mode->crtc_hdisplay *= 2;
+		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
+			adjusted_mode->crtc_hdisplay -=
+						intel_dsi->pixel_overlap;
+		adjusted_mode->crtc_htotal *= 2;
+	}
+	adjusted_mode->crtc_hblank_start = adjusted_mode->crtc_hdisplay;
+	adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_htotal;
+
+	if (intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE) {
+		if (intel_dsi->dual_link) {
+			adjusted_mode->crtc_hsync_start *= 2;
+			adjusted_mode->crtc_hsync_end *= 2;
+		}
+	}
+	adjusted_mode->crtc_vblank_start = adjusted_mode->crtc_vdisplay;
+	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal;
+}
+
 static void gen11_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
@@ -1185,6 +1212,7 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	pipe_config->port_clock =
 		cnl_calc_wrpll_link(dev_priv, &pipe_config->dpll_hw_state);
 	pipe_config->base.adjusted_mode.crtc_clock = intel_dsi->pclk;
+	gen11_dsi_get_timings(encoder, pipe_config);
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 }
 
