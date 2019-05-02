@@ -193,8 +193,8 @@ static int sja1105_init_l2_lookup_params(struct sja1105_private *priv)
 {
 	struct sja1105_table *table;
 	struct sja1105_l2_lookup_params_entry default_l2_lookup_params = {
-		/* TODO Learned FDB entries are never forgotten */
-		.maxage = 0,
+		/* Learned FDB entries are forgotten after 300 seconds */
+		.maxage = SJA1105_AGEING_TIME_MS(300000),
 		/* All entries within a FDB bin are available for learning */
 		.dyn_tbsz = SJA1105ET_FDB_BIN_SIZE,
 		/* 2^8 + 2^5 + 2^3 + 2^2 + 2^1 + 1 in Koopman notation */
@@ -1249,10 +1249,35 @@ static int sja1105_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+/* The MAXAGE setting belongs to the L2 Forwarding Parameters table,
+ * which cannot be reconfigured at runtime. So a switch reset is required.
+ */
+static int sja1105_set_ageing_time(struct dsa_switch *ds,
+				   unsigned int ageing_time)
+{
+	struct sja1105_l2_lookup_params_entry *l2_lookup_params;
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_table *table;
+	unsigned int maxage;
+
+	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
+	l2_lookup_params = table->entries;
+
+	maxage = SJA1105_AGEING_TIME_MS(ageing_time);
+
+	if (l2_lookup_params->maxage == maxage)
+		return 0;
+
+	l2_lookup_params->maxage = maxage;
+
+	return sja1105_static_config_reload(priv);
+}
+
 static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
 	.setup			= sja1105_setup,
 	.adjust_link		= sja1105_adjust_link,
+	.set_ageing_time	= sja1105_set_ageing_time,
 	.get_strings		= sja1105_get_strings,
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,

@@ -12,6 +12,10 @@
 #define SJA1105_NUM_PORTS		5
 #define SJA1105_NUM_TC			8
 #define SJA1105ET_FDB_BIN_SIZE		4
+/* The hardware value is in multiples of 10 ms.
+ * The passed parameter is in multiples of 1 ms.
+ */
+#define SJA1105_AGEING_TIME_MS(ms)	((ms) / 10)
 
 /* Keeps the different addresses between E/T and P/Q/R/S */
 struct sja1105_regs {
