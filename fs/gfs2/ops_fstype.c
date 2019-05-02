@@ -41,6 +41,7 @@
 #include "dir.h"
 #include "meta_io.h"
 #include "trace_gfs2.h"
+#include "lops.h"
 
 #define DO 0
 #define UNDO 1
@@ -616,7 +617,7 @@ static int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd)
 		fs_err(sdp, "Error checking journal for spectator mount.\n");
 		goto out_unlock;
 	}
-	error = gfs2_find_jhead(jd, &head);
+	error = gfs2_find_jhead(jd, &head, false);
 	if (error) {
 		fs_err(sdp, "Error parsing journal for spectator mount.\n");
 		goto out_unlock;

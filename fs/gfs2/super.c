@@ -45,6 +45,7 @@
 #include "util.h"
 #include "sys.h"
 #include "xattr.h"
+#include "lops.h"
 
 #define args_neq(a1, a2, x) ((a1)->ar_##x != (a2)->ar_##x)
 
@@ -425,7 +426,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
-	error = gfs2_find_jhead(sdp->sd_jdesc, &head);
+	error = gfs2_find_jhead(sdp->sd_jdesc, &head, false);
 	if (error)
 		goto fail;
 
@@ -680,7 +681,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 		error = gfs2_jdesc_check(jd);
 		if (error)
 			break;
-		error = gfs2_find_jhead(jd, &lh);
+		error = gfs2_find_jhead(jd, &lh, false);
 		if (error)
 			break;
 		if (!(lh.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
