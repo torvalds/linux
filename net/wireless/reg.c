@@ -3778,10 +3778,9 @@ void wiphy_regulatory_register(struct wiphy *wiphy)
 		/*
 		 * The last request may have been received before this
 		 * registration call. Call the driver notifier if
-		 * initiator is USER and user type is CELL_BASE.
+		 * initiator is USER.
 		 */
-		if (lr->initiator == NL80211_REGDOM_SET_BY_USER &&
-		    lr->user_reg_hint_type == NL80211_USER_REG_HINT_CELL_BASE)
+		if (lr->initiator == NL80211_REGDOM_SET_BY_USER)
 			reg_call_notifier(wiphy, lr);
 	}
 

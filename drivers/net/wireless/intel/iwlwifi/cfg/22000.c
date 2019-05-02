@@ -201,7 +201,7 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 #define IWL_DEVICE_AX210						\
 	IWL_DEVICE_AX200_COMMON,					\
 	.device_family = IWL_DEVICE_FAMILY_AX210,			\
-	.base_params = &iwl_22000_base_params,				\
+	.base_params = &iwl_22560_base_params,				\
 	.csr = &iwl_csr_v1,						\
 	.min_txq_size = 128
 
