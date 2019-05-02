@@ -4821,6 +4821,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (err)
 		goto out;
 
+	mv88e6xxx_ports_cmode_init(chip);
 	mv88e6xxx_phy_init(chip);
 
 	if (chip->info->ops->get_eeprom) {

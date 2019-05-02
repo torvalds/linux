@@ -290,11 +290,8 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 		tls_sw_free_resources_tx(sk);
 	}
 
-	if (ctx->rx_conf == TLS_SW) {
-		kfree(ctx->rx.rec_seq);
-		kfree(ctx->rx.iv);
+	if (ctx->rx_conf == TLS_SW)
 		tls_sw_free_resources_rx(sk);
-	}
 
 #ifdef CONFIG_TLS_DEVICE
 	if (ctx->rx_conf == TLS_HW)

@@ -1155,19 +1155,19 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
  * handle data received on the local endpoint
  * - may be called in interrupt context
  *
- * The socket is locked by the caller and this prevents the socket from being
- * shut down and the local endpoint from going away, thus sk_user_data will not
- * be cleared until this function returns.
+ * [!] Note that as this is called from the encap_rcv hook, the socket is not
+ * held locked by the caller and nothing prevents sk_user_data on the UDP from
+ * being cleared in the middle of processing this function.
  *
  * Called with the RCU read lock held from the IP layer via UDP.
  */
 int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 {
+	struct rxrpc_local *local = rcu_dereference_sk_user_data(udp_sk);
 	struct rxrpc_connection *conn;
 	struct rxrpc_channel *chan;
 	struct rxrpc_call *call = NULL;
 	struct rxrpc_skb_priv *sp;
-	struct rxrpc_local *local = udp_sk->sk_user_data;
 	struct rxrpc_peer *peer = NULL;
 	struct rxrpc_sock *rx = NULL;
 	unsigned int channel;
@@ -1175,6 +1175,10 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 
 	_enter("%p", udp_sk);
 
+	if (unlikely(!local)) {
+		kfree_skb(skb);
+		return 0;
+	}
 	if (skb->tstamp == 0)
 		skb->tstamp = ktime_get_real();
 
