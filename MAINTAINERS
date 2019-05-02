@@ -11120,6 +11120,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/sound/sgtl5000.txt
 F:	sound/soc/codecs/sgtl5000*
 
+NXP SJA1105 ETHERNET SWITCH DRIVER
+M:	Vladimir Oltean <olteanv@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/net/dsa/sja1105
+
 NXP TDA998X DRM DRIVER
 M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
