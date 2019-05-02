@@ -771,7 +771,6 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 		if (ret < 0) {
 			dev_err(bus->dev, "Bank switch failed: %d\n", ret);
 			goto error;
-
 		}
 	}
 
@@ -818,7 +817,6 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 
 error:
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
-
 		bus = m_rt->bus;
 
 		kfree(bus->defer_msg.msg->buf);
@@ -985,13 +983,11 @@ static void sdw_slave_port_release(struct sdw_bus *bus,
 
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
 		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
-
 			if (s_rt->slave != slave)
 				continue;
 
 			list_for_each_entry_safe(p_rt, _p_rt,
 						 &s_rt->port_list, port_node) {
-
 				list_del(&p_rt->port_node);
 				kfree(p_rt);
 			}
@@ -1017,7 +1013,6 @@ static void sdw_release_slave_stream(struct sdw_slave *slave,
 		/* Retrieve Slave runtime handle */
 		list_for_each_entry_safe(s_rt, _s_rt,
 					 &m_rt->slave_rt_list, m_rt_node) {
-
 			if (s_rt->slave == slave) {
 				list_del(&s_rt->m_rt_node);
 				kfree(s_rt);
@@ -1070,7 +1065,6 @@ int sdw_stream_remove_master(struct sdw_bus *bus,
 
 	list_for_each_entry_safe(m_rt, _m_rt,
 				 &stream->master_list, stream_node) {
-
 		if (m_rt->bus != bus)
 			continue;
 
@@ -1492,7 +1486,6 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			goto restore_params;
 		}
-
 	}
 
 	ret = do_bank_switch(stream);
@@ -1693,7 +1686,6 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 			dev_err(bus->dev, "Program params failed: %d\n", ret);
 			return ret;
 		}
-
 	}
 
 	stream->state = SDW_STREAM_DEPREPARED;

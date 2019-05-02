@@ -391,7 +391,6 @@ EXPORT_SYMBOL(sdw_read);
 int sdw_write(struct sdw_slave *slave, u32 addr, u8 value)
 {
 	return sdw_nwrite(slave, addr, 1, &value);
-
 }
 EXPORT_SYMBOL(sdw_write);
 
@@ -414,7 +413,6 @@ static struct sdw_slave *sdw_get_slave(struct sdw_bus *bus, int i)
 
 static int sdw_compare_devid(struct sdw_slave *slave, struct sdw_slave_id id)
 {
-
 	if (slave->id.unique_id != id.unique_id ||
 	    slave->id.mfg_id != id.mfg_id ||
 	    slave->id.part_id != id.part_id ||
@@ -467,7 +465,6 @@ static int sdw_assign_device_num(struct sdw_slave *slave)
 		/* Clear the slave->dev_num to transfer message on device 0 */
 		dev_num = slave->dev_num;
 		slave->dev_num = 0;
-
 	}
 
 	ret = sdw_write(slave, SDW_SCP_DEVNUMBER, dev_num);
@@ -508,7 +505,6 @@ void sdw_extract_slave_id(struct sdw_bus *bus,
 		"SDW Slave class_id %x, part_id %x, mfg_id %x, unique_id %x, version %x\n",
 				id->class_id, id->part_id, id->mfg_id,
 				id->unique_id, id->sdw_version);
-
 }
 
 static int sdw_program_device_num(struct sdw_bus *bus)
@@ -677,7 +673,6 @@ static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
 	}
 
 	do {
-
 		if (status & SDW_DP0_INT_TEST_FAIL) {
 			dev_err(&slave->dev, "Test fail for port 0\n");
 			clear |= SDW_DP0_INT_TEST_FAIL;
@@ -754,7 +749,6 @@ static int sdw_handle_port_interrupt(struct sdw_slave *slave,
 	}
 
 	do {
-
 		if (status & SDW_DPN_INT_TEST_FAIL) {
 			dev_err(&slave->dev, "Test fail for port:%d\n", port);
 			clear |= SDW_DPN_INT_TEST_FAIL;
@@ -867,7 +861,6 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		for_each_set_bit(bit, &port, 8) {
 			sdw_handle_port_interrupt(slave, bit,
 						  &port_status[bit]);
-
 		}
 
 		/* Check if cascade 2 interrupt is present */
@@ -1035,7 +1028,6 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 		if (ret)
 			dev_err(slave->bus->dev,
 				"Update Slave status failed:%d\n", ret);
-
 	}
 
 	return ret;
