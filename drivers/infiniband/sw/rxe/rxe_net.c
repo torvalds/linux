@@ -481,8 +481,9 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 	if (unlikely(!skb))
 		goto out;
 
-	skb_reserve(skb, hdr_len + LL_RESERVED_SPACE(rxe->ndev));
+	skb_reserve(skb, hdr_len + LL_RESERVED_SPACE(ndev));
 
+	/* FIXME: hold reference to this netdev until life of this skb. */
 	skb->dev	= ndev;
 	if (av->network_type == RDMA_NETWORK_IPV4)
 		skb->protocol = htons(ETH_P_IP);
