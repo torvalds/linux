@@ -1360,10 +1360,10 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	else if (credits > buf->rb_max_requests)
 		credits = buf->rb_max_requests;
 	if (buf->rb_credits != credits) {
-		spin_lock_bh(&xprt->transport_lock);
+		spin_lock(&xprt->transport_lock);
 		buf->rb_credits = credits;
 		xprt->cwnd = credits << RPC_CWNDSHIFT;
-		spin_unlock_bh(&xprt->transport_lock);
+		spin_unlock(&xprt->transport_lock);
 	}
 
 	req = rpcr_to_rdmar(rqst);
