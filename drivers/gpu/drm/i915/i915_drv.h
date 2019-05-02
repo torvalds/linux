@@ -3357,16 +3357,6 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 #define INTEL_BROADCAST_RGB_FULL 1
 #define INTEL_BROADCAST_RGB_LIMITED 2
 
-static inline i915_reg_t i915_vgacntrl_reg(struct drm_i915_private *dev_priv)
-{
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return VLV_VGACNTRL;
-	else if (INTEL_GEN(dev_priv) >= 5)
-		return CPU_VGACNTRL;
-	else
-		return VGACNTRL;
-}
-
 static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
 {
 	unsigned long j = msecs_to_jiffies(m);

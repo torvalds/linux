@@ -15486,6 +15486,16 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.update_crtcs = intel_update_crtcs;
 }
 
+static i915_reg_t i915_vgacntrl_reg(struct drm_i915_private *dev_priv)
+{
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		return VLV_VGACNTRL;
+	else if (INTEL_GEN(dev_priv) >= 5)
+		return CPU_VGACNTRL;
+	else
+		return VGACNTRL;
+}
+
 /* Disable the VGA plane that we never use */
 static void i915_disable_vga(struct drm_i915_private *dev_priv)
 {
