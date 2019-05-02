@@ -43,7 +43,8 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	if (bus->ops->read_prop) {
 		ret = bus->ops->read_prop(bus);
 		if (ret < 0) {
-			dev_err(bus->dev, "Bus read properties failed:%d\n", ret);
+			dev_err(bus->dev,
+				"Bus read properties failed:%d\n", ret);
 			return ret;
 		}
 	}

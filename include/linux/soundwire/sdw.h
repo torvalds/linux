@@ -470,14 +470,14 @@ struct sdw_bus_params {
 struct sdw_slave_ops {
 	int (*read_prop)(struct sdw_slave *sdw);
 	int (*interrupt_callback)(struct sdw_slave *slave,
-			struct sdw_slave_intr_status *status);
+				  struct sdw_slave_intr_status *status);
 	int (*update_status)(struct sdw_slave *slave,
-			enum sdw_slave_status status);
+			     enum sdw_slave_status status);
 	int (*bus_config)(struct sdw_slave *slave,
-			struct sdw_bus_params *params);
+			  struct sdw_bus_params *params);
 	int (*port_prep)(struct sdw_slave *slave,
-			struct sdw_prepare_ch *prepare_ch,
-			enum sdw_port_prep_ops pre_ops);
+			 struct sdw_prepare_ch *prepare_ch,
+			 enum sdw_port_prep_ops pre_ops);
 };
 
 /**

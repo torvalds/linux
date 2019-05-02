@@ -400,7 +400,8 @@ static int sdw_do_port_prep(struct sdw_slave_runtime *s_rt,
 		ret = ops->port_prep(s_rt->slave, &prep_ch, cmd);
 		if (ret < 0) {
 			dev_err(&s_rt->slave->dev,
-				"Slave Port Prep cmd %d failed: %d\n", cmd, ret);
+				"Slave Port Prep cmd %d failed: %d\n",
+				cmd, ret);
 			return ret;
 		}
 	}
@@ -614,7 +615,8 @@ static int sdw_program_params(struct sdw_bus *bus)
 
 		ret = sdw_notify_config(m_rt);
 		if (ret < 0) {
-			dev_err(bus->dev, "Notify bus config failed: %d\n", ret);
+			dev_err(bus->dev,
+				"Notify bus config failed: %d\n", ret);
 			return ret;
 		}
 
@@ -789,7 +791,8 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 			ret = ops->post_bank_switch(bus);
 			if (ret < 0) {
 				dev_err(bus->dev,
-					"Post bank switch op failed: %d\n", ret);
+					"Post bank switch op failed: %d\n",
+					ret);
 				goto error;
 			}
 		} else if (bus->multi_link && stream->m_rt_count > 1) {
@@ -1562,7 +1565,8 @@ static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
 		/* Enable port(s) */
 		ret = sdw_enable_disable_ports(m_rt, true);
 		if (ret < 0) {
-			dev_err(bus->dev, "Enable port(s) failed ret: %d\n", ret);
+			dev_err(bus->dev,
+				"Enable port(s) failed ret: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1672,7 +1676,8 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 		/* De-prepare port(s) */
 		ret = sdw_prep_deprep_ports(m_rt, false);
 		if (ret < 0) {
-			dev_err(bus->dev, "De-prepare port(s) failed: %d\n", ret);
+			dev_err(bus->dev,
+				"De-prepare port(s) failed: %d\n", ret);
 			return ret;
 		}
 
