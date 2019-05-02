@@ -134,7 +134,8 @@ static int __init enable_strict_msr_control(char *str)
 }
 early_param("ppc_strict_facility_enable", enable_strict_msr_control);
 
-unsigned long msr_check_and_set(unsigned long bits)
+/* notrace because it's called by restore_math */
+unsigned long notrace msr_check_and_set(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -153,7 +154,8 @@ unsigned long msr_check_and_set(unsigned long bits)
 }
 EXPORT_SYMBOL_GPL(msr_check_and_set);
 
-void __msr_check_and_clear(unsigned long bits)
+/* notrace because it's called by restore_math */
+void notrace __msr_check_and_clear(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -526,7 +528,17 @@ void giveup_all(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(giveup_all);
 
-void restore_math(struct pt_regs *regs)
+/*
+ * The exception exit path calls restore_math() with interrupts hard disabled
+ * but the soft irq state not "reconciled". ftrace code that calls
+ * local_irq_save/restore causes warnings.
+ *
+ * Rather than complicate the exit path, just don't trace restore_math. This
+ * could be done by having ftrace entry code check for this un-reconciled
+ * condition where MSR[EE]=0 and PACA_IRQ_HARD_DIS is not set, and
+ * temporarily fix it up for the duration of the ftrace call.
+ */
+void notrace restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
 

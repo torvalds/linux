@@ -258,16 +258,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 */
 	irq_happened = get_irq_happened();
 	if (!irq_happened) {
-		/*
-		 * FIXME. Here we'd like to be able to do:
-		 *
-		 * #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-		 *   WARN_ON(!(mfmsr() & MSR_EE));
-		 * #endif
-		 *
-		 * But currently it hits in a few paths, we should fix those and
-		 * enable the warning.
-		 */
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+		WARN_ON(!(mfmsr() & MSR_EE));
+#endif
 		return;
 	}
 
