@@ -861,6 +861,9 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 			return -ENOENT;
 		}
 
+		IWL_DEBUG_INFO(mvm,
+			       "SAR EWRD: chain %d profile index %d\n",
+			       i, profs[i]);
 		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
 		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
 			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
