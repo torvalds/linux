@@ -57,6 +57,7 @@
 #include "i915_query.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_acpi.h"
 #include "intel_audio.h"
 #include "intel_cdclk.h"
 #include "intel_csr.h"

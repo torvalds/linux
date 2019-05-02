@@ -3264,15 +3264,6 @@ static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 }
 extern void intel_i2c_reset(struct drm_i915_private *dev_priv);
 
-/* intel_acpi.c */
-#ifdef CONFIG_ACPI
-extern void intel_register_dsm_handler(void);
-extern void intel_unregister_dsm_handler(void);
-#else
-static inline void intel_register_dsm_handler(void) { return; }
-static inline void intel_unregister_dsm_handler(void) { return; }
-#endif /* CONFIG_ACPI */
-
 /* intel_device_info.c */
 static inline struct intel_device_info *
 mkwrite_device_info(struct drm_i915_private *dev_priv)
