@@ -255,9 +255,16 @@ static int parse_afs_partitions(struct mtd_info *mtd,
 	return idx ? idx : ret;
 }
 
+static const struct of_device_id mtd_parser_afs_of_match_table[] = {
+	{ .compatible = "arm,arm-firmware-suite" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, mtd_parser_afs_of_match_table);
+
 static struct mtd_part_parser afs_parser = {
 	.parse_fn = parse_afs_partitions,
 	.name = "afs",
+	.of_match_table = mtd_parser_afs_of_match_table,
 };
 module_mtd_part_parser(afs_parser);
 
