@@ -8961,6 +8961,28 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(PIPEMISC(crtc->pipe), val);
 }
 
+int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 tmp;
+
+	tmp = I915_READ(PIPEMISC(crtc->pipe));
+
+	switch (tmp & PIPEMISC_DITHER_BPC_MASK) {
+	case PIPEMISC_DITHER_6_BPC:
+		return 18;
+	case PIPEMISC_DITHER_8_BPC:
+		return 24;
+	case PIPEMISC_DITHER_10_BPC:
+		return 30;
+	case PIPEMISC_DITHER_12_BPC:
+		return 36;
+	default:
+		MISSING_CASE(tmp);
+		return 0;
+	}
+}
+
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
 {
 	/*
