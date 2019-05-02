@@ -907,10 +907,10 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
 		/* Connectivity log: detection */
-		for (i = 0; i < sink->dc_edid.length / EDID_BLOCK_SIZE; i++) {
+		for (i = 0; i < sink->dc_edid.length / DC_EDID_BLOCK_SIZE; i++) {
 			CONN_DATA_DETECT(link,
-					&sink->dc_edid.raw_edid[i * EDID_BLOCK_SIZE],
-					EDID_BLOCK_SIZE,
+					&sink->dc_edid.raw_edid[i * DC_EDID_BLOCK_SIZE],
+					DC_EDID_BLOCK_SIZE,
 					"%s: [Block %d] ", sink->edid_caps.display_name, i);
 		}
 
