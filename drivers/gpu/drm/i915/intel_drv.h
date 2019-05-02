@@ -158,15 +158,6 @@ struct drm_printer;
  * Display related stuff
  */
 
-/* store information about an Ixxx DVO */
-/* The i830->i865 use multiple DVOs with multiple i2cs */
-/* the i915, i945 have a single sDVO i2c bus - which is different */
-#define MAX_OUTPUTS 6
-/* maximum connectors per crtcs in the mode set */
-
-#define INTEL_I2C_BUS_DVO 1
-#define INTEL_I2C_BUS_SDVO 2
-
 /* these are outputs from the chip - integrated only
    external chips are via DVO or SDVO output */
 enum intel_output_type {
