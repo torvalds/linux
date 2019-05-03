@@ -48,6 +48,8 @@
 #include <net/inet_ecn.h>
 #include <net/dst_metadata.h>
 
+INDIRECT_CALLABLE_DECLARE(void udp_v6_early_demux(struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(void tcp_v6_early_demux(struct sk_buff *));
 static void ip6_rcv_finish_core(struct net *net, struct sock *sk,
 				struct sk_buff *skb)
 {
@@ -58,7 +60,8 @@ static void ip6_rcv_finish_core(struct net *net, struct sock *sk,
 
 		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
 		if (ipprot && (edemux = READ_ONCE(ipprot->early_demux)))
-			edemux(skb);
+			INDIRECT_CALL_2(edemux, tcp_v6_early_demux,
+					udp_v6_early_demux, skb);
 	}
 	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);
