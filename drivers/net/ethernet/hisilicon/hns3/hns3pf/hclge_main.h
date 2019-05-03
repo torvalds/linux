@@ -253,7 +253,10 @@ struct hclge_mac {
 	u32 speed;
 	u32 speed_ability; /* speed ability supported by current media */
 	u32 module_type; /* sub media type, e.g. kr/cr/sr/lr */
-	int link;	/* store the link status of mac & phy (if phy exit)*/
+	u32 fec_mode; /* active fec mode */
+	u32 user_fec_mode;
+	u32 fec_ability;
+	int link;	/* store the link status of mac & phy (if phy exit) */
 	struct phy_device *phydev;
 	struct mii_bus *mdio_bus;
 	phy_interface_t phy_if;

@@ -132,6 +132,13 @@ enum hnae3_module_type {
 
 };
 
+enum hnae3_fec_mode {
+	HNAE3_FEC_AUTO = 0,
+	HNAE3_FEC_BASER,
+	HNAE3_FEC_RS,
+	HNAE3_FEC_USER_DEF,
+};
+
 enum hnae3_reset_notify_type {
 	HNAE3_UP_CLIENT,
 	HNAE3_DOWN_CLIENT,
@@ -360,6 +367,9 @@ struct hnae3_ae_ops {
 	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type,
 			       u8 *module_type);
 	int (*check_port_speed)(struct hnae3_handle *handle, u32 speed);
+	void (*get_fec)(struct hnae3_handle *handle, u8 *fec_ability,
+			u8 *fec_mode);
+	int (*set_fec)(struct hnae3_handle *handle, u32 fec_mode);
 	void (*adjust_link)(struct hnae3_handle *handle, int speed, int duplex);
 	int (*set_loopback)(struct hnae3_handle *handle,
 			    enum hnae3_loop loop_mode, bool en);
