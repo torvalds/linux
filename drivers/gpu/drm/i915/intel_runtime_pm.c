@@ -3625,6 +3625,23 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 	I915_WRITE(MBUS_ABOX_CTL, val);
 }
 
+static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)
+{
+	u32 val = I915_READ(LCPLL_CTL);
+
+	/*
+	 * The LCPLL register should be turned on by the BIOS. For now
+	 * let's just check its state and print errors in case
+	 * something is wrong.  Don't even try to turn it on.
+	 */
+
+	if (val & LCPLL_CD_SOURCE_FCLK)
+		DRM_ERROR("CDCLK source is not LCPLL\n");
+
+	if (val & LCPLL_PLL_DISABLE)
+		DRM_ERROR("LCPLL is disabled\n");
+}
+
 static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
 				      bool enable)
 {
@@ -4085,7 +4102,10 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 		mutex_unlock(&power_domains->lock);
 		assert_ved_power_gated(i915);
 		assert_isp_power_gated(i915);
-	} else if (IS_IVYBRIDGE(i915) || INTEL_GEN(i915) >= 7) {
+	} else if (IS_BROADWELL(i915) || IS_HASWELL(i915)) {
+		hsw_assert_cdclk(i915);
+		intel_pch_reset_handshake(i915, !HAS_PCH_NOP(i915));
+	} else if (IS_IVYBRIDGE(i915)) {
 		intel_pch_reset_handshake(i915, !HAS_PCH_NOP(i915));
 	}
 
