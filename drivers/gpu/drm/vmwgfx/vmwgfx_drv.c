@@ -720,9 +720,15 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->max_mob_pages = 0;
 	dev_priv->max_mob_size = 0;
 	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
-		uint64_t mem_size =
-			vmw_read(dev_priv,
-				 SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB);
+		uint64_t mem_size;
+
+		if (dev_priv->capabilities2 & SVGA_CAP2_GB_MEMSIZE_2)
+			mem_size = vmw_read(dev_priv,
+					    SVGA_REG_GBOBJECT_MEM_SIZE_KB);
+		else
+			mem_size =
+				vmw_read(dev_priv,
+					 SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB);
 
 		/*
 		 * Workaround for low memory 2D VMs to compensate for the
