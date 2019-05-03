@@ -395,13 +395,15 @@ static int panfrost_probe(struct platform_device *pdev)
 
 	err = panfrost_device_init(pfdev);
 	if (err) {
-		dev_err(&pdev->dev, "Fatal error during GPU init\n");
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Fatal error during GPU init\n");
 		goto err_out0;
 	}
 
 	err = panfrost_devfreq_init(pfdev);
 	if (err) {
-		dev_err(&pdev->dev, "Fatal error during devfreq init\n");
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Fatal error during devfreq init\n");
 		goto err_out1;
 	}
 
