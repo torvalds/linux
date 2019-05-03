@@ -426,10 +426,13 @@ static void klp_free_object_dynamic(struct klp_object *obj)
 	kfree(obj);
 }
 
-static struct kobj_type klp_ktype_object;
-static struct kobj_type klp_ktype_func;
+static void klp_init_func_early(struct klp_object *obj,
+				struct klp_func *func);
+static void klp_init_object_early(struct klp_patch *patch,
+				  struct klp_object *obj);
 
-static struct klp_object *klp_alloc_object_dynamic(const char *name)
+static struct klp_object *klp_alloc_object_dynamic(const char *name,
+						   struct klp_patch *patch)
 {
 	struct klp_object *obj;
 
@@ -445,8 +448,7 @@ static struct klp_object *klp_alloc_object_dynamic(const char *name)
 		}
 	}
 
-	INIT_LIST_HEAD(&obj->func_list);
-	kobject_init(&obj->kobj, &klp_ktype_object);
+	klp_init_object_early(patch, obj);
 	obj->dynamic = true;
 
 	return obj;
@@ -475,7 +477,7 @@ static struct klp_func *klp_alloc_func_nop(struct klp_func *old_func,
 		}
 	}
 
-	kobject_init(&func->kobj, &klp_ktype_func);
+	klp_init_func_early(obj, func);
 	/*
 	 * func->new_func is same as func->old_func. These addresses are
 	 * set when the object is loaded, see klp_init_object_loaded().
@@ -495,11 +497,9 @@ static int klp_add_object_nops(struct klp_patch *patch,
 	obj = klp_find_object(patch, old_obj);
 
 	if (!obj) {
-		obj = klp_alloc_object_dynamic(old_obj->name);
+		obj = klp_alloc_object_dynamic(old_obj->name, patch);
 		if (!obj)
 			return -ENOMEM;
-
-		list_add_tail(&obj->node, &patch->obj_list);
 	}
 
 	klp_for_each_func(old_obj, old_func) {
@@ -510,8 +510,6 @@ static int klp_add_object_nops(struct klp_patch *patch,
 		func = klp_alloc_func_nop(old_func, obj);
 		if (!func)
 			return -ENOMEM;
-
-		list_add_tail(&func->node, &obj->func_list);
 	}
 
 	return 0;
@@ -802,6 +800,21 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 	return ret;
 }
 
+static void klp_init_func_early(struct klp_object *obj,
+				struct klp_func *func)
+{
+	kobject_init(&func->kobj, &klp_ktype_func);
+	list_add_tail(&func->node, &obj->func_list);
+}
+
+static void klp_init_object_early(struct klp_patch *patch,
+				  struct klp_object *obj)
+{
+	INIT_LIST_HEAD(&obj->func_list);
+	kobject_init(&obj->kobj, &klp_ktype_object);
+	list_add_tail(&obj->node, &patch->obj_list);
+}
+
 static int klp_init_patch_early(struct klp_patch *patch)
 {
 	struct klp_object *obj;
@@ -822,13 +835,10 @@ static int klp_init_patch_early(struct klp_patch *patch)
 		if (!obj->funcs)
 			return -EINVAL;
 
-		INIT_LIST_HEAD(&obj->func_list);
-		kobject_init(&obj->kobj, &klp_ktype_object);
-		list_add_tail(&obj->node, &patch->obj_list);
+		klp_init_object_early(patch, obj);
 
 		klp_for_each_func_static(obj, func) {
-			kobject_init(&func->kobj, &klp_ktype_func);
-			list_add_tail(&func->node, &obj->func_list);
+			klp_init_func_early(obj, func);
 		}
 	}
 
