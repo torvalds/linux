@@ -348,8 +348,16 @@ int __xfrm_state_delete(struct xfrm_state *x);
 struct xfrm_state_afinfo {
 	u8				family;
 	u8				proto;
-	const struct xfrm_type		*type_map[IPPROTO_MAX];
-	const struct xfrm_type_offload	*type_offload_map[IPPROTO_MAX];
+
+	const struct xfrm_type_offload *type_offload_esp;
+
+	const struct xfrm_type		*type_esp;
+	const struct xfrm_type		*type_ipip;
+	const struct xfrm_type		*type_ipip6;
+	const struct xfrm_type		*type_comp;
+	const struct xfrm_type		*type_ah;
+	const struct xfrm_type		*type_routing;
+	const struct xfrm_type		*type_dstopts;
 
 	int			(*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int			(*output_finish)(struct sock *sk, struct sk_buff *skb);
@@ -401,7 +409,7 @@ struct xfrm_type {
 };
 
 int xfrm_register_type(const struct xfrm_type *type, unsigned short family);
-int xfrm_unregister_type(const struct xfrm_type *type, unsigned short family);
+void xfrm_unregister_type(const struct xfrm_type *type, unsigned short family);
 
 struct xfrm_type_offload {
 	char		*description;
@@ -413,7 +421,7 @@ struct xfrm_type_offload {
 };
 
 int xfrm_register_type_offload(const struct xfrm_type_offload *type, unsigned short family);
-int xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
+void xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
 
 static inline int xfrm_af2proto(unsigned int family)
 {

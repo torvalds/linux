@@ -177,63 +177,132 @@ int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
 static bool km_is_alive(const struct km_event *c);
 void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 
-static DEFINE_SPINLOCK(xfrm_type_lock);
 int xfrm_register_type(const struct xfrm_type *type, unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	const struct xfrm_type **typemap;
 	int err = 0;
 
-	if (unlikely(afinfo == NULL))
+	if (!afinfo)
 		return -EAFNOSUPPORT;
-	typemap = afinfo->type_map;
-	spin_lock_bh(&xfrm_type_lock);
 
-	if (likely(typemap[type->proto] == NULL))
-		typemap[type->proto] = type;
-	else
-		err = -EEXIST;
-	spin_unlock_bh(&xfrm_type_lock);
+#define X(afi, T, name) do {			\
+		WARN_ON((afi)->type_ ## name);	\
+		(afi)->type_ ## name = (T);	\
+	} while (0)
+
+	switch (type->proto) {
+	case IPPROTO_COMP:
+		X(afinfo, type, comp);
+		break;
+	case IPPROTO_AH:
+		X(afinfo, type, ah);
+		break;
+	case IPPROTO_ESP:
+		X(afinfo, type, esp);
+		break;
+	case IPPROTO_IPIP:
+		X(afinfo, type, ipip);
+		break;
+	case IPPROTO_DSTOPTS:
+		X(afinfo, type, dstopts);
+		break;
+	case IPPROTO_ROUTING:
+		X(afinfo, type, routing);
+		break;
+	case IPPROTO_IPV6:
+		X(afinfo, type, ipip6);
+		break;
+	default:
+		WARN_ON(1);
+		err = -EPROTONOSUPPORT;
+		break;
+	}
+#undef X
 	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_register_type);
 
-int xfrm_unregister_type(const struct xfrm_type *type, unsigned short family)
+void xfrm_unregister_type(const struct xfrm_type *type, unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	const struct xfrm_type **typemap;
-	int err = 0;
 
 	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
-	typemap = afinfo->type_map;
-	spin_lock_bh(&xfrm_type_lock);
+		return;
 
-	if (unlikely(typemap[type->proto] != type))
-		err = -ENOENT;
-	else
-		typemap[type->proto] = NULL;
-	spin_unlock_bh(&xfrm_type_lock);
+#define X(afi, T, name) do {				\
+		WARN_ON((afi)->type_ ## name != (T));	\
+		(afi)->type_ ## name = NULL;		\
+	} while (0)
+
+	switch (type->proto) {
+	case IPPROTO_COMP:
+		X(afinfo, type, comp);
+		break;
+	case IPPROTO_AH:
+		X(afinfo, type, ah);
+		break;
+	case IPPROTO_ESP:
+		X(afinfo, type, esp);
+		break;
+	case IPPROTO_IPIP:
+		X(afinfo, type, ipip);
+		break;
+	case IPPROTO_DSTOPTS:
+		X(afinfo, type, dstopts);
+		break;
+	case IPPROTO_ROUTING:
+		X(afinfo, type, routing);
+		break;
+	case IPPROTO_IPV6:
+		X(afinfo, type, ipip6);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+#undef X
 	rcu_read_unlock();
-	return err;
 }
 EXPORT_SYMBOL(xfrm_unregister_type);
 
 static const struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family)
 {
+	const struct xfrm_type *type = NULL;
 	struct xfrm_state_afinfo *afinfo;
-	const struct xfrm_type **typemap;
-	const struct xfrm_type *type;
 	int modload_attempted = 0;
 
 retry:
 	afinfo = xfrm_state_get_afinfo(family);
 	if (unlikely(afinfo == NULL))
 		return NULL;
-	typemap = afinfo->type_map;
 
-	type = READ_ONCE(typemap[proto]);
+	switch (proto) {
+	case IPPROTO_COMP:
+		type = afinfo->type_comp;
+		break;
+	case IPPROTO_AH:
+		type = afinfo->type_ah;
+		break;
+	case IPPROTO_ESP:
+		type = afinfo->type_esp;
+		break;
+	case IPPROTO_IPIP:
+		type = afinfo->type_ipip;
+		break;
+	case IPPROTO_DSTOPTS:
+		type = afinfo->type_dstopts;
+		break;
+	case IPPROTO_ROUTING:
+		type = afinfo->type_routing;
+		break;
+	case IPPROTO_IPV6:
+		type = afinfo->type_ipip6;
+		break;
+	default:
+		break;
+	}
+
 	if (unlikely(type && !try_module_get(type->owner)))
 		type = NULL;
 
@@ -253,65 +322,71 @@ static void xfrm_put_type(const struct xfrm_type *type)
 	module_put(type->owner);
 }
 
-static DEFINE_SPINLOCK(xfrm_type_offload_lock);
 int xfrm_register_type_offload(const struct xfrm_type_offload *type,
 			       unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	const struct xfrm_type_offload **typemap;
 	int err = 0;
 
 	if (unlikely(afinfo == NULL))
 		return -EAFNOSUPPORT;
-	typemap = afinfo->type_offload_map;
-	spin_lock_bh(&xfrm_type_offload_lock);
 
-	if (likely(typemap[type->proto] == NULL))
-		typemap[type->proto] = type;
-	else
-		err = -EEXIST;
-	spin_unlock_bh(&xfrm_type_offload_lock);
+	switch (type->proto) {
+	case IPPROTO_ESP:
+		WARN_ON(afinfo->type_offload_esp);
+		afinfo->type_offload_esp = type;
+		break;
+	default:
+		WARN_ON(1);
+		err = -EPROTONOSUPPORT;
+		break;
+	}
+
 	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_register_type_offload);
 
-int xfrm_unregister_type_offload(const struct xfrm_type_offload *type,
-				 unsigned short family)
+void xfrm_unregister_type_offload(const struct xfrm_type_offload *type,
+				  unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	const struct xfrm_type_offload **typemap;
-	int err = 0;
 
 	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
-	typemap = afinfo->type_offload_map;
-	spin_lock_bh(&xfrm_type_offload_lock);
+		return;
 
-	if (unlikely(typemap[type->proto] != type))
-		err = -ENOENT;
-	else
-		typemap[type->proto] = NULL;
-	spin_unlock_bh(&xfrm_type_offload_lock);
+	switch (type->proto) {
+	case IPPROTO_ESP:
+		WARN_ON(afinfo->type_offload_esp != type);
+		afinfo->type_offload_esp = NULL;
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
 	rcu_read_unlock();
-	return err;
 }
 EXPORT_SYMBOL(xfrm_unregister_type_offload);
 
 static const struct xfrm_type_offload *
 xfrm_get_type_offload(u8 proto, unsigned short family, bool try_load)
 {
+	const struct xfrm_type_offload *type = NULL;
 	struct xfrm_state_afinfo *afinfo;
-	const struct xfrm_type_offload **typemap;
-	const struct xfrm_type_offload *type;
 
 retry:
 	afinfo = xfrm_state_get_afinfo(family);
 	if (unlikely(afinfo == NULL))
 		return NULL;
-	typemap = afinfo->type_offload_map;
 
-	type = typemap[proto];
+	switch (proto) {
+	case IPPROTO_ESP:
+		type = afinfo->type_offload_esp;
+		break;
+	default:
+		break;
+	}
+
 	if ((type && !try_module_get(type->owner)))
 		type = NULL;
 

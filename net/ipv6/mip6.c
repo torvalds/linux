@@ -499,10 +499,8 @@ static void __exit mip6_fini(void)
 {
 	if (rawv6_mh_filter_unregister(mip6_mh_filter) < 0)
 		pr_info("%s: can't remove rawv6 mh filter\n", __func__);
-	if (xfrm_unregister_type(&mip6_rthdr_type, AF_INET6) < 0)
-		pr_info("%s: can't remove xfrm type(rthdr)\n", __func__);
-	if (xfrm_unregister_type(&mip6_destopt_type, AF_INET6) < 0)
-		pr_info("%s: can't remove xfrm type(destopt)\n", __func__);
+	xfrm_unregister_type(&mip6_rthdr_type, AF_INET6);
+	xfrm_unregister_type(&mip6_destopt_type, AF_INET6);
 }
 
 module_init(mip6_init);
