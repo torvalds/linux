@@ -95,7 +95,7 @@ static inline unsigned long msc_data_sz(struct msc_block_desc *bdesc)
 
 static inline bool msc_block_wrapped(struct msc_block_desc *bdesc)
 {
-	if (bdesc->hw_tag & MSC_HW_TAG_BLOCKWRAP)
+	if (bdesc->hw_tag & (MSC_HW_TAG_BLOCKWRAP | MSC_HW_TAG_WINWRAP))
 		return true;
 
 	return false;
