@@ -75,6 +75,7 @@ struct msc_iter {
  * @thdev:		intel_th_device pointer
  * @win_list:		list of windows in multiblock mode
  * @single_sgt:		single mode buffer
+ * @cur_win:		current window
  * @nr_pages:		total number of pages allocated for this buffer
  * @single_sz:		amount of data in single mode
  * @single_wrap:	single mode wrap occurred
@@ -97,6 +98,7 @@ struct msc {
 
 	struct list_head	win_list;
 	struct sg_table		single_sgt;
+	struct msc_window	*cur_win;
 	unsigned long		nr_pages;
 	unsigned long		single_sz;
 	unsigned int		single_wrap : 1;
@@ -152,6 +154,31 @@ msc_win_bpfn(struct msc_window *win, unsigned int block)
 }
 
 /**
+ * msc_is_last_win() - check if a window is the last one for a given MSC
+ * @win:	window
+ * Return:	true if @win is the last window in MSC's multiblock buffer
+ */
+static inline bool msc_is_last_win(struct msc_window *win)
+{
+	return win->entry.next == &win->msc->win_list;
+}
+
+/**
+ * msc_next_window() - return next window in the multiblock buffer
+ * @win:	current window
+ *
+ * Return:	window following the current one
+ */
+static struct msc_window *msc_next_window(struct msc_window *win)
+{
+	if (msc_is_last_win(win))
+		return list_first_entry(&win->msc->win_list, struct msc_window,
+					entry);
+
+	return list_next_entry(win, entry);
+}
+
+/**
  * msc_oldest_window() - locate the window with oldest data
  * @msc:	MSC device
  *
@@ -162,9 +189,7 @@ msc_win_bpfn(struct msc_window *win, unsigned int block)
  */
 static struct msc_window *msc_oldest_window(struct msc *msc)
 {
-	struct msc_window *win;
-	u32 reg = ioread32(msc->reg_base + REG_MSU_MSC0NWSA);
-	unsigned long win_addr = (unsigned long)reg << PAGE_SHIFT;
+	struct msc_window *win, *next = msc_next_window(msc->cur_win);
 	unsigned int found = 0;
 
 	if (list_empty(&msc->win_list))
@@ -176,7 +201,7 @@ static struct msc_window *msc_oldest_window(struct msc *msc)
 	 * something like 2, in which case we're good
 	 */
 	list_for_each_entry(win, &msc->win_list, entry) {
-		if (sg_dma_address(win->sgt.sgl) == win_addr)
+		if (win == next)
 			found++;
 
 		/* skip the empty ones */
@@ -217,31 +242,6 @@ static unsigned int msc_win_oldest_block(struct msc_window *win)
 	}
 
 	return 0;
-}
-
-/**
- * msc_is_last_win() - check if a window is the last one for a given MSC
- * @win:	window
- * Return:	true if @win is the last window in MSC's multiblock buffer
- */
-static inline bool msc_is_last_win(struct msc_window *win)
-{
-	return win->entry.next == &win->msc->win_list;
-}
-
-/**
- * msc_next_window() - return next window in the multiblock buffer
- * @win:	current window
- *
- * Return:	window following the current one
- */
-static struct msc_window *msc_next_window(struct msc_window *win)
-{
-	if (msc_is_last_win(win))
-		return list_first_entry(&win->msc->win_list, struct msc_window,
-					entry);
-
-	return list_next_entry(win, entry);
 }
 
 static struct msc_block_desc *msc_iter_bdesc(struct msc_iter *iter)
@@ -822,6 +822,7 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 	if (list_empty(&msc->win_list)) {
 		msc->base = msc_win_block(win, 0);
 		msc->base_addr = msc_win_baddr(win, 0);
+		msc->cur_win = win;
 	}
 
 	list_add_tail(&win->entry, &msc->win_list);
@@ -1383,6 +1384,24 @@ static int intel_th_msc_init(struct msc *msc)
 	return 0;
 }
 
+static void msc_win_switch(struct msc *msc)
+{
+	struct msc_window *last, *first;
+
+	first = list_first_entry(&msc->win_list, struct msc_window, entry);
+	last = list_last_entry(&msc->win_list, struct msc_window, entry);
+
+	if (msc_is_last_win(msc->cur_win))
+		msc->cur_win = first;
+	else
+		msc->cur_win = list_next_entry(msc->cur_win, entry);
+
+	msc->base = msc_win_block(msc->cur_win, 0);
+	msc->base_addr = msc_win_baddr(msc->cur_win, 0);
+
+	intel_th_trace_switch(msc->thdev);
+}
+
 static irqreturn_t intel_th_msc_interrupt(struct intel_th_device *thdev)
 {
 	struct msc *msc = dev_get_drvdata(&thdev->dev);
@@ -1591,7 +1610,7 @@ win_switch_store(struct device *dev, struct device_attribute *attr,
 	if (msc->mode != MSC_MODE_MULTI)
 		ret = -ENOTSUPP;
 	else
-		ret = intel_th_trace_switch(msc->thdev);
+		msc_win_switch(msc);
 	mutex_unlock(&msc->buf_mutex);
 
 	return ret ? ret : size;
