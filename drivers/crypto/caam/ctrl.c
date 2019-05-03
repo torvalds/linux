@@ -702,6 +702,7 @@ static int caam_probe(struct platform_device *pdev)
 	}
 
 	ctrlpriv->era = caam_get_era(ctrl);
+	ctrlpriv->domain = iommu_get_domain_for_dev(dev);
 
 #ifdef CONFIG_DEBUG_FS
 	/*

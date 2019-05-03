@@ -70,6 +70,8 @@ struct caam_drv_private {
 	struct caam_queue_if __iomem *qi; /* QI control region */
 	struct caam_job_ring __iomem *jr[4];	/* JobR's register space */
 
+	struct iommu_domain *domain;
+
 	/*
 	 * Detected geometry block. Filled in from device tree if powerpc,
 	 * or from register-based version detection code
