@@ -78,6 +78,7 @@ struct panfrost_device {
 	struct list_head scheduled_jobs;
 
 	struct mutex sched_lock;
+	struct mutex reset_lock;
 
 	struct {
 		struct devfreq *devfreq;
