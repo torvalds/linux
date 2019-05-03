@@ -20,7 +20,7 @@ EXPORT_SYMBOL(rtw_debug_mask);
 module_param_named(support_lps, rtw_fw_support_lps, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
-MODULE_PARM_DESC(support_lps, "Set Y to enable LPS support");
+MODULE_PARM_DESC(support_lps, "Set Y to enable Leisure Power Save support, to turn radio off between beacons");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
 static struct ieee80211_channel rtw_channeltable_2g[] = {
