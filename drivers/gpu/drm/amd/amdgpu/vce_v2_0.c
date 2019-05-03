@@ -283,7 +283,7 @@ static int vce_v2_0_stop(struct amdgpu_device *adev)
 	}
 
 	if (vce_v2_0_wait_for_idle(adev)) {
-		DRM_INFO("VCE is busy, Can't set clock gateing");
+		DRM_INFO("VCE is busy, Can't set clock gating");
 		return 0;
 	}
 

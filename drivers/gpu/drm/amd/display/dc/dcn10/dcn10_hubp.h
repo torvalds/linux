@@ -34,6 +34,7 @@
 #define HUBP_REG_LIST_DCN(id)\
 	SRI(DCHUBP_CNTL, HUBP, id),\
 	SRI(HUBPREQ_DEBUG_DB, HUBP, id),\
+	SRI(HUBPREQ_DEBUG, HUBP, id),\
 	SRI(DCSURF_ADDR_CONFIG, HUBP, id),\
 	SRI(DCSURF_TILING_CONFIG, HUBP, id),\
 	SRI(DCSURF_SURFACE_PITCH, HUBPREQ, id),\
@@ -138,6 +139,7 @@
 #define HUBP_COMMON_REG_VARIABLE_LIST \
 	uint32_t DCHUBP_CNTL; \
 	uint32_t HUBPREQ_DEBUG_DB; \
+	uint32_t HUBPREQ_DEBUG; \
 	uint32_t DCSURF_ADDR_CONFIG; \
 	uint32_t DCSURF_TILING_CONFIG; \
 	uint32_t DCSURF_SURFACE_PITCH; \
@@ -748,5 +750,7 @@ enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 
 void hubp1_vready_workaround(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
+
+void hubp1_init(struct hubp *hubp);
 
 #endif

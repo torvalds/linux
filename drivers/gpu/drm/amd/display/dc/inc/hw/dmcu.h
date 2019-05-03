@@ -70,6 +70,8 @@ struct dmcu_funcs {
 	void (*get_psr_wait_loop)(struct dmcu *dmcu,
 			unsigned int *psr_wait_loop_number);
 	bool (*is_dmcu_initialized)(struct dmcu *dmcu);
+	bool (*lock_phy)(struct dmcu *dmcu);
+	bool (*unlock_phy)(struct dmcu *dmcu);
 };
 
 #endif

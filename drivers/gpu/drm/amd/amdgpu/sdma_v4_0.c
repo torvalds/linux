@@ -156,7 +156,6 @@ static const struct soc15_reg_golden golden_settings_sdma0_4_2[] =
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC7_RB_RPTR_ADDR_LO, 0xfffffffd, 0x00000001),
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC7_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_UTCL1_PAGE, 0x000003ff, 0x000003c0),
-	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_UTCL1_WATERMK, 0xFE000000, 0x00000000),
 };
 
 static const struct soc15_reg_golden golden_settings_sdma1_4_2[] = {
@@ -186,7 +185,6 @@ static const struct soc15_reg_golden golden_settings_sdma1_4_2[] = {
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_RLC7_RB_RPTR_ADDR_LO, 0xfffffffd, 0x00000001),
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_RLC7_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_UTCL1_PAGE, 0x000003ff, 0x000003c0),
-	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_UTCL1_WATERMK, 0xFE000000, 0x00000000),
 };
 
 static const struct soc15_reg_golden golden_settings_sdma_rv1[] =
@@ -851,7 +849,7 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	wptr_poll_cntl = RREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL);
 	wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
 				       SDMA0_GFX_RB_WPTR_POLL_CNTL,
-				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev));
+				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev)? 1 : 0);
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL, wptr_poll_cntl);
 
 	/* enable DMA RB */
@@ -942,7 +940,7 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 	wptr_poll_cntl = RREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_CNTL);
 	wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
 				       SDMA0_PAGE_RB_WPTR_POLL_CNTL,
-				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev));
+				       F32_POLL_ENABLE, amdgpu_sriov_vf(adev)? 1 : 0);
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_CNTL, wptr_poll_cntl);
 
 	/* enable DMA RB */

@@ -307,6 +307,8 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
  */
 struct dc_stream_state *dc_create_stream_for_sink(struct dc_sink *dc_sink);
 
+struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream);
+
 void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink);
 
 void dc_stream_retain(struct dc_stream_state *dc_stream);

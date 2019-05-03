@@ -2185,6 +2185,30 @@ static int translate_dpcd_max_bpc(enum dpcd_downstream_port_max_bpc bpc)
 	return -1;
 }
 
+static void read_dp_device_vendor_id(struct dc_link *link)
+{
+	struct dp_device_vendor_id dp_id;
+
+	/* read IEEE branch device id */
+	core_link_read_dpcd(
+		link,
+		DP_BRANCH_OUI,
+		(uint8_t *)&dp_id,
+		sizeof(dp_id));
+
+	link->dpcd_caps.branch_dev_id =
+		(dp_id.ieee_oui[0] << 16) +
+		(dp_id.ieee_oui[1] << 8) +
+		dp_id.ieee_oui[2];
+
+	memmove(
+		link->dpcd_caps.branch_dev_name,
+		dp_id.ieee_device_id,
+		sizeof(dp_id.ieee_device_id));
+}
+
+
+
 static void get_active_converter_info(
 	uint8_t data, struct dc_link *link)
 {
@@ -2269,27 +2293,6 @@ static void get_active_converter_info(
 	}
 
 	ddc_service_set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
-
-	{
-		struct dp_device_vendor_id dp_id;
-
-		/* read IEEE branch device id */
-		core_link_read_dpcd(
-			link,
-			DP_BRANCH_OUI,
-			(uint8_t *)&dp_id,
-			sizeof(dp_id));
-
-		link->dpcd_caps.branch_dev_id =
-			(dp_id.ieee_oui[0] << 16) +
-			(dp_id.ieee_oui[1] << 8) +
-			dp_id.ieee_oui[2];
-
-		memmove(
-			link->dpcd_caps.branch_dev_name,
-			dp_id.ieee_device_id,
-			sizeof(dp_id.ieee_device_id));
-	}
 
 	{
 		struct dp_sink_hw_fw_revision dp_hw_fw_revision;
@@ -2455,6 +2458,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
 				 DP_DPCD_REV];
 
+	read_dp_device_vendor_id(link);
+
 	get_active_converter_info(ds_port.byte, link);
 
 	dp_wa_power_up_0010FA(link, dpcd_data, sizeof(dpcd_data));
@@ -2586,9 +2591,6 @@ void detect_edp_sink_caps(struct dc_link *link)
 	uint32_t entry;
 	uint32_t link_rate_in_khz;
 	enum dc_link_rate link_rate = LINK_RATE_UNKNOWN;
-	union lane_count_set lane_count_set = { {0} };
-	uint8_t link_bw_set;
-	uint8_t link_rate_set;
 
 	retrieve_link_cap(link);
 	link->dpcd_caps.edp_supported_link_rates_count = 0;
@@ -2614,33 +2616,6 @@ void detect_edp_sink_caps(struct dc_link *link)
 		}
 	}
 	link->verified_link_cap = link->reported_link_cap;
-
-	// Read DPCD 00101h to find out the number of lanes currently set
-	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
-			&lane_count_set.raw, sizeof(lane_count_set));
-	link->cur_link_settings.lane_count = lane_count_set.bits.LANE_COUNT_SET;
-
-	// Read DPCD 00100h to find if standard link rates are set
-	core_link_read_dpcd(link, DP_LINK_BW_SET,
-			&link_bw_set, sizeof(link_bw_set));
-
-	if (link_bw_set == 0) {
-		/* If standard link rates are not being used,
-		 * Read DPCD 00115h to find the link rate set used
-		 */
-		core_link_read_dpcd(link, DP_LINK_RATE_SET,
-				&link_rate_set, sizeof(link_rate_set));
-
-		if (link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
-			link->cur_link_settings.link_rate =
-				link->dpcd_caps.edp_supported_link_rates[link_rate_set];
-			link->cur_link_settings.link_rate_set = link_rate_set;
-			link->cur_link_settings.use_link_rate_set = true;
-		}
-	} else {
-		link->cur_link_settings.link_rate = link_bw_set;
-		link->cur_link_settings.use_link_rate_set = false;
-	}
 }
 
 void dc_link_dp_enable_hpd(const struct dc_link *link)
