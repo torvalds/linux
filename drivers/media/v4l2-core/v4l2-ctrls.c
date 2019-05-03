@@ -1466,7 +1466,14 @@ static bool std_equal(const struct v4l2_ctrl *ctrl, u32 idx,
 static void std_init(const struct v4l2_ctrl *ctrl, u32 idx,
 		     union v4l2_ctrl_ptr ptr)
 {
-	switch (ctrl->type) {
+	struct v4l2_ctrl_mpeg2_slice_params *p_mpeg2_slice_params;
+
+	/*
+	 * The cast is needed to get rid of a gcc warning complaining that
+	 * V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS is not part of the
+	 * v4l2_ctrl_type enum.
+	 */
+	switch ((u32)ctrl->type) {
 	case V4L2_CTRL_TYPE_STRING:
 		idx *= ctrl->elem_size;
 		memset(ptr.p_char + idx, ' ', ctrl->minimum);
@@ -1490,6 +1497,17 @@ static void std_init(const struct v4l2_ctrl *ctrl, u32 idx,
 		break;
 	case V4L2_CTRL_TYPE_U32:
 		ptr.p_u32[idx] = ctrl->default_value;
+		break;
+	case V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS:
+		p_mpeg2_slice_params = ptr.p;
+		/* 4:2:0 */
+		p_mpeg2_slice_params->sequence.chroma_format = 1;
+		/* 8 bits */
+		p_mpeg2_slice_params->picture.intra_dc_precision = 0;
+		/* interlaced top field */
+		p_mpeg2_slice_params->picture.picture_structure = 1;
+		p_mpeg2_slice_params->picture.picture_coding_type =
+					V4L2_MPEG2_PICTURE_CODING_TYPE_I;
 		break;
 	default:
 		idx *= ctrl->elem_size;
