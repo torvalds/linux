@@ -1,0 +1,73 @@
+# Lines starting with '#' are comments.
+# Each line is a file pattern followed by one or more owners.
+
+# These owners will be the default owners for everything in the repo.
+*	@lgirdwood @plbossart
+
+# Order is important. The last matching pattern has the most precedence.
+# So if a pull request only touches javascript files, only these owners
+# will be requested to review.
+
+# include files
+include/sound/sof/control.h			@ranj063 @singalsu @dbaluta
+include/sound/sof/dai.h				@ranj063 @singalsu @juimonen @dbaluta
+include/sound/sof/dai-intel.h			@ranj063 @singalsu @juimonen
+include/sound/sof/header.h			@lyakh @ranj063 @keyonjie @juimonen
+include/sound/sof/info.h			@lyakh @ranj063 @keyonjie @juimonen
+include/sound/sof/pm.h				@lyakh @ranj063 @keyonjie @juimonen
+include/sound/sof/stream.h			@lyakh @ranj063 @keyonjie @juimonen
+include/sound/sof/topology.h			@ranj063 @singalsu @bardliao @juimonen
+include/sound/sof/trace.h			@juimonen @lyakh @kv2019i
+include/sound/sof/xtensa.h			@lyakh @xiulipan
+
+include/uapi/sound/sof/abi.h			@lyakh @juimonen @dbaluta
+include/uapi/sound/sof/eq.h			@singalsu @ranj063 @juimonen
+include/uapi/sound/sof/fw.h			@lyakh @ranj063 @keyonjie @juimonen
+include/uapi/sound/sof/header.h			@lyakh @ranj063 @keyonjie @juimonen
+include/uapi/sound/sof/manifest.h		@lyakh @ranj063 @keyonjie @juimonen
+include/uapi/sound/sof/tokens.h			@lyakh @ranj063 @keyonjie @juimonen
+include/uapi/sound/sof/tone.h			@singalsu @ranj063 @juimonen
+include/uapi/sound/sof/trace.h			@juimonen @lyakh @kv2019i
+
+
+# core parts
+sound/soc/sof/compressed			@plbossart @dbaluta
+sound/soc/sof/control.c				@ranj063 @singalsu
+sound/soc/sof/core.c				@plbossart @dbaluta
+sound/soc/sof/debug.c				@ranj063 @xiulipan
+sound/soc/sof/ipc.c				@lyakh @dbaluta
+sound/soc/sof/Kconfig				@lyakh @dbaluta
+sound/soc/sof/loader.c				@lyakh @ranj063 @keyonjie @juimonen
+sound/soc/sof/Makefile				@lyakh @dbaluta
+sound/soc/sof/nocodec.c				@bardliao @libinyang
+sound/soc/sof/ops.*				@lyakh @ranj063 @keyonjie
+sound/soc/sof/pcm.c				@lyakh @ranj063 @keyonjie @juimonen
+sound/soc/sof/pm.c				@lyakh @ranj063 @keyonjie @juimonen
+sound/soc/sof/sof-acpi-dev.c			@juimonen @RanderWang
+sound/soc/sof/sof-pci-dev.c			@lyakh @bardliao @libinyang
+sound/soc/sof/sof-priv.h			@lyakh @ranj063 @keyonjie @juimonen
+sound/soc/sof/topology.c			@ranj063 @singalsu @bardliao @juimonen
+sound/soc/sof/trace.c				@juimonen @lyakh @kv2019i
+sound/soc/sof/utils.c				@juimonen @lyakh @kv2019i
+
+# intel parts
+sound/soc/sof/apl.c				@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/bdw.c				@RanderWang @keyonjie
+sound/soc/sof/byt.c				@juimonen @keyonjie
+sound/soc/sof/cnl.c				@keyonjie @libinyang @bardliao @RanderWang
+sound/soc/sof/hda-bus.c				@keyonjie @libinyang @bardliao
+sound/soc/sof/hda.c				@keyonjie @libinyang @bardliao
+sound/soc/sof/hda-codec.c			@keyonjie @libinyang @bardliao
+sound/soc/sof/hda-ctrl.c			@keyonjie @libinyang @bardliao
+sound/soc/sof/hda-dai.c				@keyonjie @libinyang @bardliao @RanderWang
+sound/soc/sof/hda-dsp.c				@keyonjie @libinyang @bardliao
+sound/soc/sof/hda.h				@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/hda-ipc.c				@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/hda-loader.c			@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/hda-pcm.c				@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/hda-stream.c			@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/hda-trace.c			@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/intel-ipc.c			@keyonjie @libinyang @bardliao @lyakh
+sound/soc/sof/Kconfig				@keyonjie @libinyang
+sound/soc/sof/Makefile				@keyonjie @libinyang
+sound/soc/sof/shim.h				@keyonjie @libinyang @bardliao @lyakh @juimonen
