@@ -671,4 +671,13 @@ config FUEL_GAUGE_SC27XX
 	 Say Y here to enable support for fuel gauge with SC27XX
 	 PMIC chips.
 
+config CHARGER_UCS1002
+	tristate "Microchip UCS1002 USB Port Power Controller"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for Microchip UCS1002 Programmable
+	  USB Port Power Controller with Charger Emulation.
+
 endif # POWER_SUPPLY
