@@ -607,6 +607,9 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		 */
 		if (!res[r].end && res[r].flags == IORESOURCE_MEM) {
 			bar = res[r].start;
+			err = -ENODEV;
+			if (bar >= th->num_resources)
+				goto fail_put_device;
 			res[r].start = 0;
 			res[r].end = resource_size(&devres[bar]) - 1;
 		}
@@ -749,8 +752,13 @@ static int intel_th_populate(struct intel_th *th)
 
 		thdev = intel_th_subdevice_alloc(th, subdev);
 		/* note: caller should free subdevices from th::thdev[] */
-		if (IS_ERR(thdev))
+		if (IS_ERR(thdev)) {
+			/* ENODEV for individual subdevices is allowed */
+			if (PTR_ERR(thdev) == -ENODEV)
+				continue;
+
 			return PTR_ERR(thdev);
+		}
 
 		th->thdev[th->num_thdevs++] = thdev;
 	}
@@ -812,9 +820,6 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 {
 	struct intel_th *th;
 	int err, r;
-
-	if (ndevres < TH_MMIO_END)
-		return ERR_PTR(-EINVAL);
 
 	th = kzalloc(sizeof(*th), GFP_KERNEL);
 	if (!th)
