@@ -63,7 +63,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	crtc_st = drm_atomic_get_crtc_state(state->state, state->crtc);
-	if (!crtc_st->enable) {
+	if (IS_ERR(crtc_st) || !crtc_st->enable) {
 		DRM_DEBUG_ATOMIC("Cannot update plane on a disabled CRTC.\n");
 		return -EINVAL;
 	}
