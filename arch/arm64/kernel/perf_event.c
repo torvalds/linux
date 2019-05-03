@@ -431,7 +431,7 @@ static inline u64 armv8pmu_read_hw_counter(struct perf_event *event)
 	return val;
 }
 
-static inline u64 armv8pmu_read_counter(struct perf_event *event)
+static u64 armv8pmu_read_counter(struct perf_event *event)
 {
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -468,7 +468,7 @@ static inline void armv8pmu_write_hw_counter(struct perf_event *event,
 	}
 }
 
-static inline void armv8pmu_write_counter(struct perf_event *event, u64 value)
+static void armv8pmu_write_counter(struct perf_event *event, u64 value)
 {
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
