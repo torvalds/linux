@@ -4,29 +4,29 @@ Livepatch module Elf format
 
 This document outlines the Elf format requirements that livepatch modules must follow.
 
------------------
-Table of Contents
------------------
-0. Background and motivation
-1. Livepatch modinfo field
-2. Livepatch relocation sections
-   2.1 What are livepatch relocation sections?
-   2.2 Livepatch relocation section format
-       2.2.1 Required flags
-       2.2.2 Required name format
-       2.2.3 Example livepatch relocation section names
-       2.2.4 Example `readelf --sections` output
-       2.2.5 Example `readelf --relocs` output
-3. Livepatch symbols
-   3.1 What are livepatch symbols?
-   3.2 A livepatch module's symbol table
-   3.3 Livepatch symbol format
-       3.3.1 Required flags
-       3.3.2 Required name format
-       3.3.3 Example livepatch symbol names
-       3.3.4 Example `readelf --symbols` output
-4. Architecture-specific sections
-5. Symbol table and Elf section access
+
+.. Table of Contents
+
+   0. Background and motivation
+   1. Livepatch modinfo field
+   2. Livepatch relocation sections
+      2.1 What are livepatch relocation sections?
+      2.2 Livepatch relocation section format
+          2.2.1 Required flags
+          2.2.2 Required name format
+          2.2.3 Example livepatch relocation section names
+          2.2.4 Example `readelf --sections` output
+          2.2.5 Example `readelf --relocs` output
+   3. Livepatch symbols
+      3.1 What are livepatch symbols?
+      3.2 A livepatch module's symbol table
+      3.3 Livepatch symbol format
+          3.3.1 Required flags
+          3.3.2 Required name format
+          3.3.3 Example livepatch symbol names
+          3.3.4 Example `readelf --symbols` output
+   4. Architecture-specific sections
+   5. Symbol table and Elf section access
 
 ----------------------------
 0. Background and motivation
@@ -89,12 +89,15 @@ used by the kernel module loader to identify livepatch modules.
 
 Example modinfo output:
 -----------------------
-% modinfo livepatch-meminfo.ko
-filename:		livepatch-meminfo.ko
-livepatch:		Y
-license:		GPL
-depends:
-vermagic:		4.3.0+ SMP mod_unload
+
+::
+
+	% modinfo livepatch-meminfo.ko
+	filename:		livepatch-meminfo.ko
+	livepatch:		Y
+	license:		GPL
+	depends:
+	vermagic:		4.3.0+ SMP mod_unload
 
 --------------------------------
 2. Livepatch relocation sections
@@ -142,17 +145,18 @@ be copied into memory along with the other SHF_ALLOC sections).
 
 2.2.2 Required name format
 --------------------------
-The name of a livepatch relocation section must conform to the following format:
+The name of a livepatch relocation section must conform to the following
+format::
 
-.klp.rela.objname.section_name
-^        ^^     ^ ^          ^
-|________||_____| |__________|
-   [A]      [B]        [C]
+  .klp.rela.objname.section_name
+  ^        ^^     ^ ^          ^
+  |________||_____| |__________|
+     [A]      [B]        [C]
 
-[A] The relocation section name is prefixed with the string ".klp.rela."
-[B] The name of the object (i.e. "vmlinux" or name of module) to
-    which the relocation section belongs follows immediately after the prefix.
-[C] The actual name of the section to which this relocation section applies.
+  [A] The relocation section name is prefixed with the string ".klp.rela."
+  [B] The name of the object (i.e. "vmlinux" or name of module) to
+      which the relocation section belongs follows immediately after the prefix.
+  [C] The actual name of the section to which this relocation section applies.
 
 2.2.3 Example livepatch relocation section names:
 -------------------------------------------------
@@ -162,6 +166,9 @@ The name of a livepatch relocation section must conform to the following format:
 2.2.4 Example `readelf --sections` output for a patch
 module that patches vmlinux and modules 9p, btrfs, ext4:
 --------------------------------------------------------
+
+::
+
   Section Headers:
   [Nr] Name                          Type                    Address          Off    Size   ES Flg Lk Inf Al
   [ snip ]
@@ -175,23 +182,26 @@ module that patches vmlinux and modules 9p, btrfs, ext4:
   [ snip ]                                       ^                                             ^
                                                  |                                             |
                                                 [*]                                           [*]
-[*] Livepatch relocation sections are SHT_RELA sections but with a few special
-characteristics. Notice that they are marked SHF_ALLOC ("A") so that they will
-not be discarded when the module is loaded into memory, as well as with the
-SHF_RELA_LIVEPATCH flag ("o" - for OS-specific).
+  [*] Livepatch relocation sections are SHT_RELA sections but with a few special
+  characteristics. Notice that they are marked SHF_ALLOC ("A") so that they will
+  not be discarded when the module is loaded into memory, as well as with the
+  SHF_RELA_LIVEPATCH flag ("o" - for OS-specific).
 
 2.2.5 Example `readelf --relocs` output for a patch module:
 -----------------------------------------------------------
-Relocation section '.klp.rela.btrfs.text.btrfs_feature_attr_show' at offset 0x2ba0 contains 4 entries:
-    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
-000000000000001f  0000005e00000002 R_X86_64_PC32          0000000000000000 .klp.sym.vmlinux.printk,0 - 4
-0000000000000028  0000003d0000000b R_X86_64_32S           0000000000000000 .klp.sym.btrfs.btrfs_ktype,0 + 0
-0000000000000036  0000003b00000002 R_X86_64_PC32          0000000000000000 .klp.sym.btrfs.can_modify_feature.isra.3,0 - 4
-000000000000004c  0000004900000002 R_X86_64_PC32          0000000000000000 .klp.sym.vmlinux.snprintf,0 - 4
-[ snip ]                                                                   ^
-                                                                           |
+
+::
+
+  Relocation section '.klp.rela.btrfs.text.btrfs_feature_attr_show' at offset 0x2ba0 contains 4 entries:
+      Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
+  000000000000001f  0000005e00000002 R_X86_64_PC32          0000000000000000 .klp.sym.vmlinux.printk,0 - 4
+  0000000000000028  0000003d0000000b R_X86_64_32S           0000000000000000 .klp.sym.btrfs.btrfs_ktype,0 + 0
+  0000000000000036  0000003b00000002 R_X86_64_PC32          0000000000000000 .klp.sym.btrfs.can_modify_feature.isra.3,0 - 4
+  000000000000004c  0000004900000002 R_X86_64_PC32          0000000000000000 .klp.sym.vmlinux.snprintf,0 - 4
+  [ snip ]                                                                   ^
+                                                                             |
                                                                           [*]
-[*] Every symbol referenced by a relocation is a livepatch symbol.
+  [*] Every symbol referenced by a relocation is a livepatch symbol.
 
 --------------------
 3. Livepatch symbols
@@ -231,18 +241,19 @@ relocation section refer to their respective symbols with their symbol indices,
 and the original symbol indices (and thus the symtab ordering) must be
 preserved in order for apply_relocate_add() to find the right symbol.
 
-For example, take this particular rela from a livepatch module:
-Relocation section '.klp.rela.btrfs.text.btrfs_feature_attr_show' at offset 0x2ba0 contains 4 entries:
-    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
-000000000000001f  0000005e00000002 R_X86_64_PC32          0000000000000000 .klp.sym.vmlinux.printk,0 - 4
+For example, take this particular rela from a livepatch module:::
 
-This rela refers to the symbol '.klp.sym.vmlinux.printk,0', and the symbol index is encoded
-in 'Info'. Here its symbol index is 0x5e, which is 94 in decimal, which refers to the
-symbol index 94.
-And in this patch module's corresponding symbol table, symbol index 94 refers to that very symbol:
-[ snip ]
-94: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.printk,0
-[ snip ]
+  Relocation section '.klp.rela.btrfs.text.btrfs_feature_attr_show' at offset 0x2ba0 contains 4 entries:
+      Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
+  000000000000001f  0000005e00000002 R_X86_64_PC32          0000000000000000 .klp.sym.vmlinux.printk,0 - 4
+
+  This rela refers to the symbol '.klp.sym.vmlinux.printk,0', and the symbol index is encoded
+  in 'Info'. Here its symbol index is 0x5e, which is 94 in decimal, which refers to the
+  symbol index 94.
+  And in this patch module's corresponding symbol table, symbol index 94 refers to that very symbol:
+  [ snip ]
+  94: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.printk,0
+  [ snip ]
 
 ---------------------------
 3.3 Livepatch symbol format
@@ -256,42 +267,48 @@ See include/uapi/linux/elf.h for the actual definitions.
 
 3.3.2 Required name format
 --------------------------
-Livepatch symbol names must conform to the following format:
+Livepatch symbol names must conform to the following format::
 
-.klp.sym.objname.symbol_name,sympos
-^       ^^     ^ ^         ^ ^
-|_______||_____| |_________| |
-   [A]     [B]       [C]    [D]
+  .klp.sym.objname.symbol_name,sympos
+  ^       ^^     ^ ^         ^ ^
+  |_______||_____| |_________| |
+     [A]     [B]       [C]    [D]
 
-[A] The symbol name is prefixed with the string ".klp.sym."
-[B] The name of the object (i.e. "vmlinux" or name of module) to
-    which the symbol belongs follows immediately after the prefix.
-[C] The actual name of the symbol.
-[D] The position of the symbol in the object (as according to kallsyms)
-    This is used to differentiate duplicate symbols within the same
-    object. The symbol position is expressed numerically (0, 1, 2...).
-    The symbol position of a unique symbol is 0.
+  [A] The symbol name is prefixed with the string ".klp.sym."
+  [B] The name of the object (i.e. "vmlinux" or name of module) to
+      which the symbol belongs follows immediately after the prefix.
+  [C] The actual name of the symbol.
+  [D] The position of the symbol in the object (as according to kallsyms)
+      This is used to differentiate duplicate symbols within the same
+      object. The symbol position is expressed numerically (0, 1, 2...).
+      The symbol position of a unique symbol is 0.
 
 3.3.3 Example livepatch symbol names:
 -------------------------------------
-.klp.sym.vmlinux.snprintf,0
-.klp.sym.vmlinux.printk,0
-.klp.sym.btrfs.btrfs_ktype,0
+
+::
+
+	.klp.sym.vmlinux.snprintf,0
+	.klp.sym.vmlinux.printk,0
+	.klp.sym.btrfs.btrfs_ktype,0
 
 3.3.4 Example `readelf --symbols` output for a patch module:
 ------------------------------------------------------------
-Symbol table '.symtab' contains 127 entries:
-   Num:    Value          Size Type    Bind   Vis     Ndx         Name
-   [ snip ]
-    73: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.snprintf,0
-    74: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.capable,0
-    75: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.find_next_bit,0
-    76: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.si_swapinfo,0
-  [ snip ]                                               ^
-                                                         |
-                                                        [*]
-[*] Note that the 'Ndx' (Section index) for these symbols is SHN_LIVEPATCH (0xff20).
-    "OS" means OS-specific.
+
+::
+
+  Symbol table '.symtab' contains 127 entries:
+     Num:    Value          Size Type    Bind   Vis     Ndx         Name
+     [ snip ]
+      73: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.snprintf,0
+      74: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.capable,0
+      75: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.find_next_bit,0
+      76: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.si_swapinfo,0
+    [ snip ]                                               ^
+                                                           |
+                                                          [*]
+  [*] Note that the 'Ndx' (Section index) for these symbols is SHN_LIVEPATCH (0xff20).
+      "OS" means OS-specific.
 
 ---------------------------------
 4. Architecture-specific sections
@@ -313,11 +330,11 @@ Since apply_relocate_add() requires access to a module's section headers,
 symbol table, and relocation section indices, Elf information is preserved for
 livepatch modules and is made accessible by the module loader through
 module->klp_info, which is a klp_modinfo struct. When a livepatch module loads,
-this struct is filled in by the module loader. Its fields are documented below:
+this struct is filled in by the module loader. Its fields are documented below::
 
-struct klp_modinfo {
-	Elf_Ehdr hdr; /* Elf header */
-	Elf_Shdr *sechdrs; /* Section header table */
-	char *secstrings; /* String table for the section headers */
-	unsigned int symndx; /* The symbol table section index */
-};
+	struct klp_modinfo {
+		Elf_Ehdr hdr; /* Elf header */
+		Elf_Shdr *sechdrs; /* Section header table */
+		char *secstrings; /* String table for the section headers */
+		unsigned int symndx; /* The symbol table section index */
+	};

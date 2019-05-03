@@ -30,16 +30,20 @@ be patched, irrespective of the target klp_object's current state.
 
 Callbacks can be registered for the following livepatch actions:
 
-  * Pre-patch    - before a klp_object is patched
+  * Pre-patch
+                 - before a klp_object is patched
 
-  * Post-patch   - after a klp_object has been patched and is active
+  * Post-patch
+                 - after a klp_object has been patched and is active
                    across all tasks
 
-  * Pre-unpatch  - before a klp_object is unpatched (ie, patched code is
+  * Pre-unpatch
+                 - before a klp_object is unpatched (ie, patched code is
                    active), used to clean up post-patch callback
                    resources
 
-  * Post-unpatch - after a klp_object has been patched, all code has
+  * Post-unpatch
+                 - after a klp_object has been patched, all code has
                    been restored and no tasks are running patched code,
                    used to cleanup pre-patch callback resources
 
