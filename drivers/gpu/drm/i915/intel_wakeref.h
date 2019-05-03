@@ -127,7 +127,7 @@ intel_wakeref_unlock(struct intel_wakeref *wf)
 static inline bool
 intel_wakeref_active(struct intel_wakeref *wf)
 {
-	return atomic_read(&wf->count);
+	return READ_ONCE(wf->wakeref);
 }
 
 #endif /* INTEL_WAKEREF_H */

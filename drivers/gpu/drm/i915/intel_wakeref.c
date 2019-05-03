@@ -7,6 +7,19 @@
 #include "intel_drv.h"
 #include "intel_wakeref.h"
 
+static void rpm_get(struct drm_i915_private *i915, struct intel_wakeref *wf)
+{
+	wf->wakeref = intel_runtime_pm_get(i915);
+}
+
+static void rpm_put(struct drm_i915_private *i915, struct intel_wakeref *wf)
+{
+	intel_wakeref_t wakeref = fetch_and_zero(&wf->wakeref);
+
+	intel_runtime_pm_put(i915, wakeref);
+	GEM_BUG_ON(!wakeref);
+}
+
 int __intel_wakeref_get_first(struct drm_i915_private *i915,
 			      struct intel_wakeref *wf,
 			      int (*fn)(struct intel_wakeref *wf))
@@ -21,11 +34,11 @@ int __intel_wakeref_get_first(struct drm_i915_private *i915,
 	if (!atomic_read(&wf->count)) {
 		int err;
 
-		wf->wakeref = intel_runtime_pm_get(i915);
+		rpm_get(i915, wf);
 
 		err = fn(wf);
 		if (unlikely(err)) {
-			intel_runtime_pm_put(i915, wf->wakeref);
+			rpm_put(i915, wf);
 			mutex_unlock(&wf->mutex);
 			return err;
 		}
@@ -46,7 +59,7 @@ int __intel_wakeref_put_last(struct drm_i915_private *i915,
 
 	err = fn(wf);
 	if (likely(!err))
-		intel_runtime_pm_put(i915, wf->wakeref);
+		rpm_put(i915, wf);
 	else
 		atomic_inc(&wf->count);
 	mutex_unlock(&wf->mutex);
@@ -58,4 +71,5 @@ void __intel_wakeref_init(struct intel_wakeref *wf, struct lock_class_key *key)
 {
 	__mutex_init(&wf->mutex, "wakeref", key);
 	atomic_set(&wf->count, 0);
+	wf->wakeref = 0;
 }
