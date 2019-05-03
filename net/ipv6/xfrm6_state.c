@@ -21,21 +21,6 @@
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 
-static void
-xfrm6_init_temprop(struct xfrm_state *x, const struct xfrm_tmpl *tmpl,
-		   const xfrm_address_t *daddr, const xfrm_address_t *saddr)
-{
-	x->id = tmpl->id;
-	if (ipv6_addr_any((struct in6_addr *)&x->id.daddr))
-		memcpy(&x->id.daddr, daddr, sizeof(x->sel.daddr));
-	memcpy(&x->props.saddr, &tmpl->saddr, sizeof(x->props.saddr));
-	if (ipv6_addr_any((struct in6_addr *)&x->props.saddr))
-		memcpy(&x->props.saddr, saddr, sizeof(x->props.saddr));
-	x->props.mode = tmpl->mode;
-	x->props.reqid = tmpl->reqid;
-	x->props.family = AF_INET6;
-}
-
 /* distribution counting sort function for xfrm_state and xfrm_tmpl */
 static int
 __xfrm6_sort(void **dst, void **src, int n, int (*cmp)(void *p), int maxclass)
@@ -153,7 +138,6 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.proto			= IPPROTO_IPV6,
 	.eth_proto		= htons(ETH_P_IPV6),
 	.owner			= THIS_MODULE,
-	.init_temprop		= xfrm6_init_temprop,
 	.tmpl_sort		= __xfrm6_tmpl_sort,
 	.state_sort		= __xfrm6_state_sort,
 	.output			= xfrm6_output,

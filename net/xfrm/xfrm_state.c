@@ -812,8 +812,6 @@ xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
 		    const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		    unsigned short family)
 {
-	struct xfrm_state_afinfo *afinfo = xfrm_state_afinfo_get_rcu(family);
-
 	switch (family) {
 	case AF_INET:
 		__xfrm4_init_tempsel(&x->sel, fl);
@@ -823,13 +821,28 @@ xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
 		break;
 	}
 
-	if (family != tmpl->encap_family)
-		afinfo = xfrm_state_afinfo_get_rcu(tmpl->encap_family);
+	x->id = tmpl->id;
 
-	if (!afinfo)
-		return;
+	switch (tmpl->encap_family) {
+	case AF_INET:
+		if (x->id.daddr.a4 == 0)
+			x->id.daddr.a4 = daddr->a4;
+		x->props.saddr = tmpl->saddr;
+		if (x->props.saddr.a4 == 0)
+			x->props.saddr.a4 = saddr->a4;
+		break;
+	case AF_INET6:
+		if (ipv6_addr_any((struct in6_addr *)&x->id.daddr))
+			memcpy(&x->id.daddr, daddr, sizeof(x->sel.daddr));
+		memcpy(&x->props.saddr, &tmpl->saddr, sizeof(x->props.saddr));
+		if (ipv6_addr_any((struct in6_addr *)&x->props.saddr))
+			memcpy(&x->props.saddr, saddr, sizeof(x->props.saddr));
+		break;
+	}
 
-	afinfo->init_temprop(x, tmpl, daddr, saddr);
+	x->props.mode = tmpl->mode;
+	x->props.reqid = tmpl->reqid;
+	x->props.family = tmpl->encap_family;
 }
 
 static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark,
