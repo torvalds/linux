@@ -99,7 +99,7 @@ int temac_mdio_setup(struct temac_local *lp, struct platform_device *pdev)
 		of_address_to_resource(np, 0, &res);
 		snprintf(bus->id, MII_BUS_ID_SIZE, "%.8llx",
 			 (unsigned long long)res.start);
-	} else if (pdata && pdata->mdio_bus_id >= 0) {
+	} else if (pdata) {
 		snprintf(bus->id, MII_BUS_ID_SIZE, "%.8llx",
 			 pdata->mdio_bus_id);
 	}
