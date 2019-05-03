@@ -18,6 +18,7 @@
 #include "desc_constr.h"
 
 #define PREHDR_RSLS_SHIFT	31
+#define PREHDR_ABS		BIT(25)
 
 /*
  * Use a reasonable backlog of frames (per CPU) as congestion threshold,
@@ -346,6 +347,7 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc)
 	 */
 	drv_ctx->prehdr[0] = cpu_to_caam32((1 << PREHDR_RSLS_SHIFT) |
 					   num_words);
+	drv_ctx->prehdr[1] = cpu_to_caam32(PREHDR_ABS);
 	memcpy(drv_ctx->sh_desc, sh_desc, desc_bytes(sh_desc));
 	dma_sync_single_for_device(qidev, drv_ctx->context_a,
 				   sizeof(drv_ctx->sh_desc) +
@@ -401,6 +403,7 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 	 */
 	drv_ctx->prehdr[0] = cpu_to_caam32((1 << PREHDR_RSLS_SHIFT) |
 					   num_words);
+	drv_ctx->prehdr[1] = cpu_to_caam32(PREHDR_ABS);
 	memcpy(drv_ctx->sh_desc, sh_desc, desc_bytes(sh_desc));
 	size = sizeof(drv_ctx->prehdr) + sizeof(drv_ctx->sh_desc);
 	hwdesc = dma_map_single(qidev, drv_ctx->prehdr, size,
