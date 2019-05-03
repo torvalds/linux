@@ -845,6 +845,48 @@ static int hclge_parse_speed(int speed_cmd, int *speed)
 	return 0;
 }
 
+static int hclge_check_port_speed(struct hnae3_handle *handle, u32 speed)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 speed_ability = hdev->hw.mac.speed_ability;
+	u32 speed_bit = 0;
+
+	switch (speed) {
+	case HCLGE_MAC_SPEED_10M:
+		speed_bit = HCLGE_SUPPORT_10M_BIT;
+		break;
+	case HCLGE_MAC_SPEED_100M:
+		speed_bit = HCLGE_SUPPORT_100M_BIT;
+		break;
+	case HCLGE_MAC_SPEED_1G:
+		speed_bit = HCLGE_SUPPORT_1G_BIT;
+		break;
+	case HCLGE_MAC_SPEED_10G:
+		speed_bit = HCLGE_SUPPORT_10G_BIT;
+		break;
+	case HCLGE_MAC_SPEED_25G:
+		speed_bit = HCLGE_SUPPORT_25G_BIT;
+		break;
+	case HCLGE_MAC_SPEED_40G:
+		speed_bit = HCLGE_SUPPORT_40G_BIT;
+		break;
+	case HCLGE_MAC_SPEED_50G:
+		speed_bit = HCLGE_SUPPORT_50G_BIT;
+		break;
+	case HCLGE_MAC_SPEED_100G:
+		speed_bit = HCLGE_SUPPORT_100G_BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (speed_bit & speed_ability)
+		return 0;
+
+	return -EINVAL;
+}
+
 static void hclge_convert_setting_sr(struct hclge_mac *mac, u8 speed_ability)
 {
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
@@ -2198,6 +2240,16 @@ static int hclge_set_autoneg(struct hnae3_handle *handle, bool enable)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
+	if (!hdev->hw.mac.support_autoneg) {
+		if (enable) {
+			dev_err(&hdev->pdev->dev,
+				"autoneg is not supported by current port\n");
+			return -EOPNOTSUPP;
+		} else {
+			return 0;
+		}
+	}
+
 	return hclge_set_autoneg_en(hdev, enable);
 }
 
@@ -2211,6 +2263,20 @@ static int hclge_get_autoneg(struct hnae3_handle *handle)
 		return phydev->autoneg;
 
 	return hdev->hw.mac.autoneg;
+}
+
+static int hclge_restart_autoneg(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	dev_dbg(&hdev->pdev->dev, "restart autoneg\n");
+
+	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		return ret;
+	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 static int hclge_mac_init(struct hclge_dev *hdev)
@@ -7613,13 +7679,13 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 	if (!fc_autoneg)
 		return hclge_cfg_pauseparam(hdev, rx_en, tx_en);
 
-	/* Only support flow control negotiation for netdev with
-	 * phy attached for now.
-	 */
-	if (!phydev)
+	if (phydev)
+		return phy_start_aneg(phydev);
+
+	if (hdev->pdev->revision == 0x20)
 		return -EOPNOTSUPP;
 
-	return phy_start_aneg(phydev);
+	return hclge_restart_autoneg(handle);
 }
 
 static void hclge_get_ksettings_an_result(struct hnae3_handle *handle,
@@ -8686,6 +8752,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_ksettings_an_result = hclge_get_ksettings_an_result,
 	.cfg_mac_speed_dup_h = hclge_cfg_mac_speed_dup_h,
 	.get_media_type = hclge_get_media_type,
+	.check_port_speed = hclge_check_port_speed,
 	.get_rss_key_size = hclge_get_rss_key_size,
 	.get_rss_indir_size = hclge_get_rss_indir_size,
 	.get_rss = hclge_get_rss,
@@ -8702,6 +8769,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.rm_mc_addr = hclge_rm_mc_addr,
 	.set_autoneg = hclge_set_autoneg,
 	.get_autoneg = hclge_get_autoneg,
+	.restart_autoneg = hclge_restart_autoneg,
 	.get_pauseparam = hclge_get_pauseparam,
 	.set_pauseparam = hclge_set_pauseparam,
 	.set_mtu = hclge_set_mtu,
