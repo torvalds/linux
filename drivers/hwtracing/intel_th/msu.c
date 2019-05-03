@@ -179,7 +179,7 @@ static struct msc_window *msc_oldest_window(struct msc *msc)
 			return win;
 	}
 
-	return list_entry(msc->win_list.next, struct msc_window, entry);
+	return list_first_entry(&msc->win_list, struct msc_window, entry);
 }
 
 /**
@@ -230,10 +230,10 @@ static inline bool msc_is_last_win(struct msc_window *win)
 static struct msc_window *msc_next_window(struct msc_window *win)
 {
 	if (msc_is_last_win(win))
-		return list_entry(win->msc->win_list.next, struct msc_window,
-				  entry);
+		return list_first_entry(&win->msc->win_list, struct msc_window,
+					entry);
 
-	return list_entry(win->entry.next, struct msc_window, entry);
+	return list_next_entry(win, entry);
 }
 
 static struct msc_block_desc *msc_iter_bdesc(struct msc_iter *iter)
@@ -759,8 +759,9 @@ static int msc_buffer_win_alloc(struct msc *msc, unsigned int nr_blocks)
 		return -ENOMEM;
 
 	if (!list_empty(&msc->win_list)) {
-		struct msc_window *prev = list_entry(msc->win_list.prev,
-						     struct msc_window, entry);
+		struct msc_window *prev = list_last_entry(&msc->win_list,
+							  struct msc_window,
+							  entry);
 
 		win->pgoff = prev->pgoff + prev->nr_blocks;
 	}
@@ -863,11 +864,10 @@ static void msc_buffer_relink(struct msc *msc)
 		 */
 		if (msc_is_last_win(win)) {
 			sw_tag |= MSC_SW_TAG_LASTWIN;
-			next_win = list_entry(msc->win_list.next,
-					      struct msc_window, entry);
+			next_win = list_first_entry(&msc->win_list,
+						    struct msc_window, entry);
 		} else {
-			next_win = list_entry(win->entry.next,
-					      struct msc_window, entry);
+			next_win = list_next_entry(win, entry);
 		}
 
 		for (blk = 0; blk < win->nr_blocks; blk++) {
