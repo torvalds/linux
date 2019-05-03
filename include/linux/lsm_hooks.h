@@ -41,7 +41,7 @@
  *	transitions between security domains).
  *	This hook may be called multiple times during a single execve, e.g. for
  *	interpreters.  The hook can tell whether it has already been called by
- *	checking to see if @bprm->security is non-NULL.  If so, then the hook
+ *	checking to see if @bprm->cred->security is non-NULL.  If so, then the hook
  *	may decide either to retain the security information saved earlier or
  *	to replace it.  The hook must set @bprm->secureexec to 1 if a "secure
  *	exec" has happened as a result of this hook call.  The flag is used to
