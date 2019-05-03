@@ -59,6 +59,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	tmp175,
 	tmp275,
 	tmp75,
+	tmp75b,
 	tmp75c,
 };
 
@@ -354,6 +355,11 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		data->resolution = 12;
 		data->sample_time = MSEC_PER_SEC / 2;
 		break;
+	case tmp75b:  /* not one-shot mode, Conversion rate 37Hz */
+		clr_mask |= 1 << 15 | 0x3 << 13;
+		data->resolution = 12;
+		data->sample_time = MSEC_PER_SEC / 37;
+		break;
 	case tmp75c:
 		clr_mask |= 1 << 5;		/* not one-shot mode */
 		data->resolution = 12;
@@ -414,6 +420,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "tmp175", tmp175, },
 	{ "tmp275", tmp275, },
 	{ "tmp75", tmp75, },
+	{ "tmp75b", tmp75b, },
 	{ "tmp75c", tmp75c, },
 	{ /* LIST END */ }
 };
@@ -511,6 +518,10 @@ static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
 		.compatible = "ti,tmp75",
 		.data = (void *)tmp75
+	},
+	{
+		.compatible = "ti,tmp75b",
+		.data = (void *)tmp75b
 	},
 	{
 		.compatible = "ti,tmp75c",
