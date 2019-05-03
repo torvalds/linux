@@ -1616,6 +1616,7 @@ int dcn20_populate_dml_pipes_from_context(
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing = &res_ctx->pipe_ctx[i].stream->timing;
+		int output_bpc;
 
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
@@ -1665,7 +1666,6 @@ int dcn20_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
 
-		pipes[pipe_cnt].dout.output_bpp = res_ctx->pipe_ctx[i].stream->timing.display_color_depth;
 		switch (res_ctx->pipe_ctx[i].stream->signal) {
 		case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		case SIGNAL_TYPE_DISPLAY_PORT:
@@ -1684,22 +1684,60 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].dout.output_type = dm_dp;
 			pipes[pipe_cnt].dout.dp_lanes = 4;
 		}
+
+		switch (res_ctx->pipe_ctx[i].stream->timing.display_color_depth) {
+		case COLOR_DEPTH_666:
+			output_bpc = 6;
+			break;
+		case COLOR_DEPTH_888:
+			output_bpc = 8;
+			break;
+		case COLOR_DEPTH_101010:
+			output_bpc = 10;
+			break;
+		case COLOR_DEPTH_121212:
+			output_bpc = 12;
+			break;
+		case COLOR_DEPTH_141414:
+			output_bpc = 14;
+			break;
+		case COLOR_DEPTH_161616:
+			output_bpc = 16;
+			break;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+		case COLOR_DEPTH_999:
+			output_bpc = 9;
+			break;
+		case COLOR_DEPTH_111111:
+			output_bpc = 11;
+			break;
+#endif
+		default:
+			output_bpc = 8;
+			break;
+		}
+
+
 		switch (res_ctx->pipe_ctx[i].stream->timing.pixel_encoding) {
 		case PIXEL_ENCODING_RGB:
 		case PIXEL_ENCODING_YCBCR444:
 			pipes[pipe_cnt].dout.output_format = dm_444;
+			pipes[pipe_cnt].dout.output_bpp = output_bpc * 3;
 			break;
 		case PIXEL_ENCODING_YCBCR420:
 			pipes[pipe_cnt].dout.output_format = dm_420;
+			pipes[pipe_cnt].dout.output_bpp = (output_bpc * 3) / 2;
 			break;
 		case PIXEL_ENCODING_YCBCR422:
 			if (true) /* todo */
 				pipes[pipe_cnt].dout.output_format = dm_s422;
 			else
 				pipes[pipe_cnt].dout.output_format = dm_n422;
+			pipes[pipe_cnt].dout.output_bpp = output_bpc * 2;
 			break;
 		default:
 			pipes[pipe_cnt].dout.output_format = dm_444;
+			pipes[pipe_cnt].dout.output_bpp = output_bpc * 3;
 		}
 		pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
 		if (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state

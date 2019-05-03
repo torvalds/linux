@@ -427,7 +427,12 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				(enum output_format_class) (dout->output_format);
 		mode_lib->vba.Output[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_encoder_class) (dout->output_type);
-		mode_lib->vba.OutputBpp[mode_lib->vba.NumberOfActivePlanes] = dout->output_bpp;
+
+		if (!dout->dsc_enable)
+			mode_lib->vba.ForcedOutputLinkBPP[mode_lib->vba.NumberOfActivePlanes] = dout->output_bpp;
+		else
+			mode_lib->vba.ForcedOutputLinkBPP[mode_lib->vba.NumberOfActivePlanes] = 0.0;
+
 		mode_lib->vba.OutputLinkDPLanes[mode_lib->vba.NumberOfActivePlanes] =
 				dout->dp_lanes;
 		/* TODO: Needs to be set based on dout->audio.audio_sample_rate_khz/sample_layout */
@@ -436,7 +441,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.AudioSampleLayout[mode_lib->vba.NumberOfActivePlanes] =
 			1;
 		mode_lib->vba.DRAMClockChangeLatencyOverride = 0.0;
-
 		mode_lib->vba.DSCEnabled[mode_lib->vba.NumberOfActivePlanes] = dout->dsc_enable;
 		mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] =
 				dout->dsc_slices;
