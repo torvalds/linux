@@ -238,6 +238,9 @@ enum th_mmio_idx {
 #define TH_CONFIGURABLE_MASTERS 256
 #define TH_MSC_MAX		2
 
+/* Maximum IRQ vectors */
+#define TH_NVEC_MAX		8
+
 /**
  * struct intel_th - Intel TH controller
  * @dev:	driver core's device

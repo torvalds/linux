@@ -72,11 +72,11 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	struct intel_th_drvdata *drvdata = (void *)id->driver_data;
-	struct resource resource[TH_MMIO_END + 1] = {
+	struct resource resource[TH_MMIO_END + TH_NVEC_MAX] = {
 		[TH_MMIO_CONFIG]	= pdev->resource[TH_PCI_CONFIG_BAR],
 		[TH_MMIO_SW]		= pdev->resource[TH_PCI_STH_SW_BAR],
 	};
-	int err, r = TH_MMIO_SW + 1;
+	int err, r = TH_MMIO_SW + 1, i;
 	struct intel_th *th;
 
 	err = pcim_enable_device(pdev);
@@ -92,10 +92,12 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 		r++;
 	}
 
-	if (pdev->irq > 0) {
-		resource[r].flags   = IORESOURCE_IRQ;
-		resource[r++].start = pdev->irq;
-	}
+	err = pci_alloc_irq_vectors(pdev, 1, 8, PCI_IRQ_ALL_TYPES);
+	if (err > 0)
+		for (i = 0; i < err; i++, r++) {
+			resource[r].flags = IORESOURCE_IRQ;
+			resource[r].start = pci_irq_vector(pdev, i);
+		}
 
 	th = intel_th_alloc(&pdev->dev, drvdata, resource, r);
 	if (IS_ERR(th))
@@ -114,6 +116,8 @@ static void intel_th_pci_remove(struct pci_dev *pdev)
 	struct intel_th *th = pci_get_drvdata(pdev);
 
 	intel_th_free(th);
+
+	pci_free_irq_vectors(pdev);
 }
 
 static const struct intel_th_drvdata intel_th_2x = {
