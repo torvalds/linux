@@ -54,19 +54,8 @@
  * idle before writing to some registers.
  */
 #define TMIO_MMC_HAS_IDLE_WAIT		BIT(4)
-/*
- * A GPIO is used for card hotplug detection. We need an extra flag for this,
- * because 0 is a valid GPIO number too, and requiring users to specify
- * cd_gpio < 0 to disable GPIO hotplug would break backwards compatibility.
- */
-#define TMIO_MMC_USE_GPIO_CD		BIT(5)
 
-/*
- * Some controllers doesn't have over 0x100 register.
- * it is used to checking accessibility of
- * CTL_SD_CARD_CLK_CTL / CTL_CLK_AND_WAIT_CTL
- */
-#define TMIO_MMC_HAVE_HIGH_REG		BIT(6)
+/* BIT(5) is unused */
 
 /*
  * Some controllers have CMD12 automatically
@@ -90,7 +79,7 @@
 /* Some controllers have a CBSY bit */
 #define TMIO_MMC_HAVE_CBSY		BIT(11)
 
-/* Some controllers that support HS400 use use 4 taps while others use 8. */
+/* Some controllers that support HS400 use 4 taps while others use 8. */
 #define TMIO_MMC_HAVE_4TAP_HS400	BIT(13)
 
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
@@ -111,7 +100,6 @@ struct tmio_mmc_data {
 	unsigned long			capabilities2;
 	unsigned long			flags;
 	u32				ocr_mask;	/* available voltages */
-	unsigned int			cd_gpio;
 	int				alignment_shift;
 	dma_addr_t			dma_rx_offset;
 	unsigned int			max_blk_count;

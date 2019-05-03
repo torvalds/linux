@@ -200,11 +200,10 @@ gl861_i2c_write_ex(struct dvb_usb_device *d, u8 addr, u8 *wbuf, u16 wlen)
 	u8 *buf;
 	int ret;
 
-	buf = kmalloc(wlen, GFP_KERNEL);
+	buf = kmemdup(wbuf, wlen, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	memcpy(buf, wbuf, wlen);
 	ret = usb_control_msg(d->udev, usb_sndctrlpipe(d->udev, 0),
 				 GL861_REQ_I2C_RAW, GL861_WRITE,
 				 addr << (8 + 1), 0x0100, buf, wlen, 2000);
@@ -507,7 +506,7 @@ static int friio_frontend_attach(struct dvb_usb_adapter *adap)
 	priv->i2c_client_demod = cl;
 	priv->tuner_adap.algo = &friio_tuner_i2c_algo;
 	priv->tuner_adap.dev.parent = &d->udev->dev;
-	strlcpy(priv->tuner_adap.name, d->name, sizeof(priv->tuner_adap.name));
+	strscpy(priv->tuner_adap.name, d->name, sizeof(priv->tuner_adap.name));
 	strlcat(priv->tuner_adap.name, "-tuner", sizeof(priv->tuner_adap.name));
 	priv->demod_sub_i2c = &priv->tuner_adap;
 	i2c_set_adapdata(&priv->tuner_adap, d);

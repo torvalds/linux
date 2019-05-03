@@ -45,8 +45,13 @@ bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type)
 	    (hr_dev->caps.mpt_hop_num && type == HEM_TYPE_MTPT) ||
 	    (hr_dev->caps.cqc_hop_num && type == HEM_TYPE_CQC) ||
 	    (hr_dev->caps.srqc_hop_num && type == HEM_TYPE_SRQC) ||
+	    (hr_dev->caps.sccc_hop_num && type == HEM_TYPE_SCCC) ||
+	    (hr_dev->caps.qpc_timer_hop_num && type == HEM_TYPE_QPC_TIMER) ||
+	    (hr_dev->caps.cqc_timer_hop_num && type == HEM_TYPE_CQC_TIMER) ||
 	    (hr_dev->caps.cqe_hop_num && type == HEM_TYPE_CQE) ||
-	    (hr_dev->caps.mtt_hop_num && type == HEM_TYPE_MTT))
+	    (hr_dev->caps.mtt_hop_num && type == HEM_TYPE_MTT) ||
+	    (hr_dev->caps.srqwqe_hop_num && type == HEM_TYPE_SRQWQE) ||
+	    (hr_dev->caps.idx_hop_num && type == HEM_TYPE_IDX))
 		return true;
 
 	return false;
@@ -123,6 +128,30 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 		mhop->ba_l0_num = hr_dev->caps.cqc_bt_num;
 		mhop->hop_num = hr_dev->caps.cqc_hop_num;
 		break;
+	case HEM_TYPE_SCCC:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.sccc_buf_pg_sz
+					     + PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.sccc_ba_pg_sz
+					    + PAGE_SHIFT);
+		mhop->ba_l0_num = hr_dev->caps.sccc_bt_num;
+		mhop->hop_num = hr_dev->caps.sccc_hop_num;
+		break;
+	case HEM_TYPE_QPC_TIMER:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.qpc_timer_buf_pg_sz
+					     + PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.qpc_timer_ba_pg_sz
+					    + PAGE_SHIFT);
+		mhop->ba_l0_num = hr_dev->caps.qpc_timer_bt_num;
+		mhop->hop_num = hr_dev->caps.qpc_timer_hop_num;
+		break;
+	case HEM_TYPE_CQC_TIMER:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.cqc_timer_buf_pg_sz
+					     + PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.cqc_timer_ba_pg_sz
+					    + PAGE_SHIFT);
+		mhop->ba_l0_num = hr_dev->caps.cqc_timer_bt_num;
+		mhop->hop_num = hr_dev->caps.cqc_timer_hop_num;
+		break;
 	case HEM_TYPE_SRQC:
 		mhop->buf_chunk_size = 1 << (hr_dev->caps.srqc_buf_pg_sz
 					     + PAGE_SHIFT);
@@ -147,6 +176,22 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 		mhop->ba_l0_num = mhop->bt_chunk_size / 8;
 		mhop->hop_num = hr_dev->caps.cqe_hop_num;
 		break;
+	case HEM_TYPE_SRQWQE:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.srqwqe_buf_pg_sz
+					    + PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz
+					    + PAGE_SHIFT);
+		mhop->ba_l0_num = mhop->bt_chunk_size / 8;
+		mhop->hop_num = hr_dev->caps.srqwqe_hop_num;
+		break;
+	case HEM_TYPE_IDX:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.idx_buf_pg_sz
+				       + PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.idx_ba_pg_sz
+				       + PAGE_SHIFT);
+		mhop->ba_l0_num = mhop->bt_chunk_size / 8;
+		mhop->hop_num = hr_dev->caps.idx_hop_num;
+		break;
 	default:
 		dev_err(dev, "Table %d not support multi-hop addressing!\n",
 			 table->type);
@@ -157,7 +202,7 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 		return 0;
 
 	/*
-	 * QPC/MTPT/CQC/SRQC alloc hem for buffer pages.
+	 * QPC/MTPT/CQC/SRQC/SCCC alloc hem for buffer pages.
 	 * MTT/CQE alloc hem for bt pages.
 	 */
 	bt_num = hns_roce_get_bt_num(table->type, mhop->hop_num);
@@ -468,7 +513,7 @@ static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
 	}
 
 	/*
-	 * alloc buffer space chunk for QPC/MTPT/CQC/SRQC.
+	 * alloc buffer space chunk for QPC/MTPT/CQC/SRQC/SCCC.
 	 * alloc bt space chunk for MTT/CQE.
 	 */
 	size = table->type < HEM_TYPE_MTT ? buf_chunk_size : bt_chunk_size;
@@ -575,6 +620,7 @@ out:
 	mutex_unlock(&table->mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hns_roce_table_get);
 
 static void hns_roce_table_mhop_put(struct hns_roce_dev *hr_dev,
 				    struct hns_roce_hem_table *table,
@@ -640,7 +686,7 @@ static void hns_roce_table_mhop_put(struct hns_roce_dev *hr_dev,
 	}
 
 	/*
-	 * free buffer space chunk for QPC/MTPT/CQC/SRQC.
+	 * free buffer space chunk for QPC/MTPT/CQC/SRQC/SCCC.
 	 * free bt space chunk for MTT/CQE.
 	 */
 	hns_roce_free_hem(hr_dev, table->hem[hem_idx]);
@@ -717,6 +763,7 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 
 	mutex_unlock(&table->mutex);
 }
+EXPORT_SYMBOL_GPL(hns_roce_table_put);
 
 void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_hem_table *table,
@@ -745,6 +792,8 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 		idx_offset = (obj & (table->num_obj - 1)) % obj_per_chunk;
 		dma_offset = offset = idx_offset * table->obj_size;
 	} else {
+		u32 seg_size = 64; /* 8 bytes per BA and 8 BA per segment */
+
 		hns_roce_calc_hem_mhop(hr_dev, table, &mhop_obj, &mhop);
 		/* mtt mhop */
 		i = mhop.l0_idx;
@@ -756,8 +805,8 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 			hem_idx = i;
 
 		hem = table->hem[hem_idx];
-		dma_offset = offset = (obj & (table->num_obj - 1)) *
-				       table->obj_size % mhop.bt_chunk_size;
+		dma_offset = offset = (obj & (table->num_obj - 1)) * seg_size %
+				       mhop.bt_chunk_size;
 		if (mhop.hop_num == 2)
 			dma_offset = offset = 0;
 	}
@@ -886,6 +935,30 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			num_bt_l0 = hr_dev->caps.cqc_bt_num;
 			hop_num = hr_dev->caps.cqc_hop_num;
 			break;
+		case HEM_TYPE_SCCC:
+			buf_chunk_size = 1 << (hr_dev->caps.sccc_buf_pg_sz
+					+ PAGE_SHIFT);
+			bt_chunk_size = 1 << (hr_dev->caps.sccc_ba_pg_sz
+					+ PAGE_SHIFT);
+			num_bt_l0 = hr_dev->caps.sccc_bt_num;
+			hop_num = hr_dev->caps.sccc_hop_num;
+			break;
+		case HEM_TYPE_QPC_TIMER:
+			buf_chunk_size = 1 << (hr_dev->caps.qpc_timer_buf_pg_sz
+					+ PAGE_SHIFT);
+			bt_chunk_size = 1 << (hr_dev->caps.qpc_timer_ba_pg_sz
+					+ PAGE_SHIFT);
+			num_bt_l0 = hr_dev->caps.qpc_timer_bt_num;
+			hop_num = hr_dev->caps.qpc_timer_hop_num;
+			break;
+		case HEM_TYPE_CQC_TIMER:
+			buf_chunk_size = 1 << (hr_dev->caps.cqc_timer_buf_pg_sz
+					+ PAGE_SHIFT);
+			bt_chunk_size = 1 << (hr_dev->caps.cqc_timer_ba_pg_sz
+					+ PAGE_SHIFT);
+			num_bt_l0 = hr_dev->caps.cqc_timer_bt_num;
+			hop_num = hr_dev->caps.cqc_timer_hop_num;
+			break;
 		case HEM_TYPE_SRQC:
 			buf_chunk_size = 1 << (hr_dev->caps.srqc_buf_pg_sz
 					+ PAGE_SHIFT);
@@ -905,6 +978,18 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 					+ PAGE_SHIFT);
 			bt_chunk_size = buf_chunk_size;
 			hop_num = hr_dev->caps.cqe_hop_num;
+			break;
+		case HEM_TYPE_SRQWQE:
+			buf_chunk_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz
+					+ PAGE_SHIFT);
+			bt_chunk_size = buf_chunk_size;
+			hop_num = hr_dev->caps.srqwqe_hop_num;
+			break;
+		case HEM_TYPE_IDX:
+			buf_chunk_size = 1 << (hr_dev->caps.idx_ba_pg_sz
+					+ PAGE_SHIFT);
+			bt_chunk_size = buf_chunk_size;
+			hop_num = hr_dev->caps.idx_hop_num;
 			break;
 		default:
 			dev_err(dev,
@@ -1041,7 +1126,25 @@ void hns_roce_cleanup_hem_table(struct hns_roce_dev *hr_dev,
 
 void hns_roce_cleanup_hem(struct hns_roce_dev *hr_dev)
 {
+	if ((hr_dev->caps.num_idx_segs))
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->mr_table.mtt_idx_table);
+	if (hr_dev->caps.num_srqwqe_segs)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->mr_table.mtt_srqwqe_table);
+	if (hr_dev->caps.srqc_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->srq_table.table);
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->cq_table.table);
+	if (hr_dev->caps.qpc_timer_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->qpc_timer_table);
+	if (hr_dev->caps.cqc_timer_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->cqc_timer_table);
+	if (hr_dev->caps.sccc_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->qp_table.sccc_table);
 	if (hr_dev->caps.trrl_entry_sz)
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->qp_table.trrl_table);

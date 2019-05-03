@@ -51,6 +51,9 @@ config NET_INGRESS
 config NET_EGRESS
 	bool
 
+config SKB_EXTENSIONS
+	bool
+
 menu "Networking options"
 
 source "net/packet/Kconfig"
@@ -184,6 +187,7 @@ config BRIDGE_NETFILTER
 	depends on NETFILTER && INET
 	depends on NETFILTER_ADVANCED
 	select NETFILTER_FAMILY_BRIDGE
+	select SKB_EXTENSIONS
 	default m
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
@@ -300,8 +304,11 @@ config BPF_JIT
 
 config BPF_STREAM_PARSER
 	bool "enable BPF STREAM_PARSER"
+	depends on INET
 	depends on BPF_SYSCALL
+	depends on CGROUP_BPF
 	select STREAM_PARSER
+	select NET_SOCK_MSG
 	---help---
 	 Enabling this allows a stream parser to be used with
 	 BPF_MAP_TYPE_SOCKMAP.
@@ -396,7 +403,7 @@ config LWTUNNEL
 
 config LWTUNNEL_BPF
 	bool "Execute BPF program as route nexthop action"
-	depends on LWTUNNEL
+	depends on LWTUNNEL && INET
 	default y if LWTUNNEL=y
 	---help---
 	  Allows to run BPF programs as a nexthop action following a route
@@ -413,21 +420,20 @@ config GRO_CELLS
 config SOCK_VALIDATE_XMIT
 	bool
 
+config NET_SOCK_MSG
+	bool
+	default n
+	help
+	  The NET_SOCK_MSG provides a framework for plain sockets (e.g. TCP) or
+	  ULPs (upper layer modules, e.g. TLS) to process L7 application data
+	  with the help of BPF programs.
+
 config NET_DEVLINK
-	tristate "Network physical/parent device Netlink interface"
+	bool "Network physical/parent device Netlink interface"
 	help
 	  Network physical/parent device Netlink interface provides
 	  infrastructure to support access to physical chip-wide config and
 	  monitoring.
-
-config MAY_USE_DEVLINK
-	tristate
-	default m if NET_DEVLINK=m
-	default y if NET_DEVLINK=y || NET_DEVLINK=n
-	help
-	  Drivers using the devlink infrastructure should have a dependency
-	  on MAY_USE_DEVLINK to ensure they do not cause link errors when
-	  devlink is a loadable module and the driver using it is built-in.
 
 config PAGE_POOL
        bool

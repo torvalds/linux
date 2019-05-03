@@ -140,4 +140,5 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 const struct dsa_device_ops lan9303_netdev_ops = {
 	.xmit = lan9303_xmit,
 	.rcv = lan9303_rcv,
+	.overhead = LAN9303_TAG_LEN,
 };

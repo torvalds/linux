@@ -3,7 +3,7 @@
  *
  * Module Name: tbxfload - Table load/unload external interfaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -69,24 +69,18 @@ acpi_status ACPI_INIT_FUNCTION acpi_load_tables(void)
 				"While loading namespace from ACPI tables"));
 	}
 
-	if (acpi_gbl_execute_tables_as_methods
-	    || !acpi_gbl_group_module_level_code) {
-		/*
-		 * If the module-level code support is enabled, initialize the objects
-		 * in the namespace that remain uninitialized. This runs the executable
-		 * AML that may be part of the declaration of these name objects:
-		 *     operation_regions, buffer_fields, Buffers, and Packages.
-		 *
-		 * Note: The module-level code is optional at this time, but will
-		 * become the default in the future.
-		 */
-		status = acpi_ns_initialize_objects();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+	/*
+	 * Initialize the objects in the namespace that remain uninitialized.
+	 * This runs the executable AML that may be part of the declaration of
+	 * these name objects:
+	 *     operation_regions, buffer_fields, Buffers, and Packages.
+	 *
+	 */
+	status = acpi_ns_initialize_objects();
+	if (ACPI_SUCCESS(status)) {
+		acpi_gbl_namespace_initialized = TRUE;
 	}
 
-	acpi_gbl_namespace_initialized = TRUE;
 	return_ACPI_STATUS(status);
 }
 

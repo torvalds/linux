@@ -117,25 +117,25 @@ config CIFS_UPCALL
 	  secure Kerberos authentication is required). If unsure, say Y.
 
 config CIFS_XATTR
-        bool "CIFS extended attributes"
-        depends on CIFS
-        help
-          Extended attributes are name:value pairs associated with inodes by
-          the kernel or by users (see the attr(5) manual page for details).
-          CIFS maps the name of extended attributes beginning with the user
-          namespace prefix to SMB/CIFS EAs.  EAs are stored on Windows
-          servers without the user namespace prefix, but their names are
-          seen by Linux cifs clients prefaced by the user namespace prefix.
-          The system namespace (used by some filesystems to store ACLs) is
-          not supported at this time.
+	bool "CIFS extended attributes"
+	depends on CIFS
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page for details).
+	  CIFS maps the name of extended attributes beginning with the user
+	  namespace prefix to SMB/CIFS EAs.  EAs are stored on Windows
+	  servers without the user namespace prefix, but their names are
+	  seen by Linux cifs clients prefaced by the user namespace prefix.
+	  The system namespace (used by some filesystems to store ACLs) is
+	  not supported at this time.
 
-          If unsure, say Y.
+	  If unsure, say Y.
 
 config CIFS_POSIX
-        bool "CIFS POSIX Extensions"
-        depends on CIFS_XATTR
-        help
-          Enabling this option will cause the cifs client to attempt to
+	bool "CIFS POSIX Extensions"
+	depends on CIFS && CIFS_ALLOW_INSECURE_LEGACY && CIFS_XATTR
+	help
+	  Enabling this option will cause the cifs client to attempt to
 	  negotiate a newer dialect with servers, such as Samba 3.0.5
 	  or later, that optionally can handle more POSIX like (rather
 	  than Windows like) file behavior.  It also enables
@@ -144,60 +144,62 @@ config CIFS_POSIX
 	  CIFS POSIX ACL support.  If unsure, say N.
 
 config CIFS_ACL
-	  bool "Provide CIFS ACL support"
-	  depends on CIFS_XATTR && KEYS
-	  help
-	    Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
-	    is handed over to the application/caller.  See the man
-	    page for getcifsacl for more information.  If unsure, say Y.
+	bool "Provide CIFS ACL support"
+	depends on CIFS_XATTR && KEYS
+	help
+	  Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
+	  is handed over to the application/caller.  See the man
+	  page for getcifsacl for more information.  If unsure, say Y.
 
 config CIFS_DEBUG
 	bool "Enable CIFS debugging routines"
 	default y
 	depends on CIFS
 	help
-	   Enabling this option adds helpful debugging messages to
-	   the cifs code which increases the size of the cifs module.
-	   If unsure, say Y.
+	  Enabling this option adds helpful debugging messages to
+	  the cifs code which increases the size of the cifs module.
+	  If unsure, say Y.
+
 config CIFS_DEBUG2
 	bool "Enable additional CIFS debugging routines"
 	depends on CIFS_DEBUG
 	help
-	   Enabling this option adds a few more debugging routines
-	   to the cifs code which slightly increases the size of
-	   the cifs module and can cause additional logging of debug
-	   messages in some error paths, slowing performance. This
-	   option can be turned off unless you are debugging
-	   cifs problems.  If unsure, say N.
+	  Enabling this option adds a few more debugging routines
+	  to the cifs code which slightly increases the size of
+	  the cifs module and can cause additional logging of debug
+	  messages in some error paths, slowing performance. This
+	  option can be turned off unless you are debugging
+	  cifs problems.  If unsure, say N.
 
 config CIFS_DEBUG_DUMP_KEYS
 	bool "Dump encryption keys for offline decryption (Unsafe)"
 	depends on CIFS_DEBUG
 	help
-	   Enabling this will dump the encryption and decryption keys
-	   used to communicate on an encrypted share connection on the
-	   console. This allows Wireshark to decrypt and dissect
-	   encrypted network captures. Enable this carefully.
-	   If unsure, say N.
+	  Enabling this will dump the encryption and decryption keys
+	  used to communicate on an encrypted share connection on the
+	  console. This allows Wireshark to decrypt and dissect
+	  encrypted network captures. Enable this carefully.
+	  If unsure, say N.
 
 config CIFS_DFS_UPCALL
-	  bool "DFS feature support"
-	  depends on CIFS && KEYS
-	  select DNS_RESOLVER
-	  help
-	    Distributed File System (DFS) support is used to access shares
-	    transparently in an enterprise name space, even if the share
-	    moves to a different server.  This feature also enables
-	    an upcall mechanism for CIFS which contacts userspace helper
-	    utilities to provide server name resolution (host names to
-	    IP addresses) which is needed for implicit mounts of DFS junction
-	    points. If unsure, say Y.
+	bool "DFS feature support"
+	depends on CIFS && KEYS
+	select DNS_RESOLVER
+	help
+	  Distributed File System (DFS) support is used to access shares
+	  transparently in an enterprise name space, even if the share
+	  moves to a different server.  This feature also enables
+	  an upcall mechanism for CIFS which contacts userspace helper
+	  utilities to provide server name resolution (host names to
+	  IP addresses) which is needed in order to reconnect to
+	  servers if their addresses change or for implicit mounts of
+	  DFS junction points. If unsure, say Y.
 
 config CIFS_NFSD_EXPORT
-	  bool "Allow nfsd to export CIFS file system"
-	  depends on CIFS && BROKEN
-	  help
-	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)
+	bool "Allow nfsd to export CIFS file system"
+	depends on CIFS && BROKEN
+	help
+	  Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
 config CIFS_SMB_DIRECT
 	bool "SMB Direct support (Experimental)"
@@ -208,10 +210,9 @@ config CIFS_SMB_DIRECT
 	  say N.
 
 config CIFS_FSCACHE
-	  bool "Provide CIFS client caching support"
-	  depends on CIFS=m && FSCACHE || CIFS=y && FSCACHE=y
-	  help
-	    Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
-	    to be cached locally on disk through the general filesystem cache
-	    manager. If unsure, say N.
-
+	bool "Provide CIFS client caching support"
+	depends on CIFS=m && FSCACHE || CIFS=y && FSCACHE=y
+	help
+	  Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
+	  to be cached locally on disk through the general filesystem cache
+	  manager. If unsure, say N.

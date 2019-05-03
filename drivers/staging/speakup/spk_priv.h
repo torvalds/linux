@@ -54,8 +54,10 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 int spk_serial_synth_probe(struct spk_synth *synth);
 int spk_ttyio_synth_probe(struct spk_synth *synth);
-const char *spk_serial_synth_immediate(struct spk_synth *synth, const char *buff);
-const char *spk_ttyio_synth_immediate(struct spk_synth *synth, const char *buff);
+const char *spk_serial_synth_immediate(struct spk_synth *synth,
+				       const char *buff);
+const char *spk_ttyio_synth_immediate(struct spk_synth *synth,
+				      const char *buff);
 void spk_do_catch_up(struct spk_synth *synth);
 void spk_do_catch_up_unicode(struct spk_synth *synth);
 void spk_synth_flush(struct spk_synth *synth);
@@ -72,6 +74,7 @@ int synth_request_region(unsigned long start, unsigned long n);
 int synth_release_region(unsigned long start, unsigned long n);
 int synth_add(struct spk_synth *in_synth);
 void synth_remove(struct spk_synth *in_synth);
+struct spk_synth *synth_current(void);
 
 extern struct speakup_info_t speakup_info;
 

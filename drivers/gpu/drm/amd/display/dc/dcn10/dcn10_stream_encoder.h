@@ -260,6 +260,7 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP5_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP6_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP7_SEND, mask_sh),\
 	SE_SF(DP0_DP_DB_CNTL, DP_DB_DISABLE, mask_sh),\
 	SE_SF(DP0_DP_MSA_COLORIMETRY, DP_MSA_MISC0, mask_sh),\
 	SE_SF(DP0_DP_MSA_TIMING_PARAM1, DP_MSA_HTOTAL, mask_sh),\
@@ -273,7 +274,8 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_MSA_TIMING_PARAM4, DP_MSA_HWIDTH, mask_sh),\
 	SE_SF(DP0_DP_MSA_TIMING_PARAM4, DP_MSA_VHEIGHT, mask_sh),\
 	SE_SF(DIG0_HDMI_DB_CONTROL, HDMI_DB_DISABLE, mask_sh),\
-	SE_SF(DP0_DP_VID_TIMING, DP_VID_N_MUL, mask_sh)
+	SE_SF(DP0_DP_VID_TIMING, DP_VID_N_MUL, mask_sh),\
+	SE_SF(DIG0_DIG_FE_CNTL, DIG_SOURCE_SELECT, mask_sh)
 
 #define SE_COMMON_MASK_SH_LIST_SOC(mask_sh)\
 	SE_COMMON_MASK_SH_LIST_SOC_BASE(mask_sh)
@@ -364,6 +366,7 @@ struct dcn10_stream_enc_registers {
 	type DP_SEC_GSP5_ENABLE;\
 	type DP_SEC_GSP6_ENABLE;\
 	type DP_SEC_GSP7_ENABLE;\
+	type DP_SEC_GSP7_SEND;\
 	type DP_SEC_MPG_ENABLE;\
 	type DP_VID_STREAM_DIS_DEFER;\
 	type DP_VID_STREAM_ENABLE;\
@@ -424,7 +427,8 @@ struct dcn10_stream_enc_registers {
 	type DP_MSA_VHEIGHT;\
 	type HDMI_DB_DISABLE;\
 	type DP_VID_N_MUL;\
-	type DP_VID_M_DOUBLE_VALUE_EN
+	type DP_VID_M_DOUBLE_VALUE_EN;\
+	type DIG_SOURCE_SELECT
 
 struct dcn10_stream_encoder_shift {
 	SE_REG_FIELD_LIST_DCN1_0(uint8_t);
@@ -520,5 +524,9 @@ void enc1_se_hdmi_audio_setup(
 
 void enc1_se_hdmi_audio_disable(
 	struct stream_encoder *enc);
+
+void enc1_dig_connect_to_otg(
+	struct stream_encoder *enc,
+	int tg_inst);
 
 #endif /* __DC_STREAM_ENCODER_DCN10_H__ */

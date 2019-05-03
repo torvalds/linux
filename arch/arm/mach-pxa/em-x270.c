@@ -15,12 +15,12 @@
 
 #include <linux/dm9000.h>
 #include <linux/platform_data/rtc-v3020.h>
-#include <linux/mtd/rawnand.h>
-#include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/mfd/da903x.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -285,11 +285,10 @@ static void nand_cs_off(void)
 }
 
 /* hardware specific access to control-lines */
-static void em_x270_nand_cmd_ctl(struct mtd_info *mtd, int dat,
+static void em_x270_nand_cmd_ctl(struct nand_chip *this, int dat,
 				 unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
+	unsigned long nandaddr = (unsigned long)this->legacy.IO_ADDR_W;
 
 	dsb();
 
@@ -309,15 +308,15 @@ static void em_x270_nand_cmd_ctl(struct mtd_info *mtd, int dat,
 	}
 
 	dsb();
-	this->IO_ADDR_W = (void __iomem *)nandaddr;
+	this->legacy.IO_ADDR_W = (void __iomem *)nandaddr;
 	if (dat != NAND_CMD_NONE)
-		writel(dat, this->IO_ADDR_W);
+		writel(dat, this->legacy.IO_ADDR_W);
 
 	dsb();
 }
 
 /* read device ready pin */
-static int em_x270_nand_device_ready(struct mtd_info *mtd)
+static int em_x270_nand_device_ready(struct nand_chip *this)
 {
 	dsb();
 
@@ -548,6 +547,15 @@ static inline void em_x270_init_ohci(void) {}
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
 static struct regulator *em_x270_sdio_ldo;
 
+static struct gpiod_lookup_table em_x270_mci_wp_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Write protect on GPIO 95 */
+		GPIO_LOOKUP("gpio-pxa", GPIO95_MMC_WP, "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static int em_x270_mci_init(struct device *dev,
 			    irq_handler_t em_x270_detect_int,
 			    void *data)
@@ -569,15 +577,7 @@ static int em_x270_mci_init(struct device *dev,
 		goto err_irq;
 	}
 
-	if (machine_is_em_x270()) {
-		err = gpio_request(GPIO95_MMC_WP, "MMC WP");
-		if (err) {
-			dev_err(dev, "can't request MMC write protect: %d\n",
-				err);
-			goto err_gpio_wp;
-		}
-		gpio_direction_input(GPIO95_MMC_WP);
-	} else {
+	if (!machine_is_em_x270()) {
 		err = gpio_request(GPIO38_SD_PWEN, "sdio power");
 		if (err) {
 			dev_err(dev, "can't request MMC power control : %d\n",
@@ -617,15 +617,8 @@ static void em_x270_mci_exit(struct device *dev, void *data)
 	free_irq(gpio_to_irq(mmc_cd), data);
 	regulator_put(em_x270_sdio_ldo);
 
-	if (machine_is_em_x270())
-		gpio_free(GPIO95_MMC_WP);
-	else
+	if (!machine_is_em_x270())
 		gpio_free(GPIO38_SD_PWEN);
-}
-
-static int em_x270_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO95_MMC_WP);
 }
 
 static struct pxamci_platform_data em_x270_mci_platform_data = {
@@ -637,15 +630,12 @@ static struct pxamci_platform_data em_x270_mci_platform_data = {
 	.init 			= em_x270_mci_init,
 	.setpower 		= em_x270_mci_setpower,
 	.exit			= em_x270_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 static void __init em_x270_init_mmc(void)
 {
 	if (machine_is_em_x270())
-		em_x270_mci_platform_data.get_ro = em_x270_mci_get_ro;
+		gpiod_add_lookup_table(&em_x270_mci_wp_gpio_table);
 
 	pxa_set_mci_info(&em_x270_mci_platform_data);
 }
@@ -699,7 +689,7 @@ static inline void em_x270_init_lcd(void) {}
 #endif
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static struct pxa2xx_spi_master em_x270_spi_info = {
+static struct pxa2xx_spi_controller em_x270_spi_info = {
 	.num_chipselect	= 1,
 };
 
@@ -713,7 +703,7 @@ static struct tdo24m_platform_data em_x270_tdo24m_pdata = {
 	.model = TDO35S,
 };
 
-static struct pxa2xx_spi_master em_x270_spi_2_info = {
+static struct pxa2xx_spi_controller em_x270_spi_2_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };
@@ -986,8 +976,6 @@ static struct fixed_voltage_config camera_dummy_config = {
 	.supply_name		= "camera_vdd",
 	.input_supply		= "vcc cam",
 	.microvolts		= 2800000,
-	.gpio			= -1,
-	.enable_high		= 0,
 	.init_data		= &camera_dummy_initdata,
 };
 

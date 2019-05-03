@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Combined GPIO and pin controller support for Renesas RZ/A1 (r7s72100) SoC
  *
  * Copyright (C) 2017 Jacopo Mondi
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /*
@@ -930,8 +927,8 @@ static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
 					      &npin_configs);
 	if (ret) {
 		dev_err(rza1_pctl->dev,
-			"Unable to parse pin configuration options for %s\n",
-			np->name);
+			"Unable to parse pin configuration options for %pOFn\n",
+			np);
 		return ret;
 	}
 
@@ -1226,8 +1223,11 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 
 	*chip		= rza1_gpiochip_template;
 	chip->base	= -1;
-	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%s",
-					 np->name);
+	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%pOFn",
+					 np);
+	if (!chip->label)
+		return -ENOMEM;
+
 	chip->ngpio	= of_args.args[2];
 	chip->of_node	= np;
 	chip->parent	= rza1_pctl->dev;
@@ -1287,7 +1287,7 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 		ret = rza1_parse_gpiochip(rza1_pctl, child, &gpio_chips[i],
 					  &gpio_ranges[i]);
 		if (ret)
-			goto gpiochip_remove;
+			return ret;
 
 		++i;
 	}
@@ -1295,12 +1295,6 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 	dev_info(rza1_pctl->dev, "Registered %u gpio controllers\n", i);
 
 	return 0;
-
-gpiochip_remove:
-	for (; i > 0; i--)
-		devm_gpiochip_remove(rza1_pctl->dev, &gpio_chips[i - 1]);
-
-	return ret;
 }
 
 /**
@@ -1335,6 +1329,8 @@ static int rza1_pinctrl_register(struct rza1_pinctrl *rza1_pctl)
 		pins[i].number = i;
 		pins[i].name = devm_kasprintf(rza1_pctl->dev, GFP_KERNEL,
 					      "P%u-%u", port, pin);
+		if (!pins[i].name)
+			return -ENOMEM;
 
 		if (i % RZA1_PINS_PER_PORT == 0) {
 			/*

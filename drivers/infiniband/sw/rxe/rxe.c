@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <rdma/rdma_netlink.h>
 #include <net/addrconf.h>
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -50,8 +51,10 @@ static void rxe_cleanup_ports(struct rxe_dev *rxe)
 /* free resources for a rxe device all objects created for this device must
  * have been destroyed
  */
-static void rxe_cleanup(struct rxe_dev *rxe)
+void rxe_dealloc(struct ib_device *ib_dev)
 {
+	struct rxe_dev *rxe = container_of(ib_dev, struct rxe_dev, ib_dev);
+
 	rxe_pool_cleanup(&rxe->uc_pool);
 	rxe_pool_cleanup(&rxe->pd_pool);
 	rxe_pool_cleanup(&rxe->ah_pool);
@@ -65,16 +68,8 @@ static void rxe_cleanup(struct rxe_dev *rxe)
 
 	rxe_cleanup_ports(rxe);
 
-	crypto_free_shash(rxe->tfm);
-}
-
-/* called when all references have been dropped */
-void rxe_release(struct kref *kref)
-{
-	struct rxe_dev *rxe = container_of(kref, struct rxe_dev, ref_cnt);
-
-	rxe_cleanup(rxe);
-	ib_dealloc_device(&rxe->ib_dev);
+	if (rxe->tfm)
+		crypto_free_shash(rxe->tfm);
 }
 
 /* initialize rxe device parameters */
@@ -103,7 +98,7 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 	rxe->attr.max_res_rd_atom		= RXE_MAX_RES_RD_ATOM;
 	rxe->attr.max_qp_init_rd_atom		= RXE_MAX_QP_INIT_RD_ATOM;
 	rxe->attr.max_ee_init_rd_atom		= RXE_MAX_EE_INIT_RD_ATOM;
-	rxe->attr.atomic_cap			= RXE_ATOMIC_CAP;
+	rxe->attr.atomic_cap			= IB_ATOMIC_HCA;
 	rxe->attr.max_ee			= RXE_MAX_EE;
 	rxe->attr.max_rdd			= RXE_MAX_RDD;
 	rxe->attr.max_mw			= RXE_MAX_MW;
@@ -128,9 +123,9 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 /* initialize port attributes */
 static int rxe_init_port_param(struct rxe_port *port)
 {
-	port->attr.state		= RXE_PORT_STATE;
-	port->attr.max_mtu		= RXE_PORT_MAX_MTU;
-	port->attr.active_mtu		= RXE_PORT_ACTIVE_MTU;
+	port->attr.state		= IB_PORT_DOWN;
+	port->attr.max_mtu		= IB_MTU_4096;
+	port->attr.active_mtu		= IB_MTU_256;
 	port->attr.gid_tbl_len		= RXE_PORT_GID_TBL_LEN;
 	port->attr.port_cap_flags	= RXE_PORT_PORT_CAP_FLAGS;
 	port->attr.max_msg_sz		= RXE_PORT_MAX_MSG_SZ;
@@ -147,8 +142,7 @@ static int rxe_init_port_param(struct rxe_port *port)
 	port->attr.active_width		= RXE_PORT_ACTIVE_WIDTH;
 	port->attr.active_speed		= RXE_PORT_ACTIVE_SPEED;
 	port->attr.phys_state		= RXE_PORT_PHYS_STATE;
-	port->mtu_cap			=
-				ib_mtu_enum_to_int(RXE_PORT_ACTIVE_MTU);
+	port->mtu_cap			= ib_mtu_enum_to_int(IB_MTU_256);
 	port->subnet_prefix		= cpu_to_be64(RXE_PORT_SUBNET_PREFIX);
 
 	return 0;
@@ -280,7 +274,6 @@ static int rxe_init(struct rxe_dev *rxe)
 	spin_lock_init(&rxe->mmap_offset_lock);
 	spin_lock_init(&rxe->pending_lock);
 	INIT_LIST_HEAD(&rxe->pending_mmaps);
-	INIT_LIST_HEAD(&rxe->list);
 
 	mutex_init(&rxe->usdev_lock);
 
@@ -300,7 +293,7 @@ void rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)
 	mtu = eth_mtu_int_to_enum(ndev_mtu);
 
 	/* Make sure that new MTU in range */
-	mtu = mtu ? min_t(enum ib_mtu, mtu, RXE_PORT_MAX_MTU) : IB_MTU_256;
+	mtu = mtu ? min_t(enum ib_mtu, mtu, IB_MTU_4096) : IB_MTU_256;
 
 	port->attr.active_mtu = mtu;
 	port->mtu_cap = ib_mtu_enum_to_int(mtu);
@@ -309,36 +302,45 @@ void rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)
 /* called by ifc layer to create new rxe device.
  * The caller should allocate memory for rxe by calling ib_alloc_device.
  */
-int rxe_add(struct rxe_dev *rxe, unsigned int mtu)
+int rxe_add(struct rxe_dev *rxe, unsigned int mtu, const char *ibdev_name)
 {
 	int err;
 
-	kref_init(&rxe->ref_cnt);
-
 	err = rxe_init(rxe);
 	if (err)
-		goto err1;
+		return err;
 
 	rxe_set_mtu(rxe, mtu);
 
-	err = rxe_register_device(rxe);
-	if (err)
-		goto err1;
+	return rxe_register_device(rxe, ibdev_name);
+}
 
-	return 0;
+static int rxe_newlink(const char *ibdev_name, struct net_device *ndev)
+{
+	struct rxe_dev *exists;
+	int err = 0;
 
-err1:
-	rxe_dev_put(rxe);
+	exists = rxe_get_dev_from_net(ndev);
+	if (exists) {
+		ib_device_put(&exists->ib_dev);
+		pr_err("already configured on %s\n", ndev->name);
+		err = -EEXIST;
+		goto err;
+	}
+
+	err = rxe_net_add(ibdev_name, ndev);
+	if (err) {
+		pr_err("failed to add %s\n", ndev->name);
+		goto err;
+	}
+err:
 	return err;
 }
 
-/* called by the ifc layer to remove a device */
-void rxe_remove(struct rxe_dev *rxe)
-{
-	rxe_unregister_device(rxe);
-
-	rxe_dev_put(rxe);
-}
+static struct rdma_link_ops rxe_link_ops = {
+	.type = "rxe",
+	.newlink = rxe_newlink,
+};
 
 static int __init rxe_module_init(void)
 {
@@ -355,13 +357,15 @@ static int __init rxe_module_init(void)
 	if (err)
 		return err;
 
+	rdma_link_register(&rxe_link_ops);
 	pr_info("loaded\n");
 	return 0;
 }
 
 static void __exit rxe_module_exit(void)
 {
-	rxe_remove_all();
+	rdma_link_unregister(&rxe_link_ops);
+	ib_unregister_driver(RDMA_DRIVER_RXE);
 	rxe_net_exit();
 	rxe_cache_exit();
 
@@ -370,3 +374,5 @@ static void __exit rxe_module_exit(void)
 
 late_initcall(rxe_module_init);
 module_exit(rxe_module_exit);
+
+MODULE_ALIAS_RDMA_LINK("rxe");

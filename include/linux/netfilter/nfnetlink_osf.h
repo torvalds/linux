@@ -27,6 +27,7 @@ bool nf_osf_match(const struct sk_buff *skb, u_int8_t family,
 		  const struct list_head *nf_osf_fingers);
 
 const char *nf_osf_find(const struct sk_buff *skb,
-                        const struct list_head *nf_osf_fingers);
+			const struct list_head *nf_osf_fingers,
+			const int ttl_check);
 
 #endif /* _NFOSF_H */

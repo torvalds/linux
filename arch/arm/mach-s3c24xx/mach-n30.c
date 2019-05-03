@@ -17,6 +17,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -350,10 +351,19 @@ static void n30_sdi_set_power(unsigned char power_mode, unsigned short vdd)
 }
 
 static struct s3c24xx_mci_pdata n30_mci_cfg __initdata = {
-	.gpio_detect	= S3C2410_GPF(1),
-	.gpio_wprotect  = S3C2410_GPG(10),
 	.ocr_avail	= MMC_VDD_32_33,
 	.set_power	= n30_sdi_set_power,
+};
+
+static struct gpiod_lookup_table n30_mci_gpio_table = {
+	.dev_id = "s3c2410-sdi",
+	.table = {
+		/* Card detect S3C2410_GPF(1) */
+		GPIO_LOOKUP("GPF", 1, "cd", GPIO_ACTIVE_LOW),
+		/* Write protect S3C2410_GPG(10) */
+		GPIO_LOOKUP("GPG", 10, "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct platform_device *n30_devices[] __initdata = {
@@ -549,6 +559,7 @@ static void __init n30_init(void)
 
 	s3c24xx_fb_set_platdata(&n30_fb_info);
 	s3c24xx_udc_set_platdata(&n30_udc_cfg);
+	gpiod_add_lookup_table(&n30_mci_gpio_table);
 	s3c24xx_mci_set_platdata(&n30_mci_cfg);
 	s3c_i2c0_set_platdata(&n30_i2ccfg);
 

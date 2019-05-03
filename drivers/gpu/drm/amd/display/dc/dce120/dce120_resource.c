@@ -31,6 +31,7 @@
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dce120_resource.h"
+
 #include "dce112/dce112_resource.h"
 
 #include "dce110/dce110_resource.h"
@@ -39,7 +40,6 @@
 #include "irq/dce120/irq_service_dce120.h"
 #include "dce/dce_opp.h"
 #include "dce/dce_clock_source.h"
-#include "dce/dce_clocks.h"
 #include "dce/dce_ipp.h"
 #include "dce/dce_mem_input.h"
 
@@ -47,6 +47,7 @@
 #include "dce120/dce120_hw_sequencer.h"
 #include "dce/dce_transform.h"
 
+#include "dce/dce_clk_mgr.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_link_encoder.h"
 #include "dce/dce_stream_encoder.h"
@@ -54,12 +55,15 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
+#include "dce/dce_i2c.h"
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
 #include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
 #include "nbio/nbio_6_1_offset.h"
+#include "mmhub/mmhub_9_4_0_offset.h"
+#include "mmhub/mmhub_9_4_0_sh_mask.h"
 #include "reg_helper.h"
 
 #include "dce100/dce100_resource.h"
@@ -136,6 +140,17 @@ static const struct dce110_timing_generator_offsets dce120_tg_offsets[] = {
 #define SRI(reg_name, block, id)\
 	.reg_name = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## id ## _ ## reg_name
+
+/* MMHUB */
+#define MMHUB_BASE_INNER(seg) \
+	MMHUB_BASE__INST0_SEG ## seg
+
+#define MMHUB_BASE(seg) \
+	MMHUB_BASE_INNER(seg)
+
+#define MMHUB_SR(reg_name)\
+		.reg_name = MMHUB_BASE(mm ## reg_name ## _BASE_IDX) +  \
+					mm ## reg_name
 
 /* macros to expend register list macro defined in HW object header file
  * end *********************/
@@ -376,7 +391,7 @@ struct output_pixel_processor *dce120_opp_create(
 			     ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask);
 	return &opp->base;
 }
-struct aux_engine *dce120_aux_engine_create(
+struct dce_aux *dce120_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -392,8 +407,42 @@ struct aux_engine *dce120_aux_engine_create(
 
 	return &aux_engine->base;
 }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
 
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
+};
+
+struct dce_i2c_hw *dce120_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dce112_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3 + NBIO_BASE(mmBIOS_SCRATCH_3_BASE_IDX),
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6 + NBIO_BASE(mmBIOS_SCRATCH_6_BASE_IDX)
 };
 
@@ -402,6 +451,7 @@ static const struct resource_caps res_cap = {
 		.num_audio = 7,
 		.num_stream_encoder = 6,
 		.num_pll = 6,
+		.num_ddc = 6,
 };
 
 static const struct dc_debug_options debug_defaults = {
@@ -421,7 +471,7 @@ struct clock_source *dce120_clock_source_create(
 	if (!clk_src)
 		return NULL;
 
-	if (dce110_clk_src_construct(clk_src, ctx, bios, id,
+	if (dce112_clk_src_construct(clk_src, ctx, bios, id,
 				     regs, &cs_shift, &cs_mask)) {
 		clk_src->base.dp_clk_src = dp_clk_src;
 		return &clk_src->base;
@@ -498,10 +548,19 @@ static void destruct(struct dce110_resource_pool *pool)
 			kfree(DCE110TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
+	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
 			dce110_engine_destroy(&pool->base.engines[i]);
-
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
+		}
 	}
 
 	for (i = 0; i < pool->base.audio_count; i++) {
@@ -529,8 +588,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 }
 
 static void read_dce_straps(
@@ -562,12 +621,12 @@ static struct audio *create_audio(
 static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
 		.max_hdmi_pixel_clock = 600000,
-		.ycbcr420_supported = true,
+		.hdmi_ycbcr420_supported = true,
+		.dp_ycbcr420_supported = false,
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
 		.flags.bits.IS_TPS4_CAPABLE = true,
-		.flags.bits.IS_YCBCR_CAPABLE = true
 };
 
 static struct link_encoder *dce120_link_encoder_create(
@@ -636,6 +695,19 @@ static const struct dce_hwseq_mask hwseq_mask = {
 		HWSEQ_DCE12_MASK_SH_LIST(_MASK)
 };
 
+/* HWSEQ regs for VG20 */
+static const struct dce_hwseq_registers dce121_hwseq_reg = {
+		HWSEQ_VG20_REG_LIST()
+};
+
+static const struct dce_hwseq_shift dce121_hwseq_shift = {
+		HWSEQ_VG20_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_hwseq_mask dce121_hwseq_mask = {
+		HWSEQ_VG20_MASK_SH_LIST(_MASK)
+};
+
 static struct dce_hwseq *dce120_hwseq_create(
 	struct dc_context *ctx)
 {
@@ -650,12 +722,34 @@ static struct dce_hwseq *dce120_hwseq_create(
 	return hws;
 }
 
+static struct dce_hwseq *dce121_hwseq_create(
+	struct dc_context *ctx)
+{
+	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
+
+	if (hws) {
+		hws->ctx = ctx;
+		hws->regs = &dce121_hwseq_reg;
+		hws->shifts = &dce121_hwseq_shift;
+		hws->masks = &dce121_hwseq_mask;
+	}
+	return hws;
+}
+
 static const struct resource_create_funcs res_create_funcs = {
 	.read_dce_straps = read_dce_straps,
 	.create_audio = create_audio,
 	.create_stream_encoder = dce120_stream_encoder_create,
 	.create_hwseq = dce120_hwseq_create,
 };
+
+static const struct resource_create_funcs dce121_res_create_funcs = {
+	.read_dce_straps = read_dce_straps,
+	.create_audio = create_audio,
+	.create_stream_encoder = dce120_stream_encoder_create,
+	.create_hwseq = dce121_hwseq_create,
+};
+
 
 #define mi_inst_regs(id) { MI_DCE12_REG_LIST(id) }
 static const struct dce_mem_input_registers mi_regs[] = {
@@ -791,12 +885,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER, 1000);
+		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER,
+		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER,
+		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -866,7 +960,8 @@ static bool construct(
 	int j;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data irq_init_data;
-	bool harvest_enabled = ASICREV_IS_VEGA20_P(ctx->asic_id.hw_internal_rev);
+	static const struct resource_create_funcs *res_funcs;
+	bool is_vg20 = ASICREV_IS_VEGA20_P(ctx->asic_id.hw_internal_rev);
 	uint32_t pipe_fuses;
 
 	ctx->dc_bios->regs = &bios_regs;
@@ -930,8 +1025,12 @@ static bool construct(
 		}
 	}
 
-	pool->base.dccg = dce120_dccg_create(ctx);
-	if (pool->base.dccg == NULL) {
+	if (is_vg20)
+		pool->base.clk_mgr = dce121_clk_mgr_create(ctx);
+	else
+		pool->base.clk_mgr = dce120_clk_mgr_create(ctx);
+
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto dccg_create_fail;
@@ -957,19 +1056,20 @@ static bool construct(
 		goto res_create_fail;
 	}
 
+
 	irq_init_data.ctx = dc->ctx;
 	pool->base.irqs = dal_irq_service_dce120_create(&irq_init_data);
 	if (!pool->base.irqs)
 		goto irqs_create_fail;
 
-	/* retrieve valid pipe fuses */
-	if (harvest_enabled)
+	/* VG20: Pipe harvesting enabled, retrieve valid pipe fuses */
+	if (is_vg20)
 		pipe_fuses = read_pipe_fuses(ctx);
 
 	/* index to valid pipe resource */
 	j = 0;
 	for (i = 0; i < pool->base.pipe_count; i++) {
-		if (harvest_enabled) {
+		if (is_vg20) {
 			if ((pipe_fuses & (1 << i)) != 0) {
 				dm_error("DC: skip invalid pipe %d!\n", i);
 				continue;
@@ -1020,25 +1120,50 @@ static bool construct(
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 		}
-		pool->base.engines[i] = dce120_aux_engine_create(ctx, i);
-				if (pool->base.engines[i] == NULL) {
-					BREAK_TO_DEBUGGER();
-					dm_error(
-						"DC:failed to create aux engine!!\n");
-					goto res_create_fail;
-				}
 
 		/* check next valid pipe */
 		j++;
+	}
+
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+		pool->base.engines[i] = dce120_aux_engine_create(ctx, i);
+		if (pool->base.engines[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create aux engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.hw_i2cs[i] = dce120_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = NULL;
 	}
 
 	/* valid pipe num */
 	pool->base.pipe_count = j;
 	pool->base.timing_generator_count = j;
 
-	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			 &res_create_funcs))
+	if (is_vg20)
+		res_funcs = &dce121_res_create_funcs;
+	else
+		res_funcs = &res_create_funcs;
+
+	if (!resource_construct(num_virtual_links, dc, &pool->base, res_funcs))
 		goto res_create_fail;
+
+	/*
+	 * This is a bit of a hack. The xGMI enabled info is used to determine
+	 * if audio and display clocks need to be adjusted with the WAFL link's
+	 * SS info. This is a responsiblity of the clk_mgr. But since MMHUB is
+	 * under hwseq, and the relevant register is in MMHUB, we have to do it
+	 * here.
+	 */
+	if (is_vg20 && dce121_xgmi_enabled(dc->hwseq))
+		dce121_clock_patch_xgmi_ss_info(pool->base.clk_mgr);
 
 	/* Create hardware sequencer */
 	if (!dce120_hw_sequencer_create(dc))

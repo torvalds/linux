@@ -79,7 +79,7 @@ struct qed_ll2_rx_queue {
 	struct qed_chain rxq_chain;
 	struct qed_chain rcq_chain;
 	u8 rx_sb_index;
-	bool b_cb_registred;
+	bool b_cb_registered;
 	__le16 *p_fw_cons;
 	struct list_head active_descq;
 	struct list_head free_descq;
@@ -93,7 +93,7 @@ struct qed_ll2_tx_queue {
 	spinlock_t lock;
 	struct qed_chain txq_chain;
 	u8 tx_sb_index;
-	bool b_cb_registred;
+	bool b_cb_registered;
 	__le16 *p_fw_cons;
 	struct list_head active_descq;
 	struct list_head free_descq;
@@ -103,6 +103,7 @@ struct qed_ll2_tx_queue {
 	struct qed_ll2_tx_packet cur_completing_packet;
 	u16 cur_completing_bd_idx;
 	void __iomem *doorbell_addr;
+	struct core_db_data db_msg;
 	u16 bds_idx;
 	u16 cur_send_frag_num;
 	u16 cur_completing_frag_num;

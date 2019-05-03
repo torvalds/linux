@@ -88,9 +88,6 @@ struct smp_dev {
 	u8			local_rand[16];
 	bool			debug_key;
 
-	u8			min_key_size;
-	u8			max_key_size;
-
 	struct crypto_cipher	*tfm_aes;
 	struct crypto_shash	*tfm_cmac;
 	struct crypto_kpp	*tfm_ecdh;
@@ -625,7 +622,7 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 
 	memset(&msg, 0, sizeof(msg));
 
-	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, iv, 2, 1 + len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, iv, 2, 1 + len);
 
 	l2cap_chan_send(chan, &msg, 1 + len);
 
@@ -720,7 +717,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	if (rsp == NULL) {
 		req->io_capability = conn->hcon->io_capability;
 		req->oob_flag = oob_flag;
-		req->max_key_size = SMP_DEV(hdev)->max_key_size;
+		req->max_key_size = hdev->le_max_key_size;
 		req->init_key_dist = local_dist;
 		req->resp_key_dist = remote_dist;
 		req->auth_req = (authreq & AUTH_REQ_MASK(hdev));
@@ -731,7 +728,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 
 	rsp->io_capability = conn->hcon->io_capability;
 	rsp->oob_flag = oob_flag;
-	rsp->max_key_size = SMP_DEV(hdev)->max_key_size;
+	rsp->max_key_size = hdev->le_max_key_size;
 	rsp->init_key_dist = req->init_key_dist & remote_dist;
 	rsp->resp_key_dist = req->resp_key_dist & local_dist;
 	rsp->auth_req = (authreq & AUTH_REQ_MASK(hdev));
@@ -745,7 +742,7 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 	struct hci_dev *hdev = conn->hcon->hdev;
 	struct smp_chan *smp = chan->data;
 
-	if (max_key_size > SMP_DEV(hdev)->max_key_size ||
+	if (max_key_size > hdev->le_max_key_size ||
 	    max_key_size < SMP_MIN_ENC_KEY_SIZE)
 		return SMP_ENC_KEY_SIZE;
 
@@ -1393,7 +1390,7 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 	if (!smp)
 		return NULL;
 
-	smp->tfm_aes = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+	smp->tfm_aes = crypto_alloc_cipher("aes", 0, 0);
 	if (IS_ERR(smp->tfm_aes)) {
 		BT_ERR("Unable to create AES crypto context");
 		goto zfree_smp;
@@ -3236,7 +3233,7 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 	if (!smp)
 		return ERR_PTR(-ENOMEM);
 
-	tfm_aes = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+	tfm_aes = crypto_alloc_cipher("aes", 0, 0);
 	if (IS_ERR(tfm_aes)) {
 		BT_ERR("Unable to create AES crypto context");
 		kzfree(smp);
@@ -3264,8 +3261,6 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 	smp->tfm_aes = tfm_aes;
 	smp->tfm_cmac = tfm_cmac;
 	smp->tfm_ecdh = tfm_ecdh;
-	smp->min_key_size = SMP_MIN_ENC_KEY_SIZE;
-	smp->max_key_size = SMP_MAX_ENC_KEY_SIZE;
 
 create_chan:
 	chan = l2cap_chan_create();
@@ -3391,7 +3386,7 @@ static ssize_t le_min_key_size_read(struct file *file,
 	struct hci_dev *hdev = file->private_data;
 	char buf[4];
 
-	snprintf(buf, sizeof(buf), "%2u\n", SMP_DEV(hdev)->min_key_size);
+	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_min_key_size);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
@@ -3412,11 +3407,11 @@ static ssize_t le_min_key_size_write(struct file *file,
 
 	sscanf(buf, "%hhu", &key_size);
 
-	if (key_size > SMP_DEV(hdev)->max_key_size ||
+	if (key_size > hdev->le_max_key_size ||
 	    key_size < SMP_MIN_ENC_KEY_SIZE)
 		return -EINVAL;
 
-	SMP_DEV(hdev)->min_key_size = key_size;
+	hdev->le_min_key_size = key_size;
 
 	return count;
 }
@@ -3435,7 +3430,7 @@ static ssize_t le_max_key_size_read(struct file *file,
 	struct hci_dev *hdev = file->private_data;
 	char buf[4];
 
-	snprintf(buf, sizeof(buf), "%2u\n", SMP_DEV(hdev)->max_key_size);
+	snprintf(buf, sizeof(buf), "%2u\n", hdev->le_max_key_size);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
@@ -3457,10 +3452,10 @@ static ssize_t le_max_key_size_write(struct file *file,
 	sscanf(buf, "%hhu", &key_size);
 
 	if (key_size > SMP_MAX_ENC_KEY_SIZE ||
-	    key_size < SMP_DEV(hdev)->min_key_size)
+	    key_size < hdev->le_min_key_size)
 		return -EINVAL;
 
-	SMP_DEV(hdev)->max_key_size = key_size;
+	hdev->le_max_key_size = key_size;
 
 	return count;
 }
@@ -3911,13 +3906,13 @@ int __init bt_selftest_smp(void)
 	struct crypto_kpp *tfm_ecdh;
 	int err;
 
-	tfm_aes = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+	tfm_aes = crypto_alloc_cipher("aes", 0, 0);
 	if (IS_ERR(tfm_aes)) {
 		BT_ERR("Unable to create AES crypto context");
 		return PTR_ERR(tfm_aes);
 	}
 
-	tfm_cmac = crypto_alloc_shash("cmac(aes)", 0, CRYPTO_ALG_ASYNC);
+	tfm_cmac = crypto_alloc_shash("cmac(aes)", 0, 0);
 	if (IS_ERR(tfm_cmac)) {
 		BT_ERR("Unable to create CMAC crypto context");
 		crypto_free_cipher(tfm_aes);

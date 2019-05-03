@@ -30,6 +30,7 @@
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "sdma0/sdma0_4_0_sh_mask.h"
+#include "amdgpu_amdkfd.h"
 
 static inline struct v9_mqd *get_mqd(void *mqd)
 {
@@ -83,7 +84,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 		*mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 		if (!*mqd_mem_obj)
 			return -ENOMEM;
-		retval = kfd->kfd2kgd->init_gtt_mem_allocation(kfd->kgd,
+		retval = amdgpu_amdkfd_alloc_gtt_mem(kfd->kgd,
 			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
 				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
 			&((*mqd_mem_obj)->gtt_mem),
@@ -250,7 +251,7 @@ static void uninit_mqd(struct mqd_manager *mm, void *mqd,
 	struct kfd_dev *kfd = mm->dev;
 
 	if (mqd_mem_obj->gtt_mem) {
-		kfd->kfd2kgd->free_gtt_mem(kfd->kgd, mqd_mem_obj->gtt_mem);
+		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, mqd_mem_obj->gtt_mem);
 		kfree(mqd_mem_obj);
 	} else {
 		kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
@@ -264,6 +265,28 @@ static bool is_occupied(struct mqd_manager *mm, void *mqd,
 	return mm->dev->kfd2kgd->hqd_is_occupied(
 		mm->dev->kgd, queue_address,
 		pipe_id, queue_id);
+}
+
+static int get_wave_state(struct mqd_manager *mm, void *mqd,
+			  void __user *ctl_stack,
+			  u32 *ctl_stack_used_size,
+			  u32 *save_area_used_size)
+{
+	struct v9_mqd *m;
+
+	/* Control stack is located one page after MQD. */
+	void *mqd_ctl_stack = (void *)((uintptr_t)mqd + PAGE_SIZE);
+
+	m = get_mqd(mqd);
+
+	*ctl_stack_used_size = m->cp_hqd_cntl_stack_size -
+		m->cp_hqd_cntl_stack_offset;
+	*save_area_used_size = m->cp_hqd_wg_state_offset;
+
+	if (copy_to_user(ctl_stack, mqd_ctl_stack, m->cp_hqd_cntl_stack_size))
+		return -EFAULT;
+
+	return 0;
 }
 
 static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
@@ -435,6 +458,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+		mqd->get_wave_state = get_wave_state;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif

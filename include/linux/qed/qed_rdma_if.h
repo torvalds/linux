@@ -39,15 +39,6 @@
 #include <linux/qed/qed_ll2_if.h>
 #include <linux/qed/rdma_common.h>
 
-enum qed_roce_ll2_tx_dest {
-	/* Light L2 TX Destination to the Network */
-	QED_ROCE_LL2_TX_DEST_NW,
-
-	/* Light L2 TX Destination to the Loopback */
-	QED_ROCE_LL2_TX_DEST_LB,
-	QED_ROCE_LL2_TX_DEST_MAX
-};
-
 #define QED_RDMA_MAX_CNQ_SIZE               (0xFFFF)
 
 /* rdma interface */
@@ -581,7 +572,7 @@ struct qed_roce_ll2_packet {
 	int n_seg;
 	struct qed_roce_ll2_buffer payload[RDMA_MAX_SGE_PER_SQ_WQE];
 	int roce_mode;
-	enum qed_roce_ll2_tx_dest tx_dest;
+	enum qed_ll2_tx_dest tx_dest;
 };
 
 enum qed_rdma_type {

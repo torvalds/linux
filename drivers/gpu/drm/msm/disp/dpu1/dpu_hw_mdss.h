@@ -100,7 +100,6 @@ enum dpu_hw_blk_type {
 	DPU_HW_BLK_SSPP,
 	DPU_HW_BLK_LM,
 	DPU_HW_BLK_CTL,
-	DPU_HW_BLK_CDM,
 	DPU_HW_BLK_PINGPONG,
 	DPU_HW_BLK_INTF,
 	DPU_HW_BLK_WB,
@@ -173,13 +172,6 @@ enum dpu_dspp {
 	DSPP_MAX
 };
 
-enum dpu_ds {
-	DS_TOP,
-	DS_0,
-	DS_1,
-	DS_MAX
-};
-
 enum dpu_ctl {
 	CTL_0 = 1,
 	CTL_1,
@@ -187,12 +179,6 @@ enum dpu_ctl {
 	CTL_3,
 	CTL_4,
 	CTL_MAX
-};
-
-enum dpu_cdm {
-	CDM_0 = 1,
-	CDM_1,
-	CDM_MAX
 };
 
 enum dpu_pingpong {
@@ -246,12 +232,6 @@ enum dpu_wb {
 	WB_MAX
 };
 
-enum dpu_ad {
-	AD_0 = 0x1,
-	AD_1,
-	AD_MAX
-};
-
 enum dpu_cwb {
 	CWB_0 = 0x1,
 	CWB_1,
@@ -276,12 +256,6 @@ enum dpu_vbif {
 	VBIF_MAX,
 	VBIF_RT = VBIF_0,
 	VBIF_NRT = VBIF_1
-};
-
-enum dpu_iommu_domain {
-	DPU_IOMMU_DOMAIN_UNSECURE,
-	DPU_IOMMU_DOMAIN_SECURE,
-	DPU_IOMMU_DOMAIN_MAX
 };
 
 /**
@@ -378,7 +352,6 @@ enum dpu_3d_blend_mode {
  * @alpha_enable: whether the format has an alpha channel
  * @num_planes: number of planes (including meta data planes)
  * @fetch_mode: linear, tiled, or ubwc hw fetch behavior
- * @is_yuv: is format a yuv variant
  * @flag: usage bit flags
  * @tile_width: format tile width
  * @tile_height: format tile height
@@ -451,15 +424,14 @@ struct dpu_mdss_color {
  * Define bit masks for h/w logging.
  */
 #define DPU_DBG_MASK_NONE     (1 << 0)
-#define DPU_DBG_MASK_CDM      (1 << 1)
-#define DPU_DBG_MASK_INTF     (1 << 2)
-#define DPU_DBG_MASK_LM       (1 << 3)
-#define DPU_DBG_MASK_CTL      (1 << 4)
-#define DPU_DBG_MASK_PINGPONG (1 << 5)
-#define DPU_DBG_MASK_SSPP     (1 << 6)
-#define DPU_DBG_MASK_WB       (1 << 7)
-#define DPU_DBG_MASK_TOP      (1 << 8)
-#define DPU_DBG_MASK_VBIF     (1 << 9)
-#define DPU_DBG_MASK_ROT      (1 << 10)
+#define DPU_DBG_MASK_INTF     (1 << 1)
+#define DPU_DBG_MASK_LM       (1 << 2)
+#define DPU_DBG_MASK_CTL      (1 << 3)
+#define DPU_DBG_MASK_PINGPONG (1 << 4)
+#define DPU_DBG_MASK_SSPP     (1 << 5)
+#define DPU_DBG_MASK_WB       (1 << 6)
+#define DPU_DBG_MASK_TOP      (1 << 7)
+#define DPU_DBG_MASK_VBIF     (1 << 8)
+#define DPU_DBG_MASK_ROT      (1 << 9)
 
 #endif  /* _DPU_HW_MDSS_H */

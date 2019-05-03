@@ -602,7 +602,7 @@ void __init zynq_clock_init(void)
 	}
 
 	if (of_address_to_resource(np, 0, &res)) {
-		pr_err("%s: failed to get resource\n", np->name);
+		pr_err("%pOFn: failed to get resource\n", np);
 		goto np_err;
 	}
 
@@ -611,7 +611,7 @@ void __init zynq_clock_init(void)
 	if (slcr->data) {
 		zynq_clkc_base = (__force void __iomem *)slcr->data + res.start;
 	} else {
-		pr_err("%s: Unable to get I/O memory\n", np->name);
+		pr_err("%pOFn: Unable to get I/O memory\n", np);
 		of_node_put(slcr);
 		goto np_err;
 	}

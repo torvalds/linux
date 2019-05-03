@@ -20,7 +20,7 @@
 
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>

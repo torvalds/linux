@@ -32,10 +32,17 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_util.h>
+
 #include "nouveau_crtc.h"
 #include "nouveau_encoder.h"
 
 struct nvkm_i2c_port;
+struct dcb_output;
+
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+struct nouveau_backlight;
+#endif
 
 struct nouveau_connector {
 	struct drm_connector base;
@@ -53,6 +60,9 @@ struct nouveau_connector {
 	struct nouveau_encoder *detected_encoder;
 	struct edid *edid;
 	struct drm_display_mode *native_mode;
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+	struct nouveau_backlight *backlight;
+#endif
 };
 
 static inline struct nouveau_connector *nouveau_connector(
@@ -104,7 +114,7 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 }
 
 struct drm_connector *
-nouveau_connector_create(struct drm_device *, int index);
+nouveau_connector_create(struct drm_device *, const struct dcb_output *);
 
 extern int nouveau_tv_disable;
 extern int nouveau_ignorelid;
@@ -179,4 +189,30 @@ int nouveau_conn_atomic_get_property(struct drm_connector *,
 				     const struct drm_connector_state *,
 				     struct drm_property *, u64 *);
 struct drm_display_mode *nouveau_conn_native_mode(struct drm_connector *);
+
+#ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
+extern int nouveau_backlight_init(struct drm_connector *);
+extern void nouveau_backlight_fini(struct drm_connector *);
+extern void nouveau_backlight_ctor(void);
+extern void nouveau_backlight_dtor(void);
+#else
+static inline int
+nouveau_backlight_init(struct drm_connector *connector)
+{
+	return 0;
+}
+
+static inline void
+nouveau_backlight_fini(struct drm_connector *connector) {
+}
+
+static inline void
+nouveau_backlight_ctor(void) {
+}
+
+static inline void
+nouveau_backlight_dtor(void) {
+}
+#endif
+
 #endif /* __NOUVEAU_CONNECTOR_H__ */

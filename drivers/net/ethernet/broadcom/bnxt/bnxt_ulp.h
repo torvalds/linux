@@ -90,6 +90,7 @@ static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev, int ulp_id)
 
 int bnxt_get_ulp_msix_num(struct bnxt *bp);
 int bnxt_get_ulp_msix_base(struct bnxt *bp);
+int bnxt_get_ulp_stat_ctxs(struct bnxt *bp);
 void bnxt_ulp_stop(struct bnxt *bp);
 void bnxt_ulp_start(struct bnxt *bp);
 void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs);

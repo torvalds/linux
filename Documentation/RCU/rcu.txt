@@ -87,7 +87,3 @@ o	Where can I find more information on RCU?
 
 	See the RTFP.txt file in this directory.
 	Or point your browser at http://www.rdrop.com/users/paulmck/RCU/.
-
-o	What are all these files in this directory?
-
-	See 00-INDEX for the list.

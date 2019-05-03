@@ -232,6 +232,8 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_UVDClientMCTuning,
 	PHM_PlatformCaps_ODNinACSupport,
 	PHM_PlatformCaps_ODNinDCSupport,
+	PHM_PlatformCaps_OD8inACSupport,
+	PHM_PlatformCaps_OD8inDCSupport,
 	PHM_PlatformCaps_UMDPState,
 	PHM_PlatformCaps_AutoWattmanSupport,
 	PHM_PlatformCaps_AutoWattmanEnable_CCCState,
@@ -395,7 +397,6 @@ struct phm_odn_clock_levels {
 };
 
 extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
-extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 extern int phm_setup_asic(struct pp_hwmgr *hwmgr);
 extern int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr);
@@ -461,5 +462,8 @@ extern int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 
 extern int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 extern int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr);
+
+extern int phm_set_active_display_count(struct pp_hwmgr *hwmgr, uint32_t count);
+
 #endif /* _HARDWARE_MANAGER_H_ */
 

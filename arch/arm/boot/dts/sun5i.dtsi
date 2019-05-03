@@ -42,14 +42,14 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/clock/sun5i-ccu.h>
 #include <dt-bindings/dma/sun4i-a10.h>
 #include <dt-bindings/reset/sun5i-ccu.h>
 
 / {
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	cpus {
 		#address-cells = <1>;
@@ -68,7 +68,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer@0 {
+		framebuffer-lcd0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0";
@@ -77,7 +77,7 @@
 			status = "disabled";
 		};
 
-		framebuffer@1 {
+		framebuffer-lcd0-tve0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-tve0";
@@ -93,14 +93,14 @@
 		#size-cells = <1>;
 		ranges;
 
-		osc24M: clk@1c20050 {
+		osc24M: clk-24M {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
 			clock-output-names = "osc24M";
 		};
 
-		osc32k: clk@0 {
+		osc32k: clk-32k {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32768>;
@@ -108,7 +108,22 @@
 		};
 	};
 
-	soc@1c00000 {
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* Address must be kept in the lower 256 MiBs of DRAM for VE. */
+		default-pool {
+			compatible = "shared-dma-pool";
+			size = <0x6000000>;
+			alloc-ranges = <0x4a000000 0x6000000>;
+			reusable;
+			linux,cma-default;
+		};
+	};
+
+	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -294,12 +309,25 @@
 			};
 		};
 
+		video-codec@1c0e000 {
+			compatible = "allwinner,sun5i-a13-video-engine";
+			reg = <0x01c0e000 0x1000>;
+			clocks = <&ccu CLK_AHB_VE>, <&ccu CLK_VE>,
+				 <&ccu CLK_DRAM_VE>;
+			clock-names = "ahb", "mod", "ram";
+			resets = <&ccu RST_VE>;
+			interrupts = <53>;
+			allwinner,sram = <&ve_sram 1>;
+		};
+
 		mmc0: mmc@1c0f000 {
 			compatible = "allwinner,sun5i-a13-mmc";
 			reg = <0x01c0f000 0x1000>;
 			clocks = <&ccu CLK_AHB_MMC0>, <&ccu CLK_MMC0>;
 			clock-names = "ahb", "mmc";
 			interrupts = <32>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -420,7 +448,7 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			emac_pins_a: emac0@0 {
+			emac_pd_pins: emac-pd-pins {
 				pins = "PD6", "PD7", "PD10",
 				       "PD11", "PD12", "PD13", "PD14",
 				       "PD15", "PD18", "PD19", "PD20",
@@ -429,27 +457,27 @@
 				function = "emac";
 			};
 
-			i2c0_pins_a: i2c0@0 {
+			i2c0_pins: i2c0-pins {
 				pins = "PB0", "PB1";
 				function = "i2c0";
 			};
 
-			i2c1_pins_a: i2c1@0 {
+			i2c1_pins: i2c1-pins {
 				pins = "PB15", "PB16";
 				function = "i2c1";
 			};
 
-			i2c2_pins_a: i2c2@0 {
+			i2c2_pins: i2c2-pins {
 				pins = "PB17", "PB18";
 				function = "i2c2";
 			};
 
-			ir0_rx_pins_a: ir0@0 {
+			ir0_rx_pin: ir0-rx-pin {
 				pins = "PB4";
 				function = "ir0";
 			};
 
-			lcd_rgb565_pins: lcd_rgb565@0 {
+			lcd_rgb565_pins: lcd-rgb565-pins {
 				pins = "PD3", "PD4", "PD5", "PD6", "PD7",
 						 "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
 						 "PD19", "PD20", "PD21", "PD22", "PD23",
@@ -457,7 +485,7 @@
 				function = "lcd0";
 			};
 
-			lcd_rgb666_pins: lcd_rgb666@0 {
+			lcd_rgb666_pins: lcd-rgb666-pins {
 				pins = "PD2", "PD3", "PD4", "PD5", "PD6", "PD7",
 				       "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
 				       "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
@@ -465,7 +493,7 @@
 				function = "lcd0";
 			};
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
 				function = "mmc0";
@@ -473,7 +501,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_pins_a: mmc2@0 {
+			mmc2_8bit_pins: mmc2-8bit-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
 				       "PC10", "PC11", "PC12", "PC13",
 				       "PC14", "PC15";
@@ -482,7 +510,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_4bit_pins_a: mmc2-4bit@0 {
+			mmc2_4bit_pc_pins: mmc2-4bit-pc-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
 				       "PC10", "PC11";
 				function = "mmc2";
@@ -490,7 +518,7 @@
 				bias-pull-up;
 			};
 
-			nand_pins_a: nand-base0@0 {
+			nand_pins: nand-pins {
 				pins = "PC0", "PC1", "PC2",
 				       "PC5", "PC8", "PC9", "PC10",
 				       "PC11", "PC12", "PC13", "PC14",
@@ -498,57 +526,57 @@
 				function = "nand0";
 			};
 
-			nand_cs0_pins_a: nand-cs@0 {
+			nand_cs0_pin: nand-cs0-pin {
 				pins = "PC4";
 				function = "nand0";
 			};
 
-			nand_rb0_pins_a: nand-rb@0 {
+			nand_rb0_pin: nand-rb0-pin {
 				pins = "PC6";
 				function = "nand0";
 			};
 
-			spi2_pins_a: spi2@0 {
+			spi2_pe_pins: spi2-pe-pins {
 				pins = "PE1", "PE2", "PE3";
 				function = "spi2";
 			};
 
-			spi2_cs0_pins_a: spi2-cs0@0 {
+			spi2_cs0_pe_pin: spi2-cs0-pe-pin {
 				pins = "PE0";
 				function = "spi2";
 			};
 
-			uart1_pins_a: uart1@0 {
+			uart1_pe_pins: uart1-pe-pins {
 				pins = "PE10", "PE11";
 				function = "uart1";
 			};
 
-			uart1_pins_b: uart1@1 {
+			uart1_pg_pins: uart1-pg-pins {
 				pins = "PG3", "PG4";
 				function = "uart1";
 			};
 
-			uart2_pins_a: uart2@0 {
+			uart2_pd_pins: uart2-pd-pins {
 				pins = "PD2", "PD3";
 				function = "uart2";
 			};
 
-			uart2_cts_rts_pins_a: uart2-cts-rts@0 {
+			uart2_cts_rts_pd_pins: uart2-cts-rts-pd-pins {
 				pins = "PD4", "PD5";
 				function = "uart2";
 			};
 
-			uart3_pins_a: uart3@0 {
+			uart3_pg_pins: uart3-pg-pins {
 				pins = "PG9", "PG10";
 				function = "uart3";
 			};
 
-			uart3_cts_rts_pins_a: uart3-cts-rts@0 {
+			uart3_cts_rts_pg_pins: uart3-cts-rts-pg-pins {
 				pins = "PG11", "PG12";
 				function = "uart3";
 			};
 
-			pwm0_pins: pwm0 {
+			pwm0_pin: pwm0-pin {
 				pins = "PB2";
 				function = "pwm";
 			};
@@ -652,6 +680,8 @@
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <7>;
 			clocks = <&ccu CLK_APB1_I2C0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -662,6 +692,8 @@
 			reg = <0x01c2b000 0x400>;
 			interrupts = <8>;
 			clocks = <&ccu CLK_APB1_I2C1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -672,6 +704,8 @@
 			reg = <0x01c2b400 0x400>;
 			interrupts = <9>;
 			clocks = <&ccu CLK_APB1_I2C2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;

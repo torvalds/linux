@@ -39,15 +39,7 @@ This is example of
 Playback: [MEM] -> [SRC2] -> [DVC0] -> [SSIU0/SSI0] -> [codec]
 Capture:  [MEM] <- [DVC1] <- [SRC3] <- [SSIU1/SSI1] <- [codec]
 
-	&rcar_sound {
-		...
-		rcar_sound,dai {
-			dai0 {
-				playback = <&ssi0 &src2 &dvc0>;
-				capture  = <&ssi1 &src3 &dvc1>;
-			};
-		};
-	};
+see "Example: simple sound card"
 
 You can use below.
 ${LINUX}/arch/arm/boot/dts/r8a7790.dts can be good example.
@@ -83,29 +75,8 @@ SRC can convert [xx]Hz to [yy]Hz. Then, it has below 2 modes
 **     Asynchronous mode
 ------------------
 
-You need to use "simple-scu-audio-card" sound card for it.
-example)
-
-	sound {
-		compatible = "simple-scu-audio-card";
-		...
-		/*
-		 * SRC Asynchronous mode setting
-		 * Playback:
-		 * All input data will be converted to 48kHz
-		 * Capture:
-		 * Inputed 48kHz data will be converted to
-		 * system specified Hz
-		 */
-		simple-audio-card,convert-rate = <48000>;
-		...
-		simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
+You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
+see "Example: simple sound card for Asynchronous mode"
 
 ------------------
 **     Synchronous mode
@@ -141,26 +112,8 @@ For more detail information, see below
 	${LINUX}/sound/soc/sh/rcar/ctu.c
 	 - comment of header
 
-You need to use "simple-scu-audio-card" sound card for it.
-example)
-
-	sound {
-		compatible = "simple-scu-audio-card";
-		...
-		/*
-		 * CTU setting
-		 * All input data will be converted to 2ch
-		 * as output data
-		 */
-		simple-audio-card,convert-channels = <2>;
-		...
-		simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
+You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
+see "Example: simple sound card for channel convert"
 
 Ex) Exchange output channel
  Input -> Output
@@ -190,42 +143,13 @@ and these sounds will be merged by MIX.
 	aplay -D plughw:0,0 xxxx.wav &
 	aplay -D plughw:0,1 yyyy.wav
 
-You need to use "simple-scu-audio-card" sound card for it.
+You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
 Ex)
 	[MEM] -> [SRC1] -> [CTU02] -+-> [MIX0] -> [DVC0] -> [SSI0]
 	                            |
 	[MEM] -> [SRC2] -> [CTU03] -+
 
-	sound {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		compatible = "simple-scu-audio-card";
-		...
-		simple-audio-card,cpu@0 {
-			reg = <0>;
-			sound-dai = <&rcar_sound 0>;
-		};
-		simple-audio-card,cpu@1 {
-			reg = <1>;
-			sound-dai = <&rcar_sound 1>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
-
-	&rcar_sound {
-		...
-		rcar_sound,dai {
-			dai0 {
-				playback = <&src1 &ctu02 &mix0 &dvc0 &ssi0>;
-			};
-			dai1 {
-				playback = <&src2 &ctu03 &mix0 &dvc0 &ssi0>;
-			};
-		};
-	};
+see "Example: simple sound card for MIXer"
 
 =============================================
 * DVC (Digital Volume and Mute Function)
@@ -257,15 +181,31 @@ Volume Ramp
 * SSIU (Serial Sound Interface Unit)
 =============================================
 
-There is no DT settings for SSIU, because SSIU will be automatically
-selected via SSI.
 SSIU can avoid some under/over run error, because it has some buffer.
 But you can't use it if SSI was PIO mode.
-In DMA mode, you can select not to use SSIU by using "no-busif" on DT.
+In DMA mode, you can select not to use SSIU by using "no-busif" via SSI.
 
-	&ssi0 {
-		no-busif;
-	};
+SSIU handles BUSIF which will be used for TDM Split mode.
+This driver is assuming that audio-graph card will be used.
+
+TDM Split mode merges 4 sounds. You can see 4 sound interface on system,
+and these sounds will be merged SSIU/SSI.
+
+	aplay -D plughw:0,0 xxxx.wav &
+	aplay -D plughw:0,1 xxxx.wav &
+	aplay -D plughw:0,2 xxxx.wav &
+	aplay -D plughw:0,3 xxxx.wav
+
+	          2ch                     8ch
+	[MEM] -> [SSIU 30] -+-> [SSIU 3] --> [Codec]
+	          2ch       |
+	[MEM] -> [SSIU 31] -+
+	          2ch       |
+	[MEM] -> [SSIU 32] -+
+	          2ch       |
+	[MEM] -> [SSIU 33] -+
+
+see "Example: simple sound card for TDM Split"
 
 =============================================
 * SSI (Serial Sound Interface)
@@ -304,14 +244,7 @@ This is example if SSI1 want to share WS pin with SSI0
 You can use Multi-SSI.
 This is example of SSI0/SSI1/SSI2 (= for 6ch)
 
-	&rcar_sound {
-		...
-		rcar_sound,dai {
-			dai0 {
-				playback = <&ssi0 &ssi1 &ssi2 &src0 &dvc0>;
-			};
-		};
-	};
+see "Example: simple sound card for Multi channel"
 
 ** TDM-SSI
 
@@ -319,19 +252,7 @@ You can use TDM with SSI.
 This is example of TDM 6ch.
 Driver can automatically switches TDM <-> stereo mode in this case.
 
-	rsnd_tdm: sound {
-		compatible = "simple-audio-card";
-		...
-		simple-audio-card,cpu {
-			/* system can use TDM 6ch */
-			dai-tdm-slot-num = <6>;
-			sound-dai = <&rcar_sound>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
-
+see "Example: simple sound card for TDM"
 
 =============================================
 Required properties:
@@ -340,10 +261,13 @@ Required properties:
 - compatible			: "renesas,rcar_sound-<soctype>", fallbacks
 				  "renesas,rcar_sound-gen1" if generation1, and
 				  "renesas,rcar_sound-gen2" if generation2 (or RZ/G1)
-				  "renesas,rcar_sound-gen3" if generation3
+				  "renesas,rcar_sound-gen3" if generation3 (or RZ/G2)
 				  Examples with soctypes are:
 				    - "renesas,rcar_sound-r8a7743" (RZ/G1M)
+				    - "renesas,rcar_sound-r8a7744" (RZ/G1N)
 				    - "renesas,rcar_sound-r8a7745" (RZ/G1E)
+				    - "renesas,rcar_sound-r8a774a1" (RZ/G2M)
+				    - "renesas,rcar_sound-r8a774c0" (RZ/G2E)
 				    - "renesas,rcar_sound-r8a7778" (R-Car M1A)
 				    - "renesas,rcar_sound-r8a7779" (R-Car H1)
 				    - "renesas,rcar_sound-r8a7790" (R-Car H2)
@@ -353,12 +277,17 @@ Required properties:
 				    - "renesas,rcar_sound-r8a7795" (R-Car H3)
 				    - "renesas,rcar_sound-r8a7796" (R-Car M3-W)
 				    - "renesas,rcar_sound-r8a77965" (R-Car M3-N)
+				    - "renesas,rcar_sound-r8a77990" (R-Car E3)
+				    - "renesas,rcar_sound-r8a77995" (R-Car D3)
 - reg				: Should contain the register physical address.
 				  required register is
 				   SRU/ADG/SSI      if generation1
 				   SRU/ADG/SSIU/SSI if generation2
 - rcar_sound,ssi		: Should contain SSI feature.
 				  The number of SSI subnode should be same as HW.
+				  see below for detail.
+- rcar_sound,ssiu		: Should contain SSIU feature.
+				  The number of SSIU subnode should be same as HW.
 				  see below for detail.
 - rcar_sound,src		: Should contain SRC feature.
 				  The number of SRC subnode should be same as HW.
@@ -399,7 +328,12 @@ SSI subnode properties:
 - no-busif			: BUSIF is not ussed when [mem -> SSI] via DMA case
 - dma				: Should contain Audio DMAC entry
 - dma-names			: SSI  case "rx"  (=playback), "tx"  (=capture)
+				  Deprecated: see SSIU subnode properties
 				  SSIU case "rxu" (=playback), "txu" (=capture)
+
+SSIU subnode properties:
+- dma				: Should contain Audio DMAC entry
+- dma-names			: "rx" (=playback), "tx" (=capture)
 
 SRC subnode properties:
 - dma				: Should contain Audio DMAC entry
@@ -529,56 +463,55 @@ rcar_sound: sound@ec500000 {
 		};
 	};
 
+	rcar_sound,ssiu {
+		ssiu00: ssiu-0 {
+			dmas = <&audma0 0x15>, <&audma1 0x16>;
+			dma-names = "rx", "tx";
+		};
+		ssiu01: ssiu-1 {
+			dmas = <&audma0 0x35>, <&audma1 0x36>;
+			dma-names = "rx", "tx";
+		};
+
+		...
+
+		ssiu95: ssiu-49 {
+			dmas = <&audma0 0xA5>, <&audma1 0xA6>;
+			dma-names = "rx", "tx";
+		};
+		ssiu96: ssiu-50 {
+			dmas = <&audma0 0xA7>, <&audma1 0xA8>;
+			dma-names = "rx", "tx";
+		};
+		ssiu97: ssiu-51 {
+			dmas = <&audma0 0xA9>, <&audma1 0xAA>;
+			dma-names = "rx", "tx";
+		};
+	};
+
 	rcar_sound,ssi {
 		ssi0: ssi-0 {
 			interrupts = <0 370 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x01>, <&audma1 0x02>, <&audma0 0x15>, <&audma1 0x16>;
-			dma-names = "rx", "tx", "rxu", "txu";
+			dmas = <&audma0 0x01>, <&audma1 0x02>;
+			dma-names = "rx", "tx";
 		};
 		ssi1: ssi-1 {
 			interrupts = <0 371 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x03>, <&audma1 0x04>, <&audma0 0x49>, <&audma1 0x4a>;
-			dma-names = "rx", "tx", "rxu", "txu";
+			dmas = <&audma0 0x03>, <&audma1 0x04>;
+			dma-names = "rx", "tx";
 		};
-		ssi2: ssi-2 {
-			interrupts = <0 372 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x05>, <&audma1 0x06>, <&audma0 0x63>, <&audma1 0x64>;
-			dma-names = "rx", "tx", "rxu", "txu";
-		};
-		ssi3: ssi-3 {
-			interrupts = <0 373 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x07>, <&audma1 0x08>, <&audma0 0x6f>, <&audma1 0x70>;
-			dma-names = "rx", "tx", "rxu", "txu";
-		};
-		ssi4: ssi-4 {
-			interrupts = <0 374 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x09>, <&audma1 0x0a>, <&audma0 0x71>, <&audma1 0x72>;
-			dma-names = "rx", "tx", "rxu", "txu";
-		};
-		ssi5: ssi-5 {
-			interrupts = <0 375 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x0b>, <&audma1 0x0c>, <&audma0 0x73>, <&audma1 0x74>;
-			dma-names = "rx", "tx", "rxu", "txu";
-		};
-		ssi6: ssi-6 {
-			interrupts = <0 376 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x0d>, <&audma1 0x0e>, <&audma0 0x75>, <&audma1 0x76>;
-			dma-names = "rx", "tx", "rxu", "txu";
-		};
-		ssi7: ssi-7 {
-			interrupts = <0 377 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x0f>, <&audma1 0x10>, <&audma0 0x79>, <&audma1 0x7a>;
-			dma-names = "rx", "tx", "rxu", "txu";
-		};
+
+		...
+
 		ssi8: ssi-8 {
 			interrupts = <0 378 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x11>, <&audma1 0x12>, <&audma0 0x7b>, <&audma1 0x7c>;
-			dma-names = "rx", "tx", "rxu", "txu";
+			dmas = <&audma0 0x11>, <&audma1 0x12>;
+			dma-names = "rx", "tx";
 		};
 		ssi9: ssi-9 {
 			interrupts = <0 379 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&audma0 0x13>, <&audma1 0x14>, <&audma0 0x7d>, <&audma1 0x7e>;
-			dma-names = "rx", "tx", "rxu", "txu";
+			dmas = <&audma0 0x13>, <&audma1 0x14>;
+			dma-names = "rx", "tx";
 		};
 	};
 
@@ -644,25 +577,174 @@ Example: simple sound card
 };
 
 =============================================
+Example: simple sound card for Asynchronous mode
+=============================================
+
+sound {
+	compatible = "simple-scu-audio-card";
+	...
+	/*
+	 * SRC Asynchronous mode setting
+	 * Playback:
+	 * All input data will be converted to 48kHz
+	 * Capture:
+	 * Inputed 48kHz data will be converted to
+	 * system specified Hz
+	 */
+	simple-audio-card,convert-rate = <48000>;
+	...
+	simple-audio-card,cpu {
+		sound-dai = <&rcar_sound>;
+	};
+	simple-audio-card,codec {
+		...
+	};
+};
+
+=============================================
+Example: simple sound card for channel convert
+=============================================
+
+sound {
+	compatible = "simple-scu-audio-card";
+	...
+	/*
+	 * CTU setting
+	 * All input data will be converted to 2ch
+	 * as output data
+	 */
+	simple-audio-card,convert-channels = <2>;
+	...
+	simple-audio-card,cpu {
+		sound-dai = <&rcar_sound>;
+	};
+	simple-audio-card,codec {
+		...
+	};
+};
+
+=============================================
+Example: simple sound card for MIXer
+=============================================
+
+sound {
+	compatible = "simple-scu-audio-card";
+	...
+	simple-audio-card,cpu@0 {
+		sound-dai = <&rcar_sound 0>;
+	};
+	simple-audio-card,cpu@1 {
+		sound-dai = <&rcar_sound 1>;
+	};
+	simple-audio-card,codec {
+		...
+	};
+};
+
+&rcar_sound {
+	...
+	rcar_sound,dai {
+		dai0 {
+			playback = <&src1 &ctu02 &mix0 &dvc0 &ssi0>;
+		};
+		dai1 {
+			playback = <&src2 &ctu03 &mix0 &dvc0 &ssi0>;
+		};
+	};
+};
+
+=============================================
 Example: simple sound card for TDM
 =============================================
 
-	rsnd_tdm: sound {
-		compatible = "simple-audio-card";
+rsnd_tdm: sound {
+	compatible = "simple-audio-card";
 
-		simple-audio-card,format = "left_j";
-		simple-audio-card,bitclock-master = <&sndcodec>;
-		simple-audio-card,frame-master = <&sndcodec>;
+	simple-audio-card,format = "left_j";
+	simple-audio-card,bitclock-master = <&sndcodec>;
+	simple-audio-card,frame-master = <&sndcodec>;
 
-		sndcpu: simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-			dai-tdm-slot-num = <6>;
+	sndcpu: simple-audio-card,cpu {
+		sound-dai = <&rcar_sound>;
+		dai-tdm-slot-num = <6>;
+	};
+
+	sndcodec: simple-audio-card,codec {
+		sound-dai = <&xxx>;
+	};
+};
+
+=============================================
+Example: simple sound card for TDM Split
+=============================================
+
+sound_card: sound {
+	compatible = "audio-graph-scu-card";
+	prefix = "xxxx";
+	routing = "xxxx Playback", "DAI0 Playback",
+		  "xxxx Playback", "DAI1 Playback",
+		  "xxxx Playback", "DAI2 Playback",
+		  "xxxx Playback", "DAI3 Playback";
+	convert-channels = <8>; /* TDM Split */
+
+	dais = <&rsnd_port0     /* playback ch1/ch2 */
+		&rsnd_port1     /* playback ch3/ch4 */
+		&rsnd_port2     /* playback ch5/ch6 */
+		&rsnd_port3     /* playback ch7/ch8 */
+		>;
+};
+
+audio-codec {
+	...
+	port {
+		codec_0: endpoint@1 {
+			remote-endpoint = <&rsnd_ep0>;
 		};
-
-		sndcodec: simple-audio-card,codec {
-			sound-dai = <&xxx>;
+		codec_1: endpoint@2 {
+			remote-endpoint = <&rsnd_ep1>;
+		};
+		codec_2: endpoint@3 {
+			remote-endpoint = <&rsnd_ep2>;
+		};
+		codec_3: endpoint@4 {
+			remote-endpoint = <&rsnd_ep3>;
 		};
 	};
+};
+
+&rcar_sound {
+	...
+	ports {
+		rsnd_port0: port@0 {
+			rsnd_ep0: endpoint {
+				remote-endpoint = <&codec_0>;
+				...
+				playback = <&ssiu30 &ssi3>;
+			};
+		};
+		rsnd_port1: port@1 {
+			rsnd_ep1: endpoint {
+				remote-endpoint = <&codec_1>;
+				...
+				playback = <&ssiu31 &ssi3>;
+			};
+		};
+		rsnd_port2: port@2 {
+			rsnd_ep2: endpoint {
+				remote-endpoint = <&codec_2>;
+				...
+				playback = <&ssiu32 &ssi3>;
+			};
+		};
+		rsnd_port3: port@3 {
+			rsnd_ep3: endpoint {
+				remote-endpoint = <&codec_3>;
+				...
+				playback = <&ssiu33 &ssi3>;
+			};
+		};
+	};
+};
 
 =============================================
 Example: simple sound card for Multi channel

@@ -27,10 +27,10 @@
  *
  * @type:	leaf or node
  * @identifier:	the necessary info to locate the leaf/node.
- * 		It's recommened to decode key.objecitd/offset if it's
+ * 		It's recommended to decode key.objecitd/offset if it's
  * 		meaningful.
  * @reason:	describe the error
- * @bad_value:	optional, it's recommened to output bad value and its
+ * @bad_value:	optional, it's recommended to output bad value and its
  *		expected value (range).
  *
  * Since comma is used to separate the components, only space is allowed
@@ -130,7 +130,7 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 	}
 
 	/*
-	 * Support for new compression/encrption must introduce incompat flag,
+	 * Support for new compression/encryption must introduce incompat flag,
 	 * and must be caught in open_ctree().
 	 */
 	if (btrfs_file_extent_compression(leaf, fi) > BTRFS_COMPRESS_TYPES) {
@@ -389,13 +389,11 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * Here we don't really care about alignment since extent allocator can
-	 * handle it.  We care more about the size, as if one block group is
-	 * larger than maximum size, it's must be some obvious corruption.
+	 * handle it.  We care more about the size.
 	 */
-	if (key->offset > BTRFS_MAX_DATA_CHUNK_SIZE || key->offset == 0) {
+	if (key->offset == 0) {
 		block_group_err(fs_info, leaf, slot,
-			"invalid block group size, have %llu expect (0, %llu]",
-				key->offset, BTRFS_MAX_DATA_CHUNK_SIZE);
+				"invalid block group size 0");
 		return -EUCLEAN;
 	}
 
@@ -440,7 +438,7 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 	    type != (BTRFS_BLOCK_GROUP_METADATA |
 			   BTRFS_BLOCK_GROUP_DATA)) {
 		block_group_err(fs_info, leaf, slot,
-"invalid type, have 0x%llx (%lu bits set) expect either 0x%llx, 0x%llx, 0x%llu or 0x%llx",
+"invalid type, have 0x%llx (%lu bits set) expect either 0x%llx, 0x%llx, 0x%llx or 0x%llx",
 			type, hweight64(type),
 			BTRFS_BLOCK_GROUP_DATA, BTRFS_BLOCK_GROUP_METADATA,
 			BTRFS_BLOCK_GROUP_SYSTEM,
@@ -486,6 +484,13 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 	struct btrfs_key key;
 	u32 nritems = btrfs_header_nritems(leaf);
 	int slot;
+
+	if (btrfs_header_level(leaf) != 0) {
+		generic_err(fs_info, leaf, 0,
+			"invalid level for leaf, have %d expect 0",
+			btrfs_header_level(leaf));
+		return -EUCLEAN;
+	}
 
 	/*
 	 * Extent buffers from a relocation tree have a owner field that
@@ -645,9 +650,16 @@ int btrfs_check_node(struct btrfs_fs_info *fs_info, struct extent_buffer *node)
 	unsigned long nr = btrfs_header_nritems(node);
 	struct btrfs_key key, next_key;
 	int slot;
+	int level = btrfs_header_level(node);
 	u64 bytenr;
 	int ret = 0;
 
+	if (level <= 0 || level >= BTRFS_MAX_LEVEL) {
+		generic_err(fs_info, node, 0,
+			"invalid level for node, have %d expect [1, %d]",
+			level, BTRFS_MAX_LEVEL - 1);
+		return -EUCLEAN;
+	}
 	if (nr == 0 || nr > BTRFS_NODEPTRS_PER_BLOCK(fs_info)) {
 		btrfs_crit(fs_info,
 "corrupt node: root=%llu block=%llu, nritems too %s, have %lu expect range [1,%u]",

@@ -98,7 +98,11 @@ static u8 rs_fw_sgi_cw_support(struct ieee80211_sta *sta)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
 	u8 supp = 0;
+
+	if (he_cap && he_cap->has_he)
+		return 0;
 
 	if (ht_cap->cap & IEEE80211_HT_CAP_SGI_20)
 		supp |= BIT(IWL_TLC_MNG_CH_WIDTH_20MHZ);
@@ -117,19 +121,36 @@ static u16 rs_fw_set_config_flags(struct iwl_mvm *mvm,
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
 	bool vht_ena = vht_cap && vht_cap->vht_supported;
 	u16 flags = 0;
 
 	if (mvm->cfg->ht_params->stbc &&
-	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
-	    ((ht_cap && (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)) ||
-	     (vht_ena && (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))))
-		flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1)) {
+		if (he_cap && he_cap->has_he) {
+			if (he_cap->he_cap_elem.phy_cap_info[2] &
+			    IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
+				flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+
+			if (he_cap->he_cap_elem.phy_cap_info[7] &
+			    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ)
+				flags |= IWL_TLC_MNG_CFG_FLAGS_HE_STBC_160MHZ_MSK;
+		} else if ((ht_cap &&
+			    (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC)) ||
+			   (vht_ena &&
+			    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK)))
+			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
+	}
 
 	if (mvm->cfg->ht_params->ldpc &&
 	    ((ht_cap && (ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING)) ||
 	     (vht_ena && (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+
+	if (he_cap && he_cap->has_he &&
+	    (he_cap->he_cap_elem.phy_cap_info[3] &
+	     IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK))
+		flags |= IWL_TLC_MNG_CFG_FLAGS_HE_DCM_NSS_1_MSK;
 
 	return flags;
 }
@@ -294,12 +315,26 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU) {
 		u16 size = le32_to_cpu(notif->amsdu_size);
+		int i;
 
 		if (WARN_ON(sta->max_amsdu_len < size))
 			goto out;
 
 		mvmsta->amsdu_enabled = le32_to_cpu(notif->amsdu_enabled);
 		mvmsta->max_amsdu_len = size;
+		sta->max_rc_amsdu_len = mvmsta->max_amsdu_len;
+
+		for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+			if (mvmsta->amsdu_enabled & BIT(i))
+				sta->max_tid_amsdu_len[i] =
+					iwl_mvm_max_amsdu_size(mvm, sta, i);
+			else
+				/*
+				 * Not so elegant, but this will effectively
+				 * prevent AMSDU on this TID
+				 */
+				sta->max_tid_amsdu_len[i] = 1;
+		}
 
 		IWL_DEBUG_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
@@ -311,7 +346,7 @@ out:
 }
 
 void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		     enum nl80211_band band)
+		     enum nl80211_band band, bool update)
 {
 	struct ieee80211_hw *hw = mvm->hw;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -320,7 +355,8 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct ieee80211_supported_band *sband;
 	struct iwl_tlc_config_cmd cfg_cmd = {
 		.sta_id = mvmsta->sta_id,
-		.max_ch_width = rs_fw_bw_from_sta_bw(sta),
+		.max_ch_width = update ?
+			rs_fw_bw_from_sta_bw(sta) : RATE_MCS_CHAN_WIDTH_20,
 		.flags = cpu_to_le16(rs_fw_set_config_flags(mvm, sta)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
 		.max_mpdu_len = cpu_to_le16(sta->max_amsdu_len),

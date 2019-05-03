@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Read-Copy Update module-based performance-test facility
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright (C) IBM Corporation, 2015
  *
- * Authors: Paul E. McKenney <paulmck@us.ibm.com>
+ * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #define pr_fmt(fmt) fmt
@@ -54,7 +41,7 @@
 #include "rcu.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
+MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 
 #define PERF_FLAG "-perf:"
 #define PERFOUT_STRING(s) \
@@ -83,13 +70,19 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
  * Various other use cases may of course be specified.
  */
 
+#ifdef MODULE
+# define RCUPERF_SHUTDOWN 0
+#else
+# define RCUPERF_SHUTDOWN 1
+#endif
+
 torture_param(bool, gp_async, false, "Use asynchronous GP wait primitives");
 torture_param(int, gp_async_max, 1000, "Max # outstanding waits per reader");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
-torture_param(bool, shutdown, !IS_ENABLED(MODULE),
+torture_param(bool, shutdown, RCUPERF_SHUTDOWN,
 	      "Shutdown at end of performance tests.");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable");
@@ -190,36 +183,6 @@ static struct rcu_perf_ops rcu_ops = {
 };
 
 /*
- * Definitions for rcu_bh perf testing.
- */
-
-static int rcu_bh_perf_read_lock(void) __acquires(RCU_BH)
-{
-	rcu_read_lock_bh();
-	return 0;
-}
-
-static void rcu_bh_perf_read_unlock(int idx) __releases(RCU_BH)
-{
-	rcu_read_unlock_bh();
-}
-
-static struct rcu_perf_ops rcu_bh_ops = {
-	.ptype		= RCU_BH_FLAVOR,
-	.init		= rcu_sync_perf_init,
-	.readlock	= rcu_bh_perf_read_lock,
-	.readunlock	= rcu_bh_perf_read_unlock,
-	.get_gp_seq	= rcu_bh_get_gp_seq,
-	.gp_diff	= rcu_seq_diff,
-	.exp_completed	= rcu_exp_batches_completed_sched,
-	.async		= call_rcu_bh,
-	.gp_barrier	= rcu_barrier_bh,
-	.sync		= synchronize_rcu_bh,
-	.exp_sync	= synchronize_rcu_bh_expedited,
-	.name		= "rcu_bh"
-};
-
-/*
  * Definitions for srcu perf testing.
  */
 
@@ -303,36 +266,6 @@ static struct rcu_perf_ops srcud_ops = {
 	.sync		= srcu_perf_synchronize,
 	.exp_sync	= srcu_perf_synchronize_expedited,
 	.name		= "srcud"
-};
-
-/*
- * Definitions for sched perf testing.
- */
-
-static int sched_perf_read_lock(void)
-{
-	preempt_disable();
-	return 0;
-}
-
-static void sched_perf_read_unlock(int idx)
-{
-	preempt_enable();
-}
-
-static struct rcu_perf_ops sched_ops = {
-	.ptype		= RCU_SCHED_FLAVOR,
-	.init		= rcu_sync_perf_init,
-	.readlock	= sched_perf_read_lock,
-	.readunlock	= sched_perf_read_unlock,
-	.get_gp_seq	= rcu_sched_get_gp_seq,
-	.gp_diff	= rcu_seq_diff,
-	.exp_completed	= rcu_exp_batches_completed_sched,
-	.async		= call_rcu_sched,
-	.gp_barrier	= rcu_barrier_sched,
-	.sync		= synchronize_sched,
-	.exp_sync	= synchronize_sched_expedited,
-	.name		= "sched"
 };
 
 /*
@@ -611,7 +544,7 @@ rcu_perf_cleanup(void)
 		kfree(writer_n_durations);
 	}
 
-	/* Do flavor-specific cleanup operations.  */
+	/* Do torture-type-specific cleanup operations.  */
 	if (cur_ops->cleanup != NULL)
 		cur_ops->cleanup();
 
@@ -661,8 +594,7 @@ rcu_perf_init(void)
 	long i;
 	int firsterr = 0;
 	static struct rcu_perf_ops *perf_ops[] = {
-		&rcu_ops, &rcu_bh_ops, &srcu_ops, &srcud_ops, &sched_ops,
-		&tasks_ops,
+		&rcu_ops, &srcu_ops, &srcud_ops, &tasks_ops,
 	};
 
 	if (!torture_init_begin(perf_type, verbose))
@@ -680,6 +612,7 @@ rcu_perf_init(void)
 		for (i = 0; i < ARRAY_SIZE(perf_ops); i++)
 			pr_cont(" %s", perf_ops[i]->name);
 		pr_cont("\n");
+		WARN_ON(!IS_MODULE(CONFIG_RCU_PERF_TEST));
 		firsterr = -EINVAL;
 		goto unwind;
 	}

@@ -34,7 +34,7 @@ int mls_level_isvalid(struct policydb *p, struct mls_level *l);
 
 int mls_context_to_sid(struct policydb *p,
 		       char oldc,
-		       char **scontext,
+		       char *scontext,
 		       struct context *context,
 		       struct sidtab *s,
 		       u32 def_sid);
@@ -46,7 +46,8 @@ int mls_range_set(struct context *context, struct mls_range *range);
 
 int mls_convert_context(struct policydb *oldp,
 			struct policydb *newp,
-			struct context *context);
+			struct context *oldc,
+			struct context *newc);
 
 int mls_compute_sid(struct policydb *p,
 		    struct context *scontext,

@@ -1050,7 +1050,7 @@ static void dsi_wait4video_done(struct msm_dsi_host *msm_host)
 			msecs_to_jiffies(70));
 
 	if (ret <= 0)
-		dev_err(dev, "wait for video done timed out\n");
+		DRM_DEV_ERROR(dev, "wait for video done timed out\n");
 
 	dsi_intr_ctrl(msm_host, DSI_IRQ_MASK_VIDEO_DONE, 0);
 }
@@ -1082,6 +1082,8 @@ int dsi_tx_buf_alloc_6g(struct msm_dsi_host *msm_host, int size)
 		msm_host->tx_gem_obj = NULL;
 		return PTR_ERR(data);
 	}
+
+	msm_gem_object_set_name(msm_host->tx_gem_obj, "tx_gem");
 
 	msm_host->tx_size = msm_host->tx_gem_obj->size;
 
@@ -1118,7 +1120,7 @@ static void dsi_tx_buf_free(struct msm_dsi_host *msm_host)
 
 	priv = dev->dev_private;
 	if (msm_host->tx_gem_obj) {
-		msm_gem_put_iova(msm_host->tx_gem_obj, priv->kms->aspace);
+		msm_gem_unpin_iova(msm_host->tx_gem_obj, priv->kms->aspace);
 		drm_gem_object_put_unlocked(msm_host->tx_gem_obj);
 		msm_host->tx_gem_obj = NULL;
 	}
@@ -1248,7 +1250,7 @@ int dsi_dma_base_get_6g(struct msm_dsi_host *msm_host, uint64_t *dma_base)
 	if (!dma_base)
 		return -EINVAL;
 
-	return msm_gem_get_iova(msm_host->tx_gem_obj,
+	return msm_gem_get_and_pin_iova(msm_host->tx_gem_obj,
 				priv->kms->aspace, dma_base);
 }
 
@@ -1673,7 +1675,7 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 
 	prop = of_find_property(ep, "data-lanes", &len);
 	if (!prop) {
-		dev_dbg(dev,
+		DRM_DEV_DEBUG(dev,
 			"failed to find data lane mapping, using default\n");
 		return 0;
 	}
@@ -1681,7 +1683,7 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 	num_lanes = len / sizeof(u32);
 
 	if (num_lanes < 1 || num_lanes > 4) {
-		dev_err(dev, "bad number of data lanes\n");
+		DRM_DEV_ERROR(dev, "bad number of data lanes\n");
 		return -EINVAL;
 	}
 
@@ -1690,7 +1692,7 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 	ret = of_property_read_u32_array(ep, "data-lanes", lane_map,
 					 num_lanes);
 	if (ret) {
-		dev_err(dev, "failed to read lane data\n");
+		DRM_DEV_ERROR(dev, "failed to read lane data\n");
 		return ret;
 	}
 
@@ -1711,7 +1713,7 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 		 */
 		for (j = 0; j < num_lanes; j++) {
 			if (lane_map[j] < 0 || lane_map[j] > 3)
-				dev_err(dev, "bad physical lane entry %u\n",
+				DRM_DEV_ERROR(dev, "bad physical lane entry %u\n",
 					lane_map[j]);
 
 			if (swap[lane_map[j]] != j)
@@ -1742,21 +1744,23 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	 */
 	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
 	if (!endpoint) {
-		dev_dbg(dev, "%s: no endpoint\n", __func__);
+		DRM_DEV_DEBUG(dev, "%s: no endpoint\n", __func__);
 		return 0;
 	}
 
 	ret = dsi_host_parse_lane_data(msm_host, endpoint);
 	if (ret) {
-		dev_err(dev, "%s: invalid lane configuration %d\n",
+		DRM_DEV_ERROR(dev, "%s: invalid lane configuration %d\n",
 			__func__, ret);
+		ret = -EINVAL;
 		goto err;
 	}
 
 	/* Get panel node from the output port's endpoint data */
 	device_node = of_graph_get_remote_node(np, 1, 0);
 	if (!device_node) {
-		dev_dbg(dev, "%s: no valid device\n", __func__);
+		DRM_DEV_DEBUG(dev, "%s: no valid device\n", __func__);
+		ret = -ENODEV;
 		goto err;
 	}
 
@@ -1766,7 +1770,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 		msm_host->sfpb = syscon_regmap_lookup_by_phandle(np,
 					"syscon-sfpb");
 		if (IS_ERR(msm_host->sfpb)) {
-			dev_err(dev, "%s: failed to get sfpb regmap\n",
+			DRM_DEV_ERROR(dev, "%s: failed to get sfpb regmap\n",
 				__func__);
 			ret = PTR_ERR(msm_host->sfpb);
 		}
@@ -1916,7 +1920,7 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 	msm_host->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (msm_host->irq < 0) {
 		ret = msm_host->irq;
-		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get irq: %d\n", ret);
 		return ret;
 	}
 
@@ -1924,7 +1928,7 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 			dsi_host_irq, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 			"dsi_isr", msm_host);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ%u: %d\n",
+		DRM_DEV_ERROR(&pdev->dev, "failed to request IRQ%u: %d\n",
 				msm_host->irq, ret);
 		return ret;
 	}
@@ -2420,7 +2424,7 @@ unlock_ret:
 }
 
 int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
-					struct drm_display_mode *mode)
+				  const struct drm_display_mode *mode)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 

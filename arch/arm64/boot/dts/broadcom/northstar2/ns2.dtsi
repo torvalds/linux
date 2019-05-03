@@ -47,7 +47,7 @@
 
 		A57_0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0 0>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
@@ -55,7 +55,7 @@
 
 		A57_1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0 1>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
@@ -63,7 +63,7 @@
 
 		A57_2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0 2>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
@@ -71,7 +71,7 @@
 
 		A57_3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0 3>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
@@ -639,7 +639,7 @@
 			status = "disabled";
 		};
 
-		ssp0: ssp@66180000 {
+		ssp0: spi@66180000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x66180000 0x1000>;
 			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
@@ -650,7 +650,7 @@
 			status = "disabled";
 		};
 
-		ssp1: ssp@66190000 {
+		ssp1: spi@66190000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x66190000 0x1000>;
 			interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;

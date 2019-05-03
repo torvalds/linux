@@ -26,16 +26,9 @@
 
 #include "dc.h"
 #include "drm.h"
+#include "hda.h"
 #include "sor.h"
 #include "trace.h"
-
-/*
- * XXX Remove this after the commit adding it to soc/tegra/pmc.h has been
- * merged. Having this around after the commit is merged should be safe since
- * the preprocessor will effectively replace all occurrences and therefore no
- * duplicate will be defined.
- */
-#define TEGRA_IO_PAD_HDMI_DP0 26
 
 #define SOR_REKEY 0x38
 
@@ -282,6 +275,85 @@ static const struct tegra_sor_hdmi_settings tegra186_sor_hdmi_defaults[] = {
 	}
 };
 
+static const struct tegra_sor_hdmi_settings tegra194_sor_hdmi_defaults[] = {
+	{
+		.frequency = 54000000,
+		.vcocap = 0,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 0xf,
+		.tx_pu_value = 0,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x54,
+		.drive_current = { 0x3a, 0x3a, 0x3a, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 75000000,
+		.vcocap = 1,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 0xf,
+		.tx_pu_value = 0,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x44,
+		.drive_current = { 0x3a, 0x3a, 0x3a, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 150000000,
+		.vcocap = 3,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 15,
+		.tx_pu_value = 0x66 /* 0 */,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x00, /* 0x34 */
+		.drive_current = { 0x3a, 0x3a, 0x3a, 0x37 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 300000000,
+		.vcocap = 3,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 15,
+		.tx_pu_value = 64,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x34,
+		.drive_current = { 0x3d, 0x3d, 0x3d, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 600000000,
+		.vcocap = 3,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 12,
+		.tx_pu_value = 96,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x34,
+		.drive_current = { 0x3d, 0x3d, 0x3d, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}
+};
+
 struct tegra_sor_regs {
 	unsigned int head_state0;
 	unsigned int head_state1;
@@ -328,6 +400,7 @@ struct tegra_sor {
 	const struct tegra_sor_soc *soc;
 	void __iomem *regs;
 	unsigned int index;
+	unsigned int irq;
 
 	struct reset_control *rst;
 	struct clk *clk_parent;
@@ -336,6 +409,8 @@ struct tegra_sor {
 	struct clk *clk_pad;
 	struct clk *clk_dp;
 	struct clk *clk;
+
+	u8 xbar_cfg[5];
 
 	struct drm_dp_aux *aux;
 
@@ -354,6 +429,8 @@ struct tegra_sor {
 
 	struct delayed_work scdc;
 	bool scdc_enabled;
+
+	struct tegra_hda_format format;
 };
 
 struct tegra_sor_state {
@@ -1739,7 +1816,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	/* XXX not in TRM */
 	for (value = 0, i = 0; i < 5; i++)
-		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->soc->xbar_cfg[i]) |
+		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
 
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
@@ -2037,7 +2114,8 @@ tegra_sor_hdmi_setup_avi_infoframe(struct tegra_sor *sor,
 	value &= ~INFOFRAME_CTRL_ENABLE;
 	tegra_sor_writel(sor, value, SOR_HDMI_AVI_INFOFRAME_CTRL);
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &sor->output.connector, mode);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to setup AVI infoframe: %d\n", err);
 		return err;
@@ -2060,6 +2138,144 @@ tegra_sor_hdmi_setup_avi_infoframe(struct tegra_sor *sor,
 	return 0;
 }
 
+static void tegra_sor_write_eld(struct tegra_sor *sor)
+{
+	size_t length = drm_eld_size(sor->output.connector.eld), i;
+
+	for (i = 0; i < length; i++)
+		tegra_sor_writel(sor, i << 8 | sor->output.connector.eld[i],
+				 SOR_AUDIO_HDA_ELD_BUFWR);
+
+	/*
+	 * The HDA codec will always report an ELD buffer size of 96 bytes and
+	 * the HDA codec driver will check that each byte read from the buffer
+	 * is valid. Therefore every byte must be written, even if no 96 bytes
+	 * were parsed from EDID.
+	 */
+	for (i = length; i < 96; i++)
+		tegra_sor_writel(sor, i << 8 | 0, SOR_AUDIO_HDA_ELD_BUFWR);
+}
+
+static void tegra_sor_audio_prepare(struct tegra_sor *sor)
+{
+	u32 value;
+
+	tegra_sor_write_eld(sor);
+
+	value = SOR_AUDIO_HDA_PRESENSE_ELDV | SOR_AUDIO_HDA_PRESENSE_PD;
+	tegra_sor_writel(sor, value, SOR_AUDIO_HDA_PRESENSE);
+}
+
+static void tegra_sor_audio_unprepare(struct tegra_sor *sor)
+{
+	tegra_sor_writel(sor, 0, SOR_AUDIO_HDA_PRESENSE);
+}
+
+static int tegra_sor_hdmi_enable_audio_infoframe(struct tegra_sor *sor)
+{
+	u8 buffer[HDMI_INFOFRAME_SIZE(AUDIO)];
+	struct hdmi_audio_infoframe frame;
+	u32 value;
+	int err;
+
+	err = hdmi_audio_infoframe_init(&frame);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to setup audio infoframe: %d\n", err);
+		return err;
+	}
+
+	frame.channels = sor->format.channels;
+
+	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(sor->dev, "failed to pack audio infoframe: %d\n", err);
+		return err;
+	}
+
+	tegra_sor_hdmi_write_infopack(sor, buffer, err);
+
+	value = tegra_sor_readl(sor, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+	value |= INFOFRAME_CTRL_CHECKSUM_ENABLE;
+	value |= INFOFRAME_CTRL_ENABLE;
+	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+
+	return 0;
+}
+
+static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
+{
+	u32 value;
+
+	value = tegra_sor_readl(sor, SOR_AUDIO_CNTRL);
+
+	/* select HDA audio input */
+	value &= ~SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_MASK);
+	value |= SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_HDA);
+
+	/* inject null samples */
+	if (sor->format.channels != 2)
+		value &= ~SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
+	else
+		value |= SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
+
+	value |= SOR_AUDIO_CNTRL_AFIFO_FLUSH;
+
+	tegra_sor_writel(sor, value, SOR_AUDIO_CNTRL);
+
+	/* enable advertising HBR capability */
+	tegra_sor_writel(sor, SOR_AUDIO_SPARE_HBR_ENABLE, SOR_AUDIO_SPARE);
+
+	tegra_sor_writel(sor, 0, SOR_HDMI_ACR_CTRL);
+
+	value = SOR_HDMI_SPARE_ACR_PRIORITY_HIGH |
+		SOR_HDMI_SPARE_CTS_RESET(1) |
+		SOR_HDMI_SPARE_HW_CTS_ENABLE;
+	tegra_sor_writel(sor, value, SOR_HDMI_SPARE);
+
+	/* enable HW CTS */
+	value = SOR_HDMI_ACR_SUBPACK_LOW_SB1(0);
+	tegra_sor_writel(sor, value, SOR_HDMI_ACR_0441_SUBPACK_LOW);
+
+	/* allow packet to be sent */
+	value = SOR_HDMI_ACR_SUBPACK_HIGH_ENABLE;
+	tegra_sor_writel(sor, value, SOR_HDMI_ACR_0441_SUBPACK_HIGH);
+
+	/* reset N counter and enable lookup */
+	value = SOR_HDMI_AUDIO_N_RESET | SOR_HDMI_AUDIO_N_LOOKUP;
+	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_N);
+
+	value = (24000 * 4096) / (128 * sor->format.sample_rate / 1000);
+	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0320);
+	tegra_sor_writel(sor, 4096, SOR_AUDIO_NVAL_0320);
+
+	tegra_sor_writel(sor, 20000, SOR_AUDIO_AVAL_0441);
+	tegra_sor_writel(sor, 4704, SOR_AUDIO_NVAL_0441);
+
+	tegra_sor_writel(sor, 20000, SOR_AUDIO_AVAL_0882);
+	tegra_sor_writel(sor, 9408, SOR_AUDIO_NVAL_0882);
+
+	tegra_sor_writel(sor, 20000, SOR_AUDIO_AVAL_1764);
+	tegra_sor_writel(sor, 18816, SOR_AUDIO_NVAL_1764);
+
+	value = (24000 * 6144) / (128 * sor->format.sample_rate / 1000);
+	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0480);
+	tegra_sor_writel(sor, 6144, SOR_AUDIO_NVAL_0480);
+
+	value = (24000 * 12288) / (128 * sor->format.sample_rate / 1000);
+	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0960);
+	tegra_sor_writel(sor, 12288, SOR_AUDIO_NVAL_0960);
+
+	value = (24000 * 24576) / (128 * sor->format.sample_rate / 1000);
+	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_1920);
+	tegra_sor_writel(sor, 24576, SOR_AUDIO_NVAL_1920);
+
+	value = tegra_sor_readl(sor, SOR_HDMI_AUDIO_N);
+	value &= ~SOR_HDMI_AUDIO_N_RESET;
+	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_N);
+
+	tegra_sor_hdmi_enable_audio_infoframe(sor);
+}
+
 static void tegra_sor_hdmi_disable_audio_infoframe(struct tegra_sor *sor)
 {
 	u32 value;
@@ -2067,6 +2283,11 @@ static void tegra_sor_hdmi_disable_audio_infoframe(struct tegra_sor *sor)
 	value = tegra_sor_readl(sor, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
 	value &= ~INFOFRAME_CTRL_ENABLE;
 	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+}
+
+static void tegra_sor_hdmi_audio_disable(struct tegra_sor *sor)
+{
+	tegra_sor_hdmi_disable_audio_infoframe(sor);
 }
 
 static struct tegra_sor_hdmi_settings *
@@ -2164,6 +2385,7 @@ static void tegra_sor_hdmi_disable(struct drm_encoder *encoder)
 	u32 value;
 	int err;
 
+	tegra_sor_audio_unprepare(sor);
 	tegra_sor_hdmi_scdc_stop(sor);
 
 	err = tegra_sor_detach(sor);
@@ -2331,7 +2553,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 
 	/* XXX not in TRM */
 	for (value = 0, i = 0; i < 5; i++)
-		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->soc->xbar_cfg[i]) |
+		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
 
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
@@ -2572,6 +2794,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 		dev_err(sor->dev, "failed to wakeup SOR: %d\n", err);
 
 	tegra_sor_hdmi_scdc_start(sor);
+	tegra_sor_audio_prepare(sor);
 }
 
 static const struct drm_encoder_helper_funcs tegra_sor_hdmi_helpers = {
@@ -2587,6 +2810,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	struct tegra_sor *sor = host1x_client_to_sor(client);
 	int connector = DRM_MODE_CONNECTOR_Unknown;
 	int encoder = DRM_MODE_ENCODER_NONE;
+	u32 value;
 	int err;
 
 	if (!sor->aux) {
@@ -2680,6 +2904,15 @@ static int tegra_sor_init(struct host1x_client *client)
 	if (err < 0)
 		return err;
 
+	/*
+	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
+	 * is used for interoperability between the HDA codec driver and the
+	 * HDMI/DP driver.
+	 */
+	value = SOR_INT_CODEC_SCRATCH1 | SOR_INT_CODEC_SCRATCH0;
+	tegra_sor_writel(sor, value, SOR_INT_ENABLE);
+	tegra_sor_writel(sor, value, SOR_INT_MASK);
+
 	return 0;
 }
 
@@ -2687,6 +2920,9 @@ static int tegra_sor_exit(struct host1x_client *client)
 {
 	struct tegra_sor *sor = host1x_client_to_sor(client);
 	int err;
+
+	tegra_sor_writel(sor, 0, SOR_INT_MASK);
+	tegra_sor_writel(sor, 0, SOR_INT_ENABLE);
 
 	tegra_output_exit(&sor->output);
 
@@ -2894,7 +3130,38 @@ static const struct tegra_sor_soc tegra186_sor1 = {
 	.xbar_cfg = tegra124_sor_xbar_cfg,
 };
 
+static const struct tegra_sor_regs tegra194_sor_regs = {
+	.head_state0 = 0x151,
+	.head_state1 = 0x155,
+	.head_state2 = 0x159,
+	.head_state3 = 0x15d,
+	.head_state4 = 0x161,
+	.head_state5 = 0x165,
+	.pll0 = 0x169,
+	.pll1 = 0x16a,
+	.pll2 = 0x16b,
+	.pll3 = 0x16c,
+	.dp_padctl0 = 0x16e,
+	.dp_padctl2 = 0x16f,
+};
+
+static const struct tegra_sor_soc tegra194_sor = {
+	.supports_edp = true,
+	.supports_lvds = false,
+	.supports_hdmi = true,
+	.supports_dp = true,
+
+	.regs = &tegra194_sor_regs,
+	.has_nvdisplay = true,
+
+	.num_settings = ARRAY_SIZE(tegra194_sor_hdmi_defaults),
+	.settings = tegra194_sor_hdmi_defaults,
+
+	.xbar_cfg = tegra210_sor_xbar_cfg,
+};
+
 static const struct of_device_id tegra_sor_of_match[] = {
+	{ .compatible = "nvidia,tegra194-sor", .data = &tegra194_sor },
 	{ .compatible = "nvidia,tegra186-sor1", .data = &tegra186_sor1 },
 	{ .compatible = "nvidia,tegra186-sor", .data = &tegra186_sor },
 	{ .compatible = "nvidia,tegra210-sor1", .data = &tegra210_sor1 },
@@ -2907,6 +3174,8 @@ MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
 static int tegra_sor_parse_dt(struct tegra_sor *sor)
 {
 	struct device_node *np = sor->dev->of_node;
+	u32 xbar_cfg[5];
+	unsigned int i;
 	u32 value;
 	int err;
 
@@ -2924,7 +3193,45 @@ static int tegra_sor_parse_dt(struct tegra_sor *sor)
 		sor->pad = TEGRA_IO_PAD_HDMI_DP0 + sor->index;
 	}
 
+	err = of_property_read_u32_array(np, "nvidia,xbar-cfg", xbar_cfg, 5);
+	if (err < 0) {
+		/* fall back to default per-SoC XBAR configuration */
+		for (i = 0; i < 5; i++)
+			sor->xbar_cfg[i] = sor->soc->xbar_cfg[i];
+	} else {
+		/* copy cells to SOR XBAR configuration */
+		for (i = 0; i < 5; i++)
+			sor->xbar_cfg[i] = xbar_cfg[i];
+	}
+
 	return 0;
+}
+
+static irqreturn_t tegra_sor_irq(int irq, void *data)
+{
+	struct tegra_sor *sor = data;
+	u32 value;
+
+	value = tegra_sor_readl(sor, SOR_INT_STATUS);
+	tegra_sor_writel(sor, value, SOR_INT_STATUS);
+
+	if (value & SOR_INT_CODEC_SCRATCH0) {
+		value = tegra_sor_readl(sor, SOR_AUDIO_HDA_CODEC_SCRATCH0);
+
+		if (value & SOR_AUDIO_HDA_CODEC_SCRATCH0_VALID) {
+			unsigned int format;
+
+			format = value & SOR_AUDIO_HDA_CODEC_SCRATCH0_FMT_MASK;
+
+			tegra_hda_parse_format(format, &sor->format);
+
+			tegra_sor_hdmi_audio_enable(sor);
+		} else {
+			tegra_sor_hdmi_audio_disable(sor);
+		}
+	}
+
+	return IRQ_HANDLED;
 }
 
 static int tegra_sor_probe(struct platform_device *pdev)
@@ -3009,14 +3316,38 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		goto remove;
 	}
 
-	if (!pdev->dev.pm_domain) {
-		sor->rst = devm_reset_control_get(&pdev->dev, "sor");
-		if (IS_ERR(sor->rst)) {
-			err = PTR_ERR(sor->rst);
+	err = platform_get_irq(pdev, 0);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to get IRQ: %d\n", err);
+		goto remove;
+	}
+
+	sor->irq = err;
+
+	err = devm_request_irq(sor->dev, sor->irq, tegra_sor_irq, 0,
+			       dev_name(sor->dev), sor);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to request IRQ: %d\n", err);
+		goto remove;
+	}
+
+	sor->rst = devm_reset_control_get(&pdev->dev, "sor");
+	if (IS_ERR(sor->rst)) {
+		err = PTR_ERR(sor->rst);
+
+		if (err != -EBUSY || WARN_ON(!pdev->dev.pm_domain)) {
 			dev_err(&pdev->dev, "failed to get reset control: %d\n",
 				err);
 			goto remove;
 		}
+
+		/*
+		 * At this point, the reset control is most likely being used
+		 * by the generic power domain implementation. With any luck
+		 * the power domain will have taken care of resetting the SOR
+		 * and we don't have to do anything.
+		 */
+		sor->rst = NULL;
 	}
 
 	sor->clk = devm_clk_get(&pdev->dev, NULL);

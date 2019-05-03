@@ -3,7 +3,6 @@ if MMP_DISP
 config MMP_DISP_CONTROLLER
 	bool "mmp display controller hw support"
 	depends on CPU_PXA910 || CPU_MMP2
-	default n
 	help
 		Marvell MMP display hw controller support
 		this controller is used on Marvell PXA910 and

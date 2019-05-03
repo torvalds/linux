@@ -17,6 +17,7 @@
 	compatible = "digi,connectcore-ccxmx51-som", "fsl,imx51";
 
 	memory@90000000 {
+		device_type = "memory";
 		reg = <0x90000000 0x08000000>;
 	};
 };
@@ -36,7 +37,6 @@
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
-		fsl,mc13xxx-uses-rtc;
 
 		regulators {
 			sw1_reg: sw1 {
@@ -141,14 +141,15 @@
 			pwgt2spi_reg: pwgt2spi {
 				regulator-always-on;
 			};
-
-			vcoincell_reg: vcoincell {
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-always-on;
-			};
 		};
 	};
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	max-frequency = <50000000>;
+	bus-width = <1>;
 };
 
 &esdhc2 {
@@ -173,9 +174,12 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
 	clock-frequency = <400000>;
+	scl-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	mma7455l@1d {
@@ -240,6 +244,14 @@
 			>;
 		};
 
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX51_PAD_SD1_CLK__SD1_CLK		0x400021d5
+				MX51_PAD_SD1_CMD__SD1_CMD		0x400020d5
+				MX51_PAD_SD1_DATA0__SD1_DATA0		0x400020d5
+			>;
+		};
+
 		pinctrl_esdhc2: esdhc2grp {
 			fsl,pins = <
 				MX51_PAD_SD2_CMD__SD2_CMD		0x400020d5
@@ -278,6 +290,13 @@
 			fsl,pins = <
 				MX51_PAD_GPIO1_2__I2C2_SCL		0x400001ed
 				MX51_PAD_GPIO1_3__I2C2_SDA		0x400001ed
+			>;
+		};
+
+		pinctrl_i2c2_gpio: i2c2gpiogrp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_2__GPIO1_2		0x400001ed
+				MX51_PAD_GPIO1_3__GPIO1_3		0x400001ed
 			>;
 		};
 

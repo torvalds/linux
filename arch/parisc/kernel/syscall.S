@@ -2,7 +2,7 @@
  * Linux/PA-RISC Project (http://www.parisc-linux.org/)
  * 
  * System call entry code / Linux gateway page
- * Copyright (c) Matthew Wilcox 1999 <willy@bofh.ai>
+ * Copyright (c) Matthew Wilcox 1999 <willy@infradead.org>
  * Licensed under the GNU GPL.
  * thanks to Philipp Rumpf, Mike Shaver and various others
  * sorry about the wall, puffin..
@@ -923,19 +923,24 @@ ENTRY(lws_table)
 END(lws_table)
 	/* End of lws table */
 
+#define __SYSCALL(nr, entry, nargs) ASM_ULONG_INSN entry
 	.align 8
 ENTRY(sys_call_table)
 	.export sys_call_table,data
-#include "syscall_table.S"
+#ifdef CONFIG_64BIT
+#include <asm/syscall_table_c32.h>   /* Compat syscalls */
+#else
+#include <asm/syscall_table_32.h>    /* 32-bit native syscalls */
+#endif
 END(sys_call_table)
 
 #ifdef CONFIG_64BIT
 	.align 8
 ENTRY(sys_call_table64)
-#define SYSCALL_TABLE_64BIT
-#include "syscall_table.S"
+#include <asm/syscall_table_64.h>    /* 64-bit native syscalls */
 END(sys_call_table64)
 #endif
+#undef __SYSCALL
 
 	/*
 		All light-weight-syscall atomic operations 

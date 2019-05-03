@@ -101,6 +101,10 @@ struct stream_encoder_funcs {
 		struct dc_crtc_timing *crtc_timing,
 		bool is_dual_link);
 
+	void (*lvds_set_stream_attribute)(
+		struct stream_encoder *enc,
+		struct dc_crtc_timing *crtc_timing);
+
 	void (*set_mst_bandwidth)(
 		struct stream_encoder *enc,
 		struct fixed31_32 avg_time_slots_per_mtp);
@@ -156,6 +160,10 @@ struct stream_encoder_funcs {
 
 	void (*set_avmute)(
 		struct stream_encoder *enc, bool enable);
+
+	void (*dig_connect_to_otg)(
+		struct stream_encoder *enc,
+		int tg_inst);
 
 };
 

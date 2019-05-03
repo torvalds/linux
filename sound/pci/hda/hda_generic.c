@@ -29,10 +29,11 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
+#include <linux/leds.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/tlv.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
@@ -4034,6 +4035,36 @@ int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led);
+
+#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
+static void call_ledtrig_micmute(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	ledtrig_audio_set(LED_AUDIO_MICMUTE,
+			  spec->micmute_led.led_value ? LED_ON : LED_OFF);
+}
+#endif
+
+/**
+ * snd_hda_gen_fixup_micmute_led - A fixup for mic-mute LED trigger
+ *
+ * Pass this function to the quirk entry if another driver supports the
+ * audio mic-mute LED trigger.  Then this will bind the mixer capture switch
+ * change with the LED.
+ *
+ * Note that this fixup has to be called after other fixup that sets
+ * cap_sync_hook.  Otherwise the chaining wouldn't work.
+ */
+void snd_hda_gen_fixup_micmute_led(struct hda_codec *codec,
+				   const struct hda_fixup *fix, int action)
+{
+#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
+	if (action == HDA_FIXUP_ACT_PROBE)
+		snd_hda_gen_add_micmute_led(codec, call_ledtrig_micmute);
+#endif
+}
+EXPORT_SYMBOL_GPL(snd_hda_gen_fixup_micmute_led);
 
 /*
  * parse digital I/Os and set up NIDs in BIOS auto-parse mode

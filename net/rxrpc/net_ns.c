@@ -102,6 +102,9 @@ static __net_init int rxrpc_init_net(struct net *net)
 	proc_create_net("conns", 0444, rxnet->proc_net,
 			&rxrpc_connection_seq_ops,
 			sizeof(struct seq_net_private));
+	proc_create_net("peers", 0444, rxnet->proc_net,
+			&rxrpc_peer_seq_ops,
+			sizeof(struct seq_net_private));
 	return 0;
 
 err_proc:

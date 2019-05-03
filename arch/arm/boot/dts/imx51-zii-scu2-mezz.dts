@@ -18,6 +18,7 @@
 
 	/* Will be filled by the bootloader */
 	memory@90000000 {
+		device_type = "memory";
 		reg = <0x90000000 0>;
 	};
 
@@ -340,6 +341,14 @@
 
 &usbphy0 {
 	vcc-supply = <&vusb2_reg>;
+};
+
+&vpu {
+	status = "disabled";
+};
+
+&wdog1 {
+	status = "disabled";
 };
 
 &iomuxc {

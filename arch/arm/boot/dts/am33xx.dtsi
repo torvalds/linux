@@ -8,6 +8,7 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/am33xx.h>
 #include <dt-bindings/clock/am3.h>
@@ -166,87 +167,23 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
-		l4_wkup: l4_wkup@44c00000 {
-			compatible = "ti,am3-l4-wkup", "simple-bus";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0x44c00000 0x280000>;
-
+		l4_wkup: interconnect@44c00000 {
 			wkup_m3: wkup_m3@100000 {
 				compatible = "ti,am3352-wkup-m3";
 				reg = <0x100000 0x4000>,
-				      <0x180000	0x2000>;
+				      <0x180000 0x2000>;
 				reg-names = "umem", "dmem";
 				ti,hwmods = "wkup_m3";
 				ti,pm-firmware = "am335x-pm-firmware.elf";
 			};
-
-			prcm: prcm@200000 {
-				compatible = "ti,am3-prcm", "simple-bus";
-				reg = <0x200000 0x4000>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x200000 0x4000>;
-
-				prcm_clocks: clocks {
-					#address-cells = <1>;
-					#size-cells = <0>;
-				};
-
-				prcm_clockdomains: clockdomains {
-				};
-			};
-
-			scm: scm@210000 {
-				compatible = "ti,am3-scm", "simple-bus";
-				reg = <0x210000 0x2000>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				#pinctrl-cells = <1>;
-				ranges = <0 0x210000 0x2000>;
-
-				am33xx_pinmux: pinmux@800 {
-					compatible = "pinctrl-single";
-					reg = <0x800 0x238>;
-					#address-cells = <1>;
-					#size-cells = <0>;
-					#pinctrl-cells = <1>;
-					pinctrl-single,register-width = <32>;
-					pinctrl-single,function-mask = <0x7f>;
-				};
-
-				scm_conf: scm_conf@0 {
-					compatible = "syscon", "simple-bus";
-					reg = <0x0 0x800>;
-					#address-cells = <1>;
-					#size-cells = <1>;
-					ranges = <0 0 0x800>;
-
-					scm_clocks: clocks {
-						#address-cells = <1>;
-						#size-cells = <0>;
-					};
-				};
-
-				wkup_m3_ipc: wkup_m3_ipc@1324 {
-					compatible = "ti,am3352-wkup-m3-ipc";
-					reg = <0x1324 0x24>;
-					interrupts = <78>;
-					ti,rproc = <&wkup_m3>;
-					mboxes = <&mailbox &mbox_wkupm3>;
-				};
-
-				edma_xbar: dma-router@f90 {
-					compatible = "ti,am335x-edma-crossbar";
-					reg = <0xf90 0x40>;
-					#dma-cells = <3>;
-					dma-requests = <32>;
-					dma-masters = <&edma>;
-				};
-
-				scm_clockdomains: clockdomains {
-				};
-			};
+		};
+		l4_per: interconnect@48000000 {
+		};
+		l4_fw: interconnect@47c00000 {
+		};
+		l4_fast: interconnect@4a000000 {
+		};
+		l4_mpuss: interconnect@4b140000 {
 		};
 
 		intc: interrupt-controller@48200000 {
@@ -297,323 +234,12 @@
 			interrupt-names = "edma3_tcerrint";
 		};
 
-		gpio0: gpio@44e07000 {
-			compatible = "ti,omap4-gpio";
-			ti,hwmods = "gpio1";
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			reg = <0x44e07000 0x1000>;
-			interrupts = <96>;
-		};
-
-		gpio1: gpio@4804c000 {
-			compatible = "ti,omap4-gpio";
-			ti,hwmods = "gpio2";
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			reg = <0x4804c000 0x1000>;
-			interrupts = <98>;
-		};
-
-		gpio2: gpio@481ac000 {
-			compatible = "ti,omap4-gpio";
-			ti,hwmods = "gpio3";
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			reg = <0x481ac000 0x1000>;
-			interrupts = <32>;
-		};
-
-		gpio3: gpio@481ae000 {
-			compatible = "ti,omap4-gpio";
-			ti,hwmods = "gpio4";
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			reg = <0x481ae000 0x1000>;
-			interrupts = <62>;
-		};
-
-		uart0: serial@44e09000 {
-			compatible = "ti,am3352-uart", "ti,omap3-uart";
-			ti,hwmods = "uart1";
-			clock-frequency = <48000000>;
-			reg = <0x44e09000 0x2000>;
-			interrupts = <72>;
-			status = "disabled";
-			dmas = <&edma 26 0>, <&edma 27 0>;
-			dma-names = "tx", "rx";
-		};
-
-		uart1: serial@48022000 {
-			compatible = "ti,am3352-uart", "ti,omap3-uart";
-			ti,hwmods = "uart2";
-			clock-frequency = <48000000>;
-			reg = <0x48022000 0x2000>;
-			interrupts = <73>;
-			status = "disabled";
-			dmas = <&edma 28 0>, <&edma 29 0>;
-			dma-names = "tx", "rx";
-		};
-
-		uart2: serial@48024000 {
-			compatible = "ti,am3352-uart", "ti,omap3-uart";
-			ti,hwmods = "uart3";
-			clock-frequency = <48000000>;
-			reg = <0x48024000 0x2000>;
-			interrupts = <74>;
-			status = "disabled";
-			dmas = <&edma 30 0>, <&edma 31 0>;
-			dma-names = "tx", "rx";
-		};
-
-		uart3: serial@481a6000 {
-			compatible = "ti,am3352-uart", "ti,omap3-uart";
-			ti,hwmods = "uart4";
-			clock-frequency = <48000000>;
-			reg = <0x481a6000 0x2000>;
-			interrupts = <44>;
-			status = "disabled";
-		};
-
-		uart4: serial@481a8000 {
-			compatible = "ti,am3352-uart", "ti,omap3-uart";
-			ti,hwmods = "uart5";
-			clock-frequency = <48000000>;
-			reg = <0x481a8000 0x2000>;
-			interrupts = <45>;
-			status = "disabled";
-		};
-
-		uart5: serial@481aa000 {
-			compatible = "ti,am3352-uart", "ti,omap3-uart";
-			ti,hwmods = "uart6";
-			clock-frequency = <48000000>;
-			reg = <0x481aa000 0x2000>;
-			interrupts = <46>;
-			status = "disabled";
-		};
-
-		i2c0: i2c@44e0b000 {
-			compatible = "ti,omap4-i2c";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			ti,hwmods = "i2c1";
-			reg = <0x44e0b000 0x1000>;
-			interrupts = <70>;
-			status = "disabled";
-		};
-
-		i2c1: i2c@4802a000 {
-			compatible = "ti,omap4-i2c";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			ti,hwmods = "i2c2";
-			reg = <0x4802a000 0x1000>;
-			interrupts = <71>;
-			status = "disabled";
-		};
-
-		i2c2: i2c@4819c000 {
-			compatible = "ti,omap4-i2c";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			ti,hwmods = "i2c3";
-			reg = <0x4819c000 0x1000>;
-			interrupts = <30>;
-			status = "disabled";
-		};
-
-		mmc1: mmc@48060000 {
-			compatible = "ti,omap4-hsmmc";
-			ti,hwmods = "mmc1";
-			ti,dual-volt;
-			ti,needs-special-reset;
-			ti,needs-special-hs-handling;
-			dmas = <&edma_xbar 24 0 0
-				&edma_xbar 25 0 0>;
-			dma-names = "tx", "rx";
-			interrupts = <64>;
-			reg = <0x48060000 0x1000>;
-			status = "disabled";
-		};
-
-		mmc2: mmc@481d8000 {
-			compatible = "ti,omap4-hsmmc";
-			ti,hwmods = "mmc2";
-			ti,needs-special-reset;
-			dmas = <&edma 2 0
-				&edma 3 0>;
-			dma-names = "tx", "rx";
-			interrupts = <28>;
-			reg = <0x481d8000 0x1000>;
-			status = "disabled";
-		};
-
 		mmc3: mmc@47810000 {
 			compatible = "ti,omap4-hsmmc";
 			ti,hwmods = "mmc3";
 			ti,needs-special-reset;
 			interrupts = <29>;
 			reg = <0x47810000 0x1000>;
-			status = "disabled";
-		};
-
-		hwspinlock: spinlock@480ca000 {
-			compatible = "ti,omap4-hwspinlock";
-			reg = <0x480ca000 0x1000>;
-			ti,hwmods = "spinlock";
-			#hwlock-cells = <1>;
-		};
-
-		wdt2: wdt@44e35000 {
-			compatible = "ti,omap3-wdt";
-			ti,hwmods = "wd_timer2";
-			reg = <0x44e35000 0x1000>;
-			interrupts = <91>;
-		};
-
-		dcan0: can@481cc000 {
-			compatible = "ti,am3352-d_can";
-			ti,hwmods = "d_can0";
-			reg = <0x481cc000 0x2000>;
-			clocks = <&dcan0_fck>;
-			clock-names = "fck";
-			syscon-raminit = <&scm_conf 0x644 0>;
-			interrupts = <52>;
-			status = "disabled";
-		};
-
-		dcan1: can@481d0000 {
-			compatible = "ti,am3352-d_can";
-			ti,hwmods = "d_can1";
-			reg = <0x481d0000 0x2000>;
-			clocks = <&dcan1_fck>;
-			clock-names = "fck";
-			syscon-raminit = <&scm_conf 0x644 1>;
-			interrupts = <55>;
-			status = "disabled";
-		};
-
-		mailbox: mailbox@480c8000 {
-			compatible = "ti,omap4-mailbox";
-			reg = <0x480C8000 0x200>;
-			interrupts = <77>;
-			ti,hwmods = "mailbox";
-			#mbox-cells = <1>;
-			ti,mbox-num-users = <4>;
-			ti,mbox-num-fifos = <8>;
-			mbox_wkupm3: wkup_m3 {
-				ti,mbox-send-noirq;
-				ti,mbox-tx = <0 0 0>;
-				ti,mbox-rx = <0 0 3>;
-			};
-		};
-
-		timer1: timer@44e31000 {
-			compatible = "ti,am335x-timer-1ms";
-			reg = <0x44e31000 0x400>;
-			interrupts = <67>;
-			ti,hwmods = "timer1";
-			ti,timer-alwon;
-			clocks = <&timer1_fck>;
-			clock-names = "fck";
-		};
-
-		timer2: timer@48040000 {
-			compatible = "ti,am335x-timer";
-			reg = <0x48040000 0x400>;
-			interrupts = <68>;
-			ti,hwmods = "timer2";
-			clocks = <&timer2_fck>;
-			clock-names = "fck";
-		};
-
-		timer3: timer@48042000 {
-			compatible = "ti,am335x-timer";
-			reg = <0x48042000 0x400>;
-			interrupts = <69>;
-			ti,hwmods = "timer3";
-		};
-
-		timer4: timer@48044000 {
-			compatible = "ti,am335x-timer";
-			reg = <0x48044000 0x400>;
-			interrupts = <92>;
-			ti,hwmods = "timer4";
-			ti,timer-pwm;
-		};
-
-		timer5: timer@48046000 {
-			compatible = "ti,am335x-timer";
-			reg = <0x48046000 0x400>;
-			interrupts = <93>;
-			ti,hwmods = "timer5";
-			ti,timer-pwm;
-		};
-
-		timer6: timer@48048000 {
-			compatible = "ti,am335x-timer";
-			reg = <0x48048000 0x400>;
-			interrupts = <94>;
-			ti,hwmods = "timer6";
-			ti,timer-pwm;
-		};
-
-		timer7: timer@4804a000 {
-			compatible = "ti,am335x-timer";
-			reg = <0x4804a000 0x400>;
-			interrupts = <95>;
-			ti,hwmods = "timer7";
-			ti,timer-pwm;
-		};
-
-		rtc: rtc@44e3e000 {
-			compatible = "ti,am3352-rtc", "ti,da830-rtc";
-			reg = <0x44e3e000 0x1000>;
-			interrupts = <75
-				      76>;
-			ti,hwmods = "rtc";
-			clocks = <&l4_per_clkctrl AM3_CLKDIV32K_CLKCTRL 0>;
-			clock-names = "int-clk";
-		};
-
-		spi0: spi@48030000 {
-			compatible = "ti,omap4-mcspi";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x48030000 0x400>;
-			interrupts = <65>;
-			ti,spi-num-cs = <2>;
-			ti,hwmods = "spi0";
-			dmas = <&edma 16 0
-				&edma 17 0
-				&edma 18 0
-				&edma 19 0>;
-			dma-names = "tx0", "rx0", "tx1", "rx1";
-			status = "disabled";
-		};
-
-		spi1: spi@481a0000 {
-			compatible = "ti,omap4-mcspi";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x481a0000 0x400>;
-			interrupts = <125>;
-			ti,spi-num-cs = <2>;
-			ti,hwmods = "spi1";
-			dmas = <&edma 42 0
-				&edma 43 0
-				&edma 44 0
-				&edma 45 0>;
-			dma-names = "tx0", "rx0", "tx1", "rx1";
 			status = "disabled";
 		};
 
@@ -747,163 +373,6 @@
 			};
 		};
 
-		epwmss0: epwmss@48300000 {
-			compatible = "ti,am33xx-pwmss";
-			reg = <0x48300000 0x10>;
-			ti,hwmods = "epwmss0";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			status = "disabled";
-			ranges = <0x48300100 0x48300100 0x80   /* ECAP */
-				  0x48300180 0x48300180 0x80   /* EQEP */
-				  0x48300200 0x48300200 0x80>; /* EHRPWM */
-
-			ecap0: ecap@48300100 {
-				compatible = "ti,am3352-ecap",
-					     "ti,am33xx-ecap";
-				#pwm-cells = <3>;
-				reg = <0x48300100 0x80>;
-				clocks = <&l4ls_gclk>;
-				clock-names = "fck";
-				interrupts = <31>;
-				interrupt-names = "ecap0";
-				status = "disabled";
-			};
-
-			ehrpwm0: pwm@48300200 {
-				compatible = "ti,am3352-ehrpwm",
-					     "ti,am33xx-ehrpwm";
-				#pwm-cells = <3>;
-				reg = <0x48300200 0x80>;
-				clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
-				clock-names = "tbclk", "fck";
-				status = "disabled";
-			};
-		};
-
-		epwmss1: epwmss@48302000 {
-			compatible = "ti,am33xx-pwmss";
-			reg = <0x48302000 0x10>;
-			ti,hwmods = "epwmss1";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			status = "disabled";
-			ranges = <0x48302100 0x48302100 0x80   /* ECAP */
-				  0x48302180 0x48302180 0x80   /* EQEP */
-				  0x48302200 0x48302200 0x80>; /* EHRPWM */
-
-			ecap1: ecap@48302100 {
-				compatible = "ti,am3352-ecap",
-					     "ti,am33xx-ecap";
-				#pwm-cells = <3>;
-				reg = <0x48302100 0x80>;
-				clocks = <&l4ls_gclk>;
-				clock-names = "fck";
-				interrupts = <47>;
-				interrupt-names = "ecap1";
-				status = "disabled";
-			};
-
-			ehrpwm1: pwm@48302200 {
-				compatible = "ti,am3352-ehrpwm",
-					     "ti,am33xx-ehrpwm";
-				#pwm-cells = <3>;
-				reg = <0x48302200 0x80>;
-				clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
-				clock-names = "tbclk", "fck";
-				status = "disabled";
-			};
-		};
-
-		epwmss2: epwmss@48304000 {
-			compatible = "ti,am33xx-pwmss";
-			reg = <0x48304000 0x10>;
-			ti,hwmods = "epwmss2";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			status = "disabled";
-			ranges = <0x48304100 0x48304100 0x80   /* ECAP */
-				  0x48304180 0x48304180 0x80   /* EQEP */
-				  0x48304200 0x48304200 0x80>; /* EHRPWM */
-
-			ecap2: ecap@48304100 {
-				compatible = "ti,am3352-ecap",
-					     "ti,am33xx-ecap";
-				#pwm-cells = <3>;
-				reg = <0x48304100 0x80>;
-				clocks = <&l4ls_gclk>;
-				clock-names = "fck";
-				interrupts = <61>;
-				interrupt-names = "ecap2";
-				status = "disabled";
-			};
-
-			ehrpwm2: pwm@48304200 {
-				compatible = "ti,am3352-ehrpwm",
-					     "ti,am33xx-ehrpwm";
-				#pwm-cells = <3>;
-				reg = <0x48304200 0x80>;
-				clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
-				clock-names = "tbclk", "fck";
-				status = "disabled";
-			};
-		};
-
-		mac: ethernet@4a100000 {
-			compatible = "ti,am335x-cpsw","ti,cpsw";
-			ti,hwmods = "cpgmac0";
-			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
-			clock-names = "fck", "cpts";
-			cpdma_channels = <8>;
-			ale_entries = <1024>;
-			bd_ram_size = <0x2000>;
-			mac_control = <0x20>;
-			slaves = <2>;
-			active_slave = <0>;
-			cpts_clock_mult = <0x80000000>;
-			cpts_clock_shift = <29>;
-			reg = <0x4a100000 0x800
-			       0x4a101200 0x100>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			/*
-			 * c0_rx_thresh_pend
-			 * c0_rx_pend
-			 * c0_tx_pend
-			 * c0_misc_pend
-			 */
-			interrupts = <40 41 42 43>;
-			ranges;
-			syscon = <&scm_conf>;
-			status = "disabled";
-
-			davinci_mdio: mdio@4a101000 {
-				compatible = "ti,cpsw-mdio","ti,davinci_mdio";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				ti,hwmods = "davinci_mdio";
-				bus_freq = <1000000>;
-				reg = <0x4a101000 0x100>;
-				status = "disabled";
-			};
-
-			cpsw_emac0: slave@4a100200 {
-				/* Filled in by U-Boot */
-				mac-address = [ 00 00 00 00 00 00 ];
-			};
-
-			cpsw_emac1: slave@4a100300 {
-				/* Filled in by U-Boot */
-				mac-address = [ 00 00 00 00 00 00 ];
-			};
-
-			phy_sel: cpsw-phy-sel@44e10650 {
-				compatible = "ti,am3352-cpsw-phy-sel";
-				reg= <0x44e10650 0x4>;
-				reg-names = "gmii-sel";
-			};
-		};
-
 		ocmcram: ocmcram@40300000 {
 			compatible = "mmio-sram";
 			reg = <0x40300000 0x10000>; /* 64k */
@@ -921,40 +390,6 @@
 				compatible = "ti,sram";
 				reg = <0x1000 0x1000>;
 				pool;
-			};
-		};
-
-		elm: elm@48080000 {
-			compatible = "ti,am3352-elm";
-			reg = <0x48080000 0x2000>;
-			interrupts = <4>;
-			ti,hwmods = "elm";
-			status = "disabled";
-		};
-
-		lcdc: lcdc@4830e000 {
-			compatible = "ti,am33xx-tilcdc";
-			reg = <0x4830e000 0x1000>;
-			interrupts = <36>;
-			ti,hwmods = "lcdc";
-			status = "disabled";
-		};
-
-		tscadc: tscadc@44e0d000 {
-			compatible = "ti,am3359-tscadc";
-			reg = <0x44e0d000 0x1000>;
-			interrupts = <16>;
-			ti,hwmods = "adc_tsc";
-			status = "disabled";
-			dmas = <&edma 53 0>, <&edma 57 0>;
-			dma-names = "fifo0", "fifo1";
-
-			tsc {
-				compatible = "ti,am3359-tsc";
-			};
-			am335x_adc: adc {
-				#io-channel-cells = <1>;
-				compatible = "ti,am3359-adc";
 			};
 		};
 
@@ -1005,42 +440,8 @@
 			       <&edma 5 0>;
 			dma-names = "tx", "rx";
 		};
-
-		mcasp0: mcasp@48038000 {
-			compatible = "ti,am33xx-mcasp-audio";
-			ti,hwmods = "mcasp0";
-			reg = <0x48038000 0x2000>,
-			      <0x46000000 0x400000>;
-			reg-names = "mpu", "dat";
-			interrupts = <80>, <81>;
-			interrupt-names = "tx", "rx";
-			status = "disabled";
-			dmas = <&edma 8 2>,
-				<&edma 9 2>;
-			dma-names = "tx", "rx";
-		};
-
-		mcasp1: mcasp@4803c000 {
-			compatible = "ti,am33xx-mcasp-audio";
-			ti,hwmods = "mcasp1";
-			reg = <0x4803C000 0x2000>,
-			      <0x46400000 0x400000>;
-			reg-names = "mpu", "dat";
-			interrupts = <82>, <83>;
-			interrupt-names = "tx", "rx";
-			status = "disabled";
-			dmas = <&edma 10 2>,
-				<&edma 11 2>;
-			dma-names = "tx", "rx";
-		};
-
-		rng: rng@48310000 {
-			compatible = "ti,omap4-rng";
-			ti,hwmods = "rng";
-			reg = <0x48310000 0x2000>;
-			interrupts = <111>;
-		};
 	};
 };
 
+#include "am33xx-l4.dtsi"
 #include "am33xx-clocks.dtsi"

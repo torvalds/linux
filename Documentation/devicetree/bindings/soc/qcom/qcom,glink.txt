@@ -55,7 +55,7 @@ of these nodes are defined by the individual bindings for the specific function
 = EXAMPLE
 The following example represents the GLINK RPM node on a MSM8996 device, with
 the function for the "rpm_request" channel defined, which is used for
-regualtors and root clocks.
+regulators and root clocks.
 
 	apcs_glb: mailbox@9820000 {
 		compatible = "qcom,msm8996-apcs-hmss-global";

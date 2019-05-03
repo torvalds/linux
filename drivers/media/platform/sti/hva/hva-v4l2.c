@@ -257,8 +257,8 @@ static int hva_querycap(struct file *file, void *priv,
 	struct hva_ctx *ctx = fh_to_ctx(file->private_data);
 	struct hva_dev *hva = ctx_to_hdev(ctx);
 
-	strlcpy(cap->driver, HVA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, hva->vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, HVA_NAME, sizeof(cap->driver));
+	strscpy(cap->card, hva->vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 hva->pdev->name);
 

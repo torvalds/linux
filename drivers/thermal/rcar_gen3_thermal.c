@@ -19,6 +19,7 @@
 #include <linux/thermal.h>
 
 #include "thermal_core.h"
+#include "thermal_hwmon.h"
 
 /* Register offsets */
 #define REG_GEN3_IRQSTR		0x04
@@ -318,9 +319,11 @@ static void rcar_gen3_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
 }
 
 static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
+	{ .compatible = "renesas,r8a774a1-thermal", },
 	{ .compatible = "renesas,r8a7795-thermal", },
 	{ .compatible = "renesas,r8a7796-thermal", },
 	{ .compatible = "renesas,r8a77965-thermal", },
+	{ .compatible = "renesas,r8a77980-thermal", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_thermal_dt_ids);
@@ -333,6 +336,13 @@ static int rcar_gen3_thermal_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 
 	return 0;
+}
+
+static void rcar_gen3_hwmon_action(void *data)
+{
+	struct thermal_zone_device *zone = data;
+
+	thermal_remove_hwmon_sysfs(zone);
 }
 
 static int rcar_gen3_thermal_probe(struct platform_device *pdev)
@@ -426,6 +436,17 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		ret = of_thermal_get_ntrips(tsc->zone);
 		if (ret < 0)
 			goto error_unregister;
+
+		tsc->zone->tzp->no_hwmon = false;
+		ret = thermal_add_hwmon_sysfs(tsc->zone);
+		if (ret)
+			goto error_unregister;
+
+		ret = devm_add_action(dev, rcar_gen3_hwmon_action, zone);
+		if (ret) {
+			rcar_gen3_hwmon_action(zone);
+			goto error_unregister;
+		}
 
 		dev_info(dev, "TSC%d: Loaded %d trip points\n", i, ret);
 	}

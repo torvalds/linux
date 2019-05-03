@@ -30,7 +30,6 @@
 #include "i915_gem.h"
 #include "i915_scheduler.h"
 #include "i915_sw_fence.h"
-#include "i915_scheduler.h"
 
 #include <uapi/drm/i915_drm.h>
 
@@ -39,21 +38,32 @@ struct drm_i915_gem_object;
 struct i915_request;
 struct i915_timeline;
 
-struct intel_wait {
-	struct rb_node node;
-	struct task_struct *tsk;
-	struct i915_request *request;
-	u32 seqno;
-};
-
-struct intel_signal_node {
-	struct intel_wait wait;
-	struct list_head link;
-};
-
 struct i915_capture_list {
 	struct i915_capture_list *next;
 	struct i915_vma *vma;
+};
+
+enum {
+	/*
+	 * I915_FENCE_FLAG_ACTIVE - this request is currently submitted to HW.
+	 *
+	 * Set by __i915_request_submit() on handing over to HW, and cleared
+	 * by __i915_request_unsubmit() if we preempt this request.
+	 *
+	 * Finally cleared for consistency on retiring the request, when
+	 * we know the HW is no longer running this request.
+	 *
+	 * See i915_request_is_active()
+	 */
+	I915_FENCE_FLAG_ACTIVE = DMA_FENCE_FLAG_USER_BITS,
+
+	/*
+	 * I915_FENCE_FLAG_SIGNAL - this request is currently on signal_list
+	 *
+	 * Internal bookkeeping used by the breadcrumb code to track when
+	 * a request is on the various signal_list.
+	 */
+	I915_FENCE_FLAG_SIGNAL,
 };
 
 /**
@@ -98,7 +108,15 @@ struct i915_request {
 	struct intel_context *hw_context;
 	struct intel_ring *ring;
 	struct i915_timeline *timeline;
-	struct intel_signal_node signaling;
+	struct list_head signal_link;
+
+	/*
+	 * The rcu epoch of when this request was allocated. Used to judiciously
+	 * apply backpressure on future allocations to ensure that under
+	 * mempressure there is sufficient RCU ticks for us to reclaim our
+	 * RCU protected slabs.
+	 */
+	unsigned long rcustate;
 
 	/*
 	 * Fences for the various phases in the request's lifetime.
@@ -109,7 +127,6 @@ struct i915_request {
 	 */
 	struct i915_sw_fence submit;
 	wait_queue_entry_t submitq;
-	wait_queue_head_t execute;
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.
@@ -122,6 +139,13 @@ struct i915_request {
 	 */
 	struct i915_sched_node sched;
 	struct i915_dependency dep;
+
+	/*
+	 * A convenience pointer to the current breadcrumb value stored in
+	 * the HW status page (or our timeline's local equivalent). The full
+	 * path would be rq->hw_context->ring->timeline->hwsp_seqno.
+	 */
+	const u32 *hwsp_seqno;
 
 	/**
 	 * GEM sequence number associated with this request on the
@@ -241,7 +265,7 @@ i915_request_put(struct i915_request *rq)
  * that it has passed the global seqno and the global seqno is unchanged
  * after the read, it is indeed complete).
  */
-static u32
+static inline u32
 i915_request_global_seqno(const struct i915_request *request)
 {
 	return READ_ONCE(request->global_seqno);
@@ -263,16 +287,30 @@ void i915_request_skip(struct i915_request *request, int error);
 void __i915_request_unsubmit(struct i915_request *request);
 void i915_request_unsubmit(struct i915_request *request);
 
+/* Note: part of the intel_breadcrumbs family */
+bool i915_request_enable_breadcrumb(struct i915_request *request);
+void i915_request_cancel_breadcrumb(struct i915_request *request);
+
 long i915_request_wait(struct i915_request *rq,
 		       unsigned int flags,
 		       long timeout)
 	__attribute__((nonnull(1)));
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
 #define I915_WAIT_LOCKED	BIT(1) /* struct_mutex held, handle GPU reset */
-#define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
-#define I915_WAIT_FOR_IDLE_BOOST BIT(3)
+#define I915_WAIT_PRIORITY	BIT(2) /* small priority bump for the request */
+#define I915_WAIT_ALL		BIT(3) /* used by i915_gem_object_wait() */
+#define I915_WAIT_FOR_IDLE_BOOST BIT(4)
 
-static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
+static inline bool i915_request_signaled(const struct i915_request *rq)
+{
+	/* The request may live longer than its HWSP, so check flags first! */
+	return test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags);
+}
+
+static inline bool i915_request_is_active(const struct i915_request *rq)
+{
+	return test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
+}
 
 /**
  * Returns true if seq1 is later than seq2.
@@ -282,428 +320,87 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 	return (s32)(seq1 - seq2) >= 0;
 }
 
-static inline bool
-__i915_request_completed(const struct i915_request *rq, u32 seqno)
+static inline u32 __hwsp_seqno(const struct i915_request *rq)
 {
-	GEM_BUG_ON(!seqno);
-	return i915_seqno_passed(intel_engine_get_seqno(rq->engine), seqno) &&
-		seqno == i915_request_global_seqno(rq);
+	return READ_ONCE(*rq->hwsp_seqno);
+}
+
+/**
+ * hwsp_seqno - the current breadcrumb value in the HW status page
+ * @rq: the request, to chase the relevant HW status page
+ *
+ * The emphasis in naming here is that hwsp_seqno() is not a property of the
+ * request, but an indication of the current HW state (associated with this
+ * request). Its value will change as the GPU executes more requests.
+ *
+ * Returns the current breadcrumb value in the associated HW status page (or
+ * the local timeline's equivalent) for this request. The request itself
+ * has the associated breadcrumb value of rq->fence.seqno, when the HW
+ * status page has that breadcrumb or later, this request is complete.
+ */
+static inline u32 hwsp_seqno(const struct i915_request *rq)
+{
+	u32 seqno;
+
+	rcu_read_lock(); /* the HWSP may be freed at runtime */
+	seqno = __hwsp_seqno(rq);
+	rcu_read_unlock();
+
+	return seqno;
+}
+
+static inline bool __i915_request_has_started(const struct i915_request *rq)
+{
+	return i915_seqno_passed(hwsp_seqno(rq), rq->fence.seqno - 1);
+}
+
+/**
+ * i915_request_started - check if the request has begun being executed
+ * @rq: the request
+ *
+ * Returns true if the request has been submitted to hardware, and the hardware
+ * has advanced passed the end of the previous request and so should be either
+ * currently processing the request (though it may be preempted and so
+ * not necessarily the next request to complete) or have completed the request.
+ */
+static inline bool i915_request_started(const struct i915_request *rq)
+{
+	if (i915_request_signaled(rq))
+		return true;
+
+	/* Remember: started but may have since been preempted! */
+	return __i915_request_has_started(rq);
+}
+
+/**
+ * i915_request_is_running - check if the request may actually be executing
+ * @rq: the request
+ *
+ * Returns true if the request is currently submitted to hardware, has passed
+ * its start point (i.e. the context is setup and not busywaiting). Note that
+ * it may no longer be running by the time the function returns!
+ */
+static inline bool i915_request_is_running(const struct i915_request *rq)
+{
+	if (!i915_request_is_active(rq))
+		return false;
+
+	return __i915_request_has_started(rq);
 }
 
 static inline bool i915_request_completed(const struct i915_request *rq)
 {
-	u32 seqno;
+	if (i915_request_signaled(rq))
+		return true;
 
-	seqno = i915_request_global_seqno(rq);
-	if (!seqno)
-		return false;
-
-	return __i915_request_completed(rq, seqno);
+	return i915_seqno_passed(hwsp_seqno(rq), rq->fence.seqno);
 }
 
-static inline bool i915_request_started(const struct i915_request *rq)
+static inline void i915_request_mark_complete(struct i915_request *rq)
 {
-	u32 seqno;
-
-	seqno = i915_request_global_seqno(rq);
-	if (!seqno)
-		return false;
-
-	return i915_seqno_passed(intel_engine_get_seqno(rq->engine),
-				 seqno - 1);
-}
-
-static inline bool i915_sched_node_signaled(const struct i915_sched_node *node)
-{
-	const struct i915_request *rq =
-		container_of(node, const struct i915_request, sched);
-
-	return i915_request_completed(rq);
+	rq->hwsp_seqno = (u32 *)&rq->fence.seqno; /* decouple from HWSP */
 }
 
 void i915_retire_requests(struct drm_i915_private *i915);
-
-/*
- * We treat requests as fences. This is not be to confused with our
- * "fence registers" but pipeline synchronisation objects ala GL_ARB_sync.
- * We use the fences to synchronize access from the CPU with activity on the
- * GPU, for example, we should not rewrite an object's PTE whilst the GPU
- * is reading them. We also track fences at a higher level to provide
- * implicit synchronisation around GEM objects, e.g. set-domain will wait
- * for outstanding GPU rendering before marking the object ready for CPU
- * access, or a pageflip will wait until the GPU is complete before showing
- * the frame on the scanout.
- *
- * In order to use a fence, the object must track the fence it needs to
- * serialise with. For example, GEM objects want to track both read and
- * write access so that we can perform concurrent read operations between
- * the CPU and GPU engines, as well as waiting for all rendering to
- * complete, or waiting for the last GPU user of a "fence register". The
- * object then embeds a #i915_gem_active to track the most recent (in
- * retirement order) request relevant for the desired mode of access.
- * The #i915_gem_active is updated with i915_gem_active_set() to track the
- * most recent fence request, typically this is done as part of
- * i915_vma_move_to_active().
- *
- * When the #i915_gem_active completes (is retired), it will
- * signal its completion to the owner through a callback as well as mark
- * itself as idle (i915_gem_active.request == NULL). The owner
- * can then perform any action, such as delayed freeing of an active
- * resource including itself.
- */
-struct i915_gem_active;
-
-typedef void (*i915_gem_retire_fn)(struct i915_gem_active *,
-				   struct i915_request *);
-
-struct i915_gem_active {
-	struct i915_request __rcu *request;
-	struct list_head link;
-	i915_gem_retire_fn retire;
-};
-
-void i915_gem_retire_noop(struct i915_gem_active *,
-			  struct i915_request *request);
-
-/**
- * init_request_active - prepares the activity tracker for use
- * @active - the active tracker
- * @func - a callback when then the tracker is retired (becomes idle),
- *         can be NULL
- *
- * init_request_active() prepares the embedded @active struct for use as
- * an activity tracker, that is for tracking the last known active request
- * associated with it. When the last request becomes idle, when it is retired
- * after completion, the optional callback @func is invoked.
- */
-static inline void
-init_request_active(struct i915_gem_active *active,
-		    i915_gem_retire_fn retire)
-{
-	RCU_INIT_POINTER(active->request, NULL);
-	INIT_LIST_HEAD(&active->link);
-	active->retire = retire ?: i915_gem_retire_noop;
-}
-
-/**
- * i915_gem_active_set - updates the tracker to watch the current request
- * @active - the active tracker
- * @request - the request to watch
- *
- * i915_gem_active_set() watches the given @request for completion. Whilst
- * that @request is busy, the @active reports busy. When that @request is
- * retired, the @active tracker is updated to report idle.
- */
-static inline void
-i915_gem_active_set(struct i915_gem_active *active,
-		    struct i915_request *request)
-{
-	list_move(&active->link, &request->active_list);
-	rcu_assign_pointer(active->request, request);
-}
-
-/**
- * i915_gem_active_set_retire_fn - updates the retirement callback
- * @active - the active tracker
- * @fn - the routine called when the request is retired
- * @mutex - struct_mutex used to guard retirements
- *
- * i915_gem_active_set_retire_fn() updates the function pointer that
- * is called when the final request associated with the @active tracker
- * is retired.
- */
-static inline void
-i915_gem_active_set_retire_fn(struct i915_gem_active *active,
-			      i915_gem_retire_fn fn,
-			      struct mutex *mutex)
-{
-	lockdep_assert_held(mutex);
-	active->retire = fn ?: i915_gem_retire_noop;
-}
-
-static inline struct i915_request *
-__i915_gem_active_peek(const struct i915_gem_active *active)
-{
-	/*
-	 * Inside the error capture (running with the driver in an unknown
-	 * state), we want to bend the rules slightly (a lot).
-	 *
-	 * Work is in progress to make it safer, in the meantime this keeps
-	 * the known issue from spamming the logs.
-	 */
-	return rcu_dereference_protected(active->request, 1);
-}
-
-/**
- * i915_gem_active_raw - return the active request
- * @active - the active tracker
- *
- * i915_gem_active_raw() returns the current request being tracked, or NULL.
- * It does not obtain a reference on the request for the caller, so the caller
- * must hold struct_mutex.
- */
-static inline struct i915_request *
-i915_gem_active_raw(const struct i915_gem_active *active, struct mutex *mutex)
-{
-	return rcu_dereference_protected(active->request,
-					 lockdep_is_held(mutex));
-}
-
-/**
- * i915_gem_active_peek - report the active request being monitored
- * @active - the active tracker
- *
- * i915_gem_active_peek() returns the current request being tracked if
- * still active, or NULL. It does not obtain a reference on the request
- * for the caller, so the caller must hold struct_mutex.
- */
-static inline struct i915_request *
-i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
-{
-	struct i915_request *request;
-
-	request = i915_gem_active_raw(active, mutex);
-	if (!request || i915_request_completed(request))
-		return NULL;
-
-	return request;
-}
-
-/**
- * i915_gem_active_get - return a reference to the active request
- * @active - the active tracker
- *
- * i915_gem_active_get() returns a reference to the active request, or NULL
- * if the active tracker is idle. The caller must hold struct_mutex.
- */
-static inline struct i915_request *
-i915_gem_active_get(const struct i915_gem_active *active, struct mutex *mutex)
-{
-	return i915_request_get(i915_gem_active_peek(active, mutex));
-}
-
-/**
- * __i915_gem_active_get_rcu - return a reference to the active request
- * @active - the active tracker
- *
- * __i915_gem_active_get() returns a reference to the active request, or NULL
- * if the active tracker is idle. The caller must hold the RCU read lock, but
- * the returned pointer is safe to use outside of RCU.
- */
-static inline struct i915_request *
-__i915_gem_active_get_rcu(const struct i915_gem_active *active)
-{
-	/*
-	 * Performing a lockless retrieval of the active request is super
-	 * tricky. SLAB_TYPESAFE_BY_RCU merely guarantees that the backing
-	 * slab of request objects will not be freed whilst we hold the
-	 * RCU read lock. It does not guarantee that the request itself
-	 * will not be freed and then *reused*. Viz,
-	 *
-	 * Thread A			Thread B
-	 *
-	 * rq = active.request
-	 *				retire(rq) -> free(rq);
-	 *				(rq is now first on the slab freelist)
-	 *				active.request = NULL
-	 *
-	 *				rq = new submission on a new object
-	 * ref(rq)
-	 *
-	 * To prevent the request from being reused whilst the caller
-	 * uses it, we take a reference like normal. Whilst acquiring
-	 * the reference we check that it is not in a destroyed state
-	 * (refcnt == 0). That prevents the request being reallocated
-	 * whilst the caller holds on to it. To check that the request
-	 * was not reallocated as we acquired the reference we have to
-	 * check that our request remains the active request across
-	 * the lookup, in the same manner as a seqlock. The visibility
-	 * of the pointer versus the reference counting is controlled
-	 * by using RCU barriers (rcu_dereference and rcu_assign_pointer).
-	 *
-	 * In the middle of all that, we inspect whether the request is
-	 * complete. Retiring is lazy so the request may be completed long
-	 * before the active tracker is updated. Querying whether the
-	 * request is complete is far cheaper (as it involves no locked
-	 * instructions setting cachelines to exclusive) than acquiring
-	 * the reference, so we do it first. The RCU read lock ensures the
-	 * pointer dereference is valid, but does not ensure that the
-	 * seqno nor HWS is the right one! However, if the request was
-	 * reallocated, that means the active tracker's request was complete.
-	 * If the new request is also complete, then both are and we can
-	 * just report the active tracker is idle. If the new request is
-	 * incomplete, then we acquire a reference on it and check that
-	 * it remained the active request.
-	 *
-	 * It is then imperative that we do not zero the request on
-	 * reallocation, so that we can chase the dangling pointers!
-	 * See i915_request_alloc().
-	 */
-	do {
-		struct i915_request *request;
-
-		request = rcu_dereference(active->request);
-		if (!request || i915_request_completed(request))
-			return NULL;
-
-		/*
-		 * An especially silly compiler could decide to recompute the
-		 * result of i915_request_completed, more specifically
-		 * re-emit the load for request->fence.seqno. A race would catch
-		 * a later seqno value, which could flip the result from true to
-		 * false. Which means part of the instructions below might not
-		 * be executed, while later on instructions are executed. Due to
-		 * barriers within the refcounting the inconsistency can't reach
-		 * past the call to i915_request_get_rcu, but not executing
-		 * that while still executing i915_request_put() creates
-		 * havoc enough.  Prevent this with a compiler barrier.
-		 */
-		barrier();
-
-		request = i915_request_get_rcu(request);
-
-		/*
-		 * What stops the following rcu_access_pointer() from occurring
-		 * before the above i915_request_get_rcu()? If we were
-		 * to read the value before pausing to get the reference to
-		 * the request, we may not notice a change in the active
-		 * tracker.
-		 *
-		 * The rcu_access_pointer() is a mere compiler barrier, which
-		 * means both the CPU and compiler are free to perform the
-		 * memory read without constraint. The compiler only has to
-		 * ensure that any operations after the rcu_access_pointer()
-		 * occur afterwards in program order. This means the read may
-		 * be performed earlier by an out-of-order CPU, or adventurous
-		 * compiler.
-		 *
-		 * The atomic operation at the heart of
-		 * i915_request_get_rcu(), see dma_fence_get_rcu(), is
-		 * atomic_inc_not_zero() which is only a full memory barrier
-		 * when successful. That is, if i915_request_get_rcu()
-		 * returns the request (and so with the reference counted
-		 * incremented) then the following read for rcu_access_pointer()
-		 * must occur after the atomic operation and so confirm
-		 * that this request is the one currently being tracked.
-		 *
-		 * The corresponding write barrier is part of
-		 * rcu_assign_pointer().
-		 */
-		if (!request || request == rcu_access_pointer(active->request))
-			return rcu_pointer_handoff(request);
-
-		i915_request_put(request);
-	} while (1);
-}
-
-/**
- * i915_gem_active_get_unlocked - return a reference to the active request
- * @active - the active tracker
- *
- * i915_gem_active_get_unlocked() returns a reference to the active request,
- * or NULL if the active tracker is idle. The reference is obtained under RCU,
- * so no locking is required by the caller.
- *
- * The reference should be freed with i915_request_put().
- */
-static inline struct i915_request *
-i915_gem_active_get_unlocked(const struct i915_gem_active *active)
-{
-	struct i915_request *request;
-
-	rcu_read_lock();
-	request = __i915_gem_active_get_rcu(active);
-	rcu_read_unlock();
-
-	return request;
-}
-
-/**
- * i915_gem_active_isset - report whether the active tracker is assigned
- * @active - the active tracker
- *
- * i915_gem_active_isset() returns true if the active tracker is currently
- * assigned to a request. Due to the lazy retiring, that request may be idle
- * and this may report stale information.
- */
-static inline bool
-i915_gem_active_isset(const struct i915_gem_active *active)
-{
-	return rcu_access_pointer(active->request);
-}
-
-/**
- * i915_gem_active_wait - waits until the request is completed
- * @active - the active request on which to wait
- * @flags - how to wait
- * @timeout - how long to wait at most
- * @rps - userspace client to charge for a waitboost
- *
- * i915_gem_active_wait() waits until the request is completed before
- * returning, without requiring any locks to be held. Note that it does not
- * retire any requests before returning.
- *
- * This function relies on RCU in order to acquire the reference to the active
- * request without holding any locks. See __i915_gem_active_get_rcu() for the
- * glory details on how that is managed. Once the reference is acquired, we
- * can then wait upon the request, and afterwards release our reference,
- * free of any locking.
- *
- * This function wraps i915_request_wait(), see it for the full details on
- * the arguments.
- *
- * Returns 0 if successful, or a negative error code.
- */
-static inline int
-i915_gem_active_wait(const struct i915_gem_active *active, unsigned int flags)
-{
-	struct i915_request *request;
-	long ret = 0;
-
-	request = i915_gem_active_get_unlocked(active);
-	if (request) {
-		ret = i915_request_wait(request, flags, MAX_SCHEDULE_TIMEOUT);
-		i915_request_put(request);
-	}
-
-	return ret < 0 ? ret : 0;
-}
-
-/**
- * i915_gem_active_retire - waits until the request is retired
- * @active - the active request on which to wait
- *
- * i915_gem_active_retire() waits until the request is completed,
- * and then ensures that at least the retirement handler for this
- * @active tracker is called before returning. If the @active
- * tracker is idle, the function returns immediately.
- */
-static inline int __must_check
-i915_gem_active_retire(struct i915_gem_active *active,
-		       struct mutex *mutex)
-{
-	struct i915_request *request;
-	long ret;
-
-	request = i915_gem_active_raw(active, mutex);
-	if (!request)
-		return 0;
-
-	ret = i915_request_wait(request,
-				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-				MAX_SCHEDULE_TIMEOUT);
-	if (ret < 0)
-		return ret;
-
-	list_del_init(&active->link);
-	RCU_INIT_POINTER(active->request, NULL);
-
-	active->retire(active, request);
-
-	return 0;
-}
-
-#define for_each_active(mask, idx) \
-	for (; mask ? idx = ffs(mask) - 1, 1 : 0; mask &= ~BIT(idx))
 
 #endif /* I915_REQUEST_H */

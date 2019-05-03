@@ -363,6 +363,7 @@ static int mwifiex_uap_parse_tail_ies(struct mwifiex_private *priv,
 						    (const u8 *)hdr,
 						    hdr->len + sizeof(struct ieee_types_header)))
 				break;
+			/* fall through */
 		default:
 			memcpy(gen_ie->ie_buffer + ie_len, hdr,
 			       hdr->len + sizeof(struct ieee_types_header));

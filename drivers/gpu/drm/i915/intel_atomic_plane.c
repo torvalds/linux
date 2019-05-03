@@ -31,33 +31,37 @@
  * prepare/check/commit/cleanup steps.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+
 #include "intel_drv.h"
 
-/**
- * intel_create_plane_state - create plane state object
- * @plane: drm plane
- *
- * Allocates a fresh plane state for the given plane and sets some of
- * the state values to sensible initial values.
- *
- * Returns: A newly allocated plane state, or NULL on failure
- */
-struct intel_plane_state *
-intel_create_plane_state(struct drm_plane *plane)
+struct intel_plane *intel_plane_alloc(void)
 {
-	struct intel_plane_state *state;
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return NULL;
+	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	if (!plane)
+		return ERR_PTR(-ENOMEM);
 
-	state->base.plane = plane;
-	state->base.rotation = DRM_MODE_ROTATE_0;
+	plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	if (!plane_state) {
+		kfree(plane);
+		return ERR_PTR(-ENOMEM);
+	}
 
-	return state;
+	__drm_atomic_helper_plane_reset(&plane->base, &plane_state->base);
+	plane_state->scaler_id = -1;
+
+	return plane;
+}
+
+void intel_plane_free(struct intel_plane *plane)
+{
+	intel_plane_destroy_state(&plane->base, plane->base.state);
+	kfree(plane);
 }
 
 /**
@@ -108,89 +112,39 @@ intel_plane_destroy_state(struct drm_plane *plane,
 }
 
 int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
-					struct intel_crtc_state *crtc_state,
+					struct intel_crtc_state *new_crtc_state,
 					const struct intel_plane_state *old_plane_state,
-					struct intel_plane_state *intel_state)
+					struct intel_plane_state *new_plane_state)
 {
-	struct drm_plane *plane = intel_state->base.plane;
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-	struct drm_plane_state *state = &intel_state->base;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+	struct intel_plane *plane = to_intel_plane(new_plane_state->base.plane);
 	int ret;
 
-	if (!intel_state->base.crtc && !old_plane_state->base.crtc)
+	new_crtc_state->active_planes &= ~BIT(plane->id);
+	new_crtc_state->nv12_planes &= ~BIT(plane->id);
+	new_plane_state->base.visible = false;
+
+	if (!new_plane_state->base.crtc && !old_plane_state->base.crtc)
 		return 0;
 
-	if (state->fb && drm_rotation_90_or_270(state->rotation)) {
-		struct drm_format_name_buf format_name;
-
-		if (state->fb->modifier != I915_FORMAT_MOD_Y_TILED &&
-		    state->fb->modifier != I915_FORMAT_MOD_Yf_TILED) {
-			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
-			return -EINVAL;
-		}
-
-		/*
-		 * 90/270 is not allowed with RGB64 16:16:16:16,
-		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
-		 * TBD: Add RGB64 case once its added in supported format list.
-		 */
-		switch (state->fb->format->format) {
-		case DRM_FORMAT_C8:
-		case DRM_FORMAT_RGB565:
-			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
-			              drm_get_format_name(state->fb->format->format,
-			                                  &format_name));
-			return -EINVAL;
-
-		default:
-			break;
-		}
-	}
-
-	/* CHV ignores the mirror bit when the rotate bit is set :( */
-	if (IS_CHERRYVIEW(dev_priv) &&
-	    state->rotation & DRM_MODE_ROTATE_180 &&
-	    state->rotation & DRM_MODE_REFLECT_X) {
-		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
-		return -EINVAL;
-	}
-
-	intel_state->base.visible = false;
-	ret = intel_plane->check_plane(intel_plane, crtc_state, intel_state);
+	ret = plane->check_plane(new_crtc_state, new_plane_state);
 	if (ret)
 		return ret;
 
-	/*
-	 * Y-tiling is not supported in IF-ID Interlace mode in
-	 * GEN9 and above.
-	 */
-	if (state->fb && INTEL_GEN(dev_priv) >= 9 && crtc_state->base.enable &&
-	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		if (state->fb->modifier == I915_FORMAT_MOD_Y_TILED ||
-		    state->fb->modifier == I915_FORMAT_MOD_Yf_TILED) {
-			DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
-			return -EINVAL;
-		}
-	}
-
 	/* FIXME pre-g4x don't work like this */
-	if (state->visible)
-		crtc_state->active_planes |= BIT(intel_plane->id);
-	else
-		crtc_state->active_planes &= ~BIT(intel_plane->id);
+	if (new_plane_state->base.visible)
+		new_crtc_state->active_planes |= BIT(plane->id);
 
-	if (state->visible && state->fb->format->format == DRM_FORMAT_NV12)
-		crtc_state->nv12_planes |= BIT(intel_plane->id);
-	else
-		crtc_state->nv12_planes &= ~BIT(intel_plane->id);
+	if (new_plane_state->base.visible &&
+	    new_plane_state->base.fb->format->format == DRM_FORMAT_NV12)
+		new_crtc_state->nv12_planes |= BIT(plane->id);
+
+	if (new_plane_state->base.visible || old_plane_state->base.visible)
+		new_crtc_state->update_planes |= BIT(plane->id);
 
 	return intel_plane_atomic_calc_changes(old_crtc_state,
-					       &crtc_state->base,
+					       &new_crtc_state->base,
 					       old_plane_state,
-					       state);
+					       &new_plane_state->base);
 }
 
 static int intel_plane_atomic_check(struct drm_plane *plane,
@@ -203,6 +157,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	const struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_state *new_crtc_state;
 
+	new_plane_state->visible = false;
 	if (!crtc)
 		return 0;
 
@@ -215,29 +170,123 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 						   to_intel_plane_state(new_plane_state));
 }
 
-static void intel_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+static struct intel_plane *
+skl_next_plane_to_commit(struct intel_atomic_state *state,
+			 struct intel_crtc *crtc,
+			 struct skl_ddb_entry entries_y[I915_MAX_PLANES],
+			 struct skl_ddb_entry entries_uv[I915_MAX_PLANES],
+			 unsigned int *update_mask)
 {
-	struct intel_atomic_state *state = to_intel_atomic_state(old_state->state);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	const struct intel_plane_state *new_plane_state =
-		intel_atomic_get_new_plane_state(state, intel_plane);
-	struct drm_crtc *crtc = new_plane_state->base.crtc ?: old_state->crtc;
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	int i;
 
-	if (new_plane_state->base.visible) {
-		const struct intel_crtc_state *new_crtc_state =
-			intel_atomic_get_new_crtc_state(state, to_intel_crtc(crtc));
+	if (*update_mask == 0)
+		return NULL;
 
-		trace_intel_update_plane(plane,
-					 to_intel_crtc(crtc));
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		enum plane_id plane_id = plane->id;
 
-		intel_plane->update_plane(intel_plane,
-					  new_crtc_state, new_plane_state);
-	} else {
-		trace_intel_disable_plane(plane,
-					  to_intel_crtc(crtc));
+		if (crtc->pipe != plane->pipe ||
+		    !(*update_mask & BIT(plane_id)))
+			continue;
 
-		intel_plane->disable_plane(intel_plane, to_intel_crtc(crtc));
+		if (skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_y[plane_id],
+						entries_y,
+						I915_MAX_PLANES, plane_id) ||
+		    skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_uv[plane_id],
+						entries_uv,
+						I915_MAX_PLANES, plane_id))
+			continue;
+
+		*update_mask &= ~BIT(plane_id);
+		entries_y[plane_id] = crtc_state->wm.skl.plane_ddb_y[plane_id];
+		entries_uv[plane_id] = crtc_state->wm.skl.plane_ddb_uv[plane_id];
+
+		return plane;
+	}
+
+	/* should never happen */
+	WARN_ON(1);
+
+	return NULL;
+}
+
+void skl_update_planes_on_crtc(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct skl_ddb_entry entries_y[I915_MAX_PLANES];
+	struct skl_ddb_entry entries_uv[I915_MAX_PLANES];
+	u32 update_mask = new_crtc_state->update_planes;
+	struct intel_plane *plane;
+
+	memcpy(entries_y, old_crtc_state->wm.skl.plane_ddb_y,
+	       sizeof(old_crtc_state->wm.skl.plane_ddb_y));
+	memcpy(entries_uv, old_crtc_state->wm.skl.plane_ddb_uv,
+	       sizeof(old_crtc_state->wm.skl.plane_ddb_uv));
+
+	while ((plane = skl_next_plane_to_commit(state, crtc,
+						 entries_y, entries_uv,
+						 &update_mask))) {
+		struct intel_plane_state *new_plane_state =
+			intel_atomic_get_new_plane_state(state, plane);
+
+		if (new_plane_state->base.visible) {
+			trace_intel_update_plane(&plane->base, crtc);
+			plane->update_plane(plane, new_crtc_state, new_plane_state);
+		} else if (new_plane_state->slave) {
+			struct intel_plane *master =
+				new_plane_state->linked_plane;
+
+			/*
+			 * We update the slave plane from this function because
+			 * programming it from the master plane's update_plane
+			 * callback runs into issues when the Y plane is
+			 * reassigned, disabled or used by a different plane.
+			 *
+			 * The slave plane is updated with the master plane's
+			 * plane_state.
+			 */
+			new_plane_state =
+				intel_atomic_get_new_plane_state(state, master);
+
+			trace_intel_update_plane(&plane->base, crtc);
+			plane->update_slave(plane, new_crtc_state, new_plane_state);
+		} else {
+			trace_intel_disable_plane(&plane->base, crtc);
+			plane->disable_plane(plane, new_crtc_state);
+		}
+	}
+}
+
+void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	u32 update_mask = new_crtc_state->update_planes;
+	struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
+		if (crtc->pipe != plane->pipe ||
+		    !(update_mask & BIT(plane->id)))
+			continue;
+
+		if (new_plane_state->base.visible) {
+			trace_intel_update_plane(&plane->base, crtc);
+			plane->update_plane(plane, new_crtc_state, new_plane_state);
+		} else {
+			trace_intel_disable_plane(&plane->base, crtc);
+			plane->disable_plane(plane, new_crtc_state);
+		}
 	}
 }
 
@@ -245,7 +294,6 @@ const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
 	.prepare_fb = intel_prepare_plane_fb,
 	.cleanup_fb = intel_cleanup_plane_fb,
 	.atomic_check = intel_plane_atomic_check,
-	.atomic_update = intel_plane_atomic_update,
 };
 
 /**
@@ -263,7 +311,7 @@ int
 intel_plane_atomic_get_property(struct drm_plane *plane,
 				const struct drm_plane_state *state,
 				struct drm_property *property,
-				uint64_t *val)
+				u64 *val)
 {
 	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
 		      property->base.id, property->name);
@@ -286,7 +334,7 @@ int
 intel_plane_atomic_set_property(struct drm_plane *plane,
 				struct drm_plane_state *state,
 				struct drm_property *property,
-				uint64_t val)
+				u64 val)
 {
 	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
 		      property->base.id, property->name);

@@ -17,30 +17,27 @@
 
 #define CRYPTO_CTX_SIZE	256
 
-/* command queue alignments */
-#define PKT_IN_ALIGN	16
+/* packet inuput ring alignments */
+#define PKTIN_Q_ALIGN_BYTES 16
 
-static int cmdq_common_init(struct nitrox_cmdq *cmdq)
+static int nitrox_cmdq_init(struct nitrox_cmdq *cmdq, int align_bytes)
 {
 	struct nitrox_device *ndev = cmdq->ndev;
-	u32 qsize;
 
-	qsize = (ndev->qlen) * cmdq->instr_size;
-	cmdq->head_unaligned = dma_zalloc_coherent(DEV(ndev),
-						   (qsize + PKT_IN_ALIGN),
-						   &cmdq->dma_unaligned,
-						   GFP_KERNEL);
-	if (!cmdq->head_unaligned)
+	cmdq->qsize = (ndev->qlen * cmdq->instr_size) + align_bytes;
+	cmdq->unalign_base = dma_alloc_coherent(DEV(ndev), cmdq->qsize,
+						&cmdq->unalign_dma,
+						GFP_KERNEL);
+	if (!cmdq->unalign_base)
 		return -ENOMEM;
 
-	cmdq->head = PTR_ALIGN(cmdq->head_unaligned, PKT_IN_ALIGN);
-	cmdq->dma = PTR_ALIGN(cmdq->dma_unaligned, PKT_IN_ALIGN);
-	cmdq->qsize = (qsize + PKT_IN_ALIGN);
+	cmdq->dma = PTR_ALIGN(cmdq->unalign_dma, align_bytes);
+	cmdq->base = cmdq->unalign_base + (cmdq->dma - cmdq->unalign_dma);
 	cmdq->write_idx = 0;
 
-	spin_lock_init(&cmdq->response_lock);
-	spin_lock_init(&cmdq->cmdq_lock);
-	spin_lock_init(&cmdq->backlog_lock);
+	spin_lock_init(&cmdq->cmd_qlock);
+	spin_lock_init(&cmdq->resp_qlock);
+	spin_lock_init(&cmdq->backlog_qlock);
 
 	INIT_LIST_HEAD(&cmdq->response_head);
 	INIT_LIST_HEAD(&cmdq->backlog_head);
@@ -51,68 +48,83 @@ static int cmdq_common_init(struct nitrox_cmdq *cmdq)
 	return 0;
 }
 
-static void cmdq_common_cleanup(struct nitrox_cmdq *cmdq)
+static void nitrox_cmdq_reset(struct nitrox_cmdq *cmdq)
+{
+	cmdq->write_idx = 0;
+	atomic_set(&cmdq->pending_count, 0);
+	atomic_set(&cmdq->backlog_count, 0);
+}
+
+static void nitrox_cmdq_cleanup(struct nitrox_cmdq *cmdq)
 {
 	struct nitrox_device *ndev = cmdq->ndev;
+
+	if (!cmdq->unalign_base)
+		return;
 
 	cancel_work_sync(&cmdq->backlog_qflush);
 
 	dma_free_coherent(DEV(ndev), cmdq->qsize,
-			  cmdq->head_unaligned, cmdq->dma_unaligned);
-
-	atomic_set(&cmdq->pending_count, 0);
-	atomic_set(&cmdq->backlog_count, 0);
+			  cmdq->unalign_base, cmdq->unalign_dma);
+	nitrox_cmdq_reset(cmdq);
 
 	cmdq->dbell_csr_addr = NULL;
-	cmdq->head = NULL;
+	cmdq->compl_cnt_csr_addr = NULL;
+	cmdq->unalign_base = NULL;
+	cmdq->base = NULL;
+	cmdq->unalign_dma = 0;
 	cmdq->dma = 0;
 	cmdq->qsize = 0;
 	cmdq->instr_size = 0;
 }
 
-static void nitrox_cleanup_pkt_cmdqs(struct nitrox_device *ndev)
+static void nitrox_free_pktin_queues(struct nitrox_device *ndev)
 {
 	int i;
 
 	for (i = 0; i < ndev->nr_queues; i++) {
-		struct nitrox_cmdq *cmdq = &ndev->pkt_cmdqs[i];
+		struct nitrox_cmdq *cmdq = &ndev->pkt_inq[i];
 
-		cmdq_common_cleanup(cmdq);
+		nitrox_cmdq_cleanup(cmdq);
 	}
-	kfree(ndev->pkt_cmdqs);
-	ndev->pkt_cmdqs = NULL;
+	kfree(ndev->pkt_inq);
+	ndev->pkt_inq = NULL;
 }
 
-static int nitrox_init_pkt_cmdqs(struct nitrox_device *ndev)
+static int nitrox_alloc_pktin_queues(struct nitrox_device *ndev)
 {
-	int i, err, size;
+	int i, err;
 
-	size = ndev->nr_queues * sizeof(struct nitrox_cmdq);
-	ndev->pkt_cmdqs = kzalloc(size, GFP_KERNEL);
-	if (!ndev->pkt_cmdqs)
+	ndev->pkt_inq = kcalloc_node(ndev->nr_queues,
+				     sizeof(struct nitrox_cmdq),
+				     GFP_KERNEL, ndev->node);
+	if (!ndev->pkt_inq)
 		return -ENOMEM;
 
 	for (i = 0; i < ndev->nr_queues; i++) {
 		struct nitrox_cmdq *cmdq;
 		u64 offset;
 
-		cmdq = &ndev->pkt_cmdqs[i];
+		cmdq = &ndev->pkt_inq[i];
 		cmdq->ndev = ndev;
 		cmdq->qno = i;
 		cmdq->instr_size = sizeof(struct nps_pkt_instr);
 
+		/* packet input ring doorbell address */
 		offset = NPS_PKT_IN_INSTR_BAOFF_DBELLX(i);
-		/* SE ring doorbell address for this queue */
 		cmdq->dbell_csr_addr = NITROX_CSR_ADDR(ndev, offset);
+		/* packet solicit port completion count address */
+		offset = NPS_PKT_SLC_CNTSX(i);
+		cmdq->compl_cnt_csr_addr = NITROX_CSR_ADDR(ndev, offset);
 
-		err = cmdq_common_init(cmdq);
+		err = nitrox_cmdq_init(cmdq, PKTIN_Q_ALIGN_BYTES);
 		if (err)
-			goto pkt_cmdq_fail;
+			goto pktq_fail;
 	}
 	return 0;
 
-pkt_cmdq_fail:
-	nitrox_cleanup_pkt_cmdqs(ndev);
+pktq_fail:
+	nitrox_free_pktin_queues(ndev);
 	return err;
 }
 
@@ -122,7 +134,7 @@ static int create_crypto_dma_pool(struct nitrox_device *ndev)
 
 	/* Crypto context pool, 16 byte aligned */
 	size = CRYPTO_CTX_SIZE + sizeof(struct ctx_hdr);
-	ndev->ctx_pool = dma_pool_create("crypto-context",
+	ndev->ctx_pool = dma_pool_create("nitrox-context",
 					 DEV(ndev), size, 16, 0);
 	if (!ndev->ctx_pool)
 		return -ENOMEM;
@@ -146,12 +158,19 @@ static void destroy_crypto_dma_pool(struct nitrox_device *ndev)
 void *crypto_alloc_context(struct nitrox_device *ndev)
 {
 	struct ctx_hdr *ctx;
+	struct crypto_ctx_hdr *chdr;
 	void *vaddr;
 	dma_addr_t dma;
 
-	vaddr = dma_pool_alloc(ndev->ctx_pool, (GFP_KERNEL | __GFP_ZERO), &dma);
-	if (!vaddr)
+	chdr = kmalloc(sizeof(*chdr), GFP_KERNEL);
+	if (!chdr)
 		return NULL;
+
+	vaddr = dma_pool_zalloc(ndev->ctx_pool, GFP_KERNEL, &dma);
+	if (!vaddr) {
+		kfree(chdr);
+		return NULL;
+	}
 
 	/* fill meta data */
 	ctx = vaddr;
@@ -159,7 +178,11 @@ void *crypto_alloc_context(struct nitrox_device *ndev)
 	ctx->dma = dma;
 	ctx->ctx_dma = dma + sizeof(struct ctx_hdr);
 
-	return ((u8 *)vaddr + sizeof(struct ctx_hdr));
+	chdr->pool = ndev->ctx_pool;
+	chdr->dma = dma;
+	chdr->vaddr = vaddr;
+
+	return chdr;
 }
 
 /**
@@ -168,13 +191,14 @@ void *crypto_alloc_context(struct nitrox_device *ndev)
  */
 void crypto_free_context(void *ctx)
 {
-	struct ctx_hdr *ctxp;
+	struct crypto_ctx_hdr *ctxp;
 
 	if (!ctx)
 		return;
 
-	ctxp = (struct ctx_hdr *)((u8 *)ctx - sizeof(struct ctx_hdr));
-	dma_pool_free(ctxp->pool, ctxp, ctxp->dma);
+	ctxp = ctx;
+	dma_pool_free(ctxp->pool, ctxp->vaddr, ctxp->dma);
+	kfree(ctxp);
 }
 
 /**
@@ -194,7 +218,7 @@ int nitrox_common_sw_init(struct nitrox_device *ndev)
 	if (err)
 		return err;
 
-	err = nitrox_init_pkt_cmdqs(ndev);
+	err = nitrox_alloc_pktin_queues(ndev);
 	if (err)
 		destroy_crypto_dma_pool(ndev);
 
@@ -207,6 +231,6 @@ int nitrox_common_sw_init(struct nitrox_device *ndev)
  */
 void nitrox_common_sw_cleanup(struct nitrox_device *ndev)
 {
-	nitrox_cleanup_pkt_cmdqs(ndev);
+	nitrox_free_pktin_queues(ndev);
 	destroy_crypto_dma_pool(ndev);
 }

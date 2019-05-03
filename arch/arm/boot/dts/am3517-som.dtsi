@@ -163,7 +163,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <10 IRQ_TYPE_LEVEL_HIGH>; /* gpio_170 */
+		interrupts = <10 IRQ_TYPE_EDGE_RISING>; /* gpio_170 */
 		ref-clock-frequency = <26000000>;
 		tcxo-clock-frequency = <26000000>;
 	};

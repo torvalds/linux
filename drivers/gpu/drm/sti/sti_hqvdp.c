@@ -1260,7 +1260,6 @@ static void sti_hqvdp_destroy(struct drm_plane *drm_plane)
 {
 	DRM_DEBUG_DRIVER("\n");
 
-	drm_plane_helper_disable(drm_plane, NULL);
 	drm_plane_cleanup(drm_plane);
 }
 

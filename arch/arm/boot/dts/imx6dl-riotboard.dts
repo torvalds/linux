@@ -16,6 +16,7 @@
 	compatible = "riot,imx6s-riotboard", "fsl,imx6dl";
 
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x40000000>;
 	};
 
@@ -82,6 +83,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_audmux>;
 	status = "okay";
+};
+
+&clks {
+	fsl,pmic-stby-poweroff;
 };
 
 &fec {
@@ -164,6 +169,7 @@
 		reg = <0x08>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <16 8>;
+		fsl,pmic-stby-poweroff;
 
 		regulators {
 			reg_vddcore: sw1ab {				/* VDDARM_IN */

@@ -10,8 +10,68 @@
  */
 
 #include <linux/time64.h>
+#include <linux/timex.h>
 
 #define TIME_T_MAX	(time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
+
+typedef s32		old_time32_t;
+
+struct old_timespec32 {
+	old_time32_t	tv_sec;
+	s32		tv_nsec;
+};
+
+struct old_timeval32 {
+	old_time32_t	tv_sec;
+	s32		tv_usec;
+};
+
+struct old_itimerspec32 {
+	struct old_timespec32 it_interval;
+	struct old_timespec32 it_value;
+};
+
+struct old_utimbuf32 {
+	old_time32_t	actime;
+	old_time32_t	modtime;
+};
+
+struct old_timex32 {
+	u32 modes;
+	s32 offset;
+	s32 freq;
+	s32 maxerror;
+	s32 esterror;
+	s32 status;
+	s32 constant;
+	s32 precision;
+	s32 tolerance;
+	struct old_timeval32 time;
+	s32 tick;
+	s32 ppsfreq;
+	s32 jitter;
+	s32 shift;
+	s32 stabil;
+	s32 jitcnt;
+	s32 calcnt;
+	s32 errcnt;
+	s32 stbcnt;
+	s32 tai;
+
+	s32:32; s32:32; s32:32; s32:32;
+	s32:32; s32:32; s32:32; s32:32;
+	s32:32; s32:32; s32:32;
+};
+
+extern int get_old_timespec32(struct timespec64 *, const void __user *);
+extern int put_old_timespec32(const struct timespec64 *, void __user *);
+extern int get_old_itimerspec32(struct itimerspec64 *its,
+			const struct old_itimerspec32 __user *uits);
+extern int put_old_itimerspec32(const struct itimerspec64 *its,
+			struct old_itimerspec32 __user *uits);
+struct __kernel_timex;
+int get_old_timex32(struct __kernel_timex *, const struct old_timex32 __user *);
+int put_old_timex32(struct old_timex32 __user *, const struct __kernel_timex *);
 
 #if __BITS_PER_LONG == 64
 
@@ -66,31 +126,6 @@ static inline int timespec_compare(const struct timespec *lhs, const struct time
 	return lhs->tv_nsec - rhs->tv_nsec;
 }
 
-extern void set_normalized_timespec(struct timespec *ts, time_t sec, s64 nsec);
-
-static inline struct timespec timespec_add(struct timespec lhs,
-						struct timespec rhs)
-{
-	struct timespec ts_delta;
-
-	set_normalized_timespec(&ts_delta, lhs.tv_sec + rhs.tv_sec,
-				lhs.tv_nsec + rhs.tv_nsec);
-	return ts_delta;
-}
-
-/*
- * sub = lhs - rhs, in normalized form
- */
-static inline struct timespec timespec_sub(struct timespec lhs,
-						struct timespec rhs)
-{
-	struct timespec ts_delta;
-
-	set_normalized_timespec(&ts_delta, lhs.tv_sec - rhs.tv_sec,
-				lhs.tv_nsec - rhs.tv_nsec);
-	return ts_delta;
-}
-
 /*
  * Returns true if the timespec is norm, false if denorm:
  */
@@ -101,16 +136,6 @@ static inline bool timespec_valid(const struct timespec *ts)
 		return false;
 	/* Can't have more nanoseconds then a second */
 	if ((unsigned long)ts->tv_nsec >= NSEC_PER_SEC)
-		return false;
-	return true;
-}
-
-static inline bool timespec_valid_strict(const struct timespec *ts)
-{
-	if (!timespec_valid(ts))
-		return false;
-	/* Disallow values that could overflow ktime_t */
-	if ((unsigned long long)ts->tv_sec >= KTIME_SEC_MAX)
 		return false;
 	return true;
 }
@@ -149,19 +174,6 @@ static __always_inline void timespec_add_ns(struct timespec *a, u64 ns)
 	a->tv_nsec = ns;
 }
 
-/**
- * time_to_tm - converts the calendar time to local broken-down time
- *
- * @totalsecs	the number of seconds elapsed since 00:00:00 on January 1, 1970,
- *		Coordinated Universal Time (UTC).
- * @offset	offset seconds adding to totalsecs.
- * @result	pointer to struct tm variable to receive broken-down time
- */
-static inline void time_to_tm(time_t totalsecs, int offset, struct tm *result)
-{
-	time64_to_tm(totalsecs, offset, result);
-}
-
 static inline unsigned long mktime(const unsigned int year,
 			const unsigned int mon, const unsigned int day,
 			const unsigned int hour, const unsigned int min,
@@ -182,8 +194,6 @@ static inline bool timeval_valid(const struct timeval *tv)
 
 	return true;
 }
-
-extern struct timespec timespec_trunc(struct timespec t, unsigned int gran);
 
 /**
  * timeval_to_ns - Convert timeval to nanoseconds
@@ -208,18 +218,17 @@ extern struct timeval ns_to_timeval(const s64 nsec);
 extern struct __kernel_old_timeval ns_to_kernel_old_timeval(s64 nsec);
 
 /*
- * New aliases for compat time functions. These will be used to replace
- * the compat code so it can be shared between 32-bit and 64-bit builds
- * both of which provide compatibility with old 32-bit tasks.
+ * Old names for the 32-bit time_t interfaces, these will be removed
+ * when everything uses the new names.
  */
-#define old_time32_t		compat_time_t
-#define old_timeval32		compat_timeval
-#define old_timespec32		compat_timespec
-#define old_itimerspec32	compat_itimerspec
-#define ns_to_old_timeval32	ns_to_compat_timeval
-#define get_old_itimerspec32	get_compat_itimerspec64
-#define put_old_itimerspec32	put_compat_itimerspec64
-#define get_old_timespec32	compat_get_timespec64
-#define put_old_timespec32	compat_put_timespec64
+#define compat_time_t		old_time32_t
+#define compat_timeval		old_timeval32
+#define compat_timespec		old_timespec32
+#define compat_itimerspec	old_itimerspec32
+#define ns_to_compat_timeval	ns_to_old_timeval32
+#define get_compat_itimerspec64	get_old_itimerspec32
+#define put_compat_itimerspec64	put_old_itimerspec32
+#define compat_get_timespec64	get_old_timespec32
+#define compat_put_timespec64	put_old_timespec32
 
 #endif

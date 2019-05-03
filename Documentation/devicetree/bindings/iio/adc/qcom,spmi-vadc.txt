@@ -1,7 +1,9 @@
-Qualcomm's SPMI PMIC voltage ADC
+Qualcomm's SPMI PMIC ADC
 
-SPMI PMIC voltage ADC (VADC) provides interface to clients to read
-voltage. The VADC is a 15-bit sigma-delta ADC.
+- SPMI PMIC voltage ADC (VADC) provides interface to clients to read
+  voltage. The VADC is a 15-bit sigma-delta ADC.
+- SPMI PMIC5 voltage ADC (ADC) provides interface to clients to read
+  voltage. The VADC is a 16-bit sigma-delta ADC.
 
 VADC node:
 
@@ -9,11 +11,13 @@ VADC node:
     Usage: required
     Value type: <string>
     Definition: Should contain "qcom,spmi-vadc".
+                Should contain "qcom,spmi-adc5" for PMIC5 ADC driver.
+                Should contain "qcom,spmi-adc-rev2" for PMIC rev2 ADC driver.
 
 - reg:
     Usage: required
     Value type: <prop-encoded-array>
-    Definition: VADC base address and length in the SPMI PMIC register map.
+    Definition: VADC base address in the SPMI PMIC register map.
 
 - #address-cells:
     Usage: required
@@ -45,13 +49,26 @@ Channel node properties:
     Definition: ADC channel number.
             See include/dt-bindings/iio/qcom,spmi-vadc.h
 
+- label:
+    Usage: required for "qcom,spmi-adc5" and "qcom,spmi-adc-rev2"
+    Value type: <empty>
+    Definition: ADC input of the platform as seen in the schematics.
+            For thermistor inputs connected to generic AMUX or GPIO inputs
+            these can vary across platform for the same pins. Hence select
+            the platform schematics name for this channel.
+
 - qcom,decimation:
     Usage: optional
     Value type: <u32>
     Definition: This parameter is used to decrease ADC sampling rate.
             Quicker measurements can be made by reducing decimation ratio.
-            Valid values are 512, 1024, 2048, 4096.
-            If property is not found, default value of 512 will be used.
+            - For compatible property "qcom,spmi-vadc", valid values are
+              512, 1024, 2048, 4096. If property is not found, default value
+              of 512 will be used.
+            - For compatible property "qcom,spmi-adc5", valid values are 250, 420
+              and 840. If property is not found, default value of 840 is used.
+            - For compatible property "qcom,spmi-adc-rev2", valid values are 256,
+              512 and 1024. If property is not present, default value is 1024.
 
 - qcom,pre-scaling:
     Usage: optional
@@ -66,21 +83,38 @@ Channel node properties:
 - qcom,ratiometric:
     Usage: optional
     Value type: <empty>
-    Definition: Channel calibration type. If this property is specified
-            VADC will use the VDD reference (1.8V) and GND for channel
-            calibration. If property is not found, channel will be
-            calibrated with 0.625V and 1.25V reference channels, also
-            known as absolute calibration.
+    Definition: Channel calibration type.
+            - For compatible property "qcom,spmi-vadc", if this property is
+              specified VADC will use the VDD reference (1.8V) and GND for
+              channel calibration. If property is not found, channel will be
+              calibrated with 0.625V and 1.25V reference channels, also
+              known as absolute calibration.
+            - For compatible property "qcom,spmi-adc5" and "qcom,spmi-adc-rev2",
+              if this property is specified VADC will use the VDD reference
+              (1.875V) and GND for channel calibration. If property is not found,
+              channel will be calibrated with 0V and 1.25V reference channels,
+              also known as absolute calibration.
 
 - qcom,hw-settle-time:
     Usage: optional
     Value type: <u32>
     Definition: Time between AMUX getting configured and the ADC starting
-            conversion. Delay = 100us * (value) for value < 11, and
-            2ms * (value - 10) otherwise.
-            Valid values are: 0, 100, 200, 300, 400, 500, 600, 700, 800,
-            900 us and 1, 2, 4, 6, 8, 10 ms
-            If property is not found, channel will use 0us.
+            conversion. The 'hw_settle_time' is an index used from valid values
+            and programmed in hardware to achieve the hardware settling delay.
+            - For compatible property "qcom,spmi-vadc" and "qcom,spmi-adc-rev2",
+              Delay = 100us * (hw_settle_time) for hw_settle_time < 11,
+              and 2ms * (hw_settle_time - 10) otherwise.
+              Valid values are: 0, 100, 200, 300, 400, 500, 600, 700, 800,
+              900 us and 1, 2, 4, 6, 8, 10 ms.
+              If property is not found, channel will use 0us.
+            - For compatible property "qcom,spmi-adc5", delay = 15us for
+              value 0, 100us * (value) for values < 11,
+              and 2ms * (value - 10) otherwise.
+              Valid values are: 15, 100, 200, 300, 400, 500, 600, 700, 800,
+              900 us and 1, 2, 4, 6, 8, 10 ms
+              Certain controller digital versions have valid values of
+              15, 100, 200, 300, 400, 500, 600, 700, 1, 2, 4, 8, 16, 32, 64, 128 ms
+              If property is not found, channel will use 15us.
 
 - qcom,avg-samples:
     Usage: optional
@@ -89,22 +123,31 @@ Channel node properties:
             Averaging provides the option to obtain a single measurement
             from the ADC that is an average of multiple samples. The value
             selected is 2^(value).
-            Valid values are: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
-            If property is not found, 1 sample will be used.
+            - For compatible property "qcom,spmi-vadc", valid values
+              are: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
+              If property is not found, 1 sample will be used.
+            - For compatible property "qcom,spmi-adc5" and "qcom,spmi-adc-rev2",
+              valid values are: 1, 2, 4, 8, 16
+              If property is not found, 1 sample will be used.
 
 NOTE:
 
-Following channels, also known as reference point channels, are used for
-result calibration and their channel configuration nodes should be defined:
+For compatible property "qcom,spmi-vadc" following channels, also known as
+reference point channels, are used for result calibration and their channel
+configuration nodes should be defined:
 VADC_REF_625MV and/or VADC_SPARE1(based on PMIC version) VADC_REF_1250MV,
 VADC_GND_REF and VADC_VDD_VADC.
 
 Example:
 
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
+#include <linux/irq.h>
+/* ... */
+
 	/* VADC node */
 	pmic_vadc: vadc@3100 {
 		compatible = "qcom,spmi-vadc";
-		reg = <0x3100 0x100>;
+		reg = <0x3100>;
 		interrupts = <0x0 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -112,7 +155,7 @@ Example:
 		io-channel-ranges;
 
 		/* Channel node */
-		usb_id_nopull {
+		adc-chan@VADC_LR_MUX10_USB_ID {
 			reg = <VADC_LR_MUX10_USB_ID>;
 			qcom,decimation = <512>;
 			qcom,ratiometric;

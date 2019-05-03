@@ -29,11 +29,23 @@
 #include "mock_drm.h"
 #include "mock_gem_device.h"
 
-static int populate_ggtt(struct drm_i915_private *i915)
+static void quirk_add(struct drm_i915_gem_object *obj,
+		      struct list_head *objects)
 {
+	/* quirk is only for live tiled objects, use it to declare ownership */
+	GEM_BUG_ON(obj->mm.quirked);
+	obj->mm.quirked = true;
+	list_add(&obj->st_link, objects);
+}
+
+static int populate_ggtt(struct drm_i915_private *i915,
+			 struct list_head *objects)
+{
+	unsigned long unbound, bound, count;
 	struct drm_i915_gem_object *obj;
 	u64 size;
 
+	count = 0;
 	for (size = 0;
 	     size + I915_GTT_PAGE_SIZE <= i915->ggtt.vm.total;
 	     size += I915_GTT_PAGE_SIZE) {
@@ -43,21 +55,36 @@ static int populate_ggtt(struct drm_i915_private *i915)
 		if (IS_ERR(obj))
 			return PTR_ERR(obj);
 
+		quirk_add(obj, objects);
+
 		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
+
+		count++;
 	}
 
-	if (!list_empty(&i915->mm.unbound_list)) {
-		size = 0;
-		list_for_each_entry(obj, &i915->mm.unbound_list, mm.link)
-			size++;
-
-		pr_err("Found %lld objects unbound!\n", size);
+	unbound = 0;
+	list_for_each_entry(obj, &i915->mm.unbound_list, mm.link)
+		if (obj->mm.quirked)
+			unbound++;
+	if (unbound) {
+		pr_err("%s: Found %lu objects unbound, expected %u!\n",
+		       __func__, unbound, 0);
 		return -EINVAL;
 	}
 
-	if (list_empty(&i915->ggtt.vm.inactive_list)) {
+	bound = 0;
+	list_for_each_entry(obj, &i915->mm.bound_list, mm.link)
+		if (obj->mm.quirked)
+			bound++;
+	if (bound != count) {
+		pr_err("%s: Found %lu objects bound, expected %lu!\n",
+		       __func__, bound, count);
+		return -EINVAL;
+	}
+
+	if (list_empty(&i915->ggtt.vm.bound_list)) {
 		pr_err("No objects on the GGTT inactive list!\n");
 		return -EINVAL;
 	}
@@ -67,21 +94,26 @@ static int populate_ggtt(struct drm_i915_private *i915)
 
 static void unpin_ggtt(struct drm_i915_private *i915)
 {
+	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &i915->ggtt.vm.inactive_list, vm_link)
-		i915_vma_unpin(vma);
+	mutex_lock(&ggtt->vm.mutex);
+	list_for_each_entry(vma, &i915->ggtt.vm.bound_list, vm_link)
+		if (vma->obj->mm.quirked)
+			i915_vma_unpin(vma);
+	mutex_unlock(&ggtt->vm.mutex);
 }
 
-static void cleanup_objects(struct drm_i915_private *i915)
+static void cleanup_objects(struct drm_i915_private *i915,
+			    struct list_head *list)
 {
 	struct drm_i915_gem_object *obj, *on;
 
-	list_for_each_entry_safe(obj, on, &i915->mm.unbound_list, mm.link)
+	list_for_each_entry_safe(obj, on, list, st_link) {
+		GEM_BUG_ON(!obj->mm.quirked);
+		obj->mm.quirked = false;
 		i915_gem_object_put(obj);
-
-	list_for_each_entry_safe(obj, on, &i915->mm.bound_list, mm.link)
-		i915_gem_object_put(obj);
+	}
 
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -94,11 +126,12 @@ static int igt_evict_something(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_ggtt *ggtt = &i915->ggtt;
+	LIST_HEAD(objects);
 	int err;
 
 	/* Fill the GGTT with pinned objects and try to evict one. */
 
-	err = populate_ggtt(i915);
+	err = populate_ggtt(i915, &objects);
 	if (err)
 		goto cleanup;
 
@@ -127,7 +160,7 @@ static int igt_evict_something(void *arg)
 	}
 
 cleanup:
-	cleanup_objects(i915);
+	cleanup_objects(i915, &objects);
 	return err;
 }
 
@@ -136,13 +169,14 @@ static int igt_overcommit(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	LIST_HEAD(objects);
 	int err;
 
 	/* Fill the GGTT with pinned objects and then try to pin one more.
 	 * We expect it to fail.
 	 */
 
-	err = populate_ggtt(i915);
+	err = populate_ggtt(i915, &objects);
 	if (err)
 		goto cleanup;
 
@@ -152,6 +186,8 @@ static int igt_overcommit(void *arg)
 		goto cleanup;
 	}
 
+	quirk_add(obj, &objects);
+
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (!IS_ERR(vma) || PTR_ERR(vma) != -ENOSPC) {
 		pr_err("Failed to evict+insert, i915_gem_object_ggtt_pin returned err=%d\n", (int)PTR_ERR(vma));
@@ -160,7 +196,7 @@ static int igt_overcommit(void *arg)
 	}
 
 cleanup:
-	cleanup_objects(i915);
+	cleanup_objects(i915, &objects);
 	return err;
 }
 
@@ -172,11 +208,12 @@ static int igt_evict_for_vma(void *arg)
 		.start = 0,
 		.size = 4096,
 	};
+	LIST_HEAD(objects);
 	int err;
 
 	/* Fill the GGTT with pinned objects and try to evict a range. */
 
-	err = populate_ggtt(i915);
+	err = populate_ggtt(i915, &objects);
 	if (err)
 		goto cleanup;
 
@@ -199,7 +236,7 @@ static int igt_evict_for_vma(void *arg)
 	}
 
 cleanup:
-	cleanup_objects(i915);
+	cleanup_objects(i915, &objects);
 	return err;
 }
 
@@ -222,6 +259,7 @@ static int igt_evict_for_cache_color(void *arg)
 	};
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	LIST_HEAD(objects);
 	int err;
 
 	/* Currently the use of color_adjust is limited to cache domains within
@@ -237,6 +275,7 @@ static int igt_evict_for_cache_color(void *arg)
 		goto cleanup;
 	}
 	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	quirk_add(obj, &objects);
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       I915_GTT_PAGE_SIZE | flags);
@@ -252,6 +291,7 @@ static int igt_evict_for_cache_color(void *arg)
 		goto cleanup;
 	}
 	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	quirk_add(obj, &objects);
 
 	/* Neighbouring; same colour - should fit */
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
@@ -287,7 +327,7 @@ static int igt_evict_for_cache_color(void *arg)
 
 cleanup:
 	unpin_ggtt(i915);
-	cleanup_objects(i915);
+	cleanup_objects(i915, &objects);
 	ggtt->vm.mm.color_adjust = NULL;
 	return err;
 }
@@ -296,11 +336,12 @@ static int igt_evict_vm(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_ggtt *ggtt = &i915->ggtt;
+	LIST_HEAD(objects);
 	int err;
 
 	/* Fill the GGTT with pinned objects and try to evict everything. */
 
-	err = populate_ggtt(i915);
+	err = populate_ggtt(i915, &objects);
 	if (err)
 		goto cleanup;
 
@@ -322,7 +363,7 @@ static int igt_evict_vm(void *arg)
 	}
 
 cleanup:
-	cleanup_objects(i915);
+	cleanup_objects(i915, &objects);
 	return err;
 }
 
@@ -336,6 +377,7 @@ static int igt_evict_contexts(void *arg)
 		struct drm_mm_node node;
 		struct reserved *next;
 	} *reserved = NULL;
+	intel_wakeref_t wakeref;
 	struct drm_mm_node hole;
 	unsigned long count;
 	int err;
@@ -351,11 +393,11 @@ static int igt_evict_contexts(void *arg)
 	 * where the GTT space of the request is separate from the GGTT
 	 * allocation required to build the request.
 	 */
-	if (!USES_FULL_PPGTT(i915))
+	if (!HAS_FULL_PPGTT(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	/* Reserve a block so that we know we have enough to fit a few rq */
 	memset(&hole, 0, sizeof(hole));
@@ -400,8 +442,10 @@ static int igt_evict_contexts(void *arg)
 		struct drm_file *file;
 
 		file = mock_file(i915);
-		if (IS_ERR(file))
-			return PTR_ERR(file);
+		if (IS_ERR(file)) {
+			err = PTR_ERR(file);
+			break;
+		}
 
 		count = 0;
 		mutex_lock(&i915->drm.struct_mutex);
@@ -411,7 +455,7 @@ static int igt_evict_contexts(void *arg)
 			struct i915_gem_context *ctx;
 
 			ctx = live_context(i915, file);
-			if (!ctx)
+			if (IS_ERR(ctx))
 				break;
 
 			/* We will need some GGTT space for the rq's context */
@@ -464,7 +508,7 @@ out_locked:
 	}
 	if (drm_mm_node_allocated(&hole))
 		drm_mm_remove_node(&hole);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
@@ -480,14 +524,17 @@ int i915_gem_evict_mock_selftests(void)
 		SUBTEST(igt_overcommit),
 	};
 	struct drm_i915_private *i915;
-	int err;
+	intel_wakeref_t wakeref;
+	int err = 0;
 
 	i915 = mock_gem_device();
 	if (!i915)
 		return -ENOMEM;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	err = i915_subtests(tests, i915);
+	with_intel_runtime_pm(i915, wakeref)
+		err = i915_subtests(tests, i915);
+
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	drm_dev_put(&i915->drm);

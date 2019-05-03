@@ -15,26 +15,20 @@
 
 #include <linux/linkage.h>
 #include <linux/platform_data/ams-delta-fiq.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <asm/assembler.h>
-#include <mach/board-ams-delta.h>
 
 #include "ams-delta-fiq.h"
+#include "board-ams-delta.h"
 #include "iomap.h"
 #include "soc.h"
 
 /*
- * GPIO related definitions, copied from arch/arm/plat-omap/gpio.c.
- * Unfortunately, those were not placed in a separate header file.
+ * OMAP1510 GPIO related symbol copied from arch/arm/mach-omap1/gpio15xx.c.
+ * Unfortunately, it was not placed in a separate header file.
  */
 #define OMAP1510_GPIO_BASE		0xFFFCE000
-#define OMAP1510_GPIO_DATA_INPUT	0x00
-#define OMAP1510_GPIO_DATA_OUTPUT	0x04
-#define OMAP1510_GPIO_DIR_CONTROL	0x08
-#define OMAP1510_GPIO_INT_CONTROL	0x0c
-#define OMAP1510_GPIO_INT_MASK		0x10
-#define OMAP1510_GPIO_INT_STATUS	0x14
-#define OMAP1510_GPIO_PIN_CONTROL	0x18
 
 /* GPIO register bitmasks */
 #define KEYBRD_DATA_MASK		(0x1 << AMS_DELTA_GPIO_PIN_KEYBRD_DATA)

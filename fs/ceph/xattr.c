@@ -228,8 +228,19 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 			ci->i_rctime.tv_nsec);
 }
 
-/* quotas */
+/* dir pin */
+static bool ceph_vxattrcb_dir_pin_exists(struct ceph_inode_info *ci)
+{
+	return ci->i_dir_pin != -ENODATA;
+}
 
+static size_t ceph_vxattrcb_dir_pin(struct ceph_inode_info *ci, char *val,
+                                    size_t size)
+{
+	return snprintf(val, size, "%d", (int)ci->i_dir_pin);
+}
+
+/* quotas */
 static bool ceph_vxattrcb_quota_exists(struct ceph_inode_info *ci)
 {
 	bool ret = false;
@@ -314,6 +325,13 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_RSTAT_FIELD(dir, rsubdirs),
 	XATTR_RSTAT_FIELD(dir, rbytes),
 	XATTR_RSTAT_FIELD(dir, rctime),
+	{
+		.name = "ceph.dir.pin",
+		.name_size = sizeof("ceph.dir_pin"),
+		.getxattr_cb = ceph_vxattrcb_dir_pin,
+		.exists_cb = ceph_vxattrcb_dir_pin_exists,
+		.flags = VXATTR_FLAG_HIDDEN,
+	},
 	{
 		.name = "ceph.quota",
 		.name_size = sizeof("ceph.quota"),
@@ -951,11 +969,10 @@ static int ceph_sync_setxattr(struct inode *inode, const char *name,
 
 	if (size > 0) {
 		/* copy value into pagelist */
-		pagelist = kmalloc(sizeof(*pagelist), GFP_NOFS);
+		pagelist = ceph_pagelist_alloc(GFP_NOFS);
 		if (!pagelist)
 			return -ENOMEM;
 
-		ceph_pagelist_init(pagelist);
 		err = ceph_pagelist_append(pagelist, value, size);
 		if (err)
 			goto out;

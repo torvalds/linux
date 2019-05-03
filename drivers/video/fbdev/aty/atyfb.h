@@ -147,6 +147,7 @@ struct atyfb_par {
 	u16 pci_id;
 	u32 accel_flags;
 	int blitter_may_be_busy;
+	unsigned fifo_space;
 	int asleep;
 	int lock_blank;
 	unsigned long res_start;
@@ -346,10 +347,13 @@ extern int aty_init_cursor(struct fb_info *info);
      *  Hardware acceleration
      */
 
-static inline void wait_for_fifo(u16 entries, const struct atyfb_par *par)
+static inline void wait_for_fifo(u16 entries, struct atyfb_par *par)
 {
-	while ((aty_ld_le32(FIFO_STAT, par) & 0xffff) >
-	       ((u32) (0x8000 >> entries)));
+	unsigned fifo_space = par->fifo_space;
+	while (entries > fifo_space) {
+		fifo_space = 16 - fls(aty_ld_le32(FIFO_STAT, par) & 0xffff);
+	}
+	par->fifo_space = fifo_space - entries;
 }
 
 static inline void wait_for_idle(struct atyfb_par *par)
@@ -359,7 +363,7 @@ static inline void wait_for_idle(struct atyfb_par *par)
 	par->blitter_may_be_busy = 0;
 }
 
-extern void aty_reset_engine(const struct atyfb_par *par);
+extern void aty_reset_engine(struct atyfb_par *par);
 extern void aty_init_engine(struct atyfb_par *par, struct fb_info *info);
 
 void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);

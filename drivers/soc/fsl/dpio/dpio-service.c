@@ -27,6 +27,7 @@ struct dpaa2_io {
 	/* protect notifications list */
 	spinlock_t lock_notifications;
 	struct list_head notifications;
+	struct device *dev;
 };
 
 struct dpaa2_io_store {
@@ -98,13 +99,15 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_select);
 /**
  * dpaa2_io_create() - create a dpaa2_io object.
  * @desc: the dpaa2_io descriptor
+ * @dev: the actual DPIO device
  *
  * Activates a "struct dpaa2_io" corresponding to the given config of an actual
  * DPIO object.
  *
  * Return a valid dpaa2_io object for success, or NULL for failure.
  */
-struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
+struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
+				 struct device *dev)
 {
 	struct dpaa2_io *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
 
@@ -146,6 +149,8 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
 		dpio_by_cpu[desc->cpu] = obj;
 	spin_unlock(&dpio_list_lock);
 
+	obj->dev = dev;
+
 	return obj;
 }
 
@@ -160,6 +165,11 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
  */
 void dpaa2_io_down(struct dpaa2_io *d)
 {
+	spin_lock(&dpio_list_lock);
+	dpio_by_cpu[d->dpio_desc.cpu] = NULL;
+	list_del(&d->node);
+	spin_unlock(&dpio_list_lock);
+
 	kfree(d);
 }
 
@@ -210,10 +220,24 @@ done:
 }
 
 /**
+ * dpaa2_io_get_cpu() - get the cpu associated with a given DPIO object
+ *
+ * @d: the given DPIO object.
+ *
+ * Return the cpu associated with the DPIO object
+ */
+int dpaa2_io_get_cpu(struct dpaa2_io *d)
+{
+	return d->dpio_desc.cpu;
+}
+EXPORT_SYMBOL(dpaa2_io_get_cpu);
+
+/**
  * dpaa2_io_service_register() - Prepare for servicing of FQDAN or CDAN
  *                               notifications on the given DPIO service.
  * @d:   the given DPIO service.
  * @ctx: the notification context.
+ * @dev: the device that requests the register
  *
  * The caller should make the MC command to attach a DPAA2 object to
  * a DPIO after this function completes successfully.  In that way:
@@ -228,13 +252,19 @@ done:
  * Return 0 for success, or -ENODEV for failure.
  */
 int dpaa2_io_service_register(struct dpaa2_io *d,
-			      struct dpaa2_io_notification_ctx *ctx)
+			      struct dpaa2_io_notification_ctx *ctx,
+			      struct device *dev)
 {
+	struct device_link *link;
 	unsigned long irqflags;
 
 	d = service_select_by_cpu(d, ctx->desired_cpu);
 	if (!d)
 		return -ENODEV;
+
+	link = device_link_add(dev, d->dev, DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!link)
+		return -EINVAL;
 
 	ctx->dpio_id = d->dpio_desc.dpio_id;
 	ctx->qman64 = (u64)(uintptr_t)ctx;
@@ -256,12 +286,14 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_register);
  * dpaa2_io_service_deregister - The opposite of 'register'.
  * @service: the given DPIO service.
  * @ctx: the notification context.
+ * @dev: the device that requests to be deregistered
  *
  * This function should be called only after sending the MC command to
  * to detach the notification-producing device from the DPIO.
  */
 void dpaa2_io_service_deregister(struct dpaa2_io *service,
-				 struct dpaa2_io_notification_ctx *ctx)
+				 struct dpaa2_io_notification_ctx *ctx,
+				 struct device *dev)
 {
 	struct dpaa2_io *d = ctx->dpio_private;
 	unsigned long irqflags;
@@ -272,6 +304,9 @@ void dpaa2_io_service_deregister(struct dpaa2_io *service,
 	spin_lock_irqsave(&d->lock_notifications, irqflags);
 	list_del(&ctx->node);
 	spin_unlock_irqrestore(&d->lock_notifications, irqflags);
+
+	if (dev)
+		device_link_remove(dev, d->dev);
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_service_deregister);
 
@@ -310,6 +345,37 @@ int dpaa2_io_service_rearm(struct dpaa2_io *d,
 EXPORT_SYMBOL_GPL(dpaa2_io_service_rearm);
 
 /**
+ * dpaa2_io_service_pull_fq() - pull dequeue functions from a fq.
+ * @d: the given DPIO service.
+ * @fqid: the given frame queue id.
+ * @s: the dpaa2_io_store object for the result.
+ *
+ * Return 0 for success, or error code for failure.
+ */
+int dpaa2_io_service_pull_fq(struct dpaa2_io *d, u32 fqid,
+			     struct dpaa2_io_store *s)
+{
+	struct qbman_pull_desc pd;
+	int err;
+
+	qbman_pull_desc_clear(&pd);
+	qbman_pull_desc_set_storage(&pd, s->vaddr, s->paddr, 1);
+	qbman_pull_desc_set_numframes(&pd, (u8)s->max);
+	qbman_pull_desc_set_fq(&pd, fqid);
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+	s->swp = d->swp;
+	err = qbman_swp_pull(d->swp, &pd);
+	if (err)
+		s->swp = NULL;
+
+	return err;
+}
+EXPORT_SYMBOL(dpaa2_io_service_pull_fq);
+
+/**
  * dpaa2_io_service_pull_channel() - pull dequeue functions from a channel.
  * @d: the given DPIO service.
  * @channelid: the given channel id.
@@ -340,6 +406,33 @@ int dpaa2_io_service_pull_channel(struct dpaa2_io *d, u32 channelid,
 	return err;
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_service_pull_channel);
+
+/**
+ * dpaa2_io_service_enqueue_fq() - Enqueue a frame to a frame queue.
+ * @d: the given DPIO service.
+ * @fqid: the given frame queue id.
+ * @fd: the frame descriptor which is enqueued.
+ *
+ * Return 0 for successful enqueue, -EBUSY if the enqueue ring is not ready,
+ * or -ENODEV if there is no dpio service.
+ */
+int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d,
+				u32 fqid,
+				const struct dpaa2_fd *fd)
+{
+	struct qbman_eq_desc ed;
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+
+	qbman_eq_desc_clear(&ed);
+	qbman_eq_desc_set_no_orp(&ed, 0);
+	qbman_eq_desc_set_fq(&ed, fqid);
+
+	return qbman_swp_enqueue(d->swp, &ed, fd);
+}
+EXPORT_SYMBOL(dpaa2_io_service_enqueue_fq);
 
 /**
  * dpaa2_io_service_enqueue_qd() - Enqueue a frame to a QD.
@@ -380,7 +473,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_enqueue_qd);
  * Return 0 for success, and negative error code for failure.
  */
 int dpaa2_io_service_release(struct dpaa2_io *d,
-			     u32 bpid,
+			     u16 bpid,
 			     const u64 *buffers,
 			     unsigned int num_buffers)
 {
@@ -409,7 +502,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_release);
  * Eg. if the buffer pool is empty, this will return zero.
  */
 int dpaa2_io_service_acquire(struct dpaa2_io *d,
-			     u32 bpid,
+			     u16 bpid,
 			     u64 *buffers,
 			     unsigned int num_buffers)
 {
@@ -537,9 +630,78 @@ struct dpaa2_dq *dpaa2_io_store_next(struct dpaa2_io_store *s, int *is_last)
 		if (!(dpaa2_dq_flags(ret) & DPAA2_DQ_STAT_VALIDFRAME))
 			ret = NULL;
 	} else {
+		prefetch(&s->vaddr[s->idx]);
 		*is_last = 0;
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_store_next);
+
+/**
+ * dpaa2_io_query_fq_count() - Get the frame and byte count for a given fq.
+ * @d: the given DPIO object.
+ * @fqid: the id of frame queue to be queried.
+ * @fcnt: the queried frame count.
+ * @bcnt: the queried byte count.
+ *
+ * Knowing the FQ count at run-time can be useful in debugging situations.
+ * The instantaneous frame- and byte-count are hereby returned.
+ *
+ * Return 0 for a successful query, and negative error code if query fails.
+ */
+int dpaa2_io_query_fq_count(struct dpaa2_io *d, u32 fqid,
+			    u32 *fcnt, u32 *bcnt)
+{
+	struct qbman_fq_query_np_rslt state;
+	struct qbman_swp *swp;
+	unsigned long irqflags;
+	int ret;
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+
+	swp = d->swp;
+	spin_lock_irqsave(&d->lock_mgmt_cmd, irqflags);
+	ret = qbman_fq_query_state(swp, fqid, &state);
+	spin_unlock_irqrestore(&d->lock_mgmt_cmd, irqflags);
+	if (ret)
+		return ret;
+	*fcnt = qbman_fq_state_frame_count(&state);
+	*bcnt = qbman_fq_state_byte_count(&state);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dpaa2_io_query_fq_count);
+
+/**
+ * dpaa2_io_query_bp_count() - Query the number of buffers currently in a
+ * buffer pool.
+ * @d: the given DPIO object.
+ * @bpid: the index of buffer pool to be queried.
+ * @num: the queried number of buffers in the buffer pool.
+ *
+ * Return 0 for a successful query, and negative error code if query fails.
+ */
+int dpaa2_io_query_bp_count(struct dpaa2_io *d, u16 bpid, u32 *num)
+{
+	struct qbman_bp_query_rslt state;
+	struct qbman_swp *swp;
+	unsigned long irqflags;
+	int ret;
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+
+	swp = d->swp;
+	spin_lock_irqsave(&d->lock_mgmt_cmd, irqflags);
+	ret = qbman_bp_query(swp, bpid, &state);
+	spin_unlock_irqrestore(&d->lock_mgmt_cmd, irqflags);
+	if (ret)
+		return ret;
+	*num = qbman_bp_info_num_free_bufs(&state);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dpaa2_io_query_bp_count);

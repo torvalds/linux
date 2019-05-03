@@ -35,7 +35,6 @@
 #define _GVT_GTT_H_
 
 #define I915_GTT_PAGE_SHIFT         12
-#define I915_GTT_PAGE_MASK		(~(I915_GTT_PAGE_SIZE - 1))
 
 struct intel_vgpu_mm;
 
@@ -89,6 +88,7 @@ struct intel_gvt_gtt {
 	void (*mm_free_page_table)(struct intel_vgpu_mm *mm);
 	struct list_head oos_page_use_list_head;
 	struct list_head oos_page_free_list_head;
+	struct mutex ppgtt_mm_lock;
 	struct list_head ppgtt_mm_lru_list_head;
 
 	struct page *scratch_page;
@@ -133,6 +133,12 @@ enum intel_gvt_mm_type {
 
 #define GVT_RING_CTX_NR_PDPS	GEN8_3LVL_PDPES
 
+struct intel_gvt_partial_pte {
+	unsigned long offset;
+	u64 data;
+	struct list_head list;
+};
+
 struct intel_vgpu_mm {
 	enum intel_gvt_mm_type type;
 	struct intel_vgpu *vgpu;
@@ -157,8 +163,7 @@ struct intel_vgpu_mm {
 		} ppgtt_mm;
 		struct {
 			void *virtual_ggtt;
-			unsigned long last_partial_off;
-			u64 last_partial_data;
+			struct list_head partial_pte_list;
 		} ggtt_mm;
 	};
 };

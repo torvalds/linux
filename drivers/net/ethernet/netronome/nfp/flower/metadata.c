@@ -1,39 +1,10 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/hash.h>
 #include <linux/hashtable.h>
 #include <linux/jhash.h>
+#include <linux/math64.h>
 #include <linux/vmalloc.h>
 #include <net/pkt_cls.h>
 
@@ -48,6 +19,11 @@ struct nfp_mask_id_table {
 	u8 mask_id;
 };
 
+struct nfp_fl_flow_table_cmp_arg {
+	struct net_device *netdev;
+	unsigned long cookie;
+};
+
 static int nfp_release_stats_entry(struct nfp_app *app, u32 stats_context_id)
 {
 	struct nfp_flower_priv *priv = app->priv;
@@ -55,14 +31,14 @@ static int nfp_release_stats_entry(struct nfp_app *app, u32 stats_context_id)
 
 	ring = &priv->stats_ids.free_list;
 	/* Check if buffer is full. */
-	if (!CIRC_SPACE(ring->head, ring->tail, NFP_FL_STATS_ENTRY_RS *
-			NFP_FL_STATS_ELEM_RS -
+	if (!CIRC_SPACE(ring->head, ring->tail,
+			priv->stats_ring_size * NFP_FL_STATS_ELEM_RS -
 			NFP_FL_STATS_ELEM_RS + 1))
 		return -ENOBUFS;
 
 	memcpy(&ring->buf[ring->head], &stats_context_id, NFP_FL_STATS_ELEM_RS);
 	ring->head = (ring->head + NFP_FL_STATS_ELEM_RS) %
-		     (NFP_FL_STATS_ENTRY_RS * NFP_FL_STATS_ELEM_RS);
+		     (priv->stats_ring_size * NFP_FL_STATS_ELEM_RS);
 
 	return 0;
 }
@@ -74,11 +50,20 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 	struct circ_buf *ring;
 
 	ring = &priv->stats_ids.free_list;
-	freed_stats_id = NFP_FL_STATS_ENTRY_RS;
+	freed_stats_id = priv->stats_ring_size;
 	/* Check for unallocated entries first. */
 	if (priv->stats_ids.init_unalloc > 0) {
-		*stats_context_id = priv->stats_ids.init_unalloc - 1;
-		priv->stats_ids.init_unalloc--;
+		if (priv->active_mem_unit == priv->total_mem_units) {
+			priv->stats_ids.init_unalloc--;
+			priv->active_mem_unit = 0;
+		}
+
+		*stats_context_id =
+			FIELD_PREP(NFP_FL_STAT_ID_STAT,
+				   priv->stats_ids.init_unalloc - 1) |
+			FIELD_PREP(NFP_FL_STAT_ID_MU_NUM,
+				   priv->active_mem_unit);
+		priv->active_mem_unit++;
 		return 0;
 	}
 
@@ -92,7 +77,7 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 	*stats_context_id = temp_stats_id;
 	memcpy(&ring->buf[ring->tail], &freed_stats_id, NFP_FL_STATS_ELEM_RS);
 	ring->tail = (ring->tail + NFP_FL_STATS_ELEM_RS) %
-		     (NFP_FL_STATS_ENTRY_RS * NFP_FL_STATS_ELEM_RS);
+		     (priv->stats_ring_size * NFP_FL_STATS_ELEM_RS);
 
 	return 0;
 }
@@ -100,58 +85,38 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 /* Must be called with either RTNL or rcu_read_lock */
 struct nfp_fl_payload *
 nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
-			   struct net_device *netdev, __be32 host_ctx)
+			   struct net_device *netdev)
 {
+	struct nfp_fl_flow_table_cmp_arg flower_cmp_arg;
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_fl_payload *flower_entry;
 
-	hash_for_each_possible_rcu(priv->flow_table, flower_entry, link,
-				   tc_flower_cookie)
-		if (flower_entry->tc_flower_cookie == tc_flower_cookie &&
-		    (!netdev || flower_entry->ingress_dev == netdev) &&
-		    (host_ctx == NFP_FL_STATS_CTX_DONT_CARE ||
-		     flower_entry->meta.host_ctx_id == host_ctx))
-			return flower_entry;
+	flower_cmp_arg.netdev = netdev;
+	flower_cmp_arg.cookie = tc_flower_cookie;
 
-	return NULL;
-}
-
-static void
-nfp_flower_update_stats(struct nfp_app *app, struct nfp_fl_stats_frame *stats)
-{
-	struct nfp_fl_payload *nfp_flow;
-	unsigned long flower_cookie;
-
-	flower_cookie = be64_to_cpu(stats->stats_cookie);
-
-	rcu_read_lock();
-	nfp_flow = nfp_flower_search_fl_table(app, flower_cookie, NULL,
-					      stats->stats_con_id);
-	if (!nfp_flow)
-		goto exit_rcu_unlock;
-
-	spin_lock(&nfp_flow->lock);
-	nfp_flow->stats.pkts += be32_to_cpu(stats->pkt_count);
-	nfp_flow->stats.bytes += be64_to_cpu(stats->byte_count);
-	nfp_flow->stats.used = jiffies;
-	spin_unlock(&nfp_flow->lock);
-
-exit_rcu_unlock:
-	rcu_read_unlock();
+	return rhashtable_lookup_fast(&priv->flow_table, &flower_cmp_arg,
+				      nfp_flower_table_params);
 }
 
 void nfp_flower_rx_flow_stats(struct nfp_app *app, struct sk_buff *skb)
 {
 	unsigned int msg_len = nfp_flower_cmsg_get_data_len(skb);
-	struct nfp_fl_stats_frame *stats_frame;
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_stats_frame *stats;
 	unsigned char *msg;
+	u32 ctx_id;
 	int i;
 
 	msg = nfp_flower_cmsg_get_data(skb);
 
-	stats_frame = (struct nfp_fl_stats_frame *)msg;
-	for (i = 0; i < msg_len / sizeof(*stats_frame); i++)
-		nfp_flower_update_stats(app, stats_frame + i);
+	spin_lock(&priv->stats_lock);
+	for (i = 0; i < msg_len / sizeof(*stats); i++) {
+		stats = (struct nfp_fl_stats_frame *)msg + i;
+		ctx_id = be32_to_cpu(stats->stats_con_id);
+		priv->stats[ctx_id].pkts += be32_to_cpu(stats->pkt_count);
+		priv->stats[ctx_id].bytes += be64_to_cpu(stats->byte_count);
+		priv->stats[ctx_id].used = jiffies;
+	}
+	spin_unlock(&priv->stats_lock);
 }
 
 static int nfp_release_mask_id(struct nfp_app *app, u8 mask_id)
@@ -330,6 +295,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 
 	nfp_flow->meta.host_ctx_id = cpu_to_be32(stats_cxt);
 	nfp_flow->meta.host_cookie = cpu_to_be64(flow->cookie);
+	nfp_flow->ingress_dev = netdev;
 
 	new_mask_id = 0;
 	if (!nfp_check_mask_add(app, nfp_flow->mask_data,
@@ -345,12 +311,11 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 
 	/* Update flow payload with mask ids. */
 	nfp_flow->unmasked_data[NFP_FL_MASK_ID_LOCATION] = new_mask_id;
-	nfp_flow->stats.pkts = 0;
-	nfp_flow->stats.bytes = 0;
-	nfp_flow->stats.used = jiffies;
+	priv->stats[stats_cxt].pkts = 0;
+	priv->stats[stats_cxt].bytes = 0;
+	priv->stats[stats_cxt].used = jiffies;
 
-	check_entry = nfp_flower_search_fl_table(app, flow->cookie, netdev,
-						 NFP_FL_STATS_CTX_DONT_CARE);
+	check_entry = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (check_entry) {
 		if (nfp_release_stats_entry(app, stats_cxt))
 			return -EINVAL;
@@ -389,12 +354,55 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 	return nfp_release_stats_entry(app, temp_ctx_id);
 }
 
-int nfp_flower_metadata_init(struct nfp_app *app)
+static int nfp_fl_obj_cmpfn(struct rhashtable_compare_arg *arg,
+			    const void *obj)
+{
+	const struct nfp_fl_flow_table_cmp_arg *cmp_arg = arg->key;
+	const struct nfp_fl_payload *flow_entry = obj;
+
+	if (flow_entry->ingress_dev == cmp_arg->netdev)
+		return flow_entry->tc_flower_cookie != cmp_arg->cookie;
+
+	return 1;
+}
+
+static u32 nfp_fl_obj_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct nfp_fl_payload *flower_entry = data;
+
+	return jhash2((u32 *)&flower_entry->tc_flower_cookie,
+		      sizeof(flower_entry->tc_flower_cookie) / sizeof(u32),
+		      seed);
+}
+
+static u32 nfp_fl_key_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct nfp_fl_flow_table_cmp_arg *cmp_arg = data;
+
+	return jhash2((u32 *)&cmp_arg->cookie,
+		      sizeof(cmp_arg->cookie) / sizeof(u32), seed);
+}
+
+const struct rhashtable_params nfp_flower_table_params = {
+	.head_offset		= offsetof(struct nfp_fl_payload, fl_node),
+	.hashfn			= nfp_fl_key_hashfn,
+	.obj_cmpfn		= nfp_fl_obj_cmpfn,
+	.obj_hashfn		= nfp_fl_obj_hashfn,
+	.automatic_shrinking	= true,
+};
+
+int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
+			     unsigned int host_num_mems)
 {
 	struct nfp_flower_priv *priv = app->priv;
+	int err, stats_size;
 
 	hash_init(priv->mask_table);
-	hash_init(priv->flow_table);
+
+	err = rhashtable_init(&priv->flow_table, &nfp_flower_table_params);
+	if (err)
+		return err;
+
 	get_random_bytes(&priv->mask_id_seed, sizeof(priv->mask_id_seed));
 
 	/* Init ring buffer and unallocated mask_ids. */
@@ -402,7 +410,7 @@ int nfp_flower_metadata_init(struct nfp_app *app)
 		kmalloc_array(NFP_FLOWER_MASK_ENTRY_RS,
 			      NFP_FLOWER_MASK_ELEMENT_RS, GFP_KERNEL);
 	if (!priv->mask_ids.mask_id_free_list.buf)
-		return -ENOMEM;
+		goto err_free_flow_table;
 
 	priv->mask_ids.init_unallocated = NFP_FLOWER_MASK_ENTRY_RS - 1;
 
@@ -416,18 +424,31 @@ int nfp_flower_metadata_init(struct nfp_app *app)
 	/* Init ring buffer and unallocated stats_ids. */
 	priv->stats_ids.free_list.buf =
 		vmalloc(array_size(NFP_FL_STATS_ELEM_RS,
-				   NFP_FL_STATS_ENTRY_RS));
+				   priv->stats_ring_size));
 	if (!priv->stats_ids.free_list.buf)
 		goto err_free_last_used;
 
-	priv->stats_ids.init_unalloc = NFP_FL_REPEATED_HASH_MAX;
+	priv->stats_ids.init_unalloc = div_u64(host_ctx_count, host_num_mems);
+
+	stats_size = FIELD_PREP(NFP_FL_STAT_ID_STAT, host_ctx_count) |
+		     FIELD_PREP(NFP_FL_STAT_ID_MU_NUM, host_num_mems - 1);
+	priv->stats = kvmalloc_array(stats_size, sizeof(struct nfp_fl_stats),
+				     GFP_KERNEL);
+	if (!priv->stats)
+		goto err_free_ring_buf;
+
+	spin_lock_init(&priv->stats_lock);
 
 	return 0;
 
+err_free_ring_buf:
+	vfree(priv->stats_ids.free_list.buf);
 err_free_last_used:
 	kfree(priv->mask_ids.last_used);
 err_free_mask_id:
 	kfree(priv->mask_ids.mask_id_free_list.buf);
+err_free_flow_table:
+	rhashtable_destroy(&priv->flow_table);
 	return -ENOMEM;
 }
 
@@ -438,6 +459,9 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app)
 	if (!priv)
 		return;
 
+	rhashtable_free_and_destroy(&priv->flow_table,
+				    nfp_check_rhashtable_empty, NULL);
+	kvfree(priv->stats);
 	kfree(priv->mask_ids.mask_id_free_list.buf);
 	kfree(priv->mask_ids.last_used);
 	vfree(priv->stats_ids.free_list.buf);

@@ -92,8 +92,12 @@ enum pp_clock_type {
 	PP_SCLK,
 	PP_MCLK,
 	PP_PCIE,
+	PP_SOCCLK,
+	PP_FCLK,
+	PP_DCEFCLK,
 	OD_SCLK,
 	OD_MCLK,
+	OD_VDDC_CURVE,
 	OD_RANGE,
 };
 
@@ -112,6 +116,9 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GPU_POWER,
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK,
+	AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK,
+	AMDGPU_PP_SENSOR_MIN_FAN_RPM,
+	AMDGPU_PP_SENSOR_MAX_FAN_RPM,
 };
 
 enum amd_pp_task {
@@ -123,12 +130,13 @@ enum amd_pp_task {
 };
 
 enum PP_SMC_POWER_PROFILE {
-	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x0,
-	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x1,
-	PP_SMC_POWER_PROFILE_VIDEO        = 0x2,
-	PP_SMC_POWER_PROFILE_VR           = 0x3,
-	PP_SMC_POWER_PROFILE_COMPUTE      = 0x4,
-	PP_SMC_POWER_PROFILE_CUSTOM       = 0x5,
+	PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT = 0x0,
+	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x1,
+	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x2,
+	PP_SMC_POWER_PROFILE_VIDEO        = 0x3,
+	PP_SMC_POWER_PROFILE_VR           = 0x4,
+	PP_SMC_POWER_PROFILE_COMPUTE      = 0x5,
+	PP_SMC_POWER_PROFILE_CUSTOM       = 0x6,
 };
 
 enum {
@@ -141,6 +149,7 @@ enum {
 enum PP_OD_DPM_TABLE_COMMAND {
 	PP_OD_EDIT_SCLK_VDDC_TABLE,
 	PP_OD_EDIT_MCLK_VDDC_TABLE,
+	PP_OD_EDIT_VDDC_CURVE,
 	PP_OD_RESTORE_DEFAULT_TABLE,
 	PP_OD_COMMIT_DPM_TABLE
 };
@@ -225,6 +234,7 @@ struct amd_pm_funcs {
 	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
 	enum amd_pm_state_type (*get_current_power_state)(void *handle);
 	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
+	int (*set_fan_speed_rpm)(void *handle, uint32_t rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
@@ -269,6 +279,16 @@ struct amd_pm_funcs {
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
 	int (*notify_smu_enable_pwe)(void *handle);
+	int (*enable_mgpu_fan_boost)(void *handle);
+	int (*set_active_display_count)(void *handle, uint32_t count);
+	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
+	int (*get_asic_baco_capability)(void *handle, bool *cap);
+	int (*get_asic_baco_state)(void *handle, int *state);
+	int (*set_asic_baco_state)(void *handle, int state);
+	int (*get_ppfeature_status)(void *handle, char *buf);
+	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
 };
 
 #endif

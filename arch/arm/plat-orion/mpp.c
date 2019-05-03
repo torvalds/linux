@@ -28,10 +28,15 @@ void __init orion_mpp_conf(unsigned int *mpp_list, unsigned int variant_mask,
 			   unsigned int mpp_max, void __iomem *dev_bus)
 {
 	unsigned int mpp_nr_regs = (1 + mpp_max/8);
-	u32 mpp_ctrl[mpp_nr_regs];
+	u32 mpp_ctrl[8];
 	int i;
 
 	printk(KERN_DEBUG "initial MPP regs:");
+	if (mpp_nr_regs > ARRAY_SIZE(mpp_ctrl)) {
+		printk(KERN_ERR "orion_mpp_conf: invalid mpp_max\n");
+		return;
+	}
+
 	for (i = 0; i < mpp_nr_regs; i++) {
 		mpp_ctrl[i] = readl(mpp_ctrl_addr(i, dev_bus));
 		printk(" %08x", mpp_ctrl[i]);

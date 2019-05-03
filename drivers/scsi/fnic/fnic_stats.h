@@ -97,6 +97,9 @@ struct vlan_stats {
 struct misc_stats {
 	u64 last_isr_time;
 	u64 last_ack_time;
+	atomic64_t max_isr_jiffies;
+	atomic64_t max_isr_time_ms;
+	atomic64_t corr_work_done;
 	atomic64_t isr_count;
 	atomic64_t max_cq_entries;
 	atomic64_t ack_index_out_of_range;
@@ -113,6 +116,7 @@ struct misc_stats {
 	atomic64_t queue_fulls;
 	atomic64_t rport_not_ready;
 	atomic64_t frame_errors;
+	atomic64_t current_port_speed;
 };
 
 struct fnic_stats {
@@ -134,6 +138,6 @@ struct stats_debug_info {
 };
 
 int fnic_get_stats_data(struct stats_debug_info *, struct fnic_stats *);
-int fnic_stats_debugfs_init(struct fnic *);
+void fnic_stats_debugfs_init(struct fnic *);
 void fnic_stats_debugfs_remove(struct fnic *);
 #endif /* _FNIC_STATS_H_ */

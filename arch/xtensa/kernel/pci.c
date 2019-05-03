@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/pci-bridge.h>
 #include <asm/platform.h>

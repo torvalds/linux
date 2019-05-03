@@ -185,54 +185,8 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 	.vgpu_query_plane = intel_vgpu_query_plane,
 	.vgpu_get_dmabuf = intel_vgpu_get_dmabuf,
 	.write_protect_handler = intel_vgpu_page_track_handler,
+	.emulate_hotplug = intel_vgpu_emulate_hotplug,
 };
-
-/**
- * intel_gvt_init_host - Load MPT modules and detect if we're running in host
- * @gvt: intel gvt device
- *
- * This function is called at the driver loading stage. If failed to find a
- * loadable MPT module or detect currently we're running in a VM, then GVT-g
- * will be disabled
- *
- * Returns:
- * Zero on success, negative error code if failed.
- *
- */
-int intel_gvt_init_host(void)
-{
-	if (intel_gvt_host.initialized)
-		return 0;
-
-	/* Xen DOM U */
-	if (xen_domain() && !xen_initial_domain())
-		return -ENODEV;
-
-	/* Try to load MPT modules for hypervisors */
-	if (xen_initial_domain()) {
-		/* In Xen dom0 */
-		intel_gvt_host.mpt = try_then_request_module(
-				symbol_get(xengt_mpt), "xengt");
-		intel_gvt_host.hypervisor_type = INTEL_GVT_HYPERVISOR_XEN;
-	} else {
-#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
-		/* not in Xen. Try KVMGT */
-		intel_gvt_host.mpt = try_then_request_module(
-				symbol_get(kvmgt_mpt), "kvmgt");
-		intel_gvt_host.hypervisor_type = INTEL_GVT_HYPERVISOR_KVM;
-#endif
-	}
-
-	/* Fail to load MPT modules - bail out */
-	if (!intel_gvt_host.mpt)
-		return -EINVAL;
-
-	gvt_dbg_core("Running with hypervisor %s in host mode\n",
-			supported_hypervisors[intel_gvt_host.hypervisor_type]);
-
-	intel_gvt_host.initialized = true;
-	return 0;
-}
 
 static void init_device_info(struct intel_gvt *gvt)
 {
@@ -303,7 +257,7 @@ static int init_service_thread(struct intel_gvt *gvt)
 
 /**
  * intel_gvt_clean_device - clean a GVT device
- * @gvt: intel gvt device
+ * @dev_priv: i915 private
  *
  * This function is called at the driver unloading stage, to free the
  * resources owned by a GVT device.
@@ -317,7 +271,6 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
-	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
 	intel_gvt_cleanup_vgpu_type_groups(gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 
@@ -352,13 +305,6 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	struct intel_gvt *gvt;
 	struct intel_vgpu *vgpu;
 	int ret;
-
-	/*
-	 * Cannot initialize GVT device without intel_gvt_host gets
-	 * initialized first.
-	 */
-	if (WARN_ON(!intel_gvt_host.initialized))
-		return -EINVAL;
 
 	if (WARN_ON(dev_priv->gvt))
 		return -EEXIST;
@@ -421,13 +367,6 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 		goto out_clean_types;
 	}
 
-	ret = intel_gvt_hypervisor_host_init(&dev_priv->drm.pdev->dev, gvt,
-				&intel_gvt_ops);
-	if (ret) {
-		gvt_err("failed to register gvt-g host device: %d\n", ret);
-		goto out_clean_types;
-	}
-
 	vgpu = intel_gvt_create_idle_vgpu(gvt);
 	if (IS_ERR(vgpu)) {
 		ret = PTR_ERR(vgpu);
@@ -438,10 +377,12 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 
 	ret = intel_gvt_debugfs_init(gvt);
 	if (ret)
-		gvt_err("debugfs registeration failed, go on.\n");
+		gvt_err("debugfs registration failed, go on.\n");
 
 	gvt_dbg_core("gvt device initialization is done\n");
 	dev_priv->gvt = gvt;
+	intel_gvt_host.dev = &dev_priv->drm.pdev->dev;
+	intel_gvt_host.initialized = true;
 	return 0;
 
 out_clean_types:
@@ -468,6 +409,45 @@ out_clean_idr:
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
-MODULE_SOFTDEP("pre: kvmgt");
-#endif
+int
+intel_gvt_register_hypervisor(struct intel_gvt_mpt *m)
+{
+	int ret;
+	void *gvt;
+
+	if (!intel_gvt_host.initialized)
+		return -ENODEV;
+
+	if (m->type != INTEL_GVT_HYPERVISOR_KVM &&
+	    m->type != INTEL_GVT_HYPERVISOR_XEN)
+		return -EINVAL;
+
+	/* Get a reference for device model module */
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	intel_gvt_host.mpt = m;
+	intel_gvt_host.hypervisor_type = m->type;
+	gvt = (void *)kdev_to_i915(intel_gvt_host.dev)->gvt;
+
+	ret = intel_gvt_hypervisor_host_init(intel_gvt_host.dev, gvt,
+					     &intel_gvt_ops);
+	if (ret < 0) {
+		gvt_err("Failed to init %s hypervisor module\n",
+			supported_hypervisors[intel_gvt_host.hypervisor_type]);
+		module_put(THIS_MODULE);
+		return -ENODEV;
+	}
+	gvt_dbg_core("Running with hypervisor %s in host mode\n",
+		     supported_hypervisors[intel_gvt_host.hypervisor_type]);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_gvt_register_hypervisor);
+
+void
+intel_gvt_unregister_hypervisor(void)
+{
+	intel_gvt_hypervisor_host_exit(intel_gvt_host.dev);
+	module_put(THIS_MODULE);
+}
+EXPORT_SYMBOL_GPL(intel_gvt_unregister_hypervisor);

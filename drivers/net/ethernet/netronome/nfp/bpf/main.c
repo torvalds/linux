@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <net/pkt_cls.h>
 
@@ -54,11 +24,14 @@ const struct rhashtable_params nfp_bpf_maps_neutral_params = {
 static bool nfp_net_ebpf_capable(struct nfp_net *nn)
 {
 #ifdef __LITTLE_ENDIAN
-	if (nn->cap & NFP_NET_CFG_CTRL_BPF &&
-	    nn_readb(nn, NFP_NET_CFG_BPF_ABI) == NFP_NET_BPF_ABI)
-		return true;
-#endif
+	struct nfp_app_bpf *bpf = nn->app->priv;
+
+	return nn->cap & NFP_NET_CFG_CTRL_BPF &&
+	       bpf->abi_version &&
+	       nn_readb(nn, NFP_NET_CFG_BPF_ABI) == bpf->abi_version;
+#else
 	return false;
+#endif
 }
 
 static int
@@ -342,6 +315,26 @@ nfp_bpf_parse_cap_adjust_tail(struct nfp_app_bpf *bpf, void __iomem *value,
 	return 0;
 }
 
+static int
+nfp_bpf_parse_cap_abi_version(struct nfp_app_bpf *bpf, void __iomem *value,
+			      u32 length)
+{
+	if (length < 4) {
+		nfp_err(bpf->app->cpp, "truncated ABI version TLV: %d\n",
+			length);
+		return -EINVAL;
+	}
+
+	bpf->abi_version = readl(value);
+	if (bpf->abi_version < 2 || bpf->abi_version > 3) {
+		nfp_warn(bpf->app->cpp, "unsupported BPF ABI version: %d\n",
+			 bpf->abi_version);
+		bpf->abi_version = 0;
+	}
+
+	return 0;
+}
+
 static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 {
 	struct nfp_cpp *cpp = app->pf->cpp;
@@ -393,6 +386,11 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 							  length))
 				goto err_release_free;
 			break;
+		case NFP_BPF_CAP_TYPE_ABI_VERSION:
+			if (nfp_bpf_parse_cap_abi_version(app->priv, value,
+							  length))
+				goto err_release_free;
+			break;
 		default:
 			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
 			break;
@@ -412,6 +410,11 @@ err_release_free:
 	nfp_err(cpp, "invalid BPF capabilities at offset:%zd\n", mem - start);
 	nfp_cpp_area_release_free(area);
 	return -EINVAL;
+}
+
+static void nfp_bpf_init_capabilities(struct nfp_app_bpf *bpf)
+{
+	bpf->abi_version = 2; /* Original BPF ABI version */
 }
 
 static int nfp_bpf_ndo_init(struct nfp_app *app, struct net_device *netdev)
@@ -447,11 +450,22 @@ static int nfp_bpf_init(struct nfp_app *app)
 	if (err)
 		goto err_free_bpf;
 
+	nfp_bpf_init_capabilities(bpf);
+
 	err = nfp_bpf_parse_capabilities(app);
 	if (err)
 		goto err_free_neutral_maps;
 
-	bpf->bpf_dev = bpf_offload_dev_create();
+	if (bpf->abi_version < 3) {
+		bpf->cmsg_key_sz = CMSG_MAP_KEY_LW * 4;
+		bpf->cmsg_val_sz = CMSG_MAP_VALUE_LW * 4;
+	} else {
+		bpf->cmsg_key_sz = bpf->maps.max_key_sz;
+		bpf->cmsg_val_sz = bpf->maps.max_val_sz;
+		app->ctrl_mtu = nfp_bpf_ctrl_cmsg_mtu(bpf);
+	}
+
+	bpf->bpf_dev = bpf_offload_dev_create(&nfp_bpf_dev_ops, bpf);
 	err = PTR_ERR_OR_ZERO(bpf->bpf_dev);
 	if (err)
 		goto err_free_neutral_maps;
@@ -463,11 +477,6 @@ err_free_neutral_maps:
 err_free_bpf:
 	kfree(bpf);
 	return err;
-}
-
-static void nfp_check_rhashtable_empty(void *ptr, void *arg)
-{
-	WARN_ON_ONCE(1);
 }
 
 static void nfp_bpf_clean(struct nfp_app *app)

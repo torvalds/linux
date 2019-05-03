@@ -33,10 +33,12 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/dma-buf.h>
 #include <asm/processor.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_dbgmgr.h"
+#include "amdgpu_amdkfd.h"
 
 static long kfd_ioctl(struct file *, unsigned int, unsigned long);
 static int kfd_open(struct inode *, struct file *);
@@ -156,8 +158,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	}
 
 	if ((args->ring_base_address) &&
-		(!access_ok(VERIFY_WRITE,
-			(const void __user *) args->ring_base_address,
+		(!access_ok((const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
 		pr_err("Can't access ring base address\n");
 		return -EFAULT;
@@ -168,31 +169,27 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		return -EINVAL;
 	}
 
-	if (!access_ok(VERIFY_WRITE,
-			(const void __user *) args->read_pointer_address,
+	if (!access_ok((const void __user *) args->read_pointer_address,
 			sizeof(uint32_t))) {
 		pr_err("Can't access read pointer\n");
 		return -EFAULT;
 	}
 
-	if (!access_ok(VERIFY_WRITE,
-			(const void __user *) args->write_pointer_address,
+	if (!access_ok((const void __user *) args->write_pointer_address,
 			sizeof(uint32_t))) {
 		pr_err("Can't access write pointer\n");
 		return -EFAULT;
 	}
 
 	if (args->eop_buffer_address &&
-		!access_ok(VERIFY_WRITE,
-			(const void __user *) args->eop_buffer_address,
+		!access_ok((const void __user *) args->eop_buffer_address,
 			sizeof(uint32_t))) {
 		pr_debug("Can't access eop buffer");
 		return -EFAULT;
 	}
 
 	if (args->ctx_save_restore_address &&
-		!access_ok(VERIFY_WRITE,
-			(const void __user *) args->ctx_save_restore_address,
+		!access_ok((const void __user *) args->ctx_save_restore_address,
 			sizeof(uint32_t))) {
 		pr_debug("Can't access ctx save restore buffer");
 		return -EFAULT;
@@ -363,8 +360,7 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	}
 
 	if ((args->ring_base_address) &&
-		(!access_ok(VERIFY_WRITE,
-			(const void __user *) args->ring_base_address,
+		(!access_ok((const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
 		pr_err("Can't access ring base address\n");
 		return -EFAULT;
@@ -445,6 +441,24 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 		kfree(properties.cu_mask);
 
 	return retval;
+}
+
+static int kfd_ioctl_get_queue_wave_state(struct file *filep,
+					  struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_queue_wave_state_args *args = data;
+	int r;
+
+	mutex_lock(&p->mutex);
+
+	r = pqm_get_wave_state(&p->pqm, args->queue_id,
+			       (void __user *)args->ctl_stack_address,
+			       &args->ctl_stack_used_size,
+			       &args->save_area_used_size);
+
+	mutex_unlock(&p->mutex);
+
+	return r;
 }
 
 static int kfd_ioctl_set_memory_policy(struct file *filep,
@@ -816,8 +830,7 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 	dev = kfd_device_by_id(args->gpu_id);
 	if (dev)
 		/* Reading GPU clock counter from KGD */
-		args->gpu_clock_counter =
-			dev->kfd2kgd->get_gpu_clock_counter(dev->kgd);
+		args->gpu_clock_counter = amdgpu_amdkfd_get_gpu_clock_counter(dev->kgd);
 	else
 		/* Node without GPU resource */
 		args->gpu_clock_counter = 0;
@@ -1024,7 +1037,7 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 		}
 		mutex_unlock(&p->mutex);
 
-		err = kfd->kfd2kgd->map_gtt_bo_to_kernel(kfd->kgd,
+		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kfd->kgd,
 						mem, &kern_addr, &size);
 		if (err) {
 			pr_err("Failed to map event page to kernel\n");
@@ -1210,7 +1223,7 @@ err_unlock:
 	return ret;
 }
 
-static bool kfd_dev_is_large_bar(struct kfd_dev *dev)
+bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 {
 	struct kfd_local_mem_info mem_info;
 
@@ -1222,7 +1235,7 @@ static bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 	if (dev->device_info->needs_iommu_device)
 		return false;
 
-	dev->kfd2kgd->get_local_mem_info(dev->kgd, &mem_info);
+	amdgpu_amdkfd_get_local_mem_info(dev->kgd, &mem_info);
 	if (mem_info.local_mem_size_private == 0 &&
 			mem_info.local_mem_size_public > 0)
 		return true;
@@ -1255,6 +1268,12 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL) {
+		if (args->size != kfd_doorbell_process_slice(dev))
+			return -EINVAL;
+		offset = kfd_get_process_doorbells(dev, p);
+	}
+
 	mutex_lock(&p->mutex);
 
 	pdd = kfd_bind_process_to_device(dev, p);
@@ -1263,7 +1282,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		goto err_unlock;
 	}
 
-	err = dev->kfd2kgd->alloc_memory_of_gpu(
+	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		dev->kgd, args->va_addr, args->size,
 		pdd->vm, (struct kgd_mem **) &mem, &offset,
 		flags);
@@ -1285,7 +1304,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	return 0;
 
 err_free:
-	dev->kfd2kgd->free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem);
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem);
 err_unlock:
 	mutex_unlock(&p->mutex);
 	return err;
@@ -1320,7 +1339,8 @@ static int kfd_ioctl_free_memory_of_gpu(struct file *filep,
 		goto err_unlock;
 	}
 
-	ret = dev->kfd2kgd->free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem);
+	ret = amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd,
+						(struct kgd_mem *)mem);
 
 	/* If freeing the buffer failed, leave the handle in place for
 	 * clean-up during process tear-down.
@@ -1400,7 +1420,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 			err = PTR_ERR(peer_pdd);
 			goto get_mem_obj_from_handle_failed;
 		}
-		err = peer->kfd2kgd->map_memory_to_gpu(
+		err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 			peer->kgd, (struct kgd_mem *)mem, peer_pdd->vm);
 		if (err) {
 			pr_err("Failed to map to gpu %d/%d\n",
@@ -1412,7 +1432,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 
 	mutex_unlock(&p->mutex);
 
-	err = dev->kfd2kgd->sync_memory(dev->kgd, (struct kgd_mem *) mem, true);
+	err = amdgpu_amdkfd_gpuvm_sync_memory(dev->kgd, (struct kgd_mem *) mem, true);
 	if (err) {
 		pr_debug("Sync memory failed, wait interrupted by user signal\n");
 		goto sync_memory_failed;
@@ -1507,7 +1527,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 			err = -ENODEV;
 			goto get_mem_obj_from_handle_failed;
 		}
-		err = dev->kfd2kgd->unmap_memory_to_gpu(
+		err = amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 			peer->kgd, (struct kgd_mem *)mem, peer_pdd->vm);
 		if (err) {
 			pr_err("Failed to unmap from gpu %d/%d\n",
@@ -1529,6 +1549,115 @@ unmap_memory_from_gpu_failed:
 copy_from_user_failed:
 	kfree(devices_arr);
 	return err;
+}
+
+static int kfd_ioctl_get_dmabuf_info(struct file *filep,
+		struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_dmabuf_info_args *args = data;
+	struct kfd_dev *dev = NULL;
+	struct kgd_dev *dma_buf_kgd;
+	void *metadata_buffer = NULL;
+	uint32_t flags;
+	unsigned int i;
+	int r;
+
+	/* Find a KFD GPU device that supports the get_dmabuf_info query */
+	for (i = 0; kfd_topology_enum_kfd_devices(i, &dev) == 0; i++)
+		if (dev)
+			break;
+	if (!dev)
+		return -EINVAL;
+
+	if (args->metadata_ptr) {
+		metadata_buffer = kzalloc(args->metadata_size, GFP_KERNEL);
+		if (!metadata_buffer)
+			return -ENOMEM;
+	}
+
+	/* Get dmabuf info from KGD */
+	r = amdgpu_amdkfd_get_dmabuf_info(dev->kgd, args->dmabuf_fd,
+					  &dma_buf_kgd, &args->size,
+					  metadata_buffer, args->metadata_size,
+					  &args->metadata_size, &flags);
+	if (r)
+		goto exit;
+
+	/* Reverse-lookup gpu_id from kgd pointer */
+	dev = kfd_device_by_kgd(dma_buf_kgd);
+	if (!dev) {
+		r = -EINVAL;
+		goto exit;
+	}
+	args->gpu_id = dev->id;
+	args->flags = flags;
+
+	/* Copy metadata buffer to user mode */
+	if (metadata_buffer) {
+		r = copy_to_user((void __user *)args->metadata_ptr,
+				 metadata_buffer, args->metadata_size);
+		if (r != 0)
+			r = -EFAULT;
+	}
+
+exit:
+	kfree(metadata_buffer);
+
+	return r;
+}
+
+static int kfd_ioctl_import_dmabuf(struct file *filep,
+				   struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_import_dmabuf_args *args = data;
+	struct kfd_process_device *pdd;
+	struct dma_buf *dmabuf;
+	struct kfd_dev *dev;
+	int idr_handle;
+	uint64_t size;
+	void *mem;
+	int r;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev)
+		return -EINVAL;
+
+	dmabuf = dma_buf_get(args->dmabuf_fd);
+	if (IS_ERR(dmabuf))
+		return PTR_ERR(dmabuf);
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		r = PTR_ERR(pdd);
+		goto err_unlock;
+	}
+
+	r = amdgpu_amdkfd_gpuvm_import_dmabuf(dev->kgd, dmabuf,
+					      args->va_addr, pdd->vm,
+					      (struct kgd_mem **)&mem, &size,
+					      NULL);
+	if (r)
+		goto err_unlock;
+
+	idr_handle = kfd_process_device_create_obj_handle(pdd, mem);
+	if (idr_handle < 0) {
+		r = -EFAULT;
+		goto err_free;
+	}
+
+	mutex_unlock(&p->mutex);
+
+	args->handle = MAKE_HANDLE(args->gpu_id, idr_handle);
+
+	return 0;
+
+err_free:
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem);
+err_unlock:
+	mutex_unlock(&p->mutex);
+	return r;
 }
 
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
@@ -1614,6 +1743,15 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_CU_MASK,
 			kfd_ioctl_set_cu_mask, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_QUEUE_WAVE_STATE,
+			kfd_ioctl_get_queue_wave_state, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_DMABUF_INFO,
+				kfd_ioctl_get_dmabuf_info, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_IMPORT_DMABUF,
+				kfd_ioctl_import_dmabuf, 0),
 
 };
 

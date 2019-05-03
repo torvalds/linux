@@ -19,31 +19,36 @@ config RISCV
 	select ARCH_WANT_FRAME_POINTERS
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_DIRECT_OPS
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
+	select GENERIC_SCHED_CLOCK
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_ATOMIC64 if !64BIT || !RISCV_ISA_A
-	select HAVE_MEMBLOCK
+	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_DMA_CONTIGUOUS
-	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_PERF_EVENTS
+	select HAVE_SYSCALL_TRACEPOINTS
 	select IRQ_DOMAIN
-	select NO_BOOTMEM
 	select RISCV_ISA_A if SMP
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_PCI
 	select MODULES_USE_ELF_RELA if MODULES
+	select MODULE_SECTIONS if MODULES
 	select THREAD_INFO_IN_TASK
+	select PCI_DOMAINS_GENERIC if PCI
+	select PCI_MSI if PCI
 	select RISCV_TIMER
 	select GENERIC_IRQ_MULTI_HANDLER
 	select ARCH_HAS_PTE_SPECIAL
+	select HAVE_EBPF_JIT if 64BIT
 
 config MMU
 	def_bool y
@@ -84,13 +89,13 @@ config GENERIC_CSUM
 config GENERIC_HWEIGHT
 	def_bool y
 
+config FIX_EARLYCON_MEM
+	def_bool y
+
 config PGTABLE_LEVELS
 	int
 	default 3 if 64BIT
 	default 2
-
-config HAVE_KPROBES
-	def_bool n
 
 menu "Platform type"
 
@@ -98,7 +103,7 @@ choice
 	prompt "Base ISA"
 	default ARCH_RV64I
 	help
-	  This selects the base ISA that this kernel will traget and must match
+	  This selects the base ISA that this kernel will target and must match
 	  the target platform.
 
 config ARCH_RV32I
@@ -112,6 +117,7 @@ config ARCH_RV32I
 config ARCH_RV64I
 	bool "RV64I"
 	select 64BIT
+	select ARCH_SUPPORTS_INT128 if GCC_VERSION >= 50000
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -149,7 +155,6 @@ choice
 		bool "2GiB"
 	config MAXPHYSMEM_128GB
 		depends on 64BIT && CMODEL_MEDANY
-		select MODULE_SECTIONS if MODULES
 		bool "128GiB"
 endchoice
 
@@ -208,38 +213,72 @@ config RISCV_BASE_PMU
 
 endmenu
 
+config FPU
+	bool "FPU support"
+	default y
+	help
+	  Say N here if you want to disable all floating-point related procedure
+	  in the kernel.
+
+	  If you don't know what to do here, say Y.
+
 endmenu
 
-menu "Kernel type"
+menu "Kernel features"
 
 source "kernel/Kconfig.hz"
 
 endmenu
 
-menu "Bus support"
+menu "Boot options"
 
-config PCI
-	bool "PCI support"
-	select PCI_MSI
+config CMDLINE
+	string "Built-in kernel command line"
 	help
-	  This feature enables support for PCI bus system. If you say Y
-	  here, the kernel will include drivers and infrastructure code
-	  to support PCI bus devices.
+	  For most platforms, the arguments for the kernel's command line
+	  are provided at run-time, during boot. However, there are cases
+	  where either no arguments are being provided or the provided
+	  arguments are insufficient or even invalid.
 
-	  If you don't know what to do here, say Y.
+	  When that occurs, it is possible to define a built-in command
+	  line here and choose how the kernel should use it later on.
 
-config PCI_DOMAINS
-	def_bool PCI
+choice
+	prompt "Built-in command line usage" if CMDLINE != ""
+	default CMDLINE_FALLBACK
+	help
+	  Choose how the kernel will handle the provided built-in command
+	  line.
 
-config PCI_DOMAINS_GENERIC
-	def_bool PCI
+config CMDLINE_FALLBACK
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Use the built-in command line as fallback in case we get nothing
+	  during boot. This is the default behaviour.
 
-source "drivers/pci/Kconfig"
+config CMDLINE_EXTEND
+	bool "Extend bootloader kernel arguments"
+	help
+	  The command-line arguments provided during boot will be
+	  appended to the built-in command line. This is useful in
+	  cases where the provided arguments are insufficient and
+	  you don't want to or cannot modify them.
+
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	help
+	  Always use the built-in command line, even if we get one during
+	  boot. This is useful in case you need to override the provided
+	  command line on systems where you don't have or want control
+	  over it.
+
+endchoice
 
 endmenu
 
 menu "Power management options"
 
-source kernel/power/Kconfig
+source "kernel/power/Kconfig"
 
 endmenu

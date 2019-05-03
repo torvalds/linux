@@ -278,6 +278,9 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_get_fan_speed_rpm(adev, s) \
 		((adev)->powerplay.pp_funcs->get_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
 
+#define amdgpu_dpm_set_fan_speed_rpm(adev, s) \
+		((adev)->powerplay.pp_funcs->set_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
+
 #define amdgpu_dpm_get_sclk(adev, l) \
 		((adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (l)))
 
@@ -356,6 +359,18 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_odn_edit_dpm_table(adev, type, parameter, size) \
 		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
 			(adev)->powerplay.pp_handle, type, parameter, size))
+
+#define amdgpu_dpm_enable_mgpu_fan_boost(adev) \
+		((adev)->powerplay.pp_funcs->enable_mgpu_fan_boost(\
+			(adev)->powerplay.pp_handle))
+
+#define amdgpu_dpm_get_ppfeature_status(adev, buf) \
+		((adev)->powerplay.pp_funcs->get_ppfeature_status(\
+			(adev)->powerplay.pp_handle, (buf)))
+
+#define amdgpu_dpm_set_ppfeature_status(adev, ppfeatures) \
+		((adev)->powerplay.pp_funcs->set_ppfeature_status(\
+			(adev)->powerplay.pp_handle, (ppfeatures)))
 
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
@@ -471,10 +486,6 @@ void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
 u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev);
 void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev);
-bool amdgpu_is_uvd_state(u32 class, u32 class2);
-void amdgpu_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
-			      u32 *p, u32 *u);
-int amdgpu_calculate_at(u32 t, u32 h, u32 fh, u32 fl, u32 *tl, u32 *th);
 
 bool amdgpu_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor);
 
@@ -489,11 +500,6 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 						 u32 sys_mask,
 						 enum amdgpu_pcie_gen asic_gen,
 						 enum amdgpu_pcie_gen default_gen);
-
-u16 amdgpu_get_pcie_lane_support(struct amdgpu_device *adev,
-				 u16 asic_lanes,
-				 u16 default_lanes);
-u8 amdgpu_encode_pci_lane_width(u32 lanes);
 
 struct amd_vce_state*
 amdgpu_get_vce_clock_state(void *handle, u32 idx);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -34,7 +34,6 @@
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
-#include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/pkt_sched.h>
@@ -138,169 +137,6 @@ static u8 batadv_ring_buffer_avg(const u8 lq_recv[])
 }
 
 /**
- * batadv_iv_ogm_orig_free() - free the private resources allocated for this
- *  orig_node
- * @orig_node: the orig_node for which the resources have to be free'd
- */
-static void batadv_iv_ogm_orig_free(struct batadv_orig_node *orig_node)
-{
-	kfree(orig_node->bat_iv.bcast_own);
-	kfree(orig_node->bat_iv.bcast_own_sum);
-}
-
-/**
- * batadv_iv_ogm_orig_add_if() - change the private structures of the orig_node
- *  to include the new hard-interface
- * @orig_node: the orig_node that has to be changed
- * @max_if_num: the current amount of interfaces
- *
- * Return: 0 on success, a negative error code otherwise.
- */
-static int batadv_iv_ogm_orig_add_if(struct batadv_orig_node *orig_node,
-				     unsigned int max_if_num)
-{
-	void *data_ptr;
-	size_t old_size;
-	int ret = -ENOMEM;
-
-	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
-
-	old_size = (max_if_num - 1) * sizeof(unsigned long) * BATADV_NUM_WORDS;
-	data_ptr = kmalloc_array(max_if_num,
-				 BATADV_NUM_WORDS * sizeof(unsigned long),
-				 GFP_ATOMIC);
-	if (!data_ptr)
-		goto unlock;
-
-	memcpy(data_ptr, orig_node->bat_iv.bcast_own, old_size);
-	kfree(orig_node->bat_iv.bcast_own);
-	orig_node->bat_iv.bcast_own = data_ptr;
-
-	data_ptr = kmalloc_array(max_if_num, sizeof(u8), GFP_ATOMIC);
-	if (!data_ptr)
-		goto unlock;
-
-	memcpy(data_ptr, orig_node->bat_iv.bcast_own_sum,
-	       (max_if_num - 1) * sizeof(u8));
-	kfree(orig_node->bat_iv.bcast_own_sum);
-	orig_node->bat_iv.bcast_own_sum = data_ptr;
-
-	ret = 0;
-
-unlock:
-	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
-
-	return ret;
-}
-
-/**
- * batadv_iv_ogm_drop_bcast_own_entry() - drop section of bcast_own
- * @orig_node: the orig_node that has to be changed
- * @max_if_num: the current amount of interfaces
- * @del_if_num: the index of the interface being removed
- */
-static void
-batadv_iv_ogm_drop_bcast_own_entry(struct batadv_orig_node *orig_node,
-				   unsigned int max_if_num,
-				   unsigned int del_if_num)
-{
-	size_t chunk_size;
-	size_t if_offset;
-	void *data_ptr;
-
-	lockdep_assert_held(&orig_node->bat_iv.ogm_cnt_lock);
-
-	chunk_size = sizeof(unsigned long) * BATADV_NUM_WORDS;
-	data_ptr = kmalloc_array(max_if_num, chunk_size, GFP_ATOMIC);
-	if (!data_ptr)
-		/* use old buffer when new one could not be allocated */
-		data_ptr = orig_node->bat_iv.bcast_own;
-
-	/* copy first part */
-	memmove(data_ptr, orig_node->bat_iv.bcast_own, del_if_num * chunk_size);
-
-	/* copy second part */
-	if_offset = (del_if_num + 1) * chunk_size;
-	memmove((char *)data_ptr + del_if_num * chunk_size,
-		(uint8_t *)orig_node->bat_iv.bcast_own + if_offset,
-		(max_if_num - del_if_num) * chunk_size);
-
-	/* bcast_own was shrunk down in new buffer; free old one */
-	if (orig_node->bat_iv.bcast_own != data_ptr) {
-		kfree(orig_node->bat_iv.bcast_own);
-		orig_node->bat_iv.bcast_own = data_ptr;
-	}
-}
-
-/**
- * batadv_iv_ogm_drop_bcast_own_sum_entry() - drop section of bcast_own_sum
- * @orig_node: the orig_node that has to be changed
- * @max_if_num: the current amount of interfaces
- * @del_if_num: the index of the interface being removed
- */
-static void
-batadv_iv_ogm_drop_bcast_own_sum_entry(struct batadv_orig_node *orig_node,
-				       unsigned int max_if_num,
-				       unsigned int del_if_num)
-{
-	size_t if_offset;
-	void *data_ptr;
-
-	lockdep_assert_held(&orig_node->bat_iv.ogm_cnt_lock);
-
-	data_ptr = kmalloc_array(max_if_num, sizeof(u8), GFP_ATOMIC);
-	if (!data_ptr)
-		/* use old buffer when new one could not be allocated */
-		data_ptr = orig_node->bat_iv.bcast_own_sum;
-
-	memmove(data_ptr, orig_node->bat_iv.bcast_own_sum,
-		del_if_num * sizeof(u8));
-
-	if_offset = (del_if_num + 1) * sizeof(u8);
-	memmove((char *)data_ptr + del_if_num * sizeof(u8),
-		orig_node->bat_iv.bcast_own_sum + if_offset,
-		(max_if_num - del_if_num) * sizeof(u8));
-
-	/* bcast_own_sum was shrunk down in new buffer; free old one */
-	if (orig_node->bat_iv.bcast_own_sum != data_ptr) {
-		kfree(orig_node->bat_iv.bcast_own_sum);
-		orig_node->bat_iv.bcast_own_sum = data_ptr;
-	}
-}
-
-/**
- * batadv_iv_ogm_orig_del_if() - change the private structures of the orig_node
- *  to exclude the removed interface
- * @orig_node: the orig_node that has to be changed
- * @max_if_num: the current amount of interfaces
- * @del_if_num: the index of the interface being removed
- *
- * Return: 0 on success, a negative error code otherwise.
- */
-static int batadv_iv_ogm_orig_del_if(struct batadv_orig_node *orig_node,
-				     unsigned int max_if_num,
-				     unsigned int del_if_num)
-{
-	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
-
-	if (max_if_num == 0) {
-		kfree(orig_node->bat_iv.bcast_own);
-		kfree(orig_node->bat_iv.bcast_own_sum);
-		orig_node->bat_iv.bcast_own = NULL;
-		orig_node->bat_iv.bcast_own_sum = NULL;
-	} else {
-		batadv_iv_ogm_drop_bcast_own_entry(orig_node, max_if_num,
-						   del_if_num);
-		batadv_iv_ogm_drop_bcast_own_sum_entry(orig_node, max_if_num,
-						       del_if_num);
-	}
-
-	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
-
-	return 0;
-}
-
-/**
  * batadv_iv_ogm_orig_get() - retrieve or create (if does not exist) an
  *  originator
  * @bat_priv: the bat priv with all the soft interface information
@@ -315,7 +151,6 @@ batadv_iv_ogm_orig_get(struct batadv_priv *bat_priv, const u8 *addr)
 {
 	struct batadv_orig_node *orig_node;
 	int hash_added;
-	size_t size;
 
 	orig_node = batadv_orig_hash_find(bat_priv, addr);
 	if (orig_node)
@@ -327,16 +162,6 @@ batadv_iv_ogm_orig_get(struct batadv_priv *bat_priv, const u8 *addr)
 
 	spin_lock_init(&orig_node->bat_iv.ogm_cnt_lock);
 
-	size = bat_priv->num_ifaces * sizeof(unsigned long) * BATADV_NUM_WORDS;
-	orig_node->bat_iv.bcast_own = kzalloc(size, GFP_ATOMIC);
-	if (!orig_node->bat_iv.bcast_own)
-		goto free_orig_node;
-
-	size = bat_priv->num_ifaces * sizeof(u8);
-	orig_node->bat_iv.bcast_own_sum = kzalloc(size, GFP_ATOMIC);
-	if (!orig_node->bat_iv.bcast_own_sum)
-		goto free_orig_node;
-
 	kref_get(&orig_node->refcount);
 	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
 				     batadv_choose_orig, orig_node,
@@ -347,8 +172,9 @@ batadv_iv_ogm_orig_get(struct batadv_priv *bat_priv, const u8 *addr)
 	return orig_node;
 
 free_orig_node_hash:
+	/* reference for batadv_hash_add */
 	batadv_orig_node_put(orig_node);
-free_orig_node:
+	/* reference from batadv_orig_node_new */
 	batadv_orig_node_put(orig_node);
 
 	return NULL;
@@ -893,26 +719,30 @@ batadv_iv_ogm_slide_own_bcast_window(struct batadv_hard_iface *hard_iface)
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
 	struct batadv_orig_node *orig_node;
+	struct batadv_orig_ifinfo *orig_ifinfo;
 	unsigned long *word;
 	u32 i;
-	size_t word_index;
 	u8 *w;
-	unsigned int if_num;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
-			word_index = hard_iface->if_num * BATADV_NUM_WORDS;
-			word = &orig_node->bat_iv.bcast_own[word_index];
+			hlist_for_each_entry_rcu(orig_ifinfo,
+						 &orig_node->ifinfo_list,
+						 list) {
+				if (orig_ifinfo->if_outgoing != hard_iface)
+					continue;
 
-			batadv_bit_get_packet(bat_priv, word, 1, 0);
-			if_num = hard_iface->if_num;
-			w = &orig_node->bat_iv.bcast_own_sum[if_num];
-			*w = bitmap_weight(word, BATADV_TQ_LOCAL_WINDOW_SIZE);
-			spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+				spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+				word = orig_ifinfo->bat_iv.bcast_own;
+				batadv_bit_get_packet(bat_priv, word, 1, 0);
+				w = &orig_ifinfo->bat_iv.bcast_own_sum;
+				*w = bitmap_weight(word,
+						   BATADV_TQ_LOCAL_WINDOW_SIZE);
+				spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+			}
 		}
 		rcu_read_unlock();
 	}
@@ -1000,6 +830,35 @@ out:
 }
 
 /**
+ * batadv_iv_orig_ifinfo_sum() - Get bcast_own sum for originator over iterface
+ * @orig_node: originator which reproadcasted the OGMs directly
+ * @if_outgoing: interface which transmitted the original OGM and received the
+ *  direct rebroadcast
+ *
+ * Return: Number of replied (rebroadcasted) OGMs which were transmitted by
+ *  an originator and directly (without intermediate hop) received by a specific
+ *  interface
+ */
+static u8 batadv_iv_orig_ifinfo_sum(struct batadv_orig_node *orig_node,
+				    struct batadv_hard_iface *if_outgoing)
+{
+	struct batadv_orig_ifinfo *orig_ifinfo;
+	u8 sum;
+
+	orig_ifinfo = batadv_orig_ifinfo_get(orig_node, if_outgoing);
+	if (!orig_ifinfo)
+		return 0;
+
+	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+	sum = orig_ifinfo->bat_iv.bcast_own_sum;
+	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+
+	batadv_orig_ifinfo_put(orig_ifinfo);
+
+	return sum;
+}
+
+/**
  * batadv_iv_ogm_orig_update() - use OGM to update corresponding data in an
  *  originator
  * @bat_priv: the bat priv with all the soft interface information
@@ -1026,8 +885,6 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_neigh_node *tmp_neigh_node = NULL;
 	struct batadv_neigh_node *router = NULL;
-	struct batadv_orig_node *orig_node_tmp;
-	unsigned int if_num;
 	u8 sum_orig, sum_neigh;
 	u8 *neigh_addr;
 	u8 tq_avg;
@@ -1132,18 +989,10 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	 */
 	if (router_ifinfo &&
 	    neigh_ifinfo->bat_iv.tq_avg == router_ifinfo->bat_iv.tq_avg) {
-		orig_node_tmp = router->orig_node;
-		spin_lock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
-		if_num = router->if_incoming->if_num;
-		sum_orig = orig_node_tmp->bat_iv.bcast_own_sum[if_num];
-		spin_unlock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
-
-		orig_node_tmp = neigh_node->orig_node;
-		spin_lock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
-		if_num = neigh_node->if_incoming->if_num;
-		sum_neigh = orig_node_tmp->bat_iv.bcast_own_sum[if_num];
-		spin_unlock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
-
+		sum_orig = batadv_iv_orig_ifinfo_sum(router->orig_node,
+						     router->if_incoming);
+		sum_neigh = batadv_iv_orig_ifinfo_sum(neigh_node->orig_node,
+						      neigh_node->if_incoming);
 		if (sum_orig >= sum_neigh)
 			goto out;
 	}
@@ -1186,7 +1035,6 @@ static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	u8 total_count;
 	u8 orig_eq_count, neigh_rq_count, neigh_rq_inv, tq_own;
 	unsigned int neigh_rq_inv_cube, neigh_rq_max_cube;
-	unsigned int if_num;
 	unsigned int tq_asym_penalty, inv_asym_penalty;
 	unsigned int combined_tq;
 	unsigned int tq_iface_penalty;
@@ -1227,9 +1075,7 @@ static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	orig_node->last_seen = jiffies;
 
 	/* find packet count of corresponding one hop neighbor */
-	spin_lock_bh(&orig_neigh_node->bat_iv.ogm_cnt_lock);
-	if_num = if_incoming->if_num;
-	orig_eq_count = orig_neigh_node->bat_iv.bcast_own_sum[if_num];
+	orig_eq_count = batadv_iv_orig_ifinfo_sum(orig_neigh_node, if_incoming);
 	neigh_ifinfo = batadv_neigh_ifinfo_new(neigh_node, if_outgoing);
 	if (neigh_ifinfo) {
 		neigh_rq_count = neigh_ifinfo->bat_iv.real_packet_count;
@@ -1237,7 +1083,6 @@ static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	} else {
 		neigh_rq_count = 0;
 	}
-	spin_unlock_bh(&orig_neigh_node->bat_iv.ogm_cnt_lock);
 
 	/* pay attention to not get a value bigger than 100 % */
 	if (orig_eq_count > neigh_rq_count)
@@ -1622,6 +1467,49 @@ out:
 }
 
 /**
+ * batadv_iv_ogm_process_reply() - Check OGM for direct reply and process it
+ * @ogm_packet: rebroadcast OGM packet to process
+ * @if_incoming: the interface where this packet was received
+ * @orig_node: originator which reproadcasted the OGMs
+ * @if_incoming_seqno: OGM sequence number when rebroadcast was received
+ */
+static void batadv_iv_ogm_process_reply(struct batadv_ogm_packet *ogm_packet,
+					struct batadv_hard_iface *if_incoming,
+					struct batadv_orig_node *orig_node,
+					u32 if_incoming_seqno)
+{
+	struct batadv_orig_ifinfo *orig_ifinfo;
+	s32 bit_pos;
+	u8 *weight;
+
+	/* neighbor has to indicate direct link and it has to
+	 * come via the corresponding interface
+	 */
+	if (!(ogm_packet->flags & BATADV_DIRECTLINK))
+		return;
+
+	if (!batadv_compare_eth(if_incoming->net_dev->dev_addr,
+				ogm_packet->orig))
+		return;
+
+	orig_ifinfo = batadv_orig_ifinfo_get(orig_node, if_incoming);
+	if (!orig_ifinfo)
+		return;
+
+	/* save packet seqno for bidirectional check */
+	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+	bit_pos = if_incoming_seqno - 2;
+	bit_pos -= ntohl(ogm_packet->seqno);
+	batadv_set_bit(orig_ifinfo->bat_iv.bcast_own, bit_pos);
+	weight = &orig_ifinfo->bat_iv.bcast_own_sum;
+	*weight = bitmap_weight(orig_ifinfo->bat_iv.bcast_own,
+				BATADV_TQ_LOCAL_WINDOW_SIZE);
+	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+
+	batadv_orig_ifinfo_put(orig_ifinfo);
+}
+
+/**
  * batadv_iv_ogm_process() - process an incoming batman iv OGM
  * @skb: the skb containing the OGM
  * @ogm_offset: offset to the OGM which should be processed (for aggregates)
@@ -1705,37 +1593,13 @@ static void batadv_iv_ogm_process(const struct sk_buff *skb, int ogm_offset,
 	}
 
 	if (is_my_orig) {
-		unsigned long *word;
-		size_t offset;
-		s32 bit_pos;
-		unsigned int if_num;
-		u8 *weight;
-
 		orig_neigh_node = batadv_iv_ogm_orig_get(bat_priv,
 							 ethhdr->h_source);
 		if (!orig_neigh_node)
 			return;
 
-		/* neighbor has to indicate direct link and it has to
-		 * come via the corresponding interface
-		 * save packet seqno for bidirectional check
-		 */
-		if (has_directlink_flag &&
-		    batadv_compare_eth(if_incoming->net_dev->dev_addr,
-				       ogm_packet->orig)) {
-			if_num = if_incoming->if_num;
-			offset = if_num * BATADV_NUM_WORDS;
-
-			spin_lock_bh(&orig_neigh_node->bat_iv.ogm_cnt_lock);
-			word = &orig_neigh_node->bat_iv.bcast_own[offset];
-			bit_pos = if_incoming_seqno - 2;
-			bit_pos -= ntohl(ogm_packet->seqno);
-			batadv_set_bit(word, bit_pos);
-			weight = &orig_neigh_node->bat_iv.bcast_own_sum[if_num];
-			*weight = bitmap_weight(word,
-						BATADV_TQ_LOCAL_WINDOW_SIZE);
-			spin_unlock_bh(&orig_neigh_node->bat_iv.ogm_cnt_lock);
-		}
+		batadv_iv_ogm_process_reply(ogm_packet, if_incoming,
+					    orig_neigh_node, if_incoming_seqno);
 
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: originator packet from myself (via neighbor)\n");
@@ -2720,13 +2584,14 @@ static void batadv_iv_gw_print(struct batadv_priv *bat_priv,
  * batadv_iv_gw_dump_entry() - Dump a gateway into a message
  * @msg: Netlink message to dump into
  * @portid: Port making netlink request
- * @seq: Sequence number of netlink message
+ * @cb: Control block containing additional options
  * @bat_priv: The bat priv with all the soft interface information
  * @gw_node: Gateway to be dumped
  *
  * Return: Error code, or 0 on success
  */
-static int batadv_iv_gw_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
+static int batadv_iv_gw_dump_entry(struct sk_buff *msg, u32 portid,
+				   struct netlink_callback *cb,
 				   struct batadv_priv *bat_priv,
 				   struct batadv_gw_node *gw_node)
 {
@@ -2746,12 +2611,15 @@ static int batadv_iv_gw_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
-	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family,
-			  NLM_F_MULTI, BATADV_CMD_GET_GATEWAYS);
+	hdr = genlmsg_put(msg, portid, cb->nlh->nlmsg_seq,
+			  &batadv_netlink_family, NLM_F_MULTI,
+			  BATADV_CMD_GET_GATEWAYS);
 	if (!hdr) {
 		ret = -ENOBUFS;
 		goto out;
 	}
+
+	genl_dump_check_consistent(cb, hdr);
 
 	ret = -EMSGSIZE;
 
@@ -2803,13 +2671,15 @@ static void batadv_iv_gw_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	int idx_skip = cb->args[0];
 	int idx = 0;
 
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.gateway_list, list) {
+	spin_lock_bh(&bat_priv->gw.list_lock);
+	cb->seq = bat_priv->gw.generation << 1 | 1;
+
+	hlist_for_each_entry(gw_node, &bat_priv->gw.gateway_list, list) {
 		if (idx++ < idx_skip)
 			continue;
 
-		if (batadv_iv_gw_dump_entry(msg, portid, cb->nlh->nlmsg_seq,
-					    bat_priv, gw_node)) {
+		if (batadv_iv_gw_dump_entry(msg, portid, cb, bat_priv,
+					    gw_node)) {
 			idx_skip = idx - 1;
 			goto unlock;
 		}
@@ -2817,7 +2687,7 @@ static void batadv_iv_gw_dump(struct sk_buff *msg, struct netlink_callback *cb,
 
 	idx_skip = idx;
 unlock:
-	rcu_read_unlock();
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 
 	cb->args[0] = idx_skip;
 }
@@ -2844,9 +2714,6 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 		.print = batadv_iv_ogm_orig_print,
 #endif
 		.dump = batadv_iv_ogm_orig_dump,
-		.free = batadv_iv_ogm_orig_free,
-		.add_if = batadv_iv_ogm_orig_add_if,
-		.del_if = batadv_iv_ogm_orig_del_if,
 	},
 	.gw = {
 		.init_sel_class = batadv_iv_init_sel_class,

@@ -19,11 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -70,6 +65,8 @@
 #define __iwl_fw_img_h__
 #include <linux/types.h>
 
+#include "api/dbg-tlv.h"
+
 #include "file.h"
 #include "error-dump.h"
 
@@ -108,6 +105,8 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 error_log_addr;
+	u32 error_log_size;
 	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
 	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
 };
@@ -203,6 +202,50 @@ enum iwl_fw_type {
 };
 
 /**
+ * struct iwl_fw_dbg - debug data
+ *
+ * @dest_tlv: points to debug destination TLV (typically SRAM or DRAM)
+ * @n_dest_reg: num of reg_ops in dest_tlv
+ * @conf_tlv: array of pointers to configuration HCMDs
+ * @trigger_tlv: array of pointers to triggers TLVs
+ * @trigger_tlv_len: lengths of the @dbg_trigger_tlv entries
+ * @mem_tlv: Runtime addresses to dump
+ * @n_mem_tlv: number of runtime addresses
+ * @dump_mask: bitmask of dump regions
+*/
+struct iwl_fw_dbg {
+	struct iwl_fw_dbg_dest_tlv_v1 *dest_tlv;
+	u8 n_dest_reg;
+	struct iwl_fw_dbg_conf_tlv *conf_tlv[FW_DBG_CONF_MAX];
+	struct iwl_fw_dbg_trigger_tlv *trigger_tlv[FW_DBG_TRIGGER_MAX];
+	size_t trigger_tlv_len[FW_DBG_TRIGGER_MAX];
+	struct iwl_fw_dbg_mem_seg_tlv *mem_tlv;
+	size_t n_mem_tlv;
+	u32 dump_mask;
+};
+
+/**
+ * @tlv: the buffer allocation tlv
+ * @is_alloc: indicates if the buffer was already allocated
+ */
+struct iwl_fw_ini_allocation_data {
+	struct iwl_fw_ini_allocation_tlv tlv;
+	u32 is_alloc;
+} __packed;
+
+/**
+ * struct iwl_fw_ini_active_triggers
+ * @active: is this trigger active
+ * @size: allocated memory size of the trigger
+ * @trig: trigger
+ */
+struct iwl_fw_ini_active_triggers {
+	bool active;
+	size_t size;
+	struct iwl_fw_ini_trigger *trig;
+};
+
+/**
  * struct iwl_fw - variables associated with the firmware
  *
  * @ucode_ver: ucode version from the ucode file
@@ -222,12 +265,6 @@ enum iwl_fw_type {
  * @cipher_scheme: optional external cipher scheme.
  * @human_readable: human readable version
  *	we get the ALIVE from the uCode
- * @dbg_dest_tlv: points to the destination TLV for debug
- * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
- * @dbg_conf_tlv_len: lengths of the @dbg_conf_tlv entries
- * @dbg_trigger_tlv: array of pointers to triggers TLVs
- * @dbg_trigger_tlv_len: lengths of the @dbg_trigger_tlv entries
- * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
  */
 struct iwl_fw {
 	u32 ucode_ver;
@@ -255,15 +292,7 @@ struct iwl_fw {
 	struct iwl_fw_cipher_scheme cs[IWL_UCODE_MAX_CS];
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
 
-	struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv;
-	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
-	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
-	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
-	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv;
-	size_t n_dbg_mem_tlv;
-	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
-	u8 dbg_dest_reg_num;
-	u32 dbg_dump_mask;
+	struct iwl_fw_dbg dbg;
 };
 
 static inline const char *get_fw_dbg_mode_string(int mode)
@@ -285,7 +314,7 @@ static inline const char *get_fw_dbg_mode_string(int mode)
 static inline bool
 iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
 {
-	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg_conf_tlv[id];
+	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg.conf_tlv[id];
 
 	if (!conf_tlv)
 		return false;

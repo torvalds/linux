@@ -58,6 +58,16 @@ config LEDS_AAT1290
 	help
 	 This option enables support for the LEDs on the AAT1290.
 
+config LEDS_AN30259A
+	tristate "LED support for Panasonic AN30259A"
+	depends on LEDS_CLASS && I2C && OF
+	help
+	  This option enables support for the AN30259A 3-channel
+	  LED driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-an30259a.
+
 config LEDS_APU
 	tristate "Front panel LED support for PC Engines APU/APU2/APU3 boards"
 	depends on LEDS_CLASS

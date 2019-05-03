@@ -1,3 +1,6 @@
+
+.. _addsyscalls:
+
 Adding a New System Call
 ========================
 
@@ -232,7 +235,7 @@ normally be optional, so add a ``CONFIG`` option (typically to
    by the option.
  - Make the option depend on EXPERT if it should be hidden from normal users.
  - Make any new source files implementing the function dependent on the CONFIG
-   option in the Makefile (e.g. ``obj-$(CONFIG_XYZZY_SYSCALL) += xyzzy.c``).
+   option in the Makefile (e.g. ``obj-$(CONFIG_XYZZY_SYSCALL) += xyzzy.o``).
  - Double check that the kernel still builds with the new CONFIG option turned
    off.
 

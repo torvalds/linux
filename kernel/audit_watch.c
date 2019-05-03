@@ -242,13 +242,11 @@ static void audit_watch_log_rule_change(struct audit_krule *r, struct audit_watc
 
 	if (!audit_enabled)
 		return;
-	ab = audit_log_start(NULL, GFP_NOFS, AUDIT_CONFIG_CHANGE);
+	ab = audit_log_start(audit_context(), GFP_NOFS, AUDIT_CONFIG_CHANGE);
 	if (!ab)
 		return;
-	audit_log_format(ab, "auid=%u ses=%u op=%s",
-			 from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			 audit_get_sessionid(current), op);
-	audit_log_format(ab, " path=");
+	audit_log_session_info(ab);
+	audit_log_format(ab, "op=%s path=", op);
 	audit_log_untrustedstring(ab, w->path);
 	audit_log_key(ab, r->filterkey);
 	audit_log_format(ab, " list=%d res=1", r->listnr);

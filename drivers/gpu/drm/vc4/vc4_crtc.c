@@ -34,7 +34,8 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_uapi.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <linux/component.h>
@@ -48,6 +49,13 @@ struct vc4_crtc_state {
 	struct drm_mm_node mm;
 	bool feed_txp;
 	bool txp_armed;
+
+	struct {
+		unsigned int left;
+		unsigned int right;
+		unsigned int top;
+		unsigned int bottom;
+	} margins;
 };
 
 static inline struct vc4_crtc_state *
@@ -623,6 +631,37 @@ static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
 	return MODE_OK;
 }
 
+void vc4_crtc_get_margins(struct drm_crtc_state *state,
+			  unsigned int *left, unsigned int *right,
+			  unsigned int *top, unsigned int *bottom)
+{
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_connector_state *conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	*left = vc4_state->margins.left;
+	*right = vc4_state->margins.right;
+	*top = vc4_state->margins.top;
+	*bottom = vc4_state->margins.bottom;
+
+	/* We have to interate over all new connector states because
+	 * vc4_crtc_get_margins() might be called before
+	 * vc4_crtc_atomic_check() which means margins info in vc4_crtc_state
+	 * might be outdated.
+	 */
+	for_each_new_connector_in_state(state->state, conn, conn_state, i) {
+		if (conn_state->crtc != state->crtc)
+			continue;
+
+		*left = conn_state->tv.margins.left;
+		*right = conn_state->tv.margins.right;
+		*top = conn_state->tv.margins.top;
+		*bottom = conn_state->tv.margins.bottom;
+		break;
+	}
+}
+
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *state)
 {
@@ -670,6 +709,10 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 			vc4_state->feed_txp = false;
 		}
 
+		vc4_state->margins.left = conn_state->tv.margins.left;
+		vc4_state->margins.right = conn_state->tv.margins.right;
+		vc4_state->margins.top = conn_state->tv.margins.top;
+		vc4_state->margins.bottom = conn_state->tv.margins.bottom;
 		break;
 	}
 
@@ -971,6 +1014,7 @@ static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	old_vc4_state = to_vc4_crtc_state(crtc->state);
 	vc4_state->feed_txp = old_vc4_state->feed_txp;
+	vc4_state->margins = old_vc4_state->margins;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vc4_state->base);
 	return &vc4_state->base;
@@ -998,7 +1042,7 @@ static void
 vc4_crtc_reset(struct drm_crtc *crtc)
 {
 	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+		vc4_crtc_destroy_state(crtc, crtc->state);
 
 	crtc->state = kzalloc(sizeof(struct vc4_crtc_state), GFP_KERNEL);
 	if (crtc->state)

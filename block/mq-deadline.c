@@ -373,9 +373,16 @@ done:
 
 /*
  * One confusing aspect here is that we get called for a specific
- * hardware queue, but we return a request that may not be for a
+ * hardware queue, but we may return a request that is for a
  * different hardware queue. This is because mq-deadline has shared
  * state for all hardware queues, in terms of sorting, FIFOs, etc.
+ *
+ * For a zoned block device, __dd_dispatch_request() may return NULL
+ * if all the queued write requests are directed at zones that are already
+ * locked due to on-going write requests. In this case, make sure to mark
+ * the queue as needing a restart to ensure that the queue is run again
+ * and the pending writes dispatched once the target zones for the ongoing
+ * write requests are unlocked in dd_finish_request().
  */
 static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 {
@@ -384,6 +391,9 @@ static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 
 	spin_lock(&dd->lock);
 	rq = __dd_dispatch_request(dd);
+	if (!rq && blk_queue_is_zoned(hctx->queue) &&
+	    !list_empty(&dd->fifo_list[WRITE]))
+		blk_mq_sched_mark_restart_hctx(hctx);
 	spin_unlock(&dd->lock);
 
 	return rq;
@@ -761,7 +771,7 @@ static const struct blk_mq_debugfs_attr deadline_queue_debugfs_attrs[] = {
 #endif
 
 static struct elevator_type mq_deadline = {
-	.ops.mq = {
+	.ops = {
 		.insert_requests	= dd_insert_requests,
 		.dispatch_request	= dd_dispatch_request,
 		.prepare_request	= dd_prepare_request,
@@ -777,7 +787,6 @@ static struct elevator_type mq_deadline = {
 		.exit_sched		= dd_exit_queue,
 	},
 
-	.uses_mq	= true,
 #ifdef CONFIG_BLK_DEBUG_FS
 	.queue_debugfs_attrs = deadline_queue_debugfs_attrs,
 #endif

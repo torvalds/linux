@@ -596,6 +596,7 @@ error_requeue_call:
 	}
 error_no_call:
 	release_sock(&rx->sk);
+error_trace:
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, 0, 0, 0, ret);
 	return ret;
 
@@ -604,7 +605,7 @@ wait_interrupted:
 wait_error:
 	finish_wait(sk_sleep(&rx->sk), &wait);
 	call = NULL;
-	goto error_no_call;
+	goto error_trace;
 }
 
 /**
@@ -715,3 +716,46 @@ call_complete:
 	goto out;
 }
 EXPORT_SYMBOL(rxrpc_kernel_recv_data);
+
+/**
+ * rxrpc_kernel_get_reply_time - Get timestamp on first reply packet
+ * @sock: The socket that the call exists on
+ * @call: The call to query
+ * @_ts: Where to put the timestamp
+ *
+ * Retrieve the timestamp from the first DATA packet of the reply if it is
+ * in the ring.  Returns true if successful, false if not.
+ */
+bool rxrpc_kernel_get_reply_time(struct socket *sock, struct rxrpc_call *call,
+				 ktime_t *_ts)
+{
+	struct sk_buff *skb;
+	rxrpc_seq_t hard_ack, top, seq;
+	bool success = false;
+
+	mutex_lock(&call->user_mutex);
+
+	if (READ_ONCE(call->state) != RXRPC_CALL_CLIENT_RECV_REPLY)
+		goto out;
+
+	hard_ack = call->rx_hard_ack;
+	if (hard_ack != 0)
+		goto out;
+
+	seq = hard_ack + 1;
+	top = smp_load_acquire(&call->rx_top);
+	if (after(seq, top))
+		goto out;
+
+	skb = call->rxtx_buffer[seq & RXRPC_RXTX_BUFF_MASK];
+	if (!skb)
+		goto out;
+
+	*_ts = skb_get_ktime(skb);
+	success = true;
+
+out:
+	mutex_unlock(&call->user_mutex);
+	return success;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_reply_time);

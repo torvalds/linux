@@ -385,8 +385,9 @@
 			status = "okay";
 		};
 
-		usb@6a00000 {
+		usb@6af8800 {
 			status = "okay";
+			extcon = <&usb3_id>;
 
 			dwc3@6a00000 {
 				extcon = <&usb3_id>;
@@ -401,8 +402,9 @@
 			pinctrl-0 = <&usb3_vbus_det_gpio>;
 		};
 
-		usb@7600000 {
+		usb@76f8800 {
 			status = "okay";
+			extcon = <&usb2_id>;
 
 			dwc3@7600000 {
 				extcon = <&usb2_id>;
@@ -619,6 +621,20 @@
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
+			};
+		};
+	};
+};
+
+&spmi_bus {
+	pmic@0 {
+		pon@800 {
+			resin {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				linux,code = <KEY_VOLUMEDOWN>;
 			};
 		};
 	};

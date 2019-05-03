@@ -18,6 +18,11 @@
 #include <asm/book3s/64/hash-4k.h>
 #endif
 
+/* Bits to set in a PMD/PUD/PGD entry valid bit*/
+#define HASH_PMD_VAL_BITS		(0x8000000000000000UL)
+#define HASH_PUD_VAL_BITS		(0x8000000000000000UL)
+#define HASH_PGD_VAL_BITS		(0x8000000000000000UL)
+
 /*
  * Size of EA range mapped by our pagetables.
  */
@@ -35,22 +40,36 @@
 #else
 #define H_PUD_CACHE_INDEX	(H_PUD_INDEX_SIZE)
 #endif
+
 /*
- * Define the address range of the kernel non-linear virtual area
+ * Define the address range of the kernel non-linear virtual area. In contrast
+ * to the linear mapping, this is managed using the kernel page tables and then
+ * inserted into the hash page table to actually take effect, similarly to user
+ * mappings.
  */
 #define H_KERN_VIRT_START ASM_CONST(0xD000000000000000)
-#define H_KERN_VIRT_SIZE  ASM_CONST(0x0000400000000000) /* 64T */
 
 /*
- * The vmalloc space starts at the beginning of that region, and
- * occupies half of it on hash CPUs and a quarter of it on Book3E
- * (we keep a quarter for the virtual memmap)
+ * Allow virtual mapping of one context size.
+ * 512TB for 64K page size
+ * 64TB for 4K page size
  */
-#define H_VMALLOC_START	H_KERN_VIRT_START
-#define H_VMALLOC_SIZE	ASM_CONST(0x380000000000) /* 56T */
-#define H_VMALLOC_END	(H_VMALLOC_START + H_VMALLOC_SIZE)
+#define H_KERN_VIRT_SIZE (1UL << MAX_EA_BITS_PER_CONTEXT)
 
-#define H_KERN_IO_START	H_VMALLOC_END
+/*
+ * 8TB IO mapping size
+ */
+#define H_KERN_IO_SIZE ASM_CONST(0x80000000000) /* 8T */
+
+/*
+ * The vmalloc space starts at the beginning of the kernel non-linear virtual
+ * region, and occupies 504T (64K) or 56T (4K)
+ */
+#define H_VMALLOC_START H_KERN_VIRT_START
+#define H_VMALLOC_SIZE (H_KERN_VIRT_SIZE - H_KERN_IO_SIZE)
+#define H_VMALLOC_END  (H_VMALLOC_START + H_VMALLOC_SIZE)
+
+#define H_KERN_IO_START H_VMALLOC_END
 
 /*
  * Region IDs
@@ -196,8 +215,7 @@ static inline void hpte_do_hugepage_flush(struct mm_struct *mm,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 
-extern int hash__map_kernel_page(unsigned long ea, unsigned long pa,
-			     unsigned long flags);
+int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot);
 extern int __meminit hash__vmemmap_create_mapping(unsigned long start,
 					      unsigned long page_size,
 					      unsigned long phys);

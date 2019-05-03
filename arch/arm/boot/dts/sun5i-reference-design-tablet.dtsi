@@ -54,7 +54,7 @@
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
-		/* TODO: backlight uses axp gpio1 as enable pin */
+		enable-gpios = <&axp_gpio 1 GPIO_ACTIVE_HIGH>; /* AXP GPIO1 */
 	};
 
 	chosen {
@@ -63,8 +63,6 @@
 };
 
 &codec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&codec_pa_pin>;
 	allwinner,pa-gpios = <&pio 6 10 GPIO_ACTIVE_HIGH>; /* PG10 */
 	status = "okay";
 };
@@ -92,11 +90,10 @@
 	 */
 	clock-frequency = <400000>;
 
-	touchscreen: touchscreen {
+	touchscreen: touchscreen@40 {
+		reg = <0x40>;
 		interrupt-parent = <&pio>;
 		interrupts = <6 11 IRQ_TYPE_EDGE_FALLING>; /* EINT11 (PG11) */
-		pinctrl-names = "default";
-		pinctrl-0 = <&ts_power_pin>;
 		power-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
 		/* Tablet dts must provide reg and compatible */
 		status = "disabled";
@@ -124,7 +121,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
+	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <4>;
 	cd-gpios = <&pio 6 0 GPIO_ACTIVE_LOW>; /* PG0 */
@@ -136,39 +133,16 @@
 };
 
 &pio {
-	codec_pa_pin: codec_pa_pin@0 {
-		pins = "PG10";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin: mmc0_cd_pin@0 {
-		pins = "PG0";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	ts_power_pin: ts_power_pin {
-		pins = "PB3";
-		function = "gpio_out";
-		drive-strength = <10>;
-		bias-disable;
-	};
-
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
 		pins = "PG1";
 		function = "gpio_in";
 		bias-pull-down;
 	};
 
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PG2";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-
-	usb0_vbus_pin_a: usb0_vbus_pin@0 {
-		pins = "PG12";
-		function = "gpio_out";
 	};
 };
 
@@ -210,7 +184,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_b>;
+	pinctrl-0 = <&uart1_pg_pins>;
 	status = "okay";
 };
 

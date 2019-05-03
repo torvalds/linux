@@ -33,9 +33,27 @@ struct sensor_device_attribute{
 	{ .dev_attr = __ATTR(_name, _mode, _show, _store),	\
 	  .index = _index }
 
+#define SENSOR_ATTR_RO(_name, _func, _index)			\
+	SENSOR_ATTR(_name, 0444, _func##_show, NULL, _index)
+
+#define SENSOR_ATTR_RW(_name, _func, _index)			\
+	SENSOR_ATTR(_name, 0644, _func##_show, _func##_store, _index)
+
+#define SENSOR_ATTR_WO(_name, _func, _index)			\
+	SENSOR_ATTR(_name, 0200, NULL, _func##_store, _index)
+
 #define SENSOR_DEVICE_ATTR(_name, _mode, _show, _store, _index)	\
 struct sensor_device_attribute sensor_dev_attr_##_name		\
 	= SENSOR_ATTR(_name, _mode, _show, _store, _index)
+
+#define SENSOR_DEVICE_ATTR_RO(_name, _func, _index)		\
+	SENSOR_DEVICE_ATTR(_name, 0444, _func##_show, NULL, _index)
+
+#define SENSOR_DEVICE_ATTR_RW(_name, _func, _index)		\
+	SENSOR_DEVICE_ATTR(_name, 0644, _func##_show, _func##_store, _index)
+
+#define SENSOR_DEVICE_ATTR_WO(_name, _func, _index)		\
+	SENSOR_DEVICE_ATTR(_name, 0200, NULL, _func##_store, _index)
 
 struct sensor_device_attribute_2 {
 	struct device_attribute dev_attr;
@@ -50,8 +68,29 @@ struct sensor_device_attribute_2 {
 	  .index = _index,					\
 	  .nr = _nr }
 
+#define SENSOR_ATTR_2_RO(_name, _func, _nr, _index)		\
+	SENSOR_ATTR_2(_name, 0444, _func##_show, NULL, _nr, _index)
+
+#define SENSOR_ATTR_2_RW(_name, _func, _nr, _index)		\
+	SENSOR_ATTR_2(_name, 0644, _func##_show, _func##_store, _nr, _index)
+
+#define SENSOR_ATTR_2_WO(_name, _func, _nr, _index)		\
+	SENSOR_ATTR_2(_name, 0200, NULL, _func##_store, _nr, _index)
+
 #define SENSOR_DEVICE_ATTR_2(_name,_mode,_show,_store,_nr,_index)	\
 struct sensor_device_attribute_2 sensor_dev_attr_##_name		\
 	= SENSOR_ATTR_2(_name, _mode, _show, _store, _nr, _index)
+
+#define SENSOR_DEVICE_ATTR_2_RO(_name, _func, _nr, _index)		\
+	SENSOR_DEVICE_ATTR_2(_name, 0444, _func##_show, NULL,		\
+			     _nr, _index)
+
+#define SENSOR_DEVICE_ATTR_2_RW(_name, _func, _nr, _index)		\
+	SENSOR_DEVICE_ATTR_2(_name, 0644, _func##_show, _func##_store,	\
+			     _nr, _index)
+
+#define SENSOR_DEVICE_ATTR_2_WO(_name, _func, _nr, _index)		\
+	SENSOR_DEVICE_ATTR_2(_name, 0200, NULL, _func##_store,		\
+			     _nr, _index)
 
 #endif /* _LINUX_HWMON_SYSFS_H */

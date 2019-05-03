@@ -125,7 +125,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	struct ehea_cq *cq;
 	struct h_epa epa;
 	u64 *cq_handle_ref, hret, rpage;
-	u32 act_nr_of_entries, act_pages, counter;
+	u32 counter;
 	int ret;
 	void *vpage;
 
@@ -140,8 +140,6 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	cq->adapter = adapter;
 
 	cq_handle_ref = &cq->fw_handle;
-	act_nr_of_entries = 0;
-	act_pages = 0;
 
 	hret = ehea_h_alloc_resource_cq(adapter->handle, &cq->attr,
 					&cq->fw_handle, &cq->epas);

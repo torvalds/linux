@@ -103,6 +103,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_AMSDU				= 23,
 	WMI_FW_CAPABILITY_RAW_MODE			= 24,
 	WMI_FW_CAPABILITY_TX_REQ_EXT			= 25,
+	WMI_FW_CAPABILITY_CHANNEL_4			= 26,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -2369,6 +2370,7 @@ struct wmi_ft_reassoc_status_event {
 	__le16 beacon_ie_len;
 	__le16 reassoc_req_ie_len;
 	__le16 reassoc_resp_ie_len;
+	u8 reserved[4];
 	u8 ie_info[0];
 } __packed;
 

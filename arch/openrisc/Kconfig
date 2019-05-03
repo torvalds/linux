@@ -6,13 +6,12 @@
 
 config OPENRISC
 	def_bool y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select DMA_NONCOHERENT_OPS
 	select OF
 	select OF_EARLY_FLATTREE
 	select IRQ_DOMAIN
 	select HANDLE_DOMAIN_IRQ
-	select HAVE_MEMBLOCK
 	select GPIOLIB
         select HAVE_ARCH_TRACEHOOK
 	select SPARSE_IRQ
@@ -32,7 +31,6 @@ config OPENRISC
 	select HAVE_DEBUG_STACKOVERFLOW
 	select OR1K_PIC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
-	select NO_BOOTMEM
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_USE_QUEUED_RWLOCKS
 	select OMPIC if SMP
@@ -141,7 +139,7 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config OPENRISC_NO_SPR_SR_DSX
 	bool "use SPR_SR_DSX software emulation" if OR1K_1200

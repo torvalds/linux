@@ -97,12 +97,11 @@ static inline void davinci_nand_writel(struct davinci_nand_info *info,
  * Access to hardware control lines:  ALE, CLE, secondary chipselect.
  */
 
-static void nand_davinci_hwcontrol(struct mtd_info *mtd, int cmd,
+static void nand_davinci_hwcontrol(struct nand_chip *nand, int cmd,
 				   unsigned int ctrl)
 {
-	struct davinci_nand_info	*info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
 	void __iomem			*addr = info->current_cs;
-	struct nand_chip		*nand = mtd_to_nand(mtd);
 
 	/* Did the control lines change? */
 	if (ctrl & NAND_CTRL_CHANGE) {
@@ -111,16 +110,16 @@ static void nand_davinci_hwcontrol(struct mtd_info *mtd, int cmd,
 		else if ((ctrl & NAND_CTRL_ALE) == NAND_CTRL_ALE)
 			addr += info->mask_ale;
 
-		nand->IO_ADDR_W = addr;
+		nand->legacy.IO_ADDR_W = addr;
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		iowrite8(cmd, nand->IO_ADDR_W);
+		iowrite8(cmd, nand->legacy.IO_ADDR_W);
 }
 
-static void nand_davinci_select_chip(struct mtd_info *mtd, int chip)
+static void nand_davinci_select_chip(struct nand_chip *nand, int chip)
 {
-	struct davinci_nand_info	*info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(nand));
 
 	info->current_cs = info->vaddr;
 
@@ -128,8 +127,8 @@ static void nand_davinci_select_chip(struct mtd_info *mtd, int chip)
 	if (chip > 0)
 		info->current_cs += info->mask_chipsel;
 
-	info->chip.IO_ADDR_W = info->current_cs;
-	info->chip.IO_ADDR_R = info->chip.IO_ADDR_W;
+	info->chip.legacy.IO_ADDR_W = info->current_cs;
+	info->chip.legacy.IO_ADDR_R = info->chip.legacy.IO_ADDR_W;
 }
 
 /*----------------------------------------------------------------------*/
@@ -146,16 +145,16 @@ static inline uint32_t nand_davinci_readecc_1bit(struct mtd_info *mtd)
 			+ 4 * info->core_chipsel);
 }
 
-static void nand_davinci_hwctl_1bit(struct mtd_info *mtd, int mode)
+static void nand_davinci_hwctl_1bit(struct nand_chip *chip, int mode)
 {
 	struct davinci_nand_info *info;
 	uint32_t nandcfr;
 	unsigned long flags;
 
-	info = to_davinci_nand(mtd);
+	info = to_davinci_nand(nand_to_mtd(chip));
 
 	/* Reset ECC hardware */
-	nand_davinci_readecc_1bit(mtd);
+	nand_davinci_readecc_1bit(nand_to_mtd(chip));
 
 	spin_lock_irqsave(&davinci_nand_lock, flags);
 
@@ -170,10 +169,10 @@ static void nand_davinci_hwctl_1bit(struct mtd_info *mtd, int mode)
 /*
  * Read hardware ECC value and pack into three bytes
  */
-static int nand_davinci_calculate_1bit(struct mtd_info *mtd,
-				      const u_char *dat, u_char *ecc_code)
+static int nand_davinci_calculate_1bit(struct nand_chip *chip,
+				       const u_char *dat, u_char *ecc_code)
 {
-	unsigned int ecc_val = nand_davinci_readecc_1bit(mtd);
+	unsigned int ecc_val = nand_davinci_readecc_1bit(nand_to_mtd(chip));
 	unsigned int ecc24 = (ecc_val & 0x0fff) | ((ecc_val & 0x0fff0000) >> 4);
 
 	/* invert so that erased block ecc is correct */
@@ -185,10 +184,9 @@ static int nand_davinci_calculate_1bit(struct mtd_info *mtd,
 	return 0;
 }
 
-static int nand_davinci_correct_1bit(struct mtd_info *mtd, u_char *dat,
+static int nand_davinci_correct_1bit(struct nand_chip *chip, u_char *dat,
 				     u_char *read_ecc, u_char *calc_ecc)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	uint32_t eccNand = read_ecc[0] | (read_ecc[1] << 8) |
 					  (read_ecc[2] << 16);
 	uint32_t eccCalc = calc_ecc[0] | (calc_ecc[1] << 8) |
@@ -231,9 +229,9 @@ static int nand_davinci_correct_1bit(struct mtd_info *mtd, u_char *dat,
  * OOB without recomputing ECC.
  */
 
-static void nand_davinci_hwctl_4bit(struct mtd_info *mtd, int mode)
+static void nand_davinci_hwctl_4bit(struct nand_chip *chip, int mode)
 {
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 	unsigned long flags;
 	u32 val;
 
@@ -266,10 +264,10 @@ nand_davinci_readecc_4bit(struct davinci_nand_info *info, u32 code[4])
 }
 
 /* Terminate read ECC; or return ECC (as bytes) of data written to NAND. */
-static int nand_davinci_calculate_4bit(struct mtd_info *mtd,
-		const u_char *dat, u_char *ecc_code)
+static int nand_davinci_calculate_4bit(struct nand_chip *chip,
+				       const u_char *dat, u_char *ecc_code)
 {
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 	u32 raw_ecc[4], *p;
 	unsigned i;
 
@@ -303,11 +301,11 @@ static int nand_davinci_calculate_4bit(struct mtd_info *mtd,
 /* Correct up to 4 bits in data we just read, using state left in the
  * hardware plus the ecc_code computed when it was first written.
  */
-static int nand_davinci_correct_4bit(struct mtd_info *mtd,
-		u_char *data, u_char *ecc_code, u_char *null)
+static int nand_davinci_correct_4bit(struct nand_chip *chip, u_char *data,
+				     u_char *ecc_code, u_char *null)
 {
 	int i;
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 	unsigned short ecc10[8];
 	unsigned short *ecc16;
 	u32 syndrome[4];
@@ -436,38 +434,35 @@ correct:
  * the two LSBs for NAND access ... so we can issue 32-bit reads/writes
  * and have that transparently morphed into multiple NAND operations.
  */
-static void nand_davinci_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void nand_davinci_read_buf(struct nand_chip *chip, uint8_t *buf,
+				  int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		ioread32_rep(chip->IO_ADDR_R, buf, len >> 2);
+		ioread32_rep(chip->legacy.IO_ADDR_R, buf, len >> 2);
 	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		ioread16_rep(chip->IO_ADDR_R, buf, len >> 1);
+		ioread16_rep(chip->legacy.IO_ADDR_R, buf, len >> 1);
 	else
-		ioread8_rep(chip->IO_ADDR_R, buf, len);
+		ioread8_rep(chip->legacy.IO_ADDR_R, buf, len);
 }
 
-static void nand_davinci_write_buf(struct mtd_info *mtd,
-		const uint8_t *buf, int len)
+static void nand_davinci_write_buf(struct nand_chip *chip, const uint8_t *buf,
+				   int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
-		iowrite32_rep(chip->IO_ADDR_R, buf, len >> 2);
+		iowrite32_rep(chip->legacy.IO_ADDR_R, buf, len >> 2);
 	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
-		iowrite16_rep(chip->IO_ADDR_R, buf, len >> 1);
+		iowrite16_rep(chip->legacy.IO_ADDR_R, buf, len >> 1);
 	else
-		iowrite8_rep(chip->IO_ADDR_R, buf, len);
+		iowrite8_rep(chip->legacy.IO_ADDR_R, buf, len);
 }
 
 /*
  * Check hardware register for wait status. Returns 1 if device is ready,
  * 0 if it is still busy.
  */
-static int nand_davinci_dev_ready(struct mtd_info *mtd)
+static int nand_davinci_dev_ready(struct nand_chip *chip)
 {
-	struct davinci_nand_info *info = to_davinci_nand(mtd);
+	struct davinci_nand_info *info = to_davinci_nand(nand_to_mtd(chip));
 
 	return davinci_nand_readl(info, NANDFSR_OFFSET) & BIT(0);
 }
@@ -764,10 +759,10 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	mtd->dev.parent		= &pdev->dev;
 	nand_set_flash_node(&info->chip, pdev->dev.of_node);
 
-	info->chip.IO_ADDR_R	= vaddr;
-	info->chip.IO_ADDR_W	= vaddr;
-	info->chip.chip_delay	= 0;
-	info->chip.select_chip	= nand_davinci_select_chip;
+	info->chip.legacy.IO_ADDR_R	= vaddr;
+	info->chip.legacy.IO_ADDR_W	= vaddr;
+	info->chip.legacy.chip_delay	= 0;
+	info->chip.legacy.select_chip	= nand_davinci_select_chip;
 
 	/* options such as NAND_BBT_USE_FLASH */
 	info->chip.bbt_options	= pdata->bbt_options;
@@ -786,12 +781,12 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
 
 	/* Set address of hardware control function */
-	info->chip.cmd_ctrl	= nand_davinci_hwcontrol;
-	info->chip.dev_ready	= nand_davinci_dev_ready;
+	info->chip.legacy.cmd_ctrl	= nand_davinci_hwcontrol;
+	info->chip.legacy.dev_ready	= nand_davinci_dev_ready;
 
 	/* Speed up buffer I/O */
-	info->chip.read_buf     = nand_davinci_read_buf;
-	info->chip.write_buf    = nand_davinci_write_buf;
+	info->chip.legacy.read_buf     = nand_davinci_read_buf;
+	info->chip.legacy.write_buf    = nand_davinci_write_buf;
 
 	/* Use board-specific ECC config */
 	info->chip.ecc.mode	= pdata->ecc_mode;
@@ -806,8 +801,8 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	spin_unlock_irq(&davinci_nand_lock);
 
 	/* Scan to find existence of the device(s) */
-	info->chip.dummy_controller.ops = &davinci_nand_controller_ops;
-	ret = nand_scan(mtd, pdata->mask_chipsel ? 2 : 1);
+	info->chip.legacy.dummy_controller.ops = &davinci_nand_controller_ops;
+	ret = nand_scan(&info->chip, pdata->mask_chipsel ? 2 : 1);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
 		return ret;
@@ -841,7 +836,7 @@ static int nand_davinci_remove(struct platform_device *pdev)
 		ecc4_busy = false;
 	spin_unlock_irq(&davinci_nand_lock);
 
-	nand_release(nand_to_mtd(&info->chip));
+	nand_release(&info->chip);
 
 	return 0;
 }

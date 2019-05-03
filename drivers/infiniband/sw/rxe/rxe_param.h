@@ -78,7 +78,8 @@ enum rxe_device_param {
 					| IB_DEVICE_SYS_IMAGE_GUID
 					| IB_DEVICE_RC_RNR_NAK_GEN
 					| IB_DEVICE_SRQ_RESIZE
-					| IB_DEVICE_MEM_MGT_EXTENSIONS,
+					| IB_DEVICE_MEM_MGT_EXTENSIONS
+					| IB_DEVICE_ALLOW_USER_UNREG,
 	RXE_MAX_SGE			= 32,
 	RXE_MAX_SGE_RD			= 32,
 	RXE_MAX_CQ			= 16384,
@@ -90,7 +91,6 @@ enum rxe_device_param {
 	RXE_MAX_RES_RD_ATOM		= 0x3f000,
 	RXE_MAX_QP_INIT_RD_ATOM		= 128,
 	RXE_MAX_EE_INIT_RD_ATOM		= 0,
-	RXE_ATOMIC_CAP			= 1,
 	RXE_MAX_EE			= 0,
 	RXE_MAX_RDD			= 0,
 	RXE_MAX_MW			= 0,
@@ -139,9 +139,6 @@ enum rxe_device_param {
 
 /* default/initial rxe port parameters */
 enum rxe_port_param {
-	RXE_PORT_STATE			= IB_PORT_DOWN,
-	RXE_PORT_MAX_MTU		= IB_MTU_4096,
-	RXE_PORT_ACTIVE_MTU		= IB_MTU_256,
 	RXE_PORT_GID_TBL_LEN		= 1024,
 	RXE_PORT_PORT_CAP_FLAGS		= RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP,
 	RXE_PORT_MAX_MSG_SZ		= 0x800000,

@@ -51,12 +51,11 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 
 static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 {
-	struct gfs2_sbd *sdp;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
-	if (!gfs2_is_ordered(ip))
+	if (gfs2_is_jdata(ip) || !gfs2_is_ordered(sdp))
 		return;
 
-	sdp = GFS2_SB(&ip->i_inode);
 	if (!test_bit(GIF_ORDERED, &ip->i_flags)) {
 		spin_lock(&sdp->sd_ordered_lock);
 		if (!test_and_set_bit(GIF_ORDERED, &ip->i_flags))

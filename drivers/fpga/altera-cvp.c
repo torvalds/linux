@@ -403,6 +403,7 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	struct altera_cvp_conf *conf;
 	struct fpga_manager *mgr;
 	u16 cmd, val;
+	u32 regval;
 	int ret;
 
 	/*
@@ -413,6 +414,14 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	pci_read_config_word(pdev, VSE_PCIE_EXT_CAP_ID, &val);
 	if (val != VSE_PCIE_EXT_CAP_ID_VAL) {
 		dev_err(&pdev->dev, "Wrong EXT_CAP_ID value 0x%x\n", val);
+		return -ENODEV;
+	}
+
+	pci_read_config_dword(pdev, VSE_CVP_STATUS, &regval);
+	if (!(regval & VSE_CVP_STATUS_CVP_EN)) {
+		dev_err(&pdev->dev,
+			"CVP is disabled for this device: CVP_STATUS Reg 0x%x\n",
+			regval);
 		return -ENODEV;
 	}
 
@@ -453,8 +462,8 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	snprintf(conf->mgr_name, sizeof(conf->mgr_name), "%s @%s",
 		 ALTERA_CVP_MGR_NAME, pci_name(pdev));
 
-	mgr = fpga_mgr_create(&pdev->dev, conf->mgr_name,
-			      &altera_cvp_ops, conf);
+	mgr = devm_fpga_mgr_create(&pdev->dev, conf->mgr_name,
+				   &altera_cvp_ops, conf);
 	if (!mgr) {
 		ret = -ENOMEM;
 		goto err_unmap;
@@ -463,23 +472,14 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, mgr);
 
 	ret = fpga_mgr_register(mgr);
-	if (ret) {
-		fpga_mgr_free(mgr);
+	if (ret)
 		goto err_unmap;
-	}
-
-	ret = driver_create_file(&altera_cvp_driver.driver,
-				 &driver_attr_chkcfg);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't create sysfs chkcfg file\n");
-		fpga_mgr_unregister(mgr);
-		goto err_unmap;
-	}
 
 	return 0;
 
 err_unmap:
-	pci_iounmap(pdev, conf->map);
+	if (conf->map)
+		pci_iounmap(pdev, conf->map);
 	pci_release_region(pdev, CVP_BAR);
 err_disable:
 	cmd &= ~PCI_COMMAND_MEMORY;
@@ -493,16 +493,39 @@ static void altera_cvp_remove(struct pci_dev *pdev)
 	struct altera_cvp_conf *conf = mgr->priv;
 	u16 cmd;
 
-	driver_remove_file(&altera_cvp_driver.driver, &driver_attr_chkcfg);
 	fpga_mgr_unregister(mgr);
-	pci_iounmap(pdev, conf->map);
+	if (conf->map)
+		pci_iounmap(pdev, conf->map);
 	pci_release_region(pdev, CVP_BAR);
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 	cmd &= ~PCI_COMMAND_MEMORY;
 	pci_write_config_word(pdev, PCI_COMMAND, cmd);
 }
 
-module_pci_driver(altera_cvp_driver);
+static int __init altera_cvp_init(void)
+{
+	int ret;
+
+	ret = pci_register_driver(&altera_cvp_driver);
+	if (ret)
+		return ret;
+
+	ret = driver_create_file(&altera_cvp_driver.driver,
+				 &driver_attr_chkcfg);
+	if (ret)
+		pr_warn("Can't create sysfs chkcfg file\n");
+
+	return 0;
+}
+
+static void __exit altera_cvp_exit(void)
+{
+	driver_remove_file(&altera_cvp_driver.driver, &driver_attr_chkcfg);
+	pci_unregister_driver(&altera_cvp_driver);
+}
+
+module_init(altera_cvp_init);
+module_exit(altera_cvp_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Anatolij Gustschin <agust@denx.de>");

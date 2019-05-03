@@ -27,8 +27,6 @@
 #include "intel_ringbuffer.h"
 #include "i915_gem_context.h"
 
-#define GEN8_LR_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
-
 /* Execlists regs */
 #define RING_ELSP(engine)			_MMIO((engine)->mmio_base + 0x230)
 #define RING_EXECLIST_STATUS_LO(engine)		_MMIO((engine)->mmio_base + 0x234)
@@ -99,11 +97,21 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine);
  */
 #define LRC_HEADER_PAGES LRC_PPHWSP_PN
 
+struct drm_printer;
+
 struct drm_i915_private;
 struct i915_gem_context;
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv);
-
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
+
+void intel_execlists_show_requests(struct intel_engine_cs *engine,
+				   struct drm_printer *m,
+				   void (*show_request)(struct drm_printer *m,
+							struct i915_request *rq,
+							const char *prefix),
+				   unsigned int max);
+
+u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *ctx_sseu);
 
 #endif /* _INTEL_LRC_H_ */

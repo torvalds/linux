@@ -299,43 +299,6 @@ static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
 	return 1;
 }
 
-static int get_key_hvr1110(struct IR_i2c *ir, enum rc_proto *protocol,
-			   u32 *scancode, u8 *toggle)
-{
-	int rc;
-	unsigned char buf[5];
-
-	/* poll IR chip */
-	rc = i2c_master_recv(ir->c, buf, 5);
-	if (rc != 5) {
-		ir_dbg(ir, "read error\n");
-		if (rc < 0)
-			return rc;
-		return -EIO;
-	}
-
-	/* Check if some key were pressed */
-	if (!(buf[0] & 0x80))
-		return 0;
-
-	/*
-	 * buf[3] & 0x80 is always high.
-	 * buf[3] & 0x40 is a parity bit. A repeat event is marked
-	 * by preserving it into two separate readings
-	 * buf[4] bits 0 and 1, and buf[1] and buf[2] are always
-	 * zero.
-	 *
-	 * Note that the keymap which the hvr1110 uses is RC5.
-	 *
-	 * FIXME: start bits could maybe be used...?
-	 */
-	*protocol = RC_PROTO_RC5;
-	*scancode = RC_SCANCODE_RC5(buf[3] & 0x1f, buf[4] >> 2);
-	*toggle = !!(buf[3] & 0x40);
-	return 1;
-}
-
-
 static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_proto *protocol,
 			      u32 *scancode, u8 *toggle)
 {
@@ -485,17 +448,10 @@ static void saa7134_input_timer(struct timer_list *t)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static int __saa7134_ir_start(void *priv)
+int saa7134_ir_open(struct rc_dev *rc)
 {
-	struct saa7134_dev *dev = priv;
-	struct saa7134_card_ir *ir;
-
-	if (!dev || !dev->remote)
-		return -EINVAL;
-
-	ir  = dev->remote;
-	if (ir->running)
-		return 0;
+	struct saa7134_dev *dev = rc->priv;
+	struct saa7134_card_ir *ir = dev->remote;
 
 	/* Moved here from saa7134_input_init1() because the latter
 	 * is not called on device resume */
@@ -544,55 +500,15 @@ static int __saa7134_ir_start(void *priv)
 	return 0;
 }
 
-static void __saa7134_ir_stop(void *priv)
+void saa7134_ir_close(struct rc_dev *rc)
 {
-	struct saa7134_dev *dev = priv;
-	struct saa7134_card_ir *ir;
-
-	if (!dev || !dev->remote)
-		return;
-
-	ir  = dev->remote;
-	if (!ir->running)
-		return;
+	struct saa7134_dev *dev = rc->priv;
+	struct saa7134_card_ir *ir = dev->remote;
 
 	if (ir->polling)
 		del_timer_sync(&ir->timer);
 
 	ir->running = false;
-
-	return;
-}
-
-int saa7134_ir_start(struct saa7134_dev *dev)
-{
-	if (dev->remote->users)
-		return __saa7134_ir_start(dev);
-
-	return 0;
-}
-
-void saa7134_ir_stop(struct saa7134_dev *dev)
-{
-	if (dev->remote->users)
-		__saa7134_ir_stop(dev);
-}
-
-static int saa7134_ir_open(struct rc_dev *rc)
-{
-	struct saa7134_dev *dev = rc->priv;
-
-	dev->remote->users++;
-	return __saa7134_ir_start(dev);
-}
-
-static void saa7134_ir_close(struct rc_dev *rc)
-{
-	struct saa7134_dev *dev = rc->priv;
-
-	dev->remote->users--;
-	if (!dev->remote->users)
-		__saa7134_ir_stop(dev);
 }
 
 int saa7134_input_init1(struct saa7134_dev *dev)
@@ -661,7 +577,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;
 		polling      = 50; // ms
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M135A:
 		ir_codes     = RC_MAP_AVERMEDIA_M135A;
@@ -683,14 +599,14 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; // ms
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A16D:
 		ir_codes     = RC_MAP_AVERMEDIA_A16D;
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; /* ms */
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
 		ir_codes     = RC_MAP_PIXELVIEW;
@@ -742,7 +658,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x0003CC;
 		mask_keydown = 0x000010;
 		polling	     = 5; /* ms */
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
 	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
@@ -880,8 +796,6 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->raw_decode	 = raw_decode;
 
 	/* init input device */
-	snprintf(ir->name, sizeof(ir->name), "saa7134 IR (%s)",
-		 saa7134_boards[dev->board].name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
@@ -893,7 +807,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	}
 
-	rc->device_name = ir->name;
+	rc->device_name = saa7134_boards[dev->board].name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_PCI;
 	rc->input_id.version = 1;
@@ -929,7 +843,6 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 	if (NULL == dev->remote)
 		return;
 
-	saa7134_ir_stop(dev);
 	rc_unregister_device(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;
@@ -953,7 +866,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
@@ -1031,9 +944,11 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 			(1 == rc) ? "yes" : "no");
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
-		dev->init_data.name = "HVR 1110";
-		dev->init_data.get_key = get_key_hvr1110;
+		dev->init_data.name = saa7134_boards[dev->board].name;
 		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
+		dev->init_data.type = RC_PROTO_BIT_RC5 |
+				RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_RC6_6A_32;
+		dev->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 		info.addr = 0x71;
 		break;
 	case SAA7134_BOARD_BEHOLD_607FM_MK3:

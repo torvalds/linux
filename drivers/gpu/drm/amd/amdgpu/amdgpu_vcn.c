@@ -36,14 +36,19 @@
 #include "soc15_common.h"
 
 #include "vcn/vcn_1_0_offset.h"
+#include "vcn/vcn_1_0_sh_mask.h"
 
 /* 1 second timeout */
 #define VCN_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
 /* Firmware Names */
 #define FIRMWARE_RAVEN		"amdgpu/raven_vcn.bin"
+#define FIRMWARE_PICASSO	"amdgpu/picasso_vcn.bin"
+#define FIRMWARE_RAVEN2		"amdgpu/raven2_vcn.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
+MODULE_FIRMWARE(FIRMWARE_PICASSO);
+MODULE_FIRMWARE(FIRMWARE_RAVEN2);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -59,7 +64,12 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		fw_name = FIRMWARE_RAVEN;
+		if (adev->rev_id >= 8)
+			fw_name = FIRMWARE_RAVEN2;
+		else if (adev->pdev->device == 0x15d8)
+			fw_name = FIRMWARE_PICASSO;
+		else
+			fw_name = FIRMWARE_RAVEN;
 		break;
 	default:
 		return -EINVAL;
@@ -111,8 +121,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			version_major, version_minor, family_id);
 	}
 
-	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE
-		  +  AMDGPU_VCN_SESSION_SIZE * 40;
+	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
@@ -203,20 +212,164 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
+				     struct dpg_pause_state *new_state)
+{
+	int ret_code;
+	uint32_t reg_data = 0;
+	uint32_t reg_data2 = 0;
+	struct amdgpu_ring *ring;
+
+	/* pause/unpause if state is changed */
+	if (adev->vcn.pause_state.fw_based != new_state->fw_based) {
+		DRM_DEBUG("dpg pause state changed %d:%d -> %d:%d",
+			adev->vcn.pause_state.fw_based, adev->vcn.pause_state.jpeg,
+			new_state->fw_based, new_state->jpeg);
+
+		reg_data = RREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE) &
+			(~UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK);
+
+		if (new_state->fw_based == VCN_DPG_STATE__PAUSE) {
+			ret_code = 0;
+
+			if (!(reg_data & UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK))
+				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
+						   UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
+						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+
+			if (!ret_code) {
+				/* pause DPG non-jpeg */
+				reg_data |= UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK;
+				WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
+				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_DPG_PAUSE,
+						   UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK,
+						   UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK, ret_code);
+
+				/* Restore */
+				ring = &adev->vcn.ring_enc[0];
+				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_LO, ring->gpu_addr);
+				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_HI, upper_32_bits(ring->gpu_addr));
+				WREG32_SOC15(UVD, 0, mmUVD_RB_SIZE, ring->ring_size / 4);
+				WREG32_SOC15(UVD, 0, mmUVD_RB_RPTR, lower_32_bits(ring->wptr));
+				WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR, lower_32_bits(ring->wptr));
+
+				ring = &adev->vcn.ring_enc[1];
+				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_LO2, ring->gpu_addr);
+				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
+				WREG32_SOC15(UVD, 0, mmUVD_RB_SIZE2, ring->ring_size / 4);
+				WREG32_SOC15(UVD, 0, mmUVD_RB_RPTR2, lower_32_bits(ring->wptr));
+				WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2, lower_32_bits(ring->wptr));
+
+				ring = &adev->vcn.ring_dec;
+				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
+						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2) & 0x7FFFFFFF);
+				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
+						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
+						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+			}
+		} else {
+			/* unpause dpg non-jpeg, no need to wait */
+			reg_data &= ~UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK;
+			WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
+		}
+		adev->vcn.pause_state.fw_based = new_state->fw_based;
+	}
+
+	/* pause/unpause if state is changed */
+	if (adev->vcn.pause_state.jpeg != new_state->jpeg) {
+		DRM_DEBUG("dpg pause state changed %d:%d -> %d:%d",
+			adev->vcn.pause_state.fw_based, adev->vcn.pause_state.jpeg,
+			new_state->fw_based, new_state->jpeg);
+
+		reg_data = RREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE) &
+			(~UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK);
+
+		if (new_state->jpeg == VCN_DPG_STATE__PAUSE) {
+			ret_code = 0;
+
+			if (!(reg_data & UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK))
+				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
+						   UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
+						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+
+			if (!ret_code) {
+				/* Make sure JPRG Snoop is disabled before sending the pause */
+				reg_data2 = RREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS);
+				reg_data2 |= UVD_POWER_STATUS__JRBC_SNOOP_DIS_MASK;
+				WREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS, reg_data2);
+
+				/* pause DPG jpeg */
+				reg_data |= UVD_DPG_PAUSE__JPEG_PAUSE_DPG_REQ_MASK;
+				WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
+				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_DPG_PAUSE,
+							UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK,
+							UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK, ret_code);
+
+				/* Restore */
+				ring = &adev->vcn.ring_jpeg;
+				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
+							UVD_JRBC_RB_CNTL__RB_NO_FETCH_MASK |
+							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
+				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
+							lower_32_bits(ring->gpu_addr));
+				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
+							upper_32_bits(ring->gpu_addr));
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR, ring->wptr);
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, ring->wptr);
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
+							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
+
+				ring = &adev->vcn.ring_dec;
+				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
+						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2) & 0x7FFFFFFF);
+				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
+						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
+						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+			}
+		} else {
+			/* unpause dpg jpeg, no need to wait */
+			reg_data &= ~UVD_DPG_PAUSE__JPEG_PAUSE_DPG_REQ_MASK;
+			WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
+		}
+		adev->vcn.pause_state.jpeg = new_state->jpeg;
+	}
+
+	return 0;
+}
+
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, vcn.idle_work.work);
-	unsigned fences = amdgpu_fence_count_emitted(&adev->vcn.ring_dec);
-	unsigned i;
+	unsigned int fences = 0;
+	unsigned int i;
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		fences += amdgpu_fence_count_emitted(&adev->vcn.ring_enc[i]);
 	}
 
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)	{
+		struct dpg_pause_state new_state;
+
+		if (fences)
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
+
+		if (amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg))
+			new_state.jpeg = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
+
+		amdgpu_vcn_pause_dpg_mode(adev, &new_state);
+	}
+
 	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg);
+	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_dec);
 
 	if (fences == 0) {
+		amdgpu_gfx_off_ctrl(adev, true);
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
 		else
@@ -233,11 +386,38 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	if (set_clocks) {
+		amdgpu_gfx_off_ctrl(adev, false);
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else
 			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
 							       AMD_PG_STATE_UNGATE);
+	}
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)	{
+		struct dpg_pause_state new_state;
+		unsigned int fences = 0;
+		unsigned int i;
+
+		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+			fences += amdgpu_fence_count_emitted(&adev->vcn.ring_enc[i]);
+		}
+		if (fences)
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
+
+		if (amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg))
+			new_state.jpeg = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
+
+		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		else if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
+			new_state.jpeg = VCN_DPG_STATE__PAUSE;
+
+		amdgpu_vcn_pause_dpg_mode(adev, &new_state);
 	}
 }
 
@@ -253,32 +433,25 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0xCAFEDEAD);
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
-	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
-			  ring->idx, r);
+	if (r)
 		return r;
-	}
+
 	amdgpu_ring_write(ring,
-		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0));
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID));
+		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
-		DRM_DEBUG("ring test on %d succeeded in %d usecs\n",
-			 ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
-			  ring->idx, tmp);
-		r = -EINVAL;
-	}
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
+
 	return r;
 }
 
@@ -400,30 +573,20 @@ int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r;
 
 	r = amdgpu_vcn_dec_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = amdgpu_vcn_dec_get_destroy_msg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n",  ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
 
 	dma_fence_put(fence);
-
 error:
 	return r;
 }
@@ -436,11 +599,9 @@ int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
 	int r;
 
 	r = amdgpu_ring_alloc(ring, 16);
-	if (r) {
-		DRM_ERROR("amdgpu: vcn enc failed to lock ring %d (%d).\n",
-			  ring->idx, r);
+	if (r)
 		return r;
-	}
+
 	amdgpu_ring_write(ring, VCN_ENC_CMD_END);
 	amdgpu_ring_commit(ring);
 
@@ -450,14 +611,8 @@ int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
-		DRM_DEBUG("ring test on %d succeeded in %d usecs\n",
-			 ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed\n",
-			  ring->idx);
+	if (i >= adev->usec_timeout)
 		r = -ETIMEDOUT;
-	}
 
 	return r;
 }
@@ -572,27 +727,19 @@ int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r;
 
 	r = amdgpu_vcn_enc_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = amdgpu_vcn_enc_get_destroy_msg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
+
 error:
 	dma_fence_put(fence);
 	return r;
@@ -605,35 +752,26 @@ int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0xCAFEDEAD);
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
 
-	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
-				  ring->idx, r);
+	if (r)
 		return r;
-	}
 
 	amdgpu_ring_write(ring,
-		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0, 0, 0));
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID));
+		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
-		DRM_DEBUG("ring test on %d succeeded in %d usecs\n",
-				  ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
-				  ring->idx, tmp);
-		r = -EINVAL;
-	}
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
 
 	return r;
 }
@@ -654,7 +792,7 @@ static int amdgpu_vcn_jpeg_set_reg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib = &job->ibs[0];
 
-	ib->ptr[0] = PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_PITCH), 0, 0, PACKETJ_TYPE0);
+	ib->ptr[0] = PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, PACKETJ_TYPE0);
 	ib->ptr[1] = 0xDEADBEEF;
 	for (i = 2; i < 16; i += 2) {
 		ib->ptr[i] = PACKETJ(0, 0, 0, PACKETJ_TYPE6);
@@ -686,38 +824,30 @@ int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r = 0;
 
 	r = amdgpu_vcn_jpeg_set_reg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to set jpeg register (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
 	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
 		r = -ETIMEDOUT;
 		goto error;
 	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 		goto error;
-	} else
+	} else {
 		r = 0;
+	}
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_PITCH));
+		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout)
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
-	else {
-		DRM_ERROR("ib test failed (0x%08X)\n", tmp);
-		r = -EINVAL;
-	}
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
 
 	dma_fence_put(fence);
-
 error:
 	return r;
 }

@@ -30,8 +30,6 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
-#include <plat/pm-common.h>
-
 #include "common.h"
 
 #define REG_TABLE_END (-1U)
@@ -59,10 +57,15 @@ struct exynos_pm_data {
 	int (*cpu_suspend)(unsigned long);
 };
 
-static const struct exynos_pm_data *pm_data __ro_after_init;
+/* Used only on Exynos542x/5800 */
+struct exynos_pm_state {
+	int cpu_state;
+	unsigned int pmu_spare3;
+	void __iomem *sysram_base;
+};
 
-static int exynos5420_cpu_state;
-static unsigned int exynos_pmu_spare3;
+static const struct exynos_pm_data *pm_data __ro_after_init;
+static struct exynos_pm_state pm_state;
 
 /*
  * GIC wake-up support
@@ -87,6 +90,11 @@ static const struct exynos_wkup_irq exynos5250_wkup_irq[] = {
 	{ 44, BIT(2) }, /* RTC tick */
 	{ /* sentinel */ },
 };
+
+static u32 exynos_read_eint_wakeup_mask(void)
+{
+	return pmu_raw_readl(EXYNOS_EINT_WAKEUP_MASK);
+}
 
 static int exynos_irq_set_wake(struct irq_data *data, unsigned int state)
 {
@@ -257,7 +265,7 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 
-	writel_relaxed(0x0, sysram_base_addr + EXYNOS5420_CPU_STATE);
+	writel_relaxed(0x0, pm_state.sysram_base + EXYNOS5420_CPU_STATE);
 
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM)) {
 		mcpm_set_entry_vector(cpu, cluster, exynos_cpu_resume);
@@ -272,8 +280,10 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 
 static void exynos_pm_set_wakeup_mask(void)
 {
-	/* Set wake-up mask registers */
-	pmu_raw_writel(exynos_get_eint_wake_mask(), EXYNOS_EINT_WAKEUP_MASK);
+	/*
+	 * Set wake-up mask registers
+	 * EXYNOS_EINT_WAKEUP_MASK is set by pinctrl driver in late suspend.
+	 */
 	pmu_raw_writel(exynos_irqwake_intmask & ~(1 << 31), S5P_WAKEUP_MASK);
 }
 
@@ -321,7 +331,7 @@ static void exynos5420_pm_prepare(void)
 	/* Set wake-up mask registers */
 	exynos_pm_set_wakeup_mask();
 
-	exynos_pmu_spare3 = pmu_raw_readl(S5P_PMU_SPARE3);
+	pm_state.pmu_spare3 = pmu_raw_readl(S5P_PMU_SPARE3);
 	/*
 	 * The cpu state needs to be saved and restored so that the
 	 * secondary CPUs will enter low power start. Though the U-Boot
@@ -329,8 +339,8 @@ static void exynos5420_pm_prepare(void)
 	 * needs to restore it back in case, the primary cpu fails to
 	 * suspend for any reason.
 	 */
-	exynos5420_cpu_state = readl_relaxed(sysram_base_addr +
-					     EXYNOS5420_CPU_STATE);
+	pm_state.cpu_state = readl_relaxed(pm_state.sysram_base +
+					   EXYNOS5420_CPU_STATE);
 
 	exynos_pm_enter_sleep_mode();
 
@@ -448,8 +458,8 @@ static void exynos5420_pm_resume(void)
 		       EXYNOS5_ARM_CORE0_SYS_PWR_REG);
 
 	/* Restore the sysram cpu state register */
-	writel_relaxed(exynos5420_cpu_state,
-		       sysram_base_addr + EXYNOS5420_CPU_STATE);
+	writel_relaxed(pm_state.cpu_state,
+		       pm_state.sysram_base + EXYNOS5420_CPU_STATE);
 
 	pmu_raw_writel(EXYNOS5420_USE_STANDBY_WFI_ALL,
 			S5P_CENTRAL_SEQ_OPTION);
@@ -457,7 +467,7 @@ static void exynos5420_pm_resume(void)
 	if (exynos_pm_central_resume())
 		goto early_wakeup;
 
-	pmu_raw_writel(exynos_pmu_spare3, S5P_PMU_SPARE3);
+	pmu_raw_writel(pm_state.pmu_spare3, S5P_PMU_SPARE3);
 
 early_wakeup:
 
@@ -483,27 +493,24 @@ early_wakeup:
 
 static int exynos_suspend_enter(suspend_state_t state)
 {
+	u32 eint_wakeup_mask = exynos_read_eint_wakeup_mask();
 	int ret;
 
-	s3c_pm_debug_init();
+	pr_debug("%s: suspending the system...\n", __func__);
 
-	S3C_PMDBG("%s: suspending the system...\n", __func__);
-
-	S3C_PMDBG("%s: wakeup masks: %08x,%08x\n", __func__,
-			exynos_irqwake_intmask, exynos_get_eint_wake_mask());
+	pr_debug("%s: wakeup masks: %08x,%08x\n", __func__,
+		  exynos_irqwake_intmask, eint_wakeup_mask);
 
 	if (exynos_irqwake_intmask == -1U
-	    && exynos_get_eint_wake_mask() == -1U) {
+	    && eint_wakeup_mask == EXYNOS_EINT_WAKEUP_MASK_DISABLED) {
 		pr_err("%s: No wake-up sources!\n", __func__);
 		pr_err("%s: Aborting sleep\n", __func__);
 		return -EINVAL;
 	}
 
-	s3c_pm_save_uarts();
 	if (pm_data->pm_prepare)
 		pm_data->pm_prepare();
 	flush_cache_all();
-	s3c_pm_check_store();
 
 	ret = call_firmware_op(suspend);
 	if (ret == -ENOSYS)
@@ -513,14 +520,11 @@ static int exynos_suspend_enter(suspend_state_t state)
 
 	if (pm_data->pm_resume_prepare)
 		pm_data->pm_resume_prepare();
-	s3c_pm_restore_uarts();
 
-	S3C_PMDBG("%s: wakeup stat: %08x\n", __func__,
+	pr_debug("%s: wakeup stat: %08x\n", __func__,
 			pmu_raw_readl(S5P_WAKEUP_STAT));
 
-	s3c_pm_check_restore();
-
-	S3C_PMDBG("%s: resuming the system...\n", __func__);
+	pr_debug("%s: resuming the system...\n", __func__);
 
 	return 0;
 }
@@ -543,16 +547,12 @@ static int exynos_suspend_prepare(void)
 		return ret;
 	}
 
-	s3c_pm_check_prepare();
-
 	return 0;
 }
 
 static void exynos_suspend_finish(void)
 {
 	int ret;
-
-	s3c_pm_check_cleanup();
 
 	ret = regulator_suspend_finish();
 	if (ret)
@@ -654,4 +654,13 @@ void __init exynos_pm_init(void)
 
 	register_syscore_ops(&exynos_pm_syscore_ops);
 	suspend_set_ops(&exynos_suspend_ops);
+
+	/*
+	 * Applicable as of now only to Exynos542x. If booted under secure
+	 * firmware, the non-secure region of sysram should be used.
+	 */
+	if (exynos_secure_firmware_available())
+		pm_state.sysram_base = sysram_ns_base_addr;
+	else
+		pm_state.sysram_base = sysram_base_addr;
 }

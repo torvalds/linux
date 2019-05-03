@@ -45,6 +45,8 @@ struct vcpu_data {
 
 #ifdef CONFIG_IRQ_REMAP
 
+extern raw_spinlock_t irq_2_ir_lock;
+
 extern bool irq_remapping_cap(enum irq_remap_cap cap);
 extern void set_irq_remapping_broken(void);
 extern int irq_remapping_prepare(void);

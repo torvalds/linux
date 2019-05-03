@@ -69,4 +69,8 @@ void fpga_bridge_free(struct fpga_bridge *br);
 int fpga_bridge_register(struct fpga_bridge *br);
 void fpga_bridge_unregister(struct fpga_bridge *br);
 
+struct fpga_bridge
+*devm_fpga_bridge_create(struct device *dev, const char *name,
+			 const struct fpga_bridge_ops *br_ops, void *priv);
+
 #endif /* _LINUX_FPGA_BRIDGE_H */

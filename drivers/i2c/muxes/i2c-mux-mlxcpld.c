@@ -132,7 +132,7 @@ static int mlxcpld_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
 static int mlxcpld_mux_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adap = client->adapter;
 	struct mlxcpld_mux_plat_data *pdata = dev_get_platdata(&client->dev);
 	struct i2c_mux_core *muxc;
 	int num, force;

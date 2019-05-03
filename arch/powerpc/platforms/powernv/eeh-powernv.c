@@ -223,14 +223,6 @@ int pnv_eeh_post_init(void)
 	eeh_probe_devices();
 	eeh_addr_cache_build();
 
-	if (eeh_has_flag(EEH_POSTPONED_PROBE)) {
-		eeh_clear_flag(EEH_POSTPONED_PROBE);
-		if (eeh_enabled())
-			pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
-		else
-			pr_info("EEH: No capable adapters found\n");
-	}
-
 	/* Register OPAL event notifier */
 	eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
 	if (eeh_event_irq < 0) {
@@ -390,12 +382,6 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	/* Skip for PCI-ISA bridge */
 	if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
 		return NULL;
-
-	/* Skip if we haven't probed yet */
-	if (phb->ioda.pe_rmap[config_addr] == IODA_INVALID_PE) {
-		eeh_add_flag(EEH_POSTPONED_PROBE);
-		return NULL;
-	}
 
 	/* Initialize eeh device */
 	edev->class_code = pdn->class_code;
@@ -578,8 +564,8 @@ static void pnv_eeh_get_phb_diag(struct eeh_pe *pe)
 static int pnv_eeh_get_phb_state(struct eeh_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb->private_data;
-	u8 fstate;
-	__be16 pcierr;
+	u8 fstate = 0;
+	__be16 pcierr = 0;
 	s64 rc;
 	int result = 0;
 
@@ -604,7 +590,7 @@ static int pnv_eeh_get_phb_state(struct eeh_pe *pe)
 			  EEH_STATE_MMIO_ENABLED |
 			  EEH_STATE_DMA_ENABLED);
 	} else if (!(pe->state & EEH_PE_ISOLATED)) {
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		eeh_pe_mark_isolated(pe);
 		pnv_eeh_get_phb_diag(pe);
 
 		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
@@ -617,8 +603,8 @@ static int pnv_eeh_get_phb_state(struct eeh_pe *pe)
 static int pnv_eeh_get_pe_state(struct eeh_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb->private_data;
-	u8 fstate;
-	__be16 pcierr;
+	u8 fstate = 0;
+	__be16 pcierr = 0;
 	s64 rc;
 	int result;
 
@@ -706,7 +692,7 @@ static int pnv_eeh_get_pe_state(struct eeh_pe *pe)
 		if (phb->freeze_pe)
 			phb->freeze_pe(phb, pe->addr);
 
-		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+		eeh_pe_mark_isolated(pe);
 		pnv_eeh_get_phb_diag(pe);
 
 		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
@@ -1054,7 +1040,7 @@ static int pnv_eeh_reset_vf_pe(struct eeh_pe *pe, int option)
 	int ret;
 
 	/* The VF PE should have only one child device */
-	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, list);
+	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, entry);
 	pdn = eeh_dev_to_pdn(edev);
 	if (!pdn)
 		return -ENXIO;
@@ -1145,43 +1131,6 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 		return pnv_eeh_root_reset(hose, option);
 
 	return pnv_eeh_bridge_reset(bus->self, option);
-}
-
-/**
- * pnv_eeh_wait_state - Wait for PE state
- * @pe: EEH PE
- * @max_wait: maximal period in millisecond
- *
- * Wait for the state of associated PE. It might take some time
- * to retrieve the PE's state.
- */
-static int pnv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
-{
-	int ret;
-	int mwait;
-
-	while (1) {
-		ret = pnv_eeh_get_state(pe, &mwait);
-
-		/*
-		 * If the PE's state is temporarily unavailable,
-		 * we have to wait for the specified time. Otherwise,
-		 * the PE's state will be returned immediately.
-		 */
-		if (ret != EEH_STATE_UNAVAILABLE)
-			return ret;
-
-		if (max_wait <= 0) {
-			pr_warn("%s: Timeout getting PE#%x's state (%d)\n",
-				__func__, pe->addr, max_wait);
-			return EEH_STATE_NOT_SUPPORT;
-		}
-
-		max_wait -= mwait;
-		msleep(mwait);
-	}
-
-	return EEH_STATE_NOT_SUPPORT;
 }
 
 /**
@@ -1611,7 +1560,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 		if ((ret == EEH_NEXT_ERR_FROZEN_PE  ||
 		    ret == EEH_NEXT_ERR_FENCED_PHB) &&
 		    !((*pe)->state & EEH_PE_ISOLATED)) {
-			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
+			eeh_pe_mark_isolated(*pe);
 			pnv_eeh_get_phb_diag(*pe);
 
 			if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
@@ -1640,7 +1589,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 			}
 
 			/* We possibly migrate to another PE */
-			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
+			eeh_pe_mark_isolated(*pe);
 		}
 
 		/*
@@ -1702,7 +1651,6 @@ static struct eeh_ops pnv_eeh_ops = {
 	.get_pe_addr            = pnv_eeh_get_pe_addr,
 	.get_state              = pnv_eeh_get_state,
 	.reset                  = pnv_eeh_reset,
-	.wait_state             = pnv_eeh_wait_state,
 	.get_log                = pnv_eeh_get_log,
 	.configure_bridge       = pnv_eeh_configure_bridge,
 	.err_inject		= pnv_eeh_err_inject,

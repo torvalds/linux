@@ -287,8 +287,14 @@ Atomic Mode Setting Function Reference
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
-   :internal:
+Atomic Mode Setting IOCTL and UAPI Functions
+--------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
+   :export:
 
 CRTC Abstraction
 ================
@@ -322,6 +328,12 @@ Frame Buffer Functions Reference
 
 DRM Format Handling
 ===================
+
+.. kernel-doc:: include/uapi/drm/drm_fourcc.h
+   :doc: overview
+
+Format Functions Reference
+--------------------------
 
 .. kernel-doc:: include/drm/drm_fourcc.h
    :internal:
@@ -398,102 +410,6 @@ Encoder Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_encoder.c
    :export:
 
-KMS Initialization and Cleanup
-==============================
-
-A KMS device is abstracted and exposed as a set of planes, CRTCs,
-encoders and connectors. KMS drivers must thus create and initialize all
-those objects at load time after initializing mode setting.
-
-CRTCs (:c:type:`struct drm_crtc <drm_crtc>`)
---------------------------------------------
-
-A CRTC is an abstraction representing a part of the chip that contains a
-pointer to a scanout buffer. Therefore, the number of CRTCs available
-determines how many independent scanout buffers can be active at any
-given time. The CRTC structure contains several fields to support this:
-a pointer to some video memory (abstracted as a frame buffer object), a
-display mode, and an (x, y) offset into the video memory to support
-panning or configurations where one piece of video memory spans multiple
-CRTCs.
-
-CRTC Initialization
-~~~~~~~~~~~~~~~~~~~
-
-A KMS device must create and register at least one struct
-:c:type:`struct drm_crtc <drm_crtc>` instance. The instance is
-allocated and zeroed by the driver, possibly as part of a larger
-structure, and registered with a call to :c:func:`drm_crtc_init()`
-with a pointer to CRTC functions.
-
-
-Cleanup
--------
-
-The DRM core manages its objects' lifetime. When an object is not needed
-anymore the core calls its destroy function, which must clean up and
-free every resource allocated for the object. Every
-:c:func:`drm_\*_init()` call must be matched with a corresponding
-:c:func:`drm_\*_cleanup()` call to cleanup CRTCs
-(:c:func:`drm_crtc_cleanup()`), planes
-(:c:func:`drm_plane_cleanup()`), encoders
-(:c:func:`drm_encoder_cleanup()`) and connectors
-(:c:func:`drm_connector_cleanup()`). Furthermore, connectors that
-have been added to sysfs must be removed by a call to
-:c:func:`drm_connector_unregister()` before calling
-:c:func:`drm_connector_cleanup()`.
-
-Connectors state change detection must be cleanup up with a call to
-:c:func:`drm_kms_helper_poll_fini()`.
-
-Output discovery and initialization example
--------------------------------------------
-
-.. code-block:: c
-
-    void intel_crt_init(struct drm_device *dev)
-    {
-        struct drm_connector *connector;
-        struct intel_output *intel_output;
-
-        intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
-        if (!intel_output)
-            return;
-
-        connector = &intel_output->base;
-        drm_connector_init(dev, &intel_output->base,
-                   &intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
-
-        drm_encoder_init(dev, &intel_output->enc, &intel_crt_enc_funcs,
-                 DRM_MODE_ENCODER_DAC);
-
-        drm_connector_attach_encoder(&intel_output->base,
-                          &intel_output->enc);
-
-        /* Set up the DDC bus. */
-        intel_output->ddc_bus = intel_i2c_create(dev, GPIOA, "CRTDDC_A");
-        if (!intel_output->ddc_bus) {
-            dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
-                   "failed.\n");
-            return;
-        }
-
-        intel_output->type = INTEL_OUTPUT_ANALOG;
-        connector->interlace_allowed = 0;
-        connector->doublescan_allowed = 0;
-
-        drm_encoder_helper_add(&intel_output->enc, &intel_crt_helper_funcs);
-        drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
-
-        drm_connector_register(connector);
-    }
-
-In the example above (taken from the i915 driver), a CRTC, connector and
-encoder combination is created. A device-specific i2c bus is also
-created for fetching EDID data and performing monitor detection. Once
-the process is complete, the new connector is registered with sysfs to
-make its properties available to applications.
-
 KMS Locking
 ===========
 
@@ -542,6 +458,18 @@ Plane Composition Properties
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :export:
 
+FB_DAMAGE_CLIPS
+~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_damage_helper.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_damage_helper.h
+   :internal:
+
 Color Management Properties
 ---------------------------
 
@@ -560,8 +488,15 @@ Tile Group Property
 Explicit Fencing Properties
 ---------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
    :doc: explicit fencing properties
+
+
+Variable Refresh Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: Variable refresh properties
 
 Existing KMS Properties
 -----------------------

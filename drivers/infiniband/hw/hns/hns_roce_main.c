@@ -196,6 +196,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 
 	memset(props, 0, sizeof(*props));
 
+	props->fw_ver = hr_dev->caps.fw_ver;
 	props->sys_image_guid = cpu_to_be64(hr_dev->sys_image_guid);
 	props->max_mr_size = (u64)(~(0ULL));
 	props->page_size_cap = hr_dev->caps.page_size_cap;
@@ -215,9 +216,20 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_pd = hr_dev->caps.num_pds;
 	props->max_qp_rd_atom = hr_dev->caps.max_qp_dest_rdma;
 	props->max_qp_init_rd_atom = hr_dev->caps.max_qp_init_rdma;
-	props->atomic_cap = IB_ATOMIC_NONE;
+	props->atomic_cap = hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_ATOMIC ?
+			    IB_ATOMIC_HCA : IB_ATOMIC_NONE;
 	props->max_pkeys = 1;
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
+		props->max_srq = hr_dev->caps.max_srqs;
+		props->max_srq_wr = hr_dev->caps.max_srq_wrs;
+		props->max_srq_sge = hr_dev->caps.max_srq_sges;
+	}
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR) {
+		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
+		props->max_fast_reg_page_list_len = HNS_ROCE_FRMR_MAX_PA;
+	}
 
 	return 0;
 }
@@ -323,29 +335,23 @@ static int hns_roce_modify_port(struct ib_device *ib_dev, u8 port_num, int mask,
 	return 0;
 }
 
-static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
-						   struct ib_udata *udata)
+static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
+				   struct ib_udata *udata)
 {
 	int ret = 0;
-	struct hns_roce_ucontext *context;
+	struct hns_roce_ucontext *context = to_hr_ucontext(uctx);
 	struct hns_roce_ib_alloc_ucontext_resp resp = {};
-	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
+	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->device);
 
 	if (!hr_dev->active)
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 
 	resp.qp_tab_size = hr_dev->caps.num_qps;
-
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
 
 	ret = hns_roce_uar_alloc(hr_dev, &context->uar);
 	if (ret)
 		goto error_fail_uar_alloc;
 
-	INIT_LIST_HEAD(&context->vma_list);
-	mutex_init(&context->vma_list_mutex);
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
 		INIT_LIST_HEAD(&context->page_list);
 		mutex_init(&context->page_mutex);
@@ -355,69 +361,20 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 	if (ret)
 		goto error_fail_copy_to_udata;
 
-	return &context->ibucontext;
+	return 0;
 
 error_fail_copy_to_udata:
 	hns_roce_uar_free(hr_dev, &context->uar);
 
 error_fail_uar_alloc:
-	kfree(context);
-
-	return ERR_PTR(ret);
+	return ret;
 }
 
-static int hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
+static void hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
 
 	hns_roce_uar_free(to_hr_dev(ibcontext->device), &context->uar);
-	kfree(context);
-
-	return 0;
-}
-
-static void hns_roce_vma_open(struct vm_area_struct *vma)
-{
-	vma->vm_ops = NULL;
-}
-
-static void hns_roce_vma_close(struct vm_area_struct *vma)
-{
-	struct hns_roce_vma_data *vma_data;
-
-	vma_data = (struct hns_roce_vma_data *)vma->vm_private_data;
-	vma_data->vma = NULL;
-	mutex_lock(vma_data->vma_list_mutex);
-	list_del(&vma_data->list);
-	mutex_unlock(vma_data->vma_list_mutex);
-	kfree(vma_data);
-}
-
-static const struct vm_operations_struct hns_roce_vm_ops = {
-	.open = hns_roce_vma_open,
-	.close = hns_roce_vma_close,
-};
-
-static int hns_roce_set_vma_data(struct vm_area_struct *vma,
-				 struct hns_roce_ucontext *context)
-{
-	struct list_head *vma_head = &context->vma_list;
-	struct hns_roce_vma_data *vma_data;
-
-	vma_data = kzalloc(sizeof(*vma_data), GFP_KERNEL);
-	if (!vma_data)
-		return -ENOMEM;
-
-	vma_data->vma = vma;
-	vma_data->vma_list_mutex = &context->vma_list_mutex;
-	vma->vm_private_data = vma_data;
-	vma->vm_ops = &hns_roce_vm_ops;
-
-	mutex_lock(&context->vma_list_mutex);
-	list_add(&vma_data->list, vma_head);
-	mutex_unlock(&context->vma_list_mutex);
-
-	return 0;
 }
 
 static int hns_roce_mmap(struct ib_ucontext *context,
@@ -425,27 +382,29 @@ static int hns_roce_mmap(struct ib_ucontext *context,
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(context->device);
 
-	if (((vma->vm_end - vma->vm_start) % PAGE_SIZE) != 0)
-		return -EINVAL;
+	switch (vma->vm_pgoff) {
+	case 0:
+		return rdma_user_mmap_io(context, vma,
+					 to_hr_ucontext(context)->uar.pfn,
+					 PAGE_SIZE,
+					 pgprot_noncached(vma->vm_page_prot));
 
-	if (vma->vm_pgoff == 0) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       to_hr_ucontext(context)->uar.pfn,
-				       PAGE_SIZE, vma->vm_page_prot))
-			return -EAGAIN;
-	} else if (vma->vm_pgoff == 1 && hr_dev->tptr_dma_addr &&
-		   hr_dev->tptr_size) {
-		/* vm_pgoff: 1 -- TPTR */
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       hr_dev->tptr_dma_addr >> PAGE_SHIFT,
-				       hr_dev->tptr_size,
-				       vma->vm_page_prot))
-			return -EAGAIN;
-	} else
-		return -EINVAL;
+	/* vm_pgoff: 1 -- TPTR */
+	case 1:
+		if (!hr_dev->tptr_dma_addr || !hr_dev->tptr_size)
+			return -EINVAL;
+		/*
+		 * FIXME: using io_remap_pfn_range on the dma address returned
+		 * by dma_alloc_coherent is totally wrong.
+		 */
+		return rdma_user_mmap_io(context, vma,
+					 hr_dev->tptr_dma_addr >> PAGE_SHIFT,
+					 hr_dev->tptr_size,
+					 vma->vm_page_prot);
 
-	return hns_roce_set_vma_data(vma, to_hr_ucontext(context));
+	default:
+		return -EINVAL;
+	}
 }
 
 static int hns_roce_port_immutable(struct ib_device *ib_dev, u8 port_num,
@@ -471,21 +430,6 @@ static int hns_roce_port_immutable(struct ib_device *ib_dev, u8 port_num,
 
 static void hns_roce_disassociate_ucontext(struct ib_ucontext *ibcontext)
 {
-	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
-	struct hns_roce_vma_data *vma_data, *n;
-	struct vm_area_struct *vma;
-
-	mutex_lock(&context->vma_list_mutex);
-	list_for_each_entry_safe(vma_data, n, &context->vma_list, list) {
-		vma = vma_data->vma;
-		zap_vma_ptes(vma, vma->vm_start, PAGE_SIZE);
-
-		vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
-		vma->vm_ops = NULL;
-		list_del(&vma_data->list);
-		kfree(vma_data);
-	}
-	mutex_unlock(&context->vma_list_mutex);
 }
 
 static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
@@ -496,6 +440,56 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 	unregister_netdevice_notifier(&iboe->nb);
 	ib_unregister_device(&hr_dev->ib_dev);
 }
+
+static const struct ib_device_ops hns_roce_dev_ops = {
+	.add_gid = hns_roce_add_gid,
+	.alloc_pd = hns_roce_alloc_pd,
+	.alloc_ucontext = hns_roce_alloc_ucontext,
+	.create_ah = hns_roce_create_ah,
+	.create_cq = hns_roce_ib_create_cq,
+	.create_qp = hns_roce_create_qp,
+	.dealloc_pd = hns_roce_dealloc_pd,
+	.dealloc_ucontext = hns_roce_dealloc_ucontext,
+	.del_gid = hns_roce_del_gid,
+	.dereg_mr = hns_roce_dereg_mr,
+	.destroy_ah = hns_roce_destroy_ah,
+	.destroy_cq = hns_roce_ib_destroy_cq,
+	.disassociate_ucontext = hns_roce_disassociate_ucontext,
+	.get_dma_mr = hns_roce_get_dma_mr,
+	.get_link_layer = hns_roce_get_link_layer,
+	.get_netdev = hns_roce_get_netdev,
+	.get_port_immutable = hns_roce_port_immutable,
+	.mmap = hns_roce_mmap,
+	.modify_device = hns_roce_modify_device,
+	.modify_port = hns_roce_modify_port,
+	.modify_qp = hns_roce_modify_qp,
+	.query_ah = hns_roce_query_ah,
+	.query_device = hns_roce_query_device,
+	.query_pkey = hns_roce_query_pkey,
+	.query_port = hns_roce_query_port,
+	.reg_user_mr = hns_roce_reg_user_mr,
+	INIT_RDMA_OBJ_SIZE(ib_pd, hns_roce_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, hns_roce_ucontext, ibucontext),
+};
+
+static const struct ib_device_ops hns_roce_dev_mr_ops = {
+	.rereg_user_mr = hns_roce_rereg_user_mr,
+};
+
+static const struct ib_device_ops hns_roce_dev_mw_ops = {
+	.alloc_mw = hns_roce_alloc_mw,
+	.dealloc_mw = hns_roce_dealloc_mw,
+};
+
+static const struct ib_device_ops hns_roce_dev_frmr_ops = {
+	.alloc_mr = hns_roce_alloc_mr,
+	.map_mr_sg = hns_roce_map_mr_sg,
+};
+
+static const struct ib_device_ops hns_roce_dev_srq_ops = {
+	.create_srq = hns_roce_create_srq,
+	.destroy_srq = hns_roce_destroy_srq,
+};
 
 static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 {
@@ -508,7 +502,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	spin_lock_init(&iboe->lock);
 
 	ib_dev = &hr_dev->ib_dev;
-	strlcpy(ib_dev->name, "hns_%d", IB_DEVICE_NAME_MAX);
 
 	ib_dev->owner			= THIS_MODULE;
 	ib_dev->node_type		= RDMA_NODE_IB_CA;
@@ -537,59 +530,39 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->uverbs_ex_cmd_mask |=
 		(1ULL << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
 
-	/* HCA||device||port */
-	ib_dev->modify_device		= hns_roce_modify_device;
-	ib_dev->query_device		= hns_roce_query_device;
-	ib_dev->query_port		= hns_roce_query_port;
-	ib_dev->modify_port		= hns_roce_modify_port;
-	ib_dev->get_link_layer		= hns_roce_get_link_layer;
-	ib_dev->get_netdev		= hns_roce_get_netdev;
-	ib_dev->add_gid			= hns_roce_add_gid;
-	ib_dev->del_gid			= hns_roce_del_gid;
-	ib_dev->query_pkey		= hns_roce_query_pkey;
-	ib_dev->alloc_ucontext		= hns_roce_alloc_ucontext;
-	ib_dev->dealloc_ucontext	= hns_roce_dealloc_ucontext;
-	ib_dev->mmap			= hns_roce_mmap;
-
-	/* PD */
-	ib_dev->alloc_pd		= hns_roce_alloc_pd;
-	ib_dev->dealloc_pd		= hns_roce_dealloc_pd;
-
-	/* AH */
-	ib_dev->create_ah		= hns_roce_create_ah;
-	ib_dev->query_ah		= hns_roce_query_ah;
-	ib_dev->destroy_ah		= hns_roce_destroy_ah;
-
-	/* QP */
-	ib_dev->create_qp		= hns_roce_create_qp;
-	ib_dev->modify_qp		= hns_roce_modify_qp;
-	ib_dev->query_qp		= hr_dev->hw->query_qp;
-	ib_dev->destroy_qp		= hr_dev->hw->destroy_qp;
-	ib_dev->post_send		= hr_dev->hw->post_send;
-	ib_dev->post_recv		= hr_dev->hw->post_recv;
-
-	/* CQ */
-	ib_dev->create_cq		= hns_roce_ib_create_cq;
-	ib_dev->modify_cq		= hr_dev->hw->modify_cq;
-	ib_dev->destroy_cq		= hns_roce_ib_destroy_cq;
-	ib_dev->req_notify_cq		= hr_dev->hw->req_notify_cq;
-	ib_dev->poll_cq			= hr_dev->hw->poll_cq;
-
-	/* MR */
-	ib_dev->get_dma_mr		= hns_roce_get_dma_mr;
-	ib_dev->reg_user_mr		= hns_roce_reg_user_mr;
-	ib_dev->dereg_mr		= hns_roce_dereg_mr;
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_REREG_MR) {
-		ib_dev->rereg_user_mr	= hns_roce_rereg_user_mr;
 		ib_dev->uverbs_cmd_mask |= (1ULL << IB_USER_VERBS_CMD_REREG_MR);
+		ib_set_device_ops(ib_dev, &hns_roce_dev_mr_ops);
 	}
 
-	/* OTHERS */
-	ib_dev->get_port_immutable	= hns_roce_port_immutable;
-	ib_dev->disassociate_ucontext	= hns_roce_disassociate_ucontext;
+	/* MW */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_MW) {
+		ib_dev->uverbs_cmd_mask |=
+					(1ULL << IB_USER_VERBS_CMD_ALLOC_MW) |
+					(1ULL << IB_USER_VERBS_CMD_DEALLOC_MW);
+		ib_set_device_ops(ib_dev, &hns_roce_dev_mw_ops);
+	}
+
+	/* FRMR */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR)
+		ib_set_device_ops(ib_dev, &hns_roce_dev_frmr_ops);
+
+	/* SRQ */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
+		ib_dev->uverbs_cmd_mask |=
+				(1ULL << IB_USER_VERBS_CMD_CREATE_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_MODIFY_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_QUERY_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_DESTROY_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_POST_SRQ_RECV);
+		ib_set_device_ops(ib_dev, &hns_roce_dev_srq_ops);
+		ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_srq_ops);
+	}
 
 	ib_dev->driver_id = RDMA_DRIVER_HNS;
-	ret = ib_register_device(ib_dev, NULL);
+	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
+	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
+	ret = ib_register_device(ib_dev, "hns_%d");
 	if (ret) {
 		dev_err(dev, "ib_register_device failed!\n");
 		return ret;
@@ -689,7 +662,111 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		goto err_unmap_trrl;
 	}
 
+	if (hr_dev->caps.srqc_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->srq_table.table,
+					      HEM_TYPE_SRQC,
+					      hr_dev->caps.srqc_entry_sz,
+					      hr_dev->caps.num_srqs, 1);
+		if (ret) {
+			dev_err(dev,
+			      "Failed to init SRQ context memory, aborting.\n");
+			goto err_unmap_cq;
+		}
+	}
+
+	if (hr_dev->caps.num_srqwqe_segs) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					     &hr_dev->mr_table.mtt_srqwqe_table,
+					     HEM_TYPE_SRQWQE,
+					     hr_dev->caps.mtt_entry_sz,
+					     hr_dev->caps.num_srqwqe_segs, 1);
+		if (ret) {
+			dev_err(dev,
+				"Failed to init MTT srqwqe memory, aborting.\n");
+			goto err_unmap_srq;
+		}
+	}
+
+	if (hr_dev->caps.num_idx_segs) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					      &hr_dev->mr_table.mtt_idx_table,
+					      HEM_TYPE_IDX,
+					      hr_dev->caps.idx_entry_sz,
+					      hr_dev->caps.num_idx_segs, 1);
+		if (ret) {
+			dev_err(dev,
+				"Failed to init MTT idx memory, aborting.\n");
+			goto err_unmap_srqwqe;
+		}
+	}
+
+	if (hr_dev->caps.sccc_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					      &hr_dev->qp_table.sccc_table,
+					      HEM_TYPE_SCCC,
+					      hr_dev->caps.sccc_entry_sz,
+					      hr_dev->caps.num_qps, 1);
+		if (ret) {
+			dev_err(dev,
+			      "Failed to init SCC context memory, aborting.\n");
+			goto err_unmap_idx;
+		}
+	}
+
+	if (hr_dev->caps.qpc_timer_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					      &hr_dev->qpc_timer_table,
+					      HEM_TYPE_QPC_TIMER,
+					      hr_dev->caps.qpc_timer_entry_sz,
+					      hr_dev->caps.num_qpc_timer, 1);
+		if (ret) {
+			dev_err(dev,
+			      "Failed to init QPC timer memory, aborting.\n");
+			goto err_unmap_ctx;
+		}
+	}
+
+	if (hr_dev->caps.cqc_timer_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					      &hr_dev->cqc_timer_table,
+					      HEM_TYPE_CQC_TIMER,
+					      hr_dev->caps.cqc_timer_entry_sz,
+					      hr_dev->caps.num_cqc_timer, 1);
+		if (ret) {
+			dev_err(dev,
+			      "Failed to init CQC timer memory, aborting.\n");
+			goto err_unmap_qpc_timer;
+		}
+	}
+
 	return 0;
+
+err_unmap_qpc_timer:
+	if (hr_dev->caps.qpc_timer_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->qpc_timer_table);
+
+err_unmap_ctx:
+	if (hr_dev->caps.sccc_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->qp_table.sccc_table);
+
+err_unmap_idx:
+	if (hr_dev->caps.num_idx_segs)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->mr_table.mtt_idx_table);
+
+err_unmap_srqwqe:
+	if (hr_dev->caps.num_srqwqe_segs)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->mr_table.mtt_srqwqe_table);
+
+err_unmap_srq:
+	if (hr_dev->caps.srqc_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev, &hr_dev->srq_table.table);
+
+err_unmap_cq:
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->cq_table.table);
 
 err_unmap_trrl:
 	if (hr_dev->caps.trrl_entry_sz)
@@ -770,7 +847,20 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		goto err_cq_table_free;
 	}
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
+		ret = hns_roce_init_srq_table(hr_dev);
+		if (ret) {
+			dev_err(dev,
+				"Failed to init share receive queue table.\n");
+			goto err_qp_table_free;
+		}
+	}
+
 	return 0;
+
+err_qp_table_free:
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
+		hns_roce_cleanup_qp_table(hr_dev);
 
 err_cq_table_free:
 	hns_roce_cleanup_cq_table(hr_dev);

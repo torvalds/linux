@@ -61,10 +61,10 @@ enum opcode {
 	insn_mthc0, insn_mthi, insn_mtlo, insn_mul, insn_multu, insn_nor,
 	insn_or, insn_ori, insn_pref, insn_rfe, insn_rotr, insn_sb,
 	insn_sc, insn_scd, insn_sd, insn_sh, insn_sll, insn_sllv,
-	insn_slt, insn_slti, insn_sltiu, insn_sltu, insn_sra, insn_srl,
-	insn_srlv, insn_subu, insn_sw, insn_sync, insn_syscall, insn_tlbp,
-	insn_tlbr, insn_tlbwi, insn_tlbwr, insn_wait, insn_wsbh, insn_xor,
-	insn_xori, insn_yield,
+	insn_slt, insn_slti, insn_sltiu, insn_sltu, insn_sra, insn_srav,
+	insn_srl, insn_srlv, insn_subu, insn_sw, insn_sync, insn_syscall,
+	insn_tlbp, insn_tlbr, insn_tlbwi, insn_tlbwr, insn_wait, insn_wsbh,
+	insn_xor, insn_xori, insn_yield,
 	insn_invalid /* insn_invalid must be last */
 };
 
@@ -353,6 +353,7 @@ I_u2u1s3(_slti)
 I_u2u1s3(_sltiu)
 I_u3u1u2(_sltu)
 I_u2u1u3(_sra)
+I_u3u2u1(_srav)
 I_u2u1u3(_srl)
 I_u3u2u1(_srlv)
 I_u2u1u3(_rotr)

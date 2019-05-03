@@ -55,6 +55,7 @@
 
 struct mlx5_fw_tracer {
 	struct mlx5_core_dev *dev;
+	struct mlx5_nb        nb;
 	bool owner;
 	u8   trc_ver;
 	struct workqueue_struct *work_queue;
@@ -170,6 +171,5 @@ struct mlx5_fw_tracer *mlx5_fw_tracer_create(struct mlx5_core_dev *dev);
 int mlx5_fw_tracer_init(struct mlx5_fw_tracer *tracer);
 void mlx5_fw_tracer_cleanup(struct mlx5_fw_tracer *tracer);
 void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer);
-void mlx5_fw_tracer_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 
 #endif

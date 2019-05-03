@@ -68,27 +68,28 @@ static ssize_t last_resume_reason_show(struct kobject *kobj, struct kobj_attribu
 static ssize_t last_suspend_time_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
-	struct timespec sleep_time;
-	struct timespec total_time;
-	struct timespec suspend_resume_time;
+	struct timespec64 sleep_time;
+	struct timespec64 total_time;
+	struct timespec64 suspend_resume_time;
 
 	/*
 	 * total_time is calculated from monotonic bootoffsets because
 	 * unlike CLOCK_MONOTONIC it include the time spent in suspend state.
 	 */
-	total_time = ktime_to_timespec(ktime_sub(curr_stime, last_stime));
+	total_time = ktime_to_timespec64(ktime_sub(curr_stime, last_stime));
 
 	/*
 	 * suspend_resume_time is calculated as monotonic (CLOCK_MONOTONIC)
 	 * time interval before entering suspend and post suspend.
 	 */
-	suspend_resume_time = ktime_to_timespec(ktime_sub(curr_monotime, last_monotime));
+	suspend_resume_time =
+		ktime_to_timespec64(ktime_sub(curr_monotime, last_monotime));
 
 	/* sleep_time = total_time - suspend_resume_time */
-	sleep_time = timespec_sub(total_time, suspend_resume_time);
+	sleep_time = timespec64_sub(total_time, suspend_resume_time);
 
 	/* Export suspend_resume_time and sleep_time in pair here. */
-	return sprintf(buf, "%lu.%09lu %lu.%09lu\n",
+	return sprintf(buf, "%llu.%09lu %llu.%09lu\n",
 				suspend_resume_time.tv_sec, suspend_resume_time.tv_nsec,
 				sleep_time.tv_sec, sleep_time.tv_nsec);
 }

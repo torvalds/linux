@@ -58,10 +58,9 @@ void pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep);
 void pmd_set(pmd_t *pmdp, pte_t *ptep);
 #define pmd_populate_kernel(MM, PMD, PTE) pmd_set(PMD, PTE)
 
-pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address);
+pgtable_t pte_alloc_one(struct mm_struct *mm);
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-					  unsigned long address)
+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	return srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
 }

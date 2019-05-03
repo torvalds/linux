@@ -54,13 +54,13 @@ static void __init tango4_clkgen_setup(struct device_node *np)
 	const char *parent = of_clk_get_parent_name(np, 0);
 
 	if (!base)
-		panic("%s: invalid address\n", np->name);
+		panic("%pOFn: invalid address\n", np);
 
 	if (readl(base + CPUCLK_DIV) & DIV_BYPASS)
-		panic("%s: unsupported cpuclk setup\n", np->name);
+		panic("%pOFn: unsupported cpuclk setup\n", np);
 
 	if (readl(base + SYSCLK_DIV) & DIV_BYPASS)
-		panic("%s: unsupported sysclk setup\n", np->name);
+		panic("%pOFn: unsupported sysclk setup\n", np);
 
 	writel(0x100, base + CPUCLK_DIV); /* disable frequency ramping */
 
@@ -77,9 +77,9 @@ static void __init tango4_clkgen_setup(struct device_node *np)
 	pp[3] = clk_register_fixed_factor(NULL, "sdio_clk", "cd6", 0, 1, 2);
 
 	if (IS_ERR(pp[0]) || IS_ERR(pp[1]) || IS_ERR(pp[2]) || IS_ERR(pp[3]))
-		panic("%s: clk registration failed\n", np->name);
+		panic("%pOFn: clk registration failed\n", np);
 
 	if (of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data))
-		panic("%s: clk provider registration failed\n", np->name);
+		panic("%pOFn: clk provider registration failed\n", np);
 }
 CLK_OF_DECLARE(tango4_clkgen, "sigma,tango4-clkgen", tango4_clkgen_setup);

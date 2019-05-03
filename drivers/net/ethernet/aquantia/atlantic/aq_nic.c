@@ -44,7 +44,7 @@ static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 	struct aq_rss_parameters *rss_params = &cfg->aq_rss;
 	int i = 0;
 
-	static u8 rss_key[40] = {
+	static u8 rss_key[AQ_CFG_RSS_HASHKEY_SIZE] = {
 		0x1e, 0xad, 0x71, 0x87, 0x65, 0xfc, 0x26, 0x7d,
 		0x0d, 0x45, 0x67, 0x74, 0xcd, 0x06, 0x1a, 0x18,
 		0xb6, 0xc1, 0xf0, 0xc7, 0xbb, 0x18, 0xbe, 0xf8,
@@ -84,10 +84,6 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->is_lro = AQ_CFG_IS_LRO_DEF;
 
-	cfg->vlan_id = 0U;
-
-	aq_nic_rss_init(self, cfg->num_rss_queues);
-
 	/*descriptors */
 	cfg->rxds = min(cfg->aq_hw_caps->rxds_max, AQ_CFG_RXDS_DEF);
 	cfg->txds = min(cfg->aq_hw_caps->txds_max, AQ_CFG_TXDS_DEF);
@@ -108,6 +104,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->num_rss_queues = min(cfg->vecs, AQ_CFG_NUM_RSS_QUEUES_DEF);
 
+	aq_nic_rss_init(self, cfg->num_rss_queues);
+
 	cfg->irq_type = aq_pci_func_get_irq_type(self);
 
 	if ((cfg->irq_type == AQ_HW_IRQ_LEGACY) ||
@@ -118,12 +116,13 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	}
 
 	cfg->link_speed_msk &= cfg->aq_hw_caps->link_speed_msk;
-	cfg->hw_features = cfg->aq_hw_caps->hw_features;
+	cfg->features = cfg->aq_hw_caps->hw_features;
 }
 
 static int aq_nic_update_link_status(struct aq_nic_s *self)
 {
 	int err = self->aq_fw_ops->update_link_status(self->aq_hw);
+	u32 fc = 0;
 
 	if (err)
 		return err;
@@ -133,6 +132,15 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 			AQ_CFG_DRV_NAME, self->link_status.mbps,
 			self->aq_hw->aq_link_status.mbps);
 		aq_nic_update_interrupt_moderation_settings(self);
+
+		/* Driver has to update flow control settings on RX block
+		 * on any link event.
+		 * We should query FW whether it negotiated FC.
+		 */
+		if (self->aq_fw_ops->get_flow_control)
+			self->aq_fw_ops->get_flow_control(self->aq_hw, &fc);
+		if (self->aq_hw_ops->hw_set_fc)
+			self->aq_hw_ops->hw_set_fc(self->aq_hw, fc, 0);
 	}
 
 	self->link_status = self->aq_hw->aq_link_status;
@@ -189,7 +197,7 @@ static void aq_nic_polling_timer_cb(struct timer_list *t)
 		aq_vec_isr(i, (void *)aq_vec);
 
 	mod_timer(&self->polling_timer, jiffies +
-		AQ_CFG_POLLING_TIMER_INTERVAL);
+		  AQ_CFG_POLLING_TIMER_INTERVAL);
 }
 
 int aq_nic_ndev_register(struct aq_nic_s *self)
@@ -301,13 +309,13 @@ int aq_nic_start(struct aq_nic_s *self)
 	unsigned int i = 0U;
 
 	err = self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
-						    self->mc_list.ar,
-						    self->mc_list.count);
+						     self->mc_list.ar,
+						     self->mc_list.count);
 	if (err < 0)
 		goto err_exit;
 
 	err = self->aq_hw_ops->hw_packet_filter_set(self->aq_hw,
-						   self->packet_filter);
+						    self->packet_filter);
 	if (err < 0)
 		goto err_exit;
 
@@ -327,7 +335,7 @@ int aq_nic_start(struct aq_nic_s *self)
 		goto err_exit;
 	timer_setup(&self->service_timer, aq_nic_service_timer_cb, 0);
 	mod_timer(&self->service_timer, jiffies +
-			AQ_CFG_SERVICE_TIMER_INTERVAL);
+		  AQ_CFG_SERVICE_TIMER_INTERVAL);
 
 	if (self->aq_nic_cfg.is_polling) {
 		timer_setup(&self->polling_timer, aq_nic_polling_timer_cb, 0);
@@ -344,7 +352,7 @@ int aq_nic_start(struct aq_nic_s *self)
 		}
 
 		err = self->aq_hw_ops->hw_irq_enable(self->aq_hw,
-				    AQ_CFG_IRQ_MASK);
+						     AQ_CFG_IRQ_MASK);
 		if (err < 0)
 			goto err_exit;
 	}
@@ -590,7 +598,7 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 		}
 	}
 
-	if (i > 0 && i < AQ_HW_MULTICAST_ADDRESS_MAX) {
+	if (i > 0 && i <= AQ_HW_MULTICAST_ADDRESS_MAX) {
 		packet_filter |= IFF_MULTICAST;
 		self->mc_list.count = i;
 		self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
@@ -772,7 +780,9 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
 
-	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX)
+	/* Asym is when either RX or TX, but not both */
+	if (!!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX) ^
+	    !!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX))
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Asym_Pause);
 
@@ -889,11 +899,13 @@ void aq_nic_deinit(struct aq_nic_s *self)
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_deinit(aq_vec);
 
-	if (self->power_state == AQ_HW_POWER_STATE_D0) {
-		(void)self->aq_fw_ops->deinit(self->aq_hw);
-	} else {
-		(void)self->aq_hw_ops->hw_set_power(self->aq_hw,
-						   self->power_state);
+	self->aq_fw_ops->deinit(self->aq_hw);
+
+	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
+	    self->aq_hw->aq_nic_cfg->wol) {
+		self->aq_fw_ops->set_power(self->aq_hw,
+					   self->power_state,
+					   self->ndev->dev_addr);
 	}
 
 err_exit:;

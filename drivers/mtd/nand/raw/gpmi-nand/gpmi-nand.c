@@ -783,9 +783,8 @@ error_alloc:
 	return -ENOMEM;
 }
 
-static void gpmi_cmd_ctrl(struct mtd_info *mtd, int data, unsigned int ctrl)
+static void gpmi_cmd_ctrl(struct nand_chip *chip, int data, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	int ret;
 
@@ -817,17 +816,15 @@ static void gpmi_cmd_ctrl(struct mtd_info *mtd, int data, unsigned int ctrl)
 	this->command_length = 0;
 }
 
-static int gpmi_dev_ready(struct mtd_info *mtd)
+static int gpmi_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	return gpmi_is_ready(this, this->current_chip);
 }
 
-static void gpmi_select_chip(struct mtd_info *mtd, int chipnr)
+static void gpmi_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	int ret;
 
@@ -859,9 +856,8 @@ static void gpmi_select_chip(struct mtd_info *mtd, int chipnr)
 	this->current_chip = chipnr;
 }
 
-static void gpmi_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void gpmi_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	dev_dbg(this->dev, "len is %d\n", len);
@@ -869,9 +865,8 @@ static void gpmi_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	gpmi_read_data(this, buf, len);
 }
 
-static void gpmi_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+static void gpmi_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	dev_dbg(this->dev, "len is %d\n", len);
@@ -879,13 +874,12 @@ static void gpmi_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	gpmi_send_data(this, buf, len);
 }
 
-static uint8_t gpmi_read_byte(struct mtd_info *mtd)
+static uint8_t gpmi_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	uint8_t *buf = this->data_buffer_dma;
 
-	gpmi_read_buf(mtd, buf, 1);
+	gpmi_read_buf(chip, buf, 1);
 	return buf[0];
 }
 
@@ -1085,8 +1079,8 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	return max_bitflips;
 }
 
-static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			      uint8_t *buf, int oob_required, int page)
+static int gpmi_ecc_read_page(struct nand_chip *chip, uint8_t *buf,
+			      int oob_required, int page)
 {
 	nand_read_page_op(chip, page, 0, NULL, 0);
 
@@ -1094,8 +1088,8 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /* Fake a virtual small page for the subpage read */
-static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t offs, uint32_t len, uint8_t *buf, int page)
+static int gpmi_ecc_read_subpage(struct nand_chip *chip, uint32_t offs,
+				 uint32_t len, uint8_t *buf, int page)
 {
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	void __iomem *bch_regs = this->resources.bch_regs;
@@ -1130,7 +1124,7 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 			dev_dbg(this->dev,
 				"page:%d, first:%d, last:%d, marker at:%d\n",
 				page, first, last, marker_pos);
-			return gpmi_ecc_read_page(mtd, chip, buf, 0, page);
+			return gpmi_ecc_read_page(chip, buf, 0, page);
 		}
 	}
 
@@ -1182,9 +1176,10 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 	return max_bitflips;
 }
 
-static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required, int page)
+static int gpmi_ecc_write_page(struct nand_chip *chip, const uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
 	const void *payload_virt;
@@ -1324,9 +1319,9 @@ exit_auxiliary:
  * ECC-based or raw view of the page is implicit in which function it calls
  * (there is a similar pair of ECC-based/raw functions for writing).
  */
-static int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-				int page)
+static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 
 	dev_dbg(this->dev, "page number is %d\n", page);
@@ -1335,7 +1330,7 @@ static int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* Read out the conventional OOB. */
 	nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	/*
 	 * Now, we want to make sure the block mark is correct. In the
@@ -1345,15 +1340,15 @@ static int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	if (GPMI_IS_MX23(this)) {
 		/* Read the block mark into the first byte of the OOB buffer. */
 		nand_read_page_op(chip, page, 0, NULL, 0);
-		chip->oob_poi[0] = chip->read_byte(mtd);
+		chip->oob_poi[0] = chip->legacy.read_byte(chip);
 	}
 
 	return 0;
 }
 
-static int
-gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int page)
+static int gpmi_ecc_write_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mtd_oob_region of = { };
 
 	/* Do we have available oob area? */
@@ -1380,10 +1375,10 @@ gpmi_ecc_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int page)
  * See set_geometry_by_ecc_info inline comments to have a full description
  * of the layout used by the GPMI controller.
  */
-static int gpmi_ecc_read_page_raw(struct mtd_info *mtd,
-				  struct nand_chip *chip, uint8_t *buf,
+static int gpmi_ecc_read_page_raw(struct nand_chip *chip, uint8_t *buf,
 				  int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
 	int eccsize = nfc_geo->ecc_chunk_size;
@@ -1464,11 +1459,10 @@ static int gpmi_ecc_read_page_raw(struct mtd_info *mtd,
  * See set_geometry_by_ecc_info inline comments to have a full description
  * of the layout used by the GPMI controller.
  */
-static int gpmi_ecc_write_page_raw(struct mtd_info *mtd,
-				   struct nand_chip *chip,
-				   const uint8_t *buf,
+static int gpmi_ecc_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 				   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
 	int eccsize = nfc_geo->ecc_chunk_size;
@@ -1536,28 +1530,26 @@ static int gpmi_ecc_write_page_raw(struct mtd_info *mtd,
 				 mtd->writesize + mtd->oobsize);
 }
 
-static int gpmi_ecc_read_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				 int page)
+static int gpmi_ecc_read_oob_raw(struct nand_chip *chip, int page)
 {
-	return gpmi_ecc_read_page_raw(mtd, chip, NULL, 1, page);
+	return gpmi_ecc_read_page_raw(chip, NULL, 1, page);
 }
 
-static int gpmi_ecc_write_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				 int page)
+static int gpmi_ecc_write_oob_raw(struct nand_chip *chip, int page)
 {
-	return gpmi_ecc_write_page_raw(mtd, chip, NULL, 1, page);
+	return gpmi_ecc_write_page_raw(chip, NULL, 1, page);
 }
 
-static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int gpmi_block_markbad(struct nand_chip *chip, loff_t ofs)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	int ret = 0;
 	uint8_t *block_mark;
 	int column, page, chipnr;
 
 	chipnr = (int)(ofs >> chip->chip_shift);
-	chip->select_chip(mtd, chipnr);
+	nand_select_target(chip, chipnr);
 
 	column = !GPMI_IS_MX23(this) ? mtd->writesize : 0;
 
@@ -1570,7 +1562,7 @@ static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	ret = nand_prog_page_op(chip, page, column, block_mark, 1);
 
-	chip->select_chip(mtd, -1);
+	nand_deselect_target(chip);
 
 	return ret;
 }
@@ -1607,7 +1599,6 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	struct boot_rom_geometry *rom_geo = &this->rom_geometry;
 	struct device *dev = this->dev;
 	struct nand_chip *chip = &this->nand;
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned int search_area_size_in_strides;
 	unsigned int stride;
 	unsigned int page;
@@ -1619,7 +1610,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	search_area_size_in_strides = 1 << rom_geo->search_area_stride_exponent;
 
 	saved_chip_number = this->current_chip;
-	chip->select_chip(mtd, 0);
+	nand_select_target(chip, 0);
 
 	/*
 	 * Loop through the first search area, looking for the NCB fingerprint.
@@ -1637,7 +1628,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 		 * and starts in the 12th byte of the page.
 		 */
 		nand_read_page_op(chip, page, 12, NULL, 0);
-		chip->read_buf(mtd, buffer, strlen(fingerprint));
+		chip->legacy.read_buf(chip, buffer, strlen(fingerprint));
 
 		/* Look for the fingerprint. */
 		if (!memcmp(buffer, fingerprint, strlen(fingerprint))) {
@@ -1647,7 +1638,10 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 
 	}
 
-	chip->select_chip(mtd, saved_chip_number);
+	if (saved_chip_number >= 0)
+		nand_select_target(chip, saved_chip_number);
+	else
+		nand_deselect_target(chip);
 
 	if (found_an_ncb_fingerprint)
 		dev_dbg(dev, "\tFound a fingerprint\n");
@@ -1690,7 +1684,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 
 	/* Select chip 0. */
 	saved_chip_number = this->current_chip;
-	chip->select_chip(mtd, 0);
+	nand_select_target(chip, 0);
 
 	/* Loop over blocks in the first search area, erasing them. */
 	dev_dbg(dev, "Erasing the search area...\n");
@@ -1716,13 +1710,17 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 		/* Write the first page of the current stride. */
 		dev_dbg(dev, "Writing an NCB fingerprint in page 0x%x\n", page);
 
-		status = chip->ecc.write_page_raw(mtd, chip, buffer, 0, page);
+		status = chip->ecc.write_page_raw(chip, buffer, 0, page);
 		if (status)
 			dev_err(dev, "[%s] Write failed.\n", __func__);
 	}
 
 	/* Deselect chip 0. */
-	chip->select_chip(mtd, saved_chip_number);
+	if (saved_chip_number >= 0)
+		nand_select_target(chip, saved_chip_number);
+	else
+		nand_deselect_target(chip);
+
 	return 0;
 }
 
@@ -1771,10 +1769,10 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		byte = block <<  chip->phys_erase_shift;
 
 		/* Send the command to read the conventional block mark. */
-		chip->select_chip(mtd, chipnr);
+		nand_select_target(chip, chipnr);
 		nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-		block_mark = chip->read_byte(mtd);
-		chip->select_chip(mtd, -1);
+		block_mark = chip->legacy.read_byte(chip);
+		nand_deselect_target(chip);
 
 		/*
 		 * Check if the block is marked bad. If so, we need to mark it
@@ -1783,7 +1781,7 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		 */
 		if (block_mark != 0xff) {
 			dev_dbg(dev, "Transcribing mark in block %u\n", block);
-			ret = chip->block_markbad(mtd, byte);
+			ret = chip->legacy.block_markbad(chip, byte);
 			if (ret)
 				dev_err(dev,
 					"Failed to mark block bad with ret %d\n",
@@ -1891,6 +1889,7 @@ static int gpmi_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops gpmi_nand_controller_ops = {
 	.attach_chip = gpmi_nand_attach_chip,
+	.setup_data_interface = gpmi_setup_data_interface,
 };
 
 static int gpmi_nand_init(struct gpmi_nand_data *this)
@@ -1909,15 +1908,14 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	/* init the nand_chip{}, we don't support a 16-bit NAND Flash bus. */
 	nand_set_controller_data(chip, this);
 	nand_set_flash_node(chip, this->pdev->dev.of_node);
-	chip->select_chip	= gpmi_select_chip;
-	chip->setup_data_interface = gpmi_setup_data_interface;
-	chip->cmd_ctrl		= gpmi_cmd_ctrl;
-	chip->dev_ready		= gpmi_dev_ready;
-	chip->read_byte		= gpmi_read_byte;
-	chip->read_buf		= gpmi_read_buf;
-	chip->write_buf		= gpmi_write_buf;
+	chip->legacy.select_chip	= gpmi_select_chip;
+	chip->legacy.cmd_ctrl	= gpmi_cmd_ctrl;
+	chip->legacy.dev_ready	= gpmi_dev_ready;
+	chip->legacy.read_byte	= gpmi_read_byte;
+	chip->legacy.read_buf	= gpmi_read_buf;
+	chip->legacy.write_buf	= gpmi_write_buf;
 	chip->badblock_pattern	= &gpmi_bbt_descr;
-	chip->block_markbad	= gpmi_block_markbad;
+	chip->legacy.block_markbad = gpmi_block_markbad;
 	chip->options		|= NAND_NO_SUBPAGE_WRITE;
 
 	/* Set up swap_block_mark, must be set before the gpmi_set_geometry() */
@@ -1933,8 +1931,8 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
-	chip->dummy_controller.ops = &gpmi_nand_controller_ops;
-	ret = nand_scan(mtd, GPMI_IS_MX6(this) ? 2 : 1);
+	chip->legacy.dummy_controller.ops = &gpmi_nand_controller_ops;
+	ret = nand_scan(chip, GPMI_IS_MX6(this) ? 2 : 1);
 	if (ret)
 		goto err_out;
 
@@ -2026,7 +2024,7 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 {
 	struct gpmi_nand_data *this = platform_get_drvdata(pdev);
 
-	nand_release(nand_to_mtd(&this->nand));
+	nand_release(&this->nand);
 	gpmi_free_dma_buffer(this);
 	release_resources(this);
 	return 0;

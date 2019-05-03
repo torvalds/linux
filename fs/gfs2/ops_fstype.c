@@ -72,13 +72,13 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	if (!sdp)
 		return NULL;
 
-	sb->s_fs_info = sdp;
 	sdp->sd_vfs = sb;
 	sdp->sd_lkstats = alloc_percpu(struct gfs2_pcpu_lkstats);
 	if (!sdp->sd_lkstats) {
 		kfree(sdp);
 		return NULL;
 	}
+	sb->s_fs_info = sdp;
 
 	set_bit(SDF_NOJOURNALID, &sdp->sd_flags);
 	gfs2_tune_init(&sdp->sd_tune);
@@ -1332,6 +1332,9 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 	struct gfs2_sbd *sdp;
 	struct path path;
 	int error;
+
+	if (!dev_name || !*dev_name)
+		return ERR_PTR(-EINVAL);
 
 	error = kern_path(dev_name, LOOKUP_FOLLOW, &path);
 	if (error) {

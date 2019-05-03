@@ -13,10 +13,11 @@
 #include <trace/events/mmflags.h>
 #include <linux/migrate.h>
 #include <linux/page_owner.h>
+#include <linux/ctype.h>
 
 #include "internal.h"
 
-char *migrate_reason_names[MR_TYPES] = {
+const char *migrate_reason_names[MR_TYPES] = {
 	"compaction",
 	"memory_failure",
 	"memory_hotplug",
@@ -43,6 +44,7 @@ const struct trace_print_flags vmaflag_names[] = {
 
 void __dump_page(struct page *page, const char *reason)
 {
+	struct address_space *mapping;
 	bool page_poisoned = PagePoisoned(page);
 	int mapcount;
 
@@ -52,9 +54,11 @@ void __dump_page(struct page *page, const char *reason)
 	 * dump_page() when detected.
 	 */
 	if (page_poisoned) {
-		pr_emerg("page:%px is uninitialized and poisoned", page);
+		pr_warn("page:%px is uninitialized and poisoned", page);
 		goto hex_only;
 	}
+
+	mapping = page_mapping(page);
 
 	/*
 	 * Avoid VM_BUG_ON() in page_mapcount().
@@ -63,27 +67,39 @@ void __dump_page(struct page *page, const char *reason)
 	 */
 	mapcount = PageSlab(page) ? 0 : page_mapcount(page);
 
-	pr_emerg("page:%px count:%d mapcount:%d mapping:%px index:%#lx",
+	pr_warn("page:%px count:%d mapcount:%d mapping:%px index:%#lx",
 		  page, page_ref_count(page), mapcount,
 		  page->mapping, page_to_pgoff(page));
 	if (PageCompound(page))
 		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
 	pr_cont("\n");
+	if (PageAnon(page))
+		pr_warn("anon ");
+	else if (PageKsm(page))
+		pr_warn("ksm ");
+	else if (mapping) {
+		pr_warn("%ps ", mapping->a_ops);
+		if (mapping->host && mapping->host->i_dentry.first) {
+			struct dentry *dentry;
+			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
+			pr_warn("name:\"%pd\" ", dentry);
+		}
+	}
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
 
-	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
+	pr_warn("flags: %#lx(%pGp)\n", page->flags, &page->flags);
 
 hex_only:
-	print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE, 32,
+	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
 			sizeof(struct page), false);
 
 	if (reason)
-		pr_alert("page dumped because: %s\n", reason);
+		pr_warn("page dumped because: %s\n", reason);
 
 #ifdef CONFIG_MEMCG
 	if (!page_poisoned && page->mem_cgroup)
-		pr_alert("page->mem_cgroup:%px\n", page->mem_cgroup);
+		pr_warn("page->mem_cgroup:%px\n", page->mem_cgroup);
 #endif
 }
 
@@ -121,7 +137,7 @@ void dump_mm(const struct mm_struct *mm)
 		"mmap_base %lu mmap_legacy_base %lu highest_vm_end %lu\n"
 		"pgd %px mm_users %d mm_count %d pgtables_bytes %lu map_count %d\n"
 		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
-		"pinned_vm %lx data_vm %lx exec_vm %lx stack_vm %lx\n"
+		"pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
 		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
 		"start_brk %lx brk %lx start_stack %lx\n"
 		"arg_start %lx arg_end %lx env_start %lx env_end %lx\n"
@@ -152,7 +168,8 @@ void dump_mm(const struct mm_struct *mm)
 		mm_pgtables_bytes(mm),
 		mm->map_count,
 		mm->hiwater_rss, mm->hiwater_vm, mm->total_vm, mm->locked_vm,
-		mm->pinned_vm, mm->data_vm, mm->exec_vm, mm->stack_vm,
+		(u64)atomic64_read(&mm->pinned_vm),
+		mm->data_vm, mm->exec_vm, mm->stack_vm,
 		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
 		mm->start_brk, mm->brk, mm->start_stack,
 		mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
@@ -175,4 +192,49 @@ void dump_mm(const struct mm_struct *mm)
 	);
 }
 
+static bool page_init_poisoning __read_mostly = true;
+
+static int __init setup_vm_debug(char *str)
+{
+	bool __page_init_poisoning = true;
+
+	/*
+	 * Calling vm_debug with no arguments is equivalent to requesting
+	 * to enable all debugging options we can control.
+	 */
+	if (*str++ != '=' || !*str)
+		goto out;
+
+	__page_init_poisoning = false;
+	if (*str == '-')
+		goto out;
+
+	while (*str) {
+		switch (tolower(*str)) {
+		case'p':
+			__page_init_poisoning = true;
+			break;
+		default:
+			pr_err("vm_debug option '%c' unknown. skipped\n",
+			       *str);
+		}
+
+		str++;
+	}
+out:
+	if (page_init_poisoning && !__page_init_poisoning)
+		pr_warn("Page struct poisoning disabled by kernel command line option 'vm_debug'\n");
+
+	page_init_poisoning = __page_init_poisoning;
+
+	return 1;
+}
+__setup("vm_debug", setup_vm_debug);
+
+void page_init_poison(struct page *page, size_t size)
+{
+	if (page_init_poisoning)
+		memset(page, PAGE_POISON_PATTERN, size);
+}
+EXPORT_SYMBOL_GPL(page_init_poison);
 #endif		/* CONFIG_DEBUG_VM */

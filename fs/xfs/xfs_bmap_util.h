@@ -80,4 +80,7 @@ int xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,
 			  int whichfork, xfs_extnum_t *nextents,
 			  xfs_filblks_t *count);
 
+int	xfs_flush_unmap_range(struct xfs_inode *ip, xfs_off_t offset,
+			      xfs_off_t len);
+
 #endif	/* __XFS_BMAP_UTIL_H__ */

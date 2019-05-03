@@ -130,10 +130,10 @@ static struct platform_device davinci_fb_device = {
 };
 
 static const struct gpio_led ntosd2_leds[] = {
-	{ .name = "led1_green", .gpio = GPIO(10), },
-	{ .name = "led1_red",   .gpio = GPIO(11), },
-	{ .name = "led2_green", .gpio = GPIO(12), },
-	{ .name = "led2_red",   .gpio = GPIO(13), },
+	{ .name = "led1_green", .gpio = 10, },
+	{ .name = "led1_red",   .gpio = 11, },
+	{ .name = "led2_green", .gpio = 12, },
+	{ .name = "led2_red",   .gpio = 13, },
 };
 
 static struct gpio_led_platform_data ntosd2_leds_data = {
@@ -231,7 +231,7 @@ MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	/* Maintainer: Neuros Technologies <neuros@groups.google.com> */
 	.atag_offset	= 0x100,
 	.map_io		 = davinci_ntosd2_map_io,
-	.init_irq	= davinci_irq_init,
+	.init_irq	= dm644x_init_irq,
 	.init_time	= dm644x_init_time,
 	.init_machine = davinci_ntosd2_init,
 	.init_late	= davinci_init_late,

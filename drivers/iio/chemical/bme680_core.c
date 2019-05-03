@@ -63,9 +63,23 @@ struct bme680_data {
 	s32 t_fine;
 };
 
+static const struct regmap_range bme680_volatile_ranges[] = {
+	regmap_reg_range(BME680_REG_MEAS_STAT_0, BME680_REG_GAS_R_LSB),
+	regmap_reg_range(BME680_REG_STATUS, BME680_REG_STATUS),
+	regmap_reg_range(BME680_T2_LSB_REG, BME680_GH3_REG),
+};
+
+static const struct regmap_access_table bme680_volatile_table = {
+	.yes_ranges	= bme680_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(bme680_volatile_ranges),
+};
+
 const struct regmap_config bme680_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = 0xef,
+	.volatile_table = &bme680_volatile_table,
+	.cache_type = REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL(bme680_regmap_config);
 
@@ -91,8 +105,6 @@ static const struct iio_chan_spec bme680_channels[] = {
 	},
 };
 
-static const int bme680_oversampling_avail[] = { 1, 2, 4, 8, 16 };
-
 static int bme680_read_calib(struct bme680_data *data,
 			     struct bme680_calib *calib)
 {
@@ -102,16 +114,14 @@ static int bme680_read_calib(struct bme680_data *data,
 	__le16 buf;
 
 	/* Temperature related coefficients */
-	ret = regmap_bulk_read(data->regmap, BME680_T1_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_T1_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_T1_LSB_REG\n");
 		return ret;
 	}
 	calib->par_t1 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_T2_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_T2_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_T2_LSB_REG\n");
 		return ret;
@@ -126,16 +136,14 @@ static int bme680_read_calib(struct bme680_data *data,
 	calib->par_t3 = tmp;
 
 	/* Pressure related coefficients */
-	ret = regmap_bulk_read(data->regmap, BME680_P1_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P1_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P1_LSB_REG\n");
 		return ret;
 	}
 	calib->par_p1 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_P2_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P2_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P2_LSB_REG\n");
 		return ret;
@@ -149,16 +157,14 @@ static int bme680_read_calib(struct bme680_data *data,
 	}
 	calib->par_p3 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BME680_P4_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P4_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P4_LSB_REG\n");
 		return ret;
 	}
 	calib->par_p4 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_P5_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P5_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P5_LSB_REG\n");
 		return ret;
@@ -179,16 +185,14 @@ static int bme680_read_calib(struct bme680_data *data,
 	}
 	calib->par_p7 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BME680_P8_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P8_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P8_LSB_REG\n");
 		return ret;
 	}
 	calib->par_p8 = le16_to_cpu(buf);
 
-	ret = regmap_bulk_read(data->regmap, BME680_P9_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_P9_LSB_REG, (u8 *) &buf, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_P9_LSB_REG\n");
 		return ret;
@@ -208,30 +212,26 @@ static int bme680_read_calib(struct bme680_data *data,
 		dev_err(dev, "failed to read BME680_H1_MSB_REG\n");
 		return ret;
 	}
-
 	ret = regmap_read(data->regmap, BME680_H1_LSB_REG, &tmp_lsb);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_H1_LSB_REG\n");
 		return ret;
 	}
-
 	calib->par_h1 = (tmp_msb << BME680_HUM_REG_SHIFT_VAL) |
-				(tmp_lsb & BME680_BIT_H1_DATA_MSK);
+			(tmp_lsb & BME680_BIT_H1_DATA_MASK);
 
 	ret = regmap_read(data->regmap, BME680_H2_MSB_REG, &tmp_msb);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_H2_MSB_REG\n");
 		return ret;
 	}
-
 	ret = regmap_read(data->regmap, BME680_H2_LSB_REG, &tmp_lsb);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_H2_LSB_REG\n");
 		return ret;
 	}
-
 	calib->par_h2 = (tmp_msb << BME680_HUM_REG_SHIFT_VAL) |
-				(tmp_lsb >> BME680_HUM_REG_SHIFT_VAL);
+			(tmp_lsb >> BME680_HUM_REG_SHIFT_VAL);
 
 	ret = regmap_read(data->regmap, BME680_H3_REG, &tmp);
 	if (ret < 0) {
@@ -276,8 +276,8 @@ static int bme680_read_calib(struct bme680_data *data,
 	}
 	calib->par_gh1 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BME680_GH2_LSB_REG,
-			       (u8 *) &buf, 2);
+	ret = regmap_bulk_read(data->regmap, BME680_GH2_LSB_REG, (u8 *) &buf,
+			       2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read BME680_GH2_LSB_REG\n");
 		return ret;
@@ -297,7 +297,7 @@ static int bme680_read_calib(struct bme680_data *data,
 		dev_err(dev, "failed to read resistance heat range\n");
 		return ret;
 	}
-	calib->res_heat_range = (tmp & BME680_RHRANGE_MSK) / 16;
+	calib->res_heat_range = FIELD_GET(BME680_RHRANGE_MASK, tmp);
 
 	ret = regmap_read(data->regmap, BME680_REG_RES_HEAT_VAL, &tmp);
 	if (ret < 0) {
@@ -311,7 +311,7 @@ static int bme680_read_calib(struct bme680_data *data,
 		dev_err(dev, "failed to read range software error\n");
 		return ret;
 	}
-	calib->range_sw_err = (tmp & BME680_RSERROR_MSK) / 16;
+	calib->range_sw_err = FIELD_GET(BME680_RSERROR_MASK, tmp);
 
 	return 0;
 }
@@ -329,6 +329,10 @@ static s16 bme680_compensate_temp(struct bme680_data *data,
 	struct bme680_calib *calib = &data->bme680;
 	s64 var1, var2, var3;
 	s16 calc_temp;
+
+	/* If the calibration is invalid, attempt to reload it */
+	if (!calib->par_t2)
+		bme680_read_calib(data, calib);
 
 	var1 = (adc_temp >> 3) - (calib->par_t1 << 1);
 	var2 = (var1 * calib->par_t2) >> 11;
@@ -408,10 +412,7 @@ static u32 bme680_compensate_humid(struct bme680_data *data,
 	var6 = (var4 * var5) >> 1;
 	calc_hum = (((var3 + var6) >> 10) * 1000) >> 12;
 
-	if (calc_hum > 100000) /* Cap at 100%rH */
-		calc_hum = 100000;
-	else if (calc_hum < 0)
-		calc_hum = 0;
+	calc_hum = clamp(calc_hum, 0, 100000); /* clamp between 0-100 %rH */
 
 	return calc_hum;
 }
@@ -518,12 +519,20 @@ static int bme680_set_mode(struct bme680_data *data, bool mode)
 	return ret;
 }
 
+static u8 bme680_oversampling_to_reg(u8 val)
+{
+	return ilog2(val) + 1;
+}
+
 static int bme680_chip_config(struct bme680_data *data)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
-	u8 osrs = FIELD_PREP(BME680_OSRS_HUMIDITY_MASK,
-			     data->oversampling_humid + 1);
+	u8 osrs;
+
+	osrs = FIELD_PREP(
+		BME680_OSRS_HUMIDITY_MASK,
+		bme680_oversampling_to_reg(data->oversampling_humid));
 	/*
 	 * Highly recommended to set oversampling of humidity before
 	 * temperature/pressure oversampling.
@@ -544,12 +553,12 @@ static int bme680_chip_config(struct bme680_data *data)
 		return ret;
 	}
 
-	osrs = FIELD_PREP(BME680_OSRS_TEMP_MASK, data->oversampling_temp + 1) |
-	       FIELD_PREP(BME680_OSRS_PRESS_MASK, data->oversampling_press + 1);
-
+	osrs = FIELD_PREP(BME680_OSRS_TEMP_MASK,
+			  bme680_oversampling_to_reg(data->oversampling_temp)) |
+	       FIELD_PREP(BME680_OSRS_PRESS_MASK,
+			  bme680_oversampling_to_reg(data->oversampling_press));
 	ret = regmap_write_bits(data->regmap, BME680_REG_CTRL_MEAS,
-				BME680_OSRS_TEMP_MASK |
-				BME680_OSRS_PRESS_MASK,
+				BME680_OSRS_TEMP_MASK | BME680_OSRS_PRESS_MASK,
 				osrs);
 	if (ret < 0)
 		dev_err(dev, "failed to write ctrl_meas register\n");
@@ -577,22 +586,22 @@ static int bme680_gas_config(struct bme680_data *data)
 	/* set target heating duration */
 	ret = regmap_write(data->regmap, BME680_REG_GAS_WAIT_0, heatr_dur);
 	if (ret < 0) {
-		dev_err(dev, "failted to write gas_wait_0 register\n");
+		dev_err(dev, "failed to write gas_wait_0 register\n");
 		return ret;
 	}
 
-	/* Selecting the runGas and NB conversion settings for the sensor */
+	/* Enable the gas sensor and select heater profile set-point 0 */
 	ret = regmap_update_bits(data->regmap, BME680_REG_CTRL_GAS_1,
 				 BME680_RUN_GAS_MASK | BME680_NB_CONV_MASK,
-				 BME680_RUN_GAS_EN_BIT | BME680_NB_CONV_0_VAL);
+				 FIELD_PREP(BME680_RUN_GAS_MASK, 1) |
+				 FIELD_PREP(BME680_NB_CONV_MASK, 0));
 	if (ret < 0)
 		dev_err(dev, "failed to write ctrl_gas_1 register\n");
 
 	return ret;
 }
 
-static int bme680_read_temp(struct bme680_data *data,
-			    int *val, int *val2)
+static int bme680_read_temp(struct bme680_data *data, int *val)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
@@ -625,10 +634,9 @@ static int bme680_read_temp(struct bme680_data *data,
 	 * compensate_press/compensate_humid to get compensated
 	 * pressure/humidity readings.
 	 */
-	if (val && val2) {
-		*val = comp_temp;
-		*val2 = 100;
-		return IIO_VAL_FRACTIONAL;
+	if (val) {
+		*val = comp_temp * 10; /* Centidegrees to millidegrees */
+		return IIO_VAL_INT;
 	}
 
 	return ret;
@@ -643,7 +651,7 @@ static int bme680_read_press(struct bme680_data *data,
 	s32 adc_press;
 
 	/* Read and compensate temperature to get a reading of t_fine */
-	ret = bme680_read_temp(data, NULL, NULL);
+	ret = bme680_read_temp(data, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -676,7 +684,7 @@ static int bme680_read_humid(struct bme680_data *data,
 	u32 comp_humidity;
 
 	/* Read and compensate temperature to get a reading of t_fine */
-	ret = bme680_read_temp(data, NULL, NULL);
+	ret = bme680_read_temp(data, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -769,7 +777,7 @@ static int bme680_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_TEMP:
-			return bme680_read_temp(data, val, val2);
+			return bme680_read_temp(data, val);
 		case IIO_PRESSURE:
 			return bme680_read_press(data, val, val2);
 		case IIO_HUMIDITYRELATIVE:
@@ -782,13 +790,13 @@ static int bme680_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		switch (chan->type) {
 		case IIO_TEMP:
-			*val = 1 << data->oversampling_temp;
+			*val = data->oversampling_temp;
 			return IIO_VAL_INT;
 		case IIO_PRESSURE:
-			*val = 1 << data->oversampling_press;
+			*val = data->oversampling_press;
 			return IIO_VAL_INT;
 		case IIO_HUMIDITYRELATIVE:
-			*val = 1 << data->oversampling_humid;
+			*val = data->oversampling_humid;
 			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
@@ -798,52 +806,9 @@ static int bme680_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static int bme680_write_oversampling_ratio_temp(struct bme680_data *data,
-						int val)
+static bool bme680_is_valid_oversampling(int rate)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(bme680_oversampling_avail); i++) {
-		if (bme680_oversampling_avail[i] == val) {
-			data->oversampling_temp = ilog2(val);
-
-			return bme680_chip_config(data);
-		}
-	}
-
-	return -EINVAL;
-}
-
-static int bme680_write_oversampling_ratio_press(struct bme680_data *data,
-						 int val)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(bme680_oversampling_avail); i++) {
-		if (bme680_oversampling_avail[i] == val) {
-			data->oversampling_press = ilog2(val);
-
-			return bme680_chip_config(data);
-		}
-	}
-
-	return -EINVAL;
-}
-
-static int bme680_write_oversampling_ratio_humid(struct bme680_data *data,
-						 int val)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(bme680_oversampling_avail); i++) {
-		if (bme680_oversampling_avail[i] == val) {
-			data->oversampling_humid = ilog2(val);
-
-			return bme680_chip_config(data);
-		}
-	}
-
-	return -EINVAL;
+	return (rate > 0 && rate <= 16 && is_power_of_2(rate));
 }
 
 static int bme680_write_raw(struct iio_dev *indio_dev,
@@ -852,18 +817,31 @@ static int bme680_write_raw(struct iio_dev *indio_dev,
 {
 	struct bme680_data *data = iio_priv(indio_dev);
 
+	if (val2 != 0)
+		return -EINVAL;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+	{
+		if (!bme680_is_valid_oversampling(val))
+			return -EINVAL;
+
 		switch (chan->type) {
 		case IIO_TEMP:
-			return bme680_write_oversampling_ratio_temp(data, val);
+			data->oversampling_temp = val;
+			break;
 		case IIO_PRESSURE:
-			return bme680_write_oversampling_ratio_press(data, val);
+			data->oversampling_press = val;
+			break;
 		case IIO_HUMIDITYRELATIVE:
-			return bme680_write_oversampling_ratio_humid(data, val);
+			data->oversampling_humid = val;
+			break;
 		default:
 			return -EINVAL;
 		}
+
+		return bme680_chip_config(data);
+	}
 	default:
 		return -EINVAL;
 	}
@@ -905,7 +883,27 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 {
 	struct iio_dev *indio_dev;
 	struct bme680_data *data;
+	unsigned int val;
 	int ret;
+
+	ret = regmap_write(regmap, BME680_REG_SOFT_RESET,
+			   BME680_CMD_SOFTRESET);
+	if (ret < 0) {
+		dev_err(dev, "Failed to reset chip\n");
+		return ret;
+	}
+
+	ret = regmap_read(regmap, BME680_REG_CHIP_ID, &val);
+	if (ret < 0) {
+		dev_err(dev, "Error reading chip ID\n");
+		return ret;
+	}
+
+	if (val != BME680_CHIP_ID_VAL) {
+		dev_err(dev, "Wrong chip ID, got %x expected %x\n",
+				val, BME680_CHIP_ID_VAL);
+		return -ENODEV;
+	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
@@ -925,9 +923,9 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* default values for the sensor */
-	data->oversampling_humid = ilog2(2); /* 2X oversampling rate */
-	data->oversampling_press = ilog2(4); /* 4X oversampling rate */
-	data->oversampling_temp = ilog2(8);  /* 8X oversampling rate */
+	data->oversampling_humid = 2; /* 2X oversampling rate */
+	data->oversampling_press = 4; /* 4X oversampling rate */
+	data->oversampling_temp = 8;  /* 8X oversampling rate */
 	data->heater_temp = 320; /* degree Celsius */
 	data->heater_dur = 150;  /* milliseconds */
 

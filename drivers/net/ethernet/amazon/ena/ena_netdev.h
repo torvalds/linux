@@ -43,9 +43,9 @@
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
-#define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	5
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_MAJOR	2
+#define DRV_MODULE_VER_MINOR	0
+#define DRV_MODULE_VER_SUBMINOR 3
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -61,6 +61,17 @@
 #define ENA_ADMIN_MSIX_VEC		1
 #define ENA_MAX_MSIX_VEC(io_queues)	(ENA_ADMIN_MSIX_VEC + (io_queues))
 
+/* The ENA buffer length fields is 16 bit long. So when PAGE_SIZE == 64kB the
+ * driver passes 0.
+ * Since the max packet size the ENA handles is ~9kB limit the buffer length to
+ * 16kB.
+ */
+#if PAGE_SIZE > SZ_16K
+#define ENA_PAGE_SIZE SZ_16K
+#else
+#define ENA_PAGE_SIZE PAGE_SIZE
+#endif
+
 #define ENA_MIN_MSIX_VEC		2
 
 #define ENA_REG_BAR			0
@@ -70,7 +81,7 @@
 #define ENA_DEFAULT_RING_SIZE	(1024)
 
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
-#define ENA_DEFAULT_RX_COPYBREAK	(128 - NET_IP_ALIGN)
+#define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
 
 /* limit the buffer size to 600 bytes to handle MTU changes from very
  * small to very large, in which case the number of buffers per packet
@@ -95,10 +106,11 @@
  */
 #define ENA_TX_POLL_BUDGET_DIVIDER	4
 
-/* Refill Rx queue when number of available descriptors is below
- * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER
+/* Refill Rx queue when number of required descriptors is above
+ * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER or ENA_RX_REFILL_THRESH_PACKET
  */
 #define ENA_RX_REFILL_THRESH_DIVIDER	8
+#define ENA_RX_REFILL_THRESH_PACKET	256
 
 /* Number of queues to check for missing queues per timer service */
 #define ENA_MONITORED_TX_QUEUES	4
@@ -151,6 +163,9 @@ struct ena_tx_buffer {
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
 
+	/* Indicate if bufs[0] map the linear data of the skb. */
+	u8 map_linear_data;
+
 	/* Used for detect missing tx packets to limit the number of prints */
 	u32 print_once;
 	/* Save the last jiffies to detect missing tx packets
@@ -186,6 +201,7 @@ struct ena_stats_tx {
 	u64 tx_poll;
 	u64 doorbells;
 	u64 bad_req_id;
+	u64 llq_buffer_copy;
 	u64 missed_tx;
 };
 
@@ -201,6 +217,7 @@ struct ena_stats_rx {
 	u64 rx_copybreak_pkt;
 	u64 bad_req_id;
 	u64 empty_rx_ring;
+	u64 csum_unchecked;
 };
 
 struct ena_ring {
@@ -257,6 +274,8 @@ struct ena_ring {
 		struct ena_stats_tx tx_stats;
 		struct ena_stats_rx rx_stats;
 	};
+
+	u8 *push_buf_intermediate_buf;
 	int empty_rx_queue;
 } ____cacheline_aligned;
 
@@ -354,16 +373,5 @@ void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
-
-/* The ENA buffer length fields is 16 bit long. So when PAGE_SIZE == 64kB the
- * driver passas 0.
- * Since the max packet size the ENA handles is ~9kB limit the buffer length to
- * 16kB.
- */
-#if PAGE_SIZE > SZ_16K
-#define ENA_PAGE_SIZE SZ_16K
-#else
-#define ENA_PAGE_SIZE PAGE_SIZE
-#endif
 
 #endif /* !(ENA_H) */

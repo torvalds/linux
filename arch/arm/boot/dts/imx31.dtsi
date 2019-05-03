@@ -10,10 +10,8 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
-	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; };
 
 	aliases {
 		gpio0 = &gpio1;
@@ -206,7 +204,7 @@
 				status = "disabled";
 			};
 
-			spi2: cspi@50010000 {
+			spi2: spi@50010000 {
 				compatible = "fsl,imx31-cspi";
 				reg = <0x50010000 0x4000>;
 				interrupts = <13>;
@@ -241,7 +239,7 @@
 				#clock-cells = <1>;
 			};
 
-			spi3: cspi@53f84000 {
+			spi3: spi@53f84000 {
 				compatible = "fsl,imx31-cspi";
 				reg = <0x53f84000 0x4000>;
 				interrupts = <17>;

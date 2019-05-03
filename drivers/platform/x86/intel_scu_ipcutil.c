@@ -1,32 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_scu_ipc.c: Driver for the Intel SCU IPC mechanism
+ * Driver for the Intel SCU IPC mechanism
  *
  * (C) Copyright 2008-2010 Intel Corporation
  * Author: Sreedhara DS (sreedhara.ds@intel.com)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
- *
- * This driver provides ioctl interfaces to call intel scu ipc driver api
+ * This driver provides IOCTL interfaces to call Intel SCU IPC driver API.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/fs.h>
 #include <linux/fcntl.h>
+#include <linux/fs.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/init.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
+
 #include <asm/intel_scu_ipc.h>
 
 static int major;
 
-/* ioctl commnds */
+/* IOCTL commands */
 #define	INTE_SCU_IPC_REGISTER_READ	0
 #define INTE_SCU_IPC_REGISTER_WRITE	1
 #define INTE_SCU_IPC_REGISTER_UPDATE	2

@@ -102,6 +102,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		skb_dst_force(skb);
 		if (!skb_dst(skb)) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
+			err = -EHOSTUNREACH;
 			goto error_nolock;
 		}
 
@@ -193,7 +194,7 @@ static int xfrm_output_gso(struct net *net, struct sock *sk, struct sk_buff *skb
 		struct sk_buff *nskb = segs->next;
 		int err;
 
-		segs->next = NULL;
+		skb_mark_not_on_list(segs);
 		err = xfrm_output2(net, sk, segs);
 
 		if (unlikely(err)) {
@@ -218,19 +219,16 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 	if (xfrm_dev_offload_ok(skb, x)) {
 		struct sec_path *sp;
 
-		sp = secpath_dup(skb->sp);
+		sp = secpath_set(skb);
 		if (!sp) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			kfree_skb(skb);
 			return -ENOMEM;
 		}
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
 		skb->encapsulation = 1;
 
 		sp->olen++;
-		sp->xvec[skb->sp->len++] = x;
+		sp->xvec[sp->len++] = x;
 		xfrm_state_hold(x);
 
 		if (skb_is_gso(skb)) {

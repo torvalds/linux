@@ -116,8 +116,8 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	u64 align_offset = 0;
 	if (align)
 		align_offset = (dma_addr_t)align - 1;
-	mem_virt_alloc = pci_zalloc_consistent(pdev, mem_size + align,
-					       &mem_dma_handle);
+	mem_virt_alloc = dma_alloc_coherent(&pdev->dev, mem_size + align,
+					    &mem_dma_handle, GFP_KERNEL);
 	if (!mem_virt_alloc) {
 		pm8001_printk("memory allocation error\n");
 		return -1;
@@ -157,9 +157,12 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	int rc = 0, phy_id = sas_phy->id;
 	struct pm8001_hba_info *pm8001_ha = NULL;
 	struct sas_phy_linkrates *rates;
+	struct sas_ha_struct *sas_ha;
+	struct pm8001_phy *phy;
 	DECLARE_COMPLETION_ONSTACK(completion);
 	unsigned long flags;
 	pm8001_ha = sas_phy->ha->lldd_ha;
+	phy = &pm8001_ha->phy[phy_id];
 	pm8001_ha->phy[phy_id].enable_completion = &completion;
 	switch (func) {
 	case PHY_FUNC_SET_LINK_RATE:
@@ -172,7 +175,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			pm8001_ha->phy[phy_id].maximum_linkrate =
 				rates->maximum_linkrate;
 		}
-		if (pm8001_ha->phy[phy_id].phy_state == 0) {
+		if (pm8001_ha->phy[phy_id].phy_state ==  PHY_LINK_DISABLE) {
 			PM8001_CHIP_DISP->phy_start_req(pm8001_ha, phy_id);
 			wait_for_completion(&completion);
 		}
@@ -180,7 +183,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 					      PHY_LINK_RESET);
 		break;
 	case PHY_FUNC_HARD_RESET:
-		if (pm8001_ha->phy[phy_id].phy_state == 0) {
+		if (pm8001_ha->phy[phy_id].phy_state == PHY_LINK_DISABLE) {
 			PM8001_CHIP_DISP->phy_start_req(pm8001_ha, phy_id);
 			wait_for_completion(&completion);
 		}
@@ -188,7 +191,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 					      PHY_HARD_RESET);
 		break;
 	case PHY_FUNC_LINK_RESET:
-		if (pm8001_ha->phy[phy_id].phy_state == 0) {
+		if (pm8001_ha->phy[phy_id].phy_state == PHY_LINK_DISABLE) {
 			PM8001_CHIP_DISP->phy_start_req(pm8001_ha, phy_id);
 			wait_for_completion(&completion);
 		}
@@ -200,6 +203,25 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 					      PHY_LINK_RESET);
 		break;
 	case PHY_FUNC_DISABLE:
+		if (pm8001_ha->chip_id != chip_8001) {
+			if (pm8001_ha->phy[phy_id].phy_state ==
+				PHY_STATE_LINK_UP_SPCV) {
+				sas_ha = pm8001_ha->sas;
+				sas_phy_disconnected(&phy->sas_phy);
+				sas_ha->notify_phy_event(&phy->sas_phy,
+					PHYE_LOSS_OF_SIGNAL);
+				phy->phy_attached = 0;
+			}
+		} else {
+			if (pm8001_ha->phy[phy_id].phy_state ==
+				PHY_STATE_LINK_UP_SPC) {
+				sas_ha = pm8001_ha->sas;
+				sas_phy_disconnected(&phy->sas_phy);
+				sas_ha->notify_phy_event(&phy->sas_phy,
+					PHYE_LOSS_OF_SIGNAL);
+				phy->phy_attached = 0;
+			}
+		}
 		PM8001_CHIP_DISP->phy_stop_req(pm8001_ha, phy_id);
 		break;
 	case PHY_FUNC_GET_EVENTS:
@@ -374,6 +396,13 @@ static int pm8001_task_exec(struct sas_task *task,
 		return 0;
 	}
 	pm8001_ha = pm8001_find_ha_by_dev(task->dev);
+	if (pm8001_ha->controller_fatal_error) {
+		struct task_status_struct *ts = &t->task_status;
+
+		ts->resp = SAS_TASK_UNDELIVERED;
+		t->task_done(t);
+		return 0;
+	}
 	PM8001_IO_DBG(pm8001_ha, pm8001_printk("pm8001_task_exec device \n "));
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
 	do {
@@ -466,7 +495,7 @@ err_out:
 	dev_printk(KERN_ERR, pm8001_ha->dev, "pm8001 exec failed[%d]!\n", rc);
 	if (!sas_protocol_ata(t->task_proto))
 		if (n_elem)
-			dma_unmap_sg(pm8001_ha->dev, t->scatter, n_elem,
+			dma_unmap_sg(pm8001_ha->dev, t->scatter, t->num_scatter,
 				t->data_dir);
 out_done:
 	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
@@ -504,9 +533,9 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
 		dma_unmap_sg(pm8001_ha->dev, &task->smp_task.smp_resp, 1,
-			PCI_DMA_FROMDEVICE);
+			DMA_FROM_DEVICE);
 		dma_unmap_sg(pm8001_ha->dev, &task->smp_task.smp_req, 1,
-			PCI_DMA_TODEVICE);
+			DMA_TO_DEVICE);
 		break;
 
 	case SAS_PROTOCOL_SATA:
@@ -628,7 +657,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 		if (dev->dev_type == SAS_SATA_DEV) {
 			pm8001_device->attached_phy =
 				dev->rphy->identify.phy_identifier;
-				flag = 1; /* directly sata*/
+			flag = 1; /* directly sata */
 		}
 	} /*register this device to HBA*/
 	PM8001_DISC_DBG(pm8001_ha, pm8001_printk("Found device\n"));
@@ -1020,13 +1049,11 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 	struct pm8001_device *pm8001_dev;
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_phy *phy;
-	u32 device_id = 0;
 
 	if (!dev || !dev->lldd_dev)
 		return -1;
 
 	pm8001_dev = dev->lldd_dev;
-	device_id = pm8001_dev->device_id;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 
 	PM8001_EH_DBG(pm8001_ha,
@@ -1159,7 +1186,6 @@ int pm8001_abort_task(struct sas_task *task)
 {
 	unsigned long flags;
 	u32 tag;
-	u32 device_id;
 	struct domain_device *dev ;
 	struct pm8001_hba_info *pm8001_ha;
 	struct scsi_lun lun;
@@ -1173,7 +1199,6 @@ int pm8001_abort_task(struct sas_task *task)
 	dev = task->dev;
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
-	device_id = pm8001_dev->device_id;
 	phy_id = pm8001_dev->attached_phy;
 	rc = pm8001_find_tag(task, &tag);
 	if (rc == 0) {

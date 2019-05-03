@@ -51,23 +51,17 @@
 #include <net/sock.h>
 #include <net/inet_sock.h>
 
-struct idletimer_tg_attr {
-	struct attribute attr;
-	ssize_t	(*show)(struct kobject *kobj,
-			struct attribute *attr, char *buf);
-};
-
 struct idletimer_tg {
 	struct list_head entry;
 	struct timer_list timer;
 	struct work_struct work;
 
 	struct kobject *kobj;
-	struct idletimer_tg_attr attr;
+	struct device_attribute attr;
 
-	struct timespec delayed_timer_trigger;
-	struct timespec last_modified_timer;
-	struct timespec last_suspend_time;
+	struct timespec64 delayed_timer_trigger;
+	struct timespec64 last_modified_timer;
+	struct timespec64 last_suspend_time;
 	struct notifier_block pm_nb;
 
 	int timeout;
@@ -85,10 +79,10 @@ static DEFINE_SPINLOCK(timestamp_lock);
 static struct kobject *idletimer_tg_kobj;
 
 static bool check_for_delayed_trigger(struct idletimer_tg *timer,
-		struct timespec *ts)
+		struct timespec64 *ts)
 {
 	bool state;
-	struct timespec temp;
+	struct timespec64 temp;
 	spin_lock_bh(&timestamp_lock);
 	timer->work_pending = false;
 	if ((ts->tv_sec - timer->last_modified_timer.tv_sec) > timer->timeout ||
@@ -97,14 +91,15 @@ static bool check_for_delayed_trigger(struct idletimer_tg *timer,
 		temp.tv_sec = timer->timeout;
 		temp.tv_nsec = 0;
 		if (timer->delayed_timer_trigger.tv_sec != 0) {
-			temp = timespec_add(timer->delayed_timer_trigger, temp);
+			temp = timespec64_add(timer->delayed_timer_trigger,
+					      temp);
 			ts->tv_sec = temp.tv_sec;
 			ts->tv_nsec = temp.tv_nsec;
 			timer->delayed_timer_trigger.tv_sec = 0;
 			timer->work_pending = true;
 			schedule_work(&timer->work);
 		} else {
-			temp = timespec_add(timer->last_modified_timer, temp);
+			temp = timespec64_add(timer->last_modified_timer, temp);
 			ts->tv_sec = temp.tv_sec;
 			ts->tv_nsec = temp.tv_nsec;
 		}
@@ -123,7 +118,7 @@ static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 	char uid_msg[NLMSG_MAX_SIZE];
 	char *envp[] = { iface_msg, state_msg, timestamp_msg, uid_msg, NULL };
 	int res;
-	struct timespec ts;
+	struct timespec64 ts;
 	uint64_t time_ns;
 	bool state;
 
@@ -134,7 +129,7 @@ static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 		return;
 	}
 
-	get_monotonic_boottime(&ts);
+	ts = ktime_to_timespec64(ktime_get_boottime());
 	state = check_for_delayed_trigger(timer, &ts);
 	res = snprintf(state_msg, NLMSG_MAX_SIZE, "STATE=%s",
 			state ? "active" : "inactive");
@@ -154,7 +149,7 @@ static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 			pr_err("message too long (%d)", res);
 	}
 
-	time_ns = timespec_to_ns(&ts);
+	time_ns = timespec64_to_ns(&ts);
 	res = snprintf(timestamp_msg, NLMSG_MAX_SIZE, "TIME_NS=%llu", time_ns);
 	if (NLMSG_MAX_SIZE <= res) {
 		timestamp_msg[0] = '\0';
@@ -174,8 +169,6 @@ struct idletimer_tg *__idletimer_tg_find_by_label(const char *label)
 {
 	struct idletimer_tg *entry;
 
-	BUG_ON(!label);
-
 	list_for_each_entry(entry, &idletimer_tg_list, entry) {
 		if (!strcmp(label, entry->attr.attr.name))
 			return entry;
@@ -184,8 +177,8 @@ struct idletimer_tg *__idletimer_tg_find_by_label(const char *label)
 	return NULL;
 }
 
-static ssize_t idletimer_tg_show(struct kobject *kobj, struct attribute *attr,
-				 char *buf)
+static ssize_t idletimer_tg_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct idletimer_tg *timer;
 	unsigned long expires = 0;
@@ -193,7 +186,7 @@ static ssize_t idletimer_tg_show(struct kobject *kobj, struct attribute *attr,
 
 	mutex_lock(&list_mutex);
 
-	timer =	__idletimer_tg_find_by_label(attr->name);
+	timer =	__idletimer_tg_find_by_label(attr->attr.name);
 	if (timer)
 		expires = timer->timer.expires;
 
@@ -236,7 +229,7 @@ static void idletimer_tg_expired(struct timer_list *t)
 static int idletimer_resume(struct notifier_block *notifier,
 		unsigned long pm_event, void *unused)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 	unsigned long time_diff, now = jiffies;
 	struct idletimer_tg *timer = container_of(notifier,
 			struct idletimer_tg, pm_nb);
@@ -244,7 +237,8 @@ static int idletimer_resume(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
-		get_monotonic_boottime(&timer->last_suspend_time);
+		timer->last_suspend_time =
+			ktime_to_timespec64(ktime_get_boottime());
 		break;
 	case PM_POST_SUSPEND:
 		spin_lock_bh(&timestamp_lock);
@@ -255,9 +249,9 @@ static int idletimer_resume(struct notifier_block *notifier,
 		/* since jiffies are not updated when suspended now represents
 		 * the time it would have suspended */
 		if (time_after(timer->timer.expires, now)) {
-			get_monotonic_boottime(&ts);
-			ts = timespec_sub(ts, timer->last_suspend_time);
-			time_diff = timespec_to_jiffies(&ts);
+			ts = ktime_to_timespec64(ktime_get_boottime());
+			ts = timespec64_sub(ts, timer->last_suspend_time);
+			time_diff = timespec64_to_jiffies(&ts);
 			if (timer->timer.expires > (time_diff + now)) {
 				mod_timer_pending(&timer->timer,
 						(timer->timer.expires - time_diff));
@@ -277,6 +271,22 @@ static int idletimer_resume(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
+static int idletimer_check_sysfs_name(const char *name, unsigned int size)
+{
+	int ret;
+
+	ret = xt_check_proc_name(name, size);
+	if (ret < 0)
+		return ret;
+
+	if (!strcmp(name, "power") ||
+	    !strcmp(name, "subsystem") ||
+	    !strcmp(name, "uevent"))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int idletimer_tg_create(struct idletimer_tg_info *info)
 {
 	int ret;
@@ -286,6 +296,10 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	ret = idletimer_check_sysfs_name(info->label, sizeof(info->label));
+	if (ret < 0)
+		goto out_free_timer;
 
 	sysfs_attr_init(&info->timer->attr.attr);
 	info->timer->attr.attr.name = kstrdup(info->label, GFP_KERNEL);
@@ -314,7 +328,8 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 	info->timer->delayed_timer_trigger.tv_nsec = 0;
 	info->timer->work_pending = false;
 	info->timer->uid = 0;
-	get_monotonic_boottime(&info->timer->last_modified_timer);
+	info->timer->last_modified_timer =
+		ktime_to_timespec64(ktime_get_boottime());
 
 	info->timer->pm_nb.notifier_call = idletimer_resume;
 	ret = register_pm_notifier(&info->timer->pm_nb);
@@ -367,7 +382,7 @@ static void reset_timer(const struct idletimer_tg_info *info,
 		}
 	}
 
-	get_monotonic_boottime(&timer->last_modified_timer);
+	timer->last_modified_timer = ktime_to_timespec64(ktime_get_boottime());
 	mod_timer(&timer->timer,
 			msecs_to_jiffies(info->timeout * 1000) + now);
 	spin_unlock_bh(&timestamp_lock);

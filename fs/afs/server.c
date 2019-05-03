@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include "afs_fs.h"
 #include "internal.h"
+#include "protocol_yfs.h"
 
 static unsigned afs_server_gc_delay = 10;	/* Server record timeout in seconds */
 static unsigned afs_server_update_delay = 30;	/* Time till VLDB recheck in secs */
@@ -225,11 +226,12 @@ static struct afs_server *afs_alloc_server(struct afs_net *net,
 	RCU_INIT_POINTER(server->addresses, alist);
 	server->addr_version = alist->version;
 	server->uuid = *uuid;
-	server->flags = (1UL << AFS_SERVER_FL_NEW);
 	server->update_at = ktime_get_real_seconds() + afs_server_update_delay;
 	rwlock_init(&server->fs_lock);
 	INIT_HLIST_HEAD(&server->cb_volumes);
 	rwlock_init(&server->cb_break_lock);
+	init_waitqueue_head(&server->probe_wq);
+	spin_lock_init(&server->probe_lock);
 
 	afs_inc_servers_outstanding(net);
 	_leave(" = %p", server);
@@ -246,41 +248,23 @@ enomem:
 static struct afs_addr_list *afs_vl_lookup_addrs(struct afs_cell *cell,
 						 struct key *key, const uuid_t *uuid)
 {
-	struct afs_addr_cursor ac;
-	struct afs_addr_list *alist;
+	struct afs_vl_cursor vc;
+	struct afs_addr_list *alist = NULL;
 	int ret;
 
-	ret = afs_set_vl_cursor(&ac, cell);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	while (afs_iterate_addresses(&ac)) {
-		if (test_bit(ac.index, &ac.alist->yfs))
-			alist = afs_yfsvl_get_endpoints(cell->net, &ac, key, uuid);
-		else
-			alist = afs_vl_get_addrs_u(cell->net, &ac, key, uuid);
-		switch (ac.error) {
-		case 0:
-			afs_end_cursor(&ac);
-			return alist;
-		case -ECONNABORTED:
-			ac.error = afs_abort_to_error(ac.abort_code);
-			goto error;
-		case -ENOMEM:
-		case -ENONET:
-			goto error;
-		case -ENETUNREACH:
-		case -EHOSTUNREACH:
-		case -ECONNREFUSED:
-			break;
-		default:
-			ac.error = -EIO;
-			goto error;
+	ret = -ERESTARTSYS;
+	if (afs_begin_vlserver_operation(&vc, cell, key)) {
+		while (afs_select_vlserver(&vc)) {
+			if (test_bit(AFS_VLSERVER_FL_IS_YFS, &vc.server->flags))
+				alist = afs_yfsvl_get_endpoints(&vc, uuid);
+			else
+				alist = afs_vl_get_addrs_u(&vc, uuid);
 		}
+
+		ret = afs_end_vlserver_operation(&vc);
 	}
 
-error:
-	return ERR_PTR(afs_end_cursor(&ac));
+	return ret < 0 ? ERR_PTR(ret) : alist;
 }
 
 /*
@@ -382,15 +366,16 @@ static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
 	struct afs_addr_list *alist = rcu_access_pointer(server->addresses);
 	struct afs_addr_cursor ac = {
 		.alist	= alist,
-		.start	= alist->index,
-		.index	= 0,
-		.addr	= &alist->addrs[alist->index],
+		.index	= alist->preferred,
 		.error	= 0,
 	};
 	_enter("%p", server);
 
 	if (test_bit(AFS_SERVER_FL_MAY_HAVE_CB, &server->flags))
 		afs_fs_give_up_all_callbacks(net, server, &ac, NULL);
+
+	wait_var_event(&server->probe_outstanding,
+		       atomic_read(&server->probe_outstanding) == 0);
 
 	call_rcu(&server->rcu, afs_server_rcu);
 	afs_dec_servers_outstanding(net);
@@ -522,99 +507,6 @@ void afs_purge_servers(struct afs_net *net)
 	wait_var_event(&net->servers_outstanding,
 		       !atomic_read(&net->servers_outstanding));
 	_leave("");
-}
-
-/*
- * Probe a fileserver to find its capabilities.
- *
- * TODO: Try service upgrade.
- */
-static bool afs_do_probe_fileserver(struct afs_fs_cursor *fc)
-{
-	_enter("");
-
-	fc->ac.addr = NULL;
-	fc->ac.start = READ_ONCE(fc->ac.alist->index);
-	fc->ac.index = fc->ac.start;
-	fc->ac.error = 0;
-	fc->ac.begun = false;
-
-	while (afs_iterate_addresses(&fc->ac)) {
-		afs_fs_get_capabilities(afs_v2net(fc->vnode), fc->cbi->server,
-					&fc->ac, fc->key);
-		switch (fc->ac.error) {
-		case 0:
-			afs_end_cursor(&fc->ac);
-			set_bit(AFS_SERVER_FL_PROBED, &fc->cbi->server->flags);
-			return true;
-		case -ECONNABORTED:
-			fc->ac.error = afs_abort_to_error(fc->ac.abort_code);
-			goto error;
-		case -ENOMEM:
-		case -ENONET:
-			goto error;
-		case -ENETUNREACH:
-		case -EHOSTUNREACH:
-		case -ECONNREFUSED:
-		case -ETIMEDOUT:
-		case -ETIME:
-			break;
-		default:
-			fc->ac.error = -EIO;
-			goto error;
-		}
-	}
-
-error:
-	afs_end_cursor(&fc->ac);
-	return false;
-}
-
-/*
- * If we haven't already, try probing the fileserver to get its capabilities.
- * We try not to instigate parallel probes, but it's possible that the parallel
- * probes will fail due to authentication failure when ours would succeed.
- *
- * TODO: Try sending an anonymous probe if an authenticated probe fails.
- */
-bool afs_probe_fileserver(struct afs_fs_cursor *fc)
-{
-	bool success;
-	int ret, retries = 0;
-
-	_enter("");
-
-retry:
-	if (test_bit(AFS_SERVER_FL_PROBED, &fc->cbi->server->flags)) {
-		_leave(" = t");
-		return true;
-	}
-
-	if (!test_and_set_bit_lock(AFS_SERVER_FL_PROBING, &fc->cbi->server->flags)) {
-		success = afs_do_probe_fileserver(fc);
-		clear_bit_unlock(AFS_SERVER_FL_PROBING, &fc->cbi->server->flags);
-		wake_up_bit(&fc->cbi->server->flags, AFS_SERVER_FL_PROBING);
-		_leave(" = t");
-		return success;
-	}
-
-	_debug("wait");
-	ret = wait_on_bit(&fc->cbi->server->flags, AFS_SERVER_FL_PROBING,
-			  TASK_INTERRUPTIBLE);
-	if (ret == -ERESTARTSYS) {
-		fc->ac.error = ret;
-		_leave(" = f [%d]", ret);
-		return false;
-	}
-
-	retries++;
-	if (retries == 4) {
-		fc->ac.error = -ESTALE;
-		_leave(" = f [stale]");
-		return false;
-	}
-	_debug("retry");
-	goto retry;
 }
 
 /*

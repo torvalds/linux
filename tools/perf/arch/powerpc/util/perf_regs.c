@@ -52,6 +52,8 @@ const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(trap, PERF_REG_POWERPC_TRAP),
 	SMPL_REG(dar, PERF_REG_POWERPC_DAR),
 	SMPL_REG(dsisr, PERF_REG_POWERPC_DSISR),
+	SMPL_REG(sier, PERF_REG_POWERPC_SIER),
+	SMPL_REG(mmcra, PERF_REG_POWERPC_MMCRA),
 	SMPL_REG_END
 };
 

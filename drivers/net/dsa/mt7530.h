@@ -19,6 +19,11 @@
 #define MT7530_NUM_FDB_RECORDS		2048
 #define MT7530_ALL_MEMBERS		0xff
 
+enum {
+	ID_MT7530 = 0,
+	ID_MT7621 = 1,
+};
+
 #define	NUM_TRGMII_CTRL			5
 
 #define TRGMII_BASE(x)			(0x10000 + (x))
@@ -36,6 +41,9 @@
 #define  UNM_FFP(x)			(((x) & 0xff) << 16)
 #define  UNU_FFP(x)			(((x) & 0xff) << 8)
 #define  UNU_FFP_MASK			UNU_FFP(~0)
+#define  CPU_EN				BIT(7)
+#define  CPU_PORT(x)			((x) << 4)
+#define  CPU_MASK			(0xf << 4)
 
 /* Registers for address table access */
 #define MT7530_ATA1			0x74
@@ -430,6 +438,7 @@ struct mt7530_priv {
 	struct regulator	*core_pwr;
 	struct regulator	*io_pwr;
 	struct gpio_desc	*reset;
+	unsigned int		id;
 	bool			mcm;
 
 	struct mt7530_port	ports[MT7530_NUM_PORTS];

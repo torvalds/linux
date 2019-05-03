@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "gmc_v9_0.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_gem.h"
 
 #include "hdp/hdp_4_0_offset.h"
 #include "hdp/hdp_4_0_sh_mask.h"
@@ -42,6 +43,7 @@
 
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
+#include "gfxhub_v1_1.h"
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
@@ -242,16 +244,76 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+/**
+ * vega10_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool gmc_v9_0_prescreen_iv(struct amdgpu_device *adev,
+				  struct amdgpu_iv_entry *entry,
+				  uint64_t addr)
+{
+	struct amdgpu_vm *vm;
+	u64 key;
+	int r;
+
+	/* No PASID, can't identify faulting process */
+	if (!entry->pasid)
+		return true;
+
+	/* Not a retry fault */
+	if (!(entry->src_data[1] & 0x80))
+		return true;
+
+	/* Track retry faults in per-VM fault FIFO. */
+	spin_lock(&adev->vm_manager.pasid_lock);
+	vm = idr_find(&adev->vm_manager.pasid_idr, entry->pasid);
+	if (!vm) {
+		/* VM not found, process it normally */
+		spin_unlock(&adev->vm_manager.pasid_lock);
+		return true;
+	}
+
+	key = AMDGPU_VM_FAULT(entry->pasid, addr);
+	r = amdgpu_vm_add_fault(vm->fault_hash, key);
+
+	/* Hash table is full or the fault is already being processed,
+	 * ignore further page faults
+	 */
+	if (r != 0) {
+		spin_unlock(&adev->vm_manager.pasid_lock);
+		return false;
+	}
+	/* No locking required with single writer and single reader */
+	r = kfifo_put(&vm->faults, key);
+	if (!r) {
+		/* FIFO is full. Ignore it until there is space */
+		amdgpu_vm_clear_fault(vm->fault_hash, key);
+		spin_unlock(&adev->vm_manager.pasid_lock);
+		return false;
+	}
+
+	spin_unlock(&adev->vm_manager.pasid_lock);
+	/* It's the first fault for this address, process it normally */
+	return true;
+}
+
 static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vmid_src];
+	bool retry_fault = !!(entry->src_data[1] & 0x80);
 	uint32_t status = 0;
 	u64 addr;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
+
+	if (!gmc_v9_0_prescreen_iv(adev, entry, addr))
+		return 1; /* This also prevents sending it to KFD */
 
 	if (!amdgpu_sriov_vf(adev)) {
 		status = RREG32(hub->vm_l2_pro_fault_status);
@@ -259,17 +321,20 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	}
 
 	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info = { 0 };
+		struct amdgpu_task_info task_info;
 
+		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
 		dev_err(adev->dev,
-			"[%s] VMC page fault (src_id:%u ring:%u vmid:%u pasid:%u, for process %s pid %d thread %s pid %d\n)\n",
+			"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
+			"pasid:%u, for process %s pid %d thread %s pid %d)\n",
 			entry->vmid_src ? "mmhub" : "gfxhub",
+			retry_fault ? "retry" : "no-retry",
 			entry->src_id, entry->ring_id, entry->vmid,
 			entry->pasid, task_info.process_name, task_info.tgid,
 			task_info.task_name, task_info.pid);
-		dev_err(adev->dev, "  at address 0x%016llx from %d\n",
+		dev_err(adev->dev, "  in page starting at address 0x%016llx from %d\n",
 			addr, entry->client_id);
 		if (!amdgpu_sriov_vf(adev))
 			dev_err(adev->dev,
@@ -291,14 +356,14 @@ static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
 }
 
-static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid)
+static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
+					uint32_t flush_type)
 {
 	u32 req = 0;
 
-	/* invalidate using legacy mode on vmid*/
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ,
 			    PER_VMID_INVALIDATE_REQ, 1 << vmid);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, 0);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, flush_type);
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);
@@ -318,54 +383,52 @@ static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid)
  */
 
 /**
- * gmc_v9_0_flush_gpu_tlb - gart tlb flush callback
+ * gmc_v9_0_flush_gpu_tlb - tlb flush with certain type
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
+ * @flush_type: the flush type
  *
- * Flush the TLB for the requested page table.
+ * Flush the TLB for the requested page table using certain type.
  */
 static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
-					uint32_t vmid)
+				uint32_t vmid, uint32_t flush_type)
 {
-	/* Use register 17 for GART */
 	const unsigned eng = 17;
 	unsigned i, j;
 
-	spin_lock(&adev->gmc.invalidate_lock);
-
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
-		u32 tmp = gmc_v9_0_get_invalidate_req(vmid);
+		u32 tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 
-		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
+		/* This is necessary for a HW workaround under SRIOV as well
+		 * as GFXOFF under bare metal
+		 */
+		if (adev->gfx.kiq.ring.sched.ready &&
+		    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
+		    !adev->in_gpu_reset) {
+			uint32_t req = hub->vm_inv_eng0_req + eng;
+			uint32_t ack = hub->vm_inv_eng0_ack + eng;
 
-		/* Busy wait for ACK.*/
-		for (j = 0; j < 100; j++) {
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-			tmp &= 1 << vmid;
-			if (tmp)
-				break;
-			cpu_relax();
-		}
-		if (j < 100)
+			amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, tmp,
+							   1 << vmid);
 			continue;
+		}
 
-		/* Wait for ACK with a delay.*/
+		spin_lock(&adev->gmc.invalidate_lock);
+		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
 		for (j = 0; j < adev->usec_timeout; j++) {
 			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-			tmp &= 1 << vmid;
-			if (tmp)
+			if (tmp & (1 << vmid))
 				break;
 			udelay(1);
 		}
+		spin_unlock(&adev->gmc.invalidate_lock);
 		if (j < adev->usec_timeout)
 			continue;
 
 		DRM_ERROR("Timeout waiting for VM flush ACK!\n");
 	}
-
-	spin_unlock(&adev->gmc.invalidate_lock);
 }
 
 static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
@@ -373,12 +436,8 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_vmhub *hub = &adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = gmc_v9_0_get_invalidate_req(vmid);
-	uint64_t flags = AMDGPU_PTE_VALID;
+	uint32_t req = gmc_v9_0_get_invalidate_req(vmid, 0);
 	unsigned eng = ring->vm_inv_eng;
-
-	amdgpu_gmc_get_vm_pde(adev, -1, &pd_addr, &flags);
-	pd_addr |= flags;
 
 	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 + (2 * vmid),
 			      lower_32_bits(pd_addr));
@@ -509,7 +568,7 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
-	if (!(*flags & AMDGPU_PDE_PTE))
+	if (!(*flags & AMDGPU_PDE_PTE) && !(*flags & AMDGPU_PTE_SYSTEM))
 		*addr = adev->vm_manager.vram_base_offset + *addr -
 			adev->gmc.vram_start;
 	BUG_ON(*addr & 0xFFFF00000000003FULL);
@@ -541,8 +600,7 @@ static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 
 static void gmc_v9_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gmc.gmc_funcs == NULL)
-		adev->gmc.gmc_funcs = &gmc_v9_0_gmc_funcs;
+	adev->gmc.gmc_funcs = &gmc_v9_0_gmc_funcs;
 }
 
 static int gmc_v9_0_early_init(void *handle)
@@ -641,40 +699,69 @@ static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
 	return lost_sheep == 0;
 }
 
+static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
+{
+
+	/*
+	 * TODO:
+	 * Currently there is a bug where some memory client outside
+	 * of the driver writes to first 8M of VRAM on S3 resume,
+	 * this overrides GART which by default gets placed in first 8M and
+	 * causes VM_FAULTS once GTT is accessed.
+	 * Keep the stolen memory reservation until the while this is not solved.
+	 * Also check code in gmc_v9_0_get_vbios_fb_size and gmc_v9_0_late_init
+	 */
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		return true;
+	case CHIP_RAVEN:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+	default:
+		return false;
+	}
+}
+
+static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
+		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP};
+	unsigned i;
+	unsigned vmhub, inv_eng;
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+		vmhub = ring->funcs->vmhub;
+
+		inv_eng = ffs(vm_inv_engs[vmhub]);
+		if (!inv_eng) {
+			dev_err(adev->dev, "no VM inv eng for ring %s\n",
+				ring->name);
+			return -EINVAL;
+		}
+
+		ring->vm_inv_eng = inv_eng - 1;
+		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
+
+		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
+			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
+	}
+
+	return 0;
+}
+
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	/*
-	 * The latest engine allocation on gfx9 is:
-	 * Engine 0, 1: idle
-	 * Engine 2, 3: firmware
-	 * Engine 4~13: amdgpu ring, subject to change when ring number changes
-	 * Engine 14~15: idle
-	 * Engine 16: kfd tlb invalidation
-	 * Engine 17: Gart flushes
-	 */
-	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 4, 4 };
-	unsigned i;
 	int r;
 
-	/*
-	 * TODO - Uncomment once GART corruption issue is fixed.
-	 */
-	/* amdgpu_bo_late_init(adev); */
+	if (!gmc_v9_0_keep_stolen_memory(adev))
+		amdgpu_bo_late_init(adev);
 
-	for(i = 0; i < adev->num_rings; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		unsigned vmhub = ring->funcs->vmhub;
-
-		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
-		dev_info(adev->dev, "ring %u(%s) uses VM inv eng %u on hub %u\n",
-			 ring->idx, ring->name, ring->vm_inv_eng,
-			 ring->funcs->vmhub);
-	}
-
-	/* Engine 16 is used for KFD and 17 for GART flushes */
-	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
-		BUG_ON(vm_inv_eng[i] > 16);
+	r = gmc_v9_0_allocate_vm_inv_eng(adev);
+	if (r)
+		return r;
 
 	if (adev->asic_type == CHIP_VEGA10 && !amdgpu_sriov_vf(adev)) {
 		r = gmc_v9_0_ecc_available(adev);
@@ -698,10 +785,18 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = 0;
 	if (!amdgpu_sriov_vf(adev))
 		base = mmhub_v1_0_get_fb_location(adev);
-	amdgpu_device_vram_location(adev, &adev->gmc, base);
-	amdgpu_device_gart_location(adev, mc);
+	/* add the xgmi offset of the physical node */
+	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
+	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_gart_location(adev, mc);
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_gmc_agp_location(adev, mc);
 	/* base offset of vram pages */
 	adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
+
+	/* XXX: add the xgmi offset of the physical node? */
+	adev->vm_manager.vram_base_offset +=
+		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 }
 
 /**
@@ -781,7 +876,7 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj) {
+	if (adev->gart.bo) {
 		WARN(1, "VEGA10 PCIE GART already initialized\n");
 		return 0;
 	}
@@ -797,18 +892,16 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 
 static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 {
-#if 0
 	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
-#endif
 	unsigned size;
 
 	/*
 	 * TODO Remove once GART corruption is resolved
 	 * Check related code in gmc_v9_0_sw_fini
 	 * */
-	size = 9 * 1024 * 1024;
+	if (gmc_v9_0_keep_stolen_memory(adev))
+		return 9 * 1024 * 1024;
 
-#if 0
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
 		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
 	} else {
@@ -825,6 +918,7 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 			break;
 		case CHIP_VEGA10:
 		case CHIP_VEGA12:
+		case CHIP_VEGA20:
 		default:
 			viewport = RREG32_SOC15(DCE, 0, mmSCL0_VIEWPORT_SIZE);
 			size = (REG_GET_FIELD(viewport, SCL0_VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
@@ -837,7 +931,6 @@ static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
 		return 0;
 
-#endif
 	return size;
 }
 
@@ -872,7 +965,11 @@ static int gmc_v9_0_sw_init(void *handle)
 		 * vm size is 256TB (48bit), maximum size of Vega10,
 		 * block size 512 (9bit)
 		 */
-		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		/* sriov restrict max_pfn below AMDGPU_GMC_HOLE */
+		if (amdgpu_sriov_vf(adev))
+			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 47);
+		else
+			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;
 	default:
 		break;
@@ -881,6 +978,9 @@ static int gmc_v9_0_sw_init(void *handle)
 	/* This interrupt is VMC page fault.*/
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VMC, VMC_1_0__SRCID__VM_FAULT,
 				&adev->gmc.vm_fault);
+	if (r)
+		return r;
+
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UTCL2, UTCL2_1_0__SRCID__FAULT,
 				&adev->gmc.vm_fault);
 
@@ -912,6 +1012,12 @@ static int gmc_v9_0_sw_init(void *handle)
 		printk(KERN_WARNING "amdgpu: No coherent DMA available.\n");
 	}
 	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
+
+	if (adev->gmc.xgmi.supported) {
+		r = gfxhub_v1_1_get_xgmi_info(adev);
+		if (r)
+			return r;
+	}
 
 	r = gmc_v9_0_mc_init(adev);
 	if (r)
@@ -949,16 +1055,8 @@ static int gmc_v9_0_sw_fini(void *handle)
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
 
-	/*
-	* TODO:
-	* Currently there is a bug where some memory client outside
-	* of the driver writes to first 8M of VRAM on S3 resume,
-	* this overrides GART which by default gets placed in first 8M and
-	* causes VM_FAULTS once GTT is accessed.
-	* Keep the stolen memory reservation until the while this is not solved.
-	* Also check code in gmc_v9_0_get_vbios_fb_size and gmc_v9_0_late_init
-	*/
-	amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, NULL);
+	if (gmc_v9_0_keep_stolen_memory(adev))
+		amdgpu_bo_free_kernel(&adev->stolen_vga_memory, NULL, NULL);
 
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
@@ -1007,7 +1105,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 						golden_settings_vega10_hdp,
 						ARRAY_SIZE(golden_settings_vega10_hdp));
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
@@ -1017,7 +1115,6 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		mmhub_v1_0_initialize_power_gating(adev);
 		mmhub_v1_0_update_power_gating(adev, true);
 		break;
 	default:
@@ -1047,11 +1144,11 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
 	mmhub_v1_0_set_fault_enable_default(adev, value);
-	gmc_v9_0_flush_gpu_tlb(adev, 0);
+	gmc_v9_0_flush_gpu_tlb(adev, 0, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
-		 (unsigned long long)adev->gart.table_addr);
+		 (unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
 	adev->gart.ready = true;
 	return 0;
 }

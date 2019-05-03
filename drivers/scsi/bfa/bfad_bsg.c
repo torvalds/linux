@@ -3264,9 +3264,9 @@ bfad_fcxp_map_sg(struct bfad_s *bfad, void *payload_kbuf,
 	/* Allocate dma coherent memory */
 	buf_info = buf_base;
 	buf_info->size = payload_len;
-	buf_info->virt = dma_zalloc_coherent(&bfad->pcidev->dev,
-					     buf_info->size, &buf_info->phys,
-					     GFP_KERNEL);
+	buf_info->virt = dma_alloc_coherent(&bfad->pcidev->dev,
+					    buf_info->size, &buf_info->phys,
+					    GFP_KERNEL);
 	if (!buf_info->virt)
 		goto out_free_mem;
 

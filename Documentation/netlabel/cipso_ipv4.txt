@@ -6,11 +6,12 @@ May 17, 2006
 
  * Overview
 
-The NetLabel CIPSO/IPv4 protocol engine is based on the IETF Commercial IP
-Security Option (CIPSO) draft from July 16, 1992.  A copy of this draft can be
-found in this directory, consult '00-INDEX' for the filename.  While the IETF
-draft never made it to an RFC standard it has become a de-facto standard for
-labeled networking and is used in many trusted operating systems.
+The NetLabel CIPSO/IPv4 protocol engine is based on the IETF Commercial
+IP Security Option (CIPSO) draft from July 16, 1992.  A copy of this
+draft can be found in this directory
+(draft-ietf-cipso-ipsecurity-01.txt).  While the IETF draft never made
+it to an RFC standard it has become a de-facto standard for labeled
+networking and is used in many trusted operating systems.
 
  * Outbound Packet Processing
 

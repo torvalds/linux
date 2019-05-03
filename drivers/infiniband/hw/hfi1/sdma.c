@@ -378,7 +378,7 @@ static inline void complete_tx(struct sdma_engine *sde,
 	__sdma_txclean(sde->dd, tx);
 	if (complete)
 		(*complete)(tx, res);
-	if (wait && iowait_sdma_dec(wait))
+	if (iowait_sdma_dec(wait))
 		iowait_drain_wakeup(wait);
 }
 
@@ -1424,6 +1424,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		seqlock_init(&sde->head_lock);
 		spin_lock_init(&sde->senddmactrl_lock);
 		spin_lock_init(&sde->flushlist_lock);
+		seqlock_init(&sde->waitlock);
 		/* insure there is always a zero bit */
 		sde->ahg_bits = 0xfffffffe00000000ULL;
 
@@ -1452,12 +1453,9 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		timer_setup(&sde->err_progress_check_timer,
 			    sdma_err_progress_check, 0);
 
-		sde->descq = dma_zalloc_coherent(
-			&dd->pcidev->dev,
-			descq_cnt * sizeof(u64[2]),
-			&sde->descq_phys,
-			GFP_KERNEL
-		);
+		sde->descq = dma_alloc_coherent(&dd->pcidev->dev,
+						descq_cnt * sizeof(u64[2]),
+						&sde->descq_phys, GFP_KERNEL);
 		if (!sde->descq)
 			goto bail;
 		sde->tx_ring =
@@ -1470,24 +1468,18 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 
 	dd->sdma_heads_size = L1_CACHE_BYTES * num_engines;
 	/* Allocate memory for DMA of head registers to memory */
-	dd->sdma_heads_dma = dma_zalloc_coherent(
-		&dd->pcidev->dev,
-		dd->sdma_heads_size,
-		&dd->sdma_heads_phys,
-		GFP_KERNEL
-	);
+	dd->sdma_heads_dma = dma_alloc_coherent(&dd->pcidev->dev,
+						dd->sdma_heads_size,
+						&dd->sdma_heads_phys,
+						GFP_KERNEL);
 	if (!dd->sdma_heads_dma) {
 		dd_dev_err(dd, "failed to allocate SendDMA head memory\n");
 		goto bail;
 	}
 
 	/* Allocate memory for pad */
-	dd->sdma_pad_dma = dma_zalloc_coherent(
-		&dd->pcidev->dev,
-		sizeof(u32),
-		&dd->sdma_pad_phys,
-		GFP_KERNEL
-	);
+	dd->sdma_pad_dma = dma_alloc_coherent(&dd->pcidev->dev, sizeof(u32),
+					      &dd->sdma_pad_phys, GFP_KERNEL);
 	if (!dd->sdma_pad_dma) {
 		dd_dev_err(dd, "failed to allocate SendDMA pad memory\n");
 		goto bail;
@@ -1755,12 +1747,9 @@ retry:
  */
 static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 {
-	struct iowait *wait, *nw;
+	struct iowait *wait, *nw, *twait;
 	struct iowait *waits[SDMA_WAIT_BATCH_SIZE];
-	uint i, n = 0, seq, max_idx = 0;
-	struct sdma_txreq *stx;
-	struct hfi1_ibdev *dev = &sde->dd->verbs_dev;
-	u8 max_starved_cnt = 0;
+	uint i, n = 0, seq, tidx = 0;
 
 #ifdef CONFIG_SDMA_VERBOSITY
 	dd_dev_err(sde->dd, "CONFIG SDMA(%u) %s:%d %s()\n", sde->this_idx,
@@ -1769,49 +1758,50 @@ static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 #endif
 
 	do {
-		seq = read_seqbegin(&dev->iowait_lock);
+		seq = read_seqbegin(&sde->waitlock);
 		if (!list_empty(&sde->dmawait)) {
 			/* at least one item */
-			write_seqlock(&dev->iowait_lock);
+			write_seqlock(&sde->waitlock);
 			/* Harvest waiters wanting DMA descriptors */
 			list_for_each_entry_safe(
 					wait,
 					nw,
 					&sde->dmawait,
 					list) {
-				u16 num_desc = 0;
+				u32 num_desc;
 
 				if (!wait->wakeup)
 					continue;
 				if (n == ARRAY_SIZE(waits))
 					break;
-				if (!list_empty(&wait->tx_head)) {
-					stx = list_first_entry(
-						&wait->tx_head,
-						struct sdma_txreq,
-						list);
-					num_desc = stx->num_desc;
-				}
+				iowait_init_priority(wait);
+				num_desc = iowait_get_all_desc(wait);
 				if (num_desc > avail)
 					break;
 				avail -= num_desc;
-				/* Find the most starved wait memeber */
-				iowait_starve_find_max(wait, &max_starved_cnt,
-						       n, &max_idx);
+				/* Find the top-priority wait memeber */
+				if (n) {
+					twait = waits[tidx];
+					tidx =
+					    iowait_priority_update_top(wait,
+								       twait,
+								       n,
+								       tidx);
+				}
 				list_del_init(&wait->list);
 				waits[n++] = wait;
 			}
-			write_sequnlock(&dev->iowait_lock);
+			write_sequnlock(&sde->waitlock);
 			break;
 		}
-	} while (read_seqretry(&dev->iowait_lock, seq));
+	} while (read_seqretry(&sde->waitlock, seq));
 
-	/* Schedule the most starved one first */
+	/* Schedule the top-priority entry first */
 	if (n)
-		waits[max_idx]->wakeup(waits[max_idx], SDMA_AVAIL_REASON);
+		waits[tidx]->wakeup(waits[tidx], SDMA_AVAIL_REASON);
 
 	for (i = 0; i < n; i++)
-		if (i != max_idx)
+		if (i != tidx)
 			waits[i]->wakeup(waits[i], SDMA_AVAIL_REASON);
 }
 
@@ -2346,7 +2336,7 @@ static inline u16 submit_tx(struct sdma_engine *sde, struct sdma_txreq *tx)
  */
 static int sdma_check_progress(
 	struct sdma_engine *sde,
-	struct iowait *wait,
+	struct iowait_work *wait,
 	struct sdma_txreq *tx,
 	bool pkts_sent)
 {
@@ -2356,12 +2346,12 @@ static int sdma_check_progress(
 	if (tx->num_desc <= sde->desc_avail)
 		return -EAGAIN;
 	/* pulse the head_lock */
-	if (wait && wait->sleep) {
+	if (wait && iowait_ioww_to_iow(wait)->sleep) {
 		unsigned seq;
 
 		seq = raw_seqcount_begin(
 			(const seqcount_t *)&sde->head_lock.seqcount);
-		ret = wait->sleep(sde, wait, tx, seq, pkts_sent);
+		ret = wait->iow->sleep(sde, wait, tx, seq, pkts_sent);
 		if (ret == -EAGAIN)
 			sde->desc_avail = sdma_descq_freecnt(sde);
 	} else {
@@ -2373,7 +2363,7 @@ static int sdma_check_progress(
 /**
  * sdma_send_txreq() - submit a tx req to ring
  * @sde: sdma engine to use
- * @wait: wait structure to use when full (may be NULL)
+ * @wait: SE wait structure to use when full (may be NULL)
  * @tx: sdma_txreq to submit
  * @pkts_sent: has any packet been sent yet?
  *
@@ -2386,7 +2376,7 @@ static int sdma_check_progress(
  * -EIOCBQUEUED - tx queued to iowait, -ECOMM bad sdma state
  */
 int sdma_send_txreq(struct sdma_engine *sde,
-		    struct iowait *wait,
+		    struct iowait_work *wait,
 		    struct sdma_txreq *tx,
 		    bool pkts_sent)
 {
@@ -2397,7 +2387,7 @@ int sdma_send_txreq(struct sdma_engine *sde,
 	/* user should have supplied entire packet */
 	if (unlikely(tx->tlen))
 		return -EINVAL;
-	tx->wait = wait;
+	tx->wait = iowait_ioww_to_iow(wait);
 	spin_lock_irqsave(&sde->tail_lock, flags);
 retry:
 	if (unlikely(!__sdma_running(sde)))
@@ -2406,14 +2396,14 @@ retry:
 		goto nodesc;
 	tail = submit_tx(sde, tx);
 	if (wait)
-		iowait_sdma_inc(wait);
+		iowait_sdma_inc(iowait_ioww_to_iow(wait));
 	sdma_update_tail(sde, tail);
 unlock:
 	spin_unlock_irqrestore(&sde->tail_lock, flags);
 	return ret;
 unlock_noconn:
 	if (wait)
-		iowait_sdma_inc(wait);
+		iowait_sdma_inc(iowait_ioww_to_iow(wait));
 	tx->next_descq_idx = 0;
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
 	tx->sn = sde->tail_sn++;
@@ -2422,10 +2412,7 @@ unlock_noconn:
 	spin_lock(&sde->flushlist_lock);
 	list_add_tail(&tx->list, &sde->flushlist);
 	spin_unlock(&sde->flushlist_lock);
-	if (wait) {
-		wait->tx_count++;
-		wait->count += tx->num_desc;
-	}
+	iowait_inc_wait_count(wait, tx->num_desc);
 	schedule_work(&sde->flush_worker);
 	ret = -ECOMM;
 	goto unlock;
@@ -2442,9 +2429,9 @@ nodesc:
 /**
  * sdma_send_txlist() - submit a list of tx req to ring
  * @sde: sdma engine to use
- * @wait: wait structure to use when full (may be NULL)
+ * @wait: SE wait structure to use when full (may be NULL)
  * @tx_list: list of sdma_txreqs to submit
- * @count: pointer to a u32 which, after return will contain the total number of
+ * @count: pointer to a u16 which, after return will contain the total number of
  *         sdma_txreqs removed from the tx_list. This will include sdma_txreqs
  *         whose SDMA descriptors are submitted to the ring and the sdma_txreqs
  *         which are added to SDMA engine flush list if the SDMA engine state is
@@ -2467,8 +2454,8 @@ nodesc:
  * -EINVAL - sdma_txreq incomplete, -EBUSY - no space in ring (wait == NULL)
  * -EIOCBQUEUED - tx queued to iowait, -ECOMM bad sdma state
  */
-int sdma_send_txlist(struct sdma_engine *sde, struct iowait *wait,
-		     struct list_head *tx_list, u32 *count_out)
+int sdma_send_txlist(struct sdma_engine *sde, struct iowait_work *wait,
+		     struct list_head *tx_list, u16 *count_out)
 {
 	struct sdma_txreq *tx, *tx_next;
 	int ret = 0;
@@ -2479,7 +2466,7 @@ int sdma_send_txlist(struct sdma_engine *sde, struct iowait *wait,
 	spin_lock_irqsave(&sde->tail_lock, flags);
 retry:
 	list_for_each_entry_safe(tx, tx_next, tx_list, list) {
-		tx->wait = wait;
+		tx->wait = iowait_ioww_to_iow(wait);
 		if (unlikely(!__sdma_running(sde)))
 			goto unlock_noconn;
 		if (unlikely(tx->num_desc > sde->desc_avail))
@@ -2500,8 +2487,9 @@ retry:
 update_tail:
 	total_count = submit_count + flush_count;
 	if (wait) {
-		iowait_sdma_add(wait, total_count);
-		iowait_starve_clear(submit_count > 0, wait);
+		iowait_sdma_add(iowait_ioww_to_iow(wait), total_count);
+		iowait_starve_clear(submit_count > 0,
+				    iowait_ioww_to_iow(wait));
 	}
 	if (tail != INVALID_TAIL)
 		sdma_update_tail(sde, tail);
@@ -2511,7 +2499,7 @@ update_tail:
 unlock_noconn:
 	spin_lock(&sde->flushlist_lock);
 	list_for_each_entry_safe(tx, tx_next, tx_list, list) {
-		tx->wait = wait;
+		tx->wait = iowait_ioww_to_iow(wait);
 		list_del_init(&tx->list);
 		tx->next_descq_idx = 0;
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
@@ -2520,10 +2508,7 @@ unlock_noconn:
 #endif
 		list_add_tail(&tx->list, &sde->flushlist);
 		flush_count++;
-		if (wait) {
-			wait->tx_count++;
-			wait->count += tx->num_desc;
-		}
+		iowait_inc_wait_count(wait, tx->num_desc);
 	}
 	spin_unlock(&sde->flushlist_lock);
 	schedule_work(&sde->flush_worker);

@@ -513,7 +513,7 @@ static int omapvid_apply_changes(struct omap_vout_device *vout)
 }
 
 static int omapvid_handle_interlace_display(struct omap_vout_device *vout,
-		unsigned int irqstatus, struct timeval timevalue)
+		unsigned int irqstatus, u64 ts)
 {
 	u32 fid;
 
@@ -537,7 +537,7 @@ static int omapvid_handle_interlace_display(struct omap_vout_device *vout,
 		if (vout->cur_frm == vout->next_frm)
 			goto err;
 
-		vout->cur_frm->ts = timevalue;
+		vout->cur_frm->ts = ts;
 		vout->cur_frm->state = VIDEOBUF_DONE;
 		wake_up_interruptible(&vout->cur_frm->done);
 		vout->cur_frm = vout->next_frm;
@@ -557,7 +557,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 	int ret, fid, mgr_id;
 	u32 addr, irq;
 	struct omap_overlay *ovl;
-	struct timeval timevalue;
+	u64 ts;
 	struct omapvideo_info *ovid;
 	struct omap_dss_device *cur_display;
 	struct omap_vout_device *vout = (struct omap_vout_device *)arg;
@@ -577,7 +577,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 		return;
 
 	spin_lock(&vout->vbq_lock);
-	v4l2_get_timestamp(&timevalue);
+	ts = ktime_get_ns();
 
 	switch (cur_display->type) {
 	case OMAP_DISPLAY_TYPE_DSI:
@@ -595,7 +595,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 		break;
 	case OMAP_DISPLAY_TYPE_VENC:
 		fid = omapvid_handle_interlace_display(vout, irqstatus,
-				timevalue);
+				ts);
 		if (!fid)
 			goto vout_isr_err;
 		break;
@@ -608,7 +608,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 	}
 
 	if (!vout->first_int && (vout->cur_frm != vout->next_frm)) {
-		vout->cur_frm->ts = timevalue;
+		vout->cur_frm->ts = ts;
 		vout->cur_frm->state = VIDEOBUF_DONE;
 		wake_up_interruptible(&vout->cur_frm->done);
 		vout->cur_frm = vout->next_frm;
@@ -1041,8 +1041,8 @@ static int vidioc_querycap(struct file *file, void *fh,
 {
 	struct omap_vout_device *vout = fh;
 
-	strlcpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, vout->vfd->name, sizeof(cap->card));
+	strscpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
+	strscpy(cap->card, vout->vfd->name, sizeof(cap->card));
 	cap->bus_info[0] = '\0';
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT |
 		V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
@@ -1060,8 +1060,8 @@ static int vidioc_enum_fmt_vid_out(struct file *file, void *fh,
 		return -EINVAL;
 
 	fmt->flags = omap_formats[index].flags;
-	strlcpy(fmt->description, omap_formats[index].description,
-			sizeof(fmt->description));
+	strscpy(fmt->description, omap_formats[index].description,
+		sizeof(fmt->description));
 	fmt->pixelformat = omap_formats[index].pixelformat;
 
 	return 0;
@@ -1129,7 +1129,7 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *fh,
 	}
 	timing = &dssdev->panel.timings;
 
-	/* We dont support RGB24-packed mode if vrfb rotation
+	/* We don't support RGB24-packed mode if vrfb rotation
 	 * is enabled*/
 	if ((is_rotation_enabled(vout)) &&
 			f->fmt.pix.pixelformat == V4L2_PIX_FMT_RGB24) {
@@ -1147,7 +1147,7 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *fh,
 		vout->fbuf.fmt.width = timing->x_res;
 	}
 
-	/* change to samller size is OK */
+	/* change to smaller size is OK */
 
 	bpp = omap_vout_try_format(&f->fmt.pix);
 	f->fmt.pix.sizeimage = f->fmt.pix.width * f->fmt.pix.height * bpp;
@@ -1868,7 +1868,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vfd->release = video_device_release;
 	vfd->ioctl_ops = &vout_ioctl_ops;
 
-	strlcpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
+	strscpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
 
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;

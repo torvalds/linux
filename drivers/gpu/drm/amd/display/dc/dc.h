@@ -36,25 +36,18 @@
 
 #include "inc/hw_sequencer.h"
 #include "inc/compressor.h"
+#include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.59"
+#define DC_VER "3.2.17"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 
-
 /*******************************************************************************
  * Display Core Interfaces
  ******************************************************************************/
-struct dmcu_version {
-	unsigned int date;
-	unsigned int month;
-	unsigned int year;
-	unsigned int interface_version;
-};
-
 struct dc_versions {
 	const char *dc_ver;
 	struct dmcu_version dmcu_version;
@@ -170,6 +163,7 @@ struct link_training_settings;
 struct dc_config {
 	bool gpu_vm_support;
 	bool disable_disp_pll_sharing;
+	bool fbc_support;
 };
 
 enum visual_confirm {
@@ -208,6 +202,7 @@ struct dc_clocks {
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
 	int phyclk_khz;
+	int dramclk_khz;
 };
 
 struct dc_debug_options {
@@ -249,8 +244,6 @@ struct dc_debug_options {
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
-	bool disable_hbup_pg;
-	bool disable_dpp_pg;
 	bool disable_stereo_support;
 	bool vsr_support;
 	bool performance_trace;
@@ -262,6 +255,8 @@ struct dc_debug_options {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
+	unsigned int force_odm_combine; //bit vector based on otg inst
+	unsigned int force_fclk_khz;
 };
 
 struct dc_debug_data {
@@ -269,7 +264,6 @@ struct dc_debug_data {
 	uint32_t i2cErrorCount;
 	uint32_t auxErrorCount;
 };
-
 
 struct dc_state;
 struct resource_pool;
@@ -304,19 +298,14 @@ struct dc {
 	struct hw_sequencer_funcs hwss;
 	struct dce_hwseq *hwseq;
 
-	/* temp store of dm_pp_display_configuration
-	 * to compare to see if display config changed
-	 */
-	struct dm_pp_display_configuration prev_display_config;
-
 	bool optimized_required;
-
-	bool apply_edp_fast_boot_optimization;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
 
 	struct dc_debug_data debug_data;
+
+	const char *build_id;
 };
 
 enum frame_buffer_mode {
@@ -351,8 +340,13 @@ struct dc_init_data {
 	uint32_t log_mask;
 };
 
-struct dc *dc_create(const struct dc_init_data *init_params);
+struct dc_callback_init {
+	uint8_t reserved;
+};
 
+struct dc *dc_create(const struct dc_init_data *init_params);
+void dc_init_callbacks(struct dc *dc,
+		const struct dc_callback_init *init_params);
 void dc_destroy(struct dc **dc);
 
 /*******************************************************************************
@@ -442,6 +436,7 @@ union surface_update_flags {
 		uint32_t color_space_change:1;
 		uint32_t horizontal_mirror_change:1;
 		uint32_t per_pixel_alpha_change:1;
+		uint32_t global_alpha_change:1;
 		uint32_t rotation_change:1;
 		uint32_t swizzle_change:1;
 		uint32_t scaling_change:1;
@@ -451,6 +446,7 @@ union surface_update_flags {
 		uint32_t coeff_reduction_change:1;
 		uint32_t output_tf_change:1;
 		uint32_t pixel_format_change:1;
+		uint32_t plane_size_change:1;
 
 		/* Full updates */
 		uint32_t new_plane:1;
@@ -496,6 +492,8 @@ struct dc_plane_state {
 
 	bool is_tiling_rotated;
 	bool per_pixel_alpha;
+	bool global_alpha;
+	int  global_alpha_value;
 	bool visible;
 	bool flip_immediate;
 	bool horizontal_mirror;
@@ -504,6 +502,9 @@ struct dc_plane_state {
 	/* private to DC core */
 	struct dc_plane_status status;
 	struct dc_context *ctx;
+
+	/* HACK: Workaround for forcing full reprogramming under some conditions */
+	bool force_full_update;
 
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
@@ -522,6 +523,8 @@ struct dc_plane_info {
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
+	bool global_alpha;
+	int  global_alpha_value;
 	bool input_csc_enabled;
 };
 
@@ -594,7 +597,13 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
+bool dc_validate_seamless_boot_timing(struct dc *dc,
+				const struct dc_sink *sink,
+				struct dc_crtc_timing *crtc_timing);
+
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
+
+void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
 
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
@@ -657,6 +666,7 @@ struct dpcd_caps {
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
 	int8_t branch_fw_revision[2];
+	uint8_t link_rate_set;
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
@@ -747,5 +757,9 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
+unsigned int dc_get_current_backlight_pwm(struct dc *dc);
+unsigned int dc_get_target_backlight_pwm(struct dc *dc);
+
+bool dc_is_dmcu_initialized(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

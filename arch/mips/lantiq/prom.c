@@ -8,7 +8,7 @@
 
 #include <linux/export.h>
 #include <linux/clk.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/of_fdt.h>
 
 #include <asm/bootinfo.h>

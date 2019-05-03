@@ -9,8 +9,8 @@ config ARCH_SUPPORTS_ACPI
 menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on ARCH_SUPPORTS_ACPI
-	depends on PCI
 	select PNP
+	select NLS
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -138,7 +138,6 @@ config ACPI_REV_OVERRIDE_POSSIBLE
 
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
-	default n
 	help
 	  Say N to disable Embedded Controller /sys/kernel/debug interface
 
@@ -283,7 +282,6 @@ config ACPI_PROCESSOR
 config ACPI_IPMI
 	tristate "IPMI"
 	depends on IPMI_HANDLER
-	default n
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
 	  uses the IPMI request/response message to communicate with BMC
@@ -338,7 +336,7 @@ config ACPI_CUSTOM_DSDT_FILE
 	  See Documentation/acpi/dsdt-override.txt
 
 	  Enter the full path name to the file which includes the AmlCode
-	  declaration.
+	  or dsdt_aml_code declaration.
 
 	  If unsure, don't enter a file name.
 
@@ -359,9 +357,18 @@ config ACPI_TABLE_UPGRADE
 	  initrd, therefore it's safe to say Y.
 	  See Documentation/acpi/initrd_table_override.txt for details
 
+config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
+	bool "Override ACPI tables from built-in initrd"
+	depends on ACPI_TABLE_UPGRADE
+	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION=""
+	help
+	  This option provides functionality to override arbitrary ACPI tables
+	  from built-in uncompressed initrd.
+
+	  See Documentation/acpi/initrd_table_override.txt for details
+
 config ACPI_DEBUG
 	bool "Debug Statements"
-	default n
 	help
 	  The ACPI subsystem can produce debug output.  Saying Y enables this
 	  output and increases the kernel size by around 50K.
@@ -373,8 +380,7 @@ config ACPI_DEBUG
 
 config ACPI_PCI_SLOT
 	bool "PCI slot detection driver"
-	depends on SYSFS
-	default n
+	depends on SYSFS && PCI
 	help
 	  This driver creates entries in /sys/bus/pci/slots/ for all PCI
 	  slots in the system.  This can help correlate PCI bus addresses,
@@ -436,7 +442,6 @@ config ACPI_HED
 config ACPI_CUSTOM_METHOD
 	tristate "Allow ACPI methods to be inserted/replaced at run time"
 	depends on DEBUG_FS
-	default n
 	help
 	  This debug facility allows ACPI AML methods to be inserted and/or
 	  replaced without rebooting the system. For details refer to:
@@ -481,7 +486,6 @@ config ACPI_EXTLOG
 	tristate "Extended Error Log support"
 	depends on X86_MCE && X86_LOCAL_APIC && EDAC
 	select UEFI_CPER
-	default n
 	help
 	  Certain usages such as Predictive Failure Analysis (PFA) require
 	  more information about the error than what can be described in
@@ -497,6 +501,9 @@ config ACPI_EXTLOG
 	  information to system software, synchronous with MCE or CMCI. This
 	  driver adds support for that functionality with corresponding
 	  tracepoint which carries that information to userspace.
+
+config ACPI_ADXL
+	bool
 
 menuconfig PMIC_OPREGION
 	bool "PMIC (Power Management Integrated Circuit) operation region support"
@@ -515,7 +522,7 @@ config CRC_PMIC_OPREGION
 
 config XPOWER_PMIC_OPREGION
 	bool "ACPI operation region support for XPower AXP288 PMIC"
-	depends on MFD_AXP20X_I2C
+	depends on MFD_AXP20X_I2C && IOSF_MBI=y
 	help
 	  This config adds ACPI operation region support for XPower AXP288 PMIC.
 

@@ -27,7 +27,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 		spin_unlock_irq(&hwif->lock);
 
 		if (start_queue)
-			blk_run_queue(q);
+			blk_mq_run_hw_queues(q, true);
 		return;
 	}
 	spin_unlock_irq(&hwif->lock);
@@ -36,7 +36,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	scsi_req(rq)->cmd[0] = REQ_PARK_HEADS;
 	scsi_req(rq)->cmd_len = 1;
 	ide_req(rq)->type = ATA_PRIV_MISC;
-	rq->special = &timeout;
+	ide_req(rq)->special = &timeout;
 	blk_execute_rq(q, NULL, rq, 1);
 	rc = scsi_req(rq)->result ? -EIO : 0;
 	blk_put_request(rq);
@@ -54,7 +54,9 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	scsi_req(rq)->cmd[0] = REQ_UNPARK_HEADS;
 	scsi_req(rq)->cmd_len = 1;
 	ide_req(rq)->type = ATA_PRIV_MISC;
-	elv_add_request(q, rq, ELEVATOR_INSERT_FRONT);
+	spin_lock_irq(&hwif->lock);
+	ide_insert_request_head(drive, rq);
+	spin_unlock_irq(&hwif->lock);
 
 out:
 	return;
@@ -67,7 +69,7 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 
 	memset(&cmd, 0, sizeof(cmd));
 	if (scsi_req(rq)->cmd[0] == REQ_PARK_HEADS) {
-		drive->sleep = *(unsigned long *)rq->special;
+		drive->sleep = *(unsigned long *)ide_req(rq)->special;
 		drive->dev_flags |= IDE_DFLAG_SLEEPING;
 		tf->command = ATA_CMD_IDLEIMMEDIATE;
 		tf->feature = 0x44;

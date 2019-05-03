@@ -10,7 +10,7 @@ wait_for_ip()
 	echo -n "Wait for testing link-local IP to become available "
 	for _i in $(seq ${MAX_PING_TRIES}); do
 		echo -n "."
-		if ping -6 -q -c 1 -W 1 ff02::1%${TEST_IF} >/dev/null 2>&1; then
+		if $PING6 -c 1 -W 1 ff02::1%${TEST_IF} >/dev/null 2>&1; then
 			echo " OK"
 			return
 		fi
@@ -58,5 +58,6 @@ BPF_PROG_OBJ="${DIR}/test_skb_cgroup_id_kern.o"
 BPF_PROG_SECTION="cgroup_id_logger"
 BPF_PROG_ID=0
 PROG="${DIR}/test_skb_cgroup_id_user"
+type ping6 >/dev/null 2>&1 && PING6="ping6" || PING6="ping -6"
 
 main

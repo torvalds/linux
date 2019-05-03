@@ -48,6 +48,7 @@
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/numa.h>
 
 #include "hfi.h"
 #include "affinity.h"
@@ -777,7 +778,7 @@ void hfi1_dev_affinity_clean_up(struct hfi1_devdata *dd)
 	_dev_comp_vect_cpu_mask_clean_up(dd, entry);
 unlock:
 	mutex_unlock(&node_affinity.lock);
-	dd->node = -1;
+	dd->node = NUMA_NO_NODE;
 }
 
 /*
@@ -817,10 +818,10 @@ static void hfi1_update_sdma_affinity(struct hfi1_msix_entry *msix, int cpu)
 	set = &entry->def_intr;
 	cpumask_set_cpu(cpu, &set->mask);
 	cpumask_set_cpu(cpu, &set->used);
-	for (i = 0; i < dd->num_msix_entries; i++) {
+	for (i = 0; i < dd->msix_info.max_requested; i++) {
 		struct hfi1_msix_entry *other_msix;
 
-		other_msix = &dd->msix_entries[i];
+		other_msix = &dd->msix_info.msix_entries[i];
 		if (other_msix->type != IRQ_SDMA || other_msix == msix)
 			continue;
 

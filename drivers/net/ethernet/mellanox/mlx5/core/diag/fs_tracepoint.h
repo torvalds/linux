@@ -61,6 +61,41 @@ const char *parse_fs_dst(struct trace_seq *p,
 			 const struct mlx5_flow_destination *dst,
 			 u32 counter_id);
 
+TRACE_EVENT(mlx5_fs_add_ft,
+	    TP_PROTO(const struct mlx5_flow_table *ft),
+	    TP_ARGS(ft),
+	    TP_STRUCT__entry(
+		__field(const struct mlx5_flow_table *, ft)
+		__field(u32, id)
+		__field(u32, level)
+		__field(u32, type)
+	    ),
+	    TP_fast_assign(
+			   __entry->ft = ft;
+			   __entry->id = ft->id;
+			   __entry->level = ft->level;
+			   __entry->type = ft->type;
+	    ),
+	    TP_printk("ft=%p id=%u level=%u type=%u \n",
+		      __entry->ft, __entry->id, __entry->level, __entry->type)
+	    );
+
+TRACE_EVENT(mlx5_fs_del_ft,
+	    TP_PROTO(const struct mlx5_flow_table *ft),
+	    TP_ARGS(ft),
+	    TP_STRUCT__entry(
+		__field(const struct mlx5_flow_table *, ft)
+		__field(u32, id)
+	    ),
+	    TP_fast_assign(
+			   __entry->ft = ft;
+			   __entry->id = ft->id;
+
+	    ),
+	    TP_printk("ft=%p id=%u\n",
+		      __entry->ft, __entry->id)
+	    );
+
 TRACE_EVENT(mlx5_fs_add_fg,
 	    TP_PROTO(const struct mlx5_flow_group *fg),
 	    TP_ARGS(fg),
@@ -133,7 +168,7 @@ TRACE_EVENT(mlx5_fs_del_fg,
 	{MLX5_FLOW_CONTEXT_ACTION_DROP,		 "DROP"},\
 	{MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,	 "FWD"},\
 	{MLX5_FLOW_CONTEXT_ACTION_COUNT,	 "CNT"},\
-	{MLX5_FLOW_CONTEXT_ACTION_ENCAP,	 "ENCAP"},\
+	{MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT, "REFORMAT"},\
 	{MLX5_FLOW_CONTEXT_ACTION_DECAP,	 "DECAP"},\
 	{MLX5_FLOW_CONTEXT_ACTION_MOD_HDR,	 "MOD_HDR"},\
 	{MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH,	 "VLAN_PUSH"},\
@@ -252,10 +287,10 @@ TRACE_EVENT(mlx5_fs_add_rule,
 			   memcpy(__entry->destination,
 				  &rule->dest_attr,
 				  sizeof(__entry->destination));
-			   if (rule->dest_attr.type & MLX5_FLOW_DESTINATION_TYPE_COUNTER &&
-			       rule->dest_attr.counter)
+			   if (rule->dest_attr.type &
+			       MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 				__entry->counter_id =
-				rule->dest_attr.counter->id;
+					rule->dest_attr.counter_id;
 	    ),
 	    TP_printk("rule=%p fte=%p index=%u sw_action=<%s> [dst] %s\n",
 		      __entry->rule, __entry->fte, __entry->index,

@@ -857,6 +857,7 @@ struct file_operations {
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
+	int (*iopoll)(struct kiocb *kiocb, bool spin);
 	int (*iterate) (struct file *, struct dir_context *);
 	int (*iterate_shared) (struct file *, struct dir_context *);
 	__poll_t (*poll) (struct file *, struct poll_table_struct *);
@@ -883,8 +884,9 @@ struct file_operations {
 	unsigned (*mmap_capabilities)(struct file *);
 #endif
 	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
-	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
-	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
+	loff_t (*remap_file_range)(struct file *file_in, loff_t pos_in,
+				   struct file *file_out, loff_t pos_out,
+				   loff_t len, unsigned int remap_flags);
 	int (*fadvise)(struct file *, loff_t, loff_t, int);
 };
 
@@ -900,6 +902,8 @@ otherwise noted.
   write: called by write(2) and related system calls
 
   write_iter: possibly asynchronous write with iov_iter as source
+
+  iopoll: called when aio wants to poll for completions on HIPRI iocbs
 
   iterate: called when the VFS needs to read the directory contents
 
@@ -960,11 +964,18 @@ otherwise noted.
 
   copy_file_range: called by the copy_file_range(2) system call.
 
-  clone_file_range: called by the ioctl(2) system call for FICLONERANGE and
-	FICLONE commands.
-
-  dedupe_file_range: called by the ioctl(2) system call for FIDEDUPERANGE
-	command.
+  remap_file_range: called by the ioctl(2) system call for FICLONERANGE and
+	FICLONE and FIDEDUPERANGE commands to remap file ranges.  An
+	implementation should remap len bytes at pos_in of the source file into
+	the dest file at pos_out.  Implementations must handle callers passing
+	in len == 0; this means "remap to the end of the source file".  The
+	return value should the number of bytes remapped, or the usual
+	negative error code if errors occurred before any bytes were remapped.
+	The remap_flags parameter accepts REMAP_FILE_* flags.  If
+	REMAP_FILE_DEDUP is set then the implementation must only remap if the
+	requested file ranges have identical contents.  If REMAP_CAN_SHORTEN is
+	set, the caller is ok with the implementation shortening the request
+	length to satisfy alignment or EOF requirements (or any other reason).
 
   fadvise: possibly called by the fadvise64() system call.
 
@@ -1123,7 +1134,7 @@ struct dentry_operations {
 
   d_manage: called to allow the filesystem to manage the transition from a
 	dentry (optional).  This allows autofs, for example, to hold up clients
-	waiting to explore behind a 'mountpoint' whilst letting the daemon go
+	waiting to explore behind a 'mountpoint' while letting the daemon go
 	past and construct the subtree there.  0 should be returned to let the
 	calling process continue.  -EISDIR can be returned to tell pathwalk to
 	use this directory as an ordinary directory and to ignore anything

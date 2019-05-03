@@ -87,11 +87,32 @@
 #define R600_MEDIUM_VID_LOWER_GPIO_CNTL                            0x720
 #define R600_LOW_VID_LOWER_GPIO_CNTL                               0x724
 
-#define R600_D1GRPH_SWAP_CONTROL                               0x610C
-#       define R600_D1GRPH_SWAP_ENDIAN_NONE                    (0 << 0)
-#       define R600_D1GRPH_SWAP_ENDIAN_16BIT                   (1 << 0)
-#       define R600_D1GRPH_SWAP_ENDIAN_32BIT                   (2 << 0)
-#       define R600_D1GRPH_SWAP_ENDIAN_64BIT                   (3 << 0)
+#define R600_D1GRPH_SWAP_CONTROL                     0x610C
+#       define R600_D1GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
+#       define R600_D1GRPH_SWAP_ENDIAN_NONE          0
+#       define R600_D1GRPH_SWAP_ENDIAN_16BIT         1
+#       define R600_D1GRPH_SWAP_ENDIAN_32BIT         2
+#       define R600_D1GRPH_SWAP_ENDIAN_64BIT         3
+#       define R600_D1GRPH_RED_CROSSBAR(x)           (((x) & 0x3) << 4)
+#       define R600_D1GRPH_RED_SEL_R                 0
+#       define R600_D1GRPH_RED_SEL_G                 1
+#       define R600_D1GRPH_RED_SEL_B                 2
+#       define R600_D1GRPH_RED_SEL_A                 3
+#       define R600_D1GRPH_GREEN_CROSSBAR(x)         (((x) & 0x3) << 6)
+#       define R600_D1GRPH_GREEN_SEL_G               0
+#       define R600_D1GRPH_GREEN_SEL_B               1
+#       define R600_D1GRPH_GREEN_SEL_A               2
+#       define R600_D1GRPH_GREEN_SEL_R               3
+#       define R600_D1GRPH_BLUE_CROSSBAR(x)          (((x) & 0x3) << 8)
+#       define R600_D1GRPH_BLUE_SEL_B                0
+#       define R600_D1GRPH_BLUE_SEL_A                1
+#       define R600_D1GRPH_BLUE_SEL_R                2
+#       define R600_D1GRPH_BLUE_SEL_G                3
+#       define R600_D1GRPH_ALPHA_CROSSBAR(x)         (((x) & 0x3) << 10)
+#       define R600_D1GRPH_ALPHA_SEL_A               0
+#       define R600_D1GRPH_ALPHA_SEL_R               1
+#       define R600_D1GRPH_ALPHA_SEL_G               2
+#       define R600_D1GRPH_ALPHA_SEL_B               3
 
 #define R600_HDP_NONSURFACE_BASE                                0x2c04
 

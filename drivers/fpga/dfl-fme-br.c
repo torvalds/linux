@@ -61,7 +61,6 @@ static int fme_br_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fme_br_priv *priv;
 	struct fpga_bridge *br;
-	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -69,18 +68,14 @@ static int fme_br_probe(struct platform_device *pdev)
 
 	priv->pdata = dev_get_platdata(dev);
 
-	br = fpga_bridge_create(dev, "DFL FPGA FME Bridge",
-				&fme_bridge_ops, priv);
+	br = devm_fpga_bridge_create(dev, "DFL FPGA FME Bridge",
+				     &fme_bridge_ops, priv);
 	if (!br)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, br);
 
-	ret = fpga_bridge_register(br);
-	if (ret)
-		fpga_bridge_free(br);
-
-	return ret;
+	return fpga_bridge_register(br);
 }
 
 static int fme_br_remove(struct platform_device *pdev)

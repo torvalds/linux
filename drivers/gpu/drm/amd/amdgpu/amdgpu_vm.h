@@ -29,6 +29,8 @@
 #include <linux/rbtree.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_file.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <linux/chash.h>
 
 #include "amdgpu_sync.h"
 #include "amdgpu_ring.h"
@@ -47,9 +49,6 @@ struct amdgpu_bo_list_entry;
 
 /* number of entries in page table */
 #define AMDGPU_VM_PTE_COUNT(adev) (1 << (adev)->vm_manager.block_size)
-
-/* PTBs (Page Table Blocks) need to be aligned to 32K */
-#define AMDGPU_VM_PTB_ALIGN_SIZE   32768
 
 #define AMDGPU_PTE_VALID	(1ULL << 0)
 #define AMDGPU_PTE_SYSTEM	(1ULL << 1)
@@ -103,19 +102,6 @@ struct amdgpu_bo_list_entry;
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(1ULL << 20)
 
-/* VA hole for 48bit addresses on Vega10 */
-#define AMDGPU_VA_HOLE_START			0x0000800000000000ULL
-#define AMDGPU_VA_HOLE_END			0xffff800000000000ULL
-
-/*
- * Hardware is programmed as if the hole doesn't exists with start and end
- * address values.
- *
- * This mask is used to remove the upper 16bits of the VA and so come up with
- * the linear addr value.
- */
-#define AMDGPU_VA_HOLE_MASK			0x0000ffffffffffffULL
-
 /* max vmids dedicated for process */
 #define AMDGPU_VM_MAX_RESERVED_VMID	1
 
@@ -143,7 +129,7 @@ struct amdgpu_vm_bo_base {
 	struct amdgpu_bo		*bo;
 
 	/* protected by bo being reserved */
-	struct list_head		bo_list;
+	struct amdgpu_vm_bo_base	*next;
 
 	/* protected by spinlock */
 	struct list_head		vm_status;
@@ -160,6 +146,27 @@ struct amdgpu_vm_pt {
 	struct amdgpu_vm_pt		*entries;
 };
 
+/* provided by hw blocks that can write ptes, e.g., sdma */
+struct amdgpu_vm_pte_funcs {
+	/* number of dw to reserve per operation */
+	unsigned	copy_pte_num_dw;
+
+	/* copy pte entries from GART */
+	void (*copy_pte)(struct amdgpu_ib *ib,
+			 uint64_t pe, uint64_t src,
+			 unsigned count);
+
+	/* write pte one entry at a time with addr mapping */
+	void (*write_pte)(struct amdgpu_ib *ib, uint64_t pe,
+			  uint64_t value, unsigned count,
+			  uint32_t incr);
+	/* for linear pte/pde updates without addr mapping */
+	void (*set_pte_pde)(struct amdgpu_ib *ib,
+			    uint64_t pe,
+			    uint64_t addr, unsigned count,
+			    uint32_t incr, uint64_t flags);
+};
+
 #define AMDGPU_VM_FAULT(pasid, addr) (((u64)(pasid) << 48) | (addr))
 #define AMDGPU_VM_FAULT_PASID(fault) ((u64)(fault) >> 48)
 #define AMDGPU_VM_FAULT_ADDR(fault)  ((u64)(fault) & 0xfffffffff000ULL)
@@ -172,6 +179,13 @@ struct amdgpu_task_info {
 	pid_t	tgid;
 };
 
+#define AMDGPU_PAGEFAULT_HASH_BITS 8
+struct amdgpu_retryfault_hashtable {
+	DECLARE_CHASH_TABLE(hash, AMDGPU_PAGEFAULT_HASH_BITS, 8, 0);
+	spinlock_t	lock;
+	int		count;
+};
+
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
@@ -182,12 +196,15 @@ struct amdgpu_vm {
 	/* PT BOs which relocated and their parent need an update */
 	struct list_head	relocated;
 
-	/* BOs moved, but not yet updated in the PT */
+	/* per VM BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
-	spinlock_t		moved_lock;
 
 	/* All BOs of this VM not currently in the state machine */
 	struct list_head	idle;
+
+	/* regular invalidated BOs, but not yet updated in the PT */
+	struct list_head	invalidated;
+	spinlock_t		invalidated_lock;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
@@ -212,9 +229,6 @@ struct amdgpu_vm {
 	/* Up to 128 pending retry page faults */
 	DECLARE_KFIFO(faults, u64, 128);
 
-	/* Limit non-retry fault storms */
-	unsigned int		fault_credit;
-
 	/* Points to the KFD process VM info */
 	struct amdkfd_process_info *process_info;
 
@@ -226,6 +240,12 @@ struct amdgpu_vm {
 
 	/* Some basic info about the task */
 	struct amdgpu_task_info task_info;
+
+	/* Store positions of group of BOs */
+	struct ttm_lru_bulk_move lru_bulk_move;
+	/* mark whether can do the bulk move */
+	bool			bulk_moveable;
+	struct amdgpu_retryfault_hashtable *fault_hash;
 };
 
 struct amdgpu_vm_manager {
@@ -244,10 +264,9 @@ struct amdgpu_vm_manager {
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* vm pte handling */
-	const struct amdgpu_vm_pte_funcs        *vm_pte_funcs;
-	struct amdgpu_ring                      *vm_pte_rings[AMDGPU_MAX_RINGS];
-	unsigned				vm_pte_num_rings;
-	atomic_t				vm_pte_next_ring;
+	const struct amdgpu_vm_pte_funcs	*vm_pte_funcs;
+	struct drm_sched_rq			*vm_pte_rqs[AMDGPU_MAX_RINGS];
+	unsigned				vm_pte_num_rqs;
 
 	/* partial resident texture handling */
 	spinlock_t				prt_lock;
@@ -266,14 +285,17 @@ struct amdgpu_vm_manager {
 	spinlock_t				pasid_lock;
 };
 
+#define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
+#define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
+#define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
+
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		   int vm_context, unsigned int pasid);
-int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, unsigned int pasid);
+void amdgpu_vm_release_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
-bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
-				  unsigned int pasid);
 void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,
 			 struct amdgpu_bo_list_entry *entry);
@@ -330,8 +352,17 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
 
 void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
-			 struct amdgpu_task_info *task_info);
+			     struct amdgpu_task_info *task_info);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
+
+void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm);
+
+int amdgpu_vm_add_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key);
+
+void amdgpu_vm_clear_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key);
+
+void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo);
 
 #endif

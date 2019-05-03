@@ -18,6 +18,19 @@
 
 #define MV88E6352_ADDR_SERDES		0x0f
 #define MV88E6352_SERDES_PAGE_FIBER	0x01
+#define MV88E6352_SERDES_IRQ		0x0b
+#define MV88E6352_SERDES_INT_ENABLE	0x12
+#define MV88E6352_SERDES_INT_SPEED_CHANGE	BIT(14)
+#define MV88E6352_SERDES_INT_DUPLEX_CHANGE	BIT(13)
+#define MV88E6352_SERDES_INT_PAGE_RX		BIT(12)
+#define MV88E6352_SERDES_INT_AN_COMPLETE	BIT(11)
+#define MV88E6352_SERDES_INT_LINK_CHANGE	BIT(10)
+#define MV88E6352_SERDES_INT_SYMBOL_ERROR	BIT(9)
+#define MV88E6352_SERDES_INT_FALSE_CARRIER	BIT(8)
+#define MV88E6352_SERDES_INT_FIFO_OVER_UNDER	BIT(7)
+#define MV88E6352_SERDES_INT_FIBRE_ENERGY	BIT(4)
+#define MV88E6352_SERDES_INT_STATUS	0x13
+
 
 #define MV88E6341_ADDR_SERDES		0x15
 
@@ -56,6 +69,14 @@
 #define MV88E6390_SGMII_INT_SYMBOL_ERROR	BIT(8)
 #define MV88E6390_SGMII_INT_FALSE_CARRIER	BIT(7)
 #define MV88E6390_SGMII_INT_STATUS	0xa002
+#define MV88E6390_SGMII_PHY_STATUS	0xa003
+#define MV88E6390_SGMII_PHY_STATUS_SPEED_MASK	GENMASK(15, 14)
+#define MV88E6390_SGMII_PHY_STATUS_SPEED_1000	0x8000
+#define MV88E6390_SGMII_PHY_STATUS_SPEED_100	0x4000
+#define MV88E6390_SGMII_PHY_STATUS_SPEED_10	0x0000
+#define MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL	BIT(13)
+#define MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID BIT(11)
+#define MV88E6390_SGMII_PHY_STATUS_LINK		BIT(10)
 
 int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
@@ -64,6 +85,8 @@ int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390x_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
 void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390x_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
+void mv88e6390x_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 				 int port, uint8_t *data);
@@ -73,5 +96,8 @@ int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
 				int lane);
 int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
 				 int lane);
+int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
+void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
+
 
 #endif

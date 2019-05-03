@@ -13,6 +13,8 @@ Required properties for the root node:
 		      "amlogic,meson-gxl-aobus-pinctrl"
 		      "amlogic,meson-axg-periphs-pinctrl"
 		      "amlogic,meson-axg-aobus-pinctrl"
+		      "amlogic,meson-g12a-periphs-pinctrl"
+		      "amlogic,meson-g12a-aobus-pinctrl"
  - reg: address and size of registers controlling irq functionality
 
 === GPIO sub-nodes ===
@@ -21,11 +23,11 @@ The GPIO bank for the controller is represented as a sub-node and it acts as a
 GPIO controller.
 
 Required properties for sub-nodes are:
- - reg: should contain address and size for mux, pull-enable, pull and
-   gpio register sets
- - reg-names: an array of strings describing the "reg" entries. Must
-   contain "mux", "pull" and "gpio". "pull-enable" is optional and
-   when it is missing the "pull" registers are used instead
+ - reg: should contain a list of address and size, one tuple for each entry
+   in reg-names.
+ - reg-names: an array of strings describing the "reg" entries.
+   Must contain "mux" and "gpio".
+   May contain "pull", "pull-enable" and "ds" when appropriate.
  - gpio-controller: identifies the node as a gpio controller
  - #gpio-cells: must be 2
 

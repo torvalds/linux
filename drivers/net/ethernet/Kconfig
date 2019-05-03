@@ -108,6 +108,13 @@ config LANTIQ_ETOP
 	---help---
 	  Support for the MII0 inside the Lantiq SoC
 
+config LANTIQ_XRX200
+	tristate "Lantiq / Intel xRX200 PMAC network driver"
+	depends on SOC_TYPE_XWAY
+	---help---
+	  Support for the PMAC of the Gigabit switch (GSWIP) inside the
+	  Lantiq / Intel VRX200 VDSL SoC
+
 source "drivers/net/ethernet/marvell/Kconfig"
 source "drivers/net/ethernet/mediatek/Kconfig"
 source "drivers/net/ethernet/mellanox/Kconfig"

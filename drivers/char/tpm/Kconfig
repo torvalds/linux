@@ -5,7 +5,7 @@
 menuconfig TCG_TPM
 	tristate "TPM Hardware Support"
 	depends on HAS_IOMEM
-	select SECURITYFS
+	imply SECURITYFS
 	select CRYPTO
 	select CRYPTO_HASH_INFO
 	---help---

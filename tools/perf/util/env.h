@@ -3,7 +3,9 @@
 #define __PERF_ENV_H
 
 #include <linux/types.h>
+#include <linux/rbtree.h>
 #include "cpumap.h"
+#include "rwsem.h"
 
 struct cpu_topology_map {
 	int	socket_id;
@@ -63,7 +65,23 @@ struct perf_env {
 	struct numa_node	*numa_nodes;
 	struct memory_node	*memory_nodes;
 	unsigned long long	 memory_bsize;
+	u64                     clockid_res_ns;
+
+	/*
+	 * bpf_info_lock protects bpf rbtrees. This is needed because the
+	 * trees are accessed by different threads in perf-top
+	 */
+	struct {
+		struct rw_semaphore	lock;
+		struct rb_root		infos;
+		u32			infos_cnt;
+		struct rb_root		btfs;
+		u32			btfs_cnt;
+	} bpf_progs;
 };
+
+struct bpf_prog_info_node;
+struct btf_node;
 
 extern struct perf_env perf_env;
 
@@ -79,4 +97,11 @@ const char *perf_env__arch(struct perf_env *env);
 const char *perf_env__raw_arch(struct perf_env *env);
 int perf_env__nr_cpus_avail(struct perf_env *env);
 
+void perf_env__init(struct perf_env *env);
+void perf_env__insert_bpf_prog_info(struct perf_env *env,
+				    struct bpf_prog_info_node *info_node);
+struct bpf_prog_info_node *perf_env__find_bpf_prog_info(struct perf_env *env,
+							__u32 prog_id);
+void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node);
+struct btf_node *perf_env__find_btf(struct perf_env *env, __u32 btf_id);
 #endif /* __PERF_ENV_H */

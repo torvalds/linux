@@ -31,7 +31,7 @@ enum hmc5843_ids {
 };
 
 /**
- * struct hcm5843_data	- device specific data
+ * struct hmc5843_data	- device specific data
  * @dev:		actual device
  * @lock:		update and read regmap data
  * @regmap:		hardware access register maps

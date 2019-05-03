@@ -2,7 +2,7 @@
  *  linux/drivers/hil/hilkbd.c
  *
  *  Copyright (C) 1998 Philip Blundell <philb@gnu.org>
- *  Copyright (C) 1999 Matthew Wilcox <willy@bofh.ai>
+ *  Copyright (C) 1999 Matthew Wilcox <willy@infradead.org>
  *  Copyright (C) 1999-2007 Helge Deller <deller@gmx.de>
  *
  *  Very basic HP Human Interface Loop (HIL) driver.

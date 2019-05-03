@@ -40,14 +40,8 @@
 static bool
 xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 {
-	const struct xt_osf_info *info = p->matchinfo;
-	struct net *net = xt_net(p);
-
-	if (!info)
-		return false;
-
 	return nf_osf_match(skb, xt_family(p), xt_hooknum(p), xt_in(p),
-			    xt_out(p), info, net, nf_osf_fingers);
+			    xt_out(p), p->matchinfo, xt_net(p), nf_osf_fingers);
 }
 
 static struct xt_match xt_osf_match = {

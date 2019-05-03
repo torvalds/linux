@@ -77,7 +77,7 @@ static void __init pti_print_if_secure(const char *reason)
 		pr_info("%s\n", reason);
 }
 
-enum pti_mode {
+static enum pti_mode {
 	PTI_AUTO = 0,
 	PTI_FORCE_OFF,
 	PTI_FORCE_ON
@@ -434,11 +434,42 @@ static void __init pti_clone_p4d(unsigned long addr)
 }
 
 /*
- * Clone the CPU_ENTRY_AREA into the user space visible page table.
+ * Clone the CPU_ENTRY_AREA and associated data into the user space visible
+ * page table.
  */
 static void __init pti_clone_user_shared(void)
 {
+	unsigned int cpu;
+
 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+
+	for_each_possible_cpu(cpu) {
+		/*
+		 * The SYSCALL64 entry code needs to be able to find the
+		 * thread stack and needs one word of scratch space in which
+		 * to spill a register.  All of this lives in the TSS, in
+		 * the sp1 and sp2 slots.
+		 *
+		 * This is done for all possible CPUs during boot to ensure
+		 * that it's propagated to all mms.  If we were to add one of
+		 * these mappings during CPU hotplug, we would need to take
+		 * some measure to make sure that every mm that subsequently
+		 * ran on that CPU would have the relevant PGD entry in its
+		 * pagetables.  The usual vmalloc_fault() mechanism would not
+		 * work for page faults taken in entry_SYSCALL_64 before RSP
+		 * is set up.
+		 */
+
+		unsigned long va = (unsigned long)&per_cpu(cpu_tss_rw, cpu);
+		phys_addr_t pa = per_cpu_ptr_to_phys((void *)va);
+		pte_t *target_pte;
+
+		target_pte = pti_user_pagetable_walk_pte(va);
+		if (WARN_ON(!target_pte))
+			return;
+
+		*target_pte = pfn_pte(pa >> PAGE_SHIFT, PAGE_KERNEL);
+	}
 }
 
 #else /* CONFIG_X86_64 */
@@ -571,7 +602,7 @@ static void pti_clone_kernel_text(void)
 	set_memory_global(start, (end_global - start) >> PAGE_SHIFT);
 }
 
-void pti_set_kernel_image_nonglobal(void)
+static void pti_set_kernel_image_nonglobal(void)
 {
 	/*
 	 * The identity map is created with PMDs, regardless of the

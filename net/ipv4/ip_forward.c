@@ -69,9 +69,17 @@ static int ip_forward_finish(struct net *net, struct sock *sk, struct sk_buff *s
 	__IP_INC_STATS(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
 	__IP_ADD_STATS(net, IPSTATS_MIB_OUTOCTETS, skb->len);
 
+#ifdef CONFIG_NET_SWITCHDEV
+	if (skb->offload_l3_fwd_mark) {
+		consume_skb(skb);
+		return 0;
+	}
+#endif
+
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
 
+	skb->tstamp = 0;
 	return dst_output(net, sk, skb);
 }
 

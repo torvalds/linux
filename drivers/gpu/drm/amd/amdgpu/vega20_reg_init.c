@@ -49,8 +49,47 @@ int vega20_reg_base_init(struct amdgpu_device *adev)
 		adev->reg_offset[SMUIO_HWIP][i] = (uint32_t *)(&(SMUIO_BASE.instance[i]));
 		adev->reg_offset[NBIF_HWIP][i] = (uint32_t *)(&(NBIO_BASE.instance[i]));
 		adev->reg_offset[THM_HWIP][i] = (uint32_t *)(&(THM_BASE.instance[i]));
+		adev->reg_offset[CLK_HWIP][i] = (uint32_t *)(&(CLK_BASE.instance[i]));
 	}
 	return 0;
 }
 
+void vega20_doorbell_index_init(struct amdgpu_device *adev)
+{
+	adev->doorbell_index.kiq = AMDGPU_VEGA20_DOORBELL_KIQ;
+	adev->doorbell_index.mec_ring0 = AMDGPU_VEGA20_DOORBELL_MEC_RING0;
+	adev->doorbell_index.mec_ring1 = AMDGPU_VEGA20_DOORBELL_MEC_RING1;
+	adev->doorbell_index.mec_ring2 = AMDGPU_VEGA20_DOORBELL_MEC_RING2;
+	adev->doorbell_index.mec_ring3 = AMDGPU_VEGA20_DOORBELL_MEC_RING3;
+	adev->doorbell_index.mec_ring4 = AMDGPU_VEGA20_DOORBELL_MEC_RING4;
+	adev->doorbell_index.mec_ring5 = AMDGPU_VEGA20_DOORBELL_MEC_RING5;
+	adev->doorbell_index.mec_ring6 = AMDGPU_VEGA20_DOORBELL_MEC_RING6;
+	adev->doorbell_index.mec_ring7 = AMDGPU_VEGA20_DOORBELL_MEC_RING7;
+	adev->doorbell_index.userqueue_start = AMDGPU_VEGA20_DOORBELL_USERQUEUE_START;
+	adev->doorbell_index.userqueue_end = AMDGPU_VEGA20_DOORBELL_USERQUEUE_END;
+	adev->doorbell_index.gfx_ring0 = AMDGPU_VEGA20_DOORBELL_GFX_RING0;
+	adev->doorbell_index.sdma_engine[0] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE0;
+	adev->doorbell_index.sdma_engine[1] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE1;
+	adev->doorbell_index.sdma_engine[2] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE2;
+	adev->doorbell_index.sdma_engine[3] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE3;
+	adev->doorbell_index.sdma_engine[4] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE4;
+	adev->doorbell_index.sdma_engine[5] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE5;
+	adev->doorbell_index.sdma_engine[6] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE6;
+	adev->doorbell_index.sdma_engine[7] = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE7;
+	adev->doorbell_index.ih = AMDGPU_VEGA20_DOORBELL_IH;
+	adev->doorbell_index.uvd_vce.uvd_ring0_1 = AMDGPU_VEGA20_DOORBELL64_UVD_RING0_1;
+	adev->doorbell_index.uvd_vce.uvd_ring2_3 = AMDGPU_VEGA20_DOORBELL64_UVD_RING2_3;
+	adev->doorbell_index.uvd_vce.uvd_ring4_5 = AMDGPU_VEGA20_DOORBELL64_UVD_RING4_5;
+	adev->doorbell_index.uvd_vce.uvd_ring6_7 = AMDGPU_VEGA20_DOORBELL64_UVD_RING6_7;
+	adev->doorbell_index.uvd_vce.vce_ring0_1 = AMDGPU_VEGA20_DOORBELL64_VCE_RING0_1;
+	adev->doorbell_index.uvd_vce.vce_ring2_3 = AMDGPU_VEGA20_DOORBELL64_VCE_RING2_3;
+	adev->doorbell_index.uvd_vce.vce_ring4_5 = AMDGPU_VEGA20_DOORBELL64_VCE_RING4_5;
+	adev->doorbell_index.uvd_vce.vce_ring6_7 = AMDGPU_VEGA20_DOORBELL64_VCE_RING6_7;
+
+	adev->doorbell_index.first_non_cp = AMDGPU_VEGA20_DOORBELL64_FIRST_NON_CP;
+	adev->doorbell_index.last_non_cp = AMDGPU_VEGA20_DOORBELL64_LAST_NON_CP;
+
+	adev->doorbell_index.max_assignment = AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT << 1;
+	adev->doorbell_index.sdma_doorbell_range = 20;
+}
 

@@ -324,7 +324,7 @@ static void cpia2_usb_complete(struct urb *urb)
 				continue;
 			}
 			DBG("Start of frame pattern found\n");
-			v4l2_get_timestamp(&cam->workbuff->timestamp);
+			cam->workbuff->ts = ktime_get_ns();
 			cam->workbuff->seq = cam->frame_count++;
 			cam->workbuff->data[0] = 0xFF;
 			cam->workbuff->data[1] = 0xD8;

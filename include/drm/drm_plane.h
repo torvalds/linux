@@ -27,6 +27,9 @@
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_color_mgmt.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_modeset_lock.h>
+#include <drm/drm_util.h>
 
 struct drm_crtc;
 struct drm_printer;
@@ -119,6 +122,14 @@ struct drm_plane_state {
 	u16 alpha;
 
 	/**
+	 * @pixel_blend_mode:
+	 * The alpha blending equation selection, describing how the pixels from
+	 * the current plane are composited with the background. Value can be
+	 * one of DRM_MODE_BLEND_*
+	 */
+	uint16_t pixel_blend_mode;
+
+	/**
 	 * @rotation:
 	 * Rotation of the plane. See drm_plane_create_rotation_property() for
 	 * more details.
@@ -161,6 +172,16 @@ struct drm_plane_state {
 	 * Color range for non RGB formats
 	 */
 	enum drm_color_range color_range;
+
+	/**
+	 * @fb_damage_clips:
+	 *
+	 * Blob representing damage (area in plane framebuffer that changed
+	 * since last plane update) as an array of &drm_mode_rect in framebuffer
+	 * coodinates of the attached framebuffer. Note that unlike plane src,
+	 * damage clips are not in 16.16 fixed point.
+	 */
+	struct drm_property_blob *fb_damage_clips;
 
 	/** @src: clipped source coordinates of the plane (in 16.16) */
 	/** @dst: clipped destination coordinates of the plane */
@@ -659,6 +680,14 @@ struct drm_plane {
 	 * drm_plane_create_rotation_property().
 	 */
 	struct drm_property *rotation_property;
+	/**
+	 * @blend_mode_property:
+	 * Optional "pixel blend mode" enum property for this plane.
+	 * Blend mode property represents the alpha blending equation selection,
+	 * describing how the pixels from the current plane are composited with
+	 * the background.
+	 */
+	struct drm_property *blend_mode_property;
 
 	/**
 	 * @color_encoding_property:
@@ -779,5 +808,39 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
 #define drm_for_each_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
 
+bool drm_any_plane_has_format(struct drm_device *dev,
+			      u32 format, u64 modifier);
+/**
+ * drm_plane_get_damage_clips_count - Returns damage clips count.
+ * @state: Plane state.
+ *
+ * Simple helper to get the number of &drm_mode_rect clips set by user-space
+ * during plane update.
+ *
+ * Return: Number of clips in plane fb_damage_clips blob property.
+ */
+static inline unsigned int
+drm_plane_get_damage_clips_count(const struct drm_plane_state *state)
+{
+	return (state && state->fb_damage_clips) ?
+		state->fb_damage_clips->length/sizeof(struct drm_mode_rect) : 0;
+}
+
+/**
+ * drm_plane_get_damage_clips - Returns damage clips.
+ * @state: Plane state.
+ *
+ * Note that this function returns uapi type &drm_mode_rect. Drivers might
+ * instead be interested in internal &drm_rect which can be obtained by calling
+ * drm_helper_get_plane_damage_clips().
+ *
+ * Return: Damage clips in plane fb_damage_clips blob property.
+ */
+static inline struct drm_mode_rect *
+drm_plane_get_damage_clips(const struct drm_plane_state *state)
+{
+	return (struct drm_mode_rect *)((state && state->fb_damage_clips) ?
+					state->fb_damage_clips->data : NULL);
+}
 
 #endif

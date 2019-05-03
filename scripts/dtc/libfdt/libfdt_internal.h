@@ -55,10 +55,11 @@
 #define FDT_ALIGN(x, a)		(((x) + (a) - 1) & ~((a) - 1))
 #define FDT_TAGALIGN(x)		(FDT_ALIGN((x), FDT_TAGSIZE))
 
-#define FDT_CHECK_HEADER(fdt) \
+int fdt_ro_probe_(const void *fdt);
+#define FDT_RO_PROBE(fdt)			\
 	{ \
 		int err_; \
-		if ((err_ = fdt_check_header(fdt)) != 0) \
+		if ((err_ = fdt_ro_probe_(fdt)) != 0)	\
 			return err_; \
 	}
 

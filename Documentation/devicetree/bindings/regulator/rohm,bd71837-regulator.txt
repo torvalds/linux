@@ -1,7 +1,9 @@
-ROHM BD71837 Power Management Integrated Circuit (PMIC) regulator bindings
+ROHM BD71837 and BD71847 Power Management Integrated Circuit regulator bindings
 
 Required properties:
- - regulator-name: should be "buck1", ..., "buck8" and "ldo1", ..., "ldo7"
+ - regulator-name: should be "buck1", ..., "buck8" and "ldo1", ..., "ldo7" for
+                   BD71837. For BD71847 names should be "buck1", ..., "buck6"
+		   and "ldo1", ..., "ldo6"
 
 List of regulators provided by this controller. BD71837 regulators node
 should be sub node of the BD71837 MFD node. See BD71837 MFD bindings at
@@ -16,12 +18,46 @@ disabled by driver at startup. LDO5 and LDO6 are supplied by those and
 if they are disabled at startup the voltage monitoring for LDO5/LDO6 will
 cause PMIC to reset.
 
-The valid names for regulator nodes are:
+The valid names for BD71837 regulator nodes are:
 BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, BUCK7, BUCK8
 LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7
 
+The valid names for BD71847 regulator nodes are:
+BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6
+LDO1, LDO2, LDO3, LDO4, LDO5, LDO6
+
 Optional properties:
+- rohm,dvs-run-voltage		: PMIC default "RUN" state voltage in uV.
+				  See below table for bucks which support this.
+- rohm,dvs-idle-voltage		: PMIC default "IDLE" state voltage in uV.
+				  See below table for bucks which support this.
+- rohm,dvs-suspend-voltage	: PMIC default "SUSPEND" state voltage in uV.
+				  See below table for bucks which support this.
 - Any optional property defined in bindings/regulator/regulator.txt
+
+Supported default DVS states:
+
+BD71837:
+buck	| dvs-run-voltage	| dvs-idle-voltage	| dvs-suspend-voltage
+-----------------------------------------------------------------------------
+1	| supported		| supported		| supported
+----------------------------------------------------------------------------
+2	| supported		| supported		| not supported
+----------------------------------------------------------------------------
+3	| supported		| not supported		| not supported
+----------------------------------------------------------------------------
+4	| supported		| not supported		| not supported
+----------------------------------------------------------------------------
+rest	| not supported		| not supported		| not supported
+
+BD71847:
+buck	| dvs-run-voltage	| dvs-idle-voltage	| dvs-suspend-voltage
+-----------------------------------------------------------------------------
+1	| supported		| supported		| supported
+----------------------------------------------------------------------------
+2	| supported		| supported		| not supported
+----------------------------------------------------------------------------
+rest	| not supported		| not supported		| not supported
 
 Example:
 regulators {
@@ -30,7 +66,11 @@ regulators {
 		regulator-min-microvolt = <700000>;
 		regulator-max-microvolt = <1300000>;
 		regulator-boot-on;
+		regulator-always-on;
 		regulator-ramp-delay = <1250>;
+		rohm,dvs-run-voltage = <900000>;
+		rohm,dvs-idle-voltage = <850000>;
+		rohm,dvs-suspend-voltage = <800000>;
 	};
 	buck2: BUCK2 {
 		regulator-name = "buck2";
@@ -39,18 +79,22 @@ regulators {
 		regulator-boot-on;
 		regulator-always-on;
 		regulator-ramp-delay = <1250>;
+		rohm,dvs-run-voltage = <1000000>;
+		rohm,dvs-idle-voltage = <900000>;
 	};
 	buck3: BUCK3 {
 		regulator-name = "buck3";
 		regulator-min-microvolt = <700000>;
 		regulator-max-microvolt = <1300000>;
 		regulator-boot-on;
+		rohm,dvs-run-voltage = <1000000>;
 	};
 	buck4: BUCK4 {
 		regulator-name = "buck4";
 		regulator-min-microvolt = <700000>;
 		regulator-max-microvolt = <1300000>;
 		regulator-boot-on;
+		rohm,dvs-run-voltage = <1000000>;
 	};
 	buck5: BUCK5 {
 		regulator-name = "buck5";

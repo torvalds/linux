@@ -547,7 +547,7 @@ static struct mbox_chan *ti_msgmgr_of_xlate(struct mbox_controller *mbox,
 	}
 
 	if (d->is_sproxy) {
-		if (req_pid > d->num_valid_queues)
+		if (req_pid >= d->num_valid_queues)
 			goto err;
 		qinst = &inst->qinsts[req_pid];
 		return qinst->chan;
@@ -560,8 +560,8 @@ static struct mbox_chan *ti_msgmgr_of_xlate(struct mbox_controller *mbox,
 	}
 
 err:
-	dev_err(inst->dev, "Queue ID %d, Proxy ID %d is wrong on %s\n",
-		req_qid, req_pid, p->np->name);
+	dev_err(inst->dev, "Queue ID %d, Proxy ID %d is wrong on %pOFn\n",
+		req_qid, req_pid, p->np);
 	return ERR_PTR(-ENOENT);
 }
 
@@ -817,26 +817,15 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	mbox->of_xlate = ti_msgmgr_of_xlate;
 
 	platform_set_drvdata(pdev, inst);
-	ret = mbox_controller_register(mbox);
+	ret = devm_mbox_controller_register(dev, mbox);
 	if (ret)
 		dev_err(dev, "Failed to register mbox_controller(%d)\n", ret);
 
 	return ret;
 }
 
-static int ti_msgmgr_remove(struct platform_device *pdev)
-{
-	struct ti_msgmgr_inst *inst;
-
-	inst = platform_get_drvdata(pdev);
-	mbox_controller_unregister(&inst->mbox);
-
-	return 0;
-}
-
 static struct platform_driver ti_msgmgr_driver = {
 	.probe = ti_msgmgr_probe,
-	.remove = ti_msgmgr_remove,
 	.driver = {
 		   .name = "ti-msgmgr",
 		   .of_match_table = of_match_ptr(ti_msgmgr_of_match),

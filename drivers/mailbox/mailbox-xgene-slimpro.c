@@ -224,7 +224,7 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 	ctx->mb_ctrl.ops = &slimpro_mbox_ops;
 	ctx->mb_ctrl.num_chans = i;
 
-	rc = mbox_controller_register(&ctx->mb_ctrl);
+	rc = devm_mbox_controller_register(&pdev->dev, &ctx->mb_ctrl);
 	if (rc) {
 		dev_err(&pdev->dev,
 			"APM X-Gene SLIMpro MailBox register failed:%d\n", rc);
@@ -232,14 +232,6 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "APM X-Gene SLIMpro MailBox registered\n");
-	return 0;
-}
-
-static int slimpro_mbox_remove(struct platform_device *pdev)
-{
-	struct slimpro_mbox *smb = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&smb->mb_ctrl);
 	return 0;
 }
 
@@ -259,7 +251,6 @@ MODULE_DEVICE_TABLE(acpi, slimpro_acpi_ids);
 
 static struct platform_driver slimpro_mbox_driver = {
 	.probe	= slimpro_mbox_probe,
-	.remove = slimpro_mbox_remove,
 	.driver	= {
 		.name = "xgene-slimpro-mbox",
 		.of_match_table = of_match_ptr(slimpro_of_match),

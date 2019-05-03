@@ -4,11 +4,15 @@
 #include <linux/compiler.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
-#include <asm/barrier.h>
+#include <linux/ring_buffer.h>
 #include <stdbool.h>
+#ifdef HAVE_AIO_SUPPORT
+#include <aio.h>
+#endif
 #include "auxtrace.h"
 #include "event.h"
 
+struct aiocb;
 /**
  * struct perf_mmap - perf's ring buffer mmap details
  *
@@ -26,6 +30,15 @@ struct perf_mmap {
 	bool		 overwrite;
 	struct auxtrace_mmap auxtrace_mmap;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __aligned(8);
+#ifdef HAVE_AIO_SUPPORT
+	struct {
+		void		 **data;
+		struct aiocb	 *cblocks;
+		struct aiocb	 **aiocb;
+		int		 nr_cblocks;
+	} aio;
+#endif
+	cpu_set_t	affinity_mask;
 };
 
 /*
@@ -57,7 +70,7 @@ enum bkw_mmap_state {
 };
 
 struct mmap_params {
-	int			    prot, mask;
+	int			    prot, mask, nr_cblocks, affinity;
 	struct auxtrace_mmap_params auxtrace_mp;
 };
 
@@ -71,21 +84,12 @@ void perf_mmap__consume(struct perf_mmap *map);
 
 static inline u64 perf_mmap__read_head(struct perf_mmap *mm)
 {
-	struct perf_event_mmap_page *pc = mm->base;
-	u64 head = READ_ONCE(pc->data_head);
-	rmb();
-	return head;
+	return ring_buffer_read_head(mm->base);
 }
 
 static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
 {
-	struct perf_event_mmap_page *pc = md->base;
-
-	/*
-	 * ensure all reads are done before we write the tail out.
-	 */
-	mb();
-	pc->data_tail = tail;
+	ring_buffer_write_tail(md->base, tail);
 }
 
 union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
@@ -93,7 +97,19 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
 union perf_event *perf_mmap__read_event(struct perf_mmap *map);
 
 int perf_mmap__push(struct perf_mmap *md, void *to,
-		    int push(void *to, void *buf, size_t size));
+		    int push(struct perf_mmap *map, void *to, void *buf, size_t size));
+#ifdef HAVE_AIO_SUPPORT
+int perf_mmap__aio_push(struct perf_mmap *md, void *to, int idx,
+			int push(void *to, struct aiocb *cblock, void *buf, size_t size, off_t off),
+			off_t *off);
+#else
+static inline int perf_mmap__aio_push(struct perf_mmap *md __maybe_unused, void *to __maybe_unused, int idx __maybe_unused,
+	int push(void *to, struct aiocb *cblock, void *buf, size_t size, off_t off) __maybe_unused,
+	off_t *off __maybe_unused)
+{
+	return 0;
+}
+#endif
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map);
 

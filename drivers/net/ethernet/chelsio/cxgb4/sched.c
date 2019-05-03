@@ -38,7 +38,6 @@
 #include "cxgb4.h"
 #include "sched.h"
 
-/* Spinlock must be held by caller */
 static int t4_sched_class_fw_cmd(struct port_info *pi,
 				 struct ch_sched_params *p,
 				 enum sched_fw_ops op)
@@ -67,7 +66,6 @@ static int t4_sched_class_fw_cmd(struct port_info *pi,
 	return err;
 }
 
-/* Spinlock must be held by caller */
 static int t4_sched_bind_unbind_op(struct port_info *pi, void *arg,
 				   enum sched_bind_type type, bool bind)
 {
@@ -163,7 +161,6 @@ static int t4_sched_queue_unbind(struct port_info *pi, struct ch_sched_queue *p)
 	if (e && index >= 0) {
 		int i = 0;
 
-		spin_lock(&e->lock);
 		list_for_each_entry(qe, &e->queue_list, list) {
 			if (i == index)
 				break;
@@ -171,10 +168,8 @@ static int t4_sched_queue_unbind(struct port_info *pi, struct ch_sched_queue *p)
 		}
 		err = t4_sched_bind_unbind_op(pi, (void *)qe, SCHED_QUEUE,
 					      false);
-		if (err) {
-			spin_unlock(&e->lock);
-			goto out;
-		}
+		if (err)
+			return err;
 
 		list_del(&qe->list);
 		kvfree(qe);
@@ -182,9 +177,7 @@ static int t4_sched_queue_unbind(struct port_info *pi, struct ch_sched_queue *p)
 			e->state = SCHED_STATE_UNUSED;
 			memset(&e->info, 0, sizeof(e->info));
 		}
-		spin_unlock(&e->lock);
 	}
-out:
 	return err;
 }
 
@@ -210,10 +203,8 @@ static int t4_sched_queue_bind(struct port_info *pi, struct ch_sched_queue *p)
 
 	/* Unbind queue from any existing class */
 	err = t4_sched_queue_unbind(pi, p);
-	if (err) {
-		kvfree(qe);
-		goto out;
-	}
+	if (err)
+		goto out_err;
 
 	/* Bind queue to specified class */
 	memset(qe, 0, sizeof(*qe));
@@ -221,18 +212,16 @@ static int t4_sched_queue_bind(struct port_info *pi, struct ch_sched_queue *p)
 	memcpy(&qe->param, p, sizeof(qe->param));
 
 	e = &s->tab[qe->param.class];
-	spin_lock(&e->lock);
 	err = t4_sched_bind_unbind_op(pi, (void *)qe, SCHED_QUEUE, true);
-	if (err) {
-		kvfree(qe);
-		spin_unlock(&e->lock);
-		goto out;
-	}
+	if (err)
+		goto out_err;
 
 	list_add_tail(&qe->list, &e->queue_list);
 	atomic_inc(&e->refcnt);
-	spin_unlock(&e->lock);
-out:
+	return err;
+
+out_err:
+	kvfree(qe);
 	return err;
 }
 
@@ -296,8 +285,6 @@ int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
 			   enum sched_bind_type type)
 {
 	struct port_info *pi = netdev2pinfo(dev);
-	struct sched_table *s;
-	int err = 0;
 	u8 class_id;
 
 	if (!can_sched(dev))
@@ -323,12 +310,8 @@ int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
 	if (class_id == SCHED_CLS_NONE)
 		return -ENOTSUPP;
 
-	s = pi->sched_tbl;
-	write_lock(&s->rw_lock);
-	err = t4_sched_class_bind_unbind_op(pi, arg, type, true);
-	write_unlock(&s->rw_lock);
+	return t4_sched_class_bind_unbind_op(pi, arg, type, true);
 
-	return err;
 }
 
 /**
@@ -343,8 +326,6 @@ int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,
 			     enum sched_bind_type type)
 {
 	struct port_info *pi = netdev2pinfo(dev);
-	struct sched_table *s;
-	int err = 0;
 	u8 class_id;
 
 	if (!can_sched(dev))
@@ -367,12 +348,7 @@ int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,
 	if (!valid_class_id(dev, class_id))
 		return -EINVAL;
 
-	s = pi->sched_tbl;
-	write_lock(&s->rw_lock);
-	err = t4_sched_class_bind_unbind_op(pi, arg, type, false);
-	write_unlock(&s->rw_lock);
-
-	return err;
+	return t4_sched_class_bind_unbind_op(pi, arg, type, false);
 }
 
 /* If @p is NULL, fetch any available unused class */
@@ -425,7 +401,6 @@ static struct sched_class *t4_sched_class_lookup(struct port_info *pi,
 static struct sched_class *t4_sched_class_alloc(struct port_info *pi,
 						struct ch_sched_params *p)
 {
-	struct sched_table *s = pi->sched_tbl;
 	struct sched_class *e;
 	u8 class_id;
 	int err;
@@ -441,7 +416,6 @@ static struct sched_class *t4_sched_class_alloc(struct port_info *pi,
 	if (class_id != SCHED_CLS_NONE)
 		return NULL;
 
-	write_lock(&s->rw_lock);
 	/* See if there's an exisiting class with same
 	 * requested sched params
 	 */
@@ -452,27 +426,19 @@ static struct sched_class *t4_sched_class_alloc(struct port_info *pi,
 		/* Fetch any available unused class */
 		e = t4_sched_class_lookup(pi, NULL);
 		if (!e)
-			goto out;
+			return NULL;
 
 		memcpy(&np, p, sizeof(np));
 		np.u.params.class = e->idx;
-
-		spin_lock(&e->lock);
 		/* New class */
 		err = t4_sched_class_fw_cmd(pi, &np, SCHED_FW_OP_ADD);
-		if (err) {
-			spin_unlock(&e->lock);
-			e = NULL;
-			goto out;
-		}
+		if (err)
+			return NULL;
 		memcpy(&e->info, &np, sizeof(e->info));
 		atomic_set(&e->refcnt, 0);
 		e->state = SCHED_STATE_ACTIVE;
-		spin_unlock(&e->lock);
 	}
 
-out:
-	write_unlock(&s->rw_lock);
 	return e;
 }
 
@@ -512,19 +478,17 @@ struct sched_table *t4_init_sched(unsigned int sched_size)
 	struct sched_table *s;
 	unsigned int i;
 
-	s = kvzalloc(sizeof(*s) + sched_size * sizeof(struct sched_class), GFP_KERNEL);
+	s = kvzalloc(struct_size(s, tab, sched_size), GFP_KERNEL);
 	if (!s)
 		return NULL;
 
 	s->sched_size = sched_size;
-	rwlock_init(&s->rw_lock);
 
 	for (i = 0; i < s->sched_size; i++) {
 		memset(&s->tab[i], 0, sizeof(struct sched_class));
 		s->tab[i].idx = i;
 		s->tab[i].state = SCHED_STATE_UNUSED;
 		INIT_LIST_HEAD(&s->tab[i].queue_list);
-		spin_lock_init(&s->tab[i].lock);
 		atomic_set(&s->tab[i].refcnt, 0);
 	}
 	return s;
@@ -545,11 +509,9 @@ void t4_cleanup_sched(struct adapter *adap)
 		for (i = 0; i < s->sched_size; i++) {
 			struct sched_class *e;
 
-			write_lock(&s->rw_lock);
 			e = &s->tab[i];
 			if (e->state == SCHED_STATE_ACTIVE)
 				t4_sched_class_free(pi, e);
-			write_unlock(&s->rw_lock);
 		}
 		kvfree(s);
 	}

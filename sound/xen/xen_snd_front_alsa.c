@@ -15,17 +15,24 @@
 #include <sound/pcm_params.h>
 
 #include <xen/xenbus.h>
+#include <xen/xen-front-pgdir-shbuf.h>
 
 #include "xen_snd_front.h"
 #include "xen_snd_front_alsa.h"
 #include "xen_snd_front_cfg.h"
 #include "xen_snd_front_evtchnl.h"
-#include "xen_snd_front_shbuf.h"
 
 struct xen_snd_front_pcm_stream_info {
 	struct xen_snd_front_info *front_info;
 	struct xen_snd_front_evtchnl_pair *evt_pair;
-	struct xen_snd_front_shbuf sh_buf;
+
+	/* This is the shared buffer with its backing storage. */
+	struct xen_front_pgdir_shbuf shbuf;
+	u8 *buffer;
+	size_t buffer_sz;
+	int num_pages;
+	struct page **pages;
+
 	int index;
 
 	bool is_open;
@@ -214,12 +221,20 @@ static void stream_clear(struct xen_snd_front_pcm_stream_info *stream)
 	stream->out_frames = 0;
 	atomic_set(&stream->hw_ptr, 0);
 	xen_snd_front_evtchnl_pair_clear(stream->evt_pair);
-	xen_snd_front_shbuf_clear(&stream->sh_buf);
+	memset(&stream->shbuf, 0, sizeof(stream->shbuf));
+	stream->buffer = NULL;
+	stream->buffer_sz = 0;
+	stream->pages = NULL;
+	stream->num_pages = 0;
 }
 
 static void stream_free(struct xen_snd_front_pcm_stream_info *stream)
 {
-	xen_snd_front_shbuf_free(&stream->sh_buf);
+	xen_front_pgdir_shbuf_unmap(&stream->shbuf);
+	xen_front_pgdir_shbuf_free(&stream->shbuf);
+	if (stream->buffer)
+		free_pages_exact(stream->buffer, stream->buffer_sz);
+	kfree(stream->pages);
 	stream_clear(stream);
 }
 
@@ -421,10 +436,34 @@ static int alsa_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int shbuf_setup_backstore(struct xen_snd_front_pcm_stream_info *stream,
+				 size_t buffer_sz)
+{
+	int i;
+
+	stream->buffer = alloc_pages_exact(buffer_sz, GFP_KERNEL);
+	if (!stream->buffer)
+		return -ENOMEM;
+
+	stream->buffer_sz = buffer_sz;
+	stream->num_pages = DIV_ROUND_UP(stream->buffer_sz, PAGE_SIZE);
+	stream->pages = kcalloc(stream->num_pages, sizeof(struct page *),
+				GFP_KERNEL);
+	if (!stream->pages)
+		return -ENOMEM;
+
+	for (i = 0; i < stream->num_pages; i++)
+		stream->pages[i] = virt_to_page(stream->buffer + i * PAGE_SIZE);
+
+	return 0;
+}
+
 static int alsa_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
 	struct xen_snd_front_pcm_stream_info *stream = stream_get(substream);
+	struct xen_snd_front_info *front_info = stream->front_info;
+	struct xen_front_pgdir_shbuf_cfg buf_cfg;
 	int ret;
 
 	/*
@@ -432,19 +471,32 @@ static int alsa_hw_params(struct snd_pcm_substream *substream,
 	 * so free the previously allocated shared buffer if any.
 	 */
 	stream_free(stream);
+	ret = shbuf_setup_backstore(stream, params_buffer_bytes(params));
+	if (ret < 0)
+		goto fail;
 
-	ret = xen_snd_front_shbuf_alloc(stream->front_info->xb_dev,
-					&stream->sh_buf,
-					params_buffer_bytes(params));
-	if (ret < 0) {
-		stream_free(stream);
-		dev_err(&stream->front_info->xb_dev->dev,
-			"Failed to allocate buffers for stream with index %d\n",
-			stream->index);
-		return ret;
-	}
+	memset(&buf_cfg, 0, sizeof(buf_cfg));
+	buf_cfg.xb_dev = front_info->xb_dev;
+	buf_cfg.pgdir = &stream->shbuf;
+	buf_cfg.num_pages = stream->num_pages;
+	buf_cfg.pages = stream->pages;
+
+	ret = xen_front_pgdir_shbuf_alloc(&buf_cfg);
+	if (ret < 0)
+		goto fail;
+
+	ret = xen_front_pgdir_shbuf_map(&stream->shbuf);
+	if (ret < 0)
+		goto fail;
 
 	return 0;
+
+fail:
+	stream_free(stream);
+	dev_err(&front_info->xb_dev->dev,
+		"Failed to allocate buffers for stream with index %d\n",
+		stream->index);
+	return ret;
 }
 
 static int alsa_hw_free(struct snd_pcm_substream *substream)
@@ -476,7 +528,7 @@ static int alsa_prepare(struct snd_pcm_substream *substream)
 		sndif_format = ret;
 
 		ret = xen_snd_front_stream_prepare(&stream->evt_pair->req,
-						   &stream->sh_buf,
+						   &stream->shbuf,
 						   sndif_format,
 						   runtime->channels,
 						   runtime->rate,
@@ -556,10 +608,10 @@ static int alsa_pb_copy_user(struct snd_pcm_substream *substream,
 {
 	struct xen_snd_front_pcm_stream_info *stream = stream_get(substream);
 
-	if (unlikely(pos + count > stream->sh_buf.buffer_sz))
+	if (unlikely(pos + count > stream->buffer_sz))
 		return -EINVAL;
 
-	if (copy_from_user(stream->sh_buf.buffer + pos, src, count))
+	if (copy_from_user(stream->buffer + pos, src, count))
 		return -EFAULT;
 
 	return xen_snd_front_stream_write(&stream->evt_pair->req, pos, count);
@@ -571,10 +623,10 @@ static int alsa_pb_copy_kernel(struct snd_pcm_substream *substream,
 {
 	struct xen_snd_front_pcm_stream_info *stream = stream_get(substream);
 
-	if (unlikely(pos + count > stream->sh_buf.buffer_sz))
+	if (unlikely(pos + count > stream->buffer_sz))
 		return -EINVAL;
 
-	memcpy(stream->sh_buf.buffer + pos, src, count);
+	memcpy(stream->buffer + pos, src, count);
 
 	return xen_snd_front_stream_write(&stream->evt_pair->req, pos, count);
 }
@@ -586,14 +638,14 @@ static int alsa_cap_copy_user(struct snd_pcm_substream *substream,
 	struct xen_snd_front_pcm_stream_info *stream = stream_get(substream);
 	int ret;
 
-	if (unlikely(pos + count > stream->sh_buf.buffer_sz))
+	if (unlikely(pos + count > stream->buffer_sz))
 		return -EINVAL;
 
 	ret = xen_snd_front_stream_read(&stream->evt_pair->req, pos, count);
 	if (ret < 0)
 		return ret;
 
-	return copy_to_user(dst, stream->sh_buf.buffer + pos, count) ?
+	return copy_to_user(dst, stream->buffer + pos, count) ?
 		-EFAULT : 0;
 }
 
@@ -604,14 +656,14 @@ static int alsa_cap_copy_kernel(struct snd_pcm_substream *substream,
 	struct xen_snd_front_pcm_stream_info *stream = stream_get(substream);
 	int ret;
 
-	if (unlikely(pos + count > stream->sh_buf.buffer_sz))
+	if (unlikely(pos + count > stream->buffer_sz))
 		return -EINVAL;
 
 	ret = xen_snd_front_stream_read(&stream->evt_pair->req, pos, count);
 	if (ret < 0)
 		return ret;
 
-	memcpy(dst, stream->sh_buf.buffer + pos, count);
+	memcpy(dst, stream->buffer + pos, count);
 
 	return 0;
 }
@@ -622,10 +674,10 @@ static int alsa_pb_fill_silence(struct snd_pcm_substream *substream,
 {
 	struct xen_snd_front_pcm_stream_info *stream = stream_get(substream);
 
-	if (unlikely(pos + count > stream->sh_buf.buffer_sz))
+	if (unlikely(pos + count > stream->buffer_sz))
 		return -EINVAL;
 
-	memset(stream->sh_buf.buffer + pos, 0, count);
+	memset(stream->buffer + pos, 0, count);
 
 	return xen_snd_front_stream_write(&stream->evt_pair->req, pos, count);
 }
@@ -637,31 +689,31 @@ static int alsa_pb_fill_silence(struct snd_pcm_substream *substream,
  * to know when the buffer can be transferred to the backend.
  */
 
-static struct snd_pcm_ops snd_drv_alsa_playback_ops = {
-	.open = alsa_open,
-	.close = alsa_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = alsa_hw_params,
-	.hw_free = alsa_hw_free,
-	.prepare = alsa_prepare,
-	.trigger = alsa_trigger,
-	.pointer = alsa_pointer,
-	.copy_user = alsa_pb_copy_user,
-	.copy_kernel = alsa_pb_copy_kernel,
-	.fill_silence = alsa_pb_fill_silence,
+static const struct snd_pcm_ops snd_drv_alsa_playback_ops = {
+	.open		= alsa_open,
+	.close		= alsa_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= alsa_hw_params,
+	.hw_free	= alsa_hw_free,
+	.prepare	= alsa_prepare,
+	.trigger	= alsa_trigger,
+	.pointer	= alsa_pointer,
+	.copy_user	= alsa_pb_copy_user,
+	.copy_kernel	= alsa_pb_copy_kernel,
+	.fill_silence	= alsa_pb_fill_silence,
 };
 
-static struct snd_pcm_ops snd_drv_alsa_capture_ops = {
-	.open = alsa_open,
-	.close = alsa_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = alsa_hw_params,
-	.hw_free = alsa_hw_free,
-	.prepare = alsa_prepare,
-	.trigger = alsa_trigger,
-	.pointer = alsa_pointer,
-	.copy_user = alsa_cap_copy_user,
-	.copy_kernel = alsa_cap_copy_kernel,
+static const struct snd_pcm_ops snd_drv_alsa_capture_ops = {
+	.open		= alsa_open,
+	.close		= alsa_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= alsa_hw_params,
+	.hw_free	= alsa_hw_free,
+	.prepare	= alsa_prepare,
+	.trigger	= alsa_trigger,
+	.pointer	= alsa_pointer,
+	.copy_user	= alsa_cap_copy_user,
+	.copy_kernel	= alsa_cap_copy_kernel,
 };
 
 static int new_pcm_instance(struct xen_snd_front_card_info *card_info,

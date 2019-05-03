@@ -555,7 +555,7 @@ static void __init ti_fapll_setup(struct device_node *node)
 
 	init->num_parents = of_clk_get_parent_count(node);
 	if (init->num_parents != 2) {
-		pr_err("%s must have two parents\n", node->name);
+		pr_err("%pOFn must have two parents\n", node);
 		goto free;
 	}
 
@@ -564,19 +564,19 @@ static void __init ti_fapll_setup(struct device_node *node)
 
 	fd->clk_ref = of_clk_get(node, 0);
 	if (IS_ERR(fd->clk_ref)) {
-		pr_err("%s could not get clk_ref\n", node->name);
+		pr_err("%pOFn could not get clk_ref\n", node);
 		goto free;
 	}
 
 	fd->clk_bypass = of_clk_get(node, 1);
 	if (IS_ERR(fd->clk_bypass)) {
-		pr_err("%s could not get clk_bypass\n", node->name);
+		pr_err("%pOFn could not get clk_bypass\n", node);
 		goto free;
 	}
 
 	fd->base = of_iomap(node, 0);
 	if (!fd->base) {
-		pr_err("%s could not get IO base\n", node->name);
+		pr_err("%pOFn could not get IO base\n", node);
 		goto free;
 	}
 

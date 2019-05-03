@@ -14,7 +14,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
-
+#include <linux/if_vlan.h>
 #include "ver.h"
 #include "aq_cfg.h"
 #include "aq_utils.h"
@@ -56,5 +56,10 @@
 #define AQ_NIC_RATE_2GS        BIT(3)
 #define AQ_NIC_RATE_1G         BIT(4)
 #define AQ_NIC_RATE_100M       BIT(5)
+
+#define AQ_NIC_RATE_EEE_10G	BIT(6)
+#define AQ_NIC_RATE_EEE_5G	BIT(7)
+#define AQ_NIC_RATE_EEE_2GS	BIT(8)
+#define AQ_NIC_RATE_EEE_1G	BIT(9)
 
 #endif /* AQ_COMMON_H */

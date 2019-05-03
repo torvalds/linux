@@ -1,25 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the Intel P-Unit Mailbox IPC mechanism
  *
  * (C) Copyright 2015 Intel Corporation
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * The heart of the P-Unit is the Foxton microcontroller and its firmware,
  * which provide mailbox interface for power management usage.
  */
 
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/acpi.h>
-#include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+
 #include <asm/intel_punit_ipc.h>
 
 /* IPC Mailbox registers */

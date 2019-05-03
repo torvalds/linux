@@ -210,6 +210,7 @@
 #include "i915_oa_cflgt3.h"
 #include "i915_oa_cnl.h"
 #include "i915_oa_icl.h"
+#include "intel_lrc_reg.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -889,8 +890,8 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 		DRM_DEBUG("OA buffer overflow (exponent = %d): force restart\n",
 			  dev_priv->perf.oa.period_exponent);
 
-		dev_priv->perf.oa.ops.oa_disable(dev_priv);
-		dev_priv->perf.oa.ops.oa_enable(dev_priv);
+		dev_priv->perf.oa.ops.oa_disable(stream);
+		dev_priv->perf.oa.ops.oa_enable(stream);
 
 		/*
 		 * Note: .oa_enable() is expected to re-init the oabuffer and
@@ -1113,8 +1114,8 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 		DRM_DEBUG("OA buffer overflow (exponent = %d): force restart\n",
 			  dev_priv->perf.oa.period_exponent);
 
-		dev_priv->perf.oa.ops.oa_disable(dev_priv);
-		dev_priv->perf.oa.ops.oa_enable(dev_priv);
+		dev_priv->perf.oa.ops.oa_disable(stream);
+		dev_priv->perf.oa.ops.oa_enable(stream);
 
 		oastatus1 = I915_READ(GEN7_OASTATUS1);
 	}
@@ -1338,14 +1339,12 @@ free_oa_buffer(struct drm_i915_private *i915)
 {
 	mutex_lock(&i915->drm.struct_mutex);
 
-	i915_gem_object_unpin_map(i915->perf.oa.oa_buffer.vma->obj);
-	i915_vma_unpin(i915->perf.oa.oa_buffer.vma);
-	i915_gem_object_put(i915->perf.oa.oa_buffer.vma->obj);
-
-	i915->perf.oa.oa_buffer.vma = NULL;
-	i915->perf.oa.oa_buffer.vaddr = NULL;
+	i915_vma_unpin_and_release(&i915->perf.oa.oa_buffer.vma,
+				   I915_VMA_RELEASE_MAP);
 
 	mutex_unlock(&i915->drm.struct_mutex);
+
+	i915->perf.oa.oa_buffer.vaddr = NULL;
 }
 
 static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
@@ -1366,7 +1365,7 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_oa_buffer(dev_priv);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, stream->wakeref);
 
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
@@ -1529,8 +1528,6 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 		goto err_unpin;
 	}
 
-	dev_priv->perf.oa.ops.init_oa_buffer(dev_priv);
-
 	DRM_DEBUG_DRIVER("OA Buffer initialized, gtt offset = 0x%x, vaddr = %p\n",
 			 i915_ggtt_offset(dev_priv->perf.oa.oa_buffer.vma),
 			 dev_priv->perf.oa.oa_buffer.vaddr);
@@ -1564,9 +1561,11 @@ static void config_oa_regs(struct drm_i915_private *dev_priv,
 	}
 }
 
-static int hsw_enable_metric_set(struct drm_i915_private *dev_priv,
-				 const struct i915_oa_config *oa_config)
+static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	const struct i915_oa_config *oa_config = stream->oa_config;
+
 	/* PRM:
 	 *
 	 * OA unit is using “crclk” for its functionality. When trunk
@@ -1638,27 +1637,25 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 	u32 ctx_oactxctrl = dev_priv->perf.oa.ctx_oactxctrl_offset;
 	u32 ctx_flexeu0 = dev_priv->perf.oa.ctx_flexeu0_offset;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
-	u32 flex_mmio[] = {
-		i915_mmio_reg_offset(EU_PERF_CNTL0),
-		i915_mmio_reg_offset(EU_PERF_CNTL1),
-		i915_mmio_reg_offset(EU_PERF_CNTL2),
-		i915_mmio_reg_offset(EU_PERF_CNTL3),
-		i915_mmio_reg_offset(EU_PERF_CNTL4),
-		i915_mmio_reg_offset(EU_PERF_CNTL5),
-		i915_mmio_reg_offset(EU_PERF_CNTL6),
+	i915_reg_t flex_regs[] = {
+		EU_PERF_CNTL0,
+		EU_PERF_CNTL1,
+		EU_PERF_CNTL2,
+		EU_PERF_CNTL3,
+		EU_PERF_CNTL4,
+		EU_PERF_CNTL5,
+		EU_PERF_CNTL6,
 	};
 	int i;
 
-	reg_state[ctx_oactxctrl] = i915_mmio_reg_offset(GEN8_OACTXCONTROL);
-	reg_state[ctx_oactxctrl+1] = (dev_priv->perf.oa.period_exponent <<
-				      GEN8_OA_TIMER_PERIOD_SHIFT) |
-				     (dev_priv->perf.oa.periodic ?
-				      GEN8_OA_TIMER_ENABLE : 0) |
-				     GEN8_OA_COUNTER_RESUME;
+	CTX_REG(reg_state, ctx_oactxctrl, GEN8_OACTXCONTROL,
+		(dev_priv->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
+		(dev_priv->perf.oa.periodic ? GEN8_OA_TIMER_ENABLE : 0) |
+		GEN8_OA_COUNTER_RESUME);
 
-	for (i = 0; i < ARRAY_SIZE(flex_mmio); i++) {
+	for (i = 0; i < ARRAY_SIZE(flex_regs); i++) {
 		u32 state_offset = ctx_flexeu0 + i * 2;
-		u32 mmio = flex_mmio[i];
+		u32 mmio = i915_mmio_reg_offset(flex_regs[i]);
 
 		/*
 		 * This arbitrary default will select the 'EU FPU0 Pipeline
@@ -1678,110 +1675,13 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
 			}
 		}
 
-		reg_state[state_offset] = mmio;
-		reg_state[state_offset+1] = value;
-	}
-}
-
-/*
- * Same as gen8_update_reg_state_unlocked only through the batchbuffer. This
- * is only used by the kernel context.
- */
-static int gen8_emit_oa_config(struct i915_request *rq,
-			       const struct i915_oa_config *oa_config)
-{
-	struct drm_i915_private *dev_priv = rq->i915;
-	/* The MMIO offsets for Flex EU registers aren't contiguous */
-	u32 flex_mmio[] = {
-		i915_mmio_reg_offset(EU_PERF_CNTL0),
-		i915_mmio_reg_offset(EU_PERF_CNTL1),
-		i915_mmio_reg_offset(EU_PERF_CNTL2),
-		i915_mmio_reg_offset(EU_PERF_CNTL3),
-		i915_mmio_reg_offset(EU_PERF_CNTL4),
-		i915_mmio_reg_offset(EU_PERF_CNTL5),
-		i915_mmio_reg_offset(EU_PERF_CNTL6),
-	};
-	u32 *cs;
-	int i;
-
-	cs = intel_ring_begin(rq, ARRAY_SIZE(flex_mmio) * 2 + 4);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(ARRAY_SIZE(flex_mmio) + 1);
-
-	*cs++ = i915_mmio_reg_offset(GEN8_OACTXCONTROL);
-	*cs++ = (dev_priv->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
-		(dev_priv->perf.oa.periodic ? GEN8_OA_TIMER_ENABLE : 0) |
-		GEN8_OA_COUNTER_RESUME;
-
-	for (i = 0; i < ARRAY_SIZE(flex_mmio); i++) {
-		u32 mmio = flex_mmio[i];
-
-		/*
-		 * This arbitrary default will select the 'EU FPU0 Pipeline
-		 * Active' event. In the future it's anticipated that there
-		 * will be an explicit 'No Event' we can select, but not
-		 * yet...
-		 */
-		u32 value = 0;
-
-		if (oa_config) {
-			u32 j;
-
-			for (j = 0; j < oa_config->flex_regs_len; j++) {
-				if (i915_mmio_reg_offset(oa_config->flex_regs[j].addr) == mmio) {
-					value = oa_config->flex_regs[j].value;
-					break;
-				}
-			}
-		}
-
-		*cs++ = mmio;
-		*cs++ = value;
+		CTX_REG(reg_state, state_offset, flex_regs[i], value);
 	}
 
-	*cs++ = MI_NOOP;
-	intel_ring_advance(rq, cs);
-
-	return 0;
-}
-
-static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_priv,
-						 const struct i915_oa_config *oa_config)
-{
-	struct intel_engine_cs *engine = dev_priv->engine[RCS];
-	struct i915_timeline *timeline;
-	struct i915_request *rq;
-	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	i915_retire_requests(dev_priv);
-
-	rq = i915_request_alloc(engine, dev_priv->kernel_context);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
-
-	ret = gen8_emit_oa_config(rq, oa_config);
-	if (ret) {
-		i915_request_add(rq);
-		return ret;
-	}
-
-	/* Queue this switch after all other activity */
-	list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
-		struct i915_request *prev;
-
-		prev = i915_gem_active_raw(&timeline->last_request,
-					   &dev_priv->drm.struct_mutex);
-		if (prev)
-			i915_request_await_dma_fence(rq, &prev->fence);
-	}
-
-	i915_request_add(rq);
-
-	return 0;
+	CTX_REG(reg_state, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
+		gen8_make_rpcs(dev_priv,
+			       &to_intel_context(ctx,
+						 dev_priv->engine[RCS])->sseu));
 }
 
 /*
@@ -1812,16 +1712,12 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 				       const struct i915_oa_config *oa_config)
 {
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
+	unsigned int map_type = i915_coherent_map_type(dev_priv);
 	struct i915_gem_context *ctx;
+	struct i915_request *rq;
 	int ret;
-	unsigned int wait_flags = I915_WAIT_LOCKED;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	/* Switch away from any user context. */
-	ret = gen8_switch_to_updated_kernel_context(dev_priv, oa_config);
-	if (ret)
-		goto out;
 
 	/*
 	 * The OA register config is setup through the context image. This image
@@ -1837,10 +1733,10 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	 * the GPU from any submitted work.
 	 */
 	ret = i915_gem_wait_for_idle(dev_priv,
-				     wait_flags,
+				     I915_WAIT_LOCKED,
 				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
@@ -1851,11 +1747,9 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		if (!ce->state)
 			continue;
 
-		regs = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
-		if (IS_ERR(regs)) {
-			ret = PTR_ERR(regs);
-			goto out;
-		}
+		regs = i915_gem_object_pin_map(ce->state->obj, map_type);
+		if (IS_ERR(regs))
+			return PTR_ERR(regs);
 
 		ce->state->obj->mm.dirty = true;
 		regs += LRC_STATE_PN * PAGE_SIZE / sizeof(*regs);
@@ -1865,13 +1759,23 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		i915_gem_object_unpin_map(ce->state->obj);
 	}
 
- out:
-	return ret;
+	/*
+	 * Apply the configuration by doing one context restore of the edited
+	 * context image.
+	 */
+	rq = i915_request_alloc(engine, dev_priv->kernel_context);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	i915_request_add(rq);
+
+	return 0;
 }
 
-static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
-				  const struct i915_oa_config *oa_config)
+static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	const struct i915_oa_config *oa_config = stream->oa_config;
 	int ret;
 
 	/*
@@ -1897,7 +1801,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 	 * be read back from automatically triggered reports, as part of the
 	 * RPT_ID field.
 	 */
-	if (IS_GEN(dev_priv, 9, 11)) {
+	if (IS_GEN_RANGE(dev_priv, 9, 11)) {
 		I915_WRITE(GEN8_OA_DEBUG,
 			   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
 					      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
@@ -1939,10 +1843,10 @@ static void gen10_disable_metric_set(struct drm_i915_private *dev_priv)
 		   I915_READ(RPM_CONFIG1) & ~GEN10_GT_NOA_ENABLE);
 }
 
-static void gen7_oa_enable(struct drm_i915_private *dev_priv)
+static void gen7_oa_enable(struct i915_perf_stream *stream)
 {
-	struct i915_gem_context *ctx =
-			dev_priv->perf.oa.exclusive_stream->ctx;
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct i915_gem_context *ctx = stream->ctx;
 	u32 ctx_id = dev_priv->perf.oa.specific_ctx_id;
 	bool periodic = dev_priv->perf.oa.periodic;
 	u32 period_exponent = dev_priv->perf.oa.period_exponent;
@@ -1969,8 +1873,9 @@ static void gen7_oa_enable(struct drm_i915_private *dev_priv)
 		   GEN7_OACONTROL_ENABLE);
 }
 
-static void gen8_oa_enable(struct drm_i915_private *dev_priv)
+static void gen8_oa_enable(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
 	u32 report_format = dev_priv->perf.oa.oa_buffer.format;
 
 	/*
@@ -2007,7 +1912,7 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	dev_priv->perf.oa.ops.oa_enable(dev_priv);
+	dev_priv->perf.oa.ops.oa_enable(stream);
 
 	if (dev_priv->perf.oa.periodic)
 		hrtimer_start(&dev_priv->perf.oa.poll_check_timer,
@@ -2015,8 +1920,10 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 			      HRTIMER_MODE_REL_PINNED);
 }
 
-static void gen7_oa_disable(struct drm_i915_private *dev_priv)
+static void gen7_oa_disable(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+
 	I915_WRITE(GEN7_OACONTROL, 0);
 	if (intel_wait_for_register(dev_priv,
 				    GEN7_OACONTROL, GEN7_OACONTROL_ENABLE, 0,
@@ -2024,8 +1931,10 @@ static void gen7_oa_disable(struct drm_i915_private *dev_priv)
 		DRM_ERROR("wait for OA to be disabled timed out\n");
 }
 
-static void gen8_oa_disable(struct drm_i915_private *dev_priv)
+static void gen8_oa_disable(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+
 	I915_WRITE(GEN8_OACONTROL, 0);
 	if (intel_wait_for_register(dev_priv,
 				    GEN8_OACONTROL, GEN8_OA_COUNTER_ENABLE, 0,
@@ -2045,7 +1954,7 @@ static void i915_oa_stream_disable(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	dev_priv->perf.oa.ops.oa_disable(dev_priv);
+	dev_priv->perf.oa.ops.oa_disable(stream);
 
 	if (dev_priv->perf.oa.periodic)
 		hrtimer_cancel(&dev_priv->perf.oa.poll_check_timer);
@@ -2100,7 +2009,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		return -EINVAL;
 	}
 
-	if (!dev_priv->perf.oa.ops.init_oa_buffer) {
+	if (!dev_priv->perf.oa.ops.enable_metric_set) {
 		DRM_DEBUG("OA unit not supported\n");
 		return -ENODEV;
 	}
@@ -2183,7 +2092,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 *   In our case we are expecting that taking pm + FORCEWAKE
 	 *   references will effectively disable RC6.
 	 */
-	intel_runtime_pm_get(dev_priv);
+	stream->wakeref = intel_runtime_pm_get(dev_priv);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	ret = alloc_oa_buffer(dev_priv);
@@ -2194,22 +2103,21 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (ret)
 		goto err_lock;
 
-	ret = dev_priv->perf.oa.ops.enable_metric_set(dev_priv,
-						      stream->oa_config);
+	stream->ops = &i915_oa_stream_ops;
+	dev_priv->perf.oa.exclusive_stream = stream;
+
+	ret = dev_priv->perf.oa.ops.enable_metric_set(stream);
 	if (ret) {
 		DRM_DEBUG("Unable to enable metric set\n");
 		goto err_enable;
 	}
-
-	stream->ops = &i915_oa_stream_ops;
-
-	dev_priv->perf.oa.exclusive_stream = stream;
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 
 err_enable:
+	dev_priv->perf.oa.exclusive_stream = NULL;
 	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
@@ -2220,7 +2128,7 @@ err_oa_buf_alloc:
 	put_oa_config(dev_priv, stream->oa_config);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, stream->wakeref);
 
 err_config:
 	if (stream->ctx)
@@ -2743,7 +2651,7 @@ err:
 static u64 oa_exponent_to_ns(struct drm_i915_private *dev_priv, int exponent)
 {
 	return div64_u64(1000000000ULL * (2ULL << exponent),
-			 1000ULL * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz);
+			 1000ULL * RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
 }
 
 /**
@@ -3118,7 +3026,7 @@ static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 		(addr >= 0x182300 && addr <= 0x1823A4);
 }
 
-static uint32_t mask_reg_value(u32 reg, u32 val)
+static u32 mask_reg_value(u32 reg, u32 val)
 {
 	/* HALF_SLICE_CHICKEN2 is programmed with a the
 	 * WaDisableSTUnitPowerOptimization workaround. Make sure the value
@@ -3149,7 +3057,7 @@ static struct i915_oa_reg *alloc_oa_regs(struct drm_i915_private *dev_priv,
 	if (!n_regs)
 		return NULL;
 
-	if (!access_ok(VERIFY_READ, regs, n_regs * sizeof(u32) * 2))
+	if (!access_ok(regs, n_regs * sizeof(u32) * 2))
 		return ERR_PTR(-EFAULT);
 
 	/* No is_valid function means we're not allowing any register to be programmed. */
@@ -3489,7 +3397,6 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.ops.is_valid_mux_reg =
 			hsw_is_valid_mux_addr;
 		dev_priv->perf.oa.ops.is_valid_flex_reg = NULL;
-		dev_priv->perf.oa.ops.init_oa_buffer = gen7_init_oa_buffer;
 		dev_priv->perf.oa.ops.enable_metric_set = hsw_enable_metric_set;
 		dev_priv->perf.oa.ops.disable_metric_set = hsw_disable_metric_set;
 		dev_priv->perf.oa.ops.oa_enable = gen7_oa_enable;
@@ -3508,13 +3415,12 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		 */
 		dev_priv->perf.oa.oa_formats = gen8_plus_oa_formats;
 
-		dev_priv->perf.oa.ops.init_oa_buffer = gen8_init_oa_buffer;
 		dev_priv->perf.oa.ops.oa_enable = gen8_oa_enable;
 		dev_priv->perf.oa.ops.oa_disable = gen8_oa_disable;
 		dev_priv->perf.oa.ops.read = gen8_oa_read;
 		dev_priv->perf.oa.ops.oa_hw_tail_read = gen8_oa_hw_tail_read;
 
-		if (IS_GEN8(dev_priv) || IS_GEN9(dev_priv)) {
+		if (IS_GEN_RANGE(dev_priv, 8, 9)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			dev_priv->perf.oa.ops.is_valid_mux_reg =
@@ -3530,7 +3436,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
 			dev_priv->perf.oa.ops.disable_metric_set = gen8_disable_metric_set;
 
-			if (IS_GEN8(dev_priv)) {
+			if (IS_GEN(dev_priv, 8)) {
 				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
 				dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
 
@@ -3541,7 +3447,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 
 				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 			}
-		} else if (IS_GEN(dev_priv, 10, 11)) {
+		} else if (IS_GEN_RANGE(dev_priv, 10, 11)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			dev_priv->perf.oa.ops.is_valid_mux_reg =
@@ -3570,7 +3476,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		spin_lock_init(&dev_priv->perf.oa.oa_buffer.ptr_lock);
 
 		oa_sample_rate_hard_limit = 1000 *
-			(INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz / 2);
+			(RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz / 2);
 		dev_priv->perf.sysctl_header = register_sysctl_table(dev_root);
 
 		mutex_init(&dev_priv->perf.metrics_lock);

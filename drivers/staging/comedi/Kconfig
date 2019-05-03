@@ -1313,5 +1313,9 @@ config COMEDI_NI_LABPC_ISADMA
 
 config COMEDI_NI_TIO
 	tristate
+	select COMEDI_NI_ROUTING
+
+config COMEDI_NI_ROUTING
+	tristate
 
 endif # COMEDI

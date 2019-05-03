@@ -8,10 +8,15 @@ Optional properties:
 - fsl,pfuze-support-disable-sw: Boolean, if present disable all unused switch
   regulators to save power consumption. Attention, ensure that all important
   regulators (e.g. DDR ref, DDR supply) has set the "regulator-always-on"
-  property. If not present, the switched regualtors are always on and can't be
+  property. If not present, the switched regulators are always on and can't be
   disabled. This binding is a workaround to keep backward compatibility with
   old dtb's which rely on the fact that the switched regulators are always on
   and don't mark them explicit as "regulator-always-on".
+- fsl,pmic-stby-poweroff: if present, configure the PMIC to shutdown all
+  power rails when PMIC_STBY_REQ line is asserted during the power off sequence.
+  Use this option if the SoC should be powered off by external power
+  management IC (PMIC) on PMIC_STBY_REQ signal.
+  As opposite to PMIC_STBY_REQ boards can implement PMIC_ON_REQ signal.
 
 Required child node:
 - regulators: This is the list of child nodes that specify the regulator

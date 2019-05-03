@@ -8,7 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,9 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -34,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,6 +71,8 @@
 #include "iwl-io.h"
 #include "file.h"
 #include "error-dump.h"
+#include "api/commands.h"
+#include "api/dbg-tlv.h"
 
 /**
  * struct iwl_fw_dump_desc - describes the dump
@@ -86,6 +85,16 @@ struct iwl_fw_dump_desc {
 	struct iwl_fw_error_dump_trigger_desc trig_desc;
 };
 
+/**
+ * struct iwl_fw_dbg_params - register values to restore
+ * @in_sample: DBGC_IN_SAMPLE value
+ * @out_ctrl: DBGC_OUT_CTRL value
+ */
+struct iwl_fw_dbg_params {
+	u32 in_sample;
+	u32 out_ctrl;
+};
+
 extern const struct iwl_fw_dump_desc iwl_dump_desc_assert;
 
 static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
@@ -93,31 +102,38 @@ static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
 	if (fwrt->dump.desc != &iwl_dump_desc_assert)
 		kfree(fwrt->dump.desc);
 	fwrt->dump.desc = NULL;
-	fwrt->dump.trig = NULL;
+	fwrt->dump.lmac_err_id[0] = 0;
+	if (fwrt->smem_cfg.num_lmacs > 1)
+		fwrt->dump.lmac_err_id[1] = 0;
+	fwrt->dump.umac_err_id = 0;
 }
 
 void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt);
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
-			    const struct iwl_fw_dbg_trigger_tlv *trigger);
+			    bool monitor_only, unsigned int delay);
+int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
+			     enum iwl_fw_dbg_trigger trig_type);
+int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+			enum iwl_fw_dbg_trigger trig,
+			const char *str, size_t len,
+			struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-		       enum iwl_fw_dbg_trigger trig,
-		       const char *str, size_t len,
-		       const struct iwl_fw_dbg_trigger_tlv *trigger);
+		       u32 id, const char *str, size_t len);
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...) __printf(3, 4);
 int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 id);
 
 #define iwl_fw_dbg_trigger_enabled(fw, id) ({			\
-	void *__dbg_trigger = (fw)->dbg_trigger_tlv[(id)];	\
+	void *__dbg_trigger = (fw)->dbg.trigger_tlv[(id)];	\
 	unlikely(__dbg_trigger);				\
 })
 
 static inline struct iwl_fw_dbg_trigger_tlv*
 _iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, enum iwl_fw_dbg_trigger id)
 {
-	return fw->dbg_trigger_tlv[id];
+	return fw->dbg.trigger_tlv[id];
 }
 
 #define iwl_fw_dbg_get_trigger(fw, id) ({			\
@@ -146,12 +162,9 @@ iwl_fw_dbg_trigger_stop_conf_match(struct iwl_fw_runtime *fwrt,
 }
 
 static inline bool
-iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt,
-			  struct iwl_fw_dbg_trigger_tlv *trig)
+iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt, u32 id, u32 dis_usec)
 {
-	unsigned long wind_jiff =
-		msecs_to_jiffies(le16_to_cpu(trig->trig_dis_ms));
-	u32 id = le32_to_cpu(trig->id);
+	unsigned long wind_jiff = usecs_to_jiffies(dis_usec);
 
 	/* If this is the first event checked, jump to update start ts */
 	if (fwrt->dump.non_collect_ts_start[id] &&
@@ -168,16 +181,69 @@ iwl_fw_dbg_trigger_check_stop(struct iwl_fw_runtime *fwrt,
 			      struct wireless_dev *wdev,
 			      struct iwl_fw_dbg_trigger_tlv *trig)
 {
+	u32 usec = le16_to_cpu(trig->trig_dis_ms) * USEC_PER_MSEC;
+
 	if (wdev && !iwl_fw_dbg_trigger_vif_match(trig, wdev))
 		return false;
 
-	if (iwl_fw_dbg_no_trig_window(fwrt, trig)) {
+	if (iwl_fw_dbg_no_trig_window(fwrt, le32_to_cpu(trig->id), usec)) {
 		IWL_WARN(fwrt, "Trigger %d occurred while no-collect window.\n",
 			 trig->id);
 		return false;
 	}
 
 	return iwl_fw_dbg_trigger_stop_conf_match(fwrt, trig);
+}
+
+static inline struct iwl_fw_dbg_trigger_tlv*
+_iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
+		       struct wireless_dev *wdev,
+		       const enum iwl_fw_dbg_trigger id)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+
+	if (fwrt->trans->ini_valid)
+		return NULL;
+
+	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
+		return NULL;
+
+	trig = _iwl_fw_dbg_get_trigger(fwrt->fw, id);
+
+	if (!iwl_fw_dbg_trigger_check_stop(fwrt, wdev, trig))
+		return NULL;
+
+	return trig;
+}
+
+#define iwl_fw_dbg_trigger_on(fwrt, wdev, id) ({		\
+	BUILD_BUG_ON(!__builtin_constant_p(id));		\
+	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
+	_iwl_fw_dbg_trigger_on((fwrt), (wdev), (id));		\
+})
+
+static inline bool
+iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
+		      enum iwl_fw_ini_trigger_id id)
+{
+	struct iwl_fw_ini_trigger *trig;
+	u32 usec;
+
+
+
+	if (!fwrt->trans->ini_valid || id >= IWL_FW_TRIGGER_ID_NUM ||
+	    !fwrt->dump.active_trigs[id].active)
+		return false;
+
+	trig = fwrt->dump.active_trigs[id].trig;
+	usec = le32_to_cpu(trig->ignore_consec);
+
+	if (iwl_fw_dbg_no_trig_window(fwrt, id, usec)) {
+		IWL_WARN(fwrt, "Trigger %d fired in no-collect window\n", id);
+		return false;
+	}
+
+	return true;
 }
 
 static inline void
@@ -199,15 +265,92 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static inline void iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt)
+static inline int
+iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
 {
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(fwrt->trans, MON_BUFF_SAMPLE_CTL, 0x100);
-	} else {
-		iwl_write_prph(fwrt->trans, DBGC_IN_SAMPLE, 0);
-		udelay(100);
-		iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, 0);
+	struct iwl_ldbg_config_cmd cmd = {
+		.type = start ? cpu_to_le32(START_DEBUG_RECORDING) :
+				cpu_to_le32(STOP_DEBUG_RECORDING),
+	};
+	struct iwl_host_cmd hcmd = {
+		.id = LDBG_CONFIG_CMD,
+		.flags = CMD_ASYNC,
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+	};
+
+	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
+}
+
+static inline void
+_iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
+			   struct iwl_fw_dbg_params *params)
+{
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		return;
 	}
+
+	if (params) {
+		params->in_sample = iwl_read_umac_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_read_umac_prph(trans, DBGC_OUT_CTRL);
+	}
+
+	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
+	udelay(100);
+	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	trans->dbg_rec_on = false;
+#endif
+}
+
+static inline void
+iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt,
+			  struct iwl_fw_dbg_params *params)
+{
+	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
+		_iwl_fw_dbg_stop_recording(fwrt->trans, params);
+	else
+		iwl_fw_dbg_start_stop_hcmd(fwrt, false);
+}
+
+static inline void
+_iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
+			      struct iwl_fw_dbg_params *params)
+{
+	if (WARN_ON(!params))
+		return;
+
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+	} else {
+		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
+		udelay(100);
+		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
+	}
+}
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
+{
+	if (fwrt->fw->dbg.dest_tlv && fwrt->cur_fw_img == IWL_UCODE_REGULAR)
+		fwrt->trans->dbg_rec_on = true;
+}
+#endif
+
+static inline void
+iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
+			     struct iwl_fw_dbg_params *params)
+{
+	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
+		_iwl_fw_dbg_restart_recording(fwrt->trans, params);
+	else
+		iwl_fw_dbg_start_stop_hcmd(fwrt, true);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_fw_set_dbg_rec_on(fwrt);
+#endif
 }
 
 static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
@@ -216,6 +359,32 @@ static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
 }
 
 void iwl_fw_error_dump_wk(struct work_struct *work);
+
+static inline bool iwl_fw_dbg_type_on(struct iwl_fw_runtime *fwrt, u32 type)
+{
+	return (fwrt->fw->dbg.dump_mask & BIT(type) || fwrt->trans->ini_valid);
+}
+
+static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
+{
+	return fw_has_capa(&fwrt->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_D3_DEBUG) &&
+		fwrt->trans->cfg->d3_debug_data_length && fwrt->ops &&
+		fwrt->ops->d3_debug_enable &&
+		fwrt->ops->d3_debug_enable(fwrt->ops_ctx) &&
+		iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+}
+
+static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
+{
+	return iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PAGING) &&
+		!fwrt->trans->cfg->gen2 &&
+		fwrt->cur_fw_img < IWL_UCODE_TYPE_MAX &&
+		fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
+		fwrt->fw_paging_db[0].fw_paging_block;
+}
+
+void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
 {
@@ -262,5 +431,34 @@ static inline void iwl_fw_suspend_timestamp(struct iwl_fw_runtime *fwrt) {}
 static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
+
+void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
+			    enum iwl_fw_ini_apply_point apply_point);
+
+void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt);
+
+static inline void iwl_fw_lmac1_set_alive_err_table(struct iwl_trans *trans,
+						    u32 lmac_error_event_table)
+{
+	if (!(trans->error_event_table_tlv_status &
+	      IWL_ERROR_EVENT_TABLE_LMAC1) ||
+	    WARN_ON(trans->lmac_error_event_table[0] !=
+		    lmac_error_event_table))
+		trans->lmac_error_event_table[0] = lmac_error_event_table;
+}
+
+static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
+						   u32 umac_error_event_table)
+{
+	if (!(trans->error_event_table_tlv_status &
+	      IWL_ERROR_EVENT_TABLE_UMAC) ||
+	    WARN_ON(trans->umac_error_event_table !=
+		    umac_error_event_table))
+		trans->umac_error_event_table = umac_error_event_table;
+}
+
+/* This bit is used to differentiate the legacy dump from the ini dump */
+#define INI_DUMP_BIT BIT(31)
 
 #endif  /* __iwl_fw_dbg_h__ */

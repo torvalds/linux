@@ -73,6 +73,17 @@ config ZCRYPT
 	  + Crypto Express 2,3,4 or 5 Accelerator (CEXxA)
 	  + Crypto Express 4 or 5 EP11 Coprocessor (CEXxP)
 
+config ZCRYPT_MULTIDEVNODES
+	bool "Support for multiple zcrypt device nodes"
+	default y
+	depends on S390
+	depends on ZCRYPT
+	help
+	  With this option enabled the zcrypt device driver can
+	  provide multiple devices nodes in /dev. Each device
+	  node can get customized to limit access and narrow
+	  down the use of the available crypto hardware.
+
 config PKEY
 	tristate "Kernel API for protected key handling"
 	depends on S390
@@ -247,7 +258,7 @@ config CRYPTO_DEV_HIFN_795X_RNG
 	  Select this option if you want to enable the random number generator
 	  on the HIFN 795x crypto adapters.
 
-source drivers/crypto/caam/Kconfig
+source "drivers/crypto/caam/Kconfig"
 
 config CRYPTO_DEV_TALITOS
 	tristate "Talitos Freescale Security Engine (SEC)"
@@ -681,6 +692,7 @@ config CRYPTO_DEV_BCM_SPU
 	depends on ARCH_BCM_IPROC
 	depends on MAILBOX
 	default m
+	select CRYPTO_AUTHENC
 	select CRYPTO_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
@@ -751,10 +763,12 @@ config CRYPTO_DEV_CCREE
 	select CRYPTO_ECB
 	select CRYPTO_CTR
 	select CRYPTO_XTS
+	select CRYPTO_SM4
+	select CRYPTO_SM3
 	help
 	  Say 'Y' to enable a driver for the REE interface of the Arm
 	  TrustZone CryptoCell family of processors. Currently the
-	  CryptoCell 712, 710 and 630 are supported.
+	  CryptoCell 713, 703, 712, 710 and 630 are supported.
 	  Choose this if you wish to use hardware acceleration of
 	  cryptographic operations on the system REE.
 	  If unsure say Y.

@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2010  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2010  Realtek Corporation.*/
 
 #ifndef	__RTL8821AE_DM_H__
 #define __RTL8821AE_DM_H__
@@ -92,11 +70,11 @@
 #define	DM_REG_CCK_CCA_CNT_11N			0xA60
 #define	DM_REG_BB_PWR_SAV4_11N			0xA74
 /*PAGE B */
-#define	DM_REG_LNA_SWITCH_11N			0xB2C
-#define	DM_REG_PATH_SWITCH_11N			0xB30
-#define	DM_REG_RSSI_CTRL_11N			0xB38
-#define	DM_REG_CONFIG_ANTA_11N			0xB68
-#define	DM_REG_RSSI_BT_11N				0xB9C
+#define	DM_REG_LNA_SWITCH_11N			0XB2C
+#define	DM_REG_PATH_SWITCH_11N			0XB30
+#define	DM_REG_RSSI_CTRL_11N			0XB38
+#define	DM_REG_CONFIG_ANTA_11N			0XB68
+#define	DM_REG_RSSI_BT_11N				0XB9C
 /*PAGE C */
 #define	DM_REG_OFDM_FA_HOLDC_11N		0xC00
 #define	DM_REG_RX_PATH_11N				0xC04

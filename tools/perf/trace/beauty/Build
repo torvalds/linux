@@ -1,11 +1,15 @@
-libperf-y += clone.o
-libperf-y += fcntl.o
-libperf-y += flock.o
+perf-y += clone.o
+perf-y += fcntl.o
+perf-y += flock.o
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86))
-libperf-y += ioctl.o
+perf-y += ioctl.o
 endif
-libperf-y += kcmp.o
-libperf-y += pkey_alloc.o
-libperf-y += prctl.o
-libperf-y += socket.o
-libperf-y += statx.o
+perf-y += kcmp.o
+perf-y += mount_flags.o
+perf-y += pkey_alloc.o
+perf-y += arch_prctl.o
+perf-y += prctl.o
+perf-y += renameat.o
+perf-y += sockaddr.o
+perf-y += socket.o
+perf-y += statx.o

@@ -39,6 +39,7 @@
 #include "book3s.h"
 #include "trace.h"
 
+#define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
 /* #define EXIT_DEBUG */
@@ -71,6 +72,8 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pthru_all",       VCPU_STAT(pthru_all) },
 	{ "pthru_host",      VCPU_STAT(pthru_host) },
 	{ "pthru_bad_aff",   VCPU_STAT(pthru_bad_aff) },
+	{ "largepages_2M",    VM_STAT(num_2M_pages) },
+	{ "largepages_1G",    VM_STAT(num_1G_pages) },
 	{ NULL }
 };
 
@@ -78,8 +81,11 @@ void kvmppc_unfixup_split_real(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK) {
 		ulong pc = kvmppc_get_pc(vcpu);
+		ulong lr = kvmppc_get_lr(vcpu);
 		if ((pc & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS)
 			kvmppc_set_pc(vcpu, pc & ~SPLIT_HACK_MASK);
+		if ((lr & SPLIT_HACK_MASK) == SPLIT_HACK_OFFS)
+			kvmppc_set_lr(vcpu, lr & ~SPLIT_HACK_MASK);
 		vcpu->arch.hflags &= ~BOOK3S_HFLAG_SPLIT_HACK;
 	}
 }
@@ -150,7 +156,6 @@ static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 	case 0x400: prio = BOOK3S_IRQPRIO_INST_STORAGE;		break;
 	case 0x480: prio = BOOK3S_IRQPRIO_INST_SEGMENT;		break;
 	case 0x500: prio = BOOK3S_IRQPRIO_EXTERNAL;		break;
-	case 0x501: prio = BOOK3S_IRQPRIO_EXTERNAL_LEVEL;	break;
 	case 0x600: prio = BOOK3S_IRQPRIO_ALIGNMENT;		break;
 	case 0x700: prio = BOOK3S_IRQPRIO_PROGRAM;		break;
 	case 0x800: prio = BOOK3S_IRQPRIO_FP_UNAVAIL;		break;
@@ -189,6 +194,13 @@ void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 #endif
 }
 EXPORT_SYMBOL_GPL(kvmppc_book3s_queue_irqprio);
+
+void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu, ulong flags)
+{
+	/* might as well deliver this straight away */
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_MACHINE_CHECK, flags);
+}
+EXPORT_SYMBOL_GPL(kvmppc_core_queue_machine_check);
 
 void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags)
 {
@@ -236,18 +248,35 @@ EXPORT_SYMBOL_GPL(kvmppc_core_dequeue_dec);
 void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                 struct kvm_interrupt *irq)
 {
-	unsigned int vec = BOOK3S_INTERRUPT_EXTERNAL;
+	/*
+	 * This case (KVM_INTERRUPT_SET) should never actually arise for
+	 * a pseries guest (because pseries guests expect their interrupt
+	 * controllers to continue asserting an external interrupt request
+	 * until it is acknowledged at the interrupt controller), but is
+	 * included to avoid ABI breakage and potentially for other
+	 * sorts of guest.
+	 *
+	 * There is a subtlety here: HV KVM does not test the
+	 * external_oneshot flag in the code that synthesizes
+	 * external interrupts for the guest just before entering
+	 * the guest.  That is OK even if userspace did do a
+	 * KVM_INTERRUPT_SET on a pseries guest vcpu, because the
+	 * caller (kvm_vcpu_ioctl_interrupt) does a kvm_vcpu_kick()
+	 * which ends up doing a smp_send_reschedule(), which will
+	 * pull the guest all the way out to the host, meaning that
+	 * we will call kvmppc_core_prepare_to_enter() before entering
+	 * the guest again, and that will handle the external_oneshot
+	 * flag correctly.
+	 */
+	if (irq->irq == KVM_INTERRUPT_SET)
+		vcpu->arch.external_oneshot = 1;
 
-	if (irq->irq == KVM_INTERRUPT_SET_LEVEL)
-		vec = BOOK3S_INTERRUPT_EXTERNAL_LEVEL;
-
-	kvmppc_book3s_queue_irqprio(vcpu, vec);
+	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 }
 
 void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 {
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
-	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
 }
 
 void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong dar,
@@ -278,7 +307,6 @@ static int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu,
 		vec = BOOK3S_INTERRUPT_DECREMENTER;
 		break;
 	case BOOK3S_IRQPRIO_EXTERNAL:
-	case BOOK3S_IRQPRIO_EXTERNAL_LEVEL:
 		deliver = (kvmppc_get_msr(vcpu) & MSR_EE) && !crit;
 		vec = BOOK3S_INTERRUPT_EXTERNAL;
 		break;
@@ -352,8 +380,16 @@ static bool clear_irqprio(struct kvm_vcpu *vcpu, unsigned int priority)
 		case BOOK3S_IRQPRIO_DECREMENTER:
 			/* DEC interrupts get cleared by mtdec */
 			return false;
-		case BOOK3S_IRQPRIO_EXTERNAL_LEVEL:
-			/* External interrupts get cleared by userspace */
+		case BOOK3S_IRQPRIO_EXTERNAL:
+			/*
+			 * External interrupts get cleared by userspace
+			 * except when set by the KVM_INTERRUPT ioctl with
+			 * KVM_INTERRUPT_SET (not KVM_INTERRUPT_SET_LEVEL).
+			 */
+			if (vcpu->arch.external_oneshot) {
+				vcpu->arch.external_oneshot = 0;
+				return true;
+			}
 			return false;
 	}
 
@@ -609,7 +645,7 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				r = -ENXIO;
 				break;
 			}
-			if (xive_enabled())
+			if (xics_on_xive())
 				*val = get_reg_val(id, kvmppc_xive_get_icp(vcpu));
 			else
 				*val = get_reg_val(id, kvmppc_xics_get_icp(vcpu));
@@ -682,7 +718,7 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				r = -ENXIO;
 				break;
 			}
-			if (xive_enabled())
+			if (xics_on_xive())
 				r = kvmppc_xive_set_icp(vcpu, set_reg_val(id, *val));
 			else
 				r = kvmppc_xics_set_icp(vcpu, set_reg_val(id, *val));
@@ -804,9 +840,10 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
 				const struct kvm_userspace_memory_region *mem,
 				const struct kvm_memory_slot *old,
-				const struct kvm_memory_slot *new)
+				const struct kvm_memory_slot *new,
+				enum kvm_mr_change change)
 {
-	kvm->arch.kvm_ops->commit_memory_region(kvm, mem, old, new);
+	kvm->arch.kvm_ops->commit_memory_region(kvm, mem, old, new, change);
 }
 
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
@@ -824,9 +861,10 @@ int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 	return kvm->arch.kvm_ops->test_age_hva(kvm, hva);
 }
 
-void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
+int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 {
 	kvm->arch.kvm_ops->set_spte_hva(kvm, hva, pte);
+	return 0;
 }
 
 void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
@@ -956,7 +994,7 @@ int kvmppc_book3s_hcall_implemented(struct kvm *kvm, unsigned long hcall)
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status)
 {
-	if (xive_enabled())
+	if (xics_on_xive())
 		return kvmppc_xive_set_irq(kvm, irq_source_id, irq, level,
 					   line_status);
 	else
@@ -1009,7 +1047,7 @@ static int kvmppc_book3s_init(void)
 
 #ifdef CONFIG_KVM_XICS
 #ifdef CONFIG_KVM_XIVE
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		kvmppc_xive_init_module();
 		kvm_register_device_ops(&kvm_xive_ops, KVM_DEV_TYPE_XICS);
 	} else
@@ -1022,7 +1060,7 @@ static int kvmppc_book3s_init(void)
 static void kvmppc_book3s_exit(void)
 {
 #ifdef CONFIG_KVM_XICS
-	if (xive_enabled())
+	if (xics_on_xive())
 		kvmppc_xive_exit_module();
 #endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER

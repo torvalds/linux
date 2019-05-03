@@ -397,8 +397,8 @@ static int cx18_querycap(struct file *file, void *fh,
 	struct cx18_stream *s = video_drvdata(file);
 	struct cx18 *cx = id->cx;
 
-	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
-	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
+	strscpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
+	strscpy(vcap->card, cx->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCI:%s", pci_name(cx->pci_dev));
 	vcap->capabilities = cx->v4l2_cap;	/* capabilities */
@@ -441,15 +441,16 @@ static int cx18_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 	return cx18_get_input(cx, vin->index, vin);
 }
 
-static int cx18_cropcap(struct file *file, void *fh,
-			struct v4l2_cropcap *cropcap)
+static int cx18_g_pixelaspect(struct file *file, void *fh,
+			      int type, struct v4l2_fract *f)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	cropcap->pixelaspect.numerator = cx->is_50hz ? 54 : 11;
-	cropcap->pixelaspect.denominator = cx->is_50hz ? 59 : 10;
+
+	f->numerator = cx->is_50hz ? 54 : 11;
+	f->denominator = cx->is_50hz ? 59 : 10;
 	return 0;
 }
 
@@ -632,9 +633,9 @@ static int cx18_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	cx18_call_all(cx, tuner, g_tuner, vt);
 
 	if (vt->type == V4L2_TUNER_RADIO)
-		strlcpy(vt->name, "cx18 Radio Tuner", sizeof(vt->name));
+		strscpy(vt->name, "cx18 Radio Tuner", sizeof(vt->name));
 	else
-		strlcpy(vt->name, "cx18 TV Tuner", sizeof(vt->name));
+		strscpy(vt->name, "cx18 TV Tuner", sizeof(vt->name));
 	return 0;
 }
 
@@ -1079,7 +1080,7 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_g_audio                 = cx18_g_audio,
 	.vidioc_enumaudio               = cx18_enumaudio,
 	.vidioc_enum_input              = cx18_enum_input,
-	.vidioc_cropcap                 = cx18_cropcap,
+	.vidioc_g_pixelaspect           = cx18_g_pixelaspect,
 	.vidioc_g_selection             = cx18_g_selection,
 	.vidioc_g_input                 = cx18_g_input,
 	.vidioc_s_input                 = cx18_s_input,

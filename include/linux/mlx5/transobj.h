@@ -58,17 +58,6 @@ int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen,
 int mlx5_core_modify_tis(struct mlx5_core_dev *dev, u32 tisn, u32 *in,
 			 int inlen);
 void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn);
-int mlx5_core_create_rmp(struct mlx5_core_dev *dev, u32 *in, int inlen,
-			 u32 *rmpn);
-int mlx5_core_modify_rmp(struct mlx5_core_dev *dev, u32 *in, int inlen);
-int mlx5_core_destroy_rmp(struct mlx5_core_dev *dev, u32 rmpn);
-int mlx5_core_query_rmp(struct mlx5_core_dev *dev, u32 rmpn, u32 *out);
-int mlx5_core_arm_rmp(struct mlx5_core_dev *dev, u32 rmpn, u16 lwm);
-int mlx5_core_create_xsrq(struct mlx5_core_dev *dev, u32 *in, int inlen,
-			  u32 *rmpn);
-int mlx5_core_destroy_xsrq(struct mlx5_core_dev *dev, u32 rmpn);
-int mlx5_core_arm_xsrq(struct mlx5_core_dev *dev, u32 rmpn, u16 lwm);
-
 int mlx5_core_create_rqt(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *rqtn);
 int mlx5_core_modify_rqt(struct mlx5_core_dev *dev, u32 rqtn, u32 *in,

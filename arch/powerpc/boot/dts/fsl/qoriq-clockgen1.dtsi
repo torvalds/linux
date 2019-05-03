@@ -34,53 +34,6 @@
 
 clockgen: global-utilities@e1000 {
 	compatible = "fsl,qoriq-clockgen-1.0";
-	ranges = <0x0 0xe1000 0x1000>;
 	reg = <0xe1000 0x1000>;
-	clock-frequency = <0>;
-	#address-cells = <1>;
-	#size-cells = <1>;
 	#clock-cells = <2>;
-
-	sysclk: sysclk {
-		#clock-cells = <0>;
-		compatible = "fsl,qoriq-sysclk-1.0", "fixed-clock";
-		clock-output-names = "sysclk";
-	};
-	pll0: pll0@800 {
-		#clock-cells = <1>;
-		reg = <0x800 0x4>;
-		compatible = "fsl,qoriq-core-pll-1.0";
-		clocks = <&sysclk>;
-		clock-output-names = "pll0", "pll0-div2";
-	};
-	pll1: pll1@820 {
-		#clock-cells = <1>;
-		reg = <0x820 0x4>;
-		compatible = "fsl,qoriq-core-pll-1.0";
-		clocks = <&sysclk>;
-		clock-output-names = "pll1", "pll1-div2";
-	};
-	mux0: mux0@0 {
-		#clock-cells = <0>;
-		reg = <0x0 0x4>;
-		compatible = "fsl,qoriq-core-mux-1.0";
-		clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
-		clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
-		clock-output-names = "cmux0";
-	};
-	mux1: mux1@20 {
-		#clock-cells = <0>;
-		reg = <0x20 0x4>;
-		compatible = "fsl,qoriq-core-mux-1.0";
-		clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
-		clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
-		clock-output-names = "cmux1";
-	};
-	platform_pll: platform-pll@c00 {
-		#clock-cells = <1>;
-		reg = <0xc00 0x4>;
-		compatible = "fsl,qoriq-platform-pll-1.0";
-		clocks = <&sysclk>;
-		clock-output-names = "platform-pll", "platform-pll-div2";
-	};
 };

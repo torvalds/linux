@@ -280,7 +280,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 			peer = NULL;
 		if (!peer) {
 			peer = b->peer_backlog[peer_tail];
-			if (rxrpc_extract_addr_from_skb(local, &peer->srx, skb) < 0)
+			if (rxrpc_extract_addr_from_skb(&peer->srx, skb) < 0)
 				return NULL;
 			b->peer_backlog[peer_tail] = NULL;
 			smp_store_release(&b->peer_backlog_tail,

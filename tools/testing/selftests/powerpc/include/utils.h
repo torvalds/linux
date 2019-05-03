@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <linux/auxvec.h>
+#include <linux/perf_event.h>
 #include "reg.h"
 
 /* Avoid headaches with PRI?64 - just use %ll? always */
@@ -30,6 +31,15 @@ void *find_auxv_entry(int type, char *auxv);
 void *get_auxv_entry(int type);
 
 int pick_online_cpu(void);
+
+int read_debugfs_file(char *debugfs_file, int *result);
+int write_debugfs_file(char *debugfs_file, int result);
+void set_dscr(unsigned long val);
+int perf_event_open_counter(unsigned int type,
+			    unsigned long config, int group_fd);
+int perf_event_enable(int fd);
+int perf_event_disable(int fd);
+int perf_event_reset(int fd);
 
 static inline bool have_hwcap(unsigned long ftr)
 {
@@ -72,12 +82,32 @@ do {								\
 	}							\
 } while (0)
 
+#define SKIP_IF_MSG(x, msg)					\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[SKIP] Test skipped on line %d: %s\n",		\
+		 __LINE__, msg);				\
+		return MAGIC_SKIP_RETURN_VALUE;			\
+	}							\
+} while (0)
+
 #define _str(s) #s
 #define str(s) _str(s)
 
 /* POWER9 feature */
 #ifndef PPC_FEATURE2_ARCH_3_00
 #define PPC_FEATURE2_ARCH_3_00 0x00800000
+#endif
+
+#if defined(__powerpc64__)
+#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.gp_regs[PT_NIP]
+#define UCONTEXT_MSR(UC)	(UC)->uc_mcontext.gp_regs[PT_MSR]
+#elif defined(__powerpc__)
+#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.uc_regs->gregs[PT_NIP]
+#define UCONTEXT_MSR(UC)	(UC)->uc_mcontext.uc_regs->gregs[PT_MSR]
+#else
+#error implement UCONTEXT_NIA
 #endif
 
 #endif /* _SELFTESTS_POWERPC_UTILS_H */

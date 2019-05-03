@@ -2,9 +2,9 @@
 /*
  *  include/asm-s390/zcrypt.h
  *
- *  zcrypt 2.1.0 (user-visible header)
+ *  zcrypt 2.2.1 (user-visible header)
  *
- *  Copyright IBM Corp. 2001, 2006
+ *  Copyright IBM Corp. 2001, 2018
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -15,11 +15,14 @@
 #define __ASM_S390_ZCRYPT_H
 
 #define ZCRYPT_VERSION 2
-#define ZCRYPT_RELEASE 1
+#define ZCRYPT_RELEASE 2
 #define ZCRYPT_VARIANT 1
 
 #include <linux/ioctl.h>
 #include <linux/compiler.h>
+
+/* Name of the zcrypt device driver. */
+#define ZCRYPT_NAME "zcrypt"
 
 /**
  * struct ica_rsa_modexpo
@@ -147,8 +150,8 @@ struct ica_xcRB {
  * @cprb_len:		CPRB header length [0x0020]
  * @cprb_ver_id:	CPRB version id.   [0x04]
  * @pad_000:		Alignment pad bytes
- * @flags:		Admin cmd [0x80] or functional cmd [0x00]
- * @func_id:		Function id / subtype [0x5434]
+ * @flags:		Admin bit [0x80], Special bit [0x20]
+ * @func_id:		Function id / subtype [0x5434] "T4"
  * @source_id:		Source id [originator id]
  * @target_id:		Target id [usage/ctrl domain id]
  * @ret_code:		Return code
@@ -308,6 +311,16 @@ struct zcrypt_device_matrix_ext {
 #define ZCRYPT_STATUS_MASK   _IOR(ZCRYPT_IOCTL_MAGIC, 0x58, char[MAX_ZDEV_CARDIDS_EXT])
 #define ZCRYPT_QDEPTH_MASK   _IOR(ZCRYPT_IOCTL_MAGIC, 0x59, char[MAX_ZDEV_CARDIDS_EXT])
 #define ZCRYPT_PERDEV_REQCNT _IOR(ZCRYPT_IOCTL_MAGIC, 0x5a, int[MAX_ZDEV_CARDIDS_EXT])
+
+/*
+ * Support for multiple zcrypt device nodes.
+ */
+
+/* Nr of minor device node numbers to allocate. */
+#define ZCRYPT_MAX_MINOR_NODES 256
+
+/* Max amount of possible ioctls */
+#define MAX_ZDEV_IOCTLS (1 << _IOC_NRBITS)
 
 /*
  * Only deprecated defines, structs and ioctls below this line.

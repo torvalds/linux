@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NAND Flash Controller Device Driver for DT
  *
  * Copyright © 2011, Picochip.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/clk.h>
@@ -117,25 +109,17 @@ static int denali_dt_probe(struct platform_device *pdev)
 	if (IS_ERR(denali->host))
 		return PTR_ERR(denali->host);
 
-	/*
-	 * A single anonymous clock is supported for the backward compatibility.
-	 * New platforms should support all the named clocks.
-	 */
 	dt->clk = devm_clk_get(dev, "nand");
 	if (IS_ERR(dt->clk))
-		dt->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(dt->clk)) {
-		dev_err(dev, "no clk available\n");
 		return PTR_ERR(dt->clk);
-	}
 
 	dt->clk_x = devm_clk_get(dev, "nand_x");
 	if (IS_ERR(dt->clk_x))
-		dt->clk_x = NULL;
+		return PTR_ERR(dt->clk_x);
 
 	dt->clk_ecc = devm_clk_get(dev, "ecc");
 	if (IS_ERR(dt->clk_ecc))
-		dt->clk_ecc = NULL;
+		return PTR_ERR(dt->clk_ecc);
 
 	ret = clk_prepare_enable(dt->clk);
 	if (ret)
@@ -149,19 +133,8 @@ static int denali_dt_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_disable_clk_x;
 
-	if (dt->clk_x) {
-		denali->clk_rate = clk_get_rate(dt->clk);
-		denali->clk_x_rate = clk_get_rate(dt->clk_x);
-	} else {
-		/*
-		 * Hardcode the clock rates for the backward compatibility.
-		 * This works for both SOCFPGA and UniPhier.
-		 */
-		dev_notice(dev,
-			   "necessary clock is missing. default clock rates are used.\n");
-		denali->clk_rate = 50000000;
-		denali->clk_x_rate = 200000000;
-	}
+	denali->clk_rate = clk_get_rate(dt->clk);
+	denali->clk_x_rate = clk_get_rate(dt->clk_x);
 
 	ret = denali_init(denali);
 	if (ret)
@@ -202,6 +175,6 @@ static struct platform_driver denali_dt_driver = {
 };
 module_platform_driver(denali_dt_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jamie Iles");
 MODULE_DESCRIPTION("DT driver for Denali NAND controller");

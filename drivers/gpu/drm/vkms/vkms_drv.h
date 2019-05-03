@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+
 #ifndef _VKMS_DRV_H_
 #define _VKMS_DRV_H_
 
@@ -7,8 +9,8 @@
 #include <drm/drm_encoder.h>
 #include <linux/hrtimer.h>
 
-#define XRES_MIN    32
-#define YRES_MIN    32
+#define XRES_MIN    20
+#define YRES_MIN    20
 
 #define XRES_DEF  1024
 #define YRES_DEF   768
@@ -16,8 +18,46 @@
 #define XRES_MAX  8192
 #define YRES_MAX  8192
 
+extern bool enable_cursor;
+
 static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,
+};
+
+static const u32 vkms_cursor_formats[] = {
+	DRM_FORMAT_ARGB8888,
+};
+
+struct vkms_crc_data {
+	struct drm_framebuffer fb;
+	struct drm_rect src, dst;
+	unsigned int offset;
+	unsigned int pitch;
+	unsigned int cpp;
+};
+
+/**
+ * vkms_plane_state - Driver specific plane state
+ * @base: base plane state
+ * @crc_data: data required for CRC computation
+ */
+struct vkms_plane_state {
+	struct drm_plane_state base;
+	struct vkms_crc_data *crc_data;
+};
+
+/**
+ * vkms_crtc_state - Driver specific CRTC state
+ * @base: base CRTC state
+ * @crc_work: work struct to compute and add CRC entries
+ * @n_frame_start: start frame number for computed CRC
+ * @n_frame_end: end frame number for computed CRC
+ */
+struct vkms_crtc_state {
+	struct drm_crtc_state base;
+	struct work_struct crc_work;
+	u64 frame_start;
+	u64 frame_end;
 };
 
 struct vkms_output {
@@ -27,6 +67,13 @@ struct vkms_output {
 	struct hrtimer vblank_hrtimer;
 	ktime_t period_ns;
 	struct drm_pending_vblank_event *event;
+	bool crc_enabled;
+	/* ordered wq for crc_work */
+	struct workqueue_struct *crc_workq;
+	/* protects concurrent access to crc_data */
+	spinlock_t lock;
+	/* protects concurrent access to crtc_state */
+	spinlock_t state_lock;
 };
 
 struct vkms_device {
@@ -39,6 +86,8 @@ struct vkms_gem_object {
 	struct drm_gem_object gem;
 	struct mutex pages_lock; /* Page lock used in page fault handler */
 	struct page **pages;
+	unsigned int vmap_count;
+	void *vaddr;
 };
 
 #define drm_crtc_to_vkms_output(target) \
@@ -46,6 +95,15 @@ struct vkms_gem_object {
 
 #define drm_device_to_vkms_device(target) \
 	container_of(target, struct vkms_device, drm)
+
+#define drm_gem_to_vkms_gem(target)\
+	container_of(target, struct vkms_gem_object, gem)
+
+#define to_vkms_crtc_state(target)\
+	container_of(target, struct vkms_crtc_state, base)
+
+#define to_vkms_plane_state(target)\
+	container_of(target, struct vkms_plane_state, base)
 
 /* CRTC */
 int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
@@ -57,7 +115,8 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 
 int vkms_output_init(struct vkms_device *vkmsdev);
 
-struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev);
+struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
+				  enum drm_plane_type type);
 
 /* Gem stuff */
 struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
@@ -65,14 +124,21 @@ struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
 				       u32 *handle,
 				       u64 size);
 
-int vkms_gem_fault(struct vm_fault *vmf);
+vm_fault_t vkms_gem_fault(struct vm_fault *vmf);
 
 int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,
 		     struct drm_mode_create_dumb *args);
 
-int vkms_dumb_map(struct drm_file *file, struct drm_device *dev,
-		  u32 handle, u64 *offset);
-
 void vkms_gem_free_object(struct drm_gem_object *obj);
+
+int vkms_gem_vmap(struct drm_gem_object *obj);
+
+void vkms_gem_vunmap(struct drm_gem_object *obj);
+
+/* CRC Support */
+int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name);
+int vkms_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
+			   size_t *values_cnt);
+void vkms_crc_work_handle(struct work_struct *work);
 
 #endif /* _VKMS_DRV_H_ */

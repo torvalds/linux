@@ -15,7 +15,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/slab.h>
@@ -208,13 +207,11 @@ static inline void clear_io_bits(void __iomem *addr, u32 bits)
 static void davinci_spi_chipselect(struct spi_device *spi, int value)
 {
 	struct davinci_spi *dspi;
-	struct davinci_spi_platform_data *pdata;
 	struct davinci_spi_config *spicfg = spi->controller_data;
 	u8 chip_sel = spi->chip_select;
 	u16 spidat1 = CS_DEFAULT;
 
 	dspi = spi_master_get_devdata(spi->master);
-	pdata = &dspi->pdata;
 
 	/* program delay transfers if tx_delay is non zero */
 	if (spicfg && spicfg->wdelay)
@@ -224,15 +221,21 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	 * Board specific chip select logic decides the polarity and cs
 	 * line for the controller
 	 */
-	if (spi->cs_gpio >= 0) {
+	if (spi->cs_gpiod) {
+		/*
+		 * FIXME: is this code ever executed? This host does not
+		 * set SPI_MASTER_GPIO_SS so this chipselect callback should
+		 * not get called from the SPI core when we are using
+		 * GPIOs for chip select.
+		 */
 		if (value == BITBANG_CS_ACTIVE)
-			gpio_set_value(spi->cs_gpio, spi->mode & SPI_CS_HIGH);
+			gpiod_set_value(spi->cs_gpiod, 1);
 		else
-			gpio_set_value(spi->cs_gpio,
-				!(spi->mode & SPI_CS_HIGH));
+			gpiod_set_value(spi->cs_gpiod, 0);
 	} else {
 		if (value == BITBANG_CS_ACTIVE) {
-			spidat1 |= SPIDAT1_CSHOLD_MASK;
+			if (!(spi->mode & SPI_CS_WORD))
+				spidat1 |= SPIDAT1_CSHOLD_MASK;
 			spidat1 &= ~(0x1 << chip_sel);
 		}
 	}
@@ -419,35 +422,15 @@ static int davinci_spi_of_setup(struct spi_device *spi)
  */
 static int davinci_spi_setup(struct spi_device *spi)
 {
-	int retval = 0;
 	struct davinci_spi *dspi;
-	struct davinci_spi_platform_data *pdata;
-	struct spi_master *master = spi->master;
 	struct device_node *np = spi->dev.of_node;
 	bool internal_cs = true;
 
 	dspi = spi_master_get_devdata(spi->master);
-	pdata = &dspi->pdata;
 
 	if (!(spi->mode & SPI_NO_CS)) {
-		if (np && (master->cs_gpios != NULL) && (spi->cs_gpio >= 0)) {
-			retval = gpio_direction_output(
-				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+		if (np && spi->cs_gpiod)
 			internal_cs = false;
-		} else if (pdata->chip_sel &&
-			   spi->chip_select < pdata->num_chipselect &&
-			   pdata->chip_sel[spi->chip_select] != SPI_INTERN_CS) {
-			spi->cs_gpio = pdata->chip_sel[spi->chip_select];
-			retval = gpio_direction_output(
-				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-			internal_cs = false;
-		}
-
-		if (retval) {
-			dev_err(&spi->dev, "GPIO %d setup failed (%d)\n",
-				spi->cs_gpio, retval);
-			return retval;
-		}
 
 		if (internal_cs)
 			set_io_bits(dspi->base + SPIPC0, 1 << spi->chip_select);
@@ -971,6 +954,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_master;
 
+	master->use_gpio_descriptors = true;
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = pdev->id;
 	master->num_chipselect = pdata->num_chipselect;
@@ -985,30 +969,9 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	dspi->prescaler_limit = pdata->prescaler_limit;
 	dspi->version = pdata->version;
 
-	dspi->bitbang.flags = SPI_NO_CS | SPI_LSB_FIRST | SPI_LOOP;
+	dspi->bitbang.flags = SPI_NO_CS | SPI_LSB_FIRST | SPI_LOOP | SPI_CS_WORD;
 	if (dspi->version == SPI_VERSION_2)
 		dspi->bitbang.flags |= SPI_READY;
-
-	if (pdev->dev.of_node) {
-		int i;
-
-		for (i = 0; i < pdata->num_chipselect; i++) {
-			int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
-							"cs-gpios", i);
-
-			if (cs_gpio == -EPROBE_DEFER) {
-				ret = cs_gpio;
-				goto free_clk;
-			}
-
-			if (gpio_is_valid(cs_gpio)) {
-				ret = devm_gpio_request(&pdev->dev, cs_gpio,
-							dev_name(&pdev->dev));
-				if (ret)
-					goto free_clk;
-			}
-		}
-	}
 
 	dspi->bitbang.txrx_bufs = davinci_spi_bufs;
 

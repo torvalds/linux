@@ -67,7 +67,13 @@
 		debounce-delay-ms = <5>;
 		col-scan-delay-us = <2>;
 
-		row-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH /* Bank3, pin21 */
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&matrix_keypad_default>;
+		pinctrl-1 = <&matrix_keypad_sleep>;
+
+		wakeup-source;
+
+		row-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH /* Bank0, pin3 */
 				&gpio4 3 GPIO_ACTIVE_HIGH /* Bank4, pin3 */
 				&gpio4 2 GPIO_ACTIVE_HIGH>; /* Bank4, pin2 */
 
@@ -155,15 +161,22 @@
 	beeper: beeper {
 		compatible = "gpio-beeper";
 		pinctrl-names = "default";
-		pinctrl-0 = <&beeper_pins>;
+		pinctrl-0 = <&beeper_pins_default>;
+		pinctrl-1 = <&beeper_pins_sleep>;
 		gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
 	};
 };
 
 &am43xx_pinmux {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&wlan_pins_default>;
+	pinctrl-0 = <&wlan_pins_default &ddr3_vtt_toggle_default &unused_pins &debugss_pins>;
 	pinctrl-1 = <&wlan_pins_sleep>;
+
+	ddr3_vtt_toggle_default: ddr_vtt_toggle_default {
+		pinctrl-single,pins = <
+			0x25C (DS0_PULL_UP_DOWN_EN | PIN_OUTPUT_PULLUP | DS0_FORCE_OFF_MODE | MUX_MODE7) /* spi0_cs0.gpio5_7 */
+		>;
+	};
 
 	i2c0_pins: i2c0_pins {
 		pinctrl-single,pins = <
@@ -511,27 +524,121 @@
 		>;
 	};
 
-	uart0_pins_default: uart0_pins_default {
-		pinctrl-single,pins = <
-			AM4372_IOPAD(0x968, PIN_INPUT | MUX_MODE0)		/* uart0_ctsn.uart0_ctsn */
-			AM4372_IOPAD(0x96C, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart0_rtsn.uart0_rtsn */
-			AM4372_IOPAD(0x970, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
-			AM4372_IOPAD(0x974, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart0_txd.uart0_txd */
-		>;
-	};
-
-	beeper_pins: beeper_pins {
+	beeper_pins_default: beeper_pins_default {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9e0, PIN_OUTPUT_PULLUP | MUX_MODE7)	/* cam1_field.gpio4_12 */
 		>;
 	};
 
+	beeper_pins_sleep: beeper_pins_sleep {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x9e0, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* cam1_field.gpio4_12 */
+		>;
+	};
+
+	unused_pins: unused_pins {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x854, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x858, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x860, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x864, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x868, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x86c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x950, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x998, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x99c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x9a0, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa3c, PIN_INPUT | PULL_DISABLE | MUX_MODE7)
+			AM4372_IOPAD(0xa40, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa44, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa48, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa4c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa50, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa54, PIN_INPUT | PULL_DISABLE | MUX_MODE7)
+			AM4372_IOPAD(0xa58, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa60, PIN_INPUT | PULL_DISABLE | MUX_MODE7)
+			AM4372_IOPAD(0xa68, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa70, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa78, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xa7c, PIN_INPUT | PULL_DISABLE)
+			AM4372_IOPAD(0xac8, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xad4, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xad8, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xadc, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xae0, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xae4, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xae8, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xaec, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xaf0, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xaf4, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xaf8, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xafc, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xb00, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xb04, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xb08, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xb0c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xb10, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xb14, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0xb18, PIN_INPUT_PULLDOWN | MUX_MODE7)
+		>;
+	};
+
+	debugss_pins: pinmux_debugss_pins {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0xa90, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xa94, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xa98, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xa9c, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xaa0, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xaa4, PIN_INPUT_PULLDOWN)
+			AM4372_IOPAD(0xaa8, PIN_INPUT_PULLDOWN)
+		>;
+	};
+
+	uart0_pins_default: uart0_pins_default {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x968, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0) /* uart0_ctsn.uart0_ctsn */
+			AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE0) /* uart0_rtsn.uart0_rtsn */
+			AM4372_IOPAD(0x970, PIN_INPUT_PULLUP | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_rxd.uart0_rxd */
+			AM4372_IOPAD(0x974, PIN_INPUT | PULL_DISABLE | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_txd.uart0_txd */
+		>;
+	};
+
+	uart0_pins_sleep: uart0_pins_sleep {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x968, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7) /* uart0_ctsn.uart0_ctsn */
+			AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7) /* uart0_rtsn.uart0_rtsn */
+			AM4372_IOPAD(0x970, PIN_INPUT_PULLUP | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_rxd.uart0_rxd */
+			AM4372_IOPAD(0x974, PIN_INPUT_PULLDOWN | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_txd.uart0_txd */
+		>;
+	};
+
+	matrix_keypad_default: matrix_keypad_default {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x9a4, PIN_OUTPUT | MUX_MODE7)
+			AM4372_IOPAD(0x9a8, PIN_OUTPUT | MUX_MODE7)
+			AM4372_IOPAD(0x9ac, PIN_INPUT | PULL_DISABLE | MUX_MODE9)
+			AM4372_IOPAD(0x954, PIN_INPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	matrix_keypad_sleep: matrix_keypad_sleep {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x9a4, PULL_UP | MUX_MODE7)
+			AM4372_IOPAD(0x9a8, PULL_UP | MUX_MODE7)
+			AM4372_IOPAD(0x9ac, PIN_INPUT | PULL_DISABLE | MUX_MODE9)
+			AM4372_IOPAD(0x954, PIN_INPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
 };
 
 &uart0 {
 	status = "okay";
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&uart0_pins_default>;
+	pinctrl-1 = <&uart0_pins_sleep>;
 };
 
 &i2c0 {
@@ -831,10 +938,14 @@
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
 };
 

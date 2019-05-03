@@ -40,16 +40,6 @@ config EARLY_PRINTK_DBGP
 	  with klogd/syslogd or the X server. You should normally say N here,
 	  unless you want to debug such a crash. You need usb debug device.
 
-config EARLY_PRINTK_EFI
-	bool "Early printk via the EFI framebuffer"
-	depends on EFI && EARLY_PRINTK
-	select FONT_SUPPORT
-	---help---
-	  Write kernel log output directly into the EFI framebuffer.
-
-	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized.
-
 config EARLY_PRINTK_USB_XDBC
 	bool "Early printk via the xHCI debug port"
 	depends on EARLY_PRINTK && PCI
@@ -314,7 +304,6 @@ config DEBUG_NMI_SELFTEST
 
 config DEBUG_IMR_SELFTEST
 	bool "Isolated Memory Region self test"
-	default n
 	depends on INTEL_IMR
 	---help---
 	  This option enables automated sanity testing of the IMR code.

@@ -746,9 +746,15 @@ static void ide_initialize_rq(struct request *rq)
 {
 	struct ide_request *req = blk_mq_rq_to_pdu(rq);
 
+	req->special = NULL;
 	scsi_req_init(&req->sreq);
 	req->sreq.sense = req->sense;
 }
+
+static const struct blk_mq_ops ide_mq_ops = {
+	.queue_rq		= ide_queue_rq,
+	.initialize_rq_fn	= ide_initialize_rq,
+};
 
 /*
  * init request queue
@@ -759,6 +765,7 @@ static int ide_init_queue(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	int max_sectors = 256;
 	int max_sg_entries = PRD_ENTRIES;
+	struct blk_mq_tag_set *set;
 
 	/*
 	 *	Our default set up assumes the normal IDE case,
@@ -767,18 +774,25 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	limits and LBA48 we could raise it but as yet
 	 *	do not.
 	 */
-	q = blk_alloc_queue_node(GFP_KERNEL, hwif_to_node(hwif), NULL);
-	if (!q)
+
+	set = &drive->tag_set;
+	set->ops = &ide_mq_ops;
+	set->nr_hw_queues = 1;
+	set->queue_depth = 32;
+	set->reserved_tags = 1;
+	set->cmd_size = sizeof(struct ide_request);
+	set->numa_node = hwif_to_node(hwif);
+	set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
+	if (blk_mq_alloc_tag_set(set))
 		return 1;
 
-	q->request_fn = do_ide_request;
-	q->initialize_rq_fn = ide_initialize_rq;
-	q->cmd_size = sizeof(struct ide_request);
-	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
-	if (blk_init_allocated_queue(q) < 0) {
-		blk_cleanup_queue(q);
+	q = blk_mq_init_queue(set);
+	if (IS_ERR(q)) {
+		blk_mq_free_tag_set(set);
 		return 1;
 	}
+
+	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 
 	q->queuedata = drive;
 	blk_queue_segment_boundary(q, 0xffff);
@@ -965,8 +979,12 @@ static void drive_release_dev (struct device *dev)
 
 	ide_proc_unregister_device(drive);
 
+	if (drive->sense_rq)
+		blk_mq_free_request(drive->sense_rq);
+
 	blk_cleanup_queue(drive->queue);
 	drive->queue = NULL;
+	blk_mq_free_tag_set(&drive->tag_set);
 
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 
@@ -1133,6 +1151,37 @@ static void ide_port_cable_detect(ide_hwif_t *hwif)
 	}
 }
 
+/*
+ * Deferred request list insertion handler
+ */
+static void drive_rq_insert_work(struct work_struct *work)
+{
+	ide_drive_t *drive = container_of(work, ide_drive_t, rq_work);
+	ide_hwif_t *hwif = drive->hwif;
+	struct request *rq;
+	blk_status_t ret;
+	LIST_HEAD(list);
+
+	blk_mq_quiesce_queue(drive->queue);
+
+	ret = BLK_STS_OK;
+	spin_lock_irq(&hwif->lock);
+	while (!list_empty(&drive->rq_list)) {
+		rq = list_first_entry(&drive->rq_list, struct request, queuelist);
+		list_del_init(&rq->queuelist);
+
+		spin_unlock_irq(&hwif->lock);
+		ret = ide_issue_rq(drive, rq, true);
+		spin_lock_irq(&hwif->lock);
+	}
+	spin_unlock_irq(&hwif->lock);
+
+	blk_mq_unquiesce_queue(drive->queue);
+
+	if (ret != BLK_STS_OK)
+		kblockd_schedule_work(&drive->rq_work);
+}
+
 static const u8 ide_hwif_to_major[] =
 	{ IDE0_MAJOR, IDE1_MAJOR, IDE2_MAJOR, IDE3_MAJOR, IDE4_MAJOR,
 	  IDE5_MAJOR, IDE6_MAJOR, IDE7_MAJOR, IDE8_MAJOR, IDE9_MAJOR };
@@ -1145,12 +1194,10 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	ide_port_for_each_dev(i, drive, hwif) {
 		u8 j = (hwif->index * MAX_DRIVES) + i;
 		u16 *saved_id = drive->id;
-		struct request *saved_sense_rq = drive->sense_rq;
 
 		memset(drive, 0, sizeof(*drive));
 		memset(saved_id, 0, SECTOR_SIZE);
 		drive->id = saved_id;
-		drive->sense_rq = saved_sense_rq;
 
 		drive->media			= ide_disk;
 		drive->select			= (i << 4) | ATA_DEVICE_OBS;
@@ -1166,6 +1213,9 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 
 		INIT_LIST_HEAD(&drive->list);
 		init_completion(&drive->gendev_rel_comp);
+
+		INIT_WORK(&drive->rq_work, drive_rq_insert_work);
+		INIT_LIST_HEAD(&drive->rq_list);
 	}
 }
 
@@ -1255,7 +1305,6 @@ static void ide_port_free_devices(ide_hwif_t *hwif)
 	int i;
 
 	ide_port_for_each_dev(i, drive, hwif) {
-		kfree(drive->sense_rq);
 		kfree(drive->id);
 		kfree(drive);
 	}
@@ -1283,17 +1332,10 @@ static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
 		if (drive->id == NULL)
 			goto out_free_drive;
 
-		drive->sense_rq = kmalloc(sizeof(struct request) +
-				sizeof(struct ide_request), GFP_KERNEL);
-		if (!drive->sense_rq)
-			goto out_free_id;
-
 		hwif->devices[i] = drive;
 	}
 	return 0;
 
-out_free_id:
-	kfree(drive->id);
 out_free_drive:
 	kfree(drive);
 out_nomem:

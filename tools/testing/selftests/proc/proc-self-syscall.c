@@ -20,7 +20,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -39,7 +38,7 @@ int main(void)
 	fd = open("/proc/self/syscall", O_RDONLY);
 	if (fd == -1) {
 		if (errno == ENOENT)
-			return 2;
+			return 4;
 		return 1;
 	}
 

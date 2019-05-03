@@ -12,7 +12,7 @@ struct siginfo;
 
 struct cpu_timer_list {
 	struct list_head entry;
-	u64 expires, incr;
+	u64 expires;
 	struct task_struct *task;
 	int firing;
 };
@@ -126,5 +126,5 @@ void set_process_cpu_timer(struct task_struct *task, unsigned int clock_idx,
 
 void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new);
 
-void posixtimer_rearm(struct siginfo *info);
+void posixtimer_rearm(struct kernel_siginfo *info);
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -16,7 +17,9 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 #include <linux/delay.h>
+
 
 static void pblk_gc_free_gc_rq(struct pblk_gc_rq *gc_rq)
 {
@@ -64,6 +67,8 @@ static void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
 	spin_lock(&line->lock);
 	WARN_ON(line->state != PBLK_LINESTATE_GC);
 	line->state = PBLK_LINESTATE_CLOSED;
+	trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 	move_list = pblk_line_gc_list(pblk, line);
 	spin_unlock(&line->lock);
 
@@ -144,7 +149,7 @@ static __le64 *get_lba_list_from_emeta(struct pblk *pblk,
 	if (!emeta_buf)
 		return NULL;
 
-	ret = pblk_line_read_emeta(pblk, line, emeta_buf);
+	ret = pblk_line_emeta_read(pblk, line, emeta_buf);
 	if (ret) {
 		pblk_err(pblk, "line %d read emeta failed (%d)\n",
 				line->id, ret);
@@ -360,15 +365,21 @@ static struct pblk_line *pblk_gc_get_victim_line(struct pblk *pblk,
 						 struct list_head *group_list)
 {
 	struct pblk_line *line, *victim;
-	int line_vsc, victim_vsc;
+	unsigned int line_vsc = ~0x0L, victim_vsc = ~0x0L;
 
 	victim = list_first_entry(group_list, struct pblk_line, list);
+
 	list_for_each_entry(line, group_list, list) {
-		line_vsc = le32_to_cpu(*line->vsc);
-		victim_vsc = le32_to_cpu(*victim->vsc);
-		if (line_vsc < victim_vsc)
+		if (!atomic_read(&line->sec_to_update))
+			line_vsc = le32_to_cpu(*line->vsc);
+		if (line_vsc < victim_vsc) {
 			victim = line;
+			victim_vsc = le32_to_cpu(*victim->vsc);
+		}
 	}
+
+	if (victim_vsc == ~0x0)
+		return NULL;
 
 	return victim;
 }
@@ -405,6 +416,8 @@ void pblk_gc_free_full_lines(struct pblk *pblk)
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);
 		line->state = PBLK_LINESTATE_GC;
+		trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 		spin_unlock(&line->lock);
 
 		list_del(&line->list);
@@ -441,16 +454,18 @@ next_gc_group:
 
 	do {
 		spin_lock(&l_mg->gc_lock);
-		if (list_empty(group_list)) {
+
+		line = pblk_gc_get_victim_line(pblk, group_list);
+		if (!line) {
 			spin_unlock(&l_mg->gc_lock);
 			break;
 		}
 
-		line = pblk_gc_get_victim_line(pblk, group_list);
-
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);
 		line->state = PBLK_LINESTATE_GC;
+		trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 		spin_unlock(&line->lock);
 
 		list_del(&line->list);

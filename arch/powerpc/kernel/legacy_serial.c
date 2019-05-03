@@ -192,7 +192,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	if (tsi && !strcmp(tsi->type, "tsi-bridge"))
+	if (of_node_is_type(tsi, "tsi-bridge"))
 		return add_legacy_port(np, -1, UPIO_TSI, addr, addr,
 				       0, legacy_port_flags, 0);
 	else
@@ -372,6 +372,8 @@ void __init find_legacy_serial_ports(void)
 
 	/* Now find out if one of these is out firmware console */
 	path = of_get_property(of_chosen, "linux,stdout-path", NULL);
+	if (path == NULL)
+		path = of_get_property(of_chosen, "stdout-path", NULL);
 	if (path != NULL) {
 		stdout = of_find_node_by_path(path);
 		if (stdout)
@@ -398,8 +400,7 @@ void __init find_legacy_serial_ports(void)
 	/* Next, fill our array with ISA ports */
 	for_each_node_by_type(np, "serial") {
 		struct device_node *isa = of_get_parent(np);
-		if (isa && (!strcmp(isa->name, "isa") ||
-			    !strcmp(isa->name, "lpc"))) {
+		if (of_node_name_eq(isa, "isa") || of_node_name_eq(isa, "lpc")) {
 			if (of_device_is_available(np)) {
 				index = add_legacy_isa_port(np, isa);
 				if (index >= 0 && np == stdout)
@@ -413,11 +414,12 @@ void __init find_legacy_serial_ports(void)
 	/* Next, try to locate PCI ports */
 	for (np = NULL; (np = of_find_all_nodes(np));) {
 		struct device_node *pci, *parent = of_get_parent(np);
-		if (parent && !strcmp(parent->name, "isa")) {
+		if (of_node_name_eq(parent, "isa")) {
 			of_node_put(parent);
 			continue;
 		}
-		if (strcmp(np->name, "serial") && strcmp(np->type, "serial")) {
+		if (!of_node_name_eq(np, "serial") &&
+		    !of_node_is_type(np, "serial")) {
 			of_node_put(parent);
 			continue;
 		}
@@ -595,8 +597,10 @@ static int __init check_legacy_serial_console(void)
 	/* We are getting a weird phandle from OF ... */
 	/* ... So use the full path instead */
 	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+	if (name == NULL)
+		name = of_get_property(of_chosen, "stdout-path", NULL);
 	if (name == NULL) {
-		DBG(" no linux,stdout-path !\n");
+		DBG(" no stdout-path !\n");
 		return -ENODEV;
 	}
 	prom_stdout = of_find_node_by_path(name);

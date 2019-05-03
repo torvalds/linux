@@ -70,7 +70,7 @@ config MTD_NAND_GPIO
 
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
-	depends on MACH_AMS_DELTA
+	depends on MACH_AMS_DELTA || COMPILE_TEST
 	default y
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
@@ -226,26 +226,6 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  Even if you leave this disabled, you can enable BBT writes at module
 	  load time (assuming you build diskonchip as a module) with the module
 	  parameter "inftl_bbt_write=1".
-
-config MTD_NAND_DOCG4
-	tristate "Support for DiskOnChip G4"
-	depends on HAS_IOMEM
-	select BCH
-	select BITREVERSE
-	help
-	  Support for diskonchip G4 nand flash, found in various smartphones and
-	  PDAs, among them the Palm Treo680, HTC Prophet and Wizard, Toshiba
-	  Portege G900, Asus P526, and O2 XDA Zinc.
-
-	  With this driver you will be able to use UBI and create a ubifs on the
-	  device, so you may wish to consider enabling UBI and UBIFS as well.
-
-	  These devices ship with the Mys/Sandisk SAFTL formatting, for which
-	  there is currently no mtd parser, so you may want to use command line
-	  partitioning to segregate write-protected blocks. On the Treo680, the
-	  first five erase blocks (256KiB each) are write-protected, followed
-	  by the block containing the saftl partition table.  This is probably
-	  typical.
 
 config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
@@ -560,5 +540,22 @@ config MTD_NAND_TEGRA
 	  support, raw read/write page as well as HW ECC read/write page
 	  is supported. Extra OOB bytes when using HW ECC are currently
 	  not supported.
+
+config MTD_NAND_STM32_FMC2
+	tristate "Support for NAND controller on STM32MP SoCs"
+	depends on MACH_STM32MP157 || COMPILE_TEST
+	help
+	  Enables support for NAND Flash chips on SoCs containing the FMC2
+	  NAND controller. This controller is found on STM32MP SoCs.
+	  The controller supports a maximum 8k page size and supports
+	  a maximum 8-bit correction error per sector of 512 bytes.
+
+config MTD_NAND_MESON
+	tristate "Support for NAND controller on Amlogic's Meson SoCs"
+	depends on ARCH_MESON || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Enables support for NAND controller on Amlogic's Meson SoCs.
+	  This controller is found on Meson SoCs.
 
 endif # MTD_NAND

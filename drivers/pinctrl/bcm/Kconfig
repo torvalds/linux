@@ -73,6 +73,19 @@ config PINCTRL_CYGNUS_MUX
 	  configuration, with the exception that certain individual pins
 	  can be overridden to GPIO function
 
+config PINCTRL_NS
+	bool "Broadcom Northstar pins driver"
+	depends on OF && (ARCH_BCM_5301X || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+	default ARCH_BCM_5301X
+	help
+	  Say yes here to enable the Broadcom NS SoC pins driver.
+
+	  The Broadcom Northstar pins driver supports muxing multi-purpose pins
+	  that can be used for various functions (e.g. SPI, I2C, UART) as well
+	  as GPIOs.
+
 config PINCTRL_NSP_GPIO
 	bool "Broadcom NSP GPIO (with PINCONF) driver"
 	depends on OF_GPIO && (ARCH_BCM_NSP || COMPILE_TEST)

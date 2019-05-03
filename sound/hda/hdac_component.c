@@ -54,41 +54,48 @@ EXPORT_SYMBOL_GPL(snd_hdac_set_codec_wakeup);
 /**
  * snd_hdac_display_power - Power up / down the power refcount
  * @bus: HDA core bus
+ * @idx: HDA codec address, pass HDA_CODEC_IDX_CONTROLLER for controller
  * @enable: power up or down
  *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with graphics driver.
+ * This function is used by either HD-audio controller or codec driver that
+ * needs the interaction with graphics driver.
  *
- * This function manages a refcount and calls the get_power() and
+ * This function updates the power status, and calls the get_power() and
  * put_power() ops accordingly, toggling the codec wakeup, too.
- *
- * Returns zero for success or a negative error code.
  */
-int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
+void snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx, bool enable)
 {
 	struct drm_audio_component *acomp = bus->audio_component;
-
-	if (!acomp || !acomp->ops)
-		return -ENODEV;
 
 	dev_dbg(bus->dev, "display power %s\n",
 		enable ? "enable" : "disable");
 
-	if (enable) {
-		if (!bus->drm_power_refcount++) {
+	mutex_lock(&bus->lock);
+	if (enable)
+		set_bit(idx, &bus->display_power_status);
+	else
+		clear_bit(idx, &bus->display_power_status);
+
+	if (!acomp || !acomp->ops)
+		goto unlock;
+
+	if (bus->display_power_status) {
+		if (!bus->display_power_active) {
 			if (acomp->ops->get_power)
 				acomp->ops->get_power(acomp->dev);
 			snd_hdac_set_codec_wakeup(bus, true);
 			snd_hdac_set_codec_wakeup(bus, false);
+			bus->display_power_active = true;
 		}
 	} else {
-		WARN_ON(!bus->drm_power_refcount);
-		if (!--bus->drm_power_refcount)
+		if (bus->display_power_active) {
 			if (acomp->ops->put_power)
 				acomp->ops->put_power(acomp->dev);
+			bus->display_power_active = false;
+		}
 	}
-
-	return 0;
+ unlock:
+	mutex_unlock(&bus->lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_display_power);
 
@@ -266,7 +273,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_notifier);
  */
 int snd_hdac_acomp_init(struct hdac_bus *bus,
 			const struct drm_audio_component_audio_ops *aops,
-			int (*match_master)(struct device *, void *),
+			int (*match_master)(struct device *, int, void *),
 			size_t extra_size)
 {
 	struct component_match *match = NULL;
@@ -285,7 +292,7 @@ int snd_hdac_acomp_init(struct hdac_bus *bus,
 	bus->audio_component = acomp;
 	devres_add(dev, acomp);
 
-	component_match_add(dev, &match, match_master, bus);
+	component_match_add_typed(dev, &match, match_master, bus);
 	ret = component_master_add_with_match(dev, &hdac_component_master_ops,
 					      match);
 	if (ret < 0)
@@ -321,9 +328,11 @@ int snd_hdac_acomp_exit(struct hdac_bus *bus)
 	if (!acomp)
 		return 0;
 
-	WARN_ON(bus->drm_power_refcount);
-	if (bus->drm_power_refcount > 0 && acomp->ops)
+	if (WARN_ON(bus->display_power_active) && acomp->ops)
 		acomp->ops->put_power(acomp->dev);
+
+	bus->display_power_active = false;
+	bus->display_power_status = 0;
 
 	component_master_del(dev, &hdac_component_master_ops);
 

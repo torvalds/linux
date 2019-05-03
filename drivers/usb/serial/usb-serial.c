@@ -396,6 +396,24 @@ static void serial_unthrottle(struct tty_struct *tty)
 		port->serial->type->unthrottle(tty);
 }
 
+static int serial_get_serial(struct tty_struct *tty, struct serial_struct *ss)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	if (port->serial->type->get_serial)
+		return port->serial->type->get_serial(tty, ss);
+	return -ENOTTY;
+}
+
+static int serial_set_serial(struct tty_struct *tty, struct serial_struct *ss)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	if (port->serial->type->set_serial)
+		return port->serial->type->set_serial(tty, ss);
+	return -ENOTTY;
+}
+
 static int serial_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
@@ -1177,6 +1195,8 @@ static const struct tty_operations serial_ops = {
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
 	.get_icount =		serial_get_icount,
+	.set_serial =		serial_set_serial,
+	.get_serial =		serial_get_serial,
 	.cleanup =		serial_cleanup,
 	.install =		serial_install,
 	.proc_show =		serial_proc_show,

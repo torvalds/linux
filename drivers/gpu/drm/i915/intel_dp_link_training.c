@@ -24,7 +24,7 @@
 #include "intel_drv.h"
 
 static void
-intel_dp_dump_link_status(const uint8_t link_status[DP_LINK_STATUS_SIZE])
+intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
 {
 
 	DRM_DEBUG_KMS("ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x",
@@ -34,17 +34,17 @@ intel_dp_dump_link_status(const uint8_t link_status[DP_LINK_STATUS_SIZE])
 
 static void
 intel_get_adjust_train(struct intel_dp *intel_dp,
-		       const uint8_t link_status[DP_LINK_STATUS_SIZE])
+		       const u8 link_status[DP_LINK_STATUS_SIZE])
 {
-	uint8_t v = 0;
-	uint8_t p = 0;
+	u8 v = 0;
+	u8 p = 0;
 	int lane;
-	uint8_t voltage_max;
-	uint8_t preemph_max;
+	u8 voltage_max;
+	u8 preemph_max;
 
 	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		uint8_t this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
-		uint8_t this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
+		u8 this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
+		u8 this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
 
 		if (this_v > v)
 			v = this_v;
@@ -66,9 +66,9 @@ intel_get_adjust_train(struct intel_dp *intel_dp,
 
 static bool
 intel_dp_set_link_train(struct intel_dp *intel_dp,
-			uint8_t dp_train_pat)
+			u8 dp_train_pat)
 {
-	uint8_t buf[sizeof(intel_dp->train_set) + 1];
+	u8 buf[sizeof(intel_dp->train_set) + 1];
 	int ret, len;
 
 	intel_dp_program_link_training_pattern(intel_dp, dp_train_pat);
@@ -92,7 +92,7 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 
 static bool
 intel_dp_reset_link_train(struct intel_dp *intel_dp,
-			uint8_t dp_train_pat)
+			u8 dp_train_pat)
 {
 	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
 	intel_dp_set_signal_levels(intel_dp);
@@ -128,10 +128,11 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp)
 static bool
 intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 {
-	uint8_t voltage;
-	int voltage_tries, max_vswing_tries;
-	uint8_t link_config[2];
-	uint8_t link_bw, rate_select;
+	u8 voltage;
+	int voltage_tries, cr_tries, max_cr_tries;
+	bool max_vswing_reached = false;
+	u8 link_config[2];
+	u8 link_bw, rate_select;
 
 	if (intel_dp->prepare_link_retrain)
 		intel_dp->prepare_link_retrain(intel_dp);
@@ -170,10 +171,22 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	/*
+	 * The DP 1.4 spec defines the max clock recovery retries value
+	 * as 10 but for pre-DP 1.4 devices we set a very tolerant
+	 * retry limit of 80 (4 voltage levels x 4 preemphasis levels x
+	 * x 5 identical voltage retries). Since the previous specs didn't
+	 * define a limit and created the possibility of an infinite loop
+	 * we want to prevent any sync from triggering that corner case.
+	 */
+	if (intel_dp->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
+		max_cr_tries = 10;
+	else
+		max_cr_tries = 80;
+
 	voltage_tries = 1;
-	max_vswing_tries = 0;
-	for (;;) {
-		uint8_t link_status[DP_LINK_STATUS_SIZE];
+	for (cr_tries = 0; cr_tries < max_cr_tries; ++cr_tries) {
+		u8 link_status[DP_LINK_STATUS_SIZE];
 
 		drm_dp_link_train_clock_recovery_delay(intel_dp->dpcd);
 
@@ -192,7 +205,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			return false;
 		}
 
-		if (max_vswing_tries == 1) {
+		if (max_vswing_reached) {
 			DRM_DEBUG_KMS("Max Voltage Swing reached\n");
 			return false;
 		}
@@ -213,9 +226,11 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			voltage_tries = 1;
 
 		if (intel_dp_link_max_vswing_reached(intel_dp))
-			++max_vswing_tries;
+			max_vswing_reached = true;
 
 	}
+	DRM_ERROR("Failed clock recovery %d times, giving up!\n", max_cr_tries);
+	return false;
 }
 
 /*
@@ -267,7 +282,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 {
 	int tries;
 	u32 training_pattern;
-	uint8_t link_status[DP_LINK_STATUS_SIZE];
+	u8 link_status[DP_LINK_STATUS_SIZE];
 	bool channel_eq = false;
 
 	training_pattern = intel_dp_training_pattern(intel_dp);
@@ -352,22 +367,14 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	return;
 
  failure_handling:
-	/* Dont fallback and prune modes if its eDP */
-	if (!intel_dp_is_edp(intel_dp)) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
-			      intel_connector->base.base.id,
-			      intel_connector->base.name,
-			      intel_dp->link_rate, intel_dp->lane_count);
-		if (!intel_dp_get_link_train_fallback_values(intel_dp,
-							     intel_dp->link_rate,
-							     intel_dp->lane_count))
-			/* Schedule a Hotplug Uevent to userspace to start modeset */
-			schedule_work(&intel_connector->modeset_retry_work);
-	} else {
-		DRM_ERROR("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
-			  intel_connector->base.base.id,
-			  intel_connector->base.name,
-			  intel_dp->link_rate, intel_dp->lane_count);
-	}
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
+		      intel_connector->base.base.id,
+		      intel_connector->base.name,
+		      intel_dp->link_rate, intel_dp->lane_count);
+	if (!intel_dp_get_link_train_fallback_values(intel_dp,
+						     intel_dp->link_rate,
+						     intel_dp->lane_count))
+		/* Schedule a Hotplug Uevent to userspace to start modeset */
+		schedule_work(&intel_connector->modeset_retry_work);
 	return;
 }

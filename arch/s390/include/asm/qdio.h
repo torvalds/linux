@@ -252,13 +252,11 @@ struct slsb {
  *   (for communication with upper layer programs)
  *   (only required for use with completion queues)
  * @flags: flags indicating state of buffer
- * @aob: pointer to QAOB used for the particular SBAL
  * @user: pointer to upper layer program's state information related to SBAL
  *        (stored in user1 data of QAOB)
  */
 struct qdio_outbuf_state {
 	u8 flags;
-	struct qaob *aob;
 	void *user;
 };
 
@@ -363,8 +361,8 @@ struct qdio_initialize {
 					  unsigned long);
 	int scan_threshold;
 	unsigned long int_parm;
-	void **input_sbal_addr_array;
-	void **output_sbal_addr_array;
+	struct qdio_buffer **input_sbal_addr_array;
+	struct qdio_buffer **output_sbal_addr_array;
 	struct qdio_outbuf_state *output_sbal_state_array;
 };
 

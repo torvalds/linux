@@ -148,6 +148,7 @@ void rt2800mmio_toggle_irq(struct rt2x00_dev *rt2x00dev,
 /* Queue handlers */
 void rt2800mmio_start_queue(struct data_queue *queue);
 void rt2800mmio_kick_queue(struct data_queue *queue);
+void rt2800mmio_flush_queue(struct data_queue *queue, bool drop);
 void rt2800mmio_stop_queue(struct data_queue *queue);
 void rt2800mmio_queue_init(struct data_queue *queue);
 

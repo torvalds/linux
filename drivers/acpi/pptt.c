@@ -209,6 +209,9 @@ static int acpi_pptt_leaf_node(struct acpi_table_header *table_hdr,
 	struct acpi_pptt_processor *cpu_node;
 	u32 proc_sz;
 
+	if (table_hdr->revision > 1)
+		return (node->flags & ACPI_PPTT_ACPI_LEAF_NODE);
+
 	table_end = (unsigned long)table_hdr + table_hdr->length;
 	node_entry = ACPI_PTR_DIFF(node, table_hdr);
 	entry = ACPI_ADD_PTR(struct acpi_subtable_header, table_hdr,
@@ -338,9 +341,6 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
 	return found;
 }
 
-/* total number of attributes checked by the properties code */
-#define PPTT_CHECKED_ATTRIBUTES 4
-
 /**
  * update_cache_properties() - Update cacheinfo for the given processor
  * @this_leaf: Kernel cache info structure being updated
@@ -357,25 +357,15 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
 				    struct acpi_pptt_processor *cpu_node)
 {
-	int valid_flags = 0;
-
 	this_leaf->fw_token = cpu_node;
-	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID) {
+	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
 		this_leaf->size = found_cache->size;
-		valid_flags++;
-	}
-	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID) {
+	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID)
 		this_leaf->coherency_line_size = found_cache->line_size;
-		valid_flags++;
-	}
-	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID) {
+	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID)
 		this_leaf->number_of_sets = found_cache->number_of_sets;
-		valid_flags++;
-	}
-	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID) {
+	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID)
 		this_leaf->ways_of_associativity = found_cache->associativity;
-		valid_flags++;
-	}
 	if (found_cache->flags & ACPI_PPTT_WRITE_POLICY_VALID) {
 		switch (found_cache->attributes & ACPI_PPTT_MASK_WRITE_POLICY) {
 		case ACPI_PPTT_CACHE_POLICY_WT:
@@ -402,11 +392,17 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 		}
 	}
 	/*
-	 * If the above flags are valid, and the cache type is NOCACHE
-	 * update the cache type as well.
+	 * If cache type is NOCACHE, then the cache hasn't been specified
+	 * via other mechanisms.  Update the type if a cache type has been
+	 * provided.
+	 *
+	 * Note, we assume such caches are unified based on conventional system
+	 * design and known examples.  Significant work is required elsewhere to
+	 * fully support data/instruction only type caches which are only
+	 * specified in PPTT.
 	 */
 	if (this_leaf->type == CACHE_TYPE_NOCACHE &&
-	    valid_flags == PPTT_CHECKED_ATTRIBUTES)
+	    found_cache->flags & ACPI_PPTT_CACHE_TYPE_VALID)
 		this_leaf->type = CACHE_TYPE_UNIFIED;
 }
 
@@ -458,6 +454,11 @@ static struct acpi_pptt_processor *acpi_find_processor_package_id(struct acpi_ta
 	return cpu;
 }
 
+static void acpi_pptt_warn_missing(void)
+{
+	pr_warn_once("No PPTT table found, cpu and cache topology may be inaccurate\n");
+}
+
 /**
  * topology_get_acpi_cpu_tag() - Find a unique topology value for a feature
  * @table: Pointer to the head of the PPTT table
@@ -505,7 +506,7 @@ static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, int flag)
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, cpu topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 		return -ENOENT;
 	}
 	retval = topology_get_acpi_cpu_tag(table, cpu, level, flag);
@@ -538,7 +539,7 @@ int acpi_find_last_cache_level(unsigned int cpu)
 	acpi_cpu_id = get_acpi_id_for_cpu(cpu);
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, cache topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 	} else {
 		number_of_levels = acpi_find_cache_levels(table, acpi_cpu_id);
 		acpi_put_table(table);
@@ -570,7 +571,7 @@ int cache_setup_acpi(unsigned int cpu)
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, cache topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 		return -ENOENT;
 	}
 
@@ -624,7 +625,7 @@ int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 		return -ENOENT;
 	}
 

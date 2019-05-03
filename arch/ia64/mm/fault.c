@@ -248,16 +248,8 @@ retry:
 		return;
 	}
 	if (user_mode(regs)) {
-		struct siginfo si;
-
-		clear_siginfo(&si);
-		si.si_signo = signal;
-		si.si_errno = 0;
-		si.si_code = code;
-		si.si_addr = (void __user *) address;
-		si.si_isr = isr;
-		si.si_flags = __ISR_VALID;
-		force_sig_info(signal, &si, current);
+		force_sig_fault(signal, code, (void __user *) address,
+				0, __ISR_VALID, isr, current);
 		return;
 	}
 

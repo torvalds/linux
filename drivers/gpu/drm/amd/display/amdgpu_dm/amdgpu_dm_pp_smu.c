@@ -25,7 +25,7 @@
 #include <linux/acpi.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "dm_services.h"
 #include "amdgpu.h"
@@ -101,17 +101,11 @@ bool dm_pp_apply_display_requirements(
 			adev->pm.pm_display_cfg.displays[i].controller_id = dc_cfg->pipe_idx + 1;
 		}
 
-		/* TODO: complete implementation of
-		 * pp_display_configuration_change().
-		 * Follow example of:
-		 * PHM_StoreDALConfigurationData - powerplay\hwmgr\hardwaremanager.c
-		 * PP_IRI_DisplayConfigurationChange - powerplay\eventmgr\iri.c */
-		if (adev->powerplay.pp_funcs->display_configuration_change)
+		if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->display_configuration_change)
 			adev->powerplay.pp_funcs->display_configuration_change(
 				adev->powerplay.pp_handle,
 				&adev->pm.pm_display_cfg);
 
-		/* TODO: replace by a separate call to 'apply display cfg'? */
 		amdgpu_pm_compute_clocks(adev);
 	}
 
@@ -310,7 +304,7 @@ bool dm_pp_get_clock_levels_by_type(
 	struct amd_pp_simple_clock_info validation_clks = { 0 };
 	uint32_t i;
 
-	if (adev->powerplay.pp_funcs->get_clock_by_type) {
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->get_clock_by_type) {
 		if (adev->powerplay.pp_funcs->get_clock_by_type(pp_handle,
 			dc_to_pp_clock_type(clk_type), &pp_clks)) {
 		/* Error in pplib. Provide default values. */
@@ -321,7 +315,7 @@ bool dm_pp_get_clock_levels_by_type(
 
 	pp_to_dc_clock_levels(&pp_clks, dc_clks, clk_type);
 
-	if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks) {
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->get_display_mode_validation_clocks) {
 		if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks(
 						pp_handle, &validation_clks)) {
 			/* Error in pplib. Provide default values. */
@@ -404,6 +398,9 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 	struct pp_clock_levels_with_voltage pp_clk_info = {0};
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
+	if (!pp_funcs || !pp_funcs->get_clock_by_type_with_voltage)
+		return false;
+
 	if (pp_funcs->get_clock_by_type_with_voltage(pp_handle,
 						     dc_to_pp_clock_type(clk_type),
 						     &pp_clk_info))
@@ -444,7 +441,7 @@ bool dm_pp_apply_clock_for_voltage_request(
 	if (!pp_clock_request.clock_type)
 		return false;
 
-	if (adev->powerplay.pp_funcs->display_clock_voltage_request)
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->display_clock_voltage_request)
 		ret = adev->powerplay.pp_funcs->display_clock_voltage_request(
 			adev->powerplay.pp_handle,
 			&pp_clock_request);
@@ -461,7 +458,7 @@ bool dm_pp_get_static_clocks(
 	struct amd_pp_clock_info pp_clk_info = {0};
 	int ret = 0;
 
-	if (adev->powerplay.pp_funcs->get_current_clocks)
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->get_current_clocks)
 		ret = adev->powerplay.pp_funcs->get_current_clocks(
 			adev->powerplay.pp_handle,
 			&pp_clk_info);
@@ -478,7 +475,7 @@ bool dm_pp_get_static_clocks(
 void pp_rv_set_display_requirement(struct pp_smu *pp,
 		struct pp_smu_display_requirement_rv *req)
 {
-	struct dc_context *ctx = pp->ctx;
+	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
@@ -488,18 +485,18 @@ void pp_rv_set_display_requirement(struct pp_smu *pp,
 		return;
 
 	clock.clock_type = amd_pp_dcf_clock;
-	clock.clock_freq_in_khz = req->hard_min_dcefclk_khz;
+	clock.clock_freq_in_khz = req->hard_min_dcefclk_mhz * 1000;
 	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
 
 	clock.clock_type = amd_pp_f_clock;
-	clock.clock_freq_in_khz = req->hard_min_fclk_khz;
+	clock.clock_freq_in_khz = req->hard_min_fclk_mhz * 1000;
 	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
 }
 
 void pp_rv_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
-	struct dc_context *ctx = pp->ctx;
+	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
@@ -511,6 +508,9 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
 	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
 
+	if (!pp_funcs || !pp_funcs->set_watermarks_for_clocks_ranges)
+		return;
+
 	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
 		if (ranges->reader_wm_sets[i].wm_inst > 3)
 			wm_dce_clocks[i].wm_set_id = WM_SET_A;
@@ -518,13 +518,13 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 			wm_dce_clocks[i].wm_set_id =
 					ranges->reader_wm_sets[i].wm_inst;
 		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
-				ranges->reader_wm_sets[i].max_drain_clk_khz;
+				ranges->reader_wm_sets[i].max_drain_clk_mhz * 1000;
 		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
-				ranges->reader_wm_sets[i].min_drain_clk_khz;
+				ranges->reader_wm_sets[i].min_drain_clk_mhz * 1000;
 		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
-				ranges->reader_wm_sets[i].max_fill_clk_khz;
+				ranges->reader_wm_sets[i].max_fill_clk_mhz * 1000;
 		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
-				ranges->reader_wm_sets[i].min_fill_clk_khz;
+				ranges->reader_wm_sets[i].min_fill_clk_mhz * 1000;
 	}
 
 	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
@@ -534,13 +534,13 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 			wm_soc_clocks[i].wm_set_id =
 					ranges->writer_wm_sets[i].wm_inst;
 		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
-				ranges->writer_wm_sets[i].max_fill_clk_khz;
+				ranges->writer_wm_sets[i].max_fill_clk_mhz * 1000;
 		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
-				ranges->writer_wm_sets[i].min_fill_clk_khz;
+				ranges->writer_wm_sets[i].min_fill_clk_mhz * 1000;
 		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
-				ranges->writer_wm_sets[i].max_drain_clk_khz;
+				ranges->writer_wm_sets[i].max_drain_clk_mhz * 1000;
 		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
-				ranges->writer_wm_sets[i].min_drain_clk_khz;
+				ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
 	}
 
 	pp_funcs->set_watermarks_for_clocks_ranges(pp_handle, &wm_with_clock_ranges);
@@ -548,7 +548,7 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 {
-	struct dc_context *ctx = pp->ctx;
+	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
@@ -559,12 +559,69 @@ void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 	pp_funcs->notify_smu_enable_pwe(pp_handle);
 }
 
+void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
+{
+	const struct dc_context *ctx = pp->dm;
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->set_active_display_count)
+		return;
+
+	pp_funcs->set_active_display_count(pp_handle, count);
+}
+
+void pp_rv_set_min_deep_sleep_dcfclk(struct pp_smu *pp, int clock)
+{
+	const struct dc_context *ctx = pp->dm;
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->set_min_deep_sleep_dcefclk)
+		return;
+
+	pp_funcs->set_min_deep_sleep_dcefclk(pp_handle, clock);
+}
+
+void pp_rv_set_hard_min_dcefclk_by_freq(struct pp_smu *pp, int clock)
+{
+	const struct dc_context *ctx = pp->dm;
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->set_hard_min_dcefclk_by_freq)
+		return;
+
+	pp_funcs->set_hard_min_dcefclk_by_freq(pp_handle, clock);
+}
+
+void pp_rv_set_hard_min_fclk_by_freq(struct pp_smu *pp, int mhz)
+{
+	const struct dc_context *ctx = pp->dm;
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->set_hard_min_fclk_by_freq)
+		return;
+
+	pp_funcs->set_hard_min_fclk_by_freq(pp_handle, mhz);
+}
+
 void dm_pp_get_funcs_rv(
 		struct dc_context *ctx,
 		struct pp_smu_funcs_rv *funcs)
 {
-	funcs->pp_smu.ctx = ctx;
+	funcs->pp_smu.dm = ctx;
 	funcs->set_display_requirement = pp_rv_set_display_requirement;
 	funcs->set_wm_ranges = pp_rv_set_wm_ranges;
 	funcs->set_pme_wa_enable = pp_rv_set_pme_wa_enable;
+	funcs->set_display_count = pp_rv_set_active_display_count;
+	funcs->set_min_deep_sleep_dcfclk = pp_rv_set_min_deep_sleep_dcfclk;
+	funcs->set_hard_min_dcfclk_by_freq = pp_rv_set_hard_min_dcefclk_by_freq;
+	funcs->set_hard_min_fclk_by_freq = pp_rv_set_hard_min_fclk_by_freq;
 }
+

@@ -36,9 +36,8 @@
 #include <linux/efi.h>
 #include <linux/efi-bgrt.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
-#include <linux/slab.h>
 #include <linux/memblock.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/time.h>
@@ -993,6 +992,8 @@ static void __init __efi_enter_virtual_mode(void)
 			 status);
 		panic("EFI call to SetVirtualAddressMap() failed!");
 	}
+
+	efi_free_boot_services();
 
 	/*
 	 * Now that EFI is in virtual mode, update the function

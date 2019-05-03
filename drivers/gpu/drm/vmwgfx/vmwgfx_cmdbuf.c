@@ -660,7 +660,7 @@ static void __vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man)
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	lockdep_assert_held_once(&man->cur_mutex);
 
 	if (!cur)
 		return;
@@ -765,7 +765,7 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
 
 	if (info->done)
 		return true;
- 
+
 	memset(info->node, 0, sizeof(*info->node));
 	spin_lock(&man->lock);
 	ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
@@ -1045,7 +1045,7 @@ static void vmw_cmdbuf_commit_cur(struct vmw_cmdbuf_man *man,
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	lockdep_assert_held_once(&man->cur_mutex);
 
 	WARN_ON(size > cur->reserved);
 	man->cur_pos += size;
@@ -1276,8 +1276,10 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 	return 0;
 
 out_no_map:
-	if (man->using_mob)
-		ttm_bo_unref(&man->cmd_space);
+	if (man->using_mob) {
+		ttm_bo_put(man->cmd_space);
+		man->cmd_space = NULL;
+	}
 
 	return ret;
 }
@@ -1380,7 +1382,8 @@ void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man)
 	(void) vmw_cmdbuf_idle(man, false, 10*HZ);
 	if (man->using_mob) {
 		(void) ttm_bo_kunmap(&man->map_obj);
-		ttm_bo_unref(&man->cmd_space);
+		ttm_bo_put(man->cmd_space);
+		man->cmd_space = NULL;
 	} else {
 		dma_free_coherent(&man->dev_priv->dev->pdev->dev,
 				  man->size, man->map, man->handle);

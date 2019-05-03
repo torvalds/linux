@@ -18,12 +18,12 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drmP.h>
 
 #include "zx_drm_drv.h"
@@ -31,7 +31,6 @@
 
 static const struct drm_mode_config_funcs zx_drm_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -41,7 +40,6 @@ DEFINE_DRM_GEM_CMA_FOPS(zx_drm_fops);
 static struct drm_driver zx_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.lastclose = drm_fb_helper_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
@@ -101,20 +99,14 @@ static int zx_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	ret = drm_fb_cma_fbdev_init(drm, 32, 0);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "failed to init cma fbdev: %d\n", ret);
-		goto out_poll_fini;
-	}
-
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto out_fbdev_fini;
+		goto out_poll_fini;
+
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
-out_fbdev_fini:
-	drm_fb_cma_fbdev_fini(drm);
 out_poll_fini:
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
@@ -122,7 +114,7 @@ out_unbind:
 	component_unbind_all(dev, drm);
 out_unregister:
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	return ret;
 }
 
@@ -131,12 +123,12 @@ static void zx_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
-	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
+	drm_atomic_helper_shutdown(drm);
 	drm_mode_config_cleanup(drm);
 	component_unbind_all(dev, drm);
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops zx_drm_master_ops = {
@@ -161,10 +153,8 @@ static int zx_drm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	for_each_available_child_of_node(parent, child) {
+	for_each_available_child_of_node(parent, child)
 		component_match_add(dev, &match, compare_of, child);
-		of_node_put(child);
-	}
 
 	return component_master_add_with_match(dev, &zx_drm_master_ops, match);
 }

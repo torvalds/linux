@@ -83,6 +83,8 @@ Required properties:
  - compatible: should be one of the following -
 	       "samsung,exynos5250-dwusb3": for USB 3.0 DWC3 controller on
 					    Exynos5250/5420.
+	       "samsung,exynos5433-dwusb3": for USB 3.0 DWC3 controller on
+					    Exynos5433.
 	       "samsung,exynos7-dwusb3": for USB 3.0 DWC3 controller on Exynos7.
  - #address-cells, #size-cells : should be '1' if the device has sub-nodes
 				 with 'reg' property.

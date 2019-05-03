@@ -1037,7 +1037,7 @@ static void epic_tx(struct net_device *dev, struct epic_private *ep)
 		skb = ep->tx_skbuff[entry];
 		pci_unmap_single(ep->pci_dev, ep->tx_ring[entry].bufaddr,
 				 skb->len, PCI_DMA_TODEVICE);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 		ep->tx_skbuff[entry] = NULL;
 	}
 

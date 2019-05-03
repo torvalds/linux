@@ -7,6 +7,8 @@
  *
  * Copyright 2009 Analog Devices Inc.
  *
+ * Author: Michael Hennerich <michael.hennerich@analog.com>
+ *
  * Derived from da903x:
  * Copyright (C) 2008 Compulab, Ltd.
  *	Mike Rapoport <mike@compulab.co.il>
@@ -18,7 +20,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -304,18 +306,6 @@ out_free_irq:
 	return ret;
 }
 
-static int adp5520_remove(struct i2c_client *client)
-{
-	struct adp5520_chip *chip = dev_get_drvdata(&client->dev);
-
-	if (chip->irq)
-		free_irq(chip->irq, chip);
-
-	adp5520_remove_subdevs(chip);
-	adp5520_write(chip->dev, ADP5520_MODE_STATUS, 0);
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int adp5520_suspend(struct device *dev)
 {
@@ -346,20 +336,14 @@ static const struct i2c_device_id adp5520_id[] = {
 	{ "pmic-adp5501", ID_ADP5501 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, adp5520_id);
 
 static struct i2c_driver adp5520_driver = {
 	.driver = {
-		.name	= "adp5520",
-		.pm	= &adp5520_pm,
+		.name			= "adp5520",
+		.pm			= &adp5520_pm,
+		.suppress_bind_attrs	= true,
 	},
 	.probe		= adp5520_probe,
-	.remove		= adp5520_remove,
 	.id_table	= adp5520_id,
 };
-
-module_i2c_driver(adp5520_driver);
-
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("ADP5520(01) PMIC-MFD Driver");
-MODULE_LICENSE("GPL");
+builtin_i2c_driver(adp5520_driver);

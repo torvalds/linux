@@ -41,9 +41,6 @@
 #define ENA_ASYNC_QUEUE_DEPTH 16
 #define ENA_ADMIN_QUEUE_DEPTH 32
 
-#define MIN_ENA_VER (((ENA_COMMON_SPEC_VERSION_MAJOR) << \
-		ENA_REGS_VERSION_MAJOR_VERSION_SHIFT) \
-		| (ENA_COMMON_SPEC_VERSION_MINOR))
 
 #define ENA_CTRL_MAJOR		0
 #define ENA_CTRL_MINOR		0
@@ -60,6 +57,8 @@
 #define ENA_DMA_ADDR_TO_UINT32_HIGH(x)	((u32)(((u64)(x)) >> 32))
 
 #define ENA_MMIO_READ_TIMEOUT 0xFFFFFFFF
+
+#define ENA_COM_BOUNCE_BUFFER_CNTRL_CNT	4
 
 #define ENA_REGS_ADMIN_INTR_MASK 1
 
@@ -112,8 +111,8 @@ static int ena_com_admin_init_sq(struct ena_com_admin_queue *queue)
 	struct ena_com_admin_sq *sq = &queue->sq;
 	u16 size = ADMIN_SQ_SIZE(queue->q_depth);
 
-	sq->entries = dma_zalloc_coherent(queue->q_dmadev, size, &sq->dma_addr,
-					  GFP_KERNEL);
+	sq->entries = dma_alloc_coherent(queue->q_dmadev, size, &sq->dma_addr,
+					 GFP_KERNEL);
 
 	if (!sq->entries) {
 		pr_err("memory allocation failed");
@@ -134,8 +133,8 @@ static int ena_com_admin_init_cq(struct ena_com_admin_queue *queue)
 	struct ena_com_admin_cq *cq = &queue->cq;
 	u16 size = ADMIN_CQ_SIZE(queue->q_depth);
 
-	cq->entries = dma_zalloc_coherent(queue->q_dmadev, size, &cq->dma_addr,
-					  GFP_KERNEL);
+	cq->entries = dma_alloc_coherent(queue->q_dmadev, size, &cq->dma_addr,
+					 GFP_KERNEL);
 
 	if (!cq->entries) {
 		pr_err("memory allocation failed");
@@ -157,8 +156,8 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
 
 	dev->aenq.q_depth = ENA_ASYNC_QUEUE_DEPTH;
 	size = ADMIN_AENQ_SIZE(ENA_ASYNC_QUEUE_DEPTH);
-	aenq->entries = dma_zalloc_coherent(dev->dmadev, size, &aenq->dma_addr,
-					    GFP_KERNEL);
+	aenq->entries = dma_alloc_coherent(dev->dmadev, size, &aenq->dma_addr,
+					   GFP_KERNEL);
 
 	if (!aenq->entries) {
 		pr_err("memory allocation failed");
@@ -236,7 +235,7 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 	tail_masked = admin_queue->sq.tail & queue_size_mask;
 
 	/* In case of queue FULL */
-	cnt = atomic_read(&admin_queue->outstanding_cmds);
+	cnt = (u16)atomic_read(&admin_queue->outstanding_cmds);
 	if (cnt >= admin_queue->q_depth) {
 		pr_debug("admin queue is full.\n");
 		admin_queue->stats.out_of_space++;
@@ -305,7 +304,7 @@ static struct ena_comp_ctx *ena_com_submit_admin_cmd(struct ena_com_admin_queue 
 						     struct ena_admin_acq_entry *comp,
 						     size_t comp_size_in_bytes)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	struct ena_comp_ctx *comp_ctx;
 
 	spin_lock_irqsave(&admin_queue->q_lock, flags);
@@ -333,7 +332,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 
 	memset(&io_sq->desc_addr, 0x0, sizeof(io_sq->desc_addr));
 
-	io_sq->dma_addr_bits = ena_dev->dma_addr_bits;
+	io_sq->dma_addr_bits = (u8)ena_dev->dma_addr_bits;
 	io_sq->desc_entry_size =
 		(io_sq->direction == ENA_COM_IO_QUEUE_DIRECTION_TX) ?
 		sizeof(struct ena_eth_io_tx_desc) :
@@ -345,31 +344,58 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		dev_node = dev_to_node(ena_dev->dmadev);
 		set_dev_node(ena_dev->dmadev, ctx->numa_node);
 		io_sq->desc_addr.virt_addr =
-			dma_zalloc_coherent(ena_dev->dmadev, size,
-					    &io_sq->desc_addr.phys_addr,
-					    GFP_KERNEL);
+			dma_alloc_coherent(ena_dev->dmadev, size,
+					   &io_sq->desc_addr.phys_addr,
+					   GFP_KERNEL);
 		set_dev_node(ena_dev->dmadev, dev_node);
 		if (!io_sq->desc_addr.virt_addr) {
 			io_sq->desc_addr.virt_addr =
-				dma_zalloc_coherent(ena_dev->dmadev, size,
-						    &io_sq->desc_addr.phys_addr,
-						    GFP_KERNEL);
+				dma_alloc_coherent(ena_dev->dmadev, size,
+						   &io_sq->desc_addr.phys_addr,
+						   GFP_KERNEL);
 		}
-	} else {
-		dev_node = dev_to_node(ena_dev->dmadev);
-		set_dev_node(ena_dev->dmadev, ctx->numa_node);
-		io_sq->desc_addr.virt_addr =
-			devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
-		set_dev_node(ena_dev->dmadev, dev_node);
+
 		if (!io_sq->desc_addr.virt_addr) {
-			io_sq->desc_addr.virt_addr =
-				devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
+			pr_err("memory allocation failed");
+			return -ENOMEM;
 		}
 	}
 
-	if (!io_sq->desc_addr.virt_addr) {
-		pr_err("memory allocation failed");
-		return -ENOMEM;
+	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		/* Allocate bounce buffers */
+		io_sq->bounce_buf_ctrl.buffer_size =
+			ena_dev->llq_info.desc_list_entry_size;
+		io_sq->bounce_buf_ctrl.buffers_num =
+			ENA_COM_BOUNCE_BUFFER_CNTRL_CNT;
+		io_sq->bounce_buf_ctrl.next_to_use = 0;
+
+		size = io_sq->bounce_buf_ctrl.buffer_size *
+			 io_sq->bounce_buf_ctrl.buffers_num;
+
+		dev_node = dev_to_node(ena_dev->dmadev);
+		set_dev_node(ena_dev->dmadev, ctx->numa_node);
+		io_sq->bounce_buf_ctrl.base_buffer =
+			devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
+		set_dev_node(ena_dev->dmadev, dev_node);
+		if (!io_sq->bounce_buf_ctrl.base_buffer)
+			io_sq->bounce_buf_ctrl.base_buffer =
+				devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
+
+		if (!io_sq->bounce_buf_ctrl.base_buffer) {
+			pr_err("bounce buffer memory allocation failed");
+			return -ENOMEM;
+		}
+
+		memcpy(&io_sq->llq_info, &ena_dev->llq_info,
+		       sizeof(io_sq->llq_info));
+
+		/* Initiate the first bounce buffer */
+		io_sq->llq_buf_ctrl.curr_bounce_buf =
+			ena_com_get_next_bounce_buffer(&io_sq->bounce_buf_ctrl);
+		memset(io_sq->llq_buf_ctrl.curr_bounce_buf,
+		       0x0, io_sq->llq_info.desc_list_entry_size);
+		io_sq->llq_buf_ctrl.descs_left_in_line =
+			io_sq->llq_info.descs_num_before_header;
 	}
 
 	io_sq->tail = 0;
@@ -399,14 +425,14 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 	prev_node = dev_to_node(ena_dev->dmadev);
 	set_dev_node(ena_dev->dmadev, ctx->numa_node);
 	io_cq->cdesc_addr.virt_addr =
-		dma_zalloc_coherent(ena_dev->dmadev, size,
-				    &io_cq->cdesc_addr.phys_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, size,
+				   &io_cq->cdesc_addr.phys_addr, GFP_KERNEL);
 	set_dev_node(ena_dev->dmadev, prev_node);
 	if (!io_cq->cdesc_addr.virt_addr) {
 		io_cq->cdesc_addr.virt_addr =
-			dma_zalloc_coherent(ena_dev->dmadev, size,
-					    &io_cq->cdesc_addr.phys_addr,
-					    GFP_KERNEL);
+			dma_alloc_coherent(ena_dev->dmadev, size,
+					   &io_cq->cdesc_addr.phys_addr,
+					   GFP_KERNEL);
 	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
@@ -460,7 +486,7 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 
 	/* Go over all the completions */
 	while ((READ_ONCE(cqe->acq_common_descriptor.flags) &
-			ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
+		ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
 		/* Do not read the rest of the completion entry before the
 		 * phase bit was validated
 		 */
@@ -511,7 +537,8 @@ static int ena_com_comp_status_to_errno(u8 comp_status)
 static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_ctx,
 						     struct ena_com_admin_queue *admin_queue)
 {
-	unsigned long flags, timeout;
+	unsigned long flags = 0;
+	unsigned long timeout;
 	int ret;
 
 	timeout = jiffies + usecs_to_jiffies(admin_queue->completion_timeout);
@@ -557,10 +584,160 @@ err:
 	return ret;
 }
 
+/**
+ * Set the LLQ configurations of the firmware
+ *
+ * The driver provides only the enabled feature values to the device,
+ * which in turn, checks if they are supported.
+ */
+static int ena_com_set_llq(struct ena_com_dev *ena_dev)
+{
+	struct ena_com_admin_queue *admin_queue;
+	struct ena_admin_set_feat_cmd cmd;
+	struct ena_admin_set_feat_resp resp;
+	struct ena_com_llq_info *llq_info = &ena_dev->llq_info;
+	int ret;
+
+	memset(&cmd, 0x0, sizeof(cmd));
+	admin_queue = &ena_dev->admin_queue;
+
+	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	cmd.feat_common.feature_id = ENA_ADMIN_LLQ;
+
+	cmd.u.llq.header_location_ctrl_enabled = llq_info->header_location_ctrl;
+	cmd.u.llq.entry_size_ctrl_enabled = llq_info->desc_list_entry_size_ctrl;
+	cmd.u.llq.desc_num_before_header_enabled = llq_info->descs_num_before_header;
+	cmd.u.llq.descriptors_stride_ctrl_enabled = llq_info->desc_stride_ctrl;
+
+	ret = ena_com_execute_admin_command(admin_queue,
+					    (struct ena_admin_aq_entry *)&cmd,
+					    sizeof(cmd),
+					    (struct ena_admin_acq_entry *)&resp,
+					    sizeof(resp));
+
+	if (unlikely(ret))
+		pr_err("Failed to set LLQ configurations: %d\n", ret);
+
+	return ret;
+}
+
+static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
+				   struct ena_admin_feature_llq_desc *llq_features,
+				   struct ena_llq_configurations *llq_default_cfg)
+{
+	struct ena_com_llq_info *llq_info = &ena_dev->llq_info;
+	u16 supported_feat;
+	int rc;
+
+	memset(llq_info, 0, sizeof(*llq_info));
+
+	supported_feat = llq_features->header_location_ctrl_supported;
+
+	if (likely(supported_feat & llq_default_cfg->llq_header_location)) {
+		llq_info->header_location_ctrl =
+			llq_default_cfg->llq_header_location;
+	} else {
+		pr_err("Invalid header location control, supported: 0x%x\n",
+		       supported_feat);
+		return -EINVAL;
+	}
+
+	if (likely(llq_info->header_location_ctrl == ENA_ADMIN_INLINE_HEADER)) {
+		supported_feat = llq_features->descriptors_stride_ctrl_supported;
+		if (likely(supported_feat & llq_default_cfg->llq_stride_ctrl)) {
+			llq_info->desc_stride_ctrl = llq_default_cfg->llq_stride_ctrl;
+		} else	{
+			if (supported_feat & ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY) {
+				llq_info->desc_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
+			} else if (supported_feat & ENA_ADMIN_SINGLE_DESC_PER_ENTRY) {
+				llq_info->desc_stride_ctrl = ENA_ADMIN_SINGLE_DESC_PER_ENTRY;
+			} else {
+				pr_err("Invalid desc_stride_ctrl, supported: 0x%x\n",
+				       supported_feat);
+				return -EINVAL;
+			}
+
+			pr_err("Default llq stride ctrl is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+			       llq_default_cfg->llq_stride_ctrl, supported_feat,
+			       llq_info->desc_stride_ctrl);
+		}
+	} else {
+		llq_info->desc_stride_ctrl = 0;
+	}
+
+	supported_feat = llq_features->entry_size_ctrl_supported;
+	if (likely(supported_feat & llq_default_cfg->llq_ring_entry_size)) {
+		llq_info->desc_list_entry_size_ctrl = llq_default_cfg->llq_ring_entry_size;
+		llq_info->desc_list_entry_size = llq_default_cfg->llq_ring_entry_size_value;
+	} else {
+		if (supported_feat & ENA_ADMIN_LIST_ENTRY_SIZE_128B) {
+			llq_info->desc_list_entry_size_ctrl = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
+			llq_info->desc_list_entry_size = 128;
+		} else if (supported_feat & ENA_ADMIN_LIST_ENTRY_SIZE_192B) {
+			llq_info->desc_list_entry_size_ctrl = ENA_ADMIN_LIST_ENTRY_SIZE_192B;
+			llq_info->desc_list_entry_size = 192;
+		} else if (supported_feat & ENA_ADMIN_LIST_ENTRY_SIZE_256B) {
+			llq_info->desc_list_entry_size_ctrl = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
+			llq_info->desc_list_entry_size = 256;
+		} else {
+			pr_err("Invalid entry_size_ctrl, supported: 0x%x\n",
+			       supported_feat);
+			return -EINVAL;
+		}
+
+		pr_err("Default llq ring entry size is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+		       llq_default_cfg->llq_ring_entry_size, supported_feat,
+		       llq_info->desc_list_entry_size);
+	}
+	if (unlikely(llq_info->desc_list_entry_size & 0x7)) {
+		/* The desc list entry size should be whole multiply of 8
+		 * This requirement comes from __iowrite64_copy()
+		 */
+		pr_err("illegal entry size %d\n",
+		       llq_info->desc_list_entry_size);
+		return -EINVAL;
+	}
+
+	if (llq_info->desc_stride_ctrl == ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY)
+		llq_info->descs_per_entry = llq_info->desc_list_entry_size /
+			sizeof(struct ena_eth_io_tx_desc);
+	else
+		llq_info->descs_per_entry = 1;
+
+	supported_feat = llq_features->desc_num_before_header_supported;
+	if (likely(supported_feat & llq_default_cfg->llq_num_decs_before_header)) {
+		llq_info->descs_num_before_header = llq_default_cfg->llq_num_decs_before_header;
+	} else {
+		if (supported_feat & ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2) {
+			llq_info->descs_num_before_header = ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
+		} else if (supported_feat & ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_1) {
+			llq_info->descs_num_before_header = ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_1;
+		} else if (supported_feat & ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_4) {
+			llq_info->descs_num_before_header = ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_4;
+		} else if (supported_feat & ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_8) {
+			llq_info->descs_num_before_header = ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_8;
+		} else {
+			pr_err("Invalid descs_num_before_header, supported: 0x%x\n",
+			       supported_feat);
+			return -EINVAL;
+		}
+
+		pr_err("Default llq num descs before header is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+		       llq_default_cfg->llq_num_decs_before_header,
+		       supported_feat, llq_info->descs_num_before_header);
+	}
+
+	rc = ena_com_set_llq(ena_dev);
+	if (rc)
+		pr_err("Cannot set LLQ configuration: %d\n", rc);
+
+	return 0;
+}
+
 static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *comp_ctx,
 							struct ena_com_admin_queue *admin_queue)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	int ret;
 
 	wait_for_completion_timeout(&comp_ctx->wait_event,
@@ -606,7 +783,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	volatile struct ena_admin_ena_mmio_req_read_less_resp *read_resp =
 		mmio_read->read_resp;
 	u32 mmio_read_reg, ret, i;
-	unsigned long flags;
+	unsigned long flags = 0;
 	u32 timeout = mmio_read->reg_read_to;
 
 	might_sleep();
@@ -728,14 +905,16 @@ static void ena_com_io_queue_free(struct ena_com_dev *ena_dev,
 	if (io_sq->desc_addr.virt_addr) {
 		size = io_sq->desc_entry_size * io_sq->q_depth;
 
-		if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
-			dma_free_coherent(ena_dev->dmadev, size,
-					  io_sq->desc_addr.virt_addr,
-					  io_sq->desc_addr.phys_addr);
-		else
-			devm_kfree(ena_dev->dmadev, io_sq->desc_addr.virt_addr);
+		dma_free_coherent(ena_dev->dmadev, size,
+				  io_sq->desc_addr.virt_addr,
+				  io_sq->desc_addr.phys_addr);
 
 		io_sq->desc_addr.virt_addr = NULL;
+	}
+
+	if (io_sq->bounce_buf_ctrl.base_buffer) {
+		devm_kfree(ena_dev->dmadev, io_sq->bounce_buf_ctrl.base_buffer);
+		io_sq->bounce_buf_ctrl.base_buffer = NULL;
 	}
 }
 
@@ -847,8 +1026,8 @@ static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
 	struct ena_rss *rss = &ena_dev->rss;
 
 	rss->hash_key =
-		dma_zalloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_key),
-				    &rss->hash_key_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_key),
+				   &rss->hash_key_dma_addr, GFP_KERNEL);
 
 	if (unlikely(!rss->hash_key))
 		return -ENOMEM;
@@ -871,8 +1050,8 @@ static int ena_com_hash_ctrl_init(struct ena_com_dev *ena_dev)
 	struct ena_rss *rss = &ena_dev->rss;
 
 	rss->hash_ctrl =
-		dma_zalloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_ctrl),
-				    &rss->hash_ctrl_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_ctrl),
+				   &rss->hash_ctrl_dma_addr, GFP_KERNEL);
 
 	if (unlikely(!rss->hash_ctrl))
 		return -ENOMEM;
@@ -915,8 +1094,8 @@ static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	rss->rss_ind_tbl =
-		dma_zalloc_coherent(ena_dev->dmadev, tbl_size,
-				    &rss->rss_ind_tbl_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, tbl_size,
+				   &rss->rss_ind_tbl_dma_addr, GFP_KERNEL);
 	if (unlikely(!rss->rss_ind_tbl))
 		goto mem_err1;
 
@@ -1248,7 +1427,7 @@ void ena_com_abort_admin_commands(struct ena_com_dev *ena_dev)
 void ena_com_wait_for_abort_completion(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	spin_lock_irqsave(&admin_queue->q_lock, flags);
 	while (atomic_read(&admin_queue->outstanding_cmds) != 0) {
@@ -1292,7 +1471,7 @@ bool ena_com_get_admin_running_state(struct ena_com_dev *ena_dev)
 void ena_com_set_admin_running_state(struct ena_com_dev *ena_dev, bool state)
 {
 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	spin_lock_irqsave(&admin_queue->q_lock, flags);
 	ena_dev->admin_queue.running_state = state;
@@ -1326,7 +1505,7 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 	}
 
 	if ((get_resp.u.aenq.supported_groups & groups_flag) != groups_flag) {
-		pr_warn("Trying to set unsupported aenq events. supported flag: %x asked flag: %x\n",
+		pr_warn("Trying to set unsupported aenq events. supported flag: 0x%x asked flag: 0x%x\n",
 			get_resp.u.aenq.supported_groups, groups_flag);
 		return -EOPNOTSUPP;
 	}
@@ -1400,11 +1579,6 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev)
 			ENA_REGS_VERSION_MAJOR_VERSION_SHIFT,
 		ver & ENA_REGS_VERSION_MINOR_VERSION_MASK);
 
-	if (ver < MIN_ENA_VER) {
-		pr_err("ENA version is lower than the minimal version the driver supports\n");
-		return -1;
-	}
-
 	pr_info("ena controller version: %d.%d.%d implementation version %d\n",
 		(ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) >>
 			ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT,
@@ -1475,11 +1649,11 @@ int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 
 	spin_lock_init(&mmio_read->lock);
 	mmio_read->read_resp =
-		dma_zalloc_coherent(ena_dev->dmadev,
-				    sizeof(*mmio_read->read_resp),
-				    &mmio_read->read_resp_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev,
+				   sizeof(*mmio_read->read_resp),
+				   &mmio_read->read_resp_dma_addr, GFP_KERNEL);
 	if (unlikely(!mmio_read->read_resp))
-		return -ENOMEM;
+		goto err;
 
 	ena_com_mmio_reg_read_request_write_dev_addr(ena_dev);
 
@@ -1488,6 +1662,10 @@ int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 	mmio_read->readless_supported = true;
 
 	return 0;
+
+err:
+
+	return -ENOMEM;
 }
 
 void ena_com_set_mmio_read_mode(struct ena_com_dev *ena_dev, bool readless_supported)
@@ -1523,8 +1701,7 @@ void ena_com_mmio_reg_read_request_write_dev_addr(struct ena_com_dev *ena_dev)
 }
 
 int ena_com_admin_init(struct ena_com_dev *ena_dev,
-		       struct ena_aenq_handlers *aenq_handlers,
-		       bool init_spinlock)
+		       struct ena_aenq_handlers *aenq_handlers)
 {
 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
 	u32 aq_caps, acq_caps, dev_sts, addr_low, addr_high;
@@ -1550,8 +1727,7 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 
 	atomic_set(&admin_queue->outstanding_cmds, 0);
 
-	if (init_spinlock)
-		spin_lock_init(&admin_queue->q_lock);
+	spin_lock_init(&admin_queue->q_lock);
 
 	ret = ena_com_init_comp_ctxt(admin_queue);
 	if (ret)
@@ -1748,6 +1924,15 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 	else
 		return rc;
 
+	rc = ena_com_get_feature(ena_dev, &get_resp, ENA_ADMIN_LLQ);
+	if (!rc)
+		memcpy(&get_feat_ctx->llq, &get_resp.u.llq,
+		       sizeof(get_resp.u.llq));
+	else if (rc == -EOPNOTSUPP)
+		memset(&get_feat_ctx->llq, 0x0, sizeof(get_feat_ctx->llq));
+	else
+		return rc;
+
 	return 0;
 }
 
@@ -1779,6 +1964,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	struct ena_admin_aenq_entry *aenq_e;
 	struct ena_admin_aenq_common_desc *aenq_common;
 	struct ena_com_aenq *aenq  = &dev->aenq;
+	unsigned long long timestamp;
 	ena_aenq_handler handler_cb;
 	u16 masked_head, processed = 0;
 	u8 phase;
@@ -1796,10 +1982,11 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 		 */
 		dma_rmb();
 
+		timestamp =
+			(unsigned long long)aenq_common->timestamp_low |
+			((unsigned long long)aenq_common->timestamp_high << 32);
 		pr_debug("AENQ! Group[%x] Syndrom[%x] timestamp: [%llus]\n",
-			 aenq_common->group, aenq_common->syndrom,
-			 (u64)aenq_common->timestamp_low +
-				 ((u64)aenq_common->timestamp_high << 32));
+			 aenq_common->group, aenq_common->syndrom, timestamp);
 
 		/* Handle specific event*/
 		handler_cb = ena_com_get_specific_aenq_cb(dev,
@@ -2436,10 +2623,14 @@ int ena_com_allocate_host_info(struct ena_com_dev *ena_dev)
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
 	host_attr->host_info =
-		dma_zalloc_coherent(ena_dev->dmadev, SZ_4K,
-				    &host_attr->host_info_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, SZ_4K,
+				   &host_attr->host_info_dma_addr, GFP_KERNEL);
 	if (unlikely(!host_attr->host_info))
 		return -ENOMEM;
+
+	host_attr->host_info->ena_spec_version = ((ENA_COMMON_SPEC_VERSION_MAJOR <<
+		ENA_REGS_VERSION_MAJOR_VERSION_SHIFT) |
+		(ENA_COMMON_SPEC_VERSION_MINOR));
 
 	return 0;
 }
@@ -2450,8 +2641,9 @@ int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
 	host_attr->debug_area_virt_addr =
-		dma_zalloc_coherent(ena_dev->dmadev, debug_area_size,
-				    &host_attr->debug_area_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, debug_area_size,
+				   &host_attr->debug_area_dma_addr,
+				   GFP_KERNEL);
 	if (unlikely(!host_attr->debug_area_virt_addr)) {
 		host_attr->debug_area_size = 0;
 		return -ENOMEM;
@@ -2711,4 +2903,35 @@ void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
 	entry->pkts_per_interval =
 	intr_moder_tbl[level].pkts_per_interval;
 	entry->bytes_per_interval = intr_moder_tbl[level].bytes_per_interval;
+}
+
+int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+			    struct ena_admin_feature_llq_desc *llq_features,
+			    struct ena_llq_configurations *llq_default_cfg)
+{
+	int rc;
+	int size;
+
+	if (!llq_features->max_llq_num) {
+		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+		return 0;
+	}
+
+	rc = ena_com_config_llq_info(ena_dev, llq_features, llq_default_cfg);
+	if (rc)
+		return rc;
+
+	/* Validate the descriptor is not too big */
+	size = ena_dev->tx_max_header_size;
+	size += ena_dev->llq_info.descs_num_before_header *
+		sizeof(struct ena_eth_io_tx_desc);
+
+	if (unlikely(ena_dev->llq_info.desc_list_entry_size < size)) {
+		pr_err("the size of the LLQ entry is smaller than needed\n");
+		return -EINVAL;
+	}
+
+	ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_DEV;
+
+	return 0;
 }

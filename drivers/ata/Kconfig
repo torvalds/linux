@@ -33,7 +33,6 @@ if ATA
 
 config ATA_NONSTANDARD
        bool
-       default n
 
 config ATA_VERBOSE_ERROR
 	bool "Verbose ATA error reporting"
@@ -62,7 +61,6 @@ config ATA_ACPI
 config SATA_ZPODD
 	bool "SATA Zero Power Optical Disc Drive (ZPODD) support"
 	depends on ATA_ACPI && PM
-	default n
 	help
 	  This option adds support for SATA Zero Power Optical Disc
 	  Drive (ZPODD). It requires both the ODD and the platform
@@ -121,7 +119,8 @@ config SATA_AHCI_PLATFORM
 
 config AHCI_BRCM
 	tristate "Broadcom AHCI SATA support"
-	depends on ARCH_BRCMSTB || BMIPS_GENERIC || ARCH_BCM_NSP
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || ARCH_BCM_NSP || \
+		   ARCH_BCM_63XX
 	help
 	  This option enables support for the AHCI SATA3 controller found on
 	  Broadcom SoC's.
@@ -964,6 +963,18 @@ config PATA_GAYLE
 
 	  If unsure, say N.
 
+config PATA_BUDDHA
+	tristate "Buddha/Catweasel/X-Surf PATA support"
+	depends on ZORRO
+	help
+	  This option enables support for the IDE interfaces
+	  on the Buddha, Catweasel and X-Surf expansion boards
+	  on the Zorro expansion bus. It supports up to two
+	  interfaces on the Buddha, three on the Catweasel and
+	  two on the X-Surf.
+
+	  If unsure, say N.
+
 config PATA_ISAPNP
 	tristate "ISA Plug and Play PATA support"
 	depends on ISAPNP
@@ -1092,7 +1103,7 @@ comment "Generic fallback / legacy drivers"
 
 config PATA_ACPI
 	tristate "ACPI firmware driver for PATA"
-	depends on ATA_ACPI && ATA_BMDMA
+	depends on ATA_ACPI && ATA_BMDMA && PCI
 	help
 	  This option enables an ACPI method driver which drives
 	  motherboard PATA controller interfaces through the ACPI

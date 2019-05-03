@@ -15,6 +15,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/madera/pdata.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -36,6 +37,8 @@ enum madera_type {
 #define CS47L90_NUM_GPIOS		38
 
 #define MADERA_MAX_MICBIAS		4
+
+#define MADERA_MAX_HP_OUTPUT		3
 
 /* Notifier events */
 #define MADERA_NOTIFY_VOICE_TRIGGER	0x1
@@ -148,6 +151,7 @@ struct snd_soc_dapm_context;
  * @internal_dcvdd:	true if DCVDD is supplied from the internal LDO1
  * @pdata:		our pdata
  * @irq_dev:		the irqchip child driver device
+ * @irq_data:		pointer to irqchip data for the child irqchip driver
  * @irq:		host irq number from SPI or I2C configuration
  * @out_clamp:		indicates output clamp state for each analogue output
  * @out_shorted:	indicates short circuit state for each analogue output
@@ -175,12 +179,17 @@ struct madera {
 	struct madera_pdata pdata;
 
 	struct device *irq_dev;
+	struct regmap_irq_chip_data *irq_data;
 	int irq;
 
 	unsigned int num_micbias;
 	unsigned int num_childbias[MADERA_MAX_MICBIAS];
 
 	struct snd_soc_dapm_context *dapm;
+	struct mutex dapm_ptr_lock;
+	unsigned int hp_ena;
+	bool out_clamp[MADERA_MAX_HP_OUTPUT];
+	bool out_shorted[MADERA_MAX_HP_OUTPUT];
 
 	struct blocking_notifier_head notifier;
 };

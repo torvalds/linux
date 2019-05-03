@@ -317,13 +317,6 @@ struct ir_raw_event {
 	unsigned                carrier_report:1;
 };
 
-#define DEFINE_IR_RAW_EVENT(event) struct ir_raw_event event = {}
-
-static inline void init_ir_raw_event(struct ir_raw_event *ev)
-{
-	memset(ev, 0, sizeof(*ev));
-}
-
 #define IR_DEFAULT_TIMEOUT	MS_TO_NS(125)
 #define IR_MAX_DURATION         500000000	/* 500 ms */
 #define US_TO_NS(usec)		((usec) * 1000)
@@ -344,9 +337,7 @@ int ir_raw_encode_carrier(enum rc_proto protocol);
 
 static inline void ir_raw_event_reset(struct rc_dev *dev)
 {
-	struct ir_raw_event ev = { .reset = true };
-
-	ir_raw_event_store(dev, &ev);
+	ir_raw_event_store(dev, &((struct ir_raw_event) { .reset = true }));
 	dev->idle = true;
 	ir_raw_event_handle(dev);
 }

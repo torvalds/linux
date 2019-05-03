@@ -107,11 +107,11 @@ int __init instantiate_cache_sram(struct platform_device *dev,
 		goto out_free;
 	}
 
-	cache_sram->base_virt = ioremap_prot(cache_sram->base_phys,
-				cache_sram->size, _PAGE_COHERENT | PAGE_KERNEL);
+	cache_sram->base_virt = ioremap_coherent(cache_sram->base_phys,
+						 cache_sram->size);
 	if (!cache_sram->base_virt) {
-		dev_err(&dev->dev, "%pOF: ioremap_prot failed\n",
-				dev->dev.of_node);
+		dev_err(&dev->dev, "%pOF: ioremap_coherent failed\n",
+			dev->dev.of_node);
 		ret = -ENOMEM;
 		goto out_release;
 	}

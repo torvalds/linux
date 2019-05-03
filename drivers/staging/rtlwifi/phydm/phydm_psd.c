@@ -336,12 +336,7 @@ void phydm_psd_init(void *dm_void)
 			2; /*2b'11: 20MHz, 2b'10: 40MHz, 2b'01: 80MHz */
 	}
 
-	if (dm->support_ic_type == ODM_RTL8812)
-		dm_psd_table->psd_pwr_common_offset = 0;
-	else if (dm->support_ic_type == ODM_RTL8821)
-		dm_psd_table->psd_pwr_common_offset = 0;
-	else
-		dm_psd_table->psd_pwr_common_offset = 0;
+	dm_psd_table->psd_pwr_common_offset = 0;
 
 	phydm_psd_para_setting(dm, 1, 2, 3, 128, 0, 0, 7, 0);
 	/*phydm_psd(dm, 0x3c, 0, 127);*/ /* target at -50dBm */

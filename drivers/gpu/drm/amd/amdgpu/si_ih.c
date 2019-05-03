@@ -57,9 +57,9 @@ static void si_ih_disable_interrupts(struct amdgpu_device *adev)
 
 static int si_ih_irq_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_ih_ring *ih = &adev->irq.ih;
 	int rb_bufsz;
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
-	u64 wptr_off;
 
 	si_ih_disable_interrupts(adev);
 	WREG32(INTERRUPT_CNTL2, adev->irq.ih.gpu_addr >> 8);
@@ -76,9 +76,8 @@ static int si_ih_irq_init(struct amdgpu_device *adev)
 		     (rb_bufsz << 1) |
 		     IH_WPTR_WRITEBACK_ENABLE;
 
-	wptr_off = adev->wb.gpu_addr + (adev->irq.ih.wptr_offs * 4);
-	WREG32(IH_RB_WPTR_ADDR_LO, lower_32_bits(wptr_off));
-	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(wptr_off) & 0xFF);
+	WREG32(IH_RB_WPTR_ADDR_LO, lower_32_bits(ih->wptr_addr));
+	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(ih->wptr_addr) & 0xFF);
 	WREG32(IH_RB_CNTL, ih_rb_cntl);
 	WREG32(IH_RB_RPTR, 0);
 	WREG32(IH_RB_WPTR, 0);
@@ -100,60 +99,50 @@ static void si_ih_irq_disable(struct amdgpu_device *adev)
 	mdelay(1);
 }
 
-static u32 si_ih_get_wptr(struct amdgpu_device *adev)
+static u32 si_ih_get_wptr(struct amdgpu_device *adev,
+			  struct amdgpu_ih_ring *ih)
 {
 	u32 wptr, tmp;
 
-	wptr = le32_to_cpu(adev->wb.wb[adev->irq.ih.wptr_offs]);
+	wptr = le32_to_cpu(*ih->wptr_cpu);
 
 	if (wptr & IH_RB_WPTR__RB_OVERFLOW_MASK) {
 		wptr &= ~IH_RB_WPTR__RB_OVERFLOW_MASK;
 		dev_warn(adev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
-			wptr, adev->irq.ih.rptr, (wptr + 16) & adev->irq.ih.ptr_mask);
-		adev->irq.ih.rptr = (wptr + 16) & adev->irq.ih.ptr_mask;
+			wptr, ih->rptr, (wptr + 16) & ih->ptr_mask);
+		ih->rptr = (wptr + 16) & ih->ptr_mask;
 		tmp = RREG32(IH_RB_CNTL);
 		tmp |= IH_RB_CNTL__WPTR_OVERFLOW_CLEAR_MASK;
 		WREG32(IH_RB_CNTL, tmp);
 	}
-	return (wptr & adev->irq.ih.ptr_mask);
-}
-
-/**
- * si_ih_prescreen_iv - prescreen an interrupt vector
- *
- * @adev: amdgpu_device pointer
- *
- * Returns true if the interrupt vector should be further processed.
- */
-static bool si_ih_prescreen_iv(struct amdgpu_device *adev)
-{
-	/* Process all interrupts */
-	return true;
+	return (wptr & ih->ptr_mask);
 }
 
 static void si_ih_decode_iv(struct amdgpu_device *adev,
-			     struct amdgpu_iv_entry *entry)
+			    struct amdgpu_ih_ring *ih,
+			    struct amdgpu_iv_entry *entry)
 {
-	u32 ring_index = adev->irq.ih.rptr >> 2;
+	u32 ring_index = ih->rptr >> 2;
 	uint32_t dw[4];
 
-	dw[0] = le32_to_cpu(adev->irq.ih.ring[ring_index + 0]);
-	dw[1] = le32_to_cpu(adev->irq.ih.ring[ring_index + 1]);
-	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
-	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
+	dw[0] = le32_to_cpu(ih->ring[ring_index + 0]);
+	dw[1] = le32_to_cpu(ih->ring[ring_index + 1]);
+	dw[2] = le32_to_cpu(ih->ring[ring_index + 2]);
+	dw[3] = le32_to_cpu(ih->ring[ring_index + 3]);
 
-	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
+	entry->client_id = AMDGPU_IRQ_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
 	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
 	entry->vmid = (dw[2] >> 8) & 0xff;
 
-	adev->irq.ih.rptr += 16;
+	ih->rptr += 16;
 }
 
-static void si_ih_set_rptr(struct amdgpu_device *adev)
+static void si_ih_set_rptr(struct amdgpu_device *adev,
+			   struct amdgpu_ih_ring *ih)
 {
-	WREG32(IH_RB_RPTR, adev->irq.ih.rptr);
+	WREG32(IH_RB_RPTR, ih->rptr);
 }
 
 static int si_ih_early_init(void *handle)
@@ -170,7 +159,7 @@ static int si_ih_sw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_ih_ring_init(adev, 64 * 1024, false);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, false);
 	if (r)
 		return r;
 
@@ -182,7 +171,7 @@ static int si_ih_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
 
 	return 0;
 }
@@ -301,15 +290,13 @@ static const struct amd_ip_funcs si_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs si_ih_funcs = {
 	.get_wptr = si_ih_get_wptr,
-	.prescreen_iv = si_ih_prescreen_iv,
 	.decode_iv = si_ih_decode_iv,
 	.set_rptr = si_ih_set_rptr
 };
 
 static void si_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 {
-	if (adev->irq.ih_funcs == NULL)
-		adev->irq.ih_funcs = &si_ih_funcs;
+	adev->irq.ih_funcs = &si_ih_funcs;
 }
 
 const struct amdgpu_ip_block_version si_ih_ip_block =

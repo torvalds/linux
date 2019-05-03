@@ -1057,14 +1057,13 @@ static struct asd_ascb *asd_ascb_alloc(struct asd_ha_struct *asd_ha,
 
 	if (ascb) {
 		ascb->dma_scb.size = sizeof(struct scb);
-		ascb->dma_scb.vaddr = dma_pool_alloc(asd_ha->scb_pool,
+		ascb->dma_scb.vaddr = dma_pool_zalloc(asd_ha->scb_pool,
 						     gfp_flags,
 						    &ascb->dma_scb.dma_handle);
 		if (!ascb->dma_scb.vaddr) {
 			kmem_cache_free(asd_ascb_cache, ascb);
 			return NULL;
 		}
-		memset(ascb->dma_scb.vaddr, 0, sizeof(struct scb));
 		asd_init_ascb(asd_ha, ascb);
 
 		spin_lock_irqsave(&seq->tc_index_lock, flags);

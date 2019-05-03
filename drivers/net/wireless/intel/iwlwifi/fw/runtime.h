@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,7 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,7 @@
 #include "iwl-trans.h"
 #include "img.h"
 #include "fw/api/debug.h"
+#include "fw/api/dbg-tlv.h"
 #include "fw/api/paging.h"
 #include "iwl-eeprom-parse.h"
 
@@ -71,6 +72,8 @@ struct iwl_fw_runtime_ops {
 	int (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
 	bool (*fw_running)(void *ctx);
+	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);
+	bool (*d3_debug_enable)(void *ctx);
 };
 
 #define MAX_NUM_LMAC 2
@@ -129,13 +132,19 @@ struct iwl_fw_runtime {
 	/* debug */
 	struct {
 		const struct iwl_fw_dump_desc *desc;
-		const struct iwl_fw_dbg_trigger_tlv *trig;
+		bool monitor_only;
 		struct delayed_work wk;
 
 		u8 conf;
 
 		/* ts of the beginning of a non-collect fw dbg data period */
-		unsigned long non_collect_ts_start[FW_DBG_TRIGGER_MAX - 1];
+		unsigned long non_collect_ts_start[IWL_FW_TRIGGER_ID_NUM];
+		u32 *d3_debug_data;
+		struct iwl_fw_ini_region_cfg *active_regs[IWL_FW_INI_MAX_REGION_ID];
+		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
+		u32 lmac_err_id[MAX_NUM_LMAC];
+		u32 umac_err_id;
+		void *fifo_iter;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {
@@ -151,7 +160,23 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 			const struct iwl_fw_runtime_ops *ops, void *ops_ctx,
 			struct dentry *dbgfs_dir);
 
-void iwl_fw_runtime_exit(struct iwl_fw_runtime *fwrt);
+static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
+{
+	int i;
+
+	kfree(fwrt->dump.d3_debug_data);
+	fwrt->dump.d3_debug_data = NULL;
+
+	for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++) {
+		struct iwl_fw_ini_active_triggers *active =
+			&fwrt->dump.active_trigs[i];
+
+		active->active = false;
+		active->size = 0;
+		kfree(active->trig);
+		active->trig = NULL;
+	}
+}
 
 void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt);
 

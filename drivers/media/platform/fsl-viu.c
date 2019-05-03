@@ -565,9 +565,9 @@ static const struct videobuf_queue_ops viu_video_qops = {
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strcpy(cap->driver, "viu");
-	strcpy(cap->card, "viu");
-	strcpy(cap->bus_info, "platform:viu");
+	strscpy(cap->driver, "viu", sizeof(cap->driver));
+	strscpy(cap->card, "viu", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:viu", sizeof(cap->bus_info));
 	cap->device_caps =	V4L2_CAP_VIDEO_CAPTURE |
 				V4L2_CAP_STREAMING     |
 				V4L2_CAP_VIDEO_OVERLAY |
@@ -941,7 +941,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = fh->dev->vdev->tvnorms;
-	strcpy(inp->name, "Camera");
+	strscpy(inp->name, "Camera", sizeof(inp->name));
 	return 0;
 }
 
@@ -1090,7 +1090,7 @@ static void viu_capture_intr(struct viu_dev *dev, u32 status)
 
 		if (waitqueue_active(&buf->vb.done)) {
 			list_del(&buf->vb.queue);
-			v4l2_get_timestamp(&buf->vb.ts);
+			buf->vb.ts = ktime_get_ns();
 			buf->vb.state = VIDEOBUF_DONE;
 			buf->vb.field_count++;
 			wake_up(&buf->vb.done);

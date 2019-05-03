@@ -29,9 +29,8 @@
 #include <asm/cpcmd.h>
 #include <asm/sclp.h>
 #include <asm/facility.h>
+#include <asm/boot_data.h>
 #include "entry.h"
-
-static void __init setup_boot_command_line(void);
 
 /*
  * Initialize storage key for kernel pages
@@ -64,10 +63,10 @@ static noinline __init void detect_machine_type(void)
 	if (stsi(vmms, 3, 2, 2) || !vmms->count)
 		return;
 
-	/* Running under KVM? If not we assume z/VM */
+	/* Detect known hypervisors */
 	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
-	else
+	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
@@ -165,8 +164,6 @@ static noinline __init void setup_lowcore_early(void)
 
 static noinline __init void setup_facility_list(void)
 {
-	stfle(S390_lowcore.stfle_fac_list,
-	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	memcpy(S390_lowcore.alt_stfle_fac_list,
 	       S390_lowcore.stfle_fac_list,
 	       sizeof(S390_lowcore.alt_stfle_fac_list));
@@ -284,51 +281,11 @@ static int __init cad_setup(char *str)
 }
 early_param("cad", cad_setup);
 
-/* Set up boot command line */
-static void __init append_to_cmdline(size_t (*ipl_data)(char *, size_t))
-{
-	char *parm, *delim;
-	size_t rc, len;
-
-	len = strlen(boot_command_line);
-
-	delim = boot_command_line + len;	/* '\0' character position */
-	parm  = boot_command_line + len + 1;	/* append right after '\0' */
-
-	rc = ipl_data(parm, COMMAND_LINE_SIZE - len - 1);
-	if (rc) {
-		if (*parm == '=')
-			memmove(boot_command_line, parm + 1, rc);
-		else
-			*delim = ' ';		/* replace '\0' with space */
-	}
-}
-
-static inline int has_ebcdic_char(const char *str)
-{
-	int i;
-
-	for (i = 0; str[i]; i++)
-		if (str[i] & 0x80)
-			return 1;
-	return 0;
-}
-
+char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 static void __init setup_boot_command_line(void)
 {
-	COMMAND_LINE[ARCH_COMMAND_LINE_SIZE - 1] = 0;
-	/* convert arch command line to ascii if necessary */
-	if (has_ebcdic_char(COMMAND_LINE))
-		EBCASC(COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
 	/* copy arch command line */
-	strlcpy(boot_command_line, strstrip(COMMAND_LINE),
-		ARCH_COMMAND_LINE_SIZE);
-
-	/* append IPL PARM data to the boot command line */
-	if (MACHINE_IS_VM)
-		append_to_cmdline(append_ipl_vmparm);
-
-	append_to_cmdline(append_ipl_scpdata);
+	strlcpy(boot_command_line, early_command_line, ARCH_COMMAND_LINE_SIZE);
 }
 
 static void __init check_image_bootable(void)

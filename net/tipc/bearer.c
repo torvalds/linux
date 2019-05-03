@@ -43,6 +43,7 @@
 #include "bcast.h"
 #include "netlink.h"
 #include "udp_media.h"
+#include "trace.h"
 
 #define MAX_ADDR_STR 60
 
@@ -99,7 +100,7 @@ static struct tipc_media *media_find_id(u8 type)
 /**
  * tipc_media_addr_printf - record media address in print buffer
  */
-void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
+int tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 {
 	char addr_str[MAX_ADDR_STR];
 	struct tipc_media *m;
@@ -114,9 +115,10 @@ void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 
 		ret = scnprintf(buf, len, "UNKNOWN(%u)", a->media_id);
 		for (i = 0; i < sizeof(a->value); i++)
-			ret += scnprintf(buf - ret, len + ret,
-					    "-%02x", a->value[i]);
+			ret += scnprintf(buf + ret, len - ret,
+					    "-%x", a->value[i]);
 	}
+	return ret;
 }
 
 /**
@@ -317,7 +319,6 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	res = tipc_disc_create(net, b, &b->bcast_addr, &skb);
 	if (res) {
 		bearer_disable(net, b);
-		kfree(b);
 		errstr = "failed to create discoverer";
 		goto rejected;
 	}
@@ -577,7 +578,7 @@ static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 		rcu_dereference_rtnl(orig_dev->tipc_ptr);
 	if (likely(b && test_bit(0, &b->up) &&
 		   (skb->pkt_type <= PACKET_MULTICAST))) {
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 		tipc_rcv(dev_net(b->pt.dev), skb, b);
 		rcu_read_unlock();
 		return NET_RX_SUCCESS;
@@ -607,6 +608,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	if (!b)
 		return NOTIFY_DONE;
 
+	trace_tipc_l2_device_event(dev, b, evt);
 	switch (evt) {
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev) && netif_oper_up(dev)) {

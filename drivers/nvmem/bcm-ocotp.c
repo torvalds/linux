@@ -11,13 +11,14 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 /*
@@ -78,9 +79,9 @@ static struct otpc_map otp_map_v2 = {
 };
 
 struct otpc_priv {
-	struct device       *dev;
-	void __iomem        *base;
-	struct otpc_map     *map;
+	struct device *dev;
+	void __iomem *base;
+	const struct otpc_map *map;
 	struct nvmem_config *config;
 };
 
@@ -237,16 +238,22 @@ static struct nvmem_config bcm_otpc_nvmem_config = {
 };
 
 static const struct of_device_id bcm_otpc_dt_ids[] = {
-	{ .compatible = "brcm,ocotp" },
-	{ .compatible = "brcm,ocotp-v2" },
+	{ .compatible = "brcm,ocotp", .data = &otp_map },
+	{ .compatible = "brcm,ocotp-v2", .data = &otp_map_v2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcm_otpc_dt_ids);
 
+static const struct acpi_device_id bcm_otpc_acpi_ids[] = {
+	{ .id = "BRCM0700", .driver_data = (kernel_ulong_t)&otp_map },
+	{ .id = "BRCM0701", .driver_data = (kernel_ulong_t)&otp_map_v2 },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(acpi, bcm_otpc_acpi_ids);
+
 static int bcm_otpc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
 	struct resource *res;
 	struct otpc_priv *priv;
 	struct nvmem_device *nvmem;
@@ -257,14 +264,9 @@ static int bcm_otpc_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	if (of_device_is_compatible(dev->of_node, "brcm,ocotp"))
-		priv->map = &otp_map;
-	else if (of_device_is_compatible(dev->of_node, "brcm,ocotp-v2"))
-		priv->map = &otp_map_v2;
-	else {
-		dev_err(dev, "%s otpc config map not defined\n", __func__);
-		return -EINVAL;
-	}
+	priv->map = device_get_match_data(dev);
+	if (!priv->map)
+		return -ENODEV;
 
 	/* Get OTP base address register. */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -281,7 +283,7 @@ static int bcm_otpc_probe(struct platform_device *pdev)
 	reset_start_bit(priv->base);
 
 	/* Read size of memory in words. */
-	err = of_property_read_u32(dn, "brcm,ocotp-size", &num_words);
+	err = device_property_read_u32(dev, "brcm,ocotp-size", &num_words);
 	if (err) {
 		dev_err(dev, "size parameter not specified\n");
 		return -EINVAL;
@@ -294,7 +296,7 @@ static int bcm_otpc_probe(struct platform_device *pdev)
 	bcm_otpc_nvmem_config.dev = dev;
 	bcm_otpc_nvmem_config.priv = priv;
 
-	if (of_device_is_compatible(dev->of_node, "brcm,ocotp-v2")) {
+	if (priv->map == &otp_map_v2) {
 		bcm_otpc_nvmem_config.word_size = 8;
 		bcm_otpc_nvmem_config.stride = 8;
 	}
@@ -315,6 +317,7 @@ static struct platform_driver bcm_otpc_driver = {
 	.driver = {
 		.name	= "brcm-otpc",
 		.of_match_table = bcm_otpc_dt_ids,
+		.acpi_match_table = ACPI_PTR(bcm_otpc_acpi_ids),
 	},
 };
 module_platform_driver(bcm_otpc_driver);

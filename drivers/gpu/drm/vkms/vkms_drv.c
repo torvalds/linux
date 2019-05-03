@@ -1,16 +1,20 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * DOC: vkms (Virtual Kernel Modesetting)
+ *
+ * vkms is a software-only model of a kms driver that is useful for testing,
+ * or for running X (or similar) on headless machines and be able to still
+ * use the GPU. vkms aims to enable a virtual display without the need for
+ * a hardware display capability.
  */
 
 #include <linux/module.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "vkms_drv.h"
 
 #define DRIVER_NAME	"vkms"
@@ -20,6 +24,10 @@
 #define DRIVER_MINOR	0
 
 static struct vkms_device *vkms_device;
+
+bool enable_cursor;
+module_param_named(enable_cursor, enable_cursor, bool, 0444);
+MODULE_PARM_DESC(enable_cursor, "Enable/Disable cursor support");
 
 static const struct file_operations vkms_driver_fops = {
 	.owner		= THIS_MODULE,
@@ -47,6 +55,7 @@ static void vkms_release(struct drm_device *dev)
 	drm_atomic_helper_shutdown(&vkms->drm);
 	drm_mode_config_cleanup(&vkms->drm);
 	drm_dev_fini(&vkms->drm);
+	destroy_workqueue(vkms->output.crc_workq);
 }
 
 static struct drm_driver vkms_driver = {
@@ -54,7 +63,6 @@ static struct drm_driver vkms_driver = {
 	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
 	.dumb_create		= vkms_dumb_create,
-	.dumb_map_offset	= vkms_dumb_map,
 	.gem_vm_ops		= &vkms_gem_vm_ops,
 	.gem_free_object_unlocked = vkms_gem_free_object,
 	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
@@ -82,6 +90,7 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev)
 	dev->mode_config.min_height = YRES_MIN;
 	dev->mode_config.max_width = XRES_MAX;
 	dev->mode_config.max_height = YRES_MAX;
+	dev->mode_config.preferred_depth = 24;
 
 	return vkms_output_init(vkmsdev);
 }
@@ -94,16 +103,17 @@ static int __init vkms_init(void)
 	if (!vkms_device)
 		return -ENOMEM;
 
-	ret = drm_dev_init(&vkms_device->drm, &vkms_driver, NULL);
-	if (ret)
-		goto out_free;
-
 	vkms_device->platform =
 		platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
 	if (IS_ERR(vkms_device->platform)) {
 		ret = PTR_ERR(vkms_device->platform);
-		goto out_fini;
+		goto out_free;
 	}
+
+	ret = drm_dev_init(&vkms_device->drm, &vkms_driver,
+			   &vkms_device->platform->dev);
+	if (ret)
+		goto out_unregister;
 
 	vkms_device->drm.irq_enabled = true;
 
@@ -115,19 +125,19 @@ static int __init vkms_init(void)
 
 	ret = vkms_modeset_init(vkms_device);
 	if (ret)
-		goto out_unregister;
+		goto out_fini;
 
 	ret = drm_dev_register(&vkms_device->drm, 0);
 	if (ret)
-		goto out_unregister;
+		goto out_fini;
 
 	return 0;
 
-out_unregister:
-	platform_device_unregister(vkms_device->platform);
-
 out_fini:
 	drm_dev_fini(&vkms_device->drm);
+
+out_unregister:
+	platform_device_unregister(vkms_device->platform);
 
 out_free:
 	kfree(vkms_device);

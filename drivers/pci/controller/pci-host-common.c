@@ -58,9 +58,7 @@ err_out:
 int pci_host_common_probe(struct platform_device *pdev,
 			  struct pci_ecam_ops *ops)
 {
-	const char *type;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct pci_host_bridge *bridge;
 	struct pci_config_window *cfg;
 	struct list_head resources;
@@ -69,12 +67,6 @@ int pci_host_common_probe(struct platform_device *pdev,
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
 	if (!bridge)
 		return -ENOMEM;
-
-	type = of_get_property(np, "device_type", NULL);
-	if (!type || strcmp(type, "pci")) {
-		dev_err(dev, "invalid \"device_type\" %s\n", type);
-		return -EINVAL;
-	}
 
 	of_pci_check_probe_only();
 

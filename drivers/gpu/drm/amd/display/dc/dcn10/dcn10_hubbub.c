@@ -29,19 +29,20 @@
 #include "reg_helper.h"
 
 #define CTX \
-	hubbub->ctx
+	hubbub1->base.ctx
 #define DC_LOGGER \
-	hubbub->ctx->logger
+	hubbub1->base.ctx->logger
 #define REG(reg)\
-	hubbub->regs->reg
+	hubbub1->regs->reg
 
 #undef FN
 #define FN(reg_name, field_name) \
-	hubbub->shifts->field_name, hubbub->masks->field_name
+	hubbub1->shifts->field_name, hubbub1->masks->field_name
 
 void hubbub1_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm)
 {
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
 	struct dcn_hubbub_wm_set *s;
 
 	memset(wm, 0, sizeof(struct dcn_hubbub_wm));
@@ -87,9 +88,37 @@ void hubbub1_wm_read_state(struct hubbub *hubbub,
 	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D);
 }
 
+void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow)
+{
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+
+	/*
+	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 1 means do not allow stutter
+	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0 means allow stutter
+	 */
+
+	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, !allow);
+}
+
+bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubbub)
+{
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+	uint32_t enable = 0;
+
+	REG_GET(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, &enable);
+
+	return enable ? true : false;
+}
+
+
 bool hubbub1_verify_allow_pstate_change_high(
 	struct hubbub *hubbub)
 {
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+
 	/* pstate latency is ~20us so if we wait over 40us and pstate allow
 	 * still not asserted, we are probably stuck and going to hang
 	 *
@@ -116,7 +145,43 @@ bool hubbub1_verify_allow_pstate_change_high(
 		forced_pstate_allow = false;
 	}
 
-	/* RV1:
+	/* RV2:
+	 * dchubbubdebugind, at: 0xB
+	 * description
+	 * 0:     Pipe0 Plane0 Allow Pstate Change
+	 * 1:     Pipe0 Plane1 Allow Pstate Change
+	 * 2:     Pipe0 Cursor0 Allow Pstate Change
+	 * 3:     Pipe0 Cursor1 Allow Pstate Change
+	 * 4:     Pipe1 Plane0 Allow Pstate Change
+	 * 5:     Pipe1 Plane1 Allow Pstate Change
+	 * 6:     Pipe1 Cursor0 Allow Pstate Change
+	 * 7:     Pipe1 Cursor1 Allow Pstate Change
+	 * 8:     Pipe2 Plane0 Allow Pstate Change
+	 * 9:     Pipe2 Plane1 Allow Pstate Change
+	 * 10:    Pipe2 Cursor0 Allow Pstate Change
+	 * 11:    Pipe2 Cursor1 Allow Pstate Change
+	 * 12:    Pipe3 Plane0 Allow Pstate Change
+	 * 13:    Pipe3 Plane1 Allow Pstate Change
+	 * 14:    Pipe3 Cursor0 Allow Pstate Change
+	 * 15:    Pipe3 Cursor1 Allow Pstate Change
+	 * 16:    Pipe4 Plane0 Allow Pstate Change
+	 * 17:    Pipe4 Plane1 Allow Pstate Change
+	 * 18:    Pipe4 Cursor0 Allow Pstate Change
+	 * 19:    Pipe4 Cursor1 Allow Pstate Change
+	 * 20:    Pipe5 Plane0 Allow Pstate Change
+	 * 21:    Pipe5 Plane1 Allow Pstate Change
+	 * 22:    Pipe5 Cursor0 Allow Pstate Change
+	 * 23:    Pipe5 Cursor1 Allow Pstate Change
+	 * 24:    Pipe6 Plane0 Allow Pstate Change
+	 * 25:    Pipe6 Plane1 Allow Pstate Change
+	 * 26:    Pipe6 Cursor0 Allow Pstate Change
+	 * 27:    Pipe6 Cursor1 Allow Pstate Change
+	 * 28:    WB0 Allow Pstate Change
+	 * 29:    WB1 Allow Pstate Change
+	 * 30:    Arbiter's allow_pstate_change
+	 * 31:    SOC pstate change request"
+	 *
+	 * RV1:
 	 * dchubbubdebugind, at: 0x7
 	 * description "3-0:   Pipe0 cursor0 QOS
 	 * 7-4:   Pipe1 cursor0 QOS
@@ -140,8 +205,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 31:    SOC pstate change request
 	 */
 
-
-	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, hubbub->debug_test_index_pstate);
+	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, hubbub1->debug_test_index_pstate);
 
 	for (i = 0; i < pstate_wait_timeout_us; i++) {
 		debug_data = REG_READ(DCHUBBUB_TEST_DEBUG_DATA);
@@ -192,6 +256,8 @@ static uint32_t convert_and_clamp(
 
 void hubbub1_wm_change_req_wa(struct hubbub *hubbub)
 {
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+
 	REG_UPDATE_SEQ(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
 			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0, 1);
 }
@@ -202,7 +268,7 @@ void hubbub1_program_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
-	uint32_t force_en = hubbub->ctx->dc->debug.disable_stutter ? 1 : 0;
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
 	/*
 	 * Need to clamp to max of the register values (i.e. no wrap)
 	 * for dcn1, all wm registers are 21-bit wide
@@ -212,8 +278,8 @@ void hubbub1_program_watermarks(
 
 	/* Repeat for water mark set A, B, C and D. */
 	/* clock state A */
-	if (safe_to_lower || watermarks->a.urgent_ns > hubbub->watermarks.a.urgent_ns) {
-		hubbub->watermarks.a.urgent_ns = watermarks->a.urgent_ns;
+	if (safe_to_lower || watermarks->a.urgent_ns > hubbub1->watermarks.a.urgent_ns) {
+		hubbub1->watermarks.a.urgent_ns = watermarks->a.urgent_ns;
 		prog_wm_value = convert_and_clamp(watermarks->a.urgent_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, prog_wm_value);
@@ -223,20 +289,22 @@ void hubbub1_program_watermarks(
 			watermarks->a.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->a.pte_meta_urgent_ns > hubbub->watermarks.a.pte_meta_urgent_ns) {
-		hubbub->watermarks.a.pte_meta_urgent_ns = watermarks->a.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->a.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A)) {
+		if (safe_to_lower || watermarks->a.pte_meta_urgent_ns > hubbub1->watermarks.a.pte_meta_urgent_ns) {
+			hubbub1->watermarks.a.pte_meta_urgent_ns = watermarks->a.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->a.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A)) {
 		if (safe_to_lower || watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns
-				> hubbub->watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns) {
-			hubbub->watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
+				> hubbub1->watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub1->watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
 					watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns,
@@ -248,8 +316,8 @@ void hubbub1_program_watermarks(
 		}
 
 		if (safe_to_lower || watermarks->a.cstate_pstate.cstate_exit_ns
-				> hubbub->watermarks.a.cstate_pstate.cstate_exit_ns) {
-			hubbub->watermarks.a.cstate_pstate.cstate_exit_ns =
+				> hubbub1->watermarks.a.cstate_pstate.cstate_exit_ns) {
+			hubbub1->watermarks.a.cstate_pstate.cstate_exit_ns =
 					watermarks->a.cstate_pstate.cstate_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->a.cstate_pstate.cstate_exit_ns,
@@ -262,8 +330,8 @@ void hubbub1_program_watermarks(
 	}
 
 	if (safe_to_lower || watermarks->a.cstate_pstate.pstate_change_ns
-			> hubbub->watermarks.a.cstate_pstate.pstate_change_ns) {
-		hubbub->watermarks.a.cstate_pstate.pstate_change_ns =
+			> hubbub1->watermarks.a.cstate_pstate.pstate_change_ns) {
+		hubbub1->watermarks.a.cstate_pstate.pstate_change_ns =
 				watermarks->a.cstate_pstate.pstate_change_ns;
 		prog_wm_value = convert_and_clamp(
 				watermarks->a.cstate_pstate.pstate_change_ns,
@@ -275,8 +343,8 @@ void hubbub1_program_watermarks(
 	}
 
 	/* clock state B */
-	if (safe_to_lower || watermarks->b.urgent_ns > hubbub->watermarks.b.urgent_ns) {
-		hubbub->watermarks.b.urgent_ns = watermarks->b.urgent_ns;
+	if (safe_to_lower || watermarks->b.urgent_ns > hubbub1->watermarks.b.urgent_ns) {
+		hubbub1->watermarks.b.urgent_ns = watermarks->b.urgent_ns;
 		prog_wm_value = convert_and_clamp(watermarks->b.urgent_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, prog_wm_value);
@@ -286,20 +354,22 @@ void hubbub1_program_watermarks(
 			watermarks->b.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->b.pte_meta_urgent_ns > hubbub->watermarks.b.pte_meta_urgent_ns) {
-		hubbub->watermarks.b.pte_meta_urgent_ns = watermarks->b.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->b.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->b.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B)) {
+		if (safe_to_lower || watermarks->b.pte_meta_urgent_ns > hubbub1->watermarks.b.pte_meta_urgent_ns) {
+			hubbub1->watermarks.b.pte_meta_urgent_ns = watermarks->b.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->b.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->b.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B)) {
 		if (safe_to_lower || watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns
-				> hubbub->watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns) {
-			hubbub->watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns =
+				> hubbub1->watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub1->watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns =
 					watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns,
@@ -311,8 +381,8 @@ void hubbub1_program_watermarks(
 		}
 
 		if (safe_to_lower || watermarks->b.cstate_pstate.cstate_exit_ns
-				> hubbub->watermarks.b.cstate_pstate.cstate_exit_ns) {
-			hubbub->watermarks.b.cstate_pstate.cstate_exit_ns =
+				> hubbub1->watermarks.b.cstate_pstate.cstate_exit_ns) {
+			hubbub1->watermarks.b.cstate_pstate.cstate_exit_ns =
 					watermarks->b.cstate_pstate.cstate_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->b.cstate_pstate.cstate_exit_ns,
@@ -325,8 +395,8 @@ void hubbub1_program_watermarks(
 	}
 
 	if (safe_to_lower || watermarks->b.cstate_pstate.pstate_change_ns
-			> hubbub->watermarks.b.cstate_pstate.pstate_change_ns) {
-		hubbub->watermarks.b.cstate_pstate.pstate_change_ns =
+			> hubbub1->watermarks.b.cstate_pstate.pstate_change_ns) {
+		hubbub1->watermarks.b.cstate_pstate.pstate_change_ns =
 				watermarks->b.cstate_pstate.pstate_change_ns;
 		prog_wm_value = convert_and_clamp(
 				watermarks->b.cstate_pstate.pstate_change_ns,
@@ -338,8 +408,8 @@ void hubbub1_program_watermarks(
 	}
 
 	/* clock state C */
-	if (safe_to_lower || watermarks->c.urgent_ns > hubbub->watermarks.c.urgent_ns) {
-		hubbub->watermarks.c.urgent_ns = watermarks->c.urgent_ns;
+	if (safe_to_lower || watermarks->c.urgent_ns > hubbub1->watermarks.c.urgent_ns) {
+		hubbub1->watermarks.c.urgent_ns = watermarks->c.urgent_ns;
 		prog_wm_value = convert_and_clamp(watermarks->c.urgent_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, prog_wm_value);
@@ -349,20 +419,22 @@ void hubbub1_program_watermarks(
 			watermarks->c.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->c.pte_meta_urgent_ns > hubbub->watermarks.c.pte_meta_urgent_ns) {
-		hubbub->watermarks.c.pte_meta_urgent_ns = watermarks->c.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->c.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->c.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C)) {
+		if (safe_to_lower || watermarks->c.pte_meta_urgent_ns > hubbub1->watermarks.c.pte_meta_urgent_ns) {
+			hubbub1->watermarks.c.pte_meta_urgent_ns = watermarks->c.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->c.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->c.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C)) {
 		if (safe_to_lower || watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns
-				> hubbub->watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns) {
-			hubbub->watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns =
+				> hubbub1->watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub1->watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns =
 					watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns,
@@ -374,8 +446,8 @@ void hubbub1_program_watermarks(
 		}
 
 		if (safe_to_lower || watermarks->c.cstate_pstate.cstate_exit_ns
-				> hubbub->watermarks.c.cstate_pstate.cstate_exit_ns) {
-			hubbub->watermarks.c.cstate_pstate.cstate_exit_ns =
+				> hubbub1->watermarks.c.cstate_pstate.cstate_exit_ns) {
+			hubbub1->watermarks.c.cstate_pstate.cstate_exit_ns =
 					watermarks->c.cstate_pstate.cstate_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->c.cstate_pstate.cstate_exit_ns,
@@ -388,8 +460,8 @@ void hubbub1_program_watermarks(
 	}
 
 	if (safe_to_lower || watermarks->c.cstate_pstate.pstate_change_ns
-			> hubbub->watermarks.c.cstate_pstate.pstate_change_ns) {
-		hubbub->watermarks.c.cstate_pstate.pstate_change_ns =
+			> hubbub1->watermarks.c.cstate_pstate.pstate_change_ns) {
+		hubbub1->watermarks.c.cstate_pstate.pstate_change_ns =
 				watermarks->c.cstate_pstate.pstate_change_ns;
 		prog_wm_value = convert_and_clamp(
 				watermarks->c.cstate_pstate.pstate_change_ns,
@@ -401,8 +473,8 @@ void hubbub1_program_watermarks(
 	}
 
 	/* clock state D */
-	if (safe_to_lower || watermarks->d.urgent_ns > hubbub->watermarks.d.urgent_ns) {
-		hubbub->watermarks.d.urgent_ns = watermarks->d.urgent_ns;
+	if (safe_to_lower || watermarks->d.urgent_ns > hubbub1->watermarks.d.urgent_ns) {
+		hubbub1->watermarks.d.urgent_ns = watermarks->d.urgent_ns;
 		prog_wm_value = convert_and_clamp(watermarks->d.urgent_ns,
 				refclk_mhz, 0x1fffff);
 		REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, prog_wm_value);
@@ -412,20 +484,22 @@ void hubbub1_program_watermarks(
 			watermarks->d.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->d.pte_meta_urgent_ns > hubbub->watermarks.d.pte_meta_urgent_ns) {
-		hubbub->watermarks.d.pte_meta_urgent_ns = watermarks->d.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->d.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->d.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D)) {
+		if (safe_to_lower || watermarks->d.pte_meta_urgent_ns > hubbub1->watermarks.d.pte_meta_urgent_ns) {
+			hubbub1->watermarks.d.pte_meta_urgent_ns = watermarks->d.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->d.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->d.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D)) {
 		if (safe_to_lower || watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns
-				> hubbub->watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns) {
-			hubbub->watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns =
+				> hubbub1->watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns) {
+			hubbub1->watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns =
 					watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns,
@@ -437,8 +511,8 @@ void hubbub1_program_watermarks(
 		}
 
 		if (safe_to_lower || watermarks->d.cstate_pstate.cstate_exit_ns
-				> hubbub->watermarks.d.cstate_pstate.cstate_exit_ns) {
-			hubbub->watermarks.d.cstate_pstate.cstate_exit_ns =
+				> hubbub1->watermarks.d.cstate_pstate.cstate_exit_ns) {
+			hubbub1->watermarks.d.cstate_pstate.cstate_exit_ns =
 					watermarks->d.cstate_pstate.cstate_exit_ns;
 			prog_wm_value = convert_and_clamp(
 					watermarks->d.cstate_pstate.cstate_exit_ns,
@@ -451,8 +525,8 @@ void hubbub1_program_watermarks(
 	}
 
 	if (safe_to_lower || watermarks->d.cstate_pstate.pstate_change_ns
-			> hubbub->watermarks.d.cstate_pstate.pstate_change_ns) {
-		hubbub->watermarks.d.cstate_pstate.pstate_change_ns =
+			> hubbub1->watermarks.d.cstate_pstate.pstate_change_ns) {
+		hubbub1->watermarks.d.cstate_pstate.pstate_change_ns =
 				watermarks->d.cstate_pstate.pstate_change_ns;
 		prog_wm_value = convert_and_clamp(
 				watermarks->d.cstate_pstate.pstate_change_ns,
@@ -468,9 +542,7 @@ void hubbub1_program_watermarks(
 	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
 			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 68);
 
-	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
-			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
-			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, force_en);
+	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
 
 #if 0
 	REG_UPDATE_2(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
@@ -483,6 +555,8 @@ void hubbub1_update_dchub(
 	struct hubbub *hubbub,
 	struct dchub_init_data *dh_data)
 {
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+
 	if (REG(DCHUBBUB_SDPIF_FB_TOP) == 0) {
 		ASSERT(false);
 		/*should not come here*/
@@ -542,6 +616,8 @@ void hubbub1_update_dchub(
 
 void hubbub1_toggle_watermark_change_req(struct hubbub *hubbub)
 {
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+
 	uint32_t watermark_change_req;
 
 	REG_GET(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
@@ -558,6 +634,8 @@ void hubbub1_toggle_watermark_change_req(struct hubbub *hubbub)
 
 void hubbub1_soft_reset(struct hubbub *hubbub, bool reset)
 {
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+
 	uint32_t reset_en = reset ? 1 : 0;
 
 	REG_UPDATE(DCHUBBUB_SOFT_RESET,
@@ -700,7 +778,9 @@ static bool hubbub1_get_dcc_compression_cap(struct hubbub *hubbub,
 		const struct dc_dcc_surface_param *input,
 		struct dc_surface_dcc_cap *output)
 {
-	struct dc *dc = hubbub->ctx->dc;
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
+	struct dc *dc = hubbub1->base.ctx->dc;
+
 	/* implement section 1.6.2.1 of DCN1_Programming_Guide.docx */
 	enum dcc_control dcc_control;
 	unsigned int bpe;
@@ -712,10 +792,10 @@ static bool hubbub1_get_dcc_compression_cap(struct hubbub *hubbub,
 	if (dc->debug.disable_dcc == DCC_DISABLE)
 		return false;
 
-	if (!hubbub->funcs->dcc_support_pixel_format(input->format, &bpe))
+	if (!hubbub1->base.funcs->dcc_support_pixel_format(input->format, &bpe))
 		return false;
 
-	if (!hubbub->funcs->dcc_support_swizzle(input->swizzle_mode, bpe,
+	if (!hubbub1->base.funcs->dcc_support_swizzle(input->swizzle_mode, bpe,
 			&segment_order_horz, &segment_order_vert))
 		return false;
 
@@ -785,6 +865,7 @@ static const struct hubbub_funcs hubbub1_funcs = {
 	.dcc_support_swizzle = hubbub1_dcc_support_swizzle,
 	.dcc_support_pixel_format = hubbub1_dcc_support_pixel_format,
 	.get_dcc_compression_cap = hubbub1_get_dcc_compression_cap,
+	.wm_read_state = hubbub1_wm_read_state,
 };
 
 void hubbub1_construct(struct hubbub *hubbub,
@@ -793,14 +874,20 @@ void hubbub1_construct(struct hubbub *hubbub,
 	const struct dcn_hubbub_shift *hubbub_shift,
 	const struct dcn_hubbub_mask *hubbub_mask)
 {
-	hubbub->ctx = ctx;
+	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
 
-	hubbub->funcs = &hubbub1_funcs;
+	hubbub1->base.ctx = ctx;
 
-	hubbub->regs = hubbub_regs;
-	hubbub->shifts = hubbub_shift;
-	hubbub->masks = hubbub_mask;
+	hubbub1->base.funcs = &hubbub1_funcs;
 
-	hubbub->debug_test_index_pstate = 0x7;
+	hubbub1->regs = hubbub_regs;
+	hubbub1->shifts = hubbub_shift;
+	hubbub1->masks = hubbub_mask;
+
+	hubbub1->debug_test_index_pstate = 0x7;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (ctx->dce_version == DCN_VERSION_1_01)
+		hubbub1->debug_test_index_pstate = 0xB;
+#endif
 }
 

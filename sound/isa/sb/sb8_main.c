@@ -130,13 +130,13 @@ static int snd_sb8_playback_prepare(struct snd_pcm_substream *substream)
 			chip->playback_format = SB_DSP_HI_OUTPUT_AUTO;
 			break;
 		}
-		/* fallthru */
+		/* fall through */
 	case SB_HW_201:
 		if (rate > 23000) {
 			chip->playback_format = SB_DSP_HI_OUTPUT_AUTO;
 			break;
 		}
-		/* fallthru */
+		/* fall through */
 	case SB_HW_20:
 		chip->playback_format = SB_DSP_LO_OUTPUT_AUTO;
 		break;
@@ -287,7 +287,7 @@ static int snd_sb8_capture_prepare(struct snd_pcm_substream *substream)
 			chip->capture_format = SB_DSP_HI_INPUT_AUTO;
 			break;
 		}
-		/* fallthru */
+		/* fall through */
 	case SB_HW_20:
 		chip->capture_format = SB_DSP_LO_INPUT_AUTO;
 		break;
@@ -387,7 +387,7 @@ irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 	case SB_MODE_PLAYBACK_16:	/* ok.. playback is active */
 		if (chip->hardware != SB_HW_JAZZ16)
 			break;
-		/* fallthru */
+		/* fall through */
 	case SB_MODE_PLAYBACK_8:
 		substream = chip->playback_substream;
 		if (chip->playback_format == SB_DSP_OUTPUT)
@@ -397,7 +397,7 @@ irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 	case SB_MODE_CAPTURE_16:
 		if (chip->hardware != SB_HW_JAZZ16)
 			break;
-		/* fallthru */
+		/* fall through */
 	case SB_MODE_CAPTURE_8:
 		substream = chip->capture_substream;
 		if (chip->capture_format == SB_DSP_INPUT)
@@ -610,7 +610,7 @@ int snd_sb8dsp_pcm(struct snd_sb *chip, int device)
 	if (chip->dma8 > 3 || chip->dma16 >= 0)
 		max_prealloc = 128 * 1024;
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      card->dev,
 					      64*1024, max_prealloc);
 
 	return 0;

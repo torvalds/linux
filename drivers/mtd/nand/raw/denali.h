@@ -1,21 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NAND Flash Controller Device Driver
  * Copyright (c) 2009 - 2010, Intel Corporation and its suppliers.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __DENALI_H__
 #define __DENALI_H__
 
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/completion.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/spinlock_types.h>
@@ -312,7 +304,6 @@ struct denali_nand_info {
 	u32 irq_status;			/* interrupts that have happened */
 	int irq;
 	void *buf;			/* for syndrome layout conversion */
-	dma_addr_t dma_addr;
 	int dma_avail;			/* can support DMA? */
 	int devs_per_cs;		/* devices connected in parallel */
 	int oob_skip_bytes;		/* number of bytes reserved for BBM */

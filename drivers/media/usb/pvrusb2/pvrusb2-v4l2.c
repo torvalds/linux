@@ -121,10 +121,10 @@ static int pvr2_querycap(struct file *file, void *priv, struct v4l2_capability *
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
 
-	strlcpy(cap->driver, "pvrusb2", sizeof(cap->driver));
-	strlcpy(cap->bus_info, pvr2_hdw_get_bus_info(hdw),
-			sizeof(cap->bus_info));
-	strlcpy(cap->card, pvr2_hdw_get_desc(hdw), sizeof(cap->card));
+	strscpy(cap->driver, "pvrusb2", sizeof(cap->driver));
+	strscpy(cap->bus_info, pvr2_hdw_get_bus_info(hdw),
+		sizeof(cap->bus_info));
+	strscpy(cap->card, pvr2_hdw_get_desc(hdw), sizeof(cap->card));
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
 			    V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
 			    V4L2_CAP_READWRITE | V4L2_CAP_DEVICE_CAPS;
@@ -545,7 +545,7 @@ static int pvr2_queryctrl(struct file *file, void *priv,
 			"QUERYCTRL id=0x%x mapping name=%s (%s)",
 			vc->id, pvr2_ctrl_get_name(cptr),
 			pvr2_ctrl_get_desc(cptr));
-	strlcpy(vc->name, pvr2_ctrl_get_desc(cptr), sizeof(vc->name));
+	strscpy(vc->name, pvr2_ctrl_get_desc(cptr), sizeof(vc->name));
 	vc->flags = pvr2_ctrl_get_v4lflags(cptr);
 	pvr2_ctrl_get_def(cptr, &val);
 	vc->default_value = val;
@@ -703,16 +703,19 @@ static int pvr2_try_ext_ctrls(struct file *file, void *priv,
 	return 0;
 }
 
-static int pvr2_cropcap(struct file *file, void *priv, struct v4l2_cropcap *cap)
+static int pvr2_g_pixelaspect(struct file *file, void *priv,
+			      int type, struct v4l2_fract *f)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
+	struct v4l2_cropcap cap = { .type = type };
 	int ret;
 
-	if (cap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	ret = pvr2_hdw_get_cropcap(hdw, cap);
-	cap->type = V4L2_BUF_TYPE_VIDEO_CAPTURE; /* paranoia */
+	ret = pvr2_hdw_get_cropcap(hdw, &cap);
+	if (!ret)
+		*f = cap.pixelaspect;
 	return ret;
 }
 
@@ -815,7 +818,7 @@ static const struct v4l2_ioctl_ops pvr2_ioctl_ops = {
 	.vidioc_g_audio			    = pvr2_g_audio,
 	.vidioc_enumaudio		    = pvr2_enumaudio,
 	.vidioc_enum_input		    = pvr2_enum_input,
-	.vidioc_cropcap			    = pvr2_cropcap,
+	.vidioc_g_pixelaspect		    = pvr2_g_pixelaspect,
 	.vidioc_s_selection		    = pvr2_s_selection,
 	.vidioc_g_selection		    = pvr2_g_selection,
 	.vidioc_g_input			    = pvr2_g_input,
@@ -869,7 +872,7 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	   are gone. */
 	video_unregister_device(&dip->devbase);
 
-	printk(KERN_INFO "%s\n", msg);
+	pr_info("%s\n", msg);
 
 }
 
@@ -1260,7 +1263,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 			": Failed to register pvrusb2 v4l device\n");
 	}
 
-	printk(KERN_INFO "pvrusb2: registered device %s [%s]\n",
+	pr_info("pvrusb2: registered device %s [%s]\n",
 	       video_device_node_name(&dip->devbase),
 	       pvr2_config_get_name(dip->config));
 

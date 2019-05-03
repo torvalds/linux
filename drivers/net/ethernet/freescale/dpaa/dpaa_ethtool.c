@@ -182,7 +182,6 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 	struct phy_device *phydev;
 	bool rx_pause, tx_pause;
 	struct dpaa_priv *priv;
-	u32 newadv, oldadv;
 	int err;
 
 	priv = netdev_priv(net_dev);
@@ -194,9 +193,7 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 		return -ENODEV;
 	}
 
-	if (!(phydev->supported & SUPPORTED_Pause) ||
-	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
-	    (epause->rx_pause != epause->tx_pause)))
+	if (!phy_validate_pause(phydev, epause))
 		return -EINVAL;
 
 	/* The MAC should know how to handle PAUSE frame autonegotiation before
@@ -210,29 +207,8 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 	/* Determine the sym/asym advertised PAUSE capabilities from the desired
 	 * rx/tx pause settings.
 	 */
-	newadv = 0;
-	if (epause->rx_pause)
-		newadv = ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-	if (epause->tx_pause)
-		newadv ^= ADVERTISED_Asym_Pause;
 
-	oldadv = phydev->advertising &
-			(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-
-	/* If there are differences between the old and the new advertised
-	 * values, restart PHY autonegotiation and advertise the new values.
-	 */
-	if (oldadv != newadv) {
-		phydev->advertising &= ~(ADVERTISED_Pause
-				| ADVERTISED_Asym_Pause);
-		phydev->advertising |= newadv;
-		if (phydev->autoneg) {
-			err = phy_start_aneg(phydev);
-			if (err < 0)
-				netdev_err(net_dev, "phy_start_aneg() = %d\n",
-					   err);
-		}
-	}
+	phy_set_asym_pause(phydev, epause->rx_pause, epause->tx_pause);
 
 	fman_get_pause_cfg(mac_dev, &rx_pause, &tx_pause);
 	err = fman_set_mac_active_pause(mac_dev, rx_pause, tx_pause);
@@ -525,7 +501,7 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 	struct device_node *mac_node = dev->of_node;
 	struct device_node *fman_node = NULL, *ptp_node = NULL;
 	struct platform_device *ptp_dev = NULL;
-	struct qoriq_ptp *ptp = NULL;
+	struct ptp_qoriq *ptp = NULL;
 
 	info->phc_index = -1;
 
@@ -553,6 +529,75 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 	return 0;
 }
 
+static int dpaa_get_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *c)
+{
+	struct qman_portal *portal;
+	u32 period;
+	u8 thresh;
+
+	portal = qman_get_affine_portal(smp_processor_id());
+	qman_portal_get_iperiod(portal, &period);
+	qman_dqrr_get_ithresh(portal, &thresh);
+
+	c->rx_coalesce_usecs = period;
+	c->rx_max_coalesced_frames = thresh;
+	c->use_adaptive_rx_coalesce = false;
+
+	return 0;
+}
+
+static int dpaa_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *c)
+{
+	const cpumask_t *cpus = qman_affine_cpus();
+	bool needs_revert[NR_CPUS] = {false};
+	struct qman_portal *portal;
+	u32 period, prev_period;
+	u8 thresh, prev_thresh;
+	int cpu, res;
+
+	if (c->use_adaptive_rx_coalesce)
+		return -EINVAL;
+
+	period = c->rx_coalesce_usecs;
+	thresh = c->rx_max_coalesced_frames;
+
+	/* save previous values */
+	portal = qman_get_affine_portal(smp_processor_id());
+	qman_portal_get_iperiod(portal, &prev_period);
+	qman_dqrr_get_ithresh(portal, &prev_thresh);
+
+	/* set new values */
+	for_each_cpu(cpu, cpus) {
+		portal = qman_get_affine_portal(cpu);
+		res = qman_portal_set_iperiod(portal, period);
+		if (res)
+			goto revert_values;
+		res = qman_dqrr_set_ithresh(portal, thresh);
+		if (res) {
+			qman_portal_set_iperiod(portal, prev_period);
+			goto revert_values;
+		}
+		needs_revert[cpu] = true;
+	}
+
+	return 0;
+
+revert_values:
+	/* restore previous values */
+	for_each_cpu(cpu, cpus) {
+		if (!needs_revert[cpu])
+			continue;
+		portal = qman_get_affine_portal(cpu);
+		/* previous values will not fail, ignore return value */
+		qman_portal_set_iperiod(portal, prev_period);
+		qman_dqrr_set_ithresh(portal, prev_thresh);
+	}
+
+	return res;
+}
+
 const struct ethtool_ops dpaa_ethtool_ops = {
 	.get_drvinfo = dpaa_get_drvinfo,
 	.get_msglevel = dpaa_get_msglevel,
@@ -569,4 +614,6 @@ const struct ethtool_ops dpaa_ethtool_ops = {
 	.get_rxnfc = dpaa_get_rxnfc,
 	.set_rxnfc = dpaa_set_rxnfc,
 	.get_ts_info = dpaa_get_ts_info,
+	.get_coalesce = dpaa_get_coalesce,
+	.set_coalesce = dpaa_set_coalesce,
 };

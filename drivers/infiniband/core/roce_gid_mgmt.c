@@ -267,6 +267,9 @@ is_upper_ndev_bond_master_filter(struct ib_device *ib_dev, u8 port,
 	struct net_device *cookie_ndev = cookie;
 	bool match = false;
 
+	if (!rdma_ndev)
+		return false;
+
 	rcu_read_lock();
 	if (netif_is_bond_master(cookie_ndev) &&
 	    rdma_is_upper_dev_rcu(rdma_ndev, cookie_ndev))
@@ -767,8 +770,10 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_CHANGEADDR:
 		cmds[0] = netdev_del_cmd;
-		cmds[1] = add_default_gid_cmd;
-		cmds[2] = add_cmd;
+		if (ndev->reg_state == NETREG_REGISTERED) {
+			cmds[1] = add_default_gid_cmd;
+			cmds[2] = add_cmd;
+		}
 		break;
 
 	case NETDEV_CHANGEUPPER:

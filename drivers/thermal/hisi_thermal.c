@@ -55,25 +55,39 @@
 #define HI3660_TEMP_STEP		(205)
 #define HI3660_TEMP_LAG			(4000)
 
-#define HI6220_DEFAULT_SENSOR		2
-#define HI3660_DEFAULT_SENSOR		1
+#define HI6220_CLUSTER0_SENSOR		2
+#define HI6220_CLUSTER1_SENSOR		1
+
+#define HI3660_LITTLE_SENSOR		0
+#define HI3660_BIG_SENSOR		1
+#define HI3660_G3D_SENSOR		2
+#define HI3660_MODEM_SENSOR		3
+
+struct hisi_thermal_data;
 
 struct hisi_thermal_sensor {
+	struct hisi_thermal_data *data;
 	struct thermal_zone_device *tzd;
+	const char *irq_name;
 	uint32_t id;
 	uint32_t thres_temp;
 };
 
+struct hisi_thermal_ops {
+	int (*get_temp)(struct hisi_thermal_sensor *sensor);
+	int (*enable_sensor)(struct hisi_thermal_sensor *sensor);
+	int (*disable_sensor)(struct hisi_thermal_sensor *sensor);
+	int (*irq_handler)(struct hisi_thermal_sensor *sensor);
+	int (*probe)(struct hisi_thermal_data *data);
+};
+
 struct hisi_thermal_data {
-	int (*get_temp)(struct hisi_thermal_data *data);
-	int (*enable_sensor)(struct hisi_thermal_data *data);
-	int (*disable_sensor)(struct hisi_thermal_data *data);
-	int (*irq_handler)(struct hisi_thermal_data *data);
+	const struct hisi_thermal_ops *ops;
+	struct hisi_thermal_sensor *sensor;
 	struct platform_device *pdev;
 	struct clk *clk;
-	struct hisi_thermal_sensor sensor;
 	void __iomem *regs;
-	int irq;
+	int nr_sensors;
 };
 
 /*
@@ -266,30 +280,40 @@ static inline void hi6220_thermal_hdak_set(void __iomem *addr, int value)
 	       (value << 4), addr + HI6220_TEMP0_CFG);
 }
 
-static int hi6220_thermal_irq_handler(struct hisi_thermal_data *data)
+static int hi6220_thermal_irq_handler(struct hisi_thermal_sensor *sensor)
 {
+	struct hisi_thermal_data *data = sensor->data;
+
 	hi6220_thermal_alarm_clear(data->regs, 1);
 	return 0;
 }
 
-static int hi3660_thermal_irq_handler(struct hisi_thermal_data *data)
+static int hi3660_thermal_irq_handler(struct hisi_thermal_sensor *sensor)
 {
-	hi3660_thermal_alarm_clear(data->regs, data->sensor.id, 1);
+	struct hisi_thermal_data *data = sensor->data;
+
+	hi3660_thermal_alarm_clear(data->regs, sensor->id, 1);
 	return 0;
 }
 
-static int hi6220_thermal_get_temp(struct hisi_thermal_data *data)
+static int hi6220_thermal_get_temp(struct hisi_thermal_sensor *sensor)
 {
+	struct hisi_thermal_data *data = sensor->data;
+
 	return hi6220_thermal_get_temperature(data->regs);
 }
 
-static int hi3660_thermal_get_temp(struct hisi_thermal_data *data)
+static int hi3660_thermal_get_temp(struct hisi_thermal_sensor *sensor)
 {
-	return hi3660_thermal_get_temperature(data->regs, data->sensor.id);
+	struct hisi_thermal_data *data = sensor->data;
+
+	return hi3660_thermal_get_temperature(data->regs, sensor->id);
 }
 
-static int hi6220_thermal_disable_sensor(struct hisi_thermal_data *data)
+static int hi6220_thermal_disable_sensor(struct hisi_thermal_sensor *sensor)
 {
+	struct hisi_thermal_data *data = sensor->data;
+
 	/* disable sensor module */
 	hi6220_thermal_enable(data->regs, 0);
 	hi6220_thermal_alarm_enable(data->regs, 0);
@@ -300,16 +324,18 @@ static int hi6220_thermal_disable_sensor(struct hisi_thermal_data *data)
 	return 0;
 }
 
-static int hi3660_thermal_disable_sensor(struct hisi_thermal_data *data)
+static int hi3660_thermal_disable_sensor(struct hisi_thermal_sensor *sensor)
 {
+	struct hisi_thermal_data *data = sensor->data;
+
 	/* disable sensor module */
-	hi3660_thermal_alarm_enable(data->regs, data->sensor.id, 0);
+	hi3660_thermal_alarm_enable(data->regs, sensor->id, 0);
 	return 0;
 }
 
-static int hi6220_thermal_enable_sensor(struct hisi_thermal_data *data)
+static int hi6220_thermal_enable_sensor(struct hisi_thermal_sensor *sensor)
 {
-	struct hisi_thermal_sensor *sensor = &data->sensor;
+	struct hisi_thermal_data *data = sensor->data;
 	int ret;
 
 	/* enable clock for tsensor */
@@ -345,10 +371,10 @@ static int hi6220_thermal_enable_sensor(struct hisi_thermal_data *data)
 	return 0;
 }
 
-static int hi3660_thermal_enable_sensor(struct hisi_thermal_data *data)
+static int hi3660_thermal_enable_sensor(struct hisi_thermal_sensor *sensor)
 {
 	unsigned int value;
-	struct hisi_thermal_sensor *sensor = &data->sensor;
+	struct hisi_thermal_data *data = sensor->data;
 
 	/* disable interrupt */
 	hi3660_thermal_alarm_enable(data->regs, sensor->id, 0);
@@ -371,20 +397,7 @@ static int hi6220_thermal_probe(struct hisi_thermal_data *data)
 {
 	struct platform_device *pdev = data->pdev;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	int ret;
-
-	data->get_temp = hi6220_thermal_get_temp;
-	data->enable_sensor = hi6220_thermal_enable_sensor;
-	data->disable_sensor = hi6220_thermal_disable_sensor;
-	data->irq_handler = hi6220_thermal_irq_handler;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(data->regs)) {
-		dev_err(dev, "failed to get io address\n");
-		return PTR_ERR(data->regs);
-	}
 
 	data->clk = devm_clk_get(dev, "thermal_clk");
 	if (IS_ERR(data->clk)) {
@@ -394,11 +407,14 @@ static int hi6220_thermal_probe(struct hisi_thermal_data *data)
 		return ret;
 	}
 
-	data->irq = platform_get_irq(pdev, 0);
-	if (data->irq < 0)
-		return data->irq;
+	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor), GFP_KERNEL);
+	if (!data->sensor)
+		return -ENOMEM;
 
-	data->sensor.id = HI6220_DEFAULT_SENSOR;
+	data->sensor[0].id = HI6220_CLUSTER0_SENSOR;
+	data->sensor[0].irq_name = "tsensor_intr";
+	data->sensor[0].data = data;
+	data->nr_sensors = 1;
 
 	return 0;
 }
@@ -407,38 +423,34 @@ static int hi3660_thermal_probe(struct hisi_thermal_data *data)
 {
 	struct platform_device *pdev = data->pdev;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 
-	data->get_temp = hi3660_thermal_get_temp;
-	data->enable_sensor = hi3660_thermal_enable_sensor;
-	data->disable_sensor = hi3660_thermal_disable_sensor;
-	data->irq_handler = hi3660_thermal_irq_handler;
+	data->nr_sensors = 1;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(data->regs)) {
-		dev_err(dev, "failed to get io address\n");
-		return PTR_ERR(data->regs);
-	}
+	data->sensor = devm_kzalloc(dev, sizeof(*data->sensor) *
+				    data->nr_sensors, GFP_KERNEL);
+	if (!data->sensor)
+		return -ENOMEM;
 
-	data->irq = platform_get_irq(pdev, 0);
-	if (data->irq < 0)
-		return data->irq;
+	data->sensor[0].id = HI3660_BIG_SENSOR;
+	data->sensor[0].irq_name = "tsensor_a73";
+	data->sensor[0].data = data;
 
-	data->sensor.id = HI3660_DEFAULT_SENSOR;
+	data->sensor[1].id = HI3660_LITTLE_SENSOR;
+	data->sensor[1].irq_name = "tsensor_a53";
+	data->sensor[1].data = data;
 
 	return 0;
 }
 
 static int hisi_thermal_get_temp(void *__data, int *temp)
 {
-	struct hisi_thermal_data *data = __data;
-	struct hisi_thermal_sensor *sensor = &data->sensor;
+	struct hisi_thermal_sensor *sensor = __data;
+	struct hisi_thermal_data *data = sensor->data;
 
-	*temp = data->get_temp(data);
+	*temp = data->ops->get_temp(sensor);
 
-	dev_dbg(&data->pdev->dev, "id=%d, temp=%d, thres=%d\n",
-		sensor->id, *temp, sensor->thres_temp);
+	dev_dbg(&data->pdev->dev, "tzd=%p, id=%d, temp=%d, thres=%d\n",
+		sensor->tzd, sensor->id, *temp, sensor->thres_temp);
 
 	return 0;
 }
@@ -449,38 +461,39 @@ static const struct thermal_zone_of_device_ops hisi_of_thermal_ops = {
 
 static irqreturn_t hisi_thermal_alarm_irq_thread(int irq, void *dev)
 {
-	struct hisi_thermal_data *data = dev;
-	struct hisi_thermal_sensor *sensor = &data->sensor;
+	struct hisi_thermal_sensor *sensor = dev;
+	struct hisi_thermal_data *data = sensor->data;
 	int temp = 0;
 
-	data->irq_handler(data);
+	data->ops->irq_handler(sensor);
 
-	hisi_thermal_get_temp(data, &temp);
+	hisi_thermal_get_temp(sensor, &temp);
 
 	if (temp >= sensor->thres_temp) {
-		dev_crit(&data->pdev->dev, "THERMAL ALARM: %d > %d\n",
-			 temp, sensor->thres_temp);
+		dev_crit(&data->pdev->dev,
+			 "sensor <%d> THERMAL ALARM: %d > %d\n",
+			 sensor->id, temp, sensor->thres_temp);
 
-		thermal_zone_device_update(data->sensor.tzd,
+		thermal_zone_device_update(sensor->tzd,
 					   THERMAL_EVENT_UNSPECIFIED);
 
 	} else {
-		dev_crit(&data->pdev->dev, "THERMAL ALARM stopped: %d < %d\n",
-			 temp, sensor->thres_temp);
+		dev_crit(&data->pdev->dev,
+			 "sensor <%d> THERMAL ALARM stopped: %d < %d\n",
+			 sensor->id, temp, sensor->thres_temp);
 	}
 
 	return IRQ_HANDLED;
 }
 
 static int hisi_thermal_register_sensor(struct platform_device *pdev,
-					struct hisi_thermal_data *data,
 					struct hisi_thermal_sensor *sensor)
 {
 	int ret, i;
 	const struct thermal_trip *trip;
 
 	sensor->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev,
-							   sensor->id, data,
+							   sensor->id, sensor,
 							   &hisi_of_thermal_ops);
 	if (IS_ERR(sensor->tzd)) {
 		ret = PTR_ERR(sensor->tzd);
@@ -502,14 +515,30 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 	return 0;
 }
 
+static const struct hisi_thermal_ops hi6220_ops = {
+	.get_temp	= hi6220_thermal_get_temp,
+	.enable_sensor	= hi6220_thermal_enable_sensor,
+	.disable_sensor	= hi6220_thermal_disable_sensor,
+	.irq_handler	= hi6220_thermal_irq_handler,
+	.probe		= hi6220_thermal_probe,
+};
+
+static const struct hisi_thermal_ops hi3660_ops = {
+	.get_temp	= hi3660_thermal_get_temp,
+	.enable_sensor	= hi3660_thermal_enable_sensor,
+	.disable_sensor	= hi3660_thermal_disable_sensor,
+	.irq_handler	= hi3660_thermal_irq_handler,
+	.probe		= hi3660_thermal_probe,
+};
+
 static const struct of_device_id of_hisi_thermal_match[] = {
 	{
 		.compatible = "hisilicon,tsensor",
-		.data = hi6220_thermal_probe
+		.data = &hi6220_ops,
 	},
 	{
 		.compatible = "hisilicon,hi3660-tsensor",
-		.data = hi3660_thermal_probe
+		.data = &hi3660_ops,
 	},
 	{ /* end */ }
 };
@@ -527,9 +556,9 @@ static void hisi_thermal_toggle_sensor(struct hisi_thermal_sensor *sensor,
 static int hisi_thermal_probe(struct platform_device *pdev)
 {
 	struct hisi_thermal_data *data;
-	int (*platform_probe)(struct hisi_thermal_data *);
 	struct device *dev = &pdev->dev;
-	int ret;
+	struct resource *res;
+	int i, ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -537,41 +566,50 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 
 	data->pdev = pdev;
 	platform_set_drvdata(pdev, data);
+	data->ops = of_device_get_match_data(dev);
 
-	platform_probe = of_device_get_match_data(dev);
-	if (!platform_probe) {
-		dev_err(dev, "failed to get probe func\n");
-		return -EINVAL;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(data->regs)) {
+		dev_err(dev, "failed to get io address\n");
+		return PTR_ERR(data->regs);
 	}
 
-	ret = platform_probe(data);
+	ret = data->ops->probe(data);
 	if (ret)
 		return ret;
 
-	ret = hisi_thermal_register_sensor(pdev, data,
-					   &data->sensor);
-	if (ret) {
-		dev_err(dev, "failed to register thermal sensor: %d\n", ret);
-		return ret;
-	}
+	for (i = 0; i < data->nr_sensors; i++) {
+		struct hisi_thermal_sensor *sensor = &data->sensor[i];
 
-	ret = data->enable_sensor(data);
-	if (ret) {
-		dev_err(dev, "Failed to setup the sensor: %d\n", ret);
-		return ret;
-	}
-
-	if (data->irq) {
-		ret = devm_request_threaded_irq(dev, data->irq, NULL,
-				hisi_thermal_alarm_irq_thread,
-				IRQF_ONESHOT, "hisi_thermal", data);
-		if (ret < 0) {
-			dev_err(dev, "failed to request alarm irq: %d\n", ret);
+		ret = hisi_thermal_register_sensor(pdev, sensor);
+		if (ret) {
+			dev_err(dev, "failed to register thermal sensor: %d\n",
+				ret);
 			return ret;
 		}
-	}
 
-	hisi_thermal_toggle_sensor(&data->sensor, true);
+		ret = platform_get_irq(pdev, 0);
+		if (ret < 0)
+			return ret;
+
+		ret = devm_request_threaded_irq(dev, ret, NULL,
+						hisi_thermal_alarm_irq_thread,
+						IRQF_ONESHOT, sensor->irq_name,
+						sensor);
+		if (ret < 0) {
+			dev_err(dev, "Failed to request alarm irq: %d\n", ret);
+			return ret;
+		}
+
+		ret = data->ops->enable_sensor(sensor);
+		if (ret) {
+			dev_err(dev, "Failed to setup the sensor: %d\n", ret);
+			return ret;
+		}
+
+		hisi_thermal_toggle_sensor(sensor, true);
+	}
 
 	return 0;
 }
@@ -579,11 +617,14 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 static int hisi_thermal_remove(struct platform_device *pdev)
 {
 	struct hisi_thermal_data *data = platform_get_drvdata(pdev);
-	struct hisi_thermal_sensor *sensor = &data->sensor;
+	int i;
 
-	hisi_thermal_toggle_sensor(sensor, false);
+	for (i = 0; i < data->nr_sensors; i++) {
+		struct hisi_thermal_sensor *sensor = &data->sensor[i];
 
-	data->disable_sensor(data);
+		hisi_thermal_toggle_sensor(sensor, false);
+		data->ops->disable_sensor(sensor);
+	}
 
 	return 0;
 }
@@ -592,8 +633,10 @@ static int hisi_thermal_remove(struct platform_device *pdev)
 static int hisi_thermal_suspend(struct device *dev)
 {
 	struct hisi_thermal_data *data = dev_get_drvdata(dev);
+	int i;
 
-	data->disable_sensor(data);
+	for (i = 0; i < data->nr_sensors; i++)
+		data->ops->disable_sensor(&data->sensor[i]);
 
 	return 0;
 }
@@ -601,8 +644,12 @@ static int hisi_thermal_suspend(struct device *dev)
 static int hisi_thermal_resume(struct device *dev)
 {
 	struct hisi_thermal_data *data = dev_get_drvdata(dev);
+	int i, ret = 0;
 
-	return data->enable_sensor(data);
+	for (i = 0; i < data->nr_sensors; i++)
+		ret |= data->ops->enable_sensor(&data->sensor[i]);
+
+	return ret;
 }
 #endif
 

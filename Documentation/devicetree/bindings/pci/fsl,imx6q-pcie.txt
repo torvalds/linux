@@ -9,6 +9,7 @@ Required properties:
 	- "fsl,imx6sx-pcie",
 	- "fsl,imx6qp-pcie"
 	- "fsl,imx7d-pcie"
+	- "fsl,imx8mq-pcie"
 - reg: base address and length of the PCIe controller
 - interrupts: A list of interrupt outputs of the controller. Must contain an
   entry for each entry in the interrupt-names property.
@@ -41,15 +42,23 @@ Optional properties:
 Additional required properties for imx6sx-pcie:
 - clock names: Must include the following additional entries:
 	- "pcie_inbound_axi"
-- power-domains: Must be set to a phandle pointing to the PCIE_PHY power domain
+- power-domains: Must be set to phandles pointing to the DISPLAY and
+  PCIE_PHY power domains
+- power-domain-names: Must be "pcie", "pcie_phy"
 
-Additional required properties for imx7d-pcie:
+Additional required properties for imx7d-pcie and imx8mq-pcie:
 - power-domains: Must be set to a phandle pointing to PCIE_PHY power domain
 - resets: Must contain phandles to PCIe-related reset lines exposed by SRC
   IP block
 - reset-names: Must contain the following entires:
 	       - "pciephy"
 	       - "apps"
+	       - "turnoff"
+- fsl,imx7d-pcie-phy: A phandle to an fsl,imx7d-pcie-phy node.
+
+Additional required properties for imx8mq-pcie:
+- clock-names: Must include the following additional entries:
+	- "pcie_aux"
 
 Example:
 
@@ -76,3 +85,13 @@ Example:
 		clocks = <&clks 144>, <&clks 206>, <&clks 189>;
 		clock-names = "pcie", "pcie_bus", "pcie_phy";
 	};
+
+* Freescale i.MX7d PCIe PHY
+
+This is the PHY associated with the IMX7d PCIe controller.  It's used by the
+PCI-e controller via the fsl,imx7d-pcie-phy phandle.
+
+Required properties:
+- compatible:
+	- "fsl,imx7d-pcie-phy"
+- reg: base address and length of the PCIe PHY controller

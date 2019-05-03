@@ -23,7 +23,7 @@ struct aq_vec_s;
 
 struct aq_nic_cfg_s {
 	const struct aq_hw_caps_s *aq_hw_caps;
-	u64 hw_features;
+	u64 features;
 	u32 rxds;		/* rx ring size, descriptors # */
 	u32 txds;		/* tx ring size, descriptors # */
 	u32 vecs;		/* vecs==allocated irqs */
@@ -35,7 +35,7 @@ struct aq_nic_cfg_s {
 	u32 mtu;
 	u32 flow_control;
 	u32 link_speed_msk;
-	u32 vlan_id;
+	u32 wol;
 	u16 is_mc_list_enabled;
 	u16 mc_list_count;
 	bool is_autoneg;
@@ -44,6 +44,7 @@ struct aq_nic_cfg_s {
 	bool is_lro;
 	u8  tcs;
 	struct aq_rss_parameters aq_rss;
+	u32 eee_speeds;
 };
 
 #define AQ_NIC_FLAG_STARTED     0x00000004U
@@ -54,8 +55,27 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_FLAG_ERR_UNPLUG  0x40000000U
 #define AQ_NIC_FLAG_ERR_HW      0x80000000U
 
+#define AQ_NIC_WOL_ENABLED	BIT(0)
+
 #define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
 	((_TC_) * AQ_CFG_TCS_MAX + (_VEC_))
+
+struct aq_hw_rx_fl2 {
+	struct aq_rx_filter_vlan aq_vlans[AQ_VLAN_MAX_FILTERS];
+};
+
+struct aq_hw_rx_fl3l4 {
+	u8   active_ipv4;
+	u8   active_ipv6:2;
+	u8 is_ipv6;
+};
+
+struct aq_hw_rx_fltrs_s {
+	struct hlist_head     filter_list;
+	u16                   active_filters;
+	struct aq_hw_rx_fl2   fl2;
+	struct aq_hw_rx_fl3l4 fl3l4;
+};
 
 struct aq_nic_s {
 	atomic_t flags;
@@ -77,10 +97,13 @@ struct aq_nic_s {
 		u32 count;
 		u8 ar[AQ_HW_MULTICAST_ADDRESS_MAX][ETH_ALEN];
 	} mc_list;
+	/* Bitmask of currently assigned vlans from linux */
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 	struct pci_dev *pdev;
 	unsigned int msix_entry_mask;
 	u32 irqvecs;
+	struct aq_hw_rx_fltrs_s aq_hw_rx_fltrs;
 };
 
 static inline struct device *aq_nic_get_dev(struct aq_nic_s *self)

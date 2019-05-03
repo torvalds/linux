@@ -20,6 +20,7 @@
 
 #define AP_DEVICES 256		/* Number of AP devices. */
 #define AP_DOMAINS 256		/* Number of AP domains. */
+#define AP_IOCTLS  256		/* Number of ioctls. */
 #define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
 #define AP_POLL_TIME 1		/* Time in ticks between receive polls. */
@@ -90,7 +91,9 @@ enum ap_state {
 	AP_STATE_WORKING,
 	AP_STATE_QUEUE_FULL,
 	AP_STATE_SUSPEND_WAIT,
-	AP_STATE_BORKED,
+	AP_STATE_REMOVE,	/* about to be removed from driver */
+	AP_STATE_UNBOUND,	/* momentary not bound to a driver */
+	AP_STATE_BORKED,	/* broken */
 	NR_AP_STATES
 };
 
@@ -250,12 +253,22 @@ void ap_bus_force_rescan(void);
 
 void ap_queue_init_reply(struct ap_queue *aq, struct ap_message *ap_msg);
 struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type);
+void ap_queue_prepare_remove(struct ap_queue *aq);
 void ap_queue_remove(struct ap_queue *aq);
 void ap_queue_suspend(struct ap_device *ap_dev);
 void ap_queue_resume(struct ap_device *ap_dev);
+void ap_queue_reinit_state(struct ap_queue *aq);
 
 struct ap_card *ap_card_create(int id, int queue_depth, int raw_device_type,
 			       int comp_device_type, unsigned int functions);
+
+struct ap_perms {
+	unsigned long ioctlm[BITS_TO_LONGS(AP_IOCTLS)];
+	unsigned long apm[BITS_TO_LONGS(AP_DEVICES)];
+	unsigned long aqm[BITS_TO_LONGS(AP_DOMAINS)];
+};
+extern struct ap_perms ap_perms;
+extern struct mutex ap_perms_mutex;
 
 /*
  * check APQN for owned/reserved by ap bus and default driver(s).
@@ -279,5 +292,21 @@ int ap_owned_by_def_drv(int card, int queue);
  */
 int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
 				       unsigned long *aqm);
+
+/*
+ * ap_parse_mask_str() - helper function to parse a bitmap string
+ * and clear/set the bits in the bitmap accordingly. The string may be
+ * given as absolute value, a hex string like 0x1F2E3D4C5B6A" simple
+ * overwriting the current content of the bitmap. Or as relative string
+ * like "+1-16,-32,-0x40,+128" where only single bits or ranges of
+ * bits are cleared or set. Distinction is done based on the very
+ * first character which may be '+' or '-' for the relative string
+ * and othewise assume to be an absolute value string. If parsing fails
+ * a negative errno value is returned. All arguments and bitmaps are
+ * big endian order.
+ */
+int ap_parse_mask_str(const char *str,
+		      unsigned long *bitmap, int bits,
+		      struct mutex *lock);
 
 #endif /* _AP_BUS_H_ */

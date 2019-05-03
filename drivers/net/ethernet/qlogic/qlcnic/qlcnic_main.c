@@ -396,7 +396,8 @@ static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			struct net_device *netdev,
-			const unsigned char *addr, u16 vid, u16 flags)
+			const unsigned char *addr, u16 vid, u16 flags,
+			struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err = 0;
@@ -2993,10 +2994,8 @@ int qlcnic_check_temp(struct qlcnic_adapter *adapter)
 static inline void dump_tx_ring_desc(struct qlcnic_host_tx_ring *tx_ring)
 {
 	int i;
-	struct cmd_desc_type0 *tx_desc_info;
 
 	for (i = 0; i < tx_ring->num_desc; i++) {
-		tx_desc_info = &tx_ring->desc_head[i];
 		pr_info("TX Desc: %d\n", i);
 		print_hex_dump(KERN_INFO, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       &tx_ring->desc_head[i],
@@ -3930,7 +3929,6 @@ static void qlcnic_82xx_io_resume(struct pci_dev *pdev)
 	u32 state;
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
 	if (state == QLCNIC_DEV_READY && test_and_clear_bit(__QLCNIC_AER,
 							    &adapter->state))
@@ -4009,19 +4007,12 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 			  int queue_type)
 {
 	struct net_device *netdev = adapter->netdev;
-	u8 max_hw_rings = 0;
 	char buf[8];
-	int cur_rings;
 
-	if (queue_type == QLCNIC_RX_QUEUE) {
-		max_hw_rings = adapter->max_sds_rings;
-		cur_rings = adapter->drv_sds_rings;
+	if (queue_type == QLCNIC_RX_QUEUE)
 		strcpy(buf, "SDS");
-	} else if (queue_type == QLCNIC_TX_QUEUE) {
-		max_hw_rings = adapter->max_tx_rings;
-		cur_rings = adapter->drv_tx_rings;
+	else
 		strcpy(buf, "Tx");
-	}
 
 	if (!is_power_of_2(ring_cnt)) {
 		netdev_err(netdev, "%s rings value should be a power of 2\n",

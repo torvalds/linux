@@ -129,13 +129,13 @@ void context_clock_trace(
  * Display Test Next logging
  */
 #define DTN_INFO_BEGIN() \
-	dm_dtn_log_begin(dc_ctx)
+	dm_dtn_log_begin(dc_ctx, log_ctx)
 
 #define DTN_INFO(msg, ...) \
-	dm_dtn_log_append_v(dc_ctx, msg, ##__VA_ARGS__)
+	dm_dtn_log_append_v(dc_ctx, log_ctx, msg, ##__VA_ARGS__)
 
 #define DTN_INFO_END() \
-	dm_dtn_log_end(dc_ctx)
+	dm_dtn_log_end(dc_ctx, log_ctx)
 
 #define PERFORMANCE_TRACE_START() \
 	unsigned long long perf_trc_start_stmp = dm_get_timestamp(dc->ctx)

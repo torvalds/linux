@@ -120,13 +120,16 @@ void
 gf119_sor_clock(struct nvkm_ior *sor)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
-	const int  div = sor->asy.link == 3;
 	const u32 soff = nv50_ior_base(sor);
+	u32 div1 = sor->asy.link == 3;
+	u32 div2 = sor->asy.link == 3;
 	if (sor->asy.proto == TMDS) {
-		/* NFI why, but this sets DP_LINK_BW_2_7 when using TMDS. */
-		nvkm_mask(device, 0x612300 + soff, 0x007c0000, 0x0a << 18);
+		const u32 speed = sor->tmds.high_speed ? 0x14 : 0x0a;
+		nvkm_mask(device, 0x612300 + soff, 0x007c0000, speed << 18);
+		if (sor->tmds.high_speed)
+			div2 = 1;
 	}
-	nvkm_mask(device, 0x612300 + soff, 0x00000707, (div << 8) | div);
+	nvkm_mask(device, 0x612300 + soff, 0x00000707, (div2 << 8) | div1);
 }
 
 void

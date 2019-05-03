@@ -624,7 +624,7 @@ static int smiapp_init_late_controls(struct smiapp_sensor *sensor)
 {
 	unsigned long *valid_link_freqs = &sensor->valid_link_freqs[
 		sensor->csi_format->compressed - sensor->compressed_min_bpp];
-	unsigned int max, i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(sensor->test_data); i++) {
 		int max_value = (1 << sensor->csi_format->width) - 1;
@@ -634,8 +634,6 @@ static int smiapp_init_late_controls(struct smiapp_sensor *sensor)
 				&smiapp_ctrl_ops, V4L2_CID_TEST_PATTERN_RED + i,
 				0, max_value, 1, max_value);
 	}
-
-	for (max = 0; sensor->hwcfg->op_sys_clock[max + 1]; max++);
 
 	sensor->link_freq = v4l2_ctrl_new_int_menu(
 		&sensor->src->ctrl_handler, &smiapp_ctrl_ops,
@@ -2617,9 +2615,7 @@ static void smiapp_create_subdev(struct smiapp_sensor *sensor,
 	ssd->npads = num_pads;
 	ssd->source_pad = num_pads - 1;
 
-	snprintf(ssd->sd.name,
-		 sizeof(ssd->sd.name), "%s %s %d-%4.4x", sensor->minfo.name,
-		 name, i2c_adapter_id(client->adapter), client->addr);
+	v4l2_i2c_subdev_set_name(&ssd->sd, client, sensor->minfo.name, name);
 
 	smiapp_get_native_size(ssd, &ssd->sink_fmt);
 
@@ -2761,7 +2757,7 @@ static int __maybe_unused smiapp_resume(struct device *dev)
 static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 {
 	struct smiapp_hwconfig *hwcfg;
-	struct v4l2_fwnode_endpoint *bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	u32 rotation;
@@ -2775,27 +2771,33 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 	if (!ep)
 		return NULL;
 
-	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(ep);
-	if (IS_ERR(bus_cfg))
+	bus_cfg.bus_type = V4L2_MBUS_CSI2_DPHY;
+	rval = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	if (rval == -ENXIO) {
+		bus_cfg = (struct v4l2_fwnode_endpoint)
+			{ .bus_type = V4L2_MBUS_CCP2 };
+		rval = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	}
+	if (rval)
 		goto out_err;
 
 	hwcfg = devm_kzalloc(dev, sizeof(*hwcfg), GFP_KERNEL);
 	if (!hwcfg)
 		goto out_err;
 
-	switch (bus_cfg->bus_type) {
-	case V4L2_MBUS_CSI2:
+	switch (bus_cfg.bus_type) {
+	case V4L2_MBUS_CSI2_DPHY:
 		hwcfg->csi_signalling_mode = SMIAPP_CSI_SIGNALLING_MODE_CSI2;
-		hwcfg->lanes = bus_cfg->bus.mipi_csi2.num_data_lanes;
+		hwcfg->lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
 		break;
 	case V4L2_MBUS_CCP2:
-		hwcfg->csi_signalling_mode = (bus_cfg->bus.mipi_csi1.strobe) ?
+		hwcfg->csi_signalling_mode = (bus_cfg.bus.mipi_csi1.strobe) ?
 		SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE :
 		SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_CLOCK;
 		hwcfg->lanes = 1;
 		break;
 	default:
-		dev_err(dev, "unsupported bus %u\n", bus_cfg->bus_type);
+		dev_err(dev, "unsupported bus %u\n", bus_cfg.bus_type);
 		goto out_err;
 	}
 
@@ -2827,28 +2829,28 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 	dev_dbg(dev, "nvm %d, clk %d, mode %d\n",
 		hwcfg->nvm_size, hwcfg->ext_clk, hwcfg->csi_signalling_mode);
 
-	if (!bus_cfg->nr_of_link_frequencies) {
+	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_warn(dev, "no link frequencies defined\n");
 		goto out_err;
 	}
 
 	hwcfg->op_sys_clock = devm_kcalloc(
-		dev, bus_cfg->nr_of_link_frequencies + 1 /* guardian */,
+		dev, bus_cfg.nr_of_link_frequencies + 1 /* guardian */,
 		sizeof(*hwcfg->op_sys_clock), GFP_KERNEL);
 	if (!hwcfg->op_sys_clock)
 		goto out_err;
 
-	for (i = 0; i < bus_cfg->nr_of_link_frequencies; i++) {
-		hwcfg->op_sys_clock[i] = bus_cfg->link_frequencies[i];
+	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++) {
+		hwcfg->op_sys_clock[i] = bus_cfg.link_frequencies[i];
 		dev_dbg(dev, "freq %d: %lld\n", i, hwcfg->op_sys_clock[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(bus_cfg);
+	v4l2_fwnode_endpoint_free(&bus_cfg);
 	fwnode_handle_put(ep);
 	return hwcfg;
 
 out_err:
-	v4l2_fwnode_endpoint_free(bus_cfg);
+	v4l2_fwnode_endpoint_free(&bus_cfg);
 	fwnode_handle_put(ep);
 	return NULL;
 }
@@ -3064,9 +3066,9 @@ static int smiapp_probe(struct i2c_client *client,
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
 		sensor->pll.flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 
-	smiapp_create_subdev(sensor, sensor->scaler, "scaler", 2);
-	smiapp_create_subdev(sensor, sensor->binner, "binner", 2);
-	smiapp_create_subdev(sensor, sensor->pixel_array, "pixel_array", 1);
+	smiapp_create_subdev(sensor, sensor->scaler, " scaler", 2);
+	smiapp_create_subdev(sensor, sensor->binner, " binner", 2);
+	smiapp_create_subdev(sensor, sensor->pixel_array, " pixel_array", 1);
 
 	dev_dbg(&client->dev, "profile %d\n", sensor->minfo.smiapp_profile);
 

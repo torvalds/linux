@@ -1,47 +1,70 @@
 TPO TPG110 Panel
 ================
 
-This binding builds on the DPI bindings, adding a few properties
-as a superset of a DPI. See panel-dpi.txt for the required DPI
-bindings.
+This panel driver is a component that acts as an intermediary
+between an RGB output and a variety of panels. The panel
+driver is strapped up in electronics to the desired resolution
+and other properties, and has a control interface over 3WIRE
+SPI. By talking to the TPG110 over SPI, the strapped properties
+can be discovered and the hardware is therefore mostly
+self-describing.
+
+       +--------+
+SPI -> |  TPO   | -> physical display
+RGB -> | TPG110 |
+       +--------+
+
+If some electrical strap or alternate resolution is desired,
+this can be set up by taking software control of the display
+over the SPI interface. The interface can also adjust
+for properties of the display such as gamma correction and
+certain electrical driving levels.
+
+The TPG110 does not know the physical dimensions of the panel
+connected, so this needs to be specified in the device tree.
+
+It requires a GPIO line for control of its reset line.
+
+The serial protocol has line names that resemble I2C but the
+protocol is not I2C but 3WIRE SPI.
 
 Required properties:
-- compatible : "tpo,tpg110"
+- compatible : one of:
+  "ste,nomadik-nhk15-display", "tpo,tpg110"
+  "tpo,tpg110"
 - grestb-gpios : panel reset GPIO
-- scen-gpios : serial control enable GPIO
-- scl-gpios : serial control clock line GPIO
-- sda-gpios : serial control data line GPIO
+- width-mm : see display/panel/panel-common.txt
+- height-mm : see display/panel/panel-common.txt
 
-Required nodes:
-- Video port for DPI input, see panel-dpi.txt
-- Panel timing for DPI setup, see panel-dpi.txt
+The device needs to be a child of an SPI bus, see
+spi/spi-bus.txt. The SPI child must set the following
+properties:
+- spi-3wire
+- spi-max-frequency = <3000000>;
+as these are characteristics of this device.
+
+The device node can contain one 'port' child node with one child
+'endpoint' node, according to the bindings defined in
+media/video-interfaces.txt. This node should describe panel's video bus.
 
 Example
 -------
 
-panel {
-	compatible = "tpo,tpg110", "panel-dpi";
-	grestb-gpios = <&stmpe_gpio44 5 GPIO_ACTIVE_LOW>;
-	scen-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
-	scl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+panel: display@0 {
+	compatible = "tpo,tpg110";
+	reg = <0>;
+	spi-3wire;
+	/* 320 ns min period ~= 3 MHz */
+	spi-max-frequency = <3000000>;
+	/* Width and height from data sheet */
+	width-mm = <116>;
+	height-mm = <87>;
+	grestb-gpios = <&foo_gpio 5 GPIO_ACTIVE_LOW>;
 	backlight = <&bl>;
 
 	port {
 		nomadik_clcd_panel: endpoint {
-			remote-endpoint = <&nomadik_clcd_pads>;
+			remote-endpoint = <&foo>;
 		};
-	};
-
-	panel-timing {
-		clock-frequency = <33200000>;
-		hactive = <800>;
-		hback-porch = <216>;
-		hfront-porch = <40>;
-		hsync-len = <1>;
-		vactive = <480>;
-		vback-porch = <35>;
-		vfront-porch = <10>;
-		vsync-len = <1>;
 	};
 };

@@ -19,8 +19,7 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
-#include <linux/mtd/rawnand.h>
-#include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/xlr/iomap.h>
@@ -92,8 +91,8 @@ struct xlr_nand_flash_priv {
 
 static struct xlr_nand_flash_priv nand_priv;
 
-static void xlr_nand_ctrl(struct mtd_info *mtd, int cmd,
-		unsigned int ctrl)
+static void xlr_nand_ctrl(struct nand_chip *chip, int cmd,
+			  unsigned int ctrl)
 {
 	if (ctrl & NAND_CLE)
 		nlm_write_reg(nand_priv.flash_mmio,

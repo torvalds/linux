@@ -671,6 +671,25 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	return bytes_from_user;
 }
 
+/*
+ * Returns the min and max vrr vfreq through the connector's debugfs file.
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/vrr_range
+ */
+static int vrr_range_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	seq_printf(m, "Min: %u\n", (unsigned int)aconnector->min_vfreq);
+	seq_printf(m, "Max: %u\n", (unsigned int)aconnector->max_vfreq);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(vrr_range);
+
 static const struct file_operations dp_link_settings_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.read = dp_link_settings_read,
@@ -697,7 +716,8 @@ static const struct {
 } dp_debugfs_entries[] = {
 		{"link_settings", &dp_link_settings_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
-		{"test_pattern", &dp_phy_test_pattern_fops}
+		{"test_pattern", &dp_phy_test_pattern_fops},
+		{"vrr_range", &vrr_range_fops}
 };
 
 int connector_debugfs_init(struct amdgpu_dm_connector *connector)
@@ -705,7 +725,8 @@ int connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	int i;
 	struct dentry *ent, *dir = connector->base.debugfs_entry;
 
-	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		for (i = 0; i < ARRAY_SIZE(dp_debugfs_entries); i++) {
 			ent = debugfs_create_file(dp_debugfs_entries[i].name,
 						  0644,
@@ -720,3 +741,131 @@ int connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	return 0;
 }
 
+/*
+ * Writes DTN log state to the user supplied buffer.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+ */
+static ssize_t dtn_log_read(
+	struct file *f,
+	char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct dc *dc = adev->dm.dc;
+	struct dc_log_buffer_ctx log_ctx = { 0 };
+	ssize_t result = 0;
+
+	if (!buf || !size)
+		return -EINVAL;
+
+	if (!dc->hwss.log_hw_state)
+		return 0;
+
+	dc->hwss.log_hw_state(dc, &log_ctx);
+
+	if (*pos < log_ctx.pos) {
+		size_t to_copy = log_ctx.pos - *pos;
+
+		to_copy = min(to_copy, size);
+
+		if (!copy_to_user(buf, log_ctx.buf + *pos, to_copy)) {
+			*pos += to_copy;
+			result = to_copy;
+		}
+	}
+
+	kfree(log_ctx.buf);
+
+	return result;
+}
+
+/*
+ * Writes DTN log state to dmesg when triggered via a write.
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+ */
+static ssize_t dtn_log_write(
+	struct file *f,
+	const char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct dc *dc = adev->dm.dc;
+
+	/* Write triggers log output via dmesg. */
+	if (size == 0)
+		return 0;
+
+	if (dc->hwss.log_hw_state)
+		dc->hwss.log_hw_state(dc, NULL);
+
+	return size;
+}
+
+/*
+ * Backlight at this moment.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ */
+static int current_backlight_read(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	unsigned int backlight = dc_get_current_backlight_pwm(dc);
+
+	seq_printf(m, "0x%x\n", backlight);
+	return 0;
+}
+
+/*
+ * Backlight value that is being approached.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ */
+static int target_backlight_read(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	unsigned int backlight = dc_get_target_backlight_pwm(dc);
+
+	seq_printf(m, "0x%x\n", backlight);
+	return 0;
+}
+
+static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
+	{"amdgpu_current_backlight_pwm", &current_backlight_read},
+	{"amdgpu_target_backlight_pwm", &target_backlight_read},
+};
+
+int dtn_debugfs_init(struct amdgpu_device *adev)
+{
+	static const struct file_operations dtn_log_fops = {
+		.owner = THIS_MODULE,
+		.read = dtn_log_read,
+		.write = dtn_log_write,
+		.llseek = default_llseek
+	};
+
+	struct drm_minor *minor = adev->ddev->primary;
+	struct dentry *ent, *root = minor->debugfs_root;
+	int ret;
+
+	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,
+				ARRAY_SIZE(amdgpu_dm_debugfs_list));
+	if (ret)
+		return ret;
+
+	ent = debugfs_create_file(
+		"amdgpu_dm_dtn_log",
+		0644,
+		root,
+		adev,
+		&dtn_log_fops);
+
+	return PTR_ERR_OR_ZERO(ent);
+}

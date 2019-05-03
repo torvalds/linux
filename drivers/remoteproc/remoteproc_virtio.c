@@ -17,7 +17,9 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/export.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/remoteproc.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
@@ -76,7 +78,9 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 	struct device *dev = &rproc->dev;
+	struct rproc_mem_entry *mem;
 	struct rproc_vring *rvring;
+	struct fw_rsc_vdev *rsc;
 	struct virtqueue *vq;
 	void *addr;
 	int len, size;
@@ -88,8 +92,14 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	if (!name)
 		return NULL;
 
+	/* Search allocated memory region by name */
+	mem = rproc_find_carveout_by_name(rproc, "vdev%dvring%d", rvdev->index,
+					  id);
+	if (!mem || !mem->va)
+		return ERR_PTR(-ENOMEM);
+
 	rvring = &rvdev->vring[id];
-	addr = rvring->va;
+	addr = mem->va;
 	len = rvring->len;
 
 	/* zero vring */
@@ -113,6 +123,10 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 
 	rvring->vq = vq;
 	vq->priv = rvring;
+
+	/* Update vring in resource table */
+	rsc = (void *)rproc->table_ptr + rvdev->rsc_offset;
+	rsc->vring[id].da = mem->da;
 
 	return vq;
 }
@@ -141,10 +155,15 @@ static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				 const bool * ctx,
 				 struct irq_affinity *desc)
 {
-	int i, ret;
+	int i, ret, queue_idx = 0;
 
 	for (i = 0; i < nvqs; ++i) {
-		vqs[i] = rp_find_vq(vdev, i, callbacks[i], names[i],
+		if (!names[i]) {
+			vqs[i] = NULL;
+			continue;
+		}
+
+		vqs[i] = rp_find_vq(vdev, queue_idx++, callbacks[i], names[i],
 				    ctx ? ctx[i] : false);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
@@ -202,6 +221,16 @@ static u64 rproc_virtio_get_features(struct virtio_device *vdev)
 	return rsc->dfeatures;
 }
 
+static void rproc_transport_features(struct virtio_device *vdev)
+{
+	/*
+	 * Packed ring isn't enabled on remoteproc for now,
+	 * because remoteproc uses vring_new_virtqueue() which
+	 * creates virtio rings on preallocated memory.
+	 */
+	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
+}
+
 static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
@@ -211,6 +240,9 @@ static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 
 	/* Give virtio_ring a chance to accept features */
 	vring_transport_features(vdev);
+
+	/* Give virtio_rproc a chance to accept features. */
+	rproc_transport_features(vdev);
 
 	/* Make sure we don't have any features > 32 bits! */
 	BUG_ON((u32)vdev->features != vdev->features);
@@ -286,6 +318,8 @@ static void rproc_virtio_dev_release(struct device *dev)
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 
+	kfree(vdev);
+
 	kref_put(&rvdev->refcount, rproc_vdev_release);
 
 	put_device(&rproc->dev);
@@ -303,10 +337,53 @@ static void rproc_virtio_dev_release(struct device *dev)
 int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 {
 	struct rproc *rproc = rvdev->rproc;
-	struct device *dev = &rproc->dev;
-	struct virtio_device *vdev = &rvdev->vdev;
+	struct device *dev = &rvdev->dev;
+	struct virtio_device *vdev;
+	struct rproc_mem_entry *mem;
 	int ret;
 
+	/* Try to find dedicated vdev buffer carveout */
+	mem = rproc_find_carveout_by_name(rproc, "vdev%dbuffer", rvdev->index);
+	if (mem) {
+		phys_addr_t pa;
+
+		if (mem->of_resm_idx != -1) {
+			struct device_node *np = rproc->dev.parent->of_node;
+
+			/* Associate reserved memory to vdev device */
+			ret = of_reserved_mem_device_init_by_idx(dev, np,
+								 mem->of_resm_idx);
+			if (ret) {
+				dev_err(dev, "Can't associate reserved memory\n");
+				goto out;
+			}
+		} else {
+			if (mem->va) {
+				dev_warn(dev, "vdev %d buffer already mapped\n",
+					 rvdev->index);
+				pa = rproc_va_to_pa(mem->va);
+			} else {
+				/* Use dma address as carveout no memmapped yet */
+				pa = (phys_addr_t)mem->dma;
+			}
+
+			/* Associate vdev buffer memory pool to vdev subdev */
+			ret = dma_declare_coherent_memory(dev, pa,
+							   mem->da,
+							   mem->len);
+			if (ret < 0) {
+				dev_err(dev, "Failed to associate buffer\n");
+				goto out;
+			}
+		}
+	}
+
+	/* Allocate virtio device */
+	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	if (!vdev) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	vdev->id.device	= id,
 	vdev->config = &rproc_virtio_config_ops,
 	vdev->dev.parent = dev;
@@ -340,11 +417,15 @@ out:
 
 /**
  * rproc_remove_virtio_dev() - remove an rproc-induced virtio device
- * @rvdev: the remote vdev
+ * @dev: the virtio device
+ * @data: must be null
  *
  * This function unregisters an existing virtio device.
  */
-void rproc_remove_virtio_dev(struct rproc_vdev *rvdev)
+int rproc_remove_virtio_dev(struct device *dev, void *data)
 {
-	unregister_virtio_device(&rvdev->vdev);
+	struct virtio_device *vdev = dev_to_virtio(dev);
+
+	unregister_virtio_device(vdev);
+	return 0;
 }

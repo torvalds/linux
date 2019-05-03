@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	void *iml_img;
 	u32 control_flags = 0;
 	int ret;
+	int cmdq_size = max_t(u32, TFD_CMD_SLOTS, trans->cfg->min_txq_size);
 
 	/* Allocate prph scratch */
 	prph_scratch = dma_alloc_coherent(trans->dev, sizeof(*prph_scratch),
@@ -94,11 +95,14 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		cpu_to_le64(trans_pcie->rxq->bd_dma);
 
 	/* Configure debug, for integration */
-	iwl_pcie_alloc_fw_monitor(trans, 0);
-	prph_sc_ctrl->hwm_cfg.hwm_base_addr =
-		cpu_to_le64(trans_pcie->fw_mon_phys);
-	prph_sc_ctrl->hwm_cfg.hwm_size =
-		cpu_to_le32(trans_pcie->fw_mon_size);
+	if (!trans->ini_valid)
+		iwl_pcie_alloc_fw_monitor(trans, 0);
+	if (trans->num_blocks) {
+		prph_sc_ctrl->hwm_cfg.hwm_base_addr =
+			cpu_to_le64(trans->fw_mon[0].physical);
+		prph_sc_ctrl->hwm_cfg.hwm_size =
+			cpu_to_le32(trans->fw_mon[0].size);
+	}
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_init_fw_sec(trans, fw, &prph_scratch->dram);
@@ -148,7 +152,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	ctxt_info_gen3->mcr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->used_bd_dma);
 	ctxt_info_gen3->mtr_size =
-		cpu_to_le16(TFD_QUEUE_CB_SIZE(TFD_CMD_SLOTS));
+		cpu_to_le16(TFD_QUEUE_CB_SIZE(cmdq_size));
 	ctxt_info_gen3->mcr_size =
 		cpu_to_le16(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE));
 
@@ -172,8 +176,13 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	iwl_write64(trans, CSR_IML_DATA_ADDR,
 		    trans_pcie->iml_dma_addr);
 	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans->iml_len);
-	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL, CSR_AUTO_FUNC_BOOT_ENA);
-	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_AUTO_FUNC_INIT);
+
+	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
+		    CSR_AUTO_FUNC_BOOT_ENA);
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		iwl_write_umac_prph(trans, UREG_CPU_INIT_RUN, 1);
+	else
+		iwl_set_bit(trans, CSR_GP_CNTRL, CSR_AUTO_FUNC_INIT);
 
 	return 0;
 }

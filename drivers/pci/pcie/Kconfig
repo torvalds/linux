@@ -6,10 +6,9 @@ config PCIEPORTBUS
 	bool "PCI Express Port Bus support"
 	depends on PCI
 	help
-	  This automatically enables PCI Express Port Bus support. Users can
-	  choose Native Hot-Plug support, Advanced Error Reporting support,
-	  Power Management Event support and Virtual Channel support to run
-	  on PCI Express Ports (Root or Switch).
+	  This enables PCI Express Port Bus support. Users can then enable
+	  support for Native Hot-Plug, Advanced Error Reporting, Power
+	  Management Events, and Downstream Port Containment.
 
 #
 # Include service Kconfig here
@@ -36,7 +35,6 @@ config PCIEAER
 config PCIEAER_INJECT
 	tristate "PCI Express error injection support"
 	depends on PCIEAER
-	default n
 	help
 	  This enables PCI Express Root Port Advanced Error Reporting
 	  (AER) software error injector.
@@ -84,7 +82,6 @@ config PCIEASPM
 config PCIEASPM_DEBUG
 	bool "Debug PCI Express ASPM"
 	depends on PCIEASPM
-	default n
 	help
 	  This enables PCI Express ASPM debug support. It will add per-device
 	  interface to control ASPM.
@@ -129,7 +126,6 @@ config PCIE_PME
 config PCIE_DPC
 	bool "PCI Express Downstream Port Containment support"
 	depends on PCIEPORTBUS && PCIEAER
-	default n
 	help
 	  This enables PCI Express Downstream Port Containment (DPC)
 	  driver support.  DPC events from Root and Downstream ports
@@ -139,7 +135,6 @@ config PCIE_DPC
 
 config PCIE_PTM
 	bool "PCI Express Precision Time Measurement support"
-	default n
 	depends on PCIEPORTBUS
 	help
 	  This enables PCI Express Precision Time Measurement (PTM)

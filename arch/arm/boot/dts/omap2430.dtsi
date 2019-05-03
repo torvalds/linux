@@ -285,7 +285,7 @@
 			ti,timer-alwon;
 		};
 
-		mcspi3: mcspi@480b8000 {
+		mcspi3: spi@480b8000 {
 			compatible = "ti,omap2-mcspi";
 			ti,hwmods = "mcspi3";
 			reg = <0x480b8000 0x100>;

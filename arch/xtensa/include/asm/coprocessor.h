@@ -12,7 +12,6 @@
 #ifndef _XTENSA_COPROCESSOR_H
 #define _XTENSA_COPROCESSOR_H
 
-#include <linux/stringify.h>
 #include <variant/core.h>
 #include <variant/tie.h>
 #include <asm/types.h>
@@ -90,19 +89,6 @@
 
 #ifndef __ASSEMBLY__
 
-
-#if XCHAL_HAVE_CP
-
-#define RSR_CPENABLE(x)	do {						  \
-	__asm__ __volatile__("rsr %0, cpenable" : "=a" (x));		  \
-	} while(0);
-#define WSR_CPENABLE(x)	do {						  \
-	__asm__ __volatile__("wsr %0, cpenable; rsync" :: "a" (x));	  \
-	} while(0);
-
-#endif /* XCHAL_HAVE_CP */
-
-
 /*
  * Additional registers.
  * We define three types of additional registers:
@@ -157,19 +143,10 @@ typedef struct { XCHAL_CP7_SA_LIST(2) } xtregs_cp7_t
 	__attribute__ ((aligned (XCHAL_CP7_SA_ALIGN)));
 
 extern struct thread_info* coprocessor_owner[XCHAL_CP_MAX];
-extern void coprocessor_save(void*, int);
-extern void coprocessor_load(void*, int);
 extern void coprocessor_flush(struct thread_info*, int);
-extern void coprocessor_restore(struct thread_info*, int);
 
 extern void coprocessor_release_all(struct thread_info*);
 extern void coprocessor_flush_all(struct thread_info*);
-
-static inline void coprocessor_clear_cpenable(void)
-{
-	unsigned long i = 0;
-	WSR_CPENABLE(i);
-}
 
 #endif	/* XTENSA_HAVE_COPROCESSORS */
 

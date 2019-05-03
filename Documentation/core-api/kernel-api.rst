@@ -291,12 +291,6 @@ Block Devices
 .. kernel-doc:: block/blk-lib.c
    :export:
 
-.. kernel-doc:: block/blk-tag.c
-   :export:
-
-.. kernel-doc:: block/blk-tag.c
-   :internal:
-
 .. kernel-doc:: block/blk-integrity.c
    :export:
 
@@ -361,10 +355,6 @@ Read-Copy Update (RCU)
 ----------------------
 
 .. kernel-doc:: include/linux/rcupdate.h
-
-.. kernel-doc:: include/linux/rcupdate_wait.h
-
-.. kernel-doc:: include/linux/rcutree.h
 
 .. kernel-doc:: kernel/rcu/tree.c
 

@@ -706,7 +706,7 @@ zoran_register_i2c (struct zoran *zr)
 {
 	zr->i2c_algo = zoran_i2c_bit_data_template;
 	zr->i2c_algo.data = zr;
-	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
+	strscpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
 		sizeof(zr->i2c_adapter.name));
 	i2c_set_adapdata(&zr->i2c_adapter, &zr->v4l2_dev);
 	zr->i2c_adapter.algo_data = &zr->i2c_algo;
@@ -1048,7 +1048,7 @@ static int zr36057_init (struct zoran *zr)
 	*zr->video_dev = zoran_template;
 	zr->video_dev->v4l2_dev = &zr->v4l2_dev;
 	zr->video_dev->lock = &zr->lock;
-	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
+	strscpy(zr->video_dev->name, ZR_DEVNAME(zr), sizeof(zr->video_dev->name));
 	/* It's not a mem2mem device, but you can both capture and output from
 	   one and the same device. This should really be split up into two
 	   device nodes, but that's a job for another day. */
@@ -1145,7 +1145,7 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 	m->type = 0;
 
 	m->flags = CODEC_FLAG_ENCODER | CODEC_FLAG_DECODER;
-	strlcpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
+	strscpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
 	m->data = zr;
 
 	switch (type)
@@ -1470,7 +1470,7 @@ static int __init zoran_init(void)
 		v4l_nbufs = 2;
 	if (v4l_nbufs > VIDEO_MAX_FRAME)
 		v4l_nbufs = VIDEO_MAX_FRAME;
-	/* The user specfies the in KB, we want them in byte
+	/* The user specifies the in KB, we want them in byte
 	 * (and page aligned) */
 	v4l_bufsize = PAGE_ALIGN(v4l_bufsize * 1024);
 	if (v4l_bufsize < 32768)

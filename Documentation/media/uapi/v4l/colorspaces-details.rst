@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 ********************************
 Detailed Colorspace Descriptions
@@ -290,15 +297,14 @@ Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 170M/BT.601. The Y'CbCr quantization is limited range.
 
 
-.. _col-adobergb:
+.. _col-oprgb:
 
-Colorspace Adobe RGB (V4L2_COLORSPACE_ADOBERGB)
+Colorspace opRGB (V4L2_COLORSPACE_OPRGB)
 ===============================================
 
-The :ref:`adobergb` standard defines the colorspace used by computer
-graphics that use the AdobeRGB colorspace. This is also known as the
-:ref:`oprgb` standard. The default transfer function is
-``V4L2_XFER_FUNC_ADOBERGB``. The default Y'CbCr encoding is
+The :ref:`oprgb` standard defines the colorspace used by computer
+graphics that use the opRGB colorspace. The default transfer function is
+``V4L2_XFER_FUNC_OPRGB``. The default Y'CbCr encoding is
 ``V4L2_YCBCR_ENC_601``. The default Y'CbCr quantization is limited
 range.
 
@@ -312,7 +318,7 @@ The chromaticities of the primary colors and the white reference are:
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. flat-table:: Adobe RGB Chromaticities
+.. flat-table:: opRGB Chromaticities
     :header-rows:  1
     :stub-columns: 0
     :widths:       1 1 2

@@ -185,6 +185,111 @@ int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 	return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
 }
 
+static void mv88e6352_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
+{
+	struct dsa_switch *ds = chip->ds;
+	u16 status;
+	bool up;
+
+	mv88e6352_serdes_read(chip, MII_BMSR, &status);
+
+	/* Status must be read twice in order to give the current link
+	 * status. Otherwise the change in link status since the last
+	 * read of the register is returned.
+	 */
+	mv88e6352_serdes_read(chip, MII_BMSR, &status);
+
+	up = status & BMSR_LSTATUS;
+
+	dsa_port_phylink_mac_change(ds, port, up);
+}
+
+static irqreturn_t mv88e6352_serdes_thread_fn(int irq, void *dev_id)
+{
+	struct mv88e6xxx_port *port = dev_id;
+	struct mv88e6xxx_chip *chip = port->chip;
+	irqreturn_t ret = IRQ_NONE;
+	u16 status;
+	int err;
+
+	mutex_lock(&chip->reg_lock);
+
+	err = mv88e6352_serdes_read(chip, MV88E6352_SERDES_INT_STATUS, &status);
+	if (err)
+		goto out;
+
+	if (status & MV88E6352_SERDES_INT_LINK_CHANGE) {
+		ret = IRQ_HANDLED;
+		mv88e6352_serdes_irq_link(chip, port->port);
+	}
+out:
+	mutex_unlock(&chip->reg_lock);
+
+	return ret;
+}
+
+static int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE,
+				      MV88E6352_SERDES_INT_LINK_CHANGE);
+}
+
+static int mv88e6352_serdes_irq_disable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE, 0);
+}
+
+int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
+{
+	int err;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return 0;
+
+	chip->ports[port].serdes_irq = irq_find_mapping(chip->g2_irq.domain,
+							MV88E6352_SERDES_IRQ);
+	if (chip->ports[port].serdes_irq < 0) {
+		dev_err(chip->dev, "Unable to map SERDES irq: %d\n",
+			chip->ports[port].serdes_irq);
+		return chip->ports[port].serdes_irq;
+	}
+
+	/* Requesting the IRQ will trigger irq callbacks. So we cannot
+	 * hold the reg_lock.
+	 */
+	mutex_unlock(&chip->reg_lock);
+	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
+				   mv88e6352_serdes_thread_fn,
+				   IRQF_ONESHOT, "mv88e6xxx-serdes",
+				   &chip->ports[port]);
+	mutex_lock(&chip->reg_lock);
+
+	if (err) {
+		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
+			err);
+		return err;
+	}
+
+	return mv88e6352_serdes_irq_enable(chip);
+}
+
+void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
+{
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return;
+
+	mv88e6352_serdes_irq_disable(chip);
+
+	/* Freeing the IRQ will trigger irq callbacks. So we cannot
+	 * hold the reg_lock.
+	 */
+	mutex_unlock(&chip->reg_lock);
+	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
+	mutex_lock(&chip->reg_lock);
+
+	chip->ports[port].serdes_irq = 0;
+}
+
 /* Return the SERDES lane address a port is using. Only Ports 9 and 10
  * have SERDES lanes. Returns -ENODEV if a port does not have a lane.
  */
@@ -405,21 +510,48 @@ static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 					    int port, int lane)
 {
 	struct dsa_switch *ds = chip->ds;
+	int duplex = DUPLEX_UNKNOWN;
+	int speed = SPEED_UNKNOWN;
+	int link, err;
 	u16 status;
-	bool up;
 
-	mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-			      MV88E6390_SGMII_STATUS, &status);
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_PHY_STATUS, &status);
+	if (err) {
+		dev_err(chip->dev, "can't read SGMII PHY status: %d\n", err);
+		return;
+	}
 
-	/* Status must be read twice in order to give the current link
-	 * status. Otherwise the change in link status since the last
-	 * read of the register is returned.
-	 */
-	mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-			      MV88E6390_SGMII_STATUS, &status);
-	up = status & MV88E6390_SGMII_STATUS_LINK;
+	link = status & MV88E6390_SGMII_PHY_STATUS_LINK ?
+	       LINK_FORCED_UP : LINK_FORCED_DOWN;
 
-	dsa_port_phylink_mac_change(ds, port, up);
+	if (status & MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID) {
+		duplex = status & MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL ?
+			 DUPLEX_FULL : DUPLEX_HALF;
+
+		switch (status & MV88E6390_SGMII_PHY_STATUS_SPEED_MASK) {
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_1000:
+			speed = SPEED_1000;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_100:
+			speed = SPEED_100;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_10:
+			speed = SPEED_10;
+			break;
+		default:
+			dev_err(chip->dev, "invalid PHY speed\n");
+			return;
+		}
+	}
+
+	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex,
+				       PAUSE_OFF, PHY_INTERFACE_MODE_NA);
+	if (err)
+		dev_err(chip->dev, "can't propagate PHY settings to MAC: %d\n",
+			err);
+	else
+		dsa_port_phylink_mac_change(ds, port, link == LINK_FORCED_UP);
 }
 
 static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,
@@ -514,14 +646,10 @@ out:
 	return ret;
 }
 
-int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390x_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 {
 	int lane;
 	int err;
-
-	/* Only support ports 9 and 10 at the moment */
-	if (port < 9)
-		return 0;
 
 	lane = mv88e6390x_serdes_get_lane(chip, port);
 
@@ -558,11 +686,19 @@ int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6390_serdes_irq_enable(chip, port, lane);
 }
 
-void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
+{
+	if (port < 9)
+		return 0;
+
+	return mv88e6390x_serdes_irq_setup(chip, port);
+}
+
+void mv88e6390x_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 {
 	int lane = mv88e6390x_serdes_get_lane(chip, port);
 
-	if (port < 9)
+	if (lane == -ENODEV)
 		return;
 
 	if (lane < 0)
@@ -578,6 +714,14 @@ void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 	mutex_lock(&chip->reg_lock);
 
 	chip->ports[port].serdes_irq = 0;
+}
+
+void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
+{
+	if (port < 9)
+		return;
+
+	mv88e6390x_serdes_irq_free(chip, port);
 }
 
 int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)

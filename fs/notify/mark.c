@@ -82,6 +82,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
+#include <linux/ratelimit.h>
 
 #include <linux/atomic.h>
 
@@ -115,6 +116,8 @@ static __u32 *fsnotify_conn_mask_p(struct fsnotify_mark_connector *conn)
 		return &fsnotify_conn_inode(conn)->i_fsnotify_mask;
 	else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT)
 		return &fsnotify_conn_mount(conn)->mnt_fsnotify_mask;
+	else if (conn->type == FSNOTIFY_OBJ_TYPE_SB)
+		return &fsnotify_conn_sb(conn)->s_fsnotify_mask;
 	return NULL;
 }
 
@@ -179,19 +182,24 @@ static void fsnotify_connector_destroy_workfn(struct work_struct *work)
 	}
 }
 
-static struct inode *fsnotify_detach_connector_from_object(
-					struct fsnotify_mark_connector *conn)
+static void *fsnotify_detach_connector_from_object(
+					struct fsnotify_mark_connector *conn,
+					unsigned int *type)
 {
 	struct inode *inode = NULL;
 
+	*type = conn->type;
 	if (conn->type == FSNOTIFY_OBJ_TYPE_DETACHED)
 		return NULL;
 
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE) {
 		inode = fsnotify_conn_inode(conn);
 		inode->i_fsnotify_mask = 0;
+		atomic_long_inc(&inode->i_sb->s_fsnotify_inode_refs);
 	} else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
 		fsnotify_conn_mount(conn)->mnt_fsnotify_mask = 0;
+	} else if (conn->type == FSNOTIFY_OBJ_TYPE_SB) {
+		fsnotify_conn_sb(conn)->s_fsnotify_mask = 0;
 	}
 
 	rcu_assign_pointer(*(conn->obj), NULL);
@@ -211,10 +219,29 @@ static void fsnotify_final_mark_destroy(struct fsnotify_mark *mark)
 	fsnotify_put_group(group);
 }
 
+/* Drop object reference originally held by a connector */
+static void fsnotify_drop_object(unsigned int type, void *objp)
+{
+	struct inode *inode;
+	struct super_block *sb;
+
+	if (!objp)
+		return;
+	/* Currently only inode references are passed to be dropped */
+	if (WARN_ON_ONCE(type != FSNOTIFY_OBJ_TYPE_INODE))
+		return;
+	inode = objp;
+	sb = inode->i_sb;
+	iput(inode);
+	if (atomic_long_dec_and_test(&sb->s_fsnotify_inode_refs))
+		wake_up_var(&sb->s_fsnotify_inode_refs);
+}
+
 void fsnotify_put_mark(struct fsnotify_mark *mark)
 {
 	struct fsnotify_mark_connector *conn;
-	struct inode *inode = NULL;
+	void *objp = NULL;
+	unsigned int type = FSNOTIFY_OBJ_TYPE_DETACHED;
 	bool free_conn = false;
 
 	/* Catch marks that were actually never attached to object */
@@ -234,7 +261,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	conn = mark->connector;
 	hlist_del_init_rcu(&mark->obj_list);
 	if (hlist_empty(&conn->list)) {
-		inode = fsnotify_detach_connector_from_object(conn);
+		objp = fsnotify_detach_connector_from_object(conn, &type);
 		free_conn = true;
 	} else {
 		__fsnotify_recalc_mask(conn);
@@ -242,7 +269,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	mark->connector = NULL;
 	spin_unlock(&conn->lock);
 
-	iput(inode);
+	fsnotify_drop_object(type, objp);
 
 	if (free_conn) {
 		spin_lock(&destroy_lock);
@@ -455,7 +482,8 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 }
 
 static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
-					       unsigned int type)
+					       unsigned int type,
+					       __kernel_fsid_t *fsid)
 {
 	struct inode *inode = NULL;
 	struct fsnotify_mark_connector *conn;
@@ -467,6 +495,11 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	INIT_HLIST_HEAD(&conn->list);
 	conn->type = type;
 	conn->obj = connp;
+	/* Cache fsid of filesystem containing the object */
+	if (fsid)
+		conn->fsid = *fsid;
+	else
+		conn->fsid.val[0] = conn->fsid.val[1] = 0;
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE)
 		inode = igrab(fsnotify_conn_inode(conn));
 	/*
@@ -518,7 +551,7 @@ out:
  */
 static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
 				  fsnotify_connp_t *connp, unsigned int type,
-				  int allow_dups)
+				  int allow_dups, __kernel_fsid_t *fsid)
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	struct fsnotify_mark_connector *conn;
@@ -527,15 +560,36 @@ static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
 
 	if (WARN_ON(!fsnotify_valid_obj_type(type)))
 		return -EINVAL;
+
+	/* Backend is expected to check for zero fsid (e.g. tmpfs) */
+	if (fsid && WARN_ON_ONCE(!fsid->val[0] && !fsid->val[1]))
+		return -ENODEV;
+
 restart:
 	spin_lock(&mark->lock);
 	conn = fsnotify_grab_connector(connp);
 	if (!conn) {
 		spin_unlock(&mark->lock);
-		err = fsnotify_attach_connector_to_object(connp, type);
+		err = fsnotify_attach_connector_to_object(connp, type, fsid);
 		if (err)
 			return err;
 		goto restart;
+	} else if (fsid && (conn->fsid.val[0] || conn->fsid.val[1]) &&
+		   (fsid->val[0] != conn->fsid.val[0] ||
+		    fsid->val[1] != conn->fsid.val[1])) {
+		/*
+		 * Backend is expected to check for non uniform fsid
+		 * (e.g. btrfs), but maybe we missed something?
+		 * Only allow setting conn->fsid once to non zero fsid.
+		 * inotify and non-fid fanotify groups do not set nor test
+		 * conn->fsid.
+		 */
+		pr_warn_ratelimited("%s: fsid mismatch on object of type %u: "
+				    "%x.%x != %x.%x\n", __func__, conn->type,
+				    fsid->val[0], fsid->val[1],
+				    conn->fsid.val[0], conn->fsid.val[1]);
+		err = -EXDEV;
+		goto out_err;
 	}
 
 	/* is mark the first mark? */
@@ -580,7 +634,7 @@ out_err:
  */
 int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 			     fsnotify_connp_t *connp, unsigned int type,
-			     int allow_dups)
+			     int allow_dups, __kernel_fsid_t *fsid)
 {
 	struct fsnotify_group *group = mark->group;
 	int ret = 0;
@@ -601,7 +655,7 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	fsnotify_get_mark(mark); /* for g_list */
 	spin_unlock(&mark->lock);
 
-	ret = fsnotify_add_mark_list(mark, connp, type, allow_dups);
+	ret = fsnotify_add_mark_list(mark, connp, type, allow_dups, fsid);
 	if (ret)
 		goto err;
 
@@ -622,13 +676,13 @@ err:
 }
 
 int fsnotify_add_mark(struct fsnotify_mark *mark, fsnotify_connp_t *connp,
-		      unsigned int type, int allow_dups)
+		      unsigned int type, int allow_dups, __kernel_fsid_t *fsid)
 {
 	int ret;
 	struct fsnotify_group *group = mark->group;
 
 	mutex_lock(&group->mark_mutex);
-	ret = fsnotify_add_mark_locked(mark, connp, type, allow_dups);
+	ret = fsnotify_add_mark_locked(mark, connp, type, allow_dups, fsid);
 	mutex_unlock(&group->mark_mutex);
 	return ret;
 }
@@ -709,7 +763,8 @@ void fsnotify_destroy_marks(fsnotify_connp_t *connp)
 {
 	struct fsnotify_mark_connector *conn;
 	struct fsnotify_mark *mark, *old_mark = NULL;
-	struct inode *inode;
+	void *objp;
+	unsigned int type;
 
 	conn = fsnotify_grab_connector(connp);
 	if (!conn)
@@ -735,11 +790,11 @@ void fsnotify_destroy_marks(fsnotify_connp_t *connp)
 	 * mark references get dropped. It would lead to strange results such
 	 * as delaying inode deletion or blocking unmount.
 	 */
-	inode = fsnotify_detach_connector_from_object(conn);
+	objp = fsnotify_detach_connector_from_object(conn, &type);
 	spin_unlock(&conn->lock);
 	if (old_mark)
 		fsnotify_put_mark(old_mark);
-	iput(inode);
+	fsnotify_drop_object(type, objp);
 }
 
 /*

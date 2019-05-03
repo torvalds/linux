@@ -16,6 +16,7 @@
 #include <linux/parser.h>
 #include <linux/seq_file.h>
 #include "internal.h"
+#include "xattr.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/erofs.h>
@@ -29,7 +30,7 @@ static void init_once(void *ptr)
 	inode_init_once(&vi->vfs_inode);
 }
 
-static int erofs_init_inode_cache(void)
+static int __init erofs_init_inode_cache(void)
 {
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
 		sizeof(struct erofs_vnode), 0,
@@ -40,7 +41,6 @@ static int erofs_init_inode_cache(void)
 
 static void erofs_exit_inode_cache(void)
 {
-	BUG_ON(erofs_inode_cachep == NULL);
 	kmem_cache_destroy(erofs_inode_cachep);
 }
 
@@ -81,7 +81,7 @@ static int superblock_read(struct super_block *sb)
 	struct erofs_sb_info *sbi;
 	struct buffer_head *bh;
 	struct erofs_super_block *layout;
-	unsigned blkszbits;
+	unsigned int blkszbits;
 	int ret;
 
 	bh = sb_bread(sb, 0);
@@ -116,9 +116,10 @@ static int superblock_read(struct super_block *sb)
 #endif
 	sbi->islotbits = ffs(sizeof(struct erofs_inode_v1)) - 1;
 #ifdef CONFIG_EROFS_FS_ZIP
-	sbi->clusterbits = 12;
+	/* TODO: clusterbits should be related to inode */
+	sbi->clusterbits = blkszbits;
 
-	if (1 << (sbi->clusterbits - 12) > Z_EROFS_CLUSTER_MAX_PAGES)
+	if (1 << (sbi->clusterbits - PAGE_SHIFT) > Z_EROFS_CLUSTER_MAX_PAGES)
 		errln("clusterbits %u is not supported on this kernel",
 			sbi->clusterbits);
 #endif
@@ -144,8 +145,8 @@ char *erofs_fault_name[FAULT_MAX] = {
 	[FAULT_KMALLOC]		= "kmalloc",
 };
 
-static void erofs_build_fault_attr(struct erofs_sb_info *sbi,
-						unsigned int rate)
+static void __erofs_build_fault_attr(struct erofs_sb_info *sbi,
+				     unsigned int rate)
 {
 	struct erofs_fault_info *ffi = &sbi->fault_info;
 
@@ -156,11 +157,52 @@ static void erofs_build_fault_attr(struct erofs_sb_info *sbi,
 	} else {
 		memset(ffi, 0, sizeof(struct erofs_fault_info));
 	}
+
+	set_opt(sbi, FAULT_INJECTION);
+}
+
+static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
+				  substring_t *args)
+{
+	int rate = 0;
+
+	if (args->from && match_int(args, &rate))
+		return -EINVAL;
+
+	__erofs_build_fault_attr(sbi, rate);
+	return 0;
+}
+
+static unsigned int erofs_get_fault_rate(struct erofs_sb_info *sbi)
+{
+	return sbi->fault_info.inject_rate;
+}
+#else
+static void __erofs_build_fault_attr(struct erofs_sb_info *sbi,
+				     unsigned int rate)
+{
+}
+
+static int erofs_build_fault_attr(struct erofs_sb_info *sbi,
+				  substring_t *args)
+{
+	infoln("fault_injection options not supported");
+	return 0;
+}
+
+static unsigned int erofs_get_fault_rate(struct erofs_sb_info *sbi)
+{
+	return 0;
 }
 #endif
 
 static void default_options(struct erofs_sb_info *sbi)
 {
+	/* set up some FS parameters */
+#ifdef CONFIG_EROFS_FS_ZIP
+	sbi->max_sync_decompress_pages = DEFAULT_MAX_SYNC_DECOMPRESS_PAGES;
+#endif
+
 #ifdef CONFIG_EROFS_FS_XATTR
 	set_opt(sbi, XATTR_USER);
 #endif
@@ -192,7 +234,7 @@ static int parse_options(struct super_block *sb, char *options)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
-	int arg = 0;
+	int err;
 
 	if (!options)
 		return 0;
@@ -238,15 +280,11 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 #endif
 		case Opt_fault_injection:
-			if (args->from && match_int(args, &arg))
-				return -EINVAL;
-#ifdef CONFIG_EROFS_FAULT_INJECTION
-			erofs_build_fault_attr(EROFS_SB(sb), arg);
-			set_opt(EROFS_SB(sb), FAULT_INJECTION);
-#else
-			infoln("FAULT_INJECTION was not selected");
-#endif
+			err = erofs_build_fault_attr(EROFS_SB(sb), args);
+			if (err)
+				return err;
 			break;
+
 		default:
 			errln("Unrecognized mount option \"%s\" "
 					"or missing value", p);
@@ -265,8 +303,8 @@ static int managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 	int ret = 1;	/* 0 - busy */
 	struct address_space *const mapping = page->mapping;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(mapping->a_ops != &managed_cache_aops);
+	DBG_BUGON(!PageLocked(page));
+	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
 
 	if (PagePrivate(page))
 		ret = erofs_try_to_free_cached_page(mapping, page);
@@ -279,10 +317,10 @@ static void managed_cache_invalidatepage(struct page *page,
 {
 	const unsigned int stop = length + offset;
 
-	BUG_ON(!PageLocked(page));
+	DBG_BUGON(!PageLocked(page));
 
-	/* Check for overflow */
-	BUG_ON(stop > PAGE_SIZE || stop < length);
+	/* Check for potential overflow in debug mode */
+	DBG_BUGON(stop > PAGE_SIZE || stop < length);
 
 	if (offset == 0 && stop == PAGE_SIZE)
 		while (!managed_cache_releasepage(page, GFP_NOFS))
@@ -360,6 +398,11 @@ static int erofs_read_super(struct super_block *sb,
 	if (!silent)
 		infoln("root inode @ nid %llu", ROOT_NID(sbi));
 
+	if (test_opt(sbi, POSIX_ACL))
+		sb->s_flags |= SB_POSIXACL;
+	else
+		sb->s_flags &= ~SB_POSIXACL;
+
 #ifdef CONFIG_EROFS_FS_ZIP
 	INIT_RADIX_TREE(&sbi->workstn_tree, GFP_ATOMIC);
 #endif
@@ -383,13 +426,14 @@ static int erofs_read_super(struct super_block *sb,
 		errln("rootino(nid %llu) is not a directory(i_mode %o)",
 			ROOT_NID(sbi), inode->i_mode);
 		err = -EINVAL;
-		goto err_isdir;
+		iput(inode);
+		goto err_iget;
 	}
 
 	sb->s_root = d_make_root(inode);
 	if (sb->s_root == NULL) {
 		err = -ENOMEM;
-		goto err_makeroot;
+		goto err_iget;
 	}
 
 	/* save the device name to sbi */
@@ -404,12 +448,6 @@ static int erofs_read_super(struct super_block *sb,
 
 	erofs_register_super(sb);
 
-	/*
-	 * We already have a positive dentry, which was instantiated
-	 * by d_make_root. Just need to d_rehash it.
-	 */
-	d_rehash(sb->s_root);
-
 	if (!silent)
 		infoln("mounted on %s with opts: %s.", dev_name,
 			(char *)data);
@@ -421,10 +459,6 @@ static int erofs_read_super(struct super_block *sb,
 	 */
 err_devname:
 	dput(sb->s_root);
-err_makeroot:
-err_isdir:
-	if (sb->s_root == NULL)
-		iput(inode);
 err_iget:
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	iput(sbi->managed_cache);
@@ -462,7 +496,8 @@ static void erofs_put_super(struct super_block *sb)
 	mutex_lock(&sbi->umount_mutex);
 
 #ifdef CONFIG_EROFS_FS_ZIP
-	erofs_workstation_cleanup_all(sb);
+	/* clean up the compression space of this sb */
+	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
 #endif
 
 	erofs_unregister_super(sb);
@@ -506,12 +541,6 @@ static void erofs_kill_sb(struct super_block *sb)
 	kill_block_super(sb);
 }
 
-static struct shrinker erofs_shrinker_info = {
-	.scan_objects = erofs_shrink_scan,
-	.count_objects = erofs_shrink_count,
-	.seeks = DEFAULT_SEEKS,
-};
-
 static struct file_system_type erofs_fs_type = {
 	.owner          = THIS_MODULE,
 	.name           = "erofs",
@@ -520,11 +549,6 @@ static struct file_system_type erofs_fs_type = {
 	.fs_flags       = FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("erofs");
-
-#ifdef CONFIG_EROFS_FS_ZIP
-extern int z_erofs_init_zip_subsystem(void);
-extern void z_erofs_exit_zip_subsystem(void);
-#endif
 
 static int __init erofs_module_init(void)
 {
@@ -541,11 +565,9 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto shrinker_err;
 
-#ifdef CONFIG_EROFS_FS_ZIP
 	err = z_erofs_init_zip_subsystem();
 	if (err)
 		goto zip_err;
-#endif
 
 	err = register_filesystem(&erofs_fs_type);
 	if (err)
@@ -555,10 +577,8 @@ static int __init erofs_module_init(void)
 	return 0;
 
 fs_err:
-#ifdef CONFIG_EROFS_FS_ZIP
 	z_erofs_exit_zip_subsystem();
 zip_err:
-#endif
 	unregister_shrinker(&erofs_shrinker_info);
 shrinker_err:
 	erofs_exit_inode_cache();
@@ -569,9 +589,7 @@ icache_err:
 static void __exit erofs_module_exit(void)
 {
 	unregister_filesystem(&erofs_fs_type);
-#ifdef CONFIG_EROFS_FS_ZIP
 	z_erofs_exit_zip_subsystem();
-#endif
 	unregister_shrinker(&erofs_shrinker_info);
 	erofs_exit_inode_cache();
 	infoln("successfully finalize erofs");
@@ -615,20 +633,36 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	else
 		seq_puts(seq, ",noacl");
 #endif
-#ifdef CONFIG_EROFS_FAULT_INJECTION
 	if (test_opt(sbi, FAULT_INJECTION))
 		seq_printf(seq, ",fault_injection=%u",
-				sbi->fault_info.inject_rate);
-#endif
+			erofs_get_fault_rate(sbi));
 	return 0;
 }
 
 static int erofs_remount(struct super_block *sb, int *flags, char *data)
 {
-	BUG_ON(!sb_rdonly(sb));
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
+	unsigned int org_mnt_opt = sbi->mount_opt;
+	unsigned int org_inject_rate = erofs_get_fault_rate(sbi);
+	int err;
+
+	DBG_BUGON(!sb_rdonly(sb));
+	err = parse_options(sb, data);
+	if (err)
+		goto out;
+
+	if (test_opt(sbi, POSIX_ACL))
+		sb->s_flags |= SB_POSIXACL;
+	else
+		sb->s_flags &= ~SB_POSIXACL;
 
 	*flags |= SB_RDONLY;
 	return 0;
+out:
+	__erofs_build_fault_attr(sbi, org_inject_rate);
+	sbi->mount_opt = org_mnt_opt;
+
+	return err;
 }
 
 const struct super_operations erofs_sops = {

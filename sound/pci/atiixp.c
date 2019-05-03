@@ -733,6 +733,10 @@ static int snd_atiixp_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		if (dma->running && dma->suspended &&
+		    cmd == SNDRV_PCM_TRIGGER_RESUME)
+			writel(dma->saved_curptr, chip->remap_addr +
+			       dma->ops->dt_cur);
 		dma->ops->enable_transfer(chip, 1);
 		dma->running = 1;
 		dma->suspended = 0;
@@ -740,9 +744,12 @@ static int snd_atiixp_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		dma->suspended = cmd == SNDRV_PCM_TRIGGER_SUSPEND;
+		if (dma->running && dma->suspended)
+			dma->saved_curptr = readl(chip->remap_addr +
+						  dma->ops->dt_cur);
 		dma->ops->enable_transfer(chip, 0);
 		dma->running = 0;
-		dma->suspended = cmd == SNDRV_PCM_TRIGGER_SUSPEND;
 		break;
 	default:
 		err = -EINVAL;
@@ -903,15 +910,15 @@ static int snd_atiixp_playback_prepare(struct snd_pcm_substream *substream)
 	case 8:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(10) |
 			ATI_REG_OUT_DMA_SLOT_BIT(11);
-		/* fallthru */
+		/* fall through */
 	case 6:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(7) |
 			ATI_REG_OUT_DMA_SLOT_BIT(8);
-		/* fallthru */
+		/* fall through */
 	case 4:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(6) |
 			ATI_REG_OUT_DMA_SLOT_BIT(9);
-		/* fallthru */
+		/* fall through */
 	default:
 		data |= ATI_REG_OUT_DMA_SLOT_BIT(3) |
 			ATI_REG_OUT_DMA_SLOT_BIT(4);
@@ -1479,14 +1486,6 @@ static int snd_atiixp_suspend(struct device *dev)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < NUM_ATI_PCMDEVS; i++)
-		if (chip->pcmdevs[i]) {
-			struct atiixp_dma *dma = &chip->dmas[i];
-			if (dma->substream && dma->running)
-				dma->saved_curptr = readl(chip->remap_addr +
-							  dma->ops->dt_cur);
-			snd_pcm_suspend_all(chip->pcmdevs[i]);
-		}
 	for (i = 0; i < NUM_ATI_CODECS; i++)
 		snd_ac97_suspend(chip->ac97[i]);
 	snd_atiixp_aclink_down(chip);
@@ -1514,8 +1513,6 @@ static int snd_atiixp_resume(struct device *dev)
 				dma->substream->ops->prepare(dma->substream);
 				writel((u32)dma->desc_buf.addr | ATI_REG_LINKPTR_EN,
 				       chip->remap_addr + dma->ops->llp_offset);
-				writel(dma->saved_curptr, chip->remap_addr +
-				       dma->ops->dt_cur);
 			}
 		}
 
@@ -1546,10 +1543,7 @@ static void snd_atiixp_proc_read(struct snd_info_entry *entry,
 
 static void snd_atiixp_proc_init(struct atiixp *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "atiixp", &entry))
-		snd_info_set_text_ops(entry, chip, snd_atiixp_proc_read);
+	snd_card_ro_proc_new(chip->card, "atiixp", chip, snd_atiixp_proc_read);
 }
 
 

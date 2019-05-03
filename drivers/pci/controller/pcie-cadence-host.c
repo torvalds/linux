@@ -235,7 +235,6 @@ static int cdns_pcie_host_init(struct device *dev,
 
 static int cdns_pcie_host_probe(struct platform_device *pdev)
 {
-	const char *type;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct pci_host_bridge *bridge;
@@ -267,12 +266,6 @@ static int cdns_pcie_host_probe(struct platform_device *pdev)
 
 	rc->device_id = 0xffff;
 	of_property_read_u16(np, "device-id", &rc->device_id);
-
-	type = of_get_property(np, "device_type", NULL);
-	if (!type || strcmp(type, "pci")) {
-		dev_err(dev, "invalid \"device_type\" %s\n", type);
-		return -EINVAL;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
 	pcie->reg_base = devm_ioremap_resource(dev, res);

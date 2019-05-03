@@ -36,6 +36,9 @@ static LIST_HEAD(panel_list);
  * The DRM panel helpers allow drivers to register panel objects with a
  * central registry and provide functions to retrieve those panels in display
  * drivers.
+ *
+ * For easy integration into drivers using the &drm_bridge infrastructure please
+ * take look at drm_panel_bridge_add() and devm_drm_panel_bridge_add().
  */
 
 /**
@@ -142,7 +145,9 @@ EXPORT_SYMBOL(drm_panel_detach);
  *
  * Return: A pointer to the panel registered for the specified device tree
  * node or an ERR_PTR() if no panel matching the device tree node can be found.
+ *
  * Possible error codes returned by this function:
+ *
  * - EPROBE_DEFER: the panel device has not been probed yet, and the caller
  *   should retry later
  * - ENODEV: the device is not available (status != "okay" or "ok")

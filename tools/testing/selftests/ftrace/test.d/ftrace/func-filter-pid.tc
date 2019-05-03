@@ -35,12 +35,6 @@ if [ $do_function_fork -eq 1 ]; then
 fi
 
 do_reset() {
-    reset_tracer
-    clear_trace
-    enable_tracing
-    echo > set_ftrace_filter
-    echo > set_ftrace_pid
-
     if [ $do_function_fork -eq 0 ]; then
 	return
     fi
@@ -52,10 +46,6 @@ fail() { # msg
     do_reset
     echo $1
     exit_fail
-}
-
-yield() {
-    ping localhost -c 1 || sleep .001 || usleep 1 || sleep 1
 }
 
 do_test() {

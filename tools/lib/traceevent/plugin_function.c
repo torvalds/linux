@@ -23,6 +23,7 @@
 
 #include "event-parse.h"
 #include "event-utils.h"
+#include "trace-seq.h"
 
 static struct func_stack {
 	int size;
@@ -123,7 +124,7 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 }
 
 static int function_handler(struct trace_seq *s, struct tep_record *record,
-			    struct event_format *event, void *context)
+			    struct tep_event *event, void *context)
 {
 	struct tep_handle *pevent = event->pevent;
 	unsigned long long function;

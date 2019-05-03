@@ -30,32 +30,27 @@ EXPORT_SYMBOL_GPL(nf_osf_fingers);
 static inline int nf_osf_ttl(const struct sk_buff *skb,
 			     int ttl_check, unsigned char f_ttl)
 {
+	struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
 	const struct iphdr *ip = ip_hdr(skb);
+	int ret = 0;
 
-	if (ttl_check != -1) {
-		if (ttl_check == NF_OSF_TTL_TRUE)
-			return ip->ttl == f_ttl;
-		if (ttl_check == NF_OSF_TTL_NOCHECK)
-			return 1;
-		else if (ip->ttl <= f_ttl)
-			return 1;
-		else {
-			struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
-			int ret = 0;
+	if (ttl_check == NF_OSF_TTL_TRUE)
+		return ip->ttl == f_ttl;
+	if (ttl_check == NF_OSF_TTL_NOCHECK)
+		return 1;
+	else if (ip->ttl <= f_ttl)
+		return 1;
 
-			for_ifa(in_dev) {
-				if (inet_ifa_match(ip->saddr, ifa)) {
-					ret = (ip->ttl == f_ttl);
-					break;
-				}
-			}
-			endfor_ifa(in_dev);
-
-			return ret;
+	for_ifa(in_dev) {
+		if (inet_ifa_match(ip->saddr, ifa)) {
+			ret = (ip->ttl == f_ttl);
+			break;
 		}
 	}
 
-	return ip->ttl == f_ttl;
+	endfor_ifa(in_dev);
+
+	return ret;
 }
 
 struct nf_osf_hdr_ctx {
@@ -71,6 +66,7 @@ static bool nf_osf_match_one(const struct sk_buff *skb,
 			     int ttl_check,
 			     struct nf_osf_hdr_ctx *ctx)
 {
+	const __u8 *optpinit = ctx->optp;
 	unsigned int check_WSS = 0;
 	int fmatch = FMATCH_WRONG;
 	int foptsize, optnum;
@@ -160,6 +156,9 @@ static bool nf_osf_match_one(const struct sk_buff *skb,
 		}
 	}
 
+	if (fmatch != FMATCH_OK)
+		ctx->optp = optpinit;
+
 	return fmatch == FMATCH_OK;
 }
 
@@ -213,7 +212,7 @@ nf_osf_match(const struct sk_buff *skb, u_int8_t family,
 	if (!tcp)
 		return false;
 
-	ttl_check = (info->flags & NF_OSF_TTL) ? info->ttl : -1;
+	ttl_check = (info->flags & NF_OSF_TTL) ? info->ttl : 0;
 
 	list_for_each_entry_rcu(kf, &nf_osf_fingers[ctx.df], finger_entry) {
 
@@ -257,7 +256,8 @@ nf_osf_match(const struct sk_buff *skb, u_int8_t family,
 EXPORT_SYMBOL_GPL(nf_osf_match);
 
 const char *nf_osf_find(const struct sk_buff *skb,
-			const struct list_head *nf_osf_fingers)
+			const struct list_head *nf_osf_fingers,
+			const int ttl_check)
 {
 	const struct iphdr *ip = ip_hdr(skb);
 	const struct nf_osf_user_finger *f;
@@ -275,7 +275,7 @@ const char *nf_osf_find(const struct sk_buff *skb,
 
 	list_for_each_entry_rcu(kf, &nf_osf_fingers[ctx.df], finger_entry) {
 		f = &kf->finger;
-		if (!nf_osf_match_one(skb, f, -1, &ctx))
+		if (!nf_osf_match_one(skb, f, ttl_check, &ctx))
 			continue;
 
 		genre = f->genre;

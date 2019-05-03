@@ -1078,7 +1078,6 @@ static struct scsi_host_template inia100_template = {
 	.can_queue		= 1,
 	.this_id		= 1,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static int inia100_probe_one(struct pci_dev *pdev,
@@ -1094,7 +1093,7 @@ static int inia100_probe_one(struct pci_dev *pdev,
 
 	if (pci_enable_device(pdev))
 		goto out;
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "Unable to set 32bit DMA "
 				    "on inia100 adapter, ignoring.\n");
 		goto out_disable_device;
@@ -1124,7 +1123,8 @@ static int inia100_probe_one(struct pci_dev *pdev,
 
 	/* Get total memory needed for SCB */
 	sz = ORC_MAXQUEUE * sizeof(struct orc_scb);
-	host->scb_virt = pci_zalloc_consistent(pdev, sz, &host->scb_phys);
+	host->scb_virt = dma_alloc_coherent(&pdev->dev, sz, &host->scb_phys,
+					    GFP_KERNEL);
 	if (!host->scb_virt) {
 		printk("inia100: SCB memory allocation error\n");
 		goto out_host_put;
@@ -1132,7 +1132,8 @@ static int inia100_probe_one(struct pci_dev *pdev,
 
 	/* Get total memory needed for ESCB */
 	sz = ORC_MAXQUEUE * sizeof(struct orc_extended_scb);
-	host->escb_virt = pci_zalloc_consistent(pdev, sz, &host->escb_phys);
+	host->escb_virt = dma_alloc_coherent(&pdev->dev, sz, &host->escb_phys,
+					     GFP_KERNEL);
 	if (!host->escb_virt) {
 		printk("inia100: ESCB memory allocation error\n");
 		goto out_free_scb_array;
@@ -1177,10 +1178,12 @@ static int inia100_probe_one(struct pci_dev *pdev,
 out_free_irq:
         free_irq(shost->irq, shost);
 out_free_escb_array:
-	pci_free_consistent(pdev, ORC_MAXQUEUE * sizeof(struct orc_extended_scb),
+	dma_free_coherent(&pdev->dev,
+			ORC_MAXQUEUE * sizeof(struct orc_extended_scb),
 			host->escb_virt, host->escb_phys);
 out_free_scb_array:
-	pci_free_consistent(pdev, ORC_MAXQUEUE * sizeof(struct orc_scb),
+	dma_free_coherent(&pdev->dev,
+			ORC_MAXQUEUE * sizeof(struct orc_scb),
 			host->scb_virt, host->scb_phys);
 out_host_put:
 	scsi_host_put(shost);
@@ -1200,9 +1203,11 @@ static void inia100_remove_one(struct pci_dev *pdev)
 	scsi_remove_host(shost);
 
         free_irq(shost->irq, shost);
-	pci_free_consistent(pdev, ORC_MAXQUEUE * sizeof(struct orc_extended_scb),
+	dma_free_coherent(&pdev->dev,
+			ORC_MAXQUEUE * sizeof(struct orc_extended_scb),
 			host->escb_virt, host->escb_phys);
-	pci_free_consistent(pdev, ORC_MAXQUEUE * sizeof(struct orc_scb),
+	dma_free_coherent(&pdev->dev,
+			ORC_MAXQUEUE * sizeof(struct orc_scb),
 			host->scb_virt, host->scb_phys);
         release_region(shost->io_port, 256);
 

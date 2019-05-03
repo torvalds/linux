@@ -46,11 +46,16 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	size_t size;
 	int err;
 
+	if (!uc_fw->path) {
+		dev_info(dev_priv->drm.dev,
+			 "%s: No firmware was defined for %s!\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
+			 intel_platform_name(INTEL_INFO(dev_priv)->platform));
+		return;
+	}
+
 	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
-
-	if (!uc_fw->path)
-		return;
 
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
@@ -222,7 +227,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		goto fail;
 	}
 
-	ggtt_pin_bias = to_i915(uc_fw->obj->base.dev)->guc.ggtt_pin_bias;
+	ggtt_pin_bias = to_i915(uc_fw->obj->base.dev)->ggtt.pin_bias;
 	vma = i915_gem_object_ggtt_pin(uc_fw->obj, NULL, 0, 0,
 				       PIN_OFFSET_BIAS | ggtt_pin_bias);
 	if (IS_ERR(vma)) {

@@ -29,6 +29,9 @@
 	BIT(DPU_SSPP_TS_PREFILL) | BIT(DPU_SSPP_TS_PREFILL_REC1) |\
 	BIT(DPU_SSPP_CDP) | BIT(DPU_SSPP_EXCL_RECT))
 
+#define DMA_CURSOR_SDM845_MASK \
+	(DMA_SDM845_MASK | BIT(DPU_SSPP_CURSOR))
+
 #define MIXER_SDM845_MASK \
 	(BIT(DPU_MIXER_SOURCESPLIT) | BIT(DPU_DIM_LAYER))
 
@@ -71,7 +74,6 @@ static struct dpu_mdp_cfg sdm845_mdp[] = {
 	.base = 0x0, .len = 0x45C,
 	.features = 0,
 	.highest_bank_bit = 0x2,
-	.has_dest_scaler = true,
 	.clk_ctrls[DPU_CLK_CTRL_VIG0] = {
 			.reg_off = 0x2AC, .bit_off = 0},
 	.clk_ctrls[DPU_CLK_CTRL_VIG1] = {
@@ -149,7 +151,9 @@ static const struct dpu_sspp_blks_common sdm845_sspp_common = {
 		.id = DPU_SSPP_CSC_10BIT, \
 		.base = 0x1a00, .len = 0x100,}, \
 	.format_list = plane_formats_yuv, \
+	.num_formats = ARRAY_SIZE(plane_formats_yuv), \
 	.virt_format_list = plane_formats, \
+	.virt_num_formats = ARRAY_SIZE(plane_formats), \
 	}
 
 #define _DMA_SBLK(num, sdma_pri) \
@@ -161,7 +165,9 @@ static const struct dpu_sspp_blks_common sdm845_sspp_common = {
 	.src_blk = {.name = STRCAT("sspp_src_", num), \
 		.id = DPU_SSPP_SRC, .base = 0x00, .len = 0x150,}, \
 	.format_list = plane_formats, \
+	.num_formats = ARRAY_SIZE(plane_formats), \
 	.virt_format_list = plane_formats, \
+	.virt_num_formats = ARRAY_SIZE(plane_formats), \
 	}
 
 static const struct dpu_sspp_sub_blks sdm845_vig_sblk_0 = _VIG_SBLK("0", 5);
@@ -174,45 +180,35 @@ static const struct dpu_sspp_sub_blks sdm845_dma_sblk_1 = _DMA_SBLK("9", 2);
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_2 = _DMA_SBLK("10", 3);
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_3 = _DMA_SBLK("11", 4);
 
-#define SSPP_VIG_BLK(_name, _id, _base, _sblk, _xinid, _clkctrl) \
+#define SSPP_BLK(_name, _id, _base, _features, \
+		_sblk, _xinid, _type, _clkctrl) \
 	{ \
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0x1c8, \
-	.features = VIG_SDM845_MASK, \
+	.features = _features, \
 	.sblk = &_sblk, \
 	.xin_id = _xinid, \
-	.type = SSPP_TYPE_VIG, \
-	.clk_ctrl = _clkctrl \
-	}
-
-#define SSPP_DMA_BLK(_name, _id, _base, _sblk, _xinid, _clkctrl) \
-	{ \
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0x1c8, \
-	.features = DMA_SDM845_MASK, \
-	.sblk = &_sblk, \
-	.xin_id = _xinid, \
-	.type = SSPP_TYPE_DMA, \
+	.type = _type, \
 	.clk_ctrl = _clkctrl \
 	}
 
 static struct dpu_sspp_cfg sdm845_sspp[] = {
-	SSPP_VIG_BLK("sspp_0", SSPP_VIG0, 0x4000,
-		sdm845_vig_sblk_0, 0, DPU_CLK_CTRL_VIG0),
-	SSPP_VIG_BLK("sspp_1", SSPP_VIG1, 0x6000,
-		sdm845_vig_sblk_1, 4, DPU_CLK_CTRL_VIG1),
-	SSPP_VIG_BLK("sspp_2", SSPP_VIG2, 0x8000,
-		sdm845_vig_sblk_2, 8, DPU_CLK_CTRL_VIG2),
-	SSPP_VIG_BLK("sspp_3", SSPP_VIG3, 0xa000,
-		sdm845_vig_sblk_3, 12, DPU_CLK_CTRL_VIG3),
-	SSPP_DMA_BLK("sspp_8", SSPP_DMA0, 0x24000,
-		sdm845_dma_sblk_0, 1, DPU_CLK_CTRL_DMA0),
-	SSPP_DMA_BLK("sspp_9", SSPP_DMA1, 0x26000,
-		sdm845_dma_sblk_1, 5, DPU_CLK_CTRL_DMA1),
-	SSPP_DMA_BLK("sspp_10", SSPP_DMA2, 0x28000,
-		sdm845_dma_sblk_2, 9, DPU_CLK_CTRL_CURSOR0),
-	SSPP_DMA_BLK("sspp_11", SSPP_DMA3, 0x2a000,
-		sdm845_dma_sblk_3, 13, DPU_CLK_CTRL_CURSOR1),
+	SSPP_BLK("sspp_0", SSPP_VIG0, 0x4000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_0, 0,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG0),
+	SSPP_BLK("sspp_1", SSPP_VIG1, 0x6000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_1, 4,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG1),
+	SSPP_BLK("sspp_2", SSPP_VIG2, 0x8000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_2, 8, SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG2),
+	SSPP_BLK("sspp_3", SSPP_VIG3, 0xa000, VIG_SDM845_MASK,
+		sdm845_vig_sblk_3, 12,  SSPP_TYPE_VIG, DPU_CLK_CTRL_VIG3),
+	SSPP_BLK("sspp_8", SSPP_DMA0, 0x24000,  DMA_SDM845_MASK,
+		sdm845_dma_sblk_0, 1, SSPP_TYPE_DMA, DPU_CLK_CTRL_DMA0),
+	SSPP_BLK("sspp_9", SSPP_DMA1, 0x26000,  DMA_SDM845_MASK,
+		sdm845_dma_sblk_1, 5, SSPP_TYPE_DMA, DPU_CLK_CTRL_DMA1),
+	SSPP_BLK("sspp_10", SSPP_DMA2, 0x28000,  DMA_CURSOR_SDM845_MASK,
+		sdm845_dma_sblk_2, 9, SSPP_TYPE_DMA, DPU_CLK_CTRL_CURSOR0),
+	SSPP_BLK("sspp_11", SSPP_DMA3, 0x2a000,  DMA_CURSOR_SDM845_MASK,
+		sdm845_dma_sblk_3, 13, SSPP_TYPE_DMA, DPU_CLK_CTRL_CURSOR1),
 };
 
 /*************************************************************
@@ -227,48 +223,23 @@ static const struct dpu_lm_sub_blks sdm845_lm_sblk = {
 	},
 };
 
-#define LM_BLK(_name, _id, _base, _ds, _pp, _lmpair) \
+#define LM_BLK(_name, _id, _base, _pp, _lmpair) \
 	{ \
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0x320, \
 	.features = MIXER_SDM845_MASK, \
 	.sblk = &sdm845_lm_sblk, \
-	.ds = _ds, \
 	.pingpong = _pp, \
 	.lm_pair_mask = (1 << _lmpair) \
 	}
 
 static struct dpu_lm_cfg sdm845_lm[] = {
-	LM_BLK("lm_0", LM_0, 0x44000, DS_0, PINGPONG_0, LM_1),
-	LM_BLK("lm_1", LM_1, 0x45000, DS_1, PINGPONG_1, LM_0),
-	LM_BLK("lm_2", LM_2, 0x46000, DS_MAX, PINGPONG_2, LM_5),
-	LM_BLK("lm_3", LM_3, 0x0, DS_MAX, PINGPONG_MAX, 0),
-	LM_BLK("lm_4", LM_4, 0x0, DS_MAX, PINGPONG_MAX, 0),
-	LM_BLK("lm_5", LM_5, 0x49000, DS_MAX, PINGPONG_3, LM_2),
-};
-
-/*************************************************************
- * DS sub blocks config
- *************************************************************/
-static const struct dpu_ds_top_cfg sdm845_ds_top = {
-	.name = "ds_top_0", .id = DS_TOP,
-	.base = 0x60000, .len = 0xc,
-	.maxinputwidth = DEFAULT_DPU_LINE_WIDTH,
-	.maxoutputwidth = DEFAULT_DPU_OUTPUT_LINE_WIDTH,
-	.maxupscale = MAX_UPSCALE_RATIO,
-};
-
-#define DS_BLK(_name, _id, _base) \
-	{\
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0x800, \
-	.features = DPU_SSPP_SCALER_QSEED3, \
-	.top = &sdm845_ds_top \
-	}
-
-static struct dpu_ds_cfg sdm845_ds[] = {
-	DS_BLK("ds_0", DS_0, 0x800),
-	DS_BLK("ds_1", DS_1, 0x1000),
+	LM_BLK("lm_0", LM_0, 0x44000, PINGPONG_0, LM_1),
+	LM_BLK("lm_1", LM_1, 0x45000, PINGPONG_1, LM_0),
+	LM_BLK("lm_2", LM_2, 0x46000, PINGPONG_2, LM_5),
+	LM_BLK("lm_3", LM_3, 0x0, PINGPONG_MAX, 0),
+	LM_BLK("lm_4", LM_4, 0x0, PINGPONG_MAX, 0),
+	LM_BLK("lm_5", LM_5, 0x49000, PINGPONG_3, LM_2),
 };
 
 /*************************************************************
@@ -325,18 +296,6 @@ static struct dpu_intf_cfg sdm845_intf[] = {
 	INTF_BLK("intf_1", INTF_1, 0x6A800, INTF_DSI, 0),
 	INTF_BLK("intf_2", INTF_2, 0x6B000, INTF_DSI, 1),
 	INTF_BLK("intf_3", INTF_3, 0x6B800, INTF_DP, 1),
-};
-
-/*************************************************************
- * CDM sub blocks config
- *************************************************************/
-static struct dpu_cdm_cfg sdm845_cdm[] = {
-	{
-	.name = "cdm_0", .id = CDM_0,
-	.base = 0x79200, .len = 0x224,
-	.features = 0,
-	.intf_connect = BIT(INTF_3),
-	},
 };
 
 /*************************************************************
@@ -461,12 +420,8 @@ static void sdm845_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.sspp = sdm845_sspp,
 		.mixer_count = ARRAY_SIZE(sdm845_lm),
 		.mixer = sdm845_lm,
-		.ds_count = ARRAY_SIZE(sdm845_ds),
-		.ds = sdm845_ds,
 		.pingpong_count = ARRAY_SIZE(sdm845_pp),
 		.pingpong = sdm845_pp,
-		.cdm_count = ARRAY_SIZE(sdm845_cdm),
-		.cdm = sdm845_cdm,
 		.intf_count = ARRAY_SIZE(sdm845_intf),
 		.intf = sdm845_intf,
 		.vbif_count = ARRAY_SIZE(sdm845_vbif),

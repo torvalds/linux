@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -195,6 +182,7 @@ static int qtnf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 	qtnf_scan_done(vif->mac, true);
 
 	ret = qtnf_cmd_send_change_intf_type(vif, vif->wdev.iftype,
+					     vif->wdev.use_4addr,
 					     sa->sa_data);
 
 	if (ret)
@@ -304,6 +292,19 @@ void qtnf_mac_iface_comb_free(struct qtnf_wmac *mac)
 	}
 }
 
+void qtnf_mac_ext_caps_free(struct qtnf_wmac *mac)
+{
+	if (mac->macinfo.extended_capabilities_len) {
+		kfree(mac->macinfo.extended_capabilities);
+		mac->macinfo.extended_capabilities = NULL;
+
+		kfree(mac->macinfo.extended_capabilities_mask);
+		mac->macinfo.extended_capabilities_mask = NULL;
+
+		mac->macinfo.extended_capabilities_len = 0;
+	}
+}
+
 static void qtnf_vif_reset_handler(struct work_struct *work)
 {
 	struct qtnf_vif *vif = container_of(work, struct qtnf_vif, reset_work);
@@ -370,6 +371,7 @@ static void qtnf_mac_scan_timeout(struct work_struct *work)
 static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 					     unsigned int macid)
 {
+	struct qtnf_vif *vif;
 	struct wiphy *wiphy;
 	struct qtnf_wmac *mac;
 	unsigned int i;
@@ -382,18 +384,20 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 
 	mac->macid = macid;
 	mac->bus = bus;
+	mutex_init(&mac->mac_lock);
+	INIT_DELAYED_WORK(&mac->scan_timeout, qtnf_mac_scan_timeout);
 
 	for (i = 0; i < QTNF_MAX_INTF; i++) {
-		memset(&mac->iflist[i], 0, sizeof(struct qtnf_vif));
-		mac->iflist[i].wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-		mac->iflist[i].mac = mac;
-		mac->iflist[i].vifid = i;
-		qtnf_sta_list_init(&mac->iflist[i].sta_list);
-		mutex_init(&mac->mac_lock);
-		INIT_DELAYED_WORK(&mac->scan_timeout, qtnf_mac_scan_timeout);
-		mac->iflist[i].stats64 =
-			netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-		if (!mac->iflist[i].stats64)
+		vif = &mac->iflist[i];
+
+		memset(vif, 0, sizeof(*vif));
+		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+		vif->mac = mac;
+		vif->vifid = i;
+		qtnf_sta_list_init(&vif->sta_list);
+
+		vif->stats64 = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+		if (!vif->stats64)
 			pr_warn("VIF%u.%u: per cpu stats allocation failed\n",
 				macid, i);
 	}
@@ -493,8 +497,7 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 	}
 
 	qtnf_mac_iface_comb_free(mac);
-	kfree(mac->macinfo.extended_capabilities);
-	kfree(mac->macinfo.extended_capabilities_mask);
+	qtnf_mac_ext_caps_free(mac);
 	kfree(mac->macinfo.wowlan);
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;
@@ -530,7 +533,8 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error;
 	}
 
-	ret = qtnf_cmd_send_add_intf(vif, vif->wdev.iftype, vif->mac_addr);
+	ret = qtnf_cmd_send_add_intf(vif, vif->wdev.iftype,
+				     vif->wdev.use_4addr, vif->mac_addr);
 	if (ret) {
 		pr_err("MAC%u: failed to add VIF\n", macid);
 		goto error;

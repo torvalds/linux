@@ -384,27 +384,19 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 	},
 };
 
-static inline struct nf_dccp_net *dccp_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.dccp;
-}
-
-static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
+static noinline bool
+dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
+	 const struct dccp_hdr *dh)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_dccp_net *dn;
-	struct dccp_hdr _dh, *dh;
 	const char *msg;
 	u_int8_t state;
-
-	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
-	BUG_ON(dh == NULL);
 
 	state = dccp_state_table[CT_DCCP_ROLE_CLIENT][dh->dccph_type][CT_DCCP_NONE];
 	switch (state) {
 	default:
-		dn = dccp_pernet(net);
+		dn = nf_dccp_pernet(net);
 		if (dn->dccp_loose == 0) {
 			msg = "not picking up existing connection ";
 			goto out_invalid;
@@ -438,8 +430,52 @@ static u64 dccp_ack_seq(const struct dccp_hdr *dh)
 		     ntohl(dhack->dccph_ack_nr_low);
 }
 
-static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff, enum ip_conntrack_info ctinfo)
+static bool dccp_error(const struct dccp_hdr *dh,
+		       struct sk_buff *skb, unsigned int dataoff,
+		       const struct nf_hook_state *state)
+{
+	unsigned int dccp_len = skb->len - dataoff;
+	unsigned int cscov;
+	const char *msg;
+
+	if (dh->dccph_doff * 4 < sizeof(struct dccp_hdr) ||
+	    dh->dccph_doff * 4 > dccp_len) {
+		msg = "nf_ct_dccp: truncated/malformed packet ";
+		goto out_invalid;
+	}
+
+	cscov = dccp_len;
+	if (dh->dccph_cscov) {
+		cscov = (dh->dccph_cscov - 1) * 4;
+		if (cscov > dccp_len) {
+			msg = "nf_ct_dccp: bad checksum coverage ";
+			goto out_invalid;
+		}
+	}
+
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
+	    nf_checksum_partial(skb, state->hook, dataoff, cscov,
+				IPPROTO_DCCP, state->pf)) {
+		msg = "nf_ct_dccp: bad checksum ";
+		goto out_invalid;
+	}
+
+	if (dh->dccph_type >= DCCP_PKT_INVALID) {
+		msg = "nf_ct_dccp: reserved packet type ";
+		goto out_invalid;
+	}
+	return false;
+out_invalid:
+	nf_l4proto_log_invalid(skb, state->net, state->pf,
+			       IPPROTO_DCCP, "%s", msg);
+	return true;
+}
+
+int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
+			     unsigned int dataoff,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
@@ -448,8 +484,15 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 	unsigned int *timeouts;
 
 	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
-	BUG_ON(dh == NULL);
+	if (!dh)
+		return NF_DROP;
+
+	if (dccp_error(dh, skb, dataoff, state))
+		return -NF_ACCEPT;
+
 	type = dh->dccph_type;
+	if (!nf_ct_is_confirmed(ct) && !dccp_new(ct, skb, dh))
+		return -NF_ACCEPT;
 
 	if (type == DCCP_PKT_RESET &&
 	    !test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
@@ -521,59 +564,10 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 
 	timeouts = nf_ct_timeout_lookup(ct);
 	if (!timeouts)
-		timeouts = dccp_pernet(nf_ct_net(ct))->dccp_timeout;
+		timeouts = nf_dccp_pernet(nf_ct_net(ct))->dccp_timeout;
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[new_state]);
 
 	return NF_ACCEPT;
-}
-
-static int dccp_error(struct net *net, struct nf_conn *tmpl,
-		      struct sk_buff *skb, unsigned int dataoff,
-		      u_int8_t pf, unsigned int hooknum)
-{
-	struct dccp_hdr _dh, *dh;
-	unsigned int dccp_len = skb->len - dataoff;
-	unsigned int cscov;
-	const char *msg;
-
-	dh = skb_header_pointer(skb, dataoff, sizeof(_dh), &_dh);
-	if (dh == NULL) {
-		msg = "nf_ct_dccp: short packet ";
-		goto out_invalid;
-	}
-
-	if (dh->dccph_doff * 4 < sizeof(struct dccp_hdr) ||
-	    dh->dccph_doff * 4 > dccp_len) {
-		msg = "nf_ct_dccp: truncated/malformed packet ";
-		goto out_invalid;
-	}
-
-	cscov = dccp_len;
-	if (dh->dccph_cscov) {
-		cscov = (dh->dccph_cscov - 1) * 4;
-		if (cscov > dccp_len) {
-			msg = "nf_ct_dccp: bad checksum coverage ";
-			goto out_invalid;
-		}
-	}
-
-	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
-	    nf_checksum_partial(skb, hooknum, dataoff, cscov, IPPROTO_DCCP,
-				pf)) {
-		msg = "nf_ct_dccp: bad checksum ";
-		goto out_invalid;
-	}
-
-	if (dh->dccph_type >= DCCP_PKT_INVALID) {
-		msg = "nf_ct_dccp: reserved packet type ";
-		goto out_invalid;
-	}
-
-	return NF_ACCEPT;
-
-out_invalid:
-	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_DCCP, "%s", msg);
-	return -NF_ACCEPT;
 }
 
 static bool dccp_can_early_drop(const struct nf_conn *ct)
@@ -683,7 +677,7 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 static int dccp_timeout_nlattr_to_obj(struct nlattr *tb[],
 				      struct net *net, void *data)
 {
-	struct nf_dccp_net *dn = dccp_pernet(net);
+	struct nf_dccp_net *dn = nf_dccp_pernet(net);
 	unsigned int *timeouts = data;
 	int i;
 
@@ -730,126 +724,28 @@ dccp_timeout_nla_policy[CTA_TIMEOUT_DCCP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-#ifdef CONFIG_SYSCTL
-/* template, data assigned later */
-static struct ctl_table dccp_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_dccp_timeout_request",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_respond",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_partopen",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_open",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_closereq",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_closing",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_timewait",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_loose",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{ }
-};
-#endif /* CONFIG_SYSCTL */
-
-static int dccp_kmemdup_sysctl_table(struct net *net, struct nf_proto_net *pn,
-				     struct nf_dccp_net *dn)
+void nf_conntrack_dccp_init_net(struct net *net)
 {
-#ifdef CONFIG_SYSCTL
-	if (pn->ctl_table)
-		return 0;
+	struct nf_dccp_net *dn = nf_dccp_pernet(net);
 
-	pn->ctl_table = kmemdup(dccp_sysctl_table,
-				sizeof(dccp_sysctl_table),
-				GFP_KERNEL);
-	if (!pn->ctl_table)
-		return -ENOMEM;
+	/* default values */
+	dn->dccp_loose = 1;
+	dn->dccp_timeout[CT_DCCP_REQUEST]	= 2 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_RESPOND]	= 4 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_PARTOPEN]	= 4 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_OPEN]		= 12 * 3600 * HZ;
+	dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
+	dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
+	dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
 
-	pn->ctl_table[0].data = &dn->dccp_timeout[CT_DCCP_REQUEST];
-	pn->ctl_table[1].data = &dn->dccp_timeout[CT_DCCP_RESPOND];
-	pn->ctl_table[2].data = &dn->dccp_timeout[CT_DCCP_PARTOPEN];
-	pn->ctl_table[3].data = &dn->dccp_timeout[CT_DCCP_OPEN];
-	pn->ctl_table[4].data = &dn->dccp_timeout[CT_DCCP_CLOSEREQ];
-	pn->ctl_table[5].data = &dn->dccp_timeout[CT_DCCP_CLOSING];
-	pn->ctl_table[6].data = &dn->dccp_timeout[CT_DCCP_TIMEWAIT];
-	pn->ctl_table[7].data = &dn->dccp_loose;
-
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		pn->ctl_table[0].procname = NULL;
-#endif
-	return 0;
+	/* timeouts[0] is unused, make it same as SYN_SENT so
+	 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+	 */
+	dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
 }
 
-static int dccp_init_net(struct net *net, u_int16_t proto)
-{
-	struct nf_dccp_net *dn = dccp_pernet(net);
-	struct nf_proto_net *pn = &dn->pn;
-
-	if (!pn->users) {
-		/* default values */
-		dn->dccp_loose = 1;
-		dn->dccp_timeout[CT_DCCP_REQUEST]	= 2 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_RESPOND]	= 4 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_PARTOPEN]	= 4 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_OPEN]		= 12 * 3600 * HZ;
-		dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
-		dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
-		dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
-
-		/* timeouts[0] is unused, make it same as SYN_SENT so
-		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
-		 */
-		dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
-	}
-
-	return dccp_kmemdup_sysctl_table(net, pn, dn);
-}
-
-static struct nf_proto_net *dccp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.dccp.pn;
-}
-
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
-	.l3proto		= AF_INET,
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp = {
 	.l4proto		= IPPROTO_DCCP,
-	.new			= dccp_new,
-	.packet			= dccp_packet,
-	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,
@@ -872,40 +768,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 		.nla_policy	= dccp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= dccp_init_net,
-	.get_net_proto		= dccp_get_net_proto,
 };
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
-
-const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
-	.l3proto		= AF_INET6,
-	.l4proto		= IPPROTO_DCCP,
-	.new			= dccp_new,
-	.packet			= dccp_packet,
-	.error			= dccp_error,
-	.can_early_drop		= dccp_can_early_drop,
-#ifdef CONFIG_NF_CONNTRACK_PROCFS
-	.print_conntrack	= dccp_print_conntrack,
-#endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.nlattr_size		= DCCP_NLATTR_SIZE,
-	.to_nlattr		= dccp_to_nlattr,
-	.from_nlattr		= nlattr_to_dccp,
-	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
-	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
-	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
-	.nla_policy		= nf_ct_port_nla_policy,
-#endif
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	.ctnl_timeout		= {
-		.nlattr_to_obj	= dccp_timeout_nlattr_to_obj,
-		.obj_to_nlattr	= dccp_timeout_obj_to_nlattr,
-		.nlattr_max	= CTA_TIMEOUT_DCCP_MAX,
-		.obj_size	= sizeof(unsigned int) * CT_DCCP_MAX,
-		.nla_policy	= dccp_timeout_nla_policy,
-	},
-#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= dccp_init_net,
-	.get_net_proto		= dccp_get_net_proto,
-};
-EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp6);

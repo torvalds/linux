@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _format:
 
@@ -12,7 +19,7 @@ Data Format Negotiation
 
 Different devices exchange different kinds of data with applications,
 for example video images, raw or sliced VBI data, RDS datagrams. Even
-within one kind many different formats are possible, in particular an
+within one kind many different formats are possible, in particular there is an
 abundance of image formats. Although drivers must provide a default and
 the selection persists across closing and reopening a device,
 applications should always negotiate a data format before engaging in

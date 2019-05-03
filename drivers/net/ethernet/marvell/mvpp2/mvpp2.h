@@ -253,7 +253,8 @@
 #define     MVPP2_ISR_ENABLE_INTERRUPT(mask)	((mask) & 0xffff)
 #define     MVPP2_ISR_DISABLE_INTERRUPT(mask)	(((mask) << 16) & 0xffff0000)
 #define MVPP2_ISR_RX_TX_CAUSE_REG(port)		(0x5480 + 4 * (port))
-#define     MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK	0xffff
+#define     MVPP2_CAUSE_RXQ_OCCUP_DESC_ALL_MASK(version) \
+					((version) == MVPP21 ? 0xffff : 0xff)
 #define     MVPP2_CAUSE_TXQ_OCCUP_DESC_ALL_MASK	0xff0000
 #define     MVPP2_CAUSE_TXQ_OCCUP_DESC_ALL_OFFSET	16
 #define     MVPP2_CAUSE_RX_FIFO_OVERRUN_MASK	BIT(24)
@@ -330,6 +331,7 @@
 #define     MVPP2_TXP_SCHED_ENQ_MASK		0xff
 #define     MVPP2_TXP_SCHED_DISQ_OFFSET		8
 #define MVPP2_TXP_SCHED_CMD_1_REG		0x8010
+#define MVPP2_TXP_SCHED_FIXED_PRIO_REG		0x8014
 #define MVPP2_TXP_SCHED_PERIOD_REG		0x8018
 #define MVPP2_TXP_SCHED_MTU_REG			0x801c
 #define     MVPP2_TXP_MTU_MAX			0x7FFFF
@@ -387,7 +389,7 @@
 #define     MVPP2_GMAC_IN_BAND_AUTONEG		BIT(2)
 #define     MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS	BIT(3)
 #define     MVPP2_GMAC_IN_BAND_RESTART_AN	BIT(4)
-#define     MVPP2_GMAC_CONFIG_MII_SPEED	BIT(5)
+#define     MVPP2_GMAC_CONFIG_MII_SPEED		BIT(5)
 #define     MVPP2_GMAC_CONFIG_GMII_SPEED	BIT(6)
 #define     MVPP2_GMAC_AN_SPEED_EN		BIT(7)
 #define     MVPP2_GMAC_FC_ADV_EN		BIT(9)
@@ -400,8 +402,8 @@
 #define     MVPP2_GMAC_STATUS0_GMII_SPEED	BIT(1)
 #define     MVPP2_GMAC_STATUS0_MII_SPEED	BIT(2)
 #define     MVPP2_GMAC_STATUS0_FULL_DUPLEX	BIT(3)
-#define     MVPP2_GMAC_STATUS0_RX_PAUSE		BIT(6)
-#define     MVPP2_GMAC_STATUS0_TX_PAUSE		BIT(7)
+#define     MVPP2_GMAC_STATUS0_RX_PAUSE		BIT(4)
+#define     MVPP2_GMAC_STATUS0_TX_PAUSE		BIT(5)
 #define     MVPP2_GMAC_STATUS0_AN_COMPLETE	BIT(11)
 #define MVPP2_GMAC_PORT_FIFO_CFG_1_REG		0x1c
 #define     MVPP2_GMAC_TX_FIFO_MIN_TH_OFFS	6
@@ -428,6 +430,8 @@
 #define MVPP22_XLG_CTRL0_REG			0x100
 #define     MVPP22_XLG_CTRL0_PORT_EN		BIT(0)
 #define     MVPP22_XLG_CTRL0_MAC_RESET_DIS	BIT(1)
+#define     MVPP22_XLG_CTRL0_FORCE_LINK_DOWN	BIT(2)
+#define     MVPP22_XLG_CTRL0_FORCE_LINK_PASS	BIT(3)
 #define     MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN	BIT(7)
 #define     MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN	BIT(8)
 #define     MVPP22_XLG_CTRL0_MIB_CNT_DIS	BIT(14)
@@ -479,6 +483,7 @@
 /* XPCS registers. PPv2.2 only */
 #define MVPP22_XPCS_BASE(port)			(0x7400 + (port) * 0x1000)
 #define MVPP22_XPCS_CFG0			0x0
+#define     MVPP22_XPCS_CFG0_RESET_DIS		BIT(0)
 #define     MVPP22_XPCS_CFG0_PCS_MODE(n)	((n) << 3)
 #define     MVPP22_XPCS_CFG0_ACTIVE_LANE(n)	((n) << 5)
 
@@ -547,8 +552,8 @@
 #define MVPP2_MAX_TSO_SEGS		300
 #define MVPP2_MAX_SKB_DESCS		(MVPP2_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
 
-/* Dfault number of RXQs in use */
-#define MVPP2_DEFAULT_RXQ		1
+/* Max number of RXQs per port */
+#define MVPP2_PORT_MAX_RXQ		32
 
 /* Max number of Rx descriptors */
 #define MVPP2_MAX_RXD_MAX		1024
@@ -613,6 +618,7 @@
 
 /* Port flags */
 #define MVPP2_F_LOOPBACK		BIT(0)
+#define MVPP2_F_DT_COMPAT		BIT(1)
 
 /* Marvell tag types */
 enum mvpp2_tag_type {
@@ -662,7 +668,7 @@ enum mvpp2_prs_l3_cast {
 #define MVPP21_ADDR_SPACE_SZ		0
 #define MVPP22_ADDR_SPACE_SZ		SZ_64K
 
-#define MVPP2_MAX_THREADS		8
+#define MVPP2_MAX_THREADS		9
 #define MVPP2_MAX_QVECS			MVPP2_MAX_THREADS
 
 /* GMAC MIB Counters register definitions */
@@ -734,6 +740,11 @@ struct mvpp2 {
 	int port_count;
 	struct mvpp2_port *port_list[MVPP2_MAX_PORTS];
 
+	/* Number of Tx threads used */
+	unsigned int nthreads;
+	/* Map of threads needing locking */
+	unsigned long lock_map;
+
 	/* Aggregated TXQs */
 	struct mvpp2_tx_queue *aggr_txqs;
 
@@ -788,13 +799,14 @@ struct mvpp2_queue_vector {
 	int nrxqs;
 	u32 pending_cause_rx;
 	struct mvpp2_port *port;
+	struct cpumask *mask;
 };
 
 struct mvpp2_port {
 	u8 id;
 
 	/* Index of the port from the "group of ports" complex point
-	 * of view
+	 * of view. This is specific to PPv2.2.
 	 */
 	int gop_id;
 
@@ -822,6 +834,12 @@ struct mvpp2_port {
 
 	/* Per-CPU port control */
 	struct mvpp2_port_pcpu __percpu *pcpu;
+
+	/* Protect the BM refills and the Tx paths when a thread is used on more
+	 * than a single CPU.
+	 */
+	spinlock_t bm_lock[MVPP2_MAX_THREADS];
+	spinlock_t tx_lock[MVPP2_MAX_THREADS];
 
 	/* Flags */
 	unsigned long flags;
@@ -969,7 +987,7 @@ struct mvpp2_txq_pcpu_buf {
 
 /* Per-CPU Tx queue control */
 struct mvpp2_txq_pcpu {
-	int cpu;
+	unsigned int thread;
 
 	/* Number of Tx DMA descriptors in the descriptor ring */
 	int size;
@@ -1094,14 +1112,6 @@ struct mvpp2_bm_pool {
 
 void mvpp2_write(struct mvpp2 *priv, u32 offset, u32 data);
 u32 mvpp2_read(struct mvpp2 *priv, u32 offset);
-
-u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset);
-
-void mvpp2_percpu_write(struct mvpp2 *priv, int cpu, u32 offset, u32 data);
-u32 mvpp2_percpu_read(struct mvpp2 *priv, int cpu, u32 offset);
-
-void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, int cpu, u32 offset,
-				u32 data);
 
 void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name);
 

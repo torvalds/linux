@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Read-Copy Update definitions shared among RCU implementations.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright IBM Corporation, 2011
  *
- * Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+ * Author: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #ifndef __LINUX_RCU_H
@@ -30,7 +17,7 @@
 #define RCU_TRACE(stmt)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-/* Offset to allow for unmatched rcu_irq_{enter,exit}(). */
+/* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
 #define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
 
 
@@ -176,8 +163,9 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 
 /*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
- * by call_rcu() and rcu callback execution, and are therefore not part of the
- * RCU API. Leaving in rcupdate.h because they are used by all RCU flavors.
+ * by call_rcu() and rcu callback execution, and are therefore not part
+ * of the RCU API. These are in rcupdate.h because they are used by all
+ * RCU implementations.
  */
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
@@ -223,6 +211,7 @@ void kfree(const void *);
  */
 static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 {
+	rcu_callback_t f;
 	unsigned long offset = (unsigned long)head->func;
 
 	rcu_lock_acquire(&rcu_callback_map);
@@ -233,7 +222,9 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 		return true;
 	} else {
 		RCU_TRACE(trace_rcu_invoke_callback(rn, head);)
-		head->func(head);
+		f = head->func;
+		WRITE_ONCE(head->func, (rcu_callback_t)0L);
+		f(head);
 		rcu_lock_release(&rcu_callback_map);
 		return false;
 	}
@@ -328,40 +319,35 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 	}
 }
 
-/* Returns first leaf rcu_node of the specified RCU flavor. */
-#define rcu_first_leaf_node(rsp) ((rsp)->level[rcu_num_lvls - 1])
+/* Returns a pointer to the first leaf rcu_node structure. */
+#define rcu_first_leaf_node() (rcu_state.level[rcu_num_lvls - 1])
 
 /* Is this rcu_node a leaf? */
 #define rcu_is_leaf_node(rnp) ((rnp)->level == rcu_num_lvls - 1)
 
 /* Is this rcu_node the last leaf? */
-#define rcu_is_last_leaf_node(rsp, rnp) ((rnp) == &(rsp)->node[rcu_num_nodes - 1])
+#define rcu_is_last_leaf_node(rnp) ((rnp) == &rcu_state.node[rcu_num_nodes - 1])
 
 /*
- * Do a full breadth-first scan of the rcu_node structures for the
- * specified rcu_state structure.
+ * Do a full breadth-first scan of the {s,}rcu_node structures for the
+ * specified state structure (for SRCU) or the only rcu_state structure
+ * (for RCU).
  */
-#define rcu_for_each_node_breadth_first(rsp, rnp) \
-	for ((rnp) = &(rsp)->node[0]; \
-	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
+#define srcu_for_each_node_breadth_first(sp, rnp) \
+	for ((rnp) = &(sp)->node[0]; \
+	     (rnp) < &(sp)->node[rcu_num_nodes]; (rnp)++)
+#define rcu_for_each_node_breadth_first(rnp) \
+	srcu_for_each_node_breadth_first(&rcu_state, rnp)
 
 /*
- * Do a breadth-first scan of the non-leaf rcu_node structures for the
- * specified rcu_state structure.  Note that if there is a singleton
- * rcu_node tree with but one rcu_node structure, this loop is a no-op.
+ * Scan the leaves of the rcu_node hierarchy for the rcu_state structure.
+ * Note that if there is a singleton rcu_node tree with but one rcu_node
+ * structure, this loop -will- visit the rcu_node structure.  It is still
+ * a leaf node, even if it is also the root node.
  */
-#define rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) \
-	for ((rnp) = &(rsp)->node[0]; !rcu_is_leaf_node(rsp, rnp); (rnp)++)
-
-/*
- * Scan the leaves of the rcu_node hierarchy for the specified rcu_state
- * structure.  Note that if there is a singleton rcu_node tree with but
- * one rcu_node structure, this loop -will- visit the rcu_node structure.
- * It is still a leaf node, even if it is also the root node.
- */
-#define rcu_for_each_leaf_node(rsp, rnp) \
-	for ((rnp) = rcu_first_leaf_node(rsp); \
-	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
+#define rcu_for_each_leaf_node(rnp) \
+	for ((rnp) = rcu_first_leaf_node(); \
+	     (rnp) < &rcu_state.node[rcu_num_nodes]; (rnp)++)
 
 /*
  * Iterate over all possible CPUs in a leaf RCU node.
@@ -435,6 +421,12 @@ do {									\
 
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
 
+#ifdef CONFIG_SRCU
+void srcu_init(void);
+#else /* #ifdef CONFIG_SRCU */
+static inline void srcu_init(void) { }
+#endif /* #else #ifdef CONFIG_SRCU */
+
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
 static inline bool rcu_gp_is_normal(void) { return true; }
@@ -457,8 +449,6 @@ void rcu_request_urgent_qs_task(struct task_struct *t);
 
 enum rcutorture_type {
 	RCU_FLAVOR,
-	RCU_BH_FLAVOR,
-	RCU_SCHED_FLAVOR,
 	RCU_TASKS_FLAVOR,
 	SRCU_FLAVOR,
 	INVALID_RCU_FLAVOR
@@ -515,37 +505,31 @@ void srcutorture_get_gp_data(enum rcutorture_type test_type,
 
 #ifdef CONFIG_TINY_RCU
 static inline unsigned long rcu_get_gp_seq(void) { return 0; }
-static inline unsigned long rcu_bh_get_gp_seq(void) { return 0; }
-static inline unsigned long rcu_sched_get_gp_seq(void) { return 0; }
 static inline unsigned long rcu_exp_batches_completed(void) { return 0; }
-static inline unsigned long rcu_exp_batches_completed_sched(void) { return 0; }
 static inline unsigned long
 srcu_batches_completed(struct srcu_struct *sp) { return 0; }
 static inline void rcu_force_quiescent_state(void) { }
-static inline void rcu_bh_force_quiescent_state(void) { }
-static inline void rcu_sched_force_quiescent_state(void) { }
 static inline void show_rcu_gp_kthreads(void) { }
 static inline int rcu_get_gp_kthreads_prio(void) { return 0; }
+static inline void rcu_fwd_progress_check(unsigned long j) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 unsigned long rcu_get_gp_seq(void);
-unsigned long rcu_bh_get_gp_seq(void);
-unsigned long rcu_sched_get_gp_seq(void);
 unsigned long rcu_exp_batches_completed(void);
-unsigned long rcu_exp_batches_completed_sched(void);
 unsigned long srcu_batches_completed(struct srcu_struct *sp);
 void show_rcu_gp_kthreads(void);
 int rcu_get_gp_kthreads_prio(void);
+void rcu_fwd_progress_check(unsigned long j);
 void rcu_force_quiescent_state(void);
-void rcu_bh_force_quiescent_state(void);
-void rcu_sched_force_quiescent_state(void);
 extern struct workqueue_struct *rcu_gp_wq;
 extern struct workqueue_struct *rcu_par_gp_wq;
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_NOCB_CPU
 bool rcu_is_nocb_cpu(int cpu);
+void rcu_bind_current_to_nocb(void);
 #else
 static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
+static inline void rcu_bind_current_to_nocb(void) { }
 #endif
 
 #endif /* __LINUX_RCU_H */

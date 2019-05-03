@@ -1130,9 +1130,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	for (slot = ctrl->slot; slot; slot = slot->next) {
 		if (slot->device == (hp_slot + ctrl->slot_device_offset))
 			continue;
-		if (!slot->hotplug_slot || !slot->hotplug_slot->info)
-			continue;
-		if (slot->hotplug_slot->info->adapter_status == 0)
+		if (get_presence_status(ctrl, slot) == 0)
 			continue;
 		/* If another adapter is running on the same segment but at a
 		 * lower speed/mode, we allow the new adapter to function at
@@ -1767,24 +1765,6 @@ void cpqhp_event_stop_thread(void)
 }
 
 
-static int update_slot_info(struct controller *ctrl, struct slot *slot)
-{
-	struct hotplug_slot_info *info;
-	int result;
-
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	info->power_status = get_slot_enabled(ctrl, slot);
-	info->attention_status = cpq_get_attention_status(ctrl, slot);
-	info->latch_status = cpq_get_latch_status(ctrl, slot);
-	info->adapter_status = get_presence_status(ctrl, slot);
-	result = pci_hp_change_slot_info(slot->hotplug_slot, info);
-	kfree(info);
-	return result;
-}
-
 static void interrupt_event_handler(struct controller *ctrl)
 {
 	int loop = 0;
@@ -1884,9 +1864,6 @@ static void interrupt_event_handler(struct controller *ctrl)
 				/***********POWER FAULT */
 				else if (ctrl->event_queue[loop].event_type == INT_POWER_FAULT) {
 					dbg("power fault\n");
-				} else {
-					/* refresh notification */
-					update_slot_info(ctrl, p_slot);
 				}
 
 				ctrl->event_queue[loop].event_type = 0;
@@ -2057,9 +2034,6 @@ int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func)
 	if (rc)
 		dbg("%s: rc = %d\n", __func__, rc);
 
-	if (p_slot)
-		update_slot_info(ctrl, p_slot);
-
 	return rc;
 }
 
@@ -2124,9 +2098,6 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 	} else if (!rc) {
 		rc = 1;
 	}
-
-	if (p_slot)
-		update_slot_info(ctrl, p_slot);
 
 	return rc;
 }

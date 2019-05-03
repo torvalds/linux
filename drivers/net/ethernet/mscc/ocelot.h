@@ -11,12 +11,13 @@
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/phy.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include "ocelot_ana.h"
 #include "ocelot_dev.h"
-#include "ocelot_hsio.h"
 #include "ocelot_qsys.h"
 #include "ocelot_rew.h"
 #include "ocelot_sys.h"
@@ -333,79 +334,6 @@ enum ocelot_reg {
 	SYS_CM_DATA_RD,
 	SYS_CM_OP,
 	SYS_CM_DATA,
-	HSIO_PLL5G_CFG0 = HSIO << TARGET_OFFSET,
-	HSIO_PLL5G_CFG1,
-	HSIO_PLL5G_CFG2,
-	HSIO_PLL5G_CFG3,
-	HSIO_PLL5G_CFG4,
-	HSIO_PLL5G_CFG5,
-	HSIO_PLL5G_CFG6,
-	HSIO_PLL5G_STATUS0,
-	HSIO_PLL5G_STATUS1,
-	HSIO_PLL5G_BIST_CFG0,
-	HSIO_PLL5G_BIST_CFG1,
-	HSIO_PLL5G_BIST_CFG2,
-	HSIO_PLL5G_BIST_STAT0,
-	HSIO_PLL5G_BIST_STAT1,
-	HSIO_RCOMP_CFG0,
-	HSIO_RCOMP_STATUS,
-	HSIO_SYNC_ETH_CFG,
-	HSIO_SYNC_ETH_PLL_CFG,
-	HSIO_S1G_DES_CFG,
-	HSIO_S1G_IB_CFG,
-	HSIO_S1G_OB_CFG,
-	HSIO_S1G_SER_CFG,
-	HSIO_S1G_COMMON_CFG,
-	HSIO_S1G_PLL_CFG,
-	HSIO_S1G_PLL_STATUS,
-	HSIO_S1G_DFT_CFG0,
-	HSIO_S1G_DFT_CFG1,
-	HSIO_S1G_DFT_CFG2,
-	HSIO_S1G_TP_CFG,
-	HSIO_S1G_RC_PLL_BIST_CFG,
-	HSIO_S1G_MISC_CFG,
-	HSIO_S1G_DFT_STATUS,
-	HSIO_S1G_MISC_STATUS,
-	HSIO_MCB_S1G_ADDR_CFG,
-	HSIO_S6G_DIG_CFG,
-	HSIO_S6G_DFT_CFG0,
-	HSIO_S6G_DFT_CFG1,
-	HSIO_S6G_DFT_CFG2,
-	HSIO_S6G_TP_CFG0,
-	HSIO_S6G_TP_CFG1,
-	HSIO_S6G_RC_PLL_BIST_CFG,
-	HSIO_S6G_MISC_CFG,
-	HSIO_S6G_OB_ANEG_CFG,
-	HSIO_S6G_DFT_STATUS,
-	HSIO_S6G_ERR_CNT,
-	HSIO_S6G_MISC_STATUS,
-	HSIO_S6G_DES_CFG,
-	HSIO_S6G_IB_CFG,
-	HSIO_S6G_IB_CFG1,
-	HSIO_S6G_IB_CFG2,
-	HSIO_S6G_IB_CFG3,
-	HSIO_S6G_IB_CFG4,
-	HSIO_S6G_IB_CFG5,
-	HSIO_S6G_OB_CFG,
-	HSIO_S6G_OB_CFG1,
-	HSIO_S6G_SER_CFG,
-	HSIO_S6G_COMMON_CFG,
-	HSIO_S6G_PLL_CFG,
-	HSIO_S6G_ACJTAG_CFG,
-	HSIO_S6G_GP_CFG,
-	HSIO_S6G_IB_STATUS0,
-	HSIO_S6G_IB_STATUS1,
-	HSIO_S6G_ACJTAG_STATUS,
-	HSIO_S6G_PLL_STATUS,
-	HSIO_S6G_REVID,
-	HSIO_MCB_S6G_ADDR_CFG,
-	HSIO_HW_CFG,
-	HSIO_HW_QSGMII_CFG,
-	HSIO_HW_QSGMII_STAT,
-	HSIO_CLK_CFG,
-	HSIO_TEMP_SENSOR_CTRL,
-	HSIO_TEMP_SENSOR_CFG,
-	HSIO_TEMP_SENSOR_STAT,
 };
 
 enum ocelot_regfield {
@@ -527,6 +455,9 @@ struct ocelot_port {
 	u8 vlan_aware;
 
 	u64 *stats;
+
+	phy_interface_t phy_mode;
+	struct phy *serdes;
 };
 
 u32 __ocelot_read_ix(struct ocelot *ocelot, u32 reg, u32 offset);
@@ -568,5 +499,7 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      struct phy_device *phy);
 
 extern struct notifier_block ocelot_netdevice_nb;
+extern struct notifier_block ocelot_switchdev_nb;
+extern struct notifier_block ocelot_switchdev_blocking_nb;
 
 #endif

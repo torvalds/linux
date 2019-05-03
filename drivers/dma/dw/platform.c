@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Platform driver for the Synopsys DesignWare DMA Controller
  *
@@ -6,10 +7,6 @@
  * Copyright (C) 2013 Intel Corporation
  *
  * Some parts of this driver are derived from the original dw_dmac.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -128,15 +125,6 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	pdata->nr_masters = nr_masters;
 	pdata->nr_channels = nr_channels;
 
-	if (of_property_read_bool(np, "is_private"))
-		pdata->is_private = true;
-
-	/*
-	 * All known devices, which use DT for configuration, support
-	 * memory-to-memory transfers. So enable it by default.
-	 */
-	pdata->is_memcpy = true;
-
 	if (!of_property_read_u32(np, "chan_allocation_order", &tmp))
 		pdata->chan_allocation_order = (unsigned char)tmp;
 
@@ -160,6 +148,12 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	} else {
 		for (tmp = 0; tmp < nr_channels; tmp++)
 			pdata->multi_block[tmp] = 1;
+	}
+
+	if (!of_property_read_u32(np, "snps,dma-protection-control", &tmp)) {
+		if (tmp > CHAN_PROTCTL_MASK)
+			return NULL;
+		pdata->protctl = tmp;
 	}
 
 	return pdata;
@@ -258,7 +252,7 @@ static void dw_shutdown(struct platform_device *pdev)
 	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
 
 	/*
-	 * We have to call dw_dma_disable() to stop any ongoing transfer. On
+	 * We have to call do_dw_dma_disable() to stop any ongoing transfer. On
 	 * some platforms we can't do that since DMA device is powered off.
 	 * Moreover we have no possibility to check if the platform is affected
 	 * or not. That's why we call pm_runtime_get_sync() / pm_runtime_put()
@@ -267,7 +261,7 @@ static void dw_shutdown(struct platform_device *pdev)
 	 * used by the driver.
 	 */
 	pm_runtime_get_sync(chip->dev);
-	dw_dma_disable(chip);
+	do_dw_dma_disable(chip);
 	pm_runtime_put_sync_suspend(chip->dev);
 
 	clk_disable_unprepare(chip->clk);
@@ -284,6 +278,8 @@ MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id dw_dma_acpi_id_table[] = {
 	{ "INTL9C60", 0 },
+	{ "80862286", 0 },
+	{ "808622C0", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
@@ -295,7 +291,7 @@ static int dw_suspend_late(struct device *dev)
 {
 	struct dw_dma_chip *chip = dev_get_drvdata(dev);
 
-	dw_dma_disable(chip);
+	do_dw_dma_disable(chip);
 	clk_disable_unprepare(chip->clk);
 
 	return 0;
@@ -310,7 +306,7 @@ static int dw_resume_early(struct device *dev)
 	if (ret)
 		return ret;
 
-	return dw_dma_enable(chip);
+	return do_dw_dma_enable(chip);
 }
 
 #endif /* CONFIG_PM_SLEEP */

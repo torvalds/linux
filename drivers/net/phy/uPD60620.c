@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for the Renesas PHY uPD60620.
  *
  * Copyright (C) 2015 Softing Industrial Automation GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -47,7 +42,7 @@ static int upd60620_read_status(struct phy_device *phydev)
 		return phy_state;
 
 	phydev->link = 0;
-	phydev->lp_advertising = 0;
+	linkmode_zero(phydev->lp_advertising);
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -70,8 +65,8 @@ static int upd60620_read_status(struct phy_device *phydev)
 			if (phy_state < 0)
 				return phy_state;
 
-			phydev->lp_advertising
-				= mii_lpa_to_ethtool_lpa_t(phy_state);
+			mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising,
+						  phy_state);
 
 			if (phydev->duplex == DUPLEX_FULL) {
 				if (phy_state & LPA_PAUSE_CAP)

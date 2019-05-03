@@ -499,7 +499,8 @@ static int zd1301_demod_probe(struct platform_device *pdev)
 		goto err_kfree;
 
 	/* Create I2C adapter */
-	strlcpy(dev->adapter.name, "ZyDAS ZD1301 demod", sizeof(dev->adapter.name));
+	strscpy(dev->adapter.name, "ZyDAS ZD1301 demod",
+		sizeof(dev->adapter.name));
 	dev->adapter.algo = &zd1301_demod_i2c_algorithm;
 	dev->adapter.algo_data = NULL;
 	dev->adapter.dev.parent = pdev->dev.parent;

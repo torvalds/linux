@@ -16,7 +16,7 @@
 
 #include <linux/export.h>
 #include <linux/profile.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/notifier.h>
 #include <linux/mm.h>
 #include <linux/cpumask.h>

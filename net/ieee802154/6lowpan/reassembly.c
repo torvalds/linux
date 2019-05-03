@@ -27,6 +27,7 @@
 #include <net/6lowpan.h>
 #include <net/ipv6_frag.h>
 #include <net/inet_frag.h>
+#include <net/ip.h>
 
 #include "6lowpan_i.h"
 
@@ -34,8 +35,8 @@ static const char lowpan_frags_cache_name[] = "lowpan-frags";
 
 static struct inet_frags lowpan_frags;
 
-static int lowpan_frag_reasm(struct lowpan_frag_queue *fq,
-			     struct sk_buff *prev, struct net_device *ldev);
+static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
+			     struct sk_buff *prev,  struct net_device *ldev);
 
 static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 {
@@ -88,9 +89,15 @@ fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 			     struct sk_buff *skb, u8 frag_type)
 {
-	struct sk_buff *prev, *next;
+	struct sk_buff *prev_tail;
 	struct net_device *ldev;
-	int end, offset;
+	int end, offset, err;
+
+	/* inet_frag_queue_* functions use skb->cb; see struct ipfrag_skb_cb
+	 * in inet_fragment.c
+	 */
+	BUILD_BUG_ON(sizeof(struct lowpan_802154_cb) > sizeof(struct inet_skb_parm));
+	BUILD_BUG_ON(sizeof(struct lowpan_802154_cb) > sizeof(struct inet6_skb_parm));
 
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto err;
@@ -117,38 +124,15 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 		}
 	}
 
-	/* Find out which fragments are in front and at the back of us
-	 * in the chain of fragments so far.  We must know where to put
-	 * this fragment, right?
-	 */
-	prev = fq->q.fragments_tail;
-	if (!prev ||
-	    lowpan_802154_cb(prev)->d_offset <
-	    lowpan_802154_cb(skb)->d_offset) {
-		next = NULL;
-		goto found;
-	}
-	prev = NULL;
-	for (next = fq->q.fragments; next != NULL; next = next->next) {
-		if (lowpan_802154_cb(next)->d_offset >=
-		    lowpan_802154_cb(skb)->d_offset)
-			break;	/* bingo! */
-		prev = next;
-	}
-
-found:
-	/* Insert this fragment in the chain of fragments. */
-	skb->next = next;
-	if (!next)
-		fq->q.fragments_tail = skb;
-	if (prev)
-		prev->next = skb;
-	else
-		fq->q.fragments = skb;
-
 	ldev = skb->dev;
 	if (ldev)
 		skb->dev = NULL;
+	barrier();
+
+	prev_tail = fq->q.fragments_tail;
+	err = inet_frag_queue_insert(&fq->q, skb, offset, end);
+	if (err)
+		goto err;
 
 	fq->q.stamp = skb->tstamp;
 	if (frag_type == LOWPAN_DISPATCH_FRAG1)
@@ -163,10 +147,11 @@ found:
 		unsigned long orefdst = skb->_skb_refdst;
 
 		skb->_skb_refdst = 0UL;
-		res = lowpan_frag_reasm(fq, prev, ldev);
+		res = lowpan_frag_reasm(fq, skb, prev_tail, ldev);
 		skb->_skb_refdst = orefdst;
 		return res;
 	}
+	skb_dst_drop(skb);
 
 	return -1;
 err:
@@ -175,97 +160,28 @@ err:
 }
 
 /*	Check if this packet is complete.
- *	Returns NULL on failure by any reason, and pointer
- *	to current nexthdr field in reassembled frame.
  *
  *	It is called with locked fq, and caller must check that
  *	queue is eligible for reassembly i.e. it is not COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
-static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *prev,
-			     struct net_device *ldev)
+static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
+			     struct sk_buff *prev_tail, struct net_device *ldev)
 {
-	struct sk_buff *fp, *head = fq->q.fragments;
-	int sum_truesize;
+	void *reasm_data;
 
 	inet_frag_kill(&fq->q);
 
-	/* Make the one we just received the head. */
-	if (prev) {
-		head = prev->next;
-		fp = skb_clone(head, GFP_ATOMIC);
-
-		if (!fp)
-			goto out_oom;
-
-		fp->next = head->next;
-		if (!fp->next)
-			fq->q.fragments_tail = fp;
-		prev->next = fp;
-
-		skb_morph(head, fq->q.fragments);
-		head->next = fq->q.fragments->next;
-
-		consume_skb(fq->q.fragments);
-		fq->q.fragments = head;
-	}
-
-	/* Head of list must not be cloned. */
-	if (skb_unclone(head, GFP_ATOMIC))
+	reasm_data = inet_frag_reasm_prepare(&fq->q, skb, prev_tail);
+	if (!reasm_data)
 		goto out_oom;
+	inet_frag_reasm_finish(&fq->q, skb, reasm_data);
 
-	/* If the first fragment is fragmented itself, we split
-	 * it to two chunks: the first with data and paged part
-	 * and the second, holding only fragments.
-	 */
-	if (skb_has_frag_list(head)) {
-		struct sk_buff *clone;
-		int i, plen = 0;
-
-		clone = alloc_skb(0, GFP_ATOMIC);
-		if (!clone)
-			goto out_oom;
-		clone->next = head->next;
-		head->next = clone;
-		skb_shinfo(clone)->frag_list = skb_shinfo(head)->frag_list;
-		skb_frag_list_init(head);
-		for (i = 0; i < skb_shinfo(head)->nr_frags; i++)
-			plen += skb_frag_size(&skb_shinfo(head)->frags[i]);
-		clone->len = head->data_len - plen;
-		clone->data_len = clone->len;
-		head->data_len -= clone->len;
-		head->len -= clone->len;
-		add_frag_mem_limit(fq->q.net, clone->truesize);
-	}
-
-	WARN_ON(head == NULL);
-
-	sum_truesize = head->truesize;
-	for (fp = head->next; fp;) {
-		bool headstolen;
-		int delta;
-		struct sk_buff *next = fp->next;
-
-		sum_truesize += fp->truesize;
-		if (skb_try_coalesce(head, fp, &headstolen, &delta)) {
-			kfree_skb_partial(fp, headstolen);
-		} else {
-			if (!skb_shinfo(head)->frag_list)
-				skb_shinfo(head)->frag_list = fp;
-			head->data_len += fp->len;
-			head->len += fp->len;
-			head->truesize += fp->truesize;
-		}
-		fp = next;
-	}
-	sub_frag_mem_limit(fq->q.net, sum_truesize);
-
-	head->next = NULL;
-	head->dev = ldev;
-	head->tstamp = fq->q.stamp;
-
-	fq->q.fragments = NULL;
+	skb->dev = ldev;
+	skb->tstamp = fq->q.stamp;
+	fq->q.rb_fragments = RB_ROOT;
 	fq->q.fragments_tail = NULL;
+	fq->q.last_run_head = NULL;
 
 	return 1;
 out_oom:
@@ -463,7 +379,6 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 
 		table[0].data = &ieee802154_lowpan->frags.high_thresh;
 		table[0].extra1 = &ieee802154_lowpan->frags.low_thresh;
-		table[0].extra2 = &init_net.ieee802154_lowpan.frags.high_thresh;
 		table[1].data = &ieee802154_lowpan->frags.low_thresh;
 		table[1].extra2 = &ieee802154_lowpan->frags.high_thresh;
 		table[2].data = &ieee802154_lowpan->frags.timeout;

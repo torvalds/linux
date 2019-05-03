@@ -57,12 +57,12 @@
 		reg = <0x4c>;
 	};
 
-	eeprom@56 {
+	eeprom@52 {
 		compatible = "atmel,24c512";
 		reg = <0x52>;
 	};
 
-	eeprom@57 {
+	eeprom@53 {
 		compatible = "atmel,24c512";
 		reg = <0x53>;
 	};
@@ -99,23 +99,25 @@
 };
 
 &qspi {
-	num-cs = <2>;
-	bus-num = <0>;
 	status = "okay";
 
-	qflash0: s25fs512s@0 {
+	qflash0: flash@0 {
 		compatible = "spansion,m25p80";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 		reg = <0>;
 	};
 
-	qflash1: s25fs512s@1 {
+	qflash1: flash@1 {
 		compatible = "spansion,m25p80";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 		reg = <1>;
 	};
 };

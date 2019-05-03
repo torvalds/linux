@@ -1,0 +1,224 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/linkage.h>
+#include <asm/asm.h>
+#include <asm/bitsperlong.h>
+#include <asm/kvm_vcpu_regs.h>
+
+#define WORD_SIZE (BITS_PER_LONG / 8)
+
+#define VCPU_RAX	__VCPU_REGS_RAX * WORD_SIZE
+#define VCPU_RCX	__VCPU_REGS_RCX * WORD_SIZE
+#define VCPU_RDX	__VCPU_REGS_RDX * WORD_SIZE
+#define VCPU_RBX	__VCPU_REGS_RBX * WORD_SIZE
+/* Intentionally omit RSP as it's context switched by hardware */
+#define VCPU_RBP	__VCPU_REGS_RBP * WORD_SIZE
+#define VCPU_RSI	__VCPU_REGS_RSI * WORD_SIZE
+#define VCPU_RDI	__VCPU_REGS_RDI * WORD_SIZE
+
+#ifdef CONFIG_X86_64
+#define VCPU_R8		__VCPU_REGS_R8  * WORD_SIZE
+#define VCPU_R9		__VCPU_REGS_R9  * WORD_SIZE
+#define VCPU_R10	__VCPU_REGS_R10 * WORD_SIZE
+#define VCPU_R11	__VCPU_REGS_R11 * WORD_SIZE
+#define VCPU_R12	__VCPU_REGS_R12 * WORD_SIZE
+#define VCPU_R13	__VCPU_REGS_R13 * WORD_SIZE
+#define VCPU_R14	__VCPU_REGS_R14 * WORD_SIZE
+#define VCPU_R15	__VCPU_REGS_R15 * WORD_SIZE
+#endif
+
+	.text
+
+/**
+ * vmx_vmenter - VM-Enter the current loaded VMCS
+ *
+ * %RFLAGS.ZF:	!VMCS.LAUNCHED, i.e. controls VMLAUNCH vs. VMRESUME
+ *
+ * Returns:
+ *	%RFLAGS.CF is set on VM-Fail Invalid
+ *	%RFLAGS.ZF is set on VM-Fail Valid
+ *	%RFLAGS.{CF,ZF} are cleared on VM-Success, i.e. VM-Exit
+ *
+ * Note that VMRESUME/VMLAUNCH fall-through and return directly if
+ * they VM-Fail, whereas a successful VM-Enter + VM-Exit will jump
+ * to vmx_vmexit.
+ */
+ENTRY(vmx_vmenter)
+	/* EFLAGS.ZF is set if VMCS.LAUNCHED == 0 */
+	je 2f
+
+1:	vmresume
+	ret
+
+2:	vmlaunch
+	ret
+
+3:	cmpb $0, kvm_rebooting
+	jne 4f
+	call kvm_spurious_fault
+4:	ret
+
+	.pushsection .fixup, "ax"
+5:	jmp 3b
+	.popsection
+
+	_ASM_EXTABLE(1b, 5b)
+	_ASM_EXTABLE(2b, 5b)
+
+ENDPROC(vmx_vmenter)
+
+/**
+ * vmx_vmexit - Handle a VMX VM-Exit
+ *
+ * Returns:
+ *	%RFLAGS.{CF,ZF} are cleared on VM-Success, i.e. VM-Exit
+ *
+ * This is vmx_vmenter's partner in crime.  On a VM-Exit, control will jump
+ * here after hardware loads the host's state, i.e. this is the destination
+ * referred to by VMCS.HOST_RIP.
+ */
+ENTRY(vmx_vmexit)
+	ret
+ENDPROC(vmx_vmexit)
+
+/**
+ * __vmx_vcpu_run - Run a vCPU via a transition to VMX guest mode
+ * @vmx:	struct vcpu_vmx *
+ * @regs:	unsigned long * (to guest registers)
+ * @launched:	%true if the VMCS has been launched
+ *
+ * Returns:
+ *	0 on VM-Exit, 1 on VM-Fail
+ */
+ENTRY(__vmx_vcpu_run)
+	push %_ASM_BP
+	mov  %_ASM_SP, %_ASM_BP
+#ifdef CONFIG_X86_64
+	push %r15
+	push %r14
+	push %r13
+	push %r12
+#else
+	push %edi
+	push %esi
+#endif
+	push %_ASM_BX
+
+	/*
+	 * Save @regs, _ASM_ARG2 may be modified by vmx_update_host_rsp() and
+	 * @regs is needed after VM-Exit to save the guest's register values.
+	 */
+	push %_ASM_ARG2
+
+	/* Copy @launched to BL, _ASM_ARG3 is volatile. */
+	mov %_ASM_ARG3B, %bl
+
+	/* Adjust RSP to account for the CALL to vmx_vmenter(). */
+	lea -WORD_SIZE(%_ASM_SP), %_ASM_ARG2
+	call vmx_update_host_rsp
+
+	/* Load @regs to RAX. */
+	mov (%_ASM_SP), %_ASM_AX
+
+	/* Check if vmlaunch or vmresume is needed */
+	cmpb $0, %bl
+
+	/* Load guest registers.  Don't clobber flags. */
+	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
+	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
+	mov VCPU_RDX(%_ASM_AX), %_ASM_DX
+	mov VCPU_RSI(%_ASM_AX), %_ASM_SI
+	mov VCPU_RDI(%_ASM_AX), %_ASM_DI
+	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
+#ifdef CONFIG_X86_64
+	mov VCPU_R8 (%_ASM_AX),  %r8
+	mov VCPU_R9 (%_ASM_AX),  %r9
+	mov VCPU_R10(%_ASM_AX), %r10
+	mov VCPU_R11(%_ASM_AX), %r11
+	mov VCPU_R12(%_ASM_AX), %r12
+	mov VCPU_R13(%_ASM_AX), %r13
+	mov VCPU_R14(%_ASM_AX), %r14
+	mov VCPU_R15(%_ASM_AX), %r15
+#endif
+	/* Load guest RAX.  This kills the vmx_vcpu pointer! */
+	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
+
+	/* Enter guest mode */
+	call vmx_vmenter
+
+	/* Jump on VM-Fail. */
+	jbe 2f
+
+	/* Temporarily save guest's RAX. */
+	push %_ASM_AX
+
+	/* Reload @regs to RAX. */
+	mov WORD_SIZE(%_ASM_SP), %_ASM_AX
+
+	/* Save all guest registers, including RAX from the stack */
+	__ASM_SIZE(pop) VCPU_RAX(%_ASM_AX)
+	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
+	mov %_ASM_CX,   VCPU_RCX(%_ASM_AX)
+	mov %_ASM_DX,   VCPU_RDX(%_ASM_AX)
+	mov %_ASM_SI,   VCPU_RSI(%_ASM_AX)
+	mov %_ASM_DI,   VCPU_RDI(%_ASM_AX)
+	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
+#ifdef CONFIG_X86_64
+	mov %r8,  VCPU_R8 (%_ASM_AX)
+	mov %r9,  VCPU_R9 (%_ASM_AX)
+	mov %r10, VCPU_R10(%_ASM_AX)
+	mov %r11, VCPU_R11(%_ASM_AX)
+	mov %r12, VCPU_R12(%_ASM_AX)
+	mov %r13, VCPU_R13(%_ASM_AX)
+	mov %r14, VCPU_R14(%_ASM_AX)
+	mov %r15, VCPU_R15(%_ASM_AX)
+#endif
+
+	/* Clear RAX to indicate VM-Exit (as opposed to VM-Fail). */
+	xor %eax, %eax
+
+	/*
+	 * Clear all general purpose registers except RSP and RAX to prevent
+	 * speculative use of the guest's values, even those that are reloaded
+	 * via the stack.  In theory, an L1 cache miss when restoring registers
+	 * could lead to speculative execution with the guest's values.
+	 * Zeroing XORs are dirt cheap, i.e. the extra paranoia is essentially
+	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
+	 * VM-Exit and RAX is explicitly loaded with 0 or 1 to return VM-Fail.
+	 */
+1:	xor %ebx, %ebx
+	xor %ecx, %ecx
+	xor %edx, %edx
+	xor %esi, %esi
+	xor %edi, %edi
+	xor %ebp, %ebp
+#ifdef CONFIG_X86_64
+	xor %r8d,  %r8d
+	xor %r9d,  %r9d
+	xor %r10d, %r10d
+	xor %r11d, %r11d
+	xor %r12d, %r12d
+	xor %r13d, %r13d
+	xor %r14d, %r14d
+	xor %r15d, %r15d
+#endif
+
+	/* "POP" @regs. */
+	add $WORD_SIZE, %_ASM_SP
+	pop %_ASM_BX
+
+#ifdef CONFIG_X86_64
+	pop %r12
+	pop %r13
+	pop %r14
+	pop %r15
+#else
+	pop %esi
+	pop %edi
+#endif
+	pop %_ASM_BP
+	ret
+
+	/* VM-Fail.  Out-of-line to avoid a taken Jcc after VM-Exit. */
+2:	mov $1, %eax
+	jmp 1b
+ENDPROC(__vmx_vcpu_run)

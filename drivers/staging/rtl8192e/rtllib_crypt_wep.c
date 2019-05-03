@@ -27,8 +27,8 @@ struct prism2_wep_data {
 	u8 key[WEP_KEY_LEN + 1];
 	u8 key_len;
 	u8 key_idx;
-	struct crypto_skcipher *tx_tfm;
-	struct crypto_skcipher *rx_tfm;
+	struct crypto_sync_skcipher *tx_tfm;
+	struct crypto_sync_skcipher *rx_tfm;
 };
 
 
@@ -41,13 +41,13 @@ static void *prism2_wep_init(int keyidx)
 		goto fail;
 	priv->key_idx = keyidx;
 
-	priv->tx_tfm = crypto_alloc_skcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	priv->tx_tfm = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->tx_tfm)) {
 		pr_debug("rtllib_crypt_wep: could not allocate crypto API arc4\n");
 		priv->tx_tfm = NULL;
 		goto fail;
 	}
-	priv->rx_tfm = crypto_alloc_skcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	priv->rx_tfm = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->rx_tfm)) {
 		pr_debug("rtllib_crypt_wep: could not allocate crypto API arc4\n");
 		priv->rx_tfm = NULL;
@@ -61,8 +61,8 @@ static void *prism2_wep_init(int keyidx)
 
 fail:
 	if (priv) {
-		crypto_free_skcipher(priv->tx_tfm);
-		crypto_free_skcipher(priv->rx_tfm);
+		crypto_free_sync_skcipher(priv->tx_tfm);
+		crypto_free_sync_skcipher(priv->rx_tfm);
 		kfree(priv);
 	}
 	return NULL;
@@ -74,8 +74,8 @@ static void prism2_wep_deinit(void *priv)
 	struct prism2_wep_data *_priv = priv;
 
 	if (_priv) {
-		crypto_free_skcipher(_priv->tx_tfm);
-		crypto_free_skcipher(_priv->rx_tfm);
+		crypto_free_sync_skcipher(_priv->tx_tfm);
+		crypto_free_sync_skcipher(_priv->rx_tfm);
 	}
 	kfree(priv);
 }
@@ -135,7 +135,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	memcpy(key + 3, wep->key, wep->key_len);
 
 	if (!tcb_desc->bHwSec) {
-		SKCIPHER_REQUEST_ON_STACK(req, wep->tx_tfm);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(req, wep->tx_tfm);
 
 		/* Append little-endian CRC32 and encrypt it to produce ICV */
 		crc = ~crc32_le(~0, pos, len);
@@ -146,8 +146,8 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		icv[3] = crc >> 24;
 
 		sg_init_one(&sg, pos, len+4);
-		crypto_skcipher_setkey(wep->tx_tfm, key, klen);
-		skcipher_request_set_tfm(req, wep->tx_tfm);
+		crypto_sync_skcipher_setkey(wep->tx_tfm, key, klen);
+		skcipher_request_set_sync_tfm(req, wep->tx_tfm);
 		skcipher_request_set_callback(req, 0, NULL, NULL);
 		skcipher_request_set_crypt(req, &sg, &sg, len + 4, NULL);
 		err = crypto_skcipher_encrypt(req);
@@ -199,11 +199,11 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	plen = skb->len - hdr_len - 8;
 
 	if (!tcb_desc->bHwSec) {
-		SKCIPHER_REQUEST_ON_STACK(req, wep->rx_tfm);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(req, wep->rx_tfm);
 
 		sg_init_one(&sg, pos, plen+4);
-		crypto_skcipher_setkey(wep->rx_tfm, key, klen);
-		skcipher_request_set_tfm(req, wep->rx_tfm);
+		crypto_sync_skcipher_setkey(wep->rx_tfm, key, klen);
+		skcipher_request_set_sync_tfm(req, wep->rx_tfm);
 		skcipher_request_set_callback(req, 0, NULL, NULL);
 		skcipher_request_set_crypt(req, &sg, &sg, plen + 4, NULL);
 		err = crypto_skcipher_decrypt(req);

@@ -543,7 +543,7 @@ u32 get_stash_id(u32 stash_dest_hint, u32 vcpu)
 		return ~(u32)0;
 	}
 
-	for_each_node_by_type(node, "cpu") {
+	for_each_of_cpu_node(node) {
 		prop = of_get_property(node, "reg", &len);
 		for (i = 0; i < len / sizeof(u32); i++) {
 			if (be32_to_cpup(&prop[i]) == vcpu) {

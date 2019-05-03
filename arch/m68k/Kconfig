@@ -2,6 +2,7 @@
 config M68K
 	bool
 	default y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if HAS_DMA
 	select ARCH_MIGHT_HAVE_PC_PARPORT if ISA
 	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
@@ -26,10 +27,7 @@ config M68K
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
-	select DMA_NONCOHERENT_OPS if HAS_DMA
-	select HAVE_MEMBLOCK
 	select ARCH_DISCARD_MEMBLOCK
-	select NO_BOOTMEM
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -125,11 +123,11 @@ config BOOTINFO_PROC
 
 menu "Platform setup"
 
-source arch/m68k/Kconfig.cpu
+source "arch/m68k/Kconfig.cpu"
 
-source arch/m68k/Kconfig.machine
+source "arch/m68k/Kconfig.machine"
 
-source arch/m68k/Kconfig.bus
+source "arch/m68k/Kconfig.bus"
 
 endmenu
 

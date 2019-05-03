@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2016-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net_offload.c
@@ -62,9 +32,6 @@ nfp_map_ptr_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 {
 	struct nfp_bpf_neutral_map *record;
 	int err;
-
-	/* Map record paths are entered via ndo, update side is protected. */
-	ASSERT_RTNL();
 
 	/* Reuse path - other offloaded program is already tracking this map. */
 	record = rhashtable_lookup_fast(&bpf->maps_neutral, &map->id,
@@ -113,8 +80,6 @@ nfp_map_ptrs_forget(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog)
 {
 	bool freed = false;
 	int i;
-
-	ASSERT_RTNL();
 
 	for (i = 0; i < nfp_prog->map_records_cnt; i++) {
 		if (--nfp_prog->map_records[i]->count) {
@@ -198,8 +163,9 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 
 		list_add_tail(&meta->l, &nfp_prog->insns);
 	}
+	nfp_prog->n_insns = cnt;
 
-	nfp_bpf_jit_prepare(nfp_prog, cnt);
+	nfp_bpf_jit_prepare(nfp_prog);
 
 	return 0;
 }
@@ -208,6 +174,8 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta, *tmp;
 
+	kfree(nfp_prog->subprog);
+
 	list_for_each_entry_safe(meta, tmp, &nfp_prog->insns, l) {
 		list_del(&meta->l);
 		kfree(meta);
@@ -215,11 +183,8 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 	kfree(nfp_prog);
 }
 
-static int
-nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-		      struct netdev_bpf *bpf)
+static int nfp_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct bpf_prog *prog = bpf->verifier.prog;
 	struct nfp_prog *nfp_prog;
 	int ret;
 
@@ -230,14 +195,13 @@ nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
 
 	INIT_LIST_HEAD(&nfp_prog->insns);
 	nfp_prog->type = prog->type;
-	nfp_prog->bpf = app->priv;
+	nfp_prog->bpf = bpf_offload_dev_priv(prog->aux->offload->offdev);
 
 	ret = nfp_prog_prepare(nfp_prog, prog->insnsi, prog->len);
 	if (ret)
 		goto err_free;
 
 	nfp_prog->verifier_meta = nfp_prog_first_meta(nfp_prog);
-	bpf->verifier.ops = &nfp_bpf_analyzer_ops;
 
 	return 0;
 
@@ -247,20 +211,16 @@ err_free:
 	return ret;
 }
 
-static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
+static int nfp_bpf_translate(struct bpf_prog *prog)
 {
+	struct nfp_net *nn = netdev_priv(prog->aux->offload->netdev);
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
-	unsigned int stack_size;
 	unsigned int max_instr;
 	int err;
 
-	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
-	if (prog->aux->stack_depth > stack_size) {
-		nn_info(nn, "stack too large: program %dB > FW stack %dB\n",
-			prog->aux->stack_depth, stack_size);
-		return -EOPNOTSUPP;
-	}
-	nfp_prog->stack_depth = round_up(prog->aux->stack_depth, 4);
+	/* We depend on dead code elimination succeeding */
+	if (prog->aux->offload->opt_failed)
+		return -EINVAL;
 
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
@@ -279,15 +239,13 @@ static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
 	return nfp_map_ptrs_record(nfp_prog->bpf, nfp_prog, prog);
 }
 
-static int nfp_bpf_destroy(struct nfp_net *nn, struct bpf_prog *prog)
+static void nfp_bpf_destroy(struct bpf_prog *prog)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 
 	kvfree(nfp_prog->prog);
 	nfp_map_ptrs_forget(nfp_prog->bpf, nfp_prog);
 	nfp_prog_free(nfp_prog);
-
-	return 0;
 }
 
 /* Atomic engine requires values to be in big endian, we need to byte swap
@@ -299,8 +257,23 @@ static void nfp_map_bpf_byte_swap(struct nfp_bpf_map *nfp_map, void *value)
 	unsigned int i;
 
 	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
-		if (nfp_map->use_map[i] == NFP_MAP_USE_ATOMIC_CNT)
+		if (nfp_map->use_map[i].type == NFP_MAP_USE_ATOMIC_CNT)
 			word[i] = (__force u32)cpu_to_be32(word[i]);
+}
+
+/* Mark value as unsafely initialized in case it becomes atomic later
+ * and we didn't byte swap something non-byte swap neutral.
+ */
+static void
+nfp_map_bpf_byte_swap_record(struct nfp_bpf_map *nfp_map, void *value)
+{
+	u32 *word = value;
+	unsigned int i;
+
+	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
+		if (nfp_map->use_map[i].type == NFP_MAP_UNUSED &&
+		    word[i] != (__force u32)cpu_to_be32(word[i]))
+			nfp_map->use_map[i].non_zero_update = 1;
 }
 
 static int
@@ -322,6 +295,7 @@ nfp_bpf_map_update_entry(struct bpf_offloaded_map *offmap,
 			 void *key, void *value, u64 flags)
 {
 	nfp_map_bpf_byte_swap(offmap->dev_priv, value);
+	nfp_map_bpf_byte_swap_record(offmap->dev_priv, value);
 	return nfp_bpf_ctrl_update_entry(offmap, key, value, flags);
 }
 
@@ -443,12 +417,6 @@ nfp_bpf_map_free(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn, struct netdev_bpf *bpf)
 {
 	switch (bpf->command) {
-	case BPF_OFFLOAD_VERIFIER_PREP:
-		return nfp_bpf_verifier_prep(app, nn, bpf);
-	case BPF_OFFLOAD_TRANSLATE:
-		return nfp_bpf_translate(nn, bpf->offload.prog);
-	case BPF_OFFLOAD_DESTROY:
-		return nfp_bpf_destroy(nn, bpf->offload.prog);
 	case BPF_OFFLOAD_MAP_ALLOC:
 		return nfp_bpf_map_alloc(app->priv, bpf->offmap);
 	case BPF_OFFLOAD_MAP_FREE:
@@ -510,14 +478,27 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 		 struct netlink_ext_ack *extack)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
-	unsigned int max_mtu;
+	unsigned int fw_mtu, pkt_off, max_stack, max_prog_len;
 	dma_addr_t dma_addr;
 	void *img;
 	int err;
 
-	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
-	if (max_mtu < nn->dp.netdev->mtu) {
-		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with MTU larger than HW packet split boundary");
+	fw_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
+	pkt_off = min(prog->aux->max_pkt_offset, nn->dp.netdev->mtu);
+	if (fw_mtu < pkt_off) {
+		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with potential packet access beyond HW packet split boundary");
+		return -EOPNOTSUPP;
+	}
+
+	max_stack = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
+	if (nfp_prog->stack_size > max_stack) {
+		NL_SET_ERR_MSG_MOD(extack, "stack too large");
+		return -EOPNOTSUPP;
+	}
+
+	max_prog_len = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
+	if (nfp_prog->prog_len > max_prog_len) {
+		NL_SET_ERR_MSG_MOD(extack, "program too long");
 		return -EOPNOTSUPP;
 	}
 
@@ -609,3 +590,13 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 
 	return 0;
 }
+
+const struct bpf_prog_offload_ops nfp_bpf_dev_ops = {
+	.insn_hook	= nfp_verify_insn,
+	.finalize	= nfp_bpf_finalize,
+	.replace_insn	= nfp_bpf_opt_replace_insn,
+	.remove_insns	= nfp_bpf_opt_remove_insns,
+	.prepare	= nfp_bpf_verifier_prep,
+	.translate	= nfp_bpf_translate,
+	.destroy	= nfp_bpf_destroy,
+};

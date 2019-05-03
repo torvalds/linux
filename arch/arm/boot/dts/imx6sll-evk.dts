@@ -20,6 +20,7 @@
 	};
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
 	};
 
@@ -29,6 +30,18 @@
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		status = "okay";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_led>;
+
+		user {
+			label = "debug";
+			gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
 	};
 
 	reg_usb_otg1_vbus: regulator-otg1-vbus {
@@ -296,9 +309,15 @@
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	cd-gpios = <&gpio3 22 GPIO_ACTIVE_LOW>;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	vmmc-supply = <&reg_sd3_vmmc>;
 	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog1>;
+	fsl,ext-reset-output;
 };
 
 &iomuxc {
@@ -455,9 +474,21 @@
 		>;
 	};
 
+	pinctrl_led: ledgrp {
+		fsl,pins = <
+			MX6SLL_PAD_EPDC_VCOM1__GPIO2_IO04	0x17059
+		>;
+	};
+
 	pinctrl_pwm1: pmw1grp {
 		fsl,pins = <
 			MX6SLL_PAD_PWM1__PWM1_OUT   0x110b0
+		>;
+	};
+
+	pinctrl_wdog1: wdog1grp	{
+		fsl,pins = <
+			MX6SLL_PAD_WDOG_B__WDOG1_B   0x170b0
 		>;
 	};
 };

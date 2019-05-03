@@ -19,7 +19,6 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -32,7 +31,6 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -258,11 +256,16 @@ struct sunxi_mmc_cfg {
 	/* Does DATA0 needs to be masked while the clock is updated */
 	bool mask_data0;
 
-	/* hardware only supports new timing mode */
+	/*
+	 * hardware only supports new timing mode, either due to lack of
+	 * a mode switch in the clock controller, or the mmc controller
+	 * is permanently configured in the new timing mode, without the
+	 * NTSR mode switch.
+	 */
 	bool needs_new_timings;
 
-	/* hardware can switch between old and new timing modes */
-	bool has_timings_switch;
+	/* clock hardware can switch between old and new timing modes */
+	bool ccu_has_timings_switch;
 };
 
 struct sunxi_mmc_host {
@@ -787,7 +790,7 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 		clock <<= 1;
 	}
 
-	if (host->use_new_timings && host->cfg->has_timings_switch) {
+	if (host->use_new_timings && host->cfg->ccu_has_timings_switch) {
 		ret = sunxi_ccu_set_mmc_timing_mode(host->clk_mmc, true);
 		if (ret) {
 			dev_err(mmc_dev(mmc),
@@ -822,6 +825,12 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	/* update card clock rate to account for internal divider */
 	rate /= div;
 
+	/*
+	 * Configure the controller to use the new timing mode if needed.
+	 * On controllers that only support the new timing mode, such as
+	 * the eMMC controller on the A64, this register does not exist,
+	 * and any writes to it are ignored.
+	 */
 	if (host->use_new_timings) {
 		/* Don't touch the delay bits */
 		rval = mmc_readl(host, REG_SD_NTSR);
@@ -1145,7 +1154,7 @@ static const struct sunxi_mmc_cfg sun8i_a83t_emmc_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = sunxi_mmc_clk_delays,
 	.can_calibrate = false,
-	.has_timings_switch = true,
+	.ccu_has_timings_switch = true,
 };
 
 static const struct sunxi_mmc_cfg sun9i_a80_cfg = {
@@ -1166,6 +1175,7 @@ static const struct sunxi_mmc_cfg sun50i_a64_emmc_cfg = {
 	.idma_des_size_bits = 13,
 	.clk_delays = NULL,
 	.can_calibrate = true,
+	.needs_new_timings = true,
 };
 
 static const struct of_device_id sunxi_mmc_of_match[] = {
@@ -1351,7 +1361,7 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		goto error_free_host;
 	}
 
-	if (host->cfg->has_timings_switch) {
+	if (host->cfg->ccu_has_timings_switch) {
 		/*
 		 * Supports both old and new timing modes.
 		 * Try setting the clk to new timing mode.
@@ -1387,12 +1397,36 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 	mmc->caps	       |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 				  MMC_CAP_ERASE | MMC_CAP_SDIO_IRQ;
 
-	if (host->cfg->clk_delays || host->use_new_timings)
+	/*
+	 * Some H5 devices do not have signal traces precise enough to
+	 * use HS DDR mode for their eMMC chips.
+	 *
+	 * We still enable HS DDR modes for all the other controller
+	 * variants that support them.
+	 */
+	if ((host->cfg->clk_delays || host->use_new_timings) &&
+	    !of_device_is_compatible(pdev->dev.of_node,
+				     "allwinner,sun50i-h5-emmc"))
 		mmc->caps      |= MMC_CAP_1_8V_DDR | MMC_CAP_3_3V_DDR;
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
 		goto error_free_dma;
+
+	/*
+	 * If we don't support delay chains in the SoC, we can't use any
+	 * of the higher speed modes. Mask them out in case the device
+	 * tree specifies the properties for them, which gets added to
+	 * the caps by mmc_of_parse() above.
+	 */
+	if (!(host->cfg->clk_delays || host->use_new_timings)) {
+		mmc->caps &= ~(MMC_CAP_3_3V_DDR | MMC_CAP_1_8V_DDR |
+			       MMC_CAP_1_2V_DDR | MMC_CAP_UHS);
+		mmc->caps2 &= ~MMC_CAP2_HS200;
+	}
+
+	/* TODO: This driver doesn't support HS400 mode yet */
+	mmc->caps2 &= ~MMC_CAP2_HS400;
 
 	ret = sunxi_mmc_init_host(host);
 	if (ret)

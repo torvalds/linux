@@ -378,19 +378,7 @@ static int cim_qcfg_show(struct seq_file *seq, void *v)
 			   QUEREMFLITS_G(p[2]) * 16);
 	return 0;
 }
-
-static int cim_qcfg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, cim_qcfg_show, inode->i_private);
-}
-
-static const struct file_operations cim_qcfg_fops = {
-	.owner   = THIS_MODULE,
-	.open    = cim_qcfg_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(cim_qcfg);
 
 static int cimq_show(struct seq_file *seq, void *v, int idx)
 {
@@ -860,8 +848,7 @@ static int tx_rate_show(struct seq_file *seq, void *v)
 	}
 	return 0;
 }
-
-DEFINE_SIMPLE_DEBUGFS_FILE(tx_rate);
+DEFINE_SHOW_ATTRIBUTE(tx_rate);
 
 static int cctrl_tbl_show(struct seq_file *seq, void *v)
 {
@@ -893,8 +880,7 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
 	kfree(incr);
 	return 0;
 }
-
-DEFINE_SIMPLE_DEBUGFS_FILE(cctrl_tbl);
+DEFINE_SHOW_ATTRIBUTE(cctrl_tbl);
 
 /* Format a value in a unit that differs from the value's native unit by the
  * given factor.
@@ -955,8 +941,7 @@ static int clk_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-DEFINE_SIMPLE_DEBUGFS_FILE(clk);
+DEFINE_SHOW_ATTRIBUTE(clk);
 
 /* Firmware Device Log dump. */
 static const char * const devlog_level_strings[] = {
@@ -1990,22 +1975,10 @@ static int sensors_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-DEFINE_SIMPLE_DEBUGFS_FILE(sensors);
+DEFINE_SHOW_ATTRIBUTE(sensors);
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int clip_tbl_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, clip_tbl_show, inode->i_private);
-}
-
-static const struct file_operations clip_tbl_debugfs_fops = {
-	.owner   = THIS_MODULE,
-	.open    = clip_tbl_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release
-};
+DEFINE_SHOW_ATTRIBUTE(clip_tbl);
 #endif
 
 /*RSS Table.
@@ -2208,8 +2181,7 @@ static int rss_config_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-DEFINE_SIMPLE_DEBUGFS_FILE(rss_config);
+DEFINE_SHOW_ATTRIBUTE(rss_config);
 
 /* RSS Secret Key.
  */
@@ -2628,19 +2600,7 @@ static int resources_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-static int resources_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, resources_show, inode->i_private);
-}
-
-static const struct file_operations resources_debugfs_fops = {
-	.owner   = THIS_MODULE,
-	.open    = resources_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SHOW_ATTRIBUTE(resources);
 
 /**
  * ethqset2pinfo - return port_info of an Ethernet Queue Set
@@ -2660,7 +2620,7 @@ static inline struct port_info *ethqset2pinfo(struct adapter *adap, int qset)
 	}
 
 	/* should never happen! */
-	BUG_ON(1);
+	BUG();
 	return NULL;
 }
 
@@ -2784,6 +2744,7 @@ do { \
 		RL("LROmerged:", stats.lro_merged);
 		RL("LROpackets:", stats.lro_pkts);
 		RL("RxDrops:", stats.rx_drops);
+		RL("RxBadPkts:", stats.bad_rx_pkts);
 		TL("TSO:", tso);
 		TL("TxCSO:", tx_cso);
 		TL("VLANins:", vlan_ins);
@@ -3182,7 +3143,7 @@ static int tid_info_show(struct seq_file *seq, void *v)
 			seq_printf(seq, ", in use: %u/%u\n",
 				   atomic_read(&t->tids_in_use),
 				   atomic_read(&t->hash_tids_in_use));
-		} else if (adap->flags & FW_OFLD_CONN) {
+		} else if (adap->flags & CXGB4_FW_OFLD_CONN) {
 			seq_printf(seq, "TID range: %u..%u/%u..%u",
 				   t->aftid_base,
 				   t->aftid_end,
@@ -3232,8 +3193,7 @@ static int tid_info_show(struct seq_file *seq, void *v)
 			   t4_read_reg(adap, LE_DB_ACT_CNT_IPV6_A));
 	return 0;
 }
-
-DEFINE_SIMPLE_DEBUGFS_FILE(tid_info);
+DEFINE_SHOW_ATTRIBUTE(tid_info);
 
 static void add_debugfs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
@@ -3363,21 +3323,9 @@ static int meminfo_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(meminfo);
 
-static int meminfo_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, meminfo_show, inode->i_private);
-}
-
-static const struct file_operations meminfo_fops = {
-	.owner   = THIS_MODULE,
-	.open    = meminfo_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
-
-static int chcr_show(struct seq_file *seq, void *v)
+static int chcr_stats_show(struct seq_file *seq, void *v)
 {
 	struct adapter *adap = seq->private;
 
@@ -3398,20 +3346,7 @@ static int chcr_show(struct seq_file *seq, void *v)
 		   atomic_read(&adap->chcr_stats.ipsec_cnt));
 	return 0;
 }
-
-
-static int chcr_stats_open(struct inode *inode, struct file *file)
-{
-        return single_open(file, chcr_show, inode->i_private);
-}
-
-static const struct file_operations chcr_stats_debugfs_fops = {
-        .owner   = THIS_MODULE,
-        .open    = chcr_stats_open,
-        .read    = seq_read,
-        .llseek  = seq_lseek,
-        .release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(chcr_stats);
 
 #define PRINT_ADAP_STATS(string, value) \
 	seq_printf(seq, "%-25s %-20llu\n", (string), \
@@ -3572,8 +3507,7 @@ static int tp_stats_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-DEFINE_SIMPLE_DEBUGFS_FILE(tp_stats);
+DEFINE_SHOW_ATTRIBUTE(tp_stats);
 
 /* Add an array of Debug FS files.
  */
@@ -3602,7 +3536,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "cim_pif_la", &cim_pif_la_fops, 0400, 0 },
 		{ "cim_ma_la", &cim_ma_la_fops, 0400, 0 },
 		{ "cim_qcfg", &cim_qcfg_fops, 0400, 0 },
-		{ "clk", &clk_debugfs_fops, 0400, 0 },
+		{ "clk", &clk_fops, 0400, 0 },
 		{ "devlog", &devlog_fops, 0400, 0 },
 		{ "mboxlog", &mboxlog_fops, 0400, 0 },
 		{ "mbox0", &mbox_debugfs_fops, 0600, 0 },
@@ -3620,11 +3554,11 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "l2t", &t4_l2t_fops, 0400, 0},
 		{ "mps_tcam", &mps_tcam_debugfs_fops, 0400, 0 },
 		{ "rss", &rss_debugfs_fops, 0400, 0 },
-		{ "rss_config", &rss_config_debugfs_fops, 0400, 0 },
+		{ "rss_config", &rss_config_fops, 0400, 0 },
 		{ "rss_key", &rss_key_debugfs_fops, 0400, 0 },
 		{ "rss_pf_config", &rss_pf_config_debugfs_fops, 0400, 0 },
 		{ "rss_vf_config", &rss_vf_config_debugfs_fops, 0400, 0 },
-		{ "resources", &resources_debugfs_fops, 0400, 0 },
+		{ "resources", &resources_fops, 0400, 0 },
 #ifdef CONFIG_CHELSIO_T4_DCB
 		{ "dcb_info", &dcb_info_debugfs_fops, 0400, 0 },
 #endif
@@ -3643,18 +3577,18 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "obq_ncsi", &cim_obq_fops, 0400, 5 },
 		{ "tp_la", &tp_la_fops, 0400, 0 },
 		{ "ulprx_la", &ulprx_la_fops, 0400, 0 },
-		{ "sensors", &sensors_debugfs_fops, 0400, 0 },
+		{ "sensors", &sensors_fops, 0400, 0 },
 		{ "pm_stats", &pm_stats_debugfs_fops, 0400, 0 },
-		{ "tx_rate", &tx_rate_debugfs_fops, 0400, 0 },
-		{ "cctrl", &cctrl_tbl_debugfs_fops, 0400, 0 },
+		{ "tx_rate", &tx_rate_fops, 0400, 0 },
+		{ "cctrl", &cctrl_tbl_fops, 0400, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
-		{ "clip_tbl", &clip_tbl_debugfs_fops, 0400, 0 },
+		{ "clip_tbl", &clip_tbl_fops, 0400, 0 },
 #endif
-		{ "tids", &tid_info_debugfs_fops, 0400, 0},
+		{ "tids", &tid_info_fops, 0400, 0},
 		{ "blocked_fl", &blocked_fl_fops, 0600, 0 },
 		{ "meminfo", &meminfo_fops, 0400, 0 },
-		{ "crypto", &chcr_stats_debugfs_fops, 0400, 0 },
-		{ "tp_stats", &tp_stats_debugfs_fops, 0400, 0 },
+		{ "crypto", &chcr_stats_fops, 0400, 0 },
+		{ "tp_stats", &tp_stats_fops, 0400, 0 },
 	};
 
 	/* Debug FS nodes common to all T5 and later adapters.

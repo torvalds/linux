@@ -199,6 +199,7 @@ struct vega10_smc_state_table {
 	uint32_t        vce_boot_level;
 	uint32_t        gfx_max_level;
 	uint32_t        mem_max_level;
+	uint32_t        soc_max_level;
 	uint8_t         vr_hot_gpio;
 	uint8_t         ac_dc_gpio;
 	uint8_t         therm_out_gpio;
@@ -441,7 +442,5 @@ int vega10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
-int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint32_t feature_mask);
 
 #endif /* _VEGA10_HWMGR_H_ */

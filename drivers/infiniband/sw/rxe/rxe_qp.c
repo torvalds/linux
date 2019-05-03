@@ -34,6 +34,8 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -96,7 +98,7 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 		goto err1;
 
 	if (init->qp_type == IB_QPT_SMI || init->qp_type == IB_QPT_GSI) {
-		if (port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, port_num)) {
 			pr_warn("invalid port = %d\n", port_num);
 			goto err1;
 		}
@@ -227,6 +229,16 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 		return err;
 	qp->sk->sk->sk_user_data = qp;
 
+	/* pick a source UDP port number for this QP based on
+	 * the source QPN. this spreads traffic for different QPs
+	 * across different NIC RX queues (while using a single
+	 * flow for a given QP to maintain packet order).
+	 * the port number must be in the Dynamic Ports range
+	 * (0xc000 - 0xffff).
+	 */
+	qp->src_port = RXE_ROCE_V2_SPORT +
+		(hash_32_generic(qp_num(qp), 14) & 0x3fff);
+
 	qp->sq.max_wr		= init->cap.max_send_wr;
 	qp->sq.max_sge		= init->cap.max_send_sge;
 	qp->sq.max_inline	= init->cap.max_inline_data;
@@ -247,7 +259,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 			   &qp->sq.queue->ip);
 
 	if (err) {
-		kvfree(qp->sq.queue->buf);
+		vfree(qp->sq.queue->buf);
 		kfree(qp->sq.queue);
 		return err;
 	}
@@ -300,7 +312,7 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 				   qp->rq.queue->buf, qp->rq.queue->buf_size,
 				   &qp->rq.queue->ip);
 		if (err) {
-			kvfree(qp->rq.queue->buf);
+			vfree(qp->rq.queue->buf);
 			kfree(qp->rq.queue);
 			return err;
 		}
@@ -325,13 +337,15 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 		     struct ib_qp_init_attr *init,
 		     struct rxe_create_qp_resp __user *uresp,
-		     struct ib_pd *ibpd)
+		     struct ib_pd *ibpd,
+		     struct ib_udata *udata)
 {
 	int err;
 	struct rxe_cq *rcq = to_rcq(init->recv_cq);
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
-	struct ib_ucontext *context = ibpd->uobject ? ibpd->uobject->context : NULL;
+	struct rxe_ucontext *ucontext =
+		rdma_udata_to_drv_context(udata, struct rxe_ucontext, ibuc);
 
 	rxe_add_ref(pd);
 	rxe_add_ref(rcq);
@@ -346,11 +360,11 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 
 	rxe_qp_init_misc(rxe, qp, init);
 
-	err = rxe_qp_init_req(rxe, qp, init, context, uresp);
+	err = rxe_qp_init_req(rxe, qp, init, &ucontext->ibuc, uresp);
 	if (err)
 		goto err1;
 
-	err = rxe_qp_init_resp(rxe, qp, init, context, uresp);
+	err = rxe_qp_init_resp(rxe, qp, init, &ucontext->ibuc, uresp);
 	if (err)
 		goto err2;
 
@@ -408,8 +422,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	enum ib_qp_state new_state = (mask & IB_QP_STATE) ?
 					attr->qp_state : cur_state;
 
-	if (!ib_modify_qp_is_ok(cur_state, new_state, qp_type(qp), mask,
-				IB_LINK_LAYER_ETHERNET)) {
+	if (!ib_modify_qp_is_ok(cur_state, new_state, qp_type(qp), mask)) {
 		pr_warn("invalid mask or state for qp\n");
 		goto err1;
 	}
@@ -423,7 +436,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	if (mask & IB_QP_PORT) {
-		if (attr->port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, attr->port_num)) {
 			pr_warn("invalid port %d\n", attr->port_num);
 			goto err1;
 		}
@@ -438,7 +451,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	if (mask & IB_QP_ALT_PATH) {
 		if (rxe_av_chk_attr(rxe, &attr->alt_ah_attr))
 			goto err1;
-		if (attr->alt_port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, attr->alt_port_num))  {
 			pr_warn("invalid alt port %d\n", attr->alt_port_num);
 			goto err1;
 		}
@@ -620,14 +633,11 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.qkey = attr->qkey;
 
 	if (mask & IB_QP_AV) {
-		rxe_av_from_attr(attr->port_num, &qp->pri_av, &attr->ah_attr);
-		rxe_av_fill_ip_info(&qp->pri_av, &attr->ah_attr);
+		rxe_init_av(&attr->ah_attr, &qp->pri_av);
 	}
 
 	if (mask & IB_QP_ALT_PATH) {
-		rxe_av_from_attr(attr->alt_port_num, &qp->alt_av,
-				 &attr->alt_ah_attr);
-		rxe_av_fill_ip_info(&qp->alt_av, &attr->alt_ah_attr);
+		rxe_init_av(&attr->alt_ah_attr, &qp->alt_av);
 		qp->attr.alt_port_num = attr->alt_port_num;
 		qp->attr.alt_pkey_index = attr->alt_pkey_index;
 		qp->attr.alt_timeout = attr->alt_timeout;

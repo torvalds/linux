@@ -6,4 +6,10 @@ n5pf-objs := nitrox_main.o \
 	nitrox_lib.o \
 	nitrox_hal.o \
 	nitrox_reqmgr.o \
-	nitrox_algs.o
+	nitrox_algs.o	\
+	nitrox_mbx.o	\
+	nitrox_skcipher.o \
+	nitrox_aead.o
+
+n5pf-$(CONFIG_PCI_IOV) += nitrox_sriov.o
+n5pf-$(CONFIG_DEBUG_FS) += nitrox_debugfs.o

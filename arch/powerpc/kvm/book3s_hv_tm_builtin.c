@@ -89,7 +89,8 @@ int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu)
 		if (instr & (1 << 21))
 			vcpu->arch.shregs.msr = (msr & ~MSR_TS_MASK) | MSR_TS_T;
 		/* Set CR0 to 0b0010 */
-		vcpu->arch.cr = (vcpu->arch.cr & 0x0fffffff) | 0x20000000;
+		vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & 0x0fffffff) |
+			0x20000000;
 		return 1;
 	}
 
@@ -105,5 +106,5 @@ void kvmhv_emulate_tm_rollback(struct kvm_vcpu *vcpu)
 	vcpu->arch.shregs.msr &= ~MSR_TS_MASK;	/* go to N state */
 	vcpu->arch.regs.nip = vcpu->arch.tfhar;
 	copy_from_checkpoint(vcpu);
-	vcpu->arch.cr = (vcpu->arch.cr & 0x0fffffff) | 0xa0000000;
+	vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & 0x0fffffff) | 0xa0000000;
 }

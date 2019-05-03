@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Analog Devices ADV748X CSI-2 Transmitter
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -17,11 +13,6 @@
 #include <media/v4l2-ioctl.h>
 
 #include "adv748x.h"
-
-static bool is_txa(struct adv748x_csi2 *tx)
-{
-	return tx == &tx->state->txa;
-}
 
 static int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx,
 					    unsigned int vc)
@@ -36,6 +27,7 @@ static int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx,
  * @v4l2_dev: Video registration device
  * @src: Source subdevice to establish link
  * @src_pad: Pad number of source to link to this @tx
+ * @enable: Link enabled flag
  *
  * Ensure that the subdevice is registered against the v4l2_device, and link the
  * source pad to the sink pad of the CSI2 bus entity.
@@ -43,16 +35,10 @@ static int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx,
 static int adv748x_csi2_register_link(struct adv748x_csi2 *tx,
 				      struct v4l2_device *v4l2_dev,
 				      struct v4l2_subdev *src,
-				      unsigned int src_pad)
+				      unsigned int src_pad,
+				      bool enable)
 {
-	int enabled = MEDIA_LNK_FL_ENABLED;
 	int ret;
-
-	/*
-	 * Dynamic linking of the AFE is not supported.
-	 * Register the links as immutable.
-	 */
-	enabled |= MEDIA_LNK_FL_IMMUTABLE;
 
 	if (!src->v4l2_dev) {
 		ret = v4l2_device_register_subdev(v4l2_dev, src);
@@ -60,9 +46,16 @@ static int adv748x_csi2_register_link(struct adv748x_csi2 *tx,
 			return ret;
 	}
 
-	return media_create_pad_link(&src->entity, src_pad,
-				     &tx->sd.entity, ADV748X_CSI2_SINK,
-				     enabled);
+	ret = media_create_pad_link(&src->entity, src_pad,
+				    &tx->sd.entity, ADV748X_CSI2_SINK,
+				    enable ? MEDIA_LNK_FL_ENABLED : 0);
+	if (ret)
+		return ret;
+
+	if (enable)
+		tx->src = src;
+
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -77,25 +70,43 @@ static int adv748x_csi2_registered(struct v4l2_subdev *sd)
 {
 	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
 	struct adv748x_state *state = tx->state;
+	int ret;
 
 	adv_dbg(state, "Registered %s (%s)", is_txa(tx) ? "TXA":"TXB",
 			sd->name);
 
 	/*
-	 * The adv748x hardware allows the AFE to route through the TXA, however
-	 * this is not currently supported in this driver.
+	 * Link TXA to AFE and HDMI, and TXB to AFE only as TXB cannot output
+	 * HDMI.
 	 *
-	 * Link HDMI->TXA, and AFE->TXB directly.
+	 * The HDMI->TXA link is enabled by default, as is the AFE->TXB one.
 	 */
-	if (is_txa(tx)) {
-		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
-						  &state->hdmi.sd,
-						  ADV748X_HDMI_SOURCE);
-	} else {
-		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
-						  &state->afe.sd,
-						  ADV748X_AFE_SOURCE);
+	if (is_afe_enabled(state)) {
+		ret = adv748x_csi2_register_link(tx, sd->v4l2_dev,
+						 &state->afe.sd,
+						 ADV748X_AFE_SOURCE,
+						 is_txb(tx));
+		if (ret)
+			return ret;
+
+		/* TXB can output AFE signals only. */
+		if (is_txb(tx))
+			state->afe.tx = tx;
 	}
+
+	/* Register link to HDMI for TXA only. */
+	if (is_txb(tx) || !is_hdmi_enabled(state))
+		return 0;
+
+	ret = adv748x_csi2_register_link(tx, sd->v4l2_dev, &state->hdmi.sd,
+					 ADV748X_HDMI_SOURCE, true);
+	if (ret)
+		return ret;
+
+	/* The default HDMI output is TXA. */
+	state->hdmi.tx = tx;
+
+	return 0;
 }
 
 static const struct v4l2_subdev_internal_ops adv748x_csi2_internal_ops = {
@@ -266,19 +277,10 @@ static int adv748x_csi2_init_controls(struct adv748x_csi2 *tx)
 
 int adv748x_csi2_init(struct adv748x_state *state, struct adv748x_csi2 *tx)
 {
-	struct device_node *ep;
 	int ret;
 
-	/* We can not use container_of to get back to the state with two TXs */
-	tx->state = state;
-	tx->page = is_txa(tx) ? ADV748X_PAGE_TXA : ADV748X_PAGE_TXB;
-
-	ep = state->endpoints[is_txa(tx) ? ADV748X_PORT_TXA : ADV748X_PORT_TXB];
-	if (!ep) {
-		adv_err(state, "No endpoint found for %s\n",
-				is_txa(tx) ? "txa" : "txb");
-		return -ENODEV;
-	}
+	if (!is_tx_enabled(tx))
+		return 0;
 
 	/* Initialise the virtual channel */
 	adv748x_csi2_set_virtual_channel(tx, 0);
@@ -288,7 +290,7 @@ int adv748x_csi2_init(struct adv748x_state *state, struct adv748x_csi2 *tx)
 			    is_txa(tx) ? "txa" : "txb");
 
 	/* Ensure that matching is based upon the endpoint fwnodes */
-	tx->sd.fwnode = of_fwnode_handle(ep);
+	tx->sd.fwnode = of_fwnode_handle(state->endpoints[tx->port]);
 
 	/* Register internal ops for incremental subdev registration */
 	tx->sd.internal_ops = &adv748x_csi2_internal_ops;
@@ -321,6 +323,9 @@ err_free_media:
 
 void adv748x_csi2_cleanup(struct adv748x_csi2 *tx)
 {
+	if (!is_tx_enabled(tx))
+		return;
+
 	v4l2_async_unregister_subdev(&tx->sd);
 	media_entity_cleanup(&tx->sd.entity);
 	v4l2_ctrl_handler_free(&tx->ctrl_hdl);

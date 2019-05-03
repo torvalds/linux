@@ -55,6 +55,8 @@ static struct ixgbe_stats ixgbevf_gstrings_stats[] = {
 	IXGBEVF_STAT("alloc_rx_page", alloc_rx_page),
 	IXGBEVF_STAT("alloc_rx_page_failed", alloc_rx_page_failed),
 	IXGBEVF_STAT("alloc_rx_buff_failed", alloc_rx_buff_failed),
+	IXGBEVF_STAT("tx_ipsec", tx_ipsec),
+	IXGBEVF_STAT("rx_ipsec", rx_ipsec),
 };
 
 #define IXGBEVF_QUEUE_STATS_LEN ( \

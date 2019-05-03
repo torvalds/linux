@@ -33,7 +33,7 @@
 
 /*
  * Identifiers for functions that use the open, operation, close pattern
- * in smb2inode.c:smb2_open_op_close()
+ * in smb2inode.c:smb2_compound_op()
  */
 #define SMB2_OP_SET_DELETE 1
 #define SMB2_OP_SET_INFO 2

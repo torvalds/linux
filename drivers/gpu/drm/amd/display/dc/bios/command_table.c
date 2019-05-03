@@ -55,7 +55,6 @@ static void init_adjust_display_pll(struct bios_parser *bp);
 static void init_dac_encoder_control(struct bios_parser *bp);
 static void init_dac_output_control(struct bios_parser *bp);
 static void init_set_crtc_timing(struct bios_parser *bp);
-static void init_select_crtc_source(struct bios_parser *bp);
 static void init_enable_crtc(struct bios_parser *bp);
 static void init_enable_crtc_mem_req(struct bios_parser *bp);
 static void init_external_encoder_control(struct bios_parser *bp);
@@ -73,7 +72,6 @@ void dal_bios_parser_init_cmd_tbl(struct bios_parser *bp)
 	init_dac_encoder_control(bp);
 	init_dac_output_control(bp);
 	init_set_crtc_timing(bp);
-	init_select_crtc_source(bp);
 	init_enable_crtc(bp);
 	init_enable_crtc_mem_req(bp);
 	init_program_clock(bp);
@@ -964,9 +962,9 @@ static enum bp_result set_pixel_clock_v3(
 	allocation.sPCLKInput.ucPostDiv =
 			(uint8_t)bp_params->pixel_clock_post_divider;
 
-	/* We need to convert from KHz units into 10KHz units */
+	/* We need to convert from 100Hz units into 10KHz units */
 	allocation.sPCLKInput.usPixelClock =
-			cpu_to_le16((uint16_t)(bp_params->target_pixel_clock / 10));
+			cpu_to_le16((uint16_t)(bp_params->target_pixel_clock_100hz / 100));
 
 	params = (PIXEL_CLOCK_PARAMETERS_V3 *)&allocation.sPCLKInput;
 	params->ucTransmitterId =
@@ -1042,9 +1040,9 @@ static enum bp_result set_pixel_clock_v5(
 				(uint8_t)bp->cmd_helper->encoder_mode_bp_to_atom(
 						bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
+		/* We need to convert from 100Hz units into 10KHz units */
 		clk.sPCLKInput.usPixelClock =
-				cpu_to_le16((uint16_t)(bp_params->target_pixel_clock / 10));
+				cpu_to_le16((uint16_t)(bp_params->target_pixel_clock_100hz / 100));
 
 		if (bp_params->flags.FORCE_PROGRAMMING_OF_PLL)
 			clk.sPCLKInput.ucMiscInfo |=
@@ -1118,9 +1116,9 @@ static enum bp_result set_pixel_clock_v6(
 				(uint8_t) bp->cmd_helper->encoder_mode_bp_to_atom(
 						bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
+		/* We need to convert from 100 Hz units into 10KHz units */
 		clk.sPCLKInput.ulCrtcPclkFreq.ulPixelClock =
-				cpu_to_le32(bp_params->target_pixel_clock / 10);
+				cpu_to_le32(bp_params->target_pixel_clock_100hz / 100);
 
 		if (bp_params->flags.FORCE_PROGRAMMING_OF_PLL) {
 			clk.sPCLKInput.ucMiscInfo |=
@@ -1182,8 +1180,7 @@ static enum bp_result set_pixel_clock_v7(
 		clk.ucTransmitterID = bp->cmd_helper->encoder_id_to_atom(dal_graphics_object_id_get_encoder_id(bp_params->encoder_object_id));
 		clk.ucEncoderMode = (uint8_t) bp->cmd_helper->encoder_mode_bp_to_atom(bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
-		clk.ulPixelClock = cpu_to_le32(bp_params->target_pixel_clock * 10);
+		clk.ulPixelClock = cpu_to_le32(bp_params->target_pixel_clock_100hz);
 
 		clk.ucDeepColorRatio = (uint8_t) bp->cmd_helper->transmitter_color_depth_to_atom(bp_params->color_depth);
 
@@ -1899,120 +1896,6 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 /*******************************************************************************
  ********************************************************************************
  **
- **                  SELECT CRTC SOURCE
- **
- ********************************************************************************
- *******************************************************************************/
-
-static enum bp_result select_crtc_source_v2(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params);
-static enum bp_result select_crtc_source_v3(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params);
-
-static void init_select_crtc_source(struct bios_parser *bp)
-{
-	switch (BIOS_CMD_TABLE_PARA_REVISION(SelectCRTC_Source)) {
-	case 2:
-		bp->cmd_tbl.select_crtc_source = select_crtc_source_v2;
-		break;
-	case 3:
-		bp->cmd_tbl.select_crtc_source = select_crtc_source_v3;
-		break;
-	default:
-		dm_output_to_console("Don't select_crtc_source enable_crtc for v%d\n",
-			 BIOS_CMD_TABLE_PARA_REVISION(SelectCRTC_Source));
-		bp->cmd_tbl.select_crtc_source = NULL;
-		break;
-	}
-}
-
-static enum bp_result select_crtc_source_v2(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params)
-{
-	enum bp_result result = BP_RESULT_FAILURE;
-	SELECT_CRTC_SOURCE_PARAMETERS_V2 params;
-	uint8_t atom_controller_id;
-	uint32_t atom_engine_id;
-	enum signal_type s = bp_params->signal;
-
-	memset(&params, 0, sizeof(params));
-
-	/* set controller id */
-	if (bp->cmd_helper->controller_id_to_atom(
-			bp_params->controller_id, &atom_controller_id))
-		params.ucCRTC = atom_controller_id;
-	else
-		return BP_RESULT_FAILURE;
-
-	/* set encoder id */
-	if (bp->cmd_helper->engine_bp_to_atom(
-			bp_params->engine_id, &atom_engine_id))
-		params.ucEncoderID = (uint8_t)atom_engine_id;
-	else
-		return BP_RESULT_FAILURE;
-
-	if (SIGNAL_TYPE_EDP == s ||
-			(SIGNAL_TYPE_DISPLAY_PORT == s &&
-					SIGNAL_TYPE_LVDS == bp_params->sink_signal))
-		s = SIGNAL_TYPE_LVDS;
-
-	params.ucEncodeMode =
-			(uint8_t)bp->cmd_helper->encoder_mode_bp_to_atom(
-					s, bp_params->enable_dp_audio);
-
-	if (EXEC_BIOS_CMD_TABLE(SelectCRTC_Source, params))
-		result = BP_RESULT_OK;
-
-	return result;
-}
-
-static enum bp_result select_crtc_source_v3(
-	struct bios_parser *bp,
-	struct bp_crtc_source_select *bp_params)
-{
-	bool result = BP_RESULT_FAILURE;
-	SELECT_CRTC_SOURCE_PARAMETERS_V3 params;
-	uint8_t atom_controller_id;
-	uint32_t atom_engine_id;
-	enum signal_type s = bp_params->signal;
-
-	memset(&params, 0, sizeof(params));
-
-	if (bp->cmd_helper->controller_id_to_atom(bp_params->controller_id,
-			&atom_controller_id))
-		params.ucCRTC = atom_controller_id;
-	else
-		return result;
-
-	if (bp->cmd_helper->engine_bp_to_atom(bp_params->engine_id,
-			&atom_engine_id))
-		params.ucEncoderID = (uint8_t)atom_engine_id;
-	else
-		return result;
-
-	if (SIGNAL_TYPE_EDP == s ||
-			(SIGNAL_TYPE_DISPLAY_PORT == s &&
-					SIGNAL_TYPE_LVDS == bp_params->sink_signal))
-		s = SIGNAL_TYPE_LVDS;
-
-	params.ucEncodeMode =
-			bp->cmd_helper->encoder_mode_bp_to_atom(
-					s, bp_params->enable_dp_audio);
-	/* Needed for VBIOS Random Spatial Dithering feature */
-	params.ucDstBpc = (uint8_t)(bp_params->display_output_bit_depth);
-
-	if (EXEC_BIOS_CMD_TABLE(SelectCRTC_Source, params))
-		result = BP_RESULT_OK;
-
-	return result;
-}
-
-/*******************************************************************************
- ********************************************************************************
- **
  **                  ENABLE CRTC
  **
  ********************************************************************************
@@ -2164,7 +2047,7 @@ static enum bp_result program_clock_v5(
 	/* We need to convert from KHz units into 10KHz units */
 	params.sPCLKInput.ucPpll = (uint8_t) atom_pll_id;
 	params.sPCLKInput.usPixelClock =
-			cpu_to_le16((uint16_t) (bp_params->target_pixel_clock / 10));
+			cpu_to_le16((uint16_t) (bp_params->target_pixel_clock_100hz / 100));
 	params.sPCLKInput.ucCRTC = (uint8_t) ATOM_CRTC_INVALID;
 
 	if (bp_params->flags.SET_EXTERNAL_REF_DIV_SRC)
@@ -2196,10 +2079,13 @@ static enum bp_result program_clock_v6(
 	/* We need to convert from KHz units into 10KHz units */
 	params.sPCLKInput.ucPpll = (uint8_t)atom_pll_id;
 	params.sPCLKInput.ulDispEngClkFreq =
-			cpu_to_le32(bp_params->target_pixel_clock / 10);
+			cpu_to_le32(bp_params->target_pixel_clock_100hz / 100);
 
 	if (bp_params->flags.SET_EXTERNAL_REF_DIV_SRC)
 		params.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_MISC_REF_DIV_SRC;
+
+	if (bp_params->flags.SET_DISPCLK_DFS_BYPASS)
+		params.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_DPREFCLK_BYPASS;
 
 	if (EXEC_BIOS_CMD_TABLE(SetPixelClock, params)) {
 		/* True display clock is returned by VBIOS if DFS bypass

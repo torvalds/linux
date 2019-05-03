@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_REQBUFS:
 
@@ -59,9 +66,14 @@ When the I/O method is not supported the ioctl returns an ``EINVAL`` error
 code.
 
 Applications can call :ref:`VIDIOC_REQBUFS` again to change the number of
-buffers, however this cannot succeed when any buffers are still mapped.
-A ``count`` value of zero frees all buffers, after aborting or finishing
-any DMA in progress, an implicit
+buffers. Note that if any buffers are still mapped or exported via DMABUF,
+then :ref:`VIDIOC_REQBUFS` can only succeed if the
+``V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS`` capability is set. Otherwise
+:ref:`VIDIOC_REQBUFS` will return the ``EBUSY`` error code.
+If ``V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS`` is set, then these buffers are
+orphaned and will be freed when they are unmapped or when the exported DMABUF
+fds are closed. A ``count`` value of zero frees or orphans all buffers, after
+aborting or finishing any DMA in progress, an implicit
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`.
 
 
@@ -88,10 +100,56 @@ any DMA in progress, an implicit
 	``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
 	:c:type:`v4l2_memory`.
     * - __u32
-      - ``reserved``\ [2]
+      - ``capabilities``
+      - Set by the driver. If 0, then the driver doesn't support
+        capabilities. In that case all you know is that the driver is
+	guaranteed to support ``V4L2_MEMORY_MMAP`` and *might* support
+	other :c:type:`v4l2_memory` types. It will not support any others
+	capabilities.
+
+	If you want to query the capabilities with a minimum of side-effects,
+	then this can be called with ``count`` set to 0, ``memory`` set to
+	``V4L2_MEMORY_MMAP`` and ``type`` set to the buffer type. This will
+	free any previously allocated buffers, so this is typically something
+	that will be done at the start of the application.
+    * - __u32
+      - ``reserved``\ [1]
       - A place holder for future extensions. Drivers and applications
 	must set the array to zero.
 
+.. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
+
+.. _v4l2-buf-capabilities:
+.. _V4L2-BUF-CAP-SUPPORTS-MMAP:
+.. _V4L2-BUF-CAP-SUPPORTS-USERPTR:
+.. _V4L2-BUF-CAP-SUPPORTS-DMABUF:
+.. _V4L2-BUF-CAP-SUPPORTS-REQUESTS:
+.. _V4L2-BUF-CAP-SUPPORTS-ORPHANED-BUFS:
+
+.. cssclass:: longtable
+
+.. flat-table:: V4L2 Buffer Capabilities Flags
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * - ``V4L2_BUF_CAP_SUPPORTS_MMAP``
+      - 0x00000001
+      - This buffer type supports the ``V4L2_MEMORY_MMAP`` streaming mode.
+    * - ``V4L2_BUF_CAP_SUPPORTS_USERPTR``
+      - 0x00000002
+      - This buffer type supports the ``V4L2_MEMORY_USERPTR`` streaming mode.
+    * - ``V4L2_BUF_CAP_SUPPORTS_DMABUF``
+      - 0x00000004
+      - This buffer type supports the ``V4L2_MEMORY_DMABUF`` streaming mode.
+    * - ``V4L2_BUF_CAP_SUPPORTS_REQUESTS``
+      - 0x00000008
+      - This buffer type supports :ref:`requests <media-request-api>`.
+    * - ``V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS``
+      - 0x00000010
+      - The kernel allows calling :ref:`VIDIOC_REQBUFS` while buffers are still
+        mapped or exported via DMABUF. These orphaned buffers will be freed
+        when they are unmapped or when the exported DMABUF fds are closed.
 
 Return Value
 ============

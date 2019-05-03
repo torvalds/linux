@@ -116,6 +116,10 @@
 	status = "okay";
 };
 
+&cmt0 {
+	status = "okay";
+};
+
 &hsusb {
 	status = "okay";
 	pinctrl-0 = <&usb0_pins>;
@@ -158,10 +162,6 @@
 
 &pcie_bus_clk {
 	clock-frequency = <100000000>;
-};
-
-&pciec {
-	status = "okay";
 };
 
 &pfc {
@@ -232,6 +232,11 @@
 			capture = <&ssi0 &src2 &dvc0>;
 		};
 	};
+};
+
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
 };
 
 &scif0 {

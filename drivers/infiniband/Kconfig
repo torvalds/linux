@@ -26,6 +26,7 @@ config INFINIBAND_USER_MAD
 config INFINIBAND_USER_ACCESS
 	tristate "InfiniBand userspace access (verbs and CM)"
 	select ANON_INODES
+	depends on MMU
 	---help---
 	  Userspace InfiniBand access support.  This enables the
 	  kernel side of userspace verbs and the userspace
@@ -88,6 +89,7 @@ config INFINIBAND_ADDR_TRANS_CONFIGFS
 	  This allows the user to config the default GID type that the CM
 	  uses for each device, when initiaing new connections.
 
+if INFINIBAND_USER_ACCESS || !INFINIBAND_USER_ACCESS
 source "drivers/infiniband/hw/mthca/Kconfig"
 source "drivers/infiniband/hw/qib/Kconfig"
 source "drivers/infiniband/hw/cxgb3/Kconfig"
@@ -100,6 +102,12 @@ source "drivers/infiniband/hw/ocrdma/Kconfig"
 source "drivers/infiniband/hw/vmw_pvrdma/Kconfig"
 source "drivers/infiniband/hw/usnic/Kconfig"
 source "drivers/infiniband/hw/hns/Kconfig"
+source "drivers/infiniband/hw/bnxt_re/Kconfig"
+source "drivers/infiniband/hw/hfi1/Kconfig"
+source "drivers/infiniband/hw/qedr/Kconfig"
+source "drivers/infiniband/sw/rdmavt/Kconfig"
+source "drivers/infiniband/sw/rxe/Kconfig"
+endif
 
 source "drivers/infiniband/ulp/ipoib/Kconfig"
 
@@ -110,13 +118,5 @@ source "drivers/infiniband/ulp/iser/Kconfig"
 source "drivers/infiniband/ulp/isert/Kconfig"
 
 source "drivers/infiniband/ulp/opa_vnic/Kconfig"
-source "drivers/infiniband/sw/rdmavt/Kconfig"
-source "drivers/infiniband/sw/rxe/Kconfig"
-
-source "drivers/infiniband/hw/hfi1/Kconfig"
-
-source "drivers/infiniband/hw/qedr/Kconfig"
-
-source "drivers/infiniband/hw/bnxt_re/Kconfig"
 
 endif # INFINIBAND

@@ -96,7 +96,7 @@ static int sir_tx_ir(struct rc_dev *dev, unsigned int *tx_buf,
 
 static void add_read_queue(int flag, unsigned long val)
 {
-	DEFINE_IR_RAW_EVENT(ev);
+	struct ir_raw_event ev = {};
 
 	pr_debug("add flag %d with val %lu\n", flag, val);
 

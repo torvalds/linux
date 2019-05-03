@@ -5,3 +5,11 @@ config XDP_SOCKETS
 	help
 	  XDP sockets allows a channel between XDP programs and
 	  userspace applications.
+
+config XDP_SOCKETS_DIAG
+	tristate "XDP sockets: monitoring interface"
+	depends on XDP_SOCKETS
+	default n
+	help
+	  Support for PF_XDP sockets monitoring interface used by the ss tool.
+	  If unsure, say Y.

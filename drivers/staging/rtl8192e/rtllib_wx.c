@@ -541,8 +541,8 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		if (idx < 1 || idx > NUM_WEP_KEYS)
 			return -EINVAL;
 		idx--;
-	} else{
-			idx = ieee->crypt_info.tx_keyidx;
+	} else {
+		idx = ieee->crypt_info.tx_keyidx;
 	}
 	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
 		crypt = &ieee->crypt_info.crypt[idx];

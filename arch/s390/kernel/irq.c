@@ -88,6 +88,7 @@ static const struct irq_class irqclass_sub_desc[] = {
 	{.irq = IRQIO_MSI,  .name = "MSI", .desc = "[I/O] MSI Interrupt" },
 	{.irq = IRQIO_VIR,  .name = "VIR", .desc = "[I/O] Virtual I/O Devices"},
 	{.irq = IRQIO_VAI,  .name = "VAI", .desc = "[I/O] Virtual I/O Devices AI"},
+	{.irq = IRQIO_GAL,  .name = "GAL", .desc = "[I/O] GIB Alert"},
 	{.irq = NMI_NMI,    .name = "NMI", .desc = "[NMI] Machine Check"},
 	{.irq = CPU_RST,    .name = "RST", .desc = "[CPU] CPU Restart"},
 };
@@ -172,15 +173,7 @@ void do_softirq_own_stack(void)
 	/* Check against async. stack address range. */
 	new = S390_lowcore.async_stack;
 	if (((new - old) >> (PAGE_SHIFT + THREAD_SIZE_ORDER)) != 0) {
-		/* Need to switch to the async. stack. */
-		new -= STACK_FRAME_OVERHEAD;
-		((struct stack_frame *) new)->back_chain = old;
-		asm volatile("   la    15,0(%0)\n"
-			     "   brasl 14,__do_softirq\n"
-			     "   la    15,0(%1)\n"
-			     : : "a" (new), "a" (old)
-			     : "0", "1", "2", "3", "4", "5", "14",
-			       "cc", "memory" );
+		CALL_ON_STACK(__do_softirq, new, 0);
 	} else {
 		/* We are already on the async stack. */
 		__do_softirq();

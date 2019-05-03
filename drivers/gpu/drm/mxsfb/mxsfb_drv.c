@@ -31,13 +31,13 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "mxsfb_drv.h"
@@ -98,12 +98,18 @@ static const struct drm_mode_config_funcs mxsfb_mode_config_funcs = {
 	.atomic_commit		= drm_atomic_helper_commit,
 };
 
+static const struct drm_mode_config_helper_funcs mxsfb_mode_config_helpers = {
+	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+};
+
 static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
 			      struct drm_crtc_state *crtc_state,
 			      struct drm_plane_state *plane_state)
 {
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
+	struct drm_device *drm = pipe->plane.dev;
 
+	pm_runtime_get_sync(drm->dev);
 	drm_panel_prepare(mxsfb->panel);
 	mxsfb_crtc_enable(mxsfb);
 	drm_panel_enable(mxsfb->panel);
@@ -112,10 +118,22 @@ static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
 static void mxsfb_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
+	struct drm_device *drm = pipe->plane.dev;
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_pending_vblank_event *event;
 
 	drm_panel_disable(mxsfb->panel);
 	mxsfb_crtc_disable(mxsfb);
 	drm_panel_unprepare(mxsfb->panel);
+	pm_runtime_put_sync(drm->dev);
+
+	spin_lock_irq(&drm->event_lock);
+	event = crtc->state->event;
+	if (event) {
+		crtc->state->event = NULL;
+		drm_crtc_send_vblank_event(crtc, event);
+	}
+	spin_unlock_irq(&drm->event_lock);
 }
 
 static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -230,6 +248,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	drm->mode_config.max_width	= MXSFB_MAX_XRES;
 	drm->mode_config.max_height	= MXSFB_MAX_YRES;
 	drm->mode_config.funcs		= &mxsfb_mode_config_funcs;
+	drm->mode_config.helper_private	= &mxsfb_mode_config_helpers;
 
 	drm_mode_config_reset(drm);
 
@@ -244,23 +263,12 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 
 	drm_kms_helper_poll_init(drm);
 
-	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32,
-					  drm->mode_config.num_connector);
-	if (IS_ERR(mxsfb->fbdev)) {
-		ret = PTR_ERR(mxsfb->fbdev);
-		mxsfb->fbdev = NULL;
-		dev_err(drm->dev, "Failed to init FB CMA area\n");
-		goto err_cma;
-	}
-
 	platform_set_drvdata(pdev, drm);
 
 	drm_helper_hpd_irq_event(drm);
 
 	return 0;
 
-err_cma:
-	drm_irq_uninstall(drm);
 err_irq:
 	drm_panel_detach(mxsfb->panel);
 err_vblank:
@@ -271,11 +279,6 @@ err_vblank:
 
 static void mxsfb_unload(struct drm_device *drm)
 {
-	struct mxsfb_drm_private *mxsfb = drm->dev_private;
-
-	if (mxsfb->fbdev)
-		drm_fbdev_cma_fini(mxsfb->fbdev);
-
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
 
@@ -286,13 +289,6 @@ static void mxsfb_unload(struct drm_device *drm)
 	drm->dev_private = NULL;
 
 	pm_runtime_disable(drm->dev);
-}
-
-static void mxsfb_lastclose(struct drm_device *drm)
-{
-	struct mxsfb_drm_private *mxsfb = drm->dev_private;
-
-	drm_fbdev_cma_restore_mode(mxsfb->fbdev);
 }
 
 static void mxsfb_irq_preinstall(struct drm_device *drm)
@@ -326,9 +322,7 @@ DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver mxsfb_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
-				  DRIVER_PRIME | DRIVER_ATOMIC |
-				  DRIVER_HAVE_IRQ,
-	.lastclose		= mxsfb_lastclose,
+				  DRIVER_PRIME | DRIVER_ATOMIC,
 	.irq_handler		= mxsfb_irq_handler,
 	.irq_preinstall		= mxsfb_irq_preinstall,
 	.irq_uninstall		= mxsfb_irq_preinstall,
@@ -393,12 +387,14 @@ static int mxsfb_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
+	drm_fbdev_generic_setup(drm, 32);
+
 	return 0;
 
 err_unload:
 	mxsfb_unload(drm);
 err_free:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -409,10 +405,30 @@ static int mxsfb_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(drm);
 	mxsfb_unload(drm);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int mxsfb_suspend(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	return drm_mode_config_helper_suspend(drm);
+}
+
+static int mxsfb_resume(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	return drm_mode_config_helper_resume(drm);
+}
+#endif
+
+static const struct dev_pm_ops mxsfb_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mxsfb_suspend, mxsfb_resume)
+};
 
 static struct platform_driver mxsfb_platform_driver = {
 	.probe		= mxsfb_probe,
@@ -421,6 +437,7 @@ static struct platform_driver mxsfb_platform_driver = {
 	.driver	= {
 		.name		= "mxsfb",
 		.of_match_table	= mxsfb_dt_ids,
+		.pm		= &mxsfb_pm_ops,
 	},
 };
 

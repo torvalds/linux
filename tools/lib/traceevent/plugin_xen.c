@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "event-parse.h"
+#include "trace-seq.h"
 
 #define __HYPERVISOR_set_trap_table			0
 #define __HYPERVISOR_mmu_update				1

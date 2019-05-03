@@ -35,9 +35,11 @@ static int crypto_default_rng_refcnt;
 
 int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 {
+	struct crypto_alg *alg = tfm->base.__crt_alg;
 	u8 *buf = NULL;
 	int err;
 
+	crypto_stats_get(alg);
 	if (!seed && slen) {
 		buf = kmalloc(slen, GFP_KERNEL);
 		if (!buf)
@@ -50,6 +52,7 @@ int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 	}
 
 	err = crypto_rng_alg(tfm)->seed(tfm, seed, slen);
+	crypto_stats_rng_seed(alg, err);
 out:
 	kzfree(buf);
 	return err;
@@ -73,17 +76,13 @@ static int crypto_rng_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_rng rrng;
 
-	strncpy(rrng.type, "rng", sizeof(rrng.type));
+	memset(&rrng, 0, sizeof(rrng));
+
+	strscpy(rrng.type, "rng", sizeof(rrng.type));
 
 	rrng.seedsize = seedsize(alg);
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_RNG,
-		    sizeof(struct crypto_report_rng), &rrng))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_RNG, sizeof(rrng), &rrng);
 }
 #else
 static int crypto_rng_report(struct sk_buff *skb, struct crypto_alg *alg)

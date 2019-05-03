@@ -214,12 +214,6 @@ static char const *cqe_desc[] = {
 	"CXN_KILLED_IMM_DATA_RCVD"
 };
 
-static int beiscsi_slave_configure(struct scsi_device *sdev)
-{
-	blk_queue_max_segment_size(sdev->request_queue, 65536);
-	return 0;
-}
-
 static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 {
 	struct iscsi_task *abrt_task = (struct iscsi_task *)sc->SCp.ptr;
@@ -393,7 +387,6 @@ static struct scsi_host_template beiscsi_sht = {
 	.proc_name = DRV_NAME,
 	.queuecommand = iscsi_queuecommand,
 	.change_queue_depth = scsi_change_queue_depth,
-	.slave_configure = beiscsi_slave_configure,
 	.target_alloc = iscsi_target_alloc,
 	.eh_timed_out = iscsi_eh_cmd_timed_out,
 	.eh_abort_handler = beiscsi_eh_abort,
@@ -404,8 +397,8 @@ static struct scsi_host_template beiscsi_sht = {
 	.can_queue = BE2_IO_DEPTH,
 	.this_id = -1,
 	.max_sectors = BEISCSI_MAX_SECTORS,
+	.max_segment_size = 65536,
 	.cmd_per_lun = BEISCSI_CMD_PER_LUN,
-	.use_clustering = ENABLE_CLUSTERING,
 	.vendor_id = SCSI_NL_VID_TYPE_PCI | BE_VENDOR_ID,
 	.track_queue_depth = 1,
 };
@@ -511,18 +504,9 @@ static int beiscsi_enable_pci(struct pci_dev *pcidev)
 	}
 
 	pci_set_master(pcidev);
-	ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(64));
 	if (ret) {
-		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
-		if (ret) {
-			dev_err(&pcidev->dev, "Could not set PCI DMA Mask\n");
-			goto pci_region_release;
-		} else {
-			ret = pci_set_consistent_dma_mask(pcidev,
-							  DMA_BIT_MASK(32));
-		}
-	} else {
-		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64));
+		ret = dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			dev_err(&pcidev->dev, "Could not set PCI DMA Mask\n");
 			goto pci_region_release;
@@ -550,9 +534,8 @@ static int be_ctrl_init(struct beiscsi_hba *phba, struct pci_dev *pdev)
 	if (status)
 		return status;
 	mbox_mem_alloc->size = sizeof(struct be_mcc_mailbox) + 16;
-	mbox_mem_alloc->va = pci_alloc_consistent(pdev,
-						  mbox_mem_alloc->size,
-						  &mbox_mem_alloc->dma);
+	mbox_mem_alloc->va = dma_alloc_coherent(&pdev->dev,
+			mbox_mem_alloc->size, &mbox_mem_alloc->dma, GFP_KERNEL);
 	if (!mbox_mem_alloc->va) {
 		beiscsi_unmap_pci_function(phba);
 		return -ENOMEM;
@@ -1866,7 +1849,6 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 {
 	struct be_queue_info *cq;
 	struct sol_cqe *sol;
-	struct dmsg_cqe *dmsg;
 	unsigned int total = 0;
 	unsigned int num_processed = 0;
 	unsigned short code = 0, cid = 0;
@@ -1939,7 +1921,6 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 				    "BM_%d : Received %s[%d] on CID : %d\n",
 				    cqe_desc[code], code, cid);
 
-			dmsg = (struct dmsg_cqe *)sol;
 			hwi_complete_drvr_msgs(beiscsi_conn, phba, sol);
 			break;
 		case UNSOL_HDR_NOTIFY:
@@ -2304,11 +2285,11 @@ static int hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 
 		/* Map addr only if there is data_count */
 		if (dsp_value) {
-			io_task->mtask_addr = pci_map_single(phba->pcidev,
+			io_task->mtask_addr = dma_map_single(&phba->pcidev->dev,
 							     task->data,
 							     task->data_count,
-							     PCI_DMA_TODEVICE);
-			if (pci_dma_mapping_error(phba->pcidev,
+							     DMA_TO_DEVICE);
+			if (dma_mapping_error(&phba->pcidev->dev,
 						  io_task->mtask_addr))
 				return -ENOMEM;
 			io_task->mtask_data_count = task->data_count;
@@ -2519,10 +2500,9 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 		       BEISCSI_MAX_FRAGS_INIT);
 		curr_alloc_size = min(be_max_phys_size * 1024, alloc_size);
 		do {
-			mem_arr->virtual_address = pci_alloc_consistent(
-							phba->pcidev,
-							curr_alloc_size,
-							&bus_add);
+			mem_arr->virtual_address =
+				dma_alloc_coherent(&phba->pcidev->dev,
+					curr_alloc_size, &bus_add, GFP_KERNEL);
 			if (!mem_arr->virtual_address) {
 				if (curr_alloc_size <= BE_MIN_MEM_SIZE)
 					goto free_mem;
@@ -2560,7 +2540,7 @@ free_mem:
 	mem_descr->num_elements = j;
 	while ((i) || (j)) {
 		for (j = mem_descr->num_elements; j > 0; j--) {
-			pci_free_consistent(phba->pcidev,
+			dma_free_coherent(&phba->pcidev->dev,
 					    mem_descr->mem_array[j - 1].size,
 					    mem_descr->mem_array[j - 1].
 					    virtual_address,
@@ -3031,9 +3011,9 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 		eq = &phwi_context->be_eq[i].q;
 		mem = &eq->dma_mem;
 		phwi_context->be_eq[i].phba = phba;
-		eq_vaddress = pci_alloc_consistent(phba->pcidev,
+		eq_vaddress = dma_alloc_coherent(&phba->pcidev->dev,
 						   num_eq_pages * PAGE_SIZE,
-						   &paddr);
+						   &paddr, GFP_KERNEL);
 		if (!eq_vaddress) {
 			ret = -ENOMEM;
 			goto create_eq_error;
@@ -3069,7 +3049,7 @@ create_eq_error:
 		eq = &phwi_context->be_eq[i].q;
 		mem = &eq->dma_mem;
 		if (mem->va)
-			pci_free_consistent(phba->pcidev, num_eq_pages
+			dma_free_coherent(&phba->pcidev->dev, num_eq_pages
 					    * PAGE_SIZE,
 					    mem->va, mem->dma);
 	}
@@ -3097,9 +3077,9 @@ static int beiscsi_create_cqs(struct beiscsi_hba *phba,
 		pbe_eq->cq = cq;
 		pbe_eq->phba = phba;
 		mem = &cq->dma_mem;
-		cq_vaddress = pci_alloc_consistent(phba->pcidev,
+		cq_vaddress = dma_alloc_coherent(&phba->pcidev->dev,
 						   num_cq_pages * PAGE_SIZE,
-						   &paddr);
+						   &paddr, GFP_KERNEL);
 		if (!cq_vaddress) {
 			ret = -ENOMEM;
 			goto create_cq_error;
@@ -3134,7 +3114,7 @@ create_cq_error:
 		cq = &phwi_context->be_cq[i];
 		mem = &cq->dma_mem;
 		if (mem->va)
-			pci_free_consistent(phba->pcidev, num_cq_pages
+			dma_free_coherent(&phba->pcidev->dev, num_cq_pages
 					    * PAGE_SIZE,
 					    mem->va, mem->dma);
 	}
@@ -3326,7 +3306,7 @@ static void be_queue_free(struct beiscsi_hba *phba, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
 	if (mem->va) {
-		pci_free_consistent(phba->pcidev, mem->size,
+		dma_free_coherent(&phba->pcidev->dev, mem->size,
 			mem->va, mem->dma);
 		mem->va = NULL;
 	}
@@ -3341,7 +3321,8 @@ static int be_queue_alloc(struct beiscsi_hba *phba, struct be_queue_info *q,
 	q->len = len;
 	q->entry_size = entry_size;
 	mem->size = len * entry_size;
-	mem->va = pci_zalloc_consistent(phba->pcidev, mem->size, &mem->dma);
+	mem->va = dma_alloc_coherent(&phba->pcidev->dev, mem->size, &mem->dma,
+				     GFP_KERNEL);
 	if (!mem->va)
 		return -ENOMEM;
 	return 0;
@@ -3479,7 +3460,7 @@ static void be_mcc_queues_destroy(struct beiscsi_hba *phba)
 			     &ctrl->ptag_state[tag].tag_state)) {
 			ptag_mem = &ctrl->ptag_state[tag].tag_mem_state;
 			if (ptag_mem->size) {
-				pci_free_consistent(ctrl->pdev,
+				dma_free_coherent(&ctrl->pdev->dev,
 						    ptag_mem->size,
 						    ptag_mem->va,
 						    ptag_mem->dma);
@@ -3585,7 +3566,7 @@ static void be2iscsi_enable_msix(struct beiscsi_hba *phba)
 
 	/* if eqid_count == 1 fall back to INTX */
 	if (enable_msix && nvec > 1) {
-		const struct irq_affinity desc = { .post_vectors = 1 };
+		struct irq_affinity desc = { .post_vectors = 1 };
 
 		if (pci_alloc_irq_vectors_affinity(phba->pcidev, 2, nvec,
 				PCI_IRQ_MSIX | PCI_IRQ_AFFINITY, &desc) < 0) {
@@ -3880,7 +3861,7 @@ static void beiscsi_free_mem(struct beiscsi_hba *phba)
 	j = 0;
 	for (i = 0; i < SE_MEM_MAX; i++) {
 		for (j = mem_descr->num_elements; j > 0; j--) {
-			pci_free_consistent(phba->pcidev,
+			dma_free_coherent(&phba->pcidev->dev,
 			  mem_descr->mem_array[j - 1].size,
 			  mem_descr->mem_array[j - 1].virtual_address,
 			  (unsigned long)mem_descr->mem_array[j - 1].
@@ -4255,10 +4236,10 @@ beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 	}
 
 	if (io_task->mtask_addr) {
-		pci_unmap_single(phba->pcidev,
+		dma_unmap_single(&phba->pcidev->dev,
 				 io_task->mtask_addr,
 				 io_task->mtask_data_count,
-				 PCI_DMA_TODEVICE);
+				 DMA_TO_DEVICE);
 		io_task->mtask_addr = 0;
 	}
 }
@@ -4852,9 +4833,9 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 
 	switch (bsg_req->msgcode) {
 	case ISCSI_BSG_HST_VENDOR:
-		nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
+		nonemb_cmd.va = dma_alloc_coherent(&phba->ctrl.pdev->dev,
 					job->request_payload.payload_len,
-					&nonemb_cmd.dma);
+					&nonemb_cmd.dma, GFP_KERNEL);
 		if (nonemb_cmd.va == NULL) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 				    "BM_%d : Failed to allocate memory for "
@@ -4867,7 +4848,7 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 				    "BM_%d : MBX Tag Allocation Failed\n");
 
-			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
 					    nonemb_cmd.va, nonemb_cmd.dma);
 			return -EAGAIN;
 		}
@@ -4881,7 +4862,7 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 		if (!test_bit(BEISCSI_HBA_ONLINE, &phba->state)) {
 			clear_bit(MCC_TAG_STATE_RUNNING,
 				  &phba->ctrl.ptag_state[tag].tag_state);
-			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
 					    nonemb_cmd.va, nonemb_cmd.dma);
 			return -EIO;
 		}
@@ -4898,7 +4879,7 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 		bsg_reply->result = status;
 		bsg_job_done(job, bsg_reply->result,
 			     bsg_reply->reply_payload_rcv_len);
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+		dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
 		if (status || extd_status) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
@@ -5529,7 +5510,6 @@ static pci_ers_result_t beiscsi_eeh_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -5755,7 +5735,7 @@ free_twq:
 	beiscsi_cleanup_port(phba);
 	beiscsi_free_mem(phba);
 free_port:
-	pci_free_consistent(phba->pcidev,
+	dma_free_coherent(&phba->pcidev->dev,
 			    phba->ctrl.mbox_mem_alloced.size,
 			    phba->ctrl.mbox_mem_alloced.va,
 			    phba->ctrl.mbox_mem_alloced.dma);
@@ -5799,7 +5779,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 
 	/* ctrl uninit */
 	beiscsi_unmap_pci_function(phba);
-	pci_free_consistent(phba->pcidev,
+	dma_free_coherent(&phba->pcidev->dev,
 			    phba->ctrl.mbox_mem_alloced.size,
 			    phba->ctrl.mbox_mem_alloced.va,
 			    phba->ctrl.mbox_mem_alloced.dma);

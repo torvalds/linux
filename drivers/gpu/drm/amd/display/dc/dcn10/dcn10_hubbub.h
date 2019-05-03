@@ -29,6 +29,9 @@
 #include "core_types.h"
 #include "dchubbub.h"
 
+#define TO_DCN10_HUBBUB(hubbub)\
+	container_of(hubbub, struct dcn10_hubbub, base)
+
 #define HUBHUB_REG_LIST_DCN()\
 	SR(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A),\
 	SR(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A),\
@@ -107,6 +110,12 @@ struct dcn_hubbub_registers {
 	uint32_t DCHUBBUB_SDPIF_AGP_TOP;
 	uint32_t DCHUBBUB_CRC_CTRL;
 	uint32_t DCHUBBUB_SOFT_RESET;
+	uint32_t DCN_VM_FB_LOCATION_BASE;
+	uint32_t DCN_VM_FB_LOCATION_TOP;
+	uint32_t DCN_VM_FB_OFFSET;
+	uint32_t DCN_VM_AGP_BOT;
+	uint32_t DCN_VM_AGP_TOP;
+	uint32_t DCN_VM_AGP_BASE;
 };
 
 /* set field name */
@@ -152,7 +161,13 @@ struct dcn_hubbub_registers {
 		type SDPIF_FB_OFFSET;\
 		type SDPIF_AGP_BASE;\
 		type SDPIF_AGP_BOT;\
-		type SDPIF_AGP_TOP
+		type SDPIF_AGP_TOP;\
+		type FB_BASE;\
+		type FB_TOP;\
+		type FB_OFFSET;\
+		type AGP_BOT;\
+		type AGP_TOP;\
+		type AGP_BASE
 
 
 struct dcn_hubbub_shift {
@@ -165,22 +180,8 @@ struct dcn_hubbub_mask {
 
 struct dc;
 
-struct dcn_hubbub_wm_set {
-	uint32_t wm_set;
-	uint32_t data_urgent;
-	uint32_t pte_meta_urgent;
-	uint32_t sr_enter;
-	uint32_t sr_exit;
-	uint32_t dram_clk_chanage;
-};
-
-struct dcn_hubbub_wm {
-	struct dcn_hubbub_wm_set sets[4];
-};
-
-struct hubbub {
-	const struct hubbub_funcs *funcs;
-	struct dc_context *ctx;
+struct dcn10_hubbub {
+	struct hubbub base;
 	const struct dcn_hubbub_registers *regs;
 	const struct dcn_hubbub_shift *shifts;
 	const struct dcn_hubbub_mask *masks;
@@ -202,6 +203,10 @@ void hubbub1_program_watermarks(
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
+
+void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow);
+
+bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubub);
 
 void hubbub1_toggle_watermark_change_req(
 		struct hubbub *hubbub);

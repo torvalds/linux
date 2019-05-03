@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2018 Netronome Systems, Inc. */
 /* This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -50,15 +50,17 @@ static void int_exit(int signo)
 	stop = true;
 }
 
-static enum bpf_perf_event_ret print_bpf_output(void *event, void *priv)
+static enum bpf_perf_event_ret
+print_bpf_output(struct perf_event_header *event, void *private_data)
 {
-	struct event_ring_info *ring = priv;
-	struct perf_event_sample *e = event;
+	struct perf_event_sample *e = container_of(event, struct perf_event_sample,
+						   header);
+	struct event_ring_info *ring = private_data;
 	struct {
 		struct perf_event_header header;
 		__u64 id;
 		__u64 lost;
-	} *lost = event;
+	} *lost = (typeof(lost))event;
 
 	if (json_output) {
 		jsonw_start_object(json_wtr);

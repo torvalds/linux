@@ -1206,8 +1206,8 @@ static int if_sdio_probe(struct sdio_func *func,
 
 
 	priv = lbs_add_card(card, &func->dev);
-	if (!priv) {
-		ret = -ENOMEM;
+	if (IS_ERR(priv)) {
+		ret = PTR_ERR(priv);
 		goto free;
 	}
 

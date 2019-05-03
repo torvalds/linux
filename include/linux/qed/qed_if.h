@@ -38,7 +38,6 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
-#include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/io.h>
 #include <linux/compiler.h>
@@ -47,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
@@ -448,10 +448,23 @@ struct qed_mfw_tlv_iscsi {
 	bool tx_bytes_set;
 };
 
+enum qed_db_rec_width {
+	DB_REC_WIDTH_32B,
+	DB_REC_WIDTH_64B,
+};
+
+enum qed_db_rec_space {
+	DB_REC_KERNEL,
+	DB_REC_USER,
+};
+
 #define DIRECT_REG_WR(reg_addr, val) writel((u32)val, \
 					    (void __iomem *)(reg_addr))
 
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
+
+#define DIRECT_REG_WR64(reg_addr, val) writeq((u32)val,	\
+					      (void __iomem *)(reg_addr))
 
 #define QED_COALESCE_MAX 0x1FF
 #define QED_DEFAULT_RX_USECS 12
@@ -630,6 +643,7 @@ struct qed_dev_info {
 	u16		mtu;
 
 	bool wol_support;
+	bool smart_an;
 
 	/* MBI version */
 	u32 mbi_version;
@@ -667,14 +681,35 @@ enum qed_link_mode_bits {
 	QED_LM_Autoneg_BIT = BIT(1),
 	QED_LM_Asym_Pause_BIT = BIT(2),
 	QED_LM_Pause_BIT = BIT(3),
-	QED_LM_1000baseT_Half_BIT = BIT(4),
-	QED_LM_1000baseT_Full_BIT = BIT(5),
+	QED_LM_1000baseT_Full_BIT = BIT(4),
+	QED_LM_10000baseT_Full_BIT = BIT(5),
 	QED_LM_10000baseKR_Full_BIT = BIT(6),
-	QED_LM_25000baseKR_Full_BIT = BIT(7),
-	QED_LM_40000baseLR4_Full_BIT = BIT(8),
-	QED_LM_50000baseKR2_Full_BIT = BIT(9),
-	QED_LM_100000baseKR4_Full_BIT = BIT(10),
-	QED_LM_COUNT = 11
+	QED_LM_20000baseKR2_Full_BIT = BIT(7),
+	QED_LM_25000baseKR_Full_BIT = BIT(8),
+	QED_LM_40000baseLR4_Full_BIT = BIT(9),
+	QED_LM_50000baseKR2_Full_BIT = BIT(10),
+	QED_LM_100000baseKR4_Full_BIT = BIT(11),
+	QED_LM_2500baseX_Full_BIT = BIT(12),
+	QED_LM_Backplane_BIT = BIT(13),
+	QED_LM_1000baseKX_Full_BIT = BIT(14),
+	QED_LM_10000baseKX4_Full_BIT = BIT(15),
+	QED_LM_10000baseR_FEC_BIT = BIT(16),
+	QED_LM_40000baseKR4_Full_BIT = BIT(17),
+	QED_LM_40000baseCR4_Full_BIT = BIT(18),
+	QED_LM_40000baseSR4_Full_BIT = BIT(19),
+	QED_LM_25000baseCR_Full_BIT = BIT(20),
+	QED_LM_25000baseSR_Full_BIT = BIT(21),
+	QED_LM_50000baseCR2_Full_BIT = BIT(22),
+	QED_LM_100000baseSR4_Full_BIT = BIT(23),
+	QED_LM_100000baseCR4_Full_BIT = BIT(24),
+	QED_LM_100000baseLR4_ER4_Full_BIT = BIT(25),
+	QED_LM_50000baseSR2_Full_BIT = BIT(26),
+	QED_LM_1000baseX_Full_BIT = BIT(27),
+	QED_LM_10000baseCR_Full_BIT = BIT(28),
+	QED_LM_10000baseSR_Full_BIT = BIT(29),
+	QED_LM_10000baseLR_Full_BIT = BIT(30),
+	QED_LM_10000baseLRM_Full_BIT = BIT(31),
+	QED_LM_COUNT = 32
 };
 
 struct qed_link_params {
@@ -729,6 +764,7 @@ struct qed_probe_params {
 	u32 dp_module;
 	u8 dp_level;
 	bool is_vf;
+	bool recov_in_prog;
 };
 
 #define QED_DRV_VER_STR_SIZE 12
@@ -775,6 +811,7 @@ struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void	(*link_update)(void			*dev,
 			       struct qed_link_output	*link);
+	void (*schedule_recovery_handler)(void *dev);
 	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 	void (*get_generic_tlv_data)(void *dev, struct qed_generic_tlvs *data);
 	void (*get_protocol_tlv_data)(void *dev, void *data);
@@ -994,6 +1031,51 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+/**
+ * @brief db_recovery_add - add doorbell information to the doorbell
+ * recovery mechanism.
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address of where db_data is stored
+ * @param db_is_32b - doorbell is 32b pr 64b
+ * @param db_is_user - doorbell recovery addresses are user or kernel space
+ */
+	int (*db_recovery_add)(struct qed_dev *cdev,
+			       void __iomem *db_addr,
+			       void *db_data,
+			       enum qed_db_rec_width db_width,
+			       enum qed_db_rec_space db_space);
+
+/**
+ * @brief db_recovery_del - remove doorbell information from the doorbell
+ * recovery mechanism. db_data serves as key (db_addr is not unique).
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address where db_data is stored. Serves as key for the
+ *		    entry to delete.
+ */
+	int (*db_recovery_del)(struct qed_dev *cdev,
+			       void __iomem *db_addr, void *db_data);
+
+/**
+ * @brief recovery_process - Trigger a recovery process
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*recovery_process)(struct qed_dev *cdev);
+
+/**
+ * @brief recovery_prolog - Execute the prolog operations of a recovery process
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*recovery_prolog)(struct qed_dev *cdev);
 
 /**
  * @brief update_drv_state - API to inform the change in the driver state.

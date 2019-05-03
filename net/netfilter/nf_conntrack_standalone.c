@@ -24,6 +24,10 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <linux/rculist_nulls.h>
 
+static bool enable_hooks __read_mostly;
+MODULE_PARM_DESC(enable_hooks, "Always enable conntrack hooks");
+module_param(enable_hooks, bool, 0000);
+
 unsigned int nf_conntrack_net_id __read_mostly;
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -267,6 +271,24 @@ static const char* l4proto_name(u16 proto)
 	return "unknown";
 }
 
+static unsigned int
+seq_print_acct(struct seq_file *s, const struct nf_conn *ct, int dir)
+{
+	struct nf_conn_acct *acct;
+	struct nf_conn_counter *counter;
+
+	acct = nf_conn_acct_find(ct);
+	if (!acct)
+		return 0;
+
+	counter = acct->counter;
+	seq_printf(s, "packets=%llu bytes=%llu ",
+		   (unsigned long long)atomic64_read(&counter[dir].packets),
+		   (unsigned long long)atomic64_read(&counter[dir].bytes));
+
+	return 0;
+}
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -292,8 +314,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (!net_eq(nf_ct_net(ct), net))
 		goto release;
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	WARN_ON(!l4proto);
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 
 	ret = -ENOSPC;
 	seq_printf(s, "%-8s %u %-8s %u ",
@@ -514,36 +535,100 @@ nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
 
 static struct ctl_table_header *nf_ct_netfilter_header;
 
+enum nf_ct_sysctl_index {
+	NF_SYSCTL_CT_MAX,
+	NF_SYSCTL_CT_COUNT,
+	NF_SYSCTL_CT_BUCKETS,
+	NF_SYSCTL_CT_CHECKSUM,
+	NF_SYSCTL_CT_LOG_INVALID,
+	NF_SYSCTL_CT_EXPECT_MAX,
+	NF_SYSCTL_CT_ACCT,
+	NF_SYSCTL_CT_HELPER,
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	NF_SYSCTL_CT_EVENTS,
+#endif
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	NF_SYSCTL_CT_TIMESTAMP,
+#endif
+	NF_SYSCTL_CT_PROTO_TIMEOUT_GENERIC,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_SYN_SENT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_SYN_RECV,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_ESTABLISHED,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_FIN_WAIT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_CLOSE_WAIT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_LAST_ACK,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_TIME_WAIT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_CLOSE,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_RETRANS,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_UNACK,
+	NF_SYSCTL_CT_PROTO_TCP_LOOSE,
+	NF_SYSCTL_CT_PROTO_TCP_LIBERAL,
+	NF_SYSCTL_CT_PROTO_TCP_MAX_RETRANS,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_UDP,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_UDP_STREAM,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_ICMP,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_ICMPV6,
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_CLOSED,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_COOKIE_WAIT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_COOKIE_ECHOED,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_ESTABLISHED,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_SENT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_RECD,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_ACK_SENT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_HEARTBEAT_SENT,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_HEARTBEAT_ACKED,
+#endif
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_REQUEST,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_RESPOND,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_PARTOPEN,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_OPEN,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSEREQ,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSING,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_TIMEWAIT,
+	NF_SYSCTL_CT_PROTO_DCCP_LOOSE,
+#endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	NF_SYSCTL_CT_PROTO_TIMEOUT_GRE,
+	NF_SYSCTL_CT_PROTO_TIMEOUT_GRE_STREAM,
+#endif
+
+	__NF_SYSCTL_CT_LAST_SYSCTL,
+};
+
+#define NF_SYSCTL_CT_LAST_SYSCTL (__NF_SYSCTL_CT_LAST_SYSCTL + 1)
+
 static struct ctl_table nf_ct_sysctl_table[] = {
-	{
+	[NF_SYSCTL_CT_MAX] = {
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{
+	[NF_SYSCTL_CT_COUNT] = {
 		.procname	= "nf_conntrack_count",
 		.data		= &init_net.ct.count,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,
 	},
-	{
+	[NF_SYSCTL_CT_BUCKETS] = {
 		.procname       = "nf_conntrack_buckets",
 		.data           = &nf_conntrack_htable_size_user,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
 		.proc_handler   = nf_conntrack_hash_sysctl,
 	},
-	{
+	[NF_SYSCTL_CT_CHECKSUM] = {
 		.procname	= "nf_conntrack_checksum",
 		.data		= &init_net.ct.sysctl_checksum,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{
+	[NF_SYSCTL_CT_LOG_INVALID] = {
 		.procname	= "nf_conntrack_log_invalid",
 		.data		= &init_net.ct.sysctl_log_invalid,
 		.maxlen		= sizeof(unsigned int),
@@ -552,14 +637,274 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.extra1		= &log_invalid_proto_min,
 		.extra2		= &log_invalid_proto_max,
 	},
-	{
+	[NF_SYSCTL_CT_EXPECT_MAX] = {
 		.procname	= "nf_conntrack_expect_max",
 		.data		= &nf_ct_expect_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ }
+	[NF_SYSCTL_CT_ACCT] = {
+		.procname	= "nf_conntrack_acct",
+		.data		= &init_net.ct.sysctl_acct,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	[NF_SYSCTL_CT_HELPER] = {
+		.procname	= "nf_conntrack_helper",
+		.data		= &init_net.ct.sysctl_auto_assign_helper,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	[NF_SYSCTL_CT_EVENTS] = {
+		.procname	= "nf_conntrack_events",
+		.data		= &init_net.ct.sysctl_events,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	[NF_SYSCTL_CT_TIMESTAMP] = {
+		.procname	= "nf_conntrack_timestamp",
+		.data		= &init_net.ct.sysctl_tstamp,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_GENERIC] = {
+		.procname	= "nf_conntrack_generic_timeout",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_SYN_SENT] = {
+		.procname	= "nf_conntrack_tcp_timeout_syn_sent",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_SYN_RECV] = {
+		.procname	= "nf_conntrack_tcp_timeout_syn_recv",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_ESTABLISHED] = {
+		.procname	= "nf_conntrack_tcp_timeout_established",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_FIN_WAIT] = {
+		.procname	= "nf_conntrack_tcp_timeout_fin_wait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_CLOSE_WAIT] = {
+		.procname	= "nf_conntrack_tcp_timeout_close_wait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_LAST_ACK] = {
+		.procname	= "nf_conntrack_tcp_timeout_last_ack",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_TIME_WAIT] = {
+		.procname	= "nf_conntrack_tcp_timeout_time_wait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_CLOSE] = {
+		.procname	= "nf_conntrack_tcp_timeout_close",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_RETRANS] = {
+		.procname	= "nf_conntrack_tcp_timeout_max_retrans",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_UNACK] = {
+		.procname	= "nf_conntrack_tcp_timeout_unacknowledged",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TCP_LOOSE] = {
+		.procname	= "nf_conntrack_tcp_loose",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	[NF_SYSCTL_CT_PROTO_TCP_LIBERAL] = {
+		.procname       = "nf_conntrack_tcp_be_liberal",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	[NF_SYSCTL_CT_PROTO_TCP_MAX_RETRANS] = {
+		.procname	= "nf_conntrack_tcp_max_retrans",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_UDP] = {
+		.procname	= "nf_conntrack_udp_timeout",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_UDP_STREAM] = {
+		.procname	= "nf_conntrack_udp_timeout_stream",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_ICMP] = {
+		.procname	= "nf_conntrack_icmp_timeout",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_ICMPV6] = {
+		.procname	= "nf_conntrack_icmpv6_timeout",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_CLOSED] = {
+		.procname	= "nf_conntrack_sctp_timeout_closed",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_COOKIE_WAIT] = {
+		.procname	= "nf_conntrack_sctp_timeout_cookie_wait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_COOKIE_ECHOED] = {
+		.procname	= "nf_conntrack_sctp_timeout_cookie_echoed",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_ESTABLISHED] = {
+		.procname	= "nf_conntrack_sctp_timeout_established",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_SENT] = {
+		.procname	= "nf_conntrack_sctp_timeout_shutdown_sent",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_RECD] = {
+		.procname	= "nf_conntrack_sctp_timeout_shutdown_recd",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_ACK_SENT] = {
+		.procname	= "nf_conntrack_sctp_timeout_shutdown_ack_sent",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_HEARTBEAT_SENT] = {
+		.procname	= "nf_conntrack_sctp_timeout_heartbeat_sent",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_HEARTBEAT_ACKED] = {
+		.procname       = "nf_conntrack_sctp_timeout_heartbeat_acked",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_jiffies,
+	},
+#endif
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_REQUEST] = {
+		.procname	= "nf_conntrack_dccp_timeout_request",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_RESPOND] = {
+		.procname	= "nf_conntrack_dccp_timeout_respond",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_PARTOPEN] = {
+		.procname	= "nf_conntrack_dccp_timeout_partopen",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_OPEN] = {
+		.procname	= "nf_conntrack_dccp_timeout_open",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSEREQ] = {
+		.procname	= "nf_conntrack_dccp_timeout_closereq",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSING] = {
+		.procname	= "nf_conntrack_dccp_timeout_closing",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_TIMEWAIT] = {
+		.procname	= "nf_conntrack_dccp_timeout_timewait",
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_DCCP_LOOSE] = {
+		.procname	= "nf_conntrack_dccp_loose",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_GRE] = {
+		.procname       = "nf_conntrack_gre_timeout",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_jiffies,
+	},
+	[NF_SYSCTL_CT_PROTO_TIMEOUT_GRE_STREAM] = {
+		.procname       = "nf_conntrack_gre_timeout_stream",
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_jiffies,
+	},
+#endif
+	{}
 };
 
 static struct ctl_table nf_ct_netfilter_table[] = {
@@ -573,25 +918,136 @@ static struct ctl_table nf_ct_netfilter_table[] = {
 	{ }
 };
 
+static void nf_conntrack_standalone_init_tcp_sysctl(struct net *net,
+						    struct ctl_table *table)
+{
+	struct nf_tcp_net *tn = nf_tcp_pernet(net);
+
+#define XASSIGN(XNAME, tn) \
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_ ## XNAME].data = \
+			&(tn)->timeouts[TCP_CONNTRACK_ ## XNAME]
+
+	XASSIGN(SYN_SENT, tn);
+	XASSIGN(SYN_RECV, tn);
+	XASSIGN(ESTABLISHED, tn);
+	XASSIGN(FIN_WAIT, tn);
+	XASSIGN(CLOSE_WAIT, tn);
+	XASSIGN(LAST_ACK, tn);
+	XASSIGN(TIME_WAIT, tn);
+	XASSIGN(CLOSE, tn);
+	XASSIGN(RETRANS, tn);
+	XASSIGN(UNACK, tn);
+#undef XASSIGN
+#define XASSIGN(XNAME, rval) \
+	table[NF_SYSCTL_CT_PROTO_TCP_ ## XNAME].data = (rval)
+
+	XASSIGN(LOOSE, &tn->tcp_loose);
+	XASSIGN(LIBERAL, &tn->tcp_be_liberal);
+	XASSIGN(MAX_RETRANS, &tn->tcp_max_retrans);
+#undef XASSIGN
+}
+
+static void nf_conntrack_standalone_init_sctp_sysctl(struct net *net,
+						     struct ctl_table *table)
+{
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	struct nf_sctp_net *sn = nf_sctp_pernet(net);
+
+#define XASSIGN(XNAME, sn) \
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_ ## XNAME].data = \
+			&(sn)->timeouts[SCTP_CONNTRACK_ ## XNAME]
+
+	XASSIGN(CLOSED, sn);
+	XASSIGN(COOKIE_WAIT, sn);
+	XASSIGN(COOKIE_ECHOED, sn);
+	XASSIGN(ESTABLISHED, sn);
+	XASSIGN(SHUTDOWN_SENT, sn);
+	XASSIGN(SHUTDOWN_RECD, sn);
+	XASSIGN(SHUTDOWN_ACK_SENT, sn);
+	XASSIGN(HEARTBEAT_SENT, sn);
+	XASSIGN(HEARTBEAT_ACKED, sn);
+#undef XASSIGN
+#endif
+}
+
+static void nf_conntrack_standalone_init_dccp_sysctl(struct net *net,
+						     struct ctl_table *table)
+{
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	struct nf_dccp_net *dn = nf_dccp_pernet(net);
+
+#define XASSIGN(XNAME, dn) \
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_ ## XNAME].data = \
+			&(dn)->dccp_timeout[CT_DCCP_ ## XNAME]
+
+	XASSIGN(REQUEST, dn);
+	XASSIGN(RESPOND, dn);
+	XASSIGN(PARTOPEN, dn);
+	XASSIGN(OPEN, dn);
+	XASSIGN(CLOSEREQ, dn);
+	XASSIGN(CLOSING, dn);
+	XASSIGN(TIMEWAIT, dn);
+#undef XASSIGN
+
+	table[NF_SYSCTL_CT_PROTO_DCCP_LOOSE].data = &dn->dccp_loose;
+#endif
+}
+
+static void nf_conntrack_standalone_init_gre_sysctl(struct net *net,
+						    struct ctl_table *table)
+{
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	struct nf_gre_net *gn = nf_gre_pernet(net);
+
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_GRE].data = &gn->timeouts[GRE_CT_UNREPLIED];
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_GRE_STREAM].data = &gn->timeouts[GRE_CT_REPLIED];
+#endif
+}
+
 static int nf_conntrack_standalone_init_sysctl(struct net *net)
 {
+	struct nf_udp_net *un = nf_udp_pernet(net);
 	struct ctl_table *table;
+
+	BUILD_BUG_ON(ARRAY_SIZE(nf_ct_sysctl_table) != NF_SYSCTL_CT_LAST_SYSCTL);
 
 	table = kmemdup(nf_ct_sysctl_table, sizeof(nf_ct_sysctl_table),
 			GFP_KERNEL);
 	if (!table)
-		goto out_kmemdup;
+		return -ENOMEM;
 
-	table[1].data = &net->ct.count;
-	table[3].data = &net->ct.sysctl_checksum;
-	table[4].data = &net->ct.sysctl_log_invalid;
+	table[NF_SYSCTL_CT_COUNT].data = &net->ct.count;
+	table[NF_SYSCTL_CT_CHECKSUM].data = &net->ct.sysctl_checksum;
+	table[NF_SYSCTL_CT_LOG_INVALID].data = &net->ct.sysctl_log_invalid;
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	table[NF_SYSCTL_CT_EVENTS].data = &net->ct.sysctl_events;
+#endif
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_GENERIC].data = &nf_generic_pernet(net)->timeout;
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_ICMP].data = &nf_icmp_pernet(net)->timeout;
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_ICMPV6].data = &nf_icmpv6_pernet(net)->timeout;
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_UDP].data = &un->timeouts[UDP_CT_UNREPLIED];
+	table[NF_SYSCTL_CT_PROTO_TIMEOUT_UDP_STREAM].data = &un->timeouts[UDP_CT_REPLIED];
+
+	nf_conntrack_standalone_init_tcp_sysctl(net, table);
+	nf_conntrack_standalone_init_sctp_sysctl(net, table);
+	nf_conntrack_standalone_init_dccp_sysctl(net, table);
+	nf_conntrack_standalone_init_gre_sysctl(net, table);
 
 	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		table[0].procname = NULL;
+	if (net->user_ns != &init_user_ns) {
+		table[NF_SYSCTL_CT_MAX].procname = NULL;
+		table[NF_SYSCTL_CT_ACCT].procname = NULL;
+		table[NF_SYSCTL_CT_HELPER].procname = NULL;
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+		table[NF_SYSCTL_CT_TIMESTAMP].procname = NULL;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+		table[NF_SYSCTL_CT_EVENTS].procname = NULL;
+#endif
+	}
 
 	if (!net_eq(&init_net, net))
-		table[2].mode = 0444;
+		table[NF_SYSCTL_CT_BUCKETS].mode = 0444;
 
 	net->ct.sysctl_header = register_net_sysctl(net, "net/netfilter", table);
 	if (!net->ct.sysctl_header)
@@ -601,7 +1057,6 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 
 out_unregister_netfilter:
 	kfree(table);
-out_kmemdup:
 	return -ENOMEM;
 }
 
@@ -624,31 +1079,47 @@ static void nf_conntrack_standalone_fini_sysctl(struct net *net)
 }
 #endif /* CONFIG_SYSCTL */
 
+static void nf_conntrack_fini_net(struct net *net)
+{
+	if (enable_hooks)
+		nf_ct_netns_put(net, NFPROTO_INET);
+
+	nf_conntrack_standalone_fini_proc(net);
+	nf_conntrack_standalone_fini_sysctl(net);
+}
+
 static int nf_conntrack_pernet_init(struct net *net)
 {
 	int ret;
 
-	ret = nf_conntrack_init_net(net);
+	net->ct.sysctl_checksum = 1;
+
+	ret = nf_conntrack_standalone_init_sysctl(net);
 	if (ret < 0)
-		goto out_init;
+		return ret;
 
 	ret = nf_conntrack_standalone_init_proc(net);
 	if (ret < 0)
 		goto out_proc;
 
-	net->ct.sysctl_checksum = 1;
-	net->ct.sysctl_log_invalid = 0;
-	ret = nf_conntrack_standalone_init_sysctl(net);
+	ret = nf_conntrack_init_net(net);
 	if (ret < 0)
-		goto out_sysctl;
+		goto out_init_net;
+
+	if (enable_hooks) {
+		ret = nf_ct_netns_get(net, NFPROTO_INET);
+		if (ret < 0)
+			goto out_hooks;
+	}
 
 	return 0;
 
-out_sysctl:
+out_hooks:
+	nf_conntrack_cleanup_net(net);
+out_init_net:
 	nf_conntrack_standalone_fini_proc(net);
 out_proc:
-	nf_conntrack_cleanup_net(net);
-out_init:
+	nf_conntrack_standalone_fini_sysctl(net);
 	return ret;
 }
 
@@ -656,10 +1127,9 @@ static void nf_conntrack_pernet_exit(struct list_head *net_exit_list)
 {
 	struct net *net;
 
-	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_conntrack_standalone_fini_sysctl(net);
-		nf_conntrack_standalone_fini_proc(net);
-	}
+	list_for_each_entry(net, net_exit_list, exit_list)
+		nf_conntrack_fini_net(net);
+
 	nf_conntrack_cleanup_net_list(net_exit_list);
 }
 
@@ -720,10 +1190,3 @@ static void __exit nf_conntrack_standalone_fini(void)
 
 module_init(nf_conntrack_standalone_init);
 module_exit(nf_conntrack_standalone_fini);
-
-/* Some modules need us, but don't depend directly on any symbol.
-   They should call this. */
-void need_conntrack(void)
-{
-}
-EXPORT_SYMBOL_GPL(need_conntrack);

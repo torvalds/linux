@@ -14,8 +14,11 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
-#include "clkc-audio.h"
 #include "axg-audio.h"
+#include "clk-input.h"
+#include "clk-regmap.h"
+#include "clk-phase.h"
+#include "sclk-div.h"
 
 #define AXG_MST_IN_COUNT	8
 #define AXG_SLV_SCLK_COUNT	10
@@ -101,9 +104,15 @@ static const char * const mst_mux_parent_names[] = {
 	"axg_mst_in4", "axg_mst_in5", "axg_mst_in6", "axg_mst_in7",
 };
 
-#define AXG_MST_MCLK_MUX(_name, _reg)					\
-	AXG_AUD_MUX(_name##_sel, _reg, 0x7, 24, CLK_MUX_ROUND_CLOSEST, \
+#define AXG_MST_MUX(_name, _reg, _flag)				\
+	AXG_AUD_MUX(_name##_sel, _reg, 0x7, 24, _flag,		\
 		    mst_mux_parent_names, CLK_SET_RATE_PARENT)
+
+#define AXG_MST_MCLK_MUX(_name, _reg)				\
+	AXG_MST_MUX(_name, _reg, CLK_MUX_ROUND_CLOSEST)
+
+#define AXG_MST_SYS_MUX(_name, _reg)				\
+	AXG_MST_MUX(_name, _reg, 0)
 
 static AXG_MST_MCLK_MUX(mst_a_mclk,   AUDIO_MCLK_A_CTRL);
 static AXG_MST_MCLK_MUX(mst_b_mclk,   AUDIO_MCLK_B_CTRL);
@@ -112,13 +121,19 @@ static AXG_MST_MCLK_MUX(mst_d_mclk,   AUDIO_MCLK_D_CTRL);
 static AXG_MST_MCLK_MUX(mst_e_mclk,   AUDIO_MCLK_E_CTRL);
 static AXG_MST_MCLK_MUX(mst_f_mclk,   AUDIO_MCLK_F_CTRL);
 static AXG_MST_MCLK_MUX(spdifout_clk, AUDIO_CLK_SPDIFOUT_CTRL);
-static AXG_MST_MCLK_MUX(spdifin_clk,  AUDIO_CLK_SPDIFIN_CTRL);
 static AXG_MST_MCLK_MUX(pdm_dclk,     AUDIO_CLK_PDMIN_CTRL0);
-static AXG_MST_MCLK_MUX(pdm_sysclk,   AUDIO_CLK_PDMIN_CTRL1);
+static AXG_MST_SYS_MUX(spdifin_clk,   AUDIO_CLK_SPDIFIN_CTRL);
+static AXG_MST_SYS_MUX(pdm_sysclk,    AUDIO_CLK_PDMIN_CTRL1);
 
-#define AXG_MST_MCLK_DIV(_name, _reg)					\
-	AXG_AUD_DIV(_name##_div, _reg, 0, 16, CLK_DIVIDER_ROUND_CLOSEST, \
-		    "axg_"#_name"_sel", CLK_SET_RATE_PARENT)		\
+#define AXG_MST_DIV(_name, _reg, _flag)				\
+	AXG_AUD_DIV(_name##_div, _reg, 0, 16, _flag,		\
+		    "axg_"#_name"_sel", CLK_SET_RATE_PARENT)	\
+
+#define AXG_MST_MCLK_DIV(_name, _reg)				\
+	AXG_MST_DIV(_name, _reg, CLK_DIVIDER_ROUND_CLOSEST)
+
+#define AXG_MST_SYS_DIV(_name, _reg)				\
+	AXG_MST_DIV(_name, _reg, 0)
 
 static AXG_MST_MCLK_DIV(mst_a_mclk,   AUDIO_MCLK_A_CTRL);
 static AXG_MST_MCLK_DIV(mst_b_mclk,   AUDIO_MCLK_B_CTRL);
@@ -127,12 +142,12 @@ static AXG_MST_MCLK_DIV(mst_d_mclk,   AUDIO_MCLK_D_CTRL);
 static AXG_MST_MCLK_DIV(mst_e_mclk,   AUDIO_MCLK_E_CTRL);
 static AXG_MST_MCLK_DIV(mst_f_mclk,   AUDIO_MCLK_F_CTRL);
 static AXG_MST_MCLK_DIV(spdifout_clk, AUDIO_CLK_SPDIFOUT_CTRL);
-static AXG_MST_MCLK_DIV(spdifin_clk,  AUDIO_CLK_SPDIFIN_CTRL);
 static AXG_MST_MCLK_DIV(pdm_dclk,     AUDIO_CLK_PDMIN_CTRL0);
-static AXG_MST_MCLK_DIV(pdm_sysclk,   AUDIO_CLK_PDMIN_CTRL1);
+static AXG_MST_SYS_DIV(spdifin_clk,   AUDIO_CLK_SPDIFIN_CTRL);
+static AXG_MST_SYS_DIV(pdm_sysclk,    AUDIO_CLK_PDMIN_CTRL1);
 
-#define AXG_MST_MCLK_GATE(_name, _reg)					\
-	AXG_AUD_GATE(_name, _reg, 31,  "axg_"#_name"_div",		\
+#define AXG_MST_MCLK_GATE(_name, _reg)				\
+	AXG_AUD_GATE(_name, _reg, 31,  "axg_"#_name"_div",	\
 		     CLK_SET_RATE_PARENT)
 
 static AXG_MST_MCLK_GATE(mst_a_mclk,   AUDIO_MCLK_A_CTRL);
@@ -619,22 +634,23 @@ static struct clk_regmap *const axg_audio_clk_regmaps[] = {
 	&axg_tdmout_c_lrclk,
 };
 
-static struct clk *devm_clk_get_enable(struct device *dev, char *id)
+static int devm_clk_get_enable(struct device *dev, char *id)
 {
 	struct clk *clk;
 	int ret;
 
 	clk = devm_clk_get(dev, id);
 	if (IS_ERR(clk)) {
-		if (PTR_ERR(clk) != -EPROBE_DEFER)
+		ret = PTR_ERR(clk);
+		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "failed to get %s", id);
-		return clk;
+		return ret;
 	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
 		dev_err(dev, "failed to enable %s", id);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
 	ret = devm_add_action_or_reset(dev,
@@ -642,74 +658,40 @@ static struct clk *devm_clk_get_enable(struct device *dev, char *id)
 				       clk);
 	if (ret) {
 		dev_err(dev, "failed to add reset action on %s", id);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
-	return clk;
-}
-
-static const struct clk_ops axg_clk_no_ops = {};
-
-static struct clk_hw *axg_clk_hw_register_bypass(struct device *dev,
-						 const char *name,
-						 const char *parent_name)
-{
-	struct clk_hw *hw;
-	struct clk_init_data init;
-	char *clk_name;
-	int ret;
-
-	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
-	if (!hw)
-		return ERR_PTR(-ENOMEM);
-
-	clk_name = kasprintf(GFP_KERNEL, "axg_%s", name);
-	if (!clk_name)
-		return ERR_PTR(-ENOMEM);
-
-	init.name = clk_name;
-	init.ops = &axg_clk_no_ops;
-	init.flags = 0;
-	init.parent_names = parent_name ? &parent_name : NULL;
-	init.num_parents = parent_name ? 1 : 0;
-	hw->init = &init;
-
-	ret = devm_clk_hw_register(dev, hw);
-	kfree(clk_name);
-
-	return ret ? ERR_PTR(ret) : hw;
+	return 0;
 }
 
 static int axg_register_clk_hw_input(struct device *dev,
 				     const char *name,
 				     unsigned int clkid)
 {
-	struct clk *parent_clk = devm_clk_get(dev, name);
-	struct clk_hw *hw = NULL;
+	char *clk_name;
+	struct clk_hw *hw;
+	int err = 0;
 
-	if (IS_ERR(parent_clk)) {
-		int err = PTR_ERR(parent_clk);
+	clk_name = kasprintf(GFP_KERNEL, "axg_%s", name);
+	if (!clk_name)
+		return -ENOMEM;
 
+	hw = meson_clk_hw_register_input(dev, name, clk_name, 0);
+	if (IS_ERR(hw)) {
 		/* It is ok if an input clock is missing */
-		if (err == -ENOENT) {
+		if (PTR_ERR(hw) == -ENOENT) {
 			dev_dbg(dev, "%s not provided", name);
 		} else {
+			err = PTR_ERR(hw);
 			if (err != -EPROBE_DEFER)
 				dev_err(dev, "failed to get %s clock", name);
-			return err;
 		}
 	} else {
-		hw = axg_clk_hw_register_bypass(dev, name,
-						__clk_get_name(parent_clk));
+		axg_audio_hw_onecell_data.hws[clkid] = hw;
 	}
 
-	if (IS_ERR(hw)) {
-		dev_err(dev, "failed to register %s clock", name);
-		return PTR_ERR(hw);
-	}
-
-	axg_audio_hw_onecell_data.hws[clkid] = hw;
-	return 0;
+	kfree(clk_name);
+	return err;
 }
 
 static int axg_register_clk_hw_inputs(struct device *dev,
@@ -747,7 +729,6 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	struct regmap *map;
 	struct resource *res;
 	void __iomem *regs;
-	struct clk *clk;
 	struct clk_hw *hw;
 	int ret, i;
 
@@ -763,9 +744,9 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	}
 
 	/* Get the mandatory peripheral clock */
-	clk = devm_clk_get_enable(dev, "pclk");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = devm_clk_get_enable(dev, "pclk");
+	if (ret)
+		return ret;
 
 	ret = device_reset(dev);
 	if (ret) {
@@ -774,8 +755,7 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	}
 
 	/* Register the peripheral input clock */
-	hw = axg_clk_hw_register_bypass(dev, "audio_pclk",
-					__clk_get_name(clk));
+	hw = meson_clk_hw_register_input(dev, "pclk", "axg_audio_pclk", 0);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 

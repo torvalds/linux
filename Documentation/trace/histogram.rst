@@ -25,7 +25,7 @@ Documentation written by Tom Zanussi
 
         hist:keys=<field1[,field2,...]>[:values=<field1[,field2,...]>]
           [:sort=<field1[,field2,...]>][:size=#entries][:pause][:continue]
-          [:clear][:name=histname1] [if <filter>]
+          [:clear][:name=histname1][:<handler>.<action>] [if <filter>]
 
   When a matching event is hit, an entry is added to a hash table
   using the key(s) and value(s) named.  Keys and values correspond to
@@ -1765,7 +1765,7 @@ For example, here's how a latency can be calculated::
   # echo 'hist:keys=pid,prio:ts0=common_timestamp ...' >> event1/trigger
   # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp-$ts0 ...' >> event2/trigger
 
-In the first line above, the event's timetamp is saved into the
+In the first line above, the event's timestamp is saved into the
 variable ts0.  In the next line, ts0 is subtracted from the second
 event's timestamp to produce the latency, which is then assigned into
 yet another variable, 'wakeup_lat'.  The hist trigger below in turn
@@ -1811,7 +1811,7 @@ the command that defined it with a '!'::
     /sys/kernel/debug/tracing/synthetic_events
 
 At this point, there isn't yet an actual 'wakeup_latency' event
-instantiated in the event subsytem - for this to happen, a 'hist
+instantiated in the event subsystem - for this to happen, a 'hist
 trigger action' needs to be instantiated and bound to actual fields
 and variables defined on other events (see Section 2.2.3 below on
 how that is done using hist trigger 'onmatch' action). Once that is
@@ -1831,41 +1831,87 @@ and looks and behaves just like any other event::
 Like any other event, once a histogram is enabled for the event, the
 output can be displayed by reading the event's 'hist' file.
 
-2.2.3 Hist trigger 'actions'
-----------------------------
+2.2.3 Hist trigger 'handlers' and 'actions'
+-------------------------------------------
 
-A hist trigger 'action' is a function that's executed whenever a
-histogram entry is added or updated.
+A hist trigger 'action' is a function that's executed (in most cases
+conditionally) whenever a histogram entry is added or updated.
 
-The default 'action' if no special function is explicity specified is
-as it always has been, to simply update the set of values associated
-with an entry.  Some applications, however, may want to perform
-additional actions at that point, such as generate another event, or
-compare and save a maximum.
+When a histogram entry is added or updated, a hist trigger 'handler'
+is what decides whether the corresponding action is actually invoked
+or not.
 
-The following additional actions are available.  To specify an action
-for a given event, simply specify the action between colons in the
-hist trigger specification.
+Hist trigger handlers and actions are paired together in the general
+form:
 
-  - onmatch(matching.event).<synthetic_event_name>(param list)
+  <handler>.<action>
 
-    The 'onmatch(matching.event).<synthetic_event_name>(params)' hist
-    trigger action is invoked whenever an event matches and the
-    histogram entry would be added or updated.  It causes the named
-    synthetic event to be generated with the values given in the
+To specify a handler.action pair for a given event, simply specify
+that handler.action pair between colons in the hist trigger
+specification.
+
+In theory, any handler can be combined with any action, but in
+practice, not every handler.action combination is currently supported;
+if a given handler.action combination isn't supported, the hist
+trigger will fail with -EINVAL;
+
+The default 'handler.action' if none is explicity specified is as it
+always has been, to simply update the set of values associated with an
+entry.  Some applications, however, may want to perform additional
+actions at that point, such as generate another event, or compare and
+save a maximum.
+
+The supported handlers and actions are listed below, and each is
+described in more detail in the following paragraphs, in the context
+of descriptions of some common and useful handler.action combinations.
+
+The available handlers are:
+
+  - onmatch(matching.event)    - invoke action on any addition or update
+  - onmax(var)                 - invoke action if var exceeds current max
+  - onchange(var)              - invoke action if var changes
+
+The available actions are:
+
+  - trace(<synthetic_event_name>,param list)   - generate synthetic event
+  - save(field,...)                            - save current event fields
+  - snapshot()                                 - snapshot the trace buffer
+
+The following commonly-used handler.action pairs are available:
+
+  - onmatch(matching.event).trace(<synthetic_event_name>,param list)
+
+    The 'onmatch(matching.event).trace(<synthetic_event_name>,param
+    list)' hist trigger action is invoked whenever an event matches
+    and the histogram entry would be added or updated.  It causes the
+    named synthetic event to be generated with the values given in the
     'param list'.  The result is the generation of a synthetic event
     that consists of the values contained in those variables at the
-    time the invoking event was hit.
+    time the invoking event was hit.  For example, if the synthetic
+    event name is 'wakeup_latency', a wakeup_latency event is
+    generated using onmatch(event).trace(wakeup_latency,arg1,arg2).
 
-    The 'param list' consists of one or more parameters which may be
-    either variables or fields defined on either the 'matching.event'
-    or the target event.  The variables or fields specified in the
-    param list may be either fully-qualified or unqualified.  If a
-    variable is specified as unqualified, it must be unique between
-    the two events.  A field name used as a param can be unqualified
-    if it refers to the target event, but must be fully qualified if
-    it refers to the matching event.  A fully-qualified name is of the
-    form 'system.event_name.$var_name' or 'system.event_name.field'.
+    There is also an equivalent alternative form available for
+    generating synthetic events.  In this form, the synthetic event
+    name is used as if it were a function name.  For example, using
+    the 'wakeup_latency' synthetic event name again, the
+    wakeup_latency event would be generated by invoking it as if it
+    were a function call, with the event field values passed in as
+    arguments: onmatch(event).wakeup_latency(arg1,arg2).  The syntax
+    for this form is:
+
+      onmatch(matching.event).<synthetic_event_name>(param list)
+
+    In either case, the 'param list' consists of one or more
+    parameters which may be either variables or fields defined on
+    either the 'matching.event' or the target event.  The variables or
+    fields specified in the param list may be either fully-qualified
+    or unqualified.  If a variable is specified as unqualified, it
+    must be unique between the two events.  A field name used as a
+    param can be unqualified if it refers to the target event, but
+    must be fully qualified if it refers to the matching event.  A
+    fully-qualified name is of the form 'system.event_name.$var_name'
+    or 'system.event_name.field'.
 
     The 'matching.event' specification is simply the fully qualified
     event name of the event that matches the target event for the
@@ -1895,6 +1941,12 @@ hist trigger specification.
       # echo 'hist:keys=$testpid:testpid=pid:onmatch(sched.sched_wakeup_new).\
               wakeup_new_test($testpid) if comm=="cyclictest"' >> \
               /sys/kernel/debug/tracing/events/sched/sched_wakeup_new/trigger
+
+    Or, equivalently, using the 'trace' keyword syntax:
+
+    # echo 'hist:keys=$testpid:testpid=pid:onmatch(sched.sched_wakeup_new).\
+            trace(wakeup_new_test,$testpid) if comm=="cyclictest"' >> \
+            /sys/kernel/debug/tracing/events/sched/sched_wakeup_new/trigger
 
     Creating and displaying a histogram based on those events is now
     just a matter of using the fields and new synthetic event in the
@@ -1999,6 +2051,212 @@ hist trigger specification.
             Hits: 12970
             Entries: 2
             Dropped: 0
+
+  - onmax(var).snapshot()
+
+    The 'onmax(var).snapshot()' hist trigger action is invoked
+    whenever the value of 'var' associated with a histogram entry
+    exceeds the current maximum contained in that variable.
+
+    The end result is that a global snapshot of the trace buffer will
+    be saved in the tracing/snapshot file if 'var' exceeds the current
+    maximum for any hist trigger entry.
+
+    Note that in this case the maximum is a global maximum for the
+    current trace instance, which is the maximum across all buckets of
+    the histogram.  The key of the specific trace event that caused
+    the global maximum and the global maximum itself are displayed,
+    along with a message stating that a snapshot has been taken and
+    where to find it.  The user can use the key information displayed
+    to locate the corresponding bucket in the histogram for even more
+    detail.
+
+    As an example the below defines a couple of hist triggers, one for
+    sched_waking and another for sched_switch, keyed on pid.  Whenever
+    a sched_waking event occurs, the timestamp is saved in the entry
+    corresponding to the current pid, and when the scheduler switches
+    back to that pid, the timestamp difference is calculated.  If the
+    resulting latency, stored in wakeup_lat, exceeds the current
+    maximum latency, a snapshot is taken.  As part of the setup, all
+    the scheduler events are also enabled, which are the events that
+    will show up in the snapshot when it is taken at some point:
+
+    # echo 1 > /sys/kernel/debug/tracing/events/sched/enable
+
+    # echo 'hist:keys=pid:ts0=common_timestamp.usecs \
+            if comm=="cyclictest"' >> \
+            /sys/kernel/debug/tracing/events/sched/sched_waking/trigger
+
+    # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0: \
+            onmax($wakeup_lat).save(next_prio,next_comm,prev_pid,prev_prio, \
+	    prev_comm):onmax($wakeup_lat).snapshot() \
+	    if next_comm=="cyclictest"' >> \
+	    /sys/kernel/debug/tracing/events/sched/sched_switch/trigger
+
+    When the histogram is displayed, for each bucket the max value
+    and the saved values corresponding to the max are displayed
+    following the rest of the fields.
+
+    If a snaphot was taken, there is also a message indicating that,
+    along with the value and event that triggered the global maximum:
+
+    # cat /sys/kernel/debug/tracing/events/sched/sched_switch/hist
+      { next_pid:       2101 } hitcount:        200
+	max:         52  next_prio:        120  next_comm: cyclictest \
+        prev_pid:          0  prev_prio:        120  prev_comm: swapper/6
+
+      { next_pid:       2103 } hitcount:       1326
+	max:        572  next_prio:         19  next_comm: cyclictest \
+        prev_pid:          0  prev_prio:        120  prev_comm: swapper/1
+
+      { next_pid:       2102 } hitcount:       1982 \
+	max:         74  next_prio:         19  next_comm: cyclictest \
+        prev_pid:          0  prev_prio:        120  prev_comm: swapper/5
+
+    Snapshot taken (see tracing/snapshot).  Details:
+	triggering value { onmax($wakeup_lat) }:        572	\
+	triggered by event with key: { next_pid:       2103 }
+
+    Totals:
+        Hits: 3508
+        Entries: 3
+        Dropped: 0
+
+    In the above case, the event that triggered the global maximum has
+    the key with next_pid == 2103.  If you look at the bucket that has
+    2103 as the key, you'll find the additional values save()'d along
+    with the local maximum for that bucket, which should be the same
+    as the global maximum (since that was the same value that
+    triggered the global snapshot).
+
+    And finally, looking at the snapshot data should show at or near
+    the end the event that triggered the snapshot (in this case you
+    can verify the timestamps between the sched_waking and
+    sched_switch events, which should match the time displayed in the
+    global maximum):
+
+    # cat /sys/kernel/debug/tracing/snapshot
+
+     <...>-2103  [005] d..3   309.873125: sched_switch: prev_comm=cyclictest prev_pid=2103 prev_prio=19 prev_state=D ==> next_comm=swapper/5 next_pid=0 next_prio=120
+     <idle>-0     [005] d.h3   309.873611: sched_waking: comm=cyclictest pid=2102 prio=19 target_cpu=005
+     <idle>-0     [005] dNh4   309.873613: sched_wakeup: comm=cyclictest pid=2102 prio=19 target_cpu=005
+     <idle>-0     [005] d..3   309.873616: sched_switch: prev_comm=swapper/5 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=cyclictest next_pid=2102 next_prio=19
+     <...>-2102  [005] d..3   309.873625: sched_switch: prev_comm=cyclictest prev_pid=2102 prev_prio=19 prev_state=D ==> next_comm=swapper/5 next_pid=0 next_prio=120
+     <idle>-0     [005] d.h3   309.874624: sched_waking: comm=cyclictest pid=2102 prio=19 target_cpu=005
+     <idle>-0     [005] dNh4   309.874626: sched_wakeup: comm=cyclictest pid=2102 prio=19 target_cpu=005
+     <idle>-0     [005] dNh3   309.874628: sched_waking: comm=cyclictest pid=2103 prio=19 target_cpu=005
+     <idle>-0     [005] dNh4   309.874630: sched_wakeup: comm=cyclictest pid=2103 prio=19 target_cpu=005
+     <idle>-0     [005] d..3   309.874633: sched_switch: prev_comm=swapper/5 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=cyclictest next_pid=2102 next_prio=19
+     <idle>-0     [004] d.h3   309.874757: sched_waking: comm=gnome-terminal- pid=1699 prio=120 target_cpu=004
+     <idle>-0     [004] dNh4   309.874762: sched_wakeup: comm=gnome-terminal- pid=1699 prio=120 target_cpu=004
+     <idle>-0     [004] d..3   309.874766: sched_switch: prev_comm=swapper/4 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=gnome-terminal- next_pid=1699 next_prio=120
+ gnome-terminal--1699  [004] d.h2   309.874941: sched_stat_runtime: comm=gnome-terminal- pid=1699 runtime=180706 [ns] vruntime=1126870572 [ns]
+     <idle>-0     [003] d.s4   309.874956: sched_waking: comm=rcu_sched pid=9 prio=120 target_cpu=007
+     <idle>-0     [003] d.s5   309.874960: sched_wake_idle_without_ipi: cpu=7
+     <idle>-0     [003] d.s5   309.874961: sched_wakeup: comm=rcu_sched pid=9 prio=120 target_cpu=007
+     <idle>-0     [007] d..3   309.874963: sched_switch: prev_comm=swapper/7 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=rcu_sched next_pid=9 next_prio=120
+  rcu_sched-9     [007] d..3   309.874973: sched_stat_runtime: comm=rcu_sched pid=9 runtime=13646 [ns] vruntime=22531430286 [ns]
+  rcu_sched-9     [007] d..3   309.874978: sched_switch: prev_comm=rcu_sched prev_pid=9 prev_prio=120 prev_state=R+ ==> next_comm=swapper/7 next_pid=0 next_prio=120
+      <...>-2102  [005] d..4   309.874994: sched_migrate_task: comm=cyclictest pid=2103 prio=19 orig_cpu=5 dest_cpu=1
+      <...>-2102  [005] d..4   309.875185: sched_wake_idle_without_ipi: cpu=1
+     <idle>-0     [001] d..3   309.875200: sched_switch: prev_comm=swapper/1 prev_pid=0 prev_prio=120 prev_state=S ==> next_comm=cyclictest next_pid=2103 next_prio=19
+
+  - onchange(var).save(field,..	.)
+
+    The 'onchange(var).save(field,...)' hist trigger action is invoked
+    whenever the value of 'var' associated with a histogram entry
+    changes.
+
+    The end result is that the trace event fields specified as the
+    onchange.save() params will be saved if 'var' changes for that
+    hist trigger entry.  This allows context from the event that
+    changed the value to be saved for later reference.  When the
+    histogram is displayed, additional fields displaying the saved
+    values will be printed.
+
+  - onchange(var).snapshot()
+
+    The 'onchange(var).snapshot()' hist trigger action is invoked
+    whenever the value of 'var' associated with a histogram entry
+    changes.
+
+    The end result is that a global snapshot of the trace buffer will
+    be saved in the tracing/snapshot file if 'var' changes for any
+    hist trigger entry.
+
+    Note that in this case the changed value is a global variable
+    associated withe current trace instance.  The key of the specific
+    trace event that caused the value to change and the global value
+    itself are displayed, along with a message stating that a snapshot
+    has been taken and where to find it.  The user can use the key
+    information displayed to locate the corresponding bucket in the
+    histogram for even more detail.
+
+    As an example the below defines a hist trigger on the tcp_probe
+    event, keyed on dport.  Whenever a tcp_probe event occurs, the
+    cwnd field is checked against the current value stored in the
+    $cwnd variable.  If the value has changed, a snapshot is taken.
+    As part of the setup, all the scheduler and tcp events are also
+    enabled, which are the events that will show up in the snapshot
+    when it is taken at some point:
+
+    # echo 1 > /sys/kernel/debug/tracing/events/sched/enable
+    # echo 1 > /sys/kernel/debug/tracing/events/tcp/enable
+
+    # echo 'hist:keys=dport:cwnd=snd_cwnd: \
+            onchange($cwnd).save(snd_wnd,srtt,rcv_wnd): \
+	    onchange($cwnd).snapshot()' >> \
+	    /sys/kernel/debug/tracing/events/tcp/tcp_probe/trigger
+
+    When the histogram is displayed, for each bucket the tracked value
+    and the saved values corresponding to that value are displayed
+    following the rest of the fields.
+
+    If a snaphot was taken, there is also a message indicating that,
+    along with the value and event that triggered the snapshot:
+
+    # cat /sys/kernel/debug/tracing/events/tcp/tcp_probe/hist
+      { dport:       1521 } hitcount:          8
+	changed:         10  snd_wnd:      35456  srtt:     154262  rcv_wnd:      42112
+
+      { dport:         80 } hitcount:         23
+	changed:         10  snd_wnd:      28960  srtt:      19604  rcv_wnd:      29312
+
+      { dport:       9001 } hitcount:        172
+	changed:         10  snd_wnd:      48384  srtt:     260444  rcv_wnd:      55168
+
+      { dport:        443 } hitcount:        211
+	changed:         10  snd_wnd:      26960  srtt:      17379  rcv_wnd:      28800
+
+    Snapshot taken (see tracing/snapshot).  Details:
+        triggering value { onchange($cwnd) }:         10
+        triggered by event with key: { dport:         80 }
+
+    Totals:
+        Hits: 414
+        Entries: 4
+        Dropped: 0
+
+    In the above case, the event that triggered the snapshot has the
+    key with dport == 80.  If you look at the bucket that has 80 as
+    the key, you'll find the additional values save()'d along with the
+    changed value for that bucket, which should be the same as the
+    global changed value (since that was the same value that triggered
+    the global snapshot).
+
+    And finally, looking at the snapshot data should show at or near
+    the end the event that triggered the snapshot:
+
+    # cat /sys/kernel/debug/tracing/snapshot
+
+       gnome-shell-1261  [006] dN.3    49.823113: sched_stat_runtime: comm=gnome-shell pid=1261 runtime=49347 [ns] vruntime=1835730389 [ns]
+     kworker/u16:4-773   [003] d..3    49.823114: sched_switch: prev_comm=kworker/u16:4 prev_pid=773 prev_prio=120 prev_state=R+ ==> next_comm=kworker/3:2 next_pid=135 next_prio=120
+       gnome-shell-1261  [006] d..3    49.823114: sched_switch: prev_comm=gnome-shell prev_pid=1261 prev_prio=120 prev_state=R+ ==> next_comm=kworker/6:2 next_pid=387 next_prio=120
+       kworker/3:2-135   [003] d..3    49.823118: sched_stat_runtime: comm=kworker/3:2 pid=135 runtime=5339 [ns] vruntime=17815800388 [ns]
+       kworker/6:2-387   [006] d..3    49.823120: sched_stat_runtime: comm=kworker/6:2 pid=387 runtime=9594 [ns] vruntime=14589605367 [ns]
+       kworker/6:2-387   [006] d..3    49.823122: sched_switch: prev_comm=kworker/6:2 prev_pid=387 prev_prio=120 prev_state=R+ ==> next_comm=gnome-shell next_pid=1261 next_prio=120
+       kworker/3:2-135   [003] d..3    49.823123: sched_switch: prev_comm=kworker/3:2 prev_pid=135 prev_prio=120 prev_state=T ==> next_comm=swapper/3 next_pid=0 next_prio=120
+            <idle>-0     [004] ..s7    49.823798: tcp_probe: src=10.0.0.10:54326 dest=23.215.104.193:80 mark=0x0 length=32 snd_nxt=0xe3ae2ff5 snd_una=0xe3ae2ecd snd_cwnd=10 ssthresh=2147483647 snd_wnd=28960 srtt=19604 rcv_wnd=29312
 
 3. User space creating a trigger
 --------------------------------

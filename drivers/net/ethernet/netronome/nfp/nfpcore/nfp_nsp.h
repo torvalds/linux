@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 #ifndef NSP_NSP_H
 #define NSP_NSP_H 1
@@ -50,10 +20,27 @@ int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
 int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw);
 int nfp_nsp_mac_reinit(struct nfp_nsp *state);
+int nfp_nsp_load_stored_fw(struct nfp_nsp *state);
+int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size);
 
 static inline bool nfp_nsp_has_mac_reinit(struct nfp_nsp *state)
 {
 	return nfp_nsp_get_abi_ver_minor(state) > 20;
+}
+
+static inline bool nfp_nsp_has_stored_fw_load(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 23;
+}
+
+static inline bool nfp_nsp_has_hwinfo_lookup(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 24;
+}
+
+static inline bool nfp_nsp_has_versions(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 27;
 }
 
 enum nfp_eth_interface {
@@ -62,6 +49,7 @@ enum nfp_eth_interface {
 	NFP_INTERFACE_SFPP	= 10,
 	NFP_INTERFACE_SFP28	= 28,
 	NFP_INTERFACE_QSFP	= 40,
+	NFP_INTERFACE_RJ45	= 45,
 	NFP_INTERFACE_CXP	= 100,
 	NFP_INTERFACE_QSFP28	= 112,
 };
@@ -226,4 +214,19 @@ enum nfp_nsp_sensor_id {
 int nfp_hwmon_read_sensor(struct nfp_cpp *cpp, enum nfp_nsp_sensor_id id,
 			  long *val);
 
+#define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, not in the ABI */
+
+enum nfp_nsp_versions {
+	NFP_VERSIONS_BSP,
+	NFP_VERSIONS_CPLD,
+	NFP_VERSIONS_APP,
+	NFP_VERSIONS_BUNDLE,
+	NFP_VERSIONS_UNDI,
+	NFP_VERSIONS_NCSI,
+	NFP_VERSIONS_CFGR,
+};
+
+int nfp_nsp_versions(struct nfp_nsp *state, void *buf, unsigned int size);
+const char *nfp_nsp_versions_get(enum nfp_nsp_versions id, bool flash,
+				 const u8 *buf, unsigned int size);
 #endif

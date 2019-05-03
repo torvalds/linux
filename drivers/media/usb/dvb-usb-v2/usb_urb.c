@@ -155,7 +155,6 @@ static int usb_urb_alloc_bulk_urbs(struct usb_data_stream *stream)
 				stream->props.u.bulk.buffersize,
 				usb_urb_complete, stream);
 
-		stream->urb_list[i]->transfer_flags = URB_FREE_BUFFER;
 		stream->urbs_initialized++;
 	}
 	return 0;
@@ -186,7 +185,7 @@ static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
 		urb->complete = usb_urb_complete;
 		urb->pipe = usb_rcvisocpipe(stream->udev,
 				stream->props.endpoint);
-		urb->transfer_flags = URB_ISO_ASAP | URB_FREE_BUFFER;
+		urb->transfer_flags = URB_ISO_ASAP;
 		urb->interval = stream->props.u.isoc.interval;
 		urb->number_of_packets = stream->props.u.isoc.framesperurb;
 		urb->transfer_buffer_length = stream->props.u.isoc.framesize *
@@ -210,7 +209,7 @@ static int usb_free_stream_buffers(struct usb_data_stream *stream)
 	if (stream->state & USB_STATE_URB_BUF) {
 		while (stream->buf_num) {
 			stream->buf_num--;
-			stream->buf_list[stream->buf_num] = NULL;
+			kfree(stream->buf_list[stream->buf_num]);
 		}
 	}
 

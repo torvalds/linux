@@ -21,16 +21,21 @@ Core utilities
    local_ops
    workqueue
    genericirq
+   xarray
    flexible-arrays
    librs
    genalloc
    errseq
    printk-formats
    circular-buffers
+   generic-radix-tree
+   memory-allocation
    mm-api
    gfp_mask-from-fs-io
    timekeeping
    boot-time-mm
+   memory-hotplug
+
 
 Interfaces for kernel debugging
 ===============================

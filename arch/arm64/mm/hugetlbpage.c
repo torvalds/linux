@@ -27,6 +27,26 @@
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
 
+#ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+bool arch_hugetlb_migration_supported(struct hstate *h)
+{
+	size_t pagesize = huge_page_size(h);
+
+	switch (pagesize) {
+#ifdef CONFIG_ARM64_4K_PAGES
+	case PUD_SIZE:
+#endif
+	case PMD_SIZE:
+	case CONT_PMD_SIZE:
+	case CONT_PTE_SIZE:
+		return true;
+	}
+	pr_warn("%s: unrecognized huge page size 0x%lx\n",
+			__func__, pagesize);
+	return false;
+}
+#endif
+
 int pmd_huge(pmd_t pmd)
 {
 	return pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
@@ -429,6 +449,27 @@ void huge_ptep_clear_flush(struct vm_area_struct *vma,
 	clear_flush(vma->vm_mm, addr, ptep, pgsize, ncontig);
 }
 
+static void __init add_huge_page_size(unsigned long size)
+{
+	if (size_to_hstate(size))
+		return;
+
+	hugetlb_add_hstate(ilog2(size) - PAGE_SHIFT);
+}
+
+static int __init hugetlbpage_init(void)
+{
+#ifdef CONFIG_ARM64_4K_PAGES
+	add_huge_page_size(PUD_SIZE);
+#endif
+	add_huge_page_size(PMD_SIZE * CONT_PMDS);
+	add_huge_page_size(PMD_SIZE);
+	add_huge_page_size(PAGE_SIZE * CONT_PTES);
+
+	return 0;
+}
+arch_initcall(hugetlbpage_init);
+
 static __init int setup_hugepagesz(char *opt)
 {
 	unsigned long ps = memparse(opt, &opt);
@@ -440,7 +481,7 @@ static __init int setup_hugepagesz(char *opt)
 	case PMD_SIZE * CONT_PMDS:
 	case PMD_SIZE:
 	case PAGE_SIZE * CONT_PTES:
-		hugetlb_add_hstate(ilog2(ps) - PAGE_SHIFT);
+		add_huge_page_size(ps);
 		return 1;
 	}
 
@@ -449,13 +490,3 @@ static __init int setup_hugepagesz(char *opt)
 	return 0;
 }
 __setup("hugepagesz=", setup_hugepagesz);
-
-#ifdef CONFIG_ARM64_64K_PAGES
-static __init int add_default_hugepagesz(void)
-{
-	if (size_to_hstate(CONT_PTES * PAGE_SIZE) == NULL)
-		hugetlb_add_hstate(CONT_PTE_SHIFT);
-	return 0;
-}
-arch_initcall(add_default_hugepagesz);
-#endif

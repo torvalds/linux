@@ -24,7 +24,7 @@ Optional properties:
 
 Example:
 
-p1_sec_a: crypto@400,d2000000 {
+p1_sec_a: crypto@400d2000000 {
 	compatible = "hisilicon,hip07-sec";
 	reg = <0x400 0xd0000000 0x0 0x10000
 	       0x400 0xd2000000 0x0 0x10000

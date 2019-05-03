@@ -41,7 +41,6 @@
 #define KERNEL_DS	(~0UL)
 #define USER_DS		(TASK_SIZE)
 
-#define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 
 static inline void set_fs(mm_segment_t fs)
@@ -54,14 +53,8 @@ static inline void set_fs(mm_segment_t fs)
 #define user_addr_max()	(get_fs())
 
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 /**
  * access_ok: - Checks if a user space pointer is valid
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
- *        %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
- *        to write to a block, it is always safe to read from it.
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *
@@ -76,7 +69,7 @@ static inline void set_fs(mm_segment_t fs)
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  */
-#define access_ok(type, addr, size) ({					\
+#define access_ok(addr, size) ({					\
 	__chk_user_ptr(addr);						\
 	likely(__access_ok((unsigned long __force)(addr), (size)));	\
 })
@@ -258,7 +251,7 @@ do {								\
 ({								\
 	const __typeof__(*(ptr)) __user *__p = (ptr);		\
 	might_fault();						\
-	access_ok(VERIFY_READ, __p, sizeof(*__p)) ?		\
+	access_ok(__p, sizeof(*__p)) ?		\
 		__get_user((x), __p) :				\
 		((x) = 0, -EFAULT);				\
 })
@@ -307,7 +300,7 @@ do {								\
 		"	.balign 4\n"				\
 		"4:\n"						\
 		"	li %0, %6\n"				\
-		"	jump 2b, %1\n"				\
+		"	jump 3b, %1\n"				\
 		"	.previous\n"				\
 		"	.section __ex_table,\"a\"\n"		\
 		"	.balign " RISCV_SZPTR "\n"			\
@@ -386,7 +379,7 @@ do {								\
 ({								\
 	__typeof__(*(ptr)) __user *__p = (ptr);			\
 	might_fault();						\
-	access_ok(VERIFY_WRITE, __p, sizeof(*__p)) ?		\
+	access_ok(__p, sizeof(*__p)) ?		\
 		__put_user((x), __p) :				\
 		-EFAULT;					\
 })
@@ -400,13 +393,13 @@ extern unsigned long __must_check __asm_copy_from_user(void *to,
 static inline unsigned long
 raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	return __asm_copy_to_user(to, from, n);
+	return __asm_copy_from_user(to, from, n);
 }
 
 static inline unsigned long
 raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	return __asm_copy_from_user(to, from, n);
+	return __asm_copy_to_user(to, from, n);
 }
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
@@ -421,7 +414,7 @@ static inline
 unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
-	return access_ok(VERIFY_WRITE, to, n) ?
+	return access_ok(to, n) ?
 		__clear_user(to, n) : n;
 }
 

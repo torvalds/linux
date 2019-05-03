@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 config NIOS2
 	def_bool y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_NO_SWAP
-	select DMA_NONCOHERENT_OPS
 	select TIMER_OF
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
@@ -23,6 +23,7 @@ config NIOS2
 	select SPARSE_IRQ
 	select USB_ARCH_HAS_HCD if USB_SUPPORT
 	select CPU_NO_EFFICIENT_FFS
+	select ARCH_DISCARD_MEMBLOCK
 
 config GENERIC_CSUM
 	def_bool y
@@ -34,9 +35,6 @@ config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config NO_IOPORT_MAP
-	def_bool y
-
-config HAS_DMA
 	def_bool y
 
 config FPU
@@ -125,7 +123,6 @@ config NIOS2_CMDLINE_IGNORE_DTB
 
 config NIOS2_PASS_CMDLINE
 	bool "Passed kernel command line from u-boot"
-	default n
 	help
 	  Use bootargs env variable from u-boot for kernel command line.
 	  will override "Default kernel command string".

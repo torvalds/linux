@@ -46,6 +46,17 @@ static const struct imx_weim_devtype imx51_weim_devtype = {
 };
 
 #define MAX_CS_REGS_COUNT	6
+#define MAX_CS_COUNT		6
+#define OF_REG_SIZE		3
+
+struct cs_timing {
+	bool is_applied;
+	u32 regs[MAX_CS_REGS_COUNT];
+};
+
+struct cs_timing_state {
+	struct cs_timing cs[MAX_CS_COUNT];
+};
 
 static const struct of_device_id weim_id_table[] = {
 	/* i.MX1/21 */
@@ -111,21 +122,19 @@ err:
 }
 
 /* Parse and set the timing for this device. */
-static int __init weim_timing_setup(struct device_node *np, void __iomem *base,
-				    const struct imx_weim_devtype *devtype)
+static int __init weim_timing_setup(struct device *dev,
+				    struct device_node *np, void __iomem *base,
+				    const struct imx_weim_devtype *devtype,
+				    struct cs_timing_state *ts)
 {
 	u32 cs_idx, value[MAX_CS_REGS_COUNT];
 	int i, ret;
+	int reg_idx, num_regs;
+	struct cs_timing *cst;
 
 	if (WARN_ON(devtype->cs_regs_count > MAX_CS_REGS_COUNT))
 		return -EINVAL;
-
-	/* get the CS index from this child node's "reg" property. */
-	ret = of_property_read_u32(np, "reg", &cs_idx);
-	if (ret)
-		return ret;
-
-	if (cs_idx >= devtype->cs_count)
+	if (WARN_ON(devtype->cs_count > MAX_CS_COUNT))
 		return -EINVAL;
 
 	ret = of_property_read_u32_array(np, "fsl,weim-cs-timing",
@@ -133,9 +142,43 @@ static int __init weim_timing_setup(struct device_node *np, void __iomem *base,
 	if (ret)
 		return ret;
 
-	/* set the timing for WEIM */
-	for (i = 0; i < devtype->cs_regs_count; i++)
-		writel(value[i], base + cs_idx * devtype->cs_stride + i * 4);
+	/*
+	 * the child node's "reg" property may contain multiple address ranges,
+	 * extract the chip select for each.
+	 */
+	num_regs = of_property_count_elems_of_size(np, "reg", OF_REG_SIZE);
+	if (num_regs < 0)
+		return num_regs;
+	if (!num_regs)
+		return -EINVAL;
+	for (reg_idx = 0; reg_idx < num_regs; reg_idx++) {
+		/* get the CS index from this child node's "reg" property. */
+		ret = of_property_read_u32_index(np, "reg",
+					reg_idx * OF_REG_SIZE, &cs_idx);
+		if (ret)
+			break;
+
+		if (cs_idx >= devtype->cs_count)
+			return -EINVAL;
+
+		/* prevent re-configuring a CS that's already been configured */
+		cst = &ts->cs[cs_idx];
+		if (cst->is_applied && memcmp(value, cst->regs,
+					devtype->cs_regs_count * sizeof(u32))) {
+			dev_err(dev, "fsl,weim-cs-timing conflict on %pOF", np);
+			return -EINVAL;
+		}
+
+		/* set the timing for WEIM */
+		for (i = 0; i < devtype->cs_regs_count; i++)
+			writel(value[i],
+				base + cs_idx * devtype->cs_stride + i * 4);
+		if (!cst->is_applied) {
+			cst->is_applied = true;
+			memcpy(cst->regs, value,
+				devtype->cs_regs_count * sizeof(u32));
+		}
+	}
 
 	return 0;
 }
@@ -148,6 +191,7 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	const struct imx_weim_devtype *devtype = of_id->data;
 	struct device_node *child;
 	int ret, have_child = 0;
+	struct cs_timing_state ts = {};
 
 	if (devtype == &imx50_weim_devtype) {
 		ret = imx_weim_gpr_setup(pdev);
@@ -156,10 +200,7 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
-		if (!child->name)
-			continue;
-
-		ret = weim_timing_setup(child, base, devtype);
+		ret = weim_timing_setup(&pdev->dev, child, base, devtype, &ts);
 		if (ret)
 			dev_warn(&pdev->dev, "%pOF set timing failed.\n",
 				child);

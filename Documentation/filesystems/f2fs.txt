@@ -126,6 +126,8 @@ disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
                        does not aware of cold files such as media files.
 inline_xattr           Enable the inline xattrs feature.
 noinline_xattr         Disable the inline xattrs feature.
+inline_xattr_size=%u   Support configuring inline xattr size, it depends on
+		       flexible inline xattr feature.
 inline_data            Enable the inline data feature: New created small(<~3.4k)
                        files can be written into inode block.
 inline_dentry          Enable the inline dir feature: data in new created
@@ -172,9 +174,10 @@ fault_type=%d          Support configuring fault injection type, should be
                        FAULT_DIR_DEPTH		0x000000100
                        FAULT_EVICT_INODE	0x000000200
                        FAULT_TRUNCATE		0x000000400
-                       FAULT_IO			0x000000800
+                       FAULT_READ_IO		0x000000800
                        FAULT_CHECKPOINT		0x000001000
                        FAULT_DISCARD		0x000002000
+                       FAULT_WRITE_IO		0x000004000
 mode=%s                Control block allocation mode which supports "adaptive"
                        and "lfs". In "lfs" mode, there should be no random
                        writes towards main area.
@@ -211,6 +214,11 @@ fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
                        non-atomic files likewise "nobarrier" mount option.
 test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
                        context. The fake fscrypt context is used by xfstests.
+checkpoint=%s          Set to "disable" to turn off checkpointing. Set to "enable"
+                       to reenable checkpointing. Is enabled by default. While
+                       disabled, any unmounting or unexpected shutdowns will cause
+                       the filesystem contents to appear as they did when the
+                       filesystem was mounted with that option.
 
 ================================================================================
 DEBUGFS ENTRIES

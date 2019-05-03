@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2009-2015 Cavium, Inc.
  */
 
@@ -122,4 +119,4 @@ module_platform_driver(octeon_mdiobus_driver);
 
 MODULE_DESCRIPTION("Cavium OCTEON MDIO bus driver");
 MODULE_AUTHOR("David Daney");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

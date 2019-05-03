@@ -12,8 +12,6 @@ struct omap2_hsmmc_info {
 	u8	mmc;		/* controller 1/2/3 */
 	u32	caps;		/* 4/8 wires and any additional host
 				 * capabilities OR'd (ref. linux/mmc/host.h) */
-	int	gpio_cd;	/* or -EINVAL */
-	int	gpio_wp;	/* or -EINVAL */
 	struct platform_device *pdev;	/* mmc controller instance */
 	/* init some special card */
 	void (*init_card)(struct mmc_card *card);

@@ -53,6 +53,8 @@ int hash__alloc_context_id(void)
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
 
+void slb_setup_new_exec(void);
+
 static int hash__init_new_context(struct mm_struct *mm)
 {
 	int index;
@@ -82,6 +84,13 @@ static int hash__init_new_context(struct mm_struct *mm)
 
 	pkey_mm_init(mm);
 	return index;
+}
+
+void hash__setup_new_exec(void)
+{
+	slice_setup_new_exec();
+
+	slb_setup_new_exec();
 }
 
 static int radix__init_new_context(struct mm_struct *mm)
@@ -152,21 +161,6 @@ static void destroy_contexts(mm_context_t *ctx)
 		context_id = ctx->extended_id[index];
 		if (context_id)
 			ida_free(&mmu_context_ida, context_id);
-	}
-}
-
-static void pte_frag_destroy(void *pte_frag)
-{
-	int count;
-	struct page *page;
-
-	page = virt_to_page(pte_frag);
-	/* drop all the pending references */
-	count = ((unsigned long)pte_frag & ~PAGE_MASK) >> PTE_FRAG_SIZE_SHIFT;
-	/* We allow PTE_FRAG_NR fragments from a PTE page */
-	if (atomic_sub_and_test(PTE_FRAG_NR - count, &page->pt_frag_refcount)) {
-		pgtable_page_dtor(page);
-		__free_page(page);
 	}
 }
 

@@ -194,13 +194,13 @@ use either::
                       unsigned long start,
                       unsigned long end,
                       hmm_pfn_t *pfns);
- int hmm_vma_fault(struct vm_area_struct *vma,
-                   struct hmm_range *range,
-                   unsigned long start,
-                   unsigned long end,
-                   hmm_pfn_t *pfns,
-                   bool write,
-                   bool block);
+  int hmm_vma_fault(struct vm_area_struct *vma,
+                    struct hmm_range *range,
+                    unsigned long start,
+                    unsigned long end,
+                    hmm_pfn_t *pfns,
+                    bool write,
+                    bool block);
 
 The first one (hmm_vma_get_pfns()) will only fetch present CPU page table
 entries and will not trigger a page fault on missing or non-present entries.

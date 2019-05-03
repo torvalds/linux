@@ -54,6 +54,26 @@ err:
 	return -1;
 }
 
+int verify_sockopt_result(int sock_map_fd)
+{
+	__u32 key = 0;
+	int res;
+	int rv;
+
+	/* check setsockopt for SAVE_SYN */
+	rv = bpf_map_lookup_elem(sock_map_fd, &key, &res);
+	EXPECT_EQ(0, rv, "d");
+	EXPECT_EQ(0, res, "d");
+	key = 1;
+	/* check getsockopt for SAVED_SYN */
+	rv = bpf_map_lookup_elem(sock_map_fd, &key, &res);
+	EXPECT_EQ(0, rv, "d");
+	EXPECT_EQ(1, res, "d");
+	return 0;
+err:
+	return -1;
+}
+
 static int bpf_find_map(const char *test, struct bpf_object *obj,
 			const char *name)
 {
@@ -70,11 +90,11 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 int main(int argc, char **argv)
 {
 	const char *file = "test_tcpbpf_kern.o";
+	int prog_fd, map_fd, sock_map_fd;
 	struct tcpbpf_globals g = {0};
 	const char *cg_path = "/foo";
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
-	int prog_fd, map_fd;
 	int cg_fd = -1;
 	__u32 key = 0;
 	int rv;
@@ -83,7 +103,7 @@ int main(int argc, char **argv)
 		goto err;
 
 	cg_fd = create_and_get_cgroup(cg_path);
-	if (!cg_fd)
+	if (cg_fd < 0)
 		goto err;
 
 	if (join_cgroup(cg_path))
@@ -110,6 +130,10 @@ int main(int argc, char **argv)
 	if (map_fd < 0)
 		goto err;
 
+	sock_map_fd = bpf_find_map(__func__, obj, "sockopt_results");
+	if (sock_map_fd < 0)
+		goto err;
+
 	rv = bpf_map_lookup_elem(map_fd, &key, &g);
 	if (rv != 0) {
 		printf("FAILED: bpf_map_lookup_elem returns %d\n", rv);
@@ -118,6 +142,11 @@ int main(int argc, char **argv)
 
 	if (verify_result(&g)) {
 		printf("FAILED: Wrong stats\n");
+		goto err;
+	}
+
+	if (verify_sockopt_result(sock_map_fd)) {
+		printf("FAILED: Wrong sockopt stats\n");
 		goto err;
 	}
 

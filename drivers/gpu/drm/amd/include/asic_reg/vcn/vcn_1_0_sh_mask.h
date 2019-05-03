@@ -87,6 +87,26 @@
 //CC_UVD_HARVESTING
 #define CC_UVD_HARVESTING__UVD_DISABLE__SHIFT                                                                 0x1
 #define CC_UVD_HARVESTING__UVD_DISABLE_MASK                                                                   0x00000002L
+//UVD_DPG_LMA_CTL
+#define UVD_DPG_LMA_CTL__READ_WRITE__SHIFT                                                                    0x0
+#define UVD_DPG_LMA_CTL__MASK_EN__SHIFT                                                                       0x1
+#define UVD_DPG_LMA_CTL__ADDR_AUTO_INCREMENT__SHIFT                                                           0x2
+#define UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT                                                                      0x4
+#define UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT                                                               0x10
+#define UVD_DPG_LMA_CTL__READ_WRITE_MASK                                                                      0x00000001L
+#define UVD_DPG_LMA_CTL__MASK_EN_MASK                                                                         0x00000002L
+#define UVD_DPG_LMA_CTL__ADDR_AUTO_INCREMENT_MASK                                                             0x00000004L
+#define UVD_DPG_LMA_CTL__SRAM_SEL_MASK                                                                        0x00000010L
+#define UVD_DPG_LMA_CTL__READ_WRITE_ADDR_MASK                                                                 0xFFFF0000L
+//UVD_DPG_PAUSE
+#define UVD_DPG_PAUSE__JPEG_PAUSE_DPG_REQ__SHIFT                                                              0x0
+#define UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK__SHIFT                                                              0x1
+#define UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ__SHIFT                                                                0x2
+#define UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK__SHIFT                                                                0x3
+#define UVD_DPG_PAUSE__JPEG_PAUSE_DPG_REQ_MASK                                                                0x00000001L
+#define UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK                                                                0x00000002L
+#define UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK                                                                  0x00000004L
+#define UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK                                                                  0x00000008L
 //UVD_SCRATCH1
 #define UVD_SCRATCH1__SCRATCH1_DATA__SHIFT                                                                    0x0
 #define UVD_SCRATCH1__SCRATCH1_DATA_MASK                                                                      0xFFFFFFFFL
@@ -965,6 +985,7 @@
 #define UVD_LMI_CTRL2__STALL_ARB_UMC__SHIFT                                                                   0x8
 #define UVD_LMI_CTRL2__MC_READ_ID_SEL__SHIFT                                                                  0x9
 #define UVD_LMI_CTRL2__MC_WRITE_ID_SEL__SHIFT                                                                 0xb
+#define UVD_LMI_CTRL2__RE_OFLD_MIF_WR_REQ_NUM__SHIFT                                                          0x11
 #define UVD_LMI_CTRL2__SPH_DIS_MASK                                                                           0x00000001L
 #define UVD_LMI_CTRL2__STALL_ARB_MASK                                                                         0x00000002L
 #define UVD_LMI_CTRL2__ASSERT_UMC_URGENT_MASK                                                                 0x00000004L
@@ -973,6 +994,7 @@
 #define UVD_LMI_CTRL2__STALL_ARB_UMC_MASK                                                                     0x00000100L
 #define UVD_LMI_CTRL2__MC_READ_ID_SEL_MASK                                                                    0x00000600L
 #define UVD_LMI_CTRL2__MC_WRITE_ID_SEL_MASK                                                                   0x00001800L
+#define UVD_LMI_CTRL2__RE_OFLD_MIF_WR_REQ_NUM_MASK                                                            0x01FE0000L
 //UVD_MASTINT_EN
 #define UVD_MASTINT_EN__OVERRUN_RST__SHIFT                                                                    0x0
 #define UVD_MASTINT_EN__VCPU_EN__SHIFT                                                                        0x1
@@ -982,6 +1004,9 @@
 #define UVD_MASTINT_EN__VCPU_EN_MASK                                                                          0x00000002L
 #define UVD_MASTINT_EN__SYS_EN_MASK                                                                           0x00000004L
 #define UVD_MASTINT_EN__INT_OVERRUN_MASK                                                                      0x007FFFF0L
+//UVD_SYS_INT_EN
+#define UVD_SYS_INT_EN__UVD_JRBC_EN__SHIFT                                                                    0x4
+#define UVD_SYS_INT_EN__UVD_JRBC_EN_MASK                                                                      0x00000010L
 //JPEG_CGC_CTRL
 #define JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT                                                                  0x0
 #define JPEG_CGC_CTRL__JPEG2_MODE__SHIFT                                                                      0x1
@@ -1022,6 +1047,19 @@
 #define UVD_LMI_CTRL__DB_IT_DATA_COHERENCY_EN_MASK                                                            0x01000000L
 #define UVD_LMI_CTRL__IT_IT_DATA_COHERENCY_EN_MASK                                                            0x02000000L
 #define UVD_LMI_CTRL__RFU_MASK                                                                                0xF8000000L
+//UVD_LMI_STATUS
+#define UVD_LMI_STATUS__READ_CLEAN__SHIFT                                                                     0x0
+#define UVD_LMI_STATUS__WRITE_CLEAN__SHIFT                                                                    0x1
+#define UVD_LMI_STATUS__WRITE_CLEAN_RAW__SHIFT                                                                0x2
+#define UVD_LMI_STATUS__VCPU_LMI_WRITE_CLEAN__SHIFT                                                           0x3
+#define UVD_LMI_STATUS__UMC_WRITE_CLEAN_RAW__SHIFT                                                            0x6
+#define UVD_LMI_STATUS__UMC_READ_CLEAN_RAW__SHIFT                                                             0x9
+#define UVD_LMI_STATUS__READ_CLEAN_MASK                                                                       0x00000001L
+#define UVD_LMI_STATUS__WRITE_CLEAN_MASK                                                                      0x00000002L
+#define UVD_LMI_STATUS__WRITE_CLEAN_RAW_MASK                                                                  0x00000004L
+#define UVD_LMI_STATUS__VCPU_LMI_WRITE_CLEAN_MASK                                                             0x00000008L
+#define UVD_LMI_STATUS__UMC_WRITE_CLEAN_RAW_MASK                                                              0x00000040L
+#define UVD_LMI_STATUS__UMC_READ_CLEAN_RAW_MASK                                                               0x00000200L
 //UVD_LMI_SWAP_CNTL
 #define UVD_LMI_SWAP_CNTL__RB_MC_SWAP__SHIFT                                                                  0x0
 #define UVD_LMI_SWAP_CNTL__IB_MC_SWAP__SHIFT                                                                  0x2
@@ -1055,6 +1093,9 @@
 #define UVD_LMI_SWAP_CNTL__RB_WR_MC_SWAP_MASK                                                                 0x0C000000L
 #define UVD_LMI_SWAP_CNTL__RE_MC_SWAP_MASK                                                                    0x30000000L
 #define UVD_LMI_SWAP_CNTL__MP_MC_SWAP_MASK                                                                    0xC0000000L
+//UVD_MPC_CNTL
+#define UVD_MPC_CNTL__REPLACEMENT_MODE__SHIFT                                                                 0x3
+#define UVD_MPC_CNTL__REPLACEMENT_MODE_MASK                                                                   0x00000038L
 //UVD_MPC_SET_MUXA0
 #define UVD_MPC_SET_MUXA0__VARA_0__SHIFT                                                                      0x0
 #define UVD_MPC_SET_MUXA0__VARA_1__SHIFT                                                                      0x6
@@ -1136,7 +1177,11 @@
 #define UVD_VCPU_CACHE_SIZE2__CACHE_SIZE2_MASK                                                                0x001FFFFFL
 //UVD_VCPU_CNTL
 #define UVD_VCPU_CNTL__CLK_EN__SHIFT                                                                          0x9
+#define UVD_VCPU_CNTL__MIF_WR_LOW_THRESHOLD_BP__SHIFT                                                         0x11
+#define UVD_VCPU_CNTL__PRB_TIMEOUT_VAL__SHIFT                                                                 0x14
 #define UVD_VCPU_CNTL__CLK_EN_MASK                                                                            0x00000200L
+#define UVD_VCPU_CNTL__MIF_WR_LOW_THRESHOLD_BP_MASK                                                           0x00020000L
+#define UVD_VCPU_CNTL__PRB_TIMEOUT_VAL_MASK                                                                   0x0FF00000L
 //UVD_SOFT_RESET
 #define UVD_SOFT_RESET__RBC_SOFT_RESET__SHIFT                                                                 0x0
 #define UVD_SOFT_RESET__LBSI_SOFT_RESET__SHIFT                                                                0x1

@@ -7,7 +7,7 @@ Required properties:
 - clocks: phandle to the input clock.
 
 Optional properties:
-- fifo-size: the RX/TX FIFO size.  Defaults to 64 if not specified.
+-auto-flow-control: enable automatic flow control support.
 
 Example:
 	aliases {
@@ -19,5 +19,4 @@ Example:
 		reg = <0x54006800 0x40>;
 		interrupts = <0 33 4>;
 		clocks = <&uart_clk>;
-		fifo-size = <64>;
 	};

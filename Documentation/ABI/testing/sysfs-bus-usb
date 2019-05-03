@@ -186,8 +186,18 @@ Contact:	Lan Tianyu <tianyu.lan@intel.com>
 Description:
 		Some platforms provide usb port connect types through ACPI.
 		This attribute is to expose these information to user space.
-		The file will read "hotplug", "wired" and "not used" if the
+		The file will read "hotplug", "hardwired" and "not used" if the
 		information is available, and "unknown" otherwise.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/location
+Date:		October 2018
+Contact:	Bjørn Mork <bjorn@mork.no>
+Description:
+		Some platforms provide usb port physical location through
+		firmware. This is used by the kernel to pair up logical ports
+		mapping to the same physical connector. The attribute exposes the
+		raw location value as a hex integer.
+
 
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/quirks
 Date:		May 2018
@@ -219,7 +229,14 @@ Description:
 		ports and report them to the kernel. This attribute is to expose
 		the number of over-current situation occurred on a specific port
 		to user space. This file will contain an unsigned 32 bit value
-		which wraps to 0 after its maximum is reached.
+		which wraps to 0 after its maximum is reached. This file supports
+		poll() for monitoring changes to this value in user space.
+
+		Any time this value changes the corresponding hub device will send a
+		udev event with the following attributes:
+
+		OVER_CURRENT_PORT=/sys/bus/usb/devices/.../(hub interface)/portX
+		OVER_CURRENT_COUNT=[current value of this sysfs attribute]
 
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/usb3_lpm_permit
 Date:		November 2015

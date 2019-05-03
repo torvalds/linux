@@ -52,6 +52,24 @@ enum smc_wr_reg_state {
 	FAILED		/* ib_wr_reg_mr response: failure */
 };
 
+struct smc_rdma_sge {				/* sges for RDMA writes */
+	struct ib_sge		wr_tx_rdma_sge[SMC_IB_MAX_SEND_SGE];
+};
+
+#define SMC_MAX_RDMA_WRITES	2		/* max. # of RDMA writes per
+						 * message send
+						 */
+
+struct smc_rdma_sges {				/* sges per message send */
+	struct smc_rdma_sge	tx_rdma_sge[SMC_MAX_RDMA_WRITES];
+};
+
+struct smc_rdma_wr {				/* work requests per message
+						 * send
+						 */
+	struct ib_rdma_wr	wr_tx_rdma[SMC_MAX_RDMA_WRITES];
+};
+
 struct smc_link {
 	struct smc_ib_device	*smcibdev;	/* ib-device */
 	u8			ibport;		/* port - values 1 | 2 */
@@ -64,6 +82,8 @@ struct smc_link {
 	struct smc_wr_buf	*wr_tx_bufs;	/* WR send payload buffers */
 	struct ib_send_wr	*wr_tx_ibs;	/* WR send meta data */
 	struct ib_sge		*wr_tx_sges;	/* WR send gather meta data */
+	struct smc_rdma_sges	*wr_tx_rdma_sges;/*RDMA WRITE gather meta data*/
+	struct smc_rdma_wr	*wr_tx_rdmas;	/* WR RDMA WRITE */
 	struct smc_wr_tx_pend	*wr_tx_pends;	/* WR send waiting for CQE */
 	/* above four vectors have wr_tx_cnt elements and use the same index */
 	dma_addr_t		wr_tx_dma_addr;	/* DMA address of wr_tx_bufs */
@@ -109,6 +129,9 @@ struct smc_link {
 	int			llc_testlink_time; /* testlink interval */
 	struct completion	llc_confirm_rkey; /* wait 4 rx of cnf rkey */
 	int			llc_confirm_rkey_rc; /* rc from cnf rkey msg */
+	struct completion	llc_delete_rkey; /* wait 4 rx of del rkey */
+	int			llc_delete_rkey_rc; /* rc from del rkey msg */
+	struct mutex		llc_delete_rkey_mutex; /* serialize usage */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol
@@ -127,7 +150,7 @@ struct smc_buf_desc {
 	struct page		*pages;
 	int			len;		/* length of buffer */
 	u32			used;		/* currently used / unused */
-	u8			reused	: 1;	/* new created / reused */
+	u8			wr_reg	: 1;	/* mem region registered */
 	u8			regerr	: 1;	/* err during registration */
 	union {
 		struct { /* SMC-R */
@@ -243,11 +266,11 @@ struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 struct smc_clc_msg_local;
 
-void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
-void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid);
+void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
+			unsigned short vlan);
 int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
@@ -262,7 +285,7 @@ int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id);
 
 void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
-		    struct smc_ib_device *smcibdev, u8 ibport,
+		    struct smc_ib_device *smcibdev, u8 ibport, u32 clcqpn,
 		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
 		    u64 peer_gid);
 void smcd_conn_free(struct smc_connection *conn);

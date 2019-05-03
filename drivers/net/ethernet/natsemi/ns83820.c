@@ -1003,7 +1003,7 @@ static void do_tx_done(struct net_device *ndev)
 					addr,
 					len,
 					PCI_DMA_TODEVICE);
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 			atomic_dec(&dev->nr_tx_skbs);
 		} else
 			pci_unmap_page(dev->pci_dev,
@@ -1869,56 +1869,28 @@ static unsigned ns83820_mii_write_reg(struct ns83820 *dev, unsigned phy, unsigne
 static void ns83820_probe_phy(struct net_device *ndev)
 {
 	struct ns83820 *dev = PRIV(ndev);
-	static int first;
-	int i;
-#define MII_PHYIDR1	0x02
-#define MII_PHYIDR2	0x03
+	int j;
+	unsigned a, b;
 
-#if 0
-	if (!first) {
-		unsigned tmp;
-		ns83820_mii_read_reg(dev, 1, 0x09);
-		ns83820_mii_write_reg(dev, 1, 0x10, 0x0d3e);
-
-		tmp = ns83820_mii_read_reg(dev, 1, 0x00);
-		ns83820_mii_write_reg(dev, 1, 0x00, tmp | 0x8000);
-		udelay(1300);
-		ns83820_mii_read_reg(dev, 1, 0x09);
+	for (j = 0; j < 0x16; j += 4) {
+		dprintk("%s: [0x%02x] %04x %04x %04x %04x\n",
+			ndev->name, j,
+			ns83820_mii_read_reg(dev, 1, 0 + j),
+			ns83820_mii_read_reg(dev, 1, 1 + j),
+			ns83820_mii_read_reg(dev, 1, 2 + j),
+			ns83820_mii_read_reg(dev, 1, 3 + j)
+			);
 	}
-#endif
-	first = 1;
 
-	for (i=1; i<2; i++) {
-		int j;
-		unsigned a, b;
-		a = ns83820_mii_read_reg(dev, i, MII_PHYIDR1);
-		b = ns83820_mii_read_reg(dev, i, MII_PHYIDR2);
+	/* read firmware version: memory addr is 0x8402 and 0x8403 */
+	ns83820_mii_write_reg(dev, 1, 0x16, 0x000d);
+	ns83820_mii_write_reg(dev, 1, 0x1e, 0x810e);
+	a = ns83820_mii_read_reg(dev, 1, 0x1d);
 
-		//printk("%s: phy %d: 0x%04x 0x%04x\n",
-		//	ndev->name, i, a, b);
-
-		for (j=0; j<0x16; j+=4) {
-			dprintk("%s: [0x%02x] %04x %04x %04x %04x\n",
-				ndev->name, j,
-				ns83820_mii_read_reg(dev, i, 0 + j),
-				ns83820_mii_read_reg(dev, i, 1 + j),
-				ns83820_mii_read_reg(dev, i, 2 + j),
-				ns83820_mii_read_reg(dev, i, 3 + j)
-				);
-		}
-	}
-	{
-		unsigned a, b;
-		/* read firmware version: memory addr is 0x8402 and 0x8403 */
-		ns83820_mii_write_reg(dev, 1, 0x16, 0x000d);
-		ns83820_mii_write_reg(dev, 1, 0x1e, 0x810e);
-		a = ns83820_mii_read_reg(dev, 1, 0x1d);
-
-		ns83820_mii_write_reg(dev, 1, 0x16, 0x000d);
-		ns83820_mii_write_reg(dev, 1, 0x1e, 0x810e);
-		b = ns83820_mii_read_reg(dev, 1, 0x1d);
-		dprintk("version: 0x%04x 0x%04x\n", a, b);
-	}
+	ns83820_mii_write_reg(dev, 1, 0x16, 0x000d);
+	ns83820_mii_write_reg(dev, 1, 0x1e, 0x810e);
+	b = ns83820_mii_read_reg(dev, 1, 0x1d);
+	dprintk("version: 0x%04x 0x%04x\n", a, b);
 }
 #endif
 

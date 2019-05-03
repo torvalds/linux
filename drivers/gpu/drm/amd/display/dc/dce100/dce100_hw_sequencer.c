@@ -105,73 +105,29 @@ bool dce100_enable_display_power_gating(
 		return false;
 }
 
-static void dce100_pplib_apply_display_requirements(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
-
-	pp_display_cfg->avail_mclk_switch_time_us =
-						dce110_get_min_vblank_time_us(context);
-	/*pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
-		/ MEMORY_TYPE_MULTIPLIER;*/
-
-	dce110_fill_display_configs(context, pp_display_cfg);
-
-	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
-			struct dm_pp_display_configuration)) !=  0)
-		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
-
-	dc->prev_display_config = *pp_display_cfg;
-}
-
-/* unit: in_khz before mode set, get pixel clock from context. ASIC register
- * may not be programmed yet
- */
-static uint32_t get_max_pixel_clock_for_all_paths(
-	struct dc *dc,
-	struct dc_state *context)
-{
-	uint32_t max_pix_clk = 0;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == NULL)
-			continue;
-
-		/* do not check under lay */
-		if (pipe_ctx->top_pipe)
-			continue;
-
-		if (pipe_ctx->stream_res.pix_clk_params.requested_pix_clk > max_pix_clk)
-			max_pix_clk =
-				pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
-	}
-	return max_pix_clk;
-}
-
-void dce100_set_bandwidth(
+void dce100_prepare_bandwidth(
 		struct dc *dc,
-		struct dc_state *context,
-		bool decrease_allowed)
+		struct dc_state *context)
 {
-	struct dc_clocks req_clks;
-
-	req_clks.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
-	req_clks.phyclk_khz = get_max_pixel_clock_for_all_paths(dc, context);
-
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
-	dc->res_pool->dccg->funcs->update_clocks(
-			dc->res_pool->dccg,
-			&req_clks,
-			decrease_allowed);
-
-	dce100_pplib_apply_display_requirements(dc, context);
+	dc->res_pool->clk_mgr->funcs->update_clocks(
+			dc->res_pool->clk_mgr,
+			context,
+			false);
 }
 
+void dce100_optimize_bandwidth(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
+
+	dc->res_pool->clk_mgr->funcs->update_clocks(
+			dc->res_pool->clk_mgr,
+			context,
+			true);
+}
 
 /**************************************************************************/
 
@@ -180,8 +136,7 @@ void dce100_hw_sequencer_construct(struct dc *dc)
 	dce110_hw_sequencer_construct(dc);
 
 	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
-	dc->hwss.set_bandwidth = dce100_set_bandwidth;
-	dc->hwss.pplib_apply_display_requirements =
-			dce100_pplib_apply_display_requirements;
+	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
+	dc->hwss.optimize_bandwidth = dce100_optimize_bandwidth;
 }
 

@@ -55,7 +55,7 @@ enum led_enable {
  * @regmap: reg. map for i2c
  * @lock: muxtex for serial access.
  * @led_mode: V4L2 LED mode
- * @ctrls_led: V4L2 contols
+ * @ctrls_led: V4L2 controls
  * @subdev_led: V4L2 subdev
  */
 struct lm3560_flash {
@@ -362,7 +362,8 @@ static int lm3560_subdev_init(struct lm3560_flash *flash,
 
 	v4l2_i2c_subdev_init(&flash->subdev_led[led_no], client, &lm3560_ops);
 	flash->subdev_led[led_no].flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strcpy(flash->subdev_led[led_no].name, led_name);
+	strscpy(flash->subdev_led[led_no].name, led_name,
+		sizeof(flash->subdev_led[led_no].name));
 	rval = lm3560_init_controls(flash, led_no);
 	if (rval)
 		goto err_out;

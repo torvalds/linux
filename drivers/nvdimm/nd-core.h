@@ -14,7 +14,6 @@
 #define __ND_CORE_H__
 #include <linux/libnvdimm.h>
 #include <linux/device.h>
-#include <linux/libnvdimm.h>
 #include <linux/sizes.h>
 #include <linux/mutex.h>
 #include <linux/nd.h>
@@ -22,6 +21,7 @@
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
 extern int nvdimm_major;
+extern struct workqueue_struct *nvdimm_wq;
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
@@ -42,7 +42,63 @@ struct nvdimm {
 	atomic_t busy;
 	int id, num_flush;
 	struct resource *flush_wpq;
+	const char *dimm_id;
+	struct {
+		const struct nvdimm_security_ops *ops;
+		enum nvdimm_security_state state;
+		enum nvdimm_security_state ext_state;
+		unsigned int overwrite_tmo;
+		struct kernfs_node *overwrite_state;
+	} sec;
+	struct delayed_work dwork;
 };
+
+static inline enum nvdimm_security_state nvdimm_security_state(
+		struct nvdimm *nvdimm, enum nvdimm_passphrase_type ptype)
+{
+	if (!nvdimm->sec.ops)
+		return -ENXIO;
+
+	return nvdimm->sec.ops->state(nvdimm, ptype);
+}
+int nvdimm_security_freeze(struct nvdimm *nvdimm);
+#if IS_ENABLED(CONFIG_NVDIMM_KEYS)
+int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid);
+int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
+		unsigned int new_keyid,
+		enum nvdimm_passphrase_type pass_type);
+int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid,
+		enum nvdimm_passphrase_type pass_type);
+int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid);
+void nvdimm_security_overwrite_query(struct work_struct *work);
+#else
+static inline int nvdimm_security_disable(struct nvdimm *nvdimm,
+		unsigned int keyid)
+{
+	return -EOPNOTSUPP;
+}
+static inline int nvdimm_security_update(struct nvdimm *nvdimm,
+		unsigned int keyid,
+		unsigned int new_keyid,
+		enum nvdimm_passphrase_type pass_type)
+{
+	return -EOPNOTSUPP;
+}
+static inline int nvdimm_security_erase(struct nvdimm *nvdimm,
+		unsigned int keyid,
+		enum nvdimm_passphrase_type pass_type)
+{
+	return -EOPNOTSUPP;
+}
+static inline int nvdimm_security_overwrite(struct nvdimm *nvdimm,
+		unsigned int keyid)
+{
+	return -EOPNOTSUPP;
+}
+static inline void nvdimm_security_overwrite_query(struct work_struct *work)
+{
+}
+#endif
 
 /**
  * struct blk_alloc_info - tracking info for BLK dpa scanning
@@ -112,6 +168,8 @@ resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, resource_size_t *overlap);
 resource_size_t nd_blk_available_dpa(struct nd_region *nd_region);
 resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
+int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
+		resource_size_t size);
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
 int alias_dpa_busy(struct device *dev, void *data);

@@ -449,28 +449,23 @@ struct ib_sa_query;
 
 void ib_sa_cancel_query(int id, struct ib_sa_query *query);
 
-int ib_sa_path_rec_get(struct ib_sa_client *client,
-		       struct ib_device *device, u8 port_num,
-		       struct sa_path_rec *rec,
-		       ib_sa_comp_mask comp_mask,
-		       int timeout_ms, gfp_t gfp_mask,
-		       void (*callback)(int status,
-					struct sa_path_rec *resp,
+int ib_sa_path_rec_get(struct ib_sa_client *client, struct ib_device *device,
+		       u8 port_num, struct sa_path_rec *rec,
+		       ib_sa_comp_mask comp_mask, unsigned long timeout_ms,
+		       gfp_t gfp_mask,
+		       void (*callback)(int status, struct sa_path_rec *resp,
 					void *context),
-		       void *context,
-		       struct ib_sa_query **query);
+		       void *context, struct ib_sa_query **query);
 
 int ib_sa_service_rec_query(struct ib_sa_client *client,
-			 struct ib_device *device, u8 port_num,
-			 u8 method,
-			 struct ib_sa_service_rec *rec,
-			 ib_sa_comp_mask comp_mask,
-			 int timeout_ms, gfp_t gfp_mask,
-			 void (*callback)(int status,
-					  struct ib_sa_service_rec *resp,
-					  void *context),
-			 void *context,
-			 struct ib_sa_query **sa_query);
+			    struct ib_device *device, u8 port_num, u8 method,
+			    struct ib_sa_service_rec *rec,
+			    ib_sa_comp_mask comp_mask, unsigned long timeout_ms,
+			    gfp_t gfp_mask,
+			    void (*callback)(int status,
+					     struct ib_sa_service_rec *resp,
+					     void *context),
+			    void *context, struct ib_sa_query **sa_query);
 
 struct ib_sa_multicast {
 	struct ib_sa_mcmember_rec rec;
@@ -573,12 +568,11 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 			      struct ib_device *device, u8 port_num,
 			      struct ib_sa_guidinfo_rec *rec,
 			      ib_sa_comp_mask comp_mask, u8 method,
-			      int timeout_ms, gfp_t gfp_mask,
+			      unsigned long timeout_ms, gfp_t gfp_mask,
 			      void (*callback)(int status,
 					       struct ib_sa_guidinfo_rec *resp,
 					       void *context),
-			      void *context,
-			      struct ib_sa_query **sa_query);
+			      void *context, struct ib_sa_query **sa_query);
 
 bool ib_sa_sendonly_fullmem_support(struct ib_sa_client *client,
 				    struct ib_device *device,

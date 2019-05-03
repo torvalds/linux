@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _kernel_licensing:
+
 Linux kernel licensing rules
 ============================
 
@@ -60,7 +62,7 @@ License identifier syntax
 
    The SPDX license identifier in kernel files shall be added at the first
    possible line in a file which can contain a comment.  For the majority
-   or files this is the first line, except for scripts which require the
+   of files this is the first line, except for scripts which require the
    '#!PATH_TO_INTERPRETER' in the first line.  For those scripts the SPDX
    identifier goes into the second line.
 
@@ -366,7 +368,69 @@ kernel, can be broken down into:
 
 
 All SPDX license identifiers and exceptions must have a corresponding file
-in the LICENSE subdirectories. This is required to allow tool
+in the LICENSES subdirectories. This is required to allow tool
 verification (e.g. checkpatch.pl) and to have the licenses ready to read
 and extract right from the source, which is recommended by various FOSS
 organizations, e.g. the `FSFE REUSE initiative <https://reuse.software/>`_.
+
+_`MODULE_LICENSE`
+-----------------
+
+   Loadable kernel modules also require a MODULE_LICENSE() tag. This tag is
+   neither a replacement for proper source code license information
+   (SPDX-License-Identifier) nor in any way relevant for expressing or
+   determining the exact license under which the source code of the module
+   is provided.
+
+   The sole purpose of this tag is to provide sufficient information
+   whether the module is free software or proprietary for the kernel
+   module loader and for user space tools.
+
+   The valid license strings for MODULE_LICENSE() are:
+
+    ============================= =============================================
+    "GPL"			  Module is licensed under GPL version 2. This
+				  does not express any distinction between
+				  GPL-2.0-only or GPL-2.0-or-later. The exact
+				  license information can only be determined
+				  via the license information in the
+				  corresponding source files.
+
+    "GPL v2"			  Same as "GPL". It exists for historic
+				  reasons.
+
+    "GPL and additional rights"   Historical variant of expressing that the
+				  module source is dual licensed under a
+				  GPL v2 variant and MIT license. Please do
+				  not use in new code.
+
+    "Dual MIT/GPL"		  The correct way of expressing that the
+				  module is dual licensed under a GPL v2
+				  variant or MIT license choice.
+
+    "Dual BSD/GPL"		  The module is dual licensed under a GPL v2
+				  variant or BSD license choice. The exact
+				  variant of the BSD license can only be
+				  determined via the license information
+				  in the corresponding source files.
+
+    "Dual MPL/GPL"		  The module is dual licensed under a GPL v2
+				  variant or Mozilla Public License (MPL)
+				  choice. The exact variant of the MPL
+				  license can only be determined via the
+				  license information in the corresponding
+				  source files.
+
+    "Proprietary"		  The module is under a proprietary license.
+				  This string is solely for proprietary third
+				  party modules and cannot be used for modules
+				  which have their source code in the kernel
+				  tree. Modules tagged that way are tainting
+				  the kernel with the 'P' flag when loaded and
+				  the kernel module loader refuses to link such
+				  modules against symbols which are exported
+				  with EXPORT_SYMBOL_GPL().
+    ============================= =============================================
+
+
+

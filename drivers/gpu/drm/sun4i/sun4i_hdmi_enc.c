@@ -11,7 +11,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
@@ -52,7 +52,8 @@ static int sun4i_hdmi_setup_avi_infoframes(struct sun4i_hdmi *hdmi,
 	u8 buffer[17];
 	int i, ret;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &hdmi->connector, mode);
 	if (ret < 0) {
 		DRM_ERROR("Failed to get infoframes from mode\n");
 		return ret;
@@ -92,6 +93,8 @@ static void sun4i_hdmi_disable(struct drm_encoder *encoder)
 	val = readl(hdmi->base + SUN4I_HDMI_VID_CTRL_REG);
 	val &= ~SUN4I_HDMI_VID_CTRL_ENABLE;
 	writel(val, hdmi->base + SUN4I_HDMI_VID_CTRL_REG);
+
+	clk_disable_unprepare(hdmi->tmds_clk);
 }
 
 static void sun4i_hdmi_enable(struct drm_encoder *encoder)
@@ -101,6 +104,8 @@ static void sun4i_hdmi_enable(struct drm_encoder *encoder)
 	u32 val = 0;
 
 	DRM_DEBUG_DRIVER("Enabling the HDMI Output\n");
+
+	clk_prepare_enable(hdmi->tmds_clk);
 
 	sun4i_hdmi_setup_avi_infoframes(hdmi, mode);
 	val |= SUN4I_HDMI_PKT_CTRL_TYPE(0, SUN4I_HDMI_PKT_AVI);

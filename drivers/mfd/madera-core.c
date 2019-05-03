@@ -15,6 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -132,32 +133,39 @@ const char *madera_name_from_type(enum madera_type type)
 }
 EXPORT_SYMBOL_GPL(madera_name_from_type);
 
-#define MADERA_BOOT_POLL_MAX_INTERVAL_US  5000
-#define MADERA_BOOT_POLL_TIMEOUT_US	 25000
+#define MADERA_BOOT_POLL_INTERVAL_USEC		5000
+#define MADERA_BOOT_POLL_TIMEOUT_USEC		25000
 
 static int madera_wait_for_boot(struct madera *madera)
 {
+	ktime_t timeout;
 	unsigned int val;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * We can't use an interrupt as we need to runtime resume to do so,
 	 * so we poll the status bit. This won't race with the interrupt
 	 * handler because it will be blocked on runtime resume.
+	 * The chip could NAK a read request while it is booting so ignore
+	 * errors from regmap_read.
 	 */
-	ret = regmap_read_poll_timeout(madera->regmap,
-				       MADERA_IRQ1_RAW_STATUS_1,
-				       val,
-				       (val & MADERA_BOOT_DONE_STS1),
-				       MADERA_BOOT_POLL_MAX_INTERVAL_US,
-				       MADERA_BOOT_POLL_TIMEOUT_US);
+	timeout = ktime_add_us(ktime_get(), MADERA_BOOT_POLL_TIMEOUT_USEC);
+	regmap_read(madera->regmap, MADERA_IRQ1_RAW_STATUS_1, &val);
+	while (!(val & MADERA_BOOT_DONE_STS1) &&
+	       !ktime_after(ktime_get(), timeout)) {
+		usleep_range(MADERA_BOOT_POLL_INTERVAL_USEC / 2,
+			     MADERA_BOOT_POLL_INTERVAL_USEC);
+		regmap_read(madera->regmap, MADERA_IRQ1_RAW_STATUS_1, &val);
+	}
 
-	if (ret)
-		dev_err(madera->dev, "Polling BOOT_DONE_STS failed: %d\n", ret);
+	if (!(val & MADERA_BOOT_DONE_STS1)) {
+		dev_err(madera->dev, "Polling BOOT_DONE_STS timed out\n");
+		ret = -ETIMEDOUT;
+	}
 
 	/*
 	 * BOOT_DONE defaults to unmasked on boot so we must ack it.
-	 * Do this unconditionally to avoid interrupt storms.
+	 * Do this even after a timeout to avoid interrupt storms.
 	 */
 	regmap_write(madera->regmap, MADERA_IRQ1_STATUS_1,
 		     MADERA_BOOT_DONE_EINT1);
@@ -350,6 +358,8 @@ int madera_dev_init(struct madera *madera)
 
 	dev_set_drvdata(madera->dev, madera);
 	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
+	mutex_init(&madera->dapm_ptr_lock);
+
 	madera_set_micbias_info(madera);
 
 	/*

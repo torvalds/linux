@@ -208,7 +208,6 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 static void free_fib_info_rcu(struct rcu_head *head)
 {
 	struct fib_info *fi = container_of(head, struct fib_info, rcu);
-	struct dst_metrics *m;
 
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
@@ -219,9 +218,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
-	m = fi->fib_metrics;
-	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
-		kfree(m);
+	ip_fib_metrics_put(fi->fib_metrics);
+
 	kfree(fi);
 }
 
@@ -797,8 +795,10 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
 				return -EINVAL;
 			}
 			dev = __dev_get_by_index(net, nh->nh_oif);
-			if (!dev)
+			if (!dev) {
+				NL_SET_ERR_MSG(extack, "Nexthop device required for onlink");
 				return -ENODEV;
+			}
 			if (!(dev->flags & IFF_UP)) {
 				NL_SET_ERR_MSG(extack,
 					       "Nexthop device is not up");
@@ -1018,13 +1018,6 @@ static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
 	return true;
 }
 
-static int
-fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
-{
-	return ip_metrics_convert(fi->fib_net, cfg->fc_mx, cfg->fc_mx_len,
-				  fi->fib_metrics->metrics);
-}
-
 struct fib_info *fib_create_info(struct fib_config *cfg,
 				 struct netlink_ext_ack *extack)
 {
@@ -1079,19 +1072,17 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 			goto failure;
 	}
 
-	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
+	fi = kzalloc(struct_size(fi, fib_nh, nhs), GFP_KERNEL);
 	if (!fi)
 		goto failure;
-	if (cfg->fc_mx) {
-		fi->fib_metrics = kzalloc(sizeof(*fi->fib_metrics), GFP_KERNEL);
-		if (unlikely(!fi->fib_metrics)) {
-			kfree(fi);
-			return ERR_PTR(err);
-		}
-		refcount_set(&fi->fib_metrics->refcnt, 1);
-	} else {
-		fi->fib_metrics = (struct dst_metrics *)&dst_default_metrics;
+	fi->fib_metrics = ip_fib_metrics_init(fi->fib_net, cfg->fc_mx,
+					      cfg->fc_mx_len, extack);
+	if (unlikely(IS_ERR(fi->fib_metrics))) {
+		err = PTR_ERR(fi->fib_metrics);
+		kfree(fi);
+		return ERR_PTR(err);
 	}
+
 	fib_info_cnt++;
 	fi->fib_net = net;
 	fi->fib_protocol = cfg->fc_protocol;
@@ -1109,10 +1100,6 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		if (!nexthop_nh->nh_pcpu_rth_output)
 			goto failure;
 	} endfor_nexthops(fi)
-
-	err = fib_convert_metrics(fi, cfg);
-	if (err)
-		goto failure;
 
 	if (cfg->fc_mp) {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH

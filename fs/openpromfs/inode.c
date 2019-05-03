@@ -199,10 +199,11 @@ static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry
 
 	child = dp->child;
 	while (child) {
-		int n = strlen(child->path_component_name);
+		const char *node_name = kbasename(child->full_name);
+		int n = strlen(node_name);
 
 		if (len == n &&
-		    !strncmp(child->path_component_name, name, len)) {
+		    !strncmp(node_name, name, len)) {
 			ent_type = op_inode_node;
 			ent_data.node = child;
 			ino = child->unique_id;
@@ -245,7 +246,7 @@ found:
 		set_nlink(inode, 2);
 		break;
 	case op_inode_prop:
-		if (!strcmp(dp->name, "options") && (len == 17) &&
+		if (of_node_name_eq(dp, "options") && (len == 17) &&
 		    !strncmp (name, "security-password", 17))
 			inode->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
 		else
@@ -293,8 +294,8 @@ static int openpromfs_readdir(struct file *file, struct dir_context *ctx)
 	}
 	while (child) {
 		if (!dir_emit(ctx,
-			    child->path_component_name,
-			    strlen(child->path_component_name),
+			    kbasename(child->full_name),
+			    strlen(kbasename(child->full_name)),
 			    child->unique_id, DT_DIR))
 			goto out;
 

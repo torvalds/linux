@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/staging/media/radio-bcm2048.c
  *
@@ -2304,9 +2305,9 @@ static int bcm2048_vidioc_querycap(struct file *file, void *priv,
 {
 	struct bcm2048_device *bdev = video_get_drvdata(video_devdata(file));
 
-	strlcpy(capability->driver, BCM2048_DRIVER_NAME,
+	strscpy(capability->driver, BCM2048_DRIVER_NAME,
 		sizeof(capability->driver));
-	strlcpy(capability->card, BCM2048_DRIVER_CARD,
+	strscpy(capability->card, BCM2048_DRIVER_CARD,
 		sizeof(capability->card));
 	snprintf(capability->bus_info, 32, "I2C: 0x%X", bdev->client->addr);
 	capability->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
@@ -2574,8 +2575,7 @@ static const struct video_device bcm2048_viddev_template = {
 /*
  *	I2C driver interface
  */
-static int bcm2048_i2c_driver_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
+static int bcm2048_i2c_driver_probe(struct i2c_client *client)
 {
 	struct bcm2048_device *bdev;
 	int err;
@@ -2679,7 +2679,7 @@ static struct i2c_driver bcm2048_i2c_driver = {
 	.driver		= {
 		.name	= BCM2048_DRIVER_NAME,
 	},
-	.probe		= bcm2048_i2c_driver_probe,
+	.probe_new	= bcm2048_i2c_driver_probe,
 	.remove		= bcm2048_i2c_driver_remove,
 	.id_table	= bcm2048_id,
 };

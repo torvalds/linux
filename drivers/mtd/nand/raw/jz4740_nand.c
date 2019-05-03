@@ -78,10 +78,9 @@ static inline struct jz_nand *mtd_to_jz_nand(struct mtd_info *mtd)
 	return container_of(mtd_to_nand(mtd), struct jz_nand, chip);
 }
 
-static void jz_nand_select_chip(struct mtd_info *mtd, int chipnr)
+static void jz_nand_select_chip(struct nand_chip *chip, int chipnr)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t ctrl;
 	int banknr;
 
@@ -92,18 +91,18 @@ static void jz_nand_select_chip(struct mtd_info *mtd, int chipnr)
 		banknr = -1;
 	} else {
 		banknr = nand->banks[chipnr] - 1;
-		chip->IO_ADDR_R = nand->bank_base[banknr];
-		chip->IO_ADDR_W = nand->bank_base[banknr];
+		chip->legacy.IO_ADDR_R = nand->bank_base[banknr];
+		chip->legacy.IO_ADDR_W = nand->bank_base[banknr];
 	}
 	writel(ctrl, nand->base + JZ_REG_NAND_CTRL);
 
 	nand->selected_bank = banknr;
 }
 
-static void jz_nand_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
+static void jz_nand_cmd_ctrl(struct nand_chip *chip, int dat,
+			     unsigned int ctrl)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t reg;
 	void __iomem *bank_base = nand->bank_base[nand->selected_bank];
 
@@ -115,7 +114,7 @@ static void jz_nand_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
 			bank_base += JZ_NAND_MEM_ADDR_OFFSET;
 		else if (ctrl & NAND_CLE)
 			bank_base += JZ_NAND_MEM_CMD_OFFSET;
-		chip->IO_ADDR_W = bank_base;
+		chip->legacy.IO_ADDR_W = bank_base;
 
 		reg = readl(nand->base + JZ_REG_NAND_CTRL);
 		if (ctrl & NAND_NCE)
@@ -125,18 +124,18 @@ static void jz_nand_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
 		writel(reg, nand->base + JZ_REG_NAND_CTRL);
 	}
 	if (dat != NAND_CMD_NONE)
-		writeb(dat, chip->IO_ADDR_W);
+		writeb(dat, chip->legacy.IO_ADDR_W);
 }
 
-static int jz_nand_dev_ready(struct mtd_info *mtd)
+static int jz_nand_dev_ready(struct nand_chip *chip)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	return gpiod_get_value_cansleep(nand->busy_gpio);
 }
 
-static void jz_nand_hwctl(struct mtd_info *mtd, int mode)
+static void jz_nand_hwctl(struct nand_chip *chip, int mode)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t reg;
 
 	writel(0, nand->base + JZ_REG_NAND_IRQ_STAT);
@@ -162,10 +161,10 @@ static void jz_nand_hwctl(struct mtd_info *mtd, int mode)
 	writel(reg, nand->base + JZ_REG_NAND_ECC_CTRL);
 }
 
-static int jz_nand_calculate_ecc_rs(struct mtd_info *mtd, const uint8_t *dat,
-	uint8_t *ecc_code)
+static int jz_nand_calculate_ecc_rs(struct nand_chip *chip, const uint8_t *dat,
+				    uint8_t *ecc_code)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	uint32_t reg, status;
 	int i;
 	unsigned int timeout = 1000;
@@ -215,10 +214,10 @@ static void jz_nand_correct_data(uint8_t *dat, int index, int mask)
 	dat[index+1] = (data >> 8) & 0xff;
 }
 
-static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
-	uint8_t *read_ecc, uint8_t *calc_ecc)
+static int jz_nand_correct_ecc_rs(struct nand_chip *chip, uint8_t *dat,
+				  uint8_t *read_ecc, uint8_t *calc_ecc)
 {
-	struct jz_nand *nand = mtd_to_jz_nand(mtd);
+	struct jz_nand *nand = mtd_to_jz_nand(nand_to_mtd(chip));
 	int i, error_count, index;
 	uint32_t reg, status, error;
 	unsigned int timeout = 1000;
@@ -261,7 +260,7 @@ static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
 }
 
 static int jz_nand_ioremap_resource(struct platform_device *pdev,
-	const char *name, struct resource **res, void *__iomem *base)
+	const char *name, struct resource **res, void __iomem **base)
 {
 	int ret;
 
@@ -331,19 +330,19 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 
 	if (chipnr == 0) {
 		/* Detect first chip. */
-		ret = nand_scan(mtd, 1);
+		ret = nand_scan(chip, 1);
 		if (ret)
 			goto notfound_id;
 
 		/* Retrieve the IDs from the first chip. */
-		chip->select_chip(mtd, 0);
+		nand_select_target(chip, 0);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		*nand_maf_id = id[0];
 		*nand_dev_id = id[1];
 	} else {
 		/* Detect additional chip. */
-		chip->select_chip(mtd, chipnr);
+		nand_select_target(chip, chipnr);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		if (*nand_maf_id != id[0] || *nand_dev_id != id[1]) {
@@ -426,13 +425,13 @@ static int jz_nand_probe(struct platform_device *pdev)
 	chip->ecc.strength	= 4;
 	chip->ecc.options	= NAND_ECC_GENERIC_ERASED_CHECK;
 
-	chip->chip_delay = 50;
-	chip->cmd_ctrl = jz_nand_cmd_ctrl;
-	chip->select_chip = jz_nand_select_chip;
-	chip->dummy_controller.ops = &jz_nand_controller_ops;
+	chip->legacy.chip_delay = 50;
+	chip->legacy.cmd_ctrl = jz_nand_cmd_ctrl;
+	chip->legacy.select_chip = jz_nand_select_chip;
+	chip->legacy.dummy_controller.ops = &jz_nand_controller_ops;
 
 	if (nand->busy_gpio)
-		chip->dev_ready = jz_nand_dev_ready;
+		chip->legacy.dev_ready = jz_nand_dev_ready;
 
 	platform_set_drvdata(pdev, nand);
 
@@ -507,7 +506,7 @@ static int jz_nand_remove(struct platform_device *pdev)
 	struct jz_nand *nand = platform_get_drvdata(pdev);
 	size_t i;
 
-	nand_release(nand_to_mtd(&nand->chip));
+	nand_release(&nand->chip);
 
 	/* Deassert and disable all chips */
 	writel(0, nand->base + JZ_REG_NAND_CTRL);

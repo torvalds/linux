@@ -51,7 +51,7 @@ user_backtrace(unsigned long *stackaddr, struct pt_regs *regs)
 	unsigned long buf_stack;
 
 	/* Also check accessibility of address */
-	if (!access_ok(VERIFY_READ, stackaddr, sizeof(unsigned long)))
+	if (!access_ok(stackaddr, sizeof(unsigned long)))
 		return NULL;
 
 	if (__copy_from_user_inatomic(&buf_stack, stackaddr, sizeof(unsigned long)))

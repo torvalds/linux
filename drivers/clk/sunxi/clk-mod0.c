@@ -140,8 +140,8 @@ static void __init sun9i_a80_mod0_setup(struct device_node *node)
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for mod0-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for mod0-clk: %pOFn\n",
+		       node);
 		return;
 	}
 
@@ -306,7 +306,7 @@ static void __init sunxi_mmc_setup(struct device_node *node,
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
-		pr_err("Couldn't map the %s clock registers\n", node->name);
+		pr_err("Couldn't map the %pOFn clock registers\n", node);
 		return;
 	}
 

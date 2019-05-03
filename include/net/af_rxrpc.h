@@ -13,23 +13,12 @@
 #define _NET_RXRPC_H
 
 #include <linux/rxrpc.h>
+#include <linux/ktime.h>
 
 struct key;
 struct sock;
 struct socket;
 struct rxrpc_call;
-
-/*
- * Call completion condition (state == RXRPC_CALL_COMPLETE).
- */
-enum rxrpc_call_completion {
-	RXRPC_CALL_SUCCEEDED,		/* - Normal termination */
-	RXRPC_CALL_REMOTELY_ABORTED,	/* - call aborted by peer */
-	RXRPC_CALL_LOCALLY_ABORTED,	/* - call aborted locally on error or close */
-	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
-	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
-	NR__RXRPC_CALL_COMPLETIONS
-};
 
 /*
  * Debug ID counter for tracing.
@@ -72,10 +61,12 @@ int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
 			       rxrpc_user_attach_call_t, unsigned long, gfp_t,
 			       unsigned int);
 void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);
-int rxrpc_kernel_retry_call(struct socket *, struct rxrpc_call *,
-			    struct sockaddr_rxrpc *, struct key *);
-int rxrpc_kernel_check_call(struct socket *, struct rxrpc_call *,
-			    enum rxrpc_call_completion *, u32 *);
-u32 rxrpc_kernel_check_life(struct socket *, struct rxrpc_call *);
+bool rxrpc_kernel_check_life(const struct socket *, const struct rxrpc_call *,
+			     u32 *);
+void rxrpc_kernel_probe_life(struct socket *, struct rxrpc_call *);
+u32 rxrpc_kernel_get_epoch(struct socket *, struct rxrpc_call *);
+bool rxrpc_kernel_get_reply_time(struct socket *, struct rxrpc_call *,
+				 ktime_t *);
+bool rxrpc_kernel_call_is_complete(struct rxrpc_call *);
 
 #endif /* _NET_RXRPC_H */

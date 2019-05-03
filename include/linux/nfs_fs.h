@@ -51,7 +51,7 @@
 struct nfs_access_entry {
 	struct rb_node		rb_node;
 	struct list_head	lru;
-	struct rpc_cred *	cred;
+	const struct cred *	cred;
 	__u32			mask;
 	struct rcu_head		rcu_head;
 };
@@ -62,6 +62,7 @@ struct nfs_lock_context {
 	struct nfs_open_context *open_context;
 	fl_owner_t lockowner;
 	atomic_t io_count;
+	struct rcu_head	rcu_head;
 };
 
 struct nfs4_state;
@@ -69,7 +70,8 @@ struct nfs_open_context {
 	struct nfs_lock_context lock_context;
 	fl_owner_t flock_owner;
 	struct dentry *dentry;
-	struct rpc_cred *cred;
+	const struct cred *cred;
+	struct rpc_cred *ll_cred;	/* low-level cred - use to check for expiry */
 	struct nfs4_state *state;
 	fmode_t mode;
 
@@ -82,11 +84,12 @@ struct nfs_open_context {
 
 	struct list_head list;
 	struct nfs4_threshold	*mdsthreshold;
+	struct rcu_head	rcu_head;
 };
 
 struct nfs_open_dir_context {
 	struct list_head list;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	unsigned long attr_gencount;
 	__u64 dir_cookie;
 	__u64 dup_cookie;
@@ -388,7 +391,7 @@ extern void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
 				struct nfs4_label *label);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
-extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
+extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, const struct cred *cred, fmode_t mode);
 extern struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, fmode_t f_mode, struct file *filp);
 extern void nfs_inode_attach_open_context(struct nfs_open_context *ctx);
 extern void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx);
@@ -459,7 +462,7 @@ static inline struct nfs_open_context *nfs_file_open_context(struct file *filp)
 	return filp->private_data;
 }
 
-static inline struct rpc_cred *nfs_file_cred(struct file *file)
+static inline const struct cred *nfs_file_cred(struct file *file)
 {
 	if (file != NULL) {
 		struct nfs_open_context *ctx =
@@ -488,7 +491,7 @@ extern const struct dentry_operations nfs_dentry_operations;
 extern void nfs_force_lookup_revalidate(struct inode *dir);
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh,
 			struct nfs_fattr *fattr, struct nfs4_label *label);
-extern int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags);
+extern int nfs_may_open(struct inode *inode, const struct cred *cred, int openflags);
 extern void nfs_access_zap_cache(struct inode *inode);
 
 /*

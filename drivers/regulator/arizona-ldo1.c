@@ -40,35 +40,10 @@ struct arizona_ldo1 {
 	struct gpio_desc *ena_gpiod;
 };
 
-static int arizona_ldo1_hc_list_voltage(struct regulator_dev *rdev,
-					unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (selector == rdev->desc->n_voltages - 1)
-		return 1800000;
-	else
-		return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
-}
-
-static int arizona_ldo1_hc_map_voltage(struct regulator_dev *rdev,
-				       int min_uV, int max_uV)
-{
-	int sel;
-
-	sel = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
-	if (sel >= rdev->desc->n_voltages)
-		sel = rdev->desc->n_voltages - 1;
-
-	return sel;
-}
-
 static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 					   unsigned sel)
 {
-	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->regmap;
+	struct regmap *regmap = rdev_get_regmap(rdev);
 	unsigned int val;
 	int ret;
 
@@ -85,16 +60,12 @@ static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 	if (val)
 		return 0;
 
-	val = sel << ARIZONA_LDO1_VSEL_SHIFT;
-
-	return regmap_update_bits(regmap, ARIZONA_LDO1_CONTROL_1,
-				  ARIZONA_LDO1_VSEL_MASK, val);
+	return regulator_set_voltage_sel_regmap(rdev, sel);
 }
 
 static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 {
-	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->regmap;
+	struct regmap *regmap = rdev_get_regmap(rdev);
 	unsigned int val;
 	int ret;
 
@@ -105,20 +76,21 @@ static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 	if (val & ARIZONA_LDO1_HI_PWR)
 		return rdev->desc->n_voltages - 1;
 
-	ret = regmap_read(regmap, ARIZONA_LDO1_CONTROL_1, &val);
-	if (ret != 0)
-		return ret;
-
-	return (val & ARIZONA_LDO1_VSEL_MASK) >> ARIZONA_LDO1_VSEL_SHIFT;
+	return regulator_get_voltage_sel_regmap(rdev);
 }
 
 static const struct regulator_ops arizona_ldo1_hc_ops = {
-	.list_voltage = arizona_ldo1_hc_list_voltage,
-	.map_voltage = arizona_ldo1_hc_map_voltage,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 	.get_voltage_sel = arizona_ldo1_hc_get_voltage_sel,
 	.set_voltage_sel = arizona_ldo1_hc_set_voltage_sel,
 	.get_bypass = regulator_get_bypass_regmap,
 	.set_bypass = regulator_set_bypass_regmap,
+};
+
+static const struct regulator_linear_range arizona_ldo1_hc_ranges[] = {
+	REGULATOR_LINEAR_RANGE(900000, 0, 0x6, 50000),
+	REGULATOR_LINEAR_RANGE(1800000, 0x7, 0x7, 0),
 };
 
 static const struct regulator_desc arizona_ldo1_hc = {
@@ -127,10 +99,12 @@ static const struct regulator_desc arizona_ldo1_hc = {
 	.type = REGULATOR_VOLTAGE,
 	.ops = &arizona_ldo1_hc_ops,
 
+	.vsel_reg = ARIZONA_LDO1_CONTROL_1,
+	.vsel_mask = ARIZONA_LDO1_VSEL_MASK,
 	.bypass_reg = ARIZONA_LDO1_CONTROL_1,
 	.bypass_mask = ARIZONA_LDO1_BYPASS,
-	.min_uV = 900000,
-	.uV_step = 50000,
+	.linear_ranges = arizona_ldo1_hc_ranges,
+	.n_linear_ranges = ARRAY_SIZE(arizona_ldo1_hc_ranges),
 	.n_voltages = 8,
 	.enable_time = 1500,
 	.ramp_delay = 24000,
@@ -260,7 +234,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 	 * so clean up would happen at the wrong time
 	 */
 	config.ena_gpiod = gpiod_get_optional(parent_dev, "wlf,ldoena",
-					      GPIOD_OUT_LOW);
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	if (IS_ERR(config.ena_gpiod))
 		return PTR_ERR(config.ena_gpiod);
 
@@ -283,9 +257,6 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 	of_node_put(config.of_node);
 
 	if (IS_ERR(ldo1->regulator)) {
-		if (config.ena_gpiod)
-			gpiod_put(config.ena_gpiod);
-
 		ret = PTR_ERR(ldo1->regulator);
 		dev_err(&pdev->dev, "Failed to register LDO1 supply: %d\n",
 			ret);

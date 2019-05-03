@@ -23,7 +23,6 @@
 #include <linux/workqueue.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
 
@@ -45,6 +44,14 @@
 
 struct omap_drm_usergart;
 
+struct omap_drm_pipeline {
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	struct omap_dss_device *output;
+	struct omap_dss_device *display;
+};
+
 struct omap_drm_private {
 	struct drm_device *ddev;
 	struct device *dev;
@@ -54,17 +61,12 @@ struct omap_drm_private {
 	struct dispc_device *dispc;
 	const struct dispc_ops *dispc_ops;
 
-	unsigned int num_crtcs;
-	struct drm_crtc *crtcs[8];
+	unsigned int num_pipes;
+	struct omap_drm_pipeline pipes[8];
+	struct omap_drm_pipeline *channels[8];
 
 	unsigned int num_planes;
 	struct drm_plane *planes[8];
-
-	unsigned int num_encoders;
-	struct drm_encoder *encoders[8];
-
-	unsigned int num_connectors;
-	struct drm_connector *connectors[8];
 
 	struct drm_fb_helper *fbdev;
 

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Cropping and Scaling algorithm, used in the sh_mobile_ceu_camera driver
 =======================================================================
 
@@ -114,7 +116,7 @@ window:
 S_CROP
 ------
 
-The API at http://v4l2spec.bytesex.org/spec/x1904.htm says:
+The :ref:`V4L2 crop API <crop-scale>` says:
 
 "...specification does not define an origin or units. However by convention
 drivers should horizontally count unscaled samples relative to 0H."

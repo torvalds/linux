@@ -131,8 +131,8 @@ struct hlist_node {
  * weird ABI and we need to ask it explicitly.
  *
  * The alignment is required to guarantee that bits 0 and 1 of @next will be
- * clear under normal conditions -- as long as we use call_rcu(),
- * call_rcu_bh(), call_rcu_sched(), or call_srcu() to queue callback.
+ * clear under normal conditions -- as long as we use call_rcu() or
+ * call_srcu() to queue callback.
  *
  * This guarantee is important for few reasons:
  *  - future call_rcu_lazy() will make use of lower bits in the pointer;

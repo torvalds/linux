@@ -34,7 +34,7 @@ static __latent_entropy void blk_done_softirq(struct softirq_action *h)
 
 		rq = list_entry(local_list.next, struct request, ipi_list);
 		list_del_init(&rq->ipi_list);
-		rq->q->softirq_done_fn(rq);
+		rq->q->mq_ops->complete(rq);
 	}
 }
 
@@ -97,12 +97,12 @@ static int blk_softirq_cpu_dead(unsigned int cpu)
 
 void __blk_complete_request(struct request *req)
 {
-	int ccpu, cpu;
 	struct request_queue *q = req->q;
+	int cpu, ccpu = req->mq_ctx->cpu;
 	unsigned long flags;
 	bool shared = false;
 
-	BUG_ON(!q->softirq_done_fn);
+	BUG_ON(!q->mq_ops->complete);
 
 	local_irq_save(flags);
 	cpu = smp_processor_id();
@@ -110,8 +110,7 @@ void __blk_complete_request(struct request *req)
 	/*
 	 * Select completion CPU
 	 */
-	if (req->cpu != -1) {
-		ccpu = req->cpu;
+	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) && ccpu != -1) {
 		if (!test_bit(QUEUE_FLAG_SAME_FORCE, &q->queue_flags))
 			shared = cpus_share_cache(cpu, ccpu);
 	} else
@@ -144,27 +143,6 @@ do_local:
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(__blk_complete_request);
-
-/**
- * blk_complete_request - end I/O on a request
- * @req:      the request being processed
- *
- * Description:
- *     Ends all I/O on a request. It does not handle partial completions,
- *     unless the driver actually implements this in its completion callback
- *     through requeueing. The actual completion happens out-of-order,
- *     through a softirq handler. The user must have registered a completion
- *     callback through blk_queue_softirq_done().
- **/
-void blk_complete_request(struct request *req)
-{
-	if (unlikely(blk_should_fake_timeout(req->q)))
-		return;
-	if (!blk_mark_rq_complete(req))
-		__blk_complete_request(req);
-}
-EXPORT_SYMBOL(blk_complete_request);
 
 static __init int blk_softirq_init(void)
 {

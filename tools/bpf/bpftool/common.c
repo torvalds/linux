@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <ctype.h>
 #include <errno.h>
@@ -46,8 +16,8 @@
 #include <linux/magic.h>
 #include <net/if.h>
 #include <sys/mount.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/vfs.h>
 
 #include <bpf.h>
@@ -58,7 +28,7 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
-void p_err(const char *fmt, ...)
+void __printf(1, 2) p_err(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -76,7 +46,7 @@ void p_err(const char *fmt, ...)
 	va_end(ap);
 }
 
-void p_info(const char *fmt, ...)
+void __printf(1, 2) p_info(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -99,7 +69,15 @@ static bool is_bpffs(char *path)
 	return (unsigned long)st_fs.f_type == BPF_FS_MAGIC;
 }
 
-static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
+void set_max_rlimit(void)
+{
+	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
+
+	setrlimit(RLIMIT_MEMLOCK, &rinf);
+}
+
+static int
+mnt_fs(const char *target, const char *type, char *buff, size_t bufflen)
 {
 	bool bind_done = false;
 
@@ -121,25 +99,40 @@ static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
 		bind_done = true;
 	}
 
-	if (mount("bpf", target, "bpf", 0, "mode=0700")) {
-		snprintf(buff, bufflen, "mount -t bpf bpf %s failed: %s",
-			 target, strerror(errno));
+	if (mount(type, target, type, 0, "mode=0700")) {
+		snprintf(buff, bufflen, "mount -t %s %s %s failed: %s",
+			 type, type, target, strerror(errno));
 		return -1;
 	}
 
 	return 0;
 }
 
-int open_obj_pinned(char *path)
+int mount_tracefs(const char *target)
+{
+	char err_str[ERR_MAX_LEN];
+	int err;
+
+	err = mnt_fs(target, "tracefs", err_str, ERR_MAX_LEN);
+	if (err) {
+		err_str[ERR_MAX_LEN - 1] = '\0';
+		p_err("can't mount tracefs: %s", err_str);
+	}
+
+	return err;
+}
+
+int open_obj_pinned(char *path, bool quiet)
 {
 	int fd;
 
 	fd = bpf_obj_get(path);
 	if (fd < 0) {
-		p_err("bpf obj get (%s): %s", path,
-		      errno == EACCES && !is_bpffs(dirname(path)) ?
-		    "directory not in bpf file system (bpffs)" :
-		    strerror(errno));
+		if (!quiet)
+			p_err("bpf obj get (%s): %s", path,
+			      errno == EACCES && !is_bpffs(dirname(path)) ?
+			    "directory not in bpf file system (bpffs)" :
+			    strerror(errno));
 		return -1;
 	}
 
@@ -151,7 +144,7 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 	enum bpf_obj_type type;
 	int fd;
 
-	fd = open_obj_pinned(path);
+	fd = open_obj_pinned(path, false);
 	if (fd < 0)
 		return -1;
 
@@ -169,34 +162,29 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 	return fd;
 }
 
-int do_pin_fd(int fd, const char *name)
+int mount_bpffs_for_pin(const char *name)
 {
 	char err_str[ERR_MAX_LEN];
 	char *file;
 	char *dir;
 	int err = 0;
 
-	err = bpf_obj_pin(fd, name);
-	if (!err)
-		goto out;
-
 	file = malloc(strlen(name) + 1);
 	strcpy(file, name);
 	dir = dirname(file);
 
-	if (errno != EPERM || is_bpffs(dir)) {
-		p_err("can't pin the object (%s): %s", name, strerror(errno));
+	if (is_bpffs(dir))
+		/* nothing to do if already mounted */
+		goto out_free;
+
+	if (block_mount) {
+		p_err("no BPF file system found, not mounting it due to --nomount option");
+		err = -1;
 		goto out_free;
 	}
 
-	/* Attempt to mount bpffs, then retry pinning. */
-	err = mnt_bpffs(dir, err_str, ERR_MAX_LEN);
-	if (!err) {
-		err = bpf_obj_pin(fd, name);
-		if (err)
-			p_err("can't pin the object (%s): %s", name,
-			      strerror(errno));
-	} else {
+	err = mnt_fs(dir, "bpf", err_str, ERR_MAX_LEN);
+	if (err) {
 		err_str[ERR_MAX_LEN - 1] = '\0';
 		p_err("can't mount BPF file system to pin the object (%s): %s",
 		      name, err_str);
@@ -204,8 +192,18 @@ int do_pin_fd(int fd, const char *name)
 
 out_free:
 	free(file);
-out:
 	return err;
+}
+
+int do_pin_fd(int fd, const char *name)
+{
+	int err;
+
+	err = mount_bpffs_for_pin(name);
+	if (err)
+		return err;
+
+	return bpf_obj_pin(fd, name);
 }
 
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
@@ -268,7 +266,7 @@ int get_fd_type(int fd)
 	char buf[512];
 	ssize_t n;
 
-	snprintf(path, sizeof(path), "/proc/%d/fd/%d", getpid(), fd);
+	snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
 
 	n = readlink(path, buf, sizeof(buf));
 	if (n < 0) {
@@ -296,15 +294,13 @@ char *get_fdinfo(int fd, const char *key)
 	ssize_t n;
 	FILE *fdi;
 
-	snprintf(path, sizeof(path), "/proc/%d/fdinfo/%d", getpid(), fd);
+	snprintf(path, sizeof(path), "/proc/self/fdinfo/%d", fd);
 
 	fdi = fopen(path, "r");
-	if (!fdi) {
-		p_err("can't open fdinfo: %s", strerror(errno));
+	if (!fdi)
 		return NULL;
-	}
 
-	while ((n = getline(&line, &line_n, fdi))) {
+	while ((n = getline(&line, &line_n, fdi)) > 0) {
 		char *value;
 		int len;
 
@@ -315,7 +311,6 @@ char *get_fdinfo(int fd, const char *key)
 
 		value = strchr(line, '\t');
 		if (!value || !value[1]) {
-			p_err("malformed fdinfo!?");
 			free(line);
 			return NULL;
 		}
@@ -328,7 +323,6 @@ char *get_fdinfo(int fd, const char *key)
 		return line;
 	}
 
-	p_err("key '%s' not found in fdinfo", key);
 	free(line);
 	fclose(fdi);
 	return NULL;
@@ -384,7 +378,7 @@ int build_pinned_obj_table(struct pinned_obj_table *tab,
 		while ((ftse = fts_read(fts))) {
 			if (!(ftse->fts_info & FTS_F))
 				continue;
-			fd = open_obj_pinned(ftse->fts_path);
+			fd = open_obj_pinned(ftse->fts_path, true);
 			if (fd < 0)
 				continue;
 
@@ -554,7 +548,9 @@ static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
 	return read_sysfs_hex_int(full_path);
 }
 
-const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
+const char *
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+		      const char **opt)
 {
 	char devname[IF_NAMESIZE];
 	int vendor_id;
@@ -579,6 +575,7 @@ const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
 		    device_id != 0x6000 &&
 		    device_id != 0x6003)
 			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
+		*opt = "ctx4";
 		return "NFP-6xxx";
 	default:
 		p_err("Can't get bfd arch name for device vendor id 0x%04x",
@@ -594,7 +591,7 @@ void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 	if (!ifindex)
 		return;
 
-	printf(" dev ");
+	printf("  offloaded_to ");
 	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
 		printf("%s", name);
 	else
@@ -617,4 +614,25 @@ void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
 		jsonw_string_field(json_wtr, "ifname", name);
 	jsonw_end_object(json_wtr);
+}
+
+int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what)
+{
+	char *endptr;
+
+	NEXT_ARGP();
+
+	if (*val) {
+		p_err("%s already specified", what);
+		return -1;
+	}
+
+	*val = strtoul(**argv, &endptr, 0);
+	if (*endptr) {
+		p_err("can't parse %s as %s", **argv, what);
+		return -1;
+	}
+	NEXT_ARGP();
+
+	return 0;
 }

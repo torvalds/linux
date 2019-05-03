@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016, 2017 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -53,6 +53,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
+#include <rdma/uverbs_ioctl.h>
 #include "qp.h"
 #include "vt.h"
 #include "trace.h"
@@ -117,6 +118,187 @@ const int ib_rvt_state_ops[IB_QPS_ERR + 1] = {
 	    RVT_POST_SEND_OK | RVT_FLUSH_SEND,
 };
 EXPORT_SYMBOL(ib_rvt_state_ops);
+
+/* platform specific: return the last level cache (llc) size, in KiB */
+static int rvt_wss_llc_size(void)
+{
+	/* assume that the boot CPU value is universal for all CPUs */
+	return boot_cpu_data.x86_cache_size;
+}
+
+/* platform specific: cacheless copy */
+static void cacheless_memcpy(void *dst, void *src, size_t n)
+{
+	/*
+	 * Use the only available X64 cacheless copy.  Add a __user cast
+	 * to quiet sparse.  The src agument is already in the kernel so
+	 * there are no security issues.  The extra fault recovery machinery
+	 * is not invoked.
+	 */
+	__copy_user_nocache(dst, (void __user *)src, n, 0);
+}
+
+void rvt_wss_exit(struct rvt_dev_info *rdi)
+{
+	struct rvt_wss *wss = rdi->wss;
+
+	if (!wss)
+		return;
+
+	/* coded to handle partially initialized and repeat callers */
+	kfree(wss->entries);
+	wss->entries = NULL;
+	kfree(rdi->wss);
+	rdi->wss = NULL;
+}
+
+/**
+ * rvt_wss_init - Init wss data structures
+ *
+ * Return: 0 on success
+ */
+int rvt_wss_init(struct rvt_dev_info *rdi)
+{
+	unsigned int sge_copy_mode = rdi->dparms.sge_copy_mode;
+	unsigned int wss_threshold = rdi->dparms.wss_threshold;
+	unsigned int wss_clean_period = rdi->dparms.wss_clean_period;
+	long llc_size;
+	long llc_bits;
+	long table_size;
+	long table_bits;
+	struct rvt_wss *wss;
+	int node = rdi->dparms.node;
+
+	if (sge_copy_mode != RVT_SGE_COPY_ADAPTIVE) {
+		rdi->wss = NULL;
+		return 0;
+	}
+
+	rdi->wss = kzalloc_node(sizeof(*rdi->wss), GFP_KERNEL, node);
+	if (!rdi->wss)
+		return -ENOMEM;
+	wss = rdi->wss;
+
+	/* check for a valid percent range - default to 80 if none or invalid */
+	if (wss_threshold < 1 || wss_threshold > 100)
+		wss_threshold = 80;
+
+	/* reject a wildly large period */
+	if (wss_clean_period > 1000000)
+		wss_clean_period = 256;
+
+	/* reject a zero period */
+	if (wss_clean_period == 0)
+		wss_clean_period = 1;
+
+	/*
+	 * Calculate the table size - the next power of 2 larger than the
+	 * LLC size.  LLC size is in KiB.
+	 */
+	llc_size = rvt_wss_llc_size() * 1024;
+	table_size = roundup_pow_of_two(llc_size);
+
+	/* one bit per page in rounded up table */
+	llc_bits = llc_size / PAGE_SIZE;
+	table_bits = table_size / PAGE_SIZE;
+	wss->pages_mask = table_bits - 1;
+	wss->num_entries = table_bits / BITS_PER_LONG;
+
+	wss->threshold = (llc_bits * wss_threshold) / 100;
+	if (wss->threshold == 0)
+		wss->threshold = 1;
+
+	wss->clean_period = wss_clean_period;
+	atomic_set(&wss->clean_counter, wss_clean_period);
+
+	wss->entries = kcalloc_node(wss->num_entries, sizeof(*wss->entries),
+				    GFP_KERNEL, node);
+	if (!wss->entries) {
+		rvt_wss_exit(rdi);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+/*
+ * Advance the clean counter.  When the clean period has expired,
+ * clean an entry.
+ *
+ * This is implemented in atomics to avoid locking.  Because multiple
+ * variables are involved, it can be racy which can lead to slightly
+ * inaccurate information.  Since this is only a heuristic, this is
+ * OK.  Any innaccuracies will clean themselves out as the counter
+ * advances.  That said, it is unlikely the entry clean operation will
+ * race - the next possible racer will not start until the next clean
+ * period.
+ *
+ * The clean counter is implemented as a decrement to zero.  When zero
+ * is reached an entry is cleaned.
+ */
+static void wss_advance_clean_counter(struct rvt_wss *wss)
+{
+	int entry;
+	int weight;
+	unsigned long bits;
+
+	/* become the cleaner if we decrement the counter to zero */
+	if (atomic_dec_and_test(&wss->clean_counter)) {
+		/*
+		 * Set, not add, the clean period.  This avoids an issue
+		 * where the counter could decrement below the clean period.
+		 * Doing a set can result in lost decrements, slowing the
+		 * clean advance.  Since this a heuristic, this possible
+		 * slowdown is OK.
+		 *
+		 * An alternative is to loop, advancing the counter by a
+		 * clean period until the result is > 0. However, this could
+		 * lead to several threads keeping another in the clean loop.
+		 * This could be mitigated by limiting the number of times
+		 * we stay in the loop.
+		 */
+		atomic_set(&wss->clean_counter, wss->clean_period);
+
+		/*
+		 * Uniquely grab the entry to clean and move to next.
+		 * The current entry is always the lower bits of
+		 * wss.clean_entry.  The table size, wss.num_entries,
+		 * is always a power-of-2.
+		 */
+		entry = (atomic_inc_return(&wss->clean_entry) - 1)
+			& (wss->num_entries - 1);
+
+		/* clear the entry and count the bits */
+		bits = xchg(&wss->entries[entry], 0);
+		weight = hweight64((u64)bits);
+		/* only adjust the contended total count if needed */
+		if (weight)
+			atomic_sub(weight, &wss->total_count);
+	}
+}
+
+/*
+ * Insert the given address into the working set array.
+ */
+static void wss_insert(struct rvt_wss *wss, void *address)
+{
+	u32 page = ((unsigned long)address >> PAGE_SHIFT) & wss->pages_mask;
+	u32 entry = page / BITS_PER_LONG; /* assumes this ends up a shift */
+	u32 nr = page & (BITS_PER_LONG - 1);
+
+	if (!test_and_set_bit(nr, &wss->entries[entry]))
+		atomic_inc(&wss->total_count);
+
+	wss_advance_clean_counter(wss);
+}
+
+/*
+ * Is the working set larger than the threshold?
+ */
+static inline bool wss_exceeds_threshold(struct rvt_wss *wss)
+{
+	return atomic_read(&wss->total_count) >= wss->threshold;
+}
 
 static void get_map_page(struct rvt_qpn_table *qpt,
 			 struct rvt_qpn_map *map)
@@ -673,6 +855,7 @@ static void rvt_init_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qp->s_mig_state = IB_MIG_MIGRATED;
 	qp->r_head_ack_queue = 0;
 	qp->s_tail_ack_queue = 0;
+	qp->s_acked_ack_queue = 0;
 	qp->s_num_rd_atomic = 0;
 	if (qp->r_rq.wq) {
 		qp->r_rq.wq->head = 0;
@@ -774,6 +957,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	size_t sg_list_sz;
 	struct ib_qp *ret = ERR_PTR(-ENOMEM);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
+	struct rvt_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct rvt_ucontext, ibucontext);
 	void *priv = NULL;
 	size_t sqsize;
 
@@ -913,6 +1098,13 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		qp->ibqp.qp_num = err;
 		qp->port_num = init_attr->port_num;
 		rvt_init_qp(rdi, qp, init_attr->qp_type);
+		if (rdi->driver_f.qp_priv_init) {
+			err = rdi->driver_f.qp_priv_init(rdi, qp, init_attr);
+			if (err) {
+				ret = ERR_PTR(err);
+				goto bail_rq_wq;
+			}
+		}
 		break;
 
 	default:
@@ -940,7 +1132,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
 			qp->ip = rvt_create_mmap_info(rdi, s,
-						      ibpd->uobject->context,
+						      &ucontext->ibucontext,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);
@@ -1164,10 +1356,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int lastwqe = 0;
 	int mig = 0;
 	int pmtu = 0; /* for gcc warning only */
-	enum rdma_link_layer link;
 	int opa_ah;
-
-	link = rdma_port_get_link_layer(ibqp->device, qp->port_num);
 
 	spin_lock_irq(&qp->r_lock);
 	spin_lock(&qp->s_hlock);
@@ -1179,7 +1368,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	opa_ah = rdma_cap_opa_ah(ibqp->device, qp->port_num);
 
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
-				attr_mask, link))
+				attr_mask))
 		goto inval;
 
 	if (rdi->driver_f.check_modify_qp &&
@@ -1457,11 +1646,11 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
-	vfree(qp->s_wq);
 	rdi->driver_f.qp_priv_free(rdi, qp);
 	kfree(qp->s_ack_queue);
 	rdma_destroy_ah_attr(&qp->remote_ah_attr);
 	rdma_destroy_ah_attr(&qp->alt_ah_attr);
+	vfree(qp->s_wq);
 	kfree(qp);
 	return 0;
 }
@@ -1718,7 +1907,7 @@ static inline int rvt_qp_is_avail(
  */
 static int rvt_post_one_wr(struct rvt_qp *qp,
 			   const struct ib_send_wr *wr,
-			   int *call_send)
+			   bool *call_send)
 {
 	struct rvt_swqe *wqe;
 	u32 next;
@@ -1823,15 +2012,11 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		wqe->wr.num_sge = j;
 	}
 
-	/* general part of wqe valid - allow for driver checks */
-	if (rdi->driver_f.check_send_wqe) {
-		ret = rdi->driver_f.check_send_wqe(qp, wqe);
-		if (ret < 0)
-			goto bail_inval_free;
-		if (ret)
-			*call_send = ret;
-	}
-
+	/*
+	 * Calculate and set SWQE PSN values prior to handing it off
+	 * to the driver's check routine. This give the driver the
+	 * opportunity to adjust PSN values based on internal checks.
+	 */
 	log_pmtu = qp->log_pmtu;
 	if (qp->ibqp.qp_type != IB_QPT_UC &&
 	    qp->ibqp.qp_type != IB_QPT_RC) {
@@ -1856,8 +2041,18 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 				(wqe->length ?
 					((wqe->length - 1) >> log_pmtu) :
 					0);
-		qp->s_next_psn = wqe->lpsn + 1;
 	}
+
+	/* general part of wqe valid - allow for driver checks */
+	if (rdi->driver_f.setup_wqe) {
+		ret = rdi->driver_f.setup_wqe(qp, wqe, call_send);
+		if (ret < 0)
+			goto bail_inval_free_ref;
+	}
+
+	if (!(rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL))
+		qp->s_next_psn = wqe->lpsn + 1;
+
 	if (unlikely(reserved_op)) {
 		wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 		rvt_qp_wqe_reserve(qp, wqe);
@@ -1871,6 +2066,10 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 
 	return 0;
 
+bail_inval_free_ref:
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC)
+		atomic_dec(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 bail_inval_free:
 	/* release mr holds */
 	while (j) {
@@ -1897,7 +2096,7 @@ int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
 	unsigned long flags = 0;
-	int call_send;
+	bool call_send;
 	unsigned nreq = 0;
 	int err = 0;
 
@@ -1930,7 +2129,11 @@ int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 bail:
 	spin_unlock_irqrestore(&qp->s_hlock, flags);
 	if (nreq) {
-		if (call_send)
+		/*
+		 * Only call do_send if there is exactly one packet, and the
+		 * driver said it was ok.
+		 */
+		if (nreq == 1 && call_send)
 			rdi->driver_f.do_send(qp);
 		else
 			rdi->driver_f.schedule_send_no_lock(qp);
@@ -2194,11 +2397,12 @@ static inline unsigned long rvt_aeth_to_usec(u32 aeth)
 }
 
 /*
- *  rvt_add_retry_timer - add/start a retry timer
+ *  rvt_add_retry_timer_ext - add/start a retry timer
  *  @qp - the QP
+ *  @shift - timeout shift to wait for multiple packets
  *  add a retry timer on the QP
  */
-void rvt_add_retry_timer(struct rvt_qp *qp)
+void rvt_add_retry_timer_ext(struct rvt_qp *qp, u8 shift)
 {
 	struct ib_qp *ibqp = &qp->ibqp;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -2206,11 +2410,11 @@ void rvt_add_retry_timer(struct rvt_qp *qp)
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_TIMER;
        /* 4.096 usec. * (1 << qp->timeout) */
-	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
-			     rdi->busy_jiffies;
+	qp->s_timer.expires = jiffies + rdi->busy_jiffies +
+			      (qp->timeout_jiffies << shift);
 	add_timer(&qp->s_timer);
 }
-EXPORT_SYMBOL(rvt_add_retry_timer);
+EXPORT_SYMBOL(rvt_add_retry_timer_ext);
 
 /**
  * rvt_add_rnr_timer - add/start an rnr timer
@@ -2465,3 +2669,456 @@ void rvt_qp_iter(struct rvt_dev_info *rdi,
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(rvt_qp_iter);
+
+/*
+ * This should be called with s_lock held.
+ */
+void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
+		       enum ib_wc_status status)
+{
+	u32 old_last, last;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
+		return;
+
+	last = qp->s_last;
+	old_last = last;
+	trace_rvt_qp_send_completion(qp, wqe, last);
+	if (++last >= qp->s_size)
+		last = 0;
+	trace_rvt_qp_send_completion(qp, wqe, last);
+	qp->s_last = last;
+	/* See post_send() */
+	barrier();
+	rvt_put_swqe(wqe);
+	if (qp->ibqp.qp_type == IB_QPT_UD ||
+	    qp->ibqp.qp_type == IB_QPT_SMI ||
+	    qp->ibqp.qp_type == IB_QPT_GSI)
+		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
+
+	rvt_qp_swqe_complete(qp,
+			     wqe,
+			     rdi->wc_opcode[wqe->wr.opcode],
+			     status);
+
+	if (qp->s_acked == old_last)
+		qp->s_acked = last;
+	if (qp->s_cur == old_last)
+		qp->s_cur = last;
+	if (qp->s_tail == old_last)
+		qp->s_tail = last;
+	if (qp->state == IB_QPS_SQD && last == qp->s_cur)
+		qp->s_draining = 0;
+}
+EXPORT_SYMBOL(rvt_send_complete);
+
+/**
+ * rvt_copy_sge - copy data to SGE memory
+ * @qp: associated QP
+ * @ss: the SGE state
+ * @data: the data to copy
+ * @length: the length of the data
+ * @release: boolean to release MR
+ * @copy_last: do a separate copy of the last 8 bytes
+ */
+void rvt_copy_sge(struct rvt_qp *qp, struct rvt_sge_state *ss,
+		  void *data, u32 length,
+		  bool release, bool copy_last)
+{
+	struct rvt_sge *sge = &ss->sge;
+	int i;
+	bool in_last = false;
+	bool cacheless_copy = false;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	struct rvt_wss *wss = rdi->wss;
+	unsigned int sge_copy_mode = rdi->dparms.sge_copy_mode;
+
+	if (sge_copy_mode == RVT_SGE_COPY_CACHELESS) {
+		cacheless_copy = length >= PAGE_SIZE;
+	} else if (sge_copy_mode == RVT_SGE_COPY_ADAPTIVE) {
+		if (length >= PAGE_SIZE) {
+			/*
+			 * NOTE: this *assumes*:
+			 * o The first vaddr is the dest.
+			 * o If multiple pages, then vaddr is sequential.
+			 */
+			wss_insert(wss, sge->vaddr);
+			if (length >= (2 * PAGE_SIZE))
+				wss_insert(wss, (sge->vaddr + PAGE_SIZE));
+
+			cacheless_copy = wss_exceeds_threshold(wss);
+		} else {
+			wss_advance_clean_counter(wss);
+		}
+	}
+
+	if (copy_last) {
+		if (length > 8) {
+			length -= 8;
+		} else {
+			copy_last = false;
+			in_last = true;
+		}
+	}
+
+again:
+	while (length) {
+		u32 len = rvt_get_sge_length(sge, length);
+
+		WARN_ON_ONCE(len == 0);
+		if (unlikely(in_last)) {
+			/* enforce byte transfer ordering */
+			for (i = 0; i < len; i++)
+				((u8 *)sge->vaddr)[i] = ((u8 *)data)[i];
+		} else if (cacheless_copy) {
+			cacheless_memcpy(sge->vaddr, data, len);
+		} else {
+			memcpy(sge->vaddr, data, len);
+		}
+		rvt_update_sge(ss, len, release);
+		data += len;
+		length -= len;
+	}
+
+	if (copy_last) {
+		copy_last = false;
+		in_last = true;
+		length = 8;
+		goto again;
+	}
+}
+EXPORT_SYMBOL(rvt_copy_sge);
+
+static enum ib_wc_status loopback_qp_drop(struct rvt_ibport *rvp,
+					  struct rvt_qp *sqp)
+{
+	rvp->n_pkt_drops++;
+	/*
+	 * For RC, the requester would timeout and retry so
+	 * shortcut the timeouts and just signal too many retries.
+	 */
+	return sqp->ibqp.qp_type == IB_QPT_RC ?
+		IB_WC_RETRY_EXC_ERR : IB_WC_SUCCESS;
+}
+
+/**
+ * ruc_loopback - handle UC and RC loopback requests
+ * @sqp: the sending QP
+ *
+ * This is called from rvt_do_send() to forward a WQE addressed to the same HFI
+ * Note that although we are single threaded due to the send engine, we still
+ * have to protect against post_send().  We don't have to worry about
+ * receive interrupts since this is a connected protocol and all packets
+ * will pass through here.
+ */
+void rvt_ruc_loopback(struct rvt_qp *sqp)
+{
+	struct rvt_ibport *rvp =  NULL;
+	struct rvt_dev_info *rdi = ib_to_rvt(sqp->ibqp.device);
+	struct rvt_qp *qp;
+	struct rvt_swqe *wqe;
+	struct rvt_sge *sge;
+	unsigned long flags;
+	struct ib_wc wc;
+	u64 sdata;
+	atomic64_t *maddr;
+	enum ib_wc_status send_status;
+	bool release;
+	int ret;
+	bool copy_last = false;
+	int local_ops = 0;
+
+	rcu_read_lock();
+	rvp = rdi->ports[sqp->port_num - 1];
+
+	/*
+	 * Note that we check the responder QP state after
+	 * checking the requester's state.
+	 */
+
+	qp = rvt_lookup_qpn(ib_to_rvt(sqp->ibqp.device), rvp,
+			    sqp->remote_qpn);
+
+	spin_lock_irqsave(&sqp->s_lock, flags);
+
+	/* Return if we are already busy processing a work request. */
+	if ((sqp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT)) ||
+	    !(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_OR_FLUSH_SEND))
+		goto unlock;
+
+	sqp->s_flags |= RVT_S_BUSY;
+
+again:
+	if (sqp->s_last == READ_ONCE(sqp->s_head))
+		goto clr_busy;
+	wqe = rvt_get_swqe_ptr(sqp, sqp->s_last);
+
+	/* Return if it is not OK to start a new work request. */
+	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_NEXT_SEND_OK)) {
+		if (!(ib_rvt_state_ops[sqp->state] & RVT_FLUSH_SEND))
+			goto clr_busy;
+		/* We are in the error state, flush the work request. */
+		send_status = IB_WC_WR_FLUSH_ERR;
+		goto flush_send;
+	}
+
+	/*
+	 * We can rely on the entry not changing without the s_lock
+	 * being held until we update s_last.
+	 * We increment s_cur to indicate s_last is in progress.
+	 */
+	if (sqp->s_last == sqp->s_cur) {
+		if (++sqp->s_cur >= sqp->s_size)
+			sqp->s_cur = 0;
+	}
+	spin_unlock_irqrestore(&sqp->s_lock, flags);
+
+	if (!qp) {
+		send_status = loopback_qp_drop(rvp, sqp);
+		goto serr_no_r_lock;
+	}
+	spin_lock_irqsave(&qp->r_lock, flags);
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) ||
+	    qp->ibqp.qp_type != sqp->ibqp.qp_type) {
+		send_status = loopback_qp_drop(rvp, sqp);
+		goto serr;
+	}
+
+	memset(&wc, 0, sizeof(wc));
+	send_status = IB_WC_SUCCESS;
+
+	release = true;
+	sqp->s_sge.sge = wqe->sg_list[0];
+	sqp->s_sge.sg_list = wqe->sg_list + 1;
+	sqp->s_sge.num_sge = wqe->wr.num_sge;
+	sqp->s_len = wqe->length;
+	switch (wqe->wr.opcode) {
+	case IB_WR_REG_MR:
+		goto send_comp;
+
+	case IB_WR_LOCAL_INV:
+		if (!(wqe->wr.send_flags & RVT_SEND_COMPLETION_ONLY)) {
+			if (rvt_invalidate_rkey(sqp,
+						wqe->wr.ex.invalidate_rkey))
+				send_status = IB_WC_LOC_PROT_ERR;
+			local_ops = 1;
+		}
+		goto send_comp;
+
+	case IB_WR_SEND_WITH_INV:
+	case IB_WR_SEND_WITH_IMM:
+	case IB_WR_SEND:
+		ret = rvt_get_rwqe(qp, false);
+		if (ret < 0)
+			goto op_err;
+		if (!ret)
+			goto rnr_nak;
+		if (wqe->length > qp->r_len)
+			goto inv_err;
+		switch (wqe->wr.opcode) {
+		case IB_WR_SEND_WITH_INV:
+			if (!rvt_invalidate_rkey(qp,
+						 wqe->wr.ex.invalidate_rkey)) {
+				wc.wc_flags = IB_WC_WITH_INVALIDATE;
+				wc.ex.invalidate_rkey =
+					wqe->wr.ex.invalidate_rkey;
+			}
+			break;
+		case IB_WR_SEND_WITH_IMM:
+			wc.wc_flags = IB_WC_WITH_IMM;
+			wc.ex.imm_data = wqe->wr.ex.imm_data;
+			break;
+		default:
+			break;
+		}
+		break;
+
+	case IB_WR_RDMA_WRITE_WITH_IMM:
+		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_WRITE)))
+			goto inv_err;
+		wc.wc_flags = IB_WC_WITH_IMM;
+		wc.ex.imm_data = wqe->wr.ex.imm_data;
+		ret = rvt_get_rwqe(qp, true);
+		if (ret < 0)
+			goto op_err;
+		if (!ret)
+			goto rnr_nak;
+		/* skip copy_last set and qp_access_flags recheck */
+		goto do_write;
+	case IB_WR_RDMA_WRITE:
+		copy_last = rvt_is_user_qp(qp);
+		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_WRITE)))
+			goto inv_err;
+do_write:
+		if (wqe->length == 0)
+			break;
+		if (unlikely(!rvt_rkey_ok(qp, &qp->r_sge.sge, wqe->length,
+					  wqe->rdma_wr.remote_addr,
+					  wqe->rdma_wr.rkey,
+					  IB_ACCESS_REMOTE_WRITE)))
+			goto acc_err;
+		qp->r_sge.sg_list = NULL;
+		qp->r_sge.num_sge = 1;
+		qp->r_sge.total_len = wqe->length;
+		break;
+
+	case IB_WR_RDMA_READ:
+		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
+			goto inv_err;
+		if (unlikely(!rvt_rkey_ok(qp, &sqp->s_sge.sge, wqe->length,
+					  wqe->rdma_wr.remote_addr,
+					  wqe->rdma_wr.rkey,
+					  IB_ACCESS_REMOTE_READ)))
+			goto acc_err;
+		release = false;
+		sqp->s_sge.sg_list = NULL;
+		sqp->s_sge.num_sge = 1;
+		qp->r_sge.sge = wqe->sg_list[0];
+		qp->r_sge.sg_list = wqe->sg_list + 1;
+		qp->r_sge.num_sge = wqe->wr.num_sge;
+		qp->r_sge.total_len = wqe->length;
+		break;
+
+	case IB_WR_ATOMIC_CMP_AND_SWP:
+	case IB_WR_ATOMIC_FETCH_AND_ADD:
+		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC)))
+			goto inv_err;
+		if (unlikely(!rvt_rkey_ok(qp, &qp->r_sge.sge, sizeof(u64),
+					  wqe->atomic_wr.remote_addr,
+					  wqe->atomic_wr.rkey,
+					  IB_ACCESS_REMOTE_ATOMIC)))
+			goto acc_err;
+		/* Perform atomic OP and save result. */
+		maddr = (atomic64_t *)qp->r_sge.sge.vaddr;
+		sdata = wqe->atomic_wr.compare_add;
+		*(u64 *)sqp->s_sge.sge.vaddr =
+			(wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) ?
+			(u64)atomic64_add_return(sdata, maddr) - sdata :
+			(u64)cmpxchg((u64 *)qp->r_sge.sge.vaddr,
+				      sdata, wqe->atomic_wr.swap);
+		rvt_put_mr(qp->r_sge.sge.mr);
+		qp->r_sge.num_sge = 0;
+		goto send_comp;
+
+	default:
+		send_status = IB_WC_LOC_QP_OP_ERR;
+		goto serr;
+	}
+
+	sge = &sqp->s_sge.sge;
+	while (sqp->s_len) {
+		u32 len = rvt_get_sge_length(sge, sqp->s_len);
+
+		WARN_ON_ONCE(len == 0);
+		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr,
+			     len, release, copy_last);
+		rvt_update_sge(&sqp->s_sge, len, !release);
+		sqp->s_len -= len;
+	}
+	if (release)
+		rvt_put_ss(&qp->r_sge);
+
+	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
+		goto send_comp;
+
+	if (wqe->wr.opcode == IB_WR_RDMA_WRITE_WITH_IMM)
+		wc.opcode = IB_WC_RECV_RDMA_WITH_IMM;
+	else
+		wc.opcode = IB_WC_RECV;
+	wc.wr_id = qp->r_wr_id;
+	wc.status = IB_WC_SUCCESS;
+	wc.byte_len = wqe->length;
+	wc.qp = &qp->ibqp;
+	wc.src_qp = qp->remote_qpn;
+	wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr) & U16_MAX;
+	wc.sl = rdma_ah_get_sl(&qp->remote_ah_attr);
+	wc.port_num = 1;
+	/* Signal completion event if the solicited bit is set. */
+	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
+		     wqe->wr.send_flags & IB_SEND_SOLICITED);
+
+send_comp:
+	spin_unlock_irqrestore(&qp->r_lock, flags);
+	spin_lock_irqsave(&sqp->s_lock, flags);
+	rvp->n_loop_pkts++;
+flush_send:
+	sqp->s_rnr_retry = sqp->s_rnr_retry_cnt;
+	rvt_send_complete(sqp, wqe, send_status);
+	if (local_ops) {
+		atomic_dec(&sqp->local_ops_pending);
+		local_ops = 0;
+	}
+	goto again;
+
+rnr_nak:
+	/* Handle RNR NAK */
+	if (qp->ibqp.qp_type == IB_QPT_UC)
+		goto send_comp;
+	rvp->n_rnr_naks++;
+	/*
+	 * Note: we don't need the s_lock held since the BUSY flag
+	 * makes this single threaded.
+	 */
+	if (sqp->s_rnr_retry == 0) {
+		send_status = IB_WC_RNR_RETRY_EXC_ERR;
+		goto serr;
+	}
+	if (sqp->s_rnr_retry_cnt < 7)
+		sqp->s_rnr_retry--;
+	spin_unlock_irqrestore(&qp->r_lock, flags);
+	spin_lock_irqsave(&sqp->s_lock, flags);
+	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
+		goto clr_busy;
+	rvt_add_rnr_timer(sqp, qp->r_min_rnr_timer <<
+				IB_AETH_CREDIT_SHIFT);
+	goto clr_busy;
+
+op_err:
+	send_status = IB_WC_REM_OP_ERR;
+	wc.status = IB_WC_LOC_QP_OP_ERR;
+	goto err;
+
+inv_err:
+	send_status =
+		sqp->ibqp.qp_type == IB_QPT_RC ?
+			IB_WC_REM_INV_REQ_ERR :
+			IB_WC_SUCCESS;
+	wc.status = IB_WC_LOC_QP_OP_ERR;
+	goto err;
+
+acc_err:
+	send_status = IB_WC_REM_ACCESS_ERR;
+	wc.status = IB_WC_LOC_PROT_ERR;
+err:
+	/* responder goes to error state */
+	rvt_rc_error(qp, wc.status);
+
+serr:
+	spin_unlock_irqrestore(&qp->r_lock, flags);
+serr_no_r_lock:
+	spin_lock_irqsave(&sqp->s_lock, flags);
+	rvt_send_complete(sqp, wqe, send_status);
+	if (sqp->ibqp.qp_type == IB_QPT_RC) {
+		int lastwqe = rvt_error_qp(sqp, IB_WC_WR_FLUSH_ERR);
+
+		sqp->s_flags &= ~RVT_S_BUSY;
+		spin_unlock_irqrestore(&sqp->s_lock, flags);
+		if (lastwqe) {
+			struct ib_event ev;
+
+			ev.device = sqp->ibqp.device;
+			ev.element.qp = &sqp->ibqp;
+			ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+			sqp->ibqp.event_handler(&ev, sqp->ibqp.qp_context);
+		}
+		goto done;
+	}
+clr_busy:
+	sqp->s_flags &= ~RVT_S_BUSY;
+unlock:
+	spin_unlock_irqrestore(&sqp->s_lock, flags);
+done:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(rvt_ruc_loopback);

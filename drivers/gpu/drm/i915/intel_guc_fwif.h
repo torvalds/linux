@@ -39,6 +39,11 @@
 #define GUC_VIDEO_ENGINE2		4
 #define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
+#define GUC_DOORBELL_INVALID		256
+
+#define GUC_DB_SIZE			(PAGE_SIZE)
+#define GUC_WQ_SIZE			(PAGE_SIZE * 2)
+
 /* Work queue item header definitions */
 #define WQ_STATUS_ACTIVE		1
 #define WQ_STATUS_SUSPENDED		2
@@ -49,6 +54,7 @@
 #define   WQ_TYPE_BATCH_BUF		(0x1 << WQ_TYPE_SHIFT)
 #define   WQ_TYPE_PSEUDO		(0x2 << WQ_TYPE_SHIFT)
 #define   WQ_TYPE_INORDER		(0x3 << WQ_TYPE_SHIFT)
+#define   WQ_TYPE_NOOP			(0x4 << WQ_TYPE_SHIFT)
 #define WQ_TARGET_SHIFT			10
 #define WQ_LEN_SHIFT			16
 #define WQ_NO_WCFLUSH_WAIT		(1 << 27)
@@ -57,9 +63,6 @@
 #define WQ_RING_TAIL_SHIFT		20
 #define WQ_RING_TAIL_MAX		0x7FF	/* 2^11 QWords */
 #define WQ_RING_TAIL_MASK		(WQ_RING_TAIL_MAX << WQ_RING_TAIL_SHIFT)
-
-#define GUC_DOORBELL_ENABLED		1
-#define GUC_DOORBELL_DISABLED		0
 
 #define GUC_STAGE_DESC_ATTR_ACTIVE	BIT(0)
 #define GUC_STAGE_DESC_ATTR_PENDING_DB	BIT(1)
@@ -217,26 +220,6 @@ struct uc_css_header {
 	u32 reserved[12];
 	u32 header_info;
 } __packed;
-
-struct guc_doorbell_info {
-	u32 db_status;
-	u32 cookie;
-	u32 reserved[14];
-} __packed;
-
-union guc_doorbell_qw {
-	struct {
-		u32 db_status;
-		u32 cookie;
-	};
-	u64 value_qw;
-} __packed;
-
-#define GUC_NUM_DOORBELLS	256
-#define GUC_DOORBELL_INVALID	(GUC_NUM_DOORBELLS)
-
-#define GUC_DB_SIZE			(PAGE_SIZE)
-#define GUC_WQ_SIZE			(PAGE_SIZE * 2)
 
 /* Work item for submitting workloads into work queue of GuC. */
 struct guc_wq_item {
@@ -600,7 +583,9 @@ struct guc_shared_ctx_data {
  * registers, where first register holds data treated as message header,
  * and other registers are used to hold message payload.
  *
- * For Gen9+, GuC uses software scratch registers 0xC180-0xC1B8
+ * For Gen9+, GuC uses software scratch registers 0xC180-0xC1B8,
+ * but no H2G command takes more than 8 parameters and the GuC FW
+ * itself uses an 8-element array to store the H2G message.
  *
  *      +-----------+---------+---------+---------+
  *      |  MMIO[0]  | MMIO[1] |   ...   | MMIO[n] |
@@ -631,6 +616,8 @@ struct guc_shared_ctx_data {
  *   response data can be returned in remaining payload registers or **data**
  *   field.
  */
+
+#define GUC_MAX_MMIO_MSG_LEN		8
 
 #define INTEL_GUC_MSG_TYPE_SHIFT	28
 #define INTEL_GUC_MSG_TYPE_MASK		(0xF << INTEL_GUC_MSG_TYPE_SHIFT)
@@ -684,6 +671,13 @@ enum intel_guc_report_status {
 	INTEL_GUC_REPORT_STATUS_ACKED = 0x1,
 	INTEL_GUC_REPORT_STATUS_ERROR = 0x2,
 	INTEL_GUC_REPORT_STATUS_COMPLETE = 0x4,
+};
+
+enum intel_guc_sleep_state_status {
+	INTEL_GUC_SLEEP_STATE_SUCCESS = 0x0,
+	INTEL_GUC_SLEEP_STATE_PREEMPT_TO_IDLE_FAILED = 0x1,
+	INTEL_GUC_SLEEP_STATE_ENGINE_RESET_FAILED = 0x2
+#define INTEL_GUC_SLEEP_STATE_INVALID_MASK 0x80000000
 };
 
 #define GUC_LOG_CONTROL_LOGGING_ENABLED	(1 << 0)

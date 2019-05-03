@@ -77,7 +77,7 @@ static int test_foo_bar(void)
 
 	/* Create cgroup /foo, get fd, and join it */
 	foo = create_and_get_cgroup(FOO);
-	if (!foo)
+	if (foo < 0)
 		goto err;
 
 	if (join_cgroup(FOO))
@@ -94,7 +94,7 @@ static int test_foo_bar(void)
 
 	/* Create cgroup /foo/bar, get fd, and join it */
 	bar = create_and_get_cgroup(BAR);
-	if (!bar)
+	if (bar < 0)
 		goto err;
 
 	if (join_cgroup(BAR))
@@ -209,7 +209,7 @@ static int map_fd = -1;
 
 static int prog_load_cnt(int verdict, int val)
 {
-	int cgroup_storage_fd;
+	int cgroup_storage_fd, percpu_cgroup_storage_fd;
 
 	if (map_fd < 0)
 		map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
@@ -225,6 +225,14 @@ static int prog_load_cnt(int verdict, int val)
 		return -1;
 	}
 
+	percpu_cgroup_storage_fd = bpf_create_map(
+		BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
+		sizeof(struct bpf_cgroup_storage_key), 8, 0, 0);
+	if (percpu_cgroup_storage_fd < 0) {
+		printf("failed to create map '%s'\n", strerror(errno));
+		return -1;
+	}
+
 	struct bpf_insn prog[] = {
 		BPF_MOV32_IMM(BPF_REG_0, 0),
 		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, -4), /* *(u32 *)(fp - 4) = r0 */
@@ -235,11 +243,20 @@ static int prog_load_cnt(int verdict, int val)
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
 		BPF_MOV64_IMM(BPF_REG_1, val), /* r1 = 1 */
 		BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_DW, BPF_REG_0, BPF_REG_1, 0, 0), /* xadd r0 += r1 */
+
 		BPF_LD_MAP_FD(BPF_REG_1, cgroup_storage_fd),
 		BPF_MOV64_IMM(BPF_REG_2, 0),
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_local_storage),
 		BPF_MOV64_IMM(BPF_REG_1, val),
 		BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_W, BPF_REG_0, BPF_REG_1, 0, 0),
+
+		BPF_LD_MAP_FD(BPF_REG_1, percpu_cgroup_storage_fd),
+		BPF_MOV64_IMM(BPF_REG_2, 0),
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_local_storage),
+		BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_0, 0),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, 0x1),
+		BPF_STX_MEM(BPF_W, BPF_REG_0, BPF_REG_3, 0),
+
 		BPF_MOV64_IMM(BPF_REG_0, verdict), /* r0 = verdict */
 		BPF_EXIT_INSN(),
 	};
@@ -281,19 +298,19 @@ static int test_multiprog(void)
 		goto err;
 
 	cg1 = create_and_get_cgroup("/cg1");
-	if (!cg1)
+	if (cg1 < 0)
 		goto err;
 	cg2 = create_and_get_cgroup("/cg1/cg2");
-	if (!cg2)
+	if (cg2 < 0)
 		goto err;
 	cg3 = create_and_get_cgroup("/cg1/cg2/cg3");
-	if (!cg3)
+	if (cg3 < 0)
 		goto err;
 	cg4 = create_and_get_cgroup("/cg1/cg2/cg3/cg4");
-	if (!cg4)
+	if (cg4 < 0)
 		goto err;
 	cg5 = create_and_get_cgroup("/cg1/cg2/cg3/cg4/cg5");
-	if (!cg5)
+	if (cg5 < 0)
 		goto err;
 
 	if (join_cgroup("/cg1/cg2/cg3/cg4/cg5"))

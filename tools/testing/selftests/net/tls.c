@@ -42,7 +42,7 @@ FIXTURE_SETUP(tls)
 	len = sizeof(addr);
 
 	memset(&tls12, 0, sizeof(tls12));
-	tls12.info.version = TLS_1_2_VERSION;
+	tls12.info.version = TLS_1_3_VERSION;
 	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_128;
 
 	addr.sin_family = AF_INET;
@@ -121,11 +121,11 @@ TEST_F(tls, send_then_sendfile)
 	buf = (char *)malloc(st.st_size);
 
 	EXPECT_EQ(send(self->fd, test_str, to_send, 0), to_send);
-	EXPECT_EQ(recv(self->cfd, recv_buf, to_send, 0), to_send);
+	EXPECT_EQ(recv(self->cfd, recv_buf, to_send, MSG_WAITALL), to_send);
 	EXPECT_EQ(memcmp(test_str, recv_buf, to_send), 0);
 
 	EXPECT_GE(sendfile(self->fd, filefd, 0, st.st_size), 0);
-	EXPECT_EQ(recv(self->cfd, buf, st.st_size, 0), st.st_size);
+	EXPECT_EQ(recv(self->cfd, buf, st.st_size, MSG_WAITALL), st.st_size);
 }
 
 TEST_F(tls, recv_max)
@@ -160,7 +160,7 @@ TEST_F(tls, msg_more)
 	EXPECT_EQ(send(self->fd, test_str, send_len, MSG_MORE), send_len);
 	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_DONTWAIT), -1);
 	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
-	EXPECT_EQ(recv(self->cfd, buf, send_len * 2, MSG_DONTWAIT),
+	EXPECT_EQ(recv(self->cfd, buf, send_len * 2, MSG_WAITALL),
 		  send_len * 2);
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
@@ -180,7 +180,7 @@ TEST_F(tls, sendmsg_single)
 	msg.msg_iov = &vec;
 	msg.msg_iovlen = 1;
 	EXPECT_EQ(sendmsg(self->fd, &msg, 0), send_len);
-	EXPECT_EQ(recv(self->cfd, buf, send_len, 0), send_len);
+	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_WAITALL), send_len);
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
 
@@ -288,7 +288,7 @@ TEST_F(tls, splice_from_pipe)
 	ASSERT_GE(pipe(p), 0);
 	EXPECT_GE(write(p[1], mem_send, send_len), 0);
 	EXPECT_GE(splice(p[0], NULL, self->fd, NULL, send_len, 0), 0);
-	EXPECT_GE(recv(self->cfd, mem_recv, send_len, 0), 0);
+	EXPECT_EQ(recv(self->cfd, mem_recv, send_len, MSG_WAITALL), send_len);
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
@@ -306,7 +306,7 @@ TEST_F(tls, splice_from_pipe2)
 	EXPECT_GE(splice(p[0], NULL, self->fd, NULL, 8000, 0), 0);
 	EXPECT_GE(write(p2[1], mem_send + 8000, 8000), 0);
 	EXPECT_GE(splice(p2[0], NULL, self->fd, NULL, 8000, 0), 0);
-	EXPECT_GE(recv(self->cfd, mem_recv, send_len, 0), 0);
+	EXPECT_EQ(recv(self->cfd, mem_recv, send_len, MSG_WAITALL), send_len);
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
@@ -322,13 +322,13 @@ TEST_F(tls, send_and_splice)
 
 	ASSERT_GE(pipe(p), 0);
 	EXPECT_EQ(send(self->fd, test_str, send_len2, 0), send_len2);
-	EXPECT_NE(recv(self->cfd, buf, send_len2, 0), -1);
+	EXPECT_EQ(recv(self->cfd, buf, send_len2, MSG_WAITALL), send_len2);
 	EXPECT_EQ(memcmp(test_str, buf, send_len2), 0);
 
 	EXPECT_GE(write(p[1], mem_send, send_len), send_len);
 	EXPECT_GE(splice(p[0], NULL, self->fd, NULL, send_len, 0), send_len);
 
-	EXPECT_GE(recv(self->cfd, mem_recv, send_len, 0), 0);
+	EXPECT_EQ(recv(self->cfd, mem_recv, send_len, MSG_WAITALL), send_len);
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
@@ -436,7 +436,7 @@ TEST_F(tls, multiple_send_single_recv)
 	EXPECT_GE(send(self->fd, send_mem, send_len, 0), 0);
 	EXPECT_GE(send(self->fd, send_mem, send_len, 0), 0);
 	memset(recv_mem, 0, total_len);
-	EXPECT_EQ(recv(self->cfd, recv_mem, total_len, 0), total_len);
+	EXPECT_EQ(recv(self->cfd, recv_mem, total_len, MSG_WAITALL), total_len);
 
 	EXPECT_EQ(memcmp(send_mem, recv_mem, send_len), 0);
 	EXPECT_EQ(memcmp(send_mem, recv_mem + send_len, send_len), 0);
@@ -452,10 +452,12 @@ TEST_F(tls, recv_partial)
 
 	memset(recv_mem, 0, sizeof(recv_mem));
 	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
-	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_first), 0), -1);
+	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_first),
+		       MSG_WAITALL), -1);
 	EXPECT_EQ(memcmp(test_str_first, recv_mem, strlen(test_str_first)), 0);
 	memset(recv_mem, 0, sizeof(recv_mem));
-	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_second), 0), -1);
+	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_second),
+		       MSG_WAITALL), -1);
 	EXPECT_EQ(memcmp(test_str_second, recv_mem, strlen(test_str_second)),
 		  0);
 }
@@ -516,17 +518,17 @@ TEST_F(tls, recv_peek_multiple_records)
 	len = strlen(test_str_second) + 1;
 	EXPECT_EQ(send(self->fd, test_str_second, len, 0), len);
 
-	len = sizeof(buf);
+	len = strlen(test_str_first);
 	memset(buf, 0, len);
-	EXPECT_NE(recv(self->cfd, buf, len, MSG_PEEK), -1);
+	EXPECT_EQ(recv(self->cfd, buf, len, MSG_PEEK | MSG_WAITALL), len);
 
 	/* MSG_PEEK can only peek into the current record. */
-	len = strlen(test_str_first) + 1;
+	len = strlen(test_str_first);
 	EXPECT_EQ(memcmp(test_str_first, buf, len), 0);
 
-	len = sizeof(buf);
+	len = strlen(test_str) + 1;
 	memset(buf, 0, len);
-	EXPECT_NE(recv(self->cfd, buf, len, 0), -1);
+	EXPECT_EQ(recv(self->cfd, buf, len, MSG_WAITALL), len);
 
 	/* Non-MSG_PEEK will advance strparser (and therefore record)
 	 * however.
@@ -543,13 +545,36 @@ TEST_F(tls, recv_peek_multiple_records)
 	len = strlen(test_str_second) + 1;
 	EXPECT_EQ(send(self->fd, test_str_second, len, 0), len);
 
-	len = sizeof(buf);
+	len = strlen(test_str) + 1;
 	memset(buf, 0, len);
-	EXPECT_NE(recv(self->cfd, buf, len, MSG_PEEK), -1);
+	EXPECT_EQ(recv(self->cfd, buf, len, MSG_PEEK | MSG_WAITALL), len);
 
 	len = strlen(test_str) + 1;
 	EXPECT_EQ(memcmp(test_str, buf, len), 0);
 }
+
+TEST_F(tls, recv_peek_large_buf_mult_recs)
+{
+	char const *test_str = "test_read_peek_mult_recs";
+	char const *test_str_first = "test_read_peek";
+	char const *test_str_second = "_mult_recs";
+	int len;
+	char buf[64];
+
+	len = strlen(test_str_first);
+	EXPECT_EQ(send(self->fd, test_str_first, len, 0), len);
+
+	len = strlen(test_str_second) + 1;
+	EXPECT_EQ(send(self->fd, test_str_second, len, 0), len);
+
+	len = strlen(test_str) + 1;
+	memset(buf, 0, len);
+	EXPECT_NE((len = recv(self->cfd, buf, len,
+			      MSG_PEEK | MSG_WAITALL)), -1);
+	len = strlen(test_str) + 1;
+	EXPECT_EQ(memcmp(test_str, buf, len), 0);
+}
+
 
 TEST_F(tls, pollin)
 {
@@ -564,7 +589,7 @@ TEST_F(tls, pollin)
 
 	EXPECT_EQ(poll(&fd, 1, 20), 1);
 	EXPECT_EQ(fd.revents & POLLIN, 1);
-	EXPECT_EQ(recv(self->cfd, buf, send_len, 0), send_len);
+	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_WAITALL), send_len);
 	/* Test timing out */
 	EXPECT_EQ(poll(&fd, 1, 20), 0);
 }
@@ -582,7 +607,7 @@ TEST_F(tls, poll_wait)
 	/* Set timeout to inf. secs */
 	EXPECT_EQ(poll(&fd, 1, -1), 1);
 	EXPECT_EQ(fd.revents & POLLIN, 1);
-	EXPECT_EQ(recv(self->cfd, recv_mem, send_len, 0), send_len);
+	EXPECT_EQ(recv(self->cfd, recv_mem, send_len, MSG_WAITALL), send_len);
 }
 
 TEST_F(tls, blocking)
@@ -728,7 +753,8 @@ TEST_F(tls, control_msg)
 	EXPECT_EQ(recv(self->cfd, buf, send_len, 0), -1);
 
 	vec.iov_base = buf;
-	EXPECT_EQ(recvmsg(self->cfd, &msg, 0), send_len);
+	EXPECT_EQ(recvmsg(self->cfd, &msg, MSG_WAITALL | MSG_PEEK), send_len);
+
 	cmsg = CMSG_FIRSTHDR(&msg);
 	EXPECT_NE(cmsg, NULL);
 	EXPECT_EQ(cmsg->cmsg_level, SOL_TLS);
@@ -736,6 +762,155 @@ TEST_F(tls, control_msg)
 	record_type = *((unsigned char *)CMSG_DATA(cmsg));
 	EXPECT_EQ(record_type, 100);
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+
+	/* Recv the message again without MSG_PEEK */
+	record_type = 0;
+	memset(buf, 0, sizeof(buf));
+
+	EXPECT_EQ(recvmsg(self->cfd, &msg, MSG_WAITALL), send_len);
+	cmsg = CMSG_FIRSTHDR(&msg);
+	EXPECT_NE(cmsg, NULL);
+	EXPECT_EQ(cmsg->cmsg_level, SOL_TLS);
+	EXPECT_EQ(cmsg->cmsg_type, TLS_GET_RECORD_TYPE);
+	record_type = *((unsigned char *)CMSG_DATA(cmsg));
+	EXPECT_EQ(record_type, 100);
+	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+}
+
+TEST(keysizes) {
+	struct tls12_crypto_info_aes_gcm_256 tls12;
+	struct sockaddr_in addr;
+	int sfd, ret, fd, cfd;
+	socklen_t len;
+	bool notls;
+
+	notls = false;
+	len = sizeof(addr);
+
+	memset(&tls12, 0, sizeof(tls12));
+	tls12.info.version = TLS_1_2_VERSION;
+	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_256;
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	sfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	ret = bind(sfd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+	ret = listen(sfd, 10);
+	ASSERT_EQ(ret, 0);
+
+	ret = getsockname(sfd, &addr, &len);
+	ASSERT_EQ(ret, 0);
+
+	ret = connect(fd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (ret != 0) {
+		notls = true;
+		printf("Failure setting TCP_ULP, testing without tls\n");
+	}
+
+	if (!notls) {
+		ret = setsockopt(fd, SOL_TLS, TLS_TX, &tls12,
+				 sizeof(tls12));
+		EXPECT_EQ(ret, 0);
+	}
+
+	cfd = accept(sfd, &addr, &len);
+	ASSERT_GE(cfd, 0);
+
+	if (!notls) {
+		ret = setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls",
+				 sizeof("tls"));
+		EXPECT_EQ(ret, 0);
+
+		ret = setsockopt(cfd, SOL_TLS, TLS_RX, &tls12,
+				 sizeof(tls12));
+		EXPECT_EQ(ret, 0);
+	}
+
+	close(sfd);
+	close(fd);
+	close(cfd);
+}
+
+TEST(tls12) {
+	int fd, cfd;
+	bool notls;
+
+	struct tls12_crypto_info_aes_gcm_128 tls12;
+	struct sockaddr_in addr;
+	socklen_t len;
+	int sfd, ret;
+
+	notls = false;
+	len = sizeof(addr);
+
+	memset(&tls12, 0, sizeof(tls12));
+	tls12.info.version = TLS_1_2_VERSION;
+	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_128;
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	sfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	ret = bind(sfd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+	ret = listen(sfd, 10);
+	ASSERT_EQ(ret, 0);
+
+	ret = getsockname(sfd, &addr, &len);
+	ASSERT_EQ(ret, 0);
+
+	ret = connect(fd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (ret != 0) {
+		notls = true;
+		printf("Failure setting TCP_ULP, testing without tls\n");
+	}
+
+	if (!notls) {
+		ret = setsockopt(fd, SOL_TLS, TLS_TX, &tls12,
+				 sizeof(tls12));
+		ASSERT_EQ(ret, 0);
+	}
+
+	cfd = accept(sfd, &addr, &len);
+	ASSERT_GE(cfd, 0);
+
+	if (!notls) {
+		ret = setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls",
+				 sizeof("tls"));
+		ASSERT_EQ(ret, 0);
+
+		ret = setsockopt(cfd, SOL_TLS, TLS_RX, &tls12,
+				 sizeof(tls12));
+		ASSERT_EQ(ret, 0);
+	}
+
+	close(sfd);
+
+	char const *test_str = "test_read";
+	int send_len = 10;
+	char buf[10];
+
+	send_len = strlen(test_str) + 1;
+	EXPECT_EQ(send(fd, test_str, send_len, 0), send_len);
+	EXPECT_NE(recv(cfd, buf, send_len, 0), -1);
+	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+
+	close(fd);
+	close(cfd);
 }
 
 TEST_HARNESS_MAIN

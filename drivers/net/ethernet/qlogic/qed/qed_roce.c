@@ -745,6 +745,7 @@ static int qed_roce_sp_destroy_qp_responder(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn,
 			  "qed destroy responder failed: cannot allocate memory (ramrod). rc = %d\n",
 			  rc);
+		qed_sp_destroy_request(p_hwfn, p_ent);
 		return rc;
 	}
 

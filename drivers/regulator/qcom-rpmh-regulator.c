@@ -410,11 +410,11 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->dev = dev;
 
 	for (rpmh_data = pmic_rpmh_data; rpmh_data->name; rpmh_data++)
-		if (!strcmp(rpmh_data->name, node->name))
+		if (of_node_name_eq(node, rpmh_data->name))
 			break;
 
 	if (!rpmh_data->name) {
-		dev_err(dev, "Unknown regulator %s\n", node->name);
+		dev_err(dev, "Unknown regulator %pOFn\n", node);
 		return -EINVAL;
 	}
 
@@ -423,8 +423,8 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 
 	vreg->addr = cmd_db_read_addr(rpmh_resource_name);
 	if (!vreg->addr) {
-		dev_err(dev, "%s: could not find RPMh address for resource %s\n",
-			node->name, rpmh_resource_name);
+		dev_err(dev, "%pOFn: could not find RPMh address for resource %s\n",
+			node, rpmh_resource_name);
 		return -ENODEV;
 	}
 
@@ -469,13 +469,13 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	rdev = devm_regulator_register(dev, &vreg->rdesc, &reg_config);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(dev, "%s: devm_regulator_register() failed, ret=%d\n",
-			node->name, ret);
+		dev_err(dev, "%pOFn: devm_regulator_register() failed, ret=%d\n",
+			node, ret);
 		return ret;
 	}
 
-	dev_dbg(dev, "%s regulator registered for RPMh resource %s @ 0x%05X\n",
-		node->name, rpmh_resource_name, vreg->addr);
+	dev_dbg(dev, "%pOFn regulator registered for RPMh resource %s @ 0x%05X\n",
+		node, rpmh_resource_name, vreg->addr);
 
 	return 0;
 }
@@ -504,6 +504,7 @@ static unsigned int rpmh_regulator_pmic4_ldo_of_map_mode(unsigned int rpmh_mode)
 		break;
 	default:
 		mode = REGULATOR_MODE_INVALID;
+		break;
 	}
 
 	return mode;
@@ -537,6 +538,7 @@ rpmh_regulator_pmic4_smps_of_map_mode(unsigned int rpmh_mode)
 		break;
 	default:
 		mode = REGULATOR_MODE_INVALID;
+		break;
 	}
 
 	return mode;
@@ -566,6 +568,7 @@ static unsigned int rpmh_regulator_pmic4_bob_of_map_mode(unsigned int rpmh_mode)
 		break;
 	default:
 		mode = REGULATOR_MODE_INVALID;
+		break;
 	}
 
 	return mode;

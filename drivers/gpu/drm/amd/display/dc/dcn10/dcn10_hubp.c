@@ -99,6 +99,14 @@ static unsigned int hubp1_get_underflow_status(struct hubp *hubp)
 	return hubp_underflow;
 }
 
+
+void hubp1_clear_underflow(struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_CNTL, HUBP_UNDERFLOW_CLEAR, 1);
+}
+
 static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
@@ -107,7 +115,7 @@ static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, blank_en);
 }
 
-static void hubp1_vready_workaround(struct hubp *hubp,
+void hubp1_vready_workaround(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	uint32_t value = 0;
@@ -309,13 +317,28 @@ void hubp1_program_pixel_format(
 bool hubp1_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate)
+	bool flip_immediate,
+	uint8_t vmid)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
-	/* program flip type */
-	REG_SET(DCSURF_FLIP_CONTROL, 0,
+
+	//program flip type
+	REG_UPDATE(DCSURF_FLIP_CONTROL,
 			SURFACE_FLIP_TYPE, flip_immediate);
+
+
+	if (address->type == PLN_ADDR_TYPE_GRPH_STEREO) {
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x1);
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x1);
+
+	} else {
+		// turn off stereo if not in stereo
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x0);
+		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x0);
+	}
+
+
 
 	/* HW automatically latch rest of address register on write to
 	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is not used
@@ -485,7 +508,8 @@ void hubp1_program_surface_config(
 	union plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror)
+	bool horizontal_mirror,
+	unsigned int compat_level)
 {
 	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
 	hubp1_program_tiling(hubp, tiling_info, format);
@@ -550,28 +574,12 @@ void hubp1_program_deadline(
 		REFCYC_X_AFTER_SCALER, dlg_attr->refcyc_x_after_scaler,
 		DST_Y_AFTER_SCALER, dlg_attr->dst_y_after_scaler);
 
-	if (REG(PREFETCH_SETTINS))
-		REG_SET_2(PREFETCH_SETTINS, 0,
-			DST_Y_PREFETCH, dlg_attr->dst_y_prefetch,
-			VRATIO_PREFETCH, dlg_attr->vratio_prefetch);
-	else
-		REG_SET_2(PREFETCH_SETTINGS, 0,
-			DST_Y_PREFETCH, dlg_attr->dst_y_prefetch,
-			VRATIO_PREFETCH, dlg_attr->vratio_prefetch);
-
-	REG_SET_2(VBLANK_PARAMETERS_0, 0,
-		DST_Y_PER_VM_VBLANK, dlg_attr->dst_y_per_vm_vblank,
-		DST_Y_PER_ROW_VBLANK, dlg_attr->dst_y_per_row_vblank);
-
 	REG_SET(REF_FREQ_TO_PIX_FREQ, 0,
 		REF_FREQ_TO_PIX_FREQ, dlg_attr->ref_freq_to_pix_freq);
 
 	/* DLG - Per luma/chroma */
 	REG_SET(VBLANK_PARAMETERS_1, 0,
 		REFCYC_PER_PTE_GROUP_VBLANK_L, dlg_attr->refcyc_per_pte_group_vblank_l);
-
-	REG_SET(VBLANK_PARAMETERS_3, 0,
-		REFCYC_PER_META_CHUNK_VBLANK_L, dlg_attr->refcyc_per_meta_chunk_vblank_l);
 
 	if (REG(NOM_PARAMETERS_0))
 		REG_SET(NOM_PARAMETERS_0, 0,
@@ -587,26 +595,12 @@ void hubp1_program_deadline(
 	REG_SET(NOM_PARAMETERS_5, 0,
 		REFCYC_PER_META_CHUNK_NOM_L, dlg_attr->refcyc_per_meta_chunk_nom_l);
 
-	REG_SET_2(PER_LINE_DELIVERY_PRE, 0,
-		REFCYC_PER_LINE_DELIVERY_PRE_L, dlg_attr->refcyc_per_line_delivery_pre_l,
-		REFCYC_PER_LINE_DELIVERY_PRE_C, dlg_attr->refcyc_per_line_delivery_pre_c);
-
 	REG_SET_2(PER_LINE_DELIVERY, 0,
 		REFCYC_PER_LINE_DELIVERY_L, dlg_attr->refcyc_per_line_delivery_l,
 		REFCYC_PER_LINE_DELIVERY_C, dlg_attr->refcyc_per_line_delivery_c);
 
-	if (REG(PREFETCH_SETTINS_C))
-		REG_SET(PREFETCH_SETTINS_C, 0,
-			VRATIO_PREFETCH_C, dlg_attr->vratio_prefetch_c);
-	else
-		REG_SET(PREFETCH_SETTINGS_C, 0,
-			VRATIO_PREFETCH_C, dlg_attr->vratio_prefetch_c);
-
 	REG_SET(VBLANK_PARAMETERS_2, 0,
 		REFCYC_PER_PTE_GROUP_VBLANK_C, dlg_attr->refcyc_per_pte_group_vblank_c);
-
-	REG_SET(VBLANK_PARAMETERS_4, 0,
-		REFCYC_PER_META_CHUNK_VBLANK_C, dlg_attr->refcyc_per_meta_chunk_vblank_c);
 
 	if (REG(NOM_PARAMETERS_2))
 		REG_SET(NOM_PARAMETERS_2, 0,
@@ -627,10 +621,6 @@ void hubp1_program_deadline(
 		QoS_LEVEL_LOW_WM, ttu_attr->qos_level_low_wm,
 		QoS_LEVEL_HIGH_WM, ttu_attr->qos_level_high_wm);
 
-	REG_SET_2(DCN_GLOBAL_TTU_CNTL, 0,
-		MIN_TTU_VBLANK, ttu_attr->min_ttu_vblank,
-		QoS_LEVEL_FLIP, ttu_attr->qos_level_flip);
-
 	/* TTU - per luma/chroma */
 	/* Assumed surf0 is luma and 1 is chroma */
 
@@ -639,25 +629,15 @@ void hubp1_program_deadline(
 		QoS_LEVEL_FIXED, ttu_attr->qos_level_fixed_l,
 		QoS_RAMP_DISABLE, ttu_attr->qos_ramp_disable_l);
 
-	REG_SET(DCN_SURF0_TTU_CNTL1, 0,
-		REFCYC_PER_REQ_DELIVERY_PRE,
-		ttu_attr->refcyc_per_req_delivery_pre_l);
-
 	REG_SET_3(DCN_SURF1_TTU_CNTL0, 0,
 		REFCYC_PER_REQ_DELIVERY, ttu_attr->refcyc_per_req_delivery_c,
 		QoS_LEVEL_FIXED, ttu_attr->qos_level_fixed_c,
 		QoS_RAMP_DISABLE, ttu_attr->qos_ramp_disable_c);
 
-	REG_SET(DCN_SURF1_TTU_CNTL1, 0,
-		REFCYC_PER_REQ_DELIVERY_PRE,
-		ttu_attr->refcyc_per_req_delivery_pre_c);
-
 	REG_SET_3(DCN_CUR0_TTU_CNTL0, 0,
 		REFCYC_PER_REQ_DELIVERY, ttu_attr->refcyc_per_req_delivery_cur0,
 		QoS_LEVEL_FIXED, ttu_attr->qos_level_fixed_cur0,
 		QoS_RAMP_DISABLE, ttu_attr->qos_ramp_disable_cur0);
-	REG_SET(DCN_CUR0_TTU_CNTL1, 0,
-		REFCYC_PER_REQ_DELIVERY_PRE, ttu_attr->refcyc_per_req_delivery_pre_cur0);
 }
 
 static void hubp1_setup(
@@ -673,6 +653,48 @@ static void hubp1_setup(
 	hubp1_program_requestor(hubp, rq_regs);
 	hubp1_program_deadline(hubp, dlg_attr, ttu_attr);
 	hubp1_vready_workaround(hubp, pipe_dest);
+}
+
+static void hubp1_setup_interdependent(
+		struct hubp *hubp,
+		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
+		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_SET_2(PREFETCH_SETTINS, 0,
+		DST_Y_PREFETCH, dlg_attr->dst_y_prefetch,
+		VRATIO_PREFETCH, dlg_attr->vratio_prefetch);
+
+	REG_SET(PREFETCH_SETTINS_C, 0,
+		VRATIO_PREFETCH_C, dlg_attr->vratio_prefetch_c);
+
+	REG_SET_2(VBLANK_PARAMETERS_0, 0,
+		DST_Y_PER_VM_VBLANK, dlg_attr->dst_y_per_vm_vblank,
+		DST_Y_PER_ROW_VBLANK, dlg_attr->dst_y_per_row_vblank);
+
+	REG_SET(VBLANK_PARAMETERS_3, 0,
+		REFCYC_PER_META_CHUNK_VBLANK_L, dlg_attr->refcyc_per_meta_chunk_vblank_l);
+
+	REG_SET(VBLANK_PARAMETERS_4, 0,
+		REFCYC_PER_META_CHUNK_VBLANK_C, dlg_attr->refcyc_per_meta_chunk_vblank_c);
+
+	REG_SET_2(PER_LINE_DELIVERY_PRE, 0,
+		REFCYC_PER_LINE_DELIVERY_PRE_L, dlg_attr->refcyc_per_line_delivery_pre_l,
+		REFCYC_PER_LINE_DELIVERY_PRE_C, dlg_attr->refcyc_per_line_delivery_pre_c);
+
+	REG_SET(DCN_SURF0_TTU_CNTL1, 0,
+		REFCYC_PER_REQ_DELIVERY_PRE,
+		ttu_attr->refcyc_per_req_delivery_pre_l);
+	REG_SET(DCN_SURF1_TTU_CNTL1, 0,
+		REFCYC_PER_REQ_DELIVERY_PRE,
+		ttu_attr->refcyc_per_req_delivery_pre_c);
+	REG_SET(DCN_CUR0_TTU_CNTL1, 0,
+		REFCYC_PER_REQ_DELIVERY_PRE, ttu_attr->refcyc_per_req_delivery_pre_cur0);
+
+	REG_SET_2(DCN_GLOBAL_TTU_CNTL, 0,
+		MIN_TTU_VBLANK, ttu_attr->min_ttu_vblank,
+		QoS_LEVEL_FLIP, ttu_attr->qos_level_flip);
 }
 
 bool hubp1_is_flip_pending(struct hubp *hubp)
@@ -959,6 +981,9 @@ void hubp1_read_state(struct hubp *hubp)
 	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE_HIGH,
 			SURFACE_EARLIEST_INUSE_ADDRESS_HIGH, &s->inuse_addr_hi);
 
+	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE,
+			SURFACE_EARLIEST_INUSE_ADDRESS, &s->inuse_addr_lo);
+
 	REG_GET_2(DCSURF_PRI_VIEWPORT_DIMENSION,
 			PRI_VIEWPORT_WIDTH, &s->viewport_width,
 			PRI_VIEWPORT_HEIGHT, &s->viewport_height);
@@ -1069,6 +1094,7 @@ void hubp1_cursor_set_position(
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
+	int src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
 	int x_hotspot = pos->x_hotspot;
 	int y_hotspot = pos->y_hotspot;
 	uint32_t dst_x_offset;
@@ -1112,6 +1138,12 @@ void hubp1_cursor_set_position(
 	if (src_x_offset + (int)hubp->curs_attr.width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
 
+	if (src_y_offset >= (int)param->viewport.height)
+		cur_en = 0;  /* not visible beyond bottom edge*/
+
+	if (src_y_offset + (int)hubp->curs_attr.height <= 0)
+		cur_en = 0;  /* not visible beyond top edge*/
+
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
 		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
 
@@ -1153,6 +1185,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 			hubp1_program_surface_config,
 	.hubp_is_flip_pending = hubp1_is_flip_pending,
 	.hubp_setup = hubp1_setup,
+	.hubp_setup_interdependent = hubp1_setup_interdependent,
 	.hubp_set_vm_system_aperture_settings = hubp1_set_vm_system_aperture_settings,
 	.hubp_set_vm_context0_settings = hubp1_set_vm_context0_settings,
 	.set_blank = hubp1_set_blank,
@@ -1165,6 +1198,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_clk_cntl = hubp1_clk_cntl,
 	.hubp_vtg_sel = hubp1_vtg_sel,
 	.hubp_read_state = hubp1_read_state,
+	.hubp_clear_underflow = hubp1_clear_underflow,
 	.hubp_disable_control =  hubp1_disable_control,
 	.hubp_get_underflow_status = hubp1_get_underflow_status,
 

@@ -754,9 +754,8 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 		goto out;
 	}
 
-	/* Otherwise, get a connected non-upper dir or disconnected non-dir */
-	if (d_is_dir(origin.dentry) &&
-	    (origin.dentry->d_flags & DCACHE_DISCONNECTED)) {
+	/* Find origin.dentry again with ovl_acceptable() layer check */
+	if (d_is_dir(origin.dentry)) {
 		dput(origin.dentry);
 		origin.dentry = NULL;
 		err = ovl_check_origin_fh(ofs, fh, true, NULL, &stack);
@@ -769,6 +768,7 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 			goto out_err;
 	}
 
+	/* Get a connected non-upper dir or disconnected non-dir */
 	dentry = ovl_get_dentry(sb, NULL, &origin, index);
 
 out:

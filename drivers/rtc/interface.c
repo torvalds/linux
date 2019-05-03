@@ -368,12 +368,8 @@ int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	err = rtc_valid_tm(&alarm->time);
 
 done:
-	if (err) {
-		dev_warn(&rtc->dev, "invalid alarm value: %d-%d-%d %d:%d:%d\n",
-			alarm->time.tm_year + 1900, alarm->time.tm_mon + 1,
-			alarm->time.tm_mday, alarm->time.tm_hour, alarm->time.tm_min,
-			alarm->time.tm_sec);
-	}
+	if (err)
+		dev_warn(&rtc->dev, "invalid alarm value: %ptR\n", &alarm->time);
 
 	return err;
 }
@@ -596,7 +592,6 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
  * This function is called when an AIE, UIE or PIE mode interrupt
  * has occurred (or been emulated).
  *
- * Triggers the registered irq_task function callback.
  */
 void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode)
 {
@@ -614,26 +609,24 @@ void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode)
 
 /**
  * rtc_aie_update_irq - AIE mode rtctimer hook
- * @private: pointer to the rtc_device
+ * @rtc: pointer to the rtc_device
  *
  * This functions is called when the aie_timer expires.
  */
-void rtc_aie_update_irq(void *private)
+void rtc_aie_update_irq(struct rtc_device *rtc)
 {
-	struct rtc_device *rtc = (struct rtc_device *)private;
 	rtc_handle_legacy_irq(rtc, 1, RTC_AF);
 }
 
 
 /**
  * rtc_uie_update_irq - UIE mode rtctimer hook
- * @private: pointer to the rtc_device
+ * @rtc: pointer to the rtc_device
  *
  * This functions is called when the uie_timer expires.
  */
-void rtc_uie_update_irq(void *private)
+void rtc_uie_update_irq(struct rtc_device *rtc)
 {
-	struct rtc_device *rtc = (struct rtc_device *)private;
 	rtc_handle_legacy_irq(rtc, 1,  RTC_UF);
 }
 
@@ -741,7 +734,6 @@ static int rtc_update_hrtimer(struct rtc_device *rtc, int enabled)
 /**
  * rtc_irq_set_state - enable/disable 2^N Hz periodic IRQs
  * @rtc: the rtc device
- * @task: currently registered with rtc_irq_register()
  * @enabled: true to enable periodic IRQs
  * Context: any
  *
@@ -764,7 +756,6 @@ int rtc_irq_set_state(struct rtc_device *rtc, int enabled)
 /**
  * rtc_irq_set_freq - set 2^N Hz periodic IRQ frequency for IRQ
  * @rtc: the rtc device
- * @task: currently registered with rtc_irq_register()
  * @freq: positive frequency
  * Context: any
  *
@@ -915,7 +906,7 @@ again:
 		trace_rtc_timer_dequeue(timer);
 		timer->enabled = 0;
 		if (timer->func)
-			timer->func(timer->private_data);
+			timer->func(timer->rtc);
 
 		trace_rtc_timer_fired(timer);
 		/* Re-add/fwd periodic timers */
@@ -962,16 +953,17 @@ reprogram:
 /* rtc_timer_init - Initializes an rtc_timer
  * @timer: timer to be intiialized
  * @f: function pointer to be called when timer fires
- * @data: private data passed to function pointer
+ * @rtc: pointer to the rtc_device
  *
  * Kernel interface to initializing an rtc_timer.
  */
-void rtc_timer_init(struct rtc_timer *timer, void (*f)(void *p), void *data)
+void rtc_timer_init(struct rtc_timer *timer, void (*f)(struct rtc_device *r),
+		    struct rtc_device *rtc)
 {
 	timerqueue_init(&timer->node);
 	timer->enabled = 0;
 	timer->func = f;
-	timer->private_data = data;
+	timer->rtc = rtc;
 }
 
 /* rtc_timer_start - Sets an rtc_timer to fire in the future

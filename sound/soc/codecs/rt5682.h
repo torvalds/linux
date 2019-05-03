@@ -849,18 +849,18 @@
 #define RT5682_SCLK_SRC_PLL2			(0x2 << 13)
 #define RT5682_SCLK_SRC_SDW			(0x3 << 13)
 #define RT5682_SCLK_SRC_RCCLK			(0x4 << 13)
-#define RT5682_PLL1_SRC_MASK			(0x3 << 10)
-#define RT5682_PLL1_SRC_SFT			10
-#define RT5682_PLL1_SRC_MCLK			(0x0 << 10)
-#define RT5682_PLL1_SRC_BCLK1			(0x1 << 10)
-#define RT5682_PLL1_SRC_SDW			(0x2 << 10)
-#define RT5682_PLL1_SRC_RC			(0x3 << 10)
-#define RT5682_PLL2_SRC_MASK			(0x3 << 8)
-#define RT5682_PLL2_SRC_SFT			8
-#define RT5682_PLL2_SRC_MCLK			(0x0 << 8)
-#define RT5682_PLL2_SRC_BCLK1			(0x1 << 8)
-#define RT5682_PLL2_SRC_SDW			(0x2 << 8)
-#define RT5682_PLL2_SRC_RC			(0x3 << 8)
+#define RT5682_PLL2_SRC_MASK			(0x3 << 10)
+#define RT5682_PLL2_SRC_SFT			10
+#define RT5682_PLL2_SRC_MCLK			(0x0 << 10)
+#define RT5682_PLL2_SRC_BCLK1			(0x1 << 10)
+#define RT5682_PLL2_SRC_SDW			(0x2 << 10)
+#define RT5682_PLL2_SRC_RC			(0x3 << 10)
+#define RT5682_PLL1_SRC_MASK			(0x3 << 8)
+#define RT5682_PLL1_SRC_SFT			8
+#define RT5682_PLL1_SRC_MCLK			(0x0 << 8)
+#define RT5682_PLL1_SRC_BCLK1			(0x1 << 8)
+#define RT5682_PLL1_SRC_SDW			(0x2 << 8)
+#define RT5682_PLL1_SRC_RC			(0x3 << 8)
 
 
 
@@ -1213,6 +1213,20 @@
 #define RT5682_JDH_RS_MASK			(0x1 << 4)
 #define RT5682_JDH_NO_PLUG			(0x1 << 4)
 #define RT5682_JDH_PLUG				(0x0 << 4)
+
+/* Bias current control 8 (0x0111) */
+#define RT5682_HPA_CP_BIAS_CTRL_MASK			(0x3 << 2)
+#define RT5682_HPA_CP_BIAS_2UA			(0x0 << 2)
+#define RT5682_HPA_CP_BIAS_3UA			(0x1 << 2)
+#define RT5682_HPA_CP_BIAS_4UA			(0x2 << 2)
+#define RT5682_HPA_CP_BIAS_6UA			(0x3 << 2)
+
+/* Charge Pump Internal Register1 (0x0125) */
+#define RT5682_CP_CLK_HP_MASK			(0x3 << 4)
+#define RT5682_CP_CLK_HP_100KHZ			(0x0 << 4)
+#define RT5682_CP_CLK_HP_200KHZ			(0x1 << 4)
+#define RT5682_CP_CLK_HP_300KHZ			(0x2 << 4)
+#define RT5682_CP_CLK_HP_600KHZ			(0x3 << 4)
 
 /* Chopper and Clock control for DAC (0x013a)*/
 #define RT5682_CKXEN_DAC1_MASK			(0x1 << 13)

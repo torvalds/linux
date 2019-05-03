@@ -31,6 +31,8 @@
 #include <asm/prom.h>
 #include <asm/mmu.h>
 #include <asm/machdep.h>
+#include <asm/code-patching.h>
+#include <asm/sections.h>
 
 #include "mmu_decl.h"
 
@@ -52,7 +54,7 @@ struct batrange {		/* stores address ranges mapped by BATs */
 phys_addr_t v_block_mapped(unsigned long va)
 {
 	int b;
-	for (b = 0; b < 4; ++b)
+	for (b = 0; b < ARRAY_SIZE(bat_addrs); ++b)
 		if (va >= bat_addrs[b].start && va < bat_addrs[b].limit)
 			return bat_addrs[b].phys + (va - bat_addrs[b].start);
 	return 0;
@@ -64,7 +66,7 @@ phys_addr_t v_block_mapped(unsigned long va)
 unsigned long p_block_mapped(phys_addr_t pa)
 {
 	int b;
-	for (b = 0; b < 4; ++b)
+	for (b = 0; b < ARRAY_SIZE(bat_addrs); ++b)
 		if (pa >= bat_addrs[b].phys
 	    	    && pa < (bat_addrs[b].limit-bat_addrs[b].start)
 		              +bat_addrs[b].phys)
@@ -72,45 +74,171 @@ unsigned long p_block_mapped(phys_addr_t pa)
 	return 0;
 }
 
-unsigned long __init mmu_mapin_ram(unsigned long top)
+static int find_free_bat(void)
 {
-	unsigned long tot, bl, done;
-	unsigned long max_size = (256<<20);
+	int b;
+
+	if (cpu_has_feature(CPU_FTR_601)) {
+		for (b = 0; b < 4; b++) {
+			struct ppc_bat *bat = BATS[b];
+
+			if (!(bat[0].batl & 0x40))
+				return b;
+		}
+	} else {
+		int n = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
+
+		for (b = 0; b < n; b++) {
+			struct ppc_bat *bat = BATS[b];
+
+			if (!(bat[1].batu & 3))
+				return b;
+		}
+	}
+	return -1;
+}
+
+static unsigned int block_size(unsigned long base, unsigned long top)
+{
+	unsigned int max_size = (cpu_has_feature(CPU_FTR_601) ? 8 : 256) << 20;
+	unsigned int base_shift = (fls(base) - 1) & 31;
+	unsigned int block_shift = (fls(top - base) - 1) & 31;
+
+	return min3(max_size, 1U << base_shift, 1U << block_shift);
+}
+
+/*
+ * Set up one of the IBAT (block address translation) register pairs.
+ * The parameters are not checked; in particular size must be a power
+ * of 2 between 128k and 256M.
+ * Only for 603+ ...
+ */
+static void setibat(int index, unsigned long virt, phys_addr_t phys,
+		    unsigned int size, pgprot_t prot)
+{
+	unsigned int bl = (size >> 17) - 1;
+	int wimgxpp;
+	struct ppc_bat *bat = BATS[index];
+	unsigned long flags = pgprot_val(prot);
+
+	if (!cpu_has_feature(CPU_FTR_NEED_COHERENT))
+		flags &= ~_PAGE_COHERENT;
+
+	wimgxpp = (flags & _PAGE_COHERENT) | (_PAGE_EXEC ? BPP_RX : BPP_XX);
+	bat[0].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
+	bat[0].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
+	if (flags & _PAGE_USER)
+		bat[0].batu |= 1;	/* Vp = 1 */
+}
+
+static void clearibat(int index)
+{
+	struct ppc_bat *bat = BATS[index];
+
+	bat[0].batu = 0;
+	bat[0].batl = 0;
+}
+
+static unsigned long __init __mmu_mapin_ram(unsigned long base, unsigned long top)
+{
+	int idx;
+
+	while ((idx = find_free_bat()) != -1 && base != top) {
+		unsigned int size = block_size(base, top);
+
+		if (size < 128 << 10)
+			break;
+		setbat(idx, PAGE_OFFSET + base, base, size, PAGE_KERNEL_X);
+		base += size;
+	}
+
+	return base;
+}
+
+unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
+{
+	int done;
+	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 
 	if (__map_without_bats) {
-		printk(KERN_DEBUG "RAM mapped without BATs\n");
-		return 0;
+		pr_debug("RAM mapped without BATs\n");
+		return base;
 	}
 
-	/* Set up BAT2 and if necessary BAT3 to cover RAM. */
+	if (!strict_kernel_rwx_enabled() || base >= border || top <= border)
+		return __mmu_mapin_ram(base, top);
 
-	/* Make sure we don't map a block larger than the
-	   smallest alignment of the physical address. */
-	tot = top;
-	for (bl = 128<<10; bl < max_size; bl <<= 1) {
-		if (bl * 2 > tot)
+	done = __mmu_mapin_ram(base, border);
+	if (done != border - base)
+		return done;
+
+	return done + __mmu_mapin_ram(border, top);
+}
+
+void mmu_mark_initmem_nx(void)
+{
+	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
+	int i;
+	unsigned long base = (unsigned long)_stext - PAGE_OFFSET;
+	unsigned long top = (unsigned long)_etext - PAGE_OFFSET;
+	unsigned long size;
+
+	if (cpu_has_feature(CPU_FTR_601))
+		return;
+
+	for (i = 0; i < nb - 1 && base < top && top - base > (128 << 10);) {
+		size = block_size(base, top);
+		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
+		base += size;
+	}
+	if (base < top) {
+		size = block_size(base, top);
+		size = max(size, 128UL << 10);
+		if ((top - base) > size) {
+			if (strict_kernel_rwx_enabled())
+				pr_warn("Kernel _etext not properly aligned\n");
+			size <<= 1;
+		}
+		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
+		base += size;
+	}
+	for (; i < nb; i++)
+		clearibat(i);
+
+	update_bats();
+
+	for (i = TASK_SIZE >> 28; i < 16; i++) {
+		/* Do not set NX on VM space for modules */
+		if (IS_ENABLED(CONFIG_MODULES) &&
+		    (VMALLOC_START & 0xf0000000) == i << 28)
 			break;
+		mtsrin(mfsrin(i << 28) | 0x10000000, i << 28);
+	}
+}
+
+void mmu_mark_rodata_ro(void)
+{
+	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
+	int i;
+
+	if (cpu_has_feature(CPU_FTR_601))
+		return;
+
+	for (i = 0; i < nb; i++) {
+		struct ppc_bat *bat = BATS[i];
+
+		if (bat_addrs[i].start < (unsigned long)__init_begin)
+			bat[1].batl = (bat[1].batl & ~BPP_RW) | BPP_RX;
 	}
 
-	setbat(2, PAGE_OFFSET, 0, bl, PAGE_KERNEL_X);
-	done = (unsigned long)bat_addrs[2].limit - PAGE_OFFSET + 1;
-	if ((done < tot) && !bat_addrs[3].limit) {
-		/* use BAT3 to cover a bit more */
-		tot -= done;
-		for (bl = 128<<10; bl < max_size; bl <<= 1)
-			if (bl * 2 > tot)
-				break;
-		setbat(3, PAGE_OFFSET+done, done, bl, PAGE_KERNEL_X);
-		done = (unsigned long)bat_addrs[3].limit - PAGE_OFFSET + 1;
-	}
-
-	return done;
+	update_bats();
 }
 
 /*
  * Set up one of the I/D BAT (block address translation) register pairs.
  * The parameters are not checked; in particular size must be a power
  * of 2 between 128k and 256M.
+ * On 603+, only set IBAT when _PAGE_EXEC is set
  */
 void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, pgprot_t prot)
@@ -137,11 +265,12 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 			bat[1].batu |= 1; 	/* Vp = 1 */
 		if (flags & _PAGE_GUARDED) {
 			/* G bit must be zero in IBATs */
-			bat[0].batu = bat[0].batl = 0;
-		} else {
-			/* make IBAT same as DBAT */
-			bat[0] = bat[1];
+			flags &= ~_PAGE_EXEC;
 		}
+		if (flags & _PAGE_EXEC)
+			bat[0] = bat[1];
+		else
+			bat[0].batu = bat[0].batl = 0;
 	} else {
 		/* 601 cpu */
 		if (bl > BL_8M)
@@ -163,7 +292,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
  * Preload a translation in the hash table
  */
 void hash_preload(struct mm_struct *mm, unsigned long ea,
-		  unsigned long access, unsigned long trap)
+		  bool is_exec, unsigned long trap)
 {
 	pmd_t *pmd;
 
@@ -182,22 +311,8 @@ void __init MMU_init_hw(void)
 	unsigned int hmask, mb, mb2;
 	unsigned int n_hpteg, lg_n_hpteg;
 
-	extern unsigned int hash_page_patch_A[];
-	extern unsigned int hash_page_patch_B[], hash_page_patch_C[];
-	extern unsigned int hash_page[];
-	extern unsigned int flush_hash_patch_A[], flush_hash_patch_B[];
-
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		/*
-		 * Put a blr (procedure return) instruction at the
-		 * start of hash_page, since we can still get DSI
-		 * exceptions on a 603.
-		 */
-		hash_page[0] = 0x4e800020;
-		flush_icache_range((unsigned long) &hash_page[0],
-				   (unsigned long) &hash_page[1]);
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return;
-	}
 
 	if ( ppc_md.progress ) ppc_md.progress("hash:enter", 0x105);
 
@@ -224,8 +339,10 @@ void __init MMU_init_hw(void)
 	 * Find some memory for the hash table.
 	 */
 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
-	Hash = __va(memblock_alloc(Hash_size, Hash_size));
-	memset(Hash, 0, Hash_size);
+	Hash = memblock_alloc(Hash_size, Hash_size);
+	if (!Hash)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, Hash_size, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
 
 	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);
@@ -244,31 +361,21 @@ void __init MMU_init_hw(void)
 	if (lg_n_hpteg > 16)
 		mb2 = 16 - LG_HPTEG_SIZE;
 
-	hash_page_patch_A[0] = (hash_page_patch_A[0] & ~0xffff)
-		| ((unsigned int)(Hash) >> 16);
-	hash_page_patch_A[1] = (hash_page_patch_A[1] & ~0x7c0) | (mb << 6);
-	hash_page_patch_A[2] = (hash_page_patch_A[2] & ~0x7c0) | (mb2 << 6);
-	hash_page_patch_B[0] = (hash_page_patch_B[0] & ~0xffff) | hmask;
-	hash_page_patch_C[0] = (hash_page_patch_C[0] & ~0xffff) | hmask;
-
-	/*
-	 * Ensure that the locations we've patched have been written
-	 * out from the data cache and invalidated in the instruction
-	 * cache, on those machines with split caches.
-	 */
-	flush_icache_range((unsigned long) &hash_page_patch_A[0],
-			   (unsigned long) &hash_page_patch_C[1]);
+	modify_instruction_site(&patch__hash_page_A0, 0xffff,
+				((unsigned int)Hash - PAGE_OFFSET) >> 16);
+	modify_instruction_site(&patch__hash_page_A1, 0x7c0, mb << 6);
+	modify_instruction_site(&patch__hash_page_A2, 0x7c0, mb2 << 6);
+	modify_instruction_site(&patch__hash_page_B, 0xffff, hmask);
+	modify_instruction_site(&patch__hash_page_C, 0xffff, hmask);
 
 	/*
 	 * Patch up the instructions in hashtable.S:flush_hash_page
 	 */
-	flush_hash_patch_A[0] = (flush_hash_patch_A[0] & ~0xffff)
-		| ((unsigned int)(Hash) >> 16);
-	flush_hash_patch_A[1] = (flush_hash_patch_A[1] & ~0x7c0) | (mb << 6);
-	flush_hash_patch_A[2] = (flush_hash_patch_A[2] & ~0x7c0) | (mb2 << 6);
-	flush_hash_patch_B[0] = (flush_hash_patch_B[0] & ~0xffff) | hmask;
-	flush_icache_range((unsigned long) &flush_hash_patch_A[0],
-			   (unsigned long) &flush_hash_patch_B[1]);
+	modify_instruction_site(&patch__flush_hash_A0, 0xffff,
+				((unsigned int)Hash - PAGE_OFFSET) >> 16);
+	modify_instruction_site(&patch__flush_hash_A1, 0x7c0, mb << 6);
+	modify_instruction_site(&patch__flush_hash_A2, 0x7c0, mb2 << 6);
+	modify_instruction_site(&patch__flush_hash_B, 0xffff, hmask);
 
 	if ( ppc_md.progress ) ppc_md.progress("hash:done", 0x205);
 }

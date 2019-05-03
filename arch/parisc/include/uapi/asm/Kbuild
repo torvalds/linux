@@ -1,9 +1,2 @@
-# UAPI Header export list
-include include/uapi/asm-generic/Kbuild.asm
-
-generic-y += auxvec.h
-generic-y += bpf_perf_event.h
-generic-y += kvm_para.h
-generic-y += param.h
-generic-y += poll.h
-generic-y += resource.h
+generated-y += unistd_32.h
+generated-y += unistd_64.h

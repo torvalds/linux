@@ -136,7 +136,7 @@ static inline int mal_rx_size(int len)
 
 static inline int mal_tx_chunks(int len)
 {
-	return (len + MAL_MAX_TX_SIZE - 1) / MAL_MAX_TX_SIZE;
+	return DIV_ROUND_UP(len, MAL_MAX_TX_SIZE);
 }
 
 #define MAL_CHAN_MASK(n)	(0x80000000 >> (n))

@@ -13,27 +13,13 @@
 / {
 	ahb {
 		apb {
-			pmc: pmc@fffffc00 {
-				periphck {
-					can0_clk: can0_clk {
-						#clock-cells = <0>;
-						reg = <29>;
-					};
-
-					can1_clk: can1_clk {
-						#clock-cells = <0>;
-						reg = <30>;
-					};
-				};
-			};
-
 			can0: can@f8000000 {
 				compatible = "atmel,at91sam9x5-can";
 				reg = <0xf8000000 0x300>;
 				interrupts = <29 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_can0_rx_tx>;
-				clocks = <&can0_clk>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 29>;
 				clock-names = "can_clk";
 				status = "disabled";
 			};
@@ -44,7 +30,7 @@
 				interrupts = <30 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_can1_rx_tx>;
-				clocks = <&can1_clk>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 30>;
 				clock-names = "can_clk";
 				status = "disabled";
 			};

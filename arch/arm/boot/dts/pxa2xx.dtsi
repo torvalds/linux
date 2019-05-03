@@ -6,10 +6,30 @@
  * Licensed under GPLv2 or later.
  */
 
-#include "skeleton.dtsi"
 #include "dt-bindings/clock/pxa-clock.h"
 
+#define PMGROUP(pin) #pin
+#define PMMUX(func, pin, af)			\
+	mux- ## func {				\
+		groups = PMGROUP(P ## pin);	\
+		function = #af;			\
+	}
+#define PMMUX_LPM_LOW(func, pin, af)		\
+	mux- ## func {				\
+		groups = PMGROUP(P ## pin);	\
+		function = #af;			\
+		low-power-disable;		\
+	}
+#define PMMUX_LPM_HIGH(func, pin, af)		\
+	mux- ## func {				\
+		groups = PMGROUP(P ## pin);	\
+		function = #af;			\
+		low-power-enable;		\
+	}
+
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Marvell PXA2xx family SoC";
 	compatible = "marvell,pxa2xx";
 	interrupt-parent = <&pxairq>;
@@ -24,8 +44,6 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
-		#size-cells = <0>;
 		cpu {
 			compatible = "marvell,xscale";
 			device_type = "cpu";
@@ -76,7 +94,7 @@
 			};
 		};
 
-		ffuart: uart@40100000 {
+		ffuart: serial@40100000 {
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40100000 0x30>;
 			interrupts = <22>;
@@ -84,7 +102,7 @@
 			status = "disabled";
 		};
 
-		btuart: uart@40200000 {
+		btuart: serial@40200000 {
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40200000 0x30>;
 			interrupts = <21>;
@@ -92,7 +110,7 @@
 			status = "disabled";
 		};
 
-		stuart: uart@40700000 {
+		stuart: serial@40700000 {
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40700000 0x30>;
 			interrupts = <20>;
@@ -100,9 +118,9 @@
 			status = "disabled";
 		};
 
-		hwuart: uart@41100000 {
+		hwuart: serial@41600000 {
 			compatible = "mrvl,pxa-uart";
-			reg = <0x41100000 0x30>;
+			reg = <0x41600000 0x30>;
 			interrupts = <7>;
 			status = "disabled";
 		};
@@ -114,13 +132,6 @@
 			clocks = <&clks CLK_I2C>;
 			#address-cells = <0x1>;
 			#size-cells = <0>;
-			status = "disabled";
-		};
-
-		usb0: ohci@4c000000 {
-			compatible = "marvell,pxa-ohci";
-			reg = <0x4c000000 0x10000>;
-			interrupts = <3>;
 			status = "disabled";
 		};
 

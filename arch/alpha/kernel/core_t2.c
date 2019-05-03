@@ -351,7 +351,7 @@ t2_sg_map_window2(struct pci_controller *hose,
 
 	/* Note we can only do 1 SG window, as the other is for direct, so
 	   do an ISA SG area, especially for the floppy. */
-	hose->sg_isa = iommu_arena_new(hose, base, length, 0);
+	hose->sg_isa = iommu_arena_new(hose, base, length, SMP_CACHE_BYTES);
 	hose->sg_pci = NULL;
 
 	temp = (base & 0xfff00000UL) | ((base + length - 1) >> 20);

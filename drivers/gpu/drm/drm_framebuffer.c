@@ -25,7 +25,9 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_print.h>
+#include <drm/drm_util.h>
 
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
@@ -112,17 +114,21 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	struct drm_mode_fb_cmd2 r = {};
 	int ret;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
+	r.pixel_format = drm_driver_legacy_fb_format(dev, or->bpp, or->depth);
+	if (r.pixel_format == DRM_FORMAT_INVALID) {
+		DRM_DEBUG("bad {bpp:%d, depth:%d}\n", or->bpp, or->depth);
+		return -EINVAL;
+	}
+
 	/* convert to new format and call new ioctl */
 	r.fb_id = or->fb_id;
 	r.width = or->width;
 	r.height = or->height;
 	r.pitches[0] = or->pitch;
-	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
 	r.handles[0] = or->handle;
-
-	if (r.pixel_format == DRM_FORMAT_XRGB2101010 &&
-	    dev->driver->driver_features & DRIVER_PREFER_XBGR_30BPP)
-		r.pixel_format = DRM_FORMAT_XBGR2101010;
 
 	ret = drm_mode_addfb2(dev, &r, file_priv);
 	if (ret)
@@ -164,7 +170,7 @@ static int framebuffer_check(struct drm_device *dev,
 	int i;
 
 	/* check if the format is supported at all */
-	info = __drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
+	info = __drm_format_info(r->pixel_format);
 	if (!info) {
 		struct drm_format_name_buf format_name;
 
@@ -190,20 +196,26 @@ static int framebuffer_check(struct drm_device *dev,
 	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = fb_plane_width(r->width, info, i);
 		unsigned int height = fb_plane_height(r->height, info, i);
-		unsigned int cpp = info->cpp[i];
+		unsigned int block_size = info->char_per_block[i];
+		u64 min_pitch = drm_format_info_min_pitch(info, i, width);
+
+		if (!block_size && (r->modifier[i] == DRM_FORMAT_MOD_LINEAR)) {
+			DRM_DEBUG_KMS("Format requires non-linear modifier for plane %d\n", i);
+			return -EINVAL;
+		}
 
 		if (!r->handles[i]) {
 			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
 			return -EINVAL;
 		}
 
-		if ((uint64_t) width * cpp > UINT_MAX)
+		if (min_pitch > UINT_MAX)
 			return -ERANGE;
 
 		if ((uint64_t) height * r->pitches[i] + r->offsets[i] > UINT_MAX)
 			return -ERANGE;
 
-		if (r->pitches[i] < width * cpp) {
+		if (block_size && r->pitches[i] < min_pitch) {
 			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
@@ -312,6 +324,7 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 
 	return fb;
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_internal_framebuffer_create);
 
 /**
  * drm_mode_addfb2 - add an FB to the graphics configuration
@@ -335,7 +348,7 @@ int drm_mode_addfb2(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_internal_framebuffer_create(dev, r, file_priv);
 	if (IS_ERR(fb))
@@ -350,6 +363,30 @@ int drm_mode_addfb2(struct drm_device *dev,
 	mutex_unlock(&file_priv->fbs_lock);
 
 	return 0;
+}
+
+int drm_mode_addfb2_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv)
+{
+#ifdef __BIG_ENDIAN
+	if (!dev->mode_config.quirk_addfb_prefer_host_byte_order) {
+		/*
+		 * Drivers must set the
+		 * quirk_addfb_prefer_host_byte_order quirk to make
+		 * the drm_mode_addfb() compat code work correctly on
+		 * bigendian machines.
+		 *
+		 * If they don't they interpret pixel_format values
+		 * incorrectly for bug compatibility, which in turn
+		 * implies the ADDFB2 ioctl does not work correctly
+		 * then.  So block it to make userspace fallback to
+		 * ADDFB.
+		 */
+		DRM_DEBUG_KMS("addfb2 broken on bigendian");
+		return -EOPNOTSUPP;
+	}
+#endif
+	return drm_mode_addfb2(dev, data, file_priv);
 }
 
 struct drm_mode_rmfb_work {
@@ -391,7 +428,7 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 	int found = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, fb_id);
 	if (!fb)
@@ -468,7 +505,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
@@ -541,7 +578,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
@@ -736,7 +773,7 @@ EXPORT_SYMBOL(drm_framebuffer_lookup);
  * @fb: fb to unregister
  *
  * Drivers need to call this when cleaning up driver-private framebuffers, e.g.
- * those used for fbdev. Note that the caller must hold a reference of it's own,
+ * those used for fbdev. Note that the caller must hold a reference of its own,
  * i.e. the object may not be destroyed through this call (since it'll lead to a
  * locking inversion).
  *

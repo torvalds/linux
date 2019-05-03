@@ -79,6 +79,12 @@
 #define ALIGN __ALIGN
 #define ALIGN_STR __ALIGN_STR
 
+#ifndef GLOBAL
+#define GLOBAL(name) \
+	.globl name ASM_NL \
+	name:
+#endif
+
 #ifndef ENTRY
 #define ENTRY(name) \
 	.globl name ASM_NL \
@@ -90,6 +96,7 @@
 #ifndef WEAK
 #define WEAK(name)	   \
 	.weak name ASM_NL   \
+	ALIGN ASM_NL \
 	name:
 #endif
 

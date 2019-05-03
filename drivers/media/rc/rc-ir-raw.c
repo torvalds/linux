@@ -102,7 +102,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
 int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 {
 	ktime_t			now;
-	DEFINE_IR_RAW_EVENT(ev);
+	struct ir_raw_event	ev = {};
 
 	if (!dev->raw)
 		return -EINVAL;
@@ -186,7 +186,7 @@ int ir_raw_event_store_with_filter(struct rc_dev *dev, struct ir_raw_event *ev)
 		dev->raw->this_ev = *ev;
 	}
 
-	/* Enter idle mode if nessesary */
+	/* Enter idle mode if necessary */
 	if (!ev->pulse && dev->timeout &&
 	    dev->raw->this_ev.duration >= dev->timeout)
 		ir_raw_event_set_idle(dev, true);
@@ -210,7 +210,7 @@ void ir_raw_event_set_idle(struct rc_dev *dev, bool idle)
 	if (idle) {
 		dev->raw->this_ev.timeout = true;
 		ir_raw_event_store(dev, &dev->raw->this_ev);
-		init_ir_raw_event(&dev->raw->this_ev);
+		dev->raw->this_ev = (struct ir_raw_event) {};
 	}
 
 	if (dev->s_idle)
@@ -562,10 +562,10 @@ static void ir_raw_edge_handle(struct timer_list *t)
 	spin_lock_irqsave(&dev->raw->edge_spinlock, flags);
 	interval = ktime_sub(ktime_get(), dev->raw->last_event);
 	if (ktime_to_ns(interval) >= dev->timeout) {
-		DEFINE_IR_RAW_EVENT(ev);
-
-		ev.timeout = true;
-		ev.duration = ktime_to_ns(interval);
+		struct ir_raw_event ev = {
+			.timeout = true,
+			.duration = ktime_to_ns(interval)
+		};
 
 		ir_raw_event_store(dev, &ev);
 	} else {

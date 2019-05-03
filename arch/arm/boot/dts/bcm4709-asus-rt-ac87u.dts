@@ -66,3 +66,34 @@
 &usb3_phy {
 	status = "okay";
 };
+
+&nandcs {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot@0 {
+			label = "boot";
+			reg = <0x00000000 0x00080000>;
+			read-only;
+		};
+
+		nvram@80000 {
+			label = "nvram";
+			reg = <0x00080000 0x00180000>;
+		};
+
+		firmware@200000 {
+			label = "firmware";
+			reg = <0x00200000 0x07cc0000>;
+			compatible = "brcm,trx";
+		};
+
+		asus@7ec0000 {
+			label = "asus";
+			reg = <0x07ec0000 0x00140000>;
+			read-only;
+		};
+	};
+};

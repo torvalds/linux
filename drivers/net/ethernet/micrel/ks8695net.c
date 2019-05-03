@@ -391,7 +391,7 @@ ks8695_tx_irq(int irq, void *dev_id)
 					 ksp->tx_buffers[buff_n].dma_ptr,
 					 ksp->tx_buffers[buff_n].length,
 					 DMA_TO_DEVICE);
-			dev_kfree_skb_irq(ksp->tx_buffers[buff_n].skb);
+			dev_consume_skb_irq(ksp->tx_buffers[buff_n].skb);
 			ksp->tx_buffers[buff_n].skb = NULL;
 			ksp->tx_ring_used--;
 		}
@@ -1164,7 +1164,7 @@ ks8695_timeout(struct net_device *ndev)
  *	sk_buff and adds it to the TX ring. It then kicks the TX DMA
  *	engine to ensure transmission begins.
  */
-static int
+static netdev_tx_t
 ks8695_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct ks8695_priv *ksp = netdev_priv(ndev);

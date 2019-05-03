@@ -62,7 +62,6 @@
 #include <net/netevent.h>
 #include <net/addrconf.h>
 #include <net/bonding.h>
-#include <net/addrconf.h>
 #include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 #include <net/udp_tunnel.h>
@@ -434,6 +433,60 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 }
 
 /**
+ *	cxgb4_change_mac - Update match filter for a MAC address.
+ *	@pi: the port_info
+ *	@viid: the VI id
+ *	@tcam_idx: TCAM index of existing filter for old value of MAC address,
+ *		   or -1
+ *	@addr: the new MAC address value
+ *	@persist: whether a new MAC allocation should be persistent
+ *	@add_smt: if true also add the address to the HW SMT
+ *
+ *	Modifies an MPS filter and sets it to the new MAC address if
+ *	@tcam_idx >= 0, or adds the MAC address to a new filter if
+ *	@tcam_idx < 0. In the latter case the address is added persistently
+ *	if @persist is %true.
+ *	Addresses are programmed to hash region, if tcam runs out of entries.
+ *
+ */
+static int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
+			    int *tcam_idx, const u8 *addr, bool persist,
+			    u8 *smt_idx)
+{
+	struct adapter *adapter = pi->adapter;
+	struct hash_mac_addr *entry, *new_entry;
+	int ret;
+
+	ret = t4_change_mac(adapter, adapter->mbox, viid,
+			    *tcam_idx, addr, persist, smt_idx);
+	/* We ran out of TCAM entries. try programming hash region. */
+	if (ret == -ENOMEM) {
+		/* If the MAC address to be updated is in the hash addr
+		 * list, update it from the list
+		 */
+		list_for_each_entry(entry, &adapter->mac_hlist, list) {
+			if (entry->iface_mac) {
+				ether_addr_copy(entry->addr, addr);
+				goto set_hash;
+			}
+		}
+		new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
+		if (!new_entry)
+			return -ENOMEM;
+		ether_addr_copy(new_entry->addr, addr);
+		new_entry->iface_mac = true;
+		list_add_tail(&new_entry->list, &adapter->mac_hlist);
+set_hash:
+		ret = cxgb4_set_addr_hash(pi);
+	} else if (ret >= 0) {
+		*tcam_idx = ret;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+/*
  *	link_start - enable a port
  *	@dev: the port to enable
  *
@@ -451,15 +504,9 @@ static int link_start(struct net_device *dev)
 	 */
 	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
 			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
-	if (ret == 0) {
-		ret = t4_change_mac(pi->adapter, mb, pi->viid,
-				    pi->xact_addr_filt, dev->dev_addr, true,
-				    true);
-		if (ret >= 0) {
-			pi->xact_addr_filt = ret;
-			ret = 0;
-		}
-	}
+	if (ret == 0)
+		ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
+				       dev->dev_addr, true, &pi->smt_idx);
 	if (ret == 0)
 		ret = t4_link_l1cfg(pi->adapter, mb, pi->tx_chan,
 				    &pi->link_cfg);
@@ -528,7 +575,7 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 			struct sge_eth_txq *eq;
 
 			eq = container_of(txq, struct sge_eth_txq, q);
-			netif_tx_wake_queue(eq->txq);
+			t4_sge_eth_txq_egress_update(q->adap, eq, -1);
 		} else {
 			struct sge_uld_txq *oq;
 
@@ -604,12 +651,12 @@ out:
 
 static void disable_msi(struct adapter *adapter)
 {
-	if (adapter->flags & USING_MSIX) {
+	if (adapter->flags & CXGB4_USING_MSIX) {
 		pci_disable_msix(adapter->pdev);
-		adapter->flags &= ~USING_MSIX;
-	} else if (adapter->flags & USING_MSI) {
+		adapter->flags &= ~CXGB4_USING_MSIX;
+	} else if (adapter->flags & CXGB4_USING_MSI) {
 		pci_disable_msi(adapter->pdev);
-		adapter->flags &= ~USING_MSI;
+		adapter->flags &= ~CXGB4_USING_MSI;
 	}
 }
 
@@ -625,7 +672,7 @@ static irqreturn_t t4_nondata_intr(int irq, void *cookie)
 		adap->swintr = 1;
 		t4_write_reg(adap, MYPF_REG(PL_PF_INT_CAUSE_A), v);
 	}
-	if (adap->flags & MASTER_PF)
+	if (adap->flags & CXGB4_MASTER_PF)
 		t4_slow_intr_handler(adap);
 	return IRQ_HANDLED;
 }
@@ -790,9 +837,9 @@ static void quiesce_rx(struct adapter *adap)
 /* Disable interrupt and napi handler */
 static void disable_interrupts(struct adapter *adap)
 {
-	if (adap->flags & FULL_INIT_DONE) {
+	if (adap->flags & CXGB4_FULL_INIT_DONE) {
 		t4_intr_disable(adap);
-		if (adap->flags & USING_MSIX) {
+		if (adap->flags & CXGB4_USING_MSIX) {
 			free_msix_queue_irqs(adap);
 			free_irq(adap->msix_info[0].vec, adap);
 		} else {
@@ -833,7 +880,7 @@ static int setup_fw_sge_queues(struct adapter *adap)
 	bitmap_zero(s->starving_fl, s->egr_sz);
 	bitmap_zero(s->txq_maperr, s->egr_sz);
 
-	if (adap->flags & USING_MSIX)
+	if (adap->flags & CXGB4_USING_MSIX)
 		adap->msi_idx = 1;         /* vector 0 is for non-queue interrupts */
 	else {
 		err = t4_sge_alloc_rxq(adap, &s->intrq, false, adap->port[0], 0,
@@ -886,10 +933,13 @@ static int setup_sge_queues(struct adapter *adap)
 			q->rspq.idx = j;
 			memset(&q->stats, 0, sizeof(q->stats));
 		}
-		for (j = 0; j < pi->nqsets; j++, t++) {
+
+		q = &s->ethrxq[pi->first_qset];
+		for (j = 0; j < pi->nqsets; j++, t++, q++) {
 			err = t4_sge_alloc_eth_txq(adap, t, dev,
 					netdev_get_tx_queue(dev, j),
-					s->fw_evtq.cntxt_id);
+					q->rspq.cntxt_id,
+					!!(adap->flags & CXGB4_SGE_DBQ_TIMER));
 			if (err)
 				goto freeout;
 		}
@@ -911,7 +961,7 @@ static int setup_sge_queues(struct adapter *adap)
 	if (!is_t4(adap->params.chip)) {
 		err = t4_sge_alloc_eth_txq(adap, &s->ptptxq, adap->port[0],
 					   netdev_get_tx_queue(adap->port[0], 0)
-					   , s->fw_evtq.cntxt_id);
+					   , s->fw_evtq.cntxt_id, false);
 		if (err)
 			goto freeout;
 	}
@@ -1586,28 +1636,6 @@ unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
 EXPORT_SYMBOL(cxgb4_best_aligned_mtu);
 
 /**
- *	cxgb4_tp_smt_idx - Get the Source Mac Table index for this VI
- *	@chip: chip type
- *	@viid: VI id of the given port
- *
- *	Return the SMT index for this VI.
- */
-unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid)
-{
-	/* In T4/T5, SMT contains 256 SMAC entries organized in
-	 * 128 rows of 2 entries each.
-	 * In T6, SMT contains 256 SMAC entries in 256 rows.
-	 * TODO: The below code needs to be updated when we add support
-	 * for 256 VFs.
-	 */
-	if (CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5)
-		return ((viid & 0x7f) << 1);
-	else
-		return (viid & 0x7f);
-}
-EXPORT_SYMBOL(cxgb4_tp_smt_idx);
-
-/**
  *	cxgb4_port_chan - get the HW channel of a port
  *	@dev: the net device for the port
  *
@@ -2252,7 +2280,7 @@ static int cxgb_up(struct adapter *adap)
 	if (err)
 		goto freeq;
 
-	if (adap->flags & USING_MSIX) {
+	if (adap->flags & CXGB4_USING_MSIX) {
 		name_msix_vecs(adap);
 		err = request_irq(adap->msix_info[0].vec, t4_nondata_intr, 0,
 				  adap->msix_info[0].desc, adap);
@@ -2265,7 +2293,8 @@ static int cxgb_up(struct adapter *adap)
 		}
 	} else {
 		err = request_irq(adap->pdev->irq, t4_intr_handler(adap),
-				  (adap->flags & USING_MSI) ? 0 : IRQF_SHARED,
+				  (adap->flags & CXGB4_USING_MSI) ? 0
+								  : IRQF_SHARED,
 				  adap->port[0]->name, adap);
 		if (err)
 			goto irq_err;
@@ -2274,15 +2303,13 @@ static int cxgb_up(struct adapter *adap)
 	enable_rx(adap);
 	t4_sge_start(adap);
 	t4_intr_enable(adap);
-	adap->flags |= FULL_INIT_DONE;
+	adap->flags |= CXGB4_FULL_INIT_DONE;
 	mutex_unlock(&uld_mutex);
 
 	notify_ulds(adap, CXGB4_STATE_UP);
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
 #endif
-	/* Initialize hash mac addr list*/
-	INIT_LIST_HEAD(&adap->mac_hlist);
 	return err;
 
  irq_err:
@@ -2304,7 +2331,8 @@ static void cxgb_down(struct adapter *adapter)
 
 	t4_sge_stop(adapter);
 	t4_free_sge_resources(adapter);
-	adapter->flags &= ~FULL_INIT_DONE;
+
+	adapter->flags &= ~CXGB4_FULL_INIT_DONE;
 }
 
 /*
@@ -2318,7 +2346,7 @@ static int cxgb_open(struct net_device *dev)
 
 	netif_carrier_off(dev);
 
-	if (!(adapter->flags & FULL_INIT_DONE)) {
+	if (!(adapter->flags & CXGB4_FULL_INIT_DONE)) {
 		err = cxgb_up(adapter);
 		if (err < 0)
 			return err;
@@ -2670,7 +2698,7 @@ static void cxgb4_mgmt_fill_vf_station_mac_addr(struct adapter *adap)
 
 	for (vf = 0, nvfs = pci_sriov_get_totalvfs(adap->pdev);
 		vf < nvfs; vf++) {
-		macaddr[5] = adap->pf * 16 + vf;
+		macaddr[5] = adap->pf * nvfs + vf;
 		ether_addr_copy(adap->vfinfo[vf].vf_mac_addr, macaddr);
 	}
 }
@@ -2713,6 +2741,7 @@ static int cxgb4_mgmt_get_vf_config(struct net_device *dev,
 	ivi->min_tx_rate = 0;
 	ether_addr_copy(ivi->mac, vfinfo->vf_mac_addr);
 	ivi->vlan = vfinfo->vlan;
+	ivi->linkstate = vfinfo->link_state;
 	return 0;
 }
 
@@ -2747,6 +2776,27 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 			"Min tx rate (%d) (> 0) for VF %d is Invalid.\n",
 			min_tx_rate, vf);
 		return -EINVAL;
+	}
+
+	if (max_tx_rate == 0) {
+		/* unbind VF to to any Traffic Class */
+		fw_pfvf =
+		    (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+		     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_SCHEDCLASS_ETH));
+		fw_class = 0xffffffff;
+		ret = t4_set_params(adap, adap->mbox, adap->pf, vf + 1, 1,
+				    &fw_pfvf, &fw_class);
+		if (ret) {
+			dev_err(adap->pdev_dev,
+				"Err %d in unbinding PF %d VF %d from TX Rate Limiting\n",
+				ret, adap->pf, vf);
+			return -EINVAL;
+		}
+		dev_info(adap->pdev_dev,
+			 "PF %d VF %d is unbound from TX Rate Limiting\n",
+			 adap->pf, vf);
+		adap->vfinfo[vf].tx_rate = 0;
+		return 0;
 	}
 
 	ret = t4_get_link_params(pi, &link_ok, &speed, &mtu);
@@ -2798,8 +2848,8 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 			    &fw_class);
 	if (ret) {
 		dev_err(adap->pdev_dev,
-			"Err %d in binding VF %d to Traffic Class %d\n",
-			ret, vf, class_id);
+			"Err %d in binding PF %d VF %d to Traffic Class %d\n",
+			ret, adap->pf, vf, class_id);
 		return -EINVAL;
 	}
 	dev_info(adap->pdev_dev, "PF %d VF %d is bound to Class %d\n",
@@ -2831,6 +2881,49 @@ static int cxgb4_mgmt_set_vf_vlan(struct net_device *dev, int vf,
 		ret, (vlan ? "setting" : "clearing"), adap->pf, vf);
 	return ret;
 }
+
+static int cxgb4_mgmt_set_vf_link_state(struct net_device *dev, int vf,
+					int link)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	u32 param, val;
+	int ret = 0;
+
+	if (vf >= adap->num_vfs)
+		return -EINVAL;
+
+	switch (link) {
+	case IFLA_VF_LINK_STATE_AUTO:
+		val = FW_VF_LINK_STATE_AUTO;
+		break;
+
+	case IFLA_VF_LINK_STATE_ENABLE:
+		val = FW_VF_LINK_STATE_ENABLE;
+		break;
+
+	case IFLA_VF_LINK_STATE_DISABLE:
+		val = FW_VF_LINK_STATE_DISABLE;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_LINK_STATE));
+	ret = t4_set_params(adap, adap->mbox, adap->pf, vf + 1, 1,
+			    &param, &val);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Error %d in setting PF %d VF %d link state\n",
+			ret, adap->pf, vf);
+		return -EINVAL;
+	}
+
+	adap->vfinfo[vf].link_state = link;
+	return ret;
+}
 #endif /* CONFIG_PCI_IOV */
 
 static int cxgb_set_mac_addr(struct net_device *dev, void *p)
@@ -2842,8 +2935,8 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = t4_change_mac(pi->adapter, pi->adapter->pf, pi->viid,
-			    pi->xact_addr_filt, addr->sa_data, true, true);
+	ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
+			       addr->sa_data, true, &pi->smt_idx);
 	if (ret < 0)
 		return ret;
 
@@ -2858,7 +2951,7 @@ static void cxgb_netpoll(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
 
-	if (adap->flags & USING_MSIX) {
+	if (adap->flags & CXGB4_USING_MSIX) {
 		int i;
 		struct sge_eth_rxq *rx = &adap->sge.ethrxq[pi->first_qset];
 
@@ -2885,7 +2978,7 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	if (index < 0 || index > pi->nqsets - 1)
 		return -EINVAL;
 
-	if (!(adap->flags & FULL_INIT_DONE)) {
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE)) {
 		dev_err(adap->pdev_dev,
 			"Failed to rate limit on queue %d. Link Down?\n",
 			index);
@@ -2986,7 +3079,7 @@ static int cxgb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
 
-	if (!(adap->flags & FULL_INIT_DONE)) {
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE)) {
 		dev_err(adap->pdev_dev,
 			"Failed to setup tc on port %d. Link Down?\n",
 			pi->port_id);
@@ -3246,12 +3339,13 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 
 #ifdef CONFIG_PCI_IOV
 static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
-	.ndo_open             = cxgb4_mgmt_open,
-	.ndo_set_vf_mac       = cxgb4_mgmt_set_vf_mac,
-	.ndo_get_vf_config    = cxgb4_mgmt_get_vf_config,
-	.ndo_set_vf_rate      = cxgb4_mgmt_set_vf_rate,
-	.ndo_get_phys_port_id = cxgb4_mgmt_get_phys_port_id,
-	.ndo_set_vf_vlan      = cxgb4_mgmt_set_vf_vlan,
+	.ndo_open               = cxgb4_mgmt_open,
+	.ndo_set_vf_mac         = cxgb4_mgmt_set_vf_mac,
+	.ndo_get_vf_config      = cxgb4_mgmt_get_vf_config,
+	.ndo_set_vf_rate        = cxgb4_mgmt_set_vf_rate,
+	.ndo_get_phys_port_id   = cxgb4_mgmt_get_phys_port_id,
+	.ndo_set_vf_vlan        = cxgb4_mgmt_set_vf_vlan,
+	.ndo_set_vf_link_state	= cxgb4_mgmt_set_vf_link_state,
 };
 #endif
 
@@ -4117,7 +4211,7 @@ static int adap_init0(struct adapter *adap)
 		return ret;
 	}
 	if (ret == adap->mbox)
-		adap->flags |= MASTER_PF;
+		adap->flags |= CXGB4_MASTER_PF;
 
 	/*
 	 * If we're the Master PF Driver and the device is uninitialized,
@@ -4132,7 +4226,7 @@ static int adap_init0(struct adapter *adap)
 	/* If firmware is too old (not supported by driver) force an update. */
 	if (ret)
 		state = DEV_STATE_UNINIT;
-	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
+	if ((adap->flags & CXGB4_MASTER_PF) && state != DEV_STATE_INIT) {
 		struct fw_info *fw_info;
 		struct fw_hdr *card_fw;
 		const struct firmware *fw;
@@ -4194,7 +4288,7 @@ static int adap_init0(struct adapter *adap)
 				ret);
 		dev_info(adap->pdev_dev, "Coming up as %s: "\
 			 "Adapter already initialized\n",
-			 adap->flags & MASTER_PF ? "MASTER" : "SLAVE");
+			 adap->flags & CXGB4_MASTER_PF ? "MASTER" : "SLAVE");
 	} else {
 		dev_info(adap->pdev_dev, "Coming up as MASTER: "\
 			 "Initializing adapter\n");
@@ -4279,6 +4373,24 @@ static int adap_init0(struct adapter *adap)
 	ret = t4_sge_init(adap);
 	if (ret < 0)
 		goto bye;
+
+	/* Grab the SGE Doorbell Queue Timer values.  If successful, that
+	 * indicates that the Firmware and Hardware support this.
+	 */
+	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK));
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+			      1, params, val);
+
+	if (!ret) {
+		adap->sge.dbqtimer_tick = val[0];
+		ret = t4_read_sge_dbqtimers(adap,
+					    ARRAY_SIZE(adap->sge.dbqtimer_val),
+					    adap->sge.dbqtimer_val);
+	}
+
+	if (!ret)
+		adap->flags |= CXGB4_SGE_DBQ_TIMER;
 
 	if (is_bypass_device(adap->pdev->device))
 		adap->params.bypass = 1;
@@ -4402,7 +4514,7 @@ static int adap_init0(struct adapter *adap)
 	 * offload connection through firmware work request
 	 */
 	if ((val[0] != val[1]) && (ret >= 0)) {
-		adap->flags |= FW_OFLD_CONN;
+		adap->flags |= CXGB4_FW_OFLD_CONN;
 		adap->tids.aftid_base = val[0];
 		adap->tids.aftid_end = val[1];
 	}
@@ -4447,6 +4559,15 @@ static int adap_init0(struct adapter *adap)
 		adap->params.filter2_wr_support = (ret == 0 && val[0] != 0);
 	}
 
+	/* Check if FW supports returning vin and smt index.
+	 * If this is not supported, driver will interpret
+	 * these values from viid.
+	 */
+	params[0] = FW_PARAM_DEV(OPAQUE_VIID_SMT_EXTN);
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+			      1, params, val);
+	adap->params.viid_smt_extn_support = (ret == 0 && val[0] != 0);
+
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
@@ -4486,7 +4607,7 @@ static int adap_init0(struct adapter *adap)
 		 * 2. Server filter: This are special filters which are used
 		 * to redirect SYN packets to offload queue.
 		 */
-		if (adap->flags & FW_OFLD_CONN && !is_bypass(adap)) {
+		if (adap->flags & CXGB4_FW_OFLD_CONN && !is_bypass(adap)) {
 			adap->tids.sftid_base = adap->tids.ftid_base +
 					DIV_ROUND_UP(adap->tids.nftids, 3);
 			adap->tids.nsftids = adap->tids.nftids -
@@ -4665,7 +4786,7 @@ static int adap_init0(struct adapter *adap)
 			     adap->params.b_wnd);
 	}
 	t4_init_sge_params(adap);
-	adap->flags |= FW_OK;
+	adap->flags |= CXGB4_FW_OK;
 	t4_init_tp_params(adap, true);
 	return 0;
 
@@ -4700,7 +4821,7 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 		goto out;
 
 	rtnl_lock();
-	adap->flags &= ~FW_OK;
+	adap->flags &= ~CXGB4_FW_OK;
 	notify_ulds(adap, CXGB4_STATE_START_RECOVERY);
 	spin_lock(&adap->stats_lock);
 	for_each_port(adap, i) {
@@ -4712,12 +4833,12 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 	}
 	spin_unlock(&adap->stats_lock);
 	disable_interrupts(adap);
-	if (adap->flags & FULL_INIT_DONE)
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
 		cxgb_down(adap);
 	rtnl_unlock();
-	if ((adap->flags & DEV_ENABLED)) {
+	if ((adap->flags & CXGB4_DEV_ENABLED)) {
 		pci_disable_device(pdev);
-		adap->flags &= ~DEV_ENABLED;
+		adap->flags &= ~CXGB4_DEV_ENABLED;
 	}
 out:	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
@@ -4735,37 +4856,48 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_RECOVERED;
 	}
 
-	if (!(adap->flags & DEV_ENABLED)) {
+	if (!(adap->flags & CXGB4_DEV_ENABLED)) {
 		if (pci_enable_device(pdev)) {
 			dev_err(&pdev->dev, "Cannot reenable PCI "
 					    "device after reset\n");
 			return PCI_ERS_RESULT_DISCONNECT;
 		}
-		adap->flags |= DEV_ENABLED;
+		adap->flags |= CXGB4_DEV_ENABLED;
 	}
 
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	if (t4_wait_dev_ready(adap->regs) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
 	if (t4_fw_hello(adap, adap->mbox, adap->pf, MASTER_MUST, NULL) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
-	adap->flags |= FW_OK;
+	adap->flags |= CXGB4_FW_OK;
 	if (adap_init1(adap, &c))
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	for_each_port(adap, i) {
-		struct port_info *p = adap2pinfo(adap, i);
+		struct port_info *pi = adap2pinfo(adap, i);
+		u8 vivld = 0, vin = 0;
 
-		ret = t4_alloc_vi(adap, adap->mbox, p->tx_chan, adap->pf, 0, 1,
-				  NULL, NULL);
+		ret = t4_alloc_vi(adap, adap->mbox, pi->tx_chan, adap->pf, 0, 1,
+				  NULL, NULL, &vivld, &vin);
 		if (ret < 0)
 			return PCI_ERS_RESULT_DISCONNECT;
-		p->viid = ret;
-		p->xact_addr_filt = -1;
+		pi->viid = ret;
+		pi->xact_addr_filt = -1;
+		/* If fw supports returning the VIN as part of FW_VI_CMD,
+		 * save the returned values.
+		 */
+		if (adap->params.viid_smt_extn_support) {
+			pi->vivld = vivld;
+			pi->vin = vin;
+		} else {
+			/* Retrieve the values from VIID */
+			pi->vivld = FW_VIID_VIVLD_G(pi->viid);
+			pi->vin = FW_VIID_VIN_G(pi->viid);
+		}
 	}
 
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
@@ -4853,7 +4985,7 @@ static int cfg_queues(struct adapter *adap)
 	 * at all is problematic ...
 	 */
 	niqflint = adap->params.pfres.niqflint - 1;
-	if (!(adap->flags & USING_MSIX))
+	if (!(adap->flags & CXGB4_USING_MSIX))
 		niqflint--;
 	neq = adap->params.pfres.neq / 2;
 	avail_eth_qsets = min(niqflint, neq);
@@ -5135,8 +5267,8 @@ static void print_adapter_info(struct adapter *adapter)
 	/* Software/Hardware configuration */
 	dev_info(adapter->pdev_dev, "Configuration: %sNIC %s, %s capable\n",
 		 is_offload(adapter) ? "R" : "",
-		 ((adapter->flags & USING_MSIX) ? "MSI-X" :
-		  (adapter->flags & USING_MSI) ? "MSI" : ""),
+		 ((adapter->flags & CXGB4_USING_MSIX) ? "MSI-X" :
+		  (adapter->flags & CXGB4_USING_MSI) ? "MSI" : ""),
 		 is_offload(adapter) ? "Offload" : "non-Offload");
 }
 
@@ -5211,13 +5343,13 @@ static void free_some_resources(struct adapter *adapter)
 			kfree(adap2pinfo(adapter, i)->rss);
 			free_netdev(adapter->port[i]);
 		}
-	if (adapter->flags & FW_OK)
+	if (adapter->flags & CXGB4_FW_OK)
 		t4_fw_bye(adapter, adapter->pf);
 }
 
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
-		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
+		   NETIF_F_GRO | NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 #define SEGMENT_SIZE 128
 
 static int t4_get_chip_type(struct adapter *adap, int ver)
@@ -5515,7 +5647,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* PCI device has been enabled */
-	adapter->flags |= DEV_ENABLED;
+	adapter->flags |= CXGB4_DEV_ENABLED;
 	memset(adapter->chan_map, 0xff, sizeof(adapter->chan_map));
 
 	/* If possible, we use PCIe Relaxed Ordering Attribute to deliver
@@ -5533,7 +5665,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * using Relaxed Ordering.
 	 */
 	if (!pcie_relaxed_ordering_enabled(pdev))
-		adapter->flags |= ROOT_NO_RELAXED_ORDERING;
+		adapter->flags |= CXGB4_ROOT_NO_RELAXED_ORDERING;
 
 	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->tid_release_lock);
@@ -5602,6 +5734,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     (is_t5(adapter->params.chip) ? STATMODE_V(0) :
 			      T6_STATMODE_V(0)));
 
+	/* Initialize hash mac addr list */
+	INIT_LIST_HEAD(&adapter->mac_hlist);
+
 	for_each_port(adapter, i) {
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_ETH_QSETS);
@@ -5621,7 +5756,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_RXCSUM | NETIF_F_RXHASH |
+			NETIF_F_RXCSUM | NETIF_F_RXHASH | NETIF_F_GRO |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_HW_TC;
 
@@ -5630,9 +5765,12 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 						   NETIF_F_IPV6_CSUM |
 						   NETIF_F_RXCSUM |
 						   NETIF_F_GSO_UDP_TUNNEL |
+						   NETIF_F_GSO_UDP_TUNNEL_CSUM |
 						   NETIF_F_TSO | NETIF_F_TSO6;
 
-			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
+					       NETIF_F_GSO_UDP_TUNNEL_CSUM |
+					       NETIF_F_HW_TLS_RECORD;
 		}
 
 		if (highdma)
@@ -5659,7 +5797,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, adapter);
 
-	if (adapter->flags & FW_OK) {
+	if (adapter->flags & CXGB4_FW_OK) {
 		err = t4_port_init(adapter, func, func, 0);
 		if (err)
 			goto out_free_dev;
@@ -5681,7 +5819,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	if (!(adapter->flags & FW_OK))
+	if (!(adapter->flags & CXGB4_FW_OK))
 		goto fw_attach_fail;
 
 	/* Configure queues and allocate tables now, they can be needed as
@@ -5775,9 +5913,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* See what interrupts we'll be using */
 	if (msi > 1 && enable_msix(adapter) == 0)
-		adapter->flags |= USING_MSIX;
+		adapter->flags |= CXGB4_USING_MSIX;
 	else if (msi > 0 && pci_enable_msi(pdev) == 0) {
-		adapter->flags |= USING_MSI;
+		adapter->flags |= CXGB4_USING_MSI;
 		if (msi > 1)
 			free_msix_info(adapter);
 	}
@@ -5844,13 +5982,17 @@ fw_attach_fail:
 	if (!is_t4(adapter->params.chip))
 		cxgb4_ptp_init(adapter);
 
+	if (IS_REACHABLE(CONFIG_THERMAL) &&
+	    !is_t4(adapter->params.chip) && (adapter->flags & CXGB4_FW_OK))
+		cxgb4_thermal_init(adapter);
+
 	print_adapter_info(adapter);
 	return 0;
 
  out_free_dev:
 	t4_free_sge_resources(adapter);
 	free_some_resources(adapter);
-	if (adapter->flags & USING_MSIX)
+	if (adapter->flags & CXGB4_USING_MSIX)
 		free_msix_info(adapter);
 	if (adapter->num_uld || adapter->num_ofld_uld)
 		t4_uld_mem_free(adapter);
@@ -5876,13 +6018,14 @@ fw_attach_fail:
 static void remove_one(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
+	struct hash_mac_addr *entry, *tmp;
 
 	if (!adapter) {
 		pci_release_regions(pdev);
 		return;
 	}
 
-	adapter->flags |= SHUTTING_DOWN;
+	adapter->flags |= CXGB4_SHUTTING_DOWN;
 
 	if (adapter->pf == 4) {
 		int i;
@@ -5909,20 +6052,28 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (!is_t4(adapter->params.chip))
 			cxgb4_ptp_stop(adapter);
+		if (IS_REACHABLE(CONFIG_THERMAL))
+			cxgb4_thermal_remove(adapter);
 
 		/* If we allocated filters, free up state associated with any
 		 * valid filters ...
 		 */
 		clear_all_filters(adapter);
 
-		if (adapter->flags & FULL_INIT_DONE)
+		if (adapter->flags & CXGB4_FULL_INIT_DONE)
 			cxgb_down(adapter);
 
-		if (adapter->flags & USING_MSIX)
+		if (adapter->flags & CXGB4_USING_MSIX)
 			free_msix_info(adapter);
 		if (adapter->num_uld || adapter->num_ofld_uld)
 			t4_uld_mem_free(adapter);
 		free_some_resources(adapter);
+		list_for_each_entry_safe(entry, tmp, &adapter->mac_hlist,
+					 list) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
+
 #if IS_ENABLED(CONFIG_IPV6)
 		t4_cleanup_clip_tbl(adapter);
 #endif
@@ -5936,9 +6087,9 @@ static void remove_one(struct pci_dev *pdev)
 #endif
 	iounmap(adapter->regs);
 	pci_disable_pcie_error_reporting(pdev);
-	if ((adapter->flags & DEV_ENABLED)) {
+	if ((adapter->flags & CXGB4_DEV_ENABLED)) {
 		pci_disable_device(pdev);
-		adapter->flags &= ~DEV_ENABLED;
+		adapter->flags &= ~CXGB4_DEV_ENABLED;
 	}
 	pci_release_regions(pdev);
 	kfree(adapter->mbox_log);
@@ -5964,7 +6115,7 @@ static void shutdown_one(struct pci_dev *pdev)
 		return;
 	}
 
-	adapter->flags |= SHUTTING_DOWN;
+	adapter->flags |= CXGB4_SHUTTING_DOWN;
 
 	if (adapter->pf == 4) {
 		int i;
@@ -5982,7 +6133,7 @@ static void shutdown_one(struct pci_dev *pdev)
 		disable_msi(adapter);
 
 		t4_sge_stop(adapter);
-		if (adapter->flags & FW_OK)
+		if (adapter->flags & CXGB4_FW_OK)
 			t4_fw_bye(adapter, adapter->mbox);
 	}
 }

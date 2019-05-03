@@ -60,6 +60,9 @@ __HEAD
 	.long	0x02000690,0x60000050
 	.long	0x020006e0,0x20000050
 
+	.org	0x1a0
+	.quad	0,iplstart
+
 	.org	0x200
 
 #
@@ -308,16 +311,11 @@ ENTRY(startup_kdump)
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	l	%r15,.Lstack-.LPG0(%r13)
-	ahi	%r15,-STACK_FRAME_OVERHEAD
 	brasl	%r14,verify_facilities
-#ifdef CONFIG_KERNEL_UNCOMPRESSED
-	jg	startup_continue
-#else
-	jg	startup_decompressor
-#endif
+	brasl	%r14,startup_kernel
 
 .Lstack:
-	.long	0x8000 + (1<<(PAGE_SHIFT+THREAD_SIZE_ORDER))
+	.long	0x8000 + (1<<(PAGE_SHIFT+BOOT_STACK_ORDER)) - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 

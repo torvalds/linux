@@ -60,6 +60,13 @@ case $width in
 4) type=4byte ;;
 esac
 
+if [ -z "$ARCH" ]; then
+    case `uname -m` in
+	aarch64*) ARCH=arm64 ;;
+	arm*) ARCH=arm ;;
+    esac
+fi
+
 disas() {
 	${CROSS_COMPILE}as $AFLAGS -o $1.o $1.s > /dev/null 2>&1
 

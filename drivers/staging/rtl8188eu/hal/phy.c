@@ -298,25 +298,6 @@ void rtw_hal_set_chan(struct adapter *adapt, u8 channel)
 
 #define ODM_TXPWRTRACK_MAX_IDX_88E  6
 
-static u8 get_right_chnl_for_iqk(u8 chnl)
-{
-	u8 place;
-	u8 channel_all[ODM_TARGET_CHNL_NUM_2G_5G] = {
-		36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64,
-		100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122,
-		124, 126, 128, 130, 132, 134, 136, 138, 140, 149, 151, 153,
-		155, 157, 159, 161, 163, 165
-	};
-
-	if (chnl > 14) {
-		for (place = 0; place < sizeof(channel_all); place++) {
-			if (channel_all[place] == chnl)
-				return ++place;
-		}
-	}
-	return 0;
-}
-
 void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 				     u8 *direction, u32 *out_write_val)
 {
@@ -456,9 +437,9 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			thermal_val = (u8)(thermal_avg / thermal_avg_count);
 
 		if (dm_odm->RFCalibrateInfo.bDoneTxpower &&
-			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex)
+			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
 			delta = abs(thermal_val - dm_odm->RFCalibrateInfo.ThermalValue);
-		else {
+		} else {
 			delta = abs(thermal_val - hal_data->EEPROMThermalMeter);
 			if (dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
 				dm_odm->RFCalibrateInfo.bReloadtxpowerindex = false;
@@ -1215,7 +1196,7 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 {
 	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	s32 result[4][8];
-	u8 i, final, chn_index;
+	u8 i, final;
 	bool pathaok, pathbok;
 	s32 reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc, reg_ec4;
 	bool is12simular, is13simular, is23simular;
@@ -1244,15 +1225,10 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		return;
 	}
 
-	for (i = 0; i < 8; i++) {
-		result[0][i] = 0;
-		result[1][i] = 0;
-		result[2][i] = 0;
-		if ((i == 0) || (i == 2) || (i == 4)  || (i == 6))
-			result[3][i] = 0x100;
-		else
-			result[3][i] = 0;
-	}
+	memset(result, 0, sizeof(result));
+	for (i = 0; i < 8; i += 2)
+		result[3][i] = 0x100;
+
 	final = 0xff;
 	pathaok = false;
 	pathbok = false;
@@ -1324,12 +1300,10 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 				       (reg_ec4 == 0));
 	}
 
-	chn_index = get_right_chnl_for_iqk(adapt->HalData->CurrentChannel);
-
 	if (final < 4) {
 		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
-			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[chn_index].Value[0][i] = result[final][i];
-		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[chn_index].bIQKDone = true;
+			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].Value[0][i] = result[final][i];
+		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].bIQKDone = true;
 	}
 
 	save_adda_registers(adapt, iqk_bb_reg_92c,

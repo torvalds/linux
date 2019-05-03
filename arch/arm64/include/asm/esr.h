@@ -29,23 +29,24 @@
 #define ESR_ELx_EC_CP14_MR	(0x05)
 #define ESR_ELx_EC_CP14_LS	(0x06)
 #define ESR_ELx_EC_FP_ASIMD	(0x07)
-#define ESR_ELx_EC_CP10_ID	(0x08)
-/* Unallocated EC: 0x09 - 0x0B */
+#define ESR_ELx_EC_CP10_ID	(0x08)	/* EL2 only */
+#define ESR_ELx_EC_PAC		(0x09)	/* EL2 and above */
+/* Unallocated EC: 0x0A - 0x0B */
 #define ESR_ELx_EC_CP14_64	(0x0C)
 /* Unallocated EC: 0x0d */
 #define ESR_ELx_EC_ILL		(0x0E)
 /* Unallocated EC: 0x0F - 0x10 */
 #define ESR_ELx_EC_SVC32	(0x11)
-#define ESR_ELx_EC_HVC32	(0x12)
-#define ESR_ELx_EC_SMC32	(0x13)
+#define ESR_ELx_EC_HVC32	(0x12)	/* EL2 only */
+#define ESR_ELx_EC_SMC32	(0x13)	/* EL2 and above */
 /* Unallocated EC: 0x14 */
 #define ESR_ELx_EC_SVC64	(0x15)
-#define ESR_ELx_EC_HVC64	(0x16)
-#define ESR_ELx_EC_SMC64	(0x17)
+#define ESR_ELx_EC_HVC64	(0x16)	/* EL2 and above */
+#define ESR_ELx_EC_SMC64	(0x17)	/* EL2 and above */
 #define ESR_ELx_EC_SYS64	(0x18)
 #define ESR_ELx_EC_SVE		(0x19)
 /* Unallocated EC: 0x1A - 0x1E */
-#define ESR_ELx_EC_IMP_DEF	(0x1f)
+#define ESR_ELx_EC_IMP_DEF	(0x1f)	/* EL3 only */
 #define ESR_ELx_EC_IABT_LOW	(0x20)
 #define ESR_ELx_EC_IABT_CUR	(0x21)
 #define ESR_ELx_EC_PC_ALIGN	(0x22)
@@ -68,7 +69,7 @@
 /* Unallocated EC: 0x36 - 0x37 */
 #define ESR_ELx_EC_BKPT32	(0x38)
 /* Unallocated EC: 0x39 */
-#define ESR_ELx_EC_VECTOR32	(0x3A)
+#define ESR_ELx_EC_VECTOR32	(0x3A)	/* EL2 only */
 /* Unallocted EC: 0x3B */
 #define ESR_ELx_EC_BRK64	(0x3C)
 /* Unallocated EC: 0x3D - 0x3F */
@@ -137,6 +138,8 @@
 #define ESR_ELx_CV		(UL(1) << 24)
 #define ESR_ELx_COND_SHIFT	(20)
 #define ESR_ELx_COND_MASK	(UL(0xF) << ESR_ELx_COND_SHIFT)
+#define ESR_ELx_WFx_ISS_TI	(UL(1) << 0)
+#define ESR_ELx_WFx_ISS_WFI	(UL(0) << 0)
 #define ESR_ELx_WFx_ISS_WFE	(UL(1) << 0)
 #define ESR_ELx_xVC_IMM_MASK	((1UL << 16) - 1)
 
@@ -148,6 +151,9 @@
 #define DISR_EL1_ESR_MASK	(ESR_ELx_AET | ESR_ELx_EA | ESR_ELx_FSC)
 
 /* ESR value templates for specific events */
+#define ESR_ELx_WFx_MASK	(ESR_ELx_EC_MASK | ESR_ELx_WFx_ISS_TI)
+#define ESR_ELx_WFx_WFI_VAL	((ESR_ELx_EC_WFx << ESR_ELx_EC_SHIFT) |	\
+				 ESR_ELx_WFx_ISS_WFI)
 
 /* BRK instruction trap from AArch64 state */
 #define ESR_ELx_VAL_BRK64(imm)					\
@@ -187,6 +193,8 @@
 
 #define ESR_ELx_SYS64_ISS_SYS_OP_MASK	(ESR_ELx_SYS64_ISS_SYS_MASK | \
 					 ESR_ELx_SYS64_ISS_DIR_MASK)
+#define ESR_ELx_SYS64_ISS_RT(esr) \
+	(((esr) & ESR_ELx_SYS64_ISS_RT_MASK) >> ESR_ELx_SYS64_ISS_RT_SHIFT)
 /*
  * User space cache operations have the following sysreg encoding
  * in System instructions.
@@ -206,6 +214,18 @@
 #define ESR_ELx_SYS64_ISS_EL0_CACHE_OP_VAL \
 				(ESR_ELx_SYS64_ISS_SYS_VAL(1, 3, 1, 7, 0) | \
 				 ESR_ELx_SYS64_ISS_DIR_WRITE)
+/*
+ * User space MRS operations which are supported for emulation
+ * have the following sysreg encoding in System instructions.
+ * op0 = 3, op1= 0, crn = 0, {crm = 0, 4-7}, READ (L = 1)
+ */
+#define ESR_ELx_SYS64_ISS_SYS_MRS_OP_MASK	(ESR_ELx_SYS64_ISS_OP0_MASK | \
+						 ESR_ELx_SYS64_ISS_OP1_MASK | \
+						 ESR_ELx_SYS64_ISS_CRN_MASK | \
+						 ESR_ELx_SYS64_ISS_DIR_MASK)
+#define ESR_ELx_SYS64_ISS_SYS_MRS_OP_VAL \
+				(ESR_ELx_SYS64_ISS_SYS_VAL(3, 0, 0, 0, 0) | \
+				 ESR_ELx_SYS64_ISS_DIR_READ)
 
 #define ESR_ELx_SYS64_ISS_SYS_CTR	ESR_ELx_SYS64_ISS_SYS_VAL(3, 3, 1, 0, 0)
 #define ESR_ELx_SYS64_ISS_SYS_CTR_READ	(ESR_ELx_SYS64_ISS_SYS_CTR | \
@@ -248,6 +268,64 @@
  */
 
 #define ESR_ELx_FP_EXC_TFV	(UL(1) << 23)
+
+/*
+ * ISS field definitions for CP15 accesses
+ */
+#define ESR_ELx_CP15_32_ISS_DIR_MASK	0x1
+#define ESR_ELx_CP15_32_ISS_DIR_READ	0x1
+#define ESR_ELx_CP15_32_ISS_DIR_WRITE	0x0
+
+#define ESR_ELx_CP15_32_ISS_RT_SHIFT	5
+#define ESR_ELx_CP15_32_ISS_RT_MASK	(UL(0x1f) << ESR_ELx_CP15_32_ISS_RT_SHIFT)
+#define ESR_ELx_CP15_32_ISS_CRM_SHIFT	1
+#define ESR_ELx_CP15_32_ISS_CRM_MASK	(UL(0xf) << ESR_ELx_CP15_32_ISS_CRM_SHIFT)
+#define ESR_ELx_CP15_32_ISS_CRN_SHIFT	10
+#define ESR_ELx_CP15_32_ISS_CRN_MASK	(UL(0xf) << ESR_ELx_CP15_32_ISS_CRN_SHIFT)
+#define ESR_ELx_CP15_32_ISS_OP1_SHIFT	14
+#define ESR_ELx_CP15_32_ISS_OP1_MASK	(UL(0x7) << ESR_ELx_CP15_32_ISS_OP1_SHIFT)
+#define ESR_ELx_CP15_32_ISS_OP2_SHIFT	17
+#define ESR_ELx_CP15_32_ISS_OP2_MASK	(UL(0x7) << ESR_ELx_CP15_32_ISS_OP2_SHIFT)
+
+#define ESR_ELx_CP15_32_ISS_SYS_MASK	(ESR_ELx_CP15_32_ISS_OP1_MASK | \
+					 ESR_ELx_CP15_32_ISS_OP2_MASK | \
+					 ESR_ELx_CP15_32_ISS_CRN_MASK | \
+					 ESR_ELx_CP15_32_ISS_CRM_MASK | \
+					 ESR_ELx_CP15_32_ISS_DIR_MASK)
+#define ESR_ELx_CP15_32_ISS_SYS_VAL(op1, op2, crn, crm) \
+					(((op1) << ESR_ELx_CP15_32_ISS_OP1_SHIFT) | \
+					 ((op2) << ESR_ELx_CP15_32_ISS_OP2_SHIFT) | \
+					 ((crn) << ESR_ELx_CP15_32_ISS_CRN_SHIFT) | \
+					 ((crm) << ESR_ELx_CP15_32_ISS_CRM_SHIFT))
+
+#define ESR_ELx_CP15_64_ISS_DIR_MASK	0x1
+#define ESR_ELx_CP15_64_ISS_DIR_READ	0x1
+#define ESR_ELx_CP15_64_ISS_DIR_WRITE	0x0
+
+#define ESR_ELx_CP15_64_ISS_RT_SHIFT	5
+#define ESR_ELx_CP15_64_ISS_RT_MASK	(UL(0x1f) << ESR_ELx_CP15_64_ISS_RT_SHIFT)
+
+#define ESR_ELx_CP15_64_ISS_RT2_SHIFT	10
+#define ESR_ELx_CP15_64_ISS_RT2_MASK	(UL(0x1f) << ESR_ELx_CP15_64_ISS_RT2_SHIFT)
+
+#define ESR_ELx_CP15_64_ISS_OP1_SHIFT	16
+#define ESR_ELx_CP15_64_ISS_OP1_MASK	(UL(0xf) << ESR_ELx_CP15_64_ISS_OP1_SHIFT)
+#define ESR_ELx_CP15_64_ISS_CRM_SHIFT	1
+#define ESR_ELx_CP15_64_ISS_CRM_MASK	(UL(0xf) << ESR_ELx_CP15_64_ISS_CRM_SHIFT)
+
+#define ESR_ELx_CP15_64_ISS_SYS_VAL(op1, crm) \
+					(((op1) << ESR_ELx_CP15_64_ISS_OP1_SHIFT) | \
+					 ((crm) << ESR_ELx_CP15_64_ISS_CRM_SHIFT))
+
+#define ESR_ELx_CP15_64_ISS_SYS_MASK	(ESR_ELx_CP15_64_ISS_OP1_MASK |	\
+					 ESR_ELx_CP15_64_ISS_CRM_MASK | \
+					 ESR_ELx_CP15_64_ISS_DIR_MASK)
+
+#define ESR_ELx_CP15_64_ISS_SYS_CNTVCT	(ESR_ELx_CP15_64_ISS_SYS_VAL(1, 14) | \
+					 ESR_ELx_CP15_64_ISS_DIR_READ)
+
+#define ESR_ELx_CP15_32_ISS_SYS_CNTFRQ	(ESR_ELx_CP15_32_ISS_SYS_VAL(0, 0, 14, 0) |\
+					 ESR_ELx_CP15_32_ISS_DIR_READ)
 
 #ifndef __ASSEMBLY__
 #include <asm/types.h>

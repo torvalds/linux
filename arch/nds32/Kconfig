@@ -5,13 +5,13 @@
 
 config NDS32
         def_bool y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_WANT_FRAME_POINTERS if FTRACE
 	select CLKSRC_MMIO
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_NONCOHERENT_OPS
 	select GENERIC_ATOMIC64
 	select GENERIC_CPU_DEVICES
 	select GENERIC_CLOCKEVENTS
@@ -29,14 +29,14 @@ config NDS32
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_MEMBLOCK
+	select HAVE_EXIT_THREAD
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
 	select LOCKDEP_SUPPORT
 	select MODULES_USE_ELF_RELA
 	select OF
 	select OF_EARLY_FLATTREE
-	select NO_BOOTMEM
 	select NO_IOPORT_MAP
 	select RTC_LIB
 	select THREAD_INFO_IN_TASK
@@ -93,4 +93,14 @@ endmenu
 
 menu "Kernel Features"
 source "kernel/Kconfig.hz"
+endmenu
+
+menu "Power management options"
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+
+source "kernel/power/Kconfig"
 endmenu

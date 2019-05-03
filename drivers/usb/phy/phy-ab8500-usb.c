@@ -505,15 +505,19 @@ static int abx500_usb_link_status_update(struct ab8500_usb *ab)
 	if (is_ab8500(ab->ab8500)) {
 		enum ab8500_usb_link_status lsts;
 
-		abx500_get_register_interruptible(ab->dev,
+		ret = abx500_get_register_interruptible(ab->dev,
 				AB8500_USB, AB8500_USB_LINE_STAT_REG, &reg);
+		if (ret < 0)
+			return ret;
 		lsts = (reg >> 3) & 0x0F;
 		ret = ab8500_usb_link_status_update(ab, lsts);
 	} else if (is_ab8505(ab->ab8500)) {
 		enum ab8505_usb_link_status lsts;
 
-		abx500_get_register_interruptible(ab->dev,
+		ret = abx500_get_register_interruptible(ab->dev,
 				AB8500_USB, AB8505_USB_LINE_STAT_REG, &reg);
+		if (ret < 0)
+			return ret;
 		lsts = (reg >> 3) & 0x1F;
 		ret = ab8505_usb_link_status_update(ab, lsts);
 	}

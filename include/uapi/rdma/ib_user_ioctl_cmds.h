@@ -63,6 +63,23 @@ enum {
 	UVERBS_ATTR_UHW_OUT,
 };
 
+enum uverbs_methods_device {
+	UVERBS_METHOD_INVOKE_WRITE,
+	UVERBS_METHOD_INFO_HANDLES,
+	UVERBS_METHOD_QUERY_PORT,
+};
+
+enum uverbs_attrs_invoke_write_cmd_attr_ids {
+	UVERBS_ATTR_CORE_IN,
+	UVERBS_ATTR_CORE_OUT,
+	UVERBS_ATTR_WRITE_CMD,
+};
+
+enum uverbs_attrs_query_port_cmd_attr_ids {
+	UVERBS_ATTR_QUERY_PORT_PORT_NUM,
+	UVERBS_ATTR_QUERY_PORT_RESP,
+};
+
 enum uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_HANDLE,
 	UVERBS_ATTR_CREATE_CQ_CQE,
@@ -135,6 +152,19 @@ enum uverbs_attrs_reg_dm_mr_cmd_attr_ids {
 
 enum uverbs_methods_mr {
 	UVERBS_METHOD_DM_MR_REG,
+	UVERBS_METHOD_MR_DESTROY,
+	UVERBS_METHOD_ADVISE_MR,
+};
+
+enum uverbs_attrs_mr_destroy_ids {
+	UVERBS_ATTR_DESTROY_MR_HANDLE,
+};
+
+enum uverbs_attrs_advise_mr_cmd_attr_ids {
+	UVERBS_ATTR_ADVISE_MR_PD_HANDLE,
+	UVERBS_ATTR_ADVISE_MR_ADVICE,
+	UVERBS_ATTR_ADVISE_MR_FLAGS,
+	UVERBS_ATTR_ADVISE_MR_SGE_LIST,
 };
 
 enum uverbs_attrs_create_counters_cmd_attr_ids {
@@ -155,6 +185,60 @@ enum uverbs_methods_actions_counters_ops {
 	UVERBS_METHOD_COUNTERS_CREATE,
 	UVERBS_METHOD_COUNTERS_DESTROY,
 	UVERBS_METHOD_COUNTERS_READ,
+};
+
+enum uverbs_attrs_info_handles_id {
+	UVERBS_ATTR_INFO_OBJECT_ID,
+	UVERBS_ATTR_INFO_TOTAL_HANDLES,
+	UVERBS_ATTR_INFO_HANDLES_LIST,
+};
+
+enum uverbs_methods_pd {
+	UVERBS_METHOD_PD_DESTROY,
+};
+
+enum uverbs_attrs_pd_destroy_ids {
+	UVERBS_ATTR_DESTROY_PD_HANDLE,
+};
+
+enum uverbs_methods_mw {
+	UVERBS_METHOD_MW_DESTROY,
+};
+
+enum uverbs_attrs_mw_destroy_ids {
+	UVERBS_ATTR_DESTROY_MW_HANDLE,
+};
+
+enum uverbs_methods_xrcd {
+	UVERBS_METHOD_XRCD_DESTROY,
+};
+
+enum uverbs_attrs_xrcd_destroy_ids {
+	UVERBS_ATTR_DESTROY_XRCD_HANDLE,
+};
+
+enum uverbs_methods_ah {
+	UVERBS_METHOD_AH_DESTROY,
+};
+
+enum uverbs_attrs_ah_destroy_ids {
+	UVERBS_ATTR_DESTROY_AH_HANDLE,
+};
+
+enum uverbs_methods_rwq_ind_tbl {
+	UVERBS_METHOD_RWQ_IND_TBL_DESTROY,
+};
+
+enum uverbs_attrs_rwq_ind_tbl_destroy_ids {
+	UVERBS_ATTR_DESTROY_RWQ_IND_TBL_HANDLE,
+};
+
+enum uverbs_methods_flow {
+	UVERBS_METHOD_FLOW_DESTROY,
+};
+
+enum uverbs_attrs_flow_destroy_ids {
+	UVERBS_ATTR_DESTROY_FLOW_HANDLE,
 };
 
 #endif

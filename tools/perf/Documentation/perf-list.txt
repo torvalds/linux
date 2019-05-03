@@ -55,7 +55,6 @@ counted. The following modifiers exist:
  S - read sample value (PERF_SAMPLE_READ)
  D - pin the event to the PMU
  W - group is weak and will fallback to non-group if not schedulable,
-     only supported in 'perf stat' for now.
 
 The 'p' modifier can be used for specifying how precise the instruction
 address should be. The 'p' modifier can be specified multiple times:
@@ -173,7 +172,7 @@ like cycles and instructions and some software events.
 Other PMUs and global measurements are normally root only.
 Some event qualifiers, such as "any", are also root only.
 
-This can be overriden by setting the kernel.perf_event_paranoid
+This can be overridden by setting the kernel.perf_event_paranoid
 sysctl to -1, which allows non root to use these events.
 
 For accessing trace point events perf needs to have read access to

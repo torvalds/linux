@@ -15,7 +15,7 @@
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
  *
- * Hardware specific bits initialy based on former work by Matt Callow
+ * Hardware specific bits initially based on former work by Matt Callow
  * drivers/media/video/omap/sensor_ov6650.c
  * Copyright (C) 2006 Matt Callow
  *
@@ -449,7 +449,6 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.left = DEF_HSTRT << 1;
 		sel->r.top = DEF_VSTRT << 1;
 		sel->r.width = W_CIF;
@@ -760,7 +759,7 @@ static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
 
 	/*
 	 * Keep result to be used as tpf limit
-	 * for subseqent clock divider calculations
+	 * for subsequent clock divider calculations
 	 */
 	priv->tpf.numerator = div;
 	priv->tpf.denominator = FRAME_RATE_MAX;

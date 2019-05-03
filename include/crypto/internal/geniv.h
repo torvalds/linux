@@ -20,7 +20,7 @@
 struct aead_geniv_ctx {
 	spinlock_t lock;
 	struct crypto_aead *child;
-	struct crypto_skcipher *sknull;
+	struct crypto_sync_skcipher *sknull;
 	u8 salt[] __attribute__ ((aligned(__alignof__(u32))));
 };
 

@@ -22,19 +22,28 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/adc/ad_sigma_delta.h>
 
-#define AD7780_RDY	BIT(7)
-#define AD7780_FILTER	BIT(6)
-#define AD7780_ERR	BIT(5)
-#define AD7780_ID1	BIT(4)
-#define AD7780_ID0	BIT(3)
-#define AD7780_GAIN	BIT(2)
-#define AD7780_PAT1	BIT(1)
-#define AD7780_PAT0	BIT(0)
+#define AD7780_RDY		BIT(7)
+#define AD7780_FILTER		BIT(6)
+#define AD7780_ERR		BIT(5)
+#define AD7780_ID1		BIT(4)
+#define AD7780_ID0		BIT(3)
+#define AD7780_GAIN		BIT(2)
+#define AD7780_PAT1		BIT(1)
+#define AD7780_PAT0		BIT(0)
+
+#define AD7780_PATTERN		(AD7780_PAT0)
+#define AD7780_PATTERN_MASK	(AD7780_PAT0 | AD7780_PAT1)
+
+#define AD7170_PAT2		BIT(2)
+
+#define AD7170_PATTERN		(AD7780_PAT0 | AD7170_PAT2)
+#define AD7170_PATTERN_MASK	(AD7780_PAT0 | AD7780_PAT1 | AD7170_PAT2)
 
 struct ad7780_chip_info {
 	struct iio_chan_spec	channel;
 	unsigned int		pattern_mask;
 	unsigned int		pattern;
+	bool			is_ad778x;
 };
 
 struct ad7780_state {
@@ -42,7 +51,6 @@ struct ad7780_state {
 	struct regulator		*reg;
 	struct gpio_desc		*powerdown_gpio;
 	unsigned int	gain;
-	u16				int_vref_mv;
 
 	struct ad_sigma_delta sd;
 };
@@ -87,16 +95,20 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad7780_state *st = iio_priv(indio_dev);
+	int voltage_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
 		return ad_sigma_delta_single_conversion(indio_dev, chan, val);
 	case IIO_CHAN_INFO_SCALE:
-		*val = st->int_vref_mv * st->gain;
+		voltage_uv = regulator_get_voltage(st->reg);
+		if (voltage_uv < 0)
+			return voltage_uv;
+		*val = (voltage_uv / 1000) * st->gain;
 		*val2 = chan->scan_type.realbits - 1;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
-		*val -= (1 << (chan->scan_type.realbits - 1));
+		*val = -(1 << (chan->scan_type.realbits - 1));
 		return IIO_VAL_INT;
 	}
 
@@ -113,10 +125,12 @@ static int ad7780_postprocess_sample(struct ad_sigma_delta *sigma_delta,
 	    ((raw_sample & chip_info->pattern_mask) != chip_info->pattern))
 		return -EIO;
 
-	if (raw_sample & AD7780_GAIN)
-		st->gain = 1;
-	else
-		st->gain = 128;
+	if (chip_info->is_ad778x) {
+		if (raw_sample & AD7780_GAIN)
+			st->gain = 1;
+		else
+			st->gain = 128;
+	}
 
 	return 0;
 }
@@ -133,23 +147,27 @@ static const struct ad_sigma_delta_info ad7780_sigma_delta_info = {
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 	[ID_AD7170] = {
 		.channel = AD7780_CHANNEL(12, 24),
-		.pattern = 0x5,
-		.pattern_mask = 0x7,
+		.pattern = AD7170_PATTERN,
+		.pattern_mask = AD7170_PATTERN_MASK,
+		.is_ad778x = false,
 	},
 	[ID_AD7171] = {
 		.channel = AD7780_CHANNEL(16, 24),
-		.pattern = 0x5,
-		.pattern_mask = 0x7,
+		.pattern = AD7170_PATTERN,
+		.pattern_mask = AD7170_PATTERN_MASK,
+		.is_ad778x = false,
 	},
 	[ID_AD7780] = {
 		.channel = AD7780_CHANNEL(24, 32),
-		.pattern = 0x1,
-		.pattern_mask = 0x3,
+		.pattern = AD7780_PATTERN,
+		.pattern_mask = AD7780_PATTERN_MASK,
+		.is_ad778x = true,
 	},
 	[ID_AD7781] = {
 		.channel = AD7780_CHANNEL(20, 32),
-		.pattern = 0x1,
-		.pattern_mask = 0x3,
+		.pattern = AD7780_PATTERN,
+		.pattern_mask = AD7780_PATTERN_MASK,
+		.is_ad778x = true,
 	},
 };
 
@@ -161,7 +179,7 @@ static int ad7780_probe(struct spi_device *spi)
 {
 	struct ad7780_state *st;
 	struct iio_dev *indio_dev;
-	int ret, voltage_uv = 0;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -181,15 +199,9 @@ static int ad7780_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "Failed to enable specified AVdd supply\n");
 		return ret;
 	}
-	voltage_uv = regulator_get_voltage(st->reg);
 
 	st->chip_info =
 		&ad7780_chip_info_tbl[spi_get_device_id(spi)->driver_data];
-
-	if (voltage_uv)
-		st->int_vref_mv = voltage_uv / 1000;
-	else
-		dev_warn(&spi->dev, "Reference voltage unspecified\n");
 
 	spi_set_drvdata(spi, indio_dev);
 
@@ -260,6 +272,6 @@ static struct spi_driver ad7780_driver = {
 };
 module_spi_driver(ad7780_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7780 and similar ADCs");
 MODULE_LICENSE("GPL v2");

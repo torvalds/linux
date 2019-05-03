@@ -2792,7 +2792,7 @@ static void populate_initial_data(
 		data->lpt_en[num_displays + 4] = false;
 		data->h_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_total);
 		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.v_total);
-		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->timing.pix_clk_khz, 1000);
+		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->timing.pix_clk_100hz, 10000);
 		data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.viewport.width);
 		data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
 		data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.viewport.height);
@@ -2881,6 +2881,7 @@ static void populate_initial_data(
 
 	/* Pipes without underlay after */
 	for (i = 0; i < pipe_count; i++) {
+		unsigned int pixel_clock_100hz;
 		if (!pipe[i].stream || pipe[i].bottom_pipe)
 			continue;
 
@@ -2889,7 +2890,10 @@ static void populate_initial_data(
 		data->lpt_en[num_displays + 4] = false;
 		data->h_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_total);
 		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.v_total);
-		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->timing.pix_clk_khz, 1000);
+		pixel_clock_100hz = pipe[i].stream->timing.pix_clk_100hz;
+		if (pipe[i].stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+			pixel_clock_100hz *= 2;
+		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pixel_clock_100hz, 10000);
 		if (pipe[i].plane_state) {
 			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.viewport.width);
 			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];

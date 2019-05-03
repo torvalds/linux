@@ -6,8 +6,11 @@ Required properties:
 		version.
 	       Examples with soctypes are:
 		 - "renesas,r8a7743-wdt" (RZ/G1M)
+		 - "renesas,r8a7744-wdt" (RZ/G1N)
 		 - "renesas,r8a7745-wdt" (RZ/G1E)
+		 - "renesas,r8a77470-wdt" (RZ/G1C)
 		 - "renesas,r8a774a1-wdt" (RZ/G2M)
+		 - "renesas,r8a774c0-wdt" (RZ/G2E)
 	         - "renesas,r8a7790-wdt" (R-Car H2)
 	         - "renesas,r8a7791-wdt" (R-Car M2-W)
 	         - "renesas,r8a7792-wdt" (R-Car V2H)
@@ -20,6 +23,7 @@ Required properties:
 	         - "renesas,r8a77990-wdt" (R-Car E3)
 	         - "renesas,r8a77995-wdt" (R-Car D3)
 	         - "renesas,r7s72100-wdt" (RZ/A1)
+	         - "renesas,r7s9210-wdt"  (RZ/A2)
 		The generic compatible string must be:
 		 - "renesas,rza-wdt" for RZ/A
 		 - "renesas,rcar-gen2-wdt" for R-Car Gen2 and RZ/G1

@@ -1,20 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * R-Car Gen3 HDMI PHY
  *
  * Copyright (C) 2016 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include <drm/bridge/dw_hdmi.h>
+#include <drm/drm_modes.h>
 
 #define RCAR_HDMI_PHY_OPMODE_PLLCFG	0x06	/* Mode of operation and PLL dividers */
 #define RCAR_HDMI_PHY_PLLCURRGMPCTRL	0x10	/* PLL current and Gmp (conductance) */
@@ -38,6 +36,20 @@ static const struct rcar_hdmi_phy_params rcar_hdmi_phy_params[] = {
 	{ 297000000, 0x0000, 0x0084, 0x0105 },
 	{ ~0UL,      0x0000, 0x0000, 0x0000 },
 };
+
+static enum drm_mode_status
+rcar_hdmi_mode_valid(struct drm_connector *connector,
+		     const struct drm_display_mode *mode)
+{
+	/*
+	 * The maximum supported clock frequency is 297 MHz, as shown in the PHY
+	 * parameters table.
+	 */
+	if (mode->clock > 297000)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
 
 static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi,
 				   const struct dw_hdmi_plat_data *pdata,
@@ -63,6 +75,7 @@ static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi,
 }
 
 static const struct dw_hdmi_plat_data rcar_dw_hdmi_plat_data = {
+	.mode_valid = rcar_hdmi_mode_valid,
 	.configure_phy	= rcar_hdmi_phy_configure,
 };
 

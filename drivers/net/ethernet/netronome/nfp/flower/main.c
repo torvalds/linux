@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/etherdevice.h>
 #include <linux/lockdep.h>
@@ -60,6 +30,71 @@ static const char *nfp_flower_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 static enum devlink_eswitch_mode eswitch_mode_get(struct nfp_app *app)
 {
 	return DEVLINK_ESWITCH_MODE_SWITCHDEV;
+}
+
+static struct nfp_flower_non_repr_priv *
+nfp_flower_non_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_flower_non_repr_priv *entry;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(entry, &priv->non_repr_priv, list)
+		if (entry->netdev == netdev)
+			return entry;
+
+	return NULL;
+}
+
+void
+__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv)
+{
+	non_repr_priv->ref_count++;
+}
+
+struct nfp_flower_non_repr_priv *
+nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_flower_non_repr_priv *entry;
+
+	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	if (entry)
+		goto inc_ref;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return NULL;
+
+	entry->netdev = netdev;
+	list_add(&entry->list, &priv->non_repr_priv);
+
+inc_ref:
+	__nfp_flower_non_repr_priv_get(entry);
+	return entry;
+}
+
+void
+__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv)
+{
+	if (--non_repr_priv->ref_count)
+		return;
+
+	list_del(&non_repr_priv->list);
+	kfree(non_repr_priv);
+}
+
+void
+nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_non_repr_priv *entry;
+
+	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	if (!entry)
+		return;
+
+	__nfp_flower_non_repr_priv_put(entry);
 }
 
 static enum nfp_repr_type
@@ -137,16 +172,14 @@ static int
 nfp_flower_wait_repr_reify(struct nfp_app *app, atomic_t *replies, int tot_repl)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	int err;
 
 	if (!tot_repl)
 		return 0;
 
 	lockdep_assert_held(&app->pf->lock);
-	err = wait_event_interruptible_timeout(priv->reify_wait_queue,
-					       atomic_read(replies) >= tot_repl,
-					       msecs_to_jiffies(10));
-	if (err <= 0) {
+	if (!wait_event_timeout(priv->reify_wait_queue,
+				atomic_read(replies) >= tot_repl,
+				NFP_FL_REPLY_TIMEOUT)) {
 		nfp_warn(app->cpp, "Not all reprs responded to reify\n");
 		return -EIO;
 	}
@@ -176,23 +209,12 @@ nfp_flower_repr_netdev_stop(struct nfp_app *app, struct nfp_repr *repr)
 	return nfp_flower_cmsg_portmod(repr, false, repr->netdev->mtu, false);
 }
 
-static int
-nfp_flower_repr_netdev_init(struct nfp_app *app, struct net_device *netdev)
-{
-	return tc_setup_cb_egdev_register(netdev,
-					  nfp_flower_setup_tc_egress_cb,
-					  netdev_priv(netdev));
-}
-
 static void
 nfp_flower_repr_netdev_clean(struct nfp_app *app, struct net_device *netdev)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
 
 	kfree(repr->app_priv);
-
-	tc_setup_cb_egdev_unregister(netdev, nfp_flower_setup_tc_egress_cb,
-				     netdev_priv(netdev));
 }
 
 static void
@@ -264,6 +286,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 
 		nfp_repr = netdev_priv(repr);
 		nfp_repr->app_priv = repr_priv;
+		repr_priv->nfp_repr = nfp_repr;
 
 		/* For now we only support 1 PF */
 		WARN_ON(repr_type == NFP_REPR_TYPE_PF && i);
@@ -378,6 +401,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 
 		nfp_repr = netdev_priv(repr);
 		nfp_repr->app_priv = repr_priv;
+		repr_priv->nfp_repr = nfp_repr;
 
 		port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT, repr);
 		if (IS_ERR(port)) {
@@ -517,9 +541,9 @@ err_clear_nn:
 
 static int nfp_flower_init(struct nfp_app *app)
 {
+	u64 version, features, ctx_count, num_mems;
 	const struct nfp_pf *pf = app->pf;
 	struct nfp_flower_priv *app_priv;
-	u64 version, features;
 	int err;
 
 	if (!pf->eth_tbl) {
@@ -543,6 +567,33 @@ static int nfp_flower_init(struct nfp_app *app)
 		return err;
 	}
 
+	num_mems = nfp_rtsym_read_le(app->pf->rtbl, "CONFIG_FC_HOST_CTX_SPLIT",
+				     &err);
+	if (err) {
+		nfp_warn(app->cpp,
+			 "FlowerNIC: unsupported host context memory: %d\n",
+			 err);
+		err = 0;
+		num_mems = 1;
+	}
+
+	if (!FIELD_FIT(NFP_FL_STAT_ID_MU_NUM, num_mems) || !num_mems) {
+		nfp_warn(app->cpp,
+			 "FlowerNIC: invalid host context memory: %llu\n",
+			 num_mems);
+		return -EINVAL;
+	}
+
+	ctx_count = nfp_rtsym_read_le(app->pf->rtbl, "CONFIG_FC_HOST_CTX_COUNT",
+				      &err);
+	if (err) {
+		nfp_warn(app->cpp,
+			 "FlowerNIC: unsupported host context count: %d\n",
+			 err);
+		err = 0;
+		ctx_count = BIT(17);
+	}
+
 	/* We need to ensure hardware has enough flower capabilities. */
 	if (version != NFP_FLOWER_ALLOWED_VER) {
 		nfp_warn(app->cpp, "FlowerNIC: unsupported firmware version\n");
@@ -553,6 +604,9 @@ static int nfp_flower_init(struct nfp_app *app)
 	if (!app_priv)
 		return -ENOMEM;
 
+	app_priv->total_mem_units = num_mems;
+	app_priv->active_mem_unit = 0;
+	app_priv->stats_ring_size = roundup_pow_of_two(ctx_count);
 	app->priv = app_priv;
 	app_priv->app = app;
 	skb_queue_head_init(&app_priv->cmsg_skbs_high);
@@ -563,7 +617,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	init_waitqueue_head(&app_priv->mtu_conf.wait_q);
 	spin_lock_init(&app_priv->mtu_conf.lock);
 
-	err = nfp_flower_metadata_init(app);
+	err = nfp_flower_metadata_init(app, ctx_count, num_mems);
 	if (err)
 		goto err_free_app_priv;
 
@@ -586,6 +640,9 @@ static int nfp_flower_init(struct nfp_app *app)
 	} else {
 		goto err_cleanup_metadata;
 	}
+
+	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
+	INIT_LIST_HEAD(&app_priv->non_repr_priv);
 
 	return 0;
 
@@ -629,7 +686,7 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 {
 	struct nfp_flower_priv *app_priv = app->priv;
 	struct nfp_repr *repr = netdev_priv(netdev);
-	int err, ack;
+	int err;
 
 	/* Only need to config FW for physical port MTU change. */
 	if (repr->port->type != NFP_PORT_PHYS_PORT)
@@ -656,11 +713,9 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 	}
 
 	/* Wait for fw to ack the change. */
-	ack = wait_event_timeout(app_priv->mtu_conf.wait_q,
-				 nfp_flower_check_ack(app_priv),
-				 msecs_to_jiffies(10));
-
-	if (!ack) {
+	if (!wait_event_timeout(app_priv->mtu_conf.wait_q,
+				nfp_flower_check_ack(app_priv),
+				NFP_FL_REPLY_TIMEOUT)) {
 		spin_lock_bh(&app_priv->mtu_conf.lock);
 		app_priv->mtu_conf.requested_val = 0;
 		spin_unlock_bh(&app_priv->mtu_conf.lock);
@@ -680,10 +735,6 @@ static int nfp_flower_start(struct nfp_app *app)
 		err = nfp_flower_lag_reset(&app_priv->nfp_lag);
 		if (err)
 			return err;
-
-		err = register_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
-		if (err)
-			return err;
 	}
 
 	return nfp_tunnel_config_start(app);
@@ -691,12 +742,27 @@ static int nfp_flower_start(struct nfp_app *app)
 
 static void nfp_flower_stop(struct nfp_app *app)
 {
-	struct nfp_flower_priv *app_priv = app->priv;
-
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
-		unregister_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
-
 	nfp_tunnel_config_stop(app);
+}
+
+static int
+nfp_flower_netdev_event(struct nfp_app *app, struct net_device *netdev,
+			unsigned long event, void *ptr)
+{
+	struct nfp_flower_priv *app_priv = app->priv;
+	int ret;
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		ret = nfp_flower_lag_netdev_event(app_priv, netdev, event, ptr);
+		if (ret & NOTIFY_STOP_MASK)
+			return ret;
+	}
+
+	ret = nfp_flower_reg_indir_block_handler(app, netdev, event);
+	if (ret & NOTIFY_STOP_MASK)
+		return ret;
+
+	return nfp_tunnel_mac_event_handler(app, netdev, event, ptr);
 }
 
 const struct nfp_app_type app_flower = {
@@ -717,7 +783,6 @@ const struct nfp_app_type app_flower = {
 	.vnic_init	= nfp_flower_vnic_init,
 	.vnic_clean	= nfp_flower_vnic_clean,
 
-	.repr_init	= nfp_flower_repr_netdev_init,
 	.repr_preclean	= nfp_flower_repr_netdev_preclean,
 	.repr_clean	= nfp_flower_repr_netdev_clean,
 
@@ -726,6 +791,8 @@ const struct nfp_app_type app_flower = {
 
 	.start		= nfp_flower_start,
 	.stop		= nfp_flower_stop,
+
+	.netdev_event	= nfp_flower_netdev_event,
 
 	.ctrl_msg_rx	= nfp_flower_cmsg_rx,
 

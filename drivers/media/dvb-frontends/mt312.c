@@ -645,7 +645,9 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	mt312_reset(state, 0);
+	ret = mt312_reset(state, 0);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -815,17 +817,20 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 
 	switch (state->id) {
 	case ID_VP310:
-		strcpy(state->frontend.ops.info.name, "Zarlink VP310 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink VP310 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK;
 		state->freq_mult = 9;
 		break;
 	case ID_MT312:
-		strcpy(state->frontend.ops.info.name, "Zarlink MT312 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink MT312 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK;
 		state->freq_mult = 6;
 		break;
 	case ID_ZL10313:
-		strcpy(state->frontend.ops.info.name, "Zarlink ZL10313 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink ZL10313 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK_10_111;
 		state->freq_mult = 9;
 		break;

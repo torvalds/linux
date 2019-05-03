@@ -38,6 +38,7 @@ to_tegra_shared_plane(struct drm_plane *plane)
 
 struct tegra_display_hub_soc {
 	unsigned int num_wgrps;
+	bool supports_dsc;
 };
 
 struct tegra_display_hub {
@@ -47,6 +48,9 @@ struct tegra_display_hub {
 	struct clk *clk_dsc;
 	struct clk *clk_hub;
 	struct reset_control *rst;
+
+	unsigned int num_heads;
+	struct clk **clk_heads;
 
 	const struct tegra_display_hub_soc *soc;
 	struct tegra_windowgroup *wgrps;

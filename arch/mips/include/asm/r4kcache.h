@@ -20,6 +20,7 @@
 #include <asm/cpu-features.h>
 #include <asm/cpu-type.h>
 #include <asm/mipsmtregs.h>
+#include <asm/mmzone.h>
 #include <linux/uaccess.h> /* for uaccess_kernel() */
 
 extern void (*r4k_blast_dcache)(void);
@@ -48,58 +49,14 @@ extern void (*r4k_blast_icache)(void);
 	:								\
 	: "i" (op), "R" (*(unsigned char *)(addr)))
 
-#ifdef CONFIG_MIPS_MT
-
-#define __iflush_prologue						\
-	unsigned long redundance;					\
-	extern int mt_n_iflushes;					\
-	for (redundance = 0; redundance < mt_n_iflushes; redundance++) {
-
-#define __iflush_epilogue						\
-	}
-
-#define __dflush_prologue						\
-	unsigned long redundance;					\
-	extern int mt_n_dflushes;					\
-	for (redundance = 0; redundance < mt_n_dflushes; redundance++) {
-
-#define __dflush_epilogue \
-	}
-
-#define __inv_dflush_prologue __dflush_prologue
-#define __inv_dflush_epilogue __dflush_epilogue
-#define __sflush_prologue {
-#define __sflush_epilogue }
-#define __inv_sflush_prologue __sflush_prologue
-#define __inv_sflush_epilogue __sflush_epilogue
-
-#else /* CONFIG_MIPS_MT */
-
-#define __iflush_prologue {
-#define __iflush_epilogue }
-#define __dflush_prologue {
-#define __dflush_epilogue }
-#define __inv_dflush_prologue {
-#define __inv_dflush_epilogue }
-#define __sflush_prologue {
-#define __sflush_epilogue }
-#define __inv_sflush_prologue {
-#define __inv_sflush_epilogue }
-
-#endif /* CONFIG_MIPS_MT */
-
 static inline void flush_icache_line_indexed(unsigned long addr)
 {
-	__iflush_prologue
 	cache_op(Index_Invalidate_I, addr);
-	__iflush_epilogue
 }
 
 static inline void flush_dcache_line_indexed(unsigned long addr)
 {
-	__dflush_prologue
 	cache_op(Index_Writeback_Inv_D, addr);
-	__dflush_epilogue
 }
 
 static inline void flush_scache_line_indexed(unsigned long addr)
@@ -109,7 +66,6 @@ static inline void flush_scache_line_indexed(unsigned long addr)
 
 static inline void flush_icache_line(unsigned long addr)
 {
-	__iflush_prologue
 	switch (boot_cpu_type()) {
 	case CPU_LOONGSON2:
 		cache_op(Hit_Invalidate_I_Loongson2, addr);
@@ -119,21 +75,16 @@ static inline void flush_icache_line(unsigned long addr)
 		cache_op(Hit_Invalidate_I, addr);
 		break;
 	}
-	__iflush_epilogue
 }
 
 static inline void flush_dcache_line(unsigned long addr)
 {
-	__dflush_prologue
 	cache_op(Hit_Writeback_Inv_D, addr);
-	__dflush_epilogue
 }
 
 static inline void invalidate_dcache_line(unsigned long addr)
 {
-	__dflush_prologue
 	cache_op(Hit_Invalidate_D, addr);
-	__dflush_epilogue
 }
 
 static inline void invalidate_scache_line(unsigned long addr)
@@ -586,13 +537,9 @@ static inline void extra##blast_##pfx##cache##lsize(void)		\
 			       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
-	__##pfx##flush_prologue						\
-									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
 			cache##lsize##_unroll32(addr|ws, indexop);	\
-									\
-	__##pfx##flush_epilogue						\
 }									\
 									\
 static inline void extra##blast_##pfx##cache##lsize##_page(unsigned long page) \
@@ -600,14 +547,10 @@ static inline void extra##blast_##pfx##cache##lsize##_page(unsigned long page) \
 	unsigned long start = page;					\
 	unsigned long end = page + PAGE_SIZE;				\
 									\
-	__##pfx##flush_prologue						\
-									\
 	do {								\
 		cache##lsize##_unroll32(start, hitop);			\
 		start += lsize * 32;					\
 	} while (start < end);						\
-									\
-	__##pfx##flush_epilogue						\
 }									\
 									\
 static inline void extra##blast_##pfx##cache##lsize##_page_indexed(unsigned long page) \
@@ -620,13 +563,9 @@ static inline void extra##blast_##pfx##cache##lsize##_page_indexed(unsigned long
 			       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
-	__##pfx##flush_prologue						\
-									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
 			cache##lsize##_unroll32(addr|ws, indexop);	\
-									\
-	__##pfx##flush_epilogue						\
 }
 
 __BUILD_BLAST_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D, 16, )
@@ -656,14 +595,10 @@ static inline void blast_##pfx##cache##lsize##_user_page(unsigned long page) \
 	unsigned long start = page;					\
 	unsigned long end = page + PAGE_SIZE;				\
 									\
-	__##pfx##flush_prologue						\
-									\
 	do {								\
 		cache##lsize##_unroll32_user(start, hitop);             \
 		start += lsize * 32;					\
 	} while (start < end);						\
-									\
-	__##pfx##flush_epilogue						\
 }
 
 __BUILD_BLAST_USER_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D,
@@ -685,16 +620,12 @@ static inline void prot##extra##blast_##pfx##cache##_range(unsigned long start, 
 	unsigned long addr = start & ~(lsize - 1);			\
 	unsigned long aend = (end - 1) & ~(lsize - 1);			\
 									\
-	__##pfx##flush_prologue						\
-									\
 	while (1) {							\
 		prot##cache_op(hitop, addr);				\
 		if (addr == aend)					\
 			break;						\
 		addr += lsize;						\
 	}								\
-									\
-	__##pfx##flush_epilogue						\
 }
 
 #ifndef CONFIG_EVA
@@ -712,8 +643,6 @@ static inline void protected_blast_##pfx##cache##_range(unsigned long start,\
 	unsigned long addr = start & ~(lsize - 1);			\
 	unsigned long aend = (end - 1) & ~(lsize - 1);			\
 									\
-	__##pfx##flush_prologue						\
-									\
 	if (!uaccess_kernel()) {					\
 		while (1) {						\
 			protected_cachee_op(hitop, addr);		\
@@ -730,7 +659,6 @@ static inline void protected_blast_##pfx##cache##_range(unsigned long start,\
 		}                                                       \
 									\
 	}								\
-	__##pfx##flush_epilogue						\
 }
 
 __BUILD_PROT_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D)
@@ -746,5 +674,26 @@ __BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, , )
 /* blast_inv_dcache_range */
 __BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, , )
 __BUILD_BLAST_CACHE_RANGE(inv_s, scache, Hit_Invalidate_SD, , )
+
+/* Currently, this is very specific to Loongson-3 */
+#define __BUILD_BLAST_CACHE_NODE(pfx, desc, indexop, hitop, lsize)	\
+static inline void blast_##pfx##cache##lsize##_node(long node)		\
+{									\
+	unsigned long start = CAC_BASE | nid_to_addrbase(node);		\
+	unsigned long end = start + current_cpu_data.desc.waysize;	\
+	unsigned long ws_inc = 1UL << current_cpu_data.desc.waybit;	\
+	unsigned long ws_end = current_cpu_data.desc.ways <<		\
+			       current_cpu_data.desc.waybit;		\
+	unsigned long ws, addr;						\
+									\
+	for (ws = 0; ws < ws_end; ws += ws_inc)				\
+		for (addr = start; addr < end; addr += lsize * 32)	\
+			cache##lsize##_unroll32(addr|ws, indexop);	\
+}
+
+__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 16)
+__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 32)
+__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 64)
+__BUILD_BLAST_CACHE_NODE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 128)
 
 #endif /* _ASM_R4KCACHE_H */

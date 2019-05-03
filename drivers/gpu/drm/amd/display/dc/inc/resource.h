@@ -30,9 +30,6 @@
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
 
-/* TODO unhardcode, 4 for CZ*/
-#define MEMORY_TYPE_MULTIPLIER 4
-
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
 
@@ -44,6 +41,7 @@ struct resource_caps {
 	int num_stream_encoder;
 	int num_pll;
 	int num_dwb;
+	int num_ddc;
 };
 
 struct resource_straps {
@@ -171,4 +169,7 @@ void update_audio_usage(
 		const struct resource_pool *pool,
 		struct audio *audio,
 		bool acquired);
+
+unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

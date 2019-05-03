@@ -25,8 +25,12 @@
 #include <linux/prime_numbers.h>
 
 #include "../i915_selftest.h"
+#include "i915_random.h"
+#include "igt_live_test.h"
+#include "lib_sw_fence.h"
 
 #include "mock_context.h"
+#include "mock_drm.h"
 #include "mock_gem_device.h"
 
 static int igt_add_request(void *arg)
@@ -246,6 +250,254 @@ err_context_0:
 	return err;
 }
 
+struct smoketest {
+	struct intel_engine_cs *engine;
+	struct i915_gem_context **contexts;
+	atomic_long_t num_waits, num_fences;
+	int ncontexts, max_batch;
+	struct i915_request *(*request_alloc)(struct i915_gem_context *,
+					      struct intel_engine_cs *);
+};
+
+static struct i915_request *
+__mock_request_alloc(struct i915_gem_context *ctx,
+		     struct intel_engine_cs *engine)
+{
+	return mock_request(engine, ctx, 0);
+}
+
+static struct i915_request *
+__live_request_alloc(struct i915_gem_context *ctx,
+		     struct intel_engine_cs *engine)
+{
+	return i915_request_alloc(engine, ctx);
+}
+
+static int __igt_breadcrumbs_smoketest(void *arg)
+{
+	struct smoketest *t = arg;
+	struct mutex * const BKL = &t->engine->i915->drm.struct_mutex;
+	const unsigned int max_batch = min(t->ncontexts, t->max_batch) - 1;
+	const unsigned int total = 4 * t->ncontexts + 1;
+	unsigned int num_waits = 0, num_fences = 0;
+	struct i915_request **requests;
+	I915_RND_STATE(prng);
+	unsigned int *order;
+	int err = 0;
+
+	/*
+	 * A very simple test to catch the most egregious of list handling bugs.
+	 *
+	 * At its heart, we simply create oodles of requests running across
+	 * multiple kthreads and enable signaling on them, for the sole purpose
+	 * of stressing our breadcrumb handling. The only inspection we do is
+	 * that the fences were marked as signaled.
+	 */
+
+	requests = kmalloc_array(total, sizeof(*requests), GFP_KERNEL);
+	if (!requests)
+		return -ENOMEM;
+
+	order = i915_random_order(total, &prng);
+	if (!order) {
+		err = -ENOMEM;
+		goto out_requests;
+	}
+
+	while (!kthread_should_stop()) {
+		struct i915_sw_fence *submit, *wait;
+		unsigned int n, count;
+
+		submit = heap_fence_create(GFP_KERNEL);
+		if (!submit) {
+			err = -ENOMEM;
+			break;
+		}
+
+		wait = heap_fence_create(GFP_KERNEL);
+		if (!wait) {
+			i915_sw_fence_commit(submit);
+			heap_fence_put(submit);
+			err = ENOMEM;
+			break;
+		}
+
+		i915_random_reorder(order, total, &prng);
+		count = 1 + i915_prandom_u32_max_state(max_batch, &prng);
+
+		for (n = 0; n < count; n++) {
+			struct i915_gem_context *ctx =
+				t->contexts[order[n] % t->ncontexts];
+			struct i915_request *rq;
+
+			mutex_lock(BKL);
+
+			rq = t->request_alloc(ctx, t->engine);
+			if (IS_ERR(rq)) {
+				mutex_unlock(BKL);
+				err = PTR_ERR(rq);
+				count = n;
+				break;
+			}
+
+			err = i915_sw_fence_await_sw_fence_gfp(&rq->submit,
+							       submit,
+							       GFP_KERNEL);
+
+			requests[n] = i915_request_get(rq);
+			i915_request_add(rq);
+
+			mutex_unlock(BKL);
+
+			if (err >= 0)
+				err = i915_sw_fence_await_dma_fence(wait,
+								    &rq->fence,
+								    0,
+								    GFP_KERNEL);
+
+			if (err < 0) {
+				i915_request_put(rq);
+				count = n;
+				break;
+			}
+		}
+
+		i915_sw_fence_commit(submit);
+		i915_sw_fence_commit(wait);
+
+		if (!wait_event_timeout(wait->wait,
+					i915_sw_fence_done(wait),
+					HZ / 2)) {
+			struct i915_request *rq = requests[count - 1];
+
+			pr_err("waiting for %d fences (last %llx:%lld) on %s timed out!\n",
+			       count,
+			       rq->fence.context, rq->fence.seqno,
+			       t->engine->name);
+			i915_gem_set_wedged(t->engine->i915);
+			GEM_BUG_ON(!i915_request_completed(rq));
+			i915_sw_fence_wait(wait);
+			err = -EIO;
+		}
+
+		for (n = 0; n < count; n++) {
+			struct i915_request *rq = requests[n];
+
+			if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+				      &rq->fence.flags)) {
+				pr_err("%llu:%llu was not signaled!\n",
+				       rq->fence.context, rq->fence.seqno);
+				err = -EINVAL;
+			}
+
+			i915_request_put(rq);
+		}
+
+		heap_fence_put(wait);
+		heap_fence_put(submit);
+
+		if (err < 0)
+			break;
+
+		num_fences += count;
+		num_waits++;
+
+		cond_resched();
+	}
+
+	atomic_long_add(num_fences, &t->num_fences);
+	atomic_long_add(num_waits, &t->num_waits);
+
+	kfree(order);
+out_requests:
+	kfree(requests);
+	return err;
+}
+
+static int mock_breadcrumbs_smoketest(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct smoketest t = {
+		.engine = i915->engine[RCS],
+		.ncontexts = 1024,
+		.max_batch = 1024,
+		.request_alloc = __mock_request_alloc
+	};
+	unsigned int ncpus = num_online_cpus();
+	struct task_struct **threads;
+	unsigned int n;
+	int ret = 0;
+
+	/*
+	 * Smoketest our breadcrumb/signal handling for requests across multiple
+	 * threads. A very simple test to only catch the most egregious of bugs.
+	 * See __igt_breadcrumbs_smoketest();
+	 */
+
+	threads = kmalloc_array(ncpus, sizeof(*threads), GFP_KERNEL);
+	if (!threads)
+		return -ENOMEM;
+
+	t.contexts =
+		kmalloc_array(t.ncontexts, sizeof(*t.contexts), GFP_KERNEL);
+	if (!t.contexts) {
+		ret = -ENOMEM;
+		goto out_threads;
+	}
+
+	mutex_lock(&t.engine->i915->drm.struct_mutex);
+	for (n = 0; n < t.ncontexts; n++) {
+		t.contexts[n] = mock_context(t.engine->i915, "mock");
+		if (!t.contexts[n]) {
+			ret = -ENOMEM;
+			goto out_contexts;
+		}
+	}
+	mutex_unlock(&t.engine->i915->drm.struct_mutex);
+
+	for (n = 0; n < ncpus; n++) {
+		threads[n] = kthread_run(__igt_breadcrumbs_smoketest,
+					 &t, "igt/%d", n);
+		if (IS_ERR(threads[n])) {
+			ret = PTR_ERR(threads[n]);
+			ncpus = n;
+			break;
+		}
+
+		get_task_struct(threads[n]);
+	}
+
+	msleep(jiffies_to_msecs(i915_selftest.timeout_jiffies));
+
+	for (n = 0; n < ncpus; n++) {
+		int err;
+
+		err = kthread_stop(threads[n]);
+		if (err < 0 && !ret)
+			ret = err;
+
+		put_task_struct(threads[n]);
+	}
+	pr_info("Completed %lu waits for %lu fence across %d cpus\n",
+		atomic_long_read(&t.num_waits),
+		atomic_long_read(&t.num_fences),
+		ncpus);
+
+	mutex_lock(&t.engine->i915->drm.struct_mutex);
+out_contexts:
+	for (n = 0; n < t.ncontexts; n++) {
+		if (!t.contexts[n])
+			break;
+		mock_context_close(t.contexts[n]);
+	}
+	mutex_unlock(&t.engine->i915->drm.struct_mutex);
+	kfree(t.contexts);
+out_threads:
+	kfree(threads);
+
+	return ret;
+}
+
 int i915_request_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -253,86 +505,30 @@ int i915_request_mock_selftests(void)
 		SUBTEST(igt_wait_request),
 		SUBTEST(igt_fence_wait),
 		SUBTEST(igt_request_rewind),
+		SUBTEST(mock_breadcrumbs_smoketest),
 	};
 	struct drm_i915_private *i915;
-	int err;
+	intel_wakeref_t wakeref;
+	int err = 0;
 
 	i915 = mock_gem_device();
 	if (!i915)
 		return -ENOMEM;
 
-	err = i915_subtests(tests, i915);
+	with_intel_runtime_pm(i915, wakeref)
+		err = i915_subtests(tests, i915);
+
 	drm_dev_put(&i915->drm);
 
 	return err;
-}
-
-struct live_test {
-	struct drm_i915_private *i915;
-	const char *func;
-	const char *name;
-
-	unsigned int reset_count;
-};
-
-static int begin_live_test(struct live_test *t,
-			   struct drm_i915_private *i915,
-			   const char *func,
-			   const char *name)
-{
-	int err;
-
-	t->i915 = i915;
-	t->func = func;
-	t->name = name;
-
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err) {
-		pr_err("%s(%s): failed to idle before, with err=%d!",
-		       func, name, err);
-		return err;
-	}
-
-	i915->gpu_error.missed_irq_rings = 0;
-	t->reset_count = i915_reset_count(&i915->gpu_error);
-
-	return 0;
-}
-
-static int end_live_test(struct live_test *t)
-{
-	struct drm_i915_private *i915 = t->i915;
-
-	i915_retire_requests(i915);
-
-	if (wait_for(intel_engines_are_idle(i915), 10)) {
-		pr_err("%s(%s): GPU not idle\n", t->func, t->name);
-		return -EIO;
-	}
-
-	if (t->reset_count != i915_reset_count(&i915->gpu_error)) {
-		pr_err("%s(%s): GPU was reset %d times!\n",
-		       t->func, t->name,
-		       i915_reset_count(&i915->gpu_error) - t->reset_count);
-		return -EIO;
-	}
-
-	if (i915->gpu_error.missed_irq_rings) {
-		pr_err("%s(%s): Missed interrupts on engines %lx\n",
-		       t->func, t->name, i915->gpu_error.missed_irq_rings);
-		return -EIO;
-	}
-
-	return 0;
 }
 
 static int live_nop_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	struct live_test t;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	unsigned int id;
 	int err = -ENODEV;
 
@@ -342,6 +538,7 @@ static int live_nop_request(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *request = NULL;
@@ -349,7 +546,7 @@ static int live_nop_request(void *arg)
 		IGT_TIMEOUT(end_time);
 		ktime_t times[2] = {};
 
-		err = begin_live_test(&t, i915, __func__, engine->name);
+		err = igt_live_test_begin(&t, i915, __func__, engine->name);
 		if (err)
 			goto out_unlock;
 
@@ -391,7 +588,7 @@ static int live_nop_request(void *arg)
 				break;
 		}
 
-		err = end_live_test(&t);
+		err = igt_live_test_end(&t);
 		if (err)
 			goto out_unlock;
 
@@ -402,6 +599,7 @@ static int live_nop_request(void *arg)
 	}
 
 out_unlock:
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -476,7 +674,8 @@ static int live_empty_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	struct live_test t;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	struct i915_vma *batch;
 	unsigned int id;
 	int err = 0;
@@ -487,6 +686,7 @@ static int live_empty_request(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
 
 	batch = empty_batch(i915);
 	if (IS_ERR(batch)) {
@@ -500,7 +700,7 @@ static int live_empty_request(void *arg)
 		unsigned long n, prime;
 		ktime_t times[2] = {};
 
-		err = begin_live_test(&t, i915, __func__, engine->name);
+		err = igt_live_test_begin(&t, i915, __func__, engine->name);
 		if (err)
 			goto out_batch;
 
@@ -536,7 +736,7 @@ static int live_empty_request(void *arg)
 				break;
 		}
 
-		err = end_live_test(&t);
+		err = igt_live_test_end(&t);
 		if (err)
 			goto out_batch;
 
@@ -550,6 +750,7 @@ out_batch:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -633,8 +834,9 @@ static int live_all_engines(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
 	struct i915_request *request[I915_NUM_ENGINES];
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	struct i915_vma *batch;
-	struct live_test t;
 	unsigned int id;
 	int err;
 
@@ -644,8 +846,9 @@ static int live_all_engines(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
 
-	err = begin_live_test(&t, i915, __func__, "");
+	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
 		goto out_unlock;
 
@@ -717,7 +920,7 @@ static int live_all_engines(void *arg)
 		request[id] = NULL;
 	}
 
-	err = end_live_test(&t);
+	err = igt_live_test_end(&t);
 
 out_request:
 	for_each_engine(engine, i915, id)
@@ -726,6 +929,7 @@ out_request:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -736,7 +940,8 @@ static int live_sequential_engines(void *arg)
 	struct i915_request *request[I915_NUM_ENGINES] = {};
 	struct i915_request *prev = NULL;
 	struct intel_engine_cs *engine;
-	struct live_test t;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	unsigned int id;
 	int err;
 
@@ -747,8 +952,9 @@ static int live_sequential_engines(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
 
-	err = begin_live_test(&t, i915, __func__, "");
+	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
 		goto out_unlock;
 
@@ -831,7 +1037,7 @@ static int live_sequential_engines(void *arg)
 		GEM_BUG_ON(!i915_request_completed(request[id]));
 	}
 
-	err = end_live_test(&t);
+	err = igt_live_test_end(&t);
 
 out_request:
 	for_each_engine(engine, i915, id) {
@@ -853,8 +1059,181 @@ out_request:
 		i915_request_put(request[id]);
 	}
 out_unlock:
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
+}
+
+static int
+max_batches(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
+{
+	struct i915_request *rq;
+	int ret;
+
+	/*
+	 * Before execlists, all contexts share the same ringbuffer. With
+	 * execlists, each context/engine has a separate ringbuffer and
+	 * for the purposes of this test, inexhaustible.
+	 *
+	 * For the global ringbuffer though, we have to be very careful
+	 * that we do not wrap while preventing the execution of requests
+	 * with a unsignaled fence.
+	 */
+	if (HAS_EXECLISTS(ctx->i915))
+		return INT_MAX;
+
+	rq = i915_request_alloc(engine, ctx);
+	if (IS_ERR(rq)) {
+		ret = PTR_ERR(rq);
+	} else {
+		int sz;
+
+		ret = rq->ring->size - rq->reserved_space;
+		i915_request_add(rq);
+
+		sz = rq->ring->emit - rq->head;
+		if (sz < 0)
+			sz += rq->ring->size;
+		ret /= sz;
+		ret /= 2; /* leave half spare, in case of emergency! */
+	}
+
+	return ret;
+}
+
+static int live_breadcrumbs_smoketest(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct smoketest t[I915_NUM_ENGINES];
+	unsigned int ncpus = num_online_cpus();
+	unsigned long num_waits, num_fences;
+	struct intel_engine_cs *engine;
+	struct task_struct **threads;
+	struct igt_live_test live;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	struct drm_file *file;
+	unsigned int n;
+	int ret = 0;
+
+	/*
+	 * Smoketest our breadcrumb/signal handling for requests across multiple
+	 * threads. A very simple test to only catch the most egregious of bugs.
+	 * See __igt_breadcrumbs_smoketest();
+	 *
+	 * On real hardware this time.
+	 */
+
+	wakeref = intel_runtime_pm_get(i915);
+
+	file = mock_file(i915);
+	if (IS_ERR(file)) {
+		ret = PTR_ERR(file);
+		goto out_rpm;
+	}
+
+	threads = kcalloc(ncpus * I915_NUM_ENGINES,
+			  sizeof(*threads),
+			  GFP_KERNEL);
+	if (!threads) {
+		ret = -ENOMEM;
+		goto out_file;
+	}
+
+	memset(&t[0], 0, sizeof(t[0]));
+	t[0].request_alloc = __live_request_alloc;
+	t[0].ncontexts = 64;
+	t[0].contexts = kmalloc_array(t[0].ncontexts,
+				      sizeof(*t[0].contexts),
+				      GFP_KERNEL);
+	if (!t[0].contexts) {
+		ret = -ENOMEM;
+		goto out_threads;
+	}
+
+	mutex_lock(&i915->drm.struct_mutex);
+	for (n = 0; n < t[0].ncontexts; n++) {
+		t[0].contexts[n] = live_context(i915, file);
+		if (!t[0].contexts[n]) {
+			ret = -ENOMEM;
+			goto out_contexts;
+		}
+	}
+
+	ret = igt_live_test_begin(&live, i915, __func__, "");
+	if (ret)
+		goto out_contexts;
+
+	for_each_engine(engine, i915, id) {
+		t[id] = t[0];
+		t[id].engine = engine;
+		t[id].max_batch = max_batches(t[0].contexts[0], engine);
+		if (t[id].max_batch < 0) {
+			ret = t[id].max_batch;
+			mutex_unlock(&i915->drm.struct_mutex);
+			goto out_flush;
+		}
+		/* One ring interleaved between requests from all cpus */
+		t[id].max_batch /= num_online_cpus() + 1;
+		pr_debug("Limiting batches to %d requests on %s\n",
+			 t[id].max_batch, engine->name);
+
+		for (n = 0; n < ncpus; n++) {
+			struct task_struct *tsk;
+
+			tsk = kthread_run(__igt_breadcrumbs_smoketest,
+					  &t[id], "igt/%d.%d", id, n);
+			if (IS_ERR(tsk)) {
+				ret = PTR_ERR(tsk);
+				mutex_unlock(&i915->drm.struct_mutex);
+				goto out_flush;
+			}
+
+			get_task_struct(tsk);
+			threads[id * ncpus + n] = tsk;
+		}
+	}
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	msleep(jiffies_to_msecs(i915_selftest.timeout_jiffies));
+
+out_flush:
+	num_waits = 0;
+	num_fences = 0;
+	for_each_engine(engine, i915, id) {
+		for (n = 0; n < ncpus; n++) {
+			struct task_struct *tsk = threads[id * ncpus + n];
+			int err;
+
+			if (!tsk)
+				continue;
+
+			err = kthread_stop(tsk);
+			if (err < 0 && !ret)
+				ret = err;
+
+			put_task_struct(tsk);
+		}
+
+		num_waits += atomic_long_read(&t[id].num_waits);
+		num_fences += atomic_long_read(&t[id].num_fences);
+	}
+	pr_info("Completed %lu waits for %lu fences across %d engines and %d cpus\n",
+		num_waits, num_fences, RUNTIME_INFO(i915)->num_rings, ncpus);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	ret = igt_live_test_end(&live) ?: ret;
+out_contexts:
+	mutex_unlock(&i915->drm.struct_mutex);
+	kfree(t[0].contexts);
+out_threads:
+	kfree(threads);
+out_file:
+	mock_file_free(i915, file);
+out_rpm:
+	intel_runtime_pm_put(i915, wakeref);
+
+	return ret;
 }
 
 int i915_request_live_selftests(struct drm_i915_private *i915)
@@ -864,6 +1243,7 @@ int i915_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_all_engines),
 		SUBTEST(live_sequential_engines),
 		SUBTEST(live_empty_request),
+		SUBTEST(live_breadcrumbs_smoketest),
 	};
 
 	if (i915_terminally_wedged(&i915->gpu_error))

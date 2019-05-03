@@ -291,6 +291,15 @@ struct drm_crtc_state {
 	u32 pageflip_flags;
 
 	/**
+	 * @vrr_enabled:
+	 *
+	 * Indicates if variable refresh rate should be enabled for the CRTC.
+	 * Support for the requested vrr state will depend on driver and
+	 * hardware capabiltiy - lacking support is not treated as failure.
+	 */
+	bool vrr_enabled;
+
+	/**
 	 * @event:
 	 *
 	 * Optional pointer to a DRM event to signal upon completion of the
@@ -744,8 +753,45 @@ struct drm_crtc_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*set_crc_source)(struct drm_crtc *crtc, const char *source,
-			      size_t *values_cnt);
+	int (*set_crc_source)(struct drm_crtc *crtc, const char *source);
+	/**
+	 * @verify_crc_source:
+	 *
+	 * verifies the source of CRC checksums of frames before setting the
+	 * source for CRC and during crc open. Source parameter can be NULL
+	 * while disabling crc source.
+	 *
+	 * This callback is optional if the driver does not support any CRC
+	 * generation functionality.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
+	int (*verify_crc_source)(struct drm_crtc *crtc, const char *source,
+				 size_t *values_cnt);
+	/**
+	 * @get_crc_sources:
+	 *
+	 * Driver callback for getting a list of all the available sources for
+	 * CRC generation. This callback depends upon verify_crc_source, So
+	 * verify_crc_source callback should be implemented before implementing
+	 * this. Driver can pass full list of available crc sources, this
+	 * callback does the verification on each crc-source before passing it
+	 * to userspace.
+	 *
+	 * This callback is optional if the driver does not support exporting of
+	 * possible CRC sources list.
+	 *
+	 * RETURNS:
+	 *
+	 * a constant character pointer to the list of all the available CRC
+	 * sources. On failure driver should return NULL. count should be
+	 * updated with number of sources in list. if zero we don't process any
+	 * source from the list.
+	 */
+	const char *const *(*get_crc_sources)(struct drm_crtc *crtc,
+					      size_t *count);
 
 	/**
 	 * @atomic_print_state:
@@ -1102,9 +1148,6 @@ static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 {
 	return 1 << drm_crtc_index(crtc);
 }
-
-int drm_crtc_force_disable(struct drm_crtc *crtc);
-int drm_crtc_force_disable_all(struct drm_device *dev);
 
 int drm_mode_set_config_internal(struct drm_mode_set *set);
 struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);

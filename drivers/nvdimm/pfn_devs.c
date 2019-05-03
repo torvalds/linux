@@ -361,6 +361,65 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 	return dev;
 }
 
+/*
+ * nd_pfn_clear_memmap_errors() clears any errors in the volatile memmap
+ * space associated with the namespace. If the memmap is set to DRAM, then
+ * this is a no-op. Since the memmap area is freshly initialized during
+ * probe, we have an opportunity to clear any badblocks in this area.
+ */
+static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
+{
+	struct nd_region *nd_region = to_nd_region(nd_pfn->dev.parent);
+	struct nd_namespace_common *ndns = nd_pfn->ndns;
+	void *zero_page = page_address(ZERO_PAGE(0));
+	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+	int num_bad, meta_num, rc, bb_present;
+	sector_t first_bad, meta_start;
+	struct nd_namespace_io *nsio;
+
+	if (nd_pfn->mode != PFN_MODE_PMEM)
+		return 0;
+
+	nsio = to_nd_namespace_io(&ndns->dev);
+	meta_start = (SZ_4K + sizeof(*pfn_sb)) >> 9;
+	meta_num = (le64_to_cpu(pfn_sb->dataoff) >> 9) - meta_start;
+
+	do {
+		unsigned long zero_len;
+		u64 nsoff;
+
+		bb_present = badblocks_check(&nd_region->bb, meta_start,
+				meta_num, &first_bad, &num_bad);
+		if (bb_present) {
+			dev_dbg(&nd_pfn->dev, "meta: %x badblocks at %lx\n",
+					num_bad, first_bad);
+			nsoff = ALIGN_DOWN((nd_region->ndr_start
+					+ (first_bad << 9)) - nsio->res.start,
+					PAGE_SIZE);
+			zero_len = ALIGN(num_bad << 9, PAGE_SIZE);
+			while (zero_len) {
+				unsigned long chunk = min(zero_len, PAGE_SIZE);
+
+				rc = nvdimm_write_bytes(ndns, nsoff, zero_page,
+							chunk, 0);
+				if (rc)
+					break;
+
+				zero_len -= chunk;
+				nsoff += chunk;
+			}
+			if (rc) {
+				dev_err(&nd_pfn->dev,
+					"error clearing %x badblocks at %lx\n",
+					num_bad, first_bad);
+				return rc;
+			}
+		}
+	} while (bb_present);
+
+	return 0;
+}
+
 int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
 	u64 checksum, offset;
@@ -477,7 +536,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -ENXIO;
 	}
 
-	return 0;
+	return nd_pfn_clear_memmap_errors(nd_pfn);
 }
 EXPORT_SYMBOL(nd_pfn_validate);
 
@@ -521,6 +580,11 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 }
 EXPORT_SYMBOL(nd_pfn_probe);
 
+static u32 info_block_reserve(void)
+{
+	return ALIGN(SZ_8K, PAGE_SIZE);
+}
+
 /*
  * We hotplug memory at section granularity, pad the reserved area from
  * the previous section base to the namespace base address.
@@ -534,7 +598,7 @@ static unsigned long init_altmap_base(resource_size_t base)
 
 static unsigned long init_altmap_reserve(resource_size_t base)
 {
-	unsigned long reserve = PHYS_PFN(SZ_8K);
+	unsigned long reserve = info_block_reserve() >> PAGE_SHIFT;
 	unsigned long base_pfn = PHYS_PFN(base);
 
 	reserve += base_pfn - PFN_SECTION_ALIGN_DOWN(base_pfn);
@@ -549,6 +613,7 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 	u64 offset = le64_to_cpu(pfn_sb->dataoff);
 	u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
 	u32 end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
+	u32 reserve = info_block_reserve();
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	resource_size_t base = nsio->res.start + start_pad;
@@ -562,7 +627,7 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 	res->end -= end_trunc;
 
 	if (nd_pfn->mode == PFN_MODE_RAM) {
-		if (offset < SZ_8K)
+		if (offset < reserve)
 			return -EINVAL;
 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
 		pgmap->altmap_valid = false;
@@ -575,7 +640,7 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 					le64_to_cpu(nd_pfn->pfn_sb->npfns),
 					nd_pfn->npfns);
 		memcpy(altmap, &__altmap, sizeof(*altmap));
-		altmap->free = PHYS_PFN(offset - SZ_8K);
+		altmap->free = PHYS_PFN(offset - reserve);
 		altmap->alloc = 0;
 		pgmap->altmap_valid = true;
 	} else
@@ -590,13 +655,45 @@ static u64 phys_pmem_align_down(struct nd_pfn *nd_pfn, u64 phys)
 			ALIGN_DOWN(phys, nd_pfn->align));
 }
 
+/*
+ * Check if pmem collides with 'System RAM', or other regions when
+ * section aligned.  Trim it accordingly.
+ */
+static void trim_pfn_device(struct nd_pfn *nd_pfn, u32 *start_pad, u32 *end_trunc)
+{
+	struct nd_namespace_common *ndns = nd_pfn->ndns;
+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	struct nd_region *nd_region = to_nd_region(nd_pfn->dev.parent);
+	const resource_size_t start = nsio->res.start;
+	const resource_size_t end = start + resource_size(&nsio->res);
+	resource_size_t adjust, size;
+
+	*start_pad = 0;
+	*end_trunc = 0;
+
+	adjust = start - PHYS_SECTION_ALIGN_DOWN(start);
+	size = resource_size(&nsio->res) + adjust;
+	if (region_intersects(start - adjust, size, IORESOURCE_SYSTEM_RAM,
+				IORES_DESC_NONE) == REGION_MIXED
+			|| nd_region_conflict(nd_region, start - adjust, size))
+		*start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
+
+	/* Now check that end of the range does not collide. */
+	adjust = PHYS_SECTION_ALIGN_UP(end) - end;
+	size = resource_size(&nsio->res) + adjust;
+	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
+				IORES_DESC_NONE) == REGION_MIXED
+			|| !IS_ALIGNED(end, nd_pfn->align)
+			|| nd_region_conflict(nd_region, start, size))
+		*end_trunc = end - phys_pmem_align_down(nd_pfn, end);
+}
+
 static int nd_pfn_init(struct nd_pfn *nd_pfn)
 {
-	u32 dax_label_reserve = is_nd_dax(&nd_pfn->dev) ? SZ_128K : 0;
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
-	u32 start_pad = 0, end_trunc = 0;
+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	u32 start_pad, end_trunc, reserve = info_block_reserve();
 	resource_size_t start, size;
-	struct nd_namespace_io *nsio;
 	struct nd_region *nd_region;
 	struct nd_pfn_sb *pfn_sb;
 	unsigned long npfns;
@@ -629,30 +726,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 
 	memset(pfn_sb, 0, sizeof(*pfn_sb));
 
-	/*
-	 * Check if pmem collides with 'System RAM' when section aligned and
-	 * trim it accordingly
-	 */
-	nsio = to_nd_namespace_io(&ndns->dev);
-	start = PHYS_SECTION_ALIGN_DOWN(nsio->res.start);
-	size = resource_size(&nsio->res);
-	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
-				IORES_DESC_NONE) == REGION_MIXED) {
-		start = nsio->res.start;
-		start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
-	}
-
-	start = nsio->res.start;
-	size = PHYS_SECTION_ALIGN_UP(start + size) - start;
-	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
-				IORES_DESC_NONE) == REGION_MIXED
-			|| !IS_ALIGNED(start + resource_size(&nsio->res),
-				nd_pfn->align)) {
-		size = resource_size(&nsio->res);
-		end_trunc = start + size - phys_pmem_align_down(nd_pfn,
-				start + size);
-	}
-
+	trim_pfn_device(nd_pfn, &start_pad, &end_trunc);
 	if (start_pad + end_trunc)
 		dev_info(&nd_pfn->dev, "%s alignment collision, truncate %d bytes\n",
 				dev_name(&ndns->dev), start_pad + end_trunc);
@@ -663,9 +737,9 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	 * implementation will limit the pfns advertised through
 	 * ->direct_access() to those that are included in the memmap.
 	 */
-	start += start_pad;
+	start = nsio->res.start + start_pad;
 	size = resource_size(&nsio->res);
-	npfns = PFN_SECTION_ALIGN_UP((size - start_pad - end_trunc - SZ_8K)
+	npfns = PFN_SECTION_ALIGN_UP((size - start_pad - end_trunc - reserve)
 			/ PAGE_SIZE);
 	if (nd_pfn->mode == PFN_MODE_PMEM) {
 		/*
@@ -673,11 +747,10 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 		 * when populating the vmemmap. This *should* be equal to
 		 * PMD_SIZE for most architectures.
 		 */
-		offset = ALIGN(start + SZ_8K + 64 * npfns + dax_label_reserve,
+		offset = ALIGN(start + reserve + 64 * npfns,
 				max(nd_pfn->align, PMD_SIZE)) - start;
 	} else if (nd_pfn->mode == PFN_MODE_RAM)
-		offset = ALIGN(start + SZ_8K + dax_label_reserve,
-				nd_pfn->align) - start;
+		offset = ALIGN(start + reserve, nd_pfn->align) - start;
 	else
 		return -ENXIO;
 

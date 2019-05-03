@@ -52,7 +52,7 @@ module_param_named(debug, rpaphp_debug, bool, 0644);
 static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 {
 	int rc;
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	switch (value) {
 	case 0:
@@ -66,7 +66,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 
 	rc = rtas_set_indicator(DR_INDICATOR, slot->index, value);
 	if (!rc)
-		hotplug_slot->info->attention_status = value;
+		slot->attention_status = value;
 
 	return rc;
 }
@@ -79,7 +79,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int retval, level;
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	retval = rtas_get_power_level(slot->power_domain, &level);
 	if (!retval)
@@ -94,14 +94,14 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
  */
 static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
-	*value = slot->hotplug_slot->info->attention_status;
+	struct slot *slot = to_slot(hotplug_slot);
+	*value = slot->attention_status;
 	return 0;
 }
 
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 	int rc, state;
 
 	rc = rpaphp_get_sensor_state(slot, &state);
@@ -409,7 +409,7 @@ static void __exit cleanup_slots(void)
 	list_for_each_entry_safe(slot, next, &rpaphp_slot_head,
 				 rpaphp_slot_list) {
 		list_del(&slot->rpaphp_slot_list);
-		pci_hp_deregister(slot->hotplug_slot);
+		pci_hp_deregister(&slot->hotplug_slot);
 		dealloc_slot_struct(slot);
 	}
 	return;
@@ -434,7 +434,7 @@ static void __exit rpaphp_exit(void)
 
 static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 	int state;
 	int retval;
 
@@ -464,7 +464,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 
 static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 	if (slot->state == NOT_CONFIGURED)
 		return -EINVAL;
 
@@ -477,7 +477,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	return 0;
 }
 
-struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
+const struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
 	.enable_slot = enable_slot,
 	.disable_slot = disable_slot,
 	.set_attention_status = set_attention_status,

@@ -1,28 +1,32 @@
 # SPDX-License-Identifier: GPL-2.0
 
+MOUNT_CFLAGS := $(shell pkg-config --cflags mount 2>/dev/null)
+MOUNT_LDLIBS := $(shell pkg-config --libs mount 2>/dev/null)
+ifeq ($(MOUNT_LDLIBS),)
+MOUNT_LDLIBS := -lmount -I/usr/include/libmount
+endif
+
+CFLAGS += -O2 -g -std=gnu99 -Wall -I../../../../usr/include/ $(MOUNT_CFLAGS)
+LDLIBS += $(MOUNT_LDLIBS)
+
 TEST_PROGS := gpio-mockup.sh
-TEST_FILES := gpio-mockup-sysfs.sh $(BINARIES)
-BINARIES := gpio-mockup-chardev
-EXTRA_PROGS := ../gpiogpio-event-mon ../gpiogpio-hammer ../gpiolsgpio
-EXTRA_DIRS := ../gpioinclude/
-EXTRA_OBJS := ../gpiogpio-event-mon-in.o ../gpiogpio-event-mon.o
-EXTRA_OBJS += ../gpiogpio-hammer-in.o ../gpiogpio-utils.o ../gpiolsgpio-in.o
-EXTRA_OBJS += ../gpiolsgpio.o
+TEST_FILES := gpio-mockup-sysfs.sh
+TEST_PROGS_EXTENDED := gpio-mockup-chardev
 
-include ../lib.mk
+GPIODIR := $(realpath ../../../gpio)
+GPIOOBJ := gpio-utils.o
 
-all: $(BINARIES)
+all: $(TEST_PROGS_EXTENDED)
 
 override define CLEAN
-	$(RM) $(BINARIES) $(EXTRA_PROGS) $(EXTRA_OBJS)
-	$(RM) -r $(EXTRA_DIRS)
+	$(RM) $(TEST_PROGS_EXTENDED)
+	$(MAKE) -C $(GPIODIR) OUTPUT=$(GPIODIR)/ clean
 endef
 
-CFLAGS += -O2 -g -std=gnu99 -Wall -I../../../../usr/include/
-LDLIBS += -lmount -I/usr/include/libmount
+KSFT_KHDR_INSTALL := 1
+include ../lib.mk
 
-$(BINARIES):| khdr
-$(BINARIES): ../../../gpio/gpio-utils.o
+$(TEST_PROGS_EXTENDED): $(GPIODIR)/$(GPIOOBJ)
 
-../../../gpio/gpio-utils.o:
-	make ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C ../../../gpio
+$(GPIODIR)/$(GPIOOBJ):
+	$(MAKE) OUTPUT=$(GPIODIR)/ -C $(GPIODIR)

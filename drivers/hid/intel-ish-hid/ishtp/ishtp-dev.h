@@ -207,11 +207,9 @@ struct ishtp_device {
 	struct work_struct bh_hbm_work;
 
 	/* IPC write queue */
-	struct wr_msg_ctl_info wr_processing_list_head, wr_free_list_head;
+	struct list_head wr_processing_list, wr_free_list;
 	/* For both processing list  and free list */
 	spinlock_t wr_processing_spinlock;
-
-	spinlock_t out_ipc_spinlock;
 
 	struct ishtp_fw_client *fw_clients; /*Note:memory has to be allocated*/
 	DECLARE_BITMAP(fw_clients_map, ISHTP_CLIENTS_MAX);

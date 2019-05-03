@@ -291,10 +291,37 @@ enum {
        TCA_GRED_DPS,
        TCA_GRED_MAX_P,
        TCA_GRED_LIMIT,
+       TCA_GRED_VQ_LIST,	/* nested TCA_GRED_VQ_ENTRY */
        __TCA_GRED_MAX,
 };
 
 #define TCA_GRED_MAX (__TCA_GRED_MAX - 1)
+
+enum {
+	TCA_GRED_VQ_ENTRY_UNSPEC,
+	TCA_GRED_VQ_ENTRY,	/* nested TCA_GRED_VQ_* */
+	__TCA_GRED_VQ_ENTRY_MAX,
+};
+#define TCA_GRED_VQ_ENTRY_MAX (__TCA_GRED_VQ_ENTRY_MAX - 1)
+
+enum {
+	TCA_GRED_VQ_UNSPEC,
+	TCA_GRED_VQ_PAD,
+	TCA_GRED_VQ_DP,			/* u32 */
+	TCA_GRED_VQ_STAT_BYTES,		/* u64 */
+	TCA_GRED_VQ_STAT_PACKETS,	/* u32 */
+	TCA_GRED_VQ_STAT_BACKLOG,	/* u32 */
+	TCA_GRED_VQ_STAT_PROB_DROP,	/* u32 */
+	TCA_GRED_VQ_STAT_PROB_MARK,	/* u32 */
+	TCA_GRED_VQ_STAT_FORCED_DROP,	/* u32 */
+	TCA_GRED_VQ_STAT_FORCED_MARK,	/* u32 */
+	TCA_GRED_VQ_STAT_PDROP,		/* u32 */
+	TCA_GRED_VQ_STAT_OTHER,		/* u32 */
+	TCA_GRED_VQ_FLAGS,		/* u32 */
+	__TCA_GRED_VQ_MAX
+};
+
+#define TCA_GRED_VQ_MAX (__TCA_GRED_VQ_MAX - 1)
 
 struct tc_gred_qopt {
 	__u32		limit;        /* HARD maximal queue length (bytes)    */
@@ -395,9 +422,9 @@ enum {
 struct tc_htb_xstats {
 	__u32 lends;
 	__u32 borrows;
-	__u32 giants;	/* too big packets (rate will not be accurate) */
-	__u32 tokens;
-	__u32 ctokens;
+	__u32 giants;	/* unused since 'Make HTB scheduler work with TSO.' */
+	__s32 tokens;
+	__s32 ctokens;
 };
 
 /* HFSC section */
@@ -864,6 +891,8 @@ enum {
 
 	TCA_FQ_LOW_RATE_THRESHOLD, /* per packet delay under this rate */
 
+	TCA_FQ_CE_THRESHOLD,	/* DCTCP-like CE-marking threshold */
+
 	__TCA_FQ_MAX
 };
 
@@ -882,6 +911,7 @@ struct tc_fq_qd_stats {
 	__u32	inactive_flows;
 	__u32	throttled_flows;
 	__u32	unthrottle_latency_ns;
+	__u64	ce_mark;		/* packets above ce_threshold */
 };
 
 /* Heavy-Hitter Filter */
@@ -924,7 +954,7 @@ enum {
 #define TCA_PIE_MAX   (__TCA_PIE_MAX - 1)
 
 struct tc_pie_xstats {
-	__u32 prob;             /* current probability */
+	__u64 prob;             /* current probability */
 	__u32 delay;            /* current delay in ms */
 	__u32 avg_dq_rate;      /* current average dq_rate in bits/pie_time */
 	__u32 packets_in;       /* total number of packets enqueued */
@@ -991,6 +1021,7 @@ enum {
 	TCA_CAKE_INGRESS,
 	TCA_CAKE_ACK_FILTER,
 	TCA_CAKE_SPLIT_GSO,
+	TCA_CAKE_FWMARK,
 	__TCA_CAKE_MAX
 };
 #define TCA_CAKE_MAX	(__TCA_CAKE_MAX - 1)
@@ -1083,5 +1114,51 @@ enum {
 	CAKE_ATM_PTM,
 	CAKE_ATM_MAX
 };
+
+
+/* TAPRIO */
+enum {
+	TC_TAPRIO_CMD_SET_GATES = 0x00,
+	TC_TAPRIO_CMD_SET_AND_HOLD = 0x01,
+	TC_TAPRIO_CMD_SET_AND_RELEASE = 0x02,
+};
+
+enum {
+	TCA_TAPRIO_SCHED_ENTRY_UNSPEC,
+	TCA_TAPRIO_SCHED_ENTRY_INDEX, /* u32 */
+	TCA_TAPRIO_SCHED_ENTRY_CMD, /* u8 */
+	TCA_TAPRIO_SCHED_ENTRY_GATE_MASK, /* u32 */
+	TCA_TAPRIO_SCHED_ENTRY_INTERVAL, /* u32 */
+	__TCA_TAPRIO_SCHED_ENTRY_MAX,
+};
+#define TCA_TAPRIO_SCHED_ENTRY_MAX (__TCA_TAPRIO_SCHED_ENTRY_MAX - 1)
+
+/* The format for schedule entry list is:
+ * [TCA_TAPRIO_SCHED_ENTRY_LIST]
+ *   [TCA_TAPRIO_SCHED_ENTRY]
+ *     [TCA_TAPRIO_SCHED_ENTRY_CMD]
+ *     [TCA_TAPRIO_SCHED_ENTRY_GATES]
+ *     [TCA_TAPRIO_SCHED_ENTRY_INTERVAL]
+ */
+enum {
+	TCA_TAPRIO_SCHED_UNSPEC,
+	TCA_TAPRIO_SCHED_ENTRY,
+	__TCA_TAPRIO_SCHED_MAX,
+};
+
+#define TCA_TAPRIO_SCHED_MAX (__TCA_TAPRIO_SCHED_MAX - 1)
+
+enum {
+	TCA_TAPRIO_ATTR_UNSPEC,
+	TCA_TAPRIO_ATTR_PRIOMAP, /* struct tc_mqprio_qopt */
+	TCA_TAPRIO_ATTR_SCHED_ENTRY_LIST, /* nested of entry */
+	TCA_TAPRIO_ATTR_SCHED_BASE_TIME, /* s64 */
+	TCA_TAPRIO_ATTR_SCHED_SINGLE_ENTRY, /* single entry */
+	TCA_TAPRIO_ATTR_SCHED_CLOCKID, /* s32 */
+	TCA_TAPRIO_PAD,
+	__TCA_TAPRIO_ATTR_MAX,
+};
+
+#define TCA_TAPRIO_ATTR_MAX (__TCA_TAPRIO_ATTR_MAX - 1)
 
 #endif

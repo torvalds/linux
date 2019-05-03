@@ -33,7 +33,10 @@
 #include <linux/module.h>
 #include <linux/configfs.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/rdma_cm.h>
+
 #include "core_priv.h"
+#include "cma_priv.h"
 
 struct cma_device;
 
@@ -65,7 +68,7 @@ static struct cma_dev_port_group *to_dev_port_group(struct config_item *item)
 
 static bool filter_by_name(struct ib_device *ib_dev, void *cookie)
 {
-	return !strcmp(ib_dev->name, cookie);
+	return !strcmp(dev_name(&ib_dev->dev), cookie);
 }
 
 static int cma_configfs_params_get(struct config_item *item,

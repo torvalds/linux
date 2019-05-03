@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/mtd/partitions.h>
@@ -202,11 +203,18 @@ static struct mmc_spi_platform_data vision_spi_mmc_data = {
 	.detect_delay	= 100,
 	.powerup_msecs	= 100,
 	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.flags		= MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
-	.cd_gpio	= EP93XX_GPIO_LINE_EGPIO15,
-	.cd_debounce	= 1,
-	.ro_gpio	= EP93XX_GPIO_LINE_F(0),
 	.caps2		= MMC_CAP2_RO_ACTIVE_HIGH,
+};
+
+static struct gpiod_lookup_table vision_spi_mmc_gpio_table = {
+	.dev_id = "mmc_spi.2", /* "mmc_spi @ CS2 */
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP_IDX("B", 7, NULL, 0, GPIO_ACTIVE_LOW),
+		/* Write protect */
+		GPIO_LOOKUP_IDX("F", 0, NULL, 1, GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /*************************************************************************
@@ -286,6 +294,7 @@ static void __init vision_init_machine(void)
 
 	ep93xx_register_i2c(vision_i2c_info,
 				ARRAY_SIZE(vision_i2c_info));
+	gpiod_add_lookup_table(&vision_spi_mmc_gpio_table);
 	ep93xx_register_spi(&vision_spi_master, vision_spi_board_info,
 				ARRAY_SIZE(vision_spi_board_info));
 	vision_register_i2s();

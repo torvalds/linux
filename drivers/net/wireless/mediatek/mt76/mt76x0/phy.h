@@ -30,6 +30,23 @@
 #define MT_RF_BANK(offset) (offset >> 16)
 #define MT_RF_REG(offset) (offset & 0xff)
 
+#define MT_RF_VCO_BP_CLOSE_LOOP		BIT(3)
+#define MT_RF_VCO_BP_CLOSE_LOOP_MASK	GENMASK(3, 0)
+#define MT_RF_VCO_CAL_MASK		GENMASK(2, 0)
+#define MT_RF_START_TIME		0x3
+#define MT_RF_START_TIME_MASK		GENMASK(2, 0)
+#define MT_RF_SETTLE_TIME_MASK		GENMASK(6, 4)
+
+#define MT_RF_PLL_DEN_MASK		GENMASK(4, 0)
+#define MT_RF_PLL_K_MASK		GENMASK(4, 0)
+#define MT_RF_SDM_RESET_MASK		BIT(7)
+#define MT_RF_SDM_MASH_PRBS_MASK	GENMASK(6, 2)
+#define MT_RF_SDM_BP_MASK		BIT(1)
+#define MT_RF_ISI_ISO_MASK		GENMASK(7, 6)
+#define MT_RF_PFD_DLY_MASK		GENMASK(5, 4)
+#define MT_RF_CLK_SEL_MASK		GENMASK(3, 2)
+#define MT_RF_XO_DIV_MASK		GENMASK(1, 0)
+
 struct mt76x0_bbp_switch_item {
 	u16 bw_band;
 	struct mt76_reg_pair reg_pair;

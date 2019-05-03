@@ -1,13 +1,1 @@
-# UAPI Header export list
-include include/uapi/asm-generic/Kbuild.asm
-
-generic-y += bitsperlong.h
-generic-y += bpf_perf_event.h
-generic-y += errno.h
-generic-y += fcntl.h
-generic-y += ioctl.h
-generic-y += kvm_para.h
-generic-y += resource.h
-generic-y += siginfo.h
-generic-y += statfs.h
-generic-y += termios.h
+generated-y += unistd_32.h

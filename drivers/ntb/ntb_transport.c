@@ -144,7 +144,9 @@ struct ntb_transport_qp {
 	struct list_head tx_free_q;
 	spinlock_t ntb_tx_free_q_lock;
 	void __iomem *tx_mw;
-	dma_addr_t tx_mw_phys;
+	phys_addr_t tx_mw_phys;
+	size_t tx_mw_size;
+	dma_addr_t tx_mw_dma_addr;
 	unsigned int tx_index;
 	unsigned int tx_max_entry;
 	unsigned int tx_max_frame;
@@ -194,6 +196,8 @@ struct ntb_transport_mw {
 	void __iomem *vbase;
 	size_t xlat_size;
 	size_t buff_size;
+	size_t alloc_size;
+	void *alloc_addr;
 	void *virt_addr;
 	dma_addr_t dma_addr;
 };
@@ -672,11 +676,57 @@ static void ntb_free_mw(struct ntb_transport_ctx *nt, int num_mw)
 		return;
 
 	ntb_mw_clear_trans(nt->ndev, PIDX, num_mw);
-	dma_free_coherent(&pdev->dev, mw->buff_size,
-			  mw->virt_addr, mw->dma_addr);
+	dma_free_coherent(&pdev->dev, mw->alloc_size,
+			  mw->alloc_addr, mw->dma_addr);
 	mw->xlat_size = 0;
 	mw->buff_size = 0;
+	mw->alloc_size = 0;
+	mw->alloc_addr = NULL;
 	mw->virt_addr = NULL;
+}
+
+static int ntb_alloc_mw_buffer(struct ntb_transport_mw *mw,
+			       struct device *dma_dev, size_t align)
+{
+	dma_addr_t dma_addr;
+	void *alloc_addr, *virt_addr;
+	int rc;
+
+	alloc_addr = dma_alloc_coherent(dma_dev, mw->alloc_size,
+					&dma_addr, GFP_KERNEL);
+	if (!alloc_addr) {
+		dev_err(dma_dev, "Unable to alloc MW buff of size %zu\n",
+			mw->alloc_size);
+		return -ENOMEM;
+	}
+	virt_addr = alloc_addr;
+
+	/*
+	 * we must ensure that the memory address allocated is BAR size
+	 * aligned in order for the XLAT register to take the value. This
+	 * is a requirement of the hardware. It is recommended to setup CMA
+	 * for BAR sizes equal or greater than 4MB.
+	 */
+	if (!IS_ALIGNED(dma_addr, align)) {
+		if (mw->alloc_size > mw->buff_size) {
+			virt_addr = PTR_ALIGN(alloc_addr, align);
+			dma_addr = ALIGN(dma_addr, align);
+		} else {
+			rc = -ENOMEM;
+			goto err;
+		}
+	}
+
+	mw->alloc_addr = alloc_addr;
+	mw->virt_addr = virt_addr;
+	mw->dma_addr = dma_addr;
+
+	return 0;
+
+err:
+	dma_free_coherent(dma_dev, mw->alloc_size, alloc_addr, dma_addr);
+
+	return rc;
 }
 
 static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
@@ -710,28 +760,20 @@ static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
 	/* Alloc memory for receiving data.  Must be aligned */
 	mw->xlat_size = xlat_size;
 	mw->buff_size = buff_size;
+	mw->alloc_size = buff_size;
 
-	mw->virt_addr = dma_alloc_coherent(&pdev->dev, buff_size,
-					   &mw->dma_addr, GFP_KERNEL);
-	if (!mw->virt_addr) {
-		mw->xlat_size = 0;
-		mw->buff_size = 0;
-		dev_err(&pdev->dev, "Unable to alloc MW buff of size %zu\n",
-			buff_size);
-		return -ENOMEM;
-	}
-
-	/*
-	 * we must ensure that the memory address allocated is BAR size
-	 * aligned in order for the XLAT register to take the value. This
-	 * is a requirement of the hardware. It is recommended to setup CMA
-	 * for BAR sizes equal or greater than 4MB.
-	 */
-	if (!IS_ALIGNED(mw->dma_addr, xlat_align)) {
-		dev_err(&pdev->dev, "DMA memory %pad is not aligned\n",
-			&mw->dma_addr);
-		ntb_free_mw(nt, num_mw);
-		return -ENOMEM;
+	rc = ntb_alloc_mw_buffer(mw, &pdev->dev, xlat_align);
+	if (rc) {
+		mw->alloc_size *= 2;
+		rc = ntb_alloc_mw_buffer(mw, &pdev->dev, xlat_align);
+		if (rc) {
+			dev_err(&pdev->dev,
+				"Unable to alloc aligned MW buff\n");
+			mw->xlat_size = 0;
+			mw->buff_size = 0;
+			mw->alloc_size = 0;
+			return rc;
+		}
 	}
 
 	/* Notify HW the memory location of the receive buffer */
@@ -821,6 +863,9 @@ static void ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 
 	if (!nt->link_is_up)
 		cancel_delayed_work_sync(&nt->link_work);
+
+	for (i = 0; i < nt->mw_count; i++)
+		ntb_free_mw(nt, i);
 
 	/* The scratchpad registers keep the values if the remote side
 	 * goes down, blast them now to give them a sane value the next
@@ -1009,6 +1054,7 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	tx_size = (unsigned int)mw_size / num_qps_mw;
 	qp_offset = tx_size * (qp_num / mw_count);
 
+	qp->tx_mw_size = tx_size;
 	qp->tx_mw = nt->mw_vec[mw_num].vbase + qp_offset;
 	if (!qp->tx_mw)
 		return -EINVAL;
@@ -1278,6 +1324,7 @@ static void ntb_rx_copy_callback(void *data,
 		case DMA_TRANS_READ_FAILED:
 		case DMA_TRANS_WRITE_FAILED:
 			entry->errors++;
+			/* fall through */
 		case DMA_TRANS_ABORTED:
 		{
 			struct ntb_transport_qp *qp = entry->qp;
@@ -1533,6 +1580,7 @@ static void ntb_tx_copy_callback(void *data,
 		case DMA_TRANS_READ_FAILED:
 		case DMA_TRANS_WRITE_FAILED:
 			entry->errors++;
+			/* fall through */
 		case DMA_TRANS_ABORTED:
 		{
 			void __iomem *offset =
@@ -1602,7 +1650,7 @@ static int ntb_async_tx_submit(struct ntb_transport_qp *qp,
 	dma_cookie_t cookie;
 
 	device = chan->device;
-	dest = qp->tx_mw_phys + qp->tx_max_frame * entry->tx_index;
+	dest = qp->tx_mw_dma_addr + qp->tx_max_frame * entry->tx_index;
 	buff_off = (size_t)buf & ~PAGE_MASK;
 	dest_off = (size_t)dest & ~PAGE_MASK;
 
@@ -1821,6 +1869,18 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 		qp->rx_dma_chan = NULL;
 	}
 
+	if (qp->tx_dma_chan) {
+		qp->tx_mw_dma_addr =
+			dma_map_resource(qp->tx_dma_chan->device->dev,
+					 qp->tx_mw_phys, qp->tx_mw_size,
+					 DMA_FROM_DEVICE, 0);
+		if (dma_mapping_error(qp->tx_dma_chan->device->dev,
+				      qp->tx_mw_dma_addr)) {
+			qp->tx_mw_dma_addr = 0;
+			goto err1;
+		}
+	}
+
 	dev_dbg(&pdev->dev, "Using %s memcpy for TX\n",
 		qp->tx_dma_chan ? "DMA" : "CPU");
 
@@ -1862,6 +1922,10 @@ err1:
 	qp->rx_alloc_entry = 0;
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_free_q)))
 		kfree(entry);
+	if (qp->tx_mw_dma_addr)
+		dma_unmap_resource(qp->tx_dma_chan->device->dev,
+				   qp->tx_mw_dma_addr, qp->tx_mw_size,
+				   DMA_FROM_DEVICE, 0);
 	if (qp->tx_dma_chan)
 		dma_release_channel(qp->tx_dma_chan);
 	if (qp->rx_dma_chan)
@@ -1903,6 +1967,11 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 		 */
 		dma_sync_wait(chan, qp->last_cookie);
 		dmaengine_terminate_all(chan);
+
+		dma_unmap_resource(chan->device->dev,
+				   qp->tx_mw_dma_addr, qp->tx_mw_size,
+				   DMA_FROM_DEVICE, 0);
+
 		dma_release_channel(chan);
 	}
 

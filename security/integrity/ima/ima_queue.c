@@ -21,12 +21,14 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
 #include "ima.h"
 
 #define AUDIT_CAUSE_LEN_MAX 32
+
+/* pre-allocated array of tpm_digest structures to extend a PCR */
+static struct tpm_digest *digests;
 
 LIST_HEAD(ima_measurements);	/* list of all measurements */
 #ifdef CONFIG_IMA_KEXEC
@@ -141,11 +143,15 @@ unsigned long ima_get_binary_runtime_size(void)
 static int ima_pcr_extend(const u8 *hash, int pcr)
 {
 	int result = 0;
+	int i;
 
 	if (!ima_tpm_chip)
 		return result;
 
-	result = tpm_pcr_extend(ima_tpm_chip, pcr, hash);
+	for (i = 0; i < ima_tpm_chip->nr_allocated_banks; i++)
+		memcpy(digests[i].digest, hash, TPM_DIGEST_SIZE);
+
+	result = tpm_pcr_extend(ima_tpm_chip, pcr, digests);
 	if (result != 0)
 		pr_err("Error Communicating to TPM chip, result: %d\n", result);
 	return result;
@@ -211,4 +217,22 @@ int ima_restore_measurement_entry(struct ima_template_entry *entry)
 	result = ima_add_digest_entry(entry, 0);
 	mutex_unlock(&ima_extend_list_mutex);
 	return result;
+}
+
+int __init ima_init_digests(void)
+{
+	int i;
+
+	if (!ima_tpm_chip)
+		return 0;
+
+	digests = kcalloc(ima_tpm_chip->nr_allocated_banks, sizeof(*digests),
+			  GFP_NOFS);
+	if (!digests)
+		return -ENOMEM;
+
+	for (i = 0; i < ima_tpm_chip->nr_allocated_banks; i++)
+		digests[i].alg_id = ima_tpm_chip->allocated_banks[i].alg_id;
+
+	return 0;
 }

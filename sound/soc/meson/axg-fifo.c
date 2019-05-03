@@ -203,6 +203,8 @@ static int axg_fifo_pcm_open(struct snd_pcm_substream *ss)
 
 	ret = request_irq(fifo->irq, axg_fifo_pcm_irq_block, 0,
 			  dev_name(dev), ss);
+	if (ret)
+		return ret;
 
 	/* Enable pclk to access registers and clock the fifo ip */
 	ret = clk_prepare_enable(fifo->pclk);
@@ -265,9 +267,10 @@ int axg_fifo_pcm_new(struct snd_soc_pcm_runtime *rtd, unsigned int type)
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = axg_fifo_hw.buffer_bytes_max;
 
-	return snd_pcm_lib_preallocate_pages(rtd->pcm->streams[type].substream,
-					     SNDRV_DMA_TYPE_DEV, card->dev,
-					     size, size);
+	snd_pcm_lib_preallocate_pages(rtd->pcm->streams[type].substream,
+				      SNDRV_DMA_TYPE_DEV, card->dev,
+				      size, size);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(axg_fifo_pcm_new);
 

@@ -29,10 +29,11 @@
 
 	.section .text
 ENTRY(swsusp_arch_suspend)
-	stmg	%r6,%r15,__SF_GPRS(%r15)
-	lgr	%r1,%r15
-	aghi	%r15,-STACK_FRAME_OVERHEAD
-	stg	%r1,__SF_BACKCHAIN(%r15)
+	lg	%r1,__LC_NODAT_STACK
+	stmg	%r6,%r15,__SF_GPRS(%r1)
+	aghi	%r1,-STACK_FRAME_OVERHEAD
+	stg	%r15,__SF_BACKCHAIN(%r1)
+	lgr	%r15,%r1
 
 	/* Store FPU registers */
 	brasl	%r14,save_fpu_regs
@@ -123,12 +124,12 @@ ENTRY(swsusp_arch_resume)
 	lghi	%r2,1
 	brasl	%r14,arch_set_page_states
 
-	/* Deactivate DAT */
-	stnsm	__SF_EMPTY(%r15),0xfb
-
 	/* Set prefix page to zero */
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
 	spx	__SF_EMPTY(%r15)
+
+	/* Deactivate DAT */
+	stnsm	__SF_EMPTY(%r15),0xfb
 
 	/* Restore saved image */
 	larl	%r1,restore_pblist
@@ -197,9 +198,7 @@ pgm_check_entry:
 	brc	2,3b				/* busy, try again */
 
 	/* Suspend CPU not available -> panic */
-	larl	%r15,init_thread_union
-	aghi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER)
-	aghi	%r15,-STACK_FRAME_OVERHEAD
+	larl	%r15,init_thread_union+THREAD_SIZE-STACK_FRAME_OVERHEAD
 	larl	%r2,.Lpanic_string
 	brasl	%r14,sclp_early_printk_force
 	larl	%r3,.Ldisabled_wait_31

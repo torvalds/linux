@@ -1191,8 +1191,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	strlcpy(cap->driver, "au0828", sizeof(cap->driver));
-	strlcpy(cap->card, dev->board.name, sizeof(cap->card));
+	strscpy(cap->driver, "au0828", sizeof(cap->driver));
+	strscpy(cap->card, dev->board.name, sizeof(cap->card));
 	usb_make_path(dev->usbdev, cap->bus_info, sizeof(cap->bus_info));
 
 	/* set the device capabilities */
@@ -1218,7 +1218,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	dprintk(1, "%s called\n", __func__);
 
 	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	strcpy(f->description, "Packed YUV2");
+	strscpy(f->description, "Packed YUV2", sizeof(f->description));
 
 	f->flags = 0;
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
@@ -1349,7 +1349,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	input->index = tmp;
-	strcpy(input->name, inames[AUVI_INPUT(tmp).type]);
+	strscpy(input->name, inames[AUVI_INPUT(tmp).type], sizeof(input->name));
 	if ((AUVI_INPUT(tmp).type == AU0828_VMUX_TELEVISION) ||
 	    (AUVI_INPUT(tmp).type == AU0828_VMUX_CABLE)) {
 		input->type |= V4L2_INPUT_TYPE_TUNER;
@@ -1465,9 +1465,9 @@ static int vidioc_enumaudio(struct file *file, void *priv, struct v4l2_audio *a)
 	dprintk(1, "%s called\n", __func__);
 
 	if (a->index == 0)
-		strcpy(a->name, "Television");
+		strscpy(a->name, "Television", sizeof(a->name));
 	else
-		strcpy(a->name, "Line in");
+		strscpy(a->name, "Line in", sizeof(a->name));
 
 	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
@@ -1482,9 +1482,9 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 
 	a->index = dev->ctrl_ainput;
 	if (a->index == 0)
-		strcpy(a->name, "Television");
+		strscpy(a->name, "Television", sizeof(a->name));
 	else
-		strcpy(a->name, "Line in");
+		strscpy(a->name, "Line in", sizeof(a->name));
 
 	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
@@ -1518,7 +1518,7 @@ static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	strcpy(t->name, "Auvitek tuner");
+	strscpy(t->name, "Auvitek tuner", sizeof(t->name));
 
 	au0828_init_tuner(dev);
 	i2c_gate_ctrl(dev, 1);
@@ -1616,27 +1616,42 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_cropcap(struct file *file, void *priv,
-			  struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct au0828_dev *dev = video_drvdata(file);
 
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	cc->bounds.left = 0;
-	cc->bounds.top = 0;
-	cc->bounds.width = dev->width;
-	cc->bounds.height = dev->height;
+	f->numerator = 54;
+	f->denominator = 59;
 
-	cc->defrect = cc->bounds;
+	return 0;
+}
 
-	cc->pixelaspect.numerator = 54;
-	cc->pixelaspect.denominator = 59;
+static int vidioc_g_selection(struct file *file, void *priv,
+			      struct v4l2_selection *s)
+{
+	struct au0828_dev *dev = video_drvdata(file);
 
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = dev->width;
+		s->r.height = dev->height;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1762,7 +1777,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enumaudio           = vidioc_enumaudio,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
-	.vidioc_cropcap             = vidioc_cropcap,
+	.vidioc_g_pixelaspect       = vidioc_g_pixelaspect,
+	.vidioc_g_selection         = vidioc_g_selection,
 
 	.vidioc_reqbufs             = vb2_ioctl_reqbufs,
 	.vidioc_create_bufs         = vb2_ioctl_create_bufs,
@@ -1978,7 +1994,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->vdev.lock = &dev->lock;
 	dev->vdev.queue = &dev->vb_vidq;
 	dev->vdev.queue->lock = &dev->vb_queue_lock;
-	strcpy(dev->vdev.name, "au0828a video");
+	strscpy(dev->vdev.name, "au0828a video", sizeof(dev->vdev.name));
 
 	/* Setup the VBI device */
 	dev->vbi_dev = au0828_video_template;
@@ -1986,7 +2002,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->vbi_dev.lock = &dev->lock;
 	dev->vbi_dev.queue = &dev->vb_vbiq;
 	dev->vbi_dev.queue->lock = &dev->vb_vbi_queue_lock;
-	strcpy(dev->vbi_dev.name, "au0828a vbi");
+	strscpy(dev->vbi_dev.name, "au0828a vbi", sizeof(dev->vbi_dev.name));
 
 	/* Init entities at the Media Controller */
 	au0828_analog_create_entities(dev);

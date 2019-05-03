@@ -203,11 +203,11 @@ opcodes as defined in linux/filter.h stand for:
 
   Instruction      Addressing mode      Description
 
-  ld               1, 2, 3, 4, 10       Load word into A
+  ld               1, 2, 3, 4, 12       Load word into A
   ldi              4                    Load word into A
   ldh              1, 2                 Load half-word into A
   ldb              1, 2                 Load byte into A
-  ldx              3, 4, 5, 10          Load word into X
+  ldx              3, 4, 5, 12          Load word into X
   ldxi             4                    Load word into X
   ldxb             5                    Load byte into X
 
@@ -216,14 +216,14 @@ opcodes as defined in linux/filter.h stand for:
 
   jmp              6                    Jump to label
   ja               6                    Jump to label
-  jeq              7, 8                 Jump on A == k
-  jneq             8                    Jump on A != k
-  jne              8                    Jump on A != k
-  jlt              8                    Jump on A <  k
-  jle              8                    Jump on A <= k
-  jgt              7, 8                 Jump on A >  k
-  jge              7, 8                 Jump on A >= k
-  jset             7, 8                 Jump on A &  k
+  jeq              7, 8, 9, 10          Jump on A == <x>
+  jneq             9, 10                Jump on A != <x>
+  jne              9, 10                Jump on A != <x>
+  jlt              9, 10                Jump on A <  <x>
+  jle              9, 10                Jump on A <= <x>
+  jgt              7, 8, 9, 10          Jump on A >  <x>
+  jge              7, 8, 9, 10          Jump on A >= <x>
+  jset             7, 8, 9, 10          Jump on A &  <x>
 
   add              0, 4                 A + <x>
   sub              0, 4                 A - <x>
@@ -240,7 +240,7 @@ opcodes as defined in linux/filter.h stand for:
   tax                                   Copy A into X
   txa                                   Copy X into A
 
-  ret              4, 9                 Return
+  ret              4, 11                Return
 
 The next table shows addressing formats from the 2nd column:
 
@@ -254,9 +254,11 @@ The next table shows addressing formats from the 2nd column:
    5               4*([k]&0xf)          Lower nibble * 4 at byte offset k in the packet
    6               L                    Jump label L
    7               #k,Lt,Lf             Jump to Lt if true, otherwise jump to Lf
-   8               #k,Lt                Jump to Lt if predicate is true
-   9               a/%a                 Accumulator A
-  10               extension            BPF extension
+   8               x/%x,Lt,Lf           Jump to Lt if true, otherwise jump to Lf
+   9               #k,Lt                Jump to Lt if predicate is true
+  10               x/%x,Lt              Jump to Lt if predicate is true
+  11               a/%a                 Accumulator A
+  12               extension            BPF extension
 
 The Linux kernel also has a couple of BPF extensions that are used along
 with the class of load instructions by "overloading" the k argument with
@@ -462,10 +464,11 @@ breakpoints: 0 1
 JIT compiler
 ------------
 
-The Linux kernel has a built-in BPF JIT compiler for x86_64, SPARC, PowerPC,
-ARM, ARM64, MIPS and s390 and can be enabled through CONFIG_BPF_JIT. The JIT
-compiler is transparently invoked for each attached filter from user space
-or for internal kernel users if it has been previously enabled by root:
+The Linux kernel has a built-in BPF JIT compiler for x86_64, SPARC,
+PowerPC, ARM, ARM64, MIPS, RISC-V and s390 and can be enabled through
+CONFIG_BPF_JIT. The JIT compiler is transparently invoked for each
+attached filter from user space or for internal kernel users if it has
+been previously enabled by root:
 
   echo 1 > /proc/sys/net/core/bpf_jit_enable
 
@@ -601,9 +604,10 @@ got from bpf_prog_create(), and 'ctx' the given context (e.g.
 skb pointer). All constraints and restrictions from bpf_check_classic() apply
 before a conversion to the new layout is being done behind the scenes!
 
-Currently, the classic BPF format is being used for JITing on most 32-bit
-architectures, whereas x86-64, aarch64, s390x, powerpc64, sparc64, arm32 perform
-JIT compilation from eBPF instruction set.
+Currently, the classic BPF format is being used for JITing on most
+32-bit architectures, whereas x86-64, aarch64, s390x, powerpc64,
+sparc64, arm32, riscv (RV64G) perform JIT compilation from eBPF
+instruction set.
 
 Some core changes of the new internal format:
 
@@ -825,7 +829,7 @@ tracing filters may do to maintain counters of events, for example. Register R9
 is not used by socket filters either, but more complex filters may be running
 out of registers and would have to resort to spill/fill to stack.
 
-Internal BPF can used as generic assembler for last step performance
+Internal BPF can be used as a generic assembler for last step performance
 optimizations, socket filters and seccomp are using it as assembler. Tracing
 filters may use it as assembler to generate code from kernel. In kernel usage
 may not be bounded by security considerations, since generated internal BPF code
@@ -863,7 +867,7 @@ Three LSB bits store instruction class which is one of:
   BPF_STX   0x03          BPF_STX   0x03
   BPF_ALU   0x04          BPF_ALU   0x04
   BPF_JMP   0x05          BPF_JMP   0x05
-  BPF_RET   0x06          [ class 6 unused, for future if needed ]
+  BPF_RET   0x06          BPF_JMP32 0x06
   BPF_MISC  0x07          BPF_ALU64 0x07
 
 When BPF_CLASS(code) == BPF_ALU or BPF_JMP, 4th bit encodes source operand ...
@@ -900,9 +904,9 @@ If BPF_CLASS(code) == BPF_ALU or BPF_ALU64 [ in eBPF ], BPF_OP(code) is one of:
   BPF_ARSH  0xc0  /* eBPF only: sign extending shift right */
   BPF_END   0xd0  /* eBPF only: endianness conversion */
 
-If BPF_CLASS(code) == BPF_JMP, BPF_OP(code) is one of:
+If BPF_CLASS(code) == BPF_JMP or BPF_JMP32 [ in eBPF ], BPF_OP(code) is one of:
 
-  BPF_JA    0x00
+  BPF_JA    0x00  /* BPF_JMP only */
   BPF_JEQ   0x10
   BPF_JGT   0x20
   BPF_JGE   0x30
@@ -910,8 +914,8 @@ If BPF_CLASS(code) == BPF_JMP, BPF_OP(code) is one of:
   BPF_JNE   0x50  /* eBPF only: jump != */
   BPF_JSGT  0x60  /* eBPF only: signed '>' */
   BPF_JSGE  0x70  /* eBPF only: signed '>=' */
-  BPF_CALL  0x80  /* eBPF only: function call */
-  BPF_EXIT  0x90  /* eBPF only: function return */
+  BPF_CALL  0x80  /* eBPF BPF_JMP only: function call */
+  BPF_EXIT  0x90  /* eBPF BPF_JMP only: function return */
   BPF_JLT   0xa0  /* eBPF only: unsigned '<' */
   BPF_JLE   0xb0  /* eBPF only: unsigned '<=' */
   BPF_JSLT  0xc0  /* eBPF only: signed '<' */
@@ -934,8 +938,9 @@ Classic BPF wastes the whole BPF_RET class to represent a single 'ret'
 operation. Classic BPF_RET | BPF_K means copy imm32 into return register
 and perform function exit. eBPF is modeled to match CPU, so BPF_JMP | BPF_EXIT
 in eBPF means function exit only. The eBPF program needs to store return
-value into register R0 before doing a BPF_EXIT. Class 6 in eBPF is currently
-unused and reserved for future use.
+value into register R0 before doing a BPF_EXIT. Class 6 in eBPF is used as
+BPF_JMP32 to mean exactly the same operations as BPF_JMP, but with 32-bit wide
+operands for the comparisons instead.
 
 For load and store instructions the 8-bit 'code' field is divided as:
 
@@ -1125,6 +1130,14 @@ pointer type.  The types of pointers describe their base, as follows:
     PTR_TO_STACK        Frame pointer.
     PTR_TO_PACKET       skb->data.
     PTR_TO_PACKET_END   skb->data + headlen; arithmetic forbidden.
+    PTR_TO_SOCKET       Pointer to struct bpf_sock_ops, implicitly refcounted.
+    PTR_TO_SOCKET_OR_NULL
+                        Either a pointer to a socket, or NULL; socket lookup
+                        returns this type, which becomes a PTR_TO_SOCKET when
+                        checked != NULL. PTR_TO_SOCKET is reference-counted,
+                        so programs must release the reference through the
+                        socket release function before the end of the program.
+                        Arithmetic on these pointers is forbidden.
 However, a pointer may be offset from this base (as a result of pointer
 arithmetic), and this is tracked in two parts: the 'fixed offset' and 'variable
 offset'.  The former is used when an exactly-known value (e.g. an immediate
@@ -1171,6 +1184,13 @@ over the Ethernet header, then reads IHL and addes (IHL * 4), the resulting
 pointer will have a variable offset known to be 4n+2 for some n, so adding the 2
 bytes (NET_IP_ALIGN) gives a 4-byte alignment and so word-sized accesses through
 that pointer are safe.
+The 'id' field is also used on PTR_TO_SOCKET and PTR_TO_SOCKET_OR_NULL, common
+to all copies of the pointer returned from a socket lookup. This has similar
+behaviour to the handling for PTR_TO_MAP_VALUE_OR_NULL->PTR_TO_MAP_VALUE, but
+it also handles reference tracking for the pointer. PTR_TO_SOCKET implicitly
+represents a reference to the corresponding 'struct sock'. To ensure that the
+reference is not leaked, it is imperative to NULL-check the reference and in
+the non-NULL case, and pass the valid reference to the socket release function.
 
 Direct packet access
 --------------------
@@ -1443,6 +1463,55 @@ Error:
   from 5 to 8: R0=imm0 R10=fp
   8: (7a) *(u64 *)(r0 +0) = 1
   R0 invalid mem access 'imm'
+
+Program that performs a socket lookup then sets the pointer to NULL without
+checking it:
+value:
+  BPF_MOV64_IMM(BPF_REG_2, 0),
+  BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_2, -8),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_MOV64_IMM(BPF_REG_3, 4),
+  BPF_MOV64_IMM(BPF_REG_4, 0),
+  BPF_MOV64_IMM(BPF_REG_5, 0),
+  BPF_EMIT_CALL(BPF_FUNC_sk_lookup_tcp),
+  BPF_MOV64_IMM(BPF_REG_0, 0),
+  BPF_EXIT_INSN(),
+Error:
+  0: (b7) r2 = 0
+  1: (63) *(u32 *)(r10 -8) = r2
+  2: (bf) r2 = r10
+  3: (07) r2 += -8
+  4: (b7) r3 = 4
+  5: (b7) r4 = 0
+  6: (b7) r5 = 0
+  7: (85) call bpf_sk_lookup_tcp#65
+  8: (b7) r0 = 0
+  9: (95) exit
+  Unreleased reference id=1, alloc_insn=7
+
+Program that performs a socket lookup but does not NULL-check the returned
+value:
+  BPF_MOV64_IMM(BPF_REG_2, 0),
+  BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_2, -8),
+  BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+  BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+  BPF_MOV64_IMM(BPF_REG_3, 4),
+  BPF_MOV64_IMM(BPF_REG_4, 0),
+  BPF_MOV64_IMM(BPF_REG_5, 0),
+  BPF_EMIT_CALL(BPF_FUNC_sk_lookup_tcp),
+  BPF_EXIT_INSN(),
+Error:
+  0: (b7) r2 = 0
+  1: (63) *(u32 *)(r10 -8) = r2
+  2: (bf) r2 = r10
+  3: (07) r2 += -8
+  4: (b7) r3 = 4
+  5: (b7) r4 = 0
+  6: (b7) r5 = 0
+  7: (85) call bpf_sk_lookup_tcp#65
+  8: (95) exit
+  Unreleased reference id=1, alloc_insn=7
 
 Testing
 -------

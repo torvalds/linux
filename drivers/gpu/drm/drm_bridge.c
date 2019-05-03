@@ -104,6 +104,10 @@ EXPORT_SYMBOL(drm_bridge_remove);
  * If non-NULL the previous bridge must be already attached by a call to this
  * function.
  *
+ * Note that bridges attached to encoders are auto-detached during encoder
+ * cleanup in drm_encoder_cleanup(), so drm_bridge_attach() should generally
+ * *not* be balanced with a drm_bridge_detach() in driver code.
+ *
  * RETURNS:
  * Zero on success, error code on failure
  */
@@ -290,8 +294,8 @@ EXPORT_SYMBOL(drm_bridge_post_disable);
  * Note: the bridge passed should be the one closest to the encoder
  */
 void drm_bridge_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode)
 {
 	if (!bridge)
 		return;

@@ -303,18 +303,18 @@ ip_set_put_flags(struct sk_buff *skb, struct ip_set *set)
 /* Netlink CB args */
 enum {
 	IPSET_CB_NET = 0,	/* net namespace */
+	IPSET_CB_PROTO,		/* ipset protocol */
 	IPSET_CB_DUMP,		/* dump single set/all sets */
 	IPSET_CB_INDEX,		/* set index */
 	IPSET_CB_PRIVATE,	/* set private data */
 	IPSET_CB_ARG0,		/* type specific */
-	IPSET_CB_ARG1,
 };
 
 /* register and unregister set references */
 extern ip_set_id_t ip_set_get_byname(struct net *net,
 				     const char *name, struct ip_set **set);
 extern void ip_set_put_byindex(struct net *net, ip_set_id_t index);
-extern const char *ip_set_name_byindex(struct net *net, ip_set_id_t index);
+extern void ip_set_name_byindex(struct net *net, ip_set_id_t index, char *name);
 extern ip_set_id_t ip_set_nfnl_get_byindex(struct net *net, ip_set_id_t index);
 extern void ip_set_nfnl_put(struct net *net, ip_set_id_t index);
 

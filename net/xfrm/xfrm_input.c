@@ -38,8 +38,6 @@ struct xfrm_trans_cb {
 
 #define XFRM_TRANS_SKB_CB(__skb) ((struct xfrm_trans_cb *)&((__skb)->cb[0]))
 
-static struct kmem_cache *secpath_cachep __ro_after_init;
-
 static DEFINE_SPINLOCK(xfrm_input_afinfo_lock);
 static struct xfrm_input_afinfo const __rcu *xfrm_input_afinfo[AF_INET6 + 1];
 
@@ -111,55 +109,23 @@ static int xfrm_rcv_cb(struct sk_buff *skb, unsigned int family, u8 protocol,
 	return ret;
 }
 
-void __secpath_destroy(struct sec_path *sp)
+struct sec_path *secpath_set(struct sk_buff *skb)
 {
-	int i;
-	for (i = 0; i < sp->len; i++)
-		xfrm_state_put(sp->xvec[i]);
-	kmem_cache_free(secpath_cachep, sp);
-}
-EXPORT_SYMBOL(__secpath_destroy);
+	struct sec_path *sp, *tmp = skb_ext_find(skb, SKB_EXT_SEC_PATH);
 
-struct sec_path *secpath_dup(struct sec_path *src)
-{
-	struct sec_path *sp;
-
-	sp = kmem_cache_alloc(secpath_cachep, GFP_ATOMIC);
+	sp = skb_ext_add(skb, SKB_EXT_SEC_PATH);
 	if (!sp)
 		return NULL;
 
-	sp->len = 0;
+	if (tmp) /* reused existing one (was COW'd if needed) */
+		return sp;
+
+	/* allocated new secpath */
+	memset(sp->ovec, 0, sizeof(sp->ovec));
 	sp->olen = 0;
+	sp->len = 0;
 
-	memset(sp->ovec, 0, sizeof(sp->ovec[XFRM_MAX_OFFLOAD_DEPTH]));
-
-	if (src) {
-		int i;
-
-		memcpy(sp, src, sizeof(*sp));
-		for (i = 0; i < sp->len; i++)
-			xfrm_state_hold(sp->xvec[i]);
-	}
-	refcount_set(&sp->refcnt, 1);
 	return sp;
-}
-EXPORT_SYMBOL(secpath_dup);
-
-int secpath_set(struct sk_buff *skb)
-{
-	struct sec_path *sp;
-
-	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || refcount_read(&skb->sp->refcnt) != 1) {
-		sp = secpath_dup(skb->sp);
-		if (!sp)
-			return -ENOMEM;
-
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
-	}
-	return 0;
 }
 EXPORT_SYMBOL(secpath_set);
 
@@ -236,6 +202,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	bool xfrm_gro = false;
 	bool crypto_done = false;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct sec_path *sp;
 
 	if (encap_type < 0) {
 		x = xfrm_input_state(skb);
@@ -312,8 +279,8 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		break;
 	}
 
-	err = secpath_set(skb);
-	if (err) {
+	sp = secpath_set(skb);
+	if (!sp) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
 		goto drop;
 	}
@@ -328,7 +295,9 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	daddr = (xfrm_address_t *)(skb_network_header(skb) +
 				   XFRM_SPI_SKB_CB(skb)->daddroff);
 	do {
-		if (skb->sp->len == XFRM_MAX_DEPTH) {
+		sp = skb_sec_path(skb);
+
+		if (sp->len == XFRM_MAX_DEPTH) {
 			secpath_reset(skb);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINBUFFERERROR);
 			goto drop;
@@ -344,7 +313,13 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		skb->mark = xfrm_smark_get(skb->mark, x);
 
-		skb->sp->xvec[skb->sp->len++] = x;
+		sp->xvec[sp->len++] = x;
+
+		skb_dst_force(skb);
+		if (!skb_dst(skb)) {
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
+			goto drop;
+		}
 
 lock:
 		spin_lock(&x->lock);
@@ -385,7 +360,6 @@ lock:
 		XFRM_SKB_CB(skb)->seq.input.low = seq;
 		XFRM_SKB_CB(skb)->seq.input.hi = seq_hi;
 
-		skb_dst_force(skb);
 		dev_hold(skb->dev);
 
 		if (crypto_done)
@@ -468,8 +442,9 @@ resume:
 	nf_reset(skb);
 
 	if (decaps) {
-		if (skb->sp)
-			skb->sp->olen = 0;
+		sp = skb_sec_path(skb);
+		if (sp)
+			sp->olen = 0;
 		skb_dst_drop(skb);
 		gro_cells_receive(&gro_cells, skb);
 		return 0;
@@ -480,8 +455,9 @@ resume:
 
 		err = x->inner_mode->afinfo->transport_finish(skb, xfrm_gro || async);
 		if (xfrm_gro) {
-			if (skb->sp)
-				skb->sp->olen = 0;
+			sp = skb_sec_path(skb);
+			if (sp)
+				sp->olen = 0;
 			skb_dst_drop(skb);
 			gro_cells_receive(&gro_cells, skb);
 			return err;
@@ -545,11 +521,6 @@ void __init xfrm_input_init(void)
 	err = gro_cells_init(&gro_cells, &xfrm_napi_dev);
 	if (err)
 		gro_cells.cells = NULL;
-
-	secpath_cachep = kmem_cache_create("secpath_cache",
-					   sizeof(struct sec_path),
-					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-					   NULL);
 
 	for_each_possible_cpu(i) {
 		struct xfrm_trans_tasklet *trans;

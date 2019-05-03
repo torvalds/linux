@@ -711,13 +711,14 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	struct ib_qp_attr attr = { 0 };
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_qp *hr_qp;
+	struct ib_device *ibdev;
 	struct ib_cq *cq;
 	struct ib_pd *pd;
 	union ib_gid dgid;
 	u64 subnet_prefix;
 	int attr_mask = 0;
+	int ret = -ENOMEM;
 	int i, j;
-	int ret;
 	u8 queue_en[HNS_ROCE_V1_RESV_QP] = { 0 };
 	u8 phy_port;
 	u8 port = 0;
@@ -731,7 +732,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	cq_init_attr.comp_vector	= 0;
 	cq = hns_roce_ib_create_cq(&hr_dev->ib_dev, &cq_init_attr, NULL, NULL);
 	if (IS_ERR(cq)) {
-		dev_err(dev, "Create cq for reseved loop qp failed!");
+		dev_err(dev, "Create cq for reserved loop qp failed!");
 		return -ENOMEM;
 	}
 	free_mr->mr_free_cq = to_hr_cq(cq);
@@ -742,12 +743,16 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	free_mr->mr_free_cq->ib_cq.cq_context		= NULL;
 	atomic_set(&free_mr->mr_free_cq->ib_cq.usecnt, 0);
 
-	pd = hns_roce_alloc_pd(&hr_dev->ib_dev, NULL, NULL);
-	if (IS_ERR(pd)) {
-		dev_err(dev, "Create pd for reseved loop qp failed!");
-		ret = -ENOMEM;
+	ibdev = &hr_dev->ib_dev;
+	pd = rdma_zalloc_drv_obj(ibdev, ib_pd);
+	if (!pd)
+		goto alloc_mem_failed;
+
+	pd->device  = ibdev;
+	ret = hns_roce_alloc_pd(pd, NULL, NULL);
+	if (ret)
 		goto alloc_pd_failed;
-	}
+
 	free_mr->mr_free_pd = to_hr_pd(pd);
 	free_mr->mr_free_pd->ibpd.device  = &hr_dev->ib_dev;
 	free_mr->mr_free_pd->ibpd.uobject = NULL;
@@ -854,10 +859,12 @@ create_lp_qp_failed:
 			dev_err(dev, "Destroy qp %d for mr free failed!\n", i);
 	}
 
-	if (hns_roce_dealloc_pd(pd))
-		dev_err(dev, "Destroy pd for create_lp_qp failed!\n");
+	hns_roce_dealloc_pd(pd);
 
 alloc_pd_failed:
+	kfree(pd);
+
+alloc_mem_failed:
 	if (hns_roce_ib_destroy_cq(cq))
 		dev_err(dev, "Destroy cq for create_lp_qp failed!\n");
 
@@ -891,9 +898,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 	if (ret)
 		dev_err(dev, "Destroy cq for mr_free failed(%d)!\n", ret);
 
-	ret = hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd);
-	if (ret)
-		dev_err(dev, "Destroy pd for mr_free failed(%d)!\n", ret);
+	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd);
 }
 
 static int hns_roce_db_init(struct hns_roce_dev *hr_dev)
@@ -1866,9 +1871,8 @@ static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 				  unsigned long mtpt_idx)
 {
 	struct hns_roce_v1_mpt_entry *mpt_entry;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	u64 *pages;
-	int entry;
 	int i;
 
 	/* MPT filled into mailbox buf */
@@ -1923,8 +1927,8 @@ static int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
-		pages[i] = ((u64)sg_dma_address(sg)) >> 12;
+	for_each_sg_dma_page(mr->umem->sg_head.sgl, &sg_iter, mr->umem->nmap, 0) {
+		pages[i] = ((u64)sg_page_iter_dma_address(&sg_iter)) >> 12;
 
 		/* Directly record to MTPT table firstly 7 entry */
 		if (i >= HNS_ROCE_MAX_INNER_MTPT_NUM)
@@ -3926,7 +3930,7 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
 	struct hns_roce_qp_work *qp_work;
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_cq *send_cq, *recv_cq;
-	int is_user = !!ibqp->pd->uobject;
+	bool is_user = ibqp->uobject;
 	int is_timeout = 0;
 	int ret;
 
@@ -4793,6 +4797,16 @@ static void hns_roce_v1_cleanup_eq_table(struct hns_roce_dev *hr_dev)
 	kfree(eq_table->eq);
 }
 
+static const struct ib_device_ops hns_roce_v1_dev_ops = {
+	.destroy_qp = hns_roce_v1_destroy_qp,
+	.modify_cq = hns_roce_v1_modify_cq,
+	.poll_cq = hns_roce_v1_poll_cq,
+	.post_recv = hns_roce_v1_post_recv,
+	.post_send = hns_roce_v1_post_send,
+	.query_qp = hns_roce_v1_query_qp,
+	.req_notify_cq = hns_roce_v1_req_notify_cq,
+};
+
 static const struct hns_roce_hw hns_roce_hw_v1 = {
 	.reset = hns_roce_v1_reset,
 	.hw_profile = hns_roce_v1_profile,
@@ -4818,6 +4832,7 @@ static const struct hns_roce_hw hns_roce_hw_v1 = {
 	.destroy_cq = hns_roce_v1_destroy_cq,
 	.init_eq = hns_roce_v1_init_eq_table,
 	.cleanup_eq = hns_roce_v1_cleanup_eq_table,
+	.hns_roce_dev_ops = &hns_roce_v1_dev_ops,
 };
 
 static const struct of_device_id hns_roce_of_match[] = {
@@ -4991,7 +5006,7 @@ static int hns_roce_probe(struct platform_device *pdev)
 	struct hns_roce_dev *hr_dev;
 	struct device *dev = &pdev->dev;
 
-	hr_dev = (struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
+	hr_dev = ib_alloc_device(hns_roce_dev, ib_dev);
 	if (!hr_dev)
 		return -ENOMEM;
 
