@@ -666,6 +666,16 @@ MODULE_PARM_DESC(noretry,
 int halt_if_hws_hang;
 module_param(halt_if_hws_hang, int, 0644);
 MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
+
+/**
+ * DOC: hws_gws_support(bool)
+ * Whether HWS support gws barriers. Default value: false (not supported)
+ * This will be replaced with a MEC firmware version check once firmware
+ * is ready
+ */
+bool hws_gws_support;
+module_param(hws_gws_support, bool, 0444);
+MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supported (Default), true = supported)");
 #endif
 
 /**

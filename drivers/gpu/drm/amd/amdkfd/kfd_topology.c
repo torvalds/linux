@@ -454,6 +454,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.lds_size_in_kb);
 	sysfs_show_32bit_prop(buffer, "gds_size_in_kb",
 			dev->node_props.gds_size_in_kb);
+	sysfs_show_32bit_prop(buffer, "num_gws",
+			dev->node_props.num_gws);
 	sysfs_show_32bit_prop(buffer, "wave_front_size",
 			dev->node_props.wave_front_size);
 	sysfs_show_32bit_prop(buffer, "array_count",
@@ -1289,6 +1291,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.num_sdma_engines = gpu->device_info->num_sdma_engines;
 	dev->node_props.num_sdma_xgmi_engines =
 				gpu->device_info->num_xgmi_sdma_engines;
+	dev->node_props.num_gws = (hws_gws_support &&
+		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
+		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
 
 	kfd_fill_mem_clk_max_info(dev);
 	kfd_fill_iolink_non_crat_info(dev);

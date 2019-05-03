@@ -65,6 +65,7 @@ struct kfd_node_properties {
 	uint32_t max_waves_per_simd;
 	uint32_t lds_size_in_kb;
 	uint32_t gds_size_in_kb;
+	uint32_t num_gws;
 	uint32_t wave_front_size;
 	uint32_t array_count;
 	uint32_t simd_arrays_per_engine;

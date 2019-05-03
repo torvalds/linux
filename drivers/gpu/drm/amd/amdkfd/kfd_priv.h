@@ -161,6 +161,11 @@ extern int noretry;
  */
 extern int halt_if_hws_hang;
 
+/*
+ * Whether MEC FW support GWS barriers
+ */
+extern bool hws_gws_support;
+
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent
