@@ -244,6 +244,8 @@ struct hnae3_ae_dev {
  *   Get negotiation status,speed and duplex
  * get_media_type()
  *   Get media type of MAC
+ * check_port_speed()
+ *   Check target speed whether is supported
  * adjust_link()
  *   Adjust link status
  * set_loopback()
@@ -260,6 +262,8 @@ struct hnae3_ae_dev {
  *   set auto autonegotiation of pause frame use
  * get_autoneg()
  *   get auto autonegotiation of pause frame use
+ * restart_autoneg()
+ *   restart autonegotiation
  * get_coalesce_usecs()
  *   get usecs to delay a TX interrupt after a packet is sent
  * get_rx_max_coalesced_frames()
@@ -355,6 +359,7 @@ struct hnae3_ae_ops {
 
 	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type,
 			       u8 *module_type);
+	int (*check_port_speed)(struct hnae3_handle *handle, u32 speed);
 	void (*adjust_link)(struct hnae3_handle *handle, int speed, int duplex);
 	int (*set_loopback)(struct hnae3_handle *handle,
 			    enum hnae3_loop loop_mode, bool en);
@@ -370,6 +375,7 @@ struct hnae3_ae_ops {
 
 	int (*set_autoneg)(struct hnae3_handle *handle, bool enable);
 	int (*get_autoneg)(struct hnae3_handle *handle);
+	int (*restart_autoneg)(struct hnae3_handle *handle);
 
 	void (*get_coalesce_usecs)(struct hnae3_handle *handle,
 				   u32 *tx_usecs, u32 *rx_usecs);
