@@ -78,8 +78,6 @@ static int stmpe_read_voltage(struct stmpe_adc *info,
 	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_CAPT,
 			STMPE_ADC_CH(info->channel));
 
-	*val = info->value;
-
 	ret = wait_for_completion_interruptible_timeout
 		(&info->completion, STMPE_ADC_TIMEOUT);
 
