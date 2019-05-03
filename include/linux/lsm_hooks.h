@@ -53,7 +53,7 @@
  * @bprm_check_security:
  *	This hook mediates the point when a search for a binary handler will
  *	begin.  It allows a check the @bprm->cred->security value which is set in
- *  the preceding set_creds call.  The primary difference from set_creds is
+ *	the preceding set_creds call.  The primary difference from set_creds is
  *	that the argv list and envp list are reliably available in @bprm.  This
  *	hook may be called multiple times during a single execve; and in each
  *	pass set_creds is called first.
