@@ -3,6 +3,7 @@
  * caam descriptor construction helper functions
  *
  * Copyright 2008-2012 Freescale Semiconductor, Inc.
+ * Copyright 2019 NXP
  */
 
 #ifndef DESC_CONSTR_H
@@ -36,6 +37,16 @@
 			       (LDOFF_ENABLE_AUTO_NFIFO << LDST_OFFSET_SHIFT))
 
 extern bool caam_little_end;
+
+/*
+ * HW fetches 4 S/G table entries at a time, irrespective of how many entries
+ * are in the table. It's SW's responsibility to make sure these accesses
+ * do not have side effects.
+ */
+static inline int pad_sg_nents(int sg_nents)
+{
+	return ALIGN(sg_nents, 4);
+}
 
 static inline int desc_len(u32 * const desc)
 {

@@ -759,7 +759,8 @@ static int ahash_edesc_add_src(struct caam_hash_ctx *ctx,
 
 	if (nents > 1 || first_sg) {
 		struct sec4_sg_entry *sg = edesc->sec4_sg;
-		unsigned int sgsize = sizeof(*sg) * (first_sg + nents);
+		unsigned int sgsize = sizeof(*sg) *
+				      pad_sg_nents(first_sg + nents);
 
 		sg_to_sec4_sg_last(req->src, nents, sg + first_sg, 0);
 
@@ -819,6 +820,8 @@ static int ahash_update_ctx(struct ahash_request *req)
 	}
 
 	if (to_hash) {
+		int pad_nents;
+
 		src_nents = sg_nents_for_len(req->src,
 					     req->nbytes - (*next_buflen));
 		if (src_nents < 0) {
@@ -838,15 +841,14 @@ static int ahash_update_ctx(struct ahash_request *req)
 		}
 
 		sec4_sg_src_index = 1 + (*buflen ? 1 : 0);
-		sec4_sg_bytes = (sec4_sg_src_index + mapped_nents) *
-				 sizeof(struct sec4_sg_entry);
+		pad_nents = pad_sg_nents(sec4_sg_src_index + mapped_nents);
+		sec4_sg_bytes = pad_nents * sizeof(struct sec4_sg_entry);
 
 		/*
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = ahash_edesc_alloc(ctx, sec4_sg_src_index + mapped_nents,
-					  ctx->sh_desc_update,
+		edesc = ahash_edesc_alloc(ctx, pad_nents, ctx->sh_desc_update,
 					  ctx->sh_desc_update_dma, flags);
 		if (!edesc) {
 			dma_unmap_sg(jrdev, req->src, src_nents, DMA_TO_DEVICE);
@@ -935,18 +937,17 @@ static int ahash_final_ctx(struct ahash_request *req)
 		       GFP_KERNEL : GFP_ATOMIC;
 	int buflen = *current_buflen(state);
 	u32 *desc;
-	int sec4_sg_bytes, sec4_sg_src_index;
+	int sec4_sg_bytes;
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct ahash_edesc *edesc;
 	int ret;
 
-	sec4_sg_src_index = 1 + (buflen ? 1 : 0);
-	sec4_sg_bytes = sec4_sg_src_index * sizeof(struct sec4_sg_entry);
+	sec4_sg_bytes = pad_sg_nents(1 + (buflen ? 1 : 0)) *
+			sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = ahash_edesc_alloc(ctx, sec4_sg_src_index,
-				  ctx->sh_desc_fin, ctx->sh_desc_fin_dma,
-				  flags);
+	edesc = ahash_edesc_alloc(ctx, 4, ctx->sh_desc_fin,
+				  ctx->sh_desc_fin_dma, flags);
 	if (!edesc)
 		return -ENOMEM;
 
@@ -963,7 +964,7 @@ static int ahash_final_ctx(struct ahash_request *req)
 	if (ret)
 		goto unmap_ctx;
 
-	sg_to_sec4_set_last(edesc->sec4_sg + sec4_sg_src_index - 1);
+	sg_to_sec4_set_last(edesc->sec4_sg + (buflen ? 1 : 0));
 
 	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
 					    sec4_sg_bytes, DMA_TO_DEVICE);
@@ -1246,6 +1247,8 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 	}
 
 	if (to_hash) {
+		int pad_nents;
+
 		src_nents = sg_nents_for_len(req->src,
 					     req->nbytes - *next_buflen);
 		if (src_nents < 0) {
@@ -1264,14 +1267,14 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 			mapped_nents = 0;
 		}
 
-		sec4_sg_bytes = (1 + mapped_nents) *
-				sizeof(struct sec4_sg_entry);
+		pad_nents = pad_sg_nents(1 + mapped_nents);
+		sec4_sg_bytes = pad_nents * sizeof(struct sec4_sg_entry);
 
 		/*
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = ahash_edesc_alloc(ctx, 1 + mapped_nents,
+		edesc = ahash_edesc_alloc(ctx, pad_nents,
 					  ctx->sh_desc_update_first,
 					  ctx->sh_desc_update_first_dma,
 					  flags);

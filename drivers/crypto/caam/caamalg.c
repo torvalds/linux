@@ -1381,8 +1381,16 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		}
 	}
 
+	/*
+	 * HW reads 4 S/G entries at a time; make sure the reads don't go beyond
+	 * the end of the table by allocating more S/G entries.
+	 */
 	sec4_sg_len = mapped_src_nents > 1 ? mapped_src_nents : 0;
-	sec4_sg_len += mapped_dst_nents > 1 ? mapped_dst_nents : 0;
+	if (mapped_dst_nents > 1)
+		sec4_sg_len += pad_sg_nents(mapped_dst_nents);
+	else
+		sec4_sg_len = pad_sg_nents(sec4_sg_len);
+
 	sec4_sg_bytes = sec4_sg_len * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
@@ -1720,7 +1728,25 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	else
 		sec4_sg_ents = mapped_src_nents + !!ivsize;
 	dst_sg_idx = sec4_sg_ents;
-	sec4_sg_ents += mapped_dst_nents > 1 ? mapped_dst_nents : 0;
+
+	/*
+	 * HW reads 4 S/G entries at a time; make sure the reads don't go beyond
+	 * the end of the table by allocating more S/G entries. Logic:
+	 * if (src != dst && output S/G)
+	 *      pad output S/G, if needed
+	 * else if (src == dst && S/G)
+	 *      overlapping S/Gs; pad one of them
+	 * else if (input S/G) ...
+	 *      pad input S/G, if needed
+	 */
+	if (mapped_dst_nents > 1)
+		sec4_sg_ents += pad_sg_nents(mapped_dst_nents);
+	else if ((req->src == req->dst) && (mapped_src_nents > 1))
+		sec4_sg_ents = max(pad_sg_nents(sec4_sg_ents),
+				   !!ivsize + pad_sg_nents(mapped_src_nents));
+	else
+		sec4_sg_ents = pad_sg_nents(sec4_sg_ents);
+
 	sec4_sg_bytes = sec4_sg_ents * sizeof(struct sec4_sg_entry);
 
 	/*

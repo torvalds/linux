@@ -3,7 +3,7 @@
  * caam - Freescale FSL CAAM support for Public Key Cryptography
  *
  * Copyright 2016 Freescale Semiconductor, Inc.
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  *
  * There is no Shared Descriptor for PKC so that the Job Descriptor must carry
  * all the desired key parameters, input and output pointers.
@@ -239,8 +239,11 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 
 	if (src_nents > 1)
 		sec4_sg_len = src_nents;
+
 	if (dst_nents > 1)
-		sec4_sg_len += dst_nents;
+		sec4_sg_len += pad_sg_nents(dst_nents);
+	else
+		sec4_sg_len = pad_sg_nents(sec4_sg_len);
 
 	sec4_sg_bytes = sec4_sg_len * sizeof(struct sec4_sg_entry);
 
