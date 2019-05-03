@@ -6462,7 +6462,7 @@ S:	Maintained
 F:	drivers/media/radio/radio-gemtek*
 
 GENERIC GPIO I2C DRIVER
-M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
+M:	Wolfram Sang <wsa+renesas@sang-engineering.com>
 S:	Supported
 F:	drivers/i2c/busses/i2c-gpio.c
 F:	include/linux/platform_data/i2c-gpio.h
