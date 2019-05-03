@@ -430,9 +430,9 @@ static const struct intel_th_subdevice {
 		.nres	= 1,
 		.res	= {
 			{
-				/* Handle TSCU from GTH driver */
+				/* Handle TSCU and CTS from GTH driver */
 				.start	= REG_GTH_OFFSET,
-				.end	= REG_TSCU_OFFSET + REG_TSCU_LENGTH - 1,
+				.end	= REG_CTS_OFFSET + REG_CTS_LENGTH - 1,
 				.flags	= IORESOURCE_MEM,
 			},
 		},
@@ -986,6 +986,27 @@ int intel_th_trace_enable(struct intel_th_device *thdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_th_trace_enable);
+
+/**
+ * intel_th_trace_switch() - execute a switch sequence
+ * @thdev:	output device that requests tracing switch
+ */
+int intel_th_trace_switch(struct intel_th_device *thdev)
+{
+	struct intel_th_device *hub = to_intel_th_device(thdev->dev.parent);
+	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
+
+	if (WARN_ON_ONCE(hub->type != INTEL_TH_SWITCH))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(thdev->type != INTEL_TH_OUTPUT))
+		return -EINVAL;
+
+	hubdrv->trig_switch(hub, &thdev->output);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_th_trace_switch);
 
 /**
  * intel_th_trace_disable() - disable tracing for an output device

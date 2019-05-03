@@ -308,6 +308,11 @@ static int intel_th_gth_reset(struct gth_device *gth)
 	iowrite32(0, gth->base + REG_GTH_SCR);
 	iowrite32(0xfc, gth->base + REG_GTH_SCR2);
 
+	/* setup CTS for single trigger */
+	iowrite32(CTS_EVENT_ENABLE_IF_ANYTHING, gth->base + REG_CTS_C0S0_EN);
+	iowrite32(CTS_ACTION_CONTROL_SET_STATE(CTS_STATE_IDLE) |
+		  CTS_ACTION_CONTROL_TRIGGER, gth->base + REG_CTS_C0S0_ACT);
+
 	return 0;
 }
 
@@ -595,6 +600,37 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 }
 
 /**
+ * intel_th_gth_switch() - execute a switch sequence
+ * @thdev:	GTH device
+ * @output:	output device's descriptor
+ *
+ * This will execute a switch sequence that will trigger a switch window
+ * when tracing to MSC in multi-block mode.
+ */
+static void intel_th_gth_switch(struct intel_th_device *thdev,
+				struct intel_th_output *output)
+{
+	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
+	unsigned long count;
+	u32 reg;
+
+	/* trigger */
+	iowrite32(0, gth->base + REG_CTS_CTL);
+	iowrite32(CTS_CTL_SEQUENCER_ENABLE, gth->base + REG_CTS_CTL);
+	/* wait on trigger status */
+	for (reg = 0, count = CTS_TRIG_WAITLOOP_DEPTH;
+	     count && !(reg & BIT(4)); count--) {
+		reg = ioread32(gth->base + REG_CTS_STAT);
+		cpu_relax();
+	}
+	if (!count)
+		dev_dbg(&thdev->dev, "timeout waiting for CTS Trigger\n");
+
+	intel_th_gth_stop(gth, output, false);
+	intel_th_gth_start(gth, output);
+}
+
+/**
  * intel_th_gth_assign() - assign output device to a GTH output port
  * @thdev:	GTH device
  * @othdev:	output device
@@ -777,6 +813,7 @@ static struct intel_th_driver intel_th_gth_driver = {
 	.unassign	= intel_th_gth_unassign,
 	.set_output	= intel_th_gth_set_output,
 	.enable		= intel_th_gth_enable,
+	.trig_switch	= intel_th_gth_switch,
 	.disable	= intel_th_gth_disable,
 	.driver	= {
 		.name	= "gth",

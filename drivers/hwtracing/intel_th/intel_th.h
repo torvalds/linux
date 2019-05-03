@@ -164,6 +164,8 @@ struct intel_th_driver {
 					    struct intel_th_device *othdev);
 	void			(*enable)(struct intel_th_device *thdev,
 					  struct intel_th_output *output);
+	void			(*trig_switch)(struct intel_th_device *thdev,
+					       struct intel_th_output *output);
 	void			(*disable)(struct intel_th_device *thdev,
 					   struct intel_th_output *output);
 	/* output ops */
@@ -228,6 +230,7 @@ int intel_th_driver_register(struct intel_th_driver *thdrv);
 void intel_th_driver_unregister(struct intel_th_driver *thdrv);
 
 int intel_th_trace_enable(struct intel_th_device *thdev);
+int intel_th_trace_switch(struct intel_th_device *thdev);
 int intel_th_trace_disable(struct intel_th_device *thdev);
 int intel_th_set_output(struct intel_th_device *thdev,
 			unsigned int master);
@@ -307,6 +310,9 @@ enum {
 	/* Timestamp counter unit (TSCU) */
 	REG_TSCU_OFFSET		= 0x2000,
 	REG_TSCU_LENGTH		= 0x1000,
+
+	REG_CTS_OFFSET		= 0x3000,
+	REG_CTS_LENGTH		= 0x1000,
 
 	/* Software Trace Hub (STH) [0x4000..0x4fff] */
 	REG_STH_OFFSET		= 0x4000,
