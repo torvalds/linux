@@ -210,6 +210,7 @@ struct amdgpu_irq_src;
 struct amdgpu_fpriv;
 struct amdgpu_bo_va_mapping;
 struct amdgpu_atif;
+struct kfd_vm_fault_info;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_EOP = 0,
@@ -688,6 +689,12 @@ struct amdgpu_df_funcs {
 				      u32 *flags);
 	void (*enable_ecc_force_par_wr_rmw)(struct amdgpu_device *adev,
 					    bool enable);
+	int (*pmc_start)(struct amdgpu_device *adev, uint64_t config,
+					 int is_enable);
+	int (*pmc_stop)(struct amdgpu_device *adev, uint64_t config,
+					 int is_disable);
+	void (*pmc_get_count)(struct amdgpu_device *adev, uint64_t config,
+					 uint64_t *count);
 };
 /* Define the HW IP blocks will be used in driver , add more if necessary */
 enum amd_hw_ip_block_type {
@@ -1096,6 +1103,9 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 array_size);
 
 bool amdgpu_device_is_px(struct drm_device *dev);
+bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
+				      struct amdgpu_device *peer_adev);
+
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
 void amdgpu_register_atpx_handler(void);
