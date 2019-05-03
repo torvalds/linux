@@ -3,8 +3,6 @@
 /* Copyright 2019 Linaro, Ltd., Rob Herring <robh@kernel.org> */
 /* Copyright 2019 Collabora ltd. */
 
-#include <linux/bitfield.h>
-#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/pagemap.h>
@@ -400,9 +398,6 @@ static int panfrost_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Fatal error during GPU init\n");
 		goto err_out0;
 	}
-
-	dma_set_mask_and_coherent(pfdev->dev,
-		DMA_BIT_MASK(FIELD_GET(0xff00, pfdev->features.mmu_features)));
 
 	err = panfrost_devfreq_init(pfdev);
 	if (err) {
