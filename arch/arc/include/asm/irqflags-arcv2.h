@@ -44,7 +44,13 @@
 #define ARCV2_IRQ_DEF_PRIO	1
 
 /* seed value for status register */
-#define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | STATUS_AD_MASK | \
+#ifdef CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS
+#define __AD_ENB	STATUS_AD_MASK
+#else
+#define __AD_ENB	0
+#endif
+
+#define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | __AD_ENB | \
 					(ARCV2_IRQ_DEF_PRIO << 1))
 
 #ifndef __ASSEMBLY__

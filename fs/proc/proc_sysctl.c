@@ -1626,7 +1626,8 @@ static void drop_sysctl_table(struct ctl_table_header *header)
 	if (--header->nreg)
 		return;
 
-	put_links(header);
+	if (parent)
+		put_links(header);
 	start_unregistering(header);
 	if (!--header->count)
 		kfree_rcu(header, rcu);

@@ -190,7 +190,6 @@ struct vcpu_vmx {
 	u64		      msr_guest_kernel_gs_base;
 #endif
 
-	u64		      arch_capabilities;
 	u64		      spec_ctrl;
 
 	u32 vm_entry_controls_shadow;

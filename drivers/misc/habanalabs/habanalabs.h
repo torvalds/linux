@@ -793,11 +793,11 @@ struct hl_vm_hash_node {
  * struct hl_vm_phys_pg_pack - physical page pack.
  * @vm_type: describes the type of the virtual area descriptor.
  * @pages: the physical page array.
+ * @npages: num physical pages in the pack.
+ * @total_size: total size of all the pages in this list.
  * @mapping_cnt: number of shared mappings.
  * @asid: the context related to this list.
- * @npages: num physical pages in the pack.
  * @page_size: size of each page in the pack.
- * @total_size: total size of all the pages in this list.
  * @flags: HL_MEM_* flags related to this list.
  * @handle: the provided handle related to this list.
  * @offset: offset from the first page.
@@ -807,11 +807,11 @@ struct hl_vm_hash_node {
 struct hl_vm_phys_pg_pack {
 	enum vm_type_t		vm_type; /* must be first */
 	u64			*pages;
+	u64			npages;
+	u64			total_size;
 	atomic_t		mapping_cnt;
 	u32			asid;
-	u32			npages;
 	u32			page_size;
-	u32			total_size;
 	u32			flags;
 	u32			handle;
 	u32			offset;
@@ -1056,13 +1056,15 @@ struct hl_device_reset_work {
  * @cb_pool_lock: protects the CB pool.
  * @user_ctx: current user context executing.
  * @dram_used_mem: current DRAM memory consumption.
- * @in_reset: is device in reset flow.
- * @curr_pll_profile: current PLL profile.
- * @fd_open_cnt: number of open user processes.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
  *             value is saved so in case of hard-reset, KMD will restore this
  *             value and update the F/W after the re-initialization
+ * @in_reset: is device in reset flow.
+ * @curr_pll_profile: current PLL profile.
+ * @fd_open_cnt: number of open user processes.
+ * @cs_active_cnt: number of active command submissions on this device (active
+ *                 means already in H/W queues)
  * @major: habanalabs KMD major.
  * @high_pll: high PLL profile frequency.
  * @soft_reset_cnt: number of soft reset since KMD loading.
@@ -1128,11 +1130,12 @@ struct hl_device {
 	struct hl_ctx			*user_ctx;
 
 	atomic64_t			dram_used_mem;
+	u64				timeout_jiffies;
+	u64				max_power;
 	atomic_t			in_reset;
 	atomic_t			curr_pll_profile;
 	atomic_t			fd_open_cnt;
-	u64				timeout_jiffies;
-	u64				max_power;
+	atomic_t			cs_active_cnt;
 	u32				major;
 	u32				high_pll;
 	u32				soft_reset_cnt;

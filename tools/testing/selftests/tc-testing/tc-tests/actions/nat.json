@@ -589,5 +589,30 @@
         "teardown": [
             "$TC actions flush action nat"
         ]
+    },
+    {
+        "id": "4b12",
+        "name": "Replace nat action with invalid goto chain control",
+        "category": [
+            "actions",
+            "nat"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action nat",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action nat ingress 1.18.1.1 1.18.2.2 drop index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action nat ingress 1.18.1.1 1.18.2.2 goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action nat index 90",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.18.1.1/32 1.18.2.2 drop.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action nat"
+        ]
     }
 ]

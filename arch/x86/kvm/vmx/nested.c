@@ -2585,6 +2585,11 @@ static int nested_check_host_control_regs(struct kvm_vcpu *vcpu,
 	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4) ||
 	    !nested_cr3_valid(vcpu, vmcs12->host_cr3))
 		return -EINVAL;
+
+	if (is_noncanonical_address(vmcs12->host_ia32_sysenter_esp, vcpu) ||
+	    is_noncanonical_address(vmcs12->host_ia32_sysenter_eip, vcpu))
+		return -EINVAL;
+
 	/*
 	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
 	 * IA32_EFER MSR must be 0 in the field for that register. In addition,

@@ -27,12 +27,16 @@ static void
 mt7603_rx_loopback_skb(struct mt7603_dev *dev, struct sk_buff *skb)
 {
 	__le32 *txd = (__le32 *)skb->data;
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_sta *sta;
 	struct mt7603_sta *msta;
 	struct mt76_wcid *wcid;
+	void *priv;
 	int idx;
 	u32 val;
+	u8 tid;
 
-	if (skb->len < sizeof(MT_TXD_SIZE) + sizeof(struct ieee80211_hdr))
+	if (skb->len < MT_TXD_SIZE + sizeof(struct ieee80211_hdr))
 		goto free;
 
 	val = le32_to_cpu(txd[1]);
@@ -46,9 +50,18 @@ mt7603_rx_loopback_skb(struct mt7603_dev *dev, struct sk_buff *skb)
 	if (!wcid)
 		goto free;
 
-	msta = container_of(wcid, struct mt7603_sta, wcid);
+	priv = msta = container_of(wcid, struct mt7603_sta, wcid);
 	val = le32_to_cpu(txd[0]);
 	skb_set_queue_mapping(skb, FIELD_GET(MT_TXD0_Q_IDX, val));
+
+	val &= ~(MT_TXD0_P_IDX | MT_TXD0_Q_IDX);
+	val |= FIELD_PREP(MT_TXD0_Q_IDX, MT_TX_HW_QUEUE_MGMT);
+	txd[0] = cpu_to_le32(val);
+
+	sta = container_of(priv, struct ieee80211_sta, drv_priv);
+	hdr = (struct ieee80211_hdr *) &skb->data[MT_TXD_SIZE];
+	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+	ieee80211_sta_set_buffered(sta, tid, true);
 
 	spin_lock_bh(&dev->ps_lock);
 	__skb_queue_tail(&msta->psq, skb);
