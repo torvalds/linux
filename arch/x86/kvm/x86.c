@@ -136,10 +136,14 @@ EXPORT_SYMBOL_GPL(kvm_default_tsc_scaling_ratio);
 static u32 __read_mostly tsc_tolerance_ppm = 250;
 module_param(tsc_tolerance_ppm, uint, S_IRUGO | S_IWUSR);
 
-/* lapic timer advance (tscdeadline mode only) in nanoseconds */
-unsigned int __read_mostly lapic_timer_advance_ns = 1000;
+/*
+ * lapic timer advance (tscdeadline mode only) in nanoseconds.  '-1' enables
+ * adaptive tuning starting from default advancment of 1000ns.  '0' disables
+ * advancement entirely.  Any other value is used as-is and disables adaptive
+ * tuning, i.e. allows priveleged userspace to set an exact advancement time.
+ */
+static int __read_mostly lapic_timer_advance_ns = -1;
 module_param(lapic_timer_advance_ns, uint, S_IRUGO | S_IWUSR);
-EXPORT_SYMBOL_GPL(lapic_timer_advance_ns);
 
 static bool __read_mostly vector_hashing = true;
 module_param(vector_hashing, bool, S_IRUGO);
@@ -6535,6 +6539,12 @@ int kvm_emulate_instruction_from_buffer(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_instruction_from_buffer);
 
+static int complete_fast_pio_out_port_0x7e(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.pio.count = 0;
+	return 1;
+}
+
 static int complete_fast_pio_out(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.pio.count = 0;
@@ -6551,12 +6561,23 @@ static int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size,
 	unsigned long val = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	int ret = emulator_pio_out_emulated(&vcpu->arch.emulate_ctxt,
 					    size, port, &val, 1);
+	if (ret)
+		return ret;
 
-	if (!ret) {
+	/*
+	 * Workaround userspace that relies on old KVM behavior of %rip being
+	 * incremented prior to exiting to userspace to handle "OUT 0x7e".
+	 */
+	if (port == 0x7e &&
+	    kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_OUT_7E_INC_RIP)) {
+		vcpu->arch.complete_userspace_io =
+			complete_fast_pio_out_port_0x7e;
+		kvm_skip_emulated_instruction(vcpu);
+	} else {
 		vcpu->arch.pio.linear_rip = kvm_get_linear_rip(vcpu);
 		vcpu->arch.complete_userspace_io = complete_fast_pio_out;
 	}
-	return ret;
+	return 0;
 }
 
 static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
@@ -7873,7 +7894,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	}
 
 	trace_kvm_entry(vcpu->vcpu_id);
-	if (lapic_timer_advance_ns)
+	if (lapic_in_kernel(vcpu) &&
+	    vcpu->arch.apic->lapic_timer.timer_advance_ns)
 		wait_lapic_expire(vcpu);
 	guest_enter_irqoff();
 
@@ -9061,7 +9083,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		vcpu->arch.apicv_active = kvm_x86_ops->get_enable_apicv(vcpu);
-		r = kvm_create_lapic(vcpu);
+		r = kvm_create_lapic(vcpu, lapic_timer_advance_ns);
 		if (r < 0)
 			goto fail_mmu_destroy;
 	} else
