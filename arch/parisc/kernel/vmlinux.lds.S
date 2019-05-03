@@ -18,6 +18,9 @@
 				*(.data..vm0.pgd) \
 				*(.data..vm0.pte)
 
+/* No __ro_after_init data in the .rodata section - which will always be ro */
+#define RO_AFTER_INIT_DATA
+
 #include <asm-generic/vmlinux.lds.h>
 
 /* needed for the processor specific cache alignment size */	
