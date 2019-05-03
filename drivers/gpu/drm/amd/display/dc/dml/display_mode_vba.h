@@ -455,7 +455,7 @@ struct vba_vars_st {
 	double TotalNumberOfActiveOTG;
 	double FECOverhead;
 	double EffectiveFECOverhead;
-	unsigned int Outbpp;
+	double Outbpp;
 	unsigned int OutbppDSC;
 	double TotalDSCUnitsRequired;
 	double bpp;
@@ -538,7 +538,7 @@ struct vba_vars_st {
 	bool RequiresDSC[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
 	unsigned int NumberOfDSCSlice[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
 	double RequiresFEC[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
-	unsigned int OutputBppPerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
+	double OutputBppPerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
 	double DSCDelayPerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
 	bool ViewportSizeSupport[DC__VOLTAGE_STATES + 1];
 	unsigned int Read256BlockHeightY[DC__NUM_DPP__MAX];
