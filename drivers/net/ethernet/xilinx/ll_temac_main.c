@@ -927,9 +927,9 @@ static int temac_open(struct net_device *ndev)
 	} else if (strlen(lp->phy_name) > 0) {
 		phydev = phy_connect(lp->ndev, lp->phy_name, temac_adjust_link,
 				     lp->phy_interface);
-		if (!phydev) {
+		if (IS_ERR(phydev)) {
 			dev_err(lp->dev, "phy_connect() failed\n");
-			return -ENODEV;
+			return PTR_ERR(phydev);
 		}
 		phy_start(phydev);
 	}
