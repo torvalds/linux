@@ -6050,6 +6050,35 @@ static int set_nx_huge_pages(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
+static void kvm_set_mmio_spte_mask(void)
+{
+	u64 mask;
+	int maxphyaddr = boot_cpu_data.x86_phys_bits;
+
+	/*
+	 * Set the reserved bits and the present bit of an paging-structure
+	 * entry to generate page fault with PFER.RSV = 1.
+	 */
+
+	/*
+	 * Mask the uppermost physical address bit, which would be reserved as
+	 * long as the supported physical address width is less than 52.
+	 */
+	mask = 1ull << 51;
+
+	/* Set the present bit. */
+	mask |= 1ull;
+
+	/*
+	 * If reserved bit is not supported, clear the present bit to disable
+	 * mmio page fault.
+	 */
+	if (maxphyaddr == 52)
+		mask &= ~1ull;
+
+	kvm_mmu_set_mmio_spte_mask(mask, mask);
+}
+
 int kvm_mmu_module_init(void)
 {
 	int ret = -ENOMEM;
@@ -6058,6 +6087,8 @@ int kvm_mmu_module_init(void)
 		__set_nx_huge_pages(get_nx_auto_mode());
 
 	kvm_mmu_reset_all_pte_masks();
+
+	kvm_set_mmio_spte_mask();
 
 	pte_list_desc_cache = kmem_cache_create("pte_list_desc",
 					    sizeof(struct pte_list_desc),

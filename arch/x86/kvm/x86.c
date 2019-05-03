@@ -6775,35 +6775,6 @@ static struct perf_guest_info_callbacks kvm_guest_cbs = {
 	.get_guest_ip		= kvm_get_guest_ip,
 };
 
-static void kvm_set_mmio_spte_mask(void)
-{
-	u64 mask;
-	int maxphyaddr = boot_cpu_data.x86_phys_bits;
-
-	/*
-	 * Set the reserved bits and the present bit of an paging-structure
-	 * entry to generate page fault with PFER.RSV = 1.
-	 */
-
-	/*
-	 * Mask the uppermost physical address bit, which would be reserved as
-	 * long as the supported physical address width is less than 52.
-	 */
-	mask = 1ull << 51;
-
-	/* Set the present bit. */
-	mask |= 1ull;
-
-	/*
-	 * If reserved bit is not supported, clear the present bit to disable
-	 * mmio page fault.
-	 */
-	if (maxphyaddr == 52)
-		mask &= ~1ull;
-
-	kvm_mmu_set_mmio_spte_mask(mask, mask);
-}
-
 #ifdef CONFIG_X86_64
 static void pvclock_gtod_update_fn(struct work_struct *work)
 {
@@ -6880,8 +6851,6 @@ int kvm_arch_init(void *opaque)
 	r = kvm_mmu_module_init();
 	if (r)
 		goto out_free_percpu;
-
-	kvm_set_mmio_spte_mask();
 
 	kvm_x86_ops = ops;
 
