@@ -1094,6 +1094,8 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->execlists.active)) {
 		struct tasklet_struct *t = &engine->execlists.tasklet;
 
+		synchronize_hardirq(engine->i915->drm.irq);
+
 		local_bh_disable();
 		if (tasklet_trylock(t)) {
 			/* Must wait for any GPU reset in progress. */

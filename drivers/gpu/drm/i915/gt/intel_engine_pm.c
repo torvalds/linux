@@ -10,7 +10,7 @@
 #include "intel_engine_pm.h"
 #include "intel_gt_pm.h"
 
-static int intel_engine_unpark(struct intel_wakeref *wf)
+static int __engine_unpark(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
 		container_of(wf, typeof(*engine), wakeref);
@@ -37,7 +37,24 @@ static int intel_engine_unpark(struct intel_wakeref *wf)
 
 void intel_engine_pm_get(struct intel_engine_cs *engine)
 {
-	intel_wakeref_get(engine->i915, &engine->wakeref, intel_engine_unpark);
+	intel_wakeref_get(engine->i915, &engine->wakeref, __engine_unpark);
+}
+
+void intel_engine_park(struct intel_engine_cs *engine)
+{
+	/*
+	 * We are committed now to parking this engine, make sure there
+	 * will be no more interrupts arriving later and the engine
+	 * is truly idle.
+	 */
+	if (wait_for(intel_engine_is_idle(engine), 10)) {
+		struct drm_printer p = drm_debug_printer(__func__);
+
+		dev_err(engine->i915->drm.dev,
+			"%s is not idle before parking\n",
+			engine->name);
+		intel_engine_dump(engine, &p, NULL);
+	}
 }
 
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
@@ -56,7 +73,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	 * Note, we do this without taking the timeline->mutex. We cannot
 	 * as we may be called while retiring the kernel context and so
 	 * already underneath the timeline->mutex. Instead we rely on the
-	 * exclusive property of the intel_engine_park that prevents anyone
+	 * exclusive property of the __engine_park that prevents anyone
 	 * else from creating a request on this engine. This also requires
 	 * that the ring is empty and we avoid any waits while constructing
 	 * the context, as they assume protection by the timeline->mutex.
@@ -76,7 +93,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	return false;
 }
 
-static int intel_engine_park(struct intel_wakeref *wf)
+static int __engine_park(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
 		container_of(wf, typeof(*engine), wakeref);
@@ -114,7 +131,7 @@ static int intel_engine_park(struct intel_wakeref *wf)
 
 void intel_engine_pm_put(struct intel_engine_cs *engine)
 {
-	intel_wakeref_put(engine->i915, &engine->wakeref, intel_engine_park);
+	intel_wakeref_put(engine->i915, &engine->wakeref, __engine_park);
 }
 
 void intel_engine_init__pm(struct intel_engine_cs *engine)
