@@ -43,6 +43,7 @@
 #include "port.h"
 #include "ptp.h"
 #include "serdes.h"
+#include "smi.h"
 
 static void assert_reg_lock(struct mv88e6xxx_chip *chip)
 {
@@ -51,149 +52,6 @@ static void assert_reg_lock(struct mv88e6xxx_chip *chip)
 		dump_stack();
 	}
 }
-
-/* The switch ADDR[4:1] configuration pins define the chip SMI device address
- * (ADDR[0] is always zero, thus only even SMI addresses can be strapped).
- *
- * When ADDR is all zero, the chip uses Single-chip Addressing Mode, assuming it
- * is the only device connected to the SMI master. In this mode it responds to
- * all 32 possible SMI addresses, and thus maps directly the internal devices.
- *
- * When ADDR is non-zero, the chip uses Multi-chip Addressing Mode, allowing
- * multiple devices to share the SMI interface. In this mode it responds to only
- * 2 registers, used to indirectly access the internal SMI devices.
- */
-
-static int mv88e6xxx_smi_read(struct mv88e6xxx_chip *chip,
-			      int addr, int reg, u16 *val)
-{
-	if (!chip->smi_ops)
-		return -EOPNOTSUPP;
-
-	return chip->smi_ops->read(chip, addr, reg, val);
-}
-
-static int mv88e6xxx_smi_write(struct mv88e6xxx_chip *chip,
-			       int addr, int reg, u16 val)
-{
-	if (!chip->smi_ops)
-		return -EOPNOTSUPP;
-
-	return chip->smi_ops->write(chip, addr, reg, val);
-}
-
-static int mv88e6xxx_smi_single_chip_read(struct mv88e6xxx_chip *chip,
-					  int addr, int reg, u16 *val)
-{
-	int ret;
-
-	ret = mdiobus_read_nested(chip->bus, addr, reg);
-	if (ret < 0)
-		return ret;
-
-	*val = ret & 0xffff;
-
-	return 0;
-}
-
-static int mv88e6xxx_smi_single_chip_write(struct mv88e6xxx_chip *chip,
-					   int addr, int reg, u16 val)
-{
-	int ret;
-
-	ret = mdiobus_write_nested(chip->bus, addr, reg, val);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static const struct mv88e6xxx_bus_ops mv88e6xxx_smi_single_chip_ops = {
-	.read = mv88e6xxx_smi_single_chip_read,
-	.write = mv88e6xxx_smi_single_chip_write,
-};
-
-static int mv88e6xxx_smi_multi_chip_wait(struct mv88e6xxx_chip *chip)
-{
-	int ret;
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		ret = mdiobus_read_nested(chip->bus, chip->sw_addr, SMI_CMD);
-		if (ret < 0)
-			return ret;
-
-		if ((ret & SMI_CMD_BUSY) == 0)
-			return 0;
-	}
-
-	return -ETIMEDOUT;
-}
-
-static int mv88e6xxx_smi_multi_chip_read(struct mv88e6xxx_chip *chip,
-					 int addr, int reg, u16 *val)
-{
-	int ret;
-
-	/* Wait for the bus to become free. */
-	ret = mv88e6xxx_smi_multi_chip_wait(chip);
-	if (ret < 0)
-		return ret;
-
-	/* Transmit the read command. */
-	ret = mdiobus_write_nested(chip->bus, chip->sw_addr, SMI_CMD,
-				   SMI_CMD_OP_22_READ | (addr << 5) | reg);
-	if (ret < 0)
-		return ret;
-
-	/* Wait for the read command to complete. */
-	ret = mv88e6xxx_smi_multi_chip_wait(chip);
-	if (ret < 0)
-		return ret;
-
-	/* Read the data. */
-	ret = mdiobus_read_nested(chip->bus, chip->sw_addr, SMI_DATA);
-	if (ret < 0)
-		return ret;
-
-	*val = ret & 0xffff;
-
-	return 0;
-}
-
-static int mv88e6xxx_smi_multi_chip_write(struct mv88e6xxx_chip *chip,
-					  int addr, int reg, u16 val)
-{
-	int ret;
-
-	/* Wait for the bus to become free. */
-	ret = mv88e6xxx_smi_multi_chip_wait(chip);
-	if (ret < 0)
-		return ret;
-
-	/* Transmit the data to write. */
-	ret = mdiobus_write_nested(chip->bus, chip->sw_addr, SMI_DATA, val);
-	if (ret < 0)
-		return ret;
-
-	/* Transmit the write command. */
-	ret = mdiobus_write_nested(chip->bus, chip->sw_addr, SMI_CMD,
-				   SMI_CMD_OP_22_WRITE | (addr << 5) | reg);
-	if (ret < 0)
-		return ret;
-
-	/* Wait for the write command to complete. */
-	ret = mv88e6xxx_smi_multi_chip_wait(chip);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static const struct mv88e6xxx_bus_ops mv88e6xxx_smi_multi_chip_ops = {
-	.read = mv88e6xxx_smi_multi_chip_read,
-	.write = mv88e6xxx_smi_multi_chip_write,
-};
 
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val)
 {
@@ -4643,22 +4501,6 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 	INIT_LIST_HEAD(&chip->mdios);
 
 	return chip;
-}
-
-static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
-			      struct mii_bus *bus, int sw_addr)
-{
-	if (sw_addr == 0)
-		chip->smi_ops = &mv88e6xxx_smi_single_chip_ops;
-	else if (chip->info->multi_chip)
-		chip->smi_ops = &mv88e6xxx_smi_multi_chip_ops;
-	else
-		return -EINVAL;
-
-	chip->bus = bus;
-	chip->sw_addr = sw_addr;
-
-	return 0;
 }
 
 static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
