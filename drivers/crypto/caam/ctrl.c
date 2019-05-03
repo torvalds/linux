@@ -323,8 +323,8 @@ static int caam_remove(struct platform_device *pdev)
 	of_platform_depopulate(ctrldev);
 
 #ifdef CONFIG_CAAM_QI
-	if (ctrlpriv->qidev)
-		caam_qi_shutdown(ctrlpriv->qidev);
+	if (ctrlpriv->qi_init)
+		caam_qi_shutdown(ctrldev);
 #endif
 
 	/*
@@ -900,8 +900,8 @@ caam_remove:
 
 shutdown_qi:
 #ifdef CONFIG_CAAM_QI
-	if (ctrlpriv->qidev)
-		caam_qi_shutdown(ctrlpriv->qidev);
+	if (ctrlpriv->qi_init)
+		caam_qi_shutdown(dev);
 #endif
 iounmap_ctrl:
 	iounmap(ctrl);
