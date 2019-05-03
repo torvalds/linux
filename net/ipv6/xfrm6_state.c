@@ -40,8 +40,6 @@ int xfrm6_extract_header(struct sk_buff *skb)
 static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.family			= AF_INET6,
 	.proto			= IPPROTO_IPV6,
-	.eth_proto		= htons(ETH_P_IPV6),
-	.owner			= THIS_MODULE,
 	.output			= xfrm6_output,
 	.output_finish		= xfrm6_output_finish,
 	.extract_input		= xfrm6_extract_input,

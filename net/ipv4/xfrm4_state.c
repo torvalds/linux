@@ -34,8 +34,6 @@ int xfrm4_extract_header(struct sk_buff *skb)
 static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
 	.proto			= IPPROTO_IPIP,
-	.eth_proto		= htons(ETH_P_IP),
-	.owner			= THIS_MODULE,
 	.output			= xfrm4_output,
 	.output_finish		= xfrm4_output_finish,
 	.extract_input		= xfrm4_extract_input,
