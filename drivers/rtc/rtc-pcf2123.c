@@ -202,11 +202,7 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;	/* assume we are in 1970...2069 */
 
-	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
-			"mday=%d, mon=%d, year=%d, wday=%d\n",
-			__func__,
-			tm->tm_sec, tm->tm_min, tm->tm_hour,
-			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+	dev_dbg(dev, "%s: tm is %ptR\n", __func__, tm);
 
 	return 0;
 }
@@ -217,11 +213,7 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	u8 txbuf[7];
 	int ret;
 
-	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
-			"mday=%d, mon=%d, year=%d, wday=%d\n",
-			__func__,
-			tm->tm_sec, tm->tm_min, tm->tm_hour,
-			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+	dev_dbg(dev, "%s: tm is %ptR\n", __func__, tm);
 
 	/* Stop the counter first */
 	ret = regmap_write(pdata->map, PCF2123_REG_CTRL1, CTRL1_STOP);
