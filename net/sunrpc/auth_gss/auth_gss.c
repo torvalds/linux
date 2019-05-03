@@ -553,8 +553,10 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	gss_msg->auth = gss_auth;
 	if (service_name) {
 		gss_msg->service_name = kstrdup_const(service_name, GFP_NOFS);
-		if (!gss_msg->service_name)
+		if (!gss_msg->service_name) {
+			err = -ENOMEM;
 			goto err_put_pipe_version;
+		}
 	}
 	return gss_msg;
 err_put_pipe_version:
