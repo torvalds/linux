@@ -1572,10 +1572,38 @@ free_win:
 
 static DEVICE_ATTR_RW(nr_pages);
 
+static ssize_t
+win_switch_store(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t size)
+{
+	struct msc *msc = dev_get_drvdata(dev);
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val != 1)
+		return -EINVAL;
+
+	mutex_lock(&msc->buf_mutex);
+	if (msc->mode != MSC_MODE_MULTI)
+		ret = -ENOTSUPP;
+	else
+		ret = intel_th_trace_switch(msc->thdev);
+	mutex_unlock(&msc->buf_mutex);
+
+	return ret ? ret : size;
+}
+
+static DEVICE_ATTR_WO(win_switch);
+
 static struct attribute *msc_output_attrs[] = {
 	&dev_attr_wrap.attr,
 	&dev_attr_mode.attr,
 	&dev_attr_nr_pages.attr,
+	&dev_attr_win_switch.attr,
 	NULL,
 };
 
