@@ -1619,7 +1619,6 @@ int dcn20_populate_dml_pipes_from_context(
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing = &res_ctx->pipe_ctx[i].stream->timing;
-		struct dc_link *link;
 
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
@@ -1665,16 +1664,7 @@ int dcn20_populate_dml_pipes_from_context(
 		if (timing->timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 			pipes[pipe_cnt].pipe.dest.pixel_rate_mhz *= 2;
 		pipes[pipe_cnt].pipe.dest.otg_inst = res_ctx->pipe_ctx[i].stream_res.tg->inst;
-
-		link = res_ctx->pipe_ctx[i].stream->link;
-		if (link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) {
-			pipes[pipe_cnt].dout.dp_lanes = link->cur_link_settings.lane_count;
-		} else if (link->verified_link_cap.lane_count != LANE_COUNT_UNKNOWN) {
-			pipes[pipe_cnt].dout.dp_lanes = link->verified_link_cap.lane_count;
-		} else {
-			/* Unknown link capabilities, so assume max */
-			pipes[pipe_cnt].dout.dp_lanes = 4;
-		}
+		pipes[pipe_cnt].dout.dp_lanes = 4;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
 
