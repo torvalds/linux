@@ -1705,7 +1705,7 @@
 			#interrupt-cells = <1>;
 
 			clocks = <&mmcc MDSS_AHB_CLK>;
-			clock-names = "iface_clk";
+			clock-names = "iface";
 
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -1724,11 +1724,11 @@
 					 <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc SMMU_MDP_AXI_CLK>,
 					 <&mmcc MDSS_VSYNC_CLK>;
-				clock-names = "iface_clk",
-					      "bus_clk",
-					      "core_clk",
-					      "iommu_clk",
-					      "vsync_clk";
+				clock-names = "iface",
+					      "bus",
+					      "core",
+					      "iommu",
+					      "vsync";
 
 				iommus = <&mdp_smmu 0>;
 
@@ -1763,11 +1763,11 @@
 					 <&mmcc MDSS_HDMI_AHB_CLK>,
 					 <&mmcc MDSS_EXTPCLK_CLK>;
 				clock-names =
-					"mdp_core_clk",
-					"iface_clk",
-					"core_clk",
-					"alt_iface_clk",
-					"extp_clk";
+					"mdp_core",
+					"iface",
+					"core",
+					"alt_iface",
+					"extp";
 
 				phys = <&hdmi_phy>;
 				phy-names = "hdmi_phy";
@@ -1804,8 +1804,8 @@
 
 				clocks = <&mmcc MDSS_AHB_CLK>,
 					 <&gcc GCC_HDMI_CLKREF_CLK>;
-				clock-names = "iface_clk",
-					      "ref_clk";
+				clock-names = "iface",
+					      "ref";
 			};
 		};
 	};
