@@ -35,7 +35,7 @@
  * Security hooks for program execution operations.
  *
  * @bprm_set_creds:
- *	Save security information in the bprm->security field, typically based
+ *	Save security information in the bprm->cred->security field, typically based
  *	on information about the bprm->file, for later use by the apply_creds
  *	hook.  This hook may also optionally check permissions (e.g. for
  *	transitions between security domains).
@@ -52,8 +52,8 @@
  *	Return 0 if the hook is successful and permission is granted.
  * @bprm_check_security:
  *	This hook mediates the point when a search for a binary handler will
- *	begin.  It allows a check the @bprm->security value which is set in the
- *	preceding set_creds call.  The primary difference from set_creds is
+ *	begin.  It allows a check the @bprm->cred->security value which is set in
+ *  the preceding set_creds call.  The primary difference from set_creds is
  *	that the argv list and envp list are reliably available in @bprm.  This
  *	hook may be called multiple times during a single execve; and in each
  *	pass set_creds is called first.
