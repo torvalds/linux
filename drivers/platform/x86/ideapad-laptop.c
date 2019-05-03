@@ -986,6 +986,13 @@ static void ideapad_wmi_notify(u32 value, void *context)
  */
 static const struct dmi_system_id no_hw_rfkill_list[] = {
 	{
+		.ident = "Lenovo Ideapad S205",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Ideapad S205"),
+		},
+	},	
+	{
 		.ident = "Lenovo RESCUER R720-15IKBN",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
