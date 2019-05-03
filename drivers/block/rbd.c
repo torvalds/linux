@@ -3842,8 +3842,12 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 
-	rbd_assert(op_type == OBJ_OP_READ ||
-		   rbd_dev->spec->snap_id == CEPH_NOSNAP);
+	if (op_type != OBJ_OP_READ && rbd_dev->spec->snap_id != CEPH_NOSNAP) {
+		rbd_warn(rbd_dev, "%s on read-only snapshot",
+			 obj_op_name(op_type));
+		result = -EIO;
+		goto err;
+	}
 
 	/*
 	 * Quit early if the mapped snapshot no longer exists.  It's
