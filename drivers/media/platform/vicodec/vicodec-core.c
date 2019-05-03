@@ -2013,18 +2013,31 @@ static int register_instance(struct vicodec_dev *dev,
 	return 0;
 }
 
+static void vicodec_v4l2_dev_release(struct v4l2_device *v4l2_dev)
+{
+	struct vicodec_dev *dev = container_of(v4l2_dev, struct vicodec_dev, v4l2_dev);
+
+	v4l2_device_unregister(&dev->v4l2_dev);
+	v4l2_m2m_release(dev->stateful_enc.m2m_dev);
+	v4l2_m2m_release(dev->stateful_dec.m2m_dev);
+	v4l2_m2m_release(dev->stateless_dec.m2m_dev);
+	kfree(dev);
+}
+
 static int vicodec_probe(struct platform_device *pdev)
 {
 	struct vicodec_dev *dev;
 	int ret;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
-		return ret;
+		goto free_dev;
+
+	dev->v4l2_dev.release = vicodec_v4l2_dev_release;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 	dev->mdev.dev = &pdev->dev;
@@ -2102,6 +2115,8 @@ unreg_sf_enc:
 	v4l2_m2m_release(dev->stateful_enc.m2m_dev);
 unreg_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
+free_dev:
+	kfree(dev);
 
 	return ret;
 }
@@ -2120,12 +2135,10 @@ static int vicodec_remove(struct platform_device *pdev)
 	media_device_cleanup(&dev->mdev);
 #endif
 
-	v4l2_m2m_release(dev->stateful_enc.m2m_dev);
-	v4l2_m2m_release(dev->stateful_dec.m2m_dev);
 	video_unregister_device(&dev->stateful_enc.vfd);
 	video_unregister_device(&dev->stateful_dec.vfd);
 	video_unregister_device(&dev->stateless_dec.vfd);
-	v4l2_device_unregister(&dev->v4l2_dev);
+	v4l2_device_put(&dev->v4l2_dev);
 
 	return 0;
 }
