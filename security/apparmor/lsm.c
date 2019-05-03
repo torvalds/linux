@@ -48,8 +48,13 @@
 /* Flag indicating whether initialization completed */
 int apparmor_initialized;
 
-DEFINE_PER_CPU(struct aa_buffers, aa_buffers);
+union aa_buffer {
+	struct list_head list;
+	char buffer[1];
+};
 
+static LIST_HEAD(aa_global_buffers);
+static DEFINE_SPINLOCK(aa_buffers_lock);
 
 /*
  * LSM hook functions
@@ -1422,6 +1427,7 @@ static int param_set_aauint(const char *val, const struct kernel_param *kp)
 		return -EPERM;
 
 	error = param_set_uint(val, kp);
+	aa_g_path_max = max_t(uint32_t, aa_g_path_max, sizeof(union aa_buffer));
 	pr_info("AppArmor: buffer size set to %d bytes\n", aa_g_path_max);
 
 	return error;
@@ -1565,6 +1571,48 @@ static int param_set_mode(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
+char *aa_get_buffer(void)
+{
+	union aa_buffer *aa_buf;
+	bool try_again = true;
+
+retry:
+	spin_lock(&aa_buffers_lock);
+	if (!list_empty(&aa_global_buffers)) {
+		aa_buf = list_first_entry(&aa_global_buffers, union aa_buffer,
+					  list);
+		list_del(&aa_buf->list);
+		spin_unlock(&aa_buffers_lock);
+		return &aa_buf->buffer[0];
+	}
+	spin_unlock(&aa_buffers_lock);
+
+	aa_buf = kmalloc(aa_g_path_max, GFP_KERNEL | __GFP_RETRY_MAYFAIL |
+			 __GFP_NOWARN);
+	if (!aa_buf) {
+		if (try_again) {
+			try_again = false;
+			goto retry;
+		}
+		pr_warn_once("AppArmor: Failed to allocate a memory buffer.\n");
+		return NULL;
+	}
+	return &aa_buf->buffer[0];
+}
+
+void aa_put_buffer(char *buf)
+{
+	union aa_buffer *aa_buf;
+
+	if (!buf)
+		return;
+	aa_buf = container_of(buf, union aa_buffer, buffer[0]);
+
+	spin_lock(&aa_buffers_lock);
+	list_add(&aa_buf->list, &aa_global_buffers);
+	spin_unlock(&aa_buffers_lock);
+}
+
 /*
  * AppArmor init functions
  */
@@ -1585,38 +1633,48 @@ static int __init set_init_ctx(void)
 
 static void destroy_buffers(void)
 {
-	u32 i, j;
+	union aa_buffer *aa_buf;
 
-	for_each_possible_cpu(i) {
-		for_each_cpu_buffer(j) {
-			kfree(per_cpu(aa_buffers, i).buf[j]);
-			per_cpu(aa_buffers, i).buf[j] = NULL;
-		}
+	spin_lock(&aa_buffers_lock);
+	while (!list_empty(&aa_global_buffers)) {
+		aa_buf = list_first_entry(&aa_global_buffers, union aa_buffer,
+					 list);
+		list_del(&aa_buf->list);
+		spin_unlock(&aa_buffers_lock);
+		kfree(aa_buf);
+		spin_lock(&aa_buffers_lock);
 	}
+	spin_unlock(&aa_buffers_lock);
 }
 
 static int __init alloc_buffers(void)
 {
-	u32 i, j;
+	union aa_buffer *aa_buf;
+	int i, num;
 
-	for_each_possible_cpu(i) {
-		for_each_cpu_buffer(j) {
-			char *buffer;
+	/*
+	 * A function may require two buffers at once. Usually the buffers are
+	 * used for a short period of time and are shared. On UP kernel buffers
+	 * two should be enough, with more CPUs it is possible that more
+	 * buffers will be used simultaneously. The preallocated pool may grow.
+	 * This preallocation has also the side-effect that AppArmor will be
+	 * disabled early at boot if aa_g_path_max is extremly high.
+	 */
+	if (num_online_cpus() > 1)
+		num = 4;
+	else
+		num = 2;
 
-			if (cpu_to_node(i) > num_online_nodes())
-				/* fallback to kmalloc for offline nodes */
-				buffer = kmalloc(aa_g_path_max, GFP_KERNEL);
-			else
-				buffer = kmalloc_node(aa_g_path_max, GFP_KERNEL,
-						      cpu_to_node(i));
-			if (!buffer) {
-				destroy_buffers();
-				return -ENOMEM;
-			}
-			per_cpu(aa_buffers, i).buf[j] = buffer;
+	for (i = 0; i < num; i++) {
+
+		aa_buf = kmalloc(aa_g_path_max, GFP_KERNEL |
+				 __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+		if (!aa_buf) {
+			destroy_buffers();
+			return -ENOMEM;
 		}
+		aa_put_buffer(&aa_buf->buffer[0]);
 	}
-
 	return 0;
 }
 
@@ -1781,7 +1839,7 @@ static int __init apparmor_init(void)
 	error = alloc_buffers();
 	if (error) {
 		AA_ERROR("Unable to allocate work buffers\n");
-		goto buffers_out;
+		goto alloc_out;
 	}
 
 	error = set_init_ctx();
@@ -1806,7 +1864,6 @@ static int __init apparmor_init(void)
 
 buffers_out:
 	destroy_buffers();
-
 alloc_out:
 	aa_destroy_aafs();
 	aa_teardown_dfa_engine();
