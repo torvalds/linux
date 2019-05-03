@@ -1688,51 +1688,129 @@ xfrm_find_acq(struct net *net, const struct xfrm_mark *mark, u8 mode, u32 reqid,
 EXPORT_SYMBOL(xfrm_find_acq);
 
 #ifdef CONFIG_XFRM_SUB_POLICY
-int
-xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
-	       unsigned short family, struct net *net)
+#if IS_ENABLED(CONFIG_IPV6)
+/* distribution counting sort function for xfrm_state and xfrm_tmpl */
+static void
+__xfrm6_sort(void **dst, void **src, int n,
+	     int (*cmp)(const void *p), int maxclass)
+{
+	int count[XFRM_MAX_DEPTH] = { };
+	int class[XFRM_MAX_DEPTH];
+	int i;
+
+	for (i = 0; i < n; i++) {
+		int c = cmp(src[i]);
+
+		class[i] = c;
+		count[c]++;
+	}
+
+	for (i = 2; i < maxclass; i++)
+		count[i] += count[i - 1];
+
+	for (i = 0; i < n; i++) {
+		dst[count[class[i] - 1]++] = src[i];
+		src[i] = NULL;
+	}
+}
+
+/* Rule for xfrm_state:
+ *
+ * rule 1: select IPsec transport except AH
+ * rule 2: select MIPv6 RO or inbound trigger
+ * rule 3: select IPsec transport AH
+ * rule 4: select IPsec tunnel
+ * rule 5: others
+ */
+static int __xfrm6_state_sort_cmp(const void *p)
+{
+	const struct xfrm_state *v = p;
+
+	switch (v->props.mode) {
+	case XFRM_MODE_TRANSPORT:
+		if (v->id.proto != IPPROTO_AH)
+			return 1;
+		else
+			return 3;
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+	case XFRM_MODE_ROUTEOPTIMIZATION:
+	case XFRM_MODE_IN_TRIGGER:
+		return 2;
+#endif
+	case XFRM_MODE_TUNNEL:
+	case XFRM_MODE_BEET:
+		return 4;
+	}
+	return 5;
+}
+
+/* Rule for xfrm_tmpl:
+ *
+ * rule 1: select IPsec transport
+ * rule 2: select MIPv6 RO or inbound trigger
+ * rule 3: select IPsec tunnel
+ * rule 4: others
+ */
+static int __xfrm6_tmpl_sort_cmp(const void *p)
+{
+	const struct xfrm_tmpl *v = p;
+
+	switch (v->mode) {
+	case XFRM_MODE_TRANSPORT:
+		return 1;
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+	case XFRM_MODE_ROUTEOPTIMIZATION:
+	case XFRM_MODE_IN_TRIGGER:
+		return 2;
+#endif
+	case XFRM_MODE_TUNNEL:
+	case XFRM_MODE_BEET:
+		return 3;
+	}
+	return 4;
+}
+#else
+static inline int __xfrm6_state_sort_cmp(const void *p) { return 5; }
+static inline int __xfrm6_tmpl_sort_cmp(const void *p) { return 4; }
+
+static inline void
+__xfrm6_sort(void **dst, void **src, int n,
+	     int (*cmp)(const void *p), int maxclass)
 {
 	int i;
-	int err = 0;
-	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	if (!afinfo)
-		return -EAFNOSUPPORT;
 
-	spin_lock_bh(&net->xfrm.xfrm_state_lock); /*FIXME*/
-	if (afinfo->tmpl_sort)
-		err = afinfo->tmpl_sort(dst, src, n);
+	for (i = 0; i < n; i++)
+		dst[i] = src[i];
+}
+#endif /* CONFIG_IPV6 */
+
+void
+xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
+	       unsigned short family)
+{
+	int i;
+
+	if (family == AF_INET6)
+		__xfrm6_sort((void **)dst, (void **)src, n,
+			     __xfrm6_tmpl_sort_cmp, 5);
 	else
 		for (i = 0; i < n; i++)
 			dst[i] = src[i];
-	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
-	rcu_read_unlock();
-	return err;
 }
-EXPORT_SYMBOL(xfrm_tmpl_sort);
 
-int
+void
 xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
 		unsigned short family)
 {
 	int i;
-	int err = 0;
-	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	struct net *net = xs_net(*src);
 
-	if (!afinfo)
-		return -EAFNOSUPPORT;
-
-	spin_lock_bh(&net->xfrm.xfrm_state_lock);
-	if (afinfo->state_sort)
-		err = afinfo->state_sort(dst, src, n);
+	if (family == AF_INET6)
+		__xfrm6_sort((void **)dst, (void **)src, n,
+			     __xfrm6_state_sort_cmp, 6);
 	else
 		for (i = 0; i < n; i++)
 			dst[i] = src[i];
-	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
-	rcu_read_unlock();
-	return err;
 }
-EXPORT_SYMBOL(xfrm_state_sort);
 #endif
 
 /* Silly enough, but I'm lazy to build resolution list */

@@ -21,102 +21,6 @@
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 
-/* distribution counting sort function for xfrm_state and xfrm_tmpl */
-static int
-__xfrm6_sort(void **dst, void **src, int n, int (*cmp)(void *p), int maxclass)
-{
-	int count[XFRM_MAX_DEPTH] = { };
-	int class[XFRM_MAX_DEPTH];
-	int i;
-
-	for (i = 0; i < n; i++) {
-		int c;
-		class[i] = c = cmp(src[i]);
-		count[c]++;
-	}
-
-	for (i = 2; i < maxclass; i++)
-		count[i] += count[i - 1];
-
-	for (i = 0; i < n; i++) {
-		dst[count[class[i] - 1]++] = src[i];
-		src[i] = NULL;
-	}
-
-	return 0;
-}
-
-/*
- * Rule for xfrm_state:
- *
- * rule 1: select IPsec transport except AH
- * rule 2: select MIPv6 RO or inbound trigger
- * rule 3: select IPsec transport AH
- * rule 4: select IPsec tunnel
- * rule 5: others
- */
-static int __xfrm6_state_sort_cmp(void *p)
-{
-	struct xfrm_state *v = p;
-
-	switch (v->props.mode) {
-	case XFRM_MODE_TRANSPORT:
-		if (v->id.proto != IPPROTO_AH)
-			return 1;
-		else
-			return 3;
-#if IS_ENABLED(CONFIG_IPV6_MIP6)
-	case XFRM_MODE_ROUTEOPTIMIZATION:
-	case XFRM_MODE_IN_TRIGGER:
-		return 2;
-#endif
-	case XFRM_MODE_TUNNEL:
-	case XFRM_MODE_BEET:
-		return 4;
-	}
-	return 5;
-}
-
-static int
-__xfrm6_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n)
-{
-	return __xfrm6_sort((void **)dst, (void **)src, n,
-			    __xfrm6_state_sort_cmp, 6);
-}
-
-/*
- * Rule for xfrm_tmpl:
- *
- * rule 1: select IPsec transport
- * rule 2: select MIPv6 RO or inbound trigger
- * rule 3: select IPsec tunnel
- * rule 4: others
- */
-static int __xfrm6_tmpl_sort_cmp(void *p)
-{
-	struct xfrm_tmpl *v = p;
-	switch (v->mode) {
-	case XFRM_MODE_TRANSPORT:
-		return 1;
-#if IS_ENABLED(CONFIG_IPV6_MIP6)
-	case XFRM_MODE_ROUTEOPTIMIZATION:
-	case XFRM_MODE_IN_TRIGGER:
-		return 2;
-#endif
-	case XFRM_MODE_TUNNEL:
-	case XFRM_MODE_BEET:
-		return 3;
-	}
-	return 4;
-}
-
-static int
-__xfrm6_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n)
-{
-	return __xfrm6_sort((void **)dst, (void **)src, n,
-			    __xfrm6_tmpl_sort_cmp, 5);
-}
-
 int xfrm6_extract_header(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -138,8 +42,6 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.proto			= IPPROTO_IPV6,
 	.eth_proto		= htons(ETH_P_IPV6),
 	.owner			= THIS_MODULE,
-	.tmpl_sort		= __xfrm6_tmpl_sort,
-	.state_sort		= __xfrm6_state_sort,
 	.output			= xfrm6_output,
 	.output_finish		= xfrm6_output_finish,
 	.extract_input		= xfrm6_extract_input,
