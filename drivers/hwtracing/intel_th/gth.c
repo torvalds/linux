@@ -457,6 +457,68 @@ static int intel_th_output_attributes(struct gth_device *gth)
 }
 
 /**
+ * intel_th_gth_stop() - stop tracing to an output device
+ * @gth:		GTH device
+ * @output:		output device's descriptor
+ * @capture_done:	set when no more traces will be captured
+ *
+ * This will stop tracing using force storeEn off signal and wait for the
+ * pipelines to be empty for the corresponding output port.
+ */
+static void intel_th_gth_stop(struct gth_device *gth,
+			      struct intel_th_output *output,
+			      bool capture_done)
+{
+	struct intel_th_device *outdev =
+		container_of(output, struct intel_th_device, output);
+	struct intel_th_driver *outdrv =
+		to_intel_th_driver(outdev->dev.driver);
+	unsigned long count;
+	u32 reg;
+	u32 scr2 = 0xfc | (capture_done ? 1 : 0);
+
+	iowrite32(0, gth->base + REG_GTH_SCR);
+	iowrite32(scr2, gth->base + REG_GTH_SCR2);
+
+	/* wait on pipeline empty for the given port */
+	for (reg = 0, count = GTH_PLE_WAITLOOP_DEPTH;
+	     count && !(reg & BIT(output->port)); count--) {
+		reg = ioread32(gth->base + REG_GTH_STAT);
+		cpu_relax();
+	}
+
+	if (!count)
+		dev_dbg(gth->dev, "timeout waiting for GTH[%d] PLE\n",
+			output->port);
+
+	/* wait on output piepline empty */
+	if (outdrv->wait_empty)
+		outdrv->wait_empty(outdev);
+
+	/* clear force capture done for next captures */
+	iowrite32(0xfc, gth->base + REG_GTH_SCR2);
+}
+
+/**
+ * intel_th_gth_start() - start tracing to an output device
+ * @gth:	GTH device
+ * @output:	output device's descriptor
+ *
+ * This will start tracing using force storeEn signal.
+ */
+static void intel_th_gth_start(struct gth_device *gth,
+			       struct intel_th_output *output)
+{
+	u32 scr = 0xfc0000;
+
+	if (output->multiblock)
+		scr |= 0xff;
+
+	iowrite32(scr, gth->base + REG_GTH_SCR);
+	iowrite32(0, gth->base + REG_GTH_SCR2);
+}
+
+/**
  * intel_th_gth_disable() - disable tracing to an output device
  * @thdev:	GTH device
  * @output:	output device's descriptor
@@ -469,11 +531,6 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 				 struct intel_th_output *output)
 {
 	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
-	struct intel_th_device *outdev =
-		container_of(output, struct intel_th_device, output);
-	struct intel_th_driver *outdrv =
-		to_intel_th_driver(outdev->dev.driver);
-	unsigned long count;
 	int master;
 	u32 reg;
 
@@ -486,25 +543,7 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 	}
 	spin_unlock(&gth->gth_lock);
 
-	iowrite32(0, gth->base + REG_GTH_SCR);
-	iowrite32(0xfd, gth->base + REG_GTH_SCR2);
-
-	/* wait on pipeline empty for the given port */
-	for (reg = 0, count = GTH_PLE_WAITLOOP_DEPTH;
-	     count && !(reg & BIT(output->port)); count--) {
-		reg = ioread32(gth->base + REG_GTH_STAT);
-		cpu_relax();
-	}
-
-	if (outdrv->wait_empty)
-		outdrv->wait_empty(outdev);
-
-	/* clear force capture done for next captures */
-	iowrite32(0xfc, gth->base + REG_GTH_SCR2);
-
-	if (!count)
-		dev_dbg(&thdev->dev, "timeout waiting for GTH[%d] PLE\n",
-			output->port);
+	intel_th_gth_stop(gth, output, true);
 
 	reg = ioread32(gth->base + REG_GTH_SCRPD0);
 	reg &= ~output->scratchpad;
@@ -533,17 +572,14 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 {
 	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
 	struct intel_th *th = to_intel_th(thdev);
-	u32 scr = 0xfc0000, scrpd;
 	int master;
+	u32 scrpd;
 
 	spin_lock(&gth->gth_lock);
 	for_each_set_bit(master, gth->output[output->port].master,
 			 TH_CONFIGURABLE_MASTERS + 1) {
 		gth_master_set(gth, master, output->port);
 	}
-
-	if (output->multiblock)
-		scr |= 0xff;
 
 	output->active = true;
 	spin_unlock(&gth->gth_lock);
@@ -555,8 +591,7 @@ static void intel_th_gth_enable(struct intel_th_device *thdev,
 	scrpd |= output->scratchpad;
 	iowrite32(scrpd, gth->base + REG_GTH_SCRPD0);
 
-	iowrite32(scr, gth->base + REG_GTH_SCR);
-	iowrite32(0, gth->base + REG_GTH_SCR2);
+	intel_th_gth_start(gth, output);
 }
 
 /**
