@@ -469,6 +469,10 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 				 struct intel_th_output *output)
 {
 	struct gth_device *gth = dev_get_drvdata(&thdev->dev);
+	struct intel_th_device *outdev =
+		container_of(output, struct intel_th_device, output);
+	struct intel_th_driver *outdrv =
+		to_intel_th_driver(outdev->dev.driver);
 	unsigned long count;
 	int master;
 	u32 reg;
@@ -491,6 +495,9 @@ static void intel_th_gth_disable(struct intel_th_device *thdev,
 		reg = ioread32(gth->base + REG_GTH_STAT);
 		cpu_relax();
 	}
+
+	if (outdrv->wait_empty)
+		outdrv->wait_empty(outdev);
 
 	/* clear force capture done for next captures */
 	iowrite32(0xfc, gth->base + REG_GTH_SCR2);
