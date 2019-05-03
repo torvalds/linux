@@ -639,7 +639,12 @@ intel_th_subdevice_alloc(struct intel_th *th,
 			dev_dbg(th->dev, "%s:%d @ %pR\n",
 				subdev->name, r, &res[r]);
 		} else if (res[r].flags & IORESOURCE_IRQ) {
-			res[r].start	= th->irq;
+			/*
+			 * Only pass on the IRQ if we have useful interrupts:
+			 * the ones that can be configured via MINTCTL.
+			 */
+			if (INTEL_TH_CAP(th, has_mintctl) && th->irq != -1)
+				res[r].start = th->irq;
 		}
 	}
 

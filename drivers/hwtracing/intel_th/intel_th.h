@@ -44,10 +44,12 @@ struct intel_th_output {
 /**
  * struct intel_th_drvdata - describes hardware capabilities and quirks
  * @tscu_enable:	device needs SW to enable time stamping unit
+ * @has_mintctl:	device has interrupt control (MINTCTL) register
  * @host_mode_only:	device can only operate in 'host debugger' mode
  */
 struct intel_th_drvdata {
 	unsigned int	tscu_enable        : 1,
+			has_mintctl        : 1,
 			host_mode_only     : 1;
 };
 

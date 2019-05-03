@@ -122,6 +122,7 @@ static void intel_th_pci_remove(struct pci_dev *pdev)
 
 static const struct intel_th_drvdata intel_th_2x = {
 	.tscu_enable	= 1,
+	.has_mintctl	= 1,
 };
 
 static const struct pci_device_id intel_th_pci_id_table[] = {
