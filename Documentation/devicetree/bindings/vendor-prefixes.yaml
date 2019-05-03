@@ -147,6 +147,8 @@ patternProperties:
     description: Broadcom Corporation
   "^buffalo,.*":
     description: Buffalo, Inc.
+  "^bur,.*":
+    description: B&R Industrial Automation GmbH
   "^bticino,.*":
     description: Bticino International
   "^calxeda,.*":
