@@ -1211,6 +1211,81 @@ static void hns3_set_msglevel(struct net_device *netdev, u32 msg_level)
 	h->msg_enable = msg_level;
 }
 
+/* Translate local fec value into ethtool value. */
+static unsigned int loc_to_eth_fec(u8 loc_fec)
+{
+	u32 eth_fec = 0;
+
+	if (loc_fec & BIT(HNAE3_FEC_AUTO))
+		eth_fec |= ETHTOOL_FEC_AUTO;
+	if (loc_fec & BIT(HNAE3_FEC_RS))
+		eth_fec |= ETHTOOL_FEC_RS;
+	if (loc_fec & BIT(HNAE3_FEC_BASER))
+		eth_fec |= ETHTOOL_FEC_BASER;
+
+	/* if nothing is set, then FEC is off */
+	if (!eth_fec)
+		eth_fec = ETHTOOL_FEC_OFF;
+
+	return eth_fec;
+}
+
+/* Translate ethtool fec value into local value. */
+static unsigned int eth_to_loc_fec(unsigned int eth_fec)
+{
+	u32 loc_fec = 0;
+
+	if (eth_fec & ETHTOOL_FEC_OFF)
+		return loc_fec;
+
+	if (eth_fec & ETHTOOL_FEC_AUTO)
+		loc_fec |= BIT(HNAE3_FEC_AUTO);
+	if (eth_fec & ETHTOOL_FEC_RS)
+		loc_fec |= BIT(HNAE3_FEC_RS);
+	if (eth_fec & ETHTOOL_FEC_BASER)
+		loc_fec |= BIT(HNAE3_FEC_BASER);
+
+	return loc_fec;
+}
+
+static int hns3_get_fecparam(struct net_device *netdev,
+			     struct ethtool_fecparam *fec)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	u8 fec_ability;
+	u8 fec_mode;
+
+	if (handle->pdev->revision == 0x20)
+		return -EOPNOTSUPP;
+
+	if (!ops->get_fec)
+		return -EOPNOTSUPP;
+
+	ops->get_fec(handle, &fec_ability, &fec_mode);
+
+	fec->fec = loc_to_eth_fec(fec_ability);
+	fec->active_fec = loc_to_eth_fec(fec_mode);
+
+	return 0;
+}
+
+static int hns3_set_fecparam(struct net_device *netdev,
+			     struct ethtool_fecparam *fec)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	u32 fec_mode;
+
+	if (handle->pdev->revision == 0x20)
+		return -EOPNOTSUPP;
+
+	if (!ops->set_fec)
+		return -EOPNOTSUPP;
+	fec_mode = eth_to_loc_fec(fec->fec);
+	return ops->set_fec(handle, fec_mode);
+}
+
 static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_ringparam = hns3_get_ringparam,
@@ -1264,6 +1339,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_phys_id = hns3_set_phys_id,
 	.get_msglevel = hns3_get_msglevel,
 	.set_msglevel = hns3_set_msglevel,
+	.get_fecparam = hns3_get_fecparam,
+	.set_fecparam = hns3_set_fecparam,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

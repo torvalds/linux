@@ -113,6 +113,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_TNL_INT_EN	= 0x0311,
 	HCLGE_OPC_CLEAR_MAC_TNL_INT	= 0x0312,
 	HCLGE_OPC_SERDES_LOOPBACK       = 0x0315,
+	HCLGE_OPC_CONFIG_FEC_MODE	= 0x031A,
 
 	/* PFC/Pause commands */
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
@@ -608,6 +609,21 @@ struct hclge_sfp_info_cmd {
 	__le32 speed_ability; /* speed ability for current media */
 	__le32 module_type;
 	u8 rsv[8];
+};
+
+#define HCLGE_MAC_CFG_FEC_AUTO_EN_B	0
+#define HCLGE_MAC_CFG_FEC_MODE_S	1
+#define HCLGE_MAC_CFG_FEC_MODE_M	GENMASK(3, 1)
+#define HCLGE_MAC_CFG_FEC_SET_DEF_B	0
+#define HCLGE_MAC_CFG_FEC_CLR_DEF_B	1
+
+#define HCLGE_MAC_FEC_OFF		0
+#define HCLGE_MAC_FEC_BASER		1
+#define HCLGE_MAC_FEC_RS		2
+struct hclge_config_fec_cmd {
+	u8 fec_mode;
+	u8 default_config;
+	u8 rsv[22];
 };
 
 #define HCLGE_MAC_UPLINK_PORT		0x100

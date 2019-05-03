@@ -966,6 +966,37 @@ static void hclge_convert_setting_kr(struct hclge_mac *mac, u8 speed_ability)
 				 mac->supported);
 }
 
+static void hclge_convert_setting_fec(struct hclge_mac *mac)
+{
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT, mac->supported);
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, mac->supported);
+
+	switch (mac->speed) {
+	case HCLGE_MAC_SPEED_10G:
+	case HCLGE_MAC_SPEED_40G:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 mac->supported);
+		mac->fec_ability =
+			BIT(HNAE3_FEC_BASER) | BIT(HNAE3_FEC_AUTO);
+		break;
+	case HCLGE_MAC_SPEED_25G:
+	case HCLGE_MAC_SPEED_50G:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 mac->supported);
+		mac->fec_ability =
+			BIT(HNAE3_FEC_BASER) | BIT(HNAE3_FEC_RS) |
+			BIT(HNAE3_FEC_AUTO);
+		break;
+	case HCLGE_MAC_SPEED_100G:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, mac->supported);
+		mac->fec_ability = BIT(HNAE3_FEC_RS) | BIT(HNAE3_FEC_AUTO);
+		break;
+	default:
+		mac->fec_ability = 0;
+		break;
+	}
+}
+
 static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 					u8 speed_ability)
 {
@@ -978,9 +1009,12 @@ static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 	hclge_convert_setting_sr(mac, speed_ability);
 	hclge_convert_setting_lr(mac, speed_ability);
 	hclge_convert_setting_cr(mac, speed_ability);
+	if (hdev->pdev->revision >= 0x21)
+		hclge_convert_setting_fec(mac);
 
 	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, mac->supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mac->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT, mac->supported);
 }
 
 static void hclge_parse_backplane_link_mode(struct hclge_dev *hdev,
@@ -989,8 +1023,11 @@ static void hclge_parse_backplane_link_mode(struct hclge_dev *hdev,
 	struct hclge_mac *mac = &hdev->hw.mac;
 
 	hclge_convert_setting_kr(mac, speed_ability);
+	if (hdev->pdev->revision >= 0x21)
+		hclge_convert_setting_fec(mac);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Backplane_BIT, mac->supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mac->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT, mac->supported);
 }
 
 static void hclge_parse_copper_link_mode(struct hclge_dev *hdev,
@@ -2279,6 +2316,64 @@ static int hclge_restart_autoneg(struct hnae3_handle *handle)
 	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
+static int hclge_set_fec_hw(struct hclge_dev *hdev, u32 fec_mode)
+{
+	struct hclge_config_fec_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_FEC_MODE, false);
+
+	req = (struct hclge_config_fec_cmd *)desc.data;
+	if (fec_mode & BIT(HNAE3_FEC_AUTO))
+		hnae3_set_bit(req->fec_mode, HCLGE_MAC_CFG_FEC_AUTO_EN_B, 1);
+	if (fec_mode & BIT(HNAE3_FEC_RS))
+		hnae3_set_field(req->fec_mode, HCLGE_MAC_CFG_FEC_MODE_M,
+				HCLGE_MAC_CFG_FEC_MODE_S, HCLGE_MAC_FEC_RS);
+	if (fec_mode & BIT(HNAE3_FEC_BASER))
+		hnae3_set_field(req->fec_mode, HCLGE_MAC_CFG_FEC_MODE_M,
+				HCLGE_MAC_CFG_FEC_MODE_S, HCLGE_MAC_FEC_BASER);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "set fec mode failed %d.\n", ret);
+
+	return ret;
+}
+
+static int hclge_set_fec(struct hnae3_handle *handle, u32 fec_mode)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_mac *mac = &hdev->hw.mac;
+	int ret;
+
+	if (fec_mode && !(mac->fec_ability & fec_mode)) {
+		dev_err(&hdev->pdev->dev, "unsupported fec mode\n");
+		return -EINVAL;
+	}
+
+	ret = hclge_set_fec_hw(hdev, fec_mode);
+	if (ret)
+		return ret;
+
+	mac->user_fec_mode = fec_mode | BIT(HNAE3_FEC_USER_DEF);
+	return 0;
+}
+
+static void hclge_get_fec(struct hnae3_handle *handle, u8 *fec_ability,
+			  u8 *fec_mode)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_mac *mac = &hdev->hw.mac;
+
+	if (fec_ability)
+		*fec_ability = mac->fec_ability;
+	if (fec_mode)
+		*fec_mode = mac->fec_mode;
+}
+
 static int hclge_mac_init(struct hclge_dev *hdev)
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
@@ -2295,6 +2390,15 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	}
 
 	mac->link = 0;
+
+	if (mac->user_fec_mode & BIT(HNAE3_FEC_USER_DEF)) {
+		ret = hclge_set_fec_hw(hdev, mac->user_fec_mode);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"Fec mode init fail, ret = %d\n", ret);
+			return ret;
+		}
+	}
 
 	ret = hclge_set_mac_mtu(hdev, hdev->mps);
 	if (ret) {
@@ -8753,6 +8857,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.cfg_mac_speed_dup_h = hclge_cfg_mac_speed_dup_h,
 	.get_media_type = hclge_get_media_type,
 	.check_port_speed = hclge_check_port_speed,
+	.get_fec = hclge_get_fec,
+	.set_fec = hclge_set_fec,
 	.get_rss_key_size = hclge_get_rss_key_size,
 	.get_rss_indir_size = hclge_get_rss_indir_size,
 	.get_rss = hclge_get_rss,
