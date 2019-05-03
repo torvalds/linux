@@ -88,7 +88,13 @@ static const char * const power_supply_usbc_text[] = {
 	"Source attached (default current)",
 	"Source attached (medium current)",
 	"Source attached (high current)",
+	"Debug Accessory Mode (default current)",
+	"Debug Accessory Mode (medium current)",
+	"Debug Accessory Mode (high current)",
 	"Non compliant",
+	"Non compliant (Rp-Default/Rp-Default)",
+	"Non compliant (Rp-1.5A/Rp-1.5A)",
+	"Non compliant (Rp-3A/Rp-3A)"
 };
 
 static const char * const power_supply_usbc_pr_text[] = {

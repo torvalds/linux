@@ -450,7 +450,15 @@ enum power_supply_typec_mode {
 	POWER_SUPPLY_TYPEC_SOURCE_DEFAULT,	/* Rp default */
 	POWER_SUPPLY_TYPEC_SOURCE_MEDIUM,	/* Rp 1.5A */
 	POWER_SUPPLY_TYPEC_SOURCE_HIGH,		/* Rp 3A */
+	POWER_SUPPLY_TYPEC_DAM_DEFAULT,		/* Rp-1.5A/Rp-3A */
+	POWER_SUPPLY_TYPEC_DAM_MEDIUM,		/* Rp-Default/Rp-1.5A */
+	POWER_SUPPLY_TYPEC_DAM_HIGH,		/* Rp-Default/Rp-3A */
+
+	/* Non Compliant */
 	POWER_SUPPLY_TYPEC_NON_COMPLIANT,
+	POWER_SUPPLY_TYPEC_RP_STD_STD,		/* Rp-Default/Rp-Default */
+	POWER_SUPPLY_TYPEC_RP_MED_MED,		/* Rp-1.5A/Rp-1.5A */
+	POWER_SUPPLY_TYPEC_RP_HIGH_HIGH,	/* Rp-3A/Rp-3A */
 };
 
 enum power_supply_typec_src_rp {
