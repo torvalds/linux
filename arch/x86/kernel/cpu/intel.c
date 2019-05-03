@@ -611,8 +611,8 @@ static void init_intel_energy_perf(struct cpuinfo_x86 *c)
 	if ((epb & 0xF) != ENERGY_PERF_BIAS_PERFORMANCE)
 		return;
 
-	pr_warn_once("ENERGY_PERF_BIAS: Set to 'normal', was 'performance'\n");
-	pr_warn_once("ENERGY_PERF_BIAS: View and update with x86_energy_perf_policy(8)\n");
+	pr_info_once("ENERGY_PERF_BIAS: Set to 'normal', was 'performance'\n");
+	pr_info_once("ENERGY_PERF_BIAS: View and update with x86_energy_perf_policy(8)\n");
 	epb = (epb & ~0xF) | ENERGY_PERF_BIAS_NORMAL;
 	wrmsrl(MSR_IA32_ENERGY_PERF_BIAS, epb);
 }

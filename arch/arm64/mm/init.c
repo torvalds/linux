@@ -363,7 +363,7 @@ void __init arm64_memblock_init(void)
 		 * Otherwise, this is a no-op
 		 */
 		u64 base = phys_initrd_start & PAGE_MASK;
-		u64 size = PAGE_ALIGN(phys_initrd_size);
+		u64 size = PAGE_ALIGN(phys_initrd_start + phys_initrd_size) - base;
 
 		/*
 		 * We can only add back the initrd memory if we don't end up

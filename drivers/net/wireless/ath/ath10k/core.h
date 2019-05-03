@@ -1063,6 +1063,9 @@ struct ath10k {
 	/* prevents concurrent FW reconfiguration */
 	struct mutex conf_mutex;
 
+	/* protects coredump data */
+	struct mutex dump_mutex;
+
 	/* protects shared structure data */
 	spinlock_t data_lock;
 

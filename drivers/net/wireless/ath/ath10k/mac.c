@@ -4089,7 +4089,7 @@ static int ath10k_mac_schedule_txq(struct ieee80211_hw *hw, u32 ac)
 			if (ret < 0)
 				break;
 		}
-		ieee80211_return_txq(hw, txq);
+		ieee80211_return_txq(hw, txq, false);
 		ath10k_htt_tx_txq_update(hw, txq);
 		if (ret == -EBUSY)
 			break;
@@ -4374,7 +4374,7 @@ static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
 		if (ret < 0)
 			break;
 	}
-	ieee80211_return_txq(hw, txq);
+	ieee80211_return_txq(hw, txq, false);
 	ath10k_htt_tx_txq_update(hw, txq);
 out:
 	ieee80211_txq_schedule_end(hw, ac);
@@ -5774,7 +5774,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_MCAST_RATE &&
-	    !WARN_ON(ath10k_mac_vif_chan(arvif->vif, &def))) {
+	    !ath10k_mac_vif_chan(arvif->vif, &def)) {
 		band = def.chan->band;
 		rateidx = vif->bss_conf.mcast_rate[band] - 1;
 
@@ -5812,7 +5812,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		if (WARN_ON(ath10k_mac_vif_chan(vif, &def))) {
+		if (ath10k_mac_vif_chan(vif, &def)) {
 			mutex_unlock(&ar->conf_mutex);
 			return;
 		}

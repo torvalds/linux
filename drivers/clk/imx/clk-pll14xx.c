@@ -362,7 +362,7 @@ struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 
 	switch (pll_clk->type) {
 	case PLL_1416X:
-		if (!pll->rate_table)
+		if (!pll_clk->rate_table)
 			init.ops = &clk_pll1416x_min_ops;
 		else
 			init.ops = &clk_pll1416x_ops;

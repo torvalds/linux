@@ -157,6 +157,11 @@ void rxrpc_error_report(struct sock *sk)
 
 	_enter("%p{%d}", sk, local->debug_id);
 
+	/* Clear the outstanding error value on the socket so that it doesn't
+	 * cause kernel_sendmsg() to return it later.
+	 */
+	sock_error(sk);
+
 	skb = sock_dequeue_err_skb(sk);
 	if (!skb) {
 		_leave("UDP socket errqueue empty");

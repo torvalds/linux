@@ -46,7 +46,7 @@ void ptdump_walk_user_pgd_level_checkwx(void);
  */
 extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
 	__visible;
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+#define ZERO_PAGE(vaddr) ((void)(vaddr),virt_to_page(empty_zero_page))
 
 extern spinlock_t pgd_lock;
 extern struct list_head pgd_list;

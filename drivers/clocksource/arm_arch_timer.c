@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  */
 
-#define pr_fmt(fmt)	"arm_arch_timer: " fmt
+#define pr_fmt(fmt) 	"arch_timer: " fmt
 
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -32,9 +32,6 @@
 #include <asm/virt.h>
 
 #include <clocksource/arm_arch_timer.h>
-
-#undef pr_fmt
-#define pr_fmt(fmt) "arch_timer: " fmt
 
 #define CNTTIDR		0x08
 #define CNTTIDR_VIRT(n)	(BIT(1) << ((n) * 4))

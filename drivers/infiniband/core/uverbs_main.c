@@ -208,6 +208,9 @@ void ib_uverbs_release_file(struct kref *ref)
 		kref_put(&file->async_file->ref,
 			 ib_uverbs_release_async_event_file);
 	put_device(&file->device->dev);
+
+	if (file->disassociate_page)
+		__free_pages(file->disassociate_page, 0);
 	kfree(file);
 }
 
@@ -877,9 +880,50 @@ static void rdma_umap_close(struct vm_area_struct *vma)
 	kfree(priv);
 }
 
+/*
+ * Once the zap_vma_ptes has been called touches to the VMA will come here and
+ * we return a dummy writable zero page for all the pfns.
+ */
+static vm_fault_t rdma_umap_fault(struct vm_fault *vmf)
+{
+	struct ib_uverbs_file *ufile = vmf->vma->vm_file->private_data;
+	struct rdma_umap_priv *priv = vmf->vma->vm_private_data;
+	vm_fault_t ret = 0;
+
+	if (!priv)
+		return VM_FAULT_SIGBUS;
+
+	/* Read only pages can just use the system zero page. */
+	if (!(vmf->vma->vm_flags & (VM_WRITE | VM_MAYWRITE))) {
+		vmf->page = ZERO_PAGE(vmf->address);
+		get_page(vmf->page);
+		return 0;
+	}
+
+	mutex_lock(&ufile->umap_lock);
+	if (!ufile->disassociate_page)
+		ufile->disassociate_page =
+			alloc_pages(vmf->gfp_mask | __GFP_ZERO, 0);
+
+	if (ufile->disassociate_page) {
+		/*
+		 * This VMA is forced to always be shared so this doesn't have
+		 * to worry about COW.
+		 */
+		vmf->page = ufile->disassociate_page;
+		get_page(vmf->page);
+	} else {
+		ret = VM_FAULT_SIGBUS;
+	}
+	mutex_unlock(&ufile->umap_lock);
+
+	return ret;
+}
+
 static const struct vm_operations_struct rdma_umap_ops = {
 	.open = rdma_umap_open,
 	.close = rdma_umap_close,
+	.fault = rdma_umap_fault,
 };
 
 static struct rdma_umap_priv *rdma_user_mmap_pre(struct ib_ucontext *ucontext,
@@ -888,6 +932,9 @@ static struct rdma_umap_priv *rdma_user_mmap_pre(struct ib_ucontext *ucontext,
 {
 	struct ib_uverbs_file *ufile = ucontext->ufile;
 	struct rdma_umap_priv *priv;
+
+	if (!(vma->vm_flags & VM_SHARED))
+		return ERR_PTR(-EINVAL);
 
 	if (vma->vm_end - vma->vm_start != size)
 		return ERR_PTR(-EINVAL);
@@ -992,7 +1039,9 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 		 * at a time to get the lock ordering right. Typically there
 		 * will only be one mm, so no big deal.
 		 */
-		down_write(&mm->mmap_sem);
+		down_read(&mm->mmap_sem);
+		if (!mmget_still_valid(mm))
+			goto skip_mm;
 		mutex_lock(&ufile->umap_lock);
 		list_for_each_entry_safe (priv, next_priv, &ufile->umaps,
 					  list) {
@@ -1004,10 +1053,10 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 
 			zap_vma_ptes(vma, vma->vm_start,
 				     vma->vm_end - vma->vm_start);
-			vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
 		}
 		mutex_unlock(&ufile->umap_lock);
-		up_write(&mm->mmap_sem);
+	skip_mm:
+		up_read(&mm->mmap_sem);
 		mmput(mm);
 	}
 }

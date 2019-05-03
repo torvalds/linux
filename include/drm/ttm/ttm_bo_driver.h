@@ -420,7 +420,6 @@ extern struct ttm_bo_global {
 	/**
 	 * Protected by ttm_global_mutex.
 	 */
-	unsigned int use_count;
 	struct list_head device_list;
 
 	/**

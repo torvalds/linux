@@ -1818,13 +1818,16 @@ static void configure_responder_scat_cqe(struct ib_qp_init_attr *init_attr,
 
 	rcqe_sz = mlx5_ib_get_cqe_size(init_attr->recv_cq);
 
-	if (rcqe_sz == 128) {
-		MLX5_SET(qpc, qpc, cs_res, MLX5_RES_SCAT_DATA64_CQE);
+	if (init_attr->qp_type == MLX5_IB_QPT_DCT) {
+		if (rcqe_sz == 128)
+			MLX5_SET(dctc, qpc, cs_res, MLX5_RES_SCAT_DATA64_CQE);
+
 		return;
 	}
 
-	if (init_attr->qp_type != MLX5_IB_QPT_DCT)
-		MLX5_SET(qpc, qpc, cs_res, MLX5_RES_SCAT_DATA32_CQE);
+	MLX5_SET(qpc, qpc, cs_res,
+		 rcqe_sz == 128 ? MLX5_RES_SCAT_DATA64_CQE :
+				  MLX5_RES_SCAT_DATA32_CQE);
 }
 
 static void configure_requester_scat_cqe(struct mlx5_ib_dev *dev,

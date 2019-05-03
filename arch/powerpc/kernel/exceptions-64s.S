@@ -656,11 +656,17 @@ EXC_COMMON_BEGIN(data_access_slb_common)
 	ld	r4,PACA_EXSLB+EX_DAR(r13)
 	std	r4,_DAR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+BEGIN_MMU_FTR_SECTION
+	/* HPT case, do SLB fault */
 	bl	do_slb_fault
 	cmpdi	r3,0
 	bne-	1f
 	b	fast_exception_return
 1:	/* Error case */
+MMU_FTR_SECTION_ELSE
+	/* Radix case, access is outside page table range */
+	li	r3,-EFAULT
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	std	r3,RESULT(r1)
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
@@ -705,11 +711,17 @@ EXC_COMMON_BEGIN(instruction_access_slb_common)
 	EXCEPTION_PROLOG_COMMON(0x480, PACA_EXSLB)
 	ld	r4,_NIP(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+BEGIN_MMU_FTR_SECTION
+	/* HPT case, do SLB fault */
 	bl	do_slb_fault
 	cmpdi	r3,0
 	bne-	1f
 	b	fast_exception_return
 1:	/* Error case */
+MMU_FTR_SECTION_ELSE
+	/* Radix case, access is outside page table range */
+	li	r3,-EFAULT
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	std	r3,RESULT(r1)
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)

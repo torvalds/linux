@@ -120,7 +120,7 @@ static bool meson_clk_pll_is_better(unsigned long rate,
 			return true;
 	} else {
 		/* Round down */
-		if (now < rate && best < now)
+		if (now <= rate && best < now)
 			return true;
 	}
 
