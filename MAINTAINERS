@@ -11120,6 +11120,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/sound/sgtl5000.txt
 F:	sound/soc/codecs/sgtl5000*
 
+NXP SJA1105 ETHERNET SWITCH DRIVER
+M:	Vladimir Oltean <olteanv@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/net/dsa/sja1105
+
 NXP TDA998X DRM DRIVER
 M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
@@ -11672,6 +11678,14 @@ PA SEMI SMBUS DRIVER
 L:	linux-i2c@vger.kernel.org
 S:	Orphan
 F:	drivers/i2c/busses/i2c-pasemi.c
+
+PACKING
+M:	Vladimir Oltean <olteanv@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	lib/packing.c
+F:	include/linux/packing.h
+F:	Documentation/packing.txt
 
 PADATA PARALLEL EXECUTION MECHANISM
 M:	Steffen Klassert <steffen.klassert@secunet.com>

@@ -18,6 +18,23 @@ config RAID6_PQ_BENCHMARK
 	  Benchmark all available RAID6 PQ functions on init and choose the
 	  fastest one.
 
+config PACKING
+	bool "Generic bitfield packing and unpacking"
+	default n
+	help
+	  This option provides the packing() helper function, which permits
+	  converting bitfields between a CPU-usable representation and a
+	  memory representation that can have any combination of these quirks:
+	    - Is little endian (bytes are reversed within a 32-bit group)
+	    - The least-significant 32-bit word comes first (within a 64-bit
+	      group)
+	    - The most significant bit of a byte is at its right (bit 0 of a
+	      register description is numerically 2^7).
+	  Drivers may use these helpers to match the bit indices as described
+	  in the data sheets of the peripherals they are in control of.
+
+	  When in doubt, say N.
+
 config BITREVERSE
 	tristate
 
