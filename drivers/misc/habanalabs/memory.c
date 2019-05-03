@@ -759,10 +759,6 @@ static int map_phys_page_pack(struct hl_ctx *ctx, u64 vaddr,
 	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
 		paddr = phys_pg_pack->pages[i];
 
-		/* For accessing the host we need to turn on bit 39 */
-		if (phys_pg_pack->created_from_userptr)
-			paddr += hdev->asic_prop.host_phys_base_address;
-
 		rc = hl_mmu_map(ctx, next_vaddr, paddr, page_size);
 		if (rc) {
 			dev_err(hdev->dev,

@@ -147,9 +147,6 @@ enum goya_fw_component {
 };
 
 struct goya_device {
-	void (*mmu_prepare_reg)(struct hl_device *hdev, u64 reg, u32 asid);
-	void (*qman0_set_security)(struct hl_device *hdev, bool secure);
-
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
 
@@ -162,13 +159,34 @@ struct goya_device {
 	u32		hw_cap_initialized;
 };
 
+void goya_get_fixed_properties(struct hl_device *hdev);
+int goya_mmu_init(struct hl_device *hdev);
+void goya_init_dma_qmans(struct hl_device *hdev);
+void goya_init_mme_qmans(struct hl_device *hdev);
+void goya_init_tpc_qmans(struct hl_device *hdev);
+int goya_init_cpu_queues(struct hl_device *hdev);
+void goya_init_security(struct hl_device *hdev);
+int goya_late_init(struct hl_device *hdev);
+void goya_late_fini(struct hl_device *hdev);
+
+void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
+void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val);
+void goya_update_eq_ci(struct hl_device *hdev, u32 val);
+void goya_restore_phase_topology(struct hl_device *hdev);
+int goya_context_switch(struct hl_device *hdev, u32 asid);
+
 int goya_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus,
 			u8 i2c_addr, u8 i2c_reg, u32 *val);
 int goya_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus,
 			u8 i2c_addr, u8 i2c_reg, u32 val);
+void goya_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state);
+
+int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
+int goya_test_queues(struct hl_device *hdev);
 int goya_test_cpu_queue(struct hl_device *hdev);
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
 				u32 timeout, long *result);
+
 long goya_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_current(struct hl_device *hdev, int sensor_index, u32 attr);
@@ -176,33 +194,31 @@ long goya_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr);
 void goya_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 			long value);
-void goya_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state);
+u64 goya_get_max_power(struct hl_device *hdev);
+void goya_set_max_power(struct hl_device *hdev, u64 value);
+
 void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 void goya_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
 int goya_armcp_info_get(struct hl_device *hdev);
-void goya_init_security(struct hl_device *hdev);
 int goya_debug_coresight(struct hl_device *hdev, void *data);
-u64 goya_get_max_power(struct hl_device *hdev);
-void goya_set_max_power(struct hl_device *hdev, u64 value);
-int goya_test_queues(struct hl_device *hdev);
+
 void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
 int goya_mmu_clear_pgt_range(struct hl_device *hdev);
 int goya_mmu_set_dram_default_page(struct hl_device *hdev);
 
-void goya_late_fini(struct hl_device *hdev);
 int goya_suspend(struct hl_device *hdev);
 int goya_resume(struct hl_device *hdev);
-void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val);
+
 void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry);
 void *goya_get_events_stat(struct hl_device *hdev, u32 *size);
+
 void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
 				u32 cq_val, u32 msix_vec);
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser);
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
-		dma_addr_t *dma_handle,	u16 *queue_len);
+				dma_addr_t *dma_handle,	u16 *queue_len);
 u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt);
-int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
 int goya_send_heartbeat(struct hl_device *hdev);
 void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle);

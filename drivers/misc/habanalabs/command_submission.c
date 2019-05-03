@@ -93,7 +93,6 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 	parser.user_cb_size = job->user_cb_size;
 	parser.ext_queue = job->ext_queue;
 	job->patched_cb = NULL;
-	parser.use_virt_addr = hdev->mmu_enable;
 
 	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
 	if (job->ext_queue) {
@@ -601,7 +600,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	void __user *chunks;
 	u32 num_chunks;
 	u64 cs_seq = ULONG_MAX;
-	int rc, do_restore;
+	int rc, do_ctx_switch;
 	bool need_soft_reset = false;
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
@@ -612,9 +611,9 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		goto out;
 	}
 
-	do_restore = atomic_cmpxchg(&ctx->thread_restore_token, 1, 0);
+	do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
 
-	if (do_restore || (args->in.cs_flags & HL_CS_FLAGS_FORCE_RESTORE)) {
+	if (do_ctx_switch || (args->in.cs_flags & HL_CS_FLAGS_FORCE_RESTORE)) {
 		long ret;
 
 		chunks = (void __user *)(uintptr_t)args->in.chunks_restore;
@@ -622,7 +621,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 
 		mutex_lock(&hpriv->restore_phase_mutex);
 
-		if (do_restore) {
+		if (do_ctx_switch) {
 			rc = hdev->asic_funcs->context_switch(hdev, ctx->asid);
 			if (rc) {
 				dev_err_ratelimited(hdev->dev,
@@ -678,18 +677,18 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 			}
 		}
 
-		ctx->thread_restore_wait_token = 1;
-	} else if (!ctx->thread_restore_wait_token) {
+		ctx->thread_ctx_switch_wait_token = 1;
+	} else if (!ctx->thread_ctx_switch_wait_token) {
 		u32 tmp;
 
 		rc = hl_poll_timeout_memory(hdev,
-			(u64) (uintptr_t) &ctx->thread_restore_wait_token,
+			(u64) (uintptr_t) &ctx->thread_ctx_switch_wait_token,
 			jiffies_to_usecs(hdev->timeout_jiffies),
 			&tmp);
 
 		if (rc || !tmp) {
 			dev_err(hdev->dev,
-				"restore phase hasn't finished in time\n");
+				"context switch phase didn't finish in time\n");
 			rc = -ETIMEDOUT;
 			goto out;
 		}

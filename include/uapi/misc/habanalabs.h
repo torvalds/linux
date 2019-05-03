@@ -374,9 +374,12 @@ struct hl_debug_params_stm {
 };
 
 struct hl_debug_params_bmon {
-	/* Transaction address filter */
-	__u64 addr_range0;
-	__u64 addr_range1;
+	/* Two address ranges that the user can request to filter */
+	__u64 start_addr0;
+	__u64 addr_mask0;
+
+	__u64 start_addr1;
+	__u64 addr_mask1;
 
 	/* Capture window configuration */
 	__u32 bw_win;

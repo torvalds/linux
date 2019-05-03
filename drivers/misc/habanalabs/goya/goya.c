@@ -297,7 +297,7 @@ static u32 goya_all_events[] = {
 	GOYA_ASYNC_EVENT_ID_DMA_BM_CH4
 };
 
-static void goya_get_fixed_properties(struct hl_device *hdev)
+void goya_get_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int i;
@@ -345,7 +345,6 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
 
-	prop->host_phys_base_address = HOST_PHYS_BASE;
 	prop->va_space_host_start_address = VA_HOST_SPACE_START;
 	prop->va_space_host_end_address = VA_HOST_SPACE_END;
 	prop->va_space_dram_start_address = VA_DDR_SPACE_START;
@@ -389,33 +388,26 @@ static int goya_pci_bars_map(struct hl_device *hdev)
 	return 0;
 }
 
-/*
- * goya_set_ddr_bar_base - set DDR bar to map specific device address
- *
- * @hdev: pointer to hl_device structure
- * @addr: address in DDR. Must be aligned to DDR bar size
- *
- * This function configures the iATU so that the DDR bar will start at the
- * specified addr.
- *
- */
-static int goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
+static u64 goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
 {
 	struct goya_device *goya = hdev->asic_specific;
+	u64 old_addr = addr;
 	int rc;
 
 	if ((goya) && (goya->ddr_bar_cur_addr == addr))
-		return 0;
+		return old_addr;
 
 	/* Inbound Region 1 - Bar 4 - Point to DDR */
 	rc = hl_pci_set_dram_bar_base(hdev, 1, 4, addr);
 	if (rc)
-		return rc;
+		return U64_MAX;
 
-	if (goya)
+	if (goya) {
+		old_addr = goya->ddr_bar_cur_addr;
 		goya->ddr_bar_cur_addr = addr;
+	}
 
-	return 0;
+	return old_addr;
 }
 
 /*
@@ -429,7 +421,7 @@ static int goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
 static int goya_init_iatu(struct hl_device *hdev)
 {
 	return hl_pci_init_iatu(hdev, SRAM_BASE_ADDR, DRAM_PHYS_BASE,
-				HOST_PHYS_SIZE);
+				HOST_PHYS_BASE, HOST_PHYS_SIZE);
 }
 
 /*
@@ -542,14 +534,7 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 	prop->psoc_pci_pll_div_factor = RREG32(mmPSOC_PCI_PLL_DIV_FACTOR_1);
 }
 
-/*
- * goya_late_init - GOYA late initialization code
- *
- * @hdev: pointer to hl_device structure
- *
- * Get ArmCP info and send message to CPU to enable PCI access
- */
-static int goya_late_init(struct hl_device *hdev)
+int goya_late_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
@@ -648,9 +633,6 @@ static int goya_sw_init(struct hl_device *hdev)
 	goya->tpc_clk = GOYA_PLL_FREQ_LOW;
 	goya->ic_clk = GOYA_PLL_FREQ_LOW;
 
-	goya->mmu_prepare_reg = goya_mmu_prepare_reg;
-	goya->qman0_set_security = goya_qman0_set_security;
-
 	hdev->asic_specific = goya;
 
 	/* Create DMA pool for small allocations */
@@ -663,7 +645,7 @@ static int goya_sw_init(struct hl_device *hdev)
 	}
 
 	hdev->cpu_accessible_dma_mem =
-			hdev->asic_funcs->dma_alloc_coherent(hdev,
+			hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
 					HL_CPU_ACCESSIBLE_MEM_SIZE,
 					&hdev->cpu_accessible_dma_address,
 					GFP_KERNEL | __GFP_ZERO);
@@ -678,7 +660,7 @@ static int goya_sw_init(struct hl_device *hdev)
 		dev_err(hdev->dev,
 			"Failed to create CPU accessible DMA pool\n");
 		rc = -ENOMEM;
-		goto free_cpu_pq_dma_mem;
+		goto free_cpu_dma_mem;
 	}
 
 	rc = gen_pool_add(hdev->cpu_accessible_dma_pool,
@@ -688,17 +670,18 @@ static int goya_sw_init(struct hl_device *hdev)
 		dev_err(hdev->dev,
 			"Failed to add memory to CPU accessible DMA pool\n");
 		rc = -EFAULT;
-		goto free_cpu_pq_pool;
+		goto free_cpu_accessible_dma_pool;
 	}
 
 	spin_lock_init(&goya->hw_queues_lock);
 
 	return 0;
 
-free_cpu_pq_pool:
+free_cpu_accessible_dma_pool:
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
-free_cpu_pq_dma_mem:
-	hdev->asic_funcs->dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE,
+free_cpu_dma_mem:
+	hdev->asic_funcs->asic_dma_free_coherent(hdev,
+			HL_CPU_ACCESSIBLE_MEM_SIZE,
 			hdev->cpu_accessible_dma_mem,
 			hdev->cpu_accessible_dma_address);
 free_dma_pool:
@@ -721,7 +704,8 @@ static int goya_sw_fini(struct hl_device *hdev)
 
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 
-	hdev->asic_funcs->dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE,
+	hdev->asic_funcs->asic_dma_free_coherent(hdev,
+			HL_CPU_ACCESSIBLE_MEM_SIZE,
 			hdev->cpu_accessible_dma_mem,
 			hdev->cpu_accessible_dma_address);
 
@@ -815,11 +799,10 @@ static void goya_init_dma_ch(struct hl_device *hdev, int dma_id)
  * Initialize the H/W registers of the QMAN DMA channels
  *
  */
-static void goya_init_dma_qmans(struct hl_device *hdev)
+void goya_init_dma_qmans(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct hl_hw_queue *q;
-	dma_addr_t bus_address;
 	int i;
 
 	if (goya->hw_cap_initialized & HW_CAP_DMA)
@@ -828,10 +811,7 @@ static void goya_init_dma_qmans(struct hl_device *hdev)
 	q = &hdev->kernel_queues[0];
 
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++, q++) {
-		bus_address = q->bus_address +
-				hdev->asic_prop.host_phys_base_address;
-
-		goya_init_dma_qman(hdev, i, bus_address);
+		goya_init_dma_qman(hdev, i, q->bus_address);
 		goya_init_dma_ch(hdev, i);
 	}
 
@@ -968,11 +948,10 @@ static int goya_stop_external_queues(struct hl_device *hdev)
  * Returns 0 on success
  *
  */
-static int goya_init_cpu_queues(struct hl_device *hdev)
+int goya_init_cpu_queues(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct hl_eq *eq;
-	dma_addr_t bus_address;
 	u32 status;
 	struct hl_hw_queue *cpu_pq = &hdev->kernel_queues[GOYA_QUEUE_ID_CPU_PQ];
 	int err;
@@ -985,19 +964,18 @@ static int goya_init_cpu_queues(struct hl_device *hdev)
 
 	eq = &hdev->event_queue;
 
-	bus_address = cpu_pq->bus_address +
-			hdev->asic_prop.host_phys_base_address;
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_0, lower_32_bits(bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_1, upper_32_bits(bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_0,
+			lower_32_bits(cpu_pq->bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_1,
+			upper_32_bits(cpu_pq->bus_address));
 
-	bus_address = eq->bus_address + hdev->asic_prop.host_phys_base_address;
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_2, lower_32_bits(bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_3, upper_32_bits(bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_2, lower_32_bits(eq->bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_3, upper_32_bits(eq->bus_address));
 
-	bus_address = hdev->cpu_accessible_dma_address +
-			hdev->asic_prop.host_phys_base_address;
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_8, lower_32_bits(bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_9, upper_32_bits(bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_8,
+			lower_32_bits(hdev->cpu_accessible_dma_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_9,
+			upper_32_bits(hdev->cpu_accessible_dma_address));
 
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_5, HL_QUEUE_SIZE_IN_BYTES);
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_4, HL_EQ_SIZE_IN_BYTES);
@@ -1549,7 +1527,7 @@ static void goya_init_mme_cmdq(struct hl_device *hdev)
 	WREG32(mmMME_CMDQ_GLBL_CFG0, CMDQ_MME_ENABLE);
 }
 
-static void goya_init_mme_qmans(struct hl_device *hdev)
+void goya_init_mme_qmans(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 so_base_lo, so_base_hi;
@@ -1656,7 +1634,7 @@ static void goya_init_tpc_cmdq(struct hl_device *hdev, int tpc_id)
 	WREG32(mmTPC0_CMDQ_GLBL_CFG0 + reg_off, CMDQ_TPC_ENABLE);
 }
 
-static void goya_init_tpc_qmans(struct hl_device *hdev)
+void goya_init_tpc_qmans(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 so_base_lo, so_base_hi;
@@ -2225,11 +2203,10 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 	 * Before pushing u-boot/linux to device, need to set the ddr bar to
 	 * base address of dram
 	 */
-	rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE);
-	if (rc) {
+	if (goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE) == U64_MAX) {
 		dev_err(hdev->dev,
 			"failed to map DDR bar to DRAM base address\n");
-		return rc;
+		return -EIO;
 	}
 
 	if (hdev->pldm) {
@@ -2373,7 +2350,7 @@ static int goya_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid,
 	return 0;
 }
 
-static int goya_mmu_init(struct hl_device *hdev)
+int goya_mmu_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct goya_device *goya = hdev->asic_specific;
@@ -2464,12 +2441,12 @@ static int goya_hw_init(struct hl_device *hdev)
 	 * After CPU initialization is finished, change DDR bar mapping inside
 	 * iATU to point to the start address of the MMU page tables
 	 */
-	rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
-		(MMU_PAGE_TABLES_ADDR & ~(prop->dram_pci_bar_size - 0x1ull)));
-	if (rc) {
+	if (goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
+			(MMU_PAGE_TABLES_ADDR &
+			~(prop->dram_pci_bar_size - 0x1ull))) == U64_MAX) {
 		dev_err(hdev->dev,
 			"failed to map DDR bar to MMU page tables\n");
-		return rc;
+		return -EIO;
 	}
 
 	rc = goya_mmu_init(hdev);
@@ -2649,7 +2626,7 @@ static int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 	return rc;
 }
 
-static void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
+void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 {
 	u32 db_reg_offset, db_value;
 	bool invalid_queue = false;
@@ -2747,13 +2724,23 @@ void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val)
 static void *goya_dma_alloc_coherent(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flags)
 {
-	return dma_alloc_coherent(&hdev->pdev->dev, size, dma_handle, flags);
+	void *kernel_addr = dma_alloc_coherent(&hdev->pdev->dev, size,
+						dma_handle, flags);
+
+	/* Shift to the device's base physical address of host memory */
+	if (kernel_addr)
+		*dma_handle += HOST_PHYS_BASE;
+
+	return kernel_addr;
 }
 
 static void goya_dma_free_coherent(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle)
 {
-	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, dma_handle);
+	/* Cancel the device's base physical address of host memory */
+	dma_addr_t fixed_dma_handle = dma_handle - HOST_PHYS_BASE;
+
+	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, fixed_dma_handle);
 }
 
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
@@ -2816,7 +2803,6 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 
 static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 {
-	struct goya_device *goya = hdev->asic_specific;
 	struct packet_msg_prot *fence_pkt;
 	u32 *fence_ptr;
 	dma_addr_t fence_dma_addr;
@@ -2837,7 +2823,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 		return -EBUSY;
 	}
 
-	fence_ptr = hdev->asic_funcs->dma_pool_zalloc(hdev, 4, GFP_KERNEL,
+	fence_ptr = hdev->asic_funcs->asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL,
 							&fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
@@ -2847,7 +2833,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 
 	*fence_ptr = 0;
 
-	goya->qman0_set_security(hdev, true);
+	goya_qman0_set_security(hdev, true);
 
 	/*
 	 * goya cs parser saves space for 2xpacket_msg_prot at end of CB. For
@@ -2865,8 +2851,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 			(1 << GOYA_PKT_CTL_MB_SHIFT);
 	fence_pkt->ctl = cpu_to_le32(tmp);
 	fence_pkt->value = cpu_to_le32(GOYA_QMAN0_FENCE_VAL);
-	fence_pkt->addr = cpu_to_le64(fence_dma_addr +
-					hdev->asic_prop.host_phys_base_address);
+	fence_pkt->addr = cpu_to_le64(fence_dma_addr);
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, GOYA_QUEUE_ID_DMA_0,
 					job->job_cb_size, cb->bus_address);
@@ -2886,10 +2871,10 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	}
 
 free_fence_ptr:
-	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_ptr,
+	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_ptr,
 					fence_dma_addr);
 
-	goya->qman0_set_security(hdev, false);
+	goya_qman0_set_security(hdev, false);
 
 	return rc;
 }
@@ -2920,7 +2905,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 
 	fence_val = GOYA_QMAN0_FENCE_VAL;
 
-	fence_ptr = hdev->asic_funcs->dma_pool_zalloc(hdev, 4, GFP_KERNEL,
+	fence_ptr = hdev->asic_funcs->asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL,
 							&fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
@@ -2930,7 +2915,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 
 	*fence_ptr = 0;
 
-	fence_pkt = hdev->asic_funcs->dma_pool_zalloc(hdev,
+	fence_pkt = hdev->asic_funcs->asic_dma_pool_zalloc(hdev,
 					sizeof(struct packet_msg_prot),
 					GFP_KERNEL, &pkt_dma_addr);
 	if (!fence_pkt) {
@@ -2945,8 +2930,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 			(1 << GOYA_PKT_CTL_MB_SHIFT);
 	fence_pkt->ctl = cpu_to_le32(tmp);
 	fence_pkt->value = cpu_to_le32(fence_val);
-	fence_pkt->addr = cpu_to_le64(fence_dma_addr +
-					hdev->asic_prop.host_phys_base_address);
+	fence_pkt->addr = cpu_to_le64(fence_dma_addr);
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id,
 					sizeof(struct packet_msg_prot),
@@ -2974,10 +2958,10 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 	}
 
 free_pkt:
-	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_pkt,
+	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_pkt,
 					pkt_dma_addr);
 free_fence_ptr:
-	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_ptr,
+	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_ptr,
 					fence_dma_addr);
 	return rc;
 }
@@ -3018,16 +3002,27 @@ int goya_test_queues(struct hl_device *hdev)
 static void *goya_dma_pool_zalloc(struct hl_device *hdev, size_t size,
 					gfp_t mem_flags, dma_addr_t *dma_handle)
 {
+	void *kernel_addr;
+
 	if (size > GOYA_DMA_POOL_BLK_SIZE)
 		return NULL;
 
-	return dma_pool_zalloc(hdev->dma_pool, mem_flags, dma_handle);
+	kernel_addr =  dma_pool_zalloc(hdev->dma_pool, mem_flags, dma_handle);
+
+	/* Shift to the device's base physical address of host memory */
+	if (kernel_addr)
+		*dma_handle += HOST_PHYS_BASE;
+
+	return kernel_addr;
 }
 
 static void goya_dma_pool_free(struct hl_device *hdev, void *vaddr,
 				dma_addr_t dma_addr)
 {
-	dma_pool_free(hdev->dma_pool, vaddr, dma_addr);
+	/* Cancel the device's base physical address of host memory */
+	dma_addr_t fixed_dma_addr = dma_addr - HOST_PHYS_BASE;
+
+	dma_pool_free(hdev->dma_pool, vaddr, fixed_dma_addr);
 }
 
 void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
@@ -3042,19 +3037,33 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 	hl_fw_cpu_accessible_dma_pool_free(hdev, size, vaddr);
 }
 
-static int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sg,
+static int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sgl,
 				int nents, enum dma_data_direction dir)
 {
-	if (!dma_map_sg(&hdev->pdev->dev, sg, nents, dir))
+	struct scatterlist *sg;
+	int i;
+
+	if (!dma_map_sg(&hdev->pdev->dev, sgl, nents, dir))
 		return -ENOMEM;
+
+	/* Shift to the device's base physical address of host memory */
+	for_each_sg(sgl, sg, nents, i)
+		sg->dma_address += HOST_PHYS_BASE;
 
 	return 0;
 }
 
-static void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sg,
+static void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sgl,
 				int nents, enum dma_data_direction dir)
 {
-	dma_unmap_sg(&hdev->pdev->dev, sg, nents, dir);
+	struct scatterlist *sg;
+	int i;
+
+	/* Cancel the device's base physical address of host memory */
+	for_each_sg(sgl, sg, nents, i)
+		sg->dma_address -= HOST_PHYS_BASE;
+
+	dma_unmap_sg(&hdev->pdev->dev, sgl, nents, dir);
 }
 
 u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt)
@@ -3204,31 +3213,29 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 		return -EFAULT;
 	}
 
-	if (parser->ctx_id != HL_KERNEL_ASID_ID) {
-		if (sram_addr) {
-			if (!hl_mem_area_inside_range(device_memory_addr,
-					le32_to_cpu(user_dma_pkt->tsize),
-					hdev->asic_prop.sram_user_base_address,
-					hdev->asic_prop.sram_end_address)) {
+	if (sram_addr) {
+		if (!hl_mem_area_inside_range(device_memory_addr,
+				le32_to_cpu(user_dma_pkt->tsize),
+				hdev->asic_prop.sram_user_base_address,
+				hdev->asic_prop.sram_end_address)) {
 
-				dev_err(hdev->dev,
-					"SRAM address 0x%llx + 0x%x is invalid\n",
-					device_memory_addr,
-					user_dma_pkt->tsize);
-				return -EFAULT;
-			}
-		} else {
-			if (!hl_mem_area_inside_range(device_memory_addr,
-					le32_to_cpu(user_dma_pkt->tsize),
-					hdev->asic_prop.dram_user_base_address,
-					hdev->asic_prop.dram_end_address)) {
+			dev_err(hdev->dev,
+				"SRAM address 0x%llx + 0x%x is invalid\n",
+				device_memory_addr,
+				user_dma_pkt->tsize);
+			return -EFAULT;
+		}
+	} else {
+		if (!hl_mem_area_inside_range(device_memory_addr,
+				le32_to_cpu(user_dma_pkt->tsize),
+				hdev->asic_prop.dram_user_base_address,
+				hdev->asic_prop.dram_end_address)) {
 
-				dev_err(hdev->dev,
-					"DRAM address 0x%llx + 0x%x is invalid\n",
-					device_memory_addr,
-					user_dma_pkt->tsize);
-				return -EFAULT;
-			}
+			dev_err(hdev->dev,
+				"DRAM address 0x%llx + 0x%x is invalid\n",
+				device_memory_addr,
+				user_dma_pkt->tsize);
+			return -EFAULT;
 		}
 	}
 
@@ -3606,8 +3613,6 @@ static int goya_patch_dma_packet(struct hl_device *hdev,
 		new_dma_pkt->ctl = cpu_to_le32(ctl);
 		new_dma_pkt->tsize = cpu_to_le32((u32) len);
 
-		dma_addr += hdev->asic_prop.host_phys_base_address;
-
 		if (dir == DMA_TO_DEVICE) {
 			new_dma_pkt->src_addr = cpu_to_le64(dma_addr);
 			new_dma_pkt->dst_addr = cpu_to_le64(device_memory_addr);
@@ -3858,36 +3863,35 @@ free_userptr:
 	return rc;
 }
 
-static int goya_parse_cb_no_ext_quque(struct hl_device *hdev,
+static int goya_parse_cb_no_ext_queue(struct hl_device *hdev,
 					struct hl_cs_parser *parser)
 {
 	struct asic_fixed_properties *asic_prop = &hdev->asic_prop;
 	struct goya_device *goya = hdev->asic_specific;
 
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU)) {
-		/* For internal queue jobs, just check if cb address is valid */
-		if (hl_mem_area_inside_range(
-				(u64) (uintptr_t) parser->user_cb,
-				parser->user_cb_size,
-				asic_prop->sram_user_base_address,
-				asic_prop->sram_end_address))
-			return 0;
+	if (goya->hw_cap_initialized & HW_CAP_MMU)
+		return 0;
 
-		if (hl_mem_area_inside_range(
-				(u64) (uintptr_t) parser->user_cb,
-				parser->user_cb_size,
-				asic_prop->dram_user_base_address,
-				asic_prop->dram_end_address))
-			return 0;
+	/* For internal queue jobs, just check if CB address is valid */
+	if (hl_mem_area_inside_range(
+			(u64) (uintptr_t) parser->user_cb,
+			parser->user_cb_size,
+			asic_prop->sram_user_base_address,
+			asic_prop->sram_end_address))
+		return 0;
 
-		dev_err(hdev->dev,
-			"Internal CB address %px + 0x%x is not in SRAM nor in DRAM\n",
-			parser->user_cb, parser->user_cb_size);
+	if (hl_mem_area_inside_range(
+			(u64) (uintptr_t) parser->user_cb,
+			parser->user_cb_size,
+			asic_prop->dram_user_base_address,
+			asic_prop->dram_end_address))
+		return 0;
 
-		return -EFAULT;
-	}
+	dev_err(hdev->dev,
+		"Internal CB address %px + 0x%x is not in SRAM nor in DRAM\n",
+		parser->user_cb, parser->user_cb_size);
 
-	return 0;
+	return -EFAULT;
 }
 
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
@@ -3895,9 +3899,9 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 	struct goya_device *goya = hdev->asic_specific;
 
 	if (!parser->ext_queue)
-		return goya_parse_cb_no_ext_quque(hdev, parser);
+		return goya_parse_cb_no_ext_queue(hdev, parser);
 
-	if ((goya->hw_cap_initialized & HW_CAP_MMU) && parser->use_virt_addr)
+	if (goya->hw_cap_initialized & HW_CAP_MMU)
 		return goya_parse_cb_mmu(hdev, parser);
 	else
 		return goya_parse_cb_no_mmu(hdev, parser);
@@ -3928,12 +3932,12 @@ void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
 	cq_pkt->addr = cpu_to_le64(CFG_BASE + mmPCIE_DBI_MSIX_DOORBELL_OFF);
 }
 
-static void goya_update_eq_ci(struct hl_device *hdev, u32 val)
+void goya_update_eq_ci(struct hl_device *hdev, u32 val)
 {
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, val);
 }
 
-static void goya_restore_phase_topology(struct hl_device *hdev)
+void goya_restore_phase_topology(struct hl_device *hdev)
 {
 	int i, num_of_sob_in_longs, num_of_mon_in_longs;
 
@@ -3970,6 +3974,7 @@ static void goya_restore_phase_topology(struct hl_device *hdev)
 static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 ddr_bar_addr;
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
@@ -3987,15 +3992,16 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
-		rc = goya_set_ddr_bar_base(hdev, bar_base_addr);
-		if (!rc) {
+		ddr_bar_addr = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (ddr_bar_addr != U64_MAX) {
 			*val = readl(hdev->pcie_bar[DDR_BAR_ID] +
 						(addr - bar_base_addr));
 
-			rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
-				(MMU_PAGE_TABLES_ADDR &
-					~(prop->dram_pci_bar_size - 0x1ull)));
+			ddr_bar_addr = goya_set_ddr_bar_base(hdev,
+							ddr_bar_addr);
 		}
+		if (ddr_bar_addr == U64_MAX)
+			rc = -EIO;
 	} else {
 		rc = -EFAULT;
 	}
@@ -4020,6 +4026,7 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 ddr_bar_addr;
 	int rc = 0;
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
@@ -4037,15 +4044,16 @@ static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 		u64 bar_base_addr = DRAM_PHYS_BASE +
 				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
-		rc = goya_set_ddr_bar_base(hdev, bar_base_addr);
-		if (!rc) {
+		ddr_bar_addr = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (ddr_bar_addr != U64_MAX) {
 			writel(val, hdev->pcie_bar[DDR_BAR_ID] +
 						(addr - bar_base_addr));
 
-			rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
-				(MMU_PAGE_TABLES_ADDR &
-					~(prop->dram_pci_bar_size - 0x1ull)));
+			ddr_bar_addr = goya_set_ddr_bar_base(hdev,
+							ddr_bar_addr);
 		}
+		if (ddr_bar_addr == U64_MAX)
+			rc = -EIO;
 	} else {
 		rc = -EFAULT;
 	}
@@ -4414,7 +4422,6 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 				u64 val, bool is_dram)
 {
 	struct packet_lin_dma *lin_dma_pkt;
-	struct hl_cs_parser parser;
 	struct hl_cs_job *job;
 	u32 cb_size, ctl;
 	struct hl_cb *cb;
@@ -4454,36 +4461,16 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 	job->user_cb->cs_cnt++;
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
+	job->patched_cb = job->user_cb;
+	job->job_cb_size = job->user_cb_size +
+			sizeof(struct packet_msg_prot) * 2;
 
 	hl_debugfs_add_job(hdev, job);
 
-	parser.ctx_id = HL_KERNEL_ASID_ID;
-	parser.cs_sequence = 0;
-	parser.job_id = job->id;
-	parser.hw_queue_id = job->hw_queue_id;
-	parser.job_userptr_list = &job->userptr_list;
-	parser.user_cb = job->user_cb;
-	parser.user_cb_size = job->user_cb_size;
-	parser.ext_queue = job->ext_queue;
-	parser.use_virt_addr = hdev->mmu_enable;
-
-	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to parse kernel CB\n");
-		goto free_job;
-	}
-
-	job->patched_cb = parser.patched_cb;
-	job->job_cb_size = parser.patched_cb_size;
-	job->patched_cb->cs_cnt++;
-
 	rc = goya_send_job_on_qman0(hdev, job);
 
-	job->patched_cb->cs_cnt--;
 	hl_cb_put(job->patched_cb);
 
-free_job:
-	hl_userptr_delete_list(hdev, &job->userptr_list);
 	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
 	cb->cs_cnt--;
@@ -4495,7 +4482,7 @@ release_cb:
 	return rc;
 }
 
-static int goya_context_switch(struct hl_device *hdev, u32 asid)
+int goya_context_switch(struct hl_device *hdev, u32 asid)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 addr = prop->sram_base_address;
@@ -4557,7 +4544,7 @@ void goya_mmu_prepare(struct hl_device *hdev, u32 asid)
 
 	/* zero the MMBP and ASID bits and then set the ASID */
 	for (i = 0 ; i < GOYA_MMU_REGS_NUM ; i++)
-		goya->mmu_prepare_reg(hdev, goya_mmu_regs[i], asid);
+		goya_mmu_prepare_reg(hdev, goya_mmu_regs[i], asid);
 }
 
 static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard)
@@ -4792,12 +4779,12 @@ static const struct hl_asic_funcs goya_funcs = {
 	.cb_mmap = goya_cb_mmap,
 	.ring_doorbell = goya_ring_doorbell,
 	.flush_pq_write = goya_flush_pq_write,
-	.dma_alloc_coherent = goya_dma_alloc_coherent,
-	.dma_free_coherent = goya_dma_free_coherent,
+	.asic_dma_alloc_coherent = goya_dma_alloc_coherent,
+	.asic_dma_free_coherent = goya_dma_free_coherent,
 	.get_int_queue_base = goya_get_int_queue_base,
 	.test_queues = goya_test_queues,
-	.dma_pool_zalloc = goya_dma_pool_zalloc,
-	.dma_pool_free = goya_dma_pool_free,
+	.asic_dma_pool_zalloc = goya_dma_pool_zalloc,
+	.asic_dma_pool_free = goya_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = goya_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = goya_cpu_accessible_dma_pool_free,
 	.hl_dma_unmap_sg = goya_dma_unmap_sg,
@@ -4830,7 +4817,9 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_hw_state = goya_get_hw_state,
 	.pci_bars_map = goya_pci_bars_map,
 	.set_dram_bar_base = goya_set_ddr_bar_base,
-	.init_iatu = goya_init_iatu
+	.init_iatu = goya_init_iatu,
+	.rreg = hl_rreg,
+	.wreg = hl_wreg
 };
 
 /*

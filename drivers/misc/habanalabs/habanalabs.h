@@ -11,8 +11,6 @@
 #include "include/armcp_if.h"
 #include "include/qman_if.h"
 
-#define pr_fmt(fmt)			"habanalabs: " fmt
-
 #include <linux/cdev.h>
 #include <linux/iopoll.h>
 #include <linux/irqreturn.h>
@@ -137,8 +135,6 @@ enum hl_device_hw_state {
  * @dram_user_base_address: DRAM physical start address for user access.
  * @dram_size: DRAM total size.
  * @dram_pci_bar_size: size of PCI bar towards DRAM.
- * @host_phys_base_address: base physical address of host memory for
- *				transactions that the device generates.
  * @max_power_default: max power of the device after reset
  * @va_space_host_start_address: base address of virtual memory range for
  *                               mapping host memory.
@@ -186,7 +182,6 @@ struct asic_fixed_properties {
 	u64			dram_user_base_address;
 	u64			dram_size;
 	u64			dram_pci_bar_size;
-	u64			host_phys_base_address;
 	u64			max_power_default;
 	u64			va_space_host_start_address;
 	u64			va_space_host_end_address;
@@ -323,6 +318,18 @@ struct hl_cs_job;
 #define HL_EQ_LENGTH			64
 #define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 
+#define HL_CPU_PKT_SHIFT		5
+#define HL_CPU_PKT_SIZE			(1 << HL_CPU_PKT_SHIFT)
+#define HL_CPU_PKT_MASK			(~((1 << HL_CPU_PKT_SHIFT) - 1))
+#define HL_CPU_MAX_PKTS_IN_CB		32
+#define HL_CPU_CB_SIZE			(HL_CPU_PKT_SIZE * \
+					 HL_CPU_MAX_PKTS_IN_CB)
+#define HL_CPU_CB_QUEUE_SIZE		(HL_QUEUE_LENGTH * HL_CPU_CB_SIZE)
+
+/* KMD <-> ArmCP shared memory size (EQ + PQ + CPU CB queue) */
+#define HL_CPU_ACCESSIBLE_MEM_SIZE	(HL_EQ_SIZE_IN_BYTES + \
+					 HL_QUEUE_SIZE_IN_BYTES + \
+					 HL_CPU_CB_QUEUE_SIZE)
 
 /**
  * struct hl_hw_queue - describes a H/W transport queue.
@@ -443,19 +450,19 @@ enum hl_pll_frequency {
  * @cb_mmap: maps a CB.
  * @ring_doorbell: increment PI on a given QMAN.
  * @flush_pq_write: flush PQ entry write if necessary, WARN if flushing failed.
- * @dma_alloc_coherent: Allocate coherent DMA memory by calling
- *                      dma_alloc_coherent(). This is ASIC function because its
- *                      implementation is not trivial when the driver is loaded
- *                      in simulation mode (not upstreamed).
- * @dma_free_coherent: Free coherent DMA memory by calling dma_free_coherent().
- *                     This is ASIC function because its implementation is not
- *                     trivial when the driver is loaded in simulation mode
- *                     (not upstreamed).
+ * @asic_dma_alloc_coherent: Allocate coherent DMA memory by calling
+ *                           dma_alloc_coherent(). This is ASIC function because
+ *                           its implementation is not trivial when the driver
+ *                           is loaded in simulation mode (not upstreamed).
+ * @asic_dma_free_coherent:  Free coherent DMA memory by calling
+ *                           dma_free_coherent(). This is ASIC function because
+ *                           its implementation is not trivial when the driver
+ *                           is loaded in simulation mode (not upstreamed).
  * @get_int_queue_base: get the internal queue base address.
  * @test_queues: run simple test on all queues for sanity check.
- * @dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
- *                   size of allocation is HL_DMA_POOL_BLK_SIZE.
- * @dma_pool_free: free small DMA allocation from pool.
+ * @asic_dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
+ *                        size of allocation is HL_DMA_POOL_BLK_SIZE.
+ * @asic_dma_pool_free: free small DMA allocation from pool.
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
  * @hl_dma_unmap_sg: DMA unmap scatter-gather list.
@@ -489,8 +496,11 @@ enum hl_pll_frequency {
  * @send_cpu_message: send buffer to ArmCP.
  * @get_hw_state: retrieve the H/W state
  * @pci_bars_map: Map PCI BARs.
- * @set_dram_bar_base: Set DRAM BAR to map specific device address.
+ * @set_dram_bar_base: Set DRAM BAR to map specific device address. Returns
+ *                     old address the bar pointed to or U64_MAX for failure
  * @init_iatu: Initialize the iATU unit inside the PCI controller.
+ * @rreg: Read a register. Needed for simulator support.
+ * @wreg: Write a register. Needed for simulator support.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -508,27 +518,27 @@ struct hl_asic_funcs {
 			u64 kaddress, phys_addr_t paddress, u32 size);
 	void (*ring_doorbell)(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
 	void (*flush_pq_write)(struct hl_device *hdev, u64 *pq, u64 exp_val);
-	void* (*dma_alloc_coherent)(struct hl_device *hdev, size_t size,
+	void* (*asic_dma_alloc_coherent)(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flag);
-	void (*dma_free_coherent)(struct hl_device *hdev, size_t size,
+	void (*asic_dma_free_coherent)(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle);
 	void* (*get_int_queue_base)(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle, u16 *queue_len);
 	int (*test_queues)(struct hl_device *hdev);
-	void* (*dma_pool_zalloc)(struct hl_device *hdev, size_t size,
+	void* (*asic_dma_pool_zalloc)(struct hl_device *hdev, size_t size,
 				gfp_t mem_flags, dma_addr_t *dma_handle);
-	void (*dma_pool_free)(struct hl_device *hdev, void *vaddr,
+	void (*asic_dma_pool_free)(struct hl_device *hdev, void *vaddr,
 				dma_addr_t dma_addr);
 	void* (*cpu_accessible_dma_pool_alloc)(struct hl_device *hdev,
 				size_t size, dma_addr_t *dma_handle);
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
 	void (*hl_dma_unmap_sg)(struct hl_device *hdev,
-				struct scatterlist *sg, int nents,
+				struct scatterlist *sgl, int nents,
 				enum dma_data_direction dir);
 	int (*cs_parser)(struct hl_device *hdev, struct hl_cs_parser *parser);
 	int (*asic_dma_map_sg)(struct hl_device *hdev,
-				struct scatterlist *sg, int nents,
+				struct scatterlist *sgl, int nents,
 				enum dma_data_direction dir);
 	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
 					struct sg_table *sgt);
@@ -564,8 +574,10 @@ struct hl_asic_funcs {
 				u16 len, u32 timeout, long *result);
 	enum hl_device_hw_state (*get_hw_state)(struct hl_device *hdev);
 	int (*pci_bars_map)(struct hl_device *hdev);
-	int (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
+	u64 (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
 	int (*init_iatu)(struct hl_device *hdev);
+	u32 (*rreg)(struct hl_device *hdev, u32 reg);
+	void (*wreg)(struct hl_device *hdev, u32 reg, u32 val);
 };
 
 
@@ -613,12 +625,13 @@ struct hl_va_range {
  *                     DRAM mapping.
  * @cs_lock: spinlock to protect cs_sequence.
  * @dram_phys_mem: amount of used physical DRAM memory by this context.
- * @thread_restore_token: token to prevent multiple threads of the same context
- *				from running the restore phase. Only one thread
- *				should run it.
- * @thread_restore_wait_token: token to prevent the threads that didn't run
- *				the restore phase from moving to their execution
- *				phase before the restore phase has finished.
+ * @thread_ctx_switch_token: token to prevent multiple threads of the same
+ *				context	from running the context switch phase.
+ *				Only a single thread should run it.
+ * @thread_ctx_switch_wait_token: token to prevent the threads that didn't run
+ *				the context switch phase from moving to their
+ *				execution phase before the context switch phase
+ *				has finished.
  * @asid: context's unique address space ID in the device's MMU.
  */
 struct hl_ctx {
@@ -638,8 +651,8 @@ struct hl_ctx {
 	u64			*dram_default_hops;
 	spinlock_t		cs_lock;
 	atomic64_t		dram_phys_mem;
-	atomic_t		thread_restore_token;
-	u32			thread_restore_wait_token;
+	atomic_t		thread_ctx_switch_token;
+	u32			thread_ctx_switch_wait_token;
 	u32			asid;
 };
 
@@ -766,8 +779,6 @@ struct hl_cs_job {
  * @patched_cb_size: the size of the CB after parsing.
  * @ext_queue: whether the job is for external queue or internal queue.
  * @job_id: the id of the related job inside the related CS.
- * @use_virt_addr: whether to treat the addresses in the CB as virtual during
- *			parsing.
  */
 struct hl_cs_parser {
 	struct hl_cb		*user_cb;
@@ -780,7 +791,6 @@ struct hl_cs_parser {
 	u32			patched_cb_size;
 	u8			ext_queue;
 	u8			job_id;
-	u8			use_virt_addr;
 };
 
 
@@ -1009,13 +1019,10 @@ struct hl_dbg_device_entry {
 u32 hl_rreg(struct hl_device *hdev, u32 reg);
 void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 
-#define hl_poll_timeout(hdev, addr, val, cond, sleep_us, timeout_us) \
-	readl_poll_timeout(hdev->rmmio + addr, val, cond, sleep_us, timeout_us)
-
-#define RREG32(reg) hl_rreg(hdev, (reg))
-#define WREG32(reg, v) hl_wreg(hdev, (reg), (v))
+#define RREG32(reg) hdev->asic_funcs->rreg(hdev, (reg))
+#define WREG32(reg, v) hdev->asic_funcs->wreg(hdev, (reg), (v))
 #define DREG32(reg) pr_info("REGISTER: " #reg " : 0x%08X\n",	\
-				hl_rreg(hdev, (reg)))
+			hdev->asic_funcs->rreg(hdev, (reg)))
 
 #define WREG32_P(reg, val, mask)				\
 	do {							\
@@ -1032,6 +1039,30 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 #define WREG32_FIELD(reg, field, val)	\
 	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
 			(val) << REG_FIELD_SHIFT(reg, field))
+
+#define hl_poll_timeout(hdev, addr, val, cond, sleep_us, timeout_us) \
+({ \
+	ktime_t __timeout; \
+	/* timeout should be longer when working with simulator */ \
+	if (hdev->pdev) \
+		__timeout = ktime_add_us(ktime_get(), timeout_us); \
+	else \
+		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+	might_sleep_if(sleep_us); \
+	for (;;) { \
+		(val) = RREG32(addr); \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
+			(val) = RREG32(addr); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
+
 
 #define HL_ENG_BUSY(buf, size, fmt, ...) ({ \
 		if (buf) \
@@ -1418,7 +1449,8 @@ int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data);
 int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
 				u64 addr);
 int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
-			u64 dram_base_address, u64 host_phys_size);
+			u64 dram_base_address, u64 host_phys_base_address,
+			u64 host_phys_size);
 int hl_pci_init(struct hl_device *hdev, u8 dma_mask);
 void hl_pci_fini(struct hl_device *hdev);
 int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);

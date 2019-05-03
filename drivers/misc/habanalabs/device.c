@@ -5,6 +5,8 @@
  * All Rights Reserved.
  */
 
+#define pr_fmt(fmt)			"habanalabs: " fmt
+
 #include "habanalabs.h"
 
 #include <linux/pci.h>
@@ -708,10 +710,10 @@ again:
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_reset(hdev, &hdev->completion_queue[i]);
 
-	/* Make sure the setup phase for the user context will run again */
+	/* Make sure the context switch phase will run again */
 	if (hdev->user_ctx) {
-		atomic_set(&hdev->user_ctx->thread_restore_token, 1);
-		hdev->user_ctx->thread_restore_wait_token = 0;
+		atomic_set(&hdev->user_ctx->thread_ctx_switch_token, 1);
+		hdev->user_ctx->thread_ctx_switch_wait_token = 0;
 	}
 
 	/* Finished tear-down, starting to re-initialize */
@@ -1145,7 +1147,13 @@ int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr,
 	 * either by the direct access of the device or by another core
 	 */
 	u32 *paddr = (u32 *) (uintptr_t) addr;
-	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us);
+	ktime_t timeout;
+
+	/* timeout should be longer when working with simulator */
+	if (!hdev->pdev)
+		timeout_us *= 10;
+
+	timeout = ktime_add_us(ktime_get(), timeout_us);
 
 	might_sleep();
 
