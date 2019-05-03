@@ -338,7 +338,7 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 	tail = ctx->cached_cq_tail;
 	/* See comment at the top of the file */
 	smp_rmb();
-	if (tail + 1 == READ_ONCE(ring->r.head))
+	if (tail - READ_ONCE(ring->r.head) == ring->ring_entries)
 		return NULL;
 
 	ctx->cached_cq_tail++;
@@ -682,11 +682,9 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 		list_add_tail(&req->list, &ctx->poll_list);
 }
 
-static void io_file_put(struct io_submit_state *state, struct file *file)
+static void io_file_put(struct io_submit_state *state)
 {
-	if (!state) {
-		fput(file);
-	} else if (state->file) {
+	if (state->file) {
 		int diff = state->has_refs - state->used_refs;
 
 		if (diff)
@@ -711,7 +709,7 @@ static struct file *io_file_get(struct io_submit_state *state, int fd)
 			state->ios_left--;
 			return state->file;
 		}
-		io_file_put(state, NULL);
+		io_file_put(state);
 	}
 	state->file = fget_many(fd, state->ios_left);
 	if (!state->file)
@@ -742,7 +740,7 @@ static bool io_file_supports_async(struct file *file)
 }
 
 static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
-		      bool force_nonblock, struct io_submit_state *state)
+		      bool force_nonblock)
 {
 	const struct io_uring_sqe *sqe = s->sqe;
 	struct io_ring_ctx *ctx = req->ctx;
@@ -940,7 +938,7 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 }
 
 static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
-		   bool force_nonblock, struct io_submit_state *state)
+		   bool force_nonblock)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw;
@@ -949,7 +947,7 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 	size_t iov_count;
 	int ret;
 
-	ret = io_prep_rw(req, s, force_nonblock, state);
+	ret = io_prep_rw(req, s, force_nonblock);
 	if (ret)
 		return ret;
 	file = kiocb->ki_filp;
@@ -987,7 +985,7 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 }
 
 static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
-		    bool force_nonblock, struct io_submit_state *state)
+		    bool force_nonblock)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw;
@@ -996,7 +994,7 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 	size_t iov_count;
 	int ret;
 
-	ret = io_prep_rw(req, s, force_nonblock, state);
+	ret = io_prep_rw(req, s, force_nonblock);
 	if (ret)
 		return ret;
 
@@ -1338,8 +1336,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 }
 
 static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
-			   const struct sqe_submit *s, bool force_nonblock,
-			   struct io_submit_state *state)
+			   const struct sqe_submit *s, bool force_nonblock)
 {
 	int ret, opcode;
 
@@ -1355,18 +1352,18 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	case IORING_OP_READV:
 		if (unlikely(s->sqe->buf_index))
 			return -EINVAL;
-		ret = io_read(req, s, force_nonblock, state);
+		ret = io_read(req, s, force_nonblock);
 		break;
 	case IORING_OP_WRITEV:
 		if (unlikely(s->sqe->buf_index))
 			return -EINVAL;
-		ret = io_write(req, s, force_nonblock, state);
+		ret = io_write(req, s, force_nonblock);
 		break;
 	case IORING_OP_READ_FIXED:
-		ret = io_read(req, s, force_nonblock, state);
+		ret = io_read(req, s, force_nonblock);
 		break;
 	case IORING_OP_WRITE_FIXED:
-		ret = io_write(req, s, force_nonblock, state);
+		ret = io_write(req, s, force_nonblock);
 		break;
 	case IORING_OP_FSYNC:
 		ret = io_fsync(req, s->sqe, force_nonblock);
@@ -1459,7 +1456,7 @@ restart:
 			s->has_user = cur_mm != NULL;
 			s->needs_lock = true;
 			do {
-				ret = __io_submit_sqe(ctx, req, s, false, NULL);
+				ret = __io_submit_sqe(ctx, req, s, false);
 				/*
 				 * We can get EAGAIN for polled IO even though
 				 * we're forcing a sync submission from here,
@@ -1625,7 +1622,7 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 	if (unlikely(ret))
 		goto out;
 
-	ret = __io_submit_sqe(ctx, req, s, true, state);
+	ret = __io_submit_sqe(ctx, req, s, true);
 	if (ret == -EAGAIN) {
 		struct io_uring_sqe *sqe_copy;
 
@@ -1671,7 +1668,7 @@ out:
 static void io_submit_state_end(struct io_submit_state *state)
 {
 	blk_finish_plug(&state->plug);
-	io_file_put(state, NULL);
+	io_file_put(state);
 	if (state->free_reqs)
 		kmem_cache_free_bulk(req_cachep, state->free_reqs,
 					&state->reqs[state->cur_req]);
@@ -1741,7 +1738,8 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct sqe_submit *s)
 	head = ctx->cached_sq_head;
 	/* See comment at the top of this file */
 	smp_rmb();
-	if (head == READ_ONCE(ring->r.tail))
+	/* make sure SQ entry isn't read before tail */
+	if (head == smp_load_acquire(&ring->r.tail))
 		return false;
 
 	head = READ_ONCE(ring->array[head & ctx->sq_mask]);
@@ -1866,7 +1864,8 @@ static int io_sq_thread(void *data)
 
 			/* Tell userspace we may need a wakeup call */
 			ctx->sq_ring->flags |= IORING_SQ_NEED_WAKEUP;
-			smp_wmb();
+			/* make sure to read SQ tail after writing flags */
+			smp_mb();
 
 			if (!io_get_sqring(ctx, &sqes[0])) {
 				if (kthread_should_stop()) {
@@ -1920,6 +1919,10 @@ static int io_sq_thread(void *data)
 		unuse_mm(cur_mm);
 		mmput(cur_mm);
 	}
+
+	if (kthread_should_park())
+		kthread_parkme();
+
 	return 0;
 }
 
@@ -2054,6 +2057,7 @@ static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 	if (ctx->sqo_thread) {
 		ctx->sqo_stop = 1;
 		mb();
+		kthread_park(ctx->sqo_thread);
 		kthread_stop(ctx->sqo_thread);
 		ctx->sqo_thread = NULL;
 	}
@@ -2215,6 +2219,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			fput(ctx->user_files[i]);
 
 		kfree(ctx->user_files);
+		ctx->user_files = NULL;
 		ctx->nr_user_files = 0;
 		return ret;
 	}
@@ -2235,19 +2240,27 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 	mmgrab(current->mm);
 	ctx->sqo_mm = current->mm;
 
-	ctx->sq_thread_idle = msecs_to_jiffies(p->sq_thread_idle);
-	if (!ctx->sq_thread_idle)
-		ctx->sq_thread_idle = HZ;
-
 	ret = -EINVAL;
 	if (!cpu_possible(p->sq_thread_cpu))
 		goto err;
 
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
+		ret = -EPERM;
+		if (!capable(CAP_SYS_ADMIN))
+			goto err;
+
+		ctx->sq_thread_idle = msecs_to_jiffies(p->sq_thread_idle);
+		if (!ctx->sq_thread_idle)
+			ctx->sq_thread_idle = HZ;
+
 		if (p->flags & IORING_SETUP_SQ_AFF) {
 			int cpu;
 
 			cpu = array_index_nospec(p->sq_thread_cpu, NR_CPUS);
+			ret = -EINVAL;
+			if (!cpu_possible(p->sq_thread_cpu))
+				goto err;
+
 			ctx->sqo_thread = kthread_create_on_cpu(io_sq_thread,
 							ctx, cpu,
 							"io_uring-sq");
@@ -2562,7 +2575,8 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &ctx->cq_wait, wait);
 	/* See comment at the top of this file */
 	smp_rmb();
-	if (READ_ONCE(ctx->sq_ring->r.tail) + 1 != ctx->cached_sq_head)
+	if (READ_ONCE(ctx->sq_ring->r.tail) - ctx->cached_sq_head !=
+	    ctx->sq_ring->ring_entries)
 		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (READ_ONCE(ctx->cq_ring->r.head) != ctx->cached_cq_tail)
 		mask |= EPOLLIN | EPOLLRDNORM;
@@ -2917,11 +2931,31 @@ SYSCALL_DEFINE2(io_uring_setup, u32, entries,
 
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
+	__releases(ctx->uring_lock)
+	__acquires(ctx->uring_lock)
 {
 	int ret;
 
+	/*
+	 * We're inside the ring mutex, if the ref is already dying, then
+	 * someone else killed the ctx or is already going through
+	 * io_uring_register().
+	 */
+	if (percpu_ref_is_dying(&ctx->refs))
+		return -ENXIO;
+
 	percpu_ref_kill(&ctx->refs);
+
+	/*
+	 * Drop uring mutex before waiting for references to exit. If another
+	 * thread is currently inside io_uring_enter() it might need to grab
+	 * the uring_lock to make progress. If we hold it here across the drain
+	 * wait, then we can deadlock. It's safe to drop the mutex here, since
+	 * no new references will come in after we've killed the percpu ref.
+	 */
+	mutex_unlock(&ctx->uring_lock);
 	wait_for_completion(&ctx->ctx_done);
+	mutex_lock(&ctx->uring_lock);
 
 	switch (opcode) {
 	case IORING_REGISTER_BUFFERS:

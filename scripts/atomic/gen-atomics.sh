@@ -13,7 +13,7 @@ gen-atomic-long.sh              asm-generic/atomic-long.h
 gen-atomic-fallback.sh          linux/atomic-fallback.h
 EOF
 while read script header; do
-	${ATOMICDIR}/${script} ${ATOMICTBL} > ${LINUXDIR}/include/${header}
+	/bin/sh ${ATOMICDIR}/${script} ${ATOMICTBL} > ${LINUXDIR}/include/${header}
 	HASH="$(sha1sum ${LINUXDIR}/include/${header})"
 	HASH="${HASH%% *}"
 	printf "// %s\n" "${HASH}" >> ${LINUXDIR}/include/${header}

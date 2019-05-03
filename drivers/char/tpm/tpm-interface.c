@@ -402,15 +402,13 @@ int tpm_pm_suspend(struct device *dev)
 	if (chip->flags & TPM_CHIP_FLAG_ALWAYS_POWERED)
 		return 0;
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		mutex_lock(&chip->tpm_mutex);
-		if (!tpm_chip_start(chip)) {
+	if (!tpm_chip_start(chip)) {
+		if (chip->flags & TPM_CHIP_FLAG_TPM2)
 			tpm2_shutdown(chip, TPM2_SU_STATE);
-			tpm_chip_stop(chip);
-		}
-		mutex_unlock(&chip->tpm_mutex);
-	} else {
-		rc = tpm1_pm_suspend(chip, tpm_suspend_pcr);
+		else
+			rc = tpm1_pm_suspend(chip, tpm_suspend_pcr);
+
+		tpm_chip_stop(chip);
 	}
 
 	return rc;

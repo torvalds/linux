@@ -2905,6 +2905,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (wm_adsp_fw[dsp->fw].num_caps != 0)
 			wm_adsp_buffer_free(dsp);
 
+		dsp->fatal_error = false;
+
 		mutex_unlock(&dsp->pwr_lock);
 
 		adsp_dbg(dsp, "Execution stopped\n");
@@ -2999,6 +3001,9 @@ static inline int wm_adsp_compr_attached(struct wm_adsp_compr *compr)
 static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 {
 	struct wm_adsp_compr_buf *buf = NULL, *tmp;
+
+	if (compr->dsp->fatal_error)
+		return -EINVAL;
 
 	list_for_each_entry(tmp, &compr->dsp->buffer_list, list) {
 		if (!tmp->name || !strcmp(compr->name, tmp->name)) {
@@ -3535,11 +3540,11 @@ static int wm_adsp_buffer_get_error(struct wm_adsp_compr_buf *buf)
 
 	ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(error), &buf->error);
 	if (ret < 0) {
-		adsp_err(buf->dsp, "Failed to check buffer error: %d\n", ret);
+		compr_err(buf, "Failed to check buffer error: %d\n", ret);
 		return ret;
 	}
 	if (buf->error != 0) {
-		adsp_err(buf->dsp, "Buffer error occurred: %d\n", buf->error);
+		compr_err(buf, "Buffer error occurred: %d\n", buf->error);
 		return -EIO;
 	}
 
@@ -3571,8 +3576,6 @@ int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		if (ret < 0)
 			break;
 
-		wm_adsp_buffer_clear(compr->buf);
-
 		/* Trigger the IRQ at one fragment of data */
 		ret = wm_adsp_buffer_write(compr->buf,
 					   HOST_BUFFER_FIELD(high_water_mark),
@@ -3584,6 +3587,8 @@ int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		if (wm_adsp_compr_attached(compr))
+			wm_adsp_buffer_clear(compr->buf);
 		break;
 	default:
 		ret = -EINVAL;
@@ -3917,22 +3922,40 @@ int wm_adsp2_lock(struct wm_adsp *dsp, unsigned int lock_regions)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_lock);
 
+static void wm_adsp_fatal_error(struct wm_adsp *dsp)
+{
+	struct wm_adsp_compr *compr;
+
+	dsp->fatal_error = true;
+
+	list_for_each_entry(compr, &dsp->compr_list, list) {
+		if (compr->stream) {
+			snd_compr_stop_error(compr->stream,
+					     SNDRV_PCM_STATE_XRUN);
+			snd_compr_fragment_elapsed(compr->stream);
+		}
+	}
+}
+
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 {
 	unsigned int val;
 	struct regmap *regmap = dsp->regmap;
 	int ret = 0;
 
+	mutex_lock(&dsp->pwr_lock);
+
 	ret = regmap_read(regmap, dsp->base + ADSP2_LOCK_REGION_CTRL, &val);
 	if (ret) {
 		adsp_err(dsp,
 			"Failed to read Region Lock Ctrl register: %d\n", ret);
-		return IRQ_HANDLED;
+		goto error;
 	}
 
 	if (val & ADSP2_WDT_TIMEOUT_STS_MASK) {
 		adsp_err(dsp, "watchdog timeout error\n");
 		wm_adsp_stop_watchdog(dsp);
+		wm_adsp_fatal_error(dsp);
 	}
 
 	if (val & (ADSP2_SLAVE_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
@@ -3946,7 +3969,7 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 			adsp_err(dsp,
 				 "Failed to read Bus Err Addr register: %d\n",
 				 ret);
-			return IRQ_HANDLED;
+			goto error;
 		}
 
 		adsp_err(dsp, "bus error address = 0x%x\n",
@@ -3959,7 +3982,7 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 			adsp_err(dsp,
 				 "Failed to read Pmem Xmem Err Addr register: %d\n",
 				 ret);
-			return IRQ_HANDLED;
+			goto error;
 		}
 
 		adsp_err(dsp, "xmem error address = 0x%x\n",
@@ -3971,6 +3994,9 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 
 	regmap_update_bits(regmap, dsp->base + ADSP2_LOCK_REGION_CTRL,
 			   ADSP2_CTRL_ERR_EINT, ADSP2_CTRL_ERR_EINT);
+
+error:
+	mutex_unlock(&dsp->pwr_lock);
 
 	return IRQ_HANDLED;
 }
