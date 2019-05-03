@@ -102,6 +102,7 @@ struct msc_iter {
  */
 struct msc {
 	void __iomem		*reg_base;
+	void __iomem		*msu_base;
 	struct intel_th_device	*thdev;
 
 	struct list_head	win_list;
@@ -122,7 +123,8 @@ struct msc {
 
 	/* config */
 	unsigned int		enabled : 1,
-				wrap	: 1;
+				wrap	: 1,
+				do_irq	: 1;
 	unsigned int		mode;
 	unsigned int		burst_len;
 	unsigned int		index;
@@ -474,6 +476,40 @@ static void msc_buffer_clear_hw_header(struct msc *msc)
 			memset(&bdesc->hw_tag, 0, hw_sz);
 		}
 	}
+}
+
+static int intel_th_msu_init(struct msc *msc)
+{
+	u32 mintctl, msusts;
+
+	if (!msc->do_irq)
+		return 0;
+
+	mintctl = ioread32(msc->msu_base + REG_MSU_MINTCTL);
+	mintctl |= msc->index ? M1BLIE : M0BLIE;
+	iowrite32(mintctl, msc->msu_base + REG_MSU_MINTCTL);
+	if (mintctl != ioread32(msc->msu_base + REG_MSU_MINTCTL)) {
+		dev_info(msc_dev(msc), "MINTCTL ignores writes: no usable interrupts\n");
+		msc->do_irq = 0;
+		return 0;
+	}
+
+	msusts = ioread32(msc->msu_base + REG_MSU_MSUSTS);
+	iowrite32(msusts, msc->msu_base + REG_MSU_MSUSTS);
+
+	return 0;
+}
+
+static void intel_th_msu_deinit(struct msc *msc)
+{
+	u32 mintctl;
+
+	if (!msc->do_irq)
+		return;
+
+	mintctl = ioread32(msc->msu_base + REG_MSU_MINTCTL);
+	mintctl &= msc->index ? ~M1BLIE : ~M0BLIE;
+	iowrite32(mintctl, msc->msu_base + REG_MSU_MINTCTL);
 }
 
 /**
@@ -1295,6 +1331,21 @@ static int intel_th_msc_init(struct msc *msc)
 	return 0;
 }
 
+static irqreturn_t intel_th_msc_interrupt(struct intel_th_device *thdev)
+{
+	struct msc *msc = dev_get_drvdata(&thdev->dev);
+	u32 msusts = ioread32(msc->msu_base + REG_MSU_MSUSTS);
+	u32 mask = msc->index ? MSUSTS_MSC1BLAST : MSUSTS_MSC0BLAST;
+
+	if (!(msusts & mask)) {
+		if (msc->enabled)
+			return IRQ_HANDLED;
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
+
 static const char * const msc_mode[] = {
 	[MSC_MODE_SINGLE]	= "single",
 	[MSC_MODE_MULTI]	= "multi",
@@ -1500,10 +1551,19 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 	if (!msc)
 		return -ENOMEM;
 
+	res = intel_th_device_get_resource(thdev, IORESOURCE_IRQ, 1);
+	if (!res)
+		msc->do_irq = 1;
+
 	msc->index = thdev->id;
 
 	msc->thdev = thdev;
 	msc->reg_base = base + msc->index * 0x100;
+	msc->msu_base = base;
+
+	err = intel_th_msu_init(msc);
+	if (err)
+		return err;
 
 	err = intel_th_msc_init(msc);
 	if (err)
@@ -1520,6 +1580,7 @@ static void intel_th_msc_remove(struct intel_th_device *thdev)
 	int ret;
 
 	intel_th_msc_deactivate(thdev);
+	intel_th_msu_deinit(msc);
 
 	/*
 	 * Buffers should not be used at this point except if the
@@ -1533,6 +1594,7 @@ static void intel_th_msc_remove(struct intel_th_device *thdev)
 static struct intel_th_driver intel_th_msc_driver = {
 	.probe	= intel_th_msc_probe,
 	.remove	= intel_th_msc_remove,
+	.irq		= intel_th_msc_interrupt,
 	.activate	= intel_th_msc_activate,
 	.deactivate	= intel_th_msc_deactivate,
 	.fops	= &intel_th_msc_fops,

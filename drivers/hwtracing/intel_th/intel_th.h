@@ -8,6 +8,8 @@
 #ifndef __INTEL_TH_H__
 #define __INTEL_TH_H__
 
+#include <linux/irqreturn.h>
+
 /* intel_th_device device types */
 enum {
 	/* Devices that generate trace data */
@@ -160,7 +162,7 @@ struct intel_th_driver {
 	void			(*disable)(struct intel_th_device *thdev,
 					   struct intel_th_output *output);
 	/* output ops */
-	void			(*irq)(struct intel_th_device *thdev);
+	irqreturn_t		(*irq)(struct intel_th_device *thdev);
 	int			(*activate)(struct intel_th_device *thdev);
 	void			(*deactivate)(struct intel_th_device *thdev);
 	/* file_operations for those who want a device node */

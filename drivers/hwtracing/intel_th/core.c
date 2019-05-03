@@ -826,6 +826,28 @@ static const struct file_operations intel_th_output_fops = {
 	.llseek	= noop_llseek,
 };
 
+static irqreturn_t intel_th_irq(int irq, void *data)
+{
+	struct intel_th *th = data;
+	irqreturn_t ret = IRQ_NONE;
+	struct intel_th_driver *d;
+	int i;
+
+	for (i = 0; i < th->num_thdevs; i++) {
+		if (th->thdev[i]->type != INTEL_TH_OUTPUT)
+			continue;
+
+		d = to_intel_th_driver(th->thdev[i]->dev.driver);
+		if (d && d->irq)
+			ret |= d->irq(th->thdev[i]);
+	}
+
+	if (ret == IRQ_NONE)
+		pr_warn_ratelimited("nobody cared for irq\n");
+
+	return ret;
+}
+
 /**
  * intel_th_alloc() - allocate a new Intel TH device and its subdevices
  * @dev:	parent device
@@ -865,6 +887,12 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 			th->resource[nr_mmios++] = devres[r];
 			break;
 		case IORESOURCE_IRQ:
+			err = devm_request_irq(dev, devres[r].start,
+					       intel_th_irq, IRQF_SHARED,
+					       dev_name(dev), th);
+			if (err)
+				goto err_chrdev;
+
 			if (th->irq == -1)
 				th->irq = devres[r].start;
 			break;
@@ -890,6 +918,10 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 	}
 
 	return th;
+
+err_chrdev:
+	__unregister_chrdev(th->major, 0, TH_POSSIBLE_OUTPUTS,
+			    "intel_th/output");
 
 err_ida:
 	ida_simple_remove(&intel_th_ida, th->id);
