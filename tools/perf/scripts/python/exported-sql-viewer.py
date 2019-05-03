@@ -887,6 +887,8 @@ class TreeWindowBase(QMdiSubWindow):
 		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.view.CopyCellsToClipboard = CopyTreeCellsToClipboard
 
+		self.context_menu = TreeContextMenu(self.view)
+
 	def DisplayFound(self, ids):
 		if not len(ids):
 			return False
@@ -1659,6 +1661,8 @@ class BranchWindow(QMdiSubWindow):
 		self.view.setModel(self.model)
 
 		self.ResizeColumnsToContents()
+
+		self.context_menu = TreeContextMenu(self.view)
 
 		self.find_bar = FindBar(self, self, True)
 
@@ -2469,6 +2473,39 @@ def CopyCellsToClipboardHdr(view):
 def CopyCellsToClipboardCSV(view):
 	CopyCellsToClipboard(view, True, True)
 
+# Context menu
+
+class ContextMenu(object):
+
+	def __init__(self, view):
+		self.view = view
+		self.view.setContextMenuPolicy(Qt.CustomContextMenu)
+		self.view.customContextMenuRequested.connect(self.ShowContextMenu)
+
+	def ShowContextMenu(self, pos):
+		menu = QMenu(self.view)
+		self.AddActions(menu)
+		menu.exec_(self.view.mapToGlobal(pos))
+
+	def AddCopy(self, menu):
+		menu.addAction(CreateAction("&Copy selection", "Copy to clipboard", lambda: CopyCellsToClipboardHdr(self.view), self.view))
+		menu.addAction(CreateAction("Copy selection as CS&V", "Copy to clipboard as CSV", lambda: CopyCellsToClipboardCSV(self.view), self.view))
+
+	def AddActions(self, menu):
+		self.AddCopy(menu)
+
+class TreeContextMenu(ContextMenu):
+
+	def __init__(self, view):
+		super(TreeContextMenu, self).__init__(view)
+
+	def AddActions(self, menu):
+		i = self.view.currentIndex()
+		text = str(i.data()).strip()
+		if len(text):
+			menu.addAction(CreateAction('Copy "' + text + '"', "Copy to clipboard", lambda: QApplication.clipboard().setText(text), self.view))
+		self.AddCopy(menu)
+
 # Table window
 
 class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
@@ -2491,6 +2528,8 @@ class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 		self.view.CopyCellsToClipboard = CopyTableCellsToClipboard
 
 		self.ResizeColumnsToContents()
+
+		self.context_menu = ContextMenu(self.view)
 
 		self.find_bar = FindBar(self, self, True)
 
@@ -2607,6 +2646,8 @@ class TopCallsWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 		self.view.verticalHeader().setVisible(False)
 		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.view.CopyCellsToClipboard = CopyTableCellsToClipboard
+
+		self.context_menu = ContextMenu(self.view)
 
 		self.ResizeColumnsToContents()
 
