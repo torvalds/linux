@@ -143,6 +143,7 @@ enum hclgevf_states {
 
 struct hclgevf_mac {
 	u8 media_type;
+	u8 module_type;
 	u8 mac_addr[ETH_ALEN];
 	int link;
 	u8 duplex;

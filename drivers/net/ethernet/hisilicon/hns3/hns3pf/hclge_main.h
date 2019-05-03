@@ -189,6 +189,8 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_SUPPORT_25G_BIT		BIT(2)
 #define HCLGE_SUPPORT_50G_BIT		BIT(3)
 #define HCLGE_SUPPORT_100G_BIT		BIT(4)
+/* to be compatible with exsit board */
+#define HCLGE_SUPPORT_40G_BIT		BIT(5)
 #define HCLGE_SUPPORT_100M_BIT		BIT(6)
 #define HCLGE_SUPPORT_10M_BIT		BIT(7)
 #define HCLGE_SUPPORT_GE \
@@ -236,14 +238,21 @@ enum HCLGE_MAC_DUPLEX {
 	HCLGE_MAC_FULL
 };
 
+#define QUERY_SFP_SPEED		0
+#define QUERY_ACTIVE_SPEED	1
+
 struct hclge_mac {
 	u8 phy_addr;
 	u8 flag;
-	u8 media_type;
+	u8 media_type;	/* port media type, e.g. fibre/copper/backplane */
 	u8 mac_addr[ETH_ALEN];
 	u8 autoneg;
 	u8 duplex;
+	u8 support_autoneg;
+	u8 speed_type;	/* 0: sfp speed, 1: active speed */
 	u32 speed;
+	u32 speed_ability; /* speed ability supported by current media */
+	u32 module_type; /* sub media type, e.g. kr/cr/sr/lr */
 	int link;	/* store the link status of mac & phy (if phy exit)*/
 	struct phy_device *phydev;
 	struct mii_bus *mdio_bus;
