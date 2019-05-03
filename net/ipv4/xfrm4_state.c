@@ -15,13 +15,6 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/export.h>
 
-static int xfrm4_init_flags(struct xfrm_state *x)
-{
-	if (xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc)
-		x->props.flags |= XFRM_STATE_NOPMTUDISC;
-	return 0;
-}
-
 int xfrm4_extract_header(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -43,7 +36,6 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.proto			= IPPROTO_IPIP,
 	.eth_proto		= htons(ETH_P_IP),
 	.owner			= THIS_MODULE,
-	.init_flags		= xfrm4_init_flags,
 	.output			= xfrm4_output,
 	.output_finish		= xfrm4_output_finish,
 	.extract_input		= xfrm4_extract_input,

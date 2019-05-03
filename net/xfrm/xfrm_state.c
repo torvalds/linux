@@ -2263,25 +2263,14 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 
 int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 {
-	const struct xfrm_state_afinfo *afinfo;
 	const struct xfrm_mode *inner_mode;
 	const struct xfrm_mode *outer_mode;
 	int family = x->props.family;
 	int err;
 
-	err = -EAFNOSUPPORT;
-	afinfo = xfrm_state_get_afinfo(family);
-	if (!afinfo)
-		goto error;
-
-	err = 0;
-	if (afinfo->init_flags)
-		err = afinfo->init_flags(x);
-
-	rcu_read_unlock();
-
-	if (err)
-		goto error;
+	if (family == AF_INET &&
+	    xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc)
+		x->props.flags |= XFRM_STATE_NOPMTUDISC;
 
 	err = -EPROTONOSUPPORT;
 
