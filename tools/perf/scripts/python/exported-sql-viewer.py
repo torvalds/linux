@@ -2913,6 +2913,60 @@ class HelpOnlyWindow(QMainWindow):
 
 		self.setCentralWidget(self.text)
 
+# PostqreSQL server version
+
+def PostqreSQLServerVersion(db):
+	query = QSqlQuery(db)
+	QueryExec(query, "SELECT VERSION()")
+	if query.next():
+		v_str = query.value(0)
+		v_list = v_str.strip().split(" ")
+		if v_list[0] == "PostgreSQL" and v_list[2] == "on":
+			return v_list[1]
+		return v_str
+	return "Unknown"
+
+# SQLite version
+
+def SQLiteVersion(db):
+	query = QSqlQuery(db)
+	QueryExec(query, "SELECT sqlite_version()")
+	if query.next():
+		return query.value(0)
+	return "Unknown"
+
+# About dialog
+
+class AboutDialog(QDialog):
+
+	def __init__(self, glb, parent=None):
+		super(AboutDialog, self).__init__(parent)
+
+		self.setWindowTitle("About Exported SQL Viewer")
+		self.setMinimumWidth(300)
+
+		pyside_version = "1" if pyside_version_1 else "2"
+
+		text = "<pre>"
+		text += "Python version:     " + sys.version.split(" ")[0] + "\n"
+		text += "PySide version:     " + pyside_version + "\n"
+		text += "Qt version:         " + qVersion() + "\n"
+		if glb.dbref.is_sqlite3:
+			text += "SQLite version:     " + SQLiteVersion(glb.db) + "\n"
+		else:
+			text += "PostqreSQL version: " + PostqreSQLServerVersion(glb.db) + "\n"
+		text += "</pre>"
+
+		self.text = QTextBrowser()
+		self.text.setHtml(text)
+		self.text.setReadOnly(True)
+		self.text.setOpenExternalLinks(True)
+
+		self.vbox = QVBoxLayout()
+		self.vbox.addWidget(self.text)
+
+		self.setLayout(self.vbox);
+
 # Font resize
 
 def ResizeFont(widget, diff):
@@ -3010,6 +3064,7 @@ class MainWindow(QMainWindow):
 
 		help_menu = menu.addMenu("&Help")
 		help_menu.addAction(CreateAction("&Exported SQL Viewer Help", "Helpful information", self.Help, self, QKeySequence.HelpContents))
+		help_menu.addAction(CreateAction("&About Exported SQL Viewer", "About this application", self.About, self))
 
 	def Try(self, fn):
 		win = self.mdi_area.activeSubWindow()
@@ -3094,6 +3149,10 @@ class MainWindow(QMainWindow):
 
 	def Help(self):
 		HelpWindow(self.glb, self)
+
+	def About(self):
+		dialog = AboutDialog(self.glb, self)
+		dialog.exec_()
 
 # XED Disassembler
 
