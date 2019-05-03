@@ -1571,8 +1571,6 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
-void hsw_enable_pc8(struct drm_i915_private *dev_priv);
-void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 unsigned int skl_cdclk_get_vco(unsigned int freq);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);

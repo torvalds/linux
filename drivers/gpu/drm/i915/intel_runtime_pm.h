@@ -37,6 +37,8 @@ void intel_power_domains_disable(struct drm_i915_private *dev_priv);
 void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
 				 enum i915_drm_suspend_mode);
 void intel_power_domains_resume(struct drm_i915_private *dev_priv);
+void hsw_enable_pc8(struct drm_i915_private *dev_priv);
+void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume);
 void bxt_display_core_uninit(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);
