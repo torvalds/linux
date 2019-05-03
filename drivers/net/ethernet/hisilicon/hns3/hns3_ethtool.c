@@ -604,6 +604,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops;
+	u8 module_type;
 	u8 media_type;
 	u8 link_stat;
 
@@ -612,7 +613,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 
 	ops = h->ae_algo->ops;
 	if (ops->get_media_type)
-		ops->get_media_type(h, &media_type);
+		ops->get_media_type(h, &media_type, &module_type);
 	else
 		return -EOPNOTSUPP;
 
@@ -622,7 +623,15 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		hns3_get_ksettings(h, cmd);
 		break;
 	case HNAE3_MEDIA_TYPE_FIBER:
-		cmd->base.port = PORT_FIBRE;
+		if (module_type == HNAE3_MODULE_TYPE_CR)
+			cmd->base.port = PORT_DA;
+		else
+			cmd->base.port = PORT_FIBRE;
+
+		hns3_get_ksettings(h, cmd);
+		break;
+	case HNAE3_MEDIA_TYPE_BACKPLANE:
+		cmd->base.port = PORT_NONE;
 		hns3_get_ksettings(h, cmd);
 		break;
 	case HNAE3_MEDIA_TYPE_COPPER:

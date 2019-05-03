@@ -120,6 +120,18 @@ enum hnae3_media_type {
 	HNAE3_MEDIA_TYPE_NONE,
 };
 
+/* must be consistent with definition in firmware */
+enum hnae3_module_type {
+	HNAE3_MODULE_TYPE_UNKNOWN	= 0x00,
+	HNAE3_MODULE_TYPE_FIBRE_LR	= 0x01,
+	HNAE3_MODULE_TYPE_FIBRE_SR	= 0x02,
+	HNAE3_MODULE_TYPE_AOC		= 0x03,
+	HNAE3_MODULE_TYPE_CR		= 0x04,
+	HNAE3_MODULE_TYPE_KR		= 0x05,
+	HNAE3_MODULE_TYPE_TP		= 0x06,
+
+};
+
 enum hnae3_reset_notify_type {
 	HNAE3_UP_CLIENT,
 	HNAE3_DOWN_CLIENT,
@@ -230,8 +242,6 @@ struct hnae3_ae_dev {
  *   non-ok
  * get_ksettings_an_result()
  *   Get negotiation status,speed and duplex
- * update_speed_duplex_h()
- *   Update hardware speed and duplex
  * get_media_type()
  *   Get media type of MAC
  * adjust_link()
@@ -340,11 +350,11 @@ struct hnae3_ae_ops {
 	void (*get_ksettings_an_result)(struct hnae3_handle *handle,
 					u8 *auto_neg, u32 *speed, u8 *duplex);
 
-	int (*update_speed_duplex_h)(struct hnae3_handle *handle);
 	int (*cfg_mac_speed_dup_h)(struct hnae3_handle *handle, int speed,
 				   u8 duplex);
 
-	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type);
+	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type,
+			       u8 *module_type);
 	void (*adjust_link)(struct hnae3_handle *handle, int speed, int duplex);
 	int (*set_loopback)(struct hnae3_handle *handle,
 			    enum hnae3_loop loop_mode, bool en);

@@ -412,10 +412,11 @@ static int hclge_get_vf_media_type(struct hclge_vport *vport,
 				   struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
 	struct hclge_dev *hdev = vport->back;
-	u8 resp_data;
+	u8 resp_data[2];
 
-	resp_data = hdev->hw.mac.media_type;
-	return hclge_gen_resp_to_vf(vport, mbx_req, 0, &resp_data,
+	resp_data[0] = hdev->hw.mac.media_type;
+	resp_data[1] = hdev->hw.mac.module_type;
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
 				    sizeof(resp_data));
 }
 

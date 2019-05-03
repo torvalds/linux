@@ -330,11 +330,11 @@ static u16 hclgevf_get_qid_global(struct hnae3_handle *handle, u16 queue_id)
 
 static int hclgevf_get_pf_media_type(struct hclgevf_dev *hdev)
 {
-	u8 resp_msg;
+	u8 resp_msg[2];
 	int ret;
 
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_MEDIA_TYPE, 0, NULL, 0,
-				   true, &resp_msg, sizeof(resp_msg));
+				   true, resp_msg, sizeof(resp_msg));
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"VF request to get the pf port media type failed %d",
@@ -342,7 +342,8 @@ static int hclgevf_get_pf_media_type(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
-	hdev->hw.mac.media_type = resp_msg;
+	hdev->hw.mac.media_type = resp_msg[0];
+	hdev->hw.mac.module_type = resp_msg[1];
 
 	return 0;
 }
@@ -2747,12 +2748,16 @@ static int hclgevf_gro_en(struct hnae3_handle *handle, bool enable)
 	return hclgevf_config_gro(hdev, enable);
 }
 
-static void hclgevf_get_media_type(struct hnae3_handle *handle,
-				  u8 *media_type)
+static void hclgevf_get_media_type(struct hnae3_handle *handle, u8 *media_type,
+				   u8 *module_type)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
 	if (media_type)
 		*media_type = hdev->hw.mac.media_type;
+
+	if (module_type)
+		*module_type = hdev->hw.mac.module_type;
 }
 
 static bool hclgevf_get_hw_reset_stat(struct hnae3_handle *handle)
