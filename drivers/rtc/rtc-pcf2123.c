@@ -242,6 +242,99 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static int pcf2123_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
+{
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	u8 rxbuf[4];
+	int ret;
+	unsigned int val = 0;
+
+	ret = regmap_bulk_read(pdata->map, PCF2123_REG_ALRM_MN, rxbuf,
+				sizeof(rxbuf));
+	if (ret)
+		return ret;
+
+	alm->time.tm_min = bcd2bin(rxbuf[0] & 0x7F);
+	alm->time.tm_hour = bcd2bin(rxbuf[1] & 0x3F);
+	alm->time.tm_mday = bcd2bin(rxbuf[2] & 0x3F);
+	alm->time.tm_wday = bcd2bin(rxbuf[3] & 0x07);
+
+	dev_dbg(dev, "%s: alm is %ptR\n", __func__, &alm->time);
+
+	ret = regmap_read(pdata->map, PCF2123_REG_CTRL2, &val);
+	if (ret)
+		return ret;
+
+	alm->enabled = !!(val & CTRL2_AIE);
+
+	return 0;
+}
+
+static int pcf2123_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
+{
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	u8 txbuf[4];
+	int ret;
+
+	dev_dbg(dev, "%s: alm is %ptR\n", __func__, &alm->time);
+
+	/* Ensure alarm flag is clear */
+	ret = regmap_update_bits(pdata->map, PCF2123_REG_CTRL2, CTRL2_AF, 0);
+	if (ret)
+		return ret;
+
+	/* Disable alarm interrupt */
+	ret = regmap_update_bits(pdata->map, PCF2123_REG_CTRL2, CTRL2_AIE, 0);
+	if (ret)
+		return ret;
+
+	/* Set new alarm */
+	txbuf[0] = bin2bcd(alm->time.tm_min & 0x7F);
+	txbuf[1] = bin2bcd(alm->time.tm_hour & 0x3F);
+	txbuf[2] = bin2bcd(alm->time.tm_mday & 0x3F);
+	txbuf[3] = bin2bcd(alm->time.tm_wday & 0x07);
+
+	ret = regmap_bulk_write(pdata->map, PCF2123_REG_ALRM_MN, txbuf,
+				sizeof(txbuf));
+	if (ret)
+		return ret;
+
+	/* Enable alarm interrupt */
+	if (alm->enabled)	{
+		ret = regmap_update_bits(pdata->map, PCF2123_REG_CTRL2,
+						CTRL2_AIE, CTRL2_AIE);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static irqreturn_t pcf2123_rtc_irq(int irq, void *dev)
+{
+	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
+	struct mutex *lock = &pdata->rtc->ops_lock;
+	unsigned int val = 0;
+	int ret = IRQ_NONE;
+
+	mutex_lock(lock);
+	regmap_read(pdata->map, PCF2123_REG_CTRL2, &val);
+
+	/* Alarm? */
+	if (val & CTRL2_AF) {
+		ret = IRQ_HANDLED;
+
+		/* Clear alarm flag */
+		regmap_update_bits(pdata->map, PCF2123_REG_CTRL2, CTRL2_AF, 0);
+
+		rtc_update_irq(pdata->rtc, 1, RTC_IRQF | RTC_AF);
+	}
+
+	mutex_unlock(lock);
+
+	return ret;
+}
+
 static int pcf2123_reset(struct device *dev)
 {
 	struct pcf2123_plat_data *pdata = dev_get_platdata(dev);
@@ -281,7 +374,8 @@ static const struct rtc_class_ops pcf2123_rtc_ops = {
 	.set_time	= pcf2123_rtc_set_time,
 	.read_offset	= pcf2123_read_offset,
 	.set_offset	= pcf2123_set_offset,
-
+	.read_alarm	= pcf2123_rtc_read_alarm,
+	.set_alarm	= pcf2123_rtc_set_alarm,
 };
 
 static int pcf2123_probe(struct spi_device *spi)
@@ -289,7 +383,7 @@ static int pcf2123_probe(struct spi_device *spi)
 	struct rtc_device *rtc;
 	struct rtc_time tm;
 	struct pcf2123_plat_data *pdata;
-	int ret;
+	int ret = 0;
 
 	pdata = devm_kzalloc(&spi->dev, sizeof(struct pcf2123_plat_data),
 				GFP_KERNEL);
@@ -327,6 +421,24 @@ static int pcf2123_probe(struct spi_device *spi)
 	}
 
 	pdata->rtc = rtc;
+
+	/* Register alarm irq */
+	if (spi->irq > 0) {
+		ret = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
+				pcf2123_rtc_irq,
+				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				pcf2123_driver.driver.name, &spi->dev);
+		if (!ret)
+			device_init_wakeup(&spi->dev, true);
+		else
+			dev_err(&spi->dev, "could not request irq.\n");
+	}
+
+	/* The PCF2123's alarm only has minute accuracy. Must add timer
+	 * support to this driver to generate interrupts more than once
+	 * per minute.
+	 */
+	pdata->rtc->uie_unsupported = 1;
 
 	return 0;
 
