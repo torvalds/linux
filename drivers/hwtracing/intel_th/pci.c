@@ -17,7 +17,12 @@
 
 #define DRIVER_NAME "intel_th_pci"
 
-#define BAR_MASK (BIT(TH_MMIO_CONFIG) | BIT(TH_MMIO_SW))
+enum {
+	TH_PCI_CONFIG_BAR	= 0,
+	TH_PCI_STH_SW_BAR	= 2,
+};
+
+#define BAR_MASK (BIT(TH_PCI_CONFIG_BAR) | BIT(TH_PCI_STH_SW_BAR))
 
 #define PCI_REG_NPKDSC	0x80
 #define NPKDSC_TSACT	BIT(5)
@@ -66,6 +71,10 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	struct intel_th_drvdata *drvdata = (void *)id->driver_data;
+	struct resource resource[TH_MMIO_END] = {
+		[TH_MMIO_CONFIG]	= pdev->resource[TH_PCI_CONFIG_BAR],
+		[TH_MMIO_SW]		= pdev->resource[TH_PCI_STH_SW_BAR],
+	};
 	struct intel_th *th;
 	int err;
 
@@ -77,8 +86,8 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	th = intel_th_alloc(&pdev->dev, drvdata, pdev->resource,
-			    DEVICE_COUNT_RESOURCE, pdev->irq);
+	th = intel_th_alloc(&pdev->dev, drvdata, resource, TH_MMIO_END,
+			    pdev->irq);
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 

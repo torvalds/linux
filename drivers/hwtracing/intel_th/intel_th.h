@@ -225,9 +225,9 @@ int intel_th_set_output(struct intel_th_device *thdev,
 			unsigned int master);
 int intel_th_output_enable(struct intel_th *th, unsigned int otype);
 
-enum {
+enum th_mmio_idx {
 	TH_MMIO_CONFIG = 0,
-	TH_MMIO_SW = 2,
+	TH_MMIO_SW = 1,
 	TH_MMIO_END,
 };
 
@@ -244,7 +244,7 @@ enum {
  * @hub:	"switch" subdevice (GTH)
  * @resource:	resources of the entire controller
  * @num_thdevs:	number of devices in the @thdev array
- * @num_resources:	number or resources in the @resource array
+ * @num_resources:	number of resources in the @resource array
  * @irq:	irq number
  * @id:		this Intel TH controller's device ID in the system
  * @major:	device node major for output devices
@@ -256,7 +256,7 @@ struct intel_th {
 	struct intel_th_device	*hub;
 	struct intel_th_drvdata	*drvdata;
 
-	struct resource		*resource;
+	struct resource		resource[TH_MMIO_END];
 	int			(*activate)(struct intel_th *);
 	void			(*deactivate)(struct intel_th *);
 	unsigned int		num_thdevs;
