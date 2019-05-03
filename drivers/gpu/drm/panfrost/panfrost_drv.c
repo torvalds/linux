@@ -418,6 +418,7 @@ static int panfrost_probe(struct platform_device *pdev)
 err_out1:
 	panfrost_device_fini(pfdev);
 err_out0:
+	pm_runtime_disable(pfdev->dev);
 	drm_dev_put(ddev);
 	return err;
 }
