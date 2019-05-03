@@ -22,26 +22,6 @@
 #include <net/addrconf.h>
 
 static void
-__xfrm6_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
-{
-	const struct flowi6 *fl6 = &fl->u.ip6;
-
-	/* Initialize temporary selector matching only
-	 * to current session. */
-	*(struct in6_addr *)&sel->daddr = fl6->daddr;
-	*(struct in6_addr *)&sel->saddr = fl6->saddr;
-	sel->dport = xfrm_flowi_dport(fl, &fl6->uli);
-	sel->dport_mask = htons(0xffff);
-	sel->sport = xfrm_flowi_sport(fl, &fl6->uli);
-	sel->sport_mask = htons(0xffff);
-	sel->family = AF_INET6;
-	sel->prefixlen_d = 128;
-	sel->prefixlen_s = 128;
-	sel->proto = fl6->flowi6_proto;
-	sel->ifindex = fl6->flowi6_oif;
-}
-
-static void
 xfrm6_init_temprop(struct xfrm_state *x, const struct xfrm_tmpl *tmpl,
 		   const xfrm_address_t *daddr, const xfrm_address_t *saddr)
 {
@@ -173,7 +153,6 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.proto			= IPPROTO_IPV6,
 	.eth_proto		= htons(ETH_P_IPV6),
 	.owner			= THIS_MODULE,
-	.init_tempsel		= __xfrm6_init_tempsel,
 	.init_temprop		= xfrm6_init_temprop,
 	.tmpl_sort		= __xfrm6_tmpl_sort,
 	.state_sort		= __xfrm6_state_sort,

@@ -354,8 +354,6 @@ struct xfrm_state_afinfo {
 	const struct xfrm_type_offload	*type_offload_map[IPPROTO_MAX];
 
 	int			(*init_flags)(struct xfrm_state *x);
-	void			(*init_tempsel)(struct xfrm_selector *sel,
-						const struct flowi *fl);
 	void			(*init_temprop)(struct xfrm_state *x,
 						const struct xfrm_tmpl *tmpl,
 						const xfrm_address_t *daddr,

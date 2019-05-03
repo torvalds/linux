@@ -23,24 +23,6 @@ static int xfrm4_init_flags(struct xfrm_state *x)
 }
 
 static void
-__xfrm4_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
-{
-	const struct flowi4 *fl4 = &fl->u.ip4;
-
-	sel->daddr.a4 = fl4->daddr;
-	sel->saddr.a4 = fl4->saddr;
-	sel->dport = xfrm_flowi_dport(fl, &fl4->uli);
-	sel->dport_mask = htons(0xffff);
-	sel->sport = xfrm_flowi_sport(fl, &fl4->uli);
-	sel->sport_mask = htons(0xffff);
-	sel->family = AF_INET;
-	sel->prefixlen_d = 32;
-	sel->prefixlen_s = 32;
-	sel->proto = fl4->flowi4_proto;
-	sel->ifindex = fl4->flowi4_oif;
-}
-
-static void
 xfrm4_init_temprop(struct xfrm_state *x, const struct xfrm_tmpl *tmpl,
 		   const xfrm_address_t *daddr, const xfrm_address_t *saddr)
 {
@@ -77,7 +59,6 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.eth_proto		= htons(ETH_P_IP),
 	.owner			= THIS_MODULE,
 	.init_flags		= xfrm4_init_flags,
-	.init_tempsel		= __xfrm4_init_tempsel,
 	.init_temprop		= xfrm4_init_temprop,
 	.output			= xfrm4_output,
 	.output_finish		= xfrm4_output_finish,
