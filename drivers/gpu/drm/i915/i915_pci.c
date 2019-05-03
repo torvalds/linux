@@ -600,8 +600,6 @@ static const struct intel_device_info intel_cherryview_info = {
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
-	/* Display WA #0477 WaDisableIPC: skl */ \
-	.display.has_ipc = 0, \
 	PLATFORM(INTEL_SKYLAKE)
 
 static const struct intel_device_info intel_skylake_gt1_info = {
