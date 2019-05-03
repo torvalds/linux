@@ -851,13 +851,13 @@ emit_semaphore_wait(struct i915_request *to,
 	if (err < 0)
 		return err;
 
-	/* We need to pin the signaler's HWSP until we are finished reading. */
-	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
+	/* Only submit our spinner after the signaler is running! */
+	err = i915_request_await_execution(to, from, gfp);
 	if (err)
 		return err;
 
-	/* Only submit our spinner after the signaler is running! */
-	err = i915_request_await_execution(to, from, gfp);
+	/* We need to pin the signaler's HWSP until we are finished reading. */
+	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
 	if (err)
 		return err;
 
