@@ -5141,6 +5141,12 @@ static int i40e_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 
+static const struct ethtool_ops i40e_ethtool_recovery_mode_ops = {
+	.set_eeprom		= i40e_set_eeprom,
+	.get_eeprom_len		= i40e_get_eeprom_len,
+	.get_eeprom		= i40e_get_eeprom,
+};
+
 static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_drvinfo		= i40e_get_drvinfo,
 	.get_regs_len		= i40e_get_regs_len,
@@ -5189,5 +5195,11 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 
 void i40e_set_ethtool_ops(struct net_device *netdev)
 {
-	netdev->ethtool_ops = &i40e_ethtool_ops;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf		*pf = np->vsi->back;
+
+	if (!test_bit(__I40E_RECOVERY_MODE, pf->state))
+		netdev->ethtool_ops = &i40e_ethtool_ops;
+	else
+		netdev->ethtool_ops = &i40e_ethtool_recovery_mode_ops;
 }
