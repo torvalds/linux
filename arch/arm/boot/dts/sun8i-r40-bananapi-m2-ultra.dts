@@ -210,7 +210,6 @@
 };
 
 &reg_aldo2 {
-	regulator-always-on;
 	regulator-min-microvolt = <2500000>;
 	regulator-max-microvolt = <2500000>;
 	regulator-name = "vcc-pa";
