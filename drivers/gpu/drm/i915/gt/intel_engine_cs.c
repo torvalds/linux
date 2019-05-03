@@ -1090,6 +1090,9 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (i915_reset_failed(engine->i915))
 		return true;
 
+	if (!intel_wakeref_active(&engine->wakeref))
+		return true;
+
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active)) {
 		struct tasklet_struct *t = &engine->execlists.tasklet;
