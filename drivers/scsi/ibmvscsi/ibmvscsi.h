@@ -92,6 +92,7 @@ enum ibmvscsi_host_action {
 	IBMVSCSI_HOST_ACTION_NONE = 0,
 	IBMVSCSI_HOST_ACTION_RESET,
 	IBMVSCSI_HOST_ACTION_REENABLE,
+	IBMVSCSI_HOST_ACTION_UNBLOCK,
 };
 
 /* all driver data associated with a host adapter */
