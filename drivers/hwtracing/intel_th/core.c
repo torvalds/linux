@@ -501,6 +501,24 @@ static const struct intel_th_subdevice {
 		.type	= INTEL_TH_SOURCE,
 	},
 	{
+		.nres	= 2,
+		.res	= {
+			{
+				.start	= REG_STH_OFFSET,
+				.end	= REG_STH_OFFSET + REG_STH_LENGTH - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.start	= TH_MMIO_RTIT,
+				.end	= 0,
+				.flags	= IORESOURCE_MEM,
+			},
+		},
+		.id	= -1,
+		.name	= "rtit",
+		.type	= INTEL_TH_SOURCE,
+	},
+	{
 		.nres	= 1,
 		.res	= {
 			{

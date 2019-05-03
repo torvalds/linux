@@ -20,6 +20,7 @@
 enum {
 	TH_PCI_CONFIG_BAR	= 0,
 	TH_PCI_STH_SW_BAR	= 2,
+	TH_PCI_RTIT_BAR		= 4,
 };
 
 #define BAR_MASK (BIT(TH_PCI_CONFIG_BAR) | BIT(TH_PCI_STH_SW_BAR))
@@ -75,8 +76,8 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 		[TH_MMIO_CONFIG]	= pdev->resource[TH_PCI_CONFIG_BAR],
 		[TH_MMIO_SW]		= pdev->resource[TH_PCI_STH_SW_BAR],
 	};
+	int err, r = TH_MMIO_SW + 1;
 	struct intel_th *th;
-	int err;
 
 	err = pcim_enable_device(pdev);
 	if (err)
@@ -86,8 +87,12 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	th = intel_th_alloc(&pdev->dev, drvdata, resource, TH_MMIO_END,
-			    pdev->irq);
+	if (pdev->resource[TH_PCI_RTIT_BAR].start) {
+		resource[TH_MMIO_RTIT] = pdev->resource[TH_PCI_RTIT_BAR];
+		r++;
+	}
+
+	th = intel_th_alloc(&pdev->dev, drvdata, resource, r, pdev->irq);
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 

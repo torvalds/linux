@@ -228,6 +228,7 @@ int intel_th_output_enable(struct intel_th *th, unsigned int otype);
 enum th_mmio_idx {
 	TH_MMIO_CONFIG = 0,
 	TH_MMIO_SW = 1,
+	TH_MMIO_RTIT = 2,
 	TH_MMIO_END,
 };
 
