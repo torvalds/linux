@@ -213,7 +213,7 @@ static inline struct intel_th *to_intel_th(struct intel_th_device *thdev)
 
 struct intel_th *
 intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
-	       struct resource *devres, unsigned int ndevres, int irq);
+	       struct resource *devres, unsigned int ndevres);
 void intel_th_free(struct intel_th *th);
 
 int intel_th_driver_register(struct intel_th_driver *thdrv);

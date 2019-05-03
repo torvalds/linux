@@ -834,10 +834,10 @@ static const struct file_operations intel_th_output_fops = {
  */
 struct intel_th *
 intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
-	       struct resource *devres, unsigned int ndevres, int irq)
+	       struct resource *devres, unsigned int ndevres)
 {
+	int err, r, nr_mmios = 0;
 	struct intel_th *th;
-	int err, r;
 
 	th = kzalloc(sizeof(*th), GFP_KERNEL);
 	if (!th)
@@ -855,13 +855,26 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 		err = th->major;
 		goto err_ida;
 	}
+	th->irq = -1;
 	th->dev = dev;
 	th->drvdata = drvdata;
 
 	for (r = 0; r < ndevres; r++)
-		th->resource[r] = devres[r];
-	th->num_resources = ndevres;
-	th->irq = irq;
+		switch (devres[r].flags & IORESOURCE_TYPE_BITS) {
+		case IORESOURCE_MEM:
+			th->resource[nr_mmios++] = devres[r];
+			break;
+		case IORESOURCE_IRQ:
+			if (th->irq == -1)
+				th->irq = devres[r].start;
+			break;
+		default:
+			dev_warn(dev, "Unknown resource type %lx\n",
+				 devres[r].flags);
+			break;
+		}
+
+	th->num_resources = nr_mmios;
 
 	dev_set_drvdata(dev, th);
 

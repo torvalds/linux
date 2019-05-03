@@ -40,20 +40,18 @@ static int intel_th_acpi_probe(struct platform_device *pdev)
 	struct resource resource[TH_MMIO_END];
 	const struct acpi_device_id *id;
 	struct intel_th *th;
-	int i, r, irq = -1;
+	int i, r;
 
 	id = acpi_match_device(intel_th_acpi_ids, &pdev->dev);
 	if (!id)
 		return -ENODEV;
 
 	for (i = 0, r = 0; i < pdev->num_resources && r < TH_MMIO_END; i++)
-		if (pdev->resource[i].flags & IORESOURCE_IRQ)
-			irq = pdev->resource[i].start;
-		else if (pdev->resource[i].flags & IORESOURCE_MEM)
+		if (pdev->resource[i].flags &
+		    (IORESOURCE_IRQ | IORESOURCE_MEM))
 			resource[r++] = pdev->resource[i];
 
-	th = intel_th_alloc(&pdev->dev, (void *)id->driver_data, resource, r,
-			    irq);
+	th = intel_th_alloc(&pdev->dev, (void *)id->driver_data, resource, r);
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 

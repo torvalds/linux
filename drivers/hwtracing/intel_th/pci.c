@@ -72,7 +72,7 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	struct intel_th_drvdata *drvdata = (void *)id->driver_data;
-	struct resource resource[TH_MMIO_END] = {
+	struct resource resource[TH_MMIO_END + 1] = {
 		[TH_MMIO_CONFIG]	= pdev->resource[TH_PCI_CONFIG_BAR],
 		[TH_MMIO_SW]		= pdev->resource[TH_PCI_STH_SW_BAR],
 	};
@@ -92,7 +92,12 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 		r++;
 	}
 
-	th = intel_th_alloc(&pdev->dev, drvdata, resource, r, pdev->irq);
+	if (pdev->irq > 0) {
+		resource[r].flags   = IORESOURCE_IRQ;
+		resource[r++].start = pdev->irq;
+	}
+
+	th = intel_th_alloc(&pdev->dev, drvdata, resource, r);
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 
