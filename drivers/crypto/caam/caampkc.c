@@ -1013,40 +1013,11 @@ static struct akcipher_alg caam_rsa = {
 };
 
 /* Public Key Cryptography module initialization handler */
-static int __init caam_pkc_init(void)
+int caam_pkc_init(struct device *ctrldev)
 {
-	struct device_node *dev_node;
-	struct platform_device *pdev;
-	struct device *ctrldev;
-	struct caam_drv_private *priv;
+	struct caam_drv_private *priv = dev_get_drvdata(ctrldev);
 	u32 pk_inst;
 	int err;
-
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node) {
-		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
-		if (!dev_node)
-			return -ENODEV;
-	}
-
-	pdev = of_find_device_by_node(dev_node);
-	if (!pdev) {
-		of_node_put(dev_node);
-		return -ENODEV;
-	}
-
-	ctrldev = &pdev->dev;
-	priv = dev_get_drvdata(ctrldev);
-	of_node_put(dev_node);
-
-	/*
-	 * If priv is NULL, it's probably because the caam driver wasn't
-	 * properly initialized (e.g. RNG4 init failed). Thus, bail out here.
-	 */
-	if (!priv) {
-		err = -ENODEV;
-		goto out_put_dev;
-	}
 
 	/* Determine public key hardware accelerator presence. */
 	if (priv->era < 10)
@@ -1056,10 +1027,8 @@ static int __init caam_pkc_init(void)
 		pk_inst = rd_reg32(&priv->ctrl->vreg.pkha) & CHA_VER_NUM_MASK;
 
 	/* Do not register algorithms if PKHA is not present. */
-	if (!pk_inst) {
-		err =  -ENODEV;
-		goto out_put_dev;
-	}
+	if (!pk_inst)
+		return 0;
 
 	err = crypto_register_akcipher(&caam_rsa);
 	if (err)
@@ -1068,19 +1037,10 @@ static int __init caam_pkc_init(void)
 	else
 		dev_info(ctrldev, "caam pkc algorithms registered in /proc/crypto\n");
 
-out_put_dev:
-	put_device(ctrldev);
 	return err;
 }
 
-static void __exit caam_pkc_exit(void)
+void caam_pkc_exit(void)
 {
 	crypto_unregister_akcipher(&caam_rsa);
 }
-
-module_init(caam_pkc_init);
-module_exit(caam_pkc_exit);
-
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("FSL CAAM support for PKC functions of crypto API");
-MODULE_AUTHOR("Freescale Semiconductor");

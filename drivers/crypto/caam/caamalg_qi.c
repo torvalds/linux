@@ -2492,7 +2492,7 @@ static void caam_aead_exit(struct crypto_aead *tfm)
 	caam_exit_common(crypto_aead_ctx(tfm));
 }
 
-static void __exit caam_qi_algapi_exit(void)
+void caam_qi_algapi_exit(void)
 {
 	int i;
 
@@ -2537,45 +2537,17 @@ static void caam_aead_alg_init(struct caam_aead_alg *t_alg)
 	alg->exit = caam_aead_exit;
 }
 
-static int __init caam_qi_algapi_init(void)
+int caam_qi_algapi_init(struct device *ctrldev)
 {
-	struct device_node *dev_node;
-	struct platform_device *pdev;
-	struct device *ctrldev;
-	struct caam_drv_private *priv;
+	struct caam_drv_private *priv = dev_get_drvdata(ctrldev);
 	int i = 0, err = 0;
 	u32 aes_vid, aes_inst, des_inst, md_vid, md_inst;
 	unsigned int md_limit = SHA512_DIGEST_SIZE;
 	bool registered = false;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node) {
-		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
-		if (!dev_node)
-			return -ENODEV;
-	}
-
-	pdev = of_find_device_by_node(dev_node);
-	of_node_put(dev_node);
-	if (!pdev)
-		return -ENODEV;
-
-	ctrldev = &pdev->dev;
-	priv = dev_get_drvdata(ctrldev);
-
-	/*
-	 * If priv is NULL, it's probably because the caam driver wasn't
-	 * properly initialized (e.g. RNG4 init failed). Thus, bail out here.
-	 */
-	if (!priv || !priv->qi_present) {
-		err = -ENODEV;
-		goto out_put_dev;
-	}
-
 	if (caam_dpaa2) {
 		dev_info(ctrldev, "caam/qi frontend driver not suitable for DPAA 2.x, aborting...\n");
-		err = -ENODEV;
-		goto out_put_dev;
+		return -ENODEV;
 	}
 
 	/*
@@ -2688,14 +2660,5 @@ static int __init caam_qi_algapi_init(void)
 	if (registered)
 		dev_info(priv->qidev, "algorithms registered in /proc/crypto\n");
 
-out_put_dev:
-	put_device(ctrldev);
 	return err;
 }
-
-module_init(caam_qi_algapi_init);
-module_exit(caam_qi_algapi_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Support for crypto API using CAAM-QI backend");
-MODULE_AUTHOR("Freescale Semiconductor");
