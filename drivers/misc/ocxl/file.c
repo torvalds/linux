@@ -257,8 +257,8 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		irq_id = ocxl_irq_offset_to_id(ctx, irq_fd.irq_offset);
 		ev_ctx = eventfd_ctx_fdget(irq_fd.eventfd);
-		if (!ev_ctx)
-			return -EFAULT;
+		if (IS_ERR(ev_ctx))
+			return PTR_ERR(ev_ctx);
 		rc = ocxl_irq_set_handler(ctx, irq_id, irq_handler, irq_free, ev_ctx);
 		break;
 
