@@ -633,66 +633,47 @@ int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter)
 	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_PM_STATE_CTRL);
 }
 
-static int __mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
-				     struct dev_info *dev_info)
-{
-	struct req_hdr {
-		u8 omac_idx;
-		u8 band_idx;
-		__le16 tlv_num;
-		u8 is_tlv_append;
-		u8 rsv[3];
-	} __packed req_hdr = {0};
-	struct req_tlv {
-		__le16 tag;
-		__le16 len;
-		u8 active;
-		u8 band_idx;
-		u8 omac_addr[ETH_ALEN];
-	} __packed;
-	struct sk_buff *skb;
-	u16 tlv_num = 0;
-
-	skb = mt7615_mcu_msg_alloc(NULL, sizeof(req_hdr) +
-				   sizeof(struct req_tlv));
-	skb_reserve(skb, sizeof(req_hdr));
-
-	if (dev_info->feature & BIT(DEV_INFO_ACTIVE)) {
-		struct req_tlv req_tlv = {
-			.tag = cpu_to_le16(DEV_INFO_ACTIVE),
-			.len = cpu_to_le16(sizeof(req_tlv)),
-			.active = dev_info->enable,
-			.band_idx = dev_info->band_idx,
-		};
-		memcpy(req_tlv.omac_addr, dev_info->omac_addr, ETH_ALEN);
-		memcpy(skb_put(skb, sizeof(req_tlv)), &req_tlv,
-		       sizeof(req_tlv));
-		tlv_num++;
-	}
-
-	req_hdr.omac_idx = dev_info->omac_idx;
-	req_hdr.band_idx = dev_info->band_idx;
-	req_hdr.tlv_num = cpu_to_le16(tlv_num);
-	req_hdr.is_tlv_append = tlv_num ? 1 : 0;
-
-	memcpy(skb_push(skb, sizeof(req_hdr)), &req_hdr, sizeof(req_hdr));
-
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_DEV_INFO_UPDATE);
-}
-
-int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			    int en)
+int mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
+			    struct ieee80211_vif *vif, bool enable)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct dev_info dev_info = {0};
+	struct {
+		struct req_hdr {
+			u8 omac_idx;
+			u8 band_idx;
+			__le16 tlv_num;
+			u8 is_tlv_append;
+			u8 rsv[3];
+		} __packed hdr;
+		struct req_tlv {
+			__le16 tag;
+			__le16 len;
+			u8 active;
+			u8 band_idx;
+			u8 omac_addr[ETH_ALEN];
+		} __packed tlv;
+	} data = {
+		.hdr = {
+			.omac_idx = mvif->omac_idx,
+			.band_idx = mvif->band_idx,
+			.tlv_num = cpu_to_le16(1),
+			.is_tlv_append = 1,
+		},
+		.tlv = {
+			.tag = cpu_to_le16(DEV_INFO_ACTIVE),
+			.len = cpu_to_le16(sizeof(struct req_tlv)),
+			.active = enable,
+			.band_idx = mvif->band_idx,
+		},
+	};
+	struct sk_buff *skb;
 
-	dev_info.omac_idx = mvif->omac_idx;
-	memcpy(dev_info.omac_addr, vif->addr, ETH_ALEN);
-	dev_info.band_idx = mvif->band_idx;
-	dev_info.enable = en;
-	dev_info.feature = BIT(DEV_INFO_ACTIVE);
+	memcpy(data.tlv.omac_addr, vif->addr, ETH_ALEN);
+	skb = mt7615_mcu_msg_alloc(&data, sizeof(data));
+	if (!skb)
+		return -ENOMEM;
 
-	return __mt7615_mcu_set_dev_info(dev, &dev_info);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_DEV_INFO_UPDATE);
 }
 
 static void bss_info_omac_handler (struct mt7615_dev *dev,

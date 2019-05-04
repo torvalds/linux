@@ -108,8 +108,8 @@ int mt7615_eeprom_init(struct mt7615_dev *dev);
 int mt7615_dma_init(struct mt7615_dev *dev);
 void mt7615_dma_cleanup(struct mt7615_dev *dev);
 int mt7615_mcu_init(struct mt7615_dev *dev);
-int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			    int en);
+int mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
+			    struct ieee80211_vif *vif, bool enable);
 int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			    int en);
 int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
