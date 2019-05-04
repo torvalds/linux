@@ -39,6 +39,7 @@ struct nfp_app;
 #define NFP_FL_NBI_MTU_SETTING		BIT(1)
 #define NFP_FL_FEATS_GENEVE_OPT		BIT(2)
 #define NFP_FL_FEATS_VLAN_PCP		BIT(3)
+#define NFP_FL_FEATS_VF_RLIM		BIT(4)
 #define NFP_FL_FEATS_FLOW_MOD		BIT(5)
 #define NFP_FL_FEATS_FLOW_MERGE		BIT(30)
 #define NFP_FL_FEATS_LAG		BIT(31)
@@ -366,6 +367,8 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct nfp_fl_pre_lag *pre_act);
 int nfp_flower_lag_get_output_id(struct nfp_app *app,
 				 struct net_device *master);
+int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
+				 struct tc_cls_matchall_offload *flow);
 int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 				       struct net_device *netdev,
 				       unsigned long event);
