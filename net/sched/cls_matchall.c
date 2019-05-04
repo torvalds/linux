@@ -321,6 +321,23 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	return 0;
 }
 
+static void mall_stats_hw_filter(struct tcf_proto *tp,
+				 struct cls_mall_head *head,
+				 unsigned long cookie)
+{
+	struct tc_cls_matchall_offload cls_mall = {};
+	struct tcf_block *block = tp->chain->block;
+
+	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, NULL);
+	cls_mall.command = TC_CLSMATCHALL_STATS;
+	cls_mall.cookie = cookie;
+
+	tc_setup_cb_call(block, TC_SETUP_CLSMATCHALL, &cls_mall, false);
+
+	tcf_exts_stats_update(&head->exts, cls_mall.stats.bytes,
+			      cls_mall.stats.pkts, cls_mall.stats.lastused);
+}
+
 static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		     struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
@@ -331,6 +348,9 @@ static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	if (!head)
 		return skb->len;
+
+	if (!tc_skip_hw(head->flags))
+		mall_stats_hw_filter(tp, head, (unsigned long)head);
 
 	t->tcm_handle = head->handle;
 
