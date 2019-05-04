@@ -1914,7 +1914,7 @@ static int rtw_ht_operation_update(struct adapter *padapter)
 
 void associated_clients_update(struct adapter *padapter, u8 updated)
 {
-	/* update associcated stations cap. */
+	/* update associated stations cap. */
 	if (updated) {
 		struct list_head	*phead, *plist;
 		struct sta_info *psta = NULL;
@@ -2072,7 +2072,7 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, true);
 	}
 
-	/* update associcated stations cap. */
+	/* update associated stations cap. */
 	associated_clients_update(padapter,  beacon_updated);
 
 	DBG_871X("%s, updated =%d\n", __func__, beacon_updated);
@@ -2136,7 +2136,7 @@ u8 bss_cap_update_on_sta_leave(struct adapter *padapter, struct sta_info *psta)
 		update_beacon(padapter, _HT_ADD_INFO_IE_, NULL, true);
 	}
 
-	/* update associcated stations cap. */
+	/* update associated stations cap. */
 	/* associated_clients_update(padapter,  beacon_updated); //move it to avoid deadlock */
 
 	DBG_871X("%s, updated =%d\n", __func__, beacon_updated);
