@@ -179,19 +179,14 @@ static int mt7615_mcu_init_download(struct mt7615_dev *dev, u32 addr,
 static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
 				    int len)
 {
-	struct sk_buff *skb;
-	int ret = 0;
+	int ret = 0, cur_len;
 
 	while (len > 0) {
-		int cur_len = min_t(int, 4096 - sizeof(struct mt7615_mcu_txd),
-				    len);
+		cur_len = min_t(int, 4096 - sizeof(struct mt7615_mcu_txd),
+				len);
 
-		skb = mt7615_mcu_msg_alloc(data, cur_len);
-		if (!skb)
-			return -ENOMEM;
-
-		ret = __mt7615_mcu_msg_send(dev, skb, -MCU_CMD_FW_SCATTER,
-					    NULL);
+		ret = __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_SCATTER,
+					  data, cur_len, false);
 		if (ret)
 			break;
 
