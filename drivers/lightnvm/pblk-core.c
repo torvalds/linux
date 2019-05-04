@@ -2147,8 +2147,8 @@ out:
 	spin_unlock(&pblk->trans_lock);
 }
 
-void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
-			 sector_t blba, int nr_secs)
+int pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
+			 sector_t blba, int nr_secs, bool *from_cache)
 {
 	int i;
 
@@ -2162,10 +2162,19 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
 		if (!pblk_ppa_empty(ppa) && !pblk_addr_in_cache(ppa)) {
 			struct pblk_line *line = pblk_ppa_to_line(pblk, ppa);
 
+			if (i > 0 && *from_cache)
+				break;
+			*from_cache = false;
+
 			kref_get(&line->ref);
+		} else {
+			if (i > 0 && !*from_cache)
+				break;
+			*from_cache = true;
 		}
 	}
 	spin_unlock(&pblk->trans_lock);
+	return i;
 }
 
 void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,

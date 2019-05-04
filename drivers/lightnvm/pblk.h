@@ -121,18 +121,6 @@ struct pblk_g_ctx {
 	u64 lba;
 };
 
-/* partial read context */
-struct pblk_pr_ctx {
-	struct bio *orig_bio;
-	DECLARE_BITMAP(bitmap, NVM_MAX_VLBA);
-	unsigned int orig_nr_secs;
-	unsigned int bio_init_idx;
-	void *ppa_ptr;
-	dma_addr_t dma_ppa_list;
-	u64 lba_list_mem[NVM_MAX_VLBA];
-	u64 lba_list_media[NVM_MAX_VLBA];
-};
-
 /* Pad context */
 struct pblk_pad_rq {
 	struct pblk *pblk;
@@ -759,7 +747,7 @@ unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
 				 unsigned int pos, unsigned int nr_entries,
 				 unsigned int count);
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
-			struct ppa_addr ppa, int bio_iter, bool advanced_bio);
+			struct ppa_addr ppa);
 unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int entries);
 
 unsigned int pblk_rb_sync_init(struct pblk_rb *rb, unsigned long *flags);
@@ -859,8 +847,8 @@ int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa,
 		       struct pblk_line *gc_line, u64 paddr);
 void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 			  u64 *lba_list, int nr_secs);
-void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
-			 sector_t blba, int nr_secs);
+int pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
+			 sector_t blba, int nr_secs, bool *from_cache);
 void *pblk_get_meta_for_writes(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_get_packed_meta(struct pblk *pblk, struct nvm_rq *rqd);
 
