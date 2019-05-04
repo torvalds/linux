@@ -119,6 +119,7 @@ enum flow_action_id {
 	FLOW_ACTION_WAKE,
 	FLOW_ACTION_QUEUE,
 	FLOW_ACTION_SAMPLE,
+	FLOW_ACTION_POLICE,
 };
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between
@@ -164,6 +165,10 @@ struct flow_action_entry {
 			u32			trunc_size;
 			bool			truncate;
 		} sample;
+		struct {				/* FLOW_ACTION_POLICE */
+			s64			burst;
+			u64			rate_bytes_ps;
+		} police;
 	};
 };
 

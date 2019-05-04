@@ -37,6 +37,7 @@
 #include <net/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_gact.h>
+#include <net/tc_act/tc_police.h>
 #include <net/tc_act/tc_sample.h>
 #include <net/tc_act/tc_skbedit.h>
 
@@ -3265,6 +3266,11 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			entry->sample.trunc_size = tcf_sample_trunc_size(act);
 			entry->sample.truncate = tcf_sample_truncate(act);
 			entry->sample.rate = tcf_sample_rate(act);
+		} else if (is_tcf_police(act)) {
+			entry->id = FLOW_ACTION_POLICE;
+			entry->police.burst = tcf_police_tcfp_burst(act);
+			entry->police.rate_bytes_ps =
+				tcf_police_rate_bytes_ps(act);
 		} else {
 			goto err_out;
 		}
