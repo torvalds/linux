@@ -2590,17 +2590,12 @@ start_ieee80211:
 
 	err = ieee80211_register_hw(wl->hw);
 	if (err)
-		goto err_one_core_detach;
+		goto out;
 	wl->hw_registered = true;
 	b43_leds_register(wl->current_dev);
 
 	/* Register HW RNG driver */
 	b43_rng_init(wl);
-
-	goto out;
-
-err_one_core_detach:
-	b43_one_core_detach(dev->dev);
 
 out:
 	kfree(ctx);
