@@ -1101,9 +1101,10 @@ int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev)
 	return __mt7615_mcu_set_wtbl(dev, 0, WTBL_RESET_ALL, 0, NULL, 0);
 }
 
-static int __mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, int bss_idx,
-				    int wlan_idx, int muar_idx, void *buf,
-				    int buf_len)
+static int
+__mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, int bss_idx,
+			 int wlan_idx, int muar_idx, int ntlv,
+			 void *buf, int buf_len)
 {
 	struct req_hdr {
 		u8 bss_idx;
@@ -1112,31 +1113,16 @@ static int __mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, int bss_idx,
 		u8 is_tlv_append;
 		u8 muar_idx;
 		u8 rsv[2];
-	} __packed req_hdr = {0};
-	struct tlv {
-		__le16 tag;
-		__le16 len;
-		u8 buf[0];
-	} __packed;
+	} __packed req_hdr = {
+		.bss_idx = bss_idx,
+		.wlan_idx = wlan_idx,
+		.tlv_num = cpu_to_le16(ntlv),
+		.is_tlv_append = !!ntlv,
+		.muar_idx = muar_idx,
+	};
 	struct sk_buff *skb;
-	u16 tlv_num = 0;
-	int offset = 0;
-
-	while (offset < buf_len) {
-		struct tlv *tlv = (struct tlv *)((u8 *)buf + offset);
-
-		tlv_num++;
-		offset += tlv->len;
-	}
 
 	skb = mt7615_mcu_msg_alloc(NULL, sizeof(req_hdr) + buf_len);
-
-	req_hdr.bss_idx = bss_idx;
-	req_hdr.wlan_idx = wlan_idx;
-	req_hdr.tlv_num = cpu_to_le16(tlv_num);
-	req_hdr.is_tlv_append = tlv_num ? 1 : 0;
-	req_hdr.muar_idx = muar_idx;
-
 	memcpy(skb_put(skb, sizeof(req_hdr)), &req_hdr, sizeof(req_hdr));
 
 	if (buf && buf_len)
@@ -1167,7 +1153,7 @@ int mt7615_mcu_set_sta_rec_bmc(struct mt7615_dev *dev,
 	}
 
 	return __mt7615_mcu_set_sta_rec(dev, mvif->idx, mvif->sta.wcid.idx,
-					mvif->omac_idx, &sta_rec_basic,
+					mvif->omac_idx, 1, &sta_rec_basic,
 					buf_len);
 }
 
@@ -1216,7 +1202,7 @@ int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	}
 
 	return __mt7615_mcu_set_sta_rec(dev, mvif->idx, msta->wcid.idx,
-					mvif->omac_idx, &sta_rec_basic,
+					mvif->omac_idx, 1, &sta_rec_basic,
 					buf_len);
 }
 
@@ -1435,6 +1421,7 @@ int mt7615_mcu_set_ht_cap(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	sta_rec_ht->tag = cpu_to_le16(STA_REC_HT);
 	sta_rec_ht->len = cpu_to_le16(sizeof(*sta_rec_ht));
 	sta_rec_ht->ht_cap = cpu_to_le16(sta->ht_cap.cap);
+	ntlv = 1;
 
 	if (sta->vht_cap.vht_supported) {
 		struct sta_rec_vht *sta_rec_vht;
@@ -1448,10 +1435,12 @@ int mt7615_mcu_set_ht_cap(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			cpu_to_le16(sta->vht_cap.vht_mcs.rx_mcs_map);
 		sta_rec_vht->vht_tx_mcs_map =
 			cpu_to_le16(sta->vht_cap.vht_mcs.tx_mcs_map);
+		ntlv++;
 	}
 
 	ret = __mt7615_mcu_set_sta_rec(dev, mvif->idx, msta->wcid.idx,
-				       mvif->omac_idx, buf, buf_len);
+				       mvif->omac_idx, ntlv, buf,
+				       buf_len);
 	kfree(buf);
 	return ret;
 }
@@ -1508,7 +1497,8 @@ int mt7615_mcu_set_tx_ba(struct mt7615_dev *dev,
 	sta_rec_ba.winsize = cpu_to_le16(ba_size);
 
 	return __mt7615_mcu_set_sta_rec(dev, mvif->idx, msta->wcid.idx,
-					mvif->omac_idx, &sta_rec_ba, buf_len);
+					mvif->omac_idx, 1, &sta_rec_ba,
+					buf_len);
 }
 
 int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
@@ -1535,7 +1525,8 @@ int mt7615_mcu_set_rx_ba(struct mt7615_dev *dev,
 	sta_rec_ba.winsize = cpu_to_le16(params->buf_size);
 
 	ret = __mt7615_mcu_set_sta_rec(dev, mvif->idx, msta->wcid.idx,
-				       mvif->omac_idx, &sta_rec_ba, buf_len);
+				       mvif->omac_idx, 1, &sta_rec_ba,
+				       buf_len);
 	if (ret || !add)
 		return ret;
 
