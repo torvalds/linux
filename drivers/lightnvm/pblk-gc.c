@@ -290,8 +290,11 @@ fail_free_invalid_bitmap:
 fail_free_ws:
 	kfree(line_ws);
 
+	/* Line goes back to closed state, so we cannot release additional
+	 * reference for line, since we do that only when we want to do
+	 * gc to free line state transition.
+	 */
 	pblk_put_line_back(pblk, line);
-	kref_put(&line->ref, pblk_line_put);
 	atomic_dec(&gc->read_inflight_gc);
 
 	pblk_err(pblk, "failed to GC line %d\n", line->id);
