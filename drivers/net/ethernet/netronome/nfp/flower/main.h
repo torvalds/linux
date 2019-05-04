@@ -5,6 +5,7 @@
 #define __NFP_FLOWER_H__ 1
 
 #include "cmsg.h"
+#include "../nfp_net.h"
 
 #include <linux/circ_buf.h>
 #include <linux/hashtable.h>
@@ -158,6 +159,9 @@ struct nfp_fl_internal_ports {
  * @active_mem_unit:	Current active memory unit for flower rules
  * @total_mem_units:	Total number of available memory units for flower rules
  * @internal_ports:	Internal port ids used in offloaded rules
+ * @qos_stats_work:	Workqueue for qos stats processing
+ * @qos_rate_limiters:	Current active qos rate limiters
+ * @qos_stats_lock:	Lock on qos stats updates
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -186,14 +190,23 @@ struct nfp_flower_priv {
 	unsigned int active_mem_unit;
 	unsigned int total_mem_units;
 	struct nfp_fl_internal_ports internal_ports;
+	struct delayed_work qos_stats_work;
+	unsigned int qos_rate_limiters;
+	spinlock_t qos_stats_lock; /* Protect the qos stats */
 };
 
 /**
  * struct nfp_fl_qos - Flower APP priv data for quality of service
  * @netdev_port_id:	NFP port number of repr with qos info
+ * @curr_stats:		Currently stored stats updates for qos info
+ * @prev_stats:		Previously stored updates for qos info
+ * @last_update:	Stored time when last stats were updated
  */
 struct nfp_fl_qos {
 	u32 netdev_port_id;
+	struct nfp_stat_pair curr_stats;
+	struct nfp_stat_pair prev_stats;
+	u64 last_update;
 };
 
 /**
@@ -377,8 +390,11 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct nfp_fl_pre_lag *pre_act);
 int nfp_flower_lag_get_output_id(struct nfp_app *app,
 				 struct net_device *master);
+void nfp_flower_qos_init(struct nfp_app *app);
+void nfp_flower_qos_cleanup(struct nfp_app *app);
 int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 				 struct tc_cls_matchall_offload *flow);
+void nfp_flower_stats_rlim_reply(struct nfp_app *app, struct sk_buff *skb);
 int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 				       struct net_device *netdev,
 				       unsigned long event);

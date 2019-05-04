@@ -9,6 +9,8 @@
 #include "main.h"
 #include "../nfp_port.h"
 
+#define NFP_FL_QOS_UPDATE		msecs_to_jiffies(1000)
+
 struct nfp_police_cfg_head {
 	__be32 flags_opts;
 	__be32 port;
@@ -47,12 +49,21 @@ struct nfp_police_config {
 	__be32 cir;
 };
 
+struct nfp_police_stats_reply {
+	struct nfp_police_cfg_head head;
+	__be64 pass_bytes;
+	__be64 pass_pkts;
+	__be64 drop_bytes;
+	__be64 drop_pkts;
+};
+
 static int
 nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 				struct tc_cls_matchall_offload *flow,
 				struct netlink_ext_ack *extack)
 {
 	struct flow_action_entry *action = &flow->rule->action.entries[0];
+	struct nfp_flower_priv *fl_priv = app->priv;
 	struct nfp_flower_repr_priv *repr_priv;
 	struct nfp_police_config *config;
 	struct nfp_repr *repr;
@@ -114,6 +125,10 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 
 	repr_priv = repr->app_priv;
 	repr_priv->qos_table.netdev_port_id = netdev_port_id;
+	fl_priv->qos_rate_limiters++;
+	if (fl_priv->qos_rate_limiters == 1)
+		schedule_delayed_work(&fl_priv->qos_stats_work,
+				      NFP_FL_QOS_UPDATE);
 
 	return 0;
 }
@@ -123,6 +138,7 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 			       struct tc_cls_matchall_offload *flow,
 			       struct netlink_ext_ack *extack)
 {
+	struct nfp_flower_priv *fl_priv = app->priv;
 	struct nfp_flower_repr_priv *repr_priv;
 	struct nfp_police_config *config;
 	struct nfp_repr *repr;
@@ -150,12 +166,177 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 
 	/* Clear all qos associate data for this interface */
 	memset(&repr_priv->qos_table, 0, sizeof(struct nfp_fl_qos));
+	fl_priv->qos_rate_limiters--;
+	if (!fl_priv->qos_rate_limiters)
+		cancel_delayed_work_sync(&fl_priv->qos_stats_work);
+
 	config = nfp_flower_cmsg_get_data(skb);
 	memset(config, 0, sizeof(struct nfp_police_config));
 	config->head.port = cpu_to_be32(netdev_port_id);
 	nfp_ctrl_tx(repr->app->ctrl, skb);
 
 	return 0;
+}
+
+void nfp_flower_stats_rlim_reply(struct nfp_app *app, struct sk_buff *skb)
+{
+	struct nfp_flower_priv *fl_priv = app->priv;
+	struct nfp_flower_repr_priv *repr_priv;
+	struct nfp_police_stats_reply *msg;
+	struct nfp_stat_pair *curr_stats;
+	struct nfp_stat_pair *prev_stats;
+	struct net_device *netdev;
+	struct nfp_repr *repr;
+	u32 netdev_port_id;
+
+	msg = nfp_flower_cmsg_get_data(skb);
+	netdev_port_id = be32_to_cpu(msg->head.port);
+	rcu_read_lock();
+	netdev = nfp_app_dev_get(app, netdev_port_id, NULL);
+	if (!netdev)
+		goto exit_unlock_rcu;
+
+	repr = netdev_priv(netdev);
+	repr_priv = repr->app_priv;
+	curr_stats = &repr_priv->qos_table.curr_stats;
+	prev_stats = &repr_priv->qos_table.prev_stats;
+
+	spin_lock_bh(&fl_priv->qos_stats_lock);
+	curr_stats->pkts = be64_to_cpu(msg->pass_pkts) +
+			   be64_to_cpu(msg->drop_pkts);
+	curr_stats->bytes = be64_to_cpu(msg->pass_bytes) +
+			    be64_to_cpu(msg->drop_bytes);
+
+	if (!repr_priv->qos_table.last_update) {
+		prev_stats->pkts = curr_stats->pkts;
+		prev_stats->bytes = curr_stats->bytes;
+	}
+
+	repr_priv->qos_table.last_update = jiffies;
+	spin_unlock_bh(&fl_priv->qos_stats_lock);
+
+exit_unlock_rcu:
+	rcu_read_unlock();
+}
+
+static void
+nfp_flower_stats_rlim_request(struct nfp_flower_priv *fl_priv,
+			      u32 netdev_port_id)
+{
+	struct nfp_police_cfg_head *head;
+	struct sk_buff *skb;
+
+	skb = nfp_flower_cmsg_alloc(fl_priv->app,
+				    sizeof(struct nfp_police_cfg_head),
+				    NFP_FLOWER_CMSG_TYPE_QOS_STATS,
+				    GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	head = nfp_flower_cmsg_get_data(skb);
+	memset(head, 0, sizeof(struct nfp_police_cfg_head));
+	head->port = cpu_to_be32(netdev_port_id);
+
+	nfp_ctrl_tx(fl_priv->app->ctrl, skb);
+}
+
+static void
+nfp_flower_stats_rlim_request_all(struct nfp_flower_priv *fl_priv)
+{
+	struct nfp_reprs *repr_set;
+	int i;
+
+	rcu_read_lock();
+	repr_set = rcu_dereference(fl_priv->app->reprs[NFP_REPR_TYPE_VF]);
+	if (!repr_set)
+		goto exit_unlock_rcu;
+
+	for (i = 0; i < repr_set->num_reprs; i++) {
+		struct net_device *netdev;
+
+		netdev = rcu_dereference(repr_set->reprs[i]);
+		if (netdev) {
+			struct nfp_repr *priv = netdev_priv(netdev);
+			struct nfp_flower_repr_priv *repr_priv;
+			u32 netdev_port_id;
+
+			repr_priv = priv->app_priv;
+			netdev_port_id = repr_priv->qos_table.netdev_port_id;
+			if (!netdev_port_id)
+				continue;
+
+			nfp_flower_stats_rlim_request(fl_priv, netdev_port_id);
+		}
+	}
+
+exit_unlock_rcu:
+	rcu_read_unlock();
+}
+
+static void update_stats_cache(struct work_struct *work)
+{
+	struct delayed_work *delayed_work;
+	struct nfp_flower_priv *fl_priv;
+
+	delayed_work = to_delayed_work(work);
+	fl_priv = container_of(delayed_work, struct nfp_flower_priv,
+			       qos_stats_work);
+
+	nfp_flower_stats_rlim_request_all(fl_priv);
+	schedule_delayed_work(&fl_priv->qos_stats_work, NFP_FL_QOS_UPDATE);
+}
+
+static int
+nfp_flower_stats_rate_limiter(struct nfp_app *app, struct net_device *netdev,
+			      struct tc_cls_matchall_offload *flow,
+			      struct netlink_ext_ack *extack)
+{
+	struct nfp_flower_priv *fl_priv = app->priv;
+	struct nfp_flower_repr_priv *repr_priv;
+	struct nfp_stat_pair *curr_stats;
+	struct nfp_stat_pair *prev_stats;
+	u64 diff_bytes, diff_pkts;
+	struct nfp_repr *repr;
+
+	if (!nfp_netdev_is_nfp_repr(netdev)) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
+		return -EOPNOTSUPP;
+	}
+	repr = netdev_priv(netdev);
+
+	repr_priv = repr->app_priv;
+	if (!repr_priv->qos_table.netdev_port_id) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot find qos entry for stats update");
+		return -EOPNOTSUPP;
+	}
+
+	spin_lock_bh(&fl_priv->qos_stats_lock);
+	curr_stats = &repr_priv->qos_table.curr_stats;
+	prev_stats = &repr_priv->qos_table.prev_stats;
+	diff_pkts = curr_stats->pkts - prev_stats->pkts;
+	diff_bytes = curr_stats->bytes - prev_stats->bytes;
+	prev_stats->pkts = curr_stats->pkts;
+	prev_stats->bytes = curr_stats->bytes;
+	spin_unlock_bh(&fl_priv->qos_stats_lock);
+
+	flow_stats_update(&flow->stats, diff_bytes, diff_pkts,
+			  repr_priv->qos_table.last_update);
+	return 0;
+}
+
+void nfp_flower_qos_init(struct nfp_app *app)
+{
+	struct nfp_flower_priv *fl_priv = app->priv;
+
+	spin_lock_init(&fl_priv->qos_stats_lock);
+	INIT_DELAYED_WORK(&fl_priv->qos_stats_work, &update_stats_cache);
+}
+
+void nfp_flower_qos_cleanup(struct nfp_app *app)
+{
+	struct nfp_flower_priv *fl_priv = app->priv;
+
+	cancel_delayed_work_sync(&fl_priv->qos_stats_work);
 }
 
 int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
@@ -176,6 +357,9 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 	case TC_CLSMATCHALL_DESTROY:
 		return nfp_flower_remove_rate_limiter(app, netdev, flow,
 						      extack);
+	case TC_CLSMATCHALL_STATS:
+		return nfp_flower_stats_rate_limiter(app, netdev, flow,
+						     extack);
 	default:
 		return -EOPNOTSUPP;
 	}
