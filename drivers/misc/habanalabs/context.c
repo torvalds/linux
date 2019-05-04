@@ -31,7 +31,9 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
 		 */
-		hdev->asic_funcs->halt_coresight(hdev);
+		if (hdev->in_debug)
+			hl_device_set_debug_mode(hdev, false);
+
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
 	}

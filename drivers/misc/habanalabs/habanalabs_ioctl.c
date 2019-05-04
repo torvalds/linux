@@ -254,9 +254,17 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 	case HL_DEBUG_OP_BMON:
 	case HL_DEBUG_OP_SPMU:
 	case HL_DEBUG_OP_TIMESTAMP:
+		if (!hdev->in_debug) {
+			dev_err(hdev->dev,
+				"Rejecting debug configuration request because device not in debug mode\n");
+			return -EFAULT;
+		}
 		args->input_size =
 			min(args->input_size, hl_debug_struct_size[args->op]);
 		rc = debug_coresight(hdev, args);
+		break;
+	case HL_DEBUG_OP_SET_MODE:
+		rc = hl_device_set_debug_mode(hdev, (bool) args->enable);
 		break;
 	default:
 		dev_err(hdev->dev, "Invalid request %d\n", args->op);

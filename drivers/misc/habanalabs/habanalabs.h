@@ -1117,6 +1117,7 @@ struct hl_device_reset_work {
  *                    lock here so we can flush user processes which are opening
  *                    the device while we are trying to hard reset it
  * @send_cpu_message_lock: enforces only one message in KMD <-> ArmCP queue.
+ * @debug_lock: protects critical section of setting debug mode for device
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
@@ -1159,6 +1160,8 @@ struct hl_device_reset_work {
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
+ * @in_debug: is device under debug. This, together with fd_open_cnt, enforces
+ *            that only a single user is configuring the debug infrastructure.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1188,6 +1191,7 @@ struct hl_device {
 	/* TODO: remove fd_open_cnt_lock for multiple process support */
 	struct mutex			fd_open_cnt_lock;
 	struct mutex			send_cpu_message_lock;
+	struct mutex			debug_lock;
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
@@ -1230,6 +1234,7 @@ struct hl_device {
 	u8				init_done;
 	u8				device_cpu_disabled;
 	u8				dma_mask;
+	u8				in_debug;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;
@@ -1325,6 +1330,7 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 int hl_device_open(struct inode *inode, struct file *filp);
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
 enum hl_device_status hl_device_status(struct hl_device *hdev);
+int hl_device_set_debug_mode(struct hl_device *hdev, bool enable);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		enum hl_asic_type asic_type, int minor);
 void destroy_hdev(struct hl_device *hdev);

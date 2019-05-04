@@ -105,6 +105,14 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		return -EPERM;
 	}
 
+	if (hdev->in_debug) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't open %s because it is being debugged by another user\n",
+			dev_name(hdev->dev));
+		mutex_unlock(&hdev->fd_open_cnt_lock);
+		return -EPERM;
+	}
+
 	if (atomic_read(&hdev->fd_open_cnt)) {
 		dev_info_ratelimited(hdev->dev,
 			"Can't open %s because another user is working on it\n",

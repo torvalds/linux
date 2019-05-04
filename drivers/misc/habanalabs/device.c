@@ -231,6 +231,7 @@ static int device_early_init(struct hl_device *hdev)
 
 	mutex_init(&hdev->fd_open_cnt_lock);
 	mutex_init(&hdev->send_cpu_message_lock);
+	mutex_init(&hdev->debug_lock);
 	mutex_init(&hdev->mmu_cache_lock);
 	INIT_LIST_HEAD(&hdev->hw_queues_mirror_list);
 	spin_lock_init(&hdev->hw_queues_mirror_lock);
@@ -262,6 +263,7 @@ early_fini:
 static void device_early_fini(struct hl_device *hdev)
 {
 	mutex_destroy(&hdev->mmu_cache_lock);
+	mutex_destroy(&hdev->debug_lock);
 	mutex_destroy(&hdev->send_cpu_message_lock);
 
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
@@ -418,6 +420,52 @@ int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq)
 	hdev->asic_funcs->set_pll_profile(hdev, freq);
 
 	return 1;
+}
+
+int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
+{
+	int rc = 0;
+
+	mutex_lock(&hdev->debug_lock);
+
+	if (!enable) {
+		if (!hdev->in_debug) {
+			dev_err(hdev->dev,
+				"Failed to disable debug mode because device was not in debug mode\n");
+			rc = -EFAULT;
+			goto out;
+		}
+
+		hdev->asic_funcs->halt_coresight(hdev);
+		hdev->in_debug = 0;
+
+		goto out;
+	}
+
+	if (hdev->in_debug) {
+		dev_err(hdev->dev,
+			"Failed to enable debug mode because device is already in debug mode\n");
+		rc = -EFAULT;
+		goto out;
+	}
+
+	mutex_lock(&hdev->fd_open_cnt_lock);
+
+	if (atomic_read(&hdev->fd_open_cnt) > 1) {
+		dev_err(hdev->dev,
+			"Failed to enable debug mode. More then a single user is using the device\n");
+		rc = -EPERM;
+		goto unlock_fd_open_lock;
+	}
+
+	hdev->in_debug = 1;
+
+unlock_fd_open_lock:
+	mutex_unlock(&hdev->fd_open_cnt_lock);
+out:
+	mutex_unlock(&hdev->debug_lock);
+
+	return rc;
 }
 
 /*
