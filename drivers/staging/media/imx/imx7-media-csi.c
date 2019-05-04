@@ -1199,7 +1199,6 @@ static int imx7_csi_probe(struct platform_device *pdev)
 			       (void *)csi);
 	if (ret < 0) {
 		dev_err(dev, "Request CSI IRQ failed.\n");
-		ret = -ENODEV;
 		goto destroy_mutex;
 	}
 
