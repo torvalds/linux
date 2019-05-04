@@ -84,21 +84,12 @@ static void pblk_gc_line_ws(struct work_struct *work)
 	struct pblk_line_ws *gc_rq_ws = container_of(work,
 						struct pblk_line_ws, ws);
 	struct pblk *pblk = gc_rq_ws->pblk;
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	struct pblk_gc *gc = &pblk->gc;
 	struct pblk_line *line = gc_rq_ws->line;
 	struct pblk_gc_rq *gc_rq = gc_rq_ws->priv;
 	int ret;
 
 	up(&gc->gc_sem);
-
-	gc_rq->data = vmalloc(array_size(gc_rq->nr_secs, geo->csecs));
-	if (!gc_rq->data) {
-		pblk_err(pblk, "could not GC line:%d (%d/%d)\n",
-					line->id, *line->vsc, gc_rq->nr_secs);
-		goto out;
-	}
 
 	/* Read from GC victim block */
 	ret = pblk_submit_read_gc(pblk, gc_rq);
@@ -189,6 +180,8 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	struct pblk_line *line = line_ws->line;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
 	struct pblk_gc *gc = &pblk->gc;
 	struct pblk_line_ws *gc_rq_ws;
 	struct pblk_gc_rq *gc_rq;
@@ -247,9 +240,13 @@ next_rq:
 	gc_rq->nr_secs = nr_secs;
 	gc_rq->line = line;
 
+	gc_rq->data = vmalloc(array_size(gc_rq->nr_secs, geo->csecs));
+	if (!gc_rq->data)
+		goto fail_free_gc_rq;
+
 	gc_rq_ws = kmalloc(sizeof(struct pblk_line_ws), GFP_KERNEL);
 	if (!gc_rq_ws)
-		goto fail_free_gc_rq;
+		goto fail_free_gc_data;
 
 	gc_rq_ws->pblk = pblk;
 	gc_rq_ws->line = line;
@@ -281,6 +278,8 @@ out:
 
 	return;
 
+fail_free_gc_data:
+	vfree(gc_rq->data);
 fail_free_gc_rq:
 	kfree(gc_rq);
 fail_free_lba_list:
