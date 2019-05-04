@@ -337,7 +337,7 @@ void mt7615_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
 	mt7615_mcu_set_sta_rec(dev, vif, sta, 0);
-	mt7615_mcu_del_wtbl(dev, vif, sta);
+	mt7615_mcu_del_wtbl(dev, sta);
 }
 
 static void mt7615_sta_rate_tbl_update(struct ieee80211_hw *hw,

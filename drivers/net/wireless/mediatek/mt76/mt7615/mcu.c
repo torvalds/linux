@@ -1060,7 +1060,7 @@ int mt7615_mcu_add_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 				     sizeof(struct wtbl_rx));
 }
 
-int mt7615_mcu_del_wtbl(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_del_wtbl(struct mt7615_dev *dev,
 			struct ieee80211_sta *sta)
 {
 	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
