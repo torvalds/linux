@@ -1072,9 +1072,9 @@ are equal from left to right they will be equal if reversed too).
 
 The ``test_daddr`` function must be called from the netfilter hook to display
 the connection initialization packets for which the destination address is the
-one sent through the ioctl routine. Connection initiation packets have the
-``SYN`` flag enabled and the ``ACK`` flag disabled in the TCP header. You have
-to check two things:
+one sent through the ioctl routine. The connection initiation packet has the
+``SYN`` flag set in the TCP header and the ``ACK`` flag cleared.  You have to
+check two things:
 
   * the TCP flags;
   * the destination address of the packet (using ``test_addr``).
