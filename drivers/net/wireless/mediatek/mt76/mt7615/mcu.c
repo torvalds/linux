@@ -987,10 +987,10 @@ int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
 				     &wtbl_sec_key, buf_len);
 }
 
-int mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev,
-			    struct ieee80211_vif *vif)
+static int
+mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev,
+			struct mt7615_vif *mvif)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct {
 		struct wtbl_generic g_wtbl;
 		struct wtbl_rx rx_wtbl;
@@ -1016,9 +1016,13 @@ int mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev,
 				     sizeof(struct wtbl_rx));
 }
 
-int mt7615_mcu_del_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif)
+int mt7615_mcu_wtbl_bmc(struct mt7615_dev *dev,
+			struct ieee80211_vif *vif, bool enable)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+
+	if (enable)
+		return mt7615_mcu_add_wtbl_bmc(dev, mvif);
 
 	return __mt7615_mcu_set_wtbl(dev, mvif->sta.wcid.idx,
 				     WTBL_RESET_AND_SET, 0, NULL, 0);
