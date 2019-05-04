@@ -390,17 +390,23 @@ static void imx7_csi_error_recovery(struct imx7_csi *csi)
 	imx7_csi_hw_enable(csi);
 }
 
-static void imx7_csi_init(struct imx7_csi *csi)
+static int imx7_csi_init(struct imx7_csi *csi)
 {
-	if (csi->is_init)
-		return;
+	int ret;
 
-	clk_prepare_enable(csi->mclk);
+	if (csi->is_init)
+		return 0;
+
+	ret = clk_prepare_enable(csi->mclk);
+	if (ret < 0)
+		return ret;
 	imx7_csi_hw_reset(csi);
 	imx7_csi_init_interface(csi);
 	imx7_csi_dmareq_rff_enable(csi);
 
 	csi->is_init = true;
+
+	return 0;
 }
 
 static void imx7_csi_deinit(struct imx7_csi *csi)
@@ -513,7 +519,7 @@ static int imx7_csi_link_setup(struct media_entity *entity,
 
 init:
 	if (csi->sink || csi->src_sd)
-		imx7_csi_init(csi);
+		ret = imx7_csi_init(csi);
 	else
 		imx7_csi_deinit(csi);
 
