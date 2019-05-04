@@ -799,7 +799,7 @@ static int imx7_csi_configure(struct imx7_csi *csi)
 	return 0;
 }
 
-static int imx7_csi_enable(struct imx7_csi *csi)
+static void imx7_csi_enable(struct imx7_csi *csi)
 {
 	imx7_csi_sw_reset(csi);
 
@@ -807,10 +807,7 @@ static int imx7_csi_enable(struct imx7_csi *csi)
 		imx7_csi_dmareq_rff_enable(csi);
 		imx7_csi_hw_enable_irq(csi);
 		imx7_csi_hw_enable(csi);
-		return 0;
 	}
-
-	return 0;
 }
 
 static void imx7_csi_disable(struct imx7_csi *csi)
