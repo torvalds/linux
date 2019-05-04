@@ -1164,7 +1164,6 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct imx_media_dev *imxmd;
 	struct imx7_csi *csi;
-	struct resource *res;
 	int ret;
 
 	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
@@ -1180,17 +1179,16 @@ static int imx7_csi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	csi->irq = platform_get_irq(pdev, 0);
-	if (!res || csi->irq < 0) {
+	if (csi->irq < 0) {
 		dev_err(dev, "Missing platform resources data\n");
 		return -ENODEV;
 	}
 
-	csi->regbase = devm_ioremap_resource(dev, res);
+	csi->regbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi->regbase)) {
 		dev_err(dev, "Failed platform resources map\n");
-		return -ENODEV;
+		return PTR_ERR(csi->regbase);
 	}
 
 	spin_lock_init(&csi->irqlock);
