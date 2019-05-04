@@ -842,39 +842,28 @@ static int __mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
 				   MCU_Q_SET, MCU_S2D_H2N, NULL);
 }
 
-static void bss_info_convert_vif_type(enum nl80211_iftype type,
-				      u32 *network_type, u32 *conn_type)
-{
-	switch (type) {
-	case NL80211_IFTYPE_AP:
-		if (network_type)
-			*network_type = NETWORK_INFRA;
-		if (conn_type)
-			*conn_type = CONNECTION_INFRA_AP;
-		break;
-	case NL80211_IFTYPE_STATION:
-		if (network_type)
-			*network_type = NETWORK_INFRA;
-		if (conn_type)
-			*conn_type = CONNECTION_INFRA_STA;
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	};
-}
-
-int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
-			    int en)
+int mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
+			    struct ieee80211_vif *vif, int en)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct bss_info bss_info = {0};
-	u8 bmc_tx_wlan_idx = 0;
-	u32 network_type = 0, conn_type = 0;
+	struct bss_info bss_info = {
+		.bss_idx = mvif->idx,
+		.omac_idx = mvif->omac_idx,
+		.band_idx = mvif->band_idx,
+		.bcn_interval = vif->bss_conf.beacon_int,
+		.dtim_period = vif->bss_conf.dtim_period,
+		.enable = en,
+		.feature = BIT(BSS_INFO_BASIC),
+		.wmm_idx = mvif->wmm_idx,
+	};
 
-	if (vif->type == NL80211_IFTYPE_AP) {
-		bmc_tx_wlan_idx = mvif->sta.wcid.idx;
-	} else if (vif->type == NL80211_IFTYPE_STATION) {
+	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+		bss_info.bmc_tx_wlan_idx = mvif->sta.wcid.idx;
+		bss_info.network_type = NETWORK_INFRA;
+		bss_info.conn_type = CONNECTION_INFRA_AP;
+		break;
+	case NL80211_IFTYPE_STATION: {
 		/* find the unicast entry for sta mode bmc tx */
 		struct ieee80211_sta *ap_sta;
 		struct mt7615_sta *msta;
@@ -888,27 +877,19 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		}
 
 		msta = (struct mt7615_sta *)ap_sta->drv_priv;
-		bmc_tx_wlan_idx = msta->wcid.idx;
+		bss_info.bmc_tx_wlan_idx = msta->wcid.idx;
+		bss_info.network_type = NETWORK_INFRA;
+		bss_info.conn_type = CONNECTION_INFRA_STA;
 
 		rcu_read_unlock();
-	} else {
-		WARN_ON(1);
+		break;
 	}
-
-	bss_info_convert_vif_type(vif->type, &network_type, &conn_type);
-
-	bss_info.bss_idx = mvif->idx;
+	default:
+		WARN_ON(1);
+		break;
+	}
 	memcpy(bss_info.bssid, vif->bss_conf.bssid, ETH_ALEN);
-	bss_info.omac_idx = mvif->omac_idx;
-	bss_info.band_idx = mvif->band_idx;
-	bss_info.bmc_tx_wlan_idx = bmc_tx_wlan_idx;
-	bss_info.wmm_idx = mvif->wmm_idx;
-	bss_info.network_type = network_type;
-	bss_info.conn_type = conn_type;
-	bss_info.bcn_interval = vif->bss_conf.beacon_int;
-	bss_info.dtim_period = vif->bss_conf.dtim_period;
-	bss_info.enable = en;
-	bss_info.feature = BIT(BSS_INFO_BASIC);
+
 	if (en) {
 		bss_info.feature |= BIT(BSS_INFO_OMAC);
 		if (mvif->omac_idx > EXT_BSSID_START)
