@@ -562,10 +562,8 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 
 int pblk_submit_io_sync_sem(struct pblk *pblk, struct nvm_rq *rqd)
 {
-	struct ppa_addr *ppa_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int ret;
-
-	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
 
 	pblk_down_chunk(pblk, ppa_list[0]);
 	ret = pblk_submit_io_sync(pblk, rqd);
@@ -725,6 +723,7 @@ int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	u64 paddr = pblk_line_smeta_start(pblk, line);
 	int i, ret;
@@ -748,9 +747,10 @@ int pblk_line_smeta_read(struct pblk *pblk, struct pblk_line *line)
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.nr_ppas = lm->smeta_sec;
 	rqd.is_seq = 1;
+	ppa_list = nvm_rq_to_ppa_list(&rqd);
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++)
-		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
+		ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 
 	ret = pblk_submit_io_sync(pblk, &rqd);
 	if (ret) {
@@ -777,6 +777,7 @@ static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
@@ -801,12 +802,13 @@ static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 	rqd.opcode = NVM_OP_PWRITE;
 	rqd.nr_ppas = lm->smeta_sec;
 	rqd.is_seq = 1;
+	ppa_list = nvm_rq_to_ppa_list(&rqd);
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++) {
 		struct pblk_sec_meta *meta = pblk_get_meta(pblk,
 							   rqd.meta_list, i);
 
-		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
+		ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 		meta->lba = lba_list[paddr] = addr_empty;
 	}
 
@@ -836,8 +838,9 @@ int pblk_line_emeta_read(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
-	void *ppa_list, *meta_list;
+	void *ppa_list_buf, *meta_list;
 	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	struct nvm_rq rqd;
 	u64 paddr = line->emeta_ssec;
 	dma_addr_t dma_ppa_list, dma_meta_list;
@@ -853,7 +856,7 @@ int pblk_line_emeta_read(struct pblk *pblk, struct pblk_line *line,
 	if (!meta_list)
 		return -ENOMEM;
 
-	ppa_list = meta_list + pblk_dma_meta_size(pblk);
+	ppa_list_buf = meta_list + pblk_dma_meta_size(pblk);
 	dma_ppa_list = dma_meta_list + pblk_dma_meta_size(pblk);
 
 next_rq:
@@ -874,11 +877,12 @@ next_rq:
 
 	rqd.bio = bio;
 	rqd.meta_list = meta_list;
-	rqd.ppa_list = ppa_list;
+	rqd.ppa_list = ppa_list_buf;
 	rqd.dma_meta_list = dma_meta_list;
 	rqd.dma_ppa_list = dma_ppa_list;
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.nr_ppas = rq_ppas;
+	ppa_list = nvm_rq_to_ppa_list(&rqd);
 
 	for (i = 0; i < rqd.nr_ppas; ) {
 		struct ppa_addr ppa = addr_to_gen_ppa(pblk, paddr, line_id);
@@ -906,7 +910,7 @@ next_rq:
 		}
 
 		for (j = 0; j < min; j++, i++, paddr++)
-			rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line_id);
+			ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line_id);
 	}
 
 	ret = pblk_submit_io_sync(pblk, &rqd);
@@ -1525,10 +1529,8 @@ void pblk_ppa_to_line_put(struct pblk *pblk, struct ppa_addr ppa)
 
 void pblk_rq_to_line_put(struct pblk *pblk, struct nvm_rq *rqd)
 {
-	struct ppa_addr *ppa_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int i;
-
-	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
 
 	for (i = 0; i < rqd->nr_ppas; i++)
 		pblk_ppa_to_line_put(pblk, ppa_list[i]);

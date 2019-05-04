@@ -179,6 +179,7 @@ static int pblk_recov_pad_line(struct pblk *pblk, struct pblk_line *line,
 	struct pblk_pad_rq *pad_rq;
 	struct nvm_rq *rqd;
 	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	void *data;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	u64 w_ptr = line->cur_sec;
@@ -239,6 +240,7 @@ next_pad_rq:
 	rqd->end_io = pblk_end_io_recov;
 	rqd->private = pad_rq;
 
+	ppa_list = nvm_rq_to_ppa_list(rqd);
 	meta_list = rqd->meta_list;
 
 	for (i = 0; i < rqd->nr_ppas; ) {
@@ -266,17 +268,17 @@ next_pad_rq:
 			lba_list[w_ptr] = addr_empty;
 			meta = pblk_get_meta(pblk, meta_list, i);
 			meta->lba = addr_empty;
-			rqd->ppa_list[i] = dev_ppa;
+			ppa_list[i] = dev_ppa;
 		}
 	}
 
 	kref_get(&pad_rq->ref);
-	pblk_down_chunk(pblk, rqd->ppa_list[0]);
+	pblk_down_chunk(pblk, ppa_list[0]);
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
-		pblk_up_chunk(pblk, rqd->ppa_list[0]);
+		pblk_up_chunk(pblk, ppa_list[0]);
 		kref_put(&pad_rq->ref, pblk_recov_complete);
 		pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 		bio_put(bio);
@@ -420,6 +422,7 @@ retry_rq:
 	rqd->ppa_list = ppa_list;
 	rqd->dma_ppa_list = dma_ppa_list;
 	rqd->dma_meta_list = dma_meta_list;
+	ppa_list = nvm_rq_to_ppa_list(rqd);
 
 	if (pblk_io_aligned(pblk, rq_ppas))
 		rqd->is_seq = 1;
@@ -438,7 +441,7 @@ retry_rq:
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++)
-			rqd->ppa_list[i] =
+			ppa_list[i] =
 				addr_to_gen_ppa(pblk, paddr + j, line->id);
 	}
 
@@ -486,7 +489,7 @@ retry_rq:
 			continue;
 
 		line->nr_valid_lbas++;
-		pblk_update_map(pblk, lba, rqd->ppa_list[i]);
+		pblk_update_map(pblk, lba, ppa_list[i]);
 	}
 
 	left_ppas -= rq_ppas;
