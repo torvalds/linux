@@ -63,22 +63,22 @@
  * Low level register access functions
  */
 
-u32 _temac_ior_be(struct temac_local *lp, int offset)
+static u32 _temac_ior_be(struct temac_local *lp, int offset)
 {
 	return ioread32be(lp->regs + offset);
 }
 
-void _temac_iow_be(struct temac_local *lp, int offset, u32 value)
+static void _temac_iow_be(struct temac_local *lp, int offset, u32 value)
 {
 	return iowrite32be(value, lp->regs + offset);
 }
 
-u32 _temac_ior_le(struct temac_local *lp, int offset)
+static u32 _temac_ior_le(struct temac_local *lp, int offset)
 {
 	return ioread32(lp->regs + offset);
 }
 
-void _temac_iow_le(struct temac_local *lp, int offset, u32 value)
+static void _temac_iow_le(struct temac_local *lp, int offset, u32 value)
 {
 	return iowrite32(value, lp->regs + offset);
 }
@@ -645,25 +645,25 @@ static void temac_adjust_link(struct net_device *ndev)
 
 #ifdef CONFIG_64BIT
 
-void ptr_to_txbd(void *p, struct cdmac_bd *bd)
+static void ptr_to_txbd(void *p, struct cdmac_bd *bd)
 {
 	bd->app3 = (u32)(((u64)p) >> 32);
 	bd->app4 = (u32)((u64)p & 0xFFFFFFFF);
 }
 
-void *ptr_from_txbd(struct cdmac_bd *bd)
+static void *ptr_from_txbd(struct cdmac_bd *bd)
 {
 	return (void *)(((u64)(bd->app3) << 32) | bd->app4);
 }
 
 #else
 
-void ptr_to_txbd(void *p, struct cdmac_bd *bd)
+static void ptr_to_txbd(void *p, struct cdmac_bd *bd)
 {
 	bd->app4 = (u32)p;
 }
 
-void *ptr_from_txbd(struct cdmac_bd *bd)
+static void *ptr_from_txbd(struct cdmac_bd *bd)
 {
 	return (void *)(bd->app4);
 }
