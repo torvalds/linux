@@ -6451,8 +6451,7 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 	if (!tp->supports_gmii)
 		phy_set_max_speed(phydev, SPEED_100);
 
-	/* Ensure to advertise everything, incl. pause */
-	linkmode_copy(phydev->advertising, phydev->supported);
+	phy_support_asym_pause(phydev);
 
 	phy_attached_info(phydev);
 
