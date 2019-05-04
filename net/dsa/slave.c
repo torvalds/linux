@@ -778,27 +778,25 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 	struct dsa_mall_tc_entry *mall_tc_entry;
 	__be16 protocol = cls->common.protocol;
 	struct dsa_switch *ds = dp->ds;
-	struct net_device *to_dev;
-	const struct tc_action *a;
+	struct flow_action_entry *act;
 	struct dsa_port *to_dp;
 	int err = -EOPNOTSUPP;
 
 	if (!ds->ops->port_mirror_add)
 		return err;
 
-	if (!tcf_exts_has_one_action(cls->exts))
+	if (!flow_offload_has_one_action(&cls->rule->action))
 		return err;
 
-	a = tcf_exts_first_action(cls->exts);
+	act = &cls->rule->action.entries[0];
 
-	if (is_tcf_mirred_egress_mirror(a) && protocol == htons(ETH_P_ALL)) {
+	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
 		struct dsa_mall_mirror_tc_entry *mirror;
 
-		to_dev = tcf_mirred_dev(a);
-		if (!to_dev)
+		if (!act->dev)
 			return -EINVAL;
 
-		if (!dsa_slave_dev_check(to_dev))
+		if (!dsa_slave_dev_check(act->dev))
 			return -EOPNOTSUPP;
 
 		mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
@@ -809,7 +807,7 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 		mall_tc_entry->type = DSA_PORT_MALL_MIRROR;
 		mirror = &mall_tc_entry->mirror;
 
-		to_dp = dsa_slave_to_port(to_dev);
+		to_dp = dsa_slave_to_port(act->dev);
 
 		mirror->to_local_port = to_dp->index;
 		mirror->ingress = ingress;
