@@ -323,7 +323,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 	return 0;
 }
 
-void __init radix_init_pgtable(void)
+static void __init radix_init_pgtable(void)
 {
 	unsigned long rts_field;
 	struct memblock_region *reg;

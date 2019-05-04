@@ -985,7 +985,7 @@ void __init hash__early_init_devtree(void)
 	htab_scan_page_sizes();
 }
 
-struct hash_mm_context init_hash_mm_context;
+static struct hash_mm_context init_hash_mm_context;
 void __init hash__early_init_mmu(void)
 {
 #ifndef CONFIG_PPC_64K_PAGES

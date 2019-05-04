@@ -45,7 +45,7 @@
 #define HPTE_LOCK_BIT (56+3)
 #endif
 
-DEFINE_RAW_SPINLOCK(native_tlbie_lock);
+static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
 static inline void tlbiel_hash_set_isa206(unsigned int set, unsigned int is)
 {
