@@ -175,11 +175,10 @@ static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
 	WARN_ONCE(j != rqd->nr_ppas, "pblk: corrupted random request\n");
 }
 
-static void pblk_end_user_read(struct bio *bio)
+static void pblk_end_user_read(struct bio *bio, int error)
 {
-#ifdef CONFIG_NVM_PBLK_DEBUG
-	WARN_ONCE(bio->bi_status, "pblk: corrupted read bio\n");
-#endif
+	if (error && error != NVM_RSP_WARN_HIGHECC)
+		bio_io_error(bio);
 	bio_endio(bio);
 }
 
@@ -219,7 +218,7 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 	struct pblk_g_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 	struct bio *bio = (struct bio *)r_ctx->private;
 
-	pblk_end_user_read(bio);
+	pblk_end_user_read(bio, rqd->error);
 	__pblk_end_io_read(pblk, rqd, true);
 }
 
@@ -298,7 +297,7 @@ static void pblk_end_partial_read(struct nvm_rq *rqd)
 	rqd->bio = NULL;
 	rqd->nr_ppas = nr_secs;
 
-	bio_endio(bio);
+	pblk_end_user_read(bio, rqd->error);
 	__pblk_end_io_read(pblk, rqd, false);
 }
 
