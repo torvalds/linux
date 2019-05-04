@@ -89,12 +89,30 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	bool skip_sw = tc_skip_sw(head->flags);
 	int err;
 
+	cls_mall.rule =	flow_rule_alloc(tcf_exts_num_actions(&head->exts));
+	if (!cls_mall.rule)
+		return -ENOMEM;
+
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = TC_CLSMATCHALL_REPLACE;
 	cls_mall.exts = &head->exts;
 	cls_mall.cookie = cookie;
 
+	err = tc_setup_flow_action(&cls_mall.rule->action, &head->exts);
+	if (err) {
+		kfree(cls_mall.rule);
+		mall_destroy_hw_filter(tp, head, cookie, NULL);
+		if (skip_sw)
+			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+		else
+			err = 0;
+
+		return err;
+	}
+
 	err = tc_setup_cb_call(block, TC_SETUP_CLSMATCHALL, &cls_mall, skip_sw);
+	kfree(cls_mall.rule);
+
 	if (err < 0) {
 		mall_destroy_hw_filter(tp, head, cookie, NULL);
 		return err;
@@ -272,13 +290,28 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	if (tc_skip_hw(head->flags))
 		return 0;
 
+	cls_mall.rule =	flow_rule_alloc(tcf_exts_num_actions(&head->exts));
+	if (!cls_mall.rule)
+		return -ENOMEM;
+
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = add ?
 		TC_CLSMATCHALL_REPLACE : TC_CLSMATCHALL_DESTROY;
 	cls_mall.exts = &head->exts;
 	cls_mall.cookie = (unsigned long)head;
 
+	err = tc_setup_flow_action(&cls_mall.rule->action, &head->exts);
+	if (err) {
+		kfree(cls_mall.rule);
+		if (add && tc_skip_sw(head->flags)) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+			return err;
+		}
+	}
+
 	err = cb(TC_SETUP_CLSMATCHALL, &cls_mall, cb_priv);
+	kfree(cls_mall.rule);
+
 	if (err) {
 		if (add && tc_skip_sw(head->flags))
 			return err;

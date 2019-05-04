@@ -789,6 +789,7 @@ enum tc_matchall_command {
 struct tc_cls_matchall_offload {
 	struct tc_cls_common_offload common;
 	enum tc_matchall_command command;
+	struct flow_rule *rule;
 	struct tcf_exts *exts;
 	unsigned long cookie;
 };
