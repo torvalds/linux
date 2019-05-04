@@ -261,6 +261,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_cee_dcb_cfg	= 0x0A07,
 	i40e_aqc_opc_lldp_set_local_mib	= 0x0A08,
 	i40e_aqc_opc_lldp_stop_start_spec_agent	= 0x0A09,
+	i40e_aqc_opc_lldp_restore		= 0x0A0A,
 
 	/* Tunnel commands */
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
@@ -2498,18 +2499,19 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_update_tlv);
 /* Stop LLDP (direct 0x0A05) */
 struct i40e_aqc_lldp_stop {
 	u8	command;
-#define I40E_AQ_LLDP_AGENT_STOP		0x0
-#define I40E_AQ_LLDP_AGENT_SHUTDOWN	0x1
+#define I40E_AQ_LLDP_AGENT_STOP			0x0
+#define I40E_AQ_LLDP_AGENT_SHUTDOWN		0x1
+#define I40E_AQ_LLDP_AGENT_STOP_PERSIST		0x2
 	u8	reserved[15];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_stop);
 
 /* Start LLDP (direct 0x0A06) */
-
 struct i40e_aqc_lldp_start {
 	u8	command;
-#define I40E_AQ_LLDP_AGENT_START	0x1
+#define I40E_AQ_LLDP_AGENT_START		0x1
+#define I40E_AQ_LLDP_AGENT_START_PERSIST	0x2
 	u8	reserved[15];
 };
 
@@ -2632,6 +2634,16 @@ struct i40e_aqc_lldp_stop_start_specific_agent {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_stop_start_specific_agent);
+
+/* Restore LLDP Agent factory settings (direct 0x0A0A) */
+struct i40e_aqc_lldp_restore {
+	u8	command;
+#define I40E_AQ_LLDP_AGENT_RESTORE_NOT		0x0
+#define I40E_AQ_LLDP_AGENT_RESTORE		0x1
+	u8	reserved[15];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_restore);
 
 /* Add Udp Tunnel command and completion (direct 0x0B00) */
 struct i40e_aqc_add_udp_tunnel {
