@@ -1125,6 +1125,9 @@ need to call ``sock->ops->...;`` examples of such functions you can call are
   how they are called in the :c:func:`sys_bind` and :c:func:`sys_listen` system
   call handlers.
 
+  Look for the system call handlers in the ``net/socket.c`` file in the Linux
+  kernel source code tree.
+
 .. note::
 
   For the second argument of the ``listen`` (backlog) call, use the
@@ -1155,6 +1158,11 @@ For the kernel space ``accept`` equivalent, see the system call handler for
 how the ``sock->ops->accept`` call is used. Use ``0`` as the value for the
 second to last argument (``flags``), and ``true`` for the last argument
 (``kern``).
+
+.. note::
+
+  Look for the system call handlers in the ``net/socket.c`` file in the Linux
+  kernel source code tree.
 
 .. note::
 
