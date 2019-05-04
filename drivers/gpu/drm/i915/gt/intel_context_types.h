@@ -13,6 +13,7 @@
 #include <linux/types.h>
 
 #include "i915_active_types.h"
+#include "intel_engine_types.h"
 #include "intel_sseu.h"
 
 struct i915_gem_context;
@@ -51,6 +52,8 @@ struct intel_context {
 
 	atomic_t pin_count;
 	struct mutex pin_mutex; /* guards pinning and associated on-gpuing */
+
+	intel_engine_mask_t saturated; /* submitting semaphores too late? */
 
 	/**
 	 * active_tracker: Active tracker for the external rq activity
