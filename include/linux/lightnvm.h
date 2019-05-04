@@ -428,6 +428,7 @@ struct nvm_dev {
 	char name[DISK_NAME_LEN];
 	void *private_data;
 
+	struct kref ref;
 	void *rmap;
 
 	struct mutex mlock;

@@ -45,6 +45,8 @@ struct nvm_dev_map {
 	int num_ch;
 };
 
+static void nvm_free(struct kref *ref);
+
 static struct nvm_target *nvm_find_target(struct nvm_dev *dev, const char *name)
 {
 	struct nvm_target *tgt;
@@ -501,6 +503,7 @@ static int nvm_remove_tgt(struct nvm_dev *dev, struct nvm_ioctl_remove *remove)
 	}
 	__nvm_remove_target(t, true);
 	mutex_unlock(&dev->mlock);
+	kref_put(&dev->ref, nvm_free);
 
 	return 0;
 }
@@ -1094,15 +1097,16 @@ err_fmtype:
 	return ret;
 }
 
-static void nvm_free(struct nvm_dev *dev)
+static void nvm_free(struct kref *ref)
 {
-	if (!dev)
-		return;
+	struct nvm_dev *dev = container_of(ref, struct nvm_dev, ref);
 
 	if (dev->dma_pool)
 		dev->ops->destroy_dma_pool(dev->dma_pool);
 
-	nvm_unregister_map(dev);
+	if (dev->rmap)
+		nvm_unregister_map(dev);
+
 	kfree(dev->lun_map);
 	kfree(dev);
 }
@@ -1139,7 +1143,13 @@ err:
 
 struct nvm_dev *nvm_alloc_dev(int node)
 {
-	return kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
+	struct nvm_dev *dev;
+
+	dev = kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
+	if (dev)
+		kref_init(&dev->ref);
+
+	return dev;
 }
 EXPORT_SYMBOL(nvm_alloc_dev);
 
@@ -1147,12 +1157,16 @@ int nvm_register(struct nvm_dev *dev)
 {
 	int ret, exp_pool_size;
 
-	if (!dev->q || !dev->ops)
+	if (!dev->q || !dev->ops) {
+		kref_put(&dev->ref, nvm_free);
 		return -EINVAL;
+	}
 
 	ret = nvm_init(dev);
-	if (ret)
+	if (ret) {
+		kref_put(&dev->ref, nvm_free);
 		return ret;
+	}
 
 	exp_pool_size = max_t(int, PAGE_SIZE,
 			      (NVM_MAX_VLBA * (sizeof(u64) + dev->geo.sos)));
@@ -1162,7 +1176,7 @@ int nvm_register(struct nvm_dev *dev)
 						  exp_pool_size);
 	if (!dev->dma_pool) {
 		pr_err("nvm: could not create dma pool\n");
-		nvm_free(dev);
+		kref_put(&dev->ref, nvm_free);
 		return -ENOMEM;
 	}
 
@@ -1184,6 +1198,7 @@ void nvm_unregister(struct nvm_dev *dev)
 		if (t->dev->parent != dev)
 			continue;
 		__nvm_remove_target(t, false);
+		kref_put(&dev->ref, nvm_free);
 	}
 	mutex_unlock(&dev->mlock);
 
@@ -1191,13 +1206,14 @@ void nvm_unregister(struct nvm_dev *dev)
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
 
-	nvm_free(dev);
+	kref_put(&dev->ref, nvm_free);
 }
 EXPORT_SYMBOL(nvm_unregister);
 
 static int __nvm_configure_create(struct nvm_ioctl_create *create)
 {
 	struct nvm_dev *dev;
+	int ret;
 
 	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(create->dev);
@@ -1208,7 +1224,12 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 		return -EINVAL;
 	}
 
-	return nvm_create_tgt(dev, create);
+	kref_get(&dev->ref);
+	ret = nvm_create_tgt(dev, create);
+	if (ret)
+		kref_put(&dev->ref, nvm_free);
+
+	return ret;
 }
 
 static long nvm_ioctl_info(struct file *file, void __user *arg)
