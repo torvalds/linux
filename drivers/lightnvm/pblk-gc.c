@@ -64,19 +64,23 @@ static void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct list_head *move_list;
 
+	spin_lock(&l_mg->gc_lock);
 	spin_lock(&line->lock);
 	WARN_ON(line->state != PBLK_LINESTATE_GC);
 	line->state = PBLK_LINESTATE_CLOSED;
 	trace_pblk_line_state(pblk_disk_name(pblk), line->id,
 					line->state);
+
+	/* We need to reset gc_group in order to ensure that
+	 * pblk_line_gc_list will return proper move_list
+	 * since right now current line is not on any of the
+	 * gc lists.
+	 */
+	line->gc_group = PBLK_LINEGC_NONE;
 	move_list = pblk_line_gc_list(pblk, line);
 	spin_unlock(&line->lock);
-
-	if (move_list) {
-		spin_lock(&l_mg->gc_lock);
-		list_add_tail(&line->list, move_list);
-		spin_unlock(&l_mg->gc_lock);
-	}
+	list_add_tail(&line->list, move_list);
+	spin_unlock(&l_mg->gc_lock);
 }
 
 static void pblk_gc_line_ws(struct work_struct *work)
