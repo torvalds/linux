@@ -189,12 +189,21 @@ struct nfp_flower_priv {
 };
 
 /**
+ * struct nfp_fl_qos - Flower APP priv data for quality of service
+ * @netdev_port_id:	NFP port number of repr with qos info
+ */
+struct nfp_fl_qos {
+	u32 netdev_port_id;
+};
+
+/**
  * struct nfp_flower_repr_priv - Flower APP per-repr priv data
  * @nfp_repr:		Back pointer to nfp_repr
  * @lag_port_flags:	Extended port flags to record lag state of repr
  * @mac_offloaded:	Flag indicating a MAC address is offloaded for repr
  * @offloaded_mac_addr:	MAC address that has been offloaded for repr
  * @mac_list:		List entry of reprs that share the same offloaded MAC
+ * @qos_table:		Stored info on filters implementing qos
  */
 struct nfp_flower_repr_priv {
 	struct nfp_repr *nfp_repr;
@@ -202,6 +211,7 @@ struct nfp_flower_repr_priv {
 	bool mac_offloaded;
 	u8 offloaded_mac_addr[ETH_ALEN];
 	struct list_head mac_list;
+	struct nfp_fl_qos qos_table;
 };
 
 /**
