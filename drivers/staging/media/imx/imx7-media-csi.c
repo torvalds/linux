@@ -1182,7 +1182,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	csi->irq = platform_get_irq(pdev, 0);
 	if (csi->irq < 0) {
 		dev_err(dev, "Missing platform resources data\n");
-		return -ENODEV;
+		return csi->irq;
 	}
 
 	csi->regbase = devm_platform_ioremap_resource(pdev, 0);
