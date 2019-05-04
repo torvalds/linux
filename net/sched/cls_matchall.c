@@ -95,7 +95,6 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = TC_CLSMATCHALL_REPLACE;
-	cls_mall.exts = &head->exts;
 	cls_mall.cookie = cookie;
 
 	err = tc_setup_flow_action(&cls_mall.rule->action, &head->exts);
@@ -297,7 +296,6 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = add ?
 		TC_CLSMATCHALL_REPLACE : TC_CLSMATCHALL_DESTROY;
-	cls_mall.exts = &head->exts;
 	cls_mall.cookie = (unsigned long)head;
 
 	err = tc_setup_flow_action(&cls_mall.rule->action, &head->exts);

@@ -372,30 +372,6 @@ static inline bool tcf_exts_has_actions(struct tcf_exts *exts)
 }
 
 /**
- * tcf_exts_has_one_action - check if exactly one action is present
- * @exts: tc filter extensions handle
- *
- * Returns true if exactly one action is present.
- */
-static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	return exts->nr_actions == 1;
-#else
-	return false;
-#endif
-}
-
-static inline struct tc_action *tcf_exts_first_action(struct tcf_exts *exts)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	return exts->actions[0];
-#else
-	return NULL;
-#endif
-}
-
-/**
  * tcf_exts_exec - execute tc filter extensions
  * @skb: socket buffer
  * @exts: tc filter extensions handle
@@ -790,7 +766,6 @@ struct tc_cls_matchall_offload {
 	struct tc_cls_common_offload common;
 	enum tc_matchall_command command;
 	struct flow_rule *rule;
-	struct tcf_exts *exts;
 	unsigned long cookie;
 };
 
