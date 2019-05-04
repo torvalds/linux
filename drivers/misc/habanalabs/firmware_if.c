@@ -29,13 +29,13 @@ int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
 
 	rc = request_firmware(&fw, fw_name, hdev->dev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to request %s\n", fw_name);
+		dev_err(hdev->dev, "Firmware file %s is not found!\n", fw_name);
 		goto out;
 	}
 
 	fw_size = fw->size;
 	if ((fw_size % 4) != 0) {
-		dev_err(hdev->dev, "illegal %s firmware size %zu\n",
+		dev_err(hdev->dev, "Illegal %s firmware size %zu\n",
 			fw_name, fw_size);
 		rc = -EINVAL;
 		goto out;

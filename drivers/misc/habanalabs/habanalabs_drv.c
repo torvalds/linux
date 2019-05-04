@@ -107,7 +107,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	if (atomic_read(&hdev->fd_open_cnt)) {
 		dev_info_ratelimited(hdev->dev,
-			"Device %s is already attached to application\n",
+			"Can't open %s because another user is working on it\n",
 			dev_name(hdev->dev));
 		mutex_unlock(&hdev->fd_open_cnt_lock);
 		return -EBUSY;
