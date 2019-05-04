@@ -19,16 +19,16 @@ requirements of an operating system's networking subsystem. The networking
 subsystem is not an essential component of an operating system kernel (the Linux
 kernel can be compiled without networking support). It is, however, quite
 unlikely for a computing system (or even an embedded device) to have a
-non-networked operating system due to the need for connectivity. Both Linux
-(Unix) and Windows systems use the `TCP/IP stack
+non-networked operating system due to the need for connectivity. Modern operating
+systems use the `TCP/IP stack
 <https://en.wikipedia.org/wiki/Internet_protocol_suite>`_. Their kernel
-implements protocols up to the transport layer, and application layer protocols
-will be implemented in user-space (HTTP, FTP, SSH, etc.).
+implements protocols up to the transport layer, while application layer protocols
+are tipically implemented in user space (HTTP, FTP, SSH, etc.).
 
-Networking in user-space
+Networking in user space
 ------------------------
 
-In user-space, the abstraction of network communication is the socket. The
+In user space the abstraction of network communication is the socket. The
 socket abstracts a communication channel and is the kernel-based TCP/IP stack
 interaction interface. An IP socket is associated with an IP address, the
 transport layer protocol used (TCP, UDP etc) and a port. Common function calls
@@ -36,16 +36,16 @@ that use sockets are: creation (``socket``), initialization
 (``bind``), connecting (``connect``), waiting for a connection
 (``listen``, ``accept``), closing a socket (``close``).
 
-Network communication is accomplished via read/write or ``recv``/``send`` calls
+Network communication is accomplished via ``read``/``write`` or ``recv``/``send`` calls
 for TCP sockets and ``recvfrom``/``sendto`` for UDP sockets. Transmission and
 reception operations are transparent to the application, leaving encapsulation
 and transmission over network at the kernel's discretion. However, it is
-possible to implement the TCP/IP stack in user-space using raw sockets (the
+possible to implement the TCP/IP stack in user space using raw sockets (the
 ``PF_PACKET`` option when creating a socket), or implementing an application
-layer protocol in kernel(`TUX web server
+layer protocol in kernel (`TUX web server
 <http://en.wikipedia.org/wiki/TUX_web_server>`_).
 
-For more details about user-space programming using sockets, see `Bee's Guide to
+For more details about user space programming using sockets, see `Bee's Guide to
 Network Programming Using Internet
 Sockets <http://www.beej.us/guide/bgnet/output/html/multipage/>`_.
 
@@ -58,7 +58,7 @@ sk_buff`.
 
 The first two are abstractions of a socket:
 
-  * :c:type:`struct socket` is an abstraction very close to user-space, ie `BSD
+  * :c:type:`struct socket` is an abstraction very close to user space, ie `BSD
     sockets <http://en.wikipedia.org/wiki/Berkeley_sockets>`_ used to program
     network applications;
   * :c:type:`struct sock` or *INET socket* in Linux terminology is the network
@@ -69,7 +69,7 @@ socket field, and the :c:type:`struct sock` has a BSD socket that holds it.
 
 The :c:type:`struct sk_buff` structure is the representation of a network packet
 and its status. The structure is created when a kernel packet is received,
-either from the user-space or from the network interface.
+either from the user space or from the network interface.
 
 The :c:type:`struct socket` structure
 -------------------------------------
@@ -83,7 +83,7 @@ calls; they work with the :c:type:`struct socket` structure.
 The :c:type:`struct socket` operations are described in :file:`net/socket.c` and
 are independent of the protocol type. The :c:type:`struct socket` structure is thus
 a generic interface over particular network operations implementations.
-Typically, the names of these operations begin with the ``sock_`` string.
+Typically, the names of these operations begin with the ``sock_`` prefix.
 
 .. _SocketStructOps:
 
@@ -95,7 +95,7 @@ Socket operations are:
 Creation
 """"""""
 
-Creation is similar to calling the :c:func:`socket` function in user-space, but the
+Creation is similar to calling the :c:func:`socket` function in user space, but the
 :c:type:`struct socket` created will be stored in the ``res`` parameter:
 
   * ``int sock_create(int family, int type, int protocol, struct socket **res)``
@@ -123,7 +123,7 @@ The parameters of these calls are as follows:
     :file:`linux/in.h`, of which the most used are ``IPPROTO_TCP`` for TCP and
     ``IPPROTO_UDP`` for UDP.
 
-To create a TCP socket in kernel-space, you must call:
+To create a TCP socket in kernel space, you must call:
 
 .. code-block:: c
 
@@ -147,7 +147,7 @@ and for creating UDP sockets:
   		/* handle error */
   	}
 
-A usage example can be seen in the :c:func:`sys_socket` system call handler:
+A usage sample is part of the :c:func:`sys_socket` system call handler:
 
 .. code-block:: c
 
@@ -225,8 +225,8 @@ The parameters are:
   * ``vec``, a :c:type:`struct kvec` structure, containing a pointer to the buffer
     containing its data and size; as can be seen, it has a similar structure to the
     :c:type:`struct iovec` structure (the :c:type:`struct iovec` structure
-    corresponds to the user-space data, and the :c:type:`struct kvec` structure
-    corresponds to kernel-space data).
+    corresponds to the user space data, and the :c:type:`struct kvec` structure
+    corresponds to kernel space data).
 
 A usage example can be seen in the :c:func:`sys_sendto` system call handler:
 
@@ -386,7 +386,7 @@ The :c:type:`struct sock` structure
 -----------------------------------
 
 The :c:type:`struct sock` describes an ``INET`` socket. Such a structure is
-associated with a user-space socket and implicitly with a :c:type:`struct
+associated with a user space socket and implicitly with a :c:type:`struct
 socket` structure. The structure is used to store information about the status
 of a connection. The structure's fields and associated operations usually begin
 with the ``sk_`` string. Some fields are listed below:
@@ -719,7 +719,7 @@ netfilter
 
 Netfilter is the name of the kernel interface for capturing network packets for
 modifying/analyzing them (for filtering, NAT, etc.). `The netfilter
-<http://www.netfilter.org/>`_ interface is used in user-space by `iptables
+<http://www.netfilter.org/>`_ interface is used in user space by `iptables
 <http://www.frozentux.net/documents/iptables-tutorial/>`_.
 
 In the Linux kernel, packet capture using netfilter is done by attaching hooks.
@@ -993,7 +993,7 @@ Exercises
   marked with ``*``).
 
 
-1. Displaying packets in kernel-space
+1. Displaying packets in kernel space
 -------------------------------------
 
 Write a kernel module that displays the source address and port for TCP packets
@@ -1004,10 +1004,10 @@ account the comments below.
 You will need to register a netfilter hook of type ``NF_INET_LOCAL_OUT`` as explained
 in the `netfilter`_ section.
 
-`The struct sk_buff structure`_ lets you access the packet headers. The IP
-header is obtained in the form of a :c:type:`struct iphdr` structure using
-the :c:func:`ip_hdr` function, and the TCP header is obtained in the form of a
-:c:type:`struct tcphdr` using the :c:func:`tcp_hdr` function.
+`The struct sk_buff structure`_ lets you access the packet headers using
+specific functions. The :c:func:`ip_hdr` function returns the IP header as a
+pointer to a :c:type:`struct iphdr` structure. The :c:func:`tcp_hdr` function
+returns the TCP header as a pointer to a :c:type:`struct tcphdr` structure.
 
 The `diagram`_ explains how to make a TCP connection. The connection initiation
 packet has the ``SYN`` flag set in the TCP header and the ``ACK`` flag cleared.
@@ -1140,7 +1140,7 @@ executable.
 After running the test, a TCP socket will be displayed by listening to
 connections on port ``60000``.
 
-4. Accepting connections in kernel-space
+4. Accepting connections in kernel space
 ----------------------------------------
 
 Expand the module from the previous exercise to allow an external connection (no
@@ -1150,7 +1150,7 @@ with ``TODO 2``.
 Read the `Operations on the socket structure`_ and `The struct proto_ops
 structure`_ sections.
 
-For the kernel-space ``accept`` equivalent, see the system call handler for
+For the kernel space ``accept`` equivalent, see the system call handler for
 :c:func:`sys_accept4`. Follow the :c:func:`lnet_sock_accept` implementation, and
 how the ``sock->ops->accept`` call is used. Use ``0`` as the value for the
 second to last argument (``flags``), and ``true`` for the last argument
@@ -1207,7 +1207,7 @@ Start from the code in :file:`5-udp-sock`.
 Read the `Operations on the socket structure`_ and `The struct proto_ops
 structure`_ sections.
 
-To see how to send messages in the kernel-space, see the :c:func:`sys_send`
+To see how to send messages in the kernel space, see the :c:func:`sys_send`
 system call handler or `Sending/receiving messages`_.
 
 .. hint::
@@ -1224,7 +1224,7 @@ system call handler or `Sending/receiving messages`_.
 
 For sending the message use :c:func:`kernel_sendmsg`.
 
-The message transmission parameters are retrieved from the kernel-space. Cast
+The message transmission parameters are retrieved from the kernel space. Cast
 the :c:type:`struct iovec` structure pointer to a :c:type:`struct kvec` pointer
 in the :c:func:`kernel_sendmsg` call.
 
