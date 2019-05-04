@@ -116,8 +116,7 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 }
 
 static int
-mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
-		    int cmd, struct sk_buff **skb_ret)
+mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb, int cmd)
 {
 	unsigned long expires = jiffies + 10 * HZ;
 	struct mt7615_mcu_rxd *rxd;
@@ -142,18 +141,11 @@ mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 		if (seq != rxd->seq)
 			continue;
 
-		if (skb_ret) {
-			int hdr_len = sizeof(*rxd);
-
-			if (!test_bit(MT76_STATE_MCU_RUNNING,
-				      &dev->mt76.state))
-				hdr_len -= 4;
-			skb_pull(skb, hdr_len);
-			*skb_ret = skb;
-		} else {
-			dev_kfree_skb(skb);
+		if (cmd == -MCU_CMD_PATCH_SEM_CONTROL) {
+			skb_pull(skb, sizeof(*rxd) - 4);
+			ret = *skb->data;
 		}
-
+		dev_kfree_skb(skb);
 		break;
 	}
 
@@ -177,8 +169,7 @@ static int mt7615_mcu_init_download(struct mt7615_dev *dev, u32 addr,
 	};
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_TARGET_ADDRESS_LEN_REQ,
-				   NULL);
+	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_TARGET_ADDRESS_LEN_REQ);
 }
 
 static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
@@ -219,43 +210,26 @@ static int mt7615_mcu_start_firmware(struct mt7615_dev *dev, u32 addr,
 	};
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_FW_START_REQ, NULL);
+	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_FW_START_REQ);
 }
 
 static int mt7615_mcu_restart(struct mt7615_dev *dev)
 {
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(NULL, 0);
 
-	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_RESTART_DL_REQ, NULL);
+	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_RESTART_DL_REQ);
 }
 
 static int mt7615_mcu_patch_sem_ctrl(struct mt7615_dev *dev, bool get)
 {
 	struct {
-		__le32 operation;
+		__le32 op;
 	} req = {
-		.operation = cpu_to_le32(get ? PATCH_SEM_GET :
-					 PATCH_SEM_RELEASE),
+		.op = cpu_to_le32(get ? PATCH_SEM_GET : PATCH_SEM_RELEASE),
 	};
-	struct event {
-		u8 status;
-		u8 reserved[3];
-	} *resp;
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
-	struct sk_buff *skb_ret;
-	int ret;
 
-	ret = mt7615_mcu_msg_send(dev, skb, -MCU_CMD_PATCH_SEM_CONTROL,
-				  &skb_ret);
-	if (ret)
-		goto out;
-
-	resp = (struct event *)(skb_ret->data);
-	ret = resp->status;
-	dev_kfree_skb(skb_ret);
-
-out:
-	return ret;
+	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_PATCH_SEM_CONTROL);
 }
 
 static int mt7615_mcu_start_patch(struct mt7615_dev *dev)
@@ -268,7 +242,7 @@ static int mt7615_mcu_start_patch(struct mt7615_dev *dev)
 	};
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_PATCH_FINISH_REQ, NULL);
+	return mt7615_mcu_msg_send(dev, skb, -MCU_CMD_PATCH_FINISH_REQ);
 }
 
 static int mt7615_driver_own(struct mt7615_dev *dev)
@@ -554,8 +528,7 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev)
 	for (off = MT_EE_NIC_CONF_0; off < __MT_EE_MAX; off++)
 		data[off - MT_EE_NIC_CONF_0].val = eep[off];
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
-				   NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_EFUSE_BUFFER_MODE);
 }
 
 int mt7615_mcu_init_mac(struct mt7615_dev *dev)
@@ -570,7 +543,7 @@ int mt7615_mcu_init_mac(struct mt7615_dev *dev)
 	};
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_MAC_INIT_CTRL, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_MAC_INIT_CTRL);
 }
 
 int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val)
@@ -589,7 +562,7 @@ int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val)
 	};
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_PROTECT_CTRL, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_PROTECT_CTRL);
 }
 
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
@@ -627,7 +600,7 @@ int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 	}
 
 	skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_EDCA_UPDATE, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_EDCA_UPDATE);
 }
 
 int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter)
@@ -657,7 +630,7 @@ int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter)
 	};
 	struct sk_buff *skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_PM_STATE_CTRL, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_PM_STATE_CTRL);
 }
 
 static int __mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
@@ -704,8 +677,7 @@ static int __mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
 
 	memcpy(skb_push(skb, sizeof(req_hdr)), &req_hdr, sizeof(req_hdr));
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_DEV_INFO_UPDATE,
-				   NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_DEV_INFO_UPDATE);
 }
 
 int mt7615_mcu_set_dev_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
@@ -830,8 +802,7 @@ static int __mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
 		    bss_info_tag_handler[i].handler)
 			bss_info_tag_handler[i].handler(dev, bss_info, skb);
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_BSS_INFO_UPDATE,
-				   NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_BSS_INFO_UPDATE);
 }
 
 int mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
@@ -914,7 +885,7 @@ __mt7615_mcu_set_wtbl(struct mt7615_dev *dev, int wlan_idx,
 	if (buf && buf_len)
 		memcpy(skb_put(skb, buf_len), buf, buf_len);
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_WTBL_UPDATE, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_WTBL_UPDATE);
 }
 
 static enum mt7615_cipher_type
@@ -1092,7 +1063,7 @@ __mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, int bss_idx,
 	if (buf && buf_len)
 		memcpy(skb_put(skb, buf_len), buf, buf_len);
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_STA_REC_UPDATE, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_STA_REC_UPDATE);
 }
 
 int mt7615_mcu_set_sta_rec_bmc(struct mt7615_dev *dev,
@@ -1220,7 +1191,7 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	dev_kfree_skb(skb);
 	skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_BCN_OFFLOAD, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_BCN_OFFLOAD);
 }
 
 int mt7615_mcu_set_channel(struct mt7615_dev *dev)
@@ -1285,12 +1256,12 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 	memset(req.txpower_sku, 0x3f, 49);
 
 	skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
-	ret = mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_CHANNEL_SWITCH, NULL);
+	ret = mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_CHANNEL_SWITCH);
 	if (ret)
 		return ret;
 
 	skb = mt7615_mcu_msg_alloc(&req, sizeof(req));
-	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_SET_RX_PATH, NULL);
+	return mt7615_mcu_msg_send(dev, skb, MCU_EXT_CMD_SET_RX_PATH);
 }
 
 int mt7615_mcu_set_ht_cap(struct mt7615_dev *dev, struct ieee80211_vif *vif,
