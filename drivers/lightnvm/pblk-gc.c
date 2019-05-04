@@ -358,8 +358,13 @@ static int pblk_gc_read(struct pblk *pblk)
 
 	pblk_gc_kick(pblk);
 
-	if (pblk_gc_line(pblk, line))
+	if (pblk_gc_line(pblk, line)) {
 		pblk_err(pblk, "failed to GC line %d\n", line->id);
+		/* rollback */
+		spin_lock(&gc->r_lock);
+		list_add_tail(&line->list, &gc->r_list);
+		spin_unlock(&gc->r_lock);
+	}
 
 	return 0;
 }
