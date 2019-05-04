@@ -181,7 +181,7 @@ static int mlx5_netdev_event(struct notifier_block *this,
 							  ibdev->rep->vport);
 			if (rep_ndev == ndev)
 				roce->netdev = ndev;
-		} else if (ndev->dev.parent == &mdev->pdev->dev) {
+		} else if (ndev->dev.parent == mdev->device) {
 			roce->netdev = ndev;
 		}
 		write_unlock(&roce->netdev_lock);
@@ -4356,9 +4356,13 @@ static void delay_drop_handler(struct work_struct *work)
 static void handle_general_event(struct mlx5_ib_dev *ibdev, struct mlx5_eqe *eqe,
 				 struct ib_event *ibev)
 {
+	u8 port = (eqe->data.port.port >> 4) & 0xf;
+
 	switch (eqe->sub_type) {
 	case MLX5_GENERAL_SUBTYPE_DELAY_DROP_TIMEOUT:
-		schedule_work(&ibdev->delay_drop.delay_drop_work);
+		if (mlx5_ib_port_link_layer(&ibdev->ib_dev, port) ==
+					    IB_LINK_LAYER_ETHERNET)
+			schedule_work(&ibdev->delay_drop.delay_drop_work);
 		break;
 	default: /* do nothing */
 		return;
@@ -5675,7 +5679,8 @@ static int mlx5_ib_init_multiport_master(struct mlx5_ib_dev *dev)
 			}
 
 			if (bound) {
-				dev_dbg(&mpi->mdev->pdev->dev, "removing port from unaffiliated list.\n");
+				dev_dbg(mpi->mdev->device,
+					"removing port from unaffiliated list.\n");
 				mlx5_ib_dbg(dev, "port %d bound\n", i + 1);
 				list_del(&mpi->list);
 				break;
@@ -5874,7 +5879,7 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
 	dev->ib_dev.phys_port_cnt	= dev->num_ports;
 	dev->ib_dev.num_comp_vectors    = mlx5_comp_vectors_count(mdev);
-	dev->ib_dev.dev.parent		= &mdev->pdev->dev;
+	dev->ib_dev.dev.parent		= mdev->device;
 
 	mutex_init(&dev->cap_mask_mutex);
 	INIT_LIST_HEAD(&dev->qp_list);
@@ -6563,7 +6568,8 @@ static void *mlx5_ib_add_slave_port(struct mlx5_core_dev *mdev)
 
 	if (!bound) {
 		list_add_tail(&mpi->list, &mlx5_ib_unaffiliated_port_list);
-		dev_dbg(&mdev->pdev->dev, "no suitable IB device found to bind to, added to unaffiliated list.\n");
+		dev_dbg(mdev->device,
+			"no suitable IB device found to bind to, added to unaffiliated list.\n");
 	}
 	mutex_unlock(&mlx5_ib_multiport_mutex);
 

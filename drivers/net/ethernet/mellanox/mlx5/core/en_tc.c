@@ -664,7 +664,8 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	}
 
 	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d (log) data %d packets %d\n",
-		   hp->tirn, hp->pair->rqn[0], hp->pair->peer_mdev->priv.name,
+		   hp->tirn, hp->pair->rqn[0],
+		   dev_name(hp->pair->peer_mdev->device),
 		   hp->pair->sqn[0], match_prio, params.log_data_size, params.log_num_packets);
 
 	hpe->hp = hp;
@@ -701,7 +702,7 @@ static void mlx5e_hairpin_flow_del(struct mlx5e_priv *priv,
 		hpe = list_entry(next, struct mlx5e_hairpin_entry, flows);
 
 		netdev_dbg(priv->netdev, "del hairpin: peer %s\n",
-			   hpe->hp->pair->peer_mdev->priv.name);
+			   dev_name(hpe->hp->pair->peer_mdev->device));
 
 		mlx5e_hairpin_destroy(hpe->hp);
 		hash_del(&hpe->hairpin_hlist);
@@ -2435,6 +2436,30 @@ static int add_vlan_rewrite_action(struct mlx5e_priv *priv, int namespace,
 	return err;
 }
 
+static int
+add_vlan_prio_tag_rewrite_action(struct mlx5e_priv *priv,
+				 struct mlx5e_tc_flow_parse_attr *parse_attr,
+				 struct pedit_headers_action *hdrs,
+				 u32 *action, struct netlink_ext_ack *extack)
+{
+	const struct flow_action_entry prio_tag_act = {
+		.vlan.vid = 0,
+		.vlan.prio =
+			MLX5_GET(fte_match_set_lyr_2_4,
+				 get_match_headers_value(*action,
+							 &parse_attr->spec),
+				 first_prio) &
+			MLX5_GET(fte_match_set_lyr_2_4,
+				 get_match_headers_criteria(*action,
+							    &parse_attr->spec),
+				 first_prio),
+	};
+
+	return add_vlan_rewrite_action(priv, MLX5_FLOW_NAMESPACE_FDB,
+				       &prio_tag_act, parse_attr, hdrs, action,
+				       extack);
+}
+
 static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
@@ -2946,6 +2971,18 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		}
 	}
 
+	if (MLX5_CAP_GEN(esw->dev, prio_tag_required) &&
+	    action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) {
+		/* For prio tag mode, replace vlan pop with rewrite vlan prio
+		 * tag rewrite.
+		 */
+		action &= ~MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+		err = add_vlan_prio_tag_rewrite_action(priv, parse_attr, hdrs,
+						       &action, extack);
+		if (err)
+			return err;
+	}
+
 	if (hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits ||
 	    hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits) {
 		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_FDB,
@@ -3327,6 +3364,7 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		netdev_warn_once(priv->netdev,
 				 "flow cookie %lx already exists, ignoring\n",
 				 f->cookie);
+		err = -EEXIST;
 		goto out;
 	}
 
