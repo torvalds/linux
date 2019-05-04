@@ -3069,9 +3069,9 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	}
 
 	udc->udp_baseaddr = devm_ioremap_resource(dev, res);
-	if (!udc->udp_baseaddr) {
+	if (IS_ERR(udc->udp_baseaddr)) {
 		dev_err(udc->dev, "IO map failure\n");
-		return -ENOMEM;
+		return PTR_ERR(udc->udp_baseaddr);
 	}
 
 	/* Get USB device clock */
