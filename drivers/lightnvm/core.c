@@ -483,7 +483,6 @@ static void __nvm_remove_target(struct nvm_target *t, bool graceful)
 
 /**
  * nvm_remove_tgt - Removes a target from the media manager
- * @dev:	device
  * @remove:	ioctl structure with target name to remove.
  *
  * Returns:
@@ -491,18 +490,27 @@ static void __nvm_remove_target(struct nvm_target *t, bool graceful)
  * 1: on not found
  * <0: on error
  */
-static int nvm_remove_tgt(struct nvm_dev *dev, struct nvm_ioctl_remove *remove)
+static int nvm_remove_tgt(struct nvm_ioctl_remove *remove)
 {
 	struct nvm_target *t;
+	struct nvm_dev *dev;
 
-	mutex_lock(&dev->mlock);
-	t = nvm_find_target(dev, remove->tgtname);
-	if (!t) {
+	down_read(&nvm_lock);
+	list_for_each_entry(dev, &nvm_devices, devices) {
+		mutex_lock(&dev->mlock);
+		t = nvm_find_target(dev, remove->tgtname);
+		if (t) {
+			mutex_unlock(&dev->mlock);
+			break;
+		}
 		mutex_unlock(&dev->mlock);
-		return 1;
 	}
+	up_read(&nvm_lock);
+
+	if (!t)
+		return 1;
+
 	__nvm_remove_target(t, true);
-	mutex_unlock(&dev->mlock);
 	kref_put(&dev->ref, nvm_free);
 
 	return 0;
@@ -1348,8 +1356,6 @@ static long nvm_ioctl_dev_create(struct file *file, void __user *arg)
 static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 {
 	struct nvm_ioctl_remove remove;
-	struct nvm_dev *dev;
-	int ret = 0;
 
 	if (copy_from_user(&remove, arg, sizeof(struct nvm_ioctl_remove)))
 		return -EFAULT;
@@ -1361,15 +1367,7 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 		return -EINVAL;
 	}
 
-	down_read(&nvm_lock);
-	list_for_each_entry(dev, &nvm_devices, devices) {
-		ret = nvm_remove_tgt(dev, &remove);
-		if (!ret)
-			break;
-	}
-	up_read(&nvm_lock);
-
-	return ret;
+	return nvm_remove_tgt(&remove);
 }
 
 /* kept for compatibility reasons */
