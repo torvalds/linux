@@ -853,12 +853,13 @@ u8 rtw_vht_2s_rates[] = {
 	DESC_RATEVHT2SS_MCS6, DESC_RATEVHT2SS_MCS7,
 	DESC_RATEVHT2SS_MCS8, DESC_RATEVHT2SS_MCS9
 };
-u8 rtw_cck_size = ARRAY_SIZE(rtw_cck_rates);
-u8 rtw_ofdm_size = ARRAY_SIZE(rtw_ofdm_rates);
-u8 rtw_ht_1s_size = ARRAY_SIZE(rtw_ht_1s_rates);
-u8 rtw_ht_2s_size = ARRAY_SIZE(rtw_ht_2s_rates);
-u8 rtw_vht_1s_size = ARRAY_SIZE(rtw_vht_1s_rates);
-u8 rtw_vht_2s_size = ARRAY_SIZE(rtw_vht_2s_rates);
+
+static u8 rtw_cck_size = ARRAY_SIZE(rtw_cck_rates);
+static u8 rtw_ofdm_size = ARRAY_SIZE(rtw_ofdm_rates);
+static u8 rtw_ht_1s_size = ARRAY_SIZE(rtw_ht_1s_rates);
+static u8 rtw_ht_2s_size = ARRAY_SIZE(rtw_ht_2s_rates);
+static u8 rtw_vht_1s_size = ARRAY_SIZE(rtw_vht_1s_rates);
+static u8 rtw_vht_2s_size = ARRAY_SIZE(rtw_vht_2s_rates);
 u8 *rtw_rate_section[RTW_RATE_SECTION_MAX] = {
 	rtw_cck_rates, rtw_ofdm_rates,
 	rtw_ht_1s_rates, rtw_ht_2s_rates,
