@@ -1269,21 +1269,19 @@ mlxsw_sp_port_mall_tc_entry_find(struct mlxsw_sp_port *port,
 static int
 mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct mlxsw_sp_port_mall_mirror_tc_entry *mirror,
-				      const struct tc_action *a,
+				      const struct flow_action_entry *act,
 				      bool ingress)
 {
 	enum mlxsw_sp_span_type span_type;
-	struct net_device *to_dev;
 
-	to_dev = tcf_mirred_dev(a);
-	if (!to_dev) {
+	if (!act->dev) {
 		netdev_err(mlxsw_sp_port->dev, "Could not find requested device\n");
 		return -EINVAL;
 	}
 
 	mirror->ingress = ingress;
 	span_type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, to_dev, span_type,
+	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, act->dev, span_type,
 					true, &mirror->span_id);
 }
 
@@ -1302,7 +1300,7 @@ mlxsw_sp_port_del_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 static int
 mlxsw_sp_port_add_cls_matchall_sample(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct tc_cls_matchall_offload *cls,
-				      const struct tc_action *a,
+				      const struct flow_action_entry *act,
 				      bool ingress)
 {
 	int err;
@@ -1313,18 +1311,18 @@ mlxsw_sp_port_add_cls_matchall_sample(struct mlxsw_sp_port *mlxsw_sp_port,
 		netdev_err(mlxsw_sp_port->dev, "sample already active\n");
 		return -EEXIST;
 	}
-	if (tcf_sample_rate(a) > MLXSW_REG_MPSC_RATE_MAX) {
+	if (act->sample.rate > MLXSW_REG_MPSC_RATE_MAX) {
 		netdev_err(mlxsw_sp_port->dev, "sample rate not supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	rcu_assign_pointer(mlxsw_sp_port->sample->psample_group,
-			   tcf_sample_psample_group(a));
-	mlxsw_sp_port->sample->truncate = tcf_sample_truncate(a);
-	mlxsw_sp_port->sample->trunc_size = tcf_sample_trunc_size(a);
-	mlxsw_sp_port->sample->rate = tcf_sample_rate(a);
+			   act->sample.psample_group);
+	mlxsw_sp_port->sample->truncate = act->sample.truncate;
+	mlxsw_sp_port->sample->trunc_size = act->sample.trunc_size;
+	mlxsw_sp_port->sample->rate = act->sample.rate;
 
-	err = mlxsw_sp_port_sample_set(mlxsw_sp_port, true, tcf_sample_rate(a));
+	err = mlxsw_sp_port_sample_set(mlxsw_sp_port, true, act->sample.rate);
 	if (err)
 		goto err_port_sample_set;
 	return 0;
@@ -1350,10 +1348,10 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
 	__be16 protocol = f->common.protocol;
-	const struct tc_action *a;
+	struct flow_action_entry *act;
 	int err;
 
-	if (!tcf_exts_has_one_action(f->exts)) {
+	if (!flow_offload_has_one_action(&f->rule->action)) {
 		netdev_err(mlxsw_sp_port->dev, "only singular actions are supported\n");
 		return -EOPNOTSUPP;
 	}
@@ -1363,19 +1361,21 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -ENOMEM;
 	mall_tc_entry->cookie = f->cookie;
 
-	a = tcf_exts_first_action(f->exts);
+	act = &f->rule->action.entries[0];
 
-	if (is_tcf_mirred_egress_mirror(a) && protocol == htons(ETH_P_ALL)) {
+	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
 		struct mlxsw_sp_port_mall_mirror_tc_entry *mirror;
 
 		mall_tc_entry->type = MLXSW_SP_PORT_MALL_MIRROR;
 		mirror = &mall_tc_entry->mirror;
 		err = mlxsw_sp_port_add_cls_matchall_mirror(mlxsw_sp_port,
-							    mirror, a, ingress);
-	} else if (is_tcf_sample(a) && protocol == htons(ETH_P_ALL)) {
+							    mirror, act,
+							    ingress);
+	} else if (act->id == FLOW_ACTION_SAMPLE &&
+		   protocol == htons(ETH_P_ALL)) {
 		mall_tc_entry->type = MLXSW_SP_PORT_MALL_SAMPLE;
 		err = mlxsw_sp_port_add_cls_matchall_sample(mlxsw_sp_port, f,
-							    a, ingress);
+							    act, ingress);
 	} else {
 		err = -EOPNOTSUPP;
 	}
