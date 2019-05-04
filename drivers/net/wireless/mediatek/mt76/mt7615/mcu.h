@@ -131,39 +131,9 @@ enum {
 #define CONN_STATE_CONNECT	1
 #define CONN_STATE_PORT_SECURE	2
 
-struct dev_info {
-	u8 omac_idx;
-	u8 omac_addr[ETH_ALEN];
-	u8 band_idx;
-	u8 enable;
-	u32 feature;
-};
-
 enum {
 	DEV_INFO_ACTIVE,
 	DEV_INFO_MAX_NUM
-};
-
-struct bss_info {
-	u8 bss_idx;
-	u8 bssid[ETH_ALEN];
-	u8 omac_idx;
-	u8 band_idx;
-	u8 bmc_tx_wlan_idx; /* for bmc tx (sta mode use uc entry) */
-	u8 wmm_idx;
-	u32 network_type;
-	u32 conn_type;
-	u16 bcn_interval;
-	u8 dtim_period;
-	u8 enable;
-	u32 feature;
-};
-
-struct bss_info_tag_handler {
-	u32 tag;
-	u32 len;
-	void (*handler)(struct mt7615_dev *dev,
-			struct bss_info *bss_info, struct sk_buff *skb);
 };
 
 struct bss_info_omac {
