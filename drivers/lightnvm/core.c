@@ -1340,11 +1340,13 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 		return -EINVAL;
 	}
 
+	down_read(&nvm_lock);
 	list_for_each_entry(dev, &nvm_devices, devices) {
 		ret = nvm_remove_tgt(dev, &remove);
 		if (!ret)
 			break;
 	}
+	up_read(&nvm_lock);
 
 	return ret;
 }
