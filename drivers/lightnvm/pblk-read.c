@@ -568,7 +568,7 @@ static int read_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 		goto out;
 
 	/* logic error: lba out-of-bounds */
-	if (lba >= pblk->rl.nr_secs) {
+	if (lba >= pblk->capacity) {
 		WARN(1, "pblk: read lba out of bounds\n");
 		goto out;
 	}

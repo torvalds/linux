@@ -474,7 +474,7 @@ retry_rq:
 
 		lba_list[paddr++] = cpu_to_le64(lba);
 
-		if (lba == ADDR_EMPTY || lba > pblk->rl.nr_secs)
+		if (lba == ADDR_EMPTY || lba >= pblk->capacity)
 			continue;
 
 		line->nr_valid_lbas++;

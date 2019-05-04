@@ -305,7 +305,6 @@ struct pblk_rl {
 
 	struct timer_list u_timer;
 
-	unsigned long long nr_secs;
 	unsigned long total_blocks;
 
 	atomic_t free_blocks;		/* Total number of free blocks (+ OP) */
