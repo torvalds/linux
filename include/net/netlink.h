@@ -401,6 +401,8 @@ struct nl_info {
  *	are enforced going forward.
  * @NL_VALIDATE_STRICT_ATTRS: strict attribute policy parsing (e.g.
  *	U8, U16, U32 must have exact size, etc.)
+ * @NL_VALIDATE_NESTED: Check that NLA_F_NESTED is set for NLA_NESTED(_ARRAY)
+ *	and unset for other policies.
  */
 enum netlink_validation {
 	NL_VALIDATE_LIBERAL = 0,
@@ -408,6 +410,7 @@ enum netlink_validation {
 	NL_VALIDATE_MAXTYPE = BIT(1),
 	NL_VALIDATE_UNSPEC = BIT(2),
 	NL_VALIDATE_STRICT_ATTRS = BIT(3),
+	NL_VALIDATE_NESTED = BIT(4),
 };
 
 #define NL_VALIDATE_DEPRECATED_STRICT (NL_VALIDATE_TRAILING |\
@@ -415,7 +418,8 @@ enum netlink_validation {
 #define NL_VALIDATE_STRICT (NL_VALIDATE_TRAILING |\
 			    NL_VALIDATE_MAXTYPE |\
 			    NL_VALIDATE_UNSPEC |\
-			    NL_VALIDATE_STRICT_ATTRS)
+			    NL_VALIDATE_STRICT_ATTRS |\
+			    NL_VALIDATE_NESTED)
 
 int netlink_rcv_skb(struct sk_buff *skb,
 		    int (*cb)(struct sk_buff *, struct nlmsghdr *,
@@ -1132,6 +1136,11 @@ static inline int nla_parse_nested(struct nlattr *tb[], int maxtype,
 				   const struct nla_policy *policy,
 				   struct netlink_ext_ack *extack)
 {
+	if (!(nla->nla_type & NLA_F_NESTED)) {
+		NL_SET_ERR_MSG_ATTR(extack, nla, "NLA_F_NESTED is missing");
+		return -EINVAL;
+	}
+
 	return __nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy,
 			   NL_VALIDATE_STRICT, extack);
 }

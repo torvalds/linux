@@ -184,6 +184,21 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		}
 	}
 
+	if (validate & NL_VALIDATE_NESTED) {
+		if ((pt->type == NLA_NESTED || pt->type == NLA_NESTED_ARRAY) &&
+		    !(nla->nla_type & NLA_F_NESTED)) {
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "NLA_F_NESTED is missing");
+			return -EINVAL;
+		}
+		if (pt->type != NLA_NESTED && pt->type != NLA_NESTED_ARRAY &&
+		    pt->type != NLA_UNSPEC && (nla->nla_type & NLA_F_NESTED)) {
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "NLA_F_NESTED not expected");
+			return -EINVAL;
+		}
+	}
+
 	switch (pt->type) {
 	case NLA_EXACT_LEN:
 		if (attrlen != pt->len)
@@ -356,7 +371,8 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
 
 		if (type == 0 || type > maxtype) {
 			if (validate & NL_VALIDATE_MAXTYPE) {
-				NL_SET_ERR_MSG(extack, "Unknown attribute type");
+				NL_SET_ERR_MSG_ATTR(extack, nla,
+						    "Unknown attribute type");
 				return -EINVAL;
 			}
 			continue;
