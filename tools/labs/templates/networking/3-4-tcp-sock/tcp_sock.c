@@ -96,7 +96,7 @@ int __init my_tcp_sock_init(void)
 		goto out_release_new_sock;
 	}
 
-	/* TODO 2/7: get the address of the peer and print it */
+	/* TODO 2/6: get the address of the peer and print it */
 	err = sock->ops->getname(new_sock, (struct sockaddr *) &raddr, 1);
 	if (err < 0) {
 		printk(LOG_LEVEL "can't find peer name\n");
