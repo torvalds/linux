@@ -201,6 +201,13 @@ enum {
 	WTBL_RESET_ALL
 };
 
+struct wtbl_req_hdr {
+	u8 wlan_idx;
+	u8 operation;
+	__le16 tlv_num;
+	u8 rsv[4];
+} __packed;
+
 struct wtbl_generic {
 	__le16 tag;
 	__le16 len;
@@ -366,7 +373,8 @@ struct wtbl_raw {
 	__le32 val;
 } __packed;
 
-#define MT7615_WTBL_UPDATE_MAX_SIZE (sizeof(struct wtbl_generic) + \
+#define MT7615_WTBL_UPDATE_MAX_SIZE (sizeof(struct wtbl_req_hdr) + \
+				     sizeof(struct wtbl_generic) + \
 				     sizeof(struct wtbl_rx) + \
 				     sizeof(struct wtbl_ht) + \
 				     sizeof(struct wtbl_vht) + \
@@ -399,6 +407,15 @@ enum {
 	WTBL_SPE,
 	WTBL_MAX_NUM
 };
+
+struct sta_req_hdr {
+	u8 bss_idx;
+	u8 wlan_idx;
+	__le16 tlv_num;
+	u8 is_tlv_append;
+	u8 muar_idx;
+	u8 rsv[2];
+} __packed;
 
 struct sta_rec_basic {
 	__le16 tag;
