@@ -867,7 +867,7 @@ void pblk_get_packed_meta(struct pblk *pblk, struct nvm_rq *rqd);
 /*
  * pblk user I/O write path
  */
-int pblk_write_to_cache(struct pblk *pblk, struct bio *bio,
+void pblk_write_to_cache(struct pblk *pblk, struct bio *bio,
 			unsigned long flags);
 int pblk_write_gc_to_cache(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 
@@ -893,7 +893,7 @@ void pblk_write_kick(struct pblk *pblk);
  * pblk read path
  */
 extern struct bio_set pblk_bio_set;
-int pblk_submit_read(struct pblk *pblk, struct bio *bio);
+void pblk_submit_read(struct pblk *pblk, struct bio *bio);
 int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 /*
  * pblk recovery

@@ -50,7 +50,6 @@ struct bio_set pblk_bio_set;
 static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 {
 	struct pblk *pblk = q->queuedata;
-	int ret;
 
 	if (bio_op(bio) == REQ_OP_DISCARD) {
 		pblk_discard(pblk, bio);
@@ -65,7 +64,7 @@ static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 	 */
 	if (bio_data_dir(bio) == READ) {
 		blk_queue_split(q, &bio);
-		ret = pblk_submit_read(pblk, bio);
+		pblk_submit_read(pblk, bio);
 	} else {
 		/* Prevent deadlock in the case of a modest LUN configuration
 		 * and large user I/Os. Unless stalled, the rate limiter
@@ -74,16 +73,7 @@ static blk_qc_t pblk_make_rq(struct request_queue *q, struct bio *bio)
 		if (pblk_get_secs(bio) > pblk_rl_max_io(&pblk->rl))
 			blk_queue_split(q, &bio);
 
-		ret = pblk_write_to_cache(pblk, bio, PBLK_IOTYPE_USER);
-	}
-
-	switch (ret) {
-	case NVM_IO_ERR:
-		bio_io_error(bio);
-		break;
-	case NVM_IO_DONE:
-		bio_endio(bio);
-		break;
+		pblk_write_to_cache(pblk, bio, PBLK_IOTYPE_USER);
 	}
 
 	return BLK_QC_T_NONE;

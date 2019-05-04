@@ -179,7 +179,8 @@ static void pblk_end_user_read(struct bio *bio, int error)
 {
 	if (error && error != NVM_RSP_WARN_HIGHECC)
 		bio_io_error(bio);
-	bio_endio(bio);
+	else
+		bio_endio(bio);
 }
 
 static void __pblk_end_io_read(struct pblk *pblk, struct nvm_rq *rqd,
@@ -389,7 +390,6 @@ err:
 
 	/* Free allocated pages in new bio */
 	pblk_bio_free_pages(pblk, rqd->bio, 0, rqd->bio->bi_vcnt);
-	__pblk_end_io_read(pblk, rqd, false);
 	return NVM_IO_ERR;
 }
 
@@ -434,7 +434,7 @@ retry:
 	}
 }
 
-int pblk_submit_read(struct pblk *pblk, struct bio *bio)
+void pblk_submit_read(struct pblk *pblk, struct bio *bio)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct request_queue *q = dev->q;
@@ -442,9 +442,9 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	unsigned int nr_secs = pblk_get_secs(bio);
 	struct pblk_g_ctx *r_ctx;
 	struct nvm_rq *rqd;
+	struct bio *int_bio;
 	unsigned int bio_init_idx;
 	DECLARE_BITMAP(read_bitmap, NVM_MAX_VLBA);
-	int ret = NVM_IO_ERR;
 
 	generic_start_io_acct(q, REQ_OP_READ, bio_sectors(bio),
 			      &pblk->disk->part0);
@@ -455,74 +455,67 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 
 	rqd->opcode = NVM_OP_PREAD;
 	rqd->nr_ppas = nr_secs;
-	rqd->bio = NULL; /* cloned bio if needed */
 	rqd->private = pblk;
 	rqd->end_io = pblk_end_io_read;
 
 	r_ctx = nvm_rq_to_pdu(rqd);
 	r_ctx->start_time = jiffies;
 	r_ctx->lba = blba;
-	r_ctx->private = bio; /* original bio */
 
 	/* Save the index for this bio's start. This is needed in case
 	 * we need to fill a partial read.
 	 */
 	bio_init_idx = pblk_get_bi_idx(bio);
 
-	if (pblk_alloc_rqd_meta(pblk, rqd))
-		goto fail_rqd_free;
+	if (pblk_alloc_rqd_meta(pblk, rqd)) {
+		bio_io_error(bio);
+		pblk_free_rqd(pblk, rqd, PBLK_READ);
+		return;
+	}
+
+	/* Clone read bio to deal internally with:
+	 * -read errors when reading from drive
+	 * -bio_advance() calls during l2p lookup and cache reads
+	 */
+	int_bio = bio_clone_fast(bio, GFP_KERNEL, &pblk_bio_set);
 
 	if (nr_secs > 1)
 		pblk_read_ppalist_rq(pblk, rqd, bio, blba, read_bitmap);
 	else
 		pblk_read_rq(pblk, rqd, bio, blba, read_bitmap);
 
+	r_ctx->private = bio; /* original bio */
+	rqd->bio = int_bio; /* internal bio */
+
 	if (bitmap_full(read_bitmap, nr_secs)) {
+		pblk_end_user_read(bio, 0);
 		atomic_inc(&pblk->inflight_io);
 		__pblk_end_io_read(pblk, rqd, false);
-		return NVM_IO_DONE;
+		return;
+	}
+
+	if (!bitmap_empty(read_bitmap, rqd->nr_ppas)) {
+		/* The read bio request could be partially filled by the write
+		 * buffer, but there are some holes that need to be read from
+		 * the drive.
+		 */
+		bio_put(int_bio);
+		rqd->bio = NULL;
+		if (pblk_partial_read_bio(pblk, rqd, bio_init_idx, read_bitmap,
+					    nr_secs)) {
+			pblk_err(pblk, "read IO submission failed\n");
+			bio_io_error(bio);
+			__pblk_end_io_read(pblk, rqd, false);
+		}
+		return;
 	}
 
 	/* All sectors are to be read from the device */
-	if (bitmap_empty(read_bitmap, rqd->nr_ppas)) {
-		struct bio *int_bio = NULL;
-
-		/* Clone read bio to deal with read errors internally */
-		int_bio = bio_clone_fast(bio, GFP_KERNEL, &pblk_bio_set);
-		if (!int_bio) {
-			pblk_err(pblk, "could not clone read bio\n");
-			goto fail_end_io;
-		}
-
-		rqd->bio = int_bio;
-
-		if (pblk_submit_io(pblk, rqd)) {
-			pblk_err(pblk, "read IO submission failed\n");
-			ret = NVM_IO_ERR;
-			goto fail_end_io;
-		}
-
-		return NVM_IO_OK;
+	if (pblk_submit_io(pblk, rqd)) {
+		pblk_err(pblk, "read IO submission failed\n");
+		bio_io_error(bio);
+		__pblk_end_io_read(pblk, rqd, false);
 	}
-
-	/* The read bio request could be partially filled by the write buffer,
-	 * but there are some holes that need to be read from the drive.
-	 */
-	ret = pblk_partial_read_bio(pblk, rqd, bio_init_idx, read_bitmap,
-				    nr_secs);
-	if (ret)
-		goto fail_meta_free;
-
-	return NVM_IO_OK;
-
-fail_meta_free:
-	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
-fail_rqd_free:
-	pblk_free_rqd(pblk, rqd, PBLK_READ);
-	return ret;
-fail_end_io:
-	__pblk_end_io_read(pblk, rqd, false);
-	return ret;
 }
 
 static int read_ppalist_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
