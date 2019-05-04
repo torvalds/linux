@@ -250,7 +250,7 @@ static int nsim_bus_remove(struct device *dev)
 	return 0;
 }
 
-int nsim_num_vf(struct device *dev)
+static int nsim_num_vf(struct device *dev)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
 
