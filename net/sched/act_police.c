@@ -282,6 +282,20 @@ static void tcf_police_cleanup(struct tc_action *a)
 		kfree_rcu(p, rcu);
 }
 
+static void tcf_police_stats_update(struct tc_action *a,
+				    u64 bytes, u32 packets,
+				    u64 lastuse, bool hw)
+{
+	struct tcf_police *police = to_police(a);
+	struct tcf_t *tm = &police->tcf_tm;
+
+	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+	if (hw)
+		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
+				   bytes, packets);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
+}
+
 static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 			       int bind, int ref)
 {
@@ -345,6 +359,7 @@ static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
 	.id		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
+	.stats_update	=	tcf_police_stats_update,
 	.act		=	tcf_police_act,
 	.dump		=	tcf_police_dump,
 	.init		=	tcf_police_init,
