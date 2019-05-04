@@ -9,6 +9,13 @@
 #define ICE_SW_CFG_MAX_BUF_LEN 2048
 #define ICE_DFLT_VSI_INVAL 0xff
 #define ICE_VSI_INVAL_ID 0xffff
+#define ICE_INVAL_Q_HANDLE 0xFFFF
+#define ICE_INVAL_Q_HANDLE 0xFFFF
+
+/* VSI queue context structure */
+struct ice_q_ctx {
+	u16  q_handle;
+};
 
 /* VSI context structure for add/get/update/free operations */
 struct ice_vsi_ctx {
@@ -20,6 +27,8 @@ struct ice_vsi_ctx {
 	struct ice_sched_vsi_info sched;
 	u8 alloc_from_pool;
 	u8 vf_num;
+	u16 num_lan_q_entries[ICE_MAX_TRAFFIC_CLASS];
+	struct ice_q_ctx *lan_q_ctx[ICE_MAX_TRAFFIC_CLASS];
 };
 
 enum ice_sw_fwd_act_type {

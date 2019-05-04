@@ -80,4 +80,5 @@ void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
 
 int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
 
+u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
 #endif /* !_ICE_LIB_H_ */
