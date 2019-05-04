@@ -464,7 +464,6 @@ struct pblk_line {
 	int meta_line;			/* Metadata line id */
 	int meta_distance;		/* Distance between data and metadata */
 
-	u64 smeta_ssec;			/* Sector where smeta starts */
 	u64 emeta_ssec;			/* Sector where emeta starts */
 
 	unsigned int sec_in_line;	/* Number of usable secs in line */
