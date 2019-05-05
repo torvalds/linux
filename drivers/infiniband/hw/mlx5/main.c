@@ -5907,6 +5907,8 @@ static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 		srcu_barrier(&dev->mr_srcu);
 		cleanup_srcu_struct(&dev->mr_srcu);
 	}
+
+	WARN_ON(!bitmap_empty(dev->dm.memic_alloc_pages, MLX5_MAX_MEMIC_PAGES));
 }
 
 static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
