@@ -207,8 +207,11 @@ mt7603_config(struct ieee80211_hw *hw, u32 changed)
 	int ret = 0;
 
 	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
-		       IEEE80211_CONF_CHANGE_POWER))
+		       IEEE80211_CONF_CHANGE_POWER)) {
+		ieee80211_stop_queues(hw);
 		ret = mt7603_set_channel(dev, &hw->conf.chandef);
+		ieee80211_wake_queues(hw);
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		mutex_lock(&dev->mt76.mutex);
