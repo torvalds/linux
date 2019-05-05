@@ -6074,6 +6074,8 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 			ctx->tqm_entries_multiple = 1;
 		ctx->mrav_max_entries = le32_to_cpu(resp->mrav_max_entries);
 		ctx->mrav_entry_size = le16_to_cpu(resp->mrav_entry_size);
+		ctx->mrav_num_entries_units =
+			le16_to_cpu(resp->mrav_num_entries_units);
 		ctx->tim_entry_size = le16_to_cpu(resp->tim_entry_size);
 		ctx->tim_max_entries = le32_to_cpu(resp->tim_max_entries);
 	} else {
@@ -6120,6 +6122,7 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 	struct bnxt_ctx_pg_info *ctx_pg;
 	__le32 *num_entries;
 	__le64 *pg_dir;
+	u32 flags = 0;
 	u8 *pg_attr;
 	int i, rc;
 	u32 ena;
@@ -6179,6 +6182,9 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 	if (enables & FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV) {
 		ctx_pg = &ctx->mrav_mem;
 		req.mrav_num_entries = cpu_to_le32(ctx_pg->entries);
+		if (ctx->mrav_num_entries_units)
+			flags |=
+			FUNC_BACKING_STORE_CFG_REQ_FLAGS_MRAV_RESERVATION_SPLIT;
 		req.mrav_entry_size = cpu_to_le16(ctx->mrav_entry_size);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				      &req.mrav_pg_size_mrav_lvl,
@@ -6205,6 +6211,7 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 		*num_entries = cpu_to_le32(ctx_pg->entries);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem, pg_attr, pg_dir);
 	}
+	req.flags = cpu_to_le32(flags);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		rc = -EIO;
@@ -6343,6 +6350,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	struct bnxt_ctx_pg_info *ctx_pg;
 	struct bnxt_ctx_mem_info *ctx;
 	u32 mem_size, ena, entries;
+	u32 num_mr, num_ah;
 	u32 extra_srqs = 0;
 	u32 extra_qps = 0;
 	u8 pg_lvl = 1;
@@ -6406,12 +6414,21 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 		goto skip_rdma;
 
 	ctx_pg = &ctx->mrav_mem;
-	ctx_pg->entries = extra_qps * 4;
+	/* 128K extra is needed to accommodate static AH context
+	 * allocation by f/w.
+	 */
+	num_mr = 1024 * 256;
+	num_ah = 1024 * 128;
+	ctx_pg->entries = num_mr + num_ah;
 	mem_size = ctx->mrav_entry_size * ctx_pg->entries;
 	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2);
 	if (rc)
 		return rc;
 	ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
+	if (ctx->mrav_num_entries_units)
+		ctx_pg->entries =
+			((num_mr / ctx->mrav_num_entries_units) << 16) |
+			 (num_ah / ctx->mrav_num_entries_units);
 
 	ctx_pg = &ctx->tim_mem;
 	ctx_pg->entries = ctx->qp_mem.entries;

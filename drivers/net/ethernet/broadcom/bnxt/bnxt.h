@@ -1227,6 +1227,7 @@ struct bnxt_ctx_mem_info {
 	u16	mrav_entry_size;
 	u16	tim_entry_size;
 	u32	tim_max_entries;
+	u16	mrav_num_entries_units;
 	u8	tqm_entries_multiple;
 
 	u32	flags;
