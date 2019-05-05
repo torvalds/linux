@@ -461,8 +461,6 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 			 GSWIP_FDMA_PCTRLp(port));
 	gswip_switch_mask(priv, 0, GSWIP_SDMA_PCTRL_EN,
 			  GSWIP_SDMA_PCTRLp(port));
-	gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_INGRESS,
-			  GSWIP_PCE_PCTRL_0p(port));
 
 	if (!dsa_is_cpu_port(ds, port)) {
 		u32 macconf = GSWIP_MDIO_PHY_LINK_AUTO |
@@ -577,6 +575,10 @@ static int gswip_setup(struct dsa_switch *ds)
 	/* enable special tag insertion on cpu port */
 	gswip_switch_mask(priv, 0, GSWIP_FDMA_PCTRL_STEN,
 			  GSWIP_FDMA_PCTRLp(cpu_port));
+
+	/* accept special tag in ingress direction */
+	gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_INGRESS,
+			  GSWIP_PCE_PCTRL_0p(cpu_port));
 
 	gswip_switch_mask(priv, 0, GSWIP_MAC_CTRL_2_MLEN,
 			  GSWIP_MAC_CTRL_2p(cpu_port));
