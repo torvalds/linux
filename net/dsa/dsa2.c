@@ -371,12 +371,12 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	if (err)
 		return err;
 
-	err = ds->ops->setup(ds);
-	if (err < 0)
-		return err;
-
 	err = dsa_switch_register_notifier(ds);
 	if (err)
+		return err;
+
+	err = ds->ops->setup(ds);
+	if (err < 0)
 		return err;
 
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
