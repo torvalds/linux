@@ -5521,10 +5521,12 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 	stat = bnxt_get_func_stat_ctxs(bp);
 	if (BNXT_NEW_RM(bp) &&
 	    (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
-	     hw_resc->resv_irqs < nq || hw_resc->resv_vnics != vnic ||
-	     hw_resc->resv_stat_ctxs != stat ||
+	     hw_resc->resv_vnics != vnic || hw_resc->resv_stat_ctxs != stat ||
 	     (hw_resc->resv_hw_ring_grps != grp &&
 	      !(bp->flags & BNXT_FLAG_CHIP_P5))))
+		return true;
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) && BNXT_PF(bp) &&
+	    hw_resc->resv_irqs != nq)
 		return true;
 	return false;
 }
