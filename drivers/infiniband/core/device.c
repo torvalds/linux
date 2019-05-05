@@ -1303,6 +1303,11 @@ int ib_register_device(struct ib_device *device, const char *name)
 
 	ib_device_register_rdmacg(device);
 
+	/*
+	 * Ensure that ADD uevent is not fired because it
+	 * is too early amd device is not initialized yet.
+	 */
+	dev_set_uevent_suppress(&device->dev, true);
 	ret = device_add(&device->dev);
 	if (ret)
 		goto cg_cleanup;
@@ -1315,6 +1320,9 @@ int ib_register_device(struct ib_device *device, const char *name)
 	}
 
 	ret = enable_device_and_get(device);
+	dev_set_uevent_suppress(&device->dev, false);
+	/* Mark for userspace that device is ready */
+	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
 	if (ret) {
 		void (*dealloc_fn)(struct ib_device *);
 
@@ -1343,6 +1351,7 @@ int ib_register_device(struct ib_device *device, const char *name)
 dev_cleanup:
 	device_del(&device->dev);
 cg_cleanup:
+	dev_set_uevent_suppress(&device->dev, false);
 	ib_device_unregister_rdmacg(device);
 	ib_cache_cleanup_one(device);
 	return ret;
