@@ -1008,7 +1008,7 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	pr_debug("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
 		 req->alpha2[0], req->alpha2[1]);
 
-	ret = qtnf_cmd_reg_notify(mac, req);
+	ret = qtnf_cmd_reg_notify(mac, req, qtnf_mac_slave_radar_get(wiphy));
 	if (ret) {
 		pr_err("MAC%u: failed to update region to %c%c: %d\n",
 		       mac->macid, req->alpha2[0], req->alpha2[1], ret);

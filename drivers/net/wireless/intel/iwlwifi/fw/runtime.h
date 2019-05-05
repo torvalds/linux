@@ -146,6 +146,7 @@ struct iwl_fw_runtime {
 		u32 umac_err_id;
 		void *fifo_iter;
 		enum iwl_fw_ini_trigger_id ini_trig_id;
+		struct timer_list periodic_trig;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

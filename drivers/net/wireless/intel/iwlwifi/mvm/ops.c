@@ -1261,6 +1261,7 @@ static void iwl_mvm_reprobe_wk(struct work_struct *wk)
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 {
 	iwl_abort_notification_waits(&mvm->notif_wait);
+	del_timer(&mvm->fwrt.dump.periodic_trig);
 
 	/*
 	 * This is a bit racy, but worst case we tell mac80211 about

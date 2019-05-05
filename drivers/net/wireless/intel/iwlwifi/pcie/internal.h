@@ -290,10 +290,6 @@ struct iwl_cmd_meta {
 	u32 tbs;
 };
 
-
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
-
 /*
  * The FH will write back to the first TB only, so we need to copy some data
  * into the buffer regardless of whether it should be mapped or not.
@@ -540,7 +536,7 @@ struct iwl_trans_pcie {
 	int ict_index;
 	bool use_ict;
 	bool is_down, opmode_down;
-	bool debug_rfkill;
+	s8 debug_rfkill;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
@@ -986,7 +982,7 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 
 	lockdep_assert_held(&trans_pcie->mutex);
 
-	if (trans_pcie->debug_rfkill)
+	if (trans_pcie->debug_rfkill == 1)
 		return true;
 
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &

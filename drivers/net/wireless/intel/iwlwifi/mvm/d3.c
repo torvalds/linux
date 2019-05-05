@@ -385,10 +385,10 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 	}
 }
 
-static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
-				 struct cfg80211_wowlan *wowlan)
+static int iwl_mvm_send_patterns_v1(struct iwl_mvm *mvm,
+				    struct cfg80211_wowlan *wowlan)
 {
-	struct iwl_wowlan_patterns_cmd *pattern_cmd;
+	struct iwl_wowlan_patterns_cmd_v1 *pattern_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = WOWLAN_PATTERNS,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
@@ -399,7 +399,7 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 		return 0;
 
 	cmd.len[0] = sizeof(*pattern_cmd) +
-		wowlan->n_patterns * sizeof(struct iwl_wowlan_pattern);
+		wowlan->n_patterns * sizeof(struct iwl_wowlan_pattern_v1);
 
 	pattern_cmd = kmalloc(cmd.len[0], GFP_KERNEL);
 	if (!pattern_cmd)
@@ -417,6 +417,50 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 		       wowlan->patterns[i].pattern_len);
 		pattern_cmd->patterns[i].mask_size = mask_len;
 		pattern_cmd->patterns[i].pattern_size =
+			wowlan->patterns[i].pattern_len;
+	}
+
+	cmd.data[0] = pattern_cmd;
+	err = iwl_mvm_send_cmd(mvm, &cmd);
+	kfree(pattern_cmd);
+	return err;
+}
+
+static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
+				 struct cfg80211_wowlan *wowlan)
+{
+	struct iwl_wowlan_patterns_cmd *pattern_cmd;
+	struct iwl_host_cmd cmd = {
+		.id = WOWLAN_PATTERNS,
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
+	int i, err;
+
+	if (!wowlan->n_patterns)
+		return 0;
+
+	cmd.len[0] = sizeof(*pattern_cmd) +
+		wowlan->n_patterns * sizeof(struct iwl_wowlan_pattern_v2);
+
+	pattern_cmd = kmalloc(cmd.len[0], GFP_KERNEL);
+	if (!pattern_cmd)
+		return -ENOMEM;
+
+	pattern_cmd->n_patterns = cpu_to_le32(wowlan->n_patterns);
+
+	for (i = 0; i < wowlan->n_patterns; i++) {
+		int mask_len = DIV_ROUND_UP(wowlan->patterns[i].pattern_len, 8);
+
+		pattern_cmd->patterns[i].pattern_type =
+			WOWLAN_PATTERN_TYPE_BITMASK;
+
+		memcpy(&pattern_cmd->patterns[i].u.bitmask.mask,
+		       wowlan->patterns[i].mask, mask_len);
+		memcpy(&pattern_cmd->patterns[i].u.bitmask.pattern,
+		       wowlan->patterns[i].pattern,
+		       wowlan->patterns[i].pattern_len);
+		pattern_cmd->patterns[i].u.bitmask.mask_size = mask_len;
+		pattern_cmd->patterns[i].u.bitmask.pattern_size =
 			wowlan->patterns[i].pattern_len;
 	}
 
@@ -851,7 +895,11 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_send_patterns(mvm, wowlan);
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_WOWLAN_TCP_SYN_WAKE))
+		ret = iwl_mvm_send_patterns(mvm, wowlan);
+	else
+		ret = iwl_mvm_send_patterns_v1(mvm, wowlan);
 	if (ret)
 		return ret;
 

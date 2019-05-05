@@ -361,7 +361,6 @@ enum queue_entry_flags {
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED,
 	ENTRY_DATA_STATUS_PENDING,
-	ENTRY_DATA_STATUS_SET,
 };
 
 /**
@@ -386,8 +385,6 @@ struct queue_entry {
 	struct sk_buff *skb;
 
 	unsigned int entry_idx;
-
-	u32 status;
 
 	void *priv_data;
 };

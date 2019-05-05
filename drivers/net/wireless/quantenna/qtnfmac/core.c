@@ -16,6 +16,12 @@
 #define QTNF_DMP_MAX_LEN 48
 #define QTNF_PRIMARY_VIF_IDX	0
 
+static bool slave_radar = true;
+module_param(slave_radar, bool, 0644);
+MODULE_PARM_DESC(slave_radar, "set 0 to disable radar detection in slave mode");
+
+static struct dentry *qtnf_debugfs_dir;
+
 struct qtnf_frame_meta_info {
 	u8 magic_s;
 	u8 ifidx;
@@ -424,6 +430,11 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	bus->mac[macid] = mac;
 
 	return mac;
+}
+
+bool qtnf_mac_slave_radar_get(struct wiphy *wiphy)
+{
+	return slave_radar;
 }
 
 static const struct ethtool_ops qtnf_ethtool_ops = {
@@ -838,6 +849,30 @@ void qtnf_packet_send_hi_pri(struct sk_buff *skb)
 	queue_work(vif->mac->bus->hprio_workqueue, &vif->high_pri_tx_work);
 }
 EXPORT_SYMBOL_GPL(qtnf_packet_send_hi_pri);
+
+struct dentry *qtnf_get_debugfs_dir(void)
+{
+	return qtnf_debugfs_dir;
+}
+EXPORT_SYMBOL_GPL(qtnf_get_debugfs_dir);
+
+static int __init qtnf_core_register(void)
+{
+	qtnf_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+
+	if (IS_ERR(qtnf_debugfs_dir))
+		qtnf_debugfs_dir = NULL;
+
+	return 0;
+}
+
+static void __exit qtnf_core_exit(void)
+{
+	debugfs_remove(qtnf_debugfs_dir);
+}
+
+module_init(qtnf_core_register);
+module_exit(qtnf_core_exit);
 
 MODULE_AUTHOR("Quantenna Communications");
 MODULE_DESCRIPTION("Quantenna 802.11 wireless LAN FullMAC driver.");
