@@ -3396,6 +3396,12 @@ static void bnxt_free_port_stats(struct bnxt *bp)
 				  bp->hw_rx_port_stats_ext_map);
 		bp->hw_rx_port_stats_ext = NULL;
 	}
+
+	if (bp->hw_pcie_stats) {
+		dma_free_coherent(&pdev->dev, sizeof(struct pcie_ctx_hw_stats),
+				  bp->hw_pcie_stats, bp->hw_pcie_stats_map);
+		bp->hw_pcie_stats = NULL;
+	}
 }
 
 static void bnxt_free_ring_stats(struct bnxt *bp)
@@ -3477,7 +3483,7 @@ alloc_ext_stats:
 
 alloc_tx_ext_stats:
 	if (bp->hw_tx_port_stats_ext)
-		return 0;
+		goto alloc_pcie_stats;
 
 	if (bp->hwrm_spec_code >= 0x10902) {
 		bp->hw_tx_port_stats_ext =
@@ -3487,6 +3493,19 @@ alloc_tx_ext_stats:
 					   GFP_KERNEL);
 	}
 	bp->flags |= BNXT_FLAG_PORT_STATS_EXT;
+
+alloc_pcie_stats:
+	if (bp->hw_pcie_stats ||
+	    !(bp->fw_cap & BNXT_FW_CAP_PCIE_STATS_SUPPORTED))
+		return 0;
+
+	bp->hw_pcie_stats =
+		dma_alloc_coherent(&pdev->dev, sizeof(struct pcie_ctx_hw_stats),
+				   &bp->hw_pcie_stats_map, GFP_KERNEL);
+	if (!bp->hw_pcie_stats)
+		return 0;
+
+	bp->flags |= BNXT_FLAG_PCIE_STATS;
 	return 0;
 }
 
@@ -6505,6 +6524,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->flags |= BNXT_FLAG_ROCEV1_CAP;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED)
 		bp->flags |= BNXT_FLAG_ROCEV2_CAP;
+	if (flags & FUNC_QCAPS_RESP_FLAGS_PCIE_STATS_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_PCIE_STATS_SUPPORTED;
 
 	bp->tx_push_thresh = 0;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED)
@@ -6803,6 +6824,19 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
+}
+
+static int bnxt_hwrm_pcie_qstats(struct bnxt *bp)
+{
+	struct hwrm_pcie_qstats_input req = {0};
+
+	if (!(bp->flags & BNXT_FLAG_PCIE_STATS))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PCIE_QSTATS, -1, -1);
+	req.pcie_stat_size = cpu_to_le16(sizeof(struct pcie_ctx_hw_stats));
+	req.pcie_stat_host_addr = cpu_to_le64(bp->hw_pcie_stats_map);
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
 static void bnxt_hwrm_free_tunnel_ports(struct bnxt *bp)
@@ -9395,6 +9429,7 @@ static void bnxt_sp_task(struct work_struct *work)
 	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event)) {
 		bnxt_hwrm_port_qstats(bp);
 		bnxt_hwrm_port_qstats_ext(bp);
+		bnxt_hwrm_pcie_qstats(bp);
 	}
 
 	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
