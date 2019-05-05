@@ -3470,7 +3470,8 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 alloc_ext_stats:
 	/* Display extended statistics only if FW supports it */
 	if (bp->hwrm_spec_code < 0x10804 || bp->hwrm_spec_code == 0x10900)
-		return 0;
+		if (!(bp->fw_cap & BNXT_FW_CAP_EXT_STATS_SUPPORTED))
+			return 0;
 
 	if (bp->hw_rx_port_stats_ext)
 		goto alloc_tx_ext_stats;
@@ -3485,7 +3486,8 @@ alloc_tx_ext_stats:
 	if (bp->hw_tx_port_stats_ext)
 		goto alloc_pcie_stats;
 
-	if (bp->hwrm_spec_code >= 0x10902) {
+	if (bp->hwrm_spec_code >= 0x10902 ||
+	    (bp->fw_cap & BNXT_FW_CAP_EXT_STATS_SUPPORTED)) {
 		bp->hw_tx_port_stats_ext =
 			dma_alloc_coherent(&pdev->dev,
 					   sizeof(struct tx_port_stats_ext),
@@ -6526,6 +6528,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->flags |= BNXT_FLAG_ROCEV2_CAP;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_PCIE_STATS_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_PCIE_STATS_SUPPORTED;
+	if (flags & FUNC_QCAPS_RESP_FLAGS_EXT_STATS_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_EXT_STATS_SUPPORTED;
 
 	bp->tx_push_thresh = 0;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED)
