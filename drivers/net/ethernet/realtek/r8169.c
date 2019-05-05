@@ -4766,6 +4766,14 @@ static void rtl_set_fifo_size(struct rtl8169_private *tp, u16 rx_stat,
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, (tx_stat << 16) | tx_dyn);
 }
 
+static void rtl8168g_set_pause_thresholds(struct rtl8169_private *tp,
+					  u8 low, u8 high)
+{
+	/* FIFO thresholds for pause flow control */
+	rtl_eri_write(tp, 0xcc, ERIAR_MASK_0001, low);
+	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, high);
+}
+
 static void rtl_hw_start_8168bb(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Beacon_en);
@@ -5076,8 +5084,7 @@ static void rtl_hw_start_8411(struct rtl8169_private *tp)
 static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 {
 	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
-	rtl_eri_write(tp, 0xcc, ERIAR_MASK_0001, 0x38);
-	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, 0x48);
+	rtl8168g_set_pause_thresholds(tp, 0x38, 0x48);
 
 	rtl_set_def_aspm_entry_latency(tp);
 
@@ -5170,8 +5177,7 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	rtl_ephy_init(tp, e_info_8168h_1);
 
 	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
-	rtl_eri_write(tp, 0xcc, ERIAR_MASK_0001, 0x38);
-	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, 0x48);
+	rtl8168g_set_pause_thresholds(tp, 0x38, 0x48);
 
 	rtl_set_def_aspm_entry_latency(tp);
 
@@ -5249,8 +5255,7 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 	rtl8168ep_stop_cmac(tp);
 
 	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
-	rtl_eri_write(tp, 0xcc, ERIAR_MASK_0001, 0x2f);
-	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, 0x5f);
+	rtl8168g_set_pause_thresholds(tp, 0x2f, 0x5f);
 
 	rtl_set_def_aspm_entry_latency(tp);
 
