@@ -18,6 +18,11 @@ Optional properties:
 			IRQ numbers for different interrupt source of MAX77620
 			are defined at dt-bindings/mfd/max77620.h.
 
+- system-power-controller: Indicates that this PMIC is controlling the
+			   system power, see [1] for more details.
+
+[1] Documentation/devicetree/bindings/power/power-controller.txt
+
 Optional subnodes and their properties:
 =======================================
 
