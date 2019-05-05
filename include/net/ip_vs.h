@@ -1404,6 +1404,9 @@ bool ip_vs_has_real_service(struct netns_ipvs *ipvs, int af, __u16 protocol,
 struct ip_vs_dest *
 ip_vs_find_real_service(struct netns_ipvs *ipvs, int af, __u16 protocol,
 			const union nf_inet_addr *daddr, __be16 dport);
+struct ip_vs_dest *ip_vs_find_tunnel(struct netns_ipvs *ipvs, int af,
+				     const union nf_inet_addr *daddr,
+				     __be16 tun_port);
 
 int ip_vs_use_count_inc(void);
 void ip_vs_use_count_dec(void);

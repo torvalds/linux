@@ -617,6 +617,35 @@ struct ip_vs_dest *ip_vs_find_real_service(struct netns_ipvs *ipvs, int af,
 	return NULL;
 }
 
+/* Find real service record by <af,addr,tun_port>.
+ * In case of multiple records with the same <af,addr,tun_port>, only
+ * the first found record is returned.
+ *
+ * To be called under RCU lock.
+ */
+struct ip_vs_dest *ip_vs_find_tunnel(struct netns_ipvs *ipvs, int af,
+				     const union nf_inet_addr *daddr,
+				     __be16 tun_port)
+{
+	struct ip_vs_dest *dest;
+	unsigned int hash;
+
+	/* Check for "full" addressed entries */
+	hash = ip_vs_rs_hashkey(af, daddr, tun_port);
+
+	hlist_for_each_entry_rcu(dest, &ipvs->rs_table[hash], d_list) {
+		if (dest->tun_port == tun_port &&
+		    dest->af == af &&
+		    ip_vs_addr_equal(af, &dest->addr, daddr) &&
+		    IP_VS_DFWD_METHOD(dest) == IP_VS_CONN_F_TUNNEL) {
+			/* HIT */
+			return dest;
+		}
+	}
+
+	return NULL;
+}
+
 /* Lookup destination by {addr,port} in the given service
  * Called under RCU lock.
  */

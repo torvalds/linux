@@ -1598,6 +1598,7 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 	struct ip_vs_proto_data *pd;
 	unsigned int offset, offset2, ihl, verdict;
 	bool ipip, new_cp = false;
+	union nf_inet_addr *raddr;
 
 	*related = 1;
 
@@ -1636,14 +1637,21 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 	cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
 	if (cih == NULL)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
+	raddr = (union nf_inet_addr *)&cih->daddr;
 
 	/* Special case for errors for IPIP packets */
 	ipip = false;
 	if (cih->protocol == IPPROTO_IPIP) {
+		struct ip_vs_dest *dest;
+
 		if (unlikely(cih->frag_off & htons(IP_OFFSET)))
 			return NF_ACCEPT;
 		/* Error for our IPIP must arrive at LOCAL_IN */
 		if (!(skb_rtable(skb)->rt_flags & RTCF_LOCAL))
+			return NF_ACCEPT;
+		dest = ip_vs_find_tunnel(ipvs, AF_INET, raddr, 0);
+		/* Only for known tunnel */
+		if (!dest || dest->tun_type != IP_VS_CONN_F_TUNNEL_TYPE_IPIP)
 			return NF_ACCEPT;
 		offset += cih->ihl * 4;
 		cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
