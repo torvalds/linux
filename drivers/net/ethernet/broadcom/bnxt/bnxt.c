@@ -8699,7 +8699,7 @@ static int bnxt_hwrm_port_phy_read(struct bnxt *bp, u16 phy_addr, u16 reg,
 	req.port_id = cpu_to_le16(bp->pf.port_id);
 	req.phy_addr = phy_addr;
 	req.reg_addr = cpu_to_le16(reg & 0x1f);
-	if (bp->link_info.support_speeds & BNXT_LINK_SPEED_MSK_10GB) {
+	if (mdio_phy_id_is_c45(phy_addr)) {
 		req.cl45_mdio = 1;
 		req.phy_addr = mdio_phy_id_prtad(phy_addr);
 		req.dev_addr = mdio_phy_id_devad(phy_addr);
@@ -8726,7 +8726,7 @@ static int bnxt_hwrm_port_phy_write(struct bnxt *bp, u16 phy_addr, u16 reg,
 	req.port_id = cpu_to_le16(bp->pf.port_id);
 	req.phy_addr = phy_addr;
 	req.reg_addr = cpu_to_le16(reg & 0x1f);
-	if (bp->link_info.support_speeds & BNXT_LINK_SPEED_MSK_10GB) {
+	if (mdio_phy_id_is_c45(phy_addr)) {
 		req.cl45_mdio = 1;
 		req.phy_addr = mdio_phy_id_prtad(phy_addr);
 		req.dev_addr = mdio_phy_id_devad(phy_addr);
