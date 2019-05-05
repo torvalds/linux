@@ -17,6 +17,17 @@ menuconfig NET_DSA
 
 if NET_DSA
 
+# tagging formats
+config NET_DSA_TAG_8021Q
+	tristate "Tag driver for switches using custom 802.1Q VLAN headers"
+	select VLAN_8021Q
+	help
+	  Unlike the other tagging protocols, the 802.1Q config option simply
+	  provides helpers for other tagging implementations that might rely on
+	  VLAN in one way or another. It is not a complete solution.
+
+	  Drivers which use these helpers should select this as dependency.
+
 config NET_DSA_TAG_BRCM_COMMON
 	tristate
 	default n
