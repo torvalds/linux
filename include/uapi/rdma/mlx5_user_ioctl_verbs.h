@@ -57,5 +57,9 @@ struct mlx5_ib_uapi_devx_async_cmd_hdr {
 	__u8		out_data[];
 };
 
+enum mlx5_ib_uapi_dm_type {
+	MLX5_IB_UAPI_DM_TYPE_MEMIC,
+};
+
 #endif
 
