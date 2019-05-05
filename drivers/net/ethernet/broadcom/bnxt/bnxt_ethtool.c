@@ -345,6 +345,10 @@ static const struct {
 	BNXT_RX_STATS_EXT_ENTRY(resume_roce_pause_events),
 	BNXT_RX_STATS_EXT_COS_ENTRIES,
 	BNXT_RX_STATS_EXT_PFC_ENTRIES,
+	BNXT_RX_STATS_EXT_ENTRY(rx_bits),
+	BNXT_RX_STATS_EXT_ENTRY(rx_buffer_passed_threshold),
+	BNXT_RX_STATS_EXT_ENTRY(rx_pcs_symbol_err),
+	BNXT_RX_STATS_EXT_ENTRY(rx_corrected_bits),
 };
 
 static const struct {
