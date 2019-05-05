@@ -39,6 +39,7 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/icmp.h>                   /* for icmp_send */
+#include <net/gue.h>
 #include <net/route.h>
 #include <net/ip6_checksum.h>
 #include <net/netns/generic.h>		/* net_generic() */
@@ -1579,6 +1580,41 @@ ip_vs_try_to_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 	return 1;
 }
 
+/* Check the UDP tunnel and return its header length */
+static int ipvs_udp_decap(struct netns_ipvs *ipvs, struct sk_buff *skb,
+			  unsigned int offset, __u16 af,
+			  const union nf_inet_addr *daddr, __u8 *proto)
+{
+	struct udphdr _udph, *udph;
+	struct ip_vs_dest *dest;
+
+	udph = skb_header_pointer(skb, offset, sizeof(_udph), &_udph);
+	if (!udph)
+		goto unk;
+	offset += sizeof(struct udphdr);
+	dest = ip_vs_find_tunnel(ipvs, af, daddr, udph->dest);
+	if (!dest)
+		goto unk;
+	if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE) {
+		struct guehdr _gueh, *gueh;
+
+		gueh = skb_header_pointer(skb, offset, sizeof(_gueh), &_gueh);
+		if (!gueh)
+			goto unk;
+		if (gueh->control != 0 || gueh->version != 0)
+			goto unk;
+		/* Later we can support also IPPROTO_IPV6 */
+		if (gueh->proto_ctype != IPPROTO_IPIP)
+			goto unk;
+		*proto = gueh->proto_ctype;
+		return sizeof(struct udphdr) + sizeof(struct guehdr) +
+		       (gueh->hlen << 2);
+	}
+
+unk:
+	return 0;
+}
+
 /*
  *	Handle ICMP messages in the outside-to-inside direction (incoming).
  *	Find any that might be relevant, check against existing connections,
@@ -1658,6 +1694,30 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 		if (cih == NULL)
 			return NF_ACCEPT; /* The packet looks wrong, ignore */
 		ipip = true;
+	} else if (cih->protocol == IPPROTO_UDP &&	/* Can be UDP encap */
+		   /* Error for our tunnel must arrive at LOCAL_IN */
+		   (skb_rtable(skb)->rt_flags & RTCF_LOCAL)) {
+		__u8 iproto;
+		int ulen;
+
+		/* Non-first fragment has no UDP header */
+		if (unlikely(cih->frag_off & htons(IP_OFFSET)))
+			return NF_ACCEPT;
+		offset2 = offset + cih->ihl * 4;
+		ulen = ipvs_udp_decap(ipvs, skb, offset2, AF_INET, raddr,
+				      &iproto);
+		if (ulen > 0) {
+			/* Skip IP and UDP tunnel headers */
+			offset = offset2 + ulen;
+			/* Now we should be at the original IP header */
+			cih = skb_header_pointer(skb, offset, sizeof(_ciph),
+						 &_ciph);
+			if (cih && cih->version == 4 && cih->ihl >= 5 &&
+			    iproto == IPPROTO_IPIP)
+				ipip = true;
+			else
+				return NF_ACCEPT;
+		}
 	}
 
 	pd = ip_vs_proto_data_get(ipvs, cih->protocol);
