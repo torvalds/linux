@@ -118,6 +118,10 @@ enum {
 	MLX5_MEMIC_BASE_SIZE	= 1 << MLX5_MEMIC_BASE_ALIGN,
 };
 
+#define MLX5_LOG_SW_ICM_BLOCK_SIZE(dev)                                        \
+	(MLX5_CAP_DEV_MEM(dev, log_sw_icm_alloc_granularity))
+#define MLX5_SW_ICM_BLOCK_SIZE(dev) (1 << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))
+
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
@@ -557,6 +561,12 @@ struct mlx5_ib_dm {
 	phys_addr_t		dev_addr;
 	u32			type;
 	size_t			size;
+	union {
+		struct {
+			u32	obj_id;
+		} icm_dm;
+		/* other dm types specific params should be added here */
+	};
 };
 
 #define MLX5_IB_MTT_PRESENT (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE)
@@ -566,6 +576,11 @@ struct mlx5_ib_dm {
 					 IB_ACCESS_REMOTE_READ   |\
 					 IB_ACCESS_REMOTE_ATOMIC |\
 					 IB_ZERO_BASED)
+
+#define MLX5_IB_DM_SW_ICM_ALLOWED_ACCESS (IB_ACCESS_LOCAL_WRITE   |\
+					  IB_ACCESS_REMOTE_WRITE  |\
+					  IB_ACCESS_REMOTE_READ   |\
+					  IB_ZERO_BASED)
 
 struct mlx5_ib_mr {
 	struct ib_mr		ibmr;
@@ -854,6 +869,8 @@ struct mlx5_dm {
 	 */
 	spinlock_t lock;
 	DECLARE_BITMAP(memic_alloc_pages, MLX5_MAX_MEMIC_PAGES);
+	unsigned long *steering_sw_icm_alloc_blocks;
+	unsigned long *header_modify_sw_icm_alloc_blocks;
 };
 
 struct mlx5_read_counters_attr {
