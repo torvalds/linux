@@ -389,6 +389,7 @@ int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
 	trans.ph_prepare = false;
 	return dsa_port_vlan_add(dp, &vlan, &trans);
 }
+EXPORT_SYMBOL(dsa_port_vid_add);
 
 int dsa_port_vid_del(struct dsa_port *dp, u16 vid)
 {
@@ -400,6 +401,7 @@ int dsa_port_vid_del(struct dsa_port *dp, u16 vid)
 
 	return dsa_port_vlan_del(dp, &vlan);
 }
+EXPORT_SYMBOL(dsa_port_vid_del);
 
 static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 {
