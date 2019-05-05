@@ -1029,12 +1029,14 @@ static int mvpp2_port_c2_tcam_rule_add(struct mvpp2_port *port,
 	struct flow_action_entry *act;
 	struct mvpp2_cls_c2_entry c2;
 	u8 qh, ql, pmap;
+	int index;
 
 	memset(&c2, 0, sizeof(c2));
 
-	c2.index = mvpp2_cls_c2_port_flow_index(port, rule->loc);
-	if (c2.index < 0)
+	index = mvpp2_cls_c2_port_flow_index(port, rule->loc);
+	if (index < 0)
 		return -EINVAL;
+	c2.index = index;
 
 	act = &rule->flow->action.entries[0];
 
