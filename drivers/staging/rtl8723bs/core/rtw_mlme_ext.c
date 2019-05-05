@@ -370,9 +370,8 @@ static void init_channel_list(struct adapter *padapter, RT_CHANNEL_INFO *channel
 		struct p2p_reg_class *reg = NULL;
 
 		for (ch = o->min_chan; ch <= o->max_chan; ch += o->inc) {
-			if (!has_channel(channel_set, chanset_size, ch)) {
+			if (!has_channel(channel_set, chanset_size, ch))
 				continue;
-			}
 
 			if ((0 == padapter->registrypriv.ht_enable) && (8 == o->inc))
 				continue;
@@ -1950,9 +1949,8 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 
 	category = frame_body[0];
 	if (category == RTW_WLAN_CATEGORY_BACK) {/*  representing Block Ack */
-		if (!pmlmeinfo->HT_enable) {
+		if (!pmlmeinfo->HT_enable)
 			return _SUCCESS;
-		}
 
 		action = frame_body[1];
 		DBG_871X("%s, action =%d\n", __func__, action);
@@ -2397,9 +2395,8 @@ s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmg
 		pxmitpriv->ack_tx = true;
 		pxmitpriv->seq_no = seq_no++;
 		pmgntframe->ack_report = 1;
-		if (rtw_hal_mgnt_xmit(padapter, pmgntframe) == _SUCCESS) {
+		if (rtw_hal_mgnt_xmit(padapter, pmgntframe) == _SUCCESS)
 			ret = rtw_ack_tx_wait(pxmitpriv, timeout_ms);
-		}
 
 		pxmitpriv->ack_tx = false;
 		mutex_unlock(&pxmitpriv->ack_tx_mutex);
@@ -6431,9 +6428,8 @@ u8 setauth_hdl(struct adapter *padapter, unsigned char *pbuf)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
-	if (pparm->mode < 4) {
+	if (pparm->mode < 4)
 		pmlmeinfo->auth_algo = pparm->mode;
-	}
 
 	return	H2C_SUCCESS;
 }
