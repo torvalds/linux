@@ -60,6 +60,32 @@ static void phy_link_down(struct phy_device *phydev, bool do_carrier)
 	phy_led_trigger_change_speed(phydev);
 }
 
+static const char *phy_pause_str(struct phy_device *phydev)
+{
+	bool local_pause, local_asym_pause;
+
+	if (phydev->autoneg == AUTONEG_DISABLE)
+		goto no_pause;
+
+	local_pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+					phydev->advertising);
+	local_asym_pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+					     phydev->advertising);
+
+	if (local_pause && phydev->pause)
+		return "rx/tx";
+
+	if (local_asym_pause && phydev->asym_pause) {
+		if (local_pause)
+			return "rx";
+		if (phydev->pause)
+			return "tx";
+	}
+
+no_pause:
+	return "off";
+}
+
 /**
  * phy_print_status - Convenience function to print out the current phy status
  * @phydev: the phy_device struct
@@ -71,7 +97,7 @@ void phy_print_status(struct phy_device *phydev)
 			"Link is Up - %s/%s - flow control %s\n",
 			phy_speed_to_str(phydev->speed),
 			phy_duplex_to_str(phydev->duplex),
-			phydev->pause ? "rx/tx" : "off");
+			phy_pause_str(phydev));
 	} else	{
 		netdev_info(phydev->attached_dev, "Link is Down\n");
 	}
