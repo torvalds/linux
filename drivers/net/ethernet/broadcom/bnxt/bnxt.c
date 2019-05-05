@@ -3440,56 +3440,53 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 		cpr->hw_stats_ctx_id = INVALID_STATS_CTX_ID;
 	}
 
-	if (BNXT_PF(bp) && bp->chip_num != CHIP_NUM_58700) {
-		if (bp->hw_rx_port_stats)
-			goto alloc_ext_stats;
+	if (BNXT_VF(bp) || bp->chip_num == CHIP_NUM_58700)
+		return 0;
 
-		bp->hw_port_stats_size = sizeof(struct rx_port_stats) +
-					 sizeof(struct tx_port_stats) + 1024;
+	if (bp->hw_rx_port_stats)
+		goto alloc_ext_stats;
 
-		bp->hw_rx_port_stats =
-			dma_alloc_coherent(&pdev->dev, bp->hw_port_stats_size,
-					   &bp->hw_rx_port_stats_map,
-					   GFP_KERNEL);
-		if (!bp->hw_rx_port_stats)
-			return -ENOMEM;
+	bp->hw_port_stats_size = sizeof(struct rx_port_stats) +
+				 sizeof(struct tx_port_stats) + 1024;
 
-		bp->hw_tx_port_stats = (void *)(bp->hw_rx_port_stats + 1) +
-				       512;
-		bp->hw_tx_port_stats_map = bp->hw_rx_port_stats_map +
-					   sizeof(struct rx_port_stats) + 512;
-		bp->flags |= BNXT_FLAG_PORT_STATS;
+	bp->hw_rx_port_stats =
+		dma_alloc_coherent(&pdev->dev, bp->hw_port_stats_size,
+				   &bp->hw_rx_port_stats_map,
+				   GFP_KERNEL);
+	if (!bp->hw_rx_port_stats)
+		return -ENOMEM;
+
+	bp->hw_tx_port_stats = (void *)(bp->hw_rx_port_stats + 1) + 512;
+	bp->hw_tx_port_stats_map = bp->hw_rx_port_stats_map +
+				   sizeof(struct rx_port_stats) + 512;
+	bp->flags |= BNXT_FLAG_PORT_STATS;
 
 alloc_ext_stats:
-		/* Display extended statistics only if FW supports it */
-		if (bp->hwrm_spec_code < 0x10804 ||
-		    bp->hwrm_spec_code == 0x10900)
-			return 0;
+	/* Display extended statistics only if FW supports it */
+	if (bp->hwrm_spec_code < 0x10804 || bp->hwrm_spec_code == 0x10900)
+		return 0;
 
-		if (bp->hw_rx_port_stats_ext)
-			goto alloc_tx_ext_stats;
+	if (bp->hw_rx_port_stats_ext)
+		goto alloc_tx_ext_stats;
 
-		bp->hw_rx_port_stats_ext =
-			dma_alloc_coherent(&pdev->dev,
-					   sizeof(struct rx_port_stats_ext),
-					   &bp->hw_rx_port_stats_ext_map,
-					   GFP_KERNEL);
-		if (!bp->hw_rx_port_stats_ext)
-			return 0;
+	bp->hw_rx_port_stats_ext =
+		dma_alloc_coherent(&pdev->dev, sizeof(struct rx_port_stats_ext),
+				   &bp->hw_rx_port_stats_ext_map, GFP_KERNEL);
+	if (!bp->hw_rx_port_stats_ext)
+		return 0;
 
 alloc_tx_ext_stats:
-		if (bp->hw_tx_port_stats_ext)
-			return 0;
+	if (bp->hw_tx_port_stats_ext)
+		return 0;
 
-		if (bp->hwrm_spec_code >= 0x10902) {
-			bp->hw_tx_port_stats_ext =
-				dma_alloc_coherent(&pdev->dev,
-						   sizeof(struct tx_port_stats_ext),
-						   &bp->hw_tx_port_stats_ext_map,
-						   GFP_KERNEL);
-		}
-		bp->flags |= BNXT_FLAG_PORT_STATS_EXT;
+	if (bp->hwrm_spec_code >= 0x10902) {
+		bp->hw_tx_port_stats_ext =
+			dma_alloc_coherent(&pdev->dev,
+					   sizeof(struct tx_port_stats_ext),
+					   &bp->hw_tx_port_stats_ext_map,
+					   GFP_KERNEL);
 	}
+	bp->flags |= BNXT_FLAG_PORT_STATS_EXT;
 	return 0;
 }
 
