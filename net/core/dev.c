@@ -4987,7 +4987,8 @@ static int __netif_receive_skb_one_core(struct sk_buff *skb, bool pfmemalloc)
 
 	ret = __netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
 	if (pt_prev)
-		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+		ret = INDIRECT_CALL_INET(pt_prev->func, ipv6_rcv, ip_rcv, skb,
+					 skb->dev, pt_prev, orig_dev);
 	return ret;
 }
 
@@ -5033,7 +5034,8 @@ static inline void __netif_receive_skb_list_ptype(struct list_head *head,
 	else
 		list_for_each_entry_safe(skb, next, head, list) {
 			skb_list_del_init(skb);
-			pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+			INDIRECT_CALL_INET(pt_prev->func, ipv6_rcv, ip_rcv, skb,
+					   skb->dev, pt_prev, orig_dev);
 		}
 }
 
