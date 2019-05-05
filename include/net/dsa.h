@@ -83,6 +83,37 @@ struct dsa_device_ops {
 #define MODULE_ALIAS_DSA_TAG_DRIVER(__proto)				\
 	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __stringify(__proto##_VALUE))
 
+struct dsa_skb_cb {
+	struct sk_buff *clone;
+};
+
+struct __dsa_skb_cb {
+	struct dsa_skb_cb cb;
+	u8 priv[48 - sizeof(struct dsa_skb_cb)];
+};
+
+#define __DSA_SKB_CB(skb) ((struct __dsa_skb_cb *)((skb)->cb))
+
+#define DSA_SKB_CB(skb) ((struct dsa_skb_cb *)((skb)->cb))
+
+#define DSA_SKB_CB_COPY(nskb, skb)		\
+	{ *__DSA_SKB_CB(nskb) = *__DSA_SKB_CB(skb); }
+
+#define DSA_SKB_CB_ZERO(skb)			\
+	{ *__DSA_SKB_CB(skb) = (struct __dsa_skb_cb) {0}; }
+
+#define DSA_SKB_CB_PRIV(skb)			\
+	((void *)(skb)->cb + offsetof(struct __dsa_skb_cb, priv))
+
+#define DSA_SKB_CB_CLONE(_clone, _skb)		\
+	{					\
+		struct sk_buff *clone = _clone;	\
+		struct sk_buff *skb = _skb;	\
+						\
+		DSA_SKB_CB_COPY(clone, skb);	\
+		DSA_SKB_CB(skb)->clone = clone; \
+	}
+
 struct dsa_switch_tree {
 	struct list_head	list;
 
