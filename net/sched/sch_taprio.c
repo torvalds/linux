@@ -1087,6 +1087,8 @@ static int taprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto done;
 
 	sched_nest = nla_nest_start_noflag(skb, TCA_TAPRIO_ATTR_ADMIN_SCHED);
+	if (!sched_nest)
+		goto options_error;
 
 	if (dump_schedule(skb, admin))
 		goto admin_error;
