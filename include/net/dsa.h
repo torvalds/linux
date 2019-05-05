@@ -211,6 +211,12 @@ struct dsa_port {
 	struct sk_buff_head	xmit_queue;
 
 	/*
+	 * Give the switch driver somewhere to hang its per-port private data
+	 * structures (accessible from the tagger).
+	 */
+	void *priv;
+
+	/*
 	 * Original copy of the master netdev ethtool_ops
 	 */
 	const struct ethtool_ops *orig_ethtool_ops;
