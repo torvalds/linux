@@ -5210,6 +5210,42 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
 	mlxsw_reg_pspa_sub_port_set(payload, 0);
 }
 
+/* PPLR - Port Physical Loopback Register
+ * --------------------------------------
+ * This register allows configuration of the port's loopback mode.
+ */
+#define MLXSW_REG_PPLR_ID 0x5018
+#define MLXSW_REG_PPLR_LEN 0x8
+
+MLXSW_REG_DEFINE(pplr, MLXSW_REG_PPLR_ID, MLXSW_REG_PPLR_LEN);
+
+/* reg_pplr_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pplr, local_port, 0x00, 16, 8);
+
+/* Phy local loopback. When set the port's egress traffic is looped back
+ * to the receiver and the port transmitter is disabled.
+ */
+#define MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL BIT(1)
+
+/* reg_pplr_lb_en
+ * Loopback enable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pplr, lb_en, 0x04, 0, 8);
+
+static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
+				       bool phy_local)
+{
+	MLXSW_REG_ZERO(pplr, payload);
+	mlxsw_reg_pplr_local_port_set(payload, local_port);
+	mlxsw_reg_pplr_lb_en_set(payload,
+				 phy_local ?
+				 MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL : 0);
+}
+
 /* HTGT - Host Trap Group Table
  * ----------------------------
  * Configures the properties for forwarding to CPU.
@@ -9981,6 +10017,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pptb),
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),
+	MLXSW_REG(pplr),
 	MLXSW_REG(htgt),
 	MLXSW_REG(hpkt),
 	MLXSW_REG(rgcr),
