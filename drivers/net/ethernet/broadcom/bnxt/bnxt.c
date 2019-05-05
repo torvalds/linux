@@ -6693,6 +6693,15 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 		 resp->hwrm_fw_maj_8b, resp->hwrm_fw_min_8b,
 		 resp->hwrm_fw_bld_8b, resp->hwrm_fw_rsvd_8b);
 
+	if (strlen(resp->active_pkg_name)) {
+		int fw_ver_len = strlen(bp->fw_ver_str);
+
+		snprintf(bp->fw_ver_str + fw_ver_len,
+			 FW_VER_STR_LEN - fw_ver_len - 1, "/pkg %s",
+			 resp->active_pkg_name);
+		bp->fw_cap |= BNXT_FW_CAP_PKG_VER;
+	}
+
 	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
 	if (!bp->hwrm_cmd_timeout)
 		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;

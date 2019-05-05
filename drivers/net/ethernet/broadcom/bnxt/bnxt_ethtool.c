@@ -3305,7 +3305,8 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	struct net_device *dev = bp->dev;
 	int i, rc;
 
-	bnxt_get_pkgver(dev);
+	if (!(bp->fw_cap & BNXT_FW_CAP_PKG_VER))
+		bnxt_get_pkgver(dev);
 
 	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
 		return;
