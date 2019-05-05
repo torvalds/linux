@@ -256,7 +256,7 @@ int hl_fw_armcp_info_get(struct hl_device *hdev)
 					HL_ARMCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send armcp info pkt, error %d\n", rc);
+			"Failed to send ArmCP info pkt, error %d\n", rc);
 		goto out;
 	}
 
@@ -291,7 +291,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 					max_size, &eeprom_info_dma_addr);
 	if (!eeprom_info_cpu_addr) {
 		dev_err(hdev->dev,
-			"Failed to allocate DMA memory for EEPROM info packet\n");
+			"Failed to allocate DMA memory for ArmCP EEPROM packet\n");
 		return -ENOMEM;
 	}
 
@@ -307,7 +307,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send armcp EEPROM pkt, error %d\n", rc);
+			"Failed to send ArmCP EEPROM packet, error %d\n", rc);
 		goto out;
 	}
 
