@@ -6621,6 +6621,34 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	return 0;
 }
 
+static int bnxt_hwrm_cfa_adv_flow_mgnt_qcaps(struct bnxt *bp)
+{
+	struct hwrm_cfa_adv_flow_mgnt_qcaps_input req = {0};
+	struct hwrm_cfa_adv_flow_mgnt_qcaps_output *resp;
+	int rc = 0;
+	u32 flags;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_CFA_ADV_FLOW))
+		return 0;
+
+	resp = bp->hwrm_cmd_resp_addr;
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_ADV_FLOW_MGNT_QCAPS, -1, -1);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		goto hwrm_cfa_adv_qcaps_exit;
+
+	flags = le32_to_cpu(resp->flags);
+	if (flags &
+	    CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX;
+
+hwrm_cfa_adv_qcaps_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static int bnxt_hwrm_func_reset(struct bnxt *bp)
 {
 	struct hwrm_func_reset_input req = {0};
@@ -6752,6 +6780,10 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	if (dev_caps_cfg &
 	    VER_GET_RESP_DEV_CAPS_CFG_TRUSTED_VF_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_TRUSTED_VF;
+
+	if (dev_caps_cfg &
+	    VER_GET_RESP_DEV_CAPS_CFG_CFA_ADV_FLOW_MGNT_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_CFA_ADV_FLOW;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -9063,8 +9095,11 @@ static bool bnxt_can_reserve_rings(struct bnxt *bp)
 /* If the chip and firmware supports RFS */
 static bool bnxt_rfs_supported(struct bnxt *bp)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5)
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX)
+			return true;
 		return false;
+	}
 	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
 		return true;
 	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
@@ -10665,6 +10700,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -1;
 		goto init_err_pci_clean;
 	}
+
+	rc = bnxt_hwrm_cfa_adv_flow_mgnt_qcaps(bp);
+	if (rc)
+		netdev_warn(bp->dev, "hwrm query adv flow mgnt failure rc: %d\n",
+			    rc);
+
 	rc = bnxt_init_mac_addr(bp);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to initialize mac address.\n");
