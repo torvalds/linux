@@ -1226,10 +1226,13 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = total_count - start_count;
 	buf->f_bfree = user_block_count - valid_user_blocks(sbi) -
 						sbi->current_reserved_blocks;
+
+	spin_lock(&sbi->stat_lock);
 	if (unlikely(buf->f_bfree <= sbi->unusable_block_count))
 		buf->f_bfree = 0;
 	else
 		buf->f_bfree -= sbi->unusable_block_count;
+	spin_unlock(&sbi->stat_lock);
 
 	if (buf->f_bfree > F2FS_OPTION(sbi).root_reserved_blocks)
 		buf->f_bavail = buf->f_bfree -
@@ -1508,7 +1511,10 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 	if (err)
 		goto out_unlock;
 
+	spin_lock(&sbi->stat_lock);
 	sbi->unusable_block_count = 0;
+	spin_unlock(&sbi->stat_lock);
+
 out_unlock:
 	mutex_unlock(&sbi->gc_mutex);
 restore_flag:
