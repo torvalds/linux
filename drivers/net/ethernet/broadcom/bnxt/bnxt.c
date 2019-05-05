@@ -4226,16 +4226,25 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 					     struct bnxt_ntuple_filter *fltr)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[fltr->rxq + 1];
 	struct hwrm_cfa_ntuple_filter_alloc_input req = {0};
 	struct hwrm_cfa_ntuple_filter_alloc_output *resp;
 	struct flow_keys *keys = &fltr->fkeys;
+	struct bnxt_vnic_info *vnic;
+	u32 dst_ena = 0;
 	int rc = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_NTUPLE_FILTER_ALLOC, -1, -1);
 	req.l2_filter_id = bp->vnic_info[0].fw_l2_filter_id[fltr->l2_fltr_idx];
 
-	req.enables = cpu_to_le32(BNXT_NTP_FLTR_FLAGS);
+	if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX) {
+		dst_ena = CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_RFS_RING_TBL_IDX;
+		req.rfs_ring_tbl_idx = cpu_to_le16(fltr->rxq);
+		vnic = &bp->vnic_info[0];
+	} else {
+		vnic = &bp->vnic_info[fltr->rxq + 1];
+	}
+	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
+	req.enables = cpu_to_le32(BNXT_NTP_FLTR_FLAGS | dst_ena);
 
 	req.ethertype = htons(ETH_P_IP);
 	memcpy(req.src_macaddr, fltr->src_mac_addr, ETH_ALEN);
@@ -4273,7 +4282,6 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.dst_port = keys->ports.dst;
 	req.dst_port_mask = cpu_to_be16(0xffff);
 
-	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
@@ -9114,7 +9122,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	int vnics, max_vnics, max_rss_ctxs;
 
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
-		return false;
+		return bnxt_rfs_supported(bp);
 	if (!(bp->flags & BNXT_FLAG_MSIX_CAP) || !bnxt_can_reserve_rings(bp))
 		return false;
 
