@@ -212,6 +212,10 @@ void mt7615_unregister_device(struct mt7615_dev *dev)
 	struct mt76_txwi_cache *txwi;
 	int id;
 
+	mt76_unregister_device(&dev->mt76);
+	mt7615_mcu_exit(dev);
+	mt7615_dma_cleanup(dev);
+
 	spin_lock_bh(&dev->token_lock);
 	idr_for_each_entry(&dev->token, txwi, id) {
 		mt7615_txp_skb_unmap(&dev->mt76, txwi);
@@ -221,9 +225,6 @@ void mt7615_unregister_device(struct mt7615_dev *dev)
 	}
 	spin_unlock_bh(&dev->token_lock);
 	idr_destroy(&dev->token);
-	mt76_unregister_device(&dev->mt76);
-	mt7615_mcu_exit(dev);
-	mt7615_dma_cleanup(dev);
 
-	ieee80211_free_hw(mt76_hw(dev));
+	mt76_free_device(&dev->mt76);
 }
