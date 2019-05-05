@@ -4756,6 +4756,16 @@ static void rtl_hw_aspm_clkreq_enable(struct rtl8169_private *tp, bool enable)
 	udelay(10);
 }
 
+static void rtl_set_fifo_size(struct rtl8169_private *tp, u16 rx_stat,
+			      u16 tx_stat, u16 rx_dyn, u16 tx_dyn)
+{
+	/* Usage of dynamic vs. static FIFO is controlled by bit
+	 * TXCFG_AUTO_FIFO. Exact meaning of FIFO values isn't known.
+	 */
+	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, (rx_stat << 16) | rx_dyn);
+	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, (tx_stat << 16) | tx_dyn);
+}
+
 static void rtl_hw_start_8168bb(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Beacon_en);
@@ -4982,8 +4992,7 @@ static void rtl_hw_start_8168e_2(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
-	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, 0x00100002);
-	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00100006);
+	rtl_set_fifo_size(tp, 0x10, 0x10, 0x02, 0x06);
 	rtl_eri_write(tp, 0xcc, ERIAR_MASK_1111, 0x00000050);
 	rtl_eri_write(tp, 0xd0, ERIAR_MASK_1111, 0x07ff0060);
 	rtl_eri_set_bits(tp, 0x1b0, ERIAR_MASK_0001, BIT(4));
@@ -5012,8 +5021,7 @@ static void rtl_hw_start_8168f(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
-	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, 0x00100002);
-	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00100006);
+	rtl_set_fifo_size(tp, 0x10, 0x10, 0x02, 0x06);
 	rtl_reset_packet_filter(tp);
 	rtl_eri_set_bits(tp, 0x1b0, ERIAR_MASK_0001, BIT(4));
 	rtl_eri_set_bits(tp, 0x1d0, ERIAR_MASK_0001, BIT(4));
@@ -5067,10 +5075,9 @@ static void rtl_hw_start_8411(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 {
-	rtl_eri_write(tp, 0xc8, ERIAR_MASK_0101, 0x080002);
+	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
 	rtl_eri_write(tp, 0xcc, ERIAR_MASK_0001, 0x38);
 	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, 0x48);
-	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00100006);
 
 	rtl_set_def_aspm_entry_latency(tp);
 
@@ -5162,10 +5169,9 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	rtl_hw_aspm_clkreq_enable(tp, false);
 	rtl_ephy_init(tp, e_info_8168h_1);
 
-	rtl_eri_write(tp, 0xc8, ERIAR_MASK_0101, 0x00080002);
+	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
 	rtl_eri_write(tp, 0xcc, ERIAR_MASK_0001, 0x38);
 	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, 0x48);
-	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00100006);
 
 	rtl_set_def_aspm_entry_latency(tp);
 
@@ -5242,10 +5248,9 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 {
 	rtl8168ep_stop_cmac(tp);
 
-	rtl_eri_write(tp, 0xc8, ERIAR_MASK_0101, 0x00080002);
+	rtl_set_fifo_size(tp, 0x08, 0x10, 0x02, 0x06);
 	rtl_eri_write(tp, 0xcc, ERIAR_MASK_0001, 0x2f);
 	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, 0x5f);
-	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00100006);
 
 	rtl_set_def_aspm_entry_latency(tp);
 
@@ -5445,8 +5450,7 @@ static void rtl_hw_start_8402(struct rtl8169_private *tp)
 
 	rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
-	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, 0x00000002);
-	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, 0x00000006);
+	rtl_set_fifo_size(tp, 0x00, 0x00, 0x02, 0x06);
 	rtl_reset_packet_filter(tp);
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
