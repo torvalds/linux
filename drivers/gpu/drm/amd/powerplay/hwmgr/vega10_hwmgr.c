@@ -2364,6 +2364,10 @@ static int vega10_avfs_enable(struct pp_hwmgr *hwmgr, bool enable)
 	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_AVFS].supported) {
+		/* Already enabled or disabled */
+		if (!(enable ^ data->smu_features[GNLD_AVFS].enabled))
+			return 0;
+
 		if (enable) {
 			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					true,
