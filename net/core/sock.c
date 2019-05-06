@@ -348,7 +348,7 @@ static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 		tv.tv_usec = ((timeo % HZ) * USEC_PER_SEC) / HZ;
 	}
 
-	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
+	if (old_timeval && in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct old_timeval32 tv32 = { tv.tv_sec, tv.tv_usec };
 		*(struct old_timeval32 *)optval = tv32;
 		return sizeof(tv32);
@@ -372,7 +372,7 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool
 {
 	struct __kernel_sock_timeval tv;
 
-	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
+	if (old_timeval && in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct old_timeval32 tv32;
 
 		if (optlen < sizeof(tv32))

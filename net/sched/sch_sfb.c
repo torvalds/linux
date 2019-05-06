@@ -521,8 +521,7 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt,
 		qdisc_hash_add(child, true);
 	sch_tree_lock(sch);
 
-	qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
-				  q->qdisc->qstats.backlog);
+	qdisc_tree_flush_backlog(q->qdisc);
 	qdisc_put(q->qdisc);
 	q->qdisc = child;
 

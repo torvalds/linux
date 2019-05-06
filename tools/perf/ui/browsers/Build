@@ -3,6 +3,7 @@ perf-y += hists.o
 perf-y += map.o
 perf-y += scripts.o
 perf-y += header.o
+perf-y += res_sample.o
 
 CFLAGS_annotate.o += -DENABLE_SLFUTURE_CONST
 CFLAGS_hists.o    += -DENABLE_SLFUTURE_CONST

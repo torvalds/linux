@@ -627,7 +627,7 @@ static int nvme_tcp_recv_pdu(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 	return ret;
 }
 
-static inline void nvme_tcp_end_request(struct request *rq, __le16 status)
+static inline void nvme_tcp_end_request(struct request *rq, u16 status)
 {
 	union nvme_result res = {};
 

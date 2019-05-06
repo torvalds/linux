@@ -433,7 +433,7 @@ int mt7603_mcu_set_channel(struct mt7603_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	int n_chains = __sw_hweight8(dev->mt76.antenna_mask);
+	int n_chains = hweight8(dev->mt76.antenna_mask);
 	struct {
 		u8 control_chan;
 		u8 center_chan;

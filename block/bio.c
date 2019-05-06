@@ -849,20 +849,14 @@ static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
 	size = bio_add_page(bio, bv->bv_page, len,
 				bv->bv_offset + iter->iov_offset);
 	if (size == len) {
-		struct page *page;
-		int i;
+		if (!bio_flagged(bio, BIO_NO_PAGE_REF)) {
+			struct page *page;
+			int i;
 
-		/*
-		 * For the normal O_DIRECT case, we could skip grabbing this
-		 * reference and then not have to put them again when IO
-		 * completes. But this breaks some in-kernel users, like
-		 * splicing to/from a loop device, where we release the pipe
-		 * pages unconditionally. If we can fix that case, we can
-		 * get rid of the get here and the need to call
-		 * bio_release_pages() at IO completion time.
-		 */
-		mp_bvec_for_each_page(page, bv, i)
-			get_page(page);
+			mp_bvec_for_each_page(page, bv, i)
+				get_page(page);
+		}
+
 		iov_iter_advance(iter, size);
 		return 0;
 	}
@@ -925,10 +919,12 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
  * This takes either an iterator pointing to user memory, or one pointing to
  * kernel pages (BVEC iterator). If we're adding user pages, we pin them and
  * map them into the kernel. On IO completion, the caller should put those
- * pages. For now, when adding kernel pages, we still grab a reference to the
- * page. This isn't strictly needed for the common case, but some call paths
- * end up releasing pages from eg a pipe and we can't easily control these.
- * See comment in __bio_iov_bvec_add_pages().
+ * pages. If we're adding kernel pages, and the caller told us it's safe to
+ * do so, we just have to add the pages to the bio directly. We don't grab an
+ * extra reference to those pages (the user should already have that), and we
+ * don't put the page on IO completion. The caller needs to check if the bio is
+ * flagged BIO_NO_PAGE_REF on IO completion. If it isn't, then pages should be
+ * released.
  *
  * The function tries, but does not guarantee, to pin as many pages as
  * fit into the bio, or are requested in *iter, whatever is smaller. If
@@ -939,6 +935,13 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
 	const bool is_bvec = iov_iter_is_bvec(iter);
 	unsigned short orig_vcnt = bio->bi_vcnt;
+
+	/*
+	 * If this is a BVEC iter, then the pages are kernel pages. Don't
+	 * release them on IO completion, if the caller asked us to.
+	 */
+	if (is_bvec && iov_iter_bvec_no_ref(iter))
+		bio_set_flag(bio, BIO_NO_PAGE_REF);
 
 	do {
 		int ret;
@@ -1295,8 +1298,11 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 			}
 		}
 
-		if (bio_add_pc_page(q, bio, page, bytes, offset) < bytes)
+		if (bio_add_pc_page(q, bio, page, bytes, offset) < bytes) {
+			if (!map_data)
+				__free_page(page);
 			break;
+		}
 
 		len -= bytes;
 		offset = 0;
@@ -1696,7 +1702,8 @@ static void bio_dirty_fn(struct work_struct *work)
 		next = bio->bi_private;
 
 		bio_set_pages_dirty(bio);
-		bio_release_pages(bio);
+		if (!bio_flagged(bio, BIO_NO_PAGE_REF))
+			bio_release_pages(bio);
 		bio_put(bio);
 	}
 }
@@ -1713,7 +1720,8 @@ void bio_check_pages_dirty(struct bio *bio)
 			goto defer;
 	}
 
-	bio_release_pages(bio);
+	if (!bio_flagged(bio, BIO_NO_PAGE_REF))
+		bio_release_pages(bio);
 	bio_put(bio);
 	return;
 defer:

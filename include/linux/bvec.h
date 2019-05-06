@@ -145,26 +145,33 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
 
 static inline struct bio_vec *bvec_init_iter_all(struct bvec_iter_all *iter_all)
 {
-	iter_all->bv.bv_page = NULL;
 	iter_all->done = 0;
+	iter_all->idx = 0;
 
 	return &iter_all->bv;
 }
 
-static inline void mp_bvec_next_segment(const struct bio_vec *bvec,
-					struct bvec_iter_all *iter_all)
+static inline void bvec_advance(const struct bio_vec *bvec,
+				struct bvec_iter_all *iter_all)
 {
 	struct bio_vec *bv = &iter_all->bv;
 
-	if (bv->bv_page) {
+	if (iter_all->done) {
 		bv->bv_page = nth_page(bv->bv_page, 1);
 		bv->bv_offset = 0;
 	} else {
-		bv->bv_page = bvec->bv_page;
-		bv->bv_offset = bvec->bv_offset;
+		bv->bv_page = bvec_nth_page(bvec->bv_page, bvec->bv_offset /
+					    PAGE_SIZE);
+		bv->bv_offset = bvec->bv_offset & ~PAGE_MASK;
 	}
 	bv->bv_len = min_t(unsigned int, PAGE_SIZE - bv->bv_offset,
 			   bvec->bv_len - iter_all->done);
+	iter_all->done += bv->bv_len;
+
+	if (iter_all->done == bvec->bv_len) {
+		iter_all->idx++;
+		iter_all->done = 0;
+	}
 }
 
 /*

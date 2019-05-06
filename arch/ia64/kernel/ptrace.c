@@ -2179,12 +2179,11 @@ static void syscall_get_set_args_cb(struct unw_frame_info *info, void *data)
 }
 
 void ia64_syscall_get_set_arguments(struct task_struct *task,
-	struct pt_regs *regs, unsigned int i, unsigned int n,
-	unsigned long *args, int rw)
+	struct pt_regs *regs, unsigned long *args, int rw)
 {
 	struct syscall_get_set_args data = {
-		.i = i,
-		.n = n,
+		.i = 0,
+		.n = 6,
 		.args = args,
 		.regs = regs,
 		.rw = rw,

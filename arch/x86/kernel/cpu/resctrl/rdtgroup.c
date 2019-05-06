@@ -2039,14 +2039,14 @@ out:
 enum rdt_param {
 	Opt_cdp,
 	Opt_cdpl2,
-	Opt_mba_mpbs,
+	Opt_mba_mbps,
 	nr__rdt_params
 };
 
 static const struct fs_parameter_spec rdt_param_specs[] = {
 	fsparam_flag("cdp",		Opt_cdp),
 	fsparam_flag("cdpl2",		Opt_cdpl2),
-	fsparam_flag("mba_mpbs",	Opt_mba_mpbs),
+	fsparam_flag("mba_MBps",	Opt_mba_mbps),
 	{}
 };
 
@@ -2072,7 +2072,7 @@ static int rdt_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_cdpl2:
 		ctx->enable_cdpl2 = true;
 		return 0;
-	case Opt_mba_mpbs:
+	case Opt_mba_mbps:
 		if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 			return -EINVAL;
 		ctx->enable_mba_mbps = true;
@@ -2610,8 +2610,9 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 			rdt_last_cmd_puts("Failed to initialize allocations\n");
 			return ret;
 		}
-		rdtgrp->mode = RDT_MODE_SHAREABLE;
 	}
+
+	rdtgrp->mode = RDT_MODE_SHAREABLE;
 
 	return 0;
 }

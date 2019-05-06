@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include "mt7603.h"
+#include "mac.h"
 #include "eeprom.h"
 
 static int
@@ -371,7 +372,7 @@ mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
 	struct sk_buff_head list;
 
-	mt76_stop_tx_queues(&dev->mt76, sta, false);
+	mt76_stop_tx_queues(&dev->mt76, sta, true);
 	mt7603_wtbl_set_ps(dev, msta, ps);
 	if (ps)
 		return;
@@ -383,6 +384,15 @@ mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 	spin_unlock_bh(&dev->ps_lock);
 
 	mt7603_ps_tx_list(dev, &list);
+}
+
+static void
+mt7603_ps_set_more_data(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+
+	hdr = (struct ieee80211_hdr *) &skb->data[MT_TXD_SIZE];
+	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 }
 
 static void
@@ -399,6 +409,8 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 
 	__skb_queue_head_init(&list);
 
+	mt7603_wtbl_set_ps(dev, msta, false);
+
 	spin_lock_bh(&dev->ps_lock);
 	skb_queue_walk_safe(&msta->psq, skb, tmp) {
 		if (!nframes)
@@ -409,10 +421,14 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 
 		skb_set_queue_mapping(skb, MT_TXQ_PSD);
 		__skb_unlink(skb, &msta->psq);
+		mt7603_ps_set_more_data(skb);
 		__skb_queue_tail(&list, skb);
 		nframes--;
 	}
 	spin_unlock_bh(&dev->ps_lock);
+
+	if (!skb_queue_empty(&list))
+		ieee80211_sta_eosp(sta);
 
 	mt7603_ps_tx_list(dev, &list);
 
@@ -568,13 +584,13 @@ mt7603_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		mtxq->aggr = true;
 		mtxq->send_bar = false;
-		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, *ssn, ba_size);
+		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, ba_size);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mtxq->aggr = false;
 		ieee80211_send_bar(vif, sta->addr, tid, mtxq->agg_ssn);
-		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, *ssn, -1);
+		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, -1);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		mtxq->agg_ssn = *ssn << 4;
@@ -582,7 +598,7 @@ mt7603_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		mtxq->aggr = false;
-		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, *ssn, -1);
+		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, -1);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	}

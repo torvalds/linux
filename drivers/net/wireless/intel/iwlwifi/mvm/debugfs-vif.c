@@ -774,8 +774,7 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return;
 
 	mvmvif->dbgfs_dir = debugfs_create_dir("iwlmvm", dbgfs_dir);
-
-	if (!mvmvif->dbgfs_dir) {
+	if (IS_ERR_OR_NULL(mvmvif->dbgfs_dir)) {
 		IWL_ERR(mvm, "Failed to create debugfs directory under %pd\n",
 			dbgfs_dir);
 		return;

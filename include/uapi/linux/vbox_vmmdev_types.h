@@ -102,6 +102,66 @@ enum vmmdev_request_type {
 #define VMMDEVREQ_HGCM_CALL VMMDEVREQ_HGCM_CALL32
 #endif
 
+/* vmmdev_request_header.requestor defines */
+
+/* Requestor user not given. */
+#define VMMDEV_REQUESTOR_USR_NOT_GIVEN                      0x00000000
+/* The kernel driver (vboxguest) is the requestor. */
+#define VMMDEV_REQUESTOR_USR_DRV                            0x00000001
+/* Some other kernel driver is the requestor. */
+#define VMMDEV_REQUESTOR_USR_DRV_OTHER                      0x00000002
+/* The root or a admin user is the requestor. */
+#define VMMDEV_REQUESTOR_USR_ROOT                           0x00000003
+/* Regular joe user is making the request. */
+#define VMMDEV_REQUESTOR_USR_USER                           0x00000006
+/* User classification mask. */
+#define VMMDEV_REQUESTOR_USR_MASK                           0x00000007
+
+/* Kernel mode request. Note this is 0, check for !USERMODE instead. */
+#define VMMDEV_REQUESTOR_KERNEL                             0x00000000
+/* User mode request. */
+#define VMMDEV_REQUESTOR_USERMODE                           0x00000008
+/* User or kernel mode classification mask. */
+#define VMMDEV_REQUESTOR_MODE_MASK                          0x00000008
+
+/* Don't know the physical console association of the requestor. */
+#define VMMDEV_REQUESTOR_CON_DONT_KNOW                      0x00000000
+/*
+ * The request originates with a process that is NOT associated with the
+ * physical console.
+ */
+#define VMMDEV_REQUESTOR_CON_NO                             0x00000010
+/* Requestor process is associated with the physical console. */
+#define VMMDEV_REQUESTOR_CON_YES                            0x00000020
+/* Console classification mask. */
+#define VMMDEV_REQUESTOR_CON_MASK                           0x00000030
+
+/* Requestor is member of special VirtualBox user group. */
+#define VMMDEV_REQUESTOR_GRP_VBOX                           0x00000080
+
+/* Note: trust level is for windows guests only, linux always uses not-given */
+/* Requestor trust level: Unspecified */
+#define VMMDEV_REQUESTOR_TRUST_NOT_GIVEN                    0x00000000
+/* Requestor trust level: Untrusted (SID S-1-16-0) */
+#define VMMDEV_REQUESTOR_TRUST_UNTRUSTED                    0x00001000
+/* Requestor trust level: Untrusted (SID S-1-16-4096) */
+#define VMMDEV_REQUESTOR_TRUST_LOW                          0x00002000
+/* Requestor trust level: Medium (SID S-1-16-8192) */
+#define VMMDEV_REQUESTOR_TRUST_MEDIUM                       0x00003000
+/* Requestor trust level: Medium plus (SID S-1-16-8448) */
+#define VMMDEV_REQUESTOR_TRUST_MEDIUM_PLUS                  0x00004000
+/* Requestor trust level: High (SID S-1-16-12288) */
+#define VMMDEV_REQUESTOR_TRUST_HIGH                         0x00005000
+/* Requestor trust level: System (SID S-1-16-16384) */
+#define VMMDEV_REQUESTOR_TRUST_SYSTEM                       0x00006000
+/* Requestor trust level >= Protected (SID S-1-16-20480, S-1-16-28672) */
+#define VMMDEV_REQUESTOR_TRUST_PROTECTED                    0x00007000
+/* Requestor trust level mask */
+#define VMMDEV_REQUESTOR_TRUST_MASK                         0x00007000
+
+/* Requestor is using the less trusted user device node (/dev/vboxuser) */
+#define VMMDEV_REQUESTOR_USER_DEVICE                        0x00008000
+
 /** HGCM service location types. */
 enum vmmdev_hgcm_service_location_type {
 	VMMDEV_HGCM_LOC_INVALID    = 0,

@@ -431,12 +431,16 @@ struct qed_qm_info {
 	u8 num_pf_rls;
 };
 
+#define QED_OVERFLOW_BIT	1
+
 struct qed_db_recovery_info {
 	struct list_head list;
 
 	/* Lock to protect the doorbell recovery mechanism list */
 	spinlock_t lock;
+	bool dorq_attn;
 	u32 db_recovery_counter;
+	unsigned long overflow;
 };
 
 struct storm_stats {
@@ -920,8 +924,7 @@ u16 qed_get_cm_pq_idx_llt_mtc(struct qed_hwfn *p_hwfn, u8 tc);
 
 /* doorbell recovery mechanism */
 void qed_db_recovery_dp(struct qed_hwfn *p_hwfn);
-void qed_db_recovery_execute(struct qed_hwfn *p_hwfn,
-			     enum qed_db_rec_exec db_exec);
+void qed_db_recovery_execute(struct qed_hwfn *p_hwfn);
 bool qed_edpm_enabled(struct qed_hwfn *p_hwfn);
 
 /* Other Linux specific common definitions */
