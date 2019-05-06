@@ -37,7 +37,7 @@ static int mdsmap_show(struct seq_file *s, void *p)
 		struct ceph_entity_addr *addr = &mdsmap->m_info[i].addr;
 		int state = mdsmap->m_info[i].state;
 		seq_printf(s, "\tmds%d\t%s\t(%s)\n", i,
-			       ceph_pr_addr(&addr->in_addr),
+			       ceph_pr_addr(addr),
 			       ceph_mds_state_name(state));
 	}
 	return 0;

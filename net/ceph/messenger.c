@@ -186,17 +186,18 @@ static atomic_t addr_str_seq = ATOMIC_INIT(0);
 
 static struct page *zero_page;		/* used in certain error cases */
 
-const char *ceph_pr_addr(const struct sockaddr_storage *ss)
+const char *ceph_pr_addr(const struct ceph_entity_addr *addr)
 {
 	int i;
 	char *s;
-	struct sockaddr_in *in4 = (struct sockaddr_in *) ss;
-	struct sockaddr_in6 *in6 = (struct sockaddr_in6 *) ss;
+	struct sockaddr_storage ss = addr->in_addr; /* align */
+	struct sockaddr_in *in4 = (struct sockaddr_in *)&ss;
+	struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)&ss;
 
 	i = atomic_inc_return(&addr_str_seq) & ADDR_STR_COUNT_MASK;
 	s = addr_str[i];
 
-	switch (ss->ss_family) {
+	switch (ss.ss_family) {
 	case AF_INET:
 		snprintf(s, MAX_ADDR_STR_LEN, "%pI4:%hu", &in4->sin_addr,
 			 ntohs(in4->sin_port));
@@ -209,7 +210,7 @@ const char *ceph_pr_addr(const struct sockaddr_storage *ss)
 
 	default:
 		snprintf(s, MAX_ADDR_STR_LEN, "(unknown sockaddr family %hu)",
-			 ss->ss_family);
+			 ss.ss_family);
 	}
 
 	return s;
@@ -471,18 +472,18 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 
 	set_sock_callbacks(sock, con);
 
-	dout("connect %s\n", ceph_pr_addr(&con->peer_addr.in_addr));
+	dout("connect %s\n", ceph_pr_addr(&con->peer_addr));
 
 	con_sock_state_connecting(con);
 	ret = sock->ops->connect(sock, (struct sockaddr *)&ss, sizeof(ss),
 				 O_NONBLOCK);
 	if (ret == -EINPROGRESS) {
 		dout("connect %s EINPROGRESS sk_state = %u\n",
-		     ceph_pr_addr(&con->peer_addr.in_addr),
+		     ceph_pr_addr(&con->peer_addr),
 		     sock->sk->sk_state);
 	} else if (ret < 0) {
 		pr_err("connect %s error %d\n",
-		       ceph_pr_addr(&con->peer_addr.in_addr), ret);
+		       ceph_pr_addr(&con->peer_addr), ret);
 		sock_release(sock);
 		return ret;
 	}
@@ -669,8 +670,7 @@ static void reset_connection(struct ceph_connection *con)
 void ceph_con_close(struct ceph_connection *con)
 {
 	mutex_lock(&con->mutex);
-	dout("con_close %p peer %s\n", con,
-	     ceph_pr_addr(&con->peer_addr.in_addr));
+	dout("con_close %p peer %s\n", con, ceph_pr_addr(&con->peer_addr));
 	con->state = CON_STATE_CLOSED;
 
 	con_flag_clear(con, CON_FLAG_LOSSYTX);	/* so we retry next connect */
@@ -694,7 +694,7 @@ void ceph_con_open(struct ceph_connection *con,
 		   struct ceph_entity_addr *addr)
 {
 	mutex_lock(&con->mutex);
-	dout("con_open %p %s\n", con, ceph_pr_addr(&addr->in_addr));
+	dout("con_open %p %s\n", con, ceph_pr_addr(addr));
 
 	WARN_ON(con->state != CON_STATE_CLOSED);
 	con->state = CON_STATE_PREOPEN;
@@ -1788,7 +1788,7 @@ static int verify_hello(struct ceph_connection *con)
 {
 	if (memcmp(con->in_banner, CEPH_BANNER, strlen(CEPH_BANNER))) {
 		pr_err("connect to %s got bad banner\n",
-		       ceph_pr_addr(&con->peer_addr.in_addr));
+		       ceph_pr_addr(&con->peer_addr));
 		con->error_msg = "protocol error, bad banner";
 		return -1;
 	}
@@ -1898,7 +1898,7 @@ static int ceph_dns_resolve_name(const char *name, size_t namelen,
 	*ipend = end;
 
 	pr_info("resolve '%.*s' (ret=%d): %s\n", (int)(end - name), name,
-			ret, ret ? "failed" : ceph_pr_addr(&addr->in_addr));
+			ret, ret ? "failed" : ceph_pr_addr(addr));
 
 	return ret;
 }
@@ -1981,7 +1981,7 @@ int ceph_parse_ips(const char *c, const char *end,
 
 		addr_set_port(&addr[i], port);
 
-		dout("parse_ips got %s\n", ceph_pr_addr(&addr[i].in_addr));
+		dout("parse_ips got %s\n", ceph_pr_addr(&addr[i]));
 
 		if (p == end)
 			break;
@@ -2023,9 +2023,9 @@ static int process_banner(struct ceph_connection *con)
 	    !(addr_is_blank(&con->actual_peer_addr) &&
 	      con->actual_peer_addr.nonce == con->peer_addr.nonce)) {
 		pr_warn("wrong peer, want %s/%d, got %s/%d\n",
-			ceph_pr_addr(&con->peer_addr.in_addr),
+			ceph_pr_addr(&con->peer_addr),
 			(int)le32_to_cpu(con->peer_addr.nonce),
-			ceph_pr_addr(&con->actual_peer_addr.in_addr),
+			ceph_pr_addr(&con->actual_peer_addr),
 			(int)le32_to_cpu(con->actual_peer_addr.nonce));
 		con->error_msg = "wrong peer at address";
 		return -1;
@@ -2043,7 +2043,7 @@ static int process_banner(struct ceph_connection *con)
 		addr_set_port(&con->msgr->inst.addr, port);
 		encode_my_addr(con->msgr);
 		dout("process_banner learned my addr is %s\n",
-		     ceph_pr_addr(&con->msgr->inst.addr.in_addr));
+		     ceph_pr_addr(&con->msgr->inst.addr));
 	}
 
 	return 0;
@@ -2094,7 +2094,7 @@ static int process_connect(struct ceph_connection *con)
 		pr_err("%s%lld %s feature set mismatch,"
 		       " my %llx < server's %llx, missing %llx\n",
 		       ENTITY_NAME(con->peer_name),
-		       ceph_pr_addr(&con->peer_addr.in_addr),
+		       ceph_pr_addr(&con->peer_addr),
 		       sup_feat, server_feat, server_feat & ~sup_feat);
 		con->error_msg = "missing required protocol features";
 		reset_connection(con);
@@ -2104,7 +2104,7 @@ static int process_connect(struct ceph_connection *con)
 		pr_err("%s%lld %s protocol version mismatch,"
 		       " my %d != server's %d\n",
 		       ENTITY_NAME(con->peer_name),
-		       ceph_pr_addr(&con->peer_addr.in_addr),
+		       ceph_pr_addr(&con->peer_addr),
 		       le32_to_cpu(con->out_connect.protocol_version),
 		       le32_to_cpu(con->in_reply.protocol_version));
 		con->error_msg = "protocol version mismatch";
@@ -2138,7 +2138,7 @@ static int process_connect(struct ceph_connection *con)
 		     le32_to_cpu(con->in_reply.connect_seq));
 		pr_err("%s%lld %s connection reset\n",
 		       ENTITY_NAME(con->peer_name),
-		       ceph_pr_addr(&con->peer_addr.in_addr));
+		       ceph_pr_addr(&con->peer_addr));
 		reset_connection(con);
 		con_out_kvec_reset(con);
 		ret = prepare_write_connect(con);
@@ -2195,7 +2195,7 @@ static int process_connect(struct ceph_connection *con)
 			pr_err("%s%lld %s protocol feature mismatch,"
 			       " my required %llx > server's %llx, need %llx\n",
 			       ENTITY_NAME(con->peer_name),
-			       ceph_pr_addr(&con->peer_addr.in_addr),
+			       ceph_pr_addr(&con->peer_addr),
 			       req_feat, server_feat, req_feat & ~server_feat);
 			con->error_msg = "missing required protocol features";
 			reset_connection(con);
@@ -2402,7 +2402,7 @@ static int read_partial_message(struct ceph_connection *con)
 	if ((s64)seq - (s64)con->in_seq < 1) {
 		pr_info("skipping %s%lld %s seq %lld expected %lld\n",
 			ENTITY_NAME(con->peer_name),
-			ceph_pr_addr(&con->peer_addr.in_addr),
+			ceph_pr_addr(&con->peer_addr),
 			seq, con->in_seq + 1);
 		con->in_base_pos = -front_len - middle_len - data_len -
 			sizeof_footer(con);
@@ -2981,10 +2981,10 @@ static void ceph_con_workfn(struct work_struct *work)
 static void con_fault(struct ceph_connection *con)
 {
 	dout("fault %p state %lu to peer %s\n",
-	     con, con->state, ceph_pr_addr(&con->peer_addr.in_addr));
+	     con, con->state, ceph_pr_addr(&con->peer_addr));
 
 	pr_warn("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
-		ceph_pr_addr(&con->peer_addr.in_addr), con->error_msg);
+		ceph_pr_addr(&con->peer_addr), con->error_msg);
 	con->error_msg = NULL;
 
 	WARN_ON(con->state != CON_STATE_CONNECTING &&

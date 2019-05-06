@@ -4926,7 +4926,7 @@ static int decode_watcher(void **p, void *end, struct ceph_watch_item *item)
 
 	dout("%s %s%llu cookie %llu addr %s\n", __func__,
 	     ENTITY_NAME(item->name), item->cookie,
-	     ceph_pr_addr(&item->addr.in_addr));
+	     ceph_pr_addr(&item->addr));
 	return 0;
 }
 
