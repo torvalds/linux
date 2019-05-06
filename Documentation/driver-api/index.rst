@@ -56,6 +56,7 @@ available subsections can be seen below.
    slimbus
    soundwire/index
    fpga/index
+   acpi/index
 
 .. only::  subproject and html
 
