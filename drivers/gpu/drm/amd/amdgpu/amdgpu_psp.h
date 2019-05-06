@@ -62,6 +62,14 @@ struct psp_ring
 	uint32_t			ring_size;
 };
 
+/* More registers may will be supported */
+enum psp_reg_prog_id {
+	PSP_REG_IH_RB_CNTL        = 0,  /* register IH_RB_CNTL */
+	PSP_REG_IH_RB_CNTL_RING1  = 1,  /* register IH_RB_CNTL_RING1 */
+	PSP_REG_IH_RB_CNTL_RING2  = 2,  /* register IH_RB_CNTL_RING2 */
+	PSP_REG_LAST
+};
+
 struct psp_funcs
 {
 	int (*init_microcode)(struct psp_context *psp);
@@ -252,5 +260,6 @@ int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
 
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
-
+int psp_reg_program(struct psp_context *psp, enum psp_reg_prog_id reg,
+		uint32_t value);
 #endif
