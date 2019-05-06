@@ -349,24 +349,6 @@ void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data_v1 *data,
 }
 EXPORT_SYMBOL(__ubsan_handle_type_mismatch_v1);
 
-void __ubsan_handle_vla_bound_not_positive(struct vla_bound_data *data,
-					void *bound)
-{
-	unsigned long flags;
-	char bound_str[VALUE_LENGTH];
-
-	if (suppress_report(&data->location))
-		return;
-
-	ubsan_prologue(&data->location, &flags);
-
-	val_to_string(bound_str, sizeof(bound_str), data->type, bound);
-	pr_err("variable length array bound value %s <= 0\n", bound_str);
-
-	ubsan_epilogue(&flags);
-}
-EXPORT_SYMBOL(__ubsan_handle_vla_bound_not_positive);
-
 void __ubsan_handle_out_of_bounds(struct out_of_bounds_data *data, void *index)
 {
 	unsigned long flags;
