@@ -417,9 +417,6 @@ int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access)
 		h = hstate_vma(vma);
 		umem->page_shift = huge_page_shift(h);
 		up_read(&mm->mmap_sem);
-		umem->hugetlb = 1;
-	} else {
-		umem->hugetlb = 0;
 	}
 
 	mutex_init(&umem_odp->umem_mutex);

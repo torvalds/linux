@@ -48,7 +48,6 @@ struct ib_umem {
 	unsigned long		address;
 	int			page_shift;
 	u32 writable : 1;
-	u32 hugetlb : 1;
 	u32 is_odp : 1;
 	struct work_struct	work;
 	struct sg_table sg_head;

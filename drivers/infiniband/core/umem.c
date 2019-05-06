@@ -37,7 +37,6 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
 #include <linux/export.h>
-#include <linux/hugetlb.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <rdma/ib_umem_odp.h>
@@ -199,14 +198,12 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	struct ib_ucontext *context;
 	struct ib_umem *umem;
 	struct page **page_list;
-	struct vm_area_struct **vma_list;
 	unsigned long lock_limit;
 	unsigned long new_pinned;
 	unsigned long cur_base;
 	struct mm_struct *mm;
 	unsigned long npages;
 	int ret;
-	int i;
 	unsigned long dma_attrs = 0;
 	struct scatterlist *sg;
 	unsigned int gup_flags = FOLL_WRITE;
@@ -264,22 +261,11 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 		return umem;
 	}
 
-	/* We assume the memory is from hugetlb until proved otherwise */
-	umem->hugetlb   = 1;
-
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
 	if (!page_list) {
 		ret = -ENOMEM;
 		goto umem_kfree;
 	}
-
-	/*
-	 * if we can't alloc the vma_list, it's not so bad;
-	 * just assume the memory is not hugetlb memory
-	 */
-	vma_list = (struct vm_area_struct **) __get_free_page(GFP_KERNEL);
-	if (!vma_list)
-		umem->hugetlb = 0;
 
 	npages = ib_umem_num_pages(umem);
 	if (npages == 0 || npages > UINT_MAX) {
@@ -312,7 +298,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 		ret = get_user_pages_longterm(cur_base,
 				     min_t(unsigned long, npages,
 					   PAGE_SIZE / sizeof (struct page *)),
-				     gup_flags, page_list, vma_list);
+				     gup_flags, page_list, NULL);
 		if (ret < 0) {
 			up_read(&mm->mmap_sem);
 			goto umem_release;
@@ -324,14 +310,6 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 		sg = ib_umem_add_sg_table(sg, page_list, ret,
 			dma_get_max_seg_size(context->device->dma_device),
 			&umem->sg_nents);
-
-		/* Continue to hold the mmap_sem as vma_list access
-		 * needs to be protected.
-		 */
-		for (i = 0; i < ret && umem->hugetlb; i++) {
-			if (vma_list && !is_vm_hugetlb_page(vma_list[i]))
-				umem->hugetlb = 0;
-		}
 
 		up_read(&mm->mmap_sem);
 	}
@@ -357,8 +335,6 @@ umem_release:
 vma:
 	atomic64_sub(ib_umem_num_pages(umem), &mm->pinned_vm);
 out:
-	if (vma_list)
-		free_page((unsigned long) vma_list);
 	free_page((unsigned long) page_list);
 umem_kfree:
 	if (ret) {
