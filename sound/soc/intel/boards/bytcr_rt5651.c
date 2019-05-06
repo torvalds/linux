@@ -867,8 +867,8 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
+	struct acpi_device *adev;
 	struct device *codec_dev;
-	const char *i2c_name = NULL;
 	const char *hp_swapped;
 	bool is_bytcr = false;
 	int ret_val = 0;
@@ -894,14 +894,16 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	}
 
 	/* fixup codec name based on HID */
-	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-	if (!i2c_name) {
+	adev = acpi_dev_get_first_match_dev(mach->id, NULL, -1);
+	if (adev) {
+		snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
+			 "i2c-%s", acpi_dev_name(adev));
+		put_device(&adev->dev);
+		byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
+	} else {
 		dev_err(&pdev->dev, "Error cannot find '%s' dev\n", mach->id);
 		return -ENODEV;
 	}
-	snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
-		"%s%s", "i2c-", i2c_name);
-	byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
 
 	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL,
 					    byt_rt5651_codec_name);
