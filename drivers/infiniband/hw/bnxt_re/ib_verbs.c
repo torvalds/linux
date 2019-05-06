@@ -3507,17 +3507,12 @@ static int fill_umem_pbl_tbl(struct ib_umem *umem, u64 *pbl_tbl_orig,
 			     int page_shift)
 {
 	u64 *pbl_tbl = pbl_tbl_orig;
-	u64 paddr;
-	u64 page_mask = (1ULL << page_shift) - 1;
-	struct sg_dma_page_iter sg_iter;
+	u64 page_size =  BIT_ULL(page_shift);
+	struct ib_block_iter biter;
 
-	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		paddr = sg_page_iter_dma_address(&sg_iter);
-		if (pbl_tbl == pbl_tbl_orig)
-			*pbl_tbl++ = paddr & ~page_mask;
-		else if ((paddr & page_mask) == 0)
-			*pbl_tbl++ = paddr;
-	}
+	rdma_for_each_block(umem->sg_head.sgl, &biter, umem->nmap, page_size)
+		*pbl_tbl++ = rdma_block_iter_dma_address(&biter);
+
 	return pbl_tbl - pbl_tbl_orig;
 }
 
@@ -3579,7 +3574,9 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		goto free_umem;
 	}
 
-	page_shift = PAGE_SHIFT;
+	page_shift = __ffs(ib_umem_find_best_pgsz(umem,
+				BNXT_RE_PAGE_SIZE_4K | BNXT_RE_PAGE_SIZE_2M,
+				virt_addr));
 
 	if (!bnxt_re_page_size_ok(page_shift)) {
 		dev_err(rdev_to_dev(rdev), "umem page size unsupported!");
@@ -3587,16 +3584,12 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		goto fail;
 	}
 
-	if (!umem->hugetlb && length > BNXT_RE_MAX_MR_SIZE_LOW) {
+	if (page_shift == BNXT_RE_PAGE_SHIFT_4K &&
+	    length > BNXT_RE_MAX_MR_SIZE_LOW) {
 		dev_err(rdev_to_dev(rdev), "Requested MR Sz:%llu Max sup:%llu",
 			length,	(u64)BNXT_RE_MAX_MR_SIZE_LOW);
 		rc = -EINVAL;
 		goto fail;
-	}
-	if (umem->hugetlb && length > BNXT_RE_PAGE_SIZE_2M) {
-		page_shift = BNXT_RE_PAGE_SHIFT_2M;
-		dev_warn(rdev_to_dev(rdev), "umem hugetlb set page_size %x",
-			 1 << page_shift);
 	}
 
 	/* Map umem buf ptrs to the PBL */
