@@ -1318,7 +1318,7 @@ static void release_dsc(struct resource_context *res_ctx,
 
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
+static enum dc_status add_dsc_to_stream_resource(struct dc *dc,
 		struct dc_state *dc_ctx,
 		struct dc_stream_state *dc_stream)
 {
@@ -1348,7 +1348,7 @@ enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
 }
 
 
-enum dc_status dcn20_remove_dsc_from_stream_resource(struct dc *dc,
+static enum dc_status remove_dsc_from_stream_resource(struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *dc_stream)
 {
@@ -1390,7 +1390,7 @@ enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	/* Get a DSC if required and available */
 	if (result == DC_OK && dc_stream->timing.flags.DSC)
-		result = dcn20_add_dsc_to_stream_resource(dc, new_ctx, dc_stream);
+		result = add_dsc_to_stream_resource(dc, new_ctx, dc_stream);
 #endif
 
 	if (result == DC_OK)
@@ -1405,7 +1405,7 @@ enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_
 	enum dc_status result = DC_OK;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	result = dcn20_remove_dsc_from_stream_resource(dc, new_ctx, dc_stream);
+	result = remove_dsc_from_stream_resource(dc, new_ctx, dc_stream);
 #endif
 
 	return result;
@@ -2435,10 +2435,6 @@ static struct resource_funcs dcn20_res_pool_funcs = {
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
 	.get_default_swizzle_mode = dcn20_get_default_swizzle_mode,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
-	.remove_dsc_from_stream_resource = dcn20_remove_dsc_from_stream_resource,
-#endif
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
 };
 

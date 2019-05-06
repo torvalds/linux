@@ -467,40 +467,39 @@ static void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable)
 {
-	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	bool result = false;
 
+	if (!pipe_ctx->stream->timing.flags.DSC)
+		goto out;
 	if (!dsc)
 		goto out;
 
-	if (enable && stream->is_dsc_enabled) {
-		/* update dsc stream */
-		dp_set_dsc_on_stream(pipe_ctx, true);
-		stream->is_dsc_enabled = true;
-		result = true;
-	} else if (enable && !stream->is_dsc_enabled) {
-		/* enable dsc on non dsc stream */
+	if (enable) {
 		if (dp_set_dsc_on_rx(pipe_ctx, true)) {
 			dp_set_dsc_on_stream(pipe_ctx, true);
-			stream->is_dsc_enabled = true;
 			result = true;
-		} else {
-			stream->is_dsc_enabled = false;
-			result = false;
 		}
-	} else if (!enable && stream->is_dsc_enabled) {
-		/* disable dsc on dsc stream */
+	} else {
 		dp_set_dsc_on_rx(pipe_ctx, false);
 		dp_set_dsc_on_stream(pipe_ctx, false);
-		stream->is_dsc_enabled = false;
-		result = true;
-	} else {
-		/* disable dsc on non dsc stream */
 		result = true;
 	}
 out:
 	return result;
+}
+
+bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
+{
+	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
+
+	if (!pipe_ctx->stream->timing.flags.DSC)
+		return false;
+	if (!dsc)
+		return false;
+
+	dp_set_dsc_on_stream(pipe_ctx, true);
+	return true;
 }
 
 #endif

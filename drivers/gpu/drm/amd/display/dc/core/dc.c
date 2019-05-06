@@ -1746,14 +1746,9 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 #if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 			if (stream_update->dsc_config && dc->hwss.pipe_control_lock_global) {
-				bool enable_dsc = (stream_update->dsc_config->num_slices_h && stream_update->dsc_config->num_slices_v);
-
 				dc->hwss.pipe_control_lock_global(dc, pipe_ctx, true);
-				dp_set_dsc_enable(pipe_ctx, enable_dsc);
+				dp_update_dsc_config(pipe_ctx);
 				dc->hwss.pipe_control_lock_global(dc, pipe_ctx, false);
-
-				if (!stream->is_dsc_enabled)
-					dc->res_pool->funcs->remove_dsc_from_stream_resource(dc, context, stream);
 			}
 #endif
 			/* Full fe update*/
