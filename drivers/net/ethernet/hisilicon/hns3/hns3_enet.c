@@ -2328,49 +2328,30 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 				struct hns3_enet_ring *ring, int pull_len,
 				struct hns3_desc_cb *desc_cb)
 {
-	struct hns3_desc *desc;
-	u32 truesize;
-	int size;
-	int last_offset;
-	bool twobufs;
-
-	twobufs = ((PAGE_SIZE < 8192) &&
-		hnae3_buf_size(ring) == HNS3_BUFFER_SIZE_2048);
-
-	desc = &ring->desc[ring->next_to_clean];
-	size = le16_to_cpu(desc->rx.size);
-
-	truesize = hnae3_buf_size(ring);
-
-	if (!twobufs)
-		last_offset = hnae3_page_size(ring) - hnae3_buf_size(ring);
+	struct hns3_desc *desc = &ring->desc[ring->next_to_clean];
+	int size = le16_to_cpu(desc->rx.size);
+	u32 truesize = hnae3_buf_size(ring);
 
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
 			size - pull_len, truesize);
 
-	 /* Avoid re-using remote pages,flag default unreuse */
-	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
+	/* Avoid re-using remote pages, or the stack is still using the page
+	 * when page_offset rollback to zero, flag default unreuse
+	 */
+	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()) ||
+	    (!desc_cb->page_offset && page_count(desc_cb->priv) > 1))
 		return;
-
-	if (twobufs) {
-		/* If we are only owner of page we can reuse it */
-		if (likely(page_count(desc_cb->priv) == 1)) {
-			/* Flip page offset to other buffer */
-			desc_cb->page_offset ^= truesize;
-
-			desc_cb->reuse_flag = 1;
-			/* bump ref count on page before it is given*/
-			get_page(desc_cb->priv);
-		}
-		return;
-	}
 
 	/* Move offset up to the next cache line */
 	desc_cb->page_offset += truesize;
 
-	if (desc_cb->page_offset <= last_offset) {
+	if (desc_cb->page_offset + truesize <= hnae3_page_size(ring)) {
 		desc_cb->reuse_flag = 1;
 		/* Bump ref count on page before it is given*/
+		get_page(desc_cb->priv);
+	} else if (page_count(desc_cb->priv) == 1) {
+		desc_cb->reuse_flag = 1;
+		desc_cb->page_offset = 0;
 		get_page(desc_cb->priv);
 	}
 }
