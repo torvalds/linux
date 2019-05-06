@@ -92,7 +92,6 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 {
 	struct bpf_flow_keys *keys = skb->flow_keys;
 
-	keys->n_proto = proto;
 	switch (proto) {
 	case bpf_htons(ETH_P_IP):
 		bpf_tail_call(skb, &jmp_table, IP);
@@ -119,10 +118,9 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 SEC("flow_dissector")
 int _dissect(struct __sk_buff *skb)
 {
-	if (!skb->vlan_present)
-		return parse_eth_proto(skb, skb->protocol);
-	else
-		return parse_eth_proto(skb, skb->vlan_proto);
+	struct bpf_flow_keys *keys = skb->flow_keys;
+
+	return parse_eth_proto(skb, keys->n_proto);
 }
 
 /* Parses on IPPROTO_* */
@@ -336,15 +334,9 @@ PROG(VLAN)(struct __sk_buff *skb)
 {
 	struct bpf_flow_keys *keys = skb->flow_keys;
 	struct vlan_hdr *vlan, _vlan;
-	__be16 proto;
-
-	/* Peek back to see if single or double-tagging */
-	if (bpf_skb_load_bytes(skb, keys->thoff - sizeof(proto), &proto,
-			       sizeof(proto)))
-		return BPF_DROP;
 
 	/* Account for double-tagging */
-	if (proto == bpf_htons(ETH_P_8021AD)) {
+	if (keys->n_proto == bpf_htons(ETH_P_8021AD)) {
 		vlan = bpf_flow_dissect_get_header(skb, sizeof(*vlan), &_vlan);
 		if (!vlan)
 			return BPF_DROP;
@@ -352,6 +344,7 @@ PROG(VLAN)(struct __sk_buff *skb)
 		if (vlan->h_vlan_encapsulated_proto != bpf_htons(ETH_P_8021Q))
 			return BPF_DROP;
 
+		keys->nhoff += sizeof(*vlan);
 		keys->thoff += sizeof(*vlan);
 	}
 
@@ -359,12 +352,14 @@ PROG(VLAN)(struct __sk_buff *skb)
 	if (!vlan)
 		return BPF_DROP;
 
+	keys->nhoff += sizeof(*vlan);
 	keys->thoff += sizeof(*vlan);
 	/* Only allow 8021AD + 8021Q double tagging and no triple tagging.*/
 	if (vlan->h_vlan_encapsulated_proto == bpf_htons(ETH_P_8021AD) ||
 	    vlan->h_vlan_encapsulated_proto == bpf_htons(ETH_P_8021Q))
 		return BPF_DROP;
 
+	keys->n_proto = vlan->h_vlan_encapsulated_proto;
 	return parse_eth_proto(skb, vlan->h_vlan_encapsulated_proto);
 }
 

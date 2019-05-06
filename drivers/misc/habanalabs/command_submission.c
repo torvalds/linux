@@ -179,6 +179,12 @@ static void cs_do_release(struct kref *ref)
 
 	/* We also need to update CI for internal queues */
 	if (cs->submitted) {
+		int cs_cnt = atomic_dec_return(&hdev->cs_active_cnt);
+
+		WARN_ONCE((cs_cnt < 0),
+			"hl%d: error in CS active cnt %d\n",
+			hdev->id, cs_cnt);
+
 		hl_int_hw_queue_update_ci(cs);
 
 		spin_lock(&hdev->hw_queues_mirror_lock);

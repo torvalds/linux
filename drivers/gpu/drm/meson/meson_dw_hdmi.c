@@ -569,7 +569,8 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 	DRM_DEBUG_DRIVER("Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 
 	/* If sink max TMDS clock, we reject the mode */
-	if (mode->clock > connector->display_info.max_tmds_clock)
+	if (connector->display_info.max_tmds_clock &&
+	    mode->clock > connector->display_info.max_tmds_clock)
 		return MODE_BAD;
 
 	/* Check against non-VIC supported modes */
