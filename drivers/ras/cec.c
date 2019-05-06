@@ -486,18 +486,6 @@ static int __init create_debugfs_nodes(void)
 		return -1;
 	}
 
-	pfn = debugfs_create_file("pfn", S_IRUSR | S_IWUSR, d, &dfs_pfn, &pfn_ops);
-	if (!pfn) {
-		pr_warn("Error creating pfn debugfs node!\n");
-		goto err;
-	}
-
-	array = debugfs_create_file("array", S_IRUSR, d, NULL, &array_ops);
-	if (!array) {
-		pr_warn("Error creating array debugfs node!\n");
-		goto err;
-	}
-
 	decay = debugfs_create_file("decay_interval", S_IRUSR | S_IWUSR, d,
 				    &decay_interval, &decay_interval_ops);
 	if (!decay) {
@@ -512,6 +500,20 @@ static int __init create_debugfs_nodes(void)
 		goto err;
 	}
 
+	if (!IS_ENABLED(CONFIG_RAS_CEC_DEBUG))
+		return 0;
+
+	pfn = debugfs_create_file("pfn", S_IRUSR | S_IWUSR, d, &dfs_pfn, &pfn_ops);
+	if (!pfn) {
+		pr_warn("Error creating pfn debugfs node!\n");
+		goto err;
+	}
+
+	array = debugfs_create_file("array", S_IRUSR, d, NULL, &array_ops);
+	if (!array) {
+		pr_warn("Error creating array debugfs node!\n");
+		goto err;
+	}
 
 	return 0;
 
