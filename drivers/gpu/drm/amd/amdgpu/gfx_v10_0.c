@@ -1573,8 +1573,6 @@ void gfx_v10_0_rlc_stop(struct amdgpu_device *adev)
 
 	tmp = REG_SET_FIELD(tmp, RLC_CNTL, RLC_ENABLE_F32, 0);
 	WREG32_SOC15(GC, 0, mmRLC_CNTL, tmp);
-
-	gfx_v10_0_enable_gui_idle_interrupt(adev, false);
 }
 
 static void gfx_v10_0_rlc_reset(struct amdgpu_device *adev)
@@ -3607,7 +3605,7 @@ static int gfx_v10_0_hw_fini(void *handle)
 		return 0;
 	}
 	gfx_v10_0_cp_enable(adev, false);
-	gfx_v10_0_rlc_stop(adev);
+	gfx_v10_0_enable_gui_idle_interrupt(adev, false);
 
 	return 0;
 }

@@ -943,6 +943,10 @@ static int smu_suspend(void *handle)
 
 	smu->watermarks_bitmap &= ~(WATERMARKS_LOADED);
 
+	if (adev->asic_type >= CHIP_NAVI10 &&
+	    adev->gfx.rlc.funcs->stop)
+		adev->gfx.rlc.funcs->stop(adev);
+
 	return 0;
 }
 
