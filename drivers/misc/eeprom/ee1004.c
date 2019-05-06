@@ -1,7 +1,7 @@
 /*
  * ee1004 - driver for DDR4 SPD EEPROMs
  *
- * Copyright (C) 2017 Jean Delvare
+ * Copyright (C) 2017-2019 Jean Delvare
  *
  * Based on the at24 driver:
  * Copyright (C) 2005-2007 David Brownell
@@ -124,6 +124,16 @@ static ssize_t ee1004_read(struct file *filp, struct kobject *kobj,
 			/* Data is ignored */
 			status = i2c_smbus_write_byte(ee1004_set_page[page],
 						      0x00);
+			if (status == -ENXIO) {
+				/*
+				 * Don't give up just yet. Some memory
+				 * modules will select the page but not
+				 * ack the command. Check which page is
+				 * selected now.
+				 */
+				if (ee1004_get_current_page() == page)
+					status = 0;
+			}
 			if (status < 0) {
 				dev_err(dev, "Failed to select page %d (%d)\n",
 					page, status);
