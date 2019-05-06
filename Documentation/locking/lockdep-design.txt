@@ -108,14 +108,24 @@ Unused locks (e.g., mutexes) cannot be part of the cause of an error.
 Single-lock state rules:
 ------------------------
 
+A lock is irq-safe means it was ever used in an irq context, while a lock
+is irq-unsafe means it was ever acquired with irq enabled.
+
 A softirq-unsafe lock-class is automatically hardirq-unsafe as well. The
-following states are exclusive, and only one of them is allowed to be
-set for any lock-class:
+following states must be exclusive: only one of them is allowed to be set
+for any lock-class based on its usage:
 
- <hardirq-safe> and <hardirq-unsafe>
- <softirq-safe> and <softirq-unsafe>
+ <hardirq-safe> or <hardirq-unsafe>
+ <softirq-safe> or <softirq-unsafe>
 
-The validator detects and reports lock usage that violate these
+This is because if a lock can be used in irq context (irq-safe) then it
+cannot be ever acquired with irq enabled (irq-unsafe). Otherwise, a
+deadlock may happen. For example, in the scenario that after this lock
+was acquired but before released, if the context is interrupted this
+lock will be attempted to acquire twice, which creates a deadlock,
+referred to as lock recursion deadlock.
+
+The validator detects and reports lock usage that violates these
 single-lock state rules.
 
 Multi-lock dependency rules:
@@ -124,15 +134,18 @@ Multi-lock dependency rules:
 The same lock-class must not be acquired twice, because this could lead
 to lock recursion deadlocks.
 
-Furthermore, two locks may not be taken in different order:
+Furthermore, two locks can not be taken in inverse order:
 
  <L1> -> <L2>
  <L2> -> <L1>
 
-because this could lead to lock inversion deadlocks. (The validator
-finds such dependencies in arbitrary complexity, i.e. there can be any
-other locking sequence between the acquire-lock operations, the
-validator will still track all dependencies between locks.)
+because this could lead to a deadlock - referred to as lock inversion
+deadlock - as attempts to acquire the two locks form a circle which
+could lead to the two contexts waiting for each other permanently. The
+validator will find such dependency circle in arbitrary complexity,
+i.e., there can be any other locking sequence between the acquire-lock
+operations; the validator will still find whether these locks can be
+acquired in a circular fashion.
 
 Furthermore, the following usage based lock dependencies are not allowed
 between any two lock-classes:
