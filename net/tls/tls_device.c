@@ -597,7 +597,7 @@ void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)
 static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 {
 	struct strp_msg *rxm = strp_msg(skb);
-	int err = 0, offset = rxm->offset, copy, nsg;
+	int err = 0, offset = rxm->offset, copy, nsg, data_len, pos;
 	struct sk_buff *skb_iter, *unused;
 	struct scatterlist sg[1];
 	char *orig_buf, *buf;
@@ -628,25 +628,42 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 	else
 		err = 0;
 
-	copy = min_t(int, skb_pagelen(skb) - offset,
-		     rxm->full_len - TLS_CIPHER_AES_GCM_128_TAG_SIZE);
+	data_len = rxm->full_len - TLS_CIPHER_AES_GCM_128_TAG_SIZE;
 
-	if (skb->decrypted)
-		skb_store_bits(skb, offset, buf, copy);
+	if (skb_pagelen(skb) > offset) {
+		copy = min_t(int, skb_pagelen(skb) - offset, data_len);
 
-	offset += copy;
-	buf += copy;
-
-	skb_walk_frags(skb, skb_iter) {
-		copy = min_t(int, skb_iter->len,
-			     rxm->full_len - offset + rxm->offset -
-			     TLS_CIPHER_AES_GCM_128_TAG_SIZE);
-
-		if (skb_iter->decrypted)
-			skb_store_bits(skb_iter, offset, buf, copy);
+		if (skb->decrypted)
+			skb_store_bits(skb, offset, buf, copy);
 
 		offset += copy;
 		buf += copy;
+	}
+
+	pos = skb_pagelen(skb);
+	skb_walk_frags(skb, skb_iter) {
+		int frag_pos;
+
+		/* Practically all frags must belong to msg if reencrypt
+		 * is needed with current strparser and coalescing logic,
+		 * but strparser may "get optimized", so let's be safe.
+		 */
+		if (pos + skb_iter->len <= offset)
+			goto done_with_frag;
+		if (pos >= data_len + rxm->offset)
+			break;
+
+		frag_pos = offset - pos;
+		copy = min_t(int, skb_iter->len - frag_pos,
+			     data_len + rxm->offset - offset);
+
+		if (skb_iter->decrypted)
+			skb_store_bits(skb_iter, frag_pos, buf, copy);
+
+		offset += copy;
+		buf += copy;
+done_with_frag:
+		pos += skb_iter->len;
 	}
 
 free_buf:

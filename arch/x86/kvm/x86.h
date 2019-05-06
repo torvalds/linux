@@ -294,8 +294,6 @@ extern u64 kvm_supported_xcr0(void);
 
 extern unsigned int min_timer_period_us;
 
-extern unsigned int lapic_timer_advance_ns;
-
 extern bool enable_vmware_backdoor;
 
 extern struct static_key kvm_no_apic_vcpu;

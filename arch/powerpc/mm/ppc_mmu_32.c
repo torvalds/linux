@@ -98,10 +98,20 @@ static int find_free_bat(void)
 	return -1;
 }
 
+/*
+ * This function calculates the size of the larger block usable to map the
+ * beginning of an area based on the start address and size of that area:
+ * - max block size is 8M on 601 and 256 on other 6xx.
+ * - base address must be aligned to the block size. So the maximum block size
+ *   is identified by the lowest bit set to 1 in the base address (for instance
+ *   if base is 0x16000000, max size is 0x02000000).
+ * - block size has to be a power of two. This is calculated by finding the
+ *   highest bit set to 1.
+ */
 static unsigned int block_size(unsigned long base, unsigned long top)
 {
 	unsigned int max_size = (cpu_has_feature(CPU_FTR_601) ? 8 : 256) << 20;
-	unsigned int base_shift = (fls(base) - 1) & 31;
+	unsigned int base_shift = (ffs(base) - 1) & 31;
 	unsigned int block_shift = (fls(top - base) - 1) & 31;
 
 	return min3(max_size, 1U << base_shift, 1U << block_shift);
@@ -157,7 +167,7 @@ static unsigned long __init __mmu_mapin_ram(unsigned long base, unsigned long to
 
 unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
-	int done;
+	unsigned long done;
 	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 
 	if (__map_without_bats) {
@@ -169,10 +179,10 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		return __mmu_mapin_ram(base, top);
 
 	done = __mmu_mapin_ram(base, border);
-	if (done != border - base)
+	if (done != border)
 		return done;
 
-	return done + __mmu_mapin_ram(border, top);
+	return __mmu_mapin_ram(border, top);
 }
 
 void mmu_mark_initmem_nx(void)

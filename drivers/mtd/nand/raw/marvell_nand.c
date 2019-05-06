@@ -722,12 +722,6 @@ static void marvell_nfc_select_target(struct nand_chip *chip,
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 	u32 ndcr_generic;
 
-	if (chip == nfc->selected_chip && die_nr == marvell_nand->selected_die)
-		return;
-
-	writel_relaxed(marvell_nand->ndtr0, nfc->regs + NDTR0);
-	writel_relaxed(marvell_nand->ndtr1, nfc->regs + NDTR1);
-
 	/*
 	 * Reset the NDCR register to a clean state for this particular chip,
 	 * also clear ND_RUN bit.
@@ -738,6 +732,12 @@ static void marvell_nfc_select_target(struct nand_chip *chip,
 
 	/* Also reset the interrupt status register */
 	marvell_nfc_clear_int(nfc, NDCR_ALL_INT);
+
+	if (chip == nfc->selected_chip && die_nr == marvell_nand->selected_die)
+		return;
+
+	writel_relaxed(marvell_nand->ndtr0, nfc->regs + NDTR0);
+	writel_relaxed(marvell_nand->ndtr1, nfc->regs + NDTR1);
 
 	nfc->selected_chip = chip;
 	marvell_nand->selected_die = die_nr;
