@@ -45,6 +45,16 @@
 #define LOCK_PREFIX ""
 #endif
 
+/*
+ * objtool annotation to ignore the alternatives and only consider the original
+ * instruction(s).
+ */
+#define ANNOTATE_IGNORE_ALTERNATIVE				\
+	"999:\n\t"						\
+	".pushsection .discard.ignore_alts\n\t"			\
+	".long 999b - .\n\t"					\
+	".popsection\n\t"
+
 struct alt_instr {
 	s32 instr_offset;	/* original instruction */
 	s32 repl_offset;	/* offset to replacement instruction */
