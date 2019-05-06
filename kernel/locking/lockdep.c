@@ -3582,6 +3582,11 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 {
 	unsigned int new_mask = 1 << new_bit, ret = 1;
 
+	if (new_bit >= LOCK_USAGE_STATES) {
+		DEBUG_LOCKS_WARN_ON(1);
+		return 0;
+	}
+
 	/*
 	 * If already set then do not dirty the cacheline,
 	 * nor do any checks:
@@ -3605,25 +3610,13 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 		return 0;
 
 	switch (new_bit) {
-#define LOCKDEP_STATE(__STATE)			\
-	case LOCK_USED_IN_##__STATE:		\
-	case LOCK_USED_IN_##__STATE##_READ:	\
-	case LOCK_ENABLED_##__STATE:		\
-	case LOCK_ENABLED_##__STATE##_READ:
-#include "lockdep_states.h"
-#undef LOCKDEP_STATE
-		ret = mark_lock_irq(curr, this, new_bit);
-		if (!ret)
-			return 0;
-		break;
 	case LOCK_USED:
 		debug_atomic_dec(nr_unused_locks);
 		break;
 	default:
-		if (!debug_locks_off_graph_unlock())
+		ret = mark_lock_irq(curr, this, new_bit);
+		if (!ret)
 			return 0;
-		WARN_ON(1);
-		return 0;
 	}
 
 	graph_unlock();
