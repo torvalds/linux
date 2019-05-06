@@ -175,6 +175,7 @@ struct generic_pm_domain_data {
 	struct pm_domain_data base;
 	struct gpd_timing_data td;
 	struct notifier_block nb;
+	int cpu;
 	unsigned int performance_state;
 	void *data;
 };
