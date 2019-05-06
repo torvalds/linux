@@ -131,6 +131,57 @@ static struct scatterlist *ib_umem_add_sg_table(struct scatterlist *sg,
 }
 
 /**
+ * ib_umem_find_best_pgsz - Find best HW page size to use for this MR
+ *
+ * @umem: umem struct
+ * @pgsz_bitmap: bitmap of HW supported page sizes
+ * @virt: IOVA
+ *
+ * This helper is intended for HW that support multiple page
+ * sizes but can do only a single page size in an MR.
+ *
+ * Returns 0 if the umem requires page sizes not supported by
+ * the driver to be mapped. Drivers always supporting PAGE_SIZE
+ * or smaller will never see a 0 result.
+ */
+unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
+				     unsigned long pgsz_bitmap,
+				     unsigned long virt)
+{
+	struct scatterlist *sg;
+	unsigned int best_pg_bit;
+	unsigned long va, pgoff;
+	dma_addr_t mask;
+	int i;
+
+	/* At minimum, drivers must support PAGE_SIZE or smaller */
+	if (WARN_ON(!(pgsz_bitmap & GENMASK(PAGE_SHIFT, 0))))
+		return 0;
+
+	va = virt;
+	/* max page size not to exceed MR length */
+	mask = roundup_pow_of_two(umem->length);
+	/* offset into first SGL */
+	pgoff = umem->address & ~PAGE_MASK;
+
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
+		/* Walk SGL and reduce max page size if VA/PA bits differ
+		 * for any address.
+		 */
+		mask |= (sg_dma_address(sg) + pgoff) ^ va;
+		if (i && i != (umem->nmap - 1))
+			/* restrict by length as well for interior SGEs */
+			mask |= sg_dma_len(sg);
+		va += sg_dma_len(sg) - pgoff;
+		pgoff = 0;
+	}
+	best_pg_bit = rdma_find_pg_bit(mask, pgsz_bitmap);
+
+	return BIT_ULL(best_pg_bit);
+}
+EXPORT_SYMBOL(ib_umem_find_best_pgsz);
+
+/**
  * ib_umem_get - Pin and DMA map userspace memory.
  *
  * If access flags indicate ODP memory, avoid pinning. Instead, stores

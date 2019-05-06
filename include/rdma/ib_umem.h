@@ -87,6 +87,9 @@ void ib_umem_release(struct ib_umem *umem);
 int ib_umem_page_count(struct ib_umem *umem);
 int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 		      size_t length);
+unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
+				     unsigned long pgsz_bitmap,
+				     unsigned long virt);
 
 #else /* CONFIG_INFINIBAND_USER_MEM */
 
@@ -104,6 +107,12 @@ static inline int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offs
 		      		    size_t length) {
 	return -EINVAL;
 }
+static inline int ib_umem_find_best_pgsz(struct ib_umem *umem,
+					 unsigned long pgsz_bitmap,
+					 unsigned long virt) {
+	return -EINVAL;
+}
+
 #endif /* CONFIG_INFINIBAND_USER_MEM */
 
 #endif /* IB_UMEM_H */
