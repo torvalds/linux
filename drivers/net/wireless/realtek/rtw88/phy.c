@@ -423,6 +423,11 @@ static u64 rtw_phy_db_2_linear(u8 power_db)
 	u8 i, j;
 	u64 linear;
 
+	if (power_db > 96)
+		power_db = 96;
+	else if (power_db < 1)
+		return 1;
+
 	/* 1dB ~ 96dB */
 	i = (power_db - 1) >> 3;
 	j = (power_db - 1) - (i << 3);
