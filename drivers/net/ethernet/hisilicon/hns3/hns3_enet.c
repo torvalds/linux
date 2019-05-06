@@ -741,64 +741,48 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 				u8 il4_proto, u32 *type_cs_vlan_tso,
 				u32 *ol_type_vlan_len_msec)
 {
+	unsigned char *l2_hdr = skb->data;
+	u8 l4_proto = ol4_proto;
 	union l3_hdr_info l3;
 	union l4_hdr_info l4;
-	unsigned char *l2_hdr;
-	u8 l4_proto = ol4_proto;
-	u32 ol2_len;
-	u32 ol3_len;
-	u32 ol4_len;
 	u32 l2_len;
 	u32 l3_len;
+	u32 l4_len;
 
 	l3.hdr = skb_network_header(skb);
 	l4.hdr = skb_transport_header(skb);
 
-	/* compute L2 header size for normal packet, defined in 2 Bytes */
-	l2_len = l3.hdr - skb->data;
-	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S, l2_len >> 1);
-
-	/* tunnel packet*/
+	/* tunnel packet */
 	if (skb->encapsulation) {
+		/* not MAC in UDP, MAC in GRE (0x6558) */
+		if (!(ol4_proto == IPPROTO_UDP || ol4_proto == IPPROTO_GRE))
+			return;
+
 		/* compute OL2 header size, defined in 2 Bytes */
-		ol2_len = l2_len;
+		l2_len = l3.hdr - skb->data;
 		hns3_set_field(*ol_type_vlan_len_msec,
-			       HNS3_TXD_L2LEN_S, ol2_len >> 1);
+			       HNS3_TXD_L2LEN_S, l2_len >> 1);
 
 		/* compute OL3 header size, defined in 4 Bytes */
-		ol3_len = l4.hdr - l3.hdr;
+		l3_len = l4.hdr - l3.hdr;
 		hns3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_L3LEN_S,
-			       ol3_len >> 2);
+			       l3_len >> 2);
 
-		/* MAC in UDP, MAC in GRE (0x6558)*/
-		if ((ol4_proto == IPPROTO_UDP) || (ol4_proto == IPPROTO_GRE)) {
-			/* switch MAC header ptr from outer to inner header.*/
-			l2_hdr = skb_inner_mac_header(skb);
+		l2_hdr = skb_inner_mac_header(skb);
+		/* compute OL4 header size, defined in 4 Bytes. */
+		l4_len = l2_hdr - l4.hdr;
+		hns3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_L4LEN_S,
+			       l4_len >> 2);
 
-			/* compute OL4 header size, defined in 4 Bytes. */
-			ol4_len = l2_hdr - l4.hdr;
-			hns3_set_field(*ol_type_vlan_len_msec,
-				       HNS3_TXD_L4LEN_S, ol4_len >> 2);
-
-			/* switch IP header ptr from outer to inner header */
-			l3.hdr = skb_inner_network_header(skb);
-
-			/* compute inner l2 header size, defined in 2 Bytes. */
-			l2_len = l3.hdr - l2_hdr;
-			hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S,
-				       l2_len >> 1);
-		} else {
-			/* skb packet types not supported by hardware,
-			 * txbd len fild doesn't be filled.
-			 */
-			return;
-		}
-
-		/* switch L4 header pointer from outer to inner */
+		/* switch to inner header */
+		l2_hdr = skb_inner_mac_header(skb);
+		l3.hdr = skb_inner_network_header(skb);
 		l4.hdr = skb_inner_transport_header(skb);
-
 		l4_proto = il4_proto;
 	}
+
+	l2_len = l3.hdr - l2_hdr;
+	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S, l2_len >> 1);
 
 	/* compute inner(/normal) L3 header size, defined in 4 Bytes */
 	l3_len = l4.hdr - l3.hdr;
