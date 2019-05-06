@@ -94,7 +94,7 @@ static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	int ret;
 
 	len = sizeof(struct udphdr) + sizeof(struct guehdr);
-	if (!pskb_may_pull(skb, len))
+	if (!pskb_may_pull(skb, transport_offset + len))
 		return -EINVAL;
 
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
@@ -129,7 +129,7 @@ static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	optlen = guehdr->hlen << 2;
 
-	if (!pskb_may_pull(skb, len + optlen))
+	if (!pskb_may_pull(skb, transport_offset + len + optlen))
 		return -EINVAL;
 
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];

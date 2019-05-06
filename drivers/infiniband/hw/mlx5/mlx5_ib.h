@@ -36,6 +36,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_umem.h>
 #include <rdma/ib_smi.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cq.h>
@@ -588,12 +589,25 @@ struct mlx5_ib_mr {
 	atomic_t		num_leaf_free;
 	wait_queue_head_t       q_leaf_free;
 	struct mlx5_async_work  cb_work;
+	atomic_t		num_pending_prefetch;
 };
+
+static inline bool is_odp_mr(struct mlx5_ib_mr *mr)
+{
+	return IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING) && mr->umem &&
+	       mr->umem->is_odp;
+}
 
 struct mlx5_ib_mw {
 	struct ib_mw		ibmw;
 	struct mlx5_core_mkey	mmkey;
 	int			ndescs;
+};
+
+struct mlx5_ib_devx_mr {
+	struct mlx5_core_mkey	mmkey;
+	int			ndescs;
+	struct rcu_head		rcu;
 };
 
 struct mlx5_ib_umr_context {
@@ -624,7 +638,6 @@ struct mlx5_cache_ent {
 	spinlock_t		lock;
 
 
-	struct dentry	       *dir;
 	char                    name[4];
 	u32                     order;
 	u32			xlt;
@@ -635,11 +648,6 @@ struct mlx5_cache_ent {
 	u32                     cur;
 	u32                     miss;
 	u32			limit;
-
-	struct dentry          *fsize;
-	struct dentry          *fcur;
-	struct dentry          *fmiss;
-	struct dentry          *flimit;
 
 	struct mlx5_ib_dev     *dev;
 	struct work_struct	work;
@@ -912,7 +920,6 @@ struct mlx5_ib_dev {
 	/* Prevents soft lock on massive reg MRs */
 	struct mutex			slow_path_mutex;
 	int				fill_delay;
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	struct ib_odp_caps	odp_caps;
 	u64			odp_max_size;
 	struct mlx5_ib_pf_eq	odp_pf_eq;
@@ -923,8 +930,6 @@ struct mlx5_ib_dev {
 	 */
 	struct srcu_struct      mr_srcu;
 	u32			null_mkey;
-	struct workqueue_struct *advise_mr_wq;
-#endif
 	struct mlx5_ib_flow_db	*flow_db;
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
@@ -1034,7 +1039,8 @@ to_mflow_act(struct ib_flow_action *ibact)
 	return container_of(ibact, struct mlx5_ib_flow_action, ib_action);
 }
 
-int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
+int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context,
+			struct ib_udata *udata, unsigned long virt,
 			struct mlx5_db *db);
 void mlx5_ib_db_unmap_user(struct mlx5_ib_ucontext *context, struct mlx5_db *db);
 void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 qpn, struct mlx5_ib_srq *srq);
@@ -1069,9 +1075,12 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		      const struct ib_send_wr **bad_wr);
 int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr);
-int mlx5_ib_read_user_wqe(struct mlx5_ib_qp *qp, int send, int wqe_index,
-			  void *buffer, u32 length,
-			  struct mlx5_ib_qp_base *base);
+int mlx5_ib_read_user_wqe_sq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
+			     int buflen, size_t *bc);
+int mlx5_ib_read_user_wqe_rq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
+			     int buflen, size_t *bc);
+int mlx5_ib_read_user_wqe_srq(struct mlx5_ib_srq *srq, int wqe_index,
+			      void *buffer, int buflen, size_t *bc);
 struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
@@ -1097,6 +1106,7 @@ int mlx5_ib_dealloc_mw(struct ib_mw *mw);
 int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		       int page_shift, int flags);
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
+					     struct ib_udata *udata,
 					     int access_flags);
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *mr);
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
@@ -1214,6 +1224,9 @@ mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 {
 	return -EOPNOTSUPP;
 }
+static inline void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp,
+					    unsigned long start,
+					    unsigned long end){};
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
 /* Needed for rep profile */
@@ -1253,7 +1266,7 @@ __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev,
 			       const struct ib_gid_attr *attr);
 
 void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
-int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
+void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
 
 /* GSI QP helper functions */
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,

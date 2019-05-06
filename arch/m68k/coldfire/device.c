@@ -14,11 +14,14 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
 #include <linux/fec.h>
+#include <linux/dmaengine.h>
 #include <asm/traps.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
 #include <asm/mcfqspi.h>
+#include <linux/platform_data/edma.h>
+#include <linux/platform_data/dma-mcf-edma.h>
 
 /*
  *	All current ColdFire parts contain from 2, 3, 4 or 10 UARTS.
@@ -476,6 +479,81 @@ static struct platform_device mcf_i2c5 = {
 #endif /* MCFI2C_BASE5 */
 #endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 
+#if IS_ENABLED(CONFIG_MCF_EDMA)
+
+static const struct dma_slave_map mcf_edma_map[] = {
+	{ "dreq0", "rx-tx", MCF_EDMA_FILTER_PARAM(0) },
+	{ "dreq1", "rx-tx", MCF_EDMA_FILTER_PARAM(1) },
+	{ "uart.0", "rx", MCF_EDMA_FILTER_PARAM(2) },
+	{ "uart.0", "tx", MCF_EDMA_FILTER_PARAM(3) },
+	{ "uart.1", "rx", MCF_EDMA_FILTER_PARAM(4) },
+	{ "uart.1", "tx", MCF_EDMA_FILTER_PARAM(5) },
+	{ "uart.2", "rx", MCF_EDMA_FILTER_PARAM(6) },
+	{ "uart.2", "tx", MCF_EDMA_FILTER_PARAM(7) },
+	{ "timer0", "rx-tx", MCF_EDMA_FILTER_PARAM(8) },
+	{ "timer1", "rx-tx", MCF_EDMA_FILTER_PARAM(9) },
+	{ "timer2", "rx-tx", MCF_EDMA_FILTER_PARAM(10) },
+	{ "timer3", "rx-tx", MCF_EDMA_FILTER_PARAM(11) },
+	{ "fsl-dspi.0", "rx", MCF_EDMA_FILTER_PARAM(12) },
+	{ "fsl-dspi.0", "tx", MCF_EDMA_FILTER_PARAM(13) },
+	{ "fsl-dspi.1", "rx", MCF_EDMA_FILTER_PARAM(14) },
+	{ "fsl-dspi.1", "tx", MCF_EDMA_FILTER_PARAM(15) },
+};
+
+static struct mcf_edma_platform_data mcf_edma_data = {
+	.dma_channels		= 64,
+	.slave_map		= mcf_edma_map,
+	.slavecnt		= ARRAY_SIZE(mcf_edma_map),
+};
+
+static struct resource mcf_edma_resources[] = {
+	{
+		.start		= MCFEDMA_BASE,
+		.end		= MCFEDMA_BASE + MCFEDMA_SIZE - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= MCFEDMA_IRQ_INTR0,
+		.end		= MCFEDMA_IRQ_INTR0 + 15,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-tx-00-15",
+	},
+	{
+		.start		= MCFEDMA_IRQ_INTR16,
+		.end		= MCFEDMA_IRQ_INTR16 + 39,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-tx-16-55",
+	},
+	{
+		.start		= MCFEDMA_IRQ_INTR56,
+		.end		= MCFEDMA_IRQ_INTR56,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-tx-56-63",
+	},
+	{
+		.start		= MCFEDMA_IRQ_ERR,
+		.end		= MCFEDMA_IRQ_ERR,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-err",
+	},
+};
+
+static u64 mcf_edma_dmamask = DMA_BIT_MASK(32);
+
+static struct platform_device mcf_edma = {
+	.name			= "mcf-edma",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(mcf_edma_resources),
+	.resource		= mcf_edma_resources,
+	.dev = {
+		.dma_mask = &mcf_edma_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &mcf_edma_data,
+	}
+};
+
+#endif /* IS_ENABLED(CONFIG_MCF_EDMA) */
+
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
 #if IS_ENABLED(CONFIG_FEC)
@@ -504,6 +582,9 @@ static struct platform_device *mcf_devices[] __initdata = {
 #ifdef MCFI2C_BASE5
 	&mcf_i2c5,
 #endif
+#endif
+#if IS_ENABLED(CONFIG_MCF_EDMA)
+	&mcf_edma,
 #endif
 };
 

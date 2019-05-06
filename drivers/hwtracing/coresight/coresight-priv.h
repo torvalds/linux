@@ -6,6 +6,7 @@
 #ifndef _CORESIGHT_PRIV_H
 #define _CORESIGHT_PRIV_H
 
+#include <linux/amba/bus.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/coresight.h>
@@ -159,5 +160,44 @@ extern int etm_writel_cp14(u32 off, u32 val);
 static inline int etm_readl_cp14(u32 off, unsigned int *val) { return 0; }
 static inline int etm_writel_cp14(u32 off, u32 val) { return 0; }
 #endif
+
+/*
+ * Macros and inline functions to handle CoreSight UCI data and driver
+ * private data in AMBA ID table entries, and extract data values.
+ */
+
+/* coresight AMBA ID, no UCI, no driver data: id table entry */
+#define CS_AMBA_ID(pid)			\
+	{				\
+		.id	= pid,		\
+		.mask	= 0x000fffff,	\
+	}
+
+/* coresight AMBA ID, UCI with driver data only: id table entry. */
+#define CS_AMBA_ID_DATA(pid, dval)				\
+	{							\
+		.id	= pid,					\
+		.mask	= 0x000fffff,				\
+		.data	=  (void *)&(struct amba_cs_uci_id)	\
+			{				\
+				.data = (void *)dval,	\
+			}				\
+	}
+
+/* coresight AMBA ID, full UCI structure: id table entry. */
+#define CS_AMBA_UCI_ID(pid, uci_ptr)	\
+	{				\
+		.id	= pid,		\
+		.mask	= 0x000fffff,	\
+		.data	= uci_ptr	\
+	}
+
+/* extract the data value from a UCI structure given amba_id pointer. */
+static inline void *coresight_get_uci_data(const struct amba_id *id)
+{
+	if (id->data)
+		return ((struct amba_cs_uci_id *)(id->data))->data;
+	return 0;
+}
 
 #endif

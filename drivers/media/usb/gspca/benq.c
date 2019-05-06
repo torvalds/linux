@@ -205,12 +205,12 @@ static void sd_isoc_irq(struct urb *urb)
 		 *	- 80 ba/bb 00 00 = start of image followed by 'ff d8'
 		 *	- 04 ba/bb oo oo = image piece
 		 *		where 'oo oo' is the image offset
-						(not cheked)
+						(not checked)
 		 *	- (other -> bad frame)
 		 * The images are JPEG encoded with full header and
 		 * normal ff escape.
 		 * The end of image ('ff d9') may occur in any URB.
-		 * (not cheked)
+		 * (not checked)
 		 */
 		data = (u8 *) urb0->transfer_buffer
 					+ urb0->iso_frame_desc[i].offset;

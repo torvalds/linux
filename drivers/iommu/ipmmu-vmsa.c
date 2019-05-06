@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -34,8 +35,6 @@
 #define arm_iommu_release_mapping(...)	do {} while (0)
 #define arm_iommu_detach_device(...)	do {} while (0)
 #endif
-
-#include "io-pgtable.h"
 
 #define IPMMU_CTX_MAX 8
 

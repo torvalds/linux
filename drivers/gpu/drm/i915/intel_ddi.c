@@ -3568,6 +3568,13 @@ static void intel_ddi_update_pipe(struct intel_encoder *encoder,
 {
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		intel_ddi_update_pipe_dp(encoder, crtc_state, conn_state);
+
+	if (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED)
+		intel_hdcp_enable(to_intel_connector(conn_state->connector));
+	else if (conn_state->content_protection ==
+		 DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+		intel_hdcp_disable(to_intel_connector(conn_state->connector));
 }
 
 static void intel_ddi_set_fia_lane_count(struct intel_encoder *encoder,
@@ -3962,12 +3969,7 @@ static int modeset_pipe(struct drm_crtc *crtc,
 		goto out;
 
 	ret = drm_atomic_commit(state);
-	if (ret)
-		goto out;
-
-	return 0;
-
- out:
+out:
 	drm_atomic_state_put(state);
 
 	return ret;

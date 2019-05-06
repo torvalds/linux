@@ -3,6 +3,7 @@
 /x86_64/platform_info_test
 /x86_64/set_sregs_test
 /x86_64/sync_regs_test
+/x86_64/vmx_close_while_nested_test
 /x86_64/vmx_tsc_adjust_test
 /x86_64/state_test
 /dirty_log_test

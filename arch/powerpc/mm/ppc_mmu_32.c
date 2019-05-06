@@ -340,6 +340,9 @@ void __init MMU_init_hw(void)
 	 */
 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
 	Hash = memblock_alloc(Hash_size, Hash_size);
+	if (!Hash)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, Hash_size, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
 
 	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);

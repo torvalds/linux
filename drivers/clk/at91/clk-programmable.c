@@ -132,10 +132,7 @@ static int clk_programmable_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_programmable *prog = to_clk_programmable(hw);
 	const struct clk_programmable_layout *layout = prog->layout;
 	unsigned long div = parent_rate / rate;
-	unsigned int pckr;
 	int shift = 0;
-
-	regmap_read(prog->regmap, AT91_PMC_PCKR(prog->id), &pckr);
 
 	if (!div)
 		return -EINVAL;

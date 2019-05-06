@@ -91,7 +91,7 @@ struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
 {
 	struct rvt_dev_info *rdi;
 
-	rdi = (struct rvt_dev_info *)ib_alloc_device(size);
+	rdi = container_of(_ib_alloc_device(size), struct rvt_dev_info, ibdev);
 	if (!rdi)
 		return rdi;
 
@@ -284,10 +284,6 @@ static int rvt_query_gid(struct ib_device *ibdev, u8 port_num,
 					 &gid->global.interface_id);
 }
 
-struct rvt_ucontext {
-	struct ib_ucontext ibucontext;
-};
-
 static inline struct rvt_ucontext *to_iucontext(struct ib_ucontext
 						*ibucontext)
 {
@@ -296,28 +292,21 @@ static inline struct rvt_ucontext *to_iucontext(struct ib_ucontext
 
 /**
  * rvt_alloc_ucontext - Allocate a user context
- * @ibdev: Verbs IB dev
+ * @uctx: Verbs context
  * @udata: User data allocated
  */
-static struct ib_ucontext *rvt_alloc_ucontext(struct ib_device *ibdev,
-					      struct ib_udata *udata)
+static int rvt_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
-	struct rvt_ucontext *context;
-
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
-	return &context->ibucontext;
+	return 0;
 }
 
 /**
- *rvt_dealloc_ucontext - Free a user context
- *@context - Free this
+ * rvt_dealloc_ucontext - Free a user context
+ * @context - Free this
  */
-static int rvt_dealloc_ucontext(struct ib_ucontext *context)
+static void rvt_dealloc_ucontext(struct ib_ucontext *context)
 {
-	kfree(to_iucontext(context));
-	return 0;
+	return;
 }
 
 static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -436,6 +425,8 @@ static const struct ib_device_ops rvt_dev_ops = {
 	.req_notify_cq = rvt_req_notify_cq,
 	.resize_cq = rvt_resize_cq,
 	.unmap_fmr = rvt_unmap_fmr,
+	INIT_RDMA_OBJ_SIZE(ib_pd, rvt_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, rvt_ucontext, ibucontext),
 };
 
 static noinline int check_support(struct rvt_dev_info *rdi, int verb)
@@ -446,7 +437,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		 * These functions are not part of verbs specifically but are
 		 * required for rdmavt to function.
 		 */
-		if ((!rdi->driver_f.port_callback) ||
+		if ((!rdi->ibdev.ops.init_port) ||
 		    (!rdi->driver_f.get_pci_dev))
 			return -EINVAL;
 		break;
@@ -644,8 +635,7 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 
 	rdi->ibdev.driver_id = driver_id;
 	/* We are now good to announce we exist */
-	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev),
-				 rdi->driver_f.port_callback);
+	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev));
 	if (ret) {
 		rvt_pr_err(rdi, "Failed to register driver with ib core.\n");
 		goto bail_wss;

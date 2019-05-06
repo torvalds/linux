@@ -1,0 +1,25 @@
+Ilitek ILI210x/ILI251x touchscreen controller
+
+Required properties:
+- compatible:
+    ilitek,ili210x for ILI210x
+    ilitek,ili251x for ILI251x
+
+- reg: The I2C address of the device
+
+- interrupts: The sink for the touchscreen's IRQ output
+    See ../interrupt-controller/interrupts.txt
+
+Optional properties for main touchpad device:
+
+- reset-gpios: GPIO specifier for the touchscreen's reset pin (active low)
+
+Example:
+
+	touchscreen@41 {
+		compatible = "ilitek,ili251x";
+		reg = <0x41>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio5 21 GPIO_ACTIVE_LOW>;
+	};

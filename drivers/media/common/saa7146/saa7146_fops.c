@@ -105,7 +105,7 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	}
 
 	q->curr->vb.state = state;
-	v4l2_get_timestamp(&q->curr->vb.ts);
+	q->curr->vb.ts = ktime_get_ns();
 	wake_up(&q->curr->vb.done);
 
 	q->curr = NULL;

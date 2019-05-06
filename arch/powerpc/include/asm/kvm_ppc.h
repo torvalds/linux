@@ -36,6 +36,8 @@
 #endif
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 #include <asm/paca.h>
+#include <asm/xive.h>
+#include <asm/cpu_has_feature.h>
 #endif
 
 /*
@@ -616,6 +618,18 @@ static inline int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 ir
 				      int level, bool line_status) { return -ENODEV; }
 static inline void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu) { }
 #endif /* CONFIG_KVM_XIVE */
+
+#if defined(CONFIG_PPC_POWERNV) && defined(CONFIG_KVM_BOOK3S_64_HANDLER)
+static inline bool xics_on_xive(void)
+{
+	return xive_enabled() && cpu_has_feature(CPU_FTR_HVMODE);
+}
+#else
+static inline bool xics_on_xive(void)
+{
+	return false;
+}
+#endif
 
 /*
  * Prototypes for functions called only from assembler code.

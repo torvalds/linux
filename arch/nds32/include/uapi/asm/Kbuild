@@ -1,3 +1,1 @@
-include include/uapi/asm-generic/Kbuild.asm
-
 generic-y += ucontext.h

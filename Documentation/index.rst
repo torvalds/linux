@@ -90,6 +90,7 @@ needed).
    filesystems/index
    vm/index
    bpf/index
+   misc-devices/index
 
 Architecture-specific documentation
 -----------------------------------

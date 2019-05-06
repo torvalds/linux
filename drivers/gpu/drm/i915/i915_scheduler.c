@@ -223,8 +223,14 @@ out:
 	return &p->requests[idx];
 }
 
+struct sched_cache {
+	struct list_head *priolist;
+};
+
 static struct intel_engine_cs *
-sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
+sched_lock_engine(const struct i915_sched_node *node,
+		  struct intel_engine_cs *locked,
+		  struct sched_cache *cache)
 {
 	struct intel_engine_cs *engine = node_to_request(node)->engine;
 
@@ -232,6 +238,7 @@ sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 
 	if (engine != locked) {
 		spin_unlock(&locked->timeline.lock);
+		memset(cache, 0, sizeof(*cache));
 		spin_lock(&engine->timeline.lock);
 	}
 
@@ -253,11 +260,11 @@ static bool inflight(const struct i915_request *rq,
 static void __i915_schedule(struct i915_request *rq,
 			    const struct i915_sched_attr *attr)
 {
-	struct list_head *uninitialized_var(pl);
-	struct intel_engine_cs *engine, *last;
+	struct intel_engine_cs *engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
 	const int prio = attr->priority;
+	struct sched_cache cache;
 	LIST_HEAD(dfs);
 
 	/* Needed in order to use the temporary link inside i915_dependency */
@@ -328,7 +335,7 @@ static void __i915_schedule(struct i915_request *rq,
 		__list_del_entry(&stack.dfs_link);
 	}
 
-	last = NULL;
+	memset(&cache, 0, sizeof(cache));
 	engine = rq->engine;
 	spin_lock_irq(&engine->timeline.lock);
 
@@ -338,7 +345,7 @@ static void __i915_schedule(struct i915_request *rq,
 
 		INIT_LIST_HEAD(&dep->dfs_link);
 
-		engine = sched_lock_engine(node, engine);
+		engine = sched_lock_engine(node, engine, &cache);
 		lockdep_assert_held(&engine->timeline.lock);
 
 		/* Recheck after acquiring the engine->timeline.lock */
@@ -347,11 +354,11 @@ static void __i915_schedule(struct i915_request *rq,
 
 		node->attr.priority = prio;
 		if (!list_empty(&node->link)) {
-			if (last != engine) {
-				pl = i915_sched_lookup_priolist(engine, prio);
-				last = engine;
-			}
-			list_move_tail(&node->link, pl);
+			if (!cache.priolist)
+				cache.priolist =
+					i915_sched_lookup_priolist(engine,
+								   prio);
+			list_move_tail(&node->link, cache.priolist);
 		} else {
 			/*
 			 * If the request is not in the priolist queue because

@@ -1056,6 +1056,9 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 			mmc->f_max = 48000000;
 	}
 
+	if (!mmc_can_gpio_ro(mmc))
+		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+
 	pltfm_host->clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(pltfm_host->clk)) {
 		ret = PTR_ERR(pltfm_host->clk);

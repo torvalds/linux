@@ -139,7 +139,7 @@ TRACE_EVENT(pblk_state,
 /* This part must be outside protection */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../../drivers/lightnvm
+#define TRACE_INCLUDE_PATH ../../drivers/lightnvm
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE pblk-trace
 #include <trace/define_trace.h>

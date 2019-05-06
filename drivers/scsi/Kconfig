@@ -665,7 +665,7 @@ config SCSI_DMX3191D
 
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
-	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
+	depends on PCI && SCSI
 	---help---
 	  Formerly called GDT SCSI Disk Array Controller Support.
 
@@ -1196,8 +1196,6 @@ config SCSI_AM53C974
 	  PCscsi/PCnet (Am53/79C974) solutions.
 	  This is a new implementation base on the generic esp_scsi driver.
 
-	  Documentation can be found in <file:Documentation/scsi/tmscsim.txt>.
-
 	  Note that this driver does NOT support Tekram DC390W/U/F, which are
 	  based on NCR/Symbios chips. Use "NCR53C8XX SCSI support" for those.
 
@@ -1516,7 +1514,5 @@ endif # SCSI_LOWLEVEL
 source "drivers/scsi/pcmcia/Kconfig"
 
 source "drivers/scsi/device_handler/Kconfig"
-
-source "drivers/scsi/osd/Kconfig"
 
 endmenu

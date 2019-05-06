@@ -905,6 +905,10 @@ static void __ref init_fallback_flush(void)
 	l1d_flush_fallback_area = memblock_alloc_try_nid(l1d_size * 2,
 						l1d_size, MEMBLOCK_LOW_LIMIT,
 						limit, NUMA_NO_NODE);
+	if (!l1d_flush_fallback_area)
+		panic("%s: Failed to allocate %llu bytes align=0x%llx max_addr=%pa\n",
+		      __func__, l1d_size * 2, l1d_size, &limit);
+
 
 	for_each_possible_cpu(cpu) {
 		struct paca_struct *paca = paca_ptrs[cpu];

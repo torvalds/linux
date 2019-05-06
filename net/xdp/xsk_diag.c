@@ -68,9 +68,9 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	err = nla_put(nlskb, XDP_DIAG_UMEM, sizeof(du), &du);
 
 	if (!err && umem->fq)
-		err = xsk_diag_put_ring(xs->tx, XDP_DIAG_UMEM_FILL_RING, nlskb);
+		err = xsk_diag_put_ring(umem->fq, XDP_DIAG_UMEM_FILL_RING, nlskb);
 	if (!err && umem->cq) {
-		err = xsk_diag_put_ring(xs->tx, XDP_DIAG_UMEM_COMPLETION_RING,
+		err = xsk_diag_put_ring(umem->cq, XDP_DIAG_UMEM_COMPLETION_RING,
 					nlskb);
 	}
 	return err;

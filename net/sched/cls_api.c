@@ -367,7 +367,7 @@ static void tcf_chain_destroy(struct tcf_chain *chain, bool free_block)
 	struct tcf_block *block = chain->block;
 
 	mutex_destroy(&chain->filter_chain_lock);
-	kfree(chain);
+	kfree_rcu(chain, rcu);
 	if (free_block)
 		tcf_block_destroy(block);
 }
@@ -470,10 +470,9 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
 {
 	struct tcf_block *block = chain->block;
 	const struct tcf_proto_ops *tmplt_ops;
-	bool is_last, free_block = false;
+	bool free_block = false;
 	unsigned int refcnt;
 	void *tmplt_priv;
-	u32 chain_index;
 
 	mutex_lock(&block->lock);
 	if (explicitly_created) {
@@ -492,22 +491,20 @@ static void __tcf_chain_put(struct tcf_chain *chain, bool by_act,
 	 * save these to temporary variables.
 	 */
 	refcnt = --chain->refcnt;
-	is_last = refcnt - chain->action_refcnt == 0;
 	tmplt_ops = chain->tmplt_ops;
 	tmplt_priv = chain->tmplt_priv;
-	chain_index = chain->index;
-
-	if (refcnt == 0)
-		free_block = tcf_chain_detach(chain);
-	mutex_unlock(&block->lock);
 
 	/* The last dropped non-action reference will trigger notification. */
-	if (is_last && !by_act) {
-		tc_chain_notify_delete(tmplt_ops, tmplt_priv, chain_index,
+	if (refcnt - chain->action_refcnt == 0 && !by_act) {
+		tc_chain_notify_delete(tmplt_ops, tmplt_priv, chain->index,
 				       block, NULL, 0, 0, false);
 		/* Last reference to chain, no need to lock. */
 		chain->flushing = false;
 	}
+
+	if (refcnt == 0)
+		free_block = tcf_chain_detach(chain);
+	mutex_unlock(&block->lock);
 
 	if (refcnt == 0) {
 		tc_chain_tmplt_del(tmplt_ops, tmplt_priv);
@@ -1896,6 +1893,7 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	int err = 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -1909,10 +1907,14 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	}
 
 	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+		err = netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+	else
+		err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+				     n->nlmsg_flags & NLM_F_ECHO);
 
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			      n->nlmsg_flags & NLM_F_ECHO);
+	if (err > 0)
+		err = 0;
+	return err;
 }
 
 static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
@@ -1944,12 +1946,15 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 	}
 
 	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
-
-	err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			     n->nlmsg_flags & NLM_F_ECHO);
+		err = netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+	else
+		err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+				     n->nlmsg_flags & NLM_F_ECHO);
 	if (err < 0)
 		NL_SET_ERR_MSG(extack, "Failed to send filter delete notification");
+
+	if (err > 0)
+		err = 0;
 	return err;
 }
 
@@ -2691,6 +2696,7 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 	struct tcf_block *block = chain->block;
 	struct net *net = block->net;
 	struct sk_buff *skb;
+	int err = 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -2704,9 +2710,14 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 	}
 
 	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+		err = netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+	else
+		err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+				     flags & NLM_F_ECHO);
 
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC, flags & NLM_F_ECHO);
+	if (err > 0)
+		err = 0;
+	return err;
 }
 
 static int tc_chain_notify_delete(const struct tcf_proto_ops *tmplt_ops,

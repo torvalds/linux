@@ -144,6 +144,13 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 		return;
 	}
 
+	if (xive_enabled() && kvmhv_on_pseries()) {
+		/* No XICS access or hypercalls available, too hard */
+		this_icp->rm_action |= XICS_RM_KICK_VCPU;
+		this_icp->rm_kick_target = vcpu;
+		return;
+	}
+
 	/*
 	 * Check if the core is loaded,
 	 * if not, find an available host core to post to wake the VCPU,

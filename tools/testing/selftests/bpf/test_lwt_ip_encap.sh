@@ -78,6 +78,8 @@ TEST_STATUS=0
 TESTS_SUCCEEDED=0
 TESTS_FAILED=0
 
+TMPFILE=""
+
 process_test_results()
 {
 	if [[ "${TEST_STATUS}" -eq 0 ]] ; then
@@ -147,7 +149,6 @@ setup()
 	ip -netns ${NS2} -6 addr add ${IPv6_7}/128 nodad dev veth7
 	ip -netns ${NS3} -6 addr add ${IPv6_8}/128 nodad dev veth8
 
-
 	ip -netns ${NS1} link set dev veth1 up
 	ip -netns ${NS2} link set dev veth2 up
 	ip -netns ${NS2} link set dev veth3 up
@@ -205,7 +206,7 @@ setup()
 	# configure IPv4 GRE device in NS3, and a route to it via the "bottom" route
 	ip -netns ${NS3} tunnel add gre_dev mode gre remote ${IPv4_1} local ${IPv4_GRE} ttl 255
 	ip -netns ${NS3} link set gre_dev up
-	ip -netns ${NS3} addr add ${IPv4_GRE} nodad dev gre_dev
+	ip -netns ${NS3} addr add ${IPv4_GRE} dev gre_dev
 	ip -netns ${NS1} route add ${IPv4_GRE}/32 dev veth5 via ${IPv4_6}
 	ip -netns ${NS2} route add ${IPv4_GRE}/32 dev veth7 via ${IPv4_8}
 
@@ -222,12 +223,18 @@ setup()
 	ip netns exec ${NS2} sysctl -wq net.ipv4.conf.all.rp_filter=0
 	ip netns exec ${NS3} sysctl -wq net.ipv4.conf.all.rp_filter=0
 
+	TMPFILE=$(mktemp /tmp/test_lwt_ip_encap.XXXXXX)
+
 	sleep 1  # reduce flakiness
 	set +e
 }
 
 cleanup()
 {
+	if [ -f ${TMPFILE} ] ; then
+		rm ${TMPFILE}
+	fi
+
 	ip netns del ${NS1} 2> /dev/null
 	ip netns del ${NS2} 2> /dev/null
 	ip netns del ${NS3} 2> /dev/null
@@ -278,6 +285,46 @@ test_ping()
 	fi
 }
 
+test_gso()
+{
+	local readonly PROTO=$1
+	local readonly PKT_SZ=5000
+	local IP_DST=""
+	: > ${TMPFILE}  # trim the capture file
+
+	# check that nc is present
+	command -v nc >/dev/null 2>&1 || \
+		{ echo >&2 "nc is not available: skipping TSO tests"; return; }
+
+	# listen on IPv*_DST, capture TCP into $TMPFILE
+	if [ "${PROTO}" == "IPv4" ] ; then
+		IP_DST=${IPv4_DST}
+		ip netns exec ${NS3} bash -c \
+			"nc -4 -l -s ${IPv4_DST} -p 9000 > ${TMPFILE} &"
+	elif [ "${PROTO}" == "IPv6" ] ; then
+		IP_DST=${IPv6_DST}
+		ip netns exec ${NS3} bash -c \
+			"nc -6 -l -s ${IPv6_DST} -p 9000 > ${TMPFILE} &"
+		RET=$?
+	else
+		echo "    test_gso: unknown PROTO: ${PROTO}"
+		TEST_STATUS=1
+	fi
+	sleep 1  # let nc start listening
+
+	# send a packet larger than MTU
+	ip netns exec ${NS1} bash -c \
+		"dd if=/dev/zero bs=$PKT_SZ count=1 > /dev/tcp/${IP_DST}/9000 2>/dev/null"
+	sleep 2 # let the packet get delivered
+
+	# verify we received all expected bytes
+	SZ=$(stat -c %s ${TMPFILE})
+	if [ "$SZ" != "$PKT_SZ" ] ; then
+		echo "    test_gso failed: ${PROTO}"
+		TEST_STATUS=1
+	fi
+}
+
 test_egress()
 {
 	local readonly ENCAP=$1
@@ -307,6 +354,8 @@ test_egress()
 	fi
 	test_ping IPv4 0
 	test_ping IPv6 0
+	test_gso IPv4
+	test_gso IPv6
 
 	# a negative test: remove routes to GRE devices: ping fails
 	remove_routes_to_gredev
@@ -350,6 +399,7 @@ test_ingress()
 		ip -netns ${NS2} -6 route add ${IPv6_DST} encap bpf in obj test_lwt_ip_encap.o sec encap_gre6 dev veth2
 	else
 		echo "FAIL: unknown encap ${ENCAP}"
+		TEST_STATUS=1
 	fi
 	test_ping IPv4 0
 	test_ping IPv6 0

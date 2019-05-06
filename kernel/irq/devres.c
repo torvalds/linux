@@ -84,8 +84,6 @@ EXPORT_SYMBOL(devm_request_threaded_irq);
  *	@dev: device to request interrupt for
  *	@irq: Interrupt line to allocate
  *	@handler: Function to be called when the IRQ occurs
- *	@thread_fn: function to be called in a threaded interrupt context. NULL
- *		    for devices which handle everything in @handler
  *	@irqflags: Interrupt type flags
  *	@devname: An ascii name for the claiming device, dev_name(dev) if NULL
  *	@dev_id: A cookie passed back to the handler function

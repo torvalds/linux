@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <sched.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,11 +37,14 @@
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/uio.h>
 #include <linux/kdev_t.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 static inline long sys_execveat(int dirfd, const char *pathname, char **argv, char **envp, int flags)
 {
@@ -205,11 +209,43 @@ static int make_exe(const uint8_t *payload, size_t len)
 }
 #endif
 
+static bool g_vsyscall = false;
+
+static const char str_vsyscall[] =
+"ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n";
+
 #ifdef __x86_64__
+/*
+ * vsyscall page can't be unmapped, probe it with memory load.
+ */
+static void vsyscall(void)
+{
+	pid_t pid;
+	int wstatus;
+
+	pid = fork();
+	if (pid < 0) {
+		fprintf(stderr, "fork, errno %d\n", errno);
+		exit(1);
+	}
+	if (pid == 0) {
+		struct rlimit rlim = {0, 0};
+		(void)setrlimit(RLIMIT_CORE, &rlim);
+		*(volatile int *)0xffffffffff600000UL;
+		exit(0);
+	}
+	wait(&wstatus);
+	if (WIFEXITED(wstatus)) {
+		g_vsyscall = true;
+	}
+}
+
 int main(void)
 {
 	int pipefd[2];
 	int exec_fd;
+
+	vsyscall();
 
 	atexit(ate);
 
@@ -261,9 +297,9 @@ int main(void)
 	snprintf(buf0 + MAPS_OFFSET, sizeof(buf0) - MAPS_OFFSET,
 		 "/tmp/#%llu (deleted)\n", (unsigned long long)st.st_ino);
 
-
 	/* Test /proc/$PID/maps */
 	{
+		const size_t len = strlen(buf0) + (g_vsyscall ? strlen(str_vsyscall) : 0);
 		char buf[256];
 		ssize_t rv;
 		int fd;
@@ -274,13 +310,16 @@ int main(void)
 			return 1;
 		}
 		rv = read(fd, buf, sizeof(buf));
-		assert(rv == strlen(buf0));
+		assert(rv == len);
 		assert(memcmp(buf, buf0, strlen(buf0)) == 0);
+		if (g_vsyscall) {
+			assert(memcmp(buf + strlen(buf0), str_vsyscall, strlen(str_vsyscall)) == 0);
+		}
 	}
 
 	/* Test /proc/$PID/smaps */
 	{
-		char buf[1024];
+		char buf[4096];
 		ssize_t rv;
 		int fd;
 
@@ -318,6 +357,10 @@ int main(void)
 
 		for (i = 0; i < sizeof(S)/sizeof(S[0]); i++) {
 			assert(memmem(buf, rv, S[i], strlen(S[i])));
+		}
+
+		if (g_vsyscall) {
+			assert(memmem(buf, rv, str_vsyscall, strlen(str_vsyscall)));
 		}
 	}
 

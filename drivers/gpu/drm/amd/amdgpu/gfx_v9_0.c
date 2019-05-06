@@ -220,6 +220,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_1_rv2[] =
 
 static const struct soc15_reg_golden golden_settings_gc_9_x_common[] =
 {
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_SD_CNTL, 0xffffffff, 0x000001ff),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_INDEX, 0xffffffff, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x2544c382)
 };

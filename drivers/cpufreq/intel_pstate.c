@@ -385,7 +385,10 @@ static int intel_pstate_get_cppc_guranteed(int cpu)
 	if (ret)
 		return ret;
 
-	return cppc_perf.guaranteed_perf;
+	if (cppc_perf.guaranteed_perf)
+		return cppc_perf.guaranteed_perf;
+
+	return cppc_perf.nominal_perf;
 }
 
 #else /* CONFIG_ACPI_CPPC_LIB */
@@ -1762,7 +1765,7 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 		/* Start over if the CPU may have been idle. */
 		if (delta_ns > TICK_NSEC) {
 			cpu->iowait_boost = ONE_EIGHTH_FP;
-		} else if (cpu->iowait_boost) {
+		} else if (cpu->iowait_boost >= ONE_EIGHTH_FP) {
 			cpu->iowait_boost <<= 1;
 			if (cpu->iowait_boost > int_tofp(1))
 				cpu->iowait_boost = int_tofp(1);

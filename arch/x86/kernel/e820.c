@@ -14,6 +14,7 @@
 #include <linux/acpi.h>
 #include <linux/firmware-map.h>
 #include <linux/sort.h>
+#include <linux/memory_hotplug.h>
 
 #include <asm/e820/api.h>
 #include <asm/setup.h>
@@ -775,7 +776,7 @@ u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 {
 	u64 addr;
 
-	addr = __memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
+	addr = memblock_phys_alloc(size, align);
 	if (addr) {
 		e820__range_update_kexec(addr, size, E820_TYPE_RAM, E820_TYPE_RESERVED);
 		pr_info("update e820_table_kexec for e820__memblock_alloc_reserved()\n");
@@ -877,6 +878,10 @@ static int __init parse_memopt(char *p)
 		return -EINVAL;
 
 	e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM, 1);
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	max_mem_size = mem_size;
+#endif
 
 	return 0;
 }
@@ -1092,6 +1097,9 @@ void __init e820__reserve_resources(void)
 
 	res = memblock_alloc(sizeof(*res) * e820_table->nr_entries,
 			     SMP_CACHE_BYTES);
+	if (!res)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*res) * e820_table->nr_entries);
 	e820_res = res;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {

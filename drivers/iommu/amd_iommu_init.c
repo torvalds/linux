@@ -18,6 +18,7 @@
  */
 
 #define pr_fmt(fmt)     "AMD-Vi: " fmt
+#define dev_fmt(fmt)    pr_fmt(fmt)
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
@@ -1457,8 +1458,7 @@ static void amd_iommu_erratum_746_workaround(struct amd_iommu *iommu)
 	pci_write_config_dword(iommu->dev, 0xf0, 0x90 | (1 << 8));
 
 	pci_write_config_dword(iommu->dev, 0xf4, value | 0x4);
-	pr_info("Applying erratum 746 workaround for IOMMU at %s\n",
-		dev_name(&iommu->dev->dev));
+	pci_info(iommu->dev, "Applying erratum 746 workaround\n");
 
 	/* Clear the enable writing bit */
 	pci_write_config_dword(iommu->dev, 0xf0, 0x90);
@@ -1488,8 +1488,7 @@ static void amd_iommu_ats_write_check_workaround(struct amd_iommu *iommu)
 	/* Set L2_DEBUG_3[AtsIgnoreIWDis] = 1 */
 	iommu_write_l2(iommu, 0x47, value | BIT(0));
 
-	pr_info("Applying ATS write check workaround for IOMMU at %s\n",
-		dev_name(&iommu->dev->dev));
+	pci_info(iommu->dev, "Applying ATS write check workaround\n");
 }
 
 /*
@@ -1665,6 +1664,7 @@ static int iommu_pc_get_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
 
 static void init_iommu_perf_ctr(struct amd_iommu *iommu)
 {
+	struct pci_dev *pdev = iommu->dev;
 	u64 val = 0xabcd, val2 = 0;
 
 	if (!iommu_feature(iommu, FEATURE_PC))
@@ -1676,12 +1676,12 @@ static void init_iommu_perf_ctr(struct amd_iommu *iommu)
 	if ((iommu_pc_get_set_reg(iommu, 0, 0, 0, &val, true)) ||
 	    (iommu_pc_get_set_reg(iommu, 0, 0, 0, &val2, false)) ||
 	    (val != val2)) {
-		pr_err("Unable to write to IOMMU perf counter.\n");
+		pci_err(pdev, "Unable to write to IOMMU perf counter.\n");
 		amd_iommu_pc_present = false;
 		return;
 	}
 
-	pr_info("IOMMU performance counters supported\n");
+	pci_info(pdev, "IOMMU performance counters supported\n");
 
 	val = readl(iommu->mmio_base + MMIO_CNTR_CONF_OFFSET);
 	iommu->max_banks = (u8) ((val >> 12) & 0x3f);
@@ -1840,14 +1840,14 @@ static void print_iommu_info(void)
 	struct amd_iommu *iommu;
 
 	for_each_iommu(iommu) {
+		struct pci_dev *pdev = iommu->dev;
 		int i;
 
-		pr_info("Found IOMMU at %s cap 0x%hx\n",
-			dev_name(&iommu->dev->dev), iommu->cap_ptr);
+		pci_info(pdev, "Found IOMMU cap 0x%hx\n", iommu->cap_ptr);
 
 		if (iommu->cap & (1 << IOMMU_CAP_EFR)) {
-			pr_info("Extended features (%#llx):\n",
-				iommu->features);
+			pci_info(pdev, "Extended features (%#llx):\n",
+				 iommu->features);
 			for (i = 0; i < ARRAY_SIZE(feat_str); ++i) {
 				if (iommu_feature(iommu, (1ULL << i)))
 					pr_cont(" %s", feat_str[i]);
@@ -2013,6 +2013,9 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 	if (e == NULL)
 		return -ENOMEM;
 
+	if (m->flags & IVMD_FLAG_EXCL_RANGE)
+		init_exclusion_range(m);
+
 	switch (m->type) {
 	default:
 		kfree(e);
@@ -2059,9 +2062,7 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 
 	while (p < end) {
 		m = (struct ivmd_header *)p;
-		if (m->flags & IVMD_FLAG_EXCL_RANGE)
-			init_exclusion_range(m);
-		else if (m->flags & IVMD_FLAG_UNITY_MAP)
+		if (m->flags & (IVMD_FLAG_UNITY_MAP | IVMD_FLAG_EXCL_RANGE))
 			init_unity_map_range(m);
 
 		p += m->length;

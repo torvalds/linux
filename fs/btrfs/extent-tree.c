@@ -6174,7 +6174,7 @@ static void btrfs_calculate_inode_block_rsv_size(struct btrfs_fs_info *fs_info,
 	 *
 	 * This is overestimating in most cases.
 	 */
-	qgroup_rsv_size = outstanding_extents * fs_info->nodesize;
+	qgroup_rsv_size = (u64)outstanding_extents * fs_info->nodesize;
 
 	spin_lock(&block_rsv->lock);
 	block_rsv->size = reserve_size;
@@ -8764,6 +8764,8 @@ struct walk_control {
 	u64 refs[BTRFS_MAX_LEVEL];
 	u64 flags[BTRFS_MAX_LEVEL];
 	struct btrfs_key update_progress;
+	struct btrfs_key drop_progress;
+	int drop_level;
 	int stage;
 	int level;
 	int shared_level;
@@ -8771,6 +8773,7 @@ struct walk_control {
 	int keep_locks;
 	int reada_slot;
 	int reada_count;
+	int restarted;
 };
 
 #define DROP_REFERENCE	1
@@ -8934,6 +8937,33 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * This is used to verify a ref exists for this root to deal with a bug where we
+ * would have a drop_progress key that hadn't been updated properly.
+ */
+static int check_ref_exists(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, u64 bytenr, u64 parent,
+			    int level)
+{
+	struct btrfs_path *path;
+	struct btrfs_extent_inline_ref *iref;
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	ret = lookup_extent_backref(trans, path, &iref, bytenr,
+				    root->fs_info->nodesize, parent,
+				    root->root_key.objectid, level, 0);
+	btrfs_free_path(path);
+	if (ret == -ENOENT)
+		return 0;
+	if (ret < 0)
+		return ret;
+	return 1;
+}
+
+/*
  * helper to process tree block pointer.
  *
  * when wc->stage == DROP_REFERENCE, this function checks
@@ -9088,6 +9118,23 @@ skip:
 		}
 
 		/*
+		 * If we had a drop_progress we need to verify the refs are set
+		 * as expected.  If we find our ref then we know that from here
+		 * on out everything should be correct, and we can clear the
+		 * ->restarted flag.
+		 */
+		if (wc->restarted) {
+			ret = check_ref_exists(trans, root, bytenr, parent,
+					       level - 1);
+			if (ret < 0)
+				goto out_unlock;
+			if (ret == 0)
+				goto no_delete;
+			ret = 0;
+			wc->restarted = 0;
+		}
+
+		/*
 		 * Reloc tree doesn't contribute to qgroup numbers, and we have
 		 * already accounted them at merge time (replace_path),
 		 * thus we could skip expensive subtree trace here.
@@ -9102,13 +9149,23 @@ skip:
 					     ret);
 			}
 		}
+
+		/*
+		 * We need to update the next key in our walk control so we can
+		 * update the drop_progress key accordingly.  We don't care if
+		 * find_next_key doesn't find a key because that means we're at
+		 * the end and are going to clean up now.
+		 */
+		wc->drop_level = level;
+		find_next_key(path, level, &wc->drop_progress);
+
 		ret = btrfs_free_extent(trans, root, bytenr, fs_info->nodesize,
 					parent, root->root_key.objectid,
 					level - 1, 0);
 		if (ret)
 			goto out_unlock;
 	}
-
+no_delete:
 	*lookup_info = 1;
 	ret = 1;
 
@@ -9425,6 +9482,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		}
 	}
 
+	wc->restarted = test_bit(BTRFS_ROOT_DEAD_TREE, &root->state);
 	wc->level = level;
 	wc->shared_level = -1;
 	wc->stage = DROP_REFERENCE;
@@ -9452,12 +9510,14 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		}
 
 		if (wc->stage == DROP_REFERENCE) {
-			level = wc->level;
-			btrfs_node_key(path->nodes[level],
-				       &root_item->drop_progress,
-				       path->slots[level]);
-			root_item->drop_level = level;
+			wc->drop_level = wc->level;
+			btrfs_node_key_to_cpu(path->nodes[wc->drop_level],
+					      &wc->drop_progress,
+					      path->slots[wc->drop_level]);
 		}
+		btrfs_cpu_key_to_disk(&root_item->drop_progress,
+				      &wc->drop_progress);
+		root_item->drop_level = wc->drop_level;
 
 		BUG_ON(wc->level == 0);
 		if (btrfs_should_end_transaction(trans) ||

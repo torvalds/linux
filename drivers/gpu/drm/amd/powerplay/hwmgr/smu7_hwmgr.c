@@ -3491,14 +3491,14 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PmStatusLogStart);
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-							ixSMU_PM_STATUS_94, 0);
+							ixSMU_PM_STATUS_95, 0);
 
 	for (i = 0; i < 10; i++) {
-		mdelay(1);
+		mdelay(500);
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PmStatusLogSample);
 		tmp = cgs_read_ind_register(hwmgr->device,
 						CGS_IND_REG__SMC,
-						ixSMU_PM_STATUS_94);
+						ixSMU_PM_STATUS_95);
 		if (tmp != 0)
 			break;
 	}

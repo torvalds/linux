@@ -124,14 +124,16 @@ def print_receive(hunk):
 		event = event_list[i]
 		if event['event_name'] == 'napi_poll':
 			print(PF_NAPI_POLL %
-			    (diff_msec(base_t, event['event_t']), event['dev']))
+				(diff_msec(base_t, event['event_t']),
+				event['dev']))
 			if i == len(event_list) - 1:
 				print("")
 			else:
 				print(PF_JOINT)
 		else:
 			print(PF_NET_RECV %
-			    (diff_msec(base_t, event['event_t']), event['skbaddr'],
+				(diff_msec(base_t, event['event_t']),
+				event['skbaddr'],
 				event['len']))
 			if 'comm' in event.keys():
 				print(PF_WJOINT)
@@ -256,7 +258,7 @@ def irq__irq_handler_exit(name, context, cpu, sec, nsec, pid, comm, callchain, i
 	all_event_list.append(event_info)
 
 def napi__napi_poll(name, context, cpu, sec, nsec, pid, comm, callchain, napi,
-                    dev_name, work=None, budget=None):
+		dev_name, work=None, budget=None):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
 			napi, dev_name, work, budget)
 	all_event_list.append(event_info)
@@ -353,7 +355,7 @@ def handle_irq_softirq_exit(event_info):
 	if irq_list == [] or event_list == 0:
 		return
 	rec_data = {'sirq_ent_t':sirq_ent_t, 'sirq_ext_t':time,
-		    'irq_list':irq_list, 'event_list':event_list}
+			'irq_list':irq_list, 'event_list':event_list}
 	# merge information realted to a NET_RX softirq
 	receive_hunk_list.append(rec_data)
 
@@ -390,7 +392,7 @@ def handle_netif_receive_skb(event_info):
 		skbaddr, skblen, dev_name) = event_info
 	if cpu in net_rx_dic.keys():
 		rec_data = {'event_name':'netif_receive_skb',
-			    'event_t':time, 'skbaddr':skbaddr, 'len':skblen}
+				'event_t':time, 'skbaddr':skbaddr, 'len':skblen}
 		event_list = net_rx_dic[cpu]['event_list']
 		event_list.append(rec_data)
 		rx_skb_list.insert(0, rec_data)

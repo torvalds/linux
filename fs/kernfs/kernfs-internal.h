@@ -17,6 +17,7 @@
 #include <linux/xattr.h>
 
 #include <linux/kernfs.h>
+#include <linux/fs_context.h>
 
 struct kernfs_iattrs {
 	struct iattr		ia_iattr;

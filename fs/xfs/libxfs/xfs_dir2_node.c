@@ -426,24 +426,22 @@ xfs_dir2_leaf_to_node(
 static int					/* error */
 xfs_dir2_leafn_add(
 	struct xfs_buf		*bp,		/* leaf buffer */
-	xfs_da_args_t		*args,		/* operation arguments */
+	struct xfs_da_args	*args,		/* operation arguments */
 	int			index)		/* insertion pt for new entry */
 {
+	struct xfs_dir3_icleaf_hdr leafhdr;
+	struct xfs_inode	*dp = args->dp;
+	struct xfs_dir2_leaf	*leaf = bp->b_addr;
+	struct xfs_dir2_leaf_entry *lep;
+	struct xfs_dir2_leaf_entry *ents;
 	int			compact;	/* compacting stale leaves */
-	xfs_inode_t		*dp;		/* incore directory inode */
-	int			highstale;	/* next stale entry */
-	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
-	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
+	int			highstale = 0;	/* next stale entry */
 	int			lfloghigh;	/* high leaf entry logging */
 	int			lfloglow;	/* low leaf entry logging */
-	int			lowstale;	/* previous stale entry */
-	struct xfs_dir3_icleaf_hdr leafhdr;
-	struct xfs_dir2_leaf_entry *ents;
+	int			lowstale = 0;	/* previous stale entry */
 
 	trace_xfs_dir2_leafn_add(args, index);
 
-	dp = args->dp;
-	leaf = bp->b_addr;
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 

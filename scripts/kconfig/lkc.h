@@ -90,7 +90,7 @@ void *xrealloc(void *p, size_t size);
 char *xstrdup(const char *s);
 char *xstrndup(const char *s, size_t n);
 
-/* zconf.l */
+/* lexer.l */
 int yylex(void);
 
 struct gstr {

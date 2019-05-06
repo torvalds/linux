@@ -1766,7 +1766,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		 * exists. However, tests on a device labeled as:
 		 * "GM7113C 1145" returned "10" on all 16 chip
 		 * version (reg 0x00) reads. So, we need to also
-		 * accept at least verion 0. For now, let's just
+		 * accept at least version 0. For now, let's just
 		 * assume that a device that returns "0000" for
 		 * the lower nibble is a gm7113c.
 		 */

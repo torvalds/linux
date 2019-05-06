@@ -584,5 +584,30 @@
         "teardown": [
             "$TC actions flush action sample"
         ]
+    },
+    {
+        "id": "0a6e",
+        "name": "Replace sample action with invalid goto chain control",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action sample rate 1024 group 4 pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action sample rate 1024 group 7 goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 4 pass.*index 90",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
     }
 ]

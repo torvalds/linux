@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fault injection support for nvme.
  *
  * Copyright (c) 2018, Oracle and/or its affiliates
- *
  */
 
 #include <linux/moduleparam.h>

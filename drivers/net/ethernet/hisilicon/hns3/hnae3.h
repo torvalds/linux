@@ -194,6 +194,7 @@ struct hnae3_ae_dev {
 	const struct hnae3_ae_ops *ops;
 	struct list_head node;
 	u32 flag;
+	u8 override_pci_need_reset; /* fix to stop multiple reset happening */
 	enum hnae3_dev_type dev_type;
 	enum hnae3_reset_type reset_type;
 	void *priv;

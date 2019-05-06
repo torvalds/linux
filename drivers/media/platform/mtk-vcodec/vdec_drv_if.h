@@ -80,7 +80,7 @@ void vdec_if_deinit(struct mtk_vcodec_ctx *ctx);
  * vdec_if_decode() - trigger decode
  * @ctx	: [in] v4l2 context
  * @bs	: [in] input bitstream
- * @fb	: [in] frame buffer to store decoded frame, when null menas parse
+ * @fb	: [in] frame buffer to store decoded frame, when null means parse
  *	header only
  * @res_chg	: [out] resolution change happens if current bs have different
  *	picture width/height

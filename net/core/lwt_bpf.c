@@ -625,6 +625,8 @@ int bpf_lwt_push_ip_encap(struct sk_buff *skb, void *hdr, u32 len, bool ingress)
 
 	/* push the encap headers and fix pointers */
 	skb_reset_inner_headers(skb);
+	skb_reset_inner_mac_header(skb);  /* mac header is not yet set */
+	skb_set_inner_protocol(skb, skb->protocol);
 	skb->encapsulation = 1;
 	skb_push(skb, len);
 	if (ingress)

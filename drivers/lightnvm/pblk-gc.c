@@ -365,15 +365,21 @@ static struct pblk_line *pblk_gc_get_victim_line(struct pblk *pblk,
 						 struct list_head *group_list)
 {
 	struct pblk_line *line, *victim;
-	int line_vsc, victim_vsc;
+	unsigned int line_vsc = ~0x0L, victim_vsc = ~0x0L;
 
 	victim = list_first_entry(group_list, struct pblk_line, list);
+
 	list_for_each_entry(line, group_list, list) {
-		line_vsc = le32_to_cpu(*line->vsc);
-		victim_vsc = le32_to_cpu(*victim->vsc);
-		if (line_vsc < victim_vsc)
+		if (!atomic_read(&line->sec_to_update))
+			line_vsc = le32_to_cpu(*line->vsc);
+		if (line_vsc < victim_vsc) {
 			victim = line;
+			victim_vsc = le32_to_cpu(*victim->vsc);
+		}
 	}
+
+	if (victim_vsc == ~0x0)
+		return NULL;
 
 	return victim;
 }
@@ -448,12 +454,12 @@ next_gc_group:
 
 	do {
 		spin_lock(&l_mg->gc_lock);
-		if (list_empty(group_list)) {
+
+		line = pblk_gc_get_victim_line(pblk, group_list);
+		if (!line) {
 			spin_unlock(&l_mg->gc_lock);
 			break;
 		}
-
-		line = pblk_gc_get_victim_line(pblk, group_list);
 
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);

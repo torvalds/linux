@@ -190,6 +190,170 @@ component of each pixel in one 16 or 32 bit word.
       - Cr\ :sub:`2`
       - Cr\ :sub:`1`
       - Cr\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-AYUV32:
+
+      - ``V4L2_PIX_FMT_AYUV32``
+      - 'AYUV'
+
+      - a\ :sub:`7`
+      - a\ :sub:`6`
+      - a\ :sub:`5`
+      - a\ :sub:`4`
+      - a\ :sub:`3`
+      - a\ :sub:`2`
+      - a\ :sub:`1`
+      - a\ :sub:`0`
+
+      - Y'\ :sub:`7`
+      - Y'\ :sub:`6`
+      - Y'\ :sub:`5`
+      - Y'\ :sub:`4`
+      - Y'\ :sub:`3`
+      - Y'\ :sub:`2`
+      - Y'\ :sub:`1`
+      - Y'\ :sub:`0`
+
+      - Cb\ :sub:`7`
+      - Cb\ :sub:`6`
+      - Cb\ :sub:`5`
+      - Cb\ :sub:`4`
+      - Cb\ :sub:`3`
+      - Cb\ :sub:`2`
+      - Cb\ :sub:`1`
+      - Cb\ :sub:`0`
+
+      - Cr\ :sub:`7`
+      - Cr\ :sub:`6`
+      - Cr\ :sub:`5`
+      - Cr\ :sub:`4`
+      - Cr\ :sub:`3`
+      - Cr\ :sub:`2`
+      - Cr\ :sub:`1`
+      - Cr\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-XYUV32:
+
+      - ``V4L2_PIX_FMT_XYUV32``
+      - 'XYUV'
+
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+
+      - Y'\ :sub:`7`
+      - Y'\ :sub:`6`
+      - Y'\ :sub:`5`
+      - Y'\ :sub:`4`
+      - Y'\ :sub:`3`
+      - Y'\ :sub:`2`
+      - Y'\ :sub:`1`
+      - Y'\ :sub:`0`
+
+      - Cb\ :sub:`7`
+      - Cb\ :sub:`6`
+      - Cb\ :sub:`5`
+      - Cb\ :sub:`4`
+      - Cb\ :sub:`3`
+      - Cb\ :sub:`2`
+      - Cb\ :sub:`1`
+      - Cb\ :sub:`0`
+
+      - Cr\ :sub:`7`
+      - Cr\ :sub:`6`
+      - Cr\ :sub:`5`
+      - Cr\ :sub:`4`
+      - Cr\ :sub:`3`
+      - Cr\ :sub:`2`
+      - Cr\ :sub:`1`
+      - Cr\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-VUYA32:
+
+      - ``V4L2_PIX_FMT_VUYA32``
+      - 'VUYA'
+
+      - Cr\ :sub:`7`
+      - Cr\ :sub:`6`
+      - Cr\ :sub:`5`
+      - Cr\ :sub:`4`
+      - Cr\ :sub:`3`
+      - Cr\ :sub:`2`
+      - Cr\ :sub:`1`
+      - Cr\ :sub:`0`
+
+      - Cb\ :sub:`7`
+      - Cb\ :sub:`6`
+      - Cb\ :sub:`5`
+      - Cb\ :sub:`4`
+      - Cb\ :sub:`3`
+      - Cb\ :sub:`2`
+      - Cb\ :sub:`1`
+      - Cb\ :sub:`0`
+
+      - Y'\ :sub:`7`
+      - Y'\ :sub:`6`
+      - Y'\ :sub:`5`
+      - Y'\ :sub:`4`
+      - Y'\ :sub:`3`
+      - Y'\ :sub:`2`
+      - Y'\ :sub:`1`
+      - Y'\ :sub:`0`
+
+      - a\ :sub:`7`
+      - a\ :sub:`6`
+      - a\ :sub:`5`
+      - a\ :sub:`4`
+      - a\ :sub:`3`
+      - a\ :sub:`2`
+      - a\ :sub:`1`
+      - a\ :sub:`0`
+      -
+    * .. _V4L2-PIX-FMT-VUYX32:
+
+      - ``V4L2_PIX_FMT_VUYX32``
+      - 'VUYX'
+
+      - Cr\ :sub:`7`
+      - Cr\ :sub:`6`
+      - Cr\ :sub:`5`
+      - Cr\ :sub:`4`
+      - Cr\ :sub:`3`
+      - Cr\ :sub:`2`
+      - Cr\ :sub:`1`
+      - Cr\ :sub:`0`
+
+      - Cb\ :sub:`7`
+      - Cb\ :sub:`6`
+      - Cb\ :sub:`5`
+      - Cb\ :sub:`4`
+      - Cb\ :sub:`3`
+      - Cb\ :sub:`2`
+      - Cb\ :sub:`1`
+      - Cb\ :sub:`0`
+
+      - Y'\ :sub:`7`
+      - Y'\ :sub:`6`
+      - Y'\ :sub:`5`
+      - Y'\ :sub:`4`
+      - Y'\ :sub:`3`
+      - Y'\ :sub:`2`
+      - Y'\ :sub:`1`
+      - Y'\ :sub:`0`
+
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
 
 .. raw:: latex
 
@@ -202,4 +366,8 @@ component of each pixel in one 16 or 32 bit word.
     #) The value of a = alpha bits is undefined when reading from the driver,
        ignored when writing to the driver, except when alpha blending has
        been negotiated for a :ref:`Video Overlay <overlay>` or
-       :ref:`Video Output Overlay <osd>`.
+       :ref:`Video Output Overlay <osd>` for the formats Y444, YUV555 and
+       YUV4. However, for formats AYUV32 and VUYA32, the alpha component is
+       expected to contain a meaningful value that can be used by drivers
+       and applications. And, the formats XYUV32 and VUYX32 contain undefined
+       alpha values that must be ignored by all applications and drivers.

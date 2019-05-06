@@ -589,25 +589,12 @@ struct c4iw_ucontext {
 	u32 key;
 	spinlock_t mmap_lock;
 	struct list_head mmaps;
-	struct kref kref;
 	bool is_32b_cqe;
 };
 
 static inline struct c4iw_ucontext *to_c4iw_ucontext(struct ib_ucontext *c)
 {
 	return container_of(c, struct c4iw_ucontext, ibucontext);
-}
-
-void _c4iw_free_ucontext(struct kref *kref);
-
-static inline void c4iw_put_ucontext(struct c4iw_ucontext *ucontext)
-{
-	kref_put(&ucontext->kref, _c4iw_free_ucontext);
-}
-
-static inline void c4iw_get_ucontext(struct c4iw_ucontext *ucontext)
-{
-	kref_get(&ucontext->kref);
 }
 
 struct c4iw_mm_entry {
@@ -982,6 +969,9 @@ struct c4iw_ep {
 	int rcv_win;
 	u32 snd_wscale;
 	struct c4iw_ep_stats stats;
+	u32 srqe_idx;
+	u32 rx_pdu_out_cnt;
+	struct sk_buff *peer_abort_skb;
 };
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)

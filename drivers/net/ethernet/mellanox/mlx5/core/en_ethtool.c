@@ -424,6 +424,9 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
+		if (!netif_is_rxfh_configured(priv->netdev))
+			mlx5e_build_default_indir_rqt(priv->rss_params.indirection_rqt,
+						      MLX5E_INDIR_RQT_SIZE, count);
 		goto out;
 	}
 

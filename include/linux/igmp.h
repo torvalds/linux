@@ -110,7 +110,7 @@ struct ip_mc_list {
 static inline int ip_mc_may_pull(struct sk_buff *skb, unsigned int len)
 {
 	if (skb_transport_offset(skb) + ip_transport_len(skb) < len)
-		return -EINVAL;
+		return 0;
 
 	return pskb_may_pull(skb, len);
 }

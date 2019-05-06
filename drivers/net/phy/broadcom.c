@@ -323,6 +323,19 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 
 	bcm54xx_phydsp_config(phydev);
 
+	/* Encode link speed into LED1 and LED3 pair (green/amber).
+	 * Also flash these two LEDs on activity. This means configuring
+	 * them for MULTICOLOR and encoding link/activity into them.
+	 */
+	val = BCM5482_SHD_LEDS1_LED1(BCM_LED_SRC_MULTICOLOR1) |
+		BCM5482_SHD_LEDS1_LED3(BCM_LED_SRC_MULTICOLOR1);
+	bcm_phy_write_shadow(phydev, BCM5482_SHD_LEDS1, val);
+
+	val = BCM_LED_MULTICOLOR_IN_PHASE |
+		BCM5482_SHD_LEDS1_LED1(BCM_LED_MULTICOLOR_LINK_ACT) |
+		BCM5482_SHD_LEDS1_LED3(BCM_LED_MULTICOLOR_LINK_ACT);
+	bcm_phy_write_exp(phydev, BCM_EXP_MULTICOLOR, val);
+
 	return 0;
 }
 

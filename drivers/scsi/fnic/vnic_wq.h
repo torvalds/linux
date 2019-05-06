@@ -33,6 +33,8 @@
 #define vnic_wq_service fnic_wq_service
 #define vnic_wq_free fnic_wq_free
 #define vnic_wq_alloc fnic_wq_alloc
+#define vnic_wq_devcmd2_alloc fnic_wq_devcmd2_alloc
+#define vnic_wq_init_start fnic_wq_init_start
 #define vnic_wq_init fnic_wq_init
 #define vnic_wq_error_status fnic_wq_error_status
 #define vnic_wq_enable fnic_wq_enable
@@ -163,6 +165,12 @@ static inline void vnic_wq_service(struct vnic_wq *wq,
 void vnic_wq_free(struct vnic_wq *wq);
 int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 	unsigned int desc_count, unsigned int desc_size);
+int vnic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+		unsigned int desc_count, unsigned int desc_size);
+void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+		unsigned int fetch_index, unsigned int posted_index,
+		unsigned int error_interrupt_enable,
+		unsigned int error_interrupt_offset);
 void vnic_wq_init(struct vnic_wq *wq, unsigned int cq_index,
 	unsigned int error_interrupt_enable,
 	unsigned int error_interrupt_offset);

@@ -1317,8 +1317,10 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 		hclge_handle_all_ras_errors(hdev);
 	} else {
 		if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
-		    hdev->pdev->revision < 0x21)
+		    hdev->pdev->revision < 0x21) {
+			ae_dev->override_pci_need_reset = 1;
 			return PCI_ERS_RESULT_RECOVERED;
+		}
 	}
 
 	if (status & HCLGE_RAS_REG_ROCEE_ERR_MASK) {
@@ -1327,8 +1329,11 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	}
 
 	if (status & HCLGE_RAS_REG_NFE_MASK ||
-	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK)
+	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK) {
+		ae_dev->override_pci_need_reset = 0;
 		return PCI_ERS_RESULT_NEED_RESET;
+	}
+	ae_dev->override_pci_need_reset = 1;
 
 	return PCI_ERS_RESULT_RECOVERED;
 }

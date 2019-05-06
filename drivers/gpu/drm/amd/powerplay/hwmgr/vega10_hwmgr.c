@@ -2575,10 +2575,10 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.gfx_clock = boot_up_values.ulGfxClk;
 		data->vbios_boot_state.mem_clock = boot_up_values.ulUClk;
 		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
-				SMU9_SYSPLL0_SOCCLK_ID, &boot_up_values.ulSocClk);
+				SMU9_SYSPLL0_SOCCLK_ID, 0, &boot_up_values.ulSocClk);
 
 		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
-				SMU9_SYSPLL0_DCEFCLK_ID, &boot_up_values.ulDCEFClk);
+				SMU9_SYSPLL0_DCEFCLK_ID, 0, &boot_up_values.ulDCEFClk);
 
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
@@ -4407,9 +4407,9 @@ static int vega10_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfe
 		return ret;
 
 	features_to_disable =
-		(features_enabled ^ new_ppfeature_masks) & features_enabled;
+		features_enabled & ~new_ppfeature_masks;
 	features_to_enable =
-		(features_enabled ^ new_ppfeature_masks) ^ features_to_disable;
+		~features_enabled & new_ppfeature_masks;
 
 	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
 	pr_debug("features_to_enable 0x%llx\n", features_to_enable);

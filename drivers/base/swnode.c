@@ -472,7 +472,7 @@ static int software_node_read_string_array(const struct fwnode_handle *fwnode,
 						val, nval);
 }
 
-struct fwnode_handle *
+static struct fwnode_handle *
 software_node_get_parent(const struct fwnode_handle *fwnode)
 {
 	struct software_node *swnode = to_software_node(fwnode);
@@ -481,7 +481,7 @@ software_node_get_parent(const struct fwnode_handle *fwnode)
 			NULL;
 }
 
-struct fwnode_handle *
+static struct fwnode_handle *
 software_node_get_next_child(const struct fwnode_handle *fwnode,
 			     struct fwnode_handle *child)
 {

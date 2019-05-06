@@ -97,6 +97,7 @@ typedef void			(*rpc_action)(struct rpc_task *);
 
 struct rpc_call_ops {
 	void (*rpc_call_prepare)(struct rpc_task *, void *);
+	void (*rpc_call_prepare_transmit)(struct rpc_task *, void *);
 	void (*rpc_call_done)(struct rpc_task *, void *);
 	void (*rpc_count_stats)(struct rpc_task *, void *);
 	void (*rpc_release)(void *);
@@ -302,5 +303,13 @@ rpc_clnt_swap_deactivate(struct rpc_clnt *clnt)
 {
 }
 #endif /* CONFIG_SUNRPC_SWAP */
+
+static inline bool
+rpc_task_need_resched(const struct rpc_task *task)
+{
+	if (RPC_IS_QUEUED(task) || task->tk_callback)
+		return true;
+	return false;
+}
 
 #endif /* _LINUX_SUNRPC_SCHED_H_ */

@@ -40,6 +40,7 @@ typedef struct {
 typedef struct {
 	__u8 b[16];
 } uuid_t;
+#define	UUID_STRING_LEN		36
 
 /* Big exception to the "don't include kernel headers into userspace, which
  * even potentially has different endianness and word sizes, since
@@ -52,6 +53,9 @@ struct devtable {
 	unsigned long id_size;
 	int (*do_entry)(const char *filename, void *symval, char *alias);
 };
+
+/* Size of alias provided to do_entry functions */
+#define ALIAS_SIZE 500
 
 /* Define a variable f that holds the value of field f of struct devid
  * based at address m.
@@ -1305,6 +1309,27 @@ static int do_tee_entry(const char *filename, void *symval, char *alias)
 	return 1;
 }
 
+/* Looks like: wmi:guid */
+static int do_wmi_entry(const char *filename, void *symval, char *alias)
+{
+	int len;
+	DEF_FIELD_ADDR(symval, wmi_device_id, guid_string);
+
+	if (strlen(*guid_string) != UUID_STRING_LEN) {
+		warn("Invalid WMI device id 'wmi:%s' in '%s'\n",
+				*guid_string, filename);
+		return 0;
+	}
+
+	len = snprintf(alias, ALIAS_SIZE, WMI_MODULE_PREFIX "%s", *guid_string);
+	if (len < 0 || len >= ALIAS_SIZE) {
+		warn("Could not generate all MODULE_ALIAS's in '%s'\n",
+				filename);
+		return 0;
+	}
+	return 1;
+}
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {
@@ -1321,7 +1346,7 @@ static void do_table(void *symval, unsigned long size,
 		     struct module *mod)
 {
 	unsigned int i;
-	char alias[500];
+	char alias[ALIAS_SIZE];
 
 	device_id_check(mod->name, device_id, size, id_size, symval);
 	/* Leave last one: it's the terminator. */
@@ -1376,6 +1401,7 @@ static const struct devtable devtable[] = {
 	{"tbsvc", SIZE_tb_service_id, do_tbsvc_entry},
 	{"typec", SIZE_typec_device_id, do_typec_entry},
 	{"tee", SIZE_tee_client_device_id, do_tee_entry},
+	{"wmi", SIZE_wmi_device_id, do_wmi_entry},
 };
 
 /* Create MODULE_ALIAS() statements.

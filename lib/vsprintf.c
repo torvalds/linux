@@ -1931,7 +1931,6 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
  *       (legacy clock framework) of the clock
  * - 'Cn' For a clock, it prints the name (Common Clock Framework) or address
  *        (legacy clock framework) of the clock
- * - 'Cr' For a clock, it prints the current rate of the clock
  * - 'G' For flags to be printed as a collection of symbolic strings that would
  *       construct the specific value. Supported flags given by option:
  *       p page flags (see struct page) given as pointer to unsigned long

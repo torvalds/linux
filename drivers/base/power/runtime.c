@@ -64,7 +64,7 @@ static int rpm_suspend(struct device *dev, int rpmflags);
  * runtime_status field is updated, to account the time in the old state
  * correctly.
  */
-void update_pm_runtime_accounting(struct device *dev)
+static void update_pm_runtime_accounting(struct device *dev)
 {
 	u64 now, last, delta;
 
@@ -98,7 +98,7 @@ static void __update_runtime_status(struct device *dev, enum rpm_status status)
 	dev->power.runtime_status = status;
 }
 
-u64 pm_runtime_suspended_time(struct device *dev)
+static u64 rpm_get_accounted_time(struct device *dev, bool suspended)
 {
 	u64 time;
 	unsigned long flags;
@@ -106,11 +106,21 @@ u64 pm_runtime_suspended_time(struct device *dev)
 	spin_lock_irqsave(&dev->power.lock, flags);
 
 	update_pm_runtime_accounting(dev);
-	time = dev->power.suspended_time;
+	time = suspended ? dev->power.suspended_time : dev->power.active_time;
 
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 
 	return time;
+}
+
+u64 pm_runtime_active_time(struct device *dev)
+{
+	return rpm_get_accounted_time(dev, false);
+}
+
+u64 pm_runtime_suspended_time(struct device *dev)
+{
+	return rpm_get_accounted_time(dev, true);
 }
 EXPORT_SYMBOL_GPL(pm_runtime_suspended_time);
 

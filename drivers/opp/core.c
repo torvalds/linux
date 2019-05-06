@@ -760,7 +760,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		old_freq, freq);
 
 	/* Scaling up? Configure required OPPs before frequency */
-	if (freq > old_freq) {
+	if (freq >= old_freq) {
 		ret = _set_required_opps(dev, opp_table, opp);
 		if (ret)
 			goto put_opp;

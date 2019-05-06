@@ -426,6 +426,12 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	pm_runtime_get_sync(dev->dev);
 
+	if (dev->suspended) {
+		dev_err(dev->dev, "Error %s call while suspended\n", __func__);
+		ret = -ESHUTDOWN;
+		goto done_nolock;
+	}
+
 	reinit_completion(&dev->cmd_complete);
 	dev->msgs = msgs;
 	dev->msgs_num = num;

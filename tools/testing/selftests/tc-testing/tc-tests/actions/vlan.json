@@ -688,5 +688,30 @@
         "teardown": [
             "$TC actions flush action vlan"
         ]
+    },
+    {
+        "id": "e394",
+        "name": "Replace vlan push action with invalid goto chain control",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action vlan push id 500 pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action vlan push id 500 goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action vlan index 90",
+        "matchPattern": "action order [0-9]+: vlan.*push id 500 protocol 802.1Q priority 0 pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
     }
 ]

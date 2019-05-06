@@ -1129,16 +1129,17 @@ static int mlx5e_rep_get_phys_port_name(struct net_device *dev,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	int ret, pf_num;
+	unsigned int fn;
+	int ret;
 
-	ret = mlx5_lag_get_pf_num(priv->mdev, &pf_num);
-	if (ret)
-		return ret;
+	fn = PCI_FUNC(priv->mdev->pdev->devfn);
+	if (fn >= MLX5_MAX_PORTS)
+		return -EOPNOTSUPP;
 
 	if (rep->vport == MLX5_VPORT_UPLINK)
-		ret = snprintf(buf, len, "p%d", pf_num);
+		ret = snprintf(buf, len, "p%d", fn);
 	else
-		ret = snprintf(buf, len, "pf%dvf%d", pf_num, rep->vport - 1);
+		ret = snprintf(buf, len, "pf%dvf%d", fn, rep->vport - 1);
 
 	if (ret >= len)
 		return -EOPNOTSUPP;

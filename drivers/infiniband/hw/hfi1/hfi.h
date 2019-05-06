@@ -73,6 +73,7 @@
 
 #include "chip_registers.h"
 #include "common.h"
+#include "opfn.h"
 #include "verbs.h"
 #include "pio.h"
 #include "chip.h"
@@ -97,6 +98,8 @@
 
 #define NEIGHBOR_TYPE_HFI		0
 #define NEIGHBOR_TYPE_SWITCH	1
+
+#define HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES 5
 
 extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_KGET_MASK(mask, cap) ((mask) & HFI1_CAP_##cap)
@@ -195,6 +198,14 @@ struct exp_tid_set {
 };
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
+
+struct tid_queue {
+	struct list_head queue_head;
+			/* queue head for QP TID resource waiters */
+	u32 enqueue;	/* count of tid enqueues */
+	u32 dequeue;	/* count of tid dequeues */
+};
+
 struct hfi1_ctxtdata {
 	/* rcvhdrq base, needs mmap before useful */
 	void *rcvhdrq;
@@ -288,6 +299,12 @@ struct hfi1_ctxtdata {
 	/* PSM Specific fields */
 	/* lock protecting all Expected TID data */
 	struct mutex exp_mutex;
+	/* lock protecting all Expected TID data of kernel contexts */
+	spinlock_t exp_lock;
+	/* Queue for QP's waiting for HW TID flows */
+	struct tid_queue flow_queue;
+	/* Queue for QP's waiting for HW receive array entries */
+	struct tid_queue rarr_queue;
 	/* when waiting for rcv or pioavail */
 	wait_queue_head_t wait;
 	/* uuid from PSM */
@@ -320,6 +337,9 @@ struct hfi1_ctxtdata {
 	 */
 	u8 subctxt_cnt;
 
+	/* Bit mask to track free TID RDMA HW flows */
+	unsigned long flow_mask;
+	struct tid_flow_state flows[RXE_NUM_TID_FLOWS];
 };
 
 /**
@@ -1435,7 +1455,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
-void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
 						 u16 ctxt);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
@@ -2100,7 +2120,7 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 			SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_TEST_SMASK |
 #endif
 			HFI1_PKT_USER_SC_INTEGRITY;
-	else
+	else if (ctxt_type != SC_KERNEL)
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
 	/* turn on send-side job key checks if !A0 */

@@ -48,6 +48,9 @@ COND_SYSCALL(io_pgetevents_time32);
 COND_SYSCALL(io_pgetevents);
 COND_SYSCALL_COMPAT(io_pgetevents_time32);
 COND_SYSCALL_COMPAT(io_pgetevents);
+COND_SYSCALL(io_uring_setup);
+COND_SYSCALL(io_uring_enter);
+COND_SYSCALL(io_uring_register);
 
 /* fs/xattr.c */
 
@@ -165,6 +168,7 @@ COND_SYSCALL(syslog);
 /* kernel/sched/core.c */
 
 /* kernel/signal.c */
+COND_SYSCALL(pidfd_send_signal);
 
 /* kernel/sys.c */
 COND_SYSCALL(setregid);

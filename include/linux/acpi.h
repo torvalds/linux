@@ -400,9 +400,14 @@ extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_map_pxm_to_online_node(int pxm);
+int acpi_map_pxm_to_node(int pxm);
 int acpi_get_node(acpi_handle handle);
 #else
 static inline int acpi_map_pxm_to_online_node(int pxm)
+{
+	return 0;
+}
+static inline int acpi_map_pxm_to_node(int pxm)
 {
 	return 0;
 }
@@ -1058,17 +1063,6 @@ static inline bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 {
 	return -ENXIO;
-}
-#endif
-
-#if defined(CONFIG_ACPI) && IS_ENABLED(CONFIG_I2C)
-bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
-			       struct acpi_resource_i2c_serialbus **i2c);
-#else
-static inline bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
-					     struct acpi_resource_i2c_serialbus **i2c)
-{
-	return false;
 }
 #endif
 
