@@ -2158,6 +2158,7 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 	int num_mpdu_ranges;
 	size_t tot_hdr_len;
 	struct ieee80211_channel *ch;
+	bool pn_invalid;
 
 	peer_id = __le16_to_cpu(rx->hdr.peer_id);
 
@@ -2189,9 +2190,13 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 		goto err;
 	}
 
-	if (check_pn_type == HTT_RX_PN_CHECK &&
-	    ath10k_htt_rx_pn_check_replay_hl(ar, peer, rx))
-		goto err;
+	if (check_pn_type == HTT_RX_PN_CHECK) {
+		spin_lock_bh(&ar->data_lock);
+		pn_invalid = ath10k_htt_rx_pn_check_replay_hl(ar, peer, rx);
+		spin_unlock_bh(&ar->data_lock);
+		if (pn_invalid)
+			goto err;
+	}
 
 	/* Strip off all headers before the MAC header before delivery to
 	 * mac80211
