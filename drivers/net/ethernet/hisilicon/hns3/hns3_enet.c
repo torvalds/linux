@@ -3478,8 +3478,8 @@ static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 	if (ring->desc_num <= 0 || ring->buf_size <= 0)
 		return -EINVAL;
 
-	ring->desc_cb = kcalloc(ring->desc_num, sizeof(ring->desc_cb[0]),
-				GFP_KERNEL);
+	ring->desc_cb = devm_kcalloc(ring_to_dev(ring), ring->desc_num,
+				     sizeof(ring->desc_cb[0]), GFP_KERNEL);
 	if (!ring->desc_cb) {
 		ret = -ENOMEM;
 		goto out;
@@ -3500,7 +3500,7 @@ static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 out_with_desc:
 	hns3_free_desc(ring);
 out_with_desc_cb:
-	kfree(ring->desc_cb);
+	devm_kfree(ring_to_dev(ring), ring->desc_cb);
 	ring->desc_cb = NULL;
 out:
 	return ret;
@@ -3509,7 +3509,7 @@ out:
 static void hns3_fini_ring(struct hns3_enet_ring *ring)
 {
 	hns3_free_desc(ring);
-	kfree(ring->desc_cb);
+	devm_kfree(ring_to_dev(ring), ring->desc_cb);
 	ring->desc_cb = NULL;
 	ring->next_to_clean = 0;
 	ring->next_to_use = 0;
