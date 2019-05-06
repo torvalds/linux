@@ -1051,7 +1051,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
 	}
 
-	if (unlikely(dma_mapping_error(ring->dev, dma))) {
+	if (unlikely(dma_mapping_error(dev, dma))) {
 		ring->stats.sw_err_cnt++;
 		return -ENOMEM;
 	}
