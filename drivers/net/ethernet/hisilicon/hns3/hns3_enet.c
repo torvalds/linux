@@ -1224,6 +1224,9 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 		if (ring->next_to_use == next_to_use_orig)
 			break;
 
+		/* rollback one */
+		ring_ptr_move_bw(ring, next_to_use);
+
 		/* unmap the descriptor dma address */
 		if (ring->desc_cb[ring->next_to_use].type == DESC_TYPE_SKB)
 			dma_unmap_single(dev,
@@ -1237,9 +1240,7 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 				       DMA_TO_DEVICE);
 
 		ring->desc_cb[ring->next_to_use].length = 0;
-
-		/* rollback one */
-		ring_ptr_move_bw(ring, next_to_use);
+		ring->desc_cb[ring->next_to_use].dma = 0;
 	}
 }
 
@@ -1252,7 +1253,6 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct netdev_queue *dev_queue;
 	struct skb_frag_struct *frag;
 	int next_to_use_head;
-	int next_to_use_frag;
 	int buf_num;
 	int seg_num;
 	int size;
@@ -1291,9 +1291,8 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = hns3_fill_desc(ring, skb, size, seg_num == 1 ? 1 : 0,
 			     DESC_TYPE_SKB);
 	if (unlikely(ret))
-		goto head_fill_err;
+		goto fill_err;
 
-	next_to_use_frag = ring->next_to_use;
 	/* Fill the fragments */
 	for (i = 1; i < seg_num; i++) {
 		frag = &skb_shinfo(skb)->frags[i - 1];
@@ -1304,7 +1303,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 				     DESC_TYPE_PAGE);
 
 		if (unlikely(ret))
-			goto frag_fill_err;
+			goto fill_err;
 	}
 
 	/* Complete translate all packets */
@@ -1317,10 +1316,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	return NETDEV_TX_OK;
 
-frag_fill_err:
-	hns3_clear_desc(ring, next_to_use_frag);
-
-head_fill_err:
+fill_err:
 	hns3_clear_desc(ring, next_to_use_head);
 
 out_err_tx_ok:
