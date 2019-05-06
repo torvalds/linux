@@ -81,14 +81,12 @@ struct fuse_forget_link *fuse_alloc_forget(void)
 
 static struct inode *fuse_alloc_inode(struct super_block *sb)
 {
-	struct inode *inode;
 	struct fuse_inode *fi;
 
-	inode = kmem_cache_alloc(fuse_inode_cachep, GFP_KERNEL);
-	if (!inode)
+	fi = kmem_cache_alloc(fuse_inode_cachep, GFP_KERNEL);
+	if (!fi)
 		return NULL;
 
-	fi = get_fuse_inode(inode);
 	fi->i_time = 0;
 	fi->inval_mask = 0;
 	fi->nodeid = 0;
@@ -100,11 +98,11 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	spin_lock_init(&fi->lock);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget) {
-		kmem_cache_free(fuse_inode_cachep, inode);
+		kmem_cache_free(fuse_inode_cachep, fi);
 		return NULL;
 	}
 
-	return inode;
+	return &fi->inode;
 }
 
 static void fuse_i_callback(struct rcu_head *head)
