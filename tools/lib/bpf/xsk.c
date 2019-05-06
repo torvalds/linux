@@ -459,8 +459,8 @@ static void xsk_clear_bpf_maps(struct xsk_socket *xsk)
 {
 	int qid = false;
 
-	(void)bpf_map_update_elem(xsk->qidconf_map_fd, &xsk->queue_id, &qid, 0);
-	(void)bpf_map_delete_elem(xsk->xsks_map_fd, &xsk->queue_id);
+	bpf_map_update_elem(xsk->qidconf_map_fd, &xsk->queue_id, &qid, 0);
+	bpf_map_delete_elem(xsk->xsks_map_fd, &xsk->queue_id);
 }
 
 static int xsk_set_bpf_maps(struct xsk_socket *xsk)
@@ -686,12 +686,10 @@ int xsk_umem__delete(struct xsk_umem *umem)
 	optlen = sizeof(off);
 	err = getsockopt(umem->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
 	if (!err) {
-		(void)munmap(umem->fill->ring - off.fr.desc,
-			     off.fr.desc +
-			     umem->config.fill_size * sizeof(__u64));
-		(void)munmap(umem->comp->ring - off.cr.desc,
-			     off.cr.desc +
-			     umem->config.comp_size * sizeof(__u64));
+		munmap(umem->fill->ring - off.fr.desc,
+		       off.fr.desc + umem->config.fill_size * sizeof(__u64));
+		munmap(umem->comp->ring - off.cr.desc,
+		       off.cr.desc + umem->config.comp_size * sizeof(__u64));
 	}
 
 	close(umem->fd);
@@ -717,14 +715,12 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 	err = getsockopt(xsk->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
 	if (!err) {
 		if (xsk->rx) {
-			(void)munmap(xsk->rx->ring - off.rx.desc,
-				     off.rx.desc +
-				     xsk->config.rx_size * desc_sz);
+			munmap(xsk->rx->ring - off.rx.desc,
+			       off.rx.desc + xsk->config.rx_size * desc_sz);
 		}
 		if (xsk->tx) {
-			(void)munmap(xsk->tx->ring - off.tx.desc,
-				     off.tx.desc +
-				     xsk->config.tx_size * desc_sz);
+			munmap(xsk->tx->ring - off.tx.desc,
+			       off.tx.desc + xsk->config.tx_size * desc_sz);
 		}
 
 	}
