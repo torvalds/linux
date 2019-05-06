@@ -792,6 +792,14 @@ config LEDS_TI_LMU_COMMON
 	  This supports common features between the TI LM3532, LM3631, LM3632,
 	  LM3633, LM3695 and LM3697.
 
+config LEDS_LM3697
+	tristate "LED driver for LM3697"
+	depends on LEDS_TI_LMU_COMMON
+	depends on I2C && OF
+	help
+	  Say Y to enable the LM3697 LED driver for TI LMU devices.
+	  This supports the LED device LM3697.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
