@@ -389,6 +389,7 @@ struct ring_stats {
 			u64 l2_err;
 			u64 l3l4_csum_err;
 			u64 rx_multicast;
+			u64 non_reuse_pg;
 		};
 	};
 };
