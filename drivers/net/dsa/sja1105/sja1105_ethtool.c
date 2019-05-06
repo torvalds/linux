@@ -313,8 +313,10 @@ static char sja1105pqrs_extra_port_stats[][ETH_GSTRING_LEN] = {
 void sja1105_get_ethtool_stats(struct dsa_switch *ds, int port, u64 *data)
 {
 	struct sja1105_private *priv = ds->priv;
-	struct sja1105_port_status status = {0};
+	struct sja1105_port_status status;
 	int rc, i, k = 0;
+
+	memset(&status, 0, sizeof(status));
 
 	rc = sja1105_port_status_get(priv, &status, port);
 	if (rc < 0) {
