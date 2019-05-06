@@ -252,7 +252,7 @@ extern void os_warn(const char *fmt, ...)
 extern void os_idle_sleep(unsigned long long nsecs);
 extern int os_timer_create(void* timer);
 extern int os_timer_set_interval(void* timer, void* its);
-extern int os_timer_one_shot(int ticks);
+extern int os_timer_one_shot(unsigned long ticks);
 extern long long os_timer_disable(void);
 extern long os_timer_remain(void* timer);
 extern void uml_idle_timer(void);

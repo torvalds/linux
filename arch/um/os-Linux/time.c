@@ -113,7 +113,7 @@ long os_timer_remain(void* timer)
 	return its.it_value.tv_nsec;
 }
 
-int os_timer_one_shot(int ticks)
+int os_timer_one_shot(unsigned long ticks)
 {
 	struct itimerspec its;
 	unsigned long long nsec;
