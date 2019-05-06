@@ -115,7 +115,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		}
 		break;
 	case SOF_IPC_GLB_COMP_MSG:
-		str = "GLB_COMP_MSG: SET_VALUE";
+		str = "GLB_COMP_MSG";
 		switch (type) {
 		case SOF_IPC_COMP_SET_VALUE:
 			str2 = "SET_VALUE"; break;
