@@ -2067,7 +2067,6 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 	 * MAC_ACCESS_REQ bit to be performed before any other writes
 	 * scheduled on different CPUs (after we drop reg_lock).
 	 */
-	mmiowb();
 out:
 	spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
 }

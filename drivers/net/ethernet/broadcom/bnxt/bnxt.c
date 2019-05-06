@@ -556,8 +556,6 @@ normal_tx:
 
 tx_done:
 
-	mmiowb();
-
 	if (unlikely(bnxt_tx_avail(bp, txr) <= MAX_SKB_FRAGS + 1)) {
 		if (skb->xmit_more && !tx_buf->is_push)
 			bnxt_db_write(bp, &txr->tx_db, prod);
@@ -2134,7 +2132,6 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 			       &dim_sample);
 		net_dim(&cpr->dim, dim_sample);
 	}
-	mmiowb();
 	return work_done;
 }
 

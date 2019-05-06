@@ -959,7 +959,6 @@ static void alcor_timeout_timer(struct work_struct *work)
 		alcor_request_complete(host, 0);
 	}
 
-	mmiowb();
 	mutex_unlock(&host->cmd_mutex);
 }
 

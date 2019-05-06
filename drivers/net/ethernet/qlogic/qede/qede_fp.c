@@ -580,14 +580,6 @@ void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq)
 
 	internal_ram_wr(rxq->hw_rxq_prod_addr, sizeof(rx_prods),
 			(u32 *)&rx_prods);
-
-	/* mmiowb is needed to synchronize doorbell writes from more than one
-	 * processor. It guarantees that the write arrives to the device before
-	 * the napi lock is released and another qede_poll is called (possibly
-	 * on another CPU). Without this barrier, the next doorbell can bypass
-	 * this doorbell. This is applicable to IA64/Altix systems.
-	 */
-	mmiowb();
 }
 
 static void qede_get_rxhash(struct sk_buff *skb, u8 bitfields, __le32 rss_hash)

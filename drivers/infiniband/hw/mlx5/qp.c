@@ -5126,7 +5126,6 @@ out:
 		/* Make sure doorbells don't leak out of SQ spinlock
 		 * and reach the HCA out of order.
 		 */
-		mmiowb();
 		bf->offset ^= bf->buf_size;
 	}
 

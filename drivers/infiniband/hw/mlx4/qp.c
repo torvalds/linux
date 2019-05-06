@@ -3744,12 +3744,6 @@ out:
 		writel_relaxed(qp->doorbell_qpn,
 			to_mdev(ibqp->device)->uar_map + MLX4_SEND_DOORBELL);
 
-		/*
-		 * Make sure doorbells don't leak out of SQ spinlock
-		 * and reach the HCA out of order.
-		 */
-		mmiowb();
-
 		stamp_send_wqe(qp, ind + qp->sq_spare_wqes - 1);
 
 		qp->sq_next_wqe = ind;

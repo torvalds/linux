@@ -2016,7 +2016,6 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	mb();
 	writel_relaxed((u32)aenq->head,
 		       dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
-	mmiowb();
 }
 
 int ena_com_dev_reset(struct ena_com_dev *ena_dev,
