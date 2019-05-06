@@ -1252,7 +1252,7 @@ static int temac_probe(struct platform_device *pdev)
 	if (temac_np) {
 		/* Retrieve the MAC address */
 		addr = of_get_mac_address(temac_np);
-		if (!addr) {
+		if (IS_ERR(addr)) {
 			dev_err(&pdev->dev, "could not find MAC address\n");
 			return -ENODEV;
 		}

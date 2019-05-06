@@ -2232,7 +2232,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 
 no_phy_slave:
 		mac_addr = of_get_mac_address(slave_node);
-		if (mac_addr) {
+		if (!IS_ERR(mac_addr)) {
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
 		} else {
 			ret = ti_cm_get_macid(&pdev->dev, i,

@@ -560,7 +560,7 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 	addr = NULL;
 	if (dp)
 		addr = of_get_mac_address(dp);
-	if (!addr)
+	if (IS_ERR_OR_NULL(addr))
 		addr = arch_get_platform_mac_address();
 
 	if (!addr)
