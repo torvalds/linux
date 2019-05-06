@@ -121,10 +121,16 @@ static void tick_sched_do_timer(struct tick_sched *ts, ktime_t now)
 	 * into a long sleep. If two CPUs happen to assign themselves to
 	 * this duty, then the jiffies update is still serialized by
 	 * jiffies_lock.
+	 *
+	 * If nohz_full is enabled, this should not happen because the
+	 * tick_do_timer_cpu never relinquishes.
 	 */
-	if (unlikely(tick_do_timer_cpu == TICK_DO_TIMER_NONE)
-	    && !tick_nohz_full_cpu(cpu))
+	if (unlikely(tick_do_timer_cpu == TICK_DO_TIMER_NONE)) {
+#ifdef CONFIG_NO_HZ_FULL
+		WARN_ON(tick_nohz_full_running);
+#endif
 		tick_do_timer_cpu = cpu;
+	}
 #endif
 
 	/* Check, if the jiffies need an update */
@@ -395,8 +401,8 @@ void __init tick_nohz_full_setup(cpumask_var_t cpumask)
 static int tick_nohz_cpu_down(unsigned int cpu)
 {
 	/*
-	 * The boot CPU handles housekeeping duty (unbound timers,
-	 * workqueues, timekeeping, ...) on behalf of full dynticks
+	 * The tick_do_timer_cpu CPU handles housekeeping duty (unbound
+	 * timers, workqueues, timekeeping, ...) on behalf of full dynticks
 	 * CPUs. It must remain online when nohz full is enabled.
 	 */
 	if (tick_nohz_full_running && tick_do_timer_cpu == cpu)
@@ -423,12 +429,15 @@ void __init tick_nohz_init(void)
 		return;
 	}
 
-	cpu = smp_processor_id();
+	if (IS_ENABLED(CONFIG_PM_SLEEP_SMP) &&
+			!IS_ENABLED(CONFIG_PM_SLEEP_SMP_NONZERO_CPU)) {
+		cpu = smp_processor_id();
 
-	if (cpumask_test_cpu(cpu, tick_nohz_full_mask)) {
-		pr_warn("NO_HZ: Clearing %d from nohz_full range for timekeeping\n",
-			cpu);
-		cpumask_clear_cpu(cpu, tick_nohz_full_mask);
+		if (cpumask_test_cpu(cpu, tick_nohz_full_mask)) {
+			pr_warn("NO_HZ: Clearing %d from nohz_full range "
+				"for timekeeping\n", cpu);
+			cpumask_clear_cpu(cpu, tick_nohz_full_mask);
+		}
 	}
 
 	for_each_cpu(cpu, tick_nohz_full_mask)
@@ -904,8 +913,13 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 		/*
 		 * Boot safety: make sure the timekeeping duty has been
 		 * assigned before entering dyntick-idle mode,
+		 * tick_do_timer_cpu is TICK_DO_TIMER_BOOT
 		 */
-		if (tick_do_timer_cpu == TICK_DO_TIMER_NONE)
+		if (unlikely(tick_do_timer_cpu == TICK_DO_TIMER_BOOT))
+			return false;
+
+		/* Should not happen for nohz-full */
+		if (WARN_ON_ONCE(tick_do_timer_cpu == TICK_DO_TIMER_NONE))
 			return false;
 	}
 
