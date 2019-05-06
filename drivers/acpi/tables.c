@@ -670,8 +670,8 @@ static void __init acpi_table_initrd_scan(void)
 		table_length = table->length;
 
 		/* Skip RSDT/XSDT which should only be used for override */
-		if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_RSDT) ||
-		    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_XSDT)) {
+		if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_RSDT) ||
+		    ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_XSDT)) {
 			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
 			goto next_table;
 		}
