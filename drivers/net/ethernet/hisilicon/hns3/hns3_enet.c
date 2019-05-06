@@ -2315,6 +2315,10 @@ hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring, int cleand_count)
 				break;
 			}
 			hns3_replace_buffer(ring, ring->next_to_use, &res_cbs);
+
+			u64_stats_update_begin(&ring->syncp);
+			ring->stats.non_reuse_pg++;
+			u64_stats_update_end(&ring->syncp);
 		}
 
 		ring_ptr_move_fw(ring, next_to_use);
