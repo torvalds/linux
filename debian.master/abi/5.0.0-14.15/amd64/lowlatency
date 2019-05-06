@@ -5869,6 +5869,7 @@ EXPORT_SYMBOL ubuntu/vbox/vboxguest/vboxguest 0x00000000	VBoxGuest_g_pszRTAssert
 EXPORT_SYMBOL ubuntu/vbox/vboxguest/vboxguest 0x00000000	VBoxGuest_g_szRTAssertMsg1
 EXPORT_SYMBOL ubuntu/vbox/vboxguest/vboxguest 0x00000000	VBoxGuest_g_szRTAssertMsg2
 EXPORT_SYMBOL ubuntu/vbox/vboxguest/vboxguest 0x00000000	VBoxGuest_g_u32RTAssertLine
+EXPORT_SYMBOL ubuntu/vbox/vboxguest/vboxguest 0x00000000	VBoxGuest_rtR0MemObjLinuxVirtToPage
 EXPORT_SYMBOL vmlinux 0x00000000	EISA_bus
 EXPORT_SYMBOL vmlinux 0x00000000	IO_APIC_get_PCI_irq_vector
 EXPORT_SYMBOL vmlinux 0x00000000	I_BDEV
@@ -5914,6 +5915,8 @@ EXPORT_SYMBOL vmlinux 0x00000000	ZSTD_nextSrcSizeToDecompress
 EXPORT_SYMBOL vmlinux 0x00000000	ZSTD_resetDStream
 EXPORT_SYMBOL vmlinux 0x00000000	__ClearPageMovable
 EXPORT_SYMBOL vmlinux 0x00000000	__SetPageMovable
+EXPORT_SYMBOL vmlinux 0x00000000	___preempt_schedule
+EXPORT_SYMBOL vmlinux 0x00000000	___preempt_schedule_notrace
 EXPORT_SYMBOL vmlinux 0x00000000	___pskb_trim
 EXPORT_SYMBOL vmlinux 0x00000000	___ratelimit
 EXPORT_SYMBOL vmlinux 0x00000000	__acpi_handle_debug
@@ -6316,7 +6319,6 @@ EXPORT_SYMBOL vmlinux 0x00000000	_atomic_dec_and_lock
 EXPORT_SYMBOL vmlinux 0x00000000	_atomic_dec_and_lock_irqsave
 EXPORT_SYMBOL vmlinux 0x00000000	_bcd2bin
 EXPORT_SYMBOL vmlinux 0x00000000	_bin2bcd
-EXPORT_SYMBOL vmlinux 0x00000000	_cond_resched
 EXPORT_SYMBOL vmlinux 0x00000000	_copy_from_iter
 EXPORT_SYMBOL vmlinux 0x00000000	_copy_from_iter_full
 EXPORT_SYMBOL vmlinux 0x00000000	_copy_from_iter_full_nocache
@@ -6340,7 +6342,9 @@ EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_lock_bh
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_lock_irq
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_lock_irqsave
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_trylock
+EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_unlock
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_unlock_bh
+EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_unlock_irq
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_read_unlock_irqrestore
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_lock
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_lock_bh
@@ -6348,14 +6352,18 @@ EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_lock_irq
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_lock_irqsave
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_trylock
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_trylock_bh
+EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_unlock
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_unlock_bh
+EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_unlock_irq
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_spin_unlock_irqrestore
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_lock
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_lock_bh
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_lock_irq
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_lock_irqsave
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_trylock
+EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_unlock
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_unlock_bh
+EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_unlock_irq
 EXPORT_SYMBOL vmlinux 0x00000000	_raw_write_unlock_irqrestore
 EXPORT_SYMBOL vmlinux 0x00000000	_totalram_pages
 EXPORT_SYMBOL vmlinux 0x00000000	ab3100_event_register
@@ -9526,6 +9534,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	prandom_seed
 EXPORT_SYMBOL vmlinux 0x00000000	prandom_seed_full_state
 EXPORT_SYMBOL vmlinux 0x00000000	prandom_u32
 EXPORT_SYMBOL vmlinux 0x00000000	prandom_u32_state
+EXPORT_SYMBOL vmlinux 0x00000000	preempt_schedule
 EXPORT_SYMBOL vmlinux 0x00000000	prepare_binprm
 EXPORT_SYMBOL vmlinux 0x00000000	prepare_creds
 EXPORT_SYMBOL vmlinux 0x00000000	prepare_kernel_cred
@@ -18124,6 +18133,8 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	__put_task_struct
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	__raw_notifier_call_chain
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	__raw_v4_lookup
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	__raw_v6_lookup
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	__rcu_read_lock
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	__rcu_read_unlock
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	__regmap_init
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	__regmap_init_i2c
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	__regmap_init_mmio_clk
@@ -18860,6 +18871,8 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_notifier_register
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_notifier_set_phys_addr
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_notifier_set_phys_addr_from_edid
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_notifier_unregister
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_pin_allocate_adapter
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_pin_changed
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_queue_pin_5v_event
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_queue_pin_cec_event
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	cec_queue_pin_hpd_event
@@ -21543,6 +21556,7 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	preempt_notifier_dec
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	preempt_notifier_inc
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	preempt_notifier_register
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	preempt_notifier_unregister
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	preempt_schedule_notrace
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	print_stack_trace
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	probe_kernel_read
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	probe_kernel_write
@@ -21614,7 +21628,6 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	raw_seq_stop
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	raw_unhash_sk
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	raw_v4_hashinfo
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	raw_v6_hashinfo
-EXPORT_SYMBOL_GPL vmlinux 0x00000000	rcu_all_qs
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	rcu_barrier
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	rcu_barrier_tasks
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	rcu_cpu_stall_suppress
@@ -23122,7 +23135,6 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_has_pv_nic_devices
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_have_vector_callback
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_hvm_evtchn_do_upcall
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_hvm_need_lapic
-EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_in_preemptible_hcall
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_irq_from_gsi
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_max_p2m_pfn
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	xen_p2m_addr
