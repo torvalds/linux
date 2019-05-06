@@ -44,6 +44,7 @@
 
 #include "drm_crtc_internal.h"
 #include "drm_crtc_helper_internal.h"
+#include "drm_internal.h"
 
 static bool drm_fbdev_emulation = true;
 module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
@@ -509,7 +510,7 @@ out:
 	return ret;
 }
 
-static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+static int restore_fbdev_mode_force(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 
@@ -517,6 +518,21 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 		return restore_fbdev_mode_atomic(fb_helper, true);
 	else
 		return restore_fbdev_mode_legacy(fb_helper);
+}
+
+static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+	int ret;
+
+	if (!drm_master_internal_acquire(dev))
+		return -EBUSY;
+
+	ret = restore_fbdev_mode_force(fb_helper);
+
+	drm_master_internal_release(dev);
+
+	return ret;
 }
 
 /**
@@ -542,7 +558,17 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
-	ret = restore_fbdev_mode(fb_helper);
+	/*
+	 * TODO:
+	 * We should bail out here if there is a master by dropping _force.
+	 * Currently these igt tests fail if we do that:
+	 * - kms_fbcon_fbt@psr
+	 * - kms_fbcon_fbt@psr-suspend
+	 *
+	 * So first these tests need to be fixed so they drop master or don't
+	 * have an fd open.
+	 */
+	ret = restore_fbdev_mode_force(fb_helper);
 
 	do_delayed = fb_helper->delayed_hotplug;
 	if (do_delayed)
@@ -555,34 +581,6 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
-
-static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
-{
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_crtc *crtc;
-	int bound = 0, crtcs_bound = 0;
-
-	/*
-	 * Sometimes user space wants everything disabled, so don't steal the
-	 * display if there's a master.
-	 */
-	if (READ_ONCE(dev->master))
-		return false;
-
-	drm_for_each_crtc(crtc, dev) {
-		drm_modeset_lock(&crtc->mutex, NULL);
-		if (crtc->primary->fb)
-			crtcs_bound++;
-		if (crtc->primary->fb == fb_helper->fb)
-			bound++;
-		drm_modeset_unlock(&crtc->mutex);
-	}
-
-	if (bound < crtcs_bound)
-		return false;
-
-	return true;
-}
 
 #ifdef CONFIG_MAGIC_SYSRQ
 /*
@@ -604,7 +602,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 			continue;
 
 		mutex_lock(&helper->lock);
-		ret = restore_fbdev_mode(helper);
+		ret = restore_fbdev_mode_force(helper);
 		if (ret)
 			error = true;
 		mutex_unlock(&helper->lock);
@@ -663,20 +661,22 @@ static void dpms_legacy(struct drm_fb_helper *fb_helper, int dpms_mode)
 static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 {
 	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
 
 	/*
 	 * For each CRTC in this fb, turn the connectors on/off.
 	 */
 	mutex_lock(&fb_helper->lock);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
-		mutex_unlock(&fb_helper->lock);
-		return;
-	}
+	if (!drm_master_internal_acquire(dev))
+		goto unlock;
 
-	if (drm_drv_uses_atomic_modeset(fb_helper->dev))
+	if (drm_drv_uses_atomic_modeset(dev))
 		restore_fbdev_mode_atomic(fb_helper, dpms_mode == DRM_MODE_DPMS_ON);
 	else
 		dpms_legacy(fb_helper, dpms_mode);
+
+	drm_master_internal_release(dev);
+unlock:
 	mutex_unlock(&fb_helper->lock);
 }
 
@@ -1509,6 +1509,7 @@ backoff:
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
 	int ret;
 
 	if (oops_in_progress)
@@ -1516,9 +1517,9 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 
 	mutex_lock(&fb_helper->lock);
 
-	if (!drm_fb_helper_is_bound(fb_helper)) {
+	if (!drm_master_internal_acquire(dev)) {
 		ret = -EBUSY;
-		goto out;
+		goto unlock;
 	}
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR)
@@ -1528,7 +1529,8 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	else
 		ret = setcmap_legacy(cmap, info);
 
-out:
+	drm_master_internal_release(dev);
+unlock:
 	mutex_unlock(&fb_helper->lock);
 
 	return ret;
@@ -1548,12 +1550,13 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
 	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
 	struct drm_mode_set *mode_set;
 	struct drm_crtc *crtc;
 	int ret = 0;
 
 	mutex_lock(&fb_helper->lock);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
+	if (!drm_master_internal_acquire(dev)) {
 		ret = -EBUSY;
 		goto unlock;
 	}
@@ -1591,11 +1594,12 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 		}
 
 		ret = 0;
-		goto unlock;
+		break;
 	default:
 		ret = -ENOTTY;
 	}
 
+	drm_master_internal_release(dev);
 unlock:
 	mutex_unlock(&fb_helper->lock);
 	return ret;
@@ -1847,15 +1851,18 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 		return -EBUSY;
 
 	mutex_lock(&fb_helper->lock);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
-		mutex_unlock(&fb_helper->lock);
-		return -EBUSY;
+	if (!drm_master_internal_acquire(dev)) {
+		ret = -EBUSY;
+		goto unlock;
 	}
 
 	if (drm_drv_uses_atomic_modeset(dev))
 		ret = pan_display_atomic(var, info);
 	else
 		ret = pan_display_legacy(var, info);
+
+	drm_master_internal_release(dev);
+unlock:
 	mutex_unlock(&fb_helper->lock);
 
 	return ret;
@@ -2014,7 +2021,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		DRM_INFO("Cannot find any crtc or sizes\n");
 
 		/* First time: disable all crtc's.. */
-		if (!fb_helper->deferred_setup && !READ_ONCE(fb_helper->dev->master))
+		if (!fb_helper->deferred_setup)
 			restore_fbdev_mode(fb_helper);
 		return -EAGAIN;
 	}
@@ -3029,6 +3036,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
  */
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
+	struct drm_device *dev = fb_helper->dev;
 	int err = 0;
 
 	if (!drm_fbdev_emulation || !fb_helper)
@@ -3041,11 +3049,13 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 		return err;
 	}
 
-	if (!fb_helper->fb || !drm_fb_helper_is_bound(fb_helper)) {
+	if (!fb_helper->fb || !drm_master_internal_acquire(dev)) {
 		fb_helper->delayed_hotplug = true;
 		mutex_unlock(&fb_helper->lock);
 		return err;
 	}
+
+	drm_master_internal_release(dev);
 
 	DRM_DEBUG_KMS("\n");
 

@@ -281,6 +281,14 @@ it to use drm_mode_hsync() instead.
 
 Contact: Sean Paul
 
+drm_fb_helper tasks
+-------------------
+
+- drm_fb_helper_restore_fbdev_mode_unlocked() should call restore_fbdev_mode()
+  not the _force variant so it can bail out if there is a master. But first
+  these igt tests need to be fixed: kms_fbcon_fbt@psr and
+  kms_fbcon_fbt@psr-suspend.
+
 Core refactorings
 =================
 
