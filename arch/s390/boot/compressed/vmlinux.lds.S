@@ -33,7 +33,29 @@ SECTIONS
 		*(.data.*)
 		_edata = . ;
 	}
+	/*
+	* .dma section for code, data, ex_table that need to stay below 2 GB,
+	* even when the kernel is relocate: above 2 GB.
+	*/
+	_sdma = .;
+	.dma.text : {
+		. = ALIGN(PAGE_SIZE);
+		_stext_dma = .;
+		*(.dma.text)
+		. = ALIGN(PAGE_SIZE);
+		_etext_dma = .;
+	}
+	. = ALIGN(16);
+	.dma.ex_table : {
+		_start_dma_ex_table = .;
+		KEEP(*(.dma.ex_table))
+		_stop_dma_ex_table = .;
+	}
+	.dma.data : { *(.dma.data) }
+	_edma = .;
+
 	BOOT_DATA
+	BOOT_DATA_PRESERVED
 
 	/*
 	 * uncompressed image info used by the decompressor it should match

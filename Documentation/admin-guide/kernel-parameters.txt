@@ -3429,6 +3429,8 @@
 				bridges without forcing it upstream. Note:
 				this removes isolation between devices and
 				may put more devices in an IOMMU group.
+		force_floating	[S390] Force usage of floating interrupts.
+		nomio		[S390] Do not use MIO instructions.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
