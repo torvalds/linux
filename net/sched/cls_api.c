@@ -37,6 +37,8 @@
 #include <net/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_gact.h>
+#include <net/tc_act/tc_police.h>
+#include <net/tc_act/tc_sample.h>
 #include <net/tc_act/tc_skbedit.h>
 
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
@@ -3257,6 +3259,18 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 		} else if (is_tcf_skbedit_mark(act)) {
 			entry->id = FLOW_ACTION_MARK;
 			entry->mark = tcf_skbedit_mark(act);
+		} else if (is_tcf_sample(act)) {
+			entry->id = FLOW_ACTION_SAMPLE;
+			entry->sample.psample_group =
+				tcf_sample_psample_group(act);
+			entry->sample.trunc_size = tcf_sample_trunc_size(act);
+			entry->sample.truncate = tcf_sample_truncate(act);
+			entry->sample.rate = tcf_sample_rate(act);
+		} else if (is_tcf_police(act)) {
+			entry->id = FLOW_ACTION_POLICE;
+			entry->police.burst = tcf_police_tcfp_burst(act);
+			entry->police.rate_bytes_ps =
+				tcf_police_rate_bytes_ps(act);
 		} else {
 			goto err_out;
 		}

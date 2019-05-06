@@ -157,7 +157,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	skip_sw = prog && tc_skip_sw(prog->gen_flags);
 	obj = prog ?: oldprog;
 
-	tc_cls_common_offload_init(&cls_bpf.common, tp, obj->gen_flags,
+	tc_cls_common_offload_init(&cls_bpf.common, tp, obj->gen_flags, block,
 				   extack);
 	cls_bpf.command = TC_CLSBPF_OFFLOAD;
 	cls_bpf.exts = &obj->exts;
@@ -227,7 +227,8 @@ static void cls_bpf_offload_update_stats(struct tcf_proto *tp,
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_bpf_offload cls_bpf = {};
 
-	tc_cls_common_offload_init(&cls_bpf.common, tp, prog->gen_flags, NULL);
+	tc_cls_common_offload_init(&cls_bpf.common, tp, prog->gen_flags, block,
+				   NULL);
 	cls_bpf.command = TC_CLSBPF_STATS;
 	cls_bpf.exts = &prog->exts;
 	cls_bpf.prog = prog->filter;
@@ -669,7 +670,7 @@ static int cls_bpf_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			continue;
 
 		tc_cls_common_offload_init(&cls_bpf.common, tp, prog->gen_flags,
-					   extack);
+					   block, extack);
 		cls_bpf.command = TC_CLSBPF_OFFLOAD;
 		cls_bpf.exts = &prog->exts;
 		cls_bpf.prog = add ? prog->filter : NULL;

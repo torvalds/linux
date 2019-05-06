@@ -776,6 +776,9 @@ static int nfp_flower_init(struct nfp_app *app)
 		nfp_warn(app->cpp, "Flow mod/merge not supported by FW.\n");
 	}
 
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)
+		nfp_flower_qos_init(app);
+
 	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
 	INIT_LIST_HEAD(&app_priv->non_repr_priv);
 
@@ -798,6 +801,9 @@ static void nfp_flower_clean(struct nfp_app *app)
 	skb_queue_purge(&app_priv->cmsg_skbs_high);
 	skb_queue_purge(&app_priv->cmsg_skbs_low);
 	flush_work(&app_priv->cmsg_work);
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)
+		nfp_flower_qos_cleanup(app);
 
 	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
 		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
