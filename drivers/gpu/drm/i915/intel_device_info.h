@@ -105,7 +105,7 @@ enum intel_ppgtt_type {
 #define DEV_INFO_FOR_EACH_FLAG(func) \
 	func(is_mobile); \
 	func(is_lp); \
-	func(is_alpha_support); \
+	func(require_force_probe); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
 	func(gpu_reset_clobbers_display); \
