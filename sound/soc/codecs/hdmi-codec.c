@@ -416,8 +416,6 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 	int ret = 0;
 
-	dev_dbg(dai->dev, "%s()\n", __func__);
-
 	ret = hdmi_codec_new_stream(substream, dai);
 	if (ret)
 		return ret;
@@ -456,8 +454,6 @@ static void hdmi_codec_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
-
-	dev_dbg(dai->dev, "%s()\n", __func__);
 
 	WARN_ON(hcp->current_stream != substream);
 
@@ -527,8 +523,6 @@ static int hdmi_codec_set_fmt(struct snd_soc_dai *dai,
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 	struct hdmi_codec_daifmt cf = { 0 };
 
-	dev_dbg(dai->dev, "%s()\n", __func__);
-
 	if (dai->id == DAI_ID_SPDIF)
 		return 0;
 
@@ -597,8 +591,6 @@ static int hdmi_codec_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 
-	dev_dbg(dai->dev, "%s()\n", __func__);
-
 	if (hcp->hcd.ops->digital_mute)
 		return hcp->hcd.ops->digital_mute(dai->dev->parent,
 						  hcp->hcd.data, mute);
@@ -655,8 +647,6 @@ static int hdmi_codec_pcm_new(struct snd_soc_pcm_runtime *rtd,
 		.device	= rtd->pcm->device,
 	};
 	int ret;
-
-	dev_dbg(dai->dev, "%s()\n", __func__);
 
 	ret =  snd_pcm_add_chmap_ctls(rtd->pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				      NULL, drv->playback.channels_max, 0,
@@ -753,8 +743,6 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	struct hdmi_codec_priv *hcp;
 	int dai_count, i = 0;
 	int ret;
-
-	dev_dbg(dev, "%s()\n", __func__);
 
 	if (!hcd) {
 		dev_err(dev, "%s: No platform data\n", __func__);
