@@ -74,7 +74,7 @@ static irqreturn_t hns3_irq_handle(int irq, void *vector)
 {
 	struct hns3_enet_tqp_vector *tqp_vector = vector;
 
-	napi_schedule(&tqp_vector->napi);
+	napi_schedule_irqoff(&tqp_vector->napi);
 
 	return IRQ_HANDLED;
 }
