@@ -178,6 +178,11 @@ static inline struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 static inline void cpufreq_cpu_put(struct cpufreq_policy *policy) { }
 #endif
 
+static inline bool policy_is_inactive(struct cpufreq_policy *policy)
+{
+	return cpumask_empty(policy->cpus);
+}
+
 static inline bool policy_is_shared(struct cpufreq_policy *policy)
 {
 	return cpumask_weight(policy->cpus) > 1;
@@ -193,8 +198,14 @@ unsigned int cpufreq_quick_get_max(unsigned int cpu);
 void disable_cpufreq(void);
 
 u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
+
+struct cpufreq_policy *cpufreq_cpu_acquire(unsigned int cpu);
+void cpufreq_cpu_release(struct cpufreq_policy *policy);
 int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu);
+int cpufreq_set_policy(struct cpufreq_policy *policy,
+		       struct cpufreq_policy *new_policy);
 void cpufreq_update_policy(unsigned int cpu);
+void cpufreq_update_limits(unsigned int cpu);
 bool have_governor_per_policy(void);
 struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy);
 void cpufreq_enable_fast_switch(struct cpufreq_policy *policy);
@@ -321,6 +332,9 @@ struct cpufreq_driver {
 
 	/* should be defined, if possible */
 	unsigned int	(*get)(unsigned int cpu);
+
+	/* Called to update policy limits on firmware notifications. */
+	void		(*update_limits)(unsigned int cpu);
 
 	/* optional */
 	int		(*bios_limit)(int cpu, unsigned int *limit);
