@@ -73,6 +73,8 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T4), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_SFP), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_X722), 0},
@@ -81,6 +83,8 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_I_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2_A), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_X710_N3000), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_XXV710_N3000), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_25G_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_25G_SFP28), 0},
 	/* required last entry */
@@ -2973,9 +2977,9 @@ int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid)
  **/
 void i40e_vsi_remove_pvid(struct i40e_vsi *vsi)
 {
-	i40e_vlan_stripping_disable(vsi);
-
 	vsi->info.pvid = 0;
+
+	i40e_vlan_stripping_disable(vsi);
 }
 
 /**
@@ -6517,6 +6521,12 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 		break;
 	case I40E_LINK_SPEED_10GB:
 		speed = "10 G";
+		break;
+	case I40E_LINK_SPEED_5GB:
+		speed = "5 G";
+		break;
+	case I40E_LINK_SPEED_2_5GB:
+		speed = "2.5 G";
 		break;
 	case I40E_LINK_SPEED_1GB:
 		speed = "1000 M";
