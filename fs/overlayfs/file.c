@@ -11,6 +11,7 @@
 #include <linux/mount.h>
 #include <linux/xattr.h>
 #include <linux/uio.h>
+#include <linux/uaccess.h>
 #include "overlayfs.h"
 
 static char ovl_whatisit(struct inode *inode, struct inode *realinode)
@@ -372,10 +373,68 @@ static long ovl_real_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static unsigned int ovl_get_inode_flags(struct inode *inode)
+{
+	unsigned int flags = READ_ONCE(inode->i_flags);
+	unsigned int ovl_iflags = 0;
+
+	if (flags & S_SYNC)
+		ovl_iflags |= FS_SYNC_FL;
+	if (flags & S_APPEND)
+		ovl_iflags |= FS_APPEND_FL;
+	if (flags & S_IMMUTABLE)
+		ovl_iflags |= FS_IMMUTABLE_FL;
+	if (flags & S_NOATIME)
+		ovl_iflags |= FS_NOATIME_FL;
+
+	return ovl_iflags;
+}
+
+static long ovl_ioctl_set_flags(struct file *file, unsigned long arg)
 {
 	long ret;
 	struct inode *inode = file_inode(file);
+	unsigned int flags;
+	unsigned int old_flags;
+
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
+	if (get_user(flags, (int __user *) arg))
+		return -EFAULT;
+
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
+
+	inode_lock(inode);
+
+	/* Check the capability before cred override */
+	ret = -EPERM;
+	old_flags = ovl_get_inode_flags(inode);
+	if (((flags ^ old_flags) & (FS_APPEND_FL | FS_IMMUTABLE_FL)) &&
+	    !capable(CAP_LINUX_IMMUTABLE))
+		goto unlock;
+
+	ret = ovl_maybe_copy_up(file_dentry(file), O_WRONLY);
+	if (ret)
+		goto unlock;
+
+	ret = ovl_real_ioctl(file, FS_IOC_SETFLAGS, arg);
+
+	ovl_copyflags(ovl_inode_real(inode), inode);
+unlock:
+	inode_unlock(inode);
+
+	mnt_drop_write_file(file);
+
+	return ret;
+
+}
+
+static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret;
 
 	switch (cmd) {
 	case FS_IOC_GETFLAGS:
@@ -383,23 +442,7 @@ static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case FS_IOC_SETFLAGS:
-		if (!inode_owner_or_capable(inode))
-			return -EACCES;
-
-		ret = mnt_want_write_file(file);
-		if (ret)
-			return ret;
-
-		ret = ovl_maybe_copy_up(file_dentry(file), O_WRONLY);
-		if (!ret) {
-			ret = ovl_real_ioctl(file, cmd, arg);
-
-			inode_lock(inode);
-			ovl_copyflags(ovl_inode_real(inode), inode);
-			inode_unlock(inode);
-		}
-
-		mnt_drop_write_file(file);
+		ret = ovl_ioctl_set_flags(file, arg);
 		break;
 
 	default:
