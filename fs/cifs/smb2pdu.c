@@ -1538,7 +1538,7 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 	else if (server->sign)
 		req->sync_hdr.Flags |= SMB2_FLAGS_SIGNED;
 
-	flags |= CIFS_NO_RESP;
+	flags |= CIFS_NO_RSP_BUF;
 
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
@@ -1739,7 +1739,7 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	flags |= CIFS_NO_RESP;
+	flags |= CIFS_NO_RSP_BUF;
 
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
@@ -4166,7 +4166,7 @@ SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 	req->OplockLevel = oplock_level;
 	req->sync_hdr.CreditRequest = cpu_to_le16(1);
 
-	flags |= CIFS_NO_RESP;
+	flags |= CIFS_NO_RSP_BUF;
 
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
@@ -4440,7 +4440,7 @@ smb2_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec rsp_iov;
 	int resp_buf_type;
 	unsigned int count;
-	int flags = CIFS_NO_RESP;
+	int flags = CIFS_NO_RSP_BUF;
 	unsigned int total_len;
 
 	cifs_dbg(FYI, "smb2_lockv num lock %d\n", num_lock);
@@ -4533,7 +4533,7 @@ SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 	memcpy(req->LeaseKey, lease_key, 16);
 	req->LeaseState = lease_state;
 
-	flags |= CIFS_NO_RESP;
+	flags |= CIFS_NO_RSP_BUF;
 
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;

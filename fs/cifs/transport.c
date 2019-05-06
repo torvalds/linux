@@ -529,7 +529,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 		return -EAGAIN;
 
 	spin_lock(&server->req_lock);
-	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP) {
+	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_NON_BLOCKING) {
 		/* oplock breaks must not be held up */
 		server->in_flight++;
 		*credits -= 1;
@@ -838,7 +838,7 @@ SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
 
 	iov[0].iov_base = in_buf;
 	iov[0].iov_len = get_rfc1002_length(in_buf) + 4;
-	flags |= CIFS_NO_RESP;
+	flags |= CIFS_NO_RSP_BUF;
 	rc = SendReceive2(xid, ses, iov, 1, &resp_buf_type, flags, &rsp_iov);
 	cifs_dbg(NOISY, "SendRcvNoRsp flags %d rc %d\n", flags, rc);
 
@@ -1151,7 +1151,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 						     flags & CIFS_LOG_ERROR);
 
 		/* mark it so buf will not be freed by cifs_delete_mid */
-		if ((flags & CIFS_NO_RESP) == 0)
+		if ((flags & CIFS_NO_RSP_BUF) == 0)
 			midQ[i]->resp_buf = NULL;
 
 	}
@@ -1300,9 +1300,6 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	mutex_unlock(&ses->server->srv_mutex);
 
 	if (rc < 0)
-		goto out;
-
-	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP)
 		goto out;
 
 	rc = wait_for_response(ses->server, midQ);

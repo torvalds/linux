@@ -1689,11 +1689,11 @@ static inline bool is_retryable_error(int error)
 
 /* Type of Request to SendReceive2 */
 #define   CIFS_BLOCKING_OP      1    /* operation can block */
-#define   CIFS_ASYNC_OP         2    /* do not wait for response */
+#define   CIFS_NON_BLOCKING     2    /* do not block waiting for credits */
 #define   CIFS_TIMEOUT_MASK 0x003    /* only one of above set in req */
 #define   CIFS_LOG_ERROR    0x010    /* log NT STATUS if non-zero */
 #define   CIFS_LARGE_BUF_OP 0x020    /* large request buffer */
-#define   CIFS_NO_RESP      0x040    /* no response buffer required */
+#define   CIFS_NO_RSP_BUF   0x040    /* no response buffer required */
 
 /* Type of request operation */
 #define   CIFS_ECHO_OP      0x080    /* echo request */
