@@ -418,9 +418,10 @@ struct hmm_mirror_ops {
 	 *
 	 * @mirror: pointer to struct hmm_mirror
 	 *
-	 * This is called when the mm_struct is being released.
-	 * The callback should make sure no references to the mirror occur
-	 * after the callback returns.
+	 * This is called when the mm_struct is being released.  The callback
+	 * must ensure that all access to any pages obtained from this mirror
+	 * is halted before the callback returns. All future access should
+	 * fault.
 	 */
 	void (*release)(struct hmm_mirror *mirror);
 
