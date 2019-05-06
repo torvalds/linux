@@ -2031,16 +2031,16 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		 */
 		bool lastv = true, lasth = true;
 
-		desired_mode = fb_helper->crtc_info[i].desired_mode;
 		mode_set = &fb_helper->crtc_info[i].mode_set;
+		desired_mode = mode_set->mode;
 
 		if (!desired_mode)
 			continue;
 
 		crtc_count++;
 
-		x = fb_helper->crtc_info[i].x;
-		y = fb_helper->crtc_info[i].y;
+		x = mode_set->x;
+		y = mode_set->y;
 
 		sizes.surface_width  = max_t(u32, desired_mode->hdisplay + x, sizes.surface_width);
 		sizes.surface_height = max_t(u32, desired_mode->vdisplay + y, sizes.surface_height);
@@ -2814,11 +2814,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			DRM_DEBUG_KMS("desired mode %s set on crtc %d (%d,%d)\n",
 				      mode->name, fb_crtc->mode_set.crtc->base.id, offset->x, offset->y);
 
-			fb_crtc->desired_mode = mode;
-			fb_crtc->x = offset->x;
-			fb_crtc->y = offset->y;
-			modeset->mode = drm_mode_duplicate(dev,
-							   fb_crtc->desired_mode);
+			modeset->mode = drm_mode_duplicate(dev, mode);
 			drm_connector_get(connector);
 			modeset->connectors[modeset->num_connectors++] = connector;
 			modeset->x = offset->x;
