@@ -728,6 +728,9 @@ static int __acpi_device_wakeup_enable(struct acpi_device *adev,
 		goto out;
 	}
 
+	acpi_handle_debug(adev->handle, "GPE%2X enabled for wakeup\n",
+			  (unsigned int)wakeup->gpe_number);
+
 inc:
 	wakeup->enable_count++;
 
