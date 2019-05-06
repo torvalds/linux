@@ -918,7 +918,7 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 	/* maybe the boot loader passed the MAC address in devicetree */
 	mac_addr = of_get_mac_address(dev->udev->dev.of_node);
 	if (!IS_ERR(mac_addr)) {
-		memcpy(dev->net->dev_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(dev->net->dev_addr, mac_addr);
 		return;
 	}
 
