@@ -640,7 +640,7 @@ static int __init hugetlbpage_init(void)
 			pgtable_cache_add(PTE_T_ORDER);
 	}
 
-	if (IS_ENABLED(HUGETLB_PAGE_SIZE_VARIABLE))
+	if (IS_ENABLED(CONFIG_HUGETLB_PAGE_SIZE_VARIABLE))
 		hugetlbpage_init_default();
 
 	return 0;
