@@ -114,6 +114,7 @@ int __init my_udp_sock_init(void)
 	return 0;
 
 out_release:
+	/* TODO 1/1: release socket */
 	sock_release(sock);
 out:
 	return err;
@@ -121,6 +122,7 @@ out:
 
 void __exit my_udp_sock_exit(void)
 {
+	/* TODO 1/1: release socket */
 	sock_release(sock);
 }
 
