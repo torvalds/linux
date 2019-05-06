@@ -673,6 +673,10 @@
 			 <&bpmp TEGRA186_RESET_PCIEXCLK>;
 		reset-names = "afi", "pex", "pcie_x";
 
+		iommus = <&smmu TEGRA186_SID_AFI>;
+		iommu-map = <0x0 &smmu TEGRA186_SID_AFI 0x1000>;
+		iommu-map-mask = <0x0>;
+
 		status = "disabled";
 
 		pci@1,0 {
