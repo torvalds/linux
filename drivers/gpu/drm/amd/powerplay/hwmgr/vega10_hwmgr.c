@@ -2466,11 +2466,6 @@ static void vega10_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 			return;
 		}
 	}
-
-	if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
-		data->need_update_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
-		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
-	}
 }
 
 /**
@@ -3683,6 +3678,10 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 
 	vega10_update_avfs(hwmgr);
 
+	/*
+	 * Clear all OD flags except DPMTABLE_OD_UPDATE_VDDC.
+	 * That will help to keep AVFS disabled.
+	 */
 	data->need_update_dpm_table &= DPMTABLE_OD_UPDATE_VDDC;
 
 	return 0;
