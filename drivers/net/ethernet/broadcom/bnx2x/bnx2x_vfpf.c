@@ -957,7 +957,7 @@ int bnx2x_vfpf_update_vlan(struct bnx2x *bp, u16 vid, u8 vf_qid, bool add)
 	bnx2x_sample_bulletin(bp);
 
 	if (bp->shadow_bulletin.content.valid_bitmap & 1 << VLAN_VALID) {
-		BNX2X_ERR("Hypervisor will dicline the request, avoiding\n");
+		BNX2X_ERR("Hypervisor will decline the request, avoiding\n");
 		rc = -EINVAL;
 		goto out;
 	}

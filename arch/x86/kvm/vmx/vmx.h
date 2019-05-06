@@ -190,7 +190,6 @@ struct vcpu_vmx {
 	u64		      msr_guest_kernel_gs_base;
 #endif
 
-	u64		      arch_capabilities;
 	u64		      spec_ctrl;
 
 	u32 vm_entry_controls_shadow;
@@ -517,5 +516,7 @@ static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)
 	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
 	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
 }
+
+void dump_vmcs(void);
 
 #endif /* __KVM_X86_VMX_H */

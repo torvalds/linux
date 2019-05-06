@@ -343,7 +343,7 @@ void mt7603_mac_rx_ba_reset(struct mt7603_dev *dev, void *addr, u8 tid)
 		 MT_BA_CONTROL_1_RESET));
 }
 
-void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid, int ssn,
+void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid,
 			    int ba_size)
 {
 	u32 addr = mt7603_wtbl2_addr(wcid);
@@ -358,43 +358,6 @@ void mt7603_mac_tx_ba_reset(struct mt7603_dev *dev, int wcid, int tid, int ssn,
 		mt76_clear(dev, addr + (15 * 4), tid_mask);
 		return;
 	}
-	mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000);
-
-	mt7603_mac_stop(dev);
-	switch (tid) {
-	case 0:
-		mt76_rmw_field(dev, addr + (2 * 4), MT_WTBL2_W2_TID0_SN, ssn);
-		break;
-	case 1:
-		mt76_rmw_field(dev, addr + (2 * 4), MT_WTBL2_W2_TID1_SN, ssn);
-		break;
-	case 2:
-		mt76_rmw_field(dev, addr + (2 * 4), MT_WTBL2_W2_TID2_SN_LO,
-			       ssn);
-		mt76_rmw_field(dev, addr + (3 * 4), MT_WTBL2_W3_TID2_SN_HI,
-			       ssn >> 8);
-		break;
-	case 3:
-		mt76_rmw_field(dev, addr + (3 * 4), MT_WTBL2_W3_TID3_SN, ssn);
-		break;
-	case 4:
-		mt76_rmw_field(dev, addr + (3 * 4), MT_WTBL2_W3_TID4_SN, ssn);
-		break;
-	case 5:
-		mt76_rmw_field(dev, addr + (3 * 4), MT_WTBL2_W3_TID5_SN_LO,
-			       ssn);
-		mt76_rmw_field(dev, addr + (4 * 4), MT_WTBL2_W4_TID5_SN_HI,
-			       ssn >> 4);
-		break;
-	case 6:
-		mt76_rmw_field(dev, addr + (4 * 4), MT_WTBL2_W4_TID6_SN, ssn);
-		break;
-	case 7:
-		mt76_rmw_field(dev, addr + (4 * 4), MT_WTBL2_W4_TID7_SN, ssn);
-		break;
-	}
-	mt7603_wtbl_update(dev, wcid, MT_WTBL_UPDATE_WTBL2);
-	mt7603_mac_start(dev);
 
 	for (i = 7; i > 0; i--) {
 		if (ba_size >= MT_AGG_SIZE_LIMIT(i))
@@ -827,6 +790,7 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_bar *bar = (struct ieee80211_bar *)skb->data;
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt7603_vif *mvif;
 	int wlan_idx;
@@ -834,6 +798,7 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	int tx_count = 8;
 	u8 frame_type, frame_subtype;
 	u16 fc = le16_to_cpu(hdr->frame_control);
+	u16 seqno = 0;
 	u8 vif_idx = 0;
 	u32 val;
 	u8 bw;
@@ -919,7 +884,17 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 		tx_count = 0x1f;
 
 	val = FIELD_PREP(MT_TXD3_REM_TX_COUNT, tx_count) |
-	      FIELD_PREP(MT_TXD3_SEQ, le16_to_cpu(hdr->seq_ctrl));
+		  MT_TXD3_SN_VALID;
+
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		seqno = le16_to_cpu(hdr->seq_ctrl);
+	else if (ieee80211_is_back_req(hdr->frame_control))
+		seqno = le16_to_cpu(bar->start_seq_num);
+	else
+		val &= ~MT_TXD3_SN_VALID;
+
+	val |= FIELD_PREP(MT_TXD3_SEQ, seqno >> 4);
+
 	txwi[3] = cpu_to_le32(val);
 
 	if (key) {
@@ -1072,7 +1047,7 @@ out:
 	case MT_PHY_TYPE_HT:
 		final_rate_flags |= IEEE80211_TX_RC_MCS;
 		final_rate &= GENMASK(5, 0);
-		if (i > 15)
+		if (final_rate > 15)
 			return false;
 		break;
 	default:

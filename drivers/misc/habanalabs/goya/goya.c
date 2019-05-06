@@ -1201,15 +1201,6 @@ static int goya_stop_external_queues(struct hl_device *hdev)
 	return retval;
 }
 
-static void goya_resume_external_queues(struct hl_device *hdev)
-{
-	WREG32(mmDMA_QM_0_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_1_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_2_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_3_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_4_GLBL_CFG1, 0);
-}
-
 /*
  * goya_init_cpu_queues - Initialize PQ/CQ/EQ of CPU
  *
@@ -1697,12 +1688,11 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 
 	/*
 	 * Workaround for H2 #HW-23 bug
-	 * Set DMA max outstanding read requests to 240 on DMA CH 1. Set it
-	 * to 16 on KMD DMA
-	 * We need to limit only these DMAs because the user can only read
+	 * Set DMA max outstanding read requests to 240 on DMA CH 1.
+	 * This limitation is still large enough to not affect Gen4 bandwidth.
+	 * We need to only limit that DMA channel because the user can only read
 	 * from Host using DMA CH 1
 	 */
-	WREG32(mmDMA_CH_0_CFG0, 0x0fff0010);
 	WREG32(mmDMA_CH_1_CFG0, 0x0fff00F0);
 
 	goya->hw_cap_initialized |= HW_CAP_GOLDEN;
@@ -2176,36 +2166,6 @@ static int goya_stop_internal_queues(struct hl_device *hdev)
 	}
 
 	return retval;
-}
-
-static void goya_resume_internal_queues(struct hl_device *hdev)
-{
-	WREG32(mmMME_QM_GLBL_CFG1, 0);
-	WREG32(mmMME_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC0_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC0_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC1_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC1_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC2_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC2_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC3_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC3_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC4_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC4_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC5_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC5_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC6_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC6_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC7_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC7_CMDQ_GLBL_CFG1, 0);
 }
 
 static void goya_dma_stall(struct hl_device *hdev)
@@ -2905,20 +2865,6 @@ int goya_suspend(struct hl_device *hdev)
 {
 	int rc;
 
-	rc = goya_stop_internal_queues(hdev);
-
-	if (rc) {
-		dev_err(hdev->dev, "failed to stop internal queues\n");
-		return rc;
-	}
-
-	rc = goya_stop_external_queues(hdev);
-
-	if (rc) {
-		dev_err(hdev->dev, "failed to stop external queues\n");
-		return rc;
-	}
-
 	rc = goya_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
 	if (rc)
 		dev_err(hdev->dev, "Failed to disable PCI access from CPU\n");
@@ -2928,15 +2874,7 @@ int goya_suspend(struct hl_device *hdev)
 
 int goya_resume(struct hl_device *hdev)
 {
-	int rc;
-
-	goya_resume_external_queues(hdev);
-	goya_resume_internal_queues(hdev);
-
-	rc = goya_send_pci_access_msg(hdev, ARMCP_PACKET_ENABLE_PCI_ACCESS);
-	if (rc)
-		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
-	return rc;
+	return goya_init_iatu(hdev);
 }
 
 static int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
@@ -3070,7 +3008,7 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 
 	*dma_handle = hdev->asic_prop.sram_base_address;
 
-	base = hdev->pcie_bar[SRAM_CFG_BAR_ID];
+	base = (void *) hdev->pcie_bar[SRAM_CFG_BAR_ID];
 
 	switch (queue_id) {
 	case GOYA_QUEUE_ID_MME:
@@ -3754,7 +3692,7 @@ static int goya_validate_dma_pkt_mmu(struct hl_device *hdev,
 	 * WA for HW-23.
 	 * We can't allow user to read from Host using QMANs other than 1.
 	 */
-	if (parser->hw_queue_id > GOYA_QUEUE_ID_DMA_1 &&
+	if (parser->hw_queue_id != GOYA_QUEUE_ID_DMA_1 &&
 		hl_mem_area_inside_range(le64_to_cpu(user_dma_pkt->src_addr),
 				le32_to_cpu(user_dma_pkt->tsize),
 				hdev->asic_prop.va_space_host_start_address,

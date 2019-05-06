@@ -1960,7 +1960,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 			       iwl_get_cmd_string(trans, cmd->id));
 		ret = -ETIMEDOUT;
 
-		iwl_trans_sync_nmi(trans);
+		iwl_trans_pcie_sync_nmi(trans);
 		goto cancel;
 	}
 

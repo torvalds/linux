@@ -88,6 +88,7 @@ struct intel_gvt_gtt {
 	void (*mm_free_page_table)(struct intel_vgpu_mm *mm);
 	struct list_head oos_page_use_list_head;
 	struct list_head oos_page_free_list_head;
+	struct mutex ppgtt_mm_lock;
 	struct list_head ppgtt_mm_lru_list_head;
 
 	struct page *scratch_page;

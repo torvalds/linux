@@ -884,5 +884,30 @@
         "teardown": [
 	    "$TC actions flush action tunnel_key"
 	]
+    },
+    {
+        "id": "8242",
+        "name": "Replace tunnel_key set action with invalid goto chain",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 10.10.10.2 dst_ip 20.20.20.1 dst_port 3129 id 2 csum goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 90",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*dst_port 3128.*csum pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
     }
 ]

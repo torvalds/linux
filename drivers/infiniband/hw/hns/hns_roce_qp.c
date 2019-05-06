@@ -274,9 +274,6 @@ void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	wait_for_completion(&hr_qp->free);
 
 	if ((hr_qp->ibqp.qp_type) != IB_QPT_GSI) {
-		if (hr_dev->caps.sccc_entry_sz)
-			hns_roce_table_put(hr_dev, &qp_table->sccc_table,
-					   hr_qp->qpn);
 		if (hr_dev->caps.trrl_entry_sz)
 			hns_roce_table_put(hr_dev, &qp_table->trrl_table,
 					   hr_qp->qpn);
@@ -536,7 +533,7 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_qp_has_sq(struct ib_qp_init_attr *attr)
 {
-	if (attr->qp_type == IB_QPT_XRC_TGT)
+	if (attr->qp_type == IB_QPT_XRC_TGT || !attr->cap.max_send_wr)
 		return 0;
 
 	return 1;

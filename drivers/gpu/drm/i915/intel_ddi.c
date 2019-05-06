@@ -2075,12 +2075,11 @@ intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port)
 					      intel_aux_power_domain(dig_port);
 }
 
-static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
-				       struct intel_crtc_state *crtc_state)
+static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
+					struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port;
-	u64 domains;
 
 	/*
 	 * TODO: Add support for MST encoders. Atm, the following should never
@@ -2088,10 +2087,10 @@ static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	 * hook.
 	 */
 	if (WARN_ON(intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)))
-		return 0;
+		return;
 
 	dig_port = enc_to_dig_port(&encoder->base);
-	domains = BIT_ULL(dig_port->ddi_io_power_domain);
+	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
 	/*
 	 * AUX power is only needed for (e)DP mode, and for HDMI mode on TC
@@ -2099,15 +2098,15 @@ static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	 */
 	if (intel_crtc_has_dp_encoder(crtc_state) ||
 	    intel_port_is_tc(dev_priv, encoder->port))
-		domains |= BIT_ULL(intel_ddi_main_link_aux_domain(dig_port));
+		intel_display_power_get(dev_priv,
+					intel_ddi_main_link_aux_domain(dig_port));
 
 	/*
 	 * VDSC power is needed when DSC is enabled
 	 */
 	if (crtc_state->dsc_params.compression_enable)
-		domains |= BIT_ULL(intel_dsc_power_domain(crtc_state));
-
-	return domains;
+		intel_display_power_get(dev_priv,
+					intel_dsc_power_domain(crtc_state));
 }
 
 void intel_ddi_enable_pipe_clock(const struct intel_crtc_state *crtc_state)
@@ -2825,10 +2824,10 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 				return;
 		}
 		/*
-		 * DSI ports should have their DDI clock ungated when disabled
-		 * and gated when enabled.
+		 * For DSI we keep the ddi clocks gated
+		 * except during enable/disable sequence.
 		 */
-		ddi_clk_needed = !encoder->base.crtc;
+		ddi_clk_needed = false;
 	}
 
 	val = I915_READ(DPCLKA_CFGCR0_ICL);
@@ -3863,14 +3862,16 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 		ret = intel_hdmi_compute_config(encoder, pipe_config, conn_state);
 	else
 		ret = intel_dp_compute_config(encoder, pipe_config, conn_state);
+	if (ret)
+		return ret;
 
-	if (IS_GEN9_LP(dev_priv) && ret)
+	if (IS_GEN9_LP(dev_priv))
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
-	return ret;
+	return 0;
 
 }
 

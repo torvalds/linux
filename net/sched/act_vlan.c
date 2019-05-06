@@ -15,6 +15,7 @@
 #include <linux/if_vlan.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_vlan.h>
@@ -105,10 +106,11 @@ static const struct nla_policy vlan_policy[TCA_VLAN_MAX + 1] = {
 static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind, bool rtnl_held,
-			 struct netlink_ext_ack *extack)
+			 struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tcf_vlan_params *p;
 	struct tc_vlan *parm;
 	struct tcf_vlan *v;
@@ -200,12 +202,16 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		return -EEXIST;
 	}
 
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
+
 	v = to_vlan(*a);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		tcf_idr_release(*a, bind);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto put_chain;
 	}
 
 	p->tcfv_action = action;
@@ -214,16 +220,24 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	p->tcfv_push_proto = push_proto;
 
 	spin_lock_bh(&v->tcf_lock);
-	v->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(v->vlan_p, p, lockdep_is_held(&v->tcf_lock));
 	spin_unlock_bh(&v->tcf_lock);
 
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (p)
 		kfree_rcu(p, rcu);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static void tcf_vlan_cleanup(struct tc_action *a)

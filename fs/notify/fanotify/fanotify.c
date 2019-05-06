@@ -346,10 +346,16 @@ static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 	__kernel_fsid_t fsid = {};
 
 	fsnotify_foreach_obj_type(type) {
+		struct fsnotify_mark_connector *conn;
+
 		if (!fsnotify_iter_should_report_type(iter_info, type))
 			continue;
 
-		fsid = iter_info->marks[type]->connector->fsid;
+		conn = READ_ONCE(iter_info->marks[type]->connector);
+		/* Mark is just getting destroyed or created? */
+		if (!conn)
+			continue;
+		fsid = conn->fsid;
 		if (WARN_ON_ONCE(!fsid.val[0] && !fsid.val[1]))
 			continue;
 		return fsid;
@@ -408,8 +414,12 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 			return 0;
 	}
 
-	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID))
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
 		fsid = fanotify_get_fsid(iter_info);
+		/* Racing with mark destruction or creation? */
+		if (!fsid.val[0] && !fsid.val[1])
+			return 0;
+	}
 
 	event = fanotify_alloc_event(group, inode, mask, data, data_type,
 				     &fsid);
