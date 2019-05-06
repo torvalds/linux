@@ -65,9 +65,8 @@ properties, described in binding documents:
 			  Documentation/devicetree/bindings/net/fixed-link.txt
 			  for details.
 
-- local-mac-address	: See
-			  Documentation/devicetree/bindings/net/ethernet.txt
-			  for details.
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Example
 
