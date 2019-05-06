@@ -37,7 +37,7 @@ static int itimer_shutdown(struct clock_event_device *evt)
 
 static int itimer_set_periodic(struct clock_event_device *evt)
 {
-	os_timer_set_interval(NULL, NULL);
+	os_timer_set_interval();
 	return 0;
 }
 
@@ -107,7 +107,7 @@ static void __init um_timer_setup(void)
 		printk(KERN_ERR "register_timer : request_irq failed - "
 		       "errno = %d\n", -err);
 
-	err = os_timer_create(NULL);
+	err = os_timer_create();
 	if (err != 0) {
 		printk(KERN_ERR "creation of timer failed - errno = %d\n", -err);
 		return;
