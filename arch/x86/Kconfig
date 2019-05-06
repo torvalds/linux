@@ -1317,8 +1317,16 @@ config MICROCODE_AMD
 	  processors will be enabled.
 
 config MICROCODE_OLD_INTERFACE
-	def_bool y
+	bool "Ancient loading interface (DEPRECATED)"
+	default n
 	depends on MICROCODE
+	---help---
+	  DO NOT USE THIS! This is the ancient /dev/cpu/microcode interface
+	  which was used by userspace tools like iucode_tool and microcode.ctl.
+	  It is inadequate because it runs too late to be able to properly
+	  load microcode on a machine and it needs special tools. Instead, you
+	  should've switched to the early loading method with the initrd or
+	  builtin microcode by now: Documentation/x86/microcode.txt
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
