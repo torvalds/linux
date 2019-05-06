@@ -10,6 +10,10 @@
 #define XCHAL_HAVE_EXCLUSIVE 0
 #endif
 
+#ifndef XCHAL_HAVE_MPU
+#define XCHAL_HAVE_MPU 0
+#endif
+
 #ifndef XCHAL_SPANNING_WAY
 #define XCHAL_SPANNING_WAY 0
 #endif
