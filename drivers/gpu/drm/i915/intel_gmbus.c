@@ -581,8 +581,7 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
 	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
 	if (IS_GEN9_LP(dev_priv))
 		bxt_gmbus_clock_gating(dev_priv, false);
-	else if (HAS_PCH_SPT(dev_priv) ||
-		 HAS_PCH_KBP(dev_priv) || HAS_PCH_CNP(dev_priv))
+	else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_CNP(dev_priv))
 		pch_gmbus_clock_gating(dev_priv, false);
 
 retry:
@@ -691,8 +690,7 @@ out:
 	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
 	if (IS_GEN9_LP(dev_priv))
 		bxt_gmbus_clock_gating(dev_priv, true);
-	else if (HAS_PCH_SPT(dev_priv) ||
-		 HAS_PCH_KBP(dev_priv) || HAS_PCH_CNP(dev_priv))
+	else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_CNP(dev_priv))
 		pch_gmbus_clock_gating(dev_priv, true);
 
 	return ret;

@@ -195,7 +195,8 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		DRM_DEBUG_KMS("Found Kaby Lake PCH (KBP)\n");
 		WARN_ON(!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv) &&
 			!IS_COFFEELAKE(dev_priv));
-		return PCH_KBP;
+		/* KBP is SPT compatible */
+		return PCH_SPT;
 	case INTEL_PCH_CNP_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
