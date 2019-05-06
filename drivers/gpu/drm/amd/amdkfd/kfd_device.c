@@ -552,6 +552,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	} else
 		kfd->max_proc_per_quantum = hws_max_conc_proc;
 
+	/* Allocate global GWS that is shared by all KFD processes */
+	if (hws_gws_support && amdgpu_amdkfd_alloc_gws(kfd->kgd,
+			amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws)) {
+		dev_err(kfd_device, "Could not allocate %d gws\n",
+			amdgpu_amdkfd_get_num_gws(kfd->kgd));
+		goto out;
+	}
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
 			kfd->device_info->mqd_size_aligned;
@@ -575,7 +582,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
 		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
-		goto out;
+		goto alloc_gtt_mem_failure;
 	}
 
 	dev_info(kfd_device, "Allocated %d bytes on gart\n", size);
@@ -645,6 +652,9 @@ kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
 	amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+alloc_gtt_mem_failure:
+	if (hws_gws_support)
+		amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
@@ -662,6 +672,8 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		kfd_gtt_sa_fini(kfd);
 		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+		if (hws_gws_support)
+			amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	}
 
 	kfree(kfd);
