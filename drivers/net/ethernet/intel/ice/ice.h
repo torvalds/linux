@@ -83,6 +83,8 @@ extern const char ice_drv_ver[];
 #define ICE_MAX_QS_PER_VF		256
 #define ICE_MIN_QS_PER_VF		1
 #define ICE_DFLT_QS_PER_VF		4
+#define ICE_NONQ_VECS_VF		1
+#define ICE_MAX_SCATTER_QS_PER_VF	16
 #define ICE_MAX_BASE_QS_PER_VF		16
 #define ICE_MAX_INTR_PER_VF		65
 #define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
@@ -252,6 +254,8 @@ struct ice_vsi {
 	u16 work_lmt;
 
 	s16 vf_id;			/* VF ID for SR-IOV VSIs */
+
+	u16 ethtype;			/* Ethernet protocol for pause frame */
 
 	/* RSS config */
 	u16 rss_table_size;	/* HW RSS table size */

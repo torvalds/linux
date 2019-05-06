@@ -218,6 +218,10 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
+enum ice_status
+ice_add_eth_mac(struct ice_hw *hw, struct list_head *em_list);
+enum ice_status
+ice_remove_eth_mac(struct ice_hw *hw, struct list_head *em_list);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status
 ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
