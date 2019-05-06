@@ -339,6 +339,40 @@ void amdgpu_amdkfd_free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 	amdgpu_bo_unref(&(bo));
 }
 
+int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
+				void **mem_obj)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	struct amdgpu_bo *bo = NULL;
+	struct amdgpu_bo_param bp;
+	int r;
+
+	memset(&bp, 0, sizeof(bp));
+	bp.size = size;
+	bp.byte_align = 1;
+	bp.domain = AMDGPU_GEM_DOMAIN_GWS;
+	bp.flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+	bp.type = ttm_bo_type_device;
+	bp.resv = NULL;
+
+	r = amdgpu_bo_create(adev, &bp, &bo);
+	if (r) {
+		dev_err(adev->dev,
+			"failed to allocate gws BO for amdkfd (%d)\n", r);
+		return r;
+	}
+
+	*mem_obj = bo;
+	return 0;
+}
+
+void amdgpu_amdkfd_free_gws(struct kgd_dev *kgd, void *mem_obj)
+{
+	struct amdgpu_bo *bo = (struct amdgpu_bo *)mem_obj;
+
+	amdgpu_bo_unref(&bo);
+}
+
 uint32_t amdgpu_amdkfd_get_fw_version(struct kgd_dev *kgd,
 				      enum kgd_engine_type type)
 {

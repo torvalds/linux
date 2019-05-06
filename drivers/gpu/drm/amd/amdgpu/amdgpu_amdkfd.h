@@ -153,6 +153,8 @@ int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 				void **mem_obj, uint64_t *gpu_addr,
 				void **cpu_ptr, bool mqd_gfx9);
 void amdgpu_amdkfd_free_gtt_mem(struct kgd_dev *kgd, void *mem_obj);
+int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size, void **mem_obj);
+void amdgpu_amdkfd_free_gws(struct kgd_dev *kgd, void *mem_obj);
 uint32_t amdgpu_amdkfd_get_fw_version(struct kgd_dev *kgd,
 				      enum kgd_engine_type type);
 void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
