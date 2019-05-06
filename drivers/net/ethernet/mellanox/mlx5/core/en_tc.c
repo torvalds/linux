@@ -1339,7 +1339,6 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				       outer_headers);
 	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
-	struct flow_match_control enc_control;
 	int err;
 
 	err = mlx5e_tc_tun_parse(filter_dev, priv, spec, f,
@@ -1350,9 +1349,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		return err;
 	}
 
-	flow_rule_match_enc_control(rule, &enc_control);
-
-	if (enc_control.key->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
 		struct flow_match_ipv4_addrs match;
 
 		flow_rule_match_enc_ipv4_addrs(rule, &match);
@@ -1372,7 +1369,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 
 		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IP);
-	} else if (enc_control.key->addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
 		struct flow_match_ipv6_addrs match;
 
 		flow_rule_match_enc_ipv6_addrs(rule, &match);
@@ -1504,22 +1501,12 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	if ((flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
-	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
-	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) &&
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
-		struct flow_match_control match;
-
-		flow_rule_match_enc_control(rule, &match);
-		switch (match.key->addr_type) {
-		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
-		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
-			if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
-				return -EOPNOTSUPP;
-			break;
-		default:
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+		if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
 			return -EOPNOTSUPP;
-		}
 
 		/* In decap flow, header pointers should point to the inner
 		 * headers, outer header were already set by parse_tunnel_attr
