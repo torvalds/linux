@@ -1,5 +1,6 @@
 # Recreate any symlinks created since the orig.
 # Remove any files deleted from the orig.
+rm -f 'Documentation/admin-guide/l1tf.rst'
 rm -f 'include/linux/selinux.h'
 rm -f 'security/integrity/platform_certs/efi_parser.c'
 rm -f 'security/selinux/exports.c'
