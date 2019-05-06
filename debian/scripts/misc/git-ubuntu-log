@@ -17,9 +17,9 @@ entries = []
 def add_entry(entry):
     if entry and 'ignore' not in entry:
         combo = []
-        for bug in entry.get('bugs', []):
+        for bug in set(entry.get('bugs', [])):
             combo.append(bug)
-        for cve in entry.get('cves', []):
+        for cve in set(entry.get('cves', [])):
             combo.append(cve)
         combo = sorted(combo)
 
