@@ -15,8 +15,6 @@
 
 #include <linux/stringify.h>
 #include <linux/types.h>
-
-#ifdef __KERNEL__
 #include <asm/processor.h>
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
@@ -199,7 +197,5 @@ ATOMIC_OPS(xor)
 
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
-
-#endif /* __KERNEL__ */
 
 #endif /* _XTENSA_ATOMIC_H */
