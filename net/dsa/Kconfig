@@ -17,6 +17,17 @@ menuconfig NET_DSA
 
 if NET_DSA
 
+# tagging formats
+config NET_DSA_TAG_8021Q
+	tristate "Tag driver for switches using custom 802.1Q VLAN headers"
+	select VLAN_8021Q
+	help
+	  Unlike the other tagging protocols, the 802.1Q config option simply
+	  provides helpers for other tagging implementations that might rely on
+	  VLAN in one way or another. It is not a complete solution.
+
+	  Drivers which use these helpers should select this as dependency.
+
 config NET_DSA_TAG_BRCM_COMMON
 	tristate
 	default n
@@ -90,6 +101,15 @@ config NET_DSA_TAG_LAN9303
 	help
 	  Say Y or M if you want to enable support for tagging frames for the
 	  SMSC/Microchip LAN9303 family of switches.
+
+config NET_DSA_TAG_SJA1105
+	tristate "Tag driver for NXP SJA1105 switches"
+	select NET_DSA_TAG_8021Q
+	help
+	  Say Y or M if you want to enable support for tagging frames with the
+	  NXP SJA1105 switch family. Both the native tagging protocol (which
+	  is only for link-local traffic) as well as non-native tagging (based
+	  on a custom 802.1Q VLAN header) are available.
 
 config NET_DSA_TAG_TRAILER
 	tristate "Tag driver for switches using a trailer tag"

@@ -371,12 +371,12 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	if (err)
 		return err;
 
-	err = ds->ops->setup(ds);
-	if (err < 0)
-		return err;
-
 	err = dsa_switch_register_notifier(ds);
 	if (err)
+		return err;
+
+	err = ds->ops->setup(ds);
+	if (err < 0)
 		return err;
 
 	if (!ds->slave_mii_bus && ds->ops->phy_read) {
@@ -586,6 +586,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	}
 
 	dp->type = DSA_PORT_TYPE_CPU;
+	dp->filter = tag_ops->filter;
 	dp->rcv = tag_ops->rcv;
 	dp->tag_ops = tag_ops;
 	dp->master = master;

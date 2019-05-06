@@ -42,6 +42,8 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_MTK_VALUE			9
 #define DSA_TAG_PROTO_QCA_VALUE			10
 #define DSA_TAG_PROTO_TRAILER_VALUE		11
+#define DSA_TAG_PROTO_8021Q_VALUE		12
+#define DSA_TAG_PROTO_SJA1105_VALUE		13
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
@@ -56,6 +58,8 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_MTK		= DSA_TAG_PROTO_MTK_VALUE,
 	DSA_TAG_PROTO_QCA		= DSA_TAG_PROTO_QCA_VALUE,
 	DSA_TAG_PROTO_TRAILER		= DSA_TAG_PROTO_TRAILER_VALUE,
+	DSA_TAG_PROTO_8021Q		= DSA_TAG_PROTO_8021Q_VALUE,
+	DSA_TAG_PROTO_SJA1105		= DSA_TAG_PROTO_SJA1105_VALUE,
 };
 
 struct packet_type;
@@ -67,6 +71,11 @@ struct dsa_device_ops {
 			       struct packet_type *pt);
 	int (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
 			    int *offset);
+	/* Used to determine which traffic should match the DSA filter in
+	 * eth_type_trans, and which, if any, should bypass it and be processed
+	 * as regular on the master net device.
+	 */
+	bool (*filter)(const struct sk_buff *skb, struct net_device *dev);
 	unsigned int overhead;
 	const char *name;
 	enum dsa_tag_protocol proto;
@@ -75,6 +84,38 @@ struct dsa_device_ops {
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
 #define MODULE_ALIAS_DSA_TAG_DRIVER(__proto)				\
 	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __stringify(__proto##_VALUE))
+
+struct dsa_skb_cb {
+	struct sk_buff *clone;
+	bool deferred_xmit;
+};
+
+struct __dsa_skb_cb {
+	struct dsa_skb_cb cb;
+	u8 priv[48 - sizeof(struct dsa_skb_cb)];
+};
+
+#define __DSA_SKB_CB(skb) ((struct __dsa_skb_cb *)((skb)->cb))
+
+#define DSA_SKB_CB(skb) ((struct dsa_skb_cb *)((skb)->cb))
+
+#define DSA_SKB_CB_COPY(nskb, skb)		\
+	{ *__DSA_SKB_CB(nskb) = *__DSA_SKB_CB(skb); }
+
+#define DSA_SKB_CB_ZERO(skb)			\
+	{ *__DSA_SKB_CB(skb) = (struct __dsa_skb_cb) {0}; }
+
+#define DSA_SKB_CB_PRIV(skb)			\
+	((void *)(skb)->cb + offsetof(struct __dsa_skb_cb, priv))
+
+#define DSA_SKB_CB_CLONE(_clone, _skb)		\
+	{					\
+		struct sk_buff *clone = _clone;	\
+		struct sk_buff *skb = _skb;	\
+						\
+		DSA_SKB_CB_COPY(clone, skb);	\
+		DSA_SKB_CB(skb)->clone = clone; \
+	}
 
 struct dsa_switch_tree {
 	struct list_head	list;
@@ -146,6 +187,7 @@ struct dsa_port {
 	struct dsa_switch_tree *dst;
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt);
+	bool (*filter)(const struct sk_buff *skb, struct net_device *dev);
 
 	enum {
 		DSA_PORT_TYPE_UNUSED = 0,
@@ -166,6 +208,16 @@ struct dsa_port {
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
 	struct phylink		*pl;
+
+	struct work_struct	xmit_work;
+	struct sk_buff_head	xmit_queue;
+
+	/*
+	 * Give the switch driver somewhere to hang its per-port private data
+	 * structures (accessible from the tagger).
+	 */
+	void *priv;
+
 	/*
 	 * Original copy of the master netdev ethtool_ops
 	 */
@@ -500,6 +552,12 @@ struct dsa_switch_ops {
 				 struct sk_buff *clone, unsigned int type);
 	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,
 				 struct sk_buff *skb, unsigned int type);
+
+	/*
+	 * Deferred frame Tx
+	 */
+	netdev_tx_t (*port_deferred_xmit)(struct dsa_switch *ds, int port,
+					  struct sk_buff *skb);
 };
 
 struct dsa_switch_driver {
@@ -514,6 +572,15 @@ static inline bool netdev_uses_dsa(struct net_device *dev)
 {
 #if IS_ENABLED(CONFIG_NET_DSA)
 	return dev->dsa_ptr && dev->dsa_ptr->rcv;
+#endif
+	return false;
+}
+
+static inline bool dsa_can_decode(const struct sk_buff *skb,
+				  struct net_device *dev)
+{
+#if IS_ENABLED(CONFIG_NET_DSA)
+	return !dev->dsa_ptr->filter || dev->dsa_ptr->filter(skb, dev);
 #endif
 	return false;
 }
@@ -586,6 +653,7 @@ static inline int call_dsa_notifiers(unsigned long val, struct net_device *dev,
 #define BRCM_TAG_GET_QUEUE(v)		((v) & 0xff)
 
 
+netdev_tx_t dsa_enqueue_skb(struct sk_buff *skb, struct net_device *dev);
 int dsa_port_get_phy_strings(struct dsa_port *dp, uint8_t *data);
 int dsa_port_get_ethtool_phy_stats(struct dsa_port *dp, uint64_t *data);
 int dsa_port_get_phy_sset_count(struct dsa_port *dp);

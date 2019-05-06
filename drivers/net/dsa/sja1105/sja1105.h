@@ -7,6 +7,7 @@
 
 #include <linux/dsa/sja1105.h>
 #include <net/dsa.h>
+#include <linux/mutex.h>
 #include "sja1105_static_config.h"
 
 #define SJA1105_NUM_PORTS		5
@@ -65,6 +66,11 @@ struct sja1105_private {
 	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
 	struct dsa_switch *ds;
+	struct sja1105_port ports[SJA1105_NUM_PORTS];
+	/* Serializes transmission of management frames so that
+	 * the switch doesn't confuse them with one another.
+	 */
+	struct mutex mgmt_lock;
 };
 
 #include "sja1105_dynamic_config.h"

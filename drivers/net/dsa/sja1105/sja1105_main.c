@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/if_ether.h>
+#include <linux/dsa/8021q.h>
 #include "sja1105.h"
 
 static void sja1105_hw_reset(struct gpio_desc *gpio, unsigned int pulse_len,
@@ -91,8 +92,10 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		.drpuntag = false,
 		/* Don't retag 802.1p (VID 0) traffic with the pvid */
 		.retag = false,
-		/* Enable learning and I/O on user ports by default. */
-		.dyn_learn = true,
+		/* Disable learning and I/O on user ports by default -
+		 * STP will enable it.
+		 */
+		.dyn_learn = false,
 		.egress = false,
 		.ingress = false,
 	};
@@ -118,8 +121,17 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 
 	mac = table->entries;
 
-	for (i = 0; i < SJA1105_NUM_PORTS; i++)
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		mac[i] = default_mac;
+		if (i == dsa_upstream_port(priv->ds, i)) {
+			/* STP doesn't get called for CPU port, so we need to
+			 * set the I/O parameters statically.
+			 */
+			mac[i].dyn_learn = true;
+			mac[i].ingress = true;
+			mac[i].egress = true;
+		}
+	}
 
 	return 0;
 }
@@ -406,11 +418,14 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.tpid2 = ETH_P_SJA1105,
 	};
 	struct sja1105_table *table;
-	int i;
+	int i, k = 0;
 
-	for (i = 0; i < SJA1105_NUM_PORTS; i++)
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		if (dsa_is_dsa_port(priv->ds, i))
 			default_general_params.casc_port = i;
+		else if (dsa_is_user_port(priv->ds, i))
+			priv->ports[i].mgmt_slot = k++;
+	}
 
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 
@@ -651,12 +666,14 @@ static sja1105_speed_t sja1105_get_speed_cfg(unsigned int speed_mbps)
  * for a specific port.
  *
  * @speed_mbps: If 0, leave the speed unchanged, else adapt MAC to PHY speed.
- * @enabled: Manage Rx and Tx settings for this port. Overrides the static
- *	     configuration settings.
+ * @enabled: Manage Rx and Tx settings for this port. If false, overrides the
+ *	     settings from the STP state, but not persistently (does not
+ *	     overwrite the static MAC info for this port).
  */
 static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 				      int speed_mbps, bool enabled)
 {
+	struct sja1105_mac_config_entry dyn_mac;
 	struct sja1105_xmii_params_entry *mii;
 	struct sja1105_mac_config_entry *mac;
 	struct device *dev = priv->ds->dev;
@@ -689,12 +706,13 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	 * the code common, we'll use the static configuration tables as a
 	 * reasonable approximation for both E/T and P/Q/R/S.
 	 */
-	mac[port].ingress = enabled;
-	mac[port].egress  = enabled;
+	dyn_mac = mac[port];
+	dyn_mac.ingress = enabled && mac[port].ingress;
+	dyn_mac.egress  = enabled && mac[port].egress;
 
 	/* Write to the dynamic reconfiguration tables */
 	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG,
-					  port, &mac[port], true);
+					  port, &dyn_mac, true);
 	if (rc < 0) {
 		dev_err(dev, "Failed to write MAC config: %d\n", rc);
 		return rc;
@@ -982,6 +1000,50 @@ static int sja1105_bridge_member(struct dsa_switch *ds, int port,
 					    port, &l2_fwd[port], true);
 }
 
+static void sja1105_bridge_stp_state_set(struct dsa_switch *ds, int port,
+					 u8 state)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_mac_config_entry *mac;
+
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+	case BR_STATE_BLOCKING:
+		/* From UM10944 description of DRPDTAG (why put this there?):
+		 * "Management traffic flows to the port regardless of the state
+		 * of the INGRESS flag". So BPDUs are still be allowed to pass.
+		 * At the moment no difference between DISABLED and BLOCKING.
+		 */
+		mac[port].ingress   = false;
+		mac[port].egress    = false;
+		mac[port].dyn_learn = false;
+		break;
+	case BR_STATE_LISTENING:
+		mac[port].ingress   = true;
+		mac[port].egress    = false;
+		mac[port].dyn_learn = false;
+		break;
+	case BR_STATE_LEARNING:
+		mac[port].ingress   = true;
+		mac[port].egress    = false;
+		mac[port].dyn_learn = true;
+		break;
+	case BR_STATE_FORWARDING:
+		mac[port].ingress   = true;
+		mac[port].egress    = true;
+		mac[port].dyn_learn = true;
+		break;
+	default:
+		dev_err(ds->dev, "invalid STP state: %d\n", state);
+		return;
+	}
+
+	sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
+				     &mac[port], true);
+}
+
 static int sja1105_bridge_join(struct dsa_switch *ds, int port,
 			       struct net_device *br)
 {
@@ -994,6 +1056,23 @@ static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
 	sja1105_bridge_member(ds, port, br, false);
 }
 
+static u8 sja1105_stp_state_get(struct sja1105_private *priv, int port)
+{
+	struct sja1105_mac_config_entry *mac;
+
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+
+	if (!mac[port].ingress && !mac[port].egress && !mac[port].dyn_learn)
+		return BR_STATE_BLOCKING;
+	if (mac[port].ingress && !mac[port].egress && !mac[port].dyn_learn)
+		return BR_STATE_LISTENING;
+	if (mac[port].ingress && !mac[port].egress && mac[port].dyn_learn)
+		return BR_STATE_LEARNING;
+	if (mac[port].ingress && mac[port].egress && mac[port].dyn_learn)
+		return BR_STATE_FORWARDING;
+	return -EINVAL;
+}
+
 /* For situations where we need to change a setting at runtime that is only
  * available through the static configuration, resetting the switch in order
  * to upload the new static config is unavoidable. Back up the settings we
@@ -1004,16 +1083,27 @@ static int sja1105_static_config_reload(struct sja1105_private *priv)
 {
 	struct sja1105_mac_config_entry *mac;
 	int speed_mbps[SJA1105_NUM_PORTS];
+	u8 stp_state[SJA1105_NUM_PORTS];
 	int rc, i;
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
 	/* Back up settings changed by sja1105_adjust_port_config and
-	 * and restore their defaults.
+	 * sja1105_bridge_stp_state_set and restore their defaults.
 	 */
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		speed_mbps[i] = sja1105_speed[mac[i].speed];
 		mac[i].speed = SJA1105_SPEED_AUTO;
+		if (i == dsa_upstream_port(priv->ds, i)) {
+			mac[i].ingress = true;
+			mac[i].egress = true;
+			mac[i].dyn_learn = true;
+		} else {
+			stp_state[i] = sja1105_stp_state_get(priv, i);
+			mac[i].ingress = false;
+			mac[i].egress = false;
+			mac[i].dyn_learn = false;
+		}
 	}
 
 	/* Reset switch and send updated static configuration */
@@ -1031,6 +1121,9 @@ static int sja1105_static_config_reload(struct sja1105_private *priv)
 
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		bool enabled = (speed_mbps[i] != 0);
+
+		if (i != dsa_upstream_port(priv->ds, i))
+			sja1105_bridge_stp_state_set(priv->ds, i, stp_state[i]);
 
 		rc = sja1105_adjust_port_config(priv, i, speed_mbps[i],
 						enabled);
@@ -1146,10 +1239,27 @@ static int sja1105_vlan_apply(struct sja1105_private *priv, int port, u16 vid,
 	return 0;
 }
 
+static int sja1105_setup_8021q_tagging(struct dsa_switch *ds, bool enabled)
+{
+	int rc, i;
+
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		rc = dsa_port_setup_8021q_tagging(ds, i, enabled);
+		if (rc < 0) {
+			dev_err(ds->dev, "Failed to setup VLAN tagging for port %d: %d\n",
+				i, rc);
+			return rc;
+		}
+	}
+	dev_info(ds->dev, "%s switch tagging\n",
+		 enabled ? "Enabled" : "Disabled");
+	return 0;
+}
+
 static enum dsa_tag_protocol
 sja1105_get_tag_protocol(struct dsa_switch *ds, int port)
 {
-	return DSA_TAG_PROTO_NONE;
+	return DSA_TAG_PROTO_SJA1105;
 }
 
 /* This callback needs to be present */
@@ -1173,7 +1283,11 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 	if (rc)
 		dev_err(ds->dev, "Failed to change VLAN Ethertype\n");
 
-	return rc;
+	/* Switch port identification based on 802.1Q is only passable
+	 * if we are not under a vlan_filtering bridge. So make sure
+	 * the two configurations are mutually exclusive.
+	 */
+	return sja1105_setup_8021q_tagging(ds, !enabled);
 }
 
 static void sja1105_vlan_add(struct dsa_switch *ds, int port,
@@ -1276,7 +1390,98 @@ static int sja1105_setup(struct dsa_switch *ds)
 	 */
 	ds->vlan_filtering_is_global = true;
 
-	return 0;
+	/* The DSA/switchdev model brings up switch ports in standalone mode by
+	 * default, and that means vlan_filtering is 0 since they're not under
+	 * a bridge, so it's safe to set up switch tagging at this time.
+	 */
+	return sja1105_setup_8021q_tagging(ds, true);
+}
+
+static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
+			     struct sk_buff *skb)
+{
+	struct sja1105_mgmt_entry mgmt_route = {0};
+	struct sja1105_private *priv = ds->priv;
+	struct ethhdr *hdr;
+	int timeout = 10;
+	int rc;
+
+	hdr = eth_hdr(skb);
+
+	mgmt_route.macaddr = ether_addr_to_u64(hdr->h_dest);
+	mgmt_route.destports = BIT(port);
+	mgmt_route.enfport = 1;
+
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MGMT_ROUTE,
+					  slot, &mgmt_route, true);
+	if (rc < 0) {
+		kfree_skb(skb);
+		return rc;
+	}
+
+	/* Transfer skb to the host port. */
+	dsa_enqueue_skb(skb, ds->ports[port].slave);
+
+	/* Wait until the switch has processed the frame */
+	do {
+		rc = sja1105_dynamic_config_read(priv, BLK_IDX_MGMT_ROUTE,
+						 slot, &mgmt_route);
+		if (rc < 0) {
+			dev_err_ratelimited(priv->ds->dev,
+					    "failed to poll for mgmt route\n");
+			continue;
+		}
+
+		/* UM10944: The ENFPORT flag of the respective entry is
+		 * cleared when a match is found. The host can use this
+		 * flag as an acknowledgment.
+		 */
+		cpu_relax();
+	} while (mgmt_route.enfport && --timeout);
+
+	if (!timeout) {
+		/* Clean up the management route so that a follow-up
+		 * frame may not match on it by mistake.
+		 */
+		sja1105_dynamic_config_write(priv, BLK_IDX_MGMT_ROUTE,
+					     slot, &mgmt_route, false);
+		dev_err_ratelimited(priv->ds->dev, "xmit timed out\n");
+	}
+
+	return NETDEV_TX_OK;
+}
+
+/* Deferred work is unfortunately necessary because setting up the management
+ * route cannot be done from atomit context (SPI transfer takes a sleepable
+ * lock on the bus)
+ */
+static netdev_tx_t sja1105_port_deferred_xmit(struct dsa_switch *ds, int port,
+					      struct sk_buff *skb)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_port *sp = &priv->ports[port];
+	int slot = sp->mgmt_slot;
+
+	/* The tragic fact about the switch having 4x2 slots for installing
+	 * management routes is that all of them except one are actually
+	 * useless.
+	 * If 2 slots are simultaneously configured for two BPDUs sent to the
+	 * same (multicast) DMAC but on different egress ports, the switch
+	 * would confuse them and redirect first frame it receives on the CPU
+	 * port towards the port configured on the numerically first slot
+	 * (therefore wrong port), then second received frame on second slot
+	 * (also wrong port).
+	 * So for all practical purposes, there needs to be a lock that
+	 * prevents that from happening. The slot used here is utterly useless
+	 * (could have simply been 0 just as fine), but we are doing it
+	 * nonetheless, in case a smarter idea ever comes up in the future.
+	 */
+	mutex_lock(&priv->mgmt_lock);
+
+	sja1105_mgmt_xmit(ds, port, slot, skb);
+
+	mutex_unlock(&priv->mgmt_lock);
+	return NETDEV_TX_OK;
 }
 
 /* The MAXAGE setting belongs to the L2 Forwarding Parameters table,
@@ -1317,6 +1522,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_fdb_del		= sja1105_fdb_del,
 	.port_bridge_join	= sja1105_bridge_join,
 	.port_bridge_leave	= sja1105_bridge_leave,
+	.port_stp_state_set	= sja1105_bridge_stp_state_set,
 	.port_vlan_prepare	= sja1105_vlan_prepare,
 	.port_vlan_filtering	= sja1105_vlan_filtering,
 	.port_vlan_add		= sja1105_vlan_add,
@@ -1324,6 +1530,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_mdb_prepare	= sja1105_mdb_prepare,
 	.port_mdb_add		= sja1105_mdb_add,
 	.port_mdb_del		= sja1105_mdb_del,
+	.port_deferred_xmit	= sja1105_port_deferred_xmit,
 };
 
 static int sja1105_check_device_id(struct sja1105_private *priv)
@@ -1367,7 +1574,7 @@ static int sja1105_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct sja1105_private *priv;
 	struct dsa_switch *ds;
-	int rc;
+	int rc, i;
 
 	if (!dev->of_node) {
 		dev_err(dev, "No DTS bindings for SJA1105 driver\n");
@@ -1417,6 +1624,15 @@ static int sja1105_probe(struct spi_device *spi)
 	ds->ops = &sja1105_switch_ops;
 	ds->priv = priv;
 	priv->ds = ds;
+
+	/* Connections between dsa_port and sja1105_port */
+	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
+		struct sja1105_port *sp = &priv->ports[i];
+
+		ds->ports[i].priv = sp;
+		sp->dp = &ds->ports[i];
+	}
+	mutex_init(&priv->mgmt_lock);
 
 	return dsa_register_switch(priv->ds);
 }
