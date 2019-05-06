@@ -21,13 +21,14 @@
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/atomic.h>
 #include <linux/sched/clock.h>
 
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
 
-#include <linux/atomic.h>
+#include <asm/cpu_entry_area.h>
 #include <asm/traps.h>
 #include <asm/mach_traps.h>
 #include <asm/nmi.h>
@@ -487,6 +488,23 @@ static DEFINE_PER_CPU(unsigned long, nmi_cr2);
  * switch back to the original IDT.
  */
 static DEFINE_PER_CPU(int, update_debug_stack);
+
+static bool notrace is_debug_stack(unsigned long addr)
+{
+	struct cea_exception_stacks *cs = __this_cpu_read(cea_exception_stacks);
+	unsigned long top = CEA_ESTACK_TOP(cs, DB);
+	unsigned long bot = CEA_ESTACK_BOT(cs, DB1);
+
+	if (__this_cpu_read(debug_stack_usage))
+		return true;
+	/*
+	 * Note, this covers the guard page between DB and DB1 as well to
+	 * avoid two checks. But by all means @addr can never point into
+	 * the guard page.
+	 */
+	return addr >= bot && addr < top;
+}
+NOKPROBE_SYMBOL(is_debug_stack);
 #endif
 
 dotraplinkage notrace void
