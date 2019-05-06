@@ -17,7 +17,7 @@ bool snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	unsigned int old, new;
-	u32 ret;
+	u32 ret = 0;
 
 	pci_read_config_dword(pci, offset, &ret);
 	old = ret;
