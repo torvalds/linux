@@ -81,6 +81,9 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	pgd = kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
 			       pgtable_gfp_flags(mm, GFP_KERNEL));
+	if (unlikely(!pgd))
+		return pgd;
+
 	/*
 	 * Don't scan the PGD for pointers, it contains references to PUDs but
 	 * those references are not full pointers and so can't be recognised by
