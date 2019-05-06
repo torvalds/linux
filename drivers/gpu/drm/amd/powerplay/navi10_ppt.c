@@ -383,9 +383,13 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 	/* Mvdd Svi2 Div Ratio Setting */
 	smc_pptable->MvddRatio = smc_dpm_table->MvddRatio;
 
-	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK) {
 		*(uint64_t *)smc_pptable->FeaturesToRun |= FEATURE_MASK(FEATURE_GFX_SS_BIT)
 					| FEATURE_MASK(FEATURE_GFXOFF_BIT);
+
+		/* TODO: remove it once SMU fw fix it */
+		smc_pptable->DebugOverrides |= DPM_OVERRIDE_DISABLE_DFLL_PLL_SHUTDOWN;
+	}
 
 	return 0;
 }
