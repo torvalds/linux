@@ -385,8 +385,8 @@ static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 	qmgr_regs = devm_ioremap_resource(dev, res);
-	if (!qmgr_regs)
-		return -ENOMEM;
+	if (IS_ERR(qmgr_regs))
+		return PTR_ERR(qmgr_regs);
 
 	irq1 = platform_get_irq(pdev, 0);
 	if (irq1 <= 0)
