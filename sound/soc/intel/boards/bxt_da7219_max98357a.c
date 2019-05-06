@@ -566,6 +566,17 @@ static struct snd_soc_dai_link broxton_dais[] = {
 		.dpcm_playback = 1,
 		.no_pcm = 1,
 	},
+	{
+		.name = "dmic16k",
+		.id = 6,
+		.cpu_dai_name = "DMIC16k Pin",
+		.codec_name = "dmic-codec",
+		.codec_dai_name = "dmic-hifi",
+		.platform_name = "0000:00:1f.3",
+		.be_hw_params_fixup = broxton_dmic_fixup,
+		.dpcm_capture = 1,
+		.no_pcm = 1,
+	},
 };
 
 static const struct x86_cpu_id glk_ids[] = {
