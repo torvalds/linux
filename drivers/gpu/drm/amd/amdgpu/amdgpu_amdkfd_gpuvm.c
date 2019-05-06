@@ -30,6 +30,7 @@
 #include "amdgpu_object.h"
 #include "amdgpu_vm.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_dma_buf.h"
 
 /* Special VM and GART address alignment needed for VI pre-Fiji due to
  * a HW bug.
