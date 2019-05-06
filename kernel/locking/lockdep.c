@@ -2246,7 +2246,7 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
  * Returns: 0 on deadlock detected, 1 on OK, 2 on recursive read
  */
 static int
-check_deadlock(struct task_struct *curr, struct held_lock *next, int read)
+check_deadlock(struct task_struct *curr, struct held_lock *next)
 {
 	struct held_lock *prev;
 	struct held_lock *nest = NULL;
@@ -2265,7 +2265,7 @@ check_deadlock(struct task_struct *curr, struct held_lock *next, int read)
 		 * Allow read-after-read recursion of the same
 		 * lock class (i.e. read_lock(lock)+read_lock(lock)):
 		 */
-		if ((read == 2) && prev->read)
+		if ((next->read == 2) && prev->read)
 			return 2;
 
 		/*
@@ -2839,7 +2839,7 @@ static int validate_chain(struct task_struct *curr,
 		 * The simple case: does the current hold the same lock
 		 * already?
 		 */
-		int ret = check_deadlock(curr, hlock, hlock->read);
+		int ret = check_deadlock(curr, hlock);
 
 		if (!ret)
 			return 0;
