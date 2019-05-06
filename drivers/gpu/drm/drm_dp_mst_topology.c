@@ -20,19 +20,20 @@
  * OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
-#include <linux/i2c.h>
-#include <drm/drm_dp_mst_helper.h>
-#include <drm/drmP.h>
 
-#include <drm/drm_fixed.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 /**
