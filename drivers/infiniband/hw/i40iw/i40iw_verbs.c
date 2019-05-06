@@ -1338,50 +1338,19 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 	struct i40iw_pbl *iwpbl = &iwmr->iwpbl;
 	struct i40iw_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct i40iw_pble_info *pinfo;
-	struct sg_dma_page_iter sg_iter;
-	u64 pg_addr = 0;
+	struct ib_block_iter biter;
 	u32 idx = 0;
-	bool first_pg = true;
 
 	pinfo = (level == I40IW_LEVEL_1) ? NULL : palloc->level2.leaf;
 
 	if (iwmr->type == IW_MEMREG_TYPE_QP)
 		iwpbl->qp_mr.sq_page = sg_page(region->sg_head.sgl);
 
-	for_each_sg_dma_page (region->sg_head.sgl, &sg_iter, region->nmap, 0) {
-		pg_addr = sg_page_iter_dma_address(&sg_iter);
-		if (first_pg)
-			*pbl = cpu_to_le64(pg_addr & iwmr->page_msk);
-		else if (!(pg_addr & ~iwmr->page_msk))
-			*pbl = cpu_to_le64(pg_addr);
-		else
-			continue;
-
-		first_pg = false;
+	rdma_for_each_block(region->sg_head.sgl, &biter, region->nmap,
+			    iwmr->page_size) {
+		*pbl = rdma_block_iter_dma_address(&biter);
 		pbl = i40iw_next_pbl_addr(pbl, &pinfo, &idx);
 	}
-}
-
-/**
- * i40iw_set_hugetlb_params - set MR pg size and mask to huge pg values.
- * @addr: virtual address
- * @iwmr: mr pointer for this memory registration
- */
-static void i40iw_set_hugetlb_values(u64 addr, struct i40iw_mr *iwmr)
-{
-	struct vm_area_struct *vma;
-	struct hstate *h;
-
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, addr);
-	if (vma && is_vm_hugetlb_page(vma)) {
-		h = hstate_vma(vma);
-		if (huge_page_size(h) == 0x200000) {
-			iwmr->page_size = huge_page_size(h);
-			iwmr->page_msk = huge_page_mask(h);
-		}
-	}
-	up_read(&current->mm->mmap_sem);
 }
 
 /**
@@ -1839,10 +1808,9 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	iwmr->ibmr.device = pd->device;
 
 	iwmr->page_size = PAGE_SIZE;
-	iwmr->page_msk = PAGE_MASK;
-
-	if (region->hugetlb && (req.reg_type == IW_MEMREG_TYPE_MEM))
-		i40iw_set_hugetlb_values(start, iwmr);
+	if (req.reg_type == IW_MEMREG_TYPE_MEM)
+		iwmr->page_size = ib_umem_find_best_pgsz(region, SZ_4K | SZ_2M,
+							 virt);
 
 	region_length = region->length + (start & (iwmr->page_size - 1));
 	pg_shift = ffs(iwmr->page_size) - 1;
