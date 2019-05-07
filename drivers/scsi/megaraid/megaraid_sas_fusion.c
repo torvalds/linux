@@ -4567,6 +4567,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 	struct scsi_device *sdev;
 	int ret_target_prop = DCMD_FAILED;
 	bool is_target_prop = false;
+	bool do_adp_reset = true;
+	int max_reset_tries = MEGASAS_FUSION_MAX_RESET_TRIES;
 
 	instance = (struct megasas_instance *)shost->hostdata;
 	fusion = instance->ctrl_context;
@@ -4685,34 +4687,30 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		/* Let SR-IOV VF & PF sync up if there was a HB failure */
 		if (instance->requestorId && !reason) {
 			msleep(MEGASAS_OCR_SETTLE_TIME_VF);
-			goto transition_to_ready;
+			do_adp_reset = false;
+			max_reset_tries = MEGASAS_SRIOV_MAX_RESET_TRIES_VF;
 		}
 
 		/* Now try to reset the chip */
-		for (i = 0; i < MEGASAS_FUSION_MAX_RESET_TRIES; i++) {
+		for (i = 0; i < max_reset_tries; i++) {
 
-			if (instance->instancet->adp_reset
+			if (do_adp_reset &&
+			    instance->instancet->adp_reset
 				(instance, instance->reg_set))
 				continue;
-transition_to_ready:
+
 			/* Wait for FW to become ready */
 			if (megasas_transition_to_ready(instance, 1)) {
 				dev_warn(&instance->pdev->dev,
 					"Failed to transition controller to ready for "
 					"scsi%d.\n", instance->host->host_no);
-				if (instance->requestorId && !reason)
-					goto fail_kill_adapter;
-				else
-					continue;
+				continue;
 			}
 			megasas_reset_reply_desc(instance);
 			megasas_fusion_update_can_queue(instance, OCR_CONTEXT);
 
 			if (megasas_ioc_init_fusion(instance)) {
-				if (instance->requestorId && !reason)
-					goto fail_kill_adapter;
-				else
-					continue;
+				continue;
 			}
 
 			if (megasas_get_ctrl_info(instance)) {
@@ -4798,7 +4796,6 @@ transition_to_ready:
 
 			goto out;
 		}
-fail_kill_adapter:
 		/* Reset failed, kill the adapter */
 		dev_warn(&instance->pdev->dev, "Reset failed, killing "
 		       "adapter scsi%d.\n", instance->host->host_no);
