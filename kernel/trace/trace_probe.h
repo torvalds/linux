@@ -124,6 +124,7 @@ struct fetch_insn {
 
 /* fetch + deref*N + store + mod + end <= 16, this allows N=12, enough */
 #define FETCH_INSN_MAX	16
+#define FETCH_TOKEN_COMM	(-ECOMM)
 
 /* Fetch type information table */
 struct fetch_type {
