@@ -608,86 +608,6 @@ static const struct iio_enum stm32_enable_mode_enum = {
 	.get = stm32_get_enable_mode
 };
 
-static const char *const stm32_quadrature_modes[] = {
-	"channel_A",
-	"channel_B",
-	"quadrature",
-};
-
-static int stm32_set_quadrature_mode(struct iio_dev *indio_dev,
-				     const struct iio_chan_spec *chan,
-				     unsigned int mode)
-{
-	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
-
-	regmap_update_bits(priv->regmap, TIM_SMCR, TIM_SMCR_SMS, mode + 1);
-
-	return 0;
-}
-
-static int stm32_get_quadrature_mode(struct iio_dev *indio_dev,
-				     const struct iio_chan_spec *chan)
-{
-	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
-	u32 smcr;
-	int mode;
-
-	regmap_read(priv->regmap, TIM_SMCR, &smcr);
-	mode = (smcr & TIM_SMCR_SMS) - 1;
-	if ((mode < 0) || (mode > ARRAY_SIZE(stm32_quadrature_modes)))
-		return -EINVAL;
-
-	return mode;
-}
-
-static const struct iio_enum stm32_quadrature_mode_enum = {
-	.items = stm32_quadrature_modes,
-	.num_items = ARRAY_SIZE(stm32_quadrature_modes),
-	.set = stm32_set_quadrature_mode,
-	.get = stm32_get_quadrature_mode
-};
-
-static const char *const stm32_count_direction_states[] = {
-	"up",
-	"down"
-};
-
-static int stm32_set_count_direction(struct iio_dev *indio_dev,
-				     const struct iio_chan_spec *chan,
-				     unsigned int dir)
-{
-	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
-	u32 val;
-	int mode;
-
-	/* In encoder mode, direction is RO (given by TI1/TI2 signals) */
-	regmap_read(priv->regmap, TIM_SMCR, &val);
-	mode = (val & TIM_SMCR_SMS) - 1;
-	if ((mode >= 0) || (mode < ARRAY_SIZE(stm32_quadrature_modes)))
-		return -EBUSY;
-
-	return regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_DIR,
-				  dir ? TIM_CR1_DIR : 0);
-}
-
-static int stm32_get_count_direction(struct iio_dev *indio_dev,
-				     const struct iio_chan_spec *chan)
-{
-	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
-	u32 cr1;
-
-	regmap_read(priv->regmap, TIM_CR1, &cr1);
-
-	return ((cr1 & TIM_CR1_DIR) ? 1 : 0);
-}
-
-static const struct iio_enum stm32_count_direction_enum = {
-	.items = stm32_count_direction_states,
-	.num_items = ARRAY_SIZE(stm32_count_direction_states),
-	.set = stm32_set_count_direction,
-	.get = stm32_get_count_direction
-};
-
 static ssize_t stm32_count_get_preset(struct iio_dev *indio_dev,
 				      uintptr_t private,
 				      const struct iio_chan_spec *chan,
@@ -728,10 +648,6 @@ static const struct iio_chan_spec_ext_info stm32_trigger_count_info[] = {
 		.read = stm32_count_get_preset,
 		.write = stm32_count_set_preset
 	},
-	IIO_ENUM("count_direction", IIO_SEPARATE, &stm32_count_direction_enum),
-	IIO_ENUM_AVAILABLE("count_direction", &stm32_count_direction_enum),
-	IIO_ENUM("quadrature_mode", IIO_SEPARATE, &stm32_quadrature_mode_enum),
-	IIO_ENUM_AVAILABLE("quadrature_mode", &stm32_quadrature_mode_enum),
 	IIO_ENUM("enable_mode", IIO_SEPARATE, &stm32_enable_mode_enum),
 	IIO_ENUM_AVAILABLE("enable_mode", &stm32_enable_mode_enum),
 	IIO_ENUM("trigger_mode", IIO_SEPARATE, &stm32_trigger_mode_enum),
