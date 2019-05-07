@@ -5488,7 +5488,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	int i, j, loop, fw_msix_count = 0;
 	struct IOV_111 *iovPtr;
 	struct fusion_context *fusion;
-	bool do_adp_reset = true;
 
 	fusion = instance->ctrl_context;
 
@@ -5535,13 +5534,18 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	}
 
 	if (megasas_transition_to_ready(instance, 0)) {
-		if (instance->adapter_type >= INVADER_SERIES) {
+		if (instance->adapter_type != MFI_SERIES) {
 			status_reg = instance->instancet->read_fw_status_reg(
 					instance);
-			do_adp_reset = status_reg & MFI_RESET_ADAPTER;
-		}
-
-		if (do_adp_reset) {
+			if (status_reg & MFI_RESET_ADAPTER) {
+				instance->instancet->adp_reset
+					(instance, instance->reg_set);
+				if (megasas_transition_to_ready(instance, 0))
+					goto fail_ready_state;
+			} else {
+				goto fail_ready_state;
+			}
+		} else {
 			atomic_set(&instance->fw_reset_no_pci_access, 1);
 			instance->instancet->adp_reset
 				(instance, instance->reg_set);
@@ -5555,8 +5559,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 			if (megasas_transition_to_ready(instance, 0))
 				goto fail_ready_state;
-		} else {
-			goto fail_ready_state;
 		}
 	}
 
