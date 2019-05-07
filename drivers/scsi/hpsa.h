@@ -76,11 +76,12 @@ struct hpsa_scsi_dev_t {
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	unsigned char volume_offline;	/* discovered via TUR or VPD */
 	u16 queue_depth;		/* max queue_depth for this device */
-	atomic_t reset_cmds_out;	/* Count of commands to-be affected */
+	atomic_t commands_outstanding;	/* track commands sent to device */
 	atomic_t ioaccel_cmds_out;	/* Only used for physical devices
 					 * counts commands sent to physical
 					 * device via "ioaccel" path.
 					 */
+	bool in_reset;
 	u32 ioaccel_handle;
 	u8 active_path_index;
 	u8 path_map;
