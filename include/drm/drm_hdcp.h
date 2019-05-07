@@ -252,13 +252,13 @@ struct hdcp2_rep_stream_ready {
  * host format and back
  */
 static inline
-u32 drm_hdcp2_seq_num_to_u32(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN])
+u32 drm_hdcp_be24_to_cpu(const u8 seq_num[HDCP_2_2_SEQ_NUM_LEN])
 {
 	return (u32)(seq_num[2] | seq_num[1] << 8 | seq_num[0] << 16);
 }
 
 static inline
-void drm_hdcp2_u32_to_seq_num(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN], u32 val)
+void drm_hdcp_cpu_to_be24(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN], u32 val)
 {
 	seq_num[0] = val >> 16;
 	seq_num[1] = val >> 8;

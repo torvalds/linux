@@ -1305,7 +1305,7 @@ int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 
 	/* Prepare RepeaterAuth_Stream_Manage msg */
 	msgs.stream_manage.msg_id = HDCP_2_2_REP_STREAM_MANAGE;
-	drm_hdcp2_u32_to_seq_num(msgs.stream_manage.seq_num_m, hdcp->seq_num_m);
+	drm_hdcp_cpu_to_be24(msgs.stream_manage.seq_num_m, hdcp->seq_num_m);
 
 	/* K no of streams is fixed as 1. Stored as big-endian. */
 	msgs.stream_manage.k = cpu_to_be16(1);
@@ -1370,7 +1370,8 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 	}
 
 	/* Converting and Storing the seq_num_v to local variable as DWORD */
-	seq_num_v = drm_hdcp2_seq_num_to_u32(msgs.recvid_list.seq_num_v);
+	seq_num_v =
+		drm_hdcp_be24_to_cpu((const u8 *)msgs.recvid_list.seq_num_v);
 
 	if (seq_num_v < hdcp->seq_num_v) {
 		/* Roll over of the seq_num_v from repeater. Reauthenticate. */
