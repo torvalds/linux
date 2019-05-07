@@ -1,3 +1,7 @@
+#if !defined(SHADOW_FIELD_RO) && !defined(SHADOW_FIELD_RW)
+BUILD_BUG_ON(1)
+#endif
+
 #ifndef SHADOW_FIELD_RO
 #define SHADOW_FIELD_RO(x, y)
 #endif

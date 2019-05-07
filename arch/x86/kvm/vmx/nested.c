@@ -4420,6 +4420,29 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	return nested_vmx_succeed(vcpu);
 }
 
+static bool is_shadow_field_rw(unsigned long field)
+{
+	switch (field) {
+#define SHADOW_FIELD_RW(x, y) case x:
+#include "vmcs_shadow_fields.h"
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+static bool is_shadow_field_ro(unsigned long field)
+{
+	switch (field) {
+#define SHADOW_FIELD_RO(x, y) case x:
+#include "vmcs_shadow_fields.h"
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
 
 static int handle_vmwrite(struct kvm_vcpu *vcpu)
 {
@@ -4503,41 +4526,27 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	vmcs12_write_any(vmcs12, field, offset, field_value);
 
 	/*
-	 * Do not track vmcs12 dirty-state if in guest-mode
-	 * as we actually dirty shadow vmcs12 instead of vmcs12.
+	 * Do not track vmcs12 dirty-state if in guest-mode as we actually
+	 * dirty shadow vmcs12 instead of vmcs12.  Fields that can be updated
+	 * by L1 without a vmexit are always updated in the vmcs02, i.e. don't
+	 * "dirty" vmcs12, all others go down the prepare_vmcs02() slow path.
 	 */
-	if (!is_guest_mode(vcpu)) {
-		switch (field) {
-#define SHADOW_FIELD_RW(x, y) case x:
-#include "vmcs_shadow_fields.h"
-			/*
-			 * The fields that can be updated by L1 without a vmexit are
-			 * always updated in the vmcs02, the others go down the slow
-			 * path of prepare_vmcs02.
-			 */
-			break;
+	if (!is_guest_mode(vcpu) && !is_shadow_field_rw(field)) {
+		/*
+		 * L1 can read these fields without exiting, ensure the
+		 * shadow VMCS is up-to-date.
+		 */
+		if (enable_shadow_vmcs && is_shadow_field_ro(field)) {
+			preempt_disable();
+			vmcs_load(vmx->vmcs01.shadow_vmcs);
 
-#define SHADOW_FIELD_RO(x, y) case x:
-#include "vmcs_shadow_fields.h"
-			/*
-			 * L1 can read these fields without exiting, ensure the
-			 * shadow VMCS is up-to-date.
-			 */
-			if (enable_shadow_vmcs) {
-				preempt_disable();
-				vmcs_load(vmx->vmcs01.shadow_vmcs);
+			__vmcs_writel(field, field_value);
 
-				__vmcs_writel(field, field_value);
-
-				vmcs_clear(vmx->vmcs01.shadow_vmcs);
-				vmcs_load(vmx->loaded_vmcs->vmcs);
-				preempt_enable();
-			}
-			/* fall through */
-		default:
-			vmx->nested.dirty_vmcs12 = true;
-			break;
+			vmcs_clear(vmx->vmcs01.shadow_vmcs);
+			vmcs_load(vmx->loaded_vmcs->vmcs);
+			preempt_enable();
 		}
+		vmx->nested.dirty_vmcs12 = true;
 	}
 
 	return nested_vmx_succeed(vcpu);
