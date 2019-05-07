@@ -135,6 +135,8 @@
 #define MFI_RESET_ADAPTER			0x00000002
 #define MEGAMFI_FRAME_SIZE			64
 
+#define MFI_STATE_FAULT_CODE			0x0FFF0000
+#define MFI_STATE_FAULT_SUBCODE			0x0000FF00
 /*
  * During FW init, clear pending cmds & reset state using inbound_msg_0
  *

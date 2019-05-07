@@ -3918,7 +3918,10 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 		switch (fw_state) {
 
 		case MFI_STATE_FAULT:
-			dev_printk(KERN_DEBUG, &instance->pdev->dev, "FW in FAULT state!!\n");
+			dev_printk(KERN_ERR, &instance->pdev->dev,
+				   "FW in FAULT state, Fault code:0x%x subcode:0x%x func:%s\n",
+				   abs_state & MFI_STATE_FAULT_CODE,
+				   abs_state & MFI_STATE_FAULT_SUBCODE, __func__);
 			if (ocr) {
 				max_wait = MEGASAS_RESET_WAIT_TIME;
 				cur_state = MFI_STATE_FAULT;

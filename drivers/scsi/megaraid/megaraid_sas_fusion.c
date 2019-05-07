@@ -3983,7 +3983,7 @@ megasas_check_reset_fusion(struct megasas_instance *instance,
 static inline void megasas_trigger_snap_dump(struct megasas_instance *instance)
 {
 	int j;
-	u32 fw_state;
+	u32 fw_state, abs_state;
 
 	if (!instance->disableOnlineCtrlReset) {
 		dev_info(&instance->pdev->dev, "Trigger snap dump\n");
@@ -3993,11 +3993,13 @@ static inline void megasas_trigger_snap_dump(struct megasas_instance *instance)
 	}
 
 	for (j = 0; j < instance->snapdump_wait_time; j++) {
-		fw_state = instance->instancet->read_fw_status_reg(instance) &
-				MFI_STATE_MASK;
+		abs_state = instance->instancet->read_fw_status_reg(instance);
+		fw_state = abs_state & MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT) {
-			dev_err(&instance->pdev->dev,
-				"Found FW in FAULT state, after snap dump trigger\n");
+			dev_printk(KERN_ERR, &instance->pdev->dev,
+				   "FW in FAULT state Fault code:0x%x subcode:0x%x func:%s\n",
+				   abs_state & MFI_STATE_FAULT_CODE,
+				   abs_state & MFI_STATE_FAULT_SUBCODE, __func__);
 			return;
 		}
 		msleep(1000);
@@ -4009,7 +4011,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 					int reason, int *convert)
 {
 	int i, outstanding, retval = 0, hb_seconds_missed = 0;
-	u32 fw_state;
+	u32 fw_state, abs_state;
 	u32 waittime_for_io_completion;
 
 	waittime_for_io_completion =
@@ -4028,12 +4030,13 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 
 	for (i = 0; i < waittime_for_io_completion; i++) {
 		/* Check if firmware is in fault state */
-		fw_state = instance->instancet->read_fw_status_reg(instance) &
-				MFI_STATE_MASK;
+		abs_state = instance->instancet->read_fw_status_reg(instance);
+		fw_state = abs_state & MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT) {
-			dev_warn(&instance->pdev->dev, "Found FW in FAULT state,"
-			       " will reset adapter scsi%d.\n",
-				instance->host->host_no);
+			dev_printk(KERN_ERR, &instance->pdev->dev,
+				   "FW in FAULT state Fault code:0x%x subcode:0x%x func:%s\n",
+				   abs_state & MFI_STATE_FAULT_CODE,
+				   abs_state & MFI_STATE_FAULT_SUBCODE, __func__);
 			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
 			if (instance->requestorId && reason) {
 				dev_warn(&instance->pdev->dev, "SR-IOV Found FW in FAULT"
