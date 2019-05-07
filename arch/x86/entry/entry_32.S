@@ -202,9 +202,102 @@
 .Lend_\@:
 .endm
 
+#define CS_FROM_ENTRY_STACK	(1 << 31)
+#define CS_FROM_USER_CR3	(1 << 30)
+#define CS_FROM_KERNEL		(1 << 29)
+
+.macro FIXUP_FRAME
+	/*
+	 * The high bits of the CS dword (__csh) are used for CS_FROM_*.
+	 * Clear them in case hardware didn't do this for us.
+	 */
+	andl	$0x0000ffff, 3*4(%esp)
+
+#ifdef CONFIG_VM86
+	testl	$X86_EFLAGS_VM, 4*4(%esp)
+	jnz	.Lfrom_usermode_no_fixup_\@
+#endif
+	testl	$SEGMENT_RPL_MASK, 3*4(%esp)
+	jnz	.Lfrom_usermode_no_fixup_\@
+
+	orl	$CS_FROM_KERNEL, 3*4(%esp)
+
+	/*
+	 * When we're here from kernel mode; the (exception) stack looks like:
+	 *
+	 *  5*4(%esp) - <previous context>
+	 *  4*4(%esp) - flags
+	 *  3*4(%esp) - cs
+	 *  2*4(%esp) - ip
+	 *  1*4(%esp) - orig_eax
+	 *  0*4(%esp) - gs / function
+	 *
+	 * Lets build a 5 entry IRET frame after that, such that struct pt_regs
+	 * is complete and in particular regs->sp is correct. This gives us
+	 * the original 5 enties as gap:
+	 *
+	 * 12*4(%esp) - <previous context>
+	 * 11*4(%esp) - gap / flags
+	 * 10*4(%esp) - gap / cs
+	 *  9*4(%esp) - gap / ip
+	 *  8*4(%esp) - gap / orig_eax
+	 *  7*4(%esp) - gap / gs / function
+	 *  6*4(%esp) - ss
+	 *  5*4(%esp) - sp
+	 *  4*4(%esp) - flags
+	 *  3*4(%esp) - cs
+	 *  2*4(%esp) - ip
+	 *  1*4(%esp) - orig_eax
+	 *  0*4(%esp) - gs / function
+	 */
+
+	pushl	%ss		# ss
+	pushl	%esp		# sp (points at ss)
+	addl	$6*4, (%esp)	# point sp back at the previous context
+	pushl	6*4(%esp)	# flags
+	pushl	6*4(%esp)	# cs
+	pushl	6*4(%esp)	# ip
+	pushl	6*4(%esp)	# orig_eax
+	pushl	6*4(%esp)	# gs / function
+.Lfrom_usermode_no_fixup_\@:
+.endm
+
+.macro IRET_FRAME
+	testl $CS_FROM_KERNEL, 1*4(%esp)
+	jz .Lfinished_frame_\@
+
+	/*
+	 * Reconstruct the 3 entry IRET frame right after the (modified)
+	 * regs->sp without lowering %esp in between, such that an NMI in the
+	 * middle doesn't scribble our stack.
+	 */
+	pushl	%eax
+	pushl	%ecx
+	movl	5*4(%esp), %eax		# (modified) regs->sp
+
+	movl	4*4(%esp), %ecx		# flags
+	movl	%ecx, -4(%eax)
+
+	movl	3*4(%esp), %ecx		# cs
+	andl	$0x0000ffff, %ecx
+	movl	%ecx, -8(%eax)
+
+	movl	2*4(%esp), %ecx		# ip
+	movl	%ecx, -12(%eax)
+
+	movl	1*4(%esp), %ecx		# eax
+	movl	%ecx, -16(%eax)
+
+	popl	%ecx
+	lea	-16(%eax), %esp
+	popl	%eax
+.Lfinished_frame_\@:
+.endm
+
 .macro SAVE_ALL pt_regs_ax=%eax switch_stacks=0
 	cld
 	PUSH_GS
+	FIXUP_FRAME
 	pushl	%fs
 	pushl	%es
 	pushl	%ds
@@ -358,9 +451,6 @@
  * switch to it before we do any copying.
  */
 
-#define CS_FROM_ENTRY_STACK	(1 << 31)
-#define CS_FROM_USER_CR3	(1 << 30)
-
 .macro SWITCH_TO_KERNEL_STACK
 
 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
@@ -373,13 +463,6 @@
 	 * %eax now contains the entry cr3 and we carry it forward in
 	 * that register for the time this macro runs
 	 */
-
-	/*
-	 * The high bits of the CS dword (__csh) are used for
-	 * CS_FROM_ENTRY_STACK and CS_FROM_USER_CR3. Clear them in case
-	 * hardware didn't do this for us.
-	 */
-	andl	$(0x0000ffff), PT_CS(%esp)
 
 	/* Are we on the entry stack? Bail out if not! */
 	movl	PER_CPU_VAR(cpu_entry_area), %ecx
@@ -990,6 +1073,7 @@ restore_all:
 	/* Restore user state */
 	RESTORE_REGS pop=4			# skip orig_eax/error_code
 .Lirq_return:
+	IRET_FRAME
 	/*
 	 * ARCH_HAS_MEMBARRIER_SYNC_CORE rely on IRET core serialization
 	 * when returning from IPI handler and when returning from
@@ -1340,6 +1424,7 @@ END(page_fault)
 
 common_exception:
 	/* the function address is in %gs's slot on the stack */
+	FIXUP_FRAME
 	pushl	%fs
 	pushl	%es
 	pushl	%ds

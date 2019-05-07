@@ -72,8 +72,8 @@
 	"	popl %edi\n"			\
 	"	popl %ebp\n"			\
 	"	popl %eax\n"			\
-	/* Skip ds, es, fs, gs, orig_ax, and ip. Note: don't pop cs here*/\
-	"	addl $24, %esp\n"
+	/* Skip ds, es, fs, gs, orig_ax, ip, and cs. */\
+	"	addl $7*4, %esp\n"
 #endif
 
 /* Ensure if the instruction can be boostable */
