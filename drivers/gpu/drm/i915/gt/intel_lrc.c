@@ -252,8 +252,8 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 	 * ourselves, ignore the request.
 	 */
 	last_prio = effective_prio(rq);
-	if (!__execlists_need_preempt(engine->execlists.queue_priority_hint,
-				      last_prio))
+	if (!i915_scheduler_need_preempt(engine->execlists.queue_priority_hint,
+					 last_prio))
 		return false;
 
 	/*

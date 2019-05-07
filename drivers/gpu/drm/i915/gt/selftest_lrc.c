@@ -638,14 +638,19 @@ static struct i915_request *dummy_request(struct intel_engine_cs *engine)
 	GEM_BUG_ON(i915_request_completed(rq));
 
 	i915_sw_fence_init(&rq->submit, dummy_notify);
-	i915_sw_fence_commit(&rq->submit);
+	set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
 
 	return rq;
 }
 
 static void dummy_request_free(struct i915_request *dummy)
 {
+	/* We have to fake the CS interrupt to kick the next request */
+	i915_sw_fence_commit(&dummy->submit);
+
 	i915_request_mark_complete(dummy);
+	dma_fence_signal(&dummy->fence);
+
 	i915_sched_node_fini(&dummy->sched);
 	i915_sw_fence_fini(&dummy->submit);
 

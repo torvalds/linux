@@ -747,7 +747,8 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 				&engine->i915->guc.preempt_work[engine->id];
 			int prio = execlists->queue_priority_hint;
 
-			if (__execlists_need_preempt(prio, port_prio(port))) {
+			if (i915_scheduler_need_preempt(prio,
+							port_prio(port))) {
 				execlists_set_active(execlists,
 						     EXECLISTS_ACTIVE_PREEMPT);
 				queue_work(engine->i915->guc.preempt_wq,

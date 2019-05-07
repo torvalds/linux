@@ -1415,9 +1415,7 @@ long i915_request_wait(struct i915_request *rq,
 	if (flags & I915_WAIT_PRIORITY) {
 		if (!i915_request_started(rq) && INTEL_GEN(rq->i915) >= 6)
 			gen6_rps_boost(rq);
-		local_bh_disable(); /* suspend tasklets for reprioritisation */
 		i915_schedule_bump_priority(rq, I915_PRIORITY_WAIT);
-		local_bh_enable(); /* kick tasklets en masse */
 	}
 
 	wait.tsk = current;
