@@ -1930,7 +1930,6 @@ megasas_set_nvme_device_properties(struct scsi_device *sdev, u32 max_io_size)
 static void megasas_set_static_target_properties(struct scsi_device *sdev,
 						 bool is_target_prop)
 {
-	u16	target_index = 0;
 	u8 interface_type;
 	u32 device_qd = MEGASAS_DEFAULT_CMD_PER_LUN;
 	u32 max_io_size_kb = MR_DEFAULT_NVME_MDTS_KB;
@@ -1946,8 +1945,6 @@ static void megasas_set_static_target_properties(struct scsi_device *sdev,
 	 * The RAID firmware may require extended timeouts.
 	 */
 	blk_queue_rq_timeout(sdev->request_queue, scmd_timeout * HZ);
-
-	target_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) + sdev->id;
 
 	switch (interface_type) {
 	case SAS_PD:
