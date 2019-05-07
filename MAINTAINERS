@@ -468,7 +468,7 @@ ADM1025 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/adm1025
+F:	Documentation/hwmon/adm1025.rst
 F:	drivers/hwmon/adm1025.c
 
 ADM1029 HARDWARE MONITOR DRIVER
@@ -520,7 +520,7 @@ ADS1015 HARDWARE MONITOR DRIVER
 M:	Dirk Eibach <eibach@gdsys.de>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/ads1015
+F:	Documentation/hwmon/ads1015.rst
 F:	drivers/hwmon/ads1015.c
 F:	include/linux/platform_data/ads1015.h
 
@@ -533,7 +533,7 @@ ADT7475 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/adt7475
+F:	Documentation/hwmon/adt7475.rst
 F:	drivers/hwmon/adt7475.c
 
 ADVANSYS SCSI DRIVER
@@ -764,7 +764,7 @@ AMD FAM15H PROCESSOR POWER MONITORING DRIVER
 M:	Huang Rui <ray.huang@amd.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
-F:	Documentation/hwmon/fam15h_power
+F:	Documentation/hwmon/fam15h_power.rst
 F:	drivers/hwmon/fam15h_power.c
 
 AMD FCH GPIO DRIVER
@@ -2513,7 +2513,7 @@ ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/asc7621
+F:	Documentation/hwmon/asc7621.rst
 F:	drivers/hwmon/asc7621.c
 
 ASPEED VIDEO ENGINE DRIVER
@@ -3798,6 +3798,7 @@ M:	Richard Fitzgerald <rf@opensource.cirrus.com>
 L:	patches@opensource.cirrus.com
 S:	Supported
 F:	drivers/clk/clk-lochnagar.c
+F:	drivers/hwmon/lochnagar-hwmon.c
 F:	drivers/mfd/lochnagar-i2c.c
 F:	drivers/pinctrl/cirrus/pinctrl-lochnagar.c
 F:	drivers/regulator/lochnagar-regulator.c
@@ -3806,8 +3807,10 @@ F:	include/dt-bindings/pinctrl/lochnagar.h
 F:	include/linux/mfd/lochnagar*
 F:	Documentation/devicetree/bindings/mfd/cirrus,lochnagar.txt
 F:	Documentation/devicetree/bindings/clock/cirrus,lochnagar.txt
+F:	Documentation/devicetree/bindings/hwmon/cirrus,lochnagar.txt
 F:	Documentation/devicetree/bindings/pinctrl/cirrus,lochnagar.txt
 F:	Documentation/devicetree/bindings/regulator/cirrus,lochnagar.txt
+F:	Documentation/hwmon/lochnagar
 
 CISCO FCOE HBA DRIVER
 M:	Satish Kharat <satishkh@cisco.com>
@@ -4045,7 +4048,7 @@ CORETEMP HARDWARE MONITORING DRIVER
 M:	Fenghua Yu <fenghua.yu@intel.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/coretemp
+F:	Documentation/hwmon/coretemp.rst
 F:	drivers/hwmon/coretemp.c
 
 COSA/SRP SYNC SERIAL DRIVER
@@ -4601,7 +4604,7 @@ DIALOG SEMICONDUCTOR DRIVERS
 M:	Support Opensource <support.opensource@diasemi.com>
 W:	http://www.dialog-semiconductor.com/products
 S:	Supported
-F:	Documentation/hwmon/da90??
+F:	Documentation/hwmon/da90??.rst
 F:	Documentation/devicetree/bindings/mfd/da90*.txt
 F:	Documentation/devicetree/bindings/input/da90??-onkey.txt
 F:	Documentation/devicetree/bindings/thermal/da90??-thermal.txt
@@ -4752,7 +4755,7 @@ DME1737 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/dme1737
+F:	Documentation/hwmon/dme1737.rst
 F:	drivers/hwmon/dme1737.c
 
 DMI/SMBIOS SUPPORT
@@ -5944,7 +5947,7 @@ F71805F HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/f71805f
+F:	Documentation/hwmon/f71805f.rst
 F:	drivers/hwmon/f71805f.c
 
 FADDR2LINE
@@ -7625,7 +7628,7 @@ INA209 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/ina209
+F:	Documentation/hwmon/ina209.rst
 F:	Documentation/devicetree/bindings/hwmon/ina2xx.txt
 F:	drivers/hwmon/ina209.c
 
@@ -7633,7 +7636,7 @@ INA2XX HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/ina2xx
+F:	Documentation/hwmon/ina2xx.rst
 F:	drivers/hwmon/ina2xx.c
 F:	include/linux/platform_data/ina2xx.h
 
@@ -8261,7 +8264,7 @@ IT87 HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/it87
+F:	Documentation/hwmon/it87.rst
 F:	drivers/hwmon/it87.c
 
 IT913X MEDIA DRIVER
@@ -8305,7 +8308,7 @@ M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	drivers/hwmon/jc42.c
-F:	Documentation/hwmon/jc42
+F:	Documentation/hwmon/jc42.rst
 
 JFS FILESYSTEM
 M:	Dave Kleikamp <shaggy@kernel.org>
@@ -8353,14 +8356,14 @@ K10TEMP HARDWARE MONITORING DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/k10temp
+F:	Documentation/hwmon/k10temp.rst
 F:	drivers/hwmon/k10temp.c
 
 K8TEMP HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/k8temp
+F:	Documentation/hwmon/k8temp.rst
 F:	drivers/hwmon/k8temp.c
 
 KASAN
@@ -9052,21 +9055,21 @@ LM78 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/lm78
+F:	Documentation/hwmon/lm78.rst
 F:	drivers/hwmon/lm78.c
 
 LM83 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/lm83
+F:	Documentation/hwmon/lm83.rst
 F:	drivers/hwmon/lm83.c
 
 LM90 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/lm90
+F:	Documentation/hwmon/lm90.rst
 F:	Documentation/devicetree/bindings/hwmon/lm90.txt
 F:	drivers/hwmon/lm90.c
 F:	include/dt-bindings/thermal/lm90.h
@@ -9075,7 +9078,7 @@ LM95234 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/lm95234
+F:	Documentation/hwmon/lm95234.rst
 F:	drivers/hwmon/lm95234.c
 
 LME2510 MEDIA DRIVER
@@ -9148,7 +9151,7 @@ LTC4261 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/ltc4261
+F:	Documentation/hwmon/ltc4261.rst
 F:	drivers/hwmon/ltc4261.c
 
 LTC4306 I2C MULTIPLEXER DRIVER
@@ -9379,7 +9382,7 @@ MAX16065 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/max16065
+F:	Documentation/hwmon/max16065.rst
 F:	drivers/hwmon/max16065.c
 
 MAX2175 SDR TUNER DRIVER
@@ -9395,14 +9398,14 @@ F:	include/uapi/linux/max2175.h
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 L:	linux-hwmon@vger.kernel.org
 S:	Orphan
-F:	Documentation/hwmon/max6650
+F:	Documentation/hwmon/max6650.rst
 F:	drivers/hwmon/max6650.c
 
 MAX6697 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/max6697
+F:	Documentation/hwmon/max6697.rst
 F:	Documentation/devicetree/bindings/hwmon/max6697.txt
 F:	drivers/hwmon/max6697.c
 F:	include/linux/platform_data/max6697.h
@@ -10048,7 +10051,7 @@ F:	drivers/mfd/menf21bmc.c
 F:	drivers/watchdog/menf21bmc_wdt.c
 F:	drivers/leds/leds-menf21bmc.c
 F:	drivers/hwmon/menf21bmc_hwmon.c
-F:	Documentation/hwmon/menf21bmc
+F:	Documentation/hwmon/menf21bmc.rst
 
 MEN Z069 WATCHDOG DRIVER
 M:	Johannes Thumshirn <jth@kernel.org>
@@ -10676,7 +10679,7 @@ NCT6775 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/nct6775
+F:	Documentation/hwmon/nct6775.rst
 F:	drivers/hwmon/nct6775.c
 
 NET_FAILOVER MODULE
@@ -11770,7 +11773,7 @@ PC87360 HARDWARE MONITORING DRIVER
 M:	Jim Cromie <jim.cromie@gmail.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/pc87360
+F:	Documentation/hwmon/pc87360.rst
 F:	drivers/hwmon/pc87360.c
 
 PC8736x GPIO DRIVER
@@ -11782,7 +11785,7 @@ PC87427 HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/pc87427
+F:	Documentation/hwmon/pc87427.rst
 F:	drivers/hwmon/pc87427.c
 
 PCA9532 LED DRIVER
@@ -12351,23 +12354,23 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/hwmon/ibm,cffps1.txt
 F:	Documentation/devicetree/bindings/hwmon/max31785.txt
 F:	Documentation/devicetree/bindings/hwmon/ltc2978.txt
-F:	Documentation/hwmon/adm1275
-F:	Documentation/hwmon/ibm-cffps
-F:	Documentation/hwmon/ir35221
-F:	Documentation/hwmon/lm25066
-F:	Documentation/hwmon/ltc2978
-F:	Documentation/hwmon/ltc3815
-F:	Documentation/hwmon/max16064
-F:	Documentation/hwmon/max20751
-F:	Documentation/hwmon/max31785
-F:	Documentation/hwmon/max34440
-F:	Documentation/hwmon/max8688
-F:	Documentation/hwmon/pmbus
-F:	Documentation/hwmon/pmbus-core
-F:	Documentation/hwmon/tps40422
-F:	Documentation/hwmon/ucd9000
-F:	Documentation/hwmon/ucd9200
-F:	Documentation/hwmon/zl6100
+F:	Documentation/hwmon/adm1275.rst
+F:	Documentation/hwmon/ibm-cffps.rst
+F:	Documentation/hwmon/ir35221.rst
+F:	Documentation/hwmon/lm25066.rst
+F:	Documentation/hwmon/ltc2978.rst
+F:	Documentation/hwmon/ltc3815.rst
+F:	Documentation/hwmon/max16064.rst
+F:	Documentation/hwmon/max20751.rst
+F:	Documentation/hwmon/max31785.rst
+F:	Documentation/hwmon/max34440.rst
+F:	Documentation/hwmon/max8688.rst
+F:	Documentation/hwmon/pmbus.rst
+F:	Documentation/hwmon/pmbus-core.rst
+F:	Documentation/hwmon/tps40422.rst
+F:	Documentation/hwmon/ucd9000.rst
+F:	Documentation/hwmon/ucd9200.rst
+F:	Documentation/hwmon/zl6100.rst
 F:	drivers/hwmon/pmbus/
 F:	include/linux/pmbus.h
 
@@ -12631,7 +12634,7 @@ M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/hwmon/pwm-fan.txt
-F:	Documentation/hwmon/pwm-fan
+F:	Documentation/hwmon/pwm-fan.rst
 F:	drivers/hwmon/pwm-fan.c
 
 PWM IR Transmitter
@@ -14296,21 +14299,21 @@ SMM665 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/smm665
+F:	Documentation/hwmon/smm665.rst
 F:	drivers/hwmon/smm665.c
 
 SMSC EMC2103 HARDWARE MONITOR DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/emc2103
+F:	Documentation/hwmon/emc2103.rst
 F:	drivers/hwmon/emc2103.c
 
 SMSC SCH5627 HARDWARE MONITOR DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
-F:	Documentation/hwmon/sch5627
+F:	Documentation/hwmon/sch5627.rst
 F:	drivers/hwmon/sch5627.c
 
 SMSC UFX6000 and UFX7000 USB to VGA DRIVER
@@ -14323,7 +14326,7 @@ SMSC47B397 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/smsc47b397
+F:	Documentation/hwmon/smsc47b397.rst
 F:	drivers/hwmon/smsc47b397.c
 
 SMSC911x ETHERNET DRIVER
@@ -15669,7 +15672,7 @@ TMP401 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/tmp401
+F:	Documentation/hwmon/tmp401.rst
 F:	drivers/hwmon/tmp401.c
 
 TMPFS (SHMEM FILESYSTEM)
@@ -16707,7 +16710,7 @@ VT1211 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/vt1211
+F:	Documentation/hwmon/vt1211.rst
 F:	drivers/hwmon/vt1211.c
 
 VT8231 HARDWARE MONITOR DRIVER
@@ -16735,14 +16738,14 @@ W83791D HARDWARE MONITORING DRIVER
 M:	Marc Hulsman <m.hulsman@tudelft.nl>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/w83791d
+F:	Documentation/hwmon/w83791d.rst
 F:	drivers/hwmon/w83791d.c
 
 W83793 HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
-F:	Documentation/hwmon/w83793
+F:	Documentation/hwmon/w83793.rst
 F:	drivers/hwmon/w83793.c
 
 W83795 HARDWARE MONITORING DRIVER
@@ -16851,7 +16854,7 @@ L:	patches@opensource.cirrus.com
 T:	git https://github.com/CirrusLogic/linux-drivers.git
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 S:	Supported
-F:	Documentation/hwmon/wm83??
+F:	Documentation/hwmon/wm83??.rst
 F:	Documentation/devicetree/bindings/extcon/extcon-arizona.txt
 F:	Documentation/devicetree/bindings/regulator/arizona-regulator.txt
 F:	Documentation/devicetree/bindings/mfd/arizona.txt
