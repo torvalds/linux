@@ -1556,7 +1556,7 @@ static noinline int check_can_nocow(struct btrfs_inode *inode, loff_t pos,
 
 	ret = btrfs_start_write_no_snapshotting(root);
 	if (!ret)
-		return -ENOSPC;
+		return -EAGAIN;
 
 	lockstart = round_down(pos, fs_info->sectorsize);
 	lockend = round_up(pos + *write_bytes,
