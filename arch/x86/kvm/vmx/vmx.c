@@ -1910,6 +1910,10 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!kvm_pat_valid(data))
 			return 1;
 
+		if (is_guest_mode(vcpu) &&
+		    get_vmcs12(vcpu)->vm_exit_controls & VM_EXIT_SAVE_IA32_PAT)
+			get_vmcs12(vcpu)->guest_ia32_pat = data;
+
 		if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
 			vmcs_write64(GUEST_IA32_PAT, data);
 			vcpu->arch.pat = data;

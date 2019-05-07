@@ -3564,10 +3564,6 @@ static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs12->guest_ia32_debugctl = vmcs_read64(GUEST_IA32_DEBUGCTL);
 	}
 
-	/* TODO: These cannot have changed unless we have MSR bitmaps and
-	 * the relevant bit asks not to trap the change */
-	if (vmcs12->vm_exit_controls & VM_EXIT_SAVE_IA32_PAT)
-		vmcs12->guest_ia32_pat = vmcs_read64(GUEST_IA32_PAT);
 	if (vmcs12->vm_exit_controls & VM_EXIT_SAVE_IA32_EFER)
 		vmcs12->guest_ia32_efer = vcpu->arch.efer;
 	vmcs12->guest_sysenter_cs = vmcs_read32(GUEST_SYSENTER_CS);
