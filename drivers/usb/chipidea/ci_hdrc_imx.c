@@ -398,8 +398,9 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		ret = PTR_ERR(data->phy);
 		/* Return -EINVAL if no usbphy is available */
 		if (ret == -ENODEV)
-			ret = -EINVAL;
-		goto err_clk;
+			data->phy = NULL;
+		else
+			goto err_clk;
 	}
 
 	pdata.usb_phy = data->phy;
