@@ -675,8 +675,10 @@ static struct hubp_funcs dcn20_hubp_funcs = {
 	.dmdata_status_done = hubp2_dmdata_status_done,
 	.hubp_read_state = hubp1_read_state,
 	.hubp_clear_underflow = hubp1_clear_underflow,
-	.hubp_set_flip_control_surface_gsl = hubp2_set_flip_control_surface_gsl
+	.hubp_set_flip_control_surface_gsl = hubp2_set_flip_control_surface_gsl,
+	.hubp_init = hubp1_init,
 };
+
 
 bool hubp2_construct(
 	struct dcn20_hubp *hubp2,

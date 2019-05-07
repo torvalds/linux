@@ -601,6 +601,8 @@ static void dcn20_init_hw(struct dc *dc)
 		hubp->power_gated = false;
 		pipe_ctx->stream_res.opp = NULL;
 
+		hubp->funcs->hubp_init(hubp);
+
 		//dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
 		//dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
@@ -1224,7 +1226,7 @@ static void dcn20_program_all_pipe_in_tree(
 		dcn20_program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
 }
 
-static void dcn20_pipe_control_lock_global(
+void dcn20_pipe_control_lock_global(
 		struct dc *dc,
 		struct pipe_ctx *pipe,
 		bool lock)
@@ -1244,7 +1246,7 @@ static void dcn20_pipe_control_lock_global(
 	}
 }
 
-static void dcn20_pipe_control_lock(
+void dcn20_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock)

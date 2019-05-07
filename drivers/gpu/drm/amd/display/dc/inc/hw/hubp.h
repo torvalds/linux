@@ -145,11 +145,11 @@ struct hubp_funcs {
 			uint32_t dmdata_sw_size,
 			const uint32_t *dmdata_sw_data);
 	bool (*dmdata_status_done)(struct hubp *hubp);
-	void(*hubp_enable_tripleBuffer)(
+	void (*hubp_enable_tripleBuffer)(
 		struct hubp *hubp,
 		bool enable);
 
-	bool(*hubp_is_triplebuffer_enabled)(
+	bool (*hubp_is_triplebuffer_enabled)(
 		struct hubp *hubp);
 
 	void (*hubp_set_flip_control_surface_gsl)(
