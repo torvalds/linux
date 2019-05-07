@@ -126,7 +126,4 @@
 #define RING_GFX_MODE(base)	_MMIO((base) + 0x29c)
 #define VF_GUARDBAND		_MMIO(0x83a4)
 
-/* define the effective range of MCHBAR register on Sandybridge+ */
-#define MCHBAR_MIRROR_REG_BASE	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x4000)
-
 #endif
