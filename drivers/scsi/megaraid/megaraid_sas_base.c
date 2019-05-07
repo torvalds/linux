@@ -5534,13 +5534,15 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	}
 
 	if (megasas_transition_to_ready(instance, 0)) {
+		dev_info(&instance->pdev->dev,
+			 "Failed to transition controller to ready from %s!\n",
+			 __func__);
 		if (instance->adapter_type != MFI_SERIES) {
 			status_reg = instance->instancet->read_fw_status_reg(
 					instance);
 			if (status_reg & MFI_RESET_ADAPTER) {
-				instance->instancet->adp_reset
-					(instance, instance->reg_set);
-				if (megasas_transition_to_ready(instance, 0))
+				if (megasas_adp_reset_wait_for_ready
+					(instance, true, 0) == FAILED)
 					goto fail_ready_state;
 			} else {
 				goto fail_ready_state;
@@ -5550,9 +5552,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->instancet->adp_reset
 				(instance, instance->reg_set);
 			atomic_set(&instance->fw_reset_no_pci_access, 0);
-			dev_info(&instance->pdev->dev,
-				 "FW restarted successfully from %s!\n",
-				 __func__);
 
 			/*waiting for about 30 second before retry*/
 			ssleep(30);
@@ -5560,6 +5559,10 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			if (megasas_transition_to_ready(instance, 0))
 				goto fail_ready_state;
 		}
+
+		dev_info(&instance->pdev->dev,
+			 "FW restarted successfully from %s!\n",
+			 __func__);
 	}
 
 	megasas_init_ctrl_params(instance);

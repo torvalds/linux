@@ -99,6 +99,62 @@ extern u32 megasas_readl(struct megasas_instance *instance,
 			 const volatile void __iomem *addr);
 
 /**
+ * megasas_adp_reset_wait_for_ready -	initiate chip reset and wait for
+ *					controller to come to ready state
+ * @instance -				adapter's soft state
+ * @do_adp_reset -			If true, do a chip reset
+ * @ocr_context -			If called from OCR context this will
+ *					be set to 1, else 0
+ *
+ * This function initates a chip reset followed by a wait for controller to
+ * transition to ready state.
+ * During this, driver will block all access to PCI config space from userspace
+ */
+int
+megasas_adp_reset_wait_for_ready(struct megasas_instance *instance,
+				 bool do_adp_reset,
+				 int ocr_context)
+{
+	int ret = FAILED;
+
+	/*
+	 * Block access to PCI config space from userspace
+	 * when diag reset is initiated from driver
+	 */
+	if (megasas_dbg_lvl & OCR_LOGS)
+		dev_info(&instance->pdev->dev,
+			 "Block access to PCI config space %s %d\n",
+			 __func__, __LINE__);
+
+	pci_cfg_access_lock(instance->pdev);
+
+	if (do_adp_reset) {
+		if (instance->instancet->adp_reset
+			(instance, instance->reg_set))
+			goto out;
+	}
+
+	/* Wait for FW to become ready */
+	if (megasas_transition_to_ready(instance, ocr_context)) {
+		dev_warn(&instance->pdev->dev,
+			 "Failed to transition controller to ready for scsi%d.\n",
+			 instance->host->host_no);
+		goto out;
+	}
+
+	ret = SUCCESS;
+out:
+	if (megasas_dbg_lvl & OCR_LOGS)
+		dev_info(&instance->pdev->dev,
+			 "Unlock access to PCI config space %s %d\n",
+			 __func__, __LINE__);
+
+	pci_cfg_access_unlock(instance->pdev);
+
+	return ret;
+}
+
+/**
  * megasas_check_same_4gb_region -	check if allocation
  *					crosses same 4GB boundary or not
  * @instance -				adapter's soft instance
@@ -4693,10 +4749,12 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 
 		/* Now try to reset the chip */
 		for (i = 0; i < max_reset_tries; i++) {
-
-			if (do_adp_reset &&
-			    instance->instancet->adp_reset
-				(instance, instance->reg_set))
+			/*
+			 * Do adp reset and wait for
+			 * controller to transition to ready
+			 */
+			if (megasas_adp_reset_wait_for_ready(instance,
+				do_adp_reset, 1) == FAILED)
 				continue;
 
 			/* Wait for FW to become ready */
