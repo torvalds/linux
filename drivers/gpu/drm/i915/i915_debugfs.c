@@ -3901,14 +3901,26 @@ i915_drop_caches_set(void *data, u64 val)
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
-	if (val & (DROP_ACTIVE | DROP_RETIRE | DROP_RESET_SEQNO)) {
+	if (val & (DROP_ACTIVE | DROP_IDLE | DROP_RETIRE | DROP_RESET_SEQNO)) {
 		int ret;
 
 		ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 		if (ret)
 			return ret;
 
-		if (val & DROP_ACTIVE)
+		/*
+		 * To finish the flush of the idle_worker, we must complete
+		 * the switch-to-kernel-context, which requires a double
+		 * pass through wait_for_idle: first queues the switch,
+		 * second waits for the switch.
+		 */
+		if (ret == 0 && val & (DROP_IDLE | DROP_ACTIVE))
+			ret = i915_gem_wait_for_idle(i915,
+						     I915_WAIT_INTERRUPTIBLE |
+						     I915_WAIT_LOCKED,
+						     MAX_SCHEDULE_TIMEOUT);
+
+		if (ret == 0 && val & DROP_IDLE)
 			ret = i915_gem_wait_for_idle(i915,
 						     I915_WAIT_INTERRUPTIBLE |
 						     I915_WAIT_LOCKED,
