@@ -3910,7 +3910,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	}
 
 	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
+	if (!IS_ERR(mac_addr))
 		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	ugeth->ug_info = ug_info;
