@@ -26,6 +26,7 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_priv.h"
 #include "kfd_kernel_queue.h"
+#include "amdgpu_amdkfd.h"
 
 static inline struct process_queue_node *get_queue_by_qid(
 			struct process_queue_manager *pqm, unsigned int qid)
@@ -72,6 +73,55 @@ void kfd_process_dequeue_from_device(struct kfd_process_device *pdd)
 
 	dev->dqm->ops.process_termination(dev->dqm, &pdd->qpd);
 	pdd->already_dequeued = true;
+}
+
+int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
+			void *gws)
+{
+	struct kfd_dev *dev = NULL;
+	struct process_queue_node *pqn;
+	struct kfd_process_device *pdd;
+	struct kgd_mem *mem = NULL;
+	int ret;
+
+	pqn = get_queue_by_qid(pqm, qid);
+	if (!pqn) {
+		pr_err("Queue id does not match any known queue\n");
+		return -EINVAL;
+	}
+
+	if (pqn->q)
+		dev = pqn->q->device;
+	if (WARN_ON(!dev))
+		return -ENODEV;
+
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -EINVAL;
+	}
+
+	/* Only allow one queue per process can have GWS assigned */
+	if (gws && pdd->qpd.num_gws)
+		return -EINVAL;
+
+	if (!gws && pdd->qpd.num_gws == 0)
+		return -EINVAL;
+
+	if (gws)
+		ret = amdgpu_amdkfd_add_gws_to_process(pdd->process->kgd_process_info,
+			gws, &mem);
+	else
+		ret = amdgpu_amdkfd_remove_gws_from_process(pdd->process->kgd_process_info,
+			pqn->q->gws);
+	if (unlikely(ret))
+		return ret;
+
+	pqn->q->gws = mem;
+	pdd->qpd.num_gws = gws ? amdgpu_amdkfd_get_num_gws(dev->kgd) : 0;
+
+	return pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
+							pqn->q);
 }
 
 void kfd_process_dequeue_from_all_devices(struct kfd_process *p)
@@ -330,6 +380,13 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 			if (retval != -ETIME)
 				goto err_destroy_queue;
 		}
+
+		if (pqn->q->gws) {
+			amdgpu_amdkfd_remove_gws_from_process(pqm->process->kgd_process_info,
+				pqn->q->gws);
+			pdd->qpd.num_gws = 0;
+		}
+
 		kfree(pqn->q->properties.cu_mask);
 		pqn->q->properties.cu_mask = NULL;
 		uninit_queue(pqn->q);

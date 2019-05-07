@@ -455,6 +455,9 @@ struct queue_properties {
  *
  * @device: The kfd device that created this queue.
  *
+ * @gws: Pointing to gws kgd_mem if this is a gws control queue; NULL
+ * otherwise.
+ *
  * This structure represents user mode compute queues.
  * It contains all the necessary data to handle such queues.
  *
@@ -476,6 +479,7 @@ struct queue {
 
 	struct kfd_process	*process;
 	struct kfd_dev		*device;
+	void *gws;
 };
 
 /*
@@ -869,6 +873,8 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
 int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
+int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
+			void *gws);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
 int pqm_get_wave_state(struct process_queue_manager *pqm,
