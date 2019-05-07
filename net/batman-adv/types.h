@@ -1171,6 +1171,26 @@ struct batadv_mcast_querier_state {
 };
 
 /**
+ * struct batadv_mcast_mla_flags - flags for the querier, bridge and tvlv state
+ */
+struct batadv_mcast_mla_flags {
+	/** @querier_ipv4: the current state of an IGMP querier in the mesh */
+	struct batadv_mcast_querier_state querier_ipv4;
+
+	/** @querier_ipv6: the current state of an MLD querier in the mesh */
+	struct batadv_mcast_querier_state querier_ipv6;
+
+	/** @enabled: whether the multicast tvlv is currently enabled */
+	unsigned char enabled:1;
+
+	/** @bridged: whether the soft interface has a bridge on top */
+	unsigned char bridged:1;
+
+	/** @tvlv_flags: the flags we have last sent in our mcast tvlv */
+	u8 tvlv_flags;
+};
+
+/**
  * struct batadv_priv_mcast - per mesh interface mcast data
  */
 struct batadv_priv_mcast {
@@ -1198,20 +1218,10 @@ struct batadv_priv_mcast {
 	 */
 	struct hlist_head want_all_ipv6_list;
 
-	/** @querier_ipv4: the current state of an IGMP querier in the mesh */
-	struct batadv_mcast_querier_state querier_ipv4;
-
-	/** @querier_ipv6: the current state of an MLD querier in the mesh */
-	struct batadv_mcast_querier_state querier_ipv6;
-
-	/** @flags: the flags we have last sent in our mcast tvlv */
-	u8 flags;
-
-	/** @enabled: whether the multicast tvlv is currently enabled */
-	unsigned char enabled:1;
-
-	/** @bridged: whether the soft interface has a bridge on top */
-	unsigned char bridged:1;
+	/**
+	 * @mla_flags: flags for the querier, bridge and tvlv state
+	 */
+	struct batadv_mcast_mla_flags mla_flags;
 
 	/**
 	 * @mla_lock: a lock protecting mla_list and mla_flags

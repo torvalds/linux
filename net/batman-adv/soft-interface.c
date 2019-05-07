@@ -804,11 +804,6 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->distributed_arp_table, 1);
 #endif
 #ifdef CONFIG_BATMAN_ADV_MCAST
-	bat_priv->mcast.querier_ipv4.exists = false;
-	bat_priv->mcast.querier_ipv4.shadowing = false;
-	bat_priv->mcast.querier_ipv6.exists = false;
-	bat_priv->mcast.querier_ipv6.shadowing = false;
-	bat_priv->mcast.flags = BATADV_NO_FLAGS;
 	atomic_set(&bat_priv->multicast_mode, 1);
 	atomic_set(&bat_priv->multicast_fanout, 16);
 	atomic_set(&bat_priv->mcast.num_want_all_unsnoopables, 0);
