@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-16 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,37 +23,22 @@
  *
  */
 
+#ifndef __DCN20_CLK_MGR_H__
+#define __DCN20_CLK_MGR_H__
 
-#ifndef _DCE_CLK_MGR_H_
-#define _DCE_CLK_MGR_H_
+void dcn2_update_clocks(struct clk_mgr *dccg,
+			struct dc_state *context,
+			bool safe_to_lower);
 
-#include "dc.h"
+void dcn2_update_clocks_fpga(struct clk_mgr *clk_mgr,
+			struct dc_state *context,
+			bool safe_to_lower);
 
-/* functions shared by other dce clk mgrs */
-int dce_adjust_dp_ref_freq_for_ss(struct clk_mgr_internal *clk_mgr_dce, int dp_ref_clk_khz);
-int dce_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base);
-enum dm_pp_clocks_state dce_get_required_clocks_state(
-	struct clk_mgr *clk_mgr_base,
-	struct dc_state *context);
+void dcn2_init_clocks(struct clk_mgr *clk_mgr);
 
-uint32_t dce_get_max_pixel_clock_for_all_paths(struct dc_state *context);
+void dcn20_clk_mgr_construct(struct dc_context *ctx,
+		struct clk_mgr_internal *clk_mgr,
+		struct pp_smu_funcs *pp_smu,
+		struct dccg *dccg);
 
-
-void dce_clk_mgr_construct(
-		struct dc_context *ctx,
-		struct clk_mgr_internal *clk_mgr_dce);
-
-void dce_clock_read_ss_info(struct clk_mgr_internal *dccg_dce);
-
-int dce12_get_dp_ref_freq_khz(struct clk_mgr *dccg);
-
-int dce_set_clock(
-	struct clk_mgr *clk_mgr_base,
-	int requested_clk_khz);
-
-
-void dce_clk_mgr_destroy(struct clk_mgr **clk_mgr);
-
-int dentist_get_divider_from_did(int did);
-
-#endif /* _DCE_CLK_MGR_H_ */
+#endif //__DCN20_CLK_MGR_H__

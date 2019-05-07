@@ -68,59 +68,57 @@ static const struct IP_BASE MP1_BASE  = { { { { 0x00016000, 0, 0, 0, 0 } },
 #define VBIOSSMC_MSG_SetDispclkFreq           0x4
 #define VBIOSSMC_MSG_SetDprefclkFreq          0x5
 
-int rv1_vbios_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr, unsigned int msg_id, unsigned int param)
+int rv1_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispclk_khz)
 {
+
+	int actual_dispclk_set_khz = -1;
+	struct dc *core_dc = clk_mgr->base.ctx->dc;
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+
 	/* First clear response register */
+	//dm_write_reg(ctx, mmMP1_SMN_C2PMSG_91, 0);
 	REG_WRITE(MP1_SMN_C2PMSG_91, 0);
 
 	/* Set the parameter register for the SMU message, unit is Mhz */
-	REG_WRITE(MP1_SMN_C2PMSG_83, param);
+	//dm_write_reg(ctx, mmMP1_SMN_C2PMSG_83, requested_dispclk_khz / 1000);
+	REG_WRITE(MP1_SMN_C2PMSG_83, requested_dispclk_khz / 1000);
 
 	/* Trigger the message transaction by writing the message ID */
-	REG_WRITE(MP1_SMN_C2PMSG_67, msg_id);
+	//dm_write_reg(ctx, mmMP1_SMN_C2PMSG_67, VBIOSSMC_MSG_SetDispclkFreq);
+	REG_WRITE(MP1_SMN_C2PMSG_67, VBIOSSMC_MSG_SetDispclkFreq);
 
 	REG_WAIT(MP1_SMN_C2PMSG_91, CONTENT, 1, 10, 200000);
 
 	/* Actual dispclk set is returned in the parameter register */
-	return REG_READ(MP1_SMN_C2PMSG_83);
-}
-
-int rv1_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispclk_khz)
-{
-	int actual_dispclk_set_mhz = -1;
-	struct dc *core_dc = clk_mgr->base.ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
-
-	/*  Unit of SMU msg parameter is Mhz */
-	actual_dispclk_set_mhz = rv1_vbios_smu_send_msg_with_param(
-			clk_mgr,
-			VBIOSSMC_MSG_SetDispclkFreq,
-			requested_dispclk_khz / 1000);
-
-	/* Actual dispclk set is returned in the parameter register */
-	actual_dispclk_set_mhz = REG_READ(MP1_SMN_C2PMSG_83) * 1000;
+	actual_dispclk_set_khz = REG_READ(MP1_SMN_C2PMSG_83) * 1000;
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
 		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
-			if (clk_mgr->dfs_bypass_disp_clk != actual_dispclk_set_mhz)
+			if (clk_mgr->dfs_bypass_disp_clk != actual_dispclk_set_khz)
 				dmcu->funcs->set_psr_wait_loop(dmcu,
-						actual_dispclk_set_mhz / 7);
+						actual_dispclk_set_khz / 1000 / 7);
 		}
 	}
 
-	return actual_dispclk_set_mhz * 1000;
+	return actual_dispclk_set_khz;
 }
 
 int rv1_vbios_smu_set_dprefclk(struct clk_mgr_internal *clk_mgr)
 {
-	int actual_dprefclk_set_mhz = -1;
+	int actual_dprefclk_set_khz = -1;
 
-	actual_dprefclk_set_mhz = rv1_vbios_smu_send_msg_with_param(
-			clk_mgr,
-			VBIOSSMC_MSG_SetDprefclkFreq,
-			clk_mgr->base.dprefclk_khz / 1000);
+	REG_WRITE(MP1_SMN_C2PMSG_91, 0);
 
-	/* TODO: add code for programing DP DTO, currently this is down by command table */
+	/* Set the parameter register for the SMU message */
+	REG_WRITE(MP1_SMN_C2PMSG_83, clk_mgr->base.dprefclk_khz / 1000);
 
-	return actual_dprefclk_set_mhz * 1000;
+	/* Trigger the message transaction by writing the message ID */
+	REG_WRITE(MP1_SMN_C2PMSG_67, VBIOSSMC_MSG_SetDprefclkFreq);
+
+	/* Wait for SMU response */
+	REG_WAIT(MP1_SMN_C2PMSG_91, CONTENT, 1, 10, 200000);
+
+	actual_dprefclk_set_khz = REG_READ(MP1_SMN_C2PMSG_83) * 1000;
+
+	return actual_dprefclk_set_khz;
 }
