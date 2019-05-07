@@ -489,9 +489,8 @@ static int rtw_drv_init(
 
 	/* dev_alloc_name && register_netdev */
 	status = rtw_drv_register_netdev(if1);
-	if (status != _SUCCESS) {
+	if (status != _SUCCESS)
 		goto free_if2;
-	}
 
 	if (sdio_alloc_irq(dvobj) != _SUCCESS)
 		goto free_if2;
