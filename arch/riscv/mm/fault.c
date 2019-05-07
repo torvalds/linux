@@ -229,8 +229,9 @@ vmalloc_fault:
 		pte_t *pte_k;
 		int index;
 
+		/* User mode accesses just cause a SIGSEGV */
 		if (user_mode(regs))
-			goto bad_area;
+			return do_trap(regs, SIGSEGV, code, addr, tsk);
 
 		/*
 		 * Synchronize this task's top level page-table
