@@ -34,15 +34,6 @@ extern int pciehp_poll_time;
  * Set CONFIG_DYNAMIC_DEBUG=y and boot with 'dyndbg="file pciehp* +p"' to
  * enable debug messages.
  */
-#define dbg(format, arg...)						\
-	pr_debug(format, ## arg);
-#define err(format, arg...)						\
-	pr_err(format, ## arg)
-#define info(format, arg...)						\
-	pr_info(format, ## arg)
-#define warn(format, arg...)						\
-	pr_warn(format, ## arg)
-
 #define ctrl_dbg(ctrl, format, arg...)					\
 	pci_dbg(ctrl->pcie->port, format, ## arg)
 #define ctrl_err(ctrl, format, arg...)					\
