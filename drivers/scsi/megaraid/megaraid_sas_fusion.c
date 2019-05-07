@@ -202,7 +202,8 @@ megasas_enable_intr_fusion(struct megasas_instance *instance)
 	writel(~MFI_FUSION_ENABLE_INTERRUPT_MASK, &(regs)->outbound_intr_mask);
 
 	/* Dummy readl to force pci flush */
-	readl(&regs->outbound_intr_mask);
+	dev_info(&instance->pdev->dev, "%s is called outbound_intr_mask:0x%08x\n",
+		 __func__, readl(&regs->outbound_intr_mask));
 }
 
 /**
@@ -213,14 +214,14 @@ void
 megasas_disable_intr_fusion(struct megasas_instance *instance)
 {
 	u32 mask = 0xFFFFFFFF;
-	u32 status;
 	struct megasas_register_set __iomem *regs;
 	regs = instance->reg_set;
 	instance->mask_interrupts = 1;
 
 	writel(mask, &regs->outbound_intr_mask);
 	/* Dummy readl to force pci flush */
-	status = readl(&regs->outbound_intr_mask);
+	dev_info(&instance->pdev->dev, "%s is called outbound_intr_mask:0x%08x\n",
+		 __func__, readl(&regs->outbound_intr_mask));
 }
 
 int
@@ -4894,9 +4895,9 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 
 			atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
 
-			dev_info(&instance->pdev->dev, "Interrupts are enabled and"
-				" controller is OPERATIONAL for scsi:%d\n",
-				instance->host->host_no);
+			dev_info(&instance->pdev->dev,
+				 "Adapter is OPERATIONAL for scsi:%d\n",
+				 instance->host->host_no);
 
 			/* Restart SR-IOV heartbeat */
 			if (instance->requestorId) {
