@@ -36,7 +36,7 @@ Documentation/devicetree/bindings/phy/phy-bindings.txt.
   * "smii"
   * "xgmii"
   * "trgmii"
-  * "2000base-x",
+  * "1000base-x",
   * "2500base-x",
   * "rxaui"
   * "xaui"
