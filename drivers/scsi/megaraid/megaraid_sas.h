@@ -2173,6 +2173,9 @@ struct megasas_aen_event {
 struct megasas_irq_context {
 	struct megasas_instance *instance;
 	u32 MSIxIndex;
+	u32 os_irq;
+	struct irq_poll irqpoll;
+	bool irq_poll_scheduled;
 };
 
 struct MR_DRV_SYSTEM_INFO {
@@ -2303,6 +2306,7 @@ struct megasas_instance {
 	struct pci_dev *pdev;
 	u32 unique_id;
 	u32 fw_support_ieee;
+	u32 threshold_reply_count;
 
 	atomic_t fw_outstanding;
 	atomic_t ldio_outstanding;
@@ -2639,4 +2643,5 @@ void megasas_set_dma_settings(struct megasas_instance *instance,
 int megasas_adp_reset_wait_for_ready(struct megasas_instance *instance,
 				     bool do_adp_reset,
 				     int ocr_context);
+int megasas_irqpoll(struct irq_poll *irqpoll, int budget);
 #endif				/*LSI_MEGARAID_SAS_H */

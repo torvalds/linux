@@ -48,6 +48,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
+#include <linux/irq_poll.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -5271,6 +5272,25 @@ fail_alloc_cmds:
 	return 1;
 }
 
+static
+void megasas_setup_irq_poll(struct megasas_instance *instance)
+{
+	struct megasas_irq_context *irq_ctx;
+	u32 count, i;
+
+	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
+
+	/* Initialize IRQ poll */
+	for (i = 0; i < count; i++) {
+		irq_ctx = &instance->irq_context[i];
+		irq_ctx->os_irq = pci_irq_vector(instance->pdev, i);
+		irq_ctx->irq_poll_scheduled = false;
+		irq_poll_init(&irq_ctx->irqpoll,
+			      instance->threshold_reply_count,
+			      megasas_irqpoll);
+	}
+}
+
 /*
  * megasas_setup_irqs_ioapic -		register legacy interrupts.
  * @instance:				Adapter soft state
@@ -5349,6 +5369,16 @@ static void
 megasas_destroy_irqs(struct megasas_instance *instance) {
 
 	int i;
+	int count;
+	struct megasas_irq_context *irq_ctx;
+
+	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
+	if (instance->adapter_type != MFI_SERIES) {
+		for (i = 0; i < count; i++) {
+			irq_ctx = &instance->irq_context[i];
+			irq_poll_disable(&irq_ctx->irqpoll);
+		}
+	}
 
 	if (instance->msix_vectors)
 		for (i = 0; i < instance->msix_vectors; i++) {
@@ -5720,6 +5750,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		megasas_setup_irqs_msix(instance, 1) :
 		megasas_setup_irqs_ioapic(instance))
 		goto fail_init_adapter;
+
+	if (instance->adapter_type != MFI_SERIES)
+		megasas_setup_irq_poll(instance);
 
 	instance->instancet->enable_intr(instance);
 
@@ -7184,6 +7217,9 @@ megasas_resume(struct pci_dev *pdev)
 			megasas_setup_irqs_msix(instance, 0) :
 			megasas_setup_irqs_ioapic(instance))
 		goto fail_init_mfi;
+
+	if (instance->adapter_type != MFI_SERIES)
+		megasas_setup_irq_poll(instance);
 
 	/* Re-launch SR-IOV heartbeat timer */
 	if (instance->requestorId) {

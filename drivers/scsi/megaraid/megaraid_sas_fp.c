@@ -45,6 +45,7 @@
 #include <linux/compat.h>
 #include <linux/blkdev.h>
 #include <linux/poll.h>
+#include <linux/irq_poll.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
