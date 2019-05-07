@@ -42,11 +42,10 @@ p1 << search.p1;
 p2 << search.p2;
 @@
 
-coccilib.report.print_report(p2[0], "ERROR: missing put_device; "
-			      + "call of_find_device_by_node on line "
-			      + p1[0].line
-			      + ", but without a corresponding object release "
-			      + "within this function.")
+coccilib.report.print_report(p2[0],
+                             "ERROR: missing put_device; call of_find_device_by_node on line "
+                             + p1[0].line
+                             + ", but without a corresponding object release within this function.")
 
 @script:python depends on org@
 p1 << search.p1;
