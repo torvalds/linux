@@ -294,15 +294,6 @@ struct fpu {
 	unsigned int			last_cpu;
 
 	/*
-	 * @initialized:
-	 *
-	 * This flag indicates whether this context is initialized: if the task
-	 * is not running then we can restore from this context, if the task
-	 * is running then we should save into this context.
-	 */
-	unsigned char			initialized;
-
-	/*
 	 * @avx512_timestamp:
 	 *
 	 * Records the timestamp of AVX512 use during last context switch.
