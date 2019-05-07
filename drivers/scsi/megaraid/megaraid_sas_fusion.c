@@ -122,7 +122,7 @@ megasas_adp_reset_wait_for_ready(struct megasas_instance *instance,
 	 * Block access to PCI config space from userspace
 	 * when diag reset is initiated from driver
 	 */
-	if (megasas_dbg_lvl & OCR_LOGS)
+	if (megasas_dbg_lvl & OCR_DEBUG)
 		dev_info(&instance->pdev->dev,
 			 "Block access to PCI config space %s %d\n",
 			 __func__, __LINE__);
@@ -145,7 +145,7 @@ megasas_adp_reset_wait_for_ready(struct megasas_instance *instance,
 
 	ret = SUCCESS;
 out:
-	if (megasas_dbg_lvl & OCR_LOGS)
+	if (megasas_dbg_lvl & OCR_DEBUG)
 		dev_info(&instance->pdev->dev,
 			 "Unlock access to PCI config space %s %d\n",
 			 __func__, __LINE__);
@@ -4518,9 +4518,6 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 
-	scmd_printk(KERN_INFO, scmd, "task abort called for scmd(%p)\n", scmd);
-	scsi_print_command(scmd);
-
 	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		dev_err(&instance->pdev->dev, "Controller is not OPERATIONAL,"
 		"SCSI host:%d\n", instance->host->host_no);
@@ -4563,7 +4560,7 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 		goto out;
 	}
 	sdev_printk(KERN_INFO, scmd->device,
-		"attempting task abort! scmd(%p) tm_dev_handle 0x%x\n",
+		"attempting task abort! scmd(0x%p) tm_dev_handle 0x%x\n",
 		scmd, devhandle);
 
 	mr_device_priv_data->tm_busy = 1;
@@ -4574,9 +4571,12 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 	mr_device_priv_data->tm_busy = 0;
 
 	mutex_unlock(&instance->reset_mutex);
-out:
-	sdev_printk(KERN_INFO, scmd->device, "task abort: %s scmd(%p)\n",
+	scmd_printk(KERN_INFO, scmd, "task abort %s!! scmd(0x%p)\n",
 			((ret == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
+out:
+	scsi_print_command(scmd);
+	if (megasas_dbg_lvl & TM_DEBUG)
+		megasas_dump_fusion_io(scmd);
 
 	return ret;
 }
@@ -4599,9 +4599,6 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 
-	sdev_printk(KERN_INFO, scmd->device,
-		    "target reset called for scmd(%p)\n", scmd);
-
 	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
 		dev_err(&instance->pdev->dev, "Controller is not OPERATIONAL,"
 		"SCSI host:%d\n", instance->host->host_no);
@@ -4610,8 +4607,8 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 	}
 
 	if (!mr_device_priv_data) {
-		sdev_printk(KERN_INFO, scmd->device, "device been deleted! "
-			"scmd(%p)\n", scmd);
+		sdev_printk(KERN_INFO, scmd->device,
+			    "device been deleted! scmd: (0x%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		ret = SUCCESS;
 		goto out;
@@ -4634,7 +4631,7 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 	}
 
 	sdev_printk(KERN_INFO, scmd->device,
-		"attempting target reset! scmd(%p) tm_dev_handle 0x%x\n",
+		"attempting target reset! scmd(0x%p) tm_dev_handle: 0x%x\n",
 		scmd, devhandle);
 	mr_device_priv_data->tm_busy = 1;
 	ret = megasas_issue_tm(instance, devhandle,
@@ -4643,10 +4640,10 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 			mr_device_priv_data);
 	mr_device_priv_data->tm_busy = 0;
 	mutex_unlock(&instance->reset_mutex);
-out:
-	scmd_printk(KERN_NOTICE, scmd, "megasas: target reset %s!!\n",
+	scmd_printk(KERN_NOTICE, scmd, "target reset %s!!\n",
 		(ret == SUCCESS) ? "SUCCESS" : "FAILED");
 
+out:
 	return ret;
 }
 
@@ -4691,7 +4688,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 	struct megasas_instance *instance;
 	struct megasas_cmd_fusion *cmd_fusion, *r1_cmd;
 	struct fusion_context *fusion;
-	u32 abs_state, status_reg, reset_adapter;
+	u32 abs_state, status_reg, reset_adapter, fpio_count = 0;
 	u32 io_timeout_in_crash_mode = 0;
 	struct scsi_cmnd *scmd_local = NULL;
 	struct scsi_device *sdev;
@@ -4765,7 +4762,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		if (convert)
 			reason = 0;
 
-		if (megasas_dbg_lvl & OCR_LOGS)
+		if (megasas_dbg_lvl & OCR_DEBUG)
 			dev_info(&instance->pdev->dev, "\nPending SCSI commands:\n");
 
 		/* Now return commands back to the OS */
@@ -4778,12 +4775,16 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			}
 			scmd_local = cmd_fusion->scmd;
 			if (cmd_fusion->scmd) {
-				if (megasas_dbg_lvl & OCR_LOGS) {
+				if (megasas_dbg_lvl & OCR_DEBUG) {
 					sdev_printk(KERN_INFO,
 						cmd_fusion->scmd->device, "SMID: 0x%x\n",
 						cmd_fusion->index);
-					scsi_print_command(cmd_fusion->scmd);
+					megasas_dump_fusion_io(cmd_fusion->scmd);
 				}
+
+				if (cmd_fusion->io_request->Function ==
+					MPI2_FUNCTION_SCSI_IO_REQUEST)
+					fpio_count++;
 
 				scmd_local->result =
 					megasas_check_mpio_paths(instance,
@@ -4796,6 +4797,9 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 				scmd_local->scsi_done(scmd_local);
 			}
 		}
+
+		dev_info(&instance->pdev->dev, "Outstanding fastpath IOs: %d\n",
+			fpio_count);
 
 		atomic_set(&instance->fw_outstanding, 0);
 
