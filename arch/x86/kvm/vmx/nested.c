@@ -2047,8 +2047,18 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	 * A vmexit (to either L1 hypervisor or L0 userspace) is always needed
 	 * for I/O port accesses.
 	 */
-	exec_control &= ~CPU_BASED_USE_IO_BITMAPS;
 	exec_control |= CPU_BASED_UNCOND_IO_EXITING;
+	exec_control &= ~CPU_BASED_USE_IO_BITMAPS;
+
+	/*
+	 * This bit will be computed in nested_get_vmcs12_pages, because
+	 * we do not have access to L1's MSR bitmap yet.  For now, keep
+	 * the same bit as before, hoping to avoid multiple VMWRITEs that
+	 * only set/clear this bit.
+	 */
+	exec_control &= ~CPU_BASED_USE_MSR_BITMAPS;
+	exec_control |= exec_controls_get(vmx) & CPU_BASED_USE_MSR_BITMAPS;
+
 	exec_controls_set(vmx, exec_control);
 
 	/*
