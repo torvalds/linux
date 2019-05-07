@@ -185,8 +185,7 @@ static void __init cyc2ns_init_boot_cpu(void)
 /*
  * Secondary CPUs do not run through tsc_init(), so set up
  * all the scale factors for all CPUs, assuming the same
- * speed as the bootup CPU. (cpufreq notifiers will fix this
- * up if their speed diverges)
+ * speed as the bootup CPU.
  */
 static void __init cyc2ns_init_secondary_cpus(void)
 {
@@ -940,12 +939,12 @@ void tsc_restore_sched_clock_state(void)
 }
 
 #ifdef CONFIG_CPU_FREQ
-/* Frequency scaling support. Adjust the TSC based timer when the cpu frequency
+/*
+ * Frequency scaling support. Adjust the TSC based timer when the CPU frequency
  * changes.
  *
- * RED-PEN: On SMP we assume all CPUs run with the same frequency.  It's
- * not that important because current Opteron setups do not support
- * scaling on SMP anyroads.
+ * NOTE: On SMP the situation is not fixable in general, so simply mark the TSC
+ * as unstable and give up in those cases.
  *
  * Should fix up last_tsc too. Currently gettimeofday in the
  * first tick after the change will be slightly wrong.
@@ -959,22 +958,22 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				void *data)
 {
 	struct cpufreq_freqs *freq = data;
-	unsigned long *lpj;
 
-	lpj = &boot_cpu_data.loops_per_jiffy;
-#ifdef CONFIG_SMP
-	if (!(freq->flags & CPUFREQ_CONST_LOOPS))
-		lpj = &cpu_data(freq->cpu).loops_per_jiffy;
-#endif
+	if (num_online_cpus() > 1) {
+		mark_tsc_unstable("cpufreq changes on SMP");
+		return 0;
+	}
 
 	if (!ref_freq) {
 		ref_freq = freq->old;
-		loops_per_jiffy_ref = *lpj;
+		loops_per_jiffy_ref = boot_cpu_data.loops_per_jiffy;
 		tsc_khz_ref = tsc_khz;
 	}
+
 	if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
-			(val == CPUFREQ_POSTCHANGE && freq->old > freq->new)) {
-		*lpj = cpufreq_scale(loops_per_jiffy_ref, ref_freq, freq->new);
+	    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new)) {
+		boot_cpu_data.loops_per_jiffy =
+			cpufreq_scale(loops_per_jiffy_ref, ref_freq, freq->new);
 
 		tsc_khz = cpufreq_scale(tsc_khz_ref, ref_freq, freq->new);
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
