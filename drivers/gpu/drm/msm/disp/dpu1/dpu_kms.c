@@ -56,7 +56,7 @@ static const char * const iommu_ports[] = {
 #define DPU_DEBUGFS_HWMASKNAME "hw_log_mask"
 
 static int dpu_kms_hw_init(struct msm_kms *kms);
-static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms);
+static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms);
 
 static unsigned long dpu_iomap_size(struct platform_device *pdev,
 				    const char *name)
@@ -713,9 +713,12 @@ static const struct msm_kms_funcs kms_funcs = {
 #endif
 };
 
-static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
+static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 {
 	struct msm_mmu *mmu;
+
+	if (!dpu_kms->base.aspace)
+		return;
 
 	mmu = dpu_kms->base.aspace->mmu;
 
@@ -723,7 +726,7 @@ static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 			ARRAY_SIZE(iommu_ports));
 	msm_gem_address_space_put(dpu_kms->base.aspace);
 
-	return 0;
+	dpu_kms->base.aspace = NULL;
 }
 
 static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
