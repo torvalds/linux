@@ -3844,7 +3844,7 @@ static void vmx_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, vmx_pin_based_exec_ctrl(vmx));
+	pin_controls_set(vmx, vmx_pin_based_exec_ctrl(vmx));
 	if (cpu_has_secondary_exec_ctrls()) {
 		if (kvm_vcpu_apicv_active(vcpu))
 			vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
@@ -4042,7 +4042,7 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
 
 	/* Control */
-	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, vmx_pin_based_exec_ctrl(vmx));
+	pin_controls_init(vmx, vmx_pin_based_exec_ctrl(vmx));
 	vmx->hv_deadline_tsc = -1;
 
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, vmx_exec_control(vmx));
@@ -6366,8 +6366,7 @@ static void vmx_arm_hv_timer(struct vcpu_vmx *vmx, u32 val)
 {
 	vmcs_write32(VMX_PREEMPTION_TIMER_VALUE, val);
 	if (!vmx->loaded_vmcs->hv_timer_armed)
-		vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
-			      PIN_BASED_VMX_PREEMPTION_TIMER);
+		pin_controls_setbit(vmx, PIN_BASED_VMX_PREEMPTION_TIMER);
 	vmx->loaded_vmcs->hv_timer_armed = true;
 }
 
@@ -6396,8 +6395,7 @@ static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 	}
 
 	if (vmx->loaded_vmcs->hv_timer_armed)
-		vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
-				PIN_BASED_VMX_PREEMPTION_TIMER);
+		pin_controls_clearbit(vmx, PIN_BASED_VMX_PREEMPTION_TIMER);
 	vmx->loaded_vmcs->hv_timer_armed = false;
 }
 

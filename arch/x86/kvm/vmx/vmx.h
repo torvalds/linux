@@ -88,6 +88,7 @@ struct pt_desc {
 struct vmx_controls_shadow {
 	u32 vm_entry;
 	u32 vm_exit;
+	u32 pin;
 };
 
 /*
@@ -423,6 +424,7 @@ static inline void lname##_controls_clearbit(struct vcpu_vmx *vmx, u32 val) \
 }
 BUILD_CONTROLS_SHADOW(vm_entry, VM_ENTRY_CONTROLS)
 BUILD_CONTROLS_SHADOW(vm_exit, VM_EXIT_CONTROLS)
+BUILD_CONTROLS_SHADOW(pin, PIN_BASED_VM_EXEC_CONTROL)
 
 static inline void vmx_segment_cache_clear(struct vcpu_vmx *vmx)
 {

@@ -285,6 +285,7 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 
 	vm_entry_controls_reset_shadow(vmx);
 	vm_exit_controls_reset_shadow(vmx);
+	pin_controls_reset_shadow(vmx);
 	vmx_segment_cache_clear(vmx);
 }
 
@@ -2026,7 +2027,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	} else {
 		exec_control &= ~PIN_BASED_POSTED_INTR;
 	}
-	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, exec_control);
+	pin_controls_init(vmx, exec_control);
 
 	/*
 	 * EXEC CONTROLS
