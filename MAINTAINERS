@@ -5599,6 +5599,12 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/ghes_edac.c
 
+EDAC-I10NM
+M:	Tony Luck <tony.luck@intel.com>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/edac/i10nm_base.c
+
 EDAC-I3000
 L:	linux-edac@vger.kernel.org
 S:	Orphan
@@ -5680,7 +5686,7 @@ EDAC-SKYLAKE
 M:	Tony Luck <tony.luck@intel.com>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
-F:	drivers/edac/skx_edac.c
+F:	drivers/edac/skx_*.c
 
 EDAC-TI
 M:	Tero Kristo <t-kristo@ti.com>
