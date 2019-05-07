@@ -2862,6 +2862,24 @@ megasas_dump(void *buf, int sz, int format)
 }
 
 /**
+ * megasas_dump_reg_set -	This function will print hexdump of register set
+ * @buf:			Buffer to be dumped
+ * @sz:				Size in bytes
+ * @format:			Different formats of dumping e.g. format=n will
+ *				cause only 'n' 32 bit words to be dumped in a
+ *				single line.
+ */
+inline void
+megasas_dump_reg_set(void __iomem *reg_set)
+{
+	unsigned int i, sz = 256;
+	u32 __iomem *reg = (u32 __iomem *)reg_set;
+
+	for (i = 0; i < (sz / sizeof(u32)); i++)
+		printk("%08x: %08x\n", (i * 4), readl(&reg[i]));
+}
+
+/**
  * megasas_dump_fusion_io -	This function will print key details
  *				of SCSI IO
  * @scmd:			SCSI command pointer of SCSI IO
@@ -3890,8 +3908,11 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 				max_wait = MEGASAS_RESET_WAIT_TIME;
 				cur_state = MFI_STATE_FAULT;
 				break;
-			} else
+			} else {
+				dev_printk(KERN_DEBUG, &instance->pdev->dev, "System Register set:\n");
+				megasas_dump_reg_set(instance->reg_set);
 				return -ENODEV;
+			}
 
 		case MFI_STATE_WAIT_HANDSHAKE:
 			/*
@@ -3999,6 +4020,8 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 		default:
 			dev_printk(KERN_DEBUG, &instance->pdev->dev, "Unknown state 0x%x\n",
 			       fw_state);
+			dev_printk(KERN_DEBUG, &instance->pdev->dev, "System Register set:\n");
+			megasas_dump_reg_set(instance->reg_set);
 			return -ENODEV;
 		}
 
@@ -4021,6 +4044,8 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 		if (curr_abs_state == abs_state) {
 			dev_printk(KERN_DEBUG, &instance->pdev->dev, "FW state [%d] hasn't changed "
 			       "in %d secs\n", fw_state, max_wait);
+			dev_printk(KERN_DEBUG, &instance->pdev->dev, "System Register set:\n");
+			megasas_dump_reg_set(instance->reg_set);
 			return -ENODEV;
 		}
 
