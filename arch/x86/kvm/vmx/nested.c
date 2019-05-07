@@ -1943,6 +1943,9 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 	if (enable_pml)
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
 
+	if (cpu_has_vmx_encls_vmexit())
+		vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
+
 	/*
 	 * Set the MSR load/store lists to match L0's settings.  Only the
 	 * addresses are constant (for vmcs02), the counts can change based
@@ -2064,9 +2067,6 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		 */
 		if (exec_control & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)
 			vmcs_write64(APIC_ACCESS_ADDR, -1ull);
-
-		if (exec_control & SECONDARY_EXEC_ENCLS_EXITING)
-			vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
 
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 	}
