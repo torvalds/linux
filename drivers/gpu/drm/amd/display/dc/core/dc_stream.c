@@ -179,6 +179,9 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	if (new_stream->out_transfer_func)
 		dc_transfer_func_retain(new_stream->out_transfer_func);
 
+	new_stream->stream_id = new_stream->ctx->dc_stream_id_count;
+	new_stream->ctx->dc_stream_id_count++;
+
 	kref_init(&new_stream->refcount);
 
 	return new_stream;
