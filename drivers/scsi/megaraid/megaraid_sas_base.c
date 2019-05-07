@@ -3274,6 +3274,18 @@ megasas_dump_system_regs_show(struct device *cdev,
 	return megasas_dump_sys_regs(instance->reg_set, buf);
 }
 
+static ssize_t
+megasas_raid_map_id_show(struct device *cdev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance =
+			(struct megasas_instance *)shost->hostdata;
+
+	return snprintf(buf, PAGE_SIZE, "%ld\n",
+			(unsigned long)instance->map_id);
+}
+
 static DEVICE_ATTR(fw_crash_buffer, S_IRUGO | S_IWUSR,
 	megasas_fw_crash_buffer_show, megasas_fw_crash_buffer_store);
 static DEVICE_ATTR(fw_crash_buffer_size, S_IRUGO,
@@ -3288,6 +3300,8 @@ static DEVICE_ATTR(fw_cmds_outstanding, S_IRUGO,
 	megasas_fw_cmds_outstanding_show, NULL);
 static DEVICE_ATTR(dump_system_regs, S_IRUGO,
 	megasas_dump_system_regs_show, NULL);
+static DEVICE_ATTR(raid_map_id, S_IRUGO,
+	megasas_raid_map_id_show, NULL);
 
 struct device_attribute *megaraid_host_attrs[] = {
 	&dev_attr_fw_crash_buffer_size,
@@ -3297,6 +3311,7 @@ struct device_attribute *megaraid_host_attrs[] = {
 	&dev_attr_ldio_outstanding,
 	&dev_attr_fw_cmds_outstanding,
 	&dev_attr_dump_system_regs,
+	&dev_attr_raid_map_id,
 	NULL,
 };
 
