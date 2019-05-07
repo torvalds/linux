@@ -676,6 +676,8 @@ config SGI_IP27
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select NR_CPUS_DEFAULT_64
+	select PCI_DRIVERS_GENERIC
+	select PCI_XTALK_BRIDGE
 	select SYS_HAS_CPU_R10000
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -1247,6 +1249,9 @@ config IRQ_GT641XX
 	bool
 
 config PCI_GT64XXX_PCI0
+	bool
+
+config PCI_XTALK_BRIDGE
 	bool
 
 config NO_EXCEPT_FILL
