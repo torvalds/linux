@@ -23,6 +23,7 @@ config PPC_PSERIES
 	select ARCH_RANDOM
 	select PPC_DOORBELL
 	select FORCE_SMP
+	select SWIOTLB
 	default y
 
 config PPC_SPLPAR
