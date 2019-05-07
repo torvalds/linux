@@ -191,7 +191,7 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 
 static int zcore_reipl_open(struct inode *inode, struct file *filp)
 {
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int zcore_reipl_release(struct inode *inode, struct file *filp)

@@ -92,7 +92,7 @@ static int scr24x_open(struct inode *inode, struct file *filp)
 	kref_get(&dev->refcnt);
 	filp->private_data = dev;
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int scr24x_release(struct inode *inode, struct file *filp)

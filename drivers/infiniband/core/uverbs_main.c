@@ -1132,7 +1132,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 
 	setup_ufile_idr_uobject(file);
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 
 err_module:
 	module_put(ib_dev->owner);

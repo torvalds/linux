@@ -971,7 +971,7 @@ static int pi433_open(struct inode *inode, struct file *filp)
 
 	/* instance data as context */
 	filp->private_data = instance;
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 
 	return 0;
 }

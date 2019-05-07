@@ -131,7 +131,7 @@ static int nuc900_wdt_open(struct inode *inode, struct file *file)
 
 	nuc900_wdt_start();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int nuc900_wdt_close(struct inode *inode, struct file *file)

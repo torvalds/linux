@@ -136,7 +136,7 @@ static int fop_open(struct inode *inode, struct file *file)
 
 	wdt_enable();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int fop_close(struct inode *inode, struct file *file)

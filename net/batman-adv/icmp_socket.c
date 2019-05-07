@@ -77,7 +77,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 	batadv_debugfs_deprecated(file, "");
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	socket_client = kmalloc(sizeof(*socket_client), GFP_KERNEL);
 	if (!socket_client) {

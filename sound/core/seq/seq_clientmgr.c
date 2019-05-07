@@ -307,7 +307,7 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 	struct snd_seq_user_client *user;
 	int err;
 
-	err = nonseekable_open(inode, file);
+	err = stream_open(inode, file);
 	if (err < 0)
 		return err;
 

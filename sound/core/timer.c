@@ -1425,7 +1425,7 @@ static int snd_timer_user_open(struct inode *inode, struct file *file)
 	struct snd_timer_user *tu;
 	int err;
 
-	err = nonseekable_open(inode, file);
+	err = stream_open(inode, file);
 	if (err < 0)
 		return err;
 
