@@ -1360,6 +1360,11 @@ struct  MR_SNAPDUMP_PROPERTIES {
 	u8       reserved[12];
 };
 
+struct megasas_debugfs_buffer {
+	void *buf;
+	u32 len;
+};
+
 void megasas_free_cmds_fusion(struct megasas_instance *instance);
 int megasas_ioc_init_fusion(struct megasas_instance *instance);
 u8 megasas_get_map_info(struct megasas_instance *instance);

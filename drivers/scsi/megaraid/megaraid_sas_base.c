@@ -188,6 +188,12 @@ static bool support_nvme_encapsulation;
 /* define lock for aen poll */
 spinlock_t poll_aen_lock;
 
+extern struct dentry *megasas_debugfs_root;
+extern void megasas_init_debugfs(void);
+extern void megasas_exit_debugfs(void);
+extern void megasas_setup_debugfs(struct megasas_instance *instance);
+extern void megasas_destroy_debugfs(struct megasas_instance *instance);
+
 void
 megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		     u8 alt_status);
@@ -7139,6 +7145,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		goto fail_start_aen;
 	}
 
+	megasas_setup_debugfs(instance);
+
 	/* Get current SR-IOV LD/VF affiliation */
 	if (instance->requestorId)
 		megasas_get_ld_vf_affiliation(instance, 1);
@@ -7608,6 +7616,8 @@ skip_firing_dcmds:
 	megasas_free_ctrl_dma_buffers(instance);
 
 	megasas_free_ctrl_mem(instance);
+
+	megasas_destroy_debugfs(instance);
 
 	scsi_host_put(host);
 
@@ -8536,6 +8546,8 @@ static int __init megasas_init(void)
 
 	megasas_mgmt_majorno = rval;
 
+	megasas_init_debugfs();
+
 	/*
 	 * Register ourselves as PCI hotplug module
 	 */
@@ -8595,6 +8607,7 @@ err_dcf_rel_date:
 err_dcf_attr_ver:
 	pci_unregister_driver(&megasas_pci_driver);
 err_pcidrv:
+	megasas_exit_debugfs();
 	unregister_chrdev(megasas_mgmt_majorno, "megaraid_sas_ioctl");
 	return rval;
 }
@@ -8617,6 +8630,7 @@ static void __exit megasas_exit(void)
 			   &driver_attr_support_nvme_encapsulation);
 
 	pci_unregister_driver(&megasas_pci_driver);
+	megasas_exit_debugfs();
 	unregister_chrdev(megasas_mgmt_majorno, "megaraid_sas_ioctl");
 }
 
