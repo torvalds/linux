@@ -1338,7 +1338,7 @@ struct f2fs_private_dio {
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 #define f2fs_show_injection_info(type)					\
-	printk_ratelimited("%sF2FS-fs : inject %s in %s of %pF\n",	\
+	printk_ratelimited("%sF2FS-fs : inject %s in %s of %pS\n",	\
 		KERN_INFO, f2fs_fault_name[type],			\
 		__func__, __builtin_return_address(0))
 static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
