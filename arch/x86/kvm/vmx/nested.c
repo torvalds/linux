@@ -2252,10 +2252,16 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			  u32 *entry_failure_code)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct hv_enlightened_vmcs *hv_evmcs = vmx->nested.hv_evmcs;
+	bool load_guest_pdptrs_vmcs12 = false;
 
-	if (vmx->nested.dirty_vmcs12 || vmx->nested.hv_evmcs) {
+	if (vmx->nested.dirty_vmcs12 || hv_evmcs) {
 		prepare_vmcs02_rare(vmx, vmcs12);
 		vmx->nested.dirty_vmcs12 = false;
+
+		load_guest_pdptrs_vmcs12 = !hv_evmcs ||
+			!(hv_evmcs->hv_clean_fields &
+			  HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1);
 	}
 
 	if (vmx->nested.nested_run_pending &&
@@ -2357,6 +2363,15 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	if (nested_vmx_load_cr3(vcpu, vmcs12->guest_cr3, nested_cpu_has_ept(vmcs12),
 				entry_failure_code))
 		return -EINVAL;
+
+	/* Late preparation of GUEST_PDPTRs now that EFER and CRs are set. */
+	if (load_guest_pdptrs_vmcs12 && nested_cpu_has_ept(vmcs12) &&
+	    is_pae_paging(vcpu)) {
+		vmcs_write64(GUEST_PDPTR0, vmcs12->guest_pdptr0);
+		vmcs_write64(GUEST_PDPTR1, vmcs12->guest_pdptr1);
+		vmcs_write64(GUEST_PDPTR2, vmcs12->guest_pdptr2);
+		vmcs_write64(GUEST_PDPTR3, vmcs12->guest_pdptr3);
+	}
 
 	if (!enable_ept)
 		vcpu->arch.walk_mmu->inject_page_fault = vmx_inject_page_fault_nested;
@@ -3547,10 +3562,12 @@ static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	 */
 	if (enable_ept) {
 		vmcs12->guest_cr3 = vmcs_readl(GUEST_CR3);
-		vmcs12->guest_pdptr0 = vmcs_read64(GUEST_PDPTR0);
-		vmcs12->guest_pdptr1 = vmcs_read64(GUEST_PDPTR1);
-		vmcs12->guest_pdptr2 = vmcs_read64(GUEST_PDPTR2);
-		vmcs12->guest_pdptr3 = vmcs_read64(GUEST_PDPTR3);
+		if (nested_cpu_has_ept(vmcs12) && is_pae_paging(vcpu)) {
+			vmcs12->guest_pdptr0 = vmcs_read64(GUEST_PDPTR0);
+			vmcs12->guest_pdptr1 = vmcs_read64(GUEST_PDPTR1);
+			vmcs12->guest_pdptr2 = vmcs_read64(GUEST_PDPTR2);
+			vmcs12->guest_pdptr3 = vmcs_read64(GUEST_PDPTR3);
+		}
 	}
 
 	vmcs12->guest_linear_address = vmcs_readl(GUEST_LINEAR_ADDRESS);
