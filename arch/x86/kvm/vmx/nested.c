@@ -1615,7 +1615,7 @@ static int copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
 	 * evmcs->host_gdtr_base = vmcs12->host_gdtr_base;
 	 * evmcs->host_idtr_base = vmcs12->host_idtr_base;
 	 * evmcs->host_rsp = vmcs12->host_rsp;
-	 * sync_vmcs12() doesn't read these:
+	 * sync_vmcs02_to_vmcs12() doesn't read these:
 	 * evmcs->io_bitmap_a = vmcs12->io_bitmap_a;
 	 * evmcs->io_bitmap_b = vmcs12->io_bitmap_b;
 	 * evmcs->msr_bitmap = vmcs12->msr_bitmap;
@@ -1839,7 +1839,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-void nested_sync_from_vmcs12(struct kvm_vcpu *vcpu)
+void nested_sync_vmcs12_to_shadow(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
@@ -1860,7 +1860,7 @@ void nested_sync_from_vmcs12(struct kvm_vcpu *vcpu)
 		copy_vmcs12_to_shadow(vmx);
 	}
 
-	vmx->nested.need_vmcs12_sync = false;
+	vmx->nested.need_vmcs12_to_shadow_sync = false;
 }
 
 static enum hrtimer_restart vmx_preemption_timer_fn(struct hrtimer *timer)
@@ -3042,7 +3042,7 @@ vmentry_fail_vmexit:
 	vmcs12->vm_exit_reason = exit_reason | VMX_EXIT_REASONS_FAILED_VMENTRY;
 	vmcs12->exit_qualification = exit_qual;
 	if (enable_shadow_vmcs || vmx->nested.hv_evmcs)
-		vmx->nested.need_vmcs12_sync = true;
+		vmx->nested.need_vmcs12_to_shadow_sync = true;
 	return 1;
 }
 
@@ -3382,7 +3382,7 @@ static u32 vmx_get_preemption_timer_value(struct kvm_vcpu *vcpu)
  * VM-entry controls is also updated, since this is really a guest
  * state bit.)
  */
-static void sync_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
+static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 {
 	vmcs12->guest_cr0 = vmcs12_guest_cr0(vcpu, vmcs12);
 	vmcs12->guest_cr4 = vmcs12_guest_cr4(vcpu, vmcs12);
@@ -3861,14 +3861,14 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 		vcpu->arch.tsc_offset -= vmcs12->tsc_offset;
 
 	if (likely(!vmx->fail)) {
-		sync_vmcs12(vcpu, vmcs12);
+		sync_vmcs02_to_vmcs12(vcpu, vmcs12);
 
 		if (exit_reason != -1)
 			prepare_vmcs12(vcpu, vmcs12, exit_reason, exit_intr_info,
 				       exit_qualification);
 
 		/*
-		 * Must happen outside of sync_vmcs12() as it will
+		 * Must happen outside of sync_vmcs02_to_vmcs12() as it will
 		 * also be used to capture vmcs12 cache as part of
 		 * capturing nVMX state for snapshot (migration).
 		 *
@@ -3924,7 +3924,7 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
 	if ((exit_reason != -1) && (enable_shadow_vmcs || vmx->nested.hv_evmcs))
-		vmx->nested.need_vmcs12_sync = true;
+		vmx->nested.need_vmcs12_to_shadow_sync = true;
 
 	/* in case we halted in L2 */
 	vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
@@ -4284,7 +4284,7 @@ static inline void nested_release_vmcs12(struct kvm_vcpu *vcpu)
 		/* copy to memory all shadowed fields in case
 		   they were modified */
 		copy_shadow_to_vmcs12(vmx);
-		vmx->nested.need_vmcs12_sync = false;
+		vmx->nested.need_vmcs12_to_shadow_sync = false;
 		vmx_disable_shadow_vmcs(vmx);
 	}
 	vmx->nested.posted_intr_nv = -1;
@@ -4551,7 +4551,7 @@ static void set_current_vmptr(struct vcpu_vmx *vmx, gpa_t vmptr)
 			      SECONDARY_EXEC_SHADOW_VMCS);
 		vmcs_write64(VMCS_LINK_POINTER,
 			     __pa(vmx->vmcs01.shadow_vmcs));
-		vmx->nested.need_vmcs12_sync = true;
+		vmx->nested.need_vmcs12_to_shadow_sync = true;
 	}
 	vmx->nested.dirty_vmcs12 = true;
 }
@@ -5303,12 +5303,12 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 	 * When running L2, the authoritative vmcs12 state is in the
 	 * vmcs02. When running L1, the authoritative vmcs12 state is
 	 * in the shadow or enlightened vmcs linked to vmcs01, unless
-	 * need_vmcs12_sync is set, in which case, the authoritative
+	 * need_vmcs12_to_shadow_sync is set, in which case, the authoritative
 	 * vmcs12 state is in the vmcs12 already.
 	 */
 	if (is_guest_mode(vcpu)) {
-		sync_vmcs12(vcpu, vmcs12);
-	} else if (!vmx->nested.need_vmcs12_sync) {
+		sync_vmcs02_to_vmcs12(vcpu, vmcs12);
+	} else if (!vmx->nested.need_vmcs12_to_shadow_sync) {
 		if (vmx->nested.hv_evmcs)
 			copy_enlightened_to_vmcs12(vmx);
 		else if (enable_shadow_vmcs)
@@ -5421,7 +5421,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		 * Sync eVMCS upon entry as we may not have
 		 * HV_X64_MSR_VP_ASSIST_PAGE set up yet.
 		 */
-		vmx->nested.need_vmcs12_sync = true;
+		vmx->nested.need_vmcs12_to_shadow_sync = true;
 	} else {
 		return -EINVAL;
 	}

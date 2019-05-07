@@ -113,7 +113,7 @@ struct nested_vmx {
 	 * Indicates if the shadow vmcs or enlightened vmcs must be updated
 	 * with the data held by struct vmcs12.
 	 */
-	bool need_vmcs12_sync;
+	bool need_vmcs12_to_shadow_sync;
 	bool dirty_vmcs12;
 
 	/*
