@@ -85,14 +85,6 @@ struct pt_desc {
 	struct pt_ctx guest;
 };
 
-struct vmx_controls_shadow {
-	u32 vm_entry;
-	u32 vm_exit;
-	u32 pin;
-	u32 exec;
-	u32 secondary_exec;
-};
-
 /*
  * The nested_vmx structure is part of vcpu_vmx, and holds information we need
  * for correct emulation of VMX (i.e., nested VMX) on this vcpu.
@@ -208,8 +200,6 @@ struct vcpu_vmx {
 	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
-
-	struct vmx_controls_shadow	controls_shadow;
 
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
@@ -400,21 +390,23 @@ static inline u8 vmx_get_rvi(void)
 #define BUILD_CONTROLS_SHADOW(lname, uname)				    \
 static inline void lname##_controls_reset_shadow(struct vcpu_vmx *vmx)	    \
 {									    \
-	vmx->controls_shadow.lname = vmcs_read32(uname);		    \
+	vmx->loaded_vmcs->controls_shadow.lname = vmcs_read32(uname);	    \
 }									    \
 static inline void lname##_controls_init(struct vcpu_vmx *vmx, u32 val)	    \
 {									    \
 	vmcs_write32(uname, val);					    \
-	vmx->controls_shadow.lname = val;				    \
+	vmx->loaded_vmcs->controls_shadow.lname = val;			    \
 }									    \
 static inline void lname##_controls_set(struct vcpu_vmx *vmx, u32 val)	    \
 {									    \
-	if (vmx->controls_shadow.lname != val)				    \
-		lname##_controls_init(vmx, val);			    \
+	if (vmx->loaded_vmcs->controls_shadow.lname != val) {		    \
+		vmcs_write32(uname, val);				    \
+		vmx->loaded_vmcs->controls_shadow.lname = val;		    \
+	}								    \
 }									    \
 static inline u32 lname##_controls_get(struct vcpu_vmx *vmx)		    \
 {									    \
-	return vmx->controls_shadow.lname;				    \
+	return vmx->loaded_vmcs->controls_shadow.lname;			    \
 }									    \
 static inline void lname##_controls_setbit(struct vcpu_vmx *vmx, u32 val)   \
 {									    \

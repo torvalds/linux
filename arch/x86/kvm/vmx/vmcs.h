@@ -42,6 +42,14 @@ struct vmcs_host_state {
 #endif
 };
 
+struct vmcs_controls_shadow {
+	u32 vm_entry;
+	u32 vm_exit;
+	u32 pin;
+	u32 exec;
+	u32 secondary_exec;
+};
+
 /*
  * Track a VMCS that may be loaded on a certain CPU. If it is (cpu!=-1), also
  * remember whether it was VMLAUNCHed, and maintain a linked list of all VMCSs
@@ -61,6 +69,7 @@ struct loaded_vmcs {
 	unsigned long *msr_bitmap;
 	struct list_head loaded_vmcss_on_cpu_link;
 	struct vmcs_host_state host_state;
+	struct vmcs_controls_shadow controls_shadow;
 };
 
 static inline bool is_exception_n(u32 intr_info, u8 vector)
