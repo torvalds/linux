@@ -3500,11 +3500,7 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			   u32 exit_reason, u32 exit_intr_info,
 			   unsigned long exit_qualification)
 {
-	/* update guest state fields: */
-	sync_vmcs12(vcpu, vmcs12);
-
 	/* update exit information fields: */
-
 	vmcs12->vm_exit_reason = exit_reason;
 	vmcs12->exit_qualification = exit_qualification;
 	vmcs12->vm_exit_intr_info = exit_intr_info;
@@ -3865,9 +3861,9 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 		vcpu->arch.tsc_offset -= vmcs12->tsc_offset;
 
 	if (likely(!vmx->fail)) {
-		if (exit_reason == -1)
-			sync_vmcs12(vcpu, vmcs12);
-		else
+		sync_vmcs12(vcpu, vmcs12);
+
+		if (exit_reason != -1)
 			prepare_vmcs12(vcpu, vmcs12, exit_reason, exit_intr_info,
 				       exit_qualification);
 
