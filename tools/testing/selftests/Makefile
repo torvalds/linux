@@ -163,11 +163,17 @@ clean_hotplug:
 run_pstore_crash:
 	make -C pstore run_crash
 
-INSTALL_PATH ?= install
+# Use $BUILD as the default install root. $BUILD points to the
+# right output location for the following cases:
+# 1. output_dir=kernel_src
+# 2. a separate output directory is specified using O= KBUILD_OUTPUT
+# 3. a separate output directory is specified using KBUILD_OUTPUT
+#
+INSTALL_PATH ?= $(BUILD)/install
 INSTALL_PATH := $(abspath $(INSTALL_PATH))
 ALL_SCRIPT := $(INSTALL_PATH)/run_kselftest.sh
 
-install:
+install: all
 ifdef INSTALL_PATH
 	@# Ask all targets to install their files
 	mkdir -p $(INSTALL_PATH)/kselftest
