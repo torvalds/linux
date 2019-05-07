@@ -80,6 +80,8 @@ static int stmpe_read_voltage(struct stmpe_adc *info,
 	ret = wait_for_completion_timeout(&info->completion, STMPE_ADC_TIMEOUT);
 
 	if (ret <= 0) {
+		stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_STA,
+				STMPE_ADC_CH(info->channel));
 		mutex_unlock(&info->lock);
 		return -ETIMEDOUT;
 	}
@@ -323,6 +325,9 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 		return ret;
 
 	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_EN,
+			~(norequest_mask & 0xFF));
+
+	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_STA,
 			~(norequest_mask & 0xFF));
 
 	return devm_iio_device_register(&pdev->dev, indio_dev);
