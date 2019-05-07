@@ -127,7 +127,6 @@
  *	options cleanly (a filesystem may modify the data e.g. with strsep()).
  *	This also allows the original mount data to be stripped of security-
  *	specific options to avoid having to make filesystems aware of them.
- *	@type the type of filesystem being mounted.
  *	@orig the original mount data copied from userspace.
  *	@copy copied data which will be passed to the security module.
  *	Returns 0 if the copy was successful.
@@ -320,10 +319,11 @@
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
  * @path_chmod:
- *	Check for permission to change DAC's permission of a file or directory.
- *	@dentry contains the dentry structure.
- *	@mnt contains the vfsmnt structure.
- *	@mode contains DAC's mode.
+ *	Check for permission to change a mode of the file @path. The new
+ *	mode is specified in @mode.
+ *	@path contains the path structure of the file to change the mode.
+ *	@mode contains the new DAC's permission, which is a bitmask of
+ *	constants from <include/uapi/linux/stat.h>
  *	Return 0 if permission is granted.
  * @path_chown:
  *	Check for permission to change owner/group of a file or directory.
@@ -502,7 +502,7 @@
  *	Return 0 if permission is granted.
  * @file_lock:
  *	Check permission before performing file locking operations.
- *	Note: this hook mediates both flock and fcntl style locks.
+ *	Note the hook mediates both flock and fcntl style locks.
  *	@file contains the file structure.
  *	@cmd contains the posix-translated lock operation to perform
  *	(e.g. F_RDLCK, F_WRLCK).
@@ -645,12 +645,12 @@
  *	@p contains the task_struct of process.
  *	@nice contains the new nice value.
  *	Return 0 if permission is granted.
- * @task_setioprio
+ * @task_setioprio:
  *	Check permission before setting the ioprio value of @p to @ioprio.
  *	@p contains the task_struct of process.
  *	@ioprio contains the new ioprio value
  *	Return 0 if permission is granted.
- * @task_getioprio
+ * @task_getioprio:
  *	Check permission before getting the ioprio value of @p.
  *	@p contains the task_struct of process.
  *	Return 0 if permission is granted.
@@ -672,17 +672,15 @@
  *	Return 0 if permission is granted.
  * @task_setscheduler:
  *	Check permission before setting scheduling policy and/or parameters of
- *	process @p based on @policy and @lp.
+ *	process @p.
  *	@p contains the task_struct for process.
- *	@policy contains the scheduling policy.
- *	@lp contains the scheduling parameters.
  *	Return 0 if permission is granted.
  * @task_getscheduler:
  *	Check permission before obtaining scheduling information for process
  *	@p.
  *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
- * @task_movememory
+ * @task_movememory:
  *	Check permission before moving memory owned by process @p.
  *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
@@ -769,9 +767,9 @@
  *	socket structure, but rather, the socket security information is stored
  *	in the associated inode.  Typically, the inode alloc_security hook will
  *	allocate and and attach security information to
- *	sock->inode->i_security.  This hook may be used to update the
- *	sock->inode->i_security field with additional information that wasn't
- *	available when the inode was allocated.
+ *	SOCK_INODE(sock)->i_security.  This hook may be used to update the
+ *	SOCK_INODE(sock)->i_security field with additional information that
+ *	wasn't available when the inode was allocated.
  *	@sock contains the newly created socket structure.
  *	@family contains the requested protocol family.
  *	@type contains the requested communications type.
@@ -876,13 +874,13 @@
  * @socket_getpeersec_dgram:
  *	This hook allows the security module to provide peer socket security
  *	state for udp sockets on a per-packet basis to userspace via
- *	getsockopt SO_GETPEERSEC.  The application must first have indicated
- *	the IP_PASSSEC option via getsockopt.  It can then retrieve the
+ *	getsockopt SO_GETPEERSEC. The application must first have indicated
+ *	the IP_PASSSEC option via getsockopt. It can then retrieve the
  *	security state returned by this hook for a packet via the SCM_SECURITY
  *	ancillary message type.
- *	@skb is the skbuff for the packet being queried
- *	@secdata is a pointer to a buffer in which to copy the security data
- *	@seclen is the maximum length for @secdata
+ *	@sock contains the peer socket. May be NULL.
+ *	@skb is the sk_buff for the packet being queried. May be NULL.
+ *	@secid pointer to store the secid of the packet.
  *	Return 0 on success, error on failure.
  * @sk_alloc_security:
  *	Allocate and attach a security structure to the sk->sk_security field,
@@ -906,9 +904,9 @@
  * @secmark_relabel_packet:
  *	check if the process should be allowed to relabel packets to
  *	the given secid
- * @security_secmark_refcount_inc
+ * @secmark_refcount_inc:
  *	tells the LSM to increment the number of secmark labeling rules loaded
- * @security_secmark_refcount_dec
+ * @secmark_refcount_dec:
  *	tells the LSM to decrement the number of secmark labeling rules loaded
  * @req_classify_flow:
  *	Sets the flow's sid to the openreq sid.
@@ -1113,41 +1111,41 @@
  *
  * @msg_queue_alloc_security:
  *	Allocate and attach a security structure to the
- *	msq->q_perm.security field. The security field is initialized to
+ *	@perm->security field. The security field is initialized to
  *	NULL when the structure is first created.
- *	@msq contains the message queue structure to be modified.
+ *	@perm contains the IPC permissions of the message queue.
  *	Return 0 if operation was successful and permission is granted.
  * @msg_queue_free_security:
- *	Deallocate security structure for this message queue.
- *	@msq contains the message queue structure to be modified.
+ *	Deallocate security field @perm->security for the message queue.
+ *	@perm contains the IPC permissions of the message queue.
  * @msg_queue_associate:
  *	Check permission when a message queue is requested through the
- *	msgget system call.  This hook is only called when returning the
+ *	msgget system call. This hook is only called when returning the
  *	message queue identifier for an existing message queue, not when a
  *	new message queue is created.
- *	@msq contains the message queue to act upon.
+ *	@perm contains the IPC permissions of the message queue.
  *	@msqflg contains the operation control flags.
  *	Return 0 if permission is granted.
  * @msg_queue_msgctl:
  *	Check permission when a message control operation specified by @cmd
- *	is to be performed on the message queue @msq.
- *	The @msq may be NULL, e.g. for IPC_INFO or MSG_INFO.
- *	@msq contains the message queue to act upon.  May be NULL.
+ *	is to be performed on the message queue with permissions @perm.
+ *	The @perm may be NULL, e.g. for IPC_INFO or MSG_INFO.
+ *	@perm contains the IPC permissions of the msg queue. May be NULL.
  *	@cmd contains the operation to be performed.
  *	Return 0 if permission is granted.
  * @msg_queue_msgsnd:
  *	Check permission before a message, @msg, is enqueued on the message
- *	queue, @msq.
- *	@msq contains the message queue to send message to.
+ *	queue with permissions @perm.
+ *	@perm contains the IPC permissions of the message queue.
  *	@msg contains the message to be enqueued.
  *	@msqflg contains operational flags.
  *	Return 0 if permission is granted.
  * @msg_queue_msgrcv:
  *	Check permission before a message, @msg, is removed from the message
- *	queue, @msq.  The @target task structure contains a pointer to the
+ *	queue. The @target task structure contains a pointer to the
  *	process that will be receiving the message (not equal to the current
  *	process when inline receives are being performed).
- *	@msq contains the message queue to retrieve message from.
+ *	@perm contains the IPC permissions of the message queue.
  *	@msg contains the message destination.
  *	@target contains the task structure for recipient process.
  *	@type contains the type of message requested.
@@ -1157,34 +1155,34 @@
  * Security hooks for System V Shared Memory Segments
  *
  * @shm_alloc_security:
- *	Allocate and attach a security structure to the shp->shm_perm.security
- *	field.  The security field is initialized to NULL when the structure is
+ *	Allocate and attach a security structure to the @perm->security
+ *	field. The security field is initialized to NULL when the structure is
  *	first created.
- *	@shp contains the shared memory structure to be modified.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	Return 0 if operation was successful and permission is granted.
  * @shm_free_security:
- *	Deallocate the security struct for this memory segment.
- *	@shp contains the shared memory structure to be modified.
+ *	Deallocate the security structure @perm->security for the memory segment.
+ *	@perm contains the IPC permissions of the shared memory structure.
  * @shm_associate:
  *	Check permission when a shared memory region is requested through the
- *	shmget system call.  This hook is only called when returning the shared
+ *	shmget system call. This hook is only called when returning the shared
  *	memory region identifier for an existing region, not when a new shared
  *	memory region is created.
- *	@shp contains the shared memory structure to be modified.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	@shmflg contains the operation control flags.
  *	Return 0 if permission is granted.
  * @shm_shmctl:
  *	Check permission when a shared memory control operation specified by
- *	@cmd is to be performed on the shared memory region @shp.
- *	The @shp may be NULL, e.g. for IPC_INFO or SHM_INFO.
- *	@shp contains shared memory structure to be modified.
+ *	@cmd is to be performed on the shared memory region with permissions @perm.
+ *	The @perm may be NULL, e.g. for IPC_INFO or SHM_INFO.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	@cmd contains the operation to be performed.
  *	Return 0 if permission is granted.
  * @shm_shmat:
  *	Check permissions prior to allowing the shmat system call to attach the
- *	shared memory segment @shp to the data segment of the calling process.
- *	The attaching address is specified by @shmaddr.
- *	@shp contains the shared memory structure to be modified.
+ *	shared memory segment with permissions @perm to the data segment of the
+ *	calling process. The attaching address is specified by @shmaddr.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	@shmaddr contains the address to attach memory region to.
  *	@shmflg contains the operational flags.
  *	Return 0 if permission is granted.
@@ -1192,34 +1190,34 @@
  * Security hooks for System V Semaphores
  *
  * @sem_alloc_security:
- *	Allocate and attach a security structure to the sma->sem_perm.security
- *	field.  The security field is initialized to NULL when the structure is
+ *	Allocate and attach a security structure to the @perm->security
+ *	field. The security field is initialized to NULL when the structure is
  *	first created.
- *	@sma contains the semaphore structure
+ *	@perm contains the IPC permissions of the semaphore.
  *	Return 0 if operation was successful and permission is granted.
  * @sem_free_security:
- *	deallocate security struct for this semaphore
- *	@sma contains the semaphore structure.
+ *	Deallocate security structure @perm->security for the semaphore.
+ *	@perm contains the IPC permissions of the semaphore.
  * @sem_associate:
  *	Check permission when a semaphore is requested through the semget
- *	system call.  This hook is only called when returning the semaphore
+ *	system call. This hook is only called when returning the semaphore
  *	identifier for an existing semaphore, not when a new one must be
  *	created.
- *	@sma contains the semaphore structure.
+ *	@perm contains the IPC permissions of the semaphore.
  *	@semflg contains the operation control flags.
  *	Return 0 if permission is granted.
  * @sem_semctl:
  *	Check permission when a semaphore operation specified by @cmd is to be
- *	performed on the semaphore @sma.  The @sma may be NULL, e.g. for
+ *	performed on the semaphore. The @perm may be NULL, e.g. for
  *	IPC_INFO or SEM_INFO.
- *	@sma contains the semaphore structure.  May be NULL.
+ *	@perm contains the IPC permissions of the semaphore. May be NULL.
  *	@cmd contains the operation to be performed.
  *	Return 0 if permission is granted.
  * @sem_semop:
  *	Check permissions before performing operations on members of the
- *	semaphore set @sma.  If the @alter flag is nonzero, the semaphore set
+ *	semaphore set. If the @alter flag is nonzero, the semaphore set
  *	may be modified.
- *	@sma contains the semaphore structure.
+ *	@perm contains the IPC permissions of the semaphore.
  *	@sops contains the operations to perform.
  *	@nsops contains the number of operations to perform.
  *	@alter contains the flag indicating whether changes are to be made.
@@ -1292,13 +1290,12 @@
  *	Check permission before accessing the kernel message ring or changing
  *	logging to the console.
  *	See the syslog(2) manual page for an explanation of the @type values.
- *	@type contains the type of action.
- *	@from_file indicates the context of action (if it came from /proc).
+ *	@type contains the SYSLOG_ACTION_* constant from <include/linux/syslog.h>
  *	Return 0 if permission is granted.
  * @settime:
  *	Check permission to change the system time.
- *	struct timespec64 is defined in include/linux/time64.h and timezone
- *	is defined in include/linux/time.h
+ *	struct timespec64 is defined in <include/linux/time64.h> and timezone
+ *	is defined in <include/linux/time.h>
  *	@ts contains new time
  *	@tz contains new timezone
  *	Return 0 if permission is granted.
@@ -1340,7 +1337,7 @@
  * @audit_rule_init:
  *	Allocate and initialize an LSM audit rule structure.
  *	@field contains the required Audit action.
- *	Fields flags are defined in include/linux/audit.h
+ *	Fields flags are defined in <include/linux/audit.h>
  *	@op contains the operator the rule uses.
  *	@rulestr contains the context where the rule will be applied to.
  *	@lsmrule contains a pointer to receive the result.
@@ -1348,9 +1345,9 @@
  *	-EINVAL in case of an invalid rule.
  *
  * @audit_rule_known:
- *	Specifies whether given @rule contains any fields related to
+ *	Specifies whether given @krule contains any fields related to
  *	current LSM.
- *	@rule contains the audit rule of interest.
+ *	@krule contains the audit rule of interest.
  *	Return 1 in case of relation found, 0 otherwise.
  *
  * @audit_rule_match:
@@ -1359,13 +1356,13 @@
  *	@secid contains the security id in question.
  *	@field contains the field which relates to current LSM.
  *	@op contains the operator that will be used for matching.
- *	@rule points to the audit rule that will be checked against.
+ *	@lrule points to the audit rule that will be checked against.
  *	Return 1 if secid matches the rule, 0 if it does not, -ERRNO on failure.
  *
  * @audit_rule_free:
  *	Deallocate the LSM audit rule structure previously allocated by
  *	audit_rule_init.
- *	@rule contains the allocated rule
+ *	@lsmrule contains the allocated rule
  *
  * @inode_invalidate_secctx:
  *	Notify the security module that it must revalidate the security context
@@ -1378,9 +1375,7 @@
  *	this hook to initialize the security context in its incore inode to the
  *	value provided by the server for the file when the server returned the
  *	file's attributes to the client.
- *
  *	Must be called with inode->i_mutex locked.
- *
  *	@inode we wish to set the security context of.
  *	@ctx contains the string which we wish to set in the inode.
  *	@ctxlen contains the length of @ctx.
@@ -1393,9 +1388,7 @@
  *	this hook to change the security context in its incore inode and on the
  *	backing filesystem to a value provided by the client on a SETATTR
  *	operation.
- *
  *	Must be called with inode->i_mutex locked.
- *
  *	@dentry contains the inode we wish to set the security context of.
  *	@ctx contains the string which we wish to set in the inode.
  *	@ctxlen contains the length of @ctx.
@@ -1403,7 +1396,6 @@
  * @inode_getsecctx:
  *	On success, returns 0 and fills out @ctx and @ctxlen with the security
  *	context for the given @inode.
- *
  *	@inode we wish to get the security context of.
  *	@ctx is a pointer in which to place the allocated security context.
  *	@ctxlen points to the place to put the length of @ctx.
@@ -1640,28 +1632,28 @@ union security_list_options {
 	int (*msg_msg_alloc_security)(struct msg_msg *msg);
 	void (*msg_msg_free_security)(struct msg_msg *msg);
 
-	int (*msg_queue_alloc_security)(struct kern_ipc_perm *msq);
-	void (*msg_queue_free_security)(struct kern_ipc_perm *msq);
-	int (*msg_queue_associate)(struct kern_ipc_perm *msq, int msqflg);
-	int (*msg_queue_msgctl)(struct kern_ipc_perm *msq, int cmd);
-	int (*msg_queue_msgsnd)(struct kern_ipc_perm *msq, struct msg_msg *msg,
+	int (*msg_queue_alloc_security)(struct kern_ipc_perm *perm);
+	void (*msg_queue_free_security)(struct kern_ipc_perm *perm);
+	int (*msg_queue_associate)(struct kern_ipc_perm *perm, int msqflg);
+	int (*msg_queue_msgctl)(struct kern_ipc_perm *perm, int cmd);
+	int (*msg_queue_msgsnd)(struct kern_ipc_perm *perm, struct msg_msg *msg,
 				int msqflg);
-	int (*msg_queue_msgrcv)(struct kern_ipc_perm *msq, struct msg_msg *msg,
+	int (*msg_queue_msgrcv)(struct kern_ipc_perm *perm, struct msg_msg *msg,
 				struct task_struct *target, long type,
 				int mode);
 
-	int (*shm_alloc_security)(struct kern_ipc_perm *shp);
-	void (*shm_free_security)(struct kern_ipc_perm *shp);
-	int (*shm_associate)(struct kern_ipc_perm *shp, int shmflg);
-	int (*shm_shmctl)(struct kern_ipc_perm *shp, int cmd);
-	int (*shm_shmat)(struct kern_ipc_perm *shp, char __user *shmaddr,
+	int (*shm_alloc_security)(struct kern_ipc_perm *perm);
+	void (*shm_free_security)(struct kern_ipc_perm *perm);
+	int (*shm_associate)(struct kern_ipc_perm *perm, int shmflg);
+	int (*shm_shmctl)(struct kern_ipc_perm *perm, int cmd);
+	int (*shm_shmat)(struct kern_ipc_perm *perm, char __user *shmaddr,
 				int shmflg);
 
-	int (*sem_alloc_security)(struct kern_ipc_perm *sma);
-	void (*sem_free_security)(struct kern_ipc_perm *sma);
-	int (*sem_associate)(struct kern_ipc_perm *sma, int semflg);
-	int (*sem_semctl)(struct kern_ipc_perm *sma, int cmd);
-	int (*sem_semop)(struct kern_ipc_perm *sma, struct sembuf *sops,
+	int (*sem_alloc_security)(struct kern_ipc_perm *perm);
+	void (*sem_free_security)(struct kern_ipc_perm *perm);
+	int (*sem_associate)(struct kern_ipc_perm *perm, int semflg);
+	int (*sem_semctl)(struct kern_ipc_perm *perm, int cmd);
+	int (*sem_semop)(struct kern_ipc_perm *perm, struct sembuf *sops,
 				unsigned nsops, int alter);
 
 	int (*netlink_send)(struct sock *sk, struct sk_buff *skb);
