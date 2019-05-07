@@ -1499,6 +1499,7 @@ struct megasas_ctrl_info {
 /* Driver's internal Logging levels*/
 #define OCR_DEBUG    (1 << 0)
 #define TM_DEBUG     (1 << 1)
+#define LD_PD_DEBUG    (1 << 2)
 
 #define SCAN_PD_CHANNEL	0x1
 #define SCAN_VD_CHANNEL	0x2

@@ -4511,6 +4511,9 @@ megasas_get_pd_list(struct megasas_instance *instance)
 
 	case DCMD_SUCCESS:
 		pd_addr = ci->addr;
+		if (megasas_dbg_lvl & LD_PD_DEBUG)
+			dev_info(&instance->pdev->dev, "%s, sysPD count: 0x%x\n",
+				 __func__, le32_to_cpu(ci->count));
 
 		if ((le32_to_cpu(ci->count) >
 			(MEGASAS_MAX_PD_CHANNELS * MEGASAS_MAX_DEV_PER_CHANNEL)))
@@ -4526,6 +4529,11 @@ megasas_get_pd_list(struct megasas_instance *instance)
 					pd_addr->scsiDevType;
 			instance->local_pd_list[le16_to_cpu(pd_addr->deviceId)].driveState	=
 					MR_PD_STATE_SYSTEM;
+			if (megasas_dbg_lvl & LD_PD_DEBUG)
+				dev_info(&instance->pdev->dev,
+					 "PD%d: targetID: 0x%03x deviceType:0x%x\n",
+					 pd_index, le16_to_cpu(pd_addr->deviceId),
+					 pd_addr->scsiDevType);
 			pd_addr++;
 		}
 
@@ -4629,6 +4637,10 @@ megasas_get_ld_list(struct megasas_instance *instance)
 		break;
 
 	case DCMD_SUCCESS:
+		if (megasas_dbg_lvl & LD_PD_DEBUG)
+			dev_info(&instance->pdev->dev, "%s, LD count: 0x%x\n",
+				 __func__, ld_count);
+
 		if (ld_count > instance->fw_supported_vd_count)
 			break;
 
@@ -4638,6 +4650,10 @@ megasas_get_ld_list(struct megasas_instance *instance)
 			if (ci->ldList[ld_index].state != 0) {
 				ids = ci->ldList[ld_index].ref.targetId;
 				instance->ld_ids[ids] = ci->ldList[ld_index].ref.targetId;
+				if (megasas_dbg_lvl & LD_PD_DEBUG)
+					dev_info(&instance->pdev->dev,
+						 "LD%d: targetID: 0x%03x\n",
+						 ld_index, ids);
 			}
 		}
 
@@ -4741,6 +4757,10 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 	case DCMD_SUCCESS:
 		tgtid_count = le32_to_cpu(ci->count);
 
+		if (megasas_dbg_lvl & LD_PD_DEBUG)
+			dev_info(&instance->pdev->dev, "%s, LD count: 0x%x\n",
+				 __func__, tgtid_count);
+
 		if ((tgtid_count > (instance->fw_supported_vd_count)))
 			break;
 
@@ -4748,6 +4768,9 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 		for (ld_index = 0; ld_index < tgtid_count; ld_index++) {
 			ids = ci->targetId[ld_index];
 			instance->ld_ids[ids] = ci->targetId[ld_index];
+			if (megasas_dbg_lvl & LD_PD_DEBUG)
+				dev_info(&instance->pdev->dev, "LD%d: targetID: 0x%03x\n",
+					 ld_index, ci->targetId[ld_index]);
 		}
 
 		break;
@@ -4827,6 +4850,10 @@ megasas_host_device_list_query(struct megasas_instance *instance,
 		 */
 		count = le32_to_cpu(ci->count);
 
+		if (megasas_dbg_lvl & LD_PD_DEBUG)
+			dev_info(&instance->pdev->dev, "%s, Device count: 0x%x\n",
+				 __func__, count);
+
 		memset(instance->local_pd_list, 0,
 		       MEGASAS_MAX_PD * sizeof(struct megasas_pd_list));
 		memset(instance->ld_ids, 0xff, MAX_LOGICAL_DRIVES_EXT);
@@ -4838,8 +4865,16 @@ megasas_host_device_list_query(struct megasas_instance *instance,
 						ci->host_device_list[i].scsi_type;
 				instance->local_pd_list[target_id].driveState =
 						MR_PD_STATE_SYSTEM;
+				if (megasas_dbg_lvl & LD_PD_DEBUG)
+					dev_info(&instance->pdev->dev,
+						 "Device %d: PD targetID: 0x%03x deviceType:0x%x\n",
+						 i, target_id, ci->host_device_list[i].scsi_type);
 			} else {
 				instance->ld_ids[target_id] = target_id;
+				if (megasas_dbg_lvl & LD_PD_DEBUG)
+					dev_info(&instance->pdev->dev,
+						 "Device %d: LD targetID: 0x%03x\n",
+						 i, target_id);
 			}
 		}
 
