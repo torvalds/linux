@@ -367,13 +367,13 @@ struct afs_cell {
 	time64_t		last_inactive;	/* Time of last drop of usage count */
 	atomic_t		usage;
 	unsigned long		flags;
-#define AFS_CELL_FL_NOT_READY	0		/* The cell record is not ready for use */
-#define AFS_CELL_FL_NO_GC	1		/* The cell was added manually, don't auto-gc */
-#define AFS_CELL_FL_NOT_FOUND	2		/* Permanent DNS error */
-#define AFS_CELL_FL_DNS_FAIL	3		/* Failed to access DNS */
-#define AFS_CELL_FL_NO_LOOKUP_YET 4		/* Not completed first DNS lookup yet */
+#define AFS_CELL_FL_NO_GC	0		/* The cell was added manually, don't auto-gc */
+#define AFS_CELL_FL_DO_LOOKUP	1		/* DNS lookup requested */
 	enum afs_cell_state	state;
 	short			error;
+	enum dns_record_source	dns_source:8;	/* Latest source of data from lookup */
+	enum dns_lookup_status	dns_status:8;	/* Latest status of data from lookup */
+	unsigned int		dns_lookup_count; /* Counter of DNS lookups */
 
 	/* Active fileserver interaction state. */
 	struct list_head	proc_volumes;	/* procfs volume list */
