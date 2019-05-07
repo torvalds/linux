@@ -84,6 +84,7 @@ struct vicodec_q_data {
 	unsigned int		visible_width;
 	unsigned int		visible_height;
 	unsigned int		sizeimage;
+	unsigned int		vb2_sizeimage;
 	unsigned int		sequence;
 	const struct v4l2_fwht_pixfmt_info *info;
 };
@@ -1361,6 +1362,7 @@ static int vicodec_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 
 	*nplanes = 1;
 	sizes[0] = size;
+	q_data->vb2_sizeimage = size;
 	return 0;
 }
 
@@ -1391,11 +1393,11 @@ static int vicodec_buf_prepare(struct vb2_buffer *vb)
 		}
 	}
 
-	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
+	if (vb2_plane_size(vb, 0) < q_data->vb2_sizeimage) {
 		dprintk(ctx->dev,
 			"%s data will not fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
-			(long)q_data->sizeimage);
+			(long)q_data->vb2_sizeimage);
 		return -EINVAL;
 	}
 
