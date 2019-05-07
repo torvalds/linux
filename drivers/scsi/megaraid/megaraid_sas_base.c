@@ -2900,6 +2900,29 @@ megasas_dump_fusion_io(struct scsi_cmnd *scmd)
 
 }
 
+/*
+ * megasas_dump_sys_regs - This function will dump system registers through
+ *			    sysfs.
+ * @reg_set:		    Pointer to System register set.
+ * @buf:		    Buffer to which output is to be written.
+ * @return:		    Number of bytes written to buffer.
+ */
+static inline ssize_t
+megasas_dump_sys_regs(void __iomem *reg_set, char *buf)
+{
+	unsigned int i, sz = 256;
+	int bytes_wrote = 0;
+	char *loc = (char *)buf;
+	u32 __iomem *reg = (u32 __iomem *)reg_set;
+
+	for (i = 0; i < sz / sizeof(u32); i++) {
+		bytes_wrote += snprintf(loc + bytes_wrote, PAGE_SIZE,
+					"%08x: %08x\n", (i * 4),
+					readl(&reg[i]));
+	}
+	return bytes_wrote;
+}
+
 /**
  * megasas_reset_bus_host -	Bus & host reset handler entry point
  */
@@ -3222,6 +3245,17 @@ megasas_fw_cmds_outstanding_show(struct device *cdev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&instance->fw_outstanding));
 }
 
+static ssize_t
+megasas_dump_system_regs_show(struct device *cdev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct megasas_instance *instance =
+			(struct megasas_instance *)shost->hostdata;
+
+	return megasas_dump_sys_regs(instance->reg_set, buf);
+}
+
 static DEVICE_ATTR(fw_crash_buffer, S_IRUGO | S_IWUSR,
 	megasas_fw_crash_buffer_show, megasas_fw_crash_buffer_store);
 static DEVICE_ATTR(fw_crash_buffer_size, S_IRUGO,
@@ -3234,6 +3268,8 @@ static DEVICE_ATTR(ldio_outstanding, S_IRUGO,
 	megasas_ldio_outstanding_show, NULL);
 static DEVICE_ATTR(fw_cmds_outstanding, S_IRUGO,
 	megasas_fw_cmds_outstanding_show, NULL);
+static DEVICE_ATTR(dump_system_regs, S_IRUGO,
+	megasas_dump_system_regs_show, NULL);
 
 struct device_attribute *megaraid_host_attrs[] = {
 	&dev_attr_fw_crash_buffer_size,
@@ -3242,6 +3278,7 @@ struct device_attribute *megaraid_host_attrs[] = {
 	&dev_attr_page_size,
 	&dev_attr_ldio_outstanding,
 	&dev_attr_fw_cmds_outstanding,
+	&dev_attr_dump_system_regs,
 	NULL,
 };
 
