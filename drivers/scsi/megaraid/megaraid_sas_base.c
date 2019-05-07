@@ -5680,7 +5680,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	void *base_addr_phys;
 	struct megasas_ctrl_info *ctrl_info = NULL;
 	unsigned long bar_list;
-	int i, j, loop, fw_msix_count = 0;
+	int i, j, loop;
 	struct IOV_111 *iovPtr;
 	struct fusion_context *fusion;
 
@@ -5801,7 +5801,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				/* Thunderbolt Series*/
 				instance->msix_vectors = (scratch_pad_1
 					& MR_MAX_REPLY_QUEUES_OFFSET) + 1;
-				fw_msix_count = instance->msix_vectors;
 			} else {
 				instance->msix_vectors = ((scratch_pad_1
 					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
@@ -5836,7 +5835,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 					instance->smp_affinity_enable = false;
 				}
 
-				fw_msix_count = instance->msix_vectors;
 				/* Save 1-15 reply post index address to local memory
 				 * Index 0 is already saved from reg offset
 				 * MPI2_REPLY_POST_HOST_INDEX_OFFSET
@@ -5849,6 +5847,10 @@ static int megasas_init_fw(struct megasas_instance *instance)
 						+ (loop * 0x10));
 				}
 			}
+
+			dev_info(&instance->pdev->dev,
+				 "firmware supports msix\t: (%d)",
+				 instance->msix_vectors);
 			if (msix_vectors)
 				instance->msix_vectors = min(msix_vectors,
 					instance->msix_vectors);
@@ -5891,8 +5893,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	megasas_setup_reply_map(instance);
 
-	dev_info(&instance->pdev->dev,
-		"firmware supports msix\t: (%d)", fw_msix_count);
 	dev_info(&instance->pdev->dev,
 		"current msix/online cpus\t: (%d/%d)\n",
 		instance->msix_vectors, (unsigned int)num_online_cpus());
