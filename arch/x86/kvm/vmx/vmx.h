@@ -109,12 +109,19 @@ struct nested_vmx {
 	 * to guest memory during VM exit.
 	 */
 	struct vmcs12 *cached_shadow_vmcs12;
+
 	/*
 	 * Indicates if the shadow vmcs or enlightened vmcs must be updated
 	 * with the data held by struct vmcs12.
 	 */
 	bool need_vmcs12_to_shadow_sync;
 	bool dirty_vmcs12;
+
+	/*
+	 * Indicates lazily loaded guest state has not yet been decached from
+	 * vmcs02.
+	 */
+	bool need_sync_vmcs02_to_vmcs12_rare;
 
 	/*
 	 * vmcs02 has been initialized, i.e. state that is constant for
