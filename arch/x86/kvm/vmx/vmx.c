@@ -6359,9 +6359,7 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 static void vmx_arm_hv_timer(struct vcpu_vmx *vmx, u32 val)
 {
 	vmcs_write32(VMX_PREEMPTION_TIMER_VALUE, val);
-	if (!vmx->loaded_vmcs->hv_timer_armed)
-		pin_controls_setbit(vmx, PIN_BASED_VMX_PREEMPTION_TIMER);
-	vmx->loaded_vmcs->hv_timer_armed = true;
+	pin_controls_setbit(vmx, PIN_BASED_VMX_PREEMPTION_TIMER);
 }
 
 static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
@@ -6388,9 +6386,7 @@ static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 		return;
 	}
 
-	if (vmx->loaded_vmcs->hv_timer_armed)
-		pin_controls_clearbit(vmx, PIN_BASED_VMX_PREEMPTION_TIMER);
-	vmx->loaded_vmcs->hv_timer_armed = false;
+	pin_controls_clearbit(vmx, PIN_BASED_VMX_PREEMPTION_TIMER);
 }
 
 void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp)
