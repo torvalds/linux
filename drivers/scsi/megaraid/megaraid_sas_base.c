@@ -1112,8 +1112,9 @@ megasas_issue_blocked_cmd(struct megasas_instance *instance,
 		ret = wait_event_timeout(instance->int_cmd_wait_q,
 				cmd->cmd_status_drv != MFI_STAT_INVALID_STATUS, timeout * HZ);
 		if (!ret) {
-			dev_err(&instance->pdev->dev, "Failed from %s %d DCMD Timed out\n",
-				__func__, __LINE__);
+			dev_err(&instance->pdev->dev,
+				"DCMD(opcode: 0x%x) is timed out, func:%s\n",
+				cmd->frame->dcmd.opcode, __func__);
 			return DCMD_TIMEOUT;
 		}
 	} else
@@ -1142,6 +1143,7 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
 	struct megasas_cmd *cmd;
 	struct megasas_abort_frame *abort_fr;
 	int ret = 0;
+	u32 opcode;
 
 	cmd = megasas_get_cmd(instance);
 
@@ -1177,8 +1179,10 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
 		ret = wait_event_timeout(instance->abort_cmd_wait_q,
 				cmd->cmd_status_drv != MFI_STAT_INVALID_STATUS, timeout * HZ);
 		if (!ret) {
-			dev_err(&instance->pdev->dev, "Failed from %s %d Abort Timed out\n",
-				__func__, __LINE__);
+			opcode = cmd_to_abort->frame->dcmd.opcode;
+			dev_err(&instance->pdev->dev,
+				"Abort(to be aborted DCMD opcode: 0x%x) is timed out func:%s\n",
+				opcode,  __func__);
 			return DCMD_TIMEOUT;
 		}
 	} else
