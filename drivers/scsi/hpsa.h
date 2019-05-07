@@ -65,6 +65,7 @@ struct hpsa_scsi_dev_t {
 	u8 physical_device : 1;
 	u8 expose_device;
 	u8 removed : 1;			/* device is marked for death */
+	u8 was_removed : 1;		/* device actually removed */
 #define RAID_CTLR_LUNID "\0\0\0\0\0\0\0\0"
 	unsigned char device_id[16];    /* from inquiry pg. 0x83 */
 	u64 sas_address;

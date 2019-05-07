@@ -2141,6 +2141,7 @@ static int hpsa_slave_configure(struct scsi_device *sdev)
 	sdev->no_uld_attach = !sd || !sd->expose_device;
 
 	if (sd) {
+		sd->was_removed = 0;
 		if (sd->external) {
 			queue_depth = EXTERNAL_QD;
 			sdev->eh_timeout = HPSA_EH_PTRAID_TIMEOUT;
@@ -2160,7 +2161,12 @@ static int hpsa_slave_configure(struct scsi_device *sdev)
 
 static void hpsa_slave_destroy(struct scsi_device *sdev)
 {
-	/* nothing to do. */
+	struct hpsa_scsi_dev_t *hdev = NULL;
+
+	hdev = sdev->hostdata;
+
+	if (hdev)
+		hdev->was_removed = 1;
 }
 
 static void hpsa_free_ioaccel2_sg_chain_blocks(struct ctlr_info *h)
@@ -2587,6 +2593,12 @@ static void complete_scsi_command(struct CommandList *cp)
 
 	cmd->result = (DID_OK << 16); 		/* host byte */
 	cmd->result |= (COMMAND_COMPLETE << 8);	/* msg byte */
+
+	/* SCSI command has already been cleaned up in SML */
+	if (dev->was_removed) {
+		hpsa_cmd_resolve_and_free(h, cp);
+		return;
+	}
 
 	if (cp->cmd_type == CMD_IOACCEL2 || cp->cmd_type == CMD_IOACCEL1) {
 		if (dev->physical_device && dev->expose_device &&
