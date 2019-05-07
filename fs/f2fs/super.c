@@ -1000,15 +1000,9 @@ static void f2fs_dirty_inode(struct inode *inode, int flags)
 	f2fs_inode_dirtied(inode, false);
 }
 
-static void f2fs_i_callback(struct rcu_head *head)
+static void f2fs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(f2fs_inode_cachep, F2FS_I(inode));
-}
-
-static void f2fs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, f2fs_i_callback);
 }
 
 static void destroy_percpu_info(struct f2fs_sb_info *sbi)
@@ -2166,8 +2160,8 @@ void f2fs_quota_off_umount(struct super_block *sb)
 
 static const struct super_operations f2fs_sops = {
 	.alloc_inode	= f2fs_alloc_inode,
+	.free_inode	= f2fs_free_inode,
 	.drop_inode	= f2fs_drop_inode,
-	.destroy_inode	= f2fs_destroy_inode,
 	.write_inode	= f2fs_write_inode,
 	.dirty_inode	= f2fs_dirty_inode,
 	.show_options	= f2fs_show_options,

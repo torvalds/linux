@@ -848,6 +848,7 @@ static void ceph_umount_begin(struct super_block *sb)
 static const struct super_operations ceph_super_ops = {
 	.alloc_inode	= ceph_alloc_inode,
 	.destroy_inode	= ceph_destroy_inode,
+	.free_inode	= ceph_free_inode,
 	.write_inode    = ceph_write_inode,
 	.drop_inode	= ceph_drop_inode,
 	.sync_fs        = ceph_sync_fs,
