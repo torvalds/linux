@@ -670,6 +670,12 @@ config LEDS_IS31FL32XX
 	  LED controllers. They are I2C devices with multiple constant-current
 	  channels, each with independent 256-level PWM control.
 
+config LEDS_RGB13H
+	tristate "LED support for DL3020RGB13H flash LED controller"
+	depends on LEDS_CLASS_FLASH && GPIOLIB && OF
+	help
+	  Say Y here to include support for DL3020RGB13H LED controllers.
+
 config LEDS_SC27XX_BLTC
 	tristate "LED support for the SC27xx breathing light controller"
 	depends on LEDS_CLASS && MFD_SC27XX_PMIC
