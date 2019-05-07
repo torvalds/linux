@@ -303,11 +303,12 @@ struct kvm_vmx {
 
 bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
 void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
-void vmx_vcpu_put(struct kvm_vcpu *vcpu);
 int allocate_vpid(void);
 void free_vpid(int vpid);
 void vmx_set_constant_host_state(struct vcpu_vmx *vmx);
 void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu);
+void vmx_set_host_fs_gs(struct vmcs_host_state *host, u16 fs_sel, u16 gs_sel,
+			unsigned long fs_base, unsigned long gs_base);
 int vmx_get_cpl(struct kvm_vcpu *vcpu);
 unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu);
 void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);

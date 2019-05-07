@@ -1039,6 +1039,33 @@ static void pt_guest_exit(struct vcpu_vmx *vmx)
 	wrmsrl(MSR_IA32_RTIT_CTL, vmx->pt_desc.host.ctl);
 }
 
+void vmx_set_host_fs_gs(struct vmcs_host_state *host, u16 fs_sel, u16 gs_sel,
+			unsigned long fs_base, unsigned long gs_base)
+{
+	if (unlikely(fs_sel != host->fs_sel)) {
+		if (!(fs_sel & 7))
+			vmcs_write16(HOST_FS_SELECTOR, fs_sel);
+		else
+			vmcs_write16(HOST_FS_SELECTOR, 0);
+		host->fs_sel = fs_sel;
+	}
+	if (unlikely(gs_sel != host->gs_sel)) {
+		if (!(gs_sel & 7))
+			vmcs_write16(HOST_GS_SELECTOR, gs_sel);
+		else
+			vmcs_write16(HOST_GS_SELECTOR, 0);
+		host->gs_sel = gs_sel;
+	}
+	if (unlikely(fs_base != host->fs_base)) {
+		vmcs_writel(HOST_FS_BASE, fs_base);
+		host->fs_base = fs_base;
+	}
+	if (unlikely(gs_base != host->gs_base)) {
+		vmcs_writel(HOST_GS_BASE, gs_base);
+		host->gs_base = gs_base;
+	}
+}
+
 void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -1102,29 +1129,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	gs_base = segment_base(gs_sel);
 #endif
 
-	if (unlikely(fs_sel != host_state->fs_sel)) {
-		if (!(fs_sel & 7))
-			vmcs_write16(HOST_FS_SELECTOR, fs_sel);
-		else
-			vmcs_write16(HOST_FS_SELECTOR, 0);
-		host_state->fs_sel = fs_sel;
-	}
-	if (unlikely(gs_sel != host_state->gs_sel)) {
-		if (!(gs_sel & 7))
-			vmcs_write16(HOST_GS_SELECTOR, gs_sel);
-		else
-			vmcs_write16(HOST_GS_SELECTOR, 0);
-		host_state->gs_sel = gs_sel;
-	}
-	if (unlikely(fs_base != host_state->fs_base)) {
-		vmcs_writel(HOST_FS_BASE, fs_base);
-		host_state->fs_base = fs_base;
-	}
-	if (unlikely(gs_base != host_state->gs_base)) {
-		vmcs_writel(HOST_GS_BASE, gs_base);
-		host_state->gs_base = gs_base;
-	}
-
+	vmx_set_host_fs_gs(host_state, fs_sel, gs_sel, fs_base, gs_base);
 	vmx->guest_state_loaded = true;
 }
 
@@ -1314,7 +1319,7 @@ static void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
 		pi_set_sn(pi_desc);
 }
 
-void vmx_vcpu_put(struct kvm_vcpu *vcpu)
+static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	vmx_vcpu_pi_put(vcpu);
 
