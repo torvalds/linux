@@ -41,15 +41,19 @@ static unsigned long *vmx_bitmap[VMX_BITMAP_NR];
 #define vmx_vmread_bitmap                    (vmx_bitmap[VMX_VMREAD_BITMAP])
 #define vmx_vmwrite_bitmap                   (vmx_bitmap[VMX_VMWRITE_BITMAP])
 
-static u16 shadow_read_only_fields[] = {
-#define SHADOW_FIELD_RO(x) x,
+struct shadow_vmcs_field {
+	u16	encoding;
+	u16	offset;
+};
+static struct shadow_vmcs_field shadow_read_only_fields[] = {
+#define SHADOW_FIELD_RO(x, y) { x, offsetof(struct vmcs12, y) },
 #include "vmcs_shadow_fields.h"
 };
 static int max_shadow_read_only_fields =
 	ARRAY_SIZE(shadow_read_only_fields);
 
-static u16 shadow_read_write_fields[] = {
-#define SHADOW_FIELD_RW(x) x,
+static struct shadow_vmcs_field shadow_read_write_fields[] = {
+#define SHADOW_FIELD_RW(x, y) { x, offsetof(struct vmcs12, y) },
 #include "vmcs_shadow_fields.h"
 };
 static int max_shadow_read_write_fields =
@@ -63,37 +67,39 @@ static void init_vmcs_shadow_fields(void)
 	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
 
 	for (i = j = 0; i < max_shadow_read_only_fields; i++) {
-		u16 field = shadow_read_only_fields[i];
+		struct shadow_vmcs_field entry = shadow_read_only_fields[i];
+		u16 field = entry.encoding;
 
 		if (vmcs_field_width(field) == VMCS_FIELD_WIDTH_U64 &&
 		    (i + 1 == max_shadow_read_only_fields ||
-		     shadow_read_only_fields[i + 1] != field + 1))
+		     shadow_read_only_fields[i + 1].encoding != field + 1))
 			pr_err("Missing field from shadow_read_only_field %x\n",
 			       field + 1);
 
 		clear_bit(field, vmx_vmread_bitmap);
-#ifdef CONFIG_X86_64
 		if (field & 1)
+#ifdef CONFIG_X86_64
 			continue;
+#else
+			entry.offset += sizeof(u32);
 #endif
-		if (j < i)
-			shadow_read_only_fields[j] = field;
-		j++;
+		shadow_read_only_fields[j++] = entry;
 	}
 	max_shadow_read_only_fields = j;
 
 	for (i = j = 0; i < max_shadow_read_write_fields; i++) {
-		u16 field = shadow_read_write_fields[i];
+		struct shadow_vmcs_field entry = shadow_read_write_fields[i];
+		u16 field = entry.encoding;
 
 		if (vmcs_field_width(field) == VMCS_FIELD_WIDTH_U64 &&
 		    (i + 1 == max_shadow_read_write_fields ||
-		     shadow_read_write_fields[i + 1] != field + 1))
+		     shadow_read_write_fields[i + 1].encoding != field + 1))
 			pr_err("Missing field from shadow_read_write_field %x\n",
 			       field + 1);
 
 		WARN_ONCE(field >= GUEST_ES_AR_BYTES &&
 			  field <= GUEST_TR_AR_BYTES,
-			  "Update vmcs12_write_any() to expose AR_BYTES RW");
+			  "Update vmcs12_write_any() to drop reserved bits from AR_BYTES");
 
 		/*
 		 * PML and the preemption timer can be emulated, but the
@@ -119,13 +125,13 @@ static void init_vmcs_shadow_fields(void)
 
 		clear_bit(field, vmx_vmwrite_bitmap);
 		clear_bit(field, vmx_vmread_bitmap);
-#ifdef CONFIG_X86_64
 		if (field & 1)
+#ifdef CONFIG_X86_64
 			continue;
+#else
+			entry.offset += sizeof(u32);
 #endif
-		if (j < i)
-			shadow_read_write_fields[j] = field;
-		j++;
+		shadow_read_write_fields[j++] = entry;
 	}
 	max_shadow_read_write_fields = j;
 }
@@ -1308,7 +1314,8 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 {
 	struct vmcs *shadow_vmcs = vmx->vmcs01.shadow_vmcs;
 	struct vmcs12 *vmcs12 = get_vmcs12(&vmx->vcpu);
-	unsigned long field;
+	struct shadow_vmcs_field field;
+	unsigned long val;
 	int i;
 
 	preempt_disable();
@@ -1317,7 +1324,8 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 
 	for (i = 0; i < max_shadow_read_write_fields; i++) {
 		field = shadow_read_write_fields[i];
-		vmcs12_write_any(vmcs12, field, __vmcs_readl(field));
+		val = __vmcs_readl(field.encoding);
+		vmcs12_write_any(vmcs12, field.encoding, field.offset, val);
 	}
 
 	vmcs_clear(shadow_vmcs);
@@ -1328,7 +1336,7 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 
 static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 {
-	const u16 *fields[] = {
+	const struct shadow_vmcs_field *fields[] = {
 		shadow_read_write_fields,
 		shadow_read_only_fields
 	};
@@ -1336,18 +1344,20 @@ static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 		max_shadow_read_write_fields,
 		max_shadow_read_only_fields
 	};
-	int i, q;
-	unsigned long field;
-	u64 field_value = 0;
 	struct vmcs *shadow_vmcs = vmx->vmcs01.shadow_vmcs;
+	struct vmcs12 *vmcs12 = get_vmcs12(&vmx->vcpu);
+	struct shadow_vmcs_field field;
+	unsigned long val;
+	int i, q;
 
 	vmcs_load(shadow_vmcs);
 
 	for (q = 0; q < ARRAY_SIZE(fields); q++) {
 		for (i = 0; i < max_fields[q]; i++) {
 			field = fields[q][i];
-			vmcs12_read_any(get_vmcs12(&vmx->vcpu), field, &field_value);
-			__vmcs_writel(field, field_value);
+			val = vmcs12_read_any(vmcs12, field.encoding,
+					      field.offset);
+			__vmcs_writel(field.encoding, val);
 		}
 	}
 
@@ -2144,6 +2154,8 @@ static void prepare_vmcs02_full(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		vmcs_write32(GUEST_TR_LIMIT, vmcs12->guest_tr_limit);
 		vmcs_write32(GUEST_GDTR_LIMIT, vmcs12->guest_gdtr_limit);
 		vmcs_write32(GUEST_IDTR_LIMIT, vmcs12->guest_idtr_limit);
+		vmcs_write32(GUEST_CS_AR_BYTES, vmcs12->guest_cs_ar_bytes);
+		vmcs_write32(GUEST_SS_AR_BYTES, vmcs12->guest_ss_ar_bytes);
 		vmcs_write32(GUEST_ES_AR_BYTES, vmcs12->guest_es_ar_bytes);
 		vmcs_write32(GUEST_DS_AR_BYTES, vmcs12->guest_ds_ar_bytes);
 		vmcs_write32(GUEST_FS_AR_BYTES, vmcs12->guest_fs_ar_bytes);
@@ -2240,21 +2252,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			  u32 *entry_failure_code)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct hv_enlightened_vmcs *hv_evmcs = vmx->nested.hv_evmcs;
 
 	if (vmx->nested.dirty_vmcs12 || vmx->nested.hv_evmcs) {
 		prepare_vmcs02_full(vmx, vmcs12);
 		vmx->nested.dirty_vmcs12 = false;
-	}
-
-	/*
-	 * First, the fields that are shadowed.  This must be kept in sync
-	 * with vmcs_shadow_fields.h.
-	 */
-	if (!hv_evmcs || !(hv_evmcs->hv_clean_fields &
-			   HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP2)) {
-		vmcs_write32(GUEST_CS_AR_BYTES, vmcs12->guest_cs_ar_bytes);
-		vmcs_write32(GUEST_SS_AR_BYTES, vmcs12->guest_ss_ar_bytes);
 	}
 
 	if (vmx->nested.nested_run_pending &&
@@ -4372,6 +4373,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	int len;
 	gva_t gva = 0;
 	struct vmcs12 *vmcs12;
+	short offset;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -4393,10 +4395,14 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 
 	/* Decode instruction info and find the field to read */
 	field = kvm_register_readl(vcpu, (((vmx_instruction_info) >> 28) & 0xf));
-	/* Read the field, zero-extended to a u64 field_value */
-	if (vmcs12_read_any(vmcs12, field, &field_value) < 0)
+
+	offset = vmcs_field_to_offset(field);
+	if (offset < 0)
 		return nested_vmx_failValid(vcpu,
 			VMXERR_UNSUPPORTED_VMCS_COMPONENT);
+
+	/* Read the field, zero-extended to a u64 field_value */
+	field_value = vmcs12_read_any(vmcs12, field, offset);
 
 	/*
 	 * Now copy part of this value to register or memory, as requested.
@@ -4437,6 +4443,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	u64 field_value = 0;
 	struct x86_exception e;
 	struct vmcs12 *vmcs12;
+	short offset;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -4481,6 +4488,11 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 		vmcs12 = get_shadow_vmcs12(vcpu);
 	}
 
+	offset = vmcs_field_to_offset(field);
+	if (offset < 0)
+		return nested_vmx_failValid(vcpu,
+			VMXERR_UNSUPPORTED_VMCS_COMPONENT);
+
 	/*
 	 * Some Intel CPUs intentionally drop the reserved bits of the AR byte
 	 * fields on VMWRITE.  Emulate this behavior to ensure consistent KVM
@@ -4492,9 +4504,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	if (field >= GUEST_ES_AR_BYTES && field <= GUEST_TR_AR_BYTES)
 		field_value &= 0x1f0ff;
 
-	if (vmcs12_write_any(vmcs12, field, field_value) < 0)
-		return nested_vmx_failValid(vcpu,
-			VMXERR_UNSUPPORTED_VMCS_COMPONENT);
+	vmcs12_write_any(vmcs12, field, offset, field_value);
 
 	/*
 	 * Do not track vmcs12 dirty-state if in guest-mode
@@ -4502,7 +4512,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	 */
 	if (!is_guest_mode(vcpu)) {
 		switch (field) {
-#define SHADOW_FIELD_RW(x) case x:
+#define SHADOW_FIELD_RW(x, y) case x:
 #include "vmcs_shadow_fields.h"
 			/*
 			 * The fields that can be updated by L1 without a vmexit are
@@ -4511,7 +4521,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 			 */
 			break;
 
-#define SHADOW_FIELD_RO(x) case x:
+#define SHADOW_FIELD_RO(x, y) case x:
 #include "vmcs_shadow_fields.h"
 			/*
 			 * L1 can read these fields without exiting, ensure the
