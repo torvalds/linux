@@ -5013,6 +5013,63 @@ static bool vega10_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
 	return true;
 }
 
+static void vega10_odn_update_power_state(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct pp_power_state *ps = hwmgr->request_ps;
+	struct vega10_power_state *vega10_ps;
+	struct vega10_single_dpm_table *gfx_dpm_table =
+		&data->dpm_table.gfx_table;
+	struct vega10_single_dpm_table *soc_dpm_table =
+		&data->dpm_table.soc_table;
+	struct vega10_single_dpm_table *mem_dpm_table =
+		&data->dpm_table.mem_table;
+	int max_level;
+
+	if (!ps)
+		return;
+
+	vega10_ps = cast_phw_vega10_power_state(&ps->hardware);
+	max_level = vega10_ps->performance_level_count - 1;
+
+	if (vega10_ps->performance_levels[max_level].gfx_clock !=
+	    gfx_dpm_table->dpm_levels[gfx_dpm_table->count - 1].value)
+		vega10_ps->performance_levels[max_level].gfx_clock =
+			gfx_dpm_table->dpm_levels[gfx_dpm_table->count - 1].value;
+
+	if (vega10_ps->performance_levels[max_level].soc_clock !=
+	    soc_dpm_table->dpm_levels[soc_dpm_table->count - 1].value)
+		vega10_ps->performance_levels[max_level].soc_clock =
+			soc_dpm_table->dpm_levels[soc_dpm_table->count - 1].value;
+
+	if (vega10_ps->performance_levels[max_level].mem_clock !=
+	    mem_dpm_table->dpm_levels[mem_dpm_table->count - 1].value)
+		vega10_ps->performance_levels[max_level].mem_clock =
+			mem_dpm_table->dpm_levels[mem_dpm_table->count - 1].value;
+
+	if (!hwmgr->ps)
+		return;
+
+	ps = (struct pp_power_state *)((unsigned long)(hwmgr->ps) + hwmgr->ps_size * (hwmgr->num_ps - 1));
+	vega10_ps = cast_phw_vega10_power_state(&ps->hardware);
+	max_level = vega10_ps->performance_level_count - 1;
+
+	if (vega10_ps->performance_levels[max_level].gfx_clock !=
+	    gfx_dpm_table->dpm_levels[gfx_dpm_table->count - 1].value)
+		vega10_ps->performance_levels[max_level].gfx_clock =
+			gfx_dpm_table->dpm_levels[gfx_dpm_table->count - 1].value;
+
+	if (vega10_ps->performance_levels[max_level].soc_clock !=
+	    soc_dpm_table->dpm_levels[soc_dpm_table->count - 1].value)
+		vega10_ps->performance_levels[max_level].soc_clock =
+			soc_dpm_table->dpm_levels[soc_dpm_table->count - 1].value;
+
+	if (vega10_ps->performance_levels[max_level].mem_clock !=
+	    mem_dpm_table->dpm_levels[mem_dpm_table->count - 1].value)
+		vega10_ps->performance_levels[max_level].mem_clock =
+			mem_dpm_table->dpm_levels[mem_dpm_table->count - 1].value;
+}
+
 static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,
 						enum PP_OD_DPM_TABLE_COMMAND type)
 {
@@ -5083,6 +5140,7 @@ static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,
 				podn_vdd_dep->entries[podn_vdd_dep->count - 1].vddInd;
 		}
 	}
+	vega10_odn_update_power_state(hwmgr);
 }
 
 static int vega10_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
@@ -5117,6 +5175,7 @@ static int vega10_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 	} else if (PP_OD_RESTORE_DEFAULT_TABLE == type) {
 		memcpy(&(data->dpm_table), &(data->golden_dpm_table), sizeof(struct vega10_dpm_table));
 		vega10_odn_initial_default_setting(hwmgr);
+		vega10_odn_update_power_state(hwmgr);
 		return 0;
 	} else if (PP_OD_COMMIT_DPM_TABLE == type) {
 		vega10_check_dpm_table_updated(hwmgr);
