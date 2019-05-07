@@ -5624,6 +5624,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	u32 max_sectors_2, tmp_sectors, msix_enable;
 	u32 scratch_pad_1, scratch_pad_2, scratch_pad_3, status_reg;
 	resource_size_t base_addr;
+	void *base_addr_phys;
 	struct megasas_ctrl_info *ctrl_info = NULL;
 	unsigned long bar_list;
 	int i, j, loop, fw_msix_count = 0;
@@ -5648,6 +5649,11 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "Failed to map IO mem\n");
 		goto fail_ioremap;
 	}
+
+	base_addr_phys = &base_addr;
+	dev_printk(KERN_DEBUG, &instance->pdev->dev,
+		   "BAR:0x%lx  BAR's base_addr(phys):%pa  mapped virt_addr:0x%p\n",
+		   instance->bar, base_addr_phys, instance->reg_set);
 
 	if (instance->adapter_type != MFI_SERIES)
 		instance->instancet = &megasas_instance_template_fusion;
