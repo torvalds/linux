@@ -2796,22 +2796,20 @@ static void ept_update_paging_mode_cr0(unsigned long *hw_cr0,
 					unsigned long cr0,
 					struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
 	if (!test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
 		vmx_decache_cr3(vcpu);
 	if (!(cr0 & X86_CR0_PG)) {
 		/* From paging/starting to nonpaging */
-		vmcs_write32(CPU_BASED_VM_EXEC_CONTROL,
-			     vmcs_read32(CPU_BASED_VM_EXEC_CONTROL) |
-			     (CPU_BASED_CR3_LOAD_EXITING |
-			      CPU_BASED_CR3_STORE_EXITING));
+		exec_controls_setbit(vmx, CPU_BASED_CR3_LOAD_EXITING |
+					  CPU_BASED_CR3_STORE_EXITING);
 		vcpu->arch.cr0 = cr0;
 		vmx_set_cr4(vcpu, kvm_read_cr4(vcpu));
 	} else if (!is_paging(vcpu)) {
 		/* From nonpaging to paging */
-		vmcs_write32(CPU_BASED_VM_EXEC_CONTROL,
-			     vmcs_read32(CPU_BASED_VM_EXEC_CONTROL) &
-			     ~(CPU_BASED_CR3_LOAD_EXITING |
-			       CPU_BASED_CR3_STORE_EXITING));
+		exec_controls_clearbit(vmx, CPU_BASED_CR3_LOAD_EXITING |
+					    CPU_BASED_CR3_STORE_EXITING);
 		vcpu->arch.cr0 = cr0;
 		vmx_set_cr4(vcpu, kvm_read_cr4(vcpu));
 	}
@@ -4045,7 +4043,7 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	pin_controls_init(vmx, vmx_pin_based_exec_ctrl(vmx));
 	vmx->hv_deadline_tsc = -1;
 
-	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, vmx_exec_control(vmx));
+	exec_controls_init(vmx, vmx_exec_control(vmx));
 
 	if (cpu_has_secondary_exec_ctrls()) {
 		vmx_compute_secondary_exec_control(vmx);
@@ -4235,8 +4233,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
-	vmcs_set_bits(CPU_BASED_VM_EXEC_CONTROL,
-		      CPU_BASED_VIRTUAL_INTR_PENDING);
+	exec_controls_setbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_INTR_PENDING);
 }
 
 static void enable_nmi_window(struct kvm_vcpu *vcpu)
@@ -4247,8 +4244,7 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 		return;
 	}
 
-	vmcs_set_bits(CPU_BASED_VM_EXEC_CONTROL,
-		      CPU_BASED_VIRTUAL_NMI_PENDING);
+	exec_controls_setbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_NMI_PENDING);
 }
 
 static void vmx_inject_irq(struct kvm_vcpu *vcpu)
@@ -4795,8 +4791,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	}
 
 	if (vcpu->guest_debug == 0) {
-		vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
-				CPU_BASED_MOV_DR_EXITING);
+		exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_MOV_DR_EXITING);
 
 		/*
 		 * No more DR vmexits; force a reload of the debug registers
@@ -4840,7 +4835,7 @@ static void vmx_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 	vcpu->arch.dr7 = vmcs_readl(GUEST_DR7);
 
 	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
-	vmcs_set_bits(CPU_BASED_VM_EXEC_CONTROL, CPU_BASED_MOV_DR_EXITING);
+	exec_controls_setbit(to_vmx(vcpu), CPU_BASED_MOV_DR_EXITING);
 }
 
 static void vmx_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
@@ -4900,8 +4895,7 @@ static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu)
 
 static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 {
-	vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
-			CPU_BASED_VIRTUAL_INTR_PENDING);
+	exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_INTR_PENDING);
 
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
@@ -5155,8 +5149,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
 {
 	WARN_ON_ONCE(!enable_vnmi);
-	vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
-			CPU_BASED_VIRTUAL_NMI_PENDING);
+	exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_NMI_PENDING);
 	++vcpu->stat.nmi_window_exits;
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
@@ -5168,7 +5161,6 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	enum emulation_result err = EMULATE_DONE;
 	int ret = 1;
-	u32 cpu_exec_ctrl;
 	bool intr_window_requested;
 	unsigned count = 130;
 
@@ -5179,8 +5171,8 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	 */
 	WARN_ON_ONCE(vmx->emulation_required && vmx->nested.nested_run_pending);
 
-	cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
-	intr_window_requested = cpu_exec_ctrl & CPU_BASED_VIRTUAL_INTR_PENDING;
+	intr_window_requested = exec_controls_get(vmx) &
+				CPU_BASED_VIRTUAL_INTR_PENDING;
 
 	while (vmx->emulation_required && count-- != 0) {
 		if (intr_window_requested && vmx_interrupt_allowed(vcpu))

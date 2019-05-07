@@ -286,6 +286,7 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 	vm_entry_controls_reset_shadow(vmx);
 	vm_exit_controls_reset_shadow(vmx);
 	pin_controls_reset_shadow(vmx);
+	exec_controls_reset_shadow(vmx);
 	vmx_segment_cache_clear(vmx);
 }
 
@@ -2052,7 +2053,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	 */
 	exec_control &= ~CPU_BASED_USE_IO_BITMAPS;
 	exec_control |= CPU_BASED_UNCOND_IO_EXITING;
-	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, exec_control);
+	exec_controls_init(vmx, exec_control);
 
 	/*
 	 * SECONDARY EXEC CONTROLS
@@ -2873,8 +2874,7 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 			 * _not_ what the processor does but it's basically the
 			 * only possibility we have.
 			 */
-			vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
-					CPU_BASED_TPR_SHADOW);
+			exec_controls_clearbit(vmx, CPU_BASED_TPR_SHADOW);
 		} else {
 			/*
 			 * Write an illegal value to VIRTUAL_APIC_PAGE_ADDR to
@@ -2896,11 +2896,9 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 		}
 	}
 	if (nested_vmx_prepare_msr_bitmap(vcpu, vmcs12))
-		vmcs_set_bits(CPU_BASED_VM_EXEC_CONTROL,
-			      CPU_BASED_USE_MSR_BITMAPS);
+		exec_controls_setbit(vmx, CPU_BASED_USE_MSR_BITMAPS);
 	else
-		vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
-				CPU_BASED_USE_MSR_BITMAPS);
+		exec_controls_clearbit(vmx, CPU_BASED_USE_MSR_BITMAPS);
 }
 
 /*
@@ -2953,7 +2951,7 @@ int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	u32 exit_reason = EXIT_REASON_INVALID_STATE;
 	u32 exit_qual;
 
-	evaluate_pending_interrupts = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL) &
+	evaluate_pending_interrupts = exec_controls_get(vmx) &
 		(CPU_BASED_VIRTUAL_INTR_PENDING | CPU_BASED_VIRTUAL_NMI_PENDING);
 	if (likely(!evaluate_pending_interrupts) && kvm_vcpu_apicv_active(vcpu))
 		evaluate_pending_interrupts |= vmx_has_apicv_interrupt(vcpu);
