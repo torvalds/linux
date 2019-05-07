@@ -1940,8 +1940,17 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx->nested.vmcs02.msr_bitmap));
 
-	if (enable_pml)
+	/*
+	 * The PML address never changes, so it is constant in vmcs02.
+	 * Conceptually we want to copy the PML index from vmcs01 here,
+	 * and then back to vmcs01 on nested vmexit.  But since we flush
+	 * the log and reset GUEST_PML_INDEX on each vmexit, the PML
+	 * index is also effectively constant in vmcs02.
+	 */
+	if (enable_pml) {
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
+		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+	}
 
 	if (cpu_has_vmx_encls_vmexit())
 		vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
@@ -2100,16 +2109,6 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	if (cpu_has_load_ia32_efer() && guest_efer != host_efer)
 		exec_control |= VM_EXIT_LOAD_IA32_EFER;
 	vm_exit_controls_init(vmx, exec_control);
-
-	/*
-	 * Conceptually we want to copy the PML address and index from
-	 * vmcs01 here, and then back to vmcs01 on nested vmexit. But,
-	 * since we always flush the log on each vmexit and never change
-	 * the PML address (once set), this happens to be equivalent to
-	 * simply resetting the index in vmcs02.
-	 */
-	if (enable_pml)
-		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 
 	/*
 	 * Interrupt/Exception Fields
