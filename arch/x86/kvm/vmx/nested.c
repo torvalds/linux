@@ -2039,20 +2039,13 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	exec_control &= ~CPU_BASED_TPR_SHADOW;
 	exec_control |= vmcs12->cpu_based_vm_exec_control;
 
-	/*
-	 * Write an illegal value to VIRTUAL_APIC_PAGE_ADDR. Later, if
-	 * nested_get_vmcs12_pages can't fix it up, the illegal value
-	 * will result in a VM entry failure.
-	 */
-	if (exec_control & CPU_BASED_TPR_SHADOW) {
-		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, -1ull);
+	if (exec_control & CPU_BASED_TPR_SHADOW)
 		vmcs_write32(TPR_THRESHOLD, vmcs12->tpr_threshold);
-	} else {
 #ifdef CONFIG_X86_64
+	else
 		exec_control |= CPU_BASED_CR8_LOAD_EXITING |
 				CPU_BASED_CR8_STORE_EXITING;
 #endif
-	}
 
 	/*
 	 * A vmexit (to either L1 hypervisor or L0 userspace) is always needed
@@ -2861,10 +2854,6 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 	if (nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW)) {
 		map = &vmx->nested.virtual_apic_map;
 
-		/*
-		 * If translation failed, VM entry will fail because
-		 * prepare_vmcs02 set VIRTUAL_APIC_PAGE_ADDR to -1ull.
-		 */
 		if (!kvm_vcpu_map(vcpu, gpa_to_gfn(vmcs12->virtual_apic_page_addr), map)) {
 			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, pfn_to_hpa(map->pfn));
 		} else if (nested_cpu_has(vmcs12, CPU_BASED_CR8_LOAD_EXITING) &&
@@ -2880,6 +2869,12 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 			 */
 			vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
 					CPU_BASED_TPR_SHADOW);
+		} else {
+			/*
+			 * Write an illegal value to VIRTUAL_APIC_PAGE_ADDR to
+			 * force VM-Entry to fail.
+			 */
+			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, -1ull);
 		}
 	}
 
