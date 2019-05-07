@@ -7242,6 +7242,8 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 	host = instance->host;
 	instance->unload = 1;
 
+	dev_info(&pdev->dev, "%s is called\n", __func__);
+
 	/* Shutdown SR-IOV heartbeat timer */
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
 		del_timer_sync(&instance->sriov_heartbeat_timer);
@@ -7296,6 +7298,7 @@ megasas_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);
 
+	dev_info(&pdev->dev, "%s is called\n", __func__);
 	/*
 	 * PCI prepping: enable device set bus mastering and dma mask
 	 */
