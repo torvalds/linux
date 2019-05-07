@@ -283,11 +283,6 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 	vmx_sync_vmcs_host_state(vmx, prev);
 	put_cpu();
 
-	vm_entry_controls_reset_shadow(vmx);
-	vm_exit_controls_reset_shadow(vmx);
-	pin_controls_reset_shadow(vmx);
-	exec_controls_reset_shadow(vmx);
-	secondary_exec_controls_reset_shadow(vmx);
 	vmx_segment_cache_clear(vmx);
 }
 
