@@ -161,7 +161,7 @@ static unsigned int sbsa_gwdt_get_timeleft(struct watchdog_device *wdd)
 		timeleft += readl(gwdt->control_base + SBSA_GWDT_WOR);
 
 	timeleft += lo_hi_readq(gwdt->control_base + SBSA_GWDT_WCV) -
-		    arch_counter_get_cntvct();
+		    arch_timer_read_counter();
 
 	do_div(timeleft, gwdt->clk);
 

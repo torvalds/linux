@@ -704,10 +704,10 @@ static int __init ghash_ce_mod_init(void)
 {
 	int ret;
 
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		ret = crypto_register_shashes(ghash_alg,
 					      ARRAY_SIZE(ghash_alg));
 	else
@@ -717,7 +717,7 @@ static int __init ghash_ce_mod_init(void)
 	if (ret)
 		return ret;
 
-	if (elf_hwcap & HWCAP_PMULL) {
+	if (cpu_have_named_feature(PMULL)) {
 		ret = crypto_register_aead(&gcm_aes_alg);
 		if (ret)
 			crypto_unregister_shashes(ghash_alg,
@@ -728,7 +728,7 @@ static int __init ghash_ce_mod_init(void)
 
 static void __exit ghash_ce_mod_exit(void)
 {
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		crypto_unregister_shashes(ghash_alg, ARRAY_SIZE(ghash_alg));
 	else
 		crypto_unregister_shash(ghash_alg);
