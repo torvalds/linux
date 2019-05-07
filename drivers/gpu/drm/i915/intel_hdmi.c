@@ -2166,7 +2166,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	if (bpc == 10 && INTEL_GEN(dev_priv) < 11)
 		return false;
 
-	if (crtc_state->pipe_bpp <= 8*3)
+	if (crtc_state->pipe_bpp < bpc * 3)
 		return false;
 
 	if (!crtc_state->has_hdmi_sink)
