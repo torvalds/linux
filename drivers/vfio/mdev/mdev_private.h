@@ -33,6 +33,7 @@ struct mdev_device {
 	struct kref ref;
 	struct list_head next;
 	struct kobject *type_kobj;
+	struct device *iommu_device;
 	bool active;
 };
 
