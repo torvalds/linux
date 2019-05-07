@@ -2085,6 +2085,14 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		/* VMCS shadowing for L2 is emulated for now */
 		exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
 
+		/*
+		 * Preset *DT exiting when emulating UMIP, so that vmx_set_cr4()
+		 * will not have to rewrite the controls just for this bit.
+		 */
+		if (!boot_cpu_has(X86_FEATURE_UMIP) && vmx_umip_emulated() &&
+		    (vmcs12->guest_cr4 & X86_CR4_UMIP))
+			exec_control |= SECONDARY_EXEC_DESC;
+
 		if (exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY)
 			vmcs_write16(GUEST_INTR_STATUS,
 				vmcs12->guest_intr_status);
