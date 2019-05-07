@@ -2083,14 +2083,6 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 			vmcs_write16(GUEST_INTR_STATUS,
 				vmcs12->guest_intr_status);
 
-		/*
-		 * Write an illegal value to APIC_ACCESS_ADDR. Later,
-		 * nested_get_vmcs12_pages will either fix it up or
-		 * remove the VM execution control.
-		 */
-		if (exec_control & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)
-			vmcs_write64(APIC_ACCESS_ADDR, -1ull);
-
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 	}
 
