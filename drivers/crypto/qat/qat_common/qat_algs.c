@@ -164,7 +164,6 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 	memset(ctx->ipad, 0, block_size);
 	memset(ctx->opad, 0, block_size);
 	shash->tfm = ctx->hash_tfm;
-	shash->flags = 0x0;
 
 	if (auth_keylen > block_size) {
 		int ret = crypto_shash_digest(shash, auth_key,

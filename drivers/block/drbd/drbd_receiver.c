@@ -5443,7 +5443,6 @@ static int drbd_do_auth(struct drbd_connection *connection)
 	rcu_read_unlock();
 
 	desc->tfm = connection->cram_hmac_tfm;
-	desc->flags = 0;
 
 	rv = crypto_shash_setkey(connection->cram_hmac_tfm, (u8 *)secret, key_len);
 	if (rv) {

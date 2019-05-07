@@ -760,7 +760,6 @@ void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 		SHASH_DESC_ON_STACK(desc, tfm);
 
 		desc->tfm = tfm;
-		desc->flags = 0;
 		crypto_shash_digest(desc, (u8 *)auth,
 				    end - (unsigned char *)auth, digest);
 		shash_desc_zero(desc);

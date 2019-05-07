@@ -144,7 +144,7 @@ static int __init crypto842_mod_init(void)
 
 	return ret;
 }
-module_init(crypto842_mod_init);
+subsys_initcall(crypto842_mod_init);
 
 static void __exit crypto842_mod_exit(void)
 {

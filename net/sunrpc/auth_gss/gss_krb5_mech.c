@@ -438,7 +438,6 @@ context_derive_keys_rc4(struct krb5_ctx *ctx)
 	}
 
 	desc->tfm = hmac;
-	desc->flags = 0;
 
 	err = crypto_shash_digest(desc, sigkeyconstant, slen, ctx->cksum);
 	kzfree(desc);

@@ -402,7 +402,6 @@ static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
 	{
 		SHASH_DESC_ON_STACK(desc, tfm);
 		desc->tfm = tfm;
-		desc->flags = 0;
 
 		return crypto_shash_digest(desc, key, keysize, salt);
 	}
