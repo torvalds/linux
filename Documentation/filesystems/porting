@@ -663,3 +663,8 @@ in your dentry operations instead.
 	there, but that's it.  Freeing memory in the callback is fine; doing
 	more than that is possible, but requires a lot of care and is best
 	avoided.
+--
+[mandatory]
+	DCACHE_RCUACCESS is gone; having an RCU delay on dentry freeing is the
+	default.  DCACHE_NORCU opts out, and only d_alloc_pseudo() has any
+	business doing so.

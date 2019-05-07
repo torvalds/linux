@@ -176,7 +176,6 @@ struct dentry_operations {
       * typically using d_splice_alias. */
 
 #define DCACHE_REFERENCED		0x00000040 /* Recently used, don't discard. */
-#define DCACHE_RCUACCESS		0x00000080 /* Entry has ever been RCU-visible */
 
 #define DCACHE_CANT_MOUNT		0x00000100
 #define DCACHE_GENOCIDE			0x00000200
@@ -217,6 +216,7 @@ struct dentry_operations {
 
 #define DCACHE_PAR_LOOKUP		0x10000000 /* being looked up (with parent locked shared) */
 #define DCACHE_DENTRY_CURSOR		0x20000000
+#define DCACHE_NORCU			0x40000000 /* No RCU delay for freeing */
 
 extern seqlock_t rename_lock;
 
