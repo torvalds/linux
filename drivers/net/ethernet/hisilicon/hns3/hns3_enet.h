@@ -376,6 +376,7 @@ struct ring_stats {
 			u64 tx_err_cnt;
 			u64 restart_queue;
 			u64 tx_busy;
+			u64 tx_copy;
 		};
 		struct {
 			u64 rx_pkts;
@@ -388,6 +389,7 @@ struct ring_stats {
 			u64 l2_err;
 			u64 l3l4_csum_err;
 			u64 rx_multicast;
+			u64 non_reuse_pg;
 		};
 	};
 };
@@ -399,7 +401,6 @@ struct hns3_enet_ring {
 	struct hns3_enet_ring *next;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	struct hnae3_queue *tqp;
-	char ring_name[HNS3_RING_NAME_LEN];
 	struct device *dev; /* will be used for DMA mapping of descriptors */
 
 	/* statistic */
@@ -409,9 +410,6 @@ struct hns3_enet_ring {
 	dma_addr_t desc_dma_addr;
 	u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
 	u16 desc_num;       /* total number of desc */
-	u16 max_desc_num_per_pkt;
-	u16 max_raw_data_sz_per_desc;
-	u16 max_pkt_size;
 	int next_to_use;    /* idx of next spare desc */
 
 	/* idx of lastest sent desc, the ring is empty when equal to
@@ -424,9 +422,6 @@ struct hns3_enet_ring {
 	unsigned char *va; /* first buffer address for current packet */
 
 	u32 flag;          /* ring attribute */
-
-	int numa_node;
-	cpumask_t affinity_mask;
 
 	int pending_buf;
 	struct sk_buff *skb;
@@ -442,11 +437,6 @@ struct hns3_nic_ring_data {
 	int (*poll_one)(struct hns3_nic_ring_data *, int, void *);
 	void (*ex_process)(struct hns3_nic_ring_data *, struct sk_buff *);
 	void (*fini_process)(struct hns3_nic_ring_data *);
-};
-
-struct hns3_nic_ops {
-	int (*maybe_stop_tx)(struct sk_buff **out_skb,
-			     int *bnum, struct hns3_enet_ring *ring);
 };
 
 enum hns3_flow_level_range {
@@ -538,7 +528,6 @@ struct hns3_nic_priv {
 	u32 port_id;
 	struct net_device *netdev;
 	struct device *dev;
-	struct hns3_nic_ops ops;
 
 	/**
 	 * the cb for nic to manage the ring buffer, the first half of the
@@ -633,7 +622,7 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 #define hnae3_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
 		(tqp)->io_base + HNS3_RING_TX_RING_TAIL_REG)
 
-#define ring_to_dev(ring) (&(ring)->tqp->handle->pdev->dev)
+#define ring_to_dev(ring) ((ring)->dev)
 
 #define ring_to_dma_dir(ring) (HNAE3_IS_TX_RING(ring) ? \
 	DMA_TO_DEVICE : DMA_FROM_DEVICE)
