@@ -509,7 +509,7 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 	intel_gt_pm_get(i915);
 
 	cancel_delayed_work_sync(&i915->gem.retire_work);
-	cancel_delayed_work_sync(&i915->gem.idle_work);
+	flush_work(&i915->gem.idle_work);
 }
 
 static void restore_retire_worker(struct drm_i915_private *i915)

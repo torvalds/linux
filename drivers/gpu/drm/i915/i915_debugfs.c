@@ -3949,8 +3949,8 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_IDLE) {
 		do {
 			flush_delayed_work(&i915->gem.retire_work);
-			drain_delayed_work(&i915->gem.idle_work);
 		} while (READ_ONCE(i915->gt.awake));
+		flush_work(&i915->gem.idle_work);
 	}
 
 	if (val & DROP_FREED)

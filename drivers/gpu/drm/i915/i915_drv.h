@@ -2031,7 +2031,7 @@ struct drm_i915_private {
 		 * arrive within a small period of time, we fire
 		 * off the idle_work.
 		 */
-		struct delayed_work idle_work;
+		struct work_struct idle_work;
 	} gem;
 
 	/* For i945gm vblank irq vs. C3 workaround */
