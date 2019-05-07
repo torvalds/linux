@@ -195,7 +195,9 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 				   sizeof(struct afs_uuid__xdr) + 3 * sizeof(__be32));
 		call->unmarshall++;
 
-		/* Extract the returned uuid, uniquifier, nentries and blkaddrs size */
+		/* Extract the returned uuid, uniquifier, nentries and
+		 * blkaddrs size */
+		/* Fall through */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -220,7 +222,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		count = min(call->count, 4U);
 		afs_extract_to_buf(call, count * sizeof(__be32));
 
-		/* Extract entries */
+		/* Fall through - and extract entries */
 	case 2:
 		ret = afs_extract_data(call, call->count > 4);
 		if (ret < 0)
@@ -323,7 +325,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
 
-		/* Extract the capabilities word count */
+		/* Fall through - and extract the capabilities word count */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -336,7 +338,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 		call->unmarshall++;
 		afs_extract_discard(call, count * sizeof(__be32));
 
-		/* Extract capabilities words */
+		/* Fall through - and extract capabilities words */
 	case 2:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -436,6 +438,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		/* Extract the returned uuid, uniquifier, fsEndpoints count and
 		 * either the first fsEndpoint type or the volEndpoints
 		 * count if there are no fsEndpoints. */
+		/* Fall through */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -476,7 +479,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_to_buf(call, size);
 		call->unmarshall = 2;
 
-		/* Extract fsEndpoints[] entries */
+		/* Fall through - and extract fsEndpoints[] entries */
 	case 2:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -529,6 +532,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		 * extract the type of the next endpoint when we extract the
 		 * data of the current one, but this is the first...
 		 */
+		/* Fall through */
 	case 3:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -555,7 +559,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_to_buf(call, size);
 		call->unmarshall = 4;
 
-		/* Extract volEndpoints[] entries */
+		/* Fall through - and extract volEndpoints[] entries */
 	case 4:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -591,7 +595,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_discard(call, 0);
 		call->unmarshall = 5;
 
-		/* Done */
+		/* Fall through - Done */
 	case 5:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)

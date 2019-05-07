@@ -4920,24 +4920,30 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 		}
 		ahc_dma_tag_destroy(ahc, scb_data->sg_dmat);
 	}
+		/* fall through */
 	case 6:
 		ahc_dmamap_unload(ahc, scb_data->sense_dmat,
 				  scb_data->sense_dmamap);
+		/* fall through */
 	case 5:
 		ahc_dmamem_free(ahc, scb_data->sense_dmat, scb_data->sense,
 				scb_data->sense_dmamap);
 		ahc_dmamap_destroy(ahc, scb_data->sense_dmat,
 				   scb_data->sense_dmamap);
+		/* fall through */
 	case 4:
 		ahc_dma_tag_destroy(ahc, scb_data->sense_dmat);
+		/* fall through */
 	case 3:
 		ahc_dmamap_unload(ahc, scb_data->hscb_dmat,
 				  scb_data->hscb_dmamap);
+		/* fall through */
 	case 2:
 		ahc_dmamem_free(ahc, scb_data->hscb_dmat, scb_data->hscbs,
 				scb_data->hscb_dmamap);
 		ahc_dmamap_destroy(ahc, scb_data->hscb_dmat,
 				   scb_data->hscb_dmamap);
+		/* fall through */
 	case 1:
 		ahc_dma_tag_destroy(ahc, scb_data->hscb_dmat);
 		break;
@@ -6002,8 +6008,8 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 				if ((scb->flags & SCB_ACTIVE) == 0)
 					printk("Inactive SCB in Waiting List\n");
 				ahc_done(ahc, scb);
-				/* FALLTHROUGH */
 			}
+				/* fall through */
 			case SEARCH_REMOVE:
 				next = ahc_rem_wscb(ahc, next, prev);
 				break;
@@ -7008,8 +7014,8 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 		}
 		address -= address_offset;
 		fmt3_ins->address = address;
-		/* FALLTHROUGH */
 	}
+		/* fall through */
 	case AIC_OP_OR:
 	case AIC_OP_AND:
 	case AIC_OP_XOR:
@@ -7035,7 +7041,7 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 			fmt1_ins->opcode = AIC_OP_AND;
 			fmt1_ins->immediate = 0xff;
 		}
-		/* FALLTHROUGH */
+		/* fall through */
 	case AIC_OP_ROL:
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 			int i, count;

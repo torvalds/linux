@@ -481,7 +481,7 @@ got_root:
 		break;
 	case MUFS_OFS:
 		affs_set_opt(sbi->s_flags, SF_MUFS);
-		/* fall thru */
+		/* fall through */
 	case FS_OFS:
 		affs_set_opt(sbi->s_flags, SF_OFS);
 		sb->s_flags |= SB_NOEXEC;
@@ -489,6 +489,7 @@ got_root:
 	case MUFS_DCOFS:
 	case MUFS_INTLOFS:
 		affs_set_opt(sbi->s_flags, SF_MUFS);
+		/* fall through */
 	case FS_DCOFS:
 	case FS_INTLOFS:
 		affs_set_opt(sbi->s_flags, SF_INTL);

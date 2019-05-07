@@ -866,7 +866,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			} /* else: FIXME can this happen? */
 			break;
 		}
-		/* else, fall through to BARRIER_ACKED */
+		/* else, fall through - to BARRIER_ACKED */
 
 	case BARRIER_ACKED:
 		/* barrier ack for READ requests does not make sense */

@@ -8775,6 +8775,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				lpfc_nlp_put(ndlp);
 				return;
 			}
+			/* fall through */
 
 		default:
 			/* Try to recover from this error */
