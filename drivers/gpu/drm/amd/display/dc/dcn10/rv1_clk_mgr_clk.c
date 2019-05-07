@@ -36,6 +36,10 @@
 
 #include "dce/dce_clk_mgr.h"
 
+#define CLK_BASE_INNER(inst) \
+	CLK_BASE__INST ## inst ## _SEG0
+
+
 #define CLK_REG(reg_name, block, inst)\
 	CLK_BASE(mm ## block ## _ ## inst ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## _ ## inst ## _ ## reg_name

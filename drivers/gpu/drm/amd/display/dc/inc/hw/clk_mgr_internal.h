@@ -49,8 +49,7 @@
 	clk_mgr->ctx->logger
 
 
-#define CLK_BASE_INNER(inst) \
-	CLK_BASE__INST ## inst ## _SEG0
+
 
 #define CLK_BASE(inst) \
 	CLK_BASE_INNER(inst)
