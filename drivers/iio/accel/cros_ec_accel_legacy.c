@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for older Chrome OS EC accelerometer
  *
  * Copyright 2017 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This driver uses the memory mapper cros-ec interface to communicate
  * with the Chrome OS EC about accelerometer data.
@@ -29,7 +21,6 @@
 #include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/platform_device.h>
 
 #define DRV_NAME	"cros-ec-accel-legacy"
@@ -353,7 +344,7 @@ static int cros_ec_accel_legacy_probe(struct platform_device *pdev)
 	struct cros_ec_sensor_platform *sensor_platform = dev_get_platdata(dev);
 	struct iio_dev *indio_dev;
 	struct cros_ec_accel_legacy_state *state;
-	int ret, i;
+	int ret;
 
 	if (!ec || !ec->ec_dev) {
 		dev_warn(&pdev->dev, "No EC device found.\n");
@@ -381,20 +372,17 @@ static int cros_ec_accel_legacy_probe(struct platform_device *pdev)
 	 * Present the channel using HTML5 standard:
 	 * need to invert X and Y and invert some lid axis.
 	 */
-	for (i = X ; i < MAX_AXIS; i++) {
-		switch (i) {
-		case X:
-			ec_accel_channels[X].scan_index = Y;
-		case Y:
-			ec_accel_channels[Y].scan_index = X;
-		case Z:
-			ec_accel_channels[Z].scan_index = Z;
-		}
-		if (state->sensor_num == MOTIONSENSE_LOC_LID && i != Y)
-			state->sign[i] = -1;
-		else
-			state->sign[i] = 1;
-	}
+	ec_accel_channels[X].scan_index = Y;
+	ec_accel_channels[Y].scan_index = X;
+	ec_accel_channels[Z].scan_index = Z;
+
+	state->sign[Y] = 1;
+
+	if (state->sensor_num == MOTIONSENSE_LOC_LID)
+		state->sign[X] = state->sign[Z] = -1;
+	else
+		state->sign[X] = state->sign[Z] = 1;
+
 	indio_dev->num_channels = ARRAY_SIZE(ec_accel_channels);
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &cros_ec_accel_legacy_info;
@@ -419,5 +407,5 @@ module_platform_driver(cros_ec_accel_platform_driver);
 
 MODULE_DESCRIPTION("ChromeOS EC legacy accelerometer driver");
 MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);

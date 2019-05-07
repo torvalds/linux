@@ -1,25 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Zoran ZR36060 basic configuration functions
  *
  * Copyright (C) 2002 Laurent Pinchart <laurent.pinchart@skynet.be>
- *
- * $Id: zr36060.c,v 1.1.2.22 2003/05/06 09:35:36 rbultje Exp $
- *
- * ------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * ------------------------------------------------------------------------
  */
-
 #define ZR060_VERSION "v0.7"
 
 #include <linux/module.h>
@@ -40,7 +24,8 @@
 #include "videocodec.h"
 
 /* it doesn't make sense to have more than 20 or so,
-  just to prevent some unwanted loops */
+ * just to prevent some unwanted loops
+ */
 #define MAX_CODECS 20
 
 /* amount of chips attached via this driver */
@@ -725,7 +710,8 @@ zr36060_set_video (struct videocodec   *codec,
 	 * ratio 1:2. Setting low_bitrate (insmod option) sets
 	 * it to 1:4 (instead of 1:2, zr36060 max) as limit because the
 	 * buz can't handle more at decimation=1... Use low_bitrate if
-	 * you have a Buz, unless you know what you're doing */
+	 * you have a Buz, unless you know what you're doing
+	 */
 	size = size * cap->quality / (low_bitrate ? 400 : 200);
 	/* Lower limit (arbitrary, 1 KB) */
 	if (size < 8192)
@@ -738,7 +724,8 @@ zr36060_set_video (struct videocodec   *codec,
 
 	/* the MBCVR is the *maximum* block volume, according to the
 	 * JPEG ISO specs, this shouldn't be used, since that allows
-	 * for the best encoding quality. So set it to it's max value */
+	 * for the best encoding quality. So set it to it's max value
+	 */
 	reg = ptr->max_block_vol;
 	zr36060_write(ptr, ZR060_MBCVR, reg);
 
@@ -933,7 +920,8 @@ zr36060_setup (struct videocodec *codec)
 	memcpy(ptr->v_samp_ratio, zr36060_decimation_v, 8);
 
 	ptr->bitrate_ctrl = 0;	/* 0 or 1 - fixed file size flag
-				 * (what is the difference?) */
+				 * (what is the difference?)
+				 */
 	ptr->mode = CODEC_DO_COMPRESSION;
 	ptr->width = 384;
 	ptr->height = 288;

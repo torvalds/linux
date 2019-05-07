@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config SND_BCM2835
         tristate "BCM2835 Audio"
         depends on (ARCH_BCM2835 || COMPILE_TEST) && SND

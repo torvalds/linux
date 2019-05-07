@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Zoran zr36057/zr36067 PCI controller driver, for the
  * Pinnacle/Miro DC10/DC10+/DC30/DC30+, Iomega Buz, Linux
@@ -11,18 +12,7 @@
  *   Ronald Bultje    <rbultje@ronald.bitfreak.net>
  *   Laurent Pinchart <laurent.pinchart@skynet.be>
  *   Mailinglist      <mjpeg-users@lists.sf.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
-
 #include <linux/delay.h>
 
 #include <linux/types.h>
@@ -1131,8 +1121,6 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 
 	m = kmalloc(sizeof(struct videocodec_master), GFP_KERNEL);
 	if (!m) {
-		dprintk(1, KERN_ERR "%s: %s - no memory\n",
-			ZR_DEVNAME(zr), __func__);
 		return m;
 	}
 
@@ -1148,8 +1136,7 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 	strscpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
 	m->data = zr;
 
-	switch (type)
-	{
+	switch (type) {
 	case CODEC_TYPE_ZR36060:
 		m->readreg = zr36060_read;
 		m->writereg = zr36060_write;

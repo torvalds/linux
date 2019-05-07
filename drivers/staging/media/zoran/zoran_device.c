@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Zoran zr36057/zr36067 PCI controller driver, for the
  * Pinnacle/Miro DC10/DC10+/DC30/DC30+, Iomega Buz, Linux
@@ -11,18 +12,7 @@
  *   Ronald Bultje    <rbultje@ronald.bitfreak.net>
  *   Laurent Pinchart <laurent.pinchart@skynet.be>
  *   Mailinglist      <mjpeg-users@lists.sf.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -496,7 +486,7 @@ zr36057_overlay (struct zoran *zr,
 				KERN_ERR
 				"%s: zr36057_overlay() - video_stride not aligned\n",
 				ZR_DEVNAME(zr));
-		reg = (reg << ZR36057_VSSFGR_DispStride);
+		reg = reg << ZR36057_VSSFGR_DispStride;
 		reg |= ZR36057_VSSFGR_VidOvf;	/* clear overflow status */
 		btwrite(reg, ZR36057_VSSFGR);
 
@@ -1421,7 +1411,7 @@ zoran_irq (int             irq,
 					reg = 0;
 					if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
 						reg += zr->v4l_settings.bytesperline;
-					reg = (reg << ZR36057_VSSFGR_DispStride);
+					reg = reg << ZR36057_VSSFGR_DispStride;
 					reg |= ZR36057_VSSFGR_VidOvf;
 					reg |= ZR36057_VSSFGR_SnapShot;
 					reg |= ZR36057_VSSFGR_FrameGrab;

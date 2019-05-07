@@ -1,0 +1,19 @@
+* Texas Instruments ADS8344 A/DC chip
+
+Required properties:
+ - compatible: Must be "ti,ads8344"
+ - reg: SPI chip select number for the device
+ - vref-supply: phandle to a regulator node that supplies the
+   reference voltage
+
+Recommended properties:
+ - spi-max-frequency: Definition as per
+		Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+adc@0 {
+	compatible = "ti,ads8344";
+	reg = <0>;
+	vref-supply = <&refin_supply>;
+	spi-max-frequency = <10000000>;
+};

@@ -45,10 +45,10 @@
 #include "pi433_if.h"
 #include "rf69.h"
 
-#define N_PI433_MINORS			BIT(MINORBITS) /*32*/	/* ... up to 256 */
-#define MAX_MSG_SIZE			900	/* min: FIFO_SIZE! */
-#define MSG_FIFO_SIZE			65536   /* 65536 = 2^16  */
-#define NUM_DIO				2
+#define N_PI433_MINORS		BIT(MINORBITS) /*32*/	/* ... up to 256 */
+#define MAX_MSG_SIZE		900	/* min: FIFO_SIZE! */
+#define MSG_FIFO_SIZE		65536   /* 65536 = 2^16  */
+#define NUM_DIO			2
 
 static dev_t pi433_dev;
 static DEFINE_IDR(pi433_idr);
@@ -319,6 +319,12 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 	}
 
 	if (tx_cfg->enable_sync == OPTION_ON) {
+		ret = rf69_set_sync_size(dev->spi, tx_cfg->sync_length);
+		if (ret < 0)
+			return ret;
+		ret = rf69_set_sync_values(dev->spi, tx_cfg->sync_pattern);
+		if (ret < 0)
+			return ret;
 		ret = rf69_enable_sync(dev->spi);
 		if (ret < 0)
 			return ret;
@@ -344,16 +350,6 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 			return ret;
 	} else {
 		ret = rf69_disable_crc(dev->spi);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* configure sync, if enabled */
-	if (tx_cfg->enable_sync == OPTION_ON) {
-		ret = rf69_set_sync_size(dev->spi, tx_cfg->sync_length);
-		if (ret < 0)
-			return ret;
-		ret = rf69_set_sync_values(dev->spi, tx_cfg->sync_pattern);
 		if (ret < 0)
 			return ret;
 	}
@@ -650,21 +646,19 @@ pi433_tx_thread(void *data)
 		disable_irq(device->irq_num[DIO0]);
 		device->tx_active = true;
 
+		/* clear fifo, set fifo threshold, set payload length */
+		retval = rf69_set_mode(spi, standby); /* this clears the fifo */
+		if (retval < 0)
+			return retval;
+
 		if (device->rx_active && !rx_interrupted) {
 			/*
 			 * rx is currently waiting for a telegram;
 			 * we need to set the radio module to standby
 			 */
-			retval = rf69_set_mode(device->spi, standby);
-			if (retval < 0)
-				return retval;
 			rx_interrupted = true;
 		}
 
-		/* clear fifo, set fifo threshold, set payload length */
-		retval = rf69_set_mode(spi, standby); /* this clears the fifo */
-		if (retval < 0)
-			return retval;
 		retval = rf69_set_fifo_threshold(spi, FIFO_THRESHOLD);
 		if (retval < 0)
 			return retval;
@@ -742,7 +736,7 @@ pi433_tx_thread(void *data)
 					 device->free_in_fifo == FIFO_SIZE ||
 					 kthread_should_stop());
 		if (kthread_should_stop())
-			dev_dbg(device->dev, "ABORT\n");
+			return 0;
 
 		/* STOP_TRANSMISSION */
 		dev_dbg(device->dev, "thread: Packet sent. Set mode to stby.");
