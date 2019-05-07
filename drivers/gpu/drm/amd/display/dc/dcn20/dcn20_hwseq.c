@@ -657,6 +657,9 @@ static void dcn20_init_hw(struct dc *dc)
 	if (dmcu != NULL)
 		dmcu->funcs->dmcu_init(dmcu);
 
+	if (abm != NULL && dmcu != NULL)
+		abm->dmcu_is_running = dmcu->funcs->is_dmcu_initialized(dmcu);
+
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
 	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
