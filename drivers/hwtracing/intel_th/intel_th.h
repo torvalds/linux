@@ -8,6 +8,8 @@
 #ifndef __INTEL_TH_H__
 #define __INTEL_TH_H__
 
+#include <linux/irqreturn.h>
+
 /* intel_th_device device types */
 enum {
 	/* Devices that generate trace data */
@@ -18,6 +20,8 @@ enum {
 	INTEL_TH_SWITCH,
 };
 
+struct intel_th_device;
+
 /**
  * struct intel_th_output - descriptor INTEL_TH_OUTPUT type devices
  * @port:	output port number, assigned by the switch
@@ -25,6 +29,7 @@ enum {
  * @scratchpad:	scratchpad bits to flag when this output is enabled
  * @multiblock:	true for multiblock output configuration
  * @active:	true when this output is enabled
+ * @wait_empty:	wait for device pipeline to be empty
  *
  * Output port descriptor, used by switch driver to tell which output
  * port this output device corresponds to. Filled in at output device's
@@ -42,10 +47,12 @@ struct intel_th_output {
 /**
  * struct intel_th_drvdata - describes hardware capabilities and quirks
  * @tscu_enable:	device needs SW to enable time stamping unit
+ * @has_mintctl:	device has interrupt control (MINTCTL) register
  * @host_mode_only:	device can only operate in 'host debugger' mode
  */
 struct intel_th_drvdata {
 	unsigned int	tscu_enable        : 1,
+			has_mintctl        : 1,
 			host_mode_only     : 1;
 };
 
@@ -157,10 +164,13 @@ struct intel_th_driver {
 					    struct intel_th_device *othdev);
 	void			(*enable)(struct intel_th_device *thdev,
 					  struct intel_th_output *output);
+	void			(*trig_switch)(struct intel_th_device *thdev,
+					       struct intel_th_output *output);
 	void			(*disable)(struct intel_th_device *thdev,
 					   struct intel_th_output *output);
 	/* output ops */
-	void			(*irq)(struct intel_th_device *thdev);
+	irqreturn_t		(*irq)(struct intel_th_device *thdev);
+	void			(*wait_empty)(struct intel_th_device *thdev);
 	int			(*activate)(struct intel_th_device *thdev);
 	void			(*deactivate)(struct intel_th_device *thdev);
 	/* file_operations for those who want a device node */
@@ -213,21 +223,23 @@ static inline struct intel_th *to_intel_th(struct intel_th_device *thdev)
 
 struct intel_th *
 intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
-	       struct resource *devres, unsigned int ndevres, int irq);
+	       struct resource *devres, unsigned int ndevres);
 void intel_th_free(struct intel_th *th);
 
 int intel_th_driver_register(struct intel_th_driver *thdrv);
 void intel_th_driver_unregister(struct intel_th_driver *thdrv);
 
 int intel_th_trace_enable(struct intel_th_device *thdev);
+int intel_th_trace_switch(struct intel_th_device *thdev);
 int intel_th_trace_disable(struct intel_th_device *thdev);
 int intel_th_set_output(struct intel_th_device *thdev,
 			unsigned int master);
 int intel_th_output_enable(struct intel_th *th, unsigned int otype);
 
-enum {
+enum th_mmio_idx {
 	TH_MMIO_CONFIG = 0,
-	TH_MMIO_SW = 2,
+	TH_MMIO_SW = 1,
+	TH_MMIO_RTIT = 2,
 	TH_MMIO_END,
 };
 
@@ -237,6 +249,9 @@ enum {
 #define TH_CONFIGURABLE_MASTERS 256
 #define TH_MSC_MAX		2
 
+/* Maximum IRQ vectors */
+#define TH_NVEC_MAX		8
+
 /**
  * struct intel_th - Intel TH controller
  * @dev:	driver core's device
@@ -244,7 +259,7 @@ enum {
  * @hub:	"switch" subdevice (GTH)
  * @resource:	resources of the entire controller
  * @num_thdevs:	number of devices in the @thdev array
- * @num_resources:	number or resources in the @resource array
+ * @num_resources:	number of resources in the @resource array
  * @irq:	irq number
  * @id:		this Intel TH controller's device ID in the system
  * @major:	device node major for output devices
@@ -256,7 +271,7 @@ struct intel_th {
 	struct intel_th_device	*hub;
 	struct intel_th_drvdata	*drvdata;
 
-	struct resource		*resource;
+	struct resource		resource[TH_MMIO_END];
 	int			(*activate)(struct intel_th *);
 	void			(*deactivate)(struct intel_th *);
 	unsigned int		num_thdevs;
@@ -295,6 +310,9 @@ enum {
 	/* Timestamp counter unit (TSCU) */
 	REG_TSCU_OFFSET		= 0x2000,
 	REG_TSCU_LENGTH		= 0x1000,
+
+	REG_CTS_OFFSET		= 0x3000,
+	REG_CTS_LENGTH		= 0x1000,
 
 	/* Software Trace Hub (STH) [0x4000..0x4fff] */
 	REG_STH_OFFSET		= 0x4000,
