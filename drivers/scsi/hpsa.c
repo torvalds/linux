@@ -5526,6 +5526,9 @@ static int hpsa_ioaccel_submit(struct ctlr_info *h,
 	if (!dev)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
+	if (hpsa_simple_mode)
+		return IO_ACCEL_INELIGIBLE;
+
 	cmd->host_scribble = (unsigned char *) c;
 
 	if (dev->offload_enabled) {
@@ -7978,10 +7981,15 @@ clean_up:
 static void hpsa_free_irqs(struct ctlr_info *h)
 {
 	int i;
+	int irq_vector = 0;
+
+	if (hpsa_simple_mode)
+		irq_vector = h->intr_mode;
 
 	if (!h->msix_vectors || h->intr_mode != PERF_MODE_INT) {
 		/* Single reply queue, only one irq to free */
-		free_irq(pci_irq_vector(h->pdev, 0), &h->q[h->intr_mode]);
+		free_irq(pci_irq_vector(h->pdev, irq_vector),
+				&h->q[h->intr_mode]);
 		h->q[h->intr_mode] = 0;
 		return;
 	}
@@ -8000,6 +8008,10 @@ static int hpsa_request_irqs(struct ctlr_info *h,
 	irqreturn_t (*intxhandler)(int, void *))
 {
 	int rc, i;
+	int irq_vector = 0;
+
+	if (hpsa_simple_mode)
+		irq_vector = h->intr_mode;
 
 	/*
 	 * initialize h->q[x] = x so that interrupt handlers know which
@@ -8035,14 +8047,14 @@ static int hpsa_request_irqs(struct ctlr_info *h,
 		if (h->msix_vectors > 0 || h->pdev->msi_enabled) {
 			sprintf(h->intrname[0], "%s-msi%s", h->devname,
 				h->msix_vectors ? "x" : "");
-			rc = request_irq(pci_irq_vector(h->pdev, 0),
+			rc = request_irq(pci_irq_vector(h->pdev, irq_vector),
 				msixhandler, 0,
 				h->intrname[0],
 				&h->q[h->intr_mode]);
 		} else {
 			sprintf(h->intrname[h->intr_mode],
 				"%s-intx", h->devname);
-			rc = request_irq(pci_irq_vector(h->pdev, 0),
+			rc = request_irq(pci_irq_vector(h->pdev, irq_vector),
 				intxhandler, IRQF_SHARED,
 				h->intrname[0],
 				&h->q[h->intr_mode]);
@@ -8050,7 +8062,7 @@ static int hpsa_request_irqs(struct ctlr_info *h,
 	}
 	if (rc) {
 		dev_err(&h->pdev->dev, "failed to get irq %d for %s\n",
-		       pci_irq_vector(h->pdev, 0), h->devname);
+		       pci_irq_vector(h->pdev, irq_vector), h->devname);
 		hpsa_free_irqs(h);
 		return -ENODEV;
 	}
