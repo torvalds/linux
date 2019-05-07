@@ -404,12 +404,11 @@ static void afs_update_cell(struct afs_cell *cell)
 		clear_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
 		clear_bit(AFS_CELL_FL_NOT_FOUND, &cell->flags);
 
-		/* Exclusion on changing vl_addrs is achieved by a
-		 * non-reentrant work item.
-		 */
+		write_lock(&cell->vl_servers_lock);
 		old = rcu_dereference_protected(cell->vl_servers, true);
 		rcu_assign_pointer(cell->vl_servers, vllist);
 		cell->dns_expiry = expiry;
+		write_unlock(&cell->vl_servers_lock);
 
 		if (old)
 			afs_put_vlserverlist(cell->net, old);
