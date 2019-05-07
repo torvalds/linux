@@ -29,13 +29,13 @@
 
 extern bool pciehp_poll_mode;
 extern int pciehp_poll_time;
-extern bool pciehp_debug;
 
+/*
+ * Set CONFIG_DYNAMIC_DEBUG=y and boot with 'dyndbg="file pciehp* +p"' to
+ * enable debug messages.
+ */
 #define dbg(format, arg...)						\
-do {									\
-	if (pciehp_debug)						\
-		printk(KERN_DEBUG "%s: " format, MY_NAME, ## arg);	\
-} while (0)
+	pr_debug("%s: " format, MY_NAME, ## arg);
 #define err(format, arg...)						\
 	printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
 #define info(format, arg...)						\
@@ -44,11 +44,7 @@ do {									\
 	printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
 
 #define ctrl_dbg(ctrl, format, arg...)					\
-	do {								\
-		if (pciehp_debug)					\
-			dev_printk(KERN_DEBUG, &ctrl->pcie->device,	\
-					format, ## arg);		\
-	} while (0)
+	dev_dbg(&ctrl->pcie->device, format, ## arg)
 #define ctrl_err(ctrl, format, arg...)					\
 	dev_err(&ctrl->pcie->device, format, ## arg)
 #define ctrl_info(ctrl, format, arg...)					\
