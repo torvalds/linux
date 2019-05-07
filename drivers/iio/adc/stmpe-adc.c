@@ -74,9 +74,6 @@ static int stmpe_read_voltage(struct stmpe_adc *info,
 		return -EINVAL;
 	}
 
-	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_EN,
-			STMPE_ADC_CH(info->channel));
-
 	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_CAPT,
 			STMPE_ADC_CH(info->channel));
 
@@ -332,6 +329,9 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 	ret = stmpe_adc_init_hw(info);
 	if (ret)
 		return ret;
+
+	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_EN,
+			~(norequest_mask & 0xFF));
 
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
