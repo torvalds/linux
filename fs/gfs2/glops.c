@@ -536,7 +536,7 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 			gfs2_consist(sdp);
 
 		/*  Initialize some head of the log stuff  */
-		if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)) {
+		if (!test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
 			sdp->sd_log_sequence = head.lh_sequence + 1;
 			gfs2_log_pointers_init(sdp, head.lh_blkno);
 		}

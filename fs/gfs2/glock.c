@@ -544,7 +544,7 @@ __acquires(&gl->gl_lockref.lock)
 	unsigned int lck_flags = (unsigned int)(gh ? gh->gh_flags : 0);
 	int ret;
 
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)) &&
+	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) &&
 	    target != LM_ST_UNLOCKED)
 		return;
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
@@ -581,7 +581,7 @@ __acquires(&gl->gl_lockref.lock)
 		}
 		else if (ret) {
 			fs_err(sdp, "lm_lock ret %d\n", ret);
-			GLOCK_BUG_ON(gl, !test_bit(SDF_SHUTDOWN,
+			GLOCK_BUG_ON(gl, !test_bit(SDF_WITHDRAWN,
 						   &sdp->sd_flags));
 		}
 	} else { /* lock_nolock */
@@ -1094,7 +1094,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	int error = 0;
 
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+	if (unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags)))
 		return -EIO;
 
 	if (test_bit(GLF_LRU, &gl->gl_flags))
