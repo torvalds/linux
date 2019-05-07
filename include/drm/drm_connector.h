@@ -1062,12 +1062,6 @@ struct drm_connector {
 	struct drm_property *vrr_capable_property;
 
 	/**
-	 * @content_protection_property: DRM ENUM property for content
-	 * protection. See drm_connector_attach_content_protection_property().
-	 */
-	struct drm_property *content_protection_property;
-
-	/**
 	 * @colorspace_property: Connector property to set the suitable
 	 * colorspace supported by the sink.
 	 */

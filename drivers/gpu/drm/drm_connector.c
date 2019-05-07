@@ -1534,18 +1534,19 @@ int drm_connector_attach_content_protection_property(
 		struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
+	struct drm_property *prop =
+			dev->mode_config.content_protection_property;
 
-	prop = drm_property_create_enum(dev, 0, "Content Protection",
-					drm_cp_enum_list,
-					ARRAY_SIZE(drm_cp_enum_list));
+	if (!prop)
+		prop = drm_property_create_enum(dev, 0, "Content Protection",
+						drm_cp_enum_list,
+						ARRAY_SIZE(drm_cp_enum_list));
 	if (!prop)
 		return -ENOMEM;
 
 	drm_object_attach_property(&connector->base, prop,
 				   DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
-
-	connector->content_protection_property = prop;
+	dev->mode_config.content_protection_property = prop;
 
 	return 0;
 }

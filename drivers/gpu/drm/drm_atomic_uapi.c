@@ -732,7 +732,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		state->content_type = val;
 	} else if (property == connector->scaling_mode_property) {
 		state->scaling_mode = val;
-	} else if (property == connector->content_protection_property) {
+	} else if (property == config->content_protection_property) {
 		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
 			DRM_DEBUG_KMS("only drivers can set CP Enabled\n");
 			return -EINVAL;
@@ -814,7 +814,7 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->colorspace;
 	} else if (property == connector->scaling_mode_property) {
 		*val = state->scaling_mode;
-	} else if (property == connector->content_protection_property) {
+	} else if (property == config->content_protection_property) {
 		*val = state->content_protection;
 	} else if (property == config->writeback_fb_id_property) {
 		/* Writeback framebuffer is one-shot, write and forget */
