@@ -35,22 +35,22 @@ extern int pciehp_poll_time;
  * enable debug messages.
  */
 #define dbg(format, arg...)						\
-	pr_debug("%s: " format, MY_NAME, ## arg);
+	pr_debug(format, ## arg);
 #define err(format, arg...)						\
-	printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
+	pr_err(format, ## arg)
 #define info(format, arg...)						\
-	printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
+	pr_info(format, ## arg)
 #define warn(format, arg...)						\
-	printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
+	pr_warn(format, ## arg)
 
 #define ctrl_dbg(ctrl, format, arg...)					\
-	dev_dbg(&ctrl->pcie->device, format, ## arg)
+	pci_dbg(ctrl->pcie->port, format, ## arg)
 #define ctrl_err(ctrl, format, arg...)					\
-	dev_err(&ctrl->pcie->device, format, ## arg)
+	pci_err(ctrl->pcie->port, format, ## arg)
 #define ctrl_info(ctrl, format, arg...)					\
-	dev_info(&ctrl->pcie->device, format, ## arg)
+	pci_info(ctrl->pcie->port, format, ## arg)
 #define ctrl_warn(ctrl, format, arg...)					\
-	dev_warn(&ctrl->pcie->device, format, ## arg)
+	pci_warn(ctrl->pcie->port, format, ## arg)
 
 #define SLOT_NAME_SIZE 10
 

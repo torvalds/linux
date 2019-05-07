@@ -17,6 +17,9 @@
  *   Dely Sy <dely.l.sy@intel.com>"
  */
 
+#define pr_fmt(fmt) "pciehp: " fmt
+#define dev_fmt pr_fmt
+
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -179,14 +182,14 @@ static int pciehp_probe(struct pcie_device *dev)
 
 	if (!dev->port->subordinate) {
 		/* Can happen if we run out of bus numbers during probe */
-		dev_err(&dev->device,
+		pci_err(dev->port,
 			"Hotplug bridge without secondary bus, ignoring\n");
 		return -ENODEV;
 	}
 
 	ctrl = pcie_init(dev);
 	if (!ctrl) {
-		dev_err(&dev->device, "Controller initialization failed\n");
+		pci_err(dev->port, "Controller initialization failed\n");
 		return -ENODEV;
 	}
 	set_service_data(dev, ctrl);
