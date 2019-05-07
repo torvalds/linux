@@ -5004,21 +5004,8 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	if (size <= hole_start)
 		return 0;
 
-	while (1) {
-		struct btrfs_ordered_extent *ordered;
-
-		lock_extent_bits(io_tree, hole_start, block_end - 1,
-				 &cached_state);
-		ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), hole_start,
-						     block_end - hole_start);
-		if (!ordered)
-			break;
-		unlock_extent_cached(io_tree, hole_start, block_end - 1,
-				     &cached_state);
-		btrfs_start_ordered_extent(inode, ordered, 1);
-		btrfs_put_ordered_extent(ordered);
-	}
-
+	btrfs_lock_and_flush_ordered_range(io_tree, BTRFS_I(inode), hole_start,
+					   block_end - 1, &cached_state);
 	cur_offset = hole_start;
 	while (1) {
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
