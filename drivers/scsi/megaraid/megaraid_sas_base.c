@@ -2837,22 +2837,28 @@ blk_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
 }
 
 /**
- * megasas_dump -	This function will provide hexdump
- * @ptr:		Pointer starting which memory should be dumped
- * @size:		Size of memory to be dumped
+ * megasas_dump -	This function will print hexdump of provided buffer.
+ * @buf:		Buffer to be dumped
+ * @sz:		Size in bytes
+ * @format:		Different formats of dumping e.g. format=n will
+ *			cause only 'n' 32 bit words to be dumped in a single
+ *			line.
  */
 inline void
-megasas_dump(void *ptr, int sz)
+megasas_dump(void *buf, int sz, int format)
 {
 	int i;
-	__le32 *loc = (__le32 *)ptr;
+	__le32 *buf_loc = (__le32 *)buf;
 
-	for (i = 0; i < sz / sizeof(__le32); i++) {
-		if (i && ((i % 8) == 0))
-			printk("\n\t");
-		printk("%08x ", le32_to_cpu(loc[i]));
+	for (i = 0; i < (sz / sizeof(__le32)); i++) {
+		if ((i % format) == 0) {
+			if (i != 0)
+				printk(KERN_CONT "\n");
+			printk(KERN_CONT "%08x: ", (i * 4));
+		}
+		printk(KERN_CONT "%08x ", le32_to_cpu(buf_loc[i]));
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 /**
@@ -2886,10 +2892,10 @@ megasas_dump_fusion_io(struct scsi_cmnd *scmd)
 
 		printk(KERN_INFO "IO request frame:\n");
 		megasas_dump(cmd->io_request,
-			     MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE);
+			     MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE, 8);
 		printk(KERN_INFO "Chain frame:\n");
 		megasas_dump(cmd->sg_frame,
-			     instance->max_chain_frame_sz);
+			     instance->max_chain_frame_sz, 8);
 	}
 
 }
