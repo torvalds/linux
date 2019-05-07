@@ -96,6 +96,24 @@ err_db_free:
 	return err;
 }
 
+void mlx5_wq_cyc_wqe_dump(struct mlx5_wq_cyc *wq, u16 ix, u8 nstrides)
+{
+	size_t len;
+	void *wqe;
+
+	if (!net_ratelimit())
+		return;
+
+	nstrides = max_t(u8, nstrides, 1);
+
+	len = nstrides << wq->fbc.log_stride;
+	wqe = mlx5_wq_cyc_get_wqe(wq, ix);
+
+	pr_info("WQE DUMP: WQ size %d WQ cur size %d, WQE index 0x%x, len: %ld\n",
+		mlx5_wq_cyc_get_size(wq), wq->cur_sz, ix, len);
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 1, wqe, len, false);
+}
+
 int mlx5_wq_qp_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		      void *qpc, struct mlx5_wq_qp *wq,
 		      struct mlx5_wq_ctrl *wq_ctrl)
