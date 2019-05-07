@@ -2013,10 +2013,9 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	/*
 	 * PIN CONTROLS
 	 */
-	exec_control = vmcs12->pin_based_vm_exec_control;
-
+	exec_control = vmx_pin_based_exec_ctrl(vmx);
+	exec_control |= vmcs12->pin_based_vm_exec_control;
 	/* Preemption timer setting is computed directly in vmx_vcpu_run.  */
-	exec_control |= vmcs_config.pin_based_exec_ctrl;
 	exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
 	vmx->loaded_vmcs->hv_timer_armed = false;
 
