@@ -188,6 +188,10 @@ u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len);
 u64 btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 			      const u64 range_start, const u64 range_len);
+void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
+					struct btrfs_inode *inode, u64 start,
+					u64 end,
+					struct extent_state **cached_state);
 int __init ordered_data_init(void);
 void __cold ordered_data_exit(void);
 

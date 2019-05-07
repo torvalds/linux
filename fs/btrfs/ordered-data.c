@@ -962,6 +962,39 @@ out:
 	return index;
 }
 
+/*
+ * btrfs_flush_ordered_range - Lock the passed range and ensures all pending
+ * ordered extents in it are run to completion.
+ *
+ * @tree:         IO tree used for locking out other users of the range
+ * @inode:        Inode whose ordered tree is to be searched
+ * @start:        Beginning of range to flush
+ * @end:          Last byte of range to lock
+ * @cached_state: If passed, will return the extent state responsible for the
+ * locked range. It's the caller's responsibility to free the cached state.
+ *
+ * This function always returns with the given range locked, ensuring after it's
+ * called no order extent can be pending.
+ */
+void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
+					struct btrfs_inode *inode, u64 start,
+					u64 end,
+					struct extent_state **cached_state)
+{
+	struct btrfs_ordered_extent *ordered;
+
+	while (1) {
+		lock_extent_bits(tree, start, end, cached_state);
+		ordered = btrfs_lookup_ordered_range(inode, start,
+						     end - start + 1);
+		if (!ordered)
+			break;
+		unlock_extent_cached(tree, start, end, cached_state);
+		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
+		btrfs_put_ordered_extent(ordered);
+	}
+}
+
 int __init ordered_data_init(void)
 {
 	btrfs_ordered_extent_cache = kmem_cache_create("btrfs_ordered_extent",
