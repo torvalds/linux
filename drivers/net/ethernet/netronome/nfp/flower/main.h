@@ -215,6 +215,7 @@ struct nfp_fl_qos {
  * @lag_port_flags:	Extended port flags to record lag state of repr
  * @mac_offloaded:	Flag indicating a MAC address is offloaded for repr
  * @offloaded_mac_addr:	MAC address that has been offloaded for repr
+ * @block_shared:	Flag indicating if offload applies to shared blocks
  * @mac_list:		List entry of reprs that share the same offloaded MAC
  * @qos_table:		Stored info on filters implementing qos
  */
@@ -223,6 +224,7 @@ struct nfp_flower_repr_priv {
 	unsigned long lag_port_flags;
 	bool mac_offloaded;
 	u8 offloaded_mac_addr[ETH_ALEN];
+	bool block_shared;
 	struct list_head mac_list;
 	struct nfp_fl_qos qos_table;
 };

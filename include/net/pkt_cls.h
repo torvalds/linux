@@ -629,7 +629,6 @@ struct tc_cls_common_offload {
 	u32 chain_index;
 	__be16 protocol;
 	u32 prio;
-	struct tcf_block *block;
 	struct netlink_ext_ack *extack;
 };
 
@@ -731,13 +730,11 @@ static inline bool tc_in_hw(u32 flags)
 static inline void
 tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
 			   const struct tcf_proto *tp, u32 flags,
-			   struct tcf_block *block,
 			   struct netlink_ext_ack *extack)
 {
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
 	cls_common->prio = tp->prio;
-	cls_common->block = block;
 	if (tc_skip_sw(flags) || flags & TCA_CLS_FLAGS_VERBOSE)
 		cls_common->extack = extack;
 }

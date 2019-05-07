@@ -1197,9 +1197,13 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 				     struct tc_block_offload *f)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
+	struct nfp_flower_repr_priv *repr_priv;
 
 	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
+
+	repr_priv = repr->app_priv;
+	repr_priv->block_shared = tcf_block_shared(f->block);
 
 	switch (f->command) {
 	case TC_BLOCK_BIND:

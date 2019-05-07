@@ -76,8 +76,9 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 		return -EOPNOTSUPP;
 	}
 	repr = netdev_priv(netdev);
+	repr_priv = repr->app_priv;
 
-	if (tcf_block_shared(flow->common.block)) {
+	if (repr_priv->block_shared) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on shared blocks");
 		return -EOPNOTSUPP;
 	}
@@ -123,7 +124,6 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	config->cir = cpu_to_be32(rate);
 	nfp_ctrl_tx(repr->app->ctrl, skb);
 
-	repr_priv = repr->app_priv;
 	repr_priv->qos_table.netdev_port_id = netdev_port_id;
 	fl_priv->qos_rate_limiters++;
 	if (fl_priv->qos_rate_limiters == 1)
