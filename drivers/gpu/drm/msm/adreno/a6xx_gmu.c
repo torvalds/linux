@@ -1232,9 +1232,7 @@ void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu)
 	if (!gmu->initialized)
 		return;
 
-	a6xx_gmu_stop(a6xx_gpu);
-
-	pm_runtime_disable(gmu->dev);
+	pm_runtime_force_suspend(gmu->dev);
 
 	if (!IS_ERR_OR_NULL(gmu->gxpd)) {
 		pm_runtime_disable(gmu->gxpd);
