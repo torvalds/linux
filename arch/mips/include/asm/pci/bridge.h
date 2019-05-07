@@ -805,6 +805,7 @@ struct bridge_controller {
 	struct bridge_regs	*base;
 	unsigned long		baddr;
 	unsigned long		intr_addr;
+	struct irq_domain	*domain;
 	unsigned int		pci_int[8];
 	nasid_t			nasid;
 };
@@ -818,7 +819,5 @@ struct bridge_controller {
 	__raw_writel(__raw_readl(&bc->base->reg) | (val), &bc->base->reg)
 #define bridge_clr(bc, reg, val)	\
 	__raw_writel(__raw_readl(&bc->base->reg) & ~(val), &bc->base->reg)
-
-extern int request_bridge_irq(struct bridge_controller *bc, int pin);
 
 #endif /* _ASM_PCI_BRIDGE_H */
