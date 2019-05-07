@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include "../tools/testing/selftests/kselftest_module.h"
+
 static unsigned total_tests __initdata;
 static unsigned failed_tests __initdata;
 
@@ -361,7 +363,7 @@ static void noinline __init test_mem_optimisations(void)
 	}
 }
 
-static int __init test_bitmap_init(void)
+static void __init selftest(void)
 {
 	test_zero_clear();
 	test_fill_set();
@@ -369,22 +371,8 @@ static int __init test_bitmap_init(void)
 	test_bitmap_arr32();
 	test_bitmap_parselist();
 	test_mem_optimisations();
-
-	if (failed_tests == 0)
-		pr_info("all %u tests passed\n", total_tests);
-	else
-		pr_warn("failed %u out of %u tests\n",
-			failed_tests, total_tests);
-
-	return failed_tests ? -EINVAL : 0;
 }
 
-static void __exit test_bitmap_cleanup(void)
-{
-}
-
-module_init(test_bitmap_init);
-module_exit(test_bitmap_cleanup);
-
+KSTM_MODULE_LOADERS(test_bitmap);
 MODULE_AUTHOR("david decotigny <david.decotigny@googlers.com>");
 MODULE_LICENSE("GPL");
