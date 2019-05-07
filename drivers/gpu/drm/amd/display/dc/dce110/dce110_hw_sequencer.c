@@ -2324,6 +2324,7 @@ static void init_hw(struct dc *dc)
 	struct dc_bios *bp;
 	struct transform *xfm;
 	struct abm *abm;
+	struct dmcu *dmcu;
 
 	bp = dc->ctx->dc_bios;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2378,6 +2379,10 @@ static void init_hw(struct dc *dc)
 		abm->funcs->init_backlight(abm);
 		abm->funcs->abm_init(abm);
 	}
+
+	dmcu = dc->res_pool->dmcu;
+	if (dmcu != NULL && abm != NULL)
+		abm->dmcu_is_running = dmcu->funcs->is_dmcu_initialized(dmcu);
 
 	if (dc->fbc_compressor)
 		dc->fbc_compressor->funcs->power_up_fbc(dc->fbc_compressor);
