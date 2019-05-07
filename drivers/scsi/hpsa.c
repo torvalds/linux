@@ -5635,6 +5635,8 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		return 0;
 	}
 	c = cmd_tagged_alloc(h, cmd);
+	if (c == NULL)
+		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	/*
 	 * Call alternate submit routine for I/O accelerated commands.
@@ -6041,7 +6043,6 @@ static struct CommandList *cmd_tagged_alloc(struct ctlr_info *h,
 		BUG();
 	}
 
-	atomic_inc(&c->refcount);
 	if (unlikely(!hpsa_is_cmd_idle(c))) {
 		/*
 		 * We expect that the SCSI layer will hand us a unique tag
@@ -6049,13 +6050,19 @@ static struct CommandList *cmd_tagged_alloc(struct ctlr_info *h,
 		 * two requests...because if the selected command isn't idle
 		 * then someone is going to be very disappointed.
 		 */
-		dev_err(&h->pdev->dev,
-			"tag collision (tag=%d) in cmd_tagged_alloc().\n",
-			idx);
-		if (c->scsi_cmd != NULL)
-			scsi_print_command(c->scsi_cmd);
-		scsi_print_command(scmd);
+		if (idx != h->last_collision_tag) { /* Print once per tag */
+			dev_warn(&h->pdev->dev,
+				"%s: tag collision (tag=%d)\n", __func__, idx);
+			if (c->scsi_cmd != NULL)
+				scsi_print_command(c->scsi_cmd);
+			if (scmd)
+				scsi_print_command(scmd);
+			h->last_collision_tag = idx;
+		}
+		return NULL;
 	}
+
+	atomic_inc(&c->refcount);
 
 	hpsa_cmd_partial_init(h, idx, c);
 	return c;
