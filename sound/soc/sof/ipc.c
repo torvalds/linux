@@ -567,7 +567,7 @@ static int sof_set_get_large_ctrl_data(struct snd_sof_dev *sdev,
 	size_t offset = 0;
 	size_t msg_bytes;
 	size_t pl_size;
-	int err = 0;
+	int err;
 	int i;
 
 	/* allocate max ipc size because we have at least one */
@@ -576,9 +576,13 @@ static int sof_set_get_large_ctrl_data(struct snd_sof_dev *sdev,
 		return -ENOMEM;
 
 	if (send)
-		sof_get_ctrl_copy_params(cdata->type, cdata, partdata, sparams);
+		err = sof_get_ctrl_copy_params(cdata->type, cdata, partdata,
+					       sparams);
 	else
-		sof_get_ctrl_copy_params(cdata->type, partdata, cdata, sparams);
+		err = sof_get_ctrl_copy_params(cdata->type, partdata, cdata,
+					       sparams);
+	if (err < 0)
+		return err;
 
 	msg_bytes = sparams->msg_bytes;
 	pl_size = sparams->pl_size;
