@@ -144,10 +144,10 @@ static void rtw_phy_stat_rssi_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw_phy_stat_iter_data *iter_data = data;
 	struct rtw_dev *rtwdev = iter_data->rtwdev;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
-	u8 rssi, rssi_level;
+	u8 rssi;
 
 	rssi = ewma_rssi_read(&si->avg_rssi);
-	rssi_level = rtw_phy_get_rssi_level(si->rssi_level, rssi);
+	si->rssi_level = rtw_phy_get_rssi_level(si->rssi_level, rssi);
 
 	rtw_fw_send_rssi_info(rtwdev, si);
 
