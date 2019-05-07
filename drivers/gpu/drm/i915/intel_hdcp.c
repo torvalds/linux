@@ -79,7 +79,7 @@ bool intel_hdcp_capable(struct intel_connector *connector)
 }
 
 /* Is HDCP2.2 capable on Platform and Sink */
-static bool intel_hdcp2_capable(struct intel_connector *connector)
+bool intel_hdcp2_capable(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
