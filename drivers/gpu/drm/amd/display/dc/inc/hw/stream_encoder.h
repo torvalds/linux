@@ -65,11 +65,20 @@ struct audio_clock_info {
 	uint32_t cts_48khz;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+enum dynamic_metadata_mode {
+	dmdata_dp,
+	dmdata_hdmi,
+	dmdata_dolby_vision
+};
+#endif
+
 struct encoder_info_frame {
 	/* auxiliary video information */
 	struct dc_info_packet avi;
 	struct dc_info_packet gamut;
 	struct dc_info_packet vendor;
+	struct dc_info_packet hfvsif;
 	/* source product description */
 	struct dc_info_packet spd;
 	/* video stream configuration */
@@ -81,6 +90,9 @@ struct encoder_info_frame {
 struct encoder_unblank_param {
 	struct dc_link_settings link_settings;
 	struct dc_crtc_timing timing;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	bool odm;
+#endif
 };
 
 struct encoder_set_dp_phy_pattern_param {
@@ -96,6 +108,7 @@ struct stream_encoder {
 	struct dc_bios *bp;
 	enum engine_id id;
 };
+
 
 struct stream_encoder_funcs {
 	void (*dp_set_stream_attribute)(
@@ -184,6 +197,17 @@ struct stream_encoder_funcs {
 		struct stream_encoder *enc,
 		int tg_inst);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+
+	void (*set_dynamic_metadata)(struct stream_encoder *enc,
+			bool enable,
+			uint32_t hubp_requestor_id,
+			enum dynamic_metadata_mode dmdata_mode);
+
+	void (*dp_set_odm_combine)(
+		struct stream_encoder *enc,
+		bool odm_combine);
+#endif
 };
 
 #endif /* STREAM_ENCODER_H_ */

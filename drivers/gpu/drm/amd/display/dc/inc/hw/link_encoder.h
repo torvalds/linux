@@ -113,7 +113,11 @@ struct link_encoder {
 	struct encoder_feature_support features;
 	enum transmitter transmitter;
 	enum hpd_source_id hpd_source;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	bool usbc_combo_phy;
+#endif
 };
+
 
 struct link_encoder_funcs {
 	bool (*validate_output_with_stream)(
@@ -156,6 +160,16 @@ struct link_encoder_funcs {
 	bool (*is_dig_enabled)(struct link_encoder *enc);
 	unsigned int (*get_dig_frontend)(struct link_encoder *enc);
 	void (*destroy)(struct link_encoder **enc);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	void (*fec_set_enable)(struct link_encoder *enc,
+		bool enable);
+
+	void (*fec_set_ready)(struct link_encoder *enc,
+		bool ready);
+
+	bool (*fec_is_active)(struct link_encoder *enc);
+#endif
 };
 
 #endif /* LINK_ENCODER_H_ */

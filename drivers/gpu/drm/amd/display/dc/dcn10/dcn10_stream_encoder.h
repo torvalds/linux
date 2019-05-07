@@ -82,6 +82,7 @@
 	SRI(DP_PIXEL_FORMAT, DP, id), \
 	SRI(DP_SEC_CNTL, DP, id), \
 	SRI(DP_SEC_CNTL2, DP, id), \
+	SRI(DP_SEC_CNTL6, DP, id), \
 	SRI(DP_STEER_FIFO, DP, id), \
 	SRI(DP_VID_M, DP, id), \
 	SRI(DP_VID_N, DP, id), \
@@ -125,6 +126,7 @@ struct dcn10_stream_enc_registers {
 	uint32_t DP_PIXEL_FORMAT;
 	uint32_t DP_SEC_CNTL;
 	uint32_t DP_SEC_CNTL2;
+	uint32_t DP_SEC_CNTL6;
 	uint32_t DP_STEER_FIFO;
 	uint32_t DP_VID_M;
 	uint32_t DP_VID_N;
@@ -153,12 +155,21 @@ struct dcn10_stream_enc_registers {
 	uint32_t HDMI_ACR_48_1;
 	uint32_t DP_DB_CNTL;
 	uint32_t DP_MSA_MISC;
+	uint32_t DP_MSA_VBID_MISC;
 	uint32_t DP_MSA_COLORIMETRY;
 	uint32_t DP_MSA_TIMING_PARAM1;
 	uint32_t DP_MSA_TIMING_PARAM2;
 	uint32_t DP_MSA_TIMING_PARAM3;
 	uint32_t DP_MSA_TIMING_PARAM4;
 	uint32_t HDMI_DB_CONTROL;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	uint32_t DP_DSC_CNTL;
+	uint32_t DP_DSC_BYTES_PER_PIXEL;
+	uint32_t DME_CONTROL;
+	uint32_t DP_SEC_METADATA_TRANSMISSION;
+	uint32_t HDMI_METADATA_PACKET_CONTROL;
+	uint32_t DP_SEC_FRAMING4;
+#endif
 };
 
 
@@ -271,6 +282,7 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP7_PPS, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP7_SEND, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL6, DP_SEC_GSP7_LINE_NUM, mask_sh),\
 	SE_SF(DP0_DP_DB_CNTL, DP_DB_DISABLE, mask_sh),\
 	SE_SF(DP0_DP_MSA_COLORIMETRY, DP_MSA_MISC0, mask_sh),\
 	SE_SF(DP0_DP_MSA_TIMING_PARAM1, DP_MSA_HTOTAL, mask_sh),\
@@ -424,6 +436,7 @@ struct dcn10_stream_enc_registers {
 	type DP_SEC_ATP_ENABLE;\
 	type DP_SEC_AIP_ENABLE;\
 	type DP_SEC_ACM_ENABLE;\
+	type DP_SEC_GSP7_LINE_NUM;\
 	type AFMT_AUDIO_SAMPLE_SEND;\
 	type AFMT_AUDIO_CLOCK_EN;\
 	type TMDS_PIXEL_ENCODING;\
@@ -447,12 +460,39 @@ struct dcn10_stream_enc_registers {
 	type DP_VID_M_DOUBLE_VALUE_EN;\
 	type DIG_SOURCE_SELECT
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#define SE_REG_FIELD_LIST_DCN2_0(type) \
+	type DP_DSC_MODE;\
+	type DP_DSC_SLICE_WIDTH;\
+	type DP_DSC_BYTES_PER_PIXEL;\
+	type DP_VBID6_LINE_REFERENCE;\
+	type DP_VBID6_LINE_NUM;\
+	type METADATA_ENGINE_EN;\
+	type METADATA_HUBP_REQUESTOR_ID;\
+	type METADATA_STREAM_TYPE;\
+	type DP_SEC_METADATA_PACKET_ENABLE;\
+	type DP_SEC_METADATA_PACKET_LINE_REFERENCE;\
+	type DP_SEC_METADATA_PACKET_LINE;\
+	type HDMI_METADATA_PACKET_ENABLE;\
+	type HDMI_METADATA_PACKET_LINE_REFERENCE;\
+	type HDMI_METADATA_PACKET_LINE;\
+	type DOLBY_VISION_EN;\
+	type DP_PIXEL_COMBINE;\
+	type DP_SST_SDP_SPLITTING
+#endif
+
 struct dcn10_stream_encoder_shift {
 	SE_REG_FIELD_LIST_DCN1_0(uint8_t);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	SE_REG_FIELD_LIST_DCN2_0(uint8_t);
+#endif
 };
 
 struct dcn10_stream_encoder_mask {
 	SE_REG_FIELD_LIST_DCN1_0(uint32_t);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	SE_REG_FIELD_LIST_DCN2_0(uint32_t);
+#endif
 };
 
 struct dcn10_stream_encoder {
