@@ -52,11 +52,73 @@ struct dcn_hubbub_wm {
 	struct dcn_hubbub_wm_set sets[4];
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+enum dcn_hubbub_page_table_depth {
+	DCN_PAGE_TABLE_DEPTH_1_LEVEL,
+	DCN_PAGE_TABLE_DEPTH_2_LEVEL,
+	DCN_PAGE_TABLE_DEPTH_3_LEVEL,
+	DCN_PAGE_TABLE_DEPTH_4_LEVEL
+};
+
+enum dcn_hubbub_page_table_block_size {
+	DCN_PAGE_TABLE_BLOCK_SIZE_4KB,
+	DCN_PAGE_TABLE_BLOCK_SIZE_64KB
+};
+
+struct dcn_hubbub_phys_addr_config {
+	struct {
+		uint64_t fb_top;
+		uint64_t fb_offset;
+		uint64_t fb_base;
+		uint64_t agp_top;
+		uint64_t agp_bot;
+		uint64_t agp_base;
+	} system_aperture;
+
+	struct {
+		uint64_t page_table_start_addr;
+		uint64_t page_table_end_addr;
+		uint64_t page_table_base_addr;
+	} gart_config;
+};
+
+struct dcn_hubbub_virt_addr_config {
+	uint64_t				page_table_start_addr;
+	uint64_t				page_table_end_addr;
+	enum dcn_hubbub_page_table_block_size	page_table_block_size;
+	enum dcn_hubbub_page_table_depth	page_table_depth;
+};
+
+struct hubbub_addr_config {
+	struct dcn_hubbub_phys_addr_config pa_config;
+	struct dcn_hubbub_virt_addr_config va_config;
+	struct {
+		uint64_t aperture_check_fault;
+		uint64_t generic_fault;
+	} default_addrs;
+};
+
+#endif
 struct hubbub_funcs {
 	void (*update_dchub)(
 			struct hubbub *hubbub,
 			struct dchub_init_data *dh_data);
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	void (*init_dchub)(
+			struct hubbub *hubbub,
+			struct hubbub_addr_config *config);
+	void (*setup_vmid_ptb)(
+			struct hubbub *hubbub,
+			uint64_t ptb,
+			uint8_t vmid);
+
+	void (*set_ptb)(
+			struct hubbub *hubbub,
+			uint8_t vmid,
+			uint64_t base_addr);
+
+#endif
 	bool (*get_dcc_compression_cap)(struct hubbub *hubbub,
 			const struct dc_dcc_surface_param *input,
 			struct dc_surface_dcc_cap *output);
