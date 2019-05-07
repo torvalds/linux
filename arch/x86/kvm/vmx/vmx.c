@@ -1234,11 +1234,7 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 		pi_set_on(pi_desc);
 }
 
-/*
- * Switches to specified vcpu, until a matching vcpu_put(), but assumes
- * vcpu mutex is already taken.
- */
-void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	bool already_loaded = vmx->loaded_vmcs->cpu == cpu;
@@ -1299,8 +1295,20 @@ void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (kvm_has_tsc_control &&
 	    vmx->current_tsc_ratio != vcpu->arch.tsc_scaling_ratio)
 		decache_tsc_multiplier(vmx);
+}
+
+/*
+ * Switches to specified vcpu, until a matching vcpu_put(), but assumes
+ * vcpu mutex is already taken.
+ */
+void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	vmx_vcpu_load_vmcs(vcpu, cpu);
 
 	vmx_vcpu_pi_load(vcpu, cpu);
+
 	vmx->host_pkru = read_pkru();
 	vmx->host_debugctlmsr = get_debugctlmsr();
 }
