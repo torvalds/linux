@@ -91,6 +91,10 @@ static void init_vmcs_shadow_fields(void)
 			pr_err("Missing field from shadow_read_write_field %x\n",
 			       field + 1);
 
+		WARN_ONCE(field >= GUEST_ES_AR_BYTES &&
+			  field <= GUEST_TR_AR_BYTES,
+			  "Update vmcs12_write_any() to expose AR_BYTES RW");
+
 		/*
 		 * PML and the preemption timer can be emulated, but the
 		 * processor cannot vmwrite to fields that don't exist
@@ -4476,6 +4480,17 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 			return nested_vmx_failInvalid(vcpu);
 		vmcs12 = get_shadow_vmcs12(vcpu);
 	}
+
+	/*
+	 * Some Intel CPUs intentionally drop the reserved bits of the AR byte
+	 * fields on VMWRITE.  Emulate this behavior to ensure consistent KVM
+	 * behavior regardless of the underlying hardware, e.g. if an AR_BYTE
+	 * field is intercepted for VMWRITE but not VMREAD (in L1), then VMREAD
+	 * from L1 will return a different value than VMREAD from L2 (L1 sees
+	 * the stripped down value, L2 sees the full value as stored by KVM).
+	 */
+	if (field >= GUEST_ES_AR_BYTES && field <= GUEST_TR_AR_BYTES)
+		field_value &= 0x1f0ff;
 
 	if (vmcs12_write_any(vmcs12, field, field_value) < 0)
 		return nested_vmx_failValid(vcpu,
