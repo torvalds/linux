@@ -388,11 +388,6 @@ static inline u8 vmx_get_rvi(void)
 }
 
 #define BUILD_CONTROLS_SHADOW(lname, uname)				    \
-static inline void lname##_controls_init(struct vcpu_vmx *vmx, u32 val)	    \
-{									    \
-	vmcs_write32(uname, val);					    \
-	vmx->loaded_vmcs->controls_shadow.lname = val;			    \
-}									    \
 static inline void lname##_controls_set(struct vcpu_vmx *vmx, u32 val)	    \
 {									    \
 	if (vmx->loaded_vmcs->controls_shadow.lname != val) {		    \

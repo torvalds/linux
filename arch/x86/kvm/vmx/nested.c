@@ -2024,7 +2024,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	} else {
 		exec_control &= ~PIN_BASED_POSTED_INTR;
 	}
-	pin_controls_init(vmx, exec_control);
+	pin_controls_set(vmx, exec_control);
 
 	/*
 	 * EXEC CONTROLS
@@ -2049,7 +2049,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	 */
 	exec_control &= ~CPU_BASED_USE_IO_BITMAPS;
 	exec_control |= CPU_BASED_UNCOND_IO_EXITING;
-	exec_controls_init(vmx, exec_control);
+	exec_controls_set(vmx, exec_control);
 
 	/*
 	 * SECONDARY EXEC CONTROLS
@@ -2079,7 +2079,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 			vmcs_write16(GUEST_INTR_STATUS,
 				vmcs12->guest_intr_status);
 
-		secondary_exec_controls_init(vmx, exec_control);
+		secondary_exec_controls_set(vmx, exec_control);
 	}
 
 	/*
@@ -2098,7 +2098,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		if (guest_efer != host_efer)
 			exec_control |= VM_ENTRY_LOAD_IA32_EFER;
 	}
-	vm_entry_controls_init(vmx, exec_control);
+	vm_entry_controls_set(vmx, exec_control);
 
 	/*
 	 * EXIT CONTROLS
@@ -2110,7 +2110,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	exec_control = vmx_vmexit_ctrl();
 	if (cpu_has_load_ia32_efer() && guest_efer != host_efer)
 		exec_control |= VM_EXIT_LOAD_IA32_EFER;
-	vm_exit_controls_init(vmx, exec_control);
+	vm_exit_controls_set(vmx, exec_control);
 
 	/*
 	 * Interrupt/Exception Fields
