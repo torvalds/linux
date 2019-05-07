@@ -284,7 +284,8 @@ const struct dc_dsc_policy dsc_policy = {
 };
 
 static void get_dsc_bandwidth_range(
-		const struct dc_dsc_policy *policy,
+		const uint32_t min_bpp,
+		const uint32_t max_bpp,
 		const struct dsc_enc_caps *dsc_caps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_bw_range *range)
@@ -293,8 +294,8 @@ static void get_dsc_bandwidth_range(
 	range->stream_kbps = dc_bandwidth_in_kbps_from_timing(timing);
 
 	/* max dsc target bpp */
-	range->max_kbps = dsc_round_up(policy->max_target_bpp * timing->pix_clk_100hz);
-	range->max_target_bpp_x16 = policy->max_target_bpp * 16;
+	range->max_kbps = dsc_round_up(max_bpp * timing->pix_clk_100hz);
+	range->max_target_bpp_x16 = max_bpp * 16;
 	if (range->max_kbps > range->stream_kbps) {
 		/* max dsc target bpp is capped to native bandwidth */
 		range->max_kbps = range->stream_kbps;
@@ -302,8 +303,8 @@ static void get_dsc_bandwidth_range(
 	}
 
 	/* min dsc target bpp */
-	range->min_kbps = dsc_round_up(policy->min_target_bpp * timing->pix_clk_100hz);
-	range->min_target_bpp_x16 = policy->min_target_bpp * 16;
+	range->min_kbps = dsc_round_up(min_bpp * timing->pix_clk_100hz);
+	range->min_target_bpp_x16 = min_bpp * 16;
 	if (range->min_kbps > range->max_kbps) {
 		/* min dsc target bpp is capped to max dsc bandwidth*/
 		range->min_kbps = range->max_kbps;
@@ -330,7 +331,8 @@ static bool decide_dsc_target_bpp_x16(
 
 	memset(&range, 0, sizeof(range));
 
-	get_dsc_bandwidth_range(policy, dsc_common_caps, timing, &range);
+	get_dsc_bandwidth_range(policy->min_target_bpp, policy->max_target_bpp,
+			dsc_common_caps, timing, &range);
 	if (target_bandwidth_kbps >= range.stream_kbps) {
 		/* enough bandwidth without dsc */
 		*target_bpp_x16 = 0;
@@ -753,6 +755,8 @@ bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_data, struct dsc_dec_dpcd_cap
 
 bool dc_dsc_compute_bandwidth_range(
 		const struct dc *dc,
+		const uint32_t min_bpp,
+		const uint32_t max_bpp,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_bw_range *range)
@@ -760,10 +764,16 @@ bool dc_dsc_compute_bandwidth_range(
 	bool is_dsc_possible = false;
 	struct dsc_enc_caps dsc_enc_caps;
 	struct dsc_enc_caps dsc_common_caps;
+	struct dc_dsc_config config;
+
 	get_dsc_enc_caps(dc, &dsc_enc_caps, timing->pix_clk_100hz);
-	is_dsc_possible = dc_intersect_dsc_caps(dsc_sink_caps, &dsc_enc_caps, timing->pixel_encoding, &dsc_common_caps);
+	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
+			&dsc_enc_caps,
+			0,
+			timing, &config);
 	if (is_dsc_possible)
-		get_dsc_bandwidth_range(&dsc_policy, &dsc_common_caps, timing, range);
+		get_dsc_bandwidth_range(min_bpp, max_bpp, &dsc_common_caps, timing, range);
+
 	return is_dsc_possible;
 }
 

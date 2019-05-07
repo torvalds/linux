@@ -2817,7 +2817,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	if (pipe_ctx->stream->timing.flags.DSC &&
+	if (pipe_ctx->stream->is_dsc_enabled &&
 			dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		dp_set_dsc_enable(pipe_ctx, false);
 	}
