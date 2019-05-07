@@ -201,3 +201,7 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
 int drm_framebuffer_debugfs_init(struct drm_minor *minor);
+
+/* drm_hdcp.c */
+int drm_setup_hdcp_srm(struct class *drm_class);
+void drm_teardown_hdcp_srm(struct class *drm_class);
