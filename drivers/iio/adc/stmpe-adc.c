@@ -65,6 +65,8 @@ static int stmpe_read_voltage(struct stmpe_adc *info,
 
 	mutex_lock(&info->lock);
 
+	reinit_completion(&info->completion);
+
 	info->channel = (u8)chan->channel;
 
 	if (info->channel > STMPE_ADC_LAST_NR) {
@@ -102,6 +104,8 @@ static int stmpe_read_temp(struct stmpe_adc *info,
 	long ret;
 
 	mutex_lock(&info->lock);
+
+	reinit_completion(&info->completion);
 
 	info->channel = (u8)chan->channel;
 
