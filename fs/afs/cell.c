@@ -123,6 +123,7 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 				       const char *name, unsigned int namelen,
 				       const char *addresses)
 {
+	struct afs_vlserver_list *vllist;
 	struct afs_cell *cell;
 	int i, ret;
 
@@ -157,12 +158,10 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 	rwlock_init(&cell->proc_lock);
 	rwlock_init(&cell->vl_servers_lock);
 
-	/* Fill in the VL server list if we were given a list of addresses to
-	 * use.
+	/* Provide a VL server list, filling it in if we were given a list of
+	 * addresses to use.
 	 */
 	if (addresses) {
-		struct afs_vlserver_list *vllist;
-
 		vllist = afs_parse_text_addrs(net,
 					      addresses, strlen(addresses), ':',
 					      VL_SERVICE, AFS_VL_PORT);
@@ -171,12 +170,16 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 			goto parse_failed;
 		}
 
-		rcu_assign_pointer(cell->vl_servers, vllist);
 		cell->dns_expiry = TIME64_MAX;
-		__clear_bit(AFS_CELL_FL_NO_LOOKUP_YET, &cell->flags);
 	} else {
+		ret = -ENOMEM;
+		vllist = afs_alloc_vlserver_list(0);
+		if (!vllist)
+			goto error;
 		cell->dns_expiry = ktime_get_real_seconds();
 	}
+
+	rcu_assign_pointer(cell->vl_servers, vllist);
 
 	_leave(" = %p", cell);
 	return cell;
@@ -184,6 +187,7 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 parse_failed:
 	if (ret == -EINVAL)
 		printk(KERN_ERR "kAFS: bad VL server IP address\n");
+error:
 	kfree(cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
@@ -410,8 +414,7 @@ static void afs_update_cell(struct afs_cell *cell)
 		cell->dns_expiry = expiry;
 		write_unlock(&cell->vl_servers_lock);
 
-		if (old)
-			afs_put_vlserverlist(cell->net, old);
+		afs_put_vlserverlist(cell->net, old);
 	}
 
 	if (test_and_clear_bit(AFS_CELL_FL_NO_LOOKUP_YET, &cell->flags))

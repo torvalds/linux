@@ -55,7 +55,7 @@ static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 		rcu_dereference_protected(cell->vl_servers,
 					  lockdep_is_held(&cell->vl_servers_lock)));
 	read_unlock(&cell->vl_servers_lock);
-	if (!vc->server_list || !vc->server_list->nr_servers)
+	if (!vc->server_list->nr_servers)
 		return false;
 
 	vc->untried = (1UL << vc->server_list->nr_servers) - 1;
