@@ -58,7 +58,6 @@ static void mock_device_release(struct drm_device *dev)
 	i915_gem_contexts_lost(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	drain_delayed_work(&i915->gem.retire_work);
 	flush_work(&i915->gem.idle_work);
 	i915_gem_drain_workqueue(i915);
 

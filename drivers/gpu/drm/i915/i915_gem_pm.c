@@ -30,15 +30,23 @@ static void idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *i915 =
 		container_of(work, typeof(*i915), gem.idle_work);
+	bool restart = true;
 
+	cancel_delayed_work(&i915->gem.retire_work);
 	mutex_lock(&i915->drm.struct_mutex);
 
 	intel_wakeref_lock(&i915->gt.wakeref);
-	if (!intel_wakeref_active(&i915->gt.wakeref) && !work_pending(work))
+	if (!intel_wakeref_active(&i915->gt.wakeref) && !work_pending(work)) {
 		i915_gem_park(i915);
+		restart = false;
+	}
 	intel_wakeref_unlock(&i915->gt.wakeref);
 
 	mutex_unlock(&i915->drm.struct_mutex);
+	if (restart)
+		queue_delayed_work(i915->wq,
+				   &i915->gem.retire_work,
+				   round_jiffies_up_relative(HZ));
 }
 
 static void retire_work_handler(struct work_struct *work)
@@ -52,10 +60,9 @@ static void retire_work_handler(struct work_struct *work)
 		mutex_unlock(&i915->drm.struct_mutex);
 	}
 
-	if (intel_wakeref_active(&i915->gt.wakeref))
-		queue_delayed_work(i915->wq,
-				   &i915->gem.retire_work,
-				   round_jiffies_up_relative(HZ));
+	queue_delayed_work(i915->wq,
+			   &i915->gem.retire_work,
+			   round_jiffies_up_relative(HZ));
 }
 
 static int pm_notifier(struct notifier_block *nb,
@@ -140,7 +147,6 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * Assert that we successfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
 	 */
-	drain_delayed_work(&i915->gem.retire_work);
 	GEM_BUG_ON(i915->gt.awake);
 	flush_work(&i915->gem.idle_work);
 
