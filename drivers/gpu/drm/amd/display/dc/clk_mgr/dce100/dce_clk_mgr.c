@@ -22,11 +22,13 @@
  * Authors: AMD
  *
  */
+
+
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 #include "dce_clk_mgr.h"
-#include "dce110_clk_mgr.h"
-#include "dce112_clk_mgr.h"
+#include "dce110/dce110_clk_mgr.h"
+#include "dce112/dce112_clk_mgr.h"
 #include "reg_helper.h"
 #include "dmcu.h"
 #include "core_types.h"
@@ -423,6 +425,12 @@ static void dce_update_clocks(struct clk_mgr *clk_mgr_base,
 }
 
 
+
+
+
+
+
+
 static struct clk_mgr_funcs dce_funcs = {
 	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
 	.update_clocks = dce_update_clocks
@@ -460,3 +468,4 @@ void dce_clk_mgr_construct(
 	dce_clock_read_integrated_info(clk_mgr);
 	dce_clock_read_ss_info(clk_mgr);
 }
+

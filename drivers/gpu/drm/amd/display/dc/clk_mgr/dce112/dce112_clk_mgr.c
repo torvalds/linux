@@ -28,8 +28,8 @@
 
 #include "dce/dce_11_2_d.h"
 #include "dce/dce_11_2_sh_mask.h"
-#include "dce_clk_mgr.h"
-#include "dce110_clk_mgr.h"
+#include "dce100/dce_clk_mgr.h"
+#include "dce110/dce110_clk_mgr.h"
 #include "dce112_clk_mgr.h"
 #include "dal_asic_id.h"
 

@@ -28,12 +28,12 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-#include "dce/dce_clk_mgr.h"
-#include "dce/dce110_clk_mgr.h"
-#include "dce/dce112_clk_mgr.h"
-#include "dce/dce120_clk_mgr.h"
-#include "rv1_clk_mgr.h"
-#include "rv2_clk_mgr.h"
+#include "dce100/dce_clk_mgr.h"
+#include "dce110/dce110_clk_mgr.h"
+#include "dce112/dce112_clk_mgr.h"
+#include "dce120/dce120_clk_mgr.h"
+#include "dcn10/rv1_clk_mgr.h"
+#include "dcn10/rv2_clk_mgr.h"
 
 struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *pp_smu, struct dccg *dccg)
 {
@@ -110,3 +110,4 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 
 	kfree(clk_mgr);
 }
+

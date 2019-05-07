@@ -26,8 +26,8 @@
 #include "core_types.h"
 #include "clk_mgr_internal.h"
 #include "rv1_clk_mgr.h"
-#include "dce/dce_clk_mgr.h"
-#include "dce/dce112_clk_mgr.h"
+#include "dce100/dce_clk_mgr.h"
+#include "dce112/dce112_clk_mgr.h"
 #include "rv1_clk_mgr_vbios_smu.h"
 #include "rv1_clk_mgr_clk.h"
 

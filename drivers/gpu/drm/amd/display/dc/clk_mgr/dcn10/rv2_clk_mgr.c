@@ -27,7 +27,7 @@
 #include "clk_mgr_internal.h"
 #include "rv1_clk_mgr.h"
 #include "rv2_clk_mgr.h"
-#include "dce/dce112_clk_mgr.h"
+#include "dce112/dce112_clk_mgr.h"
 
 static struct clk_mgr_internal_funcs rv2_clk_internal_funcs = {
 	.set_dispclk = dce112_set_dispclk,

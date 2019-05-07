@@ -34,7 +34,7 @@
 #include "ip/CLK/clk_10_0_reg.h"
 #include "ip/CLK/clk_10_0_sh_mask.h"
 
-#include "dce/dce_clk_mgr.h"
+#include "dce100/dce_clk_mgr.h"
 
 #define CLK_BASE_INNER(inst) \
 	CLK_BASE__INST ## inst ## _SEG0
