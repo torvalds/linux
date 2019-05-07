@@ -38,7 +38,7 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 #if defined(CONFIG_SYS_HAS_CPU_MIPS32_R1) || \
     defined(CONFIG_SYS_HAS_CPU_MIPS32_R2)
 	case CPU_4KEC:
-	case CPU_JZRISC:
+	case CPU_XBURST:
 #endif
 
 #ifdef CONFIG_SYS_HAS_CPU_MIPS32_R2

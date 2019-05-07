@@ -225,7 +225,7 @@ static inline int __init mips_sc_probe(void)
 	 * According to config2 it would be 5-ways, but that is contradicted
 	 * by all documentation.
 	 */
-	if (current_cpu_type() == CPU_JZRISC &&
+	if (current_cpu_type() == CPU_XBURST &&
 				mips_machtype == MACH_INGENIC_JZ4770)
 		c->scache.ways = 4;
 

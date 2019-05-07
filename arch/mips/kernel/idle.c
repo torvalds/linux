@@ -173,7 +173,7 @@ void __init check_wait(void)
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
 	case CPU_CAVIUM_OCTEON3:
-	case CPU_JZRISC:
+	case CPU_XBURST:
 	case CPU_LOONGSON1:
 	case CPU_XLR:
 	case CPU_XLP:
