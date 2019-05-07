@@ -27,7 +27,8 @@ u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr)
 	return MT_PCIE_REMAP_BASE_2 + offset;
 }
 
-void mt7615_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
+static void
+mt7615_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
