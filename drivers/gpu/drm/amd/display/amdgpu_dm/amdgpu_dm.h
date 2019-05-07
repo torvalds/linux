@@ -206,6 +206,13 @@ struct amdgpu_display_manager {
 
 	const struct firmware *fw_dmcu;
 	uint32_t dmcu_fw_version;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	/**
+	 * gpu_info FW provided soc bounding box struct or 0 if not
+	 * available in FW
+	 */
+	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
+#endif
 };
 
 struct amdgpu_dm_connector {
