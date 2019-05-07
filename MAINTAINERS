@@ -11880,7 +11880,8 @@ F:	include/linux/switchtec.h
 F:	drivers/ntb/hw/mscc/
 
 PCI DRIVER FOR MOBIVEIL PCIE IP
-M:	Subrahmanya Lingappa <l.subrahmanya@mobiveil.co.in>
+M:	Karthikeyan Mitran <m.karthikeyan@mobiveil.co.in>
+M:	Hou Zhiqiang <Zhiqiang.Hou@nxp.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/pci/mobiveil-pcie.txt
