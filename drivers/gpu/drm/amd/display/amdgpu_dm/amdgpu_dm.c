@@ -4107,6 +4107,9 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	struct amdgpu_device *adev;
 	struct amdgpu_bo *rbo;
 	struct dm_plane_state *dm_plane_state_new, *dm_plane_state_old;
+	struct list_head list;
+	struct ttm_validate_buffer tv;
+	struct ww_acquire_ctx ticket;
 	uint64_t tiling_flags;
 	uint32_t domain;
 	int r;
@@ -4123,9 +4126,17 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	obj = new_state->fb->obj[0];
 	rbo = gem_to_amdgpu_bo(obj);
 	adev = amdgpu_ttm_adev(rbo->tbo.bdev);
-	r = amdgpu_bo_reserve(rbo, false);
-	if (unlikely(r != 0))
+	INIT_LIST_HEAD(&list);
+
+	tv.bo = &rbo->tbo;
+	tv.num_shared = 1;
+	list_add(&tv.head, &list);
+
+	r = ttm_eu_reserve_buffers(&ticket, &list, false, NULL, true);
+	if (r) {
+		dev_err(adev->dev, "fail to reserve bo (%d)\n", r);
 		return r;
+	}
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
 		domain = amdgpu_display_supported_domains(adev);
@@ -4136,21 +4147,21 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to pin framebuffer with error %d\n", r);
-		amdgpu_bo_unreserve(rbo);
+		ttm_eu_backoff_reservation(&ticket, &list);
 		return r;
 	}
 
 	r = amdgpu_ttm_alloc_gart(&rbo->tbo);
 	if (unlikely(r != 0)) {
 		amdgpu_bo_unpin(rbo);
-		amdgpu_bo_unreserve(rbo);
+		ttm_eu_backoff_reservation(&ticket, &list);
 		DRM_ERROR("%p bind failed\n", rbo);
 		return r;
 	}
 
 	amdgpu_bo_get_tiling_flags(rbo, &tiling_flags);
 
-	amdgpu_bo_unreserve(rbo);
+	ttm_eu_backoff_reservation(&ticket, &list);
 
 	afb->address = amdgpu_bo_gpu_offset(rbo);
 
