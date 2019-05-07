@@ -175,7 +175,7 @@ struct clk_hw *clk_hw_register_mux_table(struct device *dev, const char *name,
 		init.ops = &clk_mux_ro_ops;
 	else
 		init.ops = &clk_mux_ops;
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
