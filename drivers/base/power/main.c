@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/main.c - Where the driver meets power management.
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
- *
- * This file is released under the GPLv2
- *
  *
  * The driver model core calls device_pm_add() when a device is registered.
  * This will initialize the embedded device_pm_info object in the device

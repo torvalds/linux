@@ -178,6 +178,7 @@ static struct attribute *foo_default_attrs[] = {
 	&bar_attribute.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
+ATTRIBUTE_GROUPS(foo_default);
 
 /*
  * Our own ktype for our kobjects.  Here we specify our sysfs ops, the
@@ -187,7 +188,7 @@ static struct attribute *foo_default_attrs[] = {
 static struct kobj_type foo_ktype = {
 	.sysfs_ops = &foo_sysfs_ops,
 	.release = foo_release,
-	.default_attrs = foo_default_attrs,
+	.default_groups = foo_default_groups,
 };
 
 static struct kset *example_kset;

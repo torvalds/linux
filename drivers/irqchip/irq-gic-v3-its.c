@@ -3830,13 +3830,13 @@ static int __init acpi_get_its_numa_node(u32 its_id)
 	return NUMA_NO_NODE;
 }
 
-static int __init gic_acpi_match_srat_its(struct acpi_subtable_header *header,
+static int __init gic_acpi_match_srat_its(union acpi_subtable_headers *header,
 					  const unsigned long end)
 {
 	return 0;
 }
 
-static int __init gic_acpi_parse_srat_its(struct acpi_subtable_header *header,
+static int __init gic_acpi_parse_srat_its(union acpi_subtable_headers *header,
 			 const unsigned long end)
 {
 	int node;
@@ -3903,7 +3903,7 @@ static int __init acpi_get_its_numa_node(u32 its_id) { return NUMA_NO_NODE; }
 static void __init acpi_its_srat_maps_free(void) { }
 #endif
 
-static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
+static int __init gic_acpi_parse_madt_its(union acpi_subtable_headers *header,
 					  const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;

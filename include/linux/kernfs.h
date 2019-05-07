@@ -64,7 +64,7 @@ enum kernfs_root_flag {
 	KERNFS_ROOT_CREATE_DEACTIVATED		= 0x0001,
 
 	/*
-	 * For regular flies, if the opener has CAP_DAC_OVERRIDE, open(2)
+	 * For regular files, if the opener has CAP_DAC_OVERRIDE, open(2)
 	 * succeeds regardless of the RW permissions.  sysfs had an extra
 	 * layer of enforcement where open(2) fails with -EACCES regardless
 	 * of CAP_DAC_OVERRIDE if the permission doesn't have the

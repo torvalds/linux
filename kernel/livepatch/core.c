@@ -419,6 +419,7 @@ static struct attribute *klp_patch_attrs[] = {
 	&force_kobj_attr.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(klp_patch);
 
 static void klp_free_object_dynamic(struct klp_object *obj)
 {
@@ -549,7 +550,7 @@ static void klp_kobj_release_patch(struct kobject *kobj)
 static struct kobj_type klp_ktype_patch = {
 	.release = klp_kobj_release_patch,
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = klp_patch_attrs,
+	.default_groups = klp_patch_groups,
 };
 
 static void klp_kobj_release_object(struct kobject *kobj)

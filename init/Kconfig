@@ -562,7 +562,6 @@ config BUILD_BIN2C
 
 config IKCONFIG
 	tristate "Kernel .config support"
-	select BUILD_BIN2C
 	---help---
 	  This option enables the complete Linux kernel ".config" file
 	  contents to be saved in the kernel. It provides documentation
@@ -579,6 +578,16 @@ config IKCONFIG_PROC
 	---help---
 	  This option enables access to the kernel configuration file
 	  through /proc/config.gz.
+
+config IKHEADERS_PROC
+	tristate "Enable kernel header artifacts through /proc/kheaders.tar.xz"
+	depends on PROC_FS
+	help
+	  This option enables access to the kernel header and other artifacts that
+	  are generated during the build process. These can be used to build eBPF
+	  tracing programs, or similar programs.  If you build the headers as a
+	  module, a module called kheaders.ko is built which can be loaded on-demand
+	  to get access to the headers.
 
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"

@@ -674,8 +674,8 @@ static bool fw_run_sysfs_fallback(enum fw_opt opt_flags)
  *
  * This function is called if direct lookup for the firmware failed, it enables
  * a fallback mechanism through userspace by exposing a sysfs loading
- * interface. Userspace is in charge of loading the firmware through the syfs
- * loading interface. This syfs fallback mechanism may be disabled completely
+ * interface. Userspace is in charge of loading the firmware through the sysfs
+ * loading interface. This sysfs fallback mechanism may be disabled completely
  * on a system by setting the proc sysctl value ignore_sysfs_fallback to true.
  * If this false we check if the internal API caller set the @FW_OPT_NOFALLBACK
  * flag, if so it would also disable the fallback mechanism. A system may want
@@ -693,7 +693,7 @@ int firmware_fallback_sysfs(struct firmware *fw, const char *name,
 		return ret;
 
 	if (!(opt_flags & FW_OPT_NO_WARN))
-		dev_warn(device, "Falling back to syfs fallback for: %s\n",
+		dev_warn(device, "Falling back to sysfs fallback for: %s\n",
 				 name);
 	else
 		dev_dbg(device, "Falling back to sysfs fallback for: %s\n",

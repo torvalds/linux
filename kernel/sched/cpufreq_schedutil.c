@@ -600,13 +600,14 @@ rate_limit_us_store(struct gov_attr_set *attr_set, const char *buf, size_t count
 
 static struct governor_attr rate_limit_us = __ATTR_RW(rate_limit_us);
 
-static struct attribute *sugov_attributes[] = {
+static struct attribute *sugov_attrs[] = {
 	&rate_limit_us.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(sugov);
 
 static struct kobj_type sugov_tunables_ktype = {
-	.default_attrs = sugov_attributes,
+	.default_groups = sugov_groups,
 	.sysfs_ops = &governor_sysfs_ops,
 };
 
