@@ -466,14 +466,15 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 				"invalid, retrying...\n");
 			continue;
 		}
-	} while (--retries && (status.crcchkl == 1 || status.crcchkg == 1 ||
-		 status.configs == 0 || status.ids == 1));
+		/* Success! */
+		break;
+	} while (--retries);
 
 	if (!retries) {
 		rc = -EIO;
 		dev_err(dev, "Failed to upload config to device, giving up\n");
 		goto out;
-	} else if (retries != RETRIES - 1) {
+	} else if (retries != RETRIES) {
 		dev_info(dev, "Succeeded after %d tried\n", RETRIES - retries);
 	}
 
