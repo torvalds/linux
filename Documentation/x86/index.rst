@@ -25,3 +25,4 @@ x86-specific Documentation
    pti
    microcode
    resctrl_ui
+   usb-legacy-support
