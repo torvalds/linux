@@ -21,3 +21,4 @@ x86-specific Documentation
    protection-keys
    intel_mpx
    amd-memory-encryption
+   pti
