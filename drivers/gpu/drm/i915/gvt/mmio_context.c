@@ -108,12 +108,12 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, GEN9_HALF_SLICE_CHICKEN5, 0xffff, true}, /* 0xe188 */
 	{RCS0, GEN9_HALF_SLICE_CHICKEN7, 0xffff, true}, /* 0xe194 */
 	{RCS0, GEN8_ROW_CHICKEN, 0xffff, true}, /* 0xe4f0 */
-	{RCS0, TRVATTL3PTRDW(0), 0, false}, /* 0x4de0 */
-	{RCS0, TRVATTL3PTRDW(1), 0, false}, /* 0x4de4 */
-	{RCS0, TRNULLDETCT, 0, false}, /* 0x4de8 */
-	{RCS0, TRINVTILEDETCT, 0, false}, /* 0x4dec */
-	{RCS0, TRVADR, 0, false}, /* 0x4df0 */
-	{RCS0, TRTTE, 0, false}, /* 0x4df4 */
+	{RCS0, TRVATTL3PTRDW(0), 0, true}, /* 0x4de0 */
+	{RCS0, TRVATTL3PTRDW(1), 0, true}, /* 0x4de4 */
+	{RCS0, TRNULLDETCT, 0, true}, /* 0x4de8 */
+	{RCS0, TRINVTILEDETCT, 0, true}, /* 0x4dec */
+	{RCS0, TRVADR, 0, true}, /* 0x4df0 */
+	{RCS0, TRTTE, 0, true}, /* 0x4df4 */
 
 	{BCS0, RING_GFX_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2229c */
 	{BCS0, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
