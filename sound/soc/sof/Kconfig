@@ -43,13 +43,6 @@ config SND_SOC_SOF_OPTIONS
 
 if SND_SOC_SOF_OPTIONS
 
-config SND_SOC_SOF_COMPRESS
-	bool "SOF ALSA Compressed API support"
-	help
-	  This adds support for the ALSA compressed API in SOF
-	  Say Y if you need this option
-	  If unsure select "N".
-
 config SND_SOC_SOF_NOCODEC
 	tristate "SOF nocodec mode Support"
 	help
@@ -142,7 +135,6 @@ endif ## SND_SOC_SOF_OPTIONS
 config SND_SOC_SOF
 	tristate
 	select SND_SOC_TOPOLOGY
-	select SND_SOC_COMPRESS if SND_SOC_SOF_COMPRESS=y
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
