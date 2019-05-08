@@ -2267,8 +2267,8 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			pp_table->AcgAvfsGb.m1                   = avfs_params.ulAcgGbFuseTableM1;
 			pp_table->AcgAvfsGb.m2                   = avfs_params.ulAcgGbFuseTableM2;
 			pp_table->AcgAvfsGb.b                    = avfs_params.ulAcgGbFuseTableB;
-			pp_table->AcgAvfsGb.m1_shift             = 0;
-			pp_table->AcgAvfsGb.m2_shift             = 0;
+			pp_table->AcgAvfsGb.m1_shift             = 24;
+			pp_table->AcgAvfsGb.m2_shift             = 12;
 			pp_table->AcgAvfsGb.b_shift              = 0;
 
 		} else {
