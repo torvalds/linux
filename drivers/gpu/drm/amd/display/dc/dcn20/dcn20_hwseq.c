@@ -222,12 +222,17 @@ static void dcn20_dsc_pg_control(
 {
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
+	uint32_t org_ip_request_cntl = 0;
 
 	if (hws->ctx->dc->debug.disable_dsc_power_gate)
 		return;
 
 	if (REG(DOMAIN16_PG_CONFIG) == 0)
 		return;
+
+	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
 
 	switch (dsc_inst) {
 	case 0: /* DSC0 */
@@ -282,6 +287,9 @@ static void dcn20_dsc_pg_control(
 		BREAK_TO_DEBUGGER();
 		break;
 	}
+
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
 #endif
 
