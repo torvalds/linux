@@ -43,6 +43,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo = NULL;
 	int ret = 0;
+	u8 *src, *dst;
 	unsigned int i, row, col;
 	uint32_t colour_set[16];
 	uint32_t *next_space = &colour_set[0];
@@ -126,18 +127,17 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 		dev_err(&dev->pdev->dev, "failed to reserve user bo\n");
 		goto out1;
 	}
-	if (!gbo->kmap.virtual) {
-		ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &gbo->kmap);
-		if (ret) {
-			dev_err(&dev->pdev->dev, "failed to kmap user buffer updates\n");
-			goto out2;
-		}
+	src = drm_gem_vram_kmap(gbo, true, NULL);
+	if (IS_ERR(src)) {
+		ret = PTR_ERR(src);
+		dev_err(&dev->pdev->dev, "failed to kmap user buffer updates\n");
+		goto out2;
 	}
 
 	memset(&colour_set[0], 0, sizeof(uint32_t)*16);
 	/* width*height*4 = 16384 */
 	for (i = 0; i < 16384; i += 4) {
-		this_colour = ioread32(gbo->kmap.virtual + i);
+		this_colour = ioread32(src + i);
 		/* No transparency */
 		if (this_colour>>24 != 0xff &&
 			this_colour>>24 != 0x0) {
@@ -189,21 +189,18 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	/* Map up-coming buffer to write colour indices */
-	if (!pixels_prev->kmap.virtual) {
-		ret = ttm_bo_kmap(&pixels_prev->bo, 0,
-				  pixels_prev->bo.num_pages,
-				  &pixels_prev->kmap);
-		if (ret) {
-			dev_err(&dev->pdev->dev, "failed to kmap cursor updates\n");
-			goto out3;
-		}
+	dst = drm_gem_vram_kmap(pixels_prev, true, NULL);
+	if (IS_ERR(dst)) {
+		ret = PTR_ERR(dst);
+		dev_err(&dev->pdev->dev, "failed to kmap cursor updates\n");
+		goto out3;
 	}
 
 	/* now write colour indices into hardware cursor buffer */
 	for (row = 0; row < 64; row++) {
 		memset(&this_row[0], 0, 48);
 		for (col = 0; col < 64; col++) {
-			this_colour = ioread32(gbo->kmap.virtual + 4*(col + 64*row));
+			this_colour = ioread32(src + 4*(col + 64*row));
 			/* write transparent pixels */
 			if (this_colour>>24 == 0x0) {
 				this_row[47 - col/8] |= 0x80>>(col%8);
@@ -221,7 +218,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 				}
 			}
 		}
-		memcpy_toio(pixels_prev->kmap.virtual + row*48, &this_row[0], 48);
+		memcpy_toio(dst + row*48, &this_row[0], 48);
 	}
 
 	/* Program gpu address of cursor buffer */
@@ -247,9 +244,9 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 	ret = 0;
 
-	ttm_bo_kunmap(&pixels_prev->kmap);
+	drm_gem_vram_kunmap(pixels_prev);
  out3:
-	ttm_bo_kunmap(&gbo->kmap);
+	drm_gem_vram_kunmap(gbo);
  out2:
 	drm_gem_vram_unreserve(gbo);
  out1:

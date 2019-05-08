@@ -870,6 +870,7 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
+	void *base;
 
 	/* push the previous fb to system ram */
 	if (!atomic && fb) {
@@ -902,11 +903,13 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (&mdev->mfbdev->mfb == mga_fb) {
 		/* if pushing console in kmap it */
-		ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &gbo->kmap);
-		if (ret)
+		base = drm_gem_vram_kmap(gbo, true, NULL);
+		if (IS_ERR(base)) {
+			ret = PTR_ERR(base);
 			DRM_ERROR("failed to kmap fbcon\n");
-
+		}
 	}
+
 	drm_gem_vram_unreserve(gbo);
 
 	mga_set_start_address(crtc, (u32)gpu_addr);

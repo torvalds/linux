@@ -27,6 +27,7 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	int src_offset, dst_offset;
 	int bpp = mfbdev->mfb.base.format->cpp[0];
 	int ret = -EBUSY;
+	u8 *dst;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
@@ -75,26 +76,31 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	mfbdev->x2 = mfbdev->y2 = 0;
 	spin_unlock_irqrestore(&mfbdev->dirty_lock, flags);
 
-	if (!gbo->kmap.virtual) {
-		ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &gbo->kmap);
-		if (ret) {
+	dst = drm_gem_vram_kmap(gbo, false, NULL);
+	if (IS_ERR(dst)) {
+		DRM_ERROR("failed to kmap fb updates\n");
+		goto out;
+	} else if (!dst) {
+		dst = drm_gem_vram_kmap(gbo, true, NULL);
+		if (IS_ERR(dst)) {
 			DRM_ERROR("failed to kmap fb updates\n");
-			drm_gem_vram_unreserve(gbo);
-			return;
+			goto out;
 		}
 		unmap = true;
 	}
+
 	for (i = y; i <= y2; i++) {
 		/* assume equal stride for now */
 		src_offset = dst_offset =
 			i * mfbdev->mfb.base.pitches[0] + (x * bpp);
-		memcpy_toio(gbo->kmap.virtual + src_offset,
-			    mfbdev->sysram + dst_offset, (x2 - x + 1) * bpp);
-
+		memcpy_toio(dst + dst_offset, mfbdev->sysram + src_offset,
+			    (x2 - x + 1) * bpp);
 	}
-	if (unmap)
-		ttm_bo_kunmap(&gbo->kmap);
 
+	if (unmap)
+		drm_gem_vram_kunmap(gbo);
+
+out:
 	drm_gem_vram_unreserve(gbo);
 }
 
