@@ -15984,6 +15984,12 @@ F:	drivers/uwb/
 F:	include/linux/uwb.h
 F:	include/linux/uwb/
 
+UNICODE SUBSYSTEM:
+M:	Gabriel Krisman Bertazi <krisman@collabora.com>
+L:	linux-fsdevel@vger.kernel.org
+S:	Supported
+F:	fs/unicode/
+
 UNICORE32 ARCHITECTURE:
 M:	Guan Xuetao <gxt@pku.edu.cn>
 W:	http://mprc.pku.edu.cn/~guanxuetao/linux
