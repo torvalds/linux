@@ -838,7 +838,7 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 
 	dir = sdata->vif.debugfs_dir;
 
-	if (!dir)
+	if (IS_ERR_OR_NULL(dir))
 		return;
 
 	sprintf(buf, "netdev:%s", sdata->name);
