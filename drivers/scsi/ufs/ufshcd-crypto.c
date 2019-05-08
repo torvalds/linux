@@ -34,8 +34,8 @@ static size_t get_keysize_bytes(enum ufs_crypto_key_size size)
 }
 
 static int ufshcd_crypto_cap_find(void *hba_p,
-			   enum blk_crypto_mode_num crypto_mode,
-			   unsigned int data_unit_size)
+				  enum blk_crypto_mode_num crypto_mode,
+				  unsigned int data_unit_size)
 {
 	struct ufs_hba *hba = hba_p;
 	enum ufs_crypto_alg ufs_alg;
@@ -265,7 +265,8 @@ static bool ufshcd_crypto_mode_supported(void *hba_p,
 	return ufshcd_crypto_cap_find(hba_p, crypto_mode, data_unit_size) >= 0;
 }
 
-void ufshcd_crypto_enable(struct ufs_hba *hba)
+/* Functions implementing UFSHCI v2.1 specification behaviour */
+void ufshcd_crypto_enable_spec(struct ufs_hba *hba)
 {
 	union ufs_crypto_cfg_entry *cfg_arr = hba->crypto_cfgs;
 	int slot;
@@ -281,11 +282,13 @@ void ufshcd_crypto_enable(struct ufs_hba *hba)
 	for (slot = 0; slot < NUM_KEYSLOTS(hba); slot++)
 		program_key(hba, &cfg_arr[slot], slot);
 }
+EXPORT_SYMBOL(ufshcd_crypto_enable_spec);
 
-void ufshcd_crypto_disable(struct ufs_hba *hba)
+void ufshcd_crypto_disable_spec(struct ufs_hba *hba)
 {
 	hba->caps &= ~UFSHCD_CAP_CRYPTO;
 }
+EXPORT_SYMBOL(ufshcd_crypto_disable_spec);
 
 static const struct keyslot_mgmt_ll_ops ufshcd_ksm_ops = {
 	.keyslot_program	= ufshcd_crypto_keyslot_program,
@@ -301,7 +304,8 @@ static const struct keyslot_mgmt_ll_ops ufshcd_ksm_ops = {
  * Returns 0 on success. Returns -ENODEV if such capabilities don't exist, and
  * -ENOMEM upon OOM.
  */
-int ufshcd_hba_init_crypto(struct ufs_hba *hba)
+int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
+				const struct keyslot_mgmt_ll_ops *ksm_ops)
 {
 	int cap_idx = 0;
 	int err = 0;
@@ -355,8 +359,7 @@ int ufshcd_hba_init_crypto(struct ufs_hba *hba)
 						 cap_idx * sizeof(__le32)));
 	}
 
-	hba->ksm = keyslot_manager_create(NUM_KEYSLOTS(hba), &ufshcd_ksm_ops,
-					  hba);
+	hba->ksm = keyslot_manager_create(NUM_KEYSLOTS(hba), ksm_ops, hba);
 
 	if (!hba->ksm) {
 		err = -ENOMEM;
@@ -374,18 +377,147 @@ out:
 	hba->crypto_capabilities.reg_val = 0;
 	return err;
 }
+EXPORT_SYMBOL(ufshcd_hba_init_crypto_spec);
 
-void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
-					    struct request_queue *q)
+void ufshcd_crypto_setup_rq_keyslot_manager_spec(struct ufs_hba *hba,
+						 struct request_queue *q)
 {
 	if (!ufshcd_hba_is_crypto_supported(hba) || !q)
 		return;
 
 	q->ksm = hba->ksm;
 }
+EXPORT_SYMBOL(ufshcd_crypto_setup_rq_keyslot_manager_spec);
+
+void ufshcd_crypto_destroy_rq_keyslot_manager_spec(struct ufs_hba *hba,
+						   struct request_queue *q)
+{
+	keyslot_manager_destroy(hba->ksm);
+}
+EXPORT_SYMBOL(ufshcd_crypto_destroy_rq_keyslot_manager_spec);
+
+int ufshcd_prepare_lrbp_crypto_spec(struct ufs_hba *hba,
+				    struct scsi_cmnd *cmd,
+				    struct ufshcd_lrb *lrbp)
+{
+	int key_slot;
+
+	if (!cmd->request->bio ||
+	    !bio_crypt_should_process(cmd->request->bio, cmd->request->q)) {
+		lrbp->crypto_enable = false;
+		return 0;
+	}
+
+	if (WARN_ON(!ufshcd_is_crypto_enabled(hba))) {
+		/*
+		 * Upper layer asked us to do inline encryption
+		 * but that isn't enabled, so we fail this request.
+		 */
+		return -EINVAL;
+	}
+	key_slot = bio_crypt_get_keyslot(cmd->request->bio);
+	if (!ufshcd_keyslot_valid(hba, key_slot))
+		return -EINVAL;
+
+	lrbp->crypto_enable = true;
+	lrbp->crypto_key_slot = key_slot;
+	lrbp->data_unit_num = bio_crypt_data_unit_num(cmd->request->bio);
+
+	return 0;
+}
+EXPORT_SYMBOL(ufshcd_prepare_lrbp_crypto_spec);
+
+/* Crypto Variant Ops Support */
+
+void ufshcd_crypto_enable(struct ufs_hba *hba)
+{
+	if (hba->crypto_vops && hba->crypto_vops->enable)
+		return hba->crypto_vops->enable(hba);
+
+	return ufshcd_crypto_enable_spec(hba);
+}
+
+void ufshcd_crypto_disable(struct ufs_hba *hba)
+{
+	if (hba->crypto_vops && hba->crypto_vops->disable)
+		return hba->crypto_vops->disable(hba);
+
+	return ufshcd_crypto_disable_spec(hba);
+}
+
+int ufshcd_hba_init_crypto(struct ufs_hba *hba)
+{
+	if (hba->crypto_vops && hba->crypto_vops->hba_init_crypto)
+		return hba->crypto_vops->hba_init_crypto(hba,
+							 &ufshcd_ksm_ops);
+
+	return ufshcd_hba_init_crypto_spec(hba, &ufshcd_ksm_ops);
+}
+
+void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
+					    struct request_queue *q)
+{
+	if (hba->crypto_vops && hba->crypto_vops->setup_rq_keyslot_manager)
+		return hba->crypto_vops->setup_rq_keyslot_manager(hba, q);
+
+	return ufshcd_crypto_setup_rq_keyslot_manager_spec(hba, q);
+}
 
 void ufshcd_crypto_destroy_rq_keyslot_manager(struct ufs_hba *hba,
 					      struct request_queue *q)
 {
-	keyslot_manager_destroy(hba->ksm);
+	if (hba->crypto_vops && hba->crypto_vops->destroy_rq_keyslot_manager)
+		return hba->crypto_vops->destroy_rq_keyslot_manager(hba, q);
+
+	return ufshcd_crypto_destroy_rq_keyslot_manager_spec(hba, q);
+}
+
+int ufshcd_prepare_lrbp_crypto(struct ufs_hba *hba,
+			       struct scsi_cmnd *cmd,
+			       struct ufshcd_lrb *lrbp)
+{
+	if (hba->crypto_vops && hba->crypto_vops->prepare_lrbp_crypto)
+		return hba->crypto_vops->prepare_lrbp_crypto(hba, cmd, lrbp);
+
+	return ufshcd_prepare_lrbp_crypto_spec(hba, cmd, lrbp);
+}
+
+int ufshcd_complete_lrbp_crypto(struct ufs_hba *hba,
+				struct scsi_cmnd *cmd,
+				struct ufshcd_lrb *lrbp)
+{
+	if (hba->crypto_vops && hba->crypto_vops->complete_lrbp_crypto)
+		return hba->crypto_vops->complete_lrbp_crypto(hba, cmd, lrbp);
+
+	return 0;
+}
+
+void ufshcd_crypto_debug(struct ufs_hba *hba)
+{
+	if (hba->crypto_vops && hba->crypto_vops->debug)
+		hba->crypto_vops->debug(hba);
+}
+
+int ufshcd_crypto_suspend(struct ufs_hba *hba,
+			  enum ufs_pm_op pm_op)
+{
+	if (hba->crypto_vops && hba->crypto_vops->suspend)
+		return hba->crypto_vops->suspend(hba, pm_op);
+
+	return 0;
+}
+
+int ufshcd_crypto_resume(struct ufs_hba *hba,
+			 enum ufs_pm_op pm_op)
+{
+	if (hba->crypto_vops && hba->crypto_vops->resume)
+		return hba->crypto_vops->resume(hba, pm_op);
+
+	return 0;
+}
+
+void ufshcd_crypto_set_vops(struct ufs_hba *hba,
+			    struct ufs_hba_crypto_variant_ops *crypto_vops)
+{
+	hba->crypto_vops = crypto_vops;
 }
