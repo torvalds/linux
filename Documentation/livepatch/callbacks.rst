@@ -4,7 +4,7 @@
 
 Livepatch (un)patch-callbacks provide a mechanism for livepatch modules
 to execute callback functions when a kernel object is (un)patched.  They
-can be considered a "power feature" that extends livepatching abilities
+can be considered a **power feature** that **extends livepatching abilities**
 to include:
 
   - Safe updates to global data
@@ -17,6 +17,9 @@ In most cases, (un)patch callbacks will need to be used in conjunction
 with memory barriers and kernel synchronization primitives, like
 mutexes/spinlocks, or even stop_machine(), to avoid concurrency issues.
 
+1. Motivation
+=============
+
 Callbacks differ from existing kernel facilities:
 
   - Module init/exit code doesn't run when disabling and re-enabling a
@@ -28,20 +31,30 @@ Callbacks are part of the klp_object structure and their implementation
 is specific to that klp_object.  Other livepatch objects may or may not
 be patched, irrespective of the target klp_object's current state.
 
+2. Callback types
+=================
+
 Callbacks can be registered for the following livepatch actions:
 
-  * Pre-patch    - before a klp_object is patched
+  * Pre-patch
+                 - before a klp_object is patched
 
-  * Post-patch   - after a klp_object has been patched and is active
+  * Post-patch
+                 - after a klp_object has been patched and is active
                    across all tasks
 
-  * Pre-unpatch  - before a klp_object is unpatched (ie, patched code is
+  * Pre-unpatch
+                 - before a klp_object is unpatched (ie, patched code is
                    active), used to clean up post-patch callback
                    resources
 
-  * Post-unpatch - after a klp_object has been patched, all code has
+  * Post-unpatch
+                 - after a klp_object has been patched, all code has
                    been restored and no tasks are running patched code,
                    used to cleanup pre-patch callback resources
+
+3. How it works
+===============
 
 Each callback is optional, omitting one does not preclude specifying any
 other.  However, the livepatching core executes the handlers in
@@ -86,11 +99,14 @@ If the object did successfully patch, but the patch transition never
 started for some reason (e.g., if another object failed to patch),
 only the post-unpatch callback will be called.
 
+4. Use cases
+============
 
-Example Use-cases
-=================
+Sample livepatch modules demonstrating the callback API can be found in
+samples/livepatch/ directory.  These samples were modified for use in
+kselftests and can be found in the lib/livepatch directory.
 
-Update global data
+Global data update
 ------------------
 
 A pre-patch callback can be useful to update a global variable.  For
@@ -103,24 +119,15 @@ patch the data *after* patching is complete with a post-patch callback,
 so that tcp_send_challenge_ack() could first be changed to read
 sysctl_tcp_challenge_ack_limit with READ_ONCE.
 
-
-Support __init and probe function patches
+__init and probe function patches support
 -----------------------------------------
 
 Although __init and probe functions are not directly livepatch-able, it
 may be possible to implement similar updates via pre/post-patch
 callbacks.
 
-48900cb6af42 ("virtio-net: drop NETIF_F_FRAGLIST") change the way that
+The commit ``48900cb6af42 ("virtio-net: drop NETIF_F_FRAGLIST")`` change the way that
 virtnet_probe() initialized its driver's net_device features.  A
 pre/post-patch callback could iterate over all such devices, making a
 similar change to their hw_features value.  (Client functions of the
 value may need to be updated accordingly.)
-
-
-Other Examples
-==============
-
-Sample livepatch modules demonstrating the callback API can be found in
-samples/livepatch/ directory.  These samples were modified for use in
-kselftests and can be found in the lib/livepatch directory.

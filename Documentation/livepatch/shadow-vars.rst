@@ -27,10 +27,13 @@ A hashtable references all shadow variables.  These references are
 stored and retrieved through a <obj, id> pair.
 
 * The klp_shadow variable data structure encapsulates both tracking
-meta-data and shadow-data:
+  meta-data and shadow-data:
+
   - meta-data
+
     - obj - pointer to parent object
     - id - data identifier
+
   - data[] - storage for shadow data
 
 It is important to note that the klp_shadow_alloc() and
@@ -47,31 +50,43 @@ to do actions that can be done only once when a new variable is allocated.
 
 * klp_shadow_alloc() - allocate and add a new shadow variable
   - search hashtable for <obj, id> pair
+
   - if exists
+
     - WARN and return NULL
+
   - if <obj, id> doesn't already exist
+
     - allocate a new shadow variable
     - initialize the variable using a custom constructor and data when provided
     - add <obj, id> to the global hashtable
 
 * klp_shadow_get_or_alloc() - get existing or alloc a new shadow variable
   - search hashtable for <obj, id> pair
+
   - if exists
+
     - return existing shadow variable
+
   - if <obj, id> doesn't already exist
+
     - allocate a new shadow variable
     - initialize the variable using a custom constructor and data when provided
     - add <obj, id> pair to the global hashtable
 
 * klp_shadow_free() - detach and free a <obj, id> shadow variable
   - find and remove a <obj, id> reference from global hashtable
+
     - if found
+
       - call destructor function if defined
       - free shadow variable
 
 * klp_shadow_free_all() - detach and free all <*, id> shadow variables
   - find and remove any <*, id> references from global hashtable
+
     - if found
+
       - call destructor function if defined
       - free shadow variable
 
@@ -102,12 +117,12 @@ parent "goes live" (ie, any shadow variable get-API requests are made
 for this <obj, id> pair.)
 
 For commit 1d147bfa6429, when a parent sta_info structure is allocated,
-allocate a shadow copy of the ps_lock pointer, then initialize it:
+allocate a shadow copy of the ps_lock pointer, then initialize it::
 
-#define PS_LOCK 1
-struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
-				const u8 *addr, gfp_t gfp)
-{
+  #define PS_LOCK 1
+  struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
+				  const u8 *addr, gfp_t gfp)
+  {
 	struct sta_info *sta;
 	spinlock_t *ps_lock;
 
@@ -123,10 +138,10 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	...
 
 When requiring a ps_lock, query the shadow variable API to retrieve one
-for a specific struct sta_info:
+for a specific struct sta_info:::
 
-void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
-{
+  void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
+  {
 	spinlock_t *ps_lock;
 
 	/* sync with ieee80211_tx_h_unicast_ps_buf */
@@ -136,10 +151,10 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	...
 
 When the parent sta_info structure is freed, first free the shadow
-variable:
+variable::
 
-void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
-{
+  void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
+  {
 	klp_shadow_free(sta, PS_LOCK, NULL);
 	kfree(sta);
 	...
@@ -155,19 +170,19 @@ these cases, the klp_shadow_get_or_alloc() call can be used to attach
 shadow variables to parents already in-flight.
 
 For commit 1d147bfa6429, a good spot to allocate a shadow spinlock is
-inside ieee80211_sta_ps_deliver_wakeup():
+inside ieee80211_sta_ps_deliver_wakeup()::
 
-int ps_lock_shadow_ctor(void *obj, void *shadow_data, void *ctor_data)
-{
+  int ps_lock_shadow_ctor(void *obj, void *shadow_data, void *ctor_data)
+  {
 	spinlock_t *lock = shadow_data;
 
 	spin_lock_init(lock);
 	return 0;
-}
+  }
 
-#define PS_LOCK 1
-void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
-{
+  #define PS_LOCK 1
+  void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
+  {
 	spinlock_t *ps_lock;
 
 	/* sync with ieee80211_tx_h_unicast_ps_buf */
@@ -200,10 +215,12 @@ suggests how to handle the parent object.
 =============
 
 * https://github.com/dynup/kpatch
-The livepatch implementation is based on the kpatch version of shadow
-variables.
+
+  The livepatch implementation is based on the kpatch version of shadow
+  variables.
 
 * http://files.mkgnu.net/files/dynamos/doc/papers/dynamos_eurosys_07.pdf
-Dynamic and Adaptive Updates of Non-Quiescent Subsystems in Commodity
-Operating System Kernels (Kritis Makris, Kyung Dong Ryu 2007) presented
-a datatype update technique called "shadow data structures".
+
+  Dynamic and Adaptive Updates of Non-Quiescent Subsystems in Commodity
+  Operating System Kernels (Kritis Makris, Kyung Dong Ryu 2007) presented
+  a datatype update technique called "shadow data structures".

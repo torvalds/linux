@@ -18,7 +18,7 @@ Usage
 -----
 
 The atomic replace can be enabled by setting "replace" flag in struct klp_patch,
-for example:
+for example::
 
 	static struct klp_patch patch = {
 		.mod = THIS_MODULE,
@@ -49,19 +49,19 @@ Features
 
 The atomic replace allows:
 
-  + Atomically revert some functions in a previous patch while
+  - Atomically revert some functions in a previous patch while
     upgrading other functions.
 
-  + Remove eventual performance impact caused by core redirection
+  - Remove eventual performance impact caused by core redirection
     for functions that are no longer patched.
 
-  + Decrease user confusion about dependencies between livepatches.
+  - Decrease user confusion about dependencies between livepatches.
 
 
 Limitations:
 ------------
 
-  + Once the operation finishes, there is no straightforward way
+  - Once the operation finishes, there is no straightforward way
     to reverse it and restore the replaced patches atomically.
 
     A good practice is to set .replace flag in any released livepatch.
@@ -74,7 +74,7 @@ Limitations:
     only when the transition was not forced.
 
 
-  + Only the (un)patching callbacks from the _new_ cumulative livepatch are
+  - Only the (un)patching callbacks from the _new_ cumulative livepatch are
     executed. Any callbacks from the replaced patches are ignored.
 
     In other words, the cumulative patch is responsible for doing any actions
@@ -93,7 +93,7 @@ Limitations:
     enabled patches were called.
 
 
-  + There is no special handling of shadow variables. Livepatch authors
+  - There is no special handling of shadow variables. Livepatch authors
     must create their own rules how to pass them from one cumulative
     patch to the other. Especially that they should not blindly remove
     them in module_exit() functions.

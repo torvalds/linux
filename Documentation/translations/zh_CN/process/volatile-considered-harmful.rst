@@ -1,30 +1,23 @@
-Chinese translated version of Documentation/process/volatile-considered-harmful.rst
+.. _cn_volatile_considered_harmful:
 
-If you have any comment or update to the content, please contact the
-original document maintainer directly.  However, if you have a problem
-communicating in English you can also ask the Chinese maintainer for
-help.  Contact the Chinese maintainer if this translation is outdated
-or if there is a problem with the translation.
+.. include:: ../disclaimer-zh_CN.rst
 
-Maintainer: Jonathan Corbet <corbet@lwn.net>
-Chinese maintainer: Bryan Wu <bryan.wu@analog.com>
----------------------------------------------------------------------
-Documentation/process/volatile-considered-harmful.rst 的中文翻译
+:Original: :ref:`Documentation/process/volatile-considered-harmful.rst
+           <volatile_considered_harmful>`
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
-译存在问题，请联系中文版维护者。
+译存在问题，请联系中文版维护者::
 
-英文版维护者： Jonathan Corbet <corbet@lwn.net>
-中文版维护者： 伍鹏  Bryan Wu <bryan.wu@analog.com>
-中文版翻译者： 伍鹏  Bryan Wu <bryan.wu@analog.com>
-中文版校译者： 张汉辉  Eugene Teo <eugeneteo@kernel.sg>
-               杨瑞  Dave Young <hidave.darkstar@gmail.com>
-以下为正文
----------------------------------------------------------------------
+        英文版维护者： Jonathan Corbet <corbet@lwn.net>
+        中文版维护者： 伍鹏  Bryan Wu <bryan.wu@analog.com>
+        中文版翻译者： 伍鹏  Bryan Wu <bryan.wu@analog.com>
+        中文版校译者： 张汉辉  Eugene Teo <eugeneteo@kernel.sg>
+                       杨瑞  Dave Young <hidave.darkstar@gmail.com>
+                       时奎亮 Alex Shi <alex.shi@linux.alibaba.com>
 
 为什么不应该使用“volatile”类型
-------------------------------
+==============================
 
 C程序员通常认为volatile表示某个变量可以在当前执行的线程之外被改变；因此，在内核
 中用到共享数据结构时，常常会有C程序员喜欢使用volatile这类变量。换句话说，他们经
@@ -41,7 +34,7 @@ C程序员通常认为volatile表示某个变量可以在当前执行的线程�
 必要再使用volatile。如果仍然必须使用volatile，那么几乎可以肯定在代码的某处有一
 个bug。在正确设计的内核代码中，volatile能带来的仅仅是使事情变慢。
 
-思考一下这段典型的内核代码：
+思考一下这段典型的内核代码::
 
     spin_lock(&the_lock);
     do_something_on(&shared_data);
@@ -66,7 +59,7 @@ volatile的存储类型最初是为那些内存映射的I/O寄存器而定义。
 是必需的。
 
 另一种引起用户可能使用volatile的情况是当处理器正忙着等待一个变量的值。正确执行一
-个忙等待的方法是：
+个忙等待的方法是::
 
     while (my_variable != what_i_want)
         cpu_relax();
