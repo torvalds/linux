@@ -1156,6 +1156,23 @@ mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
 	}
 }
 
+static
+int mlx5e_rep_setup_tc_cls_matchall(struct mlx5e_priv *priv,
+				    struct tc_cls_matchall_offload *ma)
+{
+	switch (ma->command) {
+	case TC_CLSMATCHALL_REPLACE:
+		return mlx5e_tc_configure_matchall(priv, ma);
+	case TC_CLSMATCHALL_DESTROY:
+		return mlx5e_tc_delete_matchall(priv, ma);
+	case TC_CLSMATCHALL_STATS:
+		mlx5e_tc_stats_matchall(priv, ma);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 				 void *cb_priv)
 {
@@ -1165,6 +1182,8 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return mlx5e_rep_setup_tc_cls_flower(priv, type_data, flags);
+	case TC_SETUP_CLSMATCHALL:
+		return mlx5e_rep_setup_tc_cls_matchall(priv, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

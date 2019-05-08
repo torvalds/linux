@@ -1585,6 +1585,22 @@ static int esw_vport_qos_config(struct mlx5_eswitch *esw,
 	return 0;
 }
 
+int mlx5_esw_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num,
+			       u32 rate_mbps)
+{
+	u32 ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
+	struct mlx5_vport *vport;
+
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	MLX5_SET(scheduling_context, ctx, max_average_bw, rate_mbps);
+
+	return mlx5_modify_scheduling_element_cmd(esw->dev,
+						  SCHEDULING_HIERARCHY_E_SWITCH,
+						  ctx,
+						  vport->qos.esw_tsar_ix,
+						  MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW);
+}
+
 static void node_guid_gen_from_mac(u64 *node_guid, u8 mac[ETH_ALEN])
 {
 	((u8 *)node_guid)[7] = mac[0];
