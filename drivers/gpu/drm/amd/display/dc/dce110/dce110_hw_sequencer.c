@@ -961,6 +961,9 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 	struct pp_smu_funcs *pp_smu = NULL;
 	unsigned int i, num_audio = 1;
 
+	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
+		return;
+
 	if (core_dc->res_pool->pp_smu)
 		pp_smu = core_dc->res_pool->pp_smu;
 
@@ -980,6 +983,8 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 		/* TODO: audio should be per stream rather than per link */
 		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 					pipe_ctx->stream_res.stream_enc, false);
+		if (pipe_ctx->stream_res.audio)
+			pipe_ctx->stream_res.audio->enabled = true;
 	}
 }
 
@@ -987,6 +992,9 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct pp_smu_funcs *pp_smu = NULL;
+
+	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
+		return;
 
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
@@ -1021,6 +1029,8 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 		/* dal_audio_disable_azalia_audio_jack_presence(stream->audio,
 		 * stream->stream_engine_id);
 		 */
+		if (pipe_ctx->stream_res.audio)
+			pipe_ctx->stream_res.audio->enabled = false;
 	}
 }
 
