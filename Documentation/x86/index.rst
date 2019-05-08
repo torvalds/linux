@@ -22,3 +22,4 @@ x86-specific Documentation
    intel_mpx
    amd-memory-encryption
    pti
+   microcode
