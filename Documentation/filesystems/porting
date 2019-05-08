@@ -668,3 +668,8 @@ in your dentry operations instead.
 	DCACHE_RCUACCESS is gone; having an RCU delay on dentry freeing is the
 	default.  DCACHE_NORCU opts out, and only d_alloc_pseudo() has any
 	business doing so.
+--
+[mandatory]
+	d_alloc_pseudo() is internal-only; uses outside of alloc_file_pseudo() are
+	very suspect (and won't work in modules).  Such uses are very likely to
+	be misspelled d_alloc_anon().
