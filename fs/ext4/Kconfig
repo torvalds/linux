@@ -101,10 +101,9 @@ config EXT4_ENCRYPTION
 	depends on EXT4_FS
 	select FS_ENCRYPTION
 	help
-	  Enable encryption of ext4 files and directories.  This
-	  feature is similar to ecryptfs, but it is more memory
-	  efficient since it avoids caching the encrypted and
-	  decrypted pages in the page cache.
+	  This kconfig symbol is deprecated; now it just selects
+	  FS_ENCRYPTION.  Use CONFIG_FS_ENCRYPTION=y in new config
+	  files
 
 config EXT4_FS_ENCRYPTION
 	bool
