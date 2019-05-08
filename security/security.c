@@ -866,6 +866,11 @@ int security_add_mnt_opt(const char *option, const char *val, int len,
 }
 EXPORT_SYMBOL(security_add_mnt_opt);
 
+int security_move_mount(const struct path *from_path, const struct path *to_path)
+{
+	return call_int_hook(move_mount, 0, from_path, to_path);
+}
+
 int security_inode_alloc(struct inode *inode)
 {
 	int rc = lsm_inode_alloc(inode);

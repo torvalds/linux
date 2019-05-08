@@ -251,6 +251,7 @@ int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				unsigned long *set_kern_flags);
 int security_add_mnt_opt(const char *option, const char *val,
 				int len, void **mnt_opts);
+int security_move_mount(const struct path *from_path, const struct path *to_path);
 int security_dentry_init_security(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
@@ -610,6 +611,12 @@ static inline int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 
 static inline int security_add_mnt_opt(const char *option, const char *val,
 					int len, void **mnt_opts)
+{
+	return 0;
+}
+
+static inline int security_move_mount(const struct path *from_path,
+				      const struct path *to_path)
 {
 	return 0;
 }

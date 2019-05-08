@@ -55,8 +55,11 @@ extern void __init chrdev_init(void);
 /*
  * fs_context.c
  */
+extern const struct fs_context_operations legacy_fs_context_ops;
 extern int parse_monolithic_mount_data(struct fs_context *, void *);
 extern void fc_drop_locked(struct fs_context *);
+extern void vfs_clean_context(struct fs_context *fc);
+extern int finish_clean_context(struct fs_context *fc);
 
 /*
  * namei.c
@@ -92,6 +95,7 @@ extern void __init mnt_init(void);
 extern int __mnt_want_write_file(struct file *);
 extern void __mnt_drop_write_file(struct file *);
 
+extern void dissolve_on_fput(struct vfsmount *);
 /*
  * fs_struct.c
  */

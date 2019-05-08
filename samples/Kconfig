@@ -154,10 +154,11 @@ config SAMPLE_ANDROID_BINDERFS
 	  Builds a sample program to illustrate the use of the Android binderfs
 	  filesystem.
 
-config SAMPLE_STATX
-	bool "Build example extended-stat using code"
-	depends on BROKEN
+config SAMPLE_VFS
+	bool "Build example programs that use new VFS system calls"
 	help
-	  Build example userspace program to use the new extended-stat syscall.
+	  Build example userspace programs that use new VFS system calls such
+	  as mount API and statx().  Note that this is restricted to the x86
+	  arch whilst it accesses system calls that aren't yet in all arches.
 
 endif # SAMPLES
