@@ -114,29 +114,6 @@ static void ramp_up_dispclk_with_dpp(struct clk_mgr_internal *clk_mgr, struct dc
 	clk_mgr->base.clks.max_supported_dppclk_khz = new_clocks->max_supported_dppclk_khz;
 }
 
-static int get_active_display_cnt(
-		struct dc *dc,
-		struct dc_state *context)
-{
-	int i, display_count;
-
-	display_count = 0;
-	for (i = 0; i < context->stream_count; i++) {
-		const struct dc_stream_state *stream = context->streams[i];
-
-		/*
-		 * Only notify active stream or virtual stream.
-		 * Need to notify virtual stream to work around
-		 * headless case. HPD does not fire when system is in
-		 * S0i2.
-		 */
-		if (!stream->dpms_off || stream->signal == SIGNAL_TYPE_VIRTUAL)
-			display_count++;
-	}
-
-	return display_count;
-}
-
 static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -156,7 +133,7 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	pp_smu = &clk_mgr->pp_smu->rv_funcs;
 
-	display_count = get_active_display_cnt(dc, context);
+	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
 
 	if (display_count == 0)
 		enter_display_off = true;

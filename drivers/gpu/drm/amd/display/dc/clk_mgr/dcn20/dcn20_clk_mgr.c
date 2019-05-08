@@ -101,30 +101,7 @@ static uint32_t dentist_get_did_from_divider(int divider)
 	return divider_id;
 }
 
-static int get_active_display_cnt(
-		struct dc *dc,
-		struct dc_state *context)
-{
-	int i, display_count;
-
-	display_count = 0;
-	for (i = 0; i < context->stream_count; i++) {
-		const struct dc_stream_state *stream = context->streams[i];
-
-		/*
-		 * Only notify active stream or virtual stream.
-		 * Need to notify virtual stream to work around
-		 * headless case. HPD does not fire when system is in
-		 * S0i2.
-		 */
-		if (!stream->dpms_off || stream->signal == SIGNAL_TYPE_VIRTUAL)
-			display_count++;
-	}
-
-	return display_count;
-}
-
-static void update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
+void dcn20_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 		struct dc_state *context)
 {
 	int i;
@@ -143,7 +120,7 @@ static void update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 	}
 }
 
-static void update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr)
+void dcn20_update_clocks_update_dentist(struct clk_mgr_internal *clk_mgr)
 {
 	int dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 			* clk_mgr->dentist_vco_freq_khz / clk_mgr->base.clks.dppclk_khz;
@@ -177,7 +154,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool dpp_clock_lowered = false;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
 
-	display_count = get_active_display_cnt(dc, context);
+	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
 	if (dc->res_pool->pp_smu)
 		pp_smu = &dc->res_pool->pp_smu->nv_funcs;
 
@@ -246,15 +223,21 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (dpp_clock_lowered) {
 		// if clock is being lowered, increase DTO before lowering refclk
-		update_clocks_update_dpp_dto(clk_mgr, context);
-		update_clocks_update_dentist(clk_mgr);
+		dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
+		dcn20_update_clocks_update_dentist(clk_mgr);
 	} else {
 		// if clock is being raised, increase refclk before lowering DTO
 		if (update_dppclk || update_dispclk)
-			update_clocks_update_dentist(clk_mgr);
+			dcn20_update_clocks_update_dentist(clk_mgr);
 		if (update_dppclk)
-			update_clocks_update_dpp_dto(clk_mgr, context);
+			dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
+	}
 
+	if (update_dispclk &&
+			dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+		/*update dmcu for wait_loop count*/
+		dmcu->funcs->set_psr_wait_loop(dmcu,
+			clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 	}
 }
 
