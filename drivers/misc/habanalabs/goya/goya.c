@@ -2827,12 +2827,6 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 
 	goya_qman0_set_security(hdev, true);
 
-	/*
-	 * goya cs parser saves space for 2xpacket_msg_prot at end of CB. For
-	 * synchronized kernel jobs we only need space for 1 packet_msg_prot
-	 */
-	job->job_cb_size -= sizeof(struct packet_msg_prot);
-
 	cb = job->patched_cb;
 
 	fence_pkt = (struct packet_msg_prot *) (uintptr_t) (cb->kernel_address +
@@ -4452,8 +4446,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
 	job->patched_cb = job->user_cb;
-	job->job_cb_size = job->user_cb_size +
-			sizeof(struct packet_msg_prot) * 2;
+	job->job_cb_size = job->user_cb_size + sizeof(struct packet_msg_prot);
 
 	hl_debugfs_add_job(hdev, job);
 
