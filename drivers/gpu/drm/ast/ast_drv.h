@@ -31,14 +31,10 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_memory.h>
-#include <drm/ttm/ttm_module.h>
-
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
+
+#include <drm/drm_vram_mm_helper.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -103,10 +99,6 @@ struct ast_private {
 	struct ast_fbdev *fbdev;
 
 	int fb_mtrr;
-
-	struct {
-		struct ttm_bo_device bdev;
-	} ttm;
 
 	struct drm_gem_object *cursor_cache;
 	uint64_t cursor_cache_gpu_addr;
@@ -325,18 +317,12 @@ void ast_fbdev_set_base(struct ast_private *ast, unsigned long gpu_addr);
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
 
-extern int ast_dumb_create(struct drm_file *file,
-			   struct drm_device *dev,
-			   struct drm_mode_create_dumb *args);
-
 int ast_mm_init(struct ast_private *ast);
 void ast_mm_fini(struct ast_private *ast);
 
 int ast_gem_create(struct drm_device *dev,
 		   u32 size, bool iskernel,
 		   struct drm_gem_object **obj);
-
-int ast_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* ast post */
 void ast_enable_vga(struct drm_device *dev);

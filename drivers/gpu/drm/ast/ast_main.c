@@ -593,7 +593,6 @@ int ast_gem_create(struct drm_device *dev,
 		   u32 size, bool iskernel,
 		   struct drm_gem_object **obj)
 {
-	struct ast_private *ast = dev->dev_private;
 	struct drm_gem_vram_object *gbo;
 	int ret;
 
@@ -603,7 +602,7 @@ int ast_gem_create(struct drm_device *dev,
 	if (size == 0)
 		return -EINVAL;
 
-	gbo = drm_gem_vram_create(dev, &ast->ttm.bdev, size, 0, false);
+	gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev, size, 0, false);
 	if (IS_ERR(gbo)) {
 		ret = PTR_ERR(gbo);
 		if (ret != -ERESTARTSYS)
@@ -612,14 +611,4 @@ int ast_gem_create(struct drm_device *dev,
 	}
 	*obj = &gbo->gem;
 	return 0;
-}
-
-int ast_dumb_create(struct drm_file *file,
-		    struct drm_device *dev,
-		    struct drm_mode_create_dumb *args)
-{
-	struct ast_private *ast = dev->dev_private;
-
-	return drm_gem_vram_fill_create_dumb(file, dev, &ast->ttm.bdev, 0,
-					     false, args);
 }
