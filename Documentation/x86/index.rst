@@ -27,3 +27,4 @@ x86-specific Documentation
    resctrl_ui
    usb-legacy-support
    i386/index
+   x86_64/index
