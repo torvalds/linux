@@ -16,3 +16,4 @@ x86-specific Documentation
    earlyprintk
    zero-page
    tlb
+   mtrr
