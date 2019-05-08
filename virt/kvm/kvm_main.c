@@ -3110,7 +3110,7 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_CHECK_EXTENSION_VM:
 	case KVM_CAP_ENABLE_CAP_VM:
 #ifdef CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT
-	case KVM_CAP_MANUAL_DIRTY_LOG_PROTECT:
+	case KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2:
 #endif
 		return 1;
 #ifdef CONFIG_KVM_MMIO
@@ -3148,7 +3148,7 @@ static int kvm_vm_ioctl_enable_cap_generic(struct kvm *kvm,
 {
 	switch (cap->cap) {
 #ifdef CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT
-	case KVM_CAP_MANUAL_DIRTY_LOG_PROTECT:
+	case KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2:
 		if (cap->flags || (cap->args[0] & ~1))
 			return -EINVAL;
 		kvm->manual_dirty_log_protect = cap->args[0];

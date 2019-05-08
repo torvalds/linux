@@ -330,7 +330,7 @@ They must be less than the value that KVM_CHECK_EXTENSION returns for
 the KVM_CAP_MULTI_ADDRESS_SPACE capability.
 
 The bits in the dirty bitmap are cleared before the ioctl returns, unless
-KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is enabled.  For more information,
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is enabled.  For more information,
 see the description of the capability.
 
 4.9 KVM_SET_MEMORY_ALIAS
@@ -3791,7 +3791,7 @@ to I/O ports.
 
 4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
 
-Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
 Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in)
@@ -3824,10 +3824,10 @@ the address space for which you want to return the dirty bitmap.
 They must be less than the value that KVM_CHECK_EXTENSION returns for
 the KVM_CAP_MULTI_ADDRESS_SPACE capability.
 
-This ioctl is mostly useful when KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+This ioctl is mostly useful when KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
 is enabled; for more information, see the description of the capability.
 However, it can always be used as long as KVM_CHECK_EXTENSION confirms
-that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is present.
+that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is present.
 
 4.118 KVM_GET_SUPPORTED_HV_CPUID
 
@@ -4780,7 +4780,7 @@ and injected exceptions.
 * For the new DR6 bits, note that bit 16 is set iff the #DB exception
   will clear DR6.RTM.
 
-7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
 
 Architectures: all
 Parameters: args[0] whether feature should be enabled or not
@@ -4803,6 +4803,11 @@ while userspace can see false reports of dirty pages.  Manual reprotection
 helps reducing this time, improving guest performance and reducing the
 number of dirty log false positives.
 
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 was previously available under the name
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT, but the implementation had bugs that make
+it hard or impossible to use it correctly.  The availability of
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 signals that those bugs are fixed.
+Userspace should not try to use KVM_CAP_MANUAL_DIRTY_LOG_PROTECT.
 
 8. Other capabilities.
 ----------------------
