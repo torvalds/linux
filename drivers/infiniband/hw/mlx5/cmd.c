@@ -148,7 +148,7 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 			return ret;
 		}
 
-		*addr = pci_resource_start(dev->pdev, 0) +
+		*addr = dev->bar_addr +
 			MLX5_GET64(alloc_memic_out, out, memic_start_addr);
 
 		return 0;
@@ -167,7 +167,7 @@ int mlx5_cmd_dealloc_memic(struct mlx5_memic *memic, u64 addr, u64 length)
 	u64 start_page_idx;
 	int err;
 
-	addr -= pci_resource_start(dev->pdev, 0);
+	addr -= dev->bar_addr;
 	start_page_idx = (addr - hw_start_addr) >> PAGE_SHIFT;
 
 	MLX5_SET(dealloc_memic_in, in, opcode, MLX5_CMD_OP_DEALLOC_MEMIC);

@@ -9,7 +9,6 @@ Contents:
    netdev-FAQ
    af_xdp
    batman-adv
-   bpf_flow_dissector
    can
    can_ucan_protocol
    device_drivers/freescale/dpaa2/index
@@ -25,6 +24,7 @@ Contents:
    device_drivers/intel/i40e
    device_drivers/intel/iavf
    device_drivers/intel/ice
+   dsa/index
    devlink-info-versions
    ieee802154
    kapi

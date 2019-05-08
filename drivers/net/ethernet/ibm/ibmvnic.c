@@ -120,6 +120,7 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *);
 static void release_crq_queue(struct ibmvnic_adapter *);
 static int __ibmvnic_set_mac(struct net_device *netdev, struct sockaddr *p);
 static int init_crq_queue(struct ibmvnic_adapter *adapter);
+static int send_query_phys_parms(struct ibmvnic_adapter *adapter);
 
 struct ibmvnic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -1968,13 +1969,11 @@ static void __ibmvnic_reset(struct work_struct *work)
 {
 	struct ibmvnic_rwi *rwi;
 	struct ibmvnic_adapter *adapter;
-	struct net_device *netdev;
 	bool we_lock_rtnl = false;
 	u32 reset_state;
 	int rc = 0;
 
 	adapter = container_of(work, struct ibmvnic_adapter, ibmvnic_reset);
-	netdev = adapter->netdev;
 
 	/* netif_set_real_num_xx_queues needs to take rtnl lock here
 	 * unless wait_for_reset is set, in which case the rtnl lock
@@ -2279,22 +2278,19 @@ static const struct net_device_ops ibmvnic_netdev_ops = {
 static int ibmvnic_get_link_ksettings(struct net_device *netdev,
 				      struct ethtool_link_ksettings *cmd)
 {
-	u32 supported, advertising;
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	int rc;
 
-	supported = (SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg |
-			  SUPPORTED_FIBRE);
-	advertising = (ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg |
-			    ADVERTISED_FIBRE);
-	cmd->base.speed = SPEED_1000;
-	cmd->base.duplex = DUPLEX_FULL;
+	rc = send_query_phys_parms(adapter);
+	if (rc) {
+		adapter->speed = SPEED_UNKNOWN;
+		adapter->duplex = DUPLEX_UNKNOWN;
+	}
+	cmd->base.speed = adapter->speed;
+	cmd->base.duplex = adapter->duplex;
 	cmd->base.port = PORT_FIBRE;
 	cmd->base.phy_address = 0;
 	cmd->base.autoneg = AUTONEG_ENABLE;
-
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
-						supported);
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
-						advertising);
 
 	return 0;
 }
@@ -2923,8 +2919,10 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 			goto req_tx_irq_failed;
 		}
 
+		snprintf(scrq->name, sizeof(scrq->name), "ibmvnic-%x-tx%d",
+			 adapter->vdev->unit_address, i);
 		rc = request_irq(scrq->irq, ibmvnic_interrupt_tx,
-				 0, "ibmvnic_tx", scrq);
+				 0, scrq->name, scrq);
 
 		if (rc) {
 			dev_err(dev, "Couldn't register tx irq 0x%x. rc=%d\n",
@@ -2944,8 +2942,10 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 			dev_err(dev, "Error mapping irq\n");
 			goto req_rx_irq_failed;
 		}
+		snprintf(scrq->name, sizeof(scrq->name), "ibmvnic-%x-rx%d",
+			 adapter->vdev->unit_address, i);
 		rc = request_irq(scrq->irq, ibmvnic_interrupt_rx,
-				 0, "ibmvnic_rx", scrq);
+				 0, scrq->name, scrq);
 		if (rc) {
 			dev_err(dev, "Couldn't register rx irq 0x%x. rc=%d\n",
 				scrq->irq, rc);
@@ -4297,6 +4297,73 @@ out:
 	}
 }
 
+static int send_query_phys_parms(struct ibmvnic_adapter *adapter)
+{
+	union ibmvnic_crq crq;
+	int rc;
+
+	memset(&crq, 0, sizeof(crq));
+	crq.query_phys_parms.first = IBMVNIC_CRQ_CMD;
+	crq.query_phys_parms.cmd = QUERY_PHYS_PARMS;
+	init_completion(&adapter->fw_done);
+	rc = ibmvnic_send_crq(adapter, &crq);
+	if (rc)
+		return rc;
+	wait_for_completion(&adapter->fw_done);
+	return adapter->fw_done_rc ? -EIO : 0;
+}
+
+static int handle_query_phys_parms_rsp(union ibmvnic_crq *crq,
+				       struct ibmvnic_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int rc;
+
+	rc = crq->query_phys_parms_rsp.rc.code;
+	if (rc) {
+		netdev_err(netdev, "Error %d in QUERY_PHYS_PARMS\n", rc);
+		return rc;
+	}
+	switch (cpu_to_be32(crq->query_phys_parms_rsp.speed)) {
+	case IBMVNIC_10MBPS:
+		adapter->speed = SPEED_10;
+		break;
+	case IBMVNIC_100MBPS:
+		adapter->speed = SPEED_100;
+		break;
+	case IBMVNIC_1GBPS:
+		adapter->speed = SPEED_1000;
+		break;
+	case IBMVNIC_10GBP:
+		adapter->speed = SPEED_10000;
+		break;
+	case IBMVNIC_25GBPS:
+		adapter->speed = SPEED_25000;
+		break;
+	case IBMVNIC_40GBPS:
+		adapter->speed = SPEED_40000;
+		break;
+	case IBMVNIC_50GBPS:
+		adapter->speed = SPEED_50000;
+		break;
+	case IBMVNIC_100GBPS:
+		adapter->speed = SPEED_100000;
+		break;
+	default:
+		netdev_warn(netdev, "Unknown speed 0x%08x\n",
+			    cpu_to_be32(crq->query_phys_parms_rsp.speed));
+		adapter->speed = SPEED_UNKNOWN;
+	}
+	if (crq->query_phys_parms_rsp.flags1 & IBMVNIC_FULL_DUPLEX)
+		adapter->duplex = DUPLEX_FULL;
+	else if (crq->query_phys_parms_rsp.flags1 & IBMVNIC_HALF_DUPLEX)
+		adapter->duplex = DUPLEX_HALF;
+	else
+		adapter->duplex = DUPLEX_UNKNOWN;
+
+	return rc;
+}
+
 static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			       struct ibmvnic_adapter *adapter)
 {
@@ -4444,6 +4511,10 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		break;
 	case GET_VPD_RSP:
 		handle_vpd_rsp(crq, adapter);
+		break;
+	case QUERY_PHYS_PARMS_RSP:
+		adapter->fw_done_rc = handle_query_phys_parms_rsp(crq, adapter);
+		complete(&adapter->fw_done);
 		break;
 	default:
 		netdev_err(netdev, "Got an invalid cmd type 0x%02x\n",
@@ -4600,8 +4671,9 @@ static int init_crq_queue(struct ibmvnic_adapter *adapter)
 		     (unsigned long)adapter);
 
 	netdev_dbg(adapter->netdev, "registering irq 0x%x\n", vdev->irq);
-	rc = request_irq(vdev->irq, ibmvnic_interrupt, 0, IBMVNIC_NAME,
-			 adapter);
+	snprintf(crq->name, sizeof(crq->name), "ibmvnic-%x",
+		 adapter->vdev->unit_address);
+	rc = request_irq(vdev->irq, ibmvnic_interrupt, 0, crq->name, adapter);
 	if (rc) {
 		dev_err(dev, "Couldn't register irq 0x%x. rc=%d\n",
 			vdev->irq, rc);

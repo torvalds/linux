@@ -1368,7 +1368,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		const char *macaddr = of_get_mac_address(np);
-		if (macaddr)
+		if (!IS_ERR(macaddr))
 			memcpy(ndev->dev_addr, macaddr, ETH_ALEN);
 	}
 	if (!is_valid_ether_addr(ndev->dev_addr))

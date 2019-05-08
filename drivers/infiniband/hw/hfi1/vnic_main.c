@@ -423,8 +423,7 @@ tx_finish:
 
 static u16 hfi1_vnic_select_queue(struct net_device *netdev,
 				  struct sk_buff *skb,
-				  struct net_device *sb_dev,
-				  select_queue_fallback_t fallback)
+				  struct net_device *sb_dev)
 {
 	struct hfi1_vnic_vport_info *vinfo = opa_vnic_dev_priv(netdev);
 	struct opa_vnic_skb_mdata *mdata;

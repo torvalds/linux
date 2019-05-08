@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/ethtool.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/of_address.h>
@@ -1078,6 +1079,27 @@ static bool get_bool(struct platform_device *ofdev, const char *s)
 	return (bool)*p;
 }
 
+/**
+ * xemaclite_ethtools_get_drvinfo - Get various Axi Emac Lite driver info
+ * @ndev:       Pointer to net_device structure
+ * @ed:         Pointer to ethtool_drvinfo structure
+ *
+ * This implements ethtool command for getting the driver information.
+ * Issue "ethtool -i ethX" under linux prompt to execute this function.
+ */
+static void xemaclite_ethtools_get_drvinfo(struct net_device *ndev,
+					   struct ethtool_drvinfo *ed)
+{
+	strlcpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
+}
+
+static const struct ethtool_ops xemaclite_ethtool_ops = {
+	.get_drvinfo    = xemaclite_ethtools_get_drvinfo,
+	.get_link       = ethtool_op_get_link,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+};
+
 static const struct net_device_ops xemaclite_netdev_ops;
 
 /**
@@ -1143,7 +1165,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	lp->rx_ping_pong = get_bool(ofdev, "xlnx,rx-ping-pong");
 	mac_address = of_get_mac_address(ofdev->dev.of_node);
 
-	if (mac_address) {
+	if (!IS_ERR(mac_address)) {
 		/* Set the MAC address. */
 		memcpy(ndev->dev_addr, mac_address, ETH_ALEN);
 	} else {
@@ -1164,6 +1186,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	dev_info(dev, "MAC address is now %pM\n", ndev->dev_addr);
 
 	ndev->netdev_ops = &xemaclite_netdev_ops;
+	ndev->ethtool_ops = &xemaclite_ethtool_ops;
 	ndev->flags &= ~IFF_MULTICAST;
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
@@ -1229,12 +1252,29 @@ xemaclite_poll_controller(struct net_device *ndev)
 }
 #endif
 
+/* Ioctl MII Interface */
+static int xemaclite_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	if (!dev->phydev || !netif_running(dev))
+		return -EINVAL;
+
+	switch (cmd) {
+	case SIOCGMIIPHY:
+	case SIOCGMIIREG:
+	case SIOCSMIIREG:
+		return phy_mii_ioctl(dev->phydev, rq, cmd);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_open		= xemaclite_open,
 	.ndo_stop		= xemaclite_close,
 	.ndo_start_xmit		= xemaclite_send,
 	.ndo_set_mac_address	= xemaclite_set_mac_address,
 	.ndo_tx_timeout		= xemaclite_tx_timeout,
+	.ndo_do_ioctl		= xemaclite_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = xemaclite_poll_controller,
 #endif

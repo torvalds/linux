@@ -32,6 +32,9 @@ static int mall_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	struct cls_mall_head *head = rcu_dereference_bh(tp->root);
 
+	if (unlikely(!head))
+		return -1;
+
 	if (tc_skip_sw(head->flags))
 		return -1;
 
@@ -89,12 +92,29 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	bool skip_sw = tc_skip_sw(head->flags);
 	int err;
 
+	cls_mall.rule =	flow_rule_alloc(tcf_exts_num_actions(&head->exts));
+	if (!cls_mall.rule)
+		return -ENOMEM;
+
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = TC_CLSMATCHALL_REPLACE;
-	cls_mall.exts = &head->exts;
 	cls_mall.cookie = cookie;
 
+	err = tc_setup_flow_action(&cls_mall.rule->action, &head->exts);
+	if (err) {
+		kfree(cls_mall.rule);
+		mall_destroy_hw_filter(tp, head, cookie, NULL);
+		if (skip_sw)
+			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+		else
+			err = 0;
+
+		return err;
+	}
+
 	err = tc_setup_cb_call(block, TC_SETUP_CLSMATCHALL, &cls_mall, skip_sw);
+	kfree(cls_mall.rule);
+
 	if (err < 0) {
 		mall_destroy_hw_filter(tp, head, cookie, NULL);
 		return err;
@@ -181,8 +201,8 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (head)
 		return -EEXIST;
 
-	err = nla_parse_nested(tb, TCA_MATCHALL_MAX, tca[TCA_OPTIONS],
-			       mall_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_MATCHALL_MAX,
+					  tca[TCA_OPTIONS], mall_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -272,13 +292,27 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	if (tc_skip_hw(head->flags))
 		return 0;
 
+	cls_mall.rule =	flow_rule_alloc(tcf_exts_num_actions(&head->exts));
+	if (!cls_mall.rule)
+		return -ENOMEM;
+
 	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = add ?
 		TC_CLSMATCHALL_REPLACE : TC_CLSMATCHALL_DESTROY;
-	cls_mall.exts = &head->exts;
 	cls_mall.cookie = (unsigned long)head;
 
+	err = tc_setup_flow_action(&cls_mall.rule->action, &head->exts);
+	if (err) {
+		kfree(cls_mall.rule);
+		if (add && tc_skip_sw(head->flags)) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+			return err;
+		}
+	}
+
 	err = cb(TC_SETUP_CLSMATCHALL, &cls_mall, cb_priv);
+	kfree(cls_mall.rule);
+
 	if (err) {
 		if (add && tc_skip_sw(head->flags))
 			return err;
@@ -288,6 +322,23 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	tc_cls_offload_cnt_update(block, &head->in_hw_count, &head->flags, add);
 
 	return 0;
+}
+
+static void mall_stats_hw_filter(struct tcf_proto *tp,
+				 struct cls_mall_head *head,
+				 unsigned long cookie)
+{
+	struct tc_cls_matchall_offload cls_mall = {};
+	struct tcf_block *block = tp->chain->block;
+
+	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, NULL);
+	cls_mall.command = TC_CLSMATCHALL_STATS;
+	cls_mall.cookie = cookie;
+
+	tc_setup_cb_call(block, TC_SETUP_CLSMATCHALL, &cls_mall, false);
+
+	tcf_exts_stats_update(&head->exts, cls_mall.stats.bytes,
+			      cls_mall.stats.pkts, cls_mall.stats.lastused);
 }
 
 static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
@@ -301,9 +352,12 @@ static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 	if (!head)
 		return skb->len;
 
+	if (!tc_skip_hw(head->flags))
+		mall_stats_hw_filter(tp, head, (unsigned long)head);
+
 	t->tcm_handle = head->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 

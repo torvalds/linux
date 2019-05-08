@@ -32,9 +32,6 @@ extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc109;
 #define hw_atl_b0_caps_aqc111s hw_atl_b0_caps_aqc108
 #define hw_atl_b0_caps_aqc112s hw_atl_b0_caps_aqc109
 
-#define hw_atl_b0_caps_aqc111e hw_atl_b0_caps_aqc108
-#define hw_atl_b0_caps_aqc112e hw_atl_b0_caps_aqc109
-
 extern const struct aq_hw_ops hw_atl_ops_b0;
 
 #define hw_atl_ops_b1 hw_atl_ops_b0

@@ -5,6 +5,7 @@
 config MLX5_CORE
 	tristate "Mellanox 5th generation network adapters (ConnectX series) core driver"
 	depends on PCI
+	select NET_DEVLINK
 	imply PTP_1588_CLOCK
 	imply VXLAN
 	default n

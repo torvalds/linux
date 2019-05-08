@@ -46,7 +46,7 @@ static inline struct xfrm6_protocol __rcu **proto_handlers(u8 protocol)
 	     handler != NULL;				\
 	     handler = rcu_dereference(handler->next))	\
 
-int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
+static int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 {
 	int ret;
 	struct xfrm6_protocol *handler;
@@ -61,7 +61,6 @@ int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 
 	return 0;
 }
-EXPORT_SYMBOL(xfrm6_rcv_cb);
 
 static int xfrm6_esp_rcv(struct sk_buff *skb)
 {
