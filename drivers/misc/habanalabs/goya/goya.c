@@ -2823,8 +2823,6 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 		return -ENOMEM;
 	}
 
-	*fence_ptr = 0;
-
 	goya_qman0_set_security(hdev, true);
 
 	cb = job->patched_cb;
