@@ -300,9 +300,7 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	u32 *cs;
 	int err;
 
-	if ((IS_KABYLAKE(req->i915) || IS_BROXTON(req->i915)
-		|| IS_COFFEELAKE(req->i915))
-		&& is_inhibit_context(req->hw_context))
+	if (IS_GEN(req->i915, 9) && is_inhibit_context(req->hw_context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/*
