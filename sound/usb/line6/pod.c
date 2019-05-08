@@ -39,11 +39,9 @@
 	Stages of POD startup procedure
 */
 enum {
-	POD_STARTUP_INIT = 1,
 	POD_STARTUP_VERSIONREQ,
-	POD_STARTUP_WORKQUEUE,
 	POD_STARTUP_SETUP,
-	POD_STARTUP_LAST = POD_STARTUP_SETUP - 1
+	POD_STARTUP_DONE,
 };
 
 enum {
@@ -62,12 +60,6 @@ struct usb_line6_pod {
 
 	/* Instrument monitor level */
 	int monitor_level;
-
-	/* Timer for device initialization */
-	struct timer_list startup_timer;
-
-	/* Work handler for device initialization */
-	struct work_struct startup_work;
 
 	/* Current progress in startup procedure */
 	int startup_progress;
@@ -173,10 +165,6 @@ static const char pod_version_header[] = {
 	0xf2, 0x7e, 0x7f, 0x06, 0x02
 };
 
-/* forward declarations: */
-static void pod_startup2(struct timer_list *t);
-static void pod_startup3(struct usb_line6_pod *pod);
-
 static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 				    int size)
 {
@@ -196,7 +184,10 @@ static void line6_pod_process_message(struct usb_line6 *line6)
 		pod->firmware_version = buf[13] * 100 + buf[14] * 10 + buf[15];
 		pod->device_id = ((int)buf[8] << 16) | ((int)buf[9] << 8) |
 				 (int) buf[10];
-		pod_startup3(pod);
+		if (pod->startup_progress == POD_STARTUP_VERSIONREQ) {
+			pod->startup_progress = POD_STARTUP_SETUP;
+			schedule_delayed_work(&line6->startup_work, 0);
+		}
 		return;
 	}
 
@@ -281,47 +272,27 @@ static ssize_t device_id_show(struct device *dev,
 	context). After the last one has finished, the device is ready to use.
 */
 
-static void pod_startup1(struct usb_line6_pod *pod)
+static void pod_startup(struct usb_line6 *line6)
 {
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_INIT);
+	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
 
-	/* delay startup procedure: */
-	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2);
-}
+	switch (pod->startup_progress) {
+	case POD_STARTUP_VERSIONREQ:
+		/* request firmware version: */
+		line6_version_request_async(line6);
+		break;
+	case POD_STARTUP_SETUP:
+		/* serial number: */
+		line6_read_serial_number(&pod->line6, &pod->serial_number);
 
-static void pod_startup2(struct timer_list *t)
-{
-	struct usb_line6_pod *pod = from_timer(pod, t, startup_timer);
-	struct usb_line6 *line6 = &pod->line6;
-
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_VERSIONREQ);
-
-	/* request firmware version: */
-	line6_version_request_async(line6);
-}
-
-static void pod_startup3(struct usb_line6_pod *pod)
-{
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_WORKQUEUE);
-
-	/* schedule work for global work queue: */
-	schedule_work(&pod->startup_work);
-}
-
-static void pod_startup4(struct work_struct *work)
-{
-	struct usb_line6_pod *pod =
-	    container_of(work, struct usb_line6_pod, startup_work);
-	struct usb_line6 *line6 = &pod->line6;
-
-	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_SETUP);
-
-	/* serial number: */
-	line6_read_serial_number(&pod->line6, &pod->serial_number);
-
-	/* ALSA audio interface: */
-	if (snd_card_register(line6->card))
-		dev_err(line6->ifcdev, "Failed to register POD card.\n");
+		/* ALSA audio interface: */
+		if (snd_card_register(line6->card))
+			dev_err(line6->ifcdev, "Failed to register POD card.\n");
+		pod->startup_progress = POD_STARTUP_DONE;
+		break;
+	default:
+		break;
+	}
 }
 
 /* POD special files: */
@@ -391,17 +362,6 @@ static const struct snd_kcontrol_new pod_control_monitor = {
 };
 
 /*
-	POD device disconnected.
-*/
-static void line6_pod_disconnect(struct usb_line6 *line6)
-{
-	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6;
-
-	del_timer_sync(&pod->startup_timer);
-	cancel_work_sync(&pod->startup_work);
-}
-
-/*
 	 Try to init POD device.
 */
 static int pod_init(struct usb_line6 *line6,
@@ -411,10 +371,7 @@ static int pod_init(struct usb_line6 *line6,
 	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
 
 	line6->process_message = line6_pod_process_message;
-	line6->disconnect = line6_pod_disconnect;
-
-	timer_setup(&pod->startup_timer, NULL, 0);
-	INIT_WORK(&pod->startup_work, pod_startup4);
+	line6->startup = pod_startup;
 
 	/* create sysfs entries: */
 	err = snd_card_add_dev_attr(line6->card, &pod_dev_attr_group);
@@ -447,7 +404,8 @@ static int pod_init(struct usb_line6 *line6,
 		pod->monitor_level = POD_SYSTEM_INVALID;
 
 		/* initiate startup procedure: */
-		pod_startup1(pod);
+		schedule_delayed_work(&line6->startup_work,
+				      msecs_to_jiffies(POD_STARTUP_DELAY));
 	}
 
 	return 0;
