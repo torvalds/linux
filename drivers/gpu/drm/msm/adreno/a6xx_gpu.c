@@ -527,6 +527,7 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 		dev_warn_once(gpu->dev->dev,
 			"Zap shader not enabled - using SECVID_TRUST_CNTL instead\n");
 		gpu_write(gpu, REG_A6XX_RBBM_SECVID_TRUST_CNTL, 0x0);
+		ret = 0;
 	}
 
 out:
