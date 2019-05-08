@@ -305,7 +305,8 @@ void __init collect_boot_cpu_data(void)
 
 	if (pdc_model_platform_info(orig_prod_num, current_prod_num, serial_no) == PDC_OK) {
 		printk(KERN_INFO "product %s, original product %s, S/N: %s\n",
-			current_prod_num, orig_prod_num, serial_no);
+			current_prod_num[0] ? current_prod_num : "n/a",
+			orig_prod_num, serial_no);
 		add_device_randomness(orig_prod_num, strlen(orig_prod_num));
 		add_device_randomness(current_prod_num, strlen(current_prod_num));
 		add_device_randomness(serial_no, strlen(serial_no));

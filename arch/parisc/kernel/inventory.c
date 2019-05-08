@@ -31,6 +31,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/parisc-device.h>
+#include <asm/tlbflush.h>
 
 /*
 ** Debug options
@@ -638,4 +639,10 @@ void __init do_device_inventory(void)
 	}
 	printk(KERN_INFO "Found devices:\n");
 	print_parisc_devices();
+
+#if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
+	pa_serialize_tlb_flushes = machine_has_merced_bus();
+	if (pa_serialize_tlb_flushes)
+		pr_info("Merced bus found: Enable PxTLB serialization.\n");
+#endif
 }
