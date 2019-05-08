@@ -23,9 +23,9 @@ static void mga_hide_cursor(struct mga_device *mdev)
 	WREG8(MGA_CURPOSXL, 0);
 	WREG8(MGA_CURPOSXH, 0);
 	if (mdev->cursor.pixels_1->pin_count)
-		mgag200_bo_unpin(mdev->cursor.pixels_1);
+		drm_gem_vram_unpin(mdev->cursor.pixels_1);
 	if (mdev->cursor.pixels_2->pin_count)
-		mgag200_bo_unpin(mdev->cursor.pixels_2);
+		drm_gem_vram_unpin(mdev->cursor.pixels_2);
 }
 
 int mga_crtc_cursor_set(struct drm_crtc *crtc,
@@ -36,12 +36,12 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = (struct mga_device *)dev->dev_private;
-	struct mgag200_bo *pixels_1 = mdev->cursor.pixels_1;
-	struct mgag200_bo *pixels_2 = mdev->cursor.pixels_2;
-	struct mgag200_bo *pixels_current = mdev->cursor.pixels_current;
-	struct mgag200_bo *pixels_prev = mdev->cursor.pixels_prev;
+	struct drm_gem_vram_object *pixels_1 = mdev->cursor.pixels_1;
+	struct drm_gem_vram_object *pixels_2 = mdev->cursor.pixels_2;
+	struct drm_gem_vram_object *pixels_current = mdev->cursor.pixels_current;
+	struct drm_gem_vram_object *pixels_prev = mdev->cursor.pixels_prev;
 	struct drm_gem_object *obj;
-	struct mgag200_bo *bo = NULL;
+	struct drm_gem_vram_object *gbo = NULL;
 	int ret = 0;
 	unsigned int i, row, col;
 	uint32_t colour_set[16];
@@ -50,7 +50,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	uint32_t this_colour;
 	bool found = false;
 	int colour_count = 0;
-	u64 gpu_addr;
+	s64 gpu_addr;
 	u8 reg_index;
 	u8 this_row[48];
 
@@ -79,44 +79,55 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!obj)
 		return -ENOENT;
 
-	ret = mgag200_bo_reserve(pixels_1, true);
+	ret = drm_gem_vram_reserve(pixels_1, true);
 	if (ret) {
 		WREG8(MGA_CURPOSXL, 0);
 		WREG8(MGA_CURPOSXH, 0);
 		goto out_unref;
 	}
-	ret = mgag200_bo_reserve(pixels_2, true);
+	ret = drm_gem_vram_reserve(pixels_2, true);
 	if (ret) {
 		WREG8(MGA_CURPOSXL, 0);
 		WREG8(MGA_CURPOSXH, 0);
-		mgag200_bo_unreserve(pixels_1);
+		drm_gem_vram_unreserve(pixels_1);
 		goto out_unreserve1;
 	}
 
 	/* Move cursor buffers into VRAM if they aren't already */
 	if (!pixels_1->pin_count) {
-		ret = mgag200_bo_pin(pixels_1, TTM_PL_FLAG_VRAM,
-				     &mdev->cursor.pixels_1_gpu_addr);
+		ret = drm_gem_vram_pin(pixels_1, DRM_GEM_VRAM_PL_FLAG_VRAM);
 		if (ret)
 			goto out1;
-	}
-	if (!pixels_2->pin_count) {
-		ret = mgag200_bo_pin(pixels_2, TTM_PL_FLAG_VRAM,
-				     &mdev->cursor.pixels_2_gpu_addr);
-		if (ret) {
-			mgag200_bo_unpin(pixels_1);
+		gpu_addr = drm_gem_vram_offset(pixels_1);
+		if (gpu_addr < 0) {
+			drm_gem_vram_unpin(pixels_1);
 			goto out1;
 		}
+		mdev->cursor.pixels_1_gpu_addr = gpu_addr;
+	}
+	if (!pixels_2->pin_count) {
+		ret = drm_gem_vram_pin(pixels_2, DRM_GEM_VRAM_PL_FLAG_VRAM);
+		if (ret) {
+			drm_gem_vram_unpin(pixels_1);
+			goto out1;
+		}
+		gpu_addr = drm_gem_vram_offset(pixels_2);
+		if (gpu_addr < 0) {
+			drm_gem_vram_unpin(pixels_1);
+			drm_gem_vram_unpin(pixels_2);
+			goto out1;
+		}
+		mdev->cursor.pixels_2_gpu_addr = gpu_addr;
 	}
 
-	bo = gem_to_mga_bo(obj);
-	ret = mgag200_bo_reserve(bo, true);
+	gbo = drm_gem_vram_of_gem(obj);
+	ret = drm_gem_vram_reserve(gbo, true);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "failed to reserve user bo\n");
 		goto out1;
 	}
-	if (!bo->kmap.virtual) {
-		ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
+	if (!gbo->kmap.virtual) {
+		ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &gbo->kmap);
 		if (ret) {
 			dev_err(&dev->pdev->dev, "failed to kmap user buffer updates\n");
 			goto out2;
@@ -126,7 +137,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	memset(&colour_set[0], 0, sizeof(uint32_t)*16);
 	/* width*height*4 = 16384 */
 	for (i = 0; i < 16384; i += 4) {
-		this_colour = ioread32(bo->kmap.virtual + i);
+		this_colour = ioread32(gbo->kmap.virtual + i);
 		/* No transparency */
 		if (this_colour>>24 != 0xff &&
 			this_colour>>24 != 0x0) {
@@ -192,7 +203,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	for (row = 0; row < 64; row++) {
 		memset(&this_row[0], 0, 48);
 		for (col = 0; col < 64; col++) {
-			this_colour = ioread32(bo->kmap.virtual + 4*(col + 64*row));
+			this_colour = ioread32(gbo->kmap.virtual + 4*(col + 64*row));
 			/* write transparent pixels */
 			if (this_colour>>24 == 0x0) {
 				this_row[47 - col/8] |= 0x80>>(col%8);
@@ -238,15 +249,15 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 
 	ttm_bo_kunmap(&pixels_prev->kmap);
  out3:
-	ttm_bo_kunmap(&bo->kmap);
+	ttm_bo_kunmap(&gbo->kmap);
  out2:
-	mgag200_bo_unreserve(bo);
+	drm_gem_vram_unreserve(gbo);
  out1:
 	if (ret)
 		mga_hide_cursor(mdev);
-	mgag200_bo_unreserve(pixels_1);
+	drm_gem_vram_unreserve(pixels_1);
 out_unreserve1:
-	mgag200_bo_unreserve(pixels_2);
+	drm_gem_vram_unreserve(pixels_2);
 out_unref:
 	drm_gem_object_put_unlocked(obj);
 

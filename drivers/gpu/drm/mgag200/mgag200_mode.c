@@ -867,48 +867,57 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 	struct mga_device *mdev = crtc->dev->dev_private;
 	struct drm_gem_object *obj;
 	struct mga_framebuffer *mga_fb;
-	struct mgag200_bo *bo;
+	struct drm_gem_vram_object *gbo;
 	int ret;
-	u64 gpu_addr;
+	s64 gpu_addr;
 
 	/* push the previous fb to system ram */
 	if (!atomic && fb) {
 		mga_fb = to_mga_framebuffer(fb);
 		obj = mga_fb->obj;
-		bo = gem_to_mga_bo(obj);
-		ret = mgag200_bo_reserve(bo, false);
+		gbo = drm_gem_vram_of_gem(obj);
+		ret = drm_gem_vram_reserve(gbo, false);
 		if (ret)
 			return ret;
-		mgag200_bo_push_sysram(bo);
-		mgag200_bo_unreserve(bo);
+		drm_gem_vram_push_to_system(gbo);
+		drm_gem_vram_unreserve(gbo);
 	}
 
 	mga_fb = to_mga_framebuffer(crtc->primary->fb);
 	obj = mga_fb->obj;
-	bo = gem_to_mga_bo(obj);
+	gbo = drm_gem_vram_of_gem(obj);
 
-	ret = mgag200_bo_reserve(bo, false);
+	ret = drm_gem_vram_reserve(gbo, false);
 	if (ret)
 		return ret;
 
-	ret = mgag200_bo_pin(bo, TTM_PL_FLAG_VRAM, &gpu_addr);
-	if (ret) {
-		mgag200_bo_unreserve(bo);
-		return ret;
+	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+	if (ret)
+		goto err_drm_gem_vram_unreserve;
+	gpu_addr = drm_gem_vram_offset(gbo);
+	if (gpu_addr < 0) {
+		ret = (int)gpu_addr;
+		goto err_drm_gem_vram_unpin;
 	}
 
 	if (&mdev->mfbdev->mfb == mga_fb) {
 		/* if pushing console in kmap it */
-		ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
+		ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &gbo->kmap);
 		if (ret)
 			DRM_ERROR("failed to kmap fbcon\n");
 
 	}
-	mgag200_bo_unreserve(bo);
+	drm_gem_vram_unreserve(gbo);
 
 	mga_set_start_address(crtc, (u32)gpu_addr);
 
 	return 0;
+
+err_drm_gem_vram_unpin:
+	drm_gem_vram_unpin(gbo);
+err_drm_gem_vram_unreserve:
+	drm_gem_vram_unreserve(gbo);
+	return ret;
 }
 
 static int mga_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
@@ -1428,12 +1437,13 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 	if (crtc->primary->fb) {
 		struct mga_framebuffer *mga_fb = to_mga_framebuffer(crtc->primary->fb);
 		struct drm_gem_object *obj = mga_fb->obj;
-		struct mgag200_bo *bo = gem_to_mga_bo(obj);
-		ret = mgag200_bo_reserve(bo, false);
+		struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(obj);
+
+		ret = drm_gem_vram_reserve(gbo, false);
 		if (ret)
 			return;
-		mgag200_bo_push_sysram(bo);
-		mgag200_bo_unreserve(bo);
+		drm_gem_vram_push_to_system(gbo);
+		drm_gem_vram_unreserve(gbo);
 	}
 	crtc->primary->fb = NULL;
 }

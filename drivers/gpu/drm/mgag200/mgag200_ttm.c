@@ -36,23 +36,6 @@ mgag200_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct mga_device, ttm.bdev);
 }
 
-static void mgag200_bo_ttm_destroy(struct ttm_buffer_object *tbo)
-{
-	struct mgag200_bo *bo;
-
-	bo = container_of(tbo, struct mgag200_bo, bo);
-
-	drm_gem_object_release(&bo->gem);
-	kfree(bo);
-}
-
-static bool mgag200_ttm_bo_is_mgag200_bo(struct ttm_buffer_object *bo)
-{
-	if (bo->destroy == &mgag200_bo_ttm_destroy)
-		return true;
-	return false;
-}
-
 static int
 mgag200_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		     struct ttm_mem_type_manager *man)
@@ -76,26 +59,6 @@ mgag200_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		return -EINVAL;
 	}
 	return 0;
-}
-
-static void
-mgag200_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
-{
-	struct mgag200_bo *mgabo = mgag200_bo(bo);
-
-	if (!mgag200_ttm_bo_is_mgag200_bo(bo))
-		return;
-
-	mgag200_ttm_placement(mgabo, TTM_PL_FLAG_SYSTEM);
-	*pl = mgabo->placement;
-}
-
-static int mgag200_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct mgag200_bo *mgabo = mgag200_bo(bo);
-
-	return drm_vma_node_verify_access(&mgabo->gem.vma_node,
-					  filp->private_data);
 }
 
 static int mgag200_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -162,9 +125,9 @@ struct ttm_bo_driver mgag200_bo_driver = {
 	.ttm_tt_create = mgag200_ttm_tt_create,
 	.init_mem_type = mgag200_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
-	.evict_flags = mgag200_bo_evict_flags,
+	.evict_flags = drm_gem_vram_bo_driver_evict_flags,
 	.move = NULL,
-	.verify_access = mgag200_bo_verify_access,
+	.verify_access = drm_gem_vram_bo_driver_verify_access,
 	.io_mem_reserve = &mgag200_ttm_io_mem_reserve,
 	.io_mem_free = &mgag200_ttm_io_mem_free,
 };
@@ -209,137 +172,6 @@ void mgag200_mm_fini(struct mga_device *mdev)
 				pci_resource_len(dev->pdev, 0));
 	arch_phys_wc_del(mdev->fb_mtrr);
 	mdev->fb_mtrr = 0;
-}
-
-void mgag200_ttm_placement(struct mgag200_bo *bo, int domain)
-{
-	u32 c = 0;
-	unsigned i;
-
-	bo->placement.placement = bo->placements;
-	bo->placement.busy_placement = bo->placements;
-	if (domain & TTM_PL_FLAG_VRAM)
-		bo->placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM;
-	if (domain & TTM_PL_FLAG_SYSTEM)
-		bo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
-	if (!c)
-		bo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
-	bo->placement.num_placement = c;
-	bo->placement.num_busy_placement = c;
-	for (i = 0; i < c; ++i) {
-		bo->placements[i].fpfn = 0;
-		bo->placements[i].lpfn = 0;
-	}
-}
-
-int mgag200_bo_create(struct drm_device *dev, int size, int align,
-		  uint32_t flags, struct mgag200_bo **pmgabo)
-{
-	struct mga_device *mdev = dev->dev_private;
-	struct mgag200_bo *mgabo;
-	size_t acc_size;
-	int ret;
-
-	mgabo = kzalloc(sizeof(struct mgag200_bo), GFP_KERNEL);
-	if (!mgabo)
-		return -ENOMEM;
-
-	ret = drm_gem_object_init(dev, &mgabo->gem, size);
-	if (ret) {
-		kfree(mgabo);
-		return ret;
-	}
-
-	mgabo->bo.bdev = &mdev->ttm.bdev;
-
-	mgag200_ttm_placement(mgabo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
-
-	acc_size = ttm_bo_dma_acc_size(&mdev->ttm.bdev, size,
-				       sizeof(struct mgag200_bo));
-
-	ret = ttm_bo_init(&mdev->ttm.bdev, &mgabo->bo, size,
-			  ttm_bo_type_device, &mgabo->placement,
-			  align >> PAGE_SHIFT, false, acc_size,
-			  NULL, NULL, mgag200_bo_ttm_destroy);
-	if (ret)
-		return ret;
-
-	*pmgabo = mgabo;
-	return 0;
-}
-
-static inline u64 mgag200_bo_gpu_offset(struct mgag200_bo *bo)
-{
-	return bo->bo.offset;
-}
-
-int mgag200_bo_pin(struct mgag200_bo *bo, u32 pl_flag, u64 *gpu_addr)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	int i, ret;
-
-	if (bo->pin_count) {
-		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = mgag200_bo_gpu_offset(bo);
-		return 0;
-	}
-
-	mgag200_ttm_placement(bo, pl_flag);
-	for (i = 0; i < bo->placement.num_placement; i++)
-		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret)
-		return ret;
-
-	bo->pin_count = 1;
-	if (gpu_addr)
-		*gpu_addr = mgag200_bo_gpu_offset(bo);
-	return 0;
-}
-
-int mgag200_bo_unpin(struct mgag200_bo *bo)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	int i;
-	if (!bo->pin_count) {
-		DRM_ERROR("unpin bad %p\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-
-	for (i = 0; i < bo->placement.num_placement ; i++)
-		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	return ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-}
-
-int mgag200_bo_push_sysram(struct mgag200_bo *bo)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	int i, ret;
-	if (!bo->pin_count) {
-		DRM_ERROR("unpin bad %p\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-
-	if (bo->kmap.virtual)
-		ttm_bo_kunmap(&bo->kmap);
-
-	mgag200_ttm_placement(bo, TTM_PL_FLAG_SYSTEM);
-	for (i = 0; i < bo->placement.num_placement ; i++)
-		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret) {
-		DRM_ERROR("pushing to VRAM failed\n");
-		return ret;
-	}
-	return 0;
 }
 
 int mgag200_mmap(struct file *filp, struct vm_area_struct *vma)
