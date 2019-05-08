@@ -23,7 +23,6 @@
  */
 
 #include <linux/circ_buf.h>
-#include <trace/events/dma_fence.h>
 
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_lrc_reg.h"
