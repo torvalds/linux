@@ -5176,6 +5176,10 @@ static int vega10_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 		memcpy(&(data->dpm_table), &(data->golden_dpm_table), sizeof(struct vega10_dpm_table));
 		vega10_odn_initial_default_setting(hwmgr);
 		vega10_odn_update_power_state(hwmgr);
+		/* force to update all clock tables */
+		data->need_update_dpm_table = DPMTABLE_UPDATE_SCLK |
+					      DPMTABLE_UPDATE_MCLK |
+					      DPMTABLE_UPDATE_SOCCLK;
 		return 0;
 	} else if (PP_OD_COMMIT_DPM_TABLE == type) {
 		vega10_check_dpm_table_updated(hwmgr);
