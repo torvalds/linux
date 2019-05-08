@@ -23,8 +23,8 @@ config LEDS_CLASS_FLASH
 	tristate "LED Flash Class Support"
 	depends on LEDS_CLASS
 	help
-	  This option enables the flash led sysfs class in /sys/class/leds.
-	  It wrapps LED Class and adds flash LEDs specific sysfs attributes
+	  This option enables the flash LED sysfs class in /sys/class/leds.
+	  It wraps LED Class and adds flash LEDs specific sysfs attributes
 	  and kernel internal API to it. You'll need this to provide support
 	  for the flash related features of a LED device. It can be built
 	  as a module.
@@ -56,7 +56,7 @@ config LEDS_AAT1290
 	depends on OF
 	depends on PINCTRL
 	help
-	 This option enables support for the LEDs on the AAT1290.
+	  This option enables support for the LEDs on the AAT1290.
 
 config LEDS_AN30259A
 	tristate "LED support for Panasonic AN30259A"
@@ -135,6 +135,16 @@ config LEDS_LM3530
 	help
 	  This option enables support for the LCD backlight using
 	  LM3530 ambient light sensor chip. This ALS chip can be
+	  controlled manually or using PWM input or using ambient
+	  light automatically.
+
+config LEDS_LM3532
+	tristate "LCD Backlight driver for LM3532"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for the LCD backlight using
+	  LM3532 ambient light sensor chip. This ALS chip can be
 	  controlled manually or using PWM input or using ambient
 	  light automatically.
 
@@ -413,13 +423,13 @@ config LEDS_CLEVO_MAIL
 
 	  This module can drive the mail LED for the following notebooks:
 
-	  	Clevo D400P
-	  	Clevo D410J
-	  	Clevo D410V
-	  	Clevo D400V/D470V (not tested, but might work)
-	  	Clevo M540N
-	  	Clevo M5x0N (not tested, but might work)
-	  	Positivo Mobile (Clevo M5x0V)
+	        Clevo D400P
+	        Clevo D410J
+	        Clevo D410V
+	        Clevo D400V/D470V (not tested, but might work)
+	        Clevo M540N
+	        Clevo M5x0N (not tested, but might work)
+	        Positivo Mobile (Clevo M5x0V)
 
 	  If your model is not listed here you can try the "nodetect"
 	  module parameter.
@@ -462,7 +472,7 @@ config LEDS_WM831X_STATUS
 	depends on MFD_WM831X
 	help
 	  This option enables support for the status LEDs of the WM831x
-          series of PMICs.
+	  series of PMICs.
 
 config LEDS_WM8350
 	tristate "LED Support for WM8350 AudioPlus PMIC"
@@ -533,6 +543,7 @@ config LEDS_LT3593
 	tristate "LED driver for LT3593 controllers"
 	depends on LEDS_CLASS
 	depends on GPIOLIB || COMPILE_TEST
+	depends on OF
 	help
 	  This option enables support for LEDs driven by a Linear Technology
 	  LT3593 controller. This controller uses a special one-wire pulse
