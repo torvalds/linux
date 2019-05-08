@@ -1002,6 +1002,7 @@ static void f2fs_dirty_inode(struct inode *inode, int flags)
 
 static void f2fs_free_inode(struct inode *inode)
 {
+	fscrypt_free_inode(inode);
 	kmem_cache_free(f2fs_inode_cachep, F2FS_I(inode));
 }
 

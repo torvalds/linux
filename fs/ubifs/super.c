@@ -275,7 +275,10 @@ static struct inode *ubifs_alloc_inode(struct super_block *sb)
 static void ubifs_free_inode(struct inode *inode)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
+
 	kfree(ui->data);
+	fscrypt_free_inode(inode);
+
 	kmem_cache_free(ubifs_inode_slab, ui);
 }
 
