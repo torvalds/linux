@@ -23,6 +23,9 @@
 #include <pthread.h>
 #include <asm/ldt.h>
 #include <sys/mman.h>
+#include <stddef.h>
+#include <sys/ptrace.h>
+#include <sys/wait.h>
 
 #ifndef __x86_64__
 # error This test is 64-bit only
@@ -367,6 +370,71 @@ static void test_unexpected_base(void)
 	}
 }
 
+#define USER_REGS_OFFSET(r) offsetof(struct user_regs_struct, r)
+
+static void test_ptrace_write_gsbase(void)
+{
+	int status;
+	pid_t child = fork();
+
+	if (child < 0)
+		err(1, "fork");
+
+	if (child == 0) {
+		printf("[RUN]\tPTRACE_POKE(), write GSBASE from ptracer\n");
+
+		/*
+		 * Use the LDT setup and fetch the GSBASE from the LDT
+		 * by switching to the (nonzero) selector (again)
+		 */
+		do_unexpected_base();
+		asm volatile ("mov %0, %%gs" : : "rm" ((unsigned short)0x7));
+
+		if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) != 0)
+			err(1, "PTRACE_TRACEME");
+
+		raise(SIGTRAP);
+		_exit(0);
+	}
+
+	wait(&status);
+
+	if (WSTOPSIG(status) == SIGTRAP) {
+		unsigned long gs;
+		unsigned long gs_offset = USER_REGS_OFFSET(gs);
+		unsigned long base_offset = USER_REGS_OFFSET(gs_base);
+
+		gs = ptrace(PTRACE_PEEKUSER, child, gs_offset, NULL);
+
+		if (gs != 0x7) {
+			nerrs++;
+			printf("[FAIL]\tGS is not prepared with nonzero\n");
+			goto END;
+		}
+
+		if (ptrace(PTRACE_POKEUSER, child, base_offset, 0xFF) != 0)
+			err(1, "PTRACE_POKEUSER");
+
+		gs = ptrace(PTRACE_PEEKUSER, child, gs_offset, NULL);
+
+		/*
+		 * In a non-FSGSBASE system, the nonzero selector will load
+		 * GSBASE (again). But what is tested here is whether the
+		 * selector value is changed or not by the GSBASE write in
+		 * a ptracer.
+		 */
+		if (gs != 0x7) {
+			nerrs++;
+			printf("[FAIL]\tGS changed to %lx\n", gs);
+		} else {
+			printf("[OK]\tGS remained 0x7\n");
+		}
+	}
+
+END:
+	ptrace(PTRACE_CONT, child, NULL, NULL);
+}
+
 int main()
 {
 	pthread_t thread;
@@ -422,6 +490,8 @@ int main()
 
 	if (pthread_join(thread, NULL) != 0)
 		err(1, "pthread_join");
+
+	test_ptrace_write_gsbase();
 
 	return nerrs == 0 ? 0 : 1;
 }
