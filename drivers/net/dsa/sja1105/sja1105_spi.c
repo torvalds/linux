@@ -483,7 +483,7 @@ out:
 	return rc;
 }
 
-struct sja1105_regs sja1105et_regs = {
+static struct sja1105_regs sja1105et_regs = {
 	.device_id = 0x0,
 	.prod_id = 0x100BC3,
 	.status = 0x1,
@@ -508,7 +508,7 @@ struct sja1105_regs sja1105et_regs = {
 	.rmii_ext_tx_clk = {0x100018, 0x10001F, 0x100026, 0x10002D, 0x100034},
 };
 
-struct sja1105_regs sja1105pqrs_regs = {
+static struct sja1105_regs sja1105pqrs_regs = {
 	.device_id = 0x0,
 	.prod_id = 0x100BC3,
 	.status = 0x1,
