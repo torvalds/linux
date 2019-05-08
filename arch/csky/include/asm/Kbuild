@@ -12,7 +12,6 @@ generic-y += dma-mapping.h
 generic-y += emergency-restart.h
 generic-y += exec.h
 generic-y += fb.h
-generic-y += ftrace.h
 generic-y += futex.h
 generic-y += gpio.h
 generic-y += hardirq.h
