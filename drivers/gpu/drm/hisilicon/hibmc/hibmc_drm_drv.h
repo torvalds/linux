@@ -24,7 +24,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/drm_vram_mm_helper.h>
 
 struct hibmc_framebuffer {
 	struct drm_framebuffer fb;
@@ -49,13 +49,8 @@ struct hibmc_drm_private {
 	struct drm_device  *dev;
 	bool mode_config_initialized;
 
-	/* ttm */
-	struct ttm_bo_device bdev;
-	bool initialized;
-
 	/* fbdev */
 	struct hibmc_fbdev *fbdev;
-	bool mm_inited;
 };
 
 #define to_hibmc_framebuffer(x) container_of(x, struct hibmc_framebuffer, fb)
@@ -81,7 +76,6 @@ int hibmc_mm_init(struct hibmc_drm_private *hibmc);
 void hibmc_mm_fini(struct hibmc_drm_private *hibmc);
 int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,
 		      struct drm_mode_create_dumb *args);
-int hibmc_mmap(struct file *filp, struct vm_area_struct *vma);
 
 extern const struct drm_mode_config_funcs hibmc_mode_funcs;
 

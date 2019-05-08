@@ -27,14 +27,7 @@
 
 static const struct file_operations hibmc_fops = {
 	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.mmap		= hibmc_mmap,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
+	DRM_VRAM_MM_FILE_OPERATIONS
 };
 
 static irqreturn_t hibmc_drm_interrupt(int irq, void *arg)
