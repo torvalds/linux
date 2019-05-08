@@ -20,3 +20,4 @@ x86-specific Documentation
    pat
    protection-keys
    intel_mpx
+   amd-memory-encryption
