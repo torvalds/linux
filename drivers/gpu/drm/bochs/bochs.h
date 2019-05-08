@@ -12,8 +12,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
 
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_page_alloc.h>
+#include <drm/drm_vram_mm_helper.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -74,12 +73,6 @@ struct bochs_device {
 	struct drm_device *dev;
 	struct drm_simple_display_pipe pipe;
 	struct drm_connector connector;
-
-	/* ttm */
-	struct {
-		struct ttm_bo_device bdev;
-		bool initialized;
-	} ttm;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -99,10 +92,6 @@ int bochs_hw_load_edid(struct bochs_device *bochs);
 /* bochs_mm.c */
 int bochs_mm_init(struct bochs_device *bochs);
 void bochs_mm_fini(struct bochs_device *bochs);
-int bochs_mmap(struct file *filp, struct vm_area_struct *vma);
-
-int bochs_dumb_create(struct drm_file *file, struct drm_device *dev,
-		      struct drm_mode_create_dumb *args);
 
 /* bochs_kms.c */
 int bochs_kms_init(struct bochs_device *bochs);

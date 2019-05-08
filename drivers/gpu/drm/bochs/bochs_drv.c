@@ -63,14 +63,7 @@ err:
 
 static const struct file_operations bochs_fops = {
 	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap           = bochs_mmap,
+	DRM_VRAM_MM_FILE_OPERATIONS
 };
 
 static struct drm_driver bochs_driver = {
@@ -82,11 +75,7 @@ static struct drm_driver bochs_driver = {
 	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object_unlocked =
-		drm_gem_vram_driver_gem_free_object_unlocked,
-	.dumb_create            = bochs_dumb_create,
-	.dumb_map_offset        = drm_gem_vram_driver_dumb_mmap_offset,
-
+	DRM_GEM_VRAM_DRIVER,
 	DRM_GEM_VRAM_DRIVER_PRIME,
 };
 
