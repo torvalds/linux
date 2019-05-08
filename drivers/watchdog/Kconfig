@@ -71,6 +71,12 @@ config WATCHDOG_PRETIMEOUT_GOV
 	help
 	  The option allows to select watchdog pretimeout governors.
 
+config WATCHDOG_PRETIMEOUT_GOV_SEL
+	tristate
+	depends on WATCHDOG_PRETIMEOUT_GOV
+	default m
+	select WATCHDOG_PRETIMEOUT_GOV_PANIC if WATCHDOG_PRETIMEOUT_GOV_NOOP=n
+
 if WATCHDOG_PRETIMEOUT_GOV
 
 config WATCHDOG_PRETIMEOUT_GOV_NOOP
