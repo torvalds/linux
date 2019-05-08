@@ -1170,7 +1170,7 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
  * Merges map into map_groups by splitting the new map
  * within the existing map regions.
  */
-static int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map)
+int map_groups__merge_in(struct map_groups *kmaps, struct map *new_map)
 {
 	struct map *old_map;
 	LIST_HEAD(merged);
