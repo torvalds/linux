@@ -581,6 +581,8 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		ret = smu_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
 			return size;
+		/* 10KHz -> MHz */
+		cur_value = cur_value / 100;
 
 		size += sprintf(buf, "current clk: %uMhz\n", cur_value);
 
