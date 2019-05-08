@@ -20,11 +20,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
 
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_memory.h>
-#include <drm/ttm/ttm_module.h>
+#include <drm/drm_vram_mm_helper.h>
 
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
@@ -77,10 +73,6 @@ struct vbox_private {
 	struct vbva_modehint *last_mode_hints;
 
 	int fb_mtrr;
-
-	struct {
-		struct ttm_bo_device bdev;
-	} ttm;
 
 	struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
 	struct work_struct hotplug_work;
@@ -169,16 +161,11 @@ int vboxfb_create(struct drm_fb_helper *helper,
 		  struct drm_fb_helper_surface_size *sizes);
 void vbox_fbdev_fini(struct vbox_private *vbox);
 
-int vbox_dumb_create(struct drm_file *file,
-		     struct drm_device *dev,
-		     struct drm_mode_create_dumb *args);
-
 int vbox_mm_init(struct vbox_private *vbox);
 void vbox_mm_fini(struct vbox_private *vbox);
 
 int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj);
-int vbox_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* vbox_prime.c */
 int vbox_gem_prime_pin(struct drm_gem_object *obj);

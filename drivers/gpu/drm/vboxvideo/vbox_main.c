@@ -283,7 +283,8 @@ int vbox_gem_create(struct vbox_private *vbox,
 	if (size == 0)
 		return -EINVAL;
 
-	gbo = drm_gem_vram_create(&vbox->ddev, &vbox->ttm.bdev, size, 0, false);
+	gbo = drm_gem_vram_create(&vbox->ddev, &vbox->ddev.vram_mm->bdev,
+				  size, 0, false);
 	if (IS_ERR(gbo)) {
 		ret = PTR_ERR(gbo);
 		if (ret != -ERESTARTSYS)
@@ -294,14 +295,4 @@ int vbox_gem_create(struct vbox_private *vbox,
 	*obj = &gbo->gem;
 
 	return 0;
-}
-
-int vbox_dumb_create(struct drm_file *file,
-		     struct drm_device *dev, struct drm_mode_create_dumb *args)
-{
-	struct vbox_private *vbox = dev->dev_private;
-
-	return drm_gem_vram_fill_create_dumb(file, dev, &vbox->ttm.bdev, 0,
-					    false, args);
-
 }
