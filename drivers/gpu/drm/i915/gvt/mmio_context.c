@@ -114,6 +114,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, TRINVTILEDETCT, 0, true}, /* 0x4dec */
 	{RCS0, TRVADR, 0, true}, /* 0x4df0 */
 	{RCS0, TRTTE, 0, true}, /* 0x4df4 */
+	{RCS0, _MMIO(0x4dfc), 0, true},
 
 	{BCS0, RING_GFX_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2229c */
 	{BCS0, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
