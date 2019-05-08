@@ -26,3 +26,4 @@ x86-specific Documentation
    microcode
    resctrl_ui
    usb-legacy-support
+   i386/index
