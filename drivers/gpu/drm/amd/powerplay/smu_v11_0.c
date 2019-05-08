@@ -360,6 +360,8 @@ static int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
+	if (!smu->pm_enabled)
+		return 0;
 	if (smu_power->power_context || smu_power->power_context_size != 0)
 		return -EINVAL;
 
@@ -383,6 +385,8 @@ static int smu_v11_0_fini_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
+	if (!smu->pm_enabled)
+		return 0;
 	if (!smu_power->power_context || smu_power->power_context_size == 0)
 		return -EINVAL;
 
@@ -650,6 +654,8 @@ static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 
+	if (!smu->pm_enabled)
+		return 0;
 	if (!table_context)
 		return -EINVAL;
 
@@ -678,6 +684,9 @@ static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 static int smu_v11_0_init_display(struct smu_context *smu)
 {
 	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return ret;
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
 	return ret;
 }
@@ -687,6 +696,8 @@ static int smu_v11_0_update_feature_enable_state(struct smu_context *smu, uint32
 	uint32_t feature_low = 0, feature_high = 0;
 	int ret = 0;
 
+	if (!smu->pm_enabled)
+		return ret;
 	if (feature_id >= 0 && feature_id < 31)
 		feature_low = (1 << feature_id);
 	else if (feature_id > 31 && feature_id < 63)
@@ -793,10 +804,13 @@ static int smu_v11_0_system_features_control(struct smu_context *smu,
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
-				     SMU_MSG_DisableAllSmuFeatures));
-	if (ret)
-		return ret;
+	if (smu->pm_enabled) {
+		ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+					     SMU_MSG_DisableAllSmuFeatures));
+		if (ret)
+			return ret;
+	}
+
 	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
 	if (ret)
 		return ret;
@@ -813,6 +827,8 @@ static int smu_v11_0_notify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
+	if (!smu->pm_enabled)
+		return ret;
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT))
 	    ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1);
 
@@ -825,6 +841,8 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 {
 	int ret = 0;
 
+	if (!smu->pm_enabled)
+		return ret;
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
 					  clock_select << 16);
 	if (ret) {
@@ -1101,6 +1119,8 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 		TEMP_RANGE_MAX};
 	struct amdgpu_device *adev = smu->adev;
 
+	if (!smu->pm_enabled)
+		return ret;
 	smu_v11_0_get_thermal_range(smu, &range);
 
 	if (smu->smu_table.thermal_controller_type) {
@@ -1336,6 +1356,8 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	PPCLK_e clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
 
+	if (!smu->pm_enabled)
+		return -EINVAL;
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
@@ -1619,7 +1641,7 @@ static int smu_v11_0_get_power_profile_mode(struct smu_context *smu, char *buf)
 			"PD_Data_error_rate_coeff"};
 	int result = 0;
 
-	if (!buf)
+	if (!smu->pm_enabled || !buf)
 		return -EINVAL;
 
 	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
@@ -1706,6 +1728,8 @@ static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input
 
 	smu->power_profile_mode = input[size];
 
+	if (!smu->pm_enabled)
+		return ret;
 	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
 		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;
