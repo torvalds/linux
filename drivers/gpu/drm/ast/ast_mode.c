@@ -532,6 +532,7 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
+	void *base;
 
 	/* push the previous fb to system ram */
 	if (!atomic && fb) {
@@ -564,11 +565,13 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (&ast->fbdev->afb == ast_fb) {
 		/* if pushing console in kmap it */
-		ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &gbo->kmap);
-		if (ret)
+		base = drm_gem_vram_kmap(gbo, true, NULL);
+		if (IS_ERR(base)) {
+			ret = PTR_ERR(base);
 			DRM_ERROR("failed to kmap fbcon\n");
-		else
+		} else {
 			ast_fbdev_set_base(ast, gpu_addr);
+		}
 	}
 	drm_gem_vram_unreserve(gbo);
 
@@ -928,6 +931,7 @@ static int ast_cursor_init(struct drm_device *dev)
 	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
+	void *base;
 
 	size = (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE) * AST_DEFAULT_HWC_NUM;
 
@@ -951,9 +955,11 @@ static int ast_cursor_init(struct drm_device *dev)
 	}
 
 	/* kmap the object */
-	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &ast->cache_kmap);
-	if (ret)
+	base = drm_gem_vram_kmap_at(gbo, true, NULL, &ast->cache_kmap);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
 		goto fail;
+	}
 
 	ast->cursor_cache = obj;
 	ast->cursor_cache_gpu_addr = gpu_addr;
@@ -966,7 +972,9 @@ fail:
 static void ast_cursor_fini(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
-	ttm_bo_kunmap(&ast->cache_kmap);
+	struct drm_gem_vram_object *gbo =
+		drm_gem_vram_of_gem(ast->cursor_cache);
+	drm_gem_vram_kunmap_at(gbo, &ast->cache_kmap);
 	drm_gem_object_put_unlocked(ast->cursor_cache);
 }
 
@@ -1213,13 +1221,21 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 	if (ret)
 		goto fail;
 
-	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &uobj_map);
-
-	src = ttm_kmap_obj_virtual(&uobj_map, &src_isiomem);
-	dst = ttm_kmap_obj_virtual(&ast->cache_kmap, &dst_isiomem);
-
+	memset(&uobj_map, 0, sizeof(uobj_map));
+	src = drm_gem_vram_kmap_at(gbo, true, &src_isiomem, &uobj_map);
+	if (IS_ERR(src)) {
+		ret = PTR_ERR(src);
+		goto fail_unreserve;
+	}
 	if (src_isiomem == true)
 		DRM_ERROR("src cursor bo should be in main memory\n");
+
+	dst = drm_gem_vram_kmap_at(drm_gem_vram_of_gem(ast->cursor_cache),
+				   false, &dst_isiomem, &ast->cache_kmap);
+	if (IS_ERR(dst)) {
+		ret = PTR_ERR(dst);
+		goto fail_unreserve;
+	}
 	if (dst_isiomem == false)
 		DRM_ERROR("dst bo should be in VRAM\n");
 
@@ -1228,11 +1244,14 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 	/* do data transfer to cursor cache */
 	csum = copy_cursor_image(src, dst, width, height);
 
-	/* write checksum + signature */
-	ttm_bo_kunmap(&uobj_map);
+	drm_gem_vram_kunmap_at(gbo, &uobj_map);
 	drm_gem_vram_unreserve(gbo);
+
+	/* write checksum + signature */
 	{
-		u8 *dst = (u8 *)ast->cache_kmap.virtual + (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
+		u8 *dst = drm_gem_vram_kmap_at(drm_gem_vram_of_gem(ast->cursor_cache),
+					       false, NULL, &ast->cache_kmap);
+		dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
 		writel(csum, dst);
 		writel(width, dst + AST_HWC_SIGNATURE_SizeX);
 		writel(height, dst + AST_HWC_SIGNATURE_SizeY);
@@ -1258,6 +1277,9 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 
 	drm_gem_object_put_unlocked(obj);
 	return 0;
+
+fail_unreserve:
+	drm_gem_vram_unreserve(gbo);
 fail:
 	drm_gem_object_put_unlocked(obj);
 	return ret;
@@ -1271,7 +1293,9 @@ static int ast_cursor_move(struct drm_crtc *crtc,
 	int x_offset, y_offset;
 	u8 *sig;
 
-	sig = (u8 *)ast->cache_kmap.virtual + (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
+	sig = drm_gem_vram_kmap_at(drm_gem_vram_of_gem(ast->cursor_cache),
+				   false, NULL, &ast->cache_kmap);
+	sig += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor + AST_HWC_SIZE;
 	writel(x, sig + AST_HWC_SIGNATURE_X);
 	writel(y, sig + AST_HWC_SIGNATURE_Y);
 
