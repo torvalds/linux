@@ -30,7 +30,7 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 	_enter("%pd,%pd", old, new);
 
 	trace_afs_silly_rename(vnode, false);
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_rename(&fc, old->d_name.name,
@@ -149,7 +149,7 @@ static int afs_do_silly_unlink(struct afs_vnode *dvnode, struct afs_vnode *vnode
 	_enter("");
 
 	trace_afs_silly_rename(vnode, true);
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, false)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 

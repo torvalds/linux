@@ -57,7 +57,7 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 		return PTR_ERR(key);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			acl = afs_fs_fetch_acl(&fc);
@@ -114,7 +114,7 @@ static int afs_xattr_set_acl(const struct xattr_handler *handler,
 	memcpy(acl->data, buffer, size);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_store_acl(&fc, acl);
@@ -178,7 +178,7 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			yfs_fs_fetch_opaque_acl(&fc, yacl);
@@ -263,7 +263,7 @@ static int afs_xattr_set_yfs(const struct xattr_handler *handler,
 	memcpy(acl->data, buffer, size);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			yfs_fs_store_opaque_acl2(&fc, acl);
