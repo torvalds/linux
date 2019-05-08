@@ -3494,6 +3494,10 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				if (vram_lost)
 					amdgpu_device_fill_reset_magic(tmp_adev);
 
+				r = amdgpu_device_ip_late_init(tmp_adev);
+				if (r)
+					goto out;
+
 				/* Update PSP FW topology after reset */
 				if (hive && tmp_adev->gmc.xgmi.num_physical_nodes > 1)
 					r = amdgpu_xgmi_update_topology(hive, tmp_adev);
