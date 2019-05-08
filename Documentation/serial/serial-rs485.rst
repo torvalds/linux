@@ -1,6 +1,9 @@
-                        RS485 SERIAL COMMUNICATIONS
+===========================
+RS485 Serial Communications
+===========================
 
-1. INTRODUCTION
+1. Introduction
+===============
 
    EIA-485, also known as TIA/EIA-485 or RS-485, is a standard defining the
    electrical characteristics of drivers and receivers for use in balanced
@@ -9,7 +12,8 @@
    because it can be used effectively over long distances and in electrically
    noisy environments.
 
-2. HARDWARE-RELATED CONSIDERATIONS
+2. Hardware-related Considerations
+==================================
 
    Some CPUs/UARTs (e.g., Atmel AT91 or 16C950 UART) contain a built-in
    half-duplex mode capable of automatically controlling line direction by
@@ -22,7 +26,8 @@
    available at user-level to allow switching from one mode to the other, and
    vice versa.
 
-3. DATA STRUCTURES ALREADY AVAILABLE IN THE KERNEL
+3. Data Structures Already Available in the Kernel
+==================================================
 
    The Linux kernel provides the serial_rs485 structure (see [1]) to handle
    RS485 communications. This data structure is used to set and configure RS485
@@ -38,10 +43,11 @@
    to TIOCSRS485 and TIOCGRS485 ioctls (see below). The rs485_config callback
    receives a pointer to struct serial_rs485.
 
-4. USAGE FROM USER-LEVEL
+4. Usage from user-level
+========================
 
    From user-level, RS485 configuration can be get/set using the previous
-   ioctls. For instance, to set RS485 you can use the following code:
+   ioctls. For instance, to set RS485 you can use the following code::
 
 	#include <linux/serial.h>
 
@@ -89,7 +95,9 @@
 		/* Error handling. See errno. */
 	}
 
-5. REFERENCES
+5. References
+=============
 
  [1]	include/uapi/linux/serial.h
+
  [2]	Documentation/devicetree/bindings/serial/rs485.txt
