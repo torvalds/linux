@@ -380,6 +380,21 @@ GEM CMA Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
    :export:
 
+VRAM Helper Function Reference
+==============================
+
+GEM VRAM Helper Functions Reference
+-----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_vram_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_gem_vram_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_vram_helper.c
+   :export:
+
 VMA Offset Manager
 ==================
 
