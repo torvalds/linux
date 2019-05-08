@@ -66,4 +66,37 @@ void drm_vram_mm_cleanup(struct drm_vram_mm *vmm);
 int drm_vram_mm_mmap(struct file *filp, struct vm_area_struct *vma,
 		     struct drm_vram_mm *vmm);
 
+/*
+ * Helpers for integration with struct drm_device
+ */
+
+struct drm_vram_mm *drm_vram_helper_alloc_mm(
+	struct drm_device *dev, uint64_t vram_base, size_t vram_size,
+	const struct drm_vram_mm_funcs *funcs);
+void drm_vram_helper_release_mm(struct drm_device *dev);
+
+/*
+ * Helpers for &struct file_operations
+ */
+
+int drm_vram_mm_file_operations_mmap(
+	struct file *filp, struct vm_area_struct *vma);
+
+/**
+ * define DRM_VRAM_MM_FILE_OPERATIONS - default callback functions for \
+	&struct file_operations
+ *
+ * Drivers that use VRAM MM can use this macro to initialize
+ * &struct file_operations with default functions.
+ */
+#define DRM_VRAM_MM_FILE_OPERATIONS \
+	.llseek		= no_llseek, \
+	.read		= drm_read, \
+	.poll		= drm_poll, \
+	.unlocked_ioctl = drm_ioctl, \
+	.compat_ioctl	= drm_compat_ioctl, \
+	.mmap		= drm_vram_mm_file_operations_mmap, \
+	.open		= drm_open, \
+	.release	= drm_release \
+
 #endif

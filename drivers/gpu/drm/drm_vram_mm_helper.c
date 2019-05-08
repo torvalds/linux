@@ -208,3 +208,88 @@ int drm_vram_mm_mmap(struct file *filp, struct vm_area_struct *vma,
 	return ttm_bo_mmap(filp, vma, &vmm->bdev);
 }
 EXPORT_SYMBOL(drm_vram_mm_mmap);
+
+/*
+ * Helpers for integration with struct drm_device
+ */
+
+/**
+ * drm_vram_helper_alloc_mm - Allocates a device's instance of \
+	&struct drm_vram_mm
+ * @dev:	the DRM device
+ * @vram_base:	the base address of the video memory
+ * @vram_size:	the size of the video memory in bytes
+ * @funcs:	callback functions for buffer objects
+ *
+ * Returns:
+ * The new instance of &struct drm_vram_mm on success, or
+ * an ERR_PTR()-encoded errno code otherwise.
+ */
+struct drm_vram_mm *drm_vram_helper_alloc_mm(
+	struct drm_device *dev, uint64_t vram_base, size_t vram_size,
+	const struct drm_vram_mm_funcs *funcs)
+{
+	int ret;
+
+	if (WARN_ON(dev->vram_mm))
+		return dev->vram_mm;
+
+	dev->vram_mm = kzalloc(sizeof(*dev->vram_mm), GFP_KERNEL);
+	if (!dev->vram_mm)
+		return ERR_PTR(-ENOMEM);
+
+	ret = drm_vram_mm_init(dev->vram_mm, dev, vram_base, vram_size, funcs);
+	if (ret)
+		goto err_kfree;
+
+	return dev->vram_mm;
+
+err_kfree:
+	kfree(dev->vram_mm);
+	dev->vram_mm = NULL;
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(drm_vram_helper_alloc_mm);
+
+/**
+ * drm_vram_helper_release_mm - Releases a device's instance of \
+	&struct drm_vram_mm
+ * @dev:	the DRM device
+ */
+void drm_vram_helper_release_mm(struct drm_device *dev)
+{
+	if (!dev->vram_mm)
+		return;
+
+	drm_vram_mm_cleanup(dev->vram_mm);
+	kfree(dev->vram_mm);
+	dev->vram_mm = NULL;
+}
+EXPORT_SYMBOL(drm_vram_helper_release_mm);
+
+/*
+ * Helpers for &struct file_operations
+ */
+
+/**
+ * drm_vram_mm_file_operations_mmap() - \
+	Implements &struct file_operations.mmap()
+ * @filp:	the mapping's file structure
+ * @vma:	the mapping's memory area
+ *
+ * Returns:
+ * 0 on success, or
+ * a negative error code otherwise.
+ */
+int drm_vram_mm_file_operations_mmap(
+	struct file *filp, struct vm_area_struct *vma)
+{
+	struct drm_file *file_priv = filp->private_data;
+	struct drm_device *dev = file_priv->minor->dev;
+
+	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))
+		return -EINVAL;
+
+	return drm_vram_mm_mmap(filp, vma, dev->vram_mm);
+}
+EXPORT_SYMBOL(drm_vram_mm_file_operations_mmap);

@@ -11,6 +11,7 @@
 struct drm_mode_create_dumb;
 struct drm_vram_mm_funcs;
 struct filp;
+struct vm_area_struct;
 
 #define DRM_GEM_VRAM_PL_FLAG_VRAM	TTM_PL_FLAG_VRAM
 #define DRM_GEM_VRAM_PL_FLAG_SYSTEM	TTM_PL_FLAG_SYSTEM
@@ -115,10 +116,26 @@ extern const struct drm_vram_mm_funcs drm_gem_vram_mm_funcs;
  */
 
 void drm_gem_vram_driver_gem_free_object_unlocked(struct drm_gem_object *gem);
-
+int drm_gem_vram_driver_dumb_create(struct drm_file *file,
+				    struct drm_device *dev,
+				    struct drm_mode_create_dumb *args);
 int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 					 struct drm_device *dev,
 					 uint32_t handle, uint64_t *offset);
+
+/**
+ * define DRM_GEM_VRAM_DRIVER - default callback functions for \
+	&struct drm_driver
+ *
+ * Drivers that use VRAM MM and GEM VRAM can use this macro to initialize
+ * &struct drm_driver with default functions.
+ */
+#define DRM_GEM_VRAM_DRIVER \
+	.gem_free_object_unlocked = \
+		drm_gem_vram_driver_gem_free_object_unlocked, \
+	.dumb_create		  = drm_gem_vram_driver_dumb_create, \
+	.dumb_map_offset	  = drm_gem_vram_driver_dumb_mmap_offset
+
 /*
  * PRIME helpers for struct drm_driver
  */

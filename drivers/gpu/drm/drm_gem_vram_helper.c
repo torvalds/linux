@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_vram_mm_helper.h>
@@ -554,6 +555,33 @@ void drm_gem_vram_driver_gem_free_object_unlocked(struct drm_gem_object *gem)
 	drm_gem_vram_put(gbo);
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_gem_free_object_unlocked);
+
+/**
+ * drm_gem_vram_driver_create_dumb() - \
+	Implements &struct drm_driver.dumb_create
+ * @file:		the DRM file
+ * @dev:		the DRM device
+ * @args:		the arguments as provided to \
+				&struct drm_driver.dumb_create
+ *
+ * This function requires the driver to use @drm_device.vram_mm for its
+ * instance of VRAM MM.
+ *
+ * Returns:
+ * 0 on success, or
+ * a negative error code otherwise.
+ */
+int drm_gem_vram_driver_dumb_create(struct drm_file *file,
+				    struct drm_device *dev,
+				    struct drm_mode_create_dumb *args)
+{
+	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))
+		return -EINVAL;
+
+	return drm_gem_vram_fill_create_dumb(file, dev, &dev->vram_mm->bdev, 0,
+					     false, args);
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_dumb_create);
 
 /**
  * drm_gem_vram_driver_dumb_mmap_offset() - \
