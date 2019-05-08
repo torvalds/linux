@@ -1054,11 +1054,9 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		j++;
 	}
 
-	/* UVD & VCE fw doesn't support user fences */
+	/* MM engine doesn't support user fences */
 	ring = to_amdgpu_ring(parser->entity->rq->sched);
-	if (parser->job->uf_addr && (
-	    ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
-	    ring->funcs->type == AMDGPU_RING_TYPE_VCE))
+	if (parser->job->uf_addr && ring->funcs->no_user_fence)
 		return -EINVAL;
 
 	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->entity);
