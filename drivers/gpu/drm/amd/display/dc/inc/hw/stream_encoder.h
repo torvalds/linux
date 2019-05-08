@@ -113,10 +113,10 @@ struct stream_encoder {
 struct enc_state {
 	uint32_t dsc_mode;  // DISABLED  0; 1 or 2 indicate enabled state.
 	uint32_t dsc_slice_width;
-	uint32_t sec_gsp7_line_num;
+	uint32_t sec_gsp_pps_line_num;
 	uint32_t vbid6_line_reference;
 	uint32_t vbid6_line_num;
-	uint32_t sec_gsp7_enable;
+	uint32_t sec_gsp_pps_enable;
 	uint32_t sec_stream_enable;
 };
 #endif

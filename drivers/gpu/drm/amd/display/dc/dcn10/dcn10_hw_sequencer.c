@@ -377,10 +377,10 @@ void dcn10_log_hw_state(struct dc *dc,
 			DTN_INFO("[%-3d]: %-9d %-18d %-21d %-15d %-16d %-17d\n",
 				enc->id,
 				s.dsc_mode,
-				s.sec_gsp7_line_num,
+				s.sec_gsp_pps_line_num,
 				s.vbid6_line_reference,
 				s.vbid6_line_num,
-				s.sec_gsp7_enable,
+				s.sec_gsp_pps_enable,
 				s.sec_stream_enable);
 			DTN_INFO("\n");
 		}

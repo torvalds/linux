@@ -351,13 +351,12 @@ static void enc2_read_state(struct stream_encoder *enc, struct enc_state *s)
 	REG_GET(DP_DSC_CNTL, DP_DSC_MODE, &s->dsc_mode);
 	if (s->dsc_mode) {
 		REG_GET(DP_DSC_CNTL, DP_DSC_SLICE_WIDTH, &s->dsc_slice_width);
-		REG_GET(DP_SEC_CNTL6, DP_SEC_GSP7_LINE_NUM, &s->sec_gsp7_line_num);
+		REG_GET(DP_SEC_CNTL6, DP_SEC_GSP7_LINE_NUM, &s->sec_gsp_pps_line_num);
 
-		REG_GET(DP_SEC_CNTL6, DP_SEC_GSP7_LINE_NUM, &s->sec_gsp7_line_num);
 		REG_GET(DP_MSA_VBID_MISC, DP_VBID6_LINE_REFERENCE, &s->vbid6_line_reference);
 		REG_GET(DP_MSA_VBID_MISC, DP_VBID6_LINE_NUM, &s->vbid6_line_num);
 
-		REG_GET(DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, &s->sec_gsp7_enable);
+		REG_GET(DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, &s->sec_gsp_pps_enable);
 		REG_GET(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, &s->sec_stream_enable);
 	}
 }
@@ -448,7 +447,7 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
-static void enc2_stream_encoder_dp_unblank(
+void enc2_stream_encoder_dp_unblank(
 		struct stream_encoder *enc,
 		const struct encoder_unblank_param *param)
 {
@@ -530,7 +529,7 @@ static void enc2_dp_set_odm_combine(
 	REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_COMBINE, odm_combine);
 }
 
-static void enc2_stream_encoder_dp_set_stream_attribute(
+void enc2_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space,

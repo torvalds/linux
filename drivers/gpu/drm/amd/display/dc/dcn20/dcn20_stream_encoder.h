@@ -94,4 +94,14 @@ void dcn20_stream_encoder_construct(
 	const struct dcn10_stream_encoder_shift *se_shift,
 	const struct dcn10_stream_encoder_mask *se_mask);
 
+void enc2_stream_encoder_dp_set_stream_attribute(
+	struct stream_encoder *enc,
+	struct dc_crtc_timing *crtc_timing,
+	enum dc_color_space output_color_space,
+	uint32_t enable_sdp_splitting);
+
+void enc2_stream_encoder_dp_unblank(
+	struct stream_encoder *enc,
+	const struct encoder_unblank_param *param);
+
 #endif /* __DC_STREAM_ENCODER_DCN20_H__ */
