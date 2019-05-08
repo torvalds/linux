@@ -12,3 +12,4 @@ x86-specific Documentation
    topology
    exception-tables
    kernel-stacks
+   entry_64
