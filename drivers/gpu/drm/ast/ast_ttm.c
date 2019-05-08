@@ -36,23 +36,6 @@ ast_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct ast_private, ttm.bdev);
 }
 
-static void ast_bo_ttm_destroy(struct ttm_buffer_object *tbo)
-{
-	struct ast_bo *bo;
-
-	bo = container_of(tbo, struct ast_bo, bo);
-
-	drm_gem_object_release(&bo->gem);
-	kfree(bo);
-}
-
-static bool ast_ttm_bo_is_ast_bo(struct ttm_buffer_object *bo)
-{
-	if (bo->destroy == &ast_bo_ttm_destroy)
-		return true;
-	return false;
-}
-
 static int
 ast_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		     struct ttm_mem_type_manager *man)
@@ -76,26 +59,6 @@ ast_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		return -EINVAL;
 	}
 	return 0;
-}
-
-static void
-ast_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
-{
-	struct ast_bo *astbo = ast_bo(bo);
-
-	if (!ast_ttm_bo_is_ast_bo(bo))
-		return;
-
-	ast_ttm_placement(astbo, TTM_PL_FLAG_SYSTEM);
-	*pl = astbo->placement;
-}
-
-static int ast_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
-{
-	struct ast_bo *astbo = ast_bo(bo);
-
-	return drm_vma_node_verify_access(&astbo->gem.vma_node,
-					  filp->private_data);
 }
 
 static int ast_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -162,9 +125,9 @@ struct ttm_bo_driver ast_bo_driver = {
 	.ttm_tt_create = ast_ttm_tt_create,
 	.init_mem_type = ast_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
-	.evict_flags = ast_bo_evict_flags,
+	.evict_flags = drm_gem_vram_bo_driver_evict_flags,
 	.move = NULL,
-	.verify_access = ast_bo_verify_access,
+	.verify_access = drm_gem_vram_bo_driver_verify_access,
 	.io_mem_reserve = &ast_ttm_io_mem_reserve,
 	.io_mem_free = &ast_ttm_io_mem_free,
 };
@@ -208,137 +171,6 @@ void ast_mm_fini(struct ast_private *ast)
 	arch_phys_wc_del(ast->fb_mtrr);
 	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
 				pci_resource_len(dev->pdev, 0));
-}
-
-void ast_ttm_placement(struct ast_bo *bo, int domain)
-{
-	u32 c = 0;
-	unsigned i;
-
-	bo->placement.placement = bo->placements;
-	bo->placement.busy_placement = bo->placements;
-	if (domain & TTM_PL_FLAG_VRAM)
-		bo->placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM;
-	if (domain & TTM_PL_FLAG_SYSTEM)
-		bo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM;
-	if (!c)
-		bo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM;
-	bo->placement.num_placement = c;
-	bo->placement.num_busy_placement = c;
-	for (i = 0; i < c; ++i) {
-		bo->placements[i].fpfn = 0;
-		bo->placements[i].lpfn = 0;
-	}
-}
-
-int ast_bo_create(struct drm_device *dev, int size, int align,
-		  uint32_t flags, struct ast_bo **pastbo)
-{
-	struct ast_private *ast = dev->dev_private;
-	struct ast_bo *astbo;
-	size_t acc_size;
-	int ret;
-
-	astbo = kzalloc(sizeof(struct ast_bo), GFP_KERNEL);
-	if (!astbo)
-		return -ENOMEM;
-
-	ret = drm_gem_object_init(dev, &astbo->gem, size);
-	if (ret)
-		goto error;
-
-	astbo->bo.bdev = &ast->ttm.bdev;
-
-	ast_ttm_placement(astbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
-
-	acc_size = ttm_bo_dma_acc_size(&ast->ttm.bdev, size,
-				       sizeof(struct ast_bo));
-
-	ret = ttm_bo_init(&ast->ttm.bdev, &astbo->bo, size,
-			  ttm_bo_type_device, &astbo->placement,
-			  align >> PAGE_SHIFT, false, acc_size,
-			  NULL, NULL, ast_bo_ttm_destroy);
-	if (ret)
-		goto error;
-
-	*pastbo = astbo;
-	return 0;
-error:
-	kfree(astbo);
-	return ret;
-}
-
-static inline u64 ast_bo_gpu_offset(struct ast_bo *bo)
-{
-	return bo->bo.offset;
-}
-
-int ast_bo_pin(struct ast_bo *bo, u32 pl_flag, u64 *gpu_addr)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	int i, ret;
-
-	if (bo->pin_count) {
-		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = ast_bo_gpu_offset(bo);
-	}
-
-	ast_ttm_placement(bo, pl_flag);
-	for (i = 0; i < bo->placement.num_placement; i++)
-		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret)
-		return ret;
-
-	bo->pin_count = 1;
-	if (gpu_addr)
-		*gpu_addr = ast_bo_gpu_offset(bo);
-	return 0;
-}
-
-int ast_bo_unpin(struct ast_bo *bo)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	int i;
-	if (!bo->pin_count) {
-		DRM_ERROR("unpin bad %p\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-
-	for (i = 0; i < bo->placement.num_placement ; i++)
-		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	return ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-}
-
-int ast_bo_push_sysram(struct ast_bo *bo)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	int i, ret;
-	if (!bo->pin_count) {
-		DRM_ERROR("unpin bad %p\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-
-	if (bo->kmap.virtual)
-		ttm_bo_kunmap(&bo->kmap);
-
-	ast_ttm_placement(bo, TTM_PL_FLAG_SYSTEM);
-	for (i = 0; i < bo->placement.num_placement ; i++)
-		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
-	if (ret) {
-		DRM_ERROR("pushing to VRAM failed\n");
-		return ret;
-	}
-	return 0;
 }
 
 int ast_mmap(struct file *filp, struct vm_area_struct *vma)

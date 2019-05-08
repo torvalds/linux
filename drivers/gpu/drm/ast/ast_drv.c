@@ -228,9 +228,10 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	.gem_free_object_unlocked = ast_gem_free_object,
+	.gem_free_object_unlocked =
+		drm_gem_vram_driver_gem_free_object_unlocked,
 	.dumb_create = ast_dumb_create,
-	.dumb_map_offset = ast_dumb_mmap_offset,
+	.dumb_map_offset = drm_gem_vram_driver_dumb_mmap_offset,
 
 };
 

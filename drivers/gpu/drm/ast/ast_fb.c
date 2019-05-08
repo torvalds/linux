@@ -49,7 +49,7 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 {
 	int i;
 	struct drm_gem_object *obj;
-	struct ast_bo *bo;
+	struct drm_gem_vram_object *gbo;
 	int src_offset, dst_offset;
 	int bpp = afbdev->afb.base.format->cpp[0];
 	int ret = -EBUSY;
@@ -59,7 +59,7 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 	unsigned long flags;
 
 	obj = afbdev->afb.obj;
-	bo = gem_to_ast_bo(obj);
+	gbo = drm_gem_vram_of_gem(obj);
 
 	/*
 	 * try and reserve the BO, if we fail with busy
@@ -67,7 +67,7 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 	 * store up the damage until later.
 	 */
 	if (drm_can_sleep())
-		ret = ast_bo_reserve(bo, true);
+		ret = drm_gem_vram_reserve(gbo, true);
 	if (ret) {
 		if (ret != -EBUSY)
 			return;
@@ -101,25 +101,28 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 	afbdev->x2 = afbdev->y2 = 0;
 	spin_unlock_irqrestore(&afbdev->dirty_lock, flags);
 
-	if (!bo->kmap.virtual) {
-		ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
+	if (!gbo->kmap.virtual) {
+		ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, &gbo->kmap);
 		if (ret) {
 			DRM_ERROR("failed to kmap fb updates\n");
-			ast_bo_unreserve(bo);
+			drm_gem_vram_unreserve(gbo);
 			return;
 		}
 		unmap = true;
 	}
 	for (i = y; i <= y2; i++) {
 		/* assume equal stride for now */
-		src_offset = dst_offset = i * afbdev->afb.base.pitches[0] + (x * bpp);
-		memcpy_toio(bo->kmap.virtual + src_offset, afbdev->sysram + src_offset, (x2 - x + 1) * bpp);
+		src_offset = dst_offset =
+			i * afbdev->afb.base.pitches[0] + (x * bpp);
+		memcpy_toio(gbo->kmap.virtual + src_offset,
+			    afbdev->sysram + dst_offset,
+			    (x2 - x + 1) * bpp);
 
 	}
 	if (unmap)
-		ttm_bo_kunmap(&bo->kmap);
+		ttm_bo_kunmap(&gbo->kmap);
 
-	ast_bo_unreserve(bo);
+	drm_gem_vram_unreserve(gbo);
 }
 
 static void ast_fillrect(struct fb_info *info,
