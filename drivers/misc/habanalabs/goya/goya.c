@@ -2277,13 +2277,13 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
 	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
 
-	if (status == CPU_BOOT_STATUS_SRAM_AVAIL)
-		goto out;
-
 	if (!hdev->fw_loading) {
 		dev_info(hdev->dev, "Skip loading FW\n");
 		goto out;
 	}
+
+	if (status == CPU_BOOT_STATUS_SRAM_AVAIL)
+		goto out;
 
 	rc = goya_push_linux_to_device(hdev);
 	if (rc)
