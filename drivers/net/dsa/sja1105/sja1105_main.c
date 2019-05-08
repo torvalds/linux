@@ -1070,7 +1070,11 @@ static u8 sja1105_stp_state_get(struct sja1105_private *priv, int port)
 		return BR_STATE_LEARNING;
 	if (mac[port].ingress && mac[port].egress && mac[port].dyn_learn)
 		return BR_STATE_FORWARDING;
-	return -EINVAL;
+	/* This is really an error condition if the MAC was in none of the STP
+	 * states above. But treating the port as disabled does nothing, which
+	 * is adequate, and it also resets the MAC to a known state later on.
+	 */
+	return BR_STATE_DISABLED;
 }
 
 /* For situations where we need to change a setting at runtime that is only
