@@ -23,6 +23,7 @@
 #include <linux/mutex.h>
 
 #define CROS_EC_DEV_NAME "cros_ec"
+#define CROS_EC_DEV_FP_NAME "cros_fp"
 #define CROS_EC_DEV_PD_NAME "cros_pd"
 #define CROS_EC_DEV_ISH_NAME "cros_ish"
 
