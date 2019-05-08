@@ -1065,6 +1065,59 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	(cond) ? 0 : -ETIMEDOUT; \
 })
 
+/*
+ * address in this macro points always to a memory location in the
+ * host's (server's) memory. That location is updated asynchronously
+ * either by the direct access of the device or by another core
+ */
+#define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us) \
+({ \
+	ktime_t __timeout; \
+	/* timeout should be longer when working with simulator */ \
+	if (hdev->pdev) \
+		__timeout = ktime_add_us(ktime_get(), timeout_us); \
+	else \
+		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+	might_sleep_if(sleep_us); \
+	for (;;) { \
+		/* Verify we read updates done by other cores or by device */ \
+		mb(); \
+		(val) = *((u32 *) (uintptr_t) (addr)); \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
+			(val) = *((u32 *) (uintptr_t) (addr)); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
+
+#define hl_poll_timeout_device_memory(hdev, addr, val, cond, sleep_us, \
+					timeout_us) \
+({ \
+	ktime_t __timeout; \
+	/* timeout should be longer when working with simulator */ \
+	if (hdev->pdev) \
+		__timeout = ktime_add_us(ktime_get(), timeout_us); \
+	else \
+		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+	might_sleep_if(sleep_us); \
+	for (;;) { \
+		(val) = readl(addr); \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
+			(val) = readl(addr); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
 
 #define HL_ENG_BUSY(buf, size, fmt, ...) ({ \
 		if (buf) \
@@ -1334,10 +1387,6 @@ int hl_device_set_debug_mode(struct hl_device *hdev, bool enable);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		enum hl_asic_type asic_type, int minor);
 void destroy_hdev(struct hl_device *hdev);
-int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr, u32 timeout_us,
-				u32 *val);
-int hl_poll_timeout_device_memory(struct hl_device *hdev, void __iomem *addr,
-				u32 timeout_us, u32 *val);
 int hl_hw_queues_create(struct hl_device *hdev);
 void hl_hw_queues_destroy(struct hl_device *hdev);
 int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,

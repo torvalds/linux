@@ -2844,14 +2844,14 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 		goto free_fence_ptr;
 	}
 
-	rc = hl_poll_timeout_memory(hdev, (u64) (uintptr_t) fence_ptr, timeout,
-					&tmp);
+	rc = hl_poll_timeout_memory(hdev, fence_ptr, tmp,
+				(tmp == GOYA_QMAN0_FENCE_VAL), 1000, timeout);
 
 	hl_hw_queue_inc_ci_kernel(hdev, GOYA_QUEUE_ID_DMA_0);
 
-	if ((rc) || (tmp != GOYA_QMAN0_FENCE_VAL)) {
-		dev_err(hdev->dev, "QMAN0 Job hasn't finished in time\n");
-		rc = -ETIMEDOUT;
+	if (rc == -ETIMEDOUT) {
+		dev_err(hdev->dev, "QMAN0 Job timeout (0x%x)\n", tmp);
+		goto free_fence_ptr;
 	}
 
 free_fence_ptr:
@@ -2925,20 +2925,19 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 		goto free_pkt;
 	}
 
-	rc = hl_poll_timeout_memory(hdev, (u64) (uintptr_t) fence_ptr,
-					GOYA_TEST_QUEUE_WAIT_USEC, &tmp);
+	rc = hl_poll_timeout_memory(hdev, fence_ptr, tmp, (tmp == fence_val),
+					1000, GOYA_TEST_QUEUE_WAIT_USEC);
 
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
 
-	if ((!rc) && (tmp == fence_val)) {
-		dev_info(hdev->dev,
-			"queue test on H/W queue %d succeeded\n",
-			hw_queue_id);
-	} else {
+	if (rc == -ETIMEDOUT) {
 		dev_err(hdev->dev,
 			"H/W queue %d test failed (scratch(0x%08llX) == 0x%08X)\n",
 			hw_queue_id, (unsigned long long) fence_dma_addr, tmp);
-		rc = -EINVAL;
+		rc = -EIO;
+	} else {
+		dev_info(hdev->dev, "queue test on H/W queue %d succeeded\n",
+			hw_queue_id);
 	}
 
 free_pkt:

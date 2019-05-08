@@ -117,33 +117,28 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
-	rc = hl_poll_timeout_memory(hdev, (u64) (uintptr_t) &pkt->fence,
-					timeout, &tmp);
+	rc = hl_poll_timeout_memory(hdev, &pkt->fence, tmp,
+				(tmp == ARMCP_PACKET_FENCE_VAL), 1000, timeout);
 
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
 
 	if (rc == -ETIMEDOUT) {
-		dev_err(hdev->dev, "Timeout while waiting for device CPU\n");
+		dev_err(hdev->dev, "Device CPU packet timeout (0x%x)\n", tmp);
 		hdev->device_cpu_disabled = true;
 		goto out;
 	}
 
-	if (tmp == ARMCP_PACKET_FENCE_VAL) {
-		u32 ctl = le32_to_cpu(pkt->ctl);
+	tmp = le32_to_cpu(pkt->ctl);
 
-		rc = (ctl & ARMCP_PKT_CTL_RC_MASK) >> ARMCP_PKT_CTL_RC_SHIFT;
-		if (rc) {
-			dev_err(hdev->dev,
-				"F/W ERROR %d for CPU packet %d\n",
-				rc, (ctl & ARMCP_PKT_CTL_OPCODE_MASK)
+	rc = (tmp & ARMCP_PKT_CTL_RC_MASK) >> ARMCP_PKT_CTL_RC_SHIFT;
+	if (rc) {
+		dev_err(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
+			rc,
+			(tmp & ARMCP_PKT_CTL_OPCODE_MASK)
 						>> ARMCP_PKT_CTL_OPCODE_SHIFT);
-			rc = -EINVAL;
-		} else if (result) {
-			*result = (long) le64_to_cpu(pkt->result);
-		}
-	} else {
-		dev_err(hdev->dev, "CPU packet wrong fence value\n");
-		rc = -EINVAL;
+		rc = -EIO;
+	} else if (result) {
+		*result = (long) le64_to_cpu(pkt->result);
 	}
 
 out:
