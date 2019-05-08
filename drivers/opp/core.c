@@ -1755,6 +1755,9 @@ static void _opp_detach_genpd(struct opp_table *opp_table)
 		dev_pm_domain_detach(opp_table->genpd_virt_devs[index], false);
 		opp_table->genpd_virt_devs[index] = NULL;
 	}
+
+	kfree(opp_table->genpd_virt_devs);
+	opp_table->genpd_virt_devs = NULL;
 }
 
 /**
@@ -1798,6 +1801,12 @@ struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, const char **names
 
 	mutex_lock(&opp_table->genpd_virt_dev_lock);
 
+	opp_table->genpd_virt_devs = kcalloc(opp_table->required_opp_count,
+					     sizeof(*opp_table->genpd_virt_devs),
+					     GFP_KERNEL);
+	if (!opp_table->genpd_virt_devs)
+		goto unlock;
+
 	while (*name) {
 		index = of_property_match_string(dev->of_node,
 						 "power-domain-names", *name);
@@ -1836,6 +1845,7 @@ struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, const char **names
 
 err:
 	_opp_detach_genpd(opp_table);
+unlock:
 	mutex_unlock(&opp_table->genpd_virt_dev_lock);
 
 put_table:
