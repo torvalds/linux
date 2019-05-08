@@ -1264,8 +1264,8 @@ int kvm_clear_dirty_log_protect(struct kvm *kvm,
 		return -EFAULT;
 
 	spin_lock(&kvm->mmu_lock);
-	for (offset = log->first_page,
-	     i = offset / BITS_PER_LONG, n = log->num_pages / BITS_PER_LONG; n--;
+	for (offset = log->first_page, i = offset / BITS_PER_LONG,
+		 n = DIV_ROUND_UP(log->num_pages, BITS_PER_LONG); n--;
 	     i++, offset += BITS_PER_LONG) {
 		unsigned long mask = *dirty_bitmap_buffer++;
 		atomic_long_t *p = (atomic_long_t *) &dirty_bitmap[i];
