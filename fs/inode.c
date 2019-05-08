@@ -1613,7 +1613,7 @@ EXPORT_SYMBOL(bmap);
  * passed since the last atime update.
  */
 static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
-			     struct timespec now)
+			     struct timespec64 now)
 {
 
 	if (!(mnt->mnt_flags & MNT_RELATIME))
@@ -1714,7 +1714,7 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 
 	now = current_time(inode);
 
-	if (!relatime_need_update(mnt, inode, timespec64_to_timespec(now)))
+	if (!relatime_need_update(mnt, inode, now))
 		return false;
 
 	if (timespec64_equal(&inode->i_atime, &now))
