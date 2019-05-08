@@ -1531,8 +1531,14 @@ static int sdma_v4_0_late_init(void *handle)
 	**ras_if = ras_block;
 
 	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
-	if (r)
+	if (r) {
+		if (r == -EAGAIN) {
+			amdgpu_ras_request_reset_on_boot(adev,
+					AMDGPU_RAS_BLOCK__SDMA);
+			r = 0;
+		}
 		goto feature;
+	}
 
 	ih_info.head = **ras_if;
 	fs_info.head = **ras_if;
@@ -1571,7 +1577,7 @@ interrupt:
 feature:
 	kfree(*ras_if);
 	*ras_if = NULL;
-	return -EINVAL;
+	return r;
 }
 
 static int sdma_v4_0_sw_init(void *handle)
