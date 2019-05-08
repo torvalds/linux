@@ -52,9 +52,7 @@ static int wilco_ec_probe(struct platform_device *pdev)
 	ec->dev = dev;
 	mutex_init(&ec->mailbox_lock);
 
-	/* Largest data buffer size requirement is extended data response */
-	ec->data_size = sizeof(struct wilco_ec_response) +
-		EC_MAILBOX_DATA_SIZE_EXTENDED;
+	ec->data_size = sizeof(struct wilco_ec_response) + EC_MAILBOX_DATA_SIZE;
 	ec->data_buffer = devm_kzalloc(dev, ec->data_size, GFP_KERNEL);
 	if (!ec->data_buffer)
 		return -ENOMEM;

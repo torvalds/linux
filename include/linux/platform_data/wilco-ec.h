@@ -13,12 +13,9 @@
 
 /* Message flags for using the mailbox() interface */
 #define WILCO_EC_FLAG_NO_RESPONSE	BIT(0) /* EC does not respond */
-#define WILCO_EC_FLAG_EXTENDED_DATA	BIT(1) /* EC returns 256 data bytes */
 
 /* Normal commands have a maximum 32 bytes of data */
 #define EC_MAILBOX_DATA_SIZE		32
-/* Extended commands have 256 bytes of response data */
-#define EC_MAILBOX_DATA_SIZE_EXTENDED	256
 
 /**
  * struct wilco_ec_device - Wilco Embedded Controller handle.
@@ -85,14 +82,12 @@ struct wilco_ec_response {
  * enum wilco_ec_msg_type - Message type to select a set of command codes.
  * @WILCO_EC_MSG_LEGACY: Legacy EC messages for standard EC behavior.
  * @WILCO_EC_MSG_PROPERTY: Get/Set/Sync EC controlled NVRAM property.
- * @WILCO_EC_MSG_TELEMETRY_SHORT: 32 bytes of telemetry data provided by the EC.
- * @WILCO_EC_MSG_TELEMETRY_LONG: 256 bytes of telemetry data provided by the EC.
+ * @WILCO_EC_MSG_TELEMETRY: Request telemetry data from the EC.
  */
 enum wilco_ec_msg_type {
 	WILCO_EC_MSG_LEGACY = 0x00f0,
 	WILCO_EC_MSG_PROPERTY = 0x00f2,
-	WILCO_EC_MSG_TELEMETRY_SHORT = 0x00f5,
-	WILCO_EC_MSG_TELEMETRY_LONG = 0x00f6,
+	WILCO_EC_MSG_TELEMETRY = 0x00f5,
 };
 
 /**

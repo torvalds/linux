@@ -119,7 +119,6 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 	struct wilco_ec_response *rs;
 	u8 checksum;
 	u8 flag;
-	size_t size;
 
 	/* Write request header, then data */
 	cros_ec_lpc_io_bytes_mec(MEC_IO_WRITE, 0, sizeof(*rq), (u8 *)rq);
@@ -148,21 +147,11 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 		return -EIO;
 	}
 
-	/*
-	 * The EC always returns either EC_MAILBOX_DATA_SIZE or
-	 * EC_MAILBOX_DATA_SIZE_EXTENDED bytes of data, so we need to
-	 * calculate the checksum on **all** of this data, even if we
-	 * won't use all of it.
-	 */
-	if (msg->flags & WILCO_EC_FLAG_EXTENDED_DATA)
-		size = EC_MAILBOX_DATA_SIZE_EXTENDED;
-	else
-		size = EC_MAILBOX_DATA_SIZE;
-
 	/* Read back response */
 	rs = ec->data_buffer;
 	checksum = cros_ec_lpc_io_bytes_mec(MEC_IO_READ, 0,
-					    sizeof(*rs) + size, (u8 *)rs);
+					    sizeof(*rs) + EC_MAILBOX_DATA_SIZE,
+					    (u8 *)rs);
 	if (checksum) {
 		dev_dbg(ec->dev, "bad packet checksum 0x%02x\n", rs->checksum);
 		return -EBADMSG;
@@ -173,9 +162,9 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 		return -EBADMSG;
 	}
 
-	if (rs->data_size != size) {
-		dev_dbg(ec->dev, "unexpected packet size (%u != %zu)",
-			rs->data_size, size);
+	if (rs->data_size != EC_MAILBOX_DATA_SIZE) {
+		dev_dbg(ec->dev, "unexpected packet size (%u != %u)",
+			rs->data_size, EC_MAILBOX_DATA_SIZE);
 		return -EMSGSIZE;
 	}
 
