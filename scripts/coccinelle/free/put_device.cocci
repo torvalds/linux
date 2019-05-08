@@ -24,7 +24,7 @@ if (id == NULL || ...) { ... return ...; }
     when != of_dev_put(id)
     when != if (id) { ... put_device(&id->dev) ... }
     when != e1 = (T)id
-    when != e1 = &id->dev
+    when != e1 = (T)(&id->dev)
     when != e1 = get_device(&id->dev)
     when != e1 = (T1)platform_get_drvdata(id)
 (
