@@ -89,4 +89,14 @@ void drm_gem_vram_kunmap_at(struct drm_gem_vram_object *gbo,
 			    struct ttm_bo_kmap_obj *kmap);
 void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo);
 
+/*
+ * Helpers for struct ttm_bo_driver
+ */
+
+void drm_gem_vram_bo_driver_evict_flags(struct ttm_buffer_object *bo,
+					struct ttm_placement *pl);
+
+int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
+					 struct file *filp);
+
 #endif

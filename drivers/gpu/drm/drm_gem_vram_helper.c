@@ -410,3 +410,53 @@ void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo)
 	drm_gem_vram_kunmap_at(gbo, &gbo->kmap);
 }
 EXPORT_SYMBOL(drm_gem_vram_kunmap);
+
+/*
+ * Helpers for struct ttm_bo_driver
+ */
+
+static bool drm_is_gem_vram(struct ttm_buffer_object *bo)
+{
+	return (bo->destroy == ttm_buffer_object_destroy);
+}
+
+/**
+ * drm_gem_vram_bo_driver_evict_flags() - \
+	Implements &struct ttm_bo_driver.evict_flags
+ * @bo:	TTM buffer object. Refers to &struct drm_gem_vram_object.bo
+ * @pl:	TTM placement information.
+ */
+void drm_gem_vram_bo_driver_evict_flags(struct ttm_buffer_object *bo,
+					struct ttm_placement *pl)
+{
+	struct drm_gem_vram_object *gbo;
+
+	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	if (!drm_is_gem_vram(bo))
+		return;
+
+	gbo = drm_gem_vram_of_bo(bo);
+	drm_gem_vram_placement(gbo, TTM_PL_FLAG_SYSTEM);
+	*pl = gbo->placement;
+}
+EXPORT_SYMBOL(drm_gem_vram_bo_driver_evict_flags);
+
+/**
+ * drm_gem_vram_bo_driver_verify_access() - \
+	Implements &struct ttm_bo_driver.verify_access
+ * @bo:		TTM buffer object. Refers to &struct drm_gem_vram_object.bo
+ * @filp:	File pointer.
+ *
+ * Returns:
+ * 0 on success, or
+ * a negative errno code otherwise.
+ */
+int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
+					 struct file *filp)
+{
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_bo(bo);
+
+	return drm_vma_node_verify_access(&gbo->gem.vma_node,
+					  filp->private_data);
+}
+EXPORT_SYMBOL(drm_gem_vram_bo_driver_verify_access);
