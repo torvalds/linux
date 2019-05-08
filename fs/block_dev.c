@@ -210,7 +210,6 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	struct bio bio;
 	ssize_t ret;
 	blk_qc_t qc;
-	int i;
 	struct bvec_iter_all iter_all;
 
 	if ((pos | iov_iter_alignment(iter)) &
@@ -261,7 +260,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	}
 	__set_current_state(TASK_RUNNING);
 
-	bio_for_each_segment_all(bvec, &bio, i, iter_all) {
+	bio_for_each_segment_all(bvec, &bio, iter_all) {
 		if (should_dirty && !PageCompound(bvec->bv_page))
 			set_page_dirty_lock(bvec->bv_page);
 		if (!bio_flagged(&bio, BIO_NO_PAGE_REF))
@@ -340,9 +339,8 @@ static void blkdev_bio_end_io(struct bio *bio)
 		if (!bio_flagged(bio, BIO_NO_PAGE_REF)) {
 			struct bvec_iter_all iter_all;
 			struct bio_vec *bvec;
-			int i;
 
-			bio_for_each_segment_all(bvec, bio, i, iter_all)
+			bio_for_each_segment_all(bvec, bio, iter_all)
 				put_page(bvec->bv_page);
 		}
 		bio_put(bio);

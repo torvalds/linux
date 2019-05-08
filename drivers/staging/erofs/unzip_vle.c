@@ -846,11 +846,10 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 {
 	struct erofs_sb_info *sbi = NULL;
 	blk_status_t err = bio->bi_status;
-	unsigned int i;
 	struct bio_vec *bvec;
 	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, i, iter_all) {
+	bio_for_each_segment_all(bvec, bio, iter_all) {
 		struct page *page = bvec->bv_page;
 		bool cachemngd = false;
 
