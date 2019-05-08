@@ -164,95 +164,6 @@ do {									\
 #define log_rdma_mr(level, fmt, args...) \
 		log_rdma(level, LOG_RDMA_MR, fmt, ##args)
 
-/*
- * Destroy the transport and related RDMA and memory resources
- * Need to go through all the pending counters and make sure on one is using
- * the transport while it is destroyed
- */
-static void smbd_destroy_rdma_work(struct work_struct *work)
-{
-	struct smbd_response *response;
-	struct smbd_connection *info =
-		container_of(work, struct smbd_connection, destroy_work);
-	unsigned long flags;
-
-	log_rdma_event(INFO, "destroying qp\n");
-	ib_drain_qp(info->id->qp);
-	rdma_destroy_qp(info->id);
-
-	/* Unblock all I/O waiting on the send queue */
-	wake_up_interruptible_all(&info->wait_send_queue);
-
-	log_rdma_event(INFO, "cancelling idle timer\n");
-	cancel_delayed_work_sync(&info->idle_timer_work);
-	log_rdma_event(INFO, "cancelling send immediate work\n");
-	cancel_delayed_work_sync(&info->send_immediate_work);
-
-	log_rdma_event(INFO, "wait for all send to finish\n");
-	wait_event(info->wait_smbd_send_pending,
-		info->smbd_send_pending == 0);
-
-	log_rdma_event(INFO, "wait for all recv to finish\n");
-	wake_up_interruptible(&info->wait_reassembly_queue);
-	wait_event(info->wait_smbd_recv_pending,
-		info->smbd_recv_pending == 0);
-
-	log_rdma_event(INFO, "wait for all send posted to IB to finish\n");
-	wait_event(info->wait_send_pending,
-		atomic_read(&info->send_pending) == 0);
-	wait_event(info->wait_send_payload_pending,
-		atomic_read(&info->send_payload_pending) == 0);
-
-	log_rdma_event(INFO, "freeing mr list\n");
-	wake_up_interruptible_all(&info->wait_mr);
-	wait_event(info->wait_for_mr_cleanup,
-		atomic_read(&info->mr_used_count) == 0);
-	destroy_mr_list(info);
-
-	/* It's not posssible for upper layer to get to reassembly */
-	log_rdma_event(INFO, "drain the reassembly queue\n");
-	do {
-		spin_lock_irqsave(&info->reassembly_queue_lock, flags);
-		response = _get_first_reassembly(info);
-		if (response) {
-			list_del(&response->list);
-			spin_unlock_irqrestore(
-				&info->reassembly_queue_lock, flags);
-			put_receive_buffer(info, response);
-		} else
-			spin_unlock_irqrestore(&info->reassembly_queue_lock, flags);
-	} while (response);
-
-	info->reassembly_data_length = 0;
-
-	log_rdma_event(INFO, "free receive buffers\n");
-	wait_event(info->wait_receive_queues,
-		info->count_receive_queue + info->count_empty_packet_queue
-			== info->receive_credit_max);
-	destroy_receive_buffers(info);
-
-	ib_free_cq(info->send_cq);
-	ib_free_cq(info->recv_cq);
-	ib_dealloc_pd(info->pd);
-	rdma_destroy_id(info->id);
-
-	/* free mempools */
-	mempool_destroy(info->request_mempool);
-	kmem_cache_destroy(info->request_cache);
-
-	mempool_destroy(info->response_mempool);
-	kmem_cache_destroy(info->response_cache);
-
-	info->transport_status = SMBD_DESTROYED;
-	wake_up_all(&info->wait_destroy);
-}
-
-static int smbd_process_disconnected(struct smbd_connection *info)
-{
-	schedule_work(&info->destroy_work);
-	return 0;
-}
-
 static void smbd_disconnect_rdma_work(struct work_struct *work)
 {
 	struct smbd_connection *info =
@@ -319,7 +230,9 @@ static int smbd_conn_upcall(
 		}
 
 		info->transport_status = SMBD_DISCONNECTED;
-		smbd_process_disconnected(info);
+		wake_up_interruptible(&info->disconn_wait);
+		wake_up_interruptible(&info->wait_reassembly_queue);
+		wake_up_interruptible_all(&info->wait_send_queue);
 		break;
 
 	default:
@@ -940,7 +853,7 @@ static int smbd_create_header(struct smbd_connection *info,
 
 	if (info->transport_status != SMBD_CONNECTED) {
 		log_outgoing(ERR, "disconnected not sending\n");
-		return -ENOENT;
+		return -EAGAIN;
 	}
 	atomic_dec(&info->send_credits);
 
@@ -1066,6 +979,7 @@ static int smbd_post_send(struct smbd_connection *info,
 				wake_up(&info->wait_send_pending);
 		}
 		smbd_disconnect_rdma_connection(info);
+		rc = -EAGAIN;
 	} else
 		/* Reset timer for idle connection after packet is sent */
 		mod_delayed_work(info->workqueue, &info->idle_timer_work,
@@ -1478,17 +1392,97 @@ static void idle_connection_timer(struct work_struct *work)
 			info->keep_alive_interval*HZ);
 }
 
-/* Destroy this SMBD connection, called from upper layer */
-void smbd_destroy(struct smbd_connection *info)
+/*
+ * Destroy the transport and related RDMA and memory resources
+ * Need to go through all the pending counters and make sure on one is using
+ * the transport while it is destroyed
+ */
+void smbd_destroy(struct TCP_Server_Info *server)
 {
+	struct smbd_connection *info = server->smbd_conn;
+	struct smbd_response *response;
+	unsigned long flags;
+
+	if (!info) {
+		log_rdma_event(INFO, "rdma session already destroyed\n");
+		return;
+	}
+
 	log_rdma_event(INFO, "destroying rdma session\n");
+	if (info->transport_status != SMBD_DISCONNECTED) {
+		rdma_disconnect(server->smbd_conn->id);
+		log_rdma_event(INFO, "wait for transport being disconnected\n");
+		wait_event_interruptible(
+			info->disconn_wait,
+			info->transport_status == SMBD_DISCONNECTED);
+	}
 
-	/* Kick off the disconnection process */
-	smbd_disconnect_rdma_connection(info);
+	log_rdma_event(INFO, "destroying qp\n");
+	ib_drain_qp(info->id->qp);
+	rdma_destroy_qp(info->id);
 
-	log_rdma_event(INFO, "wait for transport being destroyed\n");
-	wait_event(info->wait_destroy,
-		info->transport_status == SMBD_DESTROYED);
+	log_rdma_event(INFO, "cancelling idle timer\n");
+	cancel_delayed_work_sync(&info->idle_timer_work);
+	log_rdma_event(INFO, "cancelling send immediate work\n");
+	cancel_delayed_work_sync(&info->send_immediate_work);
+
+	log_rdma_event(INFO, "wait for all send posted to IB to finish\n");
+	wait_event(info->wait_send_pending,
+		atomic_read(&info->send_pending) == 0);
+	wait_event(info->wait_send_payload_pending,
+		atomic_read(&info->send_payload_pending) == 0);
+
+	/* It's not posssible for upper layer to get to reassembly */
+	log_rdma_event(INFO, "drain the reassembly queue\n");
+	do {
+		spin_lock_irqsave(&info->reassembly_queue_lock, flags);
+		response = _get_first_reassembly(info);
+		if (response) {
+			list_del(&response->list);
+			spin_unlock_irqrestore(
+				&info->reassembly_queue_lock, flags);
+			put_receive_buffer(info, response);
+		} else
+			spin_unlock_irqrestore(
+				&info->reassembly_queue_lock, flags);
+	} while (response);
+	info->reassembly_data_length = 0;
+
+	log_rdma_event(INFO, "free receive buffers\n");
+	wait_event(info->wait_receive_queues,
+		info->count_receive_queue + info->count_empty_packet_queue
+			== info->receive_credit_max);
+	destroy_receive_buffers(info);
+
+	/*
+	 * For performance reasons, memory registration and deregistration
+	 * are not locked by srv_mutex. It is possible some processes are
+	 * blocked on transport srv_mutex while holding memory registration.
+	 * Release the transport srv_mutex to allow them to hit the failure
+	 * path when sending data, and then release memory registartions.
+	 */
+	log_rdma_event(INFO, "freeing mr list\n");
+	wake_up_interruptible_all(&info->wait_mr);
+	while (atomic_read(&info->mr_used_count)) {
+		mutex_unlock(&server->srv_mutex);
+		msleep(1000);
+		mutex_lock(&server->srv_mutex);
+	}
+	destroy_mr_list(info);
+
+	ib_free_cq(info->send_cq);
+	ib_free_cq(info->recv_cq);
+	ib_dealloc_pd(info->pd);
+	rdma_destroy_id(info->id);
+
+	/* free mempools */
+	mempool_destroy(info->request_mempool);
+	kmem_cache_destroy(info->request_cache);
+
+	mempool_destroy(info->response_mempool);
+	kmem_cache_destroy(info->response_cache);
+
+	info->transport_status = SMBD_DESTROYED;
 
 	destroy_workqueue(info->workqueue);
 	kfree(info);
@@ -1513,16 +1507,8 @@ int smbd_reconnect(struct TCP_Server_Info *server)
 	 */
 	if (server->smbd_conn->transport_status == SMBD_CONNECTED) {
 		log_rdma_event(INFO, "disconnecting transport\n");
-		smbd_disconnect_rdma_connection(server->smbd_conn);
+		smbd_destroy(server);
 	}
-
-	/* wait until the transport is destroyed */
-	if (!wait_event_timeout(server->smbd_conn->wait_destroy,
-		server->smbd_conn->transport_status == SMBD_DESTROYED, 5*HZ))
-		return -EAGAIN;
-
-	destroy_workqueue(server->smbd_conn->workqueue);
-	kfree(server->smbd_conn);
 
 create_conn:
 	log_rdma_event(INFO, "creating rdma session\n");
@@ -1739,12 +1725,13 @@ static struct smbd_connection *_smbd_get_connection(
 	conn_param.retry_count = SMBD_CM_RETRY;
 	conn_param.rnr_retry_count = SMBD_CM_RNR_RETRY;
 	conn_param.flow_control = 0;
-	init_waitqueue_head(&info->wait_destroy);
 
 	log_rdma_event(INFO, "connecting to IP %pI4 port %d\n",
 		&addr_in->sin_addr, port);
 
 	init_waitqueue_head(&info->conn_wait);
+	init_waitqueue_head(&info->disconn_wait);
+	init_waitqueue_head(&info->wait_reassembly_queue);
 	rc = rdma_connect(info->id, &conn_param);
 	if (rc) {
 		log_rdma_event(ERR, "rdma_connect() failed with %i\n", rc);
@@ -1768,18 +1755,10 @@ static struct smbd_connection *_smbd_get_connection(
 	}
 
 	init_waitqueue_head(&info->wait_send_queue);
-	init_waitqueue_head(&info->wait_reassembly_queue);
-
 	INIT_DELAYED_WORK(&info->idle_timer_work, idle_connection_timer);
 	INIT_DELAYED_WORK(&info->send_immediate_work, send_immediate_work);
 	queue_delayed_work(info->workqueue, &info->idle_timer_work,
 		info->keep_alive_interval*HZ);
-
-	init_waitqueue_head(&info->wait_smbd_send_pending);
-	info->smbd_send_pending = 0;
-
-	init_waitqueue_head(&info->wait_smbd_recv_pending);
-	info->smbd_recv_pending = 0;
 
 	init_waitqueue_head(&info->wait_send_pending);
 	atomic_set(&info->send_pending, 0);
@@ -1788,7 +1767,6 @@ static struct smbd_connection *_smbd_get_connection(
 	atomic_set(&info->send_payload_pending, 0);
 
 	INIT_WORK(&info->disconnect_work, smbd_disconnect_rdma_work);
-	INIT_WORK(&info->destroy_work, smbd_destroy_rdma_work);
 	INIT_WORK(&info->recv_done_work, smbd_recv_done_work);
 	INIT_WORK(&info->post_send_credits_work, smbd_post_send_credits);
 	info->new_credits_offered = 0;
@@ -1810,7 +1788,7 @@ static struct smbd_connection *_smbd_get_connection(
 
 allocate_mr_failed:
 	/* At this point, need to a full transport shutdown */
-	smbd_destroy(info);
+	smbd_destroy(server);
 	return NULL;
 
 negotiation_failed:
@@ -1882,11 +1860,6 @@ static int smbd_recv_buf(struct smbd_connection *info, char *buf,
 	int rc;
 
 again:
-	if (info->transport_status != SMBD_CONNECTED) {
-		log_read(ERR, "disconnected\n");
-		return -ENODEV;
-	}
-
 	/*
 	 * No need to hold the reassembly queue lock all the time as we are
 	 * the only one reading from the front of the queue. The transport
@@ -2000,7 +1973,12 @@ read_rfc1002_done:
 			info->transport_status != SMBD_CONNECTED);
 	/* Don't return any data if interrupted */
 	if (rc)
-		return -ENODEV;
+		return rc;
+
+	if (info->transport_status != SMBD_CONNECTED) {
+		log_read(ERR, "disconnected\n");
+		return 0;
+	}
 
 	goto again;
 }
@@ -2052,8 +2030,6 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 	unsigned int to_read, page_offset;
 	int rc;
 
-	info->smbd_recv_pending++;
-
 	if (iov_iter_rw(&msg->msg_iter) == WRITE) {
 		/* It's a bug in upper layer to get there */
 		cifs_dbg(VFS, "CIFS: invalid msg iter dir %u\n",
@@ -2084,9 +2060,6 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 	}
 
 out:
-	info->smbd_recv_pending--;
-	wake_up(&info->wait_smbd_recv_pending);
-
 	/* SMBDirect will read it all or nothing */
 	if (rc > 0)
 		msg->msg_iter.count = 0;
@@ -2099,7 +2072,8 @@ out:
  * rqst: the data to write
  * return value: 0 if successfully write, otherwise error code
  */
-int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst)
+int smbd_send(struct TCP_Server_Info *server,
+	int num_rqst, struct smb_rqst *rqst_array)
 {
 	struct smbd_connection *info = server->smbd_conn;
 	struct kvec vec;
@@ -2111,23 +2085,12 @@ int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 		info->max_send_size - sizeof(struct smbd_data_transfer);
 	struct kvec *iov;
 	int rc;
+	struct smb_rqst *rqst;
+	int rqst_idx;
 
-	info->smbd_send_pending++;
 	if (info->transport_status != SMBD_CONNECTED) {
-		rc = -ENODEV;
+		rc = -EAGAIN;
 		goto done;
-	}
-
-	/*
-	 * Skip the RFC1002 length defined in MS-SMB2 section 2.1
-	 * It is used only for TCP transport in the iov[0]
-	 * In future we may want to add a transport layer under protocol
-	 * layer so this will only be issued to TCP transport
-	 */
-
-	if (rqst->rq_iov[0].iov_len != 4) {
-		log_write(ERR, "expected the pdu length in 1st iov, but got %zu\n", rqst->rq_iov[0].iov_len);
-		return -EINVAL;
 	}
 
 	/*
@@ -2135,30 +2098,36 @@ int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	 * rq_tailsz to PAGE_SIZE when the buffer has multiple pages and
 	 * ends at page boundary
 	 */
-	buflen = smb_rqst_len(server, rqst);
+	remaining_data_length = 0;
+	for (i = 0; i < num_rqst; i++)
+		remaining_data_length += smb_rqst_len(server, &rqst_array[i]);
 
-	if (buflen + sizeof(struct smbd_data_transfer) >
+	if (remaining_data_length + sizeof(struct smbd_data_transfer) >
 		info->max_fragmented_send_size) {
 		log_write(ERR, "payload size %d > max size %d\n",
-			buflen, info->max_fragmented_send_size);
+			remaining_data_length, info->max_fragmented_send_size);
 		rc = -EINVAL;
 		goto done;
 	}
 
-	iov = &rqst->rq_iov[1];
+	rqst_idx = 0;
 
-	cifs_dbg(FYI, "Sending smb (RDMA): smb_len=%u\n", buflen);
-	for (i = 0; i < rqst->rq_nvec-1; i++)
+next_rqst:
+	rqst = &rqst_array[rqst_idx];
+	iov = rqst->rq_iov;
+
+	cifs_dbg(FYI, "Sending smb (RDMA): idx=%d smb_len=%lu\n",
+		rqst_idx, smb_rqst_len(server, rqst));
+	for (i = 0; i < rqst->rq_nvec; i++)
 		dump_smb(iov[i].iov_base, iov[i].iov_len);
 
-	remaining_data_length = buflen;
 
-	log_write(INFO, "rqst->rq_nvec=%d rqst->rq_npages=%d rq_pagesz=%d "
-		"rq_tailsz=%d buflen=%d\n",
-		rqst->rq_nvec, rqst->rq_npages, rqst->rq_pagesz,
-		rqst->rq_tailsz, buflen);
+	log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d "
+		"rq_tailsz=%d buflen=%lu\n",
+		rqst_idx, rqst->rq_nvec, rqst->rq_npages, rqst->rq_pagesz,
+		rqst->rq_tailsz, smb_rqst_len(server, rqst));
 
-	start = i = iov[0].iov_len ? 0 : 1;
+	start = i = 0;
 	buflen = 0;
 	while (true) {
 		buflen += iov[i].iov_len;
@@ -2206,14 +2175,14 @@ int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 						goto done;
 				}
 				i++;
-				if (i == rqst->rq_nvec-1)
+				if (i == rqst->rq_nvec)
 					break;
 			}
 			start = i;
 			buflen = 0;
 		} else {
 			i++;
-			if (i == rqst->rq_nvec-1) {
+			if (i == rqst->rq_nvec) {
 				/* send out all remaining vecs */
 				remaining_data_length -= buflen;
 				log_write(INFO,
@@ -2257,6 +2226,10 @@ int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 		}
 	}
 
+	rqst_idx++;
+	if (rqst_idx < num_rqst)
+		goto next_rqst;
+
 done:
 	/*
 	 * As an optimization, we don't wait for individual I/O to finish
@@ -2267,9 +2240,6 @@ done:
 
 	wait_event(info->wait_send_payload_pending,
 		atomic_read(&info->send_payload_pending) == 0);
-
-	info->smbd_send_pending--;
-	wake_up(&info->wait_smbd_send_pending);
 
 	return rc;
 }
