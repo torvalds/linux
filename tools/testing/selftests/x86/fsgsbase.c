@@ -470,7 +470,7 @@ static void test_ptrace_write_gsbase(void)
 	wait(&status);
 
 	if (WSTOPSIG(status) == SIGTRAP) {
-		unsigned long gs;
+		unsigned long gs, base;
 		unsigned long gs_offset = USER_REGS_OFFSET(gs);
 		unsigned long base_offset = USER_REGS_OFFSET(gs_base);
 
@@ -486,6 +486,7 @@ static void test_ptrace_write_gsbase(void)
 			err(1, "PTRACE_POKEUSER");
 
 		gs = ptrace(PTRACE_PEEKUSER, child, gs_offset, NULL);
+		base = ptrace(PTRACE_PEEKUSER, child, base_offset, NULL);
 
 		/*
 		 * In a non-FSGSBASE system, the nonzero selector will load
@@ -496,8 +497,14 @@ static void test_ptrace_write_gsbase(void)
 		if (gs != 0x7) {
 			nerrs++;
 			printf("[FAIL]\tGS changed to %lx\n", gs);
+		} else if (have_fsgsbase && (base != 0xFF)) {
+			nerrs++;
+			printf("[FAIL]\tGSBASE changed to %lx\n", base);
 		} else {
-			printf("[OK]\tGS remained 0x7\n");
+			printf("[OK]\tGS remained 0x7 %s");
+			if (have_fsgsbase)
+				printf("and GSBASE changed to 0xFF");
+			printf("\n");
 		}
 	}
 
