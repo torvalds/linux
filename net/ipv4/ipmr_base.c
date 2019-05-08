@@ -335,8 +335,6 @@ next_entry2:
 	}
 	spin_unlock_bh(lock);
 	err = 0;
-	e = 0;
-
 out:
 	cb->args[1] = e;
 	return err;
@@ -374,6 +372,7 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 		err = mr_table_dump(mrt, skb, cb, fill, lock, filter);
 		if (err < 0)
 			break;
+		cb->args[1] = 0;
 next_table:
 		t++;
 	}

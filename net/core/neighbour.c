@@ -31,6 +31,7 @@
 #include <linux/times.h>
 #include <net/net_namespace.h>
 #include <net/neighbour.h>
+#include <net/arp.h>
 #include <net/dst.h>
 #include <net/sock.h>
 #include <net/netevent.h>
@@ -663,6 +664,8 @@ out:
 out_tbl_unlock:
 	write_unlock_bh(&tbl->lock);
 out_neigh_release:
+	if (!exempt_from_gc)
+		atomic_dec(&tbl->gc_entries);
 	neigh_release(n);
 	goto out;
 }
@@ -2990,7 +2993,13 @@ int neigh_xmit(int index, struct net_device *dev,
 		if (!tbl)
 			goto out;
 		rcu_read_lock_bh();
-		neigh = __neigh_lookup_noref(tbl, addr, dev);
+		if (index == NEIGH_ARP_TABLE) {
+			u32 key = *((u32 *)addr);
+
+			neigh = __ipv4_neigh_lookup_noref(dev, key);
+		} else {
+			neigh = __neigh_lookup_noref(tbl, addr, dev);
+		}
 		if (!neigh)
 			neigh = __neigh_create(tbl, addr, dev, false);
 		err = PTR_ERR(neigh);
