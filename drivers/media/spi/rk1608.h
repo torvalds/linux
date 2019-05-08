@@ -14,7 +14,7 @@
 #include <linux/version.h>
 #include "rk1608_dphy.h"
 
-#define RK1608_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define RK1608_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #define RK1608_OP_TRY_MAX		3
 #define RK1608_OP_TRY_DELAY		10
