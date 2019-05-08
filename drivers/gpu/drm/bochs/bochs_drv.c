@@ -82,17 +82,12 @@ static struct drm_driver bochs_driver = {
 	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object_unlocked = bochs_gem_free_object,
+	.gem_free_object_unlocked =
+		drm_gem_vram_driver_gem_free_object_unlocked,
 	.dumb_create            = bochs_dumb_create,
-	.dumb_map_offset        = bochs_dumb_mmap_offset,
+	.dumb_map_offset        = drm_gem_vram_driver_dumb_mmap_offset,
 
-	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_pin = bochs_gem_prime_pin,
-	.gem_prime_unpin = bochs_gem_prime_unpin,
-	.gem_prime_vmap = bochs_gem_prime_vmap,
-	.gem_prime_vunmap = bochs_gem_prime_vunmap,
-	.gem_prime_mmap = bochs_gem_prime_mmap,
+	DRM_GEM_VRAM_DRIVER_PRIME,
 };
 
 /* ---------------------------------------------------------------------- */
