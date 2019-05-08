@@ -259,8 +259,10 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 static int sof_machine_check(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
 	struct snd_soc_acpi_mach *machine;
 	int ret;
+#endif
 
 	if (plat_data->machine)
 		return 0;
