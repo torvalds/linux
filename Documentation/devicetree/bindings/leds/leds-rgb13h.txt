@@ -1,0 +1,42 @@
+The device is controlled through enable gpio pin.
+gpio asserted high, enable flash strobe.
+
+Required properties:
+
+- compatible : Must be "led,rgb13h".
+- enable-gpios : Must be device tree identifier of the flash device enable pin.
+
+A discrete LED element connected to the device must be represented by a child
+node - see Documentation/devicetree/bindings/leds/common.txt.
+
+Required properties of the LED child node:
+- led-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
+- flash-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
+- flash-max-timeout-us : see Documentation/devicetree/bindings/leds/common.txt
+
+Optional properties of the LED child node:
+- label : see Documentation/devicetree/bindings/leds/common.txt
+
+Special properties:
+- rockchip,camera-module-index : indicate which camera the flash belongs to.
+- rockchip,camera-module-facing : indicate the camera facing.
+
+flash_rgb13h: flash-rgb13h {
+	compatible = "led,rgb13h";
+	label = "gpio-flash";
+	led-max-microamp = <20000>;
+	flash-max-microamp = <20000>;
+	flash-max-timeout-us = <1000000>;
+	enable-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+	rockchip,camera-module-index = <1>;
+	rockchip,camera-module-facing = "back";
+};
+
+&i2c2 {
+	...
+	ov2680@10 {
+		...
+		flash-leds = <&flash_rgb13h>;
+		...
+	};
+};
