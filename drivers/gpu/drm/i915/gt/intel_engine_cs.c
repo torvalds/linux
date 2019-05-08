@@ -721,6 +721,7 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 		goto out_timeline;
 
 	dw = engine->emit_fini_breadcrumb(&frame->rq, frame->cs) - frame->cs;
+	GEM_BUG_ON(dw & 1); /* RING_TAIL must be qword aligned */
 
 	i915_timeline_unpin(&frame->timeline);
 
@@ -1444,9 +1445,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "*** WEDGED ***\n");
 
 	drm_printf(m, "\tAwake? %d\n", atomic_read(&engine->wakeref.count));
-	drm_printf(m, "\tHangcheck %x:%x [%d ms]\n",
-		   engine->hangcheck.last_seqno,
-		   engine->hangcheck.next_seqno,
+	drm_printf(m, "\tHangcheck: %d ms ago\n",
 		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp));
 	drm_printf(m, "\tReset count: %d (global %d)\n",
 		   i915_reset_engine_count(error, engine),

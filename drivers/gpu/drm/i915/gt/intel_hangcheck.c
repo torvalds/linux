@@ -28,7 +28,7 @@
 struct hangcheck {
 	u64 acthd;
 	u32 ring;
-	u32 seqno;
+	u32 head;
 	enum intel_engine_hangcheck_action action;
 	unsigned long action_timestamp;
 	int deadlock;
@@ -134,16 +134,16 @@ static void hangcheck_load_sample(struct intel_engine_cs *engine,
 				  struct hangcheck *hc)
 {
 	hc->acthd = intel_engine_get_active_head(engine);
-	hc->seqno = intel_engine_get_hangcheck_seqno(engine);
 	hc->ring = ENGINE_READ(engine, RING_START);
+	hc->head = ENGINE_READ(engine, RING_HEAD);
 }
 
 static void hangcheck_store_sample(struct intel_engine_cs *engine,
 				   const struct hangcheck *hc)
 {
 	engine->hangcheck.acthd = hc->acthd;
-	engine->hangcheck.last_seqno = hc->seqno;
 	engine->hangcheck.last_ring = hc->ring;
+	engine->hangcheck.last_head = hc->head;
 }
 
 static enum intel_engine_hangcheck_action
@@ -156,7 +156,7 @@ hangcheck_get_action(struct intel_engine_cs *engine,
 	if (engine->hangcheck.last_ring != hc->ring)
 		return ENGINE_ACTIVE_SEQNO;
 
-	if (engine->hangcheck.last_seqno != hc->seqno)
+	if (engine->hangcheck.last_head != hc->head)
 		return ENGINE_ACTIVE_SEQNO;
 
 	return engine_stuck(engine, hc->acthd);

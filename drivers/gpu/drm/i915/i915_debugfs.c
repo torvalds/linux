@@ -1288,7 +1288,6 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
 	u64 acthd[I915_NUM_ENGINES];
-	u32 seqno[I915_NUM_ENGINES];
 	struct intel_instdone instdone;
 	intel_wakeref_t wakeref;
 	enum intel_engine_id id;
@@ -1305,10 +1304,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	}
 
 	with_intel_runtime_pm(dev_priv, wakeref) {
-		for_each_engine(engine, dev_priv, id) {
+		for_each_engine(engine, dev_priv, id)
 			acthd[id] = intel_engine_get_active_head(engine);
-			seqno[id] = intel_engine_get_hangcheck_seqno(engine);
-		}
 
 		intel_engine_get_instdone(dev_priv->engine[RCS0], &instdone);
 	}
@@ -1325,11 +1322,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	seq_printf(m, "GT active? %s\n", yesno(dev_priv->gt.awake));
 
 	for_each_engine(engine, dev_priv, id) {
-		seq_printf(m, "%s:\n", engine->name);
-		seq_printf(m, "\tseqno = %x [current %x, last %x], %dms ago\n",
-			   engine->hangcheck.last_seqno,
-			   seqno[id],
-			   engine->hangcheck.next_seqno,
+		seq_printf(m, "%s: %d ms ago\n",
+			   engine->name,
 			   jiffies_to_msecs(jiffies -
 					    engine->hangcheck.action_timestamp));
 

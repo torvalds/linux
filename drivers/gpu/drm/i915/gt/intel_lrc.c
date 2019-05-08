@@ -2275,12 +2275,6 @@ static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 				  request->timeline->hwsp_offset,
 				  0);
 
-	cs = gen8_emit_ggtt_write(cs,
-				  intel_engine_next_hangcheck_seqno(request->engine),
-				  I915_GEM_HWS_HANGCHECK_ADDR,
-				  MI_FLUSH_DW_STORE_INDEX);
-
-
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 
@@ -2292,19 +2286,17 @@ static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 
 static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 {
+	/* XXX flush+write+CS_STALL all in one upsets gem_concurrent_blt:kbl */
 	cs = gen8_emit_ggtt_write_rcs(cs,
 				      request->fence.seqno,
 				      request->timeline->hwsp_offset,
 				      PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
 				      PIPE_CONTROL_DEPTH_CACHE_FLUSH |
-				      PIPE_CONTROL_DC_FLUSH_ENABLE |
-				      PIPE_CONTROL_FLUSH_ENABLE |
-				      PIPE_CONTROL_CS_STALL);
-
-	cs = gen8_emit_ggtt_write_rcs(cs,
-				      intel_engine_next_hangcheck_seqno(request->engine),
-				      I915_GEM_HWS_HANGCHECK_ADDR,
-				      PIPE_CONTROL_STORE_DATA_INDEX);
+				      PIPE_CONTROL_DC_FLUSH_ENABLE);
+	cs = gen8_emit_pipe_control(cs,
+				    PIPE_CONTROL_FLUSH_ENABLE |
+				    PIPE_CONTROL_CS_STALL,
+				    0);
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;

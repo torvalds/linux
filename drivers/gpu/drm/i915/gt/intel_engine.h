@@ -215,8 +215,6 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
  */
 #define I915_GEM_HWS_PREEMPT		0x32
 #define I915_GEM_HWS_PREEMPT_ADDR	(I915_GEM_HWS_PREEMPT * sizeof(u32))
-#define I915_GEM_HWS_HANGCHECK		0x34
-#define I915_GEM_HWS_HANGCHECK_ADDR	(I915_GEM_HWS_HANGCHECK * sizeof(u32))
 #define I915_GEM_HWS_SEQNO		0x40
 #define I915_GEM_HWS_SEQNO_ADDR		(I915_GEM_HWS_SEQNO * sizeof(u32))
 #define I915_GEM_HWS_SCRATCH		0x80
@@ -547,18 +545,5 @@ static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
 }
 
 #endif
-
-static inline u32
-intel_engine_next_hangcheck_seqno(struct intel_engine_cs *engine)
-{
-	return engine->hangcheck.next_seqno =
-		next_pseudo_random32(engine->hangcheck.next_seqno);
-}
-
-static inline u32
-intel_engine_get_hangcheck_seqno(struct intel_engine_cs *engine)
-{
-	return intel_read_status_page(engine, I915_GEM_HWS_HANGCHECK);
-}
 
 #endif /* _INTEL_RINGBUFFER_H_ */
