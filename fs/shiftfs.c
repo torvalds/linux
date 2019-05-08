@@ -1808,6 +1808,33 @@ static inline bool passthrough_is_subset(int old_flags, int new_flags)
 	return true;
 }
 
+static int shiftfs_super_check_flags(unsigned long old_flags,
+				     unsigned long new_flags)
+{
+	if ((old_flags & SB_RDONLY) && !(new_flags & SB_RDONLY))
+		return -EPERM;
+
+	if ((old_flags & SB_NOSUID) && !(new_flags & SB_NOSUID))
+		return -EPERM;
+
+	if ((old_flags & SB_NODEV) && !(new_flags & SB_NODEV))
+		return -EPERM;
+
+	if ((old_flags & SB_NOEXEC) && !(new_flags & SB_NOEXEC))
+		return -EPERM;
+
+	if ((old_flags & SB_NOATIME) && !(new_flags & SB_NOATIME))
+		return -EPERM;
+
+	if ((old_flags & SB_NODIRATIME) && !(new_flags & SB_NODIRATIME))
+		return -EPERM;
+
+	if (!(old_flags & SB_POSIXACL) && (new_flags & SB_POSIXACL))
+		return -EPERM;
+
+	return 0;
+}
+
 static int shiftfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	int err;
@@ -1815,6 +1842,10 @@ static int shiftfs_remount(struct super_block *sb, int *flags, char *data)
 	struct shiftfs_super_info *info = sb->s_fs_info;
 
 	err = shiftfs_parse_mount_options(&new, data);
+	if (err)
+		return err;
+
+	err = shiftfs_super_check_flags(sb->s_flags, *flags);
 	if (err)
 		return err;
 
@@ -1846,6 +1877,16 @@ struct shiftfs_data {
 	void *data;
 	const char *path;
 };
+
+static void shiftfs_super_force_flags(struct super_block *sb,
+				      unsigned long lower_flags)
+{
+	sb->s_flags |= lower_flags & (SB_RDONLY | SB_NOSUID | SB_NODEV |
+				      SB_NOEXEC | SB_NOATIME | SB_NODIRATIME);
+
+	if (!(lower_flags & SB_POSIXACL))
+		sb->s_flags &= ~SB_POSIXACL;
+}
 
 static int shiftfs_fill_super(struct super_block *sb, void *raw_data,
 			      int silent)
@@ -1888,6 +1929,8 @@ static int shiftfs_fill_super(struct super_block *sb, void *raw_data,
 		goto out_put_path;
 	}
 
+	sb->s_flags |= SB_POSIXACL;
+
 	if (sbinfo->mark) {
 		struct super_block *lower_sb = path.mnt->mnt_sb;
 
@@ -1903,6 +1946,8 @@ static int shiftfs_fill_super(struct super_block *sb, void *raw_data,
 		 * privileges
 		 */
 		sb->s_iflags = SB_I_NOEXEC;
+
+		shiftfs_super_force_flags(sb, lower_sb->s_flags);
 
 		/*
 		 * Handle nesting of shiftfs mounts by referring this mark
@@ -1972,6 +2017,7 @@ static int shiftfs_fill_super(struct super_block *sb, void *raw_data,
 		 * passthrough settings.
 		 */
 		sbinfo->passthrough_mark = sbinfo_mp->passthrough;
+		shiftfs_super_force_flags(sb, path.mnt->mnt_sb->s_flags);
 	}
 
 	sb->s_stack_depth = dentry->d_sb->s_stack_depth + 1;
@@ -1995,7 +2041,6 @@ static int shiftfs_fill_super(struct super_block *sb, void *raw_data,
 	sb->s_op = &shiftfs_super_ops;
 	sb->s_xattr = shiftfs_xattr_handlers;
 	sb->s_d_op = &shiftfs_dentry_ops;
-	sb->s_flags |= SB_POSIXACL;
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		err = -ENOMEM;
