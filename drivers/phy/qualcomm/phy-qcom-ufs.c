@@ -147,6 +147,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_generic_probe);
 
+static int ufs_qcom_phy_get_reset(struct ufs_qcom_phy *phy_common)
+{
+	struct reset_control *reset;
+
+	if (phy_common->ufs_reset)
+		return 0;
+
+	reset = devm_reset_control_get_exclusive_by_index(phy_common->dev, 0);
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	phy_common->ufs_reset = reset;
+	return 0;
+}
+
 static int __ufs_qcom_phy_clk_get(struct device *dev,
 			 const char *name, struct clk **clk_out, bool err_print)
 {
@@ -528,22 +543,37 @@ int ufs_qcom_phy_power_on(struct phy *generic_phy)
 {
 	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
 	struct device *dev = phy_common->dev;
+	bool is_rate_B = false;
 	int err;
 
-	if (phy_common->is_powered_on)
-		return 0;
+	err = ufs_qcom_phy_get_reset(phy_common);
+	if (err)
+		return err;
 
-	if (!phy_common->is_started) {
-		err = ufs_qcom_phy_start_serdes(phy_common);
-		if (err)
-			return err;
+	err = reset_control_assert(phy_common->ufs_reset);
+	if (err)
+		return err;
 
-		err = ufs_qcom_phy_is_pcs_ready(phy_common);
-		if (err)
-			return err;
+	if (phy_common->mode == PHY_MODE_UFS_HS_B)
+		is_rate_B = true;
 
-		phy_common->is_started = true;
+	err = phy_common->phy_spec_ops->calibrate(phy_common, is_rate_B);
+	if (err)
+		return err;
+
+	err = reset_control_deassert(phy_common->ufs_reset);
+	if (err) {
+		dev_err(dev, "Failed to assert UFS PHY reset");
+		return err;
 	}
+
+	err = ufs_qcom_phy_start_serdes(phy_common);
+	if (err)
+		return err;
+
+	err = ufs_qcom_phy_is_pcs_ready(phy_common);
+	if (err)
+		return err;
 
 	err = ufs_qcom_phy_enable_vreg(dev, &phy_common->vdda_phy);
 	if (err) {
@@ -587,7 +617,6 @@ int ufs_qcom_phy_power_on(struct phy *generic_phy)
 		}
 	}
 
-	phy_common->is_powered_on = true;
 	goto out;
 
 out_disable_ref_clk:
@@ -607,9 +636,6 @@ int ufs_qcom_phy_power_off(struct phy *generic_phy)
 {
 	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
 
-	if (!phy_common->is_powered_on)
-		return 0;
-
 	phy_common->phy_spec_ops->power_control(phy_common, false);
 
 	if (phy_common->vddp_ref_clk.reg)
@@ -620,8 +646,7 @@ int ufs_qcom_phy_power_off(struct phy *generic_phy)
 
 	ufs_qcom_phy_disable_vreg(phy_common->dev, &phy_common->vdda_pll);
 	ufs_qcom_phy_disable_vreg(phy_common->dev, &phy_common->vdda_phy);
-	phy_common->is_powered_on = false;
-
+	reset_control_assert(phy_common->ufs_reset);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_power_off);
