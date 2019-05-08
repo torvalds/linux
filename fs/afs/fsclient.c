@@ -468,7 +468,9 @@ int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
 	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -662,7 +664,8 @@ static int afs_fs_fetch_data64(struct afs_fs_cursor *fc, struct afs_read *req)
 	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -709,7 +712,8 @@ int afs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
 	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -828,14 +832,16 @@ int afs_fs_create(struct afs_fs_cursor *fc,
 	*bp++ = 0; /* segment size */
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &vnode->fid, name);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
- * deliver reply data to an FS.RemoveFile or FS.RemoveDir
+ * Deliver reply data to any operation that returns file status and volume
+ * sync.
  */
-static int afs_deliver_fs_remove(struct afs_call *call)
+static int afs_deliver_fs_status_and_vol(struct afs_call *call)
 {
 	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
@@ -865,14 +871,14 @@ static int afs_deliver_fs_remove(struct afs_call *call)
 static const struct afs_call_type afs_RXFSRemoveFile = {
 	.name		= "FS.RemoveFile",
 	.op		= afs_FS_RemoveFile,
-	.deliver	= afs_deliver_fs_remove,
+	.deliver	= afs_deliver_fs_status_and_vol,
 	.destructor	= afs_flat_call_destructor,
 };
 
 static const struct afs_call_type afs_RXFSRemoveDir = {
 	.name		= "FS.RemoveDir",
 	.op		= afs_FS_RemoveDir,
-	.deliver	= afs_deliver_fs_remove,
+	.deliver	= afs_deliver_fs_status_and_vol,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -923,8 +929,9 @@ int afs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	}
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &dvnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1015,8 +1022,9 @@ int afs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	*bp++ = htonl(vnode->fid.unique);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &vnode->fid, name);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1129,8 +1137,9 @@ int afs_fs_symlink(struct afs_fs_cursor *fc,
 	*bp++ = 0; /* segment size */
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call1(call, &vnode->fid, name);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1247,8 +1256,9 @@ int afs_fs_rename(struct afs_fs_cursor *fc,
 	}
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &orig_dvnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_call2(call, &orig_dvnode->fid, orig_name, new_name);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1352,7 +1362,8 @@ static int afs_fs_store_data64(struct afs_fs_cursor *fc,
 	*bp++ = htonl((u32) i_size);
 
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1428,7 +1439,8 @@ int afs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1526,7 +1538,8 @@ static int afs_fs_setattr_size64(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1572,7 +1585,8 @@ static int afs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1616,7 +1630,8 @@ int afs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1800,7 +1815,8 @@ int afs_fs_get_volume_status(struct afs_fs_cursor *fc,
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1832,6 +1848,7 @@ static const struct afs_call_type afs_RXFSSetLock = {
 	.name		= "FS.SetLock",
 	.op		= afs_FS_SetLock,
 	.deliver	= afs_deliver_fs_xxxx_lock,
+	.done		= afs_lock_op_done,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1842,6 +1859,7 @@ static const struct afs_call_type afs_RXFSExtendLock = {
 	.name		= "FS.ExtendLock",
 	.op		= afs_FS_ExtendLock,
 	.deliver	= afs_deliver_fs_xxxx_lock,
+	.done		= afs_lock_op_done,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1876,6 +1894,7 @@ int afs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
+	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1886,8 +1905,9 @@ int afs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
 	*bp++ = htonl(type);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	trace_afs_make_fs_calli(call, &vnode->fid, type);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1911,6 +1931,7 @@ int afs_fs_extend_lock(struct afs_fs_cursor *fc)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
+	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1921,7 +1942,8 @@ int afs_fs_extend_lock(struct afs_fs_cursor *fc)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -1955,7 +1977,8 @@ int afs_fs_release_lock(struct afs_fs_cursor *fc)
 
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -2000,7 +2023,8 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
 	*bp++ = htonl(FSGIVEUPALLCALLBACKS);
 
 	/* Can't take a ref on server */
-	return afs_make_call(ac, call, GFP_NOFS, false);
+	afs_make_call(ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, ac);
 }
 
 /*
@@ -2070,12 +2094,11 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
  * Probe a fileserver for the capabilities that it supports.  This can
  * return up to 196 words.
  */
-int afs_fs_get_capabilities(struct afs_net *net,
-			    struct afs_server *server,
-			    struct afs_addr_cursor *ac,
-			    struct key *key,
-			    unsigned int server_index,
-			    bool async)
+struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
+					 struct afs_server *server,
+					 struct afs_addr_cursor *ac,
+					 struct key *key,
+					 unsigned int server_index)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -2084,13 +2107,14 @@ int afs_fs_get_capabilities(struct afs_net *net,
 
 	call = afs_alloc_flat_call(net, &afs_RXFSGetCapabilities, 1 * 4, 16 * 4);
 	if (!call)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	call->key = key;
 	call->reply[0] = afs_get_server(server);
 	call->reply[1] = (void *)(long)server_index;
 	call->upgrade = true;
 	call->want_reply_time = true;
+	call->async = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2098,7 +2122,8 @@ int afs_fs_get_capabilities(struct afs_net *net,
 
 	/* Can't take a ref on server */
 	trace_afs_make_fs_call(call, NULL);
-	return afs_make_call(ac, call, GFP_NOFS, async);
+	afs_make_call(ac, call, GFP_NOFS);
+	return call;
 }
 
 /*
@@ -2185,7 +2210,8 @@ int afs_fs_fetch_status(struct afs_fs_cursor *fc,
 	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, fid);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }
 
 /*
@@ -2370,5 +2396,180 @@ int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &fids[0]);
-	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+	afs_make_call(&fc->ac, call, GFP_NOFS);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
+}
+
+/*
+ * deliver reply data to an FS.FetchACL
+ */
+static int afs_deliver_fs_fetch_acl(struct afs_call *call)
+{
+	struct afs_vnode *vnode = call->reply[1];
+	struct afs_acl *acl;
+	const __be32 *bp;
+	unsigned int size;
+	int ret;
+
+	_enter("{%u}", call->unmarshall);
+
+	switch (call->unmarshall) {
+	case 0:
+		afs_extract_to_tmp(call);
+		call->unmarshall++;
+
+		/* extract the returned data length */
+	case 1:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		size = call->count2 = ntohl(call->tmp);
+		size = round_up(size, 4);
+
+		acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
+		if (!acl)
+			return -ENOMEM;
+		call->reply[0] = acl;
+		acl->size = call->count2;
+		afs_extract_begin(call, acl->data, size);
+		call->unmarshall++;
+
+		/* extract the returned data */
+	case 2:
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		afs_extract_to_buf(call, (21 + 6) * 4);
+		call->unmarshall++;
+
+		/* extract the metadata */
+	case 3:
+		ret = afs_extract_data(call, false);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer;
+		ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+					&vnode->status.data_version, NULL);
+		if (ret < 0)
+			return ret;
+		xdr_decode_AFSVolSync(&bp, call->reply[2]);
+
+		call->unmarshall++;
+
+	case 4:
+		break;
+	}
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+static void afs_destroy_fs_fetch_acl(struct afs_call *call)
+{
+	kfree(call->reply[0]);
+	afs_flat_call_destructor(call);
+}
+
+/*
+ * FS.FetchACL operation type
+ */
+static const struct afs_call_type afs_RXFSFetchACL = {
+	.name		= "FS.FetchACL",
+	.op		= afs_FS_FetchACL,
+	.deliver	= afs_deliver_fs_fetch_acl,
+	.destructor	= afs_destroy_fs_fetch_acl,
+};
+
+/*
+ * Fetch the ACL for a file.
+ */
+struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *fc)
+{
+	struct afs_vnode *vnode = fc->vnode;
+	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
+	__be32 *bp;
+
+	_enter(",%x,{%llx:%llu},,",
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+
+	call = afs_alloc_flat_call(net, &afs_RXFSFetchACL, 16, (21 + 6) * 4);
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	call->key = fc->key;
+	call->reply[0] = NULL;
+	call->reply[1] = vnode;
+	call->reply[2] = NULL; /* volsync */
+	call->ret_reply0 = true;
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp[0] = htonl(FSFETCHACL);
+	bp[1] = htonl(vnode->fid.vid);
+	bp[2] = htonl(vnode->fid.vnode);
+	bp[3] = htonl(vnode->fid.unique);
+
+	call->cb_break = fc->cb_break;
+	afs_use_fs_server(call, fc->cbi);
+	trace_afs_make_fs_call(call, &vnode->fid);
+	afs_make_call(&fc->ac, call, GFP_KERNEL);
+	return (struct afs_acl *)afs_wait_for_call_to_complete(call, &fc->ac);
+}
+
+/*
+ * FS.StoreACL operation type
+ */
+static const struct afs_call_type afs_RXFSStoreACL = {
+	.name		= "FS.StoreACL",
+	.op		= afs_FS_StoreACL,
+	.deliver	= afs_deliver_fs_status_and_vol,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Fetch the ACL for a file.
+ */
+int afs_fs_store_acl(struct afs_fs_cursor *fc, const struct afs_acl *acl)
+{
+	struct afs_vnode *vnode = fc->vnode;
+	struct afs_call *call;
+	struct afs_net *net = afs_v2net(vnode);
+	size_t size;
+	__be32 *bp;
+
+	_enter(",%x,{%llx:%llu},,",
+	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+
+	size = round_up(acl->size, 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSStoreACL,
+				   5 * 4 + size, (21 + 6) * 4);
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return -ENOMEM;
+	}
+
+	call->key = fc->key;
+	call->reply[0] = vnode;
+	call->reply[2] = NULL; /* volsync */
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp[0] = htonl(FSSTOREACL);
+	bp[1] = htonl(vnode->fid.vid);
+	bp[2] = htonl(vnode->fid.vnode);
+	bp[3] = htonl(vnode->fid.unique);
+	bp[4] = htonl(acl->size);
+	memcpy(&bp[5], acl->data, acl->size);
+	if (acl->size != size)
+		memset((void *)&bp[5] + acl->size, 0, size - acl->size);
+
+	trace_afs_make_fs_call(call, &vnode->fid);
+	afs_make_call(&fc->ac, call, GFP_KERNEL);
+	return afs_wait_for_call_to_complete(call, &fc->ac);
 }

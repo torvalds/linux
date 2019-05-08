@@ -36,11 +36,24 @@
 struct pagevec;
 struct afs_call;
 
+/*
+ * Partial file-locking emulation mode.  (The problem being that AFS3 only
+ * allows whole-file locks and no upgrading/downgrading).
+ */
+enum afs_flock_mode {
+	afs_flock_mode_unset,
+	afs_flock_mode_local,	/* Local locking only */
+	afs_flock_mode_openafs,	/* Don't get server lock for a partial lock */
+	afs_flock_mode_strict,	/* Always get a server lock for a partial lock */
+	afs_flock_mode_write,	/* Get an exclusive server lock for a partial lock */
+};
+
 struct afs_fs_context {
 	bool			force;		/* T to force cell type */
 	bool			autocell;	/* T if set auto mount operation */
 	bool			dyn_root;	/* T if dynamic root */
 	bool			no_cell;	/* T if the source is "none" (for dynroot) */
+	enum afs_flock_mode	flock_mode;	/* Partial file-locking emulation mode */
 	afs_voltype_t		type;		/* type of volume requested */
 	unsigned int		volnamesz;	/* size of volume name */
 	const char		*volname;	/* name of volume to mount */
@@ -221,6 +234,7 @@ struct afs_super_info {
 	struct net		*net_ns;	/* Network namespace */
 	struct afs_cell		*cell;		/* The cell in which the volume resides */
 	struct afs_volume	*volume;	/* volume record */
+	enum afs_flock_mode	flock_mode:8;	/* File locking emulation mode */
 	bool			dyn_root;	/* True if dynamic root */
 };
 
@@ -599,6 +613,7 @@ enum afs_lock_state {
 	AFS_VNODE_LOCK_EXTENDING,	/* We're extending a lock on the server */
 	AFS_VNODE_LOCK_NEED_UNLOCK,	/* We need to unlock on the server */
 	AFS_VNODE_LOCK_UNLOCKING,	/* We're telling the server to unlock */
+	AFS_VNODE_LOCK_DELETED,		/* The vnode has been deleted whilst we have a lock */
 };
 
 /*
@@ -620,6 +635,8 @@ struct afs_vnode {
 	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
 	struct rw_semaphore	validate_lock;	/* lock for validating this vnode */
+	struct rw_semaphore	rmdir_lock;	/* Lock for rmdir vs sillyrename */
+	struct key		*silly_key;	/* Silly rename key */
 	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
@@ -638,6 +655,7 @@ struct afs_vnode {
 	struct list_head	granted_locks;	/* locks granted on this file */
 	struct delayed_work	lock_work;	/* work to be done in locking */
 	struct key		*lock_key;	/* Key to be used in lock ops */
+	ktime_t			locked_at;	/* Time at which lock obtained */
 	enum afs_lock_state	lock_state : 8;
 	afs_lock_type_t		lock_type : 8;
 
@@ -864,6 +882,7 @@ extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
 extern void afs_d_release(struct dentry *);
+extern int afs_dir_remove_link(struct dentry *, struct key *, unsigned long, unsigned long);
 
 /*
  * dir_edit.c
@@ -871,6 +890,13 @@ extern void afs_d_release(struct dentry *);
 extern void afs_edit_dir_add(struct afs_vnode *, struct qstr *, struct afs_fid *,
 			     enum afs_edit_dir_reason);
 extern void afs_edit_dir_remove(struct afs_vnode *, struct qstr *, enum afs_edit_dir_reason);
+
+/*
+ * dir_silly.c
+ */
+extern int afs_sillyrename(struct afs_vnode *, struct afs_vnode *,
+			   struct dentry *, struct key *);
+extern int afs_silly_iput(struct dentry *, struct inode *);
 
 /*
  * dynroot.c
@@ -905,6 +931,7 @@ extern void afs_put_read(struct afs_read *);
  */
 extern struct workqueue_struct *afs_lock_manager;
 
+extern void afs_lock_op_done(struct afs_call *);
 extern void afs_lock_work(struct work_struct *);
 extern void afs_lock_may_be_available(struct afs_vnode *);
 extern int afs_lock(struct file *, int, struct file_lock *);
@@ -939,8 +966,9 @@ extern int afs_fs_extend_lock(struct afs_fs_cursor *);
 extern int afs_fs_release_lock(struct afs_fs_cursor *);
 extern int afs_fs_give_up_all_callbacks(struct afs_net *, struct afs_server *,
 					struct afs_addr_cursor *, struct key *);
-extern int afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
-				   struct afs_addr_cursor *, struct key *, unsigned int, bool);
+extern struct afs_call *afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
+						struct afs_addr_cursor *, struct key *,
+						unsigned int);
 extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
 				     struct afs_fid *, struct afs_file_status *,
 				     struct afs_callback *, unsigned int,
@@ -948,6 +976,14 @@ extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
 extern int afs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
 			       struct afs_fid *, struct afs_file_status *,
 			       struct afs_callback *, struct afs_volsync *);
+
+struct afs_acl {
+	u32	size;
+	u8	data[];
+};
+
+extern struct afs_acl *afs_fs_fetch_acl(struct afs_fs_cursor *);
+extern int afs_fs_store_acl(struct afs_fs_cursor *, const struct afs_acl *);
 
 /*
  * fs_probe.c
@@ -965,7 +1001,8 @@ extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
 extern struct inode *afs_iget(struct super_block *, struct key *,
 			      struct afs_fid *, struct afs_file_status *,
 			      struct afs_callback *,
-			      struct afs_cb_interest *);
+			      struct afs_cb_interest *,
+			      struct afs_vnode *);
 extern void afs_zap_data(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
 extern int afs_getattr(const struct path *, struct kstat *, u32, unsigned int);
@@ -1073,7 +1110,8 @@ extern int __net_init afs_open_socket(struct afs_net *);
 extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
-extern long afs_make_call(struct afs_addr_cursor *, struct afs_call *, gfp_t, bool);
+extern void afs_make_call(struct afs_addr_cursor *, struct afs_call *, gfp_t);
+extern long afs_wait_for_call_to_complete(struct afs_call *, struct afs_addr_cursor *);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
 					    size_t, size_t);
@@ -1218,8 +1256,8 @@ extern void afs_fs_exit(void);
 extern struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *,
 							 const char *, int);
 extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *, const uuid_t *);
-extern int afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *, struct key *,
-				   struct afs_vlserver *, unsigned int, bool);
+extern struct afs_call *afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *,
+						struct key *, struct afs_vlserver *, unsigned int);
 extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *, const uuid_t *);
 
 /*
@@ -1332,6 +1370,20 @@ extern int yfs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
 				     struct afs_fid *, struct afs_file_status *,
 				     struct afs_callback *, unsigned int,
 				     struct afs_volsync *);
+
+struct yfs_acl {
+	struct afs_acl	*acl;		/* Dir/file/symlink ACL */
+	struct afs_acl	*vol_acl;	/* Whole volume ACL */
+	u32		inherit_flag;	/* True if ACL is inherited from parent dir */
+	u32		num_cleaned;	/* Number of ACEs removed due to subject removal */
+	unsigned int	flags;
+#define YFS_ACL_WANT_ACL	0x01	/* Set if caller wants ->acl */
+#define YFS_ACL_WANT_VOL_ACL	0x02	/* Set if caller wants ->vol_acl */
+};
+
+extern void yfs_free_opaque_acl(struct yfs_acl *);
+extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *, unsigned int);
+extern int yfs_fs_store_opaque_acl2(struct afs_fs_cursor *, const struct afs_acl *);
 
 /*
  * Miscellaneous inline functions.

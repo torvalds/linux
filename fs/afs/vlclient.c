@@ -167,7 +167,8 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 		memset((void *)bp + volnamesz, 0, padsz);
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_vldb_entry *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
+	afs_make_call(&vc->ac, call, GFP_KERNEL);
+	return (struct afs_vldb_entry *)afs_wait_for_call_to_complete(call, &vc->ac);
 }
 
 /*
@@ -306,7 +307,8 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_addr_list *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
+	afs_make_call(&vc->ac, call, GFP_KERNEL);
+	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
 }
 
 /*
@@ -380,12 +382,11 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
  * We use this to probe for service upgrade to determine what the server at the
  * other end supports.
  */
-int afs_vl_get_capabilities(struct afs_net *net,
-			    struct afs_addr_cursor *ac,
-			    struct key *key,
-			    struct afs_vlserver *server,
-			    unsigned int server_index,
-			    bool async)
+struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
+					 struct afs_addr_cursor *ac,
+					 struct key *key,
+					 struct afs_vlserver *server,
+					 unsigned int server_index)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -394,13 +395,14 @@ int afs_vl_get_capabilities(struct afs_net *net,
 
 	call = afs_alloc_flat_call(net, &afs_RXVLGetCapabilities, 1 * 4, 16 * 4);
 	if (!call)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	call->key = key;
 	call->reply[0] = afs_get_vlserver(server);
 	call->reply[1] = (void *)(long)server_index;
 	call->upgrade = true;
 	call->want_reply_time = true;
+	call->async = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -408,7 +410,8 @@ int afs_vl_get_capabilities(struct afs_net *net,
 
 	/* Can't take a ref on server */
 	trace_afs_make_vl_call(call);
-	return afs_make_call(ac, call, GFP_KERNEL, async);
+	afs_make_call(ac, call, GFP_KERNEL);
+	return call;
 }
 
 /*
@@ -651,5 +654,6 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	memcpy(bp, uuid, sizeof(*uuid)); /* Type opr_uuid */
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_addr_list *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
+	afs_make_call(&vc->ac, call, GFP_KERNEL);
+	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
 }
