@@ -373,6 +373,7 @@ bool dc_stream_add_writeback(struct dc *dc,
 {
 	bool isDrc = false;
 	int i = 0;
+	struct dwbc *dwb;
 
 	if (stream == NULL) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -391,7 +392,8 @@ bool dc_stream_add_writeback(struct dc *dc,
 
 	wb_info->dwb_params.out_transfer_func = stream->out_transfer_func;
 
-
+	dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+	dwb->dwb_is_drc = false;
 
 	/* recalculate and apply DML parameters */
 

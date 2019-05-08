@@ -127,6 +127,7 @@ struct dwbc {
 	enum dc_transfer_func_predefined tf;
 	enum dc_color_space output_color_space;
 	bool dwb_is_efc_transition;
+	bool dwb_is_drc;
 	int wb_src_plane_inst;/*hubp, mpcc, inst*/
 	bool update_privacymask;
 	uint32_t mask_id;

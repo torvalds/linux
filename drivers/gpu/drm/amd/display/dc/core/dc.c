@@ -1516,6 +1516,11 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 		if (stream_update->dpms_off)
 			return UPDATE_TYPE_FULL;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		if (stream_update->wb_update)
+			return UPDATE_TYPE_FULL;
+#endif
 	}
 
 	for (i = 0 ; i < surface_count; i++) {
