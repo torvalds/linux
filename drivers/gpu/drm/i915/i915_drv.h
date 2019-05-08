@@ -3375,4 +3375,15 @@ static inline u32 i915_scratch_offset(const struct drm_i915_private *i915)
 	return i915_ggtt_offset(i915->gt.scratch);
 }
 
+static inline void add_taint_for_CI(unsigned int taint)
+{
+	/*
+	 * The system is "ok", just about surviving for the user, but
+	 * CI results are now unreliable as the HW is very suspect.
+	 * CI checks the taint state after every test and will reboot
+	 * the machine if the kernel is tainted.
+	 */
+	add_taint(taint, LOCKDEP_STILL_OK);
+}
+
 #endif
