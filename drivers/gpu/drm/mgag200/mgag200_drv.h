@@ -17,14 +17,11 @@
 
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_memory.h>
-#include <drm/ttm/ttm_module.h>
 
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
+
+#include <drm/drm_vram_mm_helper.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -211,10 +208,6 @@ struct mga_device {
 	int bpp_shifts[4];
 
 	int fb_mtrr;
-
-	struct {
-		struct ttm_bo_device bdev;
-	} ttm;
 
 	/* SE model number stored in reg 0x1e24 */
 	u32 unique_rev_id;
