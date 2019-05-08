@@ -35,25 +35,6 @@ config SND_SOC_SOF_ACPI
 	  Say Y if you need this option
 	  If unsure select "N".
 
-config SND_SOC_SOF_SPI
-	tristate "SOF SPI support"
-	select SPI
-	select SPI_MASTER
-	select SND_SOC_SOF
-	select SND_SOC_SOF_OPTIONS
-	select SND_SOC_SOF_SPIDSP
-	help
-	  This adds support for Sound Open Firmware over SPI for Device
-	  Tree based systems.
-	  Say Y if you have such a device.
-	  If unsure select "N".
-
-config SND_SOC_SOF_SPIDSP
-	tristate
-	help
-	  This option is not user-selectable but automagically handled by
-	  'select' statements at a higher level
-
 config SND_SOC_SOF_OPTIONS
 	tristate
 	help
