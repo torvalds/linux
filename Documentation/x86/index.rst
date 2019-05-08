@@ -14,6 +14,7 @@ x86-specific Documentation
    kernel-stacks
    entry_64
    earlyprintk
+   orc-unwinder
    zero-page
    tlb
    mtrr
