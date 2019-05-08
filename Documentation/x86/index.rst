@@ -10,3 +10,4 @@ x86-specific Documentation
 
    boot
    topology
+   exception-tables
