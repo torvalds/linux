@@ -18,3 +18,4 @@ x86-specific Documentation
    tlb
    mtrr
    pat
+   protection-keys
