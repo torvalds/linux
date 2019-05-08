@@ -14,3 +14,4 @@ x86-specific Documentation
    kernel-stacks
    entry_64
    earlyprintk
+   zero-page
