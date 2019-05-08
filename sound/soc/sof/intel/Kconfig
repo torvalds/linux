@@ -11,7 +11,6 @@ if SND_SOC_SOF_INTEL_TOPLEVEL
 config SND_SOC_SOF_INTEL_ACPI
 	tristate
 	select SND_SOC_SOF_BAYTRAIL  if SND_SOC_SOF_BAYTRAIL_SUPPORT
-	select SND_SOC_SOF_HASWELL   if SND_SOC_SOF_HASWELL_SUPPORT
 	select SND_SOC_SOF_BROADWELL if SND_SOC_SOF_BROADWELL_SUPPORT
 	help
 	  This option is not user-selectable but automagically handled by
@@ -66,22 +65,6 @@ config SND_SOC_SOF_BAYTRAIL_SUPPORT
 config SND_SOC_SOF_BAYTRAIL
 	tristate
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
-	help
-	  This option is not user-selectable but automagically handled by
-	  'select' statements at a higher level
-
-config SND_SOC_SOF_HASWELL_SUPPORT
-	bool "SOF support for Haswell"
-	help
-	  This adds support for Sound Open Firmware for Intel(R) platforms
-	  using the Haswell processors.
-	  Say Y if you have such a device.
-	  If unsure select "N".
-
-config SND_SOC_SOF_HASWELL
-	tristate
-	select SND_SOC_SOF_INTEL_COMMON
-	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
