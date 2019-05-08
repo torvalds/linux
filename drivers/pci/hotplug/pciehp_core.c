@@ -42,8 +42,6 @@ module_param(pciehp_poll_time, int, 0644);
 MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
 
-#define PCIE_MODULE_NAME "pciehp"
-
 static int set_attention_status(struct hotplug_slot *slot, u8 value);
 static int get_power_status(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status(struct hotplug_slot *slot, u8 *value);
@@ -307,7 +305,7 @@ static int pciehp_runtime_resume(struct pcie_device *dev)
 #endif /* PM */
 
 static struct pcie_port_service_driver hpdriver_portdrv = {
-	.name		= PCIE_MODULE_NAME,
+	.name		= "pciehp",
 	.port_type	= PCIE_ANY_PORT,
 	.service	= PCIE_PORT_SERVICE_HP,
 
