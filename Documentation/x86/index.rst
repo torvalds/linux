@@ -13,3 +13,4 @@ x86-specific Documentation
    exception-tables
    kernel-stacks
    entry_64
+   earlyprintk
