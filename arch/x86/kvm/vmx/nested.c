@@ -5423,39 +5423,44 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (!(kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
 		return 0;
 
+	vmx->nested.nested_run_pending =
+		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
+
+	ret = -EINVAL;
 	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
 	    vmcs12->vmcs_link_pointer != -1ull) {
 		struct vmcs12 *shadow_vmcs12 = get_shadow_vmcs12(vcpu);
 
 		if (kvm_state->size < sizeof(*kvm_state) + VMCS12_SIZE + sizeof(*vmcs12))
-			return -EINVAL;
+			goto error_guest_mode;
 
 		if (copy_from_user(shadow_vmcs12,
 				   user_kvm_nested_state->data + VMCS12_SIZE,
-				   sizeof(*vmcs12)))
-			return -EFAULT;
+				   sizeof(*vmcs12))) {
+			ret = -EFAULT;
+			goto error_guest_mode;
+		}
 
 		if (shadow_vmcs12->hdr.revision_id != VMCS12_REVISION ||
 		    !shadow_vmcs12->hdr.shadow_vmcs)
-			return -EINVAL;
+			goto error_guest_mode;
 	}
 
 	if (nested_vmx_check_controls(vcpu, vmcs12) ||
 	    nested_vmx_check_host_state(vcpu, vmcs12) ||
 	    nested_vmx_check_guest_state(vcpu, vmcs12, &exit_qual))
-		return -EINVAL;
+		goto error_guest_mode;
 
 	vmx->nested.dirty_vmcs12 = true;
-	vmx->nested.nested_run_pending =
-		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
-
 	ret = nested_vmx_enter_non_root_mode(vcpu, false);
-	if (ret) {
-		vmx->nested.nested_run_pending = 0;
-		return -EINVAL;
-	}
+	if (ret)
+		goto error_guest_mode;
 
 	return 0;
+
+error_guest_mode:
+	vmx->nested.nested_run_pending = 0;
+	return ret;
 }
 
 void nested_vmx_vcpu_setup(void)
