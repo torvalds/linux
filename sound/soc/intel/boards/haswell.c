@@ -86,7 +86,6 @@ static const struct snd_soc_ops haswell_rt5640_ops = {
 	.hw_params = haswell_rt5640_hw_params,
 };
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_HASWELL)
 static int haswell_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
@@ -105,7 +104,6 @@ static int haswell_rtd_init(struct snd_soc_pcm_runtime *rtd)
 
 	return 0;
 }
-#endif
 
 static struct snd_soc_dai_link haswell_rt5640_dais[] = {
 	/* Front End DAI links */
@@ -117,9 +115,7 @@ static struct snd_soc_dai_link haswell_rt5640_dais[] = {
 		.dynamic = 1,
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_HASWELL)
 		.init = haswell_rtd_init,
-#endif
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
