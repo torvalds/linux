@@ -17,3 +17,4 @@ x86-specific Documentation
    zero-page
    tlb
    mtrr
+   pat
