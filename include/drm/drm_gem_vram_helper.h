@@ -116,5 +116,25 @@ void drm_gem_vram_driver_gem_free_object_unlocked(struct drm_gem_object *gem);
 int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 					 struct drm_device *dev,
 					 uint32_t handle, uint64_t *offset);
+/*
+ * PRIME helpers for struct drm_driver
+ */
+
+int drm_gem_vram_driver_gem_prime_pin(struct drm_gem_object *obj);
+void drm_gem_vram_driver_gem_prime_unpin(struct drm_gem_object *obj);
+void *drm_gem_vram_driver_gem_prime_vmap(struct drm_gem_object *obj);
+void drm_gem_vram_driver_gem_prime_vunmap(struct drm_gem_object *obj,
+					  void *vaddr);
+int drm_gem_vram_driver_gem_prime_mmap(struct drm_gem_object *obj,
+				       struct vm_area_struct *vma);
+
+#define DRM_GEM_VRAM_DRIVER_PRIME \
+	.gem_prime_export = drm_gem_prime_export, \
+	.gem_prime_import = drm_gem_prime_import, \
+	.gem_prime_pin	  = drm_gem_vram_driver_gem_prime_pin, \
+	.gem_prime_unpin  = drm_gem_vram_driver_gem_prime_unpin, \
+	.gem_prime_vmap	  = drm_gem_vram_driver_gem_prime_vmap, \
+	.gem_prime_vunmap = drm_gem_vram_driver_gem_prime_vunmap, \
+	.gem_prime_mmap	  = drm_gem_vram_driver_gem_prime_mmap
 
 #endif

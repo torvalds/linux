@@ -2,6 +2,7 @@
 
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_mode.h>
+#include <drm/drm_prime.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
 /**
@@ -571,3 +572,100 @@ int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_dumb_mmap_offset);
+
+/*
+ * PRIME helpers for struct drm_driver
+ */
+
+/**
+ * drm_gem_vram_driver_gem_prime_pin() - \
+	Implements &struct drm_driver.gem_prime_pin
+ * @gem:	The GEM object to pin
+ *
+ * Returns:
+ * 0 on success, or
+ * a negative errno code otherwise.
+ */
+int drm_gem_vram_driver_gem_prime_pin(struct drm_gem_object *gem)
+{
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+
+	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_pin);
+
+/**
+ * drm_gem_vram_driver_gem_prime_unpin() - \
+	Implements &struct drm_driver.gem_prime_unpin
+ * @gem:	The GEM object to unpin
+ */
+void drm_gem_vram_driver_gem_prime_unpin(struct drm_gem_object *gem)
+{
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+
+	drm_gem_vram_unpin(gbo);
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_unpin);
+
+/**
+ * drm_gem_vram_driver_gem_prime_vmap() - \
+	Implements &struct drm_driver.gem_prime_vmap
+ * @gem:	The GEM object to map
+ *
+ * Returns:
+ * The buffers virtual address on success, or
+ * NULL otherwise.
+ */
+void *drm_gem_vram_driver_gem_prime_vmap(struct drm_gem_object *gem)
+{
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+	int ret;
+	void *base;
+
+	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+	if (ret)
+		return NULL;
+	base = drm_gem_vram_kmap(gbo, true, NULL);
+	if (IS_ERR(base)) {
+		drm_gem_vram_unpin(gbo);
+		return NULL;
+	}
+	return base;
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_vmap);
+
+/**
+ * drm_gem_vram_driver_gem_prime_vunmap() - \
+	Implements &struct drm_driver.gem_prime_vunmap
+ * @gem:	The GEM object to unmap
+ * @vaddr:	The mapping's base address
+ */
+void drm_gem_vram_driver_gem_prime_vunmap(struct drm_gem_object *gem,
+					  void *vaddr)
+{
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+
+	drm_gem_vram_kunmap(gbo);
+	drm_gem_vram_unpin(gbo);
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_vunmap);
+
+/**
+ * drm_gem_vram_driver_gem_prime_mmap() - \
+	Implements &struct drm_driver.gem_prime_mmap
+ * @gem:	The GEM object to map
+ * @vma:	The VMA describing the mapping
+ *
+ * Returns:
+ * 0 on success, or
+ * a negative errno code otherwise.
+ */
+int drm_gem_vram_driver_gem_prime_mmap(struct drm_gem_object *gem,
+				       struct vm_area_struct *vma)
+{
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+
+	gbo->gem.vma_node.vm_node.start = gbo->bo.vma_node.vm_node.start;
+	return drm_gem_prime_mmap(gem, vma);
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_mmap);
