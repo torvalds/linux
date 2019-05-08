@@ -99,4 +99,14 @@ void drm_gem_vram_bo_driver_evict_flags(struct ttm_buffer_object *bo,
 int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
 					 struct file *filp);
 
+/*
+ * Helpers for struct drm_driver
+ */
+
+void drm_gem_vram_driver_gem_free_object_unlocked(struct drm_gem_object *gem);
+
+int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
+					 struct drm_device *dev,
+					 uint32_t handle, uint64_t *offset);
+
 #endif

@@ -460,3 +460,52 @@ int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
 					  filp->private_data);
 }
 EXPORT_SYMBOL(drm_gem_vram_bo_driver_verify_access);
+
+/*
+ * Helpers for struct drm_driver
+ */
+
+/**
+ * drm_gem_vram_driver_gem_free_object_unlocked() - \
+	Implements &struct drm_driver.gem_free_object_unlocked
+ * @gem:	GEM object. Refers to &struct drm_gem_vram_object.gem
+ */
+void drm_gem_vram_driver_gem_free_object_unlocked(struct drm_gem_object *gem)
+{
+	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+
+	drm_gem_vram_put(gbo);
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_gem_free_object_unlocked);
+
+/**
+ * drm_gem_vram_driver_dumb_mmap_offset() - \
+	Implements &struct drm_driver.dumb_mmap_offset
+ * @file:	DRM file pointer.
+ * @dev:	DRM device.
+ * @handle:	GEM handle
+ * @offset:	Returns the mapping's memory offset on success
+ *
+ * Returns:
+ * 0 on success, or
+ * a negative errno code otherwise.
+ */
+int drm_gem_vram_driver_dumb_mmap_offset(struct drm_file *file,
+					 struct drm_device *dev,
+					 uint32_t handle, uint64_t *offset)
+{
+	struct drm_gem_object *gem;
+	struct drm_gem_vram_object *gbo;
+
+	gem = drm_gem_object_lookup(file, handle);
+	if (!gem)
+		return -ENOENT;
+
+	gbo = drm_gem_vram_of_gem(gem);
+	*offset = drm_gem_vram_mmap_offset(gbo);
+
+	drm_gem_object_put_unlocked(gem);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_vram_driver_dumb_mmap_offset);
