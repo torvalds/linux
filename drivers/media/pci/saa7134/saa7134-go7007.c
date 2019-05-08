@@ -444,7 +444,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	sd = &saa->sd;
 	v4l2_subdev_init(sd, &saa7134_go7007_sd_ops);
 	v4l2_set_subdevdata(sd, saa);
-	strncpy(sd->name, "saa7134-go7007", sizeof(sd->name));
+	strscpy(sd->name, "saa7134-go7007", sizeof(sd->name));
 
 	/* Allocate a couple pages for receiving the compressed stream */
 	saa->top = (u8 *)get_zeroed_page(GFP_KERNEL);

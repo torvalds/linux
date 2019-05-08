@@ -11,7 +11,7 @@ config VIDEO_VIVID
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_V4L2_TPG
 	default n
-	---help---
+	help
 	  Enables a virtual video driver. This driver emulates a webcam,
 	  TV, S-Video and HDMI capture hardware, including VBI support for
 	  the SDTV inputs. Also video output, VBI output, radio receivers,
@@ -28,7 +28,7 @@ config VIDEO_VIVID_CEC
 	bool "Enable CEC emulation support"
 	depends on VIDEO_VIVID
 	select CEC_CORE
-	---help---
+	help
 	  When selected the vivid module will emulate the optional
 	  HDMI CEC feature.
 
@@ -36,6 +36,6 @@ config VIDEO_VIVID_MAX_DEVS
 	int "Maximum number of devices"
 	depends on VIDEO_VIVID
 	default "64"
-	---help---
+	help
 	  This allows you to specify the maximum number of devices supported
 	  by the vivid driver.

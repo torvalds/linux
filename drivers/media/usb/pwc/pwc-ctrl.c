@@ -242,14 +242,14 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 	fps = (frames / 5) - 1;
 
 	/* Find a supported framerate with progressively higher compression */
-	pChoose = NULL;
-	while (*compression <= 3) {
+	do {
 		pChoose = &Timon_table[size][fps][*compression];
 		if (pChoose->alternate != 0)
 			break;
 		(*compression)++;
-	}
-	if (pChoose == NULL || pChoose->alternate == 0)
+	} while (*compression <= 3);
+
+	if (pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
 
 	if (send_to_cam)
@@ -279,7 +279,7 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 				int frames, int *compression, int send_to_cam)
 {
-	const struct Kiara_table_entry *pChoose = NULL;
+	const struct Kiara_table_entry *pChoose;
 	int fps, ret = 0;
 
 	if (size >= PSZ_MAX || *compression < 0 || *compression > 3)
@@ -293,13 +293,14 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 	fps = (frames / 5) - 1;
 
 	/* Find a supported framerate with progressively higher compression */
-	while (*compression <= 3) {
+	do {
 		pChoose = &Kiara_table[size][fps][*compression];
 		if (pChoose->alternate != 0)
 			break;
 		(*compression)++;
-	}
-	if (pChoose == NULL || pChoose->alternate == 0)
+	} while (*compression <= 3);
+
+	if (pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
 
 	/* Firmware bug: video endpoint is 5, but commands are sent to endpoint 4 */

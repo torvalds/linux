@@ -64,7 +64,9 @@ enum v4l2_field
 
 .. c:type:: v4l2_field
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.8cm}|p{0.6cm}|p{11.1cm}|
+
+.. cssclass:: longtable
 
 .. flat-table::
     :header-rows:  0
