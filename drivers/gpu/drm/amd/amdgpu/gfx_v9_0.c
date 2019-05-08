@@ -3632,7 +3632,6 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	struct amdgpu_ib ib;
 	struct dma_fence *f = NULL;
 	int r, i, j;
-	u32 tmp;
 	unsigned total_size, vgpr_offset, sgpr_offset;
 	u64 gpu_addr;
 
@@ -3643,9 +3642,6 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	/* bail if the compute ring is not ready */
 	if (!ring->sched.ready)
 		return 0;
-
-	tmp = RREG32_SOC15(GC, 0, mmGB_EDC_MODE);
-	WREG32_SOC15(GC, 0, mmGB_EDC_MODE, 0);
 
 	total_size =
 		((ARRAY_SIZE(vgpr_init_regs) * 3) + 4 + 5 + 2) * 4;
@@ -3812,17 +3808,17 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 		return 0;
 	}
 
+	/* requires IBs so do in late init after IB pool is initialized */
+	r = gfx_v9_0_do_edc_gpr_workarounds(adev);
+	if (r)
+		return r;
+
 	if (*ras_if)
 		goto resume;
 
 	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
 	if (!*ras_if)
 		return -ENOMEM;
-
-	/* requires IBs so do in late init after IB pool is initialized */
-	r = gfx_v9_0_do_edc_gpr_workarounds(adev);
-	if (r)
-		return r;
 
 	**ras_if = ras_block;
 
