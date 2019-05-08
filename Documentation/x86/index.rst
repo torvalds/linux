@@ -7,3 +7,5 @@ x86-specific Documentation
 .. toctree::
    :maxdepth: 2
    :numbered:
+
+   boot
