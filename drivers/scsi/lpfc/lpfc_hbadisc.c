@@ -885,15 +885,9 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t          *mb;
 	int i;
 
-	if (phba->link_state == LPFC_LINK_DOWN) {
-		if (phba->sli4_hba.conf_trunk) {
-			phba->trunk_link.link0.state = 0;
-			phba->trunk_link.link1.state = 0;
-			phba->trunk_link.link2.state = 0;
-			phba->trunk_link.link3.state = 0;
-		}
+	if (phba->link_state == LPFC_LINK_DOWN)
 		return 0;
-	}
+
 	/* Block all SCSI stack I/Os */
 	lpfc_scsi_dev_block(phba);
 
@@ -932,7 +926,11 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
-	/* Clean up any firmware default rpi's */
+
+	/* Clean up any SLI3 firmware default rpi's */
+	if (phba->sli_rev > LPFC_SLI_REV3)
+		goto skip_unreg_did;
+
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mb) {
 		lpfc_unreg_did(phba, 0xffff, LPFC_UNREG_ALL_DFLT_RPIS, mb);
@@ -944,6 +942,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		}
 	}
 
+ skip_unreg_did:
 	/* Setup myDID for link up if we are in pt2pt mode */
 	if (phba->pport->fc_flag & FC_PT2PT) {
 		mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -4147,9 +4146,15 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	rdata->pnode = lpfc_nlp_get(ndlp);
 
 	if (ndlp->nlp_type & NLP_FCP_TARGET)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_TARGET;
 	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_INITIATOR;
+	if (ndlp->nlp_type & NLP_NVME_INITIATOR)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_INITIATOR;
+	if (ndlp->nlp_type & NLP_NVME_TARGET)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_TARGET;
+	if (ndlp->nlp_type & NLP_NVME_DISCOVERY)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_DISCOVERY;
 
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
@@ -4675,6 +4680,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 		case CMD_XMIT_ELS_RSP64_CX:
 			if (iocb->context1 == (uint8_t *) ndlp)
 				return 1;
+			/* fall through */
 		}
 	} else if (pring->ringno == LPFC_FCP_RING) {
 		/* Skip match check if waiting to relogin to FCP target */
@@ -4870,6 +4876,10 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 					 * accept PLOGIs after unreg_rpi_cmpl
 					 */
 					acc_plogi = 0;
+				} else if (vport->load_flag & FC_UNLOADING) {
+					mbox->ctx_ndlp = NULL;
+					mbox->mbox_cmpl =
+						lpfc_sli_def_mbox_cmpl;
 				} else {
 					mbox->ctx_ndlp = ndlp;
 					mbox->mbox_cmpl =
@@ -4980,6 +4990,10 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 	struct lpfc_hba  *phba  = vport->phba;
 	LPFC_MBOXQ_t     *mbox;
 	int rc;
+
+	/* Unreg DID is an SLI3 operation. */
+	if (phba->sli_rev > LPFC_SLI_REV3)
+		return;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {

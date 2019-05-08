@@ -389,7 +389,6 @@ out:
  */
 
 struct xcopy_pt_cmd {
-	bool remote_port;
 	struct se_cmd se_cmd;
 	struct completion xpt_passthrough_sem;
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
@@ -506,72 +505,20 @@ void target_xcopy_release_pt(void)
 		destroy_workqueue(xcopy_wq);
 }
 
-static void target_xcopy_setup_pt_port(
-	struct xcopy_pt_cmd *xpt_cmd,
-	struct xcopy_op *xop,
-	bool remote_port)
-{
-	struct se_cmd *ec_cmd = xop->xop_se_cmd;
-	struct se_cmd *pt_cmd = &xpt_cmd->se_cmd;
-
-	if (xop->op_origin == XCOL_SOURCE_RECV_OP) {
-		/*
-		 * Honor destination port reservations for X-COPY PUSH emulation
-		 * when CDB is received on local source port, and READs blocks to
-		 * WRITE on remote destination port.
-		 */
-		if (remote_port) {
-			xpt_cmd->remote_port = remote_port;
-		} else {
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pt_cmd->se_dev = ec_cmd->se_dev;
-
-			pr_debug("Honoring local SRC port from ec_cmd->se_dev:"
-				" %p\n", pt_cmd->se_dev);
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pr_debug("Honoring local SRC port from ec_cmd->se_lun: %p\n",
-				pt_cmd->se_lun);
-		}
-	} else {
-		/*
-		 * Honor source port reservation for X-COPY PULL emulation
-		 * when CDB is received on local desintation port, and READs
-		 * blocks from the remote source port to WRITE on local
-		 * destination port.
-		 */
-		if (remote_port) {
-			xpt_cmd->remote_port = remote_port;
-		} else {
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pt_cmd->se_dev = ec_cmd->se_dev;
-
-			pr_debug("Honoring local DST port from ec_cmd->se_dev:"
-				" %p\n", pt_cmd->se_dev);
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pr_debug("Honoring local DST port from ec_cmd->se_lun: %p\n",
-				pt_cmd->se_lun);
-		}
-	}
-}
-
-static void target_xcopy_init_pt_lun(struct se_device *se_dev,
-		struct se_cmd *pt_cmd, bool remote_port)
-{
-	/*
-	 * Don't allocate + init an pt_cmd->se_lun if honoring local port for
-	 * reservations.  The pt_cmd->se_lun pointer will be setup from within
-	 * target_xcopy_setup_pt_port()
-	 */
-	if (remote_port) {
-		pr_debug("Setup emulated se_dev: %p from se_dev\n",
-			pt_cmd->se_dev);
-		pt_cmd->se_lun = &se_dev->xcopy_lun;
-		pt_cmd->se_dev = se_dev;
-	}
-
-	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
-}
-
+/*
+ * target_xcopy_setup_pt_cmd - set up a pass-through command
+ * @xpt_cmd:	 Data structure to initialize.
+ * @xop:	 Describes the XCOPY operation received from an initiator.
+ * @se_dev:	 Backend device to associate with @xpt_cmd if
+ *		 @remote_port == true.
+ * @cdb:	 SCSI CDB to be copied into @xpt_cmd.
+ * @remote_port: If false, use the LUN through which the XCOPY command has
+ *		 been received. If true, use @se_dev->xcopy_lun.
+ * @alloc_mem:	 Whether or not to allocate an SGL list.
+ *
+ * Set up a SCSI command (READ or WRITE) that will be used to execute an
+ * XCOPY command.
+ */
 static int target_xcopy_setup_pt_cmd(
 	struct xcopy_pt_cmd *xpt_cmd,
 	struct xcopy_op *xop,
@@ -583,12 +530,19 @@ static int target_xcopy_setup_pt_cmd(
 	struct se_cmd *cmd = &xpt_cmd->se_cmd;
 	sense_reason_t sense_rc;
 	int ret = 0, rc;
+
 	/*
 	 * Setup LUN+port to honor reservations based upon xop->op_origin for
 	 * X-COPY PUSH or X-COPY PULL based upon where the CDB was received.
 	 */
-	target_xcopy_init_pt_lun(se_dev, cmd, remote_port);
-	target_xcopy_setup_pt_port(xpt_cmd, xop, remote_port);
+	if (remote_port) {
+		cmd->se_lun = &se_dev->xcopy_lun;
+		cmd->se_dev = se_dev;
+	} else {
+		cmd->se_lun = xop->xop_se_cmd->se_lun;
+		cmd->se_dev = xop->xop_se_cmd->se_dev;
+	}
+	cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 
 	cmd->tag = 0;
 	sense_rc = target_setup_cmd_from_cdb(cmd, cdb);
