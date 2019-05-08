@@ -30,6 +30,10 @@
 
 /* Public interfaces */
 
+struct clk_states {
+	uint32_t dprefclk_khz;
+};
+
 struct clk_mgr_funcs {
 	/*
 	 * This function should set new clocks based on the input "safe_to_lower".
@@ -46,6 +50,7 @@ struct clk_mgr_funcs {
 
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
 
+	void (*enable_pme_wa) (struct clk_mgr *clk_mgr);
 };
 
 void dce121_clock_patch_xgmi_ss_info(struct clk_mgr *clk_mgr_base);

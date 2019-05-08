@@ -202,6 +202,10 @@ static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_cl
 	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
 }
 
+int clk_mgr_helper_get_active_display_cnt(
+		struct dc *dc,
+		struct dc_state *context);
+
 
 
 #endif //__DAL_CLK_MGR_INTERNAL_H__

@@ -35,6 +35,31 @@
 #include "dcn10/rv1_clk_mgr.h"
 #include "dcn10/rv2_clk_mgr.h"
 
+
+int clk_mgr_helper_get_active_display_cnt(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i, display_count;
+
+	display_count = 0;
+	for (i = 0; i < context->stream_count; i++) {
+		const struct dc_stream_state *stream = context->streams[i];
+
+		/*
+		 * Only notify active stream or virtual stream.
+		 * Need to notify virtual stream to work around
+		 * headless case. HPD does not fire when system is in
+		 * S0i2.
+		 */
+		if (!stream->dpms_off || stream->signal == SIGNAL_TYPE_VIRTUAL)
+			display_count++;
+	}
+
+	return display_count;
+}
+
+
 struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *pp_smu, struct dccg *dccg)
 {
 	struct hw_asic_id asic_id = ctx->asic_id;
