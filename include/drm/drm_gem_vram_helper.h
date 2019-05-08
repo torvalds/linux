@@ -8,6 +8,7 @@
 #include <drm/ttm/ttm_placement.h>
 #include <linux/kernel.h> /* for container_of() */
 
+struct drm_mode_create_dumb;
 struct filp;
 
 #define DRM_GEM_VRAM_PL_FLAG_VRAM	TTM_PL_FLAG_VRAM
@@ -88,6 +89,13 @@ void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
 void drm_gem_vram_kunmap_at(struct drm_gem_vram_object *gbo,
 			    struct ttm_bo_kmap_obj *kmap);
 void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo);
+
+int drm_gem_vram_fill_create_dumb(struct drm_file *file,
+				  struct drm_device *dev,
+				  struct ttm_bo_device *bdev,
+				  unsigned long pg_align,
+				  bool interruptible,
+				  struct drm_mode_create_dumb *args);
 
 /*
  * Helpers for struct ttm_bo_driver

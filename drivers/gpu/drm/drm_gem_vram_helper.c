@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_mode.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
 /**
@@ -410,6 +411,67 @@ void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo)
 	drm_gem_vram_kunmap_at(gbo, &gbo->kmap);
 }
 EXPORT_SYMBOL(drm_gem_vram_kunmap);
+
+/**
+ * drm_gem_vram_fill_create_dumb() - \
+	Helper for implementing &struct drm_driver.dumb_create
+ * @file:		the DRM file
+ * @dev:		the DRM device
+ * @bdev:		the TTM BO device managing the buffer object
+ * @pg_align:		the buffer's alignment in multiples of the page size
+ * @interruptible:	sleep interruptible if waiting for memory
+ * @args:		the arguments as provided to \
+				&struct drm_driver.dumb_create
+ *
+ * This helper function fills &struct drm_mode_create_dumb, which is used
+ * by &struct drm_driver.dumb_create. Implementations of this interface
+ * should forwards their arguments to this helper, plus the driver-specific
+ * parameters.
+ *
+ * Returns:
+ * 0 on success, or
+ * a negative error code otherwise.
+ */
+int drm_gem_vram_fill_create_dumb(struct drm_file *file,
+				  struct drm_device *dev,
+				  struct ttm_bo_device *bdev,
+				  unsigned long pg_align,
+				  bool interruptible,
+				  struct drm_mode_create_dumb *args)
+{
+	size_t pitch, size;
+	struct drm_gem_vram_object *gbo;
+	int ret;
+	u32 handle;
+
+	pitch = args->width * ((args->bpp + 7) / 8);
+	size = pitch * args->height;
+
+	size = roundup(size, PAGE_SIZE);
+	if (!size)
+		return -EINVAL;
+
+	gbo = drm_gem_vram_create(dev, bdev, size, pg_align, interruptible);
+	if (IS_ERR(gbo))
+		return PTR_ERR(gbo);
+
+	ret = drm_gem_handle_create(file, &gbo->gem, &handle);
+	if (ret)
+		goto err_drm_gem_object_put_unlocked;
+
+	drm_gem_object_put_unlocked(&gbo->gem);
+
+	args->pitch = pitch;
+	args->size = size;
+	args->handle = handle;
+
+	return 0;
+
+err_drm_gem_object_put_unlocked:
+	drm_gem_object_put_unlocked(&gbo->gem);
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_vram_fill_create_dumb);
 
 /*
  * Helpers for struct ttm_bo_driver
