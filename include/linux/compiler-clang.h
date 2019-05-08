@@ -43,3 +43,10 @@
 #define __must_be_array(a) BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 #define __assume_aligned(a, ...)	\
 	__attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
+
+#ifdef CONFIG_LTO_CLANG
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+#define __norecordmcount \
+	__attribute__((__section__(".text..ftrace")))
+#endif
+#endif

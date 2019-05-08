@@ -5500,9 +5500,9 @@ static int ftrace_cmp_ips(const void *a, const void *b)
 	return 0;
 }
 
-static int ftrace_process_locs(struct module *mod,
-			       unsigned long *start,
-			       unsigned long *end)
+static int __norecordmcount ftrace_process_locs(struct module *mod,
+						unsigned long *start,
+						unsigned long *end)
 {
 	struct ftrace_page *start_pg;
 	struct ftrace_page *pg;

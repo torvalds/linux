@@ -248,6 +248,10 @@ struct ftrace_likely_data {
 # define __gnu_inline
 #endif
 
+#ifndef __norecordmcount
+#define __norecordmcount
+#endif
+
 /*
  * Force always-inline if the user requests it so via the .config.
  * GCC does not warn about unused static inline functions for
