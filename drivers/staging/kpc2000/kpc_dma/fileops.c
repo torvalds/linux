@@ -8,7 +8,7 @@
 #include <linux/errno.h>    /* error codes */
 #include <linux/types.h>    /* size_t */
 #include <linux/cdev.h>
-#include <asm/uaccess.h>    /* copy_*_user */
+#include <linux/uaccess.h>  /* copy_*_user */
 #include <linux/aio.h>      /* aio stuff */
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
