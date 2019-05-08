@@ -19,3 +19,4 @@ x86-specific Documentation
    mtrr
    pat
    protection-keys
+   intel_mpx
