@@ -25,8 +25,6 @@
 
 #include "../pcie/portdrv.h"
 
-#define MY_NAME	"pciehp"
-
 extern bool pciehp_poll_mode;
 extern int pciehp_poll_time;
 
