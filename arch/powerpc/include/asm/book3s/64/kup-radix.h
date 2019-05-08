@@ -65,7 +65,7 @@
 
 static inline void set_kuap(unsigned long value)
 {
-	if (!mmu_has_feature(MMU_FTR_RADIX_KUAP))
+	if (!early_mmu_has_feature(MMU_FTR_RADIX_KUAP))
 		return;
 
 	/*
