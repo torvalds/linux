@@ -71,7 +71,7 @@ __hostc_flags	= $(_hostc_flags)
 __hostcxx_flags	= $(_hostcxx_flags)
 
 ifeq ($(KBUILD_EXTMOD),)
-ifneq ($(KBUILD_SRC),)
+ifneq ($(srctree),.)
 __hostc_flags	= -I$(obj) $(call flags,_hostc_flags)
 __hostcxx_flags	= -I$(obj) $(call flags,_hostcxx_flags)
 endif

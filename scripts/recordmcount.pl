@@ -496,7 +496,7 @@ sub update_funcs
 #
 # Step 2: find the sections and mcount call sites
 #
-open(IN, "$objdump -hdr $inputfile|") || die "error running $objdump";
+open(IN, "LANG=C $objdump -hdr $inputfile|") || die "error running $objdump";
 
 my $text;
 
