@@ -810,7 +810,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 			   u8 il4_proto, u32 *type_cs_vlan_tso,
 			   u32 *ol_type_vlan_len_msec)
 {
-	unsigned char *l2_hdr = l2_hdr = skb->data;
+	unsigned char *l2_hdr = skb->data;
 	u32 l4_proto = ol4_proto;
 	union l4_hdr_info l4;
 	union l3_hdr_info l3;
