@@ -9,3 +9,4 @@ x86-specific Documentation
    :numbered:
 
    boot
+   topology
