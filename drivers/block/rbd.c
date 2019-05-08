@@ -219,6 +219,11 @@ enum obj_operation_type {
 	OBJ_OP_ZEROOUT,
 };
 
+enum rbd_obj_read_state {
+	RBD_OBJ_READ_OBJECT = 1,
+	RBD_OBJ_READ_PARENT,
+};
+
 /*
  * Writes go through the following state machine to deal with
  * layering:
@@ -255,7 +260,7 @@ enum rbd_obj_write_state {
 struct rbd_obj_request {
 	struct ceph_object_extent ex;
 	union {
-		bool			tried_parent;	/* for reads */
+		enum rbd_obj_read_state	 read_state;	/* for reads */
 		enum rbd_obj_write_state write_state;	/* for writes */
 	};
 
@@ -1794,6 +1799,7 @@ static int rbd_obj_setup_read(struct rbd_obj_request *obj_req)
 	rbd_osd_req_setup_data(obj_req, 0);
 
 	rbd_osd_req_format_read(obj_req);
+	obj_req->read_state = RBD_OBJ_READ_OBJECT;
 	return 0;
 }
 
@@ -2402,44 +2408,48 @@ static bool rbd_obj_handle_read(struct rbd_obj_request *obj_req, int *result)
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	int ret;
 
-	if (*result == -ENOENT &&
-	    rbd_dev->parent_overlap && !obj_req->tried_parent) {
-		/* reverse map this object extent onto the parent */
-		ret = rbd_obj_calc_img_extents(obj_req, false);
-		if (ret) {
-			*result = ret;
-			return true;
-		}
-
-		if (obj_req->num_img_extents) {
-			obj_req->tried_parent = true;
-			ret = rbd_obj_read_from_parent(obj_req);
+	switch (obj_req->read_state) {
+	case RBD_OBJ_READ_OBJECT:
+		if (*result == -ENOENT && rbd_dev->parent_overlap) {
+			/* reverse map this object extent onto the parent */
+			ret = rbd_obj_calc_img_extents(obj_req, false);
 			if (ret) {
 				*result = ret;
 				return true;
 			}
-			return false;
+			if (obj_req->num_img_extents) {
+				ret = rbd_obj_read_from_parent(obj_req);
+				if (ret) {
+					*result = ret;
+					return true;
+				}
+				obj_req->read_state = RBD_OBJ_READ_PARENT;
+				return false;
+			}
 		}
-	}
 
-	/*
-	 * -ENOENT means a hole in the image -- zero-fill the entire
-	 * length of the request.  A short read also implies zero-fill
-	 * to the end of the request.
-	 */
-	if (*result == -ENOENT) {
-		rbd_obj_zero_range(obj_req, 0, obj_req->ex.oe_len);
-		*result = 0;
-	} else if (*result >= 0) {
-		if (*result < obj_req->ex.oe_len)
-			rbd_obj_zero_range(obj_req, *result,
-					   obj_req->ex.oe_len - *result);
-		else
-			rbd_assert(*result == obj_req->ex.oe_len);
-		*result = 0;
+		/*
+		 * -ENOENT means a hole in the image -- zero-fill the entire
+		 * length of the request.  A short read also implies zero-fill
+		 * to the end of the request.
+		 */
+		if (*result == -ENOENT) {
+			rbd_obj_zero_range(obj_req, 0, obj_req->ex.oe_len);
+			*result = 0;
+		} else if (*result >= 0) {
+			if (*result < obj_req->ex.oe_len)
+				rbd_obj_zero_range(obj_req, *result,
+						obj_req->ex.oe_len - *result);
+			else
+				rbd_assert(*result == obj_req->ex.oe_len);
+			*result = 0;
+		}
+		return true;
+	case RBD_OBJ_READ_PARENT:
+		return true;
+	default:
+		BUG();
 	}
-
-	return true;
 }
 
 /*
@@ -2658,11 +2668,11 @@ static bool rbd_obj_handle_write(struct rbd_obj_request *obj_req, int *result)
 	case RBD_OBJ_WRITE_COPYUP_OPS:
 		return true;
 	case RBD_OBJ_WRITE_READ_FROM_PARENT:
-		if (*result < 0)
+		if (*result)
 			return true;
 
-		rbd_assert(*result);
-		ret = rbd_obj_issue_copyup(obj_req, *result);
+		ret = rbd_obj_issue_copyup(obj_req,
+					   rbd_obj_img_extents_bytes(obj_req));
 		if (ret) {
 			*result = ret;
 			return true;
@@ -2757,7 +2767,7 @@ again:
 	rbd_assert(img_req->result <= 0);
 	if (test_bit(IMG_REQ_CHILD, &img_req->flags)) {
 		obj_req = img_req->obj_request;
-		result = img_req->result ?: rbd_obj_img_extents_bytes(obj_req);
+		result = img_req->result;
 		rbd_img_request_put(img_req);
 		goto again;
 	}
