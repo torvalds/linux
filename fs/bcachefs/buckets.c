@@ -994,7 +994,7 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 		return -1;
 	}
 
-	if (m->alive)
+	if (!gc && m->alive)
 		bch2_stripes_heap_del(c, m, idx);
 
 	memset(m, 0, sizeof(*m));
