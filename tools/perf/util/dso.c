@@ -898,17 +898,11 @@ static ssize_t cached_read(struct dso *dso, struct machine *machine,
 	return r;
 }
 
-int dso__data_file_size(struct dso *dso, struct machine *machine)
+static int file_size(struct dso *dso, struct machine *machine)
 {
 	int ret = 0;
 	struct stat st;
 	char sbuf[STRERR_BUFSIZE];
-
-	if (dso->data.file_size)
-		return 0;
-
-	if (dso->data.status == DSO_DATA_STATUS_ERROR)
-		return -1;
 
 	pthread_mutex_lock(&dso__data_open_lock);
 
@@ -936,6 +930,17 @@ int dso__data_file_size(struct dso *dso, struct machine *machine)
 out:
 	pthread_mutex_unlock(&dso__data_open_lock);
 	return ret;
+}
+
+int dso__data_file_size(struct dso *dso, struct machine *machine)
+{
+	if (dso->data.file_size)
+		return 0;
+
+	if (dso->data.status == DSO_DATA_STATUS_ERROR)
+		return -1;
+
+	return file_size(dso, machine);
 }
 
 /**
