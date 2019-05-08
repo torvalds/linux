@@ -23,3 +23,4 @@ x86-specific Documentation
    amd-memory-encryption
    pti
    microcode
+   resctrl_ui
