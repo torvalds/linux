@@ -175,6 +175,9 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 	return ras && (ras->supported & (1 << block));
 }
 
+int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
+		unsigned int block);
+
 int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce);
 
