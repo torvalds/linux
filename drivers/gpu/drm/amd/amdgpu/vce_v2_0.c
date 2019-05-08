@@ -605,6 +605,7 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = VCE_CMD_NO_OP,
 	.support_64bit_ptrs = false,
+	.no_user_fence = true,
 	.get_rptr = vce_v2_0_ring_get_rptr,
 	.get_wptr = vce_v2_0_ring_get_wptr,
 	.set_wptr = vce_v2_0_ring_set_wptr,
