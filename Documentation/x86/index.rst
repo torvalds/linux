@@ -15,3 +15,4 @@ x86-specific Documentation
    entry_64
    earlyprintk
    zero-page
+   tlb
