@@ -266,7 +266,6 @@ static int mcp_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		status = (data & BIT(pin)) ? 1 : 0;
 		break;
 	default:
-		dev_err(mcp->dev, "Invalid config param %04x\n", param);
 		return -ENOTSUPP;
 	}
 
@@ -293,7 +292,7 @@ static int mcp_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			ret = mcp_set_bit(mcp, MCP_GPPU, pin, arg);
 			break;
 		default:
-			dev_err(mcp->dev, "Invalid config param %04x\n", param);
+			dev_dbg(mcp->dev, "Invalid config param %04x\n", param);
 			return -ENOTSUPP;
 		}
 	}

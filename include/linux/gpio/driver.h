@@ -614,6 +614,9 @@ struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
 					    enum gpiod_flags flags);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
+void devprop_gpiochip_set_names(struct gpio_chip *chip,
+				const struct fwnode_handle *fwnode);
+
 #else /* CONFIG_GPIOLIB */
 
 static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)

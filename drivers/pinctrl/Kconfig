@@ -108,6 +108,14 @@ config PINCTRL_AMD
 	  Requires ACPI/FDT device enumeration code to set up a platform
 	  device.
 
+config PINCTRL_BM1880
+	bool "Bitmain BM1880 Pinctrl driver"
+	depends on OF && (ARCH_BITMAIN || COMPILE_TEST)
+	default ARCH_BITMAIN
+	select PINMUX
+	help
+	  Pinctrl driver for Bitmain BM1880 SoC.
+
 config PINCTRL_DA850_PUPD
 	tristate "TI DA850/OMAP-L138/AM18XX pullup/pulldown groups"
 	depends on OF && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
