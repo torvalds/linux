@@ -6363,7 +6363,7 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 		mask |= BIT_ULL(POWER_DOMAIN_AUDIO);
 
 	if (crtc_state->shared_dpll)
-		mask |= BIT_ULL(POWER_DOMAIN_PLLS);
+		mask |= BIT_ULL(POWER_DOMAIN_DISPLAY_CORE);
 
 	return mask;
 }
