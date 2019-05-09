@@ -583,6 +583,9 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	/* Enmotus */
 	{ PCI_DEVICE(0x1c44, 0x8000), board_ahci },
 
+/* Sony (PS4) */
+	{ PCI_VDEVICE(SONY, PCI_DEVICE_ID_SONY_AAHCI), board_ahci },
+
 	/* Generic, PCI class code for AHCI */
 	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
 	  PCI_CLASS_STORAGE_SATA_AHCI, 0xffffff, board_ahci },
@@ -929,6 +932,22 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 	 */
 	if (pdev->dma_mask && pdev->dma_mask < DMA_BIT_MASK(32))
 		return 0;
+#ifdef CONFIG_X86_PS4
+	if (pdev->vendor == PCI_VENDOR_ID_SONY) {
+		rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(31));
+		if (rc) {
+			dev_err(&pdev->dev, "31-bit DMA enable failed\n");
+			return rc;
+		}
+		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(31));
+		if (rc) {
+			dev_err(&pdev->dev,
+				"31-bit consistent DMA enable failed\n");
+			return rc;
+		}
+		return 0;
+	}
+#endif
 
 	if (using_dac &&
 	    !dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
@@ -1570,6 +1589,12 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 {
 	int nvec;
 
+#ifdef CONFIG_X86_PS4
+	if (pdev->vendor == PCI_VENDOR_ID_SONY) {
+		return apcie_assign_irqs(pdev, 1);
+	}
+#endif
+
 	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
 		return -ENODEV;
 
@@ -1653,6 +1678,12 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	VPRINTK("ENTER\n");
 
 	WARN_ON((int)ATA_MAX_QUEUE > AHCI_MAX_CMDS);
+
+#ifdef CONFIG_X86_PS4
+	/* This will return negative on non-PS4 platforms */
+	if (apcie_status() == 0)
+		return -EPROBE_DEFER;
+#endif
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
@@ -1881,6 +1912,11 @@ static void ahci_remove_one(struct pci_dev *pdev)
 {
 	pm_runtime_get_noresume(&pdev->dev);
 	ata_pci_remove_one(pdev);
+#ifdef CONFIG_X86_PS4
+	if (pdev->vendor == PCI_VENDOR_ID_SONY) {
+		apcie_free_irqs(pdev->irq, 1);
+	}
+#endif
 }
 
 module_pci_driver(ahci_pci_driver);
