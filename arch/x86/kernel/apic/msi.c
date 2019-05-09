@@ -26,7 +26,7 @@
 
 static struct irq_domain *msi_default_domain;
 
-static void irq_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
+void irq_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct irq_cfg *cfg = irqd_cfg(data);
 

@@ -467,5 +467,12 @@ void __init x86_64_start_reservations(char *real_mode_data)
 		break;
 	}
 
+	/* Call the subarch specific early setup function */
+	switch (boot_params.hdr.hardware_subarch) {
+	case X86_SUBARCH_PS4:
+		x86_ps4_early_setup();
+		break;
+	}
+
 	start_kernel();
 }
