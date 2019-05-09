@@ -6302,9 +6302,6 @@ enum irqreturn
 intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum irqreturn ret = IRQ_NONE;
-	intel_wakeref_t wakeref;
 
 	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {
 		/*
@@ -6327,9 +6324,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		return IRQ_NONE;
 	}
 
-	wakeref = intel_display_power_get(dev_priv,
-					  intel_aux_power_domain(intel_dig_port));
-
 	if (intel_dp->is_mst) {
 		if (intel_dp_check_mst_status(intel_dp) == -EINVAL) {
 			/*
@@ -6341,7 +6335,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			intel_dp->is_mst = false;
 			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
 							intel_dp->is_mst);
-			goto put_power;
+
+			return IRQ_NONE;
 		}
 	}
 
@@ -6351,17 +6346,10 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		handled = intel_dp_short_pulse(intel_dp);
 
 		if (!handled)
-			goto put_power;
+			return IRQ_NONE;
 	}
 
-	ret = IRQ_HANDLED;
-
-put_power:
-	intel_display_power_put(dev_priv,
-				intel_aux_power_domain(intel_dig_port),
-				wakeref);
-
-	return ret;
+	return IRQ_HANDLED;
 }
 
 /* check the VBT to see whether the eDP is on another port */
