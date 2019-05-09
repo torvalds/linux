@@ -2599,7 +2599,7 @@ static int do_move_mount(struct path *old_path, struct path *new_path)
 	if (attached && !check_mnt(old))
 		goto out;
 
-	if (!attached && !is_anon_ns(ns))
+	if (!attached && !(ns && is_anon_ns(ns)))
 		goto out;
 
 	if (old->mnt.mnt_flags & MNT_LOCKED)
