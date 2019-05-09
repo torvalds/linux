@@ -1523,8 +1523,25 @@ static int sdma_v4_0_late_init(void *handle)
 	}
 
 	/* handle resume path. */
-	if (*ras_if)
+	if (*ras_if) {
+		/* resend ras TA enable cmd during resume.
+		 * prepare to handle failure.
+		 */
+		ih_info.head = **ras_if;
+		r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
+		if (r) {
+			if (r == -EAGAIN) {
+				/* request a gpu reset. will run again. */
+				amdgpu_ras_request_reset_on_boot(adev,
+						AMDGPU_RAS_BLOCK__SDMA);
+				return 0;
+			}
+			/* fail to enable ras, cleanup all. */
+			goto irq;
+		}
+		/* enable successfully. continue. */
 		goto resume;
+	}
 
 	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
 	if (!*ras_if)
