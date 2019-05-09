@@ -4456,7 +4456,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 }
 
 if (defined($final_post_ktest)) {
-    run_command $final_post_ktest;
+
+    my $cp_final_post_ktest = eval_kernel_version $final_post_ktest;
+    run_command $cp_final_post_ktest;
 }
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
