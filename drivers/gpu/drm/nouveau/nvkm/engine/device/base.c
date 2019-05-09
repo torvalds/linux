@@ -2824,8 +2824,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	u64 mmio_base, mmio_size;
 	u32 boot0, strap;
 	void __iomem *map;
-	int ret = -EEXIST;
-	int i;
+	int ret = -EEXIST, i;
+	unsigned chipset;
 
 	mutex_lock(&nv_devices_mutex);
 	if (nvkm_device_find_locked(handle))
@@ -2869,6 +2869,26 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		boot0 = ioread32_native(map + 0x000000);
 		strap = ioread32_native(map + 0x101000);
 		iounmap(map);
+
+		/* chipset can be overridden for devel/testing purposes */
+		chipset = nvkm_longopt(device->cfgopt, "NvChipset", 0);
+		if (chipset) {
+			u32 override_boot0;
+
+			if (chipset >= 0x10) {
+				override_boot0  = ((chipset & 0x1ff) << 20);
+				override_boot0 |= 0x000000a1;
+			} else {
+				if (chipset != 0x04)
+					override_boot0 = 0x20104000;
+				else
+					override_boot0 = 0x20004000;
+			}
+
+			nvdev_warn(device, "CHIPSET OVERRIDE: %08x -> %08x\n",
+				   boot0, override_boot0);
+			boot0 = override_boot0;
+		}
 
 		/* determine chipset and derive architecture from it */
 		if ((boot0 & 0x1f000000) > 0) {
