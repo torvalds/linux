@@ -5081,15 +5081,28 @@ i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
 }
 
 dma_addr_t
-i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
-				unsigned long n)
+i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj,
+				    unsigned long n,
+				    unsigned int *len)
 {
 	struct scatterlist *sg;
 	unsigned int offset;
 
 	sg = i915_gem_object_get_sg(obj, n, &offset);
+
+	if (len)
+		*len = sg_dma_len(sg) - (offset << PAGE_SHIFT);
+
 	return sg_dma_address(sg) + (offset << PAGE_SHIFT);
 }
+
+dma_addr_t
+i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
+				unsigned long n)
+{
+	return i915_gem_object_get_dma_address_len(obj, n, NULL);
+}
+
 
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 {

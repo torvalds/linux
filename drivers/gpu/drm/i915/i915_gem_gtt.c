@@ -3608,6 +3608,89 @@ err_st_alloc:
 	return ERR_PTR(ret);
 }
 
+static struct scatterlist *
+remap_pages(struct drm_i915_gem_object *obj, unsigned int offset,
+	    unsigned int width, unsigned int height,
+	    unsigned int stride,
+	    struct sg_table *st, struct scatterlist *sg)
+{
+	unsigned int row;
+
+	for (row = 0; row < height; row++) {
+		unsigned int left = width * I915_GTT_PAGE_SIZE;
+
+		while (left) {
+			dma_addr_t addr;
+			unsigned int length;
+
+			/* We don't need the pages, but need to initialize
+			 * the entries so the sg list can be happily traversed.
+			 * The only thing we need are DMA addresses.
+			 */
+
+			addr = i915_gem_object_get_dma_address_len(obj, offset, &length);
+
+			length = min(left, length);
+
+			st->nents++;
+
+			sg_set_page(sg, NULL, length, 0);
+			sg_dma_address(sg) = addr;
+			sg_dma_len(sg) = length;
+			sg = sg_next(sg);
+
+			offset += length / I915_GTT_PAGE_SIZE;
+			left -= length;
+		}
+
+		offset += stride - width;
+	}
+
+	return sg;
+}
+
+static noinline struct sg_table *
+intel_remap_pages(struct intel_remapped_info *rem_info,
+		  struct drm_i915_gem_object *obj)
+{
+	unsigned int size = intel_remapped_info_size(rem_info);
+	struct sg_table *st;
+	struct scatterlist *sg;
+	int ret = -ENOMEM;
+	int i;
+
+	/* Allocate target SG list. */
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		goto err_st_alloc;
+
+	ret = sg_alloc_table(st, size, GFP_KERNEL);
+	if (ret)
+		goto err_sg_alloc;
+
+	st->nents = 0;
+	sg = st->sgl;
+
+	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++) {
+		sg = remap_pages(obj, rem_info->plane[i].offset,
+				 rem_info->plane[i].width, rem_info->plane[i].height,
+				 rem_info->plane[i].stride, st, sg);
+	}
+
+	i915_sg_trim(st);
+
+	return st;
+
+err_sg_alloc:
+	kfree(st);
+err_st_alloc:
+
+	DRM_DEBUG_DRIVER("Failed to create remapped mapping for object size %zu! (%ux%u tiles, %u pages)\n",
+			 obj->base.size, rem_info->plane[0].width, rem_info->plane[0].height, size);
+
+	return ERR_PTR(ret);
+}
+
 static noinline struct sg_table *
 intel_partial_pages(const struct i915_ggtt_view *view,
 		    struct drm_i915_gem_object *obj)
@@ -3684,6 +3767,11 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	case I915_GGTT_VIEW_ROTATED:
 		vma->pages =
 			intel_rotate_pages(&vma->ggtt_view.rotated, vma->obj);
+		break;
+
+	case I915_GGTT_VIEW_REMAPPED:
+		vma->pages =
+			intel_remap_pages(&vma->ggtt_view.remapped, vma->obj);
 		break;
 
 	case I915_GGTT_VIEW_PARTIAL:

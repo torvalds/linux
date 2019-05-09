@@ -2864,6 +2864,10 @@ i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
 			       unsigned int n);
 
 dma_addr_t
+i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj,
+				    unsigned long n,
+				    unsigned int *len);
+dma_addr_t
 i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 				unsigned long n);
 

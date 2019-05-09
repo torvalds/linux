@@ -1997,6 +1997,17 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 	return size;
 }
 
+unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info)
+{
+	unsigned int size = 0;
+	int i;
+
+	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++)
+		size += rem_info->plane[i].width * rem_info->plane[i].height;
+
+	return size;
+}
+
 static void
 intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 			const struct drm_framebuffer *fb,

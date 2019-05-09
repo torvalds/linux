@@ -212,6 +212,18 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 					   vma->ggtt_view.rotated.plane[1].offset);
 				break;
 
+			case I915_GGTT_VIEW_REMAPPED:
+				seq_printf(m, ", remapped [(%ux%u, stride=%u, offset=%u), (%ux%u, stride=%u, offset=%u)]",
+					   vma->ggtt_view.remapped.plane[0].width,
+					   vma->ggtt_view.remapped.plane[0].height,
+					   vma->ggtt_view.remapped.plane[0].stride,
+					   vma->ggtt_view.remapped.plane[0].offset,
+					   vma->ggtt_view.remapped.plane[1].width,
+					   vma->ggtt_view.remapped.plane[1].height,
+					   vma->ggtt_view.remapped.plane[1].stride,
+					   vma->ggtt_view.remapped.plane[1].offset);
+				break;
+
 			default:
 				MISSING_CASE(vma->ggtt_view.type);
 				break;
