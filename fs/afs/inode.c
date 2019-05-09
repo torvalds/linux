@@ -571,7 +571,7 @@ bool afs_check_validity(struct afs_vnode *vnode)
 	struct afs_server *server;
 	struct afs_volume *volume = vnode->volume;
 	time64_t now = ktime_get_real_seconds();
-	bool valid;
+	bool valid, need_clear = false;
 	unsigned int cb_break, cb_s_break, cb_v_break;
 	int seq = 0;
 
@@ -589,10 +589,13 @@ bool afs_check_validity(struct afs_vnode *vnode)
 			    vnode->cb_v_break != cb_v_break) {
 				vnode->cb_s_break = cb_s_break;
 				vnode->cb_v_break = cb_v_break;
+				need_clear = true;
 				valid = false;
 			} else if (test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
+				need_clear = true;
 				valid = false;
 			} else if (vnode->cb_expires_at - 10 <= now) {
+				need_clear = true;
 				valid = false;
 			} else {
 				valid = true;
@@ -607,6 +610,15 @@ bool afs_check_validity(struct afs_vnode *vnode)
 	} while (need_seqretry(&vnode->cb_lock, seq));
 
 	done_seqretry(&vnode->cb_lock, seq);
+
+	if (need_clear) {
+		write_seqlock(&vnode->cb_lock);
+		if (cb_break == vnode->cb_break)
+			__afs_break_callback(vnode);
+		write_sequnlock(&vnode->cb_lock);
+		valid = false;
+	}
+
 	return valid;
 }
 
