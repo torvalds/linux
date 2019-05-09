@@ -76,33 +76,6 @@ static inline scom_map_t scom_map(struct device_node *ctrl_dev,
 }
 
 /**
- * scom_find_parent - Find the SCOM controller for a device
- * @dev: OF node of the device
- *
- * This is not meant for general usage, but in combination with
- * scom_map() allows to map registers not represented by the
- * device own scom-reg property. Useful for applying HW workarounds
- * on things not properly represented in the device-tree for example.
- */
-struct device_node *scom_find_parent(struct device_node *dev);
-
-
-/**
- * scom_map_device - Map a device's block of SCOM registers
- * @dev: OF node of the device
- * @index: Register bank index (index in "scom-reg" property)
- *
- * This function will use the device-tree binding for SCOM which
- * is to follow "scom-parent" properties until it finds a node with
- * a "scom-controller" property to find the controller. It will then
- * use the "scom-reg" property which is made of reg/count pairs,
- * each of them having a size defined by the controller's #scom-cells
- * property
- */
-extern scom_map_t scom_map_device(struct device_node *dev, int index);
-
-
-/**
  * scom_unmap - Unmap a block of SCOM registers
  * @map: Result of scom_map is to be unmapped
  */
