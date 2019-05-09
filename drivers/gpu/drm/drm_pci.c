@@ -188,6 +188,8 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 	if (WARN_ON(!dev->pdev || pci_is_root_bus(dev->pdev->bus)))
 		return -EINVAL;
 
+        root = dev->pdev->bus->self;
+
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EOPNOTSUPP;
 
