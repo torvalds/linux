@@ -1916,42 +1916,6 @@ sub _get_grub_index {
     $last_machine = $machine;
 }
 
-sub get_grub2_index {
-
-    return if (defined($grub_number) && defined($last_grub_menu) &&
-	       $last_grub_menu eq $grub_menu && defined($last_machine) &&
-	       $last_machine eq $machine);
-
-    doprint "Find grub2 menu ... ";
-    $grub_number = -1;
-
-    my $ssh_grub = $ssh_exec;
-    $ssh_grub =~ s,\$SSH_COMMAND,cat $grub_file,g;
-
-    open(IN, "$ssh_grub |")
-	or dodie "unable to get $grub_file";
-
-    my $found = 0;
-    my $grub_menu_qt = quotemeta($grub_menu);
-
-    while (<IN>) {
-	if (/^menuentry.*$grub_menu_qt/) {
-	    $grub_number++;
-	    $found = 1;
-	    last;
-	} elsif (/^menuentry\s|^submenu\s/) {
-	    $grub_number++;
-	}
-    }
-    close(IN);
-
-    dodie "Could not find '$grub_menu' in $grub_file on $machine"
-	if (!$found);
-    doprint "$grub_number\n";
-    $last_grub_menu = $grub_menu;
-    $last_machine = $machine;
-}
-
 sub get_grub_index {
 
     my $command;
