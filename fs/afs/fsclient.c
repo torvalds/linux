@@ -2237,7 +2237,6 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 {
 	struct afs_file_status *statuses;
 	struct afs_callback *callbacks;
-	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
 	u32 tmp;
 	int ret;
@@ -2278,8 +2277,7 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		bp = call->buffer;
 		statuses = call->reply[1];
 		ret = afs_decode_status(call, &bp, &statuses[call->count],
-					call->count == 0 ? vnode : NULL,
-					NULL, NULL);
+					NULL, NULL, NULL);
 		if (ret < 0)
 			return ret;
 
@@ -2321,8 +2319,6 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		callbacks = call->reply[2];
 		xdr_decode_AFSCallBack_raw(call, &callbacks[call->count], &bp);
 		statuses = call->reply[1];
-		if (call->count == 0 && vnode && statuses[0].abort_code == 0)
-			xdr_decode_AFSCallBack(call, vnode, &bp);
 		call->count++;
 		if (call->count < call->count2)
 			goto more_cbs;
@@ -2390,7 +2386,6 @@ int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	}
 
 	call->key = fc->key;
-	call->reply[0] = NULL; /* vnode for fid[0] */
 	call->reply[1] = statuses;
 	call->reply[2] = callbacks;
 	call->reply[3] = volsync;
