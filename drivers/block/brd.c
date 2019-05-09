@@ -153,6 +153,12 @@ static void brd_free_pages(struct brd_device *brd)
 		pos++;
 
 		/*
+		 * It takes 3.4 seconds to remove 80GiB ramdisk.
+		 * So, we need cond_resched to avoid stalling the CPU.
+		 */
+		cond_resched();
+
+		/*
 		 * This assumes radix_tree_gang_lookup always returns as
 		 * many pages as possible. If the radix-tree code changes,
 		 * so will this have to.
