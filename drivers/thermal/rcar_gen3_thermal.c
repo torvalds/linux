@@ -410,10 +410,6 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		}
 		tsc->zone = zone;
 
-		ret = of_thermal_get_ntrips(tsc->zone);
-		if (ret < 0)
-			goto error_unregister;
-
 		tsc->zone->tzp->no_hwmon = false;
 		ret = thermal_add_hwmon_sysfs(tsc->zone);
 		if (ret)
@@ -424,6 +420,10 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 			rcar_gen3_hwmon_action(zone);
 			goto error_unregister;
 		}
+
+		ret = of_thermal_get_ntrips(tsc->zone);
+		if (ret < 0)
+			goto error_unregister;
 
 		dev_info(dev, "TSC%d: Loaded %d trip points\n", i, ret);
 	}
