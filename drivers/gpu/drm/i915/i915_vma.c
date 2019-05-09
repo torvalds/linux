@@ -483,14 +483,6 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
 	GEM_BUG_ON(!vma->fence_size);
 
-	/*
-	 * Explicitly disable for rotated VMA since the display does not
-	 * need the fence and the VMA is not accessible to other users.
-	 */
-	if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED ||
-	    vma->ggtt_view.type == I915_GGTT_VIEW_REMAPPED)
-		return;
-
 	fenceable = (vma->node.size >= vma->fence_size &&
 		     IS_ALIGNED(vma->node.start, vma->fence_alignment));
 
