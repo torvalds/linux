@@ -102,6 +102,8 @@
 #define page_pack_bits(ptr, bits) ptr_pack_bits(ptr, bits, PAGE_SHIFT)
 #define page_unpack_bits(ptr, bits) ptr_unpack_bits(ptr, bits, PAGE_SHIFT)
 
+#define struct_member(T, member) (((T *)0)->member)
+
 #define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 
 #define fetch_and_zero(ptr) ({						\
@@ -118,7 +120,7 @@
  */
 #define container_of_user(ptr, type, member) ({				\
 	void __user *__mptr = (void __user *)(ptr);			\
-	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
+	BUILD_BUG_ON_MSG(!__same_type(*(ptr), struct_member(type, member)) && \
 			 !__same_type(*(ptr), void),			\
 			 "pointer type mismatch in container_of()");	\
 	((type __user *)(__mptr - offsetof(type, member))); })
