@@ -106,41 +106,46 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 {
 	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	unsigned long offset = 0;
 	u32 size;
 	int ret;
 
 	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
 	offset = intel_guc_ggtt_offset(&dev_priv->guc, vma) +
 		 huc_fw->header_offset;
-	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
-	I915_WRITE(DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
+	intel_uncore_write(uncore, DMA_ADDR_0_LOW,
+			   lower_32_bits(offset));
+	intel_uncore_write(uncore, DMA_ADDR_0_HIGH,
+			   upper_32_bits(offset) & 0xFFFF);
 
-	/* Hardware doesn't look at destination address for HuC. Set it to 0,
+	/*
+	 * Hardware doesn't look at destination address for HuC. Set it to 0,
 	 * but still program the correct address space.
 	 */
-	I915_WRITE(DMA_ADDR_1_LOW, 0);
-	I915_WRITE(DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
+	intel_uncore_write(uncore, DMA_ADDR_1_LOW, 0);
+	intel_uncore_write(uncore, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 
 	size = huc_fw->header_size + huc_fw->ucode_size;
-	I915_WRITE(DMA_COPY_SIZE, size);
+	intel_uncore_write(uncore, DMA_COPY_SIZE, size);
 
 	/* Start the DMA */
-	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(HUC_UKERNEL | START_DMA));
+	intel_uncore_write(uncore, DMA_CTRL,
+			   _MASKED_BIT_ENABLE(HUC_UKERNEL | START_DMA));
 
 	/* Wait for DMA to finish */
-	ret = intel_wait_for_register_fw(dev_priv, DMA_CTRL, START_DMA, 0, 100);
+	ret = intel_wait_for_register_fw(uncore, DMA_CTRL, START_DMA, 0, 100);
 
 	DRM_DEBUG_DRIVER("HuC DMA transfer wait over with ret %d\n", ret);
 
 	/* Disable the bits once DMA is over */
-	I915_WRITE(DMA_CTRL, _MASKED_BIT_DISABLE(HUC_UKERNEL));
+	intel_uncore_write(uncore, DMA_CTRL, _MASKED_BIT_DISABLE(HUC_UKERNEL));
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
 	return ret;
 }

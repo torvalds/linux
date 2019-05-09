@@ -104,6 +104,9 @@ struct msm_gpu {
 	/* does gpu need hw_init? */
 	bool needs_hw_init;
 
+	/* number of GPU hangs (for all contexts) */
+	int global_faults;
+
 	/* worker for handling active-list retiring: */
 	struct work_struct retire_work;
 

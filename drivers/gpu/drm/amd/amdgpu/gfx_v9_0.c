@@ -40,6 +40,8 @@
 
 #include "ivsrcid/gfx/irqsrcs_gfx_9_0.h"
 
+#include "amdgpu_ras.h"
+
 #define GFX9_NUM_GFX_RINGS     1
 #define GFX9_MEC_HPD_SIZE 4096
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
@@ -576,6 +578,27 @@ static void gfx_v9_0_check_fw_write_wait(struct amdgpu_device *adev)
 	}
 }
 
+static void gfx_v9_0_check_if_need_gfxoff(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+		break;
+	case CHIP_RAVEN:
+		if (adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
+			break;
+		if ((adev->gfx.rlc_fw_version < 531) ||
+		    (adev->gfx.rlc_fw_version == 53815) ||
+		    (adev->gfx.rlc_feature_version < 1) ||
+		    !adev->gfx.rlc.is_rlc_v2_1)
+			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		break;
+	default:
+		break;
+	}
+}
+
 static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
@@ -828,6 +851,7 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	}
 
 out:
+	gfx_v9_0_check_if_need_gfxoff(adev);
 	gfx_v9_0_check_fw_write_wait(adev);
 	if (err) {
 		dev_err(adev->dev,
@@ -1639,6 +1663,18 @@ static int gfx_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	/* ECC error */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, GFX_9_0__SRCID__CP_ECC_ERROR,
+			      &adev->gfx.cp_ecc_error_irq);
+	if (r)
+		return r;
+
+	/* FUE error */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, GFX_9_0__SRCID__CP_FUE_ERROR,
+			      &adev->gfx.cp_ecc_error_irq);
+	if (r)
+		return r;
+
 	adev->gfx.gfx_current_status = AMDGPU_GFX_NORMAL_MODE;
 
 	gfx_v9_0_scratch_init(adev);
@@ -1730,6 +1766,20 @@ static int gfx_v9_0_sw_fini(void *handle)
 {
 	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX) &&
+			adev->gfx.ras_if) {
+		struct ras_common_if *ras_if = adev->gfx.ras_if;
+		struct ras_ih_if ih_info = {
+			.head = *ras_if,
+		};
+
+		amdgpu_ras_debugfs_remove(adev, ras_if);
+		amdgpu_ras_sysfs_remove(adev, ras_if);
+		amdgpu_ras_interrupt_remove_handler(adev,  &ih_info);
+		amdgpu_ras_feature_enable(adev, ras_if, 0);
+		kfree(ras_if);
+	}
 
 	amdgpu_bo_free_kernel(&adev->gds.oa_gfx_bo, NULL, NULL);
 	amdgpu_bo_free_kernel(&adev->gds.gws_gfx_bo, NULL, NULL);
@@ -3303,6 +3353,7 @@ static int gfx_v9_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_irq_put(adev, &adev->gfx.cp_ecc_error_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 
@@ -3492,6 +3543,80 @@ static int gfx_v9_0_early_init(void *handle)
 	return 0;
 }
 
+static int gfx_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
+		struct amdgpu_iv_entry *entry);
+
+static int gfx_v9_0_ecc_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct ras_common_if **ras_if = &adev->gfx.ras_if;
+	struct ras_ih_if ih_info = {
+		.cb = gfx_v9_0_process_ras_data_cb,
+	};
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "gfx_err_count",
+		.debugfs_name = "gfx_err_inject",
+	};
+	struct ras_common_if ras_block = {
+		.block = AMDGPU_RAS_BLOCK__GFX,
+		.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+		.sub_block_index = 0,
+		.name = "gfx",
+	};
+	int r;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
+		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
+		return 0;
+	}
+
+	if (*ras_if)
+		goto resume;
+
+	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
+	if (!*ras_if)
+		return -ENOMEM;
+
+	**ras_if = ras_block;
+
+	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
+	if (r)
+		goto feature;
+
+	ih_info.head = **ras_if;
+	fs_info.head = **ras_if;
+
+	r = amdgpu_ras_interrupt_add_handler(adev, &ih_info);
+	if (r)
+		goto interrupt;
+
+	r = amdgpu_ras_debugfs_create(adev, &fs_info);
+	if (r)
+		goto debugfs;
+
+	r = amdgpu_ras_sysfs_create(adev, &fs_info);
+	if (r)
+		goto sysfs;
+resume:
+	r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
+	if (r)
+		goto irq;
+
+	return 0;
+irq:
+	amdgpu_ras_sysfs_remove(adev, *ras_if);
+sysfs:
+	amdgpu_ras_debugfs_remove(adev, *ras_if);
+debugfs:
+	amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
+interrupt:
+	amdgpu_ras_feature_enable(adev, *ras_if, 0);
+feature:
+	kfree(*ras_if);
+	*ras_if = NULL;
+	return -EINVAL;
+}
+
 static int gfx_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -3502,6 +3627,10 @@ static int gfx_v9_0_late_init(void *handle)
 		return r;
 
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_inst_irq, 0);
+	if (r)
+		return r;
+
+	r = gfx_v9_0_ecc_late_init(handle);
 	if (r)
 		return r;
 
@@ -4541,6 +4670,45 @@ static int gfx_v9_0_set_priv_inst_fault_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+#define ENABLE_ECC_ON_ME_PIPE(me, pipe)				\
+	WREG32_FIELD15(GC, 0, CP_ME##me##_PIPE##pipe##_INT_CNTL,\
+			CP_ECC_ERROR_INT_ENABLE, 1)
+
+#define DISABLE_ECC_ON_ME_PIPE(me, pipe)			\
+	WREG32_FIELD15(GC, 0, CP_ME##me##_PIPE##pipe##_INT_CNTL,\
+			CP_ECC_ERROR_INT_ENABLE, 0)
+
+static int gfx_v9_0_set_cp_ecc_error_state(struct amdgpu_device *adev,
+					      struct amdgpu_irq_src *source,
+					      unsigned type,
+					      enum amdgpu_interrupt_state state)
+{
+	switch (state) {
+	case AMDGPU_IRQ_STATE_DISABLE:
+		WREG32_FIELD15(GC, 0, CP_INT_CNTL_RING0,
+				CP_ECC_ERROR_INT_ENABLE, 0);
+		DISABLE_ECC_ON_ME_PIPE(1, 0);
+		DISABLE_ECC_ON_ME_PIPE(1, 1);
+		DISABLE_ECC_ON_ME_PIPE(1, 2);
+		DISABLE_ECC_ON_ME_PIPE(1, 3);
+		break;
+
+	case AMDGPU_IRQ_STATE_ENABLE:
+		WREG32_FIELD15(GC, 0, CP_INT_CNTL_RING0,
+				CP_ECC_ERROR_INT_ENABLE, 1);
+		ENABLE_ECC_ON_ME_PIPE(1, 0);
+		ENABLE_ECC_ON_ME_PIPE(1, 1);
+		ENABLE_ECC_ON_ME_PIPE(1, 2);
+		ENABLE_ECC_ON_ME_PIPE(1, 3);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+
 static int gfx_v9_0_set_eop_interrupt_state(struct amdgpu_device *adev,
 					    struct amdgpu_irq_src *src,
 					    unsigned type,
@@ -4654,6 +4822,34 @@ static int gfx_v9_0_priv_inst_irq(struct amdgpu_device *adev,
 {
 	DRM_ERROR("Illegal instruction in command stream\n");
 	gfx_v9_0_fault(adev, entry);
+	return 0;
+}
+
+static int gfx_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
+		struct amdgpu_iv_entry *entry)
+{
+	/* TODO ue will trigger an interrupt. */
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+	amdgpu_ras_reset_gpu(adev, 0);
+	return AMDGPU_RAS_UE;
+}
+
+static int gfx_v9_0_cp_ecc_error_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry)
+{
+	struct ras_common_if *ras_if = adev->gfx.ras_if;
+	struct ras_dispatch_if ih_data = {
+		.entry = entry,
+	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
+	DRM_ERROR("CP ECC ERROR IRQ\n");
+	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;
 }
 
@@ -4818,6 +5014,12 @@ static const struct amdgpu_irq_src_funcs gfx_v9_0_priv_inst_irq_funcs = {
 	.process = gfx_v9_0_priv_inst_irq,
 };
 
+static const struct amdgpu_irq_src_funcs gfx_v9_0_cp_ecc_error_irq_funcs = {
+	.set = gfx_v9_0_set_cp_ecc_error_state,
+	.process = gfx_v9_0_cp_ecc_error_irq,
+};
+
+
 static void gfx_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gfx.eop_irq.num_types = AMDGPU_CP_IRQ_LAST;
@@ -4828,6 +5030,9 @@ static void gfx_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->gfx.priv_inst_irq.num_types = 1;
 	adev->gfx.priv_inst_irq.funcs = &gfx_v9_0_priv_inst_irq_funcs;
+
+	adev->gfx.cp_ecc_error_irq.num_types = 2; /*C5 ECC error and C9 FUE error*/
+	adev->gfx.cp_ecc_error_irq.funcs = &gfx_v9_0_cp_ecc_error_irq_funcs;
 }
 
 static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev)

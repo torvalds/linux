@@ -34,7 +34,7 @@ struct psb_framebuffer {
 };
 
 struct psb_fbdev {
-	struct drm_fb_helper psb_fb_helper;
+	struct drm_fb_helper psb_fb_helper; /* must be first */
 	struct psb_framebuffer pfb;
 };
 

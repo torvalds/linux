@@ -1169,7 +1169,7 @@ S:	Supported
 T:	git git://linux-arm.org/linux-ld.git for-upstream/mali-dp
 F:	drivers/gpu/drm/arm/display/include/
 F:	drivers/gpu/drm/arm/display/komeda/
-F:	Documentation/devicetree/bindings/display/arm/arm,komeda.txt
+F:	Documentation/devicetree/bindings/display/arm,komeda.txt
 F:	Documentation/gpu/komeda-kms.rst
 
 ARM MALI-DP DRM DRIVER
@@ -1181,6 +1181,15 @@ T:	git git://linux-arm.org/linux-ld.git for-upstream/mali-dp
 F:	drivers/gpu/drm/arm/
 F:	Documentation/devicetree/bindings/display/arm,malidp.txt
 F:	Documentation/gpu/afbc.rst
+
+ARM MALI PANFROST DRM DRIVER
+M:	Rob Herring <robh@kernel.org>
+M:	Tomeu Vizoso <tomeu.vizoso@collabora.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	drivers/gpu/drm/panfrost/
+F:	include/uapi/drm/panfrost_drm.h
 
 ARM MFM AND FLOPPY DRIVERS
 M:	Ian Molton <spyro@f2s.com>
@@ -4917,6 +4926,14 @@ M:	Dave Airlie <airlied@redhat.com>
 S:	Odd Fixes
 F:	drivers/gpu/drm/ast/
 
+DRM DRIVER FOR ASPEED BMC GFX
+M:	Joel Stanley <joel@jms.id.au>
+L:	linux-aspeed@lists.ozlabs.org
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Supported
+F:	drivers/gpu/drm/aspeed/
+F:	Documentation/devicetree/bindings/gpu/aspeed-gfx.txt
+
 DRM DRIVER FOR BOCHS VIRTUAL GPU
 M:	Gerd Hoffmann <kraxel@redhat.com>
 L:	virtualization@lists.linux-foundation.org
@@ -4929,6 +4946,12 @@ M:	Linus Walleij <linus.walleij@linaro.org>
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tve200/
+
+DRM DRIVER FOR FEIYANG FY07024DI26A30-D MIPI-DSI LCD PANELS
+M:	Jagan Teki <jagan@amarulasolutions.com>
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-feiyang-fy07024di26a30d.c
+F:	Documentation/devicetree/bindings/display/panel/feiyang,fy07024di26a30d.txt
 
 DRM DRIVER FOR ILITEK ILI9225 PANELS
 M:	David Lechner <david@lechnology.com>
@@ -5021,6 +5044,12 @@ S:	Orphan / Obsolete
 F:	drivers/gpu/drm/r128/
 F:	include/uapi/drm/r128_drm.h
 
+DRM DRIVER FOR ROCKTECH JH057N00900 PANELS
+M:	Guido Günther <agx@sigxcpu.org>
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-rocktech-jh057n00900.c
+F:	Documentation/devicetree/bindings/display/panel/rocktech,jh057n00900.txt
+
 DRM DRIVER FOR SAVAGE VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/savage/
@@ -5066,6 +5095,13 @@ R:	Sean Paul <sean@poorly.run>
 L:	dri-devel@lists.freedesktop.org
 S:	Odd Fixes
 F:	drivers/gpu/drm/udl/
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+
+DRM DRIVER FOR VIRTUALBOX VIRTUAL GPU
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+F:	drivers/gpu/drm/vboxvideo/
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVER FOR VIRTUAL KERNEL MODESETTING (VKMS)
@@ -5201,6 +5237,15 @@ T:	git git://github.com/xin3liang/linux.git
 S:	Maintained
 F:	drivers/gpu/drm/hisilicon/
 F:	Documentation/devicetree/bindings/display/hisilicon/
+
+DRM DRIVERS FOR LIMA
+M:	Qiang Yu <yuq825@gmail.com>
+L:	dri-devel@lists.freedesktop.org
+L:	lima@lists.freedesktop.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/gpu/drm/lima/
+F:	include/uapi/drm/lima_drm.h
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR MEDIATEK
 M:	CK Hu <ck.hu@mediatek.com>

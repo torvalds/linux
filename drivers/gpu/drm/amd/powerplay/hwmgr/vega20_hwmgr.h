@@ -531,6 +531,8 @@ struct vega20_hwmgr {
 	bool                           pcie_parameters_override;
 	uint32_t                       pcie_gen_level1;
 	uint32_t                       pcie_width_level1;
+
+	bool                           is_custom_profile_set;
 };
 
 #define VEGA20_DPM2_NEAR_TDP_DEC                      10

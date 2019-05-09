@@ -148,9 +148,6 @@ static int s6d16d0_get_modes(struct drm_panel *panel)
 	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	strncpy(connector->display_info.name, "Samsung S6D16D0\0",
-		DRM_DISPLAY_INFO_LEN);
-
 	mode = drm_mode_duplicate(panel->drm, &samsung_s6d16d0_mode);
 	if (!mode) {
 		DRM_ERROR("bad mode or failed to add mode\n");
