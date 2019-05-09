@@ -311,6 +311,22 @@ static int yfs_decode_status(struct afs_call *call,
 	return ret;
 }
 
+static void xdr_decode_YFSCallBack_raw(struct afs_call *call,
+				       struct afs_callback *cb,
+				       const __be32 **_bp)
+{
+	struct yfs_xdr_YFSCallBack *x = (void *)*_bp;
+	ktime_t cb_expiry;
+
+	cb_expiry = call->reply_time;
+	cb_expiry = ktime_add(cb_expiry, xdr_to_u64(x->expiration_time) * 100);
+	cb->expires_at	= ktime_divns(cb_expiry, NSEC_PER_SEC);
+	cb->version	= ntohl(x->version);
+	cb->type	= ntohl(x->type);
+
+	*_bp += xdr_size(x);
+}
+
 /*
  * Decode a YFSCallBack block
  */
@@ -318,18 +334,17 @@ static void xdr_decode_YFSCallBack(struct afs_call *call,
 				   struct afs_vnode *vnode,
 				   const __be32 **_bp)
 {
-	struct yfs_xdr_YFSCallBack *xdr = (void *)*_bp;
 	struct afs_cb_interest *old, *cbi = call->cbi;
-	u64 cb_expiry;
+	struct afs_callback cb;
+
+	xdr_decode_YFSCallBack_raw(call, &cb, _bp);
 
 	write_seqlock(&vnode->cb_lock);
 
 	if (!afs_cb_is_broken(call->cb_break, vnode, cbi)) {
-		cb_expiry = xdr_to_u64(xdr->expiration_time);
-		do_div(cb_expiry, 10 * 1000 * 1000);
-		vnode->cb_version	= ntohl(xdr->version);
-		vnode->cb_type		= ntohl(xdr->type);
-		vnode->cb_expires_at	= cb_expiry + ktime_get_real_seconds();
+		vnode->cb_version	= cb.version;
+		vnode->cb_type		= cb.type;
+		vnode->cb_expires_at	= cb.expires_at;
 		old = vnode->cb_interest;
 		if (old != call->cbi) {
 			vnode->cb_interest = cbi;
@@ -340,22 +355,6 @@ static void xdr_decode_YFSCallBack(struct afs_call *call,
 
 	write_sequnlock(&vnode->cb_lock);
 	call->cbi = cbi;
-	*_bp += xdr_size(xdr);
-}
-
-static void xdr_decode_YFSCallBack_raw(const __be32 **_bp,
-				       struct afs_callback *cb)
-{
-	struct yfs_xdr_YFSCallBack *x = (void *)*_bp;
-	u64 cb_expiry;
-
-	cb_expiry = xdr_to_u64(x->expiration_time);
-	do_div(cb_expiry, 10 * 1000 * 1000);
-	cb->version	= ntohl(x->version);
-	cb->type	= ntohl(x->type);
-	cb->expires_at	= cb_expiry + ktime_get_real_seconds();
-
-	*_bp += xdr_size(x);
 }
 
 /*
@@ -743,7 +742,7 @@ static int yfs_deliver_fs_create_vnode(struct afs_call *call)
 				&call->expected_version, NULL);
 	if (ret < 0)
 		return ret;
-	xdr_decode_YFSCallBack_raw(&bp, call->reply[3]);
+	xdr_decode_YFSCallBack_raw(call, call->reply[3], &bp);
 	xdr_decode_YFSVolSync(&bp, NULL);
 
 	_leave(" = 0 [done]");
@@ -1983,7 +1982,7 @@ static int yfs_deliver_fs_fetch_status(struct afs_call *call)
 				&call->expected_version, NULL);
 	if (ret < 0)
 		return ret;
-	xdr_decode_YFSCallBack_raw(&bp, callback);
+	xdr_decode_YFSCallBack_raw(call, callback, &bp);
 	xdr_decode_YFSVolSync(&bp, volsync);
 
 	_leave(" = 0 [done]");
@@ -2138,7 +2137,7 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		_debug("unmarshall CB array");
 		bp = call->buffer;
 		callbacks = call->reply[2];
-		xdr_decode_YFSCallBack_raw(&bp, &callbacks[call->count]);
+		xdr_decode_YFSCallBack_raw(call, &callbacks[call->count], &bp);
 		statuses = call->reply[1];
 		if (call->count == 0 && vnode && statuses[0].abort_code == 0) {
 			bp = call->buffer;

@@ -256,6 +256,23 @@ static int afs_decode_status(struct afs_call *call,
 	return ret;
 }
 
+static time64_t xdr_decode_expiry(struct afs_call *call, u32 expiry)
+{
+	return ktime_divns(call->reply_time, NSEC_PER_SEC) + expiry;
+}
+
+static void xdr_decode_AFSCallBack_raw(struct afs_call *call,
+				       struct afs_callback *cb,
+				       const __be32 **_bp)
+{
+	const __be32 *bp = *_bp;
+
+	cb->version	= ntohl(*bp++);
+	cb->expires_at	= xdr_decode_expiry(call, ntohl(*bp++));
+	cb->type	= ntohl(*bp++);
+	*_bp = bp;
+}
+
 /*
  * decode an AFSCallBack block
  */
@@ -264,46 +281,26 @@ static void xdr_decode_AFSCallBack(struct afs_call *call,
 				   const __be32 **_bp)
 {
 	struct afs_cb_interest *old, *cbi = call->cbi;
-	const __be32 *bp = *_bp;
-	u32 cb_expiry;
+	struct afs_callback cb;
+
+	xdr_decode_AFSCallBack_raw(call, &cb, _bp);
 
 	write_seqlock(&vnode->cb_lock);
 
 	if (!afs_cb_is_broken(call->cb_break, vnode, cbi)) {
-		vnode->cb_version	= ntohl(*bp++);
-		cb_expiry		= ntohl(*bp++);
-		vnode->cb_type		= ntohl(*bp++);
-		vnode->cb_expires_at	= cb_expiry + ktime_get_real_seconds();
+		vnode->cb_version	= cb.version;
+		vnode->cb_type		= cb.type;
+		vnode->cb_expires_at	= cb.expires_at;
 		old = vnode->cb_interest;
 		if (old != call->cbi) {
 			vnode->cb_interest = cbi;
 			cbi = old;
 		}
 		set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
-	} else {
-		bp += 3;
 	}
 
 	write_sequnlock(&vnode->cb_lock);
 	call->cbi = cbi;
-	*_bp = bp;
-}
-
-static ktime_t xdr_decode_expiry(struct afs_call *call, u32 expiry)
-{
-	return ktime_add_ns(call->reply_time, expiry * NSEC_PER_SEC);
-}
-
-static void xdr_decode_AFSCallBack_raw(struct afs_call *call,
-				       const __be32 **_bp,
-				       struct afs_callback *cb)
-{
-	const __be32 *bp = *_bp;
-
-	cb->version	= ntohl(*bp++);
-	cb->expires_at	= xdr_decode_expiry(call, ntohl(*bp++));
-	cb->type	= ntohl(*bp++);
-	*_bp = bp;
 }
 
 /*
@@ -744,7 +741,7 @@ static int afs_deliver_fs_create_vnode(struct afs_call *call)
 				&call->expected_version, NULL);
 	if (ret < 0)
 		return ret;
-	xdr_decode_AFSCallBack_raw(call, &bp, call->reply[3]);
+	xdr_decode_AFSCallBack_raw(call, call->reply[3], &bp);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -2168,7 +2165,7 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 				&call->expected_version, NULL);
 	if (ret < 0)
 		return ret;
-	xdr_decode_AFSCallBack_raw(call, &bp, callback);
+	xdr_decode_AFSCallBack_raw(call, callback, &bp);
 	xdr_decode_AFSVolSync(&bp, volsync);
 
 	_leave(" = 0 [done]");
@@ -2322,9 +2319,7 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		_debug("unmarshall CB array");
 		bp = call->buffer;
 		callbacks = call->reply[2];
-		callbacks[call->count].version	= ntohl(bp[0]);
-		callbacks[call->count].expires_at = xdr_decode_expiry(call, ntohl(bp[1]));
-		callbacks[call->count].type	= ntohl(bp[2]);
+		xdr_decode_AFSCallBack_raw(call, &callbacks[call->count], &bp);
 		statuses = call->reply[1];
 		if (call->count == 0 && vnode && statuses[0].abort_code == 0)
 			xdr_decode_AFSCallBack(call, vnode, &bp);
