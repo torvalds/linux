@@ -15827,16 +15827,22 @@ int intel_modeset_init(struct drm_device *dev)
 		}
 	}
 
-	/* maximum framebuffer dimensions */
-	if (IS_GEN(dev_priv, 2)) {
-		dev->mode_config.max_width = 2048;
-		dev->mode_config.max_height = 2048;
+	/*
+	 * Maximum framebuffer dimensions, chosen to match
+	 * the maximum render engine surface size on gen4+.
+	 */
+	if (INTEL_GEN(dev_priv) >= 7) {
+		dev->mode_config.max_width = 16384;
+		dev->mode_config.max_height = 16384;
+	} else if (INTEL_GEN(dev_priv) >= 4) {
+		dev->mode_config.max_width = 8192;
+		dev->mode_config.max_height = 8192;
 	} else if (IS_GEN(dev_priv, 3)) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
 	} else {
-		dev->mode_config.max_width = 8192;
-		dev->mode_config.max_height = 8192;
+		dev->mode_config.max_width = 2048;
+		dev->mode_config.max_height = 2048;
 	}
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
