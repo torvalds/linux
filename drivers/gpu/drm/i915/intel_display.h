@@ -29,6 +29,7 @@
 #include <drm/i915_drm.h>
 
 struct drm_i915_private;
+struct intel_plane_state;
 
 enum i915_gpio {
 	GPIOA,
@@ -435,5 +436,6 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    bool constant_n);
 bool is_ccs_modifier(u64 modifier);
 void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv);
+bool intel_plane_can_remap(const struct intel_plane_state *plane_state);
 
 #endif
