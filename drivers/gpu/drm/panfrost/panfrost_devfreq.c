@@ -7,6 +7,7 @@
 #include <linux/regulator/consumer.h>
 
 #include "panfrost_device.h"
+#include "panfrost_devfreq.h"
 #include "panfrost_features.h"
 #include "panfrost_issues.h"
 #include "panfrost_gpu.h"

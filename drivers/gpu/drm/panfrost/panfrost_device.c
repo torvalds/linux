@@ -98,6 +98,7 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	struct resource *res;
 
 	mutex_init(&pfdev->sched_lock);
+	mutex_init(&pfdev->reset_lock);
 	INIT_LIST_HEAD(&pfdev->scheduled_jobs);
 
 	spin_lock_init(&pfdev->hwaccess_lock);

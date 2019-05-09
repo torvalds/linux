@@ -1416,12 +1416,6 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
  *
  *	The driver may place further restrictions within these minimum
  *	and maximum bounds.
- *
- *	The semantics for the vertical blank timestamp differ when
- *	variable refresh rate is active. The vertical blank timestamp
- *	is defined to be an estimate using the current mode's fixed
- *	refresh rate timings. The semantics for the page-flip event
- *	timestamp remain the same.
  */
 
 /**
