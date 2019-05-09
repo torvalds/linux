@@ -220,6 +220,7 @@ enum aux_ch {
 #define aux_ch_name(a) ((a) + 'A')
 
 enum intel_display_power_domain {
+	POWER_DOMAIN_DISPLAY_CORE,
 	POWER_DOMAIN_PIPE_A,
 	POWER_DOMAIN_PIPE_B,
 	POWER_DOMAIN_PIPE_C,

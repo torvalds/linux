@@ -216,14 +216,16 @@ static int intel_dp_get_fia_supported_lane_count(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	intel_wakeref_t wakeref;
 	u32 lane_info;
 
 	if (tc_port == PORT_TC_NONE || dig_port->tc_type != TC_PORT_TYPEC)
 		return 4;
 
-	lane_info = (I915_READ(PORT_TX_DFLEXDPSP) &
-		     DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
-		    DP_LANE_ASSIGNMENT_SHIFT(tc_port);
+	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+		lane_info = (I915_READ(PORT_TX_DFLEXDPSP) &
+			     DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
+				DP_LANE_ASSIGNMENT_SHIFT(tc_port);
 
 	switch (lane_info) {
 	default:
@@ -5294,7 +5296,7 @@ static bool icl_digital_port_connected(struct intel_encoder *encoder)
  *
  * Return %true if port is connected, %false otherwise.
  */
-bool intel_digital_port_connected(struct intel_encoder *encoder)
+static bool __intel_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -5322,6 +5324,18 @@ bool intel_digital_port_connected(struct intel_encoder *encoder)
 
 	MISSING_CASE(INTEL_GEN(dev_priv));
 	return false;
+}
+
+bool intel_digital_port_connected(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	intel_wakeref_t wakeref;
+	bool is_connected;
+
+	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+		is_connected = __intel_digital_port_connected(encoder);
+
+	return is_connected;
 }
 
 static struct edid *
@@ -5377,15 +5391,10 @@ intel_dp_detect(struct drm_connector *connector,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	enum drm_connector_status status;
-	enum intel_display_power_domain aux_domain =
-		intel_aux_power_domain(dig_port);
-	intel_wakeref_t wakeref;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
-
-	wakeref = intel_display_power_get(dev_priv, aux_domain);
 
 	/* Can't disconnect eDP */
 	if (intel_dp_is_edp(intel_dp))
@@ -5450,10 +5459,8 @@ intel_dp_detect(struct drm_connector *connector,
 		int ret;
 
 		ret = intel_dp_retrain_link(encoder, ctx);
-		if (ret) {
-			intel_display_power_put(dev_priv, aux_domain, wakeref);
+		if (ret)
 			return ret;
-		}
 	}
 
 	/*
@@ -5475,7 +5482,6 @@ out:
 	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
 
-	intel_display_power_put(dev_priv, aux_domain, wakeref);
 	return status;
 }
 

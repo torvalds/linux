@@ -409,6 +409,8 @@ const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain)
 {
 	switch (domain) {
+	case POWER_DOMAIN_DISPLAY_CORE:
+		return "DISPLAY_CORE";
 	case POWER_DOMAIN_PIPE_A:
 		return "PIPE_A";
 	case POWER_DOMAIN_PIPE_B:
@@ -2387,6 +2389,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define VLV_DISPLAY_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_DISPLAY_CORE) |	\
 	BIT_ULL(POWER_DOMAIN_PIPE_A) |		\
 	BIT_ULL(POWER_DOMAIN_PIPE_B) |		\
 	BIT_ULL(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |	\
@@ -2433,6 +2436,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define CHV_DISPLAY_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_DISPLAY_CORE) |	\
 	BIT_ULL(POWER_DOMAIN_PIPE_A) |		\
 	BIT_ULL(POWER_DOMAIN_PIPE_B) |		\
 	BIT_ULL(POWER_DOMAIN_PIPE_C) |		\
