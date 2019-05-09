@@ -111,8 +111,13 @@ struct afs_call {
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
 	struct key		*key;		/* security for this call */
 	struct afs_net		*net;		/* The network namespace */
-	struct afs_server	*cm_server;	/* Server affected by incoming CM call */
+	union {
+		struct afs_server	*server;
+		struct afs_vlserver	*vlserver;
+	};
 	struct afs_cb_interest	*cbi;		/* Callback interest for server used */
+	struct afs_vnode	*dvnode;	/* Directory vnode of call */
+	struct afs_vnode	*xvnode;	/* Other vnode of call */
 	void			*request;	/* request data (first part) */
 	struct address_space	*mapping;	/* Pages being written from */
 	struct iov_iter		iter;		/* Buffer iterator */
@@ -122,7 +127,21 @@ struct afs_call {
 		struct bio_vec	bvec[1];
 	};
 	void			*buffer;	/* reply receive buffer */
-	void			*reply[4];	/* Where to put the reply */
+	union {
+		long			ret0;	/* Value to reply with instead of 0 */
+		struct afs_addr_list	*ret_alist;
+		struct afs_vldb_entry	*ret_vldb;
+		struct afs_acl		*ret_acl;
+	};
+	struct afs_fid		*out_fid;
+	struct afs_file_status	*out_vnode_status;
+	struct afs_file_status	*out_extra_status;
+	struct afs_callback	*out_cb;
+	struct yfs_acl		*out_yacl;
+	struct afs_volsync	*out_volsync;
+	struct afs_volume_status *out_volstatus;
+	struct afs_read		*read_request;
+	unsigned int		server_index;
 	pgoff_t			first;		/* first page in mapping to deal with */
 	pgoff_t			last;		/* last page in mapping to deal with */
 	atomic_t		usage;
@@ -146,7 +165,6 @@ struct afs_call {
 	bool			send_pages;	/* T if data from mapping should be sent */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
-	bool			ret_reply0;	/* T if should return reply[0] on success */
 	bool			upgrade;	/* T to request service upgrade */
 	bool			want_reply_time; /* T if want reply_time */
 	bool			intr;		/* T if interruptible */

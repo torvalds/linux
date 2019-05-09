@@ -188,7 +188,7 @@ void afs_put_call(struct afs_call *call)
 		if (call->type->destructor)
 			call->type->destructor(call);
 
-		afs_put_server(call->net, call->cm_server);
+		afs_put_server(call->net, call->server);
 		afs_put_cb_interest(call->net, call->cbi);
 		afs_put_addrlist(call->alist);
 		kfree(call->request);
@@ -696,10 +696,9 @@ long afs_wait_for_call_to_complete(struct afs_call *call,
 	ret = ac->error;
 	switch (ret) {
 	case 0:
-		if (call->ret_reply0) {
-			ret = (long)call->reply[0];
-			call->reply[0] = NULL;
-		}
+		ret = call->ret0;
+		call->ret0 = 0;
+
 		/* Fall through */
 	case -ECONNABORTED:
 		ac->responded = true;

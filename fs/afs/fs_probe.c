@@ -33,8 +33,8 @@ static bool afs_fs_probe_done(struct afs_server *server)
 void afs_fileserver_probe_result(struct afs_call *call)
 {
 	struct afs_addr_list *alist = call->alist;
-	struct afs_server *server = call->reply[0];
-	unsigned int server_index = (long)call->reply[1];
+	struct afs_server *server = call->server;
+	unsigned int server_index = call->server_index;
 	unsigned int index = call->addr_ix;
 	unsigned int rtt = UINT_MAX;
 	bool have_result = false;
