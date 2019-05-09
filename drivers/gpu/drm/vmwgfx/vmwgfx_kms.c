@@ -1462,7 +1462,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 		if (dev_priv->active_display_unit == vmw_du_screen_target &&
 		    (drm_rect_width(&rects[i]) > dev_priv->stdu_max_width ||
 		     drm_rect_height(&rects[i]) > dev_priv->stdu_max_height)) {
-			DRM_ERROR("Screen size not supported.\n");
+			VMW_DEBUG_KMS("Screen size not supported.\n");
 			return -EINVAL;
 		}
 
@@ -1486,7 +1486,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 	 * limit on primary bounding box
 	 */
 	if (pixel_mem > dev_priv->prim_bb_mem) {
-		DRM_ERROR("Combined output size too large.\n");
+		VMW_DEBUG_KMS("Combined output size too large.\n");
 		return -EINVAL;
 	}
 
@@ -1496,7 +1496,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 		bb_mem = (u64) bounding_box.x2 * bounding_box.y2 * 4;
 
 		if (bb_mem > dev_priv->prim_bb_mem) {
-			DRM_ERROR("Topology is beyond supported limits.\n");
+			VMW_DEBUG_KMS("Topology is beyond supported limits.\n");
 			return -EINVAL;
 		}
 	}
@@ -1645,6 +1645,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 		struct vmw_connector_state *vmw_conn_state;
 
 		if (!du->pref_active && new_crtc_state->enable) {
+			VMW_DEBUG_KMS("Enabling a disabled display unit\n");
 			ret = -EINVAL;
 			goto clean;
 		}
@@ -1701,8 +1702,10 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 		return ret;
 
 	ret = vmw_kms_check_implicit(dev, state);
-	if (ret)
+	if (ret) {
+		VMW_DEBUG_KMS("Invalid implicit state\n");
 		return ret;
+	}
 
 	if (!state->allow_modeset)
 		return ret;
@@ -2401,7 +2404,9 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		if (drm_rects[i].x1 < 0 ||  drm_rects[i].y1 < 0 ||
 		    drm_rects[i].x2 > mode_config->max_width ||
 		    drm_rects[i].y2 > mode_config->max_height) {
-			DRM_ERROR("Invalid GUI layout.\n");
+			VMW_DEBUG_KMS("Invalid layout %d %d %d %d\n",
+				      drm_rects[i].x1, drm_rects[i].y1,
+				      drm_rects[i].x2, drm_rects[i].y2);
 			ret = -EINVAL;
 			goto out_free;
 		}
