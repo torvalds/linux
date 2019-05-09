@@ -1,5 +1,5 @@
 # List of programs to build
-hostprogs-$(CONFIG_SAMPLE_VFS) := \
+hostprogs-y := \
 	test-fsmount \
 	test-statx
 
