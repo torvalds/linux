@@ -744,22 +744,19 @@ static int m_can_handle_state_errors(struct net_device *dev, u32 psr)
 	struct m_can_priv *priv = netdev_priv(dev);
 	int work_done = 0;
 
-	if ((psr & PSR_EW) &&
-	    (priv->can.state != CAN_STATE_ERROR_WARNING)) {
+	if (psr & PSR_EW && priv->can.state != CAN_STATE_ERROR_WARNING) {
 		netdev_dbg(dev, "entered error warning state\n");
 		work_done += m_can_handle_state_change(dev,
 						       CAN_STATE_ERROR_WARNING);
 	}
 
-	if ((psr & PSR_EP) &&
-	    (priv->can.state != CAN_STATE_ERROR_PASSIVE)) {
+	if (psr & PSR_EP && priv->can.state != CAN_STATE_ERROR_PASSIVE) {
 		netdev_dbg(dev, "entered error passive state\n");
 		work_done += m_can_handle_state_change(dev,
 						       CAN_STATE_ERROR_PASSIVE);
 	}
 
-	if ((psr & PSR_BO) &&
-	    (priv->can.state != CAN_STATE_BUS_OFF)) {
+	if (psr & PSR_BO && priv->can.state != CAN_STATE_BUS_OFF) {
 		netdev_dbg(dev, "entered error bus off state\n");
 		work_done += m_can_handle_state_change(dev,
 						       CAN_STATE_BUS_OFF);
@@ -832,8 +829,8 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 	 * whether MCAN_ECR.RP = ’1’ and MCAN_ECR.REC = 127.
 	 * In this case, reset MCAN_IR.MRAF. No further action is required.
 	 */
-	if ((priv->version <= 31) && (irqstatus & IR_MRAF) &&
-	    (m_can_read(priv, M_CAN_ECR) & ECR_RP)) {
+	if (priv->version <= 31 && irqstatus & IR_MRAF &&
+	    m_can_read(priv, M_CAN_ECR) & ECR_RP) {
 		struct can_berr_counter bec;
 
 		__m_can_get_berr_counter(dev, &bec);
