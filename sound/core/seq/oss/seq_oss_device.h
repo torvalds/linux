@@ -30,6 +30,7 @@
 #include <sound/rawmidi.h>
 #include <sound/seq_kernel.h>
 #include <sound/info.h>
+#include "../seq_clientmgr.h"
 
 /* max. applications */
 #define SNDRV_SEQ_OSS_MAX_CLIENTS	16
@@ -150,11 +151,16 @@ snd_seq_oss_dispatch(struct seq_oss_devinfo *dp, struct snd_seq_event *ev, int a
 	return snd_seq_kernel_client_dispatch(dp->cseq, ev, atomic, hop);
 }
 
-/* ioctl */
+/* ioctl for writeq */
 static inline int
 snd_seq_oss_control(struct seq_oss_devinfo *dp, unsigned int type, void *arg)
 {
-	return snd_seq_kernel_client_ctl(dp->cseq, type, arg);
+	int err;
+
+	snd_seq_client_ioctl_lock(dp->cseq);
+	err = snd_seq_kernel_client_ctl(dp->cseq, type, arg);
+	snd_seq_client_ioctl_unlock(dp->cseq);
+	return err;
 }
 
 /* fill the addresses in header */

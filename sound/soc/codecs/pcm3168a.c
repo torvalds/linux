@@ -457,13 +457,16 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	if (chan > 2) {
 		switch (fmt) {
 		case PCM3168A_FMT_I2S:
+		case PCM3168A_FMT_DSP_A:
 			fmt = PCM3168A_FMT_I2S_TDM;
 			break;
 		case PCM3168A_FMT_LEFT_J:
+		case PCM3168A_FMT_DSP_B:
 			fmt = PCM3168A_FMT_LEFT_J_TDM;
 			break;
 		default:
-			dev_err(component->dev, "TDM is supported under I2S/Left_J only\n");
+			dev_err(component->dev,
+				"TDM is supported under DSP/I2S/Left_J only\n");
 			return -EINVAL;
 		}
 	}
@@ -526,6 +529,8 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 		break;
 	case PCM3168A_FMT_LEFT_J:
 	case PCM3168A_FMT_I2S:
+	case PCM3168A_FMT_DSP_A:
+	case PCM3168A_FMT_DSP_B:
 		sample_min  = 24;
 		channel_max = channel_maxs[tx];
 		break;
