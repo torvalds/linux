@@ -1594,12 +1594,9 @@ recovery_out:
 }
 
 /* do some init work after IP late init as dependence.
- * TODO
- * gpu reset will re-enable ras, need fint out one way to run it again.
- * for now, if a gpu reset happened, unless IP enable its ras, the ras state
- * will be showed as disabled.
+ * and it runs in resume/gpu reset/booting up cases.
  */
-void amdgpu_ras_post_init(struct amdgpu_device *adev)
+void amdgpu_ras_resume(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
@@ -1640,6 +1637,19 @@ void amdgpu_ras_post_init(struct amdgpu_device *adev)
 		amdgpu_ras_disable_all_features(adev, 1);
 		amdgpu_ras_reset_gpu(adev, 0);
 	}
+}
+
+void amdgpu_ras_suspend(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (!con)
+		return;
+
+	amdgpu_ras_disable_all_features(adev, 0);
+	/* Make sure all ras objects are disabled. */
+	if (con->features)
+		amdgpu_ras_disable_all_features(adev, 1);
 }
 
 /* do some fini work before IP fini as dependence */

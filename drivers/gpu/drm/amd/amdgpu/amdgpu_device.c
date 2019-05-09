@@ -2745,7 +2745,7 @@ fence_driver_init:
 	}
 
 	/* must succeed. */
-	amdgpu_ras_post_init(adev);
+	amdgpu_ras_resume(adev);
 
 	r = device_create_file(adev->dev, &dev_attr_pcie_replay_count);
 	if (r) {
@@ -3503,7 +3503,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 					goto out;
 
 				/* must succeed. */
-				amdgpu_ras_post_init(tmp_adev);
+				amdgpu_ras_resume(tmp_adev);
 
 				/* Update PSP FW topology after reset */
 				if (hive && tmp_adev->gmc.xgmi.num_physical_nodes > 1)

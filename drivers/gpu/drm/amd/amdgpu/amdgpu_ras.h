@@ -179,6 +179,9 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
 		unsigned int block);
 
+void amdgpu_ras_resume(struct amdgpu_device *adev);
+void amdgpu_ras_suspend(struct amdgpu_device *adev);
+
 int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce);
 
@@ -256,7 +259,6 @@ amdgpu_ras_error_to_ta(enum amdgpu_ras_error_type error) {
 
 /* called in ip_init and ip_fini */
 int amdgpu_ras_init(struct amdgpu_device *adev);
-void amdgpu_ras_post_init(struct amdgpu_device *adev);
 int amdgpu_ras_fini(struct amdgpu_device *adev);
 int amdgpu_ras_pre_fini(struct amdgpu_device *adev);
 
