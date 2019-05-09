@@ -796,7 +796,9 @@ The kernel interface functions are as follows:
 				s64 tx_total_len,
 				gfp_t gfp,
 				rxrpc_notify_rx_t notify_rx,
-				bool upgrade);
+				bool upgrade,
+				bool intr,
+				unsigned int debug_id);
 
      This allocates the infrastructure to make a new RxRPC call and assigns
      call and connection numbers.  The call will be made on the UDP port that
@@ -823,6 +825,13 @@ The kernel interface functions are as follows:
      upgrade should be set to true if a client operation should request that
      the server upgrade the service to a better one.  The resultant service ID
      is returned by rxrpc_kernel_recv_data().
+
+     intr should be set to true if the call should be interruptible.  If this
+     is not set, this function may not return until a channel has been
+     allocated; if it is set, the function may return -ERESTARTSYS.
+
+     debug_id is the call debugging ID to be used for tracing.  This can be
+     obtained by atomically incrementing rxrpc_debug_id.
 
      If this function is successful, an opaque reference to the RxRPC call is
      returned.  The caller now holds a reference on this and it must be
