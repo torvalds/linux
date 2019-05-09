@@ -4844,14 +4844,14 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	u8 *dpcd = intel_dp->dpcd;
 	u8 type;
 
+	if (WARN_ON(intel_dp_is_edp(intel_dp)))
+		return connector_status_connected;
+
 	if (lspcon->active)
 		lspcon_resume(lspcon);
 
 	if (!intel_dp_get_dpcd(intel_dp))
 		return connector_status_disconnected;
-
-	if (intel_dp_is_edp(intel_dp))
-		return connector_status_connected;
 
 	/* if there's no downstream port, we're done */
 	if (!drm_dp_is_branch(dpcd))
