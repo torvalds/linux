@@ -2347,6 +2347,9 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 
 	if (!arg->num_outputs) {
 		struct drm_rect def_rect = {0, 0, 800, 600};
+		VMW_DEBUG_KMS("Default layout x1 = %d y1 = %d x2 = %d y2 = %d\n",
+			      def_rect.x1, def_rect.y1,
+			      def_rect.x2, def_rect.y2);
 		vmw_du_update_layout(dev_priv, 1, &def_rect);
 		return 0;
 	}
@@ -2367,6 +2370,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 
 	drm_rects = (struct drm_rect *)rects;
 
+	VMW_DEBUG_KMS("Layout count = %u\n", arg->num_outputs);
 	for (i = 0; i < arg->num_outputs; i++) {
 		struct drm_vmw_rect curr_rect;
 
@@ -2382,6 +2386,10 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		drm_rects[i].y1 = curr_rect.y;
 		drm_rects[i].x2 = curr_rect.x + curr_rect.w;
 		drm_rects[i].y2 = curr_rect.y + curr_rect.h;
+
+		VMW_DEBUG_KMS("  x1 = %d y1 = %d x2 = %d y2 = %d\n",
+			      drm_rects[i].x1, drm_rects[i].y1,
+			      drm_rects[i].x2, drm_rects[i].y2);
 
 		/*
 		 * Currently this check is limiting the topology within

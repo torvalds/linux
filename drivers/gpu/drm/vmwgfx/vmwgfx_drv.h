@@ -1424,6 +1424,14 @@ int vmw_host_log(const char *log);
 #define VMW_DEBUG_USER(fmt, ...)                                              \
 	DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__)
 
+/**
+ * VMW_DEBUG_KMS - Debug output for kernel mode-setting
+ *
+ * This macro is for debugging vmwgfx mode-setting code.
+ */
+#define VMW_DEBUG_KMS(fmt, ...)                                               \
+	DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__)
+
 /* Resource dirtying - vmwgfx_page_dirty.c */
 void vmw_bo_dirty_scan(struct vmw_buffer_object *vbo);
 int vmw_bo_dirty_add(struct vmw_buffer_object *vbo);
