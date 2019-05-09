@@ -4,3 +4,4 @@
 #
 
 obj-$(CONFIG_CAN_M_CAN) += m_can.o
+obj-$(CONFIG_CAN_M_CAN_PLATFORM) += m_can_platform.o
