@@ -777,7 +777,7 @@ MODULE_DEVICE_TABLE(spi, cros_ec_spi_id);
 static struct spi_driver cros_ec_driver_spi = {
 	.driver	= {
 		.name	= "cros-ec-spi",
-		.of_match_table = of_match_ptr(cros_ec_spi_of_match),
+		.of_match_table = cros_ec_spi_of_match,
 		.pm	= &cros_ec_spi_pm_ops,
 	},
 	.probe		= cros_ec_spi_probe,
