@@ -453,6 +453,8 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 		reg16 = 0x1420;
 	else if (dev->net->mtu <= 16334)
 		reg16 = 0x1A20;
+	else
+		return 0;
 
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,
 			   2, &reg16);
