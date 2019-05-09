@@ -143,24 +143,6 @@ static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static struct net_device *pvrdma_get_netdev(struct ib_device *ibdev,
-					    u8 port_num)
-{
-	struct net_device *netdev;
-	struct pvrdma_dev *dev = to_vdev(ibdev);
-
-	if (port_num != 1)
-		return NULL;
-
-	rcu_read_lock();
-	netdev = dev->netdev;
-	if (netdev)
-		dev_hold(netdev);
-	rcu_read_unlock();
-
-	return netdev;
-}
-
 static const struct ib_device_ops pvrdma_dev_ops = {
 	.add_gid = pvrdma_add_gid,
 	.alloc_mr = pvrdma_alloc_mr,
@@ -179,7 +161,6 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.get_dev_fw_str = pvrdma_get_fw_ver_str,
 	.get_dma_mr = pvrdma_get_dma_mr,
 	.get_link_layer = pvrdma_port_link_layer,
-	.get_netdev = pvrdma_get_netdev,
 	.get_port_immutable = pvrdma_port_immutable,
 	.map_mr_sg = pvrdma_map_mr_sg,
 	.mmap = pvrdma_mmap,
@@ -195,6 +176,8 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.query_qp = pvrdma_query_qp,
 	.reg_user_mr = pvrdma_reg_user_mr,
 	.req_notify_cq = pvrdma_req_notify_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, pvrdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, pvrdma_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, pvrdma_ucontext, ibucontext),
 };
@@ -204,6 +187,8 @@ static const struct ib_device_ops pvrdma_dev_srq_ops = {
 	.destroy_srq = pvrdma_destroy_srq,
 	.modify_srq = pvrdma_modify_srq,
 	.query_srq = pvrdma_query_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, pvrdma_srq, ibsrq),
 };
 
 static int pvrdma_register_device(struct pvrdma_dev *dev)
@@ -277,6 +262,9 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 			goto err_qp_free;
 	}
 	dev->ib_dev.driver_id = RDMA_DRIVER_VMW_PVRDMA;
+	ret = ib_device_set_netdev(&dev->ib_dev, dev->netdev, 1);
+	if (ret)
+		return ret;
 	spin_lock_init(&dev->srq_tbl_lock);
 	rdma_set_device_sysfs_group(&dev->ib_dev, &pvrdma_attr_group);
 
@@ -720,6 +708,7 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 			pvrdma_dispatch_event(dev, 1, IB_EVENT_PORT_ACTIVE);
 		break;
 	case NETDEV_UNREGISTER:
+		ib_device_set_netdev(&dev->ib_dev, NULL, 1);
 		dev_put(dev->netdev);
 		dev->netdev = NULL;
 		break;
@@ -731,6 +720,7 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 		if ((dev->netdev == NULL) &&
 		    (pci_get_drvdata(pdev_net) == ndev)) {
 			/* this is our netdev */
+			ib_device_set_netdev(&dev->ib_dev, ndev, 1);
 			dev->netdev = ndev;
 			dev_hold(ndev);
 		}

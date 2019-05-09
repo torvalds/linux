@@ -1041,11 +1041,11 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err_mtt;
 
 		if (qp_has_rq(init_attr)) {
-			err = mlx4_ib_db_map_user(
-				context, udata,
-				(src == MLX4_IB_QP_SRC) ? ucmd.qp.db_addr :
+			err = mlx4_ib_db_map_user(udata,
+						  (src == MLX4_IB_QP_SRC) ?
+							  ucmd.qp.db_addr :
 							  ucmd.wq.db_addr,
-				&qp->db);
+						  &qp->db);
 			if (err)
 				goto err_mtt;
 		}
@@ -1338,7 +1338,8 @@ static void destroy_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 }
 
 static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
-			      enum mlx4_ib_source_type src, bool is_user)
+			      enum mlx4_ib_source_type src,
+			      struct ib_udata *udata)
 {
 	struct mlx4_ib_cq *send_cq, *recv_cq;
 	unsigned long flags;
@@ -1380,7 +1381,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	list_del(&qp->qps_list);
 	list_del(&qp->cq_send_list);
 	list_del(&qp->cq_recv_list);
-	if (!is_user) {
+	if (!udata) {
 		__mlx4_ib_cq_clean(recv_cq, qp->mqp.qpn,
 				 qp->ibqp.srq ? to_msrq(qp->ibqp.srq): NULL);
 		if (send_cq != recv_cq)
@@ -1398,19 +1399,26 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 		if (qp->flags & MLX4_IB_QP_NETIF)
 			mlx4_ib_steer_qp_free(dev, qp->mqp.qpn, 1);
 		else if (src == MLX4_IB_RWQ_SRC)
-			mlx4_ib_release_wqn(to_mucontext(
-					    qp->ibwq.uobject->context), qp, 1);
+			mlx4_ib_release_wqn(
+				rdma_udata_to_drv_context(
+					udata,
+					struct mlx4_ib_ucontext,
+					ibucontext),
+				qp, 1);
 		else
 			mlx4_qp_release_range(dev->dev, qp->mqp.qpn, 1);
 	}
 
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
-	if (is_user) {
+	if (udata) {
 		if (qp->rq.wqe_cnt) {
-			struct mlx4_ib_ucontext *mcontext = !src ?
-				to_mucontext(qp->ibqp.uobject->context) :
-				to_mucontext(qp->ibwq.uobject->context);
+			struct mlx4_ib_ucontext *mcontext =
+				rdma_udata_to_drv_context(
+					udata,
+					struct mlx4_ib_ucontext,
+					ibucontext);
+
 			mlx4_ib_db_unmap_user(mcontext, &qp->db);
 		}
 		ib_umem_release(qp->umem);
@@ -1594,7 +1602,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	return ibqp;
 }
 
-static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
+static int _mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(qp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(qp);
@@ -1615,7 +1623,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	if (qp->rwq_ind_tbl) {
 		destroy_qp_rss(dev, mqp);
 	} else {
-		destroy_qp_common(dev, mqp, MLX4_IB_QP_SRC, qp->uobject);
+		destroy_qp_common(dev, mqp, MLX4_IB_QP_SRC, udata);
 	}
 
 	if (is_sqp(dev, mqp))
@@ -1626,7 +1634,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	return 0;
 }
 
-int mlx4_ib_destroy_qp(struct ib_qp *qp)
+int mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct mlx4_ib_qp *mqp = to_mqp(qp);
 
@@ -1637,7 +1645,7 @@ int mlx4_ib_destroy_qp(struct ib_qp *qp)
 			ib_destroy_qp(sqp->roce_v2_gsi);
 	}
 
-	return _mlx4_ib_destroy_qp(qp);
+	return _mlx4_ib_destroy_qp(qp, udata);
 }
 
 static int to_mlx4_st(struct mlx4_ib_dev *dev, enum mlx4_ib_qp_type type)
@@ -2240,8 +2248,10 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 
 		if (is_eth) {
 			gid_attr = attr->ah_attr.grh.sgid_attr;
-			vlan = rdma_vlan_dev_vlan_id(gid_attr->ndev);
-			memcpy(smac, gid_attr->ndev->dev_addr, ETH_ALEN);
+			err = rdma_read_gid_l2_fields(gid_attr, &vlan,
+						      &smac[0]);
+			if (err)
+				goto out;
 		}
 
 		if (mlx4_set_path(dev, attr, attr_mask, qp, &context->pri_path,
@@ -4238,7 +4248,7 @@ int mlx4_ib_modify_wq(struct ib_wq *ibwq, struct ib_wq_attr *wq_attr,
 	return err;
 }
 
-int mlx4_ib_destroy_wq(struct ib_wq *ibwq)
+int mlx4_ib_destroy_wq(struct ib_wq *ibwq, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibwq->device);
 	struct mlx4_ib_qp *qp = to_mqp((struct ib_qp *)ibwq);
@@ -4246,7 +4256,7 @@ int mlx4_ib_destroy_wq(struct ib_wq *ibwq)
 	if (qp->counter_index)
 		mlx4_ib_free_qp_counter(dev, qp);
 
-	destroy_qp_common(dev, qp, MLX4_IB_RWQ_SRC, 1);
+	destroy_qp_common(dev, qp, MLX4_IB_RWQ_SRC, udata);
 
 	kfree(qp);
 

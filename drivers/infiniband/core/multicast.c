@@ -804,7 +804,6 @@ static void mcast_event_handler(struct ib_event_handler *handler,
 	switch (event->event) {
 	case IB_EVENT_PORT_ERR:
 	case IB_EVENT_LID_CHANGE:
-	case IB_EVENT_SM_CHANGE:
 	case IB_EVENT_CLIENT_REREGISTER:
 		mcast_groups_event(&dev->port[index], MCAST_GROUP_ERROR);
 		break;

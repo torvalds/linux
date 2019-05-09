@@ -129,6 +129,9 @@ struct ib_umad_packet {
 	struct ib_user_mad mad;
 };
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ib_umad.h>
+
 static const dev_t base_umad_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
 static const dev_t base_issm_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE) +
 				   IB_UMAD_NUM_FIXED_MINOR;
@@ -334,6 +337,9 @@ static ssize_t copy_recv_mad(struct ib_umad_file *file, char __user *buf,
 				return -EFAULT;
 		}
 	}
+
+	trace_ib_umad_read_recv(file, &packet->mad.hdr, &recv_buf->mad->mad_hdr);
+
 	return hdr_size(file) + packet->length;
 }
 
@@ -352,6 +358,9 @@ static ssize_t copy_send_mad(struct ib_umad_file *file, char __user *buf,
 
 	if (copy_to_user(buf, packet->mad.data, packet->length))
 		return -EFAULT;
+
+	trace_ib_umad_read_send(file, &packet->mad.hdr,
+				(struct ib_mad_hdr *)&packet->mad.data);
 
 	return size;
 }
@@ -507,6 +516,9 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	mutex_lock(&file->mutex);
+
+	trace_ib_umad_write(file, &packet->mad.hdr,
+			    (struct ib_mad_hdr *)&packet->mad.data);
 
 	agent = __get_agent(file, packet->mad.hdr.id);
 	if (!agent) {
@@ -968,6 +980,11 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
+	if (!rdma_dev_access_netns(port->ib_dev, current->nsproxy->net_ns)) {
+		ret = -EPERM;
+		goto out;
+	}
+
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file) {
 		ret = -ENOMEM;
@@ -1059,6 +1076,11 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 			ret = -ERESTARTSYS;
 			goto fail;
 		}
+	}
+
+	if (!rdma_dev_access_netns(port->ib_dev, current->nsproxy->net_ns)) {
+		ret = -EPERM;
+		goto err_up_sem;
 	}
 
 	ret = ib_modify_port(port->ib_dev, port->port_num, 0, &props);

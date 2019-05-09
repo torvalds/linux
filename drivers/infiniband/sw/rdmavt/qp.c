@@ -623,13 +623,7 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 		while (qp->s_last != qp->s_head) {
 			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 
-			rvt_put_swqe(wqe);
-
-			if (qp->ibqp.qp_type == IB_QPT_UD ||
-			    qp->ibqp.qp_type == IB_QPT_SMI ||
-			    qp->ibqp.qp_type == IB_QPT_GSI)
-				atomic_dec(&ibah_to_rvtah(
-						wqe->ud_wr.ah)->refcount);
+			rvt_put_qp_swqe(qp, wqe);
 			if (++qp->s_last >= qp->s_size)
 				qp->s_last = 0;
 			smp_wmb(); /* see qp_set_savail */
@@ -957,8 +951,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	size_t sg_list_sz;
 	struct ib_qp *ret = ERR_PTR(-ENOMEM);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
-	struct rvt_ucontext *ucontext = rdma_udata_to_drv_context(
-		udata, struct rvt_ucontext, ibucontext);
 	void *priv = NULL;
 	size_t sqsize;
 
@@ -1131,8 +1123,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		} else {
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
-			qp->ip = rvt_create_mmap_info(rdi, s,
-						      &ucontext->ibucontext,
+			qp->ip = rvt_create_mmap_info(rdi, s, udata,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);
@@ -1617,7 +1608,7 @@ inval:
  *
  * Return: 0 on success.
  */
-int rvt_destroy_qp(struct ib_qp *ibqp)
+int rvt_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -2018,8 +2009,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	 * opportunity to adjust PSN values based on internal checks.
 	 */
 	log_pmtu = qp->log_pmtu;
-	if (qp->ibqp.qp_type != IB_QPT_UC &&
-	    qp->ibqp.qp_type != IB_QPT_RC) {
+	if (qp->allowed_ops == IB_OPCODE_UD) {
 		struct rvt_ah *ah = ibah_to_rvtah(wqe->ud_wr.ah);
 
 		log_pmtu = ah->log_pmtu;
@@ -2067,8 +2057,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	return 0;
 
 bail_inval_free_ref:
-	if (qp->ibqp.qp_type != IB_QPT_UC &&
-	    qp->ibqp.qp_type != IB_QPT_RC)
+	if (qp->allowed_ops == IB_OPCODE_UD)
 		atomic_dec(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 bail_inval_free:
 	/* release mr holds */
@@ -2691,11 +2680,7 @@ void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	qp->s_last = last;
 	/* See post_send() */
 	barrier();
-	rvt_put_swqe(wqe);
-	if (qp->ibqp.qp_type == IB_QPT_UD ||
-	    qp->ibqp.qp_type == IB_QPT_SMI ||
-	    qp->ibqp.qp_type == IB_QPT_GSI)
-		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
+	rvt_put_qp_swqe(qp, wqe);
 
 	rvt_qp_swqe_complete(qp,
 			     wqe,
