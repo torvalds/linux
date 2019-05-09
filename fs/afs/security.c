@@ -116,10 +116,10 @@ static void afs_hash_permits(struct afs_permits *permits)
  * as the ACL *may* have changed.
  */
 void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
-		      unsigned int cb_break)
+		      unsigned int cb_break, struct afs_status_cb *scb)
 {
 	struct afs_permits *permits, *xpermits, *replacement, *zap, *new = NULL;
-	afs_access_t caller_access = READ_ONCE(vnode->status.caller_access);
+	afs_access_t caller_access = scb->status.caller_access;
 	size_t size = 0;
 	bool changed = false;
 	int i, j;
@@ -320,13 +320,12 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 		 */
 		_debug("no valid permit");
 
-		ret = afs_fetch_status(vnode, key, false);
+		ret = afs_fetch_status(vnode, key, false, _access);
 		if (ret < 0) {
 			*_access = 0;
 			_leave(" = %d", ret);
 			return ret;
 		}
-		*_access = vnode->status.caller_access;
 	}
 
 	_leave(" = 0 [access %x]", *_access);

@@ -455,7 +455,7 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 		fid.vnode	= 1;
 		fid.vnode_hi	= 0;
 		fid.unique	= 1;
-		inode = afs_iget(sb, ctx->key, &fid, NULL, NULL, NULL, NULL);
+		inode = afs_iget(sb, ctx->key, &fid, NULL, NULL, NULL);
 	}
 
 	if (IS_ERR(inode))
@@ -749,7 +749,6 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		}
 
 		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
 		ret = afs_end_vnode_operation(&fc);
 	}
 
