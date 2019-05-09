@@ -522,6 +522,14 @@ config X86_NUMACHIP
 	  enable more than ~168 cores.
 	  If you don't have one of these, you should say N here.
 
+config X86_PS4
+	bool "Sony PlayStation 4"
+	depends on X86_64
+	depends on X86_EXTENDED_PLATFORM
+	depends on PCI
+	---help---
+	  Select to include support for the Sony PlayStation 4 game console.
+
 config X86_VSMP
 	bool "ScaleMP vSMP"
 	select HYPERVISOR_GUEST
