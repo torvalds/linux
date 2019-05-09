@@ -367,6 +367,7 @@ struct dc_bounding_box_overrides {
 	int urgent_latency_ns;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
+	int min_dcfclk_mhz;
 };
 
 struct dc_state;
