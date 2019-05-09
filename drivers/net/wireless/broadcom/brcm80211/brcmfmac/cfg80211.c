@@ -1647,6 +1647,7 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 	u16 count;
 
 	profile->use_fwsup = BRCMF_PROFILE_FWSUP_NONE;
+	profile->is_ft = false;
 
 	if (!sme->crypto.n_akm_suites)
 		return 0;
@@ -1691,11 +1692,13 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			break;
 		case WLAN_AKM_SUITE_FT_8021X:
 			val = WPA2_AUTH_UNSPECIFIED | WPA2_AUTH_FT;
+			profile->is_ft = true;
 			if (sme->want_1x)
 				profile->use_fwsup = BRCMF_PROFILE_FWSUP_1X;
 			break;
 		case WLAN_AKM_SUITE_FT_PSK:
 			val = WPA2_AUTH_PSK | WPA2_AUTH_FT;
+			profile->is_ft = true;
 			break;
 		default:
 			bphy_err(drvr, "invalid cipher group (%d)\n",
@@ -5553,6 +5556,11 @@ done:
 
 	cfg80211_roamed(ndev, &roam_info, GFP_KERNEL);
 	brcmf_dbg(CONN, "Report roaming result\n");
+
+	if (profile->use_fwsup == BRCMF_PROFILE_FWSUP_1X && profile->is_ft) {
+		cfg80211_port_authorized(ndev, profile->bssid, GFP_KERNEL);
+		brcmf_dbg(CONN, "Report port authorized\n");
+	}
 
 	set_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);
 	brcmf_dbg(TRACE, "Exit\n");
