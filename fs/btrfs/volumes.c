@@ -239,7 +239,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
  * chunk_mutex
  * -----------
  * protects chunks, adding or removing during allocation, trim or when a new
- * device is added/removed
+ * device is added/removed. Additionally it also protects post_commit_list of
+ * individual devices, since they can be added to the transaction's
+ * post_commit_list only with chunk_mutex held.
  *
  * cleaner_mutex
  * -------------

@@ -43,8 +43,8 @@ struct btrfs_pending_bios {
 #define BTRFS_DEV_STATE_FLUSH_SENT	(4)
 
 struct btrfs_device {
-	struct list_head dev_list;
-	struct list_head dev_alloc_list;
+	struct list_head dev_list; /* device_list_mutex */
+	struct list_head dev_alloc_list; /* chunk mutex */
 	struct list_head post_commit_list; /* chunk mutex */
 	struct btrfs_fs_devices *fs_devices;
 	struct btrfs_fs_info *fs_info;
@@ -229,9 +229,14 @@ struct btrfs_fs_devices {
 	 * this mutex lock.
 	 */
 	struct mutex device_list_mutex;
+
+	/* List of all devices, protected by device_list_mutex */
 	struct list_head devices;
 
-	/* devices not currently being allocated */
+	/*
+	 * Devices which can satisfy space allocation. Protected by
+	 * chunk_mutex
+	 */
 	struct list_head alloc_list;
 
 	struct btrfs_fs_devices *seed;
