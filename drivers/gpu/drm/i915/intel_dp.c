@@ -7206,10 +7206,16 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
 	intel_dp->attached_connector = intel_connector;
 
-	if (intel_dp_is_port_edp(dev_priv, port))
+	if (intel_dp_is_port_edp(dev_priv, port)) {
+		/*
+		 * Currently we don't support eDP on TypeC ports, although in
+		 * theory it could work on TypeC legacy ports.
+		 */
+		WARN_ON(intel_port_is_tc(dev_priv, port));
 		type = DRM_MODE_CONNECTOR_eDP;
-	else
+	} else {
 		type = DRM_MODE_CONNECTOR_DisplayPort;
+	}
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		intel_dp->active_pipe = vlv_active_pipe(intel_dp);
