@@ -2402,54 +2402,47 @@ static void update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_
 		struct pp_smu_nv_clock_table *max_clocks, unsigned int *uclk_states, unsigned int num_states)
 {
 	struct _vcs_dpi_voltage_scaling_st calculated_states[MAX_CLOCK_LIMIT_STATES] = {0};
-	int i, j;
+	int i;
 	int num_calculated_states = 0;
+	int min_dcfclk = 0;
 
 	if (num_states == 0)
 		return;
 
+	if (dc->bb_overrides.min_dcfclk_mhz > 0)
+		min_dcfclk = dc->bb_overrides.min_dcfclk_mhz;
+
 	for (i = 0; i < num_states; i++) {
-		// Find lowest pre-silicon DPM that has equal or higher uCLK
-		for (j = 0; j < bb->num_states; j++) {
-			if (bb->clock_limits[j].dram_speed_mts * 1000 / 16 >= uclk_states[i])
-				break;
-		}
+		int min_fclk_required_by_uclk;
+		calculated_states[i].state = i;
+		calculated_states[i].dram_speed_mts = uclk_states[i] * 16 / 1000;
 
-		// If for some reason the available uCLK is higher than all pre-silicon'
-		// DPM targets, then we just use the highest one
-		if (j >= bb->num_states)
-			j = bb->num_states;
+		min_fclk_required_by_uclk = ((unsigned long long)uclk_states[i]) * 1008 / 1000000;
 
-		// Copy that state
-		memcpy(&calculated_states[num_calculated_states], &bb->clock_limits[j],
-				sizeof(calculated_states[num_calculated_states]));
+		calculated_states[i].fabricclk_mhz = (min_fclk_required_by_uclk < min_dcfclk) ?
+				min_dcfclk : min_fclk_required_by_uclk;
 
-		// Cap uClk to actual
-		calculated_states[num_calculated_states].dram_speed_mts = uclk_states[i] * 16 / 1000;
-		// Phy clock can be set to max for all states, since there's nothing to optimize
-		// for spreadsheet and we request voltage for phy clock by frequency anyway
-		calculated_states[num_calculated_states].phyclk_mhz = max_clocks->phyClockInKhz / 1000;
+		calculated_states[i].socclk_mhz = (calculated_states[i].fabricclk_mhz > max_clocks->socClockInKhz / 1000) ?
+				max_clocks->socClockInKhz / 1000 : calculated_states[i].fabricclk_mhz;
 
-		calculated_states[num_calculated_states].state = num_calculated_states;
+		calculated_states[i].dcfclk_mhz = (calculated_states[i].fabricclk_mhz > max_clocks->dcfClockInKhz / 1000) ?
+				max_clocks->dcfClockInKhz / 1000 : calculated_states[i].fabricclk_mhz;
+
+		calculated_states[i].dispclk_mhz = max_clocks->displayClockInKhz / 1000;
+		calculated_states[i].dppclk_mhz = max_clocks->displayClockInKhz / 1000;
+		calculated_states[i].dscclk_mhz = max_clocks->displayClockInKhz / (1000 * 3);
+
+		calculated_states[i].phyclk_mhz = max_clocks->phyClockInKhz / 1000;
 
 		num_calculated_states++;
 	}
 
-	if (max_clocks->dcfClockInKhz > 0)
-		calculated_states[num_calculated_states - 1].dcfclk_mhz = max_clocks->dcfClockInKhz / 1000;
-
-	if (max_clocks->displayClockInKhz > 0) {
-		calculated_states[num_calculated_states - 1].dispclk_mhz = max_clocks->displayClockInKhz / 1000;
-		calculated_states[num_calculated_states - 1].dppclk_mhz = max_clocks->displayClockInKhz / 1000;
-		// DSC always runs at 1/3 of disp clock
-		calculated_states[num_calculated_states - 1].dscclk_mhz = max_clocks->displayClockInKhz / (1000 * 3);
-	}
-
-	if (max_clocks->socClockInKhz > 0)
-		calculated_states[num_calculated_states - 1].socclk_mhz = max_clocks->socClockInKhz / 1000;
-
 	memcpy(bb->clock_limits, calculated_states, sizeof(bb->clock_limits));
 	bb->num_states = num_calculated_states;
+
+	// Duplicate the last state, DML always an extra state identical to max state to work
+	memcpy(&bb->clock_limits[num_calculated_states], &bb->clock_limits[num_calculated_states - 1], sizeof(struct _vcs_dpi_voltage_scaling_st));
+	bb->clock_limits[num_calculated_states].state = bb->num_states;
 }
 
 static void patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *bb)
