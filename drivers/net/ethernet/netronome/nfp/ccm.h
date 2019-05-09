@@ -54,6 +54,8 @@ static inline unsigned int nfp_ccm_get_tag(struct sk_buff *skb)
 
 /**
  * struct nfp_ccm - common control message handling
+ * @app:		APP handle
+ *
  * @tag_allocator:	bitmap of control message tags in use
  * @tag_alloc_next:	next tag bit to allocate
  * @tag_alloc_last:	next tag bit to be freed
