@@ -338,7 +338,7 @@ static void xdr_decode_YFSCallBack(struct afs_call *call,
 	struct afs_callback cb;
 
 	xdr_decode_YFSCallBack_raw(call, &cb, _bp);
-
+	
 	write_seqlock(&vnode->cb_lock);
 
 	if (!afs_cb_is_broken(call->cb_break, vnode, cbi)) {
@@ -2032,8 +2032,7 @@ int yfs_fs_fetch_status(struct afs_fs_cursor *fc,
  */
 static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 {
-	struct afs_file_status *statuses;
-	struct afs_callback *callbacks;
+	struct afs_status_cb *scb;
 	const __be32 *bp;
 	u32 tmp;
 	int ret;
@@ -2072,8 +2071,8 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		statuses = call->out_extra_status;
-		ret = yfs_decode_status(call, &bp, &statuses[call->count],
+		scb = &call->out_scb[call->count];
+		ret = yfs_decode_status(call, &bp, &scb->status,
 					NULL, NULL, NULL);
 		if (ret < 0)
 			return ret;
@@ -2113,8 +2112,9 @@ static int yfs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		_debug("unmarshall CB array");
 		bp = call->buffer;
-		callbacks = call->out_cb;
-		xdr_decode_YFSCallBack_raw(call, &callbacks[call->count], &bp);
+		scb = &call->out_scb[call->count];
+		xdr_decode_YFSCallBack_raw(call, &scb->callback, &bp);
+		scb->have_cb = true;
 		call->count++;
 		if (call->count < call->count2)
 			goto more_cbs;
@@ -2158,8 +2158,7 @@ static const struct afs_call_type yfs_RXYFSInlineBulkStatus = {
 int yfs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 			      struct afs_net *net,
 			      struct afs_fid *fids,
-			      struct afs_file_status *statuses,
-			      struct afs_callback *callbacks,
+			      struct afs_status_cb *statuses,
 			      unsigned int nr_fids,
 			      struct afs_volsync *volsync)
 {
@@ -2182,8 +2181,7 @@ int yfs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	}
 
 	call->key = fc->key;
-	call->out_extra_status = statuses;
-	call->out_cb = callbacks;
+	call->out_scb = statuses;
 	call->out_volsync = volsync;
 	call->count2 = nr_fids;
 

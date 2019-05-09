@@ -147,6 +147,12 @@ struct afs_file_status {
 	u32			abort_code;	/* Abort if bulk-fetching this failed */
 };
 
+struct afs_status_cb {
+	struct afs_file_status	status;
+	struct afs_callback	callback;
+	bool			have_cb;	/* True if cb record was retrieved */
+};
+
 /*
  * AFS file status change request
  */

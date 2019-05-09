@@ -102,8 +102,7 @@ struct afs_lookup_cookie {
 	bool			found;
 	bool			one_only;
 	unsigned short		nr_fids;
-	struct afs_file_status	*statuses;
-	struct afs_callback	*callbacks;
+	struct afs_status_cb	*statuses;
 	struct afs_fid		fids[50];
 };
 
@@ -640,6 +639,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	struct afs_lookup_cookie *cookie;
 	struct afs_cb_interest *cbi = NULL;
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
+	struct afs_status_cb *scb;
 	struct afs_iget_data data;
 	struct afs_fs_cursor fc;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
@@ -686,15 +686,10 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 
 	/* Need space for examining all the selected files */
 	inode = ERR_PTR(-ENOMEM);
-	cookie->statuses = kcalloc(cookie->nr_fids, sizeof(struct afs_file_status),
-				   GFP_KERNEL);
+	cookie->statuses = kvcalloc(cookie->nr_fids, sizeof(struct afs_status_cb),
+				    GFP_KERNEL);
 	if (!cookie->statuses)
 		goto out;
-
-	cookie->callbacks = kcalloc(cookie->nr_fids, sizeof(struct afs_callback),
-				    GFP_KERNEL);
-	if (!cookie->callbacks)
-		goto out_s;
 
 	/* Try FS.InlineBulkStatus first.  Abort codes for the individual
 	 * lookups contained therein are stored in the reply without aborting
@@ -716,7 +711,6 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 						  afs_v2net(dvnode),
 						  cookie->fids,
 						  cookie->statuses,
-						  cookie->callbacks,
 						  cookie->nr_fids, NULL);
 		}
 
@@ -741,11 +735,12 @@ no_inline_bulk_status:
 	inode = ERR_PTR(-ERESTARTSYS);
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
+			scb = &cookie->statuses[0];
 			afs_fs_fetch_status(&fc,
 					    afs_v2net(dvnode),
 					    cookie->fids,
-					    cookie->statuses,
-					    cookie->callbacks,
+					    &scb->status,
+					    &scb->callback,
 					    NULL);
 		}
 
@@ -758,24 +753,26 @@ no_inline_bulk_status:
 		goto out_c;
 
 	for (i = 0; i < cookie->nr_fids; i++)
-		cookie->statuses[i].abort_code = 0;
+		cookie->statuses[i].status.abort_code = 0;
 
 success:
 	/* Turn all the files into inodes and save the first one - which is the
 	 * one we actually want.
 	 */
-	if (cookie->statuses[0].abort_code != 0)
-		inode = ERR_PTR(afs_abort_to_error(cookie->statuses[0].abort_code));
+	scb = &cookie->statuses[0];
+	if (scb->status.abort_code != 0)
+		inode = ERR_PTR(afs_abort_to_error(scb->status.abort_code));
 
 	for (i = 0; i < cookie->nr_fids; i++) {
+		struct afs_status_cb *scb = &cookie->statuses[i];
 		struct inode *ti;
 
-		if (cookie->statuses[i].abort_code != 0)
+		if (scb->status.abort_code != 0)
 			continue;
 
 		ti = afs_iget(dir->i_sb, key, &cookie->fids[i],
-			      &cookie->statuses[i],
-			      &cookie->callbacks[i],
+			      &scb->status,
+			      &scb->callback,
 			      cbi, dvnode);
 		if (i == 0) {
 			inode = ti;
@@ -787,9 +784,7 @@ success:
 
 out_c:
 	afs_put_cb_interest(afs_v2net(dvnode), cbi);
-	kfree(cookie->callbacks);
-out_s:
-	kfree(cookie->statuses);
+	kvfree(cookie->statuses);
 out:
 	kfree(cookie);
 	return inode;

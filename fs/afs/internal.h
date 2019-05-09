@@ -137,6 +137,7 @@ struct afs_call {
 	struct afs_file_status	*out_vnode_status;
 	struct afs_file_status	*out_extra_status;
 	struct afs_callback	*out_cb;
+	struct afs_status_cb	*out_scb;
 	struct yfs_acl		*out_yacl;
 	struct afs_volsync	*out_volsync;
 	struct afs_volume_status *out_volstatus;
@@ -991,9 +992,8 @@ extern struct afs_call *afs_fs_get_capabilities(struct afs_net *, struct afs_ser
 						struct afs_addr_cursor *, struct key *,
 						unsigned int);
 extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
-				     struct afs_fid *, struct afs_file_status *,
-				     struct afs_callback *, unsigned int,
-				     struct afs_volsync *);
+				     struct afs_fid *, struct afs_status_cb *,
+				     unsigned int, struct afs_volsync *);
 extern int afs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
 			       struct afs_fid *, struct afs_file_status *,
 			       struct afs_callback *, struct afs_volsync *);
@@ -1393,9 +1393,8 @@ extern int yfs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
 			       struct afs_fid *, struct afs_file_status *,
 			       struct afs_callback *, struct afs_volsync *);
 extern int yfs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
-				     struct afs_fid *, struct afs_file_status *,
-				     struct afs_callback *, unsigned int,
-				     struct afs_volsync *);
+				     struct afs_fid *, struct afs_status_cb *,
+				     unsigned int, struct afs_volsync *);
 
 struct yfs_acl {
 	struct afs_acl	*acl;		/* Dir/file/symlink ACL */

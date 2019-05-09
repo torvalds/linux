@@ -2209,8 +2209,7 @@ int afs_fs_fetch_status(struct afs_fs_cursor *fc,
  */
 static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 {
-	struct afs_file_status *statuses;
-	struct afs_callback *callbacks;
+	struct afs_status_cb *scb;
 	const __be32 *bp;
 	u32 tmp;
 	int ret;
@@ -2249,8 +2248,8 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		statuses = call->out_extra_status;
-		ret = afs_decode_status(call, &bp, &statuses[call->count],
+		scb = &call->out_scb[call->count];
+		ret = afs_decode_status(call, &bp, &scb->status,
 					NULL, NULL, NULL);
 		if (ret < 0)
 			return ret;
@@ -2290,9 +2289,9 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		_debug("unmarshall CB array");
 		bp = call->buffer;
-		callbacks = call->out_cb;
-		xdr_decode_AFSCallBack_raw(call, &callbacks[call->count], &bp);
-		statuses = call->out_extra_status;
+		scb = &call->out_scb[call->count];
+		xdr_decode_AFSCallBack_raw(call, &scb->callback, &bp);
+		scb->have_cb = true;
 		call->count++;
 		if (call->count < call->count2)
 			goto more_cbs;
@@ -2335,8 +2334,7 @@ static const struct afs_call_type afs_RXFSInlineBulkStatus = {
 int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 			      struct afs_net *net,
 			      struct afs_fid *fids,
-			      struct afs_file_status *statuses,
-			      struct afs_callback *callbacks,
+			      struct afs_status_cb *statuses,
 			      unsigned int nr_fids,
 			      struct afs_volsync *volsync)
 {
@@ -2345,7 +2343,7 @@ int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	int i;
 
 	if (test_bit(AFS_SERVER_FL_IS_YFS, &fc->cbi->server->flags))
-		return yfs_fs_inline_bulk_status(fc, net, fids, statuses, callbacks,
+		return yfs_fs_inline_bulk_status(fc, net, fids, statuses,
 						 nr_fids, volsync);
 
 	_enter(",%x,{%llx:%llu},%u",
@@ -2360,8 +2358,7 @@ int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	}
 
 	call->key = fc->key;
-	call->out_extra_status = statuses;
-	call->out_cb = callbacks;
+	call->out_scb = statuses;
 	call->out_volsync = volsync;
 	call->count2 = nr_fids;
 	call->want_reply_time = true;
