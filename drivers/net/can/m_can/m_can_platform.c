@@ -14,7 +14,7 @@ struct m_can_plat_priv {
 	void __iomem *mram_base;
 };
 
-static u32 iomap_read_reg(struct m_can_priv *cdev, int reg)
+static u32 iomap_read_reg(struct m_can_classdev *cdev, int reg)
 {
 	struct m_can_plat_priv *priv =
 			(struct m_can_plat_priv *)cdev->device_data;
@@ -22,7 +22,7 @@ static u32 iomap_read_reg(struct m_can_priv *cdev, int reg)
 	return readl(priv->base + reg);
 }
 
-static u32 iomap_read_fifo(struct m_can_priv *cdev, int offset)
+static u32 iomap_read_fifo(struct m_can_classdev *cdev, int offset)
 {
 	struct m_can_plat_priv *priv =
 			(struct m_can_plat_priv *)cdev->device_data;
@@ -30,7 +30,7 @@ static u32 iomap_read_fifo(struct m_can_priv *cdev, int offset)
 	return readl(priv->mram_base + offset);
 }
 
-static int iomap_write_reg(struct m_can_priv *cdev, int reg, int val)
+static int iomap_write_reg(struct m_can_classdev *cdev, int reg, int val)
 {
 	struct m_can_plat_priv *priv =
 			(struct m_can_plat_priv *)cdev->device_data;
@@ -40,7 +40,7 @@ static int iomap_write_reg(struct m_can_priv *cdev, int reg, int val)
 	return 0;
 }
 
-static int iomap_write_fifo(struct m_can_priv *cdev, int offset, int val)
+static int iomap_write_fifo(struct m_can_classdev *cdev, int offset, int val)
 {
 	struct m_can_plat_priv *priv =
 			(struct m_can_plat_priv *)cdev->device_data;
@@ -59,7 +59,7 @@ static struct m_can_ops m_can_plat_ops = {
 
 static int m_can_plat_probe(struct platform_device *pdev)
 {
-	struct m_can_priv *mcan_class;
+	struct m_can_classdev *mcan_class;
 	struct m_can_plat_priv *priv;
 	struct resource *res;
 	void __iomem *addr;
@@ -131,7 +131,7 @@ static __maybe_unused int m_can_resume(struct device *dev)
 static int m_can_plat_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
-	struct m_can_priv *mcan_class = netdev_priv(dev);
+	struct m_can_classdev *mcan_class = netdev_priv(dev);
 
 	m_can_class_unregister(mcan_class);
 
@@ -143,7 +143,7 @@ static int m_can_plat_remove(struct platform_device *pdev)
 static int __maybe_unused m_can_runtime_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_priv *mcan_class = netdev_priv(ndev);
+	struct m_can_classdev *mcan_class = netdev_priv(ndev);
 
 	m_can_class_suspend(dev);
 
@@ -156,7 +156,7 @@ static int __maybe_unused m_can_runtime_suspend(struct device *dev)
 static int __maybe_unused m_can_runtime_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct m_can_priv *mcan_class = netdev_priv(ndev);
+	struct m_can_classdev *mcan_class = netdev_priv(ndev);
 	int err;
 
 	err = clk_prepare_enable(mcan_class->hclk);

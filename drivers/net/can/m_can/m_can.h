@@ -57,19 +57,19 @@ struct mram_cfg {
 	u8  num;
 };
 
-struct m_can_priv;
+struct m_can_classdev;
 struct m_can_ops {
 	/* Device specific call backs */
-	int (*clear_interrupts)(struct m_can_priv *m_can_class);
-	u32 (*read_reg)(struct m_can_priv *m_can_class, int reg);
-	int (*write_reg)(struct m_can_priv *m_can_class, int reg, int val);
-	u32 (*read_fifo)(struct m_can_priv *m_can_class, int addr_offset);
-	int (*write_fifo)(struct m_can_priv *m_can_class, int addr_offset,
+	int (*clear_interrupts)(struct m_can_classdev *cdev);
+	u32 (*read_reg)(struct m_can_classdev *cdev, int reg);
+	int (*write_reg)(struct m_can_classdev *cdev, int reg, int val);
+	u32 (*read_fifo)(struct m_can_classdev *cdev, int addr_offset);
+	int (*write_fifo)(struct m_can_classdev *cdev, int addr_offset,
 			  int val);
-	int (*init)(struct m_can_priv *m_can_class);
+	int (*init)(struct m_can_classdev *cdev);
 };
 
-struct m_can_priv {
+struct m_can_classdev {
 	struct can_priv can;
 	struct napi_struct napi;
 	struct net_device *net;
@@ -98,12 +98,12 @@ struct m_can_priv {
 	struct mram_cfg mcfg[MRAM_CFG_NUM];
 };
 
-struct m_can_priv *m_can_class_allocate_dev(struct device *dev);
-int m_can_class_register(struct m_can_priv *m_can_dev);
-void m_can_class_unregister(struct m_can_priv *m_can_dev);
-int m_can_class_get_clocks(struct m_can_priv *m_can_dev);
-void m_can_init_ram(struct m_can_priv *priv);
-void m_can_config_endisable(struct m_can_priv *priv, bool enable);
+struct m_can_classdev *m_can_class_allocate_dev(struct device *dev);
+int m_can_class_register(struct m_can_classdev *cdev);
+void m_can_class_unregister(struct m_can_classdev *cdev);
+int m_can_class_get_clocks(struct m_can_classdev *cdev);
+void m_can_init_ram(struct m_can_classdev *priv);
+void m_can_config_endisable(struct m_can_classdev *priv, bool enable);
 
 int m_can_class_suspend(struct device *dev);
 int m_can_class_resume(struct device *dev);
