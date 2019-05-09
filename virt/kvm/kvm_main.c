@@ -2938,12 +2938,6 @@ static int kvm_device_release(struct inode *inode, struct file *filp)
 	struct kvm_device *dev = filp->private_data;
 	struct kvm *kvm = dev->kvm;
 
-	if (!dev)
-		return -ENODEV;
-
-	if (dev->kvm != kvm)
-		return -EPERM;
-
 	if (dev->ops->release) {
 		mutex_lock(&kvm->lock);
 		list_del(&dev->vm_node);
