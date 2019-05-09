@@ -90,7 +90,7 @@ static ssize_t scom_debug_read(struct file *filp, char __user *ubuf,
 	struct scom_debug_entry *ent = filp->private_data;
 	u64 __user *ubuf64 = (u64 __user *)ubuf;
 	loff_t off = *ppos;
-	ssize_t done = 0; 
+	ssize_t done = 0;
 	u64 reg, reg_base, reg_cnt, val;
 	int rc;
 
@@ -115,13 +115,13 @@ static ssize_t scom_debug_read(struct file *filp, char __user *ubuf,
 	return done;
 }
 
-static ssize_t scom_debug_write(struct file* filp, const char __user *ubuf,
+static ssize_t scom_debug_write(struct file *filp, const char __user *ubuf,
 				size_t count, loff_t *ppos)
 {
 	struct scom_debug_entry *ent = filp->private_data;
 	u64 __user *ubuf64 = (u64 __user *)ubuf;
 	loff_t off = *ppos;
-	ssize_t done = 0; 
+	ssize_t done = 0;
 	u64 reg, reg_base, reg_cnt, val;
 	int rc;
 
@@ -164,7 +164,7 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 
 	ent->chip = chip;
 	snprintf(ent->name, 16, "%08x", chip);
-	ent->path.data = (void*)kasprintf(GFP_KERNEL, "%pOF", dn);
+	ent->path.data = (void *)kasprintf(GFP_KERNEL, "%pOF", dn);
 	ent->path.size = strlen((char *)ent->path.data);
 
 	dir = debugfs_create_dir(ent->name, root);
