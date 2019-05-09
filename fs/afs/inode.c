@@ -561,23 +561,12 @@ void afs_zap_data(struct afs_vnode *vnode)
 }
 
 /*
- * validate a vnode/inode
- * - there are several things we need to check
- *   - parent dir data changes (rm, rmdir, rename, mkdir, create, link,
- *     symlink)
- *   - parent dir metadata changed (security changes)
- *   - dentry data changed (write, truncate)
- *   - dentry metadata changed (security changes)
+ * Check the validity of a vnode/inode.
  */
-int afs_validate(struct afs_vnode *vnode, struct key *key)
+bool afs_check_validity(struct afs_vnode *vnode)
 {
 	time64_t now = ktime_get_real_seconds();
 	bool valid;
-	int ret;
-
-	_enter("{v={%llx:%llu} fl=%lx},%x",
-	       vnode->fid.vid, vnode->fid.vnode, vnode->flags,
-	       key_serial(key));
 
 	/* Quickly check the callback state.  Ideally, we'd use read_seqbegin
 	 * here, but we have no way to pass the net namespace to the RCU
@@ -606,6 +595,28 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	}
 
 	read_sequnlock_excl(&vnode->cb_lock);
+	return valid;
+}
+
+/*
+ * validate a vnode/inode
+ * - there are several things we need to check
+ *   - parent dir data changes (rm, rmdir, rename, mkdir, create, link,
+ *     symlink)
+ *   - parent dir metadata changed (security changes)
+ *   - dentry data changed (write, truncate)
+ *   - dentry metadata changed (security changes)
+ */
+int afs_validate(struct afs_vnode *vnode, struct key *key)
+{
+	bool valid;
+	int ret;
+
+	_enter("{v={%llx:%llu} fl=%lx},%x",
+	       vnode->fid.vid, vnode->fid.vnode, vnode->flags,
+	       key_serial(key));
+
+	valid = afs_check_validity(vnode);
 
 	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 		clear_nlink(&vnode->vfs_inode);
