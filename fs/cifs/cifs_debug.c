@@ -380,6 +380,8 @@ skip_rdma:
 				atomic_read(&server->in_send),
 				atomic_read(&server->num_waiters));
 #endif
+			/* dump session id helpful for use with network trace */
+			seq_printf(m, " SessionId: 0x%llx", ses->Suid);
 			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
 				seq_puts(m, " encrypted");
 			if (ses->sign)
