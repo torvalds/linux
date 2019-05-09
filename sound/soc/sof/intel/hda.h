@@ -348,6 +348,7 @@
 /* SSP Count of the Platform */
 #define APL_SSP_COUNT		6
 #define CNL_SSP_COUNT		3
+#define ICL_SSP_COUNT		6
 
 /* SSP Registers */
 #define SSP_SSC1_OFFSET		0x4
