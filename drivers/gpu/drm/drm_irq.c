@@ -114,7 +114,7 @@ int drm_irq_install(struct drm_device *dev, int irq)
 		return -EBUSY;
 	dev->irq_enabled = true;
 
-	//DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
+	DRM_DEBUG("irq=%d\n", irq);
 
 	/* Before installing handler */
 	if (dev->driver->irq_preinstall)
