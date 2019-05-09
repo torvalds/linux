@@ -1221,7 +1221,10 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 			to_i915(intel_dig_port->base.base.dev);
 	i915_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
-	intel_wakeref_t wakeref;
+	enum intel_display_power_domain aux_domain =
+		intel_aux_power_domain(intel_dig_port);
+	intel_wakeref_t aux_wakeref;
+	intel_wakeref_t pps_wakeref;
 	int i, ret, recv_bytes;
 	int try, clock = 0;
 	u32 status;
@@ -1231,7 +1234,8 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	for (i = 0; i < ARRAY_SIZE(ch_data); i++)
 		ch_data[i] = intel_dp->aux_ch_data_reg(intel_dp, i);
 
-	wakeref = pps_lock(intel_dp);
+	aux_wakeref = intel_display_power_get(dev_priv, aux_domain);
+	pps_wakeref = pps_lock(intel_dp);
 
 	/*
 	 * We will be called with VDD already enabled for dpcd/edid/oui reads.
@@ -1377,7 +1381,8 @@ out:
 	if (vdd)
 		edp_panel_vdd_off(intel_dp, false);
 
-	pps_unlock(intel_dp, wakeref);
+	pps_unlock(intel_dp, pps_wakeref);
+	intel_display_power_put_async(dev_priv, aux_domain, aux_wakeref);
 
 	return ret;
 }
