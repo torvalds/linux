@@ -1907,6 +1907,19 @@ config MFD_STPMIC1
 	  To compile this driver as a module, choose M here: the
 	  module will be called stpmic1.
 
+config MFD_STMFX
+	tristate "Support for STMicroelectronics Multi-Function eXpander (STMFX)"
+	depends on I2C
+	depends on OF || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Support for the STMicroelectronics Multi-Function eXpander.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
