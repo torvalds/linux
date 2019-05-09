@@ -689,7 +689,8 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	if (radeon_encoder->is_mst_encoder || radeon_encoder->offset)
 		return ATOM_ENCODER_MODE_DP_MST;
 	/* dp bridges are always DP */
-	if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE)
+	if if (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE ||
+	    rdev->family == CHIP_LIVERPOOL)
 		return ATOM_ENCODER_MODE_DP;
 
 	/* DVO is always DVO */
