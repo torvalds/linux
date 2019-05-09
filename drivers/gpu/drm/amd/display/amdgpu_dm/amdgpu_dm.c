@@ -2857,6 +2857,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 				    struct drm_plane_state *plane_state,
 				    struct drm_crtc_state *crtc_state)
 {
+	struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(crtc_state);
 	const struct amdgpu_framebuffer *amdgpu_fb =
 		to_amdgpu_framebuffer(plane_state->fb);
 	struct dc_scaling_info scaling_info;
@@ -2901,13 +2902,11 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	 * Always set input transfer function, since plane state is refreshed
 	 * every time.
 	 */
-	ret = amdgpu_dm_set_degamma_lut(crtc_state, dc_plane_state);
-	if (ret) {
-		dc_transfer_func_release(dc_plane_state->in_transfer_func);
-		dc_plane_state->in_transfer_func = NULL;
-	}
+	ret = amdgpu_dm_update_plane_color_mgmt(dm_crtc_state, dc_plane_state);
+	if (ret)
+		return ret;
 
-	return ret;
+	return 0;
 }
 
 static void update_stream_scaling_settings(const struct drm_display_mode *mode,
@@ -3482,6 +3481,8 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	state->vrr_supported = cur->vrr_supported;
 	state->freesync_config = cur->freesync_config;
 	state->crc_enabled = cur->crc_enabled;
+	state->cm_has_degamma = cur->cm_has_degamma;
+	state->cm_is_degamma_srgb = cur->cm_is_degamma_srgb;
 
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
 
@@ -5643,8 +5644,18 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			bundle->stream_update.dst = acrtc_state->stream->dst;
 		}
 
-		if (new_pcrtc_state->color_mgmt_changed)
-			bundle->stream_update.out_transfer_func = acrtc_state->stream->out_transfer_func;
+		if (new_pcrtc_state->color_mgmt_changed) {
+			/*
+			 * TODO: This isn't fully correct since we've actually
+			 * already modified the stream in place.
+			 */
+			bundle->stream_update.gamut_remap =
+				&acrtc_state->stream->gamut_remap_matrix;
+			bundle->stream_update.output_csc_transform =
+				&acrtc_state->stream->csc_color_matrix;
+			bundle->stream_update.out_transfer_func =
+				acrtc_state->stream->out_transfer_func;
+		}
 
 		acrtc_state->stream->abm_level = acrtc_state->abm_level;
 		if (acrtc_state->abm_level != dm_old_crtc_state->abm_level)
@@ -6494,10 +6505,9 @@ skip_modeset:
 	 */
 	if (dm_new_crtc_state->base.color_mgmt_changed ||
 	    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
-		ret = amdgpu_dm_set_regamma_lut(dm_new_crtc_state);
+		ret = amdgpu_dm_update_crtc_color_mgmt(dm_new_crtc_state);
 		if (ret)
 			goto fail;
-		amdgpu_dm_set_ctm(dm_new_crtc_state);
 	}
 
 	/* Update Freesync settings. */
@@ -6792,6 +6802,8 @@ dm_determine_update_type_for_commit(struct amdgpu_display_manager *dm,
 						new_dm_plane_state->dc_state->in_transfer_func;
 				stream_update.gamut_remap =
 						&new_dm_crtc_state->stream->gamut_remap_matrix;
+				stream_update.output_csc_transform =
+						&new_dm_crtc_state->stream->csc_color_matrix;
 				stream_update.out_transfer_func =
 						new_dm_crtc_state->stream->out_transfer_func;
 			}
