@@ -2509,6 +2509,33 @@ bool is_ccs_modifier(u64 modifier)
 	       modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
 }
 
+static
+u32 intel_fb_max_stride(struct drm_i915_private *dev_priv,
+			u32 pixel_format, u64 modifier)
+{
+	struct intel_crtc *crtc;
+	struct intel_plane *plane;
+
+	/*
+	 * We assume the primary plane for pipe A has
+	 * the highest stride limits of them all.
+	 */
+	crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
+	plane = to_intel_plane(crtc->base.primary);
+
+	return plane->max_stride(plane, pixel_format, modifier,
+				 DRM_MODE_ROTATE_0);
+}
+
+static u32
+intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
+{
+	if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
+		return 64;
+	else
+		return intel_tile_width_bytes(fb, color_plane);
+}
+
 static int
 intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		   struct drm_framebuffer *fb)
@@ -3584,15 +3611,6 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 
 	return ret;
-}
-
-static u32
-intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
-{
-	if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
-		return 64;
-	else
-		return intel_tile_width_bytes(fb, color_plane);
 }
 
 static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
@@ -14965,31 +14983,13 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 	.dirty = intel_user_framebuffer_dirty,
 };
 
-static
-u32 intel_fb_pitch_limit(struct drm_i915_private *dev_priv,
-			 u32 pixel_format, u64 fb_modifier)
-{
-	struct intel_crtc *crtc;
-	struct intel_plane *plane;
-
-	/*
-	 * We assume the primary plane for pipe A has
-	 * the highest stride limits of them all.
-	 */
-	crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
-	plane = to_intel_plane(crtc->base.primary);
-
-	return plane->max_stride(plane, pixel_format, fb_modifier,
-				 DRM_MODE_ROTATE_0);
-}
-
 static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 				  struct drm_i915_gem_object *obj,
 				  struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct drm_framebuffer *fb = &intel_fb->base;
-	u32 pitch_limit;
+	u32 max_stride;
 	unsigned int tiling, stride;
 	int ret = -EINVAL;
 	int i;
@@ -15041,13 +15041,13 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		goto err;
 	}
 
-	pitch_limit = intel_fb_pitch_limit(dev_priv, mode_cmd->pixel_format,
-					   mode_cmd->modifier[0]);
-	if (mode_cmd->pitches[0] > pitch_limit) {
+	max_stride = intel_fb_max_stride(dev_priv, mode_cmd->pixel_format,
+					 mode_cmd->modifier[0]);
+	if (mode_cmd->pitches[0] > max_stride) {
 		DRM_DEBUG_KMS("%s pitch (%u) must be at most %d\n",
 			      mode_cmd->modifier[0] != DRM_FORMAT_MOD_LINEAR ?
 			      "tiled" : "linear",
-			      mode_cmd->pitches[0], pitch_limit);
+			      mode_cmd->pitches[0], max_stride);
 		goto err;
 	}
 
