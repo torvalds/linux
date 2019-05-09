@@ -1181,9 +1181,9 @@ out:
 	if (msg->status && ctlr->handle_err)
 		ctlr->handle_err(ctlr, msg);
 
-	spi_finalize_current_message(ctlr);
-
 	spi_res_release(ctlr, msg);
+
+	spi_finalize_current_message(ctlr);
 
 	return ret;
 }
