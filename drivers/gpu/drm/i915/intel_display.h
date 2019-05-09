@@ -436,6 +436,8 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    bool constant_n);
 bool is_ccs_modifier(u64 modifier);
 void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv);
+u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
+			      u32 pixel_format, u64 modifier);
 bool intel_plane_can_remap(const struct intel_plane_state *plane_state);
 
 #endif
