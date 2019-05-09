@@ -2121,9 +2121,10 @@ retry:
 		if (inode && ceph_snap(inode) == CEPH_SNAPDIR) {
 			dout("build_path path+%d: %p SNAPDIR\n",
 			     pos, temp);
-		} else if (stop_on_nosnap && inode &&
+		} else if (stop_on_nosnap && inode && dentry != temp &&
 			   ceph_snap(inode) == CEPH_NOSNAP) {
 			spin_unlock(&temp->d_lock);
+			pos++; /* get rid of any prepended '/' */
 			break;
 		} else {
 			pos -= temp->d_name.len;
