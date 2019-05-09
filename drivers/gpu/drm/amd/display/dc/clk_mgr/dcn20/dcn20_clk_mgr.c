@@ -175,6 +175,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool update_dispclk = false;
 	bool enter_display_off = false;
 	bool dpp_clock_lowered = false;
+	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
 
 	display_count = get_active_display_cnt(dc, context);
 	if (dc->res_pool->pp_smu)
@@ -357,6 +358,7 @@ void dcn20_clk_mgr_construct(
 		 * this works because the int part is on the right edge of the register
 		 * and the frac part is on the left edge
 		 */
+
 		pll_req = dc_fixpt_from_int(pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_int);
 		pll_req.value |= pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_frac;
 
