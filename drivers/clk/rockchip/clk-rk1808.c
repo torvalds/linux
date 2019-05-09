@@ -45,7 +45,7 @@ static struct rockchip_pll_rate_table rk1808_pll_rates[] = {
 	RK3036_PLL_RATE(1104000000, 1, 46, 1, 1, 1, 0),
 	RK3036_PLL_RATE(1100000000, 2, 275, 3, 1, 1, 0),
 	RK3036_PLL_RATE(1008000000, 1, 84, 2, 1, 1, 0),
-	RK3036_PLL_RATE(1000000000, 1, 250, 6, 1, 1, 0),
+	RK3036_PLL_RATE(1000000000, 1, 125, 3, 1, 1, 0),
 	RK3036_PLL_RATE(984000000, 1, 82, 2, 1, 1, 0),
 	RK3036_PLL_RATE(960000000, 1, 80, 2, 1, 1, 0),
 	RK3036_PLL_RATE(936000000, 1, 78, 2, 1, 1, 0),
@@ -645,7 +645,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_CLKGATE_CON(9), 8, GFLAGS),
 	COMPOSITE_NODIV(SCLK_SDMMC, "clk_sdmmc", mux_sdmmc_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			RK1808_CLKSEL_CON(21), 15, 1, MFLAGS,
-			RK1808_CLKGATE_CON(9), 10, GFLAGS),
+			RK1808_CLKGATE_CON(9), 9, GFLAGS),
 	MMC(SCLK_SDMMC_DRV,     "sdmmc_drv",    "clk_sdmmc", RK1808_SDMMC_CON0, 1),
 	MMC(SCLK_SDMMC_SAMPLE,  "sdmmc_sample", "clk_sdmmc", RK1808_SDMMC_CON1, 1),
 
