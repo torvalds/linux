@@ -320,6 +320,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x9876, &carrizo_device_info },	/* Carrizo */
 	{ 0x9877, &carrizo_device_info },	/* Carrizo */
 	{ 0x15DD, &raven_device_info },		/* Raven */
+	{ 0x15D8, &raven_device_info },		/* Raven */
 #endif
 	{ 0x67A0, &hawaii_device_info },	/* Hawaii */
 	{ 0x67A1, &hawaii_device_info },	/* Hawaii */
@@ -493,9 +494,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 {
 	unsigned int size;
 
-	kfd->mec_fw_version = kfd->kfd2kgd->get_fw_version(kfd->kgd,
+	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
 			KGD_ENGINE_MEC1);
-	kfd->sdma_fw_version = kfd->kfd2kgd->get_fw_version(kfd->kgd,
+	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 

@@ -472,12 +472,12 @@ static unsigned int dcn10_get_clock_states(struct dc *dc, char *pBuf, unsigned i
 	chars_printed = snprintf_count(pBuf, bufSize, "dcfclk,dcfclk_deep_sleep,dispclk,"
 		"dppclk,fclk,socclk\n"
 		"%d,%d,%d,%d,%d,%d\n",
-		dc->current_state->bw.dcn.clk.dcfclk_khz,
-		dc->current_state->bw.dcn.clk.dcfclk_deep_sleep_khz,
-		dc->current_state->bw.dcn.clk.dispclk_khz,
-		dc->current_state->bw.dcn.clk.dppclk_khz,
-		dc->current_state->bw.dcn.clk.fclk_khz,
-		dc->current_state->bw.dcn.clk.socclk_khz);
+		dc->current_state->bw_ctx.bw.dcn.clk.dcfclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.dispclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.fclk_khz,
+		dc->current_state->bw_ctx.bw.dcn.clk.socclk_khz);
 
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;

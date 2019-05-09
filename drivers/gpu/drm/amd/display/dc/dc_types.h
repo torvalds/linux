@@ -395,7 +395,7 @@ struct dc_dongle_caps {
 	bool is_dp_hdmi_ycbcr422_converter;
 	bool is_dp_hdmi_ycbcr420_converter;
 	uint32_t dp_hdmi_max_bpc;
-	uint32_t dp_hdmi_max_pixel_clk;
+	uint32_t dp_hdmi_max_pixel_clk_in_khz;
 };
 /* Scaling format */
 enum scaling_transformation {

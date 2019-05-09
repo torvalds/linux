@@ -674,7 +674,7 @@ static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 	for (i = 0; i < topology_info_input->num_nodes; i++) {
 		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
 		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
-		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
+		topology_info_input->nodes[i].is_sharing_enabled = 1;
 		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
 	}
 

@@ -73,8 +73,6 @@ struct drm_i915_private;
 #define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 
-#define I915_NUM_ENGINES 8
-
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
 
 void i915_gem_park(struct drm_i915_private *i915);

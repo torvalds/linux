@@ -33,7 +33,10 @@
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/pwm.h>
+
+#include "intel_connector.h"
 #include "intel_drv.h"
+#include "intel_panel.h"
 
 #define CRC_PMIC_PWM_PERIOD_NS	21333
 

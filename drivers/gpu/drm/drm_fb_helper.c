@@ -1961,7 +1961,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 				best_depth = fmt->depth;
 		}
 	}
-	if (sizes.surface_depth != best_depth) {
+	if (sizes.surface_depth != best_depth && best_depth) {
 		DRM_INFO("requested bpp %d, scaled depth down to %d",
 			 sizes.surface_bpp, best_depth);
 		sizes.surface_depth = best_depth;
@@ -2580,13 +2580,16 @@ static bool drm_fb_helper_firmware_config(struct drm_fb_helper *fb_helper,
 {
 	struct drm_device *dev = fb_helper->dev;
 	unsigned int count = min(fb_helper->connector_count, BITS_PER_LONG);
-	unsigned long conn_configured, conn_seq;
+	unsigned long conn_configured, conn_seq, mask;
 	int i, j;
 	bool *save_enabled;
 	bool fallback = true, ret = true;
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
 	struct drm_modeset_acquire_ctx ctx;
+
+	if (!drm_drv_uses_atomic_modeset(dev))
+		return false;
 
 	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
 	if (!save_enabled)
@@ -2598,9 +2601,10 @@ static bool drm_fb_helper_firmware_config(struct drm_fb_helper *fb_helper,
 		drm_modeset_backoff(&ctx);
 
 	memcpy(save_enabled, enabled, count);
-	conn_seq = GENMASK(count - 1, 0);
+	mask = GENMASK(count - 1, 0);
 	conn_configured = 0;
 retry:
+	conn_seq = conn_configured;
 	for (i = 0; i < count; i++) {
 		struct drm_fb_helper_connector *fb_conn;
 		struct drm_connector *connector;
@@ -2613,8 +2617,7 @@ retry:
 		if (conn_configured & BIT(i))
 			continue;
 
-		/* First pass, only consider tiled connectors */
-		if (conn_seq == GENMASK(count - 1, 0) && !connector->has_tile)
+		if (conn_seq == 0 && !connector->has_tile)
 			continue;
 
 		if (connector->status == connector_status_connected)
@@ -2715,10 +2718,8 @@ retry:
 		conn_configured |= BIT(i);
 	}
 
-	if (conn_configured != conn_seq) { /* repeat until no more are found */
-		conn_seq = conn_configured;
+	if ((conn_configured & mask) != mask && conn_configured != conn_seq)
 		goto retry;
-	}
 
 	/*
 	 * If the BIOS didn't enable everything it could, fall back to have the

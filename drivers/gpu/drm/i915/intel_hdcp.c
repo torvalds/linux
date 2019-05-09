@@ -6,14 +6,16 @@
  * Sean Paul <seanpaul@chromium.org>
  */
 
-#include <drm/drm_hdcp.h>
-#include <drm/i915_component.h>
+#include <linux/component.h>
 #include <linux/i2c.h>
 #include <linux/random.h>
-#include <linux/component.h>
 
-#include "intel_drv.h"
+#include <drm/drm_hdcp.h>
+#include <drm/i915_component.h>
+
 #include "i915_reg.h"
+#include "intel_drv.h"
+#include "intel_hdcp.h"
 
 #define KEY_LOAD_TRIES	5
 #define ENCRYPT_STATUS_CHANGE_TIMEOUT_MS	50

@@ -23,11 +23,16 @@
  *
  */
 
-#include "i915_drv.h"
-#include "intel_drv.h"
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
+
+#include "i915_drv.h"
+#include "intel_audio.h"
+#include "intel_connector.h"
+#include "intel_ddi.h"
+#include "intel_dp.h"
+#include "intel_drv.h"
 
 static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state,
@@ -119,7 +124,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	limits.min_lane_count =
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = 6 * 3;
+	limits.min_bpp = intel_dp_min_bpp(pipe_config);
 	limits.max_bpp = pipe_config->pipe_bpp;
 
 	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);

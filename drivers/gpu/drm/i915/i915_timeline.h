@@ -27,6 +27,7 @@
 
 #include <linux/lockdep.h>
 
+#include "i915_active.h"
 #include "i915_syncmap.h"
 #include "i915_timeline_types.h"
 
@@ -108,20 +109,5 @@ int i915_timeline_read_hwsp(struct i915_request *from,
 void i915_timelines_init(struct drm_i915_private *i915);
 void i915_timelines_park(struct drm_i915_private *i915);
 void i915_timelines_fini(struct drm_i915_private *i915);
-
-/**
- * i915_timeline_set_barrier - orders submission between different timelines
- * @timeline: timeline to set the barrier on
- * @rq: request after which new submissions can proceed
- *
- * Sets the passed in request as the serialization point for all subsequent
- * submissions on @timeline. Subsequent requests will not be submitted to GPU
- * until the barrier has been completed.
- */
-static inline int
-i915_timeline_set_barrier(struct i915_timeline *tl, struct i915_request *rq)
-{
-	return i915_active_request_set(&tl->barrier, rq);
-}
 
 #endif

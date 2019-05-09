@@ -481,6 +481,155 @@ qca8k_port_set_status(struct qca8k_priv *priv, int port, int enable)
 		qca8k_reg_clear(priv, QCA8K_REG_PORT_STATUS(port), mask);
 }
 
+static u32
+qca8k_port_to_phy(int port)
+{
+	/* From Andrew Lunn:
+	 * Port 0 has no internal phy.
+	 * Port 1 has an internal PHY at MDIO address 0.
+	 * Port 2 has an internal PHY at MDIO address 1.
+	 * ...
+	 * Port 5 has an internal PHY at MDIO address 4.
+	 * Port 6 has no internal PHY.
+	 */
+
+	return port - 1;
+}
+
+static int
+qca8k_mdio_write(struct qca8k_priv *priv, int port, u32 regnum, u16 data)
+{
+	u32 phy, val;
+
+	if (regnum >= QCA8K_MDIO_MASTER_MAX_REG)
+		return -EINVAL;
+
+	/* callee is responsible for not passing bad ports,
+	 * but we still would like to make spills impossible.
+	 */
+	phy = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+	val = QCA8K_MDIO_MASTER_BUSY | QCA8K_MDIO_MASTER_EN |
+	      QCA8K_MDIO_MASTER_WRITE | QCA8K_MDIO_MASTER_PHY_ADDR(phy) |
+	      QCA8K_MDIO_MASTER_REG_ADDR(regnum) |
+	      QCA8K_MDIO_MASTER_DATA(data);
+
+	qca8k_write(priv, QCA8K_MDIO_MASTER_CTRL, val);
+
+	return qca8k_busy_wait(priv, QCA8K_MDIO_MASTER_CTRL,
+		QCA8K_MDIO_MASTER_BUSY);
+}
+
+static int
+qca8k_mdio_read(struct qca8k_priv *priv, int port, u32 regnum)
+{
+	u32 phy, val;
+
+	if (regnum >= QCA8K_MDIO_MASTER_MAX_REG)
+		return -EINVAL;
+
+	/* callee is responsible for not passing bad ports,
+	 * but we still would like to make spills impossible.
+	 */
+	phy = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+	val = QCA8K_MDIO_MASTER_BUSY | QCA8K_MDIO_MASTER_EN |
+	      QCA8K_MDIO_MASTER_READ | QCA8K_MDIO_MASTER_PHY_ADDR(phy) |
+	      QCA8K_MDIO_MASTER_REG_ADDR(regnum);
+
+	qca8k_write(priv, QCA8K_MDIO_MASTER_CTRL, val);
+
+	if (qca8k_busy_wait(priv, QCA8K_MDIO_MASTER_CTRL,
+			    QCA8K_MDIO_MASTER_BUSY))
+		return -ETIMEDOUT;
+
+	val = (qca8k_read(priv, QCA8K_MDIO_MASTER_CTRL) &
+		QCA8K_MDIO_MASTER_DATA_MASK);
+
+	return val;
+}
+
+static int
+qca8k_phy_write(struct dsa_switch *ds, int port, int regnum, u16 data)
+{
+	struct qca8k_priv *priv = ds->priv;
+
+	return qca8k_mdio_write(priv, port, regnum, data);
+}
+
+static int
+qca8k_phy_read(struct dsa_switch *ds, int port, int regnum)
+{
+	struct qca8k_priv *priv = ds->priv;
+	int ret;
+
+	ret = qca8k_mdio_read(priv, port, regnum);
+
+	if (ret < 0)
+		return 0xffff;
+
+	return ret;
+}
+
+static int
+qca8k_setup_mdio_bus(struct qca8k_priv *priv)
+{
+	u32 internal_mdio_mask = 0, external_mdio_mask = 0, reg;
+	struct device_node *ports, *port;
+	int err;
+
+	ports = of_get_child_by_name(priv->dev->of_node, "ports");
+	if (!ports)
+		return -EINVAL;
+
+	for_each_available_child_of_node(ports, port) {
+		err = of_property_read_u32(port, "reg", &reg);
+		if (err)
+			return err;
+
+		if (!dsa_is_user_port(priv->ds, reg))
+			continue;
+
+		if (of_property_read_bool(port, "phy-handle"))
+			external_mdio_mask |= BIT(reg);
+		else
+			internal_mdio_mask |= BIT(reg);
+	}
+
+	if (!external_mdio_mask && !internal_mdio_mask) {
+		dev_err(priv->dev, "no PHYs are defined.\n");
+		return -EINVAL;
+	}
+
+	/* The QCA8K_MDIO_MASTER_EN Bit, which grants access to PHYs through
+	 * the MDIO_MASTER register also _disconnects_ the external MDC
+	 * passthrough to the internal PHYs. It's not possible to use both
+	 * configurations at the same time!
+	 *
+	 * Because this came up during the review process:
+	 * If the external mdio-bus driver is capable magically disabling
+	 * the QCA8K_MDIO_MASTER_EN and mutex/spin-locking out the qca8k's
+	 * accessors for the time being, it would be possible to pull this
+	 * off.
+	 */
+	if (!!external_mdio_mask && !!internal_mdio_mask) {
+		dev_err(priv->dev, "either internal or external mdio bus configuration is supported.\n");
+		return -EINVAL;
+	}
+
+	if (external_mdio_mask) {
+		/* Make sure to disable the internal mdio bus in cases
+		 * a dt-overlay and driver reload changed the configuration
+		 */
+
+		qca8k_reg_clear(priv, QCA8K_MDIO_MASTER_CTRL,
+				QCA8K_MDIO_MASTER_EN);
+		return 0;
+	}
+
+	priv->ops.phy_read = qca8k_phy_read;
+	priv->ops.phy_write = qca8k_phy_write;
+	return 0;
+}
+
 static int
 qca8k_setup(struct dsa_switch *ds)
 {
@@ -501,6 +650,10 @@ qca8k_setup(struct dsa_switch *ds)
 					&qca8k_regmap_config);
 	if (IS_ERR(priv->regmap))
 		pr_warn("regmap initialization failed");
+
+	ret = qca8k_setup_mdio_bus(priv);
+	if (ret)
+		return ret;
 
 	/* Initialize CPU port pad mode (xMII type, delays...) */
 	phy_mode = of_get_phy_mode(ds->ports[QCA8K_CPU_PORT].dn);
@@ -622,22 +775,6 @@ qca8k_adjust_link(struct dsa_switch *ds, int port, struct phy_device *phy)
 	qca8k_port_set_status(priv, port, 0);
 	qca8k_write(priv, QCA8K_REG_PORT_STATUS(port), reg);
 	qca8k_port_set_status(priv, port, 1);
-}
-
-static int
-qca8k_phy_read(struct dsa_switch *ds, int phy, int regnum)
-{
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-
-	return mdiobus_read(priv->bus, phy, regnum);
-}
-
-static int
-qca8k_phy_write(struct dsa_switch *ds, int phy, int regnum, u16 val)
-{
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-
-	return mdiobus_write(priv->bus, phy, regnum, val);
 }
 
 static void
@@ -879,8 +1016,6 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.setup			= qca8k_setup,
 	.adjust_link            = qca8k_adjust_link,
 	.get_strings		= qca8k_get_strings,
-	.phy_read		= qca8k_phy_read,
-	.phy_write		= qca8k_phy_write,
 	.get_ethtool_stats	= qca8k_get_ethtool_stats,
 	.get_sset_count		= qca8k_get_sset_count,
 	.get_mac_eee		= qca8k_get_mac_eee,
@@ -923,7 +1058,8 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 		return -ENOMEM;
 
 	priv->ds->priv = priv;
-	priv->ds->ops = &qca8k_switch_ops;
+	priv->ops = qca8k_switch_ops;
+	priv->ds->ops = &priv->ops;
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 

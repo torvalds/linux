@@ -26,6 +26,7 @@
 #define I915_REQUEST_H
 
 #include <linux/dma-fence.h>
+#include <linux/lockdep.h>
 
 #include "i915_gem.h"
 #include "i915_scheduler.h"
@@ -121,6 +122,15 @@ struct i915_request {
 	unsigned long rcustate;
 
 	/*
+	 * We pin the timeline->mutex while constructing the request to
+	 * ensure that no caller accidentally drops it during construction.
+	 * The timeline->mutex must be held to ensure that only this caller
+	 * can use the ring and manipulate the associated timeline during
+	 * construction.
+	 */
+	struct pin_cookie cookie;
+
+	/*
 	 * Fences for the various phases in the request's lifetime.
 	 *
 	 * The submit fence is used to await upon all of the request's
@@ -133,6 +143,7 @@ struct i915_request {
 		struct i915_sw_dma_fence_cb dmaq;
 	};
 	struct list_head execute_cb;
+	struct i915_sw_fence semaphore;
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.

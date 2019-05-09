@@ -35,7 +35,10 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
+#include "intel_atomic_plane.h"
 #include "intel_drv.h"
+#include "intel_pm.h"
+#include "intel_sprite.h"
 
 struct intel_plane *intel_plane_alloc(void)
 {

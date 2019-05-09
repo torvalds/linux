@@ -35,6 +35,9 @@
 
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "intel_fbc.h"
+#include "intel_pm.h"
+#include "intel_sprite.h"
 #include "../../../platform/x86/intel_ips.h"
 
 /**
@@ -850,7 +853,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 	u32 reg;
 	unsigned int wm;
 
-	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
+	latency = intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
 					 dev_priv->is_ddr3,
 					 dev_priv->fsb_freq,
 					 dev_priv->mem_freq);
@@ -4527,10 +4530,10 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 				memset(&wm->wm[level], 0, sizeof(wm->wm[level]));
 
 			/*
-			 * Wa_1408961008:icl
+			 * Wa_1408961008:icl, ehl
 			 * Underruns with WM1+ disabled
 			 */
-			if (IS_ICELAKE(dev_priv) &&
+			if (IS_GEN(dev_priv, 11) &&
 			    level == 1 && wm->wm[0].plane_en) {
 				wm->wm[level].plane_res_b = wm->wm[0].plane_res_b;
 				wm->wm[level].plane_res_l = wm->wm[0].plane_res_l;
@@ -5251,7 +5254,7 @@ static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 }
 
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
-				 const struct skl_ddb_entry entries[],
+				 const struct skl_ddb_entry *entries,
 				 int num_entries, int ignore_idx)
 {
 	int i;
@@ -6603,7 +6606,7 @@ static void rps_set_power(struct drm_i915_private *dev_priv, int new_power)
 				       ei_down * threshold_down / 100));
 
 	I915_WRITE(GEN6_RP_CONTROL,
-		   GEN6_RP_MEDIA_TURBO |
+		   (INTEL_GEN(dev_priv) > 9 ? 0 : GEN6_RP_MEDIA_TURBO) |
 		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
 		   GEN6_RP_MEDIA_IS_GFX |
 		   GEN6_RP_ENABLE |
@@ -7113,6 +7116,78 @@ static void gen9_enable_rps(struct drm_i915_private *dev_priv)
 	 * Up/Down EI & threshold registers, as well as the RP_CONTROL,
 	 * RP_INTERRUPT_LIMITS & RPNSWREQ registers */
 	reset_rps(dev_priv, gen6_set_rps);
+
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+}
+
+static void gen11_enable_rc6(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/* 1a: Software RC state - RC0 */
+	I915_WRITE(GEN6_RC_STATE, 0);
+
+	/*
+	 * 1b: Get forcewake during program sequence. Although the driver
+	 * hasn't enabled a state yet where we need forcewake, BIOS may have.
+	 */
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
+
+	/* 2a: Disable RC states. */
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+
+	/* 2b: Program RC6 thresholds.*/
+	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
+	I915_WRITE(GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
+
+	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
+	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
+	for_each_engine(engine, dev_priv, id)
+		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
+
+	if (HAS_GUC(dev_priv))
+		I915_WRITE(GUC_MAX_IDLE_COUNT, 0xA);
+
+	I915_WRITE(GEN6_RC_SLEEP, 0);
+
+	I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+
+	/*
+	 * 2c: Program Coarse Power Gating Policies.
+	 *
+	 * Bspec's guidance is to use 25us (really 25 * 1280ns) here. What we
+	 * use instead is a more conservative estimate for the maximum time
+	 * it takes us to service a CS interrupt and submit a new ELSP - that
+	 * is the time which the GPU is idle waiting for the CPU to select the
+	 * next request to execute. If the idle hysteresis is less than that
+	 * interrupt service latency, the hardware will automatically gate
+	 * the power well and we will then incur the wake up cost on top of
+	 * the service latency. A similar guide from intel_pstate is that we
+	 * do not want the enable hysteresis to less than the wakeup latency.
+	 *
+	 * igt/gem_exec_nop/sequential provides a rough estimate for the
+	 * service latency, and puts it around 10us for Broadwell (and other
+	 * big core) and around 40us for Broxton (and other low power cores).
+	 * [Note that for legacy ringbuffer submission, this is less than 1us!]
+	 * However, the wakeup latency on Broxton is closer to 100us. To be
+	 * conservative, we have to factor in a context switch on top (due
+	 * to ksoftirqd).
+	 */
+	I915_WRITE(GEN9_MEDIA_PG_IDLE_HYSTERESIS, 250);
+	I915_WRITE(GEN9_RENDER_PG_IDLE_HYSTERESIS, 250);
+
+	/* 3a: Enable RC6 */
+	I915_WRITE(GEN6_RC_CONTROL,
+		   GEN6_RC_CTL_HW_ENABLE |
+		   GEN6_RC_CTL_RC6_ENABLE |
+		   GEN6_RC_CTL_EI_MODE(1));
+
+	/* 3b: Enable Coarse Power Gating only when RC6 is enabled. */
+	I915_WRITE(GEN9_PG_ENABLE,
+		   GEN9_RENDER_PG_ENABLE |
+		   GEN9_MEDIA_PG_ENABLE |
+		   GEN11_MEDIA_SAMPLER_PG_ENABLE);
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 }
@@ -8188,14 +8263,14 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 	return val;
 }
 
-static struct drm_i915_private *i915_mch_dev;
+static struct drm_i915_private __rcu *i915_mch_dev;
 
 static struct drm_i915_private *mchdev_get(void)
 {
 	struct drm_i915_private *i915;
 
 	rcu_read_lock();
-	i915 = i915_mch_dev;
+	i915 = rcu_dereference(i915_mch_dev);
 	if (!kref_get_unless_zero(&i915->drm.ref))
 		i915 = NULL;
 	rcu_read_unlock();
@@ -8593,6 +8668,8 @@ static void intel_enable_rc6(struct drm_i915_private *dev_priv)
 		cherryview_enable_rc6(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv))
 		valleyview_enable_rc6(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 11)
+		gen11_enable_rc6(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 9)
 		gen9_enable_rc6(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
@@ -9496,7 +9573,7 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_ICELAKE(dev_priv))
+	if (IS_GEN(dev_priv, 11))
 		dev_priv->display.init_clock_gating = icl_init_clock_gating;
 	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cnl_init_clock_gating;
@@ -9589,7 +9666,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		dev_priv->display.initial_watermarks = g4x_initial_watermarks;
 		dev_priv->display.optimize_watermarks = g4x_optimize_watermarks;
 	} else if (IS_PINEVIEW(dev_priv)) {
-		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
+		if (!intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
 					    dev_priv->is_ddr3,
 					    dev_priv->fsb_freq,
 					    dev_priv->mem_freq)) {

@@ -163,6 +163,27 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	return stream;
 }
 
+struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
+{
+	struct dc_stream_state *new_stream;
+
+	new_stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
+	if (!new_stream)
+		return NULL;
+
+	memcpy(new_stream, stream, sizeof(struct dc_stream_state));
+
+	if (new_stream->sink)
+		dc_sink_retain(new_stream->sink);
+
+	if (new_stream->out_transfer_func)
+		dc_transfer_func_retain(new_stream->out_transfer_func);
+
+	kref_init(&new_stream->refcount);
+
+	return new_stream;
+}
+
 /**
  * dc_stream_get_status_from_state - Get stream status from given dc state
  * @state: DC state to find the stream status in
@@ -211,7 +232,8 @@ static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 			ASIC_REV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
 
 		vupdate_line = get_vupdate_offset_from_vsync(pipe_ctx);
-		dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos);
+		if (!dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos))
+			return;
 
 		if (vpos >= vupdate_line)
 			return;
@@ -311,7 +333,7 @@ bool dc_stream_set_cursor_position(
 				(!pipe_ctx->plane_res.mi  && !pipe_ctx->plane_res.hubp) ||
 				!pipe_ctx->plane_state ||
 				(!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp) ||
-				!pipe_ctx->plane_res.ipp)
+				(!pipe_ctx->plane_res.ipp && !pipe_ctx->plane_res.dpp))
 			continue;
 
 		if (!pipe_to_program) {

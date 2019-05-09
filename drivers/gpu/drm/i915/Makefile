@@ -32,10 +32,13 @@ CFLAGS_intel_fbdev.o = $(call cc-disable-warning, override-init)
 subdir-ccflags-y += \
 	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
+# Extra header tests
+include $(src)/Makefile.header-test
+
 # Please keep these build lists sorted!
 
 # core driver code
-i915-y := i915_drv.o \
+i915-y += i915_drv.o \
 	  i915_irq.o \
 	  i915_memcpy.o \
 	  i915_mm.o \
@@ -56,15 +59,6 @@ i915-y := i915_drv.o \
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
-
-# Test the headers are compilable as standalone units
-i915-$(CONFIG_DRM_I915_WERROR) += \
-	test_i915_active_types_standalone.o \
-	test_i915_gem_context_types_standalone.o \
-	test_i915_timeline_types_standalone.o \
-	test_intel_context_types_standalone.o \
-	test_intel_engine_types_standalone.o \
-	test_intel_workarounds_types_standalone.o
 
 # GEM code
 i915-y += \

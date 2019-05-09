@@ -677,6 +677,9 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "Platform: %s\n", intel_platform_name(error->device_info.platform));
+	err_printf(m, "Subplatform: 0x%x\n",
+		   intel_subplatform(&error->runtime_info,
+				     error->device_info.platform));
 	err_print_pciid(m, m->i915);
 
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
@@ -1093,7 +1096,7 @@ static u32 capture_error_bo(struct drm_i915_error_buffer *err,
  * It's only a small step better than a random number in its current form.
  */
 static u32 i915_error_generate_code(struct i915_gpu_state *error,
-				    unsigned long engine_mask)
+				    intel_engine_mask_t engine_mask)
 {
 	/*
 	 * IPEHR would be an ideal way to detect errors, as it's the gross
@@ -1212,20 +1215,23 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
 
-		if (IS_GEN(dev_priv, 6))
+		if (IS_GEN(dev_priv, 6)) {
 			ee->vm_info.pp_dir_base =
 				ENGINE_READ(engine, RING_PP_DIR_BASE_READ);
-		else if (IS_GEN(dev_priv, 7))
+		} else if (IS_GEN(dev_priv, 7)) {
 			ee->vm_info.pp_dir_base =
-					ENGINE_READ(engine, RING_PP_DIR_BASE);
-		else if (INTEL_GEN(dev_priv) >= 8)
+				ENGINE_READ(engine, RING_PP_DIR_BASE);
+		} else if (INTEL_GEN(dev_priv) >= 8) {
+			u32 base = engine->mmio_base;
+
 			for (i = 0; i < 4; i++) {
 				ee->vm_info.pdp[i] =
-					I915_READ(GEN8_RING_PDP_UDW(engine, i));
+					I915_READ(GEN8_RING_PDP_UDW(base, i));
 				ee->vm_info.pdp[i] <<= 32;
 				ee->vm_info.pdp[i] |=
-					I915_READ(GEN8_RING_PDP_LDW(engine, i));
+					I915_READ(GEN8_RING_PDP_LDW(base, i));
 			}
+		}
 	}
 }
 
@@ -1629,16 +1635,17 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->gtier[0] = I915_READ(GTIER);
 		error->ngtier = 1;
 	} else if (IS_GEN(dev_priv, 2)) {
-		error->ier = I915_READ16(IER);
+		error->ier = I915_READ16(GEN2_IER);
 	} else if (!IS_VALLEYVIEW(dev_priv)) {
-		error->ier = I915_READ(IER);
+		error->ier = I915_READ(GEN2_IER);
 	}
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 }
 
 static const char *
-error_msg(struct i915_gpu_state *error, unsigned long engines, const char *msg)
+error_msg(struct i915_gpu_state *error,
+	  intel_engine_mask_t engines, const char *msg)
 {
 	int len;
 	int i;
@@ -1648,7 +1655,7 @@ error_msg(struct i915_gpu_state *error, unsigned long engines, const char *msg)
 			engines &= ~BIT(i);
 
 	len = scnprintf(error->error_msg, sizeof(error->error_msg),
-			"GPU HANG: ecode %d:%lx:0x%08x",
+			"GPU HANG: ecode %d:%x:0x%08x",
 			INTEL_GEN(error->i915), engines,
 			i915_error_generate_code(error, engines));
 	if (engines) {
@@ -1787,7 +1794,7 @@ i915_capture_gpu_state(struct drm_i915_private *i915)
  * to pick up.
  */
 void i915_capture_error_state(struct drm_i915_private *i915,
-			      unsigned long engine_mask,
+			      intel_engine_mask_t engine_mask,
 			      const char *msg)
 {
 	static bool warned;

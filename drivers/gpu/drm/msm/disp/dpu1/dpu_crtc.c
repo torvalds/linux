@@ -46,6 +46,9 @@
 #define LEFT_MIXER 0
 #define RIGHT_MIXER 1
 
+/* timeout in ms waiting for frame done */
+#define DPU_CRTC_FRAME_DONE_TIMEOUT_MS	60
+
 static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv = crtc->dev->dev_private;
@@ -425,65 +428,6 @@ void dpu_crtc_complete_commit(struct drm_crtc *crtc,
 	trace_dpu_crtc_complete_commit(DRMID(crtc));
 }
 
-static void _dpu_crtc_setup_mixer_for_encoder(
-		struct drm_crtc *crtc,
-		struct drm_encoder *enc)
-{
-	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
-	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
-	struct dpu_rm *rm = &dpu_kms->rm;
-	struct dpu_crtc_mixer *mixer;
-	struct dpu_hw_ctl *last_valid_ctl = NULL;
-	int i;
-	struct dpu_rm_hw_iter lm_iter, ctl_iter;
-
-	dpu_rm_init_hw_iter(&lm_iter, enc->base.id, DPU_HW_BLK_LM);
-	dpu_rm_init_hw_iter(&ctl_iter, enc->base.id, DPU_HW_BLK_CTL);
-
-	/* Set up all the mixers and ctls reserved by this encoder */
-	for (i = cstate->num_mixers; i < ARRAY_SIZE(cstate->mixers); i++) {
-		mixer = &cstate->mixers[i];
-
-		if (!dpu_rm_get_hw(rm, &lm_iter))
-			break;
-		mixer->hw_lm = (struct dpu_hw_mixer *)lm_iter.hw;
-
-		/* CTL may be <= LMs, if <, multiple LMs controlled by 1 CTL */
-		if (!dpu_rm_get_hw(rm, &ctl_iter)) {
-			DPU_DEBUG("no ctl assigned to lm %d, using previous\n",
-					mixer->hw_lm->idx - LM_0);
-			mixer->lm_ctl = last_valid_ctl;
-		} else {
-			mixer->lm_ctl = (struct dpu_hw_ctl *)ctl_iter.hw;
-			last_valid_ctl = mixer->lm_ctl;
-		}
-
-		/* Shouldn't happen, mixers are always >= ctls */
-		if (!mixer->lm_ctl) {
-			DPU_ERROR("no valid ctls found for lm %d\n",
-					mixer->hw_lm->idx - LM_0);
-			return;
-		}
-
-		cstate->num_mixers++;
-		DPU_DEBUG("setup mixer %d: lm %d\n",
-				i, mixer->hw_lm->idx - LM_0);
-		DPU_DEBUG("setup mixer %d: ctl %d\n",
-				i, mixer->lm_ctl->idx - CTL_0);
-	}
-}
-
-static void _dpu_crtc_setup_mixers(struct drm_crtc *crtc)
-{
-	struct drm_encoder *enc;
-
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
-
-	/* Check for mixers on all encoders attached to this crtc */
-	drm_for_each_encoder_mask(enc, crtc->dev, crtc->state->encoder_mask)
-		_dpu_crtc_setup_mixer_for_encoder(crtc, enc);
-}
-
 static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
@@ -533,10 +477,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	dev = crtc->dev;
 	smmu_state = &dpu_crtc->smmu_state;
 
-	if (!cstate->num_mixers) {
-		_dpu_crtc_setup_mixers(crtc);
-		_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
-	}
+	_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 
 	if (dpu_crtc->event) {
 		WARN_ON(dpu_crtc->event);
@@ -683,7 +624,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 
 	DPU_ATRACE_BEGIN("frame done completion wait");
 	ret = wait_for_completion_timeout(&dpu_crtc->frame_done_comp,
-			msecs_to_jiffies(DPU_FRAME_DONE_TIMEOUT));
+			msecs_to_jiffies(DPU_CRTC_FRAME_DONE_TIMEOUT_MS));
 	if (!ret) {
 		DRM_ERROR("frame done wait timed out, ret:%d\n", ret);
 		rc = -ETIMEDOUT;

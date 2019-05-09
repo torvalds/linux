@@ -58,7 +58,6 @@
  ******************************************************************************/
 
 enum {
-	LINK_RATE_REF_FREQ_IN_MHZ = 27,
 	PEAK_FACTOR_X1000 = 1006,
 	/*
 	* Some receivers fail to train on first try and are good
@@ -515,6 +514,40 @@ static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *lin
 }
 
 
+static void read_edp_current_link_settings_on_detect(struct dc_link *link)
+{
+	union lane_count_set lane_count_set = { {0} };
+	uint8_t link_bw_set;
+	uint8_t link_rate_set;
+
+	// Read DPCD 00101h to find out the number of lanes currently set
+	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
+			&lane_count_set.raw, sizeof(lane_count_set));
+	link->cur_link_settings.lane_count = lane_count_set.bits.LANE_COUNT_SET;
+
+	// Read DPCD 00100h to find if standard link rates are set
+	core_link_read_dpcd(link, DP_LINK_BW_SET,
+			&link_bw_set, sizeof(link_bw_set));
+
+	if (link_bw_set == 0) {
+		/* If standard link rates are not being used,
+		 * Read DPCD 00115h to find the link rate set used
+		 */
+		core_link_read_dpcd(link, DP_LINK_RATE_SET,
+				&link_rate_set, sizeof(link_rate_set));
+
+		if (link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
+			link->cur_link_settings.link_rate =
+				link->dpcd_caps.edp_supported_link_rates[link_rate_set];
+			link->cur_link_settings.link_rate_set = link_rate_set;
+			link->cur_link_settings.use_link_rate_set = true;
+		}
+	} else {
+		link->cur_link_settings.link_rate = link_bw_set;
+		link->cur_link_settings.use_link_rate_set = false;
+	}
+}
+
 static bool detect_dp(
 	struct dc_link *link,
 	struct display_sink_capability *sink_caps,
@@ -649,9 +682,14 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		return false;
 	}
 
-	if (link->connector_signal == SIGNAL_TYPE_EDP &&
-			link->local_sink)
-		return true;
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
+		/* On detect, we want to make sure current link settings are
+		 * up to date, especially if link was powered on by GOP.
+		 */
+		read_edp_current_link_settings_on_detect(link);
+		if (link->local_sink)
+			return true;
+	}
 
 	if (link->connector_signal == SIGNAL_TYPE_LVDS &&
 			link->local_sink)
@@ -1397,9 +1435,24 @@ static enum dc_status enable_link_dp(
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
 
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP) {
+		/* If link settings are different than current and link already enabled
+		 * then need to disable before programming to new rate.
+		 */
+		if (link->link_status.link_active &&
+			(link->cur_link_settings.lane_count != link_settings.lane_count ||
+			 link->cur_link_settings.link_rate != link_settings.link_rate)) {
+			dp_disable_link_phy(link, pipe_ctx->stream->signal);
+		}
+
+		/*in case it is not on*/
+		link->dc->hwss.edp_power_control(link, true);
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+	}
+
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
-	state->dccg->funcs->update_clocks(state->dccg, state, false);
+	state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
 
 	dp_enable_link_phy(
 		link,
@@ -1440,14 +1493,8 @@ static enum dc_status enable_link_edp(
 		struct pipe_ctx *pipe_ctx)
 {
 	enum dc_status status;
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->link;
-	/*in case it is not on*/
-	link->dc->hwss.edp_power_control(link, true);
-	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 
 	status = enable_link_dp(state, pipe_ctx);
-
 
 	return status;
 }
@@ -2150,7 +2197,7 @@ static bool dp_active_dongle_validate_timing(
 		return false;
 	}
 
-	if (get_timing_pixel_clock_100hz(timing) > (dongle_caps->dp_hdmi_max_pixel_clk * 10))
+	if (get_timing_pixel_clock_100hz(timing) > (dongle_caps->dp_hdmi_max_pixel_clk_in_khz * 10))
 		return false;
 
 	return true;
@@ -2289,14 +2336,13 @@ void core_link_resume(struct dc_link *link)
 
 static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 {
-	struct dc_link_settings *link_settings =
-			&stream->link->cur_link_settings;
-	uint32_t link_rate_in_mbps =
-			link_settings->link_rate * LINK_RATE_REF_FREQ_IN_MHZ;
-	struct fixed31_32 mbps = dc_fixpt_from_int(
-			link_rate_in_mbps * link_settings->lane_count);
+	struct fixed31_32 mbytes_per_sec;
+	uint32_t link_rate_in_mbytes_per_sec = dc_link_bandwidth_kbps(stream->link, &stream->link->cur_link_settings);
+	link_rate_in_mbytes_per_sec /= 8000; /* Kbits to MBytes */
 
-	return dc_fixpt_div_int(mbps, 54);
+	mbytes_per_sec = dc_fixpt_from_int(link_rate_in_mbytes_per_sec);
+
+	return dc_fixpt_div_int(mbytes_per_sec, 54);
 }
 
 static int get_color_depth(enum dc_color_depth color_depth)
@@ -2321,7 +2367,7 @@ static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 	uint32_t denominator;
 
 	bpc = get_color_depth(pipe_ctx->stream_res.pix_clk_params.color_depth);
-	kbps = pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10 * bpc * 3;
+	kbps = dc_bandwidth_in_kbps_from_timing(&pipe_ctx->stream->timing);
 
 	/*
 	 * margin 5300ppm + 300ppm ~ 0.6% as per spec, factor is 1.006
@@ -2666,11 +2712,17 @@ void core_link_enable_stream(
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	core_dc->hwss.blank_stream(pipe_ctx);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
+
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+		dal_ddc_service_write_scdc_data(
+			stream->link->ddc, 0,
+			stream->timing.flags.LTE_340MCSC_SCRAMBLE);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
@@ -2736,3 +2788,49 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 	}
 }
 
+uint32_t dc_bandwidth_in_kbps_from_timing(
+	const struct dc_crtc_timing *timing)
+{
+	uint32_t bits_per_channel = 0;
+	uint32_t kbps;
+
+	switch (timing->display_color_depth) {
+	case COLOR_DEPTH_666:
+		bits_per_channel = 6;
+		break;
+	case COLOR_DEPTH_888:
+		bits_per_channel = 8;
+		break;
+	case COLOR_DEPTH_101010:
+		bits_per_channel = 10;
+		break;
+	case COLOR_DEPTH_121212:
+		bits_per_channel = 12;
+		break;
+	case COLOR_DEPTH_141414:
+		bits_per_channel = 14;
+		break;
+	case COLOR_DEPTH_161616:
+		bits_per_channel = 16;
+		break;
+	default:
+		break;
+	}
+
+	ASSERT(bits_per_channel != 0);
+
+	kbps = timing->pix_clk_100hz / 10;
+	kbps *= bits_per_channel;
+
+	if (timing->flags.Y_ONLY != 1) {
+		/*Only YOnly make reduce bandwidth by 1/3 compares to RGB*/
+		kbps *= 3;
+		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			kbps /= 2;
+		else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+			kbps = kbps * 2 / 3;
+	}
+
+	return kbps;
+
+}

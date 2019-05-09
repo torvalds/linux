@@ -30,6 +30,8 @@ static void pcie_enable_link_bandwidth_notification(struct pci_dev *dev)
 {
 	u16 lnk_ctl;
 
+	pcie_capability_write_word(dev, PCI_EXP_LNKSTA, PCI_EXP_LNKSTA_LBMS);
+
 	pcie_capability_read_word(dev, PCI_EXP_LNKCTL, &lnk_ctl);
 	lnk_ctl |= PCI_EXP_LNKCTL_LBMIE;
 	pcie_capability_write_word(dev, PCI_EXP_LNKCTL, lnk_ctl);
@@ -44,11 +46,10 @@ static void pcie_disable_link_bandwidth_notification(struct pci_dev *dev)
 	pcie_capability_write_word(dev, PCI_EXP_LNKCTL, lnk_ctl);
 }
 
-static irqreturn_t pcie_bw_notification_handler(int irq, void *context)
+static irqreturn_t pcie_bw_notification_irq(int irq, void *context)
 {
 	struct pcie_device *srv = context;
 	struct pci_dev *port = srv->port;
-	struct pci_dev *dev;
 	u16 link_status, events;
 	int ret;
 
@@ -58,17 +59,26 @@ static irqreturn_t pcie_bw_notification_handler(int irq, void *context)
 	if (ret != PCIBIOS_SUCCESSFUL || !events)
 		return IRQ_NONE;
 
+	pcie_capability_write_word(port, PCI_EXP_LNKSTA, events);
+	pcie_update_link_speed(port->subordinate, link_status);
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t pcie_bw_notification_handler(int irq, void *context)
+{
+	struct pcie_device *srv = context;
+	struct pci_dev *port = srv->port;
+	struct pci_dev *dev;
+
 	/*
 	 * Print status from downstream devices, not this root port or
 	 * downstream switch port.
 	 */
 	down_read(&pci_bus_sem);
 	list_for_each_entry(dev, &port->subordinate->devices, bus_list)
-		__pcie_print_link_status(dev, false);
+		pcie_report_downtraining(dev);
 	up_read(&pci_bus_sem);
 
-	pcie_update_link_speed(port->subordinate, link_status);
-	pcie_capability_write_word(port, PCI_EXP_LNKSTA, events);
 	return IRQ_HANDLED;
 }
 
@@ -80,7 +90,8 @@ static int pcie_bandwidth_notification_probe(struct pcie_device *srv)
 	if (!pcie_link_bandwidth_notification_supported(srv->port))
 		return -ENODEV;
 
-	ret = request_threaded_irq(srv->irq, NULL, pcie_bw_notification_handler,
+	ret = request_threaded_irq(srv->irq, pcie_bw_notification_irq,
+				   pcie_bw_notification_handler,
 				   IRQF_SHARED, "PCIe BW notif", srv);
 	if (ret)
 		return ret;

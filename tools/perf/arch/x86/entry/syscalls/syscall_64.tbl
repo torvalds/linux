@@ -345,6 +345,10 @@
 334	common	rseq			__x64_sys_rseq
 # don't use numbers 387 through 423, add new calls after the last
 # 'common' entry
+424	common	pidfd_send_signal	__x64_sys_pidfd_send_signal
+425	common	io_uring_setup		__x64_sys_io_uring_setup
+426	common	io_uring_enter		__x64_sys_io_uring_enter
+427	common	io_uring_register	__x64_sys_io_uring_register
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact

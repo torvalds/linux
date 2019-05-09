@@ -10,11 +10,16 @@
 #include <drm/drm_framebuffer.h>
 #include "komeda_format_caps.h"
 
-/** struct komeda_fb - entend drm_framebuffer with komeda attribute */
+/**
+ * struct komeda_fb - Entending drm_framebuffer with komeda attribute
+ */
 struct komeda_fb {
 	/** @base: &drm_framebuffer */
 	struct drm_framebuffer base;
-	/* @format_caps: &komeda_format_caps */
+	/**
+	 * @format_caps:
+	 * extends drm_format_info for komeda specific information
+	 */
 	const struct komeda_format_caps *format_caps;
 	/** @aligned_w: aligned frame buffer width */
 	u32 aligned_w;

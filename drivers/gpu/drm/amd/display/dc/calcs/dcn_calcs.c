@@ -544,28 +544,28 @@ static void calc_wm_sets_and_perf_params(
 		v->fabric_and_dram_bandwidth = v->fabric_and_dram_bandwidth_vnom0p8;
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
-		context->bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns =
 			v->stutter_exit_watermark * 1000;
-		context->bw.dcn.watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns =
 				v->stutter_enter_plus_exit_watermark * 1000;
-		context->bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns =
+		context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns =
 				v->dram_clock_change_watermark * 1000;
-		context->bw.dcn.watermarks.b.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
-		context->bw.dcn.watermarks.b.urgent_ns = v->urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.b.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.b.urgent_ns = v->urgent_watermark * 1000;
 
 		v->dcfclk_per_state[1] = v->dcfclkv_nom0p8;
 		v->dcfclk_per_state[0] = v->dcfclkv_nom0p8;
 		v->dcfclk = v->dcfclkv_nom0p8;
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
-		context->bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns =
 			v->stutter_exit_watermark * 1000;
-		context->bw.dcn.watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns =
 				v->stutter_enter_plus_exit_watermark * 1000;
-		context->bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns =
+		context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns =
 				v->dram_clock_change_watermark * 1000;
-		context->bw.dcn.watermarks.c.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
-		context->bw.dcn.watermarks.c.urgent_ns = v->urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.c.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.c.urgent_ns = v->urgent_watermark * 1000;
 	}
 
 	if (v->voltage_level < 3) {
@@ -579,14 +579,14 @@ static void calc_wm_sets_and_perf_params(
 		v->dcfclk = v->dcfclkv_max0p9;
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
-		context->bw.dcn.watermarks.d.cstate_pstate.cstate_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.cstate_exit_ns =
 			v->stutter_exit_watermark * 1000;
-		context->bw.dcn.watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns =
 				v->stutter_enter_plus_exit_watermark * 1000;
-		context->bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns =
+		context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns =
 				v->dram_clock_change_watermark * 1000;
-		context->bw.dcn.watermarks.d.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
-		context->bw.dcn.watermarks.d.urgent_ns = v->urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.d.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.d.urgent_ns = v->urgent_watermark * 1000;
 	}
 
 	v->fabric_and_dram_bandwidth_per_state[2] = v->fabric_and_dram_bandwidth_vnom0p8;
@@ -599,20 +599,20 @@ static void calc_wm_sets_and_perf_params(
 	v->dcfclk = v->dcfclk_per_state[v->voltage_level];
 	dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
-	context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
+	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
 		v->stutter_exit_watermark * 1000;
-	context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
+	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
 			v->stutter_enter_plus_exit_watermark * 1000;
-	context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
+	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
 			v->dram_clock_change_watermark * 1000;
-	context->bw.dcn.watermarks.a.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
-	context->bw.dcn.watermarks.a.urgent_ns = v->urgent_watermark * 1000;
+	context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
+	context->bw_ctx.bw.dcn.watermarks.a.urgent_ns = v->urgent_watermark * 1000;
 	if (v->voltage_level >= 2) {
-		context->bw.dcn.watermarks.b = context->bw.dcn.watermarks.a;
-		context->bw.dcn.watermarks.c = context->bw.dcn.watermarks.a;
+		context->bw_ctx.bw.dcn.watermarks.b = context->bw_ctx.bw.dcn.watermarks.a;
+		context->bw_ctx.bw.dcn.watermarks.c = context->bw_ctx.bw.dcn.watermarks.a;
 	}
 	if (v->voltage_level >= 3)
-		context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
+		context->bw_ctx.bw.dcn.watermarks.d = context->bw_ctx.bw.dcn.watermarks.a;
 }
 #endif
 
@@ -701,8 +701,15 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 
 bool dcn_validate_bandwidth(
 		struct dc *dc,
-		struct dc_state *context)
+		struct dc_state *context,
+		bool fast_validate)
 {
+	/*
+	 * we want a breakdown of the various stages of validation, which the
+	 * perf_trace macro doesn't support
+	 */
+	BW_VAL_TRACE_SETUP();
+
 	const struct resource_pool *pool = dc->res_pool;
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;
 	int i, input_idx;
@@ -711,6 +718,9 @@ bool dcn_validate_bandwidth(
 	float bw_limit;
 
 	PERFORMANCE_TRACE_START();
+
+	BW_VAL_TRACE_COUNT();
+
 	if (dcn_bw_apply_registry_override(dc))
 		dcn_bw_sync_calcs_and_dml(dc);
 
@@ -1008,13 +1018,16 @@ bool dcn_validate_bandwidth(
 				dc->debug.sr_enter_plus_exit_time_dpm0_ns / 1000.0f;
 		if (dc->debug.sr_exit_time_dpm0_ns)
 			v->sr_exit_time =  dc->debug.sr_exit_time_dpm0_ns / 1000.0f;
-		dc->dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
-		dc->dml.soc.sr_exit_time_us = v->sr_exit_time;
+		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
+		context->bw_ctx.dml.soc.sr_exit_time_us = v->sr_exit_time;
 		mode_support_and_system_configuration(v);
 	}
 
-	if (v->voltage_level != 5) {
+	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
+
+	if (v->voltage_level != number_of_states_plus_one && !fast_validate) {
 		float bw_consumed = v->total_bandwidth_consumed_gbyte_per_second;
+
 		if (bw_consumed < v->fabric_and_dram_bandwidth_vmin0p65)
 			bw_consumed = v->fabric_and_dram_bandwidth_vmin0p65;
 		else if (bw_consumed < v->fabric_and_dram_bandwidth_vmid0p72)
@@ -1035,57 +1048,59 @@ bool dcn_validate_bandwidth(
 		 */
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
-		context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
 			v->stutter_exit_watermark * 1000;
-		context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
+		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
 				v->stutter_enter_plus_exit_watermark * 1000;
-		context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
+		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
 				v->dram_clock_change_watermark * 1000;
-		context->bw.dcn.watermarks.a.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
-		context->bw.dcn.watermarks.a.urgent_ns = v->urgent_watermark * 1000;
-		context->bw.dcn.watermarks.b = context->bw.dcn.watermarks.a;
-		context->bw.dcn.watermarks.c = context->bw.dcn.watermarks.a;
-		context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
+		context->bw_ctx.bw.dcn.watermarks.a.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.a.urgent_ns = v->urgent_watermark * 1000;
+		context->bw_ctx.bw.dcn.watermarks.b = context->bw_ctx.bw.dcn.watermarks.a;
+		context->bw_ctx.bw.dcn.watermarks.c = context->bw_ctx.bw.dcn.watermarks.a;
+		context->bw_ctx.bw.dcn.watermarks.d = context->bw_ctx.bw.dcn.watermarks.a;
 
-		context->bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 /
+		context->bw_ctx.bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 /
 				(ddr4_dram_factor_single_Channel * v->number_of_channels));
 		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65) {
-			context->bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
+			context->bw_ctx.bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
 		}
 
-		context->bw.dcn.clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
-		context->bw.dcn.clk.dcfclk_khz = (int)(v->dcfclk * 1000);
+		context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
+		context->bw_ctx.bw.dcn.clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 
-		context->bw.dcn.clk.dispclk_khz = (int)(v->dispclk * 1000);
+		context->bw_ctx.bw.dcn.clk.dispclk_khz = (int)(v->dispclk * 1000);
 		if (dc->debug.max_disp_clk == true)
-			context->bw.dcn.clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
+			context->bw_ctx.bw.dcn.clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
 
-		if (context->bw.dcn.clk.dispclk_khz <
+		if (context->bw_ctx.bw.dcn.clk.dispclk_khz <
 				dc->debug.min_disp_clk_khz) {
-			context->bw.dcn.clk.dispclk_khz =
+			context->bw_ctx.bw.dcn.clk.dispclk_khz =
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw.dcn.clk.dppclk_khz = context->bw.dcn.clk.dispclk_khz / v->dispclk_dppclk_ratio;
-		context->bw.dcn.clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
+		context->bw_ctx.bw.dcn.clk.dppclk_khz = context->bw_ctx.bw.dcn.clk.dispclk_khz / v->dispclk_dppclk_ratio;
+		context->bw_ctx.bw.dcn.clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
 		switch (v->voltage_level) {
 		case 0:
-			context->bw.dcn.clk.max_supported_dppclk_khz =
+			context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmin0p65 * 1000);
 			break;
 		case 1:
-			context->bw.dcn.clk.max_supported_dppclk_khz =
+			context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmid0p72 * 1000);
 			break;
 		case 2:
-			context->bw.dcn.clk.max_supported_dppclk_khz =
+			context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vnom0p8 * 1000);
 			break;
 		default:
-			context->bw.dcn.clk.max_supported_dppclk_khz =
+			context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmax0p9 * 1000);
 			break;
 		}
+
+		BW_VAL_TRACE_END_WATERMARKS();
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1177,13 +1192,17 @@ bool dcn_validate_bandwidth(
 
 			input_idx++;
 		}
+	} else if (v->voltage_level == number_of_states_plus_one) {
+		BW_VAL_TRACE_SKIP(fail);
+	} else if (fast_validate) {
+		BW_VAL_TRACE_SKIP(fast);
 	}
 
 	if (v->voltage_level == 0) {
 
-		dc->dml.soc.sr_enter_plus_exit_time_us =
+		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us =
 				dc->dcn_soc->sr_enter_plus_exit_time;
-		dc->dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
+		context->bw_ctx.dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
 	}
 
 	/*
@@ -1196,6 +1215,7 @@ bool dcn_validate_bandwidth(
 	kernel_fpu_end();
 
 	PERFORMANCE_TRACE_END();
+	BW_VAL_TRACE_FINISH();
 
 	if (bw_limit_pass && v->voltage_level != 5)
 		return true;

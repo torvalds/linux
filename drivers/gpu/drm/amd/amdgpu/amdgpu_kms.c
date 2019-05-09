@@ -696,6 +696,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (adev->pm.dpm_enabled) {
 			dev_info.max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
 			dev_info.max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
+		} else if (amdgpu_sriov_vf(adev) && amdgim_is_hwperf(adev) &&
+			   adev->virt.ops->get_pp_clk) {
+			dev_info.max_engine_clock = amdgpu_virt_get_sclk(adev, false) * 10;
+			dev_info.max_memory_clock = amdgpu_virt_get_mclk(adev, false) * 10;
 		} else {
 			dev_info.max_engine_clock = adev->clock.default_sclk * 10;
 			dev_info.max_memory_clock = adev->clock.default_mclk * 10;

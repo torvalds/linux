@@ -439,8 +439,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define RING_PP_DIR_DCLV(base)		_MMIO((base) + 0x220)
 #define   PP_DIR_DCLV_2G		0xffffffff
 
-#define GEN8_RING_PDP_UDW(engine, n)	_MMIO((engine)->mmio_base + 0x270 + (n) * 8 + 4)
-#define GEN8_RING_PDP_LDW(engine, n)	_MMIO((engine)->mmio_base + 0x270 + (n) * 8)
+#define GEN8_RING_PDP_UDW(base, n)	_MMIO((base) + 0x270 + (n) * 8 + 4)
+#define GEN8_RING_PDP_LDW(base, n)	_MMIO((base) + 0x270 + (n) * 8)
 
 #define GEN8_R_PWR_CLK_STATE		_MMIO(0x20C8)
 #define   GEN8_RPCS_ENABLE		(1 << 31)
@@ -2446,8 +2446,10 @@ enum i915_power_well_id {
 #define RING_HWS_PGA(base)	_MMIO((base) + 0x80)
 #define RING_HWS_PGA_GEN6(base)	_MMIO((base) + 0x2080)
 #define RING_RESET_CTL(base)	_MMIO((base) + 0xd0)
-#define   RESET_CTL_REQUEST_RESET  (1 << 0)
-#define   RESET_CTL_READY_TO_RESET (1 << 1)
+#define   RESET_CTL_CAT_ERROR	   REG_BIT(2)
+#define   RESET_CTL_READY_TO_RESET REG_BIT(1)
+#define   RESET_CTL_REQUEST_RESET  REG_BIT(0)
+
 #define RING_SEMA_WAIT_POLL(base) _MMIO((base) + 0x24c)
 
 #define HSW_GTT_CACHE_EN	_MMIO(0x4024)
@@ -2713,10 +2715,10 @@ enum i915_power_well_id {
 #define VLV_GU_CTL0	_MMIO(VLV_DISPLAY_BASE + 0x2030)
 #define VLV_GU_CTL1	_MMIO(VLV_DISPLAY_BASE + 0x2034)
 #define SCPD0		_MMIO(0x209c) /* 915+ only */
-#define IER		_MMIO(0x20a0)
-#define IIR		_MMIO(0x20a4)
-#define IMR		_MMIO(0x20a8)
-#define ISR		_MMIO(0x20ac)
+#define GEN2_IER	_MMIO(0x20a0)
+#define GEN2_IIR	_MMIO(0x20a4)
+#define GEN2_IMR	_MMIO(0x20a8)
+#define GEN2_ISR	_MMIO(0x20ac)
 #define VLV_GUNIT_CLOCK_GATE	_MMIO(VLV_DISPLAY_BASE + 0x2060)
 #define   GINT_DIS		(1 << 22)
 #define   GCFG_DIS		(1 << 8)
@@ -4208,42 +4210,6 @@ enum {
 #define VSYNCSHIFT(trans)	_MMIO_TRANS2(trans, _VSYNCSHIFT_A)
 #define PIPESRC(trans)		_MMIO_TRANS2(trans, _PIPEASRC)
 #define PIPE_MULT(trans)	_MMIO_TRANS2(trans, _PIPE_MULT_A)
-
-/* VLV eDP PSR registers */
-#define _PSRCTLA				(VLV_DISPLAY_BASE + 0x60090)
-#define _PSRCTLB				(VLV_DISPLAY_BASE + 0x61090)
-#define  VLV_EDP_PSR_ENABLE			(1 << 0)
-#define  VLV_EDP_PSR_RESET			(1 << 1)
-#define  VLV_EDP_PSR_MODE_MASK			(7 << 2)
-#define  VLV_EDP_PSR_MODE_HW_TIMER		(1 << 3)
-#define  VLV_EDP_PSR_MODE_SW_TIMER		(1 << 2)
-#define  VLV_EDP_PSR_SINGLE_FRAME_UPDATE	(1 << 7)
-#define  VLV_EDP_PSR_ACTIVE_ENTRY		(1 << 8)
-#define  VLV_EDP_PSR_SRC_TRANSMITTER_STATE	(1 << 9)
-#define  VLV_EDP_PSR_DBL_FRAME			(1 << 10)
-#define  VLV_EDP_PSR_FRAME_COUNT_MASK		(0xff << 16)
-#define  VLV_EDP_PSR_IDLE_FRAME_SHIFT		16
-#define VLV_PSRCTL(pipe)	_MMIO_PIPE(pipe, _PSRCTLA, _PSRCTLB)
-
-#define _VSCSDPA			(VLV_DISPLAY_BASE + 0x600a0)
-#define _VSCSDPB			(VLV_DISPLAY_BASE + 0x610a0)
-#define  VLV_EDP_PSR_SDP_FREQ_MASK	(3 << 30)
-#define  VLV_EDP_PSR_SDP_FREQ_ONCE	(1 << 31)
-#define  VLV_EDP_PSR_SDP_FREQ_EVFRAME	(1 << 30)
-#define VLV_VSCSDP(pipe)	_MMIO_PIPE(pipe, _VSCSDPA, _VSCSDPB)
-
-#define _PSRSTATA			(VLV_DISPLAY_BASE + 0x60094)
-#define _PSRSTATB			(VLV_DISPLAY_BASE + 0x61094)
-#define  VLV_EDP_PSR_LAST_STATE_MASK	(7 << 3)
-#define  VLV_EDP_PSR_CURR_STATE_MASK	7
-#define  VLV_EDP_PSR_DISABLED		(0 << 0)
-#define  VLV_EDP_PSR_INACTIVE		(1 << 0)
-#define  VLV_EDP_PSR_IN_TRANS_TO_ACTIVE	(2 << 0)
-#define  VLV_EDP_PSR_ACTIVE_NORFB_UP	(3 << 0)
-#define  VLV_EDP_PSR_ACTIVE_SF_UPDATE	(4 << 0)
-#define  VLV_EDP_PSR_EXIT		(5 << 0)
-#define  VLV_EDP_PSR_IN_TRANS		(1 << 7)
-#define VLV_PSRSTAT(pipe)	_MMIO_PIPE(pipe, _PSRSTATA, _PSRSTATB)
 
 /* HSW+ eDP PSR registers */
 #define HSW_EDP_PSR_BASE	0x64800
@@ -5795,6 +5761,10 @@ enum {
 #define PIPEFRAMEPIXEL(pipe)	_MMIO_PIPE2(pipe, _PIPEAFRAMEPIXEL)
 #define PIPESTAT(pipe)		_MMIO_PIPE2(pipe, _PIPEASTAT)
 
+#define  _PIPEAGCMAX           0x70010
+#define  _PIPEBGCMAX           0x71010
+#define PIPEGCMAX(pipe, i)     _MMIO_PIPE2(pipe, _PIPEAGCMAX + (i) * 4)
+
 #define _PIPE_MISC_A			0x70030
 #define _PIPE_MISC_B			0x71030
 #define   PIPEMISC_YUV420_ENABLE	(1 << 27)
@@ -7209,11 +7179,21 @@ enum {
 #define _LGC_PALETTE_B           0x4a800
 #define LGC_PALETTE(pipe, i) _MMIO(_PIPE(pipe, _LGC_PALETTE_A, _LGC_PALETTE_B) + (i) * 4)
 
+/* ilk/snb precision palette */
+#define _PREC_PALETTE_A           0x4b000
+#define _PREC_PALETTE_B           0x4c000
+#define PREC_PALETTE(pipe, i) _MMIO(_PIPE(pipe, _PREC_PALETTE_A, _PREC_PALETTE_B) + (i) * 4)
+
+#define  _PREC_PIPEAGCMAX              0x4d000
+#define  _PREC_PIPEBGCMAX              0x4d010
+#define PREC_PIPEGCMAX(pipe, i)        _MMIO(_PIPE(pipe, _PIPEAGCMAX, _PIPEBGCMAX) + (i) * 4)
+
 #define _GAMMA_MODE_A		0x4a480
 #define _GAMMA_MODE_B		0x4ac80
 #define GAMMA_MODE(pipe) _MMIO_PIPE(pipe, _GAMMA_MODE_A, _GAMMA_MODE_B)
 #define  PRE_CSC_GAMMA_ENABLE	(1 << 31)
 #define  POST_CSC_GAMMA_ENABLE	(1 << 30)
+#define  GAMMA_MODE_MODE_MASK	(3 << 0)
 #define  GAMMA_MODE_MODE_8BIT	(0 << 0)
 #define  GAMMA_MODE_MODE_10BIT	(1 << 0)
 #define  GAMMA_MODE_MODE_12BIT	(2 << 0)
@@ -8709,8 +8689,9 @@ enum {
 #define GEN9_MEDIA_PG_IDLE_HYSTERESIS		_MMIO(0xA0C4)
 #define GEN9_RENDER_PG_IDLE_HYSTERESIS		_MMIO(0xA0C8)
 #define GEN9_PG_ENABLE				_MMIO(0xA210)
-#define GEN9_RENDER_PG_ENABLE			(1 << 0)
-#define GEN9_MEDIA_PG_ENABLE			(1 << 1)
+#define GEN9_RENDER_PG_ENABLE			REG_BIT(0)
+#define GEN9_MEDIA_PG_ENABLE			REG_BIT(1)
+#define GEN11_MEDIA_SAMPLER_PG_ENABLE		REG_BIT(2)
 #define GEN8_PUSHBUS_CONTROL			_MMIO(0xA248)
 #define GEN8_PUSHBUS_ENABLE			_MMIO(0xA250)
 #define GEN8_PUSHBUS_SHIFT			_MMIO(0xA25C)
@@ -8725,6 +8706,11 @@ enum {
 #define GEN6_PMIER				_MMIO(0x4402C)
 #define  GEN6_PM_MBOX_EVENT			(1 << 25)
 #define  GEN6_PM_THERMAL_EVENT			(1 << 24)
+
+/*
+ * For Gen11 these are in the upper word of the GPM_WGBOXPERF
+ * registers. Shifting is handled on accessing the imr and ier.
+ */
 #define  GEN6_PM_RP_DOWN_TIMEOUT		(1 << 6)
 #define  GEN6_PM_RP_UP_THRESHOLD		(1 << 5)
 #define  GEN6_PM_RP_DOWN_THRESHOLD		(1 << 4)
@@ -10127,6 +10113,7 @@ enum skl_power_gate {
 #define   PAL_PREC_SPLIT_MODE		(1 << 31)
 #define   PAL_PREC_AUTO_INCREMENT	(1 << 15)
 #define   PAL_PREC_INDEX_VALUE_MASK	(0x3ff << 0)
+#define   PAL_PREC_INDEX_VALUE(x)	((x) << 0)
 #define _PAL_PREC_DATA_A	0x4A404
 #define _PAL_PREC_DATA_B	0x4AC04
 #define _PAL_PREC_DATA_C	0x4B404
@@ -10144,6 +10131,7 @@ enum skl_power_gate {
 #define PREC_PAL_DATA(pipe)		_MMIO_PIPE(pipe, _PAL_PREC_DATA_A, _PAL_PREC_DATA_B)
 #define PREC_PAL_GC_MAX(pipe, i)	_MMIO(_PIPE(pipe, _PAL_PREC_GC_MAX_A, _PAL_PREC_GC_MAX_B) + (i) * 4)
 #define PREC_PAL_EXT_GC_MAX(pipe, i)	_MMIO(_PIPE(pipe, _PAL_PREC_EXT_GC_MAX_A, _PAL_PREC_EXT_GC_MAX_B) + (i) * 4)
+#define PREC_PAL_EXT2_GC_MAX(pipe, i)	_MMIO(_PIPE(pipe, _PAL_PREC_EXT2_GC_MAX_A, _PAL_PREC_EXT2_GC_MAX_B) + (i) * 4)
 
 #define _PRE_CSC_GAMC_INDEX_A	0x4A484
 #define _PRE_CSC_GAMC_INDEX_B	0x4AC84

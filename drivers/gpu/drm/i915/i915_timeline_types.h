@@ -9,9 +9,10 @@
 
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 
-#include "i915_active.h"
+#include "i915_active_types.h"
 
 struct drm_i915_private;
 struct i915_vma;
@@ -59,16 +60,6 @@ struct i915_timeline {
 	 * redundant and we can discard it without loss of generality.
 	 */
 	struct i915_syncmap *sync;
-
-	/**
-	 * Barrier provides the ability to serialize ordering between different
-	 * timelines.
-	 *
-	 * Users can call i915_timeline_set_barrier which will make all
-	 * subsequent submissions to this timeline be executed only after the
-	 * barrier has been completed.
-	 */
-	struct i915_active_request barrier;
 
 	struct list_head link;
 	struct drm_i915_private *i915;

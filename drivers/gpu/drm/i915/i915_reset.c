@@ -18,6 +18,26 @@
 /* XXX How to handle concurrent GGTT updates using tiling registers? */
 #define RESET_UNDER_STOP_MACHINE 0
 
+static void rmw_set(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
+{
+	intel_uncore_rmw(uncore, reg, 0, set);
+}
+
+static void rmw_clear(struct intel_uncore *uncore, i915_reg_t reg, u32 clr)
+{
+	intel_uncore_rmw(uncore, reg, clr, 0);
+}
+
+static void rmw_set_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
+{
+	intel_uncore_rmw_fw(uncore, reg, 0, set);
+}
+
+static void rmw_clear_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 clr)
+{
+	intel_uncore_rmw_fw(uncore, reg, clr, 0);
+}
+
 static void engine_skip_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
@@ -119,7 +139,7 @@ void i915_reset_request(struct i915_request *rq, bool guilty)
 
 static void gen3_stop_engine(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 	const u32 base = engine->mmio_base;
 
 	GEM_TRACE("%s\n", engine->name);
@@ -127,32 +147,35 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 	if (intel_engine_stop_cs(engine))
 		GEM_TRACE("%s: timed out on STOP_RING\n", engine->name);
 
-	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
-	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
+	intel_uncore_write_fw(uncore,
+			      RING_HEAD(base),
+			      intel_uncore_read_fw(uncore, RING_TAIL(base)));
+	intel_uncore_posting_read_fw(uncore, RING_HEAD(base)); /* paranoia */
 
-	I915_WRITE_FW(RING_HEAD(base), 0);
-	I915_WRITE_FW(RING_TAIL(base), 0);
-	POSTING_READ_FW(RING_TAIL(base));
+	intel_uncore_write_fw(uncore, RING_HEAD(base), 0);
+	intel_uncore_write_fw(uncore, RING_TAIL(base), 0);
+	intel_uncore_posting_read_fw(uncore, RING_TAIL(base));
 
 	/* The ring must be empty before it is disabled */
-	I915_WRITE_FW(RING_CTL(base), 0);
+	intel_uncore_write_fw(uncore, RING_CTL(base), 0);
 
 	/* Check acts as a post */
-	if (I915_READ_FW(RING_HEAD(base)))
+	if (intel_uncore_read_fw(uncore, RING_HEAD(base)))
 		GEM_TRACE("%s: ring head [%x] not parked\n",
-			  engine->name, I915_READ_FW(RING_HEAD(base)));
+			  engine->name,
+			  intel_uncore_read_fw(uncore, RING_HEAD(base)));
 }
 
 static void i915_stop_engines(struct drm_i915_private *i915,
-			      unsigned int engine_mask)
+			      intel_engine_mask_t engine_mask)
 {
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	intel_engine_mask_t tmp;
 
 	if (INTEL_GEN(i915) < 3)
 		return;
 
-	for_each_engine_masked(engine, i915, engine_mask, id)
+	for_each_engine_masked(engine, i915, engine_mask, tmp)
 		gen3_stop_engine(engine);
 }
 
@@ -165,7 +188,7 @@ static bool i915_in_reset(struct pci_dev *pdev)
 }
 
 static int i915_do_reset(struct drm_i915_private *i915,
-			 unsigned int engine_mask,
+			 intel_engine_mask_t engine_mask,
 			 unsigned int retry)
 {
 	struct pci_dev *pdev = i915->drm.pdev;
@@ -194,7 +217,7 @@ static bool g4x_reset_complete(struct pci_dev *pdev)
 }
 
 static int g33_do_reset(struct drm_i915_private *i915,
-			unsigned int engine_mask,
+			intel_engine_mask_t engine_mask,
 			unsigned int retry)
 {
 	struct pci_dev *pdev = i915->drm.pdev;
@@ -203,17 +226,17 @@ static int g33_do_reset(struct drm_i915_private *i915,
 	return wait_for_atomic(g4x_reset_complete(pdev), 50);
 }
 
-static int g4x_do_reset(struct drm_i915_private *dev_priv,
-			unsigned int engine_mask,
+static int g4x_do_reset(struct drm_i915_private *i915,
+			intel_engine_mask_t engine_mask,
 			unsigned int retry)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = i915->drm.pdev;
+	struct intel_uncore *uncore = &i915->uncore;
 	int ret;
 
 	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
-	I915_WRITE_FW(VDECCLK_GATE_D,
-		      I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
-	POSTING_READ_FW(VDECCLK_GATE_D);
+	rmw_set_fw(uncore, VDECCLK_GATE_D, VCP_UNIT_CLOCK_GATE_DISABLE);
+	intel_uncore_posting_read_fw(uncore, VDECCLK_GATE_D);
 
 	pci_write_config_byte(pdev, I915_GDRST,
 			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
@@ -234,18 +257,17 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv,
 out:
 	pci_write_config_byte(pdev, I915_GDRST, 0);
 
-	I915_WRITE_FW(VDECCLK_GATE_D,
-		      I915_READ(VDECCLK_GATE_D) & ~VCP_UNIT_CLOCK_GATE_DISABLE);
-	POSTING_READ_FW(VDECCLK_GATE_D);
+	rmw_clear_fw(uncore, VDECCLK_GATE_D, VCP_UNIT_CLOCK_GATE_DISABLE);
+	intel_uncore_posting_read_fw(uncore, VDECCLK_GATE_D);
 
 	return ret;
 }
 
-static int ironlake_do_reset(struct drm_i915_private *dev_priv,
-			     unsigned int engine_mask,
+static int ironlake_do_reset(struct drm_i915_private *i915,
+			     intel_engine_mask_t engine_mask,
 			     unsigned int retry)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_uncore *uncore = &i915->uncore;
 	int ret;
 
 	intel_uncore_write_fw(uncore, ILK_GDSR,
@@ -277,10 +299,10 @@ out:
 }
 
 /* Reset the hardware domains (GENX_GRDOM_*) specified by mask */
-static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
+static int gen6_hw_domain_reset(struct drm_i915_private *i915,
 				u32 hw_domain_mask)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_uncore *uncore = &i915->uncore;
 	int err;
 
 	/*
@@ -303,7 +325,7 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 }
 
 static int gen6_reset_engines(struct drm_i915_private *i915,
-			      unsigned int engine_mask,
+			      intel_engine_mask_t engine_mask,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
@@ -319,7 +341,7 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN6_GRDOM_FULL;
 	} else {
-		unsigned int tmp;
+		intel_engine_mask_t tmp;
 
 		hw_mask = 0;
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
@@ -331,11 +353,10 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 	return gen6_hw_domain_reset(i915, hw_mask);
 }
 
-static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
-			  struct intel_engine_cs *engine)
+static u32 gen11_lock_sfc(struct intel_engine_cs *engine)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	struct intel_uncore *uncore = engine->uncore;
+	u8 vdbox_sfc_access = RUNTIME_INFO(engine->i915)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
 	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
 	i915_reg_t sfc_usage;
@@ -382,7 +403,7 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 	 * ends up being locked to the engine we want to reset, we have to reset
 	 * it as well (we will unlock it once the reset sequence is completed).
 	 */
-	intel_uncore_rmw_or_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
+	rmw_set_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
 
 	if (__intel_wait_for_register_fw(uncore,
 					 sfc_forced_lock_ack,
@@ -399,10 +420,10 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
-			     struct intel_engine_cs *engine)
+static void gen11_unlock_sfc(struct intel_engine_cs *engine)
 {
-	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	struct intel_uncore *uncore = engine->uncore;
+	u8 vdbox_sfc_access = RUNTIME_INFO(engine->i915)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock;
 	u32 sfc_forced_lock_bit;
 
@@ -424,12 +445,11 @@ static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	I915_WRITE_FW(sfc_forced_lock,
-		      I915_READ_FW(sfc_forced_lock) & ~sfc_forced_lock_bit);
+	rmw_clear_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
 }
 
 static int gen11_reset_engines(struct drm_i915_private *i915,
-			       unsigned int engine_mask,
+			       intel_engine_mask_t engine_mask,
 			       unsigned int retry)
 {
 	const u32 hw_engine_mask[] = {
@@ -443,7 +463,7 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 		[VECS1] = GEN11_GRDOM_VECS2,
 	};
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	u32 hw_mask;
 	int ret;
 
@@ -454,7 +474,7 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
-			hw_mask |= gen11_lock_sfc(i915, engine);
+			hw_mask |= gen11_lock_sfc(engine);
 		}
 	}
 
@@ -462,46 +482,62 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 
 	if (engine_mask != ALL_ENGINES)
 		for_each_engine_masked(engine, i915, engine_mask, tmp)
-			gen11_unlock_sfc(i915, engine);
+			gen11_unlock_sfc(engine);
 
 	return ret;
 }
 
 static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 {
-	struct intel_uncore *uncore = &engine->i915->uncore;
+	struct intel_uncore *uncore = engine->uncore;
+	const i915_reg_t reg = RING_RESET_CTL(engine->mmio_base);
+	u32 request, mask, ack;
 	int ret;
 
-	intel_uncore_write_fw(uncore, RING_RESET_CTL(engine->mmio_base),
-			      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
+	ack = intel_uncore_read_fw(uncore, reg);
+	if (ack & RESET_CTL_CAT_ERROR) {
+		/*
+		 * For catastrophic errors, ready-for-reset sequence
+		 * needs to be bypassed: HAS#396813
+		 */
+		request = RESET_CTL_CAT_ERROR;
+		mask = RESET_CTL_CAT_ERROR;
 
-	ret = __intel_wait_for_register_fw(uncore,
-					   RING_RESET_CTL(engine->mmio_base),
-					   RESET_CTL_READY_TO_RESET,
-					   RESET_CTL_READY_TO_RESET,
-					   700, 0,
-					   NULL);
+		/* Catastrophic errors need to be cleared by HW */
+		ack = 0;
+	} else if (!(ack & RESET_CTL_READY_TO_RESET)) {
+		request = RESET_CTL_REQUEST_RESET;
+		mask = RESET_CTL_READY_TO_RESET;
+		ack = RESET_CTL_READY_TO_RESET;
+	} else {
+		return 0;
+	}
+
+	intel_uncore_write_fw(uncore, reg, _MASKED_BIT_ENABLE(request));
+	ret = __intel_wait_for_register_fw(uncore, reg, mask, ack,
+					   700, 0, NULL);
 	if (ret)
-		DRM_ERROR("%s: reset request timeout\n", engine->name);
+		DRM_ERROR("%s reset request timed out: {request: %08x, RESET_CTL: %08x}\n",
+			  engine->name, request,
+			  intel_uncore_read_fw(uncore, reg));
 
 	return ret;
 }
 
 static void gen8_engine_reset_cancel(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
-		      _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
+	intel_uncore_write_fw(engine->uncore,
+			      RING_RESET_CTL(engine->mmio_base),
+			      _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
 }
 
 static int gen8_reset_engines(struct drm_i915_private *i915,
-			      unsigned int engine_mask,
+			      intel_engine_mask_t engine_mask,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
 	const bool reset_non_ready = retry >= 1;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	int ret;
 
 	for_each_engine_masked(engine, i915, engine_mask, tmp) {
@@ -537,7 +573,7 @@ skip_reset:
 }
 
 typedef int (*reset_func)(struct drm_i915_private *,
-			  unsigned int engine_mask,
+			  intel_engine_mask_t engine_mask,
 			  unsigned int retry);
 
 static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
@@ -558,7 +594,8 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
 		return NULL;
 }
 
-int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
+int intel_gpu_reset(struct drm_i915_private *i915,
+		    intel_engine_mask_t engine_mask)
 {
 	const int retries = engine_mask == ALL_ENGINES ? RESET_MAX_RETRIES : 1;
 	reset_func reset;
@@ -646,7 +683,7 @@ static void reset_prepare_engine(struct intel_engine_cs *engine)
 	 * written to the powercontext is undefined and so we may lose
 	 * GPU state upon resume, i.e. fail to restart after a reset.
 	 */
-	intel_uncore_forcewake_get(&engine->i915->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 	engine->reset.prepare(engine);
 }
 
@@ -692,7 +729,8 @@ static void gt_revoke(struct drm_i915_private *i915)
 	revoke_mmaps(i915);
 }
 
-static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
+static int gt_reset(struct drm_i915_private *i915,
+		    intel_engine_mask_t stalled_mask)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -717,7 +755,7 @@ static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 static void reset_finish_engine(struct intel_engine_cs *engine)
 {
 	engine->reset.finish(engine);
-	intel_uncore_forcewake_put(&engine->i915->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 }
 
 struct i915_gpu_restart {
@@ -951,7 +989,8 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	return result;
 }
 
-static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
+static int do_reset(struct drm_i915_private *i915,
+		    intel_engine_mask_t stalled_mask)
 {
 	int err, i;
 
@@ -986,7 +1025,7 @@ static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
  *   - re-init display
  */
 void i915_reset(struct drm_i915_private *i915,
-		unsigned int stalled_mask,
+		intel_engine_mask_t stalled_mask,
 		const char *reason)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
@@ -1173,49 +1212,50 @@ static void i915_reset_device(struct drm_i915_private *i915,
 		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
 }
 
-static void clear_register(struct drm_i915_private *dev_priv, i915_reg_t reg)
+static void clear_register(struct intel_uncore *uncore, i915_reg_t reg)
 {
-	I915_WRITE(reg, I915_READ(reg));
+	intel_uncore_rmw(uncore, reg, 0, 0);
 }
 
-void i915_clear_error_registers(struct drm_i915_private *dev_priv)
+void i915_clear_error_registers(struct drm_i915_private *i915)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 eir;
 
-	if (!IS_GEN(dev_priv, 2))
-		clear_register(dev_priv, PGTBL_ER);
+	if (!IS_GEN(i915, 2))
+		clear_register(uncore, PGTBL_ER);
 
-	if (INTEL_GEN(dev_priv) < 4)
-		clear_register(dev_priv, IPEIR(RENDER_RING_BASE));
+	if (INTEL_GEN(i915) < 4)
+		clear_register(uncore, IPEIR(RENDER_RING_BASE));
 	else
-		clear_register(dev_priv, IPEIR_I965);
+		clear_register(uncore, IPEIR_I965);
 
-	clear_register(dev_priv, EIR);
-	eir = I915_READ(EIR);
+	clear_register(uncore, EIR);
+	eir = intel_uncore_read(uncore, EIR);
 	if (eir) {
 		/*
 		 * some errors might have become stuck,
 		 * mask them.
 		 */
 		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
-		I915_WRITE(EMR, I915_READ(EMR) | eir);
-		I915_WRITE(IIR, I915_MASTER_ERROR_INTERRUPT);
+		rmw_set(uncore, EMR, eir);
+		intel_uncore_write(uncore, GEN2_IIR,
+				   I915_MASTER_ERROR_INTERRUPT);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8) {
-		I915_WRITE(GEN8_RING_FAULT_REG,
-			   I915_READ(GEN8_RING_FAULT_REG) & ~RING_FAULT_VALID);
-		POSTING_READ(GEN8_RING_FAULT_REG);
-	} else if (INTEL_GEN(dev_priv) >= 6) {
+	if (INTEL_GEN(i915) >= 8) {
+		rmw_clear(uncore, GEN8_RING_FAULT_REG, RING_FAULT_VALID);
+		intel_uncore_posting_read(uncore, GEN8_RING_FAULT_REG);
+	} else if (INTEL_GEN(i915) >= 6) {
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
-		for_each_engine(engine, dev_priv, id) {
-			I915_WRITE(RING_FAULT_REG(engine),
-				   I915_READ(RING_FAULT_REG(engine)) &
-				   ~RING_FAULT_VALID);
+		for_each_engine(engine, i915, id) {
+			rmw_clear(uncore,
+				  RING_FAULT_REG(engine), RING_FAULT_VALID);
+			intel_uncore_posting_read(uncore,
+						  RING_FAULT_REG(engine));
 		}
-		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS0]));
 	}
 }
 
@@ -1233,14 +1273,14 @@ void i915_clear_error_registers(struct drm_i915_private *dev_priv)
  * of a ring dump etc.).
  */
 void i915_handle_error(struct drm_i915_private *i915,
-		       u32 engine_mask,
+		       intel_engine_mask_t engine_mask,
 		       unsigned long flags,
 		       const char *fmt, ...)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 	char error_msg[80];
 	char *msg = NULL;
 

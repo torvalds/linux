@@ -262,6 +262,9 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev);
 int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 		struct ras_common_if *head, bool enable);
 
+int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
+		struct ras_common_if *head, bool enable);
+
 int amdgpu_ras_sysfs_create(struct amdgpu_device *adev,
 		struct ras_fs_if *head);
 

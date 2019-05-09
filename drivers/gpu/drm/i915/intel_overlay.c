@@ -446,7 +446,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	if (!overlay->old_vma)
 		return 0;
 
-	if (I915_READ(ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT) {
+	if (I915_READ(GEN2_ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT) {
 		/* synchronous slowpath */
 		struct i915_request *rq;
 
@@ -1430,7 +1430,7 @@ intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 		return NULL;
 
 	error->dovsta = I915_READ(DOVSTA);
-	error->isr = I915_READ(ISR);
+	error->isr = I915_READ(GEN2_ISR);
 	error->base = overlay->flip_addr;
 
 	memcpy_fromio(&error->regs, overlay->regs, sizeof(error->regs));

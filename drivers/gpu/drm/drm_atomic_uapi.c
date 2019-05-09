@@ -512,8 +512,8 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 }
 
 static int drm_atomic_plane_set_property(struct drm_plane *plane,
-		struct drm_plane_state *state, struct drm_property *property,
-		uint64_t val)
+		struct drm_plane_state *state, struct drm_file *file_priv,
+		struct drm_property *property, uint64_t val)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_mode_config *config = &dev->mode_config;
@@ -521,7 +521,8 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 	int ret;
 
 	if (property == config->prop_fb_id) {
-		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
+		struct drm_framebuffer *fb;
+		fb = drm_framebuffer_lookup(dev, file_priv, val);
 		drm_atomic_set_fb_for_plane(state, fb);
 		if (fb)
 			drm_framebuffer_put(fb);
@@ -537,7 +538,9 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 			return -EINVAL;
 
 	} else if (property == config->prop_crtc_id) {
-		struct drm_crtc *crtc = drm_crtc_find(dev, NULL, val);
+		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
+		if (val && !crtc)
+			return -EACCES;
 		return drm_atomic_set_crtc_for_plane(state, crtc);
 	} else if (property == config->prop_crtc_x) {
 		state->crtc_x = U642I64(val);
@@ -668,14 +671,16 @@ static int drm_atomic_set_writeback_fb_for_connector(
 }
 
 static int drm_atomic_connector_set_property(struct drm_connector *connector,
-		struct drm_connector_state *state, struct drm_property *property,
-		uint64_t val)
+		struct drm_connector_state *state, struct drm_file *file_priv,
+		struct drm_property *property, uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_mode_config *config = &dev->mode_config;
 
 	if (property == config->prop_crtc_id) {
-		struct drm_crtc *crtc = drm_crtc_find(dev, NULL, val);
+		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
+		if (val && !crtc)
+			return -EACCES;
 		return drm_atomic_set_crtc_for_connector(state, crtc);
 	} else if (property == config->dpms_property) {
 		/* setting DPMS property requires special handling, which
@@ -736,8 +741,10 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 	} else if (property == connector->colorspace_property) {
 		state->colorspace = val;
 	} else if (property == config->writeback_fb_id_property) {
-		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
-		int ret = drm_atomic_set_writeback_fb_for_connector(state, fb);
+		struct drm_framebuffer *fb;
+		int ret;
+		fb = drm_framebuffer_lookup(dev, file_priv, val);
+		ret = drm_atomic_set_writeback_fb_for_connector(state, fb);
 		if (fb)
 			drm_framebuffer_put(fb);
 		return ret;
@@ -934,6 +941,7 @@ out:
 }
 
 int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_file *file_priv,
 			    struct drm_mode_object *obj,
 			    struct drm_property *prop,
 			    uint64_t prop_value)
@@ -956,7 +964,8 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		}
 
 		ret = drm_atomic_connector_set_property(connector,
-				connector_state, prop, prop_value);
+				connector_state, file_priv,
+				prop, prop_value);
 		break;
 	}
 	case DRM_MODE_OBJECT_CRTC: {
@@ -984,7 +993,8 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		}
 
 		ret = drm_atomic_plane_set_property(plane,
-				plane_state, prop, prop_value);
+				plane_state, file_priv,
+				prop, prop_value);
 		break;
 	}
 	default:
@@ -1354,8 +1364,8 @@ retry:
 				goto out;
 			}
 
-			ret = drm_atomic_set_property(state, obj, prop,
-						      prop_value);
+			ret = drm_atomic_set_property(state, file_priv,
+						      obj, prop, prop_value);
 			if (ret) {
 				drm_mode_object_put(obj);
 				goto out;

@@ -74,29 +74,6 @@ struct pp_smu_wm_range_sets {
 	struct pp_smu_wm_set_range writer_wm_sets[MAX_WATERMARK_SETS];
 };
 
-struct pp_smu_display_requirement_rv {
-	/* PPSMC_MSG_SetDisplayCount: count
-	 *  0 triggers S0i2 optimization
-	 */
-	unsigned int display_count;
-
-	/* PPSMC_MSG_SetHardMinFclkByFreq: mhz
-	 *  FCLK will vary with DPM, but never below requested hard min
-	 */
-	unsigned int hard_min_fclk_mhz;
-
-	/* PPSMC_MSG_SetHardMinDcefclkByFreq: mhz
-	 *  fixed clock at requested freq, either from FCH bypass or DFS
-	 */
-	unsigned int hard_min_dcefclk_mhz;
-
-	/* PPSMC_MSG_SetMinDeepSleepDcefclk: mhz
-	 *  when DF is in cstate, dcf clock is further divided down
-	 *  to just above given frequency
-	 */
-	unsigned int min_deep_sleep_dcefclk_mhz;
-};
-
 struct pp_smu_funcs_rv {
 	struct pp_smu pp_smu;
 

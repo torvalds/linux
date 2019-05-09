@@ -1150,28 +1150,9 @@ void hubp1_cursor_set_position(
 	REG_UPDATE(CURSOR_CONTROL,
 			CURSOR_ENABLE, cur_en);
 
-	//account for cases where we see negative offset relative to overlay plane
-	if (src_x_offset < 0 && src_y_offset < 0) {
-		REG_SET_2(CURSOR_POSITION, 0,
-			CURSOR_X_POSITION, 0,
-			CURSOR_Y_POSITION, 0);
-		x_hotspot -= src_x_offset;
-		y_hotspot -= src_y_offset;
-	} else if (src_x_offset < 0) {
-		REG_SET_2(CURSOR_POSITION, 0,
-			CURSOR_X_POSITION, 0,
-			CURSOR_Y_POSITION, pos->y);
-		x_hotspot -= src_x_offset;
-	} else if (src_y_offset < 0) {
-		REG_SET_2(CURSOR_POSITION, 0,
+	REG_SET_2(CURSOR_POSITION, 0,
 			CURSOR_X_POSITION, pos->x,
-			CURSOR_Y_POSITION, 0);
-		y_hotspot -= src_y_offset;
-	} else {
-		REG_SET_2(CURSOR_POSITION, 0,
-				CURSOR_X_POSITION, pos->x,
-				CURSOR_Y_POSITION, pos->y);
-	}
+			CURSOR_Y_POSITION, pos->y);
 
 	REG_SET_2(CURSOR_HOT_SPOT, 0,
 			CURSOR_HOT_SPOT_X, x_hotspot,
@@ -1197,6 +1178,10 @@ void hubp1_vtg_sel(struct hubp *hubp, uint32_t otg_inst)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_VTG_SEL, otg_inst);
 }
 
+void hubp1_init(struct hubp *hubp)
+{
+	//do nothing
+}
 static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_program_surface_flip_and_addr =
 			hubp1_program_surface_flip_and_addr,
@@ -1220,7 +1205,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_clear_underflow = hubp1_clear_underflow,
 	.hubp_disable_control =  hubp1_disable_control,
 	.hubp_get_underflow_status = hubp1_get_underflow_status,
-
+	.hubp_init = hubp1_init,
 };
 
 /*****************************************/

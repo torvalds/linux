@@ -2471,6 +2471,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->virt.vf_errors.lock);
 	hash_init(adev->mn_hash);
 	mutex_init(&adev->lock_reset);
+	mutex_init(&adev->virt.dpm_mutex);
 
 	amdgpu_device_check_arguments(adev);
 
@@ -3191,11 +3192,16 @@ static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 			break;
 
 		if (fence) {
-			r = dma_fence_wait_timeout(fence, false, tmo);
+			tmo = dma_fence_wait_timeout(fence, false, tmo);
 			dma_fence_put(fence);
 			fence = next;
-			if (r <= 0)
+			if (tmo == 0) {
+				r = -ETIMEDOUT;
 				break;
+			} else if (tmo < 0) {
+				r = tmo;
+				break;
+			}
 		} else {
 			fence = next;
 		}
@@ -3206,8 +3212,8 @@ static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
 		tmo = dma_fence_wait_timeout(fence, false, tmo);
 	dma_fence_put(fence);
 
-	if (r <= 0 || tmo <= 0) {
-		DRM_ERROR("recover vram bo from shadow failed\n");
+	if (r < 0 || tmo <= 0) {
+		DRM_ERROR("recover vram bo from shadow failed, r is %ld, tmo is %ld\n", r, tmo);
 		return -EIO;
 	}
 
@@ -3428,7 +3434,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 
 				vram_lost = amdgpu_device_check_vram_lost(tmp_adev);
 				if (vram_lost) {
-					DRM_ERROR("VRAM is lost!\n");
+					DRM_INFO("VRAM is lost due to GPU reset!\n");
 					atomic_inc(&tmp_adev->vram_lost_counter);
 				}
 
@@ -3695,6 +3701,7 @@ static void amdgpu_device_get_min_pci_speed_width(struct amdgpu_device *adev,
 	struct pci_dev *pdev = adev->pdev;
 	enum pci_bus_speed cur_speed;
 	enum pcie_link_width cur_width;
+	u32 ret = 1;
 
 	*speed = PCI_SPEED_UNKNOWN;
 	*width = PCIE_LNK_WIDTH_UNKNOWN;
@@ -3702,6 +3709,10 @@ static void amdgpu_device_get_min_pci_speed_width(struct amdgpu_device *adev,
 	while (pdev) {
 		cur_speed = pcie_get_speed_cap(pdev);
 		cur_width = pcie_get_width_cap(pdev);
+		ret = pcie_bandwidth_available(adev->pdev, NULL,
+						       NULL, &cur_width);
+		if (!ret)
+			cur_width = PCIE_LNK_WIDTH_RESRV;
 
 		if (cur_speed != PCI_SPEED_UNKNOWN) {
 			if (*speed == PCI_SPEED_UNKNOWN)

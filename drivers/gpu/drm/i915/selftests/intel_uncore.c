@@ -155,6 +155,17 @@ static int live_forcewake_ops(void *arg)
 		return 0;
 	}
 
+	/*
+	 * Not quite as reliable across the gen as one would hope.
+	 *
+	 * Either our theory of operation is incorrect, or there remain
+	 * external parties interfering with the powerwells.
+	 *
+	 * https://bugs.freedesktop.org/show_bug.cgi?id=110210
+	 */
+	if (!IS_ENABLED(CONFIG_DRM_I915_SELFTEST_BROKEN))
+		return 0;
+
 	/* We have to pick carefully to get the exact behaviour we need */
 	for (r = registers; r->name; r++)
 		if (r->platforms & INTEL_INFO(i915)->gen_mask)

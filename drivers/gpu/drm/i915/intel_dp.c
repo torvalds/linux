@@ -25,22 +25,34 @@
  *
  */
 
-#include <linux/i2c.h>
-#include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/types.h>
+#include <linux/i2c.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 #include <asm/byteorder.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_hdcp.h>
 #include <drm/drm_probe_helper.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_audio.h"
+#include "intel_connector.h"
+#include "intel_ddi.h"
+#include "intel_dp.h"
+#include "intel_drv.h"
+#include "intel_hdcp.h"
+#include "intel_hdmi.h"
+#include "intel_lspcon.h"
+#include "intel_lvds.h"
+#include "intel_panel.h"
+#include "intel_psr.h"
 
 #define DP_DPRX_ESI_LEN 14
 
@@ -1856,42 +1868,6 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 	return -EINVAL;
 }
 
-/* Optimize link config in order: max bpp, min lanes, min clock */
-static int
-intel_dp_compute_link_config_fast(struct intel_dp *intel_dp,
-				  struct intel_crtc_state *pipe_config,
-				  const struct link_config_limits *limits)
-{
-	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	int bpp, clock, lane_count;
-	int mode_rate, link_clock, link_avail;
-
-	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
-		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
-						   bpp);
-
-		for (lane_count = limits->min_lane_count;
-		     lane_count <= limits->max_lane_count;
-		     lane_count <<= 1) {
-			for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
-				link_clock = intel_dp->common_rates[clock];
-				link_avail = intel_dp_max_data_rate(link_clock,
-								    lane_count);
-
-				if (mode_rate <= link_avail) {
-					pipe_config->lane_count = lane_count;
-					pipe_config->pipe_bpp = bpp;
-					pipe_config->port_clock = link_clock;
-
-					return 0;
-				}
-			}
-		}
-	}
-
-	return -EINVAL;
-}
-
 static int intel_dp_dsc_compute_bpp(struct intel_dp *intel_dp, u8 dsc_max_bpc)
 {
 	int i, num_bpc;
@@ -1918,6 +1894,9 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	u8 dsc_max_bpc;
 	int pipe_bpp;
 	int ret;
+
+	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
+		intel_dp_supports_fec(intel_dp, pipe_config);
 
 	if (!intel_dp_supports_dsc(intel_dp, pipe_config))
 		return -EINVAL;
@@ -2002,6 +1981,14 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	return 0;
 }
 
+int intel_dp_min_bpp(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB)
+		return 6 * 3;
+	else
+		return 8 * 3;
+}
+
 static int
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
@@ -2025,18 +2012,16 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.min_lane_count = 1;
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = 6 * 3;
+	limits.min_bpp = intel_dp_min_bpp(pipe_config);
 	limits.max_bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 
-	if (intel_dp_is_edp(intel_dp) && intel_dp->edp_dpcd[0] < DP_EDP_14) {
+	if (intel_dp_is_edp(intel_dp)) {
 		/*
 		 * Use the maximum clock and number of lanes the eDP panel
-		 * advertizes being capable of. The eDP 1.3 and earlier panels
-		 * are generally designed to support only a single clock and
-		 * lane configuration, and typically these values correspond to
-		 * the native resolution of the panel. With eDP 1.4 rate select
-		 * and DSC, this is decreasingly the case, and we need to be
-		 * able to select less than maximum link config.
+		 * advertizes being capable of. The panels are generally
+		 * designed to support only a single clock and lane
+		 * configuration, and typically these values correspond to the
+		 * native resolution of the panel.
 		 */
 		limits.min_lane_count = limits.max_lane_count;
 		limits.min_clock = limits.max_clock;
@@ -2050,22 +2035,11 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		      intel_dp->common_rates[limits.max_clock],
 		      limits.max_bpp, adjusted_mode->crtc_clock);
 
-	if (intel_dp_is_edp(intel_dp))
-		/*
-		 * Optimize for fast and narrow. eDP 1.3 section 3.3 and eDP 1.4
-		 * section A.1: "It is recommended that the minimum number of
-		 * lanes be used, using the minimum link rate allowed for that
-		 * lane configuration."
-		 *
-		 * Note that we use the max clock and lane count for eDP 1.3 and
-		 * earlier, and fast vs. wide is irrelevant.
-		 */
-		ret = intel_dp_compute_link_config_fast(intel_dp, pipe_config,
-							&limits);
-	else
-		/* Optimize for slow and wide. */
-		ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config,
-							&limits);
+	/*
+	 * Optimize for slow and wide. This is the place to add alternative
+	 * optimization policy.
+	 */
+	ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config, &limits);
 
 	/* enable compression if the mode doesn't fit available BW */
 	DRM_DEBUG_KMS("Force DSC en = %d\n", intel_dp->force_dsc_en);
@@ -2140,7 +2114,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		to_intel_digital_connector_state(conn_state);
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_CONSTANT_N);
-	int ret;
+	int ret, output_bpp;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -2185,9 +2159,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return -EINVAL;
 
-	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
-				  intel_dp_supports_fec(intel_dp, pipe_config);
-
 	ret = intel_dp_compute_link_config(encoder, pipe_config, conn_state);
 	if (ret < 0)
 		return ret;
@@ -2195,25 +2166,22 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
 
-	if (!pipe_config->dsc_params.compression_enable)
-		intel_link_compute_m_n(pipe_config->pipe_bpp,
-				       pipe_config->lane_count,
-				       adjusted_mode->crtc_clock,
-				       pipe_config->port_clock,
-				       &pipe_config->dp_m_n,
-				       constant_n);
+	if (pipe_config->dsc_params.compression_enable)
+		output_bpp = pipe_config->dsc_params.compressed_bpp;
 	else
-		intel_link_compute_m_n(pipe_config->dsc_params.compressed_bpp,
-				       pipe_config->lane_count,
-				       adjusted_mode->crtc_clock,
-				       pipe_config->port_clock,
-				       &pipe_config->dp_m_n,
-				       constant_n);
+		output_bpp = pipe_config->pipe_bpp;
+
+	intel_link_compute_m_n(output_bpp,
+			       pipe_config->lane_count,
+			       adjusted_mode->crtc_clock,
+			       pipe_config->port_clock,
+			       &pipe_config->dp_m_n,
+			       constant_n);
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		dev_priv->drrs.type == SEAMLESS_DRRS_SUPPORT) {
 			pipe_config->has_drrs = true;
-			intel_link_compute_m_n(pipe_config->pipe_bpp,
+			intel_link_compute_m_n(output_bpp,
 					       pipe_config->lane_count,
 					       intel_connector->panel.downclock_mode->clock,
 					       pipe_config->port_clock,

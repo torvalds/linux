@@ -21,6 +21,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/drm_atomic_helper.h>
+
+#include "i915_drv.h"
+#include "intel_dp.h"
+#include "intel_drv.h"
+#include "intel_psr.h"
+#include "intel_sprite.h"
+
 /**
  * DOC: Panel Self Refresh (PSR/SRD)
  *
@@ -50,11 +58,6 @@
  * issues the self-refresh re-enable code is done from a work queue, which
  * must be correctly synchronized/cancelled when shutting down the pipe."
  */
-
-#include <drm/drm_atomic_helper.h>
-
-#include "intel_drv.h"
-#include "i915_drv.h"
 
 static bool psr_global_enabled(u32 debug)
 {
@@ -531,10 +534,8 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_TP2_TIME_2500us;
 
 	/*
-	 * FIXME: There is probably a issue in DMC firmwares(icl_dmc_ver1_07.bin
-	 * and kbl_dmc_ver1_04.bin at least) that causes PSR2 SU to fail after
-	 * exiting DC6 if EDP_PSR_TP1_TP3_SEL is kept in PSR_CTL, so for now
-	 * lets workaround the issue by cleaning PSR_CTL before enable PSR2.
+	 * PSR2 HW is incorrectly using EDP_PSR_TP1_TP3_SEL and BSpec is
+	 * recommending keep this bit unset while PSR2 is enabled.
 	 */
 	I915_WRITE(EDP_PSR_CTL, 0);
 
@@ -629,9 +630,8 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
-	if (IS_HASWELL(dev_priv) &&
-	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		DRM_DEBUG_KMS("PSR condition failed: Interlaced mode enabled\n");
 		return;
 	}
 
@@ -1229,7 +1229,6 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	if (val) {
 		DRM_DEBUG_KMS("PSR interruption error set\n");
 		dev_priv->psr.sink_not_reliable = true;
-		return;
 	}
 
 	/* Set link_standby x link_off defaults */

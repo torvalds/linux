@@ -13,8 +13,10 @@
 #include <linux/list.h>
 #include <linux/types.h>
 
+#include "i915_gem.h"
+#include "i915_priolist_types.h"
+#include "i915_selftest.h"
 #include "i915_timeline_types.h"
-#include "intel_device_info.h"
 #include "intel_workarounds_types.h"
 
 #include "i915_gem_batch_pool.h"
@@ -25,11 +27,15 @@
 
 #define I915_CMD_HASH_ORDER 9
 
+struct dma_fence;
 struct drm_i915_reg_table;
 struct i915_gem_context;
 struct i915_request;
 struct i915_sched_attr;
 struct intel_uncore;
+
+typedef u8 intel_engine_mask_t;
+#define ALL_ENGINES ((intel_engine_mask_t)~0ul)
 
 struct intel_hw_status_page {
 	struct i915_vma *vma;
@@ -105,8 +111,9 @@ enum intel_engine_id {
 	VCS3,
 #define _VCS(n) (VCS0 + (n))
 	VECS0,
-	VECS1
+	VECS1,
 #define _VECS(n) (VECS0 + (n))
+	I915_NUM_ENGINES
 };
 
 struct st_preempt_hang {
@@ -238,6 +245,11 @@ struct intel_engine_execlists {
 	 * @preempt_complete_status: expected CSB upon completing preemption
 	 */
 	u32 preempt_complete_status;
+
+	/**
+	 * @csb_size: context status buffer FIFO size
+	 */
+	u8 csb_size;
 
 	/**
 	 * @csb_head: context status buffer head
@@ -425,6 +437,7 @@ struct intel_engine_cs {
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
 #define I915_ENGINE_HAS_PREEMPTION   BIT(2)
 #define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
+#define I915_ENGINE_NEEDS_BREADCRUMB_TASKLET BIT(4)
 	unsigned int flags;
 
 	/*
@@ -506,6 +519,12 @@ static inline bool
 intel_engine_has_semaphores(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_HAS_SEMAPHORES;
+}
+
+static inline bool
+intel_engine_needs_breadcrumb_tasklet(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 }
 
 #define instdone_slice_mask(dev_priv__) \

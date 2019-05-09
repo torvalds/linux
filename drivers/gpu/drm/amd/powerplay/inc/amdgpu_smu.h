@@ -524,12 +524,6 @@ struct smu_funcs
 					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*set_od8_default_settings)(struct smu_context *smu,
 					bool initialize);
-	int (*get_activity_monitor_coeff)(struct smu_context *smu,
-				      uint8_t *table,
-				      uint16_t workload_type);
-	int (*set_activity_monitor_coeff)(struct smu_context *smu,
-				      uint8_t *table,
-				      uint16_t workload_type);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
@@ -546,6 +540,8 @@ struct smu_funcs
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
 	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
+	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
+
 };
 
 #define smu_init_microcode(smu) \
@@ -729,6 +725,8 @@ struct smu_funcs
 	((smu)->funcs->get_sclk ? (smu)->funcs->get_sclk((smu), (low)) : 0)
 #define smu_get_mclk(smu, low) \
 	((smu)->funcs->get_mclk ? (smu)->funcs->get_mclk((smu), (low)) : 0)
+#define smu_set_xgmi_pstate(smu, pstate) \
+		((smu)->funcs->set_xgmi_pstate ? (smu)->funcs->set_xgmi_pstate((smu), (pstate)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
@@ -745,8 +743,11 @@ extern int smu_feature_set_enabled(struct smu_context *smu, int feature_id, bool
 extern int smu_feature_is_supported(struct smu_context *smu, int feature_id);
 extern int smu_feature_set_supported(struct smu_context *smu, int feature_id, bool enable);
 
-int smu_update_table(struct smu_context *smu, uint32_t table_id,
+int smu_update_table_with_arg(struct smu_context *smu, uint16_t table_id, uint16_t exarg,
 		     void *table_data, bool drv2smu);
+#define smu_update_table(smu, table_id, table_data, drv2smu) \
+	smu_update_table_with_arg((smu), (table_id), 0, (table_data), (drv2smu))
+
 bool is_support_sw_smu(struct amdgpu_device *adev);
 int smu_reset(struct smu_context *smu);
 int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,

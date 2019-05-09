@@ -41,6 +41,7 @@ void i915_sched_node_init(struct i915_sched_node *node)
 	INIT_LIST_HEAD(&node->waiters_list);
 	INIT_LIST_HEAD(&node->link);
 	node->attr.priority = I915_PRIORITY_INVALID;
+	node->semaphores = 0;
 	node->flags = 0;
 }
 
@@ -63,7 +64,7 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 {
 	bool ret = false;
 
-	spin_lock(&schedule_lock);
+	spin_lock_irq(&schedule_lock);
 
 	if (!node_signaled(signal)) {
 		INIT_LIST_HEAD(&dep->dfs_link);
@@ -73,14 +74,14 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 		dep->flags = flags;
 
 		/* Keep track of whether anyone on this chain has a semaphore */
-		if (signal->flags & I915_SCHED_HAS_SEMAPHORE &&
+		if (signal->flags & I915_SCHED_HAS_SEMAPHORE_CHAIN &&
 		    !node_started(signal))
-			node->flags |= I915_SCHED_HAS_SEMAPHORE;
+			node->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 
 		ret = true;
 	}
 
-	spin_unlock(&schedule_lock);
+	spin_unlock_irq(&schedule_lock);
 
 	return ret;
 }
@@ -107,7 +108,7 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 
 	GEM_BUG_ON(!list_empty(&node->link));
 
-	spin_lock(&schedule_lock);
+	spin_lock_irq(&schedule_lock);
 
 	/*
 	 * Everyone we depended upon (the fences we wait to be signaled)
@@ -134,7 +135,7 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 			i915_dependency_free(dep);
 	}
 
-	spin_unlock(&schedule_lock);
+	spin_unlock_irq(&schedule_lock);
 }
 
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
@@ -355,7 +356,7 @@ static void __i915_schedule(struct i915_request *rq,
 
 	memset(&cache, 0, sizeof(cache));
 	engine = rq->engine;
-	spin_lock_irq(&engine->timeline.lock);
+	spin_lock(&engine->timeline.lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
@@ -406,32 +407,33 @@ static void __i915_schedule(struct i915_request *rq,
 		tasklet_hi_schedule(&engine->execlists.tasklet);
 	}
 
-	spin_unlock_irq(&engine->timeline.lock);
+	spin_unlock(&engine->timeline.lock);
 }
 
 void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 {
-	spin_lock(&schedule_lock);
+	spin_lock_irq(&schedule_lock);
 	__i915_schedule(rq, attr);
-	spin_unlock(&schedule_lock);
+	spin_unlock_irq(&schedule_lock);
 }
 
 void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
 {
 	struct i915_sched_attr attr;
+	unsigned long flags;
 
 	GEM_BUG_ON(bump & ~I915_PRIORITY_MASK);
 
 	if (READ_ONCE(rq->sched.attr.priority) == I915_PRIORITY_INVALID)
 		return;
 
-	spin_lock_bh(&schedule_lock);
+	spin_lock_irqsave(&schedule_lock, flags);
 
 	attr = rq->sched.attr;
 	attr.priority |= bump;
 	__i915_schedule(rq, &attr);
 
-	spin_unlock_bh(&schedule_lock);
+	spin_unlock_irqrestore(&schedule_lock, flags);
 }
 
 void __i915_priolist_free(struct i915_priolist *p)

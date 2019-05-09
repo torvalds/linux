@@ -68,7 +68,7 @@ static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
 	{BCS0, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
 	{BCS0, RING_INSTPM(BLT_RING_BASE), 0xffff, false}, /* 0x220c0 */
 	{BCS0, RING_HWSTAM(BLT_RING_BASE), 0x0, false}, /* 0x22098 */
-	{BCS0, RING_EXCC(BLT_RING_BASE), 0x0, false}, /* 0x22028 */
+	{BCS0, RING_EXCC(BLT_RING_BASE), 0xffff, false}, /* 0x22028 */
 	{RCS0, INVALID_MMIO_REG, 0, false } /* Terminated */
 };
 
@@ -119,7 +119,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{BCS0, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
 	{BCS0, RING_INSTPM(BLT_RING_BASE), 0xffff, false}, /* 0x220c0 */
 	{BCS0, RING_HWSTAM(BLT_RING_BASE), 0x0, false}, /* 0x22098 */
-	{BCS0, RING_EXCC(BLT_RING_BASE), 0x0, false}, /* 0x22028 */
+	{BCS0, RING_EXCC(BLT_RING_BASE), 0xffff, false}, /* 0x22028 */
 
 	{VCS1, RING_EXCC(GEN8_BSD2_RING_BASE), 0xffff, false}, /* 0x1c028 */
 

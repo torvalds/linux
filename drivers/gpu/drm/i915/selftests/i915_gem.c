@@ -215,5 +215,8 @@ int i915_gem_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_gem_hibernate),
 	};
 
+	if (i915_terminally_wedged(i915))
+		return 0;
+
 	return i915_subtests(tests, i915);
 }

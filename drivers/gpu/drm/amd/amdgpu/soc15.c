@@ -470,6 +470,12 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 		soc15_asic_get_baco_capability(adev, &baco_reset);
 		break;
+	case CHIP_VEGA20:
+		if (adev->psp.sos_fw_version >= 0x80067)
+			soc15_asic_get_baco_capability(adev, &baco_reset);
+		else
+			baco_reset = false;
+		break;
 	default:
 		baco_reset = false;
 		break;
@@ -895,7 +901,8 @@ static int soc15_common_early_init(void *handle)
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_VCN;
 		} else if (adev->pdev->device == 0x15d8) {
-			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGLS |
+			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+				AMD_CG_SUPPORT_GFX_MGLS |
 				AMD_CG_SUPPORT_GFX_CP_LS |
 				AMD_CG_SUPPORT_GFX_3D_CGCG |
 				AMD_CG_SUPPORT_GFX_3D_CGLS |
