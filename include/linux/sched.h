@@ -726,6 +726,8 @@ struct task_struct {
 #ifdef CONFIG_CGROUPS
 	/* disallow userland-initiated cgroup migration */
 	unsigned			no_cgroup_migration:1;
+	/* task is frozen/stopped (used by the cgroup freezer) */
+	unsigned			frozen:1;
 #endif
 #ifdef CONFIG_BLK_CGROUP
 	/* to be used once the psi infrastructure lands upstream. */
