@@ -26,9 +26,6 @@
 
 static inline int klp_check_compiler_support(void)
 {
-#ifndef CC_USING_FENTRY
-	return 1;
-#endif
 	return 0;
 }
 

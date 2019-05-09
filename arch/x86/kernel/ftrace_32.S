@@ -10,20 +10,10 @@
 #include <asm/ftrace.h>
 #include <asm/nospec-branch.h>
 
-#ifdef CC_USING_FENTRY
 # define function_hook	__fentry__
 EXPORT_SYMBOL(__fentry__)
-#else
-# define function_hook	mcount
-EXPORT_SYMBOL(mcount)
-#endif
 
-/* mcount uses a frame pointer even if CONFIG_FRAME_POINTER is not set */
-#if !defined(CC_USING_FENTRY) || defined(CONFIG_FRAME_POINTER)
-# define USING_FRAME_POINTER
-#endif
-
-#ifdef USING_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
 # define MCOUNT_FRAME			1	/* using frame = true  */
 #else
 # define MCOUNT_FRAME			0	/* using frame = false */
@@ -35,8 +25,7 @@ END(function_hook)
 
 ENTRY(ftrace_caller)
 
-#ifdef USING_FRAME_POINTER
-# ifdef CC_USING_FENTRY
+#ifdef CONFIG_FRAME_POINTER
 	/*
 	 * Frame pointers are of ip followed by bp.
 	 * Since fentry is an immediate jump, we are left with
@@ -47,7 +36,7 @@ ENTRY(ftrace_caller)
 	pushl	%ebp
 	movl	%esp, %ebp
 	pushl	2*4(%esp)			/* function ip */
-# endif
+
 	/* For mcount, the function ip is directly above */
 	pushl	%ebp
 	movl	%esp, %ebp
@@ -57,7 +46,7 @@ ENTRY(ftrace_caller)
 	pushl	%edx
 	pushl	$0				/* Pass NULL as regs pointer */
 
-#ifdef USING_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
 	/* Load parent ebp into edx */
 	movl	4*4(%esp), %edx
 #else
@@ -80,13 +69,11 @@ ftrace_call:
 	popl	%edx
 	popl	%ecx
 	popl	%eax
-#ifdef USING_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
 	popl	%ebp
-# ifdef CC_USING_FENTRY
 	addl	$4,%esp				/* skip function ip */
 	popl	%ebp				/* this is the orig bp */
 	addl	$4, %esp			/* skip parent ip */
-# endif
 #endif
 .Lftrace_ret:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -131,11 +118,7 @@ ENTRY(ftrace_regs_caller)
 
 	movl	12*4(%esp), %eax		/* Load ip (1st parameter) */
 	subl	$MCOUNT_INSN_SIZE, %eax		/* Adjust ip */
-#ifdef CC_USING_FENTRY
 	movl	15*4(%esp), %edx		/* Load parent ip (2nd parameter) */
-#else
-	movl	0x4(%ebp), %edx			/* Load parent ip (2nd parameter) */
-#endif
 	movl	function_trace_op, %ecx		/* Save ftrace_pos in 3rd parameter */
 	pushl	%esp				/* Save pt_regs as 4th parameter */
 
@@ -176,13 +159,8 @@ ENTRY(ftrace_graph_caller)
 	pushl	%edx
 	movl	3*4(%esp), %eax
 	/* Even with frame pointers, fentry doesn't have one here */
-#ifdef CC_USING_FENTRY
 	lea	4*4(%esp), %edx
 	movl	$0, %ecx
-#else
-	lea	0x4(%ebp), %edx
-	movl	(%ebp), %ecx
-#endif
 	subl	$MCOUNT_INSN_SIZE, %eax
 	call	prepare_ftrace_return
 	popl	%edx
@@ -195,11 +173,7 @@ END(ftrace_graph_caller)
 return_to_handler:
 	pushl	%eax
 	pushl	%edx
-#ifdef CC_USING_FENTRY
 	movl	$0, %eax
-#else
-	movl	%ebp, %eax
-#endif
 	call	ftrace_return_to_handler
 	movl	%eax, %ecx
 	popl	%edx
