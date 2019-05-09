@@ -508,7 +508,7 @@ static int ucs1002_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	info->regmap = devm_regmap_init_i2c(client, &regmap_config);
-	ret = PTR_ERR_OR_ZERO(info->charger);
+	ret = PTR_ERR_OR_ZERO(info->regmap);
 	if (ret) {
 		dev_err(dev, "Regmap initialization failed: %d\n", ret);
 		return ret;
@@ -592,7 +592,7 @@ static int ucs1002_probe(struct i2c_client *client,
 
 	rdev = devm_regulator_register(dev, info->regulator_descriptor,
 				       &regulator_config);
-	ret = PTR_ERR_OR_ZERO(info->charger);
+	ret = PTR_ERR_OR_ZERO(rdev);
 	if (ret) {
 		dev_err(dev, "Failed to register VBUS regulator: %d\n", ret);
 		return ret;
