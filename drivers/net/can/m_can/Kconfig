@@ -13,3 +13,12 @@ config CAN_M_CAN_PLATFORM
 	  Say Y here if you want support for IO Mapped Bosch M_CAN controller.
 	  This support is for devices that have the Bosch M_CAN controller
 	  IP embedded into the device and the IP is IO Mapped to the processor.
+
+config CAN_M_CAN_TCAN4X5X
+	depends on CAN_M_CAN
+	depends on REGMAP_SPI
+	tristate "TCAN4X5X M_CAN device"
+	---help---
+	  Say Y here if you want support for Texas Instruments TCAN4x5x
+	  M_CAN controller.  This device is a peripherial device that uses the
+	  SPI bus for communication.
