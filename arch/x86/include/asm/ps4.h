@@ -56,5 +56,5 @@ static inline int apcie_icc_cmd(u8 major, u16 minor, const void *data,
 	return -ENODEV;
 }
 
- #endif
+#endif
 #endif
