@@ -1113,14 +1113,6 @@ static inline int rhashtable_replace_fast(
 	return err;
 }
 
-/* Obsolete function, do not use in new code. */
-static inline int rhashtable_walk_init(struct rhashtable *ht,
-				       struct rhashtable_iter *iter, gfp_t gfp)
-{
-	rhashtable_walk_enter(ht, iter);
-	return 0;
-}
-
 /**
  * rhltable_walk_enter - Initialise an iterator
  * @hlt:	Table to walk over

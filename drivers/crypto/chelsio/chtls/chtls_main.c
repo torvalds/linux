@@ -30,7 +30,6 @@
  */
 static LIST_HEAD(cdev_list);
 static DEFINE_MUTEX(cdev_mutex);
-static DEFINE_MUTEX(cdev_list_lock);
 
 static DEFINE_MUTEX(notify_mutex);
 static RAW_NOTIFIER_HEAD(listen_notify_list);

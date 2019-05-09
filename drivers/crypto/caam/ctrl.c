@@ -18,12 +18,8 @@
 #include "desc_constr.h"
 #include "ctrl.h"
 
-bool caam_little_end;
-EXPORT_SYMBOL(caam_little_end);
 bool caam_dpaa2;
 EXPORT_SYMBOL(caam_dpaa2);
-bool caam_imx;
-EXPORT_SYMBOL(caam_imx);
 
 #ifdef CONFIG_CAAM_QI
 #include "qi.h"
@@ -863,27 +859,18 @@ static int caam_probe(struct platform_device *pdev)
 	/* Internal covering keys (useful in non-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];
 	ctrlpriv->ctl_kek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	ctrlpriv->ctl_kek = debugfs_create_blob("kek",
-						S_IRUSR |
-						S_IRGRP | S_IROTH,
-						ctrlpriv->ctl,
-						&ctrlpriv->ctl_kek_wrap);
+	debugfs_create_blob("kek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+			    &ctrlpriv->ctl_kek_wrap);
 
 	ctrlpriv->ctl_tkek_wrap.data = (__force void *)&ctrlpriv->ctrl->tkek[0];
 	ctrlpriv->ctl_tkek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	ctrlpriv->ctl_tkek = debugfs_create_blob("tkek",
-						 S_IRUSR |
-						 S_IRGRP | S_IROTH,
-						 ctrlpriv->ctl,
-						 &ctrlpriv->ctl_tkek_wrap);
+	debugfs_create_blob("tkek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+			    &ctrlpriv->ctl_tkek_wrap);
 
 	ctrlpriv->ctl_tdsk_wrap.data = (__force void *)&ctrlpriv->ctrl->tdsk[0];
 	ctrlpriv->ctl_tdsk_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	ctrlpriv->ctl_tdsk = debugfs_create_blob("tdsk",
-						 S_IRUSR |
-						 S_IRGRP | S_IROTH,
-						 ctrlpriv->ctl,
-						 &ctrlpriv->ctl_tdsk_wrap);
+	debugfs_create_blob("tdsk", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+			    &ctrlpriv->ctl_tdsk_wrap);
 #endif
 	return 0;
 

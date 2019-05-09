@@ -63,7 +63,7 @@ void scaler_settings_calculation(struct dcn_bw_internal_vars *v)
 		if (v->interlace_output[k] == 1.0) {
 			v->v_ratio[k] = 2.0 * v->v_ratio[k];
 		}
-		if ((v->underscan_output[k] == 1.0)) {
+		if (v->underscan_output[k] == 1.0) {
 			v->h_ratio[k] = v->h_ratio[k] * v->under_scan_factor;
 			v->v_ratio[k] = v->v_ratio[k] * v->under_scan_factor;
 		}
@@ -797,9 +797,40 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				else {
 					v->maximum_vstartup = v->v_sync_plus_back_porch[k] - 1.0;
 				}
-				v->line_times_for_prefetch[k] = v->maximum_vstartup - v->urgent_latency / (v->htotal[k] / v->pixel_clock[k]) - (v->time_calc + v->time_setup) / (v->htotal[k] / v->pixel_clock[k]) - (v->dst_y_after_scaler + v->dst_x_after_scaler / v->htotal[k]);
-				v->line_times_for_prefetch[k] =dcn_bw_floor2(4.0 * (v->line_times_for_prefetch[k] + 0.125), 1.0) / 4;
-				v->prefetch_bw[k] = (v->meta_pte_bytes_per_frame[k] + 2.0 * v->meta_row_bytes[k] + 2.0 * v->dpte_bytes_per_row[k] + v->prefetch_lines_y[k] * v->swath_width_yper_state[i][j][k] *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) + v->prefetch_lines_c[k] * v->swath_width_yper_state[i][j][k] / 2.0 *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0)) / (v->line_times_for_prefetch[k] * v->htotal[k] / v->pixel_clock[k]);
+
+				do {
+					v->line_times_for_prefetch[k] = v->maximum_vstartup - v->urgent_latency / (v->htotal[k] / v->pixel_clock[k]) - (v->time_calc + v->time_setup) / (v->htotal[k] / v->pixel_clock[k]) - (v->dst_y_after_scaler + v->dst_x_after_scaler / v->htotal[k]);
+					v->line_times_for_prefetch[k] =dcn_bw_floor2(4.0 * (v->line_times_for_prefetch[k] + 0.125), 1.0) / 4;
+					v->prefetch_bw[k] = (v->meta_pte_bytes_per_frame[k] + 2.0 * v->meta_row_bytes[k] + 2.0 * v->dpte_bytes_per_row[k] + v->prefetch_lines_y[k] * v->swath_width_yper_state[i][j][k] *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) + v->prefetch_lines_c[k] * v->swath_width_yper_state[i][j][k] / 2.0 *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0)) / (v->line_times_for_prefetch[k] * v->htotal[k] / v->pixel_clock[k]);
+
+					if (v->pte_enable == dcn_bw_yes && v->dcc_enable[k] == dcn_bw_yes) {
+						v->time_for_meta_pte_without_immediate_flip = dcn_bw_max3(
+								v->meta_pte_bytes_frame[k] / v->prefetch_bandwidth[k],
+								v->extra_latency,
+								v->htotal[k] / v->pixel_clock[k] / 4.0);
+					} else {
+						v->time_for_meta_pte_without_immediate_flip = v->htotal[k] / v->pixel_clock[k] / 4.0;
+					}
+
+					if (v->pte_enable == dcn_bw_yes || v->dcc_enable[k] == dcn_bw_yes) {
+						v->time_for_meta_and_dpte_row_without_immediate_flip = dcn_bw_max3((
+								v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) / v->prefetch_bandwidth[k],
+								v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_without_immediate_flip,
+								v->extra_latency);
+					} else {
+						v->time_for_meta_and_dpte_row_without_immediate_flip = dcn_bw_max2(
+								v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_without_immediate_flip,
+								v->extra_latency - v->time_for_meta_pte_with_immediate_flip);
+					}
+
+					v->lines_for_meta_pte_without_immediate_flip[k] =dcn_bw_floor2(4.0 * (v->time_for_meta_pte_without_immediate_flip / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
+					v->lines_for_meta_and_dpte_row_without_immediate_flip[k] =dcn_bw_floor2(4.0 * (v->time_for_meta_and_dpte_row_without_immediate_flip / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
+					v->maximum_vstartup = v->maximum_vstartup - 1;
+
+					if (v->lines_for_meta_pte_without_immediate_flip[k] < 8.0 && v->lines_for_meta_and_dpte_row_without_immediate_flip[k] < 16.0)
+						break;
+
+				} while(1);
 			}
 			v->bw_available_for_immediate_flip = v->return_bw_per_state[i];
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
@@ -814,24 +845,18 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			for (k = 0; k <= v->number_of_active_planes - 1; k++) {
 				if (v->pte_enable == dcn_bw_yes && v->dcc_enable[k] == dcn_bw_yes) {
 					v->time_for_meta_pte_with_immediate_flip =dcn_bw_max5(v->meta_pte_bytes_per_frame[k] / v->prefetch_bw[k], v->meta_pte_bytes_per_frame[k] * v->total_immediate_flip_bytes[k] / (v->bw_available_for_immediate_flip * (v->meta_pte_bytes_per_frame[k] + v->meta_row_bytes[k] + v->dpte_bytes_per_row[k])), v->extra_latency, v->urgent_latency, v->htotal[k] / v->pixel_clock[k] / 4.0);
-					v->time_for_meta_pte_without_immediate_flip =dcn_bw_max3(v->meta_pte_bytes_per_frame[k] / v->prefetch_bw[k], v->extra_latency, v->htotal[k] / v->pixel_clock[k] / 4.0);
 				}
 				else {
 					v->time_for_meta_pte_with_immediate_flip = v->htotal[k] / v->pixel_clock[k] / 4.0;
-					v->time_for_meta_pte_without_immediate_flip = v->htotal[k] / v->pixel_clock[k] / 4.0;
 				}
 				if (v->pte_enable == dcn_bw_yes || v->dcc_enable[k] == dcn_bw_yes) {
 					v->time_for_meta_and_dpte_row_with_immediate_flip =dcn_bw_max5((v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) / v->prefetch_bw[k], (v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) * v->total_immediate_flip_bytes[k] / (v->bw_available_for_immediate_flip * (v->meta_pte_bytes_per_frame[k] + v->meta_row_bytes[k] + v->dpte_bytes_per_row[k])), v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_with_immediate_flip, v->extra_latency, 2.0 * v->urgent_latency);
-					v->time_for_meta_and_dpte_row_without_immediate_flip =dcn_bw_max3((v->meta_row_bytes[k] + v->dpte_bytes_per_row[k]) / v->prefetch_bw[k], v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_without_immediate_flip, v->extra_latency);
 				}
 				else {
 					v->time_for_meta_and_dpte_row_with_immediate_flip =dcn_bw_max2(v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_with_immediate_flip, v->extra_latency - v->time_for_meta_pte_with_immediate_flip);
-					v->time_for_meta_and_dpte_row_without_immediate_flip =dcn_bw_max2(v->htotal[k] / v->pixel_clock[k] - v->time_for_meta_pte_without_immediate_flip, v->extra_latency - v->time_for_meta_pte_without_immediate_flip);
 				}
 				v->lines_for_meta_pte_with_immediate_flip[k] =dcn_bw_floor2(4.0 * (v->time_for_meta_pte_with_immediate_flip / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
-				v->lines_for_meta_pte_without_immediate_flip[k] =dcn_bw_floor2(4.0 * (v->time_for_meta_pte_without_immediate_flip / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
 				v->lines_for_meta_and_dpte_row_with_immediate_flip[k] =dcn_bw_floor2(4.0 * (v->time_for_meta_and_dpte_row_with_immediate_flip / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
-				v->lines_for_meta_and_dpte_row_without_immediate_flip[k] =dcn_bw_floor2(4.0 * (v->time_for_meta_and_dpte_row_without_immediate_flip / (v->htotal[k] / v->pixel_clock[k]) + 0.125), 1.0) / 4;
 				v->line_times_to_request_prefetch_pixel_data_with_immediate_flip = v->line_times_for_prefetch[k] - v->lines_for_meta_pte_with_immediate_flip[k] - v->lines_for_meta_and_dpte_row_with_immediate_flip[k];
 				v->line_times_to_request_prefetch_pixel_data_without_immediate_flip = v->line_times_for_prefetch[k] - v->lines_for_meta_pte_without_immediate_flip[k] - v->lines_for_meta_and_dpte_row_without_immediate_flip[k];
 				if (v->line_times_to_request_prefetch_pixel_data_with_immediate_flip > 0.0) {

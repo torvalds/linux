@@ -381,6 +381,15 @@ struct ttm_bo_driver {
 	 */
 	int (*access_memory)(struct ttm_buffer_object *bo, unsigned long offset,
 			     void *buf, int len, int write);
+
+	/**
+	 * struct ttm_bo_driver member del_from_lru_notify
+	 *
+	 * @bo: the buffer object deleted from lru
+	 *
+	 * notify driver that a BO was deleted from LRU.
+	 */
+	void (*del_from_lru_notify)(struct ttm_buffer_object *bo);
 };
 
 /**
@@ -411,7 +420,6 @@ extern struct ttm_bo_global {
 	/**
 	 * Protected by ttm_global_mutex.
 	 */
-	unsigned int use_count;
 	struct list_head device_list;
 
 	/**
@@ -867,7 +875,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  *
- * Pipelined gutting a BO of it's backing store.
+ * Pipelined gutting a BO of its backing store.
  */
 int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 

@@ -171,6 +171,11 @@
 /* Re-name volumes */
 #define UBI_IOCRNVOL _IOW(UBI_IOC_MAGIC, 3, struct ubi_rnvol_req)
 
+/* Read the specified PEB and scrub it if there are bitflips */
+#define UBI_IOCRPEB _IOW(UBI_IOC_MAGIC, 4, __s32)
+/* Force scrubbing on the specified PEB */
+#define UBI_IOCSPEB _IOW(UBI_IOC_MAGIC, 5, __s32)
+
 /* ioctl commands of the UBI control character device */
 
 #define UBI_CTRL_IOC_MAGIC 'o'

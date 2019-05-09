@@ -128,23 +128,6 @@ static void octeon_flush_icache_range(unsigned long start, unsigned long end)
 
 
 /**
- * Flush the icache for a trampoline. These are used for interrupt
- * and exception hooking.
- *
- * @addr:   Address to flush
- */
-static void octeon_flush_cache_sigtramp(unsigned long addr)
-{
-	struct vm_area_struct *vma;
-
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, addr);
-	octeon_flush_icache_all_cores(vma);
-	up_read(&current->mm->mmap_sem);
-}
-
-
-/**
  * Flush a range out of a vma
  *
  * @vma:    VMA to flush
@@ -289,7 +272,6 @@ void octeon_cache_init(void)
 	flush_cache_mm			= octeon_flush_cache_mm;
 	flush_cache_page		= octeon_flush_cache_page;
 	flush_cache_range		= octeon_flush_cache_range;
-	flush_cache_sigtramp		= octeon_flush_cache_sigtramp;
 	flush_icache_all		= octeon_flush_icache_all;
 	flush_data_cache_page		= octeon_flush_data_cache_page;
 	flush_icache_range		= octeon_flush_icache_range;

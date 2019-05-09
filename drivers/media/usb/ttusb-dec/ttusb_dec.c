@@ -284,7 +284,7 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 		 *
 		 * this is an fact a bit too simple implementation;
 		 * the box also reports a keyrepeat signal
-		 * (with buffer[3] == 0x40) in an intervall of ~100ms.
+		 * (with buffer[3] == 0x40) in an interval of ~100ms.
 		 * But to handle this correctly we had to imlemenent some
 		 * kind of timer which signals a 'key up' event if no
 		 * keyrepeat signal is received for lets say 200ms.

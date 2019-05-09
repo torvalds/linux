@@ -213,19 +213,6 @@ int spi_bitbang_setup(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "%s, %u nsec/bit\n", __func__, 2 * cs->nsecs);
 
-	/* NOTE we _need_ to call chipselect() early, ideally with adapter
-	 * setup, unless the hardware defaults cooperate to avoid confusion
-	 * between normal (active low) and inverted chipselects.
-	 */
-
-	/* deselect chip (low or high) */
-	mutex_lock(&bitbang->lock);
-	if (!bitbang->busy) {
-		bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
-		ndelay(cs->nsecs);
-	}
-	mutex_unlock(&bitbang->lock);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(spi_bitbang_setup);

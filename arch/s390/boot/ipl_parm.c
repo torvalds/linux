@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
 #include <asm/boot_data.h>
+#include <asm/facility.h>
 #include "boot.h"
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
@@ -143,8 +145,66 @@ void setup_boot_command_line(void)
 		append_ipl_block_parm();
 }
 
+static void modify_facility(unsigned long nr, bool clear)
+{
+	if (clear)
+		__clear_facility(nr, S390_lowcore.stfle_fac_list);
+	else
+		__set_facility(nr, S390_lowcore.stfle_fac_list);
+}
+
+static void check_cleared_facilities(void)
+{
+	unsigned long als[] = { FACILITIES_ALS };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(als); i++) {
+		if ((S390_lowcore.stfle_fac_list[i] & als[i]) != als[i]) {
+			sclp_early_printk("Warning: The Linux kernel requires facilities cleared via command line option\n");
+			print_missing_facilities();
+			break;
+		}
+	}
+}
+
+static void modify_fac_list(char *str)
+{
+	unsigned long val, endval;
+	char *endp;
+	bool clear;
+
+	while (*str) {
+		clear = false;
+		if (*str == '!') {
+			clear = true;
+			str++;
+		}
+		val = simple_strtoull(str, &endp, 0);
+		if (str == endp)
+			break;
+		str = endp;
+		if (*str == '-') {
+			str++;
+			endval = simple_strtoull(str, &endp, 0);
+			if (str == endp)
+				break;
+			str = endp;
+			while (val <= endval) {
+				modify_facility(val, clear);
+				val++;
+			}
+		} else {
+			modify_facility(val, clear);
+		}
+		if (*str != ',')
+			break;
+		str++;
+	}
+	check_cleared_facilities();
+}
+
 static char command_line_buf[COMMAND_LINE_SIZE] __section(.data);
-static void parse_mem_opt(void)
+void parse_boot_command_line(void)
 {
 	char *param, *val;
 	bool enabled;
@@ -165,12 +225,14 @@ static void parse_mem_opt(void)
 			if (!rc && !enabled)
 				noexec_disabled = 1;
 		}
+
+		if (!strcmp(param, "facilities"))
+			modify_fac_list(val);
 	}
 }
 
 void setup_memory_end(void)
 {
-	parse_mem_opt();
 #ifdef CONFIG_CRASH_DUMP
 	if (!OLDMEM_BASE && early_ipl_block_valid &&
 	    early_ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP &&

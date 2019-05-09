@@ -390,7 +390,7 @@ static void timer_i915_sw_fence_wake(struct timer_list *t)
 	if (!fence)
 		return;
 
-	pr_notice("Asynchronous wait on fence %s:%s:%x timed out (hint:%pS)\n",
+	pr_notice("Asynchronous wait on fence %s:%s:%llx timed out (hint:%pS)\n",
 		  cb->dma->ops->get_driver_name(cb->dma),
 		  cb->dma->ops->get_timeline_name(cb->dma),
 		  cb->dma->seqno,

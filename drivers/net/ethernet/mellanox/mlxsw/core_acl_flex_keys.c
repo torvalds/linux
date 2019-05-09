@@ -236,12 +236,10 @@ mlxsw_afk_key_info_create(struct mlxsw_afk *mlxsw_afk,
 			  struct mlxsw_afk_element_usage *elusage)
 {
 	struct mlxsw_afk_key_info *key_info;
-	size_t alloc_size;
 	int err;
 
-	alloc_size = sizeof(*key_info) +
-		     sizeof(key_info->blocks[0]) * mlxsw_afk->max_blocks;
-	key_info = kzalloc(alloc_size, GFP_KERNEL);
+	key_info = kzalloc(struct_size(key_info, blocks, mlxsw_afk->max_blocks),
+			   GFP_KERNEL);
 	if (!key_info)
 		return ERR_PTR(-ENOMEM);
 	err = mlxsw_afk_picker(mlxsw_afk, key_info, elusage);

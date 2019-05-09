@@ -32,6 +32,8 @@
 #include "cgs_common.h"
 #include "vega20_pptable.h"
 
+#define VEGA20_FAN_TARGET_TEMPERATURE_OVERRIDE 105
+
 static void set_hw_cap(struct pp_hwmgr *hwmgr, bool enable,
 		enum phm_platform_caps cap)
 {
@@ -798,6 +800,17 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	return 0;
 }
 
+static int override_powerplay_table_fantargettemperature(struct pp_hwmgr *hwmgr)
+{
+	struct phm_ppt_v3_information *pptable_information =
+		(struct phm_ppt_v3_information *)hwmgr->pptable;
+	PPTable_t *ppsmc_pptable = (PPTable_t *)(pptable_information->smc_pptable);
+
+	ppsmc_pptable->FanTargetTemperature = VEGA20_FAN_TARGET_TEMPERATURE_OVERRIDE;
+
+	return 0;
+}
+
 #define VEGA20_ENGINECLOCK_HARDMAX 198000
 static int init_powerplay_table_information(
 		struct pp_hwmgr *hwmgr,
@@ -887,6 +900,10 @@ static int init_powerplay_table_information(
 
 
 	result = append_vbios_pptable(hwmgr, (pptable_information->smc_pptable));
+	if (result)
+		return result;
+
+	result = override_powerplay_table_fantargettemperature(hwmgr);
 
 	return result;
 }

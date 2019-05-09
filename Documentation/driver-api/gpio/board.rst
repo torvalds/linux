@@ -204,6 +204,7 @@ between a caller and a respective .get/set_multiple() callback of a GPIO chip.
 
 In order to qualify for fast bitmap processing, the array must meet the
 following requirements:
+
 - pin hardware number of array member 0 must also be 0,
 - pin hardware numbers of consecutive array members which belong to the same
   chip as member 0 does must also match their array indexes.

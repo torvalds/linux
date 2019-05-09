@@ -1,12 +1,16 @@
-* Sitronix st1232 touchscreen controller
+* Sitronix st1232 or st1633 touchscreen controller
 
 Required properties:
-- compatible: must be "sitronix,st1232"
+- compatible: must contain one of
+  * "sitronix,st1232"
+  * "sitronix,st1633"
 - reg: I2C address of the chip
 - interrupts: interrupt to which the chip is connected
 
 Optional properties:
 - gpios: a phandle to the reset GPIO
+
+For additional optional properties see: touchscreen.txt
 
 Example:
 

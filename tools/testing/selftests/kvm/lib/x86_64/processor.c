@@ -1030,6 +1030,14 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 			    nested_size, sizeof(state->nested_));
 	}
 
+	/*
+	 * When KVM exits to userspace with KVM_EXIT_IO, KVM guarantees
+	 * guest state is consistent only after userspace re-enters the
+	 * kernel with KVM_RUN.  Complete IO prior to migrating state
+	 * to a new VM.
+	 */
+	vcpu_run_complete_io(vm, vcpuid);
+
 	nmsrs = kvm_get_num_msrs(vm);
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
 	list->nmsrs = nmsrs;
@@ -1093,12 +1101,6 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int r;
 
-	if (state->nested.size) {
-		r = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, &state->nested);
-		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
-			r);
-	}
-
 	r = ioctl(vcpu->fd, KVM_SET_XSAVE, &state->xsave);
         TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",
                 r);
@@ -1130,4 +1132,10 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 	r = ioctl(vcpu->fd, KVM_SET_REGS, &state->regs);
         TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_REGS, r: %i",
                 r);
+
+	if (state->nested.size) {
+		r = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, &state->nested);
+		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
+			r);
+	}
 }

@@ -19,8 +19,6 @@
 
 #include <soc/tegra/pmc.h>
 
-#include <sound/hda_verbs.h>
-
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_panel.h>
@@ -28,6 +26,7 @@
 
 #include "dc.h"
 #include "drm.h"
+#include "hda.h"
 #include "sor.h"
 #include "trace.h"
 
@@ -411,6 +410,8 @@ struct tegra_sor {
 	struct clk *clk_dp;
 	struct clk *clk;
 
+	u8 xbar_cfg[5];
+
 	struct drm_dp_aux *aux;
 
 	struct drm_info_list *debugfs_files;
@@ -429,10 +430,7 @@ struct tegra_sor {
 	struct delayed_work scdc;
 	bool scdc_enabled;
 
-	struct {
-		unsigned int sample_rate;
-		unsigned int channels;
-	} audio;
+	struct tegra_hda_format format;
 };
 
 struct tegra_sor_state {
@@ -1818,7 +1816,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	/* XXX not in TRM */
 	for (value = 0, i = 0; i < 5; i++)
-		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->soc->xbar_cfg[i]) |
+		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
 
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
@@ -2116,7 +2114,8 @@ tegra_sor_hdmi_setup_avi_infoframe(struct tegra_sor *sor,
 	value &= ~INFOFRAME_CTRL_ENABLE;
 	tegra_sor_writel(sor, value, SOR_HDMI_AVI_INFOFRAME_CTRL);
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &sor->output.connector, mode);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to setup AVI infoframe: %d\n", err);
 		return err;
@@ -2185,7 +2184,7 @@ static int tegra_sor_hdmi_enable_audio_infoframe(struct tegra_sor *sor)
 		return err;
 	}
 
-	frame.channels = sor->audio.channels;
+	frame.channels = sor->format.channels;
 
 	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (err < 0) {
@@ -2214,7 +2213,7 @@ static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
 	value |= SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_HDA);
 
 	/* inject null samples */
-	if (sor->audio.channels != 2)
+	if (sor->format.channels != 2)
 		value &= ~SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
 	else
 		value |= SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
@@ -2245,7 +2244,7 @@ static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
 	value = SOR_HDMI_AUDIO_N_RESET | SOR_HDMI_AUDIO_N_LOOKUP;
 	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_N);
 
-	value = (24000 * 4096) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 4096) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0320);
 	tegra_sor_writel(sor, 4096, SOR_AUDIO_NVAL_0320);
 
@@ -2258,15 +2257,15 @@ static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
 	tegra_sor_writel(sor, 20000, SOR_AUDIO_AVAL_1764);
 	tegra_sor_writel(sor, 18816, SOR_AUDIO_NVAL_1764);
 
-	value = (24000 * 6144) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 6144) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0480);
 	tegra_sor_writel(sor, 6144, SOR_AUDIO_NVAL_0480);
 
-	value = (24000 * 12288) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 12288) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_0960);
 	tegra_sor_writel(sor, 12288, SOR_AUDIO_NVAL_0960);
 
-	value = (24000 * 24576) / (128 * sor->audio.sample_rate / 1000);
+	value = (24000 * 24576) / (128 * sor->format.sample_rate / 1000);
 	tegra_sor_writel(sor, value, SOR_AUDIO_AVAL_1920);
 	tegra_sor_writel(sor, 24576, SOR_AUDIO_NVAL_1920);
 
@@ -2554,7 +2553,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 
 	/* XXX not in TRM */
 	for (value = 0, i = 0; i < 5; i++)
-		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->soc->xbar_cfg[i]) |
+		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
 
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
@@ -3175,6 +3174,8 @@ MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
 static int tegra_sor_parse_dt(struct tegra_sor *sor)
 {
 	struct device_node *np = sor->dev->of_node;
+	u32 xbar_cfg[5];
+	unsigned int i;
 	u32 value;
 	int err;
 
@@ -3192,25 +3193,18 @@ static int tegra_sor_parse_dt(struct tegra_sor *sor)
 		sor->pad = TEGRA_IO_PAD_HDMI_DP0 + sor->index;
 	}
 
+	err = of_property_read_u32_array(np, "nvidia,xbar-cfg", xbar_cfg, 5);
+	if (err < 0) {
+		/* fall back to default per-SoC XBAR configuration */
+		for (i = 0; i < 5; i++)
+			sor->xbar_cfg[i] = sor->soc->xbar_cfg[i];
+	} else {
+		/* copy cells to SOR XBAR configuration */
+		for (i = 0; i < 5; i++)
+			sor->xbar_cfg[i] = xbar_cfg[i];
+	}
+
 	return 0;
-}
-
-static void tegra_hda_parse_format(unsigned int format, unsigned int *rate,
-				   unsigned int *channels)
-{
-	unsigned int mul, div;
-
-	if (format & AC_FMT_BASE_44K)
-		*rate = 44100;
-	else
-		*rate = 48000;
-
-	mul = (format & AC_FMT_MULT_MASK) >> AC_FMT_MULT_SHIFT;
-	div = (format & AC_FMT_DIV_MASK) >> AC_FMT_DIV_SHIFT;
-
-	*rate = *rate * (mul + 1) / (div + 1);
-
-	*channels = (format & AC_FMT_CHAN_MASK) >> AC_FMT_CHAN_SHIFT;
 }
 
 static irqreturn_t tegra_sor_irq(int irq, void *data)
@@ -3225,14 +3219,11 @@ static irqreturn_t tegra_sor_irq(int irq, void *data)
 		value = tegra_sor_readl(sor, SOR_AUDIO_HDA_CODEC_SCRATCH0);
 
 		if (value & SOR_AUDIO_HDA_CODEC_SCRATCH0_VALID) {
-			unsigned int format, sample_rate, channels;
+			unsigned int format;
 
 			format = value & SOR_AUDIO_HDA_CODEC_SCRATCH0_FMT_MASK;
 
-			tegra_hda_parse_format(format, &sample_rate, &channels);
-
-			sor->audio.sample_rate = sample_rate;
-			sor->audio.channels = channels;
+			tegra_hda_parse_format(format, &sor->format);
 
 			tegra_sor_hdmi_audio_enable(sor);
 		} else {

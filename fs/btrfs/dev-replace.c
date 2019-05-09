@@ -111,11 +111,11 @@ no_valid_dev_replace_entry_found:
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
-		dev_replace->srcdev = btrfs_find_device(fs_info, src_devid,
-							NULL, NULL);
-		dev_replace->tgtdev = btrfs_find_device(fs_info,
+		dev_replace->srcdev = btrfs_find_device(fs_info->fs_devices,
+						src_devid, NULL, NULL, true);
+		dev_replace->tgtdev = btrfs_find_device(fs_info->fs_devices,
 							BTRFS_DEV_REPLACE_DEVID,
-							NULL, NULL);
+							NULL, NULL, true);
 		/*
 		 * allow 'btrfs dev replace_cancel' if src/tgt device is
 		 * missing
@@ -862,6 +862,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 			btrfs_destroy_dev_replace_tgtdev(tgt_device);
 		break;
 	default:
+		up_write(&dev_replace->rwsem);
 		result = -EINVAL;
 	}
 

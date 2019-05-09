@@ -444,23 +444,45 @@ int __init create_mem_map_page_table(u64 start, u64 end, void *arg)
 
 	for (address = start_page; address < end_page; address += PAGE_SIZE) {
 		pgd = pgd_offset_k(address);
-		if (pgd_none(*pgd))
-			pgd_populate(&init_mm, pgd, memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node));
+		if (pgd_none(*pgd)) {
+			pud = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
+			if (!pud)
+				goto err_alloc;
+			pgd_populate(&init_mm, pgd, pud);
+		}
 		pud = pud_offset(pgd, address);
 
-		if (pud_none(*pud))
-			pud_populate(&init_mm, pud, memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node));
+		if (pud_none(*pud)) {
+			pmd = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
+			if (!pmd)
+				goto err_alloc;
+			pud_populate(&init_mm, pud, pmd);
+		}
 		pmd = pmd_offset(pud, address);
 
-		if (pmd_none(*pmd))
-			pmd_populate_kernel(&init_mm, pmd, memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node));
+		if (pmd_none(*pmd)) {
+			pte = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
+			if (!pte)
+				goto err_alloc;
+			pmd_populate_kernel(&init_mm, pmd, pte);
+		}
 		pte = pte_offset_kernel(pmd, address);
 
-		if (pte_none(*pte))
-			set_pte(pte, pfn_pte(__pa(memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node)) >> PAGE_SHIFT,
+		if (pte_none(*pte)) {
+			void *page = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE,
+							 node);
+			if (!page)
+				goto err_alloc;
+			set_pte(pte, pfn_pte(__pa(page) >> PAGE_SHIFT,
 					     PAGE_KERNEL));
+		}
 	}
 	return 0;
+
+err_alloc:
+	panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d\n",
+	      __func__, PAGE_SIZE, PAGE_SIZE, node);
+	return -ENOMEM;
 }
 
 struct memmap_init_callback_data {

@@ -45,6 +45,7 @@
 #define VMCI_CAPS_GUESTCALL     0x2
 #define VMCI_CAPS_DATAGRAM      0x4
 #define VMCI_CAPS_NOTIFICATIONS 0x8
+#define VMCI_CAPS_PPN64         0x10
 
 /* Interrupt Cause register bits. */
 #define VMCI_ICR_DATAGRAM      0x1
@@ -569,8 +570,10 @@ struct vmci_resource_query_msg {
  */
 struct vmci_notify_bm_set_msg {
 	struct vmci_datagram hdr;
-	u32 bitmap_ppn;
-	u32 _pad;
+	union {
+		u32 bitmap_ppn32;
+		u64 bitmap_ppn64;
+	};
 };
 
 /*

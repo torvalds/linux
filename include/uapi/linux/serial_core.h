@@ -79,6 +79,9 @@
 /* Nuvoton UART */
 #define PORT_NPCM	40
 
+/* NVIDIA Tegra Combined UART */
+#define PORT_TEGRA_TCU	41
+
 /* Intel EG20 */
 #define PORT_PCH_8LINE	44
 #define PORT_PCH_2LINE	45

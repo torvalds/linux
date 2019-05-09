@@ -48,6 +48,7 @@ int nfp_shared_buf_pool_get(struct nfp_pf *pf, unsigned int sb, u16 pool_index,
 	pool_info->pool_type = le32_to_cpu(get_data.pool_type);
 	pool_info->threshold_type = le32_to_cpu(get_data.threshold_type);
 	pool_info->size = le32_to_cpu(get_data.size) * unit_size;
+	pool_info->cell_size = unit_size;
 
 	return 0;
 }

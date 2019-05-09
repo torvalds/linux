@@ -28,11 +28,6 @@
 #include <drm/drmP.h>
 #include "virtgpu_drv.h"
 
-static int virtio_gpu_fbdev = 1;
-
-MODULE_PARM_DESC(fbdev, "Disable/Enable framebuffer device & console");
-module_param_named(fbdev, virtio_gpu_fbdev, int, 0400);
-
 static void virtio_gpu_config_changed_work_func(struct work_struct *work)
 {
 	struct virtio_gpu_device *vgdev =
@@ -111,7 +106,7 @@ static void virtio_gpu_get_capsets(struct virtio_gpu_device *vgdev,
 	vgdev->num_capsets = num_capsets;
 }
 
-int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
+int virtio_gpu_init(struct drm_device *dev)
 {
 	static vq_callback_t *callbacks[] = {
 		virtio_gpu_ctrl_ack, virtio_gpu_cursor_ack
@@ -198,9 +193,7 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 		     num_capsets, &num_capsets);
 	DRM_INFO("number of cap sets: %d\n", num_capsets);
 
-	ret = virtio_gpu_modeset_init(vgdev);
-	if (ret)
-		goto err_modeset;
+	virtio_gpu_modeset_init(vgdev);
 
 	virtio_device_ready(vgdev->vdev);
 	vgdev->vqs_ready = true;
@@ -212,12 +205,8 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	virtio_gpu_cmd_get_display_info(vgdev);
 	wait_event_timeout(vgdev->resp_wq, !vgdev->display_info_pending,
 			   5 * HZ);
-	if (virtio_gpu_fbdev)
-		virtio_gpu_fbdev_init(vgdev);
-
 	return 0;
 
-err_modeset:
 err_scanouts:
 	virtio_gpu_ttm_fini(vgdev);
 err_ttm:
@@ -239,7 +228,7 @@ static void virtio_gpu_cleanup_cap_cache(struct virtio_gpu_device *vgdev)
 	}
 }
 
-void virtio_gpu_driver_unload(struct drm_device *dev)
+void virtio_gpu_deinit(struct drm_device *dev)
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 
@@ -247,6 +236,7 @@ void virtio_gpu_driver_unload(struct drm_device *dev)
 	flush_work(&vgdev->ctrlq.dequeue_work);
 	flush_work(&vgdev->cursorq.dequeue_work);
 	flush_work(&vgdev->config_changed_work);
+	vgdev->vdev->config->reset(vgdev->vdev);
 	vgdev->vdev->config->del_vqs(vgdev->vdev);
 
 	virtio_gpu_modeset_fini(vgdev);

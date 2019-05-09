@@ -740,8 +740,7 @@
 		};
 
 		csi: camera@1cb0000 {
-			compatible = "allwinner,sun8i-h3-csi",
-				     "allwinner,sun6i-a31-csi";
+			compatible = "allwinner,sun8i-h3-csi";
 			reg = <0x01cb0000 0x1000>;
 			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_CSI>,

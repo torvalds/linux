@@ -103,10 +103,13 @@ gv100_disp_exception(struct nv50_disp *disp, int chid)
 	u32 mthd = (stat & 0x00000fff) << 2;
 	u32 data = nvkm_rd32(device, 0x611024 + (chid * 12));
 	u32 code = nvkm_rd32(device, 0x611028 + (chid * 12));
+	const struct nvkm_enum *reason =
+		nvkm_enum_find(nv50_disp_intr_error_type, type);
 
-	nvkm_error(subdev, "chid %d %08x [type %d mthd %04x] "
+	nvkm_error(subdev, "chid %d stat %08x reason %d [%s] mthd %04x "
 			   "data %08x code %08x\n",
-		   chid, stat, type, mthd, data, code);
+		   chid, stat, type, reason ? reason->name : "",
+		   mthd, data, code);
 
 	if (chid < ARRAY_SIZE(disp->chan) && disp->chan[chid]) {
 		switch (mthd) {

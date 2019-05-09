@@ -180,8 +180,8 @@ static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 		u32 tmp[DES_EXPKEY_WORDS];
 
 		ret = des_ekey(tmp, key);
-		if (!ret && crypto_ablkcipher_get_flags(ablk) &
-		    CRYPTO_TFM_REQ_WEAK_KEY)
+		if (!ret && (crypto_ablkcipher_get_flags(ablk) &
+			     CRYPTO_TFM_REQ_FORBID_WEAK_KEYS))
 			goto weakkey;
 	}
 

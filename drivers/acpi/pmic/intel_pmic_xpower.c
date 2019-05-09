@@ -265,6 +265,7 @@ static struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
 	.power_table_count = ARRAY_SIZE(power_table),
 	.thermal_table = thermal_table,
 	.thermal_table_count = ARRAY_SIZE(thermal_table),
+	.pmic_i2c_address = 0x34,
 };
 
 static acpi_status intel_xpower_pmic_gpio_handler(u32 function,

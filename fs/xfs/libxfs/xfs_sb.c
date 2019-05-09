@@ -225,10 +225,11 @@ xfs_validate_sb_common(
 	struct xfs_buf		*bp,
 	struct xfs_sb		*sbp)
 {
+	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
 	uint32_t		agcount = 0;
 	uint32_t		rem;
 
-	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
+	if (!xfs_verify_magic(bp, dsb->sb_magicnum)) {
 		xfs_warn(mp, "bad magic number");
 		return -EWRONGFS;
 	}
@@ -781,12 +782,14 @@ out_error:
 
 const struct xfs_buf_ops xfs_sb_buf_ops = {
 	.name = "xfs_sb",
+	.magic = { cpu_to_be32(XFS_SB_MAGIC), cpu_to_be32(XFS_SB_MAGIC) },
 	.verify_read = xfs_sb_read_verify,
 	.verify_write = xfs_sb_write_verify,
 };
 
 const struct xfs_buf_ops xfs_sb_quiet_buf_ops = {
 	.name = "xfs_sb_quiet",
+	.magic = { cpu_to_be32(XFS_SB_MAGIC), cpu_to_be32(XFS_SB_MAGIC) },
 	.verify_read = xfs_sb_quiet_read_verify,
 	.verify_write = xfs_sb_write_verify,
 };
@@ -874,7 +877,7 @@ xfs_initialize_perag_data(
 	uint64_t	bfreelst = 0;
 	uint64_t	btree = 0;
 	uint64_t	fdblocks;
-	int		error;
+	int		error = 0;
 
 	for (index = 0; index < agcount; index++) {
 		/*

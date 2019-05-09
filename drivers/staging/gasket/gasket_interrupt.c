@@ -9,7 +9,6 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/printk.h>
-#include <linux/version.h>
 #ifdef GASKET_KERNEL_TRACE_SUPPORT
 #define CREATE_TRACE_POINTS
 #include <trace/events/gasket_interrupt.h>

@@ -201,10 +201,36 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 	return 1;
 }
 
-DEFINE_STATIC_KEY_FALSE(sched_energy_present);
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
+DEFINE_STATIC_KEY_FALSE(sched_energy_present);
+unsigned int sysctl_sched_energy_aware = 1;
 DEFINE_MUTEX(sched_energy_mutex);
 bool sched_energy_update;
+
+#ifdef CONFIG_PROC_SYSCTL
+int sched_energy_aware_handler(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret, state;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (!ret && write) {
+		state = static_branch_unlikely(&sched_energy_present);
+		if (state != sysctl_sched_energy_aware) {
+			mutex_lock(&sched_energy_mutex);
+			sched_energy_update = 1;
+			rebuild_sched_domains();
+			sched_energy_update = 0;
+			mutex_unlock(&sched_energy_mutex);
+		}
+	}
+
+	return ret;
+}
+#endif
 
 static void free_pd(struct perf_domain *pd)
 {
@@ -321,6 +347,9 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 	struct root_domain *rd = cpu_rq(cpu)->rd;
 	struct cpufreq_policy *policy;
 	struct cpufreq_governor *gov;
+
+	if (!sysctl_sched_energy_aware)
+		goto free;
 
 	/* EAS is enabled for asymmetric CPU capacity topologies. */
 	if (!per_cpu(sd_asym_cpucapacity, cpu)) {
@@ -442,7 +471,7 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
 
 	if (old_rd)
-		call_rcu_sched(&old_rd->rcu, free_rootdomain);
+		call_rcu(&old_rd->rcu, free_rootdomain);
 }
 
 void sched_get_rd(struct root_domain *rd)
@@ -455,7 +484,7 @@ void sched_put_rd(struct root_domain *rd)
 	if (!atomic_dec_and_test(&rd->refcount))
 		return;
 
-	call_rcu_sched(&rd->rcu, free_rootdomain);
+	call_rcu(&rd->rcu, free_rootdomain);
 }
 
 static int init_rootdomain(struct root_domain *rd)
@@ -676,7 +705,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 }
 
 struct s_data {
-	struct sched_domain ** __percpu sd;
+	struct sched_domain * __percpu *sd;
 	struct root_domain	*rd;
 };
 

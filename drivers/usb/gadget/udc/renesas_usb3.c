@@ -2630,6 +2630,10 @@ MODULE_DEVICE_TABLE(of, usb3_of_match);
 
 static const struct soc_device_attribute renesas_usb3_quirks_match[] = {
 	{
+		.soc_id = "r8a774c0",
+		.data = &renesas_usb3_priv_r8a77990,
+	},
+	{
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = &renesas_usb3_priv_r8a7795_es1,
 	},

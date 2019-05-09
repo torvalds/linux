@@ -26,8 +26,7 @@
 #include <linux/wait.h>
 #include "tpm.h"
 
-/* max. buffer size supported by our TPM */
-#define TPM_BUFSIZE 1260
+#define TPM_I2C_INFINEON_BUFSIZE 1260
 
 /* max. number of iterations after I2C NAK */
 #define MAX_COUNT 3
@@ -63,11 +62,13 @@ enum i2c_chip_type {
 	UNKNOWN,
 };
 
-/* Structure to store I2C TPM specific stuff */
 struct tpm_inf_dev {
 	struct i2c_client *client;
 	int locality;
-	u8 buf[TPM_BUFSIZE + sizeof(u8)]; /* max. buffer size + addr */
+	/* In addition to the data itself, the buffer must fit the 7-bit I2C
+	 * address and the direction bit.
+	 */
+	u8 buf[TPM_I2C_INFINEON_BUFSIZE + 1];
 	struct tpm_chip *chip;
 	enum i2c_chip_type chip_type;
 	unsigned int adapterlimit;
@@ -219,7 +220,7 @@ static int iic_tpm_write_generic(u8 addr, u8 *buffer, size_t len,
 		.buf = tpm_dev.buf
 	};
 
-	if (len > TPM_BUFSIZE)
+	if (len > TPM_I2C_INFINEON_BUFSIZE)
 		return -EINVAL;
 
 	if (!tpm_dev.client->adapter->algo->master_xfer)
@@ -527,8 +528,8 @@ static int tpm_tis_i2c_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	u8 retries = 0;
 	u8 sts = TPM_STS_GO;
 
-	if (len > TPM_BUFSIZE)
-		return -E2BIG;	/* command is too long for our tpm, sorry */
+	if (len > TPM_I2C_INFINEON_BUFSIZE)
+		return -E2BIG;
 
 	if (request_locality(chip, 0) < 0)
 		return -EBUSY;
@@ -587,7 +588,7 @@ static int tpm_tis_i2c_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	/* go and do it */
 	iic_tpm_write(TPM_STS(tpm_dev.locality), &sts, 1);
 
-	return len;
+	return 0;
 out_err:
 	tpm_tis_i2c_ready(chip);
 	/* The TPM needs some time to clean up here,

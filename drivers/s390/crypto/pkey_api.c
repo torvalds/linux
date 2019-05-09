@@ -51,7 +51,8 @@ static debug_info_t *debug_info;
 
 static void __init pkey_debug_init(void)
 {
-	debug_info = debug_register("pkey", 1, 1, 4 * sizeof(long));
+	/* 5 arguments per dbf entry (including the format string ptr) */
+	debug_info = debug_register("pkey", 1, 1, 5 * sizeof(long));
 	debug_register_view(debug_info, &debug_sprintf_view);
 	debug_set_level(debug_info, 3);
 }
@@ -1079,7 +1080,7 @@ int pkey_verifykey(const struct pkey_seckey *seckey,
 	rc = mkvp_cache_fetch(cardnr, domain, mkvp);
 	if (rc)
 		goto out;
-	if (t->mkvp == mkvp[1]) {
+	if (t->mkvp == mkvp[1] && t->mkvp != mkvp[0]) {
 		DEBUG_DBG("%s secure key has old mkvp\n", __func__);
 		if (pattributes)
 			*pattributes |= PKEY_VERIFY_ATTR_OLD_MKVP;

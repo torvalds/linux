@@ -119,7 +119,7 @@ int ishtp_send_msg(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
  * Return: This returns IPC send message status.
  */
 int ishtp_write_message(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
-			unsigned char *buf)
+			void *buf)
 {
 	return ishtp_send_msg(dev, hdr, buf, NULL, NULL);
 }
@@ -133,18 +133,15 @@ int ishtp_write_message(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
  *
  * Return: fw client index or -ENOENT if not found
  */
-int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const uuid_le *uuid)
+int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *uuid)
 {
-	int i, res = -ENOENT;
+	unsigned int i;
 
 	for (i = 0; i < dev->fw_clients_num; ++i) {
-		if (uuid_le_cmp(*uuid, dev->fw_clients[i].props.protocol_name)
-				== 0) {
-			res = i;
-			break;
-		}
+		if (guid_equal(uuid, &dev->fw_clients[i].props.protocol_name))
+			return i;
 	}
-	return res;
+	return -ENOENT;
 }
 EXPORT_SYMBOL(ishtp_fw_cl_by_uuid);
 
@@ -158,7 +155,7 @@ EXPORT_SYMBOL(ishtp_fw_cl_by_uuid);
  * Return: pointer of client information on success, NULL on failure.
  */
 struct ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
-						const uuid_le *uuid)
+					       const guid_t *uuid)
 {
 	int i;
 	unsigned long flags;
@@ -401,7 +398,7 @@ static const struct device_type ishtp_cl_device_type = {
  * Return: ishtp_cl_device pointer or NULL on failure
  */
 static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
-						    uuid_le uuid, char *name)
+						    guid_t uuid, char *name)
 {
 	struct ishtp_cl_device *device;
 	int status;
@@ -629,7 +626,7 @@ int ishtp_bus_new_client(struct ishtp_device *dev)
 	int	i;
 	char	*dev_name;
 	struct ishtp_cl_device	*cl_device;
-	uuid_le	device_uuid;
+	guid_t	device_uuid;
 
 	/*
 	 * For all reported clients, create an unconnected client and add its
@@ -639,7 +636,7 @@ int ishtp_bus_new_client(struct ishtp_device *dev)
 	 */
 	i = dev->fw_client_presentation_num - 1;
 	device_uuid = dev->fw_clients[i].props.protocol_name;
-	dev_name = kasprintf(GFP_KERNEL, "{%pUL}", device_uuid.b);
+	dev_name = kasprintf(GFP_KERNEL, "{%pUL}", &device_uuid);
 	if (!dev_name)
 		return	-ENOMEM;
 
@@ -675,7 +672,8 @@ int ishtp_cl_device_bind(struct ishtp_cl *cl)
 	spin_lock_irqsave(&cl->dev->device_list_lock, flags);
 	list_for_each_entry(cl_device, &cl->dev->device_list,
 			device_link) {
-		if (cl_device->fw_client->client_id == cl->fw_client_id) {
+		if (cl_device->fw_client &&
+		    cl_device->fw_client->client_id == cl->fw_client_id) {
 			cl->device = cl_device;
 			rv = 0;
 			break;
@@ -735,6 +733,7 @@ void ishtp_bus_remove_all_clients(struct ishtp_device *ishtp_dev,
 	spin_lock_irqsave(&ishtp_dev->device_list_lock, flags);
 	list_for_each_entry_safe(cl_device, n, &ishtp_dev->device_list,
 				 device_link) {
+		cl_device->fw_client = NULL;
 		if (warm_reset && cl_device->reference_count)
 			continue;
 

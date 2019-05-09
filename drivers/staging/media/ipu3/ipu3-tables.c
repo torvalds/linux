@@ -5,8 +5,8 @@
 
 #define X					0	/*  Don't care value */
 
-const struct ipu3_css_bds_config
-			ipu3_css_bds_configs[IMGU_BDS_CONFIG_LEN] = { {
+const struct imgu_css_bds_config
+			imgu_css_bds_configs[IMGU_BDS_CONFIG_LEN] = { {
 	/* Scale factor 32 / (32 + 0) = 1 */
 	.hor_phase_arr = {
 		.even = { { 0, 0, 64, 6, 0, 0, 0 } },
@@ -9015,7 +9015,7 @@ const struct ipu3_css_bds_config
 	.ver_ds_en = 1
 } };
 
-const s32 ipu3_css_downscale_4taps[IMGU_SCALER_DOWNSCALE_4TAPS_LEN] = {
+const s32 imgu_css_downscale_4taps[IMGU_SCALER_DOWNSCALE_4TAPS_LEN] = {
 	IMGU_SCALER_FP * -0.000000000000000,
 	IMGU_SCALER_FP * -0.000249009327023,
 	IMGU_SCALER_FP * -0.001022241683322,
@@ -9146,7 +9146,7 @@ const s32 ipu3_css_downscale_4taps[IMGU_SCALER_DOWNSCALE_4TAPS_LEN] = {
 	IMGU_SCALER_FP * -0.000249009327023
 };
 
-const s32 ipu3_css_downscale_2taps[IMGU_SCALER_DOWNSCALE_2TAPS_LEN] = {
+const s32 imgu_css_downscale_2taps[IMGU_SCALER_DOWNSCALE_2TAPS_LEN] = {
 	IMGU_SCALER_FP * 0.074300676367033,
 	IMGU_SCALER_FP * 0.094030234498392,
 	IMGU_SCALER_FP * 0.115522859526596,
@@ -9214,7 +9214,7 @@ const s32 ipu3_css_downscale_2taps[IMGU_SCALER_DOWNSCALE_2TAPS_LEN] = {
 };
 
 /* settings for Geometric Distortion Correction */
-const s16 ipu3_css_gdc_lut[4][256] = { {
+const s16 imgu_css_gdc_lut[4][256] = { {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -2, -2, -2,
 	-2, -3, -3, -3, -4, -4, -4, -5, -5, -5, -6, -6, -7, -7, -7, -8, -8,
 	-9, -9, -10, -10, -11, -11, -12, -12, -13, -13, -14, -14, -15, -15,
@@ -9292,7 +9292,7 @@ const s16 ipu3_css_gdc_lut[4][256] = { {
 	-1, 0, 1, 0, 0, 0, 0, 0, 0, 0
 } };
 
-const struct ipu3_css_xnr3_vmem_defaults ipu3_css_xnr3_vmem_defaults = {
+const struct imgu_css_xnr3_vmem_defaults imgu_css_xnr3_vmem_defaults = {
 	.x = {
 		1024, 1164, 1320, 1492, 1680, 1884, 2108, 2352,
 		2616, 2900, 3208, 3540, 3896, 4276, 4684, 5120
@@ -9311,7 +9311,7 @@ const struct ipu3_css_xnr3_vmem_defaults ipu3_css_xnr3_vmem_defaults = {
 };
 
 /* settings for Bayer Noise Reduction */
-const struct ipu3_uapi_bnr_static_config ipu3_css_bnr_defaults = {
+const struct ipu3_uapi_bnr_static_config imgu_css_bnr_defaults = {
 	{ 16, 16, 16, 16 },			/* wb_gains */
 	{ 16, 16, 16, 16 },			/* wb_gains_thr */
 	{ 0, X, 8, 6, X, 14 },			/* thr_coeffs */
@@ -9327,18 +9327,18 @@ const struct ipu3_uapi_bnr_static_config ipu3_css_bnr_defaults = {
 	{ 8, 4, 4, X, 8, X, 1, 1, 1, 1 },	/* dn_detect_ctrl */
 };
 
-const struct ipu3_uapi_dm_config ipu3_css_dm_defaults = {
+const struct ipu3_uapi_dm_config imgu_css_dm_defaults = {
 	1, 1, 1, X, X, 8, X, 7, X, 8, X, 8, X, 4, X
 };
 
-const struct ipu3_uapi_ccm_mat_config ipu3_css_ccm_defaults = {
+const struct ipu3_uapi_ccm_mat_config imgu_css_ccm_defaults = {
 	 9775, -2671,  1087, 0,
 	-1071,  8303,   815, 0,
 	  -23, -7887, 16103, 0
 };
 
 /* settings for Gamma correction */
-const struct ipu3_uapi_gamma_corr_lut ipu3_css_gamma_lut = { {
+const struct ipu3_uapi_gamma_corr_lut imgu_css_gamma_lut = { {
 	63, 79, 95, 111, 127, 143, 159, 175, 191, 207, 223, 239, 255, 271, 287,
 	303, 319, 335, 351, 367, 383, 399, 415, 431, 447, 463, 479, 495, 511,
 	527, 543, 559, 575, 591, 607, 623, 639, 655, 671, 687, 703, 719, 735,
@@ -9362,13 +9362,13 @@ const struct ipu3_uapi_gamma_corr_lut ipu3_css_gamma_lut = { {
 	7807, 7871, 7935, 7999, 8063, 8127, 8191
 } };
 
-const struct ipu3_uapi_csc_mat_config ipu3_css_csc_defaults = {
+const struct ipu3_uapi_csc_mat_config imgu_css_csc_defaults = {
 	 4898,  9617,  1867, 0,
 	-2410, -4732,  7143, 0,
 	10076, -8437, -1638, 0
 };
 
-const struct ipu3_uapi_cds_params ipu3_css_cds_defaults = {
+const struct ipu3_uapi_cds_params imgu_css_cds_defaults = {
 	1, 3, 3, 1,
 	1, 3, 3, 1,
 	4, X,					/* ds_nf */
@@ -9376,7 +9376,7 @@ const struct ipu3_uapi_cds_params ipu3_css_cds_defaults = {
 	0, X					/* uv_bin_output */
 };
 
-const struct ipu3_uapi_shd_config_static ipu3_css_shd_defaults = {
+const struct ipu3_uapi_shd_config_static imgu_css_shd_defaults = {
 	.grid = {
 		.width = 73,
 		.height = 55,
@@ -9397,7 +9397,7 @@ const struct ipu3_uapi_shd_config_static ipu3_css_shd_defaults = {
 	},
 };
 
-const struct ipu3_uapi_yuvp1_iefd_config ipu3_css_iefd_defaults = {
+const struct ipu3_uapi_yuvp1_iefd_config imgu_css_iefd_defaults = {
 	.units = {
 		.cu_1 = { 0, 150, 7, 0 },
 		.cu_ed = { 7, 110, 244, X, 307, 409, 511, X,
@@ -9436,17 +9436,17 @@ const struct ipu3_uapi_yuvp1_iefd_config ipu3_css_iefd_defaults = {
 		    { 1, X, 2, X,  8, X } },
 };
 
-const struct ipu3_uapi_yuvp1_yds_config ipu3_css_yds_defaults = {
+const struct ipu3_uapi_yuvp1_yds_config imgu_css_yds_defaults = {
 	0, 1, 1, 0, 0, 1, 1, 0, 2, X, 0, X
 };
 
-const struct ipu3_uapi_yuvp1_chnr_config ipu3_css_chnr_defaults = {
+const struct ipu3_uapi_yuvp1_chnr_config imgu_css_chnr_defaults = {
 	.coring = { 0, X, 0, X },
 	.sense_gain = { 6, 6, 6, X, 4, 4, 4, X },
 	.iir_fir = { 8, X, 12, X, 0, 256 - 127, X },
 };
 
-const struct ipu3_uapi_yuvp1_y_ee_nr_config ipu3_css_y_ee_nr_defaults = {
+const struct ipu3_uapi_yuvp1_y_ee_nr_config imgu_css_y_ee_nr_defaults = {
 	.lpf = { 4, X, 8, X, 16, X,  0 },
 	.sense = { 8191, X, 0, X, 8191, X, 0, X },
 	.gain = { 8, X, 0, X, 8, X, 0, X },
@@ -9457,7 +9457,7 @@ const struct ipu3_uapi_yuvp1_y_ee_nr_config ipu3_css_y_ee_nr_defaults = {
 };
 
 const struct ipu3_uapi_yuvp2_tcc_gain_pcwl_lut_static_config
-					ipu3_css_tcc_gain_pcwl_lut = { {
+					imgu_css_tcc_gain_pcwl_lut = { {
 	1024, 1032, 1040, 1048, 1057, 1065, 1073, 1081, 1089, 1097, 1105, 1113,
 	1122, 1130, 1138, 1146, 1154, 1162, 1170, 1178, 1187, 1195, 1203, 1211,
 	1219, 1227, 1235, 1243, 1252, 1260, 1268, 1276, 1284, 1292, 1300, 1308,
@@ -9483,12 +9483,12 @@ const struct ipu3_uapi_yuvp2_tcc_gain_pcwl_lut_static_config
 } };
 
 const struct ipu3_uapi_yuvp2_tcc_r_sqr_lut_static_config
-					ipu3_css_tcc_r_sqr_lut = { {
+					imgu_css_tcc_r_sqr_lut = { {
 	32, 44, 64, 92, 128, 180, 256, 364, 512, 628, 724, 808, 888,
 	956, 1024, 1088, 1144, 1200, 1256, 1304, 1356, 1404, 1448
 } };
 
-const struct imgu_abi_anr_config ipu3_css_anr_defaults = {
+const struct imgu_abi_anr_config imgu_css_anr_defaults = {
 	.transform = {
 		.adaptive_treshhold_en = 1,
 		.alpha = { { 13, 13, 13, 13, 0, 0, 0, 0},
@@ -9545,7 +9545,7 @@ const struct imgu_abi_anr_config ipu3_css_anr_defaults = {
 };
 
 /* frame settings for Auto White Balance */
-const struct ipu3_uapi_awb_fr_config_s ipu3_css_awb_fr_defaults = {
+const struct ipu3_uapi_awb_fr_config_s imgu_css_awb_fr_defaults = {
 	.grid_cfg = {
 		.width = 16,
 		.height = 16,
@@ -9560,7 +9560,7 @@ const struct ipu3_uapi_awb_fr_config_s ipu3_css_awb_fr_defaults = {
 };
 
 /* settings for Auto Exposure */
-const struct ipu3_uapi_ae_grid_config ipu3_css_ae_grid_defaults = {
+const struct ipu3_uapi_ae_grid_config imgu_css_ae_grid_defaults = {
 	.width = 16,
 	.height = 16,
 	.block_width_log2 = 3,
@@ -9571,13 +9571,13 @@ const struct ipu3_uapi_ae_grid_config ipu3_css_ae_grid_defaults = {
 };
 
 /* settings for Auto Exposure color correction matrix */
-const struct ipu3_uapi_ae_ccm ipu3_css_ae_ccm_defaults = {
+const struct ipu3_uapi_ae_ccm imgu_css_ae_ccm_defaults = {
 	256, 256, 256, 256,		/* gain_gr/r/b/gb */
 	.mat = { 128, 0, 0, 0, 0, 128, 0, 0, 0, 0, 128, 0, 0, 0, 0, 128 },
 };
 
 /* settings for Auto Focus */
-const struct ipu3_uapi_af_config_s ipu3_css_af_defaults = {
+const struct ipu3_uapi_af_config_s imgu_css_af_defaults = {
 	.filter_config = {
 		{ 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 128 }, 0,
 		{ 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 128 }, 0,
@@ -9595,7 +9595,7 @@ const struct ipu3_uapi_af_config_s ipu3_css_af_defaults = {
 };
 
 /* settings for Auto White Balance */
-const struct ipu3_uapi_awb_config_s ipu3_css_awb_defaults = {
+const struct ipu3_uapi_awb_config_s imgu_css_awb_defaults = {
 	8191, 8191, 8191, 8191 |	/* rgbs_thr_gr/r/gb/b */
 	IPU3_UAPI_AWB_RGBS_THR_B_EN | IPU3_UAPI_AWB_RGBS_THR_B_INCL_SAT,
 	.grid = {

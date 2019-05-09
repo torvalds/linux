@@ -466,8 +466,8 @@ void intel_pasid_tear_down_entry(struct intel_iommu *iommu,
 	if (WARN_ON(!pte))
 		return;
 
-	intel_pasid_clear_entry(dev, pasid);
 	did = pasid_get_domain_id(pte);
+	intel_pasid_clear_entry(dev, pasid);
 
 	if (!ecap_coherent(iommu->ecap))
 		clflush_cache_range(pte, sizeof(*pte));

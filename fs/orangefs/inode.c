@@ -261,11 +261,8 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 		generic_fillattr(inode, stat);
 
 		/* override block size reported to stat */
-		if (request_mask & STATX_SIZE)
-			stat->result_mask = STATX_BASIC_STATS;
-		else
-			stat->result_mask = STATX_BASIC_STATS &
-			    ~STATX_SIZE;
+		if (!(request_mask & STATX_SIZE))
+			stat->result_mask &= ~STATX_SIZE;
 
 		stat->attributes_mask = STATX_ATTR_IMMUTABLE |
 		    STATX_ATTR_APPEND;

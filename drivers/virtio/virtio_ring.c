@@ -271,6 +271,17 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
 	return false;
 }
 
+size_t virtio_max_dma_size(struct virtio_device *vdev)
+{
+	size_t max_segment_size = SIZE_MAX;
+
+	if (vring_use_dma_api(vdev))
+		max_segment_size = dma_max_mapping_size(&vdev->dev);
+
+	return max_segment_size;
+}
+EXPORT_SYMBOL_GPL(virtio_max_dma_size);
+
 static void *vring_alloc_queue(struct virtio_device *vdev, size_t size,
 			      dma_addr_t *dma_handle, gfp_t flag)
 {
@@ -871,6 +882,8 @@ static struct virtqueue *vring_create_virtqueue_split(
 					  GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
 		if (queue)
 			break;
+		if (!may_reduce_num)
+			return NULL;
 	}
 
 	if (!num)

@@ -1512,7 +1512,7 @@ cleanup_critical:
 	.quad   .Lsie_skip - .Lsie_entry
 #endif
 	.section .rodata, "a"
-#define SYSCALL(esame,emu)	.long esame
+#define SYSCALL(esame,emu)	.long __s390x_ ## esame
 	.globl	sys_call_table
 sys_call_table:
 #include "asm/syscall_table.h"
@@ -1520,7 +1520,7 @@ sys_call_table:
 
 #ifdef CONFIG_COMPAT
 
-#define SYSCALL(esame,emu)	.long emu
+#define SYSCALL(esame,emu)	.long __s390_ ## emu
 	.globl	sys_call_table_emu
 sys_call_table_emu:
 #include "asm/syscall_table.h"

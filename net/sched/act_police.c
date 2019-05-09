@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
+#include <net/pkt_cls.h>
 
 struct tcf_police_params {
 	int			tcfp_result;
@@ -83,10 +84,12 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       struct nlattr *est, struct tc_action **a,
 			       int ovr, int bind, bool rtnl_held,
+			       struct tcf_proto *tp,
 			       struct netlink_ext_ack *extack)
 {
 	int ret = 0, tcfp_result = TC_ACT_OK, err, size;
 	struct nlattr *tb[TCA_POLICE_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
@@ -128,6 +131,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	police = to_police(*a);
 	if (parm->rate.rate) {
@@ -213,12 +219,14 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	if (new->peak_present)
 		police->tcfp_ptoks = new->tcfp_mtu_ptoks;
 	spin_unlock_bh(&police->tcfp_lock);
-	police->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(police->params,
 			   new,
 			   lockdep_is_held(&police->tcf_lock));
 	spin_unlock_bh(&police->tcf_lock);
 
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (new)
 		kfree_rcu(new, rcu);
 
@@ -229,6 +237,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
 	tcf_idr_release(*a, bind);
 	return err;
 }
@@ -366,7 +377,7 @@ MODULE_LICENSE("GPL");
 
 static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
-	.type		=	TCA_ID_POLICE,
+	.id		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_police_act,
 	.dump		=	tcf_police_dump,

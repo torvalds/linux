@@ -204,82 +204,82 @@
 
 		i2c_pins: i2c0 {
 			i2c0 {
-				group = "i2c";
+				groups = "i2c";
 				function = "i2c";
 			};
 		};
 
 		spi_pins: spi0 {
 			spi0 {
-				group = "spi";
+				groups = "spi";
 				function = "spi";
 			};
 		};
 
 		uart1_pins: uart1 {
 			uart1 {
-				group = "uart1";
+				groups = "uart1";
 				function = "uart1";
 			};
 		};
 
 		uart2_pins: uart2 {
 			uart2 {
-				group = "uart2";
+				groups = "uart2";
 				function = "uart2";
 			};
 		};
 
 		uart3_pins: uart3 {
 			uart3 {
-				group = "uart3";
+				groups = "uart3";
 				function = "uart3";
 			};
 		};
 
 		rgmii1_pins: rgmii1 {
 			rgmii1 {
-				group = "rgmii1";
+				groups = "rgmii1";
 				function = "rgmii1";
 			};
 		};
 
 		rgmii2_pins: rgmii2 {
 			rgmii2 {
-				group = "rgmii2";
+				groups = "rgmii2";
 				function = "rgmii2";
 			};
 		};
 
 		mdio_pins: mdio0 {
 			mdio0 {
-				group = "mdio";
+				groups = "mdio";
 				function = "mdio";
 			};
 		};
 
 		pcie_pins: pcie0 {
 			pcie0 {
-				group = "pcie";
+				groups = "pcie";
 				function = "pcie rst";
 			};
 		};
 
 		nand_pins: nand0 {
 			spi-nand {
-				group = "spi";
+				groups = "spi";
 				function = "nand1";
 			};
 
 			sdhci-nand {
-				group = "sdhci";
+				groups = "sdhci";
 				function = "nand2";
 			};
 		};
 
 		sdhci_pins: sdhci0 {
 			sdhci0 {
-				group = "sdhci";
+				groups = "sdhci";
 				function = "sdhci";
 			};
 		};
@@ -372,15 +372,82 @@
 
 		mediatek,ethsys = <&ethsys>;
 
-		mediatek,switch = <&gsw>;
 
+		gmac0: mac@0 {
+			compatible = "mediatek,eth-mac";
+			reg = <0>;
+			phy-mode = "rgmii";
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+				pause;
+			};
+		};
+		gmac1: mac@1 {
+			compatible = "mediatek,eth-mac";
+			reg = <1>;
+			status = "off";
+			phy-mode = "rgmii";
+			phy-handle = <&phy5>;
+		};
 		mdio-bus {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			phy1f: ethernet-phy@1f {
-				reg = <0x1f>;
+			phy5: ethernet-phy@5 {
+				reg = <5>;
 				phy-mode = "rgmii";
+			};
+
+			switch0: switch0@0 {
+				compatible = "mediatek,mt7621";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+				mediatek,mcm;
+				resets = <&rstctrl 2>;
+				reset-names = "mcm";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+					port@0 {
+						status = "off";
+						reg = <0>;
+						label = "lan0";
+					};
+					port@1 {
+						status = "off";
+						reg = <1>;
+						label = "lan1";
+					};
+					port@2 {
+						status = "off";
+						reg = <2>;
+						label = "lan2";
+					};
+					port@3 {
+						status = "off";
+						reg = <3>;
+						label = "lan3";
+					};
+					port@4 {
+						status = "off";
+						reg = <4>;
+						label = "lan4";
+					};
+					port@6 {
+						reg = <6>;
+						label = "cpu";
+						ethernet = <&gmac0>;
+						phy-mode = "trgmii";
+						fixed-link {
+							speed = <1000>;
+							full-duplex;
+						};
+					};
+				};
 			};
 		};
 	};
@@ -420,10 +487,12 @@
 
 		status = "disabled";
 
-		resets = <&rstctrl 24 &rstctrl 25 &rstctrl 26>;
-		reset-names = "pcie0", "pcie1", "pcie2";
+		resets = <&rstctrl 23 &rstctrl 24 &rstctrl 25 &rstctrl 26>;
+		reset-names = "pcie", "pcie0", "pcie1", "pcie2";
 		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
 		clock-names = "pcie0", "pcie1", "pcie2";
+		phys = <&pcie0_port>, <&pcie1_port>, <&pcie2_port>;
+		phy-names = "pcie-phy0", "pcie-phy1", "pcie-phy2";
 
 		pcie@0,0 {
 			reg = <0x0000 0 0 0 0>;
@@ -447,6 +516,35 @@
 			#size-cells = <2>;
 			ranges;
 			bus-range = <0x00 0xff>;
+		};
+	};
+
+	pcie0_phy: pcie-phy@1e149000 {
+		compatible = "mediatek,mt7621-pci-phy";
+		reg = <0x1e149000 0x0700>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pcie0_port: pcie-phy@0 {
+			reg = <0>;
+			#phy-cells = <0>;
+		};
+
+		pcie1_port: pcie-phy@1 {
+			reg = <1>;
+			#phy-cells = <0>;
+		};
+	};
+
+	pcie1_phy: pcie-phy@1e14a000 {
+		compatible = "mediatek,mt7621-pci-phy";
+		reg = <0x1e14a000 0x0700>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pcie2_port: pcie-phy@0 {
+			reg = <0>;
+			#phy-cells = <0>;
 		};
 	};
 };

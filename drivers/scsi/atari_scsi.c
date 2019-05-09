@@ -757,15 +757,17 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 
 	if (setup_hostid >= 0) {
 		atari_scsi_template.this_id = setup_hostid & 7;
-	} else {
+	} else if (IS_REACHABLE(CONFIG_NVRAM)) {
 		/* Test if a host id is set in the NVRam */
-		if (ATARIHW_PRESENT(TT_CLK) && nvram_check_checksum()) {
-			unsigned char b = nvram_read_byte(16);
+		if (ATARIHW_PRESENT(TT_CLK)) {
+			unsigned char b;
+			loff_t offset = 16;
+			ssize_t count = nvram_read(&b, 1, &offset);
 
 			/* Arbitration enabled? (for TOS)
 			 * If yes, use configured host ID
 			 */
-			if (b & 0x80)
+			if ((count == 1) && (b & 0x80))
 				atari_scsi_template.this_id = b & 7;
 		}
 	}

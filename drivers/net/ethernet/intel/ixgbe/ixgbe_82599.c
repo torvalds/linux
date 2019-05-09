@@ -1048,7 +1048,7 @@ mac_reset_top:
 	 * clear the multicast table.  Also reset num_rar_entries to 128,
 	 * since we modify this value when programming the SAN MAC address.
 	 */
-	hw->mac.num_rar_entries = 128;
+	hw->mac.num_rar_entries = IXGBE_82599_RAR_ENTRIES;
 	hw->mac.ops.init_rx_addrs(hw);
 
 	/* Store the permanent SAN mac address */

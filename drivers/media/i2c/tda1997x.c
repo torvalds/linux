@@ -1884,6 +1884,10 @@ static int tda1997x_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	for (i = 0; i < 128; i++)
 		io_write(sd, REG_EDID_IN_BYTE128 + i, edid->edid[i+128]);
 
+	/* store state */
+	memcpy(state->edid.edid, edid->edid, 256);
+	state->edid.blocks = edid->blocks;
+
 	tda1997x_enable_edid(sd);
 
 	return 0;

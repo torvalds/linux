@@ -1,15 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Kbuild for top-level directory of the kernel
-# This file takes care of the following:
-# 1) Generate bounds.h
-# 2) Generate timeconst.h
-# 3) Generate asm-offsets.h (may need bounds.h and timeconst.h)
-# 4) Check for missing system calls
-# 5) Generate constants.py (may need bounds.h)
 
 #####
-# 1) Generate bounds.h
+# Generate bounds.h
 
 bounds-file := include/generated/bounds.h
 
@@ -20,7 +14,7 @@ $(bounds-file): kernel/bounds.s FORCE
 	$(call filechk,offsets,__LINUX_BOUNDS_H__)
 
 #####
-# 2) Generate timeconst.h
+# Generate timeconst.h
 
 timeconst-file := include/generated/timeconst.h
 
@@ -32,8 +26,7 @@ $(timeconst-file): kernel/time/timeconst.bc FORCE
 	$(call filechk,gentimeconst)
 
 #####
-# 3) Generate asm-offsets.h
-#
+# Generate asm-offsets.h
 
 offsets-file := include/generated/asm-offsets.h
 
@@ -46,8 +39,7 @@ $(offsets-file): arch/$(SRCARCH)/kernel/asm-offsets.s FORCE
 	$(call filechk,offsets,__ASM_OFFSETS_H__)
 
 #####
-# 4) Check for missing system calls
-#
+# Check for missing system calls
 
 always += missing-syscalls
 targets += missing-syscalls
@@ -59,13 +51,16 @@ missing-syscalls: scripts/checksyscalls.sh $(offsets-file) FORCE
 	$(call cmd,syscalls)
 
 #####
-# 5) Generate constants for Python GDB integration
-#
+# Check atomic headers are up-to-date
 
-extra-$(CONFIG_GDB_SCRIPTS) += build_constants_py
+always += old-atomics
+targets += old-atomics
 
-build_constants_py: $(timeconst-file) $(bounds-file)
-	@$(MAKE) $(build)=scripts/gdb/linux $@
+quiet_cmd_atomics = CALL    $<
+      cmd_atomics = $(CONFIG_SHELL) $<
+
+old-atomics: scripts/atomic/check-atomics.sh FORCE
+	$(call cmd,atomics)
 
 # Keep these three files during make clean
 no-clean-files := $(bounds-file) $(offsets-file) $(timeconst-file)

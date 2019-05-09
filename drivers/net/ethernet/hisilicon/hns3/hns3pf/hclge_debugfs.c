@@ -691,7 +691,7 @@ static void hclge_dbg_dump_qos_buf_cfg(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "dump qos buf cfg\n");
 
 	tx_buf_cmd = (struct hclge_tx_buff_alloc_cmd *)desc[0].data;
-	for (i = 0; i < HCLGE_TC_NUM; i++)
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++)
 		dev_info(&hdev->pdev->dev, "tx_packet_buf_tc_%d: 0x%x\n", i,
 			 tx_buf_cmd->tx_pkt_buff[i]);
 
@@ -703,7 +703,7 @@ static void hclge_dbg_dump_qos_buf_cfg(struct hclge_dev *hdev)
 
 	dev_info(&hdev->pdev->dev, "\n");
 	rx_buf_cmd = (struct hclge_rx_priv_buff_cmd *)desc[0].data;
-	for (i = 0; i < HCLGE_TC_NUM; i++)
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++)
 		dev_info(&hdev->pdev->dev, "rx_packet_buf_tc_%d: 0x%x\n", i,
 			 rx_buf_cmd->buf_num[i]);
 

@@ -729,7 +729,7 @@ static int s5k6aa_new_config_sync(struct i2c_client *client, int timeout,
  * @s5k6aa: pointer to &struct s5k6aa describing the device
  * @preset: s5kaa preset to be applied
  *
- * Configure output resolution and color fromat, pixel clock
+ * Configure output resolution and color format, pixel clock
  * frequency range, device frame rate type and frame period range.
  */
 static int s5k6aa_set_prev_config(struct s5k6aa *s5k6aa,

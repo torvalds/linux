@@ -122,6 +122,7 @@ static noinline void switch_commit_roots(struct btrfs_transaction *trans)
 		if (is_fstree(root->root_key.objectid))
 			btrfs_unpin_free_ino(root);
 		clear_btree_io_tree(&root->dirty_log_pages);
+		btrfs_qgroup_clean_swapped_blocks(root);
 	}
 
 	/* We can free old roots now. */
@@ -845,8 +846,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	btrfs_trans_release_metadata(trans);
 	trans->block_rsv = NULL;
 
-	if (!list_empty(&trans->new_bgs))
-		btrfs_create_pending_block_groups(trans);
+	btrfs_create_pending_block_groups(trans);
 
 	btrfs_trans_release_chunk_metadata(trans);
 
@@ -1532,7 +1532,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	btrfs_set_lock_blocking(old);
+	btrfs_set_lock_blocking_write(old);
 
 	ret = btrfs_copy_root(trans, root, old, &tmp, objectid);
 	/* clean up in any case */
@@ -1886,8 +1886,10 @@ static void btrfs_cleanup_pending_block_groups(struct btrfs_trans_handle *trans)
        }
 }
 
-static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
+static inline int btrfs_start_delalloc_flush(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+
 	/*
 	 * We use writeback_inodes_sb here because if we used
 	 * btrfs_start_delalloc_roots we would deadlock with fs freeze.
@@ -1897,15 +1899,50 @@ static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 	 * from already being in a transaction and our join_transaction doesn't
 	 * have to re-take the fs freeze lock.
 	 */
-	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
+	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT)) {
 		writeback_inodes_sb(fs_info->sb, WB_REASON_SYNC);
+	} else {
+		struct btrfs_pending_snapshot *pending;
+		struct list_head *head = &trans->transaction->pending_snapshots;
+
+		/*
+		 * Flush dellaloc for any root that is going to be snapshotted.
+		 * This is done to avoid a corrupted version of files, in the
+		 * snapshots, that had both buffered and direct IO writes (even
+		 * if they were done sequentially) due to an unordered update of
+		 * the inode's size on disk.
+		 */
+		list_for_each_entry(pending, head, list) {
+			int ret;
+
+			ret = btrfs_start_delalloc_snapshot(pending->root);
+			if (ret)
+				return ret;
+		}
+	}
 	return 0;
 }
 
-static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
+static inline void btrfs_wait_delalloc_flush(struct btrfs_trans_handle *trans)
 {
-	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+
+	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT)) {
 		btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
+	} else {
+		struct btrfs_pending_snapshot *pending;
+		struct list_head *head = &trans->transaction->pending_snapshots;
+
+		/*
+		 * Wait for any dellaloc that we started previously for the roots
+		 * that are going to be snapshotted. This is to avoid a corrupted
+		 * version of files in the snapshots that had both buffered and
+		 * direct IO writes (even if they were done sequentially).
+		 */
+		list_for_each_entry(pending, head, list)
+			btrfs_wait_ordered_extents(pending->root,
+						   U64_MAX, 0, U64_MAX);
+	}
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
@@ -1943,8 +1980,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	cur_trans->delayed_refs.flushing = 1;
 	smp_wmb();
 
-	if (!list_empty(&trans->new_bgs))
-		btrfs_create_pending_block_groups(trans);
+	btrfs_create_pending_block_groups(trans);
 
 	ret = btrfs_run_delayed_refs(trans, 0);
 	if (ret) {
@@ -2024,7 +2060,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	extwriter_counter_dec(cur_trans, trans->type);
 
-	ret = btrfs_start_delalloc_flush(fs_info);
+	ret = btrfs_start_delalloc_flush(trans);
 	if (ret)
 		goto cleanup_transaction;
 
@@ -2040,7 +2076,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (ret)
 		goto cleanup_transaction;
 
-	btrfs_wait_delalloc_flush(fs_info);
+	btrfs_wait_delalloc_flush(trans);
 
 	btrfs_scrub_pause(fs_info);
 	/*

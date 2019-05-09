@@ -95,12 +95,6 @@ u32 spu_msg_sg_add(struct scatterlist **to_sg,
 
 void add_to_ctr(u8 *ctr_pos, unsigned int increment);
 
-/* do a synchronous decrypt operation */
-int do_decrypt(char *alg_name,
-	       void *key_ptr, unsigned int key_len,
-	       void *iv_ptr, void *src_ptr, void *dst_ptr,
-	       unsigned int block_len);
-
 /* produce a message digest from data of length n bytes */
 int do_shash(unsigned char *name, unsigned char *result,
 	     const u8 *data1, unsigned int data1_len,

@@ -2782,10 +2782,8 @@ snd_asihpi_proc_read(struct snd_info_entry *entry,
 
 static void snd_asihpi_proc_init(struct snd_card_asihpi *asihpi)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(asihpi->card, "info", &entry))
-		snd_info_set_text_ops(entry, asihpi, snd_asihpi_proc_read);
+	snd_card_ro_proc_new(asihpi->card, "info", asihpi,
+			     snd_asihpi_proc_read);
 }
 
 /*------------------------------------------------------------

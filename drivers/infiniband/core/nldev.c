@@ -33,12 +33,14 @@
 #include <linux/module.h>
 #include <linux/pid.h>
 #include <linux/pid_namespace.h>
+#include <linux/mutex.h>
 #include <net/netlink.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/rdma_netlink.h>
 
 #include "core_priv.h"
 #include "cma_priv.h"
+#include "restrack.h"
 
 static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DEV_INDEX]     = { .type = NLA_U32 },
@@ -107,6 +109,13 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DRIVER_U32]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_DRIVER_S64]		= { .type = NLA_S64 },
 	[RDMA_NLDEV_ATTR_DRIVER_U64]		= { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_RES_PDN]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_CQN]               = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_MRN]               = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_CM_IDN]            = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_CTXN]              = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_LINK_TYPE]		= { .type = NLA_NUL_STRING,
+				    .len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -262,9 +271,7 @@ static int fill_port_info(struct sk_buff *msg,
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_PORT_PHYS_STATE, attr.phys_state))
 		return -EMSGSIZE;
 
-	if (device->ops.get_netdev)
-		netdev = device->ops.get_netdev(device, port);
-
+	netdev = ib_device_get_netdev(device, port);
 	if (netdev && net_eq(dev_net(netdev), net)) {
 		ret = nla_put_u32(msg,
 				  RDMA_NLDEV_ATTR_NDEV_INDEX, netdev->ifindex);
@@ -314,7 +321,6 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 		[RDMA_RESTRACK_CTX] = "ctx",
 	};
 
-	struct rdma_restrack_root *res = &device->res;
 	struct nlattr *table_attr;
 	int ret, i, curr;
 
@@ -328,7 +334,8 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 	for (i = 0; i < RDMA_RESTRACK_MAX; i++) {
 		if (!names[i])
 			continue;
-		curr = rdma_restrack_count(res, i, task_active_pid_ns(current));
+		curr = rdma_restrack_count(device, i,
+					   task_active_pid_ns(current));
 		ret = fill_res_info_entry(msg, names[i], curr);
 		if (ret)
 			goto err;
@@ -361,13 +368,20 @@ static int fill_res_name_pid(struct sk_buff *msg,
 	return 0;
 }
 
-static int fill_res_qp_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static bool fill_res_entry(struct ib_device *dev, struct sk_buff *msg,
+			   struct rdma_restrack_entry *res)
+{
+	if (!dev->ops.fill_res_entry)
+		return false;
+	return dev->ops.fill_res_entry(msg, res);
+}
+
+static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_qp *qp = container_of(res, struct ib_qp, res);
-	struct rdma_restrack_root *resroot = &qp->device->res;
+	struct ib_device *dev = qp->device;
 	struct ib_qp_init_attr qp_init_attr;
-	struct nlattr *entry_attr;
 	struct ib_qp_attr qp_attr;
 	int ret;
 
@@ -376,11 +390,7 @@ static int fill_res_qp_entry(struct sk_buff *msg, struct netlink_callback *cb,
 		return ret;
 
 	if (port && port != qp_attr.port_num)
-		return 0;
-
-	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_QP_ENTRY);
-	if (!entry_attr)
-		goto out;
+		return -EAGAIN;
 
 	/* In create_qp() port is not set yet */
 	if (qp_attr.port_num &&
@@ -412,37 +422,31 @@ static int fill_res_qp_entry(struct sk_buff *msg, struct netlink_callback *cb,
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_STATE, qp_attr.qp_state))
 		goto err;
 
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PDN, qp->pd->res.id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
-	nla_nest_end(msg, entry_attr);
 	return 0;
 
-err:
-	nla_nest_cancel(msg, entry_attr);
-out:
-	return -EMSGSIZE;
+err:	return -EMSGSIZE;
 }
 
-static int fill_res_cm_id_entry(struct sk_buff *msg,
-				struct netlink_callback *cb,
+static int fill_res_cm_id_entry(struct sk_buff *msg, bool has_cap_net_admin,
 				struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct rdma_id_private *id_priv =
 				container_of(res, struct rdma_id_private, res);
-	struct rdma_restrack_root *resroot = &id_priv->id.device->res;
+	struct ib_device *dev = id_priv->id.device;
 	struct rdma_cm_id *cm_id = &id_priv->id;
-	struct nlattr *entry_attr;
 
 	if (port && port != cm_id->port_num)
 		return 0;
-
-	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY);
-	if (!entry_attr)
-		goto out;
 
 	if (cm_id->port_num &&
 	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, cm_id->port_num))
@@ -472,31 +476,25 @@ static int fill_res_cm_id_entry(struct sk_buff *msg,
 		    &cm_id->route.addr.dst_addr))
 		goto err;
 
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CM_IDN, res->id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
-	nla_nest_end(msg, entry_attr);
 	return 0;
 
-err:
-	nla_nest_cancel(msg, entry_attr);
-out:
-	return -EMSGSIZE;
+err: return -EMSGSIZE;
 }
 
-static int fill_res_cq_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static int fill_res_cq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_cq *cq = container_of(res, struct ib_cq, res);
-	struct rdma_restrack_root *resroot = &cq->device->res;
-	struct nlattr *entry_attr;
-
-	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_CQ_ENTRY);
-	if (!entry_attr)
-		goto out;
+	struct ib_device *dev = cq->device;
 
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CQE, cq->cqe))
 		goto err;
@@ -509,33 +507,31 @@ static int fill_res_cq_entry(struct sk_buff *msg, struct netlink_callback *cb,
 	    nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_POLL_CTX, cq->poll_ctx))
 		goto err;
 
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CQN, res->id))
+		goto err;
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CTXN,
+			cq->uobject->context->res.id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
-	nla_nest_end(msg, entry_attr);
 	return 0;
 
-err:
-	nla_nest_cancel(msg, entry_attr);
-out:
-	return -EMSGSIZE;
+err:	return -EMSGSIZE;
 }
 
-static int fill_res_mr_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static int fill_res_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_mr *mr = container_of(res, struct ib_mr, res);
-	struct rdma_restrack_root *resroot = &mr->pd->device->res;
-	struct nlattr *entry_attr;
+	struct ib_device *dev = mr->pd->device;
 
-	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_MR_ENTRY);
-	if (!entry_attr)
-		goto out;
-
-	if (netlink_capable(cb->skb, CAP_NET_ADMIN)) {
+	if (has_cap_net_admin) {
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_RKEY, mr->rkey))
 			goto err;
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LKEY, mr->lkey))
@@ -546,33 +542,31 @@ static int fill_res_mr_entry(struct sk_buff *msg, struct netlink_callback *cb,
 			      RDMA_NLDEV_ATTR_PAD))
 		goto err;
 
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_MRN, res->id))
+		goto err;
+
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PDN, mr->pd->res.id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
-	nla_nest_end(msg, entry_attr);
 	return 0;
 
-err:
-	nla_nest_cancel(msg, entry_attr);
-out:
-	return -EMSGSIZE;
+err:	return -EMSGSIZE;
 }
 
-static int fill_res_pd_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static int fill_res_pd_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_pd *pd = container_of(res, struct ib_pd, res);
-	struct rdma_restrack_root *resroot = &pd->device->res;
-	struct nlattr *entry_attr;
+	struct ib_device *dev = pd->device;
 
-	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_PD_ENTRY);
-	if (!entry_attr)
-		goto out;
-
-	if (netlink_capable(cb->skb, CAP_NET_ADMIN)) {
+	if (has_cap_net_admin) {
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,
 				pd->local_dma_lkey))
 			goto err;
@@ -585,19 +579,23 @@ static int fill_res_pd_entry(struct sk_buff *msg, struct netlink_callback *cb,
 			      atomic_read(&pd->usecnt), RDMA_NLDEV_ATTR_PAD))
 		goto err;
 
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PDN, res->id))
+		goto err;
+
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CTXN,
+			pd->uobject->context->res.id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
-	nla_nest_end(msg, entry_attr);
 	return 0;
 
-err:
-	nla_nest_cancel(msg, entry_attr);
-out:
-	return -EMSGSIZE;
+err:	return -EMSGSIZE;
 }
 
 static int nldev_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -777,7 +775,7 @@ static int nldev_port_get_dumpit(struct sk_buff *skb,
 	u32 idx = 0;
 	u32 ifindex;
 	int err;
-	u32 p;
+	unsigned int p;
 
 	err = nlmsg_parse(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
 			  nldev_policy, NULL);
@@ -789,7 +787,7 @@ static int nldev_port_get_dumpit(struct sk_buff *skb,
 	if (!device)
 		return -EINVAL;
 
-	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
+	rdma_for_each_port (device, p) {
 		/*
 		 * The dumpit function returns all information from specific
 		 * index. This specific index is taken from the netlink
@@ -905,10 +903,17 @@ static int nldev_res_get_dumpit(struct sk_buff *skb,
 }
 
 struct nldev_fill_res_entry {
-	int (*fill_res_func)(struct sk_buff *msg, struct netlink_callback *cb,
+	int (*fill_res_func)(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, u32 port);
 	enum rdma_nldev_attr nldev_attr;
 	enum rdma_nldev_command nldev_cmd;
+	u8 flags;
+	u32 entry;
+	u32 id;
+};
+
+enum nldev_res_flags {
+	NLDEV_PER_DEV = 1 << 0,
 };
 
 static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
@@ -916,28 +921,135 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.fill_res_func = fill_res_qp_entry,
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_QP_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_QP,
+		.entry = RDMA_NLDEV_ATTR_RES_QP_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_LQPN,
 	},
 	[RDMA_RESTRACK_CM_ID] = {
 		.fill_res_func = fill_res_cm_id_entry,
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_CM_ID_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_CM_ID,
+		.entry = RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_CM_IDN,
 	},
 	[RDMA_RESTRACK_CQ] = {
 		.fill_res_func = fill_res_cq_entry,
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_CQ_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_CQ,
+		.flags = NLDEV_PER_DEV,
+		.entry = RDMA_NLDEV_ATTR_RES_CQ_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_CQN,
 	},
 	[RDMA_RESTRACK_MR] = {
 		.fill_res_func = fill_res_mr_entry,
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_MR_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_MR,
+		.flags = NLDEV_PER_DEV,
+		.entry = RDMA_NLDEV_ATTR_RES_MR_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_MRN,
 	},
 	[RDMA_RESTRACK_PD] = {
 		.fill_res_func = fill_res_pd_entry,
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_PD_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_PD,
+		.flags = NLDEV_PER_DEV,
+		.entry = RDMA_NLDEV_ATTR_RES_PD_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_PDN,
 	},
 };
+
+static bool is_visible_in_pid_ns(struct rdma_restrack_entry *res)
+{
+	/*
+	 * 1. Kern resources should be visible in init name space only
+	 * 2. Present only resources visible in the current namespace
+	 */
+	if (rdma_is_kernel_res(res))
+		return task_active_pid_ns(current) == &init_pid_ns;
+	return task_active_pid_ns(current) == task_active_pid_ns(res->task);
+}
+
+static int res_get_common_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+			       struct netlink_ext_ack *extack,
+			       enum rdma_restrack_type res_type)
+{
+	const struct nldev_fill_res_entry *fe = &fill_entries[res_type];
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	struct rdma_restrack_entry *res;
+	struct ib_device *device;
+	u32 index, id, port = 0;
+	bool has_cap_net_admin;
+	struct sk_buff *msg;
+	int ret;
+
+	ret = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, extack);
+	if (ret || !tb[RDMA_NLDEV_ATTR_DEV_INDEX] || !fe->id || !tb[fe->id])
+		return -EINVAL;
+
+	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	device = ib_device_get_by_index(index);
+	if (!device)
+		return -EINVAL;
+
+	if (tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
+		port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
+		if (!rdma_is_port_valid(device, port)) {
+			ret = -EINVAL;
+			goto err;
+		}
+	}
+
+	if ((port && fe->flags & NLDEV_PER_DEV) ||
+	    (!port && ~fe->flags & NLDEV_PER_DEV)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	id = nla_get_u32(tb[fe->id]);
+	res = rdma_restrack_get_byid(device, res_type, id);
+	if (IS_ERR(res)) {
+		ret = PTR_ERR(res);
+		goto err;
+	}
+
+	if (!is_visible_in_pid_ns(res)) {
+		ret = -ENOENT;
+		goto err_get;
+	}
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
+			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, fe->nldev_cmd),
+			0, 0);
+
+	if (fill_nldev_handle(msg, device)) {
+		ret = -EMSGSIZE;
+		goto err_free;
+	}
+
+	has_cap_net_admin = netlink_capable(skb, CAP_NET_ADMIN);
+	ret = fe->fill_res_func(msg, has_cap_net_admin, res, port);
+	rdma_restrack_put(res);
+	if (ret)
+		goto err_free;
+
+	nlmsg_end(msg, nlh);
+	ib_device_put(device);
+	return rdma_nl_unicast(msg, NETLINK_CB(skb).portid);
+
+err_free:
+	nlmsg_free(msg);
+err_get:
+	rdma_restrack_put(res);
+err:
+	ib_device_put(device);
+	return ret;
+}
 
 static int res_get_common_dumpit(struct sk_buff *skb,
 				 struct netlink_callback *cb,
@@ -946,11 +1058,15 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	const struct nldev_fill_res_entry *fe = &fill_entries[res_type];
 	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
 	struct rdma_restrack_entry *res;
+	struct rdma_restrack_root *rt;
 	int err, ret = 0, idx = 0;
 	struct nlattr *table_attr;
+	struct nlattr *entry_attr;
 	struct ib_device *device;
 	int start = cb->args[0];
+	bool has_cap_net_admin;
 	struct nlmsghdr *nlh;
+	unsigned long id;
 	u32 index, port = 0;
 	bool filled = false;
 
@@ -998,55 +1114,51 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		goto err;
 	}
 
-	down_read(&device->res.rwsem);
-	hash_for_each_possible(device->res.hash, res, node, res_type) {
-		if (idx < start)
+	has_cap_net_admin = netlink_capable(cb->skb, CAP_NET_ADMIN);
+
+	rt = &device->res[res_type];
+	xa_lock(&rt->xa);
+	/*
+	 * FIXME: if the skip ahead is something common this loop should
+	 * use xas_for_each & xas_pause to optimize, we can have a lot of
+	 * objects.
+	 */
+	xa_for_each(&rt->xa, id, res) {
+		if (!is_visible_in_pid_ns(res))
+			continue;
+
+		if (idx < start || !rdma_restrack_get(res))
 			goto next;
 
-		if ((rdma_is_kernel_res(res) &&
-		     task_active_pid_ns(current) != &init_pid_ns) ||
-		    (!rdma_is_kernel_res(res) && task_active_pid_ns(current) !=
-		     task_active_pid_ns(res->task)))
-			/*
-			 * 1. Kern resources should be visible in init
-			 *    namspace only
-			 * 2. Present only resources visible in the current
-			 *    namespace
-			 */
-			goto next;
-
-		if (!rdma_restrack_get(res))
-			/*
-			 * Resource is under release now, but we are not
-			 * relesing lock now, so it will be released in
-			 * our next pass, once we will get ->next pointer.
-			 */
-			goto next;
+		xa_unlock(&rt->xa);
 
 		filled = true;
 
-		up_read(&device->res.rwsem);
-		ret = fe->fill_res_func(skb, cb, res, port);
-		down_read(&device->res.rwsem);
-		/*
-		 * Return resource back, but it won't be released till
-		 * the &device->res.rwsem will be released for write.
-		 */
+		entry_attr = nla_nest_start(skb, fe->entry);
+		if (!entry_attr) {
+			ret = -EMSGSIZE;
+			rdma_restrack_put(res);
+			goto msg_full;
+		}
+
+		ret = fe->fill_res_func(skb, has_cap_net_admin, res, port);
 		rdma_restrack_put(res);
 
-		if (ret == -EMSGSIZE)
-			/*
-			 * There is a chance to optimize here.
-			 * It can be done by using list_prepare_entry
-			 * and list_for_each_entry_continue afterwards.
-			 */
-			break;
-		if (ret)
+		if (ret) {
+			nla_nest_cancel(skb, entry_attr);
+			if (ret == -EMSGSIZE)
+				goto msg_full;
+			if (ret == -EAGAIN)
+				goto again;
 			goto res_err;
+		}
+		nla_nest_end(skb, entry_attr);
+again:		xa_lock(&rt->xa);
 next:		idx++;
 	}
-	up_read(&device->res.rwsem);
+	xa_unlock(&rt->xa);
 
+msg_full:
 	nla_nest_end(skb, table_attr);
 	nlmsg_end(skb, nlh);
 	cb->args[0] = idx;
@@ -1063,7 +1175,6 @@ next:		idx++;
 
 res_err:
 	nla_nest_cancel(skb, table_attr);
-	up_read(&device->res.rwsem);
 
 err:
 	nlmsg_cancel(skb, nlh);
@@ -1073,34 +1184,132 @@ err_index:
 	return ret;
 }
 
-static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
+#define RES_GET_FUNCS(name, type)                                              \
+	static int nldev_res_get_##name##_dumpit(struct sk_buff *skb,          \
+						 struct netlink_callback *cb)  \
+	{                                                                      \
+		return res_get_common_dumpit(skb, cb, type);                   \
+	}                                                                      \
+	static int nldev_res_get_##name##_doit(struct sk_buff *skb,            \
+					       struct nlmsghdr *nlh,           \
+					       struct netlink_ext_ack *extack) \
+	{                                                                      \
+		return res_get_common_doit(skb, nlh, extack, type);            \
+	}
+
+RES_GET_FUNCS(qp, RDMA_RESTRACK_QP);
+RES_GET_FUNCS(cm_id, RDMA_RESTRACK_CM_ID);
+RES_GET_FUNCS(cq, RDMA_RESTRACK_CQ);
+RES_GET_FUNCS(pd, RDMA_RESTRACK_PD);
+RES_GET_FUNCS(mr, RDMA_RESTRACK_MR);
+
+static LIST_HEAD(link_ops);
+static DECLARE_RWSEM(link_ops_rwsem);
+
+static const struct rdma_link_ops *link_ops_get(const char *type)
 {
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_QP);
+	const struct rdma_link_ops *ops;
+
+	list_for_each_entry(ops, &link_ops, list) {
+		if (!strcmp(ops->type, type))
+			goto out;
+	}
+	ops = NULL;
+out:
+	return ops;
 }
 
-static int nldev_res_get_cm_id_dumpit(struct sk_buff *skb,
-				      struct netlink_callback *cb)
+void rdma_link_register(struct rdma_link_ops *ops)
 {
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_CM_ID);
+	down_write(&link_ops_rwsem);
+	if (WARN_ON_ONCE(link_ops_get(ops->type)))
+		goto out;
+	list_add(&ops->list, &link_ops);
+out:
+	up_write(&link_ops_rwsem);
+}
+EXPORT_SYMBOL(rdma_link_register);
+
+void rdma_link_unregister(struct rdma_link_ops *ops)
+{
+	down_write(&link_ops_rwsem);
+	list_del(&ops->list);
+	up_write(&link_ops_rwsem);
+}
+EXPORT_SYMBOL(rdma_link_unregister);
+
+static int nldev_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	char ibdev_name[IB_DEVICE_NAME_MAX];
+	const struct rdma_link_ops *ops;
+	char ndev_name[IFNAMSIZ];
+	struct net_device *ndev;
+	char type[IFNAMSIZ];
+	int err;
+
+	err = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, extack);
+	if (err || !tb[RDMA_NLDEV_ATTR_DEV_NAME] ||
+	    !tb[RDMA_NLDEV_ATTR_LINK_TYPE] || !tb[RDMA_NLDEV_ATTR_NDEV_NAME])
+		return -EINVAL;
+
+	nla_strlcpy(ibdev_name, tb[RDMA_NLDEV_ATTR_DEV_NAME],
+		    sizeof(ibdev_name));
+	if (strchr(ibdev_name, '%'))
+		return -EINVAL;
+
+	nla_strlcpy(type, tb[RDMA_NLDEV_ATTR_LINK_TYPE], sizeof(type));
+	nla_strlcpy(ndev_name, tb[RDMA_NLDEV_ATTR_NDEV_NAME],
+		    sizeof(ndev_name));
+
+	ndev = dev_get_by_name(&init_net, ndev_name);
+	if (!ndev)
+		return -ENODEV;
+
+	down_read(&link_ops_rwsem);
+	ops = link_ops_get(type);
+#ifdef CONFIG_MODULES
+	if (!ops) {
+		up_read(&link_ops_rwsem);
+		request_module("rdma-link-%s", type);
+		down_read(&link_ops_rwsem);
+		ops = link_ops_get(type);
+	}
+#endif
+	err = ops ? ops->newlink(ibdev_name, ndev) : -EINVAL;
+	up_read(&link_ops_rwsem);
+	dev_put(ndev);
+
+	return err;
 }
 
-static int nldev_res_get_cq_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
+static int nldev_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_CQ);
-}
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	struct ib_device *device;
+	u32 index;
+	int err;
 
-static int nldev_res_get_mr_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
-{
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_MR);
-}
+	err = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, extack);
+	if (err || !tb[RDMA_NLDEV_ATTR_DEV_INDEX])
+		return -EINVAL;
 
-static int nldev_res_get_pd_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
-{
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_PD);
+	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	device = ib_device_get_by_index(index);
+	if (!device)
+		return -EINVAL;
+
+	if (!(device->attrs.device_cap_flags & IB_DEVICE_ALLOW_USER_UNREG)) {
+		ib_device_put(device);
+		return -EINVAL;
+	}
+
+	ib_unregister_device_and_put(device);
+	return 0;
 }
 
 static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
@@ -1112,6 +1321,14 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 		.doit = nldev_set_doit,
 		.flags = RDMA_NL_ADMIN_PERM,
 	},
+	[RDMA_NLDEV_CMD_NEWLINK] = {
+		.doit = nldev_newlink,
+		.flags = RDMA_NL_ADMIN_PERM,
+	},
+	[RDMA_NLDEV_CMD_DELLINK] = {
+		.doit = nldev_dellink,
+		.flags = RDMA_NL_ADMIN_PERM,
+	},
 	[RDMA_NLDEV_CMD_PORT_GET] = {
 		.doit = nldev_port_get_doit,
 		.dump = nldev_port_get_dumpit,
@@ -1121,28 +1338,23 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 		.dump = nldev_res_get_dumpit,
 	},
 	[RDMA_NLDEV_CMD_RES_QP_GET] = {
+		.doit = nldev_res_get_qp_doit,
 		.dump = nldev_res_get_qp_dumpit,
-		/*
-		 * .doit is not implemented yet for two reasons:
-		 * 1. It is not needed yet.
-		 * 2. There is a need to provide identifier, while it is easy
-		 * for the QPs (device index + port index + LQPN), it is not
-		 * the case for the rest of resources (PD and CQ). Because it
-		 * is better to provide similar interface for all resources,
-		 * let's wait till we will have other resources implemented
-		 * too.
-		 */
 	},
 	[RDMA_NLDEV_CMD_RES_CM_ID_GET] = {
+		.doit = nldev_res_get_cm_id_doit,
 		.dump = nldev_res_get_cm_id_dumpit,
 	},
 	[RDMA_NLDEV_CMD_RES_CQ_GET] = {
+		.doit = nldev_res_get_cq_doit,
 		.dump = nldev_res_get_cq_dumpit,
 	},
 	[RDMA_NLDEV_CMD_RES_MR_GET] = {
+		.doit = nldev_res_get_mr_doit,
 		.dump = nldev_res_get_mr_dumpit,
 	},
 	[RDMA_NLDEV_CMD_RES_PD_GET] = {
+		.doit = nldev_res_get_pd_doit,
 		.dump = nldev_res_get_pd_dumpit,
 	},
 };

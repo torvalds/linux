@@ -46,8 +46,7 @@
 
 	vcc_host1_5v: vcc_otg_5v: vcc-host1-5v-regulator {
 		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb20_host_drv>;
 		regulator-name = "vcc_host1_5v";
@@ -68,7 +67,8 @@
 	sound {
 		compatible = "audio-graph-card";
 		label = "rockchip,rk3328";
-		dais = <&spdif_p0>;
+		dais = <&i2s1_p0
+			&spdif_p0>;
 	};
 
 	spdif-dit {
@@ -79,6 +79,16 @@
 			dit_p0_0: endpoint {
 				remote-endpoint = <&spdif_p0_0>;
 			};
+		};
+	};
+};
+
+&codec {
+	status = "okay";
+
+	port@0 {
+		codec_p0_0: endpoint {
+			remote-endpoint = <&i2s1_p0_0>;
 		};
 	};
 };
@@ -245,6 +255,18 @@
 	};
 };
 
+&i2s1 {
+	status = "okay";
+
+	i2s1_p0: port {
+		i2s1_p0_0: endpoint {
+			dai-format = "i2s";
+			mclk-fs = <256>;
+			remote-endpoint = <&codec_p0_0>;
+		};
+	};
+};
+
 &io_domains {
 	status = "okay";
 
@@ -292,7 +314,6 @@
 &spdif {
 	pinctrl-0 = <&spdifm0_tx>;
 	status = "okay";
-	#sound-dai-cells = <0>;
 
 	spdif_p0: port {
 		spdif_p0_0: endpoint {

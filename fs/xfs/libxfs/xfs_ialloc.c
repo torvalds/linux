@@ -2508,7 +2508,7 @@ xfs_agi_verify(
 	/*
 	 * Validate the magic number of the agi block.
 	 */
-	if (agi->agi_magicnum != cpu_to_be32(XFS_AGI_MAGIC))
+	if (!xfs_verify_magic(bp, agi->agi_magicnum))
 		return __this_address;
 	if (!XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum)))
 		return __this_address;
@@ -2582,6 +2582,7 @@ xfs_agi_write_verify(
 
 const struct xfs_buf_ops xfs_agi_buf_ops = {
 	.name = "xfs_agi",
+	.magic = { cpu_to_be32(XFS_AGI_MAGIC), cpu_to_be32(XFS_AGI_MAGIC) },
 	.verify_read = xfs_agi_read_verify,
 	.verify_write = xfs_agi_write_verify,
 	.verify_struct = xfs_agi_verify,

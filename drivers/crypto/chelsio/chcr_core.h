@@ -183,7 +183,7 @@ struct chcr_ipsec_aadiv {
 struct ipsec_sa_entry {
 	int hmac_ctrl;
 	u16 esn;
-	u16 imm;
+	u16 resv;
 	unsigned int enckey_len;
 	unsigned int kctx_len;
 	unsigned int authsize;

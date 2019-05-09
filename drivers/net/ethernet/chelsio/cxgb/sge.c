@@ -585,8 +585,7 @@ static int alloc_rx_resources(struct sge *sge, struct sge_params *p)
 		sizeof(struct cpl_rx_data) +
 		sge->freelQ[!sge->jumbo_fl].dma_offset;
 
-		size = (16 * 1024) -
-		    SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	size = (16 * 1024) - SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	sge->freelQ[sge->jumbo_fl].rx_buffer_size = size;
 

@@ -182,7 +182,7 @@ static umode_t nct7904_fan_is_visible(const void *_data, u32 attr, int channel)
 	const struct nct7904_data *data = _data;
 
 	if (attr == hwmon_fan_input && data->fanin_mask & (1 << channel))
-		return S_IRUGO;
+		return 0444;
 	return 0;
 }
 
@@ -225,7 +225,7 @@ static umode_t nct7904_in_is_visible(const void *_data, u32 attr, int channel)
 
 	if (channel > 0 && attr == hwmon_in_input &&
 	    (data->vsen_mask & BIT(index)))
-		return S_IRUGO;
+		return 0444;
 
 	return 0;
 }
@@ -260,10 +260,10 @@ static umode_t nct7904_temp_is_visible(const void *_data, u32 attr, int channel)
 	if (attr == hwmon_temp_input) {
 		if (channel == 0) {
 			if (data->vsen_mask & BIT(17))
-				return S_IRUGO;
+				return 0444;
 		} else {
 			if (data->tcpu_mask & BIT(channel - 1))
-				return S_IRUGO;
+				return 0444;
 		}
 	}
 
@@ -325,7 +325,7 @@ static umode_t nct7904_pwm_is_visible(const void *_data, u32 attr, int channel)
 	switch (attr) {
 	case hwmon_pwm_input:
 	case hwmon_pwm_enable:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	default:
 		return 0;
 	}

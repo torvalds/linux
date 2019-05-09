@@ -36,12 +36,12 @@ struct xdp_umem {
 	u32 headroom;
 	u32 chunk_size_nohr;
 	struct user_struct *user;
-	struct pid *pid;
 	unsigned long address;
 	refcount_t users;
 	struct work_struct work;
 	struct page **pgs;
 	u32 npgs;
+	int id;
 	struct net_device *dev;
 	struct xdp_umem_fq_reuse *fq_reuse;
 	u16 queue_id;

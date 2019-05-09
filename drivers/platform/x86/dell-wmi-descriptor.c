@@ -207,7 +207,7 @@ static struct wmi_driver dell_wmi_descriptor_driver = {
 
 module_wmi_driver(dell_wmi_descriptor_driver);
 
-MODULE_ALIAS("wmi:" DELL_WMI_DESCRIPTOR_GUID);
+MODULE_DEVICE_TABLE(wmi, dell_wmi_descriptor_id_table);
 MODULE_AUTHOR("Mario Limonciello <mario.limonciello@dell.com>");
 MODULE_DESCRIPTION("Dell WMI descriptor driver");
 MODULE_LICENSE("GPL");

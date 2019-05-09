@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/marvell.c
  *
@@ -8,12 +9,6 @@
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
  *
  * Copyright (c) 2013 Michael Stapelberg <michael@stapelberg.de>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -1494,9 +1489,10 @@ static int marvell_get_sset_count(struct phy_device *phydev)
 
 static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 {
+	int count = marvell_get_sset_count(phydev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(marvell_hw_stats); i++) {
+	for (i = 0; i < count; i++) {
 		strlcpy(data + i * ETH_GSTRING_LEN,
 			marvell_hw_stats[i].string, ETH_GSTRING_LEN);
 	}
@@ -1524,9 +1520,10 @@ static u64 marvell_get_stat(struct phy_device *phydev, int i)
 static void marvell_get_stats(struct phy_device *phydev,
 			      struct ethtool_stats *stats, u64 *data)
 {
+	int count = marvell_get_sset_count(phydev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(marvell_hw_stats); i++)
+	for (i = 0; i < count; i++)
 		data[i] = marvell_get_stat(phydev, i);
 }
 

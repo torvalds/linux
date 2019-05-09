@@ -80,11 +80,7 @@
  */
 #ifdef CONFIG_KASAN
 #define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
-#ifdef CONFIG_KASAN_EXTRA
-#define KASAN_THREAD_SHIFT	2
-#else
 #define KASAN_THREAD_SHIFT	1
-#endif /* CONFIG_KASAN_EXTRA */
 #else
 #define KASAN_SHADOW_SIZE	(0)
 #define KASAN_THREAD_SHIFT	0
@@ -316,8 +312,9 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define page_to_virt(page)	({					\
 	unsigned long __addr =						\
 		((__page_to_voff(page)) | PAGE_OFFSET);			\
-	__addr = __tag_set(__addr, page_kasan_tag(page));		\
-	((void *)__addr);						\
+	unsigned long __addr_tag =					\
+		 __tag_set(__addr, page_kasan_tag(page));		\
+	((void *)__addr_tag);						\
 })
 
 #define virt_to_page(vaddr)	((struct page *)((__virt_to_pgoff(vaddr)) | VMEMMAP_START))

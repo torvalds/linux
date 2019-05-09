@@ -27,27 +27,6 @@ struct nf_conntrack_l4proto {
 	/* protoinfo nlattr size, closes a hole */
 	u16 nlattr_size;
 
-	/* Try to fill in the third arg: dataoff is offset past network protocol
-           hdr.  Return true if possible. */
-	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int dataoff,
-			     struct net *net, struct nf_conntrack_tuple *tuple);
-
-	/* Invert the per-proto part of the tuple: ie. turn xmit into reply.
-	 * Only used by icmp, most protocols use a generic version.
-	 */
-	bool (*invert_tuple)(struct nf_conntrack_tuple *inverse,
-			     const struct nf_conntrack_tuple *orig);
-
-	/* Returns verdict for packet, or -1 for invalid. */
-	int (*packet)(struct nf_conn *ct,
-		      struct sk_buff *skb,
-		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo,
-		      const struct nf_hook_state *state);
-
-	/* Called when a conntrack entry is destroyed */
-	void (*destroy)(struct nf_conn *ct);
-
 	/* called by gc worker if table is full */
 	bool (*can_early_drop)(const struct nf_conn *ct);
 
@@ -79,16 +58,28 @@ struct nf_conntrack_l4proto {
 	/* Print out the private part of the conntrack. */
 	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);
 #endif
-	unsigned int	*net_id;
-	/* Init l4proto pernet data */
-	int (*init_net)(struct net *net);
-
-	/* Return the per-net protocol part. */
-	struct nf_proto_net *(*get_net_proto)(struct net *net);
-
-	/* Module (if any) which this is connected to. */
-	struct module *me;
 };
+
+bool icmp_pkt_to_tuple(const struct sk_buff *skb,
+		       unsigned int dataoff,
+		       struct net *net,
+		       struct nf_conntrack_tuple *tuple);
+
+bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
+			 unsigned int dataoff,
+			 struct net *net,
+			 struct nf_conntrack_tuple *tuple);
+
+bool nf_conntrack_invert_icmp_tuple(struct nf_conntrack_tuple *tuple,
+				    const struct nf_conntrack_tuple *orig);
+bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,
+				      const struct nf_conntrack_tuple *orig);
+
+int nf_conntrack_inet_error(struct nf_conn *tmpl, struct sk_buff *skb,
+			    unsigned int dataoff,
+			    const struct nf_hook_state *state,
+			    u8 l4proto,
+			    union nf_inet_addr *outer_daddr);
 
 int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
@@ -99,31 +90,63 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
 			      unsigned int dataoff,
 			      const struct nf_hook_state *state);
+
+int nf_conntrack_icmp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state);
+
+int nf_conntrack_icmpv6_packet(struct nf_conn *ct,
+			       struct sk_buff *skb,
+			       enum ip_conntrack_info ctinfo,
+			       const struct nf_hook_state *state);
+
+int nf_conntrack_udp_packet(struct nf_conn *ct,
+			    struct sk_buff *skb,
+			    unsigned int dataoff,
+			    enum ip_conntrack_info ctinfo,
+			    const struct nf_hook_state *state);
+int nf_conntrack_udplite_packet(struct nf_conn *ct,
+				struct sk_buff *skb,
+				unsigned int dataoff,
+				enum ip_conntrack_info ctinfo,
+				const struct nf_hook_state *state);
+int nf_conntrack_tcp_packet(struct nf_conn *ct,
+			    struct sk_buff *skb,
+			    unsigned int dataoff,
+			    enum ip_conntrack_info ctinfo,
+			    const struct nf_hook_state *state);
+int nf_conntrack_dccp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     unsigned int dataoff,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state);
+int nf_conntrack_sctp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     unsigned int dataoff,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state);
+int nf_conntrack_gre_packet(struct nf_conn *ct,
+			    struct sk_buff *skb,
+			    unsigned int dataoff,
+			    enum ip_conntrack_info ctinfo,
+			    const struct nf_hook_state *state);
+
+void nf_conntrack_generic_init_net(struct net *net);
+void nf_conntrack_tcp_init_net(struct net *net);
+void nf_conntrack_udp_init_net(struct net *net);
+void nf_conntrack_gre_init_net(struct net *net);
+void nf_conntrack_dccp_init_net(struct net *net);
+void nf_conntrack_sctp_init_net(struct net *net);
+void nf_conntrack_icmp_init_net(struct net *net);
+void nf_conntrack_icmpv6_init_net(struct net *net);
+
 /* Existing built-in generic protocol */
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
 #define MAX_NF_CT_PROTO IPPROTO_UDPLITE
 
-const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto);
-
-const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4proto);
-void nf_ct_l4proto_put(const struct nf_conntrack_l4proto *p);
-
-/* Protocol pernet registration. */
-int nf_ct_l4proto_pernet_register_one(struct net *net,
-				const struct nf_conntrack_l4proto *proto);
-void nf_ct_l4proto_pernet_unregister_one(struct net *net,
-				const struct nf_conntrack_l4proto *proto);
-int nf_ct_l4proto_pernet_register(struct net *net,
-				  const struct nf_conntrack_l4proto *const proto[],
-				  unsigned int num_proto);
-void nf_ct_l4proto_pernet_unregister(struct net *net,
-				const struct nf_conntrack_l4proto *const proto[],
-				unsigned int num_proto);
-
-/* Protocol global registration. */
-int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *proto);
-void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *proto);
+const struct nf_conntrack_l4proto *nf_ct_l4proto_find(u8 l4proto);
 
 /* Generic netlink helpers */
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
@@ -189,6 +212,13 @@ static inline struct nf_dccp_net *nf_dccp_pernet(struct net *net)
 static inline struct nf_sctp_net *nf_sctp_pernet(struct net *net)
 {
        return &net->ct.nf_ct_proto.sctp;
+}
+#endif
+
+#ifdef CONFIG_NF_CT_PROTO_GRE
+static inline struct nf_gre_net *nf_gre_pernet(struct net *net)
+{
+	return &net->ct.nf_ct_proto.gre;
 }
 #endif
 

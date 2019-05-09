@@ -277,6 +277,26 @@ struct sock_reuseport;
 		.off   = OFF,					\
 		.imm   = IMM })
 
+/* Like BPF_JMP_REG, but with 32-bit wide operands for comparison. */
+
+#define BPF_JMP32_REG(OP, DST, SRC, OFF)			\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP32 | BPF_OP(OP) | BPF_X,	\
+		.dst_reg = DST,					\
+		.src_reg = SRC,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
+/* Like BPF_JMP_IMM, but with 32-bit wide operands for comparison. */
+
+#define BPF_JMP32_IMM(OP, DST, IMM, OFF)			\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP32 | BPF_OP(OP) | BPF_K,	\
+		.dst_reg = DST,					\
+		.src_reg = 0,					\
+		.off   = OFF,					\
+		.imm   = IMM })
+
 /* Unconditional jumps, goto pc + off16 */
 
 #define BPF_JMP_A(OFF)						\
@@ -513,7 +533,24 @@ struct sk_filter {
 	struct bpf_prog	*prog;
 };
 
-#define BPF_PROG_RUN(filter, ctx)  (*(filter)->bpf_func)(ctx, (filter)->insnsi)
+DECLARE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
+
+#define BPF_PROG_RUN(prog, ctx)	({				\
+	u32 ret;						\
+	cant_sleep();						\
+	if (static_branch_unlikely(&bpf_stats_enabled_key)) {	\
+		struct bpf_prog_stats *stats;			\
+		u64 start = sched_clock();			\
+		ret = (*(prog)->bpf_func)(ctx, (prog)->insnsi);	\
+		stats = this_cpu_ptr(prog->aux->stats);		\
+		u64_stats_update_begin(&stats->syncp);		\
+		stats->cnt++;					\
+		stats->nsecs += sched_clock() - start;		\
+		u64_stats_update_end(&stats->syncp);		\
+	} else {						\
+		ret = (*(prog)->bpf_func)(ctx, (prog)->insnsi);	\
+	}							\
+	ret; })
 
 #define BPF_SKB_CB_LEN QDISC_CB_PRIV_LEN
 
@@ -744,6 +781,7 @@ void bpf_prog_free_jited_linfo(struct bpf_prog *prog);
 void bpf_prog_free_unused_jited_linfo(struct bpf_prog *prog);
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
+struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flags);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags);
 void __bpf_prog_free(struct bpf_prog *fp);
@@ -793,6 +831,7 @@ static inline bool bpf_dump_raw_ok(void)
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+int bpf_remove_insns(struct bpf_prog *prog, u32 off, u32 cnt);
 
 void bpf_clear_redirect_map(struct bpf_map *map);
 
@@ -874,7 +913,9 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 		     unsigned int alignment,
 		     bpf_jit_fill_hole_t bpf_fill_ill_insns);
 void bpf_jit_binary_free(struct bpf_binary_header *hdr);
-
+u64 bpf_jit_alloc_exec_limit(void);
+void *bpf_jit_alloc_exec(unsigned long size);
+void bpf_jit_free_exec(void *addr);
 void bpf_jit_free(struct bpf_prog *fp);
 
 int bpf_jit_get_func_addr(const struct bpf_prog *prog,
@@ -966,6 +1007,7 @@ bpf_address_lookup(unsigned long addr, unsigned long *size,
 
 void bpf_prog_kallsyms_add(struct bpf_prog *fp);
 void bpf_prog_kallsyms_del(struct bpf_prog *fp);
+void bpf_get_prog_name(const struct bpf_prog *prog, char *sym);
 
 #else /* CONFIG_BPF_JIT */
 
@@ -1021,6 +1063,12 @@ static inline void bpf_prog_kallsyms_add(struct bpf_prog *fp)
 static inline void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 {
 }
+
+static inline void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
+{
+	sym[0] = '\0';
+}
+
 #endif /* CONFIG_BPF_JIT */
 
 void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp);

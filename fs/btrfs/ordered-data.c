@@ -6,6 +6,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/writeback.h>
+#include <linux/sched/mm.h>
 #include "ctree.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
@@ -442,7 +443,7 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 			cur = entry->list.next;
 			sum = list_entry(cur, struct btrfs_ordered_sum, list);
 			list_del(&sum->list);
-			kfree(sum);
+			kvfree(sum);
 		}
 		kmem_cache_free(btrfs_ordered_extent_cache, entry);
 	}

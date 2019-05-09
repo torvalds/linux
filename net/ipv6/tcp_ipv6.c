@@ -220,8 +220,6 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		u32 exthdrlen = icsk->icsk_ext_hdr_len;
 		struct sockaddr_in sin;
 
-		SOCK_DEBUG(sk, "connect: ipv4 mapped\n");
-
 		if (__ipv6_only_sock(sk))
 			return -ENETUNREACH;
 
@@ -1112,11 +1110,11 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		newnp->ipv6_fl_list = NULL;
 		newnp->pktoptions  = NULL;
 		newnp->opt	   = NULL;
-		newnp->mcast_oif   = tcp_v6_iif(skb);
-		newnp->mcast_hops  = ipv6_hdr(skb)->hop_limit;
-		newnp->rcv_flowinfo = ip6_flowinfo(ipv6_hdr(skb));
+		newnp->mcast_oif   = inet_iif(skb);
+		newnp->mcast_hops  = ip_hdr(skb)->ttl;
+		newnp->rcv_flowinfo = 0;
 		if (np->repflow)
-			newnp->flow_label = ip6_flowlabel(ipv6_hdr(skb));
+			newnp->flow_label = 0;
 
 		/*
 		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
@@ -1864,7 +1862,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   refcount_read(&sp->sk_refcnt), sp,
 		   jiffies_to_clock_t(icsk->icsk_rto),
 		   jiffies_to_clock_t(icsk->icsk_ack.ato),
-		   (icsk->icsk_ack.quick << 1) | icsk->icsk_ack.pingpong,
+		   (icsk->icsk_ack.quick << 1) | inet_csk_in_pingpong_mode(sp),
 		   tp->snd_cwnd,
 		   state == TCP_LISTEN ?
 			fastopenq->max_qlen :

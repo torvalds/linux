@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+
+obj-$(CONFIG_USB_WHCI_HCD) += whci-hcd.o
+
+whci-hcd-y := \
+	asl.o	\
+	debug.o \
+	hcd.o	\
+	hw.o	\
+	init.o	\
+	int.o	\
+	pzl.o	\
+	qset.o	\
+	wusb.o

@@ -30,10 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
-#include <linux/mlx5/driver.h>
 #include <linux/mlx5/port.h>
-#include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
 int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
@@ -157,44 +154,6 @@ int mlx5_set_port_beacon(struct mlx5_core_dev *dev, u16 beacon_duration)
 				    sizeof(out), MLX5_REG_MLCR, 0, 1);
 }
 
-int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
-			      u32 *proto_cap, int proto_mask)
-{
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
-	int err;
-
-	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1);
-	if (err)
-		return err;
-
-	if (proto_mask == MLX5_PTYS_EN)
-		*proto_cap = MLX5_GET(ptys_reg, out, eth_proto_capability);
-	else
-		*proto_cap = MLX5_GET(ptys_reg, out, ib_proto_capability);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mlx5_query_port_proto_cap);
-
-int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
-				u32 *proto_admin, int proto_mask)
-{
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
-	int err;
-
-	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1);
-	if (err)
-		return err;
-
-	if (proto_mask == MLX5_PTYS_EN)
-		*proto_admin = MLX5_GET(ptys_reg, out, eth_proto_admin);
-	else
-		*proto_admin = MLX5_GET(ptys_reg, out, ib_proto_admin);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mlx5_query_port_proto_admin);
-
 int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
 				    u8 *link_width_oper, u8 local_port)
 {
@@ -210,23 +169,6 @@ int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_link_width_oper);
-
-int mlx5_query_port_eth_proto_oper(struct mlx5_core_dev *dev,
-				   u32 *proto_oper, u8 local_port)
-{
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
-	int err;
-
-	err = mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN,
-				   local_port);
-	if (err)
-		return err;
-
-	*proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
-
-	return 0;
-}
-EXPORT_SYMBOL(mlx5_query_port_eth_proto_oper);
 
 int mlx5_query_port_ib_proto_oper(struct mlx5_core_dev *dev,
 				  u8 *proto_oper, u8 local_port)
@@ -244,35 +186,6 @@ int mlx5_query_port_ib_proto_oper(struct mlx5_core_dev *dev,
 	return 0;
 }
 EXPORT_SYMBOL(mlx5_query_port_ib_proto_oper);
-
-int mlx5_set_port_ptys(struct mlx5_core_dev *dev, bool an_disable,
-		       u32 proto_admin, int proto_mask)
-{
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
-	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
-	u8 an_disable_admin;
-	u8 an_disable_cap;
-	u8 an_status;
-
-	mlx5_query_port_autoneg(dev, proto_mask, &an_status,
-				&an_disable_cap, &an_disable_admin);
-	if (!an_disable_cap && an_disable)
-		return -EPERM;
-
-	memset(in, 0, sizeof(in));
-
-	MLX5_SET(ptys_reg, in, local_port, 1);
-	MLX5_SET(ptys_reg, in, an_disable_admin, an_disable);
-	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
-	if (proto_mask == MLX5_PTYS_EN)
-		MLX5_SET(ptys_reg, in, eth_proto_admin, proto_admin);
-	else
-		MLX5_SET(ptys_reg, in, ib_proto_admin, proto_admin);
-
-	return mlx5_core_access_reg(dev, in, sizeof(in), out,
-				    sizeof(out), MLX5_REG_PTYS, 0, 1);
-}
-EXPORT_SYMBOL_GPL(mlx5_set_port_ptys);
 
 /* This function should be used after setting a port register only */
 void mlx5_toggle_port_link(struct mlx5_core_dev *dev)
@@ -404,10 +317,6 @@ int mlx5_query_module_eeprom(struct mlx5_core_dev *dev,
 		size -= offset + size - MLX5_EEPROM_PAGE_LENGTH;
 
 	i2c_addr = MLX5_I2C_ADDR_LOW;
-	if (offset >= MLX5_EEPROM_PAGE_LENGTH) {
-		i2c_addr = MLX5_I2C_ADDR_HIGH;
-		offset -= MLX5_EEPROM_PAGE_LENGTH;
-	}
 
 	MLX5_SET(mcia_reg, in, l, 0);
 	MLX5_SET(mcia_reg, in, module, module_num);
@@ -605,25 +514,6 @@ int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx, u8 *pfc_en_rx)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_pfc);
-
-void mlx5_query_port_autoneg(struct mlx5_core_dev *dev, int proto_mask,
-			     u8 *an_status,
-			     u8 *an_disable_cap, u8 *an_disable_admin)
-{
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
-
-	*an_status = 0;
-	*an_disable_cap = 0;
-	*an_disable_admin = 0;
-
-	if (mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1))
-		return;
-
-	*an_status = MLX5_GET(ptys_reg, out, an_status);
-	*an_disable_cap = MLX5_GET(ptys_reg, out, an_disable_cap);
-	*an_disable_admin = MLX5_GET(ptys_reg, out, an_disable_admin);
-}
-EXPORT_SYMBOL_GPL(mlx5_query_port_autoneg);
 
 int mlx5_max_tc(struct mlx5_core_dev *mdev)
 {
@@ -870,8 +760,7 @@ int mlx5_query_port_wol(struct mlx5_core_dev *mdev, u8 *wol_mode)
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_wol);
 
-static int mlx5_query_ports_check(struct mlx5_core_dev *mdev, u32 *out,
-				  int outlen)
+int mlx5_query_ports_check(struct mlx5_core_dev *mdev, u32 *out, int outlen)
 {
 	u32 in[MLX5_ST_SZ_DW(pcmr_reg)] = {0};
 
@@ -880,7 +769,7 @@ static int mlx5_query_ports_check(struct mlx5_core_dev *mdev, u32 *out,
 				    outlen, MLX5_REG_PCMR, 0, 0);
 }
 
-static int mlx5_set_ports_check(struct mlx5_core_dev *mdev, u32 *in, int inlen)
+int mlx5_set_ports_check(struct mlx5_core_dev *mdev, u32 *in, int inlen)
 {
 	u32 out[MLX5_ST_SZ_DW(pcmr_reg)];
 
@@ -891,7 +780,11 @@ static int mlx5_set_ports_check(struct mlx5_core_dev *mdev, u32 *in, int inlen)
 int mlx5_set_port_fcs(struct mlx5_core_dev *mdev, u8 enable)
 {
 	u32 in[MLX5_ST_SZ_DW(pcmr_reg)] = {0};
+	int err;
 
+	err = mlx5_query_ports_check(mdev, in, sizeof(in));
+	if (err)
+		return err;
 	MLX5_SET(pcmr_reg, in, local_port, 1);
 	MLX5_SET(pcmr_reg, in, fcs_chk, enable);
 	return mlx5_set_ports_check(mdev, in, sizeof(in));

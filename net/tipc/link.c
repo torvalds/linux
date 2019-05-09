@@ -869,6 +869,8 @@ void tipc_link_reset(struct tipc_link *l)
 	__skb_queue_head_init(&list);
 
 	l->in_session = false;
+	/* Force re-synch of peer session number before establishing */
+	l->peer_session--;
 	l->session++;
 	l->mtu = l->advertised_mtu;
 
@@ -1126,7 +1128,7 @@ static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 			skb_queue_tail(mc_inputq, skb);
 			return true;
 		}
-		/* else: fall through */
+		/* fall through */
 	case CONN_MANAGER:
 		skb_queue_tail(inputq, skb);
 		return true;

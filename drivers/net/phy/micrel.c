@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/micrel.c
  *
@@ -7,11 +8,6 @@
  *
  * Copyright (c) 2010-2013 Micrel, Inc.
  * Copyright (c) 2014 Johan Hovold <johan@kernel.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Support : Micrel Phys:
  *		Giga phys: ksz9021, ksz9031, ksz9131
@@ -437,9 +433,6 @@ static int ksz9021_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-#define MII_KSZ9031RN_MMD_CTRL_REG	0x0d
-#define MII_KSZ9031RN_MMD_REGDATA_REG	0x0e
-#define OP_DATA				1
 #define KSZ9031_PS_TO_REG		60
 
 /* Extended registers */
@@ -456,24 +449,6 @@ static int ksz9021_config_init(struct phy_device *phydev)
 /* MMD Address 0x1C */
 #define MII_KSZ9031RN_EDPD		0x23
 #define MII_KSZ9031RN_EDPD_ENABLE	BIT(0)
-
-static int ksz9031_extended_write(struct phy_device *phydev,
-				  u8 mode, u32 dev_addr, u32 regnum, u16 val)
-{
-	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, dev_addr);
-	phy_write(phydev, MII_KSZ9031RN_MMD_REGDATA_REG, regnum);
-	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, (mode << 14) | dev_addr);
-	return phy_write(phydev, MII_KSZ9031RN_MMD_REGDATA_REG, val);
-}
-
-static int ksz9031_extended_read(struct phy_device *phydev,
-				 u8 mode, u32 dev_addr, u32 regnum)
-{
-	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, dev_addr);
-	phy_write(phydev, MII_KSZ9031RN_MMD_REGDATA_REG, regnum);
-	phy_write(phydev, MII_KSZ9031RN_MMD_CTRL_REG, (mode << 14) | dev_addr);
-	return phy_read(phydev, MII_KSZ9031RN_MMD_REGDATA_REG);
-}
 
 static int ksz9031_of_load_skew_values(struct phy_device *phydev,
 				       const struct device_node *of_node,
@@ -495,7 +470,7 @@ static int ksz9031_of_load_skew_values(struct phy_device *phydev,
 		return 0;
 
 	if (matches < numfields)
-		newval = ksz9031_extended_read(phydev, OP_DATA, 2, reg);
+		newval = phy_read_mmd(phydev, 2, reg);
 	else
 		newval = 0;
 
@@ -509,7 +484,7 @@ static int ksz9031_of_load_skew_values(struct phy_device *phydev,
 					<< (field_sz * i));
 		}
 
-	return ksz9031_extended_write(phydev, OP_DATA, 2, reg, newval);
+	return phy_write_mmd(phydev, 2, reg, newval);
 }
 
 /* Center KSZ9031RNX FLP timing at 16ms. */
@@ -517,13 +492,13 @@ static int ksz9031_center_flp_timing(struct phy_device *phydev)
 {
 	int result;
 
-	result = ksz9031_extended_write(phydev, OP_DATA, 0,
-					MII_KSZ9031RN_FLP_BURST_TX_HI, 0x0006);
+	result = phy_write_mmd(phydev, 0, MII_KSZ9031RN_FLP_BURST_TX_HI,
+			       0x0006);
 	if (result)
 		return result;
 
-	result = ksz9031_extended_write(phydev, OP_DATA, 0,
-					MII_KSZ9031RN_FLP_BURST_TX_LO, 0x1A80);
+	result = phy_write_mmd(phydev, 0, MII_KSZ9031RN_FLP_BURST_TX_LO,
+			       0x1A80);
 	if (result)
 		return result;
 
@@ -535,11 +510,11 @@ static int ksz9031_enable_edpd(struct phy_device *phydev)
 {
 	int reg;
 
-	reg = ksz9031_extended_read(phydev, OP_DATA, 0x1C, MII_KSZ9031RN_EDPD);
+	reg = phy_read_mmd(phydev, 0x1C, MII_KSZ9031RN_EDPD);
 	if (reg < 0)
 		return reg;
-	return ksz9031_extended_write(phydev, OP_DATA, 0x1C, MII_KSZ9031RN_EDPD,
-				      reg | MII_KSZ9031RN_EDPD_ENABLE);
+	return phy_write_mmd(phydev, 0x1C, MII_KSZ9031RN_EDPD,
+			     reg | MII_KSZ9031RN_EDPD_ENABLE);
 }
 
 static int ksz9031_config_init(struct phy_device *phydev)
@@ -665,7 +640,7 @@ static int ksz9131_of_load_skew_values(struct phy_device *phydev,
 		return 0;
 
 	if (matches < numfields)
-		newval = ksz9031_extended_read(phydev, OP_DATA, 2, reg);
+		newval = phy_read_mmd(phydev, 2, reg);
 	else
 		newval = 0;
 
@@ -679,7 +654,7 @@ static int ksz9131_of_load_skew_values(struct phy_device *phydev,
 					<< (field_sz * i));
 		}
 
-	return ksz9031_extended_write(phydev, OP_DATA, 2, reg, newval);
+	return phy_write_mmd(phydev, 2, reg, newval);
 }
 
 static int ksz9131_config_init(struct phy_device *phydev)

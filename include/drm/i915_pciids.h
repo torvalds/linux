@@ -394,6 +394,9 @@
 	INTEL_VGA_DEVICE(0x3E9A, info)  /* SRV GT2 */
 
 /* CFL H */
+#define INTEL_CFL_H_GT1_IDS(info) \
+	INTEL_VGA_DEVICE(0x3E9C, info)
+
 #define INTEL_CFL_H_GT2_IDS(info) \
 	INTEL_VGA_DEVICE(0x3E9B, info), /* Halo GT2 */ \
 	INTEL_VGA_DEVICE(0x3E94, info)  /* Halo GT2 */
@@ -426,6 +429,7 @@
 #define INTEL_CFL_IDS(info)	   \
 	INTEL_CFL_S_GT1_IDS(info), \
 	INTEL_CFL_S_GT2_IDS(info), \
+	INTEL_CFL_H_GT1_IDS(info), \
 	INTEL_CFL_H_GT2_IDS(info), \
 	INTEL_CFL_U_GT2_IDS(info), \
 	INTEL_CFL_U_GT3_IDS(info), \
@@ -457,9 +461,13 @@
 	INTEL_VGA_DEVICE(0x8A51, info), \
 	INTEL_VGA_DEVICE(0x8A5C, info), \
 	INTEL_VGA_DEVICE(0x8A5D, info), \
+	INTEL_VGA_DEVICE(0x8A59, info),	\
+	INTEL_VGA_DEVICE(0x8A58, info),	\
 	INTEL_VGA_DEVICE(0x8A52, info), \
 	INTEL_VGA_DEVICE(0x8A5A, info), \
 	INTEL_VGA_DEVICE(0x8A5B, info), \
+	INTEL_VGA_DEVICE(0x8A57, info), \
+	INTEL_VGA_DEVICE(0x8A56, info), \
 	INTEL_VGA_DEVICE(0x8A71, info), \
 	INTEL_VGA_DEVICE(0x8A70, info)
 

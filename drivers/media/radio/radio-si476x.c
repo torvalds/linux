@@ -1550,7 +1550,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 
 	rval = si476x_radio_init_debugfs(radio);
 	if (rval < 0) {
-		dev_err(&pdev->dev, "Could not creat debugfs interface\n");
+		dev_err(&pdev->dev, "Could not create debugfs interface\n");
 		goto exit;
 	}
 

@@ -342,6 +342,11 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
+			clk_out_a_pin: clk-out-a-pin {
+				pins = "PI12";
+				function = "clk_out_a";
+			};
+
 			gmac_rgmii_pins: gmac-rgmii-pins {
 				pins = "PA0", "PA1", "PA2", "PA3",
 				       "PA4", "PA5", "PA6", "PA7",
@@ -388,6 +393,16 @@
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB22", "PB23";
 				function = "uart0";
+			};
+
+			uart3_pg_pins: uart3-pg-pins {
+				pins = "PG6", "PG7";
+				function = "uart3";
+			};
+
+			uart3_rts_cts_pg_pins: uart3-rts-cts-pg-pins {
+				pins = "PG8", "PG9";
+				function = "uart3";
 			};
 		};
 

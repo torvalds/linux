@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "coredump.h"
@@ -1113,7 +1102,7 @@ struct ath10k_fw_crash_data *ath10k_coredump_new(struct ath10k *ar)
 {
 	struct ath10k_fw_crash_data *crash_data = ar->coredump.fw_crash_data;
 
-	lockdep_assert_held(&ar->data_lock);
+	lockdep_assert_held(&ar->dump_mutex);
 
 	if (ath10k_coredump_mask == 0)
 		/* coredump disabled */
@@ -1157,7 +1146,7 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 	if (!buf)
 		return NULL;
 
-	spin_lock_bh(&ar->data_lock);
+	mutex_lock(&ar->dump_mutex);
 
 	dump_data = (struct ath10k_dump_file_data *)(buf);
 	strlcpy(dump_data->df_magic, "ATH10K-FW-DUMP",
@@ -1167,7 +1156,7 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 	dump_data->version = cpu_to_le32(ATH10K_FW_CRASH_DUMP_VERSION);
 
 	guid_copy(&dump_data->guid, &crash_data->guid);
-	dump_data->chip_id = cpu_to_le32(ar->chip_id);
+	dump_data->chip_id = cpu_to_le32(ar->bus_param.chip_id);
 	dump_data->bus_type = cpu_to_le32(0);
 	dump_data->target_version = cpu_to_le32(ar->target_version);
 	dump_data->fw_version_major = cpu_to_le32(ar->fw_version_major);
@@ -1224,7 +1213,7 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 		sofar += sizeof(*dump_tlv) + crash_data->ramdump_buf_len;
 	}
 
-	spin_unlock_bh(&ar->data_lock);
+	mutex_unlock(&ar->dump_mutex);
 
 	return dump_data;
 }

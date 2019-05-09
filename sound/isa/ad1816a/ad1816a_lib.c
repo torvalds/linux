@@ -518,7 +518,6 @@ void snd_ad1816a_suspend(struct snd_ad1816a *chip)
 	int reg;
 	unsigned long flags;
 
-	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->lock, flags);
 	for (reg = 0; reg < 48; reg++)
 		chip->image[reg] = snd_ad1816a_read(chip, reg);

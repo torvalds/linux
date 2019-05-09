@@ -463,6 +463,15 @@ static int nvme_tcp_handle_c2h_data(struct nvme_tcp_queue *queue,
 
 	queue->data_remaining = le32_to_cpu(pdu->data_length);
 
+	if (pdu->hdr.flags & NVME_TCP_F_DATA_SUCCESS &&
+	    unlikely(!(pdu->hdr.flags & NVME_TCP_F_DATA_LAST))) {
+		dev_err(queue->ctrl->ctrl.device,
+			"queue %d tag %#x SUCCESS set but not last PDU\n",
+			nvme_tcp_queue_id(queue), rq->tag);
+		nvme_tcp_error_recovery(&queue->ctrl->ctrl);
+		return -EPROTO;
+	}
+
 	return 0;
 
 }
@@ -618,6 +627,14 @@ static int nvme_tcp_recv_pdu(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 	return ret;
 }
 
+static inline void nvme_tcp_end_request(struct request *rq, u16 status)
+{
+	union nvme_result res = {};
+
+	nvme_end_request(rq, cpu_to_le16(status << 1), res);
+}
+
+
 static int nvme_tcp_recv_data(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 			      unsigned int *offset, size_t *len)
 {
@@ -685,6 +702,8 @@ static int nvme_tcp_recv_data(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 			nvme_tcp_ddgst_final(queue->rcv_hash, &queue->exp_ddgst);
 			queue->ddgst_remaining = NVME_TCP_DIGEST_LENGTH;
 		} else {
+			if (pdu->hdr.flags & NVME_TCP_F_DATA_SUCCESS)
+				nvme_tcp_end_request(rq, NVME_SC_SUCCESS);
 			nvme_tcp_init_recv_ctx(queue);
 		}
 	}
@@ -695,6 +714,7 @@ static int nvme_tcp_recv_data(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 static int nvme_tcp_recv_ddgst(struct nvme_tcp_queue *queue,
 		struct sk_buff *skb, unsigned int *offset, size_t *len)
 {
+	struct nvme_tcp_data_pdu *pdu = (void *)queue->pdu;
 	char *ddgst = (char *)&queue->recv_ddgst;
 	size_t recv_len = min_t(size_t, *len, queue->ddgst_remaining);
 	off_t off = NVME_TCP_DIGEST_LENGTH - queue->ddgst_remaining;
@@ -716,6 +736,13 @@ static int nvme_tcp_recv_ddgst(struct nvme_tcp_queue *queue,
 			le32_to_cpu(queue->recv_ddgst),
 			le32_to_cpu(queue->exp_ddgst));
 		return -EIO;
+	}
+
+	if (pdu->hdr.flags & NVME_TCP_F_DATA_SUCCESS) {
+		struct request *rq = blk_mq_tag_to_rq(nvme_tcp_tagset(queue),
+						pdu->command_id);
+
+		nvme_tcp_end_request(rq, NVME_SC_SUCCESS);
 	}
 
 	nvme_tcp_init_recv_ctx(queue);
@@ -815,10 +842,7 @@ static inline void nvme_tcp_done_send_req(struct nvme_tcp_queue *queue)
 
 static void nvme_tcp_fail_request(struct nvme_tcp_request *req)
 {
-	union nvme_result res = {};
-
-	nvme_end_request(blk_mq_rq_from_pdu(req),
-		cpu_to_le16(NVME_SC_DATA_XFER_ERROR), res);
+	nvme_tcp_end_request(blk_mq_rq_from_pdu(req), NVME_SC_DATA_XFER_ERROR);
 }
 
 static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
@@ -1822,6 +1846,9 @@ static void nvme_tcp_error_recovery_work(struct work_struct *work)
 
 static void nvme_tcp_teardown_ctrl(struct nvme_ctrl *ctrl, bool shutdown)
 {
+	cancel_work_sync(&to_tcp_ctrl(ctrl)->err_work);
+	cancel_delayed_work_sync(&to_tcp_ctrl(ctrl)->connect_work);
+
 	nvme_tcp_teardown_io_queues(ctrl, shutdown);
 	if (shutdown)
 		nvme_shutdown_ctrl(ctrl);
@@ -1857,12 +1884,6 @@ static void nvme_reset_ctrl_work(struct work_struct *work)
 out_fail:
 	++ctrl->nr_reconnects;
 	nvme_tcp_reconnect_or_remove(ctrl);
-}
-
-static void nvme_tcp_stop_ctrl(struct nvme_ctrl *ctrl)
-{
-	cancel_work_sync(&to_tcp_ctrl(ctrl)->err_work);
-	cancel_delayed_work_sync(&to_tcp_ctrl(ctrl)->connect_work);
 }
 
 static void nvme_tcp_free_ctrl(struct nvme_ctrl *nctrl)
@@ -2115,7 +2136,6 @@ static const struct nvme_ctrl_ops nvme_tcp_ctrl_ops = {
 	.submit_async_event	= nvme_tcp_submit_async_event,
 	.delete_ctrl		= nvme_tcp_delete_ctrl,
 	.get_address		= nvmf_get_address,
-	.stop_ctrl		= nvme_tcp_stop_ctrl,
 };
 
 static bool

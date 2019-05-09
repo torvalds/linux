@@ -67,7 +67,7 @@ enum tvp514x_std {
 };
 
 /**
- * struct tvp514x_std_info - Structure to store standard informations
+ * struct tvp514x_std_info - Structure to store standard information
  * @width: Line width in pixels
  * @height:Number of active lines
  * @video_std: Value to write in REG_VIDEO_STD register

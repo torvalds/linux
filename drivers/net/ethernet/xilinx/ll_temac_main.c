@@ -630,7 +630,7 @@ static void temac_start_xmit_done(struct net_device *ndev)
 		dma_unmap_single(ndev->dev.parent, cur_p->phys, cur_p->len,
 				 DMA_TO_DEVICE);
 		if (cur_p->app4)
-			dev_kfree_skb_irq((struct sk_buff *)cur_p->app4);
+			dev_consume_skb_irq((struct sk_buff *)cur_p->app4);
 		cur_p->app0 = 0;
 		cur_p->app1 = 0;
 		cur_p->app2 = 0;

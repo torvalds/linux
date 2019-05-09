@@ -198,8 +198,8 @@ static int vfio_ap_verify_queue_reserved(unsigned long *apid,
 	qres.apqi = apqi;
 	qres.reserved = false;
 
-	ret = driver_for_each_device(matrix_dev->device.driver, NULL, &qres,
-				     vfio_ap_has_queue);
+	ret = driver_for_each_device(&matrix_dev->vfio_ap_drv->driver, NULL,
+				     &qres, vfio_ap_has_queue);
 	if (ret)
 		return ret;
 

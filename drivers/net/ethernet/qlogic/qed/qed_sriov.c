@@ -1591,7 +1591,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 			p_vfdev->eth_fp_hsi_minor = ETH_HSI_VER_NO_PKT_LEN_TUNN;
 		} else {
 			DP_INFO(p_hwfn,
-				"VF[%d] needs fastpath HSI %02x.%02x, which is incompatible with loaded FW's faspath HSI %02x.%02x\n",
+				"VF[%d] needs fastpath HSI %02x.%02x, which is incompatible with loaded FW's fastpath HSI %02x.%02x\n",
 				vf->abs_vf_id,
 				req->vfdev_info.eth_fp_hsi_major,
 				req->vfdev_info.eth_fp_hsi_minor,
@@ -4449,6 +4449,13 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 	if (cdev->p_iov_info && cdev->p_iov_info->num_vfs && pci_enabled)
 		pci_disable_sriov(cdev->pdev);
 
+	if (cdev->recov_in_prog) {
+		DP_VERBOSE(cdev,
+			   QED_MSG_IOV,
+			   "Skip SRIOV disable operations in the device since a recovery is in progress\n");
+		goto out;
+	}
+
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *hwfn = &cdev->hwfns[i];
 		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
@@ -4488,7 +4495,7 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 
 		qed_ptt_release(hwfn, ptt);
 	}
-
+out:
 	qed_iov_set_vfs_to_disable(cdev, false);
 
 	return 0;

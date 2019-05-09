@@ -48,7 +48,6 @@ struct alcor_sdmmc_host {
 	struct mmc_command *cmd;
 	struct mmc_data *data;
 	unsigned int dma_on:1;
-	unsigned int early_data:1;
 
 	struct mutex cmd_mutex;
 
@@ -144,8 +143,7 @@ static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 	host->sg_count--;
 }
 
-static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host,
-					bool early)
+static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host)
 {
 	struct alcor_pci_priv *priv = host->alcor_pci;
 	struct mmc_data *data = host->data;
@@ -155,13 +153,6 @@ static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host,
 		ctrl |= AU6601_DATA_WRITE;
 
 	if (data->host_cookie == COOKIE_MAPPED) {
-		if (host->early_data) {
-			host->early_data = false;
-			return;
-		}
-
-		host->early_data = early;
-
 		alcor_data_set_dma(host);
 		ctrl |= AU6601_DATA_DMA_MODE;
 		host->dma_on = 1;
@@ -231,6 +222,7 @@ static void alcor_prepare_sg_miter(struct alcor_sdmmc_host *host)
 static void alcor_prepare_data(struct alcor_sdmmc_host *host,
 			       struct mmc_command *cmd)
 {
+	struct alcor_pci_priv *priv = host->alcor_pci;
 	struct mmc_data *data = cmd->data;
 
 	if (!data)
@@ -248,7 +240,7 @@ static void alcor_prepare_data(struct alcor_sdmmc_host *host,
 	if (data->host_cookie != COOKIE_MAPPED)
 		alcor_prepare_sg_miter(host);
 
-	alcor_trigger_data_transfer(host, true);
+	alcor_write8(priv, 0, AU6601_DATA_XFER_CTRL);
 }
 
 static void alcor_send_cmd(struct alcor_sdmmc_host *host,
@@ -435,7 +427,7 @@ static int alcor_cmd_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 	if (!host->data)
 		return false;
 
-	alcor_trigger_data_transfer(host, false);
+	alcor_trigger_data_transfer(host);
 	host->cmd = NULL;
 	return true;
 }
@@ -456,7 +448,7 @@ static void alcor_cmd_irq_thread(struct alcor_sdmmc_host *host, u32 intmask)
 	if (!host->data)
 		alcor_request_complete(host, 1);
 	else
-		alcor_trigger_data_transfer(host, false);
+		alcor_trigger_data_transfer(host);
 	host->cmd = NULL;
 }
 
@@ -487,15 +479,9 @@ static int alcor_data_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 		break;
 	case AU6601_INT_READ_BUF_RDY:
 		alcor_trf_block_pio(host, true);
-		if (!host->blocks)
-			break;
-		alcor_trigger_data_transfer(host, false);
 		return 1;
 	case AU6601_INT_WRITE_BUF_RDY:
 		alcor_trf_block_pio(host, false);
-		if (!host->blocks)
-			break;
-		alcor_trigger_data_transfer(host, false);
 		return 1;
 	case AU6601_INT_DMA_END:
 		if (!host->sg_count)
@@ -508,8 +494,14 @@ static int alcor_data_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 		break;
 	}
 
-	if (intmask & AU6601_INT_DATA_END)
-		return 0;
+	if (intmask & AU6601_INT_DATA_END) {
+		if (!host->dma_on && host->blocks) {
+			alcor_trigger_data_transfer(host);
+			return 1;
+		} else {
+			return 0;
+		}
+	}
 
 	return 1;
 }
@@ -1044,14 +1036,27 @@ static void alcor_init_mmc(struct alcor_sdmmc_host *host)
 	mmc->caps2 = MMC_CAP2_NO_SDIO;
 	mmc->ops = &alcor_sdc_ops;
 
-	/* Hardware cannot do scatter lists */
+	/* The hardware does DMA data transfer of 4096 bytes to/from a single
+	 * buffer address. Scatterlists are not supported, but upon DMA
+	 * completion (signalled via IRQ), the original vendor driver does
+	 * then immediately set up another DMA transfer of the next 4096
+	 * bytes.
+	 *
+	 * This means that we need to handle the I/O in 4096 byte chunks.
+	 * Lacking a way to limit the sglist entries to 4096 bytes, we instead
+	 * impose that only one segment is provided, with maximum size 4096,
+	 * which also happens to be the minimum size. This means that the
+	 * single-entry sglist handled by this driver can be handed directly
+	 * to the hardware, nice and simple.
+	 *
+	 * Unfortunately though, that means we only do 4096 bytes I/O per
+	 * MMC command. A future improvement would be to make the driver
+	 * accept sg lists and entries of any size, and simply iterate
+	 * through them 4096 bytes at a time.
+	 */
 	mmc->max_segs = AU6601_MAX_DMA_SEGMENTS;
 	mmc->max_seg_size = AU6601_MAX_DMA_BLOCK_SIZE;
-
-	mmc->max_blk_size = mmc->max_seg_size;
-	mmc->max_blk_count = mmc->max_segs;
-
-	mmc->max_req_size = mmc->max_seg_size * mmc->max_segs;
+	mmc->max_req_size = mmc->max_seg_size;
 }
 
 static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)

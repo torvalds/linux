@@ -66,7 +66,7 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp);
 int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx);
 int amdgpu_vce_ring_parse_cs_vm(struct amdgpu_cs_parser *p, uint32_t ib_idx);
 void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_job *job,
-				struct amdgpu_ib *ib, bool ctx_switch);
+				struct amdgpu_ib *ib, uint32_t flags);
 void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 				unsigned flags);
 int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring);

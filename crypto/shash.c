@@ -53,6 +53,13 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 	return err;
 }
 
+static void shash_set_needkey(struct crypto_shash *tfm, struct shash_alg *alg)
+{
+	if (crypto_shash_alg_has_setkey(alg) &&
+	    !(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
+		crypto_shash_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
+}
+
 int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 			unsigned int keylen)
 {
@@ -65,8 +72,10 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 	else
 		err = shash->setkey(tfm, key, keylen);
 
-	if (err)
+	if (unlikely(err)) {
+		shash_set_needkey(tfm, shash);
 		return err;
+	}
 
 	crypto_shash_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
 	return 0;
@@ -373,15 +382,14 @@ int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	crt->final = shash_async_final;
 	crt->finup = shash_async_finup;
 	crt->digest = shash_async_digest;
-	crt->setkey = shash_async_setkey;
+	if (crypto_shash_alg_has_setkey(alg))
+		crt->setkey = shash_async_setkey;
 
 	crypto_ahash_set_flags(crt, crypto_shash_get_flags(shash) &
 				    CRYPTO_TFM_NEED_KEY);
 
-	if (alg->export)
-		crt->export = shash_async_export;
-	if (alg->import)
-		crt->import = shash_async_import;
+	crt->export = shash_async_export;
+	crt->import = shash_async_import;
 
 	crt->reqsize = sizeof(struct shash_desc) + crypto_shash_descsize(shash);
 
@@ -395,9 +403,7 @@ static int crypto_shash_init_tfm(struct crypto_tfm *tfm)
 
 	hash->descsize = alg->descsize;
 
-	if (crypto_shash_alg_has_setkey(alg) &&
-	    !(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
-		crypto_shash_set_flags(hash, CRYPTO_TFM_NEED_KEY);
+	shash_set_needkey(hash, alg);
 
 	return 0;
 }
@@ -462,6 +468,9 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	if (alg->digestsize > HASH_MAX_DIGESTSIZE ||
 	    alg->descsize > HASH_MAX_DESCSIZE ||
 	    alg->statesize > HASH_MAX_STATESIZE)
+		return -EINVAL;
+
+	if ((alg->export && !alg->import) || (alg->import && !alg->export))
 		return -EINVAL;
 
 	base->cra_type = &crypto_shash_type;

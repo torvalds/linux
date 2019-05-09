@@ -219,6 +219,8 @@ struct gpio_desc {
 #define FLAG_IRQ_IS_ENABLED 10	/* GPIO is connected to an enabled IRQ */
 #define FLAG_IS_HOGGED	11	/* GPIO is hogged */
 #define FLAG_TRANSITORY 12	/* GPIO may lose value in sleep or reset */
+#define FLAG_PULL_UP    13	/* GPIO has pull up enabled */
+#define FLAG_PULL_DOWN  14	/* GPIO has pull down enabled */
 
 	/* Connection label */
 	const char		*label;
