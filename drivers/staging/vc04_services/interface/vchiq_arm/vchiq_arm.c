@@ -238,7 +238,7 @@ VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
 
-	if (mutex_lock_killable(&state->mutex) != 0)
+	if (mutex_lock_killable(&state->mutex))
 		return VCHIQ_RETRY;
 
 	/* Remove all services */
@@ -280,7 +280,7 @@ VCHIQ_STATUS_T vchiq_connect(VCHIQ_INSTANCE_T instance)
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
 
-	if (mutex_lock_killable(&state->mutex) != 0) {
+	if (mutex_lock_killable(&state->mutex)) {
 		vchiq_log_trace(vchiq_core_log_level,
 			"%s: call to mutex_lock failed", __func__);
 		status = VCHIQ_RETRY;
@@ -645,8 +645,7 @@ service_callback(VCHIQ_REASON_T reason, struct vchiq_header *header,
 
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 			if (wait_for_completion_interruptible(
-						&user_service->remove_event)
-				!= 0) {
+						&user_service->remove_event)) {
 				vchiq_log_info(vchiq_arm_log_level,
 					"%s interrupted", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
@@ -850,7 +849,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		rc = mutex_lock_killable(&instance->state->mutex);
-		if (rc != 0) {
+		if (rc) {
 			vchiq_log_error(vchiq_arm_log_level,
 				"vchiq: connect: could not lock mutex for "
 				"state %d: %d",
@@ -874,9 +873,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		void *userdata;
 		int srvstate;
 
-		if (copy_from_user
-			 (&args, (const void __user *)arg,
-			  sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -940,7 +938,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				&(((struct vchiq_create_service __user *)
 					arg)->handle),
 				(const void *)&service->handle,
-				sizeof(service->handle)) != 0) {
+				sizeof(service->handle))) {
 				ret = -EFAULT;
 				vchiq_remove_service(service->handle);
 			}
@@ -1015,9 +1013,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_QUEUE_MESSAGE: {
 		struct vchiq_queue_message args;
 
-		if (copy_from_user
-			 (&args, (const void __user *)arg,
-			  sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1049,9 +1046,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			(cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT) ?
 			VCHIQ_BULK_TRANSMIT : VCHIQ_BULK_RECEIVE;
 
-		if (copy_from_user
-			(&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1125,7 +1121,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				&(((struct vchiq_queue_bulk_transfer __user *)
 					arg)->mode),
 				(const void *)&mode_waiting,
-				sizeof(mode_waiting)) != 0)
+				sizeof(mode_waiting)))
 				ret = -EFAULT;
 		}
 	} break;
@@ -1140,7 +1136,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (copy_from_user(&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+			sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1158,7 +1154,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			rc = wait_for_completion_interruptible(
 						&instance->insert_event);
 			mutex_lock(&instance->completion_mutex);
-			if (rc != 0) {
+			if (rc) {
 				DEBUG_TRACE(AWAIT_COMPLETION_LINE);
 				vchiq_log_info(vchiq_arm_log_level,
 					"AWAIT_COMPLETION interrupted");
@@ -1224,7 +1220,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					if (copy_from_user(&msgbuf,
 						(const void __user *)
 						&args.msgbufs[msgbufcount],
-						sizeof(msgbuf)) != 0) {
+						sizeof(msgbuf))) {
 						if (ret == 0)
 							ret = -EFAULT;
 						break;
@@ -1232,7 +1228,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 					/* Copy the message to user space */
 					if (copy_to_user(msgbuf, header,
-						msglen) != 0) {
+						msglen)) {
 						if (ret == 0)
 							ret = -EFAULT;
 						break;
@@ -1257,8 +1253,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					(size_t)args.buf + ret *
 					sizeof(struct vchiq_completion_data)),
 					completion,
-					sizeof(struct vchiq_completion_data))
-									!= 0) {
+					sizeof(struct vchiq_completion_data))) {
 						if (ret == 0)
 							ret = -EFAULT;
 					break;
@@ -1278,13 +1273,13 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					&((struct vchiq_await_completion *)arg)
 						->msgbufcount,
 					&msgbufcount,
-					sizeof(msgbufcount)) != 0) {
+					sizeof(msgbufcount))) {
 					ret = -EFAULT;
 				}
 			}
 		}
 
-		if (ret != 0)
+		if (ret)
 			complete(&instance->remove_event);
 		mutex_unlock(&instance->completion_mutex);
 		DEBUG_TRACE(AWAIT_COMPLETION_LINE);
@@ -1296,9 +1291,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct vchiq_header *header;
 
 		DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
-		if (copy_from_user
-			 (&args, (const void __user *)arg,
-			  sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1384,7 +1378,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct vchiq_config config;
 
 		if (copy_from_user(&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1403,9 +1397,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_SET_SERVICE_OPTION: {
 		struct vchiq_set_service_option args;
 
-		if (copy_from_user(
-			&args, (const void __user *)arg,
-			sizeof(args)) != 0) {
+		if (copy_from_user(&args, (const void __user *)arg,
+				   sizeof(args))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -2329,8 +2322,7 @@ vchiq_keepalive_thread_func(void *v)
 	while (1) {
 		long rc = 0, uc = 0;
 
-		if (wait_for_completion_interruptible(&arm_state->ka_evt)
-				!= 0) {
+		if (wait_for_completion_interruptible(&arm_state->ka_evt)) {
 			vchiq_log_error(vchiq_susp_log_level,
 				"%s interrupted", __func__);
 			flush_signals(current);
@@ -3011,7 +3003,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 			vchiq_log_info(vchiq_susp_log_level, "%s %s resume "
 				"blocked - waiting...", __func__, entity);
 			if (wait_for_completion_killable(
-					&arm_state->resume_blocker) != 0) {
+					&arm_state->resume_blocker)) {
 				vchiq_log_error(vchiq_susp_log_level, "%s %s "
 					"wait for resume blocker interrupted",
 					__func__, entity);
@@ -3060,7 +3052,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		vchiq_log_info(vchiq_susp_log_level, "%s %s wait for resume",
 			__func__, entity);
 		if (wait_for_completion_killable(
-				&arm_state->vc_resume_complete) != 0) {
+				&arm_state->vc_resume_complete)) {
 			vchiq_log_error(vchiq_susp_log_level, "%s %s wait for "
 				"resume interrupted", __func__, entity);
 			ret = VCHIQ_ERROR;
@@ -3505,13 +3497,13 @@ static int vchiq_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, drvdata);
 
 	err = vchiq_platform_init(pdev, &g_state);
-	if (err != 0)
+	if (err)
 		goto failed_platform_init;
 
 	cdev_init(&vchiq_cdev, &vchiq_fops);
 	vchiq_cdev.owner = THIS_MODULE;
 	err = cdev_add(&vchiq_cdev, vchiq_devid, 1);
-	if (err != 0) {
+	if (err) {
 		vchiq_log_error(vchiq_arm_log_level,
 			"Unable to register device");
 		goto failed_platform_init;
