@@ -49,8 +49,6 @@ ifdef CONFIG_SUSPEND
 obj-$(CONFIG_PPC_BOOK3S_32)	+= 6xx-suspend.o
 endif
 
-obj-$(CONFIG_PPC_SCOM)		+= scom.o
-
 obj-$(CONFIG_PPC_EARLY_DEBUG_MEMCONS)	+= udbg_memcons.o
 
 obj-$(CONFIG_PPC_XICS)		+= xics/

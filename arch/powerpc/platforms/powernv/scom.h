@@ -5,12 +5,8 @@
  *     and        David Gibson, IBM Corporation.
  */
 
-#ifndef _ASM_POWERPC_SCOM_H
-#define _ASM_POWERPC_SCOM_H
-
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-#ifdef CONFIG_PPC_SCOM
+#ifndef _SCOM_H
+#define _SCOM_H
 
 /*
  * The SCOM bus is a sideband bus used for accessing various internal
@@ -148,7 +144,4 @@ static inline int scom_write(scom_map_t map, u64 reg, u64 value)
 }
 
 
-#endif /* CONFIG_PPC_SCOM */
-#endif /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
-#endif /* _ASM_POWERPC_SCOM_H */
+#endif /* _SCOM_H */

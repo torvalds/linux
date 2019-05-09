@@ -14,7 +14,8 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/opal.h>
-#include <asm/scom.h>
+
+#include "scom.h"
 
 /*
  * We could probably fit that inside the scom_map_t
