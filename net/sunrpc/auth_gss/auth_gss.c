@@ -551,6 +551,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	refcount_set(&gss_msg->count, 1);
 	gss_msg->uid = uid;
 	gss_msg->auth = gss_auth;
+	kref_get(&gss_auth->kref);
 	if (service_name) {
 		gss_msg->service_name = kstrdup_const(service_name, GFP_NOFS);
 		if (!gss_msg->service_name) {
