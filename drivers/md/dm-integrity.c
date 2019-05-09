@@ -488,13 +488,14 @@ static int sync_rw_sb(struct dm_integrity_c *ic, int op, int op_flags)
 #define BITMAP_OP_SET			2
 #define BITMAP_OP_CLEAR			3
 
-static bool block_bitmap_op(struct dm_integrity_c *ic, struct page_list *bitmap, sector_t sector, sector_t n_sectors, int mode)
+static bool block_bitmap_op(struct dm_integrity_c *ic, struct page_list *bitmap,
+			    sector_t sector, sector_t n_sectors, int mode)
 {
 	unsigned long bit, end_bit, this_end_bit, page, end_page;
 	unsigned long *data;
 
 	if (unlikely(((sector | n_sectors) & ((1 << ic->sb->log2_sectors_per_block) - 1)) != 0)) {
-		DMCRIT("invalid bitmap access (%llx,%llx,%d,%d,%d)\n",
+		DMCRIT("invalid bitmap access (%llx,%llx,%d,%d,%d)",
 			(unsigned long long)sector,
 			(unsigned long long)n_sectors,
 			ic->sb->log2_sectors_per_block,
@@ -507,7 +508,8 @@ static bool block_bitmap_op(struct dm_integrity_c *ic, struct page_list *bitmap,
 		return true;
 
 	bit = sector >> (ic->sb->log2_sectors_per_block + ic->log2_blocks_per_bitmap_bit);
-	end_bit = (sector + n_sectors - 1) >> (ic->sb->log2_sectors_per_block + ic->log2_blocks_per_bitmap_bit);
+	end_bit = (sector + n_sectors - 1) >>
+		(ic->sb->log2_sectors_per_block + ic->log2_blocks_per_bitmap_bit);
 
 	page = bit / (PAGE_SIZE * 8);
 	bit %= PAGE_SIZE * 8;
@@ -620,8 +622,8 @@ static void access_journal_check(struct dm_integrity_c *ic, unsigned section, un
 
 	if (unlikely(section >= ic->journal_sections) ||
 	    unlikely(offset >= limit)) {
-		printk(KERN_CRIT "%s: invalid access at (%u,%u), limit (%u,%u)\n",
-			function, section, offset, ic->journal_sections, limit);
+		DMCRIT("%s: invalid access at (%u,%u), limit (%u,%u)",
+		       function, section, offset, ic->journal_sections, limit);
 		BUG();
 	}
 #endif
@@ -1666,7 +1668,8 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 			else
 				wanted_tag_size *= ic->tag_size;
 			if (unlikely(wanted_tag_size != bip->bip_iter.bi_size)) {
-				DMERR("Invalid integrity data size %u, expected %u", bip->bip_iter.bi_size, wanted_tag_size);
+				DMERR("Invalid integrity data size %u, expected %u",
+				      bip->bip_iter.bi_size, wanted_tag_size);
 				return DM_MAPIO_KILL;
 			}
 		}
@@ -1954,15 +1957,15 @@ offload_to_thread:
 	}
 
 	if (ic->mode == 'B' && dio->write) {
-		if (!block_bitmap_op(ic, ic->may_write_bitmap, dio->range.logical_sector, dio->range.n_sectors, BITMAP_OP_TEST_ALL_SET)) {
-			struct bitmap_block_status *bbs = sector_to_bitmap_block(ic, dio->range.logical_sector);
+		if (!block_bitmap_op(ic, ic->may_write_bitmap, dio->range.logical_sector,
+				     dio->range.n_sectors, BITMAP_OP_TEST_ALL_SET)) {
+			struct bitmap_block_status *bbs;
 
+			bbs = sector_to_bitmap_block(ic, dio->range.logical_sector);
 			spin_lock(&bbs->bio_queue_lock);
 			bio_list_add(&bbs->bio_queue, bio);
 			spin_unlock(&bbs->bio_queue_lock);
-
 			queue_work(ic->writer_wq, &bbs->work);
-
 			return;
 		}
 	}
@@ -1997,7 +2000,8 @@ offload_to_thread:
 		    dio->range.logical_sector + dio->range.n_sectors > le64_to_cpu(ic->sb->recalc_sector))
 			goto skip_check;
 		if (ic->mode == 'B') {
-			if (!block_bitmap_op(ic, ic->recalc_bitmap, dio->range.logical_sector, dio->range.n_sectors, BITMAP_OP_TEST_ALL_CLEAR))
+			if (!block_bitmap_op(ic, ic->recalc_bitmap, dio->range.logical_sector,
+					     dio->range.n_sectors, BITMAP_OP_TEST_ALL_CLEAR))
 				goto skip_check;
 		}
 
@@ -2039,20 +2043,14 @@ static void pad_uncommitted(struct dm_integrity_c *ic)
 		ic->n_uncommitted_sections++;
 	}
 	if (WARN_ON(ic->journal_sections * ic->journal_section_entries !=
-		(ic->n_uncommitted_sections + ic->n_committed_sections) * ic->journal_section_entries + ic->free_sectors)) {
-		printk(KERN_CRIT "dm-integrity: "
-			"journal_sections %u, "
-			"journal_section_entries %u, "
-			"n_uncommitted_sections %u, "
-			"n_committed_sections %u, "
-			"journal_section_entries %u, "
-			"free_sectors %u\n",
-			ic->journal_sections,
-			ic->journal_section_entries,
-			ic->n_uncommitted_sections,
-			ic->n_committed_sections,
-			ic->journal_section_entries,
-			ic->free_sectors);
+		    (ic->n_uncommitted_sections + ic->n_committed_sections) *
+		    ic->journal_section_entries + ic->free_sectors)) {
+		DMCRIT("journal_sections %u, journal_section_entries %u, "
+		       "n_uncommitted_sections %u, n_committed_sections %u, "
+		       "journal_section_entries %u, free_sectors %u",
+		       ic->journal_sections, ic->journal_section_entries,
+		       ic->n_uncommitted_sections, ic->n_committed_sections,
+		       ic->journal_section_entries, ic->free_sectors);
 	}
 }
 
@@ -2378,12 +2376,14 @@ next_chunk:
 		if (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector, n_sectors, BITMAP_OP_TEST_ALL_CLEAR)) {
 			goto advance_and_next;
 		}
-		while (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector, ic->sectors_per_block, BITMAP_OP_TEST_ALL_CLEAR)) {
+		while (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector,
+				       ic->sectors_per_block, BITMAP_OP_TEST_ALL_CLEAR)) {
 			logical_sector += ic->sectors_per_block;
 			n_sectors -= ic->sectors_per_block;
 			cond_resched();
 		}
-		while (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector + n_sectors - ic->sectors_per_block, ic->sectors_per_block, BITMAP_OP_TEST_ALL_CLEAR)) {
+		while (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector + n_sectors - ic->sectors_per_block,
+				       ic->sectors_per_block, BITMAP_OP_TEST_ALL_CLEAR)) {
 			n_sectors -= ic->sectors_per_block;
 			cond_resched();
 		}
@@ -2471,12 +2471,14 @@ static void bitmap_block_work(struct work_struct *w)
 
 		dio = dm_per_bio_data(bio, sizeof(struct dm_integrity_io));
 
-		if (block_bitmap_op(ic, ic->may_write_bitmap, dio->range.logical_sector, dio->range.n_sectors, BITMAP_OP_TEST_ALL_SET)) {
+		if (block_bitmap_op(ic, ic->may_write_bitmap, dio->range.logical_sector,
+				    dio->range.n_sectors, BITMAP_OP_TEST_ALL_SET)) {
 			remove_range(ic, &dio->range);
 			INIT_WORK(&dio->work, integrity_bio_wait);
 			queue_work(ic->wait_wq, &dio->work);
 		} else {
-			block_bitmap_op(ic, ic->journal, dio->range.logical_sector, dio->range.n_sectors, BITMAP_OP_SET);
+			block_bitmap_op(ic, ic->journal, dio->range.logical_sector,
+					dio->range.n_sectors, BITMAP_OP_SET);
 			bio_list_add(&waiting, bio);
 		}
 	}
@@ -2484,12 +2486,15 @@ static void bitmap_block_work(struct work_struct *w)
 	if (bio_list_empty(&waiting))
 		return;
 
-	rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, bbs->idx * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), BITMAP_BLOCK_SIZE >> SECTOR_SHIFT, NULL);
+	rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC,
+			   bbs->idx * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT),
+			   BITMAP_BLOCK_SIZE >> SECTOR_SHIFT, NULL);
 
 	while ((bio = bio_list_pop(&waiting))) {
 		struct dm_integrity_io *dio = dm_per_bio_data(bio, sizeof(struct dm_integrity_io));
 
-		block_bitmap_op(ic, ic->may_write_bitmap, dio->range.logical_sector, dio->range.n_sectors, BITMAP_OP_SET);
+		block_bitmap_op(ic, ic->may_write_bitmap, dio->range.logical_sector,
+				dio->range.n_sectors, BITMAP_OP_SET);
 
 		remove_range(ic, &dio->range);
 		INIT_WORK(&dio->work, integrity_bio_wait);
@@ -2529,7 +2534,8 @@ static void bitmap_flush_work(struct work_struct *work)
 	block_bitmap_op(ic, ic->journal, 0, limit, BITMAP_OP_CLEAR);
 	block_bitmap_op(ic, ic->may_write_bitmap, 0, limit, BITMAP_OP_CLEAR);
 
-	rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, 0, ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
+	rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, 0,
+			   ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
 
 	spin_lock_irq(&ic->endio_wait.lock);
 	remove_range_unlocked(ic, &range);
@@ -2793,6 +2799,7 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 	if (ic->mode == 'B') {
 		dm_integrity_flush_buffers(ic);
 #if 1
+		/* set to 0 to test bitmap replay code */
 		init_journal(ic, 0, ic->journal_sections, 0);
 		ic->sb->flags &= ~cpu_to_le32(SB_FLAG_DIRTY_BITMAP);
 		r = sync_rw_sb(ic, REQ_OP_WRITE, REQ_FUA);
@@ -2816,22 +2823,26 @@ static void dm_integrity_resume(struct dm_target *ti)
 
 	if (ic->sb->flags & cpu_to_le32(SB_FLAG_DIRTY_BITMAP)) {
 		DEBUG_print("resume dirty_bitmap\n");
-		rw_journal_sectors(ic, REQ_OP_READ, 0, 0, ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
+		rw_journal_sectors(ic, REQ_OP_READ, 0, 0,
+				   ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
 		if (ic->mode == 'B') {
 			if (ic->sb->log2_blocks_per_bitmap_bit == ic->log2_blocks_per_bitmap_bit) {
 				block_bitmap_copy(ic, ic->recalc_bitmap, ic->journal);
 				block_bitmap_copy(ic, ic->may_write_bitmap, ic->journal);
-				if (!block_bitmap_op(ic, ic->journal, 0, ic->provided_data_sectors, BITMAP_OP_TEST_ALL_CLEAR)) {
+				if (!block_bitmap_op(ic, ic->journal, 0, ic->provided_data_sectors,
+						     BITMAP_OP_TEST_ALL_CLEAR)) {
 					ic->sb->flags |= cpu_to_le32(SB_FLAG_RECALCULATING);
 					ic->sb->recalc_sector = cpu_to_le64(0);
 				}
 			} else {
-				DEBUG_print("non-matching blocks_per_bitmap_bit: %u, %u\n", ic->sb->log2_blocks_per_bitmap_bit, ic->log2_blocks_per_bitmap_bit);
+				DEBUG_print("non-matching blocks_per_bitmap_bit: %u, %u\n",
+					    ic->sb->log2_blocks_per_bitmap_bit, ic->log2_blocks_per_bitmap_bit);
 				ic->sb->log2_blocks_per_bitmap_bit = ic->log2_blocks_per_bitmap_bit;
 				block_bitmap_op(ic, ic->recalc_bitmap, 0, ic->provided_data_sectors, BITMAP_OP_SET);
 				block_bitmap_op(ic, ic->may_write_bitmap, 0, ic->provided_data_sectors, BITMAP_OP_SET);
 				block_bitmap_op(ic, ic->journal, 0, ic->provided_data_sectors, BITMAP_OP_SET);
-				rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, 0, ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
+				rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, 0,
+						   ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
 				ic->sb->flags |= cpu_to_le32(SB_FLAG_RECALCULATING);
 				ic->sb->recalc_sector = cpu_to_le64(0);
 			}
@@ -2862,7 +2873,8 @@ static void dm_integrity_resume(struct dm_target *ti)
 			block_bitmap_op(ic, ic->journal, 0, ic->provided_data_sectors, mode);
 			block_bitmap_op(ic, ic->recalc_bitmap, 0, ic->provided_data_sectors, mode);
 			block_bitmap_op(ic, ic->may_write_bitmap, 0, ic->provided_data_sectors, mode);
-			rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, 0, ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
+			rw_journal_sectors(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, 0,
+					   ic->n_bitmap_blocks * (BITMAP_BLOCK_SIZE >> SECTOR_SHIFT), NULL);
 		}
 	}
 
@@ -2884,6 +2896,7 @@ static void dm_integrity_resume(struct dm_target *ti)
 	WARN_ON(register_reboot_notifier(&ic->reboot_notifier));
 
 #if 0
+	/* set to 1 to stress test synchronous mode */
 	dm_integrity_enter_synchronous_mode(ic);
 #endif
 }
@@ -3160,7 +3173,8 @@ static void dm_integrity_free_journal_scatterlist(struct dm_integrity_c *ic, str
 	kvfree(sl);
 }
 
-static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_integrity_c *ic, struct page_list *pl)
+static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_integrity_c *ic,
+								   struct page_list *pl)
 {
 	struct scatterlist **sl;
 	unsigned i;
@@ -3179,7 +3193,8 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
 		unsigned idx;
 
 		page_list_location(ic, i, 0, &start_index, &start_offset);
-		page_list_location(ic, i, ic->journal_section_sectors - 1, &end_index, &end_offset);
+		page_list_location(ic, i, ic->journal_section_sectors - 1,
+				   &end_index, &end_offset);
 
 		n_pages = (end_index - start_index + 1);
 
@@ -3380,7 +3395,8 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 			sg_set_buf(&sg[i], &ic->commit_ids, sizeof ic->commit_ids);
 			memset(crypt_iv, 0x00, ivsize);
 
-			skcipher_request_set_crypt(req, sg, sg, PAGE_SIZE * ic->journal_pages + sizeof ic->commit_ids, crypt_iv);
+			skcipher_request_set_crypt(req, sg, sg,
+						   PAGE_SIZE * ic->journal_pages + sizeof ic->commit_ids, crypt_iv);
 			init_completion(&comp.comp);
 			comp.in_flight = (atomic_t)ATOMIC_INIT(1);
 			if (do_crypt(true, req, &comp))
@@ -3602,7 +3618,8 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		}
 	}
 
-	if (!strcmp(argv[3], "J") || !strcmp(argv[3], "B") || !strcmp(argv[3], "D") || !strcmp(argv[3], "R")) {
+	if (!strcmp(argv[3], "J") || !strcmp(argv[3], "B") ||
+	    !strcmp(argv[3], "D") || !strcmp(argv[3], "R")) {
 		ic->mode = argv[3][0];
 	} else {
 		ti->error = "Invalid mode (expecting J, B, D, R)";
@@ -3648,7 +3665,8 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				dm_put_device(ti, ic->meta_dev);
 				ic->meta_dev = NULL;
 			}
-			r = dm_get_device(ti, strchr(opt_string, ':') + 1, dm_table_get_mode(ti->table), &ic->meta_dev);
+			r = dm_get_device(ti, strchr(opt_string, ':') + 1,
+					  dm_table_get_mode(ti->table), &ic->meta_dev);
 			if (r) {
 				ti->error = "Device lookup failed";
 				goto bad;
@@ -3702,7 +3720,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	if (!journal_sectors) {
 		journal_sectors = min((sector_t)DEFAULT_MAX_JOURNAL_SECTORS,
-			ic->data_device_sectors >> DEFAULT_JOURNAL_SIZE_FACTOR);
+				      ic->data_device_sectors >> DEFAULT_JOURNAL_SIZE_FACTOR);
 	}
 
 	if (!buffer_sectors)
