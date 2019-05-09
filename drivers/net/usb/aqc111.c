@@ -1428,7 +1428,7 @@ static int aqc111_resume(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct aqc111_data *aqc111_data = dev->driver_priv;
-	u16 reg16;
+	u16 reg16, oldreg16;
 	u8 reg8;
 
 	netif_carrier_off(dev->net);
@@ -1444,9 +1444,11 @@ static int aqc111_resume(struct usb_interface *intf)
 	/* Configure RX control register => start operation */
 	reg16 = aqc111_data->rxctl;
 	reg16 &= ~SFR_RX_CTL_START;
+	/* needs to be saved in case endianness is swapped */
+	oldreg16 = reg16;
 	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 
-	reg16 |= SFR_RX_CTL_START;
+	reg16 = oldreg16 | SFR_RX_CTL_START;
 	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 
 	aqc111_set_phy_speed(dev, aqc111_data->autoneg,
