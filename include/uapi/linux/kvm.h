@@ -1500,6 +1500,8 @@ enum pv_cmd_id {
 	KVM_PV_SET_SEC_PARMS,
 	KVM_PV_UNPACK,
 	KVM_PV_VERIFY,
+	KVM_PV_PREP_RESET,
+	KVM_PV_UNSHARE_ALL,
 };
 
 struct kvm_pv_cmd {
