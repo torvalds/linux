@@ -15,7 +15,7 @@ static int libbpf_debug_print(enum libbpf_print_level level,
 static int check_load(const char *file)
 {
 	struct bpf_prog_load_attr attr;
-	struct bpf_object *obj;
+	struct bpf_object *obj = NULL;
 	int err, prog_fd;
 
 	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
