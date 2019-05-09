@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -253,20 +254,9 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 /*
  * This function sets the internal RTC time based on tm in Gregorian date.
  */
-static int mxc_rtc_set_mmss(struct device *dev, time64_t time)
+static int mxc_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
-
-	/*
-	 * TTC_DAYR register is 9-bit in MX1 SoC, save time and day of year only
-	 */
-	if (is_imx1_rtc(pdata)) {
-		struct rtc_time tm;
-
-		rtc_time64_to_tm(time, &tm);
-		tm.tm_year = 70;
-		time = rtc_tm_to_time64(&tm);
-	}
+	time64_t time = rtc_tm_to_time64(tm);
 
 	/* Avoid roll-over from reading the different registers */
 	do {
@@ -310,7 +300,7 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 /* RTC layer */
 static const struct rtc_class_ops mxc_rtc_ops = {
 	.read_time		= mxc_rtc_read_time,
-	.set_mmss64		= mxc_rtc_set_mmss,
+	.set_time		= mxc_rtc_set_time,
 	.read_alarm		= mxc_rtc_read_alarm,
 	.set_alarm		= mxc_rtc_set_alarm,
 	.alarm_irq_enable	= mxc_rtc_alarm_irq_enable,
@@ -318,7 +308,6 @@ static const struct rtc_class_ops mxc_rtc_ops = {
 
 static int mxc_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct rtc_device *rtc;
 	struct rtc_plat_data *pdata = NULL;
 	u32 reg;
@@ -336,10 +325,33 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	else
 		pdata->devtype = pdev->id_entry->driver_data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
+
+	rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	pdata->rtc = rtc;
+	rtc->ops = &mxc_rtc_ops;
+	if (is_imx1_rtc(pdata)) {
+		struct rtc_time tm;
+
+		/* 9bit days + hours minutes seconds */
+		rtc->range_max = (1 << 9) * 86400 - 1;
+
+		/*
+		 * Set the start date as beginning of the current year. This can
+		 * be overridden using device tree.
+		 */
+		rtc_time64_to_tm(ktime_get_real_seconds(), &tm);
+		rtc->start_secs =  mktime64(tm.tm_year, 1, 1, 0, 0, 0);
+		rtc->set_start_time = true;
+	} else {
+		/* 16bit days + hours minutes seconds */
+		rtc->range_max = (1 << 16) * 86400ULL - 1;
+	}
 
 	pdata->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(pdata->clk_ipg)) {
@@ -396,17 +408,16 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		pdata->irq = -1;
 	}
 
-	if (pdata->irq >= 0)
+	if (pdata->irq >= 0) {
 		device_init_wakeup(&pdev->dev, 1);
-
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
-				  THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
-		goto exit_put_clk_ref;
+		ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irq);
+		if (ret)
+			dev_err(&pdev->dev, "failed to enable irq wake\n");
 	}
 
-	pdata->rtc = rtc;
+	ret = rtc_register_device(rtc);
+	if (ret)
+		goto exit_put_clk_ref;
 
 	return 0;
 
@@ -428,35 +439,10 @@ static int mxc_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mxc_rtc_suspend(struct device *dev)
-{
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(pdata->irq);
-
-	return 0;
-}
-
-static int mxc_rtc_resume(struct device *dev)
-{
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		disable_irq_wake(pdata->irq);
-
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(mxc_rtc_pm_ops, mxc_rtc_suspend, mxc_rtc_resume);
-
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
 		   .of_match_table = of_match_ptr(imx_rtc_dt_ids),
-		   .pm		= &mxc_rtc_pm_ops,
 	},
 	.id_table = imx_rtc_devtype,
 	.probe = mxc_rtc_probe,
