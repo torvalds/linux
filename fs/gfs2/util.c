@@ -178,9 +178,11 @@ int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
 			 const char *function, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
+	char fs_id_buf[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
 	int rv;
 
-	gfs2_rgrp_dump(NULL, rgd->rd_gl);
+	sprintf(fs_id_buf, "fsid=%s: ", sdp->sd_fsname);
+	gfs2_rgrp_dump(NULL, rgd->rd_gl, fs_id_buf);
 	rv = gfs2_lm_withdraw(sdp,
 			      "fatal: filesystem consistency error\n"
 			      "  RG = %llu\n"

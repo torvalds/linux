@@ -775,7 +775,7 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 					fs_info(sdp, "busy:%d, pinned:%d\n",
 						buffer_busy(rgd->rd_bits->bi_bh) ? 1 : 0,
 						buffer_pinned(rgd->rd_bits->bi_bh));
-					gfs2_dump_glock(NULL, rgd->rd_gl);
+					gfs2_dump_glock(NULL, rgd->rd_gl, true);
 				}
 			}
 			mark_buffer_dirty(bh_ip);

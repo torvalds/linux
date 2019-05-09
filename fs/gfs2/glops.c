@@ -461,10 +461,12 @@ static int inode_go_lock(struct gfs2_holder *gh)
  * inode_go_dump - print information about an inode
  * @seq: The iterator
  * @ip: the inode
+ * @fs_id_buf: file system id (may be empty)
  *
  */
 
-static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl)
+static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
+			  const char *fs_id_buf)
 {
 	struct gfs2_inode *ip = gl->gl_object;
 	struct inode *inode = &ip->i_inode;
@@ -477,7 +479,8 @@ static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl)
 	nrpages = inode->i_data.nrpages;
 	xa_unlock_irq(&inode->i_data.i_pages);
 
-	gfs2_print_dbg(seq, " I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu p:%lu\n",
+	gfs2_print_dbg(seq, "%s I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu "
+		       "p:%lu\n", fs_id_buf,
 		  (unsigned long long)ip->i_no_formal_ino,
 		  (unsigned long long)ip->i_no_addr,
 		  IF2DT(ip->i_inode.i_mode), ip->i_flags,

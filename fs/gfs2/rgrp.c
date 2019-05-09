@@ -610,11 +610,12 @@ int gfs2_rsqa_alloc(struct gfs2_inode *ip)
 	return gfs2_qa_alloc(ip);
 }
 
-static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs)
+static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs,
+		    const char *fs_id_buf)
 {
 	struct gfs2_inode *ip = container_of(rs, struct gfs2_inode, i_res);
 
-	gfs2_print_dbg(seq, "  B: n:%llu s:%llu b:%u f:%u\n",
+	gfs2_print_dbg(seq, "%s  B: n:%llu s:%llu b:%u f:%u\n", fs_id_buf,
 		       (unsigned long long)ip->i_no_addr,
 		       (unsigned long long)gfs2_rbm_to_block(&rs->rs_rbm),
 		       rs->rs_rbm.offset, rs->rs_free);
@@ -2246,10 +2247,12 @@ static void rgblk_free(struct gfs2_sbd *sdp, struct gfs2_rgrpd *rgd,
  * gfs2_rgrp_dump - print out an rgrp
  * @seq: The iterator
  * @gl: The glock in question
+ * @fs_id_buf: pointer to file system id (if requested)
  *
  */
 
-void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_glock *gl)
+void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_glock *gl,
+		    const char *fs_id_buf)
 {
 	struct gfs2_rgrpd *rgd = gl->gl_object;
 	struct gfs2_blkreserv *trs;
@@ -2257,14 +2260,15 @@ void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_glock *gl)
 
 	if (rgd == NULL)
 		return;
-	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u r:%u e:%u\n",
+	gfs2_print_dbg(seq, "%s R: n:%llu f:%02x b:%u/%u i:%u r:%u e:%u\n",
+		       fs_id_buf,
 		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
 		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes,
 		       rgd->rd_reserved, rgd->rd_extfail_pt);
 	if (rgd->rd_sbd->sd_args.ar_rgrplvb) {
 		struct gfs2_rgrp_lvb *rgl = rgd->rd_rgl;
 
-		gfs2_print_dbg(seq, "  L: f:%02x b:%u i:%u\n",
+		gfs2_print_dbg(seq, "%s  L: f:%02x b:%u i:%u\n", fs_id_buf,
 			       be32_to_cpu(rgl->rl_flags),
 			       be32_to_cpu(rgl->rl_free),
 			       be32_to_cpu(rgl->rl_dinodes));
@@ -2272,7 +2276,7 @@ void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_glock *gl)
 	spin_lock(&rgd->rd_rsspin);
 	for (n = rb_first(&rgd->rd_rstree); n; n = rb_next(&trs->rs_node)) {
 		trs = rb_entry(n, struct gfs2_blkreserv, rs_node);
-		dump_rs(seq, trs);
+		dump_rs(seq, trs, fs_id_buf);
 	}
 	spin_unlock(&rgd->rd_rsspin);
 }
@@ -2280,10 +2284,13 @@ void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_glock *gl)
 static void gfs2_rgrp_error(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
+	char fs_id_buf[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
+
 	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
 		(unsigned long long)rgd->rd_addr);
 	fs_warn(sdp, "umount on all nodes and run fsck.gfs2 to fix the error\n");
-	gfs2_rgrp_dump(NULL, rgd->rd_gl);
+	sprintf(fs_id_buf, "fsid=%s: ", sdp->sd_fsname);
+	gfs2_rgrp_dump(NULL, rgd->rd_gl, fs_id_buf);
 	rgd->rd_flags |= GFS2_RDF_ERROR;
 }
 
