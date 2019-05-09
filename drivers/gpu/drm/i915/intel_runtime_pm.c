@@ -4528,10 +4528,10 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	 * Even if power well support was disabled we still want to disable
 	 * power wells if power domains must be deinitialized for suspend.
 	 */
-	if (!i915_modparams.disable_power_well) {
+	if (!i915_modparams.disable_power_well)
 		intel_display_power_put_unchecked(i915, POWER_DOMAIN_INIT);
-		intel_power_domains_verify_state(i915);
-	}
+
+	intel_power_domains_verify_state(i915);
 
 	if (INTEL_GEN(i915) >= 11)
 		icl_display_core_uninit(i915);
