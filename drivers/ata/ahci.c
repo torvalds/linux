@@ -50,6 +50,10 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include "ahci.h"
 
+#ifdef CONFIG_X86_PS4
+#include <asm/ps4.h>
+#endif
+
 #define DRV_NAME	"ahci"
 #define DRV_VERSION	"3.0"
 
