@@ -101,7 +101,7 @@ jobs:
 
   i386:
    docker:
-     - image: luckytmp/circleci-i386:latest
+     - image: lkldocker/circleci-i386:0.1
    environment:
      CROSS_COMPILE: ""
    <<: *do_steps
