@@ -881,6 +881,9 @@ int conf_write(const char *name)
 		return -1;
 	}
 
+	if (make_parent_dir(name))
+		return -1;
+
 	env = getenv("KCONFIG_OVERWRITECONFIG");
 	if (env && *env) {
 		*tmpname = 0;
