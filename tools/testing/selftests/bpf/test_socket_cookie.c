@@ -158,10 +158,8 @@ static int run_test(int cgfd)
 	bpf_object__for_each_program(prog, pobj) {
 		prog_name = bpf_program__title(prog, /*needs_copy*/ false);
 
-		if (libbpf_attach_type_by_name(prog_name, &attach_type)) {
-			log_err("Unexpected prog: %s", prog_name);
+		if (libbpf_attach_type_by_name(prog_name, &attach_type))
 			goto err;
-		}
 
 		err = bpf_prog_attach(bpf_program__fd(prog), cgfd, attach_type,
 				      BPF_F_ALLOW_OVERRIDE);

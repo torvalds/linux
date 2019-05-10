@@ -1162,16 +1162,13 @@ xfs_zero_file_space(
 	 * by virtue of the hole punch.
 	 */
 	error = xfs_free_file_space(ip, offset, len);
-	if (error)
-		goto out;
+	if (error || xfs_is_always_cow_inode(ip))
+		return error;
 
-	error = xfs_alloc_file_space(ip, round_down(offset, blksize),
+	return xfs_alloc_file_space(ip, round_down(offset, blksize),
 				     round_up(offset + len, blksize) -
 				     round_down(offset, blksize),
 				     XFS_BMAPI_PREALLOC);
-out:
-	return error;
-
 }
 
 static int

@@ -168,6 +168,13 @@ The details of these operations are:
    dmaengine_submit() will not start the DMA operation, it merely adds
    it to the pending queue. For this, see step 5, dma_async_issue_pending.
 
+   .. note::
+
+      After calling ``dmaengine_submit()`` the submitted transfer descriptor
+      (``struct dma_async_tx_descriptor``) belongs to the DMA engine.
+      Consequently, the client must consider invalid the pointer to that
+      descriptor.
+
 5. Issue pending DMA requests and wait for callback notification
 
    The transactions in the pending queue can be activated by calling the

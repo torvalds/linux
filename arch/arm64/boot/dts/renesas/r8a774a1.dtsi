@@ -61,7 +61,7 @@
 		#size-cells = <0>;
 
 		a57_0: cpu@0 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x0>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A774A1_PD_CA57_CPU0>;
@@ -71,7 +71,7 @@
 		};
 
 		a57_1: cpu@1 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x1>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A774A1_PD_CA57_CPU1>;
@@ -81,7 +81,7 @@
 		};
 
 		a53_0: cpu@100 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x100>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A774A1_PD_CA53_CPU0>;
@@ -91,7 +91,7 @@
 		};
 
 		a53_1: cpu@101 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x101>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A774A1_PD_CA53_CPU1>;
@@ -101,7 +101,7 @@
 		};
 
 		a53_2: cpu@102 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x102>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A774A1_PD_CA53_CPU2>;
@@ -111,7 +111,7 @@
 		};
 
 		a53_3: cpu@103 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x103>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A774A1_PD_CA53_CPU3>;
@@ -599,7 +599,7 @@
 		hsusb: usb@e6590000 {
 			compatible = "renesas,usbhs-r8a774a1",
 				     "renesas,rcar-gen3-usbhs";
-			reg = <0 0xe6590000 0 0x100>;
+			reg = <0 0xe6590000 0 0x200>;
 			interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 704>;
 			dmas = <&usb_dmac0 0>, <&usb_dmac0 1>,

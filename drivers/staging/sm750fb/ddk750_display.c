@@ -5,7 +5,7 @@
 #include "ddk750_power.h"
 #include "ddk750_dvi.h"
 
-static void setDisplayControl(int ctrl, int disp_state)
+static void set_display_control(int ctrl, int disp_state)
 {
 	/* state != 0 means turn on both timing & plane en_bit */
 	unsigned long reg, val, reserved;
@@ -137,12 +137,12 @@ void ddk750_setLogicalDispOut(enum disp_output output)
 
 	if (output & PRI_TP_USAGE) {
 		/* set primary timing and plane en_bit */
-		setDisplayControl(0, (output & PRI_TP_MASK) >> PRI_TP_OFFSET);
+		set_display_control(0, (output & PRI_TP_MASK) >> PRI_TP_OFFSET);
 	}
 
 	if (output & SEC_TP_USAGE) {
 		/* set secondary timing and plane en_bit*/
-		setDisplayControl(1, (output & SEC_TP_MASK) >> SEC_TP_OFFSET);
+		set_display_control(1, (output & SEC_TP_MASK) >> SEC_TP_OFFSET);
 	}
 
 	if (output & PNL_SEQ_USAGE) {

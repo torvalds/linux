@@ -876,7 +876,7 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 		/*
 		 * we make sure that the source image has a 16 byte aligned
 		 * stride, we need to do the same for the motion vector buffer
-		 * by aligning it's stride to the next 16 byte boundry. this
+		 * by aligning it's stride to the next 16 byte boundary. this
 		 * extra space will not be used by the de-interlacer, but will
 		 * ensure that vpdma operates correctly
 		 */

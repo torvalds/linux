@@ -337,10 +337,12 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	struct device *dev = hub->dev;
 	struct device_node *np = dev->of_node;
 	int len, err, i;
-	u32 property_u32 = 0;
+	u32 port, property_u32 = 0;
 	const u32 *cproperty_u32;
 	const char *cproperty_char;
 	char str[USB251XB_STRING_BUFSIZE / 2];
+	struct property *prop;
+	const __be32 *p;
 
 	if (!np) {
 		dev_err(dev, "failed to get ofdata\n");
@@ -539,6 +541,16 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			      (wchar_t *)hub->serial,
 			      USB251XB_STRING_BUFSIZE);
 
+	/*
+	 * The datasheet documents the register as 'Port Swap' but in real the
+	 * register controls the USB DP/DM signal swapping for each port.
+	 */
+	hub->port_swap = USB251XB_DEF_PORT_SWAP;
+	of_property_for_each_u32(np, "swap-dx-lanes", prop, p, port) {
+		if (port <= data->port_cnt)
+			hub->port_swap |= BIT(port);
+	}
+
 	/* The following parameters are currently not exposed to devicetree, but
 	 * may be as soon as needed.
 	 */
@@ -546,7 +558,6 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	hub->boost_up = USB251XB_DEF_BOOST_UP;
 	hub->boost_57 = USB251XB_DEF_BOOST_57;
 	hub->boost_14 = USB251XB_DEF_BOOST_14;
-	hub->port_swap = USB251XB_DEF_PORT_SWAP;
 	hub->port_map12 = USB251XB_DEF_PORT_MAP_12;
 	hub->port_map34 = USB251XB_DEF_PORT_MAP_34;
 	hub->port_map56 = USB251XB_DEF_PORT_MAP_56;
@@ -601,7 +612,7 @@ static int usb251xb_probe(struct usb251xb *hub)
 							   dev);
 	int err;
 
-	if (np) {
+	if (np && of_id) {
 		err = usb251xb_get_ofdata(hub,
 					  (struct usb251xb_data *)of_id->data);
 		if (err) {

@@ -7,7 +7,7 @@
  * BPF program to set base_rtt to 80us when host is running TCP-NV and
  * both hosts are in the same datacenter (as determined by IPv6 prefix).
  *
- * Use load_sock_ops to load this BPF program.
+ * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */
 
 #include <uapi/linux/bpf.h>

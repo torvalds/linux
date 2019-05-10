@@ -202,8 +202,6 @@ static int __init ge_imp3a_probe(void)
 
 machine_arch_initcall(ge_imp3a, mpc85xx_common_publish_devices);
 
-machine_arch_initcall(ge_imp3a, swiotlb_setup_bus_notifier);
-
 define_machine(ge_imp3a) {
 	.name			= "GE_IMP3A",
 	.probe			= ge_imp3a_probe,

@@ -152,7 +152,6 @@ void igc_power_down_phy_copper(struct igc_hw *hw)
 s32 igc_check_downshift(struct igc_hw *hw)
 {
 	struct igc_phy_info *phy = &hw->phy;
-	u16 phy_data, offset, mask;
 	s32 ret_val;
 
 	switch (phy->type) {
@@ -161,15 +160,8 @@ s32 igc_check_downshift(struct igc_hw *hw)
 		/* speed downshift not supported */
 		phy->speed_downgraded = false;
 		ret_val = 0;
-		goto out;
 	}
 
-	ret_val = phy->ops.read_reg(hw, offset, &phy_data);
-
-	if (!ret_val)
-		phy->speed_downgraded = (phy_data & mask) ? true : false;
-
-out:
 	return ret_val;
 }
 

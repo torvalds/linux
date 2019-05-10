@@ -6,7 +6,6 @@
  */
 #include <linux/pci.h>
 #include <linux/acpi.h>
-#include <drm/drmP.h>
 #include "i915_drv.h"
 
 #define INTEL_DSM_REVISION_ID 1 /* For Calpella anyway... */

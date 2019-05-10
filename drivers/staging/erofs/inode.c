@@ -184,32 +184,18 @@ static int fill_inode(struct inode *inode, int isdir)
 	if (!err) {
 		/* setup the new inode */
 		if (S_ISREG(inode->i_mode)) {
-#ifdef CONFIG_EROFS_FS_XATTR
-			if (vi->xattr_isize)
-				inode->i_op = &erofs_generic_xattr_iops;
-#endif
+			inode->i_op = &erofs_generic_iops;
 			inode->i_fop = &generic_ro_fops;
 		} else if (S_ISDIR(inode->i_mode)) {
-			inode->i_op =
-#ifdef CONFIG_EROFS_FS_XATTR
-				vi->xattr_isize ? &erofs_dir_xattr_iops :
-#endif
-				&erofs_dir_iops;
+			inode->i_op = &erofs_dir_iops;
 			inode->i_fop = &erofs_dir_fops;
 		} else if (S_ISLNK(inode->i_mode)) {
 			/* by default, page_get_link is used for symlink */
-			inode->i_op =
-#ifdef CONFIG_EROFS_FS_XATTR
-				&erofs_symlink_xattr_iops,
-#else
-				&page_symlink_inode_operations;
-#endif
+			inode->i_op = &erofs_symlink_iops;
 			inode_nohighmem(inode);
 		} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
 			S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
-#ifdef CONFIG_EROFS_FS_XATTR
-			inode->i_op = &erofs_special_inode_operations;
-#endif
+			inode->i_op = &erofs_generic_iops;
 			init_special_inode(inode, inode->i_mode, inode->i_rdev);
 		} else {
 			err = -EIO;
@@ -297,23 +283,26 @@ struct inode *erofs_iget(struct super_block *sb,
 	return inode;
 }
 
+const struct inode_operations erofs_generic_iops = {
 #ifdef CONFIG_EROFS_FS_XATTR
-const struct inode_operations erofs_generic_xattr_iops = {
 	.listxattr = erofs_listxattr,
-};
-
-const struct inode_operations erofs_symlink_xattr_iops = {
-	.get_link = page_get_link,
-	.listxattr = erofs_listxattr,
-};
-
-const struct inode_operations erofs_special_inode_operations = {
-	.listxattr = erofs_listxattr,
-};
-
-const struct inode_operations erofs_fast_symlink_xattr_iops = {
-	.get_link = simple_get_link,
-	.listxattr = erofs_listxattr,
-};
 #endif
+	.get_acl = erofs_get_acl,
+};
+
+const struct inode_operations erofs_symlink_iops = {
+	.get_link = page_get_link,
+#ifdef CONFIG_EROFS_FS_XATTR
+	.listxattr = erofs_listxattr,
+#endif
+	.get_acl = erofs_get_acl,
+};
+
+const struct inode_operations erofs_fast_symlink_iops = {
+	.get_link = simple_get_link,
+#ifdef CONFIG_EROFS_FS_XATTR
+	.listxattr = erofs_listxattr,
+#endif
+	.get_acl = erofs_get_acl,
+};
 

@@ -7,7 +7,6 @@
 
 #include <asm-generic/asm-prototypes.h>
 
-#include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/special_insns.h>
 #include <asm/preempt.h>

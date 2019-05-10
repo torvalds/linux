@@ -40,8 +40,7 @@ config SECURITYFS
 	bool "Enable the securityfs filesystem"
 	help
 	  This will build the securityfs filesystem.  It is currently used by
-	  the TPM bios character driver and IMA, an integrity provider.  It is
-	  not used by SELinux or SMACK.
+	  various security modules (AppArmor, IMA, SafeSetID, TOMOYO, TPM).
 
 	  If you are unsure how to answer this question, answer N.
 
@@ -236,11 +235,12 @@ source "security/tomoyo/Kconfig"
 source "security/apparmor/Kconfig"
 source "security/loadpin/Kconfig"
 source "security/yama/Kconfig"
+source "security/safesetid/Kconfig"
 
 source "security/integrity/Kconfig"
 
 choice
-	prompt "Default security module"
+	prompt "First legacy 'major LSM' to be initialized"
 	default DEFAULT_SECURITY_SELINUX if SECURITY_SELINUX
 	default DEFAULT_SECURITY_SMACK if SECURITY_SMACK
 	default DEFAULT_SECURITY_TOMOYO if SECURITY_TOMOYO
@@ -248,8 +248,13 @@ choice
 	default DEFAULT_SECURITY_DAC
 
 	help
-	  Select the security module that will be used by default if the
-	  kernel parameter security= is not specified.
+	  This choice is there only for converting CONFIG_DEFAULT_SECURITY
+	  in old kernel configs to CONFIG_LSM in new kernel configs. Don't
+	  change this choice unless you are creating a fresh kernel config,
+	  for this choice will be ignored after CONFIG_LSM has been set.
+
+	  Selects the legacy "major security module" that will be
+	  initialized first. Overridden by non-default CONFIG_LSM.
 
 	config DEFAULT_SECURITY_SELINUX
 		bool "SELinux" if SECURITY_SELINUX=y
@@ -268,13 +273,19 @@ choice
 
 endchoice
 
-config DEFAULT_SECURITY
-	string
-	default "selinux" if DEFAULT_SECURITY_SELINUX
-	default "smack" if DEFAULT_SECURITY_SMACK
-	default "tomoyo" if DEFAULT_SECURITY_TOMOYO
-	default "apparmor" if DEFAULT_SECURITY_APPARMOR
-	default "" if DEFAULT_SECURITY_DAC
+config LSM
+	string "Ordered list of enabled LSMs"
+	default "yama,loadpin,safesetid,integrity,smack,selinux,tomoyo,apparmor" if DEFAULT_SECURITY_SMACK
+	default "yama,loadpin,safesetid,integrity,apparmor,selinux,smack,tomoyo" if DEFAULT_SECURITY_APPARMOR
+	default "yama,loadpin,safesetid,integrity,tomoyo" if DEFAULT_SECURITY_TOMOYO
+	default "yama,loadpin,safesetid,integrity" if DEFAULT_SECURITY_DAC
+	default "yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor"
+	help
+	  A comma-separated list of LSMs, in initialization order.
+	  Any LSMs left off this list will be ignored. This can be
+	  controlled at boot with the "lsm=" parameter.
+
+	  If unsure, leave this as the default.
 
 endmenu
 

@@ -302,7 +302,7 @@ void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 	 * This function as well as __local_flush_tlb_page() must only be called
 	 * for user contexts.
 	 */
-	if (unlikely(WARN_ON(!mm)))
+	if (WARN_ON(!mm))
 		return;
 
 	preempt_disable();

@@ -15,9 +15,9 @@
  */
 
 #include <drm/drmP.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "regs-hdmi.h"
 
@@ -819,7 +819,8 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 		return;
 	}
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi, m, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
+						       &hdata->connector, m);
 	if (!ret)
 		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, sizeof(buf));
 	if (ret > 0) {

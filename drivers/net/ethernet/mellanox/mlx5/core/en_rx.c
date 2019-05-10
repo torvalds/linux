@@ -52,40 +52,45 @@ static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
 	return config->rx_filter == HWTSTAMP_FILTER_ALL;
 }
 
-static inline void mlx5e_read_cqe_slot(struct mlx5e_cq *cq, u32 cqcc,
-				       void *data)
+static inline void mlx5e_read_cqe_slot(struct mlx5_cqwq *wq,
+				       u32 cqcc, void *data)
 {
-	u32 ci = mlx5_cqwq_ctr2ix(&cq->wq, cqcc);
+	u32 ci = mlx5_cqwq_ctr2ix(wq, cqcc);
 
-	memcpy(data, mlx5_cqwq_get_wqe(&cq->wq, ci), sizeof(struct mlx5_cqe64));
+	memcpy(data, mlx5_cqwq_get_wqe(wq, ci), sizeof(struct mlx5_cqe64));
 }
 
 static inline void mlx5e_read_title_slot(struct mlx5e_rq *rq,
-					 struct mlx5e_cq *cq, u32 cqcc)
+					 struct mlx5_cqwq *wq,
+					 u32 cqcc)
 {
-	mlx5e_read_cqe_slot(cq, cqcc, &cq->title);
-	cq->decmprs_left        = be32_to_cpu(cq->title.byte_cnt);
-	cq->decmprs_wqe_counter = be16_to_cpu(cq->title.wqe_counter);
+	struct mlx5e_cq_decomp *cqd = &rq->cqd;
+	struct mlx5_cqe64 *title = &cqd->title;
+
+	mlx5e_read_cqe_slot(wq, cqcc, title);
+	cqd->left        = be32_to_cpu(title->byte_cnt);
+	cqd->wqe_counter = be16_to_cpu(title->wqe_counter);
 	rq->stats->cqe_compress_blks++;
 }
 
-static inline void mlx5e_read_mini_arr_slot(struct mlx5e_cq *cq, u32 cqcc)
+static inline void mlx5e_read_mini_arr_slot(struct mlx5_cqwq *wq,
+					    struct mlx5e_cq_decomp *cqd,
+					    u32 cqcc)
 {
-	mlx5e_read_cqe_slot(cq, cqcc, cq->mini_arr);
-	cq->mini_arr_idx = 0;
+	mlx5e_read_cqe_slot(wq, cqcc, cqd->mini_arr);
+	cqd->mini_arr_idx = 0;
 }
 
-static inline void mlx5e_cqes_update_owner(struct mlx5e_cq *cq, u32 cqcc, int n)
+static inline void mlx5e_cqes_update_owner(struct mlx5_cqwq *wq, int n)
 {
-	struct mlx5_cqwq *wq = &cq->wq;
-
+	u32 cqcc   = wq->cc;
 	u8  op_own = mlx5_cqwq_get_ctr_wrap_cnt(wq, cqcc) & 1;
 	u32 ci     = mlx5_cqwq_ctr2ix(wq, cqcc);
 	u32 wq_sz  = mlx5_cqwq_get_size(wq);
 	u32 ci_top = min_t(u32, wq_sz, ci + n);
 
 	for (; ci < ci_top; ci++, n--) {
-		struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(&cq->wq, ci);
+		struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(wq, ci);
 
 		cqe->op_own = op_own;
 	}
@@ -93,7 +98,7 @@ static inline void mlx5e_cqes_update_owner(struct mlx5e_cq *cq, u32 cqcc, int n)
 	if (unlikely(ci == wq_sz)) {
 		op_own = !op_own;
 		for (ci = 0; ci < n; ci++) {
-			struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(&cq->wq, ci);
+			struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(wq, ci);
 
 			cqe->op_own = op_own;
 		}
@@ -101,68 +106,79 @@ static inline void mlx5e_cqes_update_owner(struct mlx5e_cq *cq, u32 cqcc, int n)
 }
 
 static inline void mlx5e_decompress_cqe(struct mlx5e_rq *rq,
-					struct mlx5e_cq *cq, u32 cqcc)
+					struct mlx5_cqwq *wq,
+					u32 cqcc)
 {
-	cq->title.byte_cnt     = cq->mini_arr[cq->mini_arr_idx].byte_cnt;
-	cq->title.check_sum    = cq->mini_arr[cq->mini_arr_idx].checksum;
-	cq->title.op_own      &= 0xf0;
-	cq->title.op_own      |= 0x01 & (cqcc >> cq->wq.fbc.log_sz);
-	cq->title.wqe_counter  = cpu_to_be16(cq->decmprs_wqe_counter);
+	struct mlx5e_cq_decomp *cqd = &rq->cqd;
+	struct mlx5_mini_cqe8 *mini_cqe = &cqd->mini_arr[cqd->mini_arr_idx];
+	struct mlx5_cqe64 *title = &cqd->title;
+
+	title->byte_cnt     = mini_cqe->byte_cnt;
+	title->check_sum    = mini_cqe->checksum;
+	title->op_own      &= 0xf0;
+	title->op_own      |= 0x01 & (cqcc >> wq->fbc.log_sz);
+	title->wqe_counter  = cpu_to_be16(cqd->wqe_counter);
 
 	if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
-		cq->decmprs_wqe_counter +=
-			mpwrq_get_cqe_consumed_strides(&cq->title);
+		cqd->wqe_counter += mpwrq_get_cqe_consumed_strides(title);
 	else
-		cq->decmprs_wqe_counter =
-			mlx5_wq_cyc_ctr2ix(&rq->wqe.wq, cq->decmprs_wqe_counter + 1);
+		cqd->wqe_counter =
+			mlx5_wq_cyc_ctr2ix(&rq->wqe.wq, cqd->wqe_counter + 1);
 }
 
 static inline void mlx5e_decompress_cqe_no_hash(struct mlx5e_rq *rq,
-						struct mlx5e_cq *cq, u32 cqcc)
+						struct mlx5_cqwq *wq,
+						u32 cqcc)
 {
-	mlx5e_decompress_cqe(rq, cq, cqcc);
-	cq->title.rss_hash_type   = 0;
-	cq->title.rss_hash_result = 0;
+	struct mlx5e_cq_decomp *cqd = &rq->cqd;
+
+	mlx5e_decompress_cqe(rq, wq, cqcc);
+	cqd->title.rss_hash_type   = 0;
+	cqd->title.rss_hash_result = 0;
 }
 
 static inline u32 mlx5e_decompress_cqes_cont(struct mlx5e_rq *rq,
-					     struct mlx5e_cq *cq,
+					     struct mlx5_cqwq *wq,
 					     int update_owner_only,
 					     int budget_rem)
 {
-	u32 cqcc = cq->wq.cc + update_owner_only;
+	struct mlx5e_cq_decomp *cqd = &rq->cqd;
+	u32 cqcc = wq->cc + update_owner_only;
 	u32 cqe_count;
 	u32 i;
 
-	cqe_count = min_t(u32, cq->decmprs_left, budget_rem);
+	cqe_count = min_t(u32, cqd->left, budget_rem);
 
 	for (i = update_owner_only; i < cqe_count;
-	     i++, cq->mini_arr_idx++, cqcc++) {
-		if (cq->mini_arr_idx == MLX5_MINI_CQE_ARRAY_SIZE)
-			mlx5e_read_mini_arr_slot(cq, cqcc);
+	     i++, cqd->mini_arr_idx++, cqcc++) {
+		if (cqd->mini_arr_idx == MLX5_MINI_CQE_ARRAY_SIZE)
+			mlx5e_read_mini_arr_slot(wq, cqd, cqcc);
 
-		mlx5e_decompress_cqe_no_hash(rq, cq, cqcc);
-		rq->handle_rx_cqe(rq, &cq->title);
+		mlx5e_decompress_cqe_no_hash(rq, wq, cqcc);
+		rq->handle_rx_cqe(rq, &cqd->title);
 	}
-	mlx5e_cqes_update_owner(cq, cq->wq.cc, cqcc - cq->wq.cc);
-	cq->wq.cc = cqcc;
-	cq->decmprs_left -= cqe_count;
+	mlx5e_cqes_update_owner(wq, cqcc - wq->cc);
+	wq->cc = cqcc;
+	cqd->left -= cqe_count;
 	rq->stats->cqe_compress_pkts += cqe_count;
 
 	return cqe_count;
 }
 
 static inline u32 mlx5e_decompress_cqes_start(struct mlx5e_rq *rq,
-					      struct mlx5e_cq *cq,
+					      struct mlx5_cqwq *wq,
 					      int budget_rem)
 {
-	mlx5e_read_title_slot(rq, cq, cq->wq.cc);
-	mlx5e_read_mini_arr_slot(cq, cq->wq.cc + 1);
-	mlx5e_decompress_cqe(rq, cq, cq->wq.cc);
-	rq->handle_rx_cqe(rq, &cq->title);
-	cq->mini_arr_idx++;
+	struct mlx5e_cq_decomp *cqd = &rq->cqd;
+	u32 cc = wq->cc;
 
-	return mlx5e_decompress_cqes_cont(rq, cq, 1, budget_rem) - 1;
+	mlx5e_read_title_slot(rq, wq, cc);
+	mlx5e_read_mini_arr_slot(wq, cqd, cc + 1);
+	mlx5e_decompress_cqe(rq, wq, cc);
+	rq->handle_rx_cqe(rq, &cqd->title);
+	cqd->mini_arr_idx++;
+
+	return mlx5e_decompress_cqes_cont(rq, wq, 1, budget_rem) - 1;
 }
 
 static inline bool mlx5e_page_is_reserved(struct page *page)
@@ -369,7 +385,7 @@ mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
 static inline void
 mlx5e_copy_skb_header(struct device *pdev, struct sk_buff *skb,
 		      struct mlx5e_dma_info *dma_info,
-		      int offset_from, int offset_to, u32 headlen)
+		      int offset_from, u32 headlen)
 {
 	const void *from = page_address(dma_info->page) + offset_from;
 	/* Aligning len to sizeof(long) optimizes memcpy performance */
@@ -377,24 +393,7 @@ mlx5e_copy_skb_header(struct device *pdev, struct sk_buff *skb,
 
 	dma_sync_single_for_cpu(pdev, dma_info->addr + offset_from, len,
 				DMA_FROM_DEVICE);
-	skb_copy_to_linear_data_offset(skb, offset_to, from, len);
-}
-
-static inline void
-mlx5e_copy_skb_header_mpwqe(struct device *pdev,
-			    struct sk_buff *skb,
-			    struct mlx5e_dma_info *dma_info,
-			    u32 offset, u32 headlen)
-{
-	u16 headlen_pg = min_t(u32, headlen, PAGE_SIZE - offset);
-
-	mlx5e_copy_skb_header(pdev, skb, dma_info, offset, 0, headlen_pg);
-
-	if (unlikely(offset + headlen > PAGE_SIZE)) {
-		dma_info++;
-		mlx5e_copy_skb_header(pdev, skb, dma_info, 0, headlen_pg,
-				      headlen - headlen_pg);
-	}
+	skb_copy_to_linear_data(skb, from, len);
 }
 
 static void
@@ -693,7 +692,14 @@ static inline bool is_last_ethertype_ip(struct sk_buff *skb, int *network_depth,
 {
 	*proto = ((struct ethhdr *)skb->data)->h_proto;
 	*proto = __vlan_get_protocol(skb, *proto, network_depth);
-	return (*proto == htons(ETH_P_IP) || *proto == htons(ETH_P_IPV6));
+
+	if (*proto == htons(ETH_P_IP))
+		return pskb_may_pull(skb, *network_depth + sizeof(struct iphdr));
+
+	if (*proto == htons(ETH_P_IPV6))
+		return pskb_may_pull(skb, *network_depth + sizeof(struct ipv6hdr));
+
+	return false;
 }
 
 static inline void mlx5e_enable_ecn(struct mlx5e_rq *rq, struct sk_buff *skb)
@@ -713,17 +719,6 @@ static inline void mlx5e_enable_ecn(struct mlx5e_rq *rq, struct sk_buff *skb)
 	rq->stats->ecn_mark += !!rc;
 }
 
-static u32 mlx5e_get_fcs(const struct sk_buff *skb)
-{
-	const void *fcs_bytes;
-	u32 _fcs_bytes;
-
-	fcs_bytes = skb_header_pointer(skb, skb->len - ETH_FCS_LEN,
-				       ETH_FCS_LEN, &_fcs_bytes);
-
-	return __get_unaligned_cpu32(fcs_bytes);
-}
-
 static u8 get_ip_proto(struct sk_buff *skb, int network_depth, __be16 proto)
 {
 	void *ip_p = skb->data + network_depth;
@@ -733,6 +728,68 @@ static u8 get_ip_proto(struct sk_buff *skb, int network_depth, __be16 proto)
 }
 
 #define short_frame(size) ((size) <= ETH_ZLEN + ETH_FCS_LEN)
+
+#define MAX_PADDING 8
+
+static void
+tail_padding_csum_slow(struct sk_buff *skb, int offset, int len,
+		       struct mlx5e_rq_stats *stats)
+{
+	stats->csum_complete_tail_slow++;
+	skb->csum = csum_block_add(skb->csum,
+				   skb_checksum(skb, offset, len, 0),
+				   offset);
+}
+
+static void
+tail_padding_csum(struct sk_buff *skb, int offset,
+		  struct mlx5e_rq_stats *stats)
+{
+	u8 tail_padding[MAX_PADDING];
+	int len = skb->len - offset;
+	void *tail;
+
+	if (unlikely(len > MAX_PADDING)) {
+		tail_padding_csum_slow(skb, offset, len, stats);
+		return;
+	}
+
+	tail = skb_header_pointer(skb, offset, len, tail_padding);
+	if (unlikely(!tail)) {
+		tail_padding_csum_slow(skb, offset, len, stats);
+		return;
+	}
+
+	stats->csum_complete_tail++;
+	skb->csum = csum_block_add(skb->csum, csum_partial(tail, len, 0), offset);
+}
+
+static void
+mlx5e_skb_padding_csum(struct sk_buff *skb, int network_depth, __be16 proto,
+		       struct mlx5e_rq_stats *stats)
+{
+	struct ipv6hdr *ip6;
+	struct iphdr   *ip4;
+	int pkt_len;
+
+	switch (proto) {
+	case htons(ETH_P_IP):
+		ip4 = (struct iphdr *)(skb->data + network_depth);
+		pkt_len = network_depth + ntohs(ip4->tot_len);
+		break;
+	case htons(ETH_P_IPV6):
+		ip6 = (struct ipv6hdr *)(skb->data + network_depth);
+		pkt_len = network_depth + sizeof(*ip6) + ntohs(ip6->payload_len);
+		break;
+	default:
+		return;
+	}
+
+	if (likely(pkt_len >= skb->len))
+		return;
+
+	tail_padding_csum(skb, pkt_len, stats);
+}
 
 static inline void mlx5e_handle_csum(struct net_device *netdev,
 				     struct mlx5_cqe64 *cqe,
@@ -753,7 +810,8 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
-	if (unlikely(test_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &rq->state)))
+	/* True when explicitly set via priv flag, or XDP prog is loaded */
+	if (test_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &rq->state))
 		goto csum_unnecessary;
 
 	/* CQE csum doesn't cover padding octets in short ethernet
@@ -781,18 +839,15 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 			skb->csum = csum_partial(skb->data + ETH_HLEN,
 						 network_depth - ETH_HLEN,
 						 skb->csum);
-		if (unlikely(netdev->features & NETIF_F_RXFCS))
-			skb->csum = csum_block_add(skb->csum,
-						   (__force __wsum)mlx5e_get_fcs(skb),
-						   skb->len - ETH_FCS_LEN);
+
+		mlx5e_skb_padding_csum(skb, network_depth, proto, stats);
 		stats->csum_complete++;
 		return;
 	}
 
 csum_unnecessary:
 	if (likely((cqe->hds_ip_ext & CQE_L3_OK) &&
-		   ((cqe->hds_ip_ext & CQE_L4_OK) ||
-		    (get_cqe_l4_hdr_type(cqe) == CQE_L4_HDR_TYPE_NONE)))) {
+		   (cqe->hds_ip_ext & CQE_L4_OK))) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (cqe_is_tunneled(cqe)) {
 			skb->csum_level = 1;
@@ -973,8 +1028,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	}
 
 	/* copy header */
-	mlx5e_copy_skb_header(rq->pdev, skb, head_wi->di, head_wi->offset,
-			      0, headlen);
+	mlx5e_copy_skb_header(rq->pdev, skb, head_wi->di, head_wi->offset, headlen);
 	/* skb linear part was allocated with headlen and aligned to long */
 	skb->tail += headlen;
 	skb->len  += headlen;
@@ -1096,8 +1150,7 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 		di++;
 	}
 	/* copy header */
-	mlx5e_copy_skb_header_mpwqe(rq->pdev, skb, head_di,
-				    head_offset, headlen);
+	mlx5e_copy_skb_header(rq->pdev, skb, head_di, head_offset, headlen);
 	/* skb linear part was allocated with headlen and aligned to long */
 	skb->tail += headlen;
 	skb->len  += headlen;
@@ -1203,16 +1256,17 @@ mpwrq_cqe_out:
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
+	struct mlx5_cqwq *cqwq = &cq->wq;
 	struct mlx5_cqe64 *cqe;
 	int work_done = 0;
 
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
 		return 0;
 
-	if (cq->decmprs_left)
-		work_done += mlx5e_decompress_cqes_cont(rq, cq, 0, budget);
+	if (rq->cqd.left)
+		work_done += mlx5e_decompress_cqes_cont(rq, cqwq, 0, budget);
 
-	cqe = mlx5_cqwq_get_cqe(&cq->wq);
+	cqe = mlx5_cqwq_get_cqe(cqwq);
 	if (!cqe) {
 		if (unlikely(work_done))
 			goto out;
@@ -1222,21 +1276,21 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	do {
 		if (mlx5_get_cqe_format(cqe) == MLX5_COMPRESSED) {
 			work_done +=
-				mlx5e_decompress_cqes_start(rq, cq,
+				mlx5e_decompress_cqes_start(rq, cqwq,
 							    budget - work_done);
 			continue;
 		}
 
-		mlx5_cqwq_pop(&cq->wq);
+		mlx5_cqwq_pop(cqwq);
 
 		rq->handle_rx_cqe(rq, cqe);
-	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
+	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(cqwq)));
 
 out:
 	if (rq->xdp_prog)
 		mlx5e_xdp_rx_poll_complete(rq);
 
-	mlx5_cqwq_update_db_record(&cq->wq);
+	mlx5_cqwq_update_db_record(cqwq);
 
 	/* ensure cq space is freed before enabling more cqes */
 	wmb();
@@ -1297,8 +1351,14 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 
 	skb->protocol = *((__be16 *)(skb->data));
 
-	skb->ip_summed = CHECKSUM_COMPLETE;
-	skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
+	if (netdev->features & NETIF_F_RXCSUM) {
+		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
+		stats->csum_complete++;
+	} else {
+		skb->ip_summed = CHECKSUM_NONE;
+		stats->csum_none++;
+	}
 
 	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
 		skb_hwtstamps(skb)->hwtstamp =
@@ -1317,7 +1377,6 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 
 	skb->dev = netdev;
 
-	stats->csum_complete++;
 	stats->packets++;
 	stats->bytes += cqe_bcnt;
 }

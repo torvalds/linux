@@ -17,6 +17,7 @@
 #include <asm/pgtable-64.h>
 #endif
 
+#include <asm/cmpxchg.h>
 #include <asm/io.h>
 #include <asm/pgtable-bits.h>
 
@@ -204,51 +205,11 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
-#ifdef CONFIG_SMP
-		/*
-		 * For SMP, multiple CPUs can race, so we need to do
-		 * this atomically.
-		 */
-		unsigned long page_global = _PAGE_GLOBAL;
-		unsigned long tmp;
-
-		if (kernel_uses_llsc && R10000_LLSC_WAR) {
-			__asm__ __volatile__ (
-			"	.set	push				\n"
-			"	.set	arch=r4000			\n"
-			"	.set	noreorder			\n"
-			"1:"	__LL	"%[tmp], %[buddy]		\n"
-			"	bnez	%[tmp], 2f			\n"
-			"	 or	%[tmp], %[tmp], %[global]	\n"
-				__SC	"%[tmp], %[buddy]		\n"
-			"	beqzl	%[tmp], 1b			\n"
-			"	nop					\n"
-			"2:						\n"
-			"	.set	pop				\n"
-			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
-			: [global] "r" (page_global));
-		} else if (kernel_uses_llsc) {
-			loongson_llsc_mb();
-			__asm__ __volatile__ (
-			"	.set	push				\n"
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
-			"	.set	noreorder			\n"
-			"1:"	__LL	"%[tmp], %[buddy]		\n"
-			"	bnez	%[tmp], 2f			\n"
-			"	 or	%[tmp], %[tmp], %[global]	\n"
-				__SC	"%[tmp], %[buddy]		\n"
-			"	beqz	%[tmp], 1b			\n"
-			"	nop					\n"
-			"2:						\n"
-			"	.set	pop				\n"
-			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
-			: [global] "r" (page_global));
-			loongson_llsc_mb();
-		}
-#else /* !CONFIG_SMP */
-		if (pte_none(*buddy))
-			pte_val(*buddy) = pte_val(*buddy) | _PAGE_GLOBAL;
-#endif /* CONFIG_SMP */
+# if defined(CONFIG_PHYS_ADDR_T_64BIT) && !defined(CONFIG_CPU_MIPS32)
+		cmpxchg64(&buddy->pte, 0, _PAGE_GLOBAL);
+# else
+		cmpxchg(&buddy->pte, 0, _PAGE_GLOBAL);
+# endif
 	}
 #endif
 }

@@ -759,7 +759,8 @@ static int spacc_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	}
 
 	if (unlikely(!des_ekey(tmp, key)) &&
-	    (crypto_ablkcipher_get_flags(cipher) & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	    (crypto_ablkcipher_get_flags(cipher) &
+	     CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}

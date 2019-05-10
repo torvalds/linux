@@ -25,8 +25,6 @@
 
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wl_on>;
 		reset-gpios = <&gpio 41 GPIO_ACTIVE_LOW>;
 	};
 };
@@ -40,8 +38,8 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "GPIO0",
-			  "GPIO1",
+	gpio-line-names = "ID_SDA",
+			  "ID_SCL",
 			  "SDA1",
 			  "SCL1",
 			  "GPIO_GCLK",
@@ -98,11 +96,6 @@
 			  "SD_DATA3_R";
 
 	pinctrl-0 = <&gpioout &alt0>;
-
-	wl_on: wl-on {
-		brcm,pins = <41>;
-		brcm,function = <BCM2835_FSEL_GPIO_OUT>;
-	};
 };
 
 &hdmi {

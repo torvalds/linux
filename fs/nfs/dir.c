@@ -139,12 +139,19 @@ struct nfs_cache_array {
 	struct nfs_cache_array_entry array[0];
 };
 
+struct readdirvec {
+	unsigned long nr;
+	unsigned long index;
+	struct page *pages[NFS_MAX_READDIR_RAPAGES];
+};
+
 typedef int (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, bool);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
 	struct dir_context *ctx;
 	unsigned long	page_index;
+	struct readdirvec pvec;
 	u64		*dir_cookie;
 	u64		last_cookie;
 	loff_t		current_index;
@@ -524,6 +531,10 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 	struct nfs_cache_array *array;
 	unsigned int count = 0;
 	int status;
+	int max_rapages = NFS_MAX_READDIR_RAPAGES;
+
+	desc->pvec.index = desc->page_index;
+	desc->pvec.nr = 0;
 
 	scratch = alloc_page(GFP_KERNEL);
 	if (scratch == NULL)
@@ -548,20 +559,40 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 		if (desc->plus)
 			nfs_prime_dcache(file_dentry(desc->file), entry);
 
-		status = nfs_readdir_add_to_array(entry, page);
+		status = nfs_readdir_add_to_array(entry, desc->pvec.pages[desc->pvec.nr]);
+		if (status == -ENOSPC) {
+			desc->pvec.nr++;
+			if (desc->pvec.nr == max_rapages)
+				break;
+			status = nfs_readdir_add_to_array(entry, desc->pvec.pages[desc->pvec.nr]);
+		}
 		if (status != 0)
 			break;
 	} while (!entry->eof);
 
+	/*
+	 * page and desc->pvec.pages[0] are valid, don't need to check
+	 * whether or not to be NULL.
+	 */
+	copy_highpage(page, desc->pvec.pages[0]);
+
 out_nopages:
 	if (count == 0 || (status == -EBADCOOKIE && entry->eof != 0)) {
-		array = kmap(page);
+		array = kmap_atomic(desc->pvec.pages[desc->pvec.nr]);
 		array->eof_index = array->size;
 		status = 0;
-		kunmap(page);
+		kunmap_atomic(array);
 	}
 
 	put_page(scratch);
+
+	/*
+	 * desc->pvec.nr > 0 means at least one page was completely filled,
+	 * we should return -ENOSPC. Otherwise function
+	 * nfs_readdir_xdr_to_array will enter infinite loop.
+	 */
+	if (desc->pvec.nr > 0)
+		return -ENOSPC;
 	return status;
 }
 
@@ -574,8 +605,8 @@ void nfs_readdir_free_pages(struct page **pages, unsigned int npages)
 }
 
 /*
- * nfs_readdir_large_page will allocate pages that must be freed with a call
- * to nfs_readdir_free_pagearray
+ * nfs_readdir_alloc_pages() will allocate pages that must be freed with a call
+ * to nfs_readdir_free_pages()
  */
 static
 int nfs_readdir_alloc_pages(struct page **pages, unsigned int npages)
@@ -595,6 +626,24 @@ out_freepages:
 	return -ENOMEM;
 }
 
+/*
+ * nfs_readdir_rapages_init initialize rapages by nfs_cache_array structure.
+ */
+static
+void nfs_readdir_rapages_init(nfs_readdir_descriptor_t *desc)
+{
+	struct nfs_cache_array *array;
+	int max_rapages = NFS_MAX_READDIR_RAPAGES;
+	int index;
+
+	for (index = 0; index < max_rapages; index++) {
+		array = kmap_atomic(desc->pvec.pages[index]);
+		memset(array, 0, sizeof(struct nfs_cache_array));
+		array->eof_index = -1;
+		kunmap_atomic(array);
+	}
+}
+
 static
 int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, struct inode *inode)
 {
@@ -604,6 +653,12 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	struct nfs_cache_array *array;
 	int status = -ENOMEM;
 	unsigned int array_size = ARRAY_SIZE(pages);
+
+	/*
+	 * This means we hit readdir rdpages miss, the preallocated rdpages
+	 * are useless, the preallocate rdpages should be reinitialized.
+	 */
+	nfs_readdir_rapages_init(desc);
 
 	entry.prev_cookie = 0;
 	entry.cookie = desc->last_cookie;
@@ -664,9 +719,24 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page* page)
 	struct inode	*inode = file_inode(desc->file);
 	int ret;
 
-	ret = nfs_readdir_xdr_to_array(desc, page, inode);
-	if (ret < 0)
-		goto error;
+	/*
+	 * If desc->page_index in range desc->pvec.index and
+	 * desc->pvec.index + desc->pvec.nr, we get readdir cache hit.
+	 */
+	if (desc->page_index >= desc->pvec.index &&
+		desc->page_index < (desc->pvec.index + desc->pvec.nr)) {
+		/*
+		 * page and desc->pvec.pages[x] are valid, don't need to check
+		 * whether or not to be NULL.
+		 */
+		copy_highpage(page, desc->pvec.pages[desc->page_index - desc->pvec.index]);
+		ret = 0;
+	} else {
+		ret = nfs_readdir_xdr_to_array(desc, page, inode);
+		if (ret < 0)
+			goto error;
+	}
+
 	SetPageUptodate(page);
 
 	if (invalidate_inode_pages2_range(inode->i_mapping, page->index + 1, -1) < 0) {
@@ -831,6 +901,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 			*desc = &my_desc;
 	struct nfs_open_dir_context *dir_ctx = file->private_data;
 	int res = 0;
+	int max_rapages = NFS_MAX_READDIR_RAPAGES;
 
 	dfprintk(FILE, "NFS: readdir(%pD2) starting at cookie %llu\n",
 			file, (long long)ctx->pos);
@@ -849,6 +920,12 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	desc->dir_cookie = &dir_ctx->dir_cookie;
 	desc->decode = NFS_PROTO(inode)->decode_dirent;
 	desc->plus = nfs_use_readdirplus(inode, ctx);
+
+	res = nfs_readdir_alloc_pages(desc->pvec.pages, max_rapages);
+	if (res < 0)
+		return -ENOMEM;
+
+	nfs_readdir_rapages_init(desc);
 
 	if (ctx->pos == 0 || nfs_attribute_cache_expired(inode))
 		res = nfs_revalidate_mapping(inode, file->f_mapping);
@@ -885,6 +962,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 			break;
 	} while (!desc->eof);
 out:
+	nfs_readdir_free_pages(desc->pvec.pages, max_rapages);
 	if (res > 0)
 		res = 0;
 	dfprintk(FILE, "NFS: readdir(%pD2) returns %d\n", file, res);
@@ -945,7 +1023,7 @@ static int nfs_fsync_dir(struct file *filp, loff_t start, loff_t end,
 
 /**
  * nfs_force_lookup_revalidate - Mark the directory as having changed
- * @dir - pointer to directory inode
+ * @dir: pointer to directory inode
  *
  * This forces the revalidation code in nfs_lookup_revalidate() to do a
  * full lookup on all child dentries of 'dir' whenever a change occurs
@@ -1649,7 +1727,7 @@ nfs4_do_lookup_revalidate(struct inode *dir, struct dentry *dentry,
 reval_dentry:
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
-	return nfs_lookup_revalidate_dentry(dir, dentry, inode);;
+	return nfs_lookup_revalidate_dentry(dir, dentry, inode);
 
 full_reval:
 	return nfs_do_lookup_revalidate(dir, dentry, flags);

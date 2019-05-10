@@ -27,6 +27,8 @@ struct qcom_cc_desc {
 	size_t num_resets;
 	struct gdsc **gdscs;
 	size_t num_gdscs;
+	struct clk_hw **clk_hws;
+	size_t num_clk_hws;
 };
 
 /**

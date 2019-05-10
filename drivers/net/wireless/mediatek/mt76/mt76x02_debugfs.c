@@ -116,6 +116,32 @@ static int read_agc(struct seq_file *file, void *data)
 	return 0;
 }
 
+static int
+mt76_edcca_set(void *data, u64 val)
+{
+	struct mt76x02_dev *dev = data;
+	enum nl80211_dfs_regions region = dev->dfs_pd.region;
+
+	dev->ed_monitor_enabled = !!val;
+	dev->ed_monitor = dev->ed_monitor_enabled &&
+			  region == NL80211_DFS_ETSI;
+	mt76x02_edcca_init(dev, true);
+
+	return 0;
+}
+
+static int
+mt76_edcca_get(void *data, u64 *val)
+{
+	struct mt76x02_dev *dev = data;
+
+	*val = dev->ed_monitor_enabled;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_edcca, mt76_edcca_get, mt76_edcca_set,
+			 "%lld\n");
+
 void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 {
 	struct dentry *dir;
@@ -127,11 +153,14 @@ void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 	debugfs_create_u8("temperature", 0400, dir, &dev->cal.temp);
 	debugfs_create_bool("tpc", 0600, dir, &dev->enable_tpc);
 
+	debugfs_create_file("edcca", 0400, dir, dev, &fops_edcca);
 	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("dfs_stats", 0400, dir, dev, &fops_dfs_stat);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,
 				    read_txpower);
 
 	debugfs_create_devm_seqfile(dev->mt76.dev, "agc", dir, read_agc);
+
+	debugfs_create_u32("tx_hang_reset", 0400, dir, &dev->tx_hang_reset);
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_debugfs);

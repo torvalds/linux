@@ -1,4 +1,5 @@
 nvkm-y += nvkm/subdev/fault/base.o
+nvkm-y += nvkm/subdev/fault/user.o
 nvkm-y += nvkm/subdev/fault/gp100.o
 nvkm-y += nvkm/subdev/fault/gv100.o
-nvkm-y += nvkm/subdev/fault/tu104.o
+nvkm-y += nvkm/subdev/fault/tu102.o

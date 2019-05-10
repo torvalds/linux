@@ -12,7 +12,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 
-#include "internal.h"
+#include "../internal.h"
 
 #define INT3401_DEVICE 0X01
 static const struct acpi_device_id int340x_thermal_device_ids[] = {

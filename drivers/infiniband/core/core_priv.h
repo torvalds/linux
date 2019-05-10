@@ -54,9 +54,9 @@ struct pkey_index_qp_list {
 	struct list_head    qp_list;
 };
 
-int  ib_device_register_sysfs(struct ib_device *device,
-			      int (*port_callback)(struct ib_device *,
-						   u8, struct kobject *));
+extern const struct attribute_group ib_dev_attr_group;
+
+int ib_device_register_sysfs(struct ib_device *device);
 void ib_device_unregister_sysfs(struct ib_device *device);
 int ib_device_rename(struct ib_device *ibdev, const char *name);
 
@@ -65,6 +65,9 @@ typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
 
 typedef bool (*roce_netdev_filter)(struct ib_device *device, u8 port,
 				   struct net_device *idev, void *cookie);
+
+struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
+					unsigned int port);
 
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,
@@ -117,7 +120,7 @@ void ib_cache_cleanup_one(struct ib_device *device);
 void ib_cache_release_one(struct ib_device *device);
 
 #ifdef CONFIG_CGROUP_RDMA
-int ib_device_register_rdmacg(struct ib_device *device);
+void ib_device_register_rdmacg(struct ib_device *device);
 void ib_device_unregister_rdmacg(struct ib_device *device);
 
 int ib_rdmacg_try_charge(struct ib_rdmacg_object *cg_obj,
@@ -128,21 +131,26 @@ void ib_rdmacg_uncharge(struct ib_rdmacg_object *cg_obj,
 			struct ib_device *device,
 			enum rdmacg_resource_type resource_index);
 #else
-static inline int ib_device_register_rdmacg(struct ib_device *device)
-{ return 0; }
+static inline void ib_device_register_rdmacg(struct ib_device *device)
+{
+}
 
 static inline void ib_device_unregister_rdmacg(struct ib_device *device)
-{ }
+{
+}
 
 static inline int ib_rdmacg_try_charge(struct ib_rdmacg_object *cg_obj,
 				       struct ib_device *device,
 				       enum rdmacg_resource_type resource_index)
-{ return 0; }
+{
+	return 0;
+}
 
 static inline void ib_rdmacg_uncharge(struct ib_rdmacg_object *cg_obj,
 				      struct ib_device *device,
 				      enum rdmacg_resource_type resource_index)
-{ }
+{
+}
 #endif
 
 static inline bool rdma_is_upper_dev_rcu(struct net_device *dev,
@@ -178,7 +186,7 @@ int ib_get_cached_subnet_prefix(struct ib_device *device,
 				u64              *sn_pfx);
 
 #ifdef CONFIG_SECURITY_INFINIBAND
-void ib_security_destroy_port_pkey_list(struct ib_device *device);
+void ib_security_release_port_pkey_list(struct ib_device *device);
 
 void ib_security_cache_change(struct ib_device *device,
 			      u8 port_num,
@@ -199,8 +207,9 @@ int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
 				enum ib_qp_type qp_type);
 void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent);
 int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index);
+void ib_mad_agent_security_change(void);
 #else
-static inline void ib_security_destroy_port_pkey_list(struct ib_device *device)
+static inline void ib_security_release_port_pkey_list(struct ib_device *device)
 {
 }
 
@@ -263,6 +272,10 @@ static inline int ib_mad_enforce_security(struct ib_mad_agent_private *map,
 					  u16 pkey_index)
 {
 	return 0;
+}
+
+static inline void ib_mad_agent_security_change(void)
+{
 }
 #endif
 

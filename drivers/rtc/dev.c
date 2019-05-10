@@ -178,11 +178,6 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	remove_wait_queue(&rtc->irq_queue, &wait);
 
 	if (ret == 0) {
-		/* Check for any data updates */
-		if (rtc->ops->read_callback)
-			data = rtc->ops->read_callback(rtc->dev.parent,
-						       data);
-
 		if (sizeof(int) != sizeof(long) &&
 		    count == sizeof(unsigned int))
 			ret = put_user(data, (unsigned int __user *)buf) ?:

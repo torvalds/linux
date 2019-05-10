@@ -107,8 +107,8 @@ struct ni_gpct_device {
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned int num_counters;
-	unsigned int counters_per_chip;
-	unsigned int regs[NITIO_NUM_REGS];
+	unsigned int num_chips;
+	unsigned int (*regs)[NITIO_NUM_REGS]; /* [num_chips][NITIO_NUM_REGS] */
 	spinlock_t regs_lock;		/* protects 'regs' */
 	const struct ni_route_tables *routing_tables; /* link to routes */
 };

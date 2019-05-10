@@ -277,7 +277,7 @@ xfs_trans_read_buf_map(
 		 * release this buffer when it kills the tranaction.
 		 */
 		ASSERT(bp->b_ops != NULL);
-		error = xfs_buf_ensure_ops(bp, ops);
+		error = xfs_buf_reverify(bp, ops);
 		if (error) {
 			xfs_buf_ioerror_alert(bp, __func__);
 

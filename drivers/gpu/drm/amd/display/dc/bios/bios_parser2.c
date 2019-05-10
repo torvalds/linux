@@ -265,6 +265,7 @@ static struct atom_display_object_path_v2 *get_bios_object(
 					&& id.enum_id == obj_id.enum_id)
 				return &bp->object_info_tbl.v1_4->display_path[i];
 		}
+		/* fall through */
 	case OBJECT_TYPE_CONNECTOR:
 	case OBJECT_TYPE_GENERIC:
 		/* Both Generic and Connector Object ID
@@ -277,6 +278,7 @@ static struct atom_display_object_path_v2 *get_bios_object(
 					&& id.enum_id == obj_id.enum_id)
 				return &bp->object_info_tbl.v1_4->display_path[i];
 		}
+		/* fall through */
 	default:
 		return NULL;
 	}
@@ -1083,18 +1085,6 @@ static enum bp_result bios_parser_enable_crtc(
 	return bp->cmd_tbl.enable_crtc(bp, id, enable);
 }
 
-static enum bp_result bios_parser_crtc_source_select(
-	struct dc_bios *dcb,
-	struct bp_crtc_source_select *bp_params)
-{
-	struct bios_parser *bp = BP_FROM_DCB(dcb);
-
-	if (!bp->cmd_tbl.select_crtc_source)
-		return BP_RESULT_FAILURE;
-
-	return bp->cmd_tbl.select_crtc_source(bp, bp_params);
-}
-
 static enum bp_result bios_parser_enable_disp_power_gating(
 	struct dc_bios *dcb,
 	enum controller_id controller_id,
@@ -1899,8 +1889,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.is_accelerated_mode = bios_parser_is_accelerated_mode,
 
-	.is_active_display = bios_is_active_display,
-
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 
 
@@ -1916,8 +1904,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.set_dce_clock = bios_parser_set_dce_clock,
 
 	.program_crtc_timing = bios_parser_program_crtc_timing,
-
-	.crtc_source_select = bios_parser_crtc_source_select,
 
 	.enable_disp_power_gating = bios_parser_enable_disp_power_gating,
 

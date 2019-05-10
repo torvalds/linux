@@ -27,6 +27,8 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "machine.h"
+#include "map.h"
+#include "symbol.h"
 #include "session.h"
 #include "util.h"
 #include "thread.h"
@@ -142,7 +144,7 @@ static int intel_bts_lost(struct intel_bts *bts, struct perf_sample *sample)
 
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
 			     INTEL_BTS_ERR_LOST, sample->cpu, sample->pid,
-			     sample->tid, 0, "Lost trace data");
+			     sample->tid, 0, "Lost trace data", sample->time);
 
 	err = perf_session__deliver_synth_event(bts->session, &event, NULL);
 	if (err)
@@ -326,34 +328,18 @@ static int intel_bts_get_next_insn(struct intel_bts_queue *btsq, u64 ip)
 {
 	struct machine *machine = btsq->bts->machine;
 	struct thread *thread;
-	struct addr_location al;
 	unsigned char buf[INTEL_PT_INSN_BUF_SZ];
 	ssize_t len;
-	int x86_64;
-	uint8_t cpumode;
+	bool x86_64;
 	int err = -1;
-
-	if (machine__kernel_ip(machine, ip))
-		cpumode = PERF_RECORD_MISC_KERNEL;
-	else
-		cpumode = PERF_RECORD_MISC_USER;
 
 	thread = machine__find_thread(machine, -1, btsq->tid);
 	if (!thread)
 		return -1;
 
-	if (!thread__find_map(thread, cpumode, ip, &al) || !al.map->dso)
-		goto out_put;
-
-	len = dso__data_read_addr(al.map->dso, al.map, machine, ip, buf,
-				  INTEL_PT_INSN_BUF_SZ);
+	len = thread__memcpy(thread, machine, buf, ip, INTEL_PT_INSN_BUF_SZ, &x86_64);
 	if (len <= 0)
 		goto out_put;
-
-	/* Load maps to ensure dso->is_64_bit has been updated */
-	map__load(al.map);
-
-	x86_64 = al.map->dso->is_64_bit;
 
 	if (intel_pt_get_insn(buf, len, x86_64, &btsq->intel_pt_insn))
 		goto out_put;
@@ -372,7 +358,7 @@ static int intel_bts_synth_error(struct intel_bts *bts, int cpu, pid_t pid,
 
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
 			     INTEL_BTS_ERR_NOINSN, cpu, pid, tid, ip,
-			     "Failed to get instruction");
+			     "Failed to get instruction", 0);
 
 	err = perf_session__deliver_synth_event(bts->session, &event, NULL);
 	if (err)

@@ -791,18 +791,6 @@ enum ht_cap_ampdu_factor {
 #define	WPS_CM_SW_DISPLAY_P		0x2008
 #define	WPS_CM_LCD_DISPLAY_P		0x4008
 
-#define	P2P_PRIVATE_IOCTL_SET_LEN		64
-
-enum P2P_PROTO_WK_ID {
-	P2P_FIND_PHASE_WK = 0,
-	P2P_RESTORE_STATE_WK = 1,
-	P2P_PRE_TX_PROVDISC_PROCESS_WK = 2,
-	P2P_PRE_TX_NEGOREQ_PROCESS_WK = 3,
-	P2P_PRE_TX_INVITEREQ_PROCESS_WK = 4,
-	P2P_AP_P2P_CH_SWITCH_PROCESS_WK = 5,
-	P2P_RO_CH_WK = 6,
-};
-
 /*	=====================WFD Section===================== */
 /*	For Wi-Fi Display */
 #define	WFD_ATTR_DEVICE_INFO		0x00

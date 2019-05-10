@@ -85,7 +85,7 @@ same card listens there is much higher...
 For problems with sound:  There are a lot of different systems used
 for TV sound all over the world.  And there are also different chips
 which decode the audio signal.  Reports about sound problems ("stereo
-does'nt work") are pretty useless unless you include some details
+doesn't work") are pretty useless unless you include some details
 about your hardware and the TV sound scheme used in your country (or
 at least the country you are living in).
 
@@ -771,7 +771,7 @@ Identifying:
       - Lifeview.com.tw states (Feb. 2002):
         "The FlyVideo2000 and FlyVideo2000s product name have renamed to FlyVideo98."
         Their Bt8x8 cards are listed as discontinued.
-      - Flyvideo 2000S was probably sold as Flyvideo 3000 in some contries(Europe?).
+      - Flyvideo 2000S was probably sold as Flyvideo 3000 in some countries(Europe?).
         The new Flyvideo 2000/3000 are SAA7130/SAA7134 based.
 
 "Flyvideo II" had been the name for the 848 cards, nowadays (in Germany)

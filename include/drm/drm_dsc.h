@@ -44,111 +44,231 @@
 #define DSC_1_2_MAX_LINEBUF_DEPTH_VAL		0
 #define DSC_1_1_MAX_LINEBUF_DEPTH_BITS		13
 
-/* Configuration for a single Rate Control model range */
+/**
+ * struct drm_dsc_rc_range_parameters - DSC Rate Control range parameters
+ *
+ * This defines different rate control parameters used by the DSC engine
+ * to compress the frame.
+ */
 struct drm_dsc_rc_range_parameters {
-	/* Min Quantization Parameters allowed for this range */
+	/**
+	 * @range_min_qp: Min Quantization Parameters allowed for this range
+	 */
 	u8 range_min_qp;
-	/* Max Quantization Parameters allowed for this range */
+	/**
+	 * @range_max_qp: Max Quantization Parameters allowed for this range
+	 */
 	u8 range_max_qp;
-	/* Bits/group offset to apply to target for this group */
+	/**
+	 * @range_bpg_offset:
+	 * Bits/group offset to apply to target for this group
+	 */
 	u8 range_bpg_offset;
 };
 
+/**
+ * struct drm_dsc_config - Parameters required to configure DSC
+ *
+ * Driver populates this structure with all the parameters required
+ * to configure the display stream compression on the source.
+ */
 struct drm_dsc_config {
-	/* Bits / component for previous reconstructed line buffer */
+	/**
+	 * @line_buf_depth:
+	 * Bits per component for previous reconstructed line buffer
+	 */
 	u8 line_buf_depth;
-	/* Bits per component to code (must be 8, 10, or 12) */
+	/**
+	 * @bits_per_component: Bits per component to code (8/10/12)
+	 */
 	u8 bits_per_component;
-	/*
-	 * Flag indicating to do RGB - YCoCg conversion
-	 * and back (should be 1 for RGB input)
+	/**
+	 * @convert_rgb:
+	 * Flag to indicate if RGB - YCoCg conversion is needed
+	 * True if RGB input, False if YCoCg input
 	 */
 	bool convert_rgb;
+	/**
+	 * @slice_count: Number fo slices per line used by the DSC encoder
+	 */
 	u8 slice_count;
-	/* Slice Width */
+	/**
+	 *  @slice_width: Width of each slice in pixels
+	 */
 	u16 slice_width;
-	/* Slice Height */
+	/**
+	 * @slice_height: Slice height in pixels
+	 */
 	u16 slice_height;
-	/*
-	 * 4:2:2 enable mode (from PPS, 4:2:2 conversion happens
-	 * outside of DSC encode/decode algorithm)
+	/**
+	 * @enable422: True for 4_2_2 sampling, false for 4_4_4 sampling
 	 */
 	bool enable422;
-	/* Picture Width */
+	/**
+	 * @pic_width: Width of the input display frame in pixels
+	 */
 	u16 pic_width;
-	/* Picture Height */
+	/**
+	 * @pic_height: Vertical height of the input display frame
+	 */
 	u16 pic_height;
-	/* Offset to bits/group used by RC to determine QP adjustment */
+	/**
+	 * @rc_tgt_offset_high:
+	 * Offset to bits/group used by RC to determine QP adjustment
+	 */
 	u8 rc_tgt_offset_high;
-	/* Offset to bits/group used by RC to determine QP adjustment */
+	/**
+	 * @rc_tgt_offset_low:
+	 * Offset to bits/group used by RC to determine QP adjustment
+	 */
 	u8 rc_tgt_offset_low;
-	/* Bits/pixel target << 4 (ie., 4 fractional bits) */
+	/**
+	 * @bits_per_pixel:
+	 * Target bits per pixel with 4 fractional bits, bits_per_pixel << 4
+	 */
 	u16 bits_per_pixel;
-	/*
-	 * Factor to determine if an edge is present based
-	 * on the bits produced
+	/**
+	 * @rc_edge_factor:
+	 * Factor to determine if an edge is present based on the bits produced
 	 */
 	u8 rc_edge_factor;
-	/* Slow down incrementing once the range reaches this value */
+	/**
+	 * @rc_quant_incr_limit1:
+	 * Slow down incrementing once the range reaches this value
+	 */
 	u8 rc_quant_incr_limit1;
-	/* Slow down incrementing once the range reaches this value */
+	/**
+	 * @rc_quant_incr_limit0:
+	 * Slow down incrementing once the range reaches this value
+	 */
 	u8 rc_quant_incr_limit0;
-	/* Number of pixels to delay the initial transmission */
+	/**
+	 * @initial_xmit_delay:
+	 * Number of pixels to delay the initial transmission
+	 */
 	u16 initial_xmit_delay;
-	/* Number of pixels to delay the VLD on the decoder,not including SSM */
+	/**
+	 * @initial_dec_delay:
+	 * Initial decoder delay, number of pixel times that the decoder
+	 * accumulates data in its rate buffer before starting to decode
+	 * and output pixels.
+	 */
 	u16  initial_dec_delay;
-	/* Block prediction enable */
+	/**
+	 * @block_pred_enable:
+	 * True if block prediction is used to code any groups within the
+	 * picture. False if BP not used
+	 */
 	bool block_pred_enable;
-	/* Bits/group offset to use for first line of the slice */
+	/**
+	 * @first_line_bpg_offset:
+	 * Number of additional bits allocated for each group on the first
+	 * line of slice.
+	 */
 	u8 first_line_bpg_offset;
-	/* Value to use for RC model offset at slice start */
+	/**
+	 * @initial_offset: Value to use for RC model offset at slice start
+	 */
 	u16 initial_offset;
-	/* Thresholds defining each of the buffer ranges */
+	/**
+	 * @rc_buf_thresh: Thresholds defining each of the buffer ranges
+	 */
 	u16 rc_buf_thresh[DSC_NUM_BUF_RANGES - 1];
-	/* Parameters for each of the RC ranges */
+	/**
+	 * @rc_range_params:
+	 * Parameters for each of the RC ranges defined in
+	 * &struct drm_dsc_rc_range_parameters
+	 */
 	struct drm_dsc_rc_range_parameters rc_range_params[DSC_NUM_BUF_RANGES];
-	/* Total size of RC model */
+	/**
+	 * @rc_model_size: Total size of RC model
+	 */
 	u16 rc_model_size;
-	/* Minimum QP where flatness information is sent */
+	/**
+	 * @flatness_min_qp: Minimum QP where flatness information is sent
+	 */
 	u8 flatness_min_qp;
-	/* Maximum QP where flatness information is sent */
+	/**
+	 * @flatness_max_qp: Maximum QP where flatness information is sent
+	 */
 	u8 flatness_max_qp;
-	/* Initial value for scale factor */
+	/**
+	 * @initial_scale_value: Initial value for the scale factor
+	 */
 	u8 initial_scale_value;
-	/* Decrement scale factor every scale_decrement_interval groups */
+	/**
+	 * @scale_decrement_interval:
+	 * Specifies number of group times between decrementing the scale factor
+	 * at beginning of a slice.
+	 */
 	u16 scale_decrement_interval;
-	/* Increment scale factor every scale_increment_interval groups */
+	/**
+	 * @scale_increment_interval:
+	 * Number of group times between incrementing the scale factor value
+	 * used at the beginning of a slice.
+	 */
 	u16 scale_increment_interval;
-	/* Non-first line BPG offset to use */
+	/**
+	 * @nfl_bpg_offset: Non first line BPG offset to be used
+	 */
 	u16 nfl_bpg_offset;
-	/* BPG offset used to enforce slice bit */
+	/**
+	 * @slice_bpg_offset: BPG offset used to enforce slice bit
+	 */
 	u16 slice_bpg_offset;
-	/* Final RC linear transformation offset value */
+	/**
+	 * @final_offset: Final RC linear transformation offset value
+	 */
 	u16 final_offset;
-	/* Enable on-off VBR (ie., disable stuffing bits) */
+	/**
+	 * @vbr_enable: True if VBR mode is enabled, false if disabled
+	 */
 	bool vbr_enable;
-	/* Mux word size (in bits) for SSM mode */
+	/**
+	 * @mux_word_size: Mux word size (in bits) for SSM mode
+	 */
 	u8 mux_word_size;
-	/*
-	 * The (max) size in bytes of the "chunks" that are
-	 * used in slice multiplexing
+	/**
+	 * @slice_chunk_size:
+	 * The (max) size in bytes of the "chunks" that are used in slice
+	 * multiplexing.
 	 */
 	u16 slice_chunk_size;
-	/* Rate Control buffer siz in bits */
+	/**
+	 * @rc_bits: Rate control buffer size in bits
+	 */
 	u16 rc_bits;
-	/* DSC Minor Version */
+	/**
+	 * @dsc_version_minor: DSC minor version
+	 */
 	u8 dsc_version_minor;
-	/* DSC Major version */
+	/**
+	 * @dsc_version_major: DSC major version
+	 */
 	u8 dsc_version_major;
-	/* Native 4:2:2 support */
+	/**
+	 * @native_422: True if Native 4:2:2 supported, else false
+	 */
 	bool native_422;
-	/* Native 4:2:0 support */
+	/**
+	 * @native_420: True if Native 4:2:0 supported else false.
+	 */
 	bool native_420;
-	/* Additional bits/grp for seconnd line of slice for native 4:2:0 */
+	/**
+	 * @second_line_bpg_offset:
+	 * Additional bits/grp for seconnd line of slice for native 4:2:0
+	 */
 	u8 second_line_bpg_offset;
-	/* Num of bits deallocated for each grp that is not in second line of slice */
+	/**
+	 * @nsl_bpg_offset:
+	 * Num of bits deallocated for each grp that is not in second line of
+	 * slice
+	 */
 	u16 nsl_bpg_offset;
-	/* Offset adj fr second line in Native 4:2:0 mode */
+	/**
+	 * @second_line_offset_adj:
+	 * Offset adjustment for second line in Native 4:2:0 mode
+	 */
 	u16 second_line_offset_adj;
 };
 
@@ -468,10 +588,13 @@ struct drm_dsc_picture_parameter_set {
  * This structure represents the DSC PPS infoframe required to send the Picture
  * Parameter Set metadata required before enabling VESA Display Stream
  * Compression. This is based on the DP Secondary Data Packet structure and
- * comprises of SDP Header as defined in drm_dp_helper.h and PPS payload.
+ * comprises of SDP Header as defined &struct struct dp_sdp_header in drm_dp_helper.h
+ * and PPS payload defined in &struct drm_dsc_picture_parameter_set.
  *
- * @pps_header: Header for PPS as per DP SDP header format
+ * @pps_header: Header for PPS as per DP SDP header format of type
+ *              &struct dp_sdp_header
  * @pps_payload: PPS payload fields as per DSC specification Table 4-1
+ *               as represented in &struct drm_dsc_picture_parameter_set
  */
 struct drm_dsc_pps_infoframe {
 	struct dp_sdp_header pps_header;

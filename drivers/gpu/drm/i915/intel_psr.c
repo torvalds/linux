@@ -51,7 +51,6 @@
  * must be correctly synchronized/cancelled when shutting down the pipe."
  */
 
-#include <drm/drmP.h>
 
 #include "intel_drv.h"
 #include "i915_drv.h"
@@ -71,17 +70,17 @@ static bool psr_global_enabled(u32 debug)
 static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 			       const struct intel_crtc_state *crtc_state)
 {
-	/* Disable PSR2 by default for all platforms */
-	if (i915_modparams.enable_psr == -1)
-		return false;
-
 	/* Cannot enable DSC and PSR2 simultaneously */
 	WARN_ON(crtc_state->dsc_params.compression_enable &&
 		crtc_state->has_psr2);
 
 	switch (dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
+	case I915_PSR_DEBUG_DISABLE:
 	case I915_PSR_DEBUG_FORCE_PSR1:
 		return false;
+	case I915_PSR_DEBUG_DEFAULT:
+		if (i915_modparams.enable_psr <= 0)
+			return false;
 	default:
 		return crtc_state->has_psr2;
 	}
@@ -231,7 +230,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 
 static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 {
-	uint8_t dprx = 0;
+	u8 dprx = 0;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
 			      &dprx) != 1)
@@ -241,7 +240,7 @@ static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 
 static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 {
-	uint8_t alpm_caps = 0;
+	u8 alpm_caps = 0;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_RECEIVER_ALPM_CAP,
 			      &alpm_caps) != 1)
@@ -258,6 +257,32 @@ static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 		val &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
 	else
 		DRM_DEBUG_KMS("Unable to get sink synchronization latency, assuming 8 frames\n");
+	return val;
+}
+
+static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
+{
+	u16 val;
+	ssize_t r;
+
+	/*
+	 * Returning the default X granularity if granularity not required or
+	 * if DPCD read fails
+	 */
+	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED))
+		return 4;
+
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &val, 2);
+	if (r != 2)
+		DRM_DEBUG_KMS("Unable to read DP_PSR2_SU_X_GRANULARITY\n");
+
+	/*
+	 * Spec says that if the value read is 0 the default granularity should
+	 * be used instead.
+	 */
+	if (r != 2 || val == 0)
+		val = 4;
+
 	return val;
 }
 
@@ -315,6 +340,8 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		if (dev_priv->psr.sink_psr2_support) {
 			dev_priv->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
+			dev_priv->psr.su_x_granularity =
+				intel_dp_get_su_x_granulartiy(intel_dp);
 		}
 	}
 }
@@ -357,7 +384,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 aux_clock_divider, aux_ctl;
 	int i;
-	static const uint8_t aux_msg[] = {
+	static const u8 aux_msg[] = {
 		[0] = DP_AUX_NATIVE_WRITE << 4,
 		[1] = DP_SET_POWER >> 8,
 		[2] = DP_SET_POWER & 0xff,
@@ -394,13 +421,15 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 	if (dev_priv->psr.psr2_enabled) {
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG,
 				   DP_ALPM_ENABLE);
-		dpcd_val |= DP_PSR_ENABLE_PSR2;
+		dpcd_val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
+	} else {
+		if (dev_priv->psr.link_standby)
+			dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
+
+		if (INTEL_GEN(dev_priv) >= 8)
+			dpcd_val |= DP_PSR_CRC_VERIFICATION;
 	}
 
-	if (dev_priv->psr.link_standby)
-		dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
-	if (!dev_priv->psr.psr2_enabled && INTEL_GEN(dev_priv) >= 8)
-		dpcd_val |= DP_PSR_CRC_VERIFICATION;
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, dpcd_val);
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
@@ -474,9 +503,6 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
 	val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
 
-	/* FIXME: selective update is probably totally broken because it doesn't
-	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
-	 * good enough. */
 	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		val |= EDP_Y_COORDINATE_ENABLE;
@@ -525,7 +551,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 		psr_max_h = 4096;
 		psr_max_v = 2304;
-	} else if (IS_GEN9(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 9)) {
 		psr_max_h = 3640;
 		psr_max_v = 2304;
 	}
@@ -534,6 +560,18 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		DRM_DEBUG_KMS("PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
 			      crtc_hdisplay, crtc_vdisplay,
 			      psr_max_h, psr_max_v);
+		return false;
+	}
+
+	/*
+	 * HW sends SU blocks of size four scan lines, which means the starting
+	 * X coordinate and Y granularity requirements will always be met. We
+	 * only need to validate the SU block width is a multiple of
+	 * x granularity.
+	 */
+	if (crtc_hdisplay % dev_priv->psr.su_x_granularity) {
+		DRM_DEBUG_KMS("PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
+			      crtc_hdisplay, dev_priv->psr.su_x_granularity);
 		return false;
 	}
 
@@ -647,17 +685,14 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_psr_setup_aux(intel_dp);
 
-	if (dev_priv->psr.psr2_enabled) {
+	if (dev_priv->psr.psr2_enabled && (IS_GEN(dev_priv, 9) &&
+					   !IS_GEMINILAKE(dev_priv))) {
 		i915_reg_t reg = gen9_chicken_trans_reg(dev_priv,
 							cpu_transcoder);
 		u32 chicken = I915_READ(reg);
 
-		if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
-			chicken |= (PSR2_VSC_ENABLE_PROG_HEADER
-				   | PSR2_ADD_VERTICAL_LINE_COUNT);
-
-		else
-			chicken &= ~VSC_DATA_SEL_SOFTWARE_CONTROL;
+		chicken |= PSR2_VSC_ENABLE_PROG_HEADER |
+			   PSR2_ADD_VERTICAL_LINE_COUNT;
 		I915_WRITE(reg, chicken);
 	}
 

@@ -33,7 +33,7 @@
 
 struct st33zp24_i2c_phy {
 	struct i2c_client *client;
-	u8 buf[TPM_BUFSIZE + 1];
+	u8 buf[ST33ZP24_BUFSIZE + 1];
 	int io_lpcpd;
 };
 

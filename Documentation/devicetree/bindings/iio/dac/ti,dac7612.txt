@@ -1,0 +1,28 @@
+* Texas Instruments Dual, 12-Bit Serial Input Digital-to-Analog Converter
+
+The DAC7612 is a dual, 12-bit digital-to-analog converter (DAC) with guaranteed
+12-bit monotonicity performance over the industrial temperature range.
+Is is programmable through an SPI interface.
+
+The internal DACs are loaded when the LOADDACS pin is pulled down.
+
+http://www.ti.com/lit/ds/sbas106/sbas106.pdf
+
+Required Properties:
+- compatible: Should be one of:
+		"ti,dac7612"
+		"ti,dac7612u"
+		"ti,dac7612ub"
+- reg: Definition as per Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Optional Properties:
+- ti,loaddacs-gpios: GPIO descriptor for the LOADDACS pin.
+- spi-*: Definition as per Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+
+	dac@1 {
+		compatible = "ti,dac7612";
+		reg = <0x1>;
+		ti,loaddacs-gpios = <&msmgpio 25 GPIO_ACTIVE_LOW>;
+	};

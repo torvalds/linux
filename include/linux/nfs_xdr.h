@@ -383,6 +383,41 @@ struct nfs42_layoutstat_data {
 	struct nfs42_layoutstat_res res;
 };
 
+struct nfs42_device_error {
+	struct nfs4_deviceid dev_id;
+	int status;
+	enum nfs_opnum4 opnum;
+};
+
+struct nfs42_layout_error {
+	__u64 offset;
+	__u64 length;
+	nfs4_stateid stateid;
+	struct nfs42_device_error errors[1];
+};
+
+#define NFS42_LAYOUTERROR_MAX 5
+
+struct nfs42_layouterror_args {
+	struct nfs4_sequence_args seq_args;
+	struct inode *inode;
+	unsigned int num_errors;
+	struct nfs42_layout_error errors[NFS42_LAYOUTERROR_MAX];
+};
+
+struct nfs42_layouterror_res {
+	struct nfs4_sequence_res seq_res;
+	unsigned int num_errors;
+	int rpc_status;
+};
+
+struct nfs42_layouterror_data {
+	struct nfs42_layouterror_args args;
+	struct nfs42_layouterror_res res;
+	struct inode *inode;
+	struct pnfs_layout_segment *lseg;
+};
+
 struct nfs42_clone_args {
 	struct nfs4_sequence_args	seq_args;
 	struct nfs_fh			*src_fh;
@@ -1549,7 +1584,7 @@ struct nfs_commit_data {
 };
 
 struct nfs_pgio_completion_ops {
-	void	(*error_cleanup)(struct list_head *head);
+	void	(*error_cleanup)(struct list_head *head, int);
 	void	(*init_hdr)(struct nfs_pgio_header *hdr);
 	void	(*completion)(struct nfs_pgio_header *hdr);
 	void	(*reschedule_io)(struct nfs_pgio_header *hdr);

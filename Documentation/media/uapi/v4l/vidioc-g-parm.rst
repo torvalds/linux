@@ -213,7 +213,7 @@ union holding separate parameters for input and output devices.
 
 .. _parm-caps:
 
-.. flat-table:: Streaming Parameters Capabilites
+.. flat-table:: Streaming Parameters Capabilities
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4

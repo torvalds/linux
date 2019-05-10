@@ -3,7 +3,7 @@
  *
  * Module Name: exconvrt - Object conversion routines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -520,7 +520,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		for (i = 0; i < obj_desc->buffer.length; i++) {
 			if (base == 16) {
 
-				/* Emit 0x prefix for explict/implicit hex conversion */
+				/* Emit 0x prefix for explicit/implicit hex conversion */
 
 				*new_buf++ = '0';
 				*new_buf++ = 'x';

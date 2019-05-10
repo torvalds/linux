@@ -614,16 +614,15 @@ xfs_iext_realloc_root(
 }
 
 /*
- * Increment the sequence counter if we are on a COW fork.  This allows
- * the writeback code to skip looking for a COW extent if the COW fork
- * hasn't changed.  We use WRITE_ONCE here to ensure the update to the
- * sequence counter is seen before the modifications to the extent
- * tree itself take effect.
+ * Increment the sequence counter on extent tree changes. If we are on a COW
+ * fork, this allows the writeback code to skip looking for a COW extent if the
+ * COW fork hasn't changed. We use WRITE_ONCE here to ensure the update to the
+ * sequence counter is seen before the modifications to the extent tree itself
+ * take effect.
  */
 static inline void xfs_iext_inc_seq(struct xfs_ifork *ifp, int state)
 {
-	if (state & BMAP_COWFORK)
-		WRITE_ONCE(ifp->if_seq, READ_ONCE(ifp->if_seq) + 1);
+	WRITE_ONCE(ifp->if_seq, READ_ONCE(ifp->if_seq) + 1);
 }
 
 void

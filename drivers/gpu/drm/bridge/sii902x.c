@@ -30,8 +30,8 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #define SII902X_TPI_VIDEO_DATA			0x0
 
@@ -232,8 +232,8 @@ static void sii902x_bridge_enable(struct drm_bridge *bridge)
 }
 
 static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *mode,
-				    struct drm_display_mode *adj)
+				    const struct drm_display_mode *mode,
+				    const struct drm_display_mode *adj)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 	struct regmap *regmap = sii902x->regmap;
@@ -258,7 +258,8 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	if (ret)
 		return;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, adj, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &sii902x->connector, adj);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;

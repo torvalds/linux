@@ -39,6 +39,7 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/iommu.h>
+#include <linux/numa.h>
 #include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
 
@@ -477,7 +478,7 @@ static int dmar_parse_one_rhsa(struct acpi_dmar_header *header, void *arg)
 			int node = acpi_map_pxm_to_node(rhsa->proximity_domain);
 
 			if (!node_online(node))
-				node = -1;
+				node = NUMA_NO_NODE;
 			drhd->iommu->node = node;
 			return 0;
 		}
@@ -1062,7 +1063,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->msagaw = msagaw;
 	iommu->segment = drhd->segment;
 
-	iommu->node = -1;
+	iommu->node = NUMA_NO_NODE;
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
 	pr_info("%s: reg_base_addr %llx ver %d:%d cap %llx ecap %llx\n",

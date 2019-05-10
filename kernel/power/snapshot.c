@@ -965,6 +965,9 @@ void __init __register_nosave_region(unsigned long start_pfn,
 		/* This allocation cannot fail */
 		region = memblock_alloc(sizeof(struct nosave_region),
 					SMP_CACHE_BYTES);
+		if (!region)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(struct nosave_region));
 	}
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;
@@ -1215,14 +1218,16 @@ static struct page *saveable_highmem_page(struct zone *zone, unsigned long pfn)
 	if (!pfn_valid(pfn))
 		return NULL;
 
-	page = pfn_to_page(pfn);
-	if (page_zone(page) != zone)
+	page = pfn_to_online_page(pfn);
+	if (!page || page_zone(page) != zone)
 		return NULL;
 
 	BUG_ON(!PageHighMem(page));
 
-	if (swsusp_page_is_forbidden(page) ||  swsusp_page_is_free(page) ||
-	    PageReserved(page))
+	if (swsusp_page_is_forbidden(page) ||  swsusp_page_is_free(page))
+		return NULL;
+
+	if (PageReserved(page) || PageOffline(page))
 		return NULL;
 
 	if (page_is_guard(page))
@@ -1277,13 +1282,16 @@ static struct page *saveable_page(struct zone *zone, unsigned long pfn)
 	if (!pfn_valid(pfn))
 		return NULL;
 
-	page = pfn_to_page(pfn);
-	if (page_zone(page) != zone)
+	page = pfn_to_online_page(pfn);
+	if (!page || page_zone(page) != zone)
 		return NULL;
 
 	BUG_ON(PageHighMem(page));
 
 	if (swsusp_page_is_forbidden(page) || swsusp_page_is_free(page))
+		return NULL;
+
+	if (PageOffline(page))
 		return NULL;
 
 	if (PageReserved(page)

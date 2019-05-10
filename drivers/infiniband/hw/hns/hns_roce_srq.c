@@ -78,9 +78,9 @@ static int hns_roce_hw2sw_srq(struct hns_roce_dev *dev,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-int hns_roce_srq_alloc(struct hns_roce_dev *hr_dev, u32 pdn, u32 cqn, u16 xrcd,
-		       struct hns_roce_mtt *hr_mtt, u64 db_rec_addr,
-		       struct hns_roce_srq *srq)
+static int hns_roce_srq_alloc(struct hns_roce_dev *hr_dev, u32 pdn, u32 cqn,
+			      u16 xrcd, struct hns_roce_mtt *hr_mtt,
+			      u64 db_rec_addr, struct hns_roce_srq *srq)
 {
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	struct hns_roce_cmd_mailbox *mailbox;
@@ -155,7 +155,8 @@ err_out:
 	return ret;
 }
 
-void hns_roce_srq_free(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
+static void hns_roce_srq_free(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_srq *srq)
 {
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	int ret;
@@ -253,8 +254,8 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 			goto err_srq;
 		}
 
-		srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
-					srq_buf_size, 0, 0);
+		srq->umem =
+			ib_umem_get(udata, ucmd.buf_addr, srq_buf_size, 0, 0);
 		if (IS_ERR(srq->umem)) {
 			ret = PTR_ERR(srq->umem);
 			goto err_srq;
@@ -281,8 +282,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 			goto err_srq_mtt;
 
 		/* config index queue BA */
-		srq->idx_que.umem = ib_umem_get(pd->uobject->context,
-						ucmd.que_addr,
+		srq->idx_que.umem = ib_umem_get(udata, ucmd.que_addr,
 						srq->idx_que.buf_size, 0, 0);
 		if (IS_ERR(srq->idx_que.umem)) {
 			dev_err(hr_dev->dev,

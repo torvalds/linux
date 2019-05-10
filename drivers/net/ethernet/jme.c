@@ -2034,10 +2034,9 @@ static void jme_drop_tx_map(struct jme_adapter *jme, int startidx, int count)
 				ctxbi->len,
 				PCI_DMA_TODEVICE);
 
-				ctxbi->mapping = 0;
-				ctxbi->len = 0;
+		ctxbi->mapping = 0;
+		ctxbi->len = 0;
 	}
-
 }
 
 static int

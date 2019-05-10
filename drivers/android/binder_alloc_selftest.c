@@ -102,11 +102,12 @@ static bool check_buffer_pages_allocated(struct binder_alloc *alloc,
 					 struct binder_buffer *buffer,
 					 size_t size)
 {
-	void *page_addr, *end;
+	void __user *page_addr;
+	void __user *end;
 	int page_index;
 
-	end = (void *)PAGE_ALIGN((uintptr_t)buffer->data + size);
-	page_addr = buffer->data;
+	end = (void __user *)PAGE_ALIGN((uintptr_t)buffer->user_data + size);
+	page_addr = buffer->user_data;
 	for (; page_addr < end; page_addr += PAGE_SIZE) {
 		page_index = (page_addr - alloc->buffer) / PAGE_SIZE;
 		if (!alloc->pages[page_index].page_ptr ||

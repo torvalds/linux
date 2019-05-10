@@ -81,14 +81,6 @@ struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev)
 	return fence;
 }
 
-void virtio_gpu_fence_cleanup(struct virtio_gpu_fence *fence)
-{
-	if (!fence)
-		return;
-
-	dma_fence_put(&fence->f);
-}
-
 int virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 			  struct virtio_gpu_ctrl_hdr *cmd_hdr,
 			  struct virtio_gpu_fence *fence)

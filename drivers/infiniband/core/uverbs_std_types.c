@@ -188,7 +188,7 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	ib_dealloc_pd((struct ib_pd *)uobject->object);
+	ib_dealloc_pd(pd);
 	return 0;
 }
 

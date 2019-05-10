@@ -27,8 +27,6 @@ ENTRY(startup_continue)
 	mvc	0(16,%r1),__LC_BOOT_CLOCK
 	larl	%r13,.LPG1		# get base
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
-	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
-					# move IPL device to lowcore
 	larl	%r0,boot_vdso_data
 	stg	%r0,__LC_VDSO_PER_CPU
 #

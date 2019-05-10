@@ -233,6 +233,9 @@ static bool reject6_csum_ok(struct sk_buff *skb, int hook)
 	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
 		return false;
 
+	if (!nf_reject_verify_csum(proto))
+		return true;
+
 	return nf_ip6_checksum(skb, hook, thoff, proto) == 0;
 }
 

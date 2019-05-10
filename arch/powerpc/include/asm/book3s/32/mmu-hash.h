@@ -92,6 +92,8 @@ typedef struct {
 	unsigned long vdso_base;
 } mm_context_t;
 
+void update_bats(void);
+
 /* patch sites */
 extern s32 patch__hash_page_A0, patch__hash_page_A1, patch__hash_page_A2;
 extern s32 patch__hash_page_B, patch__hash_page_C;

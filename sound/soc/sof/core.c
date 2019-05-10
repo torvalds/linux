@@ -259,17 +259,18 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 static int sof_machine_check(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
 	struct snd_soc_acpi_mach *machine;
 	int ret;
+#endif
 
 	if (plat_data->machine)
 		return 0;
 
-	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
-		dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
-		return -ENODEV;
-	}
-
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
+	dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+	return -ENODEV;
+#else
 	/* fallback to nocodec mode */
 	dev_warn(sdev->dev, "No ASoC machine driver found - using nocodec\n");
 	machine = devm_kzalloc(sdev->dev, sizeof(*machine), GFP_KERNEL);
@@ -284,6 +285,7 @@ static int sof_machine_check(struct snd_sof_dev *sdev)
 	plat_data->machine = machine;
 
 	return 0;
+#endif
 }
 
 static int sof_probe_continue(struct snd_sof_dev *sdev)

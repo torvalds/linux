@@ -44,10 +44,4 @@ struct cros_ec_readmem {
 #define CROS_EC_DEV_IOCXCMD   _IOWR(CROS_EC_DEV_IOC, 0, struct cros_ec_command)
 #define CROS_EC_DEV_IOCRDMEM  _IOWR(CROS_EC_DEV_IOC, 1, struct cros_ec_readmem)
 
-/* Lightbar utilities */
-extern bool ec_has_lightbar(struct cros_ec_dev *ec);
-extern int lb_manual_suspend_ctrl(struct cros_ec_dev *ec, uint8_t enable);
-extern int lb_suspend(struct cros_ec_dev *ec);
-extern int lb_resume(struct cros_ec_dev *ec);
-
 #endif /* _CROS_EC_DEV_H_ */
