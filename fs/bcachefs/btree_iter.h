@@ -105,8 +105,6 @@ void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
 			      struct btree_node_iter *, struct bkey_packed *,
 			      unsigned, unsigned);
 
-int bch2_btree_iter_unlock(struct btree_iter *);
-
 bool bch2_btree_trans_relock(struct btree_trans *);
 void bch2_btree_trans_unlock(struct btree_trans *);
 

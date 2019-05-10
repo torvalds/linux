@@ -1551,6 +1551,7 @@ split:
 int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 			  unsigned flags)
 {
+	struct btree_trans *trans = iter->trans;
 	struct btree *b = iter->l[0].b;
 	struct btree_update *as;
 	struct closure cl;
@@ -1561,7 +1562,7 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 	 * We already have a disk reservation and open buckets pinned; this
 	 * allocation must not block:
 	 */
-	trans_for_each_iter(iter->trans, linked)
+	trans_for_each_iter(trans, linked)
 		if (linked->btree_id == BTREE_ID_EXTENTS)
 			flags |= BTREE_INSERT_USE_RESERVE;
 
@@ -1573,10 +1574,10 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 		if (flags & BTREE_INSERT_NOUNLOCK)
 			return -EINTR;
 
-		bch2_btree_trans_unlock(iter->trans);
+		bch2_btree_trans_unlock(trans);
 		down_read(&c->gc_lock);
 
-		if (!bch2_btree_trans_relock(iter->trans))
+		if (!bch2_btree_trans_relock(trans))
 			ret = -EINTR;
 	}
 
@@ -1597,7 +1598,7 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 		ret = PTR_ERR(as);
 		if (ret == -EAGAIN) {
 			BUG_ON(flags & BTREE_INSERT_NOUNLOCK);
-			bch2_btree_iter_unlock(iter);
+			bch2_btree_trans_unlock(trans);
 			ret = -EINTR;
 		}
 		goto out;
@@ -1624,6 +1625,7 @@ void __bch2_foreground_maybe_merge(struct bch_fs *c,
 				   unsigned flags,
 				   enum btree_node_sibling sib)
 {
+	struct btree_trans *trans = iter->trans;
 	struct btree_update *as;
 	struct bkey_format_state new_s;
 	struct bkey_format new_f;
@@ -1778,7 +1780,7 @@ err_cycle_gc_lock:
 	if (flags & BTREE_INSERT_NOUNLOCK)
 		goto out;
 
-	bch2_btree_iter_unlock(iter);
+	bch2_btree_trans_unlock(trans);
 
 	down_read(&c->gc_lock);
 	up_read(&c->gc_lock);
@@ -1794,7 +1796,7 @@ err:
 
 	if ((ret == -EAGAIN || ret == -EINTR) &&
 	    !(flags & BTREE_INSERT_NOUNLOCK)) {
-		bch2_btree_iter_unlock(iter);
+		bch2_btree_trans_unlock(trans);
 		closure_sync(&cl);
 		ret = bch2_btree_iter_traverse(iter);
 		if (ret)
@@ -1861,6 +1863,7 @@ static int __btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 			    __le64 seq, unsigned flags)
 {
+	struct btree_trans *trans = iter->trans;
 	struct closure cl;
 	struct btree *b;
 	int ret;
@@ -1873,7 +1876,7 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 
 	if (!(flags & BTREE_INSERT_GC_LOCK_HELD)) {
 		if (!down_read_trylock(&c->gc_lock)) {
-			bch2_btree_iter_unlock(iter);
+			bch2_btree_trans_unlock(trans);
 			down_read(&c->gc_lock);
 		}
 	}
@@ -1892,7 +1895,7 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 		    ret != -EINTR)
 			break;
 
-		bch2_btree_iter_unlock(iter);
+		bch2_btree_trans_unlock(trans);
 		closure_sync(&cl);
 	}
 

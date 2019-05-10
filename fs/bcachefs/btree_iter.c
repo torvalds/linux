@@ -389,16 +389,6 @@ void __bch2_btree_iter_downgrade(struct btree_iter *iter,
 	bch2_btree_trans_verify_locks(iter->trans);
 }
 
-int bch2_btree_iter_unlock(struct btree_iter *iter)
-{
-	struct btree_iter *linked;
-
-	trans_for_each_iter(iter->trans, linked)
-		__bch2_btree_iter_unlock(linked);
-
-	return btree_iter_err(iter);
-}
-
 bool bch2_btree_trans_relock(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
@@ -1041,7 +1031,7 @@ static unsigned btree_iter_up_until_locked(struct btree_iter *iter,
  * Returns 0 on success, -EIO on error (error reading in a btree node).
  *
  * On error, caller (peek_node()/peek_key()) must return NULL; the error is
- * stashed in the iterator and returned from bch2_btree_iter_unlock().
+ * stashed in the iterator and returned from bch2_trans_exit().
  */
 int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter)
 {
