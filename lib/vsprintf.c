@@ -628,19 +628,16 @@ static char *error_string(char *buf, char *end, const char *s,
 }
 
 /*
- * This is not a fool-proof test. 99% of the time that this will fault is
- * due to a bad pointer, not one that crosses into bad memory. Just test
- * the address to make sure it doesn't fault due to a poorly added printk
- * during debugging.
+ * Do not call any complex external code here. Nested printk()/vsprintf()
+ * might cause infinite loops. Failures might break printk() and would
+ * be hard to debug.
  */
 static const char *check_pointer_msg(const void *ptr)
 {
-	char byte;
-
 	if (!ptr)
 		return "(null)";
 
-	if (probe_kernel_address(ptr, byte))
+	if ((unsigned long)ptr < PAGE_SIZE || IS_ERR_VALUE(ptr))
 		return "(efault)";
 
 	return NULL;
