@@ -13,6 +13,7 @@
 
 #include "aq_drvinfo.h"
 
+#if IS_REACHABLE(CONFIG_HWMON)
 static int aq_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			 u32 attr, int channel, long *value)
 {
@@ -123,3 +124,7 @@ int aq_drvinfo_init(struct net_device *ndev)
 
 	return err;
 }
+
+#else
+int aq_drvinfo_init(struct net_device *ndev) { return 0; }
+#endif

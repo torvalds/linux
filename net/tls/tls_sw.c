@@ -119,23 +119,25 @@ static int skb_nsg(struct sk_buff *skb, int offset, int len)
 }
 
 static int padding_length(struct tls_sw_context_rx *ctx,
-			  struct tls_context *tls_ctx, struct sk_buff *skb)
+			  struct tls_prot_info *prot, struct sk_buff *skb)
 {
 	struct strp_msg *rxm = strp_msg(skb);
 	int sub = 0;
 
 	/* Determine zero-padding length */
-	if (tls_ctx->prot_info.version == TLS_1_3_VERSION) {
+	if (prot->version == TLS_1_3_VERSION) {
 		char content_type = 0;
 		int err;
 		int back = 17;
 
 		while (content_type == 0) {
-			if (back > rxm->full_len)
+			if (back > rxm->full_len - prot->prepend_size)
 				return -EBADMSG;
 			err = skb_copy_bits(skb,
 					    rxm->offset + rxm->full_len - back,
 					    &content_type, 1);
+			if (err)
+				return err;
 			if (content_type)
 				break;
 			sub++;
@@ -170,9 +172,17 @@ static void tls_decrypt_done(struct crypto_async_request *req, int err)
 		tls_err_abort(skb->sk, err);
 	} else {
 		struct strp_msg *rxm = strp_msg(skb);
-		rxm->full_len -= padding_length(ctx, tls_ctx, skb);
-		rxm->offset += prot->prepend_size;
-		rxm->full_len -= prot->overhead_size;
+		int pad;
+
+		pad = padding_length(ctx, prot, skb);
+		if (pad < 0) {
+			ctx->async_wait.err = pad;
+			tls_err_abort(skb->sk, pad);
+		} else {
+			rxm->full_len -= pad;
+			rxm->offset += prot->prepend_size;
+			rxm->full_len -= prot->overhead_size;
+		}
 	}
 
 	/* After using skb->sk to propagate sk through crypto async callback
@@ -1478,7 +1488,7 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	int version = prot->version;
 	struct strp_msg *rxm = strp_msg(skb);
-	int err = 0;
+	int pad, err = 0;
 
 	if (!ctx->decrypted) {
 #ifdef CONFIG_TLS_DEVICE
@@ -1501,7 +1511,11 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 			*zc = false;
 		}
 
-		rxm->full_len -= padding_length(ctx, tls_ctx, skb);
+		pad = padding_length(ctx, prot, skb);
+		if (pad < 0)
+			return pad;
+
+		rxm->full_len -= pad;
 		rxm->offset += prot->prepend_size;
 		rxm->full_len -= prot->overhead_size;
 		tls_advance_record_sn(sk, &tls_ctx->rx, version);

@@ -77,7 +77,7 @@
 #include <asm/unaligned.h>
 #include <linux/errqueue.h>
 #include <trace/events/tcp.h>
-#include <linux/static_key.h>
+#include <linux/jump_label_ratelimit.h>
 #include <net/busy_poll.h>
 
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
@@ -113,22 +113,28 @@ int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 #define REXMIT_NEW	2 /* FRTO-style transmit of unsent/new packets */
 
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
-static DEFINE_STATIC_KEY_FALSE(clean_acked_data_enabled);
+static DEFINE_STATIC_KEY_DEFERRED_FALSE(clean_acked_data_enabled, HZ);
 
 void clean_acked_data_enable(struct inet_connection_sock *icsk,
 			     void (*cad)(struct sock *sk, u32 ack_seq))
 {
 	icsk->icsk_clean_acked = cad;
-	static_branch_inc(&clean_acked_data_enabled);
+	static_branch_inc(&clean_acked_data_enabled.key);
 }
 EXPORT_SYMBOL_GPL(clean_acked_data_enable);
 
 void clean_acked_data_disable(struct inet_connection_sock *icsk)
 {
-	static_branch_dec(&clean_acked_data_enabled);
+	static_branch_slow_dec_deferred(&clean_acked_data_enabled);
 	icsk->icsk_clean_acked = NULL;
 }
 EXPORT_SYMBOL_GPL(clean_acked_data_disable);
+
+void clean_acked_data_flush(void)
+{
+	static_key_deferred_flush(&clean_acked_data_enabled);
+}
+EXPORT_SYMBOL_GPL(clean_acked_data_flush);
 #endif
 
 static void tcp_gro_dev_warn(struct sock *sk, const struct sk_buff *skb,
@@ -3598,7 +3604,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		icsk->icsk_retransmits = 0;
 
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
-		if (static_branch_unlikely(&clean_acked_data_enabled))
+		if (static_branch_unlikely(&clean_acked_data_enabled.key))
 			if (icsk->icsk_clean_acked)
 				icsk->icsk_clean_acked(sk, ack);
 #endif
