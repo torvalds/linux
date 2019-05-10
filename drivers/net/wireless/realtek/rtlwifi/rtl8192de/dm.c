@@ -787,9 +787,9 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 	bool internal_pa = false;
 	long ele_a = 0, ele_d, temp_cck, val_x, value32;
 	long val_y, ele_c = 0;
-	u8 ofdm_index[3];
+	u8 ofdm_index[2];
 	s8 cck_index = 0;
-	u8 ofdm_index_old[3] = {0, 0, 0};
+	u8 ofdm_index_old[2] = {0, 0};
 	s8 cck_index_old = 0;
 	u8 index;
 	int i;
@@ -846,6 +846,9 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 	else
 		rf = 1;
 
+	if (rtlpriv->dm.thermalvalue && !rtlhal->reloadtxpowerindex)
+		goto old_index_done;
+
 	ele_d = rtl_get_bbreg(hw, ROFDM0_XATXIQIMBALANCE,  MASKDWORD) & MASKOFDM_D;
 	for (i = 0; i < OFDM_TABLE_SIZE_92D; i++) {
 		if (ele_d == (ofdmswing_table[i] & MASKOFDM_D)) {
@@ -897,6 +900,10 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "reload ofdm index for band switch\n");
 	}
+old_index_done:
+	for (i = 0; i < rf; i++)
+		ofdm_index[i] = rtlpriv->dm.ofdm_index[i];
+
 	rtlpriv->dm.thermalvalue_avg
 		    [rtlpriv->dm.thermalvalue_avg_index] = thermalvalue;
 	rtlpriv->dm.thermalvalue_avg_index++;
