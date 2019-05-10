@@ -95,6 +95,8 @@ enum psp_gfx_cmd_id
     GFX_CMD_ID_SETUP_VMR    = 0x00000009,   /* setup VMR region */
     GFX_CMD_ID_DESTROY_VMR  = 0x0000000A,   /* destroy VMR region */
     GFX_CMD_ID_PROG_REG     = 0x0000000B,   /* program regs */
+    GFX_CMD_ID_LOAD_TOC     = 0x0000000B,   /* Load TOC and obtain TMR size */
+    GFX_CMD_ID_AUTOLOAD_RLC = 0x0000000C,   /* Indicates all graphics fw loaded, start RLC autoload */
 };
 
 
@@ -224,6 +226,14 @@ struct psp_gfx_cmd_reg_prog {
 	uint32_t	reg_id;
 };
 
+/* Command to load TOC */
+struct psp_gfx_cmd_load_toc
+{
+    uint32_t        toc_phy_addr_lo;        /* bits [31:0] of GPU Virtual address of FW location (must be 4 KB aligned) */
+    uint32_t        toc_phy_addr_hi;        /* bits [63:32] of GPU Virtual address of FW location */
+    uint32_t        toc_size;               /* FW buffer size in bytes */
+};
+
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
 {
@@ -234,8 +244,9 @@ union psp_gfx_commands
     struct psp_gfx_cmd_load_ip_fw       cmd_load_ip_fw;
     struct psp_gfx_cmd_save_restore_ip_fw cmd_save_restore_ip_fw;
     struct psp_gfx_cmd_reg_prog       cmd_setup_reg_prog;
+    struct psp_gfx_cmd_setup_tmr        cmd_setup_vmr;
+    struct psp_gfx_cmd_load_toc         cmd_load_toc;
 };
-
 
 /* Structure of GFX Response buffer.
 * For GPCOM I/F it is part of GFX_CMD_RESP buffer, for RBI
@@ -243,12 +254,13 @@ union psp_gfx_commands
 */
 struct psp_gfx_resp
 {
-    uint32_t    status;             /* +0  status of command execution */
-    uint32_t    session_id;         /* +4  session ID in response to LoadTa command */
-    uint32_t    fw_addr_lo;         /* +8  bits [31:0] of FW address within TMR (in response to cmd_load_ip_fw command) */
-    uint32_t    fw_addr_hi;         /* +12 bits [63:32] of FW address within TMR (in response to cmd_load_ip_fw command) */
+    uint32_t	status;		/* +0  status of command execution */
+    uint32_t	session_id;	/* +4  session ID in response to LoadTa command */
+    uint32_t	fw_addr_lo;	/* +8  bits [31:0] of FW address within TMR (in response to cmd_load_ip_fw command) */
+    uint32_t	fw_addr_hi;	/* +12 bits [63:32] of FW address within TMR (in response to cmd_load_ip_fw command) */
+    uint32_t	tmr_size;	/* +16 size of the TMR to be reserved including MM fw and Gfx fw in response to cmd_load_toc command */
 
-    uint32_t    reserved[4];
+    uint32_t	reserved[3];
 
     /* total 32 bytes */
 };
