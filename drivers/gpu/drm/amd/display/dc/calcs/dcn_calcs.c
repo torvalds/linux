@@ -872,8 +872,19 @@ bool dcn_validate_bandwidth(
 			v->lb_bit_per_pixel[input_idx] = 30;
 			v->viewport_width[input_idx] = pipe->stream->timing.h_addressable;
 			v->viewport_height[input_idx] = pipe->stream->timing.v_addressable;
-			v->scaler_rec_out_width[input_idx] = pipe->stream->timing.h_addressable;
-			v->scaler_recout_height[input_idx] = pipe->stream->timing.v_addressable;
+			/*
+			 * for cases where we have no plane, we want to validate up to 1080p
+			 * source size because here we are only interested in if the output
+			 * timing is supported or not. if we cannot support native resolution
+			 * of the high res display, we still want to support lower res up scale
+			 * to native
+			 */
+			if (v->viewport_width[input_idx] > 1920)
+				v->viewport_width[input_idx] = 1920;
+			if (v->viewport_height[input_idx] > 1080)
+				v->viewport_height[input_idx] = 1080;
+			v->scaler_rec_out_width[input_idx] = v->viewport_width[input_idx];
+			v->scaler_recout_height[input_idx] = v->viewport_height[input_idx];
 			v->override_hta_ps[input_idx] = 1;
 			v->override_vta_ps[input_idx] = 1;
 			v->override_hta_pschroma[input_idx] = 1;
