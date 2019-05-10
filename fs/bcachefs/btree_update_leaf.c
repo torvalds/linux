@@ -816,7 +816,7 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 		unsigned old_locks_want = i->iter->locks_want;
 		unsigned old_uptodate = i->iter->uptodate;
 
-		if (!bch2_btree_iter_upgrade(i->iter, 1, true)) {
+		if (!bch2_btree_iter_upgrade(i->iter, 1)) {
 			trans_restart(" (failed upgrade, locks_want %u uptodate %u)",
 				      old_locks_want, old_uptodate);
 			ret = -EINTR;
