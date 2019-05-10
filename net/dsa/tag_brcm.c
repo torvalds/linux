@@ -206,10 +206,10 @@ static const struct dsa_device_ops brcm_prepend_netdev_ops = {
 	.rcv	= brcm_tag_rcv_prepend,
 	.overhead = BRCM_TAG_LEN,
 };
-#endif
 
 DSA_TAG_DRIVER(brcm_prepend_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND);
+#endif
 
 static struct dsa_tag_driver *dsa_tag_driver_array[] =	{
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM)
