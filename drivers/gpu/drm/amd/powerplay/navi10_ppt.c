@@ -35,6 +35,8 @@
 #include "smu_v11_0_pptable.h"
 #include "smu_v11_0_ppsmc.h"
 
+#include "asic_reg/mp/mp_11_0_sh_mask.h"
+
 #define FEATURE_MASK(feature) (1UL << feature)
 #define SMC_DPM_FEATURE ( \
 	FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT) | \
@@ -279,6 +281,21 @@ static int navi10_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_P
 	val = navi10_workload_map[profile];
 
 	return val;
+}
+
+static bool is_asic_secure(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	bool is_secure = true;
+	uint32_t mp0_fw_intf;
+
+	mp0_fw_intf = RREG32_PCIE(MP0_Public |
+				   (smnMP0_FW_INTF & 0xffffffff));
+
+	if (!(mp0_fw_intf & (1 << 19)))
+		is_secure = false;
+
+	return is_secure;
 }
 
 static int
