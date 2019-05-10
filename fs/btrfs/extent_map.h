@@ -42,7 +42,7 @@ struct extent_map {
 	u64 block_len;
 	u64 generation;
 	unsigned long flags;
-	union {
+	struct {
 		struct block_device *bdev;
 
 		/*
