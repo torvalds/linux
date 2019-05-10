@@ -376,7 +376,7 @@ smp_slave_stext:
 ENDPROC(parisc_kernel_start)
 
 #ifndef CONFIG_64BIT
-	.section .data..read_mostly
+	.section .data..ro_after_init
 
 	.align	4
 	.export	$global$,data
