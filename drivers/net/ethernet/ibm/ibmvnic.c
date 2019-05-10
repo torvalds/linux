@@ -1111,7 +1111,6 @@ static int ibmvnic_open(struct net_device *netdev)
 	}
 
 	rc = __ibmvnic_open(netdev);
-	netif_carrier_on(netdev);
 
 	return rc;
 }
@@ -1864,8 +1863,6 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	    adapter->reset_reason != VNIC_RESET_CHANGE_PARAM)
 		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, netdev);
 
-	netif_carrier_on(netdev);
-
 	return 0;
 }
 
@@ -1934,8 +1931,6 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 
 		return 0;
 	}
-
-	netif_carrier_on(netdev);
 
 	return 0;
 }
@@ -4480,6 +4475,10 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		    crq->link_state_indication.phys_link_state;
 		adapter->logical_link_state =
 		    crq->link_state_indication.logical_link_state;
+		if (adapter->phys_link_state && adapter->logical_link_state)
+			netif_carrier_on(netdev);
+		else
+			netif_carrier_off(netdev);
 		break;
 	case CHANGE_MAC_ADDR_RSP:
 		netdev_dbg(netdev, "Got MAC address change Response\n");
