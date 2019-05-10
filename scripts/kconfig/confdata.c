@@ -241,7 +241,7 @@ char *conf_get_default_confname(void)
 	name = expand_string(conf_defname);
 	env = getenv(SRCTREE);
 	if (env) {
-		sprintf(fullname, "%s/%s", env, name);
+		snprintf(fullname, sizeof(fullname), "%s/%s", env, name);
 		if (is_present(fullname))
 			return fullname;
 	}
