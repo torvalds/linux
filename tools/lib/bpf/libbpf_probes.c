@@ -15,6 +15,7 @@
 
 #include "bpf.h"
 #include "libbpf.h"
+#include "libbpf_internal.h"
 
 static bool grep(const char *buffer, const char *pattern)
 {
@@ -132,21 +133,43 @@ bool bpf_probe_prog_type(enum bpf_prog_type prog_type, __u32 ifindex)
 	return errno != EINVAL && errno != EOPNOTSUPP;
 }
 
-static int load_btf(void)
+int libbpf__probe_raw_btf(const char *raw_types, size_t types_len,
+			  const char *str_sec, size_t str_len)
 {
-#define BTF_INFO_ENC(kind, kind_flag, vlen) \
-	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
-#define BTF_TYPE_ENC(name, info, size_or_type) \
-	(name), (info), (size_or_type)
-#define BTF_INT_ENC(encoding, bits_offset, nr_bits) \
-	((encoding) << 24 | (bits_offset) << 16 | (nr_bits))
-#define BTF_TYPE_INT_ENC(name, encoding, bits_offset, bits, sz) \
-	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_INT, 0, 0), sz), \
-	BTF_INT_ENC(encoding, bits_offset, bits)
-#define BTF_MEMBER_ENC(name, type, bits_offset) \
-	(name), (type), (bits_offset)
+	struct btf_header hdr = {
+		.magic = BTF_MAGIC,
+		.version = BTF_VERSION,
+		.hdr_len = sizeof(struct btf_header),
+		.type_len = types_len,
+		.str_off = types_len,
+		.str_len = str_len,
+	};
+	int btf_fd, btf_len;
+	__u8 *raw_btf;
 
-	const char btf_str_sec[] = "\0bpf_spin_lock\0val\0cnt\0l";
+	btf_len = hdr.hdr_len + hdr.type_len + hdr.str_len;
+	raw_btf = malloc(btf_len);
+	if (!raw_btf)
+		return -ENOMEM;
+
+	memcpy(raw_btf, &hdr, sizeof(hdr));
+	memcpy(raw_btf + hdr.hdr_len, raw_types, hdr.type_len);
+	memcpy(raw_btf + hdr.hdr_len + hdr.type_len, str_sec, hdr.str_len);
+
+	btf_fd = bpf_load_btf(raw_btf, btf_len, NULL, 0, false);
+	if (btf_fd < 0) {
+		free(raw_btf);
+		return 0;
+	}
+
+	close(btf_fd);
+	free(raw_btf);
+	return 1;
+}
+
+static int load_sk_storage_btf(void)
+{
+	const char strs[] = "\0bpf_spin_lock\0val\0cnt\0l";
 	/* struct bpf_spin_lock {
 	 *   int val;
 	 * };
@@ -155,7 +178,7 @@ static int load_btf(void)
 	 *   struct bpf_spin_lock l;
 	 * };
 	 */
-	__u32 btf_raw_types[] = {
+	__u32 types[] = {
 		/* int */
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
 		/* struct bpf_spin_lock */                      /* [2] */
@@ -166,23 +189,9 @@ static int load_btf(void)
 		BTF_MEMBER_ENC(19, 1, 0), /* int cnt; */
 		BTF_MEMBER_ENC(23, 2, 32),/* struct bpf_spin_lock l; */
 	};
-	struct btf_header btf_hdr = {
-		.magic = BTF_MAGIC,
-		.version = BTF_VERSION,
-		.hdr_len = sizeof(struct btf_header),
-		.type_len = sizeof(btf_raw_types),
-		.str_off = sizeof(btf_raw_types),
-		.str_len = sizeof(btf_str_sec),
-	};
-	__u8 raw_btf[sizeof(struct btf_header) + sizeof(btf_raw_types) +
-		     sizeof(btf_str_sec)];
 
-	memcpy(raw_btf, &btf_hdr, sizeof(btf_hdr));
-	memcpy(raw_btf + sizeof(btf_hdr), btf_raw_types, sizeof(btf_raw_types));
-	memcpy(raw_btf + sizeof(btf_hdr) + sizeof(btf_raw_types),
-	       btf_str_sec, sizeof(btf_str_sec));
-
-	return bpf_load_btf(raw_btf, sizeof(raw_btf), 0, 0, 0);
+	return libbpf__probe_raw_btf((char *)types, sizeof(types),
+				     strs, sizeof(strs));
 }
 
 bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex)
@@ -222,7 +231,7 @@ bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex)
 		value_size = 8;
 		max_entries = 0;
 		map_flags = BPF_F_NO_PREALLOC;
-		btf_fd = load_btf();
+		btf_fd = load_sk_storage_btf();
 		if (btf_fd < 0)
 			return false;
 		break;
