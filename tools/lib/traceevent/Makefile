@@ -56,6 +56,7 @@ includedir_SQ = '$(subst ','\'',$(includedir))'
 
 export man_dir man_dir_SQ INSTALL
 export DESTDIR DESTDIR_SQ
+export EVENT_PARSE_VERSION
 
 set_plugin_dir := 1
 
@@ -318,6 +319,38 @@ clean:
 		$(RM) TRACEEVENT-CFLAGS tags TAGS; \
 		$(RM) $(PKG_CONFIG_FILE)
 
+PHONY += doc
+doc:
+	$(call descend,Documentation)
+
+PHONY += doc-clean
+doc-clean:
+	$(call descend,Documentation,clean)
+
+PHONY += doc-install
+doc-install:
+	$(call descend,Documentation,install)
+
+PHONY += doc-uninstall
+doc-uninstall:
+	$(call descend,Documentation,uninstall)
+
+PHONY += help
+help:
+	@echo 'Possible targets:'
+	@echo''
+	@echo '  all                 - default, compile the library and the'\
+				      'plugins'
+	@echo '  plugins             - compile the plugins'
+	@echo '  install             - install the library, the plugins,'\
+					'the header and pkgconfig files'
+	@echo '  clean               - clean the library and the plugins object files'
+	@echo '  doc                 - compile the documentation files - man'\
+					'and html pages, in the Documentation directory'
+	@echo '  doc-clean           - clean the documentation files'
+	@echo '  doc-install         - install the man pages'
+	@echo '  doc-uninstall       - uninstall the man pages'
+	@echo''
 PHONY += force plugins
 force:
 
