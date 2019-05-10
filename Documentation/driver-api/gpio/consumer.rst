@@ -283,8 +283,6 @@ To summarize::
   gpiod_set_value(desc, 1);          default (active high)  high
   gpiod_set_value(desc, 0);          active low             high
   gpiod_set_value(desc, 1);          active low             low
-  gpiod_set_value(desc, 0);          default (active high)  low
-  gpiod_set_value(desc, 1);          default (active high)  high
   gpiod_set_value(desc, 0);          open drain             low
   gpiod_set_value(desc, 1);          open drain             high impedance
   gpiod_set_value(desc, 0);          open source            high impedance
