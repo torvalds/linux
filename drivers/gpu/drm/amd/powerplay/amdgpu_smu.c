@@ -436,9 +436,6 @@ static int smu_sw_init(void *handle)
 	struct smu_context *smu = &adev->smu;
 	int ret;
 
-	if (!is_support_sw_smu(adev))
-		return -EINVAL;
-
 	smu->pool_size = adev->pm.smu_prv_buffer_size;
 	smu->smu_feature.feature_num = SMU_FEATURE_MAX;
 	mutex_init(&smu->smu_feature.mutex);
@@ -489,9 +486,6 @@ static int smu_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	int ret;
-
-	if (!is_support_sw_smu(adev))
-		return -EINVAL;
 
 	ret = smu_smc_table_sw_fini(smu);
 	if (ret) {
@@ -818,9 +812,6 @@ static int smu_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 
-	if (!is_support_sw_smu(adev))
-		return -EINVAL;
-
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 		ret = smu_load_microcode(smu);
 		if (ret)
@@ -879,9 +870,6 @@ static int smu_hw_fini(void *handle)
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	if (!is_support_sw_smu(adev))
-		return -EINVAL;
-
 	kfree(table_context->driver_pptable);
 	table_context->driver_pptable = NULL;
 
@@ -936,9 +924,6 @@ static int smu_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 
-	if (!is_support_sw_smu(adev))
-		return -EINVAL;
-
 	ret = smu_system_features_control(smu, false);
 	if (ret)
 		return ret;
@@ -953,9 +938,6 @@ static int smu_resume(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
-
-	if (!is_support_sw_smu(adev))
-		return -EINVAL;
 
 	pr_info("SMU is resuming...\n");
 
