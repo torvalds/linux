@@ -781,7 +781,8 @@ static void close_table_device(struct table_device *td, struct mapped_device *md
 }
 
 static struct table_device *find_table_device(struct list_head *l, dev_t dev,
-					      fmode_t mode) {
+					      fmode_t mode)
+{
 	struct table_device *td;
 
 	list_for_each_entry(td, l, list)
@@ -792,7 +793,8 @@ static struct table_device *find_table_device(struct list_head *l, dev_t dev,
 }
 
 int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
-			struct dm_dev **result) {
+			struct dm_dev **result)
+{
 	int r;
 	struct table_device *td;
 
