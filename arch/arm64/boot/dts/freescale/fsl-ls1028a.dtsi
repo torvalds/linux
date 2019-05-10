@@ -70,6 +70,27 @@
 		clock-output-names = "sysclk";
 	};
 
+	dpclk: clock-dp {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <27000000>;
+		clock-output-names= "dpclk";
+	};
+
+	aclk: clock-axi {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <650000000>;
+		clock-output-names= "aclk";
+	};
+
+	pclk: clock-apb {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <650000000>;
+		clock-output-names= "pclk";
+	};
+
 	reboot {
 		compatible ="syscon-reboot";
 		regmap = <&dcfg>;
@@ -430,6 +451,23 @@
 			enetc_port1: ethernet@0,1 {
 				compatible = "fsl,enetc";
 				reg = <0x000100 0 0 0 0>;
+			};
+		};
+	};
+
+	malidp0: display@f080000 {
+		compatible = "arm,mali-dp500";
+		reg = <0x0 0xf080000 0x0 0x10000>;
+		interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 223 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "DE", "SE";
+		clocks = <&dpclk>, <&aclk>, <&aclk>, <&pclk>;
+		clock-names = "pxlclk", "mclk", "aclk", "pclk";
+		arm,malidp-output-port-lines = /bits/ 8 <8 8 8>;
+
+		port {
+			dp0_out: endpoint {
+
 			};
 		};
 	};
