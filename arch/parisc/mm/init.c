@@ -66,7 +66,7 @@ static struct resource pdcdata_resource = {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
-static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __read_mostly;
+static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __ro_after_init;
 
 /* The following array is initialized from the firmware specific
  * information retrieved in kernel/inventory.c.
@@ -557,11 +557,11 @@ void mark_rodata_ro(void)
 #define SET_MAP_OFFSET(x) ((void *)(((unsigned long)(x) + VM_MAP_OFFSET) \
 				     & ~(VM_MAP_OFFSET-1)))
 
-void *parisc_vmalloc_start __read_mostly;
+void *parisc_vmalloc_start __ro_after_init;
 EXPORT_SYMBOL(parisc_vmalloc_start);
 
 #ifdef CONFIG_PA11
-unsigned long pcxl_dma_start __read_mostly;
+unsigned long pcxl_dma_start __ro_after_init;
 #endif
 
 void __init mem_init(void)
@@ -635,7 +635,7 @@ void __init mem_init(void)
 #endif
 }
 
-unsigned long *empty_zero_page __read_mostly;
+unsigned long *empty_zero_page __ro_after_init;
 EXPORT_SYMBOL(empty_zero_page);
 
 /*
