@@ -798,18 +798,19 @@ void imx_media_capture_device_unregister(struct imx_media_video_dev *vdev)
 EXPORT_SYMBOL_GPL(imx_media_capture_device_unregister);
 
 struct imx_media_video_dev *
-imx_media_capture_device_init(struct v4l2_subdev *src_sd, int pad)
+imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
+			      int pad)
 {
 	struct capture_priv *priv;
 	struct video_device *vfd;
 
-	priv = devm_kzalloc(src_sd->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
 	priv->src_sd = src_sd;
 	priv->src_sd_pad = pad;
-	priv->dev = src_sd->dev;
+	priv->dev = dev;
 
 	mutex_init(&priv->mutex);
 	spin_lock_init(&priv->q_lock);

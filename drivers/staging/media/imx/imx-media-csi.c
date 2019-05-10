@@ -1983,7 +1983,7 @@ static int imx_csi_probe(struct platform_device *pdev)
 	imx_media_grp_id_to_sd_name(priv->sd.name, sizeof(priv->sd.name),
 				    priv->sd.grp_id, ipu_get_num(priv->ipu));
 
-	priv->vdev = imx_media_capture_device_init(&priv->sd,
+	priv->vdev = imx_media_capture_device_init(priv->sd.dev, &priv->sd,
 						   CSI_SRC_PAD_IDMAC);
 	if (IS_ERR(priv->vdev))
 		return PTR_ERR(priv->vdev);

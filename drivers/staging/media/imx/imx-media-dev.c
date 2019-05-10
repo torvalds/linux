@@ -28,111 +28,24 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
 	return container_of(n, struct imx_media_dev, notifier);
 }
 
-/*
- * Adds a subdev to the root notifier's async subdev list. If fwnode is
- * non-NULL, adds the async as a V4L2_ASYNC_MATCH_FWNODE match type,
- * otherwise as a V4L2_ASYNC_MATCH_DEVNAME match type using the dev_name
- * of the given platform_device. This is called during driver load when
- * forming the async subdev list.
- */
-int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
-			       struct fwnode_handle *fwnode,
-			       struct platform_device *pdev)
-{
-	struct device_node *np = to_of_node(fwnode);
-	struct imx_media_async_subdev *imxasd;
-	struct v4l2_async_subdev *asd;
-	const char *devname = NULL;
-	int ret;
-
-	if (fwnode) {
-		asd = v4l2_async_notifier_add_fwnode_subdev(&imxmd->notifier,
-							    fwnode,
-							    sizeof(*imxasd));
-	} else {
-		devname = dev_name(&pdev->dev);
-		asd = v4l2_async_notifier_add_devname_subdev(&imxmd->notifier,
-							     devname,
-							     sizeof(*imxasd));
-	}
-
-	if (IS_ERR(asd)) {
-		ret = PTR_ERR(asd);
-		if (ret == -EEXIST) {
-			if (np)
-				dev_dbg(imxmd->md.dev, "%s: already added %pOFn\n",
-					__func__, np);
-			else
-				dev_dbg(imxmd->md.dev, "%s: already added %s\n",
-					__func__, devname);
-		}
-		return ret;
-	}
-
-	imxasd = to_imx_media_asd(asd);
-
-	if (devname)
-		imxasd->pdev = pdev;
-
-	if (np)
-		dev_dbg(imxmd->md.dev, "%s: added %pOFn, match type FWNODE\n",
-			__func__, np);
-	else
-		dev_dbg(imxmd->md.dev, "%s: added %s, match type DEVNAME\n",
-			__func__, devname);
-
-	return 0;
-}
-
-/*
- * get IPU from this CSI and add it to the list of IPUs
- * the media driver will control.
- */
-static int imx_media_get_ipu(struct imx_media_dev *imxmd,
-			     struct v4l2_subdev *csi_sd)
-{
-	struct ipu_soc *ipu;
-	int ipu_id;
-
-	ipu = dev_get_drvdata(csi_sd->dev->parent);
-	if (!ipu) {
-		v4l2_err(&imxmd->v4l2_dev,
-			 "CSI %s has no parent IPU!\n", csi_sd->name);
-		return -ENODEV;
-	}
-
-	ipu_id = ipu_get_num(ipu);
-	if (ipu_id > 1) {
-		v4l2_err(&imxmd->v4l2_dev, "invalid IPU id %d!\n", ipu_id);
-		return -ENODEV;
-	}
-
-	if (!imxmd->ipu[ipu_id])
-		imxmd->ipu[ipu_id] = ipu;
-
-	return 0;
-}
-
 /* async subdev bound notifier */
 int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
 			   struct v4l2_subdev *sd,
 			   struct v4l2_async_subdev *asd)
 {
 	struct imx_media_dev *imxmd = notifier2dev(notifier);
-	int ret = 0;
-
-	mutex_lock(&imxmd->mutex);
+	int ret;
 
 	if (sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) {
-		ret = imx_media_get_ipu(imxmd, sd);
+		/* register the IPU internal subdevs */
+		ret = imx_media_register_ipu_internal_subdevs(imxmd, sd);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	v4l2_info(&imxmd->v4l2_dev, "subdev %s bound\n", sd->name);
-out:
-	mutex_unlock(&imxmd->mutex);
-	return ret;
+
+	return 0;
 }
 
 /*
@@ -143,7 +56,6 @@ static int imx_media_create_links(struct v4l2_async_notifier *notifier)
 {
 	struct imx_media_dev *imxmd = notifier2dev(notifier);
 	struct v4l2_subdev *sd;
-	int ret;
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
 		switch (sd->grp_id) {
@@ -151,22 +63,15 @@ static int imx_media_create_links(struct v4l2_async_notifier *notifier)
 		case IMX_MEDIA_GRP_ID_IPU_IC_PRP:
 		case IMX_MEDIA_GRP_ID_IPU_IC_PRPENC:
 		case IMX_MEDIA_GRP_ID_IPU_IC_PRPVF:
+			/*
+			 * links have already been created for the
+			 * sync-registered subdevs.
+			 */
+			break;
 		case IMX_MEDIA_GRP_ID_IPU_CSI0:
 		case IMX_MEDIA_GRP_ID_IPU_CSI1:
-			ret = imx_media_create_ipu_internal_links(imxmd, sd);
-			if (ret)
-				return ret;
-			/*
-			 * the CSIs straddle between the external and the IPU
-			 * internal entities, so create the external links
-			 * to the CSI sink pads.
-			 */
-			if (sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI)
-				imx_media_create_csi_of_links(imxmd, sd);
-			break;
 		case IMX_MEDIA_GRP_ID_CSI:
 			imx_media_create_csi_of_links(imxmd, sd);
-
 			break;
 		default:
 			/*
@@ -476,12 +381,10 @@ static int imx_media_probe(struct platform_device *pdev)
 
 	ret = imx_media_dev_notifier_register(imxmd);
 	if (ret)
-		goto del_int;
+		goto cleanup;
 
 	return 0;
 
-del_int:
-	imx_media_remove_ipu_internal_subdevs(imxmd);
 cleanup:
 	v4l2_async_notifier_cleanup(&imxmd->notifier);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
@@ -498,7 +401,7 @@ static int imx_media_remove(struct platform_device *pdev)
 	v4l2_info(&imxmd->v4l2_dev, "Removing imx-media\n");
 
 	v4l2_async_notifier_unregister(&imxmd->notifier);
-	imx_media_remove_ipu_internal_subdevs(imxmd);
+	imx_media_unregister_ipu_internal_subdevs(imxmd);
 	v4l2_async_notifier_cleanup(&imxmd->notifier);
 	media_device_unregister(&imxmd->md);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
