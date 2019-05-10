@@ -391,6 +391,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_SUBJ_CLR:
 	case AUDIT_OBJ_LEV_LOW:
 	case AUDIT_OBJ_LEV_HIGH:
+	case AUDIT_SADDR_FAM:
 		/* bit ops are only useful on syscall args */
 		if (f->op == Audit_bitmask || f->op == Audit_bittest)
 			return -EINVAL;
@@ -436,6 +437,10 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 		break;
 	case AUDIT_FIELD_COMPARE:
 		if (f->val > AUDIT_MAX_FIELD_COMPARE)
+			return -EINVAL;
+		break;
+	case AUDIT_SADDR_FAM:
+		if (f->val >= AF_MAX)
 			return -EINVAL;
 		break;
 	default:

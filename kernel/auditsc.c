@@ -615,6 +615,11 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_LOGINUID_SET:
 			result = audit_comparator(audit_loginuid_set(tsk), f->op, f->val);
 			break;
+		case AUDIT_SADDR_FAM:
+			if (ctx->sockaddr)
+				result = audit_comparator(ctx->sockaddr->ss_family,
+							  f->op, f->val);
+			break;
 		case AUDIT_SUBJ_USER:
 		case AUDIT_SUBJ_ROLE:
 		case AUDIT_SUBJ_TYPE:
