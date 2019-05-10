@@ -2352,9 +2352,6 @@ static void init_hw(struct dc *dc)
 		 * default signal on connector). */
 		struct dc_link *link = dc->links[i];
 
-		if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
-			dc->hwss.edp_power_control(link, true);
-
 		link->link_enc->funcs->hw_init(link->link_enc);
 	}
 
