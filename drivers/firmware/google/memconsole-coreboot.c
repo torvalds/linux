@@ -116,19 +116,7 @@ static struct coreboot_driver memconsole_driver = {
 	},
 	.tag = CB_TAG_CBMEM_CONSOLE,
 };
-
-static void coreboot_memconsole_exit(void)
-{
-	coreboot_driver_unregister(&memconsole_driver);
-}
-
-static int __init coreboot_memconsole_init(void)
-{
-	return coreboot_driver_register(&memconsole_driver);
-}
-
-module_exit(coreboot_memconsole_exit);
-module_init(coreboot_memconsole_init);
+module_coreboot_driver(memconsole_driver);
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_LICENSE("GPL");
