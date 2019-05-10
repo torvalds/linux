@@ -213,18 +213,12 @@ int imx_media_pipeline_set_stream(struct imx_media_dev *imxmd,
 				  struct media_entity *entity,
 				  bool on);
 
-/* imx-media-dev.c */
-int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
-			   struct v4l2_subdev *sd,
-			   struct v4l2_async_subdev *asd);
-int imx_media_link_notify(struct media_link *link, u32 flags,
-			  unsigned int notification);
-void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
-		      void *arg);
+/* imx-media-dev-common.c */
 int imx_media_probe_complete(struct v4l2_async_notifier *notifier);
-
-struct imx_media_dev *imx_media_dev_init(struct device *dev);
-int imx_media_dev_notifier_register(struct imx_media_dev *imxmd);
+struct imx_media_dev *imx_media_dev_init(struct device *dev,
+					 const struct media_device_ops *ops);
+int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
+			    const struct v4l2_async_notifier_operations *ops);
 
 /* imx-media-fim.c */
 struct imx_media_fim;

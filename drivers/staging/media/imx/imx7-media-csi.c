@@ -1241,7 +1241,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	}
 
 	/* add media device */
-	imxmd = imx_media_dev_init(dev);
+	imxmd = imx_media_dev_init(dev, NULL);
 	if (IS_ERR(imxmd)) {
 		ret = PTR_ERR(imxmd);
 		goto destroy_mutex;
@@ -1252,7 +1252,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
 		goto cleanup;
 
-	ret = imx_media_dev_notifier_register(imxmd);
+	ret = imx_media_dev_notifier_register(imxmd, NULL);
 	if (ret < 0)
 		goto cleanup;
 
