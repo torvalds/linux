@@ -450,7 +450,7 @@ static int imx7_csi_get_upstream_endpoint(struct imx7_csi *csi,
 
 skip_video_mux:
 	/* get source pad of entity directly upstream from src */
-	pad = imx_media_find_upstream_pad(csi->imxmd, src, 0);
+	pad = imx_media_pipeline_pad(src, 0, 0, true);
 	if (IS_ERR(pad))
 		return PTR_ERR(pad);
 

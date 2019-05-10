@@ -61,7 +61,6 @@ struct vdic_priv {
 	struct device *ipu_dev;
 	struct ipu_soc *ipu;
 
-	struct imx_media_dev *md;
 	struct v4l2_subdev   sd;
 	struct media_pad pad[VDIC_NUM_PADS];
 
@@ -923,12 +922,11 @@ static const struct v4l2_subdev_internal_ops vdic_internal_ops = {
 	.unregistered = vdic_unregistered,
 };
 
-struct v4l2_subdev *imx_media_vdic_register(struct imx_media_dev *imxmd,
+struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
 					    struct device *ipu_dev,
 					    struct ipu_soc *ipu,
 					    u32 grp_id)
 {
-	struct v4l2_device *v4l2_dev = &imxmd->v4l2_dev;
 	struct vdic_priv *priv;
 	int ret;
 
@@ -938,7 +936,6 @@ struct v4l2_subdev *imx_media_vdic_register(struct imx_media_dev *imxmd,
 
 	priv->ipu_dev = ipu_dev;
 	priv->ipu = ipu;
-	priv->md = imxmd;
 
 	v4l2_subdev_init(&priv->sd, &vdic_subdev_ops);
 	v4l2_set_subdevdata(&priv->sd, priv);

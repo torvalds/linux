@@ -31,7 +31,7 @@ struct internal_subdev {
 	u32 grp_id;
 	struct internal_pad pad[MAX_INTERNAL_PADS];
 
-	struct v4l2_subdev * (*sync_register)(struct imx_media_dev *imxmd,
+	struct v4l2_subdev * (*sync_register)(struct v4l2_device *v4l2_dev,
 					      struct device *ipu_dev,
 					      struct ipu_soc *ipu,
 					      u32 grp_id);
@@ -224,7 +224,8 @@ int imx_media_register_ipu_internal_subdevs(struct imx_media_dev *imxmd,
 			continue;
 
 		mutex_unlock(&imxmd->mutex);
-		sd = intsd->sync_register(imxmd, ipu_dev, ipu, intsd->grp_id);
+		sd = intsd->sync_register(&imxmd->v4l2_dev, ipu_dev, ipu,
+					  intsd->grp_id);
 		mutex_lock(&imxmd->mutex);
 		if (IS_ERR(sd)) {
 			ret = PTR_ERR(sd);

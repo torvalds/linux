@@ -12,7 +12,6 @@
 struct imx_ic_priv {
 	struct device *ipu_dev;
 	struct ipu_soc *ipu;
-	struct imx_media_dev *md;
 	struct v4l2_subdev sd;
 	int    task_id;
 	void   *task_priv;
