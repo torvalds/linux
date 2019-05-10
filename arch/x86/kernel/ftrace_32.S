@@ -18,8 +18,6 @@ EXPORT_SYMBOL(__fentry__)
 EXPORT_SYMBOL(mcount)
 #endif
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-
 /* mcount uses a frame pointer even if CONFIG_FRAME_POINTER is not set */
 #if !defined(CC_USING_FENTRY) || defined(CONFIG_FRAME_POINTER)
 # define USING_FRAME_POINTER
@@ -170,43 +168,6 @@ GLOBAL(ftrace_regs_call)
 	lea	3*4(%esp), %esp			/* Skip orig_ax, ip and cs */
 
 	jmp	.Lftrace_ret
-#else /* ! CONFIG_DYNAMIC_FTRACE */
-
-ENTRY(function_hook)
-	cmpl	$__PAGE_OFFSET, %esp
-	jb	ftrace_stub			/* Paging not enabled yet? */
-
-	cmpl	$ftrace_stub, ftrace_trace_function
-	jnz	.Ltrace
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	cmpl	$ftrace_stub, ftrace_graph_return
-	jnz	ftrace_graph_caller
-
-	cmpl	$ftrace_graph_entry_stub, ftrace_graph_entry
-	jnz	ftrace_graph_caller
-#endif
-.globl ftrace_stub
-ftrace_stub:
-	ret
-
-	/* taken from glibc */
-.Ltrace:
-	pushl	%eax
-	pushl	%ecx
-	pushl	%edx
-	movl	0xc(%esp), %eax
-	movl	0x4(%ebp), %edx
-	subl	$MCOUNT_INSN_SIZE, %eax
-
-	movl	ftrace_trace_function, %ecx
-	CALL_NOSPEC %ecx
-
-	popl	%edx
-	popl	%ecx
-	popl	%eax
-	jmp	ftrace_stub
-END(function_hook)
-#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
