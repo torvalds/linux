@@ -260,10 +260,11 @@ static int imx_media_inherit_controls(struct imx_media_dev *imxmd,
 static int imx_media_link_notify(struct media_link *link, u32 flags,
 				 unsigned int notification)
 {
+	struct imx_media_dev *imxmd = container_of(link->graph_obj.mdev,
+						   struct imx_media_dev, md);
 	struct media_entity *source = link->source->entity;
 	struct imx_media_pad_vdev *pad_vdev;
 	struct list_head *pad_vdev_list;
-	struct imx_media_dev *imxmd;
 	struct video_device *vfd;
 	struct v4l2_subdev *sd;
 	int pad_idx, ret;
@@ -278,8 +279,6 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 
 	sd = media_entity_to_v4l2_subdev(source);
 	pad_idx = link->source->index;
-
-	imxmd = dev_get_drvdata(sd->v4l2_dev->dev);
 
 	pad_vdev_list = to_pad_vdev_list(sd, pad_idx);
 	if (!pad_vdev_list) {
@@ -383,8 +382,6 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 			 "Failed to register v4l2_device: %d\n", ret);
 		goto cleanup;
 	}
-
-	dev_set_drvdata(imxmd->v4l2_dev.dev, imxmd);
 
 	INIT_LIST_HEAD(&imxmd->vdev_list);
 
