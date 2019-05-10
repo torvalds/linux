@@ -176,8 +176,7 @@ struct pm4_mes_map_process {
 
 	union {
 		struct {
-			uint32_t num_gws:6;
-			uint32_t reserved7:1;
+			uint32_t num_gws:7;
 			uint32_t sdma_enable:1;
 			uint32_t num_oac:4;
 			uint32_t reserved8:4;
@@ -272,7 +271,9 @@ struct pm4_mes_map_queues {
 		struct {
 			uint32_t reserved1:4;
 			enum mes_map_queues_queue_sel_enum queue_sel:2;
-			uint32_t reserved2:15;
+			uint32_t reserved5:6;
+			uint32_t gws_control_queue:1;
+			uint32_t reserved2:8;
 			enum mes_map_queues_queue_type_enum queue_type:3;
 			uint32_t reserved3:2;
 			enum mes_map_queues_engine_sel_enum engine_sel:3;
