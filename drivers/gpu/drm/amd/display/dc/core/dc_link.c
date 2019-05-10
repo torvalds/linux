@@ -3053,6 +3053,33 @@ uint32_t dc_link_bandwidth_kbps(
 	link_bw_kbps *= 8;   /* 8 bits per byte*/
 	link_bw_kbps *= link_setting->lane_count;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		/* Account for FEC overhead.
+		 * We have to do it based on caps,
+		 * and not based on FEC being set ready,
+		 * because FEC is set ready too late in
+		 * the process to correctly be picked up
+		 * by mode enumeration.
+		 *
+		 * There's enough zeros at the end of 'kbps'
+		 * that make the below operation 100% precise
+		 * for our purposes.
+		 * 'long long' makes it work even for HDMI 2.1
+		 * max bandwidth (and much, much bigger bandwidths
+		 * than that, actually).
+		 *
+		 * NOTE: Reducing link BW by 3% may not be precise
+		 * because it may be a stream BT that increases by 3%, and so
+		 * 1/1.03 = 0.970873 factor should have been used instead,
+		 * but the difference is minimal and is in a safe direction,
+		 * which all works well around potential ambiguity of DP 1.4a spec.
+		 */
+		long long fec_link_bw_kbps = link_bw_kbps * 970LL;
+		link_bw_kbps = (uint32_t)(fec_link_bw_kbps / 1000LL);
+	}
+#endif
+
 	return link_bw_kbps;
 
 }
