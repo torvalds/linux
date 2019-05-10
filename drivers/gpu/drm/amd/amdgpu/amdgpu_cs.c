@@ -648,7 +648,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true,
-				   &duplicates, true);
+				   &duplicates, false);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("ttm_eu_reserve_buffers failed.\n");
