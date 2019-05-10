@@ -128,13 +128,14 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	devnode->cdev.owner = owner;
 	kobject_set_name(&devnode->cdev.kobj, "cec%d", devnode->minor);
 
+	devnode->registered = true;
 	ret = cdev_device_add(&devnode->cdev, &devnode->dev);
 	if (ret) {
+		devnode->registered = false;
 		pr_err("%s: cdev_device_add failed\n", __func__);
 		goto clr_bit;
 	}
 
-	devnode->registered = true;
 	return 0;
 
 clr_bit:
