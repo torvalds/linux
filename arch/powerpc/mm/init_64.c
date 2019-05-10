@@ -66,7 +66,7 @@
 #include <asm/iommu.h>
 #include <asm/vdso.h>
 
-#include "mmu_decl.h"
+#include <mm/mmu_decl.h>
 
 phys_addr_t memstart_addr = ~0;
 EXPORT_SYMBOL_GPL(memstart_addr);
