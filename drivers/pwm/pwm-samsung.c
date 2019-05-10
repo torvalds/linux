@@ -226,7 +226,7 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return -EINVAL;
 	}
 
-	our_chan = devm_kzalloc(chip->dev, sizeof(*our_chan), GFP_KERNEL);
+	our_chan = kzalloc(sizeof(*our_chan), GFP_KERNEL);
 	if (!our_chan)
 		return -ENOMEM;
 
@@ -237,8 +237,7 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 static void pwm_samsung_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	devm_kfree(chip->dev, pwm_get_chip_data(pwm));
-	pwm_set_chip_data(pwm, NULL);
+	kfree(pwm_get_chip_data(pwm));
 }
 
 static int pwm_samsung_enable(struct pwm_chip *chip, struct pwm_device *pwm)
