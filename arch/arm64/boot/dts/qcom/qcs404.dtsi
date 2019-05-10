@@ -131,37 +131,6 @@
 		};
 	};
 
-	remoteproc_cdsp: remoteproc-cdsp {
-		compatible = "qcom,qcs404-cdsp-pas";
-
-		interrupts-extended = <&intc GIC_SPI 229 IRQ_TYPE_EDGE_RISING>,
-				      <&cdsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
-				      <&cdsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
-				      <&cdsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
-				      <&cdsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "wdog", "fatal", "ready",
-				  "handover", "stop-ack";
-
-		clocks = <&xo_board>;
-		clock-names = "xo";
-
-		memory-region = <&cdsp_fw_mem>;
-
-		qcom,smem-states = <&cdsp_smp2p_out 0>;
-		qcom,smem-state-names = "stop";
-
-		status = "disabled";
-
-		glink-edge {
-			interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,remote-pid = <5>;
-			mboxes = <&apcs_glb 12>;
-
-			label = "cdsp";
-		};
-	};
-
 	remoteproc_wcss: remoteproc-wcss {
 		compatible = "qcom,qcs404-wcss-pas";
 
@@ -294,6 +263,57 @@
 			reg = <0x000e3000 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
+		};
+
+		remoteproc_cdsp: remoteproc@b00000 {
+			compatible = "qcom,qcs404-cdsp-pas";
+			reg = <0x00b00000 0x4040>;
+
+			interrupts-extended = <&intc GIC_SPI 229 IRQ_TYPE_EDGE_RISING>,
+					      <&cdsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&cdsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&cdsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&cdsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog", "fatal", "ready",
+					  "handover", "stop-ack";
+
+			clocks = <&xo_board>,
+				 <&gcc GCC_CDSP_CFG_AHB_CLK>,
+				 <&gcc GCC_CDSP_TBU_CLK>,
+				 <&gcc GCC_BIMC_CDSP_CLK>,
+				 <&turingcc TURING_WRAPPER_AON_CLK>,
+				 <&turingcc TURING_Q6SS_AHBS_AON_CLK>,
+				 <&turingcc TURING_Q6SS_AHBM_AON_CLK>,
+				 <&turingcc TURING_Q6SS_Q6_AXIM_CLK>;
+			clock-names = "xo",
+				      "sway",
+				      "tbu",
+				      "bimc",
+				      "ahb_aon",
+				      "q6ss_slave",
+				      "q6ss_master",
+				      "q6_axim";
+
+			resets = <&gcc GCC_CDSP_RESTART>;
+			reset-names = "restart";
+
+			qcom,halt-regs = <&tcsr 0x19004>;
+
+			memory-region = <&cdsp_fw_mem>;
+
+			qcom,smem-states = <&cdsp_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			status = "disabled";
+
+			glink-edge {
+				interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+
+				qcom,remote-pid = <5>;
+				mboxes = <&apcs_glb 12>;
+
+				label = "cdsp";
+			};
 		};
 
 		tlmm: pinctrl@1000000 {
