@@ -15,7 +15,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
