@@ -137,6 +137,17 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
+config KEYBOARD_QT1050
+	tristate "Microchip AT42QT1050 Touch Sensor Chip"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to use Microchip AT42QT1050 QTouch
+	  Sensor chip as input device.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called qt1050
+
 config KEYBOARD_QT1070
        tristate "Atmel AT42QT1070 Touch Sensor Chip"
        depends on I2C
