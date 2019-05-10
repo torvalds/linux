@@ -224,7 +224,7 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		 */
 		if (type == SIX_LOCK_intent &&
 		    linked->nodes_locked != linked->nodes_intent_locked) {
-			if (!(iter->flags & BTREE_ITER_NOUNLOCK)) {
+			if (!(iter->trans->nounlock)) {
 				linked->locks_want = max_t(unsigned,
 						linked->locks_want,
 						__fls(linked->nodes_locked) + 1);
@@ -240,7 +240,7 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		 */
 		if (linked->btree_id == iter->btree_id &&
 		    level > __fls(linked->nodes_locked)) {
-			if (!(iter->flags & BTREE_ITER_NOUNLOCK)) {
+			if (!(iter->trans->nounlock)) {
 				linked->locks_want =
 					max(level + 1, max_t(unsigned,
 					    linked->locks_want,
@@ -268,9 +268,6 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 void bch2_btree_iter_verify_locks(struct btree_iter *iter)
 {
 	unsigned l;
-
-	BUG_ON((iter->flags & BTREE_ITER_NOUNLOCK) &&
-	       !btree_node_locked(iter, 0));
 
 	for (l = 0; btree_iter_node(iter, l); l++) {
 		if (iter->uptodate >= BTREE_ITER_NEED_RELOCK &&

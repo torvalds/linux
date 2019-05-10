@@ -806,8 +806,7 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 	ret = bch2_btree_node_get(c, iter, &tmp.k, level,
 				  SIX_LOCK_intent);
 
-	if (PTR_ERR_OR_ZERO(ret) == -EINTR &&
-	    !(iter->flags & BTREE_ITER_NOUNLOCK)) {
+	if (PTR_ERR_OR_ZERO(ret) == -EINTR && !trans->nounlock) {
 		struct btree_iter *linked;
 
 		if (!bch2_btree_node_relock(iter, level + 1))

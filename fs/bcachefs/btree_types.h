@@ -197,7 +197,6 @@ enum btree_iter_type {
  */
 #define BTREE_ITER_IS_EXTENTS		(1 << 4)
 #define BTREE_ITER_ERROR		(1 << 5)
-#define BTREE_ITER_NOUNLOCK		(1 << 6)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
@@ -287,6 +286,7 @@ struct btree_trans {
 	u8			size;
 	unsigned		used_mempool:1;
 	unsigned		error:1;
+	unsigned		nounlock:1;
 
 	unsigned		mem_top;
 	unsigned		mem_bytes;

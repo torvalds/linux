@@ -107,7 +107,7 @@ static inline void __btree_node_unlock(struct btree_iter *iter, unsigned level)
 
 static inline void btree_node_unlock(struct btree_iter *iter, unsigned level)
 {
-	BUG_ON(!level && iter->flags & BTREE_ITER_NOUNLOCK);
+	EBUG_ON(!level && iter->trans->nounlock);
 
 	__btree_node_unlock(iter, level);
 }

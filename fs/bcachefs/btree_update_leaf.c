@@ -551,7 +551,6 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
-	struct btree_iter *linked;
 	int ret;
 
 	if (likely(!(trans->flags & BTREE_INSERT_NO_CLEAR_REPLICAS))) {
@@ -622,17 +621,6 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		else if (inject_invalid_keys(c))
 			trans_for_each_update(trans, i)
 				i->k->k.version = MAX_VERSION;
-	}
-
-	if (trans->flags & BTREE_INSERT_NOUNLOCK) {
-		/*
-		 * linked iterators that weren't being updated may or may not
-		 * have been traversed/locked, depending on what the caller was
-		 * doing:
-		 */
-		trans_for_each_iter(trans, linked)
-			if (linked->uptodate < BTREE_ITER_NEED_RELOCK)
-				linked->flags |= BTREE_ITER_NOUNLOCK;
 	}
 
 	trans_for_each_update_iter(trans, i)
@@ -809,7 +797,6 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	struct btree_iter *linked;
 	int ret;
 
 	trans_for_each_update_iter(trans, i) {
@@ -832,17 +819,19 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 	if (unlikely(ret))
 		goto err;
 
+	if (trans->flags & BTREE_INSERT_NOUNLOCK)
+		trans->nounlock = true;
+
 	trans_for_each_update_leaf(trans, i)
 		bch2_foreground_maybe_merge(c, i->iter, 0, trans->flags);
+
+	trans->nounlock = false;
 
 	trans_for_each_update_iter(trans, i)
 		bch2_btree_iter_downgrade(i->iter);
 err:
 	/* make sure we didn't drop or screw up locks: */
 	bch2_btree_trans_verify_locks(trans);
-
-	trans_for_each_iter(trans, linked)
-		linked->flags &= ~BTREE_ITER_NOUNLOCK;
 
 	return ret;
 }
