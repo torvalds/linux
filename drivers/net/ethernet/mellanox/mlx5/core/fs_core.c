@@ -2220,7 +2220,7 @@ static struct mlx5_flow_root_namespace
 		cmds = mlx5_fs_cmd_get_default_ipsec_fpga_cmds(table_type);
 
 	/* Create the root namespace */
-	root_ns = kvzalloc(sizeof(*root_ns), GFP_KERNEL);
+	root_ns = kzalloc(sizeof(*root_ns), GFP_KERNEL);
 	if (!root_ns)
 		return NULL;
 
