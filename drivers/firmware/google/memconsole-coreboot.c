@@ -85,13 +85,13 @@ static int memconsole_probe(struct coreboot_device *dev)
 
 	/* Read size only once to prevent overrun attack through /dev/mem. */
 	cbmem_console_size = tmp_cbmc->size_dont_access_after_boot;
-	cbmem_console = memremap(dev->cbmem_ref.cbmem_addr,
+	cbmem_console = devm_memremap(&dev->dev, dev->cbmem_ref.cbmem_addr,
 				 cbmem_console_size + sizeof(*cbmem_console),
 				 MEMREMAP_WB);
 	memunmap(tmp_cbmc);
 
-	if (!cbmem_console)
-		return -ENOMEM;
+	if (IS_ERR(cbmem_console))
+		return PTR_ERR(cbmem_console);
 
 	memconsole_setup(memconsole_coreboot_read);
 
@@ -101,9 +101,6 @@ static int memconsole_probe(struct coreboot_device *dev)
 static int memconsole_remove(struct coreboot_device *dev)
 {
 	memconsole_exit();
-
-	if (cbmem_console)
-		memunmap(cbmem_console);
 
 	return 0;
 }
