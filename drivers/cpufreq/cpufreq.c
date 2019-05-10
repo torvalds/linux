@@ -1134,6 +1134,11 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 				   cpufreq_global_kobject, "policy%u", cpu);
 	if (ret) {
 		pr_err("%s: failed to init policy->kobj: %d\n", __func__, ret);
+		/*
+		 * The entire policy object will be freed below, but the extra
+		 * memory allocated for the kobject name needs to be freed by
+		 * releasing the kobject.
+		 */
 		kobject_put(&policy->kobj);
 		goto err_free_real_cpus;
 	}
