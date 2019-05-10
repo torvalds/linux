@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+============
 x86 Topology
 ============
 
@@ -33,14 +36,14 @@ The topology of a system is described in the units of:
     - cores
     - threads
 
-* Package:
+Package
+=======
+Packages contain a number of cores plus shared resources, e.g. DRAM
+controller, shared caches etc.
 
-  Packages contain a number of cores plus shared resources, e.g. DRAM
-  controller, shared caches etc.
+AMD nomenclature for package is 'Node'.
 
-  AMD nomenclature for package is 'Node'.
-
-  Package-related topology information in the kernel:
+Package-related topology information in the kernel:
 
   - cpuinfo_x86.x86_max_cores:
 
@@ -66,40 +69,41 @@ The topology of a system is described in the units of:
   - cpu_llc_id:
 
     A per-CPU variable containing:
-    - On Intel, the first APIC ID of the list of CPUs sharing the Last Level
-    Cache
 
-    - On AMD, the Node ID or Core Complex ID containing the Last Level
-    Cache. In general, it is a number identifying an LLC uniquely on the
-    system.
+      - On Intel, the first APIC ID of the list of CPUs sharing the Last Level
+        Cache
 
-* Cores:
+      - On AMD, the Node ID or Core Complex ID containing the Last Level
+        Cache. In general, it is a number identifying an LLC uniquely on the
+        system.
 
-  A core consists of 1 or more threads. It does not matter whether the threads
-  are SMT- or CMT-type threads.
+Cores
+=====
+A core consists of 1 or more threads. It does not matter whether the threads
+are SMT- or CMT-type threads.
 
-  AMDs nomenclature for a CMT core is "Compute Unit". The kernel always uses
-  "core".
+AMDs nomenclature for a CMT core is "Compute Unit". The kernel always uses
+"core".
 
-  Core-related topology information in the kernel:
+Core-related topology information in the kernel:
 
   - smp_num_siblings:
 
     The number of threads in a core. The number of threads in a package can be
-    calculated by:
+    calculated by::
 
 	threads_per_package = cpuinfo_x86.x86_max_cores * smp_num_siblings
 
 
-* Threads:
+Threads
+=======
+A thread is a single scheduling unit. It's the equivalent to a logical Linux
+CPU.
 
-  A thread is a single scheduling unit. It's the equivalent to a logical Linux
-  CPU.
+AMDs nomenclature for CMT threads is "Compute Unit Core". The kernel always
+uses "thread".
 
-  AMDs nomenclature for CMT threads is "Compute Unit Core". The kernel always
-  uses "thread".
-
-  Thread-related topology information in the kernel:
+Thread-related topology information in the kernel:
 
   - topology_core_cpumask():
 
@@ -113,15 +117,15 @@ The topology of a system is described in the units of:
     The cpumask contains all online threads in the core to which a thread
     belongs.
 
-   - topology_logical_package_id():
+  - topology_logical_package_id():
 
     The logical package ID to which a thread belongs.
 
-   - topology_physical_package_id():
+  - topology_physical_package_id():
 
     The physical package ID to which a thread belongs.
 
-   - topology_core_id();
+  - topology_core_id();
 
     The ID of the core to which a thread belongs. It is also printed in /proc/cpuinfo
     "core_id."
@@ -129,41 +133,41 @@ The topology of a system is described in the units of:
 
 
 System topology examples
+========================
 
-Note:
+.. note::
+  The alternative Linux CPU enumeration depends on how the BIOS enumerates the
+  threads. Many BIOSes enumerate all threads 0 first and then all threads 1.
+  That has the "advantage" that the logical Linux CPU numbers of threads 0 stay
+  the same whether threads are enabled or not. That's merely an implementation
+  detail and has no practical impact.
 
-The alternative Linux CPU enumeration depends on how the BIOS enumerates the
-threads. Many BIOSes enumerate all threads 0 first and then all threads 1.
-That has the "advantage" that the logical Linux CPU numbers of threads 0 stay
-the same whether threads are enabled or not. That's merely an implementation
-detail and has no practical impact.
-
-1) Single Package, Single Core
+1) Single Package, Single Core::
 
    [package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
 
 2) Single Package, Dual Core
 
-   a) One thread per core
+   a) One thread per core::
 
 	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
 		    -> [core 1] -> [thread 0] -> Linux CPU 1
 
-   b) Two threads per core
+   b) Two threads per core::
 
 	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
 				-> [thread 1] -> Linux CPU 1
 		    -> [core 1] -> [thread 0] -> Linux CPU 2
 				-> [thread 1] -> Linux CPU 3
 
-      Alternative enumeration:
+      Alternative enumeration::
 
 	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
 				-> [thread 1] -> Linux CPU 2
 		    -> [core 1] -> [thread 0] -> Linux CPU 1
 				-> [thread 1] -> Linux CPU 3
 
-      AMD nomenclature for CMT systems:
+      AMD nomenclature for CMT systems::
 
 	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
 				     -> [Compute Unit Core 1] -> Linux CPU 1
@@ -172,7 +176,7 @@ detail and has no practical impact.
 
 4) Dual Package, Dual Core
 
-   a) One thread per core
+   a) One thread per core::
 
 	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
 		    -> [core 1] -> [thread 0] -> Linux CPU 1
@@ -180,7 +184,7 @@ detail and has no practical impact.
 	[package 1] -> [core 0] -> [thread 0] -> Linux CPU 2
 		    -> [core 1] -> [thread 0] -> Linux CPU 3
 
-   b) Two threads per core
+   b) Two threads per core::
 
 	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
 				-> [thread 1] -> Linux CPU 1
@@ -192,7 +196,7 @@ detail and has no practical impact.
 		    -> [core 1] -> [thread 0] -> Linux CPU 6
 				-> [thread 1] -> Linux CPU 7
 
-      Alternative enumeration:
+      Alternative enumeration::
 
 	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
 				-> [thread 1] -> Linux CPU 4
@@ -204,7 +208,7 @@ detail and has no practical impact.
 		    -> [core 1] -> [thread 0] -> Linux CPU 3
 				-> [thread 1] -> Linux CPU 7
 
-      AMD nomenclature for CMT systems:
+      AMD nomenclature for CMT systems::
 
 	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
 				     -> [Compute Unit Core 1] -> Linux CPU 1
