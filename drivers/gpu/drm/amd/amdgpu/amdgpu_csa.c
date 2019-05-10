@@ -79,7 +79,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	list_add(&csa_tv.head, &list);
 	amdgpu_vm_get_pd_bo(vm, &list, &pd);
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL, true);
 	if (r) {
 		DRM_ERROR("failed to reserve CSA,PD BOs: err=%d\n", r);
 		return r;
