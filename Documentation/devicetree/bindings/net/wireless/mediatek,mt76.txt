@@ -16,8 +16,8 @@ Optional properties:
 - ieee80211-freq-limit: See ieee80211.txt
 - mediatek,mtd-eeprom: Specify a MTD partition + offset containing EEPROM data
 
-The driver is using of_get_mac_address API, so the MAC address can be as well
-be set with corresponding optional properties defined in net/ethernet.txt.
+The MAC address can as well be set with corresponding optional properties
+defined in net/ethernet.txt.
 
 Optional nodes:
 - led: Properties for a connected LED

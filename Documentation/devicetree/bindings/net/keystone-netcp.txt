@@ -139,9 +139,9 @@ Optional properties:
 			sub-module attached to this interface.
 
 The MAC address will be determined using the optional properties defined in
-ethernet.txt, as provided by the of_get_mac_address API and only if efuse-mac
-is set to 0. If any of the optional MAC address properties are not present,
-then the driver will use random MAC address.
+ethernet.txt and only if efuse-mac is set to 0. If all of the optional MAC
+address properties are not present, then the driver will use a random MAC
+address.
 
 Example binding:
 
