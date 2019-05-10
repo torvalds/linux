@@ -718,8 +718,8 @@ static void rtl92d_bandtype_5G(struct rtl_hal *rtlhal, u8 *ofdm_index,
 			       bool *internal_pa, u8 thermalvalue, u8 delta,
 			       u8 rf, struct rtl_efuse *rtlefuse,
 			       struct rtl_priv *rtlpriv, struct rtl_phy *rtlphy,
-			       u8 index_mapping[5][INDEX_MAPPING_NUM],
-			       u8 index_mapping_pa[8][INDEX_MAPPING_NUM])
+			       const u8 index_mapping[5][INDEX_MAPPING_NUM],
+			       const u8 index_mapping_pa[8][INDEX_MAPPING_NUM])
 {
 	int i;
 	u8 index;
@@ -797,7 +797,7 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 	u8 ofdm_min_index = 6, ofdm_min_index_internal_pa = 3, rf;
 	u8 indexforchannel =
 	    rtl92d_get_rightchnlplace_for_iqk(rtlphy->current_channel);
-	u8 index_mapping[5][INDEX_MAPPING_NUM] = {
+	static const u8 index_mapping[5][INDEX_MAPPING_NUM] = {
 		/* 5G, path A/MAC 0, decrease power  */
 		{0, 1, 3, 6, 8, 9,	11, 13, 14, 16, 17, 18, 18},
 		/* 5G, path A/MAC 0, increase power  */
@@ -809,7 +809,7 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 		/* 2.4G, for decreas power */
 		{0, 1, 2, 3, 4, 5,	6, 7, 7, 8, 9, 10, 10},
 	};
-	u8 index_mapping_internal_pa[8][INDEX_MAPPING_NUM] = {
+	static const u8 index_mapping_internal_pa[8][INDEX_MAPPING_NUM] = {
 		/* 5G, path A/MAC 0, ch36-64, decrease power  */
 		{0, 1, 2, 4, 6, 7,	9, 11, 12, 14, 15, 16, 16},
 		/* 5G, path A/MAC 0, ch36-64, increase power  */
