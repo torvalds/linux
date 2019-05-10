@@ -1237,7 +1237,6 @@ static int prp_s_frame_interval(struct v4l2_subdev *sd,
 static int prp_registered(struct v4l2_subdev *sd)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
-	struct imx_ic_priv *ic_priv = priv->ic_priv;
 	int i, ret;
 	u32 code;
 
@@ -1266,10 +1265,6 @@ static int prp_registered(struct v4l2_subdev *sd)
 	ret = imx_media_capture_device_register(priv->vdev);
 	if (ret)
 		return ret;
-
-	ret = imx_media_add_video_device(ic_priv->md, priv->vdev);
-	if (ret)
-		goto unreg;
 
 	ret = prp_init_controls(priv);
 	if (ret)
