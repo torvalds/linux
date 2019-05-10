@@ -959,6 +959,8 @@ void bch2_fs_journal_stop(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
+	bch2_journal_flush_all_pins(j);
+
 	wait_event(j->wait, journal_entry_close(j));
 
 	/* do we need to write another journal entry? */
