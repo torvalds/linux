@@ -34,7 +34,7 @@ struct cbmem_cons {
 #define CURSOR_MASK ((1 << 28) - 1)
 #define OVERFLOW (1 << 31)
 
-static struct cbmem_cons __iomem *cbmem_console;
+static struct cbmem_cons *cbmem_console;
 static u32 cbmem_console_size;
 
 /*
@@ -75,7 +75,7 @@ static ssize_t memconsole_coreboot_read(char *buf, loff_t pos, size_t count)
 
 static int memconsole_probe(struct coreboot_device *dev)
 {
-	struct cbmem_cons __iomem *tmp_cbmc;
+	struct cbmem_cons *tmp_cbmc;
 
 	tmp_cbmc = memremap(dev->cbmem_ref.cbmem_addr,
 			    sizeof(*tmp_cbmc), MEMREMAP_WB);
