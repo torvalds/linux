@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/export.h>
 #include <linux/device.h>
+#include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/of_net.h>
 #include <asm/tsi108.h>
@@ -106,7 +107,7 @@ static int __init tsi108_eth_of_init(void)
 
 		mac_addr = of_get_mac_address(np);
 		if (!IS_ERR(mac_addr))
-			memcpy(tsi_eth_data.mac_addr, mac_addr, 6);
+			ether_addr_copy(tsi_eth_data.mac_addr, mac_addr);
 
 		ph = of_get_property(np, "mdio-handle", NULL);
 		mdio = of_find_node_by_phandle(*ph);
