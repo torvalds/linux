@@ -45,7 +45,7 @@ with "port" and must be followed by the "@" character and the number of the
 port as its key. The target object it refers to should be called "PRTX", where
 "X" is the number of the port. An example of such a package would be::
 
-    Package() { "port@4", PRT4 }
+    Package() { "port@4", "PRT4" }
 
 Further on, endpoints are located under the port nodes. The hierarchical
 data extension key of the endpoint nodes must begin with
@@ -54,7 +54,7 @@ endpoint. The object it refers to should be called "EPXY", where "X" is the
 number of the port and "Y" is the number of the endpoint. An example of such a
 package would be::
 
-    Package() { "endpoint@0", EP40 }
+    Package() { "endpoint@0", "EP40" }
 
 Each port node contains a property extension key "port", the value of which is
 the number of the port. Each endpoint is similarly numbered with a property
@@ -91,7 +91,7 @@ A simple example of this is show below::
 		},
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "port@0", PRT0 },
+		    Package () { "port@0", "PRT0" },
 		}
 	    })
 	    Name (PRT0, Package() {
@@ -101,7 +101,7 @@ A simple example of this is show below::
 		},
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "endpoint@0", EP00 },
+		    Package () { "endpoint@0", "EP00" },
 		}
 	    })
 	    Name (EP00, Package() {
@@ -121,7 +121,7 @@ A simple example of this is show below::
 	    Name (_DSD, Package () {
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "port@4", PRT4 },
+		    Package () { "port@4", "PRT4" },
 		}
 	    })
 
@@ -132,7 +132,7 @@ A simple example of this is show below::
 		},
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "endpoint@0", EP40 },
+		    Package () { "endpoint@0", "EP40" },
 		}
 	    })
 
