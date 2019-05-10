@@ -1413,7 +1413,7 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 
 	mac_addr = of_get_mac_address(np);
 	if (!IS_ERR(mac_addr))
-		memcpy(pdata->dev_addr, mac_addr, sizeof(pdata->dev_addr));
+		ether_addr_copy(pdata->dev_addr, mac_addr);
 
 	return pdata;
 }
