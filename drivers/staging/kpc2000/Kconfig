@@ -3,6 +3,7 @@
 config KPC2000
 	bool "Daktronics KPC Device support"
 	depends on PCI
+	depends on UIO
 	help
 	  Select this if you wish to use the Daktronics KPC PCI devices
 
