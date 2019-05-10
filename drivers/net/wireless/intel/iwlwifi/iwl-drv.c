@@ -1745,7 +1745,7 @@ IWL_EXPORT_SYMBOL(iwl_opmode_deregister);
 
 static int __init iwl_drv_init(void)
 {
-	int i;
+	int i, err;
 
 	mutex_init(&iwlwifi_opmode_table_mtx);
 
@@ -1760,7 +1760,17 @@ static int __init iwl_drv_init(void)
 	iwl_dbgfs_root = debugfs_create_dir(DRV_NAME, NULL);
 #endif
 
-	return iwl_pci_register_driver();
+	err = iwl_pci_register_driver();
+	if (err)
+		goto cleanup_debugfs;
+
+	return 0;
+
+cleanup_debugfs:
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	debugfs_remove_recursive(iwl_dbgfs_root);
+#endif
+	return err;
 }
 module_init(iwl_drv_init);
 
