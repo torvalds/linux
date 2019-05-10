@@ -816,6 +816,8 @@ static int navi10_get_current_activity_percent(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
+	msleep(1);
+
 	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
 			       (void *)&metrics, false);
 	if (ret)
