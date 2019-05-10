@@ -230,6 +230,7 @@ intel_context_init(struct intel_context *ce,
 	ce->gem_context = ctx;
 	ce->engine = engine;
 	ce->ops = engine->cops;
+	ce->saturated = 0;
 
 	INIT_LIST_HEAD(&ce->signal_link);
 	INIT_LIST_HEAD(&ce->signals);
