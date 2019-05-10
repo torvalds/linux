@@ -380,14 +380,17 @@ int drm_legacy_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 {
 	return -1;
 }
-EXPORT_SYMBOL(drm_legacy_pci_init);
+
 void drm_pci_agp_destroy(struct drm_device *dev) {}
+
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
 {
 	return -EINVAL;
 }
 #endif
+
+EXPORT_SYMBOL(drm_legacy_pci_init);
 
 /**
  * drm_legacy_pci_exit - unregister shadow-attach legacy DRM driver
