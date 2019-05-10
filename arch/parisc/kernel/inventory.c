@@ -39,12 +39,12 @@
 */
 #undef DEBUG_PAT
 
-int pdc_type __read_mostly = PDC_TYPE_ILLEGAL;
+int pdc_type __ro_after_init = PDC_TYPE_ILLEGAL;
 
 /* cell number and location (PAT firmware only) */
-unsigned long parisc_cell_num __read_mostly;
-unsigned long parisc_cell_loc __read_mostly;
-unsigned long parisc_pat_pdc_cap __read_mostly;
+unsigned long parisc_cell_num __ro_after_init;
+unsigned long parisc_cell_loc __ro_after_init;
+unsigned long parisc_pat_pdc_cap __ro_after_init;
 
 
 void __init setup_pdc(void)
