@@ -2312,8 +2312,8 @@ qla2x00_get_priv_stats(struct bsg_job *bsg_job)
 	if (!IS_FWI2_CAPABLE(ha))
 		return -EPERM;
 
-	stats = dma_zalloc_coherent(&ha->pdev->dev, sizeof(*stats),
-				    &stats_dma, GFP_KERNEL);
+	stats = dma_alloc_coherent(&ha->pdev->dev, sizeof(*stats), &stats_dma,
+				   GFP_KERNEL);
 	if (!stats) {
 		ql_log(ql_log_warn, vha, 0x70e2,
 		    "Failed to allocate memory for stats.\n");

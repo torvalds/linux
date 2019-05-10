@@ -9,6 +9,13 @@
 #include <linux/bug.h>			/* For BUG_ON.  */
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
 #include <uapi/linux/ptrace.h>
+#include <linux/seccomp.h>
+
+/* Add sp to seccomp_data, as seccomp is user API, we don't want to modify it */
+struct syscall_info {
+	__u64			sp;
+	struct seccomp_data	data;
+};
 
 extern int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
 			    void *buf, int len, unsigned int gup_flags);
@@ -407,8 +414,7 @@ static inline void user_single_step_report(struct pt_regs *regs)
 #define current_user_stack_pointer() user_stack_pointer(current_pt_regs())
 #endif
 
-extern int task_current_syscall(struct task_struct *target, long *callno,
-				unsigned long args[6], unsigned int maxargs,
-				unsigned long *sp, unsigned long *pc);
+extern int task_current_syscall(struct task_struct *target, struct syscall_info *info);
 
+extern void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact);
 #endif

@@ -188,6 +188,10 @@ static unsigned long g_zone_size = 256;
 module_param_named(zone_size, g_zone_size, ulong, S_IRUGO);
 MODULE_PARM_DESC(zone_size, "Zone size in MB when block device is zoned. Must be power-of-two: Default: 256");
 
+static unsigned int g_zone_nr_conv;
+module_param_named(zone_nr_conv, g_zone_nr_conv, uint, 0444);
+MODULE_PARM_DESC(zone_nr_conv, "Number of conventional zones when block device is zoned. Default: 0");
+
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
@@ -293,6 +297,7 @@ NULLB_DEVICE_ATTR(mbps, uint);
 NULLB_DEVICE_ATTR(cache_size, ulong);
 NULLB_DEVICE_ATTR(zoned, bool);
 NULLB_DEVICE_ATTR(zone_size, ulong);
+NULLB_DEVICE_ATTR(zone_nr_conv, uint);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -407,6 +412,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_badblocks,
 	&nullb_device_attr_zoned,
 	&nullb_device_attr_zone_size,
+	&nullb_device_attr_zone_nr_conv,
 	NULL,
 };
 
@@ -520,6 +526,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->use_per_node_hctx = g_use_per_node_hctx;
 	dev->zoned = g_zoned;
 	dev->zone_size = g_zone_size;
+	dev->zone_nr_conv = g_zone_nr_conv;
 	return dev;
 }
 
@@ -635,14 +642,9 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 	hrtimer_start(&cmd->timer, kt, HRTIMER_MODE_REL);
 }
 
-static void null_softirq_done_fn(struct request *rq)
+static void null_complete_rq(struct request *rq)
 {
-	struct nullb *nullb = rq->q->queuedata;
-
-	if (nullb->dev->queue_mode == NULL_Q_MQ)
-		end_cmd(blk_mq_rq_to_pdu(rq));
-	else
-		end_cmd(rq->special);
+	end_cmd(blk_mq_rq_to_pdu(rq));
 }
 
 static struct nullb_page *null_alloc_page(gfp_t gfp_flags)
@@ -1102,7 +1104,7 @@ static int null_handle_bio(struct nullb_cmd *cmd)
 		len = bvec.bv_len;
 		err = null_transfer(nullb, bvec.bv_page, len, bvec.bv_offset,
 				     op_is_write(bio_op(bio)), sector,
-				     bio_op(bio) & REQ_FUA);
+				     bio->bi_opf & REQ_FUA);
 		if (err) {
 			spin_unlock_irq(&nullb->lock);
 			return err;
@@ -1350,7 +1352,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
-	.complete	= null_softirq_done_fn,
+	.complete	= null_complete_rq,
 	.timeout	= null_timeout_rq,
 };
 
@@ -1657,8 +1659,7 @@ static int null_add_dev(struct nullb_device *dev)
 		}
 		null_init_queues(nullb);
 	} else if (dev->queue_mode == NULL_Q_BIO) {
-		nullb->q = blk_alloc_queue_node(GFP_KERNEL, dev->home_node,
-						NULL);
+		nullb->q = blk_alloc_queue_node(GFP_KERNEL, dev->home_node);
 		if (!nullb->q) {
 			rv = -ENOMEM;
 			goto out_cleanup_queues;
@@ -1677,7 +1678,6 @@ static int null_add_dev(struct nullb_device *dev)
 	if (dev->cache_size > 0) {
 		set_bit(NULLB_DEV_FL_CACHE, &nullb->dev->flags);
 		blk_queue_write_cache(nullb->q, true, true);
-		blk_queue_flush_queueable(nullb->q, true);
 	}
 
 	if (dev->zoned) {
@@ -1746,6 +1746,11 @@ static int __init null_init(void)
 	if (!is_power_of_2(g_zone_size)) {
 		pr_err("null_blk: zone_size must be power-of-two\n");
 		return -EINVAL;
+	}
+
+	if (g_home_node != NUMA_NO_NODE && g_home_node >= nr_online_nodes) {
+		pr_err("null_blk: invalid home_node value\n");
+		g_home_node = NUMA_NO_NODE;
 	}
 
 	if (g_queue_mode == NULL_Q_RQ) {

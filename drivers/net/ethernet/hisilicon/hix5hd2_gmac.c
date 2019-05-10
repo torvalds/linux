@@ -1006,8 +1006,8 @@ static int hix5hd2_init_hw_desc_queue(struct hix5hd2_priv *priv)
 
 	for (i = 0; i < QUEUE_NUMS; i++) {
 		size = priv->pool[i].count * sizeof(struct hix5hd2_desc);
-		virt_addr = dma_zalloc_coherent(dev, size, &phys_addr,
-						GFP_KERNEL);
+		virt_addr = dma_alloc_coherent(dev, size, &phys_addr,
+					       GFP_KERNEL);
 		if (virt_addr == NULL)
 			goto error_free_pool;
 

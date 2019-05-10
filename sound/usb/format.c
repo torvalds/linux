@@ -87,6 +87,8 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 	}
 	}
 
+	fp->fmt_bits = sample_width;
+
 	if ((pcm_formats == 0) &&
 	    (format == 0 || format == (1 << UAC_FORMAT_TYPE_I_UNDEFINED))) {
 		/* some devices don't define this correctly... */

@@ -812,6 +812,8 @@ static int max77843_muic_probe(struct platform_device *pdev)
 	struct max77693_dev *max77843 = dev_get_drvdata(pdev->dev.parent);
 	struct max77843_muic_info *info;
 	unsigned int id;
+	int cable_type;
+	bool attached;
 	int i, ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -856,9 +858,19 @@ static int max77843_muic_probe(struct platform_device *pdev)
 	/* Set ADC debounce time */
 	max77843_muic_set_debounce_time(info, MAX77843_DEBOUNCE_TIME_25MS);
 
-	/* Set initial path for UART */
-	max77843_muic_set_path(info, MAX77843_MUIC_CONTROL1_SW_UART, true,
-			       false);
+	/* Set initial path for UART when JIG is connected to get serial logs */
+	ret = regmap_bulk_read(max77843->regmap_muic,
+			MAX77843_MUIC_REG_STATUS1, info->status,
+			MAX77843_MUIC_STATUS_NUM);
+	if (ret) {
+		dev_err(info->dev, "Cannot read STATUS registers\n");
+		goto err_muic_irq;
+	}
+	cable_type = max77843_muic_get_cable_type(info, MAX77843_CABLE_GROUP_ADC,
+					 &attached);
+	if (attached && cable_type == MAX77843_MUIC_ADC_FACTORY_MODE_UART_OFF)
+		max77843_muic_set_path(info, MAX77843_MUIC_CONTROL1_SW_UART,
+				       true, false);
 
 	/* Check revision number of MUIC device */
 	ret = regmap_read(max77843->regmap_muic, MAX77843_MUIC_REG_ID, &id);

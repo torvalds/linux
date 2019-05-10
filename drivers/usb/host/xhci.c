@@ -169,7 +169,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 {
 	u32 command;
 	u32 state;
-	int ret, i;
+	int ret;
 
 	state = readl(&xhci->op_regs->status);
 
@@ -215,11 +215,12 @@ int xhci_reset(struct xhci_hcd *xhci)
 	ret = xhci_handshake(&xhci->op_regs->status,
 			STS_CNR, 0, 10 * 1000 * 1000);
 
-	for (i = 0; i < 2; i++) {
-		xhci->bus_state[i].port_c_suspend = 0;
-		xhci->bus_state[i].suspended_ports = 0;
-		xhci->bus_state[i].resuming_ports = 0;
-	}
+	xhci->usb2_rhub.bus_state.port_c_suspend = 0;
+	xhci->usb2_rhub.bus_state.suspended_ports = 0;
+	xhci->usb2_rhub.bus_state.resuming_ports = 0;
+	xhci->usb3_rhub.bus_state.port_c_suspend = 0;
+	xhci->usb3_rhub.bus_state.suspended_ports = 0;
+	xhci->usb3_rhub.bus_state.resuming_ports = 0;
 
 	return ret;
 }
@@ -244,7 +245,7 @@ static void xhci_zero_64b_regs(struct xhci_hcd *xhci)
 	 * an iommu. Doing anything when there is no iommu is definitely
 	 * unsafe...
 	 */
-	if (!(xhci->quirks & XHCI_ZERO_64B_REGS) || !dev->iommu_group)
+	if (!(xhci->quirks & XHCI_ZERO_64B_REGS) || !device_iommu_mapped(dev))
 		return;
 
 	xhci_info(xhci, "Zeroing 64bit base registers, expecting fault\n");
@@ -1087,9 +1088,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	/* Wait a bit if either of the roothubs need to settle from the
 	 * transition into bus suspend.
 	 */
-	if (time_before(jiffies, xhci->bus_state[0].next_statechange) ||
-			time_before(jiffies,
-				xhci->bus_state[1].next_statechange))
+
+	if (time_before(jiffies, xhci->usb2_rhub.bus_state.next_statechange) ||
+	    time_before(jiffies, xhci->usb3_rhub.bus_state.next_statechange))
 		msleep(100);
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
@@ -1454,8 +1455,7 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 	else
 		num_tds = 1;
 
-	urb_priv = kzalloc(sizeof(struct urb_priv) +
-			   num_tds * sizeof(struct xhci_td), mem_flags);
+	urb_priv = kzalloc(struct_size(urb_priv, td, num_tds), mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
 
@@ -4388,8 +4388,7 @@ static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int		portnum = udev->portnum - 1;
 
-	if (hcd->speed >= HCD_USB3 || !xhci->sw_lpm_support ||
-			!udev->lpm_capable)
+	if (hcd->speed >= HCD_USB3 || !udev->lpm_capable)
 		return 0;
 
 	/* we only support lpm for non-hub device connected to root hub yet */

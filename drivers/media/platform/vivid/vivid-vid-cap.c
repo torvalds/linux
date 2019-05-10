@@ -124,7 +124,8 @@ static int vid_cap_queue_setup(struct vb2_queue *vq,
 		}
 	} else {
 		for (p = 0; p < buffers; p++)
-			sizes[p] = tpg_g_line_width(&dev->tpg, p) * h +
+			sizes[p] = (tpg_g_line_width(&dev->tpg, p) * h) /
+					dev->fmt_cap->vdownsampling[p] +
 					dev->fmt_cap->data_offset[p];
 	}
 
@@ -161,7 +162,9 @@ static int vid_cap_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	for (p = 0; p < buffers; p++) {
-		size = tpg_g_line_width(&dev->tpg, p) * dev->fmt_cap_rect.height +
+		size = (tpg_g_line_width(&dev->tpg, p) *
+			dev->fmt_cap_rect.height) /
+			dev->fmt_cap->vdownsampling[p] +
 			dev->fmt_cap->data_offset[p];
 
 		if (vb2_plane_size(vb, p) < size) {
@@ -449,6 +452,8 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		tpg_s_rgb_range(&dev->tpg, v4l2_ctrl_g_ctrl(dev->rgb_range_cap));
 		break;
 	}
+	vfree(dev->bitmap_cap);
+	dev->bitmap_cap = NULL;
 	vivid_update_quality(dev);
 	tpg_reset_source(&dev->tpg, dev->src_rect.width, dev->src_rect.height, dev->field_cap);
 	dev->crop_cap = dev->src_rect;
@@ -543,7 +548,8 @@ int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = tpg_g_bytesperline(&dev->tpg, p);
 		mp->plane_fmt[p].sizeimage =
-			tpg_g_line_width(&dev->tpg, p) * mp->height +
+			(tpg_g_line_width(&dev->tpg, p) * mp->height) /
+			dev->fmt_cap->vdownsampling[p] +
 			dev->fmt_cap->data_offset[p];
 	}
 	return 0;
@@ -1014,26 +1020,24 @@ int vivid_vid_cap_s_selection(struct file *file, void *fh, struct v4l2_selection
 	return 0;
 }
 
-int vivid_vid_cap_cropcap(struct file *file, void *priv,
-			      struct v4l2_cropcap *cap)
+int vivid_vid_cap_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
-	if (cap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	switch (vivid_get_pixel_aspect(dev)) {
 	case TPG_PIXEL_ASPECT_NTSC:
-		cap->pixelaspect.numerator = 11;
-		cap->pixelaspect.denominator = 10;
+		f->numerator = 11;
+		f->denominator = 10;
 		break;
 	case TPG_PIXEL_ASPECT_PAL:
-		cap->pixelaspect.numerator = 54;
-		cap->pixelaspect.denominator = 59;
+		f->numerator = 54;
+		f->denominator = 59;
 		break;
-	case TPG_PIXEL_ASPECT_SQUARE:
-		cap->pixelaspect.numerator = 1;
-		cap->pixelaspect.denominator = 1;
+	default:
 		break;
 	}
 	return 0;
@@ -1835,9 +1839,6 @@ int vivid_vid_cap_g_parm(struct file *file, void *priv,
 	return 0;
 }
 
-#define FRACT_CMP(a, OP, b)	\
-	((u64)(a).numerator * (b).denominator  OP  (u64)(b).numerator * (a).denominator)
-
 int vivid_vid_cap_s_parm(struct file *file, void *priv,
 			  struct v4l2_streamparm *parm)
 {
@@ -1858,14 +1859,14 @@ int vivid_vid_cap_s_parm(struct file *file, void *priv,
 	if (tpf.denominator == 0)
 		tpf = webcam_intervals[ival_sz - 1];
 	for (i = 0; i < ival_sz; i++)
-		if (FRACT_CMP(tpf, >=, webcam_intervals[i]))
+		if (V4L2_FRACT_COMPARE(tpf, >=, webcam_intervals[i]))
 			break;
 	if (i == ival_sz)
 		i = ival_sz - 1;
 	dev->webcam_ival_idx = i;
 	tpf = webcam_intervals[dev->webcam_ival_idx];
-	tpf = FRACT_CMP(tpf, <, tpf_min) ? tpf_min : tpf;
-	tpf = FRACT_CMP(tpf, >, tpf_max) ? tpf_max : tpf;
+	tpf = V4L2_FRACT_COMPARE(tpf, <, tpf_min) ? tpf_min : tpf;
+	tpf = V4L2_FRACT_COMPARE(tpf, >, tpf_max) ? tpf_max : tpf;
 
 	/* resync the thread's timings */
 	dev->cap_seq_resync = true;

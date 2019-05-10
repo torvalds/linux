@@ -49,14 +49,10 @@ static struct pxamci_platform_data palm27x_mci_platform_data = {
 	.detect_delay_ms	= 200,
 };
 
-void __init palm27x_mmc_init(int detect, int ro, int power,
-					int power_inverted)
+void __init palm27x_mmc_init(struct gpiod_lookup_table *gtable)
 {
-	palm27x_mci_platform_data.gpio_card_detect	= detect;
-	palm27x_mci_platform_data.gpio_card_ro		= ro;
-	palm27x_mci_platform_data.gpio_power		= power;
-	palm27x_mci_platform_data.gpio_power_invert	= power_inverted;
-
+	if (gtable)
+		gpiod_add_lookup_table(gtable);
 	pxa_set_mci_info(&palm27x_mci_platform_data);
 }
 #endif

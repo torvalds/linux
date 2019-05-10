@@ -89,7 +89,7 @@ arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		.mm = &init_mm
 	};
 
-	page = alloc_pages_exact(size, gfp);
+	page = alloc_pages_exact(size, gfp | __GFP_ZERO);
 	if (!page)
 		return NULL;
 

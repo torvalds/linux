@@ -605,7 +605,6 @@ void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	bd->bd_blkno = bh->b_blocknr;
 	gfs2_remove_from_ail(bd); /* drops ref on bh */
 	bd->bd_bh = NULL;
-	bd->bd_ops = &gfs2_revoke_lops;
 	sdp->sd_log_num_revoke++;
 	atomic_inc(&gl->gl_revokes);
 	set_bit(GLF_LFLUSH, &gl->gl_flags);
@@ -734,7 +733,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	lh->lh_crc = cpu_to_be32(crc);
 
 	gfs2_log_write(sdp, page, sb->s_blocksize, 0, addr);
-	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, op_flags);
+	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE, op_flags);
 	log_flush_wait(sdp);
 }
 
@@ -811,7 +810,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 
 	gfs2_ordered_write(sdp);
 	lops_before_commit(sdp, tr);
-	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE, 0);
 
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
 		log_flush_wait(sdp);

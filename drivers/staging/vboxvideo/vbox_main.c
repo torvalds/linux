@@ -1,37 +1,18 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright (C) 2013-2017 Oracle Corporation
  * This file is based on ast_main.c
  * Copyright 2012 Red Hat Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
  * Authors: Dave Airlie <airlied@redhat.com>,
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
+
+#include <linux/vbox_err.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "vbox_drv.h"
-#include "vbox_err.h"
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
 
@@ -46,40 +27,6 @@ static void vbox_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	kfree(fb);
 }
 
-void vbox_enable_accel(struct vbox_private *vbox)
-{
-	unsigned int i;
-	struct vbva_buffer *vbva;
-
-	if (!vbox->vbva_info || !vbox->vbva_buffers) {
-		/* Should never happen... */
-		DRM_ERROR("vboxvideo: failed to set up VBVA.\n");
-		return;
-	}
-
-	for (i = 0; i < vbox->num_crtcs; ++i) {
-		if (vbox->vbva_info[i].vbva)
-			continue;
-
-		vbva = (void __force *)vbox->vbva_buffers +
-			i * VBVA_MIN_BUFFER_SIZE;
-		if (!vbva_enable(&vbox->vbva_info[i],
-				 vbox->guest_pool, vbva, i)) {
-			/* very old host or driver error. */
-			DRM_ERROR("vboxvideo: vbva_enable failed\n");
-			return;
-		}
-	}
-}
-
-void vbox_disable_accel(struct vbox_private *vbox)
-{
-	unsigned int i;
-
-	for (i = 0; i < vbox->num_crtcs; ++i)
-		vbva_disable(&vbox->vbva_info[i], vbox->guest_pool, i);
-}
-
 void vbox_report_caps(struct vbox_private *vbox)
 {
 	u32 caps = VBVACAPS_DISABLE_CURSOR_INTEGRATION |
@@ -91,12 +38,7 @@ void vbox_report_caps(struct vbox_private *vbox)
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
 }
 
-/**
- * Send information about dirty rectangles to VBVA.  If necessary we enable
- * VBVA first, as this is normally disabled after a change of master in case
- * the new master does not send dirty rectangle information (is this even
- * allowed?)
- */
+/* Send information about dirty rectangles to VBVA. */
 void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 				       struct drm_clip_rect *rects,
 				       unsigned int num_rects)
@@ -116,16 +58,14 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 		crtc_x = crtc->primary->state->src_x >> 16;
 		crtc_y = crtc->primary->state->src_y >> 16;
 
-		vbox_enable_accel(vbox);
-
 		for (i = 0; i < num_rects; ++i) {
 			struct vbva_cmd_hdr cmd_hdr;
 			unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
 
-			if ((rects[i].x1 > crtc_x + mode->hdisplay) ||
-			    (rects[i].y1 > crtc_y + mode->vdisplay) ||
-			    (rects[i].x2 < crtc_x) ||
-			    (rects[i].y2 < crtc_y))
+			if (rects[i].x1 > crtc_x + mode->hdisplay ||
+			    rects[i].y1 > crtc_y + mode->vdisplay ||
+			    rects[i].x2 < crtc_x ||
+			    rects[i].y2 < crtc_y)
 				continue;
 
 			cmd_hdr.x = (s16)rects[i].x1;
@@ -163,7 +103,7 @@ static const struct drm_framebuffer_funcs vbox_fb_funcs = {
 
 int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
-			  const struct DRM_MODE_FB_CMD *mode_cmd,
+			  const struct drm_mode_fb_cmd2 *mode_cmd,
 			  struct drm_gem_object *obj)
 {
 	int ret;
@@ -181,6 +121,7 @@ int vbox_framebuffer_init(struct vbox_private *vbox,
 
 static int vbox_accel_init(struct vbox_private *vbox)
 {
+	struct vbva_buffer *vbva;
 	unsigned int i;
 
 	vbox->vbva_info = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
@@ -198,22 +139,34 @@ static int vbox_accel_init(struct vbox_private *vbox)
 	if (!vbox->vbva_buffers)
 		return -ENOMEM;
 
-	for (i = 0; i < vbox->num_crtcs; ++i)
+	for (i = 0; i < vbox->num_crtcs; ++i) {
 		vbva_setup_buffer_context(&vbox->vbva_info[i],
 					  vbox->available_vram_size +
 					  i * VBVA_MIN_BUFFER_SIZE,
 					  VBVA_MIN_BUFFER_SIZE);
+		vbva = (void __force *)vbox->vbva_buffers +
+			i * VBVA_MIN_BUFFER_SIZE;
+		if (!vbva_enable(&vbox->vbva_info[i],
+				 vbox->guest_pool, vbva, i)) {
+			/* very old host or driver error. */
+			DRM_ERROR("vboxvideo: vbva_enable failed\n");
+		}
+	}
 
 	return 0;
 }
 
 static void vbox_accel_fini(struct vbox_private *vbox)
 {
-	vbox_disable_accel(vbox);
+	unsigned int i;
+
+	for (i = 0; i < vbox->num_crtcs; ++i)
+		vbva_disable(&vbox->vbva_info[i], vbox->guest_pool, i);
+
 	pci_iounmap(vbox->ddev.pdev, vbox->vbva_buffers);
 }
 
-/** Do we support the 4.3 plus mode hint reporting interface? */
+/* Do we support the 4.3 plus mode hint reporting interface? */
 static bool have_hgsmi_mode_hints(struct vbox_private *vbox)
 {
 	u32 have_hints, have_cursor;
@@ -244,10 +197,6 @@ bool vbox_check_supported(u16 id)
 	return dispi_id == id;
 }
 
-/**
- * Set up our heaps and data exchange buffers in VRAM before handing the rest
- * to the memory manager.
- */
 int vbox_hw_init(struct vbox_private *vbox)
 {
 	int ret = -ENOMEM;

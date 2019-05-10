@@ -424,6 +424,9 @@ static const char *shell_test__description(char *description, size_t size,
 	if (!fp)
 		return NULL;
 
+	/* Skip shebang */
+	while (fgetc(fp) != '\n');
+
 	description = fgets(description, size, fp);
 	fclose(fp);
 

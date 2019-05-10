@@ -227,7 +227,9 @@ struct qed_spq {
 	u32			comp_count;
 
 	u32			cid;
-	qed_spq_async_comp_cb async_comp_cb[MAX_PROTOCOL_TYPE];
+	u32			db_addr_offset;
+	struct core_db_data	db_data;
+	qed_spq_async_comp_cb	async_comp_cb[MAX_PROTOCOL_TYPE];
 };
 
 /**
@@ -380,6 +382,7 @@ void qed_consq_setup(struct qed_hwfn *p_hwfn);
  * @param p_hwfn
  */
 void qed_consq_free(struct qed_hwfn *p_hwfn);
+int qed_spq_pend_post(struct qed_hwfn *p_hwfn);
 
 /**
  * @file

@@ -1,26 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Read-Copy Update mechanism for mutual exclusion
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2001
  *
  * Authors: Dipankar Sarma <dipankar@in.ibm.com>
  *	    Manfred Spraul <manfred@colorfullife.com>
  *
- * Based on the original work by Paul McKenney <paulmck@us.ibm.com>
+ * Based on the original work by Paul McKenney <paulmck@linux.ibm.com>
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  * Papers:
  * http://www.rdrop.com/users/paulmck/paper/rclockpdcsproof.pdf
@@ -52,6 +39,7 @@
 #include <linux/tick.h>
 #include <linux/rcupdate_wait.h>
 #include <linux/sched/isolation.h>
+#include <linux/kprobes.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -249,6 +237,7 @@ int notrace debug_lockdep_rcu_enabled(void)
 	       current->lockdep_recursion == 0;
 }
 EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
+NOKPROBE_SYMBOL(debug_lockdep_rcu_enabled);
 
 /**
  * rcu_read_lock_held() - might we be in RCU read-side critical section?
@@ -335,8 +324,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 	/* Initialize and register callbacks for each crcu_array element. */
 	for (i = 0; i < n; i++) {
 		if (checktiny &&
-		    (crcu_array[i] == call_rcu ||
-		     crcu_array[i] == call_rcu_bh)) {
+		    (crcu_array[i] == call_rcu)) {
 			might_sleep();
 			continue;
 		}
@@ -352,8 +340,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 	/* Wait for all callbacks to be invoked. */
 	for (i = 0; i < n; i++) {
 		if (checktiny &&
-		    (crcu_array[i] == call_rcu ||
-		     crcu_array[i] == call_rcu_bh))
+		    (crcu_array[i] == call_rcu))
 			continue;
 		for (j = 0; j < i; j++)
 			if (crcu_array[j] == crcu_array[i])
@@ -822,7 +809,8 @@ static int __init rcu_spawn_tasks_kthread(void)
 	struct task_struct *t;
 
 	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
-	BUG_ON(IS_ERR(t));
+	if (WARN_ONCE(IS_ERR(t), "%s: Could not start Tasks-RCU grace-period kthread, OOM is now expected behavior\n", __func__))
+		return 0;
 	smp_mb(); /* Ensure others see full kthread. */
 	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
 	return 0;

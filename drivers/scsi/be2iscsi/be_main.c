@@ -214,12 +214,6 @@ static char const *cqe_desc[] = {
 	"CXN_KILLED_IMM_DATA_RCVD"
 };
 
-static int beiscsi_slave_configure(struct scsi_device *sdev)
-{
-	blk_queue_max_segment_size(sdev->request_queue, 65536);
-	return 0;
-}
-
 static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 {
 	struct iscsi_task *abrt_task = (struct iscsi_task *)sc->SCp.ptr;
@@ -393,7 +387,6 @@ static struct scsi_host_template beiscsi_sht = {
 	.proc_name = DRV_NAME,
 	.queuecommand = iscsi_queuecommand,
 	.change_queue_depth = scsi_change_queue_depth,
-	.slave_configure = beiscsi_slave_configure,
 	.target_alloc = iscsi_target_alloc,
 	.eh_timed_out = iscsi_eh_cmd_timed_out,
 	.eh_abort_handler = beiscsi_eh_abort,
@@ -404,8 +397,8 @@ static struct scsi_host_template beiscsi_sht = {
 	.can_queue = BE2_IO_DEPTH,
 	.this_id = -1,
 	.max_sectors = BEISCSI_MAX_SECTORS,
+	.max_segment_size = 65536,
 	.cmd_per_lun = BEISCSI_CMD_PER_LUN,
-	.use_clustering = ENABLE_CLUSTERING,
 	.vendor_id = SCSI_NL_VID_TYPE_PCI | BE_VENDOR_ID,
 	.track_queue_depth = 1,
 };
@@ -3328,8 +3321,8 @@ static int be_queue_alloc(struct beiscsi_hba *phba, struct be_queue_info *q,
 	q->len = len;
 	q->entry_size = entry_size;
 	mem->size = len * entry_size;
-	mem->va = dma_zalloc_coherent(&phba->pcidev->dev, mem->size, &mem->dma,
-			GFP_KERNEL);
+	mem->va = dma_alloc_coherent(&phba->pcidev->dev, mem->size, &mem->dma,
+				     GFP_KERNEL);
 	if (!mem->va)
 		return -ENOMEM;
 	return 0;
@@ -3573,7 +3566,7 @@ static void be2iscsi_enable_msix(struct beiscsi_hba *phba)
 
 	/* if eqid_count == 1 fall back to INTX */
 	if (enable_msix && nvec > 1) {
-		const struct irq_affinity desc = { .post_vectors = 1 };
+		struct irq_affinity desc = { .post_vectors = 1 };
 
 		if (pci_alloc_irq_vectors_affinity(phba->pcidev, 2, nvec,
 				PCI_IRQ_MSIX | PCI_IRQ_AFFINITY, &desc) < 0) {

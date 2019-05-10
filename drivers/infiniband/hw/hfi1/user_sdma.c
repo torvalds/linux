@@ -130,7 +130,6 @@ static int defer_packet_queue(
 {
 	struct hfi1_user_sdma_pkt_q *pq =
 		container_of(wait->iow, struct hfi1_user_sdma_pkt_q, busy);
-	struct hfi1_ibdev *dev = &pq->dd->verbs_dev;
 	struct user_sdma_txreq *tx =
 		container_of(txreq, struct user_sdma_txreq, txreq);
 
@@ -144,10 +143,12 @@ static int defer_packet_queue(
 	 * it is supposed to be enqueued.
 	 */
 	xchg(&pq->state, SDMA_PKT_Q_DEFERRED);
-	write_seqlock(&dev->iowait_lock);
-	if (list_empty(&pq->busy.list))
+	write_seqlock(&sde->waitlock);
+	if (list_empty(&pq->busy.list)) {
+		iowait_get_priority(&pq->busy);
 		iowait_queue(pkts_sent, &pq->busy, &sde->dmawait);
-	write_sequnlock(&dev->iowait_lock);
+	}
+	write_sequnlock(&sde->waitlock);
 	return -EBUSY;
 eagain:
 	return -EAGAIN;
@@ -192,7 +193,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 	pq->mm = fd->mm;
 
 	iowait_init(&pq->busy, 0, NULL, NULL, defer_packet_queue,
-		    activate_packet_queue, NULL);
+		    activate_packet_queue, NULL, NULL);
 	pq->reqidx = 0;
 
 	pq->reqs = kcalloc(hfi1_sdma_comp_ring_size,
@@ -1127,7 +1128,8 @@ static inline u32 set_pkt_bth_psn(__be32 bthpsn, u8 expct, u32 frags)
 			0xffffffull),
 		psn = val & mask;
 	if (expct)
-		psn = (psn & ~BTH_SEQ_MASK) | ((psn + frags) & BTH_SEQ_MASK);
+		psn = (psn & ~HFI1_KDETH_BTH_SEQ_MASK) |
+			((psn + frags) & HFI1_KDETH_BTH_SEQ_MASK);
 	else
 		psn = psn + frags;
 	return psn & mask;

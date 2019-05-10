@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "core.h"
@@ -71,7 +60,7 @@ void ath10k_sta_update_rx_tid_stats_ampdu(struct ath10k *ar, u16 peer_id, u8 tid
 	spin_lock_bh(&ar->data_lock);
 
 	peer = ath10k_peer_find_by_id(ar, peer_id);
-	if (!peer)
+	if (!peer || !peer->sta)
 		goto out;
 
 	arsta = (struct ath10k_sta *)peer->sta->drv_priv;
@@ -87,12 +76,12 @@ out:
 }
 
 void ath10k_sta_update_rx_tid_stats(struct ath10k *ar, u8 *first_hdr,
-				    unsigned long int num_msdus,
+				    unsigned long num_msdus,
 				    enum ath10k_pkt_rx_err err,
-				    unsigned long int unchain_cnt,
-				    unsigned long int drop_cnt,
-				    unsigned long int drop_cnt_filter,
-				    unsigned long int queued_msdus)
+				    unsigned long unchain_cnt,
+				    unsigned long drop_cnt,
+				    unsigned long drop_cnt_filter,
+				    unsigned long queued_msdus)
 {
 	struct ieee80211_sta *sta;
 	struct ath10k_sta *arsta;
@@ -665,7 +654,7 @@ static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
 						       "retry", "ampdu"};
 	const char *str[ATH10K_COUNTER_TYPE_MAX] = {"bytes", "packets"};
 	int len = 0, i, j, k, retval = 0;
-	const int size = 2 * 4096;
+	const int size = 16 * 4096;
 	char *buf;
 
 	buf = kzalloc(size, GFP_KERNEL);
@@ -696,11 +685,12 @@ static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
 						 "  %llu ", stats->ht[j][i]);
 			len += scnprintf(buf + len, size - len, "\n");
 			len += scnprintf(buf + len, size - len,
-					" BW %s (20,40,80,160 MHz)\n", str[j]);
+					" BW %s (20,5,10,40,80,160 MHz)\n", str[j]);
 			len += scnprintf(buf + len, size - len,
-					 "  %llu %llu %llu %llu\n",
+					 "  %llu %llu %llu %llu %llu %llu\n",
 					 stats->bw[j][0], stats->bw[j][1],
-					 stats->bw[j][2], stats->bw[j][3]);
+					 stats->bw[j][2], stats->bw[j][3],
+					 stats->bw[j][4], stats->bw[j][5]);
 			len += scnprintf(buf + len, size - len,
 					 " NSS %s (1x1,2x2,3x3,4x4)\n", str[j]);
 			len += scnprintf(buf + len, size - len,
@@ -719,6 +709,16 @@ static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
 				len += scnprintf(buf + len, size - len, "%llu ",
 						 stats->legacy[j][i]);
 			len += scnprintf(buf + len, size - len, "\n");
+			len += scnprintf(buf + len, size - len,
+					 " Rate table %s (1,2 ... Mbps)\n  ",
+					 str[j]);
+			for (i = 0; i < ATH10K_RATE_TABLE_NUM; i++) {
+				len += scnprintf(buf + len, size - len, "%llu ",
+						 stats->rate_table[j][i]);
+				if (!((i + 1) % 8))
+					len +=
+					scnprintf(buf + len, size - len, "\n  ");
+			}
 		}
 	}
 

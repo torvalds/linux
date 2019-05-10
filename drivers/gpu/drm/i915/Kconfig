@@ -131,5 +131,5 @@ config DRM_I915_GVT_KVMGT
 menu "drm/i915 Debugging"
 depends on DRM_I915
 depends on EXPERT
-source drivers/gpu/drm/i915/Kconfig.debug
+source "drivers/gpu/drm/i915/Kconfig.debug"
 endmenu

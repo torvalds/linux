@@ -785,7 +785,6 @@ static struct scsi_host_template qedf_host_template = {
 	.name 		= QEDF_MODULE_NAME,
 	.this_id 	= -1,
 	.cmd_per_lun	= 32,
-	.use_clustering = ENABLE_CLUSTERING,
 	.max_sectors 	= 0xffff,
 	.queuecommand 	= qedf_queuecommand,
 	.shost_attrs	= qedf_host_attrs,
@@ -1051,16 +1050,17 @@ static int qedf_alloc_sq(struct qedf_ctx *qedf, struct qedf_rport *fcport)
 	    sizeof(void *);
 	fcport->sq_pbl_size = fcport->sq_pbl_size + QEDF_PAGE_SIZE;
 
-	fcport->sq = dma_zalloc_coherent(&qedf->pdev->dev,
-	    fcport->sq_mem_size, &fcport->sq_dma, GFP_KERNEL);
+	fcport->sq = dma_alloc_coherent(&qedf->pdev->dev, fcport->sq_mem_size,
+					&fcport->sq_dma, GFP_KERNEL);
 	if (!fcport->sq) {
 		QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate send queue.\n");
 		rval = 1;
 		goto out;
 	}
 
-	fcport->sq_pbl = dma_zalloc_coherent(&qedf->pdev->dev,
-	    fcport->sq_pbl_size, &fcport->sq_pbl_dma, GFP_KERNEL);
+	fcport->sq_pbl = dma_alloc_coherent(&qedf->pdev->dev,
+					    fcport->sq_pbl_size,
+					    &fcport->sq_pbl_dma, GFP_KERNEL);
 	if (!fcport->sq_pbl) {
 		QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate send queue PBL.\n");
 		rval = 1;
@@ -1418,7 +1418,7 @@ static struct libfc_function_template qedf_lport_template = {
 
 static void qedf_fcoe_ctlr_setup(struct qedf_ctx *qedf)
 {
-	fcoe_ctlr_init(&qedf->ctlr, FIP_ST_AUTO);
+	fcoe_ctlr_init(&qedf->ctlr, FIP_MODE_AUTO);
 
 	qedf->ctlr.send = qedf_fip_send;
 	qedf->ctlr.get_src_addr = qedf_get_src_mac;
@@ -2681,8 +2681,10 @@ static int qedf_alloc_bdq(struct qedf_ctx *qedf)
 	}
 
 	/* Allocate list of PBL pages */
-	qedf->bdq_pbl_list = dma_zalloc_coherent(&qedf->pdev->dev,
-	    QEDF_PAGE_SIZE, &qedf->bdq_pbl_list_dma, GFP_KERNEL);
+	qedf->bdq_pbl_list = dma_alloc_coherent(&qedf->pdev->dev,
+						QEDF_PAGE_SIZE,
+						&qedf->bdq_pbl_list_dma,
+						GFP_KERNEL);
 	if (!qedf->bdq_pbl_list) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Could not allocate list of PBL pages.\n");
 		return -ENOMEM;
@@ -2771,9 +2773,10 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 		    ALIGN(qedf->global_queues[i]->cq_pbl_size, QEDF_PAGE_SIZE);
 
 		qedf->global_queues[i]->cq =
-		    dma_zalloc_coherent(&qedf->pdev->dev,
-			qedf->global_queues[i]->cq_mem_size,
-			&qedf->global_queues[i]->cq_dma, GFP_KERNEL);
+		    dma_alloc_coherent(&qedf->pdev->dev,
+				       qedf->global_queues[i]->cq_mem_size,
+				       &qedf->global_queues[i]->cq_dma,
+				       GFP_KERNEL);
 
 		if (!qedf->global_queues[i]->cq) {
 			QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate cq.\n");
@@ -2782,9 +2785,10 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 		}
 
 		qedf->global_queues[i]->cq_pbl =
-		    dma_zalloc_coherent(&qedf->pdev->dev,
-			qedf->global_queues[i]->cq_pbl_size,
-			&qedf->global_queues[i]->cq_pbl_dma, GFP_KERNEL);
+		    dma_alloc_coherent(&qedf->pdev->dev,
+				       qedf->global_queues[i]->cq_pbl_size,
+				       &qedf->global_queues[i]->cq_pbl_dma,
+				       GFP_KERNEL);
 
 		if (!qedf->global_queues[i]->cq_pbl) {
 			QEDF_WARN(&(qedf->dbg_ctx), "Could not allocate cq PBL.\n");
@@ -2935,8 +2939,7 @@ static void qedf_free_fcoe_pf_param(struct qedf_ctx *qedf)
 
 	qedf_free_global_queues(qedf);
 
-	if (qedf->global_queues)
-		kfree(qedf->global_queues);
+	kfree(qedf->global_queues);
 }
 
 /*

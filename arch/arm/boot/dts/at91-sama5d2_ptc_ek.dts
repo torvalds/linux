@@ -197,7 +197,7 @@
 					dma-names = "tx", "rx";
 					#address-cells = <1>;
 					#size-cells = <0>;
-					clocks = <&flx0_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx0_default>;
 					atmel,fifo-size = <16>;

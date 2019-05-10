@@ -262,6 +262,18 @@ void drm_file_free(struct drm_file *file)
 	kfree(file);
 }
 
+static void drm_close_helper(struct file *filp)
+{
+	struct drm_file *file_priv = filp->private_data;
+	struct drm_device *dev = file_priv->minor->dev;
+
+	mutex_lock(&dev->filelist_mutex);
+	list_del(&file_priv->lhead);
+	mutex_unlock(&dev->filelist_mutex);
+
+	drm_file_free(file_priv);
+}
+
 static int drm_setup(struct drm_device * dev)
 {
 	int ret;
@@ -318,8 +330,10 @@ int drm_open(struct inode *inode, struct file *filp)
 		goto err_undo;
 	if (need_setup) {
 		retcode = drm_setup(dev);
-		if (retcode)
+		if (retcode) {
+			drm_close_helper(filp);
 			goto err_undo;
+		}
 	}
 	return 0;
 
@@ -473,17 +487,11 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
-	mutex_lock(&dev->filelist_mutex);
-	list_del(&file_priv->lhead);
-	mutex_unlock(&dev->filelist_mutex);
+	drm_close_helper(filp);
 
-	drm_file_free(file_priv);
-
-	if (!--dev->open_count) {
+	if (!--dev->open_count)
 		drm_lastclose(dev);
-		if (drm_dev_is_unplugged(dev))
-			drm_put_dev(dev);
-	}
+
 	mutex_unlock(&drm_global_mutex);
 
 	drm_minor_release(minor);
@@ -525,7 +533,7 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 	struct drm_device *dev = file_priv->minor->dev;
 	ssize_t ret;
 
-	if (!access_ok(VERIFY_WRITE, buffer, count))
+	if (!access_ok(buffer, count))
 		return -EFAULT;
 
 	ret = mutex_lock_interruptible(&file_priv->event_read_lock);
@@ -701,7 +709,7 @@ int drm_event_reserve_init(struct drm_device *dev,
 EXPORT_SYMBOL(drm_event_reserve_init);
 
 /**
- * drm_event_cancel_free - free a DRM event and release it's space
+ * drm_event_cancel_free - free a DRM event and release its space
  * @dev: DRM device
  * @p: tracking structure for the pending event
  *

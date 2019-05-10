@@ -610,7 +610,7 @@ int snd_sb8dsp_pcm(struct snd_sb *chip, int device)
 	if (chip->dma8 > 3 || chip->dma16 >= 0)
 		max_prealloc = 128 * 1024;
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      card->dev,
 					      64*1024, max_prealloc);
 
 	return 0;

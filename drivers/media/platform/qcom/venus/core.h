@@ -98,6 +98,7 @@ struct venus_caps {
  * @dev:		convenience struct device pointer
  * @dev_dec:	convenience struct device pointer for decoder device
  * @dev_enc:	convenience struct device pointer for encoder device
+ * @use_tz:	a flag that suggests presence of trustzone
  * @lock:	a lock for this strucure
  * @instances:	a list_head of all instances
  * @insts_count:	num of instances
@@ -129,6 +130,12 @@ struct venus_core {
 	struct device *dev;
 	struct device *dev_dec;
 	struct device *dev_enc;
+	unsigned int use_tz;
+	struct video_firmware {
+		struct device *dev;
+		struct iommu_domain *iommu_domain;
+		size_t mapped_mem_size;
+	} fw;
 	struct mutex lock;
 	struct list_head instances;
 	atomic_t insts_count;
@@ -212,7 +219,7 @@ struct venus_buffer {
 #define to_venus_buffer(ptr)	container_of(ptr, struct venus_buffer, vb)
 
 /**
- * struct venus_inst - holds per instance paramerters
+ * struct venus_inst - holds per instance parameters
  *
  * @list:	used for attach an instance to the core
  * @lock:	instance lock

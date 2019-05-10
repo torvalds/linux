@@ -49,10 +49,11 @@ config TI_DAVINCI_CPDMA
 	  will be called davinci_cpdma.  This is recommended.
 
 config TI_CPSW_PHY_SEL
-	bool
+	bool "TI CPSW Phy mode Selection (DEPRECATED)"
+	default n
 	---help---
 	  This driver supports configuring of the phy mode connected to
-	  the CPSW.
+	  the CPSW. DEPRECATED: use PHY_TI_GMII_SEL.
 
 config TI_CPSW_ALE
 	tristate "TI CPSW ALE Support"
@@ -64,7 +65,6 @@ config TI_CPSW
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
 	select TI_DAVINCI_CPDMA
 	select TI_DAVINCI_MDIO
-	select TI_CPSW_PHY_SEL
 	select TI_CPSW_ALE
 	select MFD_SYSCON
 	select REGMAP
@@ -121,7 +121,8 @@ config TLAN
 
 	  Devices currently supported by this driver are Compaq Netelligent,
 	  Compaq NetFlex and Olicom cards.  Please read the file
-	  <file:Documentation/networking/tlan.txt> for more details.
+	  <file:Documentation/networking/device_drivers/ti/tlan.txt>
+	  for more details.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called tlan.

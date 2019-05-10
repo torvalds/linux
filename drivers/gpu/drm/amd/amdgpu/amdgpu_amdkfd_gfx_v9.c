@@ -26,6 +26,7 @@
 #include <linux/fdtable.h>
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
+#include <linux/mmu_context.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
@@ -46,38 +47,9 @@
 #include "v9_structs.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "mmhub_v1_0.h"
+#include "gfxhub_v1_0.h"
 
-/* HACK: MMHUB and GC both have VM-related register with the same
- * names but different offsets. Define the MMHUB register we need here
- * with a prefix. A proper solution would be to move the functions
- * programming these registers into gfx_v9_0.c and mmhub_v1_0.c
- * respectively.
- */
-#define mmMMHUB_VM_INVALIDATE_ENG16_REQ				0x06f3
-#define mmMMHUB_VM_INVALIDATE_ENG16_REQ_BASE_IDX		0
-
-#define mmMMHUB_VM_INVALIDATE_ENG16_ACK				0x0705
-#define mmMMHUB_VM_INVALIDATE_ENG16_ACK_BASE_IDX		0
-
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32		0x072b
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32_BASE_IDX	0
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32		0x072c
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32_BASE_IDX	0
-
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32		0x074b
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32_BASE_IDX	0
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32		0x074c
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32_BASE_IDX	0
-
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32		0x076b
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32_BASE_IDX	0
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32		0x076c
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32_BASE_IDX	0
-
-#define mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_LO32		0x0727
-#define mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_LO32_BASE_IDX	0
-#define mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_HI32		0x0728
-#define mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_HI32_BASE_IDX	0
 
 #define V9_PIPE_PER_MEC		(4)
 #define V9_QUEUES_PER_PIPE_MEC	(8)
@@ -167,13 +139,6 @@ static int amdgpu_amdkfd_get_tile_config(struct kgd_dev *kgd,
 }
 
 static const struct kfd2kgd_calls kfd2kgd = {
-	.init_gtt_mem_allocation = alloc_gtt_mem,
-	.free_gtt_mem = free_gtt_mem,
-	.get_local_mem_info = get_local_mem_info,
-	.get_gpu_clock_counter = get_gpu_clock_counter,
-	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
-	.alloc_pasid = amdgpu_pasid_alloc,
-	.free_pasid = amdgpu_pasid_free,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_interrupts = kgd_init_interrupts,
@@ -196,26 +161,9 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_fw_version = get_fw_version,
 	.set_scratch_backing_va = set_scratch_backing_va,
 	.get_tile_config = amdgpu_amdkfd_get_tile_config,
-	.get_cu_info = get_cu_info,
-	.get_vram_usage = amdgpu_amdkfd_get_vram_usage,
-	.create_process_vm = amdgpu_amdkfd_gpuvm_create_process_vm,
-	.acquire_process_vm = amdgpu_amdkfd_gpuvm_acquire_process_vm,
-	.destroy_process_vm = amdgpu_amdkfd_gpuvm_destroy_process_vm,
-	.release_process_vm = amdgpu_amdkfd_gpuvm_release_process_vm,
-	.get_process_page_dir = amdgpu_amdkfd_gpuvm_get_process_page_dir,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
-	.alloc_memory_of_gpu = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu,
-	.free_memory_of_gpu = amdgpu_amdkfd_gpuvm_free_memory_of_gpu,
-	.map_memory_to_gpu = amdgpu_amdkfd_gpuvm_map_memory_to_gpu,
-	.unmap_memory_to_gpu = amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu,
-	.sync_memory = amdgpu_amdkfd_gpuvm_sync_memory,
-	.map_gtt_bo_to_kernel = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel,
-	.restore_process_bos = amdgpu_amdkfd_gpuvm_restore_process_bos,
 	.invalidate_tlbs = invalidate_tlbs,
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
-	.submit_ib = amdgpu_amdkfd_submit_ib,
-	.gpu_recover = amdgpu_amdkfd_gpu_reset,
-	.set_compute_idle = amdgpu_amdkfd_set_compute_idle,
 	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 };
 
@@ -785,15 +733,6 @@ static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-	uint32_t req = (1 << vmid) |
-		(0 << VM_INVALIDATE_ENG16_REQ__FLUSH_TYPE__SHIFT) | /* legacy */
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PTES_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PDE0_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PDE1_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PDE2_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L1_PTES_MASK;
-
-	mutex_lock(&adev->srbm_mutex);
 
 	/* Use legacy mode tlb invalidation.
 	 *
@@ -810,34 +749,7 @@ static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
 	 * TODO 2: support range-based invalidation, requires kfg2kgd
 	 * interface change
 	 */
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_INVALIDATE_ENG16_ADDR_RANGE_LO32),
-				0xffffffff);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_INVALIDATE_ENG16_ADDR_RANGE_HI32),
-				0x0000001f);
-
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0,
-				mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_LO32),
-				0xffffffff);
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0,
-				mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_HI32),
-				0x0000001f);
-
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_INVALIDATE_ENG16_REQ), req);
-
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_INVALIDATE_ENG16_REQ),
-				req);
-
-	while (!(RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_INVALIDATE_ENG16_ACK)) &
-					(1 << vmid)))
-		cpu_relax();
-
-	while (!(RREG32(SOC15_REG_OFFSET(MMHUB, 0,
-					mmMMHUB_VM_INVALIDATE_ENG16_ACK)) &
-					(1 << vmid)))
-		cpu_relax();
-
-	mutex_unlock(&adev->srbm_mutex);
-
+	amdgpu_gmc_flush_gpu_tlb(adev, vmid, 0);
 }
 
 static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid)
@@ -876,7 +788,7 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	if (adev->in_gpu_reset)
 		return -EIO;
 
-	if (ring->ready)
+	if (ring->sched.ready)
 		return invalidate_tlbs_with_kiq(adev, pasid);
 
 	for (vmid = 0; vmid < 16; vmid++) {
@@ -1016,7 +928,6 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	uint64_t base = page_table_base | AMDGPU_PTE_VALID;
 
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
 		pr_err("trying to set page table base for wrong VMID %u\n",
@@ -1028,25 +939,7 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 	 * now, all processes share the same address space size, like
 	 * on GFX8 and older.
 	 */
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32) + (vmid*2), 0);
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32) + (vmid*2), 0);
+	mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32) + (vmid*2),
-			lower_32_bits(adev->vm_manager.max_pfn - 1));
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32) + (vmid*2),
-			upper_32_bits(adev->vm_manager.max_pfn - 1));
-
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32) + (vmid*2), lower_32_bits(base));
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32) + (vmid*2), upper_32_bits(base));
-
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32) + (vmid*2), 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32) + (vmid*2), 0);
-
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32) + (vmid*2),
-			lower_32_bits(adev->vm_manager.max_pfn - 1));
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32) + (vmid*2),
-			upper_32_bits(adev->vm_manager.max_pfn - 1));
-
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32) + (vmid*2), lower_32_bits(base));
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32) + (vmid*2), upper_32_bits(base));
+	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 }

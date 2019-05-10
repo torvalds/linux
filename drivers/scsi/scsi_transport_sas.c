@@ -198,7 +198,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 	if (rphy) {
 		q = bsg_setup_queue(&rphy->dev, dev_name(&rphy->dev),
-				sas_smp_dispatch, 0);
+				sas_smp_dispatch, NULL, 0);
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 		rphy->q = q;
@@ -207,13 +207,12 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 		snprintf(name, sizeof(name), "sas_host%d", shost->host_no);
 		q = bsg_setup_queue(&shost->shost_gendev, name,
-				sas_smp_dispatch, 0);
+				sas_smp_dispatch, NULL, 0);
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 		to_sas_host_attrs(shost)->q = q;
 	}
 
-	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	return 0;
 }
 
@@ -246,11 +245,7 @@ static int sas_host_remove(struct transport_container *tc, struct device *dev,
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct request_queue *q = to_sas_host_attrs(shost)->q;
 
-	if (q) {
-		bsg_unregister_queue(q);
-		blk_cleanup_queue(q);
-	}
-
+	bsg_remove_queue(q);
 	return 0;
 }
 

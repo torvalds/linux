@@ -38,6 +38,7 @@ enum bpf_reg_liveness {
 	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
 	REG_LIVE_READ, /* reg was read, so we're sensitive to initial value */
 	REG_LIVE_WRITTEN, /* reg was written first, screening off later reads */
+	REG_LIVE_DONE = 4, /* liveness won't be updating this register anymore */
 };
 
 struct bpf_reg_state {
@@ -65,6 +66,46 @@ struct bpf_reg_state {
 	 * same reference to the socket, to determine proper reference freeing.
 	 */
 	u32 id;
+	/* PTR_TO_SOCKET and PTR_TO_TCP_SOCK could be a ptr returned
+	 * from a pointer-cast helper, bpf_sk_fullsock() and
+	 * bpf_tcp_sock().
+	 *
+	 * Consider the following where "sk" is a reference counted
+	 * pointer returned from "sk = bpf_sk_lookup_tcp();":
+	 *
+	 * 1: sk = bpf_sk_lookup_tcp();
+	 * 2: if (!sk) { return 0; }
+	 * 3: fullsock = bpf_sk_fullsock(sk);
+	 * 4: if (!fullsock) { bpf_sk_release(sk); return 0; }
+	 * 5: tp = bpf_tcp_sock(fullsock);
+	 * 6: if (!tp) { bpf_sk_release(sk); return 0; }
+	 * 7: bpf_sk_release(sk);
+	 * 8: snd_cwnd = tp->snd_cwnd;  // verifier will complain
+	 *
+	 * After bpf_sk_release(sk) at line 7, both "fullsock" ptr and
+	 * "tp" ptr should be invalidated also.  In order to do that,
+	 * the reg holding "fullsock" and "sk" need to remember
+	 * the original refcounted ptr id (i.e. sk_reg->id) in ref_obj_id
+	 * such that the verifier can reset all regs which have
+	 * ref_obj_id matching the sk_reg->id.
+	 *
+	 * sk_reg->ref_obj_id is set to sk_reg->id at line 1.
+	 * sk_reg->id will stay as NULL-marking purpose only.
+	 * After NULL-marking is done, sk_reg->id can be reset to 0.
+	 *
+	 * After "fullsock = bpf_sk_fullsock(sk);" at line 3,
+	 * fullsock_reg->ref_obj_id is set to sk_reg->ref_obj_id.
+	 *
+	 * After "tp = bpf_tcp_sock(fullsock);" at line 5,
+	 * tp_reg->ref_obj_id is set to fullsock_reg->ref_obj_id
+	 * which is the same as sk_reg->ref_obj_id.
+	 *
+	 * From the verifier perspective, if sk, fullsock and tp
+	 * are not NULL, they are the same ptr with different
+	 * reg->type.  In particular, bpf_sk_release(tp) is also
+	 * allowed and has the same effect as bpf_sk_release(sk).
+	 */
+	u32 ref_obj_id;
 	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset
@@ -147,6 +188,8 @@ struct bpf_verifier_state {
 	/* call stack tracking */
 	struct bpf_func_state *frame[MAX_CALL_FRAMES];
 	u32 curframe;
+	u32 active_spin_lock;
+	bool speculative;
 };
 
 #define bpf_get_spilled_reg(slot, frame)				\
@@ -166,15 +209,26 @@ struct bpf_verifier_state_list {
 	struct bpf_verifier_state_list *next;
 };
 
+/* Possible states for alu_state member. */
+#define BPF_ALU_SANITIZE_SRC		1U
+#define BPF_ALU_SANITIZE_DST		2U
+#define BPF_ALU_NEG_VALUE		(1U << 2)
+#define BPF_ALU_NON_POINTER		(1U << 3)
+#define BPF_ALU_SANITIZE		(BPF_ALU_SANITIZE_SRC | \
+					 BPF_ALU_SANITIZE_DST)
+
 struct bpf_insn_aux_data {
 	union {
 		enum bpf_reg_type ptr_type;	/* pointer type for load/store insns */
 		unsigned long map_state;	/* pointer/poison value for maps */
 		s32 call_imm;			/* saved imm field of call insn */
+		u32 alu_limit;			/* limit for add/sub register with pointer */
 	};
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
 	int sanitize_stack_off; /* stack slot to be cleared */
 	bool seen; /* this insn was processed by the verifier */
+	u8 alu_state; /* used in combination with alu_limit */
+	unsigned int orig_idx; /* original instruction index */
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
@@ -203,6 +257,7 @@ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 
 struct bpf_subprog_info {
 	u32 start; /* insn idx of function entry point */
+	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
 };
 
@@ -210,6 +265,8 @@ struct bpf_subprog_info {
  * one verifier_env per bpf_check() call
  */
 struct bpf_verifier_env {
+	u32 insn_idx;
+	u32 prev_insn_idx;
 	struct bpf_prog *prog;		/* eBPF program being verified */
 	const struct bpf_verifier_ops *ops;
 	struct bpf_verifier_stack_elem *head; /* stack of verifier states to be processed */
@@ -223,6 +280,7 @@ struct bpf_verifier_env {
 	bool allow_ptr_leaks;
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
+	const struct bpf_line_info *prev_linfo;
 	struct bpf_verifier_log log;
 	struct bpf_subprog_info subprog_info[BPF_MAX_SUBPROGS + 1];
 	u32 subprog_cnt;
@@ -245,9 +303,14 @@ static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
 	return cur_func(env)->regs;
 }
 
-int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env);
+int bpf_prog_offload_verifier_prep(struct bpf_prog *prog);
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 				 int insn_idx, int prev_insn_idx);
 int bpf_prog_offload_finalize(struct bpf_verifier_env *env);
+void
+bpf_prog_offload_replace_insn(struct bpf_verifier_env *env, u32 off,
+			      struct bpf_insn *insn);
+void
+bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt);
 
 #endif /* _LINUX_BPF_VERIFIER_H */

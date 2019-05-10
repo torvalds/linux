@@ -67,12 +67,14 @@ _hostc_flags   = $(KBUILD_HOSTCFLAGS)   $(HOST_EXTRACFLAGS)   \
 _hostcxx_flags = $(KBUILD_HOSTCXXFLAGS) $(HOST_EXTRACXXFLAGS) \
                  $(HOSTCXXFLAGS_$(basetarget).o)
 
-ifeq ($(KBUILD_SRC),)
 __hostc_flags	= $(_hostc_flags)
 __hostcxx_flags	= $(_hostcxx_flags)
-else
+
+ifeq ($(KBUILD_EXTMOD),)
+ifneq ($(KBUILD_SRC),)
 __hostc_flags	= -I$(obj) $(call flags,_hostc_flags)
 __hostcxx_flags	= -I$(obj) $(call flags,_hostcxx_flags)
+endif
 endif
 
 hostc_flags    = -Wp,-MD,$(depfile) $(__hostc_flags)

@@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 		.skip = 0
 	};
 
+	count = min_t(size_t, count, PAGE_SIZE);
 	kbuf = kmalloc(count, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
@@ -624,16 +625,14 @@ static const struct file_operations proc_page_owner_operations = {
 
 static int __init pageowner_init(void)
 {
-	struct dentry *dentry;
-
 	if (!static_branch_unlikely(&page_owner_inited)) {
 		pr_info("page_owner is disabled\n");
 		return 0;
 	}
 
-	dentry = debugfs_create_file("page_owner", 0400, NULL,
-				     NULL, &proc_page_owner_operations);
+	debugfs_create_file("page_owner", 0400, NULL, NULL,
+			    &proc_page_owner_operations);
 
-	return PTR_ERR_OR_ZERO(dentry);
+	return 0;
 }
 late_initcall(pageowner_init)

@@ -869,4 +869,7 @@ static inline unsigned int xfs_dir2_dirblock_bytes(struct xfs_sb *sbp)
 	return 1 << (sbp->sb_blocklog + sbp->sb_dirblklog);
 }
 
+xfs_failaddr_t xfs_da3_blkinfo_verify(struct xfs_buf *bp,
+				      struct xfs_da3_blkinfo *hdr3);
+
 #endif /* __XFS_DA_FORMAT_H__ */

@@ -648,7 +648,6 @@ void report_survey_event(struct adapter *padapter, union recv_frame *precv_frame
 void report_surveydone_event(struct adapter *padapter);
 void report_del_sta_event(struct adapter *padapter, unsigned char* MacAddr, unsigned short reason);
 void report_add_sta_event(struct adapter *padapter, unsigned char* MacAddr, int cam_idx);
-bool rtw_port_switch_chk(struct adapter *adapter);
 void report_wmm_edca_update(struct adapter *padapter);
 
 void beacon_timing_control(struct adapter *padapter);

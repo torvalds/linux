@@ -290,6 +290,11 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	} else if (fsflags & FS_COMPR_FL) {
 		const char *comp;
 
+		if (IS_SWAPFILE(inode)) {
+			ret = -ETXTBSY;
+			goto out_unlock;
+		}
+
 		binode->flags |= BTRFS_INODE_COMPRESS;
 		binode->flags &= ~BTRFS_INODE_NOCOMPRESS;
 
@@ -495,6 +500,16 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	/*
+	 * If the fs is mounted with nologreplay, which requires it to be
+	 * mounted in RO mode as well, we can not allow discard on free space
+	 * inside block groups, because log trees refer to extents that are not
+	 * pinned in a block group's free space cache (pinning the extents is
+	 * precisely the first phase of replaying a log tree).
+	 */
+	if (btrfs_test_opt(fs_info, NOLOGREPLAY))
+		return -EROFS;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(device, &fs_info->fs_devices->devices,
@@ -754,6 +769,12 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		return -EINVAL;
 
+	if (atomic_read(&root->nr_swapfiles)) {
+		btrfs_warn(fs_info,
+			   "cannot snapshot subvolume with active swapfile");
+		return -ETXTBSY;
+	}
+
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_KERNEL);
 	if (!pending_snapshot)
 		return -ENOMEM;
@@ -777,7 +798,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	wait_event(root->subv_writers->wait,
 		   percpu_counter_sum(&root->subv_writers->counter) == 0);
 
-	ret = btrfs_start_delalloc_inodes(root);
+	ret = btrfs_start_delalloc_snapshot(root);
 	if (ret)
 		goto dec_and_free;
 
@@ -1505,9 +1526,13 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		}
 
 		inode_lock(inode);
-		if (do_compress)
-			BTRFS_I(inode)->defrag_compress = compress_type;
-		ret = cluster_pages_for_defrag(inode, pages, i, cluster);
+		if (IS_SWAPFILE(inode)) {
+			ret = -ETXTBSY;
+		} else {
+			if (do_compress)
+				BTRFS_I(inode)->defrag_compress = compress_type;
+			ret = cluster_pages_for_defrag(inode, pages, i, cluster);
+		}
 		if (ret < 0) {
 			inode_unlock(inode);
 			goto out_ra;
@@ -1627,7 +1652,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		btrfs_info(fs_info, "resizing devid %llu", devid);
 	}
 
-	device = btrfs_find_device(fs_info, devid, NULL, NULL);
+	device = btrfs_find_device(fs_info->fs_devices, devid, NULL, NULL, true);
 	if (!device) {
 		btrfs_info(fs_info, "resizer unable to find device %llu",
 			   devid);
@@ -3135,7 +3160,7 @@ static long btrfs_ioctl_fs_info(struct btrfs_fs_info *fs_info,
 	}
 	rcu_read_unlock();
 
-	memcpy(&fi_args->fsid, fs_info->fsid, sizeof(fi_args->fsid));
+	memcpy(&fi_args->fsid, fs_devices->fsid, sizeof(fi_args->fsid));
 	fi_args->nodesize = fs_info->nodesize;
 	fi_args->sectorsize = fs_info->sectorsize;
 	fi_args->clone_alignment = fs_info->sectorsize;
@@ -3163,7 +3188,8 @@ static long btrfs_ioctl_dev_info(struct btrfs_fs_info *fs_info,
 		s_uuid = di_args->uuid;
 
 	rcu_read_lock();
-	dev = btrfs_find_device(fs_info, di_args->devid, s_uuid, NULL);
+	dev = btrfs_find_device(fs_info->fs_devices, di_args->devid, s_uuid,
+				NULL, true);
 
 	if (!dev) {
 		ret = -ENODEV;
@@ -3191,362 +3217,38 @@ out:
 	return ret;
 }
 
-static struct page *extent_same_get_page(struct inode *inode, pgoff_t index)
-{
-	struct page *page;
-
-	page = grab_cache_page(inode->i_mapping, index);
-	if (!page)
-		return ERR_PTR(-ENOMEM);
-
-	if (!PageUptodate(page)) {
-		int ret;
-
-		ret = btrfs_readpage(NULL, page);
-		if (ret)
-			return ERR_PTR(ret);
-		lock_page(page);
-		if (!PageUptodate(page)) {
-			unlock_page(page);
-			put_page(page);
-			return ERR_PTR(-EIO);
-		}
-		if (page->mapping != inode->i_mapping) {
-			unlock_page(page);
-			put_page(page);
-			return ERR_PTR(-EAGAIN);
-		}
-	}
-
-	return page;
-}
-
-static int gather_extent_pages(struct inode *inode, struct page **pages,
-			       int num_pages, u64 off)
-{
-	int i;
-	pgoff_t index = off >> PAGE_SHIFT;
-
-	for (i = 0; i < num_pages; i++) {
-again:
-		pages[i] = extent_same_get_page(inode, index + i);
-		if (IS_ERR(pages[i])) {
-			int err = PTR_ERR(pages[i]);
-
-			if (err == -EAGAIN)
-				goto again;
-			pages[i] = NULL;
-			return err;
-		}
-	}
-	return 0;
-}
-
-static int lock_extent_range(struct inode *inode, u64 off, u64 len,
-			     bool retry_range_locking)
-{
-	/*
-	 * Do any pending delalloc/csum calculations on inode, one way or
-	 * another, and lock file content.
-	 * The locking order is:
-	 *
-	 *   1) pages
-	 *   2) range in the inode's io tree
-	 */
-	while (1) {
-		struct btrfs_ordered_extent *ordered;
-		lock_extent(&BTRFS_I(inode)->io_tree, off, off + len - 1);
-		ordered = btrfs_lookup_first_ordered_extent(inode,
-							    off + len - 1);
-		if ((!ordered ||
-		     ordered->file_offset + ordered->len <= off ||
-		     ordered->file_offset >= off + len) &&
-		    !test_range_bit(&BTRFS_I(inode)->io_tree, off,
-				    off + len - 1, EXTENT_DELALLOC, 0, NULL)) {
-			if (ordered)
-				btrfs_put_ordered_extent(ordered);
-			break;
-		}
-		unlock_extent(&BTRFS_I(inode)->io_tree, off, off + len - 1);
-		if (ordered)
-			btrfs_put_ordered_extent(ordered);
-		if (!retry_range_locking)
-			return -EAGAIN;
-		btrfs_wait_ordered_range(inode, off, len);
-	}
-	return 0;
-}
-
-static void btrfs_double_inode_unlock(struct inode *inode1, struct inode *inode2)
-{
-	inode_unlock(inode1);
-	inode_unlock(inode2);
-}
-
-static void btrfs_double_inode_lock(struct inode *inode1, struct inode *inode2)
-{
-	if (inode1 < inode2)
-		swap(inode1, inode2);
-
-	inode_lock_nested(inode1, I_MUTEX_PARENT);
-	inode_lock_nested(inode2, I_MUTEX_CHILD);
-}
-
 static void btrfs_double_extent_unlock(struct inode *inode1, u64 loff1,
-				      struct inode *inode2, u64 loff2, u64 len)
+				       struct inode *inode2, u64 loff2, u64 len)
 {
 	unlock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1);
 	unlock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
 }
 
-static int btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
-				    struct inode *inode2, u64 loff2, u64 len,
-				    bool retry_range_locking)
+static void btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
+				     struct inode *inode2, u64 loff2, u64 len)
 {
-	int ret;
-
 	if (inode1 < inode2) {
 		swap(inode1, inode2);
 		swap(loff1, loff2);
+	} else if (inode1 == inode2 && loff2 < loff1) {
+		swap(loff1, loff2);
 	}
-	ret = lock_extent_range(inode1, loff1, len, retry_range_locking);
-	if (ret)
-		return ret;
-	ret = lock_extent_range(inode2, loff2, len, retry_range_locking);
-	if (ret)
-		unlock_extent(&BTRFS_I(inode1)->io_tree, loff1,
-			      loff1 + len - 1);
-	return ret;
+	lock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1);
+	lock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
 }
 
-struct cmp_pages {
-	int		num_pages;
-	struct page	**src_pages;
-	struct page	**dst_pages;
-};
-
-static void btrfs_cmp_data_free(struct cmp_pages *cmp)
-{
-	int i;
-	struct page *pg;
-
-	for (i = 0; i < cmp->num_pages; i++) {
-		pg = cmp->src_pages[i];
-		if (pg) {
-			unlock_page(pg);
-			put_page(pg);
-			cmp->src_pages[i] = NULL;
-		}
-		pg = cmp->dst_pages[i];
-		if (pg) {
-			unlock_page(pg);
-			put_page(pg);
-			cmp->dst_pages[i] = NULL;
-		}
-	}
-}
-
-static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
-				  struct inode *dst, u64 dst_loff,
-				  u64 len, struct cmp_pages *cmp)
+static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
+				   struct inode *dst, u64 dst_loff)
 {
 	int ret;
-	int num_pages = PAGE_ALIGN(len) >> PAGE_SHIFT;
 
-	cmp->num_pages = num_pages;
-
-	ret = gather_extent_pages(src, cmp->src_pages, num_pages, loff);
-	if (ret)
-		goto out;
-
-	ret = gather_extent_pages(dst, cmp->dst_pages, num_pages, dst_loff);
-
-out:
-	if (ret)
-		btrfs_cmp_data_free(cmp);
-	return ret;
-}
-
-static int btrfs_cmp_data(u64 len, struct cmp_pages *cmp)
-{
-	int ret = 0;
-	int i;
-	struct page *src_page, *dst_page;
-	unsigned int cmp_len = PAGE_SIZE;
-	void *addr, *dst_addr;
-
-	i = 0;
-	while (len) {
-		if (len < PAGE_SIZE)
-			cmp_len = len;
-
-		BUG_ON(i >= cmp->num_pages);
-
-		src_page = cmp->src_pages[i];
-		dst_page = cmp->dst_pages[i];
-		ASSERT(PageLocked(src_page));
-		ASSERT(PageLocked(dst_page));
-
-		addr = kmap_atomic(src_page);
-		dst_addr = kmap_atomic(dst_page);
-
-		flush_dcache_page(src_page);
-		flush_dcache_page(dst_page);
-
-		if (memcmp(addr, dst_addr, cmp_len))
-			ret = -EBADE;
-
-		kunmap_atomic(addr);
-		kunmap_atomic(dst_addr);
-
-		if (ret)
-			break;
-
-		len -= cmp_len;
-		i++;
-	}
-
-	return ret;
-}
-
-static int extent_same_check_offsets(struct inode *inode, u64 off, u64 *plen,
-				     u64 olen)
-{
-	u64 len = *plen;
-	u64 bs = BTRFS_I(inode)->root->fs_info->sb->s_blocksize;
-
-	if (off + olen > inode->i_size || off + olen < off)
-		return -EINVAL;
-
-	/* if we extend to eof, continue to block boundary */
-	if (off + len == inode->i_size)
-		*plen = len = ALIGN(inode->i_size, bs) - off;
-
-	/* Check that we are block aligned - btrfs_clone() requires this */
-	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs))
-		return -EINVAL;
-
-	return 0;
-}
-
-static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
-				   struct inode *dst, u64 dst_loff,
-				   struct cmp_pages *cmp)
-{
-	int ret;
-	u64 len = olen;
-	bool same_inode = (src == dst);
-	u64 same_lock_start = 0;
-	u64 same_lock_len = 0;
-
-	ret = extent_same_check_offsets(src, loff, &len, olen);
-	if (ret)
-		return ret;
-
-	ret = extent_same_check_offsets(dst, dst_loff, &len, olen);
-	if (ret)
-		return ret;
-
-	if (same_inode) {
-		/*
-		 * Single inode case wants the same checks, except we
-		 * don't want our length pushed out past i_size as
-		 * comparing that data range makes no sense.
-		 *
-		 * extent_same_check_offsets() will do this for an
-		 * unaligned length at i_size, so catch it here and
-		 * reject the request.
-		 *
-		 * This effectively means we require aligned extents
-		 * for the single-inode case, whereas the other cases
-		 * allow an unaligned length so long as it ends at
-		 * i_size.
-		 */
-		if (len != olen)
-			return -EINVAL;
-
-		/* Check for overlapping ranges */
-		if (dst_loff + len > loff && dst_loff < loff + len)
-			return -EINVAL;
-
-		same_lock_start = min_t(u64, loff, dst_loff);
-		same_lock_len = max_t(u64, loff, dst_loff) + len - same_lock_start;
-	} else {
-		/*
-		 * If the source and destination inodes are different, the
-		 * source's range end offset matches the source's i_size, that
-		 * i_size is not a multiple of the sector size, and the
-		 * destination range does not go past the destination's i_size,
-		 * we must round down the length to the nearest sector size
-		 * multiple. If we don't do this adjustment we end replacing
-		 * with zeroes the bytes in the range that starts at the
-		 * deduplication range's end offset and ends at the next sector
-		 * size multiple.
-		 */
-		if (loff + olen == i_size_read(src) &&
-		    dst_loff + len < i_size_read(dst)) {
-			const u64 sz = BTRFS_I(src)->root->fs_info->sectorsize;
-
-			len = round_down(i_size_read(src), sz) - loff;
-			if (len == 0)
-				return 0;
-			olen = len;
-		}
-	}
-
-again:
-	ret = btrfs_cmp_data_prepare(src, loff, dst, dst_loff, olen, cmp);
-	if (ret)
-		return ret;
-
-	if (same_inode)
-		ret = lock_extent_range(src, same_lock_start, same_lock_len,
-					false);
-	else
-		ret = btrfs_double_extent_lock(src, loff, dst, dst_loff, len,
-					       false);
 	/*
-	 * If one of the inodes has dirty pages in the respective range or
-	 * ordered extents, we need to flush dellaloc and wait for all ordered
-	 * extents in the range. We must unlock the pages and the ranges in the
-	 * io trees to avoid deadlocks when flushing delalloc (requires locking
-	 * pages) and when waiting for ordered extents to complete (they require
-	 * range locking).
+	 * Lock destination range to serialize with concurrent readpages() and
+	 * source range to serialize with relocation.
 	 */
-	if (ret == -EAGAIN) {
-		/*
-		 * Ranges in the io trees already unlocked. Now unlock all
-		 * pages before waiting for all IO to complete.
-		 */
-		btrfs_cmp_data_free(cmp);
-		if (same_inode) {
-			btrfs_wait_ordered_range(src, same_lock_start,
-						 same_lock_len);
-		} else {
-			btrfs_wait_ordered_range(src, loff, len);
-			btrfs_wait_ordered_range(dst, dst_loff, len);
-		}
-		goto again;
-	}
-	ASSERT(ret == 0);
-	if (WARN_ON(ret)) {
-		/* ranges in the io trees already unlocked */
-		btrfs_cmp_data_free(cmp);
-		return ret;
-	}
-
-	/* pass original length for comparison so we stay within i_size */
-	ret = btrfs_cmp_data(olen, cmp);
-	if (ret == 0)
-		ret = btrfs_clone(src, dst, loff, olen, len, dst_loff, 1);
-
-	if (same_inode)
-		unlock_extent(&BTRFS_I(src)->io_tree, same_lock_start,
-			      same_lock_start + same_lock_len - 1);
-	else
-		btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
-
-	btrfs_cmp_data_free(cmp);
+	btrfs_double_extent_lock(src, loff, dst, dst_loff, len);
+	ret = btrfs_clone(src, dst, loff, len, len, dst_loff, 1);
+	btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
 
 	return ret;
 }
@@ -3557,58 +3259,16 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 			     struct inode *dst, u64 dst_loff)
 {
 	int ret;
-	struct cmp_pages cmp;
-	int num_pages = PAGE_ALIGN(BTRFS_MAX_DEDUPE_LEN) >> PAGE_SHIFT;
-	bool same_inode = (src == dst);
 	u64 i, tail_len, chunk_count;
-
-	if (olen == 0)
-		return 0;
-
-	if (same_inode)
-		inode_lock(src);
-	else
-		btrfs_double_inode_lock(src, dst);
-
-	/* don't make the dst file partly checksummed */
-	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
-	    (BTRFS_I(dst)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
 
 	tail_len = olen % BTRFS_MAX_DEDUPE_LEN;
 	chunk_count = div_u64(olen, BTRFS_MAX_DEDUPE_LEN);
-	if (chunk_count == 0)
-		num_pages = PAGE_ALIGN(tail_len) >> PAGE_SHIFT;
-
-	/*
-	 * If deduping ranges in the same inode, locking rules make it
-	 * mandatory to always lock pages in ascending order to avoid deadlocks
-	 * with concurrent tasks (such as starting writeback/delalloc).
-	 */
-	if (same_inode && dst_loff < loff)
-		swap(loff, dst_loff);
-
-	/*
-	 * We must gather up all the pages before we initiate our extent
-	 * locking. We use an array for the page pointers. Size of the array is
-	 * bounded by len, which is in turn bounded by BTRFS_MAX_DEDUPE_LEN.
-	 */
-	cmp.src_pages = kvmalloc_array(num_pages, sizeof(struct page *),
-				       GFP_KERNEL | __GFP_ZERO);
-	cmp.dst_pages = kvmalloc_array(num_pages, sizeof(struct page *),
-				       GFP_KERNEL | __GFP_ZERO);
-	if (!cmp.src_pages || !cmp.dst_pages) {
-		ret = -ENOMEM;
-		goto out_free;
-	}
 
 	for (i = 0; i < chunk_count; i++) {
 		ret = btrfs_extent_same_range(src, loff, BTRFS_MAX_DEDUPE_LEN,
-					      dst, dst_loff, &cmp);
+					      dst, dst_loff);
 		if (ret)
-			goto out_free;
+			return ret;
 
 		loff += BTRFS_MAX_DEDUPE_LEN;
 		dst_loff += BTRFS_MAX_DEDUPE_LEN;
@@ -3616,17 +3276,7 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 
 	if (tail_len > 0)
 		ret = btrfs_extent_same_range(src, loff, tail_len, dst,
-					      dst_loff, &cmp);
-
-out_free:
-	kvfree(cmp.src_pages);
-	kvfree(cmp.dst_pages);
-
-out_unlock:
-	if (same_inode)
-		inode_unlock(src);
-	else
-		btrfs_double_inode_unlock(src, dst);
+					      dst_loff);
 
 	return ret;
 }
@@ -4213,11 +3863,9 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	struct inode *inode = file_inode(file);
 	struct inode *src = file_inode(file_src);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 	u64 len = olen;
 	u64 bs = fs_info->sb->s_blocksize;
-	int same_inode = src == inode;
 
 	/*
 	 * TODO:
@@ -4230,101 +3878,43 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	 *   be either compressed or non-compressed.
 	 */
 
-	if (btrfs_root_readonly(root))
-		return -EROFS;
-
-	if (file_src->f_path.mnt != file->f_path.mnt ||
-	    src->i_sb != inode->i_sb)
-		return -EXDEV;
-
-	if (S_ISDIR(src->i_mode) || S_ISDIR(inode->i_mode))
-		return -EISDIR;
-
-	if (!same_inode) {
-		btrfs_double_inode_lock(src, inode);
-	} else {
-		inode_lock(src);
-	}
-
-	/* don't make the dst file partly checksummed */
-	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
-	    (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
-	/* determine range to clone */
-	ret = -EINVAL;
-	if (off + len > src->i_size || off + len < off)
-		goto out_unlock;
-	if (len == 0)
-		olen = len = src->i_size - off;
 	/*
-	 * If we extend to eof, continue to block boundary if and only if the
-	 * destination end offset matches the destination file's size, otherwise
-	 * we would be corrupting data by placing the eof block into the middle
-	 * of a file.
+	 * VFS's generic_remap_file_range_prep() protects us from cloning the
+	 * eof block into the middle of a file, which would result in corruption
+	 * if the file size is not blocksize aligned. So we don't need to check
+	 * for that case here.
 	 */
-	if (off + len == src->i_size) {
-		if (!IS_ALIGNED(len, bs) && destoff + len < inode->i_size)
-			goto out_unlock;
+	if (off + len == src->i_size)
 		len = ALIGN(src->i_size, bs) - off;
-	}
-
-	if (len == 0) {
-		ret = 0;
-		goto out_unlock;
-	}
-
-	/* verify the end result is block aligned */
-	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs) ||
-	    !IS_ALIGNED(destoff, bs))
-		goto out_unlock;
-
-	/* verify if ranges are overlapped within the same file */
-	if (same_inode) {
-		if (destoff + len > off && destoff < off + len)
-			goto out_unlock;
-	}
 
 	if (destoff > inode->i_size) {
+		const u64 wb_start = ALIGN_DOWN(inode->i_size, bs);
+
 		ret = btrfs_cont_expand(inode, inode->i_size, destoff);
 		if (ret)
-			goto out_unlock;
+			return ret;
+		/*
+		 * We may have truncated the last block if the inode's size is
+		 * not sector size aligned, so we need to wait for writeback to
+		 * complete before proceeding further, otherwise we can race
+		 * with cloning and attempt to increment a reference to an
+		 * extent that no longer exists (writeback completed right after
+		 * we found the previous extent covering eof and before we
+		 * attempted to increment its reference count).
+		 */
+		ret = btrfs_wait_ordered_range(inode, wb_start,
+					       destoff - wb_start);
+		if (ret)
+			return ret;
 	}
 
 	/*
-	 * Lock the target range too. Right after we replace the file extent
-	 * items in the fs tree (which now point to the cloned data), we might
-	 * have a worker replace them with extent items relative to a write
-	 * operation that was issued before this clone operation (i.e. confront
-	 * with inode.c:btrfs_finish_ordered_io).
+	 * Lock destination range to serialize with concurrent readpages() and
+	 * source range to serialize with relocation.
 	 */
-	if (same_inode) {
-		u64 lock_start = min_t(u64, off, destoff);
-		u64 lock_len = max_t(u64, off, destoff) + len - lock_start;
-
-		ret = lock_extent_range(src, lock_start, lock_len, true);
-	} else {
-		ret = btrfs_double_extent_lock(src, off, inode, destoff, len,
-					       true);
-	}
-	ASSERT(ret == 0);
-	if (WARN_ON(ret)) {
-		/* ranges in the io trees already unlocked */
-		goto out_unlock;
-	}
-
+	btrfs_double_extent_lock(src, off, inode, destoff, len);
 	ret = btrfs_clone(src, inode, off, olen, len, destoff, 0);
-
-	if (same_inode) {
-		u64 lock_start = min_t(u64, off, destoff);
-		u64 lock_end = max_t(u64, off, destoff) + len - 1;
-
-		unlock_extent(&BTRFS_I(src)->io_tree, lock_start, lock_end);
-	} else {
-		btrfs_double_extent_unlock(src, off, inode, destoff, len);
-	}
+	btrfs_double_extent_unlock(src, off, inode, destoff, len);
 	/*
 	 * Truncate page cache pages so that future reads will see the cloned
 	 * data immediately and not the previous data.
@@ -4332,11 +3922,94 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	truncate_inode_pages_range(&inode->i_data,
 				round_down(destoff, PAGE_SIZE),
 				round_up(destoff + len, PAGE_SIZE) - 1);
-out_unlock:
-	if (!same_inode)
-		btrfs_double_inode_unlock(src, inode);
+
+	return ret;
+}
+
+static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
+				       struct file *file_out, loff_t pos_out,
+				       loff_t *len, unsigned int remap_flags)
+{
+	struct inode *inode_in = file_inode(file_in);
+	struct inode *inode_out = file_inode(file_out);
+	u64 bs = BTRFS_I(inode_out)->root->fs_info->sb->s_blocksize;
+	bool same_inode = inode_out == inode_in;
+	u64 wb_len;
+	int ret;
+
+	if (!(remap_flags & REMAP_FILE_DEDUP)) {
+		struct btrfs_root *root_out = BTRFS_I(inode_out)->root;
+
+		if (btrfs_root_readonly(root_out))
+			return -EROFS;
+
+		if (file_in->f_path.mnt != file_out->f_path.mnt ||
+		    inode_in->i_sb != inode_out->i_sb)
+			return -EXDEV;
+	}
+
+	if (same_inode)
+		inode_lock(inode_in);
 	else
-		inode_unlock(src);
+		lock_two_nondirectories(inode_in, inode_out);
+
+	/* don't make the dst file partly checksummed */
+	if ((BTRFS_I(inode_in)->flags & BTRFS_INODE_NODATASUM) !=
+	    (BTRFS_I(inode_out)->flags & BTRFS_INODE_NODATASUM)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/*
+	 * Now that the inodes are locked, we need to start writeback ourselves
+	 * and can not rely on the writeback from the VFS's generic helper
+	 * generic_remap_file_range_prep() because:
+	 *
+	 * 1) For compression we must call filemap_fdatawrite_range() range
+	 *    twice (btrfs_fdatawrite_range() does it for us), and the generic
+	 *    helper only calls it once;
+	 *
+	 * 2) filemap_fdatawrite_range(), called by the generic helper only
+	 *    waits for the writeback to complete, i.e. for IO to be done, and
+	 *    not for the ordered extents to complete. We need to wait for them
+	 *    to complete so that new file extent items are in the fs tree.
+	 */
+	if (*len == 0 && !(remap_flags & REMAP_FILE_DEDUP))
+		wb_len = ALIGN(inode_in->i_size, bs) - ALIGN_DOWN(pos_in, bs);
+	else
+		wb_len = ALIGN(*len, bs);
+
+	/*
+	 * Since we don't lock ranges, wait for ongoing lockless dio writes (as
+	 * any in progress could create its ordered extents after we wait for
+	 * existing ordered extents below).
+	 */
+	inode_dio_wait(inode_in);
+	if (!same_inode)
+		inode_dio_wait(inode_out);
+
+	ret = btrfs_wait_ordered_range(inode_in, ALIGN_DOWN(pos_in, bs),
+				       wb_len);
+	if (ret < 0)
+		goto out_unlock;
+	ret = btrfs_wait_ordered_range(inode_out, ALIGN_DOWN(pos_out, bs),
+				       wb_len);
+	if (ret < 0)
+		goto out_unlock;
+
+	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+					    len, remap_flags);
+	if (ret < 0 || *len == 0)
+		goto out_unlock;
+
+	return 0;
+
+ out_unlock:
+	if (same_inode)
+		inode_unlock(inode_in);
+	else
+		unlock_two_nondirectories(inode_in, inode_out);
+
 	return ret;
 }
 
@@ -4344,29 +4017,29 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 		struct file *dst_file, loff_t destoff, loff_t len,
 		unsigned int remap_flags)
 {
+	struct inode *src_inode = file_inode(src_file);
+	struct inode *dst_inode = file_inode(dst_file);
+	bool same_inode = dst_inode == src_inode;
 	int ret;
 
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
-	if (remap_flags & REMAP_FILE_DEDUP) {
-		struct inode *src = file_inode(src_file);
-		struct inode *dst = file_inode(dst_file);
-		u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
+	ret = btrfs_remap_file_range_prep(src_file, off, dst_file, destoff,
+					  &len, remap_flags);
+	if (ret < 0 || len == 0)
+		return ret;
 
-		if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
-			/*
-			 * Btrfs does not support blocksize < page_size. As a
-			 * result, btrfs_cmp_data() won't correctly handle
-			 * this situation without an update.
-			 */
-			return -EINVAL;
-		}
-
-		ret = btrfs_extent_same(src, off, len, dst, destoff);
-	} else {
+	if (remap_flags & REMAP_FILE_DEDUP)
+		ret = btrfs_extent_same(src_inode, off, len, dst_inode, destoff);
+	else
 		ret = btrfs_clone_files(dst_file, src_file, off, len, destoff);
-	}
+
+	if (same_inode)
+		inode_unlock(src_inode);
+	else
+		unlock_two_nondirectories(src_inode, dst_inode);
+
 	return ret < 0 ? ret : len;
 }
 
@@ -4677,7 +4350,7 @@ static long btrfs_ioctl_scrub(struct file *file, void __user *arg)
 			      &sa->progress, sa->flags & BTRFS_SCRUB_READONLY,
 			      0);
 
-	if (copy_to_user(arg, sa, sizeof(*sa)))
+	if (ret == 0 && copy_to_user(arg, sa, sizeof(*sa)))
 		ret = -EFAULT;
 
 	if (!(sa->flags & BTRFS_SCRUB_READONLY))
@@ -4710,7 +4383,7 @@ static long btrfs_ioctl_scrub_progress(struct btrfs_fs_info *fs_info,
 
 	ret = btrfs_scrub_progress(fs_info, sa->devid, &sa->progress);
 
-	if (copy_to_user(arg, sa, sizeof(*sa)))
+	if (ret == 0 && copy_to_user(arg, sa, sizeof(*sa)))
 		ret = -EFAULT;
 
 	kfree(sa);
@@ -4734,7 +4407,7 @@ static long btrfs_ioctl_get_dev_stats(struct btrfs_fs_info *fs_info,
 
 	ret = btrfs_get_dev_stats(fs_info, sa);
 
-	if (copy_to_user(arg, sa, sizeof(*sa)))
+	if (ret == 0 && copy_to_user(arg, sa, sizeof(*sa)))
 		ret = -EFAULT;
 
 	kfree(sa);
@@ -4780,7 +4453,7 @@ static long btrfs_ioctl_dev_replace(struct btrfs_fs_info *fs_info,
 		break;
 	}
 
-	if (copy_to_user(arg, p, sizeof(*p)))
+	if ((ret == 0 || ret == -ECANCELED) && copy_to_user(arg, p, sizeof(*p)))
 		ret = -EFAULT;
 out:
 	kfree(p);
@@ -5086,7 +4759,7 @@ do_balance:
 	ret = btrfs_balance(fs_info, bctl, bargs);
 	bctl = NULL;
 
-	if (arg) {
+	if ((ret == 0 || ret == -ECANCELED) && arg) {
 		if (copy_to_user(arg, bargs, sizeof(*bargs)))
 			ret = -EFAULT;
 	}

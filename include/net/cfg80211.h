@@ -6,7 +6,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -777,8 +777,10 @@ struct cfg80211_crypto_settings {
  * @probe_resp: probe response template (AP mode only)
  * @ftm_responder: enable FTM responder functionality; -1 for no change
  *	(which also implies no change in LCI/civic location data)
- * @lci: LCI subelement content
- * @civicloc: Civic location subelement content
+ * @lci: Measurement Report element content, starting with Measurement Token
+ *	(measurement type 8)
+ * @civicloc: Measurement Report element content, starting with Measurement
+ *	Token (measurement type 11)
  * @lci_len: LCI data length
  * @civicloc_len: Civic location data length
  */
@@ -834,6 +836,17 @@ struct cfg80211_bitrate_mask {
 };
 
 /**
+ * enum cfg80211_ap_settings_flags - AP settings flags
+ *
+ * Used by cfg80211_ap_settings
+ *
+ * @AP_SETTINGS_EXTERNAL_AUTH_SUPPORT: AP supports external authentication
+ */
+enum cfg80211_ap_settings_flags {
+	AP_SETTINGS_EXTERNAL_AUTH_SUPPORT = BIT(0),
+};
+
+/**
  * struct cfg80211_ap_settings - AP configuration
  *
  * Used to configure an AP interface.
@@ -863,6 +876,7 @@ struct cfg80211_bitrate_mask {
  * @he_cap: HE capabilities (or %NULL if HE isn't enabled)
  * @ht_required: stations must support HT
  * @vht_required: stations must support VHT
+ * @flags: flags, as defined in enum cfg80211_ap_settings_flags
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -888,6 +902,7 @@ struct cfg80211_ap_settings {
 	const struct ieee80211_vht_cap *vht_cap;
 	const struct ieee80211_he_cap_elem *he_cap;
 	bool ht_required, vht_required;
+	u32 flags;
 };
 
 /**
@@ -1001,6 +1016,7 @@ enum station_parameters_apply_mask {
  * @support_p2p_ps: information if station supports P2P PS mechanism
  * @he_capa: HE capabilities of station
  * @he_capa_len: the length of the HE capabilities
+ * @airtime_weight: airtime scheduler weight for this station
  */
 struct station_parameters {
 	const u8 *supported_rates;
@@ -1030,6 +1046,7 @@ struct station_parameters {
 	int support_p2p_ps;
 	const struct ieee80211_he_cap_elem *he_capa;
 	u8 he_capa_len;
+	u16 airtime_weight;
 };
 
 /**
@@ -1296,7 +1313,10 @@ struct cfg80211_tid_stats {
  * @rx_beacon: number of beacons received from this peer
  * @rx_beacon_signal_avg: signal strength average (in dBm) for beacons received
  *	from this peer
+ * @connected_to_gate: true if mesh STA has a path to mesh gate
  * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
+ * @tx_duration: aggregate PPDU duration(usecs) for all the frames to a peer
+ * @airtime_weight: current airtime scheduling weight
  * @pertid: per-TID statistics, see &struct cfg80211_tid_stats, using the last
  *	(IEEE80211_NUM_TIDS) index for MSDUs not encapsulated in QoS-MPDUs.
  *	Note that this doesn't use the @filled bit, but is used if non-NULL.
@@ -1347,12 +1367,17 @@ struct station_info {
 
 	u32 expected_throughput;
 
-	u64 rx_beacon;
+	u64 tx_duration;
 	u64 rx_duration;
+	u64 rx_beacon;
 	u8 rx_beacon_signal_avg;
+	u8 connected_to_gate;
+
 	struct cfg80211_tid_stats *pertid;
 	s8 ack_signal;
 	s8 avg_ack_signal;
+
+	u16 airtime_weight;
 
 	u32 rx_mpdu_count;
 	u32 fcs_err_count;
@@ -1417,6 +1442,8 @@ enum monitor_flags {
  * @MPATH_INFO_DISCOVERY_TIMEOUT: @discovery_timeout filled
  * @MPATH_INFO_DISCOVERY_RETRIES: @discovery_retries filled
  * @MPATH_INFO_FLAGS: @flags filled
+ * @MPATH_INFO_HOP_COUNT: @hop_count filled
+ * @MPATH_INFO_PATH_CHANGE: @path_change_count filled
  */
 enum mpath_info_flags {
 	MPATH_INFO_FRAME_QLEN		= BIT(0),
@@ -1426,6 +1453,8 @@ enum mpath_info_flags {
 	MPATH_INFO_DISCOVERY_TIMEOUT	= BIT(4),
 	MPATH_INFO_DISCOVERY_RETRIES	= BIT(5),
 	MPATH_INFO_FLAGS		= BIT(6),
+	MPATH_INFO_HOP_COUNT		= BIT(7),
+	MPATH_INFO_PATH_CHANGE		= BIT(8),
 };
 
 /**
@@ -1445,6 +1474,8 @@ enum mpath_info_flags {
  *	This number should increase every time the list of mesh paths
  *	changes, i.e. when a station is added or removed, so that
  *	userspace can tell whether it got a consistent snapshot.
+ * @hop_count: hops to destination
+ * @path_change_count: total number of path changes to destination
  */
 struct mpath_info {
 	u32 filled;
@@ -1455,6 +1486,8 @@ struct mpath_info {
 	u32 discovery_timeout;
 	u8 discovery_retries;
 	u8 flags;
+	u8 hop_count;
+	u32 path_change_count;
 
 	int generation;
 };
@@ -1559,6 +1592,10 @@ struct bss_parameters {
  * @plink_timeout: If no tx activity is seen from a STA we've established
  *	peering with for longer than this time (in seconds), then remove it
  *	from the STA's list of peers.  Default is 30 minutes.
+ * @dot11MeshConnectedToMeshGate: if set to true, advertise that this STA is
+ *      connected to a mesh gate in mesh formation info.  If false, the
+ *      value in mesh formation is determined by the presence of root paths
+ *      in the mesh path table
  */
 struct mesh_config {
 	u16 dot11MeshRetryTimeout;
@@ -1578,6 +1615,7 @@ struct mesh_config {
 	u16 dot11MeshHWMPperrMinInterval;
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
 	u8 dot11MeshHWMPRootMode;
+	bool dot11MeshConnectedToMeshGate;
 	u16 dot11MeshHWMPRannInterval;
 	bool dot11MeshGateAnnouncementProtocol;
 	bool dot11MeshForwarding;
@@ -1997,9 +2035,15 @@ struct cfg80211_bss_ies {
  *	a BSS that hides the SSID in its beacon, this points to the BSS struct
  *	that holds the beacon data. @beacon_ies is still valid, of course, and
  *	points to the same data as hidden_beacon_bss->beacon_ies in that case.
+ * @transmitted_bss: pointer to the transmitted BSS, if this is a
+ *	non-transmitted one (multi-BSSID support)
+ * @nontrans_list: list of non-transmitted BSS, if this is a transmitted one
+ *	(multi-BSSID support)
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @chains: bitmask for filled values in @chain_signal.
  * @chain_signal: per-chain signal strength of last received BSS in dBm.
+ * @bssid_index: index in the multiple BSS set
+ * @max_bssid_indicator: max number of members in the BSS set
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
@@ -2011,6 +2055,8 @@ struct cfg80211_bss {
 	const struct cfg80211_bss_ies __rcu *proberesp_ies;
 
 	struct cfg80211_bss *hidden_beacon_bss;
+	struct cfg80211_bss *transmitted_bss;
+	struct list_head nontrans_list;
 
 	s32 signal;
 
@@ -2021,19 +2067,36 @@ struct cfg80211_bss {
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 
+	u8 bssid_index;
+	u8 max_bssid_indicator;
+
 	u8 priv[0] __aligned(sizeof(void *));
 };
 
 /**
- * ieee80211_bss_get_ie - find IE with given ID
+ * ieee80211_bss_get_elem - find element with given ID
  * @bss: the bss to search
- * @ie: the IE ID
+ * @id: the element ID
  *
  * Note that the return value is an RCU-protected pointer, so
  * rcu_read_lock() must be held when calling this function.
  * Return: %NULL if not found.
  */
-const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);
+const struct element *ieee80211_bss_get_elem(struct cfg80211_bss *bss, u8 id);
+
+/**
+ * ieee80211_bss_get_ie - find IE with given ID
+ * @bss: the bss to search
+ * @id: the element ID
+ *
+ * Note that the return value is an RCU-protected pointer, so
+ * rcu_read_lock() must be held when calling this function.
+ * Return: %NULL if not found.
+ */
+static inline const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 id)
+{
+	return (void *)ieee80211_bss_get_elem(bss, id);
+}
 
 
 /**
@@ -2380,6 +2443,8 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_TXQ_MEMORY_LIMIT	= 1 << 7,
 	WIPHY_PARAM_TXQ_QUANTUM		= 1 << 8,
 };
+
+#define IEEE80211_DEFAULT_AIRTIME_WEIGHT	256
 
 /**
  * struct cfg80211_pmksa - PMK Security Association
@@ -2805,6 +2870,7 @@ struct cfg80211_pmk_conf {
  *	use %WLAN_STATUS_UNSPECIFIED_FAILURE if user space cannot give you
  *	the real status code for failures. Used only for the authentication
  *	response command interface (user space to driver).
+ * @pmkid: The identifier to refer a PMKSA.
  */
 struct cfg80211_external_auth_params {
 	enum nl80211_external_auth_action action;
@@ -2812,10 +2878,11 @@ struct cfg80211_external_auth_params {
 	struct cfg80211_ssid ssid;
 	unsigned int key_mgmt_suite;
 	u16 status;
+	const u8 *pmkid;
 };
 
 /**
- * cfg80211_ftm_responder_stats - FTM responder statistics
+ * struct cfg80211_ftm_responder_stats - FTM responder statistics
  *
  * @filled: bitflag of flags using the bits of &enum nl80211_ftm_stats to
  *	indicate the relevant values in this struct for them
@@ -2846,6 +2913,190 @@ struct cfg80211_ftm_responder_stats {
 	u32 unknown_triggers_num;
 	u32 reschedule_requests_num;
 	u32 out_of_window_triggers_num;
+};
+
+/**
+ * struct cfg80211_pmsr_ftm_result - FTM result
+ * @failure_reason: if this measurement failed (PMSR status is
+ *	%NL80211_PMSR_STATUS_FAILURE), this gives a more precise
+ *	reason than just "failure"
+ * @burst_index: if reporting partial results, this is the index
+ *	in [0 .. num_bursts-1] of the burst that's being reported
+ * @num_ftmr_attempts: number of FTM request frames transmitted
+ * @num_ftmr_successes: number of FTM request frames acked
+ * @busy_retry_time: if failure_reason is %NL80211_PMSR_FTM_FAILURE_PEER_BUSY,
+ *	fill this to indicate in how many seconds a retry is deemed possible
+ *	by the responder
+ * @num_bursts_exp: actual number of bursts exponent negotiated
+ * @burst_duration: actual burst duration negotiated
+ * @ftms_per_burst: actual FTMs per burst negotiated
+ * @lci_len: length of LCI information (if present)
+ * @civicloc_len: length of civic location information (if present)
+ * @lci: LCI data (may be %NULL)
+ * @civicloc: civic location data (may be %NULL)
+ * @rssi_avg: average RSSI over FTM action frames reported
+ * @rssi_spread: spread of the RSSI over FTM action frames reported
+ * @tx_rate: bitrate for transmitted FTM action frame response
+ * @rx_rate: bitrate of received FTM action frame
+ * @rtt_avg: average of RTTs measured (must have either this or @dist_avg)
+ * @rtt_variance: variance of RTTs measured (note that standard deviation is
+ *	the square root of the variance)
+ * @rtt_spread: spread of the RTTs measured
+ * @dist_avg: average of distances (mm) measured
+ *	(must have either this or @rtt_avg)
+ * @dist_variance: variance of distances measured (see also @rtt_variance)
+ * @dist_spread: spread of distances measured (see also @rtt_spread)
+ * @num_ftmr_attempts_valid: @num_ftmr_attempts is valid
+ * @num_ftmr_successes_valid: @num_ftmr_successes is valid
+ * @rssi_avg_valid: @rssi_avg is valid
+ * @rssi_spread_valid: @rssi_spread is valid
+ * @tx_rate_valid: @tx_rate is valid
+ * @rx_rate_valid: @rx_rate is valid
+ * @rtt_avg_valid: @rtt_avg is valid
+ * @rtt_variance_valid: @rtt_variance is valid
+ * @rtt_spread_valid: @rtt_spread is valid
+ * @dist_avg_valid: @dist_avg is valid
+ * @dist_variance_valid: @dist_variance is valid
+ * @dist_spread_valid: @dist_spread is valid
+ */
+struct cfg80211_pmsr_ftm_result {
+	const u8 *lci;
+	const u8 *civicloc;
+	unsigned int lci_len;
+	unsigned int civicloc_len;
+	enum nl80211_peer_measurement_ftm_failure_reasons failure_reason;
+	u32 num_ftmr_attempts, num_ftmr_successes;
+	s16 burst_index;
+	u8 busy_retry_time;
+	u8 num_bursts_exp;
+	u8 burst_duration;
+	u8 ftms_per_burst;
+	s32 rssi_avg;
+	s32 rssi_spread;
+	struct rate_info tx_rate, rx_rate;
+	s64 rtt_avg;
+	s64 rtt_variance;
+	s64 rtt_spread;
+	s64 dist_avg;
+	s64 dist_variance;
+	s64 dist_spread;
+
+	u16 num_ftmr_attempts_valid:1,
+	    num_ftmr_successes_valid:1,
+	    rssi_avg_valid:1,
+	    rssi_spread_valid:1,
+	    tx_rate_valid:1,
+	    rx_rate_valid:1,
+	    rtt_avg_valid:1,
+	    rtt_variance_valid:1,
+	    rtt_spread_valid:1,
+	    dist_avg_valid:1,
+	    dist_variance_valid:1,
+	    dist_spread_valid:1;
+};
+
+/**
+ * struct cfg80211_pmsr_result - peer measurement result
+ * @addr: address of the peer
+ * @host_time: host time (use ktime_get_boottime() adjust to the time when the
+ *	measurement was made)
+ * @ap_tsf: AP's TSF at measurement time
+ * @status: status of the measurement
+ * @final: if reporting partial results, mark this as the last one; if not
+ *	reporting partial results always set this flag
+ * @ap_tsf_valid: indicates the @ap_tsf value is valid
+ * @type: type of the measurement reported, note that we only support reporting
+ *	one type at a time, but you can report multiple results separately and
+ *	they're all aggregated for userspace.
+ */
+struct cfg80211_pmsr_result {
+	u64 host_time, ap_tsf;
+	enum nl80211_peer_measurement_status status;
+
+	u8 addr[ETH_ALEN];
+
+	u8 final:1,
+	   ap_tsf_valid:1;
+
+	enum nl80211_peer_measurement_type type;
+
+	union {
+		struct cfg80211_pmsr_ftm_result ftm;
+	};
+};
+
+/**
+ * struct cfg80211_pmsr_ftm_request_peer - FTM request data
+ * @requested: indicates FTM is requested
+ * @preamble: frame preamble to use
+ * @burst_period: burst period to use
+ * @asap: indicates to use ASAP mode
+ * @num_bursts_exp: number of bursts exponent
+ * @burst_duration: burst duration
+ * @ftms_per_burst: number of FTMs per burst
+ * @ftmr_retries: number of retries for FTM request
+ * @request_lci: request LCI information
+ * @request_civicloc: request civic location information
+ *
+ * See also nl80211 for the respective attribute documentation.
+ */
+struct cfg80211_pmsr_ftm_request_peer {
+	enum nl80211_preamble preamble;
+	u16 burst_period;
+	u8 requested:1,
+	   asap:1,
+	   request_lci:1,
+	   request_civicloc:1;
+	u8 num_bursts_exp;
+	u8 burst_duration;
+	u8 ftms_per_burst;
+	u8 ftmr_retries;
+};
+
+/**
+ * struct cfg80211_pmsr_request_peer - peer data for a peer measurement request
+ * @addr: MAC address
+ * @chandef: channel to use
+ * @report_ap_tsf: report the associated AP's TSF
+ * @ftm: FTM data, see &struct cfg80211_pmsr_ftm_request_peer
+ */
+struct cfg80211_pmsr_request_peer {
+	u8 addr[ETH_ALEN];
+	struct cfg80211_chan_def chandef;
+	u8 report_ap_tsf:1;
+	struct cfg80211_pmsr_ftm_request_peer ftm;
+};
+
+/**
+ * struct cfg80211_pmsr_request - peer measurement request
+ * @cookie: cookie, set by cfg80211
+ * @nl_portid: netlink portid - used by cfg80211
+ * @drv_data: driver data for this request, if required for aborting,
+ *	not otherwise freed or anything by cfg80211
+ * @mac_addr: MAC address used for (randomised) request
+ * @mac_addr_mask: MAC address mask used for randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
+ * @list: used by cfg80211 to hold on to the request
+ * @timeout: timeout (in milliseconds) for the whole operation, if
+ *	zero it means there's no timeout
+ * @n_peers: number of peers to do measurements with
+ * @peers: per-peer measurement request data
+ */
+struct cfg80211_pmsr_request {
+	u64 cookie;
+	void *drv_data;
+	u32 n_peers;
+	u32 nl_portid;
+
+	u32 timeout;
+
+	u8 mac_addr[ETH_ALEN] __aligned(2);
+	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
+
+	struct list_head list;
+
+	struct cfg80211_pmsr_request_peer peers[];
 };
 
 /**
@@ -3183,6 +3434,8 @@ struct cfg80211_ftm_responder_stats {
  *
  * @get_ftm_responder_stats: Retrieve FTM responder statistics, if available.
  *	Statistics should be cumulative, currently no way to reset is provided.
+ * @start_pmsr: start peer measurement (e.g. FTM)
+ * @abort_pmsr: abort peer measurement
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3492,6 +3745,11 @@ struct cfg80211_ops {
 	int	(*get_ftm_responder_stats)(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct cfg80211_ftm_responder_stats *ftm_stats);
+
+	int	(*start_pmsr)(struct wiphy *wiphy, struct wireless_dev *wdev,
+			      struct cfg80211_pmsr_request *request);
+	void	(*abort_pmsr)(struct wiphy *wiphy, struct wireless_dev *wdev,
+			      struct cfg80211_pmsr_request *request);
 };
 
 /*
@@ -3864,6 +4122,42 @@ struct wiphy_iftype_ext_capab {
 };
 
 /**
+ * struct cfg80211_pmsr_capabilities - cfg80211 peer measurement capabilities
+ * @max_peers: maximum number of peers in a single measurement
+ * @report_ap_tsf: can report assoc AP's TSF for radio resource measurement
+ * @randomize_mac_addr: can randomize MAC address for measurement
+ * @ftm.supported: FTM measurement is supported
+ * @ftm.asap: ASAP-mode is supported
+ * @ftm.non_asap: non-ASAP-mode is supported
+ * @ftm.request_lci: can request LCI data
+ * @ftm.request_civicloc: can request civic location data
+ * @ftm.preambles: bitmap of preambles supported (&enum nl80211_preamble)
+ * @ftm.bandwidths: bitmap of bandwidths supported (&enum nl80211_chan_width)
+ * @ftm.max_bursts_exponent: maximum burst exponent supported
+ *	(set to -1 if not limited; note that setting this will necessarily
+ *	forbid using the value 15 to let the responder pick)
+ * @ftm.max_ftms_per_burst: maximum FTMs per burst supported (set to 0 if
+ *	not limited)
+ */
+struct cfg80211_pmsr_capabilities {
+	unsigned int max_peers;
+	u8 report_ap_tsf:1,
+	   randomize_mac_addr:1;
+
+	struct {
+		u32 preambles;
+		u32 bandwidths;
+		s8 max_bursts_exponent;
+		u8 max_ftms_per_burst;
+		u8 supported:1,
+		   asap:1,
+		   non_asap:1,
+		   request_lci:1,
+		   request_civicloc:1;
+	} ftm;
+};
+
+/**
  * struct wiphy - wireless hardware description
  * @reg_notifier: the driver's regulatory notification callback,
  *	note that if your driver uses wiphy_apply_custom_regulatory()
@@ -3875,6 +4169,8 @@ struct wiphy_iftype_ext_capab {
  * @signal_type: signal type reported in &struct cfg80211_bss.
  * @cipher_suites: supported cipher suites
  * @n_cipher_suites: number of supported cipher suites
+ * @akm_suites: supported AKM suites
+ * @n_akm_suites: number of supported AKM suites
  * @retry_short: Retry limit for short frames (dot11ShortRetryLimit)
  * @retry_long: Retry limit for long frames (dot11LongRetryLimit)
  * @frag_threshold: Fragmentation threshold (dot11FragmentationThreshold);
@@ -4027,6 +4323,13 @@ struct wiphy_iftype_ext_capab {
  * @txq_limit: configuration of internal TX queue frame limit
  * @txq_memory_limit: configuration internal TX queue memory limit
  * @txq_quantum: configuration of internal TX queue scheduler quantum
+ *
+ * @support_mbssid: can HW support association with nontransmitted AP
+ * @support_only_he_mbssid: don't parse MBSSID elements if it is not
+ *	HE AP, in order to avoid compatibility issues.
+ *	@support_mbssid must be set for this to have any effect.
+ *
+ * @pmsr_capa: peer measurement capabilities
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -4070,6 +4373,9 @@ struct wiphy {
 
 	int n_cipher_suites;
 	const u32 *cipher_suites;
+
+	int n_akm_suites;
+	const u32 *akm_suites;
 
 	u8 retry_short;
 	u8 retry_long;
@@ -4162,6 +4468,11 @@ struct wiphy {
 	u32 txq_limit;
 	u32 txq_memory_limit;
 	u32 txq_quantum;
+
+	u8 support_mbssid:1,
+	   support_only_he_mbssid:1;
+
+	const struct cfg80211_pmsr_capabilities *pmsr_capa;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
@@ -4332,6 +4643,17 @@ struct cfg80211_cqm_config;
  * @mesh_id_len: (private) Used by the internal configuration code
  * @mesh_id_up_len: (private) Used by the internal configuration code
  * @wext: (private) Used by the internal wireless extensions compat code
+ * @wext.ibss: (private) IBSS data part of wext handling
+ * @wext.connect: (private) connection handling data
+ * @wext.keys: (private) (WEP) key data
+ * @wext.ie: (private) extra elements for association
+ * @wext.ie_len: (private) length of extra elements
+ * @wext.bssid: (private) selected network BSSID
+ * @wext.ssid: (private) selected network SSID
+ * @wext.default_key: (private) selected default key index
+ * @wext.default_mgmt_key: (private) selected default management key index
+ * @wext.prev_bssid: (private) previous BSSID for reassociation
+ * @wext.prev_bssid_valid: (private) previous BSSID validity
  * @use_4addr: indicates 4addr mode is used on this interface, must be
  *	set by driver (if supported) on add_interface BEFORE registering the
  *	netdev and may otherwise be used by driver read-only, will be update
@@ -4365,6 +4687,9 @@ struct cfg80211_cqm_config;
  * @owner_nlportid: (private) owner socket port ID
  * @nl_owner_dead: (private) owner socket went away
  * @cqm_config: (private) nl80211 RSSI monitor state
+ * @pmsr_list: (private) peer measurement requests
+ * @pmsr_lock: (private) peer measurements requests/results lock
+ * @pmsr_free_wk: (private) peer measurements cleanup work
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -4428,7 +4753,8 @@ struct wireless_dev {
 		struct cfg80211_cached_keys *keys;
 		const u8 *ie;
 		size_t ie_len;
-		u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
+		u8 bssid[ETH_ALEN];
+		u8 prev_bssid[ETH_ALEN];
 		u8 ssid[IEEE80211_MAX_SSID_LEN];
 		s8 default_key, default_mgmt_key;
 		bool prev_bssid_valid;
@@ -4436,6 +4762,10 @@ struct wireless_dev {
 #endif
 
 	struct cfg80211_cqm_config *cqm_config;
+
+	struct list_head pmsr_list;
+	spinlock_t pmsr_lock;
+	struct work_struct pmsr_free_wk;
 };
 
 static inline u8 *wdev_address(struct wireless_dev *wdev)
@@ -4703,6 +5033,33 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 				    struct cfg80211_qos_map *qos_map);
 
 /**
+ * cfg80211_find_elem_match - match information element and byte array in data
+ *
+ * @eid: element ID
+ * @ies: data consisting of IEs
+ * @len: length of data
+ * @match: byte array to match
+ * @match_len: number of bytes in the match array
+ * @match_offset: offset in the IE data where the byte array should match.
+ *	Note the difference to cfg80211_find_ie_match() which considers
+ *	the offset to start from the element ID byte, but here we take
+ *	the data portion instead.
+ *
+ * Return: %NULL if the element ID could not be found or if
+ * the element is invalid (claims to be longer than the given
+ * data) or if the byte array doesn't match; otherwise return the
+ * requested element struct.
+ *
+ * Note: There are no checks on the element length other than
+ * having to fit into the given data and being large enough for the
+ * byte array to match.
+ */
+const struct element *
+cfg80211_find_elem_match(u8 eid, const u8 *ies, unsigned int len,
+			 const u8 *match, unsigned int match_len,
+			 unsigned int match_offset);
+
+/**
  * cfg80211_find_ie_match - match information element and byte array in data
  *
  * @eid: element ID
@@ -4726,9 +5083,44 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
  * having to fit into the given data and being large enough for the
  * byte array to match.
  */
-const u8 *cfg80211_find_ie_match(u8 eid, const u8 *ies, int len,
-				 const u8 *match, int match_len,
-				 int match_offset);
+static inline const u8 *
+cfg80211_find_ie_match(u8 eid, const u8 *ies, unsigned int len,
+		       const u8 *match, unsigned int match_len,
+		       unsigned int match_offset)
+{
+	/* match_offset can't be smaller than 2, unless match_len is
+	 * zero, in which case match_offset must be zero as well.
+	 */
+	if (WARN_ON((match_len && match_offset < 2) ||
+		    (!match_len && match_offset)))
+		return NULL;
+
+	return (void *)cfg80211_find_elem_match(eid, ies, len,
+						match, match_len,
+						match_offset ?
+							match_offset - 2 : 0);
+}
+
+/**
+ * cfg80211_find_elem - find information element in data
+ *
+ * @eid: element ID
+ * @ies: data consisting of IEs
+ * @len: length of data
+ *
+ * Return: %NULL if the element ID could not be found or if
+ * the element is invalid (claims to be longer than the given
+ * data) or if the byte array doesn't match; otherwise return the
+ * requested element struct.
+ *
+ * Note: There are no checks on the element length other than
+ * having to fit into the given data.
+ */
+static inline const struct element *
+cfg80211_find_elem(u8 eid, const u8 *ies, int len)
+{
+	return cfg80211_find_elem_match(eid, ies, len, NULL, 0, 0);
+}
 
 /**
  * cfg80211_find_ie - find information element in data
@@ -4748,6 +5140,28 @@ const u8 *cfg80211_find_ie_match(u8 eid, const u8 *ies, int len,
 static inline const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 {
 	return cfg80211_find_ie_match(eid, ies, len, NULL, 0, 0);
+}
+
+/**
+ * cfg80211_find_ext_elem - find information element with EID Extension in data
+ *
+ * @ext_eid: element ID Extension
+ * @ies: data consisting of IEs
+ * @len: length of data
+ *
+ * Return: %NULL if the etended element could not be found or if
+ * the element is invalid (claims to be longer than the given
+ * data) or if the byte array doesn't match; otherwise return the
+ * requested element struct.
+ *
+ * Note: There are no checks on the element length other than
+ * having to fit into the given data.
+ */
+static inline const struct element *
+cfg80211_find_ext_elem(u8 ext_eid, const u8 *ies, int len)
+{
+	return cfg80211_find_elem_match(WLAN_EID_EXTENSION, ies, len,
+					&ext_eid, 1, 0);
 }
 
 /**
@@ -4772,6 +5186,25 @@ static inline const u8 *cfg80211_find_ext_ie(u8 ext_eid, const u8 *ies, int len)
 }
 
 /**
+ * cfg80211_find_vendor_elem - find vendor specific information element in data
+ *
+ * @oui: vendor OUI
+ * @oui_type: vendor-specific OUI type (must be < 0xff), negative means any
+ * @ies: data consisting of IEs
+ * @len: length of data
+ *
+ * Return: %NULL if the vendor specific element ID could not be found or if the
+ * element is invalid (claims to be longer than the given data); otherwise
+ * return the element structure for the requested element.
+ *
+ * Note: There are no checks on the element length other than having to fit into
+ * the given data.
+ */
+const struct element *cfg80211_find_vendor_elem(unsigned int oui, int oui_type,
+						const u8 *ies,
+						unsigned int len);
+
+/**
  * cfg80211_find_vendor_ie - find vendor specific information element in data
  *
  * @oui: vendor OUI
@@ -4787,8 +5220,12 @@ static inline const u8 *cfg80211_find_ext_ie(u8 ext_eid, const u8 *ies, int len)
  * Note: There are no checks on the element length other than having to fit into
  * the given data.
  */
-const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
-				  const u8 *ies, int len);
+static inline const u8 *
+cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
+			const u8 *ies, unsigned int len)
+{
+	return (void *)cfg80211_find_vendor_elem(oui, oui_type, ies, len);
+}
 
 /**
  * cfg80211_send_layer2_update - send layer 2 update frame
@@ -5034,6 +5471,27 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 }
 
 /**
+ * cfg80211_gen_new_bssid - generate a nontransmitted BSSID for multi-BSSID
+ * @bssid: transmitter BSSID
+ * @max_bssid: max BSSID indicator, taken from Multiple BSSID element
+ * @mbssid_index: BSSID index, taken from Multiple BSSID index element
+ * @new_bssid: calculated nontransmitted BSSID
+ */
+static inline void cfg80211_gen_new_bssid(const u8 *bssid, u8 max_bssid,
+					  u8 mbssid_index, u8 *new_bssid)
+{
+	u64 bssid_u64 = ether_addr_to_u64(bssid);
+	u64 mask = GENMASK_ULL(max_bssid - 1, 0);
+	u64 new_bssid_u64;
+
+	new_bssid_u64 = bssid_u64 & ~mask;
+
+	new_bssid_u64 |= ((bssid_u64 & mask) + mbssid_index) & mask;
+
+	u64_to_ether_addr(new_bssid_u64, new_bssid);
+}
+
+/**
  * enum cfg80211_bss_frame_type - frame type that the BSS data came from
  * @CFG80211_BSS_FTYPE_UNKNOWN: driver doesn't know whether the data is
  *	from a beacon or probe response
@@ -5218,10 +5676,12 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  * @dev: network device
  * @bss: the BSS that association was requested with, ownership of the pointer
  *	moves to cfg80211 in this call
- * @buf: authentication frame (header + body)
+ * @buf: (Re)Association Response frame (header + body)
  * @len: length of the frame data
  * @uapsd_queues: bitmap of queues configured for uapsd. Same format
  *	as the AC bitmap in the QoS info field
+ * @req_ies: information elements from the (Re)Association Request frame
+ * @req_ies_len: length of req_ies data
  *
  * After being asked to associate via cfg80211_ops::assoc() the driver must
  * call either this function or cfg80211_auth_timeout().
@@ -5231,7 +5691,8 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
 void cfg80211_rx_assoc_resp(struct net_device *dev,
 			    struct cfg80211_bss *bss,
 			    const u8 *buf, size_t len,
-			    int uapsd_queues);
+			    int uapsd_queues,
+			    const u8 *req_ies, size_t req_ies_len);
 
 /**
  * cfg80211_assoc_timeout - notification of timed out association
@@ -5320,7 +5781,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
  * @dev: network device
  * @macaddr: the MAC address of the new candidate
  * @ie: information elements advertised by the peer candidate
- * @ie_len: lenght of the information elements buffer
+ * @ie_len: length of the information elements buffer
  * @gfp: allocation flags
  *
  * This function notifies cfg80211 that the mesh peer candidate has been
@@ -5328,7 +5789,8 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
  * cfg80211 then sends a notification to userspace.
  */
 void cfg80211_notify_new_peer_candidate(struct net_device *dev,
-		const u8 *macaddr, const u8 *ie, u8 ie_len, gfp_t gfp);
+		const u8 *macaddr, const u8 *ie, u8 ie_len,
+		int sig_dbm, gfp_t gfp);
 
 /**
  * DOC: RFkill integration
@@ -5392,6 +5854,7 @@ struct sk_buff *__cfg80211_alloc_event_skb(struct wiphy *wiphy,
 					   struct wireless_dev *wdev,
 					   enum nl80211_commands cmd,
 					   enum nl80211_attrs attr,
+					   unsigned int portid,
 					   int vendor_event_idx,
 					   int approxlen, gfp_t gfp);
 
@@ -5442,6 +5905,15 @@ cfg80211_vendor_cmd_alloc_reply_skb(struct wiphy *wiphy, int approxlen)
 int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
 
 /**
+ * cfg80211_vendor_cmd_get_sender
+ * @wiphy: the wiphy
+ *
+ * Return the current netlink port ID in a vendor command handler.
+ * Valid to call only there.
+ */
+unsigned int cfg80211_vendor_cmd_get_sender(struct wiphy *wiphy);
+
+/**
  * cfg80211_vendor_event_alloc - allocate vendor-specific event skb
  * @wiphy: the wiphy
  * @wdev: the wireless device
@@ -5468,7 +5940,42 @@ cfg80211_vendor_event_alloc(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	return __cfg80211_alloc_event_skb(wiphy, wdev, NL80211_CMD_VENDOR,
 					  NL80211_ATTR_VENDOR_DATA,
-					  event_idx, approxlen, gfp);
+					  0, event_idx, approxlen, gfp);
+}
+
+/**
+ * cfg80211_vendor_event_alloc_ucast - alloc unicast vendor-specific event skb
+ * @wiphy: the wiphy
+ * @wdev: the wireless device
+ * @event_idx: index of the vendor event in the wiphy's vendor_events
+ * @portid: port ID of the receiver
+ * @approxlen: an upper bound of the length of the data that will
+ *	be put into the skb
+ * @gfp: allocation flags
+ *
+ * This function allocates and pre-fills an skb for an event to send to
+ * a specific (userland) socket. This socket would previously have been
+ * obtained by cfg80211_vendor_cmd_get_sender(), and the caller MUST take
+ * care to register a netlink notifier to see when the socket closes.
+ *
+ * If wdev != NULL, both the ifindex and identifier of the specified
+ * wireless device are added to the event message before the vendor data
+ * attribute.
+ *
+ * When done filling the skb, call cfg80211_vendor_event() with the
+ * skb to send the event.
+ *
+ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+ */
+static inline struct sk_buff *
+cfg80211_vendor_event_alloc_ucast(struct wiphy *wiphy,
+				  struct wireless_dev *wdev,
+				  unsigned int portid, int approxlen,
+				  int event_idx, gfp_t gfp)
+{
+	return __cfg80211_alloc_event_skb(wiphy, wdev, NL80211_CMD_VENDOR,
+					  NL80211_ATTR_VENDOR_DATA,
+					  portid, event_idx, approxlen, gfp);
 }
 
 /**
@@ -5568,7 +6075,7 @@ static inline struct sk_buff *
 cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy, int approxlen, gfp_t gfp)
 {
 	return __cfg80211_alloc_event_skb(wiphy, NULL, NL80211_CMD_TESTMODE,
-					  NL80211_ATTR_TESTDATA, -1,
+					  NL80211_ATTR_TESTDATA, 0, -1,
 					  approxlen, gfp);
 }
 
@@ -6630,6 +7137,31 @@ int cfg80211_external_auth_request(struct net_device *netdev,
 				   struct cfg80211_external_auth_params *params,
 				   gfp_t gfp);
 
+/**
+ * cfg80211_pmsr_report - report peer measurement result data
+ * @wdev: the wireless device reporting the measurement
+ * @req: the original measurement request
+ * @result: the result data
+ * @gfp: allocation flags
+ */
+void cfg80211_pmsr_report(struct wireless_dev *wdev,
+			  struct cfg80211_pmsr_request *req,
+			  struct cfg80211_pmsr_result *result,
+			  gfp_t gfp);
+
+/**
+ * cfg80211_pmsr_complete - report peer measurement completed
+ * @wdev: the wireless device reporting the measurement
+ * @req: the original measurement request
+ * @gfp: allocation flags
+ *
+ * Report that the entire measurement completed, after this
+ * the request pointer will no longer be valid.
+ */
+void cfg80211_pmsr_complete(struct wireless_dev *wdev,
+			    struct cfg80211_pmsr_request *req,
+			    gfp_t gfp);
+
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */
@@ -6650,6 +7182,11 @@ int cfg80211_external_auth_request(struct net_device *netdev,
 	dev_notice(&(wiphy)->dev, format, ##args)
 #define wiphy_info(wiphy, format, args...)			\
 	dev_info(&(wiphy)->dev, format, ##args)
+
+#define wiphy_err_ratelimited(wiphy, format, args...)		\
+	dev_err_ratelimited(&(wiphy)->dev, format, ##args)
+#define wiphy_warn_ratelimited(wiphy, format, args...)		\
+	dev_warn_ratelimited(&(wiphy)->dev, format, ##args)
 
 #define wiphy_debug(wiphy, format, args...)			\
 	wiphy_printk(KERN_DEBUG, wiphy, format, ##args)

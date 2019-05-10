@@ -661,7 +661,7 @@ A server would be set up to accept operations in the following manner:
 	setsockopt(server, SOL_RXRPC, RXRPC_SECURITY_KEYRING, "AFSkeys", 7);
 
      The keyring can be manipulated after it has been given to the socket. This
-     permits the server to add more keys, replace keys, etc. whilst it is live.
+     permits the server to add more keys, replace keys, etc. while it is live.
 
  (3) A local address must then be bound:
 
@@ -1000,51 +1000,6 @@ The kernel interface functions are as follows:
      size should be set when the call is begun.  tx_total_len may not be less
      than zero.
 
- (*) Check to see the completion state of a call so that the caller can assess
-     whether it needs to be retried.
-
-	enum rxrpc_call_completion {
-		RXRPC_CALL_SUCCEEDED,
-		RXRPC_CALL_REMOTELY_ABORTED,
-		RXRPC_CALL_LOCALLY_ABORTED,
-		RXRPC_CALL_LOCAL_ERROR,
-		RXRPC_CALL_NETWORK_ERROR,
-	};
-
-	int rxrpc_kernel_check_call(struct socket *sock, struct rxrpc_call *call,
-				    enum rxrpc_call_completion *_compl,
-				    u32 *_abort_code);
-
-     On return, -EINPROGRESS will be returned if the call is still ongoing; if
-     it is finished, *_compl will be set to indicate the manner of completion,
-     *_abort_code will be set to any abort code that occurred.  0 will be
-     returned on a successful completion, -ECONNABORTED will be returned if the
-     client failed due to a remote abort and anything else will return an
-     appropriate error code.
-
-     The caller should look at this information to decide if it's worth
-     retrying the call.
-
- (*) Retry a client call.
-
-	int rxrpc_kernel_retry_call(struct socket *sock,
-				    struct rxrpc_call *call,
-				    struct sockaddr_rxrpc *srx,
-				    struct key *key);
-
-     This attempts to partially reinitialise a call and submit it again whilst
-     reusing the original call's Tx queue to avoid the need to repackage and
-     re-encrypt the data to be sent.  call indicates the call to retry, srx the
-     new address to send it to and key the encryption key to use for signing or
-     encrypting the packets.
-
-     For this to work, the first Tx data packet must still be in the transmit
-     queue, and currently this is only permitted for local and network errors
-     and the call must not have been aborted.  Any partially constructed Tx
-     packet is left as is and can continue being filled afterwards.
-
-     It returns 0 if the call was requeued and an error otherwise.
-
  (*) Get call RTT.
 
 	u64 rxrpc_kernel_get_rtt(struct socket *sock, struct rxrpc_call *call);
@@ -1054,19 +1009,21 @@ The kernel interface functions are as follows:
 
  (*) Check call still alive.
 
-	u32 rxrpc_kernel_check_life(struct socket *sock,
-				    struct rxrpc_call *call);
+	bool rxrpc_kernel_check_life(struct socket *sock,
+				     struct rxrpc_call *call,
+				     u32 *_life);
 	void rxrpc_kernel_probe_life(struct socket *sock,
 				     struct rxrpc_call *call);
 
-     The first function returns a number that is updated when ACKs are received
-     from the peer (notably including PING RESPONSE ACKs which we can elicit by
-     sending PING ACKs to see if the call still exists on the server).  The
-     caller should compare the numbers of two calls to see if the call is still
-     alive after waiting for a suitable interval.
+     The first function passes back in *_life a number that is updated when
+     ACKs are received from the peer (notably including PING RESPONSE ACKs
+     which we can elicit by sending PING ACKs to see if the call still exists
+     on the server).  The caller should compare the numbers of two calls to see
+     if the call is still alive after waiting for a suitable interval.  It also
+     returns true as long as the call hasn't yet reached the completed state.
 
      This allows the caller to work out if the server is still contactable and
-     if the call is still alive on the server whilst waiting for the server to
+     if the call is still alive on the server while waiting for the server to
      process a client operation.
 
      The second function causes a ping ACK to be transmitted to try to provoke
@@ -1149,14 +1106,14 @@ adjusted through sysctls in /proc/net/rxrpc/:
  (*) connection_expiry
 
      The amount of time in seconds after a connection was last used before we
-     remove it from the connection list.  Whilst a connection is in existence,
+     remove it from the connection list.  While a connection is in existence,
      it serves as a placeholder for negotiated security; when it is deleted,
      the security must be renegotiated.
 
  (*) transport_expiry
 
      The amount of time in seconds after a transport was last used before we
-     remove it from the transport list.  Whilst a transport is in existence, it
+     remove it from the transport list.  While a transport is in existence, it
      serves to anchor the peer data and keeps the connection ID counter.
 
  (*) rxrpc_rx_window_size

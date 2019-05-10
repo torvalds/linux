@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2010-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -40,6 +40,7 @@
 #include <linux/stringify.h>
 #include <linux/workqueue.h>
 #include <uapi/linux/batadv_packet.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
@@ -47,6 +48,7 @@
 #include "gateway_common.h"
 #include "hard-interface.h"
 #include "log.h"
+#include "netlink.h"
 #include "network-coding.h"
 #include "soft-interface.h"
 
@@ -153,9 +155,14 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
+	ssize_t length;							\
 									\
-	return __batadv_store_bool_attr(buff, count, _post_func, attr,	\
-					&bat_priv->_name, net_dev);	\
+	length = __batadv_store_bool_attr(buff, count, _post_func, attr,\
+					  &bat_priv->_name, net_dev);	\
+									\
+	batadv_netlink_notify_mesh(bat_priv);				\
+									\
+	return length;							\
 }
 
 #define BATADV_ATTR_SIF_SHOW_BOOL(_name)				\
@@ -185,11 +192,16 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
+	ssize_t length;							\
 									\
-	return __batadv_store_uint_attr(buff, count, _min, _max,	\
-					_post_func, attr,		\
-					&bat_priv->_var, net_dev,	\
-					NULL);	\
+	length = __batadv_store_uint_attr(buff, count, _min, _max,	\
+					  _post_func, attr,		\
+					  &bat_priv->_var, net_dev,	\
+					  NULL);			\
+									\
+	batadv_netlink_notify_mesh(bat_priv);				\
+									\
+	return length;							\
 }
 
 #define BATADV_ATTR_SIF_SHOW_UINT(_name, _var)				\
@@ -221,6 +233,11 @@ ssize_t batadv_store_vlan_##_name(struct kobject *kobj,			\
 	size_t res = __batadv_store_bool_attr(buff, count, _post_func,	\
 					      attr, &vlan->_name,	\
 					      bat_priv->soft_iface);	\
+									\
+	if (vlan->vid)							\
+		batadv_netlink_notify_vlan(bat_priv, vlan);		\
+	else								\
+		batadv_netlink_notify_mesh(bat_priv);			\
 									\
 	batadv_softif_vlan_put(vlan);					\
 	return res;							\
@@ -255,6 +272,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 {									\
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);	\
 	struct batadv_hard_iface *hard_iface;				\
+	struct batadv_priv *bat_priv;					\
 	ssize_t length;							\
 									\
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
@@ -266,6 +284,11 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 					  &hard_iface->_var,		\
 					  hard_iface->soft_iface,	\
 					  net_dev);			\
+									\
+	if (hard_iface->soft_iface) {					\
+		bat_priv = netdev_priv(hard_iface->soft_iface);		\
+		batadv_netlink_notify_hardif(bat_priv, hard_iface);	\
+	}								\
 									\
 	batadv_hardif_put(hard_iface);				\
 	return length;							\
@@ -536,6 +559,9 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	batadv_gw_check_client_stop(bat_priv);
 	atomic_set(&bat_priv->gw.mode, (unsigned int)gw_mode_tmp);
 	batadv_gw_tvlv_container_update(bat_priv);
+
+	batadv_netlink_notify_mesh(bat_priv);
+
 	return count;
 }
 
@@ -562,6 +588,7 @@ static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
 					 size_t count)
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+	ssize_t length;
 
 	/* setting the GW selection class is allowed only if the routing
 	 * algorithm in use implements the GW API
@@ -577,10 +604,14 @@ static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
 		return bat_priv->algo_ops->gw.store_sel_class(bat_priv, buff,
 							      count);
 
-	return __batadv_store_uint_attr(buff, count, 1, BATADV_TQ_MAX_VALUE,
-					batadv_post_gw_reselect, attr,
-					&bat_priv->gw.sel_class,
-					bat_priv->soft_iface, NULL);
+	length = __batadv_store_uint_attr(buff, count, 1, BATADV_TQ_MAX_VALUE,
+					  batadv_post_gw_reselect, attr,
+					  &bat_priv->gw.sel_class,
+					  bat_priv->soft_iface, NULL);
+
+	batadv_netlink_notify_mesh(bat_priv);
+
+	return length;
 }
 
 static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
@@ -600,12 +631,18 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 				      struct attribute *attr, char *buff,
 				      size_t count)
 {
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	ssize_t length;
 
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
 
-	return batadv_gw_bandwidth_set(net_dev, buff, count);
+	length = batadv_gw_bandwidth_set(net_dev, buff, count);
+
+	batadv_netlink_notify_mesh(bat_priv);
+
+	return length;
 }
 
 /**
@@ -672,6 +709,8 @@ static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
 	batadv_info(net_dev,
 		    "New skb mark for extended isolation: %#.8x/%#.8x\n",
 		    bat_priv->isolation_mark, bat_priv->isolation_mark_mask);
+
+	batadv_netlink_notify_mesh(bat_priv);
 
 	return count;
 }
@@ -1079,6 +1118,7 @@ static ssize_t batadv_store_throughput_override(struct kobject *kobj,
 {
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	struct batadv_hard_iface *hard_iface;
+	struct batadv_priv *bat_priv;
 	u32 tp_override;
 	u32 old_tp_override;
 	bool ret;
@@ -1106,6 +1146,11 @@ static ssize_t batadv_store_throughput_override(struct kobject *kobj,
 		    tp_override / 10, tp_override % 10);
 
 	atomic_set(&hard_iface->bat_v.throughput_override, tp_override);
+
+	if (hard_iface->soft_iface) {
+		bat_priv = netdev_priv(hard_iface->soft_iface);
+		batadv_netlink_notify_hardif(bat_priv, hard_iface);
+	}
 
 out:
 	batadv_hardif_put(hard_iface);

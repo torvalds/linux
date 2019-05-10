@@ -44,6 +44,7 @@
 #define MXC_CPU_IMX6ULZ		0x6b
 #define MXC_CPU_IMX6SLL		0x67
 #define MXC_CPU_IMX7D		0x72
+#define MXC_CPU_IMX7ULP		0xff
 
 #define IMX_DDR_TYPE_LPDDR2		1
 

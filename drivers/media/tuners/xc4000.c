@@ -1471,8 +1471,8 @@ static int xc4000_get_signal(struct dvb_frontend *fe, u16 *strength)
 	if (rc < 0)
 		goto ret;
 
-	/* Informations from real testing of DVB-T and radio part,
-	   coeficient for one dB is 0xff.
+	/* Information from real testing of DVB-T and radio part,
+	   coefficient for one dB is 0xff.
 	 */
 	tuner_dbg("Signal strength: -%ddB (%05d)\n", value >> 8, value);
 

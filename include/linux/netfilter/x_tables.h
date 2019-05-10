@@ -289,9 +289,9 @@ bool xt_find_jump_offset(const unsigned int *offsets,
 
 int xt_check_proc_name(const char *name, unsigned int size);
 
-int xt_check_match(struct xt_mtchk_param *, unsigned int size, u_int8_t proto,
+int xt_check_match(struct xt_mtchk_param *, unsigned int size, u16 proto,
 		   bool inv_proto);
-int xt_check_target(struct xt_tgchk_param *, unsigned int size, u_int8_t proto,
+int xt_check_target(struct xt_tgchk_param *, unsigned int size, u16 proto,
 		    bool inv_proto);
 
 int xt_match_to_user(const struct xt_entry_match *m,

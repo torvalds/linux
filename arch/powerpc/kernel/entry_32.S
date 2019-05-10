@@ -97,14 +97,11 @@ crit_transfer_to_handler:
 	mfspr	r0,SPRN_SRR1
 	stw	r0,_SRR1(r11)
 
-	/* set the stack limit to the current stack
-	 * and set the limit to protect the thread_info
-	 * struct
-	 */
+	/* set the stack limit to the current stack */
 	mfspr	r8,SPRN_SPRG_THREAD
 	lwz	r0,KSP_LIMIT(r8)
 	stw	r0,SAVED_KSP_LIMIT(r11)
-	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
+	rlwinm	r0,r1,0,0,(31 - THREAD_SHIFT)
 	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif
@@ -121,14 +118,11 @@ crit_transfer_to_handler:
 	mfspr	r0,SPRN_SRR1
 	stw	r0,crit_srr1@l(0)
 
-	/* set the stack limit to the current stack
-	 * and set the limit to protect the thread_info
-	 * struct
-	 */
+	/* set the stack limit to the current stack */
 	mfspr	r8,SPRN_SPRG_THREAD
 	lwz	r0,KSP_LIMIT(r8)
 	stw	r0,saved_ksp_limit@l(0)
-	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
+	rlwinm	r0,r1,0,0,(31 - THREAD_SHIFT)
 	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif
@@ -157,7 +151,6 @@ transfer_to_handler:
 	stw	r2,_XER(r11)
 	mfspr	r12,SPRN_SPRG_THREAD
 	addi	r2,r12,-THREAD
-	tovirt(r2,r2)			/* set r2 to current */
 	beq	2f			/* if from user, fix up THREAD.regs */
 	addi	r11,r1,STACK_FRAME_OVERHEAD
 	stw	r11,PT_REGS(r12)
@@ -166,6 +159,9 @@ transfer_to_handler:
 	   internal debug mode bit to do this. */
 	lwz	r12,THREAD_DBCR0(r12)
 	andis.	r12,r12,DBCR0_IDM@h
+#endif
+	ACCOUNT_CPU_USER_ENTRY(r2, r11, r12)
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 	beq+	3f
 	/* From user and task is ptraced - load up global dbcr0 */
 	li	r12,-1			/* clear all pending debug events */
@@ -174,8 +170,7 @@ transfer_to_handler:
 	tophys(r11,r11)
 	addi	r11,r11,global_dbcr0@l
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r9, r1)
-	lwz	r9,TI_CPU(r9)
+	lwz	r9,TASK_CPU(r2)
 	slwi	r9,r9,3
 	add	r11,r11,r9
 #endif
@@ -184,11 +179,6 @@ transfer_to_handler:
 	lwz	r12,4(r11)
 	addi	r12,r12,-1
 	stw	r12,4(r11)
-#endif
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-	CURRENT_THREAD_INFO(r9, r1)
-	tophys(r9, r9)
-	ACCOUNT_CPU_USER_ENTRY(r9, r11, r12)
 #endif
 
 	b	3f
@@ -200,18 +190,17 @@ transfer_to_handler:
 	cmplw	r1,r9			/* if r1 <= ksp_limit */
 	ble-	stack_ovf		/* then the kernel stack overflowed */
 5:
-#if defined(CONFIG_6xx) || defined(CONFIG_E500)
-	CURRENT_THREAD_INFO(r9, r1)
-	tophys(r9,r9)			/* check local flags */
-	lwz	r12,TI_LOCAL_FLAGS(r9)
+#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
+	lwz	r12,TI_LOCAL_FLAGS(r2)
 	mtcrf	0x01,r12
 	bt-	31-TLF_NAPPING,4f
 	bt-	31-TLF_SLEEPING,7f
-#endif /* CONFIG_6xx || CONFIG_E500 */
+#endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_E500 */
 	.globl transfer_to_handler_cont
 transfer_to_handler_cont:
 3:
 	mflr	r9
+	tovirt(r2, r2)			/* set r2 to current */
 	lwz	r11,0(r9)		/* virtual address of handler */
 	lwz	r9,4(r9)		/* where to go when done */
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
@@ -273,13 +262,13 @@ reenable_mmu:				/* re-enable mmu so we can */
 	RFI				/* jump to handler, enable MMU */
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-#if defined (CONFIG_6xx) || defined(CONFIG_E500)
+#if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
 4:	rlwinm	r12,r12,0,~_TLF_NAPPING
-	stw	r12,TI_LOCAL_FLAGS(r9)
+	stw	r12,TI_LOCAL_FLAGS(r2)
 	b	power_save_ppc32_restore
 
 7:	rlwinm	r12,r12,0,~_TLF_SLEEPING
-	stw	r12,TI_LOCAL_FLAGS(r9)
+	stw	r12,TI_LOCAL_FLAGS(r2)
 	lwz	r9,_MSR(r11)		/* if sleeping, clear MSR.EE */
 	rlwinm	r9,r9,0,~MSR_EE
 	lwz	r12,_LINK(r11)		/* and return to address in LR */
@@ -351,8 +340,7 @@ _GLOBAL(DoSyscall)
 	mtmsr	r11
 1:
 #endif /* CONFIG_TRACE_IRQFLAGS */
-	CURRENT_THREAD_INFO(r10, r1)
-	lwz	r11,TI_FLAGS(r10)
+	lwz	r11,TI_FLAGS(r2)
 	andi.	r11,r11,_TIF_SYSCALL_DOTRACE
 	bne-	syscall_dotrace
 syscall_dotrace_cont:
@@ -385,13 +373,12 @@ ret_from_syscall:
 	lwz	r3,GPR3(r1)
 #endif
 	mr	r6,r3
-	CURRENT_THREAD_INFO(r12, r1)
 	/* disable interrupts so current_thread_info()->flags can't change */
 	LOAD_MSR_KERNEL(r10,MSR_KERNEL)	/* doesn't include MSR_EE */
 	/* Note: We don't bother telling lockdep about it */
 	SYNC
 	MTMSRD(r10)
-	lwz	r9,TI_FLAGS(r12)
+	lwz	r9,TI_FLAGS(r2)
 	li	r8,-MAX_ERRNO
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
@@ -438,8 +425,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	andi.	r4,r8,MSR_PR
 	beq	3f
-	CURRENT_THREAD_INFO(r4, r1)
-	ACCOUNT_CPU_USER_EXIT(r4, r5, r7)
+	ACCOUNT_CPU_USER_EXIT(r2, r5, r7)
 3:
 #endif
 	lwz	r4,_LINK(r1)
@@ -532,7 +518,7 @@ syscall_exit_work:
 	/* Clear per-syscall TIF flags if any are set.  */
 
 	li	r11,_TIF_PERSYSCALL_MASK
-	addi	r12,r12,TI_FLAGS
+	addi	r12,r2,TI_FLAGS
 3:	lwarx	r8,0,r12
 	andc	r8,r8,r11
 #ifdef CONFIG_IBM405_ERR77
@@ -540,7 +526,6 @@ syscall_exit_work:
 #endif
 	stwcx.	r8,0,r12
 	bne-	3b
-	subi	r12,r12,TI_FLAGS
 	
 4:	/* Anything which requires enabling interrupts? */
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP)
@@ -612,7 +597,7 @@ ppc_swapcontext:
 handle_page_fault:
 	stw	r4,_DAR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	andis.  r0,r5,DSISR_DABRMATCH@h
 	bne-    handle_dabr_fault
 #endif
@@ -629,7 +614,7 @@ handle_page_fault:
 	bl	bad_page_fault
 	b	ret_from_except_full
 
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	/* We have a data breakpoint exception - handle it */
 handle_dabr_fault:
 	SAVE_NVGPRS(r1)
@@ -745,6 +730,9 @@ fast_exception_return:
 	mtcr	r10
 	lwz	r10,_LINK(r11)
 	mtlr	r10
+	/* Clear the exception_marker on the stack to avoid confusing stacktrace */
+	li	r10, 0
+	stw	r10, 8(r11)
 	REST_GPR(10, r11)
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
 	mtspr	SPRN_NRI, r0
@@ -819,8 +807,7 @@ ret_from_except:
 
 user_exc_return:		/* r10 contains MSR_KERNEL here */
 	/* Check current_thread_info()->flags */
-	CURRENT_THREAD_INFO(r9, r1)
-	lwz	r9,TI_FLAGS(r9)
+	lwz	r9,TI_FLAGS(r2)
 	andi.	r0,r9,_TIF_USER_WORK_MASK
 	bne	do_work
 
@@ -832,18 +819,14 @@ restore_user:
 	andis.	r10,r0,DBCR0_IDM@h
 	bnel-	load_dbcr0
 #endif
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-	CURRENT_THREAD_INFO(r9, r1)
-	ACCOUNT_CPU_USER_EXIT(r9, r10, r11)
-#endif
+	ACCOUNT_CPU_USER_EXIT(r2, r10, r11)
 
 	b	restore
 
 /* N.B. the only way to get here is from the beq following ret_from_except. */
 resume_kernel:
 	/* check current_thread_info, _TIF_EMULATE_STACK_STORE */
-	CURRENT_THREAD_INFO(r9, r1)
-	lwz	r8,TI_FLAGS(r9)
+	lwz	r8,TI_FLAGS(r2)
 	andis.	r0,r8,_TIF_EMULATE_STACK_STORE@h
 	beq+	1f
 
@@ -869,7 +852,7 @@ resume_kernel:
 
 	/* Clear _TIF_EMULATE_STACK_STORE flag */
 	lis	r11,_TIF_EMULATE_STACK_STORE@h
-	addi	r5,r9,TI_FLAGS
+	addi	r5,r2,TI_FLAGS
 0:	lwarx	r8,0,r5
 	andc	r8,r8,r11
 #ifdef CONFIG_IBM405_ERR77
@@ -881,7 +864,7 @@ resume_kernel:
 
 #ifdef CONFIG_PREEMPT
 	/* check current_thread_info->preempt_count */
-	lwz	r0,TI_PREEMPT(r9)
+	lwz	r0,TI_PREEMPT(r2)
 	cmpwi	0,r0,0		/* if non-zero, just restore regs and return */
 	bne	restore
 	andi.	r8,r8,_TIF_NEED_RESCHED
@@ -897,8 +880,7 @@ resume_kernel:
 	bl	trace_hardirqs_off
 #endif
 1:	bl	preempt_schedule_irq
-	CURRENT_THREAD_INFO(r9, r1)
-	lwz	r3,TI_FLAGS(r9)
+	lwz	r3,TI_FLAGS(r2)
 	andi.	r0,r3,_TIF_NEED_RESCHED
 	bne-	1b
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -982,6 +964,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	mtcrf	0xFF,r10
 	mtlr	r11
 
+	/* Clear the exception_marker on the stack to avoid confusing stacktrace */
+	li	r10, 0
+	stw	r10, 8(r1)
 	/*
 	 * Once we put values in SRR0 and SRR1, we are in a state
 	 * where exceptions are not recoverable, since taking an
@@ -997,9 +982,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	.globl exc_exit_restart
 exc_exit_restart:
 	lwz	r12,_NIP(r1)
-#if defined(CONFIG_PPC_8xx) && defined(CONFIG_PERF_EVENTS)
-	mtspr	SPRN_NRI, r0
-#endif
 	mtspr	SPRN_SRR0,r12
 	mtspr	SPRN_SRR1,r9
 	REST_4GPRS(9, r1)
@@ -1021,6 +1003,9 @@ exc_exit_restart_end:
 	mtlr	r11
 	lwz	r10,_CCR(r1)
 	mtcrf	0xff,r10
+	/* Clear the exception_marker on the stack to avoid confusing stacktrace */
+	li	r10, 0
+	stw	r10, 8(r1)
 	REST_2GPRS(9, r1)
 	.globl exc_exit_restart
 exc_exit_restart:
@@ -1166,10 +1151,6 @@ ret_from_debug_exc:
 	mfspr	r9,SPRN_SPRG_THREAD
 	lwz	r10,SAVED_KSP_LIMIT(r1)
 	stw	r10,KSP_LIMIT(r9)
-	lwz	r9,THREAD_INFO-THREAD(r9)
-	CURRENT_THREAD_INFO(r10, r1)
-	lwz	r10,TI_PREEMPT(r10)
-	stw	r10,TI_PREEMPT(r9)
 	RESTORE_xSRR(SRR0,SRR1);
 	RESTORE_xSRR(CSRR0,CSRR1);
 	RESTORE_MMU_REGS;
@@ -1201,8 +1182,7 @@ load_dbcr0:
 	lis	r11,global_dbcr0@ha
 	addi	r11,r11,global_dbcr0@l
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r9, r1)
-	lwz	r9,TI_CPU(r9)
+	lwz	r9,TASK_CPU(r2)
 	slwi	r9,r9,3
 	add	r11,r11,r9
 #endif
@@ -1242,8 +1222,7 @@ recheck:
 	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
 	SYNC
 	MTMSRD(r10)		/* disable interrupts */
-	CURRENT_THREAD_INFO(r9, r1)
-	lwz	r9,TI_FLAGS(r9)
+	lwz	r9,TI_FLAGS(r2)
 	andi.	r0,r9,_TIF_NEED_RESCHED
 	bne-	do_resched
 	andi.	r0,r9,_TIF_USER_WORK_MASK
@@ -1292,10 +1271,13 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_601)
 	lwz	r3,_TRAP(r1)
 	andi.	r0,r3,1
-	beq	4f
+	beq	5f
 	SAVE_NVGPRS(r1)
 	rlwinm	r3,r3,0,0,30
 	stw	r3,_TRAP(r1)
+5:	mfspr	r2,SPRN_SPRG_THREAD
+	addi	r2,r2,-THREAD
+	tovirt(r2,r2)			/* set back r2 to current */
 4:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	unrecoverable_exception
 	/* shouldn't return */
@@ -1335,7 +1317,7 @@ _GLOBAL(enter_rtas)
 	MTMSRD(r0)		/* don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
-	mtspr	SPRN_SPRG_RTAS,r7
+	stw	r7, THREAD + RTAS_SP(r2)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	RFI
@@ -1344,7 +1326,8 @@ _GLOBAL(enter_rtas)
 	lwz	r9,8(r9)	/* original msr value */
 	addi	r1,r1,INT_FRAME_SIZE
 	li	r0,0
-	mtspr	SPRN_SPRG_RTAS,r0
+	tophys(r7, r2)
+	stw	r0, THREAD + RTAS_SP(r7)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	RFI			/* return to caller */

@@ -206,6 +206,9 @@ nfp_eth_calc_port_type(struct nfp_cpp *cpp, struct nfp_eth_table_port *entry)
 	if (entry->interface == NFP_INTERFACE_NONE) {
 		entry->port_type = PORT_NONE;
 		return;
+	} else if (entry->interface == NFP_INTERFACE_RJ45) {
+		entry->port_type = PORT_TP;
+		return;
 	}
 
 	if (entry->media == NFP_MEDIA_FIBRE)
@@ -269,8 +272,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 		goto err;
 	}
 
-	table = kzalloc(sizeof(*table) +
-			sizeof(struct nfp_eth_table_port) * cnt, GFP_KERNEL);
+	table = kzalloc(struct_size(table, ports, cnt), GFP_KERNEL);
 	if (!table)
 		goto err;
 

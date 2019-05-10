@@ -21,8 +21,6 @@
 extern unsigned char IPA_PDU_HEADER[];
 #define QETH_IPA_CMD_DEST_ADDR(buffer) (buffer + 0x2c)
 
-#define IPA_CMD_LENGTH	(IPA_PDU_HEADER_SIZE + sizeof(struct qeth_ipa_cmd))
-
 #define QETH_SEQ_NO_LENGTH	4
 #define QETH_MPC_TOKEN_LENGTH	4
 #define QETH_MCL_LENGTH		4
@@ -80,7 +78,11 @@ enum qeth_card_types {
 };
 
 #define IS_IQD(card)	((card)->info.type == QETH_CARD_TYPE_IQD)
+#define IS_OSD(card)	((card)->info.type == QETH_CARD_TYPE_OSD)
+#define IS_OSM(card)	((card)->info.type == QETH_CARD_TYPE_OSM)
 #define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
+#define IS_OSX(card)	((card)->info.type == QETH_CARD_TYPE_OSX)
+#define IS_VM_NIC(card)	((card)->info.guestlan)
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
 /* only the first two bytes are looked at in qeth_get_cardname_short */
@@ -228,7 +230,6 @@ enum qeth_ipa_return_codes {
 	IPA_RC_LAN_OFFLINE		= 0xe080,
 	IPA_RC_VEPA_TO_VEB_TRANSITION	= 0xe090,
 	IPA_RC_INVALID_IP_VERSION2	= 0xf001,
-	IPA_RC_ENOMEM			= 0xfffe,
 	IPA_RC_FFFF			= 0xffff
 };
 /* for VNIC Characteristics */
@@ -416,12 +417,6 @@ enum qeth_ipa_checksum_bits {
 	QETH_IPA_CHECKSUM_LP2LP		= 0x0020
 };
 
-/* IPA Assist checksum offload reply layout. */
-struct qeth_checksum_cmd {
-	__u32 supported;
-	__u32 enabled;
-} __packed;
-
 enum qeth_ipa_large_send_caps {
 	QETH_IPA_LARGE_SEND_TCP		= 0x00000001,
 };
@@ -437,7 +432,6 @@ struct qeth_ipacmd_setassparms {
 	union {
 		__u32 flags_32bit;
 		struct qeth_ipa_caps caps;
-		struct qeth_checksum_cmd chksum;
 		struct qeth_arp_cache_entry arp_entry;
 		struct qeth_arp_query_data query_arp;
 		struct qeth_tso_start_data tso;
@@ -529,17 +523,20 @@ struct qeth_query_switch_attributes {
 	__u8  reserved3[8];
 };
 
+#define QETH_SETADP_FLAGS_VIRTUAL_MAC	0x80	/* for CHANGE_ADDR_READ_MAC */
+
 struct qeth_ipacmd_setadpparms_hdr {
-	__u32 supp_hw_cmds;
-	__u32 reserved1;
-	__u16 cmdlength;
-	__u16 reserved2;
-	__u32 command_code;
-	__u16 return_code;
-	__u8  used_total;
-	__u8  seq_no;
-	__u32 reserved3;
-} __attribute__ ((packed));
+	u32 supp_hw_cmds;
+	u32 reserved1;
+	u16 cmdlength;
+	u16 reserved2;
+	u32 command_code;
+	u16 return_code;
+	u8 used_total;
+	u8 seq_no;
+	u8 flags;
+	u8 reserved3[3];
+};
 
 struct qeth_ipacmd_setadpparms {
 	struct qeth_ipacmd_setadpparms_hdr hdr;
@@ -828,16 +825,10 @@ enum qeth_ipa_arp_return_codes {
 extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
 extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
-#define QETH_SETASS_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
-			       sizeof(struct qeth_ipacmd_setassparms_hdr))
-#define QETH_IPA_ARP_DATA_POS(buffer) (buffer + IPA_PDU_HEADER_SIZE + \
-				       QETH_SETASS_BASE_LEN)
 #define QETH_SETADP_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
 			      sizeof(struct qeth_ipacmd_setadpparms_hdr))
 #define QETH_SNMP_SETADP_CMDLENGTH 16
 
-#define QETH_ARP_DATA_SIZE 3968
-#define QETH_ARP_CMD_LEN (QETH_ARP_DATA_SIZE + 8)
 /* Helper functions */
 #define IS_IPA_REPLY(cmd) ((cmd->hdr.initiator == IPA_CMD_INITIATOR_HOST) || \
 			   (cmd->hdr.initiator == IPA_CMD_INITIATOR_OSA_REPLY))

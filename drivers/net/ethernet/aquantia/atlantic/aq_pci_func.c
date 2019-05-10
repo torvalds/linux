@@ -19,6 +19,7 @@
 #include "aq_pci_func.h"
 #include "hw_atl/hw_atl_a0.h"
 #include "hw_atl/hw_atl_b0.h"
+#include "aq_filters.h"
 
 static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_0001), },
@@ -169,6 +170,8 @@ void aq_pci_func_free_irqs(struct aq_nic_s *self)
 	for (i = 32U; i--;) {
 		if (!((1U << i) & self->msix_entry_mask))
 			continue;
+		if (i >= AQ_CFG_VECS_MAX)
+			continue;
 
 		if (pdev->msix_enabled)
 			irq_set_affinity_hint(pci_irq_vector(pdev, i), NULL);
@@ -309,6 +312,7 @@ static void aq_pci_remove(struct pci_dev *pdev)
 	struct aq_nic_s *self = pci_get_drvdata(pdev);
 
 	if (self->ndev) {
+		aq_clear_rxnfc_all_rules(self);
 		if (self->ndev->reg_state == NETREG_REGISTERED)
 			unregister_netdev(self->ndev);
 		aq_nic_free_vectors(self);

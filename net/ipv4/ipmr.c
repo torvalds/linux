@@ -67,7 +67,6 @@
 #include <net/fib_rules.h>
 #include <linux/netconf.h>
 #include <net/nexthop.h>
-#include <net/switchdev.h>
 
 #include <linux/nospec.h>
 
@@ -111,7 +110,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
 static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt);
-static void mroute_clean_tables(struct mr_table *mrt, bool all);
+static void mroute_clean_tables(struct mr_table *mrt, int flags);
 static void ipmr_expire_process(struct timer_list *t);
 
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
@@ -416,7 +415,8 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 static void ipmr_free_table(struct mr_table *mrt)
 {
 	del_timer_sync(&mrt->ipmr_expire_timer);
-	mroute_clean_tables(mrt, true);
+	mroute_clean_tables(mrt, MRT_FLUSH_VIFS | MRT_FLUSH_VIFS_STATIC |
+				 MRT_FLUSH_MFC | MRT_FLUSH_MFC_STATIC);
 	rhltable_destroy(&mrt->mfc_hash);
 	kfree(mrt);
 }
@@ -508,7 +508,7 @@ static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 			dev->flags |= IFF_MULTICAST;
 			if (!ipmr_init_vif_indev(dev))
 				goto failure;
-			if (dev_open(dev))
+			if (dev_open(dev, NULL))
 				goto failure;
 			dev_hold(dev);
 		}
@@ -591,7 +591,7 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 
 	if (!ipmr_init_vif_indev(dev))
 		goto failure;
-	if (dev_open(dev))
+	if (dev_open(dev, NULL))
 		goto failure;
 
 	dev_hold(dev);
@@ -837,10 +837,8 @@ static void ipmr_update_thresholds(struct mr_table *mrt, struct mr_mfc *cache,
 static int vif_add(struct net *net, struct mr_table *mrt,
 		   struct vifctl *vifc, int mrtsock)
 {
+	struct netdev_phys_item_id ppid = { };
 	int vifi = vifc->vifc_vifi;
-	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-	};
 	struct vif_device *v = &mrt->vif_table[vifi];
 	struct net_device *dev;
 	struct in_device *in_dev;
@@ -919,10 +917,10 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 			vifc->vifc_flags | (!mrtsock ? VIFF_STATIC : 0),
 			(VIFF_TUNNEL | VIFF_REGISTER));
 
-	attr.orig_dev = dev;
-	if (!switchdev_port_attr_get(dev, &attr)) {
-		memcpy(v->dev_parent_id.id, attr.u.ppid.id, attr.u.ppid.id_len);
-		v->dev_parent_id.id_len = attr.u.ppid.id_len;
+	err = dev_get_port_parent_id(dev, &ppid, true);
+	if (err == 0) {
+		memcpy(v->dev_parent_id.id, ppid.id, ppid.id_len);
+		v->dev_parent_id.id_len = ppid.id_len;
 	} else {
 		v->dev_parent_id.id_len = 0;
 	}
@@ -1299,7 +1297,7 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 }
 
 /* Close the multicast socket, and clear the vif tables etc */
-static void mroute_clean_tables(struct mr_table *mrt, bool all)
+static void mroute_clean_tables(struct mr_table *mrt, int flags)
 {
 	struct net *net = read_pnet(&mrt->net);
 	struct mr_mfc *c, *tmp;
@@ -1308,35 +1306,44 @@ static void mroute_clean_tables(struct mr_table *mrt, bool all)
 	int i;
 
 	/* Shut down all active vif entries */
-	for (i = 0; i < mrt->maxvif; i++) {
-		if (!all && (mrt->vif_table[i].flags & VIFF_STATIC))
-			continue;
-		vif_delete(mrt, i, 0, &list);
+	if (flags & (MRT_FLUSH_VIFS | MRT_FLUSH_VIFS_STATIC)) {
+		for (i = 0; i < mrt->maxvif; i++) {
+			if (((mrt->vif_table[i].flags & VIFF_STATIC) &&
+			     !(flags & MRT_FLUSH_VIFS_STATIC)) ||
+			    (!(mrt->vif_table[i].flags & VIFF_STATIC) && !(flags & MRT_FLUSH_VIFS)))
+				continue;
+			vif_delete(mrt, i, 0, &list);
+		}
+		unregister_netdevice_many(&list);
 	}
-	unregister_netdevice_many(&list);
 
 	/* Wipe the cache */
-	list_for_each_entry_safe(c, tmp, &mrt->mfc_cache_list, list) {
-		if (!all && (c->mfc_flags & MFC_STATIC))
-			continue;
-		rhltable_remove(&mrt->mfc_hash, &c->mnode, ipmr_rht_params);
-		list_del_rcu(&c->list);
-		cache = (struct mfc_cache *)c;
-		call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, cache,
-					      mrt->id);
-		mroute_netlink_event(mrt, cache, RTM_DELROUTE);
-		mr_cache_put(c);
+	if (flags & (MRT_FLUSH_MFC | MRT_FLUSH_MFC_STATIC)) {
+		list_for_each_entry_safe(c, tmp, &mrt->mfc_cache_list, list) {
+			if (((c->mfc_flags & MFC_STATIC) && !(flags & MRT_FLUSH_MFC_STATIC)) ||
+			    (!(c->mfc_flags & MFC_STATIC) && !(flags & MRT_FLUSH_MFC)))
+				continue;
+			rhltable_remove(&mrt->mfc_hash, &c->mnode, ipmr_rht_params);
+			list_del_rcu(&c->list);
+			cache = (struct mfc_cache *)c;
+			call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, cache,
+						      mrt->id);
+			mroute_netlink_event(mrt, cache, RTM_DELROUTE);
+			mr_cache_put(c);
+		}
 	}
 
-	if (atomic_read(&mrt->cache_resolve_queue_len) != 0) {
-		spin_lock_bh(&mfc_unres_lock);
-		list_for_each_entry_safe(c, tmp, &mrt->mfc_unres_queue, list) {
-			list_del(&c->list);
-			cache = (struct mfc_cache *)c;
-			mroute_netlink_event(mrt, cache, RTM_DELROUTE);
-			ipmr_destroy_unres(mrt, cache);
+	if (flags & MRT_FLUSH_MFC) {
+		if (atomic_read(&mrt->cache_resolve_queue_len) != 0) {
+			spin_lock_bh(&mfc_unres_lock);
+			list_for_each_entry_safe(c, tmp, &mrt->mfc_unres_queue, list) {
+				list_del(&c->list);
+				cache = (struct mfc_cache *)c;
+				mroute_netlink_event(mrt, cache, RTM_DELROUTE);
+				ipmr_destroy_unres(mrt, cache);
+			}
+			spin_unlock_bh(&mfc_unres_lock);
 		}
-		spin_unlock_bh(&mfc_unres_lock);
 	}
 }
 
@@ -1357,7 +1364,7 @@ static void mrtsock_destruct(struct sock *sk)
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
 			RCU_INIT_POINTER(mrt->mroute_sk, NULL);
-			mroute_clean_tables(mrt, false);
+			mroute_clean_tables(mrt, MRT_FLUSH_VIFS | MRT_FLUSH_MFC);
 		}
 	}
 	rtnl_unlock();
@@ -1481,6 +1488,17 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = ipmr_mfc_add(net, mrt, &mfc,
 					   sk == rtnl_dereference(mrt->mroute_sk),
 					   parent);
+		break;
+	case MRT_FLUSH:
+		if (optlen != sizeof(val)) {
+			ret = -EINVAL;
+			break;
+		}
+		if (get_user(val, (int __user *)optval)) {
+			ret = -EFAULT;
+			break;
+		}
+		mroute_clean_tables(mrt, val);
 		break;
 	/* Control PIM assert. */
 	case MRT_ASSERT:
@@ -1806,7 +1824,7 @@ static bool ipmr_forward_offloaded(struct sk_buff *skb, struct mr_table *mrt,
 	struct vif_device *out_vif = &mrt->vif_table[out_vifi];
 	struct vif_device *in_vif = &mrt->vif_table[in_vifi];
 
-	if (!skb->offload_mr_fwd_mark)
+	if (!skb->offload_l3_fwd_mark)
 		return false;
 	if (!out_vif->dev_parent_id.id_len || !in_vif->dev_parent_id.id_len)
 		return false;
@@ -1824,8 +1842,7 @@ static bool ipmr_forward_offloaded(struct sk_buff *skb, struct mr_table *mrt,
 /* Processing handlers for ipmr_forward */
 
 static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
-			    int in_vifi, struct sk_buff *skb,
-			    struct mfc_cache *c, int vifi)
+			    int in_vifi, struct sk_buff *skb, int vifi)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct vif_device *vif = &mrt->vif_table[vifi];
@@ -2031,7 +2048,7 @@ forward:
 
 				if (skb2)
 					ipmr_queue_xmit(net, mrt, true_vifi,
-							skb2, c, psend);
+							skb2, psend);
 			}
 			psend = ct;
 		}
@@ -2043,9 +2060,9 @@ last_forward:
 
 			if (skb2)
 				ipmr_queue_xmit(net, mrt, true_vifi, skb2,
-						c, psend);
+						psend);
 		} else {
-			ipmr_queue_xmit(net, mrt, true_vifi, skb, c, psend);
+			ipmr_queue_xmit(net, mrt, true_vifi, skb, psend);
 			return;
 		}
 	}
@@ -2468,6 +2485,61 @@ errout:
 	rtnl_set_sk_err(net, RTNLGRP_IPV4_MROUTE_R, -ENOBUFS);
 }
 
+static int ipmr_rtm_valid_getroute_req(struct sk_buff *skb,
+				       const struct nlmsghdr *nlh,
+				       struct nlattr **tb,
+				       struct netlink_ext_ack *extack)
+{
+	struct rtmsg *rtm;
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid header for multicast route get request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
+				   rtm_ipv4_policy, extack);
+
+	rtm = nlmsg_data(nlh);
+	if ((rtm->rtm_src_len && rtm->rtm_src_len != 32) ||
+	    (rtm->rtm_dst_len && rtm->rtm_dst_len != 32) ||
+	    rtm->rtm_tos || rtm->rtm_table || rtm->rtm_protocol ||
+	    rtm->rtm_scope || rtm->rtm_type || rtm->rtm_flags) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid values in header for multicast route get request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+				 rtm_ipv4_policy, extack);
+	if (err)
+		return err;
+
+	if ((tb[RTA_SRC] && !rtm->rtm_src_len) ||
+	    (tb[RTA_DST] && !rtm->rtm_dst_len)) {
+		NL_SET_ERR_MSG(extack, "ipv4: rtm_src_len and rtm_dst_len must be 32 for IPv4");
+		return -EINVAL;
+	}
+
+	for (i = 0; i <= RTA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case RTA_SRC:
+		case RTA_DST:
+		case RTA_TABLE:
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "ipv4: Unsupported attribute in multicast route get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack)
 {
@@ -2476,17 +2548,13 @@ static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct sk_buff *skb = NULL;
 	struct mfc_cache *cache;
 	struct mr_table *mrt;
-	struct rtmsg *rtm;
 	__be32 src, grp;
 	u32 tableid;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
-			  rtm_ipv4_policy, extack);
+	err = ipmr_rtm_valid_getroute_req(in_skb, nlh, tb, extack);
 	if (err < 0)
 		goto errout;
-
-	rtm = nlmsg_data(nlh);
 
 	src = tb[RTA_SRC] ? nla_get_in_addr(tb[RTA_SRC]) : 0;
 	grp = tb[RTA_DST] ? nla_get_in_addr(tb[RTA_DST]) : 0;

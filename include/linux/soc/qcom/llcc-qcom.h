@@ -162,6 +162,12 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc);
  */
 int qcom_llcc_probe(struct platform_device *pdev,
 		      const struct llcc_slice_config *table, u32 sz);
+
+/**
+ * qcom_llcc_remove - remove the sct table
+ * @pdev: Platform device pointer
+ */
+int qcom_llcc_remove(struct platform_device *pdev);
 #else
 static inline struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 {

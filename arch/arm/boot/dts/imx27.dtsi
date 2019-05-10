@@ -16,10 +16,8 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
-	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &fec;
@@ -42,7 +40,7 @@
 		spi2 = &cspi3;
 	};
 
-	aitc: aitc-interrupt-controller@e0000000 {
+	aitc: aitc-interrupt-controller@10040000 {
 		compatible = "fsl,imx27-aitc", "fsl,avic";
 		interrupt-controller;
 		#interrupt-cells = <1>;

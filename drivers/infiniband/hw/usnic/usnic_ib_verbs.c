@@ -37,6 +37,7 @@
 
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "usnic_abi.h"
 #include "usnic_ib.h"
@@ -336,13 +337,16 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	usnic_dbg("\n");
 
-	mutex_lock(&us_ibdev->usdev_lock);
 	if (ib_get_eth_speed(ibdev, port, &props->active_speed,
-			     &props->active_width)) {
-		mutex_unlock(&us_ibdev->usdev_lock);
+			     &props->active_width))
 		return -EINVAL;
-	}
 
+	/*
+	 * usdev_lock is acquired after (and not before) ib_get_eth_speed call
+	 * because acquiring rtnl_lock in ib_get_eth_speed, while holding
+	 * usdev_lock could lead to a deadlock.
+	 */
+	mutex_lock(&us_ibdev->usdev_lock);
 	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
@@ -433,57 +437,33 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return 0;
 }
 
-struct net_device *usnic_get_netdev(struct ib_device *device, u8 port_num)
-{
-	struct usnic_ib_dev *us_ibdev = to_usdev(device);
-
-	if (us_ibdev->netdev)
-		dev_hold(us_ibdev->netdev);
-
-	return us_ibdev->netdev;
-}
-
 int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 				u16 *pkey)
 {
-	if (index > 1)
+	if (index > 0)
 		return -EINVAL;
 
 	*pkey = 0xffff;
 	return 0;
 }
 
-struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
-					struct ib_ucontext *context,
-					struct ib_udata *udata)
+int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+		      struct ib_udata *udata)
 {
-	struct usnic_ib_pd *pd;
+	struct usnic_ib_pd *pd = to_upd(ibpd);
 	void *umem_pd;
-
-	usnic_dbg("\n");
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	umem_pd = pd->umem_pd = usnic_uiom_alloc_pd();
 	if (IS_ERR_OR_NULL(umem_pd)) {
-		kfree(pd);
-		return ERR_PTR(umem_pd ? PTR_ERR(umem_pd) : -ENOMEM);
+		return umem_pd ? PTR_ERR(umem_pd) : -ENOMEM;
 	}
 
-	usnic_info("domain 0x%p allocated for context 0x%p and device %s\n",
-		   pd, context, dev_name(&ibdev->dev));
-	return &pd->ibpd;
+	return 0;
 }
 
-int usnic_ib_dealloc_pd(struct ib_pd *pd)
+void usnic_ib_dealloc_pd(struct ib_pd *pd)
 {
-	usnic_info("freeing domain 0x%p\n", pd);
-
 	usnic_uiom_dealloc_pd((to_upd(pd))->umem_pd);
-	kfree(pd);
-	return 0;
 }
 
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
@@ -493,7 +473,8 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	int err;
 	struct usnic_ib_dev *us_ibdev;
 	struct usnic_ib_qp_grp *qp_grp;
-	struct usnic_ib_ucontext *ucontext;
+	struct usnic_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct usnic_ib_ucontext, ibucontext);
 	int cq_cnt;
 	struct usnic_vnic_res_spec res_spec;
 	struct usnic_ib_create_qp_cmd cmd;
@@ -501,7 +482,6 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 
 	usnic_dbg("\n");
 
-	ucontext = to_uucontext(pd->uobject->context);
 	us_ibdev = to_usdev(pd->device);
 
 	if (init_attr->create_flags)
@@ -673,37 +653,31 @@ int usnic_ib_dereg_mr(struct ib_mr *ibmr)
 	return 0;
 }
 
-struct ib_ucontext *usnic_ib_alloc_ucontext(struct ib_device *ibdev,
-							struct ib_udata *udata)
+int usnic_ib_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
-	struct usnic_ib_ucontext *context;
+	struct ib_device *ibdev = uctx->device;
+	struct usnic_ib_ucontext *context = to_ucontext(uctx);
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
 	usnic_dbg("\n");
-
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&context->qp_grp_list);
 	mutex_lock(&us_ibdev->usdev_lock);
 	list_add_tail(&context->link, &us_ibdev->ctx_list);
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return &context->ibucontext;
+	return 0;
 }
 
-int usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
+void usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct usnic_ib_ucontext *context = to_uucontext(ibcontext);
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibcontext->device);
 	usnic_dbg("\n");
 
 	mutex_lock(&us_ibdev->usdev_lock);
-	BUG_ON(!list_empty(&context->qp_grp_list));
+	WARN_ON_ONCE(!list_empty(&context->qp_grp_list));
 	list_del(&context->link);
 	mutex_unlock(&us_ibdev->usdev_lock);
-	kfree(context);
-	return 0;
 }
 
 int usnic_ib_mmap(struct ib_ucontext *context,
@@ -757,56 +731,4 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 	return -EINVAL;
 }
 
-/* In ib callbacks section -  Start of stub funcs */
-struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
-				 struct rdma_ah_attr *ah_attr,
-				 struct ib_udata *udata)
-
-{
-	usnic_dbg("\n");
-	return ERR_PTR(-EPERM);
-}
-
-int usnic_ib_destroy_ah(struct ib_ah *ah)
-{
-	usnic_dbg("\n");
-	return -EINVAL;
-}
-
-int usnic_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
-		       const struct ib_send_wr **bad_wr)
-{
-	usnic_dbg("\n");
-	return -EINVAL;
-}
-
-int usnic_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
-		       const struct ib_recv_wr **bad_wr)
-{
-	usnic_dbg("\n");
-	return -EINVAL;
-}
-
-int usnic_ib_poll_cq(struct ib_cq *ibcq, int num_entries,
-				struct ib_wc *wc)
-{
-	usnic_dbg("\n");
-	return -EINVAL;
-}
-
-int usnic_ib_req_notify_cq(struct ib_cq *cq,
-					enum ib_cq_notify_flags flags)
-{
-	usnic_dbg("\n");
-	return -EINVAL;
-}
-
-struct ib_mr *usnic_ib_get_dma_mr(struct ib_pd *pd, int acc)
-{
-	usnic_dbg("\n");
-	return ERR_PTR(-ENOMEM);
-}
-
-
-/* In ib callbacks section - End of stub funcs */
 /* End of ib callbacks section */

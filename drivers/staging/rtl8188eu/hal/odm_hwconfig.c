@@ -53,20 +53,11 @@ static s32 odm_signal_scale_mapping(struct odm_dm_struct *dm_odm, s32 currsig)
 static u8 odm_evm_db_to_percentage(s8 value)
 {
 	/*  -33dB~0dB to 0%~99% */
-	s8 ret_val;
-
-	ret_val = value;
-
-	if (ret_val >= 0)
-		ret_val = 0;
-	if (ret_val <= -33)
-		ret_val = -33;
-
-	ret_val = 0 - ret_val;
-	ret_val *= 3;
+	s8 ret_val = clamp(-value, 0, 33) * 3;
 
 	if (ret_val == 99)
 		ret_val = 100;
+
 	return ret_val;
 }
 
@@ -76,23 +67,24 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			struct odm_per_pkt_info *pPktinfo)
 {
 	struct sw_ant_switch *pDM_SWAT_Table = &dm_odm->DM_SWAT_Table;
-	u8 i, Max_spatial_stream;
+	u8 i, max_spatial_stream;
 	s8 rx_pwr[4], rx_pwr_all = 0;
 	u8 EVM, PWDB_ALL = 0, PWDB_ALL_BT;
 	u8 RSSI, total_rssi = 0;
-	u8 isCCKrate = 0;
+	bool is_cck_rate;
 	u8 rf_rx_num = 0;
 	u8 cck_highpwr = 0;
 	u8 LNA_idx, VGA_idx;
 
 	struct phy_status_rpt *pPhyStaRpt = (struct phy_status_rpt *)pPhyStatus;
 
-	isCCKrate = ((pPktinfo->Rate >= DESC92C_RATE1M) && (pPktinfo->Rate <= DESC92C_RATE11M)) ? true : false;
+	is_cck_rate = pPktinfo->Rate >= DESC92C_RATE1M &&
+		      pPktinfo->Rate <= DESC92C_RATE11M;
 
 	pPhyInfo->RxMIMOSignalQuality[RF_PATH_A] = -1;
 	pPhyInfo->RxMIMOSignalQuality[RF_PATH_B] = -1;
 
-	if (isCCKrate) {
+	if (is_cck_rate) {
 		u8 cck_agc_rpt;
 
 		dm_odm->PhyDbgInfo.NumQryPhyStatusCCK++;
@@ -224,11 +216,11 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 
 		/*  (3)EVM of HT rate */
 		if (pPktinfo->Rate >= DESC92C_RATEMCS8 && pPktinfo->Rate <= DESC92C_RATEMCS15)
-			Max_spatial_stream = 2; /* both spatial stream make sense */
+			max_spatial_stream = 2; /* both spatial stream make sense */
 		else
-			Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
+			max_spatial_stream = 1; /* only spatial stream 1 makes sense */
 
-		for (i = 0; i < Max_spatial_stream; i++) {
+		for (i = 0; i < max_spatial_stream; i++) {
 			/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
 			/*  fill most significant bit to "zero" when doing shifting operation which may change a negative */
 			/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
@@ -243,7 +235,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 	}
 	/* UI BSS List signal strength(in percentage), make it good looking, from 0~100. */
 	/* It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp(). */
-	if (isCCKrate) {
+	if (is_cck_rate) {
 		pPhyInfo->SignalStrength = (u8)(odm_signal_scale_mapping(dm_odm, PWDB_ALL));/* PWDB_ALL; */
 	} else {
 		if (rf_rx_num != 0)
@@ -264,7 +256,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 {
 	s32 UndecoratedSmoothedPWDB, UndecoratedSmoothedCCK;
 	s32 UndecoratedSmoothedOFDM, RSSI_Ave;
-	u8 isCCKrate = 0;
+	bool is_cck_rate;
 	u8 RSSI_max, RSSI_min, i;
 	u32 OFDM_pkt = 0;
 	u32 Weighting = 0;
@@ -280,7 +272,8 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 	if ((!pPktinfo->bPacketMatchBSSID))
 		return;
 
-	isCCKrate = ((pPktinfo->Rate >= DESC92C_RATE1M) && (pPktinfo->Rate <= DESC92C_RATE11M)) ? true : false;
+	is_cck_rate = pPktinfo->Rate >= DESC92C_RATE1M &&
+		      pPktinfo->Rate <= DESC92C_RATE11M;
 
 	/* Smart Antenna Debug Message------------------  */
 
@@ -308,7 +301,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 	UndecoratedSmoothedPWDB = pEntry->rssi_stat.UndecoratedSmoothedPWDB;
 
 	if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
-		if (!isCCKrate) { /* ofdm rate */
+		if (!is_cck_rate) { /* ofdm rate */
 			if (pPhyInfo->RxMIMOSignalStrength[RF_PATH_B] == 0) {
 				RSSI_Ave = pPhyInfo->RxMIMOSignalStrength[RF_PATH_A];
 			} else {

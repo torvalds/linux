@@ -18,47 +18,43 @@
 #ifndef _DDBRIDGE_H_
 #define _DDBRIDGE_H_
 
-#include <linux/module.h>
+#include <linux/clk.h>
+#include <linux/completion.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dvb/ca.h>
+#include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
 #include <linux/io.h>
+#include <linux/kthread.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
-#include <linux/timer.h>
-#include <linux/i2c.h>
+#include <linux/platform_device.h>
+#include <linux/poll.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/socket.h>
+#include <linux/spi/spi.h>
 #include <linux/swab.h>
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
-#include <linux/kthread.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-#include <linux/spi/spi.h>
-#include <linux/gpio.h>
-#include <linux/completion.h>
 
-#include <linux/types.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/mutex.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
-#include <linux/io.h>
-#include <linux/uaccess.h>
-
-#include <linux/dvb/ca.h>
-#include <linux/socket.h>
-#include <linux/device.h>
-#include <linux/io.h>
 
 #include <media/dmxdev.h>
-#include <media/dvbdev.h>
-#include <media/dvb_demux.h>
-#include <media/dvb_frontend.h>
-#include <media/dvb_ringbuffer.h>
 #include <media/dvb_ca_en50221.h>
+#include <media/dvb_demux.h>
+#include <media/dvbdev.h>
+#include <media/dvb_frontend.h>
 #include <media/dvb_net.h>
+#include <media/dvb_ringbuffer.h>
 
 #define DDBRIDGE_VERSION "0.9.33-integrated"
 

@@ -124,11 +124,11 @@ struct bus_attribute {
 	ssize_t (*store)(struct bus_type *, const char * buf, size_t count);
 };
 
-Bus drivers can export attributes using the BUS_ATTR macro that works
-similarly to the DEVICE_ATTR macro for devices. For example, a definition 
-like this:
+Bus drivers can export attributes using the BUS_ATTR_RW macro that works
+similarly to the DEVICE_ATTR_RW macro for devices. For example, a
+definition like this:
 
-static BUS_ATTR(debug,0644,show_debug,store_debug);
+static BUS_ATTR_RW(debug);
 
 is equivalent to declaring:
 

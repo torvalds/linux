@@ -20,6 +20,7 @@
 	compatible = "technologic,imx28-ts4600", "fsl,imx28";
 
 	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x10000000>;   /* 256MB */
 	};
 

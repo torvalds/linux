@@ -97,6 +97,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi->orig_ino = 0;
 	fi->state = 0;
 	mutex_init(&fi->mutex);
+	spin_lock_init(&fi->lock);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget) {
 		kmem_cache_free(fuse_inode_cachep, inode);
@@ -163,7 +164,9 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
-	fi->attr_version = ++fc->attr_version;
+	lockdep_assert_held(&fi->lock);
+
+	fi->attr_version = atomic64_inc_return(&fc->attr_version);
 	fi->i_time = attr_valid;
 	WRITE_ONCE(fi->inval_mask, 0);
 
@@ -209,10 +212,10 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	loff_t oldsize;
 	struct timespec64 old_mtime;
 
-	spin_lock(&fc->lock);
+	spin_lock(&fi->lock);
 	if ((attr_version != 0 && fi->attr_version > attr_version) ||
 	    test_bit(FUSE_I_SIZE_UNSTABLE, &fi->state)) {
-		spin_unlock(&fc->lock);
+		spin_unlock(&fi->lock);
 		return;
 	}
 
@@ -227,7 +230,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	 */
 	if (!is_wb || !S_ISREG(inode->i_mode))
 		i_size_write(inode, attr->size);
-	spin_unlock(&fc->lock);
+	spin_unlock(&fi->lock);
 
 	if (!is_wb && S_ISREG(inode->i_mode)) {
 		bool inval = false;
@@ -322,9 +325,9 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 	}
 
 	fi = get_fuse_inode(inode);
-	spin_lock(&fc->lock);
+	spin_lock(&fi->lock);
 	fi->nlookup++;
-	spin_unlock(&fc->lock);
+	spin_unlock(&fi->lock);
 	fuse_change_attributes(inode, attr, attr_valid, attr_version);
 
 	return inode;
@@ -376,7 +379,7 @@ void fuse_unlock_inode(struct inode *inode, bool locked)
 
 static void fuse_umount_begin(struct super_block *sb)
 {
-	fuse_abort_conn(get_fuse_conn_super(sb), false);
+	fuse_abort_conn(get_fuse_conn_super(sb));
 }
 
 static void fuse_send_destroy(struct fuse_conn *fc)
@@ -619,15 +622,16 @@ void fuse_conn_init(struct fuse_conn *fc, struct user_namespace *user_ns)
 	atomic_set(&fc->num_waiting, 0);
 	fc->max_background = FUSE_DEFAULT_MAX_BACKGROUND;
 	fc->congestion_threshold = FUSE_DEFAULT_CONGESTION_THRESHOLD;
-	fc->khctr = 0;
+	atomic64_set(&fc->khctr, 0);
 	fc->polled_files = RB_ROOT;
 	fc->blocked = 0;
 	fc->initialized = 0;
 	fc->connected = 1;
-	fc->attr_version = 1;
+	atomic64_set(&fc->attr_version, 1);
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 	fc->pid_ns = get_pid_ns(task_active_pid_ns(current));
 	fc->user_ns = get_user_ns(user_ns);
+	fc->max_pages = FUSE_DEFAULT_MAX_PAGES_PER_REQ;
 }
 EXPORT_SYMBOL_GPL(fuse_conn_init);
 
@@ -824,7 +828,7 @@ static const struct super_operations fuse_super_operations = {
 static void sanitize_global_limit(unsigned *limit)
 {
 	if (*limit == 0)
-		*limit = ((totalram_pages << PAGE_SHIFT) >> 13) /
+		*limit = ((totalram_pages() << PAGE_SHIFT) >> 13) /
 			 sizeof(struct fuse_req);
 
 	if (*limit >= 1 << 16)
@@ -968,7 +972,8 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 		FUSE_DO_READDIRPLUS | FUSE_READDIRPLUS_AUTO | FUSE_ASYNC_DIO |
 		FUSE_WRITEBACK_CACHE | FUSE_NO_OPEN_SUPPORT |
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
-		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS;
+		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
+		FUSE_NO_OPENDIR_SUPPORT;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
@@ -1009,7 +1014,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 	if (err)
 		return err;
 
-	sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
+	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
 	/* fuse does it's own writeback accounting */
 	sb->s_bdi->capabilities = BDI_CAP_NO_ACCT_WB | BDI_CAP_STRICTLIMIT;
 
@@ -1162,7 +1167,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fc->user_id = d.user_id;
 	fc->group_id = d.group_id;
 	fc->max_read = max_t(unsigned, 4096, d.max_read);
-	fc->max_pages = FUSE_DEFAULT_MAX_PAGES_PER_REQ;
 
 	/* Used by get_root_inode() */
 	sb->s_fs_info = fc;
@@ -1242,7 +1246,7 @@ static void fuse_sb_destroy(struct super_block *sb)
 	if (fc) {
 		fuse_send_destroy(fc);
 
-		fuse_abort_conn(fc, false);
+		fuse_abort_conn(fc);
 		fuse_wait_aborted(fc);
 
 		down_write(&fc->killsb);

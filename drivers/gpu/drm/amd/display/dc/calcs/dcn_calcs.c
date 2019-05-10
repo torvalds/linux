@@ -290,41 +290,34 @@ static void pipe_ctx_to_e2e_pipe_params (
 	switch (pipe->plane_state->tiling_info.gfx9.swizzle) {
 	/* for 4/8/16 high tiles */
 	case DC_SW_LINEAR:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_4k_tile;
 		break;
 	case DC_SW_4KB_S:
 	case DC_SW_4KB_S_X:
-		input->src.is_display_sw = 0;
 		input->src.macro_tile_size = dm_4k_tile;
 		break;
 	case DC_SW_64KB_S:
 	case DC_SW_64KB_S_X:
 	case DC_SW_64KB_S_T:
-		input->src.is_display_sw = 0;
 		input->src.macro_tile_size = dm_64k_tile;
 		break;
 	case DC_SW_VAR_S:
 	case DC_SW_VAR_S_X:
-		input->src.is_display_sw = 0;
 		input->src.macro_tile_size = dm_256k_tile;
 		break;
 
 	/* For 64bpp 2 high tiles */
 	case DC_SW_4KB_D:
 	case DC_SW_4KB_D_X:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_4k_tile;
 		break;
 	case DC_SW_64KB_D:
 	case DC_SW_64KB_D_X:
 	case DC_SW_64KB_D_T:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_64k_tile;
 		break;
 	case DC_SW_VAR_D:
 	case DC_SW_VAR_D_X:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_256k_tile;
 		break;
 
@@ -423,7 +416,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 			- pipe->stream->timing.v_addressable
 			- pipe->stream->timing.v_border_bottom
 			- pipe->stream->timing.v_border_top;
-	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_khz/1000.0;
+	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_100hz/10000.0;
 	input->dest.vstartup_start = pipe->pipe_dlg_param.vstartup_start;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
@@ -670,9 +663,9 @@ static void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 }
 
 static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
-		unsigned int pixel_rate_khz)
+		unsigned int pixel_rate_100hz)
 {
-	float pixel_rate_mhz = pixel_rate_khz / 1000;
+	float pixel_rate_mhz = pixel_rate_100hz / 10000;
 
 	/*
 	 * force enabling pipe split by lower dpp clock for DPM0 to just
@@ -695,7 +688,7 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 
 	if (context->stream_count == 1 &&
 			dbg->force_single_disp_pipe_split)
-		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_khz);
+		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
 
 bool dcn_validate_bandwidth(
@@ -852,7 +845,7 @@ bool dcn_validate_bandwidth(
 		v->v_sync_plus_back_porch[input_idx] = pipe->stream->timing.v_total
 				- v->vactive[input_idx]
 				- pipe->stream->timing.v_front_porch;
-		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz/1000.0;
+		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_100hz/10000.0;
 		if (pipe->stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 			v->pixel_clock[input_idx] *= 2;
 		if (!pipe->plane_state) {
@@ -961,7 +954,7 @@ bool dcn_validate_bandwidth(
 		v->dcc_rate[input_idx] = 1; /*TODO: Worst case? does this change?*/
 		v->output_format[input_idx] = pipe->stream->timing.pixel_encoding ==
 				PIXEL_ENCODING_YCBCR420 ? dcn_bw_420 : dcn_bw_444;
-		v->output[input_idx] = pipe->stream->sink->sink_signal ==
+		v->output[input_idx] = pipe->stream->signal ==
 				SIGNAL_TYPE_HDMI_TYPE_A ? dcn_bw_hdmi : dcn_bw_dp;
 		v->output_deep_color[input_idx] = dcn_bw_encoder_8bpc;
 		if (v->output[input_idx] == dcn_bw_hdmi) {
@@ -1355,11 +1348,11 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 	struct dm_pp_clock_levels_with_voltage fclks = {0}, dcfclks = {0};
 	bool res;
 
-	kernel_fpu_begin();
-
 	/* TODO: This is not the proper way to obtain fabric_and_dram_bandwidth, should be min(fclk, memclk) */
 	res = dm_pp_get_clock_levels_by_type_with_voltage(
 			ctx, DM_PP_CLOCK_TYPE_FCLK, &fclks);
+
+	kernel_fpu_begin();
 
 	if (res)
 		res = verify_clock_values(&fclks);
@@ -1379,8 +1372,12 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 	} else
 		BREAK_TO_DEBUGGER();
 
+	kernel_fpu_end();
+
 	res = dm_pp_get_clock_levels_by_type_with_voltage(
 			ctx, DM_PP_CLOCK_TYPE_DCFCLK, &dcfclks);
+
+	kernel_fpu_begin();
 
 	if (res)
 		res = verify_clock_values(&dcfclks);
@@ -1423,27 +1420,27 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	ranges.num_reader_wm_sets = WM_SET_COUNT;
 	ranges.num_writer_wm_sets = WM_SET_COUNT;
 	ranges.reader_wm_sets[0].wm_inst = WM_A;
-	ranges.reader_wm_sets[0].min_drain_clk_khz = min_dcfclk_khz;
-	ranges.reader_wm_sets[0].max_drain_clk_khz = overdrive;
-	ranges.reader_wm_sets[0].min_fill_clk_khz = min_fclk_khz;
-	ranges.reader_wm_sets[0].max_fill_clk_khz = overdrive;
+	ranges.reader_wm_sets[0].min_drain_clk_mhz = min_dcfclk_khz / 1000;
+	ranges.reader_wm_sets[0].max_drain_clk_mhz = overdrive / 1000;
+	ranges.reader_wm_sets[0].min_fill_clk_mhz = min_fclk_khz / 1000;
+	ranges.reader_wm_sets[0].max_fill_clk_mhz = overdrive / 1000;
 	ranges.writer_wm_sets[0].wm_inst = WM_A;
-	ranges.writer_wm_sets[0].min_fill_clk_khz = socclk_khz;
-	ranges.writer_wm_sets[0].max_fill_clk_khz = overdrive;
-	ranges.writer_wm_sets[0].min_drain_clk_khz = min_fclk_khz;
-	ranges.writer_wm_sets[0].max_drain_clk_khz = overdrive;
+	ranges.writer_wm_sets[0].min_fill_clk_mhz = socclk_khz / 1000;
+	ranges.writer_wm_sets[0].max_fill_clk_mhz = overdrive / 1000;
+	ranges.writer_wm_sets[0].min_drain_clk_mhz = min_fclk_khz / 1000;
+	ranges.writer_wm_sets[0].max_drain_clk_mhz = overdrive / 1000;
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		ranges.reader_wm_sets[0].wm_inst = WM_A;
-		ranges.reader_wm_sets[0].min_drain_clk_khz = 300000;
-		ranges.reader_wm_sets[0].max_drain_clk_khz = 5000000;
-		ranges.reader_wm_sets[0].min_fill_clk_khz = 800000;
-		ranges.reader_wm_sets[0].max_fill_clk_khz = 5000000;
+		ranges.reader_wm_sets[0].min_drain_clk_mhz = 300;
+		ranges.reader_wm_sets[0].max_drain_clk_mhz = 5000;
+		ranges.reader_wm_sets[0].min_fill_clk_mhz = 800;
+		ranges.reader_wm_sets[0].max_fill_clk_mhz = 5000;
 		ranges.writer_wm_sets[0].wm_inst = WM_A;
-		ranges.writer_wm_sets[0].min_fill_clk_khz = 200000;
-		ranges.writer_wm_sets[0].max_fill_clk_khz = 5000000;
-		ranges.writer_wm_sets[0].min_drain_clk_khz = 800000;
-		ranges.writer_wm_sets[0].max_drain_clk_khz = 5000000;
+		ranges.writer_wm_sets[0].min_fill_clk_mhz = 200;
+		ranges.writer_wm_sets[0].max_fill_clk_mhz = 5000;
+		ranges.writer_wm_sets[0].min_drain_clk_mhz = 800;
+		ranges.writer_wm_sets[0].max_drain_clk_mhz = 5000;
 	}
 
 	ranges.reader_wm_sets[1] = ranges.writer_wm_sets[0];

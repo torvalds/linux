@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -297,7 +297,6 @@ enum iwl_mvm_agg_state {
 
 /**
  * struct iwl_mvm_tid_data - holds the states for each RA / TID
- * @deferred_tx_frames: deferred TX frames for this RA/TID
  * @seq_number: the next WiFi sequence number to use
  * @next_reclaimed: the WiFi sequence number of the next packet to be acked.
  *	This is basically (last acked packet++).
@@ -318,7 +317,6 @@ enum iwl_mvm_agg_state {
  *	 tpt_meas_start
  */
 struct iwl_mvm_tid_data {
-	struct sk_buff_head deferred_tx_frames;
 	u16 seq_number;
 	u16 next_reclaimed;
 	/* The rest is Tx AGG related */
@@ -397,6 +395,9 @@ struct iwl_mvm_rxq_dup_data {
  * @ptk_pn: per-queue PTK PN data structures
  * @dup_data: per queue duplicate packet detection data
  * @deferred_traffic_tid_map: indication bitmap of deferred traffic per-TID
+ * @tx_ant: the index of the antenna to use for data tx to this station. Only
+ *	used during connection establishment (e.g. for the 4 way handshake
+ *	exchange).
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -424,8 +425,6 @@ struct iwl_mvm_sta {
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;
 
-	u16 deferred_traffic_tid_map;
-
 	u8 reserved_queue;
 
 	/* Temporary, until the new TLC will control the Tx protection */
@@ -439,6 +438,7 @@ struct iwl_mvm_sta {
 	u8 agg_tids;
 	u8 sleep_tx_count;
 	u8 avg_energy;
+	u8 tx_ant;
 };
 
 u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data);

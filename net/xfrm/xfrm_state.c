@@ -432,7 +432,7 @@ void xfrm_state_free(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_free);
 
-static void xfrm_state_gc_destroy(struct xfrm_state *x)
+static void ___xfrm_state_destroy(struct xfrm_state *x)
 {
 	tasklet_hrtimer_cancel(&x->mtimer);
 	del_timer_sync(&x->rtimer);
@@ -474,7 +474,7 @@ static void xfrm_state_gc_task(struct work_struct *work)
 	synchronize_rcu();
 
 	hlist_for_each_entry_safe(x, tmp, &gc_list, gclist)
-		xfrm_state_gc_destroy(x);
+		___xfrm_state_destroy(x);
 }
 
 static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
@@ -598,14 +598,19 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 }
 EXPORT_SYMBOL(xfrm_state_alloc);
 
-void __xfrm_state_destroy(struct xfrm_state *x)
+void __xfrm_state_destroy(struct xfrm_state *x, bool sync)
 {
 	WARN_ON(x->km.state != XFRM_STATE_DEAD);
 
-	spin_lock_bh(&xfrm_state_gc_lock);
-	hlist_add_head(&x->gclist, &xfrm_state_gc_list);
-	spin_unlock_bh(&xfrm_state_gc_lock);
-	schedule_work(&xfrm_state_gc_work);
+	if (sync) {
+		synchronize_rcu();
+		___xfrm_state_destroy(x);
+	} else {
+		spin_lock_bh(&xfrm_state_gc_lock);
+		hlist_add_head(&x->gclist, &xfrm_state_gc_list);
+		spin_unlock_bh(&xfrm_state_gc_lock);
+		schedule_work(&xfrm_state_gc_work);
+	}
 }
 EXPORT_SYMBOL(__xfrm_state_destroy);
 
@@ -708,7 +713,7 @@ xfrm_dev_state_flush_secctx_check(struct net *net, struct net_device *dev, bool 
 }
 #endif
 
-int xfrm_state_flush(struct net *net, u8 proto, bool task_valid)
+int xfrm_state_flush(struct net *net, u8 proto, bool task_valid, bool sync)
 {
 	int i, err = 0, cnt = 0;
 
@@ -730,7 +735,10 @@ restart:
 				err = xfrm_state_delete(x);
 				xfrm_audit_state_delete(x, err ? 0 : 1,
 							task_valid);
-				xfrm_state_put(x);
+				if (sync)
+					xfrm_state_put_sync(x);
+				else
+					xfrm_state_put(x);
 				if (!err)
 					cnt++;
 
@@ -2215,7 +2223,7 @@ void xfrm_state_delete_tunnel(struct xfrm_state *x)
 		if (atomic_read(&t->tunnel_users) == 2)
 			xfrm_state_delete(t);
 		atomic_dec(&t->tunnel_users);
-		xfrm_state_put(t);
+		xfrm_state_put_sync(t);
 		x->tunnel = NULL;
 	}
 }
@@ -2375,8 +2383,8 @@ void xfrm_state_fini(struct net *net)
 	unsigned int sz;
 
 	flush_work(&net->xfrm.state_hash_work);
-	xfrm_state_flush(net, IPSEC_PROTO_ANY, false);
 	flush_work(&xfrm_state_gc_work);
+	xfrm_state_flush(net, 0, false, true);
 
 	WARN_ON(!list_empty(&net->xfrm.state_all));
 

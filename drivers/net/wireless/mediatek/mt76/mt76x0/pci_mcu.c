@@ -19,9 +19,6 @@
 #include "mt76x0.h"
 #include "mcu.h"
 
-#define MT7610E_FIRMWARE	"mediatek/mt7610e.bin"
-#define MT7650E_FIRMWARE	"mediatek/mt7650e.bin"
-
 #define MT_MCU_IVB_ADDR		(MT_MCU_ILM_ADDR + 0x54000 - MT_MCU_IVB_SIZE)
 
 static int mt76x0e_load_firmware(struct mt76x02_dev *dev)
@@ -130,7 +127,6 @@ out:
 int mt76x0e_mcu_init(struct mt76x02_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x0e_mcu_ops = {
-		.mcu_msg_alloc = mt76x02_mcu_msg_alloc,
 		.mcu_send_msg = mt76x02_mcu_msg_send,
 	};
 	int err;

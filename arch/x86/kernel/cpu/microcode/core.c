@@ -434,9 +434,10 @@ static ssize_t microcode_write(struct file *file, const char __user *buf,
 			       size_t len, loff_t *ppos)
 {
 	ssize_t ret = -EINVAL;
+	unsigned long nr_pages = totalram_pages();
 
-	if ((len >> PAGE_SHIFT) > totalram_pages) {
-		pr_err("too much data (max %ld pages)\n", totalram_pages);
+	if ((len >> PAGE_SHIFT) > nr_pages) {
+		pr_err("too much data (max %ld pages)\n", nr_pages);
 		return ret;
 	}
 
@@ -606,6 +607,8 @@ static int microcode_reload_late(void)
 	ret = stop_machine_cpuslocked(__reload_late, NULL, cpu_online_mask);
 	if (ret > 0)
 		microcode_check();
+
+	pr_info("Reload completed, microcode revision: 0x%x\n", boot_cpu_data.microcode);
 
 	return ret;
 }

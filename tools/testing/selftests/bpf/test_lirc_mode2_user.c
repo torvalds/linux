@@ -29,6 +29,7 @@
 
 #include <linux/bpf.h>
 #include <linux/lirc.h>
+#include <linux/input.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,12 +48,13 @@
 int main(int argc, char **argv)
 {
 	struct bpf_object *obj;
-	int ret, lircfd, progfd, mode;
-	int testir = 0x1dead;
+	int ret, lircfd, progfd, inputfd;
+	int testir1 = 0x1dead;
+	int testir2 = 0x20101;
 	u32 prog_ids[10], prog_flags[10], prog_cnt;
 
-	if (argc != 2) {
-		printf("Usage: %s /dev/lircN\n", argv[0]);
+	if (argc != 3) {
+		printf("Usage: %s /dev/lircN /dev/input/eventM\n", argv[0]);
 		return 2;
 	}
 
@@ -76,9 +78,9 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	mode = LIRC_MODE_SCANCODE;
-	if (ioctl(lircfd, LIRC_SET_REC_MODE, &mode)) {
-		printf("failed to set rec mode: %m\n");
+	inputfd = open(argv[2], O_RDONLY | O_NONBLOCK);
+	if (inputfd == -1) {
+		printf("failed to open input device %s: %m\n", argv[1]);
 		return 1;
 	}
 
@@ -102,27 +104,52 @@ int main(int argc, char **argv)
 	}
 
 	/* Write raw IR */
-	ret = write(lircfd, &testir, sizeof(testir));
-	if (ret != sizeof(testir)) {
+	ret = write(lircfd, &testir1, sizeof(testir1));
+	if (ret != sizeof(testir1)) {
 		printf("Failed to send test IR message: %m\n");
 		return 1;
 	}
 
-	struct pollfd pfd = { .fd = lircfd, .events = POLLIN };
-	struct lirc_scancode lsc;
+	struct pollfd pfd = { .fd = inputfd, .events = POLLIN };
+	struct input_event event;
 
-	poll(&pfd, 1, 100);
+	for (;;) {
+		poll(&pfd, 1, 100);
 
-	/* Read decoded IR */
-	ret = read(lircfd, &lsc, sizeof(lsc));
-	if (ret != sizeof(lsc)) {
-		printf("Failed to read decoded IR: %m\n");
+		/* Read decoded IR */
+		ret = read(inputfd, &event, sizeof(event));
+		if (ret != sizeof(event)) {
+			printf("Failed to read decoded IR: %m\n");
+			return 1;
+		}
+
+		if (event.type == EV_MSC && event.code == MSC_SCAN &&
+		    event.value == 0xdead) {
+			break;
+		}
+	}
+
+	/* Write raw IR */
+	ret = write(lircfd, &testir2, sizeof(testir2));
+	if (ret != sizeof(testir2)) {
+		printf("Failed to send test IR message: %m\n");
 		return 1;
 	}
 
-	if (lsc.scancode != 0xdead || lsc.rc_proto != 64) {
-		printf("Incorrect scancode decoded\n");
-		return 1;
+	for (;;) {
+		poll(&pfd, 1, 100);
+
+		/* Read decoded IR */
+		ret = read(inputfd, &event, sizeof(event));
+		if (ret != sizeof(event)) {
+			printf("Failed to read decoded IR: %m\n");
+			return 1;
+		}
+
+		if (event.type == EV_REL && event.code == REL_Y &&
+		    event.value == 1 ) {
+			break;
+		}
 	}
 
 	prog_cnt = 10;

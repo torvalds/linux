@@ -137,8 +137,6 @@ static irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 		schedule_work(&lp->work);
 		goto out;
 	}
-	reactivate_fd(lp->fd, UM_ETH_IRQ);
-
 out:
 	spin_unlock(&lp->lock);
 	return IRQ_HANDLED;
@@ -651,6 +649,9 @@ static int __init eth_setup(char *str)
 	}
 
 	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
+	if (!new)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*new));
 
 	INIT_LIST_HEAD(&new->list);
 	new->index = n;

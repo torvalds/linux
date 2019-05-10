@@ -638,12 +638,12 @@ static int register_attrs(struct acpi_power_meter_resource *resource,
 
 	while (attrs->label) {
 		sensors->dev_attr.attr.name = attrs->label;
-		sensors->dev_attr.attr.mode = S_IRUGO;
+		sensors->dev_attr.attr.mode = 0444;
 		sensors->dev_attr.show = attrs->show;
 		sensors->index = attrs->index;
 
 		if (attrs->set) {
-			sensors->dev_attr.attr.mode |= S_IWUSR;
+			sensors->dev_attr.attr.mode |= 0200;
 			sensors->dev_attr.store = attrs->set;
 		}
 

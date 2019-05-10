@@ -26,16 +26,17 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <scsi/scsi_host.h>
 #include <mach/palmld.h>
 
 #define DRV_NAME "pata_palmld"
 
-static struct gpio palmld_hdd_gpios[] = {
-	{ GPIO_NR_PALMLD_IDE_PWEN,	GPIOF_INIT_HIGH,	"HDD Power" },
-	{ GPIO_NR_PALMLD_IDE_RESET,	GPIOF_INIT_LOW,		"HDD Reset" },
+struct palmld_pata {
+	struct ata_host *host;
+	struct gpio_desc *power;
+	struct gpio_desc *reset;
 };
 
 static struct scsi_host_template palmld_sht = {
@@ -50,39 +51,44 @@ static struct ata_port_operations palmld_port_ops = {
 
 static int palmld_pata_probe(struct platform_device *pdev)
 {
-	struct ata_host *host;
+	struct palmld_pata *lda;
 	struct ata_port *ap;
 	void __iomem *mem;
+	struct device *dev = &pdev->dev;
 	int ret;
 
+	lda = devm_kzalloc(dev, sizeof(*lda), GFP_KERNEL);
+	if (!lda)
+		return -ENOMEM;
+
 	/* allocate host */
-	host = ata_host_alloc(&pdev->dev, 1);
-	if (!host) {
-		ret = -ENOMEM;
-		goto err1;
-	}
+	lda->host = ata_host_alloc(dev, 1);
+	if (!lda->host)
+		return -ENOMEM;
 
 	/* remap drive's physical memory address */
-	mem = devm_ioremap(&pdev->dev, PALMLD_IDE_PHYS, 0x1000);
-	if (!mem) {
-		ret = -ENOMEM;
-		goto err1;
+	mem = devm_ioremap(dev, PALMLD_IDE_PHYS, 0x1000);
+	if (!mem)
+		return -ENOMEM;
+
+	/* request and activate power and reset GPIOs */
+	lda->power = devm_gpiod_get(dev, "power", GPIOD_OUT_HIGH);
+	if (IS_ERR(lda->power))
+		return PTR_ERR(lda->power);
+	lda->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(lda->reset)) {
+		gpiod_set_value(lda->power, 0);
+		return PTR_ERR(lda->reset);
 	}
 
-	/* request and activate power GPIO, IRQ GPIO */
-	ret = gpio_request_array(palmld_hdd_gpios,
-				ARRAY_SIZE(palmld_hdd_gpios));
-	if (ret)
-		goto err1;
-
-	/* reset the drive */
-	gpio_set_value(GPIO_NR_PALMLD_IDE_RESET, 0);
+	/* Assert reset to reset the drive */
+	gpiod_set_value(lda->reset, 1);
 	msleep(30);
-	gpio_set_value(GPIO_NR_PALMLD_IDE_RESET, 1);
+	gpiod_set_value(lda->reset, 0);
 	msleep(30);
 
 	/* setup the ata port */
-	ap = host->ports[0];
+	ap = lda->host->ports[0];
 	ap->ops	= &palmld_port_ops;
 	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_PIO_POLLING;
@@ -96,27 +102,26 @@ static int palmld_pata_probe(struct platform_device *pdev)
 	ata_sff_std_ports(&ap->ioaddr);
 
 	/* activate host */
-	ret = ata_host_activate(host, 0, NULL, IRQF_TRIGGER_RISING,
-					&palmld_sht);
-	if (ret)
-		goto err2;
+	ret = ata_host_activate(lda->host, 0, NULL, IRQF_TRIGGER_RISING,
+				&palmld_sht);
+	/* power down on failure */
+	if (ret) {
+		gpiod_set_value(lda->power, 0);
+		return ret;
+	}
 
-	return ret;
-
-err2:
-	gpio_free_array(palmld_hdd_gpios, ARRAY_SIZE(palmld_hdd_gpios));
-err1:
-	return ret;
+	platform_set_drvdata(pdev, lda);
+	return 0;
 }
 
-static int palmld_pata_remove(struct platform_device *dev)
+static int palmld_pata_remove(struct platform_device *pdev)
 {
-	ata_platform_remove_one(dev);
+	struct palmld_pata *lda = platform_get_drvdata(pdev);
+
+	ata_platform_remove_one(pdev);
 
 	/* power down the HDD */
-	gpio_set_value(GPIO_NR_PALMLD_IDE_PWEN, 0);
-
-	gpio_free_array(palmld_hdd_gpios, ARRAY_SIZE(palmld_hdd_gpios));
+	gpiod_set_value(lda->power, 0);
 
 	return 0;
 }

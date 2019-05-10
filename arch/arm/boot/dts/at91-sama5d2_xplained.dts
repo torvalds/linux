@@ -258,7 +258,7 @@
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <19 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx0_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
 					clock-names = "usart";
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx0_default>;
@@ -313,7 +313,7 @@
 					dma-names = "tx", "rx";
 					#address-cells = <1>;
 					#size-cells = <0>;
-					clocks = <&flx4_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <16>;

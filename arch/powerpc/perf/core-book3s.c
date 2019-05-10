@@ -10,6 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/perf_event.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
@@ -129,6 +130,14 @@ static void power_pmu_sched_task(struct perf_event_context *ctx, bool sched_in) 
 static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 static void pmao_restore_workaround(bool ebb) { }
 #endif /* CONFIG_PPC32 */
+
+bool is_sier_available(void)
+{
+	if (ppmu->flags & PPMU_HAS_SIER)
+		return true;
+
+	return false;
+}
 
 static bool regs_use_siar(struct pt_regs *regs)
 {
@@ -864,6 +873,8 @@ static int power_check_constraints(struct cpu_hw_events *cpuhw,
 	int i, j;
 	unsigned long addf = ppmu->add_fields;
 	unsigned long tadd = ppmu->test_adder;
+	unsigned long grp_mask = ppmu->group_constraint_mask;
+	unsigned long grp_val = ppmu->group_constraint_val;
 
 	if (n_ev > ppmu->n_counter)
 		return -1;
@@ -884,15 +895,23 @@ static int power_check_constraints(struct cpu_hw_events *cpuhw,
 	for (i = 0; i < n_ev; ++i) {
 		nv = (value | cpuhw->avalues[i][0]) +
 			(value & cpuhw->avalues[i][0] & addf);
-		if ((((nv + tadd) ^ value) & mask) != 0 ||
-		    (((nv + tadd) ^ cpuhw->avalues[i][0]) &
-		     cpuhw->amasks[i][0]) != 0)
+
+		if (((((nv + tadd) ^ value) & mask) & (~grp_mask)) != 0)
 			break;
+
+		if (((((nv + tadd) ^ cpuhw->avalues[i][0]) & cpuhw->amasks[i][0])
+			& (~grp_mask)) != 0)
+			break;
+
 		value = nv;
 		mask |= cpuhw->amasks[i][0];
 	}
-	if (i == n_ev)
-		return 0;	/* all OK */
+	if (i == n_ev) {
+		if ((value & mask & grp_mask) != (mask & grp_val))
+			return -1;
+		else
+			return 0;	/* all OK */
+	}
 
 	/* doesn't work, gather alternatives... */
 	if (!ppmu->get_alternatives)
@@ -2148,7 +2167,7 @@ static bool pmc_overflow(unsigned long val)
 /*
  * Performance monitor interrupt stuff
  */
-static void perf_event_interrupt(struct pt_regs *regs)
+static void __perf_event_interrupt(struct pt_regs *regs)
 {
 	int i, j;
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
@@ -2230,6 +2249,14 @@ static void perf_event_interrupt(struct pt_regs *regs)
 		nmi_exit();
 	else
 		irq_exit();
+}
+
+static void perf_event_interrupt(struct pt_regs *regs)
+{
+	u64 start_clock = sched_clock();
+
+	__perf_event_interrupt(regs);
+	perf_sample_event_took(sched_clock() - start_clock);
 }
 
 static int power_pmu_prepare_cpu(unsigned int cpu)

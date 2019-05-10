@@ -77,8 +77,8 @@ int iser_assign_reg_ops(struct iser_device *device)
 	struct ib_device *ib_dev = device->ib_device;
 
 	/* Assign function handles  - based on FMR support */
-	if (ib_dev->alloc_fmr && ib_dev->dealloc_fmr &&
-	    ib_dev->map_phys_fmr && ib_dev->unmap_fmr) {
+	if (ib_dev->ops.alloc_fmr && ib_dev->ops.dealloc_fmr &&
+	    ib_dev->ops.map_phys_fmr && ib_dev->ops.unmap_fmr) {
 		iser_info("FMR supported, using FMR for registration\n");
 		device->reg_ops = &fmr_ops;
 	} else if (ib_dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
@@ -145,9 +145,8 @@ static void iser_data_buf_dump(struct iser_data_buf *data,
 	for_each_sg(data->sg, sg, data->dma_nents, i)
 		iser_dbg("sg[%d] dma_addr:0x%lX page:0x%p "
 			 "off:0x%x sz:0x%x dma_len:0x%x\n",
-			 i, (unsigned long)ib_sg_dma_address(ibdev, sg),
-			 sg_page(sg), sg->offset,
-			 sg->length, ib_sg_dma_len(ibdev, sg));
+			 i, (unsigned long)sg_dma_address(sg),
+			 sg_page(sg), sg->offset, sg->length, sg_dma_len(sg));
 }
 
 static void iser_dump_page_vec(struct iser_page_vec *page_vec)
@@ -204,8 +203,8 @@ iser_reg_dma(struct iser_device *device, struct iser_data_buf *mem,
 		reg->rkey = device->pd->unsafe_global_rkey;
 	else
 		reg->rkey = 0;
-	reg->sge.addr = ib_sg_dma_address(device->ib_device, &sg[0]);
-	reg->sge.length = ib_sg_dma_len(device->ib_device, &sg[0]);
+	reg->sge.addr = sg_dma_address(&sg[0]);
+	reg->sge.length = sg_dma_len(&sg[0]);
 
 	iser_dbg("Single DMA entry: lkey=0x%x, rkey=0x%x, addr=0x%llx,"
 		 " length=0x%x\n", reg->sge.lkey, reg->rkey,
@@ -240,8 +239,8 @@ int iser_fast_reg_fmr(struct iscsi_iser_task *iser_task,
 	page_vec->npages = 0;
 	page_vec->fake_mr.page_size = SIZE_4K;
 	plen = ib_sg_to_pages(&page_vec->fake_mr, mem->sg,
-			      mem->size, NULL, iser_set_page);
-	if (unlikely(plen < mem->size)) {
+			      mem->dma_nents, NULL, iser_set_page);
+	if (unlikely(plen < mem->dma_nents)) {
 		iser_err("page vec too short to hold this SG\n");
 		iser_data_buf_dump(mem, device->ib_device);
 		iser_dump_page_vec(page_vec);
@@ -277,16 +276,13 @@ void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 			enum iser_data_dir cmd_dir)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
-	int ret;
 
 	if (!reg->mem_h)
 		return;
 
 	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n", reg->mem_h);
 
-	ret = ib_fmr_pool_unmap((struct ib_pool_fmr *)reg->mem_h);
-	if (ret)
-		iser_err("ib_fmr_pool_unmap failed %d\n", ret);
+	ib_fmr_pool_unmap((struct ib_pool_fmr *)reg->mem_h);
 
 	reg->mem_h = NULL;
 }
@@ -451,10 +447,10 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
-	n = ib_map_mr_sg(mr, mem->sg, mem->size, NULL, SIZE_4K);
-	if (unlikely(n != mem->size)) {
+	n = ib_map_mr_sg(mr, mem->sg, mem->dma_nents, NULL, SIZE_4K);
+	if (unlikely(n != mem->dma_nents)) {
 		iser_err("failed to map sg (%d/%d)\n",
-			 n, mem->size);
+			 n, mem->dma_nents);
 		return n < 0 ? n : -EINVAL;
 	}
 

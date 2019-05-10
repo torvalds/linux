@@ -34,6 +34,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/xdp_sock.h>
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 #include "i40e_client.h"
@@ -122,6 +123,7 @@ enum i40e_state_t {
 	__I40E_MDD_EVENT_PENDING,
 	__I40E_VFLR_EVENT_PENDING,
 	__I40E_RESET_RECOVERY_PENDING,
+	__I40E_TIMEOUT_RECOVERY_PENDING,
 	__I40E_MISC_IRQ_REQUESTED,
 	__I40E_RESET_INTR_RECEIVED,
 	__I40E_REINIT_REQUESTED,
@@ -146,6 +148,7 @@ enum i40e_state_t {
 	__I40E_CLIENT_SERVICE_REQUESTED,
 	__I40E_CLIENT_L2_CHANGE,
 	__I40E_CLIENT_RESET,
+	__I40E_VIRTCHNL_OP_PENDING,
 	/* This must be last as it determines the size of the BITMAP */
 	__I40E_STATE_SIZE__,
 };
@@ -494,7 +497,6 @@ struct i40e_pf {
 #define I40E_HW_STOP_FW_LLDP			BIT(16)
 #define I40E_HW_PORT_ID_VALID			BIT(17)
 #define I40E_HW_RESTART_AUTONEG			BIT(18)
-#define I40E_HW_STOPPABLE_FW_LLDP		BIT(19)
 
 	u32 flags;
 #define I40E_FLAG_RX_CSUM_ENABLED		BIT(0)
@@ -522,6 +524,8 @@ struct i40e_pf {
 #define I40E_FLAG_FD_SB_INACTIVE		BIT(22)
 #define I40E_FLAG_FD_SB_TO_CLOUD_FILTER		BIT(23)
 #define I40E_FLAG_DISABLE_FW_LLDP		BIT(24)
+#define I40E_FLAG_RS_FEC			BIT(25)
+#define I40E_FLAG_BASE_R_FEC			BIT(26)
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
@@ -787,10 +791,7 @@ struct i40e_vsi {
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
 
-	/* AF_XDP zero-copy */
-	struct xdp_umem **xsk_umems;
-	u16 num_xsk_umems_used;
-	u16 num_xsk_umems;
+	unsigned long *af_xdp_zc_qps; /* tracks AF_XDP ZC enabled qps */
 } ____cacheline_internodealigned_in_smp;
 
 struct i40e_netdev_priv {
@@ -1090,23 +1091,11 @@ i40e_status i40e_set_partition_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_commit_partition_bw_setting(struct i40e_pf *pf);
 void i40e_print_link_message(struct i40e_vsi *vsi, bool isup);
 
+void i40e_set_fec_in_flags(u8 fec_cfg, u32 *flags);
+
 static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 {
 	return !!vsi->xdp_prog;
-}
-
-static inline struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
-{
-	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
-	int qid = ring->queue_index;
-
-	if (ring_is_xdp(ring))
-		qid -= ring->vsi->alloc_queue_pairs;
-
-	if (!ring->vsi->xsk_umems || !ring->vsi->xsk_umems[qid] || !xdp_on)
-		return NULL;
-
-	return ring->vsi->xsk_umems[qid];
 }
 
 int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);

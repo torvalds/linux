@@ -30,7 +30,7 @@ void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			      struct mt76_queue_entry *e, bool flush)
 {
 	mt76x02u_remove_dma_hdr(e->skb);
-	mt76x02_tx_complete(mdev, e->skb);
+	mt76_tx_complete_skb(mdev, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
 
@@ -49,7 +49,12 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 	       FIELD_PREP(MT_TXD_INFO_DPORT, port) | flags;
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 
+	/* Add zero pad of 4 - 7 bytes */
 	pad = round_up(skb->len, 4) + 4 - skb->len;
+
+	/* First packet of a A-MSDU burst keeps track of the whole burst
+	 * length, need to update lenght of it and the last packet.
+	 */
 	skb_walk_frags(skb, iter) {
 		last = iter;
 		if (!iter->next) {
@@ -59,23 +64,35 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 		}
 	}
 
-	if (unlikely(pad)) {
-		if (skb_pad(last, pad))
-			return -ENOMEM;
-		__skb_put(last, pad);
-	}
+	if (skb_pad(last, pad))
+		return -ENOMEM;
+	__skb_put(last, pad);
+
 	return 0;
 }
 
-static int
-mt76x02u_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep)
+int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
+			    struct sk_buff *skb, struct mt76_queue *q,
+			    struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+			    u32 *tx_info)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+	struct mt76x02_txwi *txwi;
 	enum mt76_qsel qsel;
+	int len = skb->len;
 	u32 flags;
+	int pid;
 
-	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) ||
-	    ep == MT_EP_OUT_HCCA)
+	mt76x02_insert_hdr_pad(skb);
+
+	txwi = (struct mt76x02_txwi *)(skb->data - sizeof(struct mt76x02_txwi));
+	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
+	skb_push(skb, sizeof(struct mt76x02_txwi));
+
+	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
+	txwi->pktid = pid;
+
+	if (pid >= MT_PACKET_ID_FIRST || q2ep(q->hw_idx) == MT_EP_OUT_HCCA)
 		qsel = MT_QSEL_MGMT;
 	else
 		qsel = MT_QSEL_EDCA;
@@ -86,22 +103,5 @@ mt76x02u_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep)
 		flags |= MT_TXD_INFO_WIV;
 
 	return mt76x02u_skb_dma_info(skb, WLAN_PORT, flags);
-}
-
-int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
-			    struct sk_buff *skb, struct mt76_queue *q,
-			    struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			    u32 *tx_info)
-{
-	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	struct mt76x02_txwi *txwi;
-	int len = skb->len;
-
-	mt76x02_insert_hdr_pad(skb);
-
-	txwi = skb_push(skb, sizeof(struct mt76x02_txwi));
-	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
-
-	return mt76x02u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_prepare_skb);

@@ -29,6 +29,7 @@
 #define PCI_DEVICE_ID_INTEL_BXT_M		0x1aaa
 #define PCI_DEVICE_ID_INTEL_APL			0x5aaa
 #define PCI_DEVICE_ID_INTEL_KBP			0xa2b0
+#define PCI_DEVICE_ID_INTEL_CMLH		0x02ee
 #define PCI_DEVICE_ID_INTEL_GLK			0x31aa
 #define PCI_DEVICE_ID_INTEL_CNPLP		0x9dee
 #define PCI_DEVICE_ID_INTEL_CNPH		0xa36e
@@ -170,20 +171,20 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 			 * put the gpio descriptors again here because the phy driver
 			 * might want to grab them, too.
 			 */
-			gpio = devm_gpiod_get_optional(&pdev->dev, "cs",
-						       GPIOD_OUT_LOW);
+			gpio = gpiod_get_optional(&pdev->dev, "cs", GPIOD_OUT_LOW);
 			if (IS_ERR(gpio))
 				return PTR_ERR(gpio);
 
 			gpiod_set_value_cansleep(gpio, 1);
+			gpiod_put(gpio);
 
-			gpio = devm_gpiod_get_optional(&pdev->dev, "reset",
-						       GPIOD_OUT_LOW);
+			gpio = gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
 			if (IS_ERR(gpio))
 				return PTR_ERR(gpio);
 
 			if (gpio) {
 				gpiod_set_value_cansleep(gpio, 1);
+				gpiod_put(gpio);
 				usleep_range(10000, 11000);
 			}
 		}
@@ -304,6 +305,9 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_MRFLD),
 	  (kernel_ulong_t) &dwc3_pci_mrfld_properties, },
+
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_CMLH),
+	  (kernel_ulong_t) &dwc3_pci_intel_properties, },
 
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_SPTLP),
 	  (kernel_ulong_t) &dwc3_pci_intel_properties, },

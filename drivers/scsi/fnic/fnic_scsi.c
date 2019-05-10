@@ -180,20 +180,19 @@ void
 __fnic_set_state_flags(struct fnic *fnic, unsigned long st_flags,
 			unsigned long clearbits)
 {
-	struct Scsi_Host *host = fnic->lport->host;
-	int sh_locked = spin_is_locked(host->host_lock);
 	unsigned long flags = 0;
+	unsigned long host_lock_flags = 0;
 
-	if (!sh_locked)
-		spin_lock_irqsave(host->host_lock, flags);
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	spin_lock_irqsave(fnic->lport->host->host_lock, host_lock_flags);
 
 	if (clearbits)
 		fnic->state_flags &= ~st_flags;
 	else
 		fnic->state_flags |= st_flags;
 
-	if (!sh_locked)
-		spin_unlock_irqrestore(host->host_lock, flags);
+	spin_unlock_irqrestore(fnic->lport->host->host_lock, host_lock_flags);
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	return;
 }
@@ -1326,13 +1325,32 @@ int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int copy_work_to_do)
 	unsigned int wq_work_done = 0;
 	unsigned int i, cq_index;
 	unsigned int cur_work_done;
+	struct misc_stats *misc_stats = &fnic->fnic_stats.misc_stats;
+	u64 start_jiffies = 0;
+	u64 end_jiffies = 0;
+	u64 delta_jiffies = 0;
+	u64 delta_ms = 0;
 
 	for (i = 0; i < fnic->wq_copy_count; i++) {
 		cq_index = i + fnic->raw_wq_count + fnic->rq_count;
+
+		start_jiffies = jiffies;
 		cur_work_done = vnic_cq_copy_service(&fnic->cq[cq_index],
 						     fnic_fcpio_cmpl_handler,
 						     copy_work_to_do);
+		end_jiffies = jiffies;
+
 		wq_work_done += cur_work_done;
+		delta_jiffies = end_jiffies - start_jiffies;
+		if (delta_jiffies >
+			(u64) atomic64_read(&misc_stats->max_isr_jiffies)) {
+			atomic64_set(&misc_stats->max_isr_jiffies,
+					delta_jiffies);
+			delta_ms = jiffies_to_msecs(delta_jiffies);
+			atomic64_set(&misc_stats->max_isr_time_ms, delta_ms);
+			atomic64_set(&misc_stats->corr_work_done,
+					cur_work_done);
+		}
 	}
 	return wq_work_done;
 }
@@ -1397,8 +1415,9 @@ static void fnic_cleanup_io(struct fnic *fnic, int exclude_id)
 cleanup_scsi_cmd:
 		sc->result = DID_TRANSPORT_DISRUPTED << 16;
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			      "%s: sc duration = %lu DID_TRANSPORT_DISRUPTED\n",
-			      __func__, (jiffies - start_time));
+			      "%s: tag:0x%x : sc:0x%p duration = %lu DID_TRANSPORT_DISRUPTED\n",
+			      __func__, sc->request->tag, sc,
+			      (jiffies - start_time));
 
 		if (atomic64_read(&fnic->io_cmpl_skip))
 			atomic64_dec(&fnic->io_cmpl_skip);
@@ -1407,6 +1426,11 @@ cleanup_scsi_cmd:
 
 		/* Complete the command to SCSI */
 		if (sc->scsi_done) {
+			if (!(CMD_FLAGS(sc) & FNIC_IO_ISSUED))
+				shost_printk(KERN_ERR, fnic->lport->host,
+				"Calling done for IO not issued to fw: tag:0x%x sc:0x%p\n",
+				 sc->request->tag, sc);
+
 			FNIC_TRACE(fnic_cleanup_io,
 				  sc->device->host->host_no, i, sc,
 				  jiffies_to_msecs(jiffies - start_time),
@@ -2274,7 +2298,7 @@ fnic_scsi_host_start_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 		return SCSI_NO_TAG;
 
 	sc->tag = sc->request->tag = dummy->tag;
-	sc->request->special = sc;
+	sc->host_scribble = (unsigned char *)dummy;
 
 	return dummy->tag;
 }
@@ -2286,7 +2310,7 @@ fnic_scsi_host_start_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 static inline void
 fnic_scsi_host_end_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 {
-	struct request *dummy = sc->request->special;
+	struct request *dummy = (struct request *)sc->host_scribble;
 
 	blk_mq_free_request(dummy);
 }

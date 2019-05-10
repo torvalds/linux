@@ -686,6 +686,9 @@ void ocfs2_trim_fs_lock_res_init(struct ocfs2_super *osb)
 {
 	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
 
+	/* Only one trimfs thread are allowed to work at the same time. */
+	mutex_lock(&osb->obs_trim_fs_mutex);
+
 	ocfs2_lock_res_init_once(lockres);
 	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_TRIM_FS, 0, 0, lockres->l_name);
 	ocfs2_lock_res_init_common(osb, lockres, OCFS2_LOCK_TYPE_TRIM_FS,
@@ -698,6 +701,8 @@ void ocfs2_trim_fs_lock_res_uninit(struct ocfs2_super *osb)
 
 	ocfs2_simple_drop_lockres(osb, lockres);
 	ocfs2_lock_res_free(lockres);
+
+	mutex_unlock(&osb->obs_trim_fs_mutex);
 }
 
 static void ocfs2_orphan_scan_lock_res_init(struct ocfs2_lock_res *res,

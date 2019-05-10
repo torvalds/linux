@@ -518,7 +518,7 @@ static void vpfe_schedule_bottom_field(struct vpfe_device *vpfe_dev)
 
 static void vpfe_process_buffer_complete(struct vpfe_device *vpfe_dev)
 {
-	v4l2_get_timestamp(&vpfe_dev->cur_frm->ts);
+	vpfe_dev->cur_frm->ts = ktime_get_ns();
 	vpfe_dev->cur_frm->state = VIDEOBUF_DONE;
 	vpfe_dev->cur_frm->size = vpfe_dev->fmt.fmt.pix.sizeimage;
 	wake_up_interruptible(&vpfe_dev->cur_frm->done);
@@ -1558,20 +1558,20 @@ static int vpfe_streamoff(struct file *file, void *priv,
 	return ret;
 }
 
-static int vpfe_cropcap(struct file *file, void *priv,
-			      struct v4l2_cropcap *crop)
+static int vpfe_g_pixelaspect(struct file *file, void *priv,
+			      int type, struct v4l2_fract *f)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_cropcap\n");
+	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_pixelaspect\n");
 
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	/* If std_index is invalid, then just return (== 1:1 aspect) */
 	if (vpfe_dev->std_index >= ARRAY_SIZE(vpfe_standards))
 		return 0;
 
-	crop->pixelaspect = vpfe_standards[vpfe_dev->std_index].pixelaspect;
+	*f = vpfe_standards[vpfe_dev->std_index].pixelaspect;
 	return 0;
 }
 
@@ -1677,7 +1677,7 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 	.vidioc_dqbuf		 = vpfe_dqbuf,
 	.vidioc_streamon	 = vpfe_streamon,
 	.vidioc_streamoff	 = vpfe_streamoff,
-	.vidioc_cropcap		 = vpfe_cropcap,
+	.vidioc_g_pixelaspect	 = vpfe_g_pixelaspect,
 	.vidioc_g_selection	 = vpfe_g_selection,
 	.vidioc_s_selection	 = vpfe_s_selection,
 };

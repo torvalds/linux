@@ -1088,9 +1088,9 @@ void gasket_page_table_reset(struct gasket_page_table *pg_tbl)
 }
 
 /* See gasket_page_table.h for description. */
-int gasket_page_table_lookup_page(
-	struct gasket_page_table *pg_tbl, ulong dev_addr, struct page **ppage,
-	ulong *poffset)
+int gasket_page_table_lookup_page(struct gasket_page_table *pg_tbl,
+				  ulong dev_addr, struct page **ppage,
+				  ulong *poffset)
 {
 	uint page_num;
 	struct gasket_page_table_entry *pte;
@@ -1134,9 +1134,9 @@ fail:
 }
 
 /* See gasket_page_table.h for description. */
-bool gasket_page_table_are_addrs_bad(
-	struct gasket_page_table *pg_tbl, ulong host_addr, ulong dev_addr,
-	ulong bytes)
+bool gasket_page_table_are_addrs_bad(struct gasket_page_table *pg_tbl,
+				     ulong host_addr, ulong dev_addr,
+				     ulong bytes)
 {
 	if (host_addr & (PAGE_SIZE - 1)) {
 		dev_err(pg_tbl->device,
@@ -1150,8 +1150,8 @@ bool gasket_page_table_are_addrs_bad(
 EXPORT_SYMBOL(gasket_page_table_are_addrs_bad);
 
 /* See gasket_page_table.h for description. */
-bool gasket_page_table_is_dev_addr_bad(
-	struct gasket_page_table *pg_tbl, ulong dev_addr, ulong bytes)
+bool gasket_page_table_is_dev_addr_bad(struct gasket_page_table *pg_tbl,
+				       ulong dev_addr, ulong bytes)
 {
 	uint num_pages = bytes / PAGE_SIZE;
 
@@ -1226,9 +1226,8 @@ int gasket_page_table_system_status(struct gasket_page_table *page_table)
 }
 
 /* Record the host_addr to coherent dma memory mapping. */
-int gasket_set_user_virt(
-	struct gasket_dev *gasket_dev, u64 size, dma_addr_t dma_address,
-	ulong vma)
+int gasket_set_user_virt(struct gasket_dev *gasket_dev, u64 size,
+			 dma_addr_t dma_address, ulong vma)
 {
 	int j;
 	struct gasket_page_table *pg_tbl;
@@ -1278,7 +1277,8 @@ int gasket_alloc_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 
 	/* allocate the physical memory block */
 	gasket_dev->page_table[index]->coherent_pages =
-		kcalloc(num_pages, sizeof(struct gasket_coherent_page_entry),
+		kcalloc(num_pages,
+			sizeof(*gasket_dev->page_table[index]->coherent_pages),
 			GFP_KERNEL);
 	if (!gasket_dev->page_table[index]->coherent_pages)
 		goto nomem;
@@ -1345,8 +1345,7 @@ int gasket_free_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 }
 
 /* Release all coherent memory. */
-void gasket_free_coherent_memory_all(
-	struct gasket_dev *gasket_dev, u64 index)
+void gasket_free_coherent_memory_all(struct gasket_dev *gasket_dev, u64 index)
 {
 	if (!gasket_dev->page_table[index])
 		return;

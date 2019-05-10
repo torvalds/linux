@@ -30,17 +30,18 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_flip_work.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
-#include <drm/drm_fb_helper.h>
 
 #include "meson_drv.h"
 #include "meson_plane.h"
+#include "meson_overlay.h"
 #include "meson_crtc.h"
 #include "meson_venc_cvbs.h"
 
@@ -68,18 +69,14 @@
  * - Powering Up HDMI controller and PHY
  */
 
-static void meson_fb_output_poll_changed(struct drm_device *dev)
-{
-	struct meson_drm *priv = dev->dev_private;
-
-	drm_fbdev_cma_hotplug_event(priv->fbdev);
-}
-
 static const struct drm_mode_config_funcs meson_mode_config_funcs = {
-	.output_poll_changed = meson_fb_output_poll_changed,
 	.atomic_check        = drm_atomic_helper_check,
 	.atomic_commit       = drm_atomic_helper_commit,
 	.fb_create           = drm_gem_fb_create,
+};
+
+static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
+	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
 };
 
 static irqreturn_t meson_irq(int irq, void *arg)
@@ -97,7 +94,7 @@ static irqreturn_t meson_irq(int irq, void *arg)
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver meson_driver = {
-	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM |
+	.driver_features	= DRIVER_GEM |
 				  DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
 
@@ -159,6 +156,23 @@ static void meson_vpu_init(struct meson_drm *priv)
 	writel_relaxed(0x20000, priv->io_base + _REG(VPU_WRARB_MODE_L2C1));
 }
 
+static void meson_remove_framebuffers(void)
+{
+	struct apertures_struct *ap;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	/* The framebuffer can be located anywhere in RAM */
+	ap->ranges[0].base = 0;
+	ap->ranges[0].size = ~0;
+
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "meson-drm-fb",
+						      false);
+	kfree(ap);
+}
+
 static int meson_drv_bind_master(struct device *dev, bool has_components)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -216,24 +230,51 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 		goto free_drm;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmc");
-	if (!res) {
-		ret = -EINVAL;
-		goto free_drm;
-	}
-	/* Simply ioremap since it may be a shared register zone */
-	regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (!regs) {
-		ret = -EADDRNOTAVAIL;
-		goto free_drm;
-	}
+	priv->canvas = meson_canvas_get(dev);
+	if (!IS_ERR(priv->canvas)) {
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_osd1);
+		if (ret)
+			goto free_drm;
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_0);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			goto free_drm;
+		}
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_1);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+			goto free_drm;
+		}
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_2);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+			goto free_drm;
+		}
+	} else {
+		priv->canvas = NULL;
 
-	priv->dmc = devm_regmap_init_mmio(dev, regs,
-					  &meson_regmap_config);
-	if (IS_ERR(priv->dmc)) {
-		dev_err(&pdev->dev, "Couldn't create the DMC regmap\n");
-		ret = PTR_ERR(priv->dmc);
-		goto free_drm;
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmc");
+		if (!res) {
+			ret = -EINVAL;
+			goto free_drm;
+		}
+		/* Simply ioremap since it may be a shared register zone */
+		regs = devm_ioremap(dev, res->start, resource_size(res));
+		if (!regs) {
+			ret = -EADDRNOTAVAIL;
+			goto free_drm;
+		}
+
+		priv->dmc = devm_regmap_init_mmio(dev, regs,
+						  &meson_regmap_config);
+		if (IS_ERR(priv->dmc)) {
+			dev_err(&pdev->dev, "Couldn't create the DMC regmap\n");
+			ret = PTR_ERR(priv->dmc);
+			goto free_drm;
+		}
 	}
 
 	priv->vsync_irq = platform_get_irq(pdev, 0);
@@ -242,10 +283,14 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	if (ret)
 		goto free_drm;
 
+	/* Remove early framebuffers (ie. simplefb) */
+	meson_remove_framebuffers();
+
 	drm_mode_config_init(drm);
 	drm->mode_config.max_width = 3840;
 	drm->mode_config.max_height = 2160;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
+	drm->mode_config.helper_private	= &meson_mode_config_helpers;
 
 	/* Hardware Initialization */
 
@@ -272,6 +317,10 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	if (ret)
 		goto free_drm;
 
+	ret = meson_overlay_create(priv);
+	if (ret)
+		goto free_drm;
+
 	ret = meson_crtc_create(priv);
 	if (ret)
 		goto free_drm;
@@ -282,23 +331,20 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	drm_mode_config_reset(drm);
 
-	priv->fbdev = drm_fbdev_cma_init(drm, 32,
-					 drm->mode_config.num_connector);
-	if (IS_ERR(priv->fbdev)) {
-		ret = PTR_ERR(priv->fbdev);
-		goto free_drm;
-	}
-
 	drm_kms_helper_poll_init(drm);
 
 	platform_set_drvdata(pdev, priv);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto free_drm;
+		goto uninstall_irq;
+
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
+uninstall_irq:
+	drm_irq_uninstall(drm);
 free_drm:
 	drm_dev_put(drm);
 
@@ -312,12 +358,19 @@ static int meson_drv_bind(struct device *dev)
 
 static void meson_drv_unbind(struct device *dev)
 {
-	struct drm_device *drm = dev_get_drvdata(dev);
-	struct meson_drm *priv = drm->dev_private;
+	struct meson_drm *priv = dev_get_drvdata(dev);
+	struct drm_device *drm = priv->drm;
+
+	if (priv->canvas) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_2);
+	}
 
 	drm_dev_unregister(drm);
+	drm_irq_uninstall(drm);
 	drm_kms_helper_poll_fini(drm);
-	drm_fbdev_cma_fini(priv->fbdev);
 	drm_mode_config_cleanup(drm);
 	drm_dev_put(drm);
 
@@ -363,8 +416,10 @@ static int meson_probe_remote(struct platform_device *pdev,
 		remote_node = of_graph_get_remote_port_parent(ep);
 		if (!remote_node ||
 		    remote_node == parent || /* Ignore parent endpoint */
-		    !of_device_is_available(remote_node))
+		    !of_device_is_available(remote_node)) {
+			of_node_put(remote_node);
 			continue;
+		}
 
 		count += meson_probe_remote(pdev, match, remote, remote_node);
 
@@ -383,10 +438,13 @@ static int meson_drv_probe(struct platform_device *pdev)
 
 	for_each_endpoint_of_node(np, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote || !of_device_is_available(remote))
+		if (!remote || !of_device_is_available(remote)) {
+			of_node_put(remote);
 			continue;
+		}
 
 		count += meson_probe_remote(pdev, &match, np, remote);
+		of_node_put(remote);
 	}
 
 	if (count && !match)

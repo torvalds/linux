@@ -658,7 +658,7 @@ static void kdb_cmderror(int diag)
  */
 struct defcmd_set {
 	int count;
-	int usable;
+	bool usable;
 	char *name;
 	char *usage;
 	char *help;
@@ -666,7 +666,7 @@ struct defcmd_set {
 };
 static struct defcmd_set *defcmd_set;
 static int defcmd_set_count;
-static int defcmd_in_progress;
+static bool defcmd_in_progress;
 
 /* Forward references */
 static int kdb_exec_defcmd(int argc, const char **argv);
@@ -676,9 +676,9 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 	struct defcmd_set *s = defcmd_set + defcmd_set_count - 1;
 	char **save_command = s->command;
 	if (strcmp(argv0, "endefcmd") == 0) {
-		defcmd_in_progress = 0;
+		defcmd_in_progress = false;
 		if (!s->count)
-			s->usable = 0;
+			s->usable = false;
 		if (s->usable)
 			/* macros are always safe because when executed each
 			 * internal command re-enters kdb_parse() and is
@@ -695,7 +695,7 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 	if (!s->command) {
 		kdb_printf("Could not allocate new kdb_defcmd table for %s\n",
 			   cmdstr);
-		s->usable = 0;
+		s->usable = false;
 		return KDB_NOTIMP;
 	}
 	memcpy(s->command, save_command, s->count * sizeof(*(s->command)));
@@ -737,7 +737,7 @@ static int kdb_defcmd(int argc, const char **argv)
 	       defcmd_set_count * sizeof(*defcmd_set));
 	s = defcmd_set + defcmd_set_count;
 	memset(s, 0, sizeof(*s));
-	s->usable = 1;
+	s->usable = true;
 	s->name = kdb_strdup(argv[1], GFP_KDB);
 	if (!s->name)
 		goto fail_name;
@@ -756,7 +756,7 @@ static int kdb_defcmd(int argc, const char **argv)
 		s->help[strlen(s->help)-1] = '\0';
 	}
 	++defcmd_set_count;
-	defcmd_in_progress = 1;
+	defcmd_in_progress = true;
 	kfree(save_defcmd_set);
 	return 0;
 fail_help:

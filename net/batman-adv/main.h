@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -25,7 +25,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2018.4"
+#define BATADV_SOURCE_VERSION "2019.1"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -247,6 +247,7 @@ static inline int batadv_print_vid(unsigned short vid)
 }
 
 extern struct list_head batadv_hardif_list;
+extern unsigned int batadv_hardif_generation;
 
 extern unsigned char batadv_broadcast_addr[];
 extern struct workqueue_struct *batadv_event_workqueue;

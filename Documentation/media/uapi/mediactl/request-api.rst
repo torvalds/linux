@@ -1,12 +1,12 @@
 .. This file is dual-licensed: you can use it either under the terms
-.. of the GPL or the GFDL 1.1+ license, at your option. Note that this
+.. of the GPL 2.0 or the GFDL 1.1+ license, at your option. Note that this
 .. dual licensing only applies to this file, and not this project as a
 .. whole.
 ..
 .. a) This file is free software; you can redistribute it and/or
 ..    modify it under the terms of the GNU General Public License as
-..    published by the Free Software Foundation; either version 2 of
-..    the License, or (at your option) any later version.
+..    published by the Free Software Foundation version 2 of
+..    the License.
 ..
 ..    This file is distributed in the hope that it will be useful,
 ..    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -91,7 +91,7 @@ A request must contain at least one buffer, otherwise ``ENOENT`` is returned.
 A queued request cannot be modified anymore.
 
 .. caution::
-   For :ref:`memory-to-memory devices <codec>` you can use requests only for
+   For :ref:`memory-to-memory devices <mem2mem>` you can use requests only for
    output buffers, not for capture buffers. Attempting to add a capture buffer
    to a request will result in an ``EACCES`` error.
 
@@ -152,7 +152,7 @@ if it had just been allocated.
 Example for a Codec Device
 --------------------------
 
-For use-cases such as :ref:`codecs <codec>`, the request API can be used
+For use-cases such as :ref:`codecs <mem2mem>`, the request API can be used
 to associate specific controls to
 be applied by the driver for the OUTPUT buffer, allowing user-space
 to queue many such buffers in advance. It can also take advantage of requests'

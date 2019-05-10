@@ -51,9 +51,9 @@
 #include <linux/percpu.h>
 #include <linux/dma-mapping.h>
 #include <linux/sort.h>
+#include <linux/phy_fixed.h>
 #include <soc/fsl/bman.h>
 #include <soc/fsl/qman.h>
-
 #include "fman.h"
 #include "fman_port.h"
 #include "mac.h"
@@ -2051,6 +2051,7 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	bool nonlinear = skb_is_nonlinear(skb);
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa_percpu_priv *percpu_priv;
+	struct netdev_queue *txq;
 	struct dpaa_priv *priv;
 	struct qm_fd fd;
 	int offset = 0;
@@ -2099,6 +2100,11 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	}
 	if (unlikely(err < 0))
 		goto skb_to_fd_failed;
+
+	txq = netdev_get_tx_queue(net_dev, queue_mapping);
+
+	/* LLTX requires to do our own update of trans_start */
+	txq->trans_start = jiffies;
 
 	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		fd.cmd |= cpu_to_be32(FM_FD_CMD_UPD);
@@ -2475,6 +2481,7 @@ static void dpaa_adjust_link(struct net_device *net_dev)
 
 static int dpaa_phy_init(struct net_device *net_dev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct mac_device *mac_dev;
 	struct phy_device *phy_dev;
 	struct dpaa_priv *priv;
@@ -2491,7 +2498,9 @@ static int dpaa_phy_init(struct net_device *net_dev)
 	}
 
 	/* Remove any features not supported by the controller */
-	phy_dev->supported &= mac_dev->if_support;
+	ethtool_convert_legacy_u32_to_link_mode(mask, mac_dev->if_support);
+	linkmode_and(phy_dev->supported, phy_dev->supported, mask);
+
 	phy_support_asym_pause(phy_dev);
 
 	mac_dev->phy_dev = phy_dev;
@@ -2613,6 +2622,7 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_stop = dpaa_eth_stop,
 	.ndo_tx_timeout = dpaa_tx_timeout,
 	.ndo_get_stats64 = dpaa_get_stats64,
+	.ndo_change_carrier = fixed_phy_change_carrier,
 	.ndo_set_mac_address = dpaa_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_rx_mode = dpaa_set_rx_mode,

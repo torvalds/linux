@@ -13,7 +13,7 @@
 
 #include "trace_probe.h"
 
-const char *reserved_field_names[] = {
+static const char *reserved_field_names[] = {
 	"common_type",
 	"common_flags",
 	"common_preempt_count",
@@ -154,24 +154,66 @@ int traceprobe_split_symbol_offset(char *symbol, long *offset)
 	return 0;
 }
 
+/* @buf must has MAX_EVENT_NAME_LEN size */
+int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
+				char *buf)
+{
+	const char *slash, *event = *pevent;
+	int len;
+
+	slash = strchr(event, '/');
+	if (slash) {
+		if (slash == event) {
+			pr_info("Group name is not specified\n");
+			return -EINVAL;
+		}
+		if (slash - event + 1 > MAX_EVENT_NAME_LEN) {
+			pr_info("Group name is too long\n");
+			return -E2BIG;
+		}
+		strlcpy(buf, event, slash - event + 1);
+		if (!is_good_name(buf)) {
+			pr_info("Group name must follow the same rules as C identifiers\n");
+			return -EINVAL;
+		}
+		*pgroup = buf;
+		*pevent = slash + 1;
+		event = *pevent;
+	}
+	len = strlen(event);
+	if (len == 0) {
+		pr_info("Event name is not specified\n");
+		return -EINVAL;
+	} else if (len > MAX_EVENT_NAME_LEN) {
+		pr_info("Event name is too long\n");
+		return -E2BIG;
+	}
+	if (!is_good_name(event)) {
+		pr_info("Event name must follow the same rules as C identifiers\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
 static int parse_probe_vars(char *arg, const struct fetch_type *t,
 			    struct fetch_insn *code, unsigned int flags)
 {
-	int ret = 0;
 	unsigned long param;
+	int ret = 0;
+	int len;
 
 	if (strcmp(arg, "retval") == 0) {
 		if (flags & TPARG_FL_RETURN)
 			code->op = FETCH_OP_RETVAL;
 		else
 			ret = -EINVAL;
-	} else if (strncmp(arg, "stack", 5) == 0) {
-		if (arg[5] == '\0') {
+	} else if ((len = str_has_prefix(arg, "stack"))) {
+		if (arg[len] == '\0') {
 			code->op = FETCH_OP_STACKP;
-		} else if (isdigit(arg[5])) {
-			ret = kstrtoul(arg + 5, 10, &param);
+		} else if (isdigit(arg[len])) {
+			ret = kstrtoul(arg + len, 10, &param);
 			if (ret || ((flags & TPARG_FL_KERNEL) &&
 				    param > PARAM_MAX_STACK))
 				ret = -EINVAL;
@@ -186,10 +228,10 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	} else if (((flags & TPARG_FL_MASK) ==
 		    (TPARG_FL_KERNEL | TPARG_FL_FENTRY)) &&
-		   strncmp(arg, "arg", 3) == 0) {
-		if (!isdigit(arg[3]))
+		   (len = str_has_prefix(arg, "arg"))) {
+		if (!isdigit(arg[len]))
 			return -EINVAL;
-		ret = kstrtoul(arg + 3, 10, &param);
+		ret = kstrtoul(arg + len, 10, &param);
 		if (ret || !param || param > PARAM_MAX_STACK)
 			return -EINVAL;
 		code->op = FETCH_OP_ARG;
@@ -272,6 +314,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 
 	case '+':	/* deref memory */
 		arg++;	/* Skip '+', because kstrtol() rejects it. */
+		/* fall through */
 	case '-':
 		tmp = strchr(arg, '(');
 		if (!tmp)
@@ -348,7 +391,7 @@ static int __parse_bitfield_probe_arg(const char *bf,
 }
 
 /* String length checking wrapper */
-int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
+static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 		struct probe_arg *parg, unsigned int flags)
 {
 	struct fetch_insn *code, *scode, *tmp = NULL;
@@ -491,8 +534,8 @@ fail:
 }
 
 /* Return 1 if name is reserved or already used by another argument */
-int traceprobe_conflict_field_name(const char *name,
-			       struct probe_arg *args, int narg)
+static int traceprobe_conflict_field_name(const char *name,
+					  struct probe_arg *args, int narg)
 {
 	int i;
 
@@ -505,6 +548,49 @@ int traceprobe_conflict_field_name(const char *name,
 			return 1;
 
 	return 0;
+}
+
+int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, char *arg,
+				unsigned int flags)
+{
+	struct probe_arg *parg = &tp->args[i];
+	char *body;
+	int ret;
+
+	/* Increment count for freeing args in error case */
+	tp->nr_args++;
+
+	body = strchr(arg, '=');
+	if (body) {
+		if (body - arg > MAX_ARG_NAME_LEN || body == arg)
+			return -EINVAL;
+		parg->name = kmemdup_nul(arg, body - arg, GFP_KERNEL);
+		body++;
+	} else {
+		/* If argument name is omitted, set "argN" */
+		parg->name = kasprintf(GFP_KERNEL, "arg%d", i + 1);
+		body = arg;
+	}
+	if (!parg->name)
+		return -ENOMEM;
+
+	if (!is_good_name(parg->name)) {
+		pr_info("Invalid argument[%d] name: %s\n",
+			i, parg->name);
+		return -EINVAL;
+	}
+
+	if (traceprobe_conflict_field_name(parg->name, tp->args, i)) {
+		pr_info("Argument[%d]: '%s' conflicts with another field.\n",
+			i, parg->name);
+		return -EINVAL;
+	}
+
+	/* Parse fetch argument */
+	ret = traceprobe_parse_probe_arg_body(body, &tp->size, parg, flags);
+	if (ret)
+		pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
+	return ret;
 }
 
 void traceprobe_free_probe_arg(struct probe_arg *arg)

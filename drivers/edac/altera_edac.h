@@ -295,8 +295,8 @@ struct altr_sdram_mc_data {
 #define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
 
 /* Sticky registers for Uncorrected Errors */
-#define S10_SYSMGR_UE_VAL_OFST            0x120
-#define S10_SYSMGR_UE_ADDR_OFST           0x124
+#define S10_SYSMGR_UE_VAL_OFST            0x220
+#define S10_SYSMGR_UE_ADDR_OFST           0x224
 
 #define S10_DDR0_IRQ_MASK                 BIT(16)
 

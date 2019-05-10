@@ -47,8 +47,8 @@ static inline int xts_verify_key(struct crypto_skcipher *tfm,
 	}
 
 	/* ensure that the AES and tweak key are not identical */
-	if ((fips_enabled || crypto_skcipher_get_flags(tfm) &
-			     CRYPTO_TFM_REQ_WEAK_KEY) &&
+	if ((fips_enabled || (crypto_skcipher_get_flags(tfm) &
+			      CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) &&
 	    !crypto_memneq(key, key + (keylen / 2), keylen / 2)) {
 		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
 		return -EINVAL;

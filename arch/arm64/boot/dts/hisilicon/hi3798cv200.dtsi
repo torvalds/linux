@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DTS File for HiSilicon Hi3798cv200 SoC.
  *
  * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
- *
- * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <dt-bindings/clock/histb-clock.h>

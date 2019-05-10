@@ -26,4 +26,7 @@ struct intel_soc_pmic {
 	struct device *dev;
 };
 
+int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,
+					      u32 value, u32 mask);
+
 #endif	/* __INTEL_SOC_PMIC_H__ */

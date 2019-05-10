@@ -10,7 +10,9 @@
 
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/sys_soc.h>
 
+#include "core.h"
 #include "sh_pfc.h"
 
 /*
@@ -5691,7 +5693,22 @@ static int r8a7790_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin, u32 *poc
 	return 31 - (pin & 0x1f);
 }
 
+static const struct soc_device_attribute r8a7790_tdsel[] = {
+	{ .soc_id = "r8a7790", .revision = "ES1.0" },
+	{ /* sentinel */ }
+};
+
+static int r8a7790_pinmux_soc_init(struct sh_pfc *pfc)
+{
+	/* Initialize TDSEL on old revisions */
+	if (soc_device_match(r8a7790_tdsel))
+		sh_pfc_write(pfc, 0xe6060088, 0x00155554);
+
+	return 0;
+}
+
 static const struct sh_pfc_soc_operations r8a7790_pinmux_ops = {
+	.init = r8a7790_pinmux_soc_init,
 	.pin_to_pocctrl = r8a7790_pin_to_pocctrl,
 };
 

@@ -372,7 +372,6 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
 	pr_hard("initing context for mm @%p\n", mm);
 
-#ifdef	CONFIG_PPC_MM_SLICES
 	/*
 	 * We have MMU_NO_CONTEXT set to be ~0. Hence check
 	 * explicitly against context.id == 0. This ensures that we properly
@@ -382,9 +381,9 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 	 */
 	if (mm->context.id == 0)
 		slice_init_new_context_exec(mm);
-#endif
 	mm->context.id = MMU_NO_CONTEXT;
 	mm->context.active = 0;
+	pte_frag_set(&mm->context, NULL);
 	return 0;
 }
 
@@ -462,10 +461,19 @@ void __init mmu_context_init(void)
 	 * Allocate the maps used by context management
 	 */
 	context_map = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
+	if (!context_map)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      CTX_MAP_SIZE);
 	context_mm = memblock_alloc(sizeof(void *) * (LAST_CONTEXT + 1),
 				    SMP_CACHE_BYTES);
+	if (!context_mm)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(void *) * (LAST_CONTEXT + 1));
 #ifdef CONFIG_SMP
 	stale_map[boot_cpuid] = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
+	if (!stale_map[boot_cpuid])
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      CTX_MAP_SIZE);
 
 	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
 				  "powerpc/mmu/ctx:prepare",
@@ -487,4 +495,3 @@ void __init mmu_context_init(void)
 	next_context = FIRST_CONTEXT;
 	nr_free_contexts = LAST_CONTEXT - FIRST_CONTEXT + 1;
 }
-

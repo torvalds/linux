@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * OF helpers for the GPIO API
  *
@@ -54,9 +54,31 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 }
 
 static void of_gpio_flags_quirks(struct device_node *np,
+				 const char *propname,
 				 enum of_gpio_flags *flags,
 				 int index)
 {
+	/*
+	 * Handle MMC "cd-inverted" and "wp-inverted" semantics.
+	 */
+	if (IS_ENABLED(CONFIG_MMC)) {
+		/*
+		 * Active low is the default according to the
+		 * SDHCI specification and the device tree
+		 * bindings. However the code in the current
+		 * kernel was written such that the phandle
+		 * flags were always respected, and "cd-inverted"
+		 * would invert the flag from the device phandle.
+		 */
+		if (!strcmp(propname, "cd-gpios")) {
+			if (of_property_read_bool(np, "cd-inverted"))
+				*flags ^= OF_GPIO_ACTIVE_LOW;
+		}
+		if (!strcmp(propname, "wp-gpios")) {
+			if (of_property_read_bool(np, "wp-inverted"))
+				*flags ^= OF_GPIO_ACTIVE_LOW;
+		}
+	}
 	/*
 	 * Some GPIO fixed regulator quirks.
 	 * Note that active low is the default.
@@ -64,7 +86,9 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	if (IS_ENABLED(CONFIG_REGULATOR) &&
 	    (of_device_is_compatible(np, "regulator-fixed") ||
 	     of_device_is_compatible(np, "reg-fixed-voltage") ||
-	     of_device_is_compatible(np, "regulator-gpio"))) {
+	     (of_device_is_compatible(np, "regulator-gpio") &&
+	      !(strcmp(propname, "enable-gpio") &&
+	        strcmp(propname, "enable-gpios"))))) {
 		/*
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
@@ -96,14 +120,15 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	 * to determine if the flags should have inverted semantics.
 	 */
 	if (IS_ENABLED(CONFIG_SPI_MASTER) &&
-	    of_property_read_bool(np, "cs-gpios")) {
+	    of_property_read_bool(np, "cs-gpios") &&
+	    !strcmp(propname, "cs-gpios")) {
 		struct device_node *child;
 		u32 cs;
 		int ret;
 
 		for_each_child_of_node(np, child) {
 			ret = of_property_read_u32(child, "reg", &cs);
-			if (!ret)
+			if (ret)
 				continue;
 			if (cs == index) {
 				/*
@@ -118,16 +143,16 @@ static void of_gpio_flags_quirks(struct device_node *np,
 				 * conflict and the "spi-cs-high" flag will
 				 * take precedence.
 				 */
-				if (of_property_read_bool(np, "spi-cs-high")) {
+				if (of_property_read_bool(child, "spi-cs-high")) {
 					if (*flags & OF_GPIO_ACTIVE_LOW) {
 						pr_warn("%s GPIO handle specifies active low - ignored\n",
-							of_node_full_name(np));
+							of_node_full_name(child));
 						*flags &= ~OF_GPIO_ACTIVE_LOW;
 					}
 				} else {
 					if (!(*flags & OF_GPIO_ACTIVE_LOW))
 						pr_info("%s enforce active low on chipselect handle\n",
-							of_node_full_name(np));
+							of_node_full_name(child));
 					*flags |= OF_GPIO_ACTIVE_LOW;
 				}
 				break;
@@ -174,7 +199,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		goto out;
 
 	if (flags)
-		of_gpio_flags_quirks(np, flags, index);
+		of_gpio_flags_quirks(np, propname, flags, index);
 
 	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,
@@ -322,6 +347,11 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 
 	if (of_flags & OF_GPIO_TRANSITORY)
 		*flags |= GPIO_TRANSITORY;
+
+	if (of_flags & OF_GPIO_PULL_UP)
+		*flags |= GPIO_PULL_UP;
+	if (of_flags & OF_GPIO_PULL_DOWN)
+		*flags |= GPIO_PULL_DOWN;
 
 	return desc;
 }
@@ -688,7 +718,13 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	of_node_get(chip->of_node);
 
-	return of_gpiochip_scan_gpios(chip);
+	status = of_gpiochip_scan_gpios(chip);
+	if (status) {
+		of_node_put(chip->of_node);
+		gpiochip_remove_pin_ranges(chip);
+	}
+
+	return status;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)

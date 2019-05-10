@@ -118,7 +118,8 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 static ssize_t hw_rev_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
+	struct ocrdma_dev *dev =
+		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
 }
@@ -127,7 +128,8 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
+	struct ocrdma_dev *dev =
+		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
 }
@@ -141,6 +143,52 @@ static struct attribute *ocrdma_attributes[] = {
 
 static const struct attribute_group ocrdma_attr_group = {
 	.attrs = ocrdma_attributes,
+};
+
+static const struct ib_device_ops ocrdma_dev_ops = {
+	.alloc_mr = ocrdma_alloc_mr,
+	.alloc_pd = ocrdma_alloc_pd,
+	.alloc_ucontext = ocrdma_alloc_ucontext,
+	.create_ah = ocrdma_create_ah,
+	.create_cq = ocrdma_create_cq,
+	.create_qp = ocrdma_create_qp,
+	.dealloc_pd = ocrdma_dealloc_pd,
+	.dealloc_ucontext = ocrdma_dealloc_ucontext,
+	.dereg_mr = ocrdma_dereg_mr,
+	.destroy_ah = ocrdma_destroy_ah,
+	.destroy_cq = ocrdma_destroy_cq,
+	.destroy_qp = ocrdma_destroy_qp,
+	.get_dev_fw_str = get_dev_fw_str,
+	.get_dma_mr = ocrdma_get_dma_mr,
+	.get_link_layer = ocrdma_link_layer,
+	.get_netdev = ocrdma_get_netdev,
+	.get_port_immutable = ocrdma_port_immutable,
+	.map_mr_sg = ocrdma_map_mr_sg,
+	.mmap = ocrdma_mmap,
+	.modify_port = ocrdma_modify_port,
+	.modify_qp = ocrdma_modify_qp,
+	.poll_cq = ocrdma_poll_cq,
+	.post_recv = ocrdma_post_recv,
+	.post_send = ocrdma_post_send,
+	.process_mad = ocrdma_process_mad,
+	.query_ah = ocrdma_query_ah,
+	.query_device = ocrdma_query_device,
+	.query_pkey = ocrdma_query_pkey,
+	.query_port = ocrdma_query_port,
+	.query_qp = ocrdma_query_qp,
+	.reg_user_mr = ocrdma_reg_user_mr,
+	.req_notify_cq = ocrdma_arm_cq,
+	.resize_cq = ocrdma_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, ocrdma_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, ocrdma_ucontext, ibucontext),
+};
+
+static const struct ib_device_ops ocrdma_dev_srq_ops = {
+	.create_srq = ocrdma_create_srq,
+	.destroy_srq = ocrdma_destroy_srq,
+	.modify_srq = ocrdma_modify_srq,
+	.post_srq_recv = ocrdma_post_srq_recv,
+	.query_srq = ocrdma_query_srq,
 };
 
 static int ocrdma_register_device(struct ocrdma_dev *dev)
@@ -182,50 +230,10 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->eq_cnt;
 
-	/* mandatory verbs. */
-	dev->ibdev.query_device = ocrdma_query_device;
-	dev->ibdev.query_port = ocrdma_query_port;
-	dev->ibdev.modify_port = ocrdma_modify_port;
-	dev->ibdev.get_netdev = ocrdma_get_netdev;
-	dev->ibdev.get_link_layer = ocrdma_link_layer;
-	dev->ibdev.alloc_pd = ocrdma_alloc_pd;
-	dev->ibdev.dealloc_pd = ocrdma_dealloc_pd;
-
-	dev->ibdev.create_cq = ocrdma_create_cq;
-	dev->ibdev.destroy_cq = ocrdma_destroy_cq;
-	dev->ibdev.resize_cq = ocrdma_resize_cq;
-
-	dev->ibdev.create_qp = ocrdma_create_qp;
-	dev->ibdev.modify_qp = ocrdma_modify_qp;
-	dev->ibdev.query_qp = ocrdma_query_qp;
-	dev->ibdev.destroy_qp = ocrdma_destroy_qp;
-
-	dev->ibdev.query_pkey = ocrdma_query_pkey;
-	dev->ibdev.create_ah = ocrdma_create_ah;
-	dev->ibdev.destroy_ah = ocrdma_destroy_ah;
-	dev->ibdev.query_ah = ocrdma_query_ah;
-
-	dev->ibdev.poll_cq = ocrdma_poll_cq;
-	dev->ibdev.post_send = ocrdma_post_send;
-	dev->ibdev.post_recv = ocrdma_post_recv;
-	dev->ibdev.req_notify_cq = ocrdma_arm_cq;
-
-	dev->ibdev.get_dma_mr = ocrdma_get_dma_mr;
-	dev->ibdev.dereg_mr = ocrdma_dereg_mr;
-	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
-
-	dev->ibdev.alloc_mr = ocrdma_alloc_mr;
-	dev->ibdev.map_mr_sg = ocrdma_map_mr_sg;
-
 	/* mandatory to support user space verbs consumer. */
-	dev->ibdev.alloc_ucontext = ocrdma_alloc_ucontext;
-	dev->ibdev.dealloc_ucontext = ocrdma_dealloc_ucontext;
-	dev->ibdev.mmap = ocrdma_mmap;
 	dev->ibdev.dev.parent = &dev->nic_info.pdev->dev;
 
-	dev->ibdev.process_mad = ocrdma_process_mad;
-	dev->ibdev.get_port_immutable = ocrdma_port_immutable;
-	dev->ibdev.get_dev_fw_str     = get_dev_fw_str;
+	ib_set_device_ops(&dev->ibdev, &ocrdma_dev_ops);
 
 	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		dev->ibdev.uverbs_cmd_mask |=
@@ -235,15 +243,11 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 		     OCRDMA_UVERBS(DESTROY_SRQ) |
 		     OCRDMA_UVERBS(POST_SRQ_RECV);
 
-		dev->ibdev.create_srq = ocrdma_create_srq;
-		dev->ibdev.modify_srq = ocrdma_modify_srq;
-		dev->ibdev.query_srq = ocrdma_query_srq;
-		dev->ibdev.destroy_srq = ocrdma_destroy_srq;
-		dev->ibdev.post_srq_recv = ocrdma_post_srq_recv;
+		ib_set_device_ops(&dev->ibdev, &ocrdma_dev_srq_ops);
 	}
 	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_OCRDMA;
-	return ib_register_device(&dev->ibdev, "ocrdma%d", NULL);
+	return ib_register_device(&dev->ibdev, "ocrdma%d");
 }
 
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
@@ -295,7 +299,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	u8 lstate = 0;
 	struct ocrdma_dev *dev;
 
-	dev = (struct ocrdma_dev *)ib_alloc_device(sizeof(struct ocrdma_dev));
+	dev = ib_alloc_device(ocrdma_dev, ibdev);
 	if (!dev) {
 		pr_err("Unable to allocate ib device\n");
 		return NULL;

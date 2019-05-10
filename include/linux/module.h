@@ -129,13 +129,13 @@ extern void cleanup_module(void);
 #define module_init(initfn)					\
 	static inline initcall_t __maybe_unused __inittest(void)		\
 	{ return initfn; }					\
-	int init_module(void) __attribute__((alias(#initfn)));
+	int init_module(void) __copy(initfn) __attribute__((alias(#initfn)));
 
 /* This is only required if you want to be unloadable. */
 #define module_exit(exitfn)					\
 	static inline exitcall_t __maybe_unused __exittest(void)		\
 	{ return exitfn; }					\
-	void cleanup_module(void) __attribute__((alias(#exitfn)));
+	void cleanup_module(void) __copy(exitfn) __attribute__((alias(#exitfn)));
 
 #endif
 
@@ -172,7 +172,7 @@ extern void cleanup_module(void);
  * The following license idents are currently accepted as indicating free
  * software modules
  *
- *	"GPL"				[GNU Public License v2 or later]
+ *	"GPL"				[GNU Public License v2]
  *	"GPL v2"			[GNU Public License v2]
  *	"GPL and additional rights"	[GNU Public License v2 rights and more]
  *	"Dual BSD/GPL"			[GNU Public License v2
@@ -185,6 +185,22 @@ extern void cleanup_module(void);
  * The following other idents are available
  *
  *	"Proprietary"			[Non free products]
+ *
+ * Both "GPL v2" and "GPL" (the latter also in dual licensed strings) are
+ * merely stating that the module is licensed under the GPL v2, but are not
+ * telling whether "GPL v2 only" or "GPL v2 or later". The reason why there
+ * are two variants is a historic and failed attempt to convey more
+ * information in the MODULE_LICENSE string. For module loading the
+ * "only/or later" distinction is completely irrelevant and does neither
+ * replace the proper license identifiers in the corresponding source file
+ * nor amends them in any way. The sole purpose is to make the
+ * 'Proprietary' flagging work and to refuse to bind symbols which are
+ * exported with EXPORT_SYMBOL_GPL when a non free module is loaded.
+ *
+ * In the same way "BSD" is not a clear license information. It merely
+ * states, that the module is licensed under one of the compatible BSD
+ * license variants. The detailed and correct license information is again
+ * to be found in the corresponding source files.
  *
  * There are dual licensed components, but when running with Linux it is the
  * GPL that is relevant so this is a non issue. Similarly LGPL linked with GPL
@@ -432,7 +448,11 @@ struct module {
 	unsigned int num_tracepoints;
 	tracepoint_ptr_t *tracepoints_ptrs;
 #endif
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_BPF_EVENTS
+	unsigned int num_bpf_raw_events;
+	struct bpf_raw_event_map *bpf_raw_events;
+#endif
+#ifdef CONFIG_JUMP_LABEL
 	struct jump_entry *jump_entries;
 	unsigned int num_jump_entries;
 #endif
@@ -484,6 +504,13 @@ struct module {
 } ____cacheline_aligned __randomize_layout;
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
+#endif
+
+#ifndef HAVE_ARCH_KALLSYMS_SYMBOL_VALUE
+static inline unsigned long kallsyms_symbol_value(const Elf_Sym *sym)
+{
+	return sym->st_value;
+}
 #endif
 
 extern struct mutex module_mutex;
@@ -817,7 +844,7 @@ static inline void module_bug_finalize(const Elf_Ehdr *hdr,
 static inline void module_bug_cleanup(struct module *mod) {}
 #endif	/* CONFIG_GENERIC_BUG */
 
-#ifdef RETPOLINE
+#ifdef CONFIG_RETPOLINE
 extern bool retpoline_module_ok(bool has_retpoline);
 #else
 static inline bool retpoline_module_ok(bool has_retpoline)

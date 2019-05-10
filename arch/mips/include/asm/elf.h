@@ -481,6 +481,8 @@ struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 struct arch_elf_state {
 	int nan_2008;
 	int fp_abi;
@@ -497,18 +499,34 @@ struct arch_elf_state {
 	.overall_fp_mode = -1,			\
 }
 
-/* Whether to accept legacy-NaN and 2008-NaN user binaries.  */
-extern bool mips_use_nan_legacy;
-extern bool mips_use_nan_2008;
-
 extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
 			    bool is_interp, struct arch_elf_state *state);
 
 extern int arch_check_elf(void *ehdr, bool has_interpreter, void *interp_ehdr,
 			  struct arch_elf_state *state);
 
+/* Whether to accept legacy-NaN and 2008-NaN user binaries.  */
+extern bool mips_use_nan_legacy;
+extern bool mips_use_nan_2008;
+
 extern void mips_set_personality_nan(struct arch_elf_state *state);
 extern void mips_set_personality_fp(struct arch_elf_state *state);
+
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+struct arch_elf_state;
+
+static inline void mips_set_personality_nan(struct arch_elf_state *state)
+{
+	/* no-op */
+}
+
+static inline void mips_set_personality_fp(struct arch_elf_state *state)
+{
+	/* no-op */
+}
+
+#endif /* !CONFIG_MIPS_FP_SUPPORT */
 
 #define elf_read_implies_exec(ex, stk) mips_elf_read_implies_exec(&(ex), stk)
 extern int mips_elf_read_implies_exec(void *elf_ex, int exstack);

@@ -742,7 +742,6 @@ enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_NOMWAIT,
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
-void early_trap_pf_init(void);
 
 /* Defined in head.S */
 extern struct desc_ptr		early_gdt_descr;
@@ -967,7 +966,7 @@ static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 }
 
 extern unsigned long arch_align_stack(unsigned long sp);
-extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
+void free_init_pages(const char *what, unsigned long begin, unsigned long end);
 extern void free_kernel_image_pages(void *begin, void *end);
 
 void default_idle(void);

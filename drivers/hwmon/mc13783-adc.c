@@ -63,8 +63,9 @@ static int mc13783_adc_read(struct device *dev,
 	return 0;
 }
 
-static ssize_t mc13783_adc_read_bp(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t mc13783_adc_bp_show(struct device *dev,
+				   struct device_attribute *devattr,
+				   char *buf)
 {
 	unsigned val;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -86,8 +87,9 @@ static ssize_t mc13783_adc_read_bp(struct device *dev,
 	return sprintf(buf, "%u\n", val);
 }
 
-static ssize_t mc13783_adc_read_gp(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t mc13783_adc_gp_show(struct device *dev,
+				   struct device_attribute *devattr,
+				   char *buf)
 {
 	unsigned val;
 	int ret = mc13783_adc_read(dev, devattr, &val);
@@ -104,8 +106,9 @@ static ssize_t mc13783_adc_read_gp(struct device *dev,
 	return sprintf(buf, "%u\n", val);
 }
 
-static ssize_t mc13783_adc_read_uid(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t mc13783_adc_uid_show(struct device *dev,
+				    struct device_attribute *devattr,
+				    char *buf)
 {
 	unsigned int val;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -125,8 +128,9 @@ static ssize_t mc13783_adc_read_uid(struct device *dev,
 	return sprintf(buf, "%u\n", val);
 }
 
-static ssize_t mc13783_adc_read_temp(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t mc13783_adc_temp_show(struct device *dev,
+				     struct device_attribute *devattr,
+				     char *buf)
 {
 	unsigned int val;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -156,21 +160,20 @@ static ssize_t mc13783_adc_read_temp(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(name);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, mc13783_adc_read_bp, NULL, 2);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, mc13783_adc_read_gp, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, mc13783_adc_read_gp, NULL, 6);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, mc13783_adc_read_gp, NULL, 7);
-static SENSOR_DEVICE_ATTR(in8_input, S_IRUGO, mc13783_adc_read_gp, NULL, 8);
-static SENSOR_DEVICE_ATTR(in9_input, S_IRUGO, mc13783_adc_read_gp, NULL, 9);
-static SENSOR_DEVICE_ATTR(in10_input, S_IRUGO, mc13783_adc_read_gp, NULL, 10);
-static SENSOR_DEVICE_ATTR(in11_input, S_IRUGO, mc13783_adc_read_gp, NULL, 11);
-static SENSOR_DEVICE_ATTR(in12_input, S_IRUGO, mc13783_adc_read_gp, NULL, 12);
-static SENSOR_DEVICE_ATTR(in13_input, S_IRUGO, mc13783_adc_read_gp, NULL, 13);
-static SENSOR_DEVICE_ATTR(in14_input, S_IRUGO, mc13783_adc_read_gp, NULL, 14);
-static SENSOR_DEVICE_ATTR(in15_input, S_IRUGO, mc13783_adc_read_gp, NULL, 15);
-static SENSOR_DEVICE_ATTR(in16_input, S_IRUGO, mc13783_adc_read_uid, NULL, 16);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
-			  mc13783_adc_read_temp, NULL, 17);
+static SENSOR_DEVICE_ATTR_RO(in2_input, mc13783_adc_bp, 2);
+static SENSOR_DEVICE_ATTR_RO(in5_input, mc13783_adc_gp, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_input, mc13783_adc_gp, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_input, mc13783_adc_gp, 7);
+static SENSOR_DEVICE_ATTR_RO(in8_input, mc13783_adc_gp, 8);
+static SENSOR_DEVICE_ATTR_RO(in9_input, mc13783_adc_gp, 9);
+static SENSOR_DEVICE_ATTR_RO(in10_input, mc13783_adc_gp, 10);
+static SENSOR_DEVICE_ATTR_RO(in11_input, mc13783_adc_gp, 11);
+static SENSOR_DEVICE_ATTR_RO(in12_input, mc13783_adc_gp, 12);
+static SENSOR_DEVICE_ATTR_RO(in13_input, mc13783_adc_gp, 13);
+static SENSOR_DEVICE_ATTR_RO(in14_input, mc13783_adc_gp, 14);
+static SENSOR_DEVICE_ATTR_RO(in15_input, mc13783_adc_gp, 15);
+static SENSOR_DEVICE_ATTR_RO(in16_input, mc13783_adc_uid, 16);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, mc13783_adc_temp, 17);
 
 static struct attribute *mc13783_attr_base[] = {
 	&dev_attr_name.attr,

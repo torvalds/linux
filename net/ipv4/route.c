@@ -887,13 +887,15 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	/* No redirected packets during ip_rt_redirect_silence;
 	 * reset the algorithm.
 	 */
-	if (time_after(jiffies, peer->rate_last + ip_rt_redirect_silence))
+	if (time_after(jiffies, peer->rate_last + ip_rt_redirect_silence)) {
 		peer->rate_tokens = 0;
+		peer->n_redirects = 0;
+	}
 
 	/* Too many ignored redirects; do not send anything
 	 * set dst.rate_last to the last seen redirected packet.
 	 */
-	if (peer->rate_tokens >= ip_rt_redirect_number) {
+	if (peer->n_redirects >= ip_rt_redirect_number) {
 		peer->rate_last = jiffies;
 		goto out_put_peer;
 	}
@@ -910,6 +912,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, gw);
 		peer->rate_last = jiffies;
 		++peer->rate_tokens;
+		++peer->n_redirects;
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 		if (log_martians &&
 		    peer->rate_tokens == ip_rt_redirect_number)
@@ -1180,11 +1183,39 @@ static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 	return dst;
 }
 
+static void ipv4_send_dest_unreach(struct sk_buff *skb)
+{
+	struct ip_options opt;
+	int res;
+
+	/* Recompile ip options since IPCB may not be valid anymore.
+	 * Also check we have a reasonable ipv4 header.
+	 */
+	if (!pskb_network_may_pull(skb, sizeof(struct iphdr)) ||
+	    ip_hdr(skb)->version != 4 || ip_hdr(skb)->ihl < 5)
+		return;
+
+	memset(&opt, 0, sizeof(opt));
+	if (ip_hdr(skb)->ihl > 5) {
+		if (!pskb_network_may_pull(skb, ip_hdr(skb)->ihl * 4))
+			return;
+		opt.optlen = ip_hdr(skb)->ihl * 4 - sizeof(struct iphdr);
+
+		rcu_read_lock();
+		res = __ip_options_compile(dev_net(skb->dev), &opt, skb, NULL);
+		rcu_read_unlock();
+
+		if (res)
+			return;
+	}
+	__icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0, &opt);
+}
+
 static void ipv4_link_failure(struct sk_buff *skb)
 {
 	struct rtable *rt;
 
-	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
+	ipv4_send_dest_unreach(skb);
 
 	rt = skb_rtable(skb);
 	if (rt)
@@ -1300,6 +1331,10 @@ static void ip_del_fnhe(struct fib_nh *nh, __be32 daddr)
 		if (fnhe->fnhe_daddr == daddr) {
 			rcu_assign_pointer(*fnhe_p, rcu_dereference_protected(
 				fnhe->fnhe_next, lockdep_is_held(&fnhe_lock)));
+			/* set fnhe_daddr to 0 to ensure it won't bind with
+			 * new dsts in rt_bind_exception().
+			 */
+			fnhe->fnhe_daddr = 0;
 			fnhe_flush_routes(fnhe);
 			kfree_rcu(fnhe, rcu);
 			break;
@@ -1608,7 +1643,8 @@ int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		return -EINVAL;
 
 	if (ipv4_is_zeronet(saddr)) {
-		if (!ipv4_is_local_multicast(daddr))
+		if (!ipv4_is_local_multicast(daddr) &&
+		    ip_hdr(skb)->protocol != IPPROTO_IGMP)
 			return -EINVAL;
 	} else {
 		err = fib_validate_source(skb, saddr, 0, tos, 0, dev,
@@ -1677,7 +1713,7 @@ static void ip_handle_martian_source(struct net_device *dev,
 			print_hex_dump(KERN_WARNING, "ll header: ",
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       skb_mac_header(skb),
-				       dev->hard_header_len, true);
+				       dev->hard_header_len, false);
 		}
 	}
 #endif
@@ -1816,6 +1852,7 @@ out:
 int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		       const struct sk_buff *skb, struct flow_keys *flkeys)
 {
+	u32 multipath_hash = fl4 ? fl4->flowi4_multipath_hash : 0;
 	struct flow_keys hash_keys;
 	u32 mhash;
 
@@ -1865,6 +1902,9 @@ int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		break;
 	}
 	mhash = flow_hash_from_keys(&hash_keys);
+
+	if (multipath_hash)
+		mhash = jhash_2words(mhash, multipath_hash, 0);
 
 	return mhash >> 1;
 }
@@ -2141,12 +2181,13 @@ int ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		int our = 0;
 		int err = -EINVAL;
 
-		if (in_dev)
-			our = ip_check_mc_rcu(in_dev, daddr, saddr,
-					      ip_hdr(skb)->protocol);
+		if (!in_dev)
+			return err;
+		our = ip_check_mc_rcu(in_dev, daddr, saddr,
+				      ip_hdr(skb)->protocol);
 
 		/* check l3 master if no match yet */
-		if ((!in_dev || !our) && netif_is_l3_slave(dev)) {
+		if (!our && netif_is_l3_slave(dev)) {
 			struct in_device *l3_in_dev;
 
 			l3_in_dev = __in_dev_get_rcu(skb->dev);
@@ -2763,6 +2804,75 @@ static struct sk_buff *inet_rtm_getroute_build_skb(__be32 src, __be32 dst,
 	return skb;
 }
 
+static int inet_rtm_valid_getroute_req(struct sk_buff *skb,
+				       const struct nlmsghdr *nlh,
+				       struct nlattr **tb,
+				       struct netlink_ext_ack *extack)
+{
+	struct rtmsg *rtm;
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
+		NL_SET_ERR_MSG(extack,
+			       "ipv4: Invalid header for route get request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
+				   rtm_ipv4_policy, extack);
+
+	rtm = nlmsg_data(nlh);
+	if ((rtm->rtm_src_len && rtm->rtm_src_len != 32) ||
+	    (rtm->rtm_dst_len && rtm->rtm_dst_len != 32) ||
+	    rtm->rtm_table || rtm->rtm_protocol ||
+	    rtm->rtm_scope || rtm->rtm_type) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid values in header for route get request");
+		return -EINVAL;
+	}
+
+	if (rtm->rtm_flags & ~(RTM_F_NOTIFY |
+			       RTM_F_LOOKUP_TABLE |
+			       RTM_F_FIB_MATCH)) {
+		NL_SET_ERR_MSG(extack, "ipv4: Unsupported rtm_flags for route get request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+				 rtm_ipv4_policy, extack);
+	if (err)
+		return err;
+
+	if ((tb[RTA_SRC] && !rtm->rtm_src_len) ||
+	    (tb[RTA_DST] && !rtm->rtm_dst_len)) {
+		NL_SET_ERR_MSG(extack, "ipv4: rtm_src_len and rtm_dst_len must be 32 for IPv4");
+		return -EINVAL;
+	}
+
+	for (i = 0; i <= RTA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case RTA_IIF:
+		case RTA_OIF:
+		case RTA_SRC:
+		case RTA_DST:
+		case RTA_IP_PROTO:
+		case RTA_SPORT:
+		case RTA_DPORT:
+		case RTA_MARK:
+		case RTA_UID:
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "ipv4: Unsupported attribute in route get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack)
 {
@@ -2783,8 +2893,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	int err;
 	int mark;
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv4_policy,
-			  extack);
+	err = inet_rtm_valid_getroute_req(in_skb, nlh, tb, extack);
 	if (err < 0)
 		return err;
 
@@ -2800,7 +2909,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	if (tb[RTA_IP_PROTO]) {
 		err = rtm_getroute_parse_ip_proto(tb[RTA_IP_PROTO],
-						  &ip_proto, extack);
+						  &ip_proto, AF_INET, extack);
 		if (err)
 			return err;
 	}
@@ -2849,6 +2958,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			err = -rt->dst.error;
 	} else {
 		fl4.flowi4_iif = LOOPBACK_IFINDEX;
+		skb->dev = net->loopback_dev;
 		rt = ip_route_output_key_hash_rcu(net, &fl4, &res, skb);
 		err = 0;
 		if (IS_ERR(rt))

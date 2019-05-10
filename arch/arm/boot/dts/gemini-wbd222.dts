@@ -28,7 +28,7 @@
 		compatible = "gpio-keys";
 
 		button-setup {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "reset";
@@ -182,6 +182,14 @@
 				phy-mode = "rgmii";
 				phy-handle = <&phy1>;
 			};
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
 		};
 	};
 };

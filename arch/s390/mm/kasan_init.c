@@ -107,7 +107,8 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, PGDIR_SIZE) &&
 			    end - address >= PGDIR_SIZE) {
-				pgd_populate(&init_mm, pg_dir, kasan_zero_p4d);
+				pgd_populate(&init_mm, pg_dir,
+						kasan_early_shadow_p4d);
 				address = (address + PGDIR_SIZE) & PGDIR_MASK;
 				continue;
 			}
@@ -120,7 +121,8 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, P4D_SIZE) &&
 			    end - address >= P4D_SIZE) {
-				p4d_populate(&init_mm, p4_dir, kasan_zero_pud);
+				p4d_populate(&init_mm, p4_dir,
+						kasan_early_shadow_pud);
 				address = (address + P4D_SIZE) & P4D_MASK;
 				continue;
 			}
@@ -133,7 +135,8 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, PUD_SIZE) &&
 			    end - address >= PUD_SIZE) {
-				pud_populate(&init_mm, pu_dir, kasan_zero_pmd);
+				pud_populate(&init_mm, pu_dir,
+						kasan_early_shadow_pmd);
 				address = (address + PUD_SIZE) & PUD_MASK;
 				continue;
 			}
@@ -146,7 +149,8 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, PMD_SIZE) &&
 			    end - address >= PMD_SIZE) {
-				pmd_populate(&init_mm, pm_dir, kasan_zero_pte);
+				pmd_populate(&init_mm, pm_dir,
+						kasan_early_shadow_pte);
 				address = (address + PMD_SIZE) & PMD_MASK;
 				continue;
 			}
@@ -188,7 +192,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 				pte_val(*pt_dir) = __pa(page) | pgt_prot;
 				break;
 			case POPULATE_ZERO_SHADOW:
-				page = kasan_zero_page;
+				page = kasan_early_shadow_page;
 				pte_val(*pt_dir) = __pa(page) | pgt_prot_zero;
 				break;
 			}
@@ -222,8 +226,6 @@ static void __init kasan_enable_dat(void)
 
 static void __init kasan_early_detect_facilities(void)
 {
-	__stfle(S390_lowcore.stfle_fac_list,
-		ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	if (test_facility(8)) {
 		has_edat = true;
 		__ctl_set_bit(0, 23);
@@ -256,14 +258,14 @@ void __init kasan_early_init(void)
 	unsigned long vmax;
 	unsigned long pgt_prot = pgprot_val(PAGE_KERNEL_RO);
 	pte_t pte_z;
-	pmd_t pmd_z = __pmd(__pa(kasan_zero_pte) | _SEGMENT_ENTRY);
-	pud_t pud_z = __pud(__pa(kasan_zero_pmd) | _REGION3_ENTRY);
-	p4d_t p4d_z = __p4d(__pa(kasan_zero_pud) | _REGION2_ENTRY);
+	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
+	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
+	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
 
 	kasan_early_detect_facilities();
 	if (!has_nx)
 		pgt_prot &= ~_PAGE_NOEXEC;
-	pte_z = __pte(__pa(kasan_zero_page) | pgt_prot);
+	pte_z = __pte(__pa(kasan_early_shadow_page) | pgt_prot);
 
 	memsize = get_mem_detect_end();
 	if (!memsize)
@@ -292,10 +294,13 @@ void __init kasan_early_init(void)
 	}
 
 	/* init kasan zero shadow */
-	crst_table_init((unsigned long *)kasan_zero_p4d, p4d_val(p4d_z));
-	crst_table_init((unsigned long *)kasan_zero_pud, pud_val(pud_z));
-	crst_table_init((unsigned long *)kasan_zero_pmd, pmd_val(pmd_z));
-	memset64((u64 *)kasan_zero_pte, pte_val(pte_z), PTRS_PER_PTE);
+	crst_table_init((unsigned long *)kasan_early_shadow_p4d,
+				p4d_val(p4d_z));
+	crst_table_init((unsigned long *)kasan_early_shadow_pud,
+				pud_val(pud_z));
+	crst_table_init((unsigned long *)kasan_early_shadow_pmd,
+				pmd_val(pmd_z));
+	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
 
 	shadow_alloc_size = memsize >> KASAN_SHADOW_SCALE_SHIFT;
 	pgalloc_low = round_up((unsigned long)_end, _SEGMENT_SIZE);

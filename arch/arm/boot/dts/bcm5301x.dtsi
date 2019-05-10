@@ -13,9 +13,10 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
 	chipcommonA {
@@ -37,6 +38,8 @@
 			reg = <0x0400 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart1>;
 			status = "disabled";
 		};
 	};
@@ -389,6 +392,48 @@
 		#size-cells = <0>;
 		clock-frequency = <100000>;
 		status = "disabled";
+	};
+
+	dmu@1800c000 {
+		compatible = "simple-bus";
+		ranges = <0 0x1800c000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		cru@100 {
+			compatible = "simple-bus";
+			reg = <0x100 0x1a4>;
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pin-controller@1c0 {
+				compatible = "brcm,bcm4708-pinmux";
+				reg = <0x1c0 0x24>;
+				reg-names = "cru_gpio_control";
+
+				spi-pins {
+					groups = "spi_grp";
+					function = "spi";
+				};
+
+				i2c {
+					groups = "i2c_grp";
+					function = "i2c";
+				};
+
+				pwm {
+					groups = "pwm0_grp", "pwm1_grp",
+						 "pwm2_grp", "pwm3_grp";
+					function = "pwm";
+				};
+
+				pinmux_uart1: uart1 {
+					groups = "uart1_grp";
+					function = "uart1";
+				};
+			};
+		};
 	};
 
 	lcpll0: lcpll0@1800c100 {

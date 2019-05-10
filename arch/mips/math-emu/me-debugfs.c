@@ -183,48 +183,27 @@ static int fpuemustats_clear_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int fpuemustats_clear_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fpuemustats_clear_show, inode->i_private);
-}
-
-static const struct file_operations fpuemustats_clear_fops = {
-	.open                   = fpuemustats_clear_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fpuemustats_clear);
 
 static int __init debugfs_fpuemu(void)
 {
 	struct dentry *fpuemu_debugfs_base_dir;
 	struct dentry *fpuemu_debugfs_inst_dir;
-	struct dentry *d, *reset_file;
-
-	if (!mips_debugfs_dir)
-		return -ENODEV;
 
 	fpuemu_debugfs_base_dir = debugfs_create_dir("fpuemustats",
 						     mips_debugfs_dir);
-	if (!fpuemu_debugfs_base_dir)
-		return -ENOMEM;
 
-	reset_file = debugfs_create_file("fpuemustats_clear", 0444,
-					 mips_debugfs_dir, NULL,
-					 &fpuemustats_clear_fops);
-	if (!reset_file)
-		return -ENOMEM;
+	debugfs_create_file("fpuemustats_clear", 0444, mips_debugfs_dir, NULL,
+			    &fpuemustats_clear_fops);
 
 #define FPU_EMU_STAT_OFFSET(m)						\
 	offsetof(struct mips_fpu_emulator_stats, m)
 
 #define FPU_STAT_CREATE(m)						\
 do {									\
-	d = debugfs_create_file(#m, 0444, fpuemu_debugfs_base_dir,	\
+	debugfs_create_file(#m, 0444, fpuemu_debugfs_base_dir,		\
 				(void *)FPU_EMU_STAT_OFFSET(m),		\
 				&fops_fpuemu_stat);			\
-	if (!d)								\
-		return -ENOMEM;						\
 } while (0)
 
 	FPU_STAT_CREATE(emulated);
@@ -243,8 +222,6 @@ do {									\
 
 	fpuemu_debugfs_inst_dir = debugfs_create_dir("instructions",
 						     fpuemu_debugfs_base_dir);
-	if (!fpuemu_debugfs_inst_dir)
-		return -ENOMEM;
 
 #define FPU_STAT_CREATE_EX(m)						\
 do {									\
@@ -252,11 +229,9 @@ do {									\
 									\
 	adjust_instruction_counter_name(name, #m);			\
 									\
-	d = debugfs_create_file(name, 0444, fpuemu_debugfs_inst_dir,	\
+	debugfs_create_file(name, 0444, fpuemu_debugfs_inst_dir,	\
 				(void *)FPU_EMU_STAT_OFFSET(m),		\
 				&fops_fpuemu_stat);			\
-	if (!d)								\
-		return -ENOMEM;						\
 } while (0)
 
 	FPU_STAT_CREATE_EX(abs_s);

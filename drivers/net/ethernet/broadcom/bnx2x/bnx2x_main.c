@@ -9360,10 +9360,16 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 		BNX2X_ERR("Failed to schedule DEL commands for UC MACs list: %d\n",
 			  rc);
 
-	/* Remove all currently configured VLANs */
-	rc = bnx2x_del_all_vlans(bp);
-	if (rc < 0)
-		BNX2X_ERR("Failed to delete all VLANs\n");
+	/* The whole *vlan_obj structure may be not initialized if VLAN
+	 * filtering offload is not supported by hardware. Currently this is
+	 * true for all hardware covered by CHIP_IS_E1x().
+	 */
+	if (!CHIP_IS_E1x(bp)) {
+		/* Remove all currently configured VLANs */
+		rc = bnx2x_del_all_vlans(bp);
+		if (rc < 0)
+			BNX2X_ERR("Failed to delete all VLANs\n");
+	}
 
 	/* Disable LLH */
 	if (!CHIP_IS_E1(bp))
@@ -11292,7 +11298,7 @@ static void bnx2x_link_settings_supported(struct bnx2x *bp, u32 switch_cfg)
 			   dev_info.port_hw_config[port].external_phy_config),
 			   SHMEM_RD(bp,
 			   dev_info.port_hw_config[port].external_phy_config2));
-			return;
+		return;
 	}
 
 	if (CHIP_IS_E3(bp))
@@ -11992,7 +11998,7 @@ static void validate_set_si_mode(struct bnx2x *bp)
 static int bnx2x_get_hwinfo(struct bnx2x *bp)
 {
 	int /*abs*/func = BP_ABS_FUNC(bp);
-	int vn, mfw_vn;
+	int vn;
 	u32 val = 0, val2 = 0;
 	int rc = 0;
 
@@ -12077,12 +12083,10 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 	/*
 	 * Initialize MF configuration
 	 */
-
 	bp->mf_ov = 0;
 	bp->mf_mode = 0;
 	bp->mf_sub_mode = 0;
 	vn = BP_VN(bp);
-	mfw_vn = BP_FW_MB_IDX(bp);
 
 	if (!CHIP_IS_E1(bp) && !BP_NOMCP(bp)) {
 		BNX2X_DEV_INFO("shmem2base 0x%x, size %d, mfcfg offset %d\n",

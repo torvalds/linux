@@ -8,7 +8,7 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include "xyarray.h"
-#include "symbol.h"
+#include "symbol_conf.h"
 #include "cpumap.h"
 #include "counts.h"
 
@@ -73,6 +73,8 @@ struct perf_evsel_config_term {
 
 struct perf_stat_evsel;
 
+typedef int (perf_evsel__sb_cb_t)(union perf_event *event, void *data);
+
 /** struct perf_evsel - event selector
  *
  * @evlist - evlist this evsel is in, if it is in one.
@@ -106,7 +108,7 @@ struct perf_evsel {
 	char			*name;
 	double			scale;
 	const char		*unit;
-	struct tep_event_format	*tp_format;
+	struct tep_event	*tp_format;
 	off_t			id_offset;
 	struct perf_stat_evsel  *stats;
 	void			*priv;
@@ -151,6 +153,10 @@ struct perf_evsel {
 	bool			collect_stat;
 	bool			weak_group;
 	const char		*pmu_name;
+	struct {
+		perf_evsel__sb_cb_t	*cb;
+		void			*data;
+	} side_band;
 };
 
 union u64_swap {
@@ -168,6 +174,8 @@ struct perf_missing_features {
 	bool lbr_flags;
 	bool write_backward;
 	bool group_read;
+	bool ksymbol;
+	bool bpf_event;
 };
 
 extern struct perf_missing_features perf_missing_features;
@@ -216,7 +224,7 @@ static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *
 
 struct perf_evsel *perf_evsel__new_cycles(bool precise);
 
-struct tep_event_format *event_format__new(const char *sys, const char *name);
+struct tep_event *event_format__new(const char *sys, const char *name);
 
 void perf_evsel__init(struct perf_evsel *evsel,
 		      struct perf_event_attr *attr, int idx);

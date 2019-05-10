@@ -23,10 +23,12 @@ Deprecated properties:
 
 
 Optional properties:
-- is_private: The device channels should be marked as private and not for by the
-  general purpose DMA channel allocator. False if not passed.
 - multi-block: Multi block transfers supported by hardware. Array property with
   one cell per channel. 0: not supported, 1 (default): supported.
+- snps,dma-protection-control: AHB HPROT[3:1] protection setting.
+  The default value is 0 (for non-cacheable, non-buffered,
+  unprivileged data access).
+  Refer to include/dt-bindings/dma/dw-dmac.h for possible values.
 
 Example:
 

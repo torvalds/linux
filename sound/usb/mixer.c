@@ -753,8 +753,9 @@ static int uac_mixer_unit_get_channels(struct mixer_build *state,
 				       struct uac_mixer_unit_descriptor *desc)
 {
 	int mu_channels;
+	void *c;
 
-	if (desc->bLength < 11)
+	if (desc->bLength < sizeof(*desc))
 		return -EINVAL;
 	if (!desc->bNrInPins)
 		return -EINVAL;
@@ -763,6 +764,8 @@ static int uac_mixer_unit_get_channels(struct mixer_build *state,
 	case UAC_VERSION_1:
 	case UAC_VERSION_2:
 	default:
+		if (desc->bLength < sizeof(*desc) + desc->bNrInPins + 1)
+			return 0; /* no bmControls -> skip */
 		mu_channels = uac_mixer_unit_bNrChannels(desc);
 		break;
 	case UAC_VERSION_3:
@@ -772,7 +775,11 @@ static int uac_mixer_unit_get_channels(struct mixer_build *state,
 	}
 
 	if (!mu_channels)
-		return -EINVAL;
+		return 0;
+
+	c = uac_mixer_unit_bmControls(desc, state->mixer->protocol);
+	if (c - (void *)desc + (mu_channels - 1) / 8 >= desc->bLength)
+		return 0; /* no bmControls -> skip */
 
 	return mu_channels;
 }
@@ -944,7 +951,7 @@ static int check_input_term(struct mixer_build *state, int id,
 				struct uac_mixer_unit_descriptor *d = p1;
 
 				err = uac_mixer_unit_get_channels(state, d);
-				if (err < 0)
+				if (err <= 0)
 					return err;
 
 				term->channels = err;
@@ -1828,7 +1835,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 {
 	int channels, i, j;
 	struct usb_audio_term iterm;
-	unsigned int master_bits, first_ch_bits;
+	unsigned int master_bits;
 	int err, csize;
 	struct uac_feature_unit_descriptor *hdr = _ftr;
 	__u8 *bmaControls;
@@ -1919,10 +1926,6 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 		break;
 
 	}
-	if (channels > 0)
-		first_ch_bits = snd_usb_combine_bytes(bmaControls + csize, csize);
-	else
-		first_ch_bits = 0;
 
 	if (state->mixer->protocol == UAC_VERSION_1) {
 		/* check all control types */
@@ -2068,11 +2071,15 @@ static int parse_audio_input_terminal(struct mixer_build *state, int unitid,
 
 	if (state->mixer->protocol == UAC_VERSION_2) {
 		struct uac2_input_terminal_descriptor *d_v2 = raw_desc;
+		if (d_v2->bLength < sizeof(*d_v2))
+			return -EINVAL;
 		control = UAC2_TE_CONNECTOR;
 		term_id = d_v2->bTerminalID;
 		bmctls = le16_to_cpu(d_v2->bmControls);
 	} else if (state->mixer->protocol == UAC_VERSION_3) {
 		struct uac3_input_terminal_descriptor *d_v3 = raw_desc;
+		if (d_v3->bLength < sizeof(*d_v3))
+			return -EINVAL;
 		control = UAC3_TE_INSERTION;
 		term_id = d_v3->bTerminalID;
 		bmctls = le32_to_cpu(d_v3->bmControls);
@@ -2118,7 +2125,7 @@ static int parse_audio_mixer_unit(struct mixer_build *state, int unitid,
 		if (err < 0)
 			continue;
 		/* no bmControls field (e.g. Maya44) -> ignore */
-		if (desc->bLength <= 10 + input_pins)
+		if (!num_outs)
 			continue;
 		err = check_input_term(state, desc->baSourceID[pin], &iterm);
 		if (err < 0)
@@ -2314,7 +2321,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 				char *name)
 {
 	struct uac_processing_unit_descriptor *desc = raw_desc;
-	int num_ins = desc->bNrInPins;
+	int num_ins;
 	struct usb_mixer_elem_info *cval;
 	struct snd_kcontrol *kctl;
 	int i, err, nameid, type, len;
@@ -2329,7 +2336,13 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 		0, NULL, default_value_info
 	};
 
-	if (desc->bLength < 13 || desc->bLength < 13 + num_ins ||
+	if (desc->bLength < 13) {
+		usb_audio_err(state->chip, "invalid %s descriptor (id %d)\n", name, unitid);
+		return -EINVAL;
+	}
+
+	num_ins = desc->bNrInPins;
+	if (desc->bLength < 13 + num_ins ||
 	    desc->bLength < num_ins + uac_processing_unit_bControlSize(desc, state->mixer->protocol)) {
 		usb_audio_err(state->chip, "invalid %s descriptor (id %d)\n", name, unitid);
 		return -EINVAL;
@@ -3428,7 +3441,6 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 		.dev_free = snd_usb_mixer_dev_free
 	};
 	struct usb_mixer_interface *mixer;
-	struct snd_info_entry *entry;
 	int err;
 
 	strcpy(chip->card->mixername, "USB Mixer");
@@ -3484,9 +3496,9 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	if (err < 0)
 		goto _error;
 
-	if (list_empty(&chip->mixer_list) &&
-	    !snd_card_proc_new(chip->card, "usbmixer", &entry))
-		snd_info_set_text_ops(entry, chip, snd_usb_mixer_proc_read);
+	if (list_empty(&chip->mixer_list))
+		snd_card_ro_proc_new(chip->card, "usbmixer", chip,
+				     snd_usb_mixer_proc_read);
 
 	list_add(&mixer->list, &chip->mixer_list);
 	return 0;

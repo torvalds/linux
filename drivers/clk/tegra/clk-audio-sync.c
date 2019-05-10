@@ -55,7 +55,7 @@ const struct clk_ops tegra_clk_sync_source_ops = {
 };
 
 struct clk *tegra_clk_register_sync_source(const char *name,
-		unsigned long rate, unsigned long max_rate)
+					   unsigned long max_rate)
 {
 	struct tegra_clk_sync_source *sync;
 	struct clk_init_data init;
@@ -67,7 +67,6 @@ struct clk *tegra_clk_register_sync_source(const char *name,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	sync->rate = rate;
 	sync->max_rate = max_rate;
 
 	init.ops = &tegra_clk_sync_source_ops;

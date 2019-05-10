@@ -221,6 +221,14 @@ extern void set_iounmap_nonlazy(void);
 
 #ifdef __KERNEL__
 
+void memcpy_fromio(void *, const volatile void __iomem *, size_t);
+void memcpy_toio(volatile void __iomem *, const void *, size_t);
+void memset_io(volatile void __iomem *, int, size_t);
+
+#define memcpy_fromio memcpy_fromio
+#define memcpy_toio memcpy_toio
+#define memset_io memset_io
+
 #include <asm-generic/iomap.h>
 
 /*

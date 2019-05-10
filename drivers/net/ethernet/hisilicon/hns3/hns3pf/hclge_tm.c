@@ -517,20 +517,39 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
+	u16 max_rss_size;
 	u8 i;
 
-	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
-	kinfo->num_tc =
-		min_t(u16, kinfo->num_tqps, hdev->tm_info.num_tc);
-	kinfo->rss_size
-		= min_t(u16, hdev->rss_size_max,
-			kinfo->num_tqps / kinfo->num_tc);
-	vport->qs_offset = hdev->tm_info.num_tc * vport->vport_id;
+	/* TC configuration is shared by PF/VF in one port, only allow
+	 * one tc for VF for simplicity. VF's vport_id is non zero.
+	 */
+	kinfo->num_tc = vport->vport_id ? 1 :
+			min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
+	vport->qs_offset = (vport->vport_id ? hdev->tm_info.num_tc : 0) +
+				(vport->vport_id ? (vport->vport_id - 1) : 0);
+
+	max_rss_size = min_t(u16, hdev->rss_size_max,
+			     vport->alloc_tqps / kinfo->num_tc);
+
+	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
+	    kinfo->req_rss_size <= max_rss_size) {
+		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
+			 kinfo->rss_size, kinfo->req_rss_size);
+		kinfo->rss_size = kinfo->req_rss_size;
+	} else if (kinfo->rss_size > max_rss_size ||
+		   (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size)) {
+		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
+			 kinfo->rss_size, max_rss_size);
+		kinfo->rss_size = max_rss_size;
+	}
+
+	kinfo->num_tqps = kinfo->num_tc * kinfo->rss_size;
 	vport->dwrr = 100;  /* 100 percent as init */
 	vport->alloc_rss_size = kinfo->rss_size;
+	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
 
-	for (i = 0; i < kinfo->num_tc; i++) {
-		if (hdev->hw_tc_map & BIT(i)) {
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		if (hdev->hw_tc_map & BIT(i) && i < kinfo->num_tc) {
 			kinfo->tc_info[i].enable = true;
 			kinfo->tc_info[i].tqp_offset = i * kinfo->rss_size;
 			kinfo->tc_info[i].tqp_count = kinfo->rss_size;
@@ -753,13 +772,17 @@ static int hclge_tm_pri_q_qs_cfg(struct hclge_dev *hdev)
 
 	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE) {
 		/* Cfg qs -> pri mapping, one by one mapping */
-		for (k = 0; k < hdev->num_alloc_vport; k++)
-			for (i = 0; i < hdev->tm_info.num_tc; i++) {
+		for (k = 0; k < hdev->num_alloc_vport; k++) {
+			struct hnae3_knic_private_info *kinfo =
+				&vport[k].nic.kinfo;
+
+			for (i = 0; i < kinfo->num_tc; i++) {
 				ret = hclge_tm_qs_to_pri_map_cfg(
 					hdev, vport[k].qs_offset + i, i);
 				if (ret)
 					return ret;
 			}
+		}
 	} else if (hdev->tx_sch_mode == HCLGE_FLAG_VNET_BASE_SCH_MODE) {
 		/* Cfg qs -> pri mapping,  qs = tc, pri = vf, 8 qs -> 1 pri */
 		for (k = 0; k < hdev->num_alloc_vport; k++)
@@ -934,6 +957,36 @@ static int hclge_tm_pri_tc_base_dwrr_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
+static int hclge_tm_ets_tc_dwrr_cfg(struct hclge_dev *hdev)
+{
+#define DEFAULT_TC_WEIGHT	1
+#define DEFAULT_TC_OFFSET	14
+
+	struct hclge_ets_tc_weight_cmd *ets_weight;
+	struct hclge_desc desc;
+	int i;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_ETS_TC_WEIGHT, false);
+	ets_weight = (struct hclge_ets_tc_weight_cmd *)desc.data;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		struct hclge_pg_info *pg_info;
+
+		ets_weight->tc_weight[i] = DEFAULT_TC_WEIGHT;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		pg_info =
+			&hdev->tm_info.pg_info[hdev->tm_info.tc_info[i].pgid];
+		ets_weight->tc_weight[i] = pg_info->tc_dwrr[i];
+	}
+
+	ets_weight->weight_offset = DEFAULT_TC_OFFSET;
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 static int hclge_tm_pri_vnet_base_dwrr_pri_cfg(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
@@ -983,6 +1036,19 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 		ret = hclge_tm_pri_tc_base_dwrr_cfg(hdev);
 		if (ret)
 			return ret;
+
+		if (!hnae3_dev_dcb_supported(hdev))
+			return 0;
+
+		ret = hclge_tm_ets_tc_dwrr_cfg(hdev);
+		if (ret == -EOPNOTSUPP) {
+			dev_warn(&hdev->pdev->dev,
+				 "fw %08x does't support ets tc weight cmd\n",
+				 hdev->fw_version);
+			ret = 0;
+		}
+
+		return ret;
 	} else {
 		ret = hclge_tm_pri_vnet_base_dwrr_cfg(hdev);
 		if (ret)
@@ -992,7 +1058,7 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
-int hclge_tm_map_cfg(struct hclge_dev *hdev)
+static int hclge_tm_map_cfg(struct hclge_dev *hdev)
 {
 	int ret;
 
@@ -1107,7 +1173,7 @@ static int hclge_tm_lvl34_schd_mode_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
-int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
+static int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
 {
 	int ret;
 
@@ -1118,7 +1184,7 @@ int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
 	return hclge_tm_lvl34_schd_mode_cfg(hdev);
 }
 
-static int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
+int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
 {
 	int ret;
 
@@ -1159,7 +1225,7 @@ static int hclge_pfc_setup_hw(struct hclge_dev *hdev)
 				HCLGE_RX_MAC_PAUSE_EN_MSK;
 
 	return hclge_pfc_pause_en_cfg(hdev, enable_bitmap,
-				      hdev->tm_info.hw_pfc_map);
+				      hdev->tm_info.pfc_en);
 }
 
 /* Each Tc has a 1024 queue sets to backpress, it divides to
@@ -1228,10 +1294,23 @@ static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 	return hclge_mac_pause_en_cfg(hdev, tx_en, rx_en);
 }
 
-int hclge_pause_setup_hw(struct hclge_dev *hdev)
+static int hclge_tm_bp_setup(struct hclge_dev *hdev)
+{
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < hdev->tm_info.num_tc; i++) {
+		ret = hclge_bp_setup_hw(hdev, i);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+int hclge_pause_setup_hw(struct hclge_dev *hdev, bool init)
 {
 	int ret;
-	u8 i;
 
 	ret = hclge_pause_param_setup_hw(hdev);
 	if (ret)
@@ -1245,29 +1324,26 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	if (!hnae3_dev_dcb_supported(hdev))
 		return 0;
 
-	/* When MAC is GE Mode, hdev does not support pfc setting */
+	/* GE MAC does not support PFC, when driver is initializing and MAC
+	 * is in GE Mode, ignore the error here, otherwise initialization
+	 * will fail.
+	 */
 	ret = hclge_pfc_setup_hw(hdev);
-	if (ret)
-		dev_warn(&hdev->pdev->dev, "set pfc pause failed:%d\n", ret);
+	if (init && ret == -EOPNOTSUPP)
+		dev_warn(&hdev->pdev->dev, "GE MAC does not support pfc\n");
+	else
+		return ret;
 
-	for (i = 0; i < hdev->tm_info.num_tc; i++) {
-		ret = hclge_bp_setup_hw(hdev, i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return hclge_tm_bp_setup(hdev);
 }
 
-int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
+void hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
 {
 	struct hclge_vport *vport = hdev->vport;
 	struct hnae3_knic_private_info *kinfo;
 	u32 i, k;
 
 	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
-		if (prio_tc[i] >= hdev->tm_info.num_tc)
-			return -EINVAL;
 		hdev->tm_info.prio_tc[i] = prio_tc[i];
 
 		for (k = 0;  k < hdev->num_alloc_vport; k++) {
@@ -1275,17 +1351,11 @@ int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
 			kinfo->prio_tc[i] = prio_tc[i];
 		}
 	}
-	return 0;
 }
 
-int hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
+void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 {
 	u8 i, bit_map = 0;
-
-	for (i = 0; i < hdev->num_alloc_vport; i++) {
-		if (num_tc > hdev->vport[i].alloc_tqps)
-			return -EINVAL;
-	}
 
 	hdev->tm_info.num_tc = num_tc;
 
@@ -1300,11 +1370,9 @@ int hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 	hdev->hw_tc_map = bit_map;
 
 	hclge_tm_schd_info_init(hdev);
-
-	return 0;
 }
 
-int hclge_tm_init_hw(struct hclge_dev *hdev)
+int hclge_tm_init_hw(struct hclge_dev *hdev, bool init)
 {
 	int ret;
 
@@ -1316,7 +1384,7 @@ int hclge_tm_init_hw(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclge_pause_setup_hw(hdev);
+	ret = hclge_pause_setup_hw(hdev, init);
 	if (ret)
 		return ret;
 
@@ -1335,5 +1403,22 @@ int hclge_tm_schd_init(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	return hclge_tm_init_hw(hdev);
+	return hclge_tm_init_hw(hdev, true);
+}
+
+int hclge_tm_vport_map_update(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int ret;
+
+	hclge_tm_vport_tc_info_update(vport);
+
+	ret = hclge_vport_q_to_qs_map(hdev, vport);
+	if (ret)
+		return ret;
+
+	if (!(hdev->flag & HCLGE_FLAG_DCB_ENABLE))
+		return 0;
+
+	return hclge_tm_bp_setup(hdev);
 }

@@ -103,12 +103,16 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		 * to be revisited if support for multiple ftrace entry points
 		 * is added in the future, but for now, the pr_err() below
 		 * deals with a theoretical issue only.
+		 *
+		 * Note that PLTs are place relative, and plt_entries_equal()
+		 * checks whether they point to the same target. Here, we need
+		 * to check if the actual opcodes are in fact identical,
+		 * regardless of the offset in memory so use memcmp() instead.
 		 */
-		trampoline = get_plt_entry(addr);
-		if (!plt_entries_equal(mod->arch.ftrace_trampoline,
-				       &trampoline)) {
-			if (!plt_entries_equal(mod->arch.ftrace_trampoline,
-					       &(struct plt_entry){})) {
+		trampoline = get_plt_entry(addr, mod->arch.ftrace_trampoline);
+		if (memcmp(mod->arch.ftrace_trampoline, &trampoline,
+			   sizeof(trampoline))) {
+			if (plt_entry_is_initialized(mod->arch.ftrace_trampoline)) {
 				pr_err("ftrace: far branches to multiple entry points unsupported inside a single module\n");
 				return -EINVAL;
 			}
@@ -193,6 +197,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 
 void arch_ftrace_update_code(int command)
 {
+	command |= FTRACE_MAY_SLEEP;
 	ftrace_modify_all_code(command);
 }
 
@@ -211,7 +216,7 @@ int __init ftrace_dyn_arch_init(void)
  *
  * Note that @frame_pointer is used only for sanity check later.
  */
-void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
+void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 			   unsigned long frame_pointer)
 {
 	unsigned long return_hooker = (unsigned long)&return_to_handler;

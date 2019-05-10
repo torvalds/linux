@@ -502,7 +502,7 @@ static inline unsigned long __ffs(unsigned long x)
 /*
  *	fls: find last bit set.
  */
-static inline int fls(int x)
+static inline int fls(unsigned int x)
 {
 	int cnt;
 

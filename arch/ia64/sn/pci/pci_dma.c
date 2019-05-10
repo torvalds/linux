@@ -196,7 +196,7 @@ static dma_addr_t sn_dma_map_page(struct device *dev, struct page *page,
 
 	if (!dma_addr) {
 		printk(KERN_ERR "%s: out of ATEs\n", __func__);
-		return 0;
+		return DMA_MAPPING_ERROR;
 	}
 	return dma_addr;
 }
@@ -312,11 +312,6 @@ static int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 	}
 
 	return nhwentries;
-}
-
-static int sn_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return 0;
 }
 
 static u64 sn_dma_get_required_mask(struct device *dev)
@@ -441,7 +436,6 @@ static struct dma_map_ops sn_dma_ops = {
 	.unmap_page		= sn_dma_unmap_page,
 	.map_sg			= sn_dma_map_sg,
 	.unmap_sg		= sn_dma_unmap_sg,
-	.mapping_error		= sn_dma_mapping_error,
 	.dma_supported		= sn_dma_supported,
 	.get_required_mask	= sn_dma_get_required_mask,
 };

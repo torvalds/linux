@@ -21,6 +21,7 @@
 #define __ADRENO_GPU_H__
 
 #include <linux/firmware.h>
+#include <linux/iopoll.h>
 
 #include "msm_gpu.h"
 
@@ -154,6 +155,20 @@ struct adreno_platform_config {
 	__ret;                                             \
 })
 
+static inline bool adreno_is_a2xx(struct adreno_gpu *gpu)
+{
+	return (gpu->revn < 300);
+}
+
+static inline bool adreno_is_a20x(struct adreno_gpu *gpu)
+{
+	return (gpu->revn < 210);
+}
+
+static inline bool adreno_is_a225(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 225;
+}
 
 static inline bool adreno_is_a3xx(struct adreno_gpu *gpu)
 {
@@ -334,6 +349,7 @@ static inline void adreno_gpu_write(struct adreno_gpu *gpu,
 		gpu_write(&gpu->base, reg - 1, data);
 }
 
+struct msm_gpu *a2xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a5xx_gpu_init(struct drm_device *dev);
@@ -374,5 +390,10 @@ static inline uint32_t get_wptr(struct msm_ringbuffer *ring)
 #define ADRENO_PROTECT_RDONLY(_reg, _len) \
 	((1 << 29) \
 	((ilog2((_len)) & 0x1F) << 24) | (((_reg) << 2) & 0xFFFFF))
+
+
+#define gpu_poll_timeout(gpu, addr, val, cond, interval, timeout) \
+	readl_poll_timeout((gpu)->mmio + ((addr) << 2), val, cond, \
+		interval, timeout)
 
 #endif /* __ADRENO_GPU_H__ */

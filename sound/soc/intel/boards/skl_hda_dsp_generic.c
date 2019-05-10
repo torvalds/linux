@@ -12,8 +12,8 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include "../../codecs/hdac_hdmi.h"
-#include "../skylake/skl.h"
 #include "skl_hda_dsp_common.h"
 
 static const struct snd_soc_dapm_widget skl_hda_widgets[] = {
@@ -101,17 +101,17 @@ static struct snd_soc_card hda_soc_card = {
 #define IDISP_ROUTE_COUNT	(IDISP_DAI_COUNT * 2)
 #define IDISP_CODEC_MASK	0x4
 
-static int skl_hda_fill_card_info(struct skl_machine_pdata *pdata)
+static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 {
 	struct snd_soc_card *card = &hda_soc_card;
 	struct snd_soc_dai_link *dai_link;
 	u32 codec_count, codec_mask;
 	int i, num_links, num_route;
 
-	codec_mask = pdata->codec_mask;
+	codec_mask = mach_params->codec_mask;
 	codec_count = hweight_long(codec_mask);
 
-	if (codec_count == 1 && pdata->codec_mask & IDISP_CODEC_MASK) {
+	if (codec_count == 1 && codec_mask & IDISP_CODEC_MASK) {
 		num_links = IDISP_DAI_COUNT;
 		num_route = IDISP_ROUTE_COUNT;
 	} else if (codec_count == 2 && codec_mask & IDISP_CODEC_MASK) {
@@ -127,30 +127,30 @@ static int skl_hda_fill_card_info(struct skl_machine_pdata *pdata)
 	card->num_dapm_routes = num_route;
 
 	for_each_card_prelinks(card, i, dai_link)
-		dai_link->platform_name = pdata->platform;
+		dai_link->platform_name = mach_params->platform;
 
 	return 0;
 }
 
 static int skl_hda_audio_probe(struct platform_device *pdev)
 {
-	struct skl_machine_pdata *pdata;
+	struct snd_soc_acpi_mach *mach;
 	struct skl_hda_private *ctx;
 	int ret;
 
 	dev_dbg(&pdev->dev, "%s: entry\n", __func__);
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
-	pdata = dev_get_drvdata(&pdev->dev);
-	if (!pdata)
+	mach = (&pdev->dev)->platform_data;
+	if (!mach)
 		return -EINVAL;
 
-	ret = skl_hda_fill_card_info(pdata);
+	ret = skl_hda_fill_card_info(&mach->mach_params);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unsupported HDAudio/iDisp configuration found\n");
 		return ret;
@@ -158,7 +158,7 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 
 	ctx->pcm_count = hda_soc_card.num_links;
 	ctx->dai_index = 1; /* hdmi codec dai name starts from index 1 */
-	ctx->platform_name = pdata->platform;
+	ctx->platform_name = mach->mach_params.platform;
 
 	hda_soc_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&hda_soc_card, ctx);

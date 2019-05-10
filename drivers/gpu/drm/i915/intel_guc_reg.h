@@ -104,6 +104,18 @@
 #define GUC_SEND_INTERRUPT		_MMIO(0xc4c8)
 #define   GUC_SEND_TRIGGER		  (1<<0)
 
+#define GUC_NUM_DOORBELLS		256
+
+/* format of the HW-monitored doorbell cacheline */
+struct guc_doorbell_info {
+	u32 db_status;
+#define GUC_DOORBELL_DISABLED		0
+#define GUC_DOORBELL_ENABLED		1
+
+	u32 cookie;
+	u32 reserved[14];
+} __packed;
+
 #define GEN8_DRBREGL(x)			_MMIO(0x1000 + (x) * 8)
 #define   GEN8_DRB_VALID		  (1<<0)
 #define GEN8_DRBREGU(x)			_MMIO(0x1000 + (x) * 8 + 4)

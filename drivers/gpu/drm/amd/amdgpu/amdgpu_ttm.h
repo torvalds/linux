@@ -39,8 +39,6 @@
 #define AMDGPU_GTT_NUM_TRANSFER_WINDOWS	2
 
 struct amdgpu_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
 	struct ttm_bo_device		bdev;
 	bool				mem_global_referenced;
 	bool				initialized;

@@ -68,4 +68,19 @@ stage2_pmd_addr_end(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 #define stage2_pmd_table_empty(kvm, pmdp)	kvm_page_empty(pmdp)
 #define stage2_pud_table_empty(kvm, pudp)	false
 
+static inline bool kvm_stage2_has_pud(struct kvm *kvm)
+{
+	return false;
+}
+
+#define S2_PMD_MASK				PMD_MASK
+#define S2_PMD_SIZE				PMD_SIZE
+#define S2_PUD_MASK				PUD_MASK
+#define S2_PUD_SIZE				PUD_SIZE
+
+static inline bool kvm_stage2_has_pmd(struct kvm *kvm)
+{
+	return true;
+}
+
 #endif	/* __ARM_S2_PGTABLE_H_ */

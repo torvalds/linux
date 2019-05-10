@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 - 2014 Texas Instruments Incorporated - http://www.ti.com
  *
  * Authors:
  *    Jyri Sarha <jsarha@ti.com>
  *    Sergej Sawazki <ce3a@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Gpio controlled clock implementation
  */
@@ -60,6 +57,35 @@ const struct clk_ops clk_gpio_gate_ops = {
 	.is_enabled = clk_gpio_gate_is_enabled,
 };
 EXPORT_SYMBOL_GPL(clk_gpio_gate_ops);
+
+static int clk_sleeping_gpio_gate_prepare(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	gpiod_set_value_cansleep(clk->gpiod, 1);
+
+	return 0;
+}
+
+static void clk_sleeping_gpio_gate_unprepare(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	gpiod_set_value_cansleep(clk->gpiod, 0);
+}
+
+static int clk_sleeping_gpio_gate_is_prepared(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	return gpiod_get_value_cansleep(clk->gpiod);
+}
+
+static const struct clk_ops clk_sleeping_gpio_gate_ops = {
+	.prepare = clk_sleeping_gpio_gate_prepare,
+	.unprepare = clk_sleeping_gpio_gate_unprepare,
+	.is_prepared = clk_sleeping_gpio_gate_is_prepared,
+};
 
 /**
  * DOC: basic clock multiplexer which can be controlled with a gpio output
@@ -147,10 +173,16 @@ struct clk_hw *clk_hw_register_gpio_gate(struct device *dev, const char *name,
 		const char *parent_name, struct gpio_desc *gpiod,
 		unsigned long flags)
 {
+	const struct clk_ops *ops;
+
+	if (gpiod_cansleep(gpiod))
+		ops = &clk_sleeping_gpio_gate_ops;
+	else
+		ops = &clk_gpio_gate_ops;
+
 	return clk_register_gpio(dev, name,
 			(parent_name ? &parent_name : NULL),
-			(parent_name ? 1 : 0), gpiod, flags,
-			&clk_gpio_gate_ops);
+			(parent_name ? 1 : 0), gpiod, flags, ops);
 }
 EXPORT_SYMBOL_GPL(clk_hw_register_gpio_gate);
 

@@ -1,25 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
  */
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/pci.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 
 #define PCH_EDGE_FALLING	0
@@ -171,11 +159,10 @@ static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 /*
  * Save register configuration and disable interrupts.
  */
-static void pch_gpio_save_reg_conf(struct pch_gpio *chip)
+static void __maybe_unused pch_gpio_save_reg_conf(struct pch_gpio *chip)
 {
 	chip->pch_gpio_reg.ien_reg = ioread32(&chip->reg->ien);
 	chip->pch_gpio_reg.imask_reg = ioread32(&chip->reg->imask);
@@ -185,14 +172,13 @@ static void pch_gpio_save_reg_conf(struct pch_gpio *chip)
 	if (chip->ioh == INTEL_EG20T_PCH)
 		chip->pch_gpio_reg.im1_reg = ioread32(&chip->reg->im1);
 	if (chip->ioh == OKISEMI_ML7223n_IOH)
-		chip->pch_gpio_reg.gpio_use_sel_reg =\
-					    ioread32(&chip->reg->gpio_use_sel);
+		chip->pch_gpio_reg.gpio_use_sel_reg = ioread32(&chip->reg->gpio_use_sel);
 }
 
 /*
  * This function restores the register configuration of the GPIO device.
  */
-static void pch_gpio_restore_reg_conf(struct pch_gpio *chip)
+static void __maybe_unused pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 {
 	iowrite32(chip->pch_gpio_reg.ien_reg, &chip->reg->ien);
 	iowrite32(chip->pch_gpio_reg.imask_reg, &chip->reg->imask);
@@ -204,10 +190,8 @@ static void pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 	if (chip->ioh == INTEL_EG20T_PCH)
 		iowrite32(chip->pch_gpio_reg.im1_reg, &chip->reg->im1);
 	if (chip->ioh == OKISEMI_ML7223n_IOH)
-		iowrite32(chip->pch_gpio_reg.gpio_use_sel_reg,
-			  &chip->reg->gpio_use_sel);
+		iowrite32(chip->pch_gpio_reg.gpio_use_sel_reg, &chip->reg->gpio_use_sel);
 }
-#endif
 
 static int pch_gpio_to_irq(struct gpio_chip *gpio, unsigned offset)
 {
@@ -226,7 +210,6 @@ static void pch_gpio_setup(struct pch_gpio *chip)
 	gpio->get = pch_gpio_get;
 	gpio->direction_output = pch_gpio_direction_output;
 	gpio->set = pch_gpio_set;
-	gpio->dbg_show = NULL;
 	gpio->base = -1;
 	gpio->ngpio = gpio_pins[chip->ioh];
 	gpio->can_sleep = false;
@@ -250,8 +233,7 @@ static int pch_irq_type(struct irq_data *d, unsigned int type)
 		im_reg = &chip->reg->im1;
 		im_pos = ch - 8;
 	}
-	dev_dbg(chip->dev, "%s:irq=%d type=%d ch=%d pos=%d\n",
-		__func__, irq, type, ch, im_pos);
+	dev_dbg(chip->dev, "irq=%d type=%d ch=%d pos=%d\n", irq, type, ch, im_pos);
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 
@@ -317,16 +299,13 @@ static void pch_irq_ack(struct irq_data *d)
 static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 {
 	struct pch_gpio *chip = dev_id;
-	u32 reg_val = ioread32(&chip->reg->istatus);
+	unsigned long reg_val = ioread32(&chip->reg->istatus);
 	int i, ret = IRQ_NONE;
 
-	for (i = 0; i < gpio_pins[chip->ioh]; i++) {
-		if (reg_val & BIT(i)) {
-			dev_dbg(chip->dev, "%s:[%d]:irq=%d  status=0x%x\n",
-				__func__, i, irq, reg_val);
-			generic_handle_irq(chip->irq_base + i);
-			ret = IRQ_HANDLED;
-		}
+	for_each_set_bit(i, &reg_val, gpio_pins[chip->ioh]) {
+		dev_dbg(chip->dev, "[%d]:irq=%d  status=0x%lx\n", i, irq, reg_val);
+		generic_handle_irq(chip->irq_base + i);
+		ret = IRQ_HANDLED;
 	}
 	return ret;
 }
@@ -367,29 +346,24 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	int irq_base;
 	u32 msk;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
 	chip->dev = &pdev->dev;
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "%s : pci_enable_device FAILED", __func__);
-		goto err_pci_enable;
+		dev_err(&pdev->dev, "pci_enable_device FAILED");
+		return ret;
 	}
 
-	ret = pci_request_regions(pdev, KBUILD_MODNAME);
+	ret = pcim_iomap_regions(pdev, 1 << 1, KBUILD_MODNAME);
 	if (ret) {
 		dev_err(&pdev->dev, "pci_request_regions FAILED-%d", ret);
-		goto err_request_regions;
+		return ret;
 	}
 
-	chip->base = pci_iomap(pdev, 1, 0);
-	if (!chip->base) {
-		dev_err(&pdev->dev, "%s : pci_iomap FAILED", __func__);
-		ret = -ENOMEM;
-		goto err_iomap;
-	}
+	chip->base = pcim_iomap_table(pdev)[1];
 
 	if (pdev->device == 0x8803)
 		chip->ioh = INTEL_EG20T_PCH;
@@ -402,13 +376,11 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, chip);
 	spin_lock_init(&chip->spinlock);
 	pch_gpio_setup(chip);
-#ifdef CONFIG_OF_GPIO
-	chip->gpio.of_node = pdev->dev.of_node;
-#endif
-	ret = gpiochip_add_data(&chip->gpio, chip);
+
+	ret = devm_gpiochip_add_data(&pdev->dev, &chip->gpio, chip);
 	if (ret) {
 		dev_err(&pdev->dev, "PCH gpio: Failed to register GPIO\n");
-		goto err_gpiochip_add;
+		return ret;
 	}
 
 	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0,
@@ -416,7 +388,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	if (irq_base < 0) {
 		dev_warn(&pdev->dev, "PCH gpio: Failed to get IRQ base num\n");
 		chip->irq_base = -1;
-		goto end;
+		return 0;
 	}
 	chip->irq_base = irq_base;
 
@@ -427,53 +399,17 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 	ret = devm_request_irq(&pdev->dev, pdev->irq, pch_gpio_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
-	if (ret != 0) {
-		dev_err(&pdev->dev,
-			"%s request_irq failed\n", __func__);
-		goto err_request_irq;
+	if (ret) {
+		dev_err(&pdev->dev, "request_irq failed\n");
+		return ret;
 	}
 
-	ret = pch_gpio_alloc_generic_chip(chip, irq_base,
-					  gpio_pins[chip->ioh]);
-	if (ret)
-		goto err_request_irq;
-
-end:
-	return 0;
-
-err_request_irq:
-	gpiochip_remove(&chip->gpio);
-
-err_gpiochip_add:
-	pci_iounmap(pdev, chip->base);
-
-err_iomap:
-	pci_release_regions(pdev);
-
-err_request_regions:
-	pci_disable_device(pdev);
-
-err_pci_enable:
-	kfree(chip);
-	dev_err(&pdev->dev, "%s Failed returns %d\n", __func__, ret);
-	return ret;
+	return pch_gpio_alloc_generic_chip(chip, irq_base, gpio_pins[chip->ioh]);
 }
 
-static void pch_gpio_remove(struct pci_dev *pdev)
+static int __maybe_unused pch_gpio_suspend(struct device *dev)
 {
-	struct pch_gpio *chip = pci_get_drvdata(pdev);
-
-	gpiochip_remove(&chip->gpio);
-	pci_iounmap(pdev, chip->base);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	kfree(chip);
-}
-
-#ifdef CONFIG_PM
-static int pch_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	s32 ret;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
 	unsigned long flags;
 
@@ -481,35 +417,14 @@ static int pch_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
 	pch_gpio_save_reg_conf(chip);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 
-	ret = pci_save_state(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "pci_save_state Failed-%d\n", ret);
-		return ret;
-	}
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D0);
-	ret = pci_enable_wake(pdev, PCI_D0, 1);
-	if (ret)
-		dev_err(&pdev->dev, "pci_enable_wake Failed -%d\n", ret);
-
 	return 0;
 }
 
-static int pch_gpio_resume(struct pci_dev *pdev)
+static int __maybe_unused pch_gpio_resume(struct device *dev)
 {
-	s32 ret;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
 	unsigned long flags;
-
-	ret = pci_enable_wake(pdev, PCI_D0, 0);
-
-	pci_set_power_state(pdev, PCI_D0);
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "pci_enable_device Failed-%d ", ret);
-		return ret;
-	}
-	pci_restore_state(pdev);
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	iowrite32(0x01, &chip->reg->reset);
@@ -519,12 +434,9 @@ static int pch_gpio_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-#else
-#define pch_gpio_suspend NULL
-#define pch_gpio_resume NULL
-#endif
 
-#define PCI_VENDOR_ID_ROHM             0x10DB
+static SIMPLE_DEV_PM_OPS(pch_gpio_pm_ops, pch_gpio_suspend, pch_gpio_resume);
+
 static const struct pci_device_id pch_gpio_pcidev_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8803) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8014) },
@@ -538,12 +450,12 @@ static struct pci_driver pch_gpio_driver = {
 	.name = "pch_gpio",
 	.id_table = pch_gpio_pcidev_id,
 	.probe = pch_gpio_probe,
-	.remove = pch_gpio_remove,
-	.suspend = pch_gpio_suspend,
-	.resume = pch_gpio_resume
+	.driver = {
+		.pm = &pch_gpio_pm_ops,
+	},
 };
 
 module_pci_driver(pch_gpio_driver);
 
 MODULE_DESCRIPTION("PCH GPIO PCI Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

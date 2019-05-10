@@ -9,7 +9,6 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-#include <sys/socket.h>
 
 struct security_class_mapping {
 	const char *name;
@@ -18,8 +17,6 @@ struct security_class_mapping {
 
 #include "classmap.h"
 #include "initial_sid_to_string.h"
-
-#define max(x, y) (((int)(x) > (int)(y)) ? x : y)
 
 const char *progname;
 
@@ -46,11 +43,9 @@ static char *stoupperx(const char *s)
 
 int main(int argc, char *argv[])
 {
-	int i, j, k;
+	int i, j;
 	int isids_len;
 	FILE *fout;
-	const char *needle = "SOCKET";
-	char *substr;
 
 	progname = argv[0];
 
@@ -80,20 +75,14 @@ int main(int argc, char *argv[])
 
 	for (i = 0; secclass_map[i].name; i++) {
 		struct security_class_mapping *map = &secclass_map[i];
-		fprintf(fout, "#define SECCLASS_%s", map->name);
-		for (j = 0; j < max(1, 40 - strlen(map->name)); j++)
-			fprintf(fout, " ");
-		fprintf(fout, "%2d\n", i+1);
+		fprintf(fout, "#define SECCLASS_%-39s %2d\n", map->name, i+1);
 	}
 
 	fprintf(fout, "\n");
 
 	for (i = 1; i < isids_len; i++) {
 		const char *s = initial_sid_to_string[i];
-		fprintf(fout, "#define SECINITSID_%s", s);
-		for (j = 0; j < max(1, 40 - strlen(s)); j++)
-			fprintf(fout, " ");
-		fprintf(fout, "%2d\n", i);
+		fprintf(fout, "#define SECINITSID_%-39s %2d\n", s, i);
 	}
 	fprintf(fout, "\n#define SECINITSID_NUM %d\n", i-1);
 	fprintf(fout, "\nstatic inline bool security_is_socket_class(u16 kern_tclass)\n");
@@ -101,9 +90,10 @@ int main(int argc, char *argv[])
 	fprintf(fout, "\tbool sock = false;\n\n");
 	fprintf(fout, "\tswitch (kern_tclass) {\n");
 	for (i = 0; secclass_map[i].name; i++) {
+		static char s[] = "SOCKET";
 		struct security_class_mapping *map = &secclass_map[i];
-		substr = strstr(map->name, needle);
-		if (substr && strcmp(substr, needle) == 0)
+		int len = strlen(map->name), l = sizeof(s) - 1;
+		if (len >= l && memcmp(map->name + len - l, s, l) == 0)
 			fprintf(fout, "\tcase SECCLASS_%s:\n", map->name);
 	}
 	fprintf(fout, "\t\tsock = true;\n");
@@ -129,17 +119,15 @@ int main(int argc, char *argv[])
 
 	for (i = 0; secclass_map[i].name; i++) {
 		struct security_class_mapping *map = &secclass_map[i];
+		int len = strlen(map->name);
 		for (j = 0; map->perms[j]; j++) {
 			if (j >= 32) {
 				fprintf(stderr, "Too many permissions to fit into an access vector at (%s, %s).\n",
 					map->name, map->perms[j]);
 				exit(5);
 			}
-			fprintf(fout, "#define %s__%s", map->name,
-				map->perms[j]);
-			for (k = 0; k < max(1, 40 - strlen(map->name) - strlen(map->perms[j])); k++)
-				fprintf(fout, " ");
-			fprintf(fout, "0x%08xU\n", (1<<j));
+			fprintf(fout, "#define %s__%-*s 0x%08xU\n", map->name,
+				39-len, map->perms[j], 1U<<j);
 		}
 	}
 

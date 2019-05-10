@@ -376,6 +376,16 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned int pin,
 	return 0;
 }
 
+static int mvebu_gpio_get_direction(struct gpio_chip *chip, unsigned int pin)
+{
+	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
+	u32 u;
+
+	regmap_read(mvchip->regs, GPIO_IO_CONF_OFF + mvchip->offset, &u);
+
+	return !!(u & BIT(pin));
+}
+
 static int mvebu_gpio_to_irq(struct gpio_chip *chip, unsigned int pin)
 {
 	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
@@ -608,7 +618,7 @@ static int mvebu_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		ret = -EBUSY;
 	} else {
 		desc = gpiochip_request_own_desc(&mvchip->chip,
-						 pwm->hwpwm, "mvebu-pwm");
+						 pwm->hwpwm, "mvebu-pwm", 0);
 		if (IS_ERR(desc)) {
 			ret = PTR_ERR(desc);
 			goto out;
@@ -1130,6 +1140,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.parent = &pdev->dev;
 	mvchip->chip.request = gpiochip_generic_request;
 	mvchip->chip.free = gpiochip_generic_free;
+	mvchip->chip.get_direction = mvebu_gpio_get_direction;
 	mvchip->chip.direction_input = mvebu_gpio_direction_input;
 	mvchip->chip.get = mvebu_gpio_get;
 	mvchip->chip.direction_output = mvebu_gpio_direction_output;

@@ -98,23 +98,6 @@ void cedrus_dst_format_set(struct cedrus_dev *dev,
 	}
 }
 
-static irqreturn_t cedrus_bh(int irq, void *data)
-{
-	struct cedrus_dev *dev = data;
-	struct cedrus_ctx *ctx;
-
-	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
-	if (!ctx) {
-		v4l2_err(&dev->v4l2_dev,
-			 "Instance released before the end of transaction\n");
-		return IRQ_HANDLED;
-	}
-
-	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t cedrus_irq(int irq, void *data)
 {
 	struct cedrus_dev *dev = data;
@@ -122,24 +105,17 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	enum vb2_buffer_state state;
 	enum cedrus_irq_status status;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->irq_lock, flags);
 
 	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
 	if (!ctx) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Instance released before the end of transaction\n");
-		spin_unlock_irqrestore(&dev->irq_lock, flags);
-
 		return IRQ_NONE;
 	}
 
 	status = dev->dec_ops[ctx->current_codec]->irq_status(ctx);
-	if (status == CEDRUS_IRQ_NONE) {
-		spin_unlock_irqrestore(&dev->irq_lock, flags);
+	if (status == CEDRUS_IRQ_NONE)
 		return IRQ_NONE;
-	}
 
 	dev->dec_ops[ctx->current_codec]->irq_disable(ctx);
 	dev->dec_ops[ctx->current_codec]->irq_clear(ctx);
@@ -150,8 +126,6 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	if (!src_buf || !dst_buf) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Missing source and/or destination buffers\n");
-		spin_unlock_irqrestore(&dev->irq_lock, flags);
-
 		return IRQ_HANDLED;
 	}
 
@@ -163,9 +137,9 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	v4l2_m2m_buf_done(src_buf, state);
 	v4l2_m2m_buf_done(dst_buf, state);
 
-	spin_unlock_irqrestore(&dev->irq_lock, flags);
+	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 
-	return IRQ_WAKE_THREAD;
+	return IRQ_HANDLED;
 }
 
 int cedrus_hw_probe(struct cedrus_dev *dev)
@@ -183,15 +157,14 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	irq_dec = platform_get_irq(dev->pdev, 0);
 	if (irq_dec <= 0) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get IRQ\n");
+		dev_err(dev->dev, "Failed to get IRQ\n");
 
 		return irq_dec;
 	}
-	ret = devm_request_threaded_irq(dev->dev, irq_dec, cedrus_irq,
-					cedrus_bh, 0, dev_name(dev->dev),
-					dev);
+	ret = devm_request_irq(dev->dev, irq_dec, cedrus_irq,
+			       0, dev_name(dev->dev), dev);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to request IRQ\n");
+		dev_err(dev->dev, "Failed to request IRQ\n");
 
 		return ret;
 	}
@@ -209,21 +182,21 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	ret = of_reserved_mem_device_init(dev->dev);
 	if (ret && ret != -ENODEV) {
-		v4l2_err(&dev->v4l2_dev, "Failed to reserve memory\n");
+		dev_err(dev->dev, "Failed to reserve memory\n");
 
 		return ret;
 	}
 
 	ret = sunxi_sram_claim(dev->dev);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to claim SRAM\n");
+		dev_err(dev->dev, "Failed to claim SRAM\n");
 
 		goto err_mem;
 	}
 
 	dev->ahb_clk = devm_clk_get(dev->dev, "ahb");
 	if (IS_ERR(dev->ahb_clk)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get AHB clock\n");
+		dev_err(dev->dev, "Failed to get AHB clock\n");
 
 		ret = PTR_ERR(dev->ahb_clk);
 		goto err_sram;
@@ -231,7 +204,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	dev->mod_clk = devm_clk_get(dev->dev, "mod");
 	if (IS_ERR(dev->mod_clk)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get MOD clock\n");
+		dev_err(dev->dev, "Failed to get MOD clock\n");
 
 		ret = PTR_ERR(dev->mod_clk);
 		goto err_sram;
@@ -239,7 +212,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	dev->ram_clk = devm_clk_get(dev->dev, "ram");
 	if (IS_ERR(dev->ram_clk)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get RAM clock\n");
+		dev_err(dev->dev, "Failed to get RAM clock\n");
 
 		ret = PTR_ERR(dev->ram_clk);
 		goto err_sram;
@@ -247,7 +220,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	dev->rstc = devm_reset_control_get(dev->dev, NULL);
 	if (IS_ERR(dev->rstc)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to get reset control\n");
+		dev_err(dev->dev, "Failed to get reset control\n");
 
 		ret = PTR_ERR(dev->rstc);
 		goto err_sram;
@@ -256,7 +229,7 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	res = platform_get_resource(dev->pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(dev->dev, res);
 	if (IS_ERR(dev->base)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to map registers\n");
+		dev_err(dev->dev, "Failed to map registers\n");
 
 		ret = PTR_ERR(dev->base);
 		goto err_sram;
@@ -264,35 +237,35 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	ret = clk_set_rate(dev->mod_clk, CEDRUS_CLOCK_RATE_DEFAULT);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to set clock rate\n");
+		dev_err(dev->dev, "Failed to set clock rate\n");
 
 		goto err_sram;
 	}
 
 	ret = clk_prepare_enable(dev->ahb_clk);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to enable AHB clock\n");
+		dev_err(dev->dev, "Failed to enable AHB clock\n");
 
 		goto err_sram;
 	}
 
 	ret = clk_prepare_enable(dev->mod_clk);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to enable MOD clock\n");
+		dev_err(dev->dev, "Failed to enable MOD clock\n");
 
 		goto err_ahb_clk;
 	}
 
 	ret = clk_prepare_enable(dev->ram_clk);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to enable RAM clock\n");
+		dev_err(dev->dev, "Failed to enable RAM clock\n");
 
 		goto err_mod_clk;
 	}
 
 	ret = reset_control_reset(dev->rstc);
 	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to apply reset\n");
+		dev_err(dev->dev, "Failed to apply reset\n");
 
 		goto err_ram_clk;
 	}

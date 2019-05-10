@@ -19,6 +19,8 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "msm_fence.h"
+#include "msm_gpu_trace.h"
+#include "adreno/adreno_gpu.h"
 
 #include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
@@ -107,7 +109,7 @@ static void msm_devfreq_init(struct msm_gpu *gpu)
 			&msm_devfreq_profile, "simple_ondemand", NULL);
 
 	if (IS_ERR(gpu->devfreq.devfreq)) {
-		dev_err(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
+		DRM_DEV_ERROR(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		gpu->devfreq.devfreq = NULL;
 	}
 
@@ -122,7 +124,7 @@ static int enable_pwrrail(struct msm_gpu *gpu)
 	if (gpu->gpu_reg) {
 		ret = regulator_enable(gpu->gpu_reg);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable 'gpu_reg': %d\n", ret);
+			DRM_DEV_ERROR(dev->dev, "failed to enable 'gpu_reg': %d\n", ret);
 			return ret;
 		}
 	}
@@ -130,7 +132,7 @@ static int enable_pwrrail(struct msm_gpu *gpu)
 	if (gpu->gpu_cx) {
 		ret = regulator_enable(gpu->gpu_cx);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable 'gpu_cx': %d\n", ret);
+			DRM_DEV_ERROR(dev->dev, "failed to enable 'gpu_cx': %d\n", ret);
 			return ret;
 		}
 	}
@@ -315,28 +317,28 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 	struct msm_gpu_state_bo *state_bo = &state->bos[state->nr_bos];
 
 	/* Don't record write only objects */
-
 	state_bo->size = obj->base.size;
 	state_bo->iova = iova;
 
-	/* Only store the data for buffer objects marked for read */
-	if ((flags & MSM_SUBMIT_BO_READ)) {
+	/* Only store data for non imported buffer objects marked for read */
+	if ((flags & MSM_SUBMIT_BO_READ) && !obj->base.import_attach) {
 		void *ptr;
 
 		state_bo->data = kvmalloc(obj->base.size, GFP_KERNEL);
 		if (!state_bo->data)
-			return;
+			goto out;
 
 		ptr = msm_gem_get_vaddr_active(&obj->base);
 		if (IS_ERR(ptr)) {
 			kvfree(state_bo->data);
-			return;
+			state_bo->data = NULL;
+			goto out;
 		}
 
 		memcpy(state_bo->data, ptr, obj->base.size);
 		msm_gem_put_vaddr(&obj->base);
 	}
-
+out:
 	state->nr_bos++;
 }
 
@@ -364,12 +366,15 @@ static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
 	if (submit) {
 		int i;
 
-		state->bos = kcalloc(submit->nr_bos,
+		state->bos = kcalloc(submit->nr_cmds,
 			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
 
-		for (i = 0; state->bos && i < submit->nr_bos; i++)
-			msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
-				submit->bos[i].iova, submit->bos[i].flags);
+		for (i = 0; state->bos && i < submit->nr_cmds; i++) {
+			int idx = submit->cmd[i].idx;
+
+			msm_gpu_crashstate_get_bo(state, submit->bos[idx].obj,
+				submit->bos[idx].iova, submit->bos[idx].flags);
+		}
 	}
 
 	/* Set the active crash state to be dumped on failure */
@@ -432,7 +437,7 @@ static void recover_worker(struct work_struct *work)
 
 	mutex_lock(&dev->struct_mutex);
 
-	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
+	DRM_DEV_ERROR(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
 	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
 	if (submit) {
@@ -459,7 +464,7 @@ static void recover_worker(struct work_struct *work)
 		}
 
 		if (comm && cmd) {
-			dev_err(dev->dev, "%s: offending task: %s (%s)\n",
+			DRM_DEV_ERROR(dev->dev, "%s: offending task: %s (%s)\n",
 				gpu->name, comm, cmd);
 
 			msm_rd_dump_submit(priv->hangrd, submit,
@@ -542,11 +547,11 @@ static void hangcheck_handler(struct timer_list *t)
 	} else if (fence < ring->seqno) {
 		/* no progress and not done.. hung! */
 		ring->hangcheck_fence = fence;
-		dev_err(dev->dev, "%s: hangcheck detected gpu lockup rb %d!\n",
+		DRM_DEV_ERROR(dev->dev, "%s: hangcheck detected gpu lockup rb %d!\n",
 				gpu->name, ring->id);
-		dev_err(dev->dev, "%s:     completed fence: %u\n",
+		DRM_DEV_ERROR(dev->dev, "%s:     completed fence: %u\n",
 				gpu->name, fence);
-		dev_err(dev->dev, "%s:     submitted fence: %u\n",
+		DRM_DEV_ERROR(dev->dev, "%s:     submitted fence: %u\n",
 				gpu->name, ring->seqno);
 
 		queue_work(priv->wq, &gpu->recover_work);
@@ -662,15 +667,33 @@ out:
  * Cmdstream submission/retirement:
  */
 
-static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
+static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
+		struct msm_gem_submit *submit)
 {
+	int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
+	volatile struct msm_gpu_submit_stats *stats;
+	u64 elapsed, clock = 0;
 	int i;
+
+	stats = &ring->memptrs->stats[index];
+	/* Convert 19.2Mhz alwayson ticks to nanoseconds for elapsed time */
+	elapsed = (stats->alwayson_end - stats->alwayson_start) * 10000;
+	do_div(elapsed, 192);
+
+	/* Calculate the clock frequency from the number of CP cycles */
+	if (elapsed) {
+		clock = (stats->cpcycles_end - stats->cpcycles_start) * 1000;
+		do_div(clock, elapsed);
+	}
+
+	trace_msm_gpu_submit_retired(submit, elapsed, clock,
+		stats->alwayson_start, stats->alwayson_end);
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		/* move to inactive: */
 		msm_gem_move_to_inactive(&msm_obj->base);
-		msm_gem_put_iova(&msm_obj->base, gpu->aspace);
+		msm_gem_unpin_iova(&msm_obj->base, gpu->aspace);
 		drm_gem_object_put(&msm_obj->base);
 	}
 
@@ -693,7 +716,7 @@ static void retire_submits(struct msm_gpu *gpu)
 
 		list_for_each_entry_safe(submit, tmp, &ring->submits, node) {
 			if (dma_fence_is_signaled(submit->fence))
-				retire_submit(gpu, submit);
+				retire_submit(gpu, ring, submit);
 		}
 	}
 }
@@ -754,7 +777,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 		/* submit takes a reference to the bo and iova until retired: */
 		drm_gem_object_get(&msm_obj->base);
-		msm_gem_get_iova(&msm_obj->base,
+		msm_gem_get_and_pin_iova(&msm_obj->base,
 				submit->gpu->aspace, &iova);
 
 		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
@@ -803,7 +826,6 @@ static struct msm_gem_address_space *
 msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 		uint64_t va_start, uint64_t va_end)
 {
-	struct iommu_domain *iommu;
 	struct msm_gem_address_space *aspace;
 	int ret;
 
@@ -812,20 +834,27 @@ msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 	 * and have separate page tables per context.  For now, to keep things
 	 * simple and to get something working, just use a single address space:
 	 */
-	iommu = iommu_domain_alloc(&platform_bus_type);
-	if (!iommu)
-		return NULL;
+	if (!adreno_is_a2xx(to_adreno_gpu(gpu))) {
+		struct iommu_domain *iommu = iommu_domain_alloc(&platform_bus_type);
+		if (!iommu)
+			return NULL;
 
-	iommu->geometry.aperture_start = va_start;
-	iommu->geometry.aperture_end = va_end;
+		iommu->geometry.aperture_start = va_start;
+		iommu->geometry.aperture_end = va_end;
 
-	dev_info(gpu->dev->dev, "%s: using IOMMU\n", gpu->name);
+		DRM_DEV_INFO(gpu->dev->dev, "%s: using IOMMU\n", gpu->name);
 
-	aspace = msm_gem_address_space_create(&pdev->dev, iommu, "gpu");
+		aspace = msm_gem_address_space_create(&pdev->dev, iommu, "gpu");
+		if (IS_ERR(aspace))
+			iommu_domain_free(iommu);
+	} else {
+		aspace = msm_gem_address_space_create_a2xx(&pdev->dev, gpu, "gpu",
+			va_start, va_end);
+	}
+
 	if (IS_ERR(aspace)) {
-		dev_err(gpu->dev->dev, "failed to init iommu: %ld\n",
+		DRM_DEV_ERROR(gpu->dev->dev, "failed to init mmu: %ld\n",
 			PTR_ERR(aspace));
-		iommu_domain_free(iommu);
 		return ERR_CAST(aspace);
 	}
 
@@ -871,17 +900,17 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	}
 
 	/* Get Interrupt: */
-	gpu->irq = platform_get_irq_byname(pdev, config->irqname);
+	gpu->irq = platform_get_irq(pdev, 0);
 	if (gpu->irq < 0) {
 		ret = gpu->irq;
-		dev_err(drm->dev, "failed to get irq: %d\n", ret);
+		DRM_DEV_ERROR(drm->dev, "failed to get irq: %d\n", ret);
 		goto fail;
 	}
 
 	ret = devm_request_irq(&pdev->dev, gpu->irq, irq_handler,
 			IRQF_TRIGGER_HIGH, gpu->name, gpu);
 	if (ret) {
-		dev_err(drm->dev, "failed to request IRQ%u: %d\n", gpu->irq, ret);
+		DRM_DEV_ERROR(drm->dev, "failed to request IRQ%u: %d\n", gpu->irq, ret);
 		goto fail;
 	}
 
@@ -914,21 +943,24 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		config->va_start, config->va_end);
 
 	if (gpu->aspace == NULL)
-		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
+		DRM_DEV_INFO(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
 	else if (IS_ERR(gpu->aspace)) {
 		ret = PTR_ERR(gpu->aspace);
 		goto fail;
 	}
 
-	memptrs = msm_gem_kernel_new(drm, sizeof(*gpu->memptrs_bo),
+	memptrs = msm_gem_kernel_new(drm,
+		sizeof(struct msm_rbmemptrs) * nr_rings,
 		MSM_BO_UNCACHED, gpu->aspace, &gpu->memptrs_bo,
 		&memptrs_iova);
 
 	if (IS_ERR(memptrs)) {
 		ret = PTR_ERR(memptrs);
-		dev_err(drm->dev, "could not allocate memptrs: %d\n", ret);
+		DRM_DEV_ERROR(drm->dev, "could not allocate memptrs: %d\n", ret);
 		goto fail;
 	}
+
+	msm_gem_object_set_name(gpu->memptrs_bo, "memptrs");
 
 	if (nr_rings > ARRAY_SIZE(gpu->rb)) {
 		DRM_DEV_INFO_ONCE(drm->dev, "Only creating %zu ringbuffers\n",
@@ -942,7 +974,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 		if (IS_ERR(gpu->rb[i])) {
 			ret = PTR_ERR(gpu->rb[i]);
-			dev_err(drm->dev,
+			DRM_DEV_ERROR(drm->dev,
 				"could not create ringbuffer %d: %d\n", i, ret);
 			goto fail;
 		}
@@ -961,11 +993,7 @@ fail:
 		gpu->rb[i] = NULL;
 	}
 
-	if (gpu->memptrs_bo) {
-		msm_gem_put_vaddr(gpu->memptrs_bo);
-		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
-		drm_gem_object_put_unlocked(gpu->memptrs_bo);
-	}
+	msm_gem_kernel_put(gpu->memptrs_bo, gpu->aspace, false);
 
 	platform_set_drvdata(pdev, NULL);
 	return ret;
@@ -984,11 +1012,7 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 		gpu->rb[i] = NULL;
 	}
 
-	if (gpu->memptrs_bo) {
-		msm_gem_put_vaddr(gpu->memptrs_bo);
-		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
-		drm_gem_object_put_unlocked(gpu->memptrs_bo);
-	}
+	msm_gem_kernel_put(gpu->memptrs_bo, gpu->aspace, false);
 
 	if (!IS_ERR_OR_NULL(gpu->aspace)) {
 		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu,

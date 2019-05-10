@@ -3,7 +3,9 @@ TI BQ24190 Li-Ion Battery Charger
 Required properties:
 - compatible: contains one of the following:
     * "ti,bq24190"
+    * "ti,bq24192"
     * "ti,bq24192i"
+    * "ti,bq24196"
 - reg: integer, I2C address of the charger.
 - interrupts[-extended]: configuration for charger INT pin.
 
@@ -18,6 +20,12 @@ Optional properties:
   See also Documentation/devicetree/bindings/power/supply/battery.txt
 - ti,system-minimum-microvolt: when power is connected and the battery is below
   minimum system voltage, the system will be regulated above this setting.
+
+child nodes:
+- usb-otg-vbus:
+  Usage: optional
+  Description: Regulator that is used to control the VBUS voltage direction for
+               either USB host mode or for charging on the OTG port.
 
 Notes:
 - Some circuit boards wire the chip's "OTG" pin high (enabling 500mA default
@@ -39,6 +47,8 @@ Example:
 		interrupts-extended = <&gpiochip 10 IRQ_TYPE_EDGE_FALLING>;
 		monitored-battery = <&bat>;
 		ti,system-minimum-microvolt = <3200000>;
+
+		usb_otg_vbus: usb-otg-vbus { };
 	};
 
 	&twl_gpio {

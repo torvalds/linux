@@ -37,6 +37,8 @@
 #define RENDER_TIMES_MAX_COUNT 10
 /* Threshold to exit BTR (to avoid frequent enter-exits at the lower limit) */
 #define BTR_EXIT_MARGIN 2000
+/*Threshold to exit fixed refresh rate*/
+#define FIXED_REFRESH_EXIT_MARGIN_IN_HZ 4
 /* Number of consecutive frames to check before entering/exiting fixed refresh*/
 #define FIXED_REFRESH_ENTER_FRAME_COUNT 5
 #define FIXED_REFRESH_EXIT_FRAME_COUNT 5
@@ -106,8 +108,8 @@ static unsigned int calc_duration_in_us_from_v_total(
 {
 	unsigned int duration_in_us =
 			(unsigned int)(div64_u64(((unsigned long long)(v_total)
-				* 1000) * stream->timing.h_total,
-					stream->timing.pix_clk_khz));
+				* 10000) * stream->timing.h_total,
+					stream->timing.pix_clk_100hz));
 
 	return duration_in_us;
 }
@@ -124,7 +126,7 @@ static unsigned int calc_v_total_from_refresh(
 					refresh_in_uhz)));
 
 	v_total = div64_u64(div64_u64(((unsigned long long)(
-			frame_duration_in_ns) * stream->timing.pix_clk_khz),
+			frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
 			stream->timing.h_total), 1000000);
 
 	/* v_total cannot be less than nominal */
@@ -150,7 +152,7 @@ static unsigned int calc_v_total_from_duration(
 		duration_in_us = vrr->max_duration_in_us;
 
 	v_total = div64_u64(div64_u64(((unsigned long long)(
-				duration_in_us) * stream->timing.pix_clk_khz),
+				duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000);
 
 	/* v_total cannot be less than nominal */
@@ -225,7 +227,7 @@ static void update_v_total_for_static_ramp(
 	}
 
 	v_total = div64_u64(div64_u64(((unsigned long long)(
-			current_duration_in_us) * stream->timing.pix_clk_khz),
+			current_duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000);
 
 	in_out_vrr->adjust.v_total_min = v_total;
@@ -257,40 +259,14 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		if (in_out_vrr->btr.btr_active) {
 			in_out_vrr->btr.frame_counter = 0;
 			in_out_vrr->btr.btr_active = false;
-
-		/* Exit Fixed Refresh mode */
-		} else if (in_out_vrr->fixed.fixed_active) {
-
-			in_out_vrr->fixed.frame_counter++;
-
-			if (in_out_vrr->fixed.frame_counter >
-					FIXED_REFRESH_EXIT_FRAME_COUNT) {
-				in_out_vrr->fixed.frame_counter = 0;
-				in_out_vrr->fixed.fixed_active = false;
-			}
 		}
 	} else if (last_render_time_in_us > max_render_time_in_us) {
 		/* Enter Below the Range */
-		if (!in_out_vrr->btr.btr_active &&
-				in_out_vrr->btr.btr_enabled) {
-			in_out_vrr->btr.btr_active = true;
-
-		/* Enter Fixed Refresh mode */
-		} else if (!in_out_vrr->fixed.fixed_active &&
-				!in_out_vrr->btr.btr_enabled) {
-			in_out_vrr->fixed.frame_counter++;
-
-			if (in_out_vrr->fixed.frame_counter >
-					FIXED_REFRESH_ENTER_FRAME_COUNT) {
-				in_out_vrr->fixed.frame_counter = 0;
-				in_out_vrr->fixed.fixed_active = true;
-			}
-		}
+		in_out_vrr->btr.btr_active = true;
 	}
 
 	/* BTR set to "not active" so disengage */
 	if (!in_out_vrr->btr.btr_active) {
-		in_out_vrr->btr.btr_active = false;
 		in_out_vrr->btr.inserted_duration_in_us = 0;
 		in_out_vrr->btr.frames_to_insert = 0;
 		in_out_vrr->btr.frame_counter = 0;
@@ -375,7 +351,12 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 	bool update = false;
 	unsigned int max_render_time_in_us = in_out_vrr->max_duration_in_us;
 
-	if (last_render_time_in_us + BTR_EXIT_MARGIN < max_render_time_in_us) {
+	//Compute the exit refresh rate and exit frame duration
+	unsigned int exit_refresh_rate_in_milli_hz = ((1000000000/max_render_time_in_us)
+			+ (1000*FIXED_REFRESH_EXIT_MARGIN_IN_HZ));
+	unsigned int exit_frame_duration_in_us = 1000000000/exit_refresh_rate_in_milli_hz;
+
+	if (last_render_time_in_us < exit_frame_duration_in_us) {
 		/* Exit Fixed Refresh mode */
 		if (in_out_vrr->fixed.fixed_active) {
 			in_out_vrr->fixed.frame_counter++;
@@ -480,6 +461,26 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 	return false;
 }
 
+static void build_vrr_infopacket_header_vtem(enum signal_type signal,
+		struct dc_info_packet *infopacket)
+{
+	// HEADER
+
+	// HB0, HB1, HB2 indicates PacketType VTEMPacket
+	infopacket->hb0 = 0x7F;
+	infopacket->hb1 = 0xC0;
+	infopacket->hb2 = 0x00;
+	/* HB3 Bit Fields
+	 * Reserved :1 = 0
+	 * Sync     :1 = 0
+	 * VFR      :1 = 1
+	 * Ds_Type  :2 = 0
+	 * End      :1 = 0
+	 * New      :1 = 0
+	 */
+	infopacket->hb3 = 0x20;
+}
+
 static void build_vrr_infopacket_header_v1(enum signal_type signal,
 		struct dc_info_packet *infopacket,
 		unsigned int *payload_size)
@@ -578,6 +579,54 @@ static void build_vrr_infopacket_header_v2(enum signal_type signal,
 	}
 }
 
+static void build_vrr_vtem_infopacket_data(const struct dc_stream_state *stream,
+		const struct mod_vrr_params *vrr,
+		struct dc_info_packet *infopacket)
+{
+	/* dc_info_packet to VtemPacket Translation of Bit-fields,
+	 * SB[6]
+	 * unsigned char VRR_EN        :1
+	 * unsigned char M_CONST       :1
+	 * unsigned char Reserved2     :2
+	 * unsigned char FVA_Factor_M1 :4
+	 * SB[7]
+	 * unsigned char Base_Vfront   :8
+	 * SB[8]
+	 * unsigned char Base_Refresh_Rate_98 :2
+	 * unsigned char RB                   :1
+	 * unsigned char Reserved3            :5
+	 * SB[9]
+	 * unsigned char Base_RefreshRate_07  :8
+	 */
+	unsigned int fieldRateInHz;
+
+	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
+				vrr->state == VRR_STATE_ACTIVE_FIXED){
+		infopacket->sb[6] |= 0x80; //VRR_EN Bit = 1
+	} else {
+		infopacket->sb[6] &= 0x7F; //VRR_EN Bit = 0
+	}
+
+	if (!stream->timing.vic) {
+		infopacket->sb[7] = stream->timing.v_front_porch;
+
+		/* TODO: In dal2, we check mode flags for a reduced blanking timing.
+		 * Need a way to relay that information to this function.
+		 * if("ReducedBlanking")
+		 * {
+		 *   infopacket->sb[8] |= 0x20; //Set 3rd bit to 1
+		 * }
+		 */
+		fieldRateInHz = (stream->timing.pix_clk_100hz * 100)/
+				(stream->timing.h_total * stream->timing.v_total);
+
+		infopacket->sb[8] |= ((fieldRateInHz & 0x300) >> 2);
+		infopacket->sb[9] |= fieldRateInHz & 0xFF;
+
+	}
+	infopacket->valid = true;
+}
+
 static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
 		struct dc_info_packet *infopacket)
 {
@@ -627,12 +676,12 @@ static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
 static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
-	if (app_tf != transfer_func_unknown) {
+	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
 		infopacket->valid = true;
 
 		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
 
-		if (app_tf == transfer_func_gamma_22) {
+		if (app_tf == TRANSFER_FUNC_GAMMA_22) {
 			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
 		}
 	}
@@ -675,7 +724,7 @@ static void build_vrr_infopacket_v1(enum signal_type signal,
 
 static void build_vrr_infopacket_v2(enum signal_type signal,
 		const struct mod_vrr_params *vrr,
-		const enum color_transfer_func *app_tf,
+		enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
 	unsigned int payload_size = 0;
@@ -683,10 +732,22 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 	build_vrr_infopacket_header_v2(signal, infopacket, &payload_size);
 	build_vrr_infopacket_data(vrr, infopacket);
 
-	if (app_tf != NULL)
-		build_vrr_infopacket_fs2_data(*app_tf, infopacket);
+	build_vrr_infopacket_fs2_data(app_tf, infopacket);
 
 	build_vrr_infopacket_checksum(&payload_size, infopacket);
+
+	infopacket->valid = true;
+}
+
+static void build_vrr_infopacket_vtem(const struct dc_stream_state *stream,
+		const struct mod_vrr_params *vrr,
+		struct dc_info_packet *infopacket)
+{
+	//VTEM info packet for HdmiVrr
+
+	//VTEM Packet is structured differently
+	build_vrr_infopacket_header_vtem(stream->signal, infopacket);
+	build_vrr_vtem_infopacket_data(stream, vrr, infopacket);
 
 	infopacket->valid = true;
 }
@@ -695,23 +756,26 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
 		enum vrr_packet_type packet_type,
-		const enum color_transfer_func *app_tf,
+		enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
-	/* SPD info packet for FreeSync */
-
-	/* Check if Freesync is supported. Return if false. If true,
+	/* SPD info packet for FreeSync
+	 * VTEM info packet for HdmiVRR
+	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (!vrr->supported || !vrr->send_vsif)
+	if (!vrr->supported || (!vrr->send_info_frame && packet_type != PACKET_TYPE_VTEM))
 		return;
 
 	switch (packet_type) {
-	case packet_type_fs2:
+	case PACKET_TYPE_FS2:
 		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket);
 		break;
-	case packet_type_vrr:
-	case packet_type_fs1:
+	case PACKET_TYPE_VTEM:
+		build_vrr_infopacket_vtem(stream, vrr, infopacket);
+		break;
+	case PACKET_TYPE_VRR:
+	case PACKET_TYPE_FS1:
 	default:
 		build_vrr_infopacket_v1(stream->signal, vrr, infopacket);
 	}
@@ -758,7 +822,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		return;
 
 	in_out_vrr->state = in_config->state;
-	in_out_vrr->send_vsif = in_config->vsif_supported;
+	in_out_vrr->send_info_frame = in_config->vsif_supported;
 
 	if (in_config->state == VRR_STATE_UNSUPPORTED) {
 		in_out_vrr->state = VRR_STATE_UNSUPPORTED;
@@ -991,7 +1055,7 @@ unsigned long long mod_freesync_calc_nominal_field_rate(
 	unsigned long long nominal_field_rate_in_uhz = 0;
 
 	/* Calculate nominal field rate for stream */
-	nominal_field_rate_in_uhz = stream->timing.pix_clk_khz;
+	nominal_field_rate_in_uhz = stream->timing.pix_clk_100hz / 10;
 	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
 	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
 						stream->timing.h_total);

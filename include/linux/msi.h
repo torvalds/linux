@@ -76,19 +76,19 @@ struct msi_desc {
 	unsigned int			nvec_used;
 	struct device			*dev;
 	struct msi_msg			msg;
-	struct cpumask			*affinity;
+	struct irq_affinity_desc	*affinity;
 
 	union {
 		/* PCI MSI/X specific data */
 		struct {
 			u32 masked;
 			struct {
-				__u8	is_msix		: 1;
-				__u8	multiple	: 3;
-				__u8	multi_cap	: 3;
-				__u8	maskbit		: 1;
-				__u8	is_64		: 1;
-				__u16	entry_nr;
+				u8	is_msix		: 1;
+				u8	multiple	: 3;
+				u8	multi_cap	: 3;
+				u8	maskbit		: 1;
+				u8	is_64		: 1;
+				u16	entry_nr;
 				unsigned default_irq;
 			} msi_attrib;
 			union {
@@ -116,6 +116,8 @@ struct msi_desc {
 	list_first_entry(dev_to_msi_list((dev)), struct msi_desc, list)
 #define for_each_msi_entry(desc, dev)	\
 	list_for_each_entry((desc), dev_to_msi_list((dev)), list)
+#define for_each_msi_entry_safe(desc, tmp, dev)	\
+	list_for_each_entry_safe((desc), (tmp), dev_to_msi_list((dev)), list)
 
 #ifdef CONFIG_PCI_MSI
 #define first_pci_msi_entry(pdev)	first_msi_entry(&(pdev)->dev)
@@ -136,7 +138,7 @@ static inline void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg)
 #endif /* CONFIG_PCI_MSI */
 
 struct msi_desc *alloc_msi_entry(struct device *dev, int nvec,
-				 const struct cpumask *affinity);
+				 const struct irq_affinity_desc *affinity);
 void free_msi_entry(struct msi_desc *entry);
 void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);

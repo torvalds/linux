@@ -525,7 +525,7 @@ void account_idle_ticks(unsigned long ticks)
 
 /*
  * Perform (stime * rtime) / total, but avoid multiplication overflow by
- * loosing precision when the numbers are big.
+ * losing precision when the numbers are big.
  */
 static u64 scale_stime(u64 stime, u64 rtime, u64 total)
 {

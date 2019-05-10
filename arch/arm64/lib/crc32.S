@@ -15,15 +15,59 @@
 	.cpu		generic+crc
 
 	.macro		__crc32, c
-0:	subs		x2, x2, #16
-	b.mi		8f
-	ldp		x3, x4, [x1], #16
+	cmp		x2, #16
+	b.lt		8f			// less than 16 bytes
+
+	and		x7, x2, #0x1f
+	and		x2, x2, #~0x1f
+	cbz		x7, 32f			// multiple of 32 bytes
+
+	and		x8, x7, #0xf
+	ldp		x3, x4, [x1]
+	add		x8, x8, x1
+	add		x1, x1, x7
+	ldp		x5, x6, [x8]
 CPU_BE(	rev		x3, x3		)
 CPU_BE(	rev		x4, x4		)
+CPU_BE(	rev		x5, x5		)
+CPU_BE(	rev		x6, x6		)
+
+	tst		x7, #8
+	crc32\c\()x	w8, w0, x3
+	csel		x3, x3, x4, eq
+	csel		w0, w0, w8, eq
+	tst		x7, #4
+	lsr		x4, x3, #32
+	crc32\c\()w	w8, w0, w3
+	csel		x3, x3, x4, eq
+	csel		w0, w0, w8, eq
+	tst		x7, #2
+	lsr		w4, w3, #16
+	crc32\c\()h	w8, w0, w3
+	csel		w3, w3, w4, eq
+	csel		w0, w0, w8, eq
+	tst		x7, #1
+	crc32\c\()b	w8, w0, w3
+	csel		w0, w0, w8, eq
+	tst		x7, #16
+	crc32\c\()x	w8, w0, x5
+	crc32\c\()x	w8, w8, x6
+	csel		w0, w0, w8, eq
+	cbz		x2, 0f
+
+32:	ldp		x3, x4, [x1], #32
+	sub		x2, x2, #32
+	ldp		x5, x6, [x1, #-16]
+CPU_BE(	rev		x3, x3		)
+CPU_BE(	rev		x4, x4		)
+CPU_BE(	rev		x5, x5		)
+CPU_BE(	rev		x6, x6		)
 	crc32\c\()x	w0, w0, x3
 	crc32\c\()x	w0, w0, x4
-	b.ne		0b
-	ret
+	crc32\c\()x	w0, w0, x5
+	crc32\c\()x	w0, w0, x6
+	cbnz		x2, 32b
+0:	ret
 
 8:	tbz		x2, #3, 4f
 	ldr		x3, [x1], #8

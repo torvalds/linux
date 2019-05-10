@@ -651,7 +651,8 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		regs->vector = formatvec & 0xfff;
 	} else {
 		struct switch_stack *sw = (struct switch_stack *)regs - 1;
-		unsigned long buf[fsize / 2]; /* yes, twice as much */
+		/* yes, twice as much as max(sizeof(frame.un.fmt<x>)) */
+		unsigned long buf[sizeof(((struct frame *)0)->un) / 2];
 
 		/* that'll make sure that expansion won't crap over data */
 		if (copy_from_user(buf + fsize / 4, fp, fsize))
@@ -787,7 +788,7 @@ asmlinkage int do_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	struct sigframe __user *frame = (struct sigframe __user *)(usp - 4);
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__get_user(set.sig[0], &frame->sc.sc_mask) ||
 	    (_NSIG_WORDS > 1 &&
@@ -812,7 +813,7 @@ asmlinkage int do_rt_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(usp - 4);
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;

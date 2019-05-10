@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Read-Copy Update definitions shared among RCU implementations.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright IBM Corporation, 2011
  *
- * Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+ * Author: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #ifndef __LINUX_RCU_H
@@ -30,7 +17,7 @@
 #define RCU_TRACE(stmt)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-/* Offset to allow for unmatched rcu_irq_{enter,exit}(). */
+/* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
 #define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
 
 
@@ -462,8 +449,6 @@ void rcu_request_urgent_qs_task(struct task_struct *t);
 
 enum rcutorture_type {
 	RCU_FLAVOR,
-	RCU_BH_FLAVOR,
-	RCU_SCHED_FLAVOR,
 	RCU_TASKS_FLAVOR,
 	SRCU_FLAVOR,
 	INVALID_RCU_FLAVOR
@@ -526,12 +511,14 @@ srcu_batches_completed(struct srcu_struct *sp) { return 0; }
 static inline void rcu_force_quiescent_state(void) { }
 static inline void show_rcu_gp_kthreads(void) { }
 static inline int rcu_get_gp_kthreads_prio(void) { return 0; }
+static inline void rcu_fwd_progress_check(unsigned long j) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 unsigned long rcu_get_gp_seq(void);
 unsigned long rcu_exp_batches_completed(void);
 unsigned long srcu_batches_completed(struct srcu_struct *sp);
 void show_rcu_gp_kthreads(void);
 int rcu_get_gp_kthreads_prio(void);
+void rcu_fwd_progress_check(unsigned long j);
 void rcu_force_quiescent_state(void);
 extern struct workqueue_struct *rcu_gp_wq;
 extern struct workqueue_struct *rcu_par_gp_wq;
@@ -539,8 +526,10 @@ extern struct workqueue_struct *rcu_par_gp_wq;
 
 #ifdef CONFIG_RCU_NOCB_CPU
 bool rcu_is_nocb_cpu(int cpu);
+void rcu_bind_current_to_nocb(void);
 #else
 static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
+static inline void rcu_bind_current_to_nocb(void) { }
 #endif
 
 #endif /* __LINUX_RCU_H */

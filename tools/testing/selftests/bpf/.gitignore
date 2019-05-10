@@ -14,6 +14,7 @@ feature
 test_libbpf_open
 test_sock
 test_sock_addr
+test_sock_fields
 urandom_read
 test_btf
 test_sockmap
@@ -27,3 +28,6 @@ test_flow_dissector
 flow_dissector_load
 test_netcnt
 test_section_names
+test_tcpnotify_user
+test_libbpf
+alu32

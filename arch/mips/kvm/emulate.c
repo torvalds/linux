@@ -1016,10 +1016,10 @@ static void kvm_mips_change_entryhi(struct kvm_vcpu *vcpu,
 		 */
 		preempt_disable();
 		cpu = smp_processor_id();
-		get_new_mmu_context(kern_mm, cpu);
+		get_new_mmu_context(kern_mm);
 		for_each_possible_cpu(i)
 			if (i != cpu)
-				cpu_context(i, kern_mm) = 0;
+				set_cpu_context(i, kern_mm, 0);
 		preempt_enable();
 	}
 	kvm_write_c0_guest_entryhi(cop0, entryhi);
@@ -1090,8 +1090,8 @@ static void kvm_mips_invalidate_guest_tlb(struct kvm_vcpu *vcpu,
 		if (i == cpu)
 			continue;
 		if (user)
-			cpu_context(i, user_mm) = 0;
-		cpu_context(i, kern_mm) = 0;
+			set_cpu_context(i, user_mm, 0);
+		set_cpu_context(i, kern_mm, 0);
 	}
 
 	preempt_enable();

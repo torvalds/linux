@@ -265,6 +265,7 @@ static struct atom_display_object_path_v2 *get_bios_object(
 					&& id.enum_id == obj_id.enum_id)
 				return &bp->object_info_tbl.v1_4->display_path[i];
 		}
+		/* fall through */
 	case OBJECT_TYPE_CONNECTOR:
 	case OBJECT_TYPE_GENERIC:
 		/* Both Generic and Connector Object ID
@@ -277,6 +278,7 @@ static struct atom_display_object_path_v2 *get_bios_object(
 					&& id.enum_id == obj_id.enum_id)
 				return &bp->object_info_tbl.v1_4->display_path[i];
 		}
+		/* fall through */
 	default:
 		return NULL;
 	}
@@ -638,6 +640,7 @@ static enum bp_result get_ss_info_v4_1(
 {
 	enum bp_result result = BP_RESULT_OK;
 	struct atom_display_controller_info_v4_1 *disp_cntl_tbl = NULL;
+	struct atom_smu_info_v3_3 *smu_info = NULL;
 
 	if (!ss_info)
 		return BP_RESULT_BADINPUT;
@@ -649,6 +652,7 @@ static enum bp_result get_ss_info_v4_1(
 							DATA_TABLES(dce_info));
 	if (!disp_cntl_tbl)
 		return BP_RESULT_BADBIOSTABLE;
+
 
 	ss_info->type.STEP_AND_DELAY_INFO = false;
 	ss_info->spread_percentage_divider = 1000;
@@ -687,6 +691,19 @@ static enum bp_result get_ss_info_v4_1(
 		 * copy it into dce_info
 		 */
 		result = BP_RESULT_UNSUPPORTED;
+		break;
+	case AS_SIGNAL_TYPE_XGMI:
+		smu_info =  GET_IMAGE(struct atom_smu_info_v3_3,
+				      DATA_TABLES(smu_info));
+		if (!smu_info)
+			return BP_RESULT_BADBIOSTABLE;
+
+		ss_info->spread_spectrum_percentage =
+				smu_info->waflclk_ss_percentage;
+		ss_info->spread_spectrum_range =
+				smu_info->gpuclk_ss_rate_10hz * 10;
+		if (smu_info->waflclk_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
 		break;
 	default:
 		result = BP_RESULT_UNSUPPORTED;
@@ -1066,18 +1083,6 @@ static enum bp_result bios_parser_enable_crtc(
 		return BP_RESULT_FAILURE;
 
 	return bp->cmd_tbl.enable_crtc(bp, id, enable);
-}
-
-static enum bp_result bios_parser_crtc_source_select(
-	struct dc_bios *dcb,
-	struct bp_crtc_source_select *bp_params)
-{
-	struct bios_parser *bp = BP_FROM_DCB(dcb);
-
-	if (!bp->cmd_tbl.select_crtc_source)
-		return BP_RESULT_FAILURE;
-
-	return bp->cmd_tbl.select_crtc_source(bp, bp_params);
 }
 
 static enum bp_result bios_parser_enable_disp_power_gating(
@@ -1899,8 +1904,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.set_dce_clock = bios_parser_set_dce_clock,
 
 	.program_crtc_timing = bios_parser_program_crtc_timing,
-
-	.crtc_source_select = bios_parser_crtc_source_select,
 
 	.enable_disp_power_gating = bios_parser_enable_disp_power_gating,
 

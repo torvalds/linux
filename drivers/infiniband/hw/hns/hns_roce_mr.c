@@ -184,12 +184,27 @@ static int hns_roce_alloc_mtt_range(struct hns_roce_dev *hr_dev, int order,
 	struct hns_roce_buddy *buddy;
 	int ret;
 
-	if (mtt_type == MTT_TYPE_WQE) {
+	switch (mtt_type) {
+	case MTT_TYPE_WQE:
 		buddy = &mr_table->mtt_buddy;
 		table = &mr_table->mtt_table;
-	} else {
+		break;
+	case MTT_TYPE_CQE:
 		buddy = &mr_table->mtt_cqe_buddy;
 		table = &mr_table->mtt_cqe_table;
+		break;
+	case MTT_TYPE_SRQWQE:
+		buddy = &mr_table->mtt_srqwqe_buddy;
+		table = &mr_table->mtt_srqwqe_table;
+		break;
+	case MTT_TYPE_IDX:
+		buddy = &mr_table->mtt_idx_buddy;
+		table = &mr_table->mtt_idx_table;
+		break;
+	default:
+		dev_err(hr_dev->dev, "Unsupport MTT table type: %d\n",
+			mtt_type);
+		return -EINVAL;
 	}
 
 	ret = hns_roce_buddy_alloc(buddy, order, seg);
@@ -242,18 +257,40 @@ void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev, struct hns_roce_mtt *mtt)
 	if (mtt->order < 0)
 		return;
 
-	if (mtt->mtt_type == MTT_TYPE_WQE) {
+	switch (mtt->mtt_type) {
+	case MTT_TYPE_WQE:
 		hns_roce_buddy_free(&mr_table->mtt_buddy, mtt->first_seg,
 				    mtt->order);
 		hns_roce_table_put_range(hr_dev, &mr_table->mtt_table,
 					mtt->first_seg,
 					mtt->first_seg + (1 << mtt->order) - 1);
-	} else {
+		break;
+	case MTT_TYPE_CQE:
 		hns_roce_buddy_free(&mr_table->mtt_cqe_buddy, mtt->first_seg,
 				    mtt->order);
 		hns_roce_table_put_range(hr_dev, &mr_table->mtt_cqe_table,
 					mtt->first_seg,
 					mtt->first_seg + (1 << mtt->order) - 1);
+		break;
+	case MTT_TYPE_SRQWQE:
+		hns_roce_buddy_free(&mr_table->mtt_srqwqe_buddy, mtt->first_seg,
+				    mtt->order);
+		hns_roce_table_put_range(hr_dev, &mr_table->mtt_srqwqe_table,
+					mtt->first_seg,
+					mtt->first_seg + (1 << mtt->order) - 1);
+		break;
+	case MTT_TYPE_IDX:
+		hns_roce_buddy_free(&mr_table->mtt_idx_buddy, mtt->first_seg,
+				    mtt->order);
+		hns_roce_table_put_range(hr_dev, &mr_table->mtt_idx_table,
+					mtt->first_seg,
+					mtt->first_seg + (1 << mtt->order) - 1);
+		break;
+	default:
+		dev_err(hr_dev->dev,
+			"Unsupport mtt type %d, clean mtt failed\n",
+			mtt->mtt_type);
+		break;
 	}
 }
 EXPORT_SYMBOL_GPL(hns_roce_mtt_cleanup);
@@ -709,14 +746,29 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	struct hns_roce_hem_table *table;
 	dma_addr_t dma_handle;
 	__le64 *mtts;
-	u32 s = start_index * sizeof(u64);
 	u32 bt_page_size;
 	u32 i;
 
-	if (mtt->mtt_type == MTT_TYPE_WQE)
+	switch (mtt->mtt_type) {
+	case MTT_TYPE_WQE:
+		table = &hr_dev->mr_table.mtt_table;
 		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
-	else
+		break;
+	case MTT_TYPE_CQE:
+		table = &hr_dev->mr_table.mtt_cqe_table;
 		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_SRQWQE:
+		table = &hr_dev->mr_table.mtt_srqwqe_table;
+		bt_page_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_IDX:
+		table = &hr_dev->mr_table.mtt_idx_table;
+		bt_page_size = 1 << (hr_dev->caps.idx_ba_pg_sz + PAGE_SHIFT);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* All MTTs must fit in the same page */
 	if (start_index / (bt_page_size / sizeof(u64)) !=
@@ -726,13 +778,9 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	if (start_index & (HNS_ROCE_MTT_ENTRY_PER_SEG - 1))
 		return -EINVAL;
 
-	if (mtt->mtt_type == MTT_TYPE_WQE)
-		table = &hr_dev->mr_table.mtt_table;
-	else
-		table = &hr_dev->mr_table.mtt_cqe_table;
-
 	mtts = hns_roce_table_find(hr_dev, table,
-				mtt->first_seg + s / hr_dev->caps.mtt_entry_sz,
+				mtt->first_seg +
+				start_index / HNS_ROCE_MTT_ENTRY_PER_SEG,
 				&dma_handle);
 	if (!mtts)
 		return -ENOMEM;
@@ -759,10 +807,25 @@ static int hns_roce_write_mtt(struct hns_roce_dev *hr_dev,
 	if (mtt->order < 0)
 		return -EINVAL;
 
-	if (mtt->mtt_type == MTT_TYPE_WQE)
+	switch (mtt->mtt_type) {
+	case MTT_TYPE_WQE:
 		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
-	else
+		break;
+	case MTT_TYPE_CQE:
 		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_SRQWQE:
+		bt_page_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_IDX:
+		bt_page_size = 1 << (hr_dev->caps.idx_ba_pg_sz + PAGE_SHIFT);
+		break;
+	default:
+		dev_err(hr_dev->dev,
+			"Unsupport mtt type %d, write mtt failed\n",
+			mtt->mtt_type);
+		return -EINVAL;
+	}
 
 	while (npages > 0) {
 		chunk = min_t(int, bt_page_size / sizeof(u64), npages);
@@ -828,7 +891,30 @@ int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
 		if (ret)
 			goto err_buddy_cqe;
 	}
+
+	if (hr_dev->caps.num_srqwqe_segs) {
+		ret = hns_roce_buddy_init(&mr_table->mtt_srqwqe_buddy,
+					  ilog2(hr_dev->caps.num_srqwqe_segs));
+		if (ret)
+			goto err_buddy_srqwqe;
+	}
+
+	if (hr_dev->caps.num_idx_segs) {
+		ret = hns_roce_buddy_init(&mr_table->mtt_idx_buddy,
+					  ilog2(hr_dev->caps.num_idx_segs));
+		if (ret)
+			goto err_buddy_idx;
+	}
+
 	return 0;
+
+err_buddy_idx:
+	if (hr_dev->caps.num_srqwqe_segs)
+		hns_roce_buddy_cleanup(&mr_table->mtt_srqwqe_buddy);
+
+err_buddy_srqwqe:
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
+		hns_roce_buddy_cleanup(&mr_table->mtt_cqe_buddy);
 
 err_buddy_cqe:
 	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
@@ -842,6 +928,10 @@ void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
 
+	if (hr_dev->caps.num_idx_segs)
+		hns_roce_buddy_cleanup(&mr_table->mtt_idx_buddy);
+	if (hr_dev->caps.num_srqwqe_segs)
+		hns_roce_buddy_cleanup(&mr_table->mtt_srqwqe_buddy);
 	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
 		hns_roce_buddy_cleanup(&mr_table->mtt_cqe_buddy);
@@ -886,19 +976,35 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem)
 {
 	struct device *dev = hr_dev->dev;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	unsigned int order;
-	int i, k, entry;
 	int npage = 0;
 	int ret = 0;
-	int len;
+	int i;
 	u64 page_addr;
 	u64 *pages;
 	u32 bt_page_size;
 	u32 n;
 
-	order = mtt->mtt_type == MTT_TYPE_WQE ? hr_dev->caps.mtt_ba_pg_sz :
-		hr_dev->caps.cqe_ba_pg_sz;
+	switch (mtt->mtt_type) {
+	case MTT_TYPE_WQE:
+		order = hr_dev->caps.mtt_ba_pg_sz;
+		break;
+	case MTT_TYPE_CQE:
+		order = hr_dev->caps.cqe_ba_pg_sz;
+		break;
+	case MTT_TYPE_SRQWQE:
+		order = hr_dev->caps.srqwqe_ba_pg_sz;
+		break;
+	case MTT_TYPE_IDX:
+		order = hr_dev->caps.idx_ba_pg_sz;
+		break;
+	default:
+		dev_err(dev, "Unsupport mtt type %d, write mtt failed\n",
+			mtt->mtt_type);
+		return -EINVAL;
+	}
+
 	bt_page_size = 1 << (order + PAGE_SHIFT);
 
 	pages = (u64 *) __get_free_pages(GFP_KERNEL, order);
@@ -907,29 +1013,25 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 
 	i = n = 0;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (k = 0; k < len; ++k) {
-			page_addr =
-				sg_dma_address(sg) + (k << umem->page_shift);
-			if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
-				if (page_addr & ((1 << mtt->page_shift) - 1)) {
-					dev_err(dev, "page_addr 0x%llx is not page_shift %d alignment!\n",
-						page_addr, mtt->page_shift);
-					ret = -EINVAL;
-					goto out;
-				}
-				pages[i++] = page_addr;
+	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		page_addr = sg_page_iter_dma_address(&sg_iter);
+		if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
+			if (page_addr & ((1 << mtt->page_shift) - 1)) {
+				dev_err(dev,
+					"page_addr 0x%llx is not page_shift %d alignment!\n",
+					page_addr, mtt->page_shift);
+				ret = -EINVAL;
+				goto out;
 			}
-			npage++;
-			if (i == bt_page_size / sizeof(u64)) {
-				ret = hns_roce_write_mtt(hr_dev, mtt, n, i,
-							 pages);
-				if (ret)
-					goto out;
-				n += i;
-				i = 0;
-			}
+			pages[i++] = page_addr;
+		}
+		npage++;
+		if (i == bt_page_size / sizeof(u64)) {
+			ret = hns_roce_write_mtt(hr_dev, mtt, n, i, pages);
+			if (ret)
+				goto out;
+			n += i;
+			i = 0;
 		}
 	}
 
@@ -945,10 +1047,8 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 				     struct hns_roce_mr *mr,
 				     struct ib_umem *umem)
 {
-	struct scatterlist *sg;
-	int i = 0, j = 0, k;
-	int entry;
-	int len;
+	struct sg_dma_page_iter sg_iter;
+	int i = 0, j = 0;
 	u64 page_addr;
 	u32 pbl_bt_sz;
 
@@ -956,27 +1056,22 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 		return 0;
 
 	pbl_bt_sz = 1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT);
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (k = 0; k < len; ++k) {
-			page_addr = sg_dma_address(sg) +
-				    (k << umem->page_shift);
+	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		page_addr = sg_page_iter_dma_address(&sg_iter);
+		if (!hr_dev->caps.pbl_hop_num) {
+			mr->pbl_buf[i++] = page_addr >> 12;
+		} else if (hr_dev->caps.pbl_hop_num == 1) {
+			mr->pbl_buf[i++] = page_addr;
+		} else {
+			if (hr_dev->caps.pbl_hop_num == 2)
+				mr->pbl_bt_l1[i][j] = page_addr;
+			else if (hr_dev->caps.pbl_hop_num == 3)
+				mr->pbl_bt_l2[i][j] = page_addr;
 
-			if (!hr_dev->caps.pbl_hop_num) {
-				mr->pbl_buf[i++] = page_addr >> 12;
-			} else if (hr_dev->caps.pbl_hop_num == 1) {
-				mr->pbl_buf[i++] = page_addr;
-			} else {
-				if (hr_dev->caps.pbl_hop_num == 2)
-					mr->pbl_bt_l1[i][j] = page_addr;
-				else if (hr_dev->caps.pbl_hop_num == 3)
-					mr->pbl_bt_l2[i][j] = page_addr;
-
-				j++;
-				if (j >= (pbl_bt_sz / 8)) {
-					i++;
-					j = 0;
-				}
+			j++;
+			if (j >= (pbl_bt_sz / 8)) {
+				i++;
+				j = 0;
 			}
 		}
 	}
@@ -1003,8 +1098,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(pd->uobject->context, start, length,
-			       access_flags, 0);
+	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
 	if (IS_ERR(mr->umem)) {
 		ret = PTR_ERR(mr->umem);
 		goto err_free;
@@ -1021,14 +1115,14 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			goto err_umem;
 		}
 	} else {
-		int pbl_size = 1;
+		u64 pbl_size = 1;
 
 		bt_size = (1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT)) / 8;
 		for (i = 0; i < hr_dev->caps.pbl_hop_num; i++)
 			pbl_size *= bt_size;
 		if (n > pbl_size) {
 			dev_err(dev,
-			    " MR len %lld err. MR page num is limited to %d!\n",
+			    " MR len %lld err. MR page num is limited to %lld!\n",
 			    length, pbl_size);
 			ret = -EINVAL;
 			goto err_umem;
@@ -1113,8 +1207,8 @@ int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
 		}
 		ib_umem_release(mr->umem);
 
-		mr->umem = ib_umem_get(ibmr->uobject->context, start, length,
-				       mr_access_flags, 0);
+		mr->umem =
+			ib_umem_get(udata, start, length, mr_access_flags, 0);
 		if (IS_ERR(mr->umem)) {
 			ret = PTR_ERR(mr->umem);
 			mr->umem = NULL;

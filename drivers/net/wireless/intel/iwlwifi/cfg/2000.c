@@ -57,7 +57,7 @@
 #define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl2000_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
 	.max_ll_items = OTP_MAX_LL_ITEMS_2x00,
@@ -71,7 +71,7 @@ static const struct iwl_base_params iwl2000_base_params = {
 
 
 static const struct iwl_base_params iwl2030_base_params = {
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
 	.max_ll_items = OTP_MAX_LL_ITEMS_2x00,

@@ -57,6 +57,7 @@
 #include <net/sctp/checksum.h>
 #include <net/net_namespace.h>
 #include <linux/rhashtable.h>
+#include <net/sock_reuseport.h>
 
 /* Forward declarations for internal helpers. */
 static int sctp_rcv_ootb(struct sk_buff *);
@@ -65,8 +66,10 @@ static struct sctp_association *__sctp_rcv_lookup(struct net *net,
 				      const union sctp_addr *paddr,
 				      const union sctp_addr *laddr,
 				      struct sctp_transport **transportp);
-static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
-						const union sctp_addr *laddr);
+static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(
+					struct net *net, struct sk_buff *skb,
+					const union sctp_addr *laddr,
+					const union sctp_addr *daddr);
 static struct sctp_association *__sctp_lookup_association(
 					struct net *net,
 					const union sctp_addr *local,
@@ -171,7 +174,7 @@ int sctp_rcv(struct sk_buff *skb)
 	asoc = __sctp_rcv_lookup(net, skb, &src, &dest, &transport);
 
 	if (!asoc)
-		ep = __sctp_rcv_lookup_endpoint(net, &dest);
+		ep = __sctp_rcv_lookup_endpoint(net, skb, &dest, &src);
 
 	/* Retrieve the common input handling substructure. */
 	rcvr = asoc ? &asoc->base : &ep->base;
@@ -574,7 +577,7 @@ void sctp_err_finish(struct sock *sk, struct sctp_transport *t)
  * is probably better.
  *
  */
-void sctp_v4_err(struct sk_buff *skb, __u32 info)
+int sctp_v4_err(struct sk_buff *skb, __u32 info)
 {
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int ihlen = iph->ihl * 4;
@@ -599,7 +602,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	skb->transport_header = savesctp;
 	if (!sk) {
 		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
-		return;
+		return -ENOENT;
 	}
 	/* Warning:  The sock lock is held.  Remember to call
 	 * sctp_err_finish!
@@ -653,6 +656,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 
 out_unlock:
 	sctp_err_finish(sk, transport);
+	return 0;
 }
 
 /*
@@ -720,42 +724,86 @@ discard:
 }
 
 /* Insert endpoint into the hash table.  */
-static void __sctp_hash_endpoint(struct sctp_endpoint *ep)
+static int __sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
-	struct net *net = sock_net(ep->base.sk);
-	struct sctp_ep_common *epb;
+	struct sock *sk = ep->base.sk;
+	struct net *net = sock_net(sk);
 	struct sctp_hashbucket *head;
+	struct sctp_ep_common *epb;
 
 	epb = &ep->base;
-
 	epb->hashent = sctp_ep_hashfn(net, epb->bind_addr.port);
 	head = &sctp_ep_hashtable[epb->hashent];
+
+	if (sk->sk_reuseport) {
+		bool any = sctp_is_ep_boundall(sk);
+		struct sctp_ep_common *epb2;
+		struct list_head *list;
+		int cnt = 0, err = 1;
+
+		list_for_each(list, &ep->base.bind_addr.address_list)
+			cnt++;
+
+		sctp_for_each_hentry(epb2, &head->chain) {
+			struct sock *sk2 = epb2->sk;
+
+			if (!net_eq(sock_net(sk2), net) || sk2 == sk ||
+			    !uid_eq(sock_i_uid(sk2), sock_i_uid(sk)) ||
+			    !sk2->sk_reuseport)
+				continue;
+
+			err = sctp_bind_addrs_check(sctp_sk(sk2),
+						    sctp_sk(sk), cnt);
+			if (!err) {
+				err = reuseport_add_sock(sk, sk2, any);
+				if (err)
+					return err;
+				break;
+			} else if (err < 0) {
+				return err;
+			}
+		}
+
+		if (err) {
+			err = reuseport_alloc(sk, any);
+			if (err)
+				return err;
+		}
+	}
 
 	write_lock(&head->lock);
 	hlist_add_head(&epb->node, &head->chain);
 	write_unlock(&head->lock);
+	return 0;
 }
 
 /* Add an endpoint to the hash. Local BH-safe. */
-void sctp_hash_endpoint(struct sctp_endpoint *ep)
+int sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
+	int err;
+
 	local_bh_disable();
-	__sctp_hash_endpoint(ep);
+	err = __sctp_hash_endpoint(ep);
 	local_bh_enable();
+
+	return err;
 }
 
 /* Remove endpoint from the hash table.  */
 static void __sctp_unhash_endpoint(struct sctp_endpoint *ep)
 {
-	struct net *net = sock_net(ep->base.sk);
+	struct sock *sk = ep->base.sk;
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 
 	epb = &ep->base;
 
-	epb->hashent = sctp_ep_hashfn(net, epb->bind_addr.port);
+	epb->hashent = sctp_ep_hashfn(sock_net(sk), epb->bind_addr.port);
 
 	head = &sctp_ep_hashtable[epb->hashent];
+
+	if (rcu_access_pointer(sk->sk_reuseport_cb))
+		reuseport_detach_sock(sk);
 
 	write_lock(&head->lock);
 	hlist_del_init(&epb->node);
@@ -770,16 +818,35 @@ void sctp_unhash_endpoint(struct sctp_endpoint *ep)
 	local_bh_enable();
 }
 
+static inline __u32 sctp_hashfn(const struct net *net, __be16 lport,
+				const union sctp_addr *paddr, __u32 seed)
+{
+	__u32 addr;
+
+	if (paddr->sa.sa_family == AF_INET6)
+		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
+	else
+		addr = (__force __u32)paddr->v4.sin_addr.s_addr;
+
+	return  jhash_3words(addr, ((__force __u32)paddr->v4.sin_port) << 16 |
+			     (__force __u32)lport, net_hash_mix(net), seed);
+}
+
 /* Look up an endpoint. */
-static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
-						const union sctp_addr *laddr)
+static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(
+					struct net *net, struct sk_buff *skb,
+					const union sctp_addr *laddr,
+					const union sctp_addr *paddr)
 {
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
+	struct sock *sk;
+	__be16 lport;
 	int hash;
 
-	hash = sctp_ep_hashfn(net, ntohs(laddr->v4.sin_port));
+	lport = laddr->v4.sin_port;
+	hash = sctp_ep_hashfn(net, ntohs(lport));
 	head = &sctp_ep_hashtable[hash];
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, &head->chain) {
@@ -791,6 +858,15 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
 	ep = sctp_sk(net->sctp.ctl_sock)->ep;
 
 hit:
+	sk = ep->base.sk;
+	if (sk->sk_reuseport) {
+		__u32 phash = sctp_hashfn(net, lport, paddr, 0);
+
+		sk = reuseport_select_sock(sk, phash, skb,
+					   sizeof(struct sctphdr));
+		if (sk)
+			ep = sctp_sk(sk)->ep;
+	}
 	sctp_endpoint_hold(ep);
 	read_unlock(&head->lock);
 	return ep;
@@ -829,35 +905,17 @@ out:
 static inline __u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
 {
 	const struct sctp_transport *t = data;
-	const union sctp_addr *paddr = &t->ipaddr;
-	const struct net *net = sock_net(t->asoc->base.sk);
-	__be16 lport = htons(t->asoc->base.bind_addr.port);
-	__u32 addr;
 
-	if (paddr->sa.sa_family == AF_INET6)
-		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
-	else
-		addr = (__force __u32)paddr->v4.sin_addr.s_addr;
-
-	return  jhash_3words(addr, ((__force __u32)paddr->v4.sin_port) << 16 |
-			     (__force __u32)lport, net_hash_mix(net), seed);
+	return sctp_hashfn(sock_net(t->asoc->base.sk),
+			   htons(t->asoc->base.bind_addr.port),
+			   &t->ipaddr, seed);
 }
 
 static inline __u32 sctp_hash_key(const void *data, u32 len, u32 seed)
 {
 	const struct sctp_hash_cmp_arg *x = data;
-	const union sctp_addr *paddr = x->paddr;
-	const struct net *net = x->net;
-	__be16 lport = x->lport;
-	__u32 addr;
 
-	if (paddr->sa.sa_family == AF_INET6)
-		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
-	else
-		addr = (__force __u32)paddr->v4.sin_addr.s_addr;
-
-	return  jhash_3words(addr, ((__force __u32)paddr->v4.sin_port) << 16 |
-			     (__force __u32)lport, net_hash_mix(net), seed);
+	return sctp_hashfn(x->net, x->lport, x->paddr, seed);
 }
 
 static const struct rhashtable_params sctp_hash_params = {

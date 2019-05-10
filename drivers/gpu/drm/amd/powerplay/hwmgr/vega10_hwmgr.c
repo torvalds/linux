@@ -48,6 +48,7 @@
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
+#include "vega10_baco.h"
 
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
@@ -70,6 +71,21 @@ static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 #define DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK                                                        0x000000F0L
 #define DF_CS_AON0_DramBaseAddress0__IntLvAddrSel_MASK                                                        0x00000700L
 #define DF_CS_AON0_DramBaseAddress0__DramBaseAddr_MASK                                                        0xFFFFF000L
+
+typedef enum {
+	CLK_SMNCLK = 0,
+	CLK_SOCCLK,
+	CLK_MP0CLK,
+	CLK_MP1CLK,
+	CLK_LCLK,
+	CLK_DCEFCLK,
+	CLK_VCLK,
+	CLK_DCLK,
+	CLK_ECLK,
+	CLK_UCLK,
+	CLK_GFXCLK,
+	CLK_COUNT,
+} CLOCK_ID_e;
 
 static const ULONG PhwVega10_Magic = (ULONG)(PHM_VIslands_Magic);
 
@@ -804,9 +820,9 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
-	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO];
-	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
-	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
+	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
+	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 
 	vega10_set_default_registry_data(hwmgr);
 	data->disable_dpm_mask = 0xff;
@@ -2559,10 +2575,10 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.gfx_clock = boot_up_values.ulGfxClk;
 		data->vbios_boot_state.mem_clock = boot_up_values.ulUClk;
 		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
-				SMU9_SYSPLL0_SOCCLK_ID, &boot_up_values.ulSocClk);
+				SMU9_SYSPLL0_SOCCLK_ID, 0, &boot_up_values.ulSocClk);
 
 		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
-				SMU9_SYSPLL0_DCEFCLK_ID, &boot_up_values.ulDCEFClk);
+				SMU9_SYSPLL0_DCEFCLK_ID, 0, &boot_up_values.ulDCEFClk);
 
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
@@ -3485,6 +3501,17 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 		}
 	}
 
+	if (!data->registry_data.socclk_dpm_key_disabled) {
+		if (data->smc_state_table.soc_boot_level !=
+				data->dpm_table.soc_table.dpm_state.soft_min_level) {
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetSoftMinSocclkByIndex,
+				data->smc_state_table.soc_boot_level);
+			data->dpm_table.soc_table.dpm_state.soft_min_level =
+					data->smc_state_table.soc_boot_level;
+		}
+	}
+
 	return 0;
 }
 
@@ -3516,6 +3543,17 @@ static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 		}
 	}
 
+	if (!data->registry_data.socclk_dpm_key_disabled) {
+		if (data->smc_state_table.soc_max_level !=
+			data->dpm_table.soc_table.dpm_state.soft_max_level) {
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetSoftMaxSocclkByIndex,
+				data->smc_state_table.soc_max_level);
+			data->dpm_table.soc_table.dpm_state.soft_max_level =
+					data->smc_state_table.soc_max_level;
+		}
+	}
+
 	return 0;
 }
 
@@ -3541,6 +3579,10 @@ static int vega10_generate_dpm_level_enable_mask(
 			vega10_find_lowest_dpm_level(&(data->dpm_table.mem_table));
 	data->smc_state_table.mem_max_level =
 			vega10_find_highest_dpm_level(&(data->dpm_table.mem_table));
+	data->smc_state_table.soc_boot_level =
+			vega10_find_lowest_dpm_level(&(data->dpm_table.soc_table));
+	data->smc_state_table.soc_max_level =
+			vega10_find_highest_dpm_level(&(data->dpm_table.soc_table));
 
 	PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
 			"Attempt to upload DPM Bootup Levels Failed!",
@@ -3554,6 +3596,9 @@ static int vega10_generate_dpm_level_enable_mask(
 
 	for(i = data->smc_state_table.mem_boot_level; i < data->smc_state_table.mem_max_level; i++)
 		data->dpm_table.mem_table.dpm_levels[i].enabled = true;
+
+	for (i = data->smc_state_table.soc_boot_level; i < data->smc_state_table.soc_max_level; i++)
+		data->dpm_table.soc_table.dpm_levels[i].enabled = true;
 
 	return 0;
 }
@@ -4028,6 +4073,24 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 
 		break;
 
+	case PP_SOCCLK:
+		data->smc_state_table.soc_boot_level = mask ? (ffs(mask) - 1) : 0;
+		data->smc_state_table.soc_max_level = mask ? (fls(mask) - 1) : 0;
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
+			"Failed to upload boot level to lowest!",
+			return -EINVAL);
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
+			"Failed to upload dpm max level to highest!",
+			return -EINVAL);
+
+		break;
+
+	case PP_DCEFCLK:
+		pr_info("Setting DCEFCLK min/max dpm level is not supported!\n");
+		break;
+
 	case PP_PCIE:
 	default:
 		break;
@@ -4267,12 +4330,113 @@ static int vega10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
+static int vega10_get_ppfeature_status(struct pp_hwmgr *hwmgr, char *buf)
+{
+	static const char *ppfeature_name[] = {
+				"DPM_PREFETCHER",
+				"GFXCLK_DPM",
+				"UCLK_DPM",
+				"SOCCLK_DPM",
+				"UVD_DPM",
+				"VCE_DPM",
+				"ULV",
+				"MP0CLK_DPM",
+				"LINK_DPM",
+				"DCEFCLK_DPM",
+				"AVFS",
+				"GFXCLK_DS",
+				"SOCCLK_DS",
+				"LCLK_DS",
+				"PPT",
+				"TDC",
+				"THERMAL",
+				"GFX_PER_CU_CG",
+				"RM",
+				"DCEFCLK_DS",
+				"ACDC",
+				"VR0HOT",
+				"VR1HOT",
+				"FW_CTF",
+				"LED_DISPLAY",
+				"FAN_CONTROL",
+				"FAST_PPT",
+				"DIDT",
+				"ACG",
+				"PCC_LIMIT"};
+	static const char *output_title[] = {
+				"FEATURES",
+				"BITMASK",
+				"ENABLEMENT"};
+	uint64_t features_enabled;
+	int i;
+	int ret = 0;
+	int size = 0;
+
+	ret = vega10_get_enabled_smc_features(hwmgr, &features_enabled);
+	PP_ASSERT_WITH_CODE(!ret,
+			"[EnableAllSmuFeatures] Failed to get enabled smc features!",
+			return ret);
+
+	size += sprintf(buf + size, "Current ppfeatures: 0x%016llx\n", features_enabled);
+	size += sprintf(buf + size, "%-19s %-22s %s\n",
+				output_title[0],
+				output_title[1],
+				output_title[2]);
+	for (i = 0; i < GNLD_FEATURES_MAX; i++) {
+		size += sprintf(buf + size, "%-19s 0x%016llx %6s\n",
+					ppfeature_name[i],
+					1ULL << i,
+					(features_enabled & (1ULL << i)) ? "Y" : "N");
+	}
+
+	return size;
+}
+
+static int vega10_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfeature_masks)
+{
+	uint64_t features_enabled;
+	uint64_t features_to_enable;
+	uint64_t features_to_disable;
+	int ret = 0;
+
+	if (new_ppfeature_masks >= (1ULL << GNLD_FEATURES_MAX))
+		return -EINVAL;
+
+	ret = vega10_get_enabled_smc_features(hwmgr, &features_enabled);
+	if (ret)
+		return ret;
+
+	features_to_disable =
+		features_enabled & ~new_ppfeature_masks;
+	features_to_enable =
+		~features_enabled & new_ppfeature_masks;
+
+	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
+	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
+
+	if (features_to_disable) {
+		ret = vega10_enable_smc_features(hwmgr, false, features_to_disable);
+		if (ret)
+			return ret;
+	}
+
+	if (features_to_enable) {
+		ret = vega10_enable_smc_features(hwmgr, true, features_to_enable);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
 	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
+	struct vega10_single_dpm_table *soc_table = &(data->dpm_table.soc_table);
+	struct vega10_single_dpm_table *dcef_table = &(data->dpm_table.dcef_table);
 	struct vega10_pcie_table *pcie_table = &(data->dpm_table.pcie_table);
 	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep = NULL;
 
@@ -4302,6 +4466,32 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, mclk_table->dpm_levels[i].value / 100,
 					(i == now) ? "*" : "");
+		break;
+	case PP_SOCCLK:
+		if (data->registry_data.socclk_dpm_key_disabled)
+			break;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentSocclkIndex);
+		now = smum_get_argument(hwmgr);
+
+		for (i = 0; i < soc_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, soc_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_DCEFCLK:
+		if (data->registry_data.dcefclk_dpm_key_disabled)
+			break;
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_GetClockFreqMHz, CLK_DCEFCLK);
+		now = smum_get_argument(hwmgr);
+
+		for (i = 0; i < dcef_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, dcef_table->dpm_levels[i].value / 100,
+					(dcef_table->dpm_levels[i].value / 100 == now) ?
+					"*" : "");
 		break;
 	case PP_PCIE:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentLinkIndex);
@@ -4668,13 +4858,15 @@ static int vega10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t i, size = 0;
-	static const uint8_t profile_mode_setting[5][4] = {{70, 60, 1, 3,},
+	static const uint8_t profile_mode_setting[6][4] = {{70, 60, 0, 0,},
+						{70, 60, 1, 3,},
 						{90, 60, 0, 0,},
 						{70, 60, 0, 0,},
 						{70, 90, 0, 0,},
 						{30, 60, 0, 6,},
 						};
-	static const char *profile_name[6] = {"3D_FULL_SCREEN",
+	static const char *profile_name[7] = {"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
 					"POWER_SAVING",
 					"VIDEO",
 					"VR",
@@ -4978,6 +5170,12 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_power_limit = vega10_set_power_limit,
 	.odn_edit_dpm_table = vega10_odn_edit_dpm_table,
 	.get_performance_level = vega10_get_performance_level,
+	.get_asic_baco_capability = vega10_baco_get_capability,
+	.get_asic_baco_state = vega10_baco_get_state,
+	.set_asic_baco_state = vega10_baco_set_state,
+	.enable_mgpu_fan_boost = vega10_enable_mgpu_fan_boost,
+	.get_ppfeature_status = vega10_get_ppfeature_status,
+	.set_ppfeature_status = vega10_set_ppfeature_status,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)

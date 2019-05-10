@@ -254,11 +254,6 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	/*
-	 * We will just free a dummy node if it's ref count is 2 so we need an
-	 * extra ref so our searches don't accidentally release our page.
-	 */
-	extent_buffer_get(root->node);
 	btrfs_set_header_nritems(root->node, 0);
 	btrfs_set_header_level(root->node, 0);
 	ret = -EINVAL;
@@ -860,7 +855,6 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	extent_buffer_get(root->node);
 	btrfs_set_header_nritems(root->node, 0);
 	btrfs_set_header_level(root->node, 0);
 	BTRFS_I(inode)->root = root;

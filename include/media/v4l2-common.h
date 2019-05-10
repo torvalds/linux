@@ -362,15 +362,6 @@ __v4l2_find_nearest_size(const void *array, size_t array_size,
 			 size_t height_offset, s32 width, s32 height);
 
 /**
- * v4l2_get_timestamp - helper routine to get a timestamp to be used when
- *	filling streaming metadata. Internally, it uses ktime_get_ts(),
- *	which is the recommended way to get it.
- *
- * @tv: pointer to &struct timeval to be filled.
- */
-void v4l2_get_timestamp(struct timeval *tv);
-
-/**
  * v4l2_g_parm_cap - helper routine for vidioc_g_parm to fill this in by
  *      calling the g_frame_interval op of the given subdev. It only works
  *      for V4L2_BUF_TYPE_VIDEO_CAPTURE(_MPLANE), hence the _cap in the
@@ -395,5 +386,10 @@ int v4l2_g_parm_cap(struct video_device *vdev,
  */
 int v4l2_s_parm_cap(struct video_device *vdev,
 		    struct v4l2_subdev *sd, struct v4l2_streamparm *a);
+
+/* Compare two v4l2_fract structs */
+#define V4L2_FRACT_COMPARE(a, OP, b)			\
+	((u64)(a).numerator * (b).denominator OP	\
+	(u64)(b).numerator * (a).denominator)
 
 #endif /* V4L2_COMMON_H_ */

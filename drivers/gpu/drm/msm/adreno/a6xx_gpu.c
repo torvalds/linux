@@ -4,6 +4,7 @@
 
 #include "msm_gem.h"
 #include "msm_mmu.h"
+#include "msm_gpu_trace.h"
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
 
@@ -67,12 +68,35 @@ static void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	gpu_write(gpu, REG_A6XX_CP_RB_WPTR, wptr);
 }
 
+static void get_stats_counter(struct msm_ringbuffer *ring, u32 counter,
+		u64 iova)
+{
+	OUT_PKT7(ring, CP_REG_TO_MEM, 3);
+	OUT_RING(ring, counter | (1 << 30) | (2 << 18));
+	OUT_RING(ring, lower_32_bits(iova));
+	OUT_RING(ring, upper_32_bits(iova));
+}
+
 static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
 {
+	unsigned int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
 	struct msm_drm_private *priv = gpu->dev->dev_private;
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned int i;
+
+	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
+		rbmemptr_stats(ring, index, cpcycles_start));
+
+	/*
+	 * For PM4 the GMU register offsets are calculated from the base of the
+	 * GPU registers so we need to add 0x1a800 to the register value on A630
+	 * to get the right value from PM4.
+	 */
+	get_stats_counter(ring, REG_A6XX_GMU_ALWAYS_ON_COUNTER_L + 0x1a800,
+		rbmemptr_stats(ring, index, alwayson_start));
 
 	/* Invalidate CCU depth and color */
 	OUT_PKT7(ring, CP_EVENT_WRITE, 1);
@@ -98,6 +122,11 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		}
 	}
 
+	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
+		rbmemptr_stats(ring, index, cpcycles_end));
+	get_stats_counter(ring, REG_A6XX_GMU_ALWAYS_ON_COUNTER_L + 0x1a800,
+		rbmemptr_stats(ring, index, alwayson_end));
+
 	/* Write the fence to the scratch register */
 	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH_REG(2), 1);
 	OUT_RING(ring, submit->seqno);
@@ -111,6 +140,10 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_RING(ring, lower_32_bits(rbmemptr(ring, fence)));
 	OUT_RING(ring, upper_32_bits(rbmemptr(ring, fence)));
 	OUT_RING(ring, submit->seqno);
+
+	trace_msm_gpu_submit_flush(submit,
+		gmu_read64(&a6xx_gpu->gmu, REG_A6XX_GMU_ALWAYS_ON_COUNTER_L,
+			REG_A6XX_GMU_ALWAYS_ON_COUNTER_H));
 
 	a6xx_flush(gpu, ring);
 }
@@ -300,6 +333,8 @@ static int a6xx_ucode_init(struct msm_gpu *gpu)
 
 			return ret;
 		}
+
+		msm_gem_object_set_name(a6xx_gpu->sqe_bo, "sqefw");
 	}
 
 	gpu_write64(gpu, REG_A6XX_CP_SQE_INSTR_BASE_LO,
@@ -387,14 +422,6 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	/* Select CP0 to always count cycles */
 	gpu_write(gpu, REG_A6XX_CP_PERFCTR_CP_SEL_0, PERF_CP_ALWAYS_COUNT);
 
-	/* FIXME: not sure if this should live here or in a6xx_gmu.c */
-	gmu_write(&a6xx_gpu->gmu,  REG_A6XX_GPU_GMU_AO_GPU_CX_BUSY_MASK,
-		0xff000000);
-	gmu_rmw(&a6xx_gpu->gmu, REG_A6XX_GMU_CX_GMU_POWER_COUNTER_SELECT_0,
-		0xff, 0x20);
-	gmu_write(&a6xx_gpu->gmu, REG_A6XX_GMU_CX_GMU_POWER_COUNTER_ENABLE,
-		0x01);
-
 	gpu_write(gpu, REG_A6XX_RB_NC_MODE_CNTL, 2 << 1);
 	gpu_write(gpu, REG_A6XX_TPL1_NC_MODE_CNTL, 2 << 1);
 	gpu_write(gpu, REG_A6XX_SP_NC_MODE_CNTL, 2 << 1);
@@ -481,7 +508,7 @@ out:
 
 static void a6xx_dump(struct msm_gpu *gpu)
 {
-	dev_info(&gpu->pdev->dev, "status:   %08x\n",
+	DRM_DEV_INFO(&gpu->pdev->dev, "status:   %08x\n",
 			gpu_read(gpu, REG_A6XX_RBBM_STATUS));
 	adreno_dump(gpu);
 }
@@ -498,7 +525,7 @@ static void a6xx_recover(struct msm_gpu *gpu)
 	adreno_dump_info(gpu);
 
 	for (i = 0; i < 8; i++)
-		dev_info(&gpu->pdev->dev, "CP_SCRATCH_REG%d: %u\n", i,
+		DRM_DEV_INFO(&gpu->pdev->dev, "CP_SCRATCH_REG%d: %u\n", i,
 			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(i)));
 
 	if (hang_debug)
@@ -645,33 +672,6 @@ static const u32 a6xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
 	REG_ADRENO_DEFINE(REG_ADRENO_CP_RB_CNTL, REG_A6XX_CP_RB_CNTL),
 };
 
-static const u32 a6xx_registers[] = {
-	0x0000, 0x0002, 0x0010, 0x0010, 0x0012, 0x0012, 0x0018, 0x001b,
-	0x001e, 0x0032, 0x0038, 0x003c, 0x0042, 0x0042, 0x0044, 0x0044,
-	0x0047, 0x0047, 0x0056, 0x0056, 0x00ad, 0x00ae, 0x00b0, 0x00fb,
-	0x0100, 0x011d, 0x0200, 0x020d, 0x0210, 0x0213, 0x0218, 0x023d,
-	0x0400, 0x04f9, 0x0500, 0x0500, 0x0505, 0x050b, 0x050e, 0x0511,
-	0x0533, 0x0533, 0x0540, 0x0555, 0x0800, 0x0808, 0x0810, 0x0813,
-	0x0820, 0x0821, 0x0823, 0x0827, 0x0830, 0x0833, 0x0840, 0x0843,
-	0x084f, 0x086f, 0x0880, 0x088a, 0x08a0, 0x08ab, 0x08c0, 0x08c4,
-	0x08d0, 0x08dd, 0x08f0, 0x08f3, 0x0900, 0x0903, 0x0908, 0x0911,
-	0x0928, 0x093e, 0x0942, 0x094d, 0x0980, 0x0984, 0x098d, 0x0996,
-	0x0998, 0x099e, 0x09a0, 0x09a6, 0x09a8, 0x09ae, 0x09b0, 0x09b1,
-	0x09c2, 0x09c8, 0x0a00, 0x0a03, 0x0c00, 0x0c04, 0x0c06, 0x0c06,
-	0x0c10, 0x0cd9, 0x0e00, 0x0e0e, 0x0e10, 0x0e13, 0x0e17, 0x0e19,
-	0x0e1c, 0x0e2b, 0x0e30, 0x0e32, 0x0e38, 0x0e39, 0x8600, 0x8601,
-	0x8610, 0x861b, 0x8620, 0x8620, 0x8628, 0x862b, 0x8630, 0x8637,
-	0x8e01, 0x8e01, 0x8e04, 0x8e05, 0x8e07, 0x8e08, 0x8e0c, 0x8e0c,
-	0x8e10, 0x8e1c, 0x8e20, 0x8e25, 0x8e28, 0x8e28, 0x8e2c, 0x8e2f,
-	0x8e3b, 0x8e3e, 0x8e40, 0x8e43, 0x8e50, 0x8e5e, 0x8e70, 0x8e77,
-	0x9600, 0x9604, 0x9624, 0x9637, 0x9e00, 0x9e01, 0x9e03, 0x9e0e,
-	0x9e11, 0x9e16, 0x9e19, 0x9e19, 0x9e1c, 0x9e1c, 0x9e20, 0x9e23,
-	0x9e30, 0x9e31, 0x9e34, 0x9e34, 0x9e70, 0x9e72, 0x9e78, 0x9e79,
-	0x9e80, 0x9fff, 0xa600, 0xa601, 0xa603, 0xa603, 0xa60a, 0xa60a,
-	0xa610, 0xa617, 0xa630, 0xa630,
-	~0
-};
-
 static int a6xx_pm_resume(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -724,14 +724,6 @@ static int a6xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 	return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
-static void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
-		struct drm_printer *p)
-{
-	adreno_show(gpu, state, p);
-}
-#endif
-
 static struct msm_ringbuffer *a6xx_active_ring(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -746,8 +738,7 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 
 	if (a6xx_gpu->sqe_bo) {
-		if (a6xx_gpu->sqe_iova)
-			msm_gem_put_iova(a6xx_gpu->sqe_bo, gpu->aspace);
+		msm_gem_unpin_iova(a6xx_gpu->sqe_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a6xx_gpu->sqe_bo);
 	}
 
@@ -796,6 +787,8 @@ static const struct adreno_gpu_funcs funcs = {
 		.gpu_busy = a6xx_gpu_busy,
 		.gpu_get_freq = a6xx_gmu_get_freq,
 		.gpu_set_freq = a6xx_gmu_set_freq,
+		.gpu_state_get = a6xx_gpu_state_get,
+		.gpu_state_put = a6xx_gpu_state_put,
 	},
 	.get_timestamp = a6xx_get_timestamp,
 };
@@ -817,7 +810,7 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	adreno_gpu = &a6xx_gpu->base;
 	gpu = &adreno_gpu->base;
 
-	adreno_gpu->registers = a6xx_registers;
+	adreno_gpu->registers = NULL;
 	adreno_gpu->reg_offsets = a6xx_register_offsets;
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);

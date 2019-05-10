@@ -52,7 +52,12 @@
 		serial0 = &uart_AO;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
+		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
 

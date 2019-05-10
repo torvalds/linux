@@ -138,7 +138,7 @@ static struct notifier_block opal_power_control_nb = {
 	.priority	= 0,
 };
 
-static int __init opal_power_control_init(void)
+int __init opal_power_control_init(void)
 {
 	int ret, supported = 0;
 	struct device_node *np;
@@ -176,4 +176,3 @@ static int __init opal_power_control_init(void)
 
 	return 0;
 }
-machine_subsys_initcall(powernv, opal_power_control_init);

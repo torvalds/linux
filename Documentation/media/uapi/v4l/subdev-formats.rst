@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _v4l2-mbus-format:
 
@@ -68,15 +75,15 @@ Media Bus Pixel Codes
 ---------------------
 
 The media bus pixel codes describe image formats as flowing over
-physical busses (both between separate physical components and inside
+physical buses (both between separate physical components and inside
 SoC devices). This should not be confused with the V4L2 pixel formats
 that describe, using four character codes, image formats as stored in
 memory.
 
-While there is a relationship between image formats on busses and image
+While there is a relationship between image formats on buses and image
 formats in memory (a raw Bayer image won't be magically converted to
 JPEG just by storing it to memory), there is no one-to-one
-correspondance between them.
+correspondence between them.
 
 
 Packed RGB Formats

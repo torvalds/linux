@@ -247,7 +247,7 @@ int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
 			}
 		}
 
-		if (!still_probing || unlikely(signal_pending(current)))
+		if (!still_probing || signal_pending(current))
 			goto stop;
 		schedule();
 	}

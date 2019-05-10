@@ -7,6 +7,7 @@
 #include <linux/irq.h>
 
 #include <asm/hpet.h>
+#include <asm/setup.h>
 
 #if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_SMP) && defined(CONFIG_PCI)
 

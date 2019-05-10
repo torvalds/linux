@@ -30,7 +30,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>

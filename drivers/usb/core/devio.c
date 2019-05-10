@@ -604,7 +604,7 @@ static void async_completed(struct urb *urb)
 	snoop(&urb->dev->dev, "urb complete\n");
 	snoop_urb(urb->dev, as->userurb, urb->pipe, urb->actual_length,
 			as->status, COMPLETE, NULL, 0);
-	if ((urb->transfer_flags & URB_DIR_MASK) == URB_DIR_IN)
+	if (usb_urb_dir_in(urb))
 		snoop_urb_data(urb, urb->actual_length);
 
 	if (as->status < 0 && as->bulk_addr && as->status != -ECONNRESET &&
@@ -1094,7 +1094,7 @@ static int proc_control(struct usb_dev_state *ps, void __user *arg)
 		ctrl.bRequestType, ctrl.bRequest, ctrl.wValue,
 		ctrl.wIndex, ctrl.wLength);
 	if (ctrl.bRequestType & 0x80) {
-		if (ctrl.wLength && !access_ok(VERIFY_WRITE, ctrl.data,
+		if (ctrl.wLength && !access_ok(ctrl.data,
 					       ctrl.wLength)) {
 			ret = -EINVAL;
 			goto done;
@@ -1183,7 +1183,7 @@ static int proc_bulk(struct usb_dev_state *ps, void __user *arg)
 	}
 	tmo = bulk.timeout;
 	if (bulk.ep & 0x80) {
-		if (len1 && !access_ok(VERIFY_WRITE, bulk.data, len1)) {
+		if (len1 && !access_ok(bulk.data, len1)) {
 			ret = -EINVAL;
 			goto done;
 		}
@@ -1564,12 +1564,10 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 		}
 		for (totlen = u = 0; u < number_of_packets; u++) {
 			/*
-			 * arbitrary limit need for USB 3.0
-			 * bMaxBurst (0~15 allowed, 1~16 packets)
-			 * bmAttributes (bit 1:0, mult 0~2, 1~3 packets)
-			 * sizemax: 1024 * 16 * 3 = 49152
+			 * arbitrary limit need for USB 3.1 Gen2
+			 * sizemax: 96 DPs at SSP, 96 * 1024 = 98304
 			 */
-			if (isopkt[u].length > 49152) {
+			if (isopkt[u].length > 98304) {
 				ret = -EINVAL;
 				goto error;
 			}
@@ -1584,8 +1582,7 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	}
 
 	if (uurb->buffer_length > 0 &&
-			!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
-				uurb->buffer, uurb->buffer_length)) {
+			!access_ok(uurb->buffer, uurb->buffer_length)) {
 		ret = -EFAULT;
 		goto error;
 	}

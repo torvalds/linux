@@ -633,7 +633,7 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
  * Flush the TLB for the requested page table (CIK).
  */
 static void gmc_v8_0_flush_gpu_tlb(struct amdgpu_device *adev,
-					uint32_t vmid)
+				uint32_t vmid, uint32_t flush_type)
 {
 	/* bits 0-15 are the VM contexts0-15 */
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
@@ -942,7 +942,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	else
 		gmc_v8_0_set_fault_enable_default(adev, true);
 
-	gmc_v8_0_flush_gpu_tlb(adev, 0);
+	gmc_v8_0_flush_gpu_tlb(adev, 0, 0);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
@@ -1471,8 +1471,9 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
 	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info = { 0 };
+		struct amdgpu_task_info task_info;
 
+		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
 		dev_err(adev->dev, "GPU fault detected: %d 0x%08x for process %s pid %d thread %s pid %d\n",

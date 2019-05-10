@@ -234,7 +234,7 @@ int __must_check sysfs_create_file_ns(struct kobject *kobj,
 				      const struct attribute *attr,
 				      const void *ns);
 int __must_check sysfs_create_files(struct kobject *kobj,
-				   const struct attribute **attr);
+				   const struct attribute * const *attr);
 int __must_check sysfs_chmod_file(struct kobject *kobj,
 				  const struct attribute *attr, umode_t mode);
 struct kernfs_node *sysfs_break_active_protection(struct kobject *kobj,
@@ -243,7 +243,7 @@ void sysfs_unbreak_active_protection(struct kernfs_node *kn);
 void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
 			  const void *ns);
 bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr);
-void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
+void sysfs_remove_files(struct kobject *kobj, const struct attribute * const *attr);
 
 int __must_check sysfs_create_bin_file(struct kobject *kobj,
 				       const struct bin_attribute *attr);
@@ -342,7 +342,7 @@ static inline int sysfs_create_file_ns(struct kobject *kobj,
 }
 
 static inline int sysfs_create_files(struct kobject *kobj,
-				    const struct attribute **attr)
+				    const struct attribute * const *attr)
 {
 	return 0;
 }
@@ -377,7 +377,7 @@ static inline bool sysfs_remove_file_self(struct kobject *kobj,
 }
 
 static inline void sysfs_remove_files(struct kobject *kobj,
-				     const struct attribute **attr)
+				     const struct attribute * const *attr)
 {
 }
 

@@ -27,11 +27,8 @@
 #include "nbio/nbio_6_1_default.h"
 #include "nbio/nbio_6_1_offset.h"
 #include "nbio/nbio_6_1_sh_mask.h"
+#include "nbio/nbio_6_1_smn.h"
 #include "vega10_enum.h"
-
-#define smnCPM_CONTROL                                                                                  0x11180460
-#define smnPCIE_CNTL2                                                                                   0x11180070
-#define smnPCIE_CONFIG_CNTL                                                                             0x11180044
 
 static u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev)
 {
@@ -71,7 +68,7 @@ static u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
 }
 
 static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
-				  bool use_doorbell, int doorbell_index)
+			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
 	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
@@ -80,7 +77,7 @@ static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
-		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 2);
+		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, doorbell_size);
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
 
@@ -270,6 +267,12 @@ static void nbio_v6_1_init_registers(struct amdgpu_device *adev)
 
 	if (def != data)
 		WREG32_PCIE(smnPCIE_CONFIG_CNTL, data);
+
+	def = data = RREG32_PCIE(smnPCIE_CI_CNTL);
+	data = REG_SET_FIELD(data, PCIE_CI_CNTL, CI_SLV_ORDERING_DIS, 1);
+
+	if (def != data)
+		WREG32_PCIE(smnPCIE_CI_CNTL, data);
 }
 
 const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {

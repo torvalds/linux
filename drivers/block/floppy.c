@@ -2230,8 +2230,6 @@ static void floppy_end_request(struct request *req, blk_status_t error)
 static void request_done(int uptodate)
 {
 	struct request *req = current_req;
-	struct request_queue *q;
-	unsigned long flags;
 	int block;
 	char msg[sizeof("request done ") + sizeof(int) * 3];
 
@@ -2244,8 +2242,6 @@ static void request_done(int uptodate)
 		return;
 	}
 
-	q = req->q;
-
 	if (uptodate) {
 		/* maintain values for invalidation on geometry
 		 * change */
@@ -2254,10 +2250,7 @@ static void request_done(int uptodate)
 		if (block > _floppy->sect)
 			DRS->maxtrack = 1;
 
-		/* unlock chained buffers */
-		spin_lock_irqsave(q->queue_lock, flags);
 		floppy_end_request(req, 0);
-		spin_unlock_irqrestore(q->queue_lock, flags);
 	} else {
 		if (rq_data_dir(req) == WRITE) {
 			/* record write error information */
@@ -2269,9 +2262,7 @@ static void request_done(int uptodate)
 			DRWE->last_error_sector = blk_rq_pos(req);
 			DRWE->last_error_generation = DRS->generation;
 		}
-		spin_lock_irqsave(q->queue_lock, flags);
 		floppy_end_request(req, BLK_STS_IOERR);
-		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
 }
 
@@ -4081,7 +4072,7 @@ static unsigned int floppy_check_events(struct gendisk *disk,
 
 	if (time_after(jiffies, UDRS->last_checked + UDP->checkfreq)) {
 		if (lock_fdc(drive))
-			return -EINTR;
+			return 0;
 		poll_drive(false, 0);
 		process_fd_request();
 	}

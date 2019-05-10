@@ -44,7 +44,7 @@ static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 	struct aq_rss_parameters *rss_params = &cfg->aq_rss;
 	int i = 0;
 
-	static u8 rss_key[40] = {
+	static u8 rss_key[AQ_CFG_RSS_HASHKEY_SIZE] = {
 		0x1e, 0xad, 0x71, 0x87, 0x65, 0xfc, 0x26, 0x7d,
 		0x0d, 0x45, 0x67, 0x74, 0xcd, 0x06, 0x1a, 0x18,
 		0xb6, 0xc1, 0xf0, 0xc7, 0xbb, 0x18, 0xbe, 0xf8,
@@ -84,10 +84,6 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->is_lro = AQ_CFG_IS_LRO_DEF;
 
-	cfg->vlan_id = 0U;
-
-	aq_nic_rss_init(self, cfg->num_rss_queues);
-
 	/*descriptors */
 	cfg->rxds = min(cfg->aq_hw_caps->rxds_max, AQ_CFG_RXDS_DEF);
 	cfg->txds = min(cfg->aq_hw_caps->txds_max, AQ_CFG_TXDS_DEF);
@@ -107,6 +103,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 		cfg->vecs = 1U;
 
 	cfg->num_rss_queues = min(cfg->vecs, AQ_CFG_NUM_RSS_QUEUES_DEF);
+
+	aq_nic_rss_init(self, cfg->num_rss_queues);
 
 	cfg->irq_type = aq_pci_func_get_irq_type(self);
 

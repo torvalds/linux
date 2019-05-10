@@ -13,6 +13,9 @@ Optional properties:
   management IC (PMIC) triggered via PMIC_STBY_REQ signal.
   Boards that are designed to initiate poweroff on PMIC_ON_REQ signal should
   be using "syscon-poweroff" driver instead.
+- clocks: list of clock specifiers, must contain an entry for each entry
+          in clock-names
+- clock-names: valid names are "osc", "ckil", "ckih1", "anaclk1" and "anaclk2"
 
 The clock consumer should specify the desired clock by having the clock
 ID in its "clocks" phandle cell.  See include/dt-bindings/clock/imx6qdl-clock.h

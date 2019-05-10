@@ -12,17 +12,17 @@ obj-$(CONFIG_MLX5_CORE) += mlx5_core.o
 # mlx5 core basic
 #
 mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
-		health.o mcg.o cq.o srq.o alloc.o qp.o port.o mr.o pd.o \
-		mad.o transobj.o vport.o sriov.o fs_cmd.o fs_core.o \
-		fs_counters.o rl.o lag.o dev.o wq.o lib/gid.o  \
-		diag/fs_tracepoint.o diag/fw_tracer.o
+		health.o mcg.o cq.o alloc.o qp.o port.o mr.o pd.o \
+		transobj.o vport.o sriov.o fs_cmd.o fs_core.o \
+		fs_counters.o rl.o lag.o dev.o events.o wq.o lib/gid.o \
+		lib/devcom.o diag/fs_tracepoint.o diag/fw_tracer.o
 
 #
 # Netdev basic
 #
 mlx5_core-$(CONFIG_MLX5_CORE_EN) += en_main.o en_common.o en_fs.o en_ethtool.o \
 		en_tx.o en_rx.o en_dim.o en_txrx.o en/xdp.o en_stats.o \
-		en_selftest.o en/port.o
+		en_selftest.o en/port.o en/monitor_stats.o en/reporter_tx.o
 
 #
 # Netdev extra
@@ -30,12 +30,12 @@ mlx5_core-$(CONFIG_MLX5_CORE_EN) += en_main.o en_common.o en_fs.o en_ethtool.o \
 mlx5_core-$(CONFIG_MLX5_EN_ARFS)     += en_arfs.o
 mlx5_core-$(CONFIG_MLX5_EN_RXNFC)    += en_fs_ethtool.o
 mlx5_core-$(CONFIG_MLX5_CORE_EN_DCB) += en_dcbnl.o en/port_buffer.o
-mlx5_core-$(CONFIG_MLX5_ESWITCH)     += en_rep.o en_tc.o
+mlx5_core-$(CONFIG_MLX5_ESWITCH)     += en_rep.o en_tc.o en/tc_tun.o lib/port_tun.o lag_mp.o
 
 #
 # Core extra
 #
-mlx5_core-$(CONFIG_MLX5_ESWITCH)   += eswitch.o eswitch_offloads.o
+mlx5_core-$(CONFIG_MLX5_ESWITCH)   += eswitch.o eswitch_offloads.o ecpf.o
 mlx5_core-$(CONFIG_MLX5_MPFS)      += lib/mpfs.o
 mlx5_core-$(CONFIG_VXLAN)          += lib/vxlan.o
 mlx5_core-$(CONFIG_PTP_1588_CLOCK) += lib/clock.o

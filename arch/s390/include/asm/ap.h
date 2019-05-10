@@ -221,16 +221,22 @@ static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
 					     void *ind)
 {
 	register unsigned long reg0 asm ("0") = qid | (3UL << 24);
-	register struct ap_qirq_ctrl reg1_in asm ("1") = qirqctrl;
-	register struct ap_queue_status reg1_out asm ("1");
+	register union {
+		unsigned long value;
+		struct ap_qirq_ctrl qirqctrl;
+		struct ap_queue_status status;
+	} reg1 asm ("1");
 	register void *reg2 asm ("2") = ind;
+
+	reg1.qirqctrl = qirqctrl;
 
 	asm volatile(
 		".long 0xb2af0000"		/* PQAP(AQIC) */
-		: "=d" (reg1_out)
-		: "d" (reg0), "d" (reg1_in), "d" (reg2)
+		: "+d" (reg1)
+		: "d" (reg0), "d" (reg2)
 		: "cc");
-	return reg1_out;
+
+	return reg1.status;
 }
 
 /*
@@ -264,17 +270,21 @@ static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
 {
 	register unsigned long reg0 asm ("0") = qid | (5UL << 24)
 		| ((ifbit & 0x01) << 22);
-	register unsigned long reg1_in asm ("1") = apinfo->val;
-	register struct ap_queue_status reg1_out asm ("1");
+	register union {
+		unsigned long value;
+		struct ap_queue_status status;
+	} reg1 asm ("1");
 	register unsigned long reg2 asm ("2");
+
+	reg1.value = apinfo->val;
 
 	asm volatile(
 		".long 0xb2af0000"		/* PQAP(QACT) */
-		: "+d" (reg1_in), "=d" (reg1_out), "=d" (reg2)
+		: "+d" (reg1), "=d" (reg2)
 		: "d" (reg0)
 		: "cc");
 	apinfo->val = reg2;
-	return reg1_out;
+	return reg1.status;
 }
 
 /**
@@ -349,5 +359,16 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 	*psmid = (((unsigned long long) reg6) << 32) + reg7;
 	return reg1;
 }
+
+/*
+ * Interface to tell the AP bus code that a configuration
+ * change has happened. The bus code should at least do
+ * an ap bus resource rescan.
+ */
+#if IS_ENABLED(CONFIG_ZCRYPT)
+void ap_bus_cfg_chg(void);
+#else
+static inline void ap_bus_cfg_chg(void){};
+#endif
 
 #endif /* _ASM_S390_AP_H_ */

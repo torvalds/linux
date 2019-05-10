@@ -59,6 +59,7 @@ void mmc_power_up(struct mmc_host *host, u32 ocr);
 void mmc_power_off(struct mmc_host *host);
 void mmc_power_cycle(struct mmc_host *host, u32 ocr);
 void mmc_set_initial_state(struct mmc_host *host);
+u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);
 
 static inline void mmc_delay(unsigned int ms)
 {
@@ -118,8 +119,6 @@ int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 unsigned int mmc_calc_max_discard(struct mmc_card *card);
 
 int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
-int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
-			bool is_rel_write);
 
 int __mmc_claim_host(struct mmc_host *host, struct mmc_ctx *ctx,
 		     atomic_t *abort);

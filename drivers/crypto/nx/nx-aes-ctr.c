@@ -159,7 +159,6 @@ struct crypto_alg nx_ctr3686_aes_alg = {
 		.min_keysize = AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
 		.max_keysize = AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
 		.ivsize      = CTR_RFC3686_IV_SIZE,
-		.geniv       = "seqiv",
 		.setkey      = ctr3686_aes_nx_set_key,
 		.encrypt     = ctr3686_aes_nx_crypt,
 		.decrypt     = ctr3686_aes_nx_crypt,

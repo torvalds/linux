@@ -276,10 +276,12 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 
 	nexthdr = ipv6_find_hdr(skb, &payload_ofs, -1, &frag_off, &flags);
 	if (flags & IP6_FH_F_FRAG) {
-		if (frag_off)
+		if (frag_off) {
 			key->ip.frag = OVS_FRAG_TYPE_LATER;
-		else
-			key->ip.frag = OVS_FRAG_TYPE_FIRST;
+			key->ip.proto = nexthdr;
+			return 0;
+		}
+		key->ip.frag = OVS_FRAG_TYPE_FIRST;
 	} else {
 		key->ip.frag = OVS_FRAG_TYPE_NONE;
 	}
@@ -325,7 +327,7 @@ static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh,
 		return -ENOMEM;
 
 	vh = (struct vlan_head *)skb->data;
-	key_vh->tci = vh->tci | htons(VLAN_TAG_PRESENT);
+	key_vh->tci = vh->tci | htons(VLAN_CFI_MASK);
 	key_vh->tpid = vh->tpid;
 
 	if (unlikely(untag_vlan)) {
@@ -358,7 +360,7 @@ static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 	int res;
 
 	if (skb_vlan_tag_present(skb)) {
-		key->eth.vlan.tci = htons(skb->vlan_tci);
+		key->eth.vlan.tci = htons(skb->vlan_tci) | htons(VLAN_CFI_MASK);
 		key->eth.vlan.tpid = skb->vlan_proto;
 	} else {
 		/* Parse outer vlan tag in the non-accelerated case. */
@@ -597,7 +599,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 		 * skb_vlan_pop(), which will later shift the ethertype into
 		 * skb->protocol.
 		 */
-		if (key->eth.cvlan.tci & htons(VLAN_TAG_PRESENT))
+		if (key->eth.cvlan.tci & htons(VLAN_CFI_MASK))
 			skb->protocol = key->eth.cvlan.tpid;
 		else
 			skb->protocol = key->eth.type;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -1096,11 +1096,14 @@ struct batadv_priv_gw {
 	/** @gateway_list: list of available gateway nodes */
 	struct hlist_head gateway_list;
 
-	/** @list_lock: lock protecting gateway_list & curr_gw */
+	/** @list_lock: lock protecting gateway_list, curr_gw, generation */
 	spinlock_t list_lock;
 
 	/** @curr_gw: pointer to currently selected gateway node */
 	struct batadv_gw_node __rcu *curr_gw;
+
+	/** @generation: current (generation) sequence number */
+	unsigned int generation;
 
 	/**
 	 * @mode: gateway operation: off, client or server (see batadv_gw_modes)

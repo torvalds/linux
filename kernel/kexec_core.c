@@ -152,6 +152,7 @@ int sanity_check_segment_list(struct kimage *image)
 	int i;
 	unsigned long nr_segments = image->nr_segments;
 	unsigned long total_pages = 0;
+	unsigned long nr_pages = totalram_pages();
 
 	/*
 	 * Verify we have good destination addresses.  The caller is
@@ -217,13 +218,13 @@ int sanity_check_segment_list(struct kimage *image)
 	 * wasted allocating pages, which can cause a soft lockup.
 	 */
 	for (i = 0; i < nr_segments; i++) {
-		if (PAGE_COUNT(image->segment[i].memsz) > totalram_pages / 2)
+		if (PAGE_COUNT(image->segment[i].memsz) > nr_pages / 2)
 			return -EINVAL;
 
 		total_pages += PAGE_COUNT(image->segment[i].memsz);
 	}
 
-	if (total_pages > totalram_pages / 2)
+	if (total_pages > nr_pages / 2)
 		return -EINVAL;
 
 	/*

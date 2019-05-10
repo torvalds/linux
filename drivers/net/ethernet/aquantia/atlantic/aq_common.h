@@ -14,7 +14,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
-
+#include <linux/if_vlan.h>
 #include "ver.h"
 #include "aq_cfg.h"
 #include "aq_utils.h"

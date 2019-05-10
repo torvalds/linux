@@ -591,15 +591,10 @@ static const struct acpi_device_id spt_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, spt_pinctrl_acpi_match);
 
-static int spt_pinctrl_probe(struct platform_device *pdev)
-{
-	return intel_pinctrl_probe_by_hid(pdev);
-}
-
 static INTEL_PINCTRL_PM_OPS(spt_pinctrl_pm_ops);
 
 static struct platform_driver spt_pinctrl_driver = {
-	.probe = spt_pinctrl_probe,
+	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "sunrisepoint-pinctrl",
 		.acpi_match_table = spt_pinctrl_acpi_match,

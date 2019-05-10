@@ -398,6 +398,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb;
 	u16 pixel_alpha = state->pixel_blend_mode;
 	int i, ret;
+	unsigned int block_w, block_h;
 
 	if (!state->crtc || !state->fb)
 		return 0;
@@ -413,11 +414,24 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	ms->n_planes = fb->format->num_planes;
 	for (i = 0; i < ms->n_planes; i++) {
 		u8 alignment = malidp_hw_get_pitch_align(mp->hwdev, rotated);
-		if (fb->pitches[i] & (alignment - 1)) {
+
+		if ((fb->pitches[i] * drm_format_info_block_height(fb->format, i))
+				& (alignment - 1)) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
 			return -EINVAL;
 		}
+	}
+
+	block_w = drm_format_info_block_width(fb->format, 0);
+	block_h = drm_format_info_block_height(fb->format, 0);
+	if (fb->width % block_w || fb->height % block_h) {
+		DRM_DEBUG_KMS("Buffer width/height needs to be a multiple of tile sizes");
+		return -EINVAL;
+	}
+	if ((state->src_x >> 16) % block_w || (state->src_y >> 16) % block_h) {
+		DRM_DEBUG_KMS("Plane src_x/src_y needs to be a multiple of tile sizes");
+		return -EINVAL;
 	}
 
 	if ((state->crtc_w > mp->hwdev->max_line_size) ||
@@ -492,10 +506,18 @@ static void malidp_de_set_plane_pitches(struct malidp_plane *mp,
 		num_strides = (mp->hwdev->hw->features &
 			       MALIDP_DEVICE_LV_HAS_3_STRIDES) ? 3 : 2;
 
-	for (i = 0; i < num_strides; ++i)
-		malidp_hw_write(mp->hwdev, pitches[i],
+	/*
+	 * The drm convention for pitch is that it needs to cover width * cpp,
+	 * but our hardware wants the pitch/stride to cover all rows included
+	 * in a tile.
+	 */
+	for (i = 0; i < num_strides; ++i) {
+		unsigned int block_h = drm_format_info_block_height(mp->base.state->fb->format, i);
+
+		malidp_hw_write(mp->hwdev, pitches[i] * block_h,
 				mp->layer->base +
 				mp->layer->stride_offset + i * 4);
+	}
 }
 
 static const s16

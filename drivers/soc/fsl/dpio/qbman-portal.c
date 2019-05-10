@@ -169,9 +169,9 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 				3, /* RPM: Valid bit mode, RCR in array mode */
 				2, /* DCM: Discrete consumption ack mode */
 				3, /* EPM: Valid bit mode, EQCR in array mode */
-				0, /* mem stashing drop enable == FALSE */
+				1, /* mem stashing drop enable == TRUE */
 				1, /* mem stashing priority == TRUE */
-				0, /* mem stashing enable == FALSE */
+				1, /* mem stashing enable == TRUE */
 				1, /* dequeue stashing priority == TRUE */
 				0, /* dequeue stashing enable == FALSE */
 				0); /* EQCR_CI stashing priority == FALSE */
@@ -180,6 +180,7 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 	reg = qbman_read_register(p, QBMAN_CINH_SWP_CFG);
 	if (!reg) {
 		pr_err("qbman: the portal is not enabled!\n");
+		kfree(p);
 		return NULL;
 	}
 
@@ -1002,4 +1003,100 @@ int qbman_swp_CDAN_set(struct qbman_swp *s, u16 channelid,
 	}
 
 	return 0;
+}
+
+#define QBMAN_RESPONSE_VERB_MASK	0x7f
+#define QBMAN_FQ_QUERY_NP		0x45
+#define QBMAN_BP_QUERY			0x32
+
+struct qbman_fq_query_desc {
+	u8 verb;
+	u8 reserved[3];
+	__le32 fqid;
+	u8 reserved2[56];
+};
+
+int qbman_fq_query_state(struct qbman_swp *s, u32 fqid,
+			 struct qbman_fq_query_np_rslt *r)
+{
+	struct qbman_fq_query_desc *p;
+	void *resp;
+
+	p = (struct qbman_fq_query_desc *)qbman_swp_mc_start(s);
+	if (!p)
+		return -EBUSY;
+
+	/* FQID is a 24 bit value */
+	p->fqid = cpu_to_le32(fqid & 0x00FFFFFF);
+	resp = qbman_swp_mc_complete(s, p, QBMAN_FQ_QUERY_NP);
+	if (!resp) {
+		pr_err("qbman: Query FQID %d NP fields failed, no response\n",
+		       fqid);
+		return -EIO;
+	}
+	*r = *(struct qbman_fq_query_np_rslt *)resp;
+	/* Decode the outcome */
+	WARN_ON((r->verb & QBMAN_RESPONSE_VERB_MASK) != QBMAN_FQ_QUERY_NP);
+
+	/* Determine success or failure */
+	if (r->rslt != QBMAN_MC_RSLT_OK) {
+		pr_err("Query NP fields of FQID 0x%x failed, code=0x%02x\n",
+		       p->fqid, r->rslt);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+u32 qbman_fq_state_frame_count(const struct qbman_fq_query_np_rslt *r)
+{
+	return (le32_to_cpu(r->frm_cnt) & 0x00FFFFFF);
+}
+
+u32 qbman_fq_state_byte_count(const struct qbman_fq_query_np_rslt *r)
+{
+	return le32_to_cpu(r->byte_cnt);
+}
+
+struct qbman_bp_query_desc {
+	u8 verb;
+	u8 reserved;
+	__le16 bpid;
+	u8 reserved2[60];
+};
+
+int qbman_bp_query(struct qbman_swp *s, u16 bpid,
+		   struct qbman_bp_query_rslt *r)
+{
+	struct qbman_bp_query_desc *p;
+	void *resp;
+
+	p = (struct qbman_bp_query_desc *)qbman_swp_mc_start(s);
+	if (!p)
+		return -EBUSY;
+
+	p->bpid = cpu_to_le16(bpid);
+	resp = qbman_swp_mc_complete(s, p, QBMAN_BP_QUERY);
+	if (!resp) {
+		pr_err("qbman: Query BPID %d fields failed, no response\n",
+		       bpid);
+		return -EIO;
+	}
+	*r = *(struct qbman_bp_query_rslt *)resp;
+	/* Decode the outcome */
+	WARN_ON((r->verb & QBMAN_RESPONSE_VERB_MASK) != QBMAN_BP_QUERY);
+
+	/* Determine success or failure */
+	if (r->rslt != QBMAN_MC_RSLT_OK) {
+		pr_err("Query fields of BPID 0x%x failed, code=0x%02x\n",
+		       bpid, r->rslt);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+u32 qbman_bp_info_num_free_bufs(struct qbman_bp_query_rslt *a)
+{
+	return le32_to_cpu(a->fill);
 }

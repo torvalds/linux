@@ -252,7 +252,7 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	if (!count)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buffer, count))
+	if (!access_ok(buffer, count))
 		return -EFAULT;
 
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
@@ -339,7 +339,7 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 	unsigned long flags;
 	ssize_t status = -ENOMEM;
 
-	if (!access_ok(VERIFY_READ, buffer, count))
+	if (!access_ok(buffer, count))
 		return -EFAULT;
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
@@ -391,20 +391,20 @@ try_again:
 	req->complete = f_hidg_req_complete;
 	req->context  = hidg;
 
+	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
+
 	status = usb_ep_queue(hidg->in_ep, req, GFP_ATOMIC);
 	if (status < 0) {
 		ERROR(hidg->func.config->cdev,
 			"usb_ep_queue error on int endpoint %zd\n", status);
-		goto release_write_pending_unlocked;
+		goto release_write_pending;
 	} else {
 		status = count;
 	}
-	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
 
 	return status;
 release_write_pending:
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
-release_write_pending_unlocked:
 	hidg->write_pending = 0;
 	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
 

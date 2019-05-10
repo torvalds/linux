@@ -16,7 +16,8 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <video/videomode.h>
 
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_drv.h"
@@ -85,40 +86,34 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	struct drm_connector *con = &fsl_dev->connector.base;
 	struct drm_display_mode *mode = &crtc->state->mode;
-	unsigned int hbp, hfp, hsw, vbp, vfp, vsw, index, pol = 0;
+	unsigned int pol = 0;
+	struct videomode vm;
 
-	index = drm_crtc_index(crtc);
 	clk_set_rate(fsl_dev->pix_clk, mode->clock * 1000);
 
-	/* Configure timings: */
-	hbp = mode->htotal - mode->hsync_end;
-	hfp = mode->hsync_start - mode->hdisplay;
-	hsw = mode->hsync_end - mode->hsync_start;
-	vbp = mode->vtotal - mode->vsync_end;
-	vfp = mode->vsync_start - mode->vdisplay;
-	vsw = mode->vsync_end - mode->vsync_start;
+	drm_display_mode_to_videomode(mode, &vm);
 
 	/* INV_PXCK as default (most display sample data on rising edge) */
 	if (!(con->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE))
 		pol |= DCU_SYN_POL_INV_PXCK;
 
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+	if (vm.flags & DISPLAY_FLAGS_HSYNC_LOW)
 		pol |= DCU_SYN_POL_INV_HS_LOW;
 
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+	if (vm.flags & DISPLAY_FLAGS_VSYNC_LOW)
 		pol |= DCU_SYN_POL_INV_VS_LOW;
 
 	regmap_write(fsl_dev->regmap, DCU_HSYN_PARA,
-		     DCU_HSYN_PARA_BP(hbp) |
-		     DCU_HSYN_PARA_PW(hsw) |
-		     DCU_HSYN_PARA_FP(hfp));
+		     DCU_HSYN_PARA_BP(vm.hback_porch) |
+		     DCU_HSYN_PARA_PW(vm.hsync_len) |
+		     DCU_HSYN_PARA_FP(vm.hfront_porch));
 	regmap_write(fsl_dev->regmap, DCU_VSYN_PARA,
-		     DCU_VSYN_PARA_BP(vbp) |
-		     DCU_VSYN_PARA_PW(vsw) |
-		     DCU_VSYN_PARA_FP(vfp));
+		     DCU_VSYN_PARA_BP(vm.vback_porch) |
+		     DCU_VSYN_PARA_PW(vm.vsync_len) |
+		     DCU_VSYN_PARA_FP(vm.vfront_porch));
 	regmap_write(fsl_dev->regmap, DCU_DISP_SIZE,
-		     DCU_DISP_SIZE_DELTA_Y(mode->vdisplay) |
-		     DCU_DISP_SIZE_DELTA_X(mode->hdisplay));
+		     DCU_DISP_SIZE_DELTA_Y(vm.vactive) |
+		     DCU_DISP_SIZE_DELTA_X(vm.hactive));
 	regmap_write(fsl_dev->regmap, DCU_SYN_POL, pol);
 	regmap_write(fsl_dev->regmap, DCU_BGND, DCU_BGND_R(0) |
 		     DCU_BGND_G(0) | DCU_BGND_B(0));

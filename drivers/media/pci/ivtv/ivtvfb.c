@@ -55,6 +55,7 @@
 /* card parameters */
 static int ivtvfb_card_id = -1;
 static int ivtvfb_debug = 0;
+static bool ivtvfb_force_pat = IS_ENABLED(CONFIG_VIDEO_FB_IVTV_FORCE_PAT);
 static bool osd_laced;
 static int osd_depth;
 static int osd_upper;
@@ -64,6 +65,7 @@ static int osd_xres;
 
 module_param(ivtvfb_card_id, int, 0444);
 module_param_named(debug,ivtvfb_debug, int, 0644);
+module_param_named(force_pat, ivtvfb_force_pat, bool, 0644);
 module_param(osd_laced, bool, 0444);
 module_param(osd_depth, int, 0444);
 module_param(osd_upper, int, 0444);
@@ -78,6 +80,9 @@ MODULE_PARM_DESC(ivtvfb_card_id,
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: errors only\n"
 		 "\t\t\t(debug = 3 gives full debugging)");
+
+MODULE_PARM_DESC(force_pat,
+		 "Force initialization on x86 PAT-enabled systems (bool).\n");
 
 /* Why upper, left, xres, yres, depth, laced ? To match terminology used
    by fbset.
@@ -356,7 +361,7 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 		IVTVFB_WARN("ivtvfb_prep_frame: Count not a multiple of 4 (%d)\n", count);
 
 	/* Check Source */
-	if (!access_ok(VERIFY_READ, source + dest_offset, count)) {
+	if (!access_ok(source + dest_offset, count)) {
 		IVTVFB_WARN("Invalid userspace pointer %p\n", source);
 
 		IVTVFB_DEBUG_WARN("access_ok() failed for offset 0x%08lx source %p count %d\n",
@@ -1167,8 +1172,15 @@ static int ivtvfb_init_card(struct ivtv *itv)
 
 #ifdef CONFIG_X86_64
 	if (pat_enabled()) {
-		pr_warn("ivtvfb needs PAT disabled, boot with nopat kernel parameter\n");
-		return -ENODEV;
+		if (ivtvfb_force_pat) {
+			pr_info("PAT is enabled. Write-combined framebuffer caching will be disabled.\n");
+			pr_info("To enable caching, boot with nopat kernel parameter\n");
+		} else {
+			pr_warn("ivtvfb needs PAT disabled for write-combined framebuffer caching.\n");
+			pr_warn("Boot with nopat kernel parameter to use caching, or use the\n");
+			pr_warn("force_pat module parameter to run with caching disabled\n");
+			return -ENODEV;
+		}
 	}
 #endif
 

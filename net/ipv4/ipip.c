@@ -140,6 +140,13 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	struct ip_tunnel *t;
 	int err = 0;
 
+	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
+			     iph->daddr, iph->saddr, 0);
+	if (!t) {
+		err = -ENOENT;
+		goto out;
+	}
+
 	switch (type) {
 	case ICMP_DEST_UNREACH:
 		switch (code) {
@@ -164,13 +171,6 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		break;
 
 	default:
-		goto out;
-	}
-
-	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
-			     iph->daddr, iph->saddr, 0);
-	if (!t) {
-		err = -ENOENT;
 		goto out;
 	}
 
@@ -302,7 +302,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb,
 	skb_set_inner_ipproto(skb, ipproto);
 
 	if (tunnel->collect_md)
-		ip_md_tunnel_xmit(skb, dev, ipproto);
+		ip_md_tunnel_xmit(skb, dev, ipproto, 0);
 	else
 		ip_tunnel_xmit(skb, dev, tiph, ipproto);
 	return NETDEV_TX_OK;

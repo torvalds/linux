@@ -70,6 +70,14 @@
 		};
 	};
 
+	apb2: bus@d0000000 {
+		compatible = "simple-bus";
+		reg = <0xd0000000 0x40000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0xd0000000 0x40000>;
+	};
+
 	xtal: xtal-clk {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
@@ -86,6 +94,11 @@
 
 &efuse {
 	status = "disabled";
+};
+
+&timer_abcde {
+	clocks = <&xtal>, <&clk81>;
+	clock-names = "xtal", "pclk";
 };
 
 &uart_AO {

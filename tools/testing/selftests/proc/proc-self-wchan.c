@@ -27,7 +27,7 @@ int main(void)
 	fd = open("/proc/self/wchan", O_RDONLY);
 	if (fd == -1) {
 		if (errno == ENOENT)
-			return 2;
+			return 4;
 		return 1;
 	}
 

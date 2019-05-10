@@ -251,6 +251,7 @@
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_CLEAR, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_VTG_SEL, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_DISABLE, mask_sh),\
@@ -435,6 +436,7 @@
 	type HUBP_NO_OUTSTANDING_REQ;\
 	type HUBP_VTG_SEL;\
 	type HUBP_UNDERFLOW_STATUS;\
+	type HUBP_UNDERFLOW_CLEAR;\
 	type NUM_PIPES;\
 	type NUM_BANKS;\
 	type PIPE_INTERLEAVE;\
@@ -705,11 +707,6 @@ void hubp1_dcc_control(struct hubp *hubp,
 		bool enable,
 		bool independent_64b_blks);
 
-bool hubp1_program_surface_flip_and_addr(
-	struct hubp *hubp,
-	const struct dc_plane_address *address,
-	bool flip_immediate);
-
 bool hubp1_is_flip_pending(struct hubp *hubp);
 
 void hubp1_cursor_set_attributes(
@@ -739,8 +736,11 @@ void dcn10_hubp_construct(
 	const struct dcn_mi_mask *hubp_mask);
 
 void hubp1_read_state(struct hubp *hubp);
+void hubp1_clear_underflow(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 
+void hubp1_vready_workaround(struct hubp *hubp,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
 #endif

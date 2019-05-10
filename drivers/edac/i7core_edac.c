@@ -724,7 +724,7 @@ static ssize_t i7core_inject_type_store(struct device *dev,
 					const char *data, size_t count)
 {
 	struct mem_ctl_info *mci = to_mci(dev);
-struct i7core_pvt *pvt = mci->pvt_info;
+	struct i7core_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	int rc;
 

@@ -433,7 +433,6 @@ static bool ipv6_chk_acast_dev(struct net_device *dev, const struct in6_addr *ad
 bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 			 const struct in6_addr *addr)
 {
-	unsigned int hash = inet6_acaddr_hash(net, addr);
 	struct net_device *nh_dev;
 	struct ifacaddr6 *aca;
 	bool found = false;
@@ -441,7 +440,9 @@ bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 	rcu_read_lock();
 	if (dev)
 		found = ipv6_chk_acast_dev(dev, addr);
-	else
+	else {
+		unsigned int hash = inet6_acaddr_hash(net, addr);
+
 		hlist_for_each_entry_rcu(aca, &inet6_acaddr_lst[hash],
 					 aca_addr_lst) {
 			nh_dev = fib6_info_nh_dev(aca->aca_rt);
@@ -452,6 +453,7 @@ bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 				break;
 			}
 		}
+	}
 	rcu_read_unlock();
 	return found;
 }

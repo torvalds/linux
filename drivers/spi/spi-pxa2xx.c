@@ -328,7 +328,7 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 	__lpss_ssp_write_priv(drv_data, config->reg_cs_ctrl, value);
 
 	/* Enable multiblock DMA transfers */
-	if (drv_data->master_info->enable_dma) {
+	if (drv_data->controller_info->enable_dma) {
 		__lpss_ssp_write_priv(drv_data, config->reg_ssp, 1);
 
 		if (config->reg_general >= 0) {
@@ -368,7 +368,7 @@ static void lpss_ssp_select_cs(struct spi_device *spi,
 		__lpss_ssp_write_priv(drv_data,
 				      config->reg_cs_ctrl, value);
 		ndelay(1000000000 /
-		       (drv_data->master->max_speed_hz / 2));
+		       (drv_data->controller->max_speed_hz / 2));
 	}
 }
 
@@ -567,7 +567,7 @@ static int u32_reader(struct driver_data *drv_data)
 static void reset_sccr1(struct driver_data *drv_data)
 {
 	struct chip_data *chip =
-		spi_get_ctldata(drv_data->master->cur_msg->spi);
+		spi_get_ctldata(drv_data->controller->cur_msg->spi);
 	u32 sccr1_reg;
 
 	sccr1_reg = pxa2xx_spi_read(drv_data, SSCR1) & ~drv_data->int_cr1;
@@ -599,8 +599,8 @@ static void int_error_stop(struct driver_data *drv_data, const char* msg)
 
 	dev_err(&drv_data->pdev->dev, "%s\n", msg);
 
-	drv_data->master->cur_msg->status = -EIO;
-	spi_finalize_current_transfer(drv_data->master);
+	drv_data->controller->cur_msg->status = -EIO;
+	spi_finalize_current_transfer(drv_data->controller);
 }
 
 static void int_transfer_complete(struct driver_data *drv_data)
@@ -611,7 +611,7 @@ static void int_transfer_complete(struct driver_data *drv_data)
 	if (!pxa25x_ssp_comp(drv_data))
 		pxa2xx_spi_write(drv_data, SSTO, 0);
 
-	spi_finalize_current_transfer(drv_data->master);
+	spi_finalize_current_transfer(drv_data->controller);
 }
 
 static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
@@ -623,6 +623,11 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 	if (irq_status & SSSR_ROR) {
 		int_error_stop(drv_data, "interrupt_transfer: fifo overrun");
+		return IRQ_HANDLED;
+	}
+
+	if (irq_status & SSSR_TUR) {
+		int_error_stop(drv_data, "interrupt_transfer: fifo underrun");
 		return IRQ_HANDLED;
 	}
 
@@ -742,7 +747,7 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 	pxa2xx_spi_write(drv_data, SSCR1, sccr1_reg & ~drv_data->int_cr1);
 	pxa2xx_spi_write(drv_data, SSCR1, sccr1_reg);
 
-	if (!drv_data->master->cur_msg) {
+	if (!drv_data->controller->cur_msg) {
 		handle_bad_msg(drv_data);
 		/* Never fail */
 		return IRQ_HANDLED;
@@ -874,7 +879,7 @@ static unsigned int quark_x1000_get_clk_div(int rate, u32 *dds)
 
 static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 {
-	unsigned long ssp_clk = drv_data->master->max_speed_hz;
+	unsigned long ssp_clk = drv_data->controller->max_speed_hz;
 	const struct ssp_device *ssp = drv_data->ssp;
 
 	rate = min_t(int, ssp_clk, rate);
@@ -889,7 +894,7 @@ static unsigned int pxa2xx_ssp_get_clk_div(struct driver_data *drv_data,
 					   int rate)
 {
 	struct chip_data *chip =
-		spi_get_ctldata(drv_data->master->cur_msg->spi);
+		spi_get_ctldata(drv_data->controller->cur_msg->spi);
 	unsigned int clk_div;
 
 	switch (drv_data->ssp_type) {
@@ -903,7 +908,7 @@ static unsigned int pxa2xx_ssp_get_clk_div(struct driver_data *drv_data,
 	return clk_div << 8;
 }
 
-static bool pxa2xx_spi_can_dma(struct spi_controller *master,
+static bool pxa2xx_spi_can_dma(struct spi_controller *controller,
 			       struct spi_device *spi,
 			       struct spi_transfer *xfer)
 {
@@ -914,12 +919,12 @@ static bool pxa2xx_spi_can_dma(struct spi_controller *master,
 	       xfer->len >= chip->dma_burst_size;
 }
 
-static int pxa2xx_spi_transfer_one(struct spi_controller *master,
+static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 				   struct spi_device *spi,
 				   struct spi_transfer *transfer)
 {
-	struct driver_data *drv_data = spi_controller_get_devdata(master);
-	struct spi_message *message = master->cur_msg;
+	struct driver_data *drv_data = spi_controller_get_devdata(controller);
+	struct spi_message *message = controller->cur_msg;
 	struct chip_data *chip = spi_get_ctldata(message->spi);
 	u32 dma_thresh = chip->dma_threshold;
 	u32 dma_burst = chip->dma_burst_size;
@@ -1001,9 +1006,9 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *master,
 					     "DMA burst size reduced to match bits_per_word\n");
 	}
 
-	dma_mapped = master->can_dma &&
-		     master->can_dma(master, message->spi, transfer) &&
-		     master->cur_msg_mapped;
+	dma_mapped = controller->can_dma &&
+		     controller->can_dma(controller, message->spi, transfer) &&
+		     controller->cur_msg_mapped;
 	if (dma_mapped) {
 
 		/* Ensure we have the correct interrupt handler */
@@ -1031,12 +1036,12 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *master,
 	cr0 = pxa2xx_configure_sscr0(drv_data, clk_div, bits);
 	if (!pxa25x_ssp_comp(drv_data))
 		dev_dbg(&message->spi->dev, "%u Hz actual, %s\n",
-			master->max_speed_hz
+			controller->max_speed_hz
 				/ (1 + ((cr0 & SSCR0_SCR(0xfff)) >> 8)),
 			dma_mapped ? "DMA" : "PIO");
 	else
 		dev_dbg(&message->spi->dev, "%u Hz actual, %s\n",
-			master->max_speed_hz / 2
+			controller->max_speed_hz / 2
 				/ (1 + ((cr0 & SSCR0_SCR(0x0ff)) >> 8)),
 			dma_mapped ? "DMA" : "PIO");
 
@@ -1073,6 +1078,30 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *master,
 			pxa2xx_spi_write(drv_data, SSTO, chip->timeout);
 	}
 
+	if (drv_data->ssp_type == MMP2_SSP) {
+		u8 tx_level = (pxa2xx_spi_read(drv_data, SSSR)
+					& SSSR_TFL_MASK) >> 8;
+
+		if (tx_level) {
+			/* On MMP2, flipping SSE doesn't to empty TXFIFO. */
+			dev_warn(&spi->dev, "%d bytes of garbage in TXFIFO!\n",
+								tx_level);
+			if (tx_level > transfer->len)
+				tx_level = transfer->len;
+			drv_data->tx += tx_level;
+		}
+	}
+
+	if (spi_controller_is_slave(controller)) {
+		while (drv_data->write(drv_data))
+			;
+		if (drv_data->gpiod_ready) {
+			gpiod_set_value(drv_data->gpiod_ready, 1);
+			udelay(1);
+			gpiod_set_value(drv_data->gpiod_ready, 0);
+		}
+	}
+
 	/*
 	 * Release the data by enabling service requests and interrupts,
 	 * without changing any mode bits
@@ -1082,10 +1111,31 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *master,
 	return 1;
 }
 
-static void pxa2xx_spi_handle_err(struct spi_controller *master,
+static int pxa2xx_spi_slave_abort(struct spi_controller *controller)
+{
+	struct driver_data *drv_data = spi_controller_get_devdata(controller);
+
+	/* Stop and reset SSP */
+	write_SSSR_CS(drv_data, drv_data->clear_sr);
+	reset_sccr1(drv_data);
+	if (!pxa25x_ssp_comp(drv_data))
+		pxa2xx_spi_write(drv_data, SSTO, 0);
+	pxa2xx_spi_flush(drv_data);
+	pxa2xx_spi_write(drv_data, SSCR0,
+			 pxa2xx_spi_read(drv_data, SSCR0) & ~SSCR0_SSE);
+
+	dev_dbg(&drv_data->pdev->dev, "transfer aborted\n");
+
+	drv_data->controller->cur_msg->status = -EINTR;
+	spi_finalize_current_transfer(drv_data->controller);
+
+	return 0;
+}
+
+static void pxa2xx_spi_handle_err(struct spi_controller *controller,
 				 struct spi_message *msg)
 {
-	struct driver_data *drv_data = spi_controller_get_devdata(master);
+	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
 	/* Disable the SSP */
 	pxa2xx_spi_write(drv_data, SSCR0,
@@ -1109,9 +1159,9 @@ static void pxa2xx_spi_handle_err(struct spi_controller *master,
 		pxa2xx_spi_dma_stop(drv_data);
 }
 
-static int pxa2xx_spi_unprepare_transfer(struct spi_controller *master)
+static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 {
-	struct driver_data *drv_data = spi_controller_get_devdata(master);
+	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
 	/* Disable the SSP now */
 	pxa2xx_spi_write(drv_data, SSCR0,
@@ -1209,9 +1259,14 @@ static int setup(struct spi_device *spi)
 		rx_thres = config->rx_threshold;
 		break;
 	default:
-		tx_thres = TX_THRESH_DFLT;
 		tx_hi_thres = 0;
-		rx_thres = RX_THRESH_DFLT;
+		if (spi_controller_is_slave(drv_data->controller)) {
+			tx_thres = 1;
+			rx_thres = 2;
+		} else {
+			tx_thres = TX_THRESH_DFLT;
+			rx_thres = RX_THRESH_DFLT;
+		}
 		break;
 	}
 
@@ -1232,7 +1287,7 @@ static int setup(struct spi_device *spi)
 
 			chip->frm = spi->chip_select;
 		}
-		chip->enable_dma = drv_data->master_info->enable_dma;
+		chip->enable_dma = drv_data->controller_info->enable_dma;
 		chip->timeout = TIMOUT_DFLT;
 	}
 
@@ -1254,6 +1309,12 @@ static int setup(struct spi_device *spi)
 		chip->dma_threshold = 0;
 		if (chip_info->enable_loopback)
 			chip->cr1 = SSCR1_LBM;
+	}
+	if (spi_controller_is_slave(drv_data->controller)) {
+		chip->cr1 |= SSCR1_SCFR;
+		chip->cr1 |= SSCR1_SCLKDIR;
+		chip->cr1 |= SSCR1_SFRMDIR;
+		chip->cr1 |= SSCR1_SPH;
 	}
 
 	chip->lpss_rx_threshold = SSIRF_RxThresh(rx_thres);
@@ -1436,10 +1497,10 @@ static bool pxa2xx_spi_idma_filter(struct dma_chan *chan, void *param)
 
 #endif /* CONFIG_PCI */
 
-static struct pxa2xx_spi_master *
+static struct pxa2xx_spi_controller *
 pxa2xx_spi_init_pdata(struct platform_device *pdev)
 {
-	struct pxa2xx_spi_master *pdata;
+	struct pxa2xx_spi_controller *pdata;
 	struct acpi_device *adev;
 	struct ssp_device *ssp;
 	struct resource *res;
@@ -1500,16 +1561,17 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	ssp->pdev = pdev;
 	ssp->port_id = pxa2xx_spi_get_port_id(adev);
 
+	pdata->is_slave = of_property_read_bool(pdev->dev.of_node, "spi-slave");
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 
 	return pdata;
 }
 
-static int pxa2xx_spi_fw_translate_cs(struct spi_controller *master,
+static int pxa2xx_spi_fw_translate_cs(struct spi_controller *controller,
 				      unsigned int cs)
 {
-	struct driver_data *drv_data = spi_controller_get_devdata(master);
+	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
 	if (has_acpi_companion(&drv_data->pdev->dev)) {
 		switch (drv_data->ssp_type) {
@@ -1533,8 +1595,8 @@ static int pxa2xx_spi_fw_translate_cs(struct spi_controller *master,
 static int pxa2xx_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct pxa2xx_spi_master *platform_info;
-	struct spi_controller *master;
+	struct pxa2xx_spi_controller *platform_info;
+	struct spi_controller *controller;
 	struct driver_data *drv_data;
 	struct ssp_device *ssp;
 	const struct lpss_config *config;
@@ -1559,33 +1621,38 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	master = spi_alloc_master(dev, sizeof(struct driver_data));
-	if (!master) {
-		dev_err(&pdev->dev, "cannot alloc spi_master\n");
+	if (platform_info->is_slave)
+		controller = spi_alloc_slave(dev, sizeof(struct driver_data));
+	else
+		controller = spi_alloc_master(dev, sizeof(struct driver_data));
+
+	if (!controller) {
+		dev_err(&pdev->dev, "cannot alloc spi_controller\n");
 		pxa_ssp_free(ssp);
 		return -ENOMEM;
 	}
-	drv_data = spi_controller_get_devdata(master);
-	drv_data->master = master;
-	drv_data->master_info = platform_info;
+	drv_data = spi_controller_get_devdata(controller);
+	drv_data->controller = controller;
+	drv_data->controller_info = platform_info;
 	drv_data->pdev = pdev;
 	drv_data->ssp = ssp;
 
-	master->dev.of_node = pdev->dev.of_node;
+	controller->dev.of_node = pdev->dev.of_node;
 	/* the spi->mode bits understood by this driver: */
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
+	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 
-	master->bus_num = ssp->port_id;
-	master->dma_alignment = DMA_ALIGNMENT;
-	master->cleanup = cleanup;
-	master->setup = setup;
-	master->set_cs = pxa2xx_spi_set_cs;
-	master->transfer_one = pxa2xx_spi_transfer_one;
-	master->handle_err = pxa2xx_spi_handle_err;
-	master->unprepare_transfer_hardware = pxa2xx_spi_unprepare_transfer;
-	master->fw_translate_cs = pxa2xx_spi_fw_translate_cs;
-	master->auto_runtime_pm = true;
-	master->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
+	controller->bus_num = ssp->port_id;
+	controller->dma_alignment = DMA_ALIGNMENT;
+	controller->cleanup = cleanup;
+	controller->setup = setup;
+	controller->set_cs = pxa2xx_spi_set_cs;
+	controller->transfer_one = pxa2xx_spi_transfer_one;
+	controller->slave_abort = pxa2xx_spi_slave_abort;
+	controller->handle_err = pxa2xx_spi_handle_err;
+	controller->unprepare_transfer_hardware = pxa2xx_spi_unprepare_transfer;
+	controller->fw_translate_cs = pxa2xx_spi_fw_translate_cs;
+	controller->auto_runtime_pm = true;
+	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
 
 	drv_data->ssp_type = ssp->type;
 
@@ -1594,10 +1661,10 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (pxa25x_ssp_comp(drv_data)) {
 		switch (drv_data->ssp_type) {
 		case QUARK_X1000_SSP:
-			master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
+			controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 			break;
 		default:
-			master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
+			controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 			break;
 		}
 
@@ -1606,18 +1673,19 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		drv_data->clear_sr = SSSR_ROR;
 		drv_data->mask_sr = SSSR_RFS | SSSR_TFS | SSSR_ROR;
 	} else {
-		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
+		controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE | SSCR1_TINTE;
 		drv_data->dma_cr1 = DEFAULT_DMA_CR1;
 		drv_data->clear_sr = SSSR_ROR | SSSR_TINT;
-		drv_data->mask_sr = SSSR_TINT | SSSR_RFS | SSSR_TFS | SSSR_ROR;
+		drv_data->mask_sr = SSSR_TINT | SSSR_RFS | SSSR_TFS
+						| SSSR_ROR | SSSR_TUR;
 	}
 
 	status = request_irq(ssp->irq, ssp_int, IRQF_SHARED, dev_name(dev),
 			drv_data);
 	if (status < 0) {
 		dev_err(&pdev->dev, "cannot get IRQ %d\n", ssp->irq);
-		goto out_error_master_alloc;
+		goto out_error_controller_alloc;
 	}
 
 	/* Setup DMA if requested */
@@ -1627,7 +1695,8 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 			dev_dbg(dev, "no DMA channels available, using PIO\n");
 			platform_info->enable_dma = false;
 		} else {
-			master->can_dma = pxa2xx_spi_can_dma;
+			controller->can_dma = pxa2xx_spi_can_dma;
+			controller->max_dma_len = MAX_DMA_LEN;
 		}
 	}
 
@@ -1636,7 +1705,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (status)
 		goto out_error_dma_irq_alloc;
 
-	master->max_speed_hz = clk_get_rate(ssp->clk);
+	controller->max_speed_hz = clk_get_rate(ssp->clk);
 
 	/* Load default SSP configuration */
 	pxa2xx_spi_write(drv_data, SSCR0, 0);
@@ -1658,10 +1727,22 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		pxa2xx_spi_write(drv_data, SSCR0, tmp);
 		break;
 	default:
-		tmp = SSCR1_RxTresh(RX_THRESH_DFLT) |
-		      SSCR1_TxTresh(TX_THRESH_DFLT);
+
+		if (spi_controller_is_slave(controller)) {
+			tmp = SSCR1_SCFR |
+			      SSCR1_SCLKDIR |
+			      SSCR1_SFRMDIR |
+			      SSCR1_RxTresh(2) |
+			      SSCR1_TxTresh(1) |
+			      SSCR1_SPH;
+		} else {
+			tmp = SSCR1_RxTresh(RX_THRESH_DFLT) |
+			      SSCR1_TxTresh(TX_THRESH_DFLT);
+		}
 		pxa2xx_spi_write(drv_data, SSCR1, tmp);
-		tmp = SSCR0_SCR(2) | SSCR0_Motorola | SSCR0_DataSize(8);
+		tmp = SSCR0_Motorola | SSCR0_DataSize(8);
+		if (!spi_controller_is_slave(controller))
+			tmp |= SSCR0_SCR(2);
 		pxa2xx_spi_write(drv_data, SSCR0, tmp);
 		break;
 	}
@@ -1685,24 +1766,24 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 			platform_info->num_chipselect = config->cs_num;
 		}
 	}
-	master->num_chipselect = platform_info->num_chipselect;
+	controller->num_chipselect = platform_info->num_chipselect;
 
 	count = gpiod_count(&pdev->dev, "cs");
 	if (count > 0) {
 		int i;
 
-		master->num_chipselect = max_t(int, count,
-			master->num_chipselect);
+		controller->num_chipselect = max_t(int, count,
+			controller->num_chipselect);
 
 		drv_data->cs_gpiods = devm_kcalloc(&pdev->dev,
-			master->num_chipselect, sizeof(struct gpio_desc *),
+			controller->num_chipselect, sizeof(struct gpio_desc *),
 			GFP_KERNEL);
 		if (!drv_data->cs_gpiods) {
 			status = -ENOMEM;
 			goto out_error_clock_enabled;
 		}
 
-		for (i = 0; i < master->num_chipselect; i++) {
+		for (i = 0; i < controller->num_chipselect; i++) {
 			struct gpio_desc *gpiod;
 
 			gpiod = devm_gpiod_get_index(dev, "cs", i, GPIOD_ASIS);
@@ -1711,11 +1792,20 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 				if (PTR_ERR(gpiod) == -ENOENT)
 					continue;
 
-				status = (int)PTR_ERR(gpiod);
+				status = PTR_ERR(gpiod);
 				goto out_error_clock_enabled;
 			} else {
 				drv_data->cs_gpiods[i] = gpiod;
 			}
+		}
+	}
+
+	if (platform_info->is_slave) {
+		drv_data->gpiod_ready = devm_gpiod_get_optional(dev,
+						"ready", GPIOD_OUT_LOW);
+		if (IS_ERR(drv_data->gpiod_ready)) {
+			status = PTR_ERR(drv_data->gpiod_ready);
+			goto out_error_clock_enabled;
 		}
 	}
 
@@ -1726,9 +1816,9 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 
 	/* Register with the SPI framework */
 	platform_set_drvdata(pdev, drv_data);
-	status = devm_spi_register_controller(&pdev->dev, master);
+	status = devm_spi_register_controller(&pdev->dev, controller);
 	if (status != 0) {
-		dev_err(&pdev->dev, "problem registering spi master\n");
+		dev_err(&pdev->dev, "problem registering spi controller\n");
 		goto out_error_clock_enabled;
 	}
 
@@ -1743,8 +1833,8 @@ out_error_dma_irq_alloc:
 	pxa2xx_spi_dma_release(drv_data);
 	free_irq(ssp->irq, drv_data);
 
-out_error_master_alloc:
-	spi_controller_put(master);
+out_error_controller_alloc:
+	spi_controller_put(controller);
 	pxa_ssp_free(ssp);
 	return status;
 }
@@ -1765,7 +1855,7 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(ssp->clk);
 
 	/* Release DMA */
-	if (drv_data->master_info->enable_dma)
+	if (drv_data->controller_info->enable_dma)
 		pxa2xx_spi_dma_release(drv_data);
 
 	pm_runtime_put_noidle(&pdev->dev);
@@ -1787,7 +1877,7 @@ static int pxa2xx_spi_suspend(struct device *dev)
 	struct ssp_device *ssp = drv_data->ssp;
 	int status;
 
-	status = spi_controller_suspend(drv_data->master);
+	status = spi_controller_suspend(drv_data->controller);
 	if (status != 0)
 		return status;
 	pxa2xx_spi_write(drv_data, SSCR0, 0);
@@ -1811,12 +1901,8 @@ static int pxa2xx_spi_resume(struct device *dev)
 			return status;
 	}
 
-	/* Restore LPSS private register bits */
-	if (is_lpss_ssp(drv_data))
-		lpss_ssp_setup(drv_data);
-
 	/* Start the queue running */
-	return spi_controller_resume(drv_data->master);
+	return spi_controller_resume(drv_data->controller);
 }
 #endif
 

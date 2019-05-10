@@ -16,15 +16,6 @@
 #include <linux/module.h>
 #include <linux/cordic.h>
 
-#define CORDIC_ANGLE_GEN	39797
-#define CORDIC_PRECISION_SHIFT	16
-#define	CORDIC_NUM_ITER		(CORDIC_PRECISION_SHIFT + 2)
-
-#define	FIXED(X)	((s32)((X) << CORDIC_PRECISION_SHIFT))
-#define	FLOAT(X)	(((X) >= 0) \
-		? ((((X) >> (CORDIC_PRECISION_SHIFT - 1)) + 1) >> 1) \
-		: -((((-(X)) >> (CORDIC_PRECISION_SHIFT - 1)) + 1) >> 1))
-
 static const s32 arctan_table[] = {
 	2949120,
 	1740967,
@@ -64,16 +55,16 @@ struct cordic_iq cordic_calc_iq(s32 theta)
 	coord.q = 0;
 	angle = 0;
 
-	theta = FIXED(theta);
+	theta = CORDIC_FIXED(theta);
 	signtheta = (theta < 0) ? -1 : 1;
-	theta = ((theta + FIXED(180) * signtheta) % FIXED(360)) -
-		FIXED(180) * signtheta;
+	theta = ((theta + CORDIC_FIXED(180) * signtheta) % CORDIC_FIXED(360)) -
+		CORDIC_FIXED(180) * signtheta;
 
-	if (FLOAT(theta) > 90) {
-		theta -= FIXED(180);
+	if (CORDIC_FLOAT(theta) > 90) {
+		theta -= CORDIC_FIXED(180);
 		signx = -1;
-	} else if (FLOAT(theta) < -90) {
-		theta += FIXED(180);
+	} else if (CORDIC_FLOAT(theta) < -90) {
+		theta += CORDIC_FIXED(180);
 		signx = -1;
 	}
 

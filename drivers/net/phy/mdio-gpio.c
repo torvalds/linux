@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPIO based MDIO bitbang driver.
  * Supports OpenFirmware.
@@ -14,16 +15,13 @@
  *
  * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/mdio-gpio.h>
 #include <linux/mdio-bitbang.h>
 #include <linux/mdio-gpio.h>
 #include <linux/gpio/consumer.h>
@@ -112,6 +110,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 					  struct mdio_gpio_info *bitbang,
 					  int bus_id)
 {
+	struct mdio_gpio_platform_data *pdata = dev_get_platdata(dev);
 	struct mii_bus *new_bus;
 
 	bitbang->ctrl.ops = &mdio_gpio_ops;
@@ -127,6 +126,11 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 		snprintf(new_bus->id, MII_BUS_ID_SIZE, "gpio-%x", bus_id);
 	else
 		strncpy(new_bus->id, "gpio", MII_BUS_ID_SIZE);
+
+	if (pdata) {
+		new_bus->phy_mask = pdata->phy_mask;
+		new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
+	}
 
 	dev_set_drvdata(dev, new_bus);
 
@@ -209,5 +213,5 @@ module_platform_driver(mdio_gpio_driver);
 
 MODULE_ALIAS("platform:mdio-gpio");
 MODULE_AUTHOR("Laurent Pinchart, Paulius Zaleckas");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Generic driver for MDIO bus emulation using GPIO");

@@ -22,6 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/list_lru.h>
+#include <uapi/linux/android/binder.h>
 
 extern struct list_lru binder_alloc_lru;
 struct binder_transaction;
@@ -30,16 +31,16 @@ struct binder_transaction;
  * struct binder_buffer - buffer used for binder transactions
  * @entry:              entry alloc->buffers
  * @rb_node:            node for allocated_buffers/free_buffers rb trees
- * @free:               true if buffer is free
- * @allow_user_free:    describe the second member of struct blah,
- * @async_transaction:  describe the second member of struct blah,
- * @debug_id:           describe the second member of struct blah,
- * @transaction:        describe the second member of struct blah,
- * @target_node:        describe the second member of struct blah,
- * @data_size:          describe the second member of struct blah,
- * @offsets_size:       describe the second member of struct blah,
- * @extra_buffers_size: describe the second member of struct blah,
- * @data:i              describe the second member of struct blah,
+ * @free:               %true if buffer is free
+ * @allow_user_free:    %true if user is allowed to free buffer
+ * @async_transaction:  %true if buffer is in use for an async txn
+ * @debug_id:           unique ID for debugging
+ * @transaction:        pointer to associated struct binder_transaction
+ * @target_node:        struct binder_node associated with this buffer
+ * @data_size:          size of @transaction data
+ * @offsets_size:       size of array of offsets
+ * @extra_buffers_size: size of space for other objects (like sg lists)
+ * @user_data:          user pointer to base of buffer space
  *
  * Bookkeeping structure for binder transaction buffers
  */
@@ -58,7 +59,7 @@ struct binder_buffer {
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
-	void *data;
+	void __user *user_data;
 };
 
 /**
@@ -81,7 +82,6 @@ struct binder_lru_page {
  *                      (invariant after init)
  * @vma_vm_mm:          copy of vma->vm_mm (invarient after mmap)
  * @buffer:             base of per-proc address space mapped via mmap
- * @user_buffer_offset: offset between user and kernel VAs for buffer
  * @buffers:            list of all buffers for this proc
  * @free_buffers:       rb tree of buffers available for allocation
  *                      sorted by size
@@ -102,8 +102,7 @@ struct binder_alloc {
 	struct mutex mutex;
 	struct vm_area_struct *vma;
 	struct mm_struct *vma_vm_mm;
-	void *buffer;
-	ptrdiff_t user_buffer_offset;
+	void __user *buffer;
 	struct list_head buffers;
 	struct rb_root free_buffers;
 	struct rb_root allocated_buffers;
@@ -162,26 +161,24 @@ binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 	return free_async_space;
 }
 
-/**
- * binder_alloc_get_user_buffer_offset() - get offset between kernel/user addrs
- * @alloc:	binder_alloc for this proc
- *
- * Return:	the offset between kernel and user-space addresses to use for
- * virtual address conversion
- */
-static inline ptrdiff_t
-binder_alloc_get_user_buffer_offset(struct binder_alloc *alloc)
-{
-	/*
-	 * user_buffer_offset is constant if vma is set and
-	 * undefined if vma is not set. It is possible to
-	 * get here with !alloc->vma if the target process
-	 * is dying while a transaction is being initiated.
-	 * Returning the old value is ok in this case and
-	 * the transaction will fail.
-	 */
-	return alloc->user_buffer_offset;
-}
+unsigned long
+binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
+				 struct binder_buffer *buffer,
+				 binder_size_t buffer_offset,
+				 const void __user *from,
+				 size_t bytes);
+
+void binder_alloc_copy_to_buffer(struct binder_alloc *alloc,
+				 struct binder_buffer *buffer,
+				 binder_size_t buffer_offset,
+				 void *src,
+				 size_t bytes);
+
+void binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
+				   void *dest,
+				   struct binder_buffer *buffer,
+				   binder_size_t buffer_offset,
+				   size_t bytes);
 
 #endif /* _LINUX_BINDER_ALLOC_H */
 

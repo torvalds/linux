@@ -61,6 +61,15 @@ static inline struct mtd_part *mtd_to_part(const struct mtd_info *mtd)
 	return container_of(mtd, struct mtd_part, mtd);
 }
 
+static u64 part_absolute_offset(struct mtd_info *mtd)
+{
+	struct mtd_part *part = mtd_to_part(mtd);
+
+	if (!mtd_is_partition(mtd))
+		return 0;
+
+	return part_absolute_offset(part->parent) + part->offset;
+}
 
 /*
  * MTD methods which simply translate the effective address and pass through
@@ -346,7 +355,8 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 
 	/* set up the MTD object for this partition */
 	slave->mtd.type = parent->type;
-	slave->mtd.flags = parent->flags & ~part->mask_flags;
+	slave->mtd.flags = parent->orig_flags & ~part->mask_flags;
+	slave->mtd.orig_flags = slave->mtd.flags;
 	slave->mtd.size = part->size;
 	slave->mtd.writesize = parent->writesize;
 	slave->mtd.writebufsize = parent->writebufsize;
@@ -470,6 +480,10 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 		/* let's register it anyway to preserve ordering */
 		slave->offset = 0;
 		slave->mtd.size = 0;
+
+		/* Initialize ->erasesize to make add_mtd_device() happy. */
+		slave->mtd.erasesize = parent->erasesize;
+
 		printk(KERN_ERR"mtd: partition \"%s\" is out of reach -- disabled\n",
 			part->name);
 		goto out_register;
@@ -513,7 +527,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 	if (!(slave->mtd.flags & MTD_NO_ERASE))
 		wr_alignment = slave->mtd.erasesize;
 
-	tmp = slave->offset;
+	tmp = part_absolute_offset(parent) + slave->offset;
 	remainder = do_div(tmp, wr_alignment);
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {
 		/* Doesn't start on a boundary of major erase size */
@@ -524,7 +538,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			part->name);
 	}
 
-	tmp = slave->mtd.size;
+	tmp = part_absolute_offset(parent) + slave->mtd.size;
 	remainder = do_div(tmp, wr_alignment);
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {
 		slave->mtd.flags &= ~MTD_WRITEABLE;
@@ -608,9 +622,20 @@ int mtd_add_partition(struct mtd_info *parent, const char *name,
 	list_add(&new->list, &mtd_partitions);
 	mutex_unlock(&mtd_partitions_mutex);
 
-	add_mtd_device(&new->mtd);
+	ret = add_mtd_device(&new->mtd);
+	if (ret)
+		goto err_remove_part;
 
 	mtd_add_partition_attrs(new);
+
+	return 0;
+
+err_remove_part:
+	mutex_lock(&mtd_partitions_mutex);
+	list_del(&new->list);
+	mutex_unlock(&mtd_partitions_mutex);
+
+	free_partition(new);
 
 	return ret;
 }
@@ -702,22 +727,31 @@ int add_mtd_partitions(struct mtd_info *master,
 {
 	struct mtd_part *slave;
 	uint64_t cur_offset = 0;
-	int i;
+	int i, ret;
 
 	printk(KERN_NOTICE "Creating %d MTD partitions on \"%s\":\n", nbparts, master->name);
 
 	for (i = 0; i < nbparts; i++) {
 		slave = allocate_partition(master, parts + i, i, cur_offset);
 		if (IS_ERR(slave)) {
-			del_mtd_partitions(master);
-			return PTR_ERR(slave);
+			ret = PTR_ERR(slave);
+			goto err_del_partitions;
 		}
 
 		mutex_lock(&mtd_partitions_mutex);
 		list_add(&slave->list, &mtd_partitions);
 		mutex_unlock(&mtd_partitions_mutex);
 
-		add_mtd_device(&slave->mtd);
+		ret = add_mtd_device(&slave->mtd);
+		if (ret) {
+			mutex_lock(&mtd_partitions_mutex);
+			list_del(&slave->list);
+			mutex_unlock(&mtd_partitions_mutex);
+
+			free_partition(slave);
+			goto err_del_partitions;
+		}
+
 		mtd_add_partition_attrs(slave);
 		/* Look for subpartitions */
 		parse_mtd_partitions(&slave->mtd, parts[i].types, NULL);
@@ -726,6 +760,11 @@ int add_mtd_partitions(struct mtd_info *master,
 	}
 
 	return 0;
+
+err_del_partitions:
+	del_mtd_partitions(master);
+
+	return ret;
 }
 
 static DEFINE_SPINLOCK(part_parser_lock);

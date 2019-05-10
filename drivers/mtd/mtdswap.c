@@ -1265,18 +1265,7 @@ static int mtdswap_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int mtdswap_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtdswap_show, inode->i_private);
-}
-
-static const struct file_operations mtdswap_fops = {
-	.open		= mtdswap_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mtdswap);
 
 static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 {

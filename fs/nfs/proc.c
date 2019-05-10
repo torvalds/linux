@@ -490,7 +490,7 @@ nfs_proc_rmdir(struct inode *dir, const struct qstr *name)
  * from nfs_readdir by calling the decode_entry function directly.
  */
 static int
-nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
+nfs_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		 u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct inode		*dir = d_inode(dentry);

@@ -81,6 +81,7 @@
 #define VIVID_CID_START_STR_ERROR	(VIVID_CID_VIVID_BASE + 69)
 #define VIVID_CID_QUEUE_ERROR		(VIVID_CID_VIVID_BASE + 70)
 #define VIVID_CID_CLEAR_FB		(VIVID_CID_VIVID_BASE + 71)
+#define VIVID_CID_REQ_VALIDATE_ERROR	(VIVID_CID_VIVID_BASE + 72)
 
 #define VIVID_CID_RADIO_SEEK_MODE	(VIVID_CID_VIVID_BASE + 90)
 #define VIVID_CID_RADIO_SEEK_PROG_LIM	(VIVID_CID_VIVID_BASE + 91)
@@ -1002,6 +1003,9 @@ static int vivid_streaming_s_ctrl(struct v4l2_ctrl *ctrl)
 	case VIVID_CID_START_STR_ERROR:
 		dev->start_streaming_error = true;
 		break;
+	case VIVID_CID_REQ_VALIDATE_ERROR:
+		dev->req_validate_error = true;
+		break;
 	case VIVID_CID_QUEUE_ERROR:
 		if (vb2_start_streaming_called(&dev->vb_vid_cap_q))
 			vb2_queue_error(&dev->vb_vid_cap_q);
@@ -1086,6 +1090,15 @@ static const struct v4l2_ctrl_config vivid_ctrl_queue_error = {
 	.name = "Inject Fatal Streaming Error",
 	.type = V4L2_CTRL_TYPE_BUTTON,
 };
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+static const struct v4l2_ctrl_config vivid_ctrl_req_validate_error = {
+	.ops = &vivid_streaming_ctrl_ops,
+	.id = VIVID_CID_REQ_VALIDATE_ERROR,
+	.name = "Inject req_validate() Error",
+	.type = V4L2_CTRL_TYPE_BUTTON,
+};
+#endif
 
 static const struct v4l2_ctrl_config vivid_ctrl_seq_wrap = {
 	.ops = &vivid_streaming_ctrl_ops,
@@ -1516,6 +1529,9 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_buf_prepare_error, NULL);
 		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_start_streaming_error, NULL);
 		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_queue_error, NULL);
+#ifdef CONFIG_MEDIA_CONTROLLER
+		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_req_validate_error, NULL);
+#endif
 		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_seq_wrap, NULL);
 		v4l2_ctrl_new_custom(hdl_streaming, &vivid_ctrl_time_wrap, NULL);
 	}

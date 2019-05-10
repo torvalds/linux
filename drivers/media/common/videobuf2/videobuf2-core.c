@@ -499,9 +499,9 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 			pr_info("     buf_init: %u buf_cleanup: %u buf_prepare: %u buf_finish: %u\n",
 				vb->cnt_buf_init, vb->cnt_buf_cleanup,
 				vb->cnt_buf_prepare, vb->cnt_buf_finish);
-			pr_info("     buf_queue: %u buf_done: %u buf_request_complete: %u\n",
-				vb->cnt_buf_queue, vb->cnt_buf_done,
-				vb->cnt_buf_request_complete);
+			pr_info("     buf_out_validate: %u buf_queue: %u buf_done: %u buf_request_complete: %u\n",
+				vb->cnt_buf_out_validate, vb->cnt_buf_queue,
+				vb->cnt_buf_done, vb->cnt_buf_request_complete);
 			pr_info("     alloc: %u put: %u prepare: %u finish: %u mmap: %u\n",
 				vb->cnt_mem_alloc, vb->cnt_mem_put,
 				vb->cnt_mem_prepare, vb->cnt_mem_finish,
@@ -679,11 +679,9 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * are not in use and can be freed.
 		 */
 		mutex_lock(&q->mmap_lock);
-		if (q->memory == VB2_MEMORY_MMAP && __buffers_in_use(q)) {
-			mutex_unlock(&q->mmap_lock);
-			dprintk(1, "memory in use, cannot free\n");
-			return -EBUSY;
-		}
+		if (debug && q->memory == VB2_MEMORY_MMAP &&
+		    __buffers_in_use(q))
+			dprintk(1, "memory in use, orphaning buffers\n");
 
 		/*
 		 * Call queue_cancel to clean up any buffers in the
@@ -812,6 +810,9 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
 		q->memory = memory;
 		q->waiting_for_buffers = !q->is_output;
+	} else if (q->memory != memory) {
+		dprintk(1, "memory model mismatch\n");
+		return -EINVAL;
 	}
 
 	num_buffers = min(*count, VB2_MAX_FRAME - q->num_buffers);
@@ -933,7 +934,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 		/* sync buffers */
 		for (plane = 0; plane < vb->num_planes; ++plane)
 			call_void_memop(vb, finish, vb->planes[plane].mem_priv);
-		vb->synced = false;
+		vb->synced = 0;
 	}
 
 	spin_lock_irqsave(&q->done_lock, flags);
@@ -1040,6 +1041,7 @@ static int __prepare_userptr(struct vb2_buffer *vb)
 		if (vb->planes[plane].mem_priv) {
 			if (!reacquired) {
 				reacquired = true;
+				vb->copied_timestamp = 0;
 				call_void_vb_qop(vb, buf_cleanup, vb);
 			}
 			call_void_memop(vb, put_userptr, vb->planes[plane].mem_priv);
@@ -1164,6 +1166,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 
 		if (!reacquired) {
 			reacquired = true;
+			vb->copied_timestamp = 0;
 			call_void_vb_qop(vb, buf_cleanup, vb);
 		}
 
@@ -1195,6 +1198,9 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 	 * userspace knows sooner rather than later if the dma-buf map fails.
 	 */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
+		if (vb->planes[plane].dbuf_mapped)
+			continue;
+
 		ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv);
 		if (ret) {
 			dprintk(1, "failed to map dmabuf for plane %d\n",
@@ -1273,6 +1279,14 @@ static int __buf_prepare(struct vb2_buffer *vb)
 		return 0;
 	WARN_ON(vb->synced);
 
+	if (q->is_output) {
+		ret = call_vb_qop(vb, buf_out_validate, vb);
+		if (ret) {
+			dprintk(1, "buffer validation failed\n");
+			return ret;
+		}
+	}
+
 	vb->state = VB2_BUF_STATE_PREPARING;
 
 	switch (q->memory) {
@@ -1301,8 +1315,8 @@ static int __buf_prepare(struct vb2_buffer *vb)
 	for (plane = 0; plane < vb->num_planes; ++plane)
 		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
 
-	vb->synced = true;
-	vb->prepared = true;
+	vb->synced = 1;
+	vb->prepared = 1;
 	vb->state = orig_state;
 
 	return 0;
@@ -1517,6 +1531,14 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 			dprintk(1, "buffer %d not in dequeued state\n",
 				vb->index);
 			return -EINVAL;
+		}
+
+		if (q->is_output && !vb->prepared) {
+			ret = call_vb_qop(vb, buf_out_validate, vb);
+			if (ret) {
+				dprintk(1, "buffer validation failed\n");
+				return ret;
+			}
 		}
 
 		media_request_object_init(&vb->req_obj);
@@ -1749,7 +1771,6 @@ EXPORT_SYMBOL_GPL(vb2_wait_for_all_buffers);
 static void __vb2_dqbuf(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
-	unsigned int i;
 
 	/* nothing to do if the buffer is already dequeued */
 	if (vb->state == VB2_BUF_STATE_DEQUEUED)
@@ -1757,14 +1778,6 @@ static void __vb2_dqbuf(struct vb2_buffer *vb)
 
 	vb->state = VB2_BUF_STATE_DEQUEUED;
 
-	/* unmap DMABUF buffer */
-	if (q->memory == VB2_MEMORY_DMABUF)
-		for (i = 0; i < vb->num_planes; ++i) {
-			if (!vb->planes[i].dbuf_mapped)
-				continue;
-			call_void_memop(vb, unmap_dmabuf, vb->planes[i].mem_priv);
-			vb->planes[i].dbuf_mapped = 0;
-		}
 	call_void_bufop(q, init_buffer, vb);
 }
 
@@ -1791,7 +1804,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 	}
 
 	call_void_vb_qop(vb, buf_finish, vb);
-	vb->prepared = false;
+	vb->prepared = 0;
 
 	if (pindex)
 		*pindex = vb->index;
@@ -1915,12 +1928,12 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 			for (plane = 0; plane < vb->num_planes; ++plane)
 				call_void_memop(vb, finish,
 						vb->planes[plane].mem_priv);
-			vb->synced = false;
+			vb->synced = 0;
 		}
 
 		if (vb->prepared) {
 			call_void_vb_qop(vb, buf_finish, vb);
-			vb->prepared = false;
+			vb->prepared = 0;
 		}
 		__vb2_dqbuf(vb);
 
@@ -1931,6 +1944,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 		if (vb->request)
 			media_request_put(vb->request);
 		vb->request = NULL;
+		vb->copied_timestamp = 0;
 	}
 }
 
@@ -2143,9 +2157,13 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 			return -EINVAL;
 		}
 	}
+
+	mutex_lock(&q->mmap_lock);
+
 	if (vb2_fileio_is_active(q)) {
 		dprintk(1, "mmap: file io in progress\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto unlock;
 	}
 
 	/*
@@ -2153,7 +2171,7 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	 */
 	ret = __find_plane_by_offset(q, off, &buffer, &plane);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	vb = q->bufs[buffer];
 
@@ -2166,11 +2184,13 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	if (length < (vma->vm_end - vma->vm_start)) {
 		dprintk(1,
 			"MMAP invalid, as it would overflow buffer length\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
-	mutex_lock(&q->mmap_lock);
 	ret = call_memop(vb, mmap, vb->planes[plane].mem_priv, vma);
+
+unlock:
 	mutex_unlock(&q->mmap_lock);
 	if (ret)
 		return ret;
@@ -2271,6 +2291,8 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	if (q->is_output && !(req_events & (EPOLLOUT | EPOLLWRNORM)))
 		return 0;
 
+	poll_wait(file, &q->done_wq, wait);
+
 	/*
 	 * Start file I/O emulator only if streaming API has not been used yet.
 	 */
@@ -2322,8 +2344,6 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 		 */
 		if (q->last_buffer_dequeued)
 			return EPOLLIN | EPOLLRDNORM;
-
-		poll_wait(file, &q->done_wq, wait);
 	}
 
 	/*

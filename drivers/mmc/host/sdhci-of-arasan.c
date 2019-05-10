@@ -231,25 +231,6 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 }
 
-static void sdhci_arasan_am654_set_clock(struct sdhci_host *host,
-					 unsigned int clock)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
-
-	if (sdhci_arasan->is_phy_on) {
-		phy_power_off(sdhci_arasan->phy);
-		sdhci_arasan->is_phy_on = false;
-	}
-
-	sdhci_set_clock(host, clock);
-
-	if (clock > PHY_CLK_TOO_SLOW_HZ) {
-		phy_power_on(sdhci_arasan->phy);
-		sdhci_arasan->is_phy_on = true;
-	}
-}
-
 static void sdhci_arasan_hs400_enhanced_strobe(struct mmc_host *mmc,
 					struct mmc_ios *ios)
 {
@@ -333,29 +314,6 @@ static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
 
 static struct sdhci_arasan_of_data sdhci_arasan_data = {
 	.pdata = &sdhci_arasan_pdata,
-};
-
-static const struct sdhci_ops sdhci_arasan_am654_ops = {
-	.set_clock = sdhci_arasan_am654_set_clock,
-	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
-	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
-	.set_bus_width = sdhci_set_bus_width,
-	.reset = sdhci_arasan_reset,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
-};
-
-static const struct sdhci_pltfm_data sdhci_arasan_am654_pdata = {
-	.ops = &sdhci_arasan_am654_ops,
-	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN  |
-		  SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
-	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
-		   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
-		   SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400,
-};
-
-static const struct sdhci_arasan_of_data sdhci_arasan_am654_data = {
-	.pdata = &sdhci_arasan_am654_pdata,
 };
 
 static u32 sdhci_arasan_cqhci_irq(struct sdhci_host *host, u32 intmask)
@@ -519,10 +477,6 @@ static const struct of_device_id sdhci_arasan_of_match[] = {
 	{
 		.compatible = "rockchip,rk3399-sdhci-5.1",
 		.data = &sdhci_arasan_rk3399_data,
-	},
-	{
-		.compatible = "ti,am654-sdhci-5.1",
-		.data = &sdhci_arasan_am654_data,
 	},
 	/* Generic compatible below here */
 	{

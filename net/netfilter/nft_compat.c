@@ -23,36 +23,12 @@
 #include <linux/netfilter_arp/arp_tables.h>
 #include <net/netfilter/nf_tables.h>
 
-struct nft_xt {
-	struct list_head	head;
-	struct nft_expr_ops	ops;
-	unsigned int		refcnt;
-
-	/* Unlike other expressions, ops doesn't have static storage duration.
-	 * nft core assumes they do.  We use kfree_rcu so that nft core can
-	 * can check expr->ops->size even after nft_compat->destroy() frees
-	 * the nft_xt struct that holds the ops structure.
-	 */
-	struct rcu_head		rcu_head;
-};
-
 /* Used for matches where *info is larger than X byte */
 #define NFT_MATCH_LARGE_THRESH	192
 
 struct nft_xt_match_priv {
 	void *info;
 };
-
-static bool nft_xt_put(struct nft_xt *xt)
-{
-	if (--xt->refcnt == 0) {
-		list_del(&xt->head);
-		kfree_rcu(xt, rcu_head);
-		return true;
-	}
-
-	return false;
-}
 
 static int nft_compat_chain_validate_dependency(const struct nft_ctx *ctx,
 						const char *tablename)
@@ -248,7 +224,6 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	struct xt_target *target = expr->ops->data;
 	struct xt_tgchk_param par;
 	size_t size = XT_ALIGN(nla_len(tb[NFTA_TARGET_INFO]));
-	struct nft_xt *nft_xt;
 	u16 proto = 0;
 	bool inv = false;
 	union nft_entry e = {};
@@ -272,8 +247,6 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (!target->target)
 		return -EINVAL;
 
-	nft_xt = container_of(expr->ops, struct nft_xt, ops);
-	nft_xt->refcnt++;
 	return 0;
 }
 
@@ -282,6 +255,7 @@ nft_target_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 {
 	struct xt_target *target = expr->ops->data;
 	void *info = nft_expr_priv(expr);
+	struct module *me = target->me;
 	struct xt_tgdtor_param par;
 
 	par.net = ctx->net;
@@ -291,8 +265,8 @@ nft_target_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 
-	if (nft_xt_put(container_of(expr->ops, struct nft_xt, ops)))
-		module_put(target->me);
+	module_put(me);
+	kfree(expr->ops);
 }
 
 static int nft_extension_dump_info(struct sk_buff *skb, int attr,
@@ -465,7 +439,6 @@ __nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	struct xt_match *match = expr->ops->data;
 	struct xt_mtchk_param par;
 	size_t size = XT_ALIGN(nla_len(tb[NFTA_MATCH_INFO]));
-	struct nft_xt *nft_xt;
 	u16 proto = 0;
 	bool inv = false;
 	union nft_entry e = {};
@@ -481,13 +454,7 @@ __nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	nft_match_set_mtchk_param(&par, ctx, match, info, &e, proto, inv);
 
-	ret = xt_check_match(&par, size, proto, inv);
-	if (ret < 0)
-		return ret;
-
-	nft_xt = container_of(expr->ops, struct nft_xt, ops);
-	nft_xt->refcnt++;
-	return 0;
+	return xt_check_match(&par, size, proto, inv);
 }
 
 static int
@@ -530,8 +497,8 @@ __nft_match_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (par.match->destroy != NULL)
 		par.match->destroy(&par);
 
-	if (nft_xt_put(container_of(expr->ops, struct nft_xt, ops)))
-		module_put(me);
+	module_put(me);
+	kfree(expr->ops);
 }
 
 static void
@@ -734,22 +701,13 @@ static const struct nfnetlink_subsystem nfnl_compat_subsys = {
 	.cb		= nfnl_nft_compat_cb,
 };
 
-static LIST_HEAD(nft_match_list);
-
 static struct nft_expr_type nft_match_type;
-
-static bool nft_match_cmp(const struct xt_match *match,
-			  const char *name, u32 rev, u32 family)
-{
-	return strcmp(match->name, name) == 0 && match->revision == rev &&
-	       (match->family == NFPROTO_UNSPEC || match->family == family);
-}
 
 static const struct nft_expr_ops *
 nft_match_select_ops(const struct nft_ctx *ctx,
 		     const struct nlattr * const tb[])
 {
-	struct nft_xt *nft_match;
+	struct nft_expr_ops *ops;
 	struct xt_match *match;
 	unsigned int matchsize;
 	char *mt_name;
@@ -765,14 +723,6 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 	rev = ntohl(nla_get_be32(tb[NFTA_MATCH_REV]));
 	family = ctx->family;
 
-	/* Re-use the existing match if it's already loaded. */
-	list_for_each_entry(nft_match, &nft_match_list, head) {
-		struct xt_match *match = nft_match->ops.data;
-
-		if (nft_match_cmp(match, mt_name, rev, family))
-			return &nft_match->ops;
-	}
-
 	match = xt_request_find_match(family, mt_name, rev);
 	if (IS_ERR(match))
 		return ERR_PTR(-ENOENT);
@@ -782,66 +732,62 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	/* This is the first time we use this match, allocate operations */
-	nft_match = kzalloc(sizeof(struct nft_xt), GFP_KERNEL);
-	if (nft_match == NULL) {
+	ops = kzalloc(sizeof(struct nft_expr_ops), GFP_KERNEL);
+	if (!ops) {
 		err = -ENOMEM;
 		goto err;
 	}
 
-	nft_match->refcnt = 0;
-	nft_match->ops.type = &nft_match_type;
-	nft_match->ops.eval = nft_match_eval;
-	nft_match->ops.init = nft_match_init;
-	nft_match->ops.destroy = nft_match_destroy;
-	nft_match->ops.dump = nft_match_dump;
-	nft_match->ops.validate = nft_match_validate;
-	nft_match->ops.data = match;
+	ops->type = &nft_match_type;
+	ops->eval = nft_match_eval;
+	ops->init = nft_match_init;
+	ops->destroy = nft_match_destroy;
+	ops->dump = nft_match_dump;
+	ops->validate = nft_match_validate;
+	ops->data = match;
 
 	matchsize = NFT_EXPR_SIZE(XT_ALIGN(match->matchsize));
 	if (matchsize > NFT_MATCH_LARGE_THRESH) {
 		matchsize = NFT_EXPR_SIZE(sizeof(struct nft_xt_match_priv));
 
-		nft_match->ops.eval = nft_match_large_eval;
-		nft_match->ops.init = nft_match_large_init;
-		nft_match->ops.destroy = nft_match_large_destroy;
-		nft_match->ops.dump = nft_match_large_dump;
+		ops->eval = nft_match_large_eval;
+		ops->init = nft_match_large_init;
+		ops->destroy = nft_match_large_destroy;
+		ops->dump = nft_match_large_dump;
 	}
 
-	nft_match->ops.size = matchsize;
+	ops->size = matchsize;
 
-	list_add(&nft_match->head, &nft_match_list);
-
-	return &nft_match->ops;
+	return ops;
 err:
 	module_put(match->me);
 	return ERR_PTR(err);
 }
 
+static void nft_match_release_ops(const struct nft_expr_ops *ops)
+{
+	struct xt_match *match = ops->data;
+
+	module_put(match->me);
+	kfree(ops);
+}
+
 static struct nft_expr_type nft_match_type __read_mostly = {
 	.name		= "match",
 	.select_ops	= nft_match_select_ops,
+	.release_ops	= nft_match_release_ops,
 	.policy		= nft_match_policy,
 	.maxattr	= NFTA_MATCH_MAX,
 	.owner		= THIS_MODULE,
 };
 
-static LIST_HEAD(nft_target_list);
-
 static struct nft_expr_type nft_target_type;
-
-static bool nft_target_cmp(const struct xt_target *tg,
-			   const char *name, u32 rev, u32 family)
-{
-	return strcmp(tg->name, name) == 0 && tg->revision == rev &&
-	       (tg->family == NFPROTO_UNSPEC || tg->family == family);
-}
 
 static const struct nft_expr_ops *
 nft_target_select_ops(const struct nft_ctx *ctx,
 		      const struct nlattr * const tb[])
 {
-	struct nft_xt *nft_target;
+	struct nft_expr_ops *ops;
 	struct xt_target *target;
 	char *tg_name;
 	u32 rev, family;
@@ -861,17 +807,6 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 	    strcmp(tg_name, "standard") == 0)
 		return ERR_PTR(-EINVAL);
 
-	/* Re-use the existing target if it's already loaded. */
-	list_for_each_entry(nft_target, &nft_target_list, head) {
-		struct xt_target *target = nft_target->ops.data;
-
-		if (!target->target)
-			continue;
-
-		if (nft_target_cmp(target, tg_name, rev, family))
-			return &nft_target->ops;
-	}
-
 	target = xt_request_find_target(family, tg_name, rev);
 	if (IS_ERR(target))
 		return ERR_PTR(-ENOENT);
@@ -886,38 +821,43 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	/* This is the first time we use this target, allocate operations */
-	nft_target = kzalloc(sizeof(struct nft_xt), GFP_KERNEL);
-	if (nft_target == NULL) {
+	ops = kzalloc(sizeof(struct nft_expr_ops), GFP_KERNEL);
+	if (!ops) {
 		err = -ENOMEM;
 		goto err;
 	}
 
-	nft_target->refcnt = 0;
-	nft_target->ops.type = &nft_target_type;
-	nft_target->ops.size = NFT_EXPR_SIZE(XT_ALIGN(target->targetsize));
-	nft_target->ops.init = nft_target_init;
-	nft_target->ops.destroy = nft_target_destroy;
-	nft_target->ops.dump = nft_target_dump;
-	nft_target->ops.validate = nft_target_validate;
-	nft_target->ops.data = target;
+	ops->type = &nft_target_type;
+	ops->size = NFT_EXPR_SIZE(XT_ALIGN(target->targetsize));
+	ops->init = nft_target_init;
+	ops->destroy = nft_target_destroy;
+	ops->dump = nft_target_dump;
+	ops->validate = nft_target_validate;
+	ops->data = target;
 
 	if (family == NFPROTO_BRIDGE)
-		nft_target->ops.eval = nft_target_eval_bridge;
+		ops->eval = nft_target_eval_bridge;
 	else
-		nft_target->ops.eval = nft_target_eval_xt;
+		ops->eval = nft_target_eval_xt;
 
-	list_add(&nft_target->head, &nft_target_list);
-
-	return &nft_target->ops;
+	return ops;
 err:
 	module_put(target->me);
 	return ERR_PTR(err);
 }
 
+static void nft_target_release_ops(const struct nft_expr_ops *ops)
+{
+	struct xt_target *target = ops->data;
+
+	module_put(target->me);
+	kfree(ops);
+}
+
 static struct nft_expr_type nft_target_type __read_mostly = {
 	.name		= "target",
 	.select_ops	= nft_target_select_ops,
+	.release_ops	= nft_target_release_ops,
 	.policy		= nft_target_policy,
 	.maxattr	= NFTA_TARGET_MAX,
 	.owner		= THIS_MODULE,
@@ -942,7 +882,6 @@ static int __init nft_compat_module_init(void)
 	}
 
 	return ret;
-
 err_target:
 	nft_unregister_expr(&nft_target_type);
 err_match:
@@ -952,32 +891,6 @@ err_match:
 
 static void __exit nft_compat_module_exit(void)
 {
-	struct nft_xt *xt, *next;
-
-	/* list should be empty here, it can be non-empty only in case there
-	 * was an error that caused nft_xt expr to not be initialized fully
-	 * and noone else requested the same expression later.
-	 *
-	 * In this case, the lists contain 0-refcount entries that still
-	 * hold module reference.
-	 */
-	list_for_each_entry_safe(xt, next, &nft_target_list, head) {
-		struct xt_target *target = xt->ops.data;
-
-		if (WARN_ON_ONCE(xt->refcnt))
-			continue;
-		module_put(target->me);
-		kfree(xt);
-	}
-
-	list_for_each_entry_safe(xt, next, &nft_match_list, head) {
-		struct xt_match *match = xt->ops.data;
-
-		if (WARN_ON_ONCE(xt->refcnt))
-			continue;
-		module_put(match->me);
-		kfree(xt);
-	}
 	nfnetlink_subsys_unregister(&nfnl_compat_subsys);
 	nft_unregister_expr(&nft_target_type);
 	nft_unregister_expr(&nft_match_type);

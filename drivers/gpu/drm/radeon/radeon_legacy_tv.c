@@ -421,24 +421,14 @@ static void radeon_legacy_write_tv_restarts(struct radeon_encoder *radeon_encode
 
 static bool radeon_legacy_tv_init_restarts(struct drm_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_tv_dac *tv_dac = radeon_encoder->enc_priv;
-	struct radeon_crtc *radeon_crtc;
 	int restart;
 	unsigned int h_total, v_total, f_total;
 	int v_offset, h_offset;
 	u16 p1, p2, h_inc;
 	bool h_changed;
 	const struct radeon_tv_mode_constants *const_ptr;
-	struct radeon_pll *pll;
-
-	radeon_crtc = to_radeon_crtc(radeon_encoder->base.crtc);
-	if (radeon_crtc->crtc_id == 1)
-		pll = &rdev->clock.p2pll;
-	else
-		pll = &rdev->clock.p1pll;
 
 	const_ptr = radeon_legacy_tv_get_std_mode(radeon_encoder, NULL);
 	if (!const_ptr)

@@ -1598,7 +1598,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	dlfb = kzalloc(sizeof(*dlfb), GFP_KERNEL);
 	if (!dlfb) {
 		dev_err(&intf->dev, "%s: failed to allocate dlfb\n", __func__);
-		goto error;
+		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&dlfb->deferred_free);
@@ -1703,7 +1703,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 error:
 	if (dlfb->info) {
 		dlfb_ops_destroy(dlfb->info);
-	} else if (dlfb) {
+	} else {
 		usb_put_dev(dlfb->udev);
 		kfree(dlfb);
 	}
@@ -1730,12 +1730,10 @@ static void dlfb_usb_disconnect(struct usb_interface *intf)
 	/* this function will wait for all in-flight urbs to complete */
 	dlfb_free_urb_list(dlfb);
 
-	if (info) {
-		/* remove udlfb's sysfs interfaces */
-		for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
-			device_remove_file(info->dev, &fb_device_attrs[i]);
-		device_remove_bin_file(info->dev, &edid_attr);
-	}
+	/* remove udlfb's sysfs interfaces */
+	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
+		device_remove_file(info->dev, &fb_device_attrs[i]);
+	device_remove_bin_file(info->dev, &edid_attr);
 
 	unregister_framebuffer(info);
 }

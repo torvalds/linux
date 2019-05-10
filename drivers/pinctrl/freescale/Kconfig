@@ -5,6 +5,11 @@ config PINCTRL_IMX
 	select GENERIC_PINCONF
 	select REGMAP
 
+config PINCTRL_IMX_SCU
+	bool
+	depends on IMX_SCU
+	select PINCTRL_IMX
+
 config PINCTRL_IMX1_CORE
 	bool
 	select PINMUX
@@ -117,12 +122,33 @@ config PINCTRL_IMX7ULP
 	help
 	  Say Y here to enable the imx7ulp pinctrl driver
 
+config PINCTRL_IMX8MM
+	bool "IMX8MM pinctrl driver"
+	depends on ARCH_MXC && ARM64
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mm pinctrl driver
+
 config PINCTRL_IMX8MQ
 	bool "IMX8MQ pinctrl driver"
-	depends on SOC_IMX8MQ
+	depends on ARCH_MXC && ARM64
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mq pinctrl driver
+
+config PINCTRL_IMX8QM
+	bool "IMX8QM pinctrl driver"
+	depends on IMX_SCU && ARCH_MXC && ARM64
+	select PINCTRL_IMX_SCU
+	help
+	  Say Y here to enable the imx8qm pinctrl driver
+
+config PINCTRL_IMX8QXP
+	bool "IMX8QXP pinctrl driver"
+	depends on IMX_SCU && ARCH_MXC && ARM64
+	select PINCTRL_IMX_SCU
+	help
+	  Say Y here to enable the imx8qxp pinctrl driver
 
 config PINCTRL_VF610
 	bool "Freescale Vybrid VF610 pinctrl driver"

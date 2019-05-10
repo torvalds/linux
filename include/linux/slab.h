@@ -32,6 +32,8 @@
 #define SLAB_HWCACHE_ALIGN	((slab_flags_t __force)0x00002000U)
 /* Use GFP_DMA memory */
 #define SLAB_CACHE_DMA		((slab_flags_t __force)0x00004000U)
+/* Use GFP_DMA32 memory */
+#define SLAB_CACHE_DMA32	((slab_flags_t __force)0x00008000U)
 /* DEBUG: Store the last owner for bug hunting */
 #define SLAB_STORE_USER		((slab_flags_t __force)0x00010000U)
 /* Panic if kmem_cache_create() fails */
@@ -314,22 +316,22 @@ kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1];
 
 static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
 {
-	int is_dma = 0;
-	int type_dma = 0;
-	int is_reclaimable;
-
 #ifdef CONFIG_ZONE_DMA
-	is_dma = !!(flags & __GFP_DMA);
-	type_dma = is_dma * KMALLOC_DMA;
-#endif
-
-	is_reclaimable = !!(flags & __GFP_RECLAIMABLE);
+	/*
+	 * The most common case is KMALLOC_NORMAL, so test for it
+	 * with a single branch for both flags.
+	 */
+	if (likely((flags & (__GFP_DMA | __GFP_RECLAIMABLE)) == 0))
+		return KMALLOC_NORMAL;
 
 	/*
-	 * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
-	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
+	 * At least one of the flags has to be set. If both are, __GFP_DMA
+	 * is more important.
 	 */
-	return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
+	return flags & __GFP_DMA ? KMALLOC_DMA : KMALLOC_RECLAIM;
+#else
+	return flags & __GFP_RECLAIMABLE ? KMALLOC_RECLAIM : KMALLOC_NORMAL;
+#endif
 }
 
 /*
@@ -444,7 +446,7 @@ static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
 {
 	void *ret = kmem_cache_alloc(s, flags);
 
-	kasan_kmalloc(s, ret, size, flags);
+	ret = kasan_kmalloc(s, ret, size, flags);
 	return ret;
 }
 
@@ -455,7 +457,7 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
 {
 	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
 
-	kasan_kmalloc(s, ret, size, gfpflags);
+	ret = kasan_kmalloc(s, ret, size, gfpflags);
 	return ret;
 }
 #endif /* CONFIG_TRACING */
@@ -486,48 +488,47 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  * kmalloc is the normal method of allocating memory
  * for objects smaller than page size in the kernel.
  *
- * The @flags argument may be one of:
+ * The @flags argument may be one of the GFP flags defined at
+ * include/linux/gfp.h and described at
+ * :ref:`Documentation/core-api/mm-api.rst <mm-api-gfp-flags>`
  *
- * %GFP_USER - Allocate memory on behalf of user.  May sleep.
+ * The recommended usage of the @flags is described at
+ * :ref:`Documentation/core-api/memory-allocation.rst <memory-allocation>`
  *
- * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
+ * Below is a brief outline of the most useful GFP flags
  *
- * %GFP_ATOMIC - Allocation will not sleep.  May use emergency pools.
- *   For example, use this inside interrupt handlers.
+ * %GFP_KERNEL
+ *	Allocate normal kernel ram. May sleep.
  *
- * %GFP_HIGHUSER - Allocate pages from high memory.
+ * %GFP_NOWAIT
+ *	Allocation will not sleep.
  *
- * %GFP_NOIO - Do not do any I/O at all while trying to get memory.
+ * %GFP_ATOMIC
+ *	Allocation will not sleep.  May use emergency pools.
  *
- * %GFP_NOFS - Do not make any fs calls while trying to get memory.
- *
- * %GFP_NOWAIT - Allocation will not sleep.
- *
- * %__GFP_THISNODE - Allocate node-local memory only.
- *
- * %GFP_DMA - Allocation suitable for DMA.
- *   Should only be used for kmalloc() caches. Otherwise, use a
- *   slab created with SLAB_DMA.
+ * %GFP_HIGHUSER
+ *	Allocate memory from high memory on behalf of user.
  *
  * Also it is possible to set different flags by OR'ing
  * in one or more of the following additional @flags:
  *
- * %__GFP_HIGH - This allocation has high priority and may use emergency pools.
+ * %__GFP_HIGH
+ *	This allocation has high priority and may use emergency pools.
  *
- * %__GFP_NOFAIL - Indicate that this allocation is in no way allowed to fail
- *   (think twice before using).
+ * %__GFP_NOFAIL
+ *	Indicate that this allocation is in no way allowed to fail
+ *	(think twice before using).
  *
- * %__GFP_NORETRY - If memory is not immediately available,
- *   then give up at once.
+ * %__GFP_NORETRY
+ *	If memory is not immediately available,
+ *	then give up at once.
  *
- * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+ * %__GFP_NOWARN
+ *	If allocation fails, don't issue any warnings.
  *
- * %__GFP_RETRY_MAYFAIL - Try really hard to succeed the allocation but fail
- *   eventually.
- *
- * There are other flags available as well, but these are not intended
- * for general use, and so are not documented here. For a full list of
- * potential flags, always refer to linux/gfp.h.
+ * %__GFP_RETRY_MAYFAIL
+ *	Try really hard to succeed the allocation but fail
+ *	eventually.
  */
 static __always_inline void *kmalloc(size_t size, gfp_t flags)
 {

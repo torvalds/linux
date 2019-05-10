@@ -428,7 +428,7 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 static void do_subsidiary_caches_debugcheck(struct cache *cache)
 {
 	WARN_ON_ONCE(cache->level != 1);
-	WARN_ON_ONCE(strcmp(cache->ofnode->type, "cpu"));
+	WARN_ON_ONCE(!of_node_is_type(cache->ofnode, "cpu"));
 }
 
 static void do_subsidiary_caches(struct cache *cache)

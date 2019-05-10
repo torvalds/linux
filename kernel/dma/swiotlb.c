@@ -21,7 +21,6 @@
 
 #include <linux/cache.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
 #include <linux/mm.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
@@ -35,6 +34,9 @@
 #include <linux/scatterlist.h>
 #include <linux/mem_encrypt.h>
 #include <linux/set_memory.h>
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -65,13 +67,18 @@ enum swiotlb_force swiotlb_force;
  * swiotlb_tbl_sync_single_*, to see if the memory was in fact allocated by this
  * API.
  */
-static phys_addr_t io_tlb_start, io_tlb_end;
+phys_addr_t io_tlb_start, io_tlb_end;
 
 /*
  * The number of IO TLB blocks (in groups of 64) between io_tlb_start and
  * io_tlb_end.  This is command line adjustable via setup_io_tlb_npages.
  */
 static unsigned long io_tlb_nslabs;
+
+/*
+ * The number of used IO TLB block
+ */
+static unsigned long io_tlb_used;
 
 /*
  * This is a free list describing the number of free entries available from
@@ -192,6 +199,7 @@ void __init swiotlb_update_mem_attributes(void)
 int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 {
 	unsigned long i, bytes;
+	size_t alloc_size;
 
 	bytes = nslabs << IO_TLB_SHIFT;
 
@@ -204,12 +212,18 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 	 * to find contiguous free memory regions of size up to IO_TLB_SEGSIZE
 	 * between io_tlb_start and io_tlb_end.
 	 */
-	io_tlb_list = memblock_alloc(
-				PAGE_ALIGN(io_tlb_nslabs * sizeof(int)),
-				PAGE_SIZE);
-	io_tlb_orig_addr = memblock_alloc(
-				PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t)),
-				PAGE_SIZE);
+	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(int));
+	io_tlb_list = memblock_alloc(alloc_size, PAGE_SIZE);
+	if (!io_tlb_list)
+		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
+		      __func__, alloc_size, PAGE_SIZE);
+
+	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t));
+	io_tlb_orig_addr = memblock_alloc(alloc_size, PAGE_SIZE);
+	if (!io_tlb_orig_addr)
+		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
+		      __func__, alloc_size, PAGE_SIZE);
+
 	for (i = 0; i < io_tlb_nslabs; i++) {
 		io_tlb_list[i] = IO_TLB_SEGSIZE - OFFSET(i, IO_TLB_SEGSIZE);
 		io_tlb_orig_addr[i] = INVALID_PHYS_ADDR;
@@ -242,7 +256,7 @@ swiotlb_init(int verbose)
 	bytes = io_tlb_nslabs << IO_TLB_SHIFT;
 
 	/* Get IO TLB memory from the low pages */
-	vstart = memblock_alloc_low_nopanic(PAGE_ALIGN(bytes), PAGE_SIZE);
+	vstart = memblock_alloc_low(PAGE_ALIGN(bytes), PAGE_SIZE);
 	if (vstart && !swiotlb_init_with_tbl(vstart, io_tlb_nslabs, verbose))
 		return;
 
@@ -379,17 +393,14 @@ void __init swiotlb_exit(void)
 		memblock_free_late(io_tlb_start,
 				   PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
 	}
+	io_tlb_start = 0;
+	io_tlb_end = 0;
 	io_tlb_nslabs = 0;
 	max_segment = 0;
 }
 
-static int is_swiotlb_buffer(phys_addr_t paddr)
-{
-	return paddr >= io_tlb_start && paddr < io_tlb_end;
-}
-
 /*
- * Bounce: copy the swiotlb buffer back to the original dma location
+ * Bounce: copy the swiotlb buffer from or back to the original dma location
  */
 static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
 			   size_t size, enum dma_data_direction dir)
@@ -479,6 +490,10 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 	 * request and allocate a buffer from that IO TLB pool.
 	 */
 	spin_lock_irqsave(&io_tlb_lock, flags);
+
+	if (unlikely(nslots > io_tlb_nslabs - io_tlb_used))
+		goto not_found;
+
 	index = ALIGN(io_tlb_index, stride);
 	if (index >= io_tlb_nslabs)
 		index = 0;
@@ -526,8 +541,9 @@ not_found:
 	spin_unlock_irqrestore(&io_tlb_lock, flags);
 	if (!(attrs & DMA_ATTR_NO_WARN) && printk_ratelimit())
 		dev_warn(hwdev, "swiotlb buffer is full (sz: %zd bytes)\n", size);
-	return SWIOTLB_MAP_ERROR;
+	return DMA_MAPPING_ERROR;
 found:
+	io_tlb_used += nslots;
 	spin_unlock_irqrestore(&io_tlb_lock, flags);
 
 	/*
@@ -588,6 +604,8 @@ void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
 		 */
 		for (i = index - 1; (OFFSET(i, IO_TLB_SEGSIZE) != IO_TLB_SEGSIZE -1) && io_tlb_list[i]; i--)
 			io_tlb_list[i] = ++count;
+
+		io_tlb_used -= nslots;
 	}
 	spin_unlock_irqrestore(&io_tlb_lock, flags);
 }
@@ -623,263 +641,81 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
 	}
 }
 
-static dma_addr_t swiotlb_bounce_page(struct device *dev, phys_addr_t *phys,
+/*
+ * Create a swiotlb mapping for the buffer at @phys, and in case of DMAing
+ * to the device copy the data into it as well.
+ */
+bool swiotlb_map(struct device *dev, phys_addr_t *phys, dma_addr_t *dma_addr,
 		size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
-	dma_addr_t dma_addr;
+	trace_swiotlb_bounced(dev, *dma_addr, size, swiotlb_force);
 
 	if (unlikely(swiotlb_force == SWIOTLB_NO_FORCE)) {
 		dev_warn_ratelimited(dev,
 			"Cannot do DMA to address %pa\n", phys);
-		return DIRECT_MAPPING_ERROR;
+		return false;
 	}
 
 	/* Oh well, have to allocate and map a bounce buffer. */
 	*phys = swiotlb_tbl_map_single(dev, __phys_to_dma(dev, io_tlb_start),
 			*phys, size, dir, attrs);
-	if (*phys == SWIOTLB_MAP_ERROR)
-		return DIRECT_MAPPING_ERROR;
+	if (*phys == DMA_MAPPING_ERROR)
+		return false;
 
 	/* Ensure that the address returned is DMA'ble */
-	dma_addr = __phys_to_dma(dev, *phys);
-	if (unlikely(!dma_capable(dev, dma_addr, size))) {
+	*dma_addr = __phys_to_dma(dev, *phys);
+	if (unlikely(!dma_capable(dev, *dma_addr, size))) {
 		swiotlb_tbl_unmap_single(dev, *phys, size, dir,
 			attrs | DMA_ATTR_SKIP_CPU_SYNC);
-		return DIRECT_MAPPING_ERROR;
+		return false;
 	}
 
-	return dma_addr;
+	return true;
 }
 
-/*
- * Map a single buffer of the indicated size for DMA in streaming mode.  The
- * physical address to use is returned.
- *
- * Once the device is given the dma address, the device owns this memory until
- * either swiotlb_unmap_page or swiotlb_dma_sync_single is performed.
- */
-dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
-			    unsigned long offset, size_t size,
-			    enum dma_data_direction dir,
-			    unsigned long attrs)
+size_t swiotlb_max_mapping_size(struct device *dev)
 {
-	phys_addr_t phys = page_to_phys(page) + offset;
-	dma_addr_t dev_addr = phys_to_dma(dev, phys);
+	return ((size_t)1 << IO_TLB_SHIFT) * IO_TLB_SEGSIZE;
+}
 
-	BUG_ON(dir == DMA_NONE);
+bool is_swiotlb_active(void)
+{
 	/*
-	 * If the address happens to be in the device's DMA window,
-	 * we can safely return the device addr and not worry about bounce
-	 * buffering it.
+	 * When SWIOTLB is initialized, even if io_tlb_start points to physical
+	 * address zero, io_tlb_end surely doesn't.
 	 */
-	if (!dma_capable(dev, dev_addr, size) ||
-	    swiotlb_force == SWIOTLB_FORCE) {
-		trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
-		dev_addr = swiotlb_bounce_page(dev, &phys, size, dir, attrs);
-	}
-
-	if (!dev_is_dma_coherent(dev) &&
-	    (attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0 &&
-	    dev_addr != DIRECT_MAPPING_ERROR)
-		arch_sync_dma_for_device(dev, phys, size, dir);
-
-	return dev_addr;
+	return io_tlb_end != 0;
 }
 
-/*
- * Unmap a single streaming mode DMA translation.  The dma_addr and size must
- * match what was provided for in a previous swiotlb_map_page call.  All
- * other usages are undefined.
- *
- * After this call, reads by the cpu to the buffer are guaranteed to see
- * whatever the device wrote there.
- */
-void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
-			size_t size, enum dma_data_direction dir,
-			unsigned long attrs)
+#ifdef CONFIG_DEBUG_FS
+
+static int __init swiotlb_create_debugfs(void)
 {
-	phys_addr_t paddr = dma_to_phys(hwdev, dev_addr);
+	struct dentry *d_swiotlb_usage;
+	struct dentry *ent;
 
-	BUG_ON(dir == DMA_NONE);
+	d_swiotlb_usage = debugfs_create_dir("swiotlb", NULL);
 
-	if (!dev_is_dma_coherent(hwdev) &&
-	    (attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0)
-		arch_sync_dma_for_cpu(hwdev, paddr, size, dir);
+	if (!d_swiotlb_usage)
+		return -ENOMEM;
 
-	if (is_swiotlb_buffer(paddr)) {
-		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir, attrs);
-		return;
-	}
+	ent = debugfs_create_ulong("io_tlb_nslabs", 0400,
+				   d_swiotlb_usage, &io_tlb_nslabs);
+	if (!ent)
+		goto fail;
 
-	if (dir != DMA_FROM_DEVICE)
-		return;
+	ent = debugfs_create_ulong("io_tlb_used", 0400,
+				   d_swiotlb_usage, &io_tlb_used);
+	if (!ent)
+		goto fail;
 
-	/*
-	 * phys_to_virt doesn't work with hihgmem page but we could
-	 * call dma_mark_clean() with hihgmem page here. However, we
-	 * are fine since dma_mark_clean() is null on POWERPC. We can
-	 * make dma_mark_clean() take a physical address if necessary.
-	 */
-	dma_mark_clean(phys_to_virt(paddr), size);
-}
-
-/*
- * Make physical memory consistent for a single streaming mode DMA translation
- * after a transfer.
- *
- * If you perform a swiotlb_map_page() but wish to interrogate the buffer
- * using the cpu, yet do not wish to teardown the dma mapping, you must
- * call this function before doing so.  At the next point you give the dma
- * address back to the card, you must first perform a
- * swiotlb_dma_sync_for_device, and then the device again owns the buffer
- */
-static void
-swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
-		    size_t size, enum dma_data_direction dir,
-		    enum dma_sync_target target)
-{
-	phys_addr_t paddr = dma_to_phys(hwdev, dev_addr);
-
-	BUG_ON(dir == DMA_NONE);
-
-	if (!dev_is_dma_coherent(hwdev) && target == SYNC_FOR_CPU)
-		arch_sync_dma_for_cpu(hwdev, paddr, size, dir);
-
-	if (is_swiotlb_buffer(paddr))
-		swiotlb_tbl_sync_single(hwdev, paddr, size, dir, target);
-
-	if (!dev_is_dma_coherent(hwdev) && target == SYNC_FOR_DEVICE)
-		arch_sync_dma_for_device(hwdev, paddr, size, dir);
-
-	if (!is_swiotlb_buffer(paddr) && dir == DMA_FROM_DEVICE)
-		dma_mark_clean(phys_to_virt(paddr), size);
-}
-
-void
-swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-			    size_t size, enum dma_data_direction dir)
-{
-	swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_CPU);
-}
-
-void
-swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
-			       size_t size, enum dma_data_direction dir)
-{
-	swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_DEVICE);
-}
-
-/*
- * Map a set of buffers described by scatterlist in streaming mode for DMA.
- * This is the scatter-gather version of the above swiotlb_map_page
- * interface.  Here the scatter gather list elements are each tagged with the
- * appropriate dma address and length.  They are obtained via
- * sg_dma_{address,length}(SG).
- *
- * Device ownership issues as mentioned above for swiotlb_map_page are the
- * same here.
- */
-int
-swiotlb_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nelems,
-		     enum dma_data_direction dir, unsigned long attrs)
-{
-	struct scatterlist *sg;
-	int i;
-
-	for_each_sg(sgl, sg, nelems, i) {
-		sg->dma_address = swiotlb_map_page(dev, sg_page(sg), sg->offset,
-				sg->length, dir, attrs);
-		if (sg->dma_address == DIRECT_MAPPING_ERROR)
-			goto out_error;
-		sg_dma_len(sg) = sg->length;
-	}
-
-	return nelems;
-
-out_error:
-	swiotlb_unmap_sg_attrs(dev, sgl, i, dir,
-			attrs | DMA_ATTR_SKIP_CPU_SYNC);
-	sg_dma_len(sgl) = 0;
 	return 0;
+
+fail:
+	debugfs_remove_recursive(d_swiotlb_usage);
+	return -ENOMEM;
 }
 
-/*
- * Unmap a set of streaming mode DMA translations.  Again, cpu read rules
- * concerning calls here are the same as for swiotlb_unmap_page() above.
- */
-void
-swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
-		       int nelems, enum dma_data_direction dir,
-		       unsigned long attrs)
-{
-	struct scatterlist *sg;
-	int i;
+late_initcall(swiotlb_create_debugfs);
 
-	BUG_ON(dir == DMA_NONE);
-
-	for_each_sg(sgl, sg, nelems, i)
-		swiotlb_unmap_page(hwdev, sg->dma_address, sg_dma_len(sg), dir,
-			     attrs);
-}
-
-/*
- * Make physical memory consistent for a set of streaming mode DMA translations
- * after a transfer.
- *
- * The same as swiotlb_sync_single_* but for a scatter-gather list, same rules
- * and usage.
- */
-static void
-swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sgl,
-		int nelems, enum dma_data_direction dir,
-		enum dma_sync_target target)
-{
-	struct scatterlist *sg;
-	int i;
-
-	for_each_sg(sgl, sg, nelems, i)
-		swiotlb_sync_single(hwdev, sg->dma_address,
-				    sg_dma_len(sg), dir, target);
-}
-
-void
-swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
-			int nelems, enum dma_data_direction dir)
-{
-	swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_CPU);
-}
-
-void
-swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
-			   int nelems, enum dma_data_direction dir)
-{
-	swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_DEVICE);
-}
-
-/*
- * Return whether the given device DMA address mask can be supported
- * properly.  For example, if your device can only drive the low 24-bits
- * during bus mastering, then you would pass 0x00ffffff as the mask to
- * this function.
- */
-int
-swiotlb_dma_supported(struct device *hwdev, u64 mask)
-{
-	return __phys_to_dma(hwdev, io_tlb_end - 1) <= mask;
-}
-
-const struct dma_map_ops swiotlb_dma_ops = {
-	.mapping_error		= dma_direct_mapping_error,
-	.alloc			= dma_direct_alloc,
-	.free			= dma_direct_free,
-	.sync_single_for_cpu	= swiotlb_sync_single_for_cpu,
-	.sync_single_for_device	= swiotlb_sync_single_for_device,
-	.sync_sg_for_cpu	= swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device	= swiotlb_sync_sg_for_device,
-	.map_sg			= swiotlb_map_sg_attrs,
-	.unmap_sg		= swiotlb_unmap_sg_attrs,
-	.map_page		= swiotlb_map_page,
-	.unmap_page		= swiotlb_unmap_page,
-	.dma_supported		= dma_direct_supported,
-};
-EXPORT_SYMBOL(swiotlb_dma_ops);
+#endif

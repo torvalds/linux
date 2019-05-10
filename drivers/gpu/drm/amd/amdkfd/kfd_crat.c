@@ -26,6 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_topology.h"
 #include "kfd_iommu.h"
+#include "amdgpu_amdkfd.h"
 
 /* GPU Processor ID base for dGPUs for which VCRAT needs to be created.
  * GPU processor ID are expressed with Bit[31]=1.
@@ -132,6 +133,7 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 #define fiji_cache_info  carrizo_cache_info
 #define polaris10_cache_info carrizo_cache_info
 #define polaris11_cache_info carrizo_cache_info
+#define polaris12_cache_info carrizo_cache_info
 /* TODO - check & update Vega10 cache details */
 #define vega10_cache_info carrizo_cache_info
 #define raven_cache_info carrizo_cache_info
@@ -646,7 +648,12 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		pcache_info = polaris11_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris11_cache_info);
 		break;
+	case CHIP_POLARIS12:
+		pcache_info = polaris12_cache_info;
+		num_of_cache_types = ARRAY_SIZE(polaris12_cache_info);
+		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 		pcache_info = vega10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(vega10_cache_info);
@@ -753,11 +760,9 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -ENODATA;
 	}
 
-	pcrat_image = kmalloc(crat_table->length, GFP_KERNEL);
+	pcrat_image = kmemdup(crat_table, crat_table->length, GFP_KERNEL);
 	if (!pcrat_image)
 		return -ENOMEM;
-
-	memcpy(pcrat_image, crat_table, crat_table->length);
 
 	*crat_image = pcrat_image;
 	*size = crat_table->length;
@@ -848,7 +853,7 @@ static int kfd_fill_mem_info_for_cpu(int numa_node_id, int *avail_size,
 	 */
 	pgdat = NODE_DATA(numa_node_id);
 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
-		mem_in_bytes += pgdat->node_zones[zone_type].managed_pages;
+		mem_in_bytes += zone_managed_pages(&pgdat->node_zones[zone_type]);
 	mem_in_bytes <<= PAGE_SHIFT;
 
 	sub_type_hdr->length_low = lower_32_bits(mem_in_bytes);
@@ -858,6 +863,7 @@ static int kfd_fill_mem_info_for_cpu(int numa_node_id, int *avail_size,
 	return 0;
 }
 
+#ifdef CONFIG_X86_64
 static int kfd_fill_iolink_info_for_cpu(int numa_node_id, int *avail_size,
 				uint32_t *num_entries,
 				struct crat_subtype_iolink *sub_type_hdr)
@@ -900,6 +906,7 @@ static int kfd_fill_iolink_info_for_cpu(int numa_node_id, int *avail_size,
 
 	return 0;
 }
+#endif
 
 /* kfd_create_vcrat_image_cpu - Create Virtual CRAT for CPU
  *
@@ -915,7 +922,9 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	struct crat_subtype_generic *sub_type_hdr;
 	int avail_size = *size;
 	int numa_node_id;
+#ifdef CONFIG_X86_64
 	uint32_t entries = 0;
+#endif
 	int ret = 0;
 
 	if (!pcrat_image || avail_size < VCRAT_SIZE_FOR_CPU)
@@ -977,6 +986,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 			sub_type_hdr->length);
 
 		/* Fill in Subtype: IO Link */
+#ifdef CONFIG_X86_64
 		ret = kfd_fill_iolink_info_for_cpu(numa_node_id, &avail_size,
 				&entries,
 				(struct crat_subtype_iolink *)sub_type_hdr);
@@ -987,6 +997,9 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 
 		sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 				sub_type_hdr->length * entries);
+#else
+		pr_info("IO link not available for non x86 platforms\n");
+#endif
 
 		crat_table->num_domains++;
 	}
@@ -1161,7 +1174,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	cu->flags |= CRAT_CU_FLAGS_GPU_PRESENT;
 	cu->proximity_domain = proximity_domain;
 
-	kdev->kfd2kgd->get_cu_info(kdev->kgd, &cu_info);
+	amdgpu_amdkfd_get_cu_info(kdev->kgd, &cu_info);
 	cu->num_simd_per_cu = cu_info.simd_per_cu;
 	cu->num_simd_cores = cu_info.simd_per_cu * cu_info.cu_active_number;
 	cu->max_waves_simd = cu_info.max_waves_per_simd;
@@ -1192,7 +1205,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * report the total FB size (public+private) as a single
 	 * private heap.
 	 */
-	kdev->kfd2kgd->get_local_mem_info(kdev->kgd, &local_mem_info);
+	amdgpu_amdkfd_get_local_mem_info(kdev->kgd, &local_mem_info);
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 

@@ -267,7 +267,6 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	struct dev_archdata *sd;
 	struct platform_device *op;
 	struct pci_dev *dev;
-	const char *type;
 	u32 class;
 
 	dev = pci_alloc_dev(bus);
@@ -283,16 +282,12 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->stc = &pbm->stc;
 	sd->numa_node = pbm->numa_node;
 
-	if (!strcmp(node->name, "ebus"))
+	if (of_node_name_eq(node, "ebus"))
 		of_propagate_archdata(op);
-
-	type = of_get_property(node, "device_type", NULL);
-	if (type == NULL)
-		type = "";
 
 	if (ofpci_verbose)
 		pci_info(bus,"    create device, devfn: %x, type: %s\n",
-			 devfn, type);
+			 devfn, of_node_get_device_type(node));
 
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
@@ -336,11 +331,11 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->error_state = pci_channel_io_normal;
 	dev->dma_mask = 0xffffffff;
 
-	if (!strcmp(node->name, "pci")) {
+	if (of_node_name_eq(node, "pci")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
-	} else if (!strcmp(type, "cardbus")) {
+	} else if (of_node_is_type(node, "cardbus")) {
 		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
 	} else {
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
@@ -431,13 +426,13 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	u64 size;
 
 	if (ofpci_verbose)
-		pci_info(dev, "of_scan_pci_bridge(%s)\n", node->full_name);
+		pci_info(dev, "of_scan_pci_bridge(%pOF)\n", node);
 
 	/* parse bus-range property */
 	busrange = of_get_property(node, "bus-range", &len);
 	if (busrange == NULL || len != 8) {
-		pci_info(dev, "Can't get bus-range for PCI-PCI bridge %s\n",
-		       node->full_name);
+		pci_info(dev, "Can't get bus-range for PCI-PCI bridge %pOF\n",
+		       node);
 		return;
 	}
 
@@ -455,8 +450,8 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 
 	bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
 	if (!bus) {
-		pci_err(dev, "Failed to create pci bus for %s\n",
-			node->full_name);
+		pci_err(dev, "Failed to create pci bus for %pOF\n",
+			node);
 		return;
 	}
 
@@ -512,13 +507,13 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 			res = bus->resource[0];
 			if (res->flags) {
 				pci_err(dev, "ignoring extra I/O range"
-					" for bridge %s\n", node->full_name);
+					" for bridge %pOF\n", node);
 				continue;
 			}
 		} else {
 			if (i >= PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES) {
 				pci_err(dev, "too many memory ranges"
-					" for bridge %s\n", node->full_name);
+					" for bridge %pOF\n", node);
 				continue;
 			}
 			res = bus->resource[i];
@@ -554,14 +549,14 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 	struct pci_dev *dev;
 
 	if (ofpci_verbose)
-		pci_info(bus, "scan_bus[%s] bus no %d\n",
-			 node->full_name, bus->number);
+		pci_info(bus, "scan_bus[%pOF] bus no %d\n",
+			 node, bus->number);
 
 	child = NULL;
 	prev_devfn = -1;
 	while ((child = of_get_next_child(node, child)) != NULL) {
 		if (ofpci_verbose)
-			pci_info(bus, "  * %s\n", child->full_name);
+			pci_info(bus, "  * %pOF\n", child);
 		reg = of_get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
 			continue;
@@ -598,7 +593,7 @@ show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char *
 	pdev = to_pci_dev(dev);
 	dp = pdev->dev.of_node;
 
-	return snprintf (buf, PAGE_SIZE, "%s\n", dp->full_name);
+	return snprintf (buf, PAGE_SIZE, "%pOF\n", dp);
 }
 
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_pciobppath_attr, NULL);
@@ -698,7 +693,7 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	struct device_node *node = pbm->op->dev.of_node;
 	struct pci_bus *bus;
 
-	printk("PCI: Scanning PBM %s\n", node->full_name);
+	printk("PCI: Scanning PBM %pOF\n", node);
 
 	pci_add_resource_offset(&resources, &pbm->io_space,
 				pbm->io_offset);
@@ -714,8 +709,7 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	bus = pci_create_root_bus(parent, pbm->pci_first_busno, pbm->pci_ops,
 				  pbm, &resources);
 	if (!bus) {
-		printk(KERN_ERR "Failed to create bus for %s\n",
-		       node->full_name);
+		printk(KERN_ERR "Failed to create bus for %pOF\n", node);
 		pci_free_resource_list(&resources);
 		return NULL;
 	}
@@ -962,51 +956,35 @@ void arch_teardown_msi_irq(unsigned int irq)
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
-static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
+/* ALI sound chips generate 31-bits of DMA, a special register
+ * determines what bit 31 is emitted as.
+ */
+int ali_sound_dma_hack(struct device *dev, u64 device_mask)
 {
+	struct iommu *iommu = dev->archdata.iommu;
 	struct pci_dev *ali_isa_bridge;
 	u8 val;
 
-	/* ALI sound chips generate 31-bits of DMA, a special register
-	 * determines what bit 31 is emitted as.
-	 */
+	if (!dev_is_pci(dev))
+		return 0;
+
+	if (to_pci_dev(dev)->vendor != PCI_VENDOR_ID_AL ||
+	    to_pci_dev(dev)->device != PCI_DEVICE_ID_AL_M5451 ||
+	    device_mask != 0x7fffffff)
+		return 0;
+
 	ali_isa_bridge = pci_get_device(PCI_VENDOR_ID_AL,
 					 PCI_DEVICE_ID_AL_M1533,
 					 NULL);
 
 	pci_read_config_byte(ali_isa_bridge, 0x7e, &val);
-	if (set_bit)
+	if (iommu->dma_addr_mask & 0x80000000)
 		val |= 0x01;
 	else
 		val &= ~0x01;
 	pci_write_config_byte(ali_isa_bridge, 0x7e, val);
 	pci_dev_put(ali_isa_bridge);
-}
-
-int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask)
-{
-	u64 dma_addr_mask;
-
-	if (pdev == NULL) {
-		dma_addr_mask = 0xffffffff;
-	} else {
-		struct iommu *iommu = pdev->dev.archdata.iommu;
-
-		dma_addr_mask = iommu->dma_addr_mask;
-
-		if (pdev->vendor == PCI_VENDOR_ID_AL &&
-		    pdev->device == PCI_DEVICE_ID_AL_M5451 &&
-		    device_mask == 0x7fffffff) {
-			ali_sound_dma_hack(pdev,
-					   (dma_addr_mask & 0x80000000) != 0);
-			return 1;
-		}
-	}
-
-	if (device_mask >= (1UL << 32UL))
-		return 0;
-
-	return (device_mask & dma_addr_mask) == dma_addr_mask;
+	return 1;
 }
 
 void pci_resource_to_user(const struct pci_dev *pdev, int bar,
@@ -1111,8 +1089,8 @@ static void pci_bus_slot_names(struct device_node *node, struct pci_bus *bus)
 	sp = prop->names;
 
 	if (ofpci_verbose)
-		pci_info(bus, "Making slots for [%s] mask[0x%02x]\n",
-			 node->full_name, mask);
+		pci_info(bus, "Making slots for [%pOF] mask[0x%02x]\n",
+			 node, mask);
 
 	i = 0;
 	while (mask) {

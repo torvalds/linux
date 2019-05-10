@@ -5,6 +5,7 @@
 #include <linux/skbuff.h>
 #include <net/ip.h>
 #include <net/icmp.h>
+#include <net/netfilter/nf_reject.h>
 
 void nf_send_unreach(struct sk_buff *skb_in, int code, int hook);
 void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook);

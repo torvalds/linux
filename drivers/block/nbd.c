@@ -288,9 +288,10 @@ static void nbd_size_update(struct nbd_device *nbd)
 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
 	set_capacity(nbd->disk, config->bytesize >> 9);
 	if (bdev) {
-		if (bdev->bd_disk)
+		if (bdev->bd_disk) {
 			bd_set_size(bdev, config->bytesize);
-		else
+			set_blocksize(bdev, config->blksize);
+		} else
 			bdev->bd_invalidated = 1;
 		bdput(bdev);
 	}
@@ -734,12 +735,13 @@ static void recv_work(struct work_struct *work)
 	kfree(args);
 }
 
-static void nbd_clear_req(struct request *req, void *data, bool reserved)
+static bool nbd_clear_req(struct request *req, void *data, bool reserved)
 {
 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(req);
 
 	cmd->status = BLK_STS_IOERR;
 	blk_mq_complete_request(req);
+	return true;
 }
 
 static void nbd_clear_que(struct nbd_device *nbd)
@@ -1569,7 +1571,7 @@ static int nbd_dev_add(int index)
 	nbd->tag_set.numa_node = NUMA_NO_NODE;
 	nbd->tag_set.cmd_size = sizeof(struct nbd_cmd);
 	nbd->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
-		BLK_MQ_F_SG_MERGE | BLK_MQ_F_BLOCKING;
+		BLK_MQ_F_BLOCKING;
 	nbd->tag_set.driver_data = nbd;
 
 	err = blk_mq_alloc_tag_set(&nbd->tag_set);
@@ -2116,8 +2118,7 @@ static int nbd_genl_status(struct sk_buff *skb, struct genl_info *info)
 	}
 	nla_nest_end(reply, dev_list);
 	genlmsg_end(reply, reply_head);
-	genlmsg_reply(reply, info);
-	ret = 0;
+	ret = genlmsg_reply(reply, info);
 out:
 	mutex_unlock(&nbd_index_mutex);
 	return ret;

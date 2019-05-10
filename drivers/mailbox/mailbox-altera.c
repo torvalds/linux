@@ -341,7 +341,7 @@ static int altera_mbox_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = mbox_controller_register(&mbox->controller);
+	ret = devm_mbox_controller_register(&pdev->dev, &mbox->controller);
 	if (ret) {
 		dev_err(&pdev->dev, "Register mailbox failed\n");
 		goto err;
@@ -350,18 +350,6 @@ static int altera_mbox_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mbox);
 err:
 	return ret;
-}
-
-static int altera_mbox_remove(struct platform_device *pdev)
-{
-	struct altera_mbox *mbox = platform_get_drvdata(pdev);
-
-	if (!mbox)
-		return -EINVAL;
-
-	mbox_controller_unregister(&mbox->controller);
-
-	return 0;
 }
 
 static const struct of_device_id altera_mbox_match[] = {
@@ -373,7 +361,6 @@ MODULE_DEVICE_TABLE(of, altera_mbox_match);
 
 static struct platform_driver altera_mbox_driver = {
 	.probe	= altera_mbox_probe,
-	.remove	= altera_mbox_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= altera_mbox_match,

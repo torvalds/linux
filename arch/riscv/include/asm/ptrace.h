@@ -113,6 +113,11 @@ static inline void frame_pointer_set(struct pt_regs *regs,
 	SET_FP(regs, val);
 }
 
+static inline unsigned long regs_return_value(struct pt_regs *regs)
+{
+	return regs->a0;
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_RISCV_PTRACE_H */

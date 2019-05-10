@@ -1,2 +1,0 @@
-config EARLY_PRINTK
-	def_bool y

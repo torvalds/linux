@@ -128,7 +128,7 @@ static void brcmu_d11n_decchspec(struct brcmu_chan *ch)
 		}
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 
@@ -140,7 +140,7 @@ static void brcmu_d11n_decchspec(struct brcmu_chan *ch)
 		ch->band = BRCMU_CHAN_BAND_2G;
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 }
@@ -167,7 +167,7 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 			ch->sb = BRCMU_CHAN_SB_U;
 			ch->control_ch_num += CH_10MHZ_APART;
 		} else {
-			WARN_ON_ONCE(1);
+			WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		}
 		break;
 	case BRCMU_CHSPEC_D11AC_BW_80:
@@ -188,7 +188,7 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 			ch->control_ch_num += CH_30MHZ_APART;
 			break;
 		default:
-			WARN_ON_ONCE(1);
+			WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 			break;
 		}
 		break;
@@ -222,13 +222,13 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 			ch->control_ch_num += CH_70MHZ_APART;
 			break;
 		default:
-			WARN_ON_ONCE(1);
+			WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 			break;
 		}
 		break;
 	case BRCMU_CHSPEC_D11AC_BW_8080:
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 
@@ -240,7 +240,7 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 		ch->band = BRCMU_CHAN_BAND_2G;
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 }

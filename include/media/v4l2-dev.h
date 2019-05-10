@@ -74,10 +74,19 @@ struct v4l2_ctrl_handler;
  *	indicates that file->private_data points to &struct v4l2_fh.
  *	This flag is set by the core when v4l2_fh_init() is called.
  *	All new drivers should use it.
+ * @V4L2_FL_QUIRK_INVERTED_CROP:
+ *	some old M2M drivers use g/s_crop/cropcap incorrectly: crop and
+ *	compose are swapped. If this flag is set, then the selection
+ *	targets are swapped in the g/s_crop/cropcap functions in v4l2-ioctl.c.
+ *	This allows those drivers to correctly implement the selection API,
+ *	but the old crop API will still work as expected in order to preserve
+ *	backwards compatibility.
+ *	Never set this flag for new drivers.
  */
 enum v4l2_video_device_flags {
-	V4L2_FL_REGISTERED	= 0,
-	V4L2_FL_USES_V4L2_FH	= 1,
+	V4L2_FL_REGISTERED		= 0,
+	V4L2_FL_USES_V4L2_FH		= 1,
+	V4L2_FL_QUIRK_INVERTED_CROP	= 2,
 };
 
 /* Priority helper functions */

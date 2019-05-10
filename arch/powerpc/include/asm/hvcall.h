@@ -335,6 +335,7 @@
 #define H_SET_PARTITION_TABLE	0xF800
 #define H_ENTER_NESTED		0xF804
 #define H_TLB_INVALIDATE	0xF808
+#define H_COPY_TOFROM_GUEST	0xF80C
 
 /* Values for 2nd argument to H_SET_MODE */
 #define H_SET_MODE_RESOURCE_SET_CIABR		1

@@ -35,6 +35,8 @@ int phandle_format = PHANDLE_EPAPR;	/* Use linux,phandle or phandle properties *
 int generate_symbols;	/* enable symbols & fixup support */
 int generate_fixups;		/* suppress generation of fixups on symbol support */
 int auto_label_aliases;		/* auto generate labels -> aliases */
+int annotate;		/* Level of annotation: 1 for input source location
+			   >1 for full input source location. */
 
 static int is_power_of_2(int x)
 {
@@ -60,7 +62,7 @@ static void fill_fullpaths(struct node *tree, const char *prefix)
 
 /* Usage related data. */
 static const char usage_synopsis[] = "dtc [options] <input file>";
-static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:a:fb:i:H:sW:E:@Ahv";
+static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:a:fb:i:H:sW:E:@AThv";
 static struct option const usage_long_opts[] = {
 	{"quiet",            no_argument, NULL, 'q'},
 	{"in-format",         a_argument, NULL, 'I'},
@@ -81,6 +83,7 @@ static struct option const usage_long_opts[] = {
 	{"error",             a_argument, NULL, 'E'},
 	{"symbols",	     no_argument, NULL, '@'},
 	{"auto-alias",       no_argument, NULL, 'A'},
+	{"annotate",         no_argument, NULL, 'T'},
 	{"help",             no_argument, NULL, 'h'},
 	{"version",          no_argument, NULL, 'v'},
 	{NULL,               no_argument, NULL, 0x0},
@@ -117,6 +120,7 @@ static const char * const usage_opts_help[] = {
 	"\n\tEnable/disable errors (prefix with \"no-\")",
 	"\n\tEnable generation of symbols",
 	"\n\tEnable auto-alias of labels",
+	"\n\tAnnotate output .dts with input source file and line (-T -T for more details)",
 	"\n\tPrint this help and exit",
 	"\n\tPrint version and exit",
 	NULL,
@@ -264,6 +268,9 @@ int main(int argc, char *argv[])
 		case 'A':
 			auto_label_aliases = 1;
 			break;
+		case 'T':
+			annotate++;
+			break;
 
 		case 'h':
 			usage(NULL);
@@ -302,6 +309,8 @@ int main(int argc, char *argv[])
 				outform = "dts";
 		}
 	}
+	if (annotate && (!streq(inform, "dts") || !streq(outform, "dts")))
+		die("--annotate requires -I dts -O dts\n");
 	if (streq(inform, "dts"))
 		dti = dt_from_source(arg);
 	else if (streq(inform, "fs"))

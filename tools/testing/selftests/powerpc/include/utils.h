@@ -82,6 +82,16 @@ do {								\
 	}							\
 } while (0)
 
+#define SKIP_IF_MSG(x, msg)					\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[SKIP] Test skipped on line %d: %s\n",		\
+		 __LINE__, msg);				\
+		return MAGIC_SKIP_RETURN_VALUE;			\
+	}							\
+} while (0)
+
 #define _str(s) #s
 #define str(s) _str(s)
 
@@ -92,8 +102,10 @@ do {								\
 
 #if defined(__powerpc64__)
 #define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.gp_regs[PT_NIP]
+#define UCONTEXT_MSR(UC)	(UC)->uc_mcontext.gp_regs[PT_MSR]
 #elif defined(__powerpc__)
 #define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.uc_regs->gregs[PT_NIP]
+#define UCONTEXT_MSR(UC)	(UC)->uc_mcontext.uc_regs->gregs[PT_MSR]
 #else
 #error implement UCONTEXT_NIA
 #endif

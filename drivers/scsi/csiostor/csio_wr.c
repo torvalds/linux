@@ -233,8 +233,8 @@ csio_wr_alloc_q(struct csio_hw *hw, uint32_t qsize, uint32_t wrsize,
 
 	q = wrm->q_arr[free_idx];
 
-	q->vstart = dma_zalloc_coherent(&hw->pdev->dev, qsz, &q->pstart,
-			GFP_KERNEL);
+	q->vstart = dma_alloc_coherent(&hw->pdev->dev, qsz, &q->pstart,
+				       GFP_KERNEL);
 	if (!q->vstart) {
 		csio_err(hw,
 			 "Failed to allocate DMA memory for "

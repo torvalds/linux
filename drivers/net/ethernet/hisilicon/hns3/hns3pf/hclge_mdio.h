@@ -5,8 +5,8 @@
 #define __HCLGE_MDIO_H
 
 int hclge_mac_mdio_config(struct hclge_dev *hdev);
-int hclge_mac_connect_phy(struct hclge_dev *hdev);
-void hclge_mac_disconnect_phy(struct hclge_dev *hdev);
+int hclge_mac_connect_phy(struct hnae3_handle *handle);
+void hclge_mac_disconnect_phy(struct hnae3_handle *handle);
 void hclge_mac_start_phy(struct hclge_dev *hdev);
 void hclge_mac_stop_phy(struct hclge_dev *hdev);
 

@@ -440,7 +440,7 @@ out:
 }
 device_initcall(octeon_rng_device_init);
 
-const struct of_device_id octeon_ids[] __initconst = {
+static const struct of_device_id octeon_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "cavium,octeon-6335-uctl", },
 	{ .compatible = "cavium,octeon-5750-usbn", },
@@ -456,6 +456,23 @@ static bool __init octeon_has_88e1145(void)
 	return !OCTEON_IS_MODEL(OCTEON_CN52XX) &&
 	       !OCTEON_IS_MODEL(OCTEON_CN6XXX) &&
 	       !OCTEON_IS_MODEL(OCTEON_CN56XX);
+}
+
+static bool __init octeon_has_fixed_link(int ipd_port)
+{
+	switch (cvmx_sysinfo_get()->board_type) {
+	case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
+	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
+	case CVMX_BOARD_TYPE_CN3020_EVB_HS5:
+	case CVMX_BOARD_TYPE_CUST_NB5:
+	case CVMX_BOARD_TYPE_EBH3100:
+		/* Port 1 on these boards is always gigabit. */
+		return ipd_port == 1;
+	case CVMX_BOARD_TYPE_BBGW_REF:
+		/* Ports 0 and 1 connect to the switch. */
+		return ipd_port == 0 || ipd_port == 1;
+	}
+	return false;
 }
 
 static void __init octeon_fdt_set_phy(int eth, int phy_addr)
@@ -501,7 +518,7 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 	if (phy_addr >= 256 && alt_phy > 0) {
 		const struct fdt_property *phy_prop;
 		struct fdt_property *alt_prop;
-		u32 phy_handle_name;
+		fdt32_t phy_handle_name;
 
 		/* Use the alt phy node instead.*/
 		phy_prop = fdt_get_property(initial_boot_params, eth, "phy-handle", NULL);
@@ -586,12 +603,52 @@ static void __init octeon_fdt_rm_ethernet(int node)
 	fdt_nop_node(initial_boot_params, node);
 }
 
+static void __init _octeon_rx_tx_delay(int eth, int rx_delay, int tx_delay)
+{
+	fdt_setprop_inplace_cell(initial_boot_params, eth, "rx-delay",
+				 rx_delay);
+	fdt_setprop_inplace_cell(initial_boot_params, eth, "tx-delay",
+				 tx_delay);
+}
+
+static void __init octeon_rx_tx_delay(int eth, int iface, int port)
+{
+	switch (cvmx_sysinfo_get()->board_type) {
+	case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
+		if (iface == 0) {
+			if (port == 0) {
+				/*
+				 * Boards with gigabit WAN ports need a
+				 * different setting that is compatible with
+				 * 100 Mbit settings
+				 */
+				_octeon_rx_tx_delay(eth, 0xc, 0x0c);
+				return;
+			} else if (port == 1) {
+				/* Different config for switch port. */
+				_octeon_rx_tx_delay(eth, 0x0, 0x0);
+				return;
+			}
+		}
+		break;
+	case CVMX_BOARD_TYPE_UBNT_E100:
+		if (iface == 0 && port <= 2) {
+			_octeon_rx_tx_delay(eth, 0x0, 0x10);
+			return;
+		}
+		break;
+	}
+	fdt_nop_property(initial_boot_params, eth, "rx-delay");
+	fdt_nop_property(initial_boot_params, eth, "tx-delay");
+}
+
 static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 {
 	char name_buffer[20];
 	int eth;
 	int phy_addr;
 	int ipd_port;
+	int fixed_link;
 
 	snprintf(name_buffer, sizeof(name_buffer), "ethernet@%x", p);
 	eth = fdt_subnode_offset(initial_boot_params, iface, name_buffer);
@@ -609,6 +666,13 @@ static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 
 	phy_addr = cvmx_helper_board_get_mii_address(ipd_port);
 	octeon_fdt_set_phy(eth, phy_addr);
+
+	fixed_link = fdt_subnode_offset(initial_boot_params, eth, "fixed-link");
+	if (fixed_link < 0)
+		WARN_ON(octeon_has_fixed_link(ipd_port));
+	else if (!octeon_has_fixed_link(ipd_port))
+		fdt_nop_node(initial_boot_params, fixed_link);
+	octeon_rx_tx_delay(eth, i, p);
 }
 
 static void __init octeon_fdt_pip_iface(int pip, int idx)

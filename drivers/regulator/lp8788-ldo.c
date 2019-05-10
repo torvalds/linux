@@ -186,7 +186,7 @@ static const struct regulator_ops lp8788_ldo_voltage_fixed_ops = {
 	.enable_time = lp8788_ldo_enable_time,
 };
 
-static struct regulator_desc lp8788_dldo_desc[] = {
+static const struct regulator_desc lp8788_dldo_desc[] = {
 	{
 		.name = "dldo1",
 		.id = DLDO1,
@@ -343,7 +343,7 @@ static struct regulator_desc lp8788_dldo_desc[] = {
 	},
 };
 
-static struct regulator_desc lp8788_aldo_desc[] = {
+static const struct regulator_desc lp8788_aldo_desc[] = {
 	{
 		.name = "aldo1",
 		.id = ALDO1,
@@ -501,8 +501,12 @@ static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
 		return 0;
 	}
 
-	/* FIXME: check default mode for GPIO here: high or low? */
-	ldo->ena_gpiod = devm_gpiod_get_index_optional(&pdev->dev,
+	/*
+	 * Do not use devm* here: the regulator core takes over the
+	 * lifecycle management of the GPIO descriptor.
+	 * FIXME: check default mode for GPIO here: high or low?
+	 */
+	ldo->ena_gpiod = gpiod_get_index_optional(&pdev->dev,
 					       "enable",
 					       enable_id,
 					       GPIOD_OUT_HIGH |

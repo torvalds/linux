@@ -6,6 +6,7 @@ Required Properties:
  - "renesas,pwm-r8a7744": for RZ/G1N
  - "renesas,pwm-r8a7745": for RZ/G1E
  - "renesas,pwm-r8a774a1": for RZ/G2M
+ - "renesas,pwm-r8a774c0": for RZ/G2E
  - "renesas,pwm-r8a7778": for R-Car M1A
  - "renesas,pwm-r8a7779": for R-Car H1
  - "renesas,pwm-r8a7790": for R-Car H2

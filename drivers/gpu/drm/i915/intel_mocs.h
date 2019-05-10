@@ -49,7 +49,6 @@
  * context handling keep the MOCS in step.
  */
 
-#include <drm/drmP.h>
 #include "i915_drv.h"
 
 int intel_rcs_context_init_mocs(struct i915_request *rq);

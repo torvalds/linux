@@ -123,8 +123,6 @@ static void nforce2_write_pll(int pll)
 	/* Now write the value in all 64 registers */
 	for (temp = 0; temp <= 0x3f; temp++)
 		pci_write_config_dword(nforce2_dev, NFORCE2_PLLREG, pll);
-
-	return;
 }
 
 /**
@@ -438,4 +436,3 @@ static void __exit nforce2_exit(void)
 
 module_init(nforce2_init);
 module_exit(nforce2_exit);
-

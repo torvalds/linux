@@ -1685,7 +1685,10 @@ static int lgdt3306a_read_signal_strength(struct dvb_frontend *fe,
 	case QAM_256:
 	case QAM_AUTO:
 		/* need to know actual modulation to set proper SNR baseline */
-		lgdt3306a_read_reg(state, 0x00a6, &val);
+		ret = lgdt3306a_read_reg(state, 0x00a6, &val);
+		if (lg_chkerr(ret))
+			goto fail;
+
 		if(val & 0x04)
 			ref_snr = 2800; /* QAM-256 28dB */
 		else
@@ -2205,14 +2208,12 @@ static int lgdt3306a_probe(struct i2c_client *client,
 	struct dvb_frontend *fe;
 	int ret;
 
-	config = kzalloc(sizeof(struct lgdt3306a_config), GFP_KERNEL);
+	config = kmemdup(client->dev.platform_data,
+			 sizeof(struct lgdt3306a_config), GFP_KERNEL);
 	if (config == NULL) {
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	memcpy(config, client->dev.platform_data,
-			sizeof(struct lgdt3306a_config));
 
 	config->i2c_addr = client->addr;
 	fe = lgdt3306a_attach(config, client->adapter);

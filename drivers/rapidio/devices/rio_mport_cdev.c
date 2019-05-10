@@ -2149,6 +2149,7 @@ static void mport_release_mapping(struct kref *ref)
 	switch (map->dir) {
 	case MAP_INBOUND:
 		rio_unmap_inb_region(mport, map->phys_addr);
+		/* fall through */
 	case MAP_DMA:
 		dma_free_coherent(mport->dev.parent, map->size,
 				  map->virt_addr, map->phys_addr);

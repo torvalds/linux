@@ -66,6 +66,301 @@
 
 static DEFINE_SPINLOCK(qm_lock);
 
+/******************** Doorbell Recovery *******************/
+/* The doorbell recovery mechanism consists of a list of entries which represent
+ * doorbelling entities (l2 queues, roce sq/rq/cqs, the slowpath spq, etc). Each
+ * entity needs to register with the mechanism and provide the parameters
+ * describing it's doorbell, including a location where last used doorbell data
+ * can be found. The doorbell execute function will traverse the list and
+ * doorbell all of the registered entries.
+ */
+struct qed_db_recovery_entry {
+	struct list_head list_entry;
+	void __iomem *db_addr;
+	void *db_data;
+	enum qed_db_rec_width db_width;
+	enum qed_db_rec_space db_space;
+	u8 hwfn_idx;
+};
+
+/* Display a single doorbell recovery entry */
+static void qed_db_recovery_dp_entry(struct qed_hwfn *p_hwfn,
+				     struct qed_db_recovery_entry *db_entry,
+				     char *action)
+{
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SPQ,
+		   "(%s: db_entry %p, addr %p, data %p, width %s, %s space, hwfn %d)\n",
+		   action,
+		   db_entry,
+		   db_entry->db_addr,
+		   db_entry->db_data,
+		   db_entry->db_width == DB_REC_WIDTH_32B ? "32b" : "64b",
+		   db_entry->db_space == DB_REC_USER ? "user" : "kernel",
+		   db_entry->hwfn_idx);
+}
+
+/* Doorbell address sanity (address within doorbell bar range) */
+static bool qed_db_rec_sanity(struct qed_dev *cdev,
+			      void __iomem *db_addr,
+			      enum qed_db_rec_width db_width,
+			      void *db_data)
+{
+	u32 width = (db_width == DB_REC_WIDTH_32B) ? 32 : 64;
+
+	/* Make sure doorbell address is within the doorbell bar */
+	if (db_addr < cdev->doorbells ||
+	    (u8 __iomem *)db_addr + width >
+	    (u8 __iomem *)cdev->doorbells + cdev->db_size) {
+		WARN(true,
+		     "Illegal doorbell address: %p. Legal range for doorbell addresses is [%p..%p]\n",
+		     db_addr,
+		     cdev->doorbells,
+		     (u8 __iomem *)cdev->doorbells + cdev->db_size);
+		return false;
+	}
+
+	/* ake sure doorbell data pointer is not null */
+	if (!db_data) {
+		WARN(true, "Illegal doorbell data pointer: %p", db_data);
+		return false;
+	}
+
+	return true;
+}
+
+/* Find hwfn according to the doorbell address */
+static struct qed_hwfn *qed_db_rec_find_hwfn(struct qed_dev *cdev,
+					     void __iomem *db_addr)
+{
+	struct qed_hwfn *p_hwfn;
+
+	/* In CMT doorbell bar is split down the middle between engine 0 and enigne 1 */
+	if (cdev->num_hwfns > 1)
+		p_hwfn = db_addr < cdev->hwfns[1].doorbells ?
+		    &cdev->hwfns[0] : &cdev->hwfns[1];
+	else
+		p_hwfn = QED_LEADING_HWFN(cdev);
+
+	return p_hwfn;
+}
+
+/* Add a new entry to the doorbell recovery mechanism */
+int qed_db_recovery_add(struct qed_dev *cdev,
+			void __iomem *db_addr,
+			void *db_data,
+			enum qed_db_rec_width db_width,
+			enum qed_db_rec_space db_space)
+{
+	struct qed_db_recovery_entry *db_entry;
+	struct qed_hwfn *p_hwfn;
+
+	/* Shortcircuit VFs, for now */
+	if (IS_VF(cdev)) {
+		DP_VERBOSE(cdev,
+			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
+		return 0;
+	}
+
+	/* Sanitize doorbell address */
+	if (!qed_db_rec_sanity(cdev, db_addr, db_width, db_data))
+		return -EINVAL;
+
+	/* Obtain hwfn from doorbell address */
+	p_hwfn = qed_db_rec_find_hwfn(cdev, db_addr);
+
+	/* Create entry */
+	db_entry = kzalloc(sizeof(*db_entry), GFP_KERNEL);
+	if (!db_entry) {
+		DP_NOTICE(cdev, "Failed to allocate a db recovery entry\n");
+		return -ENOMEM;
+	}
+
+	/* Populate entry */
+	db_entry->db_addr = db_addr;
+	db_entry->db_data = db_data;
+	db_entry->db_width = db_width;
+	db_entry->db_space = db_space;
+	db_entry->hwfn_idx = p_hwfn->my_id;
+
+	/* Display */
+	qed_db_recovery_dp_entry(p_hwfn, db_entry, "Adding");
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_add_tail(&db_entry->list_entry, &p_hwfn->db_recovery_info.list);
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+
+	return 0;
+}
+
+/* Remove an entry from the doorbell recovery mechanism */
+int qed_db_recovery_del(struct qed_dev *cdev,
+			void __iomem *db_addr, void *db_data)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+	struct qed_hwfn *p_hwfn;
+	int rc = -EINVAL;
+
+	/* Shortcircuit VFs, for now */
+	if (IS_VF(cdev)) {
+		DP_VERBOSE(cdev,
+			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
+		return 0;
+	}
+
+	/* Obtain hwfn from doorbell address */
+	p_hwfn = qed_db_rec_find_hwfn(cdev, db_addr);
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_for_each_entry(db_entry,
+			    &p_hwfn->db_recovery_info.list, list_entry) {
+		/* search according to db_data addr since db_addr is not unique (roce) */
+		if (db_entry->db_data == db_data) {
+			qed_db_recovery_dp_entry(p_hwfn, db_entry, "Deleting");
+			list_del(&db_entry->list_entry);
+			rc = 0;
+			break;
+		}
+	}
+
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+
+	if (rc == -EINVAL)
+
+		DP_NOTICE(p_hwfn,
+			  "Failed to find element in list. Key (db_data addr) was %p. db_addr was %p\n",
+			  db_data, db_addr);
+	else
+		kfree(db_entry);
+
+	return rc;
+}
+
+/* Initialize the doorbell recovery mechanism */
+static int qed_db_recovery_setup(struct qed_hwfn *p_hwfn)
+{
+	DP_VERBOSE(p_hwfn, QED_MSG_SPQ, "Setting up db recovery\n");
+
+	/* Make sure db_size was set in cdev */
+	if (!p_hwfn->cdev->db_size) {
+		DP_ERR(p_hwfn->cdev, "db_size not set\n");
+		return -EINVAL;
+	}
+
+	INIT_LIST_HEAD(&p_hwfn->db_recovery_info.list);
+	spin_lock_init(&p_hwfn->db_recovery_info.lock);
+	p_hwfn->db_recovery_info.db_recovery_counter = 0;
+
+	return 0;
+}
+
+/* Destroy the doorbell recovery mechanism */
+static void qed_db_recovery_teardown(struct qed_hwfn *p_hwfn)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SPQ, "Tearing down db recovery\n");
+	if (!list_empty(&p_hwfn->db_recovery_info.list)) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SPQ,
+			   "Doorbell Recovery teardown found the doorbell recovery list was not empty (Expected in disorderly driver unload (e.g. recovery) otherwise this probably means some flow forgot to db_recovery_del). Prepare to purge doorbell recovery list...\n");
+		while (!list_empty(&p_hwfn->db_recovery_info.list)) {
+			db_entry =
+			    list_first_entry(&p_hwfn->db_recovery_info.list,
+					     struct qed_db_recovery_entry,
+					     list_entry);
+			qed_db_recovery_dp_entry(p_hwfn, db_entry, "Purging");
+			list_del(&db_entry->list_entry);
+			kfree(db_entry);
+		}
+	}
+	p_hwfn->db_recovery_info.db_recovery_counter = 0;
+}
+
+/* Print the content of the doorbell recovery mechanism */
+void qed_db_recovery_dp(struct qed_hwfn *p_hwfn)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+
+	DP_NOTICE(p_hwfn,
+		  "Displaying doorbell recovery database. Counter was %d\n",
+		  p_hwfn->db_recovery_info.db_recovery_counter);
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_for_each_entry(db_entry,
+			    &p_hwfn->db_recovery_info.list, list_entry) {
+		qed_db_recovery_dp_entry(p_hwfn, db_entry, "Printing");
+	}
+
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+}
+
+/* Ring the doorbell of a single doorbell recovery entry */
+static void qed_db_recovery_ring(struct qed_hwfn *p_hwfn,
+				 struct qed_db_recovery_entry *db_entry)
+{
+	/* Print according to width */
+	if (db_entry->db_width == DB_REC_WIDTH_32B) {
+		DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
+			   "ringing doorbell address %p data %x\n",
+			   db_entry->db_addr,
+			   *(u32 *)db_entry->db_data);
+	} else {
+		DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
+			   "ringing doorbell address %p data %llx\n",
+			   db_entry->db_addr,
+			   *(u64 *)(db_entry->db_data));
+	}
+
+	/* Sanity */
+	if (!qed_db_rec_sanity(p_hwfn->cdev, db_entry->db_addr,
+			       db_entry->db_width, db_entry->db_data))
+		return;
+
+	/* Flush the write combined buffer. Since there are multiple doorbelling
+	 * entities using the same address, if we don't flush, a transaction
+	 * could be lost.
+	 */
+	wmb();
+
+	/* Ring the doorbell */
+	if (db_entry->db_width == DB_REC_WIDTH_32B)
+		DIRECT_REG_WR(db_entry->db_addr,
+			      *(u32 *)(db_entry->db_data));
+	else
+		DIRECT_REG_WR64(db_entry->db_addr,
+				*(u64 *)(db_entry->db_data));
+
+	/* Flush the write combined buffer. Next doorbell may come from a
+	 * different entity to the same address...
+	 */
+	wmb();
+}
+
+/* Traverse the doorbell recovery entry list and ring all the doorbells */
+void qed_db_recovery_execute(struct qed_hwfn *p_hwfn)
+{
+	struct qed_db_recovery_entry *db_entry = NULL;
+
+	DP_NOTICE(p_hwfn, "Executing doorbell recovery. Counter was %d\n",
+		  p_hwfn->db_recovery_info.db_recovery_counter);
+
+	/* Track amount of times recovery was executed */
+	p_hwfn->db_recovery_info.db_recovery_counter++;
+
+	/* Protect the list */
+	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
+	list_for_each_entry(db_entry,
+			    &p_hwfn->db_recovery_info.list, list_entry)
+		qed_db_recovery_ring(p_hwfn, db_entry);
+	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
+}
+
+/******************** Doorbell Recovery end ****************/
+
 #define QED_MIN_DPIS            (4)
 #define QED_MIN_PWM_REGION      (QED_WID_SIZE * QED_MIN_DPIS)
 
@@ -194,6 +489,9 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
 		qed_dbg_user_data_free(p_hwfn);
+
+		/* Destroy doorbell recovery mechanism */
+		qed_db_recovery_teardown(p_hwfn);
 	}
 }
 
@@ -480,19 +778,19 @@ static void qed_init_qm_pq(struct qed_hwfn *p_hwfn,
 
 /* get pq index according to PQ_FLAGS */
 static u16 *qed_init_qm_get_idx_from_flags(struct qed_hwfn *p_hwfn,
-					   u32 pq_flags)
+					   unsigned long pq_flags)
 {
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 
 	/* Can't have multiple flags set here */
-	if (bitmap_weight((unsigned long *)&pq_flags,
+	if (bitmap_weight(&pq_flags,
 			  sizeof(pq_flags) * BITS_PER_BYTE) > 1) {
-		DP_ERR(p_hwfn, "requested multiple pq flags 0x%x\n", pq_flags);
+		DP_ERR(p_hwfn, "requested multiple pq flags 0x%lx\n", pq_flags);
 		goto err;
 	}
 
 	if (!(qed_get_pq_flags(p_hwfn) & pq_flags)) {
-		DP_ERR(p_hwfn, "pq flag 0x%x is not set\n", pq_flags);
+		DP_ERR(p_hwfn, "pq flag 0x%lx is not set\n", pq_flags);
 		goto err;
 	}
 
@@ -968,6 +1266,11 @@ int qed_resc_alloc(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 		u32 n_eqes, num_cons;
+
+		/* Initialize the doorbell recovery mechanism */
+		rc = qed_db_recovery_setup(p_hwfn);
+		if (rc)
+			goto alloc_err;
 
 		/* First allocate the context manager structure */
 		rc = qed_cxt_mngr_alloc(p_hwfn);
@@ -1468,6 +1771,14 @@ enum QED_ROCE_EDPM_MODE {
 	QED_ROCE_EDPM_MODE_DISABLE = 2,
 };
 
+bool qed_edpm_enabled(struct qed_hwfn *p_hwfn)
+{
+	if (p_hwfn->dcbx_no_edpm || p_hwfn->db_bar_no_edpm)
+		return false;
+
+	return true;
+}
+
 static int
 qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
@@ -1537,13 +1848,13 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_hwfn->wid_count = (u16) n_cpus;
 
 	DP_INFO(p_hwfn,
-		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s\n",
+		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
 		norm_regsize,
 		pwm_regsize,
 		p_hwfn->dpi_size,
 		p_hwfn->dpi_count,
-		((p_hwfn->dcbx_no_edpm) || (p_hwfn->db_bar_no_edpm)) ?
-		"disabled" : "enabled");
+		(!qed_edpm_enabled(p_hwfn)) ?
+		"disabled" : "enabled", PAGE_SIZE);
 
 	if (rc) {
 		DP_ERR(p_hwfn,
@@ -1631,11 +1942,6 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		     (p_hwfn->hw_info.personality == QED_PCI_FCOE) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
 
-	/* Cleanup chip from previous driver if such remains exist */
-	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id, false);
-	if (rc)
-		return rc;
-
 	/* Sanity check before the PF init sequence that uses DMAE */
 	rc = qed_dmae_sanity(p_hwfn, p_ptt, "pf_phase");
 	if (rc)
@@ -1679,17 +1985,15 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-static int qed_change_pci_hwfn(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt,
-			       u8 enable)
+int qed_pglueb_set_pfid_enable(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt, bool b_enable)
 {
-	u32 delay_idx = 0, val, set_val = enable ? 1 : 0;
+	u32 delay_idx = 0, val, set_val = b_enable ? 1 : 0;
 
-	/* Change PF in PXP */
-	qed_wr(p_hwfn, p_ptt,
-	       PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER, set_val);
+	/* Configure the PF's internal FID_enable for master transactions */
+	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER, set_val);
 
-	/* wait until value is set - try for 1 second every 50us */
+	/* Wait until value is set - try for 1 second every 50us */
 	for (delay_idx = 0; delay_idx < 20000; delay_idx++) {
 		val = qed_rd(p_hwfn, p_ptt,
 			     PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER);
@@ -1743,13 +2047,19 @@ static int qed_vf_start(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static void qed_pglueb_clear_err(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_WAS_ERROR_PF_31_0_CLR,
+	       BIT(p_hwfn->abs_pf_id));
+}
+
 int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 {
 	struct qed_load_req_params load_req_params;
 	u32 load_code, resp, param, drv_mb_param;
 	bool b_default_mtu = true;
 	struct qed_hwfn *p_hwfn;
-	int rc = 0, mfw_rc, i;
+	int rc = 0, i;
 	u16 ether_type;
 
 	if ((p_params->int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
@@ -1764,7 +2074,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	}
 
 	for_each_hwfn(cdev, i) {
-		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		p_hwfn = &cdev->hwfns[i];
 
 		/* If management didn't provide a default, set one of our own */
 		if (!p_hwfn->hw_info.mtu) {
@@ -1776,9 +2086,6 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			qed_vf_start(p_hwfn, p_params);
 			continue;
 		}
-
-		/* Enable DMAE in PXP */
-		rc = qed_change_pci_hwfn(p_hwfn, p_hwfn->p_main_ptt, true);
 
 		rc = qed_calc_hw_mode(p_hwfn);
 		if (rc)
@@ -1816,12 +2123,43 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			   "Load request was sent. Load code: 0x%x\n",
 			   load_code);
 
+		/* Only relevant for recovery:
+		 * Clear the indication after LOAD_REQ is responded by the MFW.
+		 */
+		cdev->recov_in_prog = false;
+
 		qed_mcp_set_capabilities(p_hwfn, p_hwfn->p_main_ptt);
 
 		qed_reset_mb_shadow(p_hwfn, p_hwfn->p_main_ptt);
 
-		p_hwfn->first_on_engine = (load_code ==
-					   FW_MSG_CODE_DRV_LOAD_ENGINE);
+		/* Clean up chip from previous driver if such remains exist.
+		 * This is not needed when the PF is the first one on the
+		 * engine, since afterwards we are going to init the FW.
+		 */
+		if (load_code != FW_MSG_CODE_DRV_LOAD_ENGINE) {
+			rc = qed_final_cleanup(p_hwfn, p_hwfn->p_main_ptt,
+					       p_hwfn->rel_pf_id, false);
+			if (rc) {
+				DP_NOTICE(p_hwfn, "Final cleanup failed\n");
+				goto load_err;
+			}
+		}
+
+		/* Log and clear previous pglue_b errors if such exist */
+		qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_main_ptt);
+
+		/* Enable the PF's internal FID_enable in the PXP */
+		rc = qed_pglueb_set_pfid_enable(p_hwfn, p_hwfn->p_main_ptt,
+						true);
+		if (rc)
+			goto load_err;
+
+		/* Clear the pglue_b was_error indication.
+		 * In E4 it must be done after the BME and the internal
+		 * FID_enable for the PF are set, since VDMs may cause the
+		 * indication to be set again.
+		 */
+		qed_pglueb_clear_err(p_hwfn, p_hwfn->p_main_ptt);
 
 		switch (load_code) {
 		case FW_MSG_CODE_DRV_LOAD_ENGINE:
@@ -1852,39 +2190,29 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			break;
 		}
 
-		if (rc)
+		if (rc) {
 			DP_NOTICE(p_hwfn,
 				  "init phase failed for loadcode 0x%x (rc %d)\n",
-				   load_code, rc);
-
-		/* ACK mfw regardless of success or failure of initialization */
-		mfw_rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
-				     DRV_MSG_CODE_LOAD_DONE,
-				     0, &load_code, &param);
-		if (rc)
-			return rc;
-		if (mfw_rc) {
-			DP_NOTICE(p_hwfn, "Failed sending LOAD_DONE command\n");
-			return mfw_rc;
+				  load_code, rc);
+			goto load_err;
 		}
 
-		/* Check if there is a DID mismatch between nvm-cfg/efuse */
-		if (param & FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR)
-			DP_NOTICE(p_hwfn,
-				  "warning: device configuration is not supported on this board type. The device may not function as expected.\n");
+		rc = qed_mcp_load_done(p_hwfn, p_hwfn->p_main_ptt);
+		if (rc)
+			return rc;
 
 		/* send DCBX attention request command */
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_DCB,
 			   "sending phony dcbx set command to trigger DCBx attention handling\n");
-		mfw_rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
-				     DRV_MSG_CODE_SET_DCBX,
-				     1 << DRV_MB_PARAM_DCBX_NOTIFY_SHIFT,
-				     &load_code, &param);
-		if (mfw_rc) {
+		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
+				 DRV_MSG_CODE_SET_DCBX,
+				 1 << DRV_MB_PARAM_DCBX_NOTIFY_SHIFT,
+				 &resp, &param);
+		if (rc) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to send DCBX attention request\n");
-			return mfw_rc;
+			return rc;
 		}
 
 		p_hwfn->hw_init_done = true;
@@ -1933,6 +2261,12 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	}
 
 	return 0;
+
+load_err:
+	/* The MFW load lock should be released also when initialization fails.
+	 */
+	qed_mcp_load_done(p_hwfn, p_hwfn->p_main_ptt);
+	return rc;
 }
 
 #define QED_HW_STOP_RETRY_LIMIT (10)
@@ -1944,6 +2278,9 @@ static void qed_hw_timers_stop(struct qed_dev *cdev,
 	/* close timers */
 	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
 	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
+
+	if (cdev->recov_in_prog)
+		return;
 
 	for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
 		if ((!qed_rd(p_hwfn, p_ptt,
@@ -2007,12 +2344,14 @@ int qed_hw_stop(struct qed_dev *cdev)
 		p_hwfn->hw_init_done = false;
 
 		/* Send unload command to MCP */
-		rc = qed_mcp_unload_req(p_hwfn, p_ptt);
-		if (rc) {
-			DP_NOTICE(p_hwfn,
-				  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
-				  rc);
-			rc2 = -EINVAL;
+		if (!cdev->recov_in_prog) {
+			rc = qed_mcp_unload_req(p_hwfn, p_ptt);
+			if (rc) {
+				DP_NOTICE(p_hwfn,
+					  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
+					  rc);
+				rc2 = -EINVAL;
+			}
 		}
 
 		qed_slowpath_irq_sync(p_hwfn);
@@ -2054,27 +2393,31 @@ int qed_hw_stop(struct qed_dev *cdev)
 		qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_DB_ENABLE, 0);
 		qed_wr(p_hwfn, p_ptt, QM_REG_PF_EN, 0);
 
-		qed_mcp_unload_done(p_hwfn, p_ptt);
-		if (rc) {
-			DP_NOTICE(p_hwfn,
-				  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
-				  rc);
-			rc2 = -EINVAL;
+		if (!cdev->recov_in_prog) {
+			rc = qed_mcp_unload_done(p_hwfn, p_ptt);
+			if (rc) {
+				DP_NOTICE(p_hwfn,
+					  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
+					  rc);
+				rc2 = -EINVAL;
+			}
 		}
 	}
 
-	if (IS_PF(cdev)) {
+	if (IS_PF(cdev) && !cdev->recov_in_prog) {
 		p_hwfn = QED_LEADING_HWFN(cdev);
 		p_ptt = QED_LEADING_HWFN(cdev)->p_main_ptt;
 
-		/* Disable DMAE in PXP - in CMT, this should only be done for
-		 * first hw-function, and only after all transactions have
-		 * stopped for all active hw-functions.
+		/* Clear the PF's internal FID_enable in the PXP.
+		 * In CMT this should only be done for first hw-function, and
+		 * only after all transactions have stopped for all active
+		 * hw-functions.
 		 */
-		rc = qed_change_pci_hwfn(p_hwfn, p_ptt, false);
+		rc = qed_pglueb_set_pfid_enable(p_hwfn, p_ptt, false);
 		if (rc) {
 			DP_NOTICE(p_hwfn,
-				  "qed_change_pci_hwfn failed. rc = %d.\n", rc);
+				  "qed_pglueb_set_pfid_enable() failed. rc = %d.\n",
+				  rc);
 			rc2 = -EINVAL;
 		}
 	}
@@ -2174,9 +2517,8 @@ static void qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 		       PGLUE_B_REG_PGL_ADDR_94_F0_BB, 0);
 	}
 
-	/* Clean Previous errors if such exist */
-	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
-	       PGLUE_B_REG_WAS_ERROR_PF_31_0_CLR, 1 << p_hwfn->abs_pf_id);
+	/* Clean previous pglue_b errors if such exist */
+	qed_pglueb_clear_err(p_hwfn, p_hwfn->p_main_ptt);
 
 	/* enable internal target-read */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
@@ -2910,55 +3252,43 @@ static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		   p_hwfn->enabled_func_idx, p_hwfn->num_funcs_on_engine);
 }
 
-static void qed_hw_info_port_num_bb(struct qed_hwfn *p_hwfn,
-				    struct qed_ptt *p_ptt)
-{
-	u32 port_mode;
-
-	port_mode = qed_rd(p_hwfn, p_ptt, CNIG_REG_NW_PORT_MODE_BB);
-
-	if (port_mode < 3) {
-		p_hwfn->cdev->num_ports_in_engine = 1;
-	} else if (port_mode <= 5) {
-		p_hwfn->cdev->num_ports_in_engine = 2;
-	} else {
-		DP_NOTICE(p_hwfn, "PORT MODE: %d not supported\n",
-			  p_hwfn->cdev->num_ports_in_engine);
-
-		/* Default num_ports_in_engine to something */
-		p_hwfn->cdev->num_ports_in_engine = 1;
-	}
-}
-
-static void qed_hw_info_port_num_ah(struct qed_hwfn *p_hwfn,
-				    struct qed_ptt *p_ptt)
-{
-	u32 port;
-	int i;
-
-	p_hwfn->cdev->num_ports_in_engine = 0;
-
-	for (i = 0; i < MAX_NUM_PORTS_K2; i++) {
-		port = qed_rd(p_hwfn, p_ptt,
-			      CNIG_REG_NIG_PORT0_CONF_K2 + (i * 4));
-		if (port & 1)
-			p_hwfn->cdev->num_ports_in_engine++;
-	}
-
-	if (!p_hwfn->cdev->num_ports_in_engine) {
-		DP_NOTICE(p_hwfn, "All NIG ports are inactive\n");
-
-		/* Default num_ports_in_engine to something */
-		p_hwfn->cdev->num_ports_in_engine = 1;
-	}
-}
-
 static void qed_hw_info_port_num(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	if (QED_IS_BB(p_hwfn->cdev))
-		qed_hw_info_port_num_bb(p_hwfn, p_ptt);
-	else
-		qed_hw_info_port_num_ah(p_hwfn, p_ptt);
+	u32 addr, global_offsize, global_addr, port_mode;
+	struct qed_dev *cdev = p_hwfn->cdev;
+
+	/* In CMT there is always only one port */
+	if (cdev->num_hwfns > 1) {
+		cdev->num_ports_in_engine = 1;
+		cdev->num_ports = 1;
+		return;
+	}
+
+	/* Determine the number of ports per engine */
+	port_mode = qed_rd(p_hwfn, p_ptt, MISC_REG_PORT_MODE);
+	switch (port_mode) {
+	case 0x0:
+		cdev->num_ports_in_engine = 1;
+		break;
+	case 0x1:
+		cdev->num_ports_in_engine = 2;
+		break;
+	case 0x2:
+		cdev->num_ports_in_engine = 4;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unknown port mode 0x%08x\n", port_mode);
+		cdev->num_ports_in_engine = 1;	/* Default to something */
+		break;
+	}
+
+	/* Get the total number of ports of the device */
+	addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+				    PUBLIC_GLOBAL);
+	global_offsize = qed_rd(p_hwfn, p_ptt, addr);
+	global_addr = SECTION_ADDR(global_offsize, 0);
+	addr = global_addr + offsetof(struct public_global, max_ports);
+	cdev->num_ports = (u8)qed_rd(p_hwfn, p_ptt, addr);
 }
 
 static void qed_get_eee_caps(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -2996,7 +3326,8 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 			return rc;
 	}
 
-	qed_hw_info_port_num(p_hwfn, p_ptt);
+	if (IS_LEAD_HWFN(p_hwfn))
+		qed_hw_info_port_num(p_hwfn, p_ptt);
 
 	qed_mcp_get_capabilities(p_hwfn, p_ptt);
 
@@ -3112,6 +3443,7 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 				 void __iomem *p_doorbells,
 				 enum qed_pci_personality personality)
 {
+	struct qed_dev *cdev = p_hwfn->cdev;
 	int rc = 0;
 
 	/* Split PCI bars evenly between hwfns */
@@ -3164,7 +3496,7 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 	/* Sending a mailbox to the MFW should be done after qed_get_hw_info()
 	 * is called as it sets the ports number in an engine.
 	 */
-	if (IS_LEAD_HWFN(p_hwfn)) {
+	if (IS_LEAD_HWFN(p_hwfn) && !cdev->recov_in_prog) {
 		rc = qed_mcp_initiate_pf_flr(p_hwfn, p_hwfn->p_main_ptt);
 		if (rc)
 			DP_NOTICE(p_hwfn, "Failed to initiate PF FLR\n");
@@ -4400,23 +4732,9 @@ void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	       sizeof(*p_hwfn->qm_info.wfq_data) * p_hwfn->qm_info.num_vports);
 }
 
-int qed_device_num_engines(struct qed_dev *cdev)
+int qed_device_num_ports(struct qed_dev *cdev)
 {
-	return QED_IS_BB(cdev) ? 2 : 1;
-}
-
-static int qed_device_num_ports(struct qed_dev *cdev)
-{
-	/* in CMT always only one port */
-	if (cdev->num_hwfns > 1)
-		return 1;
-
-	return cdev->num_ports_in_engine * qed_device_num_engines(cdev);
-}
-
-int qed_device_get_port_id(struct qed_dev *cdev)
-{
-	return (QED_LEADING_HWFN(cdev)->abs_pf_id) % qed_device_num_ports(cdev);
+	return cdev->num_ports;
 }
 
 void qed_set_fw_mac_addr(__le16 *fw_msb,

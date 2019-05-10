@@ -34,7 +34,7 @@
 		compatible = "gpio-keys";
 
 		button-esc {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";

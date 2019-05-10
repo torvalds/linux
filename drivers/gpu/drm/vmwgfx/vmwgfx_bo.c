@@ -534,7 +534,6 @@ static void vmw_user_bo_release(struct ttm_base_object **p_base)
 {
 	struct vmw_user_buffer_object *vmw_user_bo;
 	struct ttm_base_object *base = *p_base;
-	struct ttm_buffer_object *bo;
 
 	*p_base = NULL;
 
@@ -543,8 +542,7 @@ static void vmw_user_bo_release(struct ttm_base_object **p_base)
 
 	vmw_user_bo = container_of(base, struct vmw_user_buffer_object,
 				   prime.base);
-	bo = &vmw_user_bo->vbo.base;
-	ttm_bo_unref(&bo);
+	ttm_bo_put(&vmw_user_bo->vbo.base);
 }
 
 
@@ -597,7 +595,6 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 		      struct ttm_base_object **p_base)
 {
 	struct vmw_user_buffer_object *user_bo;
-	struct ttm_buffer_object *tmp;
 	int ret;
 
 	user_bo = kzalloc(sizeof(*user_bo), GFP_KERNEL);
@@ -614,7 +611,7 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	tmp = ttm_bo_reference(&user_bo->vbo.base);
+	ttm_bo_get(&user_bo->vbo.base);
 	ret = ttm_prime_object_init(tfile,
 				    size,
 				    &user_bo->prime,
@@ -623,7 +620,7 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 				    &vmw_user_bo_release,
 				    &vmw_user_bo_ref_obj_release);
 	if (unlikely(ret != 0)) {
-		ttm_bo_unref(&tmp);
+		ttm_bo_put(&user_bo->vbo.base);
 		goto out_no_base_object;
 	}
 
@@ -911,7 +908,7 @@ int vmw_user_bo_lookup(struct ttm_object_file *tfile,
 
 	vmw_user_bo = container_of(base, struct vmw_user_buffer_object,
 				   prime.base);
-	(void)ttm_bo_reference(&vmw_user_bo->vbo.base);
+	ttm_bo_get(&vmw_user_bo->vbo.base);
 	if (p_base)
 		*p_base = base;
 	else

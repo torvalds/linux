@@ -209,7 +209,7 @@ static inline u32 ethtool_adv_to_mii_ctrl1000_t(u32 ethadv)
 
 /**
  * linkmode_adv_to_mii_ctrl1000_t
- * advertising: the linkmode advertisement settings
+ * @advertising: the linkmode advertisement settings
  *
  * A small helper function that translates linkmode advertisement
  * settings to phy autonegotiation advertisements for the
@@ -288,6 +288,25 @@ static inline u32 mii_stat1000_to_ethtool_lpa_t(u32 lpa)
 }
 
 /**
+ * mii_stat1000_mod_linkmode_lpa_t
+ * @advertising: target the linkmode advertisement settings
+ * @adv: value of the MII_STAT1000 register
+ *
+ * A small helper function that translates MII_STAT1000 bits, when in
+ * 1000Base-T mode, to linkmode advertisement settings. Other bits in
+ * advertising are not changes.
+ */
+static inline void mii_stat1000_mod_linkmode_lpa_t(unsigned long *advertising,
+						   u32 lpa)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			 advertising, lpa & LPA_1000HALF);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 advertising, lpa & LPA_1000FULL);
+}
+
+/**
  * ethtool_adv_to_mii_adv_x
  * @ethadv: the ethtool advertisement settings
  *
@@ -354,50 +373,104 @@ static inline u32 mii_lpa_to_ethtool_lpa_x(u32 lpa)
 }
 
 /**
+ * mii_adv_mod_linkmode_adv_t
+ * @advertising:pointer to destination link mode.
+ * @adv: value of the MII_ADVERTISE register
+ *
+ * A small helper function that translates MII_ADVERTISE bits to
+ * linkmode advertisement settings. Leaves other bits unchanged.
+ */
+static inline void mii_adv_mod_linkmode_adv_t(unsigned long *advertising,
+					      u32 adv)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+			 advertising, adv & ADVERTISE_10HALF);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+			 advertising, adv & ADVERTISE_10FULL);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+			 advertising, adv & ADVERTISE_100HALF);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+			 advertising, adv & ADVERTISE_100FULL);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertising,
+			 adv & ADVERTISE_PAUSE_CAP);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			 advertising, adv & ADVERTISE_PAUSE_ASYM);
+}
+
+/**
  * mii_adv_to_linkmode_adv_t
  * @advertising:pointer to destination link mode.
  * @adv: value of the MII_ADVERTISE register
  *
  * A small helper function that translates MII_ADVERTISE bits
- * to linkmode advertisement settings.
+ * to linkmode advertisement settings. Clears the old value
+ * of advertising.
  */
 static inline void mii_adv_to_linkmode_adv_t(unsigned long *advertising,
 					     u32 adv)
 {
 	linkmode_zero(advertising);
 
-	if (adv & ADVERTISE_10HALF)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-				 advertising);
-	if (adv & ADVERTISE_10FULL)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-				 advertising);
-	if (adv & ADVERTISE_100HALF)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				 advertising);
-	if (adv & ADVERTISE_100FULL)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				 advertising);
-	if (adv & ADVERTISE_PAUSE_CAP)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertising);
-	if (adv & ADVERTISE_PAUSE_ASYM)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, advertising);
+	mii_adv_mod_linkmode_adv_t(advertising, adv);
 }
 
 /**
- * ethtool_adv_to_lcl_adv_t
- * @advertising:pointer to ethtool advertising
+ * mii_lpa_to_linkmode_lpa_t
+ * @adv: value of the MII_LPA register
  *
- * A small helper function that translates ethtool advertising to LVL
+ * A small helper function that translates MII_LPA bits, when in
+ * 1000Base-T mode, to linkmode LP advertisement settings. Clears the
+ * old value of advertising
+ */
+static inline void mii_lpa_to_linkmode_lpa_t(unsigned long *lp_advertising,
+					     u32 lpa)
+{
+	mii_adv_to_linkmode_adv_t(lp_advertising, lpa);
+
+	if (lpa & LPA_LPACK)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				 lp_advertising);
+
+}
+
+/**
+ * mii_lpa_mod_linkmode_lpa_t
+ * @adv: value of the MII_LPA register
+ *
+ * A small helper function that translates MII_LPA bits, when in
+ * 1000Base-T mode, to linkmode LP advertisement settings. Leaves
+ * other bits unchanged.
+ */
+static inline void mii_lpa_mod_linkmode_lpa_t(unsigned long *lp_advertising,
+					      u32 lpa)
+{
+	mii_adv_mod_linkmode_adv_t(lp_advertising, lpa);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			 lp_advertising, lpa & LPA_LPACK);
+}
+
+/**
+ * linkmode_adv_to_lcl_adv_t
+ * @advertising:pointer to linkmode advertising
+ *
+ * A small helper function that translates linkmode advertising to LVL
  * pause capabilities.
  */
-static inline u32 ethtool_adv_to_lcl_adv_t(u32 advertising)
+static inline u32 linkmode_adv_to_lcl_adv_t(unsigned long *advertising)
 {
 	u32 lcl_adv = 0;
 
-	if (advertising & ADVERTISED_Pause)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_CAP;
-	if (advertising & ADVERTISED_Asym_Pause)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_ASYM;
 
 	return lcl_adv;

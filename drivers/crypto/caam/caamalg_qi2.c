@@ -25,13 +25,6 @@
 #define CAAM_MAX_KEY_SIZE	(AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE + \
 				 SHA512_DIGEST_SIZE * 2)
 
-#if !IS_ENABLED(CONFIG_CRYPTO_DEV_FSL_CAAM)
-bool caam_little_end;
-EXPORT_SYMBOL(caam_little_end);
-bool caam_imx;
-EXPORT_SYMBOL(caam_imx);
-#endif
-
 /*
  * This is a a cache of buffers, from which the users of CAAM QI driver
  * can allocate short buffers. It's speedier than doing kmalloc on the hotpath.
@@ -151,7 +144,8 @@ static void caam_unmap(struct device *dev, struct scatterlist *src,
 	if (dst != src) {
 		if (src_nents)
 			dma_unmap_sg(dev, src, src_nents, DMA_TO_DEVICE);
-		dma_unmap_sg(dev, dst, dst_nents, DMA_FROM_DEVICE);
+		if (dst_nents)
+			dma_unmap_sg(dev, dst, dst_nents, DMA_FROM_DEVICE);
 	} else {
 		dma_unmap_sg(dev, src, src_nents, DMA_BIDIRECTIONAL);
 	}
@@ -392,13 +386,18 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 			mapped_src_nents = 0;
 		}
 
-		mapped_dst_nents = dma_map_sg(dev, req->dst, dst_nents,
-					      DMA_FROM_DEVICE);
-		if (unlikely(!mapped_dst_nents)) {
-			dev_err(dev, "unable to map destination\n");
-			dma_unmap_sg(dev, req->src, src_nents, DMA_TO_DEVICE);
-			qi_cache_free(edesc);
-			return ERR_PTR(-ENOMEM);
+		if (dst_nents) {
+			mapped_dst_nents = dma_map_sg(dev, req->dst, dst_nents,
+						      DMA_FROM_DEVICE);
+			if (unlikely(!mapped_dst_nents)) {
+				dev_err(dev, "unable to map destination\n");
+				dma_unmap_sg(dev, req->src, src_nents,
+					     DMA_TO_DEVICE);
+				qi_cache_free(edesc);
+				return ERR_PTR(-ENOMEM);
+			}
+		} else {
+			mapped_dst_nents = 0;
 		}
 	} else {
 		src_nents = sg_nents_for_len(req->src, req->assoclen +
@@ -462,7 +461,15 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	edesc->dst_nents = dst_nents;
 	edesc->iv_dma = iv_dma;
 
-	edesc->assoclen = cpu_to_caam32(req->assoclen);
+	if ((alg->caam.class1_alg_type & OP_ALG_ALGSEL_MASK) ==
+	    OP_ALG_ALGSEL_CHACHA20 && ivsize != CHACHAPOLY_IV_SIZE)
+		/*
+		 * The associated data comes already with the IV but we need
+		 * to skip it when we authenticate or encrypt...
+		 */
+		edesc->assoclen = cpu_to_caam32(req->assoclen - ivsize);
+	else
+		edesc->assoclen = cpu_to_caam32(req->assoclen);
 	edesc->assoclen_dma = dma_map_single(dev, &edesc->assoclen, 4,
 					     DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, edesc->assoclen_dma)) {
@@ -530,6 +537,68 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	dpaa2_fl_set_len(out_fle, out_len);
 
 	return edesc;
+}
+
+static int chachapoly_set_sh_desc(struct crypto_aead *aead)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	unsigned int ivsize = crypto_aead_ivsize(aead);
+	struct device *dev = ctx->dev;
+	struct caam_flc *flc;
+	u32 *desc;
+
+	if (!ctx->cdata.keylen || !ctx->authsize)
+		return 0;
+
+	flc = &ctx->flc[ENCRYPT];
+	desc = flc->sh_desc;
+	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, true, true);
+	flc->flc[1] = cpu_to_caam32(desc_len(desc)); /* SDL */
+	dma_sync_single_for_device(dev, ctx->flc_dma[ENCRYPT],
+				   sizeof(flc->flc) + desc_bytes(desc),
+				   ctx->dir);
+
+	flc = &ctx->flc[DECRYPT];
+	desc = flc->sh_desc;
+	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, false, true);
+	flc->flc[1] = cpu_to_caam32(desc_len(desc)); /* SDL */
+	dma_sync_single_for_device(dev, ctx->flc_dma[DECRYPT],
+				   sizeof(flc->flc) + desc_bytes(desc),
+				   ctx->dir);
+
+	return 0;
+}
+
+static int chachapoly_setauthsize(struct crypto_aead *aead,
+				  unsigned int authsize)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+
+	if (authsize != POLY1305_DIGEST_SIZE)
+		return -EINVAL;
+
+	ctx->authsize = authsize;
+	return chachapoly_set_sh_desc(aead);
+}
+
+static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
+			     unsigned int keylen)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	unsigned int ivsize = crypto_aead_ivsize(aead);
+	unsigned int saltlen = CHACHAPOLY_IV_SIZE - ivsize;
+
+	if (keylen != CHACHA_KEY_SIZE + saltlen) {
+		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	ctx->cdata.key_virt = key;
+	ctx->cdata.keylen = keylen - saltlen;
+
+	return chachapoly_set_sh_desc(aead);
 }
 
 static int gcm_set_sh_desc(struct crypto_aead *aead)
@@ -816,7 +885,9 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	u32 *desc;
 	u32 ctx1_iv_off = 0;
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
-			       OP_ALG_AAI_CTR_MOD128);
+			       OP_ALG_AAI_CTR_MOD128) &&
+			       ((ctx->cdata.algtype & OP_ALG_ALGSEL_MASK) !=
+			       OP_ALG_ALGSEL_CHACHA20);
 	const bool is_rfc3686 = alg->caam.rfc3686;
 
 	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
@@ -1494,7 +1565,23 @@ static struct caam_skcipher_alg driver_algs[] = {
 			.ivsize = AES_BLOCK_SIZE,
 		},
 		.caam.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_XTS,
-	}
+	},
+	{
+		.skcipher = {
+			.base = {
+				.cra_name = "chacha20",
+				.cra_driver_name = "chacha20-caam-qi2",
+				.cra_blocksize = 1,
+			},
+			.setkey = skcipher_setkey,
+			.encrypt = skcipher_encrypt,
+			.decrypt = skcipher_decrypt,
+			.min_keysize = CHACHA_KEY_SIZE,
+			.max_keysize = CHACHA_KEY_SIZE,
+			.ivsize = CHACHA_IV_SIZE,
+		},
+		.caam.class1_alg_type = OP_ALG_ALGSEL_CHACHA20,
+	},
 };
 
 static struct caam_aead_alg driver_aeads[] = {
@@ -2606,6 +2693,50 @@ static struct caam_aead_alg driver_aeads[] = {
 					   OP_ALG_AAI_HMAC_PRECOMP,
 			.rfc3686 = true,
 			.geniv = true,
+		},
+	},
+	{
+		.aead = {
+			.base = {
+				.cra_name = "rfc7539(chacha20,poly1305)",
+				.cra_driver_name = "rfc7539-chacha20-poly1305-"
+						   "caam-qi2",
+				.cra_blocksize = 1,
+			},
+			.setkey = chachapoly_setkey,
+			.setauthsize = chachapoly_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.ivsize = CHACHAPOLY_IV_SIZE,
+			.maxauthsize = POLY1305_DIGEST_SIZE,
+		},
+		.caam = {
+			.class1_alg_type = OP_ALG_ALGSEL_CHACHA20 |
+					   OP_ALG_AAI_AEAD,
+			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
+					   OP_ALG_AAI_AEAD,
+		},
+	},
+	{
+		.aead = {
+			.base = {
+				.cra_name = "rfc7539esp(chacha20,poly1305)",
+				.cra_driver_name = "rfc7539esp-chacha20-"
+						   "poly1305-caam-qi2",
+				.cra_blocksize = 1,
+			},
+			.setkey = chachapoly_setkey,
+			.setauthsize = chachapoly_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.ivsize = 8,
+			.maxauthsize = POLY1305_DIGEST_SIZE,
+		},
+		.caam = {
+			.class1_alg_type = OP_ALG_ALGSEL_CHACHA20 |
+					   OP_ALG_AAI_AEAD,
+			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
+					   OP_ALG_AAI_AEAD,
 		},
 	},
 	{
@@ -4371,7 +4502,8 @@ static int __cold dpaa2_dpseci_dpio_setup(struct dpaa2_caam_priv *priv)
 		nctx->cb = dpaa2_caam_fqdan_cb;
 
 		/* Register notification callbacks */
-		err = dpaa2_io_service_register(NULL, nctx);
+		ppriv->dpio = dpaa2_io_service_select(cpu);
+		err = dpaa2_io_service_register(ppriv->dpio, nctx, dev);
 		if (unlikely(err)) {
 			dev_dbg(dev, "No affine DPIO for cpu %d\n", cpu);
 			nctx->cb = NULL;
@@ -4404,7 +4536,7 @@ err:
 		ppriv = per_cpu_ptr(priv->ppriv, cpu);
 		if (!ppriv->nctx.cb)
 			break;
-		dpaa2_io_service_deregister(NULL, &ppriv->nctx);
+		dpaa2_io_service_deregister(ppriv->dpio, &ppriv->nctx, dev);
 	}
 
 	for_each_online_cpu(cpu) {
@@ -4424,7 +4556,8 @@ static void __cold dpaa2_dpseci_dpio_free(struct dpaa2_caam_priv *priv)
 
 	for_each_online_cpu(cpu) {
 		ppriv = per_cpu_ptr(priv->ppriv, cpu);
-		dpaa2_io_service_deregister(NULL, &ppriv->nctx);
+		dpaa2_io_service_deregister(ppriv->dpio, &ppriv->nctx,
+					    priv->dev);
 		dpaa2_io_store_destroy(ppriv->store);
 
 		if (++i == priv->num_pairs)
@@ -4522,7 +4655,7 @@ static int dpaa2_caam_pull_fq(struct dpaa2_caam_priv_per_cpu *ppriv)
 
 	/* Retry while portal is busy */
 	do {
-		err = dpaa2_io_service_pull_fq(NULL, ppriv->rsp_fqid,
+		err = dpaa2_io_service_pull_fq(ppriv->dpio, ppriv->rsp_fqid,
 					       ppriv->store);
 	} while (err == -EBUSY);
 
@@ -4590,7 +4723,7 @@ static int dpaa2_dpseci_poll(struct napi_struct *napi, int budget)
 
 	if (cleaned < budget) {
 		napi_complete_done(napi, cleaned);
-		err = dpaa2_io_service_rearm(NULL, &ppriv->nctx);
+		err = dpaa2_io_service_rearm(ppriv->dpio, &ppriv->nctx);
 		if (unlikely(err))
 			dev_err(priv->dev, "Notification rearm failed: %d\n",
 				err);
@@ -4731,21 +4864,31 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 
 	i = 0;
 	for_each_online_cpu(cpu) {
-		dev_dbg(dev, "pair %d: rx queue %d, tx queue %d\n", i,
-			priv->rx_queue_attr[i].fqid,
-			priv->tx_queue_attr[i].fqid);
+		u8 j;
+
+		j = i % priv->num_pairs;
 
 		ppriv = per_cpu_ptr(priv->ppriv, cpu);
-		ppriv->req_fqid = priv->tx_queue_attr[i].fqid;
-		ppriv->rsp_fqid = priv->rx_queue_attr[i].fqid;
-		ppriv->prio = i;
+		ppriv->req_fqid = priv->tx_queue_attr[j].fqid;
+
+		/*
+		 * Allow all cores to enqueue, while only some of them
+		 * will take part in dequeuing.
+		 */
+		if (++i > priv->num_pairs)
+			continue;
+
+		ppriv->rsp_fqid = priv->rx_queue_attr[j].fqid;
+		ppriv->prio = j;
+
+		dev_dbg(dev, "pair %d: rx queue %d, tx queue %d\n", j,
+			priv->rx_queue_attr[j].fqid,
+			priv->tx_queue_attr[j].fqid);
 
 		ppriv->net_dev.dev = *dev;
 		INIT_LIST_HEAD(&ppriv->net_dev.napi_list);
 		netif_napi_add(&ppriv->net_dev, &ppriv->napi, dpaa2_dpseci_poll,
 			       DPAA2_CAAM_NAPI_WEIGHT);
-		if (++i == priv->num_pairs)
-			break;
 	}
 
 	return 0;
@@ -4908,6 +5051,11 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		    alg_sel == OP_ALG_ALGSEL_AES)
 			continue;
 
+		/* Skip CHACHA20 algorithms if not supported by device */
+		if (alg_sel == OP_ALG_ALGSEL_CHACHA20 &&
+		    !priv->sec_attr.ccha_acc_num)
+			continue;
+
 		t_alg->caam.dev = dev;
 		caam_skcipher_alg_init(t_alg);
 
@@ -4940,11 +5088,22 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		    c1_alg_sel == OP_ALG_ALGSEL_AES)
 			continue;
 
+		/* Skip CHACHA20 algorithms if not supported by device */
+		if (c1_alg_sel == OP_ALG_ALGSEL_CHACHA20 &&
+		    !priv->sec_attr.ccha_acc_num)
+			continue;
+
+		/* Skip POLY1305 algorithms if not supported by device */
+		if (c2_alg_sel == OP_ALG_ALGSEL_POLY1305 &&
+		    !priv->sec_attr.ptha_acc_num)
+			continue;
+
 		/*
 		 * Skip algorithms requiring message digests
 		 * if MD not supported by device.
 		 */
-		if (!priv->sec_attr.md_acc_num && c2_alg_sel)
+		if ((c2_alg_sel & ~OP_ALG_ALGSEL_SUBMASK) == 0x40 &&
+		    !priv->sec_attr.md_acc_num)
 			continue;
 
 		t_alg->caam.dev = dev;
@@ -5081,7 +5240,8 @@ int dpaa2_caam_enqueue(struct device *dev, struct caam_request *req)
 {
 	struct dpaa2_fd fd;
 	struct dpaa2_caam_priv *priv = dev_get_drvdata(dev);
-	int err = 0, i, id;
+	struct dpaa2_caam_priv_per_cpu *ppriv;
+	int err = 0, i;
 
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -5111,23 +5271,18 @@ int dpaa2_caam_enqueue(struct device *dev, struct caam_request *req)
 	dpaa2_fd_set_len(&fd, dpaa2_fl_get_len(&req->fd_flt[1]));
 	dpaa2_fd_set_flc(&fd, req->flc_dma);
 
-	/*
-	 * There is no guarantee that preemption is disabled here,
-	 * thus take action.
-	 */
-	preempt_disable();
-	id = smp_processor_id() % priv->dpseci_attr.num_tx_queues;
+	ppriv = this_cpu_ptr(priv->ppriv);
 	for (i = 0; i < (priv->dpseci_attr.num_tx_queues << 1); i++) {
-		err = dpaa2_io_service_enqueue_fq(NULL,
-						  priv->tx_queue_attr[id].fqid,
+		err = dpaa2_io_service_enqueue_fq(ppriv->dpio, ppriv->req_fqid,
 						  &fd);
 		if (err != -EBUSY)
 			break;
+
+		cpu_relax();
 	}
-	preempt_enable();
 
 	if (unlikely(err)) {
-		dev_err(dev, "Error enqueuing frame: %d\n", err);
+		dev_err_ratelimited(dev, "Error enqueuing frame: %d\n", err);
 		goto err_out;
 	}
 

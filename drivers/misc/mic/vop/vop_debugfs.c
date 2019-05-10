@@ -101,23 +101,7 @@ static int vop_dp_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int vop_dp_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vop_dp_show, inode->i_private);
-}
-
-static int vop_dp_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations dp_ops = {
-	.owner   = THIS_MODULE,
-	.open    = vop_dp_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = vop_dp_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(vop_dp);
 
 static int vop_vdev_info_show(struct seq_file *s, void *unused)
 {
@@ -194,23 +178,7 @@ static int vop_vdev_info_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int vop_vdev_info_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vop_vdev_info_show, inode->i_private);
-}
-
-static int vop_vdev_info_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations vdev_info_ops = {
-	.owner   = THIS_MODULE,
-	.open    = vop_vdev_info_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = vop_vdev_info_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(vop_vdev_info);
 
 void vop_init_debugfs(struct vop_info *vi)
 {
@@ -222,8 +190,8 @@ void vop_init_debugfs(struct vop_info *vi)
 		pr_err("can't create debugfs dir vop\n");
 		return;
 	}
-	debugfs_create_file("dp", 0444, vi->dbg, vi, &dp_ops);
-	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vdev_info_ops);
+	debugfs_create_file("dp", 0444, vi->dbg, vi, &vop_dp_fops);
+	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vop_vdev_info_fops);
 }
 
 void vop_exit_debugfs(struct vop_info *vi)

@@ -5,16 +5,13 @@
 #include <linux/types.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "map.h"
-#include "../perf.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
-#include <byteswap.h>
-#include <libgen.h>
-#include "build-id.h"
-#include "event.h"
+#include "map_symbol.h"
+#include "branch.h"
 #include "path.h"
+#include "symbol_conf.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 #include <libelf.h>
@@ -23,6 +20,10 @@
 #include <elf.h>
 
 #include "dso.h"
+
+struct map;
+struct map_groups;
+struct option;
 
 /*
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
@@ -63,11 +64,12 @@ struct symbol {
 	u8		ignore:1;
 	u8		inlined:1;
 	u8		arch_sym;
+	bool		annotate2;
 	char		name[0];
 };
 
 void symbol__delete(struct symbol *sym);
-void symbols__delete(struct rb_root *symbols);
+void symbols__delete(struct rb_root_cached *symbols);
 
 /* symbols__for_each_entry - iterate over symbols (rb_root)
  *
@@ -76,7 +78,7 @@ void symbols__delete(struct rb_root *symbols);
  * @nd: the 'struct rb_node *' to use as a temporary storage
  */
 #define symbols__for_each_entry(symbols, pos, nd)			\
-	for (nd = rb_first(symbols);					\
+	for (nd = rb_first_cached(symbols);					\
 	     nd && (pos = rb_entry(nd, struct symbol, rb_node));	\
 	     nd = rb_next(nd))
 
@@ -87,69 +89,6 @@ static inline size_t symbol__size(const struct symbol *sym)
 
 struct strlist;
 struct intlist;
-
-struct symbol_conf {
-	unsigned short	priv_size;
-	bool		try_vmlinux_path,
-			init_annotation,
-			force,
-			ignore_vmlinux,
-			ignore_vmlinux_buildid,
-			show_kernel_path,
-			use_modules,
-			allow_aliases,
-			sort_by_name,
-			show_nr_samples,
-			show_total_period,
-			use_callchain,
-			cumulate_callchain,
-			show_branchflag_count,
-			exclude_other,
-			show_cpu_utilization,
-			initialized,
-			kptr_restrict,
-			event_group,
-			demangle,
-			demangle_kernel,
-			filter_relative,
-			show_hist_headers,
-			branch_callstack,
-			has_filter,
-			show_ref_callgraph,
-			hide_unresolved,
-			raw_trace,
-			report_hierarchy,
-			inline_name;
-	const char	*vmlinux_name,
-			*kallsyms_name,
-			*source_prefix,
-			*field_sep,
-			*graph_function;
-	const char	*default_guest_vmlinux_name,
-			*default_guest_kallsyms,
-			*default_guest_modules;
-	const char	*guestmount;
-	const char	*dso_list_str,
-			*comm_list_str,
-			*pid_list_str,
-			*tid_list_str,
-			*sym_list_str,
-			*col_width_list_str,
-			*bt_stop_list_str;
-       struct strlist	*dso_list,
-			*comm_list,
-			*sym_list,
-			*dso_from_list,
-			*dso_to_list,
-			*sym_from_list,
-			*sym_to_list,
-			*bt_stop_list;
-	struct intlist	*pid_list,
-			*tid_list;
-	const char	*symfs;
-};
-
-extern struct symbol_conf symbol_conf;
 
 struct symbol_name_rb_node {
 	struct rb_node	rb_node;
@@ -175,19 +114,6 @@ struct ref_reloc_sym {
 	const char	*name;
 	u64		addr;
 	u64		unrelocated_addr;
-};
-
-struct map_symbol {
-	struct map    *map;
-	struct symbol *sym;
-};
-
-struct addr_map_symbol {
-	struct map    *map;
-	struct symbol *sym;
-	u64	      addr;
-	u64	      al_addr;
-	u64	      phys_addr;
 };
 
 struct branch_info {
@@ -309,10 +235,11 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss);
 
 char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name);
 
-void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel);
-void symbols__insert(struct rb_root *symbols, struct symbol *sym);
-void symbols__fixup_duplicate(struct rb_root *symbols);
-void symbols__fixup_end(struct rb_root *symbols);
+void __symbols__insert(struct rb_root_cached *symbols, struct symbol *sym,
+		       bool kernel);
+void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym);
+void symbols__fixup_duplicate(struct rb_root_cached *symbols);
+void symbols__fixup_end(struct rb_root_cached *symbols);
 void map_groups__fixup_end(struct map_groups *mg);
 
 typedef int (*mapfn_t)(u64 start, u64 len, u64 pgoff, void *data);

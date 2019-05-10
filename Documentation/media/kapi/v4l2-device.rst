@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 V4L2 device instance
 --------------------
 
@@ -91,7 +93,7 @@ You can iterate over all registered devices as follows:
 		int err;
 
 		/* Find driver 'ivtv' on the PCI bus.
-		pci_bus_type is a global. For USB busses use usb_bus_type. */
+		pci_bus_type is a global. For USB buses use usb_bus_type. */
 		drv = driver_find("ivtv", &pci_bus_type);
 		/* iterate over all ivtv device instances */
 		err = driver_for_each_device(drv, NULL, p, callback);

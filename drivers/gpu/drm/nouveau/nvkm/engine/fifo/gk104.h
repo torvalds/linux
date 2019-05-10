@@ -45,7 +45,11 @@ struct gk104_fifo {
 };
 
 struct gk104_fifo_func {
-	void (*init_pbdma_timeout)(struct gk104_fifo *);
+	const struct gk104_fifo_pbdma_func {
+		int (*nr)(struct gk104_fifo *);
+		void (*init)(struct gk104_fifo *);
+		void (*init_timeout)(struct gk104_fifo *);
+	} *pbdma;
 
 	struct {
 		const struct nvkm_enum *access;
@@ -61,6 +65,8 @@ struct gk104_fifo_func {
 			     struct nvkm_memory *, u32 offset);
 		void (*chan)(struct gk104_fifo_chan *,
 			     struct nvkm_memory *, u32 offset);
+		void (*commit)(struct gk104_fifo *, int runl,
+			       struct nvkm_memory *, int entries);
 	} *runlist;
 
 	struct gk104_fifo_user_user {
@@ -81,8 +87,11 @@ int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *,
 		    int index, int nr, struct nvkm_fifo **);
 void gk104_fifo_runlist_insert(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
-void gk104_fifo_runlist_commit(struct gk104_fifo *, int runl);
+void gk104_fifo_runlist_update(struct gk104_fifo *, int runl);
 
+extern const struct gk104_fifo_pbdma_func gk104_fifo_pbdma;
+int gk104_fifo_pbdma_nr(struct gk104_fifo *);
+void gk104_fifo_pbdma_init(struct gk104_fifo *);
 extern const struct nvkm_enum gk104_fifo_fault_access[];
 extern const struct nvkm_enum gk104_fifo_fault_engine[];
 extern const struct nvkm_enum gk104_fifo_fault_reason[];
@@ -91,15 +100,30 @@ extern const struct nvkm_enum gk104_fifo_fault_gpcclient[];
 extern const struct gk104_fifo_runlist_func gk104_fifo_runlist;
 void gk104_fifo_runlist_chan(struct gk104_fifo_chan *,
 			     struct nvkm_memory *, u32);
+void gk104_fifo_runlist_commit(struct gk104_fifo *, int runl,
+			       struct nvkm_memory *, int);
 
 extern const struct gk104_fifo_runlist_func gk110_fifo_runlist;
 void gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *,
 			     struct nvkm_memory *, u32);
 
-void gk208_fifo_init_pbdma_timeout(struct gk104_fifo *);
+extern const struct gk104_fifo_pbdma_func gk208_fifo_pbdma;
+void gk208_fifo_pbdma_init_timeout(struct gk104_fifo *);
 
 extern const struct nvkm_enum gm107_fifo_fault_engine[];
 extern const struct gk104_fifo_runlist_func gm107_fifo_runlist;
 
+extern const struct gk104_fifo_pbdma_func gm200_fifo_pbdma;
+int gm200_fifo_pbdma_nr(struct gk104_fifo *);
+
 extern const struct nvkm_enum gp100_fifo_fault_engine[];
+
+extern const struct nvkm_enum gv100_fifo_fault_access[];
+extern const struct nvkm_enum gv100_fifo_fault_reason[];
+extern const struct nvkm_enum gv100_fifo_fault_hubclient[];
+extern const struct nvkm_enum gv100_fifo_fault_gpcclient[];
+void gv100_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *,
+			     struct nvkm_memory *, u32);
+void gv100_fifo_runlist_chan(struct gk104_fifo_chan *,
+			     struct nvkm_memory *, u32);
 #endif

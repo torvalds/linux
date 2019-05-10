@@ -2,6 +2,7 @@
 /dts-v1/;
 
 #include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/input/gpio-keys.h>
 
 #include "tegra186-p3310.dtsi"
 
@@ -25,7 +26,8 @@
 			reg = <0x74>;
 
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_MAIN_GPIO(Y, 0) GPIO_ACTIVE_LOW>;
+			interrupts = <TEGRA186_MAIN_GPIO(Y, 0)
+				      GPIO_ACTIVE_LOW>;
 
 			#gpio-cells = <2>;
 			gpio-controller;
@@ -36,7 +38,8 @@
 			reg = <0x77>;
 
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_MAIN_GPIO(Y, 6) GPIO_ACTIVE_LOW>;
+			interrupts = <TEGRA186_MAIN_GPIO(Y, 6)
+				      GPIO_ACTIVE_LOW>;
 
 			#gpio-cells = <2>;
 			gpio-controller;
@@ -48,6 +51,11 @@
 		status = "okay";
 
 		vmmc-supply = <&vdd_sd>;
+	};
+
+	hda@3510000 {
+		nvidia,model = "jetson-tx2-hda";
+		status = "okay";
 	};
 
 	pcie@10003000 {
@@ -103,7 +111,8 @@
 			hdmi-supply = <&vdd_hdmi>;
 
 			nvidia,ddc-i2c-bus = <&ddc>;
-			nvidia,hpd-gpio = <&gpio TEGRA_MAIN_GPIO(P, 1) GPIO_ACTIVE_LOW>;
+			nvidia,hpd-gpio = <&gpio TEGRA186_MAIN_GPIO(P, 1)
+						 GPIO_ACTIVE_LOW>;
 		};
 
 		dpaux@155c0000 {
@@ -116,17 +125,18 @@
 
 		power {
 			label = "Power";
-			gpios = <&gpio_aon TEGRA_AON_GPIO(FF, 0)
+			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 0)
 					   GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
 		};
 
 		volume-up {
 			label = "Volume Up";
-			gpios = <&gpio_aon TEGRA_AON_GPIO(FF, 1)
+			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 1)
 					   GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -135,7 +145,7 @@
 
 		volume-down {
 			label = "Volume Down";
-			gpios = <&gpio_aon TEGRA_AON_GPIO(FF, 2)
+			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 2)
 					   GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_VOLUMEDOWN>;
@@ -152,7 +162,8 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 
-			gpio = <&gpio TEGRA_MAIN_GPIO(P, 6) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA186_MAIN_GPIO(P, 6)
+				      GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 
 			vin-supply = <&vdd_3v3_sys>;

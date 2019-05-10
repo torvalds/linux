@@ -1945,7 +1945,7 @@ static const struct ov_i2c_regvals norm_8610[] = {
 	{ 0x62, 0x5f }, /* was 0xd7, new from windrv 090403 */
 	{ 0x63, 0xff },
 	{ 0x64, 0x53 }, /* new windrv 090403 says 0x57,
-			 * maybe thats wrong */
+			 * maybe that's wrong */
 	{ 0x65, 0x00 },
 	{ 0x66, 0x55 },
 	{ 0x67, 0xb0 },
@@ -3658,7 +3658,7 @@ static void ov518_mode_init_regs(struct sd *sd)
 		case SEN_OV7620AE:
 			/*
 			 * HdG: 640x480 needs special handling on device
-			 * revision 2, we check for device revison > 0 to
+			 * revision 2, we check for device revision > 0 to
 			 * avoid regressions, as we don't know the correct
 			 * thing todo for revision 1.
 			 *

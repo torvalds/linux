@@ -36,6 +36,8 @@
 #define MAX_IRQNAME	16	/* big enough for "QMan portal %d" */
 #define QMAN_POLL_LIMIT 32
 #define QMAN_PIRQ_DQRR_ITHRESH 12
+#define QMAN_DQRR_IT_MAX 15
+#define QMAN_ITP_MAX 0xFFF
 #define QMAN_PIRQ_MR_ITHRESH 4
 #define QMAN_PIRQ_IPERIOD 100
 
@@ -727,9 +729,15 @@ static inline void qm_dqrr_vdqcr_set(struct qm_portal *portal, u32 vdqcr)
 	qm_out(portal, QM_REG_DQRR_VDQCR, vdqcr);
 }
 
-static inline void qm_dqrr_set_ithresh(struct qm_portal *portal, u8 ithresh)
+static inline int qm_dqrr_set_ithresh(struct qm_portal *portal, u8 ithresh)
 {
+
+	if (ithresh > QMAN_DQRR_IT_MAX)
+		return -EINVAL;
+
 	qm_out(portal, QM_REG_DQRR_ITR, ithresh);
+
+	return 0;
 }
 
 /* --- MR API --- */
@@ -1012,20 +1020,27 @@ static inline void put_affine_portal(void)
 
 static struct workqueue_struct *qm_portal_wq;
 
-void qman_dqrr_set_ithresh(struct qman_portal *portal, u8 ithresh)
+int qman_dqrr_set_ithresh(struct qman_portal *portal, u8 ithresh)
 {
-	if (!portal)
-		return;
+	int res;
 
-	qm_dqrr_set_ithresh(&portal->p, ithresh);
+	if (!portal)
+		return -EINVAL;
+
+	res = qm_dqrr_set_ithresh(&portal->p, ithresh);
+	if (res)
+		return res;
+
 	portal->p.dqrr.ithresh = ithresh;
+
+	return 0;
 }
 EXPORT_SYMBOL(qman_dqrr_set_ithresh);
 
 void qman_dqrr_get_ithresh(struct qman_portal *portal, u8 *ithresh)
 {
 	if (portal && ithresh)
-		*ithresh = portal->p.dqrr.ithresh;
+		*ithresh = qm_in(&portal->p, QM_REG_DQRR_ITR);
 }
 EXPORT_SYMBOL(qman_dqrr_get_ithresh);
 
@@ -1036,10 +1051,14 @@ void qman_portal_get_iperiod(struct qman_portal *portal, u32 *iperiod)
 }
 EXPORT_SYMBOL(qman_portal_get_iperiod);
 
-void qman_portal_set_iperiod(struct qman_portal *portal, u32 iperiod)
+int qman_portal_set_iperiod(struct qman_portal *portal, u32 iperiod)
 {
-	if (portal)
-		qm_out(&portal->p, QM_REG_ITPR, iperiod);
+	if (!portal || iperiod > QMAN_ITP_MAX)
+		return -EINVAL;
+
+	qm_out(&portal->p, QM_REG_ITPR, iperiod);
+
+	return 0;
 }
 EXPORT_SYMBOL(qman_portal_set_iperiod);
 
@@ -1124,18 +1143,19 @@ static void qm_mr_process_task(struct work_struct *work);
 static irqreturn_t portal_isr(int irq, void *ptr)
 {
 	struct qman_portal *p = ptr;
-
-	u32 clear = QM_DQAVAIL_MASK | p->irq_sources;
 	u32 is = qm_in(&p->p, QM_REG_ISR) & p->irq_sources;
+	u32 clear = 0;
 
 	if (unlikely(!is))
 		return IRQ_NONE;
 
 	/* DQRR-handling if it's interrupt-driven */
-	if (is & QM_PIRQ_DQRI)
+	if (is & QM_PIRQ_DQRI) {
 		__poll_portal_fast(p, QMAN_POLL_LIMIT);
+		clear = QM_DQAVAIL_MASK | QM_PIRQ_DQRI;
+	}
 	/* Handling of anything else that's interrupt-driven */
-	clear |= __poll_portal_slow(p, is);
+	clear |= __poll_portal_slow(p, is) & QM_PIRQ_SLOW;
 	qm_out(&p->p, QM_REG_ISR, clear);
 	return IRQ_HANDLED;
 }

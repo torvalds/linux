@@ -41,7 +41,8 @@
 
 #define CCM_B0_SIZE             16
 #define CCM_AAD_FIELD_SIZE      2
-#define T6_MAX_AAD_SIZE 511
+// 511 - 16(For IV)
+#define T6_MAX_AAD_SIZE 495
 
 
 /* Define following if h/w is not dropping the AAD and IV data before
@@ -185,9 +186,6 @@ struct chcr_aead_reqctx {
 	dma_addr_t b0_dma;
 	unsigned int b0_len;
 	unsigned int op;
-	short int aad_nents;
-	short int src_nents;
-	short int dst_nents;
 	u16 imm;
 	u16 verify;
 	u8 iv[CHCR_MAX_CRYPTO_IV_LEN + MAX_SCRATCH_PAD_SIZE];
@@ -322,10 +320,8 @@ void chcr_aead_dma_unmap(struct device *dev, struct aead_request *req,
 			 unsigned short op_type);
 void chcr_add_aead_dst_ent(struct aead_request *req,
 			   struct cpl_rx_phys_dsgl *phys_cpl,
-			   unsigned int assoclen,
 			   unsigned short qid);
-void chcr_add_aead_src_ent(struct aead_request *req, struct ulptx_sgl *ulptx,
-			   unsigned int assoclen);
+void chcr_add_aead_src_ent(struct aead_request *req, struct ulptx_sgl *ulptx);
 void chcr_add_cipher_src_ent(struct ablkcipher_request *req,
 			     void *ulptx,
 			     struct  cipher_wr_param *wrparam);

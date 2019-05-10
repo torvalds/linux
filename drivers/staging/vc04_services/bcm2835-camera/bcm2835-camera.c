@@ -43,11 +43,6 @@
 
 #define MAX_BCM2835_CAMERAS 2
 
-MODULE_DESCRIPTION("Broadcom 2835 MMAL video capture");
-MODULE_AUTHOR("Vincent Sanders");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(BM2835_MMAL_VERSION);
-
 int bcm2835_v4l2_debug;
 module_param_named(debug, bcm2835_v4l2_debug, int, 0644);
 MODULE_PARM_DESC(bcm2835_v4l2_debug, "Debug level 0-2");
@@ -1375,10 +1370,6 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	return 0;
 }
 
-#define FRACT_CMP(a, OP, b)	\
-	((u64)(a).numerator * (b).denominator  OP  \
-	 (u64)(b).numerator * (a).denominator)
-
 static int vidioc_s_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *parm)
 {
@@ -1392,8 +1383,8 @@ static int vidioc_s_parm(struct file *file, void *priv,
 
 	/* tpf: {*, 0} resets timing; clip to [min, max]*/
 	tpf = tpf.denominator ? tpf : tpf_default;
-	tpf = FRACT_CMP(tpf, <, tpf_min) ? tpf_min : tpf;
-	tpf = FRACT_CMP(tpf, >, tpf_max) ? tpf_max : tpf;
+	tpf = V4L2_FRACT_COMPARE(tpf, <, tpf_min) ? tpf_min : tpf;
+	tpf = V4L2_FRACT_COMPARE(tpf, >, tpf_max) ? tpf_max : tpf;
 
 	dev->capture.timeperframe = tpf;
 	parm->parm.capture.timeperframe = tpf;
@@ -1544,8 +1535,11 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 	struct vchiq_mmal_component  *camera;
 
 	ret = vchiq_mmal_init(&dev->instance);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&dev->v4l2_dev, "%s: vchiq mmal init failed %d\n",
+			 __func__, ret);
 		return ret;
+	}
 
 	/* get the camera component ready */
 	ret = vchiq_mmal_component_init(dev->instance, "ril.camera",
@@ -1554,7 +1548,9 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 		goto unreg_mmal;
 
 	camera = dev->component[MMAL_COMPONENT_CAMERA];
-	if (camera->outputs <  MMAL_CAMERA_PORT_COUNT) {
+	if (camera->outputs < MMAL_CAMERA_PORT_COUNT) {
+		v4l2_err(&dev->v4l2_dev, "%s: too few camera outputs %d needed %d\n",
+			 __func__, camera->outputs, MMAL_CAMERA_PORT_COUNT);
 		ret = -EINVAL;
 		goto unreg_camera;
 	}
@@ -1562,8 +1558,11 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 	ret = set_camera_parameters(dev->instance,
 				    camera,
 				    dev);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&dev->v4l2_dev, "%s: unable to set camera parameters: %d\n",
+			 __func__, ret);
 		goto unreg_camera;
+	}
 
 	/* There was an error in the firmware that meant the camera component
 	 * produced BGR instead of RGB.
@@ -1652,8 +1651,8 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 
 	if (dev->component[MMAL_COMPONENT_PREVIEW]->inputs < 1) {
 		ret = -EINVAL;
-		pr_debug("too few input ports %d needed %d\n",
-			 dev->component[MMAL_COMPONENT_PREVIEW]->inputs, 1);
+		v4l2_err(&dev->v4l2_dev, "%s: too few input ports %d needed %d\n",
+			 __func__, dev->component[MMAL_COMPONENT_PREVIEW]->inputs, 1);
 		goto unreg_preview;
 	}
 
@@ -1666,8 +1665,8 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 
 	if (dev->component[MMAL_COMPONENT_IMAGE_ENCODE]->inputs < 1) {
 		ret = -EINVAL;
-		v4l2_err(&dev->v4l2_dev, "too few input ports %d needed %d\n",
-			 dev->component[MMAL_COMPONENT_IMAGE_ENCODE]->inputs,
+		v4l2_err(&dev->v4l2_dev, "%s: too few input ports %d needed %d\n",
+			 __func__, dev->component[MMAL_COMPONENT_IMAGE_ENCODE]->inputs,
 			 1);
 		goto unreg_image_encoder;
 	}
@@ -1681,8 +1680,8 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 
 	if (dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->inputs < 1) {
 		ret = -EINVAL;
-		v4l2_err(&dev->v4l2_dev, "too few input ports %d needed %d\n",
-			 dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->inputs,
+		v4l2_err(&dev->v4l2_dev, "%s: too few input ports %d needed %d\n",
+			 __func__, dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->inputs,
 			 1);
 		goto unreg_vid_encoder;
 	}
@@ -1711,8 +1710,11 @@ static int mmal_init(struct bm2835_mmal_dev *dev)
 					      sizeof(enable));
 	}
 	ret = bm2835_mmal_set_all_camera_controls(dev);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(&dev->v4l2_dev, "%s: failed to set all camera controls: %d\n",
+			 __func__, ret);
 		goto unreg_vid_encoder;
+	}
 
 	return 0;
 
@@ -1841,6 +1843,12 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 	num_cameras = get_num_cameras(instance,
 				      resolutions,
 				      MAX_BCM2835_CAMERAS);
+
+	if (num_cameras < 1) {
+		ret = -ENODEV;
+		goto cleanup_mmal;
+	}
+
 	if (num_cameras > MAX_BCM2835_CAMERAS)
 		num_cameras = MAX_BCM2835_CAMERAS;
 
@@ -1872,21 +1880,29 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 		snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
 			 "%s", BM2835_MMAL_MODULE_NAME);
 		ret = v4l2_device_register(NULL, &dev->v4l2_dev);
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev, "%s: could not register V4L2 device: %d\n",
+				__func__, ret);
 			goto free_dev;
+		}
 
 		/* setup v4l controls */
 		ret = bm2835_mmal_init_controls(dev, &dev->ctrl_handler);
-		if (ret < 0)
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev, "%s: could not init controls: %d\n",
+				 __func__, ret);
 			goto unreg_dev;
+		}
 		dev->v4l2_dev.ctrl_handler = &dev->ctrl_handler;
 
 		/* mmal init */
 		dev->instance = instance;
 		ret = mmal_init(dev);
-		if (ret < 0)
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev, "%s: mmal init failed: %d\n",
+				 __func__, ret);
 			goto unreg_dev;
-
+		}
 		/* initialize queue */
 		q = &dev->capture.vb_vidq;
 		memset(q, 0, sizeof(*q));
@@ -1904,16 +1920,19 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 
 		/* initialise video devices */
 		ret = bm2835_mmal_init_device(dev, &dev->vdev);
-		if (ret < 0)
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev, "%s: could not init device: %d\n",
+				 __func__, ret);
 			goto unreg_dev;
+		}
 
 		/* Really want to call vidioc_s_fmt_vid_cap with the default
 		 * format, but currently the APIs don't join up.
 		 */
 		ret = mmal_setup_components(dev, &default_v4l2_format);
 		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "%s: could not setup components\n", __func__);
+			v4l2_err(&dev->v4l2_dev, "%s: could not setup components: %d\n",
+				 __func__, ret);
 			goto unreg_dev;
 		}
 
@@ -1937,8 +1956,9 @@ cleanup_gdev:
 		bcm2835_cleanup_instance(gdev[i]);
 		gdev[i] = NULL;
 	}
-	pr_info("%s: error %d while loading driver\n",
-		BM2835_MMAL_MODULE_NAME, ret);
+
+cleanup_mmal:
+	vchiq_mmal_finalise(instance);
 
 	return ret;
 }
@@ -1966,3 +1986,9 @@ static struct platform_driver bcm2835_camera_driver = {
 };
 
 module_platform_driver(bcm2835_camera_driver)
+
+MODULE_DESCRIPTION("Broadcom 2835 MMAL video capture");
+MODULE_AUTHOR("Vincent Sanders");
+MODULE_LICENSE("GPL");
+MODULE_VERSION(BM2835_MMAL_VERSION);
+MODULE_ALIAS("platform:bcm2835-camera");

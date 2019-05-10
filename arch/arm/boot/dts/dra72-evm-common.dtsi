@@ -530,7 +530,7 @@
 
 &atl {
 	assigned-clocks = <&abe_dpll_sys_clk_mux>,
-			  <&atl_clkctrl DRA7_ATL_CLKCTRL 26>,
+			  <&atl_clkctrl DRA7_ATL_ATL_CLKCTRL 26>,
 			  <&dpll_abe_ck>,
 			  <&dpll_abe_m2x2_ck>,
 			  <&atl_clkin2_ck>;
@@ -548,7 +548,7 @@
 &mcasp3 {
 	#sound-dai-cells = <0>;
 
-	assigned-clocks = <&l4per_clkctrl DRA7_MCASP3_CLKCTRL 24>;
+	assigned-clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 24>;
 	assigned-clock-parents = <&atl_clkin2_ck>;
 
 	status = "okay";

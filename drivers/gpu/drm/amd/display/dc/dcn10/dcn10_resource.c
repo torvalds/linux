@@ -28,23 +28,23 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
-#include "dcn10/dcn10_resource.h"
+#include "dcn10_resource.h"
 
-#include "dcn10/dcn10_ipp.h"
-#include "dcn10/dcn10_mpc.h"
+#include "dcn10_ipp.h"
+#include "dcn10_mpc.h"
 #include "irq/dcn10/irq_service_dcn10.h"
-#include "dcn10/dcn10_dpp.h"
+#include "dcn10_dpp.h"
 #include "dcn10_optc.h"
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
-#include "dcn10/dcn10_opp.h"
-#include "dcn10/dcn10_link_encoder.h"
-#include "dcn10/dcn10_stream_encoder.h"
-#include "dce/dce_clocks.h"
+#include "dcn10_opp.h"
+#include "dcn10_link_encoder.h"
+#include "dcn10_stream_encoder.h"
+#include "dcn10_clk_mgr.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
-#include "../virtual/virtual_stream_encoder.h"
+#include "virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dce112/dce112_resource.h"
 #include "dcn10_hubp.h"
@@ -70,7 +70,7 @@
 const struct _vcs_dpi_ip_params_st dcn1_0_ip = {
 	.rob_buffer_size_kbytes = 64,
 	.det_buffer_size_kbytes = 164,
-	.dpte_buffer_size_in_pte_reqs = 42,
+	.dpte_buffer_size_in_pte_reqs_luma = 42,
 	.dpp_output_buffer_pixels = 2560,
 	.opp_output_buffer_lines = 1,
 	.pixel_chunk_size_kbytes = 8,
@@ -202,7 +202,6 @@ enum dcn10_clk_src_array_id {
 #define MMHUB_SR(reg_name)\
 		.reg_name = MMHUB_BASE(mm ## reg_name ## _BASE_IDX) +  \
 					mm ## reg_name
-
 /* macros to expend register list macro defined in HW object header file
  * end *********************/
 
@@ -436,7 +435,6 @@ static const struct dcn_optc_mask tg_mask = {
 	TG_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
 
-
 static const struct bios_registers bios_regs = {
 		NBIO_SR(BIOS_SCRATCH_3),
 		NBIO_SR(BIOS_SCRATCH_6)
@@ -495,7 +493,6 @@ static const struct dce110_clk_src_shift cs_shift = {
 static const struct dce110_clk_src_mask cs_mask = {
 		CS_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
-
 
 static const struct resource_caps res_cap = {
 		.num_timing_generator = 4,
@@ -611,7 +608,7 @@ static struct output_pixel_processor *dcn10_opp_create(
 	return &opp->base;
 }
 
-struct aux_engine *dcn10_aux_engine_create(
+struct dce_aux *dcn10_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -680,18 +677,18 @@ static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 
 static struct hubbub *dcn10_hubbub_create(struct dc_context *ctx)
 {
-	struct hubbub *hubbub = kzalloc(sizeof(struct hubbub),
+	struct dcn10_hubbub *dcn10_hubbub = kzalloc(sizeof(struct dcn10_hubbub),
 					  GFP_KERNEL);
 
-	if (!hubbub)
+	if (!dcn10_hubbub)
 		return NULL;
 
-	hubbub1_construct(hubbub, ctx,
+	hubbub1_construct(&dcn10_hubbub->base, ctx,
 			&hubbub_reg,
 			&hubbub_shift,
 			&hubbub_mask);
 
-	return hubbub;
+	return &dcn10_hubbub->base;
 }
 
 static struct timing_generator *dcn10_timing_generator_create(
@@ -719,7 +716,8 @@ static struct timing_generator *dcn10_timing_generator_create(
 static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
 		.max_hdmi_pixel_clock = 600000,
-		.ycbcr420_supported = true,
+		.hdmi_ycbcr420_supported = true,
+		.dp_ycbcr420_supported = false,
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
@@ -912,7 +910,7 @@ static void destruct(struct dcn10_resource_pool *pool)
 
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
-			pool->base.engines[i]->funcs->destroy_engine(&pool->base.engines[i]);
+			dce110_engine_destroy(&pool->base.engines[i]);
 		if (pool->base.hw_i2cs[i] != NULL) {
 			kfree(pool->base.hw_i2cs[i]);
 			pool->base.hw_i2cs[i] = NULL;
@@ -949,8 +947,8 @@ static void destruct(struct dcn10_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 
 	kfree(pool->base.pp_smu);
 }
@@ -975,8 +973,8 @@ static void get_pixel_clock_parameters(
 	struct pixel_clk_params *pixel_clk_params)
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
-	pixel_clk_params->encoder_object_id = stream->sink->link->link_enc->id;
+	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
+	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
@@ -992,9 +990,9 @@ static void get_pixel_clock_parameters(
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		pixel_clk_params->requested_pix_clk  /= 2;
+		pixel_clk_params->requested_pix_clk_100hz  /= 2;
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
-		pixel_clk_params->requested_pix_clk *= 2;
+		pixel_clk_params->requested_pix_clk_100hz *= 2;
 
 }
 
@@ -1132,6 +1130,56 @@ static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_st
 	return DC_OK;
 }
 
+static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *context)
+{
+	int i, j;
+	bool video_down_scaled = false;
+	bool video_large = false;
+	bool desktop_large = false;
+	bool dcc_disabled = false;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->stream_status[i].plane_count == 0)
+			continue;
+
+		if (context->stream_status[i].plane_count > 2)
+			return false;
+
+		for (j = 0; j < context->stream_status[i].plane_count; j++) {
+			struct dc_plane_state *plane =
+				context->stream_status[i].plane_states[j];
+
+
+			if (plane->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
+
+				if (plane->src_rect.width > plane->dst_rect.width ||
+						plane->src_rect.height > plane->dst_rect.height)
+					video_down_scaled = true;
+
+				if (plane->src_rect.width >= 3840)
+					video_large = true;
+
+			} else {
+				if (plane->src_rect.width >= 3840)
+					desktop_large = true;
+				if (!plane->dcc.enable)
+					dcc_disabled = true;
+			}
+		}
+	}
+
+	/*
+	 * Workaround: On DCN10 there is UMC issue that causes underflow when
+	 * playing 4k video on 4k desktop with video downscaled and single channel
+	 * memory
+	 */
+	if (video_large && desktop_large && video_down_scaled && dcc_disabled &&
+			dc->dcn_soc->number_of_channels == 1)
+		return DC_FAIL_SURFACE_VALIDATE;
+
+	return DC_OK;
+}
+
 static enum dc_status dcn10_get_default_swizzle_mode(struct dc_plane_state *plane_state)
 {
 	enum dc_status result = DC_OK;
@@ -1160,6 +1208,7 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
 	.validate_plane = dcn10_validate_plane,
+	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
 	.get_default_swizzle_mode = dcn10_get_default_swizzle_mode
 };
@@ -1275,9 +1324,8 @@ static bool construct(
 			goto fail;
 		}
 	}
-
-	pool->base.dccg = dcn1_dccg_create(ctx);
-	if (pool->base.dccg == NULL) {
+	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto fail;

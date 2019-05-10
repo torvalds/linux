@@ -185,8 +185,7 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 	bitmap->avail = num - reserved_top - reserved_bot;
 	bitmap->effective_len = bitmap->avail;
 	spin_lock_init(&bitmap->lock);
-	bitmap->table = kcalloc(BITS_TO_LONGS(bitmap->max), sizeof(long),
-				GFP_KERNEL);
+	bitmap->table = bitmap_zalloc(bitmap->max, GFP_KERNEL);
 	if (!bitmap->table)
 		return -ENOMEM;
 
@@ -197,7 +196,7 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 
 void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap)
 {
-	kfree(bitmap->table);
+	bitmap_free(bitmap->table);
 }
 
 struct mlx4_zone_allocator {
@@ -584,8 +583,8 @@ static int mlx4_buf_direct_alloc(struct mlx4_dev *dev, int size,
 	buf->npages       = 1;
 	buf->page_shift   = get_order(size) + PAGE_SHIFT;
 	buf->direct.buf   =
-		dma_zalloc_coherent(&dev->persist->pdev->dev,
-				    size, &t, GFP_KERNEL);
+		dma_alloc_coherent(&dev->persist->pdev->dev, size, &t,
+				   GFP_KERNEL);
 	if (!buf->direct.buf)
 		return -ENOMEM;
 
@@ -624,8 +623,8 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 
 		for (i = 0; i < buf->nbufs; ++i) {
 			buf->page_list[i].buf =
-				dma_zalloc_coherent(&dev->persist->pdev->dev,
-						    PAGE_SIZE, &t, GFP_KERNEL);
+				dma_alloc_coherent(&dev->persist->pdev->dev,
+						   PAGE_SIZE, &t, GFP_KERNEL);
 			if (!buf->page_list[i].buf)
 				goto err_free;
 

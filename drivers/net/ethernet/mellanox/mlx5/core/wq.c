@@ -155,7 +155,8 @@ int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		     void *cqc, struct mlx5_cqwq *wq,
 		     struct mlx5_wq_ctrl *wq_ctrl)
 {
-	u8 log_wq_stride = MLX5_GET(cqc, cqc, cqe_sz) + 6;
+	/* CQE_STRIDE_128 and CQE_STRIDE_128_PAD both mean 128B stride */
+	u8 log_wq_stride = MLX5_GET(cqc, cqc, cqe_sz) == CQE_STRIDE_64 ? 6 : 7;
 	u8 log_wq_sz     = MLX5_GET(cqc, cqc, log_cq_size);
 	int err;
 

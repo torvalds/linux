@@ -36,10 +36,10 @@
 		cmp	ip, #2
 		ldrb	r3, [r1], #1
 		strb	r3, [r0]
-		ldrgeb	r3, [r1], #1
-		strgeb	r3, [r0]
-		ldrgtb	r3, [r1], #1
-		strgtb	r3, [r0]
+		ldrbge	r3, [r1], #1
+		strbge	r3, [r0]
+		ldrbgt	r3, [r1], #1
+		strbgt	r3, [r0]
 		subs	r2, r2, ip
 		bne	.Loutsb_aligned
 
@@ -64,7 +64,7 @@ ENTRY(__raw_writesb)
 		bpl	.Loutsb_16_lp
 
 		tst	r2, #15
-		ldmeqfd	sp!, {r4, r5, pc}
+		ldmfdeq	sp!, {r4, r5, pc}
 
 .Loutsb_no_16:	tst	r2, #8
 		beq	.Loutsb_no_8
@@ -80,15 +80,15 @@ ENTRY(__raw_writesb)
 		outword	r3
 
 .Loutsb_no_4:	ands	r2, r2, #3
-		ldmeqfd	sp!, {r4, r5, pc}
+		ldmfdeq	sp!, {r4, r5, pc}
 
 		cmp	r2, #2
 		ldrb	r3, [r1], #1
 		strb	r3, [r0]
-		ldrgeb	r3, [r1], #1
-		strgeb	r3, [r0]
-		ldrgtb	r3, [r1]
-		strgtb	r3, [r0]
+		ldrbge	r3, [r1], #1
+		strbge	r3, [r0]
+		ldrbgt	r3, [r1]
+		strbgt	r3, [r0]
 
 		ldmfd	sp!, {r4, r5, pc}
 ENDPROC(__raw_writesb)

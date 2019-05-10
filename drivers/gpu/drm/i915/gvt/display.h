@@ -146,18 +146,19 @@ enum intel_vgpu_port_type {
 	GVT_PORT_MAX
 };
 
+enum intel_vgpu_edid {
+	GVT_EDID_1024_768,
+	GVT_EDID_1920_1200,
+	GVT_EDID_NUM,
+};
+
 struct intel_vgpu_port {
 	/* per display EDID information */
 	struct intel_vgpu_edid_data *edid;
 	/* per display DPCD information */
 	struct intel_vgpu_dpcd_data *dpcd;
 	int type;
-};
-
-enum intel_vgpu_edid {
-	GVT_EDID_1024_768,
-	GVT_EDID_1920_1200,
-	GVT_EDID_NUM,
+	enum intel_vgpu_edid id;
 };
 
 static inline char *vgpu_edid_str(enum intel_vgpu_edid id)
@@ -169,6 +170,30 @@ static inline char *vgpu_edid_str(enum intel_vgpu_edid id)
 		return "1920x1200";
 	default:
 		return "";
+	}
+}
+
+static inline unsigned int vgpu_edid_xres(enum intel_vgpu_edid id)
+{
+	switch (id) {
+	case GVT_EDID_1024_768:
+		return 1024;
+	case GVT_EDID_1920_1200:
+		return 1920;
+	default:
+		return 0;
+	}
+}
+
+static inline unsigned int vgpu_edid_yres(enum intel_vgpu_edid id)
+{
+	switch (id) {
+	case GVT_EDID_1024_768:
+		return 768;
+	case GVT_EDID_1920_1200:
+		return 1200;
+	default:
+		return 0;
 	}
 }
 

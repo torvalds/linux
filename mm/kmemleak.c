@@ -574,6 +574,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	unsigned long flags;
 	struct kmemleak_object *object, *parent;
 	struct rb_node **link, *rb_parent;
+	unsigned long untagged_ptr;
 
 	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
 	if (!object) {
@@ -619,8 +620,9 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 
 	write_lock_irqsave(&kmemleak_lock, flags);
 
-	min_addr = min(min_addr, ptr);
-	max_addr = max(max_addr, ptr + size);
+	untagged_ptr = (unsigned long)kasan_reset_tag((void *)ptr);
+	min_addr = min(min_addr, untagged_ptr);
+	max_addr = max(max_addr, untagged_ptr + size);
 	link = &object_tree_root.rb_node;
 	rb_parent = NULL;
 	while (*link) {
@@ -1333,6 +1335,7 @@ static void scan_block(void *_start, void *_end,
 	unsigned long *start = PTR_ALIGN(_start, BYTES_PER_POINTER);
 	unsigned long *end = _end - (BYTES_PER_POINTER - 1);
 	unsigned long flags;
+	unsigned long untagged_ptr;
 
 	read_lock_irqsave(&kmemleak_lock, flags);
 	for (ptr = start; ptr < end; ptr++) {
@@ -1347,7 +1350,8 @@ static void scan_block(void *_start, void *_end,
 		pointer = *ptr;
 		kasan_enable_current();
 
-		if (pointer < min_addr || pointer >= max_addr)
+		untagged_ptr = (unsigned long)kasan_reset_tag((void *)pointer);
+		if (untagged_ptr < min_addr || untagged_ptr >= max_addr)
 			continue;
 
 		/*
@@ -1397,6 +1401,7 @@ static void scan_block(void *_start, void *_end,
 /*
  * Scan a large memory block in MAX_SCAN_SIZE chunks to reduce the latency.
  */
+#ifdef CONFIG_SMP
 static void scan_large_block(void *start, void *end)
 {
 	void *next;
@@ -1408,6 +1413,7 @@ static void scan_large_block(void *start, void *end)
 		cond_resched();
 	}
 }
+#endif
 
 /*
  * Scan a memory block corresponding to a kmemleak_object. A condition is
@@ -1525,11 +1531,6 @@ static void kmemleak_scan(void)
 	}
 	rcu_read_unlock();
 
-	/* data/bss scanning */
-	scan_large_block(_sdata, _edata);
-	scan_large_block(__bss_start, __bss_stop);
-	scan_large_block(__start_ro_after_init, __end_ro_after_init);
-
 #ifdef CONFIG_SMP
 	/* per-cpu sections scanning */
 	for_each_possible_cpu(i)
@@ -1547,11 +1548,14 @@ static void kmemleak_scan(void)
 		unsigned long pfn;
 
 		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-			struct page *page;
+			struct page *page = pfn_to_online_page(pfn);
 
-			if (!pfn_valid(pfn))
+			if (!page)
 				continue;
-			page = pfn_to_page(pfn);
+
+			/* only scan pages belonging to this node */
+			if (page_to_nid(page) != i)
+				continue;
 			/* only scan if page is in use */
 			if (page_count(page) == 0)
 				continue;
@@ -1647,7 +1651,7 @@ static void kmemleak_scan(void)
  */
 static int kmemleak_scan_thread(void *arg)
 {
-	static int first_run = 1;
+	static int first_run = IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN);
 
 	pr_info("Automatic memory scanning thread started\n");
 	set_user_nice(current, 10);
@@ -2064,6 +2068,17 @@ void __init kmemleak_init(void)
 	}
 	local_irq_restore(flags);
 
+	/* register the data/bss sections */
+	create_object((unsigned long)_sdata, _edata - _sdata,
+		      KMEMLEAK_GREY, GFP_ATOMIC);
+	create_object((unsigned long)__bss_start, __bss_stop - __bss_start,
+		      KMEMLEAK_GREY, GFP_ATOMIC);
+	/* only register .data..ro_after_init if not within .data */
+	if (__start_ro_after_init < _sdata || __end_ro_after_init > _edata)
+		create_object((unsigned long)__start_ro_after_init,
+			      __end_ro_after_init - __start_ro_after_init,
+			      KMEMLEAK_GREY, GFP_ATOMIC);
+
 	/*
 	 * This is the point where tracking allocations is safe. Automatic
 	 * scanning is started during the late initcall. Add the early logged
@@ -2141,9 +2156,11 @@ static int __init kmemleak_late_init(void)
 		return -ENOMEM;
 	}
 
-	mutex_lock(&scan_mutex);
-	start_scan_thread();
-	mutex_unlock(&scan_mutex);
+	if (IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN)) {
+		mutex_lock(&scan_mutex);
+		start_scan_thread();
+		mutex_unlock(&scan_mutex);
+	}
 
 	pr_info("Kernel memory leak detector initialized\n");
 

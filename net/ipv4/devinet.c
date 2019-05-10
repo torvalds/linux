@@ -1101,7 +1101,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr)
 				inet_del_ifa(in_dev, ifap, 1);
 			break;
 		}
-		ret = dev_change_flags(dev, ifr->ifr_flags);
+		ret = dev_change_flags(dev, ifr->ifr_flags, NULL);
 		break;
 
 	case SIOCSIFADDR:	/* Set interface address (and family) */
@@ -1826,7 +1826,7 @@ put_tgt_net:
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
-	return err < 0 ? err : skb->len;
+	return skb->len ? : err;
 }
 
 static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
@@ -2063,13 +2063,49 @@ static const struct nla_policy devconf_ipv4_policy[NETCONFA_MAX+1] = {
 	[NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN]	= { .len = sizeof(int) },
 };
 
+static int inet_netconf_valid_get_req(struct sk_buff *skb,
+				      const struct nlmsghdr *nlh,
+				      struct nlattr **tb,
+				      struct netlink_ext_ack *extack)
+{
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(struct netconfmsg))) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid header for netconf get request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(struct netconfmsg), tb,
+				   NETCONFA_MAX, devconf_ipv4_policy, extack);
+
+	err = nlmsg_parse_strict(nlh, sizeof(struct netconfmsg), tb,
+				 NETCONFA_MAX, devconf_ipv4_policy, extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= NETCONFA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case NETCONFA_IFINDEX:
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "ipv4: Unsupported attribute in netconf get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 				    struct nlmsghdr *nlh,
 				    struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct nlattr *tb[NETCONFA_MAX+1];
-	struct netconfmsg *ncm;
 	struct sk_buff *skb;
 	struct ipv4_devconf *devconf;
 	struct in_device *in_dev;
@@ -2077,9 +2113,8 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 	int ifindex;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*ncm), tb, NETCONFA_MAX,
-			  devconf_ipv4_policy, extack);
-	if (err < 0)
+	err = inet_netconf_valid_get_req(in_skb, nlh, tb, extack);
+	if (err)
 		goto errout;
 
 	err = -EINVAL;
@@ -2556,32 +2591,34 @@ static __net_init int devinet_init_net(struct net *net)
 	int err;
 	struct ipv4_devconf *all, *dflt;
 #ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl = ctl_forward_entry;
+	struct ctl_table *tbl;
 	struct ctl_table_header *forw_hdr;
 #endif
 
 	err = -ENOMEM;
-	all = &ipv4_devconf;
-	dflt = &ipv4_devconf_dflt;
+	all = kmemdup(&ipv4_devconf, sizeof(ipv4_devconf), GFP_KERNEL);
+	if (!all)
+		goto err_alloc_all;
 
-	if (!net_eq(net, &init_net)) {
-		all = kmemdup(all, sizeof(ipv4_devconf), GFP_KERNEL);
-		if (!all)
-			goto err_alloc_all;
-
-		dflt = kmemdup(dflt, sizeof(ipv4_devconf_dflt), GFP_KERNEL);
-		if (!dflt)
-			goto err_alloc_dflt;
+	dflt = kmemdup(&ipv4_devconf_dflt, sizeof(ipv4_devconf_dflt), GFP_KERNEL);
+	if (!dflt)
+		goto err_alloc_dflt;
 
 #ifdef CONFIG_SYSCTL
-		tbl = kmemdup(tbl, sizeof(ctl_forward_entry), GFP_KERNEL);
-		if (!tbl)
-			goto err_alloc_ctl;
+	tbl = kmemdup(ctl_forward_entry, sizeof(ctl_forward_entry), GFP_KERNEL);
+	if (!tbl)
+		goto err_alloc_ctl;
 
-		tbl[0].data = &all->data[IPV4_DEVCONF_FORWARDING - 1];
-		tbl[0].extra1 = all;
-		tbl[0].extra2 = net;
+	tbl[0].data = &all->data[IPV4_DEVCONF_FORWARDING - 1];
+	tbl[0].extra1 = all;
+	tbl[0].extra2 = net;
 #endif
+
+	if ((!IS_ENABLED(CONFIG_SYSCTL) ||
+	     sysctl_devconf_inherit_init_net != 2) &&
+	    !net_eq(net, &init_net)) {
+		memcpy(all, init_net.ipv4.devconf_all, sizeof(ipv4_devconf));
+		memcpy(dflt, init_net.ipv4.devconf_dflt, sizeof(ipv4_devconf_dflt));
 	}
 
 #ifdef CONFIG_SYSCTL
@@ -2611,15 +2648,12 @@ err_reg_ctl:
 err_reg_dflt:
 	__devinet_sysctl_unregister(net, all, NETCONFA_IFINDEX_ALL);
 err_reg_all:
-	if (tbl != ctl_forward_entry)
-		kfree(tbl);
+	kfree(tbl);
 err_alloc_ctl:
 #endif
-	if (dflt != &ipv4_devconf_dflt)
-		kfree(dflt);
+	kfree(dflt);
 err_alloc_dflt:
-	if (all != &ipv4_devconf)
-		kfree(all);
+	kfree(all);
 err_alloc_all:
 	return err;
 }

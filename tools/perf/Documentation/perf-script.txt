@@ -117,7 +117,7 @@ OPTIONS
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
-        brstackoff, callindent, insn, insnlen, synth, phys_addr, metric, misc.
+        brstackoff, callindent, insn, insnlen, synth, phys_addr, metric, misc, srccode.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -158,6 +158,12 @@ OPTIONS
 	suppresses trace events. The user is given a warning message about
 	the override, and the result of the above is that only S/W and H/W
 	events are displayed with the given fields.
+
+	It's possible tp add/remove fields only for specific event type:
+
+		-Fsw:-cpu,-period
+
+	removes cpu and period from software events.
 
 	For the 'wildcard' option if a user selected field is invalid for an
 	event type, a message is displayed to the user that the option is
@@ -373,6 +379,9 @@ include::itrace.txt[]
 --max-blocks::
 	Set the maximum number of program blocks to print with brstackasm for
 	each sample.
+
+--reltime::
+	Print time stamps relative to trace start.
 
 --per-event-dump::
 	Create per event files with a "perf.data.EVENT.dump" name instead of

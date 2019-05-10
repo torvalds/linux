@@ -505,6 +505,12 @@ xfs_rtmodify_summary_int(
 		uint first = (uint)((char *)sp - (char *)bp->b_addr);
 
 		*sp += delta;
+		if (mp->m_rsum_cache) {
+			if (*sp == 0 && log == mp->m_rsum_cache[bbno])
+				mp->m_rsum_cache[bbno]++;
+			if (*sp != 0 && log < mp->m_rsum_cache[bbno])
+				mp->m_rsum_cache[bbno] = log;
+		}
 		xfs_trans_log_buf(tp, bp, first, first + sizeof(*sp) - 1);
 	}
 	if (sum)

@@ -359,7 +359,8 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid)
+static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev,
+				uint32_t vmid, uint32_t flush_type)
 {
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
 }
@@ -581,7 +582,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	else
 		gmc_v6_0_set_fault_enable_default(adev, true);
 
-	gmc_v6_0_flush_gpu_tlb(adev, 0);
+	gmc_v6_0_flush_gpu_tlb(adev, 0, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);

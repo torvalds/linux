@@ -1,93 +1,19 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright (C) 2013-2017 Oracle Corporation
  * This file is based on ast_ttm.c
  * Copyright 2012 Red Hat Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- *
  * Authors: Dave Airlie <airlied@redhat.com>
  *          Michael Thayer <michael.thayer@oracle.com>
  */
+#include <linux/pci.h>
+#include <drm/drm_file.h>
+#include <drm/ttm/ttm_page_alloc.h>
 #include "vbox_drv.h"
-#include <ttm/ttm_page_alloc.h>
 
 static inline struct vbox_private *vbox_bdev(struct ttm_bo_device *bd)
 {
 	return container_of(bd, struct vbox_private, ttm.bdev);
-}
-
-static int vbox_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void vbox_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-/**
- * Adds the vbox memory manager object/structures to the global memory manager.
- */
-static int vbox_ttm_global_init(struct vbox_private *vbox)
-{
-	struct drm_global_reference *global_ref;
-	int ret;
-
-	global_ref = &vbox->ttm.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &vbox_ttm_mem_global_init;
-	global_ref->release = &vbox_ttm_mem_global_release;
-	ret = drm_global_item_ref(global_ref);
-	if (ret) {
-		DRM_ERROR("Failed setting up TTM memory subsystem.\n");
-		return ret;
-	}
-
-	vbox->ttm.bo_global_ref.mem_glob = vbox->ttm.mem_global_ref.object;
-	global_ref = &vbox->ttm.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-
-	ret = drm_global_item_ref(global_ref);
-	if (ret) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&vbox->ttm.mem_global_ref);
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * Removes the vbox memory manager object from the global memory manager.
- */
-static void vbox_ttm_global_release(struct vbox_private *vbox)
-{
-	drm_global_item_unref(&vbox->ttm.bo_global_ref.ref);
-	drm_global_item_unref(&vbox->ttm.mem_global_ref);
 }
 
 static void vbox_bo_ttm_destroy(struct ttm_buffer_object *tbo)
@@ -227,18 +153,13 @@ int vbox_mm_init(struct vbox_private *vbox)
 	struct drm_device *dev = &vbox->ddev;
 	struct ttm_bo_device *bdev = &vbox->ttm.bdev;
 
-	ret = vbox_ttm_global_init(vbox);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&vbox->ttm.bdev,
-				 vbox->ttm.bo_global_ref.ref.object,
 				 &vbox_bo_driver,
 				 dev->anon_inode->i_mapping,
 				 DRM_FILE_PAGE_OFFSET, true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
-		goto err_ttm_global_release;
+		return ret;
 	}
 
 	ret = ttm_bo_init_mm(bdev, TTM_PL_VRAM,
@@ -260,8 +181,6 @@ int vbox_mm_init(struct vbox_private *vbox)
 
 err_device_release:
 	ttm_bo_device_release(&vbox->ttm.bdev);
-err_ttm_global_release:
-	vbox_ttm_global_release(vbox);
 	return ret;
 }
 
@@ -275,7 +194,6 @@ void vbox_mm_fini(struct vbox_private *vbox)
 	arch_phys_wc_del(vbox->fb_mtrr);
 #endif
 	ttm_bo_device_release(&vbox->ttm.bdev);
-	vbox_ttm_global_release(vbox);
 }
 
 void vbox_ttm_placement(struct vbox_bo *bo, int domain)

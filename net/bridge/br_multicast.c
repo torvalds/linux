@@ -14,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/if_ether.h>
 #include <linux/igmp.h>
+#include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
@@ -29,6 +30,7 @@
 #include <net/ip.h>
 #include <net/switchdev.h>
 #if IS_ENABLED(CONFIG_IPV6)
+#include <linux/icmpv6.h>
 #include <net/ipv6.h>
 #include <net/mld.h>
 #include <net/ip6_checksum.h>
@@ -36,6 +38,14 @@
 #endif
 
 #include "br_private.h"
+
+static const struct rhashtable_params br_mdb_rht_params = {
+	.head_offset = offsetof(struct net_bridge_mdb_entry, rhnode),
+	.key_offset = offsetof(struct net_bridge_mdb_entry, addr),
+	.key_len = sizeof(struct br_ip),
+	.automatic_shrinking = true,
+	.locks_mul = 1,
+};
 
 static void br_multicast_start_querier(struct net_bridge *br,
 				       struct bridge_mcast_own_query *query);
@@ -54,7 +64,6 @@ static void br_ip6_multicast_leave_group(struct net_bridge *br,
 					 const struct in6_addr *group,
 					 __u16 vid, const unsigned char *src);
 #endif
-unsigned int br_mdb_rehash_seq;
 
 static inline int br_ip_equal(const struct br_ip *a, const struct br_ip *b)
 {
@@ -73,89 +82,58 @@ static inline int br_ip_equal(const struct br_ip *a, const struct br_ip *b)
 	return 0;
 }
 
-static inline int __br_ip4_hash(struct net_bridge_mdb_htable *mdb, __be32 ip,
-				__u16 vid)
+static struct net_bridge_mdb_entry *br_mdb_ip_get_rcu(struct net_bridge *br,
+						      struct br_ip *dst)
 {
-	return jhash_2words((__force u32)ip, vid, mdb->secret) & (mdb->max - 1);
+	return rhashtable_lookup(&br->mdb_hash_tbl, dst, br_mdb_rht_params);
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static inline int __br_ip6_hash(struct net_bridge_mdb_htable *mdb,
-				const struct in6_addr *ip,
-				__u16 vid)
-{
-	return jhash_2words(ipv6_addr_hash(ip), vid,
-			    mdb->secret) & (mdb->max - 1);
-}
-#endif
-
-static inline int br_ip_hash(struct net_bridge_mdb_htable *mdb,
-			     struct br_ip *ip)
-{
-	switch (ip->proto) {
-	case htons(ETH_P_IP):
-		return __br_ip4_hash(mdb, ip->u.ip4, ip->vid);
-#if IS_ENABLED(CONFIG_IPV6)
-	case htons(ETH_P_IPV6):
-		return __br_ip6_hash(mdb, &ip->u.ip6, ip->vid);
-#endif
-	}
-	return 0;
-}
-
-static struct net_bridge_mdb_entry *__br_mdb_ip_get(
-	struct net_bridge_mdb_htable *mdb, struct br_ip *dst, int hash)
-{
-	struct net_bridge_mdb_entry *mp;
-
-	hlist_for_each_entry_rcu(mp, &mdb->mhash[hash], hlist[mdb->ver]) {
-		if (br_ip_equal(&mp->addr, dst))
-			return mp;
-	}
-
-	return NULL;
-}
-
-struct net_bridge_mdb_entry *br_mdb_ip_get(struct net_bridge_mdb_htable *mdb,
+struct net_bridge_mdb_entry *br_mdb_ip_get(struct net_bridge *br,
 					   struct br_ip *dst)
 {
-	if (!mdb)
-		return NULL;
+	struct net_bridge_mdb_entry *ent;
 
-	return __br_mdb_ip_get(mdb, dst, br_ip_hash(mdb, dst));
+	lockdep_assert_held_once(&br->multicast_lock);
+
+	rcu_read_lock();
+	ent = rhashtable_lookup(&br->mdb_hash_tbl, dst, br_mdb_rht_params);
+	rcu_read_unlock();
+
+	return ent;
 }
 
-static struct net_bridge_mdb_entry *br_mdb_ip4_get(
-	struct net_bridge_mdb_htable *mdb, __be32 dst, __u16 vid)
+static struct net_bridge_mdb_entry *br_mdb_ip4_get(struct net_bridge *br,
+						   __be32 dst, __u16 vid)
 {
 	struct br_ip br_dst;
 
+	memset(&br_dst, 0, sizeof(br_dst));
 	br_dst.u.ip4 = dst;
 	br_dst.proto = htons(ETH_P_IP);
 	br_dst.vid = vid;
 
-	return br_mdb_ip_get(mdb, &br_dst);
+	return br_mdb_ip_get(br, &br_dst);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static struct net_bridge_mdb_entry *br_mdb_ip6_get(
-	struct net_bridge_mdb_htable *mdb, const struct in6_addr *dst,
-	__u16 vid)
+static struct net_bridge_mdb_entry *br_mdb_ip6_get(struct net_bridge *br,
+						   const struct in6_addr *dst,
+						   __u16 vid)
 {
 	struct br_ip br_dst;
 
+	memset(&br_dst, 0, sizeof(br_dst));
 	br_dst.u.ip6 = *dst;
 	br_dst.proto = htons(ETH_P_IPV6);
 	br_dst.vid = vid;
 
-	return br_mdb_ip_get(mdb, &br_dst);
+	return br_mdb_ip_get(br, &br_dst);
 }
 #endif
 
 struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 					struct sk_buff *skb, u16 vid)
 {
-	struct net_bridge_mdb_htable *mdb = rcu_dereference(br->mdb);
 	struct br_ip ip;
 
 	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
@@ -164,6 +142,7 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 	if (BR_INPUT_SKB_CB(skb)->igmp)
 		return NULL;
 
+	memset(&ip, 0, sizeof(ip));
 	ip.proto = skb->protocol;
 	ip.vid = vid;
 
@@ -180,70 +159,13 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 		return NULL;
 	}
 
-	return br_mdb_ip_get(mdb, &ip);
-}
-
-static void br_mdb_free(struct rcu_head *head)
-{
-	struct net_bridge_mdb_htable *mdb =
-		container_of(head, struct net_bridge_mdb_htable, rcu);
-	struct net_bridge_mdb_htable *old = mdb->old;
-
-	mdb->old = NULL;
-	kfree(old->mhash);
-	kfree(old);
-}
-
-static int br_mdb_copy(struct net_bridge_mdb_htable *new,
-		       struct net_bridge_mdb_htable *old,
-		       int elasticity)
-{
-	struct net_bridge_mdb_entry *mp;
-	int maxlen;
-	int len;
-	int i;
-
-	for (i = 0; i < old->max; i++)
-		hlist_for_each_entry(mp, &old->mhash[i], hlist[old->ver])
-			hlist_add_head(&mp->hlist[new->ver],
-				       &new->mhash[br_ip_hash(new, &mp->addr)]);
-
-	if (!elasticity)
-		return 0;
-
-	maxlen = 0;
-	for (i = 0; i < new->max; i++) {
-		len = 0;
-		hlist_for_each_entry(mp, &new->mhash[i], hlist[new->ver])
-			len++;
-		if (len > maxlen)
-			maxlen = len;
-	}
-
-	return maxlen > elasticity ? -EINVAL : 0;
-}
-
-void br_multicast_free_pg(struct rcu_head *head)
-{
-	struct net_bridge_port_group *p =
-		container_of(head, struct net_bridge_port_group, rcu);
-
-	kfree(p);
-}
-
-static void br_multicast_free_group(struct rcu_head *head)
-{
-	struct net_bridge_mdb_entry *mp =
-		container_of(head, struct net_bridge_mdb_entry, rcu);
-
-	kfree(mp);
+	return br_mdb_ip_get_rcu(br, &ip);
 }
 
 static void br_multicast_group_expired(struct timer_list *t)
 {
 	struct net_bridge_mdb_entry *mp = from_timer(mp, t, timer);
 	struct net_bridge *br = mp->br;
-	struct net_bridge_mdb_htable *mdb;
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) || timer_pending(&mp->timer))
@@ -255,12 +177,11 @@ static void br_multicast_group_expired(struct timer_list *t)
 	if (mp->ports)
 		goto out;
 
-	mdb = mlock_dereference(br->mdb, br);
+	rhashtable_remove_fast(&br->mdb_hash_tbl, &mp->rhnode,
+			       br_mdb_rht_params);
+	hlist_del_rcu(&mp->mdb_node);
 
-	hlist_del_rcu(&mp->hlist[mdb->ver]);
-	mdb->size--;
-
-	call_rcu_bh(&mp->rcu, br_multicast_free_group);
+	kfree_rcu(mp, rcu);
 
 out:
 	spin_unlock(&br->multicast_lock);
@@ -269,14 +190,11 @@ out:
 static void br_multicast_del_pg(struct net_bridge *br,
 				struct net_bridge_port_group *pg)
 {
-	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
 
-	mdb = mlock_dereference(br->mdb, br);
-
-	mp = br_mdb_ip_get(mdb, &pg->addr);
+	mp = br_mdb_ip_get(br, &pg->addr);
 	if (WARN_ON(!mp))
 		return;
 
@@ -291,7 +209,7 @@ static void br_multicast_del_pg(struct net_bridge *br,
 		del_timer(&p->timer);
 		br_mdb_notify(br->dev, p->port, &pg->addr, RTM_DELMDB,
 			      p->flags);
-		call_rcu_bh(&p->rcu, br_multicast_free_pg);
+		kfree_rcu(p, rcu);
 
 		if (!mp->ports && !mp->host_joined &&
 		    netif_running(br->dev))
@@ -317,53 +235,6 @@ static void br_multicast_port_group_expired(struct timer_list *t)
 
 out:
 	spin_unlock(&br->multicast_lock);
-}
-
-static int br_mdb_rehash(struct net_bridge_mdb_htable __rcu **mdbp, int max,
-			 int elasticity)
-{
-	struct net_bridge_mdb_htable *old = rcu_dereference_protected(*mdbp, 1);
-	struct net_bridge_mdb_htable *mdb;
-	int err;
-
-	mdb = kmalloc(sizeof(*mdb), GFP_ATOMIC);
-	if (!mdb)
-		return -ENOMEM;
-
-	mdb->max = max;
-	mdb->old = old;
-
-	mdb->mhash = kcalloc(max, sizeof(*mdb->mhash), GFP_ATOMIC);
-	if (!mdb->mhash) {
-		kfree(mdb);
-		return -ENOMEM;
-	}
-
-	mdb->size = old ? old->size : 0;
-	mdb->ver = old ? old->ver ^ 1 : 0;
-
-	if (!old || elasticity)
-		get_random_bytes(&mdb->secret, sizeof(mdb->secret));
-	else
-		mdb->secret = old->secret;
-
-	if (!old)
-		goto out;
-
-	err = br_mdb_copy(mdb, old, elasticity);
-	if (err) {
-		kfree(mdb->mhash);
-		kfree(mdb);
-		return err;
-	}
-
-	br_mdb_rehash_seq++;
-	call_rcu_bh(&mdb->rcu, br_mdb_free);
-
-out:
-	rcu_assign_pointer(*mdbp, mdb);
-
-	return 0;
 }
 
 static struct sk_buff *br_ip4_multicast_alloc_query(struct net_bridge *br,
@@ -589,111 +460,19 @@ static struct sk_buff *br_multicast_alloc_query(struct net_bridge *br,
 	return NULL;
 }
 
-static struct net_bridge_mdb_entry *br_multicast_get_group(
-	struct net_bridge *br, struct net_bridge_port *port,
-	struct br_ip *group, int hash)
-{
-	struct net_bridge_mdb_htable *mdb;
-	struct net_bridge_mdb_entry *mp;
-	unsigned int count = 0;
-	unsigned int max;
-	int elasticity;
-	int err;
-
-	mdb = rcu_dereference_protected(br->mdb, 1);
-	hlist_for_each_entry(mp, &mdb->mhash[hash], hlist[mdb->ver]) {
-		count++;
-		if (unlikely(br_ip_equal(group, &mp->addr)))
-			return mp;
-	}
-
-	elasticity = 0;
-	max = mdb->max;
-
-	if (unlikely(count > br->hash_elasticity && count)) {
-		if (net_ratelimit())
-			br_info(br, "Multicast hash table "
-				"chain limit reached: %s\n",
-				port ? port->dev->name : br->dev->name);
-
-		elasticity = br->hash_elasticity;
-	}
-
-	if (mdb->size >= max) {
-		max *= 2;
-		if (unlikely(max > br->hash_max)) {
-			br_warn(br, "Multicast hash table maximum of %d "
-				"reached, disabling snooping: %s\n",
-				br->hash_max,
-				port ? port->dev->name : br->dev->name);
-			err = -E2BIG;
-disable:
-			br_opt_toggle(br, BROPT_MULTICAST_ENABLED, false);
-			goto err;
-		}
-	}
-
-	if (max > mdb->max || elasticity) {
-		if (mdb->old) {
-			if (net_ratelimit())
-				br_info(br, "Multicast hash table "
-					"on fire: %s\n",
-					port ? port->dev->name : br->dev->name);
-			err = -EEXIST;
-			goto err;
-		}
-
-		err = br_mdb_rehash(&br->mdb, max, elasticity);
-		if (err) {
-			br_warn(br, "Cannot rehash multicast "
-				"hash table, disabling snooping: %s, %d, %d\n",
-				port ? port->dev->name : br->dev->name,
-				mdb->size, err);
-			goto disable;
-		}
-
-		err = -EAGAIN;
-		goto err;
-	}
-
-	return NULL;
-
-err:
-	mp = ERR_PTR(err);
-	return mp;
-}
-
 struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
-						    struct net_bridge_port *p,
 						    struct br_ip *group)
 {
-	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
-	int hash;
 	int err;
 
-	mdb = rcu_dereference_protected(br->mdb, 1);
-	if (!mdb) {
-		err = br_mdb_rehash(&br->mdb, BR_HASH_SIZE, 0);
-		if (err)
-			return ERR_PTR(err);
-		goto rehash;
-	}
+	mp = br_mdb_ip_get(br, group);
+	if (mp)
+		return mp;
 
-	hash = br_ip_hash(mdb, group);
-	mp = br_multicast_get_group(br, p, group, hash);
-	switch (PTR_ERR(mp)) {
-	case 0:
-		break;
-
-	case -EAGAIN:
-rehash:
-		mdb = rcu_dereference_protected(br->mdb, 1);
-		hash = br_ip_hash(mdb, group);
-		break;
-
-	default:
-		goto out;
+	if (atomic_read(&br->mdb_hash_tbl.nelems) >= br->hash_max) {
+		br_opt_toggle(br, BROPT_MULTICAST_ENABLED, false);
+		return ERR_PTR(-E2BIG);
 	}
 
 	mp = kzalloc(sizeof(*mp), GFP_ATOMIC);
@@ -703,11 +482,15 @@ rehash:
 	mp->br = br;
 	mp->addr = *group;
 	timer_setup(&mp->timer, br_multicast_group_expired, 0);
+	err = rhashtable_lookup_insert_fast(&br->mdb_hash_tbl, &mp->rhnode,
+					    br_mdb_rht_params);
+	if (err) {
+		kfree(mp);
+		mp = ERR_PTR(err);
+	} else {
+		hlist_add_head_rcu(&mp->mdb_node, &br->mdb_list);
+	}
 
-	hlist_add_head_rcu(&mp->hlist[mdb->ver], &mdb->mhash[hash]);
-	mdb->size++;
-
-out:
 	return mp;
 }
 
@@ -768,7 +551,7 @@ static int br_multicast_add_group(struct net_bridge *br,
 	    (port && port->state == BR_STATE_DISABLED))
 		goto out;
 
-	mp = br_multicast_new_group(br, port, group);
+	mp = br_multicast_new_group(br, group);
 	err = PTR_ERR(mp);
 	if (IS_ERR(mp))
 		goto err;
@@ -818,6 +601,7 @@ static int br_ip4_multicast_add_group(struct net_bridge *br,
 	if (ipv4_is_local_multicast(group))
 		return 0;
 
+	memset(&br_group, 0, sizeof(br_group));
 	br_group.u.ip4 = group;
 	br_group.proto = htons(ETH_P_IP);
 	br_group.vid = vid;
@@ -837,6 +621,7 @@ static int br_ip6_multicast_add_group(struct net_bridge *br,
 	if (ipv6_addr_is_ll_all_nodes(group))
 		return 0;
 
+	memset(&br_group, 0, sizeof(br_group));
 	br_group.u.ip6 = *group;
 	br_group.proto = htons(ETH_P_IPV6);
 	br_group.vid = vid;
@@ -1156,7 +941,7 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 
 	for (i = 0; i < num; i++) {
 		len += sizeof(*grec);
-		if (!pskb_may_pull(skb, len))
+		if (!ip_mc_may_pull(skb, len))
 			return -EINVAL;
 
 		grec = (void *)(skb->data + len - sizeof(*grec));
@@ -1164,7 +949,7 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 		type = grec->grec_type;
 
 		len += ntohs(grec->grec_nsrcs) * 4;
-		if (!pskb_may_pull(skb, len))
+		if (!ip_mc_may_pull(skb, len))
 			return -EINVAL;
 
 		/* We treat this as an IGMPv2 report for now. */
@@ -1203,15 +988,17 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 					struct sk_buff *skb,
 					u16 vid)
 {
+	unsigned int nsrcs_offset;
 	const unsigned char *src;
 	struct icmp6hdr *icmp6h;
 	struct mld2_grec *grec;
+	unsigned int grec_len;
 	int i;
 	int len;
 	int num;
 	int err = 0;
 
-	if (!pskb_may_pull(skb, sizeof(*icmp6h)))
+	if (!ipv6_mc_may_pull(skb, sizeof(*icmp6h)))
 		return -EINVAL;
 
 	icmp6h = icmp6_hdr(skb);
@@ -1221,21 +1008,24 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 	for (i = 0; i < num; i++) {
 		__be16 *nsrcs, _nsrcs;
 
-		nsrcs = skb_header_pointer(skb,
-					   len + offsetof(struct mld2_grec,
-							  grec_nsrcs),
+		nsrcs_offset = len + offsetof(struct mld2_grec, grec_nsrcs);
+
+		if (skb_transport_offset(skb) + ipv6_transport_len(skb) <
+		    nsrcs_offset + sizeof(_nsrcs))
+			return -EINVAL;
+
+		nsrcs = skb_header_pointer(skb, nsrcs_offset,
 					   sizeof(_nsrcs), &_nsrcs);
 		if (!nsrcs)
 			return -EINVAL;
 
-		if (!pskb_may_pull(skb,
-				   len + sizeof(*grec) +
-				   sizeof(struct in6_addr) * ntohs(*nsrcs)))
+		grec_len = struct_size(grec, grec_src, ntohs(*nsrcs));
+
+		if (!ipv6_mc_may_pull(skb, len + grec_len))
 			return -EINVAL;
 
 		grec = (struct mld2_grec *)(skb->data + len);
-		len += sizeof(*grec) +
-		       sizeof(struct in6_addr) * ntohs(*nsrcs);
+		len += grec_len;
 
 		/* We treat these as MLDv1 reports for now. */
 		switch (grec->grec_type) {
@@ -1422,14 +1212,7 @@ static void br_multicast_query_received(struct net_bridge *br,
 		return;
 
 	br_multicast_update_query_timer(br, query, max_delay);
-
-	/* Based on RFC4541, section 2.1.1 IGMP Forwarding Rules,
-	 * the arrival port for IGMP Queries where the source address
-	 * is 0.0.0.0 should not be added to router port list.
-	 */
-	if ((saddr->proto == htons(ETH_P_IP) && saddr->u.ip4) ||
-	    saddr->proto == htons(ETH_P_IPV6))
-		br_multicast_mark_router(br, port);
+	br_multicast_mark_router(br, port);
 }
 
 static void br_ip4_multicast_query(struct net_bridge *br,
@@ -1437,6 +1220,7 @@ static void br_ip4_multicast_query(struct net_bridge *br,
 				   struct sk_buff *skb,
 				   u16 vid)
 {
+	unsigned int transport_len = ip_transport_len(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 	struct igmphdr *ih = igmp_hdr(skb);
 	struct net_bridge_mdb_entry *mp;
@@ -1446,7 +1230,6 @@ static void br_ip4_multicast_query(struct net_bridge *br,
 	struct br_ip saddr;
 	unsigned long max_delay;
 	unsigned long now = jiffies;
-	unsigned int offset = skb_transport_offset(skb);
 	__be32 group;
 
 	spin_lock(&br->multicast_lock);
@@ -1456,14 +1239,14 @@ static void br_ip4_multicast_query(struct net_bridge *br,
 
 	group = ih->group;
 
-	if (skb->len == offset + sizeof(*ih)) {
+	if (transport_len == sizeof(*ih)) {
 		max_delay = ih->code * (HZ / IGMP_TIMER_SCALE);
 
 		if (!max_delay) {
 			max_delay = 10 * HZ;
 			group = 0;
 		}
-	} else if (skb->len >= offset + sizeof(*ih3)) {
+	} else if (transport_len >= sizeof(*ih3)) {
 		ih3 = igmpv3_query_hdr(skb);
 		if (ih3->nsrcs)
 			goto out;
@@ -1483,7 +1266,7 @@ static void br_ip4_multicast_query(struct net_bridge *br,
 		goto out;
 	}
 
-	mp = br_mdb_ip4_get(mlock_dereference(br->mdb, br), group, vid);
+	mp = br_mdb_ip4_get(br, group, vid);
 	if (!mp)
 		goto out;
 
@@ -1514,6 +1297,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 				  struct sk_buff *skb,
 				  u16 vid)
 {
+	unsigned int transport_len = ipv6_transport_len(skb);
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct mld_msg *mld;
 	struct net_bridge_mdb_entry *mp;
@@ -1533,7 +1317,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	    (port && port->state == BR_STATE_DISABLED))
 		goto out;
 
-	if (skb->len == offset + sizeof(*mld)) {
+	if (transport_len == sizeof(*mld)) {
 		if (!pskb_may_pull(skb, offset + sizeof(*mld))) {
 			err = -EINVAL;
 			goto out;
@@ -1567,7 +1351,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		goto out;
 	}
 
-	mp = br_mdb_ip6_get(mlock_dereference(br->mdb, br), group, vid);
+	mp = br_mdb_ip6_get(br, group, vid);
 	if (!mp)
 		goto out;
 
@@ -1601,7 +1385,6 @@ br_multicast_leave_group(struct net_bridge *br,
 			 struct bridge_mcast_own_query *own_query,
 			 const unsigned char *src)
 {
-	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port_group *p;
 	unsigned long now;
@@ -1612,8 +1395,7 @@ br_multicast_leave_group(struct net_bridge *br,
 	    (port && port->state == BR_STATE_DISABLED))
 		goto out;
 
-	mdb = mlock_dereference(br->mdb, br);
-	mp = br_mdb_ip_get(mdb, group);
+	mp = br_mdb_ip_get(br, group);
 	if (!mp)
 		goto out;
 
@@ -1629,7 +1411,7 @@ br_multicast_leave_group(struct net_bridge *br,
 			rcu_assign_pointer(*pp, p->next);
 			hlist_del_init(&p->mglist);
 			del_timer(&p->timer);
-			call_rcu_bh(&p->rcu, br_multicast_free_pg);
+			kfree_rcu(p, rcu);
 			br_mdb_notify(br->dev, port, group, RTM_DELMDB,
 				      p->flags);
 
@@ -1716,6 +1498,7 @@ static void br_ip4_multicast_leave_group(struct net_bridge *br,
 
 	own_query = port ? &port->ip4_own_query : &br->ip4_own_query;
 
+	memset(&br_group, 0, sizeof(br_group));
 	br_group.u.ip4 = group;
 	br_group.proto = htons(ETH_P_IP);
 	br_group.vid = vid;
@@ -1739,6 +1522,7 @@ static void br_ip6_multicast_leave_group(struct net_bridge *br,
 
 	own_query = port ? &port->ip6_own_query : &br->ip6_own_query;
 
+	memset(&br_group, 0, sizeof(br_group));
 	br_group.u.ip6 = *group;
 	br_group.proto = htons(ETH_P_IPV6);
 	br_group.vid = vid;
@@ -1796,17 +1580,29 @@ static void br_multicast_pim(struct net_bridge *br,
 	br_multicast_mark_router(br, port);
 }
 
+static int br_ip4_multicast_mrd_rcv(struct net_bridge *br,
+				    struct net_bridge_port *port,
+				    struct sk_buff *skb)
+{
+	if (ip_hdr(skb)->protocol != IPPROTO_IGMP ||
+	    igmp_hdr(skb)->type != IGMP_MRDISC_ADV)
+		return -ENOMSG;
+
+	br_multicast_mark_router(br, port);
+
+	return 0;
+}
+
 static int br_multicast_ipv4_rcv(struct net_bridge *br,
 				 struct net_bridge_port *port,
 				 struct sk_buff *skb,
 				 u16 vid)
 {
-	struct sk_buff *skb_trimmed = NULL;
 	const unsigned char *src;
 	struct igmphdr *ih;
 	int err;
 
-	err = ip_mc_check_igmp(skb, &skb_trimmed);
+	err = ip_mc_check_igmp(skb);
 
 	if (err == -ENOMSG) {
 		if (!ipv4_is_local_multicast(ip_hdr(skb)->daddr)) {
@@ -1814,7 +1610,10 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 		} else if (pim_ipv4_all_pim_routers(ip_hdr(skb)->daddr)) {
 			if (ip_hdr(skb)->protocol == IPPROTO_PIM)
 				br_multicast_pim(br, port, skb);
+		} else if (ipv4_is_all_snoopers(ip_hdr(skb)->daddr)) {
+			br_ip4_multicast_mrd_rcv(br, port, skb);
 		}
+
 		return 0;
 	} else if (err < 0) {
 		br_multicast_err_count(br, port, skb->protocol);
@@ -1832,18 +1631,15 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 		err = br_ip4_multicast_add_group(br, port, ih->group, vid, src);
 		break;
 	case IGMPV3_HOST_MEMBERSHIP_REPORT:
-		err = br_ip4_multicast_igmp3_report(br, port, skb_trimmed, vid);
+		err = br_ip4_multicast_igmp3_report(br, port, skb, vid);
 		break;
 	case IGMP_HOST_MEMBERSHIP_QUERY:
-		br_ip4_multicast_query(br, port, skb_trimmed, vid);
+		br_ip4_multicast_query(br, port, skb, vid);
 		break;
 	case IGMP_HOST_LEAVE_MESSAGE:
 		br_ip4_multicast_leave_group(br, port, ih->group, vid, src);
 		break;
 	}
-
-	if (skb_trimmed && skb_trimmed != skb)
-		kfree_skb(skb_trimmed);
 
 	br_multicast_count(br, port, skb, BR_INPUT_SKB_CB(skb)->igmp,
 			   BR_MCAST_DIR_RX);
@@ -1852,21 +1648,51 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
+static int br_ip6_multicast_mrd_rcv(struct net_bridge *br,
+				    struct net_bridge_port *port,
+				    struct sk_buff *skb)
+{
+	int ret;
+
+	if (ipv6_hdr(skb)->nexthdr != IPPROTO_ICMPV6)
+		return -ENOMSG;
+
+	ret = ipv6_mc_check_icmpv6(skb);
+	if (ret < 0)
+		return ret;
+
+	if (icmp6_hdr(skb)->icmp6_type != ICMPV6_MRDISC_ADV)
+		return -ENOMSG;
+
+	br_multicast_mark_router(br, port);
+
+	return 0;
+}
+
 static int br_multicast_ipv6_rcv(struct net_bridge *br,
 				 struct net_bridge_port *port,
 				 struct sk_buff *skb,
 				 u16 vid)
 {
-	struct sk_buff *skb_trimmed = NULL;
 	const unsigned char *src;
 	struct mld_msg *mld;
 	int err;
 
-	err = ipv6_mc_check_mld(skb, &skb_trimmed);
+	err = ipv6_mc_check_mld(skb);
 
 	if (err == -ENOMSG) {
 		if (!ipv6_addr_is_ll_all_nodes(&ipv6_hdr(skb)->daddr))
 			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
+
+		if (ipv6_addr_is_all_snoopers(&ipv6_hdr(skb)->daddr)) {
+			err = br_ip6_multicast_mrd_rcv(br, port, skb);
+
+			if (err < 0 && err != -ENOMSG) {
+				br_multicast_err_count(br, port, skb->protocol);
+				return err;
+			}
+		}
+
 		return 0;
 	} else if (err < 0) {
 		br_multicast_err_count(br, port, skb->protocol);
@@ -1884,19 +1710,16 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 						 src);
 		break;
 	case ICMPV6_MLD2_REPORT:
-		err = br_ip6_multicast_mld2_report(br, port, skb_trimmed, vid);
+		err = br_ip6_multicast_mld2_report(br, port, skb, vid);
 		break;
 	case ICMPV6_MGM_QUERY:
-		err = br_ip6_multicast_query(br, port, skb_trimmed, vid);
+		err = br_ip6_multicast_query(br, port, skb, vid);
 		break;
 	case ICMPV6_MGM_REDUCTION:
 		src = eth_hdr(skb)->h_source;
 		br_ip6_multicast_leave_group(br, port, &mld->mld_mca, vid, src);
 		break;
 	}
-
-	if (skb_trimmed && skb_trimmed != skb)
-		kfree_skb(skb_trimmed);
 
 	br_multicast_count(br, port, skb, BR_INPUT_SKB_CB(skb)->igmp,
 			   BR_MCAST_DIR_RX);
@@ -1961,8 +1784,7 @@ static void br_ip6_multicast_query_expired(struct timer_list *t)
 
 void br_multicast_init(struct net_bridge *br)
 {
-	br->hash_elasticity = 4;
-	br->hash_max = 512;
+	br->hash_max = BR_MULTICAST_DEFAULT_HASH_MAX;
 
 	br->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
 	br->multicast_last_member_count = 2;
@@ -1999,6 +1821,69 @@ void br_multicast_init(struct net_bridge *br)
 	timer_setup(&br->ip6_own_query.timer,
 		    br_ip6_multicast_query_expired, 0);
 #endif
+	INIT_HLIST_HEAD(&br->mdb_list);
+}
+
+static void br_ip4_multicast_join_snoopers(struct net_bridge *br)
+{
+	struct in_device *in_dev = in_dev_get(br->dev);
+
+	if (!in_dev)
+		return;
+
+	__ip_mc_inc_group(in_dev, htonl(INADDR_ALLSNOOPERS_GROUP), GFP_ATOMIC);
+	in_dev_put(in_dev);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void br_ip6_multicast_join_snoopers(struct net_bridge *br)
+{
+	struct in6_addr addr;
+
+	ipv6_addr_set(&addr, htonl(0xff020000), 0, 0, htonl(0x6a));
+	ipv6_dev_mc_inc(br->dev, &addr);
+}
+#else
+static inline void br_ip6_multicast_join_snoopers(struct net_bridge *br)
+{
+}
+#endif
+
+static void br_multicast_join_snoopers(struct net_bridge *br)
+{
+	br_ip4_multicast_join_snoopers(br);
+	br_ip6_multicast_join_snoopers(br);
+}
+
+static void br_ip4_multicast_leave_snoopers(struct net_bridge *br)
+{
+	struct in_device *in_dev = in_dev_get(br->dev);
+
+	if (WARN_ON(!in_dev))
+		return;
+
+	__ip_mc_dec_group(in_dev, htonl(INADDR_ALLSNOOPERS_GROUP), GFP_ATOMIC);
+	in_dev_put(in_dev);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void br_ip6_multicast_leave_snoopers(struct net_bridge *br)
+{
+	struct in6_addr addr;
+
+	ipv6_addr_set(&addr, htonl(0xff020000), 0, 0, htonl(0x6a));
+	ipv6_dev_mc_dec(br->dev, &addr);
+}
+#else
+static inline void br_ip6_multicast_leave_snoopers(struct net_bridge *br)
+{
+}
+#endif
+
+static void br_multicast_leave_snoopers(struct net_bridge *br)
+{
+	br_ip4_multicast_leave_snoopers(br);
+	br_ip6_multicast_leave_snoopers(br);
 }
 
 static void __br_multicast_open(struct net_bridge *br,
@@ -2014,6 +1899,9 @@ static void __br_multicast_open(struct net_bridge *br,
 
 void br_multicast_open(struct net_bridge *br)
 {
+	if (br_opt_get(br, BROPT_MULTICAST_ENABLED))
+		br_multicast_join_snoopers(br);
+
 	__br_multicast_open(br, &br->ip4_own_query);
 #if IS_ENABLED(CONFIG_IPV6)
 	__br_multicast_open(br, &br->ip6_own_query);
@@ -2029,44 +1917,27 @@ void br_multicast_stop(struct net_bridge *br)
 	del_timer_sync(&br->ip6_other_query.timer);
 	del_timer_sync(&br->ip6_own_query.timer);
 #endif
+
+	if (br_opt_get(br, BROPT_MULTICAST_ENABLED))
+		br_multicast_leave_snoopers(br);
 }
 
 void br_multicast_dev_del(struct net_bridge *br)
 {
-	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
-	struct hlist_node *n;
-	u32 ver;
-	int i;
+	struct hlist_node *tmp;
 
 	spin_lock_bh(&br->multicast_lock);
-	mdb = mlock_dereference(br->mdb, br);
-	if (!mdb)
-		goto out;
-
-	br->mdb = NULL;
-
-	ver = mdb->ver;
-	for (i = 0; i < mdb->max; i++) {
-		hlist_for_each_entry_safe(mp, n, &mdb->mhash[i],
-					  hlist[ver]) {
-			del_timer(&mp->timer);
-			call_rcu_bh(&mp->rcu, br_multicast_free_group);
-		}
+	hlist_for_each_entry_safe(mp, tmp, &br->mdb_list, mdb_node) {
+		del_timer(&mp->timer);
+		rhashtable_remove_fast(&br->mdb_hash_tbl, &mp->rhnode,
+				       br_mdb_rht_params);
+		hlist_del_rcu(&mp->mdb_node);
+		kfree_rcu(mp, rcu);
 	}
-
-	if (mdb->old) {
-		spin_unlock_bh(&br->multicast_lock);
-		rcu_barrier_bh();
-		spin_lock_bh(&br->multicast_lock);
-		WARN_ON(mdb->old);
-	}
-
-	mdb->old = mdb;
-	call_rcu_bh(&mdb->rcu, br_mdb_free);
-
-out:
 	spin_unlock_bh(&br->multicast_lock);
+
+	rcu_barrier();
 }
 
 int br_multicast_set_router(struct net_bridge *br, unsigned long val)
@@ -2160,7 +2031,8 @@ static void br_multicast_start_querier(struct net_bridge *br,
 
 	__br_multicast_open(br, query);
 
-	list_for_each_entry(port, &br->port_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(port, &br->port_list, list) {
 		if (port->state == BR_STATE_DISABLED ||
 		    port->state == BR_STATE_BLOCKING)
 			continue;
@@ -2172,13 +2044,12 @@ static void br_multicast_start_querier(struct net_bridge *br,
 			br_multicast_enable(&port->ip6_own_query);
 #endif
 	}
+	rcu_read_unlock();
 }
 
 int br_multicast_toggle(struct net_bridge *br, unsigned long val)
 {
-	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_port *port;
-	int err = 0;
 
 	spin_lock_bh(&br->multicast_lock);
 	if (!!br_opt_get(br, BROPT_MULTICAST_ENABLED) == !!val)
@@ -2186,26 +2057,13 @@ int br_multicast_toggle(struct net_bridge *br, unsigned long val)
 
 	br_mc_disabled_update(br->dev, val);
 	br_opt_toggle(br, BROPT_MULTICAST_ENABLED, !!val);
-	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED)) {
+		br_multicast_leave_snoopers(br);
 		goto unlock;
+	}
 
 	if (!netif_running(br->dev))
 		goto unlock;
-
-	mdb = mlock_dereference(br->mdb, br);
-	if (mdb) {
-		if (mdb->old) {
-			err = -EEXIST;
-rollback:
-			br_opt_toggle(br, BROPT_MULTICAST_ENABLED, false);
-			goto unlock;
-		}
-
-		err = br_mdb_rehash(&br->mdb, mdb->max,
-				    br->hash_elasticity);
-		if (err)
-			goto rollback;
-	}
 
 	br_multicast_open(br);
 	list_for_each_entry(port, &br->port_list, list)
@@ -2214,7 +2072,7 @@ rollback:
 unlock:
 	spin_unlock_bh(&br->multicast_lock);
 
-	return err;
+	return 0;
 }
 
 bool br_multicast_enabled(const struct net_device *dev)
@@ -2269,45 +2127,6 @@ unlock:
 	spin_unlock_bh(&br->multicast_lock);
 
 	return 0;
-}
-
-int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val)
-{
-	int err = -EINVAL;
-	u32 old;
-	struct net_bridge_mdb_htable *mdb;
-
-	spin_lock_bh(&br->multicast_lock);
-	if (!is_power_of_2(val))
-		goto unlock;
-
-	mdb = mlock_dereference(br->mdb, br);
-	if (mdb && val < mdb->size)
-		goto unlock;
-
-	err = 0;
-
-	old = br->hash_max;
-	br->hash_max = val;
-
-	if (mdb) {
-		if (mdb->old) {
-			err = -EEXIST;
-rollback:
-			br->hash_max = old;
-			goto unlock;
-		}
-
-		err = br_mdb_rehash(&br->mdb, br->hash_max,
-				    br->hash_elasticity);
-		if (err)
-			goto rollback;
-	}
-
-unlock:
-	spin_unlock_bh(&br->multicast_lock);
-
-	return err;
 }
 
 int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val)
@@ -2645,4 +2464,14 @@ void br_multicast_get_stats(const struct net_bridge *br,
 		tdst.mld_parse_errors += temp.mld_parse_errors;
 	}
 	memcpy(dest, &tdst, sizeof(*dest));
+}
+
+int br_mdb_hash_init(struct net_bridge *br)
+{
+	return rhashtable_init(&br->mdb_hash_tbl, &br_mdb_rht_params);
+}
+
+void br_mdb_hash_fini(struct net_bridge *br)
+{
+	rhashtable_destroy(&br->mdb_hash_tbl);
 }

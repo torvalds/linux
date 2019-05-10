@@ -1,10 +1,8 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * include/asm-sh/machvec.h
  *
  * Copyright 2000 Stuart Menefy (stuart.menefy@st.com)
- *
- * May be copied or modified under the terms of the GNU General Public
- * License.  See linux/COPYING for more information.
  */
 
 #ifndef _ASM_SH_MACHVEC_H

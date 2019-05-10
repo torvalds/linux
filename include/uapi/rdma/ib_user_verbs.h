@@ -46,7 +46,7 @@
 #define IB_USER_VERBS_ABI_VERSION	6
 #define IB_USER_VERBS_CMD_THRESHOLD    50
 
-enum {
+enum ib_uverbs_write_cmds {
 	IB_USER_VERBS_CMD_GET_CONTEXT,
 	IB_USER_VERBS_CMD_QUERY_DEVICE,
 	IB_USER_VERBS_CMD_QUERY_PORT,
@@ -164,6 +164,7 @@ struct ib_uverbs_get_context {
 struct ib_uverbs_get_context_resp {
 	__u32 async_fd;
 	__u32 num_comp_vectors;
+	__aligned_u64 driver_data[0];
 };
 
 struct ib_uverbs_query_device {
@@ -269,6 +270,8 @@ struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_tm_caps tm_caps;
 	struct ib_uverbs_cq_moderation_caps cq_moderation_caps;
 	__aligned_u64 max_dm_size;
+	__u32 xrc_odp_caps;
+	__u32 reserved;
 };
 
 struct ib_uverbs_query_port {
@@ -310,6 +313,7 @@ struct ib_uverbs_alloc_pd {
 
 struct ib_uverbs_alloc_pd_resp {
 	__u32 pd_handle;
+	__u32 driver_data[0];
 };
 
 struct ib_uverbs_dealloc_pd {
@@ -325,6 +329,7 @@ struct ib_uverbs_open_xrcd {
 
 struct ib_uverbs_open_xrcd_resp {
 	__u32 xrcd_handle;
+	__u32 driver_data[0];
 };
 
 struct ib_uverbs_close_xrcd {
@@ -345,6 +350,7 @@ struct ib_uverbs_reg_mr_resp {
 	__u32 mr_handle;
 	__u32 lkey;
 	__u32 rkey;
+	__u32 driver_data[0];
 };
 
 struct ib_uverbs_rereg_mr {
@@ -356,11 +362,13 @@ struct ib_uverbs_rereg_mr {
 	__aligned_u64 hca_va;
 	__u32 pd_handle;
 	__u32 access_flags;
+	__aligned_u64 driver_data[0];
 };
 
 struct ib_uverbs_rereg_mr_resp {
 	__u32 lkey;
 	__u32 rkey;
+	__aligned_u64 driver_data[0];
 };
 
 struct ib_uverbs_dereg_mr {
@@ -372,11 +380,13 @@ struct ib_uverbs_alloc_mw {
 	__u32 pd_handle;
 	__u8  mw_type;
 	__u8  reserved[3];
+	__aligned_u64 driver_data[0];
 };
 
 struct ib_uverbs_alloc_mw_resp {
 	__u32 mw_handle;
 	__u32 rkey;
+	__aligned_u64 driver_data[0];
 };
 
 struct ib_uverbs_dealloc_mw {
@@ -419,6 +429,7 @@ struct ib_uverbs_ex_create_cq {
 struct ib_uverbs_create_cq_resp {
 	__u32 cq_handle;
 	__u32 cqe;
+	__aligned_u64 driver_data[0];
 };
 
 struct ib_uverbs_ex_create_cq_resp {
@@ -629,6 +640,7 @@ struct ib_uverbs_create_qp_resp {
 	__u32 max_recv_sge;
 	__u32 max_inline_data;
 	__u32 reserved;
+	__u32 driver_data[0];
 };
 
 struct ib_uverbs_ex_create_qp_resp {
@@ -731,9 +743,6 @@ struct ib_uverbs_ex_modify_qp {
 	struct ib_uverbs_modify_qp base;
 	__u32	rate_limit;
 	__u32	reserved;
-};
-
-struct ib_uverbs_modify_qp_resp {
 };
 
 struct ib_uverbs_ex_modify_qp_resp {
@@ -863,10 +872,12 @@ struct ib_uverbs_create_ah {
 	__u32 pd_handle;
 	__u32 reserved;
 	struct ib_uverbs_ah_attr attr;
+	__aligned_u64 driver_data[0];
 };
 
 struct ib_uverbs_create_ah_resp {
 	__u32 ah_handle;
+	__u32 driver_data[0];
 };
 
 struct ib_uverbs_destroy_ah {
@@ -1175,6 +1186,7 @@ struct ib_uverbs_create_srq_resp {
 	__u32 max_wr;
 	__u32 max_sge;
 	__u32 srqn;
+	__u32 driver_data[0];
 };
 
 struct ib_uverbs_modify_srq {

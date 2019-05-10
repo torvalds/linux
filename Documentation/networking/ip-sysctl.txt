@@ -108,8 +108,8 @@ neigh/default/gc_thresh2 - INTEGER
 	Default: 512
 
 neigh/default/gc_thresh3 - INTEGER
-	Maximum number of neighbor entries allowed.  Increase this
-	when using large numbers of interfaces and when communicating
+	Maximum number of non-PERMANENT neighbor entries allowed.  Increase
+	this when using large numbers of interfaces and when communicating
 	with large numbers of directly-connected peers.
 	Default: 1024
 
@@ -370,6 +370,7 @@ tcp_l3mdev_accept - BOOLEAN
 	derived from the listen socket to be bound to the L3 domain in
 	which the packets originated. Only valid when the kernel was
 	compiled with CONFIG_NET_L3_MASTER_DEV.
+        Default: 0 (disabled)
 
 tcp_low_latency - BOOLEAN
 	This is a legacy option, it has no effect anymore.
@@ -421,6 +422,7 @@ tcp_min_rtt_wlen - INTEGER
 	minimum RTT when it is moved to a longer path (e.g., due to traffic
 	engineering). A longer window makes the filter more resistant to RTT
 	inflations such as transient congestion. The unit is seconds.
+	Possible values: 0 - 86400 (1 day)
 	Default: 300
 
 tcp_moderate_rcvbuf - BOOLEAN
@@ -758,7 +760,7 @@ tcp_limit_output_bytes - INTEGER
 	flows, for typical pfifo_fast qdiscs.  tcp_limit_output_bytes
 	limits the number of bytes on qdisc or device to reduce artificial
 	RTT/cwnd and reduce bufferbloat.
-	Default: 262144
+	Default: 1048576 (16 * 65536)
 
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
@@ -773,6 +775,7 @@ udp_l3mdev_accept - BOOLEAN
 	being received regardless of the L3 domain in which they
 	originated. Only valid when the kernel was compiled with
 	CONFIG_NET_L3_MASTER_DEV.
+        Default: 0 (disabled)
 
 udp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all UDP sockets.
@@ -798,6 +801,16 @@ udp_wmem_min - INTEGER
 	Each UDP socket is able to use the size for sending data, even if
 	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
 	Default: 4K
+
+RAW variables:
+
+raw_l3mdev_accept - BOOLEAN
+	Enabling this option allows a "global" bound socket to work
+	across L3 master domains (e.g., VRFs) with packets capable of
+	being received regardless of the L3 domain in which they
+	originated. Only valid when the kernel was compiled with
+	CONFIG_NET_L3_MASTER_DEV.
+	Default: 1 (enabled)
 
 CIPSOv4 Variables:
 
@@ -1324,6 +1337,7 @@ tag - INTEGER
 	Default value is 0.
 
 xfrm4_gc_thresh - INTEGER
+	(Obsolete since linux-4.14)
 	The threshold at which we will start garbage collecting for IPv4
 	destination cache entries.  At twice this value the system will
 	refuse new allocations.
@@ -1907,6 +1921,7 @@ echo_ignore_all - BOOLEAN
 	Default: 0
 
 xfrm6_gc_thresh - INTEGER
+	(Obsolete since linux-4.14)
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will
 	refuse new allocations.

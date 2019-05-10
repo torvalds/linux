@@ -70,6 +70,12 @@ static const struct {
 	[RC_PROTO_CEC] = { .name = "cec", .repeat_period = 0 },
 	[RC_PROTO_IMON] = { .name = "imon",
 		.scancode_bits = 0x7fffffff, .repeat_period = 114 },
+	[RC_PROTO_RCMM12] = { .name = "rc-mm-12",
+		.scancode_bits = 0x00000fff, .repeat_period = 114 },
+	[RC_PROTO_RCMM24] = { .name = "rc-mm-24",
+		.scancode_bits = 0x00ffffff, .repeat_period = 114 },
+	[RC_PROTO_RCMM32] = { .name = "rc-mm-32",
+		.scancode_bits = 0xffffffff, .repeat_period = 114 },
 };
 
 /* Used to keep track of known keymaps */
@@ -274,6 +280,7 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
 				      unsigned int new_keycode)
 {
 	int old_keycode = rc_map->scan[index].keycode;
+	int i;
 
 	/* Did the user wish to remove the mapping? */
 	if (new_keycode == KEY_RESERVED || new_keycode == KEY_UNKNOWN) {
@@ -288,9 +295,20 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
 			old_keycode == KEY_RESERVED ? "New" : "Replacing",
 			rc_map->scan[index].scancode, new_keycode);
 		rc_map->scan[index].keycode = new_keycode;
+		__set_bit(new_keycode, dev->input_dev->keybit);
 	}
 
 	if (old_keycode != KEY_RESERVED) {
+		/* A previous mapping was updated... */
+		__clear_bit(old_keycode, dev->input_dev->keybit);
+		/* ... but another scancode might use the same keycode */
+		for (i = 0; i < rc_map->len; i++) {
+			if (rc_map->scan[i].keycode == old_keycode) {
+				__set_bit(old_keycode, dev->input_dev->keybit);
+				break;
+			}
+		}
+
 		/* Possibly shrink the keytable, failure is not a problem */
 		ir_resize_table(dev, rc_map, GFP_ATOMIC);
 	}
@@ -695,7 +713,8 @@ void rc_repeat(struct rc_dev *dev)
 			 (dev->last_toggle ? LIRC_SCANCODE_FLAG_TOGGLE : 0)
 	};
 
-	ir_lirc_scancode_event(dev, &sc);
+	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
+		ir_lirc_scancode_event(dev, &sc);
 
 	spin_lock_irqsave(&dev->keylock, flags);
 
@@ -735,7 +754,8 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 		.keycode = keycode
 	};
 
-	ir_lirc_scancode_event(dev, &sc);
+	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
+		ir_lirc_scancode_event(dev, &sc);
 
 	if (new_event && dev->keypressed)
 		ir_do_keyup(dev, false);
@@ -1004,6 +1024,9 @@ static const struct {
 	{ RC_PROTO_BIT_XMP,	"xmp",		"ir-xmp-decoder"	},
 	{ RC_PROTO_BIT_CEC,	"cec",		NULL			},
 	{ RC_PROTO_BIT_IMON,	"imon",		"ir-imon-decoder"	},
+	{ RC_PROTO_BIT_RCMM12 |
+	  RC_PROTO_BIT_RCMM24 |
+	  RC_PROTO_BIT_RCMM32,	"rc-mm",	"ir-rcmm-decoder"	},
 };
 
 /**
@@ -1033,7 +1056,7 @@ struct rc_filter_attribute {
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine for input read the IR protocol type(s).
- * it is trigged by reading /sys/class/rc/rc?/protocols.
+ * it is triggered by reading /sys/class/rc/rc?/protocols.
  * It returns the protocol names of supported protocols.
  * Enabled protocols are printed in brackets.
  *
@@ -1204,7 +1227,7 @@ void ir_raw_load_modules(u64 *protocols)
  * @len:	length of the input buffer
  *
  * This routine is for changing the IR protocol type.
- * It is trigged by writing to /sys/class/rc/rc?/[wakeup_]protocols.
+ * It is triggered by writing to /sys/class/rc/rc?/[wakeup_]protocols.
  * See parse_protocol_change() for the valid commands.
  * Returns @len on success or a negative error code.
  *
@@ -1288,7 +1311,7 @@ out:
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine to read a scancode filter value or mask.
- * It is trigged by reading /sys/class/rc/rc?/[wakeup_]filter[_mask].
+ * It is triggered by reading /sys/class/rc/rc?/[wakeup_]filter[_mask].
  * It prints the current scancode filter value or mask of the appropriate filter
  * type in hexadecimal into @buf and returns the size of the buffer.
  *
@@ -1331,7 +1354,7 @@ static ssize_t show_filter(struct device *device,
  * @len:	length of the input buffer
  *
  * This routine is for changing a scancode filter value or mask.
- * It is trigged by writing to /sys/class/rc/rc?/[wakeup_]filter[_mask].
+ * It is triggered by writing to /sys/class/rc/rc?/[wakeup_]filter[_mask].
  * Returns -EINVAL if an invalid filter value for the current protocol was
  * specified or if scancode filtering is not supported by the driver, otherwise
  * returns @len.
@@ -1415,7 +1438,7 @@ unlock:
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine for input read the IR protocol type(s).
- * it is trigged by reading /sys/class/rc/rc?/wakeup_protocols.
+ * it is triggered by reading /sys/class/rc/rc?/wakeup_protocols.
  * It returns the protocol names of supported protocols.
  * The enabled protocols are printed in brackets.
  *
@@ -1466,7 +1489,7 @@ static ssize_t show_wakeup_protocols(struct device *device,
  * @len:	length of the input buffer
  *
  * This routine is for changing the IR protocol type.
- * It is trigged by writing to /sys/class/rc/rc?/wakeup_protocols.
+ * It is triggered by writing to /sys/class/rc/rc?/wakeup_protocols.
  * Returns @len on success or a negative error code.
  *
  * dev->lock is taken to guard against races between
@@ -1748,7 +1771,6 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 	set_bit(EV_REP, dev->input_dev->evbit);
 	set_bit(EV_MSC, dev->input_dev->evbit);
 	set_bit(MSC_SCAN, dev->input_dev->mscbit);
-	bitmap_fill(dev->input_dev->keybit, KEY_CNT);
 
 	/* Pointer/mouse events */
 	set_bit(EV_REL, dev->input_dev->evbit);
@@ -1950,6 +1972,8 @@ void rc_unregister_device(struct rc_dev *dev)
 	rc_free_rx_device(dev);
 
 	mutex_lock(&dev->lock);
+	if (dev->users && dev->close)
+		dev->close(dev);
 	dev->registered = false;
 	mutex_unlock(&dev->lock);
 

@@ -1859,7 +1859,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	wc->writeback_wq = alloc_workqueue("writecache-writeabck", WQ_MEM_RECLAIM, 1);
+	wc->writeback_wq = alloc_workqueue("writecache-writeback", WQ_MEM_RECLAIM, 1);
 	if (!wc->writeback_wq) {
 		r = -ENOMEM;
 		ti->error = "Could not allocate writeback workqueue";
@@ -2061,7 +2061,7 @@ invalid_optional:
 		if (IS_ERR(wc->flush_thread)) {
 			r = PTR_ERR(wc->flush_thread);
 			wc->flush_thread = NULL;
-			ti->error = "Couldn't spawn endio thread";
+			ti->error = "Couldn't spawn flush thread";
 			goto bad;
 		}
 		wake_up_process(wc->flush_thread);

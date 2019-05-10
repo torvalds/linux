@@ -87,19 +87,10 @@ static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream
  * @substream: the pcm substream instance
  *
  * Releases the pre-allocated buffer of the given substream.
- *
- * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
+void snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_preallocate_dma_free(substream);
-#ifdef CONFIG_SND_VERBOSE_PROCFS
-	snd_info_free_entry(substream->proc_prealloc_max_entry);
-	substream->proc_prealloc_max_entry = NULL;
-	snd_info_free_entry(substream->proc_prealloc_entry);
-	substream->proc_prealloc_entry = NULL;
-#endif
-	return 0;
 }
 
 /**
@@ -107,10 +98,8 @@ int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
  * @pcm: the pcm instance
  *
  * Releases all the pre-allocated buffers on the given pcm.
- *
- * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
+void snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 {
 	struct snd_pcm_substream *substream;
 	int stream;
@@ -118,7 +107,6 @@ int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 	for (stream = 0; stream < 2; stream++)
 		for (substream = pcm->streams[stream].substream; substream; substream = substream->next)
 			snd_pcm_lib_preallocate_free(substream);
-	return 0;
 }
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_free_for_all);
 
@@ -198,26 +186,19 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 {
 	struct snd_info_entry *entry;
 
-	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc", substream->proc_root)) != NULL) {
-		entry->c.text.read = snd_pcm_lib_preallocate_proc_read;
+	entry = snd_info_create_card_entry(substream->pcm->card, "prealloc",
+					   substream->proc_root);
+	if (entry) {
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_lib_preallocate_proc_read);
 		entry->c.text.write = snd_pcm_lib_preallocate_proc_write;
 		entry->mode |= 0200;
-		entry->private_data = substream;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
-	substream->proc_prealloc_entry = entry;
-	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc_max", substream->proc_root)) != NULL) {
-		entry->c.text.read = snd_pcm_lib_preallocate_max_proc_read;
-		entry->private_data = substream;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	substream->proc_prealloc_max_entry = entry;
+	entry = snd_info_create_card_entry(substream->pcm->card, "prealloc_max",
+					   substream->proc_root);
+	if (entry)
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_lib_preallocate_max_proc_read);
 }
 
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
@@ -227,7 +208,7 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 /*
  * pre-allocate the buffer and create a proc file for the substream
  */
-static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
+static void snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
 					  size_t size, size_t max)
 {
 
@@ -238,7 +219,6 @@ static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
 		substream->buffer_bytes_max = substream->dma_buffer.bytes;
 	substream->dma_max = max;
 	preallocate_info_init(substream);
-	return 0;
 }
 
 
@@ -251,16 +231,14 @@ static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
  * @max: the max. allowed pre-allocation size
  *
  * Do pre-allocation for the given DMA buffer type.
- *
- * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
+void snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 				  int type, struct device *data,
 				  size_t size, size_t max)
 {
 	substream->dma_buffer.dev.type = type;
 	substream->dma_buffer.dev.dev = data;
-	return snd_pcm_lib_preallocate_pages1(substream, size, max);
+	snd_pcm_lib_preallocate_pages1(substream, size, max);
 }
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
 
@@ -274,21 +252,17 @@ EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
  *
  * Do pre-allocation to all substreams of the given pcm for the
  * specified DMA type.
- *
- * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
+void snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 					  int type, void *data,
 					  size_t size, size_t max)
 {
 	struct snd_pcm_substream *substream;
-	int stream, err;
+	int stream;
 
 	for (stream = 0; stream < 2; stream++)
 		for (substream = pcm->streams[stream].substream; substream; substream = substream->next)
-			if ((err = snd_pcm_lib_preallocate_pages(substream, type, data, size, max)) < 0)
-				return err;
-	return 0;
+			snd_pcm_lib_preallocate_pages(substream, type, data, size, max);
 }
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
 

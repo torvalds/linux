@@ -86,9 +86,8 @@ struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 			    !ipv6_addr_equal(&sk->sk_v6_daddr, rmt_addr))
 				continue;
 
-			if (sk->sk_bound_dev_if &&
-			    sk->sk_bound_dev_if != dif &&
-			    sk->sk_bound_dev_if != sdif)
+			if (!raw_sk_bound_dev_eq(net, sk->sk_bound_dev_if,
+						 dif, sdif))
 				continue;
 
 			if (!ipv6_addr_any(&sk->sk_v6_rcv_saddr)) {

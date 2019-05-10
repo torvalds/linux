@@ -15,12 +15,16 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/skbuff.h>
+#include <linux/iopoll.h>
 #include <net/arp.h>
 #include <net/netevent.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
 
 #include "ocelot.h"
+
+#define TABLE_UPDATE_SLEEP_US 10
+#define TABLE_UPDATE_TIMEOUT_US 100000
 
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
@@ -41,23 +45,20 @@ struct ocelot_mact_entry {
 	enum macaccess_entry_type type;
 };
 
+static inline u32 ocelot_mact_read_macaccess(struct ocelot *ocelot)
+{
+	return ocelot_read(ocelot, ANA_TABLES_MACACCESS);
+}
+
 static inline int ocelot_mact_wait_for_completion(struct ocelot *ocelot)
 {
-	unsigned int val, timeout = 10;
+	u32 val;
 
-	/* Wait for the issued mac table command to be completed, or timeout.
-	 * When the command read from  ANA_TABLES_MACACCESS is
-	 * MACACCESS_CMD_IDLE, the issued command completed successfully.
-	 */
-	do {
-		val = ocelot_read(ocelot, ANA_TABLES_MACACCESS);
-		val &= ANA_TABLES_MACACCESS_MAC_TABLE_CMD_M;
-	} while (val != MACACCESS_CMD_IDLE && timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return readx_poll_timeout(ocelot_mact_read_macaccess,
+		ocelot, val,
+		(val & ANA_TABLES_MACACCESS_MAC_TABLE_CMD_M) ==
+		MACACCESS_CMD_IDLE,
+		TABLE_UPDATE_SLEEP_US, TABLE_UPDATE_TIMEOUT_US);
 }
 
 static void ocelot_mact_select(struct ocelot *ocelot,
@@ -129,23 +130,21 @@ static void ocelot_mact_init(struct ocelot *ocelot)
 	ocelot_write(ocelot, MACACCESS_CMD_INIT, ANA_TABLES_MACACCESS);
 }
 
+static inline u32 ocelot_vlant_read_vlanaccess(struct ocelot *ocelot)
+{
+	return ocelot_read(ocelot, ANA_TABLES_VLANACCESS);
+}
+
 static inline int ocelot_vlant_wait_for_completion(struct ocelot *ocelot)
 {
-	unsigned int val, timeout = 10;
+	u32 val;
 
-	/* Wait for the issued vlan table command to be completed, or timeout.
-	 * When the command read from ANA_TABLES_VLANACCESS is
-	 * VLANACCESS_CMD_IDLE, the issued command completed successfully.
-	 */
-	do {
-		val = ocelot_read(ocelot, ANA_TABLES_VLANACCESS);
-		val &= ANA_TABLES_VLANACCESS_VLAN_TBL_CMD_M;
-	} while (val != ANA_TABLES_VLANACCESS_CMD_IDLE && timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return readx_poll_timeout(ocelot_vlant_read_vlanaccess,
+		ocelot,
+		val,
+		(val & ANA_TABLES_VLANACCESS_VLAN_TBL_CMD_M) ==
+		ANA_TABLES_VLANACCESS_CMD_IDLE,
+		TABLE_UPDATE_SLEEP_US, TABLE_UPDATE_TIMEOUT_US);
 }
 
 static int ocelot_vlant_set_mask(struct ocelot *ocelot, u16 vid, u32 mask)
@@ -472,7 +471,6 @@ static int ocelot_port_open(struct net_device *dev)
 {
 	struct ocelot_port *port = netdev_priv(dev);
 	struct ocelot *ocelot = port->ocelot;
-	enum phy_mode phy_mode;
 	int err;
 
 	/* Enable receiving frames on the port, and activate auto-learning of
@@ -484,12 +482,8 @@ static int ocelot_port_open(struct net_device *dev)
 			 ANA_PORT_PORT_CFG, port->chip_port);
 
 	if (port->serdes) {
-		if (port->phy_mode == PHY_INTERFACE_MODE_SGMII)
-			phy_mode = PHY_MODE_SGMII;
-		else
-			phy_mode = PHY_MODE_QSGMII;
-
-		err = phy_set_mode(port->serdes, phy_mode);
+		err = phy_set_mode_ext(port->serdes, PHY_MODE_ETHERNET,
+				       port->phy_mode);
 		if (err) {
 			netdev_err(dev, "Could not set mode of SerDes\n");
 			return err;
@@ -619,7 +613,7 @@ static int ocelot_mact_mc_add(struct ocelot_port *port,
 			      struct netdev_hw_addr *hw_addr)
 {
 	struct ocelot *ocelot = port->ocelot;
-	struct netdev_hw_addr *ha = kzalloc(sizeof(*ha), GFP_KERNEL);
+	struct netdev_hw_addr *ha = kzalloc(sizeof(*ha), GFP_ATOMIC);
 
 	if (!ha)
 		return -ENOMEM;
@@ -727,7 +721,8 @@ static void ocelot_get_stats64(struct net_device *dev,
 
 static int ocelot_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			  struct net_device *dev, const unsigned char *addr,
-			  u16 vid, u16 flags)
+			  u16 vid, u16 flags,
+			  struct netlink_ext_ack *extack)
 {
 	struct ocelot_port *port = netdev_priv(dev);
 	struct ocelot *ocelot = port->ocelot;
@@ -921,6 +916,18 @@ static int ocelot_set_features(struct net_device *dev,
 	return 0;
 }
 
+static int ocelot_get_port_parent_id(struct net_device *dev,
+				     struct netdev_phys_item_id *ppid)
+{
+	struct ocelot_port *ocelot_port = netdev_priv(dev);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+
+	ppid->id_len = sizeof(ocelot->base_mac);
+	memcpy(&ppid->id, &ocelot->base_mac, ppid->id_len);
+
+	return 0;
+}
+
 static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_open			= ocelot_port_open,
 	.ndo_stop			= ocelot_port_stop,
@@ -935,6 +942,7 @@ static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_vlan_rx_add_vid		= ocelot_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid		= ocelot_vlan_rx_kill_vid,
 	.ndo_set_features		= ocelot_set_features,
+	.ndo_get_port_parent_id		= ocelot_get_port_parent_id,
 };
 
 static void ocelot_get_strings(struct net_device *netdev, u32 sset, u8 *data)
@@ -951,10 +959,8 @@ static void ocelot_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 		       ETH_GSTRING_LEN);
 }
 
-static void ocelot_check_stats(struct work_struct *work)
+static void ocelot_update_stats(struct ocelot *ocelot)
 {
-	struct delayed_work *del_work = to_delayed_work(work);
-	struct ocelot *ocelot = container_of(del_work, struct ocelot, stats_work);
 	int i, j;
 
 	mutex_lock(&ocelot->stats_lock);
@@ -978,11 +984,19 @@ static void ocelot_check_stats(struct work_struct *work)
 		}
 	}
 
-	cancel_delayed_work(&ocelot->stats_work);
+	mutex_unlock(&ocelot->stats_lock);
+}
+
+static void ocelot_check_stats_work(struct work_struct *work)
+{
+	struct delayed_work *del_work = to_delayed_work(work);
+	struct ocelot *ocelot = container_of(del_work, struct ocelot,
+					     stats_work);
+
+	ocelot_update_stats(ocelot);
+
 	queue_delayed_work(ocelot->stats_queue, &ocelot->stats_work,
 			   OCELOT_STATS_CHECK_DELAY);
-
-	mutex_unlock(&ocelot->stats_lock);
 }
 
 static void ocelot_get_ethtool_stats(struct net_device *dev,
@@ -993,7 +1007,7 @@ static void ocelot_get_ethtool_stats(struct net_device *dev,
 	int i;
 
 	/* check and update now */
-	ocelot_check_stats(&ocelot->stats_work.work);
+	ocelot_update_stats(ocelot);
 
 	/* Copy all counters */
 	for (i = 0; i < ocelot->num_stats; i++)
@@ -1017,25 +1031,6 @@ static const struct ethtool_ops ocelot_ethtool_ops = {
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
-
-static int ocelot_port_attr_get(struct net_device *dev,
-				struct switchdev_attr *attr)
-{
-	struct ocelot_port *ocelot_port = netdev_priv(dev);
-	struct ocelot *ocelot = ocelot_port->ocelot;
-
-	switch (attr->id) {
-	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
-		attr->u.ppid.id_len = sizeof(ocelot->base_mac);
-		memcpy(&attr->u.ppid.id, &ocelot->base_mac,
-		       attr->u.ppid.id_len);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
 
 static int ocelot_port_attr_stp_state_set(struct ocelot_port *ocelot_port,
 					  struct switchdev_trans *trans,
@@ -1293,7 +1288,8 @@ static int ocelot_port_obj_del_mdb(struct net_device *dev,
 
 static int ocelot_port_obj_add(struct net_device *dev,
 			       const struct switchdev_obj *obj,
-			       struct switchdev_trans *trans)
+			       struct switchdev_trans *trans,
+			       struct netlink_ext_ack *extack)
 {
 	int ret = 0;
 
@@ -1333,13 +1329,6 @@ static int ocelot_port_obj_del(struct net_device *dev,
 
 	return ret;
 }
-
-static const struct switchdev_ops ocelot_port_switchdev_ops = {
-	.switchdev_port_attr_get	= ocelot_port_attr_get,
-	.switchdev_port_attr_set	= ocelot_port_attr_set,
-	.switchdev_port_obj_add		= ocelot_port_obj_add,
-	.switchdev_port_obj_del		= ocelot_port_obj_del,
-};
 
 static int ocelot_port_bridge_join(struct ocelot_port *ocelot_port,
 				   struct net_device *bridge)
@@ -1595,6 +1584,61 @@ struct notifier_block ocelot_netdevice_nb __read_mostly = {
 };
 EXPORT_SYMBOL(ocelot_netdevice_nb);
 
+static int ocelot_switchdev_event(struct notifier_block *unused,
+				  unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	int err;
+
+	switch (event) {
+	case SWITCHDEV_PORT_ATTR_SET:
+		err = switchdev_handle_port_attr_set(dev, ptr,
+						     ocelot_netdevice_dev_check,
+						     ocelot_port_attr_set);
+		return notifier_from_errno(err);
+	}
+
+	return NOTIFY_DONE;
+}
+
+struct notifier_block ocelot_switchdev_nb __read_mostly = {
+	.notifier_call = ocelot_switchdev_event,
+};
+EXPORT_SYMBOL(ocelot_switchdev_nb);
+
+static int ocelot_switchdev_blocking_event(struct notifier_block *unused,
+					   unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	int err;
+
+	switch (event) {
+		/* Blocking events. */
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = switchdev_handle_port_obj_add(dev, ptr,
+						    ocelot_netdevice_dev_check,
+						    ocelot_port_obj_add);
+		return notifier_from_errno(err);
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = switchdev_handle_port_obj_del(dev, ptr,
+						    ocelot_netdevice_dev_check,
+						    ocelot_port_obj_del);
+		return notifier_from_errno(err);
+	case SWITCHDEV_PORT_ATTR_SET:
+		err = switchdev_handle_port_attr_set(dev, ptr,
+						     ocelot_netdevice_dev_check,
+						     ocelot_port_attr_set);
+		return notifier_from_errno(err);
+	}
+
+	return NOTIFY_DONE;
+}
+
+struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
+	.notifier_call = ocelot_switchdev_blocking_event,
+};
+EXPORT_SYMBOL(ocelot_switchdev_blocking_nb);
+
 int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 		      void __iomem *regs,
 		      struct phy_device *phy)
@@ -1618,7 +1662,6 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 
 	dev->netdev_ops = &ocelot_port_netdev_ops;
 	dev->ethtool_ops = &ocelot_ethtool_ops;
-	dev->switchdev_ops = &ocelot_port_switchdev_ops;
 
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXFCS;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
@@ -1772,7 +1815,7 @@ int ocelot_init(struct ocelot *ocelot)
 				 ANA_CPUQ_8021_CFG_CPUQ_BPDU_VAL(6),
 				 ANA_CPUQ_8021_CFG, i);
 
-	INIT_DELAYED_WORK(&ocelot->stats_work, ocelot_check_stats);
+	INIT_DELAYED_WORK(&ocelot->stats_work, ocelot_check_stats_work);
 	queue_delayed_work(ocelot->stats_queue, &ocelot->stats_work,
 			   OCELOT_STATS_CHECK_DELAY);
 	return 0;

@@ -44,6 +44,8 @@ stable kernels.
 
 | Implementor    | Component       | Erratum ID      | Kconfig                     |
 +----------------+-----------------+-----------------+-----------------------------+
+| Allwinner      | A64/R18         | UNKNOWN1        | SUN50I_ERRATUM_UNKNOWN1     |
+|                |                 |                 |                             |
 | ARM            | Cortex-A53      | #826319         | ARM64_ERRATUM_826319        |
 | ARM            | Cortex-A53      | #827319         | ARM64_ERRATUM_827319        |
 | ARM            | Cortex-A53      | #824069         | ARM64_ERRATUM_824069        |
@@ -57,6 +59,7 @@ stable kernels.
 | ARM            | Cortex-A73      | #858921         | ARM64_ERRATUM_858921        |
 | ARM            | Cortex-A55      | #1024718        | ARM64_ERRATUM_1024718       |
 | ARM            | Cortex-A76      | #1188873        | ARM64_ERRATUM_1188873       |
+| ARM            | Cortex-A76      | #1165522        | ARM64_ERRATUM_1165522       |
 | ARM            | Cortex-A76      | #1286807        | ARM64_ERRATUM_1286807       |
 | ARM            | MMU-500         | #841119,#826419 | N/A                         |
 |                |                 |                 |                             |
@@ -79,3 +82,4 @@ stable kernels.
 | Qualcomm Tech. | Falkor v1       | E1009           | QCOM_FALKOR_ERRATUM_1009    |
 | Qualcomm Tech. | QDF2400 ITS     | E0065           | QCOM_QDF2400_ERRATUM_0065   |
 | Qualcomm Tech. | Falkor v{1,2}   | E1041           | QCOM_FALKOR_ERRATUM_1041    |
+| Fujitsu        | A64FX           | E#010001        | FUJITSU_ERRATUM_010001      |

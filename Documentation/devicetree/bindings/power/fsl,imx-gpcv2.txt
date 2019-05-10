@@ -6,7 +6,9 @@ Control (PGC) for various power domains.
 
 Required properties:
 
-- compatible: Should be "fsl,imx7d-gpc"
+- compatible: Should be one of:
+	- "fsl,imx7d-gpc"
+	- "fsl,imx8mq-gpc"
 
 - reg: should be register base and length as documented in the
   datasheet
@@ -22,13 +24,17 @@ which, in turn, is expected to contain the following:
 Required properties:
 
 - reg: Power domain index. Valid values are defined in
-  include/dt-bindings/power/imx7-power.h
+  include/dt-bindings/power/imx7-power.h for fsl,imx7d-gpc and
+  include/dt-bindings/power/imx8m-power.h for fsl,imx8mq-gpc
 
 - #power-domain-cells: Should be 0
 
 Optional properties:
 
 - power-supply: Power supply used to power the domain
+- clocks: a number of phandles to clocks that need to be enabled during
+  domain power-up sequencing to ensure reset propagation into devices
+  located inside this power domain
 
 Example:
 

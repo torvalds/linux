@@ -52,20 +52,25 @@ u64 mmhub_v1_0_get_fb_location(struct amdgpu_device *adev)
 	return base;
 }
 
-static void mmhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
+void mmhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base)
 {
-	uint64_t value = amdgpu_gmc_pd_addr(adev->gart.bo);
+	/* two registers distance between mmVM_CONTEXT0_* to mmVM_CONTEXT1_* */
+	int offset = mmVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32
+			- mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32;
 
-	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-		     lower_32_bits(value));
+	WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+			offset * vmid, lower_32_bits(page_table_base));
 
-	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-		     upper_32_bits(value));
+	WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+			offset * vmid, upper_32_bits(page_table_base));
 }
 
 static void mmhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 {
-	mmhub_v1_0_init_gart_pt_regs(adev);
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+
+	mmhub_v1_0_setup_vm_pt_regs(adev, 0, pt_base);
 
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
 		     (u32)(adev->gmc.gart_start >> 12));
@@ -177,6 +182,7 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3,
 				    L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
 	}
+	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL3, tmp);
 
 	tmp = mmVM_L2_CNTL4_DEFAULT;
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 0);

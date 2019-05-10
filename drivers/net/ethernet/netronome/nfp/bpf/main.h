@@ -243,6 +243,16 @@ struct nfp_bpf_reg_state {
 #define FLAG_INSN_IS_JUMP_DST			BIT(0)
 #define FLAG_INSN_IS_SUBPROG_START		BIT(1)
 #define FLAG_INSN_PTR_CALLER_STACK_FRAME	BIT(2)
+/* Instruction is pointless, noop even on its own */
+#define FLAG_INSN_SKIP_NOOP			BIT(3)
+/* Instruction is optimized out based on preceding instructions */
+#define FLAG_INSN_SKIP_PREC_DEPENDENT		BIT(4)
+/* Instruction is optimized by the verifier */
+#define FLAG_INSN_SKIP_VERIFIER_OPT		BIT(5)
+
+#define FLAG_INSN_SKIP_MASK		(FLAG_INSN_SKIP_NOOP | \
+					 FLAG_INSN_SKIP_PREC_DEPENDENT | \
+					 FLAG_INSN_SKIP_VERIFIER_OPT)
 
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
@@ -271,7 +281,6 @@ struct nfp_bpf_reg_state {
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
  * @subprog_idx: index of subprogram to which the instruction belongs
- * @skip: skip this instruction (optimized out)
  * @double_cb: callback for second part of the instruction
  * @l: link on nfp_prog->insns list
  */
@@ -319,7 +328,6 @@ struct nfp_insn_meta {
 	unsigned short n;
 	unsigned short flags;
 	unsigned short subprog_idx;
-	bool skip;
 	instr_cb_t double_cb;
 
 	struct list_head l;
@@ -355,6 +363,21 @@ static inline bool is_mbpf_alu(const struct nfp_insn_meta *meta)
 static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
 {
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_LDX | BPF_MEM);
+}
+
+static inline bool is_mbpf_jmp32(const struct nfp_insn_meta *meta)
+{
+	return mbpf_class(meta) == BPF_JMP32;
+}
+
+static inline bool is_mbpf_jmp64(const struct nfp_insn_meta *meta)
+{
+	return mbpf_class(meta) == BPF_JMP;
+}
+
+static inline bool is_mbpf_jmp(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_jmp32(meta) || is_mbpf_jmp64(meta);
 }
 
 static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
@@ -407,6 +430,20 @@ static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
 	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_DIV;
 }
 
+static inline bool is_mbpf_cond_jump(const struct nfp_insn_meta *meta)
+{
+	u8 op;
+
+	if (is_mbpf_jmp32(meta))
+		return true;
+
+	if (!is_mbpf_jmp64(meta))
+		return false;
+
+	op = mbpf_op(meta);
+	return op != BPF_JA && op != BPF_EXIT && op != BPF_CALL;
+}
+
 static inline bool is_mbpf_helper_call(const struct nfp_insn_meta *meta)
 {
 	struct bpf_insn insn = meta->insn;
@@ -457,6 +494,7 @@ struct nfp_bpf_subprog_info {
  * @subprog_cnt: number of sub-programs, including main function
  * @map_records: the map record pointers from bpf->maps_neutral
  * @subprog: pointer to an array of objects holding info about sub-programs
+ * @n_insns: number of instructions on @insns list
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
@@ -489,6 +527,7 @@ struct nfp_prog {
 	struct nfp_bpf_neutral_map **map_records;
 	struct nfp_bpf_subprog_info *subprog;
 
+	unsigned int n_insns;
 	struct list_head insns;
 };
 
@@ -505,11 +544,19 @@ struct nfp_bpf_vnic {
 };
 
 bool nfp_is_subprog_start(struct nfp_insn_meta *meta);
-void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt);
+void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog);
 int nfp_bpf_jit(struct nfp_prog *prog);
 bool nfp_bpf_supported_opcode(u8 code);
 
-extern const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops;
+int nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx,
+		    int prev_insn_idx);
+int nfp_bpf_finalize(struct bpf_verifier_env *env);
+
+int nfp_bpf_opt_replace_insn(struct bpf_verifier_env *env, u32 off,
+			     struct bpf_insn *insn);
+int nfp_bpf_opt_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt);
+
+extern const struct bpf_prog_offload_ops nfp_bpf_dev_ops;
 
 struct netdev_bpf;
 struct nfp_app;
@@ -522,7 +569,7 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 
 struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-		  unsigned int insn_idx, unsigned int n_insns);
+		  unsigned int insn_idx);
 
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
 

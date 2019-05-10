@@ -46,26 +46,27 @@ static struct sk_buff *esp4_gro_receive(struct list_head *head,
 
 	xo = xfrm_offload(skb);
 	if (!xo || !(xo->flags & CRYPTO_DONE)) {
-		err = secpath_set(skb);
-		if (err)
+		struct sec_path *sp = secpath_set(skb);
+
+		if (!sp)
 			goto out;
 
-		if (skb->sp->len == XFRM_MAX_DEPTH)
-			goto out;
+		if (sp->len == XFRM_MAX_DEPTH)
+			goto out_reset;
 
 		x = xfrm_state_lookup(dev_net(skb->dev), skb->mark,
 				      (xfrm_address_t *)&ip_hdr(skb)->daddr,
 				      spi, IPPROTO_ESP, AF_INET);
 		if (!x)
-			goto out;
+			goto out_reset;
 
-		skb->sp->xvec[skb->sp->len++] = x;
-		skb->sp->olen++;
+		sp->xvec[sp->len++] = x;
+		sp->olen++;
 
 		xo = xfrm_offload(skb);
 		if (!xo) {
 			xfrm_state_put(x);
-			goto out;
+			goto out_reset;
 		}
 	}
 
@@ -81,6 +82,8 @@ static struct sk_buff *esp4_gro_receive(struct list_head *head,
 	xfrm_input(skb, IPPROTO_ESP, spi, -2);
 
 	return ERR_PTR(-EINPROGRESS);
+out_reset:
+	secpath_reset(skb);
 out:
 	skb_push(skb, offset);
 	NAPI_GRO_CB(skb)->same_flow = 0;
@@ -114,6 +117,7 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 	struct crypto_aead *aead;
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct sec_path *sp;
 
 	if (!xo)
 		return ERR_PTR(-EINVAL);
@@ -121,7 +125,8 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_ESP))
 		return ERR_PTR(-EINVAL);
 
-	x = skb->sp->xvec[skb->sp->len - 1];
+	sp = skb_sec_path(skb);
+	x = sp->xvec[sp->len - 1];
 	aead = x->data;
 	esph = ip_esp_hdr(skb);
 

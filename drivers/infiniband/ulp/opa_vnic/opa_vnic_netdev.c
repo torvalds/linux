@@ -330,10 +330,10 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	struct rdma_netdev *rn;
 	int rc;
 
-	netdev = ibdev->alloc_rdma_netdev(ibdev, port_num,
-					  RDMA_NETDEV_OPA_VNIC,
-					  "veth%d", NET_NAME_UNKNOWN,
-					  ether_setup);
+	netdev = ibdev->ops.alloc_rdma_netdev(ibdev, port_num,
+					      RDMA_NETDEV_OPA_VNIC,
+					      "veth%d", NET_NAME_UNKNOWN,
+					      ether_setup);
 	if (!netdev)
 		return ERR_PTR(-ENOMEM);
 	else if (IS_ERR(netdev))

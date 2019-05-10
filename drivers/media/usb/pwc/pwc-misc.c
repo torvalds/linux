@@ -59,7 +59,7 @@ int pwc_get_size(struct pwc_device *pdev, int width, int height)
 			return i;
 	}
 
-	/* Never reached there always is atleast one supported mode */
+	/* Never reached there always is at least one supported mode */
 	return 0;
 }
 

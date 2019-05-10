@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (c) 2018 Facebook */
 
 #include <ctype.h>
@@ -73,40 +73,122 @@ static int btf_dumper_array(const struct btf_dumper *d, __u32 type_id,
 	return ret;
 }
 
-static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
+static void btf_int128_print(json_writer_t *jw, const void *data,
+			     bool is_plain_text)
+{
+	/* data points to a __int128 number.
+	 * Suppose
+	 *     int128_num = *(__int128 *)data;
+	 * The below formulas shows what upper_num and lower_num represents:
+	 *     upper_num = int128_num >> 64;
+	 *     lower_num = int128_num & 0xffffffffFFFFFFFFULL;
+	 */
+	__u64 upper_num, lower_num;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	upper_num = *(__u64 *)data;
+	lower_num = *(__u64 *)(data + 8);
+#else
+	upper_num = *(__u64 *)(data + 8);
+	lower_num = *(__u64 *)data;
+#endif
+
+	if (is_plain_text) {
+		if (upper_num == 0)
+			jsonw_printf(jw, "0x%llx", lower_num);
+		else
+			jsonw_printf(jw, "0x%llx%016llx", upper_num, lower_num);
+	} else {
+		if (upper_num == 0)
+			jsonw_printf(jw, "\"0x%llx\"", lower_num);
+		else
+			jsonw_printf(jw, "\"0x%llx%016llx\"", upper_num, lower_num);
+	}
+}
+
+static void btf_int128_shift(__u64 *print_num, u16 left_shift_bits,
+			     u16 right_shift_bits)
+{
+	__u64 upper_num, lower_num;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	upper_num = print_num[0];
+	lower_num = print_num[1];
+#else
+	upper_num = print_num[1];
+	lower_num = print_num[0];
+#endif
+
+	/* shake out un-needed bits by shift/or operations */
+	if (left_shift_bits >= 64) {
+		upper_num = lower_num << (left_shift_bits - 64);
+		lower_num = 0;
+	} else {
+		upper_num = (upper_num << left_shift_bits) |
+			    (lower_num >> (64 - left_shift_bits));
+		lower_num = lower_num << left_shift_bits;
+	}
+
+	if (right_shift_bits >= 64) {
+		lower_num = upper_num >> (right_shift_bits - 64);
+		upper_num = 0;
+	} else {
+		lower_num = (lower_num >> right_shift_bits) |
+			    (upper_num << (64 - right_shift_bits));
+		upper_num = upper_num >> right_shift_bits;
+	}
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	print_num[0] = upper_num;
+	print_num[1] = lower_num;
+#else
+	print_num[0] = lower_num;
+	print_num[1] = upper_num;
+#endif
+}
+
+static void btf_dumper_bitfield(__u32 nr_bits, __u8 bit_offset,
 				const void *data, json_writer_t *jw,
 				bool is_plain_text)
 {
 	int left_shift_bits, right_shift_bits;
-	int nr_bits = BTF_INT_BITS(int_type);
-	int total_bits_offset;
+	__u64 print_num[2] = {};
 	int bytes_to_copy;
 	int bits_to_copy;
-	__u64 print_num;
 
-	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
-	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
-	bit_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
 	bits_to_copy = bit_offset + nr_bits;
 	bytes_to_copy = BITS_ROUNDUP_BYTES(bits_to_copy);
 
-	print_num = 0;
-	memcpy(&print_num, data, bytes_to_copy);
+	memcpy(print_num, data, bytes_to_copy);
 #if defined(__BIG_ENDIAN_BITFIELD)
 	left_shift_bits = bit_offset;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	left_shift_bits = 64 - bits_to_copy;
+	left_shift_bits = 128 - bits_to_copy;
 #else
 #error neither big nor little endian
 #endif
-	right_shift_bits = 64 - nr_bits;
+	right_shift_bits = 128 - nr_bits;
 
-	print_num <<= left_shift_bits;
-	print_num >>= right_shift_bits;
-	if (is_plain_text)
-		jsonw_printf(jw, "0x%llx", print_num);
-	else
-		jsonw_printf(jw, "%llu", print_num);
+	btf_int128_shift(print_num, left_shift_bits, right_shift_bits);
+	btf_int128_print(jw, print_num, is_plain_text);
+}
+
+
+static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
+				const void *data, json_writer_t *jw,
+				bool is_plain_text)
+{
+	int nr_bits = BTF_INT_BITS(int_type);
+	int total_bits_offset;
+
+	/* bits_offset is at most 7.
+	 * BTF_INT_OFFSET() cannot exceed 128 bits.
+	 */
+	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
+	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
+	bit_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
+	btf_dumper_bitfield(nr_bits, bit_offset, data, jw,
+			    is_plain_text);
 }
 
 static int btf_dumper_int(const struct btf_type *t, __u8 bit_offset,
@@ -123,6 +205,11 @@ static int btf_dumper_int(const struct btf_type *t, __u8 bit_offset,
 	    BITS_PER_BYTE_MASKED(nr_bits)) {
 		btf_dumper_int_bits(*int_type, bit_offset, data, jw,
 				    is_plain_text);
+		return 0;
+	}
+
+	if (nr_bits == 128) {
+		btf_int128_print(jw, data, is_plain_text);
 		return 0;
 	}
 
@@ -180,6 +267,7 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 	const struct btf_type *t;
 	struct btf_member *m;
 	const void *data_off;
+	int kind_flag;
 	int ret = 0;
 	int i, vlen;
 
@@ -187,18 +275,33 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 	if (!t)
 		return -EINVAL;
 
+	kind_flag = BTF_INFO_KFLAG(t->info);
 	vlen = BTF_INFO_VLEN(t->info);
 	jsonw_start_object(d->jw);
 	m = (struct btf_member *)(t + 1);
 
 	for (i = 0; i < vlen; i++) {
-		data_off = data + BITS_ROUNDDOWN_BYTES(m[i].offset);
+		__u32 bit_offset = m[i].offset;
+		__u32 bitfield_size = 0;
+
+		if (kind_flag) {
+			bitfield_size = BTF_MEMBER_BITFIELD_SIZE(bit_offset);
+			bit_offset = BTF_MEMBER_BIT_OFFSET(bit_offset);
+		}
+
 		jsonw_name(d->jw, btf__name_by_offset(d->btf, m[i].name_off));
-		ret = btf_dumper_do_type(d, m[i].type,
-					 BITS_PER_BYTE_MASKED(m[i].offset),
-					 data_off);
-		if (ret)
-			break;
+		data_off = data + BITS_ROUNDDOWN_BYTES(bit_offset);
+		if (bitfield_size) {
+			btf_dumper_bitfield(bitfield_size,
+					    BITS_PER_BYTE_MASKED(bit_offset),
+					    data_off, d->jw, d->is_plain_text);
+		} else {
+			ret = btf_dumper_do_type(d, m[i].type,
+						 BITS_PER_BYTE_MASKED(bit_offset),
+						 data_off);
+			if (ret)
+				break;
+		}
 	}
 
 	jsonw_end_object(d->jw);
@@ -248,4 +351,207 @@ int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
 		    const void *data)
 {
 	return btf_dumper_do_type(d, type_id, 0, data);
+}
+
+#define BTF_PRINT_ARG(...)						\
+	do {								\
+		pos += snprintf(func_sig + pos, size - pos,		\
+				__VA_ARGS__);				\
+		if (pos >= size)					\
+			return -1;					\
+	} while (0)
+#define BTF_PRINT_TYPE(type)					\
+	do {								\
+		pos = __btf_dumper_type_only(btf, type, func_sig,	\
+					     pos, size);		\
+		if (pos == -1)						\
+			return -1;					\
+	} while (0)
+
+static int btf_dump_func(const struct btf *btf, char *func_sig,
+			 const struct btf_type *func_proto,
+			 const struct btf_type *func, int pos, int size);
+
+static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
+				  char *func_sig, int pos, int size)
+{
+	const struct btf_type *proto_type;
+	const struct btf_array *array;
+	const struct btf_type *t;
+
+	if (!type_id) {
+		BTF_PRINT_ARG("void ");
+		return pos;
+	}
+
+	t = btf__type_by_id(btf, type_id);
+
+	switch (BTF_INFO_KIND(t->info)) {
+	case BTF_KIND_INT:
+	case BTF_KIND_TYPEDEF:
+		BTF_PRINT_ARG("%s ", btf__name_by_offset(btf, t->name_off));
+		break;
+	case BTF_KIND_STRUCT:
+		BTF_PRINT_ARG("struct %s ",
+			      btf__name_by_offset(btf, t->name_off));
+		break;
+	case BTF_KIND_UNION:
+		BTF_PRINT_ARG("union %s ",
+			      btf__name_by_offset(btf, t->name_off));
+		break;
+	case BTF_KIND_ENUM:
+		BTF_PRINT_ARG("enum %s ",
+			      btf__name_by_offset(btf, t->name_off));
+		break;
+	case BTF_KIND_ARRAY:
+		array = (struct btf_array *)(t + 1);
+		BTF_PRINT_TYPE(array->type);
+		BTF_PRINT_ARG("[%d]", array->nelems);
+		break;
+	case BTF_KIND_PTR:
+		BTF_PRINT_TYPE(t->type);
+		BTF_PRINT_ARG("* ");
+		break;
+	case BTF_KIND_FWD:
+		BTF_PRINT_ARG("%s %s ",
+			      BTF_INFO_KFLAG(t->info) ? "union" : "struct",
+			      btf__name_by_offset(btf, t->name_off));
+		break;
+	case BTF_KIND_VOLATILE:
+		BTF_PRINT_ARG("volatile ");
+		BTF_PRINT_TYPE(t->type);
+		break;
+	case BTF_KIND_CONST:
+		BTF_PRINT_ARG("const ");
+		BTF_PRINT_TYPE(t->type);
+		break;
+	case BTF_KIND_RESTRICT:
+		BTF_PRINT_ARG("restrict ");
+		BTF_PRINT_TYPE(t->type);
+		break;
+	case BTF_KIND_FUNC_PROTO:
+		pos = btf_dump_func(btf, func_sig, t, NULL, pos, size);
+		if (pos == -1)
+			return -1;
+		break;
+	case BTF_KIND_FUNC:
+		proto_type = btf__type_by_id(btf, t->type);
+		pos = btf_dump_func(btf, func_sig, proto_type, t, pos, size);
+		if (pos == -1)
+			return -1;
+		break;
+	case BTF_KIND_UNKN:
+	default:
+		return -1;
+	}
+
+	return pos;
+}
+
+static int btf_dump_func(const struct btf *btf, char *func_sig,
+			 const struct btf_type *func_proto,
+			 const struct btf_type *func, int pos, int size)
+{
+	int i, vlen;
+
+	BTF_PRINT_TYPE(func_proto->type);
+	if (func)
+		BTF_PRINT_ARG("%s(", btf__name_by_offset(btf, func->name_off));
+	else
+		BTF_PRINT_ARG("(");
+	vlen = BTF_INFO_VLEN(func_proto->info);
+	for (i = 0; i < vlen; i++) {
+		struct btf_param *arg = &((struct btf_param *)(func_proto + 1))[i];
+
+		if (i)
+			BTF_PRINT_ARG(", ");
+		if (arg->type) {
+			BTF_PRINT_TYPE(arg->type);
+			BTF_PRINT_ARG("%s",
+				      btf__name_by_offset(btf, arg->name_off));
+		} else {
+			BTF_PRINT_ARG("...");
+		}
+	}
+	BTF_PRINT_ARG(")");
+
+	return pos;
+}
+
+void btf_dumper_type_only(const struct btf *btf, __u32 type_id, char *func_sig,
+			  int size)
+{
+	int err;
+
+	func_sig[0] = '\0';
+	if (!btf)
+		return;
+
+	err = __btf_dumper_type_only(btf, type_id, func_sig, 0, size);
+	if (err < 0)
+		func_sig[0] = '\0';
+}
+
+static const char *ltrim(const char *s)
+{
+	while (isspace(*s))
+		s++;
+
+	return s;
+}
+
+void btf_dump_linfo_plain(const struct btf *btf,
+			  const struct bpf_line_info *linfo,
+			  const char *prefix, bool linum)
+{
+	const char *line = btf__name_by_offset(btf, linfo->line_off);
+
+	if (!line)
+		return;
+	line = ltrim(line);
+
+	if (!prefix)
+		prefix = "";
+
+	if (linum) {
+		const char *file = btf__name_by_offset(btf, linfo->file_name_off);
+
+		/* More forgiving on file because linum option is
+		 * expected to provide more info than the already
+		 * available src line.
+		 */
+		if (!file)
+			file = "";
+
+		printf("%s%s [file:%s line_num:%u line_col:%u]\n",
+		       prefix, line, file,
+		       BPF_LINE_INFO_LINE_NUM(linfo->line_col),
+		       BPF_LINE_INFO_LINE_COL(linfo->line_col));
+	} else {
+		printf("%s%s\n", prefix, line);
+	}
+}
+
+void btf_dump_linfo_json(const struct btf *btf,
+			 const struct bpf_line_info *linfo, bool linum)
+{
+	const char *line = btf__name_by_offset(btf, linfo->line_off);
+
+	if (line)
+		jsonw_string_field(json_wtr, "src", ltrim(line));
+
+	if (linum) {
+		const char *file = btf__name_by_offset(btf, linfo->file_name_off);
+
+		if (file)
+			jsonw_string_field(json_wtr, "file", file);
+
+		if (BPF_LINE_INFO_LINE_NUM(linfo->line_col))
+			jsonw_int_field(json_wtr, "line_num",
+					BPF_LINE_INFO_LINE_NUM(linfo->line_col));
+
+		if (BPF_LINE_INFO_LINE_COL(linfo->line_col))
+			jsonw_int_field(json_wtr, "line_col",
+					BPF_LINE_INFO_LINE_COL(linfo->line_col));
+	}
 }

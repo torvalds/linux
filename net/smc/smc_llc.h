@@ -49,6 +49,8 @@ void smc_llc_link_inactive(struct smc_link *link);
 void smc_llc_link_clear(struct smc_link *link);
 int smc_llc_do_confirm_rkey(struct smc_link *link,
 			    struct smc_buf_desc *rmb_desc);
+int smc_llc_do_delete_rkey(struct smc_link *link,
+			   struct smc_buf_desc *rmb_desc);
 int smc_llc_init(void) __init;
 
 #endif /* SMC_LLC_H */

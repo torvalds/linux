@@ -27,7 +27,38 @@
 static struct workqueue_struct *tpm_dev_wq;
 static DEFINE_MUTEX(tpm_dev_wq_lock);
 
-static void tpm_async_work(struct work_struct *work)
+static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
+				u8 *buf, size_t bufsiz)
+{
+	struct tpm_header *header = (void *)buf;
+	ssize_t ret, len;
+
+	ret = tpm2_prepare_space(chip, space, buf, bufsiz);
+	/* If the command is not implemented by the TPM, synthesize a
+	 * response with a TPM2_RC_COMMAND_CODE return for user-space.
+	 */
+	if (ret == -EOPNOTSUPP) {
+		header->length = cpu_to_be32(sizeof(*header));
+		header->tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
+		header->return_code = cpu_to_be32(TPM2_RC_COMMAND_CODE |
+						  TSS2_RESMGR_TPM_RC_LAYER);
+		ret = sizeof(*header);
+	}
+	if (ret)
+		goto out_rc;
+
+	len = tpm_transmit(chip, buf, bufsiz);
+	if (len < 0)
+		ret = len;
+
+	if (!ret)
+		ret = tpm2_commit_space(chip, space, buf, &len);
+
+out_rc:
+	return ret ? ret : len;
+}
+
+static void tpm_dev_async_work(struct work_struct *work)
 {
 	struct file_priv *priv =
 			container_of(work, struct file_priv, async_work);
@@ -35,12 +66,11 @@ static void tpm_async_work(struct work_struct *work)
 
 	mutex_lock(&priv->buffer_mutex);
 	priv->command_enqueued = false;
-	ret = tpm_transmit(priv->chip, priv->space, priv->data_buffer,
-			   sizeof(priv->data_buffer), 0);
-
+	ret = tpm_dev_transmit(priv->chip, priv->space, priv->data_buffer,
+			       sizeof(priv->data_buffer));
 	tpm_put_ops(priv->chip);
 	if (ret > 0) {
-		priv->data_pending = ret;
+		priv->response_length = ret;
 		mod_timer(&priv->user_read_timer, jiffies + (120 * HZ));
 	}
 	mutex_unlock(&priv->buffer_mutex);
@@ -63,7 +93,8 @@ static void tpm_timeout_work(struct work_struct *work)
 					      timeout_work);
 
 	mutex_lock(&priv->buffer_mutex);
-	priv->data_pending = 0;
+	priv->response_read = true;
+	priv->response_length = 0;
 	memset(priv->data_buffer, 0, sizeof(priv->data_buffer));
 	mutex_unlock(&priv->buffer_mutex);
 	wake_up_interruptible(&priv->async_wait);
@@ -74,11 +105,12 @@ void tpm_common_open(struct file *file, struct tpm_chip *chip,
 {
 	priv->chip = chip;
 	priv->space = space;
+	priv->response_read = true;
 
 	mutex_init(&priv->buffer_mutex);
 	timer_setup(&priv->user_read_timer, user_reader_timeout, 0);
 	INIT_WORK(&priv->timeout_work, tpm_timeout_work);
-	INIT_WORK(&priv->async_work, tpm_async_work);
+	INIT_WORK(&priv->async_work, tpm_dev_async_work);
 	init_waitqueue_head(&priv->async_wait);
 	file->private_data = priv;
 }
@@ -90,22 +122,35 @@ ssize_t tpm_common_read(struct file *file, char __user *buf,
 	ssize_t ret_size = 0;
 	int rc;
 
-	del_singleshot_timer_sync(&priv->user_read_timer);
-	flush_work(&priv->timeout_work);
 	mutex_lock(&priv->buffer_mutex);
 
-	if (priv->data_pending) {
-		ret_size = min_t(ssize_t, size, priv->data_pending);
-		if (ret_size > 0) {
-			rc = copy_to_user(buf, priv->data_buffer, ret_size);
-			memset(priv->data_buffer, 0, priv->data_pending);
-			if (rc)
-				ret_size = -EFAULT;
+	if (priv->response_length) {
+		priv->response_read = true;
+
+		ret_size = min_t(ssize_t, size, priv->response_length);
+		if (!ret_size) {
+			priv->response_length = 0;
+			goto out;
 		}
 
-		priv->data_pending = 0;
+		rc = copy_to_user(buf, priv->data_buffer + *off, ret_size);
+		if (rc) {
+			memset(priv->data_buffer, 0, TPM_BUFSIZE);
+			priv->response_length = 0;
+			ret_size = -EFAULT;
+		} else {
+			memset(priv->data_buffer + *off, 0, ret_size);
+			priv->response_length -= ret_size;
+			*off += ret_size;
+		}
 	}
 
+out:
+	if (!priv->response_length) {
+		*off = 0;
+		del_singleshot_timer_sync(&priv->user_read_timer);
+		flush_work(&priv->timeout_work);
+	}
 	mutex_unlock(&priv->buffer_mutex);
 	return ret_size;
 }
@@ -125,7 +170,8 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 	 * tpm_read or a user_read_timer timeout. This also prevents split
 	 * buffered writes from blocking here.
 	 */
-	if (priv->data_pending != 0 || priv->command_enqueued) {
+	if ((!priv->response_read && priv->response_length) ||
+	    priv->command_enqueued) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -150,6 +196,10 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 		goto out;
 	}
 
+	priv->response_length = 0;
+	priv->response_read = false;
+	*off = 0;
+
 	/*
 	 * If in nonblocking mode schedule an async job to send
 	 * the command return the size.
@@ -163,12 +213,12 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 		return size;
 	}
 
-	ret = tpm_transmit(priv->chip, priv->space, priv->data_buffer,
-			   sizeof(priv->data_buffer), 0);
+	ret = tpm_dev_transmit(priv->chip, priv->space, priv->data_buffer,
+			       sizeof(priv->data_buffer));
 	tpm_put_ops(priv->chip);
 
 	if (ret > 0) {
-		priv->data_pending = ret;
+		priv->response_length = ret;
 		mod_timer(&priv->user_read_timer, jiffies + (120 * HZ));
 		ret = size;
 	}
@@ -183,12 +233,19 @@ __poll_t tpm_common_poll(struct file *file, poll_table *wait)
 	__poll_t mask = 0;
 
 	poll_wait(file, &priv->async_wait, wait);
+	mutex_lock(&priv->buffer_mutex);
 
-	if (priv->data_pending)
+	/*
+	 * The response_length indicates if there is still response
+	 * (or part of it) to be consumed. Partial reads decrease it
+	 * by the number of bytes read, and write resets it the zero.
+	 */
+	if (priv->response_length)
 		mask = EPOLLIN | EPOLLRDNORM;
 	else
 		mask = EPOLLOUT | EPOLLWRNORM;
 
+	mutex_unlock(&priv->buffer_mutex);
 	return mask;
 }
 
@@ -201,7 +258,7 @@ void tpm_common_release(struct file *file, struct file_priv *priv)
 	del_singleshot_timer_sync(&priv->user_read_timer);
 	flush_work(&priv->timeout_work);
 	file->private_data = NULL;
-	priv->data_pending = 0;
+	priv->response_length = 0;
 }
 
 int __init tpm_dev_common_init(void)
