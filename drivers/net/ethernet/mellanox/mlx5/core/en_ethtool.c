@@ -1132,8 +1132,8 @@ static u32 mlx5e_get_rxfh_indir_size(struct net_device *netdev)
 	return mlx5e_ethtool_get_rxfh_indir_size(priv);
 }
 
-static int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
-			  u8 *hfunc)
+int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
+		   u8 *hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_rss_params *rss = &priv->rss_params;
@@ -1152,8 +1152,8 @@ static int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	return 0;
 }
 
-static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
-			  const u8 *key, const u8 hfunc)
+int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
+		   const u8 *key, const u8 hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_rss_params *rss = &priv->rss_params;
