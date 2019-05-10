@@ -675,6 +675,7 @@ config CHARGER_UCS1002
 	tristate "Microchip UCS1002 USB Port Power Controller"
 	depends on I2C
 	depends on OF
+	depends on REGULATOR
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Microchip UCS1002 Programmable
