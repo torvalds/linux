@@ -118,7 +118,7 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
 static int ibmvnic_init(struct ibmvnic_adapter *);
 static int ibmvnic_reset_init(struct ibmvnic_adapter *);
 static void release_crq_queue(struct ibmvnic_adapter *);
-static int __ibmvnic_set_mac(struct net_device *netdev, struct sockaddr *p);
+static int __ibmvnic_set_mac(struct net_device *, u8 *);
 static int init_crq_queue(struct ibmvnic_adapter *adapter);
 static int send_query_phys_parms(struct ibmvnic_adapter *adapter);
 
@@ -849,11 +849,7 @@ static int ibmvnic_login(struct net_device *netdev)
 		}
 	} while (retry);
 
-	/* handle pending MAC address changes after successful login */
-	if (adapter->mac_change_pending) {
-		__ibmvnic_set_mac(netdev, &adapter->desired.mac);
-		adapter->mac_change_pending = false;
-	}
+	__ibmvnic_set_mac(netdev, adapter->mac_addr);
 
 	return 0;
 }
@@ -1686,28 +1682,40 @@ static void ibmvnic_set_multi(struct net_device *netdev)
 	}
 }
 
-static int __ibmvnic_set_mac(struct net_device *netdev, struct sockaddr *p)
+static int __ibmvnic_set_mac(struct net_device *netdev, u8 *dev_addr)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	struct sockaddr *addr = p;
 	union ibmvnic_crq crq;
 	int rc;
 
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+	if (!is_valid_ether_addr(dev_addr)) {
+		rc = -EADDRNOTAVAIL;
+		goto err;
+	}
 
 	memset(&crq, 0, sizeof(crq));
 	crq.change_mac_addr.first = IBMVNIC_CRQ_CMD;
 	crq.change_mac_addr.cmd = CHANGE_MAC_ADDR;
-	ether_addr_copy(&crq.change_mac_addr.mac_addr[0], addr->sa_data);
+	ether_addr_copy(&crq.change_mac_addr.mac_addr[0], dev_addr);
 
 	init_completion(&adapter->fw_done);
 	rc = ibmvnic_send_crq(adapter, &crq);
-	if (rc)
-		return rc;
+	if (rc) {
+		rc = -EIO;
+		goto err;
+	}
+
 	wait_for_completion(&adapter->fw_done);
 	/* netdev->dev_addr is changed in handle_change_mac_rsp function */
-	return adapter->fw_done_rc ? -EIO : 0;
+	if (adapter->fw_done_rc) {
+		rc = -EIO;
+		goto err;
+	}
+
+	return 0;
+err:
+	ether_addr_copy(adapter->mac_addr, netdev->dev_addr);
+	return rc;
 }
 
 static int ibmvnic_set_mac(struct net_device *netdev, void *p)
@@ -1716,13 +1724,10 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 	int rc;
 
-	if (adapter->state == VNIC_PROBED) {
-		memcpy(&adapter->desired.mac, addr, sizeof(struct sockaddr));
-		adapter->mac_change_pending = true;
-		return 0;
-	}
-
-	rc = __ibmvnic_set_mac(netdev, addr);
+	rc = 0;
+	ether_addr_copy(adapter->mac_addr, addr->sa_data);
+	if (adapter->state != VNIC_PROBED)
+		rc = __ibmvnic_set_mac(netdev, addr->sa_data);
 
 	return rc;
 }
@@ -3937,8 +3942,8 @@ static int handle_change_mac_rsp(union ibmvnic_crq *crq,
 		dev_err(dev, "Error %ld in CHANGE_MAC_ADDR_RSP\n", rc);
 		goto out;
 	}
-	memcpy(netdev->dev_addr, &crq->change_mac_addr_rsp.mac_addr[0],
-	       ETH_ALEN);
+	ether_addr_copy(netdev->dev_addr,
+			&crq->change_mac_addr_rsp.mac_addr[0]);
 out:
 	complete(&adapter->fw_done);
 	return rc;
@@ -4851,8 +4856,6 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	spin_lock_init(&adapter->rwi_lock);
 	init_completion(&adapter->init_done);
 	adapter->resetting = false;
-
-	adapter->mac_change_pending = false;
 
 	do {
 		rc = init_crq_queue(adapter);
