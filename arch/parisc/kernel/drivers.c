@@ -41,7 +41,7 @@
 #include <asm/ropes.h>
 
 /* See comments in include/asm-parisc/pci.h */
-const struct dma_map_ops *hppa_dma_ops __read_mostly;
+const struct dma_map_ops *hppa_dma_ops __ro_after_init;
 EXPORT_SYMBOL(hppa_dma_ops);
 
 static struct device root = {
