@@ -1015,7 +1015,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 
 	mac_addr = of_get_mac_address(ofdev->dev.of_node);
 	if (!IS_ERR(mac_addr))
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(ndev->dev_addr, mac_addr);
 
 	ret = fep->ops->allocate_bd(ndev);
 	if (ret)
