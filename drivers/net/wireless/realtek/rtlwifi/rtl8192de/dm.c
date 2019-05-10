@@ -680,6 +680,7 @@ static void rtl92d_bandtype_2_4G(struct ieee80211_hw *hw, long *temp_cckg,
 	int i;
 	unsigned long flag = 0;
 	long temp_cck;
+	const u8 *cckswing;
 
 	/* Query CCK default setting From 0xa24 */
 	rtl92d_acquire_cckandrw_pagea_ctl(hw, &flag);
@@ -687,28 +688,19 @@ static void rtl92d_bandtype_2_4G(struct ieee80211_hw *hw, long *temp_cckg,
 				 MASKDWORD) & MASKCCK;
 	rtl92d_release_cckandrw_pagea_ctl(hw, &flag);
 	for (i = 0; i < CCK_TABLE_LENGTH; i++) {
-		if (rtlpriv->dm.cck_inch14) {
-			if (!memcmp((void *)&temp_cck,
-			    (void *)&cckswing_table_ch14[i][2], 4)) {
-				*cck_index_old = (u8) i;
-				RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-					 "Initial reg0x%x = 0x%lx, cck_index=0x%x, ch 14 %d\n",
-					 RCCK0_TXFILTER2, temp_cck,
-					 *cck_index_old,
-					 rtlpriv->dm.cck_inch14);
-				break;
-			}
-		} else {
-			if (!memcmp((void *) &temp_cck,
-			    &cckswing_table_ch1ch13[i][2], 4)) {
-				*cck_index_old = (u8) i;
-				RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-					 "Initial reg0x%x = 0x%lx, cck_index = 0x%x, ch14 %d\n",
-					 RCCK0_TXFILTER2, temp_cck,
-					 *cck_index_old,
-					 rtlpriv->dm.cck_inch14);
-				break;
-			}
+		if (rtlpriv->dm.cck_inch14)
+			cckswing = &cckswing_table_ch14[i][2];
+		else
+			cckswing = &cckswing_table_ch1ch13[i][2];
+
+		if (temp_cck == le32_to_cpu(*((__le32 *)cckswing))) {
+			*cck_index_old = (u8)i;
+			RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
+				 "Initial reg0x%x = 0x%lx, cck_index = 0x%x, ch14 %d\n",
+				 RCCK0_TXFILTER2, temp_cck,
+				 *cck_index_old,
+				 rtlpriv->dm.cck_inch14);
+			break;
 		}
 	}
 	*temp_cckg = temp_cck;
