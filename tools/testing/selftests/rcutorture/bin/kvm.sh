@@ -342,7 +342,7 @@ function dump(first, pastlast, batchnum)
 	print "needqemurun="
 	jn=1
 	for (j = first; j < pastlast; j++) {
-		builddir=KVM "/b1"
+		builddir=KVM "/b" j - first + 1
 		cpusr[jn] = cpus[j];
 		if (cfrep[cf[j]] == "") {
 			cfr[jn] = cf[j];
@@ -358,7 +358,6 @@ function dump(first, pastlast, batchnum)
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
 		print "rm -f " builddir ".*";
 		print "touch " builddir ".wait";
-		print "mkdir " builddir " > /dev/null 2>&1 || :";
 		print "mkdir " rd cfr[jn] " || :";
 		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
