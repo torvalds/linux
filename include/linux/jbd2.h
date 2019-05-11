@@ -1318,7 +1318,7 @@ extern void		__wait_on_journal (journal_t *);
 
 /* Transaction cache support */
 extern void jbd2_journal_destroy_transaction_cache(void);
-extern int  jbd2_journal_init_transaction_cache(void);
+extern int __init jbd2_journal_init_transaction_cache(void);
 extern void jbd2_journal_free_transaction(transaction_t *);
 
 /*
@@ -1446,8 +1446,10 @@ static inline void jbd2_free_inode(struct jbd2_inode *jinode)
 /* Primary revoke support */
 #define JOURNAL_REVOKE_DEFAULT_HASH 256
 extern int	   jbd2_journal_init_revoke(journal_t *, int);
-extern void	   jbd2_journal_destroy_revoke_caches(void);
-extern int	   jbd2_journal_init_revoke_caches(void);
+extern void	   jbd2_journal_destroy_revoke_record_cache(void);
+extern void	   jbd2_journal_destroy_revoke_table_cache(void);
+extern int __init jbd2_journal_init_revoke_record_cache(void);
+extern int __init jbd2_journal_init_revoke_table_cache(void);
 
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
 extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
