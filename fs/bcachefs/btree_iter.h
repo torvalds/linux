@@ -156,7 +156,7 @@ static inline struct bpos btree_type_successor(enum btree_id id,
 	if (id == BTREE_ID_INODES) {
 		pos.inode++;
 		pos.offset = 0;
-	} else if (id != BTREE_ID_EXTENTS) {
+	} else if (!btree_node_type_is_extents(id)) {
 		pos = bkey_successor(pos);
 	}
 
@@ -169,7 +169,7 @@ static inline struct bpos btree_type_predecessor(enum btree_id id,
 	if (id == BTREE_ID_INODES) {
 		--pos.inode;
 		pos.offset = 0;
-	} else /* if (id != BTREE_ID_EXTENTS) */ {
+	} else {
 		pos = bkey_predecessor(pos);
 	}
 

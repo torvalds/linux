@@ -1114,7 +1114,7 @@ static inline void bch2_btree_iter_checks(struct btree_iter *iter,
 {
 	EBUG_ON(iter->btree_id >= BTREE_ID_NR);
 	EBUG_ON(!!(iter->flags & BTREE_ITER_IS_EXTENTS) !=
-		(iter->btree_id == BTREE_ID_EXTENTS &&
+		(btree_node_type_is_extents(iter->btree_id) &&
 		 type != BTREE_ITER_NODES));
 
 	bch2_btree_trans_verify_locks(iter->trans);
@@ -1590,7 +1590,7 @@ static inline void bch2_btree_iter_init(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	unsigned i;
 
-	if (btree_id == BTREE_ID_EXTENTS &&
+	if (btree_node_type_is_extents(btree_id) &&
 	    !(flags & BTREE_ITER_NODES))
 		flags |= BTREE_ITER_IS_EXTENTS;
 
