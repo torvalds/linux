@@ -327,9 +327,9 @@ static int olpc_bat_get_voltage_max_design(union power_supply_propval *val)
 static u16 ecword_to_cpu(struct olpc_battery_data *data, u16 ec_word)
 {
 	if (data->little_endian)
-		return le16_to_cpu(ec_word);
+		return le16_to_cpu((__force __le16)ec_word);
 	else
-		return be16_to_cpu(ec_word);
+		return be16_to_cpu((__force __be16)ec_word);
 }
 
 /*********************************************************************
@@ -341,7 +341,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 {
 	struct olpc_battery_data *data = power_supply_get_drvdata(psy);
 	int ret = 0;
-	__be16 ec_word;
+	u16 ec_word;
 	uint8_t ec_byte;
 	__be64 ser_buf;
 
