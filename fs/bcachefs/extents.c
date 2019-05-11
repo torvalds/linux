@@ -500,43 +500,8 @@ void bch2_ptr_swab(const struct bkey_format *f, struct bkey_packed *k)
 	}
 }
 
-static const char *extent_ptr_invalid(const struct bch_fs *c,
-				      struct bkey_s_c k,
-				      const struct bch_extent_ptr *ptr,
-				      unsigned size_ondisk,
-				      bool metadata)
-{
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr2;
-	struct bch_dev *ca;
-
-	if (ptr->dev >= c->sb.nr_devices ||
-	    !c->devs[ptr->dev])
-		return "pointer to invalid device";
-
-	ca = bch_dev_bkey_exists(c, ptr->dev);
-	if (!ca)
-		return "pointer to invalid device";
-
-	bkey_for_each_ptr(ptrs, ptr2)
-		if (ptr != ptr2 && ptr->dev == ptr2->dev)
-			return "multiple pointers to same device";
-
-	if (ptr->offset + size_ondisk > bucket_to_sector(ca, ca->mi.nbuckets))
-		return "offset past end of device";
-
-	if (ptr->offset < bucket_to_sector(ca, ca->mi.first_bucket))
-		return "offset before first bucket";
-
-	if (bucket_remainder(ca, ptr->offset) +
-	    size_ondisk > ca->mi.bucket_size)
-		return "spans multiple buckets";
-
-	return NULL;
-}
-
-static void bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
-			      struct bkey_s_c k)
+void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
+			    struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -590,35 +555,107 @@ static void bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 	}
 }
 
-/* Btree ptrs */
+static const char *extent_ptr_invalid(const struct bch_fs *c,
+				      struct bkey_s_c k,
+				      const struct bch_extent_ptr *ptr,
+				      unsigned size_ondisk,
+				      bool metadata)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const struct bch_extent_ptr *ptr2;
+	struct bch_dev *ca;
 
-const char *bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k)
+	if (!bch2_dev_exists2(c, ptr->dev))
+		return "pointer to invalid device";
+
+	ca = bch_dev_bkey_exists(c, ptr->dev);
+	if (!ca)
+		return "pointer to invalid device";
+
+	bkey_for_each_ptr(ptrs, ptr2)
+		if (ptr != ptr2 && ptr->dev == ptr2->dev)
+			return "multiple pointers to same device";
+
+	if (ptr->offset + size_ondisk > bucket_to_sector(ca, ca->mi.nbuckets))
+		return "offset past end of device";
+
+	if (ptr->offset < bucket_to_sector(ca, ca->mi.first_bucket))
+		return "offset before first bucket";
+
+	if (bucket_remainder(ca, ptr->offset) +
+	    size_ondisk > ca->mi.bucket_size)
+		return "spans multiple buckets";
+
+	return NULL;
+}
+
+const char *bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
-	const struct bch_extent_ptr *ptr;
+	struct bch_extent_crc_unpacked crc;
+	unsigned size_ondisk = k.k->size;
 	const char *reason;
+	unsigned nonce = UINT_MAX;
 
-	if (bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
-		return "value too big";
+	if (k.k->type == KEY_TYPE_btree_ptr)
+		size_ondisk = c->opts.btree_node_size;
 
 	bkey_extent_entry_for_each(ptrs, entry) {
 		if (__extent_entry_type(entry) >= BCH_EXTENT_ENTRY_MAX)
 			return "invalid extent entry type";
 
-		if (!extent_entry_is_ptr(entry))
+		if (k.k->type == KEY_TYPE_btree_ptr &&
+		    !extent_entry_is_ptr(entry))
 			return "has non ptr field";
-	}
 
-	bkey_for_each_ptr(ptrs, ptr) {
-		reason = extent_ptr_invalid(c, k, ptr,
-					    c->opts.btree_node_size,
-					    true);
-		if (reason)
-			return reason;
+		switch (extent_entry_type(entry)) {
+		case BCH_EXTENT_ENTRY_ptr:
+			reason = extent_ptr_invalid(c, k, &entry->ptr,
+						    size_ondisk, false);
+			if (reason)
+				return reason;
+			break;
+		case BCH_EXTENT_ENTRY_crc32:
+		case BCH_EXTENT_ENTRY_crc64:
+		case BCH_EXTENT_ENTRY_crc128:
+			crc = bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
+
+			if (crc.offset + crc.live_size >
+			    crc.uncompressed_size)
+				return "checksum offset + key size > uncompressed size";
+
+			size_ondisk = crc.compressed_size;
+
+			if (!bch2_checksum_type_valid(c, crc.csum_type))
+				return "invalid checksum type";
+
+			if (crc.compression_type >= BCH_COMPRESSION_NR)
+				return "invalid compression type";
+
+			if (bch2_csum_type_is_encryption(crc.csum_type)) {
+				if (nonce == UINT_MAX)
+					nonce = crc.offset + crc.nonce;
+				else if (nonce != crc.offset + crc.nonce)
+					return "incorrect nonce";
+			}
+			break;
+		case BCH_EXTENT_ENTRY_stripe_ptr:
+			break;
+		}
 	}
 
 	return NULL;
+}
+
+/* Btree ptrs */
+
+const char *bch2_btree_ptr_invalid(const struct bch_fs *c, struct bkey_s_c k)
+{
+	if (bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
+		return "value too big";
+
+	return bch2_bkey_ptrs_invalid(c, k);
 }
 
 void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct btree *b,
@@ -665,13 +702,7 @@ err:
 void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 			    struct bkey_s_c k)
 {
-	const char *invalid;
-
-	bkey_ptrs_to_text(out, c, k);
-
-	invalid = bch2_btree_ptr_invalid(c, k);
-	if (invalid)
-		pr_buf(out, " invalid: %s", invalid);
+	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
 /* Extents */
@@ -1221,60 +1252,10 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 
 const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-	struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-	const union bch_extent_entry *entry;
-	struct bch_extent_crc_unpacked crc;
-	const struct bch_extent_ptr *ptr;
-	unsigned size_ondisk = e.k->size;
-	const char *reason;
-	unsigned nonce = UINT_MAX;
-
-	if (bkey_val_u64s(e.k) > BKEY_EXTENT_VAL_U64s_MAX)
+	if (bkey_val_u64s(k.k) > BKEY_EXTENT_VAL_U64s_MAX)
 		return "value too big";
 
-	extent_for_each_entry(e, entry) {
-		if (__extent_entry_type(entry) >= BCH_EXTENT_ENTRY_MAX)
-			return "invalid extent entry type";
-
-		switch (extent_entry_type(entry)) {
-		case BCH_EXTENT_ENTRY_ptr:
-			ptr = entry_to_ptr(entry);
-
-			reason = extent_ptr_invalid(c, e.s_c, &entry->ptr,
-						    size_ondisk, false);
-			if (reason)
-				return reason;
-			break;
-		case BCH_EXTENT_ENTRY_crc32:
-		case BCH_EXTENT_ENTRY_crc64:
-		case BCH_EXTENT_ENTRY_crc128:
-			crc = bch2_extent_crc_unpack(e.k, entry_to_crc(entry));
-
-			if (crc.offset + e.k->size >
-			    crc.uncompressed_size)
-				return "checksum offset + key size > uncompressed size";
-
-			size_ondisk = crc.compressed_size;
-
-			if (!bch2_checksum_type_valid(c, crc.csum_type))
-				return "invalid checksum type";
-
-			if (crc.compression_type >= BCH_COMPRESSION_NR)
-				return "invalid compression type";
-
-			if (bch2_csum_type_is_encryption(crc.csum_type)) {
-				if (nonce == UINT_MAX)
-					nonce = crc.offset + crc.nonce;
-				else if (nonce != crc.offset + crc.nonce)
-					return "incorrect nonce";
-			}
-			break;
-		case BCH_EXTENT_ENTRY_stripe_ptr:
-			break;
-		}
-	}
-
-	return NULL;
+	return bch2_bkey_ptrs_invalid(c, k);
 }
 
 void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b,
@@ -1335,13 +1316,7 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b,
 void bch2_extent_to_text(struct printbuf *out, struct bch_fs *c,
 			 struct bkey_s_c k)
 {
-	const char *invalid;
-
-	bkey_ptrs_to_text(out, c, k);
-
-	invalid = bch2_extent_invalid(c, k);
-	if (invalid)
-		pr_buf(out, " invalid: %s", invalid);
+	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
 static void bch2_extent_crc_init(union bch_extent_crc *crc,

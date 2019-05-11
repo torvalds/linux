@@ -114,7 +114,7 @@ const char *bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	    bkey_val_u64s(k.k) < stripe_val_u64s(s))
 		return "incorrect value size";
 
-	return NULL;
+	return bch2_bkey_ptrs_invalid(c, k);
 }
 
 void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
@@ -135,6 +135,8 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 		pr_buf(out, " %u:%llu:%u", s->ptrs[i].dev,
 		       (u64) s->ptrs[i].offset,
 		       stripe_blockcount_get(s, i));
+
+	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
 static int ptr_matches_stripe(struct bch_fs *c,

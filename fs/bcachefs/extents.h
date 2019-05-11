@@ -359,6 +359,10 @@ int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 			       struct bch_io_failures *,
 			       struct extent_ptr_decoded *);
 
+void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
+			    struct bkey_s_c);
+const char *bch2_bkey_ptrs_invalid(const struct bch_fs *, struct bkey_s_c);
+
 /* bch_btree_ptr: */
 
 const char *bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c);

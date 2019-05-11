@@ -842,4 +842,9 @@ static inline s64 bch2_current_time(struct bch_fs *c)
 	return timespec_to_bch2_time(c, now);
 }
 
+static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
+{
+	return dev < c->sb.nr_devices && c->devs[dev];
+}
+
 #endif /* _BCACHEFS_H */
