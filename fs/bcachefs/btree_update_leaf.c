@@ -955,20 +955,6 @@ struct btree_insert_entry *bch2_trans_update(struct btree_trans *trans,
 	return i;
 }
 
-int bch2_btree_delete_at(struct btree_trans *trans,
-			 struct btree_iter *iter, unsigned flags)
-{
-	struct bkey_i k;
-
-	bkey_init(&k.k);
-	k.k.p = iter->pos;
-
-	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &k));
-	return bch2_trans_commit(trans, NULL, NULL,
-				 BTREE_INSERT_NOFAIL|
-				 BTREE_INSERT_USE_RESERVE|flags);
-}
-
 /**
  * bch2_btree_insert - insert keys into the extent btree
  * @c:			pointer to struct bch_fs
@@ -998,30 +984,17 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 	return ret;
 }
 
-/*
- * bch_btree_delete_range - delete everything within a given range
- *
- * Range is a half open interval - [start, end)
- */
-int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
-			    struct bpos start, struct bpos end,
-			    u64 *journal_seq)
+int bch2_btree_delete_at_range(struct btree_trans *trans,
+			       struct btree_iter *iter,
+			       struct bpos end,
+			       u64 *journal_seq)
 {
-	struct btree_trans trans;
-	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = 0;
-
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
-
-	iter = bch2_trans_get_iter(&trans, id, start, BTREE_ITER_INTENT);
-
+retry:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(iter->pos, end) < 0) {
-		unsigned max_sectors = KEY_SIZE_MAX & (~0 << c->block_bits);
-		/* really shouldn't be using a bare, unpadded bkey_i */
 		struct bkey_i delete;
 
 		bkey_init(&delete.k);
@@ -1039,26 +1012,69 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 		delete.k.p = iter->pos;
 
 		if (iter->flags & BTREE_ITER_IS_EXTENTS) {
+			unsigned max_sectors =
+				KEY_SIZE_MAX & (~0 << trans->c->block_bits);
+
 			/* create the biggest key we can */
 			bch2_key_resize(&delete.k, max_sectors);
 			bch2_cut_back(end, &delete.k);
 			bch2_extent_trim_atomic(&delete, iter);
 		}
 
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &delete));
-
-		ret = bch2_trans_commit(&trans, NULL, journal_seq,
+		bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &delete));
+		ret = bch2_trans_commit(trans, NULL, journal_seq,
 					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL);
-		if (ret == -EINTR)
-			ret = 0;
 		if (ret)
 			break;
 
-		bch2_trans_cond_resched(&trans);
+		bch2_trans_cond_resched(trans);
 	}
 
-	bch2_trans_exit(&trans);
+	if (ret == -EINTR) {
+		ret = 0;
+		goto retry;
+	}
+
+	return ret;
+
+}
+
+int bch2_btree_delete_at(struct btree_trans *trans,
+			 struct btree_iter *iter, unsigned flags)
+{
+	struct bkey_i k;
+
+	bkey_init(&k.k);
+	k.k.p = iter->pos;
+
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &k));
+	return bch2_trans_commit(trans, NULL, NULL,
+				 BTREE_INSERT_NOFAIL|
+				 BTREE_INSERT_USE_RESERVE|flags);
+}
+
+/*
+ * bch_btree_delete_range - delete everything within a given range
+ *
+ * Range is a half open interval - [start, end)
+ */
+int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
+			    struct bpos start, struct bpos end,
+			    u64 *journal_seq)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	int ret = 0;
+
+	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
+
+	iter = bch2_trans_get_iter(&trans, id, start, BTREE_ITER_INTENT);
+
+	ret = bch2_btree_delete_at_range(&trans, iter, end, journal_seq);
+	ret = bch2_trans_exit(&trans) ?: ret;
+
 	BUG_ON(ret == -EINTR);
 	return ret;
 }

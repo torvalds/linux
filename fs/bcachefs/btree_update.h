@@ -106,6 +106,8 @@ int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
 int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
 		     struct disk_reservation *, u64 *, int flags);
 
+int bch2_btree_delete_at_range(struct btree_trans *, struct btree_iter *,
+			       struct bpos, u64 *);
 int bch2_btree_delete_range(struct bch_fs *, enum btree_id,
 			    struct bpos, struct bpos, u64 *);
 
