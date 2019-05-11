@@ -887,7 +887,7 @@ mt76x02_dfs_set_domain(struct mt76x02_dev *dev,
 
 		dev->ed_monitor = dev->ed_monitor_enabled &&
 				  region == NL80211_DFS_ETSI;
-		mt76x02_edcca_init(dev, true);
+		mt76x02_edcca_init(dev);
 
 		dfs_pd->region = region;
 		mt76x02_dfs_init_params(dev);

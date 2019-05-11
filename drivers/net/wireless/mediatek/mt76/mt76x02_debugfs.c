@@ -125,7 +125,7 @@ mt76_edcca_set(void *data, u64 val)
 	dev->ed_monitor_enabled = !!val;
 	dev->ed_monitor = dev->ed_monitor_enabled &&
 			  region == NL80211_DFS_ETSI;
-	mt76x02_edcca_init(dev, true);
+	mt76x02_edcca_init(dev);
 
 	return 0;
 }

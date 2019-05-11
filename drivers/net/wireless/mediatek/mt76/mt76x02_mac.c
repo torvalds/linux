@@ -945,12 +945,12 @@ mt76x02_edcca_tx_enable(struct mt76x02_dev *dev, bool enable)
 	dev->ed_tx_blocked = !enable;
 }
 
-void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable)
+void mt76x02_edcca_init(struct mt76x02_dev *dev)
 {
 	dev->ed_trigger = 0;
 	dev->ed_silent = 0;
 
-	if (dev->ed_monitor && enable) {
+	if (dev->ed_monitor) {
 		struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 		u8 ed_th = chan->band == NL80211_BAND_5GHZ ? 0x0e : 0x20;
 
