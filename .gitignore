@@ -81,12 +81,14 @@ modules.builtin
 /tar-install/
 
 #
-# git files that we don't want to ignore even if they are dot-files
+# We don't want to ignore the following even if they are dot-files
 #
+!.clang-format
+!.cocciconfig
+!.get_maintainer.ignore
+!.gitattributes
 !.gitignore
 !.mailmap
-!.cocciconfig
-!.clang-format
 
 #
 # Generated include files
