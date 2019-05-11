@@ -294,10 +294,16 @@ void mt76x2_phy_calibrate(struct work_struct *work)
 	struct mt76x02_dev *dev;
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
+
+	mutex_lock(&dev->mt76.mutex);
+
 	mt76x2_phy_channel_calibrate(dev, false);
 	mt76x2_phy_tssi_compensate(dev);
 	mt76x2_phy_temp_compensate(dev);
 	mt76x2_phy_update_channel_gain(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
+
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 }

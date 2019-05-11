@@ -122,10 +122,14 @@ mt76_edcca_set(void *data, u64 val)
 	struct mt76x02_dev *dev = data;
 	enum nl80211_dfs_regions region = dev->dfs_pd.region;
 
+	mutex_lock(&dev->mt76.mutex);
+
 	dev->ed_monitor_enabled = !!val;
 	dev->ed_monitor = dev->ed_monitor_enabled &&
 			  region == NL80211_DFS_ETSI;
 	mt76x02_edcca_init(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
