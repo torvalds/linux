@@ -329,9 +329,8 @@ struct io_kiocb {
 #define REQ_F_IOPOLL_COMPLETED	2	/* polled IO has completed */
 #define REQ_F_FIXED_FILE	4	/* ctx owns file */
 #define REQ_F_SEQ_PREV		8	/* sequential with previous */
-#define REQ_F_PREPPED		16	/* prep already done */
-#define REQ_F_IO_DRAIN		32	/* drain existing IO first */
-#define REQ_F_IO_DRAINED	64	/* drain done */
+#define REQ_F_IO_DRAIN		16	/* drain existing IO first */
+#define REQ_F_IO_DRAINED	32	/* drain done */
 	u64			user_data;
 	u32			error;	/* iopoll result from callback */
 	u32			sequence;
@@ -896,9 +895,6 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 
 	if (!req->file)
 		return -EBADF;
-	/* For -EAGAIN retry, everything is already prepped */
-	if (req->flags & REQ_F_PREPPED)
-		return 0;
 
 	if (force_nonblock && !io_file_supports_async(req->file))
 		force_nonblock = false;
@@ -941,7 +937,6 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 			return -EINVAL;
 		kiocb->ki_complete = io_complete_rw;
 	}
-	req->flags |= REQ_F_PREPPED;
 	return 0;
 }
 
@@ -1227,16 +1222,12 @@ static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (!req->file)
 		return -EBADF;
-	/* Prep already done (EAGAIN retry) */
-	if (req->flags & REQ_F_PREPPED)
-		return 0;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
 
-	req->flags |= REQ_F_PREPPED;
 	return 0;
 }
 
@@ -1277,16 +1268,12 @@ static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (!req->file)
 		return -EBADF;
-	/* Prep already done (EAGAIN retry) */
-	if (req->flags & REQ_F_PREPPED)
-		return 0;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
 
-	req->flags |= REQ_F_PREPPED;
 	return ret;
 }
 
