@@ -48,11 +48,12 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	int err;
 
 	cancel_delayed_work_sync(&dev->cal_work);
+	dev->beacon_ops->pre_tbtt_enable(dev, false);
+
+	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	mt76_set_channel(&dev->mt76);
-
-	dev->beacon_ops->pre_tbtt_enable(dev, false);
 
 	mt76x2_mac_stop(dev, false);
 
@@ -60,9 +61,10 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 
 	mt76x2_mac_resume(dev);
 
-	dev->beacon_ops->pre_tbtt_enable(dev, true);
-
 	clear_bit(MT76_RESET, &dev->mt76.state);
+	mutex_unlock(&dev->mt76.mutex);
+
+	dev->beacon_ops->pre_tbtt_enable(dev, true);
 	mt76_txq_schedule_all(&dev->mt76);
 
 	return err;
@@ -84,12 +86,6 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 		mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ieee80211_stop_queues(hw);
-		err = mt76x2u_set_channel(dev, &hw->conf.chandef);
-		ieee80211_wake_queues(hw);
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		dev->mt76.txpower_conf = hw->conf.power_level * 2;
 
@@ -101,6 +97,12 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	mutex_unlock(&dev->mt76.mutex);
+
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		ieee80211_stop_queues(hw);
+		err = mt76x2u_set_channel(dev, &hw->conf.chandef);
+		ieee80211_wake_queues(hw);
+	}
 
 	return err;
 }
