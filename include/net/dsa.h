@@ -105,15 +105,6 @@ struct __dsa_skb_cb {
 #define DSA_SKB_CB_PRIV(skb)			\
 	((void *)(skb)->cb + offsetof(struct __dsa_skb_cb, priv))
 
-#define DSA_SKB_CB_CLONE(_clone, _skb)		\
-	{					\
-		struct sk_buff *clone = _clone;	\
-		struct sk_buff *skb = _skb;	\
-						\
-		DSA_SKB_CB_COPY(clone, skb);	\
-		DSA_SKB_CB(skb)->clone = clone; \
-	}
-
 struct dsa_switch_tree {
 	struct list_head	list;
 
