@@ -240,16 +240,43 @@ static const struct super_operations simple_super_operations = {
 static int pseudo_fs_get_tree(struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = fc->fs_private;
-	struct dentry *root;
+	struct super_block *s;
+	struct inode *root;
 
-	root = mount_pseudo_xattr(fc->fs_type,
-				  ctx->ops, ctx->xattr,
-			          ctx->dops, ctx->magic);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
+	s = sget_userns(fc->fs_type, NULL, set_anon_super, SB_KERNMOUNT|SB_NOUSER,
+			&init_user_ns, NULL);
+	if (IS_ERR(s))
+		return PTR_ERR(s);
 
-	fc->root = root;
+	s->s_maxbytes = MAX_LFS_FILESIZE;
+	s->s_blocksize = PAGE_SIZE;
+	s->s_blocksize_bits = PAGE_SHIFT;
+	s->s_magic = ctx->magic;
+	s->s_op = ctx->ops ?: &simple_super_operations;
+	s->s_xattr = ctx->xattr;
+	s->s_time_gran = 1;
+	root = new_inode(s);
+	if (!root)
+		goto Enomem;
+	/*
+	 * since this is the first inode, make it number 1. New inodes created
+	 * after this must take care not to collide with it (by passing
+	 * max_reserved of 1 to iunique).
+	 */
+	root->i_ino = 1;
+	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
+	root->i_atime = root->i_mtime = root->i_ctime = current_time(root);
+	s->s_root = d_make_root(root);
+	if (!s->s_root)
+		goto Enomem;
+	s->s_d_op = ctx->dops;
+	s->s_flags |= SB_ACTIVE;
+	fc->root = dget(s->s_root);
 	return 0;
+
+Enomem:
+	deactivate_locked_super(s);
+	return -ENOMEM;
 }
 
 static void pseudo_fs_free(struct fs_context *fc)
@@ -280,53 +307,6 @@ struct pseudo_fs_context *init_pseudo(struct fs_context *fc,
 	return ctx;
 }
 EXPORT_SYMBOL(init_pseudo);
-
-/*
- * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
- * will never be mountable)
- */
-struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type,
-	const struct super_operations *ops, const struct xattr_handler **xattr,
-	const struct dentry_operations *dops, unsigned long magic)
-{
-	struct super_block *s;
-	struct inode *root;
-
-	s = sget_userns(fs_type, NULL, set_anon_super, SB_KERNMOUNT|SB_NOUSER,
-			&init_user_ns, NULL);
-	if (IS_ERR(s))
-		return ERR_CAST(s);
-
-	s->s_maxbytes = MAX_LFS_FILESIZE;
-	s->s_blocksize = PAGE_SIZE;
-	s->s_blocksize_bits = PAGE_SHIFT;
-	s->s_magic = magic;
-	s->s_op = ops ? ops : &simple_super_operations;
-	s->s_xattr = xattr;
-	s->s_time_gran = 1;
-	root = new_inode(s);
-	if (!root)
-		goto Enomem;
-	/*
-	 * since this is the first inode, make it number 1. New inodes created
-	 * after this must take care not to collide with it (by passing
-	 * max_reserved of 1 to iunique).
-	 */
-	root->i_ino = 1;
-	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
-	root->i_atime = root->i_mtime = root->i_ctime = current_time(root);
-	s->s_root = d_make_root(root);
-	if (!s->s_root)
-		goto Enomem;
-	s->s_d_op = dops;
-	s->s_flags |= SB_ACTIVE;
-	return dget(s->s_root);
-
-Enomem:
-	deactivate_locked_super(s);
-	return ERR_PTR(-ENOMEM);
-}
-EXPORT_SYMBOL(mount_pseudo_xattr);
 
 int simple_open(struct inode *inode, struct file *file)
 {
