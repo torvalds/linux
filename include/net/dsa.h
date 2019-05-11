@@ -99,9 +99,6 @@ struct __dsa_skb_cb {
 
 #define DSA_SKB_CB(skb) ((struct dsa_skb_cb *)((skb)->cb))
 
-#define DSA_SKB_CB_COPY(nskb, skb)		\
-	{ *__DSA_SKB_CB(nskb) = *__DSA_SKB_CB(skb); }
-
 #define DSA_SKB_CB_PRIV(skb)			\
 	((void *)(skb)->cb + offsetof(struct __dsa_skb_cb, priv))
 
