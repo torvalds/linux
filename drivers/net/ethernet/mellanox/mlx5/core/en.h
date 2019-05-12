@@ -483,8 +483,6 @@ struct mlx5e_xdp_mpwqe {
 	struct mlx5e_tx_wqe *wqe;
 	u8                   ds_count;
 	u8                   pkt_count;
-	u8                   max_ds_count;
-	u8                   complete;
 	u8                   inline_on;
 };
 
