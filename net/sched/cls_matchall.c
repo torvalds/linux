@@ -308,6 +308,7 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
 			return err;
 		}
+		return 0;
 	}
 
 	err = cb(TC_SETUP_CLSMATCHALL, &cls_mall, cb_priv);

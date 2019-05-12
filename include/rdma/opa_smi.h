@@ -98,7 +98,7 @@ struct opa_smp {
 
 struct opa_node_description {
 	u8 data[64];
-} __attribute__ ((packed));
+} __packed;
 
 struct opa_node_info {
 	u8      base_version;
@@ -114,7 +114,7 @@ struct opa_node_info {
 	__be32  revision;
 	u8      local_port_num;
 	u8      vendor_id[3];   /* network byte order */
-} __attribute__ ((packed));
+} __packed;
 
 #define OPA_PARTITION_TABLE_BLK_SIZE 32
 

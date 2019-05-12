@@ -46,6 +46,7 @@ struct nlmclnt_initdata {
 	int			noresvport;
 	struct net		*net;
 	const struct nlmclnt_operations	*nlmclnt_ops;
+	const struct cred	*cred;
 };
 
 /*

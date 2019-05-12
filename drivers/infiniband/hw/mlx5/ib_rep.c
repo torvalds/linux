@@ -7,68 +7,58 @@
 #include "ib_rep.h"
 #include "srq.h"
 
-static const struct mlx5_ib_profile vf_rep_profile = {
-	STAGE_CREATE(MLX5_IB_STAGE_INIT,
-		     mlx5_ib_stage_init_init,
-		     mlx5_ib_stage_init_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_FLOW_DB,
-		     mlx5_ib_stage_rep_flow_db_init,
-		     NULL),
-	STAGE_CREATE(MLX5_IB_STAGE_CAPS,
-		     mlx5_ib_stage_caps_init,
-		     NULL),
-	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
-		     mlx5_ib_stage_rep_non_default_cb,
-		     NULL),
-	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
-		     mlx5_ib_stage_rep_roce_init,
-		     mlx5_ib_stage_rep_roce_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_SRQ,
-		     mlx5_init_srq_table,
-		     mlx5_cleanup_srq_table),
-	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_RESOURCES,
-		     mlx5_ib_stage_dev_res_init,
-		     mlx5_ib_stage_dev_res_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
-		     mlx5_ib_stage_counters_init,
-		     mlx5_ib_stage_counters_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_BFREG,
-		     mlx5_ib_stage_bfrag_init,
-		     mlx5_ib_stage_bfrag_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_PRE_IB_REG_UMR,
-		     NULL,
-		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
-		     mlx5_ib_stage_ib_reg_init,
-		     mlx5_ib_stage_ib_reg_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_POST_IB_REG_UMR,
-		     mlx5_ib_stage_post_ib_reg_umr_init,
-		     NULL),
-};
+static int
+mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5_ib_dev *ibdev;
+	int vport_index;
+
+	ibdev = mlx5_ib_get_uplink_ibdev(dev->priv.eswitch);
+	vport_index = ibdev->free_port++;
+
+	ibdev->port[vport_index].rep = rep;
+	write_lock(&ibdev->port[vport_index].roce.netdev_lock);
+	ibdev->port[vport_index].roce.netdev =
+		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
+	write_unlock(&ibdev->port[vport_index].roce.netdev_lock);
+
+	return 0;
+}
 
 static int
 mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
+	int num_ports = MLX5_TOTAL_VPORTS(dev);
 	const struct mlx5_ib_profile *profile;
 	struct mlx5_ib_dev *ibdev;
+	int vport_index;
 
 	if (rep->vport == MLX5_VPORT_UPLINK)
 		profile = &uplink_rep_profile;
 	else
-		profile = &vf_rep_profile;
+		return mlx5_ib_set_vport_rep(dev, rep);
 
 	ibdev = ib_alloc_device(mlx5_ib_dev, ib_dev);
 	if (!ibdev)
 		return -ENOMEM;
 
-	ibdev->rep = rep;
-	ibdev->mdev = dev;
-	ibdev->num_ports = max(MLX5_CAP_GEN(dev, num_ports),
-			       MLX5_CAP_GEN(dev, num_vhca_ports));
-	if (!__mlx5_ib_add(ibdev, profile)) {
+	ibdev->port = kcalloc(num_ports, sizeof(*ibdev->port),
+			      GFP_KERNEL);
+	if (!ibdev->port) {
 		ib_dealloc_device(&ibdev->ib_dev);
-		return -EINVAL;
+		return -ENOMEM;
 	}
+
+	ibdev->is_rep = true;
+	vport_index = ibdev->free_port++;
+	ibdev->port[vport_index].rep = rep;
+	ibdev->port[vport_index].roce.netdev =
+		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
+	ibdev->mdev = dev;
+	ibdev->num_ports = num_ports;
+
+	if (!__mlx5_ib_add(ibdev, profile))
+		return -EINVAL;
 
 	rep->rep_if[REP_IB].priv = ibdev;
 
@@ -80,13 +70,13 @@ mlx5_ib_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 {
 	struct mlx5_ib_dev *dev;
 
-	if (!rep->rep_if[REP_IB].priv)
+	if (!rep->rep_if[REP_IB].priv ||
+	    rep->vport != MLX5_VPORT_UPLINK)
 		return;
 
 	dev = mlx5_ib_rep_to_dev(rep);
 	__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
 	rep->rep_if[REP_IB].priv = NULL;
-	ib_dealloc_device(&dev->ib_dev);
 }
 
 static void *mlx5_ib_vport_get_proto_dev(struct mlx5_eswitch_rep *rep)
@@ -140,22 +130,21 @@ struct mlx5_eswitch_rep *mlx5_ib_vport_rep(struct mlx5_eswitch *esw, int vport)
 	return mlx5_eswitch_vport_rep(esw, vport);
 }
 
-int create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
-			      struct mlx5_ib_sq *sq)
+struct mlx5_flow_handle *create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
+						   struct mlx5_ib_sq *sq,
+						   u16 port)
 {
-	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
+	struct mlx5_eswitch_rep *rep;
 
-	if (!dev->rep)
-		return 0;
+	if (!dev->is_rep || !port)
+		return NULL;
 
-	flow_rule =
-		mlx5_eswitch_add_send_to_vport_rule(esw,
-						    dev->rep->vport,
-						    sq->base.mqp.qpn);
-	if (IS_ERR(flow_rule))
-		return PTR_ERR(flow_rule);
-	sq->flow_rule = flow_rule;
+	if (!dev->port[port - 1].rep)
+		return ERR_PTR(-EINVAL);
 
-	return 0;
+	rep = dev->port[port - 1].rep;
+
+	return mlx5_eswitch_add_send_to_vport_rule(esw, rep->vport,
+						   sq->base.mqp.qpn);
 }

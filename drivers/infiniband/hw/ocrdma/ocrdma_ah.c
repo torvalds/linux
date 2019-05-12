@@ -156,36 +156,33 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	return status;
 }
 
-struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			       u32 flags, struct ib_udata *udata)
+int ocrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
+		     struct ib_udata *udata)
 {
 	u32 *ahid_addr;
 	int status;
-	struct ocrdma_ah *ah;
+	struct ocrdma_ah *ah = get_ocrdma_ah(ibah);
 	bool isvlan = false;
 	u16 vlan_tag = 0xffff;
 	const struct ib_gid_attr *sgid_attr;
-	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
-	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
+	struct ocrdma_pd *pd = get_ocrdma_pd(ibah->pd);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibah->device);
 
 	if ((attr->type != RDMA_AH_ATTR_TYPE_ROCE) ||
 	    !(rdma_ah_get_ah_flags(attr) & IB_AH_GRH))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
 		ocrdma_init_service_level(dev);
 
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
+	sgid_attr = attr->grh.sgid_attr;
+	status = rdma_read_gid_l2_fields(sgid_attr, &vlan_tag, NULL);
+	if (status)
+		return status;
 
 	status = ocrdma_alloc_av(dev, ah);
 	if (status)
 		goto av_err;
-
-	sgid_attr = attr->grh.sgid_attr;
-	if (is_vlan_dev(sgid_attr->ndev))
-		vlan_tag = vlan_dev_vlan_id(sgid_attr->ndev);
 
 	/* Get network header type for this GID */
 	ah->hdr_type = rdma_gid_attr_network_type(sgid_attr);
@@ -210,23 +207,20 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 				       OCRDMA_AH_VLAN_VALID_SHIFT);
 	}
 
-	return &ah->ibah;
+	return 0;
 
 av_conf_err:
 	ocrdma_free_av(dev, ah);
 av_err:
-	kfree(ah);
-	return ERR_PTR(status);
+	return status;
 }
 
-int ocrdma_destroy_ah(struct ib_ah *ibah, u32 flags)
+void ocrdma_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct ocrdma_ah *ah = get_ocrdma_ah(ibah);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibah->device);
 
 	ocrdma_free_av(dev, ah);
-	kfree(ah);
-	return 0;
 }
 
 int ocrdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)

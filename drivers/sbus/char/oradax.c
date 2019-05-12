@@ -30,7 +30,7 @@
  * the recommended way for applications to use the coprocessor, and
  * the driver interface is not intended for general use.
  *
- * See Documentation/sparc/oradax/oracle-dax.txt for more details.
+ * See Documentation/sparc/oradax/oracle-dax.rst for more details.
  */
 
 #include <linux/uaccess.h>

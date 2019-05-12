@@ -1229,7 +1229,7 @@ static inline void device_lock_assert(struct device *dev)
 
 static inline struct device_node *dev_of_node(struct device *dev)
 {
-	if (!IS_ENABLED(CONFIG_OF))
+	if (!IS_ENABLED(CONFIG_OF) || !dev)
 		return NULL;
 	return dev->of_node;
 }

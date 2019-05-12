@@ -2088,6 +2088,10 @@ void SPEFloatingPointException(struct pt_regs *regs)
 	int code = FPE_FLTUNK;
 	int err;
 
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+
 	flush_spe_to_thread(current);
 
 	spefscr = current->thread.spefscr;
@@ -2132,6 +2136,10 @@ void SPEFloatingPointRoundException(struct pt_regs *regs)
 {
 	extern int speround_handler(struct pt_regs *regs);
 	int err;
+
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
 
 	preempt_disable();
 	if (regs->msr & MSR_SPE)
