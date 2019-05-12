@@ -541,14 +541,11 @@ static int tls_device_push_pending_record(struct sock *sk, int flags)
 
 void tls_device_write_space(struct sock *sk, struct tls_context *ctx)
 {
-	int rc = 0;
-
 	if (!sk->sk_write_pending && tls_is_partially_sent_record(ctx)) {
 		gfp_t sk_allocation = sk->sk_allocation;
 
 		sk->sk_allocation = GFP_ATOMIC;
-		rc = tls_push_partial_record(sk, ctx,
-					     MSG_DONTWAIT | MSG_NOSIGNAL);
+		tls_push_partial_record(sk, ctx, MSG_DONTWAIT | MSG_NOSIGNAL);
 		sk->sk_allocation = sk_allocation;
 	}
 }
@@ -1036,4 +1033,5 @@ void __exit tls_device_cleanup(void)
 {
 	unregister_netdevice_notifier(&tls_dev_notifier);
 	flush_work(&tls_device_gc_work);
+	clean_acked_data_flush();
 }

@@ -306,6 +306,8 @@ extern int book3e_htw_mode;
 
 #define mmu_cleanup_all NULL
 
+#define MAX_PHYSMEM_BITS        44
+
 #endif
 
 #endif /* !__ASSEMBLY__ */

@@ -1235,7 +1235,7 @@ static void gswip_port_fast_age(struct dsa_switch *ds, int port)
 
 		err = gswip_pce_table_entry_read(priv, &mac_bridge);
 		if (err) {
-			dev_err(priv->dev, "failed to read mac brigde: %d\n",
+			dev_err(priv->dev, "failed to read mac bridge: %d\n",
 				err);
 			return;
 		}
@@ -1252,7 +1252,7 @@ static void gswip_port_fast_age(struct dsa_switch *ds, int port)
 		mac_bridge.valid = false;
 		err = gswip_pce_table_entry_write(priv, &mac_bridge);
 		if (err) {
-			dev_err(priv->dev, "failed to write mac brigde: %d\n",
+			dev_err(priv->dev, "failed to write mac bridge: %d\n",
 				err);
 			return;
 		}
@@ -1328,7 +1328,7 @@ static int gswip_port_fdb(struct dsa_switch *ds, int port,
 
 	err = gswip_pce_table_entry_write(priv, &mac_bridge);
 	if (err)
-		dev_err(priv->dev, "failed to write mac brigde: %d\n", err);
+		dev_err(priv->dev, "failed to write mac bridge: %d\n", err);
 
 	return err;
 }
@@ -1360,7 +1360,7 @@ static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
 
 		err = gswip_pce_table_entry_read(priv, &mac_bridge);
 		if (err) {
-			dev_err(priv->dev, "failed to write mac brigde: %d\n",
+			dev_err(priv->dev, "failed to write mac bridge: %d\n",
 				err);
 			return err;
 		}

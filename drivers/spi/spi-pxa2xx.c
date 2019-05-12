@@ -1498,12 +1498,7 @@ static int pxa2xx_spi_get_port_id(struct acpi_device *adev)
 
 static bool pxa2xx_spi_idma_filter(struct dma_chan *chan, void *param)
 {
-	struct device *dev = param;
-
-	if (dev != chan->device->dev->parent)
-		return false;
-
-	return true;
+	return param == chan->device->dev;
 }
 
 #endif /* CONFIG_PCI */

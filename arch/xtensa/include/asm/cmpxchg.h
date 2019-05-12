@@ -23,7 +23,24 @@
 static inline unsigned long
 __cmpxchg_u32(volatile int *p, int old, int new)
 {
-#if XCHAL_HAVE_S32C1I
+#if XCHAL_HAVE_EXCLUSIVE
+	unsigned long tmp, result;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %0, %3\n"
+			"       bne     %0, %4, 2f\n"
+			"       mov     %1, %2\n"
+			"       s32ex   %1, %3\n"
+			"       getex   %1\n"
+			"       beqz    %1, 1b\n"
+			"2:\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (new), "a" (p), "a" (old)
+			: "memory"
+			);
+
+	return result;
+#elif XCHAL_HAVE_S32C1I
 	__asm__ __volatile__(
 			"       wsr     %2, scompare1\n"
 			"       s32c1i  %0, %1, 0\n"
@@ -108,7 +125,22 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 
 static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 {
-#if XCHAL_HAVE_S32C1I
+#if XCHAL_HAVE_EXCLUSIVE
+	unsigned long tmp, result;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %0, %3\n"
+			"       mov     %1, %2\n"
+			"       s32ex   %1, %3\n"
+			"       getex   %1\n"
+			"       beqz    %1, 1b\n"
+			: "=&a" (result), "=&a" (tmp)
+			: "a" (val), "a" (m)
+			: "memory"
+			);
+
+	return result;
+#elif XCHAL_HAVE_S32C1I
 	unsigned long tmp, result;
 	__asm__ __volatile__(
 			"1:     l32i    %1, %2, 0\n"

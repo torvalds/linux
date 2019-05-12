@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/kref.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/workqueue.h>
 #include <uapi/linux/if_ether.h>
 #include <rdma/ib_pack.h>
@@ -183,8 +183,7 @@ static struct ib_client sa_client = {
 	.remove = ib_sa_remove_one
 };
 
-static DEFINE_SPINLOCK(idr_lock);
-static DEFINE_IDR(query_idr);
+static DEFINE_XARRAY_FLAGS(queries, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 
 static DEFINE_SPINLOCK(tid_lock);
 static u32 tid;
@@ -1180,14 +1179,14 @@ void ib_sa_cancel_query(int id, struct ib_sa_query *query)
 	struct ib_mad_agent *agent;
 	struct ib_mad_send_buf *mad_buf;
 
-	spin_lock_irqsave(&idr_lock, flags);
-	if (idr_find(&query_idr, id) != query) {
-		spin_unlock_irqrestore(&idr_lock, flags);
+	xa_lock_irqsave(&queries, flags);
+	if (xa_load(&queries, id) != query) {
+		xa_unlock_irqrestore(&queries, flags);
 		return;
 	}
 	agent = query->port->agent;
 	mad_buf = query->mad_buf;
-	spin_unlock_irqrestore(&idr_lock, flags);
+	xa_unlock_irqrestore(&queries, flags);
 
 	/*
 	 * If the query is still on the netlink request list, schedule
@@ -1363,21 +1362,14 @@ static void init_mad(struct ib_sa_query *query, struct ib_mad_agent *agent)
 static int send_mad(struct ib_sa_query *query, unsigned long timeout_ms,
 		    gfp_t gfp_mask)
 {
-	bool preload = gfpflags_allow_blocking(gfp_mask);
 	unsigned long flags;
 	int ret, id;
 
-	if (preload)
-		idr_preload(gfp_mask);
-	spin_lock_irqsave(&idr_lock, flags);
-
-	id = idr_alloc(&query_idr, query, 0, 0, GFP_NOWAIT);
-
-	spin_unlock_irqrestore(&idr_lock, flags);
-	if (preload)
-		idr_preload_end();
-	if (id < 0)
-		return id;
+	xa_lock_irqsave(&queries, flags);
+	ret = __xa_alloc(&queries, &id, query, xa_limit_32b, gfp_mask);
+	xa_unlock_irqrestore(&queries, flags);
+	if (ret < 0)
+		return ret;
 
 	query->mad_buf->timeout_ms  = timeout_ms;
 	query->mad_buf->context[0] = query;
@@ -1394,9 +1386,9 @@ static int send_mad(struct ib_sa_query *query, unsigned long timeout_ms,
 
 	ret = ib_post_send_mad(query->mad_buf, NULL);
 	if (ret) {
-		spin_lock_irqsave(&idr_lock, flags);
-		idr_remove(&query_idr, id);
-		spin_unlock_irqrestore(&idr_lock, flags);
+		xa_lock_irqsave(&queries, flags);
+		__xa_erase(&queries, id);
+		xa_unlock_irqrestore(&queries, flags);
 	}
 
 	/*
@@ -2188,9 +2180,9 @@ static void send_handler(struct ib_mad_agent *agent,
 			break;
 		}
 
-	spin_lock_irqsave(&idr_lock, flags);
-	idr_remove(&query_idr, query->id);
-	spin_unlock_irqrestore(&idr_lock, flags);
+	xa_lock_irqsave(&queries, flags);
+	__xa_erase(&queries, query->id);
+	xa_unlock_irqrestore(&queries, flags);
 
 	free_mad(query);
 	if (query->client)
@@ -2475,5 +2467,5 @@ void ib_sa_cleanup(void)
 	destroy_workqueue(ib_nl_wq);
 	mcast_cleanup();
 	ib_unregister_client(&sa_client);
-	idr_destroy(&query_idr);
+	WARN_ON(!xa_empty(&queries));
 }

@@ -63,6 +63,7 @@ _GLOBAL(load_fp_state)
 	REST_32FPVSRS(0, R4, R3)
 	blr
 EXPORT_SYMBOL(load_fp_state)
+_ASM_NOKPROBE_SYMBOL(load_fp_state); /* used by restore_math */
 
 /*
  * Store FP state into memory, including FPSCR

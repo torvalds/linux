@@ -254,6 +254,7 @@ enum pl08x_dma_chan_state {
  * @slave: whether this channel is a device (slave) or for memcpy
  * @signal: the physical DMA request signal which this channel is using
  * @mux_use: count of descriptors using this DMA request signal setting
+ * @waiting_at: time in jiffies when this channel moved to waiting state
  */
 struct pl08x_dma_chan {
 	struct virt_dma_chan vc;
@@ -267,6 +268,7 @@ struct pl08x_dma_chan {
 	bool slave;
 	int signal;
 	unsigned mux_use;
+	unsigned long waiting_at;
 };
 
 /**
@@ -875,6 +877,7 @@ static void pl08x_phy_alloc_and_start(struct pl08x_dma_chan *plchan)
 	if (!ch) {
 		dev_dbg(&pl08x->adev->dev, "no physical channel available for xfer on %s\n", plchan->name);
 		plchan->state = PL08X_CHAN_WAITING;
+		plchan->waiting_at = jiffies;
 		return;
 	}
 
@@ -913,22 +916,29 @@ static void pl08x_phy_free(struct pl08x_dma_chan *plchan)
 {
 	struct pl08x_driver_data *pl08x = plchan->host;
 	struct pl08x_dma_chan *p, *next;
-
+	unsigned long waiting_at;
  retry:
 	next = NULL;
+	waiting_at = jiffies;
 
-	/* Find a waiting virtual channel for the next transfer. */
+	/*
+	 * Find a waiting virtual channel for the next transfer.
+	 * To be fair, time when each channel reached waiting state is compared
+	 * to select channel that is waiting for the longest time.
+	 */
 	list_for_each_entry(p, &pl08x->memcpy.channels, vc.chan.device_node)
-		if (p->state == PL08X_CHAN_WAITING) {
+		if (p->state == PL08X_CHAN_WAITING &&
+		    p->waiting_at <= waiting_at) {
 			next = p;
-			break;
+			waiting_at = p->waiting_at;
 		}
 
 	if (!next && pl08x->has_slave) {
 		list_for_each_entry(p, &pl08x->slave.channels, vc.chan.device_node)
-			if (p->state == PL08X_CHAN_WAITING) {
+			if (p->state == PL08X_CHAN_WAITING &&
+			    p->waiting_at <= waiting_at) {
 				next = p;
-				break;
+				waiting_at = p->waiting_at;
 			}
 	}
 

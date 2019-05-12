@@ -74,3 +74,13 @@ config SECURITY_TOMOYO_ACTIVATION_TRIGGER
 	  You can override this setting via TOMOYO_trigger= kernel command line
 	  option. For example, if you pass init=/bin/systemd option, you may
 	  want to also pass TOMOYO_trigger=/bin/systemd option.
+
+config SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING
+	bool "Use insecure built-in settings for fuzzing tests."
+	default n
+	depends on SECURITY_TOMOYO
+	select SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
+	help
+	  Enabling this option forces minimal built-in policy and disables
+	  domain/program checks for run-time policy modifications. Please enable
+	  this option only if this kernel is built for doing fuzzing tests.

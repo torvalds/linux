@@ -68,6 +68,7 @@
 #include <asm/cputhreads.h>
 #include <asm/hw_irq.h>
 #include <asm/feature-fixups.h>
+#include <asm/kup.h>
 
 #include "setup.h"
 
@@ -331,6 +332,12 @@ void __init early_setup(unsigned long dt_ptr)
 	 */
 	configure_exceptions();
 
+	/*
+	 * Configure Kernel Userspace Protection. This needs to happen before
+	 * feature fixups for platforms that implement this using features.
+	 */
+	setup_kup();
+
 	/* Apply all the dynamic patching */
 	apply_feature_fixups();
 	setup_feature_keys();
@@ -382,6 +389,9 @@ void early_setup_secondary(void)
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu_secondary();
+
+	/* Perform any KUP setup that is per-cpu */
+	setup_kup();
 
 	/*
 	 * At this point, we can let interrupts switch to virtual mode

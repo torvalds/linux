@@ -4,8 +4,8 @@ config INFINIBAND_ISER
 	select SCSI_ISCSI_ATTRS
 	---help---
 	  Support for the iSCSI Extensions for RDMA (iSER) Protocol
-          over InfiniBand. This allows you to access storage devices
-          that speak iSCSI over iSER over InfiniBand.
+	  over InfiniBand. This allows you to access storage devices
+	  that speak iSCSI over iSER over InfiniBand.
 
 	  The iSER protocol is defined by IETF.
 	  See <http://www.ietf.org/rfc/rfc5046.txt>

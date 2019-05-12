@@ -412,8 +412,7 @@ static void vfio_bar_restore(struct vfio_pci_device *vdev)
 	if (pdev->is_virtfn)
 		return;
 
-	pr_info("%s: %s reset recovery - restoring bars\n",
-		__func__, dev_name(&pdev->dev));
+	pci_info(pdev, "%s: reset recovery - restoring BARs\n", __func__);
 
 	for (i = PCI_BASE_ADDRESS_0; i <= PCI_BASE_ADDRESS_5; i += 4, rbar++)
 		pci_user_write_config_dword(pdev, i, *rbar);
@@ -1298,8 +1297,8 @@ static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 		else
 			return PCI_SATA_SIZEOF_SHORT;
 	default:
-		pr_warn("%s: %s unknown length for pci cap 0x%x@0x%x\n",
-			dev_name(&pdev->dev), __func__, cap, pos);
+		pci_warn(pdev, "%s: unknown length for PCI cap %#x@%#x\n",
+			 __func__, cap, pos);
 	}
 
 	return 0;
@@ -1372,8 +1371,8 @@ static int vfio_ext_cap_len(struct vfio_pci_device *vdev, u16 ecap, u16 epos)
 		}
 		return PCI_TPH_BASE_SIZEOF;
 	default:
-		pr_warn("%s: %s unknown length for pci ecap 0x%x@0x%x\n",
-			dev_name(&pdev->dev), __func__, ecap, epos);
+		pci_warn(pdev, "%s: unknown length for PCI ecap %#x@%#x\n",
+			 __func__, ecap, epos);
 	}
 
 	return 0;
@@ -1474,8 +1473,8 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 		}
 
 		if (!len) {
-			pr_info("%s: %s hiding cap 0x%x\n",
-				__func__, dev_name(&pdev->dev), cap);
+			pci_info(pdev, "%s: hiding cap %#x@%#x\n", __func__,
+				 cap, pos);
 			*prev = next;
 			pos = next;
 			continue;
@@ -1486,9 +1485,8 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 			if (likely(map[pos + i] == PCI_CAP_ID_INVALID))
 				continue;
 
-			pr_warn("%s: %s pci config conflict @0x%x, was cap 0x%x now cap 0x%x\n",
-				__func__, dev_name(&pdev->dev),
-				pos + i, map[pos + i], cap);
+			pci_warn(pdev, "%s: PCI config conflict @%#x, was cap %#x now cap %#x\n",
+				 __func__, pos + i, map[pos + i], cap);
 		}
 
 		BUILD_BUG_ON(PCI_CAP_ID_MAX >= PCI_CAP_ID_INVALID_VIRT);
@@ -1549,8 +1547,8 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 		}
 
 		if (!len) {
-			pr_info("%s: %s hiding ecap 0x%x@0x%x\n",
-				__func__, dev_name(&pdev->dev), ecap, epos);
+			pci_info(pdev, "%s: hiding ecap %#x@%#x\n",
+				 __func__, ecap, epos);
 
 			/* If not the first in the chain, we can skip over it */
 			if (prev) {
@@ -1572,9 +1570,8 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 			if (likely(map[epos + i] == PCI_CAP_ID_INVALID))
 				continue;
 
-			pr_warn("%s: %s pci config conflict @0x%x, was ecap 0x%x now ecap 0x%x\n",
-				__func__, dev_name(&pdev->dev),
-				epos + i, map[epos + i], ecap);
+			pci_warn(pdev, "%s: PCI config conflict @%#x, was ecap %#x now ecap %#x\n",
+				 __func__, epos + i, map[epos + i], ecap);
 		}
 
 		/*

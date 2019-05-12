@@ -885,10 +885,14 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 		spin_lock(&inode->i_lock);
 		res = __nfs_find_lock_context(ctx);
 		if (res == NULL) {
-			list_add_tail_rcu(&new->list, &ctx->lock_context.list);
-			new->open_context = ctx;
-			res = new;
-			new = NULL;
+			new->open_context = get_nfs_open_context(ctx);
+			if (new->open_context) {
+				list_add_tail_rcu(&new->list,
+						&ctx->lock_context.list);
+				res = new;
+				new = NULL;
+			} else
+				res = ERR_PTR(-EBADF);
 		}
 		spin_unlock(&inode->i_lock);
 		kfree(new);
@@ -906,6 +910,7 @@ void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 		return;
 	list_del_rcu(&l_ctx->list);
 	spin_unlock(&inode->i_lock);
+	put_nfs_open_context(ctx);
 	kfree_rcu(l_ctx, rcu_head);
 }
 EXPORT_SYMBOL_GPL(nfs_put_lock_context);

@@ -1,15 +1,7 @@
-/* rtc-da9063.c - Real time clock device driver for DA9063
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Real time clock device driver for DA9063
  * Copyright (C) 2013-2015  Dialog Semiconductor Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -247,8 +239,8 @@ static int da9063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	da9063_data_to_tm(data, tm, rtc);
 
-	rtc_tm_to_time(tm, &tm_secs);
-	rtc_tm_to_time(&rtc->alarm_time, &al_secs);
+	tm_secs = rtc_tm_to_time64(tm);
+	al_secs = rtc_tm_to_time64(&rtc->alarm_time);
 
 	/* handle the rtc synchronisation delay */
 	if (rtc->rtc_sync == true && al_secs - tm_secs == 1)
@@ -472,10 +464,13 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, DA9063_DRVNAME_RTC,
-					   &da9063_rtc_ops, THIS_MODULE);
+	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc_dev))
 		return PTR_ERR(rtc->rtc_dev);
+
+	rtc->rtc_dev->ops = &da9063_rtc_ops;
+	rtc->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->rtc_dev->range_max = RTC_TIMESTAMP_END_2063;
 
 	da9063_data_to_tm(data, &rtc->alarm_time, rtc);
 	rtc->rtc_sync = false;
@@ -496,7 +491,7 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
 			irq_alarm, ret);
 
-	return ret;
+	return rtc_register_device(rtc->rtc_dev);
 }
 
 static struct platform_driver da9063_rtc_driver = {
