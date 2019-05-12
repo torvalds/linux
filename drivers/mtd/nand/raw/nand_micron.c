@@ -385,13 +385,13 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	if (!chip->parameters.onfi)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
-	if (chip->bits_per_cell != 1)
+	if (nanddev_bits_per_cell(&chip->base) != 1)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	/*
 	 * We only support on-die ECC of 4/512 or 8/512
 	 */
-	if  (chip->ecc_strength_ds != 4 && chip->ecc_strength_ds != 8)
+	if  (chip->base.eccreq.strength != 4 && chip->base.eccreq.strength != 8)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	/* 0x2 means on-die ECC is available. */
@@ -424,7 +424,7 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	/*
 	 * We only support on-die ECC of 4/512 or 8/512
 	 */
-	if  (chip->ecc_strength_ds != 4 && chip->ecc_strength_ds != 8)
+	if  (chip->base.eccreq.strength != 4 && chip->base.eccreq.strength != 8)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	return MICRON_ON_DIE_SUPPORTED;
@@ -448,7 +448,7 @@ static int micron_nand_init(struct nand_chip *chip)
 		goto err_free_manuf_data;
 
 	if (mtd->writesize == 2048)
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+		chip->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE;
 
 	ondie = micron_supports_on_die_ecc(chip);
 
@@ -479,7 +479,7 @@ static int micron_nand_init(struct nand_chip *chip)
 		 * That's not needed for 8-bit ECC, because the status expose
 		 * a better approximation of the number of bitflips in a page.
 		 */
-		if (chip->ecc_strength_ds == 4) {
+		if (chip->base.eccreq.strength == 4) {
 			micron->ecc.rawbuf = kmalloc(mtd->writesize +
 						     mtd->oobsize,
 						     GFP_KERNEL);
@@ -489,16 +489,16 @@ static int micron_nand_init(struct nand_chip *chip)
 			}
 		}
 
-		if (chip->ecc_strength_ds == 4)
+		if (chip->base.eccreq.strength == 4)
 			mtd_set_ooblayout(mtd,
 					  &micron_nand_on_die_4_ooblayout_ops);
 		else
 			mtd_set_ooblayout(mtd,
 					  &micron_nand_on_die_8_ooblayout_ops);
 
-		chip->ecc.bytes = chip->ecc_strength_ds * 2;
+		chip->ecc.bytes = chip->base.eccreq.strength * 2;
 		chip->ecc.size = 512;
-		chip->ecc.strength = chip->ecc_strength_ds;
+		chip->ecc.strength = chip->base.eccreq.strength;
 		chip->ecc.algo = NAND_ECC_BCH;
 		chip->ecc.read_page = micron_nand_read_page_on_die_ecc;
 		chip->ecc.write_page = micron_nand_write_page_on_die_ecc;
