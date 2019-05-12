@@ -33,6 +33,7 @@ TORTURE_KMAKE_ARG=""
 TORTURE_QEMU_MEM=512
 TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
+TORTURE_TRUST_MAKE=""
 resdir=""
 configs=""
 cpus=0
@@ -63,6 +64,7 @@ usage () {
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --results absolute-pathname"
 	echo "       --torture rcu"
+	echo "       --trust-make"
 	exit 1
 }
 
@@ -174,6 +176,9 @@ do
 			# it after specifying rcuperf.  (But why?)
 			jitter=0
 		fi
+		;;
+	--trust-make)
+		TORTURE_TRUST_MAKE="y"
 		;;
 	*)
 		echo Unknown argument $1
@@ -300,6 +305,7 @@ TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC"; export TORTURE_QEMU_MAC
 TORTURE_QEMU_MEM="$TORTURE_QEMU_MEM"; export TORTURE_QEMU_MEM
 TORTURE_SHUTDOWN_GRACE="$TORTURE_SHUTDOWN_GRACE"; export TORTURE_SHUTDOWN_GRACE
 TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
+TORTURE_TRUST_MAKE="$TORTURE_TRUST_MAKE"; export TORTURE_TRUST_MAKE
 if ! test -e $resdir
 then
 	mkdir -p "$resdir" || :
