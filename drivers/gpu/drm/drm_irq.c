@@ -217,8 +217,6 @@ EXPORT_SYMBOL(drm_irq_uninstall);
 int drm_legacy_irq_control(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
-	struct drm_file *file_priv)
-{
 	struct drm_control *ctl = data;
 	int ret = 0, irq;
 
