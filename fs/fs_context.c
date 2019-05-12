@@ -662,6 +662,11 @@ static int legacy_get_tree(struct fs_context *fc)
 	struct super_block *sb;
 	struct dentry *root;
 
+	if (!(fc->sb_flags & (SB_KERNMOUNT|SB_SUBMOUNT))) {
+		if (!mount_capable(fc->fs_type, current_user_ns()))
+			return -EPERM;
+	}
+
 	root = fc->fs_type->mount(fc->fs_type, fc->sb_flags,
 				      fc->source, ctx->legacy_data);
 	if (IS_ERR(root))

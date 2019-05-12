@@ -18,6 +18,7 @@ struct path;
 struct mount;
 struct shrink_control;
 struct fs_context;
+struct user_namespace;
 
 /*
  * block_dev.c
@@ -113,6 +114,7 @@ extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
 extern int reconfigure_super(struct fs_context *);
 extern bool trylock_super(struct super_block *sb);
 extern struct super_block *user_get_super(dev_t);
+extern bool mount_capable(struct file_system_type *, struct user_namespace *);
 
 /*
  * open.c

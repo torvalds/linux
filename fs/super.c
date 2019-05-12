@@ -583,10 +583,6 @@ struct super_block *sget_userns(struct file_system_type *type,
 	struct super_block *old;
 	int err;
 
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT))) {
-		if (!mount_capable(type, user_ns))
-			return ERR_PTR(-EPERM);
-	}
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
