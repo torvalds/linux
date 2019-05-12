@@ -9,6 +9,11 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
+if test -n "$TORTURE_ALLOTED_CPUS"
+then
+	echo $TORTURE_ALLOTED_CPUS
+	exit 0
+fi
 ncpus=`grep '^processor' /proc/cpuinfo | wc -l`
 idlecpus=`mpstat | tail -1 | \
 	awk -v ncpus=$ncpus '{ print ncpus * ($7 + $NF) / 100 }'`
