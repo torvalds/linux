@@ -221,9 +221,11 @@ int drm_legacy_irq_control(struct drm_device *dev, void *data,
 {
 	struct drm_control *ctl = data;
 	int ret = 0, irq;
+
 	/* if we haven't irq we fallback for compatibility reasons -
 	 * this used to be a separate function in drm_dma.h
 	 */
+
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return 0;
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
@@ -231,25 +233,30 @@ int drm_legacy_irq_control(struct drm_device *dev, void *data,
 	/* UMS was only ever supported on pci devices. */
 	if (WARN_ON(!dev->pdev))
 		return -EINVAL;
+
 	switch (ctl->func) {
 	case DRM_INST_HANDLER:
 		irq = dev->pdev->irq;
+
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
 		    ctl->irq != irq)
 			return -EINVAL;
 		mutex_lock(&dev->struct_mutex);
 		ret = drm_irq_install(dev, irq);
 		mutex_unlock(&dev->struct_mutex);
+
 		return ret;
 	case DRM_UNINST_HANDLER:
 		mutex_lock(&dev->struct_mutex);
 		ret = drm_irq_uninstall(dev);
 		mutex_unlock(&dev->struct_mutex);
+
 		return ret;
 	default:
 		return -EINVAL;
 	}
 }
+#endif
 /**
  * drm_calc_timestamping_constants - calculate vblank timestamp constants
  * @crtc: drm_crtc whose timestamp constants should be updated.
