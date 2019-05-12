@@ -5,29 +5,15 @@ The full set of files can be found here:
 
   http://www.unicode.org/Public/12.1.0/ucd/
 
-Note!
-
-The URL's listed below are not stable.  That's because Unicode 12.1.0
-has not been officially released yet; it is scheduled to be released
-on May 8, 2019.  We taking Unicode 12.1.0 a few weeks early because it
-contains a new Japanese character which is required in order to
-specify Japenese dates after May 1, 2019, when Crown Prince Naruhito
-ascends to the Chrysanthemum Throne.  (Isn't internationalization fun?
-The abdication of Emperor Akihito of Japan is requiring dozens of
-software packages to be updated with only a month's notice.  :-)
-
-We will update the URL's (and any needed changes to the checksums)
-after the final Unicode 12.1.0 is released.
-
 Individual source links:
 
-  https://www.unicode.org/Public/12.1.0/ucd/CaseFolding-12.1.0d2.txt
-  https://www.unicode.org/Public/12.1.0/ucd/DerivedAge-12.1.0d3.txt
-  https://www.unicode.org/Public/12.1.0/ucd/extracted/DerivedCombiningClass-12.1.0d2.txt
-  https://www.unicode.org/Public/12.1.0/ucd/DerivedCoreProperties-12.1.0d2.txt
-  https://www.unicode.org/Public/12.1.0/ucd/NormalizationCorrections-12.1.0d1.txt
-  https://www.unicode.org/Public/12.1.0/ucd/NormalizationTest-12.1.0d3.txt
-  https://www.unicode.org/Public/12.1.0/ucd/UnicodeData-12.1.0d2.txt
+  https://www.unicode.org/Public/12.1.0/ucd/CaseFolding.txt
+  https://www.unicode.org/Public/12.1.0/ucd/DerivedAge.txt
+  https://www.unicode.org/Public/12.1.0/ucd/extracted/DerivedCombiningClass.txt
+  https://www.unicode.org/Public/12.1.0/ucd/DerivedCoreProperties.txt
+  https://www.unicode.org/Public/12.1.0/ucd/NormalizationCorrections.txt
+  https://www.unicode.org/Public/12.1.0/ucd/NormalizationTest.txt
+  https://www.unicode.org/Public/12.1.0/ucd/UnicodeData.txt
 
 md5sums (verify by running "md5sum -c README.utf8data"):
 
