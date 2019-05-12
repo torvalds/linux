@@ -2567,8 +2567,10 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 		/* in case all pedit actions are skipped, remove the MOD_HDR
 		 * flag.
 		 */
-		if (parse_attr->num_mod_hdr_actions == 0)
+		if (parse_attr->num_mod_hdr_actions == 0) {
 			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+			kfree(parse_attr->mod_hdr_actions);
+		}
 	}
 
 	attr->action = action;
@@ -3005,6 +3007,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		 */
 		if (parse_attr->num_mod_hdr_actions == 0) {
 			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+			kfree(parse_attr->mod_hdr_actions);
 			if (!((action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
 			      (action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH)))
 				attr->split_count = 0;
