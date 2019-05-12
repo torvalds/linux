@@ -1896,7 +1896,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 	uint32_t subpixel_order = SubPixelNone;
 	bool shared_ddc = false;
 	bool is_dp_bridge = false;
-        bool is_ps4_bridge = false;
+       bool is_ps4_bridge = false;
 	bool has_aux = false;
 
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
