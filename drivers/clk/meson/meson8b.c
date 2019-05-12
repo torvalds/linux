@@ -1761,7 +1761,7 @@ static struct clk_regmap meson8m2_gp_pll = {
 	},
 };
 
-static const char * const mmeson8b_vpu_0_1_parent_names[] = {
+static const char * const meson8b_vpu_0_1_parent_names[] = {
 	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"
 };
 
@@ -1778,8 +1778,8 @@ static struct clk_regmap meson8b_vpu_0_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_0_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_names = mmeson8b_vpu_0_1_parent_names,
-		.num_parents = ARRAY_SIZE(mmeson8b_vpu_0_1_parent_names),
+		.parent_names = meson8b_vpu_0_1_parent_names,
+		.num_parents = ARRAY_SIZE(meson8b_vpu_0_1_parent_names),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -1837,8 +1837,8 @@ static struct clk_regmap meson8b_vpu_1_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_1_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_names = mmeson8b_vpu_0_1_parent_names,
-		.num_parents = ARRAY_SIZE(mmeson8b_vpu_0_1_parent_names),
+		.parent_names = meson8b_vpu_0_1_parent_names,
+		.num_parents = ARRAY_SIZE(meson8b_vpu_0_1_parent_names),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
