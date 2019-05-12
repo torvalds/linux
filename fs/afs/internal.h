@@ -1382,7 +1382,7 @@ struct yfs_acl {
 };
 
 extern void yfs_free_opaque_acl(struct yfs_acl *);
-extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *, unsigned int);
+extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *, struct yfs_acl *);
 extern int yfs_fs_store_opaque_acl2(struct afs_fs_cursor *, const struct afs_acl *);
 
 /*

@@ -2333,12 +2333,6 @@ void yfs_free_opaque_acl(struct yfs_acl *yacl)
 	}
 }
 
-static void yfs_destroy_fs_fetch_opaque_acl(struct afs_call *call)
-{
-	yfs_free_opaque_acl(call->reply[0]);
-	afs_flat_call_destructor(call);
-}
-
 /*
  * YFS.FetchOpaqueACL operation type
  */
@@ -2346,18 +2340,17 @@ static const struct afs_call_type yfs_RXYFSFetchOpaqueACL = {
 	.name		= "YFS.FetchOpaqueACL",
 	.op		= yfs_FS_FetchOpaqueACL,
 	.deliver	= yfs_deliver_fs_fetch_opaque_acl,
-	.destructor	= yfs_destroy_fs_fetch_opaque_acl,
+	.destructor	= afs_flat_call_destructor,
 };
 
 /*
  * Fetch the YFS advanced ACLs for a file.
  */
 struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *fc,
-					unsigned int flags)
+					struct yfs_acl *yacl)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
-	struct yfs_acl *yacl;
 	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
@@ -2370,19 +2363,15 @@ struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *fc,
 				   sizeof(__be32) * 2 +
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
 				   sizeof(struct yfs_xdr_YFSVolSync));
-	if (!call)
-		goto nomem;
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return ERR_PTR(-ENOMEM);
+	}
 
-	yacl = kzalloc(sizeof(struct yfs_acl), GFP_KERNEL);
-	if (!yacl)
-		goto nomem_call;
-
-	yacl->flags = flags;
 	call->key = fc->key;
 	call->reply[0] = yacl;
 	call->reply[1] = vnode;
 	call->reply[2] = NULL; /* volsync */
-	call->ret_reply0 = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2396,12 +2385,6 @@ struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *fc,
 	trace_afs_make_fs_call(call, &vnode->fid);
 	afs_make_call(&fc->ac, call, GFP_KERNEL);
 	return (struct yfs_acl *)afs_wait_for_call_to_complete(call, &fc->ac);
-
-nomem_call:
-	afs_put_call(call);
-nomem:
-	fc->ac.error = -ENOMEM;
-	return ERR_PTR(-ENOMEM);
 }
 
 /*
