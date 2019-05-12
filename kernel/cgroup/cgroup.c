@@ -2184,8 +2184,7 @@ static int cgroup_init_fs_context(struct fs_context *fc)
 		fc->ops = &cgroup_fs_context_ops;
 	else
 		fc->ops = &cgroup1_fs_context_ops;
-	if (fc->user_ns)
-		put_user_ns(fc->user_ns);
+	put_user_ns(fc->user_ns);
 	fc->user_ns = get_user_ns(ctx->ns->user_ns);
 	fc->global = true;
 	return 0;
