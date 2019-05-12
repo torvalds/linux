@@ -476,12 +476,15 @@ void generic_shutdown_super(struct super_block *sb)
 
 EXPORT_SYMBOL(generic_shutdown_super);
 
-bool mount_capable(struct file_system_type *type, struct user_namespace *userns)
+bool mount_capable(struct fs_context *fc)
 {
-	if (!(type->fs_flags & FS_USERNS_MOUNT))
+	struct user_namespace *user_ns = fc->global ? &init_user_ns
+						    : fc->user_ns;
+
+	if (!(fc->fs_type->fs_flags & FS_USERNS_MOUNT))
 		return capable(CAP_SYS_ADMIN);
 	else
-		return ns_capable(userns, CAP_SYS_ADMIN);
+		return ns_capable(user_ns, CAP_SYS_ADMIN);
 }
 
 /**
@@ -513,7 +516,7 @@ struct super_block *sget_fc(struct fs_context *fc,
 
 	if (!(fc->sb_flags & SB_KERNMOUNT) &&
 	    fc->purpose != FS_CONTEXT_FOR_SUBMOUNT) {
-		if (!mount_capable(fc->fs_type, user_ns))
+		if (!mount_capable(fc))
 			return ERR_PTR(-EPERM);
 	}
 
