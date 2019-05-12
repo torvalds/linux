@@ -514,12 +514,6 @@ struct super_block *sget_fc(struct fs_context *fc,
 	struct user_namespace *user_ns = fc->global ? &init_user_ns : fc->user_ns;
 	int err;
 
-	if (!(fc->sb_flags & SB_KERNMOUNT) &&
-	    fc->purpose != FS_CONTEXT_FOR_SUBMOUNT) {
-		if (!mount_capable(fc))
-			return ERR_PTR(-EPERM);
-	}
-
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
@@ -1420,6 +1414,12 @@ int vfs_get_tree(struct fs_context *fc)
 
 	if (fc->root)
 		return -EBUSY;
+
+	if (!(fc->sb_flags & SB_KERNMOUNT) &&
+	    fc->purpose != FS_CONTEXT_FOR_SUBMOUNT) {
+		if (!mount_capable(fc))
+			return -EPERM;
+	}
 
 	/* Get the mountable root in fc->root, with a ref on the root and a ref
 	 * on the superblock.
