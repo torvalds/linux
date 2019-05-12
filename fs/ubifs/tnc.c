@@ -479,14 +479,13 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (node_len != len)
 		return 0;
 
-	if (type == UBIFS_DATA_NODE && c->no_chk_data_crc && !c->mounting &&
-	    !c->remounting_rw)
-		return 1;
-
-	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
-	node_crc = le32_to_cpu(ch->crc);
-	if (crc != node_crc)
-		return 0;
+	if (type != UBIFS_DATA_NODE || !c->no_chk_data_crc || c->mounting ||
+	    c->remounting_rw) {
+		crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
+		node_crc = le32_to_cpu(ch->crc);
+		if (crc != node_crc)
+			return 0;
+	}
 
 	err = ubifs_node_check_hash(c, buf, zbr->hash);
 	if (err) {

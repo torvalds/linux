@@ -1603,7 +1603,6 @@ int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 				err = PTR_ERR(child);
 				goto out_unlock;
 			}
-			zbr->znode = child;
 		}
 
 		znode = child;
