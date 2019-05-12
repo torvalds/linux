@@ -82,6 +82,8 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 
 radeon-$(CONFIG_MMU_NOTIFIER) += radeon_mn.o
 
+radeon-$(CONFIG_X86_PS4) += ps4_bridge.o
+
 # add async DMA block
 radeon-y += \
 	r600_dma.o \
