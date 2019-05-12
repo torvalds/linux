@@ -4274,13 +4274,6 @@ static struct attribute *icl_tsx_events_attrs[] = {
 	NULL,
 };
 
-static __init struct attribute **get_icl_events_attrs(void)
-{
-	return boot_cpu_has(X86_FEATURE_RTM) ?
-		merge_attr(icl_events_attrs, icl_tsx_events_attrs) :
-		icl_events_attrs;
-}
-
 static ssize_t freeze_on_smi_show(struct device *cdev,
 				  struct device_attribute *attr,
 				  char *buf)
@@ -4406,32 +4399,47 @@ static struct attribute *intel_pmu_attrs[] = {
 	NULL,
 };
 
-static __init struct attribute **
-get_events_attrs(struct attribute **base,
-		 struct attribute **mem,
-		 struct attribute **tsx)
+static umode_t
+tsx_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
-	struct attribute **attrs = base;
-	struct attribute **old;
-
-	if (mem && x86_pmu.pebs)
-		attrs = merge_attr(attrs, mem);
-
-	if (tsx && boot_cpu_has(X86_FEATURE_RTM)) {
-		old = attrs;
-		attrs = merge_attr(attrs, tsx);
-		if (old != base)
-			kfree(old);
-	}
-
-	return attrs;
+	return boot_cpu_has(X86_FEATURE_RTM) ? attr->mode : 0;
 }
+
+static umode_t
+pebs_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return x86_pmu.pebs ? attr->mode : 0;
+}
+
+static struct attribute_group group_events_td  = {
+	.name = "events",
+};
+
+static struct attribute_group group_events_mem = {
+	.name       = "events",
+	.is_visible = pebs_is_visible,
+};
+
+static struct attribute_group group_events_tsx = {
+	.name       = "events",
+	.is_visible = tsx_is_visible,
+};
+
+static const struct attribute_group *attr_update[] = {
+	&group_events_td,
+	&group_events_mem,
+	&group_events_tsx,
+	NULL,
+};
+
+static struct attribute *empty_attrs;
 
 __init int intel_pmu_init(void)
 {
-	struct attribute **extra_attr = NULL;
-	struct attribute **mem_attr = NULL;
-	struct attribute **tsx_attr = NULL;
+	struct attribute **extra_attr = &empty_attrs;
+	struct attribute **td_attr    = &empty_attrs;
+	struct attribute **mem_attr   = &empty_attrs;
+	struct attribute **tsx_attr   = &empty_attrs;
 	struct attribute **to_free = NULL;
 	union cpuid10_edx edx;
 	union cpuid10_eax eax;
@@ -4596,7 +4604,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.pebs_constraints = intel_slm_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_slm_extra_regs;
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
-		x86_pmu.cpu_events = slm_events_attrs;
+		td_attr = slm_events_attrs;
 		extra_attr = slm_format_attr;
 		pr_cont("Silvermont events, ");
 		name = "silvermont";
@@ -4624,7 +4632,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.pebs_prec_dist = true;
 		x86_pmu.lbr_pt_coexist = true;
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
-		x86_pmu.cpu_events = glm_events_attrs;
+		td_attr = glm_events_attrs;
 		extra_attr = slm_format_attr;
 		pr_cont("Goldmont events, ");
 		name = "goldmont";
@@ -4651,7 +4659,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_PEBS_ALL;
 		x86_pmu.get_event_constraints = glp_get_event_constraints;
-		x86_pmu.cpu_events = glm_events_attrs;
+		td_attr = glm_events_attrs;
 		/* Goldmont Plus has 4-wide pipeline */
 		event_attr_td_total_slots_scale_glm.event_str = "4";
 		extra_attr = slm_format_attr;
@@ -4740,7 +4748,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
 
-		x86_pmu.cpu_events = snb_events_attrs;
+		td_attr  = snb_events_attrs;
 		mem_attr = snb_mem_events_attrs;
 
 		/* UOPS_ISSUED.ANY,c=1,i=1 to count stall cycles */
@@ -4781,7 +4789,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
 
-		x86_pmu.cpu_events = snb_events_attrs;
+		td_attr  = snb_events_attrs;
 		mem_attr = snb_mem_events_attrs;
 
 		/* UOPS_ISSUED.ANY,c=1,i=1 to count stall cycles */
@@ -4818,10 +4826,10 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = hsw_get_event_constraints;
-		x86_pmu.cpu_events = hsw_events_attrs;
 		x86_pmu.lbr_double_abort = true;
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
+		td_attr  = hsw_events_attrs;
 		mem_attr = hsw_mem_events_attrs;
 		tsx_attr = hsw_tsx_events_attrs;
 		pr_cont("Haswell events, ");
@@ -4860,10 +4868,10 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = hsw_get_event_constraints;
-		x86_pmu.cpu_events = hsw_events_attrs;
 		x86_pmu.limit_period = bdw_limit_period;
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
+		td_attr  = hsw_events_attrs;
 		mem_attr = hsw_mem_events_attrs;
 		tsx_attr = hsw_tsx_events_attrs;
 		pr_cont("Broadwell events, ");
@@ -4922,7 +4930,7 @@ __init int intel_pmu_init(void)
 			hsw_format_attr : nhm_format_attr;
 		extra_attr = merge_attr(extra_attr, skl_format_attr);
 		to_free = extra_attr;
-		x86_pmu.cpu_events = hsw_events_attrs;
+		td_attr  = hsw_events_attrs;
 		mem_attr = hsw_mem_events_attrs;
 		tsx_attr = hsw_tsx_events_attrs;
 		intel_pmu_pebs_data_source_skl(
@@ -4960,7 +4968,8 @@ __init int intel_pmu_init(void)
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
 		extra_attr = merge_attr(extra_attr, skl_format_attr);
-		x86_pmu.cpu_events = get_icl_events_attrs();
+		mem_attr = icl_events_attrs;
+		tsx_attr = icl_tsx_events_attrs;
 		x86_pmu.rtm_abort_event = X86_CONFIG(.event=0xca, .umask=0x02);
 		x86_pmu.lbr_pt_coexist = true;
 		intel_pmu_pebs_data_source_skl(false);
@@ -4994,8 +5003,11 @@ __init int intel_pmu_init(void)
 		WARN_ON(!x86_pmu.format_attrs);
 	}
 
-	x86_pmu.cpu_events = get_events_attrs(x86_pmu.cpu_events,
-					      mem_attr, tsx_attr);
+	group_events_td.attrs  = td_attr;
+	group_events_mem.attrs = mem_attr;
+	group_events_tsx.attrs = tsx_attr;
+
+	x86_pmu.attr_update = attr_update;
 
 	if (x86_pmu.num_counters > INTEL_PMC_MAX_GENERIC) {
 		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",

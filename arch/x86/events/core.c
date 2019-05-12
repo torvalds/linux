@@ -1855,14 +1855,6 @@ static int __init init_hw_perf_events(void)
 	else
 		filter_events(x86_pmu_events_group.attrs);
 
-	if (x86_pmu.cpu_events) {
-		struct attribute **tmp;
-
-		tmp = merge_attr(x86_pmu_events_group.attrs, x86_pmu.cpu_events);
-		if (!WARN_ON(!tmp))
-			x86_pmu_events_group.attrs = tmp;
-	}
-
 	if (x86_pmu.attrs) {
 		struct attribute **tmp;
 
@@ -1870,6 +1862,8 @@ static int __init init_hw_perf_events(void)
 		if (!WARN_ON(!tmp))
 			x86_pmu_attr_group.attrs = tmp;
 	}
+
+	pmu.attr_update = x86_pmu.attr_update;
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.cntval_bits);
