@@ -124,6 +124,16 @@
 			status = "disabled";
 		};
 
+		tpm4: pwm@40250000 {
+			compatible = "fsl,imx7ulp-pwm";
+			reg = <0x40250000 0x1000>;
+			assigned-clocks = <&pcc2 IMX7ULP_CLK_LPTPM4>;
+			assigned-clock-parents = <&scg1 IMX7ULP_CLK_SOSC_BUS_CLK>;
+			clocks = <&pcc2 IMX7ULP_CLK_LPTPM4>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		tpm5: tpm@40260000 {
 			compatible = "fsl,imx7ulp-tpm";
 			reg = <0x40260000 0x1000>;
