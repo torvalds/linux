@@ -663,7 +663,7 @@ static int legacy_get_tree(struct fs_context *fc)
 	struct dentry *root;
 
 	if (!(fc->sb_flags & (SB_KERNMOUNT|SB_SUBMOUNT))) {
-		if (!mount_capable(fc->fs_type, current_user_ns()))
+		if (!mount_capable(fc->fs_type, fc->user_ns))
 			return -EPERM;
 	}
 
