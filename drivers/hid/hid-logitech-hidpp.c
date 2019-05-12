@@ -3747,6 +3747,9 @@ static const struct hid_device_id hidpp_devices[] = {
 	{ /* Keyboard MX3200 (Y-RAV80) */
 	  L27MHZ_DEVICE(0x005c),
 	  .driver_data = HIDPP_QUIRK_KBD_ZOOM_WHEEL },
+	{ /* S510 Media Remote */
+	  L27MHZ_DEVICE(0x00fe),
+	  .driver_data = HIDPP_QUIRK_KBD_SCROLL_WHEEL },
 
 	{ L27MHZ_DEVICE(HID_ANY_ID) },
 
