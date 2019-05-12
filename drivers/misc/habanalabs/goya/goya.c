@@ -3888,8 +3888,8 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 		return goya_parse_cb_no_mmu(hdev, parser);
 }
 
-void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
-				u32 cq_val, u32 msix_vec)
+void goya_add_end_of_cb_packets(struct hl_device *hdev, u64 kernel_address,
+				u32 len, u64 cq_addr, u32 cq_val, u32 msix_vec)
 {
 	struct packet_msg_prot *cq_pkt;
 	u32 tmp;

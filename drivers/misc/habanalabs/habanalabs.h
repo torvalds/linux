@@ -543,8 +543,9 @@ struct hl_asic_funcs {
 				enum dma_data_direction dir);
 	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
 					struct sg_table *sgt);
-	void (*add_end_of_cb_packets)(u64 kernel_address, u32 len, u64 cq_addr,
-					u32 cq_val, u32 msix_num);
+	void (*add_end_of_cb_packets)(struct hl_device *hdev,
+					u64 kernel_address, u32 len,
+					u64 cq_addr, u32 cq_val, u32 msix_num);
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
 	int (*context_switch)(struct hl_device *hdev, u32 asid);
 	void (*restore_phase_topology)(struct hl_device *hdev);
