@@ -476,6 +476,14 @@ void generic_shutdown_super(struct super_block *sb)
 
 EXPORT_SYMBOL(generic_shutdown_super);
 
+bool mount_capable(struct file_system_type *type, struct user_namespace *userns)
+{
+	if (!(type->fs_flags & FS_USERNS_MOUNT))
+		return capable(CAP_SYS_ADMIN);
+	else
+		return ns_capable(userns, CAP_SYS_ADMIN);
+}
+
 /**
  * sget_fc - Find or create a superblock
  * @fc:	Filesystem context.
@@ -505,16 +513,8 @@ struct super_block *sget_fc(struct fs_context *fc,
 
 	if (!(fc->sb_flags & SB_KERNMOUNT) &&
 	    fc->purpose != FS_CONTEXT_FOR_SUBMOUNT) {
-		/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
-		 * over the namespace.
-		 */
-		if (!(fc->fs_type->fs_flags & FS_USERNS_MOUNT)) {
-			if (!capable(CAP_SYS_ADMIN))
-				return ERR_PTR(-EPERM);
-		} else {
-			if (!ns_capable(fc->user_ns, CAP_SYS_ADMIN))
-				return ERR_PTR(-EPERM);
-		}
+		if (!mount_capable(fc->fs_type, user_ns))
+			return ERR_PTR(-EPERM);
 	}
 
 retry:
@@ -583,14 +583,10 @@ struct super_block *sget_userns(struct file_system_type *type,
 	struct super_block *old;
 	int err;
 
-	/* Ensure the requestor has permissions over the target filesystem */
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) && !ns_capable(user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
-
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) &&
-	    !(type->fs_flags & FS_USERNS_MOUNT) &&
-	    !capable(CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
+	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT))) {
+		if (!mount_capable(type, user_ns))
+			return ERR_PTR(-EPERM);
+	}
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
