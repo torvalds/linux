@@ -2242,12 +2242,18 @@ static struct radeon_asic kv_asic = {
 		.get_backlight_level = &atombios_get_backlight_level,
 	},
 	.copy = {
-		.blit = &cik_copy_cpdma,
-		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.blit = &cik_copy_dma,
+		.blit_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.dma = &cik_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = &cik_copy_dma,
 		.copy_ring_index = R600_RING_TYPE_DMA_INDEX,
+// 		.blit = &cik_copy_cpdma,
+// 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+// 		.dma = &cik_copy_cpdma,
+// 		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+// 		.copy = &cik_copy_cpdma,
+// 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
 	.surface = {
 		.set_reg = r600_set_surface_reg,
@@ -2626,6 +2632,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
+        case CHIP_LIVERPOOL:
 		rdev->asic = &kv_asic;
 		/* set num crtcs */
 		if (rdev->family == CHIP_KAVERI) {
@@ -2670,7 +2677,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_CG_SUPPORT_SDMA_LS |
 				RADEON_CG_SUPPORT_BIF_LS |
 				RADEON_CG_SUPPORT_VCE_MGCG |
-				RADEON_CG_SUPPORT_UVD_MGCG |
+				/*RADEON_CG_SUPPORT_UVD_MGCG |*/
 				RADEON_CG_SUPPORT_HDP_LS |
 				RADEON_CG_SUPPORT_HDP_MGCG;
 			rdev->pg_flags = 0;
@@ -2683,8 +2690,8 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_PG_SUPPORT_RLC_SMU_HS |
 				RADEON_PG_SUPPORT_SAMU;*/
 		}
-		rdev->has_uvd = true;
-		rdev->has_vce = true;
+		rdev->has_uvd = false;
+		rdev->has_vce = false;
 		break;
 	default:
 		/* FIXME: not supported yet */
