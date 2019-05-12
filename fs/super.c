@@ -583,6 +583,10 @@ struct super_block *sget_userns(struct file_system_type *type,
 	struct super_block *old;
 	int err;
 
+	/* Ensure the requestor has permissions over the target filesystem */
+	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) && !ns_capable(user_ns, CAP_SYS_ADMIN))
+		return ERR_PTR(-EPERM);
+
 	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) &&
 	    !(type->fs_flags & FS_USERNS_MOUNT) &&
 	    !capable(CAP_SYS_ADMIN))
@@ -652,10 +656,6 @@ struct super_block *sget(struct file_system_type *type,
 	 */
 	if (flags & SB_SUBMOUNT)
 		user_ns = &init_user_ns;
-
-	/* Ensure the requestor has permissions over the target filesystem */
-	if (!(flags & (SB_KERNMOUNT|SB_SUBMOUNT)) && !ns_capable(user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
 
 	return sget_userns(type, test, set, flags, user_ns, data);
 }
@@ -1163,12 +1163,6 @@ struct dentry *mount_ns(struct file_system_type *fs_type,
 	int (*fill_super)(struct super_block *, void *, int))
 {
 	struct super_block *sb;
-
-	/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
-	 * over the namespace.
-	 */
-	if (!(flags & SB_KERNMOUNT) && !ns_capable(user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
 
 	sb = sget_userns(fs_type, ns_test_super, ns_set_super, flags,
 			 user_ns, ns);
