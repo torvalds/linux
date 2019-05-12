@@ -22,6 +22,14 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&tpm4 1 50000 0>;
+		brightness-levels = <0 20 25 30 35 40 100>;
+		default-brightness-level = <6>;
+		status = "okay";
+	};
+
 	reg_vsd_3v3: regulator-vsd-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VSD_3V3";
@@ -40,6 +48,12 @@
 	status = "okay";
 };
 
+&tpm4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0>;
+	status = "okay";
+};
+
 &usdhc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc0>;
@@ -55,6 +69,12 @@
 			IMX7ULP_PAD_PTC2__LPUART4_TX	0x3
 		>;
 		bias-pull-up;
+	};
+
+	pinctrl_pwm0: pwm0grp {
+		fsl,pins = <
+			IMX7ULP_PAD_PTF2__TPM4_CH1	0x2
+		>;
 	};
 
 	pinctrl_usdhc0: usdhc0grp {
