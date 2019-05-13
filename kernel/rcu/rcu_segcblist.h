@@ -79,7 +79,7 @@ static inline bool rcu_segcblist_is_offloaded(struct rcu_segcblist *rsclp)
  */
 static inline bool rcu_segcblist_restempty(struct rcu_segcblist *rsclp, int seg)
 {
-	return !*rsclp->tails[seg];
+	return !READ_ONCE(*READ_ONCE(rsclp->tails[seg]));
 }
 
 void rcu_segcblist_init(struct rcu_segcblist *rsclp);
