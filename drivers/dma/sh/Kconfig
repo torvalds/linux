@@ -47,9 +47,3 @@ config RENESAS_USB_DMAC
 	help
 	  This driver supports the USB-DMA controller found in the Renesas
 	  SoCs.
-
-config SUDMAC
-	tristate "Renesas SUDMAC support"
-	depends on SH_DMAE_BASE
-	help
-	  Enable support for the Renesas SUDMAC controllers.
