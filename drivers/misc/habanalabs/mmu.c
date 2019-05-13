@@ -404,15 +404,12 @@ int hl_mmu_init(struct hl_device *hdev)
 
 	/* MMU H/W init was already done in device hw_init() */
 
-	mutex_init(&hdev->mmu_cache_lock);
-
 	hdev->mmu_pgt_pool =
 			gen_pool_create(__ffs(prop->mmu_hop_table_size), -1);
 
 	if (!hdev->mmu_pgt_pool) {
 		dev_err(hdev->dev, "Failed to create page gen pool\n");
-		rc = -ENOMEM;
-		goto err_pool_create;
+		return -ENOMEM;
 	}
 
 	rc = gen_pool_add(hdev->mmu_pgt_pool, prop->mmu_pgt_addr +
@@ -436,8 +433,6 @@ int hl_mmu_init(struct hl_device *hdev)
 
 err_pool_add:
 	gen_pool_destroy(hdev->mmu_pgt_pool);
-err_pool_create:
-	mutex_destroy(&hdev->mmu_cache_lock);
 
 	return rc;
 }
@@ -459,7 +454,6 @@ void hl_mmu_fini(struct hl_device *hdev)
 
 	kvfree(hdev->mmu_shadow_hop0);
 	gen_pool_destroy(hdev->mmu_pgt_pool);
-	mutex_destroy(&hdev->mmu_cache_lock);
 
 	/* MMU H/W fini will be done in device hw_fini() */
 }
