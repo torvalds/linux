@@ -308,24 +308,33 @@ static void qe_snums_init(void)
 	int i;
 
 	bitmap_zero(snum_state, QE_NUM_OF_SNUM);
+	qe_num_of_snum = 28; /* The default number of snum for threads is 28 */
 	qe = qe_get_device_node();
 	if (qe) {
 		i = of_property_read_variable_u8_array(qe, "fsl,qe-snums",
 						       snums, 1, QE_NUM_OF_SNUM);
-		of_node_put(qe);
 		if (i > 0) {
+			of_node_put(qe);
 			qe_num_of_snum = i;
 			return;
 		}
+		/*
+		 * Fall back to legacy binding of using the value of
+		 * fsl,qe-num-snums to choose one of the static arrays
+		 * above.
+		 */
+		of_property_read_u32(qe, "fsl,qe-num-snums", &qe_num_of_snum);
+		of_node_put(qe);
 	}
 
-	qe_num_of_snum = qe_get_num_of_snums();
-
-	if (qe_num_of_snum == 76)
+	if (qe_num_of_snum == 76) {
 		snum_init = snum_init_76;
-	else
+	} else if (qe_num_of_snum == 28 || qe_num_of_snum == 46) {
 		snum_init = snum_init_46;
-
+	} else {
+		pr_err("QE: unsupported value of fsl,qe-num-snums: %u\n", qe_num_of_snum);
+		return;
+	}
 	memcpy(snums, snum_init, qe_num_of_snum);
 }
 
@@ -642,30 +651,7 @@ EXPORT_SYMBOL(qe_get_num_of_risc);
 
 unsigned int qe_get_num_of_snums(void)
 {
-	struct device_node *qe;
-	int size;
-	unsigned int num_of_snums;
-	const u32 *prop;
-
-	num_of_snums = 28; /* The default number of snum for threads is 28 */
-	qe = qe_get_device_node();
-	if (!qe)
-		return num_of_snums;
-
-	prop = of_get_property(qe, "fsl,qe-num-snums", &size);
-	if (prop && size == sizeof(*prop)) {
-		num_of_snums = *prop;
-		if ((num_of_snums < 28) || (num_of_snums > QE_NUM_OF_SNUM)) {
-			/* No QE ever has fewer than 28 SNUMs */
-			pr_err("QE: number of snum is invalid\n");
-			of_node_put(qe);
-			return -EINVAL;
-		}
-	}
-
-	of_node_put(qe);
-
-	return num_of_snums;
+	return qe_num_of_snum;
 }
 EXPORT_SYMBOL(qe_get_num_of_snums);
 
