@@ -9,6 +9,22 @@
 #include <linux/crc64.h>
 #include <crypto/chacha.h>
 
+static inline bool bch2_checksum_mergeable(unsigned type)
+{
+
+	switch (type) {
+	case BCH_CSUM_NONE:
+	case BCH_CSUM_CRC32C:
+	case BCH_CSUM_CRC64:
+		return true;
+	default:
+		return false;
+	}
+}
+
+struct bch_csum bch2_checksum_merge(unsigned, struct bch_csum,
+				    struct bch_csum, size_t);
+
 static inline u64 bch2_crc64_update(u64 crc, const void *p, size_t len)
 {
 	return crc64_be(crc, p, len);

@@ -202,15 +202,20 @@ enum merge_result bch2_bkey_merge(struct bch_fs *c,
 				  struct bkey_i *l, struct bkey_i *r)
 {
 	const struct bkey_ops *ops = &bch2_bkey_ops[l->k.type];
+	enum merge_result ret;
 
-	if (!key_merging_disabled(c) &&
-	    ops->key_merge &&
-	    l->k.type == r->k.type &&
-	    !bversion_cmp(l->k.version, r->k.version) &&
-	    !bkey_cmp(l->k.p, bkey_start_pos(&r->k)))
-		return ops->key_merge(c, l, r);
+	if (key_merging_disabled(c) ||
+	    !ops->key_merge ||
+	    l->k.type != r->k.type ||
+	    bversion_cmp(l->k.version, r->k.version) ||
+	    bkey_cmp(l->k.p, bkey_start_pos(&r->k)))
+		return BCH_MERGE_NOMERGE;
 
-	return BCH_MERGE_NOMERGE;
+	ret = ops->key_merge(c, l, r);
+
+	if (ret != BCH_MERGE_NOMERGE)
+		l->k.needs_whiteout |= r->k.needs_whiteout;
+	return ret;
 }
 
 static const struct old_bkey_type {

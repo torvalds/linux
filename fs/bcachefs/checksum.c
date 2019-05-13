@@ -281,22 +281,8 @@ void bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 	do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
 }
 
-static inline bool bch2_checksum_mergeable(unsigned type)
-{
-
-	switch (type) {
-	case BCH_CSUM_NONE:
-	case BCH_CSUM_CRC32C:
-	case BCH_CSUM_CRC64:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static struct bch_csum bch2_checksum_merge(unsigned type,
-					   struct bch_csum a,
-					   struct bch_csum b, size_t b_len)
+struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
+				    struct bch_csum b, size_t b_len)
 {
 	BUG_ON(!bch2_checksum_mergeable(type));
 
