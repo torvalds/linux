@@ -2786,6 +2786,8 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 		err = vfs_parse_fs_string(fc, "source", name, strlen(name));
 	if (!err)
 		err = parse_monolithic_mount_data(fc, data);
+	if (!err && !mount_capable(fc))
+		err = -EPERM;
 	if (!err)
 		err = vfs_get_tree(fc);
 	if (!err)
