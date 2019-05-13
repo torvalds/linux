@@ -18,8 +18,6 @@
 #include <asm/asm-compat.h>
 #include <linux/errno.h>
 
-#ifdef CONFIG_PPC_FPU
-
 #define STKFRM	(PPC_MIN_STKFRM + 16)
 
 /* Get the contents of frN into *p; N is in r3 and p is in r4. */
@@ -241,5 +239,3 @@ _GLOBAL(conv_dp_to_sp)
 	MTMSRD(r6)
 	isync
 	blr
-
-#endif	/* CONFIG_PPC_FPU */
