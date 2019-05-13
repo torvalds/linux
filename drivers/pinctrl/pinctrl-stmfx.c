@@ -437,7 +437,7 @@ static int stmfx_pinctrl_irq_set_type(struct irq_data *data, unsigned int type)
 	u32 reg = get_reg(data->hwirq);
 	u32 mask = get_mask(data->hwirq);
 
-	if (type & IRQ_TYPE_NONE)
+	if (type == IRQ_TYPE_NONE)
 		return -EINVAL;
 
 	if (type & IRQ_TYPE_EDGE_BOTH) {
