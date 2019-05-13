@@ -45,6 +45,10 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_probe_helper.h>
 
+#ifdef CONFIG_X86_PS4
+#include <asm/ps4.h>
+#endif
+
 /*
  * KMS wrapper.
  * - 2.0.0 - initial interface
@@ -329,6 +333,16 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "radeondrmfb");
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_X86_PS4
+	/* On the PS4 (Liverpool graphics) we have a hard dependency on the
+	 * Aeolia driver to set up the HDMI encoder which is connected to it,
+	 * so defer probe until it is ready. This test passes if this isn't
+	 * a PS4 (returns -ENODEV).
+	 */
+	if (apcie_status() == 0)
+		return -EPROBE_DEFER;
+#endif
 
 	return drm_get_pci_dev(pdev, ent, &kms_driver);
 }
