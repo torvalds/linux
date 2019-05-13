@@ -559,6 +559,9 @@ static int smu_early_init(void *handle)
 	smu->pm_enabled = !!amdgpu_dpm;
 	mutex_init(&smu->mutex);
 
+	if (adev->asic_type == CHIP_NAVI14)
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+
 	return smu_set_funcs(adev);
 }
 
