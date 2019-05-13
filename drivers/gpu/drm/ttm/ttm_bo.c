@@ -1012,8 +1012,12 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		ttm_flag_masked(&cur_flags, place->flags,
 				~TTM_PL_MASK_MEMTYPE);
 
-		if (mem_type == TTM_PL_SYSTEM)
-			break;
+		if (mem_type == TTM_PL_SYSTEM) {
+			mem->mem_type = mem_type;
+			mem->placement = cur_flags;
+			mem->mm_node = NULL;
+			return 0;
+		}
 
 		ret = (*man->func->get_node)(man, bo, place, mem);
 		if (unlikely(ret))
@@ -1025,14 +1029,10 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 				(*man->func->put_node)(man, mem);
 				return ret;
 			}
-			break;
+			mem->mem_type = mem_type;
+			mem->placement = cur_flags;
+			return 0;
 		}
-	}
-
-	if ((type_ok && (mem_type == TTM_PL_SYSTEM)) || mem->mm_node) {
-		mem->mem_type = mem_type;
-		mem->placement = cur_flags;
-		return 0;
 	}
 
 	for (i = 0; i < placement->num_busy_placement; ++i) {
