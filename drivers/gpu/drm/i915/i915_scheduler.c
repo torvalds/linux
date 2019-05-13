@@ -200,10 +200,10 @@ static void __i915_schedule(struct i915_sched_node *node,
 	lockdep_assert_held(&schedule_lock);
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
 
-	if (node_signaled(node))
+	if (prio <= READ_ONCE(node->attr.priority))
 		return;
 
-	if (prio <= READ_ONCE(node->attr.priority))
+	if (node_signaled(node))
 		return;
 
 	stack.signaler = node;
