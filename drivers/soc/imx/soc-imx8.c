@@ -103,6 +103,9 @@ static int __init imx8_soc_init(void)
 	if (IS_ERR(soc_dev))
 		goto free_rev;
 
+	if (IS_ENABLED(CONFIG_ARM_IMX_CPUFREQ_DT))
+		platform_device_register_simple("imx-cpufreq-dt", -1, NULL, 0);
+
 	return 0;
 
 free_rev:
