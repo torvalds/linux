@@ -2518,16 +2518,11 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 	u32 buf_location = le32_to_cpu(alloc->tlv.buffer_location);
 
 	if (buf_location == IWL_FW_INI_LOCATION_SRAM_PATH) {
-		if (!WARN(pnt != IWL_FW_INI_APPLY_EARLY,
-			  "WRT: Invalid apply point %d for SMEM buffer allocation, aborting\n",
-			  pnt)) {
-			IWL_DEBUG_FW(trans,
-				     "WRT: applying SMEM buffer destination\n");
+		IWL_DEBUG_FW(trans, "WRT: applying SMEM buffer destination\n");
+		/* set sram monitor by enabling bit 7 */
+		iwl_set_bit(fwrt->trans, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_BIT_MONITOR_SRAM);
 
-			/* set sram monitor by enabling bit 7 */
-			iwl_set_bit(fwrt->trans, CSR_HW_IF_CONFIG_REG,
-				    CSR_HW_IF_CONFIG_REG_BIT_MONITOR_SRAM);
-		}
 		return;
 	}
 
@@ -2774,6 +2769,8 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		struct iwl_ucode_tlv *tlv = iter;
 		void *ini_tlv = (void *)tlv->data;
 		u32 type = le32_to_cpu(tlv->type);
+		const char invalid_ap_str[] =
+			"WRT: ext=%d. Invalid apply point %d for %s\n";
 
 		switch (type) {
 		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
@@ -2782,15 +2779,20 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION: {
 			struct iwl_fw_ini_allocation_data *buf_alloc = ini_tlv;
 
+			if (pnt != IWL_FW_INI_APPLY_EARLY) {
+				IWL_ERR(fwrt, invalid_ap_str, ext, pnt,
+					"buffer allocation");
+				goto next;
+			}
+
 			iwl_fw_dbg_buffer_apply(fwrt, ini_tlv, pnt);
 			iter += sizeof(buf_alloc->is_alloc);
 			break;
 		}
 		case IWL_UCODE_TLV_TYPE_HCMD:
 			if (pnt < IWL_FW_INI_APPLY_AFTER_ALIVE) {
-				IWL_ERR(fwrt,
-					"WRT: ext=%d. Invalid apply point %d for host command\n",
-					ext, pnt);
+				IWL_ERR(fwrt, invalid_ap_str, ext, pnt,
+					"host command");
 				goto next;
 			}
 			iwl_fw_dbg_send_hcmd(fwrt, tlv, ext);
