@@ -834,6 +834,11 @@ struct i915_power_domains {
 
 	struct mutex lock;
 	int domain_use_count[POWER_DOMAIN_NUM];
+
+	struct delayed_work async_put_work;
+	intel_wakeref_t async_put_wakeref;
+	u64 async_put_domains[2];
+
 	struct i915_power_well *power_wells;
 };
 

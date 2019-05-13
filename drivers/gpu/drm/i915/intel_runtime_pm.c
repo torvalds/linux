@@ -60,6 +60,22 @@
  * present for a given platform.
  */
 
+static intel_wakeref_t intel_runtime_pm_get_raw(struct drm_i915_private *i915);
+static void
+__intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref,
+		       bool wakelock);
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+static void
+intel_runtime_pm_put_raw(struct drm_i915_private *i915, intel_wakeref_t wref);
+#else
+static inline void intel_runtime_pm_put_raw(struct drm_i915_private *i915,
+					    intel_wakeref_t wref)
+{
+	__intel_runtime_pm_put(i915, -1, false);
+}
+#endif
+
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 
 #include <linux/sort.h>
@@ -1903,12 +1919,134 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 	chv_set_pipe_power_well(dev_priv, power_well, false);
 }
 
+static u64 __async_put_domains_mask(struct i915_power_domains *power_domains)
+{
+	return power_domains->async_put_domains[0] |
+	       power_domains->async_put_domains[1];
+}
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+
+static bool
+assert_async_put_domain_masks_disjoint(struct i915_power_domains *power_domains)
+{
+	return !WARN_ON(power_domains->async_put_domains[0] &
+			power_domains->async_put_domains[1]);
+}
+
+static bool
+__async_put_domains_state_ok(struct i915_power_domains *power_domains)
+{
+	enum intel_display_power_domain domain;
+	bool err = false;
+
+	err |= !assert_async_put_domain_masks_disjoint(power_domains);
+	err |= WARN_ON(!!power_domains->async_put_wakeref !=
+		       !!__async_put_domains_mask(power_domains));
+
+	for_each_power_domain(domain, __async_put_domains_mask(power_domains))
+		err |= WARN_ON(power_domains->domain_use_count[domain] != 1);
+
+	return !err;
+}
+
+static void print_power_domains(struct i915_power_domains *power_domains,
+				const char *prefix, u64 mask)
+{
+	enum intel_display_power_domain domain;
+
+	DRM_DEBUG_DRIVER("%s (%lu):\n", prefix, hweight64(mask));
+	for_each_power_domain(domain, mask)
+		DRM_DEBUG_DRIVER("%s use_count %d\n",
+				 intel_display_power_domain_str(domain),
+				 power_domains->domain_use_count[domain]);
+}
+
+static void
+print_async_put_domains_state(struct i915_power_domains *power_domains)
+{
+	DRM_DEBUG_DRIVER("async_put_wakeref %u\n",
+			 power_domains->async_put_wakeref);
+
+	print_power_domains(power_domains, "async_put_domains[0]",
+			    power_domains->async_put_domains[0]);
+	print_power_domains(power_domains, "async_put_domains[1]",
+			    power_domains->async_put_domains[1]);
+}
+
+static void
+verify_async_put_domains_state(struct i915_power_domains *power_domains)
+{
+	if (!__async_put_domains_state_ok(power_domains))
+		print_async_put_domains_state(power_domains);
+}
+
+#else
+
+static void
+assert_async_put_domain_masks_disjoint(struct i915_power_domains *power_domains)
+{
+}
+
+static void
+verify_async_put_domains_state(struct i915_power_domains *power_domains)
+{
+}
+
+#endif /* CONFIG_DRM_I915_DEBUG_RUNTIME_PM */
+
+static u64 async_put_domains_mask(struct i915_power_domains *power_domains)
+{
+	assert_async_put_domain_masks_disjoint(power_domains);
+
+	return __async_put_domains_mask(power_domains);
+}
+
+static void
+async_put_domains_clear_domain(struct i915_power_domains *power_domains,
+			       enum intel_display_power_domain domain)
+{
+	assert_async_put_domain_masks_disjoint(power_domains);
+
+	power_domains->async_put_domains[0] &= ~BIT_ULL(domain);
+	power_domains->async_put_domains[1] &= ~BIT_ULL(domain);
+}
+
+static bool
+intel_display_power_grab_async_put_ref(struct drm_i915_private *dev_priv,
+				       enum intel_display_power_domain domain)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	bool ret = false;
+
+	if (!(async_put_domains_mask(power_domains) & BIT_ULL(domain)))
+		goto out_verify;
+
+	async_put_domains_clear_domain(power_domains, domain);
+
+	ret = true;
+
+	if (async_put_domains_mask(power_domains))
+		goto out_verify;
+
+	cancel_delayed_work(&power_domains->async_put_work);
+	intel_runtime_pm_put_raw(dev_priv,
+				 fetch_and_zero(&power_domains->async_put_wakeref));
+out_verify:
+	verify_async_put_domains_state(power_domains);
+
+	return ret;
+}
+
 static void
 __intel_display_power_get_domain(struct drm_i915_private *dev_priv,
 				 enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
+
+	if (intel_display_power_grab_async_put_ref(dev_priv, domain))
+		return;
 
 	for_each_power_domain_well(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_get(dev_priv, power_well);
@@ -1935,9 +2073,7 @@ intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,
 	intel_wakeref_t wakeref = intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&power_domains->lock);
-
 	__intel_display_power_get_domain(dev_priv, domain);
-
 	mutex_unlock(&power_domains->lock);
 
 	return wakeref;
@@ -1986,24 +2122,36 @@ intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 	return wakeref;
 }
 
-static void __intel_display_power_put(struct drm_i915_private *dev_priv,
-				      enum intel_display_power_domain domain)
+static void
+__intel_display_power_put_domain(struct drm_i915_private *dev_priv,
+				 enum intel_display_power_domain domain)
 {
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
+	const char *name = intel_display_power_domain_str(domain);
 
 	power_domains = &dev_priv->power_domains;
 
-	mutex_lock(&power_domains->lock);
-
 	WARN(!power_domains->domain_use_count[domain],
 	     "Use count on domain %s is already zero\n",
-	     intel_display_power_domain_str(domain));
+	     name);
+	WARN(async_put_domains_mask(power_domains) & BIT_ULL(domain),
+	     "Async disabling of domain %s is pending\n",
+	     name);
+
 	power_domains->domain_use_count[domain]--;
 
 	for_each_power_domain_well_reverse(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_put(dev_priv, power_well);
+}
 
+static void __intel_display_power_put(struct drm_i915_private *dev_priv,
+				      enum intel_display_power_domain domain)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	mutex_lock(&power_domains->lock);
+	__intel_display_power_put_domain(dev_priv, domain);
 	mutex_unlock(&power_domains->lock);
 }
 
@@ -2025,6 +2173,188 @@ void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
 {
 	__intel_display_power_put(dev_priv, domain);
 	intel_runtime_pm_put_unchecked(dev_priv);
+}
+
+static void
+queue_async_put_domains_work(struct i915_power_domains *power_domains,
+			     intel_wakeref_t wakeref)
+{
+	WARN_ON(power_domains->async_put_wakeref);
+	power_domains->async_put_wakeref = wakeref;
+	WARN_ON(!queue_delayed_work(system_unbound_wq,
+				    &power_domains->async_put_work,
+				    msecs_to_jiffies(100)));
+}
+
+static void
+release_async_put_domains(struct i915_power_domains *power_domains, u64 mask)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(power_domains, struct drm_i915_private,
+			     power_domains);
+	enum intel_display_power_domain domain;
+	intel_wakeref_t wakeref;
+
+	/*
+	 * The caller must hold already raw wakeref, upgrade that to a proper
+	 * wakeref to make the state checker happy about the HW access during
+	 * power well disabling.
+	 */
+	assert_rpm_raw_wakeref_held(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
+
+	for_each_power_domain(domain, mask) {
+		/* Clear before put, so put's sanity check is happy. */
+		async_put_domains_clear_domain(power_domains, domain);
+		__intel_display_power_put_domain(dev_priv, domain);
+	}
+
+	intel_runtime_pm_put(dev_priv, wakeref);
+}
+
+static void
+intel_display_power_put_async_work(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, struct drm_i915_private,
+			     power_domains.async_put_work.work);
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	intel_wakeref_t new_work_wakeref = intel_runtime_pm_get_raw(dev_priv);
+	intel_wakeref_t old_work_wakeref = 0;
+
+	mutex_lock(&power_domains->lock);
+
+	/*
+	 * Bail out if all the domain refs pending to be released were grabbed
+	 * by subsequent gets or a flush_work.
+	 */
+	old_work_wakeref = fetch_and_zero(&power_domains->async_put_wakeref);
+	if (!old_work_wakeref)
+		goto out_verify;
+
+	release_async_put_domains(power_domains,
+				  power_domains->async_put_domains[0]);
+
+	/* Requeue the work if more domains were async put meanwhile. */
+	if (power_domains->async_put_domains[1]) {
+		power_domains->async_put_domains[0] =
+			fetch_and_zero(&power_domains->async_put_domains[1]);
+		queue_async_put_domains_work(power_domains,
+					     fetch_and_zero(&new_work_wakeref));
+	}
+
+out_verify:
+	verify_async_put_domains_state(power_domains);
+
+	mutex_unlock(&power_domains->lock);
+
+	if (old_work_wakeref)
+		intel_runtime_pm_put_raw(dev_priv, old_work_wakeref);
+	if (new_work_wakeref)
+		intel_runtime_pm_put_raw(dev_priv, new_work_wakeref);
+}
+
+/**
+ * intel_display_power_put_async - release a power domain reference asynchronously
+ * @i915: i915 device instance
+ * @domain: power domain to reference
+ * @wakeref: wakeref acquired for the reference that is being released
+ *
+ * This function drops the power domain reference obtained by
+ * intel_display_power_get*() and schedules a work to power down the
+ * corresponding hardware block if this is the last reference.
+ */
+void __intel_display_power_put_async(struct drm_i915_private *i915,
+				     enum intel_display_power_domain domain,
+				     intel_wakeref_t wakeref)
+{
+	struct i915_power_domains *power_domains = &i915->power_domains;
+	intel_wakeref_t work_wakeref = intel_runtime_pm_get_raw(i915);
+
+	mutex_lock(&power_domains->lock);
+
+	if (power_domains->domain_use_count[domain] > 1) {
+		__intel_display_power_put_domain(i915, domain);
+
+		goto out_verify;
+	}
+
+	WARN_ON(power_domains->domain_use_count[domain] != 1);
+
+	/* Let a pending work requeue itself or queue a new one. */
+	if (power_domains->async_put_wakeref) {
+		power_domains->async_put_domains[1] |= BIT_ULL(domain);
+	} else {
+		power_domains->async_put_domains[0] |= BIT_ULL(domain);
+		queue_async_put_domains_work(power_domains,
+					     fetch_and_zero(&work_wakeref));
+	}
+
+out_verify:
+	verify_async_put_domains_state(power_domains);
+
+	mutex_unlock(&power_domains->lock);
+
+	if (work_wakeref)
+		intel_runtime_pm_put_raw(i915, work_wakeref);
+
+	intel_runtime_pm_put(i915, wakeref);
+}
+
+/**
+ * intel_display_power_flush_work - flushes the async display power disabling work
+ * @i915: i915 device instance
+ *
+ * Flushes any pending work that was scheduled by a preceding
+ * intel_display_power_put_async() call, completing the disabling of the
+ * corresponding power domains.
+ *
+ * Note that the work handler function may still be running after this
+ * function returns; to ensure that the work handler isn't running use
+ * intel_display_power_flush_work_sync() instead.
+ */
+void intel_display_power_flush_work(struct drm_i915_private *i915)
+{
+	struct i915_power_domains *power_domains = &i915->power_domains;
+	intel_wakeref_t work_wakeref;
+
+	mutex_lock(&power_domains->lock);
+
+	work_wakeref = fetch_and_zero(&power_domains->async_put_wakeref);
+	if (!work_wakeref)
+		goto out_verify;
+
+	release_async_put_domains(power_domains,
+				  async_put_domains_mask(power_domains));
+	cancel_delayed_work(&power_domains->async_put_work);
+
+out_verify:
+	verify_async_put_domains_state(power_domains);
+
+	mutex_unlock(&power_domains->lock);
+
+	if (work_wakeref)
+		intel_runtime_pm_put_raw(i915, work_wakeref);
+}
+
+/**
+ * intel_display_power_flush_work_sync - flushes and syncs the async display power disabling work
+ * @i915: i915 device instance
+ *
+ * Like intel_display_power_flush_work(), but also ensure that the work
+ * handler function is not running any more when this function returns.
+ */
+static void
+intel_display_power_flush_work_sync(struct drm_i915_private *i915)
+{
+	struct i915_power_domains *power_domains = &i915->power_domains;
+
+	intel_display_power_flush_work(i915);
+	cancel_delayed_work_sync(&power_domains->async_put_work);
+
+	verify_async_put_domains_state(power_domains);
+
+	WARN_ON(power_domains->async_put_wakeref);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
@@ -3525,6 +3855,9 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 
 	mutex_init(&power_domains->lock);
 
+	INIT_DELAYED_WORK(&power_domains->async_put_work,
+			  intel_display_power_put_async_work);
+
 	/*
 	 * The enabling order will be from lower to higher indexed wells,
 	 * the disabling order is reversed.
@@ -4445,6 +4778,8 @@ void intel_power_domains_fini_hw(struct drm_i915_private *i915)
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_put_unchecked(i915, POWER_DOMAIN_INIT);
 
+	intel_display_power_flush_work_sync(i915);
+
 	intel_power_domains_verify_state(i915);
 
 	/* Keep the power well enabled, but cancel its rpm wakeref. */
@@ -4520,6 +4855,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	if (!(i915->csr.allowed_dc_mask & DC_STATE_EN_DC9) &&
 	    suspend_mode == I915_DRM_SUSPEND_IDLE &&
 	    i915->csr.dmc_payload) {
+		intel_display_power_flush_work(i915);
 		intel_power_domains_verify_state(i915);
 		return;
 	}
@@ -4531,6 +4867,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_put_unchecked(i915, POWER_DOMAIN_INIT);
 
+	intel_display_power_flush_work(i915);
 	intel_power_domains_verify_state(i915);
 
 	if (INTEL_GEN(i915) >= 11)
@@ -4609,6 +4946,8 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 
 	mutex_lock(&power_domains->lock);
 
+	verify_async_put_domains_state(power_domains);
+
 	dump_domain_info = false;
 	for_each_power_well(i915, power_well) {
 		enum intel_display_power_domain domain;
@@ -4668,6 +5007,11 @@ static intel_wakeref_t __intel_runtime_pm_get(struct drm_i915_private *i915,
 	intel_runtime_pm_acquire(i915, wakelock);
 
 	return track_intel_runtime_pm_wakeref(i915);
+}
+
+static intel_wakeref_t intel_runtime_pm_get_raw(struct drm_i915_private *i915)
+{
+	return __intel_runtime_pm_get(i915, false);
 }
 
 /**
@@ -4768,6 +5112,14 @@ static void __intel_runtime_pm_put(struct drm_i915_private *i915,
 	pm_runtime_mark_last_busy(kdev);
 	pm_runtime_put_autosuspend(kdev);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+static void
+intel_runtime_pm_put_raw(struct drm_i915_private *i915, intel_wakeref_t wref)
+{
+	__intel_runtime_pm_put(i915, wref, false);
+}
+#endif
 
 /**
  * intel_runtime_pm_put_unchecked - release an unchecked runtime pm reference
