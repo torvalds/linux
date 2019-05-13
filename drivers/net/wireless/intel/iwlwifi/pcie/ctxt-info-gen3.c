@@ -96,13 +96,13 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		cpu_to_le64(trans_pcie->rxq->bd_dma);
 
 	/* Configure debug, for integration */
-	if (!trans->ini_valid)
+	if (!trans->dbg.ini_valid)
 		iwl_pcie_alloc_fw_monitor(trans, 0);
-	if (trans->num_blocks) {
+	if (trans->dbg.num_blocks) {
 		prph_sc_ctrl->hwm_cfg.hwm_base_addr =
-			cpu_to_le64(trans->fw_mon[0].physical);
+			cpu_to_le64(trans->dbg.fw_mon[0].physical);
 		prph_sc_ctrl->hwm_cfg.hwm_size =
-			cpu_to_le32(trans->fw_mon[0].size);
+			cpu_to_le32(trans->dbg.fw_mon[0].size);
 	}
 
 	/* allocate ucode sections in dram and set addresses */

@@ -202,7 +202,7 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 
-	if (fwrt->trans->ini_valid)
+	if (fwrt->trans->dbg.ini_valid)
 		return NULL;
 
 	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
@@ -229,7 +229,7 @@ iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_trigger *trig;
 	u32 usec;
 
-	if (!fwrt->trans->ini_valid || id == IWL_FW_TRIGGER_ID_INVALID ||
+	if (!fwrt->trans->dbg.ini_valid || id == IWL_FW_TRIGGER_ID_INVALID ||
 	    id >= IWL_FW_TRIGGER_ID_NUM || !fwrt->dump.active_trigs[id].active)
 		return false;
 
@@ -301,7 +301,7 @@ _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 	usleep_range(700, 1000);
 	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	trans->dbg_rec_on = false;
+	trans->dbg.rec_on = false;
 #endif
 }
 
@@ -336,7 +336,7 @@ _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
 {
 	if (fwrt->fw->dbg.dest_tlv && fwrt->cur_fw_img == IWL_UCODE_REGULAR)
-		fwrt->trans->dbg_rec_on = true;
+		fwrt->trans->dbg.rec_on = true;
 }
 #endif
 
@@ -452,28 +452,28 @@ void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt);
 static inline void iwl_fw_lmac1_set_alive_err_table(struct iwl_trans *trans,
 						    u32 lmac_error_event_table)
 {
-	if (!(trans->error_event_table_tlv_status &
+	if (!(trans->dbg.error_event_table_tlv_status &
 	      IWL_ERROR_EVENT_TABLE_LMAC1) ||
-	    WARN_ON(trans->lmac_error_event_table[0] !=
+	    WARN_ON(trans->dbg.lmac_error_event_table[0] !=
 		    lmac_error_event_table))
-		trans->lmac_error_event_table[0] = lmac_error_event_table;
+		trans->dbg.lmac_error_event_table[0] = lmac_error_event_table;
 }
 
 static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 						   u32 umac_error_event_table)
 {
-	if (!(trans->error_event_table_tlv_status &
+	if (!(trans->dbg.error_event_table_tlv_status &
 	      IWL_ERROR_EVENT_TABLE_UMAC) ||
-	    WARN_ON(trans->umac_error_event_table !=
+	    WARN_ON(trans->dbg.umac_error_event_table !=
 		    umac_error_event_table))
-		trans->umac_error_event_table = umac_error_event_table;
+		trans->dbg.umac_error_event_table = umac_error_event_table;
 }
 
 static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 {
-	if (fwrt->trans->ini_valid && fwrt->trans->hw_error) {
+	if (fwrt->trans->dbg.ini_valid && fwrt->trans->dbg.hw_error) {
 		_iwl_fw_dbg_ini_collect(fwrt, IWL_FW_TRIGGER_ID_FW_HW_ERROR);
-		fwrt->trans->hw_error = false;
+		fwrt->trans->dbg.hw_error = false;
 	} else {
 		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
 	}

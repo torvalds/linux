@@ -1114,10 +1114,10 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (drv->trans->cfg->device_family <
 			    IWL_DEVICE_FAMILY_22000)
 				break;
-			drv->trans->umac_error_event_table =
+			drv->trans->dbg.umac_error_event_table =
 				le32_to_cpu(dbg_ptrs->error_info_addr) &
 				~FW_ADDR_CACHE_CONTROL;
-			drv->trans->error_event_table_tlv_status |=
+			drv->trans->dbg.error_event_table_tlv_status |=
 				IWL_ERROR_EVENT_TABLE_UMAC;
 			break;
 			}
@@ -1130,10 +1130,10 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (drv->trans->cfg->device_family <
 			    IWL_DEVICE_FAMILY_22000)
 				break;
-			drv->trans->lmac_error_event_table[0] =
+			drv->trans->dbg.lmac_error_event_table[0] =
 				le32_to_cpu(dbg_ptrs->error_event_table_ptr) &
 				~FW_ADDR_CACHE_CONTROL;
-			drv->trans->error_event_table_tlv_status |=
+			drv->trans->dbg.error_event_table_tlv_status |=
 				IWL_ERROR_EVENT_TABLE_LMAC1;
 			break;
 			}

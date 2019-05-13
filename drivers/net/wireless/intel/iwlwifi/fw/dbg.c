@@ -1155,10 +1155,10 @@ iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
 		return -EBUSY;
 
 	range->dram_base_addr = cpu_to_le64(start_addr);
-	range->range_data_size = cpu_to_le32(fwrt->trans->fw_mon[idx].size);
+	range->range_data_size = cpu_to_le32(fwrt->trans->dbg.fw_mon[idx].size);
 
-	memcpy(range->data, fwrt->trans->fw_mon[idx].block,
-	       fwrt->trans->fw_mon[idx].size);
+	memcpy(range->data, fwrt->trans->dbg.fw_mon[idx].block,
+	       fwrt->trans->dbg.fw_mon[idx].size);
 
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
@@ -1581,8 +1581,8 @@ static u32 iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
 	u32 size = sizeof(struct iwl_fw_ini_monitor_dump) +
 		sizeof(struct iwl_fw_ini_error_dump_range);
 
-	if (fwrt->trans->num_blocks)
-		size += fwrt->trans->fw_mon[0].size;
+	if (fwrt->trans->dbg.num_blocks)
+		size += fwrt->trans->dbg.fw_mon[0].size;
 
 	return size;
 }
@@ -1735,7 +1735,8 @@ static void iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 
 	dump->version = cpu_to_le32(IWL_INI_DUMP_VER);
 	dump->trigger_id = trigger->trigger_id;
-	dump->is_external_cfg = cpu_to_le32(fwrt->trans->external_ini_loaded);
+	dump->is_external_cfg =
+		cpu_to_le32(fwrt->trans->dbg.external_ini_loaded);
 
 	dump->ver_type = cpu_to_le32(fwrt->dump.fw_ver.type);
 	dump->ver_subtype = cpu_to_le32(fwrt->dump.fw_ver.subtype);
@@ -1842,7 +1843,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 				ret_size += hdr_len + size;
 			break;
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
-			if (!fwrt->trans->num_blocks)
+			if (!fwrt->trans->dbg.num_blocks)
 				break;
 			size = iwl_dump_ini_mon_dram_get_size(fwrt, reg);
 			if (size)
@@ -2097,7 +2098,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	u32 trig_type = le32_to_cpu(desc->trig_desc.type);
 	int ret;
 
-	if (fwrt->trans->ini_valid) {
+	if (fwrt->trans->dbg.ini_valid) {
 		ret = iwl_fw_dbg_ini_collect(fwrt, trig_type);
 		if (!ret)
 			iwl_fw_free_dump_desc(fwrt);
@@ -2374,7 +2375,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	iwl_fw_dbg_stop_recording(fwrt, &params);
 
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection start\n");
-	if (fwrt->trans->ini_valid)
+	if (fwrt->trans->dbg.ini_valid)
 		iwl_fw_error_ini_dump(fwrt, wk_idx);
 	else
 		iwl_fw_error_dump(fwrt);
@@ -2474,7 +2475,8 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
 	void *virtual_addr = NULL;
 	dma_addr_t phys_addr;
 
-	if (WARN_ON_ONCE(trans->num_blocks == ARRAY_SIZE(trans->fw_mon)))
+	if (WARN_ON_ONCE(trans->dbg.num_blocks ==
+			 ARRAY_SIZE(trans->dbg.fw_mon)))
 		return;
 
 	virtual_addr =
@@ -2488,12 +2490,12 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
 
 	IWL_DEBUG_FW(trans,
 		     "Allocated DRAM buffer[%d], size=0x%x\n",
-		     trans->num_blocks, size);
+		     trans->dbg.num_blocks, size);
 
-	trans->fw_mon[trans->num_blocks].block = virtual_addr;
-	trans->fw_mon[trans->num_blocks].physical = phys_addr;
-	trans->fw_mon[trans->num_blocks].size = size;
-	trans->num_blocks++;
+	trans->dbg.fw_mon[trans->dbg.num_blocks].block = virtual_addr;
+	trans->dbg.fw_mon[trans->dbg.num_blocks].physical = phys_addr;
+	trans->dbg.fw_mon[trans->dbg.num_blocks].size = size;
+	trans->dbg.num_blocks++;
 }
 
 static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
@@ -2511,7 +2513,7 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 		.data[0] = &ldbg_cmd,
 		.len[0] = sizeof(ldbg_cmd),
 	};
-	int block_idx = trans->num_blocks;
+	int block_idx = trans->dbg.num_blocks;
 	u32 buf_location = le32_to_cpu(alloc->tlv.buffer_location);
 
 	if (buf_location == IWL_FW_INI_LOCATION_SRAM_PATH) {
@@ -2529,13 +2531,13 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 	if (!alloc->is_alloc) {
 		iwl_fw_dbg_buffer_allocation(fwrt,
 					     le32_to_cpu(alloc->tlv.size));
-		if (block_idx == trans->num_blocks)
+		if (block_idx == trans->dbg.num_blocks)
 			return;
 		alloc->is_alloc = 1;
 	}
 
 	/* First block is assigned via registers / context info */
-	if (trans->num_blocks == 1)
+	if (trans->dbg.num_blocks == 1)
 		return;
 
 	IWL_DEBUG_FW(trans,
@@ -2543,7 +2545,7 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 
 	cmd->num_frags = cpu_to_le32(1);
 	cmd->fragments[0].address =
-		cpu_to_le64(trans->fw_mon[block_idx].physical);
+		cpu_to_le64(trans->dbg.fw_mon[block_idx].physical);
 	cmd->fragments[0].size = alloc->tlv.size;
 	cmd->allocation_id = alloc->tlv.allocation_id;
 	cmd->buffer_location = alloc->tlv.buffer_location;
@@ -2835,7 +2837,7 @@ static void iwl_fw_dbg_ini_reset_cfg(struct iwl_fw_runtime *fwrt)
 void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_apply_point apply_point)
 {
-	void *data = &fwrt->trans->apply_points[apply_point];
+	void *data = &fwrt->trans->dbg.apply_points[apply_point];
 
 	IWL_DEBUG_FW(fwrt, "WRT: enabling apply point %d\n", apply_point);
 
@@ -2844,7 +2846,7 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 
 	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);
 
-	data = &fwrt->trans->apply_points_ext[apply_point];
+	data = &fwrt->trans->dbg.apply_points_ext[apply_point];
 	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, true);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);

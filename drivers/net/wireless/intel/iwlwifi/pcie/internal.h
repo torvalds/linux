@@ -1018,7 +1018,7 @@ static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
 
 static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
 {
-	return (trans->dbg_dest_tlv || trans->ini_valid);
+	return (trans->dbg.dest_tlv || trans->dbg.ini_valid);
 }
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);

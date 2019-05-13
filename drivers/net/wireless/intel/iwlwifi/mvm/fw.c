@@ -238,7 +238,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	iwl_fw_lmac1_set_alive_err_table(mvm->trans, lmac_error_event_table);
 
 	if (lmac2)
-		mvm->trans->lmac_error_event_table[1] =
+		mvm->trans->dbg.lmac_error_event_table[1] =
 			le32_to_cpu(lmac2->dbg_ptrs.error_event_table_ptr);
 
 	umac_error_event_table = le32_to_cpu(umac->dbg_ptrs.error_info_addr);
@@ -1174,7 +1174,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
-	if (!mvm->trans->ini_valid) {
+	if (!mvm->trans->dbg.ini_valid) {
 		mvm->fwrt.dump.conf = FW_DBG_INVALID;
 		/* if we have a destination, assume EARLY START */
 		if (mvm->fw->dbg.dest_tlv)
