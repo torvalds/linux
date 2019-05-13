@@ -283,7 +283,6 @@ EXPORT_SYMBOL(qe_clock_source);
  */
 static void qe_snums_init(void)
 {
-	int i;
 	static const u8 snum_init_76[] = {
 		0x04, 0x05, 0x0C, 0x0D, 0x14, 0x15, 0x1C, 0x1D,
 		0x24, 0x25, 0x2C, 0x2D, 0x34, 0x35, 0x88, 0x89,
@@ -304,7 +303,21 @@ static void qe_snums_init(void)
 		0x28, 0x29, 0x38, 0x39, 0x48, 0x49, 0x58, 0x59,
 		0x68, 0x69, 0x78, 0x79, 0x80, 0x81,
 	};
+	struct device_node *qe;
 	const u8 *snum_init;
+	int i;
+
+	bitmap_zero(snum_state, QE_NUM_OF_SNUM);
+	qe = qe_get_device_node();
+	if (qe) {
+		i = of_property_read_variable_u8_array(qe, "fsl,qe-snums",
+						       snums, 1, QE_NUM_OF_SNUM);
+		of_node_put(qe);
+		if (i > 0) {
+			qe_num_of_snum = i;
+			return;
+		}
+	}
 
 	qe_num_of_snum = qe_get_num_of_snums();
 
@@ -313,7 +326,6 @@ static void qe_snums_init(void)
 	else
 		snum_init = snum_init_46;
 
-	bitmap_zero(snum_state, QE_NUM_OF_SNUM);
 	memcpy(snums, snum_init, qe_num_of_snum);
 }
 
