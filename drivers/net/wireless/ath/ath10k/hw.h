@@ -614,6 +614,9 @@ struct ath10k_hw_params {
 	 * firmware bug
 	 */
 	bool uart_pin_workaround;
+
+	/* tx stats support over pktlog */
+	bool tx_stats_over_pktlog;
 };
 
 struct htt_rx_desc;
