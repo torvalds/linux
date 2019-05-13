@@ -134,6 +134,16 @@ ext2_xattr_handler(int name_index)
 	return handler;
 }
 
+static bool
+ext2_xattr_header_valid(struct ext2_xattr_header *header)
+{
+	if (header->h_magic != cpu_to_le32(EXT2_XATTR_MAGIC) ||
+	    header->h_blocks != cpu_to_le32(1))
+		return false;
+
+	return true;
+}
+
 /*
  * ext2_xattr_get()
  *
@@ -176,9 +186,9 @@ ext2_xattr_get(struct inode *inode, int name_index, const char *name,
 	ea_bdebug(bh, "b_count=%d, refcount=%d",
 		atomic_read(&(bh->b_count)), le32_to_cpu(HDR(bh)->h_refcount));
 	end = bh->b_data + bh->b_size;
-	if (HDR(bh)->h_magic != cpu_to_le32(EXT2_XATTR_MAGIC) ||
-	    HDR(bh)->h_blocks != cpu_to_le32(1)) {
-bad_block:	ext2_error(inode->i_sb, "ext2_xattr_get",
+	if (!ext2_xattr_header_valid(HDR(bh))) {
+bad_block:
+		ext2_error(inode->i_sb, "ext2_xattr_get",
 			"inode %ld: bad block %d", inode->i_ino,
 			EXT2_I(inode)->i_file_acl);
 		error = -EIO;
@@ -266,9 +276,9 @@ ext2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	ea_bdebug(bh, "b_count=%d, refcount=%d",
 		atomic_read(&(bh->b_count)), le32_to_cpu(HDR(bh)->h_refcount));
 	end = bh->b_data + bh->b_size;
-	if (HDR(bh)->h_magic != cpu_to_le32(EXT2_XATTR_MAGIC) ||
-	    HDR(bh)->h_blocks != cpu_to_le32(1)) {
-bad_block:	ext2_error(inode->i_sb, "ext2_xattr_list",
+	if (!ext2_xattr_header_valid(HDR(bh))) {
+bad_block:
+		ext2_error(inode->i_sb, "ext2_xattr_list",
 			"inode %ld: bad block %d", inode->i_ino,
 			EXT2_I(inode)->i_file_acl);
 		error = -EIO;
@@ -406,9 +416,9 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 			le32_to_cpu(HDR(bh)->h_refcount));
 		header = HDR(bh);
 		end = bh->b_data + bh->b_size;
-		if (header->h_magic != cpu_to_le32(EXT2_XATTR_MAGIC) ||
-		    header->h_blocks != cpu_to_le32(1)) {
-bad_block:		ext2_error(sb, "ext2_xattr_set",
+		if (!ext2_xattr_header_valid(header)) {
+bad_block:
+			ext2_error(sb, "ext2_xattr_set",
 				"inode %ld: bad block %d", inode->i_ino, 
 				   EXT2_I(inode)->i_file_acl);
 			error = -EIO;
@@ -784,8 +794,7 @@ ext2_xattr_delete_inode(struct inode *inode)
 		goto cleanup;
 	}
 	ea_bdebug(bh, "b_count=%d", atomic_read(&(bh->b_count)));
-	if (HDR(bh)->h_magic != cpu_to_le32(EXT2_XATTR_MAGIC) ||
-	    HDR(bh)->h_blocks != cpu_to_le32(1)) {
+	if (!ext2_xattr_header_valid(HDR(bh))) {
 		ext2_error(inode->i_sb, "ext2_xattr_delete_inode",
 			"inode %ld: bad block %d", inode->i_ino,
 			EXT2_I(inode)->i_file_acl);
