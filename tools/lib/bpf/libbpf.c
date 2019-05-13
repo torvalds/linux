@@ -44,6 +44,7 @@
 #include "btf.h"
 #include "str_error.h"
 #include "libbpf_util.h"
+#include "libbpf_internal.h"
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -128,6 +129,10 @@ struct bpf_capabilities {
 	__u32 name:1;
 	/* v5.2: kernel support for global data sections. */
 	__u32 global_data:1;
+	/* BTF_KIND_FUNC and BTF_KIND_FUNC_PROTO support */
+	__u32 btf_func:1;
+	/* BTF_KIND_VAR and BTF_KIND_DATASEC support */
+	__u32 btf_datasec:1;
 };
 
 /*
@@ -1021,6 +1026,74 @@ static bool section_have_execinstr(struct bpf_object *obj, int idx)
 	return false;
 }
 
+static void bpf_object__sanitize_btf(struct bpf_object *obj)
+{
+	bool has_datasec = obj->caps.btf_datasec;
+	bool has_func = obj->caps.btf_func;
+	struct btf *btf = obj->btf;
+	struct btf_type *t;
+	int i, j, vlen;
+	__u16 kind;
+
+	if (!obj->btf || (has_func && has_datasec))
+		return;
+
+	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+		t = (struct btf_type *)btf__type_by_id(btf, i);
+		kind = BTF_INFO_KIND(t->info);
+
+		if (!has_datasec && kind == BTF_KIND_VAR) {
+			/* replace VAR with INT */
+			t->info = BTF_INFO_ENC(BTF_KIND_INT, 0, 0);
+			t->size = sizeof(int);
+			*(int *)(t+1) = BTF_INT_ENC(0, 0, 32);
+		} else if (!has_datasec && kind == BTF_KIND_DATASEC) {
+			/* replace DATASEC with STRUCT */
+			struct btf_var_secinfo *v = (void *)(t + 1);
+			struct btf_member *m = (void *)(t + 1);
+			struct btf_type *vt;
+			char *name;
+
+			name = (char *)btf__name_by_offset(btf, t->name_off);
+			while (*name) {
+				if (*name == '.')
+					*name = '_';
+				name++;
+			}
+
+			vlen = BTF_INFO_VLEN(t->info);
+			t->info = BTF_INFO_ENC(BTF_KIND_STRUCT, 0, vlen);
+			for (j = 0; j < vlen; j++, v++, m++) {
+				/* order of field assignments is important */
+				m->offset = v->offset * 8;
+				m->type = v->type;
+				/* preserve variable name as member name */
+				vt = (void *)btf__type_by_id(btf, v->type);
+				m->name_off = vt->name_off;
+			}
+		} else if (!has_func && kind == BTF_KIND_FUNC_PROTO) {
+			/* replace FUNC_PROTO with ENUM */
+			vlen = BTF_INFO_VLEN(t->info);
+			t->info = BTF_INFO_ENC(BTF_KIND_ENUM, 0, vlen);
+			t->size = sizeof(__u32); /* kernel enforced */
+		} else if (!has_func && kind == BTF_KIND_FUNC) {
+			/* replace FUNC with TYPEDEF */
+			t->info = BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0);
+		}
+	}
+}
+
+static void bpf_object__sanitize_btf_ext(struct bpf_object *obj)
+{
+	if (!obj->btf_ext)
+		return;
+
+	if (!obj->caps.btf_func) {
+		btf_ext__free(obj->btf_ext);
+		obj->btf_ext = NULL;
+	}
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 {
 	Elf *elf = obj->efile.elf;
@@ -1164,8 +1237,10 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 			obj->btf = NULL;
 		} else {
 			err = btf__finalize_data(obj, obj->btf);
-			if (!err)
+			if (!err) {
+				bpf_object__sanitize_btf(obj);
 				err = btf__load(obj->btf);
+			}
 			if (err) {
 				pr_warning("Error finalizing and loading %s into kernel: %d. Ignored and continue.\n",
 					   BTF_ELF_SEC, err);
@@ -1187,6 +1262,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 					   BTF_EXT_ELF_SEC,
 					   PTR_ERR(obj->btf_ext));
 				obj->btf_ext = NULL;
+			} else {
+				bpf_object__sanitize_btf_ext(obj);
 			}
 		}
 	}
@@ -1556,12 +1633,63 @@ bpf_object__probe_global_data(struct bpf_object *obj)
 	return 0;
 }
 
+static int bpf_object__probe_btf_func(struct bpf_object *obj)
+{
+	const char strs[] = "\0int\0x\0a";
+	/* void x(int a) {} */
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(1, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
+		/* FUNC_PROTO */                                /* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FUNC_PROTO, 0, 1), 0),
+		BTF_PARAM_ENC(7, 1),
+		/* FUNC x */                                    /* [3] */
+		BTF_TYPE_ENC(5, BTF_INFO_ENC(BTF_KIND_FUNC, 0, 0), 2),
+	};
+	int res;
+
+	res = libbpf__probe_raw_btf((char *)types, sizeof(types),
+				    strs, sizeof(strs));
+	if (res < 0)
+		return res;
+	if (res > 0)
+		obj->caps.btf_func = 1;
+	return 0;
+}
+
+static int bpf_object__probe_btf_datasec(struct bpf_object *obj)
+{
+	const char strs[] = "\0x\0.data";
+	/* static int a; */
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
+		/* VAR x */                                     /* [2] */
+		BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_VAR, 0, 0), 1),
+		BTF_VAR_STATIC,
+		/* DATASEC val */                               /* [3] */
+		BTF_TYPE_ENC(3, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(2, 0, 4),
+	};
+	int res;
+
+	res = libbpf__probe_raw_btf((char *)types, sizeof(types),
+				    strs, sizeof(strs));
+	if (res < 0)
+		return res;
+	if (res > 0)
+		obj->caps.btf_datasec = 1;
+	return 0;
+}
+
 static int
 bpf_object__probe_caps(struct bpf_object *obj)
 {
 	int (*probe_fn[])(struct bpf_object *obj) = {
 		bpf_object__probe_name,
 		bpf_object__probe_global_data,
+		bpf_object__probe_btf_func,
+		bpf_object__probe_btf_datasec,
 	};
 	int i, ret;
 
