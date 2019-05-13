@@ -122,11 +122,11 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
 #define RCAR3_THERMAL_GRAN 500 /* mili Celsius */
 
 /* no idea where these constants come from */
-#define TJ_1 116
 #define TJ_3 -41
 
 static void rcar_gen3_thermal_calc_coefs(struct equation_coefs *coef,
-					 int *ptat, int *thcode)
+					 int *ptat, int *thcode,
+					 int ths_tj_1)
 {
 	int tj_2;
 
@@ -137,15 +137,15 @@ static void rcar_gen3_thermal_calc_coefs(struct equation_coefs *coef,
 	 * the dividend (4095 * 4095 << 14 > INT_MAX) so keep it unscaled
 	 */
 	tj_2 = (FIXPT_INT((ptat[1] - ptat[2]) * 157)
-		/ (ptat[0] - ptat[2])) - FIXPT_INT(41);
+		/ (ptat[0] - ptat[2])) + FIXPT_INT(TJ_3);
 
 	coef->a1 = FIXPT_DIV(FIXPT_INT(thcode[1] - thcode[2]),
 			     tj_2 - FIXPT_INT(TJ_3));
 	coef->b1 = FIXPT_INT(thcode[2]) - coef->a1 * TJ_3;
 
 	coef->a2 = FIXPT_DIV(FIXPT_INT(thcode[1] - thcode[0]),
-			     tj_2 - FIXPT_INT(TJ_1));
-	coef->b2 = FIXPT_INT(thcode[0]) - coef->a2 * TJ_1;
+			     tj_2 - FIXPT_INT(ths_tj_1));
+	coef->b2 = FIXPT_INT(thcode[0]) - coef->a2 * ths_tj_1;
 }
 
 static int rcar_gen3_thermal_round(int temp)
@@ -294,12 +294,29 @@ static void rcar_gen3_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
 	usleep_range(1000, 2000);
 }
 
+static const int rcar_gen3_ths_tj_1 = 126;
+static const int rcar_gen3_ths_tj_1_m3_w = 116;
 static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
-	{ .compatible = "renesas,r8a774a1-thermal", },
-	{ .compatible = "renesas,r8a7795-thermal", },
-	{ .compatible = "renesas,r8a7796-thermal", },
-	{ .compatible = "renesas,r8a77965-thermal", },
-	{ .compatible = "renesas,r8a77980-thermal", },
+	{
+		.compatible = "renesas,r8a774a1-thermal",
+		.data = &rcar_gen3_ths_tj_1_m3_w,
+	},
+	{
+		.compatible = "renesas,r8a7795-thermal",
+		.data = &rcar_gen3_ths_tj_1,
+	},
+	{
+		.compatible = "renesas,r8a7796-thermal",
+		.data = &rcar_gen3_ths_tj_1_m3_w,
+	},
+	{
+		.compatible = "renesas,r8a77965-thermal",
+		.data = &rcar_gen3_ths_tj_1,
+	},
+	{
+		.compatible = "renesas,r8a77980-thermal",
+		.data = &rcar_gen3_ths_tj_1,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_thermal_dt_ids);
@@ -328,6 +345,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 {
 	struct rcar_gen3_thermal_priv *priv;
 	struct device *dev = &pdev->dev;
+	const int *rcar_gen3_ths_tj_1 = of_device_get_match_data(dev);
 	struct resource *res;
 	struct thermal_zone_device *zone;
 	int ret, irq, i;
@@ -399,7 +417,8 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		priv->tscs[i] = tsc;
 
 		priv->thermal_init(tsc);
-		rcar_gen3_thermal_calc_coefs(&tsc->coef, ptat, thcode[i]);
+		rcar_gen3_thermal_calc_coefs(&tsc->coef, ptat, thcode[i],
+					     *rcar_gen3_ths_tj_1);
 
 		zone = devm_thermal_zone_of_sensor_register(dev, i, tsc,
 							    &rcar_gen3_tz_of_ops);
