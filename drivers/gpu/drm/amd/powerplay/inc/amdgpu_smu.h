@@ -458,6 +458,8 @@ struct pptable_funcs {
 				      uint32_t *mclk_mask,
 				      uint32_t *soc_mask);
 	int (*set_cpu_power_state)(struct smu_context *smu);
+	int (*set_ppfeature_status)(struct smu_context *smu, uint64_t ppfeatures);
+	int (*get_ppfeature_status)(struct smu_context *smu, char *buf);
 };
 
 struct smu_funcs
@@ -727,7 +729,10 @@ struct smu_funcs
 	((smu)->funcs->get_mclk ? (smu)->funcs->get_mclk((smu), (low)) : 0)
 #define smu_set_xgmi_pstate(smu, pstate) \
 		((smu)->funcs->set_xgmi_pstate ? (smu)->funcs->set_xgmi_pstate((smu), (pstate)) : 0)
-
+#define smu_set_ppfeature_status(smu, ppfeatures) \
+	((smu)->ppt_funcs->set_ppfeature_status ? (smu)->ppt_funcs->set_ppfeature_status((smu), (ppfeatures)) : -EINVAL)
+#define smu_get_ppfeature_status(smu, buf) \
+	((smu)->ppt_funcs->get_ppfeature_status ? (smu)->ppt_funcs->get_ppfeature_status((smu), (buf)) : -EINVAL)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

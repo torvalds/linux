@@ -767,7 +767,11 @@ static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
 
 	pr_debug("featuremask = 0x%llx\n", featuremask);
 
-	if (adev->powerplay.pp_funcs->set_ppfeature_status) {
+	if (is_support_sw_smu(adev)) {
+		ret = smu_set_ppfeature_status(&adev->smu, featuremask);
+		if (ret)
+			return -EINVAL;
+	} else if (adev->powerplay.pp_funcs->set_ppfeature_status) {
 		ret = amdgpu_dpm_set_ppfeature_status(adev, featuremask);
 		if (ret)
 			return -EINVAL;
@@ -783,7 +787,9 @@ static ssize_t amdgpu_get_ppfeature_status(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->get_ppfeature_status)
+	if (is_support_sw_smu(adev)) {
+		return smu_get_ppfeature_status(&adev->smu, buf);
+	} else if (adev->powerplay.pp_funcs->get_ppfeature_status)
 		return amdgpu_dpm_get_ppfeature_status(adev, buf);
 
 	return snprintf(buf, PAGE_SIZE, "\n");
