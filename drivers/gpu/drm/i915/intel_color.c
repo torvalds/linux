@@ -959,8 +959,10 @@ static int check_luts(const struct intel_crtc_state *crtc_state)
 		return 0;
 
 	/* C8 relies on its palette being stored in the legacy LUT */
-	if (crtc_state->c8_planes)
+	if (crtc_state->c8_planes) {
+		DRM_DEBUG_KMS("C8 pixelformat requires the legacy LUT\n");
 		return -EINVAL;
+	}
 
 	degamma_length = INTEL_INFO(dev_priv)->color.degamma_lut_size;
 	gamma_length = INTEL_INFO(dev_priv)->color.gamma_lut_size;
