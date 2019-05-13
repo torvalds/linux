@@ -180,6 +180,25 @@ static int extent_matches_stripe(struct bch_fs *c,
 	return -1;
 }
 
+static bool extent_has_stripe_ptr(struct bkey_s_c k, u64 idx)
+{
+	struct bkey_s_c_extent e;
+	const union bch_extent_entry *entry;
+
+	if (!bkey_extent_is_data(k.k))
+		return false;
+
+	e = bkey_s_c_to_extent(k);
+
+	extent_for_each_entry(e, entry)
+		if (extent_entry_type(entry) ==
+		    BCH_EXTENT_ENTRY_stripe_ptr &&
+		    entry->stripe_ptr.idx == idx)
+			return true;
+
+	return false;
+}
+
 static void ec_stripe_key_init(struct bch_fs *c,
 			       struct bkey_i_stripe *s,
 			       struct open_buckets *blocks,
@@ -756,11 +775,18 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(bkey_start_pos(k.k), pos->p) < 0) {
+		if (extent_has_stripe_ptr(k, s->key.k.p.offset)) {
+			bch2_btree_iter_next(iter);
+			continue;
+		}
+
 		idx = extent_matches_stripe(c, &s->key.v, k);
 		if (idx < 0) {
 			bch2_btree_iter_next(iter);
 			continue;
 		}
+
+		bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
 
 		dev = s->key.v.ptrs[idx].dev;
 
