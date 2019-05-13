@@ -2225,6 +2225,50 @@ static struct file_system_type cgroup2_fs_type = {
 	.fs_flags		= FS_USERNS_MOUNT,
 };
 
+#ifdef CONFIG_CPUSETS
+static const struct fs_context_operations cpuset_fs_context_ops = {
+	.get_tree	= cgroup1_get_tree,
+	.free		= cgroup_fs_context_free,
+};
+
+/*
+ * This is ugly, but preserves the userspace API for existing cpuset
+ * users. If someone tries to mount the "cpuset" filesystem, we
+ * silently switch it to mount "cgroup" instead
+ */
+static int cpuset_init_fs_context(struct fs_context *fc)
+{
+	char *agent = kstrdup("/sbin/cpuset_release_agent", GFP_USER);
+	struct cgroup_fs_context *ctx;
+	int err;
+
+	err = cgroup_init_fs_context(fc);
+	if (err) {
+		kfree(agent);
+		return err;
+	}
+
+	fc->ops = &cpuset_fs_context_ops;
+
+	ctx = cgroup_fc2context(fc);
+	ctx->subsys_mask = 1 << cpuset_cgrp_id;
+	ctx->flags |= CGRP_ROOT_NOPREFIX;
+	ctx->release_agent = agent;
+
+	get_filesystem(&cgroup_fs_type);
+	put_filesystem(fc->fs_type);
+	fc->fs_type = &cgroup_fs_type;
+
+	return 0;
+}
+
+static struct file_system_type cpuset_fs_type = {
+	.name			= "cpuset",
+	.init_fs_context	= cpuset_init_fs_context,
+	.fs_flags		= FS_USERNS_MOUNT,
+};
+#endif
+
 int cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
 			  struct cgroup_namespace *ns)
 {
@@ -5710,6 +5754,9 @@ int __init cgroup_init(void)
 	WARN_ON(register_filesystem(&cgroup_fs_type));
 	WARN_ON(register_filesystem(&cgroup2_fs_type));
 	WARN_ON(!proc_create_single("cgroups", 0, NULL, proc_cgroupstats_show));
+#ifdef CONFIG_CPUSETS
+	WARN_ON(register_filesystem(&cpuset_fs_type));
+#endif
 
 	return 0;
 }
