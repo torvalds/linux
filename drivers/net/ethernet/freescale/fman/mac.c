@@ -729,7 +729,7 @@ static int mac_probe(struct platform_device *_of_dev)
 		err = -EINVAL;
 		goto _return_of_get_parent;
 	}
-	memcpy(mac_dev->addr, mac_addr, sizeof(mac_dev->addr));
+	ether_addr_copy(mac_dev->addr, mac_addr);
 
 	/* Get the port handles */
 	nph = of_count_phandle_with_args(mac_node, "fsl,fman-ports", NULL);

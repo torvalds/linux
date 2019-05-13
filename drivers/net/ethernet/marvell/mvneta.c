@@ -4565,7 +4565,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	dt_mac_addr = of_get_mac_address(dn);
 	if (!IS_ERR(dt_mac_addr)) {
 		mac_from = "device tree";
-		memcpy(dev->dev_addr, dt_mac_addr, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, dt_mac_addr);
 	} else {
 		mvneta_get_mac_addr(pp, hw_mac_addr);
 		if (is_valid_ether_addr(hw_mac_addr)) {

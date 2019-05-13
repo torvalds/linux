@@ -4805,7 +4805,7 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	 */
 	iap = of_get_mac_address(hw->pdev->dev.of_node);
 	if (!IS_ERR(iap))
-		memcpy(dev->dev_addr, iap, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, iap);
 	else
 		memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8,
 			      ETH_ALEN);

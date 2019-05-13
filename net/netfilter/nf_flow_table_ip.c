@@ -181,6 +181,9 @@ static int nf_flow_tuple_ip(struct sk_buff *skb, const struct net_device *dev,
 	    iph->protocol != IPPROTO_UDP)
 		return -1;
 
+	if (iph->ttl <= 1)
+		return -1;
+
 	thoff = iph->ihl * 4;
 	if (!pskb_may_pull(skb, thoff + sizeof(*ports)))
 		return -1;
@@ -406,6 +409,9 @@ static int nf_flow_tuple_ipv6(struct sk_buff *skb, const struct net_device *dev,
 
 	if (ip6h->nexthdr != IPPROTO_TCP &&
 	    ip6h->nexthdr != IPPROTO_UDP)
+		return -1;
+
+	if (ip6h->hop_limit <= 1)
 		return -1;
 
 	thoff = sizeof(*ip6h);

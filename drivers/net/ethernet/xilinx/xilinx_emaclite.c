@@ -1167,7 +1167,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 
 	if (!IS_ERR(mac_address)) {
 		/* Set the MAC address. */
-		memcpy(ndev->dev_addr, mac_address, ETH_ALEN);
+		ether_addr_copy(ndev->dev_addr, mac_address);
 	} else {
 		dev_warn(dev, "No MAC address found, using random\n");
 		eth_hw_addr_random(ndev);
