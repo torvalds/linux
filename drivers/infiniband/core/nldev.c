@@ -1346,32 +1346,35 @@ static int nldev_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 }
 
-static int nldev_get_sys_get_dumpit(struct sk_buff *skb,
-				    struct netlink_callback *cb)
+static int nldev_sys_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+			      struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
-	struct nlmsghdr *nlh;
+	struct sk_buff *msg;
 	int err;
 
-	err = nlmsg_parse(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
-			  nldev_policy, NULL);
+	err = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, extack);
 	if (err)
 		return err;
 
-	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
 			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV,
 					 RDMA_NLDEV_CMD_SYS_GET),
 			0, 0);
 
-	err = nla_put_u8(skb, RDMA_NLDEV_SYS_ATTR_NETNS_MODE,
+	err = nla_put_u8(msg, RDMA_NLDEV_SYS_ATTR_NETNS_MODE,
 			 (u8)ib_devices_shared_netns);
 	if (err) {
-		nlmsg_cancel(skb, nlh);
+		nlmsg_free(msg);
 		return err;
 	}
-
-	nlmsg_end(skb, nlh);
-	return skb->len;
+	nlmsg_end(msg, nlh);
+	return rdma_nl_unicast(msg, NETLINK_CB(skb).portid);
 }
 
 static int nldev_set_sys_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -1441,7 +1444,7 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 		.dump = nldev_res_get_pd_dumpit,
 	},
 	[RDMA_NLDEV_CMD_SYS_GET] = {
-		.dump = nldev_get_sys_get_dumpit,
+		.doit = nldev_sys_get_doit,
 	},
 	[RDMA_NLDEV_CMD_SYS_SET] = {
 		.doit = nldev_set_sys_set_doit,
