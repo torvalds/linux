@@ -60,10 +60,13 @@ static const void *of_get_mac_addr_nvmem(struct device_node *np)
 		return ERR_PTR(-ENODEV);
 
 	ret = nvmem_get_mac_address(&pdev->dev, &nvmem_mac);
-	if (ret)
+	if (ret) {
+		put_device(&pdev->dev);
 		return ERR_PTR(ret);
+	}
 
 	mac = devm_kmemdup(&pdev->dev, nvmem_mac, ETH_ALEN, GFP_KERNEL);
+	put_device(&pdev->dev);
 	if (!mac)
 		return ERR_PTR(-ENOMEM);
 
