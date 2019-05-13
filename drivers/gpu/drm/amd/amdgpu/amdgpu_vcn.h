@@ -102,6 +102,8 @@ struct amdgpu_vcn {
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
 	struct dpg_pause_state pause_state;
+	int (*pause_dpg_mode)(struct amdgpu_device *adev,
+		struct dpg_pause_state *new_state);
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
