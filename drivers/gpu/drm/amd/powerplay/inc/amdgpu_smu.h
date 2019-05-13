@@ -403,6 +403,9 @@ struct smu_context
 	uint32_t default_power_profile_mode;
 
 	uint32_t smc_if_version;
+
+	unsigned long metrics_time;
+	void *metrics_table;
 };
 
 struct pptable_funcs {
