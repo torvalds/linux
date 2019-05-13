@@ -41,7 +41,7 @@ struct olpc_ec_driver {
 	bool wakeup_available;
 };
 
-#ifdef CONFIG_OLPC
+#ifdef CONFIG_OLPC_EC
 
 extern void olpc_ec_driver_register(struct olpc_ec_driver *drv, void *arg);
 
@@ -69,6 +69,6 @@ static inline bool olpc_ec_wakeup_available(void)
 	return false;
 }
 
-#endif /* CONFIG_OLPC */
+#endif /* CONFIG_OLPC_EC */
 
 #endif /* _LINUX_OLPC_EC_H */

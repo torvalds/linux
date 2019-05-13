@@ -1,0 +1,14 @@
+config OLPC_EC
+	bool
+
+config OLPC_XO175_EC
+	tristate "OLPC XO 1.75 Embedded Controller"
+	depends on ARCH_MMP || COMPILE_TEST
+	select SPI_SLAVE
+	select OLPC_EC
+	help
+	  Include support for the OLPC XO Embedded Controller (EC). The EC
+	  provides various platform services, including support for the power,
+	  button, restart, shutdown and battery charging status.
+
+	  Unless you have an OLPC XO laptop, you will want to say N.
