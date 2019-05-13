@@ -148,7 +148,7 @@ struct rapl_pmu {
 
 struct rapl_pmus {
 	struct pmu		pmu;
-	unsigned int		maxpkg;
+	unsigned int		maxdie;
 	struct rapl_pmu		*pmus[];
 };
 
@@ -161,13 +161,13 @@ static u64 rapl_timer_ms;
 
 static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
 {
-	unsigned int pkgid = topology_logical_die_id(cpu);
+	unsigned int dieid = topology_logical_die_id(cpu);
 
 	/*
 	 * The unsigned check also catches the '-1' return value for non
 	 * existent mappings in the topology map.
 	 */
-	return pkgid < rapl_pmus->maxpkg ? rapl_pmus->pmus[pkgid] : NULL;
+	return dieid < rapl_pmus->maxdie ? rapl_pmus->pmus[dieid] : NULL;
 }
 
 static inline u64 rapl_read_counter(struct perf_event *event)
@@ -668,22 +668,22 @@ static void cleanup_rapl_pmus(void)
 {
 	int i;
 
-	for (i = 0; i < rapl_pmus->maxpkg; i++)
+	for (i = 0; i < rapl_pmus->maxdie; i++)
 		kfree(rapl_pmus->pmus[i]);
 	kfree(rapl_pmus);
 }
 
 static int __init init_rapl_pmus(void)
 {
-	int maxpkg = topology_max_packages() * topology_max_die_per_package();
+	int maxdie = topology_max_packages() * topology_max_die_per_package();
 	size_t size;
 
-	size = sizeof(*rapl_pmus) + maxpkg * sizeof(struct rapl_pmu *);
+	size = sizeof(*rapl_pmus) + maxdie * sizeof(struct rapl_pmu *);
 	rapl_pmus = kzalloc(size, GFP_KERNEL);
 	if (!rapl_pmus)
 		return -ENOMEM;
 
-	rapl_pmus->maxpkg		= maxpkg;
+	rapl_pmus->maxdie		= maxdie;
 	rapl_pmus->pmu.attr_groups	= rapl_attr_groups;
 	rapl_pmus->pmu.task_ctx_nr	= perf_invalid_context;
 	rapl_pmus->pmu.event_init	= rapl_pmu_event_init;
