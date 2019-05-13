@@ -340,6 +340,18 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_VCN)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_VCN_PG_BIT);
 
+	/* disable DPM UCLK and DS SOCCLK on navi10 A0 secure board */
+	if (is_asic_secure(smu)) {
+		/* only for navi10 A0 */
+		if ((adev->asic_type == CHIP_NAVI10) &&
+			(adev->rev_id == 0)) {
+			*(uint64_t *)feature_mask &=
+					~FEATURE_MASK(FEATURE_DPM_UCLK_BIT);
+			*(uint64_t *)feature_mask &=
+					~FEATURE_MASK(FEATURE_DS_SOCCLK_BIT);
+		}
+	}
+
 	return 0;
 }
 
