@@ -26,6 +26,9 @@
 #define LEVEL_MAX_SIBLINGS(ebx)		((ebx) & 0xffff)
 
 #ifdef CONFIG_SMP
+unsigned int __max_die_per_package __read_mostly = 1;
+EXPORT_SYMBOL(__max_die_per_package);
+
 /*
  * Check if given CPUID extended toplogy "leaf" is implemented
  */
@@ -146,7 +149,7 @@ int detect_extended_topology(struct cpuinfo_x86 *c)
 	c->apicid = apic->phys_pkg_id(c->initial_apicid, 0);
 
 	c->x86_max_cores = (core_level_siblings / smp_num_siblings);
-	c->x86_max_dies = (die_level_siblings / core_level_siblings);
+	__max_die_per_package = (die_level_siblings / core_level_siblings);
 #endif
 	return 0;
 }
