@@ -32,14 +32,14 @@
 #define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
 #define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
 #define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
-#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
+#define stage2_pud_free(kvm, pud)		do { } while (0)
 
 #define stage2_pud_none(kvm, pud)		pud_none(pud)
 #define stage2_pud_clear(kvm, pud)		pud_clear(pud)
 #define stage2_pud_present(kvm, pud)		pud_present(pud)
 #define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
 #define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
-#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
+#define stage2_pmd_free(kvm, pmd)		free_page((unsigned long)pmd)
 
 #define stage2_pud_huge(kvm, pud)		pud_huge(pud)
 

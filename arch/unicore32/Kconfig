@@ -20,6 +20,7 @@ config UNICORE32
 	select GENERIC_IOMAP
 	select MODULES_USE_ELF_REL
 	select NEED_DMA_MAP_STATE
+	select MMU_GATHER_NO_RANGE if MMU
 	help
 	  UniCore-32 is 32-bit Instruction Set Architecture,
 	  including a series of low-power-consumption RISC chip
@@ -37,12 +38,6 @@ config STACKTRACE_SUPPORT
 
 config LOCKDEP_SUPPORT
 	def_bool y
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
 
 config ARCH_HAS_ILOG2_U32
 	bool

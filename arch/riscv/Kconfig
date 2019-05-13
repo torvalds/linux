@@ -48,6 +48,7 @@ config RISCV
 	select RISCV_TIMER
 	select GENERIC_IRQ_MULTI_HANDLER
 	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_MMIOWB
 	select HAVE_EBPF_JIT if 64BIT
 
 config MMU
@@ -67,9 +68,6 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
-
-config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
 config GENERIC_BUG

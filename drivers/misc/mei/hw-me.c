@@ -350,9 +350,6 @@ static void mei_me_hw_reset_release(struct mei_device *dev)
 	hcsr |= H_IG;
 	hcsr &= ~H_RST;
 	mei_hcsr_set(dev, hcsr);
-
-	/* complete this write before we set host ready on another CPU */
-	mmiowb();
 }
 
 /**

@@ -969,6 +969,7 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
+	codec->core.dev.power.power_state = PMSG_ON;
 
 	snd_hda_codec_proc_new(codec);
 

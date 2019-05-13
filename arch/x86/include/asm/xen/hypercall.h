@@ -206,12 +206,31 @@ xen_single_call(unsigned int call,
 	__HYPERCALL_DECLS;
 	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);
 
+	if (call >= PAGE_SIZE / sizeof(hypercall_page[0]))
+		return -EINVAL;
+
 	asm volatile(CALL_NOSPEC
 		     : __HYPERCALL_5PARAM
 		     : [thunk_target] "a" (&hypercall_page[call])
 		     : __HYPERCALL_CLOBBER5);
 
 	return (long)__res;
+}
+
+static __always_inline void __xen_stac(void)
+{
+	/*
+	 * Suppress objtool seeing the STAC/CLAC and getting confused about it
+	 * calling random code with AC=1.
+	 */
+	asm volatile(ANNOTATE_IGNORE_ALTERNATIVE
+		     ASM_STAC ::: "memory", "flags");
+}
+
+static __always_inline void __xen_clac(void)
+{
+	asm volatile(ANNOTATE_IGNORE_ALTERNATIVE
+		     ASM_CLAC ::: "memory", "flags");
 }
 
 static inline long
@@ -222,9 +241,9 @@ privcmd_call(unsigned int call,
 {
 	long res;
 
-	stac();
+	__xen_stac();
 	res = xen_single_call(call, a1, a2, a3, a4, a5);
-	clac();
+	__xen_clac();
 
 	return res;
 }
@@ -421,9 +440,9 @@ HYPERVISOR_dm_op(
 	domid_t dom, unsigned int nr_bufs, struct xen_dm_op_buf *bufs)
 {
 	int ret;
-	stac();
+	__xen_stac();
 	ret = _hypercall3(int, dm_op, dom, nr_bufs, bufs);
-	clac();
+	__xen_clac();
 	return ret;
 }
 

@@ -5186,7 +5186,6 @@ static void event_hist_trigger(struct event_trigger_data *data, void *rec,
 	u64 var_ref_vals[TRACING_MAP_VARS_MAX];
 	char compound_key[HIST_KEY_SIZE_MAX];
 	struct tracing_map_elt *elt = NULL;
-	struct stack_trace stacktrace;
 	struct hist_field *key_field;
 	u64 field_contents;
 	void *key = NULL;
@@ -5198,14 +5197,9 @@ static void event_hist_trigger(struct event_trigger_data *data, void *rec,
 		key_field = hist_data->fields[i];
 
 		if (key_field->flags & HIST_FIELD_FL_STACKTRACE) {
-			stacktrace.max_entries = HIST_STACKTRACE_DEPTH;
-			stacktrace.entries = entries;
-			stacktrace.nr_entries = 0;
-			stacktrace.skip = HIST_STACKTRACE_SKIP;
-
-			memset(stacktrace.entries, 0, HIST_STACKTRACE_SIZE);
-			save_stack_trace(&stacktrace);
-
+			memset(entries, 0, HIST_STACKTRACE_SIZE);
+			stack_trace_save(entries, HIST_STACKTRACE_DEPTH,
+					 HIST_STACKTRACE_SKIP);
 			key = entries;
 		} else {
 			field_contents = key_field->fn(key_field, elt, rbe, rec);
@@ -5246,7 +5240,7 @@ static void hist_trigger_stacktrace_print(struct seq_file *m,
 	unsigned int i;
 
 	for (i = 0; i < max_entries; i++) {
-		if (stacktrace_entries[i] == ULONG_MAX)
+		if (!stacktrace_entries[i])
 			return;
 
 		seq_printf(m, "%*c", 1 + spaces, ' ');

@@ -294,8 +294,6 @@ extern u64 kvm_supported_xcr0(void);
 
 extern unsigned int min_timer_period_us;
 
-extern unsigned int lapic_timer_advance_ns;
-
 extern bool enable_vmware_backdoor;
 
 extern struct static_key kvm_no_apic_vcpu;
@@ -347,4 +345,6 @@ static inline void kvm_after_interrupt(struct kvm_vcpu *vcpu)
 	__this_cpu_write(current_vcpu, NULL);
 }
 
+void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu);
+void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu);
 #endif

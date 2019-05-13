@@ -249,6 +249,10 @@ config ARCH_HAS_FORTIFY_SOURCE
 config ARCH_HAS_SET_MEMORY
 	bool
 
+# Select if arch has all set_direct_map_invalid/default() functions
+config ARCH_HAS_SET_DIRECT_MAP
+	bool
+
 # Select if arch init_task must go in the __init_task_data section
 config ARCH_TASK_STRUCT_ON_STACK
        bool
@@ -383,7 +387,13 @@ config HAVE_ARCH_JUMP_LABEL_RELATIVE
 config HAVE_RCU_TABLE_FREE
 	bool
 
-config HAVE_RCU_TABLE_INVALIDATE
+config HAVE_RCU_TABLE_NO_INVALIDATE
+	bool
+
+config HAVE_MMU_GATHER_PAGE_SIZE
+	bool
+
+config HAVE_MMU_GATHER_NO_GATHER
 	bool
 
 config ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -900,6 +910,15 @@ config HAVE_ARCH_PREL32_RELOCATIONS
 
 config ARCH_USE_MEMREMAP_PROT
 	bool
+
+config LOCK_EVENT_COUNTS
+	bool "Locking event counts collection"
+	depends on DEBUG_FS
+	---help---
+	  Enable light-weight counting of various locking related events
+	  in the system with minimal performance impact. This reduces
+	  the chance of application behavior change because of timing
+	  differences. The counts are reported via debugfs.
 
 source "kernel/gcov/Kconfig"
 

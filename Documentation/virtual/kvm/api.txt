@@ -321,7 +321,7 @@ cpu's hardware control block.
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
 Capability: basic
-Architectures: x86
+Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in/out)
 Returns: 0 on success, -1 on error
@@ -3810,7 +3810,7 @@ to I/O ports.
 4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
 
 Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
-Architectures: x86
+Architectures: x86, arm, arm64, mips
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in)
 Returns: 0 on success, -1 on error
@@ -3830,8 +3830,9 @@ The ioctl clears the dirty status of pages in a memory slot, according to
 the bitmap that is passed in struct kvm_clear_dirty_log's dirty_bitmap
 field.  Bit 0 of the bitmap corresponds to page "first_page" in the
 memory slot, and num_pages is the size in bits of the input bitmap.
-Both first_page and num_pages must be a multiple of 64.  For each bit
-that is set in the input bitmap, the corresponding page is marked "clean"
+first_page must be a multiple of 64; num_pages must also be a multiple of
+64 unless first_page + num_pages is the size of the memory slot.  For each
+bit that is set in the input bitmap, the corresponding page is marked "clean"
 in KVM's dirty bitmap, and dirty tracking is re-enabled for that page
 (for example via write-protection, or by clearing the dirty bit in
 a page table entry).
@@ -4799,7 +4800,7 @@ and injected exceptions.
 
 7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
 
-Architectures: all
+Architectures: x86, arm, arm64, mips
 Parameters: args[0] whether feature should be enabled or not
 
 With this capability enabled, KVM_GET_DIRTY_LOG will not automatically

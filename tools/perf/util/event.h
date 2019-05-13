@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <linux/kernel.h>
 #include <linux/bpf.h>
+#include <linux/perf_event.h>
 
 #include "../perf.h"
 #include "build-id.h"

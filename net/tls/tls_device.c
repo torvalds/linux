@@ -52,8 +52,11 @@ static DEFINE_SPINLOCK(tls_device_lock);
 
 static void tls_device_free_ctx(struct tls_context *ctx)
 {
-	if (ctx->tx_conf == TLS_HW)
+	if (ctx->tx_conf == TLS_HW) {
 		kfree(tls_offload_ctx_tx(ctx));
+		kfree(ctx->tx.rec_seq);
+		kfree(ctx->tx.iv);
+	}
 
 	if (ctx->rx_conf == TLS_HW)
 		kfree(tls_offload_ctx_rx(ctx));
@@ -215,6 +218,13 @@ void tls_device_sk_destruct(struct sock *sk)
 		tls_device_queue_ctx_destruction(tls_ctx);
 }
 EXPORT_SYMBOL(tls_device_sk_destruct);
+
+void tls_device_free_resources_tx(struct sock *sk)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+
+	tls_free_partial_record(sk, tls_ctx);
+}
 
 static void tls_append_frag(struct tls_record_info *record,
 			    struct page_frag *pfrag,
@@ -587,7 +597,7 @@ void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)
 static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 {
 	struct strp_msg *rxm = strp_msg(skb);
-	int err = 0, offset = rxm->offset, copy, nsg;
+	int err = 0, offset = rxm->offset, copy, nsg, data_len, pos;
 	struct sk_buff *skb_iter, *unused;
 	struct scatterlist sg[1];
 	char *orig_buf, *buf;
@@ -618,25 +628,42 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 	else
 		err = 0;
 
-	copy = min_t(int, skb_pagelen(skb) - offset,
-		     rxm->full_len - TLS_CIPHER_AES_GCM_128_TAG_SIZE);
+	data_len = rxm->full_len - TLS_CIPHER_AES_GCM_128_TAG_SIZE;
 
-	if (skb->decrypted)
-		skb_store_bits(skb, offset, buf, copy);
+	if (skb_pagelen(skb) > offset) {
+		copy = min_t(int, skb_pagelen(skb) - offset, data_len);
 
-	offset += copy;
-	buf += copy;
-
-	skb_walk_frags(skb, skb_iter) {
-		copy = min_t(int, skb_iter->len,
-			     rxm->full_len - offset + rxm->offset -
-			     TLS_CIPHER_AES_GCM_128_TAG_SIZE);
-
-		if (skb_iter->decrypted)
-			skb_store_bits(skb_iter, offset, buf, copy);
+		if (skb->decrypted)
+			skb_store_bits(skb, offset, buf, copy);
 
 		offset += copy;
 		buf += copy;
+	}
+
+	pos = skb_pagelen(skb);
+	skb_walk_frags(skb, skb_iter) {
+		int frag_pos;
+
+		/* Practically all frags must belong to msg if reencrypt
+		 * is needed with current strparser and coalescing logic,
+		 * but strparser may "get optimized", so let's be safe.
+		 */
+		if (pos + skb_iter->len <= offset)
+			goto done_with_frag;
+		if (pos >= data_len + rxm->offset)
+			break;
+
+		frag_pos = offset - pos;
+		copy = min_t(int, skb_iter->len - frag_pos,
+			     data_len + rxm->offset - offset);
+
+		if (skb_iter->decrypted)
+			skb_store_bits(skb_iter, frag_pos, buf, copy);
+
+		offset += copy;
+		buf += copy;
+done_with_frag:
+		pos += skb_iter->len;
 	}
 
 free_buf:
@@ -894,7 +921,9 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	goto release_netdev;
 
 free_sw_resources:
+	up_read(&device_offload_lock);
 	tls_sw_free_resources_rx(sk);
+	down_read(&device_offload_lock);
 release_ctx:
 	ctx->priv_ctx_rx = NULL;
 release_netdev:
@@ -929,8 +958,6 @@ void tls_device_offload_cleanup_rx(struct sock *sk)
 	}
 out:
 	up_read(&device_offload_lock);
-	kfree(tls_ctx->rx.rec_seq);
-	kfree(tls_ctx->rx.iv);
 	tls_sw_release_resources_rx(sk);
 }
 

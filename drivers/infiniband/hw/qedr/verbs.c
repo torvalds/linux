@@ -773,9 +773,6 @@ static void doorbell_cq(struct qedr_cq *cq, u32 cons, u8 flags)
 	cq->db.data.agg_flags = flags;
 	cq->db.data.value = cpu_to_le32(cons);
 	writeq(cq->db.raw, cq->db_addr);
-
-	/* Make sure write would stick */
-	mmiowb();
 }
 
 int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
@@ -2084,8 +2081,6 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 
 			if (rdma_protocol_roce(&dev->ibdev, 1)) {
 				writel(qp->rq.db_data.raw, qp->rq.db);
-				/* Make sure write takes effect */
-				mmiowb();
 			}
 			break;
 		case QED_ROCE_QP_STATE_ERR:
@@ -3502,9 +3497,6 @@ int qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	smp_wmb();
 	writel(qp->sq.db_data.raw, qp->sq.db);
 
-	/* Make sure write sticks */
-	mmiowb();
-
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
 	return rc;
@@ -3695,12 +3687,8 @@ int qedr_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 
 		writel(qp->rq.db_data.raw, qp->rq.db);
 
-		/* Make sure write sticks */
-		mmiowb();
-
 		if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
 			writel(qp->rq.iwarp_db2_data.raw, qp->rq.iwarp_db2);
-			mmiowb();	/* for second doorbell */
 		}
 
 		wr = wr->next;

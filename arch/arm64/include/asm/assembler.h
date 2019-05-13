@@ -407,7 +407,11 @@ alternative_endif
 	.ifc	\op, cvap
 	sys	3, c7, c12, 1, \kaddr	// dc cvap
 	.else
+	.ifc	\op, cvadp
+	sys	3, c7, c13, 1, \kaddr	// dc cvadp
+	.else
 	dc	\op, \kaddr
+	.endif
 	.endif
 	.endif
 	.endif
@@ -442,8 +446,8 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  * reset_pmuserenr_el0 - reset PMUSERENR_EL0 if PMUv3 present
  */
 	.macro	reset_pmuserenr_el0, tmpreg
-	mrs	\tmpreg, id_aa64dfr0_el1	// Check ID_AA64DFR0_EL1 PMUVer
-	sbfx	\tmpreg, \tmpreg, #8, #4
+	mrs	\tmpreg, id_aa64dfr0_el1
+	sbfx	\tmpreg, \tmpreg, #ID_AA64DFR0_PMUVER_SHIFT, #4
 	cmp	\tmpreg, #1			// Skip if no PMU present
 	b.lt	9000f
 	msr	pmuserenr_el0, xzr		// Disable PMU access from EL0

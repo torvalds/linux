@@ -63,6 +63,7 @@ config SPARC64
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
 	select HAVE_RCU_TABLE_FREE if SMP
+	select HAVE_RCU_TABLE_NO_INVALIDATE if HAVE_RCU_TABLE_FREE
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_DYNAMIC_FTRACE
@@ -190,14 +191,6 @@ config NR_CPUS
 	default 4096 if SPARC64
 
 source "kernel/Kconfig.hz"
-
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y if SPARC32
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default y if SPARC64
 
 config GENERIC_HWEIGHT
 	bool

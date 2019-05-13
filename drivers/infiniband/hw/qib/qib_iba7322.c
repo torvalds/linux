@@ -3793,7 +3793,6 @@ static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 		pa = chippa;
 	}
 	writeq(pa, tidptr);
-	mmiowb();
 }
 
 /**
@@ -4440,10 +4439,8 @@ static void qib_update_7322_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 		adjust_rcv_timeout(rcd, npkts);
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
-	mmiowb();
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	mmiowb();
 }
 
 static u32 qib_7322_hdrqempty(struct qib_ctxtdata *rcd)

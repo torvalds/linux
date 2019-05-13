@@ -728,7 +728,6 @@ static irqreturn_t ravb_emac_interrupt(int irq, void *dev_id)
 
 	spin_lock(&priv->lock);
 	ravb_emac_interrupt_unlocked(ndev);
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return IRQ_HANDLED;
 }
@@ -848,7 +847,6 @@ static irqreturn_t ravb_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -881,7 +879,6 @@ static irqreturn_t ravb_multi_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -898,7 +895,6 @@ static irqreturn_t ravb_dma_interrupt(int irq, void *dev_id, int q)
 	if (ravb_queue_interrupt(ndev, q))
 		result = IRQ_HANDLED;
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -943,7 +939,6 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 			ravb_write(ndev, ~(mask | TIS_RESERVED), TIS);
 			ravb_tx_free(ndev, q, true);
 			netif_wake_subqueue(ndev, q);
-			mmiowb();
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 	}
@@ -959,7 +954,6 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 		ravb_write(ndev, mask, RIE0);
 		ravb_write(ndev, mask, TIE);
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Receive error message handling */
@@ -1008,7 +1002,6 @@ static void ravb_adjust_link(struct net_device *ndev)
 	if (priv->no_avb_link && phydev->link)
 		ravb_rcv_snd_enable(ndev);
 
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (new_state && netif_msg_link(priv))
@@ -1601,7 +1594,6 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		netif_stop_subqueue(ndev, q);
 
 exit:
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return NETDEV_TX_OK;
 
@@ -1673,7 +1665,6 @@ static void ravb_set_rx_mode(struct net_device *ndev)
 	spin_lock_irqsave(&priv->lock, flags);
 	ravb_modify(ndev, ECMR, ECMR_PRM,
 		    ndev->flags & IFF_PROMISC ? ECMR_PRM : 0);
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 

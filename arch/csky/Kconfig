@@ -92,9 +92,6 @@ config GENERIC_HWEIGHT
 config MMU
 	def_bool y
 
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
