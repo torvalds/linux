@@ -783,6 +783,16 @@ config LEDS_NIC78BX
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-nic78bx.
 
+config LEDS_SPI_BYTE
+	tristate "LED support for SPI LED controller with a single byte"
+	depends on LEDS_CLASS
+	depends on SPI
+	depends on OF
+	help
+	  This option enables support for LED controller which use a single byte
+	  for controlling the brightness. Currently the following controller is
+	  supported: Ubiquiti airCube ISP microcontroller based LED controller.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
