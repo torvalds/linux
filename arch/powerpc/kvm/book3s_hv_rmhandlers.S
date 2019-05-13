@@ -581,11 +581,8 @@ kvmppc_hv_entry:
 1:
 #endif
 
-	/* Use cr7 as an indication of radix mode */
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	ld	r9, VCORE_KVM(r5)	/* pointer to struct kvm */
-	lbz	r0, KVM_RADIX(r9)
-	cmpwi	cr7, r0, 0
 
 	/*
 	 * POWER7/POWER8 host -> guest partition switch code.
@@ -607,9 +604,6 @@ kvmppc_hv_entry:
 	/* Primary thread switches to guest partition. */
 	cmpwi	r6,0
 	bne	10f
-
-	/* Radix has already switched LPID and flushed core TLB */
-	bne	cr7, 22f
 
 	lwz	r7,KVM_LPID(r9)
 BEGIN_FTR_SECTION
