@@ -166,7 +166,8 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }
 
-void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
+static void ttm_bo_add_mem_to_lru(struct ttm_buffer_object *bo,
+				  struct ttm_mem_reg *mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_type_manager *man;
@@ -176,10 +177,10 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 	if (!list_empty(&bo->lru))
 		return;
 
-	if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT)
+	if (mem->placement & TTM_PL_FLAG_NO_EVICT)
 		return;
 
-	man = &bdev->man[bo->mem.mem_type];
+	man = &bdev->man[mem->mem_type];
 	list_add_tail(&bo->lru, &man->lru[bo->priority]);
 	kref_get(&bo->list_kref);
 
@@ -188,6 +189,11 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 		list_add_tail(&bo->swap, &bdev->glob->swap_lru[bo->priority]);
 		kref_get(&bo->list_kref);
 	}
+}
+
+void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
+{
+	ttm_bo_add_mem_to_lru(bo, &bo->mem);
 }
 EXPORT_SYMBOL(ttm_bo_add_to_lru);
 
@@ -1001,6 +1007,14 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 
 	mem->mem_type = mem_type;
 	mem->placement = cur_flags;
+
+	if (bo->mem.mem_type < mem_type && !list_empty(&bo->lru)) {
+		spin_lock(&bo->bdev->glob->lru_lock);
+		ttm_bo_del_from_lru(bo);
+		ttm_bo_add_mem_to_lru(bo, mem);
+		spin_unlock(&bo->bdev->glob->lru_lock);
+	}
+
 	return 0;
 }
 
@@ -1034,7 +1048,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (ret == -EBUSY)
 			continue;
 		if (ret)
-			return ret;
+			goto error;
 
 		type_found = true;
 		mem->mm_node = NULL;
@@ -1044,13 +1058,13 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		man = &bdev->man[mem->mem_type];
 		ret = (*man->func->get_node)(man, bo, place, mem);
 		if (unlikely(ret))
-			return ret;
+			goto error;
 
 		if (mem->mm_node) {
 			ret = ttm_bo_add_move_fence(bo, man, mem);
 			if (unlikely(ret)) {
 				(*man->func->put_node)(man, mem);
-				return ret;
+				goto error;
 			}
 			return 0;
 		}
@@ -1063,7 +1077,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (ret == -EBUSY)
 			continue;
 		if (ret)
-			return ret;
+			goto error;
 
 		type_found = true;
 		mem->mm_node = NULL;
@@ -1075,15 +1089,23 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 			return 0;
 
 		if (ret && ret != -EBUSY)
-			return ret;
+			goto error;
 	}
 
+	ret = -ENOMEM;
 	if (!type_found) {
 		pr_err(TTM_PFX "No compatible memory type found\n");
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return -ENOMEM;
+error:
+	if (bo->mem.mem_type == TTM_PL_SYSTEM && !list_empty(&bo->lru)) {
+		spin_lock(&bo->bdev->glob->lru_lock);
+		ttm_bo_move_to_lru_tail(bo, NULL);
+		spin_unlock(&bo->bdev->glob->lru_lock);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_mem_space);
 
