@@ -506,7 +506,8 @@ static void freeze_go_sync(struct gfs2_glock *gl)
 		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
 		error = freeze_super(sdp->sd_vfs);
 		if (error) {
-			printk(KERN_INFO "GFS2: couldn't freeze filesystem: %d\n", error);
+			fs_info(sdp, "GFS2: couldn't freeze filesystem: %d\n",
+				error);
 			gfs2_assert_withdraw(sdp, 0);
 		}
 		queue_work(gfs2_freeze_wq, &sdp->sd_freeze_work);

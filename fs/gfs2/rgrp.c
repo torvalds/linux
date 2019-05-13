@@ -1112,32 +1112,33 @@ static int gfs2_rgrp_lvb_valid(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_rgrp_lvb *rgl = rgd->rd_rgl;
 	struct gfs2_rgrp *str = (struct gfs2_rgrp *)rgd->rd_bits[0].bi_bh->b_data;
+	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	int valid = 1;
 
 	if (rgl->rl_flags != str->rg_flags) {
-		printk(KERN_WARNING "GFS2: rgd: %llu lvb flag mismatch %u/%u",
-		       (unsigned long long)rgd->rd_addr,
+		fs_warn(sdp, "GFS2: rgd: %llu lvb flag mismatch %u/%u",
+			(unsigned long long)rgd->rd_addr,
 		       be32_to_cpu(rgl->rl_flags), be32_to_cpu(str->rg_flags));
 		valid = 0;
 	}
 	if (rgl->rl_free != str->rg_free) {
-		printk(KERN_WARNING "GFS2: rgd: %llu lvb free mismatch %u/%u",
-		       (unsigned long long)rgd->rd_addr,
-		       be32_to_cpu(rgl->rl_free), be32_to_cpu(str->rg_free));
+		fs_warn(sdp, "GFS2: rgd: %llu lvb free mismatch %u/%u",
+			(unsigned long long)rgd->rd_addr,
+			be32_to_cpu(rgl->rl_free), be32_to_cpu(str->rg_free));
 		valid = 0;
 	}
 	if (rgl->rl_dinodes != str->rg_dinodes) {
-		printk(KERN_WARNING "GFS2: rgd: %llu lvb dinode mismatch %u/%u",
-		       (unsigned long long)rgd->rd_addr,
-		       be32_to_cpu(rgl->rl_dinodes),
-		       be32_to_cpu(str->rg_dinodes));
+		fs_warn(sdp, "GFS2: rgd: %llu lvb dinode mismatch %u/%u",
+			(unsigned long long)rgd->rd_addr,
+			be32_to_cpu(rgl->rl_dinodes),
+			be32_to_cpu(str->rg_dinodes));
 		valid = 0;
 	}
 	if (rgl->rl_igeneration != str->rg_igeneration) {
-		printk(KERN_WARNING "GFS2: rgd: %llu lvb igen mismatch "
-		       "%llu/%llu", (unsigned long long)rgd->rd_addr,
-		       (unsigned long long)be64_to_cpu(rgl->rl_igeneration),
-		       (unsigned long long)be64_to_cpu(str->rg_igeneration));
+		fs_warn(sdp, "GFS2: rgd: %llu lvb igen mismatch %llu/%llu",
+			(unsigned long long)rgd->rd_addr,
+			(unsigned long long)be64_to_cpu(rgl->rl_igeneration),
+			(unsigned long long)be64_to_cpu(str->rg_igeneration));
 		valid = 0;
 	}
 	return valid;
