@@ -558,15 +558,16 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		u8 txf = iwl_mvm_mac_ac_to_tx_fifo(mvm, i);
+		u8 ucode_ac = iwl_mvm_mac80211_ac_to_ucode_ac(i);
 
-		cmd->ac[txf].cw_min =
+		cmd->ac[ucode_ac].cw_min =
 			cpu_to_le16(mvmvif->queue_params[i].cw_min);
-		cmd->ac[txf].cw_max =
+		cmd->ac[ucode_ac].cw_max =
 			cpu_to_le16(mvmvif->queue_params[i].cw_max);
-		cmd->ac[txf].edca_txop =
+		cmd->ac[ucode_ac].edca_txop =
 			cpu_to_le16(mvmvif->queue_params[i].txop * 32);
-		cmd->ac[txf].aifsn = mvmvif->queue_params[i].aifs;
-		cmd->ac[txf].fifos_mask = BIT(txf);
+		cmd->ac[ucode_ac].aifsn = mvmvif->queue_params[i].aifs;
+		cmd->ac[ucode_ac].fifos_mask = BIT(txf);
 	}
 
 	if (vif->bss_conf.qos)
