@@ -38,6 +38,17 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
@@ -193,7 +204,19 @@
 };
 
 &display_subsystem {
+	logo-memory-region = <&drm_logo>;
 	status = "okay";
+
+	route {
+		route_hdmi: route-hdmi {
+			status = "okay";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "fullscreen";
+			charge_logo,mode = "fullscreen";
+			connect = <&vop_out_hdmi>;
+		};
+	};
 };
 
 &emmc {
