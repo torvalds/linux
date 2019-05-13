@@ -213,7 +213,7 @@ void rcu_segcblist_extract_done_cbs(struct rcu_segcblist *rsclp,
 	if (!rcu_segcblist_ready_cbs(rsclp))
 		return; /* Nothing to do. */
 	*rclp->tail = rsclp->head;
-	rsclp->head = *rsclp->tails[RCU_DONE_TAIL];
+	WRITE_ONCE(rsclp->head, *rsclp->tails[RCU_DONE_TAIL]);
 	WRITE_ONCE(*rsclp->tails[RCU_DONE_TAIL], NULL);
 	rclp->tail = rsclp->tails[RCU_DONE_TAIL];
 	for (i = RCU_CBLIST_NSEGS - 1; i >= RCU_DONE_TAIL; i--)
@@ -268,7 +268,7 @@ void rcu_segcblist_insert_done_cbs(struct rcu_segcblist *rsclp,
 	if (!rclp->head)
 		return; /* No callbacks to move. */
 	*rclp->tail = rsclp->head;
-	rsclp->head = rclp->head;
+	WRITE_ONCE(rsclp->head, rclp->head);
 	for (i = RCU_DONE_TAIL; i < RCU_CBLIST_NSEGS; i++)
 		if (&rsclp->head == rsclp->tails[i])
 			WRITE_ONCE(rsclp->tails[i], rclp->tail);
