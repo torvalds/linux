@@ -786,7 +786,10 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 		flow_keys.thoff = nhoff;
 
 		bpf_compute_data_pointers((struct sk_buff *)skb);
+
+		preempt_disable();
 		result = BPF_PROG_RUN(attached, skb);
+		preempt_enable();
 
 		/* Restore state */
 		memcpy(cb, &cb_saved, sizeof(cb_saved));
