@@ -906,9 +906,8 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	}
 	snd_soc_rtdcom_add(rtd, rtd->cpu_dai->component);
 
-	rtd->num_codecs = dai_link->num_codecs;
-
 	/* Find CODEC from registered CODECs */
+	rtd->num_codecs = dai_link->num_codecs;
 	for_each_link_codecs(dai_link, i, codecs) {
 		rtd->codec_dais[i] = snd_soc_find_dai(codecs);
 		if (!rtd->codec_dais[i]) {
@@ -922,7 +921,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	/* Single codec links expect codec and codec_dai in runtime data */
 	rtd->codec_dai = rtd->codec_dais[0];
 
-	/* find one from the set of registered platforms */
+	/* Find PLATFORM from registered PLATFORMs */
 	for_each_component(component) {
 		if (!snd_soc_is_matching_component(dai_link->platforms,
 						   component))
