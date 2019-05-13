@@ -35,109 +35,6 @@ static inline bool node_signaled(const struct i915_sched_node *node)
 	return i915_request_completed(node_to_request(node));
 }
 
-void i915_sched_node_init(struct i915_sched_node *node)
-{
-	INIT_LIST_HEAD(&node->signalers_list);
-	INIT_LIST_HEAD(&node->waiters_list);
-	INIT_LIST_HEAD(&node->link);
-	node->attr.priority = I915_PRIORITY_INVALID;
-	node->semaphores = 0;
-	node->flags = 0;
-}
-
-static struct i915_dependency *
-i915_dependency_alloc(void)
-{
-	return kmem_cache_alloc(global.slab_dependencies, GFP_KERNEL);
-}
-
-static void
-i915_dependency_free(struct i915_dependency *dep)
-{
-	kmem_cache_free(global.slab_dependencies, dep);
-}
-
-bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
-				      struct i915_sched_node *signal,
-				      struct i915_dependency *dep,
-				      unsigned long flags)
-{
-	bool ret = false;
-
-	spin_lock_irq(&schedule_lock);
-
-	if (!node_signaled(signal)) {
-		INIT_LIST_HEAD(&dep->dfs_link);
-		list_add(&dep->wait_link, &signal->waiters_list);
-		list_add(&dep->signal_link, &node->signalers_list);
-		dep->signaler = signal;
-		dep->flags = flags;
-
-		/* Keep track of whether anyone on this chain has a semaphore */
-		if (signal->flags & I915_SCHED_HAS_SEMAPHORE_CHAIN &&
-		    !node_started(signal))
-			node->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
-
-		ret = true;
-	}
-
-	spin_unlock_irq(&schedule_lock);
-
-	return ret;
-}
-
-int i915_sched_node_add_dependency(struct i915_sched_node *node,
-				   struct i915_sched_node *signal)
-{
-	struct i915_dependency *dep;
-
-	dep = i915_dependency_alloc();
-	if (!dep)
-		return -ENOMEM;
-
-	if (!__i915_sched_node_add_dependency(node, signal, dep,
-					      I915_DEPENDENCY_ALLOC))
-		i915_dependency_free(dep);
-
-	return 0;
-}
-
-void i915_sched_node_fini(struct i915_sched_node *node)
-{
-	struct i915_dependency *dep, *tmp;
-
-	GEM_BUG_ON(!list_empty(&node->link));
-
-	spin_lock_irq(&schedule_lock);
-
-	/*
-	 * Everyone we depended upon (the fences we wait to be signaled)
-	 * should retire before us and remove themselves from our list.
-	 * However, retirement is run independently on each timeline and
-	 * so we may be called out-of-order.
-	 */
-	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
-		GEM_BUG_ON(!node_signaled(dep->signaler));
-		GEM_BUG_ON(!list_empty(&dep->dfs_link));
-
-		list_del(&dep->wait_link);
-		if (dep->flags & I915_DEPENDENCY_ALLOC)
-			i915_dependency_free(dep);
-	}
-
-	/* Remove ourselves from everyone who depends upon us */
-	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
-		GEM_BUG_ON(dep->signaler != node);
-		GEM_BUG_ON(!list_empty(&dep->dfs_link));
-
-		list_del(&dep->signal_link);
-		if (dep->flags & I915_DEPENDENCY_ALLOC)
-			i915_dependency_free(dep);
-	}
-
-	spin_unlock_irq(&schedule_lock);
-}
-
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
@@ -237,6 +134,11 @@ find_priolist:
 out:
 	p->used |= BIT(idx);
 	return &p->requests[idx];
+}
+
+void __i915_priolist_free(struct i915_priolist *p)
+{
+	kmem_cache_free(global.slab_priorities, p);
 }
 
 struct sched_cache {
@@ -436,9 +338,107 @@ void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
 	spin_unlock_irqrestore(&schedule_lock, flags);
 }
 
-void __i915_priolist_free(struct i915_priolist *p)
+void i915_sched_node_init(struct i915_sched_node *node)
 {
-	kmem_cache_free(global.slab_priorities, p);
+	INIT_LIST_HEAD(&node->signalers_list);
+	INIT_LIST_HEAD(&node->waiters_list);
+	INIT_LIST_HEAD(&node->link);
+	node->attr.priority = I915_PRIORITY_INVALID;
+	node->semaphores = 0;
+	node->flags = 0;
+}
+
+static struct i915_dependency *
+i915_dependency_alloc(void)
+{
+	return kmem_cache_alloc(global.slab_dependencies, GFP_KERNEL);
+}
+
+static void
+i915_dependency_free(struct i915_dependency *dep)
+{
+	kmem_cache_free(global.slab_dependencies, dep);
+}
+
+bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
+				      struct i915_sched_node *signal,
+				      struct i915_dependency *dep,
+				      unsigned long flags)
+{
+	bool ret = false;
+
+	spin_lock_irq(&schedule_lock);
+
+	if (!node_signaled(signal)) {
+		INIT_LIST_HEAD(&dep->dfs_link);
+		list_add(&dep->wait_link, &signal->waiters_list);
+		list_add(&dep->signal_link, &node->signalers_list);
+		dep->signaler = signal;
+		dep->flags = flags;
+
+		/* Keep track of whether anyone on this chain has a semaphore */
+		if (signal->flags & I915_SCHED_HAS_SEMAPHORE_CHAIN &&
+		    !node_started(signal))
+			node->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
+
+		ret = true;
+	}
+
+	spin_unlock_irq(&schedule_lock);
+
+	return ret;
+}
+
+int i915_sched_node_add_dependency(struct i915_sched_node *node,
+				   struct i915_sched_node *signal)
+{
+	struct i915_dependency *dep;
+
+	dep = i915_dependency_alloc();
+	if (!dep)
+		return -ENOMEM;
+
+	if (!__i915_sched_node_add_dependency(node, signal, dep,
+					      I915_DEPENDENCY_ALLOC))
+		i915_dependency_free(dep);
+
+	return 0;
+}
+
+void i915_sched_node_fini(struct i915_sched_node *node)
+{
+	struct i915_dependency *dep, *tmp;
+
+	GEM_BUG_ON(!list_empty(&node->link));
+
+	spin_lock_irq(&schedule_lock);
+
+	/*
+	 * Everyone we depended upon (the fences we wait to be signaled)
+	 * should retire before us and remove themselves from our list.
+	 * However, retirement is run independently on each timeline and
+	 * so we may be called out-of-order.
+	 */
+	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
+		GEM_BUG_ON(!node_signaled(dep->signaler));
+		GEM_BUG_ON(!list_empty(&dep->dfs_link));
+
+		list_del(&dep->wait_link);
+		if (dep->flags & I915_DEPENDENCY_ALLOC)
+			i915_dependency_free(dep);
+	}
+
+	/* Remove ourselves from everyone who depends upon us */
+	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
+		GEM_BUG_ON(dep->signaler != node);
+		GEM_BUG_ON(!list_empty(&dep->dfs_link));
+
+		list_del(&dep->signal_link);
+		if (dep->flags & I915_DEPENDENCY_ALLOC)
+			i915_dependency_free(dep);
+	}
+
+	spin_unlock_irq(&schedule_lock);
 }
 
 static void i915_global_scheduler_shrink(void)
