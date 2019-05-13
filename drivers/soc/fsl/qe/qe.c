@@ -56,6 +56,20 @@ static unsigned int qe_num_of_snum;
 
 static phys_addr_t qebase = -1;
 
+static struct device_node *qe_get_device_node(void)
+{
+	struct device_node *qe;
+
+	/*
+	 * Newer device trees have an "fsl,qe" compatible property for the QE
+	 * node, but we still need to support older device trees.
+	 */
+	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (qe)
+		return qe;
+	return of_find_node_by_type(NULL, "qe");
+}
+
 static phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
@@ -65,12 +79,9 @@ static phys_addr_t get_qe_base(void)
 	if (qebase != -1)
 		return qebase;
 
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return qebase;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return qebase;
 
 	ret = of_address_to_resource(qe, 0, &res);
 	if (!ret)
@@ -164,12 +175,9 @@ unsigned int qe_get_brg_clk(void)
 	if (brg_clk)
 		return brg_clk;
 
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return brg_clk;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return brg_clk;
 
 	prop = of_get_property(qe, "brg-frequency", &size);
 	if (prop && size == sizeof(*prop))
@@ -558,16 +566,9 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 
 	initialized = 1;
 
-	/*
-	 * Newer device trees have an "fsl,qe" compatible property for the QE
-	 * node, but we still need to support older device trees.
-	*/
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return NULL;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return NULL;
 
 	/* Find the 'firmware' child node */
 	fw = of_get_child_by_name(qe, "firmware");
@@ -613,16 +614,9 @@ unsigned int qe_get_num_of_risc(void)
 	unsigned int num_of_risc = 0;
 	const u32 *prop;
 
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		/* Older devices trees did not have an "fsl,qe"
-		 * compatible property, so we need to look for
-		 * the QE node by name.
-		 */
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return num_of_risc;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return num_of_risc;
 
 	prop = of_get_property(qe, "fsl,qe-num-riscs", &size);
 	if (prop && size == sizeof(*prop))
@@ -642,16 +636,9 @@ unsigned int qe_get_num_of_snums(void)
 	const u32 *prop;
 
 	num_of_snums = 28; /* The default number of snum for threads is 28 */
-	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!qe) {
-		/* Older devices trees did not have an "fsl,qe"
-		 * compatible property, so we need to look for
-		 * the QE node by name.
-		 */
-		qe = of_find_node_by_type(NULL, "qe");
-		if (!qe)
-			return num_of_snums;
-	}
+	qe = qe_get_device_node();
+	if (!qe)
+		return num_of_snums;
 
 	prop = of_get_property(qe, "fsl,qe-num-snums", &size);
 	if (prop && size == sizeof(*prop)) {
