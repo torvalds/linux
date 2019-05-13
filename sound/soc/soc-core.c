@@ -878,7 +878,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link_component *codecs;
 	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_component *component;
-	struct snd_soc_dai **codec_dais;
 	int i;
 
 	if (dai_link->ignore)
@@ -910,19 +909,18 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	rtd->num_codecs = dai_link->num_codecs;
 
 	/* Find CODEC from registered CODECs */
-	codec_dais = rtd->codec_dais;
 	for_each_link_codecs(dai_link, i, codecs) {
-		codec_dais[i] = snd_soc_find_dai(codecs);
-		if (!codec_dais[i]) {
+		rtd->codec_dais[i] = snd_soc_find_dai(codecs);
+		if (!rtd->codec_dais[i]) {
 			dev_info(card->dev, "ASoC: CODEC DAI %s not registered\n",
 				 codecs->dai_name);
 			goto _err_defer;
 		}
-		snd_soc_rtdcom_add(rtd, codec_dais[i]->component);
+		snd_soc_rtdcom_add(rtd, rtd->codec_dais[i]->component);
 	}
 
 	/* Single codec links expect codec and codec_dai in runtime data */
-	rtd->codec_dai = codec_dais[0];
+	rtd->codec_dai = rtd->codec_dais[0];
 
 	/* find one from the set of registered platforms */
 	for_each_component(component) {
