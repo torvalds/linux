@@ -729,7 +729,6 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev)
 	}
 
 	/* configure DMAs */
-	slave_config.direction = DMA_MEM_TO_DEV;
 	slave_config.dst_addr = (u32)(dma_reg_base + BCM2835_SPI_FIFO);
 	slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
@@ -737,7 +736,6 @@ static void bcm2835_dma_init(struct spi_controller *ctlr, struct device *dev)
 	if (ret)
 		goto err_config;
 
-	slave_config.direction = DMA_DEV_TO_MEM;
 	slave_config.src_addr = (u32)(dma_reg_base + BCM2835_SPI_FIFO);
 	slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
