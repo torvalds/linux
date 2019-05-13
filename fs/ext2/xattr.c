@@ -144,6 +144,22 @@ ext2_xattr_header_valid(struct ext2_xattr_header *header)
 	return true;
 }
 
+static bool
+ext2_xattr_entry_valid(struct ext2_xattr_entry *entry, size_t end_offs)
+{
+	size_t size;
+
+	if (entry->e_value_block != 0)
+		return false;
+
+	size = le32_to_cpu(entry->e_value_size);
+	if (size > end_offs ||
+	    le16_to_cpu(entry->e_value_offs) + size > end_offs)
+		return false;
+
+	return true;
+}
+
 /*
  * ext2_xattr_get()
  *
@@ -213,14 +229,10 @@ bad_block:
 	error = -ENODATA;
 	goto cleanup;
 found:
-	/* check the buffer size */
-	if (entry->e_value_block != 0)
-		goto bad_block;
-	size = le32_to_cpu(entry->e_value_size);
-	if (size > inode->i_sb->s_blocksize ||
-	    le16_to_cpu(entry->e_value_offs) + size > inode->i_sb->s_blocksize)
+	if (!ext2_xattr_entry_valid(entry, inode->i_sb->s_blocksize))
 		goto bad_block;
 
+	size = le32_to_cpu(entry->e_value_size);
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
 		ea_idebug(inode, "cache insert failed");
 	if (buffer) {
@@ -481,12 +493,10 @@ bad_block:
 		if (flags & XATTR_CREATE)
 			goto cleanup;
 		if (!here->e_value_block && here->e_value_size) {
-			size_t size = le32_to_cpu(here->e_value_size);
-
-			if (le16_to_cpu(here->e_value_offs) + size > 
-			    sb->s_blocksize || size > sb->s_blocksize)
+			if (!ext2_xattr_entry_valid(here, sb->s_blocksize))
 				goto bad_block;
-			free += EXT2_XATTR_SIZE(size);
+			free += EXT2_XATTR_SIZE(
+					le32_to_cpu(here->e_value_size));
 		}
 		free += EXT2_XATTR_LEN(name_len);
 	}
