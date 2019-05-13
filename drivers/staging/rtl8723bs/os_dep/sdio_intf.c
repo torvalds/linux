@@ -368,8 +368,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	padapter->intf_alloc_irq = &sdio_alloc_irq;
 	padapter->intf_free_irq = &sdio_free_irq;
 
-	if (rtw_init_io_priv(padapter, sdio_set_intf_ops) == _FAIL)
-	{
+	if (rtw_init_io_priv(padapter, sdio_set_intf_ops) == _FAIL) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
 			("rtw_drv_init: Can't init io_priv\n"));
 		goto free_hal_data;
@@ -568,14 +567,12 @@ static int rtw_sdio_suspend(struct device *dev)
 	struct adapter *padapter = psdpriv->if1;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
-	if (padapter->bDriverStopped == true)
-	{
+	if (padapter->bDriverStopped == true) {
 		DBG_871X("%s bDriverStopped = %d\n", __func__, padapter->bDriverStopped);
 		return 0;
 	}
 
-	if (pwrpriv->bInSuspend == true)
-	{
+	if (pwrpriv->bInSuspend == true) {
 		DBG_871X("%s bInSuspend = %d\n", __func__, pwrpriv->bInSuspend);
 		pdbgpriv->dbg_suspend_error_cnt++;
 		return 0;
@@ -590,8 +587,7 @@ static int rtw_resume_process(struct adapter *padapter)
 	struct dvobj_priv *psdpriv = padapter->dvobj;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
-	if (pwrpriv->bInSuspend == false)
-	{
+	if (pwrpriv->bInSuspend == false) {
 		pdbgpriv->dbg_resume_error_cnt++;
 		DBG_871X("%s bInSuspend = %d\n", __func__, pwrpriv->bInSuspend);
 		return -1;
@@ -634,8 +630,7 @@ static int __init rtw_drv_entry(void)
 	rtw_drv_proc_init();
 
 	ret = sdio_register_driver(&sdio_drvpriv.r871xs_drv);
-	if (ret != 0)
-	{
+	if (ret != 0) {
 		sdio_drvpriv.drv_registered = false;
 		rtw_drv_proc_deinit();
 		rtw_ndev_notifier_unregister();
