@@ -217,12 +217,12 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 	if (oldpage < 0)
 		goto err_restore_page;
 
-	ret = phy_write(phydev, RTL821x_EXT_PAGE_SELECT, 0xa4);
+	ret = __phy_write(phydev, RTL821x_EXT_PAGE_SELECT, 0xa4);
 	if (ret)
 		goto err_restore_page;
 
-	ret = phy_modify(phydev, 0x1c, RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
-			 val);
+	ret = __phy_modify(phydev, 0x1c, RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
+			   val);
 
 err_restore_page:
 	return phy_restore_page(phydev, oldpage, ret);
