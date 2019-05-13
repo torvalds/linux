@@ -129,9 +129,10 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		goto out_ino;
 
 	inode->i_flags |= S_NOCMTIME;
-#ifndef CONFIG_UBIFS_ATIME_SUPPORT
-	inode->i_flags |= S_NOATIME;
-#endif
+
+	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
+		inode->i_flags |= S_NOATIME;
+
 	set_nlink(inode, le32_to_cpu(ino->nlink));
 	i_uid_write(inode, le32_to_cpu(ino->uid));
 	i_gid_write(inode, le32_to_cpu(ino->gid));
@@ -1545,6 +1546,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->bud_bytes, c->bud_bytes >> 10, c->bud_bytes >> 20);
 	dbg_gen("max. seq. number:    %llu", c->max_sqnum);
 	dbg_gen("commit number:       %llu", c->cmt_no);
+	dbg_gen("max. xattrs per inode: %d", ubifs_xattr_max_cnt(c));
+	dbg_gen("max orphans:           %d", c->max_orphans);
 
 	return 0;
 
@@ -2141,9 +2144,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_UBIFS_FS_XATTR
 	sb->s_xattr = ubifs_xattr_handlers;
 #endif
-#ifdef CONFIG_FS_ENCRYPTION
-	sb->s_cop = &ubifs_crypt_operations;
-#endif
+	fscrypt_set_ops(sb, &ubifs_crypt_operations);
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
@@ -2245,11 +2246,10 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 			goto out_deact;
 		/* We do not support atime */
 		sb->s_flags |= SB_ACTIVE;
-#ifndef CONFIG_UBIFS_ATIME_SUPPORT
-		sb->s_flags |= SB_NOATIME;
-#else
-		ubifs_msg(c, "full atime support is enabled.");
-#endif
+		if (IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
+			ubifs_msg(c, "full atime support is enabled.");
+		else
+			sb->s_flags |= SB_NOATIME;
 	}
 
 	/* 'fill_super()' opens ubi again so we must close it here */

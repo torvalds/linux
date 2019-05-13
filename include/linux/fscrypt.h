@@ -247,6 +247,11 @@ extern int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 extern const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 				       unsigned int max_size,
 				       struct delayed_call *done);
+static inline void fscrypt_set_ops(struct super_block *sb,
+				   const struct fscrypt_operations *s_cop)
+{
+	sb->s_cop = s_cop;
+}
 #else  /* !CONFIG_FS_ENCRYPTION */
 
 static inline bool fscrypt_has_encryption_key(const struct inode *inode)
@@ -471,6 +476,12 @@ static inline const char *fscrypt_get_symlink(struct inode *inode,
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
+
+static inline void fscrypt_set_ops(struct super_block *sb,
+				   const struct fscrypt_operations *s_cop)
+{
+}
+
 #endif	/* !CONFIG_FS_ENCRYPTION */
 
 /**

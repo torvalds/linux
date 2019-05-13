@@ -112,17 +112,18 @@ static const struct watchdog_ops max77620_wdt_ops = {
 
 static int max77620_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct max77620_wdt *wdt;
 	struct watchdog_device *wdt_dev;
 	unsigned int regval;
 	int ret;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
-	wdt->dev = &pdev->dev;
-	wdt->rmap = dev_get_regmap(pdev->dev.parent, NULL);
+	wdt->dev = dev;
+	wdt->rmap = dev_get_regmap(dev->parent, NULL);
 	if (!wdt->rmap) {
 		dev_err(wdt->dev, "Failed to get parent regmap\n");
 		return -ENODEV;
@@ -183,21 +184,12 @@ static int max77620_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(wdt_dev, nowayout);
 	watchdog_set_drvdata(wdt_dev, wdt);
 
-	ret = watchdog_register_device(wdt_dev);
+	watchdog_stop_on_unregister(wdt_dev);
+	ret = devm_watchdog_register_device(dev, wdt_dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "watchdog registration failed: %d\n", ret);
+		dev_err(dev, "watchdog registration failed: %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int max77620_wdt_remove(struct platform_device *pdev)
-{
-	struct max77620_wdt *wdt = platform_get_drvdata(pdev);
-
-	max77620_wdt_stop(&wdt->wdt_dev);
-	watchdog_unregister_device(&wdt->wdt_dev);
 
 	return 0;
 }
@@ -213,7 +205,6 @@ static struct platform_driver max77620_wdt_driver = {
 		.name	= "max77620-watchdog",
 	},
 	.probe	= max77620_wdt_probe,
-	.remove	= max77620_wdt_remove,
 	.id_table = max77620_wdt_devtype,
 };
 

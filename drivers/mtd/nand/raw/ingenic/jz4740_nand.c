@@ -313,7 +313,10 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 	uint32_t ctrl;
 	struct nand_chip *chip = &nand->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
 	u8 id[2];
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	/* Request I/O resource. */
 	sprintf(res_name, "bank%d", bank);
@@ -351,8 +354,8 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 		}
 
 		/* Update size of the MTD. */
-		chip->numchips++;
-		mtd->size += chip->chipsize;
+		memorg->ntargets++;
+		mtd->size += nanddev_target_size(&chip->base);
 	}
 
 	dev_info(&pdev->dev, "Found chip %zu on bank %i\n", chipnr, bank);

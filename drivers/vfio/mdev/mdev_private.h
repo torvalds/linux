@@ -32,6 +32,7 @@ struct mdev_device {
 	void *driver_data;
 	struct list_head next;
 	struct kobject *type_kobj;
+	struct device *iommu_device;
 	bool active;
 };
 
