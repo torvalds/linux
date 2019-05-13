@@ -117,8 +117,11 @@ struct mt7603_dev {
 	u8 mac_work_count;
 
 	u8 mcu_running;
-	u8 ed_monitor;
 
+	enum nl80211_dfs_regions region;
+
+	u8 ed_monitor_enabled;
+	u8 ed_monitor;
 	s8 ed_trigger;
 	u8 ed_strict_mode;
 	u8 ed_strong_signal;
@@ -241,4 +244,5 @@ void mt7603_update_channel(struct mt76_dev *mdev);
 void mt7603_edcca_set_strict(struct mt7603_dev *dev, bool val);
 void mt7603_cca_stats_reset(struct mt7603_dev *dev);
 
+void mt7603_init_edcca(struct mt7603_dev *dev);
 #endif

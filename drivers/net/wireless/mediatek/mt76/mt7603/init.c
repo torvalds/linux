@@ -437,7 +437,9 @@ mt7603_regd_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct mt7603_dev *dev = hw->priv;
 
-	dev->ed_monitor = request->dfs_region == NL80211_DFS_ETSI;
+	dev->region = request->dfs_region;
+	dev->ed_monitor = dev->ed_monitor_enabled &&
+			  dev->region == NL80211_DFS_ETSI;
 }
 
 static int
