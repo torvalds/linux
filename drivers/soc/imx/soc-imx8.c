@@ -16,6 +16,9 @@
 #define IMX8MQ_SW_INFO_B1		0x40
 #define IMX8MQ_SW_MAGIC_B1		0xff0055aa
 
+/* Same as ANADIG_DIGPROG_IMX7D */
+#define ANADIG_DIGPROG_IMX8MM	0x800
+
 struct imx8_soc_data {
 	char *name;
 	u32 (*soc_revision)(void);
@@ -46,13 +49,39 @@ out:
 	return rev;
 }
 
+static u32 __init imx8mm_soc_revision(void)
+{
+	struct device_node *np;
+	void __iomem *anatop_base;
+	u32 rev;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mm-anatop");
+	if (!np)
+		return 0;
+
+	anatop_base = of_iomap(np, 0);
+	WARN_ON(!anatop_base);
+
+	rev = readl_relaxed(anatop_base + ANADIG_DIGPROG_IMX8MM);
+
+	iounmap(anatop_base);
+	of_node_put(np);
+	return rev;
+}
+
 static const struct imx8_soc_data imx8mq_soc_data = {
 	.name = "i.MX8MQ",
 	.soc_revision = imx8mq_soc_revision,
 };
 
+static const struct imx8_soc_data imx8mm_soc_data = {
+	.name = "i.MX8MM",
+	.soc_revision = imx8mm_soc_revision,
+};
+
 static const struct of_device_id imx8_soc_match[] = {
 	{ .compatible = "fsl,imx8mq", .data = &imx8mq_soc_data, },
+	{ .compatible = "fsl,imx8mm", .data = &imx8mm_soc_data, },
 	{ }
 };
 
