@@ -21,7 +21,9 @@
 #include <drm/drm_mode_object.h>
 #include <drm/drm_connector.h>
 
-struct hdcp_srm {
+#include "drm_internal.h"
+
+static struct hdcp_srm {
 	u32 revoked_ksv_cnt;
 	u8 *revoked_ksv_list;
 
@@ -235,7 +237,7 @@ static void drm_hdcp_srm_update(const u8 *buf, size_t count)
 		drm_hdcp_parse_hdcp2_srm(buf, count);
 }
 
-void drm_hdcp_request_srm(struct drm_device *drm_dev)
+static void drm_hdcp_request_srm(struct drm_device *drm_dev)
 {
 	char fw_name[36] = "display_hdcp_srm.bin";
 	const struct firmware *fw;
