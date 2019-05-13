@@ -1732,13 +1732,14 @@ static void esw_prio_tag_acls_cleanup(struct mlx5_eswitch *esw)
 	struct mlx5_vport *vport;
 	int i;
 
-	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->nvports) {
+	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->dev->priv.sriov.num_vfs) {
 		esw_vport_disable_egress_acl(esw, vport);
 		esw_vport_disable_ingress_acl(esw, vport);
 	}
 }
 
-static int esw_offloads_steering_init(struct mlx5_eswitch *esw, int nvports)
+static int esw_offloads_steering_init(struct mlx5_eswitch *esw, int vf_nvports,
+				      int nvports)
 {
 	int err;
 
@@ -1746,7 +1747,7 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw, int nvports)
 	mutex_init(&esw->fdb_table.offloads.fdb_prio_lock);
 
 	if (MLX5_CAP_GEN(esw->dev, prio_tag_required)) {
-		err = esw_prio_tag_acls_config(esw, nvports);
+		err = esw_prio_tag_acls_config(esw, vf_nvports);
 		if (err)
 			return err;
 	}
@@ -1839,7 +1840,7 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 {
 	int err;
 
-	err = esw_offloads_steering_init(esw, total_nvports);
+	err = esw_offloads_steering_init(esw, vf_nvports, total_nvports);
 	if (err)
 		return err;
 
