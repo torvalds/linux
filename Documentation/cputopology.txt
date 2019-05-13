@@ -36,15 +36,15 @@ drawer_id:
 	identifier (rather than the kernel's).	The actual value is
 	architecture and platform dependent.
 
-thread_siblings:
+core_cpus:
 
-	internal kernel map of cpuX's hardware threads within the same
-	core as cpuX.
+	internal kernel map of CPUs within the same core.
+	(deprecated name: "thread_siblings")
 
-thread_siblings_list:
+core_cpus_list:
 
-	human-readable list of cpuX's hardware threads within the same
-	core as cpuX.
+	human-readable list of CPUs within the same core.
+	(deprecated name: "thread_siblings_list");
 
 package_cpus:
 
@@ -55,6 +55,14 @@ package_cpus_list:
 
 	human-readable list of CPUs sharing the same physical_package_id.
 	(deprecated name: "core_siblings_list")
+
+die_cpus:
+
+	internal kernel map of CPUs within the same die.
+
+die_cpus_list:
+
+	human-readable list of CPUs within the same die.
 
 book_siblings:
 
@@ -93,6 +101,7 @@ these macros in include/asm-XXX/topology.h::
 	#define topology_drawer_id(cpu)
 	#define topology_sibling_cpumask(cpu)
 	#define topology_core_cpumask(cpu)
+	#define topology_die_cpumask(cpu)
 	#define topology_book_cpumask(cpu)
 	#define topology_drawer_cpumask(cpu)
 
