@@ -554,7 +554,10 @@ struct afs_server {
 struct afs_vol_interest {
 	struct hlist_node	srv_link;	/* Link in server->cb_volumes */
 	struct hlist_head	cb_interests;	/* List of callback interests on the server */
-	afs_volid_t		vid;		/* Volume ID to match */
+	union {
+		struct rcu_head	rcu;
+		afs_volid_t	vid;		/* Volume ID to match */
+	};
 	unsigned int		usage;
 };
 
@@ -566,7 +569,10 @@ struct afs_cb_interest {
 	struct afs_vol_interest	*vol_interest;
 	struct afs_server	*server;	/* Server on which this interest resides */
 	struct super_block	*sb;		/* Superblock on which inodes reside */
-	afs_volid_t		vid;		/* Volume ID to match */
+	union {
+		struct rcu_head	rcu;
+		afs_volid_t	vid;		/* Volume ID to match */
+	};
 	refcount_t		usage;
 };
 
@@ -676,7 +682,7 @@ struct afs_vnode {
 	afs_lock_type_t		lock_type : 8;
 
 	/* outstanding callback notification on this file */
-	struct afs_cb_interest	*cb_interest;	/* Server on which this resides */
+	struct afs_cb_interest __rcu *cb_interest; /* Server on which this resides */
 	unsigned int		cb_s_break;	/* Mass break counter on ->server */
 	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */

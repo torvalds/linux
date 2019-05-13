@@ -677,7 +677,7 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->volume		= NULL;
 	vnode->lock_key		= NULL;
 	vnode->permit_cache	= NULL;
-	vnode->cb_interest	= NULL;
+	RCU_INIT_POINTER(vnode->cb_interest, NULL);
 #ifdef CONFIG_AFS_FSCACHE
 	vnode->cache		= NULL;
 #endif
@@ -707,7 +707,7 @@ static void afs_destroy_inode(struct inode *inode)
 
 	_debug("DESTROY INODE %p", inode);
 
-	ASSERTCMP(vnode->cb_interest, ==, NULL);
+	ASSERTCMP(rcu_access_pointer(vnode->cb_interest), ==, NULL);
 
 	atomic_dec(&afs_count_active_inodes);
 }

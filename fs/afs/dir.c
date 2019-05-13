@@ -638,11 +638,12 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 				   struct key *key)
 {
 	struct afs_lookup_cookie *cookie;
-	struct afs_cb_interest *cbi = NULL;
+	struct afs_cb_interest *dcbi, *cbi = NULL;
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
 	struct afs_status_cb *scb;
 	struct afs_iget_data data;
 	struct afs_fs_cursor fc;
+	struct afs_server *server;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct inode *inode = NULL;
 	int ret, i;
@@ -658,10 +659,14 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	cookie->nr_fids = 1; /* slot 0 is saved for the fid we actually want */
 
 	read_seqlock_excl(&dvnode->cb_lock);
-	if (dvnode->cb_interest &&
-	    dvnode->cb_interest->server &&
-	    test_bit(AFS_SERVER_FL_NO_IBULK, &dvnode->cb_interest->server->flags))
-		cookie->one_only = true;
+	dcbi = rcu_dereference_protected(dvnode->cb_interest,
+					 lockdep_is_held(&dvnode->cb_lock.lock));
+	if (dcbi) {
+		server = dcbi->server;
+		if (server &&
+		    test_bit(AFS_SERVER_FL_NO_IBULK, &server->flags))
+			cookie->one_only = true;
+	}
 	read_sequnlock_excl(&dvnode->cb_lock);
 
 	for (i = 0; i < 50; i++)
