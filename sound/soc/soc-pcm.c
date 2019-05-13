@@ -1027,6 +1027,7 @@ component_err:
 
 	if (cpu_dai->driver->ops->hw_free)
 		cpu_dai->driver->ops->hw_free(substream, cpu_dai);
+	cpu_dai->rate = 0;
 
 interface_err:
 	i = rtd->num_codecs;
