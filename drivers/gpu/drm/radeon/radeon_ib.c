@@ -259,7 +259,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 	unsigned i;
 	int r;
 
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+	for (i = 0; i < 1; ++i) {
 		struct radeon_ring *ring = &rdev->ring[i];
 
 		if (!ring->ready)
