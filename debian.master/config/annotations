@@ -641,7 +641,7 @@ CONFIG_POWERNV_OP_PANEL                         policy<{'ppc64el': 'm'}>
 CONFIG_NPCM7XX_KCS_IPMI_BMC                     policy<{'armhf': 'm'}>
 CONFIG_NVRAM                                    policy<{'amd64': 'm', 'i386': 'm'}>
 CONFIG_DTLK                                     policy<{'i386': 'm'}>
-CONFIG_R3964                                    policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
+CONFIG_R3964                                    policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
 CONFIG_APPLICOM                                 policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
 CONFIG_SONYPI                                   policy<{'i386': 'm'}>
 CONFIG_MWAVE                                    policy<{'amd64': 'm', 'i386': 'm'}>

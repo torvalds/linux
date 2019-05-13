@@ -420,7 +420,6 @@ CONFIG_PTP_1588_CLOCK=m
 # CONFIG_PWM is not set
 # CONFIG_QNX4FS_FS is not set
 # CONFIG_QNX6FS_FS is not set
-# CONFIG_R3964 is not set
 # CONFIG_RAPIDIO is not set
 # CONFIG_RAVE_SP_CORE is not set
 # CONFIG_RAW_DRIVER is not set
