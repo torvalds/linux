@@ -41,7 +41,7 @@ void  ndd_irq_worker(struct work_struct *ws)
 		dev_dbg(&eng->pldev->dev, "Handling completed descriptor %p (acd = %p)\n", cur, cur->acd);
 		BUG_ON(cur == eng->desc_next); // Ordering failure.
 
-		if (cur->DescControlFlags & DMA_DESC_CTL_SOP){
+		if (cur->DescControlFlags & DMA_DESC_CTL_SOP) {
 			eng->accumulated_bytes = 0;
 			eng->accumulated_flags = 0;
 		}
@@ -53,7 +53,7 @@ void  ndd_irq_worker(struct work_struct *ws)
 		if (cur->DescStatusFlags & DMA_DESC_STS_SHORT)
 			eng->accumulated_flags |= ACD_FLAG_ENG_ACCUM_SHORT;
 
-		if (cur->DescControlFlags & DMA_DESC_CTL_EOP){
+		if (cur->DescControlFlags & DMA_DESC_CTL_EOP) {
 			if (cur->acd)
 				transfer_complete_cb(cur->acd, eng->accumulated_bytes, eng->accumulated_flags | ACD_FLAG_DONE);
 		}
@@ -98,7 +98,7 @@ int  setup_dma_engine(struct kpc_dma_device *eng, u32 desc_cnt)
 	if (WARN(!(caps & ENG_CAP_PRESENT), "setup_dma_engine() called for DMA Engine at %p which isn't present in hardware!\n", eng))
 		return -ENXIO;
 
-	if (caps & ENG_CAP_DIRECTION){
+	if (caps & ENG_CAP_DIRECTION) {
 		eng->dir = DMA_FROM_DEVICE;
 	} else {
 		eng->dir = DMA_TO_DEVICE;
@@ -108,7 +108,7 @@ int  setup_dma_engine(struct kpc_dma_device *eng, u32 desc_cnt)
 	eng->desc_pool = dma_pool_create("KPC DMA Descriptors", &eng->pldev->dev, sizeof(struct kpc_dma_descriptor), DMA_DESC_ALIGNMENT, 4096);
 
 	eng->desc_pool_first = dma_pool_alloc(eng->desc_pool, GFP_KERNEL | GFP_DMA, &head_handle);
-	if (!eng->desc_pool_first){
+	if (!eng->desc_pool_first) {
 		dev_err(&eng->pldev->dev, "setup_dma_engine: couldn't allocate desc_pool_first!\n");
 		dma_pool_destroy(eng->desc_pool);
 		return -ENOMEM;
@@ -118,7 +118,7 @@ int  setup_dma_engine(struct kpc_dma_device *eng, u32 desc_cnt)
 	clear_desc(eng->desc_pool_first);
 
 	cur = eng->desc_pool_first;
-	for (i = 1 ; i < eng->desc_pool_cnt ; i++){
+	for (i = 1 ; i < eng->desc_pool_cnt ; i++) {
 		next = dma_pool_alloc(eng->desc_pool, GFP_KERNEL | GFP_DMA, &next_handle);
 		if (next == NULL)
 			goto done_alloc;
@@ -144,7 +144,7 @@ int  setup_dma_engine(struct kpc_dma_device *eng, u32 desc_cnt)
 
 	// Grab IRQ line
 	rv = request_irq(eng->irq, ndd_irq_handler, IRQF_SHARED, KP_DRIVER_NAME_DMA_CONTROLLER, eng);
-	if (rv){
+	if (rv) {
 		dev_err(&eng->pldev->dev, "setup_dma_engine: failed to request_irq: %d\n", rv);
 		return rv;
 	}
@@ -166,8 +166,8 @@ void  stop_dma_engine(struct kpc_dma_device *eng)
 
 	// Wait for descriptor engine to finish current operaion
 	timeout = jiffies + (HZ / 2);
-	while (GetEngineControl(eng) & ENG_CTL_DMA_RUNNING){
-		if (time_after(jiffies, timeout)){
+	while (GetEngineControl(eng) & ENG_CTL_DMA_RUNNING) {
+		if (time_after(jiffies, timeout)) {
 			dev_crit(&eng->pldev->dev, "DMA_RUNNING still asserted!\n");
 			break;
 		}
@@ -178,8 +178,8 @@ void  stop_dma_engine(struct kpc_dma_device *eng)
 
 	// Wait for reset request to be processed
 	timeout = jiffies + (HZ / 2);
-	while (GetEngineControl(eng) & (ENG_CTL_DMA_RUNNING | ENG_CTL_DMA_RESET_REQUEST)){
-		if (time_after(jiffies, timeout)){
+	while (GetEngineControl(eng) & (ENG_CTL_DMA_RUNNING | ENG_CTL_DMA_RESET_REQUEST)) {
+		if (time_after(jiffies, timeout)) {
 			dev_crit(&eng->pldev->dev, "ENG_CTL_DMA_RESET_REQUEST still asserted!\n");
 			break;
 		}
@@ -190,8 +190,8 @@ void  stop_dma_engine(struct kpc_dma_device *eng)
 
 	// And wait for reset to complete
 	timeout = jiffies + (HZ / 2);
-	while (GetEngineControl(eng) & ENG_CTL_DMA_RESET){
-		if (time_after(jiffies, timeout)){
+	while (GetEngineControl(eng) & ENG_CTL_DMA_RESET) {
+		if (time_after(jiffies, timeout)) {
 			dev_crit(&eng->pldev->dev, "DMA_RESET still asserted!\n");
 			break;
 		}
@@ -217,7 +217,7 @@ void  destroy_dma_engine(struct kpc_dma_device *eng)
 	cur = eng->desc_pool_first;
 	cur_handle = eng->desc_pool_first->MyDMAAddr;
 
-	for (i = 0 ; i < eng->desc_pool_cnt ; i++){
+	for (i = 0 ; i < eng->desc_pool_cnt ; i++) {
 		struct kpc_dma_descriptor *next = cur->Next;
 		dma_addr_t next_handle = cur->DescNextDescPtr;
 		dma_pool_free(eng->desc_pool, cur, cur_handle);
@@ -237,7 +237,7 @@ int  count_descriptors_available(struct kpc_dma_device *eng)
 {
 	u32 count = 0;
 	struct kpc_dma_descriptor *cur = eng->desc_next;
-	while (cur != eng->desc_completed){
+	while (cur != eng->desc_completed) {
 		BUG_ON(cur == NULL);
 		count++;
 		cur = cur->Next;
