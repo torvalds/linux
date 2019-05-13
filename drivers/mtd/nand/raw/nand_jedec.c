@@ -22,11 +22,14 @@
 int nand_jedec_detect(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
 	struct nand_jedec_params *p;
 	struct jedec_ecc_info *ecc;
 	int jedec_version = 0;
 	char id[5];
 	int i, val, ret;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	/* Try JEDEC for unknown chip or LP */
 	ret = nand_readid_op(chip, 0x40, id, sizeof(id));
@@ -81,18 +84,24 @@ int nand_jedec_detect(struct nand_chip *chip)
 		goto free_jedec_param_page;
 	}
 
-	mtd->writesize = le32_to_cpu(p->byte_per_page);
+	memorg->pagesize = le32_to_cpu(p->byte_per_page);
+	mtd->writesize = memorg->pagesize;
 
 	/* Please reference to the comment for nand_flash_detect_onfi. */
-	mtd->erasesize = 1 << (fls(le32_to_cpu(p->pages_per_block)) - 1);
-	mtd->erasesize *= mtd->writesize;
+	memorg->pages_per_eraseblock =
+			1 << (fls(le32_to_cpu(p->pages_per_block)) - 1);
+	mtd->erasesize = memorg->pages_per_eraseblock * memorg->pagesize;
 
-	mtd->oobsize = le16_to_cpu(p->spare_bytes_per_page);
+	memorg->oobsize = le16_to_cpu(p->spare_bytes_per_page);
+	mtd->oobsize = memorg->oobsize;
+
+	memorg->luns_per_target = p->lun_count;
+	memorg->planes_per_lun = 1 << p->multi_plane_addr;
 
 	/* Please reference to the comment for nand_flash_detect_onfi. */
-	chip->chipsize = 1 << (fls(le32_to_cpu(p->blocks_per_lun)) - 1);
-	chip->chipsize *= (uint64_t)mtd->erasesize * p->lun_count;
-	chip->bits_per_cell = p->bits_per_cell;
+	memorg->eraseblocks_per_lun =
+		1 << (fls(le32_to_cpu(p->blocks_per_lun)) - 1);
+	memorg->bits_per_cell = p->bits_per_cell;
 
 	if (le16_to_cpu(p->features) & JEDEC_FEATURE_16_BIT_BUS)
 		chip->options |= NAND_BUSWIDTH_16;
@@ -101,8 +110,8 @@ int nand_jedec_detect(struct nand_chip *chip)
 	ecc = &p->ecc_info[0];
 
 	if (ecc->codeword_size >= 9) {
-		chip->ecc_strength_ds = ecc->ecc_bits;
-		chip->ecc_step_ds = 1 << ecc->codeword_size;
+		chip->base.eccreq.strength = ecc->ecc_bits;
+		chip->base.eccreq.step_size = 1 << ecc->codeword_size;
 	} else {
 		pr_warn("Invalid codeword size\n");
 	}
