@@ -535,53 +535,92 @@ static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct usbhs_of_data rcar_gen2_data = {
+	.platform_callback = &usbhs_rcar2_ops,
+	.param = {
+		.type = USBHS_TYPE_RCAR_GEN2,
+		.has_usb_dmac = 1,
+		.pipe_configs = usbhsc_new_pipe,
+		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+	}
+};
+
+static const struct usbhs_of_data rcar_gen3_data = {
+	.platform_callback = &usbhs_rcar3_ops,
+	.param = {
+		.type = USBHS_TYPE_RCAR_GEN3,
+		.has_usb_dmac = 1,
+		.pipe_configs = usbhsc_new_pipe,
+		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+	}
+};
+
+static const struct usbhs_of_data rcar_gen3_with_pll_data = {
+	.platform_callback = &usbhs_rcar3_with_pll_ops,
+	.param = {
+		.type = USBHS_TYPE_RCAR_GEN3_WITH_PLL,
+		.has_usb_dmac = 1,
+		.pipe_configs = usbhsc_new_pipe,
+		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+	}
+};
+
+static const struct usbhs_of_data rza1_data = {
+	.platform_callback = &usbhs_rza1_ops,
+	.param = {
+		.type = USBHS_TYPE_RZA1,
+		.pipe_configs = usbhsc_new_pipe,
+		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+	}
+};
+
 /*
  *		platform functions
  */
 static const struct of_device_id usbhs_of_match[] = {
 	{
 		.compatible = "renesas,usbhs-r8a774c0",
-		.data = (void *)USBHS_TYPE_RCAR_GEN3_WITH_PLL,
+		.data = &rcar_gen3_with_pll_data,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7790",
-		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+		.data = &rcar_gen2_data,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7791",
-		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+		.data = &rcar_gen2_data,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7794",
-		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+		.data = &rcar_gen2_data,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7795",
-		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+		.data = &rcar_gen3_data,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a7796",
-		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+		.data = &rcar_gen3_data,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a77990",
-		.data = (void *)USBHS_TYPE_RCAR_GEN3_WITH_PLL,
+		.data = &rcar_gen3_with_pll_data,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a77995",
-		.data = (void *)USBHS_TYPE_RCAR_GEN3_WITH_PLL,
+		.data = &rcar_gen3_with_pll_data,
 	},
 	{
 		.compatible = "renesas,rcar-gen2-usbhs",
-		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+		.data = &rcar_gen2_data,
 	},
 	{
 		.compatible = "renesas,rcar-gen3-usbhs",
-		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+		.data = &rcar_gen3_data,
 	},
 	{
 		.compatible = "renesas,rza1-usbhs",
-		.data = (void *)USBHS_TYPE_RZA1,
+		.data = &rza1_data,
 	},
 	{ },
 };
@@ -591,6 +630,7 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 {
 	struct renesas_usbhs_platform_info *info;
 	struct renesas_usbhs_driver_param *dparam;
+	const struct usbhs_of_data *data;
 	u32 tmp;
 	int gpio;
 
@@ -598,27 +638,21 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	if (!info)
 		return NULL;
 
+	data = of_device_get_match_data(dev);
+	if (!data)
+		return NULL;
+
 	dparam = &info->driver_param;
-	dparam->type = (uintptr_t)of_device_get_match_data(dev);
+	memcpy(dparam, &data->param, sizeof(data->param));
+	memcpy(&info->platform_callback, data->platform_callback,
+	       sizeof(*data->platform_callback));
+
 	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
 		dparam->buswait_bwait = tmp;
 	gpio = of_get_named_gpio_flags(dev->of_node, "renesas,enable-gpio", 0,
 				       NULL);
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
-
-	if (dparam->type == USBHS_TYPE_RCAR_GEN2 ||
-	    dparam->type == USBHS_TYPE_RCAR_GEN3 ||
-	    dparam->type == USBHS_TYPE_RCAR_GEN3_WITH_PLL) {
-		dparam->has_usb_dmac = 1;
-		dparam->pipe_configs = usbhsc_new_pipe;
-		dparam->pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
-	}
-
-	if (dparam->type == USBHS_TYPE_RZA1) {
-		dparam->pipe_configs = usbhsc_new_pipe;
-		dparam->pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
-	}
 
 	return info;
 }
@@ -676,29 +710,13 @@ static int usbhs_probe(struct platform_device *pdev)
 	       &info->driver_param,
 	       sizeof(struct renesas_usbhs_driver_param));
 
-	switch (priv->dparam.type) {
-	case USBHS_TYPE_RCAR_GEN2:
-		priv->pfunc = usbhs_rcar2_ops;
-		break;
-	case USBHS_TYPE_RCAR_GEN3:
-		priv->pfunc = usbhs_rcar3_ops;
-		break;
-	case USBHS_TYPE_RCAR_GEN3_WITH_PLL:
-		priv->pfunc = usbhs_rcar3_with_pll_ops;
-		break;
-	case USBHS_TYPE_RZA1:
-		priv->pfunc = usbhs_rza1_ops;
-		break;
-	default:
-		if (!info->platform_callback.get_id) {
-			dev_err(&pdev->dev, "no platform callbacks");
-			return -EINVAL;
-		}
-		memcpy(&priv->pfunc,
-		       &info->platform_callback,
-		       sizeof(struct renesas_usbhs_platform_callback));
-		break;
+	if (!info->platform_callback.get_id) {
+		dev_err(&pdev->dev, "no platform callbacks");
+		return -EINVAL;
 	}
+	memcpy(&priv->pfunc,
+	       &info->platform_callback,
+	       sizeof(struct renesas_usbhs_platform_callback));
 
 	/* set driver callback functions for platform */
 	dfunc			= &info->driver_callback;
