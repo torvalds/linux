@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/regulator/driver.h>
 #include <linux/olpc-ec.h>
 
 struct ec_cmd_desc {
@@ -35,6 +36,10 @@ struct olpc_ec_priv {
 	u8 version;
 	struct work_struct worker;
 	struct mutex cmd_lock;
+
+	/* DCON regulator */
+	struct regulator_dev *dcon_rdev;
+	bool dcon_enabled;
 
 	/* Pending EC commands */
 	struct list_head cmd_q;
@@ -346,9 +351,61 @@ static struct dentry *olpc_ec_setup_debugfs(void)
 
 #endif /* CONFIG_DEBUG_FS */
 
+static int olpc_ec_set_dcon_power(struct olpc_ec_priv *ec, bool state)
+{
+	unsigned char ec_byte = state;
+	int ret;
+
+	if (ec->dcon_enabled == state)
+		return 0;
+
+	ret = olpc_ec_cmd(EC_DCON_POWER_MODE, &ec_byte, 1, NULL, 0);
+	if (ret)
+		return ret;
+
+	ec->dcon_enabled = state;
+	return 0;
+}
+
+static int dcon_regulator_enable(struct regulator_dev *rdev)
+{
+	struct olpc_ec_priv *ec = rdev_get_drvdata(rdev);
+
+	return olpc_ec_set_dcon_power(ec, true);
+}
+
+static int dcon_regulator_disable(struct regulator_dev *rdev)
+{
+	struct olpc_ec_priv *ec = rdev_get_drvdata(rdev);
+
+	return olpc_ec_set_dcon_power(ec, false);
+}
+
+static int dcon_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	struct olpc_ec_priv *ec = rdev_get_drvdata(rdev);
+
+	return ec->dcon_enabled ? 1 : 0;
+}
+
+static struct regulator_ops dcon_regulator_ops = {
+	.enable		= dcon_regulator_enable,
+	.disable	= dcon_regulator_disable,
+	.is_enabled	= dcon_regulator_is_enabled,
+};
+
+static const struct regulator_desc dcon_desc = {
+	.name	= "dcon",
+	.id	= 0,
+	.ops	= &dcon_regulator_ops,
+	.type	= REGULATOR_VOLTAGE,
+	.owner	= THIS_MODULE,
+};
+
 static int olpc_ec_probe(struct platform_device *pdev)
 {
 	struct olpc_ec_priv *ec;
+	struct regulator_config config = { };
 	int err;
 
 	if (!ec_driver)
@@ -374,6 +431,16 @@ static int olpc_ec_probe(struct platform_device *pdev)
 		ec_priv = NULL;
 		kfree(ec);
 		return err;
+	}
+
+	config.dev = pdev->dev.parent;
+	config.driver_data = ec;
+	ec->dcon_enabled = true;
+	ec->dcon_rdev = devm_regulator_register(&pdev->dev, &dcon_desc,
+								&config);
+	if (IS_ERR(ec->dcon_rdev)) {
+		dev_err(&pdev->dev, "failed to register DCON regulator\n");
+		return PTR_ERR(ec->dcon_rdev);
 	}
 
 	ec->dbgfs_dir = olpc_ec_setup_debugfs();

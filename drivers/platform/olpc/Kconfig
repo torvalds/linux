@@ -1,4 +1,5 @@
 config OLPC_EC
+	select REGULATOR
 	bool
 
 config OLPC_XO175_EC
