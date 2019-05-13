@@ -33,7 +33,7 @@
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
-#include <linux/signal.h>
+#include <linux/sched/signal.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
