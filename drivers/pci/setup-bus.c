@@ -255,10 +255,9 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 				 (IORESOURCE_STARTALIGN|IORESOURCE_SIZEALIGN);
 			if (pci_reassign_resource(add_res->dev, idx,
 						  add_size, align))
-				pci_printk(KERN_DEBUG, add_res->dev,
-					   "failed to add %llx res[%d]=%pR\n",
-					   (unsigned long long)add_size,
-					   idx, res);
+				pci_info(add_res->dev, "failed to add %llx res[%d]=%pR\n",
+					 (unsigned long long) add_size, idx,
+					 res);
 		}
 out:
 		list_del(&add_res->list);
@@ -918,9 +917,9 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0,
 			    min_align);
-		pci_printk(KERN_DEBUG, bus->self, "bridge window %pR to %pR add_size %llx\n",
-			   b_res, &bus->busn_res,
-			   (unsigned long long)size1-size0);
+		pci_info(bus->self, "bridge window %pR to %pR add_size %llx\n",
+			 b_res, &bus->busn_res,
+			 (unsigned long long) size1 - size0);
 	}
 }
 
@@ -1063,7 +1062,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	b_res->flags |= IORESOURCE_STARTALIGN;
 	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, add_align);
-		pci_printk(KERN_DEBUG, bus->self, "bridge window %pR to %pR add_size %llx add_align %llx\n",
+		pci_info(bus->self, "bridge window %pR to %pR add_size %llx add_align %llx\n",
 			   b_res, &bus->busn_res,
 			   (unsigned long long) (size1 - size0),
 			   (unsigned long long) add_align);
@@ -1531,8 +1530,8 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 	release_child_resources(r);
 	if (!release_resource(r)) {
 		type = old_flags = r->flags & PCI_RES_TYPE_MASK;
-		pci_printk(KERN_DEBUG, dev, "resource %d %pR released\n",
-					PCI_BRIDGE_RESOURCES + idx, r);
+		pci_info(dev, "resource %d %pR released\n",
+			 PCI_BRIDGE_RESOURCES + idx, r);
 		/* keep the old size */
 		r->end = resource_size(r) - 1;
 		r->start = 0;
@@ -1596,7 +1595,7 @@ static void pci_bus_dump_res(struct pci_bus *bus)
 		if (!res || !res->end || !res->flags)
 			continue;
 
-		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pR\n", i, res);
+		dev_info(&bus->dev, "resource %d %pR\n", i, res);
 	}
 }
 
@@ -1730,9 +1729,8 @@ void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 		int max_depth = pci_bus_get_depth(bus);
 
 		pci_try_num = max_depth + 1;
-		dev_printk(KERN_DEBUG, &bus->dev,
-			   "max bus depth: %d pci_try_num: %d\n",
-			   max_depth, pci_try_num);
+		dev_info(&bus->dev, "max bus depth: %d pci_try_num: %d\n",
+			 max_depth, pci_try_num);
 	}
 
 again:
@@ -1766,8 +1764,8 @@ again:
 		goto dump;
 	}
 
-	dev_printk(KERN_DEBUG, &bus->dev,
-		   "No. %d try to assign unassigned res\n", tried_times + 1);
+	dev_info(&bus->dev, "No. %d try to assign unassigned res\n",
+		 tried_times + 1);
 
 	/* third times and later will not check if it is leaf */
 	if ((tried_times + 1) > 2)

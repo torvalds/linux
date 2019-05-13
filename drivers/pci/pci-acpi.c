@@ -139,8 +139,7 @@ static acpi_status decode_type0_hpx_record(union acpi_object *record,
 		hpx0->enable_perr     = fields[5].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 0 Revision %d record not supported\n",
+		pr_warn("%s: Type 0 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -167,8 +166,7 @@ static acpi_status decode_type1_hpx_record(union acpi_object *record,
 		hpx1->tot_max_split = fields[4].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 1 Revision %d record not supported\n",
+		pr_warn("%s: Type 1 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -208,8 +206,7 @@ static acpi_status decode_type2_hpx_record(union acpi_object *record,
 		hpx2->sec_unc_err_mask_or   = fields[17].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 2 Revision %d record not supported\n",
+		pr_warn("%s: Type 2 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -339,7 +336,7 @@ static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
 				goto exit;
 			break;
 		default:
-			printk(KERN_ERR "%s: Type %d record not supported\n",
+			pr_err("%s: Type %d record not supported\n",
 			       __func__, type);
 			status = AE_ERROR;
 			goto exit;
