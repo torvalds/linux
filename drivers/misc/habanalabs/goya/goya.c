@@ -4067,6 +4067,47 @@ static void goya_write_pte(struct hl_device *hdev, u64 addr, u64 val)
 static const char *_goya_get_event_desc(u16 event_type)
 {
 	switch (event_type) {
+	case GOYA_ASYNC_EVENT_ID_PCIE_IF:
+		return "PCIe_if";
+	case GOYA_ASYNC_EVENT_ID_TPC0_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC1_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC2_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC3_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC4_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC5_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC6_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC7_ECC:
+		return "TPC%d_ecc";
+	case GOYA_ASYNC_EVENT_ID_MME_ECC:
+		return "MME_ecc";
+	case GOYA_ASYNC_EVENT_ID_MME_ECC_EXT:
+		return "MME_ecc_ext";
+	case GOYA_ASYNC_EVENT_ID_MMU_ECC:
+		return "MMU_ecc";
+	case GOYA_ASYNC_EVENT_ID_DMA_MACRO:
+		return "DMA_macro";
+	case GOYA_ASYNC_EVENT_ID_DMA_ECC:
+		return "DMA_ecc";
+	case GOYA_ASYNC_EVENT_ID_CPU_IF_ECC:
+		return "CPU_if_ecc";
+	case GOYA_ASYNC_EVENT_ID_PSOC_MEM:
+		return "PSOC_mem";
+	case GOYA_ASYNC_EVENT_ID_PSOC_CORESIGHT:
+		return "PSOC_coresight";
+	case GOYA_ASYNC_EVENT_ID_SRAM0 ... GOYA_ASYNC_EVENT_ID_SRAM29:
+		return "SRAM%d";
+	case GOYA_ASYNC_EVENT_ID_GIC500:
+		return "GIC500";
+	case GOYA_ASYNC_EVENT_ID_PLL0 ... GOYA_ASYNC_EVENT_ID_PLL6:
+		return "PLL%d";
+	case GOYA_ASYNC_EVENT_ID_AXI_ECC:
+		return "AXI_ecc";
+	case GOYA_ASYNC_EVENT_ID_L2_RAM_ECC:
+		return "L2_ram_ecc";
+	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET:
+		return "PSOC_gpio_05_sw_reset";
+	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_10_VRHOT_ICRIT:
+		return "PSOC_gpio_10_vrhot_icrit";
 	case GOYA_ASYNC_EVENT_ID_PCIE_DEC:
 		return "PCIe_dec";
 	case GOYA_ASYNC_EVENT_ID_TPC0_DEC:
@@ -4109,6 +4150,17 @@ static const char *_goya_get_event_desc(u16 event_type)
 		return "DMA%d_qm";
 	case GOYA_ASYNC_EVENT_ID_DMA0_CH ... GOYA_ASYNC_EVENT_ID_DMA4_CH:
 		return "DMA%d_ch";
+	case GOYA_ASYNC_EVENT_ID_TPC0_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC1_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC2_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC3_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC4_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC5_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC6_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC7_BMON_SPMU:
+		return "TPC%d_bmon_spmu";
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH0 ... GOYA_ASYNC_EVENT_ID_DMA_BM_CH4:
+		return "DMA_bm_ch%d";
 	default:
 		return "N/A";
 	}
@@ -4119,6 +4171,25 @@ static void goya_get_event_desc(u16 event_type, char *desc, size_t size)
 	u8 index;
 
 	switch (event_type) {
+	case GOYA_ASYNC_EVENT_ID_TPC0_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC1_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC2_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC3_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC4_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC5_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC6_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC7_ECC:
+		index = (event_type - GOYA_ASYNC_EVENT_ID_TPC0_ECC) / 3;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_SRAM0 ... GOYA_ASYNC_EVENT_ID_SRAM29:
+		index = event_type - GOYA_ASYNC_EVENT_ID_SRAM0;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_PLL0 ... GOYA_ASYNC_EVENT_ID_PLL6:
+		index = event_type - GOYA_ASYNC_EVENT_ID_PLL0;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
 	case GOYA_ASYNC_EVENT_ID_TPC0_DEC:
 	case GOYA_ASYNC_EVENT_ID_TPC1_DEC:
 	case GOYA_ASYNC_EVENT_ID_TPC2_DEC:
@@ -4155,6 +4226,21 @@ static void goya_get_event_desc(u16 event_type, char *desc, size_t size)
 		break;
 	case GOYA_ASYNC_EVENT_ID_DMA0_CH ... GOYA_ASYNC_EVENT_ID_DMA4_CH:
 		index = event_type - GOYA_ASYNC_EVENT_ID_DMA0_CH;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_TPC0_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC1_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC2_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC3_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC4_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC5_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC6_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC7_BMON_SPMU:
+		index = (event_type - GOYA_ASYNC_EVENT_ID_TPC0_BMON_SPMU) / 10;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH0 ... GOYA_ASYNC_EVENT_ID_DMA_BM_CH4:
+		index = event_type - GOYA_ASYNC_EVENT_ID_DMA_BM_CH0;
 		snprintf(desc, size, _goya_get_event_desc(event_type), index);
 		break;
 	default:
@@ -4207,7 +4293,8 @@ static void goya_print_mmu_error_info(struct hl_device *hdev)
 	}
 }
 
-static void goya_print_irq_info(struct hl_device *hdev, u16 event_type)
+static void goya_print_irq_info(struct hl_device *hdev, u16 event_type,
+				bool razwi)
 {
 	char desc[20] = "";
 
@@ -4215,8 +4302,10 @@ static void goya_print_irq_info(struct hl_device *hdev, u16 event_type)
 	dev_err(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
 
-	goya_print_razwi_info(hdev);
-	goya_print_mmu_error_info(hdev);
+	if (razwi) {
+		goya_print_razwi_info(hdev);
+		goya_print_mmu_error_info(hdev);
+	}
 }
 
 static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
@@ -4320,19 +4409,12 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_PSOC_CORESIGHT:
 	case GOYA_ASYNC_EVENT_ID_SRAM0 ... GOYA_ASYNC_EVENT_ID_SRAM29:
 	case GOYA_ASYNC_EVENT_ID_GIC500:
-	case GOYA_ASYNC_EVENT_ID_PLL0:
-	case GOYA_ASYNC_EVENT_ID_PLL1:
-	case GOYA_ASYNC_EVENT_ID_PLL3:
-	case GOYA_ASYNC_EVENT_ID_PLL4:
-	case GOYA_ASYNC_EVENT_ID_PLL5:
-	case GOYA_ASYNC_EVENT_ID_PLL6:
+	case GOYA_ASYNC_EVENT_ID_PLL0 ... GOYA_ASYNC_EVENT_ID_PLL6:
 	case GOYA_ASYNC_EVENT_ID_AXI_ECC:
 	case GOYA_ASYNC_EVENT_ID_L2_RAM_ECC:
 	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET:
 	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_10_VRHOT_ICRIT:
-		dev_err(hdev->dev,
-			"Received H/W interrupt %d, reset the chip\n",
-			event_type);
+		goya_print_irq_info(hdev, event_type, false);
 		hl_device_reset(hdev, true, false);
 		break;
 
@@ -4363,7 +4445,7 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_MME_CMDQ:
 	case GOYA_ASYNC_EVENT_ID_DMA0_QM ... GOYA_ASYNC_EVENT_ID_DMA4_QM:
 	case GOYA_ASYNC_EVENT_ID_DMA0_CH ... GOYA_ASYNC_EVENT_ID_DMA4_CH:
-		goya_print_irq_info(hdev, event_type);
+		goya_print_irq_info(hdev, event_type, true);
 		goya_unmask_irq(hdev, event_type);
 		break;
 
@@ -4375,12 +4457,9 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_TPC5_BMON_SPMU:
 	case GOYA_ASYNC_EVENT_ID_TPC6_BMON_SPMU:
 	case GOYA_ASYNC_EVENT_ID_TPC7_BMON_SPMU:
-	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH0:
-	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH1:
-	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH2:
-	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH3:
-	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH4:
-		dev_info(hdev->dev, "Received H/W interrupt %d\n", event_type);
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH0 ... GOYA_ASYNC_EVENT_ID_DMA_BM_CH4:
+		goya_print_irq_info(hdev, event_type, false);
+		goya_unmask_irq(hdev, event_type);
 		break;
 
 	default:
