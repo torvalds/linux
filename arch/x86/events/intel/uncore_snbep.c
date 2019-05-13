@@ -1058,8 +1058,8 @@ static void snbep_qpi_enable_event(struct intel_uncore_box *box, struct perf_eve
 
 	if (reg1->idx != EXTRA_REG_NONE) {
 		int idx = box->pmu->pmu_idx + SNBEP_PCI_QPI_PORT0_FILTER;
-		int pkg = box->pkgid;
-		struct pci_dev *filter_pdev = uncore_extra_pci_dev[pkg].dev[idx];
+		int die = box->dieid;
+		struct pci_dev *filter_pdev = uncore_extra_pci_dev[die].dev[idx];
 
 		if (filter_pdev) {
 			pci_write_config_dword(filter_pdev, reg1->reg,
