@@ -303,6 +303,49 @@ void hubbub2_setup_vmid_ptb(struct hubbub *hubbub,
 	dcn20_vmid_set_ptb(&hubbub1->vmid[vmid], ptb);
 }
 
+static enum dcn_hubbub_page_table_depth page_table_depth_to_hw(unsigned int page_table_depth)
+{
+	enum dcn_hubbub_page_table_depth depth = 0;
+
+	switch (page_table_depth) {
+	case 1:
+		depth = DCN_PAGE_TABLE_DEPTH_1_LEVEL;
+		break;
+	case 2:
+		depth = DCN_PAGE_TABLE_DEPTH_2_LEVEL;
+		break;
+	case 3:
+		depth = DCN_PAGE_TABLE_DEPTH_3_LEVEL;
+		break;
+	case 4:
+		depth = DCN_PAGE_TABLE_DEPTH_4_LEVEL;
+		break;
+	default:
+		ASSERT(false);
+		break;
+	}
+
+	return depth;
+}
+
+static enum dcn_hubbub_page_table_block_size page_table_block_size_to_hw(unsigned int page_table_block_size)
+{
+	enum dcn_hubbub_page_table_block_size block_size = 0;
+
+	switch (page_table_block_size) {
+	case 4096:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_4KB;
+		break;
+	case 65536:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_64KB;
+		break;
+	default:
+		ASSERT(false);
+		break;
+	}
+
+	return block_size;
+}
 
 void hubbub2_init_dchub(struct hubbub *hubbub,
 		struct hubbub_addr_config *config)
@@ -311,11 +354,6 @@ void hubbub2_init_dchub(struct hubbub *hubbub,
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
 	struct dcn_vmid_page_table_config phys_config;
 	struct dcn_vmid_page_table_config virt_config;
-
-	phys_config.depth = 0; // Depth 1
-	phys_config.block_size = 0; // Block size 4KB
-	phys_config.page_table_start_addr = config->pa_config.gart_config.page_table_start_addr;
-	phys_config.page_table_end_addr = config->pa_config.gart_config.page_table_end_addr;
 
 	REG_SET(DCN_VM_FB_LOCATION_BASE, 0,
 			FB_BASE, config->pa_config.system_aperture.fb_base);
@@ -330,18 +368,27 @@ void hubbub2_init_dchub(struct hubbub *hubbub,
 	REG_SET(DCN_VM_AGP_BASE, 0,
 			AGP_BASE, config->pa_config.system_aperture.agp_base);
 
-	// Init VMID 0 based on PA config
-	dcn20_vmid_setup(&hubbub1->vmid[0], &phys_config);
-	dcn20_vmid_set_ptb(&hubbub1->vmid[0], config->pa_config.gart_config.page_table_base_addr);
+	if (config->pa_config.gart_config.page_table_start_addr != config->pa_config.gart_config.page_table_end_addr) {
+		phys_config.depth = 1;
+		phys_config.block_size = 4096;
+		phys_config.page_table_start_addr = config->pa_config.gart_config.page_table_start_addr >> 12;
+		phys_config.page_table_end_addr = config->pa_config.gart_config.page_table_end_addr >> 12;
 
-	// Init VMID 1-15 based on VA config
-	for (i = 1; i < 16; i++) {
-		virt_config.page_table_start_addr = config->va_config.page_table_start_addr;
-		virt_config.page_table_end_addr = config->va_config.page_table_end_addr;
-		virt_config.depth = config->va_config.page_table_depth;
-		virt_config.block_size = config->va_config.page_table_block_size;
+		// Init VMID 0 based on PA config
+		dcn20_vmid_setup(&hubbub1->vmid[0], &phys_config);
+		dcn20_vmid_set_ptb(&hubbub1->vmid[0], config->pa_config.gart_config.page_table_base_addr);
+	}
 
-		dcn20_vmid_setup(&hubbub1->vmid[i], &virt_config);
+	if (config->va_config.page_table_start_addr != config->va_config.page_table_end_addr) {
+		// Init VMID 1-15 based on VA config
+		for (i = 1; i < 16; i++) {
+			virt_config.page_table_start_addr = config->va_config.page_table_start_addr >> 12;
+			virt_config.page_table_end_addr = config->va_config.page_table_end_addr >> 12;
+			virt_config.depth = page_table_depth_to_hw(config->va_config.page_table_depth);
+			virt_config.block_size = page_table_block_size_to_hw(config->va_config.page_table_block_size);
+
+			dcn20_vmid_setup(&hubbub1->vmid[i], &virt_config);
+		}
 	}
 }
 

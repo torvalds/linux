@@ -1631,8 +1631,9 @@ static void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 			plane_state->address.page_table_base.quad_part,
 			pipe_ctx->pipe_idx);
 
-	// Call hubbub to program PTB of VMID
-	if (dc->res_pool->hubbub->funcs->setup_vmid_ptb)
+	// Call hubbub to program PTB of VMID only if its VA
+	// PA PTB is a one-time setup at init
+	if (vmid > 0 && dc->res_pool->hubbub->funcs->setup_vmid_ptb)
 		dc->res_pool->hubbub->funcs->setup_vmid_ptb(dc->res_pool->hubbub,
 				plane_state->address.page_table_base.quad_part,
 				vmid);
