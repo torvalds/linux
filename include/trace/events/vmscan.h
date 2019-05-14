@@ -27,15 +27,9 @@
 		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
 		) : "RECLAIM_WB_NONE"
 
-#define trace_reclaim_flags(page) ( \
-	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
+#define trace_reclaim_flags(file) ( \
+	(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
 	(RECLAIM_WB_ASYNC) \
-	)
-
-#define trace_shrink_flags(file) \
-	( \
-		(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
-		(RECLAIM_WB_ASYNC) \
 	)
 
 TRACE_EVENT(mm_vmscan_kswapd_sleep,
@@ -328,7 +322,8 @@ TRACE_EVENT(mm_vmscan_writepage,
 
 	TP_fast_assign(
 		__entry->pfn = page_to_pfn(page);
-		__entry->reclaim_flags = trace_reclaim_flags(page);
+		__entry->reclaim_flags = trace_reclaim_flags(
+						page_is_file_cache(page));
 	),
 
 	TP_printk("page=%p pfn=%lu flags=%s",
@@ -374,7 +369,7 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
 		__entry->nr_ref_keep = stat->nr_ref_keep;
 		__entry->nr_unmap_fail = stat->nr_unmap_fail;
 		__entry->priority = priority;
-		__entry->reclaim_flags = trace_shrink_flags(file);
+		__entry->reclaim_flags = trace_reclaim_flags(file);
 	),
 
 	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate_anon=%d nr_activate_file=%d nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
@@ -413,7 +408,7 @@ TRACE_EVENT(mm_vmscan_lru_shrink_active,
 		__entry->nr_deactivated = nr_deactivated;
 		__entry->nr_referenced = nr_referenced;
 		__entry->priority = priority;
-		__entry->reclaim_flags = trace_shrink_flags(file);
+		__entry->reclaim_flags = trace_reclaim_flags(file);
 	),
 
 	TP_printk("nid=%d nr_taken=%ld nr_active=%ld nr_deactivated=%ld nr_referenced=%ld priority=%d flags=%s",
@@ -452,7 +447,8 @@ TRACE_EVENT(mm_vmscan_inactive_list_is_low,
 		__entry->total_active = total_active;
 		__entry->active = active;
 		__entry->ratio = ratio;
-		__entry->reclaim_flags = trace_shrink_flags(file) & RECLAIM_WB_LRU;
+		__entry->reclaim_flags = trace_reclaim_flags(file) &
+					 RECLAIM_WB_LRU;
 	),
 
 	TP_printk("nid=%d reclaim_idx=%d total_inactive=%ld inactive=%ld total_active=%ld active=%ld ratio=%ld flags=%s",
