@@ -1428,8 +1428,11 @@ static umode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 		else
 			ok = fan_attr <= asus->asus_hwmon_num_fans;
 	} else if (dev_id == ASUS_WMI_DEVID_THERMAL_CTRL) {
-		/* If value is zero, something is clearly wrong */
-		if (!value)
+		/*
+		 * If the temperature value in deci-Kelvin is near the absolute
+		 * zero temperature, something is clearly wrong
+		 */
+		if (value == 0 || value == 1)
 			ok = false;
 	} else if (fan_attr <= asus->asus_hwmon_num_fans && fan_attr != -1) {
 		ok = true;
