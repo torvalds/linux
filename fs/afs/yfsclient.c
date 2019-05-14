@@ -195,6 +195,7 @@ static int xdr_decode_YFSFetchStatus(const __be32 **_bp,
 	if (status->abort_code != 0) {
 		if (status->abort_code == VNOVNODE)
 			status->nlink = 0;
+		scb->have_error = true;
 		return 0;
 	}
 
@@ -222,6 +223,7 @@ static int xdr_decode_YFSFetchStatus(const __be32 **_bp,
 	status->mtime_server	= xdr_to_time(xdr->mtime_server);
 	status->size		= xdr_to_u64(xdr->size);
 	status->data_version	= xdr_to_u64(xdr->data_version);
+	scb->have_status	= true;
 
 	*_bp += xdr_size(xdr);
 	return 0;

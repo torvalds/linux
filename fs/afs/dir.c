@@ -1299,32 +1299,27 @@ error:
  * However, if we didn't have a callback promise outstanding, or it was
  * outstanding on a different server, then it won't break it either...
  */
-int afs_dir_remove_link(struct dentry *dentry, struct key *key,
-			unsigned long d_version_before,
-			unsigned long d_version_after)
+static int afs_dir_remove_link(struct afs_vnode *dvnode, struct dentry *dentry,
+			       struct key *key)
 {
-	bool dir_valid;
 	int ret = 0;
-
-	/* There were no intervening changes on the server if the version
-	 * number we got back was incremented by exactly 1.
-	 */
-	dir_valid = (d_version_after == d_version_before + 1);
 
 	if (d_really_is_positive(dentry)) {
 		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 
 		if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
 			/* Already done */
-		} else if (dir_valid) {
+		} else if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags)) {
+			write_seqlock(&vnode->cb_lock);
 			drop_nlink(&vnode->vfs_inode);
 			if (vnode->vfs_inode.i_nlink == 0) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
-				clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+				__afs_break_callback(vnode);
 			}
+			write_sequnlock(&vnode->cb_lock);
 			ret = 0;
 		} else {
-			clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+			afs_break_callback(vnode);
 
 			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 				kdebug("AFS_VNODE_DELETED");
@@ -1348,7 +1343,6 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode = NULL;
 	struct key *key;
-	unsigned long d_version = (unsigned long)dentry->d_fsdata;
 	bool need_rehash = false;
 	int ret;
 
@@ -1395,20 +1389,16 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		afs_dataversion_t data_version = dvnode->status.data_version + 1;
+		afs_dataversion_t data_version_2 = vnode->status.data_version;
 
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
+			fc.cb_break_2 = afs_calc_vnode_cb_break(vnode);
 
 			if (test_bit(AFS_SERVER_FL_IS_YFS, &fc.cbi->server->flags) &&
 			    !test_bit(AFS_SERVER_FL_NO_RM2, &fc.cbi->server->flags)) {
 				yfs_fs_remove_file2(&fc, vnode, dentry->d_name.name,
 						    &scb[0], &scb[1]);
-				if (fc.ac.error == 0 &&
-				    scb[1].status.abort_code == VNOVNODE) {
-					set_bit(AFS_VNODE_DELETED, &vnode->flags);
-					afs_break_callback(vnode);
-				}
-
 				if (fc.ac.error != -ECONNABORTED ||
 				    fc.ac.abort_code != RXGEN_OPCODE)
 					continue;
@@ -1420,11 +1410,11 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, &scb[0]);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break_2,
+					&data_version_2, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
-		if (ret == 0)
-			ret = afs_dir_remove_link(
-				dentry, key, d_version,
-				(unsigned long)dvnode->status.data_version);
+		if (ret == 0 && !(scb[1].have_status || scb[1].have_error))
+			ret = afs_dir_remove_link(dvnode, dentry, key);
 		if (ret == 0 &&
 		    test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
 			afs_edit_dir_remove(dvnode, &dentry->d_name,

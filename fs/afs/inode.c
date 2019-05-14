@@ -23,6 +23,7 @@
 #include <linux/namei.h>
 #include <linux/iversion.h>
 #include "internal.h"
+#include "afs_fs.h"
 
 static const struct inode_operations afs_symlink_inode_operations = {
 	.get_link	= page_get_link,
@@ -271,13 +272,22 @@ void afs_vnode_commit_status(struct afs_fs_cursor *fc,
 
 	write_seqlock(&vnode->cb_lock);
 
-	afs_apply_status(fc, vnode, scb, expected_version);
-	if (scb->have_cb)
-		afs_apply_callback(fc, vnode, scb, cb_break);
+	if (scb->have_error) {
+		if (scb->status.abort_code == VNOVNODE) {
+			set_bit(AFS_VNODE_DELETED, &vnode->flags);
+			clear_nlink(&vnode->vfs_inode);
+			__afs_break_callback(vnode);
+		}
+	} else {
+		if (scb->have_status)
+			afs_apply_status(fc, vnode, scb, expected_version);
+		if (scb->have_cb)
+			afs_apply_callback(fc, vnode, scb, cb_break);
+	}
 
 	write_sequnlock(&vnode->cb_lock);
 
-	if (fc->ac.error == 0)
+	if (fc->ac.error == 0 && scb->have_status)
 		afs_cache_permit(vnode, fc->key, cb_break, scb);
 }
 

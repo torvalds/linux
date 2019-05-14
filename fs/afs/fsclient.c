@@ -83,6 +83,7 @@ static int xdr_decode_AFSFetchStatus(const __be32 **_bp,
 			 * case.
 			 */
 			status->abort_code = abort_code;
+			scb->have_error = true;
 			return 0;
 		}
 
@@ -127,6 +128,7 @@ static int xdr_decode_AFSFetchStatus(const __be32 **_bp,
 	data_version  = (u64)ntohl(xdr->data_version_lo);
 	data_version |= (u64)ntohl(xdr->data_version_hi) << 32;
 	status->data_version = data_version;
+	scb->have_status = true;
 
 	*_bp = (const void *)*_bp + sizeof(*xdr);
 	return 0;
