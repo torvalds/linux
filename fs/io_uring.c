@@ -489,7 +489,7 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 }
 
 static void io_cqring_fill_event(struct io_ring_ctx *ctx, u64 ki_user_data,
-				 long res, unsigned ev_flags)
+				 long res)
 {
 	struct io_uring_cqe *cqe;
 
@@ -502,7 +502,7 @@ static void io_cqring_fill_event(struct io_ring_ctx *ctx, u64 ki_user_data,
 	if (cqe) {
 		WRITE_ONCE(cqe->user_data, ki_user_data);
 		WRITE_ONCE(cqe->res, res);
-		WRITE_ONCE(cqe->flags, ev_flags);
+		WRITE_ONCE(cqe->flags, 0);
 	} else {
 		unsigned overflow = READ_ONCE(ctx->cq_ring->overflow);
 
@@ -521,12 +521,12 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 }
 
 static void io_cqring_add_event(struct io_ring_ctx *ctx, u64 user_data,
-				long res, unsigned ev_flags)
+				long res)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
-	io_cqring_fill_event(ctx, user_data, res, ev_flags);
+	io_cqring_fill_event(ctx, user_data, res);
 	io_commit_cqring(ctx);
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
@@ -628,7 +628,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		req = list_first_entry(done, struct io_kiocb, list);
 		list_del(&req->list);
 
-		io_cqring_fill_event(ctx, req->user_data, req->error, 0);
+		io_cqring_fill_event(ctx, req->user_data, req->error);
 		(*nr_events)++;
 
 		if (refcount_dec_and_test(&req->refs)) {
@@ -776,7 +776,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 
 	kiocb_end_write(kiocb);
 
-	io_cqring_add_event(req->ctx, req->user_data, res, 0);
+	io_cqring_add_event(req->ctx, req->user_data, res);
 	io_put_req(req);
 }
 
@@ -1211,7 +1211,7 @@ static int io_nop(struct io_kiocb *req, u64 user_data)
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
-	io_cqring_add_event(ctx, user_data, err, 0);
+	io_cqring_add_event(ctx, user_data, err);
 	io_put_req(req);
 	return 0;
 }
@@ -1256,7 +1256,7 @@ static int io_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				end > 0 ? end : LLONG_MAX,
 				fsync_flags & IORING_FSYNC_DATASYNC);
 
-	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
+	io_cqring_add_event(req->ctx, sqe->user_data, ret);
 	io_put_req(req);
 	return 0;
 }
@@ -1300,7 +1300,7 @@ static int io_sync_file_range(struct io_kiocb *req,
 
 	ret = sync_file_range(req->rw.ki_filp, sqe_off, sqe_len, flags);
 
-	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
+	io_cqring_add_event(req->ctx, sqe->user_data, ret);
 	io_put_req(req);
 	return 0;
 }
@@ -1358,7 +1358,7 @@ static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 
-	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
+	io_cqring_add_event(req->ctx, sqe->user_data, ret);
 	io_put_req(req);
 	return 0;
 }
@@ -1367,7 +1367,7 @@ static void io_poll_complete(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			     __poll_t mask)
 {
 	req->poll.done = true;
-	io_cqring_fill_event(ctx, req->user_data, mangle_poll(mask), 0);
+	io_cqring_fill_event(ctx, req->user_data, mangle_poll(mask));
 	io_commit_cqring(ctx);
 }
 
@@ -1687,7 +1687,7 @@ restart:
 		io_put_req(req);
 
 		if (ret) {
-			io_cqring_add_event(ctx, sqe->user_data, ret, 0);
+			io_cqring_add_event(ctx, sqe->user_data, ret);
 			io_put_req(req);
 		}
 
@@ -1992,7 +1992,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, struct sqe_submit *sqes,
 			continue;
 		}
 
-		io_cqring_add_event(ctx, sqes[i].sqe->user_data, ret, 0);
+		io_cqring_add_event(ctx, sqes[i].sqe->user_data, ret);
 	}
 
 	if (statep)
@@ -2157,7 +2157,7 @@ static int io_ring_submit(struct io_ring_ctx *ctx, unsigned int to_submit)
 
 		ret = io_submit_sqe(ctx, &s, statep);
 		if (ret)
-			io_cqring_add_event(ctx, s.sqe->user_data, ret, 0);
+			io_cqring_add_event(ctx, s.sqe->user_data, ret);
 	}
 	io_commit_sqring(ctx);
 
