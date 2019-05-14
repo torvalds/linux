@@ -64,7 +64,7 @@ static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
 
 	/* Remove entries located in module from linked list. */
 	while ((info = gcov_info_next(info))) {
-		if (within_module((unsigned long)info, mod)) {
+		if (gcov_info_within_module(info, mod)) {
 			gcov_info_unlink(prev, info);
 			if (gcov_events_enabled)
 				gcov_event(GCOV_REMOVE, info);
