@@ -97,21 +97,19 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
+
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;
-	if (vma->vm_start <= address)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, address))
-		goto bad_area;
+	if (unlikely(address < vma->vm_start)) {
+		if (!(vma->vm_flags & VM_GROWSDOWN) || expand_stack(vma, address))
+			goto bad_area;
+	}
 
 	/*
 	 * Ok, we have a good vm_area for this memory access, so
 	 * we can handle it..
 	 */
-good_area:
 	si_code = SEGV_ACCERR;
 
 	/* Handle protection violation, execute on heap or stack */
