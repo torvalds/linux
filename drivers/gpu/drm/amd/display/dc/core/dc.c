@@ -1607,6 +1607,73 @@ static void copy_surface_update_to_plane(
 			*srf_update->coeff_reduction_factor;
 }
 
+static void copy_stream_update_to_stream(struct dc *dc,
+					 struct dc_state *context,
+					 struct dc_stream_state *stream,
+					 const struct dc_stream_update *update)
+{
+	if (update == NULL || stream == NULL)
+		return;
+
+	if (update->src.height && update->src.width)
+		stream->src = update->src;
+
+	if (update->dst.height && update->dst.width)
+		stream->dst = update->dst;
+
+	if (update->out_transfer_func &&
+	    stream->out_transfer_func != update->out_transfer_func) {
+		stream->out_transfer_func->sdr_ref_white_level =
+			update->out_transfer_func->sdr_ref_white_level;
+		stream->out_transfer_func->tf = update->out_transfer_func->tf;
+		stream->out_transfer_func->type =
+			update->out_transfer_func->type;
+		memcpy(&stream->out_transfer_func->tf_pts,
+		       &update->out_transfer_func->tf_pts,
+		       sizeof(struct dc_transfer_func_distributed_points));
+	}
+
+	if (update->hdr_static_metadata)
+		stream->hdr_static_metadata = *update->hdr_static_metadata;
+
+	if (update->abm_level)
+		stream->abm_level = *update->abm_level;
+
+	if (update->periodic_interrupt0)
+		stream->periodic_interrupt0 = *update->periodic_interrupt0;
+
+	if (update->periodic_interrupt1)
+		stream->periodic_interrupt1 = *update->periodic_interrupt1;
+
+	if (update->gamut_remap)
+		stream->gamut_remap_matrix = *update->gamut_remap;
+
+	/* Note: this being updated after mode set is currently not a use case
+	 * however if it arises OCSC would need to be reprogrammed at the
+	 * minimum
+	 */
+	if (update->output_color_space)
+		stream->output_color_space = *update->output_color_space;
+
+	if (update->output_csc_transform)
+		stream->csc_color_matrix = *update->output_csc_transform;
+
+	if (update->vrr_infopacket)
+		stream->vrr_infopacket = *update->vrr_infopacket;
+
+	if (update->dpms_off)
+		stream->dpms_off = *update->dpms_off;
+
+	if (update->vsc_infopacket)
+		stream->vsc_infopacket = *update->vsc_infopacket;
+
+	if (update->vsp_infopacket)
+		stream->vsp_infopacket = *update->vsp_infopacket;
+
+	if (update->dither_option)
+		stream->dither_option = *update->dither_option;
+}
+
 static void commit_planes_do_stream_update(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
@@ -1856,6 +1923,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			}
 		}
 	}
+
+	copy_stream_update_to_stream(dc, context, stream, stream_update);
 
 	commit_planes_for_stream(
 				dc,
