@@ -205,9 +205,9 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 	update.start = nrange->start;
 	update.end = nrange->end;
 	update.event = HMM_UPDATE_INVALIDATE;
-	update.blockable = nrange->blockable;
+	update.blockable = mmu_notifier_range_blockable(nrange);
 
-	if (nrange->blockable)
+	if (mmu_notifier_range_blockable(nrange))
 		mutex_lock(&hmm->lock);
 	else if (!mutex_trylock(&hmm->lock)) {
 		ret = -EAGAIN;
@@ -222,7 +222,7 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 	}
 	mutex_unlock(&hmm->lock);
 
-	if (nrange->blockable)
+	if (mmu_notifier_range_blockable(nrange))
 		down_read(&hmm->mirrors_sem);
 	else if (!down_read_trylock(&hmm->mirrors_sem)) {
 		ret = -EAGAIN;

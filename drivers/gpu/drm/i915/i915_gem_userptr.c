@@ -122,7 +122,7 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	while (it) {
 		struct drm_i915_gem_object *obj;
 
-		if (!range->blockable) {
+		if (!mmu_notifier_range_blockable(range)) {
 			ret = -EAGAIN;
 			break;
 		}

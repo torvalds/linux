@@ -526,20 +526,20 @@ static int mn_invl_range_start(struct mmu_notifier *mn,
 	struct gntdev_grant_map *map;
 	int ret = 0;
 
-	if (range->blockable)
+	if (mmu_notifier_range_blockable(range))
 		mutex_lock(&priv->lock);
 	else if (!mutex_trylock(&priv->lock))
 		return -EAGAIN;
 
 	list_for_each_entry(map, &priv->maps, next) {
 		ret = unmap_if_in_range(map, range->start, range->end,
-					range->blockable);
+					mmu_notifier_range_blockable(range));
 		if (ret)
 			goto out_unlock;
 	}
 	list_for_each_entry(map, &priv->freeable_maps, next) {
 		ret = unmap_if_in_range(map, range->start, range->end,
-					range->blockable);
+					mmu_notifier_range_blockable(range));
 		if (ret)
 			goto out_unlock;
 	}
