@@ -114,6 +114,7 @@ implementation.
 
    x86/index
    sh/index
+   x86/index
 
 Filesystem Documentation
 ------------------------

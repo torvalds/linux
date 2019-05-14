@@ -23,6 +23,7 @@ x86-specific Documentation
    intel_mpx
    amd-memory-encryption
    pti
+   mds
    microcode
    resctrl_ui
    usb-legacy-support

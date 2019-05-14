@@ -2143,7 +2143,7 @@
 
 			Default is 'flush'.
 
-			For details see: Documentation/admin-guide/l1tf.rst
+			For details see: Documentation/admin-guide/hw-vuln/l1tf.rst
 
 	l2cr=		[PPC]
 
@@ -2389,6 +2389,32 @@
 			Format: <first>,<last>
 			Specifies range of consoles to be captured by the MDA.
 
+	mds=		[X86,INTEL]
+			Control mitigation for the Micro-architectural Data
+			Sampling (MDS) vulnerability.
+
+			Certain CPUs are vulnerable to an exploit against CPU
+			internal buffers which can forward information to a
+			disclosure gadget under certain conditions.
+
+			In vulnerable processors, the speculatively
+			forwarded data can be used in a cache side channel
+			attack, to access data to which the attacker does
+			not have direct access.
+
+			This parameter controls the MDS mitigation. The
+			options are:
+
+			full       - Enable MDS mitigation on vulnerable CPUs
+			full,nosmt - Enable MDS mitigation and disable
+				     SMT on vulnerable CPUs
+			off        - Unconditionally disable MDS mitigation
+
+			Not specifying this option is equivalent to
+			mds=full.
+
+			For details see: Documentation/admin-guide/hw-vuln/mds.rst
+
 	mem=nn[KMG]	[KNL,BOOT] Force usage of a specific amount of memory
 			Amount of memory to be used when the kernel is not able
 			to see the whole system memory or for test.
@@ -2565,6 +2591,7 @@
 					       spec_store_bypass_disable=off [X86,PPC]
 					       ssbd=force-off [ARM64]
 					       l1tf=off [X86]
+					       mds=off [X86]
 
 			auto (default)
 				Mitigate all CPU vulnerabilities, but leave SMT
@@ -2579,6 +2606,7 @@
 				if needed.  This is for users who always want to
 				be fully mitigated, even if it means losing SMT.
 				Equivalent to: l1tf=flush,nosmt [X86]
+					       mds=full,nosmt [X86]
 
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
