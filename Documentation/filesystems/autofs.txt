@@ -240,11 +240,18 @@ Normally the daemon only wants to remove entries which haven't been
 used for a while.  For this purpose autofs maintains a "`last_used`"
 time stamp on each directory or symlink.  For symlinks it genuinely
 does record the last time the symlink was "used" or followed to find
-out where it points to.  For directories the field is a slight
-misnomer.  It actually records the last time that autofs checked if
-the directory or one of its descendants was busy and found that it
-was.  This is just as useful and doesn't require updating the field so
-often.
+out where it points to.  For directories the field is used slightly
+differently.  The field is updated at mount time and during expire
+checks if it is found to be in use (ie. open file descriptor or
+process working directory) and during path walks. The update done
+during path walks prevents frequent expire and immediate mount of
+frequently accessed automounts. But in the case where a GUI continually
+access or an application frequently scans an autofs directory tree
+there can be an accumulation of mounts that aren't actually being
+used. To cater for this case the "`strictexpire`" autofs mount option
+can be used to avoid the "`last_used`" update on path walk thereby
+preventing this apparent inability to expire mounts that aren't
+really in use.
 
 The daemon is able to ask autofs if anything is due to be expired,
 using an `ioctl` as discussed later.  For a *direct* mount, autofs
