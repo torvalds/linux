@@ -161,10 +161,10 @@ color_green=
 color_blue=
 # If stdout exists and number of colors is eight or more, use them
 if [ -t 1 -a "$ncolors" -a "$ncolors" -ge 8 ]; then
-  color_reset="\e[0m"
-  color_red="\e[31m"
-  color_green="\e[32m"
-  color_blue="\e[34m"
+  color_reset="\033[0m"
+  color_red="\033[31m"
+  color_green="\033[32m"
+  color_blue="\033[34m"
 fi
 
 strip_esc() {
