@@ -1595,7 +1595,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
 		struct flow_match_vlan match;
 
-		flow_rule_match_vlan(rule, &match);
+		flow_rule_match_cvlan(rule, &match);
 		if (match.mask->vlan_id ||
 		    match.mask->vlan_priority ||
 		    match.mask->vlan_tpid) {
