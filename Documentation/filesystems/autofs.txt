@@ -262,8 +262,12 @@ up.
 
 There is an option with indirect mounts to consider each of the leaves
 that has been mounted on instead of considering the top-level names.
-This is intended for compatibility with version 4 of autofs and should
-be considered as deprecated.
+This was originally intended for compatibility with version 4 of autofs
+and should be considered as deprecated for Sun Format automount maps.
+However, it may be used again for amd format mount maps (which are
+generally indirect maps) because the amd automounter allows for the
+setting of an expire timeout for individual mounts. But there are
+some difficulties in making the needed changes for this.
 
 When autofs considers a directory it checks the `last_used` time and
 compares it with the "timeout" value set when the filesystem was
