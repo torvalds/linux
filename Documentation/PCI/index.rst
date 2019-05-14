@@ -14,3 +14,4 @@ Linux PCI Bus Subsystem
    msi-howto
    acpi-info
    pci-error-recovery
+   pcieaer-howto
