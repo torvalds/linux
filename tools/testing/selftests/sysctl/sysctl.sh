@@ -179,7 +179,7 @@ verify()
 
 verify_diff_w()
 {
-	echo "$TEST_STR" | diff -q -w -u - $1
+	echo "$TEST_STR" | diff -q -w -u - $1 > /dev/null
 	return $?
 }
 
