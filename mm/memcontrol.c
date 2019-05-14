@@ -687,8 +687,8 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
 	return mz;
 }
 
-static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
-				      int event)
+static unsigned long memcg_events_local(struct mem_cgroup *memcg,
+					int event)
 {
 	return atomic_long_read(&memcg->vmevents[event]);
 }
@@ -1325,12 +1325,14 @@ void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
 			if (memcg1_stats[i] == MEMCG_SWAP && !do_swap_account)
 				continue;
 			pr_cont(" %s:%luKB", memcg1_stat_names[i],
-				K(memcg_page_state(iter, memcg1_stats[i])));
+				K(memcg_page_state_local(iter,
+							 memcg1_stats[i])));
 		}
 
 		for (i = 0; i < NR_LRU_LISTS; i++)
 			pr_cont(" %s:%luKB", mem_cgroup_lru_names[i],
-				K(memcg_page_state(iter, NR_LRU_BASE + i)));
+				K(memcg_page_state_local(iter,
+							 NR_LRU_BASE + i)));
 
 		pr_cont("\n");
 	}
@@ -1396,13 +1398,13 @@ static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
 {
 	struct lruvec *lruvec = mem_cgroup_lruvec(NODE_DATA(nid), memcg);
 
-	if (lruvec_page_state(lruvec, NR_INACTIVE_FILE) ||
-	    lruvec_page_state(lruvec, NR_ACTIVE_FILE))
+	if (lruvec_page_state_local(lruvec, NR_INACTIVE_FILE) ||
+	    lruvec_page_state_local(lruvec, NR_ACTIVE_FILE))
 		return true;
 	if (noswap || !total_swap_pages)
 		return false;
-	if (lruvec_page_state(lruvec, NR_INACTIVE_ANON) ||
-	    lruvec_page_state(lruvec, NR_ACTIVE_ANON))
+	if (lruvec_page_state_local(lruvec, NR_INACTIVE_ANON) ||
+	    lruvec_page_state_local(lruvec, NR_ACTIVE_ANON))
 		return true;
 	return false;
 
@@ -2961,16 +2963,16 @@ static void accumulate_vmstats(struct mem_cgroup *memcg,
 
 	for_each_mem_cgroup_tree(mi, memcg) {
 		for (i = 0; i < acc->vmstats_size; i++)
-			acc->vmstats[i] += memcg_page_state(mi,
+			acc->vmstats[i] += memcg_page_state_local(mi,
 				acc->vmstats_array ? acc->vmstats_array[i] : i);
 
 		for (i = 0; i < acc->vmevents_size; i++)
-			acc->vmevents[i] += memcg_sum_events(mi,
+			acc->vmevents[i] += memcg_events_local(mi,
 				acc->vmevents_array
 				? acc->vmevents_array[i] : i);
 
 		for (i = 0; i < NR_LRU_LISTS; i++)
-			acc->lru_pages[i] += memcg_page_state(mi,
+			acc->lru_pages[i] += memcg_page_state_local(mi,
 							      NR_LRU_BASE + i);
 	}
 }
@@ -2983,10 +2985,10 @@ static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 		struct mem_cgroup *iter;
 
 		for_each_mem_cgroup_tree(iter, memcg) {
-			val += memcg_page_state(iter, MEMCG_CACHE);
-			val += memcg_page_state(iter, MEMCG_RSS);
+			val += memcg_page_state_local(iter, MEMCG_CACHE);
+			val += memcg_page_state_local(iter, MEMCG_RSS);
 			if (swap)
-				val += memcg_page_state(iter, MEMCG_SWAP);
+				val += memcg_page_state_local(iter, MEMCG_SWAP);
 		}
 	} else {
 		if (!swap)
@@ -3328,7 +3330,7 @@ static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 	for_each_lru(lru) {
 		if (!(BIT(lru) & lru_mask))
 			continue;
-		nr += lruvec_page_state(lruvec, NR_LRU_BASE + lru);
+		nr += lruvec_page_state_local(lruvec, NR_LRU_BASE + lru);
 	}
 	return nr;
 }
@@ -3342,7 +3344,7 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
 	for_each_lru(lru) {
 		if (!(BIT(lru) & lru_mask))
 			continue;
-		nr += memcg_page_state(memcg, NR_LRU_BASE + lru);
+		nr += memcg_page_state_local(memcg, NR_LRU_BASE + lru);
 	}
 	return nr;
 }
@@ -3427,17 +3429,17 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
 			continue;
 		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
-			   memcg_page_state(memcg, memcg1_stats[i]) *
+			   memcg_page_state_local(memcg, memcg1_stats[i]) *
 			   PAGE_SIZE);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
 		seq_printf(m, "%s %lu\n", memcg1_event_names[i],
-			   memcg_sum_events(memcg, memcg1_events[i]));
+			   memcg_events_local(memcg, memcg1_events[i]));
 
 	for (i = 0; i < NR_LRU_LISTS; i++)
 		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
-			   memcg_page_state(memcg, NR_LRU_BASE + i) *
+			   memcg_page_state_local(memcg, NR_LRU_BASE + i) *
 			   PAGE_SIZE);
 
 	/* Hierarchical information */

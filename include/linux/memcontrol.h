@@ -554,8 +554,8 @@ void unlock_page_memcg(struct page *page);
  * idx can be of type enum memcg_stat_item or node_stat_item.
  * Keep in sync with memcg_exact_page_state().
  */
-static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
-					     int idx)
+static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
+						   int idx)
 {
 	long x = atomic_long_read(&memcg->vmstats[idx]);
 #ifdef CONFIG_SMP
@@ -624,8 +624,8 @@ static inline void mod_memcg_page_state(struct page *page,
 		mod_memcg_state(page->mem_cgroup, idx, val);
 }
 
-static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
-					      enum node_stat_item idx)
+static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
+						    enum node_stat_item idx)
 {
 	struct mem_cgroup_per_node *pn;
 	long x;
@@ -1011,8 +1011,8 @@ static inline void mem_cgroup_print_oom_group(struct mem_cgroup *memcg)
 {
 }
 
-static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
-					     int idx)
+static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
+						   int idx)
 {
 	return 0;
 }
@@ -1041,8 +1041,8 @@ static inline void mod_memcg_page_state(struct page *page,
 {
 }
 
-static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
-					      enum node_stat_item idx)
+static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
+						    enum node_stat_item idx)
 {
 	return node_page_state(lruvec_pgdat(lruvec), idx);
 }
