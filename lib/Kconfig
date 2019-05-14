@@ -46,9 +46,6 @@ config HAVE_ARCH_BITREVERSE
 	  This option enables the use of hardware bit-reversal instructions on
 	  architectures which support such operations.
 
-config RATIONAL
-	bool
-
 config GENERIC_STRNCPY_FROM_USER
 	bool
 
@@ -60,6 +57,8 @@ config GENERIC_NET_UTILS
 
 config GENERIC_FIND_FIRST_BIT
 	bool
+
+source "lib/math/Kconfig"
 
 config NO_GENERIC_PCI_IOPORT_MAP
 	bool
@@ -531,12 +530,6 @@ config LRU_CACHE
 config CLZ_TAB
 	bool
 
-config CORDIC
-	tristate "CORDIC algorithm"
-	help
-	  This option provides an implementation of the CORDIC algorithm;
-	  calculations are in fixed point. Module will be called cordic.
-
 config DDR
 	bool "JEDEC DDR data"
 	help
@@ -627,9 +620,6 @@ config SBITMAP
 
 config PARMAN
 	tristate "parman" if COMPILE_TEST
-
-config PRIME_NUMBERS
-	tristate
 
 config STRING_SELFTEST
 	tristate "Test string functions"

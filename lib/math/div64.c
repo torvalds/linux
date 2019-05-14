@@ -10,7 +10,7 @@
  * Generic C version of 64bit/32bit division and modulo, with
  * 64bit result and 32bit remainder.
  *
- * The fast case for (n>>32 == 0) is handled inline by do_div(). 
+ * The fast case for (n>>32 == 0) is handled inline by do_div().
  *
  * Code generated for this function might be very inefficient
  * for some CPUs. __div64_32() can be overridden by linking arch-specific
