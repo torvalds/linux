@@ -527,6 +527,11 @@ extern unsigned long __initramfs_size;
 #include <linux/initrd.h>
 #include <linux/kexec.h>
 
+void __weak free_initrd_mem(unsigned long start, unsigned long end)
+{
+	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+}
+
 #ifdef CONFIG_KEXEC_CORE
 static bool kexec_free_initrd(void)
 {
