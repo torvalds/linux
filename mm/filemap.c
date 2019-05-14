@@ -24,6 +24,7 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/uio.h>
+#include <linux/error-injection.h>
 #include <linux/hash.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
@@ -882,6 +883,7 @@ error:
 	put_page(page);
 	return xas_error(&xas);
 }
+ALLOW_ERROR_INJECTION(__add_to_page_cache_locked, ERRNO);
 
 /**
  * add_to_page_cache_locked - add a locked page to the pagecache
