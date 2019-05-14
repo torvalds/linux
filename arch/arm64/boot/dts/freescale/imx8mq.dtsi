@@ -458,7 +458,6 @@
 					interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
 						<GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 				};
-
 			};
 
 			clk: clock-controller@30380000 {
@@ -945,7 +944,6 @@
 			#phy-cells = <0>;
 			status = "disabled";
 		};
-
 
 		pcie0: pcie@33800000 {
 			compatible = "fsl,imx8mq-pcie";
