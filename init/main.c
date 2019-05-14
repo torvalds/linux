@@ -1074,6 +1074,11 @@ static inline void mark_readonly(void)
 }
 #endif
 
+void __weak free_initmem(void)
+{
+	free_initmem_default(POISON_FREE_INITMEM);
+}
+
 static int __ref kernel_init(void *unused)
 {
 	int ret;
