@@ -217,17 +217,33 @@ respect in order to keep things properly synchronized. The usage pattern is::
       range.flags = ...;
       range.values = ...;
       range.pfn_shift = ...;
+      hmm_range_register(&range);
+
+      /*
+       * Just wait for range to be valid, safe to ignore return value as we
+       * will use the return value of hmm_range_snapshot() below under the
+       * mmap_sem to ascertain the validity of the range.
+       */
+      hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
 
  again:
       down_read(&mm->mmap_sem);
-      range.vma = ...;
       ret = hmm_range_snapshot(&range);
       if (ret) {
           up_read(&mm->mmap_sem);
+          if (ret == -EAGAIN) {
+            /*
+             * No need to check hmm_range_wait_until_valid() return value
+             * on retry we will get proper error with hmm_range_snapshot()
+             */
+            hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
+            goto again;
+          }
+          hmm_mirror_unregister(&range);
           return ret;
       }
       take_lock(driver->update);
-      if (!hmm_vma_range_done(vma, &range)) {
+      if (!range.valid) {
           release_lock(driver->update);
           up_read(&mm->mmap_sem);
           goto again;
@@ -235,14 +251,15 @@ respect in order to keep things properly synchronized. The usage pattern is::
 
       // Use pfns array content to update device page table
 
+      hmm_mirror_unregister(&range);
       release_lock(driver->update);
       up_read(&mm->mmap_sem);
       return 0;
  }
 
 The driver->update lock is the same lock that the driver takes inside its
-update() callback. That lock must be held before hmm_vma_range_done() to avoid
-any race with a concurrent CPU page table update.
+update() callback. That lock must be held before checking the range.valid
+field to avoid any race with a concurrent CPU page table update.
 
 HMM implements all this on top of the mmu_notifier API because we wanted a
 simpler API and also to be able to perform optimizations latter on like doing
