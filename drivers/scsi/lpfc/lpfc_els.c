@@ -6326,6 +6326,8 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 			continue;
 		}
 
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME)
+			lpfc_nvme_rescan_port(vport, ndlp);
 
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
@@ -6437,6 +6439,9 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				 "2024 pt2pt RSCN %08x Data: x%x x%x\n",
 				 *lp, vport->fc_flag, payload_len);
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
+
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME)
+			lpfc_nvme_rescan_port(vport, ndlp);
 		return 0;
 	}
 
