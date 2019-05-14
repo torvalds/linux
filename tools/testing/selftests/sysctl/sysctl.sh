@@ -38,6 +38,7 @@ ALL_TESTS="$ALL_TESTS 0002:1:1:string_0001"
 ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002"
 ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001"
 ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003"
+ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001"
 
 test_modprobe()
 {
@@ -150,6 +151,9 @@ reset_vals()
 		string_0001)
 			VAL="(none)"
 			;;
+		bitmap_0001)
+			VAL=""
+			;;
 		*)
 			;;
 	esac
@@ -178,6 +182,22 @@ verify()
 		return 1
 	fi
 	return 0
+}
+
+# proc files get read a page at a time, which can confuse diff,
+# and get you incorrect results on proc files with long data. To use
+# diff against them you must first extract the output to a file, and
+# then compare against that file.
+verify_diff_proc_file()
+{
+	TMP_DUMP_FILE=$(mktemp)
+	cat $1 > $TMP_DUMP_FILE
+
+	if ! diff -w -q $TMP_DUMP_FILE $2; then
+		return 1
+	else
+		return 0
+	fi
 }
 
 verify_diff_w()
@@ -615,6 +635,55 @@ target_exists()
 	return 1
 }
 
+run_bitmaptest() {
+	# Total length of bitmaps string to use, a bit under
+	# the maximum input size of the test node
+	LENGTH=$((RANDOM % 65000))
+
+	# First bit to set
+	BIT=$((RANDOM % 1024))
+
+	# String containing our list of bits to set
+	TEST_STR=$BIT
+
+	# build up the string
+	while [ "${#TEST_STR}" -le "$LENGTH" ]; do
+		# Make sure next entry is discontiguous,
+		# skip ahead at least 2
+		BIT=$((BIT + $((2 + RANDOM % 10))))
+
+		# Add new bit to the list
+		TEST_STR="${TEST_STR},${BIT}"
+
+		# Randomly make it a range
+		if [ "$((RANDOM % 2))" -eq "1" ]; then
+			RANGE_END=$((BIT + $((1 + RANDOM % 10))))
+			TEST_STR="${TEST_STR}-${RANGE_END}"
+			BIT=$RANGE_END
+		fi
+	done
+
+	echo -n "Checking bitmap handler... "
+	TEST_FILE=$(mktemp)
+	echo -n "$TEST_STR" > $TEST_FILE
+
+	cat $TEST_FILE > $TARGET 2> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "FAIL" >&2
+		rc=1
+		test_rc
+	fi
+
+	if ! verify_diff_proc_file "$TARGET" "$TEST_FILE"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+		rc=0
+	fi
+	test_rc
+}
+
 sysctl_test_0001()
 {
 	TARGET="${SYSCTL}/$(get_test_target 0001)"
@@ -675,6 +744,14 @@ sysctl_test_0005()
 	run_limit_digit_int_array
 }
 
+sysctl_test_0006()
+{
+	TARGET="${SYSCTL}/bitmap_0001"
+	reset_vals
+	ORIG=""
+	run_bitmaptest
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -688,6 +765,7 @@ list_tests()
 	echo "0003 x $(get_test_count 0003) - tests proc_dointvec()"
 	echo "0004 x $(get_test_count 0004) - tests proc_douintvec()"
 	echo "0005 x $(get_test_count 0005) - tests proc_douintvec() array"
+	echo "0006 x $(get_test_count 0006) - tests proc_do_large_bitmap()"
 }
 
 usage()
@@ -761,8 +839,7 @@ function run_all_tests()
 		ENABLED=$(get_test_enabled $TEST_ID)
 		TEST_COUNT=$(get_test_count $TEST_ID)
 		TEST_TARGET=$(get_test_target $TEST_ID)
-		target_exists $TEST_TARGET $TEST_ID
-		if [ $? -ne 1 ]; then
+		if target_exists $TEST_TARGET $TEST_ID; then
 			continue
 		fi
 		if [[ $ENABLED -eq "1" ]]; then
