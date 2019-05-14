@@ -878,6 +878,9 @@ out:
 
 static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 {
+	struct cifsFileInfo *cfile = file->private_data;
+	struct cifs_tcon *tcon;
+
 	/*
 	 * whence == SEEK_END || SEEK_DATA || SEEK_HOLE => we must revalidate
 	 * the cached file length
@@ -908,6 +911,12 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 		rc = cifs_revalidate_file_attr(file);
 		if (rc < 0)
 			return (loff_t)rc;
+	}
+	if (cfile && cfile->tlink) {
+		tcon = tlink_tcon(cfile->tlink);
+		if (tcon->ses->server->ops->llseek)
+			return tcon->ses->server->ops->llseek(file, tcon,
+							      offset, whence);
 	}
 	return generic_file_llseek(file, offset, whence);
 }

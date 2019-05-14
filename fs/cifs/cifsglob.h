@@ -497,6 +497,8 @@ struct smb_version_operations {
 	/* version specific fiemap implementation */
 	int (*fiemap)(struct cifs_tcon *tcon, struct cifsFileInfo *,
 		      struct fiemap_extent_info *, u64, u64);
+	/* version specific llseek implementation */
+	loff_t (*llseek)(struct file *, struct cifs_tcon *, loff_t, int);
 };
 
 struct smb_version_values {
