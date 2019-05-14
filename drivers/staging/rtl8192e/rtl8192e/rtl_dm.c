@@ -334,7 +334,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 
 	if (!priv->up) {
 		RT_TRACE(COMP_RATE,
-			 "<---- _rtl92e_dm_check_rate_adaptive(): driver is going to unload\n");
+			 "<---- %s: driver is going to unload\n", __func__);
 		return;
 	}
 
@@ -1178,7 +1178,7 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 
 	if (!priv->up) {
 		RT_TRACE(COMP_RATE,
-			 "<---- rtl92e_dm_restore_state(): driver is going to unload\n");
+			 "<---- %s: driver is going to unload\n", __func__);
 		return;
 	}
 
