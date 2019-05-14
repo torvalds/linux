@@ -276,6 +276,41 @@ report commands as executed is serialized (there is no point in doing this
 concurrently).
 
 
+Leverage default_flags and pfn_flags_mask
+=========================================
+
+The hmm_range struct has 2 fields default_flags and pfn_flags_mask that allows
+to set fault or snapshot policy for a whole range instead of having to set them
+for each entries in the range.
+
+For instance if the device flags for device entries are:
+    VALID (1 << 63)
+    WRITE (1 << 62)
+
+Now let say that device driver wants to fault with at least read a range then
+it does set:
+    range->default_flags = (1 << 63)
+    range->pfn_flags_mask = 0;
+
+and calls hmm_range_fault() as described above. This will fill fault all page
+in the range with at least read permission.
+
+Now let say driver wants to do the same except for one page in the range for
+which its want to have write. Now driver set:
+    range->default_flags = (1 << 63);
+    range->pfn_flags_mask = (1 << 62);
+    range->pfns[index_of_write] = (1 << 62);
+
+With this HMM will fault in all page with at least read (ie valid) and for the
+address == range->start + (index_of_write << PAGE_SHIFT) it will fault with
+write permission ie if the CPU pte does not have write permission set then HMM
+will call handle_mm_fault().
+
+Note that HMM will populate the pfns array with write permission for any entry
+that have write permission within the CPU pte no matter what are the values set
+in default_flags or pfn_flags_mask.
+
+
 Represent and manage device memory from core kernel point of view
 =================================================================
 
