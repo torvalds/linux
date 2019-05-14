@@ -64,6 +64,7 @@ DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_isolate_freepages,
 	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
 );
 
+#ifdef CONFIG_COMPACTION
 TRACE_EVENT(mm_compaction_migratepages,
 
 	TP_PROTO(unsigned long nr_all,
@@ -132,7 +133,6 @@ TRACE_EVENT(mm_compaction_begin,
 		__entry->sync ? "sync" : "async")
 );
 
-#ifdef CONFIG_COMPACTION
 TRACE_EVENT(mm_compaction_end,
 	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
 		unsigned long free_pfn, unsigned long zone_end, bool sync,
@@ -166,7 +166,6 @@ TRACE_EVENT(mm_compaction_end,
 		__entry->sync ? "sync" : "async",
 		__print_symbolic(__entry->status, COMPACTION_STATUS))
 );
-#endif
 
 TRACE_EVENT(mm_compaction_try_to_compact_pages,
 
@@ -195,7 +194,6 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
 		__entry->prio)
 );
 
-#ifdef CONFIG_COMPACTION
 DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
 
 	TP_PROTO(struct zone *zone,
@@ -296,7 +294,6 @@ DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
 
 	TP_ARGS(zone, order)
 );
-#endif
 
 TRACE_EVENT(mm_compaction_kcompactd_sleep,
 
@@ -352,6 +349,7 @@ DEFINE_EVENT(kcompactd_wake_template, mm_compaction_kcompactd_wake,
 
 	TP_ARGS(nid, order, classzone_idx)
 );
+#endif
 
 #endif /* _TRACE_COMPACTION_H */
 
