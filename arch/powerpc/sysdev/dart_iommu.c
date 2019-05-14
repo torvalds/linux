@@ -158,7 +158,7 @@ static void dart_cache_sync(unsigned int *base, unsigned int count)
 	unsigned int tmp;
 
 	/* Perform a standard cache flush */
-	flush_inval_dcache_range(start, end);
+	flush_dcache_range(start, end);
 
 	/*
 	 * Perform the sequence described in the CPC925 manual to
