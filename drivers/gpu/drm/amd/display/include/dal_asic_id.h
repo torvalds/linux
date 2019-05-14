@@ -138,13 +138,14 @@
 #endif
 #define RAVEN_UNKNOWN 0xFF
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
-#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < 0xF0))
-#endif /* DCN1_01 */
 #define ASIC_REV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
 #define RAVEN1_F0 0xF0
 #define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+#define ASICREV_IS_PICASSO(eChipRev) ((eChipRev >= PICASSO_A0) && (eChipRev < RAVEN2_A0))
+#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < 0xF0))
+#endif /* DCN1_01 */
 
 #define FAMILY_RV 142 /* DCN 1*/
 
