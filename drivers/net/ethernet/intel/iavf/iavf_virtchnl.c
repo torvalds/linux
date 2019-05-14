@@ -983,7 +983,7 @@ void iavf_enable_channels(struct iavf_adapter *adapter)
 		return;
 	}
 
-	len = (adapter->num_tc * sizeof(struct virtchnl_channel_info)) +
+	len = ((adapter->num_tc - 1) * sizeof(struct virtchnl_channel_info)) +
 	       sizeof(struct virtchnl_tc_info);
 
 	vti = kzalloc(len, GFP_KERNEL);
