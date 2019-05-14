@@ -233,6 +233,8 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_RLCP_CAM                        = 46,   /* RLCP CAM                 NV      */
 	GFX_FW_TYPE_RLC_SPP_CAM_EXT                 = 47,   /* RLC SPP CAM EXT          NV      */
 	GFX_FW_TYPE_RLX6_DRAM_BOOT                  = 48,   /* RLX6 DRAM BOOT           NV      */
+	GFX_FW_TYPE_VCN0_RAM                        = 49,   /* VCN_RAM  NV */
+	GFX_FW_TYPE_VCN1_RAM                        = 50,   /* VCN_RAM  NV */
 	GFX_FW_TYPE_MAX
 };
 
