@@ -595,7 +595,11 @@ static void __init clean_rootfs(void)
 	ksys_close(fd);
 	kfree(buf);
 }
-#endif
+#else
+static inline void clean_rootfs(void)
+{
+}
+#endif /* CONFIG_BLK_DEV_RAM */
 
 #ifdef CONFIG_BLK_DEV_RAM
 static void populate_initrd_image(char *err)
@@ -617,6 +621,11 @@ static void populate_initrd_image(char *err)
 		       written, initrd_end - initrd_start);
 	ksys_close(fd);
 }
+#else
+static void populate_initrd_image(char *err)
+{
+	printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
+}
 #endif /* CONFIG_BLK_DEV_RAM */
 
 static int __init populate_rootfs(void)
@@ -625,28 +634,22 @@ static int __init populate_rootfs(void)
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
 	if (err)
 		panic("%s", err); /* Failed to decompress INTERNAL initramfs */
-	/* If available load the bootloader supplied initrd */
-	if (initrd_start && !IS_ENABLED(CONFIG_INITRAMFS_FORCE)) {
-#ifdef CONFIG_BLK_DEV_RAM
-		printk(KERN_INFO "Trying to unpack rootfs image as initramfs...\n");
-		err = unpack_to_rootfs((char *)initrd_start,
-			initrd_end - initrd_start);
-		if (!err)
-			goto done;
 
+	if (!initrd_start || IS_ENABLED(CONFIG_INITRAMFS_FORCE))
+		goto done;
+
+	if (IS_ENABLED(CONFIG_BLK_DEV_RAM))
+		printk(KERN_INFO "Trying to unpack rootfs image as initramfs...\n");
+	else
+		printk(KERN_INFO "Unpacking initramfs...\n");
+
+	err = unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start);
+	if (err) {
 		clean_rootfs();
 		populate_initrd_image(err);
-	done:
-		/* empty statement */;
-#else
-		printk(KERN_INFO "Unpacking initramfs...\n");
-		err = unpack_to_rootfs((char *)initrd_start,
-			initrd_end - initrd_start);
-		if (err)
-			printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
-#endif
 	}
 
+done:
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,
 	 * free only memory that is not part of crashkernel region.
