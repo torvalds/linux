@@ -106,51 +106,45 @@ TRACE_EVENT(mm_vmscan_wakeup_kswapd,
 
 DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_begin_template,
 
-	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+	TP_PROTO(int order, gfp_t gfp_flags),
 
-	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx),
+	TP_ARGS(order, gfp_flags),
 
 	TP_STRUCT__entry(
 		__field(	int,	order		)
-		__field(	int,	may_writepage	)
 		__field(	gfp_t,	gfp_flags	)
-		__field(	int,	classzone_idx	)
 	),
 
 	TP_fast_assign(
 		__entry->order		= order;
-		__entry->may_writepage	= may_writepage;
 		__entry->gfp_flags	= gfp_flags;
-		__entry->classzone_idx	= classzone_idx;
 	),
 
-	TP_printk("order=%d may_writepage=%d gfp_flags=%s classzone_idx=%d",
+	TP_printk("order=%d gfp_flags=%s",
 		__entry->order,
-		__entry->may_writepage,
-		show_gfp_flags(__entry->gfp_flags),
-		__entry->classzone_idx)
+		show_gfp_flags(__entry->gfp_flags))
 );
 
 DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_direct_reclaim_begin,
 
-	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+	TP_PROTO(int order, gfp_t gfp_flags),
 
-	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
+	TP_ARGS(order, gfp_flags)
 );
 
 #ifdef CONFIG_MEMCG
 DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
 
-	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+	TP_PROTO(int order, gfp_t gfp_flags),
 
-	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
+	TP_ARGS(order, gfp_flags)
 );
 
 DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
 
-	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+	TP_PROTO(int order, gfp_t gfp_flags),
 
-	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
+	TP_ARGS(order, gfp_flags)
 );
 #endif /* CONFIG_MEMCG */
 
