@@ -1674,13 +1674,18 @@ static void iavf_watchdog_task(struct work_struct *work)
 	if (test_and_set_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section))
 		goto restart_watchdog;
 
-	if (adapter->flags & IAVF_FLAG_PF_COMMS_FAILED) {
+	if (adapter->flags & IAVF_FLAG_PF_COMMS_FAILED)
+		adapter->state = __IAVF_COMM_FAILED;
+
+	switch (adapter->state) {
+	case __IAVF_COMM_FAILED:
 		reg_val = rd32(hw, IAVF_VFGEN_RSTAT) &
 			  IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
 		if (reg_val == VIRTCHNL_VFR_VFACTIVE ||
 		    reg_val == VIRTCHNL_VFR_COMPLETED) {
 			/* A chance for redemption! */
-			dev_err(&adapter->pdev->dev, "Hardware came out of reset. Attemptingreinit.\n");
+			dev_err(&adapter->pdev->dev,
+				"Hardware came out of reset. Attempting reinit.\n");
 			adapter->state = __IAVF_STARTUP;
 			adapter->flags &= ~IAVF_FLAG_PF_COMMS_FAILED;
 			queue_delayed_work(iavf_wq, &adapter->init_task, 10);
@@ -1695,50 +1700,58 @@ static void iavf_watchdog_task(struct work_struct *work)
 		}
 		adapter->aq_required = 0;
 		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
+		clear_bit(__IAVF_IN_CRITICAL_TASK,
+			  &adapter->crit_section);
+		queue_delayed_work(iavf_wq,
+				   &adapter->watchdog_task,
+				   msecs_to_jiffies(10));
 		goto watchdog_done;
+	case __IAVF_RESETTING:
+		clear_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section);
+		queue_delayed_work(iavf_wq, &adapter->watchdog_task, HZ * 2);
+		return;
+	case __IAVF_DOWN:
+	case __IAVF_DOWN_PENDING:
+	case __IAVF_TESTING:
+	case __IAVF_RUNNING:
+		if (adapter->current_op) {
+			if (!iavf_asq_done(hw)) {
+				dev_dbg(&adapter->pdev->dev,
+					"Admin queue timeout\n");
+				iavf_send_api_ver(adapter);
+			}
+		} else {
+			if (!iavf_process_aq_command(adapter) &&
+			    adapter->state == __IAVF_RUNNING)
+				iavf_request_stats(adapter);
+		}
+		break;
+	case __IAVF_REMOVE:
+		clear_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section);
+		return;
+	default:
+		goto restart_watchdog;
 	}
 
-	if (adapter->state < __IAVF_DOWN ||
-	    (adapter->flags & IAVF_FLAG_RESET_PENDING))
-		goto watchdog_done;
-
-	/* check for reset */
+		/* check for hw reset */
 	reg_val = rd32(hw, IAVF_VF_ARQLEN1) & IAVF_VF_ARQLEN1_ARQENABLE_MASK;
-	if (!(adapter->flags & IAVF_FLAG_RESET_PENDING) && !reg_val) {
+	if (!reg_val) {
 		adapter->state = __IAVF_RESETTING;
 		adapter->flags |= IAVF_FLAG_RESET_PENDING;
-		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
-		queue_work(iavf_wq, &adapter->reset_task);
 		adapter->aq_required = 0;
 		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
+		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
+		queue_work(iavf_wq, &adapter->reset_task);
 		goto watchdog_done;
-	}
-
-	/* Process admin queue tasks. After init, everything gets done
-	 * here so we don't race on the admin queue.
-	 * The check is made against -EAGAIN, as it's the error code that
-	 * would be returned on no op to run. Failures of called functions
-	 * return other values.
-	 */
-	if (adapter->current_op) {
-		if (!iavf_asq_done(hw)) {
-			dev_dbg(&adapter->pdev->dev, "Admin queue timeout\n");
-			iavf_send_api_ver(adapter);
-		}
-	} else if (iavf_process_aq_command(adapter) == -EAGAIN &&
-		   adapter->state == __IAVF_RUNNING) {
-		iavf_request_stats(adapter);
 	}
 
 	schedule_delayed_work(&adapter->client_task, msecs_to_jiffies(5));
-
 watchdog_done:
-	if (adapter->state == __IAVF_RUNNING)
+	if (adapter->state == __IAVF_RUNNING ||
+	    adapter->state == __IAVF_COMM_FAILED)
 		iavf_detect_recover_hung(&adapter->vsi);
 	clear_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section);
 restart_watchdog:
-	if (adapter->state == __IAVF_REMOVE)
-		return;
 	if (adapter->aq_required)
 		queue_delayed_work(iavf_wq, &adapter->watchdog_task,
 				   msecs_to_jiffies(20));
