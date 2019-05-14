@@ -73,7 +73,9 @@ TRACE_EVENT(mm_vmscan_kswapd_wake,
 		__entry->order	= order;
 	),
 
-	TP_printk("nid=%d zid=%d order=%d", __entry->nid, __entry->zid, __entry->order)
+	TP_printk("nid=%d order=%d",
+		__entry->nid,
+		__entry->order)
 );
 
 TRACE_EVENT(mm_vmscan_wakeup_kswapd,
@@ -96,9 +98,8 @@ TRACE_EVENT(mm_vmscan_wakeup_kswapd,
 		__entry->gfp_flags	= gfp_flags;
 	),
 
-	TP_printk("nid=%d zid=%d order=%d gfp_flags=%s",
+	TP_printk("nid=%d order=%d gfp_flags=%s",
 		__entry->nid,
-		__entry->zid,
 		__entry->order,
 		show_gfp_flags(__entry->gfp_flags))
 );
