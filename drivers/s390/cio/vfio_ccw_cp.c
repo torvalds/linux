@@ -886,7 +886,11 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 	 */
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		ccw_head = (u32)(u64)chain->ch_ccw;
-		if (is_cpa_within_range(cpa, ccw_head, chain->ch_len)) {
+		/*
+		 * On successful execution, cpa points just beyond the end
+		 * of the chain.
+		 */
+		if (is_cpa_within_range(cpa, ccw_head, chain->ch_len + 1)) {
 			/*
 			 * (cpa - ccw_head) is the offset value of the host
 			 * physical ccw to its chain head.
