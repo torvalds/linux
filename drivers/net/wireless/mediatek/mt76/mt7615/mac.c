@@ -61,29 +61,6 @@ static int mt7615_get_rate(struct mt7615_dev *dev,
 	return 0;
 }
 
-static void mt7615_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id)
-{
-	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
-	u8 *pn = status->iv;
-	u8 *hdr;
-
-	__skb_push(skb, 8);
-	memmove(skb->data, skb->data + 8, hdr_len);
-	hdr = skb->data + hdr_len;
-
-	hdr[0] = pn[5];
-	hdr[1] = pn[4];
-	hdr[2] = 0;
-	hdr[3] = 0x20 | (key_id << 6);
-	hdr[4] = pn[3];
-	hdr[5] = pn[2];
-	hdr[6] = pn[1];
-	hdr[7] = pn[0];
-
-	status->flag &= ~RX_FLAG_IV_STRIPPED;
-}
-
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -228,7 +205,7 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (insert_ccmp_hdr) {
 		u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
 
-		mt7615_insert_ccmp_hdr(skb, key_id);
+		mt76_insert_ccmp_hdr(skb, key_id);
 	}
 
 	hdr = (struct ieee80211_hdr *)skb->data;
