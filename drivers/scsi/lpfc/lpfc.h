@@ -274,6 +274,7 @@ struct lpfc_stats {
 	uint32_t elsXmitADISC;
 	uint32_t elsXmitLOGO;
 	uint32_t elsXmitSCR;
+	uint32_t elsXmitRSCN;
 	uint32_t elsXmitRNID;
 	uint32_t elsXmitFARP;
 	uint32_t elsXmitFARPR;
