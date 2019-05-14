@@ -39,7 +39,6 @@ generic-y += preempt.h
 generic-y += sections.h
 generic-y += segment.h
 generic-y += serial.h
-generic-y += sizes.h
 generic-y += switch_to.h
 generic-y += timex.h
 generic-y += topology.h
