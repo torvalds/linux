@@ -2658,6 +2658,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->dpms_off)
 		stream->dpms_off = *update->dpms_off;
 
+	if (update->hfvsif_infopacket)
+		stream->hfvsif_infopacket = *update->hfvsif_infopacket;
+
 	if (update->vsc_infopacket)
 		stream->vsc_infopacket = *update->vsc_infopacket;
 
