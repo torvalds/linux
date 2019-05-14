@@ -33,3 +33,4 @@ else:
     import linux.rbtree
     import linux.proc
     import linux.constants
+    import linux.timerlist

@@ -13,8 +13,10 @@
  */
 
 #include <linux/fs.h>
+#include <linux/hrtimer.h>
 #include <linux/mount.h>
 #include <linux/of_fdt.h>
+#include <linux/threads.h>
 
 /* We need to stringify expanded macros so that they can be parsed */
 
@@ -44,6 +46,9 @@ LX_VALUE(SB_DIRSYNC)
 LX_VALUE(SB_NOATIME)
 LX_VALUE(SB_NODIRATIME)
 
+/* linux/htimer.h */
+LX_GDBPARSED(hrtimer_resolution)
+
 /* linux/mount.h */
 LX_VALUE(MNT_NOSUID)
 LX_VALUE(MNT_NODEV)
@@ -52,8 +57,16 @@ LX_VALUE(MNT_NOATIME)
 LX_VALUE(MNT_NODIRATIME)
 LX_VALUE(MNT_RELATIME)
 
+/* linux/threads.h */
+LX_VALUE(NR_CPUS)
+
 /* linux/of_fdt.h> */
 LX_VALUE(OF_DT_HEADER)
 
 /* Kernel Configs */
+LX_CONFIG(CONFIG_GENERIC_CLOCKEVENTS)
+LX_CONFIG(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
+LX_CONFIG(CONFIG_HIGH_RES_TIMERS)
+LX_CONFIG(CONFIG_NR_CPUS)
 LX_CONFIG(CONFIG_OF)
+LX_CONFIG(CONFIG_TICK_ONESHOT)
