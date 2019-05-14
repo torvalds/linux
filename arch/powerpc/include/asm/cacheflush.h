@@ -60,7 +60,6 @@ static inline void __flush_dcache_icache_phys(unsigned long physaddr)
 }
 #endif
 
-#ifdef CONFIG_PPC32
 /*
  * Write any modified data cache blocks out to memory and invalidate them.
  * Does not invalidate the corresponding instruction cache blocks.
@@ -73,9 +72,17 @@ static inline void flush_dcache_range(unsigned long start, unsigned long stop)
 	unsigned long size = stop - (unsigned long)addr + (bytes - 1);
 	unsigned long i;
 
+	if (IS_ENABLED(CONFIG_PPC64)) {
+		mb();	/* sync */
+		isync();
+	}
+
 	for (i = 0; i < size >> shift; i++, addr += bytes)
 		dcbf(addr);
 	mb();	/* sync */
+
+	if (IS_ENABLED(CONFIG_PPC64))
+		isync();
 }
 
 /*
@@ -114,11 +121,6 @@ static inline void invalidate_dcache_range(unsigned long start,
 		dcbi(addr);
 	mb();	/* sync */
 }
-
-#endif /* CONFIG_PPC32 */
-#ifdef CONFIG_PPC64
-extern void flush_dcache_range(unsigned long start, unsigned long stop);
-#endif
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
 	do { \
