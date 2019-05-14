@@ -36,6 +36,13 @@ static inline void shuffle_zone(struct zone *z)
 		return;
 	__shuffle_zone(z);
 }
+
+static inline bool is_shuffle_order(int order)
+{
+	if (!static_branch_unlikely(&page_alloc_shuffle_key))
+		return false;
+	return order >= SHUFFLE_ORDER;
+}
 #else
 static inline void shuffle_free_memory(pg_data_t *pgdat)
 {
@@ -47,6 +54,11 @@ static inline void shuffle_zone(struct zone *z)
 
 static inline void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
 {
+}
+
+static inline bool is_shuffle_order(int order)
+{
+	return false;
 }
 #endif
 #endif /* _MM_SHUFFLE_H */
