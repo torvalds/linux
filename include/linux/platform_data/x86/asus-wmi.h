@@ -18,8 +18,8 @@
 #define ASUS_WMI_METHODID_GDSP		0x50534447 /* Get DiSPlay output */
 #define ASUS_WMI_METHODID_DEVP		0x50564544 /* DEVice Policy */
 #define ASUS_WMI_METHODID_OSVR		0x5256534F /* OS VeRsion */
-#define ASUS_WMI_METHODID_DSTS		0x53544344 /* Device STatuS */
-#define ASUS_WMI_METHODID_DSTS2		0x53545344 /* Device STatuS #2*/
+#define ASUS_WMI_METHODID_DCTS		0x53544344 /* Device status (DCTS) */
+#define ASUS_WMI_METHODID_DSTS		0x53545344 /* Device status (DSTS) */
 #define ASUS_WMI_METHODID_BSTS		0x53545342 /* Bios STatuS ? */
 #define ASUS_WMI_METHODID_DEVS		0x53564544 /* DEVice Set */
 #define ASUS_WMI_METHODID_CFVS		0x53564643 /* CPU Frequency Volt Set */
