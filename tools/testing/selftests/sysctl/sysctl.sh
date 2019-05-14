@@ -823,8 +823,8 @@ function parse_args()
 test_reqs
 allow_user_defaults
 check_production_sysctl_writes_strict
-test_modprobe
 load_req_mod
+test_modprobe
 
 trap "test_finish" EXIT
 
