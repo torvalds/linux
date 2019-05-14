@@ -414,11 +414,6 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		return -ETXTBSY;
 	}
 
-	ret = btrfs_init_dev_replace_tgtdev(fs_info, tgtdev_name,
-					    src_device, &tgt_device);
-	if (ret)
-		return ret;
-
 	/*
 	 * Here we commit the transaction to make sure commit_total_bytes
 	 * of all the devices are updated.
@@ -431,6 +426,11 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	} else if (PTR_ERR(trans) != -ENOENT) {
 		return PTR_ERR(trans);
 	}
+
+	ret = btrfs_init_dev_replace_tgtdev(fs_info, tgtdev_name,
+					    src_device, &tgt_device);
+	if (ret)
+		return ret;
 
 	need_unlock = true;
 	down_write(&dev_replace->rwsem);
