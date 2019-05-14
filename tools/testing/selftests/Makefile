@@ -71,6 +71,9 @@ override LDFLAGS =
 override MAKEFLAGS =
 endif
 
+# Append kselftest to KBUILD_OUTPUT to avoid cluttering
+# KBUILD_OUTPUT with selftest objects and headers installed
+# by selftests Makefile or lib.mk.
 ifneq ($(KBUILD_SRC),)
 override LDFLAGS =
 endif
@@ -79,7 +82,7 @@ ifneq ($(O),)
 	BUILD := $(O)
 else
 	ifneq ($(KBUILD_OUTPUT),)
-		BUILD := $(KBUILD_OUTPUT)
+		BUILD := $(KBUILD_OUTPUT)/kselftest
 	else
 		BUILD := $(shell pwd)
 		DEFAULT_INSTALL_HDR_PATH := 1
