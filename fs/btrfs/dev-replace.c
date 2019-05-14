@@ -201,7 +201,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		return PTR_ERR(bdev);
 	}
 
-	filemap_write_and_wait(bdev->bd_inode->i_mapping);
+	sync_blockdev(bdev);
 
 	devices = &fs_info->fs_devices->devices;
 	list_for_each_entry(device, devices, dev_list) {
