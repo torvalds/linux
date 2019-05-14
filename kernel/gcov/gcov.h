@@ -83,4 +83,7 @@ struct gcov_link {
 };
 extern const struct gcov_link gcov_link[];
 
+extern int gcov_events_enabled;
+extern struct mutex gcov_lock;
+
 #endif /* GCOV_H */
