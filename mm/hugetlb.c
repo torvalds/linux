@@ -2448,44 +2448,30 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
 					   unsigned long count, size_t len)
 {
 	int err;
-	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
+	nodemask_t nodes_allowed, *n_mask;
 
-	if (hstate_is_gigantic(h) && !gigantic_page_runtime_supported()) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (hstate_is_gigantic(h) && !gigantic_page_runtime_supported())
+		return -EINVAL;
 
 	if (nid == NUMA_NO_NODE) {
 		/*
 		 * global hstate attribute
 		 */
 		if (!(obey_mempolicy &&
-				init_nodemask_of_mempolicy(nodes_allowed))) {
-			NODEMASK_FREE(nodes_allowed);
-			nodes_allowed = &node_states[N_MEMORY];
-		}
-	} else if (nodes_allowed) {
+				init_nodemask_of_mempolicy(&nodes_allowed)))
+			n_mask = &node_states[N_MEMORY];
+		else
+			n_mask = &nodes_allowed;
+	} else {
 		/*
 		 * Node specific request.  count adjustment happens in
 		 * set_max_huge_pages() after acquiring hugetlb_lock.
 		 */
-		init_nodemask_of_node(nodes_allowed, nid);
-	} else {
-		/*
-		 * Node specific request, but we could not allocate the few
-		 * words required for a node mask.  We are unlikely to hit
-		 * this condition.  Since we can not pass down the appropriate
-		 * node mask, just return ENOMEM.
-		 */
-		err = -ENOMEM;
-		goto out;
+		init_nodemask_of_node(&nodes_allowed, nid);
+		n_mask = &nodes_allowed;
 	}
 
-	err = set_max_huge_pages(h, count, nid, nodes_allowed);
-
-out:
-	if (nodes_allowed != &node_states[N_MEMORY])
-		NODEMASK_FREE(nodes_allowed);
+	err = set_max_huge_pages(h, count, nid, n_mask);
 
 	return err ? err : len;
 }
