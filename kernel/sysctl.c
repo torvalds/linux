@@ -3172,9 +3172,13 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 
 	if (write) {
 		char *kbuf, *p;
+		size_t skipped = 0;
 
-		if (left > PAGE_SIZE - 1)
+		if (left > PAGE_SIZE - 1) {
 			left = PAGE_SIZE - 1;
+			/* How much of the buffer we'll skip this pass */
+			skipped = *lenp - left;
+		}
 
 		p = kbuf = memdup_user_nul(buffer, left);
 		if (IS_ERR(kbuf))
@@ -3189,9 +3193,22 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 		while (!err && left) {
 			unsigned long val_a, val_b;
 			bool neg;
+			size_t saved_left;
 
+			/* In case we stop parsing mid-number, we can reset */
+			saved_left = left;
 			err = proc_get_long(&p, &left, &val_a, &neg, tr_a,
 					     sizeof(tr_a), &c);
+			/*
+			 * If we consumed the entirety of a truncated buffer or
+			 * only one char is left (may be a "-"), then stop here,
+			 * reset, & come back for more.
+			 */
+			if ((left <= 1) && skipped) {
+				left = saved_left;
+				break;
+			}
+
 			if (err)
 				break;
 			if (val_a >= bitmap_len || neg) {
@@ -3209,6 +3226,15 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 				err = proc_get_long(&p, &left, &val_b,
 						     &neg, tr_b, sizeof(tr_b),
 						     &c);
+				/*
+				 * If we consumed all of a truncated buffer or
+				 * then stop here, reset, & come back for more.
+				 */
+				if (!left && skipped) {
+					left = saved_left;
+					break;
+				}
+
 				if (err)
 					break;
 				if (val_b >= bitmap_len || neg ||
@@ -3227,6 +3253,7 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 			proc_skip_char(&p, &left, '\n');
 		}
 		kfree(kbuf);
+		left += skipped;
 	} else {
 		unsigned long bit_a, bit_b = 0;
 
