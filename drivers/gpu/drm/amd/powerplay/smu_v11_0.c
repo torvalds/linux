@@ -1123,6 +1123,7 @@ static int smu_v11_0_get_metrics_table(struct smu_context *smu,
 }
 
 static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
+						  enum amd_pp_sensors sensor,
 						  uint32_t *value)
 {
 	int ret = 0;
@@ -1135,7 +1136,17 @@ static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	*value = metrics.AverageGfxActivity;
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*value = metrics.AverageGfxActivity;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		*value = metrics.AverageUclkActivity;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving clock activity\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1210,7 +1221,9 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 	int ret = 0;
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
 		ret = smu_v11_0_get_current_activity_percent(smu,
+							     sensor,
 							     (uint32_t *)data);
 		*size = 4;
 		break;
