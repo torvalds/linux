@@ -78,6 +78,7 @@ obj-$(CONFIG_SCSI_ISCI)		+= isci/
 obj-$(CONFIG_SCSI_IPS)		+= ips.o
 obj-$(CONFIG_SCSI_FDOMAIN)	+= fdomain.o
 obj-$(CONFIG_SCSI_FDOMAIN_PCI)	+= fdomain_pci.o
+obj-$(CONFIG_SCSI_FDOMAIN_ISA)	+= fdomain_isa.o
 obj-$(CONFIG_SCSI_GENERIC_NCR5380) += g_NCR5380.o
 obj-$(CONFIG_SCSI_QLOGIC_FAS)	+= qlogicfas408.o	qlogicfas.o
 obj-$(CONFIG_PCMCIA_QLOGIC)	+= qlogicfas408.o

@@ -662,6 +662,20 @@ config SCSI_FDOMAIN_PCI
 	  To compile this driver as a module, choose M here: the
 	  module will be called fdomain_pci.
 
+config SCSI_FDOMAIN_ISA
+	tristate "Future Domain 16xx ISA SCSI support"
+	depends on ISA && SCSI
+	select CHECK_SIGNATURE
+	select SCSI_FDOMAIN
+	help
+	  This is support for Future Domain's 16-bit SCSI host adapters
+	  (TMC-1660/1680, TMC-1650/1670, TMC-1610M/MER/MEX) and other adapters
+	  with ISA bus based on the Future Domain chipsets (Quantum ISA-200S,
+	  ISA-250MG; and at least one IBM board).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fdomain_isa.
+
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
 	depends on PCI && SCSI
