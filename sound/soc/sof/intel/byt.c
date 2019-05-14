@@ -327,11 +327,16 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 	/* reply message from DSP */
 	if (ipcx & SHIM_BYT_IPCX_DONE &&
 	    !(imrx & SHIM_IMRX_DONE)) {
+		unsigned long flags;
+
 		/* Mask Done interrupt before first */
 		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR,
 						   SHIM_IMRX,
 						   SHIM_IMRX_DONE,
 						   SHIM_IMRX_DONE);
+
+		spin_lock_irqsave(&sdev->ipc_lock, flags);
+
 		/*
 		 * handle immediate reply from DSP core. If the msg is
 		 * found, set done bit in cmd_done which is called at the
@@ -343,6 +348,8 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 		snd_sof_ipc_reply(sdev, ipcx);
 
 		byt_dsp_done(sdev);
+
+		spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 	}
 
 	/* new message from DSP */
@@ -386,7 +393,6 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc_msg *msg = sdev->msg;
 	struct sof_ipc_reply reply;
-	unsigned long flags;
 	int ret = 0;
 
 	/*
@@ -401,8 +407,6 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 
 	/* get reply */
 	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
-
-	spin_lock_irqsave(&sdev->ipc_lock, flags);
 
 	if (reply.error < 0) {
 		memcpy(msg->reply_data, &reply, sizeof(reply));
@@ -422,8 +426,6 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 	}
 
 	msg->reply_error = ret;
-
-	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 }
 
 static void byt_host_done(struct snd_sof_dev *sdev)
