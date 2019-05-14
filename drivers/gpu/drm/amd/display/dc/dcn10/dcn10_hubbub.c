@@ -927,9 +927,7 @@ void hubbub1_construct(struct hubbub *hubbub,
 	hubbub1->masks = hubbub_mask;
 
 	hubbub1->debug_test_index_pstate = 0x7;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 	if (ctx->dce_version == DCN_VERSION_1_01)
 		hubbub1->debug_test_index_pstate = 0xB;
-#endif
 }
 

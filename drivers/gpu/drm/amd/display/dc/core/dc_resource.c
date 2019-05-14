@@ -93,10 +93,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case FAMILY_RV:
 		dc_version = DCN_VERSION_1_0;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_1_01;
-#endif
 		break;
 #endif
 	default:
@@ -147,9 +145,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 	case DCN_VERSION_1_01:
-#endif
 		res_pool = dcn10_create_resource_pool(init_data, dc);
 		break;
 #endif
