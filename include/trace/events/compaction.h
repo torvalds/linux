@@ -189,9 +189,9 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
 		__entry->prio = prio;
 	),
 
-	TP_printk("order=%d gfp_mask=0x%x priority=%d",
+	TP_printk("order=%d gfp_mask=%s priority=%d",
 		__entry->order,
-		__entry->gfp_mask,
+		show_gfp_flags(__entry->gfp_mask),
 		__entry->prio)
 );
 
