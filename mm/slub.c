@@ -58,10 +58,11 @@
  *	D. page->frozen		-> frozen state
  *
  *   If a slab is frozen then it is exempt from list management. It is not
- *   on any list. The processor that froze the slab is the one who can
- *   perform list operations on the page. Other processors may put objects
- *   onto the freelist but the processor that froze the slab is the only
- *   one that can retrieve the objects from the page's freelist.
+ *   on any list except per cpu partial list. The processor that froze the
+ *   slab is the one who can perform list operations on the page. Other
+ *   processors may put objects onto the freelist but the processor that
+ *   froze the slab is the only one that can retrieve the objects from the
+ *   page's freelist.
  *
  *   The list_lock protects the partial and full list on each node and
  *   the partial slab counter. If taken then no new slabs may be added or
