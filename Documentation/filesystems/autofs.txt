@@ -410,6 +410,11 @@ The available ioctl commands are:
      **AUTOFS_EXP_IMMEDIATE** causes `last_used` time to be ignored
      and objects are expired if the are not in use.
 
+     **AUTOFS_EXP_FORCED** causes the in use status to be ignored
+     and objects are expired ieven if they are in use. This assumes
+     that the daemon has requested this because it is capable of
+     performing the umount.
+
      **AUTOFS_EXP_LEAVES** will select a leaf rather than a top-level
      name to expire.  This is only safe when *maxproto* is 4.
 
