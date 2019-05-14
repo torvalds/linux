@@ -11,35 +11,108 @@
 #include <linux/export.h>
 #include <linux/sort.h>
 
-static int alignment_ok(const void *base, int align)
+/**
+ * is_aligned - is this pointer & size okay for word-wide copying?
+ * @base: pointer to data
+ * @size: size of each element
+ * @align: required aignment (typically 4 or 8)
+ *
+ * Returns true if elements can be copied using word loads and stores.
+ * The size must be a multiple of the alignment, and the base address must
+ * be if we do not have CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS.
+ *
+ * For some reason, gcc doesn't know to optimize "if (a & mask || b & mask)"
+ * to "if ((a | b) & mask)", so we do that by hand.
+ */
+__attribute_const__ __always_inline
+static bool is_aligned(const void *base, size_t size, unsigned char align)
 {
-	return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
-		((unsigned long)base & (align - 1)) == 0;
+	unsigned char lsbits = (unsigned char)size;
+
+	(void)base;
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	lsbits |= (unsigned char)(uintptr_t)base;
+#endif
+	return (lsbits & (align - 1)) == 0;
 }
 
-static void u32_swap(void *a, void *b, int size)
+/**
+ * swap_words_32 - swap two elements in 32-bit chunks
+ * @a, @b: pointers to the elements
+ * @size: element size (must be a multiple of 4)
+ *
+ * Exchange the two objects in memory.  This exploits base+index addressing,
+ * which basically all CPUs have, to minimize loop overhead computations.
+ *
+ * For some reason, on x86 gcc 7.3.0 adds a redundant test of n at the
+ * bottom of the loop, even though the zero flag is stil valid from the
+ * subtract (since the intervening mov instructions don't alter the flags).
+ * Gcc 8.1.0 doesn't have that problem.
+ */
+static void swap_words_32(void *a, void *b, int size)
 {
-	u32 t = *(u32 *)a;
-	*(u32 *)a = *(u32 *)b;
-	*(u32 *)b = t;
-}
-
-static void u64_swap(void *a, void *b, int size)
-{
-	u64 t = *(u64 *)a;
-	*(u64 *)a = *(u64 *)b;
-	*(u64 *)b = t;
-}
-
-static void generic_swap(void *a, void *b, int size)
-{
-	char t;
+	size_t n = (unsigned int)size;
 
 	do {
-		t = *(char *)a;
-		*(char *)a++ = *(char *)b;
-		*(char *)b++ = t;
-	} while (--size > 0);
+		u32 t = *(u32 *)(a + (n -= 4));
+		*(u32 *)(a + n) = *(u32 *)(b + n);
+		*(u32 *)(b + n) = t;
+	} while (n);
+}
+
+/**
+ * swap_words_64 - swap two elements in 64-bit chunks
+ * @a, @b: pointers to the elements
+ * @size: element size (must be a multiple of 8)
+ *
+ * Exchange the two objects in memory.  This exploits base+index
+ * addressing, which basically all CPUs have, to minimize loop overhead
+ * computations.
+ *
+ * We'd like to use 64-bit loads if possible.  If they're not, emulating
+ * one requires base+index+4 addressing which x86 has but most other
+ * processors do not.  If CONFIG_64BIT, we definitely have 64-bit loads,
+ * but it's possible to have 64-bit loads without 64-bit pointers (e.g.
+ * x32 ABI).  Are there any cases the kernel needs to worry about?
+ */
+static void swap_words_64(void *a, void *b, int size)
+{
+	size_t n = (unsigned int)size;
+
+	do {
+#ifdef CONFIG_64BIT
+		u64 t = *(u64 *)(a + (n -= 8));
+		*(u64 *)(a + n) = *(u64 *)(b + n);
+		*(u64 *)(b + n) = t;
+#else
+		/* Use two 32-bit transfers to avoid base+index+4 addressing */
+		u32 t = *(u32 *)(a + (n -= 4));
+		*(u32 *)(a + n) = *(u32 *)(b + n);
+		*(u32 *)(b + n) = t;
+
+		t = *(u32 *)(a + (n -= 4));
+		*(u32 *)(a + n) = *(u32 *)(b + n);
+		*(u32 *)(b + n) = t;
+#endif
+	} while (n);
+}
+
+/**
+ * swap_bytes - swap two elements a byte at a time
+ * @a, @b: pointers to the elements
+ * @size: element size
+ *
+ * This is the fallback if alignment doesn't allow using larger chunks.
+ */
+static void swap_bytes(void *a, void *b, int size)
+{
+	size_t n = (unsigned int)size;
+
+	do {
+		char t = ((char *)a)[--n];
+		((char *)a)[n] = ((char *)b)[n];
+		((char *)b)[n] = t;
+	} while (n);
 }
 
 /**
@@ -50,8 +123,10 @@ static void generic_swap(void *a, void *b, int size)
  * @cmp_func: pointer to comparison function
  * @swap_func: pointer to swap function or NULL
  *
- * This function does a heapsort on the given array. You may provide a
- * swap_func function optimized to your element type.
+ * This function does a heapsort on the given array.  You may provide
+ * a swap_func function if you need to do something more than a memory
+ * copy (e.g. fix up pointers or auxiliary data), but the built-in swap
+ * isn't usually a bottleneck.
  *
  * Sorting time is O(n log n) both on average and worst-case. While
  * qsort is about 20% faster on average, it suffers from exploitable
@@ -67,12 +142,12 @@ void sort(void *base, size_t num, size_t size,
 	int i = (num/2 - 1) * size, n = num * size, c, r;
 
 	if (!swap_func) {
-		if (size == 4 && alignment_ok(base, 4))
-			swap_func = u32_swap;
-		else if (size == 8 && alignment_ok(base, 8))
-			swap_func = u64_swap;
+		if (is_aligned(base, size, 8))
+			swap_func = swap_words_64;
+		else if (is_aligned(base, size, 4))
+			swap_func = swap_words_32;
 		else
-			swap_func = generic_swap;
+			swap_func = swap_bytes;
 	}
 
 	/* heapify */
