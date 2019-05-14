@@ -189,11 +189,7 @@ the driver callback returns.
 When the device driver wants to populate a range of virtual addresses, it can
 use either::
 
-  int hmm_vma_get_pfns(struct vm_area_struct *vma,
-                      struct hmm_range *range,
-                      unsigned long start,
-                      unsigned long end,
-                      hmm_pfn_t *pfns);
+  long hmm_range_snapshot(struct hmm_range *range);
   int hmm_vma_fault(struct vm_area_struct *vma,
                     struct hmm_range *range,
                     unsigned long start,
@@ -202,7 +198,7 @@ use either::
                     bool write,
                     bool block);
 
-The first one (hmm_vma_get_pfns()) will only fetch present CPU page table
+The first one (hmm_range_snapshot()) will only fetch present CPU page table
 entries and will not trigger a page fault on missing or non-present entries.
 The second one does trigger a page fault on missing or read-only entry if the
 write parameter is true. Page faults use the generic mm page fault code path
@@ -220,19 +216,33 @@ respect in order to keep things properly synchronized. The usage pattern is::
  {
       struct hmm_range range;
       ...
+
+      range.start = ...;
+      range.end = ...;
+      range.pfns = ...;
+      range.flags = ...;
+      range.values = ...;
+      range.pfn_shift = ...;
+
  again:
-      ret = hmm_vma_get_pfns(vma, &range, start, end, pfns);
-      if (ret)
+      down_read(&mm->mmap_sem);
+      range.vma = ...;
+      ret = hmm_range_snapshot(&range);
+      if (ret) {
+          up_read(&mm->mmap_sem);
           return ret;
+      }
       take_lock(driver->update);
       if (!hmm_vma_range_done(vma, &range)) {
           release_lock(driver->update);
+          up_read(&mm->mmap_sem);
           goto again;
       }
 
       // Use pfns array content to update device page table
 
       release_lock(driver->update);
+      up_read(&mm->mmap_sem);
       return 0;
  }
 
