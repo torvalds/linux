@@ -398,7 +398,6 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 	call->vlserver = afs_get_vlserver(server);
 	call->server_index = server_index;
 	call->upgrade = true;
-	call->want_reply_time = true;
 	call->async = true;
 	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
 

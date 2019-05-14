@@ -167,7 +167,7 @@ struct afs_call {
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
 	bool			upgrade;	/* T to request service upgrade */
-	bool			want_reply_time; /* T if want reply_time */
+	bool			have_reply_time; /* T if have got reply_time */
 	bool			intr;		/* T if interruptible */
 	u16			service_id;	/* Actual service ID (after upgrade) */
 	unsigned int		debug_id;	/* Trace ID */

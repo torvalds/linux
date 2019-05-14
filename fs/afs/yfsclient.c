@@ -695,7 +695,6 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
 	call->out_volsync = NULL;
 	call->read_request = req;
 	call->expected_version = vnode->status.data_version;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1847,7 +1846,6 @@ int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
 
 	call->key = fc->key;
 	call->xvnode = vnode;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1886,7 +1884,6 @@ int yfs_fs_extend_lock(struct afs_fs_cursor *fc)
 
 	call->key = fc->key;
 	call->xvnode = vnode;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;

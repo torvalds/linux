@@ -453,7 +453,6 @@ int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
 	call->xvnode = vnode;
 	call->out_volsync = volsync;
 	call->expected_version = new_inode ? 1 : vnode->status.data_version;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -645,7 +644,6 @@ static int afs_fs_fetch_data64(struct afs_fs_cursor *fc, struct afs_read *req)
 	call->out_volsync = NULL;
 	call->read_request = req;
 	call->expected_version = vnode->status.data_version;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -696,7 +694,6 @@ int afs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
 	call->out_volsync = NULL;
 	call->read_request = req;
 	call->expected_version = vnode->status.data_version;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -809,7 +806,6 @@ int afs_fs_create(struct afs_fs_cursor *fc,
 	call->out_extra_status = newstatus;
 	call->out_cb = newcb;
 	call->expected_version = current_data_version + 1;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1887,7 +1883,6 @@ int afs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type)
 
 	call->key = fc->key;
 	call->xvnode = vnode;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1925,7 +1920,6 @@ int afs_fs_extend_lock(struct afs_fs_cursor *fc)
 
 	call->key = fc->key;
 	call->xvnode = vnode;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2101,7 +2095,6 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 	call->server = afs_get_server(server);
 	call->server_index = server_index;
 	call->upgrade = true;
-	call->want_reply_time = true;
 	call->async = true;
 	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
 
@@ -2187,7 +2180,6 @@ int afs_fs_fetch_status(struct afs_fs_cursor *fc,
 	call->out_cb = callback;
 	call->out_volsync = volsync;
 	call->expected_version = 1; /* vnode->status.data_version */
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2361,7 +2353,6 @@ int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	call->out_scb = statuses;
 	call->out_volsync = volsync;
 	call->count2 = nr_fids;
-	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
