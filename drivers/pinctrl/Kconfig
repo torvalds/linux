@@ -273,6 +273,20 @@ config PINCTRL_ST
 	select PINCONF
 	select GPIOLIB_IRQCHIP
 
+config PINCTRL_STMFX
+	tristate "STMicroelectronics STMFX GPIO expander pinctrl driver"
+	depends on I2C
+	depends on OF || COMPILE_TEST
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select MFD_STMFX
+	help
+	  Driver for STMicroelectronics Multi-Function eXpander (STMFX)
+	  GPIO expander.
+	  This provides a GPIO interface supporting inputs and outputs,
+	  and configuring push-pull, open-drain, and can also be used as
+	  interrupt-controller.
+
 config PINCTRL_U300
 	bool "U300 pin controller driver"
 	depends on ARCH_U300

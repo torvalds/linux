@@ -2587,7 +2587,7 @@ static ssize_t ab8500_unsubscribe_write(struct file *file,
 }
 
 /*
- * - several deubgfs nodes fops
+ * - several debugfs nodes fops
  */
 
 static const struct file_operations ab8500_bank_fops = {

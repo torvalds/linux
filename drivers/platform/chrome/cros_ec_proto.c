@@ -429,6 +429,12 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 	else
 		ec_dev->mkbp_event_supported = 1;
 
+	/* Probe if host sleep v1 is supported for S0ix failure detection. */
+	ret = cros_ec_get_host_command_version_mask(ec_dev,
+						    EC_CMD_HOST_SLEEP_EVENT,
+						    &ver_mask);
+	ec_dev->host_sleep_v1 = (ret >= 0 && (ver_mask & EC_VER_MASK(1)));
+
 	/*
 	 * Get host event wake mask, assume all events are wake events
 	 * if unavailable.
