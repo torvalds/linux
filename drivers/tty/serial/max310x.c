@@ -263,7 +263,6 @@ struct max310x_one {
 struct max310x_port {
 	struct max310x_devtype	*devtype;
 	struct regmap		*regmap;
-	struct mutex		mutex;
 	struct clk		*clk;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip	gpio;
@@ -768,8 +767,7 @@ static void max310x_start_tx(struct uart_port *port)
 {
 	struct max310x_one *one = container_of(port, struct max310x_one, port);
 
-	if (!work_pending(&one->tx_work))
-		schedule_work(&one->tx_work);
+	schedule_work(&one->tx_work);
 }
 
 static irqreturn_t max310x_port_irq(struct max310x_port *s, int portno)
@@ -826,14 +824,11 @@ static irqreturn_t max310x_ist(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static void max310x_wq_proc(struct work_struct *ws)
+static void max310x_tx_proc(struct work_struct *ws)
 {
 	struct max310x_one *one = container_of(ws, struct max310x_one, tx_work);
-	struct max310x_port *s = dev_get_drvdata(one->port.dev);
 
-	mutex_lock(&s->mutex);
 	max310x_handle_tx(&one->port);
-	mutex_unlock(&s->mutex);
 }
 
 static unsigned int max310x_tx_empty(struct uart_port *port)
@@ -1269,8 +1264,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	uartclk = max310x_set_ref_clk(dev, s, freq, xtal);
 	dev_dbg(dev, "Reference clock set to %i Hz\n", uartclk);
 
-	mutex_init(&s->mutex);
-
 	for (i = 0; i < devtype->nr; i++) {
 		unsigned int line;
 
@@ -1298,7 +1291,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		/* Clear IRQ status register */
 		max310x_port_read(&s->p[i].port, MAX310X_IRQSTS_REG);
 		/* Initialize queue for start TX */
-		INIT_WORK(&s->p[i].tx_work, max310x_wq_proc);
+		INIT_WORK(&s->p[i].tx_work, max310x_tx_proc);
 		/* Initialize queue for changing LOOPBACK mode */
 		INIT_WORK(&s->p[i].md_work, max310x_md_proc);
 		/* Initialize queue for changing RS485 mode */
@@ -1350,8 +1343,6 @@ out_uart:
 		}
 	}
 
-	mutex_destroy(&s->mutex);
-
 out_clk:
 	clk_disable_unprepare(s->clk);
 
@@ -1372,7 +1363,6 @@ static int max310x_remove(struct device *dev)
 		s->devtype->power(&s->p[i].port, 0);
 	}
 
-	mutex_destroy(&s->mutex);
 	clk_disable_unprepare(s->clk);
 
 	return 0;
