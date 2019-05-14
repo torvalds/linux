@@ -1,2 +1,1 @@
 generated-y += unistd_64.h
-generic-y += kvm_para.h

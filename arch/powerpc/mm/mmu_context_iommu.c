@@ -95,28 +95,15 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 			      unsigned long entries, unsigned long dev_hpa,
 			      struct mm_iommu_table_group_mem_t **pmem)
 {
-	struct mm_iommu_table_group_mem_t *mem;
-	long i, ret, locked_entries = 0;
+	struct mm_iommu_table_group_mem_t *mem, *mem2;
+	long i, ret, locked_entries = 0, pinned = 0;
 	unsigned int pageshift;
-
-	mutex_lock(&mem_list_mutex);
-
-	list_for_each_entry_rcu(mem, &mm->context.iommu_group_mem_list,
-			next) {
-		/* Overlap? */
-		if ((mem->ua < (ua + (entries << PAGE_SHIFT))) &&
-				(ua < (mem->ua +
-				       (mem->entries << PAGE_SHIFT)))) {
-			ret = -EINVAL;
-			goto unlock_exit;
-		}
-
-	}
+	unsigned long entry, chunk;
 
 	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
 		ret = mm_iommu_adjust_locked_vm(mm, entries, true);
 		if (ret)
-			goto unlock_exit;
+			return ret;
 
 		locked_entries = entries;
 	}
@@ -148,17 +135,27 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 	}
 
 	down_read(&mm->mmap_sem);
-	ret = get_user_pages_longterm(ua, entries, FOLL_WRITE, mem->hpages, NULL);
-	up_read(&mm->mmap_sem);
-	if (ret != entries) {
-		/* free the reference taken */
-		for (i = 0; i < ret; i++)
-			put_page(mem->hpages[i]);
+	chunk = (1UL << (PAGE_SHIFT + MAX_ORDER - 1)) /
+			sizeof(struct vm_area_struct *);
+	chunk = min(chunk, entries);
+	for (entry = 0; entry < entries; entry += chunk) {
+		unsigned long n = min(entries - entry, chunk);
 
-		vfree(mem->hpas);
-		kfree(mem);
-		ret = -EFAULT;
-		goto unlock_exit;
+		ret = get_user_pages_longterm(ua + (entry << PAGE_SHIFT), n,
+				FOLL_WRITE, mem->hpages + entry, NULL);
+		if (ret == n) {
+			pinned += n;
+			continue;
+		}
+		if (ret > 0)
+			pinned += ret;
+		break;
+	}
+	up_read(&mm->mmap_sem);
+	if (pinned != entries) {
+		if (!ret)
+			ret = -EFAULT;
+		goto free_exit;
 	}
 
 	pageshift = PAGE_SHIFT;
@@ -183,20 +180,42 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 	}
 
 good_exit:
-	ret = 0;
 	atomic64_set(&mem->mapped, 1);
 	mem->used = 1;
 	mem->ua = ua;
 	mem->entries = entries;
-	*pmem = mem;
+
+	mutex_lock(&mem_list_mutex);
+
+	list_for_each_entry_rcu(mem2, &mm->context.iommu_group_mem_list, next) {
+		/* Overlap? */
+		if ((mem2->ua < (ua + (entries << PAGE_SHIFT))) &&
+				(ua < (mem2->ua +
+				       (mem2->entries << PAGE_SHIFT)))) {
+			ret = -EINVAL;
+			mutex_unlock(&mem_list_mutex);
+			goto free_exit;
+		}
+	}
 
 	list_add_rcu(&mem->next, &mm->context.iommu_group_mem_list);
 
-unlock_exit:
-	if (locked_entries && ret)
-		mm_iommu_adjust_locked_vm(mm, locked_entries, false);
-
 	mutex_unlock(&mem_list_mutex);
+
+	*pmem = mem;
+
+	return 0;
+
+free_exit:
+	/* free the reference taken */
+	for (i = 0; i < pinned; i++)
+		put_page(mem->hpages[i]);
+
+	vfree(mem->hpas);
+	kfree(mem);
+
+unlock_exit:
+	mm_iommu_adjust_locked_vm(mm, locked_entries, false);
 
 	return ret;
 }
@@ -266,7 +285,7 @@ static void mm_iommu_release(struct mm_iommu_table_group_mem_t *mem)
 long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 {
 	long ret = 0;
-	unsigned long entries, dev_hpa;
+	unsigned long unlock_entries = 0;
 
 	mutex_lock(&mem_list_mutex);
 
@@ -287,16 +306,16 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 		goto unlock_exit;
 	}
 
-	/* @mapped became 0 so now mappings are disabled, release the region */
-	entries = mem->entries;
-	dev_hpa = mem->dev_hpa;
-	mm_iommu_release(mem);
+	if (mem->dev_hpa == MM_IOMMU_TABLE_INVALID_HPA)
+		unlock_entries = mem->entries;
 
-	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA)
-		mm_iommu_adjust_locked_vm(mm, entries, false);
+	/* @mapped became 0 so now mappings are disabled, release the region */
+	mm_iommu_release(mem);
 
 unlock_exit:
 	mutex_unlock(&mem_list_mutex);
+
+	mm_iommu_adjust_locked_vm(mm, unlock_entries, false);
 
 	return ret;
 }

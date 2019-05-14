@@ -9,11 +9,14 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <sound/simple_card.h>
 #include <sound/soc-dai.h>
 #include <sound/soc.h>
+
+#define DPCM_SELECTABLE 1
 
 struct simple_priv {
 	struct snd_soc_card snd_card;
@@ -441,6 +444,7 @@ static int simple_for_each_link(struct simple_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
 	struct device_node *node;
+	uintptr_t dpcm_selectable = (uintptr_t)of_device_get_match_data(dev);
 	bool is_top = 0;
 	int ret = 0;
 
@@ -480,8 +484,9 @@ static int simple_for_each_link(struct simple_priv *priv,
 			 * if it has many CPUs,
 			 * or has convert-xxx property
 			 */
-			if (num > 2 ||
-			    adata.convert_rate || adata.convert_channels)
+			if (dpcm_selectable &&
+			    (num > 2 ||
+			     adata.convert_rate || adata.convert_channels))
 				ret = func_dpcm(priv, np, codec, li, is_top);
 			/* else normal sound */
 			else
@@ -822,7 +827,8 @@ static int simple_remove(struct platform_device *pdev)
 
 static const struct of_device_id simple_of_match[] = {
 	{ .compatible = "simple-audio-card", },
-	{ .compatible = "simple-scu-audio-card", },
+	{ .compatible = "simple-scu-audio-card",
+	  .data = (void *)DPCM_SELECTABLE },
 	{},
 };
 MODULE_DEVICE_TABLE(of, simple_of_match);

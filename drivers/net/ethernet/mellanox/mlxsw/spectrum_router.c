@@ -6781,7 +6781,7 @@ static int mlxsw_sp_router_port_check_rif_addr(struct mlxsw_sp *mlxsw_sp,
 	/* A RIF is not created for macvlan netdevs. Their MAC is used to
 	 * populate the FDB
 	 */
-	if (netif_is_macvlan(dev))
+	if (netif_is_macvlan(dev) || netif_is_l3_master(dev))
 		return 0;
 
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {

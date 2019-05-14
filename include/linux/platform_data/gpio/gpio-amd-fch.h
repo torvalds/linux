@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL+ */
+/* SPDX-License-Identifier: GPL-2.0+ */
 
 /*
  * AMD FCH gpio driver platform-data

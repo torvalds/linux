@@ -66,6 +66,46 @@ struct bpf_reg_state {
 	 * same reference to the socket, to determine proper reference freeing.
 	 */
 	u32 id;
+	/* PTR_TO_SOCKET and PTR_TO_TCP_SOCK could be a ptr returned
+	 * from a pointer-cast helper, bpf_sk_fullsock() and
+	 * bpf_tcp_sock().
+	 *
+	 * Consider the following where "sk" is a reference counted
+	 * pointer returned from "sk = bpf_sk_lookup_tcp();":
+	 *
+	 * 1: sk = bpf_sk_lookup_tcp();
+	 * 2: if (!sk) { return 0; }
+	 * 3: fullsock = bpf_sk_fullsock(sk);
+	 * 4: if (!fullsock) { bpf_sk_release(sk); return 0; }
+	 * 5: tp = bpf_tcp_sock(fullsock);
+	 * 6: if (!tp) { bpf_sk_release(sk); return 0; }
+	 * 7: bpf_sk_release(sk);
+	 * 8: snd_cwnd = tp->snd_cwnd;  // verifier will complain
+	 *
+	 * After bpf_sk_release(sk) at line 7, both "fullsock" ptr and
+	 * "tp" ptr should be invalidated also.  In order to do that,
+	 * the reg holding "fullsock" and "sk" need to remember
+	 * the original refcounted ptr id (i.e. sk_reg->id) in ref_obj_id
+	 * such that the verifier can reset all regs which have
+	 * ref_obj_id matching the sk_reg->id.
+	 *
+	 * sk_reg->ref_obj_id is set to sk_reg->id at line 1.
+	 * sk_reg->id will stay as NULL-marking purpose only.
+	 * After NULL-marking is done, sk_reg->id can be reset to 0.
+	 *
+	 * After "fullsock = bpf_sk_fullsock(sk);" at line 3,
+	 * fullsock_reg->ref_obj_id is set to sk_reg->ref_obj_id.
+	 *
+	 * After "tp = bpf_tcp_sock(fullsock);" at line 5,
+	 * tp_reg->ref_obj_id is set to fullsock_reg->ref_obj_id
+	 * which is the same as sk_reg->ref_obj_id.
+	 *
+	 * From the verifier perspective, if sk, fullsock and tp
+	 * are not NULL, they are the same ptr with different
+	 * reg->type.  In particular, bpf_sk_release(tp) is also
+	 * allowed and has the same effect as bpf_sk_release(sk).
+	 */
+	u32 ref_obj_id;
 	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset

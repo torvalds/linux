@@ -126,7 +126,8 @@ void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
 		len -= ALIGN(tlv_len, 4);
 		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 
-		if (!(tlv_type & IWL_UCODE_INI_TLV_GROUP))
+		if (tlv_type < IWL_UCODE_TLV_DEBUG_BASE ||
+		    tlv_type > IWL_UCODE_TLV_DEBUG_MAX)
 			continue;
 
 		hdr = (void *)&tlv->data[0];

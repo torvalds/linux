@@ -3318,7 +3318,8 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.unref = iwl_trans_pcie_unref,					\
 	.dump_data = iwl_trans_pcie_dump_data,				\
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
-	.d3_resume = iwl_trans_pcie_d3_resume
+	.d3_resume = iwl_trans_pcie_d3_resume,				\
+	.sync_nmi = iwl_trans_pcie_sync_nmi
 
 #ifdef CONFIG_PM_SLEEP
 #define IWL_TRANS_PM_OPS						\
@@ -3542,6 +3543,10 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	} else if (cfg == &iwl_ax101_cfg_qu_hr) {
 		if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
+		    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
+		    trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0) {
+			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_b0;
+		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 		    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
 			trans->cfg = &iwl_ax101_cfg_qu_hr;
 		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
@@ -3560,7 +3565,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 		   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		   (trans->cfg != &iwl22260_2ax_cfg ||
+		   (trans->cfg != &iwl_ax200_cfg_cc ||
 		    trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0)) {
 		u32 hw_status;
 
@@ -3637,22 +3642,29 @@ out_no_pci:
 	return ERR_PTR(ret);
 }
 
-void iwl_trans_sync_nmi(struct iwl_trans *trans)
+void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
+	u32 inta_addr, sw_err_bit;
+
+	if (trans_pcie->msix_enabled) {
+		inta_addr = CSR_MSIX_HW_INT_CAUSES_AD;
+		sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR;
+	} else {
+		inta_addr = CSR_INT;
+		sw_err_bit = CSR_INT_BIT_SW_ERR;
+	}
 
 	iwl_disable_interrupts(trans);
 	iwl_force_nmi(trans);
 	while (time_after(timeout, jiffies)) {
-		u32 inta_hw = iwl_read32(trans,
-					 CSR_MSIX_HW_INT_CAUSES_AD);
+		u32 inta_hw = iwl_read32(trans, inta_addr);
 
 		/* Error detected by uCode */
-		if (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR) {
+		if (inta_hw & sw_err_bit) {
 			/* Clear causes register */
-			iwl_write32(trans, CSR_MSIX_HW_INT_CAUSES_AD,
-				    inta_hw &
-				    MSIX_HW_INT_CAUSES_REG_SW_ERR);
+			iwl_write32(trans, inta_addr, inta_hw & sw_err_bit);
 			break;
 		}
 

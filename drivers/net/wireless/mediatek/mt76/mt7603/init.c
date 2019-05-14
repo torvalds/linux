@@ -112,7 +112,7 @@ static void
 mt7603_phy_init(struct mt7603_dev *dev)
 {
 	int rx_chains = dev->mt76.antenna_mask;
-	int tx_chains = __sw_hweight8(rx_chains) - 1;
+	int tx_chains = hweight8(rx_chains) - 1;
 
 	mt76_rmw(dev, MT_WF_RMAC_RMCR,
 		 (MT_WF_RMAC_RMCR_SMPS_MODE |
@@ -509,6 +509,8 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	bus_ops->wr = mt7603_wr;
 	bus_ops->rmw = mt7603_rmw;
 	dev->mt76.bus = bus_ops;
+
+	spin_lock_init(&dev->ps_lock);
 
 	INIT_DELAYED_WORK(&dev->mac_work, mt7603_mac_work);
 	tasklet_init(&dev->pre_tbtt_tasklet, mt7603_pre_tbtt_tasklet,
