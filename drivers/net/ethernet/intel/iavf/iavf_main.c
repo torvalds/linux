@@ -665,8 +665,7 @@ iavf_vlan_filter *iavf_add_vlan(struct iavf_adapter *adapter, u16 vlan)
 
 		f->vlan = vlan;
 
-		INIT_LIST_HEAD(&f->list);
-		list_add(&f->list, &adapter->vlan_filter_list);
+		list_add_tail(&f->list, &adapter->vlan_filter_list);
 		f->add = true;
 		adapter->aq_required |= IAVF_FLAG_AQ_ADD_VLAN_FILTER;
 	}
