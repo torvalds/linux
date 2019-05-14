@@ -1,8 +1,11 @@
 #ifndef _LINUX_PSI_TYPES_H
 #define _LINUX_PSI_TYPES_H
 
+#include <linux/kthread.h>
 #include <linux/seqlock.h>
 #include <linux/types.h>
+#include <linux/kref.h>
+#include <linux/wait.h>
 
 #ifdef CONFIG_PSI
 
@@ -44,6 +47,12 @@ enum psi_states {
 	NR_PSI_STATES = 6,
 };
 
+enum psi_aggregators {
+	PSI_AVGS = 0,
+	PSI_POLL,
+	NR_PSI_AGGREGATORS,
+};
+
 struct psi_group_cpu {
 	/* 1st cacheline updated by the scheduler */
 
@@ -65,7 +74,55 @@ struct psi_group_cpu {
 	/* 2nd cacheline updated by the aggregator */
 
 	/* Delta detection against the sampling buckets */
-	u32 times_prev[NR_PSI_STATES] ____cacheline_aligned_in_smp;
+	u32 times_prev[NR_PSI_AGGREGATORS][NR_PSI_STATES]
+			____cacheline_aligned_in_smp;
+};
+
+/* PSI growth tracking window */
+struct psi_window {
+	/* Window size in ns */
+	u64 size;
+
+	/* Start time of the current window in ns */
+	u64 start_time;
+
+	/* Value at the start of the window */
+	u64 start_value;
+
+	/* Value growth in the previous window */
+	u64 prev_growth;
+};
+
+struct psi_trigger {
+	/* PSI state being monitored by the trigger */
+	enum psi_states state;
+
+	/* User-spacified threshold in ns */
+	u64 threshold;
+
+	/* List node inside triggers list */
+	struct list_head node;
+
+	/* Backpointer needed during trigger destruction */
+	struct psi_group *group;
+
+	/* Wait queue for polling */
+	wait_queue_head_t event_wait;
+
+	/* Pending event flag */
+	int event;
+
+	/* Tracking window */
+	struct psi_window win;
+
+	/*
+	 * Time last event was generated. Used for rate-limiting
+	 * events to one per window
+	 */
+	u64 last_event_time;
+
+	/* Refcounting to prevent premature destruction */
+	struct kref refcount;
 };
 
 struct psi_group {
@@ -79,11 +136,32 @@ struct psi_group {
 	u64 avg_total[NR_PSI_STATES - 1];
 	u64 avg_last_update;
 	u64 avg_next_update;
+
+	/* Aggregator work control */
 	struct delayed_work avgs_work;
 
 	/* Total stall times and sampled pressure averages */
-	u64 total[NR_PSI_STATES - 1];
+	u64 total[NR_PSI_AGGREGATORS][NR_PSI_STATES - 1];
 	unsigned long avg[NR_PSI_STATES - 1][3];
+
+	/* Monitor work control */
+	atomic_t poll_scheduled;
+	struct kthread_worker __rcu *poll_kworker;
+	struct kthread_delayed_work poll_work;
+
+	/* Protects data used by the monitor */
+	struct mutex trigger_lock;
+
+	/* Configured polling triggers */
+	struct list_head triggers;
+	u32 nr_triggers[NR_PSI_STATES - 1];
+	u32 poll_states;
+	u64 poll_min_period;
+
+	/* Total stall times at the start of monitor activation */
+	u64 polling_total[NR_PSI_STATES - 1];
+	u64 polling_next_update;
+	u64 polling_until;
 };
 
 #else /* CONFIG_PSI */
