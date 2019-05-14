@@ -45,7 +45,6 @@ vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 	 */
 	return devmem->page_fault(vma, addr, page, flags, pmdp);
 }
-EXPORT_SYMBOL(device_private_entry_fault);
 #endif /* CONFIG_DEVICE_PRIVATE */
 
 static void pgmap_array_delete(struct resource *res)
