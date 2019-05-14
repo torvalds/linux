@@ -1,4 +1,8 @@
-		ACPI considerations for PCI host bridges
+.. SPDX-License-Identifier: GPL-2.0
+
+========================================
+ACPI considerations for PCI host bridges
+========================================
 
 The general rule is that the ACPI namespace should describe everything the
 OS might use unless there's another way for the OS to find it [1, 2].
@@ -131,12 +135,13 @@ address always corresponds to bus 0, even if the bus range below the bridge
 
 [4] ACPI 6.2, sec 6.4.3.5.1, 2, 3, 4:
     QWord/DWord/Word Address Space Descriptor (.1, .2, .3)
-    General Flags: Bit [0] Ignored
+      General Flags: Bit [0] Ignored
 
     Extended Address Space Descriptor (.4)
-    General Flags: Bit [0] Consumer/Producer:
-	1–This device consumes this resource
-	0–This device produces and consumes this resource
+      General Flags: Bit [0] Consumer/Producer:
+
+        * 1 – This device consumes this resource
+        * 0 – This device produces and consumes this resource
 
 [5] ACPI 6.2, sec 19.6.43:
     ResourceUsage specifies whether the Memory range is consumed by

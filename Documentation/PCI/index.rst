@@ -12,3 +12,4 @@ Linux PCI Bus Subsystem
    picebus-howto
    pci-iov-howto
    msi-howto
+   acpi-info
