@@ -34,3 +34,4 @@ else:
     import linux.proc
     import linux.constants
     import linux.timerlist
+    import linux.clk
