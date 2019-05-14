@@ -49,6 +49,8 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 
+static struct devfreq_simple_ondemand_data ondemand_data;
+
 static struct monitor_dev_profile mali_mdevp = {
 	.type = MONITOR_TPYE_DEV,
 	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
@@ -225,6 +227,7 @@ static void kbase_devfreq_exit(struct device *dev)
 
 int kbase_devfreq_init(struct kbase_device *kbdev)
 {
+	struct device_node *np = kbdev->dev->of_node;
 	struct devfreq_dev_profile *dp;
 	unsigned long opp_rate;
 	int err;
@@ -252,8 +255,13 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	if (kbase_devfreq_init_freq_table(kbdev, dp))
 		return -EFAULT;
 
+	of_property_read_u32(np, "upthreshold",
+			     &ondemand_data.upthreshold);
+	of_property_read_u32(np, "downdifferential",
+			     &ondemand_data.downdifferential);
+
 	kbdev->devfreq = devfreq_add_device(kbdev->dev, dp,
-				"simple_ondemand", NULL);
+				"simple_ondemand", &ondemand_data);
 	if (IS_ERR(kbdev->devfreq)) {
 		kbase_devfreq_term_freq_table(kbdev);
 		return PTR_ERR(kbdev->devfreq);
