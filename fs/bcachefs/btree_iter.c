@@ -320,7 +320,6 @@ bool __bch2_btree_iter_upgrade(struct btree_iter *iter,
 	trans_for_each_iter(iter->trans, linked)
 		if (linked != iter &&
 		    linked->btree_id == iter->btree_id &&
-		    btree_iter_cmp(linked, iter) <= 0 &&
 		    linked->locks_want < new_locks_want) {
 			linked->locks_want = new_locks_want;
 			btree_iter_get_locks(linked, true);
