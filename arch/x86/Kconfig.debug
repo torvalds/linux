@@ -291,7 +291,7 @@ choice
 
 config UNWINDER_ORC
 	bool "ORC unwinder"
-	depends on X86_64
+	depends on X86_64 && !LTO_CLANG
 	select STACK_VALIDATION
 	---help---
 	  This option enables the ORC (Oops Rewind Capability) unwinder for
