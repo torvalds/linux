@@ -1446,7 +1446,7 @@ pgoff_t page_cache_next_miss(struct address_space *mapping,
 EXPORT_SYMBOL(page_cache_next_miss);
 
 /**
- * page_cache_prev_miss() - Find the next gap in the page cache.
+ * page_cache_prev_miss() - Find the previous gap in the page cache.
  * @mapping: Mapping.
  * @index: Index.
  * @max_scan: Maximum range to search.
