@@ -45,7 +45,6 @@
 #define mmUVD_LMI_RBC_IB_64BIT_BAR_HIGH_INTERNAL_OFFSET 	0x5a6
 #define mmUVD_LMI_RBC_IB_64BIT_BAR_LOW_INTERNAL_OFFSET		0x5a7
 #define mmUVD_RBC_IB_SIZE_INTERNAL_OFFSET			0x1e2
-#define mmUVD_GPCOM_SYS_CMD_INTERNAL_OFFSET			0x1bF
 
 #define mmUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET 			0x1bfff
 #define mmUVD_JPEG_GPCOM_CMD_INTERNAL_OFFSET				0x4029
@@ -67,7 +66,6 @@
 
 #define JRBC_DEC_EXTERNAL_REG_WRITE_ADDR				0x18000
 
-static int vcn_v2_0_stop(struct amdgpu_device *adev);
 static void vcn_v2_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_0_set_jpeg_ring_funcs(struct amdgpu_device *adev);
