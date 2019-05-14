@@ -291,6 +291,9 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
 	mlx5_fill_page_array(&eq->buf, pas);
 
 	MLX5_SET(create_eq_in, in, opcode, MLX5_CMD_OP_CREATE_EQ);
+	if (!param->mask && MLX5_CAP_GEN(dev, log_max_uctx))
+		MLX5_SET(create_eq_in, in, uid, MLX5_SHARED_RESOURCE_UID);
+
 	MLX5_SET64(create_eq_in, in, event_bitmask, param->mask);
 
 	eqc = MLX5_ADDR_OF(create_eq_in, in, eq_context_entry);
