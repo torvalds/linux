@@ -732,14 +732,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		goto out;
 
 	elf_ppnt = elf_phdata;
-	elf_bss = 0;
-	elf_brk = 0;
-
-	start_code = ~0UL;
-	end_code = 0;
-	start_data = 0;
-	end_data = 0;
-
 	for (i = 0; i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {
 		char *elf_interpreter;
 		loff_t pos;
@@ -887,6 +879,14 @@ out_free_interp:
 	if (retval < 0)
 		goto out_free_dentry;
 	
+	elf_bss = 0;
+	elf_brk = 0;
+
+	start_code = ~0UL;
+	end_code = 0;
+	start_data = 0;
+	end_data = 0;
+
 	/* Now we do a little grungy work by mmapping the ELF image into
 	   the correct location in memory. */
 	for(i = 0, elf_ppnt = elf_phdata;
