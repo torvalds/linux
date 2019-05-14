@@ -565,22 +565,7 @@ static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
 	return x;
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
-static inline void __mod_memcg_state(struct mem_cgroup *memcg,
-				     int idx, int val)
-{
-	long x;
-
-	if (mem_cgroup_disabled())
-		return;
-
-	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
-	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
-		atomic_long_add(x, &memcg->vmstats[idx]);
-		x = 0;
-	}
-	__this_cpu_write(memcg->vmstats_percpu->stat[idx], x);
-}
+void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val);
 
 /* idx can be of type enum memcg_stat_item or node_stat_item */
 static inline void mod_memcg_state(struct mem_cgroup *memcg,
@@ -642,31 +627,8 @@ static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
 	return x;
 }
 
-static inline void __mod_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx, int val)
-{
-	struct mem_cgroup_per_node *pn;
-	long x;
-
-	/* Update node */
-	__mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
-
-	if (mem_cgroup_disabled())
-		return;
-
-	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
-
-	/* Update memcg */
-	__mod_memcg_state(pn->memcg, idx, val);
-
-	/* Update lruvec */
-	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
-	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
-		atomic_long_add(x, &pn->lruvec_stat[idx]);
-		x = 0;
-	}
-	__this_cpu_write(pn->lruvec_stat_cpu->count[idx], x);
-}
+void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
+			int val);
 
 static inline void mod_lruvec_state(struct lruvec *lruvec,
 				    enum node_stat_item idx, int val)
@@ -708,22 +670,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
 						gfp_t gfp_mask,
 						unsigned long *total_scanned);
 
-static inline void __count_memcg_events(struct mem_cgroup *memcg,
-					enum vm_event_item idx,
-					unsigned long count)
-{
-	unsigned long x;
-
-	if (mem_cgroup_disabled())
-		return;
-
-	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
-	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
-		atomic_long_add(x, &memcg->vmevents[idx]);
-		x = 0;
-	}
-	__this_cpu_write(memcg->vmstats_percpu->events[idx], x);
-}
+void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
+			  unsigned long count);
 
 static inline void count_memcg_events(struct mem_cgroup *memcg,
 				      enum vm_event_item idx,
