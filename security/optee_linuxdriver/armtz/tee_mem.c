@@ -180,6 +180,7 @@ struct shm_pool *tee_shm_pool_create(struct device *dev, size_t shm_size,
 	chunk = _KMALLOC(sizeof(struct mem_chunk), GFP_KERNEL);
 	if (!chunk) {
 		dev_err(dev, "kmalloc <struct MemChunk> failed\n");
+		mutex_unlock(&pool->lock);
 		goto alloc_failed;
 	}
 	memset(chunk, 0, sizeof(*chunk));
@@ -558,6 +559,7 @@ int rk_tee_shm_pool_free(struct device *dev, struct shm_pool *pool,
 				dev_warn(dev,
 					 "< tee_shm_pool_free() WARNING, paddr=0x%p already released\n",
 					 (void *)paddr);
+				mutex_unlock(&pool->lock);
 				return -EINVAL;
 			} else if (--chunk->counter == 0) {
 				dev_dbg(dev, "paddr=%p\n", (void *)paddr);
