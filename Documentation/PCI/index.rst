@@ -10,3 +10,4 @@ Linux PCI Bus Subsystem
 
    pci
    picebus-howto
+   pci-iov-howto
