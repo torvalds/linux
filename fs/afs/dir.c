@@ -103,6 +103,7 @@ struct afs_lookup_cookie {
 	bool			found;
 	bool			one_only;
 	unsigned short		nr_fids;
+	struct inode		**inodes;
 	struct afs_status_cb	*statuses;
 	struct afs_fid		fids[50];
 };
@@ -644,8 +645,8 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	struct afs_iget_data iget_data;
 	struct afs_fs_cursor fc;
 	struct afs_server *server;
-	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct inode *inode = NULL;
+	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
+	struct inode *inode = NULL, *ti;
 	int ret, i;
 
 	_enter("{%lu},%p{%pd},", dir->i_ino, dentry, dentry);
@@ -700,6 +701,27 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	if (!cookie->statuses)
 		goto out;
 
+	cookie->inodes = kcalloc(cookie->nr_fids, sizeof(struct inode *),
+				 GFP_KERNEL);
+	if (!cookie->inodes)
+		goto out_s;
+
+	for (i = 1; i < cookie->nr_fids; i++) {
+		scb = &cookie->statuses[i];
+
+		/* Find any inodes that already exist and get their
+		 * callback counters.
+		 */
+		iget_data.fid = cookie->fids[i];
+		ti = ilookup5_nowait(dir->i_sb, iget_data.fid.vnode,
+				     afs_iget5_test, &iget_data);
+		if (!IS_ERR_OR_NULL(ti)) {
+			vnode = AFS_FS_I(ti);
+			scb->cb_break = afs_calc_vnode_cb_break(vnode);
+			cookie->inodes[i] = ti;
+		}
+	}
+
 	/* Try FS.InlineBulkStatus first.  Abort codes for the individual
 	 * lookups contained therein are stored in the reply without aborting
 	 * the whole operation.
@@ -742,7 +764,6 @@ no_inline_bulk_status:
 	 * any of the lookups fails - so, for the moment, revert to
 	 * FS.FetchStatus for just the primary fid.
 	 */
-	cookie->nr_fids = 1;
 	inode = ERR_PTR(-ERESTARTSYS);
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
@@ -764,9 +785,6 @@ no_inline_bulk_status:
 	if (IS_ERR(inode))
 		goto out_c;
 
-	for (i = 0; i < cookie->nr_fids; i++)
-		cookie->statuses[i].status.abort_code = 0;
-
 success:
 	/* Turn all the files into inodes and save the first one - which is the
 	 * one we actually want.
@@ -777,13 +795,26 @@ success:
 
 	for (i = 0; i < cookie->nr_fids; i++) {
 		struct afs_status_cb *scb = &cookie->statuses[i];
-		struct inode *ti;
+
+		if (!scb->have_status && !scb->have_error)
+			continue;
+
+		if (cookie->inodes[i]) {
+			afs_vnode_commit_status(&fc, AFS_FS_I(cookie->inodes[i]),
+						scb->cb_break, NULL, scb);
+			continue;
+		}
 
 		if (scb->status.abort_code != 0)
 			continue;
 
 		iget_data.fid = cookie->fids[i];
 		ti = afs_iget(dir->i_sb, key, &iget_data, scb, cbi, dvnode);
+		if (!IS_ERR(ti))
+			afs_cache_permit(AFS_FS_I(ti), key,
+					 0 /* Assume vnode->cb_break is 0 */ +
+					 iget_data.cb_v_break,
+					 scb);
 		if (i == 0) {
 			inode = ti;
 		} else {
@@ -794,6 +825,12 @@ success:
 
 out_c:
 	afs_put_cb_interest(afs_v2net(dvnode), cbi);
+	if (cookie->inodes) {
+		for (i = 0; i < cookie->nr_fids; i++)
+			iput(cookie->inodes[i]);
+		kfree(cookie->inodes);
+	}
+out_s:
 	kvfree(cookie->statuses);
 out:
 	kfree(cookie);
