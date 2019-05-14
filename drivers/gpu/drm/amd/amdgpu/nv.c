@@ -122,7 +122,7 @@ static u32 nv_get_config_memsize(struct amdgpu_device *adev)
 
 static u32 nv_get_xclk(struct amdgpu_device *adev)
 {
-	return adev->clock.spll.reference_freq / 4;
+	return adev->clock.spll.reference_freq;
 }
 
 
