@@ -24,19 +24,20 @@ TEST_FILE=$(mktemp)
 
 # This represents
 #
-# TEST_ID:TEST_COUNT:ENABLED
+# TEST_ID:TEST_COUNT:ENABLED:TARGET
 #
 # TEST_ID: is the test id number
 # TEST_COUNT: number of times we should run the test
 # ENABLED: 1 if enabled, 0 otherwise
+# TARGET: test target file required on the test_sysctl module
 #
 # Once these are enabled please leave them as-is. Write your own test,
 # we have tons of space.
-ALL_TESTS="0001:1:1"
-ALL_TESTS="$ALL_TESTS 0002:1:1"
-ALL_TESTS="$ALL_TESTS 0003:1:1"
-ALL_TESTS="$ALL_TESTS 0004:1:1"
-ALL_TESTS="$ALL_TESTS 0005:3:1"
+ALL_TESTS="0001:1:1:int_0001"
+ALL_TESTS="$ALL_TESTS 0002:1:1:string_0001"
+ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002"
+ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001"
+ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003"
 
 test_modprobe()
 {
@@ -157,8 +158,10 @@ reset_vals()
 
 set_orig()
 {
-	if [ ! -z $TARGET ]; then
-		echo "${ORIG}" > "${TARGET}"
+	if [ ! -z $TARGET ] && [ ! -z $ORIG ]; then
+		if [ -f ${TARGET} ]; then
+			echo "${ORIG}" > "${TARGET}"
+		fi
 	fi
 }
 
@@ -600,9 +603,21 @@ run_stringtests()
 	test_rc
 }
 
+target_exists()
+{
+	TARGET="${SYSCTL}/$1"
+	TEST_ID="$2"
+
+	if [ ! -f ${TARGET} ] ; then
+		echo "Target for test $TEST_ID: $TARGET not exist, skipping test ..."
+		return 0
+	fi
+	return 1
+}
+
 sysctl_test_0001()
 {
-	TARGET="${SYSCTL}/int_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0001)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR=$(( $ORIG + 1 ))
@@ -614,7 +629,7 @@ sysctl_test_0001()
 
 sysctl_test_0002()
 {
-	TARGET="${SYSCTL}/string_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0002)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR="Testing sysctl"
@@ -627,7 +642,7 @@ sysctl_test_0002()
 
 sysctl_test_0003()
 {
-	TARGET="${SYSCTL}/int_0002"
+	TARGET="${SYSCTL}/$(get_test_target 0003)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR=$(( $ORIG + 1 ))
@@ -640,7 +655,7 @@ sysctl_test_0003()
 
 sysctl_test_0004()
 {
-	TARGET="${SYSCTL}/uint_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0004)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR=$(( $ORIG + 1 ))
@@ -653,7 +668,7 @@ sysctl_test_0004()
 
 sysctl_test_0005()
 {
-	TARGET="${SYSCTL}/int_0003"
+	TARGET="${SYSCTL}/$(get_test_target 0005)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 
@@ -722,25 +737,36 @@ function get_test_count()
 {
 	test_num $1
 	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
-	LAST_TWO=${TEST_DATA#*:*}
-	echo ${LAST_TWO%:*}
+	echo ${TEST_DATA} | awk -F":" '{print $2}'
 }
 
 function get_test_enabled()
 {
 	test_num $1
 	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
-	echo ${TEST_DATA#*:*:}
+	echo ${TEST_DATA} | awk -F":" '{print $3}'
+}
+
+function get_test_target()
+{
+	test_num $1
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	echo ${TEST_DATA} | awk -F":" '{print $4}'
 }
 
 function run_all_tests()
 {
 	for i in $ALL_TESTS ; do
-		TEST_ID=${i%:*:*}
+		TEST_ID=${i%:*:*:*}
 		ENABLED=$(get_test_enabled $TEST_ID)
 		TEST_COUNT=$(get_test_count $TEST_ID)
+		TEST_TARGET=$(get_test_target $TEST_ID)
+		target_exists $TEST_TARGET $TEST_ID
+		if [ $? -ne 1 ]; then
+			continue
+		fi
 		if [[ $ENABLED -eq "1" ]]; then
-			test_case $TEST_ID $TEST_COUNT
+			test_case $TEST_ID $TEST_COUNT $TEST_TARGET
 		fi
 	done
 }
@@ -773,12 +799,14 @@ function watch_case()
 
 function test_case()
 {
-	NUM_TESTS=$DEFAULT_NUM_TESTS
-	if [ $# -eq 2 ]; then
-		NUM_TESTS=$2
-	fi
+	NUM_TESTS=$2
 
 	i=0
+
+	if target_exists $3 $1; then
+		continue
+	fi
+
 	while [ $i -lt $NUM_TESTS ]; do
 		test_num $1
 		watch_log $i ${TEST_NAME}_test_$1 noclear
@@ -801,15 +829,15 @@ function parse_args()
 		elif [[ "$1" = "-t" ]]; then
 			shift
 			test_num $1
-			test_case $1 $(get_test_count $1)
+			test_case $1 $(get_test_count $1) $(get_test_target $1)
 		elif [[ "$1" = "-c" ]]; then
 			shift
 			test_num $1
 			test_num $2
-			test_case $1 $2
+			test_case $1 $2 $(get_test_target $1)
 		elif [[ "$1" = "-s" ]]; then
 			shift
-			test_case $1 1
+			test_case $1 1 $(get_test_target $1)
 		elif [[ "$1" = "-l" ]]; then
 			list_tests
 		elif [[ "$1" = "-h" || "$1" = "--help" ]]; then
