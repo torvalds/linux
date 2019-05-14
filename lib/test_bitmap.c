@@ -11,6 +11,7 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/uaccess.h>
 
 #include "../tools/testing/selftests/kselftest_module.h"
 
@@ -280,37 +281,61 @@ static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 	{-EINVAL, "0-\n", NULL, 8, 0},
 };
 
-static void __init test_bitmap_parselist(void)
+static void __init __test_bitmap_parselist(int is_user)
 {
 	int i;
 	int err;
 	ktime_t time;
 	DECLARE_BITMAP(bmap, 2048);
+	char *mode = is_user ? "_user"  : "";
 
 	for (i = 0; i < ARRAY_SIZE(parselist_tests); i++) {
 #define ptest parselist_tests[i]
 
-		time = ktime_get();
-		err = bitmap_parselist(ptest.in, bmap, ptest.nbits);
-		time = ktime_get() - time;
+		if (is_user) {
+			mm_segment_t orig_fs = get_fs();
+			size_t len = strlen(ptest.in);
+
+			set_fs(KERNEL_DS);
+			time = ktime_get();
+			err = bitmap_parselist_user(ptest.in, len,
+						    bmap, ptest.nbits);
+			time = ktime_get() - time;
+			set_fs(orig_fs);
+		} else {
+			time = ktime_get();
+			err = bitmap_parselist(ptest.in, bmap, ptest.nbits);
+			time = ktime_get() - time;
+		}
 
 		if (err != ptest.errno) {
-			pr_err("test %d: input is %s, errno is %d, expected %d\n",
-					i, ptest.in, err, ptest.errno);
+			pr_err("parselist%s: %d: input is %s, errno is %d, expected %d\n",
+					mode, i, ptest.in, err, ptest.errno);
 			continue;
 		}
 
 		if (!err && ptest.expected
 			 && !__bitmap_equal(bmap, ptest.expected, ptest.nbits)) {
-			pr_err("test %d: input is %s, result is 0x%lx, expected 0x%lx\n",
-					i, ptest.in, bmap[0], *ptest.expected);
+			pr_err("parselist%s: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
+					mode, i, ptest.in, bmap[0],
+					*ptest.expected);
 			continue;
 		}
 
 		if (ptest.flags & PARSE_TIME)
-			pr_err("test %d: input is '%s' OK, Time: %llu\n",
-					i, ptest.in, time);
+			pr_err("parselist%s: %d: input is '%s' OK, Time: %llu\n",
+					mode, i, ptest.in, time);
 	}
+}
+
+static void __init test_bitmap_parselist(void)
+{
+	__test_bitmap_parselist(0);
+}
+
+static void __init test_bitmap_parselist_user(void)
+{
+	__test_bitmap_parselist(1);
 }
 
 #define EXP_BYTES	(sizeof(exp) * 8)
@@ -385,6 +410,7 @@ static void __init selftest(void)
 	test_copy();
 	test_bitmap_arr32();
 	test_bitmap_parselist();
+	test_bitmap_parselist_user();
 	test_mem_optimisations();
 }
 
