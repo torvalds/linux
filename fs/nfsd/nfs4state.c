@@ -2398,6 +2398,24 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 	return 0;
 }
 
+static int nfs4_show_layout(struct seq_file *s, struct nfs4_stid *st)
+{
+	struct nfs4_layout_stateid *ls;
+	struct file *file;
+
+	ls = container_of(st, struct nfs4_layout_stateid, ls_stid);
+	file = ls->ls_file;
+
+	seq_printf(s, "- 0x%16phN: { type: layout, ", &st->sc_stateid);
+
+	/* XXX: What else would be useful? */
+
+	nfs4_show_superblock(s, file);
+	seq_printf(s, " }\n");
+
+	return 0;
+}
+
 static int states_show(struct seq_file *s, void *v)
 {
 	struct nfs4_stid *st = v;
@@ -2409,6 +2427,8 @@ static int states_show(struct seq_file *s, void *v)
 		return nfs4_show_lock(s, st);
 	case NFS4_DELEG_STID:
 		return nfs4_show_deleg(s, st);
+	case NFS4_LAYOUT_STID:
+		return nfs4_show_layout(s, st);
 	default:
 		return 0; /* XXX: or SEQ_SKIP? */
 	}
