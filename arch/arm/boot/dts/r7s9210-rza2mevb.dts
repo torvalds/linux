@@ -58,6 +58,11 @@
 	clock-frequency = <32768>;
 };
 
+/* USB_X1 */
+&usb_x1_clk {
+	clock-frequency = <48000000>;
+};
+
 &pinctrl {
 	/* Serial Console */
 	scif4_pins: serial4 {
