@@ -181,9 +181,30 @@ struct hmm_range {
 	const uint64_t		*values;
 	uint64_t		default_flags;
 	uint64_t		pfn_flags_mask;
+	uint8_t			page_shift;
 	uint8_t			pfn_shift;
 	bool			valid;
 };
+
+/*
+ * hmm_range_page_shift() - return the page shift for the range
+ * @range: range being queried
+ * Returns: page shift (page size = 1 << page shift) for the range
+ */
+static inline unsigned hmm_range_page_shift(const struct hmm_range *range)
+{
+	return range->page_shift;
+}
+
+/*
+ * hmm_range_page_size() - return the page size for the range
+ * @range: range being queried
+ * Returns: page size for the range in bytes
+ */
+static inline unsigned long hmm_range_page_size(const struct hmm_range *range)
+{
+	return 1UL << hmm_range_page_shift(range);
+}
 
 /*
  * hmm_range_wait_until_valid() - wait for range to be valid
@@ -424,7 +445,8 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
 int hmm_range_register(struct hmm_range *range,
 		       struct mm_struct *mm,
 		       unsigned long start,
-		       unsigned long end);
+		       unsigned long end,
+		       unsigned page_shift);
 void hmm_range_unregister(struct hmm_range *range);
 long hmm_range_snapshot(struct hmm_range *range);
 long hmm_range_fault(struct hmm_range *range, bool block);
@@ -462,7 +484,8 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
 	range->pfn_flags_mask = -1UL;
 
 	ret = hmm_range_register(range, range->vma->vm_mm,
-				 range->start, range->end);
+				 range->start, range->end,
+				 PAGE_SHIFT);
 	if (ret)
 		return (int)ret;
 
