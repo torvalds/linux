@@ -245,8 +245,6 @@ static void xdr_decode_YFSCallBack(const __be32 **_bp,
 	cb_expiry = call->reply_time;
 	cb_expiry = ktime_add(cb_expiry, xdr_to_u64(x->expiration_time) * 100);
 	cb->expires_at	= ktime_divns(cb_expiry, NSEC_PER_SEC);
-	cb->version	= ntohl(x->version);
-	cb->type	= ntohl(x->type);
 	scb->have_cb	= true;
 	*_bp += xdr_size(x);
 }

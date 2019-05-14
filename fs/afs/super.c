@@ -683,7 +683,6 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 #endif
 
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
-	vnode->cb_type		= 0;
 	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
 
 	init_rwsem(&vnode->rmdir_lock);

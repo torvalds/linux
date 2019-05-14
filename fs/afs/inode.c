@@ -136,12 +136,8 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key,
 	if (!scb->have_cb) {
 		/* it's a symlink we just created (the fileserver
 		 * didn't give us a callback) */
-		vnode->cb_version = 0;
-		vnode->cb_type = 0;
 		vnode->cb_expires_at = ktime_get_real_seconds();
 	} else {
-		vnode->cb_version = scb->callback.version;
-		vnode->cb_type = scb->callback.type;
 		vnode->cb_expires_at = scb->callback.expires_at;
 		old_cbi = vnode->cb_interest;
 		if (cbi != old_cbi)
@@ -248,8 +244,6 @@ static void afs_apply_callback(struct afs_fs_cursor *fc,
 	struct afs_callback *cb = &scb->callback;
 
 	if (!afs_cb_is_broken(cb_break, vnode, fc->cbi)) {
-		vnode->cb_version	= cb->version;
-		vnode->cb_type		= cb->type;
 		vnode->cb_expires_at	= cb->expires_at;
 		old = vnode->cb_interest;
 		if (old != fc->cbi) {
@@ -535,7 +529,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 	clear_bit(AFS_VNODE_UNSET, &vnode->flags);
 	inode->i_flags |= S_NOATIME;
 	unlock_new_inode(inode);
-	_leave(" = %p [CB { v=%u t=%u }]", inode, vnode->cb_version, vnode->cb_type);
+	_leave(" = %p", inode);
 	return inode;
 
 	/* failure */

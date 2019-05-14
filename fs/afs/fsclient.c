@@ -148,9 +148,9 @@ static void xdr_decode_AFSCallBack(const __be32 **_bp,
 	struct afs_callback *cb = &scb->callback;
 	const __be32 *bp = *_bp;
 
-	cb->version	= ntohl(*bp++);
+	bp++; /* version */
 	cb->expires_at	= xdr_decode_expiry(call, ntohl(*bp++));
-	cb->type	= ntohl(*bp++);
+	bp++; /* type */
 	scb->have_cb	= true;
 	*_bp = bp;
 }

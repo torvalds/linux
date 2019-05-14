@@ -683,8 +683,6 @@ struct afs_vnode {
 	seqlock_t		cb_lock;	/* Lock for ->cb_interest, ->status, ->cb_*break */
 
 	time64_t		cb_expires_at;	/* time at which callback expires */
-	unsigned		cb_version;	/* callback version */
-	afs_callback_type_t	cb_type;	/* type of callback */
 };
 
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
