@@ -131,7 +131,7 @@ int __ref arch_add_memory(int nid, u64 start, u64 size,
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-int __ref arch_remove_memory(int nid, u64 start, u64 size,
+void __ref arch_remove_memory(int nid, u64 start, u64 size,
 			     struct vmem_altmap *altmap)
 {
 	unsigned long start_pfn = start >> PAGE_SHIFT;
@@ -147,14 +147,13 @@ int __ref arch_remove_memory(int nid, u64 start, u64 size,
 	if (altmap)
 		page += vmem_altmap_offset(altmap);
 
-	ret = __remove_pages(page_zone(page), start_pfn, nr_pages, altmap);
-	if (ret)
-		return ret;
+	__remove_pages(page_zone(page), start_pfn, nr_pages, altmap);
 
 	/* Remove htab bolted mappings for this section of memory */
 	start = (unsigned long)__va(start);
 	flush_inval_dcache_range(start, start + size);
 	ret = remove_section_mapping(start, start + size);
+	WARN_ON_ONCE(ret);
 
 	/* Ensure all vmalloc mappings are flushed in case they also
 	 * hit that section of memory
@@ -163,8 +162,6 @@ int __ref arch_remove_memory(int nid, u64 start, u64 size,
 
 	if (resize_hpt_for_hotplug(memblock_phys_mem_size()) == -ENOSPC)
 		pr_warn("Hash collision while resizing HPT\n");
-
-	return ret;
 }
 #endif
 #endif /* CONFIG_MEMORY_HOTPLUG */
