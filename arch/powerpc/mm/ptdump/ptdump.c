@@ -277,7 +277,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
-		if (!pmd_none(*pmd) && !pmd_huge(*pmd))
+		if (!pmd_none(*pmd) && !pmd_is_leaf(*pmd))
 			/* pmd exists */
 			walk_pte(st, pmd, addr);
 		else
@@ -293,7 +293,7 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud) && !pud_huge(*pud))
+		if (!pud_none(*pud) && !pud_is_leaf(*pud))
 			/* pud exists */
 			walk_pmd(st, pud, addr);
 		else
@@ -314,7 +314,7 @@ static void walk_pagetables(struct pg_state *st)
 	 * the hash pagetable.
 	 */
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++, addr += PGDIR_SIZE) {
-		if (!pgd_none(*pgd) && !pgd_huge(*pgd))
+		if (!pgd_none(*pgd) && !pgd_is_leaf(*pgd))
 			/* pgd exists */
 			walk_pud(st, pgd, addr);
 		else
