@@ -447,7 +447,6 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	}
 
 	dev_replace->cont_reading_from_srcdev_mode = read_src;
-	WARN_ON(!src_device);
 	dev_replace->srcdev = src_device;
 	dev_replace->tgtdev = tgt_device;
 
