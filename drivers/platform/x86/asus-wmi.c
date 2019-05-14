@@ -255,7 +255,7 @@ static int asus_wmi_evaluate_method3(u32 method_id,
 				     &input, &output);
 
 	if (ACPI_FAILURE(status))
-		goto exit;
+		return -EIO;
 
 	obj = (union acpi_object *)output.pointer;
 	if (obj && obj->type == ACPI_TYPE_INTEGER)
@@ -265,10 +265,6 @@ static int asus_wmi_evaluate_method3(u32 method_id,
 		*retval = tmp;
 
 	kfree(obj);
-
-exit:
-	if (ACPI_FAILURE(status))
-		return -EIO;
 
 	if (tmp == ASUS_WMI_UNSUPPORTED_METHOD)
 		return -ENODEV;
