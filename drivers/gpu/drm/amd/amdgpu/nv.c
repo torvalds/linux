@@ -386,6 +386,9 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_NAVI14:
 		navi14_reg_base_init(adev);
 		break;
+	case CHIP_NAVI12:
+		navi12_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}

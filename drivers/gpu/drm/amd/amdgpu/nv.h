@@ -31,4 +31,5 @@ void nv_grbm_select(struct amdgpu_device *adev,
 int nv_set_ip_blocks(struct amdgpu_device *adev);
 int navi10_reg_base_init(struct amdgpu_device *adev);
 int navi14_reg_base_init(struct amdgpu_device *adev);
+int navi12_reg_base_init(struct amdgpu_device *adev);
 #endif
