@@ -82,6 +82,8 @@ static inline void console_verbose(void)
 extern char devkmsg_log_str[];
 struct ctl_table;
 
+extern int suppress_printk;
+
 struct va_format {
 	const char *fmt;
 	va_list *va;
