@@ -406,7 +406,8 @@ symbolic names, e.g. on x86, ax, si. To list the available registers use
 --intr-regs=ax,bx. The list of register is architecture dependent.
 
 --user-regs::
-Capture user registers at sample time. Same arguments as -I.
+Similar to -I, but capture user registers at sample time. To list the available
+user registers use --user-regs=\?.
 
 --running-time::
 Record running and enabled time for read events (:S)
