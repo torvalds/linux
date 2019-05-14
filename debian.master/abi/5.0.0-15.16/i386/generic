@@ -20287,6 +20287,8 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	mddev_suspend
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mddev_unlock
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mdio_bus_exit
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mdio_bus_init
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	mds_idle_clear
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	mds_user_clear
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	memalloc_socks_key
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	memhp_auto_online
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	memory_cgrp_subsys_enabled_key
