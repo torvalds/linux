@@ -347,10 +347,10 @@ int afs_fetch_status(struct afs_vnode *vnode, struct key *key, bool is_new,
  */
 int afs_iget5_test(struct inode *inode, void *opaque)
 {
-	struct afs_iget_data *data = opaque;
+	struct afs_iget_data *iget_data = opaque;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
-	return memcmp(&vnode->fid, &data->fid, sizeof(data->fid)) == 0;
+	return memcmp(&vnode->fid, &iget_data->fid, sizeof(iget_data->fid)) == 0;
 }
 
 /*
@@ -368,17 +368,19 @@ static int afs_iget5_pseudo_dir_test(struct inode *inode, void *opaque)
  */
 static int afs_iget5_set(struct inode *inode, void *opaque)
 {
-	struct afs_iget_data *data = opaque;
+	struct afs_iget_data *iget_data = opaque;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
-	vnode->fid = data->fid;
-	vnode->volume = data->volume;
+	vnode->fid		= iget_data->fid;
+	vnode->volume		= iget_data->volume;
+	vnode->cb_v_break	= iget_data->cb_v_break;
+	vnode->cb_s_break	= iget_data->cb_s_break;
 
 	/* YFS supports 96-bit vnode IDs, but Linux only supports
 	 * 64-bit inode numbers.
 	 */
-	inode->i_ino = data->fid.vnode;
-	inode->i_generation = data->fid.unique;
+	inode->i_ino		= iget_data->fid.vnode;
+	inode->i_generation	= iget_data->fid.unique;
 	return 0;
 }
 
@@ -388,38 +390,42 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
  */
 struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 {
-	struct afs_iget_data data;
 	struct afs_super_info *as;
 	struct afs_vnode *vnode;
 	struct inode *inode;
 	static atomic_t afs_autocell_ino;
 
+	struct afs_iget_data iget_data = {
+		.cb_v_break = 0,
+		.cb_s_break = 0,
+	};
+
 	_enter("");
 
 	as = sb->s_fs_info;
 	if (as->volume) {
-		data.volume = as->volume;
-		data.fid.vid = as->volume->vid;
+		iget_data.volume = as->volume;
+		iget_data.fid.vid = as->volume->vid;
 	}
 	if (root) {
-		data.fid.vnode = 1;
-		data.fid.unique = 1;
+		iget_data.fid.vnode = 1;
+		iget_data.fid.unique = 1;
 	} else {
-		data.fid.vnode = atomic_inc_return(&afs_autocell_ino);
-		data.fid.unique = 0;
+		iget_data.fid.vnode = atomic_inc_return(&afs_autocell_ino);
+		iget_data.fid.unique = 0;
 	}
 
-	inode = iget5_locked(sb, data.fid.vnode,
+	inode = iget5_locked(sb, iget_data.fid.vnode,
 			     afs_iget5_pseudo_dir_test, afs_iget5_set,
-			     &data);
+			     &iget_data);
 	if (!inode) {
 		_leave(" = -ENOMEM");
 		return ERR_PTR(-ENOMEM);
 	}
 
 	_debug("GOT INODE %p { ino=%lu, vl=%llx, vn=%llx, u=%x }",
-	       inode, inode->i_ino, data.fid.vid, data.fid.vnode,
-	       data.fid.unique);
+	       inode, inode->i_ino, iget_data.fid.vid, iget_data.fid.vnode,
+	       iget_data.fid.unique);
 
 	vnode = AFS_FS_I(inode);
 
@@ -490,23 +496,24 @@ static void afs_get_inode_cache(struct afs_vnode *vnode)
  * inode retrieval
  */
 struct inode *afs_iget(struct super_block *sb, struct key *key,
-		       struct afs_fid *fid, struct afs_status_cb *scb,
+		       struct afs_iget_data *iget_data,
+		       struct afs_status_cb *scb,
 		       struct afs_cb_interest *cbi,
 		       struct afs_vnode *parent_vnode)
 {
-	struct afs_iget_data data = { .fid = *fid };
 	struct afs_super_info *as;
 	struct afs_vnode *vnode;
+	struct afs_fid *fid = &iget_data->fid;
 	struct inode *inode;
 	int ret;
 
 	_enter(",{%llx:%llu.%u},,", fid->vid, fid->vnode, fid->unique);
 
 	as = sb->s_fs_info;
-	data.volume = as->volume;
+	iget_data->volume = as->volume;
 
 	inode = iget5_locked(sb, fid->vnode, afs_iget5_test, afs_iget5_set,
-			     &data);
+			     iget_data);
 	if (!inode) {
 		_leave(" = -ENOMEM");
 		return ERR_PTR(-ENOMEM);

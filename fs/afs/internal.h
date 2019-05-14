@@ -66,6 +66,8 @@ struct afs_fs_context {
 struct afs_iget_data {
 	struct afs_fid		fid;
 	struct afs_volume	*volume;	/* volume on which resides */
+	unsigned int		cb_v_break;	/* Pre-fetch volume break count */
+	unsigned int		cb_s_break;	/* Pre-fetch server break count */
 };
 
 enum afs_call_state {
@@ -1023,7 +1025,7 @@ extern int afs_fetch_status(struct afs_vnode *, struct key *, bool, afs_access_t
 extern int afs_iget5_test(struct inode *, void *);
 extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
 extern struct inode *afs_iget(struct super_block *, struct key *,
-			      struct afs_fid *, struct afs_status_cb *,
+			      struct afs_iget_data *, struct afs_status_cb *,
 			      struct afs_cb_interest *,
 			      struct afs_vnode *);
 extern void afs_zap_data(struct afs_vnode *);

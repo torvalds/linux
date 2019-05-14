@@ -641,7 +641,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	struct afs_cb_interest *dcbi, *cbi = NULL;
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
 	struct afs_status_cb *scb;
-	struct afs_iget_data data;
+	struct afs_iget_data iget_data;
 	struct afs_fs_cursor fc;
 	struct afs_server *server;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
@@ -684,9 +684,12 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	/* Check to see if we already have an inode for the primary fid. */
-	data.volume = dvnode->volume;
-	data.fid = cookie->fids[0];
-	inode = ilookup5(dir->i_sb, cookie->fids[0].vnode, afs_iget5_test, &data);
+	iget_data.fid = cookie->fids[0];
+	iget_data.volume = dvnode->volume;
+	iget_data.cb_v_break = dvnode->volume->cb_v_break;
+	iget_data.cb_s_break = 0;
+	inode = ilookup5(dir->i_sb, cookie->fids[0].vnode,
+			 afs_iget5_test, &iget_data);
 	if (inode)
 		goto out;
 
@@ -713,6 +716,8 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 				fc.ac.error = -ECONNABORTED;
 				break;
 			}
+			iget_data.cb_v_break = dvnode->volume->cb_v_break;
+			iget_data.cb_s_break = fc.cbi->server->cb_s_break;
 			afs_fs_inline_bulk_status(&fc,
 						  afs_v2net(dvnode),
 						  cookie->fids,
@@ -741,6 +746,8 @@ no_inline_bulk_status:
 	inode = ERR_PTR(-ERESTARTSYS);
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
+			iget_data.cb_v_break = dvnode->volume->cb_v_break;
+			iget_data.cb_s_break = fc.cbi->server->cb_s_break;
 			scb = &cookie->statuses[0];
 			afs_fs_fetch_status(&fc,
 					    afs_v2net(dvnode),
@@ -775,8 +782,8 @@ success:
 		if (scb->status.abort_code != 0)
 			continue;
 
-		ti = afs_iget(dir->i_sb, key, &cookie->fids[i],
-			      scb, cbi, dvnode);
+		iget_data.fid = cookie->fids[i];
+		ti = afs_iget(dir->i_sb, key, &iget_data, scb, cbi, dvnode);
 		if (i == 0) {
 			inode = ti;
 		} else {
@@ -1112,7 +1119,7 @@ void afs_d_release(struct dentry *dentry)
  */
 static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 				struct dentry *new_dentry,
-				struct afs_fid *newfid,
+				struct afs_iget_data *new_data,
 				struct afs_status_cb *new_scb)
 {
 	struct afs_vnode *vnode;
@@ -1122,7 +1129,7 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 		return;
 
 	inode = afs_iget(fc->vnode->vfs_inode.i_sb, fc->key,
-			 newfid, new_scb, fc->cbi, fc->vnode);
+			 new_data, new_scb, fc->cbi, fc->vnode);
 	if (IS_ERR(inode)) {
 		/* ENOMEM or EINTR at a really inconvenient time - just abandon
 		 * the new directory on the server.
@@ -1138,15 +1145,23 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 	d_instantiate(new_dentry, inode);
 }
 
+static void afs_prep_for_new_inode(struct afs_fs_cursor *fc,
+				   struct afs_iget_data *iget_data)
+{
+	iget_data->volume = fc->vnode->volume;
+	iget_data->cb_v_break = fc->vnode->volume->cb_v_break;
+	iget_data->cb_s_break = fc->cbi->server->cb_s_break;
+}
+
 /*
  * create a directory on an AFS filesystem
  */
 static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
+	struct afs_iget_data iget_data;
 	struct afs_status_cb *scb;
 	struct afs_fs_cursor fc;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct afs_fid newfid;
 	struct key *key;
 	int ret;
 
@@ -1172,14 +1187,15 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
+			afs_prep_for_new_inode(&fc, &iget_data);
 			afs_fs_create(&fc, dentry->d_name.name, mode,
-				      &scb[0], &newfid, &scb[1]);
+				      &scb[0], &iget_data.fid, &scb[1]);
 		}
 
 		afs_check_for_remote_deletion(&fc, dvnode);
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, &scb[0]);
-		afs_vnode_new_inode(&fc, dentry, &newfid, &scb[1]);
+		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
@@ -1189,7 +1205,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	if (ret == 0 &&
 	    test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_edit_dir_add(dvnode, &dentry->d_name, &newfid,
+		afs_edit_dir_add(dvnode, &dentry->d_name, &iget_data.fid,
 				 afs_edit_dir_for_create);
 
 	key_put(key);
@@ -1439,10 +1455,10 @@ error:
 static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		      bool excl)
 {
+	struct afs_iget_data iget_data;
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct afs_fid newfid;
 	struct key *key;
 	int ret;
 
@@ -1472,14 +1488,15 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
+			afs_prep_for_new_inode(&fc, &iget_data);
 			afs_fs_create(&fc, dentry->d_name.name, mode,
-				      &scb[0], &newfid, &scb[1]);
+				      &scb[0], &iget_data.fid, &scb[1]);
 		}
 
 		afs_check_for_remote_deletion(&fc, dvnode);
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, &scb[0]);
-		afs_vnode_new_inode(&fc, dentry, &newfid, &scb[1]);
+		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
@@ -1488,7 +1505,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	}
 
 	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_edit_dir_add(dvnode, &dentry->d_name, &newfid,
+		afs_edit_dir_add(dvnode, &dentry->d_name, &iget_data.fid,
 				 afs_edit_dir_for_create);
 
 	kfree(scb);
@@ -1595,10 +1612,10 @@ error:
 static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		       const char *content)
 {
+	struct afs_iget_data iget_data;
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct afs_fid newfid;
 	struct key *key;
 	int ret;
 
@@ -1631,14 +1648,15 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
+			afs_prep_for_new_inode(&fc, &iget_data);
 			afs_fs_symlink(&fc, dentry->d_name.name, content,
-				       &scb[0], &newfid, &scb[1]);
+				       &scb[0], &iget_data.fid, &scb[1]);
 		}
 
 		afs_check_for_remote_deletion(&fc, dvnode);
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
 					&data_version, &scb[0]);
-		afs_vnode_new_inode(&fc, dentry, &newfid, &scb[1]);
+		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
@@ -1647,7 +1665,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 	}
 
 	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_edit_dir_add(dvnode, &dentry->d_name, &newfid,
+		afs_edit_dir_add(dvnode, &dentry->d_name, &iget_data.fid,
 				 afs_edit_dir_for_symlink);
 
 	key_put(key);

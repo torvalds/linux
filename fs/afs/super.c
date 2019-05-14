@@ -426,7 +426,7 @@ static int afs_set_super(struct super_block *sb, struct fs_context *fc)
 static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-	struct afs_fid fid;
+	struct afs_iget_data iget_data;
 	struct inode *inode = NULL;
 	int ret;
 
@@ -451,11 +451,13 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 	} else {
 		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
-		fid.vid		= as->volume->vid;
-		fid.vnode	= 1;
-		fid.vnode_hi	= 0;
-		fid.unique	= 1;
-		inode = afs_iget(sb, ctx->key, &fid, NULL, NULL, NULL);
+		iget_data.fid.vid	= as->volume->vid;
+		iget_data.fid.vnode	= 1;
+		iget_data.fid.vnode_hi	= 0;
+		iget_data.fid.unique	= 1;
+		iget_data.cb_v_break	= as->volume->cb_v_break;
+		iget_data.cb_s_break	= 0;
+		inode = afs_iget(sb, ctx->key, &iget_data, NULL, NULL, NULL);
 	}
 
 	if (IS_ERR(inode))
