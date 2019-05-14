@@ -143,7 +143,7 @@ fail_drop:
 	return ERR_PTR(err);
 }
 
-static int is_extension_exist(const unsigned char *s, const char *sub)
+static inline int is_extension_exist(const unsigned char *s, const char *sub)
 {
 	size_t slen = strlen(s);
 	size_t sublen = strlen(sub);
