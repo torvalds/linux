@@ -30,5 +30,6 @@ else:
     import linux.config
     import linux.cpus
     import linux.lists
+    import linux.rbtree
     import linux.proc
     import linux.constants
