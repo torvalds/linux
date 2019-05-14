@@ -561,6 +561,21 @@ DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_split,
 	TP_ARGS(c, ip)
 );
 
+DEFINE_EVENT(transaction_restart,	trans_restart_mark,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_upgrade,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_iter_upgrade,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
 DEFINE_EVENT(transaction_restart,	trans_restart_traverse,
 	TP_PROTO(struct bch_fs *c, unsigned long ip),
 	TP_ARGS(c, ip)
@@ -569,6 +584,39 @@ DEFINE_EVENT(transaction_restart,	trans_restart_traverse,
 DEFINE_EVENT(transaction_restart,	trans_restart_atomic,
 	TP_PROTO(struct bch_fs *c, unsigned long ip),
 	TP_ARGS(c, ip)
+);
+
+DECLARE_EVENT_CLASS(node_lock_fail,
+	TP_PROTO(unsigned level, u32 iter_seq, unsigned node, u32 node_seq),
+	TP_ARGS(level, iter_seq, node, node_seq),
+
+	TP_STRUCT__entry(
+		__field(u32,		level)
+		__field(u32,		iter_seq)
+		__field(u32,		node)
+		__field(u32,		node_seq)
+	),
+
+	TP_fast_assign(
+		__entry->level		= level;
+		__entry->iter_seq	= iter_seq;
+		__entry->node		= node;
+		__entry->node_seq	= node_seq;
+	),
+
+	TP_printk("level %u iter seq %u node %u node seq %u",
+		  __entry->level, __entry->iter_seq,
+		  __entry->node, __entry->node_seq)
+);
+
+DEFINE_EVENT(node_lock_fail, node_upgrade_fail,
+	TP_PROTO(unsigned level, u32 iter_seq, unsigned node, u32 node_seq),
+	TP_ARGS(level, iter_seq, node, node_seq)
+);
+
+DEFINE_EVENT(node_lock_fail, node_relock_fail,
+	TP_PROTO(unsigned level, u32 iter_seq, unsigned node, u32 node_seq),
+	TP_ARGS(level, iter_seq, node, node_seq)
 );
 
 #endif /* _TRACE_BCACHEFS_H */

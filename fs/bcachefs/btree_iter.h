@@ -76,14 +76,12 @@ static inline struct btree_iter *
 __trans_next_iter_with_node(struct btree_trans *trans, struct btree *b,
 			    unsigned idx)
 {
-	EBUG_ON(idx < trans->nr_iters && trans->iters[idx].idx != idx);
+	struct btree_iter *iter = __trans_next_iter(trans, idx);
 
-	for (; idx < trans->nr_iters; idx++)
-		if ((trans->iters_linked & (1ULL << idx)) &&
-		    __iter_has_node(&trans->iters[idx], b))
-			return &trans->iters[idx];
+	while (iter && !__iter_has_node(iter, b))
+		iter = __trans_next_iter(trans, iter->idx + 1);
 
-	return NULL;
+	return iter;
 }
 
 #define trans_for_each_iter_with_node(_trans, _b, _iter)		\

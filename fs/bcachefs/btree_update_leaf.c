@@ -567,6 +567,8 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		    update_triggers_transactional(trans, i)) {
 			ret = bch2_trans_mark_update(trans, i,
 						&trans->fs_usage_deltas);
+			if (ret == -EINTR)
+				trace_trans_restart_mark(c, trans->ip);
 			if (ret)
 				return ret;
 		}
@@ -714,7 +716,9 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		 * don't care if we got ENOSPC because we told split it
 		 * couldn't block:
 		 */
-		if (!ret || (flags & BTREE_INSERT_NOUNLOCK)) {
+		if (!ret ||
+		    ret == -EINTR ||
+		    (flags & BTREE_INSERT_NOUNLOCK)) {
 			trans_restart(" (split)");
 			trace_trans_restart_btree_node_split(c, trans->ip);
 			ret = -EINTR;
@@ -806,6 +810,7 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 		if (!bch2_btree_iter_upgrade(i->iter, 1)) {
 			trans_restart(" (failed upgrade, locks_want %u uptodate %u)",
 				      old_locks_want, old_uptodate);
+			trace_trans_restart_upgrade(c, trans->ip);
 			ret = -EINTR;
 			goto err;
 		}
