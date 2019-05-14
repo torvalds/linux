@@ -301,6 +301,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     bool xmit_more)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
+	bool send_doorbell;
 
 	wi->num_bytes = num_bytes;
 	wi->num_dma = num_dma;
@@ -309,8 +310,6 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
-
-	netdev_tx_sent_queue(sq->txq, num_bytes);
 
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
@@ -321,7 +320,9 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		sq->stats->stopped++;
 	}
 
-	if (!xmit_more || netif_xmit_stopped(sq->txq))
+	send_doorbell = __netdev_tx_sent_queue(sq->txq, num_bytes,
+					       xmit_more);
+	if (send_doorbell)
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
 }
 
