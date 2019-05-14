@@ -380,6 +380,7 @@ extern acpi_status wmi_install_notify_handler(const char *guid,
 extern acpi_status wmi_remove_notify_handler(const char *guid);
 extern acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out);
 extern bool wmi_has_guid(const char *guid);
+extern char *wmi_get_acpi_device_uid(const char *guid);
 
 #endif	/* CONFIG_ACPI_WMI */
 
