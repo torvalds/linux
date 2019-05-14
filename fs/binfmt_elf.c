@@ -524,6 +524,19 @@ static inline int arch_check_elf(struct elfhdr *ehdr, bool has_interp,
 
 #endif /* !CONFIG_ARCH_BINFMT_ELF_STATE */
 
+static inline int make_prot(u32 p_flags)
+{
+	int prot = 0;
+
+	if (p_flags & PF_R)
+		prot |= PROT_READ;
+	if (p_flags & PF_W)
+		prot |= PROT_WRITE;
+	if (p_flags & PF_X)
+		prot |= PROT_EXEC;
+	return prot;
+}
+
 /* This is much more generalized than the library routine read function,
    so we keep this separate.  Technically the library read function
    is only provided so that we can read a.out libraries that have
@@ -563,16 +576,10 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 	for (i = 0; i < interp_elf_ex->e_phnum; i++, eppnt++) {
 		if (eppnt->p_type == PT_LOAD) {
 			int elf_type = MAP_PRIVATE | MAP_DENYWRITE;
-			int elf_prot = 0;
+			int elf_prot = make_prot(eppnt->p_flags);
 			unsigned long vaddr = 0;
 			unsigned long k, map_addr;
 
-			if (eppnt->p_flags & PF_R)
-		    		elf_prot = PROT_READ;
-			if (eppnt->p_flags & PF_W)
-				elf_prot |= PROT_WRITE;
-			if (eppnt->p_flags & PF_X)
-				elf_prot |= PROT_EXEC;
 			vaddr = eppnt->p_vaddr;
 			if (interp_elf_ex->e_type == ET_EXEC || load_addr_set)
 				elf_type |= MAP_FIXED_NOREPLACE;
@@ -891,7 +898,7 @@ out_free_interp:
 	   the correct location in memory. */
 	for(i = 0, elf_ppnt = elf_phdata;
 	    i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {
-		int elf_prot = 0, elf_flags, elf_fixed = MAP_FIXED_NOREPLACE;
+		int elf_prot, elf_flags, elf_fixed = MAP_FIXED_NOREPLACE;
 		unsigned long k, vaddr;
 		unsigned long total_size = 0;
 
@@ -932,12 +939,7 @@ out_free_interp:
 			elf_fixed = MAP_FIXED;
 		}
 
-		if (elf_ppnt->p_flags & PF_R)
-			elf_prot |= PROT_READ;
-		if (elf_ppnt->p_flags & PF_W)
-			elf_prot |= PROT_WRITE;
-		if (elf_ppnt->p_flags & PF_X)
-			elf_prot |= PROT_EXEC;
+		elf_prot = make_prot(elf_ppnt->p_flags);
 
 		elf_flags = MAP_PRIVATE | MAP_DENYWRITE | MAP_EXECUTABLE;
 
