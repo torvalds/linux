@@ -1030,6 +1030,22 @@ static int max310x_startup(struct uart_port *port)
 	max310x_port_update(port, MAX310X_MODE2_REG,
 			    MAX310X_MODE2_FIFORST_BIT, 0);
 
+	/* Configure mode1/mode2 to have rs485/rs232 enabled at startup */
+	val = (clamp(port->rs485.delay_rts_before_send, 0U, 15U) << 4) |
+		clamp(port->rs485.delay_rts_after_send, 0U, 15U);
+	max310x_port_write(port, MAX310X_HDPIXDELAY_REG, val);
+
+	if (port->rs485.flags & SER_RS485_ENABLED) {
+		max310x_port_update(port, MAX310X_MODE1_REG,
+				    MAX310X_MODE1_TRNSCVCTRL_BIT,
+				    MAX310X_MODE1_TRNSCVCTRL_BIT);
+
+		if (!(port->rs485.flags & SER_RS485_RX_DURING_TX))
+			max310x_port_update(port, MAX310X_MODE2_REG,
+					    MAX310X_MODE2_ECHOSUPR_BIT,
+					    MAX310X_MODE2_ECHOSUPR_BIT);
+	}
+
 	/* Configure flow control levels */
 	/* Flow control halt level 96, resume level 48 */
 	max310x_port_write(port, MAX310X_FLOWLVL_REG,
