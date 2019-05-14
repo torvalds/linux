@@ -213,13 +213,26 @@ static void slob_free_pages(void *b, int order)
 }
 
 /*
- * Allocate a slob block within a given slob_page sp.
+ * slob_page_alloc() - Allocate a slob block within a given slob_page sp.
+ * @sp: Page to look in.
+ * @size: Size of the allocation.
+ * @align: Allocation alignment.
+ * @page_removed_from_list: Return parameter.
+ *
+ * Tries to find a chunk of memory at least @size bytes big within @page.
+ *
+ * Return: Pointer to memory if allocated, %NULL otherwise.  If the
+ *         allocation fills up @page then the page is removed from the
+ *         freelist, in this case @page_removed_from_list will be set to
+ *         true (set to false otherwise).
  */
-static void *slob_page_alloc(struct page *sp, size_t size, int align)
+static void *slob_page_alloc(struct page *sp, size_t size, int align,
+			     bool *page_removed_from_list)
 {
 	slob_t *prev, *cur, *aligned = NULL;
 	int delta = 0, units = SLOB_UNITS(size);
 
+	*page_removed_from_list = false;
 	for (prev = NULL, cur = sp->freelist; ; prev = cur, cur = slob_next(cur)) {
 		slobidx_t avail = slob_units(cur);
 
@@ -254,8 +267,10 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
 			}
 
 			sp->units -= units;
-			if (!sp->units)
+			if (!sp->units) {
 				clear_slob_page_free(sp);
+				*page_removed_from_list = true;
+			}
 			return cur;
 		}
 		if (slob_last(cur))
@@ -269,10 +284,10 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
 static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 {
 	struct page *sp;
-	struct list_head *prev;
 	struct list_head *slob_list;
 	slob_t *b = NULL;
 	unsigned long flags;
+	bool _unused;
 
 	if (size < SLOB_BREAK1)
 		slob_list = &free_slob_small;
@@ -284,6 +299,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 	spin_lock_irqsave(&slob_lock, flags);
 	/* Iterate through each partially free page, try to find room */
 	list_for_each_entry(sp, slob_list, lru) {
+		bool page_removed_from_list = false;
 #ifdef CONFIG_NUMA
 		/*
 		 * If there's a node specification, search for a partial
@@ -296,18 +312,25 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		if (sp->units < SLOB_UNITS(size))
 			continue;
 
-		/* Attempt to alloc */
-		prev = sp->lru.prev;
-		b = slob_page_alloc(sp, size, align);
+		b = slob_page_alloc(sp, size, align, &page_removed_from_list);
 		if (!b)
 			continue;
 
-		/* Improve fragment distribution and reduce our average
-		 * search time by starting our next search here. (see
-		 * Knuth vol 1, sec 2.5, pg 449) */
-		if (prev != slob_list->prev &&
-				slob_list->next != prev->next)
-			list_move_tail(slob_list, prev->next);
+		/*
+		 * If slob_page_alloc() removed sp from the list then we
+		 * cannot call list functions on sp.  If so allocation
+		 * did not fragment the page anyway so optimisation is
+		 * unnecessary.
+		 */
+		if (!page_removed_from_list) {
+			/*
+			 * Improve fragment distribution and reduce our average
+			 * search time by starting our next search here. (see
+			 * Knuth vol 1, sec 2.5, pg 449)
+			 */
+			if (!list_is_first(&sp->lru, slob_list))
+				list_rotate_to_front(&sp->lru, slob_list);
+		}
 		break;
 	}
 	spin_unlock_irqrestore(&slob_lock, flags);
@@ -326,7 +349,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		INIT_LIST_HEAD(&sp->lru);
 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
 		set_slob_page_free(sp, slob_list);
-		b = slob_page_alloc(sp, size, align);
+		b = slob_page_alloc(sp, size, align, &_unused);
 		BUG_ON(!b);
 		spin_unlock_irqrestore(&slob_lock, flags);
 	}
