@@ -1941,67 +1941,6 @@ out:
 }
 EXPORT_SYMBOL(find_get_pages_range_tag);
 
-/**
- * find_get_entries_tag - find and return entries that match @tag
- * @mapping:	the address_space to search
- * @start:	the starting page cache index
- * @tag:	the tag index
- * @nr_entries:	the maximum number of entries
- * @entries:	where the resulting entries are placed
- * @indices:	the cache indices corresponding to the entries in @entries
- *
- * Like find_get_entries, except we only return entries which are tagged with
- * @tag.
- *
- * Return: the number of entries which were found.
- */
-unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-			xa_mark_t tag, unsigned int nr_entries,
-			struct page **entries, pgoff_t *indices)
-{
-	XA_STATE(xas, &mapping->i_pages, start);
-	struct page *page;
-	unsigned int ret = 0;
-
-	if (!nr_entries)
-		return 0;
-
-	rcu_read_lock();
-	xas_for_each_marked(&xas, page, ULONG_MAX, tag) {
-		if (xas_retry(&xas, page))
-			continue;
-		/*
-		 * A shadow entry of a recently evicted page, a swap
-		 * entry from shmem/tmpfs or a DAX entry.  Return it
-		 * without attempting to raise page count.
-		 */
-		if (xa_is_value(page))
-			goto export;
-
-		if (!page_cache_get_speculative(page))
-			goto retry;
-
-		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(&xas)))
-			goto put_page;
-		page = find_subpage(page, xas.xa_index);
-
-export:
-		indices[ret] = xas.xa_index;
-		entries[ret] = page;
-		if (++ret == nr_entries)
-			break;
-		continue;
-put_page:
-		put_page(page);
-retry:
-		xas_reset(&xas);
-	}
-	rcu_read_unlock();
-	return ret;
-}
-EXPORT_SYMBOL(find_get_entries_tag);
-
 /*
  * CD/DVDs are error prone. When a medium error occurs, the driver may fail
  * a _large_ part of the i/o request. Imagine the worst scenario:
