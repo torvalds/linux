@@ -740,69 +740,66 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	start_data = 0;
 	end_data = 0;
 
-	for (i = 0; i < loc->elf_ex.e_phnum; i++) {
-		if (elf_ppnt->p_type == PT_INTERP) {
-			char *elf_interpreter;
-			loff_t pos;
+	for (i = 0; i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {
+		char *elf_interpreter;
+		loff_t pos;
 
-			/* This is the program interpreter used for
-			 * shared libraries - for now assume that this
-			 * is an a.out format binary
-			 */
-			retval = -ENOEXEC;
-			if (elf_ppnt->p_filesz > PATH_MAX || 
-			    elf_ppnt->p_filesz < 2)
-				goto out_free_ph;
+		if (elf_ppnt->p_type != PT_INTERP)
+			continue;
 
-			retval = -ENOMEM;
-			elf_interpreter = kmalloc(elf_ppnt->p_filesz,
-						  GFP_KERNEL);
-			if (!elf_interpreter)
-				goto out_free_ph;
+		/*
+		 * This is the program interpreter used for shared libraries -
+		 * for now assume that this is an a.out format binary.
+		 */
+		retval = -ENOEXEC;
+		if (elf_ppnt->p_filesz > PATH_MAX || elf_ppnt->p_filesz < 2)
+			goto out_free_ph;
 
-			pos = elf_ppnt->p_offset;
-			retval = kernel_read(bprm->file, elf_interpreter,
-					     elf_ppnt->p_filesz, &pos);
-			if (retval != elf_ppnt->p_filesz) {
-				if (retval >= 0)
-					retval = -EIO;
-				goto out_free_interp;
-			}
-			/* make sure path is NULL terminated */
-			retval = -ENOEXEC;
-			if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0')
-				goto out_free_interp;
+		retval = -ENOMEM;
+		elf_interpreter = kmalloc(elf_ppnt->p_filesz, GFP_KERNEL);
+		if (!elf_interpreter)
+			goto out_free_ph;
 
-			interpreter = open_exec(elf_interpreter);
-			kfree(elf_interpreter);
-			retval = PTR_ERR(interpreter);
-			if (IS_ERR(interpreter))
-				goto out_free_ph;
+		pos = elf_ppnt->p_offset;
+		retval = kernel_read(bprm->file, elf_interpreter,
+				     elf_ppnt->p_filesz, &pos);
+		if (retval != elf_ppnt->p_filesz) {
+			if (retval >= 0)
+				retval = -EIO;
+			goto out_free_interp;
+		}
+		/* make sure path is NULL terminated */
+		retval = -ENOEXEC;
+		if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0')
+			goto out_free_interp;
 
-			/*
-			 * If the binary is not readable then enforce
-			 * mm->dumpable = 0 regardless of the interpreter's
-			 * permissions.
-			 */
-			would_dump(bprm, interpreter);
+		interpreter = open_exec(elf_interpreter);
+		kfree(elf_interpreter);
+		retval = PTR_ERR(interpreter);
+		if (IS_ERR(interpreter))
+			goto out_free_ph;
 
-			/* Get the exec headers */
-			pos = 0;
-			retval = kernel_read(interpreter, &loc->interp_elf_ex,
-					     sizeof(loc->interp_elf_ex), &pos);
-			if (retval != sizeof(loc->interp_elf_ex)) {
-				if (retval >= 0)
-					retval = -EIO;
-				goto out_free_dentry;
-			}
+		/*
+		 * If the binary is not readable then enforce mm->dumpable = 0
+		 * regardless of the interpreter's permissions.
+		 */
+		would_dump(bprm, interpreter);
 
-			break;
+		/* Get the exec headers */
+		pos = 0;
+		retval = kernel_read(interpreter, &loc->interp_elf_ex,
+				     sizeof(loc->interp_elf_ex), &pos);
+		if (retval != sizeof(loc->interp_elf_ex)) {
+			if (retval >= 0)
+				retval = -EIO;
+			goto out_free_dentry;
+		}
+
+		break;
 
 out_free_interp:
-			kfree(elf_interpreter);
-			goto out_free_ph;
-		}
-		elf_ppnt++;
+		kfree(elf_interpreter);
+		goto out_free_ph;
 	}
 
 	elf_ppnt = elf_phdata;
