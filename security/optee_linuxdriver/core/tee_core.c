@@ -174,6 +174,12 @@ static int tee_supp_open(struct tee *tee)
 					__func__);
 			atomic_sub(1, &tee->rpc->used);
 		}
+	} else {
+		if (atomic_read(&tee->rpc->used) == 0) {
+			ret = -EPERM;
+			dev_err(tee->dev, "%s: ERROR Supplicant application NOT ready\n",
+				__func__);
+		}
 	}
 
 	return ret;
