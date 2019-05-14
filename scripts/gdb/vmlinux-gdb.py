@@ -27,6 +27,7 @@ else:
     import linux.modules
     import linux.dmesg
     import linux.tasks
+    import linux.config
     import linux.cpus
     import linux.lists
     import linux.proc
