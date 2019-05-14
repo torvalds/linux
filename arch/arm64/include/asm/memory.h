@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <asm/bug.h>
 #include <asm/page-def.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 /*
  * Size of the PCI I/O space. This must remain a power of two so that
