@@ -526,6 +526,21 @@ directories.
 Catatonic mode can only be left via the
 **AUTOFS_DEV_IOCTL_OPENMOUNT_CMD** ioctl on the `/dev/autofs`.
 
+The "ignore" mount option
+-------------------------
+
+The "ignore" mount option can be used to provide a generic indicator
+to applications that the mount entry should be ignored when displaying
+mount information.
+
+In other OSes that provide autofs and that provide a mount list to user
+space based on the kernel mount list a no-op mount option ("ignore" is
+the one use on the most common OSes) is allowed so that autofs file
+system users can optionally use it.
+
+This is intended to be used by user space programs to exclude autofs
+mounts from consideration when reading the mounts list.
+
 autofs, name spaces, and shared mounts
 --------------------------------------
 
