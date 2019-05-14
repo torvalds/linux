@@ -2093,7 +2093,7 @@ static __latent_entropy struct task_struct *copy_process(
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(p, TIF_SYSCALL_EMU);
 #endif
-	clear_all_latency_tracing(p);
+	clear_tsk_latency_tracing(p);
 
 	/* ok, now we should be set up.. */
 	p->pid = pid_nr(pid);

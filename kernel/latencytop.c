@@ -67,7 +67,7 @@ static struct latency_record latency_record[MAXLR];
 
 int latencytop_enabled;
 
-void clear_all_latency_tracing(struct task_struct *p)
+void clear_tsk_latency_tracing(struct task_struct *p)
 {
 	unsigned long flags;
 
