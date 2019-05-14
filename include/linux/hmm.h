@@ -239,36 +239,36 @@ static inline bool hmm_range_valid(struct hmm_range *range)
 }
 
 /*
- * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
- * @range: range use to decode HMM pfn value
- * @pfn: HMM pfn value to get corresponding struct page from
- * Returns: struct page pointer if pfn is a valid HMM pfn, NULL otherwise
+ * hmm_device_entry_to_page() - return struct page pointed to by a device entry
+ * @range: range use to decode device entry value
+ * @entry: device entry value to get corresponding struct page from
+ * Returns: struct page pointer if entry is a valid, NULL otherwise
  *
- * If the HMM pfn is valid (ie valid flag set) then return the struct page
- * matching the pfn value stored in the HMM pfn. Otherwise return NULL.
+ * If the device entry is valid (ie valid flag set) then return the struct page
+ * matching the entry value. Otherwise return NULL.
  */
-static inline struct page *hmm_pfn_to_page(const struct hmm_range *range,
-					   uint64_t pfn)
+static inline struct page *hmm_device_entry_to_page(const struct hmm_range *range,
+						    uint64_t entry)
 {
-	if (pfn == range->values[HMM_PFN_NONE])
+	if (entry == range->values[HMM_PFN_NONE])
 		return NULL;
-	if (pfn == range->values[HMM_PFN_ERROR])
+	if (entry == range->values[HMM_PFN_ERROR])
 		return NULL;
-	if (pfn == range->values[HMM_PFN_SPECIAL])
+	if (entry == range->values[HMM_PFN_SPECIAL])
 		return NULL;
-	if (!(pfn & range->flags[HMM_PFN_VALID]))
+	if (!(entry & range->flags[HMM_PFN_VALID]))
 		return NULL;
-	return pfn_to_page(pfn >> range->pfn_shift);
+	return pfn_to_page(entry >> range->pfn_shift);
 }
 
 /*
- * hmm_pfn_to_pfn() - return pfn value store in a HMM pfn
- * @range: range use to decode HMM pfn value
- * @pfn: HMM pfn value to extract pfn from
- * Returns: pfn value if HMM pfn is valid, -1UL otherwise
+ * hmm_device_entry_to_pfn() - return pfn value store in a device entry
+ * @range: range use to decode device entry value
+ * @entry: device entry to extract pfn from
+ * Returns: pfn value if device entry is valid, -1UL otherwise
  */
-static inline unsigned long hmm_pfn_to_pfn(const struct hmm_range *range,
-					   uint64_t pfn)
+static inline unsigned long
+hmm_device_entry_to_pfn(const struct hmm_range *range, uint64_t pfn)
 {
 	if (pfn == range->values[HMM_PFN_NONE])
 		return -1UL;
@@ -282,30 +282,65 @@ static inline unsigned long hmm_pfn_to_pfn(const struct hmm_range *range,
 }
 
 /*
- * hmm_pfn_from_page() - create a valid HMM pfn value from struct page
+ * hmm_device_entry_from_page() - create a valid device entry for a page
  * @range: range use to encode HMM pfn value
- * @page: struct page pointer for which to create the HMM pfn
- * Returns: valid HMM pfn for the page
+ * @page: page for which to create the device entry
+ * Returns: valid device entry for the page
  */
-static inline uint64_t hmm_pfn_from_page(const struct hmm_range *range,
-					 struct page *page)
+static inline uint64_t hmm_device_entry_from_page(const struct hmm_range *range,
+						  struct page *page)
 {
 	return (page_to_pfn(page) << range->pfn_shift) |
 		range->flags[HMM_PFN_VALID];
 }
 
 /*
- * hmm_pfn_from_pfn() - create a valid HMM pfn value from pfn
+ * hmm_device_entry_from_pfn() - create a valid device entry value from pfn
  * @range: range use to encode HMM pfn value
- * @pfn: pfn value for which to create the HMM pfn
- * Returns: valid HMM pfn for the pfn
+ * @pfn: pfn value for which to create the device entry
+ * Returns: valid device entry for the pfn
  */
-static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
-					unsigned long pfn)
+static inline uint64_t hmm_device_entry_from_pfn(const struct hmm_range *range,
+						 unsigned long pfn)
 {
 	return (pfn << range->pfn_shift) |
 		range->flags[HMM_PFN_VALID];
 }
+
+/*
+ * Old API:
+ * hmm_pfn_to_page()
+ * hmm_pfn_to_pfn()
+ * hmm_pfn_from_page()
+ * hmm_pfn_from_pfn()
+ *
+ * This are the OLD API please use new API, it is here to avoid cross-tree
+ * merge painfullness ie we convert things to new API in stages.
+ */
+static inline struct page *hmm_pfn_to_page(const struct hmm_range *range,
+					   uint64_t pfn)
+{
+	return hmm_device_entry_to_page(range, pfn);
+}
+
+static inline unsigned long hmm_pfn_to_pfn(const struct hmm_range *range,
+					   uint64_t pfn)
+{
+	return hmm_device_entry_to_pfn(range, pfn);
+}
+
+static inline uint64_t hmm_pfn_from_page(const struct hmm_range *range,
+					 struct page *page)
+{
+	return hmm_device_entry_from_page(range, page);
+}
+
+static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+					unsigned long pfn)
+{
+	return hmm_device_entry_from_pfn(range, pfn);
+}
+
 
 
 #if IS_ENABLED(CONFIG_HMM_MIRROR)
