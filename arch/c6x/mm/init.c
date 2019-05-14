@@ -68,8 +68,3 @@ void __init mem_init(void)
 
 	mem_init_print_info(NULL);
 }
-
-void __init free_initmem(void)
-{
-	free_initmem_default(-1);
-}

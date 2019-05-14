@@ -186,11 +186,6 @@ void __init setup_memory(void)
 	paging_init();
 }
 
-void free_initmem(void)
-{
-	free_initmem_default(-1);
-}
-
 void __init mem_init(void)
 {
 	high_memory = (void *)__va(memory_start + lowmem_size - 1);

@@ -223,8 +223,3 @@ void __init mem_init(void)
 	mem_init_done = 1;
 	return;
 }
-
-void free_initmem(void)
-{
-	free_initmem_default(-1);
-}

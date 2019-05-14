@@ -285,9 +285,3 @@ mem_init(void)
 	memblock_free_all();
 	mem_init_print_info(NULL);
 }
-
-void
-free_initmem(void)
-{
-	free_initmem_default(-1);
-}
