@@ -675,8 +675,6 @@ list_tests()
 	echo "0005 x $(get_test_count 0005) - tests proc_douintvec() array"
 }
 
-test_reqs
-
 usage()
 {
 	NUM_TESTS=$(grep -o ' ' <<<"$ALL_TESTS" | grep -c .)
