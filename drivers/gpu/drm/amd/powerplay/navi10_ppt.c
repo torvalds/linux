@@ -648,6 +648,7 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
+	case SMU_SCLK:
 	case SMU_SOCCLK:
 	case SMU_MCLK:
 	case SMU_UCLK:
