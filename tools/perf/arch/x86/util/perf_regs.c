@@ -270,3 +270,31 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 
 	return SDT_ARG_VALID;
 }
+
+uint64_t arch__intr_reg_mask(void)
+{
+	struct perf_event_attr attr = {
+		.type			= PERF_TYPE_HARDWARE,
+		.config			= PERF_COUNT_HW_CPU_CYCLES,
+		.sample_type		= PERF_SAMPLE_REGS_INTR,
+		.sample_regs_intr	= PERF_XMM_REGS_MASK,
+		.precise_ip		= 1,
+		.disabled 		= 1,
+		.exclude_kernel		= 1,
+	};
+	int fd;
+	/*
+	 * In an unnamed union, init it here to build on older gcc versions
+	 */
+	attr.sample_period = 1;
+
+	event_attr_init(&attr);
+
+	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	if (fd != -1) {
+		close(fd);
+		return (PERF_XMM_REGS_MASK | PERF_REGS_MASK);
+	}
+
+	return PERF_REGS_MASK;
+}
