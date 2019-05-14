@@ -318,7 +318,7 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
  * get_user_pages_fast() - pin user pages in memory
  * @start:	starting user address
  * @nr_pages:	number of pages from start to pin
- * @write:	whether pages will be written to
+ * @gup_flags:	flags modifying pin behaviour
  * @pages:	array that receives pointers to the pages pinned.
  *		Should be at least nr_pages long.
  *
@@ -339,10 +339,10 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
  * were pinned, returns -errno.
  */
 int __weak get_user_pages_fast(unsigned long start,
-				int nr_pages, int write, struct page **pages)
+				int nr_pages, unsigned int gup_flags,
+				struct page **pages)
 {
-	return get_user_pages_unlocked(start, nr_pages, pages,
-				       write ? FOLL_WRITE : 0);
+	return get_user_pages_unlocked(start, nr_pages, pages, gup_flags);
 }
 EXPORT_SYMBOL_GPL(get_user_pages_fast);
 

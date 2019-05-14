@@ -105,7 +105,8 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
 {
 	int ret;
 
-	ret = get_user_pages_fast(vaddr, npages, writable, pages);
+	ret = get_user_pages_fast(vaddr, npages, writable ? FOLL_WRITE : 0,
+				  pages);
 	if (ret < 0)
 		return ret;
 

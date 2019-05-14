@@ -269,7 +269,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 
 	/* map the pages */
 	ret = get_user_pages_fast((unsigned long)user_desc->ptr,
-			     bufmap->page_count, 1, bufmap->page_array);
+			     bufmap->page_count, FOLL_WRITE, bufmap->page_array);
 
 	if (ret < 0)
 		return ret;
