@@ -197,6 +197,21 @@ config ST_REMOTEPROC
 config ST_SLIM_REMOTEPROC
 	tristate
 
+config STM32_RPROC
+	tristate "STM32 remoteproc support"
+	depends on ARCH_STM32
+	depends on REMOTEPROC
+	select MAILBOX
+	help
+	  Say y here to support STM32 MCU processors via the
+	  remote processor framework.
+
+	  You want to say y here in order to enable AMP
+	  use-cases to run on your platform (dedicated firmware could be
+	  offloaded to remote MCU processors using this framework).
+
+	  This can be either built-in or a loadable module.
+
 endif # REMOTEPROC
 
 endmenu
