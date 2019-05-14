@@ -72,6 +72,7 @@
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
 #include "internal.h"
+#include "shuffle.h"
 
 /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
 static DEFINE_MUTEX(pcp_batch_high_lock);
@@ -1874,9 +1875,9 @@ _deferred_grow_zone(struct zone *zone, unsigned int order)
 void __init page_alloc_init_late(void)
 {
 	struct zone *zone;
+	int nid;
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-	int nid;
 
 	/* There will be num_node_state(N_MEMORY) threads */
 	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
@@ -1899,6 +1900,9 @@ void __init page_alloc_init_late(void)
 
 	/* Discard memblock private memory */
 	memblock_discard();
+
+	for_each_node_state(nid, N_MEMORY)
+		shuffle_free_memory(NODE_DATA(nid));
 
 	for_each_populated_zone(zone)
 		set_zone_contiguous(zone);
