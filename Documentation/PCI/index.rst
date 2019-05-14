@@ -13,3 +13,4 @@ Linux PCI Bus Subsystem
    pci-iov-howto
    msi-howto
    acpi-info
+   pci-error-recovery
