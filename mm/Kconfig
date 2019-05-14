@@ -161,7 +161,6 @@ config MEMORY_HOTPLUG_SPARSE
 
 config MEMORY_HOTPLUG_DEFAULT_ONLINE
         bool "Online the newly added memory blocks by default"
-        default n
         depends on MEMORY_HOTPLUG
         help
 	  This option sets the default policy setting for memory hotplug
@@ -439,7 +438,6 @@ config NEED_PER_CPU_KM
 
 config CLEANCACHE
 	bool "Enable cleancache driver to cache clean pages if tmem is present"
-	default n
 	help
 	  Cleancache can be thought of as a page-granularity victim cache
 	  for clean pages that the kernel's pageframe replacement algorithm
@@ -463,7 +461,6 @@ config CLEANCACHE
 config FRONTSWAP
 	bool "Enable frontswap to cache swap pages if tmem is present"
 	depends on SWAP
-	default n
 	help
 	  Frontswap is so named because it can be thought of as the opposite
 	  of a "backing" store for a swap device.  The data is stored into
@@ -535,7 +532,6 @@ config ZSWAP
 	depends on FRONTSWAP && CRYPTO=y
 	select CRYPTO_LZO
 	select ZPOOL
-	default n
 	help
 	  A lightweight compressed cache for swap pages.  It takes
 	  pages that are in the process of being swapped out and attempts to
@@ -552,14 +548,12 @@ config ZSWAP
 
 config ZPOOL
 	tristate "Common API for compressed memory storage"
-	default n
 	help
 	  Compressed memory storage API.  This allows using either zbud or
 	  zsmalloc.
 
 config ZBUD
 	tristate "Low (Up to 2x) density storage for compressed pages"
-	default n
 	help
 	  A special purpose allocator for storing compressed pages.
 	  It is designed to store up to two compressed pages per physical
@@ -570,7 +564,6 @@ config ZBUD
 config Z3FOLD
 	tristate "Up to 3x density storage for compressed pages"
 	depends on ZPOOL
-	default n
 	help
 	  A special purpose allocator for storing compressed pages.
 	  It is designed to store up to three compressed pages per physical
@@ -580,7 +573,6 @@ config Z3FOLD
 config ZSMALLOC
 	tristate "Memory allocator for compressed pages"
 	depends on MMU
-	default n
 	help
 	  zsmalloc is a slab-based memory allocator designed to store
 	  compressed RAM pages.  zsmalloc uses virtual memory mapping
@@ -631,7 +623,6 @@ config MAX_STACK_SIZE_MB
 
 config DEFERRED_STRUCT_PAGE_INIT
 	bool "Defer initialisation of struct pages to kthreads"
-	default n
 	depends on SPARSEMEM
 	depends on !NEED_PER_CPU_KM
 	depends on 64BIT
@@ -743,7 +734,6 @@ config ARCH_HAS_PKEYS
 
 config PERCPU_STATS
 	bool "Collect percpu memory statistics"
-	default n
 	help
 	  This feature collects and exposes statistics via debugfs. The
 	  information includes global and per chunk statistics, which can
@@ -751,7 +741,6 @@ config PERCPU_STATS
 
 config GUP_BENCHMARK
 	bool "Enable infrastructure for get_user_pages_fast() benchmarking"
-	default n
 	help
 	  Provides /sys/kernel/debug/gup_benchmark that helps with testing
 	  performance of get_user_pages_fast().
