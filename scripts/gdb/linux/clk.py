@@ -44,3 +44,26 @@ class LxClkSummary(gdb.Command):
 
 
 LxClkSummary()
+
+
+class LxClkCoreLookup(gdb.Function):
+    """Find struct clk_core by name"""
+
+    def __init__(self):
+        super(LxClkCoreLookup, self).__init__("lx_clk_core_lookup")
+
+    def lookup_hlist(self, hlist_head, name):
+        for child in clk_core_for_each_child(hlist_head):
+            if child['name'].string() == name:
+                return child
+            result = self.lookup_hlist(child['children'], name)
+            if result:
+                return result
+
+    def invoke(self, name):
+        name = name.string()
+        return (self.lookup_hlist(gdb.parse_and_eval("clk_root_list"), name) or
+                self.lookup_hlist(gdb.parse_and_eval("clk_orphan_list"), name))
+
+
+LxClkCoreLookup()
