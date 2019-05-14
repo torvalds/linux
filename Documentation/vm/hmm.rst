@@ -190,13 +190,7 @@ When the device driver wants to populate a range of virtual addresses, it can
 use either::
 
   long hmm_range_snapshot(struct hmm_range *range);
-  int hmm_vma_fault(struct vm_area_struct *vma,
-                    struct hmm_range *range,
-                    unsigned long start,
-                    unsigned long end,
-                    hmm_pfn_t *pfns,
-                    bool write,
-                    bool block);
+  long hmm_range_fault(struct hmm_range *range, bool block);
 
 The first one (hmm_range_snapshot()) will only fetch present CPU page table
 entries and will not trigger a page fault on missing or non-present entries.
