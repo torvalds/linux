@@ -24,10 +24,18 @@
 
 #include <linux/atomic.h>
 #include <linux/sched.h>
+#include <linux/cpumask.h>
+#include <linux/dcache.h>
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/page-flags.h>
+#include <linux/migrate.h>
+#include <linux/node.h>
+#include <linux/compaction.h>
 #include <linux/percpu.h>
+#include <linux/mount.h>
+#include <linux/fs.h>
 #include <linux/preempt.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
@@ -97,6 +105,7 @@ struct z3fold_buddy_slots {
  * @middle_chunks:	the size of the middle buddy in chunks, 0 if free
  * @last_chunks:	the size of the last buddy in chunks, 0 if free
  * @first_num:		the starting number (for the first handle)
+ * @mapped_count:	the number of objects currently mapped
  */
 struct z3fold_header {
 	struct list_head buddy;
@@ -110,6 +119,7 @@ struct z3fold_header {
 	unsigned short last_chunks;
 	unsigned short start_middle;
 	unsigned short first_num:2;
+	unsigned short mapped_count:2;
 };
 
 /**
@@ -130,6 +140,7 @@ struct z3fold_header {
  * @compact_wq:	workqueue for page layout background optimization
  * @release_wq:	workqueue for safe page release
  * @work:	work_struct for safe page release
+ * @inode:	inode for z3fold pseudo filesystem
  *
  * This structure is allocated at pool creation time and maintains metadata
  * pertaining to a particular z3fold pool.
@@ -149,6 +160,7 @@ struct z3fold_pool {
 	struct workqueue_struct *compact_wq;
 	struct workqueue_struct *release_wq;
 	struct work_struct work;
+	struct inode *inode;
 };
 
 /*
@@ -227,6 +239,59 @@ static inline void free_handle(unsigned long handle)
 	}
 }
 
+static struct dentry *z3fold_do_mount(struct file_system_type *fs_type,
+				int flags, const char *dev_name, void *data)
+{
+	static const struct dentry_operations ops = {
+		.d_dname = simple_dname,
+	};
+
+	return mount_pseudo(fs_type, "z3fold:", NULL, &ops, 0x33);
+}
+
+static struct file_system_type z3fold_fs = {
+	.name		= "z3fold",
+	.mount		= z3fold_do_mount,
+	.kill_sb	= kill_anon_super,
+};
+
+static struct vfsmount *z3fold_mnt;
+static int z3fold_mount(void)
+{
+	int ret = 0;
+
+	z3fold_mnt = kern_mount(&z3fold_fs);
+	if (IS_ERR(z3fold_mnt))
+		ret = PTR_ERR(z3fold_mnt);
+
+	return ret;
+}
+
+static void z3fold_unmount(void)
+{
+	kern_unmount(z3fold_mnt);
+}
+
+static const struct address_space_operations z3fold_aops;
+static int z3fold_register_migration(struct z3fold_pool *pool)
+{
+	pool->inode = alloc_anon_inode(z3fold_mnt->mnt_sb);
+	if (IS_ERR(pool->inode)) {
+		pool->inode = NULL;
+		return 1;
+	}
+
+	pool->inode->i_mapping->private_data = pool;
+	pool->inode->i_mapping->a_ops = &z3fold_aops;
+	return 0;
+}
+
+static void z3fold_unregister_migration(struct z3fold_pool *pool)
+{
+	if (pool->inode)
+		iput(pool->inode);
+ }
+
 /* Initializes the z3fold header of a newly allocated z3fold page */
 static struct z3fold_header *init_z3fold_page(struct page *page,
 					struct z3fold_pool *pool)
@@ -259,8 +324,14 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
 }
 
 /* Resets the struct page fields and frees the page */
-static void free_z3fold_page(struct page *page)
+static void free_z3fold_page(struct page *page, bool headless)
 {
+	if (!headless) {
+		lock_page(page);
+		__ClearPageMovable(page);
+		unlock_page(page);
+	}
+	ClearPagePrivate(page);
 	__free_page(page);
 }
 
@@ -317,12 +388,12 @@ static unsigned long encode_handle(struct z3fold_header *zhdr, enum buddy bud)
 }
 
 /* Returns the z3fold page where a given handle is stored */
-static inline struct z3fold_header *handle_to_z3fold_header(unsigned long handle)
+static inline struct z3fold_header *handle_to_z3fold_header(unsigned long h)
 {
-	unsigned long addr = handle;
+	unsigned long addr = h;
 
 	if (!(addr & (1 << PAGE_HEADLESS)))
-		addr = *(unsigned long *)handle;
+		addr = *(unsigned long *)h;
 
 	return (struct z3fold_header *)(addr & PAGE_MASK);
 }
@@ -366,7 +437,7 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
 	clear_bit(NEEDS_COMPACTING, &page->private);
 	spin_lock(&pool->lock);
 	if (!list_empty(&page->lru))
-		list_del(&page->lru);
+		list_del_init(&page->lru);
 	spin_unlock(&pool->lock);
 	if (locked)
 		z3fold_page_unlock(zhdr);
@@ -420,7 +491,7 @@ static void free_pages_work(struct work_struct *w)
 			continue;
 		spin_unlock(&pool->stale_lock);
 		cancel_work_sync(&zhdr->work);
-		free_z3fold_page(page);
+		free_z3fold_page(page, false);
 		cond_resched();
 		spin_lock(&pool->stale_lock);
 	}
@@ -486,6 +557,9 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
 	if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
 		return 0; /* can't move middle chunk, it's used */
 
+	if (unlikely(PageIsolated(page)))
+		return 0;
+
 	if (zhdr->middle_chunks == 0)
 		return 0; /* nothing to compact */
 
@@ -543,6 +617,12 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
 
 	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
 		atomic64_dec(&pool->pages_nr);
+		return;
+	}
+
+	if (unlikely(PageIsolated(page) ||
+		     test_bit(PAGE_STALE, &page->private))) {
+		z3fold_page_unlock(zhdr);
 		return;
 	}
 
@@ -705,10 +785,14 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
 	pool->release_wq = create_singlethread_workqueue(pool->name);
 	if (!pool->release_wq)
 		goto out_wq;
+	if (z3fold_register_migration(pool))
+		goto out_rwq;
 	INIT_WORK(&pool->work, free_pages_work);
 	pool->ops = ops;
 	return pool;
 
+out_rwq:
+	destroy_workqueue(pool->release_wq);
 out_wq:
 	destroy_workqueue(pool->compact_wq);
 out_unbuddied:
@@ -730,6 +814,7 @@ out:
 static void z3fold_destroy_pool(struct z3fold_pool *pool)
 {
 	kmem_cache_destroy(pool->c_handle);
+	z3fold_unregister_migration(pool);
 	destroy_workqueue(pool->release_wq);
 	destroy_workqueue(pool->compact_wq);
 	kfree(pool);
@@ -837,6 +922,7 @@ retry:
 		set_bit(PAGE_HEADLESS, &page->private);
 		goto headless;
 	}
+	__SetPageMovable(page, pool->inode->i_mapping);
 	z3fold_page_lock(zhdr);
 
 found:
@@ -895,7 +981,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 			spin_lock(&pool->lock);
 			list_del(&page->lru);
 			spin_unlock(&pool->lock);
-			free_z3fold_page(page);
+			free_z3fold_page(page, true);
 			atomic64_dec(&pool->pages_nr);
 		}
 		return;
@@ -931,7 +1017,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		z3fold_page_unlock(zhdr);
 		return;
 	}
-	if (test_and_set_bit(NEEDS_COMPACTING, &page->private)) {
+	if (unlikely(PageIsolated(page)) ||
+	    test_and_set_bit(NEEDS_COMPACTING, &page->private)) {
 		z3fold_page_unlock(zhdr);
 		return;
 	}
@@ -1012,10 +1099,12 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 			if (test_and_set_bit(PAGE_CLAIMED, &page->private))
 				continue;
 
-			zhdr = page_address(page);
+			if (unlikely(PageIsolated(page)))
+				continue;
 			if (test_bit(PAGE_HEADLESS, &page->private))
 				break;
 
+			zhdr = page_address(page);
 			if (!z3fold_page_trylock(zhdr)) {
 				zhdr = NULL;
 				continue; /* can't evict at this point */
@@ -1076,7 +1165,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 next:
 		if (test_bit(PAGE_HEADLESS, &page->private)) {
 			if (ret == 0) {
-				free_z3fold_page(page);
+				free_z3fold_page(page, true);
 				atomic64_dec(&pool->pages_nr);
 				return 0;
 			}
@@ -1153,6 +1242,8 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
 		break;
 	}
 
+	if (addr)
+		zhdr->mapped_count++;
 	z3fold_page_unlock(zhdr);
 out:
 	return addr;
@@ -1179,6 +1270,7 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
 	buddy = handle_to_buddy(handle);
 	if (buddy == MIDDLE)
 		clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
+	zhdr->mapped_count--;
 	z3fold_page_unlock(zhdr);
 }
 
@@ -1192,6 +1284,128 @@ static u64 z3fold_get_pool_size(struct z3fold_pool *pool)
 {
 	return atomic64_read(&pool->pages_nr);
 }
+
+static bool z3fold_page_isolate(struct page *page, isolate_mode_t mode)
+{
+	struct z3fold_header *zhdr;
+	struct z3fold_pool *pool;
+
+	VM_BUG_ON_PAGE(!PageMovable(page), page);
+	VM_BUG_ON_PAGE(PageIsolated(page), page);
+
+	if (test_bit(PAGE_HEADLESS, &page->private))
+		return false;
+
+	zhdr = page_address(page);
+	z3fold_page_lock(zhdr);
+	if (test_bit(NEEDS_COMPACTING, &page->private) ||
+	    test_bit(PAGE_STALE, &page->private))
+		goto out;
+
+	pool = zhdr_to_pool(zhdr);
+
+	if (zhdr->mapped_count == 0) {
+		kref_get(&zhdr->refcount);
+		if (!list_empty(&zhdr->buddy))
+			list_del_init(&zhdr->buddy);
+		spin_lock(&pool->lock);
+		if (!list_empty(&page->lru))
+			list_del(&page->lru);
+		spin_unlock(&pool->lock);
+		z3fold_page_unlock(zhdr);
+		return true;
+	}
+out:
+	z3fold_page_unlock(zhdr);
+	return false;
+}
+
+static int z3fold_page_migrate(struct address_space *mapping, struct page *newpage,
+			       struct page *page, enum migrate_mode mode)
+{
+	struct z3fold_header *zhdr, *new_zhdr;
+	struct z3fold_pool *pool;
+	struct address_space *new_mapping;
+
+	VM_BUG_ON_PAGE(!PageMovable(page), page);
+	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+
+	zhdr = page_address(page);
+	pool = zhdr_to_pool(zhdr);
+
+	if (!trylock_page(page))
+		return -EAGAIN;
+
+	if (!z3fold_page_trylock(zhdr)) {
+		unlock_page(page);
+		return -EAGAIN;
+	}
+	if (zhdr->mapped_count != 0) {
+		z3fold_page_unlock(zhdr);
+		unlock_page(page);
+		return -EBUSY;
+	}
+	new_zhdr = page_address(newpage);
+	memcpy(new_zhdr, zhdr, PAGE_SIZE);
+	newpage->private = page->private;
+	page->private = 0;
+	z3fold_page_unlock(zhdr);
+	spin_lock_init(&new_zhdr->page_lock);
+	new_mapping = page_mapping(page);
+	__ClearPageMovable(page);
+	ClearPagePrivate(page);
+
+	get_page(newpage);
+	z3fold_page_lock(new_zhdr);
+	if (new_zhdr->first_chunks)
+		encode_handle(new_zhdr, FIRST);
+	if (new_zhdr->last_chunks)
+		encode_handle(new_zhdr, LAST);
+	if (new_zhdr->middle_chunks)
+		encode_handle(new_zhdr, MIDDLE);
+	set_bit(NEEDS_COMPACTING, &newpage->private);
+	new_zhdr->cpu = smp_processor_id();
+	spin_lock(&pool->lock);
+	list_add(&newpage->lru, &pool->lru);
+	spin_unlock(&pool->lock);
+	__SetPageMovable(newpage, new_mapping);
+	z3fold_page_unlock(new_zhdr);
+
+	queue_work_on(new_zhdr->cpu, pool->compact_wq, &new_zhdr->work);
+
+	page_mapcount_reset(page);
+	unlock_page(page);
+	put_page(page);
+	return 0;
+}
+
+static void z3fold_page_putback(struct page *page)
+{
+	struct z3fold_header *zhdr;
+	struct z3fold_pool *pool;
+
+	zhdr = page_address(page);
+	pool = zhdr_to_pool(zhdr);
+
+	z3fold_page_lock(zhdr);
+	if (!list_empty(&zhdr->buddy))
+		list_del_init(&zhdr->buddy);
+	INIT_LIST_HEAD(&page->lru);
+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
+		atomic64_dec(&pool->pages_nr);
+		return;
+	}
+	spin_lock(&pool->lock);
+	list_add(&page->lru, &pool->lru);
+	spin_unlock(&pool->lock);
+	z3fold_page_unlock(zhdr);
+}
+
+static const struct address_space_operations z3fold_aops = {
+	.isolate_page = z3fold_page_isolate,
+	.migratepage = z3fold_page_migrate,
+	.putback_page = z3fold_page_putback,
+};
 
 /*****************
  * zpool
@@ -1290,8 +1504,14 @@ MODULE_ALIAS("zpool-z3fold");
 
 static int __init init_z3fold(void)
 {
+	int ret;
+
 	/* Make sure the z3fold header is not larger than the page size */
 	BUILD_BUG_ON(ZHDR_SIZE_ALIGNED > PAGE_SIZE);
+	ret = z3fold_mount();
+	if (ret)
+		return ret;
+
 	zpool_register_driver(&z3fold_zpool_driver);
 
 	return 0;
@@ -1299,6 +1519,7 @@ static int __init init_z3fold(void)
 
 static void __exit exit_z3fold(void)
 {
+	z3fold_unmount();
 	zpool_unregister_driver(&z3fold_zpool_driver);
 }
 
