@@ -1003,9 +1003,9 @@ static int io_import_fixed(struct io_ring_ctx *ctx, int rw,
 	return 0;
 }
 
-static int io_import_iovec(struct io_ring_ctx *ctx, int rw,
-			   const struct sqe_submit *s, struct iovec **iovec,
-			   struct iov_iter *iter)
+static ssize_t io_import_iovec(struct io_ring_ctx *ctx, int rw,
+			       const struct sqe_submit *s, struct iovec **iovec,
+			       struct iov_iter *iter)
 {
 	const struct io_uring_sqe *sqe = s->sqe;
 	void __user *buf = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -1023,7 +1023,7 @@ static int io_import_iovec(struct io_ring_ctx *ctx, int rw,
 	opcode = READ_ONCE(sqe->opcode);
 	if (opcode == IORING_OP_READ_FIXED ||
 	    opcode == IORING_OP_WRITE_FIXED) {
-		int ret = io_import_fixed(ctx, rw, sqe, iter);
+		ssize_t ret = io_import_fixed(ctx, rw, sqe, iter);
 		*iovec = NULL;
 		return ret;
 	}
@@ -1089,7 +1089,7 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 	struct iov_iter iter;
 	struct file *file;
 	size_t iov_count;
-	int ret;
+	ssize_t ret;
 
 	ret = io_prep_rw(req, s, force_nonblock);
 	if (ret)
@@ -1102,7 +1102,7 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 		return -EINVAL;
 
 	ret = io_import_iovec(req->ctx, READ, s, &iovec, &iter);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	iov_count = iov_iter_count(&iter);
@@ -1136,7 +1136,7 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 	struct iov_iter iter;
 	struct file *file;
 	size_t iov_count;
-	int ret;
+	ssize_t ret;
 
 	ret = io_prep_rw(req, s, force_nonblock);
 	if (ret)
@@ -1149,7 +1149,7 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 		return -EINVAL;
 
 	ret = io_import_iovec(req->ctx, WRITE, s, &iovec, &iter);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	iov_count = iov_iter_count(&iter);
