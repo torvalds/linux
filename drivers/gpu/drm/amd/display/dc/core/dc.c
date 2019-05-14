@@ -1694,6 +1694,101 @@ static void copy_surface_update_to_plane(
 			*srf_update->coeff_reduction_factor;
 }
 
+static void copy_stream_update_to_stream(struct dc *dc,
+					 struct dc_state *context,
+					 struct dc_stream_state *stream,
+					 const struct dc_stream_update *update)
+{
+	if (update == NULL || stream == NULL)
+		return;
+
+	if (update->src.height && update->src.width)
+		stream->src = update->src;
+
+	if (update->dst.height && update->dst.width)
+		stream->dst = update->dst;
+
+	if (update->out_transfer_func &&
+	    stream->out_transfer_func != update->out_transfer_func) {
+		stream->out_transfer_func->sdr_ref_white_level =
+			update->out_transfer_func->sdr_ref_white_level;
+		stream->out_transfer_func->tf = update->out_transfer_func->tf;
+		stream->out_transfer_func->type =
+			update->out_transfer_func->type;
+		memcpy(&stream->out_transfer_func->tf_pts,
+		       &update->out_transfer_func->tf_pts,
+		       sizeof(struct dc_transfer_func_distributed_points));
+	}
+
+	if (update->hdr_static_metadata)
+		stream->hdr_static_metadata = *update->hdr_static_metadata;
+
+	if (update->abm_level)
+		stream->abm_level = *update->abm_level;
+
+	if (update->periodic_interrupt0)
+		stream->periodic_interrupt0 = *update->periodic_interrupt0;
+
+	if (update->periodic_interrupt1)
+		stream->periodic_interrupt1 = *update->periodic_interrupt1;
+
+	if (update->gamut_remap)
+		stream->gamut_remap_matrix = *update->gamut_remap;
+
+	/* Note: this being updated after mode set is currently not a use case
+	 * however if it arises OCSC would need to be reprogrammed at the
+	 * minimum
+	 */
+	if (update->output_color_space)
+		stream->output_color_space = *update->output_color_space;
+
+	if (update->output_csc_transform)
+		stream->csc_color_matrix = *update->output_csc_transform;
+
+	if (update->vrr_infopacket)
+		stream->vrr_infopacket = *update->vrr_infopacket;
+
+	if (update->dpms_off)
+		stream->dpms_off = *update->dpms_off;
+
+	if (update->vsc_infopacket)
+		stream->vsc_infopacket = *update->vsc_infopacket;
+
+	if (update->vsp_infopacket)
+		stream->vsp_infopacket = *update->vsp_infopacket;
+
+	if (update->dither_option)
+		stream->dither_option = *update->dither_option;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	/* update current stream with writeback info */
+	if (update->wb_update) {
+		int i;
+
+		stream->num_wb_info = update->wb_update->num_wb_info;
+		ASSERT(stream->num_wb_info <= MAX_DWB_PIPES);
+		for (i = 0; i < stream->num_wb_info; i++)
+			stream->writeback_info[i] =
+				update->wb_update->writeback_info[i];
+	}
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
+	if (update->dsc_config) {
+		struct dc_dsc_config old_dsc_cfg = stream->timing.dsc_cfg;
+		uint32_t old_dsc_enabled = stream->timing.flags.DSC;
+		uint32_t enable_dsc = (update->dsc_config->num_slices_h != 0 &&
+				       update->dsc_config->num_slices_v != 0);
+
+		stream->timing.dsc_cfg = *update->dsc_config;
+		stream->timing.flags.DSC = enable_dsc;
+		if (!dc->res_pool->funcs->validate_bandwidth(dc, context,
+							     true)) {
+			stream->timing.dsc_cfg = old_dsc_cfg;
+			stream->timing.flags.DSC = old_dsc_enabled;
+		}
+	}
+#endif
+}
+
 static void commit_planes_do_stream_update(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
@@ -2021,6 +2116,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			}
 		}
 	}
+
+	copy_stream_update_to_stream(dc, context, stream, stream_update);
 
 	commit_planes_for_stream(
 				dc,
