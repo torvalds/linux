@@ -25,11 +25,13 @@ struct mmu_notifier_mm {
 	spinlock_t lock;
 };
 
+#define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
+
 struct mmu_notifier_range {
 	struct mm_struct *mm;
 	unsigned long start;
 	unsigned long end;
-	bool blockable;
+	unsigned flags;
 };
 
 struct mmu_notifier_ops {
@@ -229,7 +231,7 @@ extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 static inline bool
 mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
 {
-	return range->blockable;
+	return (range->flags & MMU_NOTIFIER_RANGE_BLOCKABLE);
 }
 
 static inline void mmu_notifier_release(struct mm_struct *mm)
@@ -275,7 +277,7 @@ static inline void
 mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 {
 	if (mm_has_notifiers(range->mm)) {
-		range->blockable = true;
+		range->flags |= MMU_NOTIFIER_RANGE_BLOCKABLE;
 		__mmu_notifier_invalidate_range_start(range);
 	}
 }
@@ -284,7 +286,7 @@ static inline int
 mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range *range)
 {
 	if (mm_has_notifiers(range->mm)) {
-		range->blockable = false;
+		range->flags &= ~MMU_NOTIFIER_RANGE_BLOCKABLE;
 		return __mmu_notifier_invalidate_range_start(range);
 	}
 	return 0;
@@ -331,6 +333,7 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
 	range->mm = mm;
 	range->start = start;
 	range->end = end;
+	range->flags = 0;
 }
 
 #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
