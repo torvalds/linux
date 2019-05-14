@@ -71,9 +71,6 @@ void clear_all_latency_tracing(struct task_struct *p)
 {
 	unsigned long flags;
 
-	if (!latencytop_enabled)
-		return;
-
 	raw_spin_lock_irqsave(&latency_lock, flags);
 	memset(&p->latency_record, 0, sizeof(p->latency_record));
 	p->latency_record_count = 0;
@@ -95,9 +92,6 @@ account_global_scheduler_latency(struct task_struct *tsk,
 {
 	int firstnonnull = MAXLR + 1;
 	int i;
-
-	if (!latencytop_enabled)
-		return;
 
 	/* skip kernel threads for now */
 	if (!tsk->mm)
