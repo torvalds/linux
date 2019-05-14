@@ -12,6 +12,7 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 	const struct sample_reg *r;
 	char *s, *os = NULL, *p;
 	int ret = -1;
+	uint64_t mask;
 
 	if (unset)
 		return 0;
@@ -21,6 +22,11 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 	 */
 	if (*mode)
 		return -1;
+
+	if (intr)
+		mask = arch__intr_reg_mask();
+	else
+		mask = arch__user_reg_mask();
 
 	/* str may be NULL in case no arg is passed to -I */
 	if (str) {
@@ -37,14 +43,15 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 			if (!strcmp(s, "?")) {
 				fprintf(stderr, "available registers: ");
 				for (r = sample_reg_masks; r->name; r++) {
-					fprintf(stderr, "%s ", r->name);
+					if (r->mask & mask)
+						fprintf(stderr, "%s ", r->name);
 				}
 				fputc('\n', stderr);
 				/* just printing available regs */
 				return -1;
 			}
 			for (r = sample_reg_masks; r->name; r++) {
-				if (!strcasecmp(s, r->name))
+				if ((r->mask & mask) && !strcasecmp(s, r->name))
 					break;
 			}
 			if (!r->name) {
@@ -65,7 +72,7 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 
 	/* default to all possible regs */
 	if (*mode == 0)
-		*mode = PERF_REGS_MASK;
+		*mode = mask;
 error:
 	free(os);
 	return ret;
