@@ -1372,7 +1372,7 @@ config DEBUG_LIST
 
 	  If unsure, say N.
 
-config DEBUG_PI_LIST
+config DEBUG_PLIST
 	bool "Debug priority linked list manipulation"
 	depends on DEBUG_KERNEL
 	help
