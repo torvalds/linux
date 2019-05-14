@@ -223,7 +223,8 @@ enum obj_operation_type {
 #define RBD_OBJ_FLAG_COPYUP_ENABLED		(1U << 1)
 
 enum rbd_obj_read_state {
-	RBD_OBJ_READ_OBJECT = 1,
+	RBD_OBJ_READ_START = 1,
+	RBD_OBJ_READ_OBJECT,
 	RBD_OBJ_READ_PARENT,
 };
 
@@ -253,7 +254,8 @@ enum rbd_obj_read_state {
  * even if there is a parent).
  */
 enum rbd_obj_write_state {
-	RBD_OBJ_WRITE_OBJECT = 1,
+	RBD_OBJ_WRITE_START = 1,
+	RBD_OBJ_WRITE_OBJECT,
 	RBD_OBJ_WRITE_READ_FROM_PARENT,
 	RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC,
 	RBD_OBJ_WRITE_COPYUP_OPS,
@@ -284,6 +286,7 @@ struct rbd_obj_request {
 
 	struct ceph_osd_request	*osd_req;
 
+	struct mutex		state_mutex;
 	struct kref		kref;
 };
 
@@ -1560,6 +1563,7 @@ static struct rbd_obj_request *rbd_obj_request_create(void)
 		return NULL;
 
 	ceph_object_extent_init(&obj_request->ex);
+	mutex_init(&obj_request->state_mutex);
 	kref_init(&obj_request->kref);
 
 	dout("%s %p\n", __func__, obj_request);
@@ -1802,7 +1806,7 @@ static int rbd_obj_setup_read(struct rbd_obj_request *obj_req)
 	rbd_osd_req_setup_data(obj_req, 0);
 
 	rbd_osd_req_format_read(obj_req);
-	obj_req->read_state = RBD_OBJ_READ_OBJECT;
+	obj_req->read_state = RBD_OBJ_READ_START;
 	return 0;
 }
 
@@ -1885,7 +1889,7 @@ static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 			return ret;
 	}
 
-	obj_req->write_state = RBD_OBJ_WRITE_OBJECT;
+	obj_req->write_state = RBD_OBJ_WRITE_START;
 	__rbd_obj_setup_write(obj_req, which);
 	return 0;
 }
@@ -1943,7 +1947,7 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 				       off, next_off - off, 0, 0);
 	}
 
-	obj_req->write_state = RBD_OBJ_WRITE_OBJECT;
+	obj_req->write_state = RBD_OBJ_WRITE_START;
 	rbd_osd_req_format_write(obj_req);
 	return 0;
 }
@@ -2022,7 +2026,7 @@ static int rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req)
 			return ret;
 	}
 
-	obj_req->write_state = RBD_OBJ_WRITE_OBJECT;
+	obj_req->write_state = RBD_OBJ_WRITE_START;
 	__rbd_obj_setup_zeroout(obj_req, which);
 	return 0;
 }
@@ -2363,9 +2367,15 @@ static void rbd_img_request_submit(struct rbd_img_request *img_request)
 
 	rbd_img_request_get(img_request);
 	for_each_obj_request(img_request, obj_request)
-		rbd_obj_request_submit(obj_request);
+		rbd_obj_handle_request(obj_request, 0);
 
 	rbd_img_request_put(img_request);
+}
+
+static int rbd_obj_read_object(struct rbd_obj_request *obj_req)
+{
+	rbd_obj_request_submit(obj_req);
+	return 0;
 }
 
 static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
@@ -2415,12 +2425,22 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 	return 0;
 }
 
-static bool rbd_obj_handle_read(struct rbd_obj_request *obj_req, int *result)
+static bool rbd_obj_advance_read(struct rbd_obj_request *obj_req, int *result)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	int ret;
 
 	switch (obj_req->read_state) {
+	case RBD_OBJ_READ_START:
+		rbd_assert(!*result);
+
+		ret = rbd_obj_read_object(obj_req);
+		if (ret) {
+			*result = ret;
+			return true;
+		}
+		obj_req->read_state = RBD_OBJ_READ_OBJECT;
+		return false;
 	case RBD_OBJ_READ_OBJECT:
 		if (*result == -ENOENT && rbd_dev->parent_overlap) {
 			/* reverse map this object extent onto the parent */
@@ -2462,6 +2482,12 @@ static bool rbd_obj_handle_read(struct rbd_obj_request *obj_req, int *result)
 	default:
 		BUG();
 	}
+}
+
+static int rbd_obj_write_object(struct rbd_obj_request *obj_req)
+{
+	rbd_obj_request_submit(obj_req);
+	return 0;
 }
 
 /*
@@ -2661,11 +2687,21 @@ static int rbd_obj_handle_write_guard(struct rbd_obj_request *obj_req)
 	return rbd_obj_read_from_parent(obj_req);
 }
 
-static bool rbd_obj_handle_write(struct rbd_obj_request *obj_req, int *result)
+static bool rbd_obj_advance_write(struct rbd_obj_request *obj_req, int *result)
 {
 	int ret;
 
 	switch (obj_req->write_state) {
+	case RBD_OBJ_WRITE_START:
+		rbd_assert(!*result);
+
+		ret = rbd_obj_write_object(obj_req);
+		if (ret) {
+			*result = ret;
+			return true;
+		}
+		obj_req->write_state = RBD_OBJ_WRITE_OBJECT;
+		return false;
 	case RBD_OBJ_WRITE_OBJECT:
 		if (*result == -ENOENT) {
 			if (obj_req->flags & RBD_OBJ_FLAG_COPYUP_ENABLED) {
@@ -2722,10 +2758,12 @@ static bool __rbd_obj_handle_request(struct rbd_obj_request *obj_req,
 	struct rbd_img_request *img_req = obj_req->img_request;
 	bool done;
 
+	mutex_lock(&obj_req->state_mutex);
 	if (!rbd_img_is_write(img_req))
-		done = rbd_obj_handle_read(obj_req, result);
+		done = rbd_obj_advance_read(obj_req, result);
 	else
-		done = rbd_obj_handle_write(obj_req, result);
+		done = rbd_obj_advance_write(obj_req, result);
+	mutex_unlock(&obj_req->state_mutex);
 
 	return done;
 }
