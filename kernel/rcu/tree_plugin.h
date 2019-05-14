@@ -2007,6 +2007,7 @@ void __init rcu_init_nohz(void)
 {
 	int cpu;
 	bool need_rcu_nocb_mask = false;
+	struct rcu_data *rdp;
 
 #if defined(CONFIG_NO_HZ_FULL)
 	if (tick_nohz_full_running && cpumask_weight(tick_nohz_full_mask))
@@ -2040,8 +2041,12 @@ void __init rcu_init_nohz(void)
 	if (rcu_nocb_poll)
 		pr_info("\tPoll for callbacks from no-CBs CPUs.\n");
 
-	for_each_cpu(cpu, rcu_nocb_mask)
-		init_nocb_callback_list(per_cpu_ptr(&rcu_data, cpu));
+	for_each_cpu(cpu, rcu_nocb_mask) {
+		rdp = per_cpu_ptr(&rcu_data, cpu);
+		if (rcu_segcblist_empty(&rdp->cblist))
+			rcu_segcblist_init(&rdp->cblist);
+		rcu_segcblist_offload(&rdp->cblist);
+	}
 	rcu_organize_nocb_kthreads();
 }
 
@@ -2167,27 +2172,6 @@ static void __init rcu_organize_nocb_kthreads(void)
 	}
 }
 
-/* Prevent __call_rcu() from enqueuing callbacks on no-CBs CPUs */
-static bool init_nocb_callback_list(struct rcu_data *rdp)
-{
-	if (!rcu_is_nocb_cpu(rdp->cpu))
-		return false;
-
-	/* If there are early-boot callbacks, move them to nocb lists. */
-	if (!rcu_segcblist_empty(&rdp->cblist)) {
-		rdp->nocb_head = rcu_segcblist_head(&rdp->cblist);
-		rdp->nocb_tail = rcu_segcblist_tail(&rdp->cblist);
-		atomic_long_set(&rdp->nocb_q_count,
-				rcu_segcblist_n_cbs(&rdp->cblist));
-		atomic_long_set(&rdp->nocb_q_count_lazy,
-				rcu_segcblist_n_lazy_cbs(&rdp->cblist));
-	}
-	rcu_segcblist_init(&rdp->cblist);
-	rcu_segcblist_disable(&rdp->cblist);
-	rcu_segcblist_offload(&rdp->cblist);
-	return true;
-}
-
 /*
  * Bind the current task to the offloaded CPUs.  If there are no offloaded
  * CPUs, leave the task unbound.  Splat if the bind attempt fails.
@@ -2261,11 +2245,6 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 
 static void __init rcu_spawn_nocb_kthreads(void)
 {
-}
-
-static bool init_nocb_callback_list(struct rcu_data *rdp)
-{
-	return false;
 }
 
 static unsigned long rcu_get_n_cbs_nocb_cpu(struct rcu_data *rdp)

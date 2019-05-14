@@ -59,7 +59,7 @@ static inline long rcu_segcblist_n_nonlazy_cbs(struct rcu_segcblist *rsclp)
 
 /*
  * Is the specified rcu_segcblist enabled, for example, not corresponding
- * to an offline or callback-offloaded CPU?
+ * to an offline CPU?
  */
 static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)
 {
