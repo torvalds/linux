@@ -259,6 +259,8 @@ struct max310x_one {
 	struct work_struct	md_work;
 	struct work_struct	rs_work;
 };
+#define to_max310x_port(_port) \
+	container_of(_port, struct max310x_one, port)
 
 struct max310x_port {
 	struct max310x_devtype	*devtype;
@@ -765,7 +767,7 @@ static void max310x_handle_tx(struct uart_port *port)
 
 static void max310x_start_tx(struct uart_port *port)
 {
-	struct max310x_one *one = container_of(port, struct max310x_one, port);
+	struct max310x_one *one = to_max310x_port(port);
 
 	schedule_work(&one->tx_work);
 }
@@ -858,7 +860,7 @@ static void max310x_md_proc(struct work_struct *ws)
 
 static void max310x_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	struct max310x_one *one = container_of(port, struct max310x_one, port);
+	struct max310x_one *one = to_max310x_port(port);
 
 	schedule_work(&one->md_work);
 }
@@ -981,7 +983,7 @@ static void max310x_rs_proc(struct work_struct *ws)
 static int max310x_rs485_config(struct uart_port *port,
 				struct serial_rs485 *rs485)
 {
-	struct max310x_one *one = container_of(port, struct max310x_one, port);
+	struct max310x_one *one = to_max310x_port(port);
 
 	if ((rs485->delay_rts_before_send > 0x0f) ||
 	    (rs485->delay_rts_after_send > 0x0f))
