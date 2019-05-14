@@ -469,7 +469,7 @@ static int caam_get_era(struct caam_ctrl __iomem *ctrl)
 }
 
 /*
- * ERRATA: imx6 devices (imx6D, imx6Q, imx6DL, imx6S, imx6DP and imx6DQ)
+ * ERRATA: imx6 devices (imx6D, imx6Q, imx6DL, imx6S, imx6DP and imx6QP)
  * have an issue wherein AXI bus transactions may not occur in the correct
  * order. This isn't a problem running single descriptors, but can be if
  * running multiple concurrent descriptors. Reworking the driver to throttle
