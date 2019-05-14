@@ -1011,9 +1011,20 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu, uint32_t clk_
 static int smu_v11_0_get_thermal_range(struct smu_context *smu,
 				struct PP_TemperatureRange *range)
 {
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	memcpy(range, &SMU7ThermalWithDelayPolicy[0], sizeof(struct PP_TemperatureRange));
 
-	range->max = smu->smu_table.software_shutdown_temp *
+	range->max = pptable->TedgeLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_crit_max = pptable->ThotspotLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = pptable->ThbmLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM)*
 		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
@@ -1078,7 +1089,16 @@ static int smu_v11_0_set_thermal_fan_table(struct smu_context *smu)
 static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 {
 	int ret = 0;
-	struct PP_TemperatureRange range;
+	struct PP_TemperatureRange range = {
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX};
 	struct amdgpu_device *adev = smu->adev;
 
 	smu_v11_0_get_thermal_range(smu, &range);
@@ -1098,6 +1118,13 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 
 	adev->pm.dpm.thermal.min_temp = range.min;
 	adev->pm.dpm.thermal.max_temp = range.max;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
+	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
+	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
 
 	return ret;
 }
@@ -1151,22 +1178,45 @@ static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v11_0_thermal_get_temperature(struct smu_context *smu, uint32_t *value)
+static int smu_v11_0_thermal_get_temperature(struct smu_context *smu,
+					     enum amd_pp_sensors sensor,
+					     uint32_t *value)
 {
 	struct amdgpu_device *adev = smu->adev;
+	SmuMetrics_t metrics;
 	uint32_t temp = 0;
+	int ret = 0;
 
 	if (!value)
 		return -EINVAL;
 
-	temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
-	temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
-			CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
+	ret = smu_v11_0_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
 
-	temp = temp & 0x1ff;
-	temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
+		temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
+				CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
 
-	*value = temp;
+		temp = temp & 0x1ff;
+		temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+		*value = temp;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		*value = metrics.TemperatureEdge *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		*value = metrics.TemperatureHBM *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving temp\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1235,8 +1285,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_TEMP:
-		ret = smu_v11_0_thermal_get_temperature(smu, (uint32_t *)data);
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = smu_v11_0_thermal_get_temperature(smu, sensor, (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
