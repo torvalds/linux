@@ -657,7 +657,7 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 	g = __bucket(ca, k.k->p.offset, gc);
 	u = bch2_alloc_unpack(k);
 
-	old = bucket_data_cmpxchg(c, ca, fs_usage, g, m, ({
+	old = bucket_cmpxchg(g, m, ({
 		m.gen			= u.gen;
 		m.data_type		= u.data_type;
 		m.dirty_sectors		= u.dirty_sectors;
@@ -668,6 +668,9 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 			m.journal_seq		= journal_seq;
 		}
 	}));
+
+	if (!(flags & BCH_BUCKET_MARK_ALLOC_READ))
+		bch2_dev_usage_update(c, ca, fs_usage, old, m, gc);
 
 	g->io_time[READ]	= u.read_time;
 	g->io_time[WRITE]	= u.write_time;

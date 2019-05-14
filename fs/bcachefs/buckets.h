@@ -251,6 +251,7 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 
 #define BCH_BUCKET_MARK_GC			(1 << 0)
 #define BCH_BUCKET_MARK_NOATOMIC		(1 << 1)
+#define BCH_BUCKET_MARK_ALLOC_READ		(1 << 2)
 
 int bch2_mark_key_locked(struct bch_fs *, struct bkey_s_c,
 		  bool, s64, struct bch_fs_usage *,
