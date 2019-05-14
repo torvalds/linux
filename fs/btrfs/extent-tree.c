@@ -756,27 +756,38 @@ static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
 	return NULL;
 }
 
-static void add_pinned_bytes(struct btrfs_fs_info *fs_info,
-			     struct btrfs_ref *ref, int sign)
+static u64 generic_ref_to_space_flags(struct btrfs_ref *ref)
 {
-	struct btrfs_space_info *space_info;
-	s64 num_bytes;
-	u64 flags;
-
-	ASSERT(sign == 1 || sign == -1);
-	num_bytes = sign * ref->len;
 	if (ref->type == BTRFS_REF_METADATA) {
 		if (ref->tree_ref.root == BTRFS_CHUNK_TREE_OBJECTID)
-			flags = BTRFS_BLOCK_GROUP_SYSTEM;
+			return BTRFS_BLOCK_GROUP_SYSTEM;
 		else
-			flags = BTRFS_BLOCK_GROUP_METADATA;
-	} else {
-		flags = BTRFS_BLOCK_GROUP_DATA;
+			return BTRFS_BLOCK_GROUP_METADATA;
 	}
+	return BTRFS_BLOCK_GROUP_DATA;
+}
+
+static void add_pinned_bytes(struct btrfs_fs_info *fs_info,
+			     struct btrfs_ref *ref)
+{
+	struct btrfs_space_info *space_info;
+	u64 flags = generic_ref_to_space_flags(ref);
 
 	space_info = __find_space_info(fs_info, flags);
 	ASSERT(space_info);
-	percpu_counter_add_batch(&space_info->total_bytes_pinned, num_bytes,
+	percpu_counter_add_batch(&space_info->total_bytes_pinned, ref->len,
+		    BTRFS_TOTAL_BYTES_PINNED_BATCH);
+}
+
+static void sub_pinned_bytes(struct btrfs_fs_info *fs_info,
+			     struct btrfs_ref *ref)
+{
+	struct btrfs_space_info *space_info;
+	u64 flags = generic_ref_to_space_flags(ref);
+
+	space_info = __find_space_info(fs_info, flags);
+	ASSERT(space_info);
+	percpu_counter_add_batch(&space_info->total_bytes_pinned, -ref->len,
 		    BTRFS_TOTAL_BYTES_PINNED_BATCH);
 }
 
@@ -2065,7 +2076,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	btrfs_ref_tree_mod(fs_info, generic_ref);
 
 	if (ret == 0 && old_ref_mod < 0 && new_ref_mod >= 0)
-		add_pinned_bytes(fs_info, generic_ref, -1);
+		sub_pinned_bytes(fs_info, generic_ref);
 
 	return ret;
 }
@@ -7191,7 +7202,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 	}
 out:
 	if (pin)
-		add_pinned_bytes(fs_info, &generic_ref, 1);
+		add_pinned_bytes(fs_info, &generic_ref);
 
 	if (last_ref) {
 		/*
@@ -7239,7 +7250,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref)
 		btrfs_ref_tree_mod(fs_info, ref);
 
 	if (ret == 0 && old_ref_mod >= 0 && new_ref_mod < 0)
-		add_pinned_bytes(fs_info, ref, 1);
+		add_pinned_bytes(fs_info, ref);
 
 	return ret;
 }
