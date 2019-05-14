@@ -740,7 +740,15 @@ void resv_map_release(struct kref *ref)
 
 static inline struct resv_map *inode_resv_map(struct inode *inode)
 {
-	return inode->i_mapping->private_data;
+	/*
+	 * At inode evict time, i_mapping may not point to the original
+	 * address space within the inode.  This original address space
+	 * contains the pointer to the resv_map.  So, always use the
+	 * address space embedded within the inode.
+	 * The VERY common case is inode->mapping == &inode->i_data but,
+	 * this may not be true for device special inodes.
+	 */
+	return (struct resv_map *)(&inode->i_data)->private_data;
 }
 
 static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
@@ -4518,6 +4526,11 @@ int hugetlb_reserve_pages(struct inode *inode,
 	 * called to make the mapping read-write. Assume !vma is a shm mapping
 	 */
 	if (!vma || vma->vm_flags & VM_MAYSHARE) {
+		/*
+		 * resv_map can not be NULL as hugetlb_reserve_pages is only
+		 * called for inodes for which resv_maps were created (see
+		 * hugetlbfs_get_inode).
+		 */
 		resv_map = inode_resv_map(inode);
 
 		chg = region_chg(resv_map, from, to);
@@ -4609,6 +4622,10 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
 	struct hugepage_subpool *spool = subpool_inode(inode);
 	long gbl_reserve;
 
+	/*
+	 * Since this routine can be called in the evict inode path for all
+	 * hugetlbfs inodes, resv_map could be NULL.
+	 */
 	if (resv_map) {
 		chg = region_del(resv_map, start, end);
 		/*

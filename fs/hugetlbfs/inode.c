@@ -497,8 +497,15 @@ static void hugetlbfs_evict_inode(struct inode *inode)
 	struct resv_map *resv_map;
 
 	remove_inode_hugepages(inode, 0, LLONG_MAX);
-	resv_map = (struct resv_map *)inode->i_mapping->private_data;
-	/* root inode doesn't have the resv_map, so we should check it */
+
+	/*
+	 * Get the resv_map from the address space embedded in the inode.
+	 * This is the address space which points to any resv_map allocated
+	 * at inode creation time.  If this is a device special inode,
+	 * i_mapping may not point to the original address space.
+	 */
+	resv_map = (struct resv_map *)(&inode->i_data)->private_data;
+	/* Only regular and link inodes have associated reserve maps */
 	if (resv_map)
 		resv_map_release(&resv_map->refs);
 	clear_inode(inode);
