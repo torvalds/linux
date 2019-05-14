@@ -9,6 +9,10 @@
 #ifndef _FS_FUSE_I_H
 #define _FS_FUSE_I_H
 
+#ifndef pr_fmt
+# define pr_fmt(fmt) "fuse: " fmt
+#endif
+
 #include <linux/fuse.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -689,6 +693,9 @@ struct fuse_conn {
 
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
+
+	/** Filesystem is fully reponsible for page cache invalidation. */
+	unsigned explicit_inval_data:1;
 
 	/** Does the filesystem support readdirplus? */
 	unsigned do_readdirplus:1;
