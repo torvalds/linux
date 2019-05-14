@@ -58,10 +58,12 @@ struct mmu_notifier_mm {
 #define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
 
 struct mmu_notifier_range {
+	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	unsigned long start;
 	unsigned long end;
 	unsigned flags;
+	enum mmu_notifier_event event;
 };
 
 struct mmu_notifier_ops {
@@ -363,10 +365,12 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
 					   unsigned long start,
 					   unsigned long end)
 {
+	range->vma = vma;
+	range->event = event;
 	range->mm = mm;
 	range->start = start;
 	range->end = end;
-	range->flags = 0;
+	range->flags = flags;
 }
 
 #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
