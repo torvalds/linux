@@ -540,15 +540,7 @@ static inline int wait_on_page_locked_killable(struct page *page)
 
 extern void put_and_wait_on_page_locked(struct page *page);
 
-/* 
- * Wait for a page to complete writeback
- */
-static inline void wait_on_page_writeback(struct page *page)
-{
-	if (PageWriteback(page))
-		wait_on_page_bit(page, PG_writeback);
-}
-
+void wait_on_page_writeback(struct page *page);
 extern void end_page_writeback(struct page *page);
 void wait_for_stable_page(struct page *page);
 
