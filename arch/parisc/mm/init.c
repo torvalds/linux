@@ -66,7 +66,7 @@ static struct resource pdcdata_resource = {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
-static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __read_mostly;
+static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __ro_after_init;
 
 /* The following array is initialized from the firmware specific
  * information retrieved in kernel/inventory.c.
@@ -345,16 +345,7 @@ static void __init setup_bootmem(void)
 	memblock_dump_all();
 }
 
-static int __init parisc_text_address(unsigned long vaddr)
-{
-	static unsigned long head_ptr __initdata;
-
-	if (!head_ptr)
-		head_ptr = PAGE_MASK & (unsigned long)
-			dereference_function_descriptor(&parisc_kernel_start);
-
-	return core_kernel_text(vaddr) || vaddr == head_ptr;
-}
+static bool kernel_set_to_readonly;
 
 static void __init map_pages(unsigned long start_vaddr,
 			     unsigned long start_paddr, unsigned long size,
@@ -372,10 +363,11 @@ static void __init map_pages(unsigned long start_vaddr,
 	unsigned long vaddr;
 	unsigned long ro_start;
 	unsigned long ro_end;
-	unsigned long kernel_end;
+	unsigned long kernel_start, kernel_end;
 
 	ro_start = __pa((unsigned long)_text);
 	ro_end   = __pa((unsigned long)&data_start);
+	kernel_start = __pa((unsigned long)&__init_begin);
 	kernel_end  = __pa((unsigned long)&_end);
 
 	end_paddr = start_paddr + size;
@@ -438,26 +430,30 @@ static void __init map_pages(unsigned long start_vaddr,
 			pg_table = (pte_t *) __va(pg_table) + start_pte;
 			for (tmp2 = start_pte; tmp2 < PTRS_PER_PTE; tmp2++, pg_table++) {
 				pte_t pte;
+				pgprot_t prot;
+				bool huge = false;
 
-				if (force)
-					pte =  __mk_pte(address, pgprot);
-				else if (parisc_text_address(vaddr)) {
-					pte = __mk_pte(address, PAGE_KERNEL_EXEC);
-					if (address >= ro_start && address < kernel_end)
-						pte = pte_mkhuge(pte);
+				if (force) {
+					prot = pgprot;
+				} else if (address < kernel_start || address >= kernel_end) {
+					/* outside kernel memory */
+					prot = PAGE_KERNEL;
+				} else if (!kernel_set_to_readonly) {
+					/* still initializing, allow writing to RO memory */
+					prot = PAGE_KERNEL_RWX;
+					huge = true;
+				} else if (address >= ro_start) {
+					/* Code (ro) and Data areas */
+					prot = (address < ro_end) ?
+						PAGE_KERNEL_EXEC : PAGE_KERNEL;
+					huge = true;
+				} else {
+					prot = PAGE_KERNEL;
 				}
-				else
-#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
-				if (address >= ro_start && address < ro_end) {
-					pte = __mk_pte(address, PAGE_KERNEL_EXEC);
+
+				pte = __mk_pte(address, prot);
+				if (huge)
 					pte = pte_mkhuge(pte);
-				} else
-#endif
-				{
-					pte = __mk_pte(address, pgprot);
-					if (address >= ro_start && address < kernel_end)
-						pte = pte_mkhuge(pte);
-				}
 
 				if (address >= end_paddr)
 					break;
@@ -493,6 +489,12 @@ void __ref free_initmem(void)
 {
 	unsigned long init_begin = (unsigned long)__init_begin;
 	unsigned long init_end = (unsigned long)__init_end;
+	unsigned long kernel_end  = (unsigned long)&_end;
+
+	/* Remap kernel text and data, but do not touch init section yet. */
+	kernel_set_to_readonly = true;
+	map_pages(init_end, __pa(init_end), kernel_end - init_end,
+		  PAGE_KERNEL, 0);
 
 	/* The init text pages are marked R-X.  We have to
 	 * flush the icache and mark them RW-
@@ -509,7 +511,7 @@ void __ref free_initmem(void)
 		  PAGE_KERNEL, 1);
 
 	/* force the kernel to see the new TLB entries */
-	__flush_tlb_range(0, init_begin, init_end);
+	__flush_tlb_range(0, init_begin, kernel_end);
 
 	/* finally dump all the instructions which were cached, since the
 	 * pages are no-longer executable */
@@ -527,8 +529,9 @@ void mark_rodata_ro(void)
 {
 	/* rodata memory was already mapped with KERNEL_RO access rights by
            pagetable_init() and map_pages(). No need to do additional stuff here */
-	printk (KERN_INFO "Write protecting the kernel read-only data: %luk\n",
-		(unsigned long)(__end_rodata - __start_rodata) >> 10);
+	unsigned long roai_size = __end_ro_after_init - __start_ro_after_init;
+
+	pr_info("Write protected read-only-after-init data: %luk\n", roai_size >> 10);
 }
 #endif
 
@@ -554,11 +557,11 @@ void mark_rodata_ro(void)
 #define SET_MAP_OFFSET(x) ((void *)(((unsigned long)(x) + VM_MAP_OFFSET) \
 				     & ~(VM_MAP_OFFSET-1)))
 
-void *parisc_vmalloc_start __read_mostly;
+void *parisc_vmalloc_start __ro_after_init;
 EXPORT_SYMBOL(parisc_vmalloc_start);
 
 #ifdef CONFIG_PA11
-unsigned long pcxl_dma_start __read_mostly;
+unsigned long pcxl_dma_start __ro_after_init;
 #endif
 
 void __init mem_init(void)
@@ -632,7 +635,7 @@ void __init mem_init(void)
 #endif
 }
 
-unsigned long *empty_zero_page __read_mostly;
+unsigned long *empty_zero_page __ro_after_init;
 EXPORT_SYMBOL(empty_zero_page);
 
 /*

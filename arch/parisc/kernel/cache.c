@@ -29,9 +29,9 @@
 #include <asm/sections.h>
 #include <asm/shmparam.h>
 
-int split_tlb __read_mostly;
-int dcache_stride __read_mostly;
-int icache_stride __read_mostly;
+int split_tlb __ro_after_init;
+int dcache_stride __ro_after_init;
+int icache_stride __ro_after_init;
 EXPORT_SYMBOL(dcache_stride);
 
 void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
@@ -51,12 +51,12 @@ DEFINE_SPINLOCK(pa_tlb_flush_lock);
 DEFINE_SPINLOCK(pa_swapper_pg_lock);
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
-int pa_serialize_tlb_flushes __read_mostly;
+int pa_serialize_tlb_flushes __ro_after_init;
 #endif
 
-struct pdc_cache_info cache_info __read_mostly;
+struct pdc_cache_info cache_info __ro_after_init;
 #ifndef CONFIG_PA20
-static struct pdc_btlb_info btlb_info __read_mostly;
+static struct pdc_btlb_info btlb_info __ro_after_init;
 #endif
 
 #ifdef CONFIG_SMP
@@ -381,10 +381,10 @@ EXPORT_SYMBOL(flush_data_cache_local);
 EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
-static unsigned long parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
+static unsigned long parisc_cache_flush_threshold __ro_after_init = FLUSH_THRESHOLD;
 
 #define FLUSH_TLB_THRESHOLD (16*1024) /* 16 KiB minimum TLB threshold */
-static unsigned long parisc_tlb_flush_threshold __read_mostly = FLUSH_TLB_THRESHOLD;
+static unsigned long parisc_tlb_flush_threshold __ro_after_init = FLUSH_TLB_THRESHOLD;
 
 void __init parisc_setup_cache_timing(void)
 {

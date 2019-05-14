@@ -43,10 +43,10 @@
 #include <asm/irq.h>		/* for struct irq_region */
 #include <asm/parisc-device.h>
 
-struct system_cpuinfo_parisc boot_cpu_data __read_mostly;
+struct system_cpuinfo_parisc boot_cpu_data __ro_after_init;
 EXPORT_SYMBOL(boot_cpu_data);
 #ifdef CONFIG_PA8X00
-int _parisc_requires_coherency __read_mostly;
+int _parisc_requires_coherency __ro_after_init;
 EXPORT_SYMBOL(_parisc_requires_coherency);
 #endif
 
