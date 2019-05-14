@@ -260,6 +260,9 @@ extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
+int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
+			uint64_t cmd_gpu_addr, int cmd_size);
+
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);

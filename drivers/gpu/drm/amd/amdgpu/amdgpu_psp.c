@@ -1214,6 +1214,19 @@ int psp_rlc_autoload_start(struct psp_context *psp)
 	return ret;
 }
 
+int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
+			uint64_t cmd_gpu_addr, int cmd_size)
+{
+	struct amdgpu_firmware_info ucode = {0};
+
+	ucode.ucode_id = inst_idx ? AMDGPU_UCODE_ID_VCN1_RAM :
+		AMDGPU_UCODE_ID_VCN0_RAM;
+	ucode.mc_addr = cmd_gpu_addr;
+	ucode.ucode_size = cmd_size;
+
+	return psp_execute_np_fw_load(&adev->psp, &ucode);
+}
+
 static bool psp_check_fw_loading_status(struct amdgpu_device *adev,
 					enum AMDGPU_UCODE_ID ucode_type)
 {
