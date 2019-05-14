@@ -4821,7 +4821,7 @@ static void *make_alloc_exact(unsigned long addr, unsigned int order,
 /**
  * alloc_pages_exact - allocate an exact number physically-contiguous pages.
  * @size: the number of bytes to allocate
- * @gfp_mask: GFP flags for the allocation
+ * @gfp_mask: GFP flags for the allocation, must not contain __GFP_COMP
  *
  * This function is similar to alloc_pages(), except that it allocates the
  * minimum number of pages to satisfy the request.  alloc_pages() can only
@@ -4838,6 +4838,9 @@ void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
 	unsigned int order = get_order(size);
 	unsigned long addr;
 
+	if (WARN_ON_ONCE(gfp_mask & __GFP_COMP))
+		gfp_mask &= ~__GFP_COMP;
+
 	addr = __get_free_pages(gfp_mask, order);
 	return make_alloc_exact(addr, order, size);
 }
@@ -4848,7 +4851,7 @@ EXPORT_SYMBOL(alloc_pages_exact);
  *			   pages on a node.
  * @nid: the preferred node ID where memory should be allocated
  * @size: the number of bytes to allocate
- * @gfp_mask: GFP flags for the allocation
+ * @gfp_mask: GFP flags for the allocation, must not contain __GFP_COMP
  *
  * Like alloc_pages_exact(), but try to allocate on node nid first before falling
  * back.
@@ -4858,7 +4861,12 @@ EXPORT_SYMBOL(alloc_pages_exact);
 void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
 {
 	unsigned int order = get_order(size);
-	struct page *p = alloc_pages_node(nid, gfp_mask, order);
+	struct page *p;
+
+	if (WARN_ON_ONCE(gfp_mask & __GFP_COMP))
+		gfp_mask &= ~__GFP_COMP;
+
+	p = alloc_pages_node(nid, gfp_mask, order);
 	if (!p)
 		return NULL;
 	return make_alloc_exact((unsigned long)page_address(p), order, size);
