@@ -34,13 +34,13 @@
 extern int ipc_mni;
 extern int ipc_mni_shift;
 
-#define IPCMNI_SEQ_SHIFT	ipc_mni_shift
+#define ipcmni_seq_shift()	ipc_mni_shift
 #define IPCMNI_IDX_MASK		((1 << ipc_mni_shift) - 1)
 
 #else /* CONFIG_SYSVIPC_SYSCTL */
 
 #define ipc_mni			IPCMNI
-#define IPCMNI_SEQ_SHIFT	IPCMNI_SHIFT
+#define ipcmni_seq_shift()	IPCMNI_SHIFT
 #define IPCMNI_IDX_MASK		((1 << IPCMNI_SHIFT) - 1)
 #endif /* CONFIG_SYSVIPC_SYSCTL */
 
@@ -123,8 +123,8 @@ struct pid_namespace *ipc_seq_pid_ns(struct seq_file *);
 #define IPC_SHM_IDS	2
 
 #define ipcid_to_idx(id)  ((id) & IPCMNI_IDX_MASK)
-#define ipcid_to_seqx(id) ((id) >> IPCMNI_SEQ_SHIFT)
-#define IPCID_SEQ_MAX	  (INT_MAX >> IPCMNI_SEQ_SHIFT)
+#define ipcid_to_seqx(id) ((id) >> ipcmni_seq_shift())
+#define ipcid_seq_max()	  (INT_MAX >> ipcmni_seq_shift())
 
 /* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
