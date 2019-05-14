@@ -438,6 +438,30 @@ struct hmm_mirror {
 int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
 void hmm_mirror_unregister(struct hmm_mirror *mirror);
 
+/*
+ * hmm_mirror_mm_is_alive() - test if mm is still alive
+ * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
+ * Returns: false if the mm is dead, true otherwise
+ *
+ * This is an optimization it will not accurately always return -EINVAL if the
+ * mm is dead ie there can be false negative (process is being kill but HMM is
+ * not yet inform of that). It is only intented to be use to optimize out case
+ * where driver is about to do something time consuming and it would be better
+ * to skip it if the mm is dead.
+ */
+static inline bool hmm_mirror_mm_is_alive(struct hmm_mirror *mirror)
+{
+	struct mm_struct *mm;
+
+	if (!mirror || !mirror->hmm)
+		return false;
+	mm = READ_ONCE(mirror->hmm->mm);
+	if (mirror->hmm->dead || !mm)
+		return false;
+
+	return true;
+}
+
 
 /*
  * Please see Documentation/vm/hmm.rst for how to use the range API.
