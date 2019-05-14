@@ -469,6 +469,38 @@ TRACE_EVENT(mm_vmscan_inactive_list_is_low,
 		__entry->ratio,
 		show_reclaim_flags(__entry->reclaim_flags))
 );
+
+TRACE_EVENT(mm_vmscan_node_reclaim_begin,
+
+	TP_PROTO(int nid, int order, gfp_t gfp_flags),
+
+	TP_ARGS(nid, order, gfp_flags),
+
+	TP_STRUCT__entry(
+		__field(int, nid)
+		__field(int, order)
+		__field(gfp_t, gfp_flags)
+	),
+
+	TP_fast_assign(
+		__entry->nid = nid;
+		__entry->order = order;
+		__entry->gfp_flags = gfp_flags;
+	),
+
+	TP_printk("nid=%d order=%d gfp_flags=%s",
+		__entry->nid,
+		__entry->order,
+		show_gfp_flags(__entry->gfp_flags))
+);
+
+DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_node_reclaim_end,
+
+	TP_PROTO(unsigned long nr_reclaimed),
+
+	TP_ARGS(nr_reclaimed)
+);
+
 #endif /* _TRACE_VMSCAN_H */
 
 /* This part must be outside protection */
