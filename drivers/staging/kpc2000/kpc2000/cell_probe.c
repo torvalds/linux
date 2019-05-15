@@ -91,7 +91,8 @@ void parse_core_table_entry(struct core_table_entry *cte, const u64 read_val, co
 }
 
 
-int  probe_core_basic(unsigned int core_num, struct kp2000_device *pcard, char *name, const struct core_table_entry cte)
+static int probe_core_basic(unsigned int core_num, struct kp2000_device *pcard,
+			    char *name, const struct core_table_entry cte)
 {
     struct mfd_cell  cell = {0};
     struct resource  resources[2];
@@ -257,7 +258,8 @@ int kuio_irqcontrol(struct uio_info *uioinfo, s32 irq_on)
     return 0;
 }
 
-int  probe_core_uio(unsigned int core_num, struct kp2000_device *pcard, char *name, const struct core_table_entry cte)
+static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
+			  char *name, const struct core_table_entry cte)
 {
     struct kpc_uio_device  *kudev;
     int rv;
