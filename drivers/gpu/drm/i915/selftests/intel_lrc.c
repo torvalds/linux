@@ -99,12 +99,14 @@ static int live_busywait_preempt(void *arg)
 	ctx_hi = kernel_context(i915);
 	if (!ctx_hi)
 		goto err_unlock;
-	ctx_hi->sched.priority = INT_MAX;
+	ctx_hi->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
 
 	ctx_lo = kernel_context(i915);
 	if (!ctx_lo)
 		goto err_ctx_hi;
-	ctx_lo->sched.priority = INT_MIN;
+	ctx_lo->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
 
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
@@ -954,12 +956,14 @@ static int live_preempt_hang(void *arg)
 	ctx_hi = kernel_context(i915);
 	if (!ctx_hi)
 		goto err_spin_lo;
-	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
+	ctx_hi->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
 
 	ctx_lo = kernel_context(i915);
 	if (!ctx_lo)
 		goto err_ctx_hi;
-	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
+	ctx_lo->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
