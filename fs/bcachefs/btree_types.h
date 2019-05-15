@@ -301,6 +301,7 @@ struct btree_trans {
 	u64			*journal_seq;
 	struct disk_reservation *disk_res;
 	unsigned		flags;
+	unsigned		journal_u64s;
 
 	struct btree_iter	iters_onstack[2];
 	struct btree_insert_entry updates_onstack[6];

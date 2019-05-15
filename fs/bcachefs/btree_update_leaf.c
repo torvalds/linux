@@ -451,21 +451,13 @@ static int bch2_trans_journal_res_get(struct btree_trans *trans,
 				      unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
-	unsigned u64s = 0;
 	int ret;
-
-	if (unlikely(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
-		return 0;
 
 	if (trans->flags & BTREE_INSERT_JOURNAL_RESERVED)
 		flags |= JOURNAL_RES_GET_RESERVED;
 
-	trans_for_each_update(trans, i)
-		u64s += jset_u64s(i->k->k.u64s);
-
 	ret = bch2_journal_res_get(&c->journal, &trans->journal_res,
-				   u64s, flags);
+				   trans->journal_u64s, flags);
 
 	return ret == -EAGAIN ? BTREE_INSERT_NEED_JOURNAL_RES : ret;
 }
@@ -612,9 +604,16 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	 * Don't get journal reservation until after we know insert will
 	 * succeed:
 	 */
-	ret = bch2_trans_journal_res_get(trans, JOURNAL_RES_GET_NONBLOCK);
-	if (ret)
-		goto out;
+	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
+		trans->journal_u64s = 0;
+
+		trans_for_each_update(trans, i)
+			trans->journal_u64s += jset_u64s(i->k->k.u64s);
+
+		ret = bch2_trans_journal_res_get(trans, JOURNAL_RES_GET_NONBLOCK);
+		if (ret)
+			goto out;
+	}
 
 	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) {
 		if (journal_seq_verify(c))
