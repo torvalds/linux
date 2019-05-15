@@ -406,13 +406,10 @@ static u8
 iscsi_iser_check_protection(struct iscsi_task *task, sector_t *sector)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
+	enum iser_data_dir dir = iser_task->dir[ISER_DIR_IN] ?
+					ISER_DIR_IN : ISER_DIR_OUT;
 
-	if (iser_task->dir[ISER_DIR_IN])
-		return iser_check_task_pi_status(iser_task, ISER_DIR_IN,
-						 sector);
-	else
-		return iser_check_task_pi_status(iser_task, ISER_DIR_OUT,
-						 sector);
+	return iser_check_task_pi_status(iser_task, dir, sector);
 }
 
 /**
