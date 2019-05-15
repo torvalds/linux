@@ -322,10 +322,10 @@ static int bch2_extent_update(struct btree_trans *trans,
 	if (i_sectors_delta ||
 	    new_i_size > inode->ei_inode.bi_size) {
 		if (c->opts.new_inode_updates) {
-			bch2_btree_trans_unlock(trans);
+			bch2_trans_unlock(trans);
 			mutex_lock(&inode->ei_update_lock);
 
-			if (!bch2_btree_trans_relock(trans)) {
+			if (!bch2_trans_relock(trans)) {
 				mutex_unlock(&inode->ei_update_lock);
 				return -EINTR;
 			}
@@ -949,7 +949,7 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 		}
 
 		bkey_reassemble(&tmp.k, k);
-		bch2_btree_trans_unlock(trans);
+		bch2_trans_unlock(trans);
 		k = bkey_i_to_s_c(&tmp.k);
 
 		if (readpages_iter) {

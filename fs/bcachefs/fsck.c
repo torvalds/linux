@@ -58,7 +58,7 @@ static int remove_dirent(struct btree_trans *trans,
 	name.name = buf;
 
 	/* Unlock so we don't deadlock, after copying name: */
-	bch2_btree_trans_unlock(trans);
+	bch2_trans_unlock(trans);
 
 	ret = bch2_inode_find_by_inum(c, dir_inum, &dir_inode);
 	if (ret) {
@@ -1015,7 +1015,7 @@ retry:
 		if (fsck_err_on(!inode_bitmap_test(&dirs_done, k.k->p.inode), c,
 				"unreachable directory found (inum %llu)",
 				k.k->p.inode)) {
-			bch2_btree_trans_unlock(&trans);
+			bch2_trans_unlock(&trans);
 
 			ret = reattach_inode(c, lostfound_inode, k.k->p.inode);
 			if (ret) {
@@ -1229,7 +1229,7 @@ static int check_inode(struct btree_trans *trans,
 
 	ret = bch2_inode_unpack(inode, &u);
 
-	bch2_btree_trans_unlock(trans);
+	bch2_trans_unlock(trans);
 
 	if (bch2_fs_inconsistent_on(ret, c,
 			 "error unpacking inode %llu in fsck",

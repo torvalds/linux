@@ -841,7 +841,7 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 			}
 		}
 
-		bch2_btree_trans_relock(trans);
+		bch2_trans_relock(trans);
 	}
 out:
 	if (btree_lock_want(iter, level + 1) == BTREE_NODE_UNLOCKED)

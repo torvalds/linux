@@ -1332,7 +1332,7 @@ retry:
 
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
-		bch2_btree_trans_unlock(&trans);
+		bch2_trans_unlock(&trans);
 
 		bytes = min_t(unsigned, bvec_iter.bi_size,
 			      (k.k->p.offset - bvec_iter.bi_sector) << 9);
@@ -1889,7 +1889,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 		 */
 		bkey_reassemble(&tmp.k, k);
 		k = bkey_i_to_s_c(&tmp.k);
-		bch2_btree_trans_unlock(&trans);
+		bch2_trans_unlock(&trans);
 
 		bytes = min_t(unsigned, rbio->bio.bi_iter.bi_size,
 			      (k.k->p.offset - rbio->bio.bi_iter.bi_sector) << 9);

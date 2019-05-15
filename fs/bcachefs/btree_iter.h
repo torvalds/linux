@@ -103,8 +103,8 @@ void bch2_btree_node_iter_fix(struct btree_iter *, struct btree *,
 			      struct btree_node_iter *, struct bkey_packed *,
 			      unsigned, unsigned);
 
-bool bch2_btree_trans_relock(struct btree_trans *);
-void bch2_btree_trans_unlock(struct btree_trans *);
+bool bch2_trans_relock(struct btree_trans *);
+void bch2_trans_unlock(struct btree_trans *);
 
 bool __bch2_btree_iter_upgrade(struct btree_iter *, unsigned);
 bool __bch2_btree_iter_upgrade_nounlock(struct btree_iter *, unsigned);
@@ -190,8 +190,6 @@ static inline int btree_iter_cmp(const struct btree_iter *l,
 {
 	return __btree_iter_cmp(l->btree_id, l->pos, r);
 }
-
-int bch2_trans_unlock(struct btree_trans *);
 
 /*
  * Unlocks before scheduling

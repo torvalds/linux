@@ -408,7 +408,9 @@ void __bch2_btree_iter_downgrade(struct btree_iter *iter,
 	bch2_btree_trans_verify_locks(iter->trans);
 }
 
-bool bch2_btree_trans_relock(struct btree_trans *trans)
+/* Btree transaction locking: */
+
+bool bch2_trans_relock(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
 	bool ret = true;
@@ -419,15 +421,13 @@ bool bch2_btree_trans_relock(struct btree_trans *trans)
 	return ret;
 }
 
-void bch2_btree_trans_unlock(struct btree_trans *trans)
+void bch2_trans_unlock(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
 
 	trans_for_each_iter(trans, iter)
 		__bch2_btree_iter_unlock(iter);
 }
-
-/* Btree transaction locking: */
 
 /* Btree iterator: */
 
@@ -982,7 +982,7 @@ static int __btree_iter_traverse_all(struct btree_trans *trans,
 #undef btree_iter_cmp_by_idx
 
 retry_all:
-	bch2_btree_trans_unlock(trans);
+	bch2_trans_unlock(trans);
 
 	if (unlikely(ret == -ENOMEM)) {
 		struct closure cl;
@@ -1882,24 +1882,6 @@ void *bch2_trans_kmalloc(struct btree_trans *trans,
 
 	ret = trans->mem + trans->mem_top;
 	trans->mem_top += size;
-	return ret;
-}
-
-int bch2_trans_unlock(struct btree_trans *trans)
-{
-	u64 iters = trans->iters_linked;
-	int ret = 0;
-
-	while (iters) {
-		unsigned idx = __ffs64(iters);
-		struct btree_iter *iter = &trans->iters[idx];
-
-		ret = ret ?: btree_iter_err(iter);
-
-		__bch2_btree_iter_unlock(iter);
-		iters ^= 1ULL << idx;
-	}
-
 	return ret;
 }
 

@@ -431,14 +431,14 @@ static int bch2_trans_journal_preres_get(struct btree_trans *trans)
 	if (ret != -EAGAIN)
 		return ret;
 
-	bch2_btree_trans_unlock(trans);
+	bch2_trans_unlock(trans);
 
 	ret = bch2_journal_preres_get(&c->journal,
 			&trans->journal_preres, u64s, 0);
 	if (ret)
 		return ret;
 
-	if (!bch2_btree_trans_relock(trans)) {
+	if (!bch2_trans_relock(trans)) {
 		trans_restart(" (iter relock after journal preres get blocked)");
 		trace_trans_restart_journal_preres_get(c, trans->ip);
 		return -EINTR;
@@ -736,7 +736,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 				return ret;
 		}
 
-		if (bch2_btree_trans_relock(trans))
+		if (bch2_trans_relock(trans))
 			return 0;
 
 		trans_restart(" (iter relock after marking replicas)");
@@ -744,13 +744,13 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		ret = -EINTR;
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RES:
-		bch2_btree_trans_unlock(trans);
+		bch2_trans_unlock(trans);
 
 		ret = bch2_trans_journal_res_get(trans, JOURNAL_RES_GET_CHECK);
 		if (ret)
 			return ret;
 
-		if (bch2_btree_trans_relock(trans))
+		if (bch2_trans_relock(trans))
 			return 0;
 
 		trans_restart(" (iter relock after journal res get blocked)");
@@ -878,7 +878,7 @@ int bch2_trans_commit(struct btree_trans *trans,
 		if (likely(!(trans->flags & BTREE_INSERT_LAZY_RW)))
 			return -EROFS;
 
-		bch2_btree_trans_unlock(trans);
+		bch2_trans_unlock(trans);
 
 		ret = bch2_fs_read_write_early(c);
 		if (ret)
@@ -886,7 +886,7 @@ int bch2_trans_commit(struct btree_trans *trans,
 
 		percpu_ref_get(&c->writes);
 
-		if (!bch2_btree_trans_relock(trans)) {
+		if (!bch2_trans_relock(trans)) {
 			ret = -EINTR;
 			goto err;
 		}

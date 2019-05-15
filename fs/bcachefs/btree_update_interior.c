@@ -1574,10 +1574,10 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 		if (flags & BTREE_INSERT_NOUNLOCK)
 			return -EINTR;
 
-		bch2_btree_trans_unlock(trans);
+		bch2_trans_unlock(trans);
 		down_read(&c->gc_lock);
 
-		if (!bch2_btree_trans_relock(trans))
+		if (!bch2_trans_relock(trans))
 			ret = -EINTR;
 	}
 
@@ -1598,7 +1598,7 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 		ret = PTR_ERR(as);
 		if (ret == -EAGAIN) {
 			BUG_ON(flags & BTREE_INSERT_NOUNLOCK);
-			bch2_btree_trans_unlock(trans);
+			bch2_trans_unlock(trans);
 			ret = -EINTR;
 		}
 		goto out;
@@ -1778,7 +1778,7 @@ err_cycle_gc_lock:
 	if (flags & BTREE_INSERT_NOUNLOCK)
 		goto out;
 
-	bch2_btree_trans_unlock(trans);
+	bch2_trans_unlock(trans);
 
 	down_read(&c->gc_lock);
 	up_read(&c->gc_lock);
@@ -1794,7 +1794,7 @@ err:
 
 	if ((ret == -EAGAIN || ret == -EINTR) &&
 	    !(flags & BTREE_INSERT_NOUNLOCK)) {
-		bch2_btree_trans_unlock(trans);
+		bch2_trans_unlock(trans);
 		closure_sync(&cl);
 		ret = bch2_btree_iter_traverse(iter);
 		if (ret)
@@ -1874,7 +1874,7 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 
 	if (!(flags & BTREE_INSERT_GC_LOCK_HELD)) {
 		if (!down_read_trylock(&c->gc_lock)) {
-			bch2_btree_trans_unlock(trans);
+			bch2_trans_unlock(trans);
 			down_read(&c->gc_lock);
 		}
 	}
@@ -1893,7 +1893,7 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 		    ret != -EINTR)
 			break;
 
-		bch2_btree_trans_unlock(trans);
+		bch2_trans_unlock(trans);
 		closure_sync(&cl);
 	}
 
@@ -2046,10 +2046,10 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 		return -EINTR;
 
 	if (!down_read_trylock(&c->gc_lock)) {
-		bch2_btree_trans_unlock(iter->trans);
+		bch2_trans_unlock(iter->trans);
 		down_read(&c->gc_lock);
 
-		if (!bch2_btree_trans_relock(iter->trans)) {
+		if (!bch2_trans_relock(iter->trans)) {
 			ret = -EINTR;
 			goto err;
 		}
@@ -2060,12 +2060,12 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 		/* bch2_btree_reserve_get will unlock */
 		ret = bch2_btree_cache_cannibalize_lock(c, &cl);
 		if (ret) {
-			bch2_btree_trans_unlock(iter->trans);
+			bch2_trans_unlock(iter->trans);
 			up_read(&c->gc_lock);
 			closure_sync(&cl);
 			down_read(&c->gc_lock);
 
-			if (!bch2_btree_trans_relock(iter->trans)) {
+			if (!bch2_trans_relock(iter->trans)) {
 				ret = -EINTR;
 				goto err;
 			}
@@ -2089,12 +2089,12 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 		if (ret != -EINTR)
 			goto err;
 
-		bch2_btree_trans_unlock(iter->trans);
+		bch2_trans_unlock(iter->trans);
 		up_read(&c->gc_lock);
 		closure_sync(&cl);
 		down_read(&c->gc_lock);
 
-		if (!bch2_btree_trans_relock(iter->trans))
+		if (!bch2_trans_relock(iter->trans))
 			goto err;
 	}
 

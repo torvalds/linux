@@ -563,7 +563,7 @@ static int ec_stripe_mem_alloc(struct bch_fs *c,
 	if (!__ec_stripe_mem_alloc(c, idx, GFP_NOWAIT|__GFP_NOWARN))
 		return ret;
 
-	bch2_btree_trans_unlock(iter->trans);
+	bch2_trans_unlock(iter->trans);
 	ret = -EINTR;
 
 	if (!__ec_stripe_mem_alloc(c, idx, GFP_KERNEL))
