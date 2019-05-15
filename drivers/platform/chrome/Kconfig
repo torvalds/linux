@@ -71,6 +71,19 @@ config CROS_EC_RPMSG
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_rpmsg.
 
+config CROS_EC_ISHTP
+	tristate "ChromeOS Embedded Controller (ISHTP)"
+	depends on MFD_CROS_EC
+	depends on INTEL_ISH_HID
+	help
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  firmware running on Intel Integrated Sensor Hub (ISH), using the
+	  ISH Transport protocol (ISH-TP). This uses a simple byte-level
+	  protocol with a checksum.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_ishtp.
+
 config CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
 	depends on MFD_CROS_EC && SPI
