@@ -1404,6 +1404,47 @@ int smu_handle_task(struct smu_context *smu,
 	return ret;
 }
 
+enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+
+	if (!smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	mutex_lock(&(smu->mutex));
+	if (smu_dpm_ctx->dpm_level != smu_dpm_ctx->saved_dpm_level) {
+		smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
+	}
+	mutex_unlock(&(smu->mutex));
+
+	return smu_dpm_ctx->dpm_level;
+}
+
+int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+	int i;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+
+	if (!smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	for (i = 0; i < smu->adev->num_ip_blocks; i++) {
+		if (smu->adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)
+			break;
+	}
+
+	mutex_lock(&smu->mutex);
+
+	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
+	ret = smu_handle_task(smu, level,
+			      AMD_PP_TASK_READJUST_POWER_STATE);
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,

@@ -2334,46 +2334,6 @@ static int vega20_unforce_dpm_levels(struct smu_context *smu)
 	return ret;
 }
 
-static enum amd_dpm_forced_level vega20_get_performance_level(struct smu_context *smu)
-{
-	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	if (!smu_dpm_ctx->dpm_context)
-		return -EINVAL;
-
-	if (smu_dpm_ctx->dpm_level != smu_dpm_ctx->saved_dpm_level) {
-		mutex_lock(&(smu->mutex));
-		smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
-		mutex_unlock(&(smu->mutex));
-	}
-	return smu_dpm_ctx->dpm_level;
-}
-
-static int
-vega20_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
-{
-	int ret = 0;
-	int i;
-	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-
-	if (!smu_dpm_ctx->dpm_context)
-		return -EINVAL;
-
-	for (i = 0; i < smu->adev->num_ip_blocks; i++) {
-		if (smu->adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)
-			break;
-	}
-
-	mutex_lock(&smu->mutex);
-
-	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
-	ret = smu_handle_task(smu, level,
-			      AMD_PP_TASK_READJUST_POWER_STATE);
-
-	mutex_unlock(&smu->mutex);
-
-	return ret;
-}
-
 static int vega20_update_specified_od8_value(struct smu_context *smu,
 					     uint32_t index,
 					     uint32_t value)
@@ -3129,8 +3089,6 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_od_percentage = vega20_get_od_percentage,
 	.get_power_profile_mode = vega20_get_power_profile_mode,
 	.set_power_profile_mode = vega20_set_power_profile_mode,
-	.get_performance_level = vega20_get_performance_level,
-	.force_performance_level = vega20_force_performance_level,
 	.update_specified_od8_value = vega20_update_specified_od8_value,
 	.set_od_percentage = vega20_set_od_percentage,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,

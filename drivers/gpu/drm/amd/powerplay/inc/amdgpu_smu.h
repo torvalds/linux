@@ -570,8 +570,6 @@ struct pptable_funcs {
 					      *clocks);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
-	enum amd_dpm_forced_level (*get_performance_level)(struct smu_context *smu);
-	int (*force_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
 	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
@@ -798,10 +796,6 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_power_profile_mode ? (smu)->ppt_funcs->get_power_profile_mode((smu), buf) : 0)
 #define smu_set_power_profile_mode(smu, param, param_size) \
 	((smu)->ppt_funcs->set_power_profile_mode ? (smu)->ppt_funcs->set_power_profile_mode((smu), (param), (param_size)) : 0)
-#define smu_get_performance_level(smu) \
-	((smu)->ppt_funcs->get_performance_level ? (smu)->ppt_funcs->get_performance_level((smu)) : 0)
-#define smu_force_performance_level(smu, level) \
-	((smu)->ppt_funcs->force_performance_level ? (smu)->ppt_funcs->force_performance_level((smu), (level)) : 0)
 #define smu_pre_display_config_changed(smu) \
 	((smu)->ppt_funcs->pre_display_config_changed ? (smu)->ppt_funcs->pre_display_config_changed((smu)) : 0)
 #define smu_display_config_changed(smu) \
@@ -939,4 +933,6 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
 int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
+enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
+int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 #endif
