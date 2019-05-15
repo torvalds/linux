@@ -498,10 +498,11 @@ static void add_rules(struct ima_rule_entry *entries, int count,
 
 			list_add_tail(&entry->list, &ima_policy_rules);
 		}
-		if (entries[i].action == APPRAISE)
+		if (entries[i].action == APPRAISE) {
 			temp_ima_appraise |= ima_appraise_flag(entries[i].func);
-		if (entries[i].func == POLICY_CHECK)
-			temp_ima_appraise |= IMA_APPRAISE_POLICY;
+			if (entries[i].func == POLICY_CHECK)
+				temp_ima_appraise |= IMA_APPRAISE_POLICY;
+		}
 	}
 }
 
