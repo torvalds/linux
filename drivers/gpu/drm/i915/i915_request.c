@@ -1189,7 +1189,7 @@ struct i915_request *__i915_request_commit(struct i915_request *rq)
 		 * the bulk clients. (FQ_CODEL)
 		 */
 		if (list_empty(&rq->sched.signalers_list))
-			attr.priority |= I915_PRIORITY_NEWCLIENT;
+			attr.priority |= I915_PRIORITY_WAIT;
 
 		engine->schedule(rq, &attr);
 	}
