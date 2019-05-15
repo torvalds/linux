@@ -168,6 +168,7 @@ static unsigned long __prombss prom_tce_alloc_end;
 
 #ifdef CONFIG_PPC_PSERIES
 static bool __prombss prom_radix_disable;
+static bool __prombss prom_xive_disable;
 #endif
 
 struct platform_support {
@@ -804,6 +805,12 @@ static void __init early_cmdline_parse(void)
 	}
 	if (prom_radix_disable)
 		prom_debug("Radix disabled from cmdline\n");
+
+	opt = prom_strstr(prom_cmd_line, "xive=off");
+	if (opt) {
+		prom_xive_disable = true;
+		prom_debug("XIVE disabled from cmdline\n");
+	}
 #endif /* CONFIG_PPC_PSERIES */
 }
 
@@ -1212,10 +1219,17 @@ static void __init prom_parse_xive_model(u8 val,
 	switch (val) {
 	case OV5_FEAT(OV5_XIVE_EITHER): /* Either Available */
 		prom_debug("XIVE - either mode supported\n");
-		support->xive = true;
+		support->xive = !prom_xive_disable;
 		break;
 	case OV5_FEAT(OV5_XIVE_EXPLOIT): /* Only Exploitation mode */
 		prom_debug("XIVE - exploitation mode supported\n");
+		if (prom_xive_disable) {
+			/*
+			 * If we __have__ to do XIVE, we're better off ignoring
+			 * the command line rather than not booting.
+			 */
+			prom_printf("WARNING: Ignoring cmdline option xive=off\n");
+		}
 		support->xive = true;
 		break;
 	case OV5_FEAT(OV5_XIVE_LEGACY): /* Only Legacy mode */
