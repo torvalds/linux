@@ -99,11 +99,10 @@ struct replicas_delta {
 } __packed;
 
 struct replicas_delta_list {
+	unsigned		size;
+	unsigned		used;
 	struct bch_fs_usage	fs_usage;
-
-	struct replicas_delta	*top;
 	struct replicas_delta	d[0];
-	u8			pad[256];
 };
 
 /*

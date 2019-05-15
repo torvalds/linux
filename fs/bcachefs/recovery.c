@@ -258,13 +258,8 @@ retry:
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 
 	if (split_compressed) {
-		memset(&trans.fs_usage_deltas.fs_usage, 0,
-		       sizeof(trans.fs_usage_deltas.fs_usage));
-		trans.fs_usage_deltas.top = trans.fs_usage_deltas.d;
-
 		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k), false,
-					  -((s64) k->k.size),
-					  &trans.fs_usage_deltas) ?:
+					  -((s64) k->k.size)) ?:
 		      bch2_trans_commit(&trans, &disk_res, NULL,
 					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL|

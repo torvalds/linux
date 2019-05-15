@@ -1949,6 +1949,7 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	trans->size		= ARRAY_SIZE(trans->iters_onstack);
 	trans->iters		= trans->iters_onstack;
 	trans->updates		= trans->updates_onstack;
+	trans->fs_usage_deltas	= NULL;
 
 	if (expected_nr_iters > trans->size)
 		bch2_trans_realloc_iters(trans, expected_nr_iters);
@@ -1961,6 +1962,7 @@ int bch2_trans_exit(struct btree_trans *trans)
 {
 	bch2_trans_unlock(trans);
 
+	kfree(trans->fs_usage_deltas);
 	kfree(trans->mem);
 	if (trans->used_mempool)
 		mempool_free(trans->iters, &trans->c->btree_iters_pool);

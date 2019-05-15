@@ -544,10 +544,11 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	struct btree_insert_entry *i;
 	int ret;
 
-	if (likely(!(trans->flags & BTREE_INSERT_NO_CLEAR_REPLICAS))) {
-		memset(&trans->fs_usage_deltas.fs_usage, 0,
-		       sizeof(trans->fs_usage_deltas.fs_usage));
-		trans->fs_usage_deltas.top = trans->fs_usage_deltas.d;
+	if (likely(!(trans->flags & BTREE_INSERT_NO_CLEAR_REPLICAS)) &&
+	    trans->fs_usage_deltas) {
+		memset(&trans->fs_usage_deltas->fs_usage, 0,
+		       sizeof(trans->fs_usage_deltas->fs_usage));
+		trans->fs_usage_deltas->used = 0;
 	}
 
 	trans_for_each_update_iter(trans, i)
@@ -556,8 +557,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	trans_for_each_update_iter(trans, i)
 		if (update_has_triggers(trans, i) &&
 		    update_triggers_transactional(trans, i)) {
-			ret = bch2_trans_mark_update(trans, i,
-						&trans->fs_usage_deltas);
+			ret = bch2_trans_mark_update(trans, i);
 			if (ret == -EINTR)
 				trace_trans_restart_mark(trans->ip);
 			if (ret)
@@ -627,9 +627,9 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		    !update_triggers_transactional(trans, i))
 			bch2_mark_update(trans, i, &fs_usage->u, 0);
 
-	if (fs_usage) {
+	if (fs_usage && trans->fs_usage_deltas) {
 		bch2_replicas_delta_list_apply(c, &fs_usage->u,
-					       &trans->fs_usage_deltas);
+					       trans->fs_usage_deltas);
 		bch2_trans_fs_usage_apply(trans, fs_usage);
 	}
 

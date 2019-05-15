@@ -1260,26 +1260,45 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 /* trans_mark: */
 
-static inline void update_replicas_list(struct replicas_delta_list *d,
+static void replicas_deltas_realloc(struct btree_trans *trans)
+{
+	struct replicas_delta_list *d = trans->fs_usage_deltas;
+	unsigned new_size = d ? d->size * 2 : 128;
+
+	d = krealloc(d, sizeof(*d) + new_size, GFP_NOIO|__GFP_ZERO);
+	BUG_ON(!d);
+
+	d->size = new_size;
+	trans->fs_usage_deltas = d;
+}
+
+static inline void update_replicas_list(struct btree_trans *trans,
 					struct bch_replicas_entry *r,
 					s64 sectors)
 {
-	d->top->delta = sectors;
-	memcpy(&d->top->r, r, replicas_entry_bytes(r));
+	struct replicas_delta_list *d = trans->fs_usage_deltas;
+	struct replicas_delta *n;
+	unsigned b = replicas_entry_bytes(r) + 8;
 
-	d->top = (void *) d->top + replicas_entry_bytes(r) + 8;
+	if (!d || d->used + b > d->size) {
+		replicas_deltas_realloc(trans);
+		d = trans->fs_usage_deltas;
+	}
 
-	BUG_ON((void *) d->top > (void *) d->d + sizeof(d->pad));
+	n = (void *) d->d + d->used;
+	n->delta = sectors;
+	memcpy(&n->r, r, replicas_entry_bytes(r));
+	d->used += b;
 }
 
-static inline void update_cached_sectors_list(struct replicas_delta_list *d,
+static inline void update_cached_sectors_list(struct btree_trans *trans,
 					      unsigned dev, s64 sectors)
 {
 	struct bch_replicas_padded r;
 
 	bch2_replicas_entry_cached(&r.e, dev);
 
-	update_replicas_list(d, &r.e, sectors);
+	update_replicas_list(trans, &r.e, sectors);
 }
 
 void bch2_replicas_delta_list_apply(struct bch_fs *c,
@@ -1287,12 +1306,13 @@ void bch2_replicas_delta_list_apply(struct bch_fs *c,
 				    struct replicas_delta_list *r)
 {
 	struct replicas_delta *d = r->d;
+	struct replicas_delta *top = (void *) r->d + r->used;
 
 	acc_u64s((u64 *) fs_usage,
 		 (u64 *) &r->fs_usage, sizeof(*fs_usage) / sizeof(u64));
 
-	while (d != r->top) {
-		BUG_ON((void *) d > (void *) r->top);
+	while (d != top) {
+		BUG_ON((void *) d > (void *) top);
 
 		update_replicas(c, fs_usage, &d->r, d->delta);
 
@@ -1361,8 +1381,7 @@ static int trans_update_key(struct btree_trans *trans,
 
 static int bch2_trans_mark_pointer(struct btree_trans *trans,
 			struct extent_ptr_decoded p,
-			s64 sectors, enum bch_data_type data_type,
-			struct replicas_delta_list *d)
+			s64 sectors, enum bch_data_type data_type)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
@@ -1423,8 +1442,7 @@ out:
 
 static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 			struct bch_extent_stripe_ptr p,
-			s64 sectors, enum bch_data_type data_type,
-			struct replicas_delta_list *d)
+			s64 sectors, enum bch_data_type data_type)
 {
 	struct bch_replicas_padded r;
 	struct btree_insert_entry *insert;
@@ -1469,7 +1487,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 
 	bch2_bkey_to_replicas(&r.e, s.s_c);
 
-	update_replicas_list(d, &r.e, sectors);
+	update_replicas_list(trans, &r.e, sectors);
 out:
 	bch2_trans_iter_put(trans, iter);
 	return ret;
@@ -1477,8 +1495,7 @@ out:
 
 static int bch2_trans_mark_extent(struct btree_trans *trans,
 			struct bkey_s_c k,
-			s64 sectors, enum bch_data_type data_type,
-			struct replicas_delta_list *d)
+			s64 sectors, enum bch_data_type data_type)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -1501,7 +1518,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 			: ptr_disk_sectors_delta(p, sectors);
 
 		ret = bch2_trans_mark_pointer(trans, p, disk_sectors,
-					      data_type, d);
+					      data_type);
 		if (ret < 0)
 			return ret;
 
@@ -1509,7 +1526,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 
 		if (p.ptr.cached) {
 			if (disk_sectors && !stale)
-				update_cached_sectors_list(d, p.ptr.dev,
+				update_cached_sectors_list(trans, p.ptr.dev,
 							   disk_sectors);
 		} else if (!p.ec_nr) {
 			dirty_sectors	       += disk_sectors;
@@ -1517,7 +1534,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 		} else {
 			for (i = 0; i < p.ec_nr; i++) {
 				ret = bch2_trans_mark_stripe_ptr(trans, p.ec[i],
-						disk_sectors, data_type, d);
+						disk_sectors, data_type);
 				if (ret)
 					return ret;
 			}
@@ -1527,16 +1544,16 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	}
 
 	if (dirty_sectors)
-		update_replicas_list(d, &r.e, dirty_sectors);
+		update_replicas_list(trans, &r.e, dirty_sectors);
 
 	return 0;
 }
 
 int bch2_trans_mark_key(struct btree_trans *trans,
 			struct bkey_s_c k,
-			bool inserting, s64 sectors,
-			struct replicas_delta_list *d)
+			bool inserting, s64 sectors)
 {
+	struct replicas_delta_list *d;
 	struct bch_fs *c = trans->c;
 
 	switch (k.k->type) {
@@ -1544,11 +1561,15 @@ int bch2_trans_mark_key(struct btree_trans *trans,
 		return bch2_trans_mark_extent(trans, k, inserting
 				?  c->opts.btree_node_size
 				: -c->opts.btree_node_size,
-				BCH_DATA_BTREE, d);
+				BCH_DATA_BTREE);
 	case KEY_TYPE_extent:
 		return bch2_trans_mark_extent(trans, k,
-				sectors, BCH_DATA_USER, d);
+				sectors, BCH_DATA_USER);
 	case KEY_TYPE_inode:
+		if (!trans->fs_usage_deltas)
+			replicas_deltas_realloc(trans);
+		d = trans->fs_usage_deltas;
+
 		if (inserting)
 			d->fs_usage.nr_inodes++;
 		else
@@ -1556,6 +1577,10 @@ int bch2_trans_mark_key(struct btree_trans *trans,
 		return 0;
 	case KEY_TYPE_reservation: {
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
+
+		if (!trans->fs_usage_deltas)
+			replicas_deltas_realloc(trans);
+		d = trans->fs_usage_deltas;
 
 		sectors *= replicas;
 		replicas = clamp_t(unsigned, replicas, 1,
@@ -1571,8 +1596,7 @@ int bch2_trans_mark_key(struct btree_trans *trans,
 }
 
 int bch2_trans_mark_update(struct btree_trans *trans,
-			   struct btree_insert_entry *insert,
-			   struct replicas_delta_list *d)
+			   struct btree_insert_entry *insert)
 {
 	struct btree_iter	*iter = insert->iter;
 	struct btree		*b = iter->l[0].b;
@@ -1586,7 +1610,7 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 	ret = bch2_trans_mark_key(trans,
 			bkey_i_to_s_c(insert->k), true,
 			bpos_min(insert->k->k.p, b->key.k.p).offset -
-			bkey_start_offset(&insert->k->k), d);
+			bkey_start_offset(&insert->k->k));
 	if (ret)
 		return ret;
 
@@ -1621,7 +1645,7 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 				BUG_ON(sectors <= 0);
 
 				ret = bch2_trans_mark_key(trans, k, true,
-							  sectors, d);
+							  sectors);
 				if (ret)
 					return ret;
 
@@ -1633,7 +1657,7 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 			BUG_ON(sectors >= 0);
 		}
 
-		ret = bch2_trans_mark_key(trans, k, false, sectors, d);
+		ret = bch2_trans_mark_key(trans, k, false, sectors);
 		if (ret)
 			return ret;
 
