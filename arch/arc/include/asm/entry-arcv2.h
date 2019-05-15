@@ -95,9 +95,8 @@
 	lr	r10, [ecr]
 	lr	r11, [erbta]
 	ST2	r10, r11, PT_event
-	mov	r9, r10
 
-	; OUTPUT: r9 has ECR
+	; OUTPUT: r10 has ECR expected by EV_Trap
 .endm
 
 /*------------------------------------------------------------------------
