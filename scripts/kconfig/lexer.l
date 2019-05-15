@@ -378,7 +378,8 @@ FILE *zconf_fopen(const char *name)
 	if (!f && name != NULL && name[0] != '/') {
 		env = getenv(SRCTREE);
 		if (env) {
-			sprintf(fullname, "%s/%s", env, name);
+			snprintf(fullname, sizeof(fullname),
+				 "%s/%s", env, name);
 			f = fopen(fullname, "r");
 		}
 	}
