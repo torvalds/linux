@@ -45,7 +45,7 @@ with "port" and must be followed by the "@" character and the number of the
 port as its key. The target object it refers to should be called "PRTX", where
 "X" is the number of the port. An example of such a package would be::
 
-    Package() { "port@4", PRT4 }
+    Package() { "port@4", "PRT4" }
 
 Further on, endpoints are located under the port nodes. The hierarchical
 data extension key of the endpoint nodes must begin with
@@ -54,7 +54,7 @@ endpoint. The object it refers to should be called "EPXY", where "X" is the
 number of the port and "Y" is the number of the endpoint. An example of such a
 package would be::
 
-    Package() { "endpoint@0", EP40 }
+    Package() { "endpoint@0", "EP40" }
 
 Each port node contains a property extension key "port", the value of which is
 the number of the port. Each endpoint is similarly numbered with a property
@@ -82,68 +82,68 @@ A simple example of this is show below::
 
     Scope (\_SB.PCI0.I2C2)
     {
-        Device (CAM0)
-        {
-            Name (_DSD, Package () {
-                ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
-                Package () {
-                    Package () { "compatible", Package () { "nokia,smia" } },
-                },
-                ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
-                Package () {
-                    Package () { "port@0", PRT0 },
-                }
-            })
-            Name (PRT0, Package() {
-                ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
-                Package () {
-                    Package () { "reg", 0 },
-                },
-                ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
-                Package () {
-                    Package () { "endpoint@0", EP00 },
-                }
-            })
-            Name (EP00, Package() {
-                ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
-                Package () {
-                    Package () { "reg", 0 },
-                    Package () { "remote-endpoint", Package() { \_SB.PCI0.ISP, "port@4", "endpoint@0" } },
-                }
-            })
-        }
+	Device (CAM0)
+	{
+	    Name (_DSD, Package () {
+		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package () {
+		    Package () { "compatible", Package () { "nokia,smia" } },
+		},
+		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+		Package () {
+		    Package () { "port@0", "PRT0" },
+		}
+	    })
+	    Name (PRT0, Package() {
+		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package () {
+		    Package () { "reg", 0 },
+		},
+		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+		Package () {
+		    Package () { "endpoint@0", "EP00" },
+		}
+	    })
+	    Name (EP00, Package() {
+		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package () {
+		    Package () { "reg", 0 },
+		    Package () { "remote-endpoint", Package() { \_SB.PCI0.ISP, "port@4", "endpoint@0" } },
+		}
+	    })
+	}
     }
 
     Scope (\_SB.PCI0)
     {
-        Device (ISP)
-        {
-            Name (_DSD, Package () {
-                ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
-                Package () {
-                    Package () { "port@4", PRT4 },
-                }
-            })
+	Device (ISP)
+	{
+	    Name (_DSD, Package () {
+		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+		Package () {
+		    Package () { "port@4", "PRT4" },
+		}
+	    })
 
-            Name (PRT4, Package() {
-                ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
-                Package () {
-                    Package () { "reg", 4 }, /* CSI-2 port number */
-                },
-                ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
-                Package () {
-                    Package () { "endpoint@0", EP40 },
-                }
-            })
+	    Name (PRT4, Package() {
+		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package () {
+		    Package () { "reg", 4 }, /* CSI-2 port number */
+		},
+		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+		Package () {
+		    Package () { "endpoint@0", "EP40" },
+		}
+	    })
 
-            Name (EP40, Package() {
-                ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
-                Package () {
-                    Package () { "reg", 0 },
-                    Package () { "remote-endpoint", Package () { \_SB.PCI0.I2C2.CAM0, "port@0", "endpoint@0" } },
-                }
-            })
-        }
+	    Name (EP40, Package() {
+		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package () {
+		    Package () { "reg", 0 },
+		    Package () { "remote-endpoint", Package () { \_SB.PCI0.I2C2.CAM0, "port@0", "endpoint@0" } },
+		}
+	    })
+	}
     }
 
 Here, the port 0 of the "CAM0" device is connected to the port 4 of
