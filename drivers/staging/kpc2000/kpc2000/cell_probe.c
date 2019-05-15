@@ -438,7 +438,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
                 dev_err(&pcard->pdev->dev,
                         "kp2000_probe_cores: failed to add core %d: %d\n",
                         i, err);
-                return err;
+                goto error;
             }
             core_num++;
         }
@@ -457,10 +457,15 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
     err = probe_core_uio(0, pcard, "kpc_uio", cte);
     if (err){
         dev_err(&pcard->pdev->dev, "kp2000_probe_cores: failed to add board_info core: %d\n", err);
-        return err;
+        goto error;
     }
     
     return 0;
+
+error:
+    kp2000_remove_cores(pcard);
+    mfd_remove_devices(PCARD_TO_DEV(pcard));
+    return err;
 }
 
 void  kp2000_remove_cores(struct kp2000_device *pcard)
