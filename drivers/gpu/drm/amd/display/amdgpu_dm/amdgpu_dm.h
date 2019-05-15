@@ -50,6 +50,7 @@
 
 #include "irq_types.h"
 #include "signal_types.h"
+#include "amdgpu_dm_crc.h"
 
 /* Forward declarations */
 struct amdgpu_device;
@@ -313,7 +314,7 @@ struct dm_crtc_state {
 	bool interrupts_enabled;
 
 	int crc_skip_count;
-	bool crc_enabled;
+	enum amdgpu_dm_pipe_crc_source crc_src;
 
 	bool freesync_timing_changed;
 	bool freesync_vrr_info_changed;
@@ -379,19 +380,6 @@ void dm_restore_drm_connector_state(struct drm_device *dev,
 
 void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 					struct edid *edid);
-
-/* amdgpu_dm_crc.c */
-#ifdef CONFIG_DEBUG_FS
-int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name);
-int amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc,
-				     const char *src_name,
-				     size_t *values_cnt);
-void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc);
-#else
-#define amdgpu_dm_crtc_set_crc_source NULL
-#define amdgpu_dm_crtc_verify_crc_source NULL
-#define amdgpu_dm_crtc_handle_crc_irq(x)
-#endif
 
 #define MAX_COLOR_LUT_ENTRIES 4096
 /* Legacy gamm LUT users such as X doesn't like large LUT sizes */
