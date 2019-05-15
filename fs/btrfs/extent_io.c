@@ -4542,6 +4542,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	struct btrfs_path *path;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct fiemap_cache cache = { 0 };
+	struct ulist *roots;
+	struct ulist *tmp_ulist;
 	int end = 0;
 	u64 em_start = 0;
 	u64 em_len = 0;
@@ -4555,6 +4557,13 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		return -ENOMEM;
 	path->leave_spinning = 1;
 
+	roots = ulist_alloc(GFP_KERNEL);
+	tmp_ulist = ulist_alloc(GFP_KERNEL);
+	if (!roots || !tmp_ulist) {
+		ret = -ENOMEM;
+		goto out_free_ulist;
+	}
+
 	start = round_down(start, btrfs_inode_sectorsize(inode));
 	len = round_up(max, btrfs_inode_sectorsize(inode)) - start;
 
@@ -4566,7 +4575,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			btrfs_ino(BTRFS_I(inode)), -1, 0);
 	if (ret < 0) {
 		btrfs_free_path(path);
-		return ret;
+		goto out_free_ulist;
 	} else {
 		WARN_ON(!ret);
 		if (ret == 1)
@@ -4675,7 +4684,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			 */
 			ret = btrfs_check_shared(root,
 						 btrfs_ino(BTRFS_I(inode)),
-						 bytenr);
+						 bytenr, roots, tmp_ulist);
 			if (ret < 0)
 				goto out_free;
 			if (ret)
@@ -4721,6 +4730,10 @@ out:
 	btrfs_free_path(path);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			     &cached_state);
+
+out_free_ulist:
+	ulist_free(roots);
+	ulist_free(tmp_ulist);
 	return ret;
 }
 
