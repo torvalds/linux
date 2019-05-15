@@ -1208,14 +1208,6 @@ void klp_module_going(struct module *mod)
 
 static int __init klp_init(void)
 {
-	int ret;
-
-	ret = klp_check_compiler_support();
-	if (ret) {
-		pr_info("Your compiler is too old; turning off.\n");
-		return -EINVAL;
-	}
-
 	klp_root_kobj = kobject_create_and_add("livepatch", kernel_kobj);
 	if (!klp_root_kobj)
 		return -ENOMEM;
