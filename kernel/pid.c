@@ -32,7 +32,6 @@
 #include <linux/init.h>
 #include <linux/rculist.h>
 #include <linux/memblock.h>
-#include <linux/hash.h>
 #include <linux/pid_namespace.h>
 #include <linux/init_task.h>
 #include <linux/syscalls.h>

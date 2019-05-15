@@ -86,6 +86,12 @@ static DEFINE_SEMAPHORE(console_sem);
 struct console *console_drivers;
 EXPORT_SYMBOL_GPL(console_drivers);
 
+/*
+ * System may need to suppress printk message under certain
+ * circumstances, like after kernel panic happens.
+ */
+int __read_mostly suppress_printk;
+
 #ifdef CONFIG_LOCKDEP
 static struct lockdep_map console_lock_dep_map = {
 	.name = "console_lock"
@@ -1942,6 +1948,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 	bool in_sched = false, pending_output;
 	unsigned long flags;
 	u64 curr_log_seq;
+
+	/* Suppress unimportant messages after panic happens */
+	if (unlikely(suppress_printk))
+		return 0;
 
 	if (level == LOGLEVEL_SCHED) {
 		level = LOGLEVEL_DEFAULT;

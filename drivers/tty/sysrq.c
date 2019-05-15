@@ -527,7 +527,11 @@ void __handle_sysrq(int key, bool check_mask)
 {
 	struct sysrq_key_op *op_p;
 	int orig_log_level;
+	int orig_suppress_printk;
 	int i;
+
+	orig_suppress_printk = suppress_printk;
+	suppress_printk = 0;
 
 	rcu_sysrq_start();
 	rcu_read_lock();
@@ -574,6 +578,8 @@ void __handle_sysrq(int key, bool check_mask)
 	}
 	rcu_read_unlock();
 	rcu_sysrq_end();
+
+	suppress_printk = orig_suppress_printk;
 }
 
 void handle_sysrq(int key)
