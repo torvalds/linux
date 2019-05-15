@@ -1422,7 +1422,7 @@ static void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 	struct bkey_i_extent *e;
 	BKEY_PADDED(k) new;
 	struct bch_extent_crc_unpacked new_crc;
-	unsigned offset;
+	u64 data_offset = rbio->pos.offset - rbio->pick.crc.offset;
 	int ret;
 
 	if (rbio->pick.crc.compression_type)
@@ -1445,24 +1445,19 @@ retry:
 	e = bkey_i_to_extent(&new.k);
 
 	if (!bch2_extent_matches_ptr(c, extent_i_to_s_c(e),
-				     rbio->pick.ptr,
-				     rbio->pos.offset -
-				     rbio->pick.crc.offset) ||
+				     rbio->pick.ptr, data_offset) ||
 	    bversion_cmp(e->k.version, rbio->version))
 		goto out;
 
 	/* Extent was merged? */
-	if (bkey_start_offset(&e->k) < rbio->pos.offset ||
-	    e->k.p.offset > rbio->pos.offset + rbio->pick.crc.uncompressed_size)
+	if (bkey_start_offset(&e->k) < data_offset ||
+	    e->k.p.offset > data_offset + rbio->pick.crc.uncompressed_size)
 		goto out;
 
-	/* The extent might have been partially overwritten since we read it: */
-	offset = rbio->pick.crc.offset + (bkey_start_offset(&e->k) - rbio->pos.offset);
-
 	if (bch2_rechecksum_bio(c, &rbio->bio, rbio->version,
-				rbio->pick.crc, NULL, &new_crc,
-				offset, e->k.size,
-				rbio->pick.crc.csum_type)) {
+			rbio->pick.crc, NULL, &new_crc,
+			bkey_start_offset(&e->k) - data_offset, e->k.size,
+			rbio->pick.crc.csum_type)) {
 		bch_err(c, "error verifying existing checksum while narrowing checksum (memory corruption?)");
 		goto out;
 	}
