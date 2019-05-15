@@ -126,25 +126,11 @@ static void __orphan_drop(struct ubifs_info *c, struct ubifs_orphan *o)
 	kfree(o);
 }
 
-static void orphan_delete(struct ubifs_info *c, ino_t inum)
+static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 {
-	struct ubifs_orphan *orph, *child_orph, *tmp_o;
-
-	spin_lock(&c->orphan_lock);
-
-	orph = lookup_orphan(c, inum);
-	if (!orph) {
-		spin_unlock(&c->orphan_lock);
-		ubifs_err(c, "missing orphan ino %lu", (unsigned long)inum);
-		dump_stack();
-
-		return;
-	}
-
 	if (orph->del) {
 		spin_unlock(&c->orphan_lock);
-		dbg_gen("deleted twice ino %lu",
-			(unsigned long)inum);
+		dbg_gen("deleted twice ino %lu", orph->inum);
 		return;
 	}
 
@@ -153,19 +139,11 @@ static void orphan_delete(struct ubifs_info *c, ino_t inum)
 		orph->dnext = c->orph_dnext;
 		c->orph_dnext = orph;
 		spin_unlock(&c->orphan_lock);
-		dbg_gen("delete later ino %lu",
-			(unsigned long)inum);
+		dbg_gen("delete later ino %lu", orph->inum);
 		return;
 	}
 
-	list_for_each_entry_safe(child_orph, tmp_o, &orph->child_list, child_list) {
-		list_del(&child_orph->child_list);
-		__orphan_drop(c, child_orph);
-	}
-
 	__orphan_drop(c, orph);
-
-	spin_unlock(&c->orphan_lock);
 }
 
 /**
@@ -223,7 +201,27 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
  */
 void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum)
 {
-	orphan_delete(c, inum);
+	struct ubifs_orphan *orph, *child_orph, *tmp_o;
+
+	spin_lock(&c->orphan_lock);
+
+	orph = lookup_orphan(c, inum);
+	if (!orph) {
+		spin_unlock(&c->orphan_lock);
+		ubifs_err(c, "missing orphan ino %lu", (unsigned long)inum);
+		dump_stack();
+
+		return;
+	}
+
+	list_for_each_entry_safe(child_orph, tmp_o, &orph->child_list, child_list) {
+		list_del(&child_orph->child_list);
+		orphan_delete(c, child_orph);
+	}
+	
+	orphan_delete(c, orph);
+
+	spin_unlock(&c->orphan_lock);
 }
 
 /**
