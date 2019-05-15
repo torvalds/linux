@@ -65,6 +65,8 @@
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
 #include "amdgpu_smu.h"
+#include "amdgpu_ras.h"
+#include "amdgpu_xgmi.h"
 #include <uapi/linux/kfd_ioctl.h>
 
 #define mmMP0_MISC_CGTT_CTRL0                                                                   0x01b9
@@ -485,6 +487,13 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 			soc15_asic_get_baco_capability(adev, &baco_reset);
 		else
 			baco_reset = false;
+		if (baco_reset) {
+			struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
+			struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+			if (hive || (ras && ras->supported))
+				baco_reset = false;
+		}
 		break;
 	default:
 		baco_reset = false;
