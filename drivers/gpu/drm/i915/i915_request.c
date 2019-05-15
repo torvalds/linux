@@ -573,18 +573,7 @@ semaphore_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 
 	switch (state) {
 	case FENCE_COMPLETE:
-		/*
-		 * We only check a small portion of our dependencies
-		 * and so cannot guarantee that there remains no
-		 * semaphore chain across all. Instead of opting
-		 * for the full NOSEMAPHORE boost, we go for the
-		 * smaller (but still preempting) boost of
-		 * NEWCLIENT. This will be enough to boost over
-		 * a busywaiting request (as that cannot be
-		 * NEWCLIENT) without accidentally boosting
-		 * a busywait over real work elsewhere.
-		 */
-		i915_schedule_bump_priority(request, I915_PRIORITY_NEWCLIENT);
+		i915_schedule_bump_priority(request, I915_PRIORITY_NOSEMAPHORE);
 		break;
 
 	case FENCE_FREE:
@@ -865,12 +854,6 @@ emit_semaphore_wait(struct i915_request *to,
 	if (err < 0)
 		return err;
 
-	err = i915_sw_fence_await_dma_fence(&to->semaphore,
-					    &from->fence, 0,
-					    I915_FENCE_GFP);
-	if (err < 0)
-		return err;
-
 	/* We need to pin the signaler's HWSP until we are finished reading. */
 	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
 	if (err)
@@ -936,8 +919,18 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 						    &from->fence, 0,
 						    I915_FENCE_GFP);
 	}
+	if (ret < 0)
+		return ret;
 
-	return ret < 0 ? ret : 0;
+	if (to->sched.flags & I915_SCHED_HAS_SEMAPHORE_CHAIN) {
+		ret = i915_sw_fence_await_dma_fence(&to->semaphore,
+						    &from->fence, 0,
+						    I915_FENCE_GFP);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 int
