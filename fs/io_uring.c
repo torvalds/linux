@@ -2454,10 +2454,11 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 			ctx->sq_thread_idle = HZ;
 
 		if (p->flags & IORING_SETUP_SQ_AFF) {
-			int cpu = array_index_nospec(p->sq_thread_cpu,
-							nr_cpu_ids);
+			int cpu = p->sq_thread_cpu;
 
 			ret = -EINVAL;
+			if (cpu >= nr_cpu_ids)
+				goto err;
 			if (!cpu_online(cpu))
 				goto err;
 
