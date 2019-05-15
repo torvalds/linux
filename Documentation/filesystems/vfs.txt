@@ -111,12 +111,12 @@ members are defined:
 struct file_system_type {
 	const char *name;
 	int fs_flags;
-        struct dentry *(*mount) (struct file_system_type *, int,
-                       const char *, void *);
-        void (*kill_sb) (struct super_block *);
-        struct module *owner;
-        struct file_system_type * next;
-        struct list_head fs_supers;
+	struct dentry *(*mount) (struct file_system_type *, int,
+		       const char *, void *);
+	void (*kill_sb) (struct super_block *);
+	struct module *owner;
+	struct file_system_type * next;
+	struct list_head fs_supers;
 	struct lock_class_key s_lock_key;
 	struct lock_class_key s_umount_key;
 };
@@ -205,26 +205,26 @@ This describes how the VFS can manipulate the superblock of your
 filesystem.  As of kernel 2.6.22, the following members are defined:
 
 struct super_operations {
-        struct inode *(*alloc_inode)(struct super_block *sb);
-        void (*destroy_inode)(struct inode *);
+	struct inode *(*alloc_inode)(struct super_block *sb);
+	void (*destroy_inode)(struct inode *);
 
-        void (*dirty_inode) (struct inode *, int flags);
-        int (*write_inode) (struct inode *, int);
-        void (*drop_inode) (struct inode *);
-        void (*delete_inode) (struct inode *);
-        void (*put_super) (struct super_block *);
-        int (*sync_fs)(struct super_block *sb, int wait);
-        int (*freeze_fs) (struct super_block *);
-        int (*unfreeze_fs) (struct super_block *);
-        int (*statfs) (struct dentry *, struct kstatfs *);
-        int (*remount_fs) (struct super_block *, int *, char *);
-        void (*clear_inode) (struct inode *);
-        void (*umount_begin) (struct super_block *);
+	void (*dirty_inode) (struct inode *, int flags);
+	int (*write_inode) (struct inode *, int);
+	void (*drop_inode) (struct inode *);
+	void (*delete_inode) (struct inode *);
+	void (*put_super) (struct super_block *);
+	int (*sync_fs)(struct super_block *sb, int wait);
+	int (*freeze_fs) (struct super_block *);
+	int (*unfreeze_fs) (struct super_block *);
+	int (*statfs) (struct dentry *, struct kstatfs *);
+	int (*remount_fs) (struct super_block *, int *, char *);
+	void (*clear_inode) (struct inode *);
+	void (*umount_begin) (struct super_block *);
 
-        int (*show_options)(struct seq_file *, struct dentry *);
+	int (*show_options)(struct seq_file *, struct dentry *);
 
-        ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
-        ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
+	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
+	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
 	int (*nr_cached_objects)(struct super_block *);
 	void (*free_cached_objects)(struct super_block *, int);
 };
@@ -479,7 +479,7 @@ otherwise noted.
 	filesystem.
 
 	May be called in rcu-walk mode (mask & MAY_NOT_BLOCK).  If in rcu-walk
-        mode, the filesystem must check the permission without blocking or
+	mode, the filesystem must check the permission without blocking or
 	storing to the inode.
 
 	If a situation is encountered that rcu-walk cannot handle, return
@@ -698,12 +698,12 @@ struct address_space_operations {
 	tagged as DIRTY and will pass them to ->writepage.
 
   set_page_dirty: called by the VM to set a page dirty.
-        This is particularly needed if an address space attaches
-        private data to a page, and that data needs to be updated when
-        a page is dirtied.  This is called, for example, when a memory
+	This is particularly needed if an address space attaches
+	private data to a page, and that data needs to be updated when
+	a page is dirtied.  This is called, for example, when a memory
 	mapped page gets modified.
 	If defined, it should set the PageDirty flag, and the
-        PAGECACHE_TAG_DIRTY tag in the radix tree.
+	PAGECACHE_TAG_DIRTY tag in the radix tree.
 
   readpages: called by the VM to read pages associated with the address_space
 	object.  This is essentially just a vector version of
@@ -721,7 +721,7 @@ struct address_space_operations {
 	storage, then those blocks should be pre-read (if they haven't been
 	read already) so that the updated blocks can be written out properly.
 
-        The filesystem must return the locked pagecache page for the specified
+	The filesystem must return the locked pagecache page for the specified
 	offset, in *pagep, for the caller to write into.
 
 	It must be able to cope with short writes (where the length passed to
@@ -730,21 +730,21 @@ struct address_space_operations {
 	flags is a field for AOP_FLAG_xxx flags, described in
 	include/linux/fs.h.
 
-        A void * may be returned in fsdata, which then gets passed into
-        write_end.
+	A void * may be returned in fsdata, which then gets passed into
+	write_end.
 
-        Returns 0 on success; < 0 on failure (which is the error code), in
+	Returns 0 on success; < 0 on failure (which is the error code), in
 	which case write_end is not called.
 
   write_end: After a successful write_begin, and data copy, write_end must
-        be called.  len is the original len passed to write_begin, and copied
-        is the amount that was able to be copied.
+	be called.  len is the original len passed to write_begin, and copied
+	is the amount that was able to be copied.
 
-        The filesystem must take care of unlocking the page and releasing it
-        refcount, and updating i_size.
+	The filesystem must take care of unlocking the page and releasing it
+	refcount, and updating i_size.
 
-        Returns < 0 on failure, otherwise the number of bytes (<= 'copied')
-        that were able to be copied into pagecache.
+	Returns < 0 on failure, otherwise the number of bytes (<= 'copied')
+	that were able to be copied into pagecache.
 
   bmap: called by the VFS to map a logical block offset within object to
 	physical block number.  This method is used by the FIBMAP
@@ -755,7 +755,7 @@ struct address_space_operations {
 	are and uses those addresses directly.
 
   invalidatepage: If a page has PagePrivate set, then invalidatepage
-        will be called when part or all of the page is to be removed
+	will be called when part or all of the page is to be removed
 	from the address space.  This generally corresponds to either a
 	truncation, punch hole  or a complete invalidation of the address
 	space (in the latter case 'offset' will always be 0 and 'length'
@@ -767,47 +767,47 @@ struct address_space_operations {
 	release MUST succeed.
 
   releasepage: releasepage is called on PagePrivate pages to indicate
-        that the page should be freed if possible.  ->releasepage
-        should remove any private data from the page and clear the
-        PagePrivate flag.  If releasepage() fails for some reason, it must
+	that the page should be freed if possible.  ->releasepage
+	should remove any private data from the page and clear the
+	PagePrivate flag.  If releasepage() fails for some reason, it must
 	indicate failure with a 0 return value.
 	releasepage() is used in two distinct though related cases.  The
 	first is when the VM finds a clean page with no active users and
-        wants to make it a free page.  If ->releasepage succeeds, the
-        page will be removed from the address_space and become free.
+	wants to make it a free page.  If ->releasepage succeeds, the
+	page will be removed from the address_space and become free.
 
 	The second case is when a request has been made to invalidate
-        some or all pages in an address_space.  This can happen
-        through the fadvise(POSIX_FADV_DONTNEED) system call or by the
-        filesystem explicitly requesting it as nfs and 9fs do (when
-        they believe the cache may be out of date with storage) by
-        calling invalidate_inode_pages2().
+	some or all pages in an address_space.  This can happen
+	through the fadvise(POSIX_FADV_DONTNEED) system call or by the
+	filesystem explicitly requesting it as nfs and 9fs do (when
+	they believe the cache may be out of date with storage) by
+	calling invalidate_inode_pages2().
 	If the filesystem makes such a call, and needs to be certain
-        that all pages are invalidated, then its releasepage will
-        need to ensure this.  Possibly it can clear the PageUptodate
-        bit if it cannot free private data yet.
+	that all pages are invalidated, then its releasepage will
+	need to ensure this.  Possibly it can clear the PageUptodate
+	bit if it cannot free private data yet.
 
   freepage: freepage is called once the page is no longer visible in
-        the page cache in order to allow the cleanup of any private
+	the page cache in order to allow the cleanup of any private
 	data.  Since it may be called by the memory reclaimer, it
 	should not assume that the original address_space mapping still
 	exists, and it should not block.
 
   direct_IO: called by the generic read/write routines to perform
-        direct_IO - that is IO requests which bypass the page cache
-        and transfer data directly between the storage and the
-        application's address space.
+	direct_IO - that is IO requests which bypass the page cache
+	and transfer data directly between the storage and the
+	application's address space.
 
   isolate_page: Called by the VM when isolating a movable non-lru page.
 	If page is successfully isolated, VM marks the page as PG_isolated
 	via __SetPageIsolated.
 
   migrate_page:  This is used to compact the physical memory usage.
-        If the VM wants to relocate a page (maybe off a memory card
-        that is signalling imminent failure) it will pass a new page
+	If the VM wants to relocate a page (maybe off a memory card
+	that is signalling imminent failure) it will pass a new page
 	and an old page to this function.  migrate_page should
 	transfer any private data across and update any references
-        that it has to the page.
+	that it has to the page.
 
   putback_page: Called by the VM when isolated page's migration fails.
 
