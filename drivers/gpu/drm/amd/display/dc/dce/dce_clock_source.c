@@ -1046,40 +1046,12 @@ static const struct pixel_rate_range_table_entry video_optimized_pixel_rates[] =
 	{108100, 108110, 108000, 1001, 1000},//108Mhz
 };
 
-static const struct pixel_rate_range_table_entry *look_up_in_video_optimized_rate_tlb(
-		unsigned int pixel_rate_khz)
-{
-	int i;
-
-	for (i = 0; i < NUM_ELEMENTS(video_optimized_pixel_rates); i++) {
-		const struct pixel_rate_range_table_entry *e = &video_optimized_pixel_rates[i];
-
-		if (e->range_min_khz <= pixel_rate_khz && pixel_rate_khz <= e->range_max_khz) {
-			return e;
-		}
-	}
-
-	return NULL;
-}
-
 static bool dcn20_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
 		struct pll_settings *pll_settings)
 {
-	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
-	unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
-	unsigned int dp_dto_ref_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
-	const struct pixel_rate_range_table_entry *e =
-			look_up_in_video_optimized_rate_tlb(pll_settings->actual_pix_clk_100hz / 10);
-
 	dce112_program_pix_clk(clock_source, pix_clk_params, pll_settings);
-
-	if (e) {
-		/* Set DTO values: phase = target clock, modulo = reference clock */
-		REG_WRITE(PHASE[inst], e->target_pixel_rate_khz * e->mult_factor);
-		REG_WRITE(MODULO[inst], dp_dto_ref_khz * e->div_factor);
-	}
 
 	return true;
 }
