@@ -439,7 +439,6 @@ static int bch2_trans_journal_preres_get(struct btree_trans *trans)
 		return ret;
 
 	if (!bch2_trans_relock(trans)) {
-		trans_restart(" (iter relock after journal preres get blocked)");
 		trace_trans_restart_journal_preres_get(trans->ip);
 		return -EINTR;
 	}
@@ -569,7 +568,6 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 
 	if (race_fault()) {
 		ret = -EINTR;
-		trans_restart(" (race)");
 		trace_trans_restart_fault_inject(trans->ip);
 		goto out;
 	}
@@ -718,7 +716,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (!ret ||
 		    ret == -EINTR ||
 		    (flags & BTREE_INSERT_NOUNLOCK)) {
-			trans_restart(" (split)");
 			trace_trans_restart_btree_node_split(trans->ip);
 			ret = -EINTR;
 		}
@@ -738,7 +735,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trans_restart(" (iter relock after marking replicas)");
 		trace_trans_restart_mark_replicas(trans->ip);
 		ret = -EINTR;
 		break;
@@ -752,7 +748,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trans_restart(" (iter relock after journal res get blocked)");
 		trace_trans_restart_journal_res_get(trans->ip);
 		ret = -EINTR;
 		break;
@@ -765,7 +760,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		int ret2 = bch2_btree_iter_traverse_all(trans);
 
 		if (ret2) {
-			trans_restart(" (traverse)");
 			trace_trans_restart_traverse(trans->ip);
 			return ret2;
 		}
@@ -777,7 +771,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (!(flags & BTREE_INSERT_ATOMIC))
 			return 0;
 
-		trans_restart(" (atomic)");
 		trace_trans_restart_atomic(trans->ip);
 	}
 
@@ -803,12 +796,7 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 	int ret;
 
 	trans_for_each_update_iter(trans, i) {
-		unsigned old_locks_want = i->iter->locks_want;
-		unsigned old_uptodate = i->iter->uptodate;
-
 		if (!bch2_btree_iter_upgrade(i->iter, 1)) {
-			trans_restart(" (failed upgrade, locks_want %u uptodate %u)",
-				      old_locks_want, old_uptodate);
 			trace_trans_restart_upgrade(trans->ip);
 			ret = -EINTR;
 			goto err;

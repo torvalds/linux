@@ -292,7 +292,7 @@ struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *,
 				enum btree_id, struct bpos,
 				unsigned, unsigned, unsigned);
 
-void __bch2_trans_begin(struct btree_trans *);
+void bch2_trans_begin(struct btree_trans *);
 
 static inline void bch2_trans_begin_updates(struct btree_trans *trans)
 {
@@ -302,25 +302,5 @@ static inline void bch2_trans_begin_updates(struct btree_trans *trans)
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
 void bch2_trans_init(struct btree_trans *, struct bch_fs *, unsigned, size_t);
 int bch2_trans_exit(struct btree_trans *);
-
-#ifdef TRACE_TRANSACTION_RESTARTS
-#define bch2_trans_begin(_trans)					\
-do {									\
-	if (is_power_of_2((_trans)->nr_restarts) &&			\
-	    (_trans)->nr_restarts >= 8)					\
-		pr_info("nr restarts: %zu", (_trans)->nr_restarts);	\
-									\
-	(_trans)->nr_restarts++;					\
-	__bch2_trans_begin(_trans);					\
-} while (0)
-#else
-#define bch2_trans_begin(_trans)	__bch2_trans_begin(_trans)
-#endif
-
-#ifdef TRACE_TRANSACTION_RESTARTS_ALL
-#define trans_restart(...) pr_info("transaction restart" __VA_ARGS__)
-#else
-#define trans_restart(...) no_printk("transaction restart" __VA_ARGS__)
-#endif
 
 #endif /* _BCACHEFS_BTREE_ITER_H */

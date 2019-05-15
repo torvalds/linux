@@ -269,7 +269,6 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 	}
 
 	if (unlikely(!ret)) {
-		trans_restart();
 		trace_trans_restart_would_deadlock(iter->trans->ip);
 		return false;
 	}
@@ -1713,7 +1712,6 @@ success:
 	trans->size	= new_size;
 
 	if (trans->iters_live) {
-		trans_restart();
 		trace_trans_restart_iters_realloced(trans->ip, trans->size);
 		return -EINTR;
 	}
@@ -1874,7 +1872,6 @@ static int bch2_trans_preload_mem(struct btree_trans *trans, size_t size)
 		trans->mem_bytes = new_bytes;
 
 		if (old_bytes) {
-			trans_restart();
 			trace_trans_restart_mem_realloced(trans->ip, new_bytes);
 			return -EINTR;
 		}
@@ -1910,7 +1907,7 @@ inline void bch2_trans_unlink_iters(struct btree_trans *trans, u64 iters)
 	}
 }
 
-void __bch2_trans_begin(struct btree_trans *trans)
+void bch2_trans_begin(struct btree_trans *trans)
 {
 	u64 iters_to_unlink;
 
