@@ -436,28 +436,12 @@ bad_block:
 			error = -EIO;
 			goto cleanup;
 		}
-		/* Find the named attribute. */
-		here = FIRST_ENTRY(bh);
-		while (!IS_LAST_ENTRY(here)) {
-			struct ext2_xattr_entry *next = EXT2_XATTR_NEXT(here);
-			if ((char *)next >= end)
-				goto bad_block;
-			if (!here->e_value_block && here->e_value_size) {
-				size_t offs = le16_to_cpu(here->e_value_offs);
-				if (offs < min_offs)
-					min_offs = offs;
-			}
-			not_found = name_index - here->e_name_index;
-			if (!not_found)
-				not_found = name_len - here->e_name_len;
-			if (!not_found)
-				not_found = memcmp(name, here->e_name,name_len);
-			if (not_found <= 0)
-				break;
-			here = next;
-		}
-		last = here;
-		/* We still need to compute min_offs and last. */
+		/*
+		 * Find the named attribute. If not found, 'here' will point
+		 * to entry where the new attribute should be inserted to
+		 * maintain sorting.
+		 */
+		last = FIRST_ENTRY(bh);
 		while (!IS_LAST_ENTRY(last)) {
 			struct ext2_xattr_entry *next = EXT2_XATTR_NEXT(last);
 			if ((char *)next >= end)
@@ -467,8 +451,21 @@ bad_block:
 				if (offs < min_offs)
 					min_offs = offs;
 			}
+			if (not_found > 0) {
+				not_found = name_index - last->e_name_index;
+				if (!not_found)
+					not_found = name_len - last->e_name_len;
+				if (!not_found) {
+					not_found = memcmp(name, last->e_name,
+							   name_len);
+				}
+				if (not_found <= 0)
+					here = last;
+			}
 			last = next;
 		}
+		if (not_found > 0)
+			here = last;
 
 		/* Check whether we have enough space left. */
 		free = min_offs - ((char*)last - (char*)header) - sizeof(__u32);
