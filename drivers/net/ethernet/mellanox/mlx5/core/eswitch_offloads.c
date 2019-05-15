@@ -1394,7 +1394,7 @@ void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw)
 
 int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 {
-	int total_vports = MLX5_TOTAL_VPORTS(esw->dev);
+	int total_vports = esw->total_vports;
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_eswitch_rep *rep;
 	u8 hw_id[ETH_ALEN], rep_type;

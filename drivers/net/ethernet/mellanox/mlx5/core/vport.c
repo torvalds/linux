@@ -34,6 +34,7 @@
 #include <linux/etherdevice.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
+#include <linux/mlx5/eswitch.h>
 #include "mlx5_core.h"
 
 /* Mutex to hold while enabling or disabling RoCE */
@@ -1165,3 +1166,17 @@ u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev)
 	return tmp;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_system_image_guid);
+
+/**
+ * mlx5_eswitch_get_total_vports - Get total vports of the eswitch
+ *
+ * @dev:	Pointer to core device
+ *
+ * mlx5_eswitch_get_total_vports returns total number of vports for
+ * the eswitch.
+ */
+u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev)
+{
+	return MLX5_SPECIAL_VPORTS(dev) + mlx5_core_max_vfs(dev);
+}
+EXPORT_SYMBOL(mlx5_eswitch_get_total_vports);

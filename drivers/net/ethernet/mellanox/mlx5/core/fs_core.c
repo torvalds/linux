@@ -2090,7 +2090,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_vport_acl_namespace(struct mlx5_core_d
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
 
-	if (!steering || vport >= MLX5_TOTAL_VPORTS(dev))
+	if (!steering || vport >= mlx5_eswitch_get_total_vports(dev))
 		return NULL;
 
 	switch (type) {
@@ -2421,7 +2421,7 @@ static void cleanup_egress_acls_root_ns(struct mlx5_core_dev *dev)
 	if (!steering->esw_egress_root_ns)
 		return;
 
-	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++)
+	for (i = 0; i < mlx5_eswitch_get_total_vports(dev); i++)
 		cleanup_root_ns(steering->esw_egress_root_ns[i]);
 
 	kfree(steering->esw_egress_root_ns);
@@ -2435,7 +2435,7 @@ static void cleanup_ingress_acls_root_ns(struct mlx5_core_dev *dev)
 	if (!steering->esw_ingress_root_ns)
 		return;
 
-	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++)
+	for (i = 0; i < mlx5_eswitch_get_total_vports(dev); i++)
 		cleanup_root_ns(steering->esw_ingress_root_ns[i]);
 
 	kfree(steering->esw_ingress_root_ns);
@@ -2614,16 +2614,18 @@ static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering, int vpo
 static int init_egress_acls_root_ns(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int total_vports = mlx5_eswitch_get_total_vports(dev);
 	int err;
 	int i;
 
-	steering->esw_egress_root_ns = kcalloc(MLX5_TOTAL_VPORTS(dev),
-					       sizeof(*steering->esw_egress_root_ns),
-					       GFP_KERNEL);
+	steering->esw_egress_root_ns =
+			kcalloc(total_vports,
+				sizeof(*steering->esw_egress_root_ns),
+				GFP_KERNEL);
 	if (!steering->esw_egress_root_ns)
 		return -ENOMEM;
 
-	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++) {
+	for (i = 0; i < total_vports; i++) {
 		err = init_egress_acl_root_ns(steering, i);
 		if (err)
 			goto cleanup_root_ns;
@@ -2641,16 +2643,18 @@ cleanup_root_ns:
 static int init_ingress_acls_root_ns(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int total_vports = mlx5_eswitch_get_total_vports(dev);
 	int err;
 	int i;
 
-	steering->esw_ingress_root_ns = kcalloc(MLX5_TOTAL_VPORTS(dev),
-						sizeof(*steering->esw_ingress_root_ns),
-						GFP_KERNEL);
+	steering->esw_ingress_root_ns =
+			kcalloc(total_vports,
+				sizeof(*steering->esw_ingress_root_ns),
+				GFP_KERNEL);
 	if (!steering->esw_ingress_root_ns)
 		return -ENOMEM;
 
-	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++) {
+	for (i = 0; i < total_vports; i++) {
 		err = init_ingress_acl_root_ns(steering, i);
 		if (err)
 			goto cleanup_root_ns;

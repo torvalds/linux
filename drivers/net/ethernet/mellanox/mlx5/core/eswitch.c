@@ -1868,13 +1868,15 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
-	int total_vports = MLX5_TOTAL_VPORTS(dev);
 	struct mlx5_eswitch *esw;
 	struct mlx5_vport *vport;
+	int total_vports;
 	int err, i;
 
 	if (!MLX5_VPORT_MANAGER(dev))
 		return 0;
+
+	total_vports = mlx5_eswitch_get_total_vports(dev);
 
 	esw_info(dev,
 		 "Total vports %d, per vport: max uc(%d) max mc(%d)\n",
