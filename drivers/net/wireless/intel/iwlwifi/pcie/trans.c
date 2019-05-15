@@ -90,8 +90,10 @@
 
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 {
-#define PCI_DUMP_SIZE	64
-#define PREFIX_LEN	32
+#define PCI_DUMP_SIZE		352
+#define PCI_MEM_DUMP_SIZE	64
+#define PCI_PARENT_DUMP_SIZE	524
+#define PREFIX_LEN		32
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct pci_dev *pdev = trans_pcie->pci_dev;
 	u32 i, pos, alloc_size, *ptr, *buf;
@@ -102,11 +104,15 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 
 	/* Should be a multiple of 4 */
 	BUILD_BUG_ON(PCI_DUMP_SIZE > 4096 || PCI_DUMP_SIZE & 0x3);
+	BUILD_BUG_ON(PCI_MEM_DUMP_SIZE > 4096 || PCI_MEM_DUMP_SIZE & 0x3);
+	BUILD_BUG_ON(PCI_PARENT_DUMP_SIZE > 4096 || PCI_PARENT_DUMP_SIZE & 0x3);
+
 	/* Alloc a max size buffer */
-	if (PCI_ERR_ROOT_ERR_SRC +  4 > PCI_DUMP_SIZE)
-		alloc_size = PCI_ERR_ROOT_ERR_SRC +  4 + PREFIX_LEN;
-	else
-		alloc_size = PCI_DUMP_SIZE + PREFIX_LEN;
+	alloc_size = PCI_ERR_ROOT_ERR_SRC +  4 + PREFIX_LEN;
+	alloc_size = max_t(u32, alloc_size, PCI_DUMP_SIZE + PREFIX_LEN);
+	alloc_size = max_t(u32, alloc_size, PCI_MEM_DUMP_SIZE + PREFIX_LEN);
+	alloc_size = max_t(u32, alloc_size, PCI_PARENT_DUMP_SIZE + PREFIX_LEN);
+
 	buf = kmalloc(alloc_size, GFP_ATOMIC);
 	if (!buf)
 		return;
@@ -123,7 +129,7 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
 
 	IWL_ERR(trans, "iwlwifi device memory mapped registers:\n");
-	for (i = 0, ptr = buf; i < PCI_DUMP_SIZE; i += 4, ptr++)
+	for (i = 0, ptr = buf; i < PCI_MEM_DUMP_SIZE; i += 4, ptr++)
 		*ptr = iwl_read32(trans, i);
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
 
@@ -146,7 +152,7 @@ void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 
 	IWL_ERR(trans, "iwlwifi parent port (%s) config registers:\n",
 		pci_name(pdev));
-	for (i = 0, ptr = buf; i < PCI_DUMP_SIZE; i += 4, ptr++)
+	for (i = 0, ptr = buf; i < PCI_PARENT_DUMP_SIZE; i += 4, ptr++)
 		if (pci_read_config_dword(pdev, i, ptr))
 			goto err_read;
 	print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET, 32, 4, buf, i, 0);
