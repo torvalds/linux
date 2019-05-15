@@ -30,7 +30,7 @@
 		eth {
 			label = "EthLedYe";
 			gpios = <&gpio2 11 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "netdev";
 		};
 	};
 
