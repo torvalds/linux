@@ -245,5 +245,14 @@ config POWER_RESET_SC27XX
 	  PMICs includes the SC2720, SC2721, SC2723, SC2730
 	  and SC2731 chips.
 
+config NVMEM_REBOOT_MODE
+	tristate "Generic NVMEM reboot mode driver"
+	select REBOOT_MODE
+	help
+	  Say y here will enable reboot mode driver. This will
+	  get reboot mode arguments and store it in a NVMEM cell,
+	  then the bootloader can read it and take different
+	  action according to the mode.
+
 endif
 
