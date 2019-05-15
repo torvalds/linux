@@ -154,7 +154,7 @@ bool mlx5_ib_devx_is_flow_counter(void *obj, u32 *counter_id)
  * must be considered upon checking for a valid object id.
  * For that the opcode of the creator command is encoded as part of the obj_id.
  */
-static u64 get_enc_obj_id(u16 opcode, u32 obj_id)
+static u64 get_enc_obj_id(u32 opcode, u32 obj_id)
 {
 	return ((u64)opcode << 32) | obj_id;
 }
@@ -167,7 +167,9 @@ static u64 devx_get_obj_id(const void *in)
 	switch (opcode) {
 	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
 	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
-		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_GENERAL_OBJECT,
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_GENERAL_OBJECT |
+					MLX5_GET(general_obj_in_cmd_hdr, in,
+						 obj_type) << 16,
 					MLX5_GET(general_obj_in_cmd_hdr, in,
 						 obj_id));
 		break;
@@ -1171,6 +1173,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	struct devx_obj *obj;
+	u16 obj_type = 0;
 	int err;
 	int uid;
 	u32 obj_id;
@@ -1230,7 +1233,11 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	if (err)
 		goto err_copy;
 
-	obj->obj_id = get_enc_obj_id(opcode, obj_id);
+	if (opcode == MLX5_CMD_OP_CREATE_GENERAL_OBJECT)
+		obj_type = MLX5_GET(general_obj_in_cmd_hdr, cmd_in, obj_type);
+
+	obj->obj_id = get_enc_obj_id(opcode | obj_type << 16, obj_id);
+
 	return 0;
 
 err_copy:
