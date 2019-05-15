@@ -2377,7 +2377,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 static int vega20_get_enabled_smc_features(struct smu_context *smu,
 		uint64_t *features_enabled)
 {
-	uint32_t feature_mask[2];
+	uint32_t feature_mask[2] = {0, 0};
 	int ret = 0;
 
 	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
