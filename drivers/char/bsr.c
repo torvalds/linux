@@ -322,7 +322,8 @@ static int __init bsr_init(void)
 		goto out_err_2;
 	}
 
-	if ((ret = bsr_create_devs(np)) < 0) {
+	ret = bsr_create_devs(np);
+	if (ret < 0) {
 		np = NULL;
 		goto out_err_3;
 	}
