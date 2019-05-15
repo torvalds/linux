@@ -195,13 +195,14 @@ static inline int btree_iter_cmp(const struct btree_iter *l,
  * Unlocks before scheduling
  * Note: does not revalidate iterator
  */
-static inline void bch2_trans_cond_resched(struct btree_trans *trans)
+static inline int bch2_trans_cond_resched(struct btree_trans *trans)
 {
-	if (need_resched()) {
+	if (need_resched() || race_fault()) {
 		bch2_trans_unlock(trans);
 		schedule();
-	} else if (race_fault()) {
-		bch2_trans_unlock(trans);
+		return bch2_trans_relock(trans) ? 0 : -EINTR;
+	} else {
+		return 0;
 	}
 }
 
@@ -229,8 +230,6 @@ static inline struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter,
 static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 						     unsigned flags)
 {
-	bch2_trans_cond_resched(iter->trans);
-
 	return flags & BTREE_ITER_SLOTS
 		? bch2_btree_iter_next_slot(iter)
 		: bch2_btree_iter_next(iter);

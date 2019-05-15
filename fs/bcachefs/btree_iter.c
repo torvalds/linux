@@ -1110,7 +1110,8 @@ int __must_check bch2_btree_iter_traverse(struct btree_iter *iter)
 {
 	int ret;
 
-	ret = __bch2_btree_iter_traverse(iter);
+	ret =   bch2_trans_cond_resched(iter->trans) ?:
+		__bch2_btree_iter_traverse(iter);
 	if (unlikely(ret))
 		ret = __btree_iter_traverse_all(iter->trans, iter, ret);
 
@@ -1302,9 +1303,11 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		return btree_iter_peek_uptodate(iter);
 
 	while (1) {
-		ret = bch2_btree_iter_traverse(iter);
-		if (unlikely(ret))
-			return bkey_s_c_err(ret);
+		if (iter->uptodate >= BTREE_ITER_NEED_RELOCK) {
+			ret = bch2_btree_iter_traverse(iter);
+			if (unlikely(ret))
+				return bkey_s_c_err(ret);
+		}
 
 		k = __btree_iter_peek(iter, l);
 		if (likely(k.k))
@@ -1356,10 +1359,17 @@ struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
 
 	bch2_btree_iter_checks(iter, BTREE_ITER_KEYS);
 
+	iter->pos = btree_type_successor(iter->btree_id, iter->k.p);
+
 	if (unlikely(iter->uptodate != BTREE_ITER_UPTODATE)) {
-		k = bch2_btree_iter_peek(iter);
-		if (IS_ERR_OR_NULL(k.k))
-			return k;
+		/*
+		 * XXX: when we just need to relock we should be able to avoid
+		 * calling traverse, but we need to kill BTREE_ITER_NEED_PEEK
+		 * for that to work
+		 */
+		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
+
+		return bch2_btree_iter_peek(iter);
 	}
 
 	do {
@@ -1559,9 +1569,11 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	if (iter->uptodate == BTREE_ITER_UPTODATE)
 		return btree_iter_peek_uptodate(iter);
 
-	ret = bch2_btree_iter_traverse(iter);
-	if (unlikely(ret))
-		return bkey_s_c_err(ret);
+	if (iter->uptodate >= BTREE_ITER_NEED_RELOCK) {
+		ret = bch2_btree_iter_traverse(iter);
+		if (unlikely(ret))
+			return bkey_s_c_err(ret);
+	}
 
 	return __bch2_btree_iter_peek_slot(iter);
 }
