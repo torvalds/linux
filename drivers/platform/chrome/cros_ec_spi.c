@@ -12,7 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-
+#include <uapi/linux/sched/types.h>
 
 /* The header byte, which follows the preamble */
 #define EC_MSG_HEADER			0xec
@@ -67,12 +67,14 @@
  *      is sent when we want to turn on CS at the start of a transaction.
  * @end_of_msg_delay: used to set the delay_usecs on the spi_transfer that
  *      is sent when we want to turn off CS at the end of a transaction.
+ * @high_pri_worker: Used to schedule high priority work.
  */
 struct cros_ec_spi {
 	struct spi_device *spi;
 	s64 last_transfer_ns;
 	unsigned int start_of_msg_delay;
 	unsigned int end_of_msg_delay;
+	struct kthread_worker *high_pri_worker;
 };
 
 typedef int (*cros_ec_xfer_fn_t) (struct cros_ec_device *ec_dev,
@@ -89,7 +91,7 @@ typedef int (*cros_ec_xfer_fn_t) (struct cros_ec_device *ec_dev,
  */
 
 struct cros_ec_xfer_work_params {
-	struct work_struct work;
+	struct kthread_work work;
 	cros_ec_xfer_fn_t fn;
 	struct cros_ec_device *ec_dev;
 	struct cros_ec_command *ec_msg;
@@ -632,7 +634,7 @@ exit:
 	return ret;
 }
 
-static void cros_ec_xfer_high_pri_work(struct work_struct *work)
+static void cros_ec_xfer_high_pri_work(struct kthread_work *work)
 {
 	struct cros_ec_xfer_work_params *params;
 
@@ -644,12 +646,14 @@ static int cros_ec_xfer_high_pri(struct cros_ec_device *ec_dev,
 				 struct cros_ec_command *ec_msg,
 				 cros_ec_xfer_fn_t fn)
 {
-	struct cros_ec_xfer_work_params params;
-
-	INIT_WORK_ONSTACK(&params.work, cros_ec_xfer_high_pri_work);
-	params.ec_dev = ec_dev;
-	params.ec_msg = ec_msg;
-	params.fn = fn;
+	struct cros_ec_spi *ec_spi = ec_dev->priv;
+	struct cros_ec_xfer_work_params params = {
+		.work = KTHREAD_WORK_INIT(params.work,
+					  cros_ec_xfer_high_pri_work),
+		.ec_dev = ec_dev,
+		.ec_msg = ec_msg,
+		.fn = fn,
+	};
 
 	/*
 	 * This looks a bit ridiculous.  Why do the work on a
@@ -660,9 +664,8 @@ static int cros_ec_xfer_high_pri(struct cros_ec_device *ec_dev,
 	 * context switched out for too long and the EC giving up on
 	 * the transfer.
 	 */
-	queue_work(system_highpri_wq, &params.work);
-	flush_work(&params.work);
-	destroy_work_on_stack(&params.work);
+	kthread_queue_work(ec_spi->high_pri_worker, &params.work);
+	kthread_flush_work(&params.work);
 
 	return params.ret;
 }
@@ -692,6 +695,40 @@ static void cros_ec_spi_dt_probe(struct cros_ec_spi *ec_spi, struct device *dev)
 	ret = of_property_read_u32(np, "google,cros-ec-spi-msg-delay", &val);
 	if (!ret)
 		ec_spi->end_of_msg_delay = val;
+}
+
+static void cros_ec_spi_high_pri_release(void *worker)
+{
+	kthread_destroy_worker(worker);
+}
+
+static int cros_ec_spi_devm_high_pri_alloc(struct device *dev,
+					   struct cros_ec_spi *ec_spi)
+{
+	struct sched_param sched_priority = {
+		.sched_priority = MAX_RT_PRIO - 1,
+	};
+	int err;
+
+	ec_spi->high_pri_worker =
+		kthread_create_worker(0, "cros_ec_spi_high_pri");
+
+	if (IS_ERR(ec_spi->high_pri_worker)) {
+		err = PTR_ERR(ec_spi->high_pri_worker);
+		dev_err(dev, "Can't create cros_ec high pri worker: %d\n", err);
+		return err;
+	}
+
+	err = devm_add_action_or_reset(dev, cros_ec_spi_high_pri_release,
+				       ec_spi->high_pri_worker);
+	if (err)
+		return err;
+
+	err = sched_setscheduler_nocheck(ec_spi->high_pri_worker->task,
+					 SCHED_FIFO, &sched_priority);
+	if (err)
+		dev_err(dev, "Can't set cros_ec high pri priority: %d\n", err);
+	return err;
 }
 
 static int cros_ec_spi_probe(struct spi_device *spi)
@@ -731,6 +768,10 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	ec_dev->dout_size = sizeof(struct ec_host_request);
 
 	ec_spi->last_transfer_ns = ktime_get_ns();
+
+	err = cros_ec_spi_devm_high_pri_alloc(dev, ec_spi);
+	if (err)
+		return err;
 
 	err = cros_ec_register(ec_dev);
 	if (err) {
