@@ -1615,7 +1615,6 @@ sint wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	u8 *psnap_type;
 	struct ieee80211_snap_hdr	*psnap;
 	__be16 be_tmp;
-	sint ret = _SUCCESS;
 	struct adapter			*adapter = precvframe->u.hdr.adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	u8 *ptr = get_recvframe_data(precvframe) ; /*  point to frame_ctrl field */
@@ -1702,7 +1701,7 @@ sint wlanhdr_to_ethhdr(union recv_frame *precvframe)
 		memcpy(ptr+12, &be_tmp, 2);
 	}
 
-	return ret;
+	return _SUCCESS;
 }
 
 /* perform defrag */
@@ -1900,7 +1899,6 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 	_pkt *sub_pkt, *subframes[MAX_SUBFRAME_COUNT];
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	struct __queue *pfree_recv_queue = &(precvpriv->free_recv_queue);
-	int	ret = _SUCCESS;
 
 	nr_subframes = 0;
 
@@ -1969,7 +1967,7 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 	prframe->u.hdr.len = 0;
 	rtw_free_recvframe(prframe, pfree_recv_queue);/* free this recv_frame */
 
-	return ret;
+	return  _SUCCESS;
 }
 
 int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num);
