@@ -731,7 +731,7 @@ int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr)
 				IB_MR_TYPE_SIGNATURE, 2);
 		if (ret) {
 			pr_err("%s: failed to allocated %d SIG MRs\n",
-				__func__, nr_mrs);
+				__func__, nr_sig_mrs);
 			goto out_free_rdma_mrs;
 		}
 	}
