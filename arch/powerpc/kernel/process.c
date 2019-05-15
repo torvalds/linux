@@ -67,6 +67,7 @@
 #include <asm/cpu_has_feature.h>
 #include <asm/asm-prototypes.h>
 #include <asm/stacktrace.h>
+#include <asm/hw_breakpoint.h>
 
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
@@ -784,7 +785,7 @@ static inline int set_dabr(struct arch_hw_breakpoint *brk)
 	return __set_dabr(dabr, dabrx);
 }
 
-static inline int set_dawr(struct arch_hw_breakpoint *brk)
+int set_dawr(struct arch_hw_breakpoint *brk)
 {
 	unsigned long dawr, dawrx, mrd;
 
@@ -816,7 +817,7 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 {
 	memcpy(this_cpu_ptr(&current_brk), brk, sizeof(*brk));
 
-	if (cpu_has_feature(CPU_FTR_DAWR))
+	if (dawr_enabled())
 		// Power8 or later
 		set_dawr(brk);
 	else if (!cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -830,8 +831,8 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 /* Check if we have DAWR or DABR hardware */
 bool ppc_breakpoint_available(void)
 {
-	if (cpu_has_feature(CPU_FTR_DAWR))
-		return true; /* POWER8 DAWR */
+	if (dawr_enabled())
+		return true; /* POWER8 DAWR or POWER9 forced DAWR */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		return false; /* POWER9 with DAWR disabled */
 	/* DABR: Everything but POWER8 and POWER9 */

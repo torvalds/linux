@@ -1967,6 +1967,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TLB3PS            | 32
   PPC   | KVM_REG_PPC_EPTCFG            | 32
   PPC   | KVM_REG_PPC_ICP_STATE         | 64
+  PPC   | KVM_REG_PPC_VP_STATE          | 128
   PPC   | KVM_REG_PPC_TB_OFFSET         | 64
   PPC   | KVM_REG_PPC_SPMC1             | 32
   PPC   | KVM_REG_PPC_SPMC2             | 32
@@ -4486,6 +4487,15 @@ struct kvm_sync_regs {
         struct kvm_sregs sregs;
         struct kvm_vcpu_events events;
 };
+
+6.75 KVM_CAP_PPC_IRQ_XIVE
+
+Architectures: ppc
+Target: vcpu
+Parameters: args[0] is the XIVE device fd
+            args[1] is the XIVE CPU number (server ID) for this vcpu
+
+This capability connects the vcpu to an in-kernel XIVE device.
 
 7. Capabilities that can be enabled on VMs
 ------------------------------------------
