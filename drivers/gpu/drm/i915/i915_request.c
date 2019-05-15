@@ -509,6 +509,12 @@ void __i915_request_unsubmit(struct i915_request *request)
 	/* Transfer back from the global per-engine timeline to per-context */
 	move_to_timeline(request, request->timeline);
 
+	/* We've already spun, don't charge on resubmitting. */
+	if (request->sched.semaphores && i915_request_started(request)) {
+		request->sched.attr.priority |= I915_PRIORITY_NOSEMAPHORE;
+		request->sched.semaphores = 0;
+	}
+
 	/*
 	 * We don't need to wake_up any waiters on request->execute, they
 	 * will get woken by any other event or us re-adding this request
