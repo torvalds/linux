@@ -415,6 +415,7 @@ __bch2_create(struct mnt_idmap *idmap,
 		mutex_lock(&dir->ei_update_lock);
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_realloc_iters(&trans, 8);
 retry:
 	bch2_trans_begin(&trans);
 
