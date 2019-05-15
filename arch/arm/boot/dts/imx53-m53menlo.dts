@@ -10,6 +10,25 @@
 	model = "MENLO M53 EMBEDDED DEVICE";
 	compatible = "menlo,m53menlo", "fsl,imx53";
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pinctrl_power_button>;
+		pinctrl-names = "default";
+
+		power-button {
+			label = "Power button";
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pinctrl_power_out>;
+		pinctrl-names = "default";
+		gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -239,6 +258,18 @@
 				MX53_PAD_LVDS0_TX1_P__LDB_LVDS0_TX1	0x80000000
 				MX53_PAD_LVDS0_TX2_P__LDB_LVDS0_TX2	0x80000000
 				MX53_PAD_LVDS0_TX3_P__LDB_LVDS0_TX3	0x80000000
+			>;
+		};
+
+		pinctrl_power_button: powerbutgrp {
+			fsl,pins = <
+				MX53_PAD_SD2_DATA2__GPIO1_13		0x1e4
+			>;
+		};
+
+		pinctrl_power_out: poweroutgrp {
+			fsl,pins = <
+				MX53_PAD_SD2_DATA0__GPIO1_15		0x1e4
 			>;
 		};
 
