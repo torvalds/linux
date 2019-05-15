@@ -64,6 +64,12 @@
 		};
 	};
 
+	beeper {
+		compatible = "gpio-beeper";
+		pinctrl-0 = <&pinctrl_beeper>;
+		gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;
+	};
+
 	reg_usbh1_vbus: regulator-usbh1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus";
@@ -178,6 +184,12 @@
 			fsl,pins = <
 				MX53_PAD_CSI0_DAT15__GPIO6_1		0x1d5
 				MX53_PAD_CSI0_DAT16__GPIO6_2		0x1d5
+			>;
+		};
+
+		pinctrl_beeper: beepergrp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT17__GPIO6_3		0x1c4
 			>;
 		};
 
