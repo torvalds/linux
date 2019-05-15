@@ -260,8 +260,6 @@ struct usbhs_priv {
 
 	spinlock_t		lock;
 
-	u32 flags;
-
 	/*
 	 * module control
 	 */
