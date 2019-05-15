@@ -571,6 +571,17 @@ static const struct usbhs_of_data rza1_data = {
 	}
 };
 
+static const struct usbhs_of_data rza2_data = {
+	.platform_callback = &usbhs_rza2_ops,
+	.param = {
+		.type = USBHS_TYPE_RZA2,
+		.has_cnen = 1,
+		.cfifo_byte_addr = 1,
+		.pipe_configs = usbhsc_new_pipe,
+		.pipe_size = ARRAY_SIZE(usbhsc_new_pipe),
+	}
+};
+
 /*
  *		platform functions
  */
@@ -618,6 +629,10 @@ static const struct of_device_id usbhs_of_match[] = {
 	{
 		.compatible = "renesas,rza1-usbhs",
 		.data = &rza1_data,
+	},
+	{
+		.compatible = "renesas,rza2-usbhs",
+		.data = &rza2_data,
 	},
 	{ },
 };
