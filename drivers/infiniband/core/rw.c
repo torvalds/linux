@@ -613,7 +613,7 @@ EXPORT_SYMBOL(rdma_rw_ctx_destroy);
 
 /**
  * rdma_rw_ctx_destroy_signature - release all resources allocated by
- *	rdma_rw_ctx_init_signature
+ *	rdma_rw_ctx_signature_init
  * @ctx:	context to release
  * @qp:		queue pair to operate on
  * @port_num:	port num to which the connection is bound
