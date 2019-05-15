@@ -1089,7 +1089,7 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 	struct iov_iter iter;
 	struct file *file;
 	size_t iov_count;
-	ssize_t ret;
+	ssize_t read_size, ret;
 
 	ret = io_prep_rw(req, s, force_nonblock);
 	if (ret)
@@ -1105,13 +1105,24 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 	if (ret < 0)
 		return ret;
 
+	read_size = ret;
 	iov_count = iov_iter_count(&iter);
 	ret = rw_verify_area(READ, file, &kiocb->ki_pos, iov_count);
 	if (!ret) {
 		ssize_t ret2;
 
-		/* Catch -EAGAIN return for forced non-blocking submission */
 		ret2 = call_read_iter(file, kiocb, &iter);
+		/*
+		 * In case of a short read, punt to async. This can happen
+		 * if we have data partially cached. Alternatively we can
+		 * return the short read, in which case the application will
+		 * need to issue another SQE and wait for it. That SQE will
+		 * need async punt anyway, so it's more efficient to do it
+		 * here.
+		 */
+		if (force_nonblock && ret2 > 0 && ret2 < read_size)
+			ret2 = -EAGAIN;
+		/* Catch -EAGAIN return for forced non-blocking submission */
 		if (!force_nonblock || ret2 != -EAGAIN) {
 			io_rw_done(kiocb, ret2);
 		} else {
