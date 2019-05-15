@@ -218,6 +218,8 @@ bad_block:
 			EXT2_XATTR_NEXT(entry);
 		if ((char *)next >= end)
 			goto bad_block;
+		if (!ext2_xattr_entry_valid(entry, inode->i_sb->s_blocksize))
+			goto bad_block;
 		if (name_index == entry->e_name_index &&
 		    name_len == entry->e_name_len &&
 		    memcmp(name, entry->e_name, name_len) == 0)
@@ -229,9 +231,6 @@ bad_block:
 	error = -ENODATA;
 	goto cleanup;
 found:
-	if (!ext2_xattr_entry_valid(entry, inode->i_sb->s_blocksize))
-		goto bad_block;
-
 	size = le32_to_cpu(entry->e_value_size);
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
 		ea_idebug(inode, "cache insert failed");
@@ -303,6 +302,8 @@ bad_block:
 		struct ext2_xattr_entry *next = EXT2_XATTR_NEXT(entry);
 
 		if ((char *)next >= end)
+			goto bad_block;
+		if (!ext2_xattr_entry_valid(entry, inode->i_sb->s_blocksize))
 			goto bad_block;
 		entry = next;
 	}
@@ -446,7 +447,9 @@ bad_block:
 			struct ext2_xattr_entry *next = EXT2_XATTR_NEXT(last);
 			if ((char *)next >= end)
 				goto bad_block;
-			if (!last->e_value_block && last->e_value_size) {
+			if (!ext2_xattr_entry_valid(last, sb->s_blocksize))
+				goto bad_block;
+			if (last->e_value_size) {
 				size_t offs = le16_to_cpu(last->e_value_offs);
 				if (offs < min_offs)
 					min_offs = offs;
@@ -489,12 +492,7 @@ bad_block:
 		error = -EEXIST;
 		if (flags & XATTR_CREATE)
 			goto cleanup;
-		if (!here->e_value_block && here->e_value_size) {
-			if (!ext2_xattr_entry_valid(here, sb->s_blocksize))
-				goto bad_block;
-			free += EXT2_XATTR_SIZE(
-					le32_to_cpu(here->e_value_size));
-		}
+		free += EXT2_XATTR_SIZE(le32_to_cpu(here->e_value_size));
 		free += EXT2_XATTR_LEN(name_len);
 	}
 	error = -ENOSPC;
@@ -559,7 +557,7 @@ bad_block:
 		here->e_name_len = name_len;
 		memcpy(here->e_name, name, name_len);
 	} else {
-		if (!here->e_value_block && here->e_value_size) {
+		if (here->e_value_size) {
 			char *first_val = (char *)header + min_offs;
 			size_t offs = le16_to_cpu(here->e_value_offs);
 			char *val = (char *)header + offs;
@@ -586,7 +584,7 @@ bad_block:
 			last = ENTRY(header+1);
 			while (!IS_LAST_ENTRY(last)) {
 				size_t o = le16_to_cpu(last->e_value_offs);
-				if (!last->e_value_block && o < offs)
+				if (o < offs)
 					last->e_value_offs =
 						cpu_to_le16(o + size);
 				last = EXT2_XATTR_NEXT(last);
