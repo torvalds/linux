@@ -952,6 +952,12 @@ probe_mem_read(void *dest, void *src, size_t size)
 	return probe_kernel_read(dest, src, size);
 }
 
+static nokprobe_inline int
+probe_mem_read_user(void *dest, void *src, size_t size)
+{
+	return probe_user_read(dest, src, size);
+}
+
 /* Note that we don't verify it, since the code does not come from user space */
 static int
 process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs, void *dest,

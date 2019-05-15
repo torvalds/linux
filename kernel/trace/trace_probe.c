@@ -324,6 +324,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 {
 	struct fetch_insn *code = *pcode;
 	unsigned long param;
+	int deref = FETCH_OP_DEREF;
 	long offset = 0;
 	char *tmp;
 	int ret = 0;
@@ -396,9 +397,14 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		break;
 
 	case '+':	/* deref memory */
-		arg++;	/* Skip '+', because kstrtol() rejects it. */
-		/* fall through */
 	case '-':
+		if (arg[1] == 'u') {
+			deref = FETCH_OP_UDEREF;
+			arg[1] = arg[0];
+			arg++;
+		}
+		if (arg[0] == '+')
+			arg++;	/* Skip '+', because kstrtol() rejects it. */
 		tmp = strchr(arg, '(');
 		if (!tmp) {
 			trace_probe_log_err(offs, DEREF_NEED_BRACE);
@@ -434,7 +440,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 			}
 			*pcode = code;
 
-			code->op = FETCH_OP_DEREF;
+			code->op = deref;
 			code->offset = offset;
 		}
 		break;
@@ -573,14 +579,15 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	/* Store operation */
 	if (!strcmp(parg->type->name, "string") ||
 	    !strcmp(parg->type->name, "ustring")) {
-		if (code->op != FETCH_OP_DEREF && code->op != FETCH_OP_IMM &&
-		    code->op != FETCH_OP_COMM) {
+		if (code->op != FETCH_OP_DEREF && code->op != FETCH_OP_UDEREF &&
+		    code->op != FETCH_OP_IMM && code->op != FETCH_OP_COMM) {
 			trace_probe_log_err(offset + (t ? (t - arg) : 0),
 					    BAD_STRING);
 			ret = -EINVAL;
 			goto fail;
 		}
-		if (code->op != FETCH_OP_DEREF || parg->count) {
+		if ((code->op == FETCH_OP_IMM || code->op == FETCH_OP_COMM) ||
+		     parg->count) {
 			/*
 			 * IMM and COMM is pointing actual address, those must
 			 * be kept, and if parg->count != 0, this is an array
@@ -594,7 +601,8 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 			}
 		}
 		/* If op == DEREF, replace it with STRING */
-		if (!strcmp(parg->type->name, "ustring"))
+		if (!strcmp(parg->type->name, "ustring") ||
+		    code->op == FETCH_OP_UDEREF)
 			code->op = FETCH_OP_ST_USTRING;
 		else
 			code->op = FETCH_OP_ST_STRING;
@@ -602,6 +610,9 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 		parg->dynamic = true;
 	} else if (code->op == FETCH_OP_DEREF) {
 		code->op = FETCH_OP_ST_MEM;
+		code->size = parg->type->size;
+	} else if (code->op == FETCH_OP_UDEREF) {
+		code->op = FETCH_OP_ST_UMEM;
 		code->size = parg->type->size;
 	} else {
 		code++;

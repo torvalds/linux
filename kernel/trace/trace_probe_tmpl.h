@@ -64,6 +64,8 @@ static nokprobe_inline int
 fetch_store_string_user(unsigned long addr, void *dest, void *base);
 static nokprobe_inline int
 probe_mem_read(void *dest, void *src, size_t size);
+static nokprobe_inline int
+probe_mem_read_user(void *dest, void *src, size_t size);
 
 /* From the 2nd stage, routine is same */
 static nokprobe_inline int
@@ -77,14 +79,21 @@ process_fetch_insn_bottom(struct fetch_insn *code, unsigned long val,
 
 stage2:
 	/* 2nd stage: dereference memory if needed */
-	while (code->op == FETCH_OP_DEREF) {
-		lval = val;
-		ret = probe_mem_read(&val, (void *)val + code->offset,
-					sizeof(val));
+	do {
+		if (code->op == FETCH_OP_DEREF) {
+			lval = val;
+			ret = probe_mem_read(&val, (void *)val + code->offset,
+					     sizeof(val));
+		} else if (code->op == FETCH_OP_UDEREF) {
+			lval = val;
+			ret = probe_mem_read_user(&val,
+				 (void *)val + code->offset, sizeof(val));
+		} else
+			break;
 		if (ret)
 			return ret;
 		code++;
-	}
+	} while (1);
 
 	s3 = code;
 stage3:
@@ -108,6 +117,9 @@ stage3:
 		break;
 	case FETCH_OP_ST_MEM:
 		probe_mem_read(dest, (void *)val + code->offset, code->size);
+		break;
+	case FETCH_OP_ST_UMEM:
+		probe_mem_read_user(dest, (void *)val + code->offset, code->size);
 		break;
 	case FETCH_OP_ST_STRING:
 		loc = *(u32 *)dest;
