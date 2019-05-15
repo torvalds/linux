@@ -80,6 +80,10 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 			return rc;
 	}
 
+	/*
+	 * no need to check the return value of vcpu_stop as it can only have
+	 * an error for protvirt, but protvirt means user cpu state
+	 */
 	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm))
 		kvm_s390_vcpu_stop(vcpu);
 	return -EOPNOTSUPP;
