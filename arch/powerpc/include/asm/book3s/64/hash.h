@@ -122,11 +122,9 @@ static inline int get_region_id(unsigned long ea)
 	if (ea < H_KERN_VIRT_START)
 		return LINEAR_MAP_REGION_ID;
 
-	VM_BUG_ON(id != 0xc);
 	BUILD_BUG_ON(NON_LINEAR_REGION_ID(H_VMALLOC_START) != 2);
 
 	region_id = NON_LINEAR_REGION_ID(ea);
-	VM_BUG_ON(region_id > VMEMMAP_REGION_ID);
 	return region_id;
 }
 
