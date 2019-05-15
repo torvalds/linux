@@ -459,6 +459,8 @@ no_more_servers:
 				     s->probe.abort_code);
 	}
 
+	error = e.error;
+
 failed_set_error:
 	fc->error = error;
 failed:
