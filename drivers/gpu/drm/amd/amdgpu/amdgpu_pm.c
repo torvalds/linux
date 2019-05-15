@@ -370,18 +370,9 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	}
 
 	if (is_support_sw_smu(adev)) {
-		mutex_lock(&adev->pm.mutex);
-		if (adev->pm.dpm.thermal_active) {
-			count = -EINVAL;
-			mutex_unlock(&adev->pm.mutex);
-			goto fail;
-		}
 		ret = smu_force_performance_level(&adev->smu, level);
 		if (ret)
 			count = -EINVAL;
-		else
-			adev->pm.dpm.forced_level = level;
-		mutex_unlock(&adev->pm.mutex);
 	} else if (adev->powerplay.pp_funcs->force_performance_level) {
 		mutex_lock(&adev->pm.mutex);
 		if (adev->pm.dpm.thermal_active) {

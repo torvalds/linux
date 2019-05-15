@@ -1459,12 +1459,15 @@ int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_lev
 			break;
 	}
 
-	mutex_lock(&smu->mutex);
 
 	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
 	ret = smu_handle_task(smu, level,
 			      AMD_PP_TASK_READJUST_POWER_STATE);
+	if (ret)
+		return ret;
 
+	mutex_lock(&smu->mutex);
+	smu_dpm_ctx->dpm_level = level;
 	mutex_unlock(&smu->mutex);
 
 	return ret;
