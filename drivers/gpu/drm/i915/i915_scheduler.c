@@ -387,6 +387,16 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 		    !node_started(signal))
 			node->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 
+		/*
+		 * As we do not allow WAIT to preempt inflight requests,
+		 * once we have executed a request, along with triggering
+		 * any execution callbacks, we must preserve its ordering
+		 * within the non-preemptible FIFO.
+		 */
+		BUILD_BUG_ON(__NO_PREEMPTION & ~I915_PRIORITY_MASK);
+		if (flags & I915_DEPENDENCY_EXTERNAL)
+			__bump_priority(signal, __NO_PREEMPTION);
+
 		ret = true;
 	}
 
@@ -405,6 +415,7 @@ int i915_sched_node_add_dependency(struct i915_sched_node *node,
 		return -ENOMEM;
 
 	if (!__i915_sched_node_add_dependency(node, signal, dep,
+					      I915_DEPENDENCY_EXTERNAL |
 					      I915_DEPENDENCY_ALLOC))
 		i915_dependency_free(dep);
 

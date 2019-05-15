@@ -489,15 +489,6 @@ void __i915_request_unsubmit(struct i915_request *request)
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 
-	/*
-	 * As we do not allow WAIT to preempt inflight requests,
-	 * once we have executed a request, along with triggering
-	 * any execution callbacks, we must preserve its ordering
-	 * within the non-preemptible FIFO.
-	 */
-	BUILD_BUG_ON(__NO_PREEMPTION & ~I915_PRIORITY_MASK); /* only internal */
-	request->sched.attr.priority |= __NO_PREEMPTION;
-
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
 		i915_request_cancel_breadcrumb(request);
 
