@@ -50,7 +50,8 @@
 		regulator-name = "vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio1 2 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 
@@ -268,8 +269,10 @@
 
 		pinctrl_usb: usbgrp {
 			fsl,pins = <
-				MX53_PAD_GPIO_2__GPIO1_2		0x1d5
-				MX53_PAD_GPIO_3__USBOH3_USBH1_OC	0x1d5
+				MX53_PAD_GPIO_2__GPIO1_2		0x1c4
+				MX53_PAD_GPIO_3__USBOH3_USBH1_OC	0x1c4
+				MX53_PAD_GPIO_4__GPIO1_4		0x1c4
+				MX53_PAD_GPIO_18__GPIO7_13		0x1c4
 			>;
 		};
 	};
@@ -322,7 +325,7 @@
 	pinctrl-0 = <&pinctrl_usb>;
 	vbus-supply = <&reg_usbh1_vbus>;
 	phy_type = "utmi";
-	dr_mode = "peripheral";
+	dr_mode = "host";
 	status = "okay";
 };
 
