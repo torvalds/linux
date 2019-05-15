@@ -316,7 +316,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 EXPORT_SYMBOL(__ib_alloc_pd);
 
 /**
- * ib_dealloc_pd - Deallocates a protection domain.
+ * ib_dealloc_pd_user - Deallocates a protection domain.
  * @pd: The protection domain to deallocate.
  * @udata: Valid user data or NULL for kernel object
  *
@@ -1981,7 +1981,7 @@ int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 EXPORT_SYMBOL(ib_dereg_mr_user);
 
 /**
- * ib_alloc_mr() - Allocates a memory region
+ * ib_alloc_mr_user() - Allocates a memory region
  * @pd:            protection domain associated with the region
  * @mr_type:       memory region type
  * @max_num_sg:    maximum sg entries available for registration.

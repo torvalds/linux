@@ -121,7 +121,7 @@ static void ib_cq_completion_workqueue(struct ib_cq *cq, void *private)
 }
 
 /**
- * __ib_alloc_cq - allocate a completion queue
+ * __ib_alloc_cq_user - allocate a completion queue
  * @dev:		device to allocate the CQ for
  * @private:		driver private data, accessible from cq->cq_context
  * @nr_cqe:		number of CQEs to allocate
@@ -201,7 +201,7 @@ out_destroy_cq:
 EXPORT_SYMBOL(__ib_alloc_cq_user);
 
 /**
- * ib_free_cq - free a completion queue
+ * ib_free_cq_user - free a completion queue
  * @cq:		completion queue to free.
  * @udata:	User data or NULL for kernel object
  */
