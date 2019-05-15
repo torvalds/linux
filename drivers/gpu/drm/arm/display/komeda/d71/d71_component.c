@@ -430,8 +430,18 @@ static void d71_component_disable(struct komeda_component *c)
 
 	malidp_write32(reg, BLK_CONTROL, 0);
 
-	for (i = 0; i < c->max_active_inputs; i++)
+	for (i = 0; i < c->max_active_inputs; i++) {
 		malidp_write32(reg, BLK_INPUT_ID0 + (i << 2), 0);
+
+		/* Besides clearing the input ID to zero, D71 compiz also has
+		 * input enable bit in CU_INPUTx_CONTROL which need to be
+		 * cleared.
+		 */
+		if (has_bit(c->id, KOMEDA_PIPELINE_COMPIZS))
+			malidp_write32(reg, CU_INPUT0_CONTROL +
+				       i * CU_PER_INPUT_REGS * 4,
+				       CU_INPUT_CTRL_ALPHA(0xFF));
+	}
 }
 
 static void compiz_enable_input(u32 __iomem *id_reg,
