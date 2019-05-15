@@ -46,6 +46,9 @@ channel as USB OTG:
 	       regulator will be managed during the PHY power on/off sequence.
 - renesas,no-otg-pins: boolean, specify when a board does not provide proper
 		       otg pins.
+- dr_mode: string, indicates the working mode for the PHY. Can be "host",
+           "peripheral", or "otg". Should be set if otg controller is not used.
+
 
 Example (R-Car H3):
 
