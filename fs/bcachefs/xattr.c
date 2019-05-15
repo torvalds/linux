@@ -126,7 +126,7 @@ int bch2_xattr_get(struct bch_fs *c, struct bch_inode_info *inode,
 	struct bkey_s_c_xattr xattr;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_hash_lookup(&trans, bch2_xattr_hash_desc,
 				&inode->ei_str_hash, inode->v.i_ino,
@@ -277,7 +277,7 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	u64 inum = dentry->d_inode->i_ino;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_XATTRS,
 			   POS(inum, 0), 0, k, ret) {

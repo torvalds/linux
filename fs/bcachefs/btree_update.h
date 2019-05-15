@@ -128,7 +128,7 @@ struct btree_insert_entry *bch2_trans_update(struct btree_trans *,
 	struct btree_trans trans;					\
 	int _ret;							\
 									\
-	bch2_trans_init(&trans, (_c));					\
+	bch2_trans_init(&trans, (_c), 0, 0);				\
 									\
 	do {								\
 		bch2_trans_begin(&trans);				\

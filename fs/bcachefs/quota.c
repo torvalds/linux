@@ -361,7 +361,7 @@ static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
 	struct bkey_s_c k;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_QUOTAS, POS(type, 0),
 			   BTREE_ITER_PREFETCH, k, ret) {
@@ -433,7 +433,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 			return ret;
 	}
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_INODES, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
@@ -726,7 +726,7 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 	bkey_quota_init(&new_quota.k_i);
 	new_quota.k.p = POS(qid.type, from_kqid(&init_user_ns, qid));
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_QUOTAS, new_quota.k.p,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);

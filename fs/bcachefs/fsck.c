@@ -451,8 +451,7 @@ static int check_extents(struct bch_fs *c)
 	u64 i_sectors;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	bch_verbose(c, "checking extents");
 
@@ -547,8 +546,7 @@ static int check_dirents(struct bch_fs *c)
 
 	bch_verbose(c, "checking dirents");
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	hash_check_init(&h);
 
@@ -704,8 +702,7 @@ static int check_xattrs(struct bch_fs *c)
 
 	hash_check_init(&h);
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_XATTRS,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
@@ -918,8 +915,7 @@ static int check_directory_structure(struct bch_fs *c,
 	u64 d_inum;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	bch_verbose(c, "checking directory structure");
 
@@ -1085,8 +1081,7 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 	u64 d_inum;
 	int ret;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	inc_link(c, links, range_start, range_end, BCACHEFS_ROOT_INO, false);
 
@@ -1334,8 +1329,7 @@ static int bch2_gc_walk_inodes(struct bch_fs *c,
 	int ret = 0, ret2 = 0;
 	u64 nlinks_pos;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES,
 				   POS(range_start, 0), 0);
@@ -1459,8 +1453,7 @@ int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 	struct bkey_s_c_inode inode;
 	int ret;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_INODES, POS_MIN, 0, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)

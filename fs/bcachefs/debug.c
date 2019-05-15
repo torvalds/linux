@@ -221,7 +221,7 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 	if (!i->size)
 		return i->ret;
 
-	bch2_trans_init(&trans, i->c);
+	bch2_trans_init(&trans, i->c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, i->id, i->from, BTREE_ITER_PREFETCH);
 	k = bch2_btree_iter_peek(iter);
@@ -275,7 +275,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 	if (!i->size || !bkey_cmp(POS_MAX, i->from))
 		return i->ret;
 
-	bch2_trans_init(&trans, i->c);
+	bch2_trans_init(&trans, i->c, 0, 0);
 
 	for_each_btree_node(&trans, iter, i->id, i->from, 0, b) {
 		bch2_btree_node_to_text(&PBUF(i->buf), i->c, b);
@@ -328,7 +328,7 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 	if (!i->size)
 		return i->ret;
 
-	bch2_trans_init(&trans, i->c);
+	bch2_trans_init(&trans, i->c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, i->id, i->from, BTREE_ITER_PREFETCH);
 

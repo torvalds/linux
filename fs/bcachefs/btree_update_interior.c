@@ -1586,7 +1586,7 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 	 * instead of locking/reserving all the way to the root:
 	 */
 	if (!bch2_btree_iter_upgrade(iter, U8_MAX)) {
-		trace_trans_restart_iter_upgrade(c, iter->trans->ip);
+		trace_trans_restart_iter_upgrade(trans->ip);
 		ret = -EINTR;
 		goto out;
 	}

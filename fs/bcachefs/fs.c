@@ -215,7 +215,7 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 	struct bch_inode_unpacked inode_u;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -414,8 +414,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	if (!tmpfile)
 		mutex_lock(&dir->ei_update_lock);
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_realloc_iters(&trans, 8);
+	bch2_trans_init(&trans, c, 8, 1024);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -572,7 +571,7 @@ static int __bch2_link(struct bch_fs *c,
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 4, 1024);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -659,7 +658,7 @@ static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 	int ret;
 
 	bch2_lock_inodes(dir, inode);
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 4, 1024);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -870,12 +869,12 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 			return ret;
 	}
 
+	bch2_trans_init(&trans, c, 8, 2048);
+
 	bch2_lock_inodes(i.src_dir,
 			 i.dst_dir,
 			 i.src_inode,
 			 i.dst_inode);
-
-	bch2_trans_init(&trans, c);
 
 	if (S_ISDIR(i.src_inode->v.i_mode) &&
 	    inode_attrs_changing(i.dst_dir, i.src_inode)) {
@@ -1045,7 +1044,7 @@ static int bch2_setattr_nonsize(struct mnt_idmap *idmap,
 	if (ret)
 		goto err;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 retry:
 	bch2_trans_begin(&trans);
 	kfree(acl);
@@ -1208,7 +1207,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	if (start + len < start)
 		return -EINVAL;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(ei->v.i_ino, start >> 9), 0, k, ret)

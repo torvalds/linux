@@ -302,7 +302,7 @@ int bch2_write_index_default(struct bch_write_op *op)
 	BUG_ON(bch2_keylist_empty(keys));
 	bch2_verify_keylist_sorted(keys);
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 256);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   bkey_start_pos(&bch2_keylist_front(keys)->k),
@@ -1271,7 +1271,7 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 
 	flags &= ~BCH_READ_LAST_FRAGMENT;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   rbio->pos, BTREE_ITER_SLOTS);
@@ -1319,7 +1319,7 @@ static void bch2_read_retry(struct bch_fs *c, struct bch_read_bio *rbio,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	flags &= ~BCH_READ_LAST_FRAGMENT;
 	flags |= BCH_READ_MUST_CLONE;
@@ -1428,7 +1428,7 @@ static void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 	if (rbio->pick.crc.compression_type)
 		return;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -1868,7 +1868,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 		BCH_READ_USER_MAPPED;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	BUG_ON(rbio->_state);
 	BUG_ON(flags & BCH_READ_NODECODE);

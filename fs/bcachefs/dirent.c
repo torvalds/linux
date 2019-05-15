@@ -313,7 +313,7 @@ u64 bch2_dirent_lookup(struct bch_fs *c, u64 dir_inum,
 	struct bkey_s_c k;
 	u64 inum = 0;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_hash_lookup(&trans, bch2_dirent_hash_desc,
 				hash_info, dir_inum, name, 0);
@@ -370,7 +370,7 @@ int bch2_readdir(struct bch_fs *c, struct file *file,
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS,
 			   POS(inode->v.i_ino, ctx->pos), 0, k, ret) {

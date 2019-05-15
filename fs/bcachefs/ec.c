@@ -441,7 +441,7 @@ int bch2_ec_read_extent(struct bch_fs *c, struct bch_read_bio *rbio)
 	if (!buf)
 		return -ENOMEM;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC,
 				   POS(0, stripe_idx),
@@ -698,7 +698,7 @@ static int ec_stripe_bkey_insert(struct bch_fs *c,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 retry:
 	bch2_trans_begin(&trans);
 
@@ -765,8 +765,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 	BKEY_PADDED(k) tmp;
 	int ret = 0, dev, idx;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   bkey_start_pos(pos),
@@ -1236,7 +1235,7 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 	new_key = kmalloc(255 * sizeof(u64), GFP_KERNEL);
 	BUG_ON(!new_key);
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS_MIN,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
@@ -1272,7 +1271,7 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	if (ret)
 		return ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN, 0, k, ret)
 		bch2_mark_key(c, k, true, 0, NULL, 0, 0);
@@ -1299,7 +1298,7 @@ int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 	size_t i, idx = 0;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS(0, U64_MAX), 0);
 

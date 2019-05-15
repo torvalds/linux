@@ -391,7 +391,7 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 	if (ret)
 		return ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS(inode_nr, 0),
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);

@@ -500,16 +500,14 @@ TRACE_EVENT(copygc,
 );
 
 DECLARE_EVENT_CLASS(transaction_restart,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip),
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip),
 
 	TP_STRUCT__entry(
-		__array(char,			name,	16)
 		__field(unsigned long,		ip	)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->name, c->name, 16);
 		__entry->ip = ip;
 	),
 
@@ -517,73 +515,97 @@ DECLARE_EVENT_CLASS(transaction_restart,
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_reused,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_would_deadlock,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_iters_realloced,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+TRACE_EVENT(trans_restart_iters_realloced,
+	TP_PROTO(unsigned long ip, unsigned nr),
+	TP_ARGS(ip, nr),
+
+	TP_STRUCT__entry(
+		__field(unsigned long,		ip	)
+		__field(unsigned,		nr	)
+	),
+
+	TP_fast_assign(
+		__entry->ip	= ip;
+		__entry->nr	= nr;
+	),
+
+	TP_printk("%pS nr %u", (void *) __entry->ip, __entry->nr)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_mem_realloced,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+TRACE_EVENT(trans_restart_mem_realloced,
+	TP_PROTO(unsigned long ip, unsigned long bytes),
+	TP_ARGS(ip, bytes),
+
+	TP_STRUCT__entry(
+		__field(unsigned long,		ip	)
+		__field(unsigned long,		bytes	)
+	),
+
+	TP_fast_assign(
+		__entry->ip	= ip;
+		__entry->bytes	= bytes;
+	),
+
+	TP_printk("%pS bytes %lu", (void *) __entry->ip, __entry->bytes)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_journal_res_get,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_journal_preres_get,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_mark_replicas,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_fault_inject,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_split,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_mark,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_upgrade,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_iter_upgrade,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_traverse,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_atomic,
-	TP_PROTO(struct bch_fs *c, unsigned long ip),
-	TP_ARGS(c, ip)
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
 );
 
 DECLARE_EVENT_CLASS(node_lock_fail,

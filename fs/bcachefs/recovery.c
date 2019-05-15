@@ -214,8 +214,7 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 	bool split_compressed = false;
 	int ret;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 retry:
 	bch2_trans_begin(&trans);
 

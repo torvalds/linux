@@ -270,8 +270,7 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 
 	if (unlikely(!ret)) {
 		trans_restart();
-		trace_trans_restart_would_deadlock(iter->trans->c,
-						   iter->trans->ip);
+		trace_trans_restart_would_deadlock(iter->trans->ip);
 		return false;
 	}
 
@@ -1667,7 +1666,7 @@ int bch2_trans_iter_free_on_commit(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_trans_realloc_iters(struct btree_trans *trans,
+static int bch2_trans_realloc_iters(struct btree_trans *trans,
 				    unsigned new_size)
 {
 	void *new_iters, *new_updates;
@@ -1715,16 +1714,11 @@ success:
 
 	if (trans->iters_live) {
 		trans_restart();
-		trace_trans_restart_iters_realloced(trans->c, trans->ip);
+		trace_trans_restart_iters_realloced(trans->ip, trans->size);
 		return -EINTR;
 	}
 
 	return 0;
-}
-
-void bch2_trans_preload_iters(struct btree_trans *trans)
-{
-	bch2_trans_realloc_iters(trans, BTREE_ITER_MAX);
 }
 
 static int btree_trans_iter_alloc(struct btree_trans *trans)
@@ -1866,32 +1860,41 @@ struct btree_iter *bch2_trans_copy_iter(struct btree_trans *trans,
 	return &trans->iters[idx];
 }
 
-void *bch2_trans_kmalloc(struct btree_trans *trans,
-			 size_t size)
+static int bch2_trans_preload_mem(struct btree_trans *trans, size_t size)
 {
-	void *ret;
-
-	if (trans->mem_top + size > trans->mem_bytes) {
+	if (size > trans->mem_bytes) {
 		size_t old_bytes = trans->mem_bytes;
-		size_t new_bytes = roundup_pow_of_two(trans->mem_top + size);
+		size_t new_bytes = roundup_pow_of_two(size);
 		void *new_mem = krealloc(trans->mem, new_bytes, GFP_NOFS);
 
 		if (!new_mem)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 
 		trans->mem = new_mem;
 		trans->mem_bytes = new_bytes;
 
 		if (old_bytes) {
 			trans_restart();
-			trace_trans_restart_mem_realloced(trans->c, trans->ip);
-			return ERR_PTR(-EINTR);
+			trace_trans_restart_mem_realloced(trans->ip, new_bytes);
+			return -EINTR;
 		}
 	}
 
-	ret = trans->mem + trans->mem_top;
+	return 0;
+}
+
+void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
+{
+	void *p;
+	int ret;
+
+	ret = bch2_trans_preload_mem(trans, trans->mem_top + size);
+	if (ret)
+		return ERR_PTR(ret);
+
+	p = trans->mem + trans->mem_top;
 	trans->mem_top += size;
-	return ret;
+	return p;
 }
 
 inline void bch2_trans_unlink_iters(struct btree_trans *trans, u64 iters)
@@ -1938,7 +1941,9 @@ void __bch2_trans_begin(struct btree_trans *trans)
 	bch2_btree_iter_traverse_all(trans);
 }
 
-void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c)
+void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
+		     unsigned expected_nr_iters,
+		     size_t expected_mem_bytes)
 {
 	memset(trans, 0, offsetof(struct btree_trans, iters_onstack));
 
@@ -1947,6 +1952,12 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c)
 	trans->size		= ARRAY_SIZE(trans->iters_onstack);
 	trans->iters		= trans->iters_onstack;
 	trans->updates		= trans->updates_onstack;
+
+	if (expected_nr_iters > trans->size)
+		bch2_trans_realloc_iters(trans, expected_nr_iters);
+
+	if (expected_mem_bytes)
+		bch2_trans_preload_mem(trans, expected_mem_bytes);
 }
 
 int bch2_trans_exit(struct btree_trans *trans)

@@ -440,7 +440,7 @@ static int bch2_trans_journal_preres_get(struct btree_trans *trans)
 
 	if (!bch2_trans_relock(trans)) {
 		trans_restart(" (iter relock after journal preres get blocked)");
-		trace_trans_restart_journal_preres_get(c, trans->ip);
+		trace_trans_restart_journal_preres_get(trans->ip);
 		return -EINTR;
 	}
 
@@ -560,7 +560,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 			ret = bch2_trans_mark_update(trans, i,
 						&trans->fs_usage_deltas);
 			if (ret == -EINTR)
-				trace_trans_restart_mark(c, trans->ip);
+				trace_trans_restart_mark(trans->ip);
 			if (ret)
 				return ret;
 		}
@@ -570,7 +570,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	if (race_fault()) {
 		ret = -EINTR;
 		trans_restart(" (race)");
-		trace_trans_restart_fault_inject(c, trans->ip);
+		trace_trans_restart_fault_inject(trans->ip);
 		goto out;
 	}
 
@@ -719,7 +719,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		    ret == -EINTR ||
 		    (flags & BTREE_INSERT_NOUNLOCK)) {
 			trans_restart(" (split)");
-			trace_trans_restart_btree_node_split(c, trans->ip);
+			trace_trans_restart_btree_node_split(trans->ip);
 			ret = -EINTR;
 		}
 		break;
@@ -739,7 +739,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		trans_restart(" (iter relock after marking replicas)");
-		trace_trans_restart_mark_replicas(c, trans->ip);
+		trace_trans_restart_mark_replicas(trans->ip);
 		ret = -EINTR;
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RES:
@@ -753,7 +753,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		trans_restart(" (iter relock after journal res get blocked)");
-		trace_trans_restart_journal_res_get(c, trans->ip);
+		trace_trans_restart_journal_res_get(trans->ip);
 		ret = -EINTR;
 		break;
 	default:
@@ -766,7 +766,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 		if (ret2) {
 			trans_restart(" (traverse)");
-			trace_trans_restart_traverse(c, trans->ip);
+			trace_trans_restart_traverse(trans->ip);
 			return ret2;
 		}
 
@@ -778,7 +778,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		trans_restart(" (atomic)");
-		trace_trans_restart_atomic(c, trans->ip);
+		trace_trans_restart_atomic(trans->ip);
 	}
 
 	return ret;
@@ -809,7 +809,7 @@ static int __bch2_trans_commit(struct btree_trans *trans,
 		if (!bch2_btree_iter_upgrade(i->iter, 1)) {
 			trans_restart(" (failed upgrade, locks_want %u uptodate %u)",
 				      old_locks_want, old_uptodate);
-			trace_trans_restart_upgrade(c, trans->ip);
+			trace_trans_restart_upgrade(trans->ip);
 			ret = -EINTR;
 			goto err;
 		}
@@ -975,7 +975,9 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 	struct btree_iter *iter;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
 
 	iter = bch2_trans_get_iter(&trans, id, bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
@@ -983,6 +985,8 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, k));
 
 	ret = bch2_trans_commit(&trans, disk_res, journal_seq, flags);
+	if (ret == -EINTR)
+		goto retry;
 	bch2_trans_exit(&trans);
 
 	return ret;
@@ -1071,8 +1075,11 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 	struct btree_iter *iter;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
-	bch2_trans_preload_iters(&trans);
+	/*
+	 * XXX: whether we need mem/more iters depends on whether this btree id
+	 * has triggers
+	 */
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 512);
 
 	iter = bch2_trans_get_iter(&trans, id, start, BTREE_ITER_INTENT);
 

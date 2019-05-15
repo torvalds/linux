@@ -229,7 +229,7 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	unsigned i;
 	int ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_ALLOC, POS_MIN, 0, k, ret)
 		bch2_mark_key(c, k, true, 0, NULL, 0,
@@ -288,7 +288,7 @@ int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
 	if (k->k.p.offset >= ca->mi.nbuckets)
 		return 0;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, k->k.p,
 				   BTREE_ITER_INTENT);
@@ -333,7 +333,7 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, POS_MIN,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
@@ -1032,7 +1032,7 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 	u64 journal_seq = 0;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC,
 				   POS(ca->dev_idx, 0),

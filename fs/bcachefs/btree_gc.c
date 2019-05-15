@@ -217,7 +217,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	u8 max_stale;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
 
@@ -286,7 +286,7 @@ static int mark_journal_key(struct bch_fs *c, enum btree_id id,
 	if (ret)
 		return ret;
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, id, bkey_start_pos(&insert->k),
 			   BTREE_ITER_SLOTS, k, ret) {
@@ -1055,7 +1055,7 @@ static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 	struct btree *merge[GC_MERGE_NODES];
 	u32 lock_seq[GC_MERGE_NODES];
 
-	bch2_trans_init(&trans, c);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	/*
 	 * XXX: We don't have a good way of positively matching on sibling nodes

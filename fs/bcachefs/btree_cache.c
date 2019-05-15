@@ -732,8 +732,7 @@ retry:
 				goto retry;
 
 			trans_restart();
-			trace_trans_restart_btree_node_reused(c,
-						iter->trans->ip);
+			trace_trans_restart_btree_node_reused(iter->trans->ip);
 			return ERR_PTR(-EINTR);
 		}
 	}
