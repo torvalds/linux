@@ -414,26 +414,31 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
             read_val = readq(pcard->sysinfo_regs_base + ((pcard->core_table_offset + i) * 8));
             parse_core_table_entry(&cte, read_val, pcard->core_table_rev);
             
-            if (cte.type == current_type_id){
-                switch (cte.type){
-                    case KP_CORE_ID_I2C:
-                        err = probe_core_basic(core_num, pcard, KP_DRIVER_NAME_I2C, cte);
-                        break;
-                    
-                    case KP_CORE_ID_SPI:
-                        err = probe_core_basic(core_num, pcard, KP_DRIVER_NAME_SPI, cte);
-                        break;
-                    
-                    default:
-                        err = probe_core_uio(core_num, pcard, "kpc_uio", cte);
-                        break;
-                }
-                if (err){
-                    dev_err(&pcard->pdev->dev, "kp2000_probe_cores: failed to add core %d: %d\n", i, err);
-                    return err;
-                }
-                core_num++;
+            if (cte.type != current_type_id)
+                continue;
+
+            switch (cte.type) {
+            case KP_CORE_ID_I2C:
+                err = probe_core_basic(core_num, pcard,
+                                       KP_DRIVER_NAME_I2C, cte);
+                break;
+
+            case KP_CORE_ID_SPI:
+                err = probe_core_basic(core_num, pcard,
+                                       KP_DRIVER_NAME_SPI, cte);
+                break;
+
+            default:
+                err = probe_core_uio(core_num, pcard, "kpc_uio", cte);
+                break;
             }
+            if (err) {
+                dev_err(&pcard->pdev->dev,
+                        "kp2000_probe_cores: failed to add core %d: %d\n",
+                        i, err);
+                return err;
+            }
+            core_num++;
         }
     }
     
