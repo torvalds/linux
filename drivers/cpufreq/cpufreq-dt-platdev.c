@@ -68,18 +68,6 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "renesas,r8a7794", },
 	{ .compatible = "renesas,sh73a0", },
 
-	{ .compatible = "rockchip,rk2928", },
-	{ .compatible = "rockchip,rk3036", },
-	{ .compatible = "rockchip,rk3066a", },
-	{ .compatible = "rockchip,rk3066b", },
-	{ .compatible = "rockchip,rk3188", },
-	{ .compatible = "rockchip,rk3228", },
-	{ .compatible = "rockchip,rk3288", },
-	{ .compatible = "rockchip,rk3328", },
-	{ .compatible = "rockchip,rk3366", },
-	{ .compatible = "rockchip,rk3368", },
-	{ .compatible = "rockchip,rk3399", },
-
 	{ .compatible = "st-ericsson,u8500", },
 	{ .compatible = "st-ericsson,u8540", },
 	{ .compatible = "st-ericsson,u9500", },
@@ -118,6 +106,18 @@ static const struct of_device_id blacklist[] __initconst = {
 
 	{ .compatible = "qcom,apq8096", },
 	{ .compatible = "qcom,msm8996", },
+
+	{ .compatible = "rockchip,rk2928", },
+	{ .compatible = "rockchip,rk3036", },
+	{ .compatible = "rockchip,rk3066a", },
+	{ .compatible = "rockchip,rk3066b", },
+	{ .compatible = "rockchip,rk3188", },
+	{ .compatible = "rockchip,rk3228", },
+	{ .compatible = "rockchip,rk3288", },
+	{ .compatible = "rockchip,rk3328", },
+	{ .compatible = "rockchip,rk3366", },
+	{ .compatible = "rockchip,rk3368", },
+	{ .compatible = "rockchip,rk3399", },
 
 	{ .compatible = "st,stih407", },
 	{ .compatible = "st,stih410", },

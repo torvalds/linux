@@ -121,6 +121,15 @@ config ARM_QCOM_CPUFREQ_KRYO
 
 	  If in doubt, say N.
 
+config ARM_ROCKCHIP_CPUFREQ
+	tristate "Rockchip CPUfreq driver"
+	depends on ARCH_ROCKCHIP && CPUFREQ_DT
+	select PM_OPP
+	help
+	  This adds the CPUFreq driver for Rockchip SoCs.
+
+	  If in doubt, say N.
+
 config ARM_S3C_CPUFREQ
 	bool
 	help

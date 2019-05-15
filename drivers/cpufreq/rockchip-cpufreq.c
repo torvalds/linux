@@ -30,12 +30,16 @@
 #include <linux/thermal.h>
 #include <linux/rockchip/cpu.h>
 #include <soc/rockchip/rockchip_opp_select.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 
+#include "cpufreq-dt.h"
+#include "rockchip-cpufreq.h"
 #include "../clk/rockchip/clk.h"
 
 #define LEAKAGE_INVALID		0xff
 
 struct cluster_info {
+	struct opp_table *opp_table;
 	struct list_head list_head;
 	cpumask_t cpus;
 	unsigned int reboot_freq;
@@ -217,47 +221,6 @@ static struct cluster_info *rockchip_cluster_lookup_by_dev(struct device *dev)
 	return NULL;
 }
 
-int rockchip_cpufreq_get_scale(int cpu)
-{
-	struct cluster_info *cluster;
-
-	cluster = rockchip_cluster_info_lookup(cpu);
-	if (!cluster)
-		return 0;
-	else
-		return cluster->scale;
-}
-EXPORT_SYMBOL_GPL(rockchip_cpufreq_get_scale);
-
-int rockchip_cpufreq_set_scale_rate(struct device *dev, unsigned long rate)
-{
-	struct cluster_info *cluster;
-
-	cluster = rockchip_cluster_lookup_by_dev(dev);
-	if (!cluster)
-		return -EINVAL;
-	cluster->scale_rate = rate / 1000;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rockchip_cpufreq_set_scale_rate);
-
-int rockchip_cpufreq_check_rate_volt(struct device *dev)
-{
-	struct cluster_info *cluster;
-
-	cluster = rockchip_cluster_lookup_by_dev(dev);
-	if (!cluster)
-		return -EINVAL;
-	if (cluster->is_check_init)
-		return 0;
-	dev_pm_opp_check_rate_volt(dev, true);
-	cluster->is_check_init = true;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rockchip_cpufreq_check_rate_volt);
-
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
 	struct device_node *np;
@@ -311,76 +274,76 @@ np_err:
 	return ret;
 }
 
-static int rockchip_cpufreq_set_opp_info(int cpu, struct cluster_info *cluster)
+int rockchip_cpufreq_check_rate_volt(struct device *dev)
 {
-	struct device *dev = get_cpu_device(cpu);
-
-	if (!dev)
-		return -ENODEV;
-	return rockchip_set_opp_info(dev, cluster->process,
-				     cluster->volt_sel);
-}
-
-static int rockchip_hotcpu_notifier(struct notifier_block *nb,
-				    unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
 	struct cluster_info *cluster;
-	cpumask_t cpus;
-	int number, ret;
 
-	cluster = rockchip_cluster_info_lookup(cpu);
+	cluster = rockchip_cluster_lookup_by_dev(dev);
 	if (!cluster)
-		return NOTIFY_OK;
+		return -EINVAL;
+	if (cluster->is_check_init)
+		return 0;
+	dev_pm_opp_check_rate_volt(dev, true);
+	cluster->is_check_init = true;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-		if (cluster->offline) {
-			ret = rockchip_cpufreq_set_opp_info(cpu, cluster);
-			if (ret)
-				pr_err("Failed to set cpu%d opp_info\n", cpu);
-			cluster->offline = false;
-		}
-		break;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_check_rate_volt);
 
-	case CPU_POST_DEAD:
-		cpumask_and(&cpus, &cluster->cpus, cpu_online_mask);
-		number = cpumask_weight(&cpus);
-		if (!number)
-			cluster->offline = true;
-		break;
+int rockchip_cpufreq_set_opp_info(struct device *dev)
+{
+	struct cluster_info *cluster;
+
+	cluster = rockchip_cluster_lookup_by_dev(dev);
+	if (!cluster)
+		return -EINVAL;
+	cluster->opp_table = rockchip_set_opp_prop_name(dev,
+							   cluster->process,
+							   cluster->volt_sel);
+	if (IS_ERR(cluster->opp_table)) {
+		dev_err(dev, "Failed to set prop name\n");
+		return PTR_ERR(cluster->opp_table);
 	}
 
-	return NOTIFY_OK;
+	return 0;
 }
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_set_opp_info);
 
-static struct notifier_block rockchip_hotcpu_nb = {
-	.notifier_call = rockchip_hotcpu_notifier,
-};
-
-static int rockchip_cpufreq_policy_notifier(struct notifier_block *nb,
-					    unsigned long event, void *data)
+void rockchip_cpufreq_put_opp_info(struct device *dev)
 {
-	struct cpufreq_policy *policy = data;
 	struct cluster_info *cluster;
-	int cpu = policy->cpu;
 
-	if (event != CPUFREQ_ADJUST)
-		return NOTIFY_OK;
-
-	cluster = rockchip_cluster_info_lookup(cpu);
+	cluster = rockchip_cluster_lookup_by_dev(dev);
 	if (!cluster)
-		return NOTIFY_DONE;
-
-	if (cluster->scale_rate && cluster->scale_rate < policy->max)
-		cpufreq_verify_within_limits(policy, 0, cluster->scale_rate);
-
-	return NOTIFY_OK;
+		return;
+	if (!IS_ERR_OR_NULL(cluster->opp_table))
+		dev_pm_opp_put_prop_name(cluster->opp_table);
 }
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_put_opp_info);
 
-static struct notifier_block rockchip_cpufreq_policy_nb = {
-	.notifier_call = rockchip_cpufreq_policy_notifier,
-};
+int rockchip_cpufreq_adjust_power_scale(struct device *dev)
+{
+	struct cluster_info *cluster;
+
+	cluster = rockchip_cluster_lookup_by_dev(dev);
+	if (!cluster)
+		return -EINVAL;
+	rockchip_adjust_power_scale(dev, cluster->scale);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_adjust_power_scale);
+
+int rockchip_cpufreq_suspend(struct cpufreq_policy *policy)
+{
+	int ret = 0;
+
+	ret = cpufreq_generic_suspend(policy);
+	if (!ret)
+		rockchip_monitor_suspend_low_temp_adjust(policy->cpu);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_suspend);
 
 static struct cpufreq_policy *rockchip_get_policy(struct cluster_info *cluster)
 {
@@ -463,9 +426,9 @@ EXPORT_SYMBOL_GPL(rockchip_cpufreq_adjust_target);
 
 static int __init rockchip_cpufreq_driver_init(void)
 {
-	struct platform_device *pdev;
 	struct cluster_info *cluster, *pos;
-	int cpu, first_cpu, ret, i = 0;
+	struct cpufreq_dt_platform_data pdata = {0};
+	int cpu, ret, i = 0;
 
 	for_each_possible_cpu(cpu) {
 		cluster = rockchip_cluster_info_lookup(cpu);
@@ -473,14 +436,17 @@ static int __init rockchip_cpufreq_driver_init(void)
 			continue;
 
 		cluster = kzalloc(sizeof(*cluster), GFP_KERNEL);
-		if (!cluster)
-			return -ENOMEM;
+		if (!cluster) {
+			ret = -ENOMEM;
+			goto release_cluster_info;
+		}
 
 		ret = rockchip_cpufreq_cluster_init(cpu, cluster);
 		if (ret) {
 			if (ret != -ENOENT) {
-				pr_err("Failed to cpu%d parse_dt\n", cpu);
-				return ret;
+				pr_err("Failed to initialize dvfs info cpu%d\n",
+				       cpu);
+				goto release_cluster_info;
 			}
 
 			/*
@@ -494,32 +460,26 @@ static int __init rockchip_cpufreq_driver_init(void)
 			list_for_each_entry(pos, &cluster_info_list, list_head)
 				i++;
 			if (i)
-				return ret;
-			/*
-			 * If don't support operating-points-v2, there is no
-			 * need to register notifiers.
-			 */
+				goto release_cluster_info;
+			list_add(&cluster->list_head, &cluster_info_list);
 			goto next;
 		}
-
-		first_cpu = cpumask_first_and(&cluster->cpus, cpu_online_mask);
-		ret = rockchip_cpufreq_set_opp_info(first_cpu, cluster);
-		if (ret) {
-			pr_err("Failed to set cpu%d opp_info\n", first_cpu);
-			return ret;
-		}
-
 		list_add(&cluster->list_head, &cluster_info_list);
 	}
 
-	register_hotcpu_notifier(&rockchip_hotcpu_nb);
-	cpufreq_register_notifier(&rockchip_cpufreq_policy_nb,
-				  CPUFREQ_POLICY_NOTIFIER);
-
 next:
-	pdev = platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
+	pdata.have_governor_per_policy = true;
+	pdata.suspend = rockchip_cpufreq_suspend;
+	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
+			       -1, (void *)&pdata,
+			       sizeof(struct cpufreq_dt_platform_data)));
 
-	return PTR_ERR_OR_ZERO(pdev);
+release_cluster_info:
+	list_for_each_entry_safe(cluster, pos, &cluster_info_list, list_head) {
+		list_del(&cluster->list_head);
+		kfree(cluster);
+	}
+	return ret;
 }
 module_init(rockchip_cpufreq_driver_init);
 
