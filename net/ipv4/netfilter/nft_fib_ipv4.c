@@ -58,11 +58,6 @@ void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 }
 EXPORT_SYMBOL_GPL(nft_fib4_eval_type);
 
-static int get_ifindex(const struct net_device *dev)
-{
-	return dev ? dev->ifindex : 0;
-}
-
 void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		   const struct nft_pktinfo *pkt)
 {
@@ -94,8 +89,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 
 	if (nft_hook(pkt) == NF_INET_PRE_ROUTING &&
 	    nft_fib_is_loopback(pkt->skb, nft_in(pkt))) {
-		nft_fib_store_result(dest, priv, pkt,
-				     nft_in(pkt)->ifindex);
+		nft_fib_store_result(dest, priv, nft_in(pkt));
 		return;
 	}
 
@@ -108,8 +102,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	if (ipv4_is_zeronet(iph->saddr)) {
 		if (ipv4_is_lbcast(iph->daddr) ||
 		    ipv4_is_local_multicast(iph->daddr)) {
-			nft_fib_store_result(dest, priv, pkt,
-					     get_ifindex(pkt->skb->dev));
+			nft_fib_store_result(dest, priv, pkt->skb->dev);
 			return;
 		}
 	}
@@ -150,17 +143,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		found = oif;
 	}
 
-	switch (priv->result) {
-	case NFT_FIB_RESULT_OIF:
-		*dest = found->ifindex;
-		break;
-	case NFT_FIB_RESULT_OIFNAME:
-		strncpy((char *)dest, found->name, IFNAMSIZ);
-		break;
-	default:
-		WARN_ON_ONCE(1);
-		break;
-	}
+	nft_fib_store_result(dest, priv, found);
 }
 EXPORT_SYMBOL_GPL(nft_fib4_eval);
 
