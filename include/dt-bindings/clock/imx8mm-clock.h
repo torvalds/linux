@@ -245,6 +245,8 @@
 #define IMX8MM_CLK_GPIO4_ROOT			226
 #define IMX8MM_CLK_GPIO5_ROOT			227
 
-#define IMX8MM_CLK_END				228
+#define IMX8MM_CLK_SNVS_ROOT			228
+
+#define IMX8MM_CLK_END				229
 
 #endif
