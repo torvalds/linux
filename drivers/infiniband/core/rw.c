@@ -357,7 +357,8 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	int count = 0, ret;
 
 	if (sg_cnt > pages_per_mr || prot_sg_cnt > pages_per_mr) {
-		pr_err("SG count too large\n");
+		pr_err("SG count too large: sg_cnt=%d, prot_sg_cnt=%d, pages_per_mr=%d\n",
+		       sg_cnt, prot_sg_cnt, pages_per_mr);
 		return -EINVAL;
 	}
 
