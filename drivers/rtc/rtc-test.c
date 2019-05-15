@@ -133,6 +133,7 @@ static int test_probe(struct platform_device *plat_dev)
 		break;
 	default:
 		rtd->rtc->ops = &test_rtc_ops;
+		device_init_wakeup(&plat_dev->dev, 1);
 	}
 
 	timer_setup(&rtd->alarm, test_rtc_alarm_handler, 0);
