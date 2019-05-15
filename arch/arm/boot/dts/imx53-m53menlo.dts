@@ -244,6 +244,8 @@
 			fsl,pins = <
 				MX53_PAD_PATA_DIOW__UART1_TXD_MUX	0x1e4
 				MX53_PAD_PATA_DMACK__UART1_RXD_MUX	0x1e4
+				MX53_PAD_PATA_IORDY__UART1_RTS		0x1e4
+				MX53_PAD_PATA_RESET_B__UART1_CTS	0x1e4
 			>;
 		};
 
@@ -251,6 +253,16 @@
 			fsl,pins = <
 				MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX	0x1e4
 				MX53_PAD_PATA_DMARQ__UART2_TXD_MUX	0x1e4
+				MX53_PAD_PATA_DIOR__UART2_RTS		0x1e4
+				MX53_PAD_PATA_INTRQ__UART2_CTS		0x1e4
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX53_PAD_PATA_CS_1__UART3_RXD_MUX	0x1e4
+				MX53_PAD_PATA_CS_0__UART3_TXD_MUX	0x1e4
+				MX53_PAD_PATA_DA_2__UART3_RTS		0x1e4
 			>;
 		};
 
@@ -287,12 +299,21 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	linux,rs485-enabled-at-boot-time;
 	status = "okay";
 };
 
