@@ -128,6 +128,18 @@ struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp)
 }
 
 /*
+ * Return false if there are no CBs awaiting grace periods, otherwise,
+ * return true and store the nearest waited-upon grace period into *lp.
+ */
+bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, unsigned long *lp)
+{
+	if (!rcu_segcblist_pend_cbs(rsclp))
+		return false;
+	*lp = rsclp->gp_seq[RCU_WAIT_TAIL];
+	return true;
+}
+
+/*
  * Enqueue the specified callback onto the specified rcu_segcblist
  * structure, updating accounting as needed.  Note that the ->len
  * field may be accessed locklessly, hence the WRITE_ONCE().
