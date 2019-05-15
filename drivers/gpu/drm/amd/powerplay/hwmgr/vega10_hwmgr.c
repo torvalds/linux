@@ -356,6 +356,7 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	struct vega10_hwmgr *data = hwmgr->backend;
 	int i;
 	uint32_t sub_vendor_id, hw_revision;
+	uint32_t top32, bottom32;
 	struct amdgpu_device *adev = hwmgr->adev;
 
 	vega10_initialize_power_tune_defaults(hwmgr);
@@ -499,6 +500,14 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		(hw_revision == 0) &&
 		(sub_vendor_id != 0x1002))
 		data->smu_features[GNLD_PCC_LIMIT].supported = true;
+
+	/* Get the SN to turn into a Unique ID */
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32);
+	top32 = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32);
+	bottom32 = smum_get_argument(hwmgr);
+
+	adev->unique_id = ((uint64_t)bottom32 << 32) | top32;
 }
 
 #ifdef PPLIB_VEGA10_EVV_SUPPORT

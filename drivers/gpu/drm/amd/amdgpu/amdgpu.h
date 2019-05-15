@@ -957,6 +957,8 @@ struct amdgpu_device {
 	long				sdma_timeout;
 	long				video_timeout;
 	long				compute_timeout;
+
+	uint64_t			unique_id;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

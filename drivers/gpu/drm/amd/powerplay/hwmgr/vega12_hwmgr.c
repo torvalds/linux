@@ -289,6 +289,8 @@ static int vega12_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 static void vega12_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t top32, bottom32;
 	int i;
 
 	data->smu_features[GNLD_DPM_PREFETCHER].smu_feature_id =
@@ -353,6 +355,14 @@ static void vega12_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			((data->registry_data.disallowed_features >> i) & 1) ?
 			false : true;
 	}
+
+	/* Get the SN to turn into a Unique ID */
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32);
+	top32 = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32);
+	bottom32 = smum_get_argument(hwmgr);
+
+	adev->unique_id = ((uint64_t)bottom32 << 32) | top32;
 }
 
 static int vega12_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
