@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 =========================================
 Overview of the Linux Virtual File System
 =========================================
@@ -6,8 +8,6 @@ Overview of the Linux Virtual File System
 
   Copyright (C) 1999 Richard Gooch
   Copyright (C) 2005 Pekka Enberg
-
-  This file is released under the GPLv2.
 
 
 Introduction
