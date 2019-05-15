@@ -4133,7 +4133,9 @@ F:	Documentation/admin-guide/pm/intel_pstate.rst
 F:	Documentation/cpu-freq/
 F:	Documentation/devicetree/bindings/cpufreq/
 F:	drivers/cpufreq/
+F:	kernel/sched/cpufreq*.c
 F:	include/linux/cpufreq.h
+F:	include/linux/sched/cpufreq.h
 F:	tools/testing/selftests/cpufreq/
 
 CPU FREQUENCY DRIVERS - ARM BIG LITTLE

@@ -431,10 +431,19 @@ static int imx_gpc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Disable PU power down in normal operation if ERR009619 is present */
+	/*
+	 * Disable PU power down by runtime PM if ERR009619 is present.
+	 *
+	 * The PRE clock will be paused for several cycles when turning on the
+	 * PU domain LDO from power down state. If PRE is in use at that time,
+	 * the IPU/PRG cannot get the correct display data from the PRE.
+	 *
+	 * This is not a concern when the whole system enters suspend state, so
+	 * it's safe to power down PU in this case.
+	 */
 	if (of_id_data->err009619_present)
 		imx_gpc_domains[GPC_PGC_DOMAIN_PU].base.flags |=
-				GENPD_FLAG_ALWAYS_ON;
+				GENPD_FLAG_RPM_ALWAYS_ON;
 
 	/* Keep DISP always on if ERR006287 is present */
 	if (of_id_data->err006287_present)
