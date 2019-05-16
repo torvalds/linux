@@ -5260,6 +5260,13 @@
 			with /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
 			Default value controlled with CONFIG_XEN_SCRUB_PAGES_DEFAULT.
 
+	xen_timer_slop=	[X86-64,XEN]
+			Set the timer slop (in nanoseconds) for the virtual Xen
+			timers (default is 100000). This adjusts the minimum
+			delta of virtualized Xen timers, where lower values
+			improve timer resolution at the expense of processing
+			more timer interrupts.
+
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
