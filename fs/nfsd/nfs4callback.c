@@ -1123,10 +1123,11 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 		rpc_restart_call_prepare(task);
 		return;
 	case 1:
-		break;
-	case -1:
-		/* Network partition? */
-		nfsd4_mark_cb_down(clp, task->tk_status);
+		switch (task->tk_status) {
+		case -EIO:
+		case -ETIMEDOUT:
+			nfsd4_mark_cb_down(clp, task->tk_status);
+		}
 		break;
 	default:
 		BUG();
