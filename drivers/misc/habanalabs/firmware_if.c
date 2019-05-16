@@ -85,12 +85,6 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	u32 tmp;
 	int rc = 0;
 
-	if (len > HL_CPU_CB_SIZE) {
-		dev_err(hdev->dev, "Invalid CPU message size of %d bytes\n",
-			len);
-		return -ENOMEM;
-	}
-
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
 								&pkt_dma_addr);
 	if (!pkt) {
@@ -181,9 +175,6 @@ void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 {
 	u64 kernel_addr;
 
-	/* roundup to HL_CPU_PKT_SIZE */
-	size = (size + (HL_CPU_PKT_SIZE - 1)) & HL_CPU_PKT_MASK;
-
 	kernel_addr = gen_pool_alloc(hdev->cpu_accessible_dma_pool, size);
 
 	*dma_handle = hdev->cpu_accessible_dma_address +
@@ -195,9 +186,6 @@ void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr)
 {
-	/* roundup to HL_CPU_PKT_SIZE */
-	size = (size + (HL_CPU_PKT_SIZE - 1)) & HL_CPU_PKT_MASK;
-
 	gen_pool_free(hdev->cpu_accessible_dma_pool, (u64) (uintptr_t) vaddr,
 			size);
 }
