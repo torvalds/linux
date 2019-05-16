@@ -2181,7 +2181,6 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 {
 	struct io_cq_ring *ring = ctx->cq_ring;
 	sigset_t ksigmask, sigsaved;
-	DEFINE_WAIT(wait);
 	int ret;
 
 	if (io_cqring_events(ring) >= min_events)
@@ -2201,21 +2200,9 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			return ret;
 	}
 
-	do {
-		prepare_to_wait(&ctx->wait, &wait, TASK_INTERRUPTIBLE);
-
-		ret = 0;
-		if (io_cqring_events(ring) >= min_events)
-			break;
-
-		schedule();
-
+	ret = wait_event_interruptible(ctx->wait, io_cqring_events(ring) >= min_events);
+	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
-		if (signal_pending(current))
-			break;
-	} while (1);
-
-	finish_wait(&ctx->wait, &wait);
 
 	if (sig)
 		restore_user_sigmask(sig, &sigsaved);
