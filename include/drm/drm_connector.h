@@ -460,6 +460,12 @@ struct drm_connector_state {
 	 * drm_writeback_signal_completion()
 	 */
 	struct drm_writeback_job *writeback_job;
+
+	/**
+	 * @hdr_output_metadata:
+	 * DRM blob property for HDR output metadata
+	 */
+	struct drm_property_blob *hdr_output_metadata;
 };
 
 /**
@@ -1075,6 +1081,10 @@ struct drm_connector {
 	 * &drm_mode_config.connector_free_work.
 	 */
 	struct llist_node free_node;
+
+	/* HDR metdata */
+	struct hdr_output_metadata hdr_output_metadata;
+	struct hdr_sink_metadata hdr_sink_metadata;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
