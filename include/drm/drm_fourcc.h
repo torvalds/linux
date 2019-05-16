@@ -261,23 +261,6 @@ drm_format_info_is_yuv_sampling_444(const struct drm_format_info *info)
 }
 
 /**
- * drm_format_info_plane_cpp - determine the bytes per pixel value
- * @format: pixel format info
- * @plane: plane index
- *
- * Returns:
- * The bytes per pixel value for the specified plane.
- */
-static inline
-int drm_format_info_plane_cpp(const struct drm_format_info *info, int plane)
-{
-	if (!info || plane >= info->num_planes)
-		return 0;
-
-	return info->cpp[plane];
-}
-
-/**
  * drm_format_info_plane_width - width of the plane given the first plane
  * @format: pixel format info
  * @width: width of the first plane

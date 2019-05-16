@@ -801,7 +801,7 @@ static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 	width = mdp5_crtc->cursor.width;
 	height = mdp5_crtc->cursor.height;
 
-	stride = width * drm_format_info_plane_cpp(info, 0);
+	stride = width * info->cpp[0];
 
 	get_roi(crtc, &roi_w, &roi_h);
 

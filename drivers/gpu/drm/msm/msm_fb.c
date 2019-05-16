@@ -181,7 +181,7 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		unsigned int min_size;
 
 		min_size = (height - 1) * mode_cmd->pitches[i]
-			 + width * drm_format_info_plane_cpp(info, i)
+			 + width * info->cpp[i]
 			 + mode_cmd->offsets[i];
 
 		if (bos[i]->size < min_size) {

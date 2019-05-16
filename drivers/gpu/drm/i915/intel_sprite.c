@@ -326,7 +326,7 @@ skl_plane_max_stride(struct intel_plane *plane,
 		     unsigned int rotation)
 {
 	const struct drm_format_info *info = drm_format_info(pixel_format);
-	int cpp = drm_format_info_plane_cpp(info, 0);
+	int cpp = info->cpp[0];
 
 	/*
 	 * "The stride in bytes must not exceed the
