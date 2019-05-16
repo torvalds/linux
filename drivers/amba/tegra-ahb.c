@@ -170,8 +170,7 @@ int tegra_ahb_enable_smmu(struct device_node *dn)
 EXPORT_SYMBOL(tegra_ahb_enable_smmu);
 #endif
 
-#ifdef CONFIG_PM
-static int tegra_ahb_suspend(struct device *dev)
+static int __maybe_unused tegra_ahb_suspend(struct device *dev)
 {
 	int i;
 	struct tegra_ahb *ahb = dev_get_drvdata(dev);
@@ -181,7 +180,7 @@ static int tegra_ahb_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_ahb_resume(struct device *dev)
+static int __maybe_unused tegra_ahb_resume(struct device *dev)
 {
 	int i;
 	struct tegra_ahb *ahb = dev_get_drvdata(dev);
@@ -190,7 +189,6 @@ static int tegra_ahb_resume(struct device *dev)
 		gizmo_writel(ahb, ahb->ctx[i], tegra_ahb_gizmo[i]);
 	return 0;
 }
-#endif
 
 static UNIVERSAL_DEV_PM_OPS(tegra_ahb_pm,
 			    tegra_ahb_suspend,
