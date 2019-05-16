@@ -165,6 +165,10 @@ err_out0:
 
 void panfrost_device_fini(struct panfrost_device *pfdev)
 {
+	panfrost_job_fini(pfdev);
+	panfrost_mmu_fini(pfdev);
+	panfrost_gpu_fini(pfdev);
+	panfrost_reset_fini(pfdev);
 	panfrost_regulator_fini(pfdev);
 	panfrost_clk_fini(pfdev);
 }
