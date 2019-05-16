@@ -235,10 +235,12 @@ int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag)
 	int i, ret;
 	struct ttm_operation_ctx ctx = { false, false };
 
-	if (gbo->pin_count) {
-		++gbo->pin_count;
-		return 0;
-	}
+	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
+	if (ret < 0)
+		return ret;
+
+	if (gbo->pin_count)
+		goto out;
 
 	drm_gem_vram_placement(gbo, pl_flag);
 	for (i = 0; i < gbo->placement.num_placement; ++i)
@@ -246,11 +248,17 @@ int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag)
 
 	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
 	if (ret < 0)
-		return ret;
+		goto err_ttm_bo_unreserve;
 
-	gbo->pin_count = 1;
+out:
+	++gbo->pin_count;
+	ttm_bo_unreserve(&gbo->bo);
 
 	return 0;
+
+err_ttm_bo_unreserve:
+	ttm_bo_unreserve(&gbo->bo);
+	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_pin);
 
@@ -308,21 +316,32 @@ int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo)
 	int i, ret;
 	struct ttm_operation_ctx ctx = { false, false };
 
+	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
+	if (ret < 0)
+		return ret;
+
 	if (WARN_ON_ONCE(!gbo->pin_count))
-		return 0;
+		goto out;
 
 	--gbo->pin_count;
 	if (gbo->pin_count)
-		return 0;
+		goto out;
 
 	for (i = 0; i < gbo->placement.num_placement ; ++i)
 		gbo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 
 	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
 	if (ret < 0)
-		return ret;
+		goto err_ttm_bo_unreserve;
+
+out:
+	ttm_bo_unreserve(&gbo->bo);
 
 	return 0;
+
+err_ttm_bo_unreserve:
+	ttm_bo_unreserve(&gbo->bo);
+	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_unpin);
 
@@ -377,12 +396,16 @@ int drm_gem_vram_push_to_system(struct drm_gem_vram_object *gbo)
 	int i, ret;
 	struct ttm_operation_ctx ctx = { false, false };
 
+	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
+	if (ret < 0)
+		return ret;
+
 	if (WARN_ON_ONCE(!gbo->pin_count))
-		return 0;
+		goto out;
 
 	--gbo->pin_count;
 	if (gbo->pin_count)
-		return 0;
+		goto out;
 
 	if (gbo->kmap.virtual)
 		ttm_bo_kunmap(&gbo->kmap);
@@ -393,9 +416,16 @@ int drm_gem_vram_push_to_system(struct drm_gem_vram_object *gbo)
 
 	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
 	if (ret)
-		return ret;
+		goto err_ttm_bo_unreserve;
+
+out:
+	ttm_bo_unreserve(&gbo->bo);
 
 	return 0;
+
+err_ttm_bo_unreserve:
+	ttm_bo_unreserve(&gbo->bo);
+	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_push_to_system);
 

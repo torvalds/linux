@@ -107,14 +107,8 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 
 	hibmc_fb = to_hibmc_framebuffer(state->fb);
 	gbo = drm_gem_vram_of_gem(hibmc_fb->obj);
-	ret = drm_gem_vram_reserve(gbo, false);
-	if (ret) {
-		DRM_ERROR("failed to reserve BO: %d", ret);
-		return;
-	}
 
 	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
-	drm_gem_vram_unreserve(gbo);
 	if (ret) {
 		DRM_ERROR("failed to pin bo: %d", ret);
 		return;

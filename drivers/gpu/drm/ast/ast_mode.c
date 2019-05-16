@@ -539,24 +539,16 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 		ast_fb = to_ast_framebuffer(fb);
 		obj = ast_fb->obj;
 		gbo = drm_gem_vram_of_gem(obj);
-		ret = drm_gem_vram_reserve(gbo, false);
-		if (ret)
-			return ret;
 		drm_gem_vram_push_to_system(gbo);
-		drm_gem_vram_unreserve(gbo);
 	}
 
 	ast_fb = to_ast_framebuffer(crtc->primary->fb);
 	obj = ast_fb->obj;
 	gbo = drm_gem_vram_of_gem(obj);
 
-	ret = drm_gem_vram_reserve(gbo, false);
-	if (ret)
-		return ret;
-
 	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret)
-		goto err_drm_gem_vram_unreserve;
+		return ret;
 	gpu_addr = drm_gem_vram_offset(gbo);
 	if (gpu_addr < 0) {
 		ret = (int)gpu_addr;
@@ -573,7 +565,6 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 			ast_fbdev_set_base(ast, gpu_addr);
 		}
 	}
-	drm_gem_vram_unreserve(gbo);
 
 	ast_set_offset_reg(crtc);
 	ast_set_start_address_crt1(crtc, (u32)gpu_addr);
@@ -582,8 +573,6 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 
 err_drm_gem_vram_unpin:
 	drm_gem_vram_unpin(gbo);
-err_drm_gem_vram_unreserve:
-	drm_gem_vram_unreserve(gbo);
 	return ret;
 }
 
@@ -630,8 +619,6 @@ static int ast_crtc_mode_set(struct drm_crtc *crtc,
 
 static void ast_crtc_disable(struct drm_crtc *crtc)
 {
-	int ret;
-
 	DRM_DEBUG_KMS("\n");
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
@@ -639,11 +626,7 @@ static void ast_crtc_disable(struct drm_crtc *crtc)
 		struct drm_gem_object *obj = ast_fb->obj;
 		struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(obj);
 
-		ret = drm_gem_vram_reserve(gbo, false);
-		if (ret)
-			return;
 		drm_gem_vram_push_to_system(gbo);
-		drm_gem_vram_unreserve(gbo);
 	}
 	crtc->primary->fb = NULL;
 }
@@ -939,12 +922,7 @@ static int ast_cursor_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 	gbo = drm_gem_vram_of_gem(obj);
-	ret = drm_gem_vram_reserve(gbo, false);
-	if (unlikely(ret != 0))
-		goto fail;
-
 	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
-	drm_gem_vram_unreserve(gbo);
 	if (ret)
 		goto fail;
 	gpu_addr = drm_gem_vram_offset(gbo);

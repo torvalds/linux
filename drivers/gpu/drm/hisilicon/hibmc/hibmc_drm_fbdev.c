@@ -63,7 +63,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	int ret = 0;
-	int ret1;
 	size_t size;
 	unsigned int bytes_per_pixel;
 	struct drm_gem_vram_object *gbo = NULL;
@@ -91,16 +90,10 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 
 	gbo = drm_gem_vram_of_gem(gobj);
 
-	ret = drm_gem_vram_reserve(gbo, false);
-	if (ret) {
-		DRM_ERROR("failed to reserve bo: %d\n", ret);
-		goto out_unref_gem;
-	}
-
 	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret) {
 		DRM_ERROR("failed to pin fbcon: %d\n", ret);
-		goto out_unreserve_ttm_bo;
+		goto out_unref_gem;
 	}
 
 	base = drm_gem_vram_kmap(gbo, true, NULL);
@@ -109,7 +102,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 		DRM_ERROR("failed to kmap fbcon: %d\n", ret);
 		goto out_unpin_bo;
 	}
-	drm_gem_vram_unreserve(gbo);
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
@@ -141,16 +133,9 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_release_fbi:
-	ret1 = drm_gem_vram_reserve(gbo, false);
-	if (ret1) {
-		DRM_ERROR("failed to rsv ttm_bo when release fbi: %d\n", ret1);
-		goto out_unref_gem;
-	}
 	drm_gem_vram_kunmap(gbo);
 out_unpin_bo:
 	drm_gem_vram_unpin(gbo);
-out_unreserve_ttm_bo:
-	drm_gem_vram_unreserve(gbo);
 out_unref_gem:
 	drm_gem_object_put_unlocked(gobj);
 
