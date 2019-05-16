@@ -3854,7 +3854,8 @@ static uint8_t eotf_supported(const u8 *edid_ext)
 	return edid_ext[2] &
 		(BIT(HDMI_EOTF_TRADITIONAL_GAMMA_SDR) |
 		 BIT(HDMI_EOTF_TRADITIONAL_GAMMA_HDR) |
-		 BIT(HDMI_EOTF_SMPTE_ST2084));
+		 BIT(HDMI_EOTF_SMPTE_ST2084) |
+		 BIT(HDMI_EOTF_BT_2100_HLG));
 }
 
 static uint8_t hdr_metadata_type(const u8 *edid_ext)
