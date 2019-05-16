@@ -208,6 +208,26 @@ int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
 	return tls_push_sg(sk, ctx, sg, offset, flags);
 }
 
+bool tls_free_partial_record(struct sock *sk, struct tls_context *ctx)
+{
+	struct scatterlist *sg;
+
+	sg = ctx->partially_sent_record;
+	if (!sg)
+		return false;
+
+	while (1) {
+		put_page(sg_page(sg));
+		sk_mem_uncharge(sk, sg->length);
+
+		if (sg_is_last(sg))
+			break;
+		sg++;
+	}
+	ctx->partially_sent_record = NULL;
+	return true;
+}
+
 static void tls_write_space(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
@@ -267,6 +287,10 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 		kfree(ctx->tx.rec_seq);
 		kfree(ctx->tx.iv);
 		tls_sw_free_resources_tx(sk);
+#ifdef CONFIG_TLS_DEVICE
+	} else if (ctx->tx_conf == TLS_HW) {
+		tls_device_free_resources_tx(sk);
+#endif
 	}
 
 	if (ctx->rx_conf == TLS_SW) {
