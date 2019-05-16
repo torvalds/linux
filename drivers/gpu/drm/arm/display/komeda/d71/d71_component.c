@@ -212,6 +212,35 @@ static void d71_layer_update(struct komeda_component *c,
 		malidp_write32(reg, BLK_P1_PTR_HIGH, upper_32_bits(addr));
 	}
 
+	if (fb->format->is_yuv) {
+		u32 upsampling = 0;
+
+		switch (kfb->format_caps->fourcc) {
+		case DRM_FORMAT_YUYV:
+			upsampling = fb->modifier ? LR_CHI422_BILINEAR :
+				     LR_CHI422_REPLICATION;
+			break;
+		case DRM_FORMAT_UYVY:
+			upsampling = LR_CHI422_REPLICATION;
+			break;
+		case DRM_FORMAT_NV12:
+		case DRM_FORMAT_YUV420_8BIT:
+		case DRM_FORMAT_YUV420_10BIT:
+		case DRM_FORMAT_YUV420:
+		case DRM_FORMAT_P010:
+		/* these fmt support MPGE/JPEG both, here perfer JPEG*/
+			upsampling = LR_CHI420_JPEG;
+			break;
+		case DRM_FORMAT_X0L2:
+			upsampling = LR_CHI420_JPEG;
+			break;
+		default:
+			break;
+		}
+
+		malidp_write32(reg, LAYER_R_CONTROL, upsampling);
+	}
+
 	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);
 	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize, st->vsize));
 
