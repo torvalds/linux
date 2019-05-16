@@ -880,13 +880,17 @@ void dm_table_set_type(struct dm_table *t, enum dm_queue_mode type)
 }
 EXPORT_SYMBOL_GPL(dm_table_set_type);
 
+/* validate the dax capability of the target device span */
 static int device_supports_dax(struct dm_target *ti, struct dm_dev *dev,
-			       sector_t start, sector_t len, void *data)
+				       sector_t start, sector_t len, void *data)
 {
-	return bdev_dax_supported(dev->bdev, PAGE_SIZE);
+	int blocksize = *(int *) data;
+
+	return generic_fsdax_supported(dev->dax_dev, dev->bdev, blocksize,
+			start, len);
 }
 
-static bool dm_table_supports_dax(struct dm_table *t)
+bool dm_table_supports_dax(struct dm_table *t, int blocksize)
 {
 	struct dm_target *ti;
 	unsigned i;
@@ -899,7 +903,8 @@ static bool dm_table_supports_dax(struct dm_table *t)
 			return false;
 
 		if (!ti->type->iterate_devices ||
-		    !ti->type->iterate_devices(ti, device_supports_dax, NULL))
+		    !ti->type->iterate_devices(ti, device_supports_dax,
+			    &blocksize))
 			return false;
 	}
 
@@ -979,7 +984,7 @@ static int dm_table_determine_type(struct dm_table *t)
 verify_bio_based:
 		/* We must use this table as bio-based */
 		t->type = DM_TYPE_BIO_BASED;
-		if (dm_table_supports_dax(t) ||
+		if (dm_table_supports_dax(t, PAGE_SIZE) ||
 		    (list_empty(devices) && live_md_type == DM_TYPE_DAX_BIO_BASED)) {
 			t->type = DM_TYPE_DAX_BIO_BASED;
 		} else {
@@ -1905,7 +1910,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	}
 	blk_queue_write_cache(q, wc, fua);
 
-	if (dm_table_supports_dax(t))
+	if (dm_table_supports_dax(t, PAGE_SIZE))
 		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
 	else
 		blk_queue_flag_clear(QUEUE_FLAG_DAX, q);
