@@ -1781,14 +1781,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 	}
 
-	// Fire manual trigger
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+	// Fire manual trigger only when bottom plane is flipped
+	for (j = 0; j < dc->res_pool->pipe_count; j++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-		if (pipe_ctx->top_pipe ||
-			!pipe_ctx->stream ||
-			pipe_ctx->stream != stream ||
-			!srf_updates[i].flip_addr)
+		if (pipe_ctx->bottom_pipe ||
+				!pipe_ctx->stream ||
+				pipe_ctx->stream != stream ||
+				!pipe_ctx->plane_state->update_flags.bits.addr_update)
 			continue;
 
 		if (pipe_ctx->stream_res.tg->funcs->program_manual_trigger)
