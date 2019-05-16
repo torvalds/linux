@@ -311,10 +311,17 @@ retry:
 	pipe_config->base.mode_changed = pipe_config->has_psr;
 	pipe_config->crc_enabled = enable;
 
-	if (IS_HASWELL(dev_priv) && crtc->pipe == PIPE_A) {
+	if (IS_HASWELL(dev_priv) &&
+	    pipe_config->base.active && crtc->pipe == PIPE_A &&
+	    pipe_config->cpu_transcoder == TRANSCODER_EDP) {
+		bool old_need_power_well = pipe_config->pch_pfit.enabled ||
+			pipe_config->pch_pfit.force_thru;
+		bool new_need_power_well = pipe_config->pch_pfit.enabled ||
+			enable;
+
 		pipe_config->pch_pfit.force_thru = enable;
-		if (pipe_config->cpu_transcoder == TRANSCODER_EDP &&
-		    pipe_config->pch_pfit.enabled != enable)
+
+		if (old_need_power_well != new_need_power_well)
 			pipe_config->base.connectors_changed = true;
 	}
 

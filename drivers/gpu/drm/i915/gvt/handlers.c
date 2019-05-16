@@ -1206,7 +1206,7 @@ static int pvinfo_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 
 static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 {
-	intel_gvt_gtt_type_t root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
+	enum intel_gvt_gtt_type root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
 	struct intel_vgpu_mm *mm;
 	u64 *pdps;
 
@@ -3303,7 +3303,7 @@ void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
 /* Special MMIO blocks. */
 static struct gvt_mmio_block mmio_blocks[] = {
 	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
-	{D_ALL, MCHBAR_MIRROR_REG_BASE, 0x4000, NULL, NULL},
+	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
 	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
 		pvinfo_mmio_read, pvinfo_mmio_write},
 	{D_ALL, LGC_PALETTE(PIPE_A, 0), 1024, NULL, NULL},

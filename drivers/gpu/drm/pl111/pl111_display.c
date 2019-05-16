@@ -531,14 +531,15 @@ pl111_init_clock_divider(struct drm_device *drm)
 		dev_err(drm->dev, "CLCD: unable to get clcdclk.\n");
 		return PTR_ERR(parent);
 	}
+
+	spin_lock_init(&priv->tim2_lock);
+
 	/* If the clock divider is broken, use the parent directly */
 	if (priv->variant->broken_clockdivider) {
 		priv->clk = parent;
 		return 0;
 	}
 	parent_name = __clk_get_name(parent);
-
-	spin_lock_init(&priv->tim2_lock);
 	div->init = &init;
 
 	ret = devm_clk_hw_register(drm->dev, div);
