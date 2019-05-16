@@ -338,13 +338,12 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
  * NMI IPIs may not be recoverable, so should not be used as ongoing part of
  * a running system. They can be used for crash, debug, halt/reboot, etc.
  *
- * NMI IPIs are globally single threaded. No more than one in progress at
- * any time.
- *
  * The IPI call waits with interrupts disabled until all targets enter the
- * NMI handler, then the call returns.
+ * NMI handler, then returns. Subsequent IPIs can be issued before targets
+ * have returned from their handlers, so there is no guarantee about
+ * concurrency or re-entrancy.
  *
- * No new NMI can be initiated until targets exit the handler.
+ * A new NMI can be issued before all targets exit the handler.
  *
  * The IPI call may time out without all targets entering the NMI handler.
  * In that case, there is some logic to recover (and ignore subsequent
@@ -355,7 +354,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 
 static atomic_t __nmi_ipi_lock = ATOMIC_INIT(0);
 static struct cpumask nmi_ipi_pending_mask;
-static int nmi_ipi_busy_count = 0;
+static bool nmi_ipi_busy = false;
 static void (*nmi_ipi_function)(struct pt_regs *) = NULL;
 
 static void nmi_ipi_lock_start(unsigned long *flags)
@@ -394,7 +393,7 @@ static void nmi_ipi_unlock_end(unsigned long *flags)
  */
 int smp_handle_nmi_ipi(struct pt_regs *regs)
 {
-	void (*fn)(struct pt_regs *);
+	void (*fn)(struct pt_regs *) = NULL;
 	unsigned long flags;
 	int me = raw_smp_processor_id();
 	int ret = 0;
@@ -405,28 +404,16 @@ int smp_handle_nmi_ipi(struct pt_regs *regs)
 	 * because the caller may have timed out.
 	 */
 	nmi_ipi_lock_start(&flags);
-	if (!nmi_ipi_busy_count)
-		goto out;
-	if (!cpumask_test_cpu(me, &nmi_ipi_pending_mask))
-		goto out;
-
-	fn = nmi_ipi_function;
-	if (!fn)
-		goto out;
-
-	cpumask_clear_cpu(me, &nmi_ipi_pending_mask);
-	nmi_ipi_busy_count++;
-	nmi_ipi_unlock();
-
-	ret = 1;
-
-	fn(regs);
-
-	nmi_ipi_lock();
-	if (nmi_ipi_busy_count > 1) /* Can race with caller time-out */
-		nmi_ipi_busy_count--;
-out:
+	if (cpumask_test_cpu(me, &nmi_ipi_pending_mask)) {
+		cpumask_clear_cpu(me, &nmi_ipi_pending_mask);
+		fn = READ_ONCE(nmi_ipi_function);
+		WARN_ON_ONCE(!fn);
+		ret = 1;
+	}
 	nmi_ipi_unlock_end(&flags);
+
+	if (fn)
+		fn(regs);
 
 	return ret;
 }
@@ -453,7 +440,7 @@ static void do_smp_send_nmi_ipi(int cpu, bool safe)
  * - cpu is the target CPU (must not be this CPU), or NMI_IPI_ALL_OTHERS.
  * - fn is the target callback function.
  * - delay_us > 0 is the delay before giving up waiting for targets to
- *   complete executing the handler, == 0 specifies indefinite delay.
+ *   begin executing the handler, == 0 specifies indefinite delay.
  */
 int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool safe)
 {
@@ -467,43 +454,34 @@ int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool
 	if (unlikely(!smp_ops))
 		return 0;
 
-	/* Take the nmi_ipi_busy count/lock with interrupts hard disabled */
 	nmi_ipi_lock_start(&flags);
-	while (nmi_ipi_busy_count) {
+	while (nmi_ipi_busy) {
 		nmi_ipi_unlock_end(&flags);
-		spin_until_cond(nmi_ipi_busy_count == 0);
+		spin_until_cond(!nmi_ipi_busy);
 		nmi_ipi_lock_start(&flags);
 	}
-
+	nmi_ipi_busy = true;
 	nmi_ipi_function = fn;
+
+	WARN_ON_ONCE(!cpumask_empty(&nmi_ipi_pending_mask));
 
 	if (cpu < 0) {
 		/* ALL_OTHERS */
 		cpumask_copy(&nmi_ipi_pending_mask, cpu_online_mask);
 		cpumask_clear_cpu(me, &nmi_ipi_pending_mask);
 	} else {
-		/* cpumask starts clear */
 		cpumask_set_cpu(cpu, &nmi_ipi_pending_mask);
 	}
-	nmi_ipi_busy_count++;
+
 	nmi_ipi_unlock();
+
+	/* Interrupts remain hard disabled */
 
 	do_smp_send_nmi_ipi(cpu, safe);
 
 	nmi_ipi_lock();
-	/* nmi_ipi_busy_count is held here, so unlock/lock is okay */
+	/* nmi_ipi_busy is set here, so unlock/lock is okay */
 	while (!cpumask_empty(&nmi_ipi_pending_mask)) {
-		nmi_ipi_unlock();
-		udelay(1);
-		nmi_ipi_lock();
-		if (delay_us) {
-			delay_us--;
-			if (!delay_us)
-				break;
-		}
-	}
-
-	while (nmi_ipi_busy_count > 1) {
 		nmi_ipi_unlock();
 		udelay(1);
 		nmi_ipi_lock();
@@ -519,13 +497,10 @@ int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool
 		ret = 0;
 		cpumask_clear(&nmi_ipi_pending_mask);
 	}
-	if (nmi_ipi_busy_count > 1) {
-		/* Timeout waiting for CPUs to execute fn */
-		ret = 0;
-		nmi_ipi_busy_count = 1;
-	}
 
-	nmi_ipi_busy_count--;
+	nmi_ipi_function = NULL;
+	nmi_ipi_busy = false;
+
 	nmi_ipi_unlock_end(&flags);
 
 	return ret;
@@ -593,17 +568,8 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 static void nmi_stop_this_cpu(struct pt_regs *regs)
 {
 	/*
-	 * This is a special case because it never returns, so the NMI IPI
-	 * handling would never mark it as done, which makes any later
-	 * smp_send_nmi_ipi() call spin forever. Mark it done now.
-	 *
 	 * IRQs are already hard disabled by the smp_handle_nmi_ipi.
 	 */
-	nmi_ipi_lock();
-	if (nmi_ipi_busy_count > 1)
-		nmi_ipi_busy_count--;
-	nmi_ipi_unlock();
-
 	spin_begin();
 	while (1)
 		spin_cpu_relax();
