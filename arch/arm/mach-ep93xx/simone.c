@@ -27,8 +27,8 @@
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
 
-#include <mach/hardware.h>
-#include <mach/gpio-ep93xx.h>
+#include "hardware.h"
+#include "gpio-ep93xx.h"
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

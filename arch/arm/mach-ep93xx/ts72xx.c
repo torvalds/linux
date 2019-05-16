@@ -24,8 +24,8 @@
 #include <linux/platform_data/spi-ep93xx.h>
 #include <linux/gpio/machine.h>
 
-#include <mach/gpio-ep93xx.h>
-#include <mach/hardware.h>
+#include "gpio-ep93xx.h"
+#include "hardware.h"
 #include <mach/irqs.h>
 
 #include <asm/mach-types.h>

@@ -286,6 +286,19 @@ config GPIO_IOP
 
 	  If unsure, say N.
 
+config GPIO_IXP4XX
+	bool "Intel IXP4xx GPIO"
+	depends on ARM # For <asm/mach-types.h>
+	depends on ARCH_IXP4XX
+	select GPIO_GENERIC
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to support the GPIO functionality of a number of Intel
+	  IXP4xx series of chips.
+
+	  If unsure, say N.
+
 config GPIO_LOONGSON
 	bool "Loongson-2/3 GPIO support"
 	depends on CPU_LOONGSON2 || CPU_LOONGSON3

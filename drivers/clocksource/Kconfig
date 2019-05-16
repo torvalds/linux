@@ -69,6 +69,13 @@ config FTTMR010_TIMER
 	  Enables support for the Faraday Technology timer block
 	  FTTMR010.
 
+config IXP4XX_TIMER
+	bool "Intel XScale IXP4xx timer driver" if COMPILE_TEST
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
+	help
+	  Enables support for the Intel XScale IXP4xx SoC timer.
+
 config ROCKCHIP_TIMER
 	bool "Rockchip timer driver" if COMPILE_TEST
 	depends on ARM || ARM64

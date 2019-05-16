@@ -160,6 +160,12 @@ config IMGPDC_IRQ
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config IXP4XX_IRQ
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_MULTI_HANDLER
+	select SPARSE_IRQ
+
 config MADERA_IRQ
 	tristate
 

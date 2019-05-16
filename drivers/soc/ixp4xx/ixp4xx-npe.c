@@ -20,7 +20,9 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <mach/npe.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/soc/ixp4xx/npe.h>
 
 #define DEBUG_MSG			0
 #define DEBUG_FW			0
@@ -153,16 +155,10 @@ static struct {
 static struct npe npe_tab[NPE_COUNT] = {
 	{
 		.id	= 0,
-		.regs	= (struct npe_regs __iomem *)IXP4XX_NPEA_BASE_VIRT,
-		.regs_phys = IXP4XX_NPEA_BASE_PHYS,
 	}, {
 		.id	= 1,
-		.regs	= (struct npe_regs __iomem *)IXP4XX_NPEB_BASE_VIRT,
-		.regs_phys = IXP4XX_NPEB_BASE_PHYS,
 	}, {
 		.id	= 2,
-		.regs	= (struct npe_regs __iomem *)IXP4XX_NPEC_BASE_VIRT,
-		.regs_phys = IXP4XX_NPEC_BASE_PHYS,
 	}
 };
 
@@ -682,28 +678,37 @@ void npe_release(struct npe *npe)
 	module_put(THIS_MODULE);
 }
 
-
-static int __init npe_init_module(void)
+static int ixp4xx_npe_probe(struct platform_device *pdev)
 {
-
 	int i, found = 0;
+	struct device *dev = &pdev->dev;
+	struct resource *res;
 
 	for (i = 0; i < NPE_COUNT; i++) {
 		struct npe *npe = &npe_tab[i];
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res)
+			return -ENODEV;
+
 		if (!(ixp4xx_read_feature_bits() &
-		      (IXP4XX_FEATURE_RESET_NPEA << i)))
+		      (IXP4XX_FEATURE_RESET_NPEA << i))) {
+			dev_info(dev, "NPE%d at 0x%08x-0x%08x not available\n",
+				 i, res->start, res->end);
 			continue; /* NPE already disabled or not present */
-		if (!(npe->mem_res = request_mem_region(npe->regs_phys,
-							REGS_SIZE,
-							npe_name(npe)))) {
-			print_npe(KERN_ERR, npe,
-				  "failed to request memory region\n");
+		}
+		npe->regs = devm_ioremap_resource(dev, res);
+		if (!npe->regs)
+			return -ENOMEM;
+
+		if (npe_reset(npe)) {
+			dev_info(dev, "NPE%d at 0x%08x-0x%08x does not reset\n",
+				 i, res->start, res->end);
 			continue;
 		}
-
-		if (npe_reset(npe))
-			continue;
 		npe->valid = 1;
+		dev_info(dev, "NPE%d at 0x%08x-0x%08x registered\n",
+			 i, res->start, res->end);
 		found++;
 	}
 
@@ -712,19 +717,34 @@ static int __init npe_init_module(void)
 	return 0;
 }
 
-static void __exit npe_cleanup_module(void)
+static int ixp4xx_npe_remove(struct platform_device *pdev)
 {
 	int i;
 
 	for (i = 0; i < NPE_COUNT; i++)
-		if (npe_tab[i].mem_res) {
+		if (npe_tab[i].regs) {
 			npe_reset(&npe_tab[i]);
-			release_resource(npe_tab[i].mem_res);
 		}
+
+	return 0;
 }
 
-module_init(npe_init_module);
-module_exit(npe_cleanup_module);
+static const struct of_device_id ixp4xx_npe_of_match[] = {
+	{
+		.compatible = "intel,ixp4xx-network-processing-engine",
+        },
+	{},
+};
+
+static struct platform_driver ixp4xx_npe_driver = {
+	.driver = {
+		.name           = "ixp4xx-npe",
+		.of_match_table = of_match_ptr(ixp4xx_npe_of_match),
+	},
+	.probe = ixp4xx_npe_probe,
+	.remove = ixp4xx_npe_remove,
+};
+module_platform_driver(ixp4xx_npe_driver);
 
 MODULE_AUTHOR("Krzysztof Halasa");
 MODULE_LICENSE("GPL v2");
