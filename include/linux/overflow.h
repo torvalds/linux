@@ -284,11 +284,15 @@ static inline __must_check size_t array3_size(size_t a, size_t b, size_t c)
 	return bytes;
 }
 
-static inline __must_check size_t __ab_c_size(size_t n, size_t size, size_t c)
+/*
+ * Compute a*b+c, returning SIZE_MAX on overflow. Internal helper for
+ * struct_size() below.
+ */
+static inline __must_check size_t __ab_c_size(size_t a, size_t b, size_t c)
 {
 	size_t bytes;
 
-	if (check_mul_overflow(n, size, &bytes))
+	if (check_mul_overflow(a, b, &bytes))
 		return SIZE_MAX;
 	if (check_add_overflow(bytes, c, &bytes))
 		return SIZE_MAX;
