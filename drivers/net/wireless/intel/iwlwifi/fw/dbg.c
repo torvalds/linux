@@ -2381,11 +2381,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 		iwl_fw_error_dump(fwrt);
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection done\n");
 
-	/* start recording again if the firmware is not crashed */
-	if (!test_bit(STATUS_FW_ERROR, &fwrt->trans->status) &&
-	    fwrt->fw->dbg.dest_tlv) {
-		iwl_fw_dbg_restart_recording(fwrt, &params);
-	}
+	iwl_fw_dbg_restart_recording(fwrt, &params);
 
 out:
 	clear_bit(wk_idx, &fwrt->dump.active_wks);
@@ -2515,6 +2511,17 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 	};
 	int block_idx = trans->dbg.num_blocks;
 	u32 buf_location = le32_to_cpu(alloc->tlv.buffer_location);
+
+	if (fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID)
+		fwrt->trans->dbg.ini_dest = buf_location;
+
+	if (buf_location != fwrt->trans->dbg.ini_dest) {
+		WARN(fwrt,
+		     "WRT: attempt to override buffer location on apply point %d\n",
+		     pnt);
+
+		return;
+	}
 
 	if (buf_location == IWL_FW_INI_LOCATION_SRAM_PATH) {
 		IWL_DEBUG_FW(trans, "WRT: applying SMEM buffer destination\n");
@@ -2832,6 +2839,8 @@ static void iwl_fw_dbg_ini_reset_cfg(struct iwl_fw_runtime *fwrt)
 	       sizeof(fwrt->dump.internal_dbg_cfg_name));
 	memset(fwrt->dump.external_dbg_cfg_name, 0,
 	       sizeof(fwrt->dump.external_dbg_cfg_name));
+
+	fwrt->trans->dbg.ini_dest = IWL_FW_INI_LOCATION_INVALID;
 }
 
 void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,

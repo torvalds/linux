@@ -309,6 +309,14 @@ static inline void
 iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt,
 			  struct iwl_fw_dbg_params *params)
 {
+	/* if the FW crashed or not debug monitor cfg was given, there is
+	 * no point in stopping
+	 */
+	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
+	    (!fwrt->trans->dbg.dest_tlv &&
+	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
+		return;
+
 	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
 		_iwl_fw_dbg_stop_recording(fwrt->trans, params);
 	else
@@ -335,7 +343,9 @@ _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
 {
-	if (fwrt->fw->dbg.dest_tlv && fwrt->cur_fw_img == IWL_UCODE_REGULAR)
+	if (fwrt->cur_fw_img == IWL_UCODE_REGULAR &&
+	    (fwrt->fw->dbg.dest_tlv ||
+	     fwrt->trans->dbg.ini_dest != IWL_FW_INI_LOCATION_INVALID))
 		fwrt->trans->dbg.rec_on = true;
 }
 #endif
@@ -344,6 +354,14 @@ static inline void
 iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
 			     struct iwl_fw_dbg_params *params)
 {
+	/* if the FW crashed or not debug monitor cfg was given, there is
+	 * no point in restarting
+	 */
+	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
+	    (!fwrt->trans->dbg.dest_tlv &&
+	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
+		return;
+
 	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
 		_iwl_fw_dbg_restart_recording(fwrt->trans, params);
 	else

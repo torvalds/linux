@@ -738,6 +738,7 @@ struct iwl_self_init_dram {
  * @num_blocks: number of blocks in fw_mon
  * @fw_mon: address of the buffers for firmware monitor
  * @hw_error: equals true if hw error interrupt was received from the FW
+ * @ini_dest: debug monitor destination uses &enum iwl_fw_ini_buffer_location
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -761,6 +762,7 @@ struct iwl_trans_debug {
 	struct iwl_dram_data fw_mon[IWL_FW_INI_APPLY_NUM];
 
 	bool hw_error;
+	enum iwl_fw_ini_buffer_location ini_dest;
 };
 
 /**
