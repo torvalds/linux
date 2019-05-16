@@ -4478,36 +4478,47 @@ void *goya_get_events_stat(struct hl_device *hdev, u32 *size)
 	return goya->events_stat;
 }
 
-static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
+static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 				u64 val, bool is_dram)
 {
 	struct packet_lin_dma *lin_dma_pkt;
 	struct hl_cs_job *job;
 	u32 cb_size, ctl;
 	struct hl_cb *cb;
-	int rc;
+	int rc, lin_dma_pkts_cnt;
 
-	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
+	lin_dma_pkts_cnt = DIV_ROUND_UP_ULL(size, SZ_2G);
+	cb_size = lin_dma_pkts_cnt * sizeof(struct packet_lin_dma) +
+						sizeof(struct packet_msg_prot);
+	cb = hl_cb_kernel_create(hdev, cb_size);
 	if (!cb)
-		return -EFAULT;
+		return -ENOMEM;
 
 	lin_dma_pkt = (struct packet_lin_dma *) (uintptr_t) cb->kernel_address;
 
-	memset(lin_dma_pkt, 0, sizeof(*lin_dma_pkt));
-	cb_size = sizeof(*lin_dma_pkt);
+	do {
+		memset(lin_dma_pkt, 0, sizeof(*lin_dma_pkt));
 
-	ctl = ((PACKET_LIN_DMA << GOYA_PKT_CTL_OPCODE_SHIFT) |
-			(1 << GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
-			(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
-			(1 << GOYA_PKT_CTL_RB_SHIFT) |
-			(1 << GOYA_PKT_CTL_MB_SHIFT));
-	ctl |= (is_dram ? DMA_HOST_TO_DRAM : DMA_HOST_TO_SRAM) <<
-			GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
-	lin_dma_pkt->ctl = cpu_to_le32(ctl);
+		ctl = ((PACKET_LIN_DMA << GOYA_PKT_CTL_OPCODE_SHIFT) |
+				(1 << GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
+				(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
+				(1 << GOYA_PKT_CTL_RB_SHIFT) |
+				(1 << GOYA_PKT_CTL_MB_SHIFT));
+		ctl |= (is_dram ? DMA_HOST_TO_DRAM : DMA_HOST_TO_SRAM) <<
+				GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
+		lin_dma_pkt->ctl = cpu_to_le32(ctl);
 
-	lin_dma_pkt->src_addr = cpu_to_le64(val);
-	lin_dma_pkt->dst_addr = cpu_to_le64(addr);
-	lin_dma_pkt->tsize = cpu_to_le32(size);
+		lin_dma_pkt->src_addr = cpu_to_le64(val);
+		lin_dma_pkt->dst_addr = cpu_to_le64(addr);
+		if (lin_dma_pkts_cnt > 1)
+			lin_dma_pkt->tsize = cpu_to_le32(SZ_2G);
+		else
+			lin_dma_pkt->tsize = cpu_to_le32(size);
+
+		size -= SZ_2G;
+		addr += SZ_2G;
+		lin_dma_pkt++;
+	} while (--lin_dma_pkts_cnt);
 
 	job = hl_cs_allocate_job(hdev, true);
 	if (!job) {
@@ -4522,7 +4533,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
 	job->patched_cb = job->user_cb;
-	job->job_cb_size = job->user_cb_size + sizeof(struct packet_msg_prot);
+	job->job_cb_size = job->user_cb_size;
 
 	hl_debugfs_add_job(hdev, job);
 
