@@ -40,10 +40,6 @@
 #include "tree-checker.h"
 #include "ref-verify.h"
 
-#ifdef CONFIG_X86
-#include <asm/cpufeature.h>
-#endif
-
 #define BTRFS_SUPER_FLAG_SUPP	(BTRFS_HEADER_FLAG_WRITTEN |\
 				 BTRFS_HEADER_FLAG_RELOC |\
 				 BTRFS_SUPER_FLAG_ERROR |\
@@ -873,14 +869,13 @@ static blk_status_t btree_submit_bio_start(void *private_data, struct bio *bio,
 	return btree_csum_one_bio(bio);
 }
 
-static int check_async_write(struct btrfs_inode *bi)
+static int check_async_write(struct btrfs_fs_info *fs_info,
+			     struct btrfs_inode *bi)
 {
 	if (atomic_read(&bi->sync_writers))
 		return 0;
-#ifdef CONFIG_X86
-	if (static_cpu_has(X86_FEATURE_XMM4_2))
+	if (test_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags))
 		return 0;
-#endif
 	return 1;
 }
 
@@ -889,7 +884,7 @@ static blk_status_t btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 					  unsigned long bio_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	int async = check_async_write(BTRFS_I(inode));
+	int async = check_async_write(fs_info, BTRFS_I(inode));
 	blk_status_t ret;
 
 	if (bio_op(bio) != REQ_OP_WRITE) {

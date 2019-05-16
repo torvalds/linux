@@ -791,6 +791,12 @@ enum {
 
 	/* Indicate that the cleaner thread is awake and doing something. */
 	BTRFS_FS_CLEANER_RUNNING,
+
+	/*
+	 * The checksumming has an optimized version and is considered fast,
+	 * so we don't need to offload checksums to workqueues.
+	 */
+	BTRFS_FS_CSUM_IMPL_FAST,
 };
 
 struct btrfs_fs_info {
