@@ -129,6 +129,8 @@ static u32 g4x_infoframe_enable(unsigned int type)
 		return VIDEO_DIP_ENABLE_SPD;
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		return VIDEO_DIP_ENABLE_VENDOR;
+	case HDMI_INFOFRAME_TYPE_DRM:
+		return 0;
 	default:
 		MISSING_CASE(type);
 		return 0;
