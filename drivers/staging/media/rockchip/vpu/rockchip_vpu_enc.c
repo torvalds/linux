@@ -152,9 +152,10 @@ static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
 	struct rockchip_vpu_dev *vpu = video_drvdata(file);
+	struct video_device *vdev = video_devdata(file);
 
 	strscpy(cap->driver, vpu->dev->driver->name, sizeof(cap->driver));
-	strscpy(cap->card, vpu->vfd_enc->name, sizeof(cap->card));
+	strscpy(cap->card, vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform: %s",
 		 vpu->dev->driver->name);
 	return 0;

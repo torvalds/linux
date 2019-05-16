@@ -721,6 +721,40 @@ static void isc_start_dma(struct isc_device *isc)
 	u32 sizeimage = isc->fmt.fmt.pix.sizeimage;
 	u32 dctrl_dview;
 	dma_addr_t addr0;
+	u32 h, w;
+
+	h = isc->fmt.fmt.pix.height;
+	w = isc->fmt.fmt.pix.width;
+
+	/*
+	 * In case the sensor is not RAW, it will output a pixel (12-16 bits)
+	 * with two samples on the ISC Data bus (which is 8-12)
+	 * ISC will count each sample, so, we need to multiply these values
+	 * by two, to get the real number of samples for the required pixels.
+	 */
+	if (!ISC_IS_FORMAT_RAW(isc->config.sd_format->mbus_code)) {
+		h <<= 1;
+		w <<= 1;
+	}
+
+	/*
+	 * We limit the column/row count that the ISC will output according
+	 * to the configured resolution that we want.
+	 * This will avoid the situation where the sensor is misconfigured,
+	 * sending more data, and the ISC will just take it and DMA to memory,
+	 * causing corruption.
+	 */
+	regmap_write(regmap, ISC_PFE_CFG1,
+		     (ISC_PFE_CFG1_COLMIN(0) & ISC_PFE_CFG1_COLMIN_MASK) |
+		     (ISC_PFE_CFG1_COLMAX(w - 1) & ISC_PFE_CFG1_COLMAX_MASK));
+
+	regmap_write(regmap, ISC_PFE_CFG2,
+		     (ISC_PFE_CFG2_ROWMIN(0) & ISC_PFE_CFG2_ROWMIN_MASK) |
+		     (ISC_PFE_CFG2_ROWMAX(h - 1) & ISC_PFE_CFG2_ROWMAX_MASK));
+
+	regmap_update_bits(regmap, ISC_PFE_CFG0,
+			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN,
+			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN);
 
 	addr0 = vb2_dma_contig_plane_dma_addr(&isc->cur_frm->vb.vb2_buf, 0);
 	regmap_write(regmap, ISC_DAD0, addr0);
@@ -1965,6 +1999,8 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	struct vb2_queue *q = &isc->vb2_vidq;
 	int ret;
 
+	INIT_WORK(&isc->awb_work, isc_awb_work);
+
 	ret = v4l2_device_register_subdev_nodes(&isc->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(&isc->v4l2_dev, "Failed to register subdev nodes\n");
@@ -2017,8 +2053,6 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 		v4l2_err(&isc->v4l2_dev, "Init isc ctrols failed: %d\n", ret);
 		return ret;
 	}
-
-	INIT_WORK(&isc->awb_work, isc_awb_work);
 
 	/* Register video device */
 	strscpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
@@ -2135,8 +2169,11 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 			break;
 		}
 
-		subdev_entity->asd = devm_kzalloc(dev,
-				     sizeof(*subdev_entity->asd), GFP_KERNEL);
+		/* asd will be freed by the subsystem once it's added to the
+		 * notifier list
+		 */
+		subdev_entity->asd = kzalloc(sizeof(*subdev_entity->asd),
+					     GFP_KERNEL);
 		if (!subdev_entity->asd) {
 			of_node_put(rem);
 			ret = -ENOMEM;
@@ -2284,6 +2321,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 						     subdev_entity->asd);
 		if (ret) {
 			fwnode_handle_put(subdev_entity->asd->match.fwnode);
+			kfree(subdev_entity->asd);
 			goto cleanup_subdev;
 		}
 

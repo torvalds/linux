@@ -1266,7 +1266,7 @@ static int prp_registered(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	ret = imx_media_capture_device_register(priv->vdev);
+	ret = imx_media_capture_device_register(priv->md, priv->vdev);
 	if (ret)
 		return ret;
 

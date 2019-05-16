@@ -68,6 +68,7 @@ struct rcar_csi2;
 /* Field Detection Control */
 #define FLD_REG				0x1c
 #define FLD_FLD_NUM(n)			(((n) & 0xff) << 16)
+#define FLD_DET_SEL(n)			(((n) & 0x3) << 4)
 #define FLD_FLD_EN4			BIT(3)
 #define FLD_FLD_EN3			BIT(2)
 #define FLD_FLD_EN2			BIT(1)
@@ -84,6 +85,9 @@ struct rcar_csi2;
 
 /* Interrupt Enable */
 #define INTEN_REG			0x30
+#define INTEN_INT_AFIFO_OF		BIT(27)
+#define INTEN_INT_ERRSOTHS		BIT(4)
+#define INTEN_INT_ERRSOTSYNCHS		BIT(3)
 
 /* Interrupt Source Mask */
 #define INTCLOSE_REG			0x34
@@ -475,7 +479,7 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp)
 static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 {
 	const struct rcar_csi2_format *format;
-	u32 phycnt, vcdt = 0, vcdt2 = 0;
+	u32 phycnt, vcdt = 0, vcdt2 = 0, fld = 0;
 	unsigned int i;
 	int mbps, ret;
 
@@ -507,12 +511,26 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 			vcdt2 |= vcdt_part << ((i % 2) * 16);
 	}
 
+	if (priv->mf.field == V4L2_FIELD_ALTERNATE) {
+		fld = FLD_DET_SEL(1) | FLD_FLD_EN4 | FLD_FLD_EN3 | FLD_FLD_EN2
+			| FLD_FLD_EN;
+
+		if (priv->mf.height == 240)
+			fld |= FLD_FLD_NUM(0);
+		else
+			fld |= FLD_FLD_NUM(1);
+	}
+
 	phycnt = PHYCNT_ENABLECLK;
 	phycnt |= (1 << priv->lanes) - 1;
 
 	mbps = rcsi2_calc_mbps(priv, format->bpp);
 	if (mbps < 0)
 		return mbps;
+
+	/* Enable interrupts. */
+	rcsi2_write(priv, INTEN_REG, INTEN_INT_AFIFO_OF | INTEN_INT_ERRSOTHS
+		    | INTEN_INT_ERRSOTSYNCHS);
 
 	/* Init */
 	rcsi2_write(priv, TREF_REG, TREF_TREF);
@@ -549,8 +567,7 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 	rcsi2_write(priv, PHYCNT_REG, phycnt);
 	rcsi2_write(priv, LINKCNT_REG, LINKCNT_MONITOR_EN |
 		    LINKCNT_REG_MONI_PACT_EN | LINKCNT_ICLK_NONSTOP);
-	rcsi2_write(priv, FLD_REG, FLD_FLD_NUM(2) | FLD_FLD_EN4 |
-		    FLD_FLD_EN3 | FLD_FLD_EN2 | FLD_FLD_EN);
+	rcsi2_write(priv, FLD_REG, fld);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ | PHYCNT_RSTZ);
 
@@ -674,6 +691,43 @@ static const struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
 	.video	= &rcar_csi2_video_ops,
 	.pad	= &rcar_csi2_pad_ops,
 };
+
+static irqreturn_t rcsi2_irq(int irq, void *data)
+{
+	struct rcar_csi2 *priv = data;
+	u32 status, err_status;
+
+	status = rcsi2_read(priv, INTSTATE_REG);
+	err_status = rcsi2_read(priv, INTERRSTATE_REG);
+
+	if (!status)
+		return IRQ_HANDLED;
+
+	rcsi2_write(priv, INTSTATE_REG, status);
+
+	if (!err_status)
+		return IRQ_HANDLED;
+
+	rcsi2_write(priv, INTERRSTATE_REG, err_status);
+
+	dev_info(priv->dev, "Transfer error, restarting CSI-2 receiver\n");
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t rcsi2_irq_thread(int irq, void *data)
+{
+	struct rcar_csi2 *priv = data;
+
+	mutex_lock(&priv->lock);
+	rcsi2_stop(priv);
+	usleep_range(1000, 2000);
+	if (rcsi2_start(priv))
+		dev_warn(priv->dev, "Failed to restart CSI-2 receiver\n");
+	mutex_unlock(&priv->lock);
+
+	return IRQ_HANDLED;
+}
 
 /* -----------------------------------------------------------------------------
  * Async handling and registration of subdevices and links.
@@ -947,7 +1001,7 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 				 struct platform_device *pdev)
 {
 	struct resource *res;
-	int irq;
+	int irq, ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
@@ -957,6 +1011,12 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
+
+	ret = devm_request_threaded_irq(&pdev->dev, irq, rcsi2_irq,
+					rcsi2_irq_thread, IRQF_SHARED,
+					KBUILD_MODNAME, priv);
+	if (ret)
+		return ret;
 
 	priv->rstc = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->rstc))
