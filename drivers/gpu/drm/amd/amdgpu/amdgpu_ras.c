@@ -764,8 +764,8 @@ static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
 	struct amdgpu_device *adev = con->adev;
 	const unsigned int element_size =
 		sizeof("0xabcdabcd : 0x12345678 : R\n") - 1;
-	unsigned int start = (ppos + element_size - 1) / element_size;
-	unsigned int end = (ppos + count - 1) / element_size;
+	unsigned int start = div64_ul(ppos + element_size - 1, element_size);
+	unsigned int end = div64_ul(ppos + count - 1, element_size);
 	ssize_t s = 0;
 	struct ras_badpage *bps = NULL;
 	unsigned int bps_count = 0;
