@@ -564,9 +564,9 @@ struct pptable_funcs {
 	int (*update_specified_od8_value)(struct smu_context *smu,
 					  uint32_t index,
 					  uint32_t value);
-	int (*get_od_percentage)(struct smu_context *smu, enum pp_clock_type type);
+	int (*get_od_percentage)(struct smu_context *smu, enum smu_clk_type clk_type);
 	int (*set_od_percentage)(struct smu_context *smu,
-				 enum pp_clock_type type,
+				 enum smu_clk_type clk_type,
 				 uint32_t value);
 	int (*od_edit_dpm_table)(struct smu_context *smu,
 				 enum PP_OD_DPM_TABLE_COMMAND type,

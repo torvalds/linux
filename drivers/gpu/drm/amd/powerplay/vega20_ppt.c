@@ -1690,7 +1690,7 @@ static int vega20_get_metrics_table(struct smu_context *smu,
 	return ret;
 }
 static int vega20_get_od_percentage(struct smu_context *smu,
-				    enum pp_clock_type type)
+				    enum smu_clk_type clk_type)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct vega20_dpm_table *dpm_table = NULL;
@@ -1702,12 +1702,12 @@ static int vega20_get_od_percentage(struct smu_context *smu,
 	dpm_table = smu_dpm->dpm_context;
 	golden_table = smu_dpm->golden_dpm_context;
 
-	switch (type) {
-	case OD_SCLK:
+	switch (clk_type) {
+	case SMU_OD_SCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 		golden_dpm_table = &(golden_table->gfx_table);
 		break;
-	case OD_MCLK:
+	case SMU_OD_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 		golden_dpm_table = &(golden_table->mem_table);
 		break;
@@ -2447,7 +2447,7 @@ static int vega20_update_specified_od8_value(struct smu_context *smu,
 }
 
 static int vega20_set_od_percentage(struct smu_context *smu,
-				    enum pp_clock_type type,
+				    enum smu_clk_type clk_type,
 				    uint32_t value)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
@@ -2465,15 +2465,15 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 	dpm_table = smu_dpm->dpm_context;
 	golden_table = smu_dpm->golden_dpm_context;
 
-	switch (type) {
-	case OD_SCLK:
+	switch (clk_type) {
+	case SMU_OD_SCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 		golden_dpm_table = &(golden_table->gfx_table);
 		feature_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT);
 		clk_id = PPCLK_GFXCLK;
 		index = OD8_SETTING_GFXCLK_FMAX;
 		break;
-	case OD_MCLK:
+	case SMU_OD_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 		golden_dpm_table = &(golden_table->mem_table);
 		feature_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT);
