@@ -2592,8 +2592,9 @@ static void dml20_DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPer
 			mode_lib->vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_unsupported;
 		}
 	}
-	for (k = 1; k <= mode_lib->vba.soc.num_states; k++)
-		mode_lib->vba.DRAMClockChangeSupport[k][0] = mode_lib->vba.DRAMClockChangeSupport[0][0];
+	for (k = 0; k <= mode_lib->vba.soc.num_states; k++)
+		for (j = 0; j < 2; j++)
+			mode_lib->vba.DRAMClockChangeSupport[k][j] = mode_lib->vba.DRAMClockChangeSupport[0][0];
 
 	//XFC Parameters:
 	for (k = 0; k < mode_lib->vba.NumberOfActivePlanes; ++k) {
@@ -5061,12 +5062,7 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			if (locals->ModeSupport[i][0] == true || locals->ModeSupport[i][1] == true) {
 				mode_lib->vba.VoltageLevel = i;
 				if (locals->ModeSupport[i][1] == true && (locals->ModeSupport[i][0] == false
-						|| mode_lib->vba.WhenToDoMPCCombine == dm_mpc_always_when_possible
-						|| (mode_lib->vba.WhenToDoMPCCombine == dm_mpc_reduce_voltage_and_clocks
-							&& ((locals->DRAMClockChangeSupport[i][1] == dm_dram_clock_change_vactive
-								&& locals->DRAMClockChangeSupport[i][0] != dm_dram_clock_change_vactive)
-							|| (locals->DRAMClockChangeSupport[i][1] == dm_dram_clock_change_vblank
-								&& locals->DRAMClockChangeSupport[i][0] == dm_dram_clock_change_unsupported))))) {
+						|| mode_lib->vba.WhenToDoMPCCombine == dm_mpc_always_when_possible)) {
 					MaximumMPCCombine = 1;
 				} else {
 					MaximumMPCCombine = 0;

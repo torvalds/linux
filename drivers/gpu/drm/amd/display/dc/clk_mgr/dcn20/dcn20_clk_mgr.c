@@ -191,10 +191,13 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			pp_smu->set_hard_min_socclk_by_freq(&pp_smu->pp_smu, clk_mgr_base->clks.socclk_khz / 1000);
 	}
 
-	if (!safe_to_lower && pp_smu && pp_smu->set_pstate_handshake_support)
+	if (!safe_to_lower && pp_smu && pp_smu->set_pstate_handshake_support) {
+		clk_mgr_base->clks.p_state_change_support = false;
 		pp_smu->set_pstate_handshake_support(&pp_smu->pp_smu, false);
-	else if (safe_to_lower && pp_smu && pp_smu->set_pstate_handshake_support)
+	} else if (safe_to_lower && pp_smu && pp_smu->set_pstate_handshake_support) {
+		clk_mgr_base->clks.p_state_change_support = new_clocks->p_state_change_support;
 		pp_smu->set_pstate_handshake_support(&pp_smu->pp_smu, clk_mgr_base->clks.p_state_change_support);
+	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
 		clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
