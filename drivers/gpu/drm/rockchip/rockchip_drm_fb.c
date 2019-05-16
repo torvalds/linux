@@ -79,18 +79,13 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *objs[ROCKCHIP_MAX_FB_BUFFER];
 	struct drm_gem_object *obj;
-	unsigned int hsub;
-	unsigned int vsub;
 	int num_planes = min_t(int, info->num_planes, ROCKCHIP_MAX_FB_BUFFER);
 	int ret;
 	int i;
 
-	hsub = drm_format_horz_chroma_subsampling(mode_cmd->pixel_format);
-	vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
-
 	for (i = 0; i < num_planes; i++) {
-		unsigned int width = mode_cmd->width / (i ? hsub : 1);
-		unsigned int height = mode_cmd->height / (i ? vsub : 1);
+		unsigned int width = mode_cmd->width / (i ? info->hsub : 1);
+		unsigned int height = mode_cmd->height / (i ? info->vsub : 1);
 		unsigned int min_size;
 
 		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);

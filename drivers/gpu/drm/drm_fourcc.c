@@ -353,40 +353,6 @@ int drm_format_plane_cpp(uint32_t format, int plane)
 EXPORT_SYMBOL(drm_format_plane_cpp);
 
 /**
- * drm_format_horz_chroma_subsampling - get the horizontal chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The horizontal chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_horz_chroma_subsampling(uint32_t format)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	return info ? info->hsub : 1;
-}
-EXPORT_SYMBOL(drm_format_horz_chroma_subsampling);
-
-/**
- * drm_format_vert_chroma_subsampling - get the vertical chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The vertical chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_vert_chroma_subsampling(uint32_t format)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	return info ? info->vsub : 1;
-}
-EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
-
-/**
  * drm_format_plane_width - width of the plane given the first plane
  * @width: width of the first plane
  * @format: pixel format

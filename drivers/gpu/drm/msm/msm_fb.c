@@ -145,16 +145,12 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	const struct msm_format *format;
 	int ret, i, n;
-	unsigned int hsub, vsub;
 
 	DBG("create framebuffer: dev=%p, mode_cmd=%p (%dx%d@%4.4s)",
 			dev, mode_cmd, mode_cmd->width, mode_cmd->height,
 			(char *)&mode_cmd->pixel_format);
 
 	n = info->num_planes;
-	hsub = drm_format_horz_chroma_subsampling(mode_cmd->pixel_format);
-	vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
-
 	format = kms->funcs->get_format(kms, mode_cmd->pixel_format,
 			mode_cmd->modifier[0]);
 	if (!format) {
@@ -180,8 +176,8 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	}
 
 	for (i = 0; i < n; i++) {
-		unsigned int width = mode_cmd->width / (i ? hsub : 1);
-		unsigned int height = mode_cmd->height / (i ? vsub : 1);
+		unsigned int width = mode_cmd->width / (i ? info->hsub : 1);
+		unsigned int height = mode_cmd->height / (i ? info->vsub : 1);
 		unsigned int min_size;
 
 		min_size = (height - 1) * mode_cmd->pitches[i]

@@ -233,8 +233,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 			}
 		}
 
-		if ((drm_format_horz_chroma_subsampling(format) != 1) ||
-		    (drm_format_vert_chroma_subsampling(format) != 1)) {
+		if ((info->hsub != 1) || (info->vsub != 1)) {
 			if (!(format == DRM_FORMAT_YUV420_10BIT &&
 			      (map->features & MALIDP_DEVICE_AFBC_YUV_420_10_SUPPORT_SPLIT))) {
 				DRM_DEBUG_KMS("Formats which are sub-sampled should never be split\n");
@@ -244,8 +243,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	}
 
 	if (modifier & AFBC_CBR) {
-		if ((drm_format_horz_chroma_subsampling(format) == 1) ||
-		    (drm_format_vert_chroma_subsampling(format) == 1)) {
+		if ((info->hsub == 1) || (info->vsub == 1)) {
 			DRM_DEBUG_KMS("Formats which are not sub-sampled should not have CBR set\n");
 			return false;
 		}
