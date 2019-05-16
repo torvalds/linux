@@ -32,7 +32,6 @@
 #include <linux/blkdev.h>	/* for initrd_* */
 #include <linux/pagemap.h>
 
-#include <asm/segment.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/dma.h>

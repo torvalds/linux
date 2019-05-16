@@ -47,6 +47,7 @@ generic-y += timex.h
 generic-y += tlbflush.h
 generic-y += topology.h
 generic-y += trace_clock.h
+generic-y += uaccess.h
 generic-y += unaligned.h
 generic-y += vga.h
 generic-y += word-at-a-time.h

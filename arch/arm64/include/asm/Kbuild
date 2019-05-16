@@ -17,7 +17,6 @@ generic-y += mmiowb.h
 generic-y += msi.h
 generic-y += qrwlock.h
 generic-y += qspinlock.h
-generic-y += segment.h
 generic-y += serial.h
 generic-y += set_memory.h
 generic-y += switch_to.h

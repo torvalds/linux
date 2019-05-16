@@ -19,7 +19,6 @@ generic-y += mmiowb.h
 generic-y += percpu.h
 generic-y += preempt.h
 generic-y += seccomp.h
-generic-y += segment.h
 generic-y += trace_clock.h
 generic-y += user.h
 generic-y += vga.h
