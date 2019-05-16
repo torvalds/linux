@@ -929,7 +929,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 
 	dout("sync_direct_%s on file %p %lld~%u snapc %p seq %lld\n",
 	     (write ? "write" : "read"), file, pos, (unsigned)count,
-	     snapc, snapc->seq);
+	     snapc, snapc ? snapc->seq : 0);
 
 	ret = filemap_write_and_wait_range(inode->i_mapping,
 					   pos, pos + count - 1);

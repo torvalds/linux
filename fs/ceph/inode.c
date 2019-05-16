@@ -2266,43 +2266,72 @@ int ceph_permission(struct inode *inode, int mask)
 	return err;
 }
 
+/* Craft a mask of needed caps given a set of requested statx attrs. */
+static int statx_to_caps(u32 want)
+{
+	int mask = 0;
+
+	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME))
+		mask |= CEPH_CAP_AUTH_SHARED;
+
+	if (want & (STATX_NLINK|STATX_CTIME))
+		mask |= CEPH_CAP_LINK_SHARED;
+
+	if (want & (STATX_ATIME|STATX_MTIME|STATX_CTIME|STATX_SIZE|
+		    STATX_BLOCKS))
+		mask |= CEPH_CAP_FILE_SHARED;
+
+	if (want & (STATX_CTIME))
+		mask |= CEPH_CAP_XATTR_SHARED;
+
+	return mask;
+}
+
 /*
- * Get all attributes.  Hopefully somedata we'll have a statlite()
- * and can limit the fields we require to be accurate.
+ * Get all the attributes. If we have sufficient caps for the requested attrs,
+ * then we can avoid talking to the MDS at all.
  */
 int ceph_getattr(const struct path *path, struct kstat *stat,
 		 u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int err;
+	int err = 0;
 
-	err = ceph_do_getattr(inode, CEPH_STAT_CAP_INODE_ALL, false);
-	if (!err) {
-		generic_fillattr(inode, stat);
-		stat->ino = ceph_translate_ino(inode->i_sb, inode->i_ino);
-		if (ceph_snap(inode) == CEPH_NOSNAP)
-			stat->dev = inode->i_sb->s_dev;
-		else
-			stat->dev = ci->i_snapid_map ? ci->i_snapid_map->dev : 0;
-
-		if (S_ISDIR(inode->i_mode)) {
-			if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb),
-						RBYTES))
-				stat->size = ci->i_rbytes;
-			else
-				stat->size = ci->i_files + ci->i_subdirs;
-			stat->blocks = 0;
-			stat->blksize = 65536;
-			/*
-			 * Some applications rely on the number of st_nlink
-			 * value on directories to be either 0 (if unlinked)
-			 * or 2 + number of subdirectories.
-			 */
-			if (stat->nlink == 1)
-				/* '.' + '..' + subdirs */
-				stat->nlink = 1 + 1 + ci->i_subdirs;
-		}
+	/* Skip the getattr altogether if we're asked not to sync */
+	if (!(flags & AT_STATX_DONT_SYNC)) {
+		err = ceph_do_getattr(inode, statx_to_caps(request_mask),
+				      flags & AT_STATX_FORCE_SYNC);
+		if (err)
+			return err;
 	}
+
+	generic_fillattr(inode, stat);
+	stat->ino = ceph_translate_ino(inode->i_sb, inode->i_ino);
+	if (ceph_snap(inode) == CEPH_NOSNAP)
+		stat->dev = inode->i_sb->s_dev;
+	else
+		stat->dev = ci->i_snapid_map ? ci->i_snapid_map->dev : 0;
+
+	if (S_ISDIR(inode->i_mode)) {
+		if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb),
+					RBYTES))
+			stat->size = ci->i_rbytes;
+		else
+			stat->size = ci->i_files + ci->i_subdirs;
+		stat->blocks = 0;
+		stat->blksize = 65536;
+		/*
+		 * Some applications rely on the number of st_nlink
+		 * value on directories to be either 0 (if unlinked)
+		 * or 2 + number of subdirectories.
+		 */
+		if (stat->nlink == 1)
+			/* '.' + '..' + subdirs */
+			stat->nlink = 1 + 1 + ci->i_subdirs;
+	}
+
+	/* Mask off any higher bits (e.g. btime) until we have support */
+	stat->result_mask = request_mask & STATX_BASIC_STATS;
 	return err;
 }
