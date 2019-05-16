@@ -292,6 +292,11 @@ config COMMON_CLK_STM32H7
 	help
 	  Support for stm32h7 SoC family clocks
 
+config COMMON_CLK_MMP2
+	def_bool COMMON_CLK && (MACH_MMP2_DT || MACH_MMP3_DT)
+	help
+	  Support for Marvell MMP2 and MMP3 SoC clocks
+
 config COMMON_CLK_BD718XX
 	tristate "Clock driver for ROHM BD718x7 PMIC"
 	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD70528
