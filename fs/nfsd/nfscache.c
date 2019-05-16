@@ -207,7 +207,6 @@ int nfsd_reply_cache_init(void)
 	return 0;
 out_nomem:
 	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
-	nfsd_reply_cache_shutdown();
 	return -ENOMEM;
 }
 
