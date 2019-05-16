@@ -75,6 +75,10 @@
 	force-hpd;
 };
 
+&gpu_crit {
+	temperature = <90000>;
+};
+
 &panel {
 	power-supply= <&panel_regulator>;
 };

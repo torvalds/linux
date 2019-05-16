@@ -166,6 +166,14 @@
 	status = "okay";
 };
 
+&gpu_alert0 {
+	temperature = <72500>;
+};
+
+&gpu_crit {
+	temperature = <100000>;
+};
+
 &hdmi {
 	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
