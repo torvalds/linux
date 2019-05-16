@@ -58,6 +58,7 @@ my %default = (
     "SCP_TO_TARGET"		=> "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE",
     "SCP_TO_TARGET_INSTALL"	=> "\${SCP_TO_TARGET}",
     "REBOOT"			=> "ssh \$SSH_USER\@\$MACHINE reboot",
+    "REBOOT_RETURN_CODE"	=> 255,
     "STOP_AFTER_SUCCESS"	=> 10,
     "STOP_AFTER_FAILURE"	=> 60,
     "STOP_TEST_AFTER"		=> 600,
@@ -105,6 +106,7 @@ my $reboot_type;
 my $reboot_script;
 my $power_cycle;
 my $reboot;
+my $reboot_return_code;
 my $reboot_on_error;
 my $switch_to_good;
 my $switch_to_test;
@@ -278,6 +280,7 @@ my %option_map = (
     "POST_BUILD_DIE"		=> \$post_build_die,
     "POWER_CYCLE"		=> \$power_cycle,
     "REBOOT"			=> \$reboot,
+    "REBOOT_RETURN_CODE"	=> \$reboot_return_code,
     "BUILD_NOCLEAN"		=> \$noclean,
     "MIN_CONFIG"		=> \$minconfig,
     "OUTPUT_MIN_CONFIG"		=> \$output_minconfig,
@@ -1437,15 +1440,26 @@ sub do_not_reboot {
 
 my $in_die = 0;
 
+sub get_test_name() {
+    my $name;
+
+    if (defined($test_name)) {
+	$name = "$test_name:$test_type";
+    } else {
+	$name = $test_type;
+    }
+    return $name;
+}
+
 sub dodie {
 
     # avoid recusion
     return if ($in_die);
     $in_die = 1;
 
-    doprint "CRITICAL FAILURE... ", @_, "\n";
-
     my $i = $iteration;
+
+    doprint "CRITICAL FAILURE... [TEST $i] ", @_, "\n";
 
     if ($reboot_on_error && !do_not_reboot) {
 
@@ -1462,7 +1476,8 @@ sub dodie {
     }
 
     if ($email_on_error) {
-        send_email("KTEST: critical failure for your [$test_type] test",
+	my $name = get_test_name;
+        send_email("KTEST: critical failure for test $i [$name]",
                 "Your test started at $script_start_time has failed with:\n@_\n");
     }
 
@@ -1737,6 +1752,7 @@ sub run_command {
     my $dord = 0;
     my $dostdout = 0;
     my $pid;
+    my $command_orig = $command;
 
     $command =~ s/\$SSH_USER/$ssh_user/g;
     $command =~ s/\$MACHINE/$machine/g;
@@ -1790,6 +1806,11 @@ sub run_command {
     waitpid($pid, 0);
     # shift 8 for real exit status
     $run_command_status = $? >> 8;
+
+    if ($command_orig eq $default{REBOOT} &&
+	$run_command_status == $reboot_return_code) {
+	$run_command_status = 0;
+    }
 
     close(CMD);
     close(LOG) if ($dolog);
@@ -1866,9 +1887,10 @@ sub get_grub2_index {
 	or dodie "unable to get $grub_file";
 
     my $found = 0;
+    my $grub_menu_qt = quotemeta($grub_menu);
 
     while (<IN>) {
-	if (/^menuentry.*$grub_menu/) {
+	if (/^menuentry.*$grub_menu_qt/) {
 	    $grub_number++;
 	    $found = 1;
 	    last;
@@ -1909,9 +1931,10 @@ sub get_grub_index {
 	or dodie "unable to get menu.lst";
 
     my $found = 0;
+    my $grub_menu_qt = quotemeta($grub_menu);
 
     while (<IN>) {
-	if (/^\s*title\s+$grub_menu\s*$/) {
+	if (/^\s*title\s+$grub_menu_qt\s*$/) {
 	    $grub_number++;
 	    $found = 1;
 	    last;
@@ -4193,7 +4216,8 @@ sub send_email {
 
 sub cancel_test {
     if ($email_when_canceled) {
-        send_email("KTEST: Your [$test_type] test was cancelled",
+	my $name = get_test_name;
+        send_email("KTEST: Your [$name] test was cancelled",
                 "Your test started at $script_start_time was cancelled: sig int");
     }
     die "\nCaught Sig Int, test interrupted: $!\n"
@@ -4247,7 +4271,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
             run_command $pre_ktest;
         }
         if ($email_when_started) {
-            send_email("KTEST: Your [$test_type] test was started",
+	    my $name = get_test_name;
+            send_email("KTEST: Your [$name] test was started",
                 "Your test was started on $script_start_time");
         }
     }
@@ -4414,7 +4439,7 @@ if ($opt{"POWEROFF_ON_SUCCESS"}) {
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 
 if ($email_when_finished) {
-    send_email("KTEST: Your [$test_type] test has finished!",
+    send_email("KTEST: Your test has finished!",
             "$successes of $opt{NUM_TESTS} tests started at $script_start_time were successful!");
 }
 exit 0;

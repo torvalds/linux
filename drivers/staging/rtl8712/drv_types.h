@@ -145,9 +145,9 @@ struct _adapter {
 	struct	hal_priv	halpriv;
 	struct	led_priv	ledpriv;
 	struct mp_priv  mppriv;
-	s32	bDriverStopped;
-	s32	bSurpriseRemoved;
-	s32	bSuspended;
+	bool	driver_stopped;
+	bool	surprise_removed;
+	bool	suspended;
 	u32	IsrContent;
 	u32	ImrContent;
 	u8	EepromAddressSize;

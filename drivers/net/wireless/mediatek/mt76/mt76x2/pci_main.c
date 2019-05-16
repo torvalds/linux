@@ -22,26 +22,21 @@ mt76x2_start(struct ieee80211_hw *hw)
 	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
-	mutex_lock(&dev->mt76.mutex);
-
 	ret = mt76x2_mac_start(dev);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = mt76x2_phy_start(dev);
 	if (ret)
-		goto out;
+		return ret;
 
-	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT_MAC_WORK_INTERVAL);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->wdt_work,
 				     MT_WATCHDOG_TIME);
 
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
-
-out:
-	mutex_unlock(&dev->mt76.mutex);
-	return ret;
+	return 0;
 }
 
 static void
@@ -49,10 +44,8 @@ mt76x2_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	mt76x2_stop_hardware(dev);
-	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -66,7 +59,7 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 
 	mt76_set_channel(&dev->mt76);
 
-	tasklet_disable(&dev->pre_tbtt_tasklet);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 
 	mt76x2_mac_stop(dev, true);
@@ -80,7 +73,7 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 
 	mt76x2_mac_resume(dev);
 	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
-	tasklet_enable(&dev->pre_tbtt_tasklet);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
@@ -133,12 +126,6 @@ static void
 mt76x2_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	     u32 queues, bool drop)
 {
-}
-
-static int
-mt76x2_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
-{
-	return 0;
 }
 
 static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
@@ -197,7 +184,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.set_coverage_class = mt76x02_set_coverage_class,
 	.get_survey = mt76_get_survey,
-	.set_tim = mt76x2_set_tim,
+	.set_tim = mt76_set_tim,
 	.set_antenna = mt76x2_set_antenna,
 	.get_antenna = mt76x2_get_antenna,
 	.set_rts_threshold = mt76x02_set_rts_threshold,

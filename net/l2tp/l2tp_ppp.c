@@ -1070,7 +1070,6 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 {
 	struct pppol2tp_ioc_stats stats;
 	struct l2tp_session *session;
-	int val;
 
 	switch (cmd) {
 	case PPPIOCGMRU:
@@ -1097,7 +1096,7 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		if (!session->session_id && !session->peer_session_id)
 			return -ENOSYS;
 
-		if (get_user(val, (int __user *)arg))
+		if (!access_ok((int __user *)arg, sizeof(int)))
 			return -EFAULT;
 		break;
 

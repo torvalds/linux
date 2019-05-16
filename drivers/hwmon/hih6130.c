@@ -252,7 +252,7 @@ static const struct i2c_device_id hih6130_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hih6130_id);
 
-static const struct of_device_id hih6130_of_match[] = {
+static const struct of_device_id __maybe_unused hih6130_of_match[] = {
 	{ .compatible = "honeywell,hih6130", },
 	{ }
 };

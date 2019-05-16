@@ -195,7 +195,7 @@ static int ir_lirc_open(struct inode *inode, struct file *file)
 	list_add(&fh->list, &dev->lirc_fh);
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 out_kfifo:

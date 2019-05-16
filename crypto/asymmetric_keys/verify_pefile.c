@@ -354,7 +354,6 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 		goto error_no_desc;
 
 	desc->tfm   = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	ret = crypto_shash_init(desc);
 	if (ret < 0)
 		goto error;

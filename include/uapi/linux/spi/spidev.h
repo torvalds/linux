@@ -66,6 +66,9 @@
  * @delay_usecs: If nonzero, how long to delay after the last bit transfer
  *	before optionally deselecting the device before the next transfer.
  * @cs_change: True to deselect device before starting the next transfer.
+ * @word_delay_usecs: If nonzero, how long to wait between words within one
+ *	transfer. This property needs explicit support in the SPI controller,
+ *	otherwise it is silently ignored.
  *
  * This structure is mapped directly to the kernel spi_transfer structure;
  * the fields have the same meanings, except of course that the pointers
@@ -100,7 +103,8 @@ struct spi_ioc_transfer {
 	__u8		cs_change;
 	__u8		tx_nbits;
 	__u8		rx_nbits;
-	__u16		pad;
+	__u8		word_delay_usecs;
+	__u8		pad;
 
 	/* If the contents of 'struct spi_ioc_transfer' ever change
 	 * incompatibly, then the ioctl number (currently 0) must change;

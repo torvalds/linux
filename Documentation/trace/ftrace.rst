@@ -1404,6 +1404,7 @@ trace has provided some very helpful debugging information.
 
 If we prefer function graph output instead of function, we can set
 display-graph option::
+
  with echo 1 > options/display-graph
 
   # tracer: irqsoff

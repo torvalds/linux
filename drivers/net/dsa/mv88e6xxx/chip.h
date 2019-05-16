@@ -21,17 +21,6 @@
 #include <linux/timecounter.h>
 #include <net/dsa.h>
 
-#define SMI_CMD			0x00
-#define SMI_CMD_BUSY		BIT(15)
-#define SMI_CMD_CLAUSE_22	BIT(12)
-#define SMI_CMD_OP_22_WRITE	((1 << 10) | SMI_CMD_BUSY | SMI_CMD_CLAUSE_22)
-#define SMI_CMD_OP_22_READ	((2 << 10) | SMI_CMD_BUSY | SMI_CMD_CLAUSE_22)
-#define SMI_CMD_OP_45_WRITE_ADDR	((0 << 10) | SMI_CMD_BUSY)
-#define SMI_CMD_OP_45_WRITE_DATA	((1 << 10) | SMI_CMD_BUSY)
-#define SMI_CMD_OP_45_READ_DATA		((2 << 10) | SMI_CMD_BUSY)
-#define SMI_CMD_OP_45_READ_DATA_INC	((3 << 10) | SMI_CMD_BUSY)
-#define SMI_DATA		0x01
-
 #define MV88E6XXX_N_FID		4096
 
 /* PVT limits for 4-bit port and 5-bit switch */

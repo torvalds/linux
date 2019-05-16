@@ -276,6 +276,9 @@ struct kfd_dev {
 	uint64_t hive_id;
 
 	bool pci_atomic_requested;
+
+	/* SRAM ECC flag */
+	atomic_t sram_ecc_flag;
 };
 
 enum kfd_mempool {

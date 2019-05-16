@@ -343,6 +343,12 @@
 332	common	statx			__x64_sys_statx
 333	common	io_pgetevents		__x64_sys_io_pgetevents
 334	common	rseq			__x64_sys_rseq
+335	common	open_tree		__x64_sys_open_tree
+336	common	move_mount		__x64_sys_move_mount
+337	common	fsopen			__x64_sys_fsopen
+338	common	fsconfig		__x64_sys_fsconfig
+339	common	fsmount			__x64_sys_fsmount
+340	common	fspick			__x64_sys_fspick
 # don't use numbers 387 through 423, add new calls after the last
 # 'common' entry
 424	common	pidfd_send_signal	__x64_sys_pidfd_send_signal

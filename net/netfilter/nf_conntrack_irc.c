@@ -42,11 +42,13 @@ unsigned int (*nf_nat_irc_hook)(struct sk_buff *skb,
 				struct nf_conntrack_expect *exp) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_irc_hook);
 
+#define HELPER_NAME "irc"
+
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IRC (DCC) connection tracking helper");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ip_conntrack_irc");
-MODULE_ALIAS_NFCT_HELPER("irc");
+MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of IRC servers");
@@ -259,7 +261,7 @@ static int __init nf_conntrack_irc_init(void)
 		ports[ports_c++] = IRC_PORT;
 
 	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&irc[i], AF_INET, IPPROTO_TCP, "irc",
+		nf_ct_helper_init(&irc[i], AF_INET, IPPROTO_TCP, HELPER_NAME,
 				  IRC_PORT, ports[i], i, &irc_exp_policy,
 				  0, help, NULL, THIS_MODULE);
 	}

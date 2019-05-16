@@ -32,7 +32,6 @@ generic-y += sections.h
 generic-y += segment.h
 generic-y += serial.h
 generic-y += shmparam.h
-generic-y += sizes.h
 generic-y += topology.h
 generic-y += trace_clock.h
 generic-y += unaligned.h

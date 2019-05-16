@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <linux/rtnetlink.h>
@@ -131,21 +132,9 @@ static void dummy_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
-static int dummy_get_ts_info(struct net_device *dev,
-			      struct ethtool_ts_info *ts_info)
-{
-	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				   SOF_TIMESTAMPING_RX_SOFTWARE |
-				   SOF_TIMESTAMPING_SOFTWARE;
-
-	ts_info->phc_index = -1;
-
-	return 0;
-};
-
 static const struct ethtool_ops dummy_ethtool_ops = {
 	.get_drvinfo            = dummy_get_drvinfo,
-	.get_ts_info		= dummy_get_ts_info,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static void dummy_setup(struct net_device *dev)

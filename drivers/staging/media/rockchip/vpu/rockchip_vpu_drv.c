@@ -22,7 +22,6 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-core.h>
-#include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include "rockchip_vpu_common.h"
@@ -463,7 +462,7 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 	}
 
 	vpu->mdev.dev = vpu->dev;
-	strlcpy(vpu->mdev.model, DRIVER_NAME, sizeof(vpu->mdev.model));
+	strscpy(vpu->mdev.model, DRIVER_NAME, sizeof(vpu->mdev.model));
 	media_device_init(&vpu->mdev);
 	vpu->v4l2_dev.mdev = &vpu->mdev;
 

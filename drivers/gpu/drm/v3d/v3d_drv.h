@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Copyright (C) 2015-2018 Broadcom */
 
-#include <linux/reservation.h>
 #include <linux/mm_types.h>
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/gpu_scheduler.h>
 #include "uapi/drm/v3d_drm.h"
 
@@ -34,6 +34,7 @@ struct v3d_dev {
 	 * and revision.
 	 */
 	int ver;
+	bool single_irq_line;
 
 	struct device *dev;
 	struct platform_device *pdev;
@@ -42,6 +43,7 @@ struct v3d_dev {
 	void __iomem *bridge_regs;
 	void __iomem *gca_regs;
 	struct clk *clk;
+	struct reset_control *reset;
 
 	/* Virtual and DMA addresses of the single shared page table. */
 	volatile u32 *pt;
@@ -109,34 +111,15 @@ struct v3d_file_priv {
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
 };
 
-/* Tracks a mapping of a BO into a per-fd address space */
-struct v3d_vma {
-	struct v3d_page_table *pt;
-	struct list_head list; /* entry in v3d_bo.vmas */
-};
-
 struct v3d_bo {
-	struct drm_gem_object base;
-
-	struct mutex lock;
+	struct drm_gem_shmem_object base;
 
 	struct drm_mm_node node;
-
-	u32 pages_refcount;
-	struct page **pages;
-	struct sg_table *sgt;
-	void *vaddr;
-
-	struct list_head vmas;    /* list of v3d_vma */
 
 	/* List entry for the BO's position in
 	 * v3d_exec_info->unref_list
 	 */
 	struct list_head unref_head;
-
-	/* normally (resv == &_resv) except for imported bo's */
-	struct reservation_object *resv;
-	struct reservation_object _resv;
 };
 
 static inline struct v3d_bo *
@@ -180,7 +163,7 @@ struct v3d_job {
 	struct dma_fence *in_fence;
 
 	/* v3d fence to be signaled by IRQ handler when the job is complete. */
-	struct dma_fence *done_fence;
+	struct dma_fence *irq_fence;
 
 	/* GPU virtual addresses of the start/end of the CL job. */
 	u32 start, end;
@@ -227,7 +210,7 @@ struct v3d_tfu_job {
 	struct dma_fence *in_fence;
 
 	/* v3d fence to be signaled by IRQ handler when the job is complete. */
-	struct dma_fence *done_fence;
+	struct dma_fence *irq_fence;
 
 	struct v3d_dev *v3d;
 
@@ -270,6 +253,7 @@ static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 }
 
 /* v3d_bo.c */
+struct drm_gem_object *v3d_create_object(struct drm_device *dev, size_t size);
 void v3d_free_object(struct drm_gem_object *gem_obj);
 struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 			     size_t size);
@@ -279,11 +263,6 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
-vm_fault_t v3d_gem_fault(struct vm_fault *vmf);
-int v3d_mmap(struct file *filp, struct vm_area_struct *vma);
-struct reservation_object *v3d_prime_res_obj(struct drm_gem_object *obj);
-int v3d_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
-struct sg_table *v3d_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
 						 struct sg_table *sgt);
@@ -310,7 +289,7 @@ void v3d_reset(struct v3d_dev *v3d);
 void v3d_invalidate_caches(struct v3d_dev *v3d);
 
 /* v3d_irq.c */
-void v3d_irq_init(struct v3d_dev *v3d);
+int v3d_irq_init(struct v3d_dev *v3d);
 void v3d_irq_enable(struct v3d_dev *v3d);
 void v3d_irq_disable(struct v3d_dev *v3d);
 void v3d_irq_reset(struct v3d_dev *v3d);

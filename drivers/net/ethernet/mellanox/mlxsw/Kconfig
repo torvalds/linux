@@ -4,6 +4,7 @@
 
 config MLXSW_CORE
 	tristate "Mellanox Technologies Switch ASICs support"
+	select NET_DEVLINK
 	---help---
 	  This driver supports Mellanox Technologies Switch ASICs family.
 

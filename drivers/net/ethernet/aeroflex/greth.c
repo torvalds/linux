@@ -1458,7 +1458,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 		const u8 *addr;
 
 		addr = of_get_mac_address(ofdev->dev.of_node);
-		if (addr) {
+		if (!IS_ERR(addr)) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
 		} else {

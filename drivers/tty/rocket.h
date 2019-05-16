@@ -71,7 +71,6 @@ struct rocket_version {
 /*
  * Rocketport ioctls -- "RP"
  */
-#define RCKP_GET_STRUCT		0x00525001
 #define RCKP_GET_CONFIG		0x00525002
 #define RCKP_SET_CONFIG		0x00525003
 #define RCKP_GET_PORTS		0x00525004

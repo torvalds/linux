@@ -467,6 +467,9 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	unsigned long flags;
 	u32 tmr_ctrl;
 
+	if (!node)
+		return -ENODEV;
+
 	ptp_qoriq->base = base;
 	ptp_qoriq->caps = *caps;
 

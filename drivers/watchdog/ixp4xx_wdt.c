@@ -65,7 +65,7 @@ static int ixp4xx_wdt_open(struct inode *inode, struct file *file)
 
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 	wdt_enable();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static ssize_t

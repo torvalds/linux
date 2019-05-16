@@ -446,6 +446,28 @@ static inline void sdhci_led_deactivate(struct sdhci_host *host)
 
 #endif
 
+static void sdhci_mod_timer(struct sdhci_host *host, struct mmc_request *mrq,
+			    unsigned long timeout)
+{
+	if (sdhci_data_line_cmd(mrq->cmd))
+		mod_timer(&host->data_timer, timeout);
+	else
+		mod_timer(&host->timer, timeout);
+}
+
+static void sdhci_del_timer(struct sdhci_host *host, struct mmc_request *mrq)
+{
+	if (sdhci_data_line_cmd(mrq->cmd))
+		del_timer(&host->data_timer);
+	else
+		del_timer(&host->timer);
+}
+
+static inline bool sdhci_has_requests(struct sdhci_host *host)
+{
+	return host->cmd || host->data_cmd;
+}
+
 /*****************************************************************************\
  *                                                                           *
  * Core functions                                                            *
@@ -1221,6 +1243,18 @@ static void __sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 {
 	int i;
 
+	if (host->cmd && host->cmd->mrq == mrq)
+		host->cmd = NULL;
+
+	if (host->data_cmd && host->data_cmd->mrq == mrq)
+		host->data_cmd = NULL;
+
+	if (host->data && host->data->mrq == mrq)
+		host->data = NULL;
+
+	if (sdhci_needs_reset(host, mrq))
+		host->pending_reset = true;
+
 	for (i = 0; i < SDHCI_MAX_MRQS; i++) {
 		if (host->mrqs_done[i] == mrq) {
 			WARN_ON(1);
@@ -1237,24 +1271,17 @@ static void __sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 
 	WARN_ON(i >= SDHCI_MAX_MRQS);
 
-	tasklet_schedule(&host->finish_tasklet);
+	sdhci_del_timer(host, mrq);
+
+	if (!sdhci_has_requests(host))
+		sdhci_led_deactivate(host);
 }
 
 static void sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 {
-	if (host->cmd && host->cmd->mrq == mrq)
-		host->cmd = NULL;
-
-	if (host->data_cmd && host->data_cmd->mrq == mrq)
-		host->data_cmd = NULL;
-
-	if (host->data && host->data->mrq == mrq)
-		host->data = NULL;
-
-	if (sdhci_needs_reset(host, mrq))
-		host->pending_reset = true;
-
 	__sdhci_finish_mrq(host, mrq);
+
+	queue_work(host->complete_wq, &host->complete_work);
 }
 
 static void sdhci_finish_data(struct sdhci_host *host)
@@ -1305,32 +1332,15 @@ static void sdhci_finish_data(struct sdhci_host *host)
 		 * responsibility to send the stop command if required.
 		 */
 		if (data->mrq->cap_cmd_during_tfr) {
-			sdhci_finish_mrq(host, data->mrq);
+			__sdhci_finish_mrq(host, data->mrq);
 		} else {
 			/* Avoid triggering warning in sdhci_send_command() */
 			host->cmd = NULL;
 			sdhci_send_command(host, data->stop);
 		}
 	} else {
-		sdhci_finish_mrq(host, data->mrq);
+		__sdhci_finish_mrq(host, data->mrq);
 	}
-}
-
-static void sdhci_mod_timer(struct sdhci_host *host, struct mmc_request *mrq,
-			    unsigned long timeout)
-{
-	if (sdhci_data_line_cmd(mrq->cmd))
-		mod_timer(&host->data_timer, timeout);
-	else
-		mod_timer(&host->timer, timeout);
-}
-
-static void sdhci_del_timer(struct sdhci_host *host, struct mmc_request *mrq)
-{
-	if (sdhci_data_line_cmd(mrq->cmd))
-		del_timer(&host->data_timer);
-	else
-		del_timer(&host->timer);
 }
 
 void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
@@ -1492,7 +1502,7 @@ static void sdhci_finish_command(struct sdhci_host *host)
 			sdhci_finish_data(host);
 
 		if (!cmd->data)
-			sdhci_finish_mrq(host, cmd->mrq);
+			__sdhci_finish_mrq(host, cmd->mrq);
 	}
 }
 
@@ -2364,9 +2374,9 @@ static int __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 
 	/*
 	 * Issue opcode repeatedly till Execute Tuning is set to 0 or the number
-	 * of loops reaches 40 times.
+	 * of loops reaches tuning loop count.
 	 */
-	for (i = 0; i < MAX_TUNING_LOOP; i++) {
+	for (i = 0; i < host->tuning_loop_count; i++) {
 		u16 ctrl;
 
 		sdhci_send_tuning(host, opcode);
@@ -2523,11 +2533,6 @@ static void sdhci_pre_req(struct mmc_host *mmc, struct mmc_request *mrq)
 		sdhci_pre_dma_transfer(host, mrq->data, COOKIE_PRE_MAPPED);
 }
 
-static inline bool sdhci_has_requests(struct sdhci_host *host)
-{
-	return host->cmd || host->data_cmd;
-}
-
 static void sdhci_error_out_mrqs(struct sdhci_host *host, int err)
 {
 	if (host->data_cmd) {
@@ -2589,7 +2594,7 @@ static const struct mmc_host_ops sdhci_ops = {
 
 /*****************************************************************************\
  *                                                                           *
- * Tasklets                                                                  *
+ * Request done                                                              *
  *                                                                           *
 \*****************************************************************************/
 
@@ -2611,8 +2616,6 @@ static bool sdhci_request_done(struct sdhci_host *host)
 		spin_unlock_irqrestore(&host->lock, flags);
 		return true;
 	}
-
-	sdhci_del_timer(host, mrq);
 
 	/*
 	 * Always unmap the data buffers if they were mapped by
@@ -2695,9 +2698,6 @@ static bool sdhci_request_done(struct sdhci_host *host)
 		host->pending_reset = false;
 	}
 
-	if (!sdhci_has_requests(host))
-		sdhci_led_deactivate(host);
-
 	host->mrqs_done[i] = NULL;
 
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -2707,9 +2707,10 @@ static bool sdhci_request_done(struct sdhci_host *host)
 	return false;
 }
 
-static void sdhci_tasklet_finish(unsigned long param)
+static void sdhci_complete_work(struct work_struct *work)
 {
-	struct sdhci_host *host = (struct sdhci_host *)param;
+	struct sdhci_host *host = container_of(work, struct sdhci_host,
+					       complete_work);
 
 	while (!sdhci_request_done(host))
 		;
@@ -2754,6 +2755,7 @@ static void sdhci_timeout_data_timer(struct timer_list *t)
 		if (host->data) {
 			host->data->error = -ETIMEDOUT;
 			sdhci_finish_data(host);
+			queue_work(host->complete_wq, &host->complete_work);
 		} else if (host->data_cmd) {
 			host->data_cmd->error = -ETIMEDOUT;
 			sdhci_finish_mrq(host, host->data_cmd->mrq);
@@ -2819,7 +2821,7 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *intmask_p)
 			return;
 		}
 
-		sdhci_finish_mrq(host, host->cmd->mrq);
+		__sdhci_finish_mrq(host, host->cmd->mrq);
 		return;
 	}
 
@@ -2833,7 +2835,7 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *intmask_p)
 
 		if (mrq->sbc && (host->flags & SDHCI_AUTO_CMD23)) {
 			mrq->sbc->error = err;
-			sdhci_finish_mrq(host, mrq);
+			__sdhci_finish_mrq(host, mrq);
 			return;
 		}
 	}
@@ -2897,7 +2899,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 			if (intmask & SDHCI_INT_DATA_TIMEOUT) {
 				host->data_cmd = NULL;
 				data_cmd->error = -ETIMEDOUT;
-				sdhci_finish_mrq(host, data_cmd->mrq);
+				__sdhci_finish_mrq(host, data_cmd->mrq);
 				return;
 			}
 			if (intmask & SDHCI_INT_DATA_END) {
@@ -2910,7 +2912,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 				if (host->cmd == data_cmd)
 					return;
 
-				sdhci_finish_mrq(host, data_cmd->mrq);
+				__sdhci_finish_mrq(host, data_cmd->mrq);
 				return;
 			}
 		}
@@ -2993,12 +2995,24 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	}
 }
 
+static inline bool sdhci_defer_done(struct sdhci_host *host,
+				    struct mmc_request *mrq)
+{
+	struct mmc_data *data = mrq->data;
+
+	return host->pending_reset ||
+	       ((host->flags & SDHCI_REQ_USE_DMA) && data &&
+		data->host_cookie == COOKIE_MAPPED);
+}
+
 static irqreturn_t sdhci_irq(int irq, void *dev_id)
 {
+	struct mmc_request *mrqs_done[SDHCI_MAX_MRQS] = {0};
 	irqreturn_t result = IRQ_NONE;
 	struct sdhci_host *host = dev_id;
 	u32 intmask, mask, unexpected = 0;
 	int max_loops = 16;
+	int i;
 
 	spin_lock(&host->lock);
 
@@ -3092,8 +3106,29 @@ cont:
 
 		intmask = sdhci_readl(host, SDHCI_INT_STATUS);
 	} while (intmask && --max_loops);
+
+	/* Determine if mrqs can be completed immediately */
+	for (i = 0; i < SDHCI_MAX_MRQS; i++) {
+		struct mmc_request *mrq = host->mrqs_done[i];
+
+		if (!mrq)
+			continue;
+
+		if (sdhci_defer_done(host, mrq)) {
+			result = IRQ_WAKE_THREAD;
+		} else {
+			mrqs_done[i] = mrq;
+			host->mrqs_done[i] = NULL;
+		}
+	}
 out:
 	spin_unlock(&host->lock);
+
+	/* Process mrqs ready for immediate completion */
+	for (i = 0; i < SDHCI_MAX_MRQS; i++) {
+		if (mrqs_done[i])
+			mmc_request_done(host->mmc, mrqs_done[i]);
+	}
 
 	if (unexpected) {
 		pr_err("%s: Unexpected interrupt 0x%08x.\n",
@@ -3109,6 +3144,9 @@ static irqreturn_t sdhci_thread_irq(int irq, void *dev_id)
 	struct sdhci_host *host = dev_id;
 	unsigned long flags;
 	u32 isr;
+
+	while (!sdhci_request_done(host))
+		;
 
 	spin_lock_irqsave(&host->lock, flags);
 	isr = host->thread_isr;
@@ -3131,7 +3169,7 @@ static irqreturn_t sdhci_thread_irq(int irq, void *dev_id)
 		spin_unlock_irqrestore(&host->lock, flags);
 	}
 
-	return isr ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 /*****************************************************************************\
@@ -3483,6 +3521,7 @@ struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	host->cqe_err_ier = SDHCI_CQE_INT_ERR_MASK;
 
 	host->tuning_delay = -1;
+	host->tuning_loop_count = MAX_TUNING_LOOP;
 
 	host->sdma_boundary = SDHCI_DEFAULT_BOUNDARY_ARG;
 
@@ -4213,14 +4252,15 @@ EXPORT_SYMBOL_GPL(sdhci_cleanup_host);
 
 int __sdhci_add_host(struct sdhci_host *host)
 {
+	unsigned int flags = WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI;
 	struct mmc_host *mmc = host->mmc;
 	int ret;
 
-	/*
-	 * Init tasklets.
-	 */
-	tasklet_init(&host->finish_tasklet,
-		sdhci_tasklet_finish, (unsigned long)host);
+	host->complete_wq = alloc_workqueue("sdhci", flags, 0);
+	if (!host->complete_wq)
+		return -ENOMEM;
+
+	INIT_WORK(&host->complete_work, sdhci_complete_work);
 
 	timer_setup(&host->timer, sdhci_timeout_timer, 0);
 	timer_setup(&host->data_timer, sdhci_timeout_data_timer, 0);
@@ -4234,7 +4274,7 @@ int __sdhci_add_host(struct sdhci_host *host)
 	if (ret) {
 		pr_err("%s: Failed to request IRQ %d: %d\n",
 		       mmc_hostname(mmc), host->irq, ret);
-		goto untasklet;
+		goto unwq;
 	}
 
 	ret = sdhci_led_register(host);
@@ -4265,8 +4305,8 @@ unirq:
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 	free_irq(host->irq, host);
-untasklet:
-	tasklet_kill(&host->finish_tasklet);
+unwq:
+	destroy_workqueue(host->complete_wq);
 
 	return ret;
 }
@@ -4328,7 +4368,7 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	del_timer_sync(&host->timer);
 	del_timer_sync(&host->data_timer);
 
-	tasklet_kill(&host->finish_tasklet);
+	destroy_workqueue(host->complete_wq);
 
 	if (!IS_ERR(mmc->supply.vqmmc))
 		regulator_disable(mmc->supply.vqmmc);

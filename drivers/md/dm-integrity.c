@@ -88,14 +88,10 @@ struct journal_entry {
 
 #if BITS_PER_LONG == 64
 #define journal_entry_set_sector(je, x)		do { smp_wmb(); WRITE_ONCE((je)->u.sector, cpu_to_le64(x)); } while (0)
-#define journal_entry_get_sector(je)		le64_to_cpu((je)->u.sector)
-#elif defined(CONFIG_LBDAF)
-#define journal_entry_set_sector(je, x)		do { (je)->u.s.sector_lo = cpu_to_le32(x); smp_wmb(); WRITE_ONCE((je)->u.s.sector_hi, cpu_to_le32((x) >> 32)); } while (0)
-#define journal_entry_get_sector(je)		le64_to_cpu((je)->u.sector)
 #else
-#define journal_entry_set_sector(je, x)		do { (je)->u.s.sector_lo = cpu_to_le32(x); smp_wmb(); WRITE_ONCE((je)->u.s.sector_hi, cpu_to_le32(0)); } while (0)
-#define journal_entry_get_sector(je)		le32_to_cpu((je)->u.s.sector_lo)
+#define journal_entry_set_sector(je, x)		do { (je)->u.s.sector_lo = cpu_to_le32(x); smp_wmb(); WRITE_ONCE((je)->u.s.sector_hi, cpu_to_le32((x) >> 32)); } while (0)
 #endif
+#define journal_entry_get_sector(je)		le64_to_cpu((je)->u.sector)
 #define journal_entry_is_unused(je)		((je)->u.s.sector_hi == cpu_to_le32(-1))
 #define journal_entry_set_unused(je)		do { ((je)->u.s.sector_hi = cpu_to_le32(-1)); } while (0)
 #define journal_entry_is_inprogress(je)		((je)->u.s.sector_hi == cpu_to_le32(-2))
@@ -532,7 +528,6 @@ static void section_mac(struct dm_integrity_c *ic, unsigned section, __u8 result
 	unsigned j, size;
 
 	desc->tfm = ic->journal_mac;
-	desc->flags = 0;
 
 	r = crypto_shash_init(desc);
 	if (unlikely(r)) {
@@ -1276,7 +1271,6 @@ static void integrity_sector_checksum(struct dm_integrity_c *ic, sector_t sector
 	unsigned digest_size;
 
 	req->tfm = ic->internal_hash;
-	req->flags = 0;
 
 	r = crypto_shash_init(req);
 	if (unlikely(r < 0)) {

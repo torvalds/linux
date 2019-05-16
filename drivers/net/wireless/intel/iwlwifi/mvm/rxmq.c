@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1699,8 +1699,8 @@ out:
 	rcu_read_unlock();
 }
 
-void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
-			    struct iwl_rx_cmd_buffer *rxb, int queue)
+void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
+				struct iwl_rx_cmd_buffer *rxb, int queue)
 {
 	struct ieee80211_rx_status *rx_status;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
@@ -1719,10 +1719,6 @@ void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
 	};
 
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
-		return;
-
-	/* Currently only NDP type is supported */
-	if (info_type != RX_NO_DATA_INFO_TYPE_NDP)
 		return;
 
 	energy_a = (rssi & RX_NO_DATA_CHAIN_A_MSK) >> RX_NO_DATA_CHAIN_A_POS;
@@ -1746,9 +1742,22 @@ void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	/* 0-length PSDU */
 	rx_status->flag |= RX_FLAG_NO_PSDU;
-	/* currently this is the only type for which we get this notif */
-	rx_status->zero_length_psdu_type =
-		IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;
+
+	switch (info_type) {
+	case RX_NO_DATA_INFO_TYPE_NDP:
+		rx_status->zero_length_psdu_type =
+			IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;
+		break;
+	case RX_NO_DATA_INFO_TYPE_MU_UNMATCHED:
+	case RX_NO_DATA_INFO_TYPE_HE_TB_UNMATCHED:
+		rx_status->zero_length_psdu_type =
+			IEEE80211_RADIOTAP_ZERO_LEN_PSDU_NOT_CAPTURED;
+		break;
+	default:
+		rx_status->zero_length_psdu_type =
+			IEEE80211_RADIOTAP_ZERO_LEN_PSDU_VENDOR;
+		break;
+	}
 
 	/* This may be overridden by iwl_mvm_rx_he() to HE_RU */
 	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {

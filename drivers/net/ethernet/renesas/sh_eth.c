@@ -3192,8 +3192,8 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 	pdata->phy_interface = ret;
 
 	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
-		memcpy(pdata->mac_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr))
+		ether_addr_copy(pdata->mac_addr, mac_addr);
 
 	pdata->no_ether_link =
 		of_property_read_bool(np, "renesas,no-ether-link");

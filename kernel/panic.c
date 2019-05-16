@@ -306,6 +306,8 @@ void panic(const char *fmt, ...)
 		 * shutting down.  But if there is a chance of
 		 * rebooting the system it will be rebooted.
 		 */
+		if (panic_reboot_mode != REBOOT_UNDEFINED)
+			reboot_mode = panic_reboot_mode;
 		emergency_restart();
 	}
 #ifdef __sparc__
@@ -321,6 +323,9 @@ void panic(const char *fmt, ...)
 	disabled_wait();
 #endif
 	pr_emerg("---[ end Kernel panic - not syncing: %s ]---\n", buf);
+
+	/* Do not scroll important messages printed above */
+	suppress_printk = 1;
 	local_irq_enable();
 	for (i = 0; ; i += PANIC_TIMER_STEP) {
 		touch_softlockup_watchdog();

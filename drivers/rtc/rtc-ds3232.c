@@ -48,6 +48,10 @@
 #       define DS3232_REG_SR_A1F     0x01
 
 #define DS3232_REG_TEMPERATURE	0x11
+#define DS3232_REG_SRAM_START   0x14
+#define DS3232_REG_SRAM_END     0xFF
+
+#define DS3232_REG_SRAM_SIZE    236
 
 struct ds3232 {
 	struct device *dev;
@@ -461,11 +465,39 @@ static const struct rtc_class_ops ds3232_rtc_ops = {
 	.alarm_irq_enable = ds3232_alarm_irq_enable,
 };
 
+static int ds3232_nvmem_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	struct regmap *ds3232_regmap = (struct regmap *)priv;
+
+	return regmap_bulk_read(ds3232_regmap, DS3232_REG_SRAM_START + offset,
+				val, bytes);
+}
+
+static int ds3232_nvmem_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	struct regmap *ds3232_regmap = (struct regmap *)priv;
+
+	return regmap_bulk_write(ds3232_regmap, DS3232_REG_SRAM_START + offset,
+				 val, bytes);
+}
+
 static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 			const char *name)
 {
 	struct ds3232 *ds3232;
 	int ret;
+	struct nvmem_config nvmem_cfg = {
+		.name = "ds3232_sram",
+		.stride = 1,
+		.size = DS3232_REG_SRAM_SIZE,
+		.word_size = 1,
+		.reg_read = ds3232_nvmem_read,
+		.reg_write = ds3232_nvmem_write,
+		.priv = regmap,
+		.type = NVMEM_TYPE_BATTERY_BACKED
+	};
 
 	ds3232 = devm_kzalloc(dev, sizeof(*ds3232), GFP_KERNEL);
 	if (!ds3232)
@@ -489,6 +521,10 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 						THIS_MODULE);
 	if (IS_ERR(ds3232->rtc))
 		return PTR_ERR(ds3232->rtc);
+
+	ret = rtc_nvmem_register(ds3232->rtc, &nvmem_cfg);
+	if(ret)
+		return ret;
 
 	if (ds3232->irq > 0) {
 		ret = devm_request_threaded_irq(dev, ds3232->irq, NULL,
@@ -542,7 +578,7 @@ static int ds3232_i2c_probe(struct i2c_client *client,
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
-		.max_register = 0x13,
+		.max_register = DS3232_REG_SRAM_END,
 	};
 
 	regmap = devm_regmap_init_i2c(client, &config);
@@ -609,7 +645,7 @@ static int ds3234_probe(struct spi_device *spi)
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
-		.max_register = 0x13,
+		.max_register = DS3232_REG_SRAM_END,
 		.write_flag_mask = 0x80,
 	};
 	struct regmap *regmap;

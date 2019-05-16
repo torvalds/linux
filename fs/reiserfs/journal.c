@@ -1844,7 +1844,7 @@ static int flush_used_journal_lists(struct super_block *s,
  * removes any nodes in table with name block and dev as bh.
  * only touchs the hnext and hprev pointers.
  */
-void remove_journal_hash(struct super_block *sb,
+static void remove_journal_hash(struct super_block *sb,
 			 struct reiserfs_journal_cnode **table,
 			 struct reiserfs_journal_list *jl,
 			 unsigned long block, int remove_freed)

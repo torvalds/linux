@@ -332,7 +332,6 @@ static int crypt_iv_essiv_init(struct crypt_config *cc)
 	int err;
 
 	desc->tfm = essiv->hash_tfm;
-	desc->flags = 0;
 
 	err = crypto_shash_digest(desc, cc->key, cc->key_size, essiv->salt);
 	shash_desc_zero(desc);
@@ -606,7 +605,6 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 	int i, r;
 
 	desc->tfm = lmk->hash_tfm;
-	desc->flags = 0;
 
 	r = crypto_shash_init(desc);
 	if (r)
@@ -768,7 +766,6 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 
 	/* calculate crc32 for every 32bit part and xor it */
 	desc->tfm = tcw->crc32_tfm;
-	desc->flags = 0;
 	for (i = 0; i < 4; i++) {
 		r = crypto_shash_init(desc);
 		if (r)
@@ -1445,11 +1442,10 @@ out:
 
 static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 {
-	unsigned int i;
 	struct bio_vec *bv;
 	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bv, clone, i, iter_all) {
+	bio_for_each_segment_all(bv, clone, iter_all) {
 		BUG_ON(!bv->bv_page);
 		mempool_free(bv->bv_page, &cc->page_pool);
 	}

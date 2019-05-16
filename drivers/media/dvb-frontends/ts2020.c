@@ -180,6 +180,9 @@ static int ts2020_set_tuner_rf(struct dvb_frontend *fe)
 	unsigned int utmp;
 
 	ret = regmap_read(dev->regmap, 0x3d, &utmp);
+	if (ret)
+		return ret;
+
 	utmp &= 0x7f;
 	if (utmp < 0x16)
 		utmp = 0xa1;

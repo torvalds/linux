@@ -245,6 +245,13 @@ config ARCH_HAS_FORTIFY_SOURCE
 	  An architecture should select this when it can successfully
 	  build and run with CONFIG_FORTIFY_SOURCE.
 
+#
+# Select if the arch provides a historic keepinit alias for the retain_initrd
+# command line option
+#
+config ARCH_HAS_KEEPINITRD
+	bool
+
 # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
 config ARCH_HAS_SET_MEMORY
 	bool

@@ -148,24 +148,6 @@ u32 __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag);
 void pci_msi_mask_irq(struct irq_data *data);
 void pci_msi_unmask_irq(struct irq_data *data);
 
-/* Conversion helpers. Should be removed after merging */
-static inline void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
-{
-	__pci_write_msi_msg(entry, msg);
-}
-static inline void write_msi_msg(int irq, struct msi_msg *msg)
-{
-	pci_write_msi_msg(irq, msg);
-}
-static inline void mask_msi_irq(struct irq_data *data)
-{
-	pci_msi_mask_irq(data);
-}
-static inline void unmask_msi_irq(struct irq_data *data)
-{
-	pci_msi_unmask_irq(data);
-}
-
 /*
  * The arch hooks to setup up msi irqs. Those functions are
  * implemented as weak symbols so that they /can/ be overriden by

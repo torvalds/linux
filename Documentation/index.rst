@@ -93,6 +93,7 @@ needed).
    media/index
    networking/index
    input/index
+   hwmon/index
    gpu/index
    security/index
    sound/index
@@ -111,7 +112,9 @@ implementation.
 .. toctree::
    :maxdepth: 2
 
+   x86/index
    sh/index
+   x86/index
 
 Filesystem Documentation
 ------------------------

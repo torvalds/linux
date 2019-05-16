@@ -400,17 +400,32 @@ static long nfs4_update_delay(long *timeout)
 	return ret;
 }
 
-static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
+static int nfs4_delay_killable(long *timeout)
 {
-	int res = 0;
-
 	might_sleep();
 
 	freezable_schedule_timeout_killable_unsafe(
 		nfs4_update_delay(timeout));
-	if (fatal_signal_pending(current))
-		res = -ERESTARTSYS;
-	return res;
+	if (!__fatal_signal_pending(current))
+		return 0;
+	return -EINTR;
+}
+
+static int nfs4_delay_interruptible(long *timeout)
+{
+	might_sleep();
+
+	freezable_schedule_timeout_interruptible(nfs4_update_delay(timeout));
+	if (!signal_pending(current))
+		return 0;
+	return __fatal_signal_pending(current) ? -EINTR :-ERESTARTSYS;
+}
+
+static int nfs4_delay(long *timeout, bool interruptible)
+{
+	if (interruptible)
+		return nfs4_delay_interruptible(timeout);
+	return nfs4_delay_killable(timeout);
 }
 
 /* This is the error handling routine for processes that are allowed
@@ -546,7 +561,8 @@ int nfs4_handle_exception(struct nfs_server *server, int errorcode, struct nfs4_
 
 	ret = nfs4_do_handle_exception(server, errorcode, exception);
 	if (exception->delay) {
-		ret = nfs4_delay(server->client, &exception->timeout);
+		ret = nfs4_delay(&exception->timeout,
+				exception->interruptible);
 		goto out_retry;
 	}
 	if (exception->recovering) {
@@ -978,10 +994,8 @@ int nfs4_setup_sequence(struct nfs_client *client,
 	if (res->sr_slot != NULL)
 		goto out_start;
 
-	if (session) {
+	if (session)
 		tbl = &session->fc_slot_table;
-		task->tk_timeout = 0;
-	}
 
 	spin_lock(&tbl->slot_tbl_lock);
 	/* The state manager will wait until the slot table is empty */
@@ -990,9 +1004,8 @@ int nfs4_setup_sequence(struct nfs_client *client,
 
 	slot = nfs4_alloc_slot(tbl);
 	if (IS_ERR(slot)) {
-		/* Try again in 1/4 second */
 		if (slot == ERR_PTR(-ENOMEM))
-			task->tk_timeout = HZ >> 2;
+			goto out_sleep_timeout;
 		goto out_sleep;
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
@@ -1004,11 +1017,20 @@ out_start:
 	nfs41_sequence_res_init(res);
 	rpc_call_start(task);
 	return 0;
-
+out_sleep_timeout:
+	/* Try again in 1/4 second */
+	if (args->sa_privileged)
+		rpc_sleep_on_priority_timeout(&tbl->slot_tbl_waitq, task,
+				jiffies + (HZ >> 2), RPC_PRIORITY_PRIVILEGED);
+	else
+		rpc_sleep_on_timeout(&tbl->slot_tbl_waitq, task,
+				NULL, jiffies + (HZ >> 2));
+	spin_unlock(&tbl->slot_tbl_lock);
+	return -EAGAIN;
 out_sleep:
 	if (args->sa_privileged)
 		rpc_sleep_on_priority(&tbl->slot_tbl_waitq, task,
-				NULL, RPC_PRIORITY_PRIVILEGED);
+				RPC_PRIORITY_PRIVILEGED);
 	else
 		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
 	spin_unlock(&tbl->slot_tbl_lock);
@@ -3060,7 +3082,9 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 					int *opened)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	struct nfs4_state *res;
 	struct nfs4_open_createattrs c = {
 		.label = label,
@@ -3673,7 +3697,9 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 
 int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = nfs4_handle_exception(server,
@@ -3715,7 +3741,9 @@ static int _nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 		struct nfs_fsinfo *info)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs4_lookup_root(server, fhandle, info);
@@ -3942,7 +3970,9 @@ static int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 				struct nfs_fattr *fattr, struct nfs4_label *label,
 				struct inode *inode)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs4_proc_getattr(server, fhandle, fattr, label, inode);
@@ -4065,7 +4095,9 @@ static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
 				   const struct qstr *name, struct nfs_fh *fhandle,
 				   struct nfs_fattr *fattr, struct nfs4_label *label)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	struct rpc_clnt *client = *clnt;
 	int err;
 	do {
@@ -4169,7 +4201,9 @@ static int _nfs4_proc_lookupp(struct inode *inode,
 static int nfs4_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
 			     struct nfs_fattr *fattr, struct nfs4_label *label)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs4_proc_lookupp(inode, fhandle, fattr, label);
@@ -4216,7 +4250,9 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 
 static int nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs4_proc_access(inode, entry);
@@ -4271,7 +4307,9 @@ static int _nfs4_proc_readlink(struct inode *inode, struct page *page,
 static int nfs4_proc_readlink(struct inode *inode, struct page *page,
 		unsigned int pgbase, unsigned int pglen)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs4_proc_readlink(inode, page, pgbase, pglen);
@@ -4347,7 +4385,9 @@ _nfs4_proc_remove(struct inode *dir, const struct qstr *name, u32 ftype)
 
 static int nfs4_proc_remove(struct inode *dir, struct dentry *dentry)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	struct inode *inode = d_inode(dentry);
 	int err;
 
@@ -4368,7 +4408,9 @@ static int nfs4_proc_remove(struct inode *dir, struct dentry *dentry)
 
 static int nfs4_proc_rmdir(struct inode *dir, const struct qstr *name)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 
 	do {
@@ -4527,7 +4569,9 @@ out:
 
 static int nfs4_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = nfs4_handle_exception(NFS_SERVER(inode),
@@ -4634,7 +4678,9 @@ out:
 static int nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 		struct page *page, unsigned int len, struct iattr *sattr)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	struct nfs4_label l, *label = NULL;
 	int err;
 
@@ -4673,7 +4719,9 @@ static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 		struct iattr *sattr)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	struct nfs4_label l, *label = NULL;
 	int err;
 
@@ -4733,7 +4781,9 @@ static int _nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 static int nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs4_proc_readdir(dentry, cred, cookie,
@@ -4784,7 +4834,9 @@ static int nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 		struct iattr *sattr, dev_t rdev)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	struct nfs4_label l, *label = NULL;
 	int err;
 
@@ -4826,7 +4878,9 @@ static int _nfs4_proc_statfs(struct nfs_server *server, struct nfs_fh *fhandle,
 
 static int nfs4_proc_statfs(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fsstat *fsstat)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = nfs4_handle_exception(server,
@@ -4857,7 +4911,9 @@ static int _nfs4_do_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle,
 
 static int nfs4_do_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fsinfo *fsinfo)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	unsigned long now = jiffies;
 	int err;
 
@@ -4919,7 +4975,9 @@ static int _nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle
 static int nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 		struct nfs_pathconf *pathconf)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 
 	do {
@@ -5488,7 +5546,9 @@ out_free:
 
 static ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	ssize_t ret;
 	do {
 		ret = __nfs4_get_acl_uncached(inode, buf, buflen);
@@ -5622,7 +5682,9 @@ static int _nfs4_get_security_label(struct inode *inode, void *buf,
 static int nfs4_get_security_label(struct inode *inode, void *buf,
 					size_t buflen)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 
 	if (!nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL))
@@ -6263,7 +6325,9 @@ out:
 
 static int nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 
 	do {
@@ -6827,6 +6891,7 @@ static int nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *
 	struct nfs4_exception exception = {
 		.state = state,
 		.inode = state->inode,
+		.interruptible = true,
 	};
 	int err;
 
@@ -7240,7 +7305,9 @@ int nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
 			   struct nfs4_fs_locations *fs_locations,
 			   struct page *page)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs4_proc_fs_locations(client, dir, name,
@@ -7383,7 +7450,9 @@ int nfs4_proc_get_locations(struct inode *inode,
 	struct nfs_client *clp = server->nfs_client;
 	const struct nfs4_mig_recovery_ops *ops =
 					clp->cl_mvops->mig_recovery_ops;
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int status;
 
 	dprintk("%s: FSID %llx:%llx on \"%s\"\n", __func__,
@@ -7507,7 +7576,9 @@ int nfs4_proc_fsid_present(struct inode *inode, const struct cred *cred)
 	struct nfs_client *clp = server->nfs_client;
 	const struct nfs4_mig_recovery_ops *ops =
 					clp->cl_mvops->mig_recovery_ops;
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int status;
 
 	dprintk("%s: FSID %llx:%llx on \"%s\"\n", __func__,
@@ -7573,7 +7644,9 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
 		      struct nfs4_secinfo_flavors *flavors)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = -NFS4ERR_WRONGSEC;
@@ -9263,7 +9336,9 @@ static int
 nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 			   struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		/* first try using integrity protection */
@@ -9430,7 +9505,9 @@ static int nfs41_test_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
 		const struct cred *cred)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.interruptible = true,
+	};
 	int err;
 	do {
 		err = _nfs41_test_stateid(server, stateid, cred);

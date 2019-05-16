@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/rtc/rtc-pcf85363.c
  *
  * Driver for NXP PCF85363 real-time clock.
  *
  * Copyright (C) 2017 Eric Nelson
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Based loosely on rtc-8583 by Russell King, Wolfram Sang and Juergen Beisert
  */
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -112,10 +107,7 @@
 
 #define NVRAM_SIZE	0x40
 
-static struct i2c_driver pcf85363_driver;
-
 struct pcf85363 {
-	struct device		*dev;
 	struct rtc_device	*rtc;
 	struct regmap		*regmap;
 };
@@ -386,9 +378,6 @@ static int pcf85363_probe(struct i2c_client *client,
 	if (data)
 		config = data;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-
 	pcf85363 = devm_kzalloc(&client->dev, sizeof(struct pcf85363),
 				GFP_KERNEL);
 	if (!pcf85363)
@@ -400,20 +389,21 @@ static int pcf85363_probe(struct i2c_client *client,
 		return PTR_ERR(pcf85363->regmap);
 	}
 
-	pcf85363->dev = &client->dev;
 	i2c_set_clientdata(client, pcf85363);
 
-	pcf85363->rtc = devm_rtc_allocate_device(pcf85363->dev);
+	pcf85363->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(pcf85363->rtc))
 		return PTR_ERR(pcf85363->rtc);
 
 	pcf85363->rtc->ops = &rtc_ops;
+	pcf85363->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	pcf85363->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	if (client->irq > 0) {
 		regmap_write(pcf85363->regmap, CTRL_FLAGS, 0);
 		regmap_update_bits(pcf85363->regmap, CTRL_PIN_IO,
 				   PIN_IO_INTA_OUT, PIN_IO_INTAPM);
-		ret = devm_request_threaded_irq(pcf85363->dev, client->irq,
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, pcf85363_rtc_handle_irq,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"pcf85363", client);

@@ -391,7 +391,8 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 	spin_unlock(&kvm->mmu_lock);
 
 	ret = kvm_arch_mmu_notifier_invalidate_range(kvm, range->start,
-					range->end, range->blockable);
+					range->end,
+					mmu_notifier_range_blockable(range));
 
 	srcu_read_unlock(&kvm->srcu, idx);
 

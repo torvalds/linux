@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Atmel SMC (Static Memory Controller) register offsets and bit definitions.
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2014 Free Electrons
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _LINUX_MFD_SYSCON_ATMEL_SMC_H_

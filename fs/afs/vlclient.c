@@ -167,7 +167,8 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 		memset((void *)bp + volnamesz, 0, padsz);
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_vldb_entry *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
+	afs_make_call(&vc->ac, call, GFP_KERNEL);
+	return (struct afs_vldb_entry *)afs_wait_for_call_to_complete(call, &vc->ac);
 }
 
 /*
@@ -195,7 +196,9 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 				   sizeof(struct afs_uuid__xdr) + 3 * sizeof(__be32));
 		call->unmarshall++;
 
-		/* Extract the returned uuid, uniquifier, nentries and blkaddrs size */
+		/* Extract the returned uuid, uniquifier, nentries and
+		 * blkaddrs size */
+		/* Fall through */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -220,7 +223,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		count = min(call->count, 4U);
 		afs_extract_to_buf(call, count * sizeof(__be32));
 
-		/* Extract entries */
+		/* Fall through - and extract entries */
 	case 2:
 		ret = afs_extract_data(call, call->count > 4);
 		if (ret < 0)
@@ -304,7 +307,8 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_addr_list *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
+	afs_make_call(&vc->ac, call, GFP_KERNEL);
+	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
 }
 
 /*
@@ -323,7 +327,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
 
-		/* Extract the capabilities word count */
+		/* Fall through - and extract the capabilities word count */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -336,7 +340,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 		call->unmarshall++;
 		afs_extract_discard(call, count * sizeof(__be32));
 
-		/* Extract capabilities words */
+		/* Fall through - and extract capabilities words */
 	case 2:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -378,12 +382,11 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
  * We use this to probe for service upgrade to determine what the server at the
  * other end supports.
  */
-int afs_vl_get_capabilities(struct afs_net *net,
-			    struct afs_addr_cursor *ac,
-			    struct key *key,
-			    struct afs_vlserver *server,
-			    unsigned int server_index,
-			    bool async)
+struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
+					 struct afs_addr_cursor *ac,
+					 struct key *key,
+					 struct afs_vlserver *server,
+					 unsigned int server_index)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -392,13 +395,14 @@ int afs_vl_get_capabilities(struct afs_net *net,
 
 	call = afs_alloc_flat_call(net, &afs_RXVLGetCapabilities, 1 * 4, 16 * 4);
 	if (!call)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	call->key = key;
 	call->reply[0] = afs_get_vlserver(server);
 	call->reply[1] = (void *)(long)server_index;
 	call->upgrade = true;
 	call->want_reply_time = true;
+	call->async = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -406,7 +410,8 @@ int afs_vl_get_capabilities(struct afs_net *net,
 
 	/* Can't take a ref on server */
 	trace_afs_make_vl_call(call);
-	return afs_make_call(ac, call, GFP_KERNEL, async);
+	afs_make_call(ac, call, GFP_KERNEL);
+	return call;
 }
 
 /*
@@ -436,6 +441,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		/* Extract the returned uuid, uniquifier, fsEndpoints count and
 		 * either the first fsEndpoint type or the volEndpoints
 		 * count if there are no fsEndpoints. */
+		/* Fall through */
 	case 1:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -476,7 +482,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_to_buf(call, size);
 		call->unmarshall = 2;
 
-		/* Extract fsEndpoints[] entries */
+		/* Fall through - and extract fsEndpoints[] entries */
 	case 2:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -529,6 +535,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		 * extract the type of the next endpoint when we extract the
 		 * data of the current one, but this is the first...
 		 */
+		/* Fall through */
 	case 3:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -555,7 +562,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_to_buf(call, size);
 		call->unmarshall = 4;
 
-		/* Extract volEndpoints[] entries */
+		/* Fall through - and extract volEndpoints[] entries */
 	case 4:
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
@@ -591,7 +598,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		afs_extract_discard(call, 0);
 		call->unmarshall = 5;
 
-		/* Done */
+		/* Fall through - Done */
 	case 5:
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
@@ -647,5 +654,6 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	memcpy(bp, uuid, sizeof(*uuid)); /* Type opr_uuid */
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_addr_list *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
+	afs_make_call(&vc->ac, call, GFP_KERNEL);
+	return (struct afs_addr_list *)afs_wait_for_call_to_complete(call, &vc->ac);
 }

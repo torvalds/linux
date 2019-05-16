@@ -543,7 +543,7 @@ again:
 	if (unlikely(should_fail_futex(fshared)))
 		return -EFAULT;
 
-	err = get_user_pages_fast(address, 1, 1, &page);
+	err = get_user_pages_fast(address, 1, FOLL_WRITE, &page);
 	/*
 	 * If write access is not required (eg. FUTEX_WAIT), try
 	 * and get read-only access.

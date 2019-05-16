@@ -315,16 +315,10 @@ cifs_alloc_inode(struct super_block *sb)
 	return &cifs_inode->vfs_inode;
 }
 
-static void cifs_i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kmem_cache_free(cifs_inode_cachep, CIFS_I(inode));
-}
-
 static void
-cifs_destroy_inode(struct inode *inode)
+cifs_free_inode(struct inode *inode)
 {
-	call_rcu(&inode->i_rcu, cifs_i_callback);
+	kmem_cache_free(cifs_inode_cachep, CIFS_I(inode));
 }
 
 static void
@@ -489,6 +483,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",seal");
 	if (tcon->nocase)
 		seq_puts(s, ",nocase");
+	if (tcon->local_lease)
+		seq_puts(s, ",locallease");
 	if (tcon->retry)
 		seq_puts(s, ",hard");
 	else
@@ -630,7 +626,7 @@ static int cifs_drop_inode(struct inode *inode)
 static const struct super_operations cifs_super_ops = {
 	.statfs = cifs_statfs,
 	.alloc_inode = cifs_alloc_inode,
-	.destroy_inode = cifs_destroy_inode,
+	.free_inode = cifs_free_inode,
 	.drop_inode	= cifs_drop_inode,
 	.evict_inode	= cifs_evict_inode,
 /*	.delete_inode	= cifs_delete_inode,  */  /* Do not need above
@@ -990,6 +986,7 @@ const struct inode_operations cifs_file_inode_ops = {
 	.getattr = cifs_getattr,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
+	.fiemap = cifs_fiemap,
 };
 
 const struct inode_operations cifs_symlink_inode_ops = {

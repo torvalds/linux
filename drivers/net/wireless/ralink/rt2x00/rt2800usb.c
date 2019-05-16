@@ -100,22 +100,6 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 	}
 }
 
-/*
- * test if there is an entry in any TX queue for which DMA is done
- * but the TX status has not been returned yet
- */
-static bool rt2800usb_txstatus_pending(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-
-	tx_queue_for_each(rt2x00dev, queue) {
-		if (rt2x00queue_get_entry(queue, Q_INDEX_DMA_DONE) !=
-		    rt2x00queue_get_entry(queue, Q_INDEX_DONE))
-			return true;
-	}
-	return false;
-}
-
 #define TXSTATUS_READ_INTERVAL 1000000
 
 static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
@@ -145,7 +129,7 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 	if (rt2800_txstatus_timeout(rt2x00dev))
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 
-	if (rt2800usb_txstatus_pending(rt2x00dev)) {
+	if (rt2800_txstatus_pending(rt2x00dev)) {
 		/* Read register after 1 ms */
 		hrtimer_start(&rt2x00dev->txstatus_timer,
 			      TXSTATUS_READ_INTERVAL,
@@ -160,7 +144,7 @@ stop_reading:
 	 * clear_bit someone could do rt2x00usb_interrupt_txdone, so recheck
 	 * here again if status reading is needed.
 	 */
-	if (rt2800usb_txstatus_pending(rt2x00dev) &&
+	if (rt2800_txstatus_pending(rt2x00dev) &&
 	    !test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
 		return true;
 	else
@@ -480,7 +464,7 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo) ||
 	       rt2800_txstatus_timeout(rt2x00dev)) {
 
-		rt2800_txdone(rt2x00dev);
+		rt2800_txdone(rt2x00dev, UINT_MAX);
 
 		rt2800_txdone_nostatus(rt2x00dev);
 
@@ -489,7 +473,7 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 		 * if the medium is busy, thus the TX_STA_FIFO entry is
 		 * also delayed -> use a timer to retrieve it.
 		 */
-		if (rt2800usb_txstatus_pending(rt2x00dev))
+		if (rt2800_txstatus_pending(rt2x00dev))
 			rt2800usb_async_read_tx_status(rt2x00dev);
 	}
 }
@@ -562,13 +546,13 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 		 * stripped it from the frame. Signal this to mac80211.
 		 */
 		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
-        
+
 		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS) {
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
 		} else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC) {
 			/*
 			 * In order to check the Michael Mic, the packet must have
-			 * been decrypted.  Mac80211 doesnt check the MMIC failure 
+			 * been decrypted.  Mac80211 doesnt check the MMIC failure
 			 * flag to initiate MMIC countermeasures if the decoded flag
 			 * has not been set.
 			 */

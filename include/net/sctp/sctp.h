@@ -421,7 +421,7 @@ static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 	/*
 	 * This mimics the behavior of skb_set_owner_r
 	 */
-	sk->sk_forward_alloc -= event->rmem_len;
+	sk_mem_charge(sk, event->rmem_len);
 }
 
 /* Tests if the list has one and only one entry. */

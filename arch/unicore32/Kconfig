@@ -3,6 +3,7 @@ config UNICORE32
 	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_KEEPINITRD
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_KERNEL_GZIP
@@ -190,7 +191,6 @@ config I2C_EEPROM_AT24
 
 config LCD_BACKLIGHT
 	tristate "LCD Backlight support"
-	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_PWM
 
 endmenu

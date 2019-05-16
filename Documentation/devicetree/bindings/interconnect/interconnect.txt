@@ -51,6 +51,10 @@ interconnect-names : List of interconnect path name strings sorted in the same
 		     interconnect-names to match interconnect paths with interconnect
 		     specifier pairs.
 
+                     Reserved interconnect names:
+			 * dma-mem: Path from the device to the main memory of
+			            the system
+
 Example:
 
 	sdhci@7864000 {

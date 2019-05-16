@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2016-2017 Microsemi Corporation
+ *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; version 2 of the License.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- *    NON INFRINGEMENT.  See the GNU General Public License for more details.
- *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/Bugfixes to storagedev@microchip.com
  *
  */
 
@@ -40,11 +33,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"1.2.4-070"
+#define DRIVER_VERSION		"1.2.6-015"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		2
-#define DRIVER_RELEASE		4
-#define DRIVER_REVISION		70
+#define DRIVER_RELEASE		6
+#define DRIVER_REVISION		15
 
 #define DRIVER_NAME		"Microsemi PQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
@@ -5660,9 +5653,11 @@ static int pqi_lun_reset(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
+/* Performs a reset at the LUN level. */
+
 #define PQI_LUN_RESET_RETRIES			3
 #define PQI_LUN_RESET_RETRY_INTERVAL_MSECS	10000
-/* Performs a reset at the LUN level. */
+#define PQI_LUN_RESET_PENDING_IO_TIMEOUT_SECS	120
 
 static int _pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
@@ -5673,12 +5668,12 @@ static int _pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 
 	for (retries = 0;;) {
 		rc = pqi_lun_reset(ctrl_info, device);
-		if (rc != -EAGAIN ||
-		    ++retries > PQI_LUN_RESET_RETRIES)
+		if (rc != -EAGAIN || ++retries > PQI_LUN_RESET_RETRIES)
 			break;
 		msleep(PQI_LUN_RESET_RETRY_INTERVAL_MSECS);
 	}
-	timeout_secs = rc ? PQI_LUN_RESET_TIMEOUT_SECS : NO_TIMEOUT;
+
+	timeout_secs = rc ? PQI_LUN_RESET_PENDING_IO_TIMEOUT_SECS : NO_TIMEOUT;
 
 	rc |= pqi_device_wait_for_pending_io(ctrl_info, device, timeout_secs);
 
@@ -5707,6 +5702,7 @@ static int pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 	pqi_device_reset_done(device);
 
 	mutex_unlock(&ctrl_info->lun_reset_mutex);
+
 	return rc;
 }
 
@@ -5737,6 +5733,7 @@ static int pqi_eh_device_reset_handler(struct scsi_cmnd *scmd)
 	pqi_wait_until_ofa_finished(ctrl_info);
 
 	rc = pqi_device_reset(ctrl_info, device);
+
 out:
 	dev_err(&ctrl_info->pci_dev->dev,
 		"reset of scsi %d:%d:%d:%d: %s\n",
@@ -5795,7 +5792,7 @@ static int pqi_map_queues(struct Scsi_Host *shost)
 {
 	struct pqi_ctrl_info *ctrl_info = shost_to_hba(shost);
 
-	return blk_mq_pci_map_queues(&shost->tag_set.map[0],
+	return blk_mq_pci_map_queues(&shost->tag_set.map[HCTX_TYPE_DEFAULT],
 					ctrl_info->pci_dev, 0);
 }
 
@@ -7945,6 +7942,22 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       0x152d, 0x8a37)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x193d, 0x1104)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x193d, 0x1105)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x193d, 0x1106)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       0x193d, 0x1107)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,

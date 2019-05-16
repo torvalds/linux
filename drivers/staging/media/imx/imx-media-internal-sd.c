@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Media driver for Freescale i.MX5/6 SOC
  *
- * Adds the internal subdevices and the media links between them.
+ * Adds the IPU internal subdevices and the media links between them.
  *
  * Copyright (c) 2016 Mentor Graphics Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/platform_device.h>
 #include "imx-media.h"
@@ -192,7 +188,7 @@ static struct v4l2_subdev *find_sink(struct imx_media_dev *imxmd,
 
 	/*
 	 * retrieve IPU id from subdev name, note: can't get this from
-	 * struct imx_media_internal_sd_platformdata because if src is
+	 * struct imx_media_ipu_internal_sd_pdata because if src is
 	 * a CSI, it has different struct ipu_client_platformdata which
 	 * does not contain IPU id.
 	 */
@@ -270,7 +266,7 @@ static int add_internal_subdev(struct imx_media_dev *imxmd,
 			       const struct internal_subdev *isd,
 			       int ipu_id)
 {
-	struct imx_media_internal_sd_platformdata pdata;
+	struct imx_media_ipu_internal_sd_pdata pdata;
 	struct platform_device_info pdevinfo = {};
 	struct platform_device *pdev;
 
@@ -298,13 +294,14 @@ static int add_internal_subdev(struct imx_media_dev *imxmd,
 }
 
 /* adds the internal subdevs in one ipu */
-static int add_ipu_internal_subdevs(struct imx_media_dev *imxmd, int ipu_id)
+int imx_media_add_ipu_internal_subdevs(struct imx_media_dev *imxmd,
+				       int ipu_id)
 {
 	enum isd_enum i;
+	int ret;
 
 	for (i = 0; i < num_isd; i++) {
 		const struct internal_subdev *isd = &int_subdev[i];
-		int ret;
 
 		/*
 		 * the CSIs are represented in the device-tree, so those
@@ -322,32 +319,17 @@ static int add_ipu_internal_subdevs(struct imx_media_dev *imxmd, int ipu_id)
 		}
 
 		if (ret)
-			return ret;
+			goto remove;
 	}
-
-	return 0;
-}
-
-int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd)
-{
-	int ret;
-
-	ret = add_ipu_internal_subdevs(imxmd, 0);
-	if (ret)
-		goto remove;
-
-	ret = add_ipu_internal_subdevs(imxmd, 1);
-	if (ret)
-		goto remove;
 
 	return 0;
 
 remove:
-	imx_media_remove_internal_subdevs(imxmd);
+	imx_media_remove_ipu_internal_subdevs(imxmd);
 	return ret;
 }
 
-void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd)
+void imx_media_remove_ipu_internal_subdevs(struct imx_media_dev *imxmd)
 {
 	struct imx_media_async_subdev *imxasd;
 	struct v4l2_async_subdev *asd;

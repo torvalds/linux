@@ -312,12 +312,10 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			atomic_read(&server->smbd_conn->send_credits),
 			atomic_read(&server->smbd_conn->receive_credits),
 			server->smbd_conn->receive_credit_target);
-		seq_printf(m, "\nPending send_pending: %x send_payload_pending:"
-			" %x smbd_send_pending: %x smbd_recv_pending: %x",
+		seq_printf(m, "\nPending send_pending: %x "
+			"send_payload_pending: %x",
 			atomic_read(&server->smbd_conn->send_pending),
-			atomic_read(&server->smbd_conn->send_payload_pending),
-			server->smbd_conn->smbd_send_pending,
-			server->smbd_conn->smbd_recv_pending);
+			atomic_read(&server->smbd_conn->send_payload_pending));
 		seq_printf(m, "\nReceive buffers count_receive_queue: %x "
 			"count_empty_packet_queue: %x",
 			server->smbd_conn->count_receive_queue,
@@ -334,6 +332,12 @@ skip_rdma:
 #endif
 		seq_printf(m, "\nNumber of credits: %d Dialect 0x%x",
 			server->credits,  server->dialect);
+		if (server->compress_algorithm == SMB3_COMPRESS_LZNT1)
+			seq_printf(m, " COMPRESS_LZNT1");
+		else if (server->compress_algorithm == SMB3_COMPRESS_LZ77)
+			seq_printf(m, " COMPRESS_LZ77");
+		else if (server->compress_algorithm == SMB3_COMPRESS_LZ77_HUFF)
+			seq_printf(m, " COMPRESS_LZ77_HUFF");
 		if (server->sign)
 			seq_printf(m, " signed");
 		if (server->posix_ext_supported)
@@ -462,8 +466,13 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 			server = list_entry(tmp1, struct TCP_Server_Info,
 					    tcp_ses_list);
 #ifdef CONFIG_CIFS_STATS2
-			for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++)
+			for (i = 0; i < NUMBER_OF_SMB2_COMMANDS; i++) {
+				atomic_set(&server->num_cmds[i], 0);
 				atomic_set(&server->smb2slowcmd[i], 0);
+				server->time_per_cmd[i] = 0;
+				server->slowest_cmd[i] = 0;
+				server->fastest_cmd[0] = 0;
+			}
 #endif /* CONFIG_CIFS_STATS2 */
 			list_for_each(tmp2, &server->smb_ses_list) {
 				ses = list_entry(tmp2, struct cifs_ses,
@@ -531,9 +540,19 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
 #ifdef CONFIG_CIFS_STATS2
+		seq_puts(m, "\nTotal time spent processing by command. Time ");
+		seq_printf(m, "units are jiffies (%d per second)\n", HZ);
+		seq_puts(m, "  SMB3 CMD\tNumber\tTotal Time\tFastest\tSlowest\n");
+		seq_puts(m, "  --------\t------\t----------\t-------\t-------\n");
+		for (j = 0; j < NUMBER_OF_SMB2_COMMANDS; j++)
+			seq_printf(m, "  %d\t\t%d\t%llu\t\t%u\t%u\n", j,
+				atomic_read(&server->num_cmds[j]),
+				server->time_per_cmd[j],
+				server->fastest_cmd[j],
+				server->slowest_cmd[j]);
 		for (j = 0; j < NUMBER_OF_SMB2_COMMANDS; j++)
 			if (atomic_read(&server->smb2slowcmd[j]))
-				seq_printf(m, "%d slow responses from %s for command %d\n",
+				seq_printf(m, "  %d slow responses from %s for command %d\n",
 					atomic_read(&server->smb2slowcmd[j]),
 					server->hostname, j);
 #endif /* STATS2 */

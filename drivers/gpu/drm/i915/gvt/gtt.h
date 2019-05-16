@@ -222,7 +222,7 @@ struct intel_vgpu_oos_page {
 	struct list_head list;
 	struct list_head vm_list;
 	int id;
-	unsigned char mem[I915_GTT_PAGE_SIZE];
+	void *mem;
 };
 
 #define GTT_ENTRY_NUM_IN_ONE_PAGE 512

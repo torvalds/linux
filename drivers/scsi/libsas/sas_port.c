@@ -95,6 +95,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	int i;
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct asd_sas_port *port = phy->port;
+	struct domain_device *port_dev;
 	struct sas_internal *si =
 		to_sas_internal(sas_ha->core.shost->transportt);
 	unsigned long flags;
@@ -153,8 +154,9 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	}
 
 	/* add the phy to the port */
+	port_dev = port->port_dev;
 	list_add_tail(&phy->port_phy_el, &port->phy_list);
-	sas_phy_set_target(phy, port->port_dev);
+	sas_phy_set_target(phy, port_dev);
 	phy->port = port;
 	port->num_phys++;
 	port->phy_mask |= (1U << phy->id);
@@ -184,14 +186,21 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		 port->phy_mask,
 		 SAS_ADDR(port->attached_sas_addr));
 
-	if (port->port_dev)
-		port->port_dev->pathways = port->num_phys;
+	if (port_dev)
+		port_dev->pathways = port->num_phys;
 
 	/* Tell the LLDD about this port formation. */
 	if (si->dft->lldd_port_formed)
 		si->dft->lldd_port_formed(phy);
 
 	sas_discover_event(phy->port, DISCE_DISCOVER_DOMAIN);
+	/* Only insert a revalidate event after initial discovery */
+	if (port_dev && sas_dev_type_is_expander(port_dev->dev_type)) {
+		struct expander_device *ex_dev = &port_dev->ex_dev;
+
+		ex_dev->ex_change_count = -1;
+		sas_discover_event(port, DISCE_REVALIDATE_DOMAIN);
+	}
 	flush_workqueue(sas_ha->disco_q);
 }
 
@@ -253,6 +262,15 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	}
 	spin_unlock(&port->phy_list_lock);
 	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
+
+	/* Only insert revalidate event if the port still has members */
+	if (port->port && dev && sas_dev_type_is_expander(dev->dev_type)) {
+		struct expander_device *ex_dev = &dev->ex_dev;
+
+		ex_dev->ex_change_count = -1;
+		sas_discover_event(port, DISCE_REVALIDATE_DOMAIN);
+	}
+	flush_workqueue(sas_ha->disco_q);
 
 	return;
 }

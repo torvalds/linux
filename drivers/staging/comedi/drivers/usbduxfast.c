@@ -993,6 +993,8 @@ static void usbduxfast_detach(struct comedi_device *dev)
 	kfree(devpriv->duxbuf);
 
 	mutex_unlock(&devpriv->mut);
+
+	mutex_destroy(&devpriv->mut);
 }
 
 static struct comedi_driver usbduxfast_driver = {

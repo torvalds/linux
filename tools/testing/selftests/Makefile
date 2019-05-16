@@ -15,11 +15,11 @@ TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
 TARGETS += gpio
-TARGETS += ima
 TARGETS += intel_pstate
 TARGETS += ipc
 TARGETS += ir
 TARGETS += kcmp
+TARGETS += kexec
 TARGETS += kvm
 TARGETS += lib
 TARGETS += livepatch
@@ -75,12 +75,15 @@ ifneq ($(KBUILD_SRC),)
 override LDFLAGS =
 endif
 
-BUILD := $(O)
-ifndef BUILD
-  BUILD := $(KBUILD_OUTPUT)
-endif
-ifndef BUILD
-  BUILD := $(shell pwd)
+ifneq ($(O),)
+	BUILD := $(O)
+else
+	ifneq ($(KBUILD_OUTPUT),)
+		BUILD := $(KBUILD_OUTPUT)
+	else
+		BUILD := $(shell pwd)
+		DEFAULT_INSTALL_HDR_PATH := 1
+	endif
 endif
 
 # KSFT_TAP_LEVEL is used from KSFT framework to prevent nested TAP header
@@ -89,8 +92,50 @@ endif
 # with system() call. Export it here to cover override RUN_TESTS defines.
 export KSFT_TAP_LEVEL=`echo 1`
 
+# Prepare for headers install
+top_srcdir ?= ../../..
+include $(top_srcdir)/scripts/subarch.include
+ARCH           ?= $(SUBARCH)
+export KSFT_KHDR_INSTALL_DONE := 1
 export BUILD
-all:
+
+# build and run gpio when output directory is the src dir.
+# gpio has dependency on tools/gpio and builds tools/gpio
+# objects in the src directory in all cases making the src
+# repo dirty even when objects are relocated.
+ifneq (1,$(DEFAULT_INSTALL_HDR_PATH))
+	TMP := $(filter-out gpio, $(TARGETS))
+	TARGETS := $(TMP)
+endif
+
+# set default goal to all, so make without a target runs all, even when
+# all isn't the first target in the file.
+.DEFAULT_GOAL := all
+
+# Install headers here once for all tests. KSFT_KHDR_INSTALL_DONE
+# is used to avoid running headers_install from lib.mk.
+# Invoke headers install with --no-builtin-rules to avoid circular
+# dependency in "make kselftest" case. In this case, second level
+# make inherits builtin-rules which will use the rule generate
+# Makefile.o and runs into
+# "Circular Makefile.o <- prepare dependency dropped."
+# and headers_install fails and test compile fails.
+#
+# O= KBUILD_OUTPUT cases don't run into this error, since main Makefile
+# invokes them as sub-makes and --no-builtin-rules is not necessary,
+# but doesn't cause any failures. Keep it simple and use the same
+# flags in both cases.
+# Local build cases: "make kselftest", "make -C" - headers are installed
+# in the default INSTALL_HDR_PATH usr/include.
+khdr:
+ifeq (1,$(DEFAULT_INSTALL_HDR_PATH))
+	make --no-builtin-rules ARCH=$(ARCH) -C $(top_srcdir) headers_install
+else
+	make --no-builtin-rules INSTALL_HDR_PATH=$$BUILD/usr \
+		ARCH=$(ARCH) -C $(top_srcdir) headers_install
+endif
+
+all: khdr
 	@for TARGET in $(TARGETS); do		\
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		mkdir $$BUILD_TARGET  -p;	\
@@ -173,4 +218,4 @@ clean:
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET clean;\
 	done;
 
-.PHONY: all run_tests hotplug run_hotplug clean_hotplug run_pstore_crash install clean
+.PHONY: khdr all run_tests hotplug run_hotplug clean_hotplug run_pstore_crash install clean

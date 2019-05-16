@@ -20,7 +20,6 @@ generic-y += qspinlock.h
 generic-y += segment.h
 generic-y += serial.h
 generic-y += set_memory.h
-generic-y += sizes.h
 generic-y += switch_to.h
 generic-y += trace_clock.h
 generic-y += unaligned.h
