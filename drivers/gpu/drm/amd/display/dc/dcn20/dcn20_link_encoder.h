@@ -155,6 +155,11 @@ void enc2_hw_init(struct link_encoder *enc);
 void link_enc2_read_state(struct link_encoder *enc, struct link_enc_state *s);
 #endif
 
+void dcn20_link_encoder_enable_dp_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	enum clock_source_id clock_source);
+
 void dcn20_link_encoder_construct(
 	struct dcn20_link_encoder *enc20,
 	const struct encoder_init_data *init_data,

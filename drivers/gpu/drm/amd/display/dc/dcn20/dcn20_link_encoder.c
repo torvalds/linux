@@ -240,7 +240,7 @@ static bool update_cfg_data(
 	return true;
 }
 
-static void dcn20_link_encoder_enable_dp_output(
+void dcn20_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
