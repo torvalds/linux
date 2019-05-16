@@ -742,6 +742,12 @@ F:	drivers/tty/serial/altera_jtaguart.c
 F:	include/linux/altera_uart.h
 F:	include/linux/altera_jtaguart.h
 
+AMAZON ANNAPURNA LABS THERMAL MMIO DRIVER
+M:	Talel Shenhar <talel@amazon.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/thermal/amazon,al-thermal.txt
+F:	drivers/thermal/thermal_mmio.c
+
 AMAZON ETHERNET DRIVERS
 M:	Netanel Belgazal <netanel@amazon.com>
 R:	Saeed Bishara <saeedb@amazon.com>

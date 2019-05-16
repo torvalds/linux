@@ -200,6 +200,17 @@ config THERMAL_EMULATION
 	  because userland can easily disable the thermal policy by simply
 	  flooding this sysfs node with low temperature values.
 
+config THERMAL_MMIO
+	tristate "Generic Thermal MMIO driver"
+	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This option enables the generic thermal MMIO driver that will use
+	  memory-mapped reads to get the temperature.  Any HW/System that
+	  allows temperature reading by a single memory-mapped reading, be it
+	  register or shared memory, is a potential candidate to work with this
+	  driver.
+
 config HISI_THERMAL
 	tristate "Hisilicon thermal driver"
 	depends on ARCH_HISI || COMPILE_TEST

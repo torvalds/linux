@@ -6,6 +6,48 @@
 #include <linux/platform_device.h>
 #include "tsens.h"
 
+/* ----- SROT ------ */
+#define SROT_CTRL_OFF 0x0000
+
+/* ----- TM ------ */
+#define TM_INT_EN_OFF				0x0000
+#define TM_Sn_UPPER_LOWER_STATUS_CTRL_OFF	0x0004
+#define TM_Sn_STATUS_OFF			0x0030
+#define TM_TRDY_OFF				0x005c
+
+/* eeprom layout data for 8916 */
+#define MSM8916_BASE0_MASK	0x0000007f
+#define MSM8916_BASE1_MASK	0xfe000000
+#define MSM8916_BASE0_SHIFT	0
+#define MSM8916_BASE1_SHIFT	25
+
+#define MSM8916_S0_P1_MASK	0x00000f80
+#define MSM8916_S1_P1_MASK	0x003e0000
+#define MSM8916_S2_P1_MASK	0xf8000000
+#define MSM8916_S3_P1_MASK	0x000003e0
+#define MSM8916_S4_P1_MASK	0x000f8000
+
+#define MSM8916_S0_P2_MASK	0x0001f000
+#define MSM8916_S1_P2_MASK	0x07c00000
+#define MSM8916_S2_P2_MASK	0x0000001f
+#define MSM8916_S3_P2_MASK	0x00007c00
+#define MSM8916_S4_P2_MASK	0x01f00000
+
+#define MSM8916_S0_P1_SHIFT	7
+#define MSM8916_S1_P1_SHIFT	17
+#define MSM8916_S2_P1_SHIFT	27
+#define MSM8916_S3_P1_SHIFT	5
+#define MSM8916_S4_P1_SHIFT	15
+
+#define MSM8916_S0_P2_SHIFT	12
+#define MSM8916_S1_P2_SHIFT	22
+#define MSM8916_S2_P2_SHIFT	0
+#define MSM8916_S3_P2_SHIFT	10
+#define MSM8916_S4_P2_SHIFT	20
+
+#define MSM8916_CAL_SEL_MASK	0xe0000000
+#define MSM8916_CAL_SEL_SHIFT	29
+
 /* eeprom layout data for 8974 */
 #define BASE1_MASK		0xff
 #define S0_P1_MASK		0x3f00
@@ -91,7 +133,59 @@
 
 #define BIT_APPEND		0x3
 
-static int calibrate_8974(struct tsens_device *tmdev)
+static int calibrate_8916(struct tsens_priv *priv)
+{
+	int base0 = 0, base1 = 0, i;
+	u32 p1[5], p2[5];
+	int mode = 0;
+	u32 *qfprom_cdata, *qfprom_csel;
+
+	qfprom_cdata = (u32 *)qfprom_read(priv->dev, "calib");
+	if (IS_ERR(qfprom_cdata))
+		return PTR_ERR(qfprom_cdata);
+
+	qfprom_csel = (u32 *)qfprom_read(priv->dev, "calib_sel");
+	if (IS_ERR(qfprom_csel))
+		return PTR_ERR(qfprom_csel);
+
+	mode = (qfprom_csel[0] & MSM8916_CAL_SEL_MASK) >> MSM8916_CAL_SEL_SHIFT;
+	dev_dbg(priv->dev, "calibration mode is %d\n", mode);
+
+	switch (mode) {
+	case TWO_PT_CALIB:
+		base1 = (qfprom_cdata[1] & MSM8916_BASE1_MASK) >> MSM8916_BASE1_SHIFT;
+		p2[0] = (qfprom_cdata[0] & MSM8916_S0_P2_MASK) >> MSM8916_S0_P2_SHIFT;
+		p2[1] = (qfprom_cdata[0] & MSM8916_S1_P2_MASK) >> MSM8916_S1_P2_SHIFT;
+		p2[2] = (qfprom_cdata[1] & MSM8916_S2_P2_MASK) >> MSM8916_S2_P2_SHIFT;
+		p2[3] = (qfprom_cdata[1] & MSM8916_S3_P2_MASK) >> MSM8916_S3_P2_SHIFT;
+		p2[4] = (qfprom_cdata[1] & MSM8916_S4_P2_MASK) >> MSM8916_S4_P2_SHIFT;
+		for (i = 0; i < priv->num_sensors; i++)
+			p2[i] = ((base1 + p2[i]) << 3);
+		/* Fall through */
+	case ONE_PT_CALIB2:
+		base0 = (qfprom_cdata[0] & MSM8916_BASE0_MASK);
+		p1[0] = (qfprom_cdata[0] & MSM8916_S0_P1_MASK) >> MSM8916_S0_P1_SHIFT;
+		p1[1] = (qfprom_cdata[0] & MSM8916_S1_P1_MASK) >> MSM8916_S1_P1_SHIFT;
+		p1[2] = (qfprom_cdata[0] & MSM8916_S2_P1_MASK) >> MSM8916_S2_P1_SHIFT;
+		p1[3] = (qfprom_cdata[1] & MSM8916_S3_P1_MASK) >> MSM8916_S3_P1_SHIFT;
+		p1[4] = (qfprom_cdata[1] & MSM8916_S4_P1_MASK) >> MSM8916_S4_P1_SHIFT;
+		for (i = 0; i < priv->num_sensors; i++)
+			p1[i] = (((base0) + p1[i]) << 3);
+		break;
+	default:
+		for (i = 0; i < priv->num_sensors; i++) {
+			p1[i] = 500;
+			p2[i] = 780;
+		}
+		break;
+	}
+
+	compute_intercept_slope(priv, p1, p2, mode);
+
+	return 0;
+}
+
+static int calibrate_8974(struct tsens_priv *priv)
 {
 	int base1 = 0, base2 = 0, i;
 	u32 p1[11], p2[11];
@@ -99,11 +193,11 @@ static int calibrate_8974(struct tsens_device *tmdev)
 	u32 *calib, *bkp;
 	u32 calib_redun_sel;
 
-	calib = (u32 *)qfprom_read(tmdev->dev, "calib");
+	calib = (u32 *)qfprom_read(priv->dev, "calib");
 	if (IS_ERR(calib))
 		return PTR_ERR(calib);
 
-	bkp = (u32 *)qfprom_read(tmdev->dev, "calib_backup");
+	bkp = (u32 *)qfprom_read(priv->dev, "calib_backup");
 	if (IS_ERR(bkp))
 		return PTR_ERR(bkp);
 
@@ -184,25 +278,25 @@ static int calibrate_8974(struct tsens_device *tmdev)
 
 	switch (mode) {
 	case ONE_PT_CALIB:
-		for (i = 0; i < tmdev->num_sensors; i++)
+		for (i = 0; i < priv->num_sensors; i++)
 			p1[i] += (base1 << 2) | BIT_APPEND;
 		break;
 	case TWO_PT_CALIB:
-		for (i = 0; i < tmdev->num_sensors; i++) {
+		for (i = 0; i < priv->num_sensors; i++) {
 			p2[i] += base2;
 			p2[i] <<= 2;
 			p2[i] |= BIT_APPEND;
 		}
 		/* Fall through */
 	case ONE_PT_CALIB2:
-		for (i = 0; i < tmdev->num_sensors; i++) {
+		for (i = 0; i < priv->num_sensors; i++) {
 			p1[i] += base1;
 			p1[i] <<= 2;
 			p1[i] |= BIT_APPEND;
 		}
 		break;
 	default:
-		for (i = 0; i < tmdev->num_sensors; i++)
+		for (i = 0; i < priv->num_sensors; i++)
 			p2[i] = 780;
 		p1[0] = 502;
 		p1[1] = 509;
@@ -218,10 +312,61 @@ static int calibrate_8974(struct tsens_device *tmdev)
 		break;
 	}
 
-	compute_intercept_slope(tmdev, p1, p2, mode);
+	compute_intercept_slope(priv, p1, p2, mode);
 
 	return 0;
 }
+
+/* v0.1: 8916, 8974 */
+
+static const struct tsens_features tsens_v0_1_feat = {
+	.ver_major	= VER_0_1,
+	.crit_int	= 0,
+	.adc		= 1,
+	.srot_split	= 1,
+	.max_sensors	= 11,
+};
+
+static const struct reg_field tsens_v0_1_regfields[MAX_REGFIELDS] = {
+	/* ----- SROT ------ */
+	/* No VERSION information */
+
+	/* CTRL_OFFSET */
+	[TSENS_EN]     = REG_FIELD(SROT_CTRL_OFF, 0,  0),
+	[TSENS_SW_RST] = REG_FIELD(SROT_CTRL_OFF, 1,  1),
+	[SENSOR_EN]    = REG_FIELD(SROT_CTRL_OFF, 3, 13),
+
+	/* ----- TM ------ */
+	/* INTERRUPT ENABLE */
+	[INT_EN] = REG_FIELD(TM_INT_EN_OFF, 0, 0),
+
+	/* Sn_STATUS */
+	REG_FIELD_FOR_EACH_SENSOR11(LAST_TEMP,    TM_Sn_STATUS_OFF,  0,  9),
+	/* No VALID field on v0.1 */
+	REG_FIELD_FOR_EACH_SENSOR11(MIN_STATUS,   TM_Sn_STATUS_OFF, 10, 10),
+	REG_FIELD_FOR_EACH_SENSOR11(LOWER_STATUS, TM_Sn_STATUS_OFF, 11, 11),
+	REG_FIELD_FOR_EACH_SENSOR11(UPPER_STATUS, TM_Sn_STATUS_OFF, 12, 12),
+	/* No CRITICAL field on v0.1 */
+	REG_FIELD_FOR_EACH_SENSOR11(MAX_STATUS,   TM_Sn_STATUS_OFF, 13, 13),
+
+	/* TRDY: 1=ready, 0=in progress */
+	[TRDY] = REG_FIELD(TM_TRDY_OFF, 0, 0),
+};
+
+static const struct tsens_ops ops_8916 = {
+	.init		= init_common,
+	.calibrate	= calibrate_8916,
+	.get_temp	= get_temp_common,
+};
+
+const struct tsens_plat_data data_8916 = {
+	.num_sensors	= 5,
+	.ops		= &ops_8916,
+	.hw_ids		= (unsigned int []){0, 1, 2, 4, 5 },
+
+	.feat		= &tsens_v0_1_feat,
+	.fields	= tsens_v0_1_regfields,
+};
 
 static const struct tsens_ops ops_8974 = {
 	.init		= init_common,
@@ -229,8 +374,9 @@ static const struct tsens_ops ops_8974 = {
 	.get_temp	= get_temp_common,
 };
 
-const struct tsens_data data_8974 = {
+const struct tsens_plat_data data_8974 = {
 	.num_sensors	= 11,
 	.ops		= &ops_8974,
-	.reg_offsets	= { [SROT_CTRL_OFFSET] = 0x0 },
+	.feat		= &tsens_v0_1_feat,
+	.fields	= tsens_v0_1_regfields,
 };
