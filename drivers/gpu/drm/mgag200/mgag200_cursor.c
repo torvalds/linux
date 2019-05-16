@@ -23,9 +23,9 @@ static void mga_hide_cursor(struct mga_device *mdev)
 	WREG8(MGA_CURPOSXL, 0);
 	WREG8(MGA_CURPOSXH, 0);
 	if (mdev->cursor.pixels_1->pin_count)
-		drm_gem_vram_unpin(mdev->cursor.pixels_1);
+		drm_gem_vram_unpin_reserved(mdev->cursor.pixels_1);
 	if (mdev->cursor.pixels_2->pin_count)
-		drm_gem_vram_unpin(mdev->cursor.pixels_2);
+		drm_gem_vram_unpin_reserved(mdev->cursor.pixels_2);
 }
 
 int mga_crtc_cursor_set(struct drm_crtc *crtc,
@@ -96,26 +96,28 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* Move cursor buffers into VRAM if they aren't already */
 	if (!pixels_1->pin_count) {
-		ret = drm_gem_vram_pin(pixels_1, DRM_GEM_VRAM_PL_FLAG_VRAM);
+		ret = drm_gem_vram_pin_reserved(pixels_1,
+						DRM_GEM_VRAM_PL_FLAG_VRAM);
 		if (ret)
 			goto out1;
 		gpu_addr = drm_gem_vram_offset(pixels_1);
 		if (gpu_addr < 0) {
-			drm_gem_vram_unpin(pixels_1);
+			drm_gem_vram_unpin_reserved(pixels_1);
 			goto out1;
 		}
 		mdev->cursor.pixels_1_gpu_addr = gpu_addr;
 	}
 	if (!pixels_2->pin_count) {
-		ret = drm_gem_vram_pin(pixels_2, DRM_GEM_VRAM_PL_FLAG_VRAM);
+		ret = drm_gem_vram_pin_reserved(pixels_2,
+						DRM_GEM_VRAM_PL_FLAG_VRAM);
 		if (ret) {
-			drm_gem_vram_unpin(pixels_1);
+			drm_gem_vram_unpin_reserved(pixels_1);
 			goto out1;
 		}
 		gpu_addr = drm_gem_vram_offset(pixels_2);
 		if (gpu_addr < 0) {
-			drm_gem_vram_unpin(pixels_1);
-			drm_gem_vram_unpin(pixels_2);
+			drm_gem_vram_unpin_reserved(pixels_1);
+			drm_gem_vram_unpin_reserved(pixels_2);
 			goto out1;
 		}
 		mdev->cursor.pixels_2_gpu_addr = gpu_addr;
