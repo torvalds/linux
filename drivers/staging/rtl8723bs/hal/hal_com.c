@@ -125,7 +125,7 @@ u8 hal_com_config_channel_plan(
 	if (0xFF == hw_channel_plan)
 		AutoLoadFail = true;
 
-	if (false == AutoLoadFail) {
+	if (!AutoLoadFail) {
 		u8 hw_chnlPlan;
 
 		hw_chnlPlan = hw_channel_plan & (~EEPROM_CHANNEL_PLAN_BY_HW_MASK);

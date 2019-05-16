@@ -525,7 +525,7 @@ void odm_DIG(void *pDM_VOID)
 	bool bDFSBand = false;
 	bool bPerformance = true, bFirstTpTarget = false, bFirstCoverage = false;
 
-	if (odm_DigAbort(pDM_Odm) == true)
+	if (odm_DigAbort(pDM_Odm))
 		return;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG() ===========================>\n\n"));
