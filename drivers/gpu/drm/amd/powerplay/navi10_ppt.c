@@ -314,6 +314,9 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
 				| FEATURE_MASK(FEATURE_DPM_LINK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
+				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
+				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT)
 				| FEATURE_MASK(FEATURE_GFX_ULV_BIT)
 				| FEATURE_MASK(FEATURE_RSMU_SMN_CG_BIT)
 				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
@@ -332,11 +335,6 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_FW_DSTATE_BIT)
 				| FEATURE_MASK(FEATURE_ACDC_BIT);
 
-	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
-				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
-				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
-
 	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_SS_BIT)
 				| FEATURE_MASK(FEATURE_GFXOFF_BIT);
@@ -350,7 +348,9 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 		if ((adev->asic_type == CHIP_NAVI10) &&
 			(adev->rev_id == 0)) {
 			*(uint64_t *)feature_mask &=
-					~FEATURE_MASK(FEATURE_DPM_UCLK_BIT);
+					~(FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
+					  | FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
+					  | FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT));
 			*(uint64_t *)feature_mask &=
 					~FEATURE_MASK(FEATURE_DS_SOCCLK_BIT);
 		}
