@@ -725,9 +725,12 @@ done:
 
 bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_ext_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
 {
+	if (!dpcd_dsc_basic_data)
+		return false;
+
 	dsc_sink_caps->is_dsc_supported = (dpcd_dsc_basic_data[DP_DSC_SUPPORT - DP_DSC_SUPPORT] & DP_DSC_DECOMPRESSION_IS_SUPPORTED) != 0;
 	if (!dsc_sink_caps->is_dsc_supported)
-		return true;
+		return false;
 
 	dsc_sink_caps->dsc_version = dpcd_dsc_basic_data[DP_DSC_REV - DP_DSC_SUPPORT];
 

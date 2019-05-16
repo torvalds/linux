@@ -2382,10 +2382,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	uint32_t read_dpcd_retry_cnt = 3;
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	uint8_t dsc_data[16]; /* DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT + 1 == 16 */
-	struct dsc_dec_dpcd_caps *dsc_dec_caps;
-#endif
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -2558,93 +2554,26 @@ static bool retrieve_link_cap(struct dc_link *link)
 		sizeof(dp_hw_fw_revision.ieee_fw_rev));
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	dsc_dec_caps = &link->dpcd_caps.dsc_sink_caps;
-	memset(dsc_dec_caps, '\0', sizeof(*dsc_dec_caps));
-	memset(&link->dpcd_caps.dsc_sink_caps, '\0',
-			sizeof(link->dpcd_caps.dsc_sink_caps));
+	memset(&link->dpcd_caps.dsc_caps, '\0',
+			sizeof(link->dpcd_caps.dsc_caps));
 	memset(&link->dpcd_caps.fec_cap, '\0', sizeof(link->dpcd_caps.fec_cap));
 	/* Read DSC and FEC sink capabilities if DP revision is 1.4 and up */
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14) {
 		status = core_link_read_dpcd(
 				link,
-				DP_DSC_SUPPORT,
-				dsc_data,
-				sizeof(dsc_data));
-		if (status == DC_OK) {
-			DC_LOG_DSC("DSC DPCD capability read at link %d:",
-					link->link_index);
-			DC_LOG_DSC("\t%02x %02x %02x %02x",
-					dsc_data[0], dsc_data[1],
-					dsc_data[2], dsc_data[3]);
-			DC_LOG_DSC("\t%02x %02x %02x %02x",
-					dsc_data[4], dsc_data[5],
-					dsc_data[6], dsc_data[7]);
-			DC_LOG_DSC("\t%02x %02x %02x %02x",
-					dsc_data[8], dsc_data[9],
-					dsc_data[10], dsc_data[11]);
-			DC_LOG_DSC("\t%02x %02x %02x %02x",
-					dsc_data[12], dsc_data[13],
-					dsc_data[14], dsc_data[15]);
-		} else {
-			dm_error("%s: Read DSC dpcd data failed.\n", __func__);
-			return false;
-		}
-
-		if (dc_dsc_parse_dsc_dpcd(dsc_data, NULL,
-				dsc_dec_caps)) {
-			DC_LOG_DSC("DSC DPCD capabilities parsed at link %d:",
-					link->link_index);
-			DC_LOG_DSC("\tis_dsc_supported:\t%d",
-					dsc_dec_caps->is_dsc_supported);
-			DC_LOG_DSC("\tdsc_version:\t%d", dsc_dec_caps->dsc_version);
-			DC_LOG_DSC("\trc_buffer_size:\t%d",
-					dsc_dec_caps->rc_buffer_size);
-			DC_LOG_DSC("\tslice_caps1:\t0x%x20",
-					dsc_dec_caps->slice_caps1.raw);
-			DC_LOG_DSC("\tslice_caps2:\t0x%x20",
-					dsc_dec_caps->slice_caps2.raw);
-			DC_LOG_DSC("\tlb_bit_depth:\t%d",
-					dsc_dec_caps->lb_bit_depth);
-			DC_LOG_DSC("\tis_block_pred_supported:\t%d",
-					dsc_dec_caps->is_block_pred_supported);
-			DC_LOG_DSC("\tedp_max_bits_per_pixel:\t%d",
-					dsc_dec_caps->edp_max_bits_per_pixel);
-			DC_LOG_DSC("\tcolor_formats:\t%d",
-					dsc_dec_caps->color_formats.raw);
-			DC_LOG_DSC("\tcolor_depth:\t%d",
-					dsc_dec_caps->color_depth.raw);
-			DC_LOG_DSC("\tthroughput_mode_0_mps:\t%d",
-					dsc_dec_caps->throughput_mode_0_mps);
-			DC_LOG_DSC("\tthroughput_mode_1_mps:\t%d",
-					dsc_dec_caps->throughput_mode_1_mps);
-			DC_LOG_DSC("\tmax_slice_width:\t%d",
-					dsc_dec_caps->max_slice_width);
-			DC_LOG_DSC("\tbpp_increment_div:\t%d",
-					dsc_dec_caps->bpp_increment_div);
-			DC_LOG_DSC("\tbranch_overall_throughput_0_mps:\t%d",
-					dsc_dec_caps->branch_overall_throughput_0_mps);
-			DC_LOG_DSC("\tbranch_overall_throughput_1_mps:\t%d",
-					dsc_dec_caps->branch_overall_throughput_1_mps);
-			DC_LOG_DSC("\tbranch_max_line_width:\t%d",
-					dsc_dec_caps->branch_max_line_width);
-		} else {
-			/* Some sinks return bogus DSC DPCD data
-			 * when they don't support DSC.
-			 */
-			dm_error("%s: DSC DPCD data doesn't make sense. "
-					"DSC will be disabled.\n", __func__);
-			memset(&link->dpcd_caps.dsc_sink_caps, '\0',
-					sizeof(link->dpcd_caps.dsc_sink_caps));
-		}
-
-		status = core_link_read_dpcd(
-				link,
 				DP_FEC_CAPABILITY,
 				&link->dpcd_caps.fec_cap.raw,
 				sizeof(link->dpcd_caps.fec_cap.raw));
-		if (status != DC_OK)
-			dm_error("%s: Read FEC dpcd register failed.\n",
-					__func__);
+		status = core_link_read_dpcd(
+				link,
+				DP_DSC_SUPPORT,
+				link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
+				sizeof(link->dpcd_caps.dsc_caps.dsc_basic_caps.raw));
+		status = core_link_read_dpcd(
+				link,
+				DP_DSC_BRANCH_OVERALL_THROUGHPUT_0,
+				link->dpcd_caps.dsc_caps.dsc_ext_caps.raw,
+				sizeof(link->dpcd_caps.dsc_caps.dsc_ext_caps.raw));
 	}
 #endif
 

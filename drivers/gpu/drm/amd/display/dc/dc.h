@@ -910,8 +910,8 @@ struct dpcd_caps {
 	bool dpcd_display_control_capable;
 	bool ext_receiver_cap_field_present;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	union fec_capability fec_cap;
-	struct dsc_dec_dpcd_caps dsc_sink_caps;
+	union dpcd_fec_capability fec_cap;
+	struct dpcd_dsc_capabilities dsc_caps;
 #endif
 };
 
@@ -933,6 +933,14 @@ struct dc_container_id {
 };
 
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+struct dc_sink_dsc_caps {
+	// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
+	// 'false' if they are sink's DSC caps
+	bool is_virtual_dpcd_dsc;
+	struct dsc_dec_dpcd_caps dsc_dec_caps;
+};
+#endif
 
 /*
  * The sink structure contains EDID and other display device properties
@@ -948,12 +956,7 @@ struct dc_sink {
 	bool converter_disable_audio;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	struct dc_sink_dsc_caps {
-		// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
-		// 'false' if they are sink's DSC caps
-		bool is_virtual_dpcd_dsc;
-		struct dsc_dec_dpcd_caps dsc_dec_caps;
-	} sink_dsc_caps;
+	struct dc_sink_dsc_caps sink_dsc_caps;
 #endif
 
 	/* private to DC core */
