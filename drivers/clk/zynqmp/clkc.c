@@ -739,8 +739,8 @@ static int zynqmp_clock_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	eemi_ops = zynqmp_pm_get_eemi_ops();
-	if (!eemi_ops)
-		return -ENXIO;
+	if (IS_ERR(eemi_ops))
+		return PTR_ERR(eemi_ops);
 
 	ret = zynqmp_clk_setup(dev->of_node);
 
