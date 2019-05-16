@@ -131,7 +131,7 @@ static union nested_table *nested_table_alloc(struct rhashtable *ht,
 			INIT_RHT_NULLS_HEAD(ntbl[i].bucket);
 	}
 
-	if (cmpxchg(prev, NULL, ntbl) == NULL)
+	if (cmpxchg((union nested_table **)prev, NULL, ntbl) == NULL)
 		return ntbl;
 	/* Raced with another thread. */
 	kfree(ntbl);
@@ -296,7 +296,8 @@ static int rhashtable_rehash_attach(struct rhashtable *ht,
 	 * rcu_assign_pointer().
 	 */
 
-	if (cmpxchg(&old_tbl->future_tbl, NULL, new_tbl) != NULL)
+	if (cmpxchg((struct bucket_table **)&old_tbl->future_tbl, NULL,
+		    new_tbl) != NULL)
 		return -EEXIST;
 
 	return 0;
