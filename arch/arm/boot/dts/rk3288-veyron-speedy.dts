@@ -75,6 +75,10 @@
 	force-hpd;
 };
 
+&gpu_alert0 {
+	temperature = <80000>;
+};
+
 &gpu_crit {
 	temperature = <90000>;
 };
