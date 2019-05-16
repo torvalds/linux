@@ -68,5 +68,7 @@ u32 rxrpc_kernel_get_epoch(struct socket *, struct rxrpc_call *);
 bool rxrpc_kernel_get_reply_time(struct socket *, struct rxrpc_call *,
 				 ktime_t *);
 bool rxrpc_kernel_call_is_complete(struct rxrpc_call *);
+void rxrpc_kernel_set_max_life(struct socket *, struct rxrpc_call *,
+			       unsigned long);
 
 #endif /* _NET_RXRPC_H */

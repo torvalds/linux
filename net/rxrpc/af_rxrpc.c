@@ -443,6 +443,31 @@ void rxrpc_kernel_new_call_notification(
 }
 EXPORT_SYMBOL(rxrpc_kernel_new_call_notification);
 
+/**
+ * rxrpc_kernel_set_max_life - Set maximum lifespan on a call
+ * @sock: The socket the call is on
+ * @call: The call to configure
+ * @hard_timeout: The maximum lifespan of the call in jiffies
+ *
+ * Set the maximum lifespan of a call.  The call will end with ETIME or
+ * ETIMEDOUT if it takes longer than this.
+ */
+void rxrpc_kernel_set_max_life(struct socket *sock, struct rxrpc_call *call,
+			       unsigned long hard_timeout)
+{
+	unsigned long now;
+
+	mutex_lock(&call->user_mutex);
+
+	now = jiffies;
+	hard_timeout += now;
+	WRITE_ONCE(call->expect_term_by, hard_timeout);
+	rxrpc_reduce_call_timer(call, hard_timeout, now, rxrpc_timer_set_for_hard);
+
+	mutex_unlock(&call->user_mutex);
+}
+EXPORT_SYMBOL(rxrpc_kernel_set_max_life);
+
 /*
  * connect an RxRPC socket
  * - this just targets it at a specific destination; no actual connection

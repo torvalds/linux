@@ -1056,6 +1056,16 @@ The kernel interface functions are as follows:
      This value can be used to determine if the remote client has been
      restarted as it shouldn't change otherwise.
 
+ (*) Set the maxmimum lifespan on a call.
+
+	void rxrpc_kernel_set_max_life(struct socket *sock,
+				       struct rxrpc_call *call,
+				       unsigned long hard_timeout)
+
+     This sets the maximum lifespan on a call to hard_timeout (which is in
+     jiffies).  In the event of the timeout occurring, the call will be
+     aborted and -ETIME or -ETIMEDOUT will be returned.
+
 
 =======================
 CONFIGURABLE PARAMETERS
