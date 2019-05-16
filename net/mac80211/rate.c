@@ -369,9 +369,8 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 }
 
 
-bool rate_control_send_low(struct ieee80211_sta *pubsta,
-			   void *priv_sta,
-			   struct ieee80211_tx_rate_control *txrc)
+static bool rate_control_send_low(struct ieee80211_sta *pubsta,
+				  struct ieee80211_tx_rate_control *txrc)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
 	struct ieee80211_supported_band *sband = txrc->sband;
@@ -379,7 +378,7 @@ bool rate_control_send_low(struct ieee80211_sta *pubsta,
 	int mcast_rate;
 	bool use_basicrate = false;
 
-	if (!pubsta || !priv_sta || rc_no_data_or_no_ack_use_min(txrc)) {
+	if (!pubsta || rc_no_data_or_no_ack_use_min(txrc)) {
 		__rate_control_send_low(txrc->hw, sband, pubsta, info,
 					txrc->rate_idx_mask);
 
@@ -405,7 +404,6 @@ bool rate_control_send_low(struct ieee80211_sta *pubsta,
 	}
 	return false;
 }
-EXPORT_SYMBOL(rate_control_send_low);
 
 static bool rate_idx_match_legacy_mask(s8 *rate_idx, int n_bitrates, u32 mask)
 {
@@ -902,12 +900,15 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_hw_check(&sdata->local->hw, HAS_RATE_CONTROL))
 		return;
 
+	if (rate_control_send_low(ista, txrc))
+		return;
+
 	if (ista) {
 		spin_lock_bh(&sta->rate_ctrl_lock);
 		ref->ops->get_rate(ref->priv, ista, priv_sta, txrc);
 		spin_unlock_bh(&sta->rate_ctrl_lock);
 	} else {
-		ref->ops->get_rate(ref->priv, NULL, NULL, txrc);
+		rate_control_send_low(NULL, txrc);
 	}
 
 	if (ieee80211_hw_check(&sdata->local->hw, SUPPORTS_RC_TABLE))

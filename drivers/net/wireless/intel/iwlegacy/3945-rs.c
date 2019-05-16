@@ -646,9 +646,6 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		il_sta = NULL;
 	}
 
-	if (rate_control_send_low(sta, il_sta, txrc))
-		return;
-
 	rate_mask = sta->supp_rates[sband->band];
 
 	/* get user max rate if set */
