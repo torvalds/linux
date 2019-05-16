@@ -70,9 +70,6 @@ static int pfn_array_alloc(struct pfn_array *pa, u64 iova, unsigned int len)
 {
 	int i;
 
-	if (!len)
-		return 0;
-
 	if (pa->pa_nr || pa->pa_iova_pfn)
 		return -EINVAL;
 
@@ -319,6 +316,10 @@ static long copy_ccw_from_iova(struct channel_program *cp,
  */
 static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 {
+	/* If the count field is zero, then no data will be transferred */
+	if (ccw->count == 0)
+		return 0;
+
 	/* If the skip flag is off, then data will be transferred */
 	if (!ccw_is_skip(ccw))
 		return 1;
@@ -404,8 +405,6 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
 	struct ccw1 *ccw = chain->ch_ccw + idx;
 
 	if (ccw_is_test(ccw) || ccw_is_noop(ccw) || ccw_is_tic(ccw))
-		return;
-	if (!ccw->count)
 		return;
 
 	kfree((void *)(u64)ccw->cda);
@@ -592,19 +591,13 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	struct pfn_array_table *pat;
 	unsigned long *idaws;
 	int ret;
+	int bytes = 1;
 	int idaw_nr = 1;
 
 	ccw = chain->ch_ccw + idx;
 
-	if (!ccw->count) {
-		/*
-		 * We just want the translation result of any direct ccw
-		 * to be an IDA ccw, so let's add the IDA flag for it.
-		 * Although the flag will be ignored by firmware.
-		 */
-		ccw->flags |= CCW_FLAG_IDA;
-		return 0;
-	} else {
+	if (ccw->count) {
+		bytes = ccw->count;
 		idaw_nr = idal_nr_words((void *)(u64)ccw->cda, ccw->count);
 	}
 
@@ -618,7 +611,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	if (ret)
 		goto out_init;
 
-	ret = pfn_array_alloc(pat->pat_pa, ccw->cda, ccw->count);
+	ret = pfn_array_alloc(pat->pat_pa, ccw->cda, bytes);
 	if (ret < 0)
 		goto out_unpin;
 
@@ -661,17 +654,18 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 	u64 idaw_iova;
 	unsigned int idaw_nr, idaw_len;
 	int i, ret;
+	int bytes = 1;
 
 	ccw = chain->ch_ccw + idx;
 
-	if (!ccw->count)
-		return 0;
+	if (ccw->count)
+		bytes = ccw->count;
 
 	/* Calculate size of idaws. */
 	ret = copy_from_iova(cp->mdev, &idaw_iova, ccw->cda, sizeof(idaw_iova));
 	if (ret)
 		return ret;
-	idaw_nr = idal_nr_words((void *)(idaw_iova), ccw->count);
+	idaw_nr = idal_nr_words((void *)(idaw_iova), bytes);
 	idaw_len = idaw_nr * sizeof(*idaws);
 
 	/* Pin data page(s) in memory. */
