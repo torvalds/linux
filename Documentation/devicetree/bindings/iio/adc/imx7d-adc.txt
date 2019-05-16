@@ -10,6 +10,7 @@ Required properties:
 - clocks: The root clock of the ADC controller
 - clock-names: Must contain "adc", matching entry in the clocks property
 - vref-supply: The regulator supply ADC reference voltage
+- #io-channel-cells: Must be 1 as per ../iio-bindings.txt
 
 Example:
 adc1: adc@30610000 {
@@ -19,4 +20,5 @@ adc1: adc@30610000 {
 	clocks = <&clks IMX7D_ADC_ROOT_CLK>;
 	clock-names = "adc";
 	vref-supply = <&reg_vcc_3v3_mcu>;
+	#io-channel-cells = <1>;
 };

@@ -54,16 +54,9 @@
 		backlight = <&backlight>;
 		enable-gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>; /* PH7 */
 		power-supply = <&reg_dc1sw>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			panel_input: endpoint@0 {
-				reg = <0>;
+		port {
+			panel_input: endpoint {
 				remote-endpoint = <&tcon0_out_lcd>;
 			};
 		};
@@ -118,13 +111,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&lcd_rgb666_pins>;
 	status = "okay";
-};
-
-&tcon0_out {
-	tcon0_out_lcd: endpoint@0 {
-		reg = <0>;
-		remote-endpoint = <&panel_input>;
-	};
 };
 
 &usbphy {

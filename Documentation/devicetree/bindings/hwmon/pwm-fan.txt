@@ -21,8 +21,6 @@ Optional properties:
 Example:
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
-		cooling-min-state = <0>;
-		cooling-max-state = <3>;
 		#cooling-cells = <2>;
 		pwms = <&pwm 0 10000 0>;
 		cooling-levels = <0 102 170 230>;

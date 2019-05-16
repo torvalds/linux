@@ -54,14 +54,14 @@
 #define IOU_SWITCH		42
 #define GEM_TSU_REF		43
 #define GEM_TSU			44
-#define GEM0_REF		45
-#define GEM1_REF		46
-#define GEM2_REF		47
-#define GEM3_REF		48
-#define GEM0_TX			49
-#define GEM1_TX			50
-#define GEM2_TX			51
-#define GEM3_TX			52
+#define GEM0_TX			45
+#define GEM1_TX			46
+#define GEM2_TX			47
+#define GEM3_TX			48
+#define GEM0_RX			49
+#define GEM1_RX			50
+#define GEM2_RX			51
+#define GEM3_RX			52
 #define QSPI_REF		53
 #define SDIO0_REF		54
 #define SDIO1_REF		55
@@ -112,5 +112,15 @@
 #define VPLL_POST_SRC		100
 #define CAN0_MIO		101
 #define CAN1_MIO		102
+#define ACPU_FULL		103
+#define GEM0_REF		104
+#define GEM1_REF		105
+#define GEM2_REF		106
+#define GEM3_REF		107
+#define GEM0_REF_UNG		108
+#define GEM1_REF_UNG		109
+#define GEM2_REF_UNG		110
+#define GEM3_REF_UNG		111
+#define LPD_WDT			112
 
 #endif
