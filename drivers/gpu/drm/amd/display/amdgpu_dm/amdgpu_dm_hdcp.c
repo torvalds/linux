@@ -26,6 +26,41 @@
 #include "amdgpu_dm_hdcp.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
+#include "dm_helpers.h"
+
+bool lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
+{
+
+	struct dc_link *link = handle;
+	struct i2c_payload i2c_payloads[] = {{true, address, size, (void *)data} };
+	struct i2c_command cmd = {i2c_payloads, 1, I2C_COMMAND_ENGINE_HW, link->dc->caps.i2c_speed_in_khz};
+
+	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
+}
+
+bool lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, uint32_t size)
+{
+	struct dc_link *link = handle;
+
+	struct i2c_payload i2c_payloads[] = {{true, address, 1, &offset}, {false, address, size, data} };
+	struct i2c_command cmd = {i2c_payloads, 2, I2C_COMMAND_ENGINE_HW, link->dc->caps.i2c_speed_in_khz};
+
+	return dm_helpers_submit_i2c(link->ctx, link, &cmd);
+}
+
+bool lp_write_dpcd(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
+{
+	struct dc_link *link = handle;
+
+	return dm_helpers_dp_write_dpcd(link->ctx, link, address, data, size);
+}
+
+bool lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
+{
+	struct dc_link *link = handle;
+
+	return dm_helpers_dp_read_dpcd(link->ctx, link, address, data, size);
+}
 
 static void process_output(struct hdcp_workqueue *hdcp_work)
 {
@@ -220,7 +255,10 @@ struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *c
 
 		hdcp_work[i].hdcp.config.psp.handle =  psp_context;
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
-
+		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
+		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;
+		hdcp_work[i].hdcp.config.ddc.funcs.write_dpcd = lp_write_dpcd;
+		hdcp_work[i].hdcp.config.ddc.funcs.read_dpcd = lp_read_dpcd;
 	}
 
 	cp_psp->funcs.update_stream_config = update_config;
