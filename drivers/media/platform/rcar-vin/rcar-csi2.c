@@ -1019,10 +1019,8 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 		return ret;
 
 	priv->rstc = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->rstc))
-		return PTR_ERR(priv->rstc);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->rstc);
 }
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
