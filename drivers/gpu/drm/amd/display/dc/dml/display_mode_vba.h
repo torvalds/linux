@@ -633,7 +633,7 @@ struct vba_vars_st {
 	bool           LinkDSCEnable;
 	bool           ODMCombine4To1SupportCheckOK[DC__VOLTAGE_STATES + 1];
 	bool ODMCombineEnableThisState[DC__NUM_DPP__MAX];
-	double         SwathWidthCThisState[DC__NUM_DPP__MAX];
+	unsigned int   SwathWidthCThisState[DC__NUM_DPP__MAX];
 	bool           ViewportSizeSupportPerPlane[DC__NUM_DPP__MAX];
 	double         AlignedDCCMetaPitchY[DC__NUM_DPP__MAX];
 	double         AlignedDCCMetaPitchC[DC__NUM_DPP__MAX];
