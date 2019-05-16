@@ -391,6 +391,9 @@ __drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
 		drm_connector_get(connector);
 	state->commit = NULL;
 
+	if (state->hdr_output_metadata)
+		drm_property_blob_get(state->hdr_output_metadata);
+
 	/* Don't copy over a writeback job, they are used only once */
 	state->writeback_job = NULL;
 }
@@ -438,6 +441,8 @@ __drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state)
 
 	if (state->writeback_job)
 		drm_writeback_cleanup_job(state->writeback_job);
+
+	drm_property_blob_put(state->hdr_output_metadata);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_destroy_state);
 
