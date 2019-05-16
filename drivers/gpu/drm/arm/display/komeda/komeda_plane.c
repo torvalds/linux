@@ -137,6 +137,8 @@ static void komeda_plane_reset(struct drm_plane *plane)
 		state->base.pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
 		state->base.alpha = DRM_BLEND_ALPHA_OPAQUE;
 		state->base.zpos = kplane->layer->base.id;
+		state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
+		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 		plane->state = &state->base;
 		plane->state->plane = plane;
 	}
@@ -329,6 +331,17 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 		goto cleanup;
 
 	err = komeda_plane_create_layer_properties(kplane, layer);
+	if (err)
+		goto cleanup;
+
+	err = drm_plane_create_color_properties(plane,
+			BIT(DRM_COLOR_YCBCR_BT601) |
+			BIT(DRM_COLOR_YCBCR_BT709) |
+			BIT(DRM_COLOR_YCBCR_BT2020),
+			BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+			BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+			DRM_COLOR_YCBCR_BT601,
+			DRM_COLOR_YCBCR_LIMITED_RANGE);
 	if (err)
 		goto cleanup;
 

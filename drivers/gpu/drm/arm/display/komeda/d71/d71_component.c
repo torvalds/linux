@@ -10,6 +10,7 @@
 #include "komeda_kms.h"
 #include "malidp_io.h"
 #include "komeda_framebuffer.h"
+#include "komeda_color_mgmt.h"
 
 static void get_resources_id(u32 hw_id, u32 *pipe_id, u32 *comp_id)
 {
@@ -239,6 +240,11 @@ static void d71_layer_update(struct komeda_component *c,
 		}
 
 		malidp_write32(reg, LAYER_R_CONTROL, upsampling);
+		malidp_write_group(reg, LAYER_YUV_RGB_COEFF0,
+				   KOMEDA_N_YUV2RGB_COEFFS,
+				   komeda_select_yuv2rgb_coeffs(
+					plane_st->color_encoding,
+					plane_st->color_range));
 	}
 
 	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);

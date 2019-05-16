@@ -8,6 +8,7 @@ komeda-y := \
 	komeda_drv.o \
 	komeda_dev.o \
 	komeda_format_caps.o \
+	komeda_color_mgmt.o \
 	komeda_pipeline.o \
 	komeda_pipeline_state.o \
 	komeda_framebuffer.o \
