@@ -1131,23 +1131,22 @@ static int __send_signal(int sig, struct kernel_siginfo *info, struct task_struc
 			copy_siginfo(&q->info, info);
 			break;
 		}
-	} else if (!is_si_special(info)) {
-		if (sig >= SIGRTMIN && info->si_code != SI_USER) {
-			/*
-			 * Queue overflow, abort.  We may abort if the
-			 * signal was rt and sent by user using something
-			 * other than kill().
-			 */
-			result = TRACE_SIGNAL_OVERFLOW_FAIL;
-			ret = -EAGAIN;
-			goto ret;
-		} else {
-			/*
-			 * This is a silent loss of information.  We still
-			 * send the signal, but the *info bits are lost.
-			 */
-			result = TRACE_SIGNAL_LOSE_INFO;
-		}
+	} else if (!is_si_special(info) &&
+		   sig >= SIGRTMIN && info->si_code != SI_USER) {
+		/*
+		 * Queue overflow, abort.  We may abort if the
+		 * signal was rt and sent by user using something
+		 * other than kill().
+		 */
+		result = TRACE_SIGNAL_OVERFLOW_FAIL;
+		ret = -EAGAIN;
+		goto ret;
+	} else {
+		/*
+		 * This is a silent loss of information.  We still
+		 * send the signal, but the *info bits are lost.
+		 */
+		result = TRACE_SIGNAL_LOSE_INFO;
 	}
 
 out_set:
