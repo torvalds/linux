@@ -106,24 +106,24 @@ static int probe_core_basic(unsigned int core_num, struct kp2000_device *pcard,
     };
 
     dev_dbg(&pcard->pdev->dev, "Found Basic core: type = %02d  dma = %02x / %02x  offset = 0x%x  length = 0x%x (%d regs)\n", cte.type, KPC_OLD_S2C_DMA_CH_NUM(cte), KPC_OLD_C2S_DMA_CH_NUM(cte), cte.offset, cte.length, cte.length / 8);
-    
-    
+
+
     cell.platform_data = &core_pdata;
     cell.pdata_size = sizeof(struct kpc_core_device_platdata);
     cell.num_resources = 2;
-    
+
     memset(&resources, 0, sizeof(resources));
 
     resources[0].start = cte.offset;
     resources[0].end   = cte.offset + (cte.length - 1);
     resources[0].flags = IORESOURCE_MEM;
-    
+
     resources[1].start = pcard->pdev->irq;
     resources[1].end   = pcard->pdev->irq;
     resources[1].flags = IORESOURCE_IRQ;
-    
+
     cell.resources = resources;
-    
+
     return mfd_add_devices(
         PCARD_TO_DEV(pcard),    // parent
         pcard->card_num * 100,  // id
@@ -148,7 +148,7 @@ struct kpc_uio_device {
 static ssize_t  show_attr(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct kpc_uio_device *kudev = dev_get_drvdata(dev);
-    
+
     #define ATTR_NAME_CMP(v)  (strcmp(v, attr->attr.name) == 0)
     if ATTR_NAME_CMP("offset"){
         return scnprintf(buf, PAGE_SIZE, "%u\n", kudev->cte.offset);
@@ -228,7 +228,7 @@ irqreturn_t  kuio_handler(int irq, struct uio_info *uioinfo)
     struct kpc_uio_device *kudev = uioinfo->priv;
     if (irq != kudev->pcard->pdev->irq)
         return IRQ_NONE;
-    
+
     if (kp2000_check_uio_irq(kudev->pcard, kudev->cte.irq_base_num)){
         writeq((1 << kudev->cte.irq_base_num), kudev->pcard->sysinfo_regs_base + REG_INTERRUPT_ACTIVE); // Clear the active flag
         return IRQ_HANDLED;
@@ -242,7 +242,7 @@ int kuio_irqcontrol(struct uio_info *uioinfo, s32 irq_on)
     struct kpc_uio_device *kudev = uioinfo->priv;
     struct kp2000_device *pcard = kudev->pcard;
     u64 mask;
-    
+
     lock_card(pcard);
     mask = readq(pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
     if (irq_on){
@@ -252,7 +252,7 @@ int kuio_irqcontrol(struct uio_info *uioinfo, s32 irq_on)
     }
     writeq(mask, pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
     unlock_card(pcard);
-    
+
     return 0;
 }
 
@@ -263,18 +263,18 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
     int rv;
 
     dev_dbg(&pcard->pdev->dev, "Found UIO core:   type = %02d  dma = %02x / %02x  offset = 0x%x  length = 0x%x (%d regs)\n", cte.type, KPC_OLD_S2C_DMA_CH_NUM(cte), KPC_OLD_C2S_DMA_CH_NUM(cte), cte.offset, cte.length, cte.length / 8);
-    
+
     kudev = kzalloc(sizeof(struct kpc_uio_device), GFP_KERNEL);
     if (!kudev){
         dev_err(&pcard->pdev->dev, "probe_core_uio: failed to kzalloc kpc_uio_device\n");
         return -ENOMEM;
     }
-    
+
     INIT_LIST_HEAD(&kudev->list);
     kudev->pcard = pcard;
     kudev->cte = cte;
     kudev->core_num = core_num;
-    
+
     kudev->uioinfo.priv = kudev;
     kudev->uioinfo.name = name;
     kudev->uioinfo.version = "0.0";
@@ -291,7 +291,7 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
     kudev->uioinfo.mem[0].addr = pci_resource_start(pcard->pdev, REG_BAR) + cte.offset;
     kudev->uioinfo.mem[0].size = (cte.length + PAGE_SIZE-1) & ~(PAGE_SIZE-1); // Round up to nearest PAGE_SIZE boundary
     kudev->uioinfo.mem[0].memtype = UIO_MEM_PHYS;
-    
+
     kudev->dev = device_create(kpc_uio_class, &pcard->pdev->dev, MKDEV(0,0), kudev, "%s.%d.%d.%d", kudev->uioinfo.name, pcard->card_num, cte.type, kudev->core_num);
     if (IS_ERR(kudev->dev)) {
         dev_err(&pcard->pdev->dev, "probe_core_uio device_create failed!\n");
@@ -299,7 +299,7 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
         return -ENODEV;
     }
     dev_set_drvdata(kudev->dev, kudev);
-    
+
     rv = uio_register_device(kudev->dev, &kudev->uioinfo);
     if (rv){
         dev_err(&pcard->pdev->dev, "probe_core_uio failed uio_register_device: %d\n", rv);
@@ -307,9 +307,9 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
         kfree(kudev);
         return rv;
     }
-    
+
     list_add_tail(&kudev->list, &pcard->uio_devices_list);
-    
+
     return 0;
 }
 
@@ -320,24 +320,24 @@ static int  create_dma_engine_core(struct kp2000_device *pcard, size_t engine_re
     struct resource  resources[2];
 
     dev_dbg(&pcard->pdev->dev, "create_dma_core(pcard = [%p], engine_regs_offset = %zx, engine_num = %d)\n", pcard, engine_regs_offset, engine_num);
-    
+
     cell.platform_data = NULL;
     cell.pdata_size = 0;
     cell.name = KP_DRIVER_NAME_DMA_CONTROLLER;
     cell.num_resources = 2;
-    
+
     memset(&resources, 0, sizeof(resources));
 
     resources[0].start = engine_regs_offset;
     resources[0].end   = engine_regs_offset + (KPC_DMA_ENGINE_SIZE - 1);
     resources[0].flags = IORESOURCE_MEM;
-    
+
     resources[1].start = irq_num;
     resources[1].end   = irq_num;
     resources[1].flags = IORESOURCE_IRQ;
-    
+
     cell.resources = resources;
-    
+
     return mfd_add_devices(
         PCARD_TO_DEV(pcard),    // parent
         pcard->card_num * 100,  // id
@@ -354,7 +354,7 @@ static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
     int err;
     unsigned int i;
     u64 capabilities_reg;
-    
+
     // S2C Engines
     for (i = 0 ; i < 32 ; i++){
         capabilities_reg = readq( pcard->dma_bar_base + KPC_DMA_S2C_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i) );
@@ -371,9 +371,9 @@ static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
             if (err) goto err_out;
         }
     }
-    
+
     return 0;
-    
+
 err_out:
     dev_err(&pcard->pdev->dev, "kp2000_setup_dma_controller: failed to add a DMA Engine: %d\n", err);
     return err;
@@ -389,12 +389,12 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
     struct core_table_entry cte;
 
     dev_dbg(&pcard->pdev->dev, "kp2000_probe_cores(pcard = %p / %d)\n", pcard, pcard->card_num);
-    
+
     err = kp2000_setup_dma_controller(pcard);
     if (err) return err;
-    
+
     INIT_LIST_HEAD(&pcard->uio_devices_list);
-    
+
     // First, iterate the core table looking for the highest CORE_ID
     for (i = 0 ; i < pcard->core_table_length ; i++){
         read_val = readq(pcard->sysinfo_regs_base + ((pcard->core_table_offset + i) * 8));
@@ -415,7 +415,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
         for (i = 0 ; i < pcard->core_table_length ; i++){
             read_val = readq(pcard->sysinfo_regs_base + ((pcard->core_table_offset + i) * 8));
             parse_core_table_entry(&cte, read_val, pcard->core_table_rev);
-            
+
             if (cte.type != current_type_id)
                 continue;
 
@@ -443,7 +443,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
             core_num++;
         }
     }
-    
+
     // Finally, instantiate a UIO device for the core_table.
     cte.type                = 0; // CORE_ID_BOARD_INFO
     cte.offset              = 0; // board info is always at the beginning
@@ -459,7 +459,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
         dev_err(&pcard->pdev->dev, "kp2000_probe_cores: failed to add board_info core: %d\n", err);
         goto error;
     }
-    
+
     return 0;
 
 error:
