@@ -333,26 +333,6 @@ drm_get_format_info(struct drm_device *dev,
 EXPORT_SYMBOL(drm_get_format_info);
 
 /**
- * drm_format_plane_cpp - determine the bytes per pixel value
- * @format: pixel format (DRM_FORMAT_*)
- * @plane: plane index
- *
- * Returns:
- * The bytes per pixel value for the specified plane.
- */
-int drm_format_plane_cpp(uint32_t format, int plane)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	if (!info || plane >= info->num_planes)
-		return 0;
-
-	return info->cpp[plane];
-}
-EXPORT_SYMBOL(drm_format_plane_cpp);
-
-/**
  * drm_format_plane_width - width of the plane given the first plane
  * @width: width of the first plane
  * @format: pixel format

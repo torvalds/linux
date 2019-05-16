@@ -158,7 +158,7 @@ uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 	for (i = 0; i < nplanes; i++) {
 		int n, fetch_stride, cpp;
 
-		cpp = drm_format_plane_cpp(fmt, i);
+		cpp = drm_format_info_plane_cpp(info, i);
 		fetch_stride = width * cpp / (i ? hsub : 1);
 
 		n = DIV_ROUND_UP(fetch_stride * nlines, smp->blk_size);

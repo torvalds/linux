@@ -98,7 +98,7 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 		min_size = (height - 1) * mode_cmd->pitches[i] +
 			mode_cmd->offsets[i] +
-			width * drm_format_plane_cpp(mode_cmd->pixel_format, i);
+			width * drm_format_info_plane_cpp(info, i);
 
 		if (obj->size < min_size) {
 			drm_gem_object_put_unlocked(obj);

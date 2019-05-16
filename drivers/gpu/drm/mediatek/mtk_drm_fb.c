@@ -104,7 +104,7 @@ struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 	if (!gem)
 		return ERR_PTR(-ENOENT);
 
-	bpp = drm_format_plane_cpp(cmd->pixel_format, 0);
+	bpp = drm_format_info_plane_cpp(info, 0);
 	size = (height - 1) * cmd->pitches[0] + width * bpp;
 	size += cmd->offsets[0];
 

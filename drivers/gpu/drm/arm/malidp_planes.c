@@ -227,7 +227,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 
 	if (modifier & AFBC_SPLIT) {
 		if (!info->is_yuv) {
-			if (drm_format_plane_cpp(format, 0) <= 2) {
+			if (drm_format_info_plane_cpp(info, 0) <= 2) {
 				DRM_DEBUG_KMS("RGB formats <= 16bpp are not supported with SPLIT\n");
 				return false;
 			}

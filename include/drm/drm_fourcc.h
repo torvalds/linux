@@ -260,6 +260,23 @@ drm_format_info_is_yuv_sampling_444(const struct drm_format_info *info)
 	return info->is_yuv && info->hsub == 1 && info->vsub == 1;
 }
 
+/**
+ * drm_format_info_plane_cpp - determine the bytes per pixel value
+ * @format: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The bytes per pixel value for the specified plane.
+ */
+static inline
+int drm_format_info_plane_cpp(const struct drm_format_info *info, int plane)
+{
+	if (!info || plane >= info->num_planes)
+		return 0;
+
+	return info->cpp[plane];
+}
+
 const struct drm_format_info *__drm_format_info(u32 format);
 const struct drm_format_info *drm_format_info(u32 format);
 const struct drm_format_info *
@@ -268,7 +285,6 @@ drm_get_format_info(struct drm_device *dev,
 uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth);
 uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
 				     uint32_t bpp, uint32_t depth);
-int drm_format_plane_cpp(uint32_t format, int plane);
 int drm_format_plane_width(int width, uint32_t format, int plane);
 int drm_format_plane_height(int height, uint32_t format, int plane);
 unsigned int drm_format_info_block_width(const struct drm_format_info *info,

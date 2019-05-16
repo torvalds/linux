@@ -782,6 +782,7 @@ static void get_roi(struct drm_crtc *crtc, uint32_t *roi_w, uint32_t *roi_h)
 
 static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 {
+	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_ARGB8888);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
@@ -800,7 +801,7 @@ static void mdp5_crtc_restore_cursor(struct drm_crtc *crtc)
 	width = mdp5_crtc->cursor.width;
 	height = mdp5_crtc->cursor.height;
 
-	stride = width * drm_format_plane_cpp(DRM_FORMAT_ARGB8888, 0);
+	stride = width * drm_format_info_plane_cpp(info, 0);
 
 	get_roi(crtc, &roi_w, &roi_h);
 

@@ -222,7 +222,7 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 		cma_obj = drm_fb_cma_get_gem_obj(fb, i);
 		paddr = cma_obj->paddr + fb->offsets[i];
 		paddr += src_y * fb->pitches[i];
-		paddr += src_x * drm_format_plane_cpp(format, i);
+		paddr += src_x * drm_format_info_plane_cpp(fb->format, i);
 		zx_writel(paddr_reg, paddr);
 		paddr_reg += 4;
 	}
