@@ -562,6 +562,9 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_interleaved(
 		desc->sg[0].y_len = 1;
 	}
 
+	if (flags & DMA_CYCLIC)
+		desc->cyclic = true;
+
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
 }
 
