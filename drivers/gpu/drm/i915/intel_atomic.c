@@ -105,6 +105,16 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 	return -EINVAL;
 }
 
+static bool blob_equal(const struct drm_property_blob *a,
+		       const struct drm_property_blob *b)
+{
+	if (a && b)
+		return a->length == b->length &&
+			!memcmp(a->data, b->data, a->length);
+
+	return !a == !b;
+}
+
 int intel_digital_connector_atomic_check(struct drm_connector *conn,
 					 struct drm_connector_state *new_state)
 {
@@ -132,7 +142,9 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	    new_conn_state->base.colorspace != old_conn_state->base.colorspace ||
 	    new_conn_state->base.picture_aspect_ratio != old_conn_state->base.picture_aspect_ratio ||
 	    new_conn_state->base.content_type != old_conn_state->base.content_type ||
-	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode)
+	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode ||
+	    !blob_equal(new_conn_state->base.hdr_output_metadata,
+			old_conn_state->base.hdr_output_metadata))
 		crtc_state->mode_changed = true;
 
 	return 0;
