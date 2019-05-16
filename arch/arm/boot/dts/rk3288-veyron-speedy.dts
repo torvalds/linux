@@ -64,6 +64,10 @@
 	temperature = <70000>;
 };
 
+&cpu_crit {
+	temperature = <90000>;
+};
+
 &edp {
 	/delete-property/pinctrl-names;
 	/delete-property/pinctrl-0;
