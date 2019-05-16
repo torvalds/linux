@@ -596,6 +596,11 @@ static int nv_common_early_init(void *handle)
 			AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x1; /* ??? */
 		break;
+	case CHIP_NAVI12:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0xa;
+		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
