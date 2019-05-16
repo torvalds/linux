@@ -333,22 +333,6 @@ drm_get_format_info(struct drm_device *dev,
 EXPORT_SYMBOL(drm_get_format_info);
 
 /**
- * drm_format_num_planes - get the number of planes for format
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The number of planes used by the specified pixel format.
- */
-int drm_format_num_planes(uint32_t format)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	return info ? info->num_planes : 1;
-}
-EXPORT_SYMBOL(drm_format_num_planes);
-
-/**
  * drm_format_plane_cpp - determine the bytes per pixel value
  * @format: pixel format (DRM_FORMAT_*)
  * @plane: plane index

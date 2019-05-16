@@ -131,6 +131,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 					struct drm_file *file,
 					const struct drm_mode_fb_cmd2 *cmd)
 {
+	const struct drm_format_info *info = drm_get_format_info(drm, cmd);
 	unsigned int hsub, vsub, i;
 	struct tegra_bo *planes[4];
 	struct drm_gem_object *gem;
@@ -140,7 +141,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 	hsub = drm_format_horz_chroma_subsampling(cmd->pixel_format);
 	vsub = drm_format_vert_chroma_subsampling(cmd->pixel_format);
 
-	for (i = 0; i < drm_format_num_planes(cmd->pixel_format); i++) {
+	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = cmd->width / (i ? hsub : 1);
 		unsigned int height = cmd->height / (i ? vsub : 1);
 		unsigned int size, bpp;

@@ -458,7 +458,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 	}
 
 	/* Update Canvas with buffer address */
-	priv->viu.vd1_planes = drm_format_num_planes(fb->format->format);
+	priv->viu.vd1_planes = fb->format->num_planes;
 
 	switch (priv->viu.vd1_planes) {
 	case 3:

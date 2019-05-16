@@ -298,7 +298,9 @@ void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	unsigned int num_planes = drm_format_num_planes(mode_cmd->pixel_format);
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 mode_cmd);
+	unsigned int num_planes = info->num_planes;
 	struct drm_gem_object *bos[4];
 	struct drm_framebuffer *fb;
 	int i;

@@ -74,19 +74,19 @@ static struct drm_framebuffer *
 rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 mode_cmd);
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *objs[ROCKCHIP_MAX_FB_BUFFER];
 	struct drm_gem_object *obj;
 	unsigned int hsub;
 	unsigned int vsub;
-	int num_planes;
+	int num_planes = min_t(int, info->num_planes, ROCKCHIP_MAX_FB_BUFFER);
 	int ret;
 	int i;
 
 	hsub = drm_format_horz_chroma_subsampling(mode_cmd->pixel_format);
 	vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
-	num_planes = min(drm_format_num_planes(mode_cmd->pixel_format),
-			 ROCKCHIP_MAX_FB_BUFFER);
 
 	for (i = 0; i < num_planes; i++) {
 		unsigned int width = mode_cmd->width / (i ? hsub : 1);

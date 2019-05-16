@@ -106,9 +106,11 @@ const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb)
 struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 mode_cmd);
 	struct drm_gem_object *bos[4] = {0};
 	struct drm_framebuffer *fb;
-	int ret, i, n = drm_format_num_planes(mode_cmd->pixel_format);
+	int ret, i, n = info->num_planes;
 
 	for (i = 0; i < n; i++) {
 		bos[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
@@ -135,6 +137,8 @@ out_unref:
 static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 mode_cmd);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	struct msm_framebuffer *msm_fb = NULL;
@@ -147,7 +151,7 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 			dev, mode_cmd, mode_cmd->width, mode_cmd->height,
 			(char *)&mode_cmd->pixel_format);
 
-	n = drm_format_num_planes(mode_cmd->pixel_format);
+	n = info->num_planes;
 	hsub = drm_format_horz_chroma_subsampling(mode_cmd->pixel_format);
 	vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
 

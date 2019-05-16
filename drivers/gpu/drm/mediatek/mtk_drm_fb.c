@@ -32,10 +32,11 @@ static struct drm_framebuffer *mtk_drm_framebuffer_init(struct drm_device *dev,
 					const struct drm_mode_fb_cmd2 *mode,
 					struct drm_gem_object *obj)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev, mode);
 	struct drm_framebuffer *fb;
 	int ret;
 
-	if (drm_format_num_planes(mode->pixel_format) != 1)
+	if (info->num_planes != 1)
 		return ERR_PTR(-EINVAL);
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
@@ -88,6 +89,7 @@ struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 					       struct drm_file *file,
 					       const struct drm_mode_fb_cmd2 *cmd)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev, cmd);
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *gem;
 	unsigned int width = cmd->width;
@@ -95,7 +97,7 @@ struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 	unsigned int size, bpp;
 	int ret;
 
-	if (drm_format_num_planes(cmd->pixel_format) != 1)
+	if (info->num_planes != 1)
 		return ERR_PTR(-EINVAL);
 
 	gem = drm_gem_object_lookup(file, cmd->handles[0]);
