@@ -12569,6 +12569,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	PIPE_CONF_CHECK_INFOFRAME(avi);
 	PIPE_CONF_CHECK_INFOFRAME(spd);
 	PIPE_CONF_CHECK_INFOFRAME(hdmi);
+	PIPE_CONF_CHECK_INFOFRAME(drm);
 
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
