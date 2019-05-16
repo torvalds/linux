@@ -403,12 +403,12 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 	/* common for all regulators */
 	tps->mfd = tps6507x_dev;
 
-	for (i = 0; i < TPS6507X_NUM_REGULATOR; i++, info++, init_data++) {
+	for (i = 0; i < TPS6507X_NUM_REGULATOR; i++, info++) {
 		/* Register the regulators */
 		tps->info[i] = info;
-		if (init_data && init_data->driver_data) {
+		if (init_data && init_data[i].driver_data) {
 			struct tps6507x_reg_platform_data *data =
-					init_data->driver_data;
+					init_data[i].driver_data;
 			info->defdcdc_default = data->defdcdc_default;
 		}
 
