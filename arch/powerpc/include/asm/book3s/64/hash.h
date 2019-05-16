@@ -93,6 +93,7 @@
 #define VMALLOC_REGION_ID	NON_LINEAR_REGION_ID(H_VMALLOC_START)
 #define IO_REGION_ID		NON_LINEAR_REGION_ID(H_KERN_IO_START)
 #define VMEMMAP_REGION_ID	NON_LINEAR_REGION_ID(H_VMEMMAP_START)
+#define INVALID_REGION_ID	(VMEMMAP_REGION_ID + 1)
 
 /*
  * Defines the address of the vmemap area, in its own region on
@@ -118,6 +119,9 @@ static inline int get_region_id(unsigned long ea)
 
 	if (id == 0)
 		return USER_REGION_ID;
+
+	if (id != (PAGE_OFFSET >> 60))
+		return INVALID_REGION_ID;
 
 	if (ea < H_KERN_VIRT_START)
 		return LINEAR_MAP_REGION_ID;
