@@ -295,8 +295,6 @@ static long copy_ccw_from_iova(struct channel_program *cp,
 #define ccw_is_read_backward(_ccw) (((_ccw)->cmd_code & 0x0F) == 0x0C)
 #define ccw_is_sense(_ccw) (((_ccw)->cmd_code & 0x0F) == CCW_CMD_BASIC_SENSE)
 
-#define ccw_is_test(_ccw) (((_ccw)->cmd_code & 0x0F) == 0)
-
 #define ccw_is_noop(_ccw) ((_ccw)->cmd_code == CCW_CMD_NOOP)
 
 #define ccw_is_tic(_ccw) ((_ccw)->cmd_code == CCW_CMD_TIC)
@@ -318,6 +316,10 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 {
 	/* If the count field is zero, then no data will be transferred */
 	if (ccw->count == 0)
+		return 0;
+
+	/* If the command is a NOP, then no data will be transferred */
+	if (ccw_is_noop(ccw))
 		return 0;
 
 	/* If the skip flag is off, then data will be transferred */
@@ -404,7 +406,7 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
 {
 	struct ccw1 *ccw = chain->ch_ccw + idx;
 
-	if (ccw_is_test(ccw) || ccw_is_noop(ccw) || ccw_is_tic(ccw))
+	if (ccw_is_tic(ccw))
 		return;
 
 	kfree((void *)(u64)ccw->cda);
@@ -729,9 +731,6 @@ static int ccwchain_fetch_one(struct ccwchain *chain,
 			      struct channel_program *cp)
 {
 	struct ccw1 *ccw = chain->ch_ccw + idx;
-
-	if (ccw_is_test(ccw) || ccw_is_noop(ccw))
-		return 0;
 
 	if (ccw_is_tic(ccw))
 		return ccwchain_fetch_tic(chain, idx, cp);
