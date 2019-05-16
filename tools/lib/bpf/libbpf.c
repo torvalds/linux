@@ -43,7 +43,6 @@
 #include "bpf.h"
 #include "btf.h"
 #include "str_error.h"
-#include "libbpf_util.h"
 #include "libbpf_internal.h"
 
 #ifndef EM_BPF
