@@ -2115,6 +2115,7 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 	call->upgrade = true;
 	call->want_reply_time = true;
 	call->async = true;
+	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
 
 	/* marshall the parameters */
 	bp = call->request;

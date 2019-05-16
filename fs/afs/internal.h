@@ -131,6 +131,7 @@ struct afs_call {
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
 	u32			epoch;
+	unsigned int		max_lifespan;	/* Maximum lifespan to set if not 0 */
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		first_offset;	/* offset into mapping[first] */

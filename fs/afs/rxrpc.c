@@ -426,6 +426,10 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 
 	call->rxcall = rxcall;
 
+	if (call->max_lifespan)
+		rxrpc_kernel_set_max_life(call->net->socket, rxcall,
+					  call->max_lifespan);
+
 	/* send the request */
 	iov[0].iov_base	= call->request;
 	iov[0].iov_len	= call->request_size;
