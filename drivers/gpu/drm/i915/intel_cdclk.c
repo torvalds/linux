@@ -2801,28 +2801,22 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = cnl_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			cnl_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
 	} else if (IS_GEN9_LP(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			bxt_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 	} else if (IS_GEN9_BC(dev_priv)) {
 		dev_priv->display.set_cdclk = skl_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			skl_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = skl_modeset_calc_cdclk;
 	} else if (IS_BROADWELL(dev_priv)) {
 		dev_priv->display.set_cdclk = bdw_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			bdw_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bdw_modeset_calc_cdclk;
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.set_cdclk = chv_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			vlv_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = vlv_modeset_calc_cdclk;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		dev_priv->display.set_cdclk = vlv_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			vlv_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = vlv_modeset_calc_cdclk;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 11)
