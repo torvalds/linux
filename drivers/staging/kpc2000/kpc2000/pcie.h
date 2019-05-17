@@ -93,18 +93,4 @@ extern struct file_operations  kp2000_fops;
 // Define this quick little macro because the expression is used frequently
 #define PCARD_TO_DEV(pcard)  (&(pcard->pdev->dev))
 
-static inline void
-lock_card(struct kp2000_device *pcard)
-{
-    BUG_ON(pcard == NULL);
-    mutex_lock(&pcard->sem);
-}
-static inline void
-unlock_card(struct kp2000_device *pcard)
-{
-    BUG_ON(pcard == NULL);
-    mutex_unlock(&pcard->sem);
-}
-
-
 #endif /* KP2000_PCIE_H */

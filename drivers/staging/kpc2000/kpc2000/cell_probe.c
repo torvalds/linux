@@ -243,7 +243,7 @@ int kuio_irqcontrol(struct uio_info *uioinfo, s32 irq_on)
     struct kp2000_device *pcard = kudev->pcard;
     u64 mask;
 
-    lock_card(pcard);
+	mutex_lock(&pcard->sem);
     mask = readq(pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
     if (irq_on){
         mask &= ~(1 << (kudev->cte.irq_base_num));
@@ -251,7 +251,7 @@ int kuio_irqcontrol(struct uio_info *uioinfo, s32 irq_on)
         mask |= (1 << (kudev->cte.irq_base_num));
     }
     writeq(mask, pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
-    unlock_card(pcard);
+	mutex_unlock(&pcard->sem);
 
     return 0;
 }

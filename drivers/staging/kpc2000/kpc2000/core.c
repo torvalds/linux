@@ -228,7 +228,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
     scnprintf(pcard->name, 16, "kpcard%d", pcard->card_num);
 
     mutex_init(&pcard->sem);
-    lock_card(pcard);
+	mutex_lock(&pcard->sem);
 
     pcard->pdev = pdev;
     pci_set_drvdata(pdev, pcard);
@@ -376,7 +376,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
     //}
 
     dev_dbg(&pcard->pdev->dev, "kp2000_pcie_probe() complete!\n");
-    unlock_card(pcard);
+	mutex_unlock(&pcard->sem);
     return 0;
 
   out11:
@@ -400,7 +400,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
   out4:
     pci_disable_device(pcard->pdev);
   out3:
-    unlock_card(pcard);
+	mutex_unlock(&pcard->sem);
     kfree(pcard);
     return err;
 }
@@ -414,7 +414,7 @@ static void kp2000_pcie_remove(struct pci_dev *pdev)
 
     if (pcard == NULL)  return;
 
-    lock_card(pcard);
+	mutex_lock(&pcard->sem);
     kp2000_remove_cores(pcard);
     mfd_remove_devices(PCARD_TO_DEV(pcard));
     misc_deregister(&pcard->miscdev);
@@ -433,7 +433,7 @@ static void kp2000_pcie_remove(struct pci_dev *pdev)
     }
     pci_disable_device(pcard->pdev);
     pci_set_drvdata(pdev, NULL);
-    unlock_card(pcard);
+	mutex_unlock(&pcard->sem);
     kfree(pcard);
 }
 
