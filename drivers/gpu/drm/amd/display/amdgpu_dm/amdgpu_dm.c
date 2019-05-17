@@ -4588,6 +4588,15 @@ static void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
 		amdgpu_dm_connector->num_modes =
 				drm_add_edid_modes(connector, edid);
 
+		/* sorting the probed modes before calling function
+		 * amdgpu_dm_get_native_mode() since EDID can have
+		 * more than one preferred mode. The modes that are
+		 * later in the probed mode list could be of higher
+		 * and preferred resolution. For example, 3840x2160
+		 * resolution in base EDID preferred timing and 4096x2160
+		 * preferred resolution in DID extension block later.
+		 */
+		drm_mode_sort(&connector->probed_modes);
 		amdgpu_dm_get_native_mode(connector);
 	} else {
 		amdgpu_dm_connector->num_modes = 0;
