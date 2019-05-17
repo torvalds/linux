@@ -91,6 +91,17 @@ config COMMON_CLK_SCPI
 	  This driver uses SCPI Message Protocol to interact with the
 	  firmware providing all the clock controls.
 
+config COMMON_CLK_SI5341
+	tristate "Clock driver for SiLabs 5341 and 5340 A/B/C/D devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Silicon Labs Si5341 and Si5340 programmable clock
+	  generators. Not all features of these chips are currently supported
+	  by the driver, in particular it only supports XTAL input. The chip can
+	  be pre-programmed to support other configurations and features not yet
+	  implemented in the driver.
+
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
