@@ -5325,19 +5325,9 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans)
 
 static inline int btrfs_chunk_max_errors(struct map_lookup *map)
 {
-	int max_errors;
+	const int index = btrfs_bg_flags_to_raid_index(map->type);
 
-	if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
-			 BTRFS_BLOCK_GROUP_RAID10 |
-			 BTRFS_BLOCK_GROUP_RAID5)) {
-		max_errors = 1;
-	} else if (map->type & BTRFS_BLOCK_GROUP_RAID6) {
-		max_errors = 2;
-	} else {
-		max_errors = 0;
-	}
-
-	return max_errors;
+	return btrfs_raid_array[index].tolerated_failures;
 }
 
 int btrfs_chunk_readonly(struct btrfs_fs_info *fs_info, u64 chunk_offset)
