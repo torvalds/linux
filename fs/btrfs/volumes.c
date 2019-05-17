@@ -4080,11 +4080,12 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE | BTRFS_BLOCK_GROUP_DUP;
 	if (num_devices > 1)
 		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1);
-	if (num_devices > 2)
+	if (num_devices >= 2)
 		allowed |= BTRFS_BLOCK_GROUP_RAID5;
+	if (num_devices >= 3)
+		allowed |= BTRFS_BLOCK_GROUP_RAID6;
 	if (num_devices > 3)
-		allowed |= (BTRFS_BLOCK_GROUP_RAID10 |
-			    BTRFS_BLOCK_GROUP_RAID6);
+		allowed |= BTRFS_BLOCK_GROUP_RAID10;
 	if (validate_convert_profile(&bctl->data, allowed)) {
 		int index = btrfs_bg_flags_to_raid_index(bctl->data.target);
 
