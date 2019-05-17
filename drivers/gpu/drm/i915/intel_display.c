@@ -13087,31 +13087,30 @@ static void update_scanline_offset(const struct intel_crtc_state *crtc_state)
 		crtc->scanline_offset = 1;
 }
 
-static void intel_modeset_clear_plls(struct drm_atomic_state *state)
+static void intel_modeset_clear_plls(struct intel_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc *crtc;
 	int i;
 
 	if (!dev_priv->display.crtc_compute_clock)
 		return;
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
 		struct intel_shared_dpll *old_dpll =
-			to_intel_crtc_state(old_crtc_state)->shared_dpll;
+			old_crtc_state->shared_dpll;
 
-		if (!needs_modeset(new_crtc_state))
+		if (!needs_modeset(&new_crtc_state->base))
 			continue;
 
-		to_intel_crtc_state(new_crtc_state)->shared_dpll = NULL;
+		new_crtc_state->shared_dpll = NULL;
 
 		if (!old_dpll)
 			continue;
 
-		intel_release_shared_dpll(old_dpll, intel_crtc, state);
+		intel_release_shared_dpll(old_dpll, crtc, &state->base);
 	}
 }
 
@@ -13329,7 +13328,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 			      intel_state->cdclk.actual.voltage_level);
 	}
 
-	intel_modeset_clear_plls(state);
+	intel_modeset_clear_plls(intel_state);
 
 	if (IS_HASWELL(dev_priv))
 		return haswell_mode_set_planes_workaround(state);
