@@ -55,6 +55,11 @@ static const struct pci_device_id hpwdt_blacklist[] = {
 /*
  *	Watchdog operations
  */
+static int hpwdt_hw_is_running(void)
+{
+	return ioread8(hpwdt_timer_con) & 0x01;
+}
+
 static int hpwdt_start(struct watchdog_device *wdd)
 {
 	int control = 0x81 | (pretimeout ? 0x4 : 0);
@@ -298,8 +303,11 @@ static int hpwdt_init_one(struct pci_dev *dev,
 	hpwdt_timer_reg = pci_mem_addr + 0x70;
 	hpwdt_timer_con = pci_mem_addr + 0x72;
 
-	/* Make sure that timer is disabled until /dev/watchdog is opened */
-	hpwdt_stop();
+	/* Have the core update running timer until user space is ready */
+	if (hpwdt_hw_is_running()) {
+		dev_info(&dev->dev, "timer is running\n");
+		set_bit(WDOG_HW_RUNNING, &hpwdt_dev.status);
+	}
 
 	/* Initialize NMI Decoding functionality */
 	retval = hpwdt_init_nmi_decoding(dev);
