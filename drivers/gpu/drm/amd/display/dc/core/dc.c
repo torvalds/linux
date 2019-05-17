@@ -1062,7 +1062,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (result != DC_OK)
 		return result;
 
-	if (context->stream_count > 1) {
+	if (context->stream_count > 1 && !dc->debug.disable_timing_sync) {
 		enable_timing_multisync(dc, context);
 		program_timing_sync(dc, context);
 	}

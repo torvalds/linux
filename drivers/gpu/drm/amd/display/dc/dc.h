@@ -378,6 +378,7 @@ struct dc_debug_options {
 	 * watermarks are not affected.
 	 */
 	unsigned int force_min_dcfclk_mhz;
+	bool disable_timing_sync;
 };
 
 struct dc_debug_data {
