@@ -215,6 +215,7 @@ struct rk3308_codec_priv {
 	bool enable_micbias;
 	bool micbias1;
 	bool micbias2;
+	bool hp_jack_reversed;
 	bool hp_plugged;
 	bool loopback_dacs_enabled;
 	bool no_deep_low_power;
@@ -4119,13 +4120,26 @@ static void rk3308_codec_hpdetect_work(struct work_struct *work)
 		regmap_write(rk3308->detect_grf,
 			     DETECT_GRF_ACODEC_HPDET_STATUS_CLR, val);
 
-		switch (val) {
-		case 0x1:
-			dac_output = DAC_HPOUT;
-			report_type = SND_JACK_HEADPHONE;
-			break;
-		default:
-			break;
+		if (rk3308->hp_jack_reversed) {
+			switch (val) {
+			case 0x0:
+			case 0x2:
+				dac_output = DAC_HPOUT;
+				report_type = SND_JACK_HEADPHONE;
+				break;
+			default:
+				break;
+			}
+		} else {
+			switch (val) {
+			case 0x1:
+				dac_output = DAC_HPOUT;
+				report_type = SND_JACK_HEADPHONE;
+				break;
+			default:
+				/* Includes val == 2 or others. */
+				break;
+			}
 		}
 
 		rk3308_codec_dac_switch(rk3308, dac_output);
@@ -4141,18 +4155,35 @@ static void rk3308_codec_hpdetect_work(struct work_struct *work)
 
 	/* Check headphone unplugged via poll. */
 	regmap_read(rk3308->regmap, RK3308_DAC_DIG_CON14, &val);
-	if (!val) {
-		rk3308->hp_plugged = false;
 
-		need_report = 1;
-		need_irq = 1;
-	} else {
-		if (!rk3308->hp_plugged) {
+	if (rk3308->hp_jack_reversed) {
+		if (!val) {
 			rk3308->hp_plugged = true;
 			report_type = SND_JACK_HEADPHONE;
+
 			need_report = 1;
+			need_irq = 1;
+		} else {
+			if (rk3308->hp_plugged) {
+				rk3308->hp_plugged = false;
+				need_report = 1;
+			}
+			need_poll = 1;
 		}
-		need_poll = 1;
+	} else {
+		if (!val) {
+			rk3308->hp_plugged = false;
+
+			need_report = 1;
+			need_irq = 1;
+		} else {
+			if (!rk3308->hp_plugged) {
+				rk3308->hp_plugged = true;
+				report_type = SND_JACK_HEADPHONE;
+				need_report = 1;
+			}
+			need_poll = 1;
+		}
 	}
 
 	if (need_poll)
@@ -4226,6 +4257,11 @@ void rk3308_codec_set_jack_detect(struct snd_soc_codec *codec,
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 
 	rk3308->hpdet_jack = hpdet_jack;
+
+	/* To detect jack once during startup */
+	disable_irq_nosync(rk3308->irq);
+	queue_delayed_work(system_power_efficient_wq,
+			   &rk3308->hpdet_work, msecs_to_jiffies(10));
 }
 EXPORT_SYMBOL_GPL(rk3308_codec_set_jack_detect);
 
@@ -4818,6 +4854,9 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 
 	rk3308->enable_all_adcs =
 		of_property_read_bool(np, "rockchip,enable-all-adcs");
+
+	rk3308->hp_jack_reversed =
+		of_property_read_bool(np, "rockchip,hp-jack-reversed");
 
 	rk3308->no_deep_low_power =
 		of_property_read_bool(np, "rockchip,no-deep-low-power");
