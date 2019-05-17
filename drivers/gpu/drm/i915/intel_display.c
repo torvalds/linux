@@ -13222,38 +13222,37 @@ static int intel_modeset_all_pipes(struct drm_atomic_state *state)
 	return 0;
 }
 
-static int intel_modeset_checks(struct drm_atomic_state *state)
+static int intel_modeset_checks(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc *crtc;
 	int ret = 0, i;
 
-	if (!check_digital_port_conflicts(intel_state)) {
+	if (!check_digital_port_conflicts(state)) {
 		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
 		return -EINVAL;
 	}
 
 	/* keep the current setting */
-	if (!intel_state->cdclk.force_min_cdclk_changed)
-		intel_state->cdclk.force_min_cdclk =
-			dev_priv->cdclk.force_min_cdclk;
+	if (!state->cdclk.force_min_cdclk_changed)
+		state->cdclk.force_min_cdclk = dev_priv->cdclk.force_min_cdclk;
 
-	intel_state->modeset = true;
-	intel_state->active_crtcs = dev_priv->active_crtcs;
-	intel_state->cdclk.logical = dev_priv->cdclk.logical;
-	intel_state->cdclk.actual = dev_priv->cdclk.actual;
-	intel_state->cdclk.pipe = INVALID_PIPE;
+	state->modeset = true;
+	state->active_crtcs = dev_priv->active_crtcs;
+	state->cdclk.logical = dev_priv->cdclk.logical;
+	state->cdclk.actual = dev_priv->cdclk.actual;
+	state->cdclk.pipe = INVALID_PIPE;
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		if (new_crtc_state->active)
-			intel_state->active_crtcs |= 1 << i;
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (new_crtc_state->base.active)
+			state->active_crtcs |= 1 << i;
 		else
-			intel_state->active_crtcs &= ~(1 << i);
+			state->active_crtcs &= ~(1 << i);
 
-		if (old_crtc_state->active != new_crtc_state->active)
-			intel_state->active_pipe_changes |= drm_crtc_mask(crtc);
+		if (old_crtc_state->base.active != new_crtc_state->base.active)
+			state->active_pipe_changes |= drm_crtc_mask(&crtc->base);
 	}
 
 	/*
@@ -13266,7 +13265,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	if (dev_priv->display.modeset_calc_cdclk) {
 		enum pipe pipe;
 
-		ret = dev_priv->display.modeset_calc_cdclk(intel_state);
+		ret = dev_priv->display.modeset_calc_cdclk(state);
 		if (ret < 0)
 			return ret;
 
@@ -13276,19 +13275,19 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 		 * touching the hardware
 		 */
 		if (intel_cdclk_changed(&dev_priv->cdclk.logical,
-					&intel_state->cdclk.logical)) {
-			ret = intel_lock_all_pipes(state);
+					&state->cdclk.logical)) {
+			ret = intel_lock_all_pipes(&state->base);
 			if (ret < 0)
 				return ret;
 		}
 
-		if (is_power_of_2(intel_state->active_crtcs)) {
+		if (is_power_of_2(state->active_crtcs)) {
 			struct drm_crtc *crtc;
 			struct drm_crtc_state *crtc_state;
 
-			pipe = ilog2(intel_state->active_crtcs);
+			pipe = ilog2(state->active_crtcs);
 			crtc = &intel_get_crtc_for_pipe(dev_priv, pipe)->base;
-			crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+			crtc_state = drm_atomic_get_new_crtc_state(&state->base, crtc);
 			if (crtc_state && needs_modeset(crtc_state))
 				pipe = INVALID_PIPE;
 		} else {
@@ -13299,33 +13298,33 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 		if (pipe != INVALID_PIPE &&
 		    intel_cdclk_needs_cd2x_update(dev_priv,
 						  &dev_priv->cdclk.actual,
-						  &intel_state->cdclk.actual)) {
-			ret = intel_lock_all_pipes(state);
+						  &state->cdclk.actual)) {
+			ret = intel_lock_all_pipes(&state->base);
 			if (ret < 0)
 				return ret;
 
-			intel_state->cdclk.pipe = pipe;
+			state->cdclk.pipe = pipe;
 		} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
-						     &intel_state->cdclk.actual)) {
-			ret = intel_modeset_all_pipes(state);
+						     &state->cdclk.actual)) {
+			ret = intel_modeset_all_pipes(&state->base);
 			if (ret < 0)
 				return ret;
 
-			intel_state->cdclk.pipe = INVALID_PIPE;
+			state->cdclk.pipe = INVALID_PIPE;
 		}
 
 		DRM_DEBUG_KMS("New cdclk calculated to be logical %u kHz, actual %u kHz\n",
-			      intel_state->cdclk.logical.cdclk,
-			      intel_state->cdclk.actual.cdclk);
+			      state->cdclk.logical.cdclk,
+			      state->cdclk.actual.cdclk);
 		DRM_DEBUG_KMS("New voltage level calculated to be logical %u, actual %u\n",
-			      intel_state->cdclk.logical.voltage_level,
-			      intel_state->cdclk.actual.voltage_level);
+			      state->cdclk.logical.voltage_level,
+			      state->cdclk.actual.voltage_level);
 	}
 
-	intel_modeset_clear_plls(intel_state);
+	intel_modeset_clear_plls(state);
 
 	if (IS_HASWELL(dev_priv))
-		return haswell_mode_set_planes_workaround(intel_state);
+		return haswell_mode_set_planes_workaround(state);
 
 	return 0;
 }
@@ -13414,7 +13413,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		return ret;
 
 	if (any_ms) {
-		ret = intel_modeset_checks(state);
+		ret = intel_modeset_checks(intel_state);
 
 		if (ret)
 			return ret;
