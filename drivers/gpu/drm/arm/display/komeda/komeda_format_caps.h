@@ -50,7 +50,6 @@
  *
  * @hw_id: hw format id, hw specific value.
  * @fourcc: drm fourcc format.
- * @tile_size: format tiled size, used by ARM format X0L0/X0L2
  * @supported_layer_types: indicate which layer supports this format
  * @supported_rots: allowed rotations for this format
  * @supported_afbc_layouts: supported afbc layerout
@@ -59,7 +58,6 @@
 struct komeda_format_caps {
 	u32 hw_id;
 	u32 fourcc;
-	u32 tile_size;
 	u32 supported_layer_types;
 	u32 supported_rots;
 	u32 supported_afbc_layouts;

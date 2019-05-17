@@ -163,6 +163,30 @@ static inline u32 to_d71_input_id(struct komeda_component_output *output)
 	return comp ? (comp->hw_id + output->output_port) : 0;
 }
 
+static void d71_layer_update_fb(struct komeda_component *c,
+				struct komeda_fb *kfb,
+				dma_addr_t *addr)
+{
+	struct drm_framebuffer *fb = &kfb->base;
+	const struct drm_format_info *info = fb->format;
+	u32 __iomem *reg = c->reg;
+	int block_h;
+
+	if (info->num_planes > 2)
+		malidp_write64(reg, BLK_P2_PTR_LOW, addr[2]);
+
+	if (info->num_planes > 1) {
+		block_h = drm_format_info_block_height(info, 1);
+		malidp_write32(reg, BLK_P1_STRIDE, fb->pitches[1] * block_h);
+		malidp_write64(reg, BLK_P1_PTR_LOW, addr[1]);
+	}
+
+	block_h = drm_format_info_block_height(info, 0);
+	malidp_write32(reg, BLK_P0_STRIDE, fb->pitches[0] * block_h);
+	malidp_write64(reg, BLK_P0_PTR_LOW, addr[0]);
+	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);
+}
+
 static void d71_layer_disable(struct komeda_component *c)
 {
 	malidp_write32_mask(c->reg, BLK_CONTROL, L_EN, 0);
@@ -178,22 +202,8 @@ static void d71_layer_update(struct komeda_component *c,
 	u32 __iomem *reg = c->reg;
 	u32 ctrl_mask = L_EN | L_ROT(L_ROT_R270) | L_HFLIP | L_VFLIP | L_TBU_EN;
 	u32 ctrl = L_EN | to_rot_ctrl(st->rot);
-	int i;
 
-	for (i = 0; i < fb->format->num_planes; i++) {
-		malidp_write32(reg,
-			       BLK_P0_PTR_LOW + i * LAYER_PER_PLANE_REGS * 4,
-			       lower_32_bits(st->addr[i]));
-		malidp_write32(reg,
-			       BLK_P0_PTR_HIGH + i * LAYER_PER_PLANE_REGS * 4,
-			       upper_32_bits(st->addr[i]));
-		if (i >= 2)
-			break;
-
-		malidp_write32(reg,
-			       BLK_P0_STRIDE + i * LAYER_PER_PLANE_REGS * 4,
-			       fb->pitches[i] & 0xFFFF);
-	}
+	d71_layer_update_fb(c, kfb, st->addr);
 
 	malidp_write32(reg, AD_CONTROL, to_ad_ctrl(fb->modifier));
 	if (fb->modifier) {
@@ -247,7 +257,6 @@ static void d71_layer_update(struct komeda_component *c,
 					plane_st->color_range));
 	}
 
-	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);
 	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize, st->vsize));
 
 	if (kfb->is_va)
@@ -369,26 +378,15 @@ static void d71_wb_layer_update(struct komeda_component *c,
 {
 	struct komeda_layer_state *st = to_layer_st(state);
 	struct drm_connector_state *conn_st = state->wb_conn->state;
-	struct drm_framebuffer *fb = conn_st->writeback_job->fb;
-	struct komeda_fb *kfb = to_kfb(fb);
-	u32 __iomem *reg = c->reg;
+	struct komeda_fb *kfb = to_kfb(conn_st->writeback_job->fb);
 	u32 ctrl = L_EN | LW_OFM, mask = L_EN | LW_OFM | LW_TBU_EN;
-	int i;
+	u32 __iomem *reg = c->reg;
 
-	for (i = 0; i < fb->format->num_planes; i++) {
-		malidp_write32(reg + i * LAYER_PER_PLANE_REGS, BLK_P0_PTR_LOW,
-			       lower_32_bits(st->addr[i]));
-		malidp_write32(reg + i * LAYER_PER_PLANE_REGS, BLK_P0_PTR_HIGH,
-			       upper_32_bits(st->addr[i]));
-
-		malidp_write32(reg + i * LAYER_PER_PLANE_REGS, BLK_P0_STRIDE,
-			       fb->pitches[i] & 0xFFFF);
-	}
+	d71_layer_update_fb(c, kfb, st->addr);
 
 	if (kfb->is_va)
 		ctrl |= LW_TBU_EN;
 
-	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);
 	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize, st->vsize));
 	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(&state->inputs[0]));
 	malidp_write32_mask(reg, BLK_CONTROL, mask, ctrl);
