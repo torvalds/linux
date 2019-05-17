@@ -6,7 +6,6 @@
 kapi := arch/$(ARCH)/include/generated/asm
 kapi-hdrs-y := $(kapi)/facility-defs.h $(kapi)/dis-defs.h
 
-targets += $(addprefix ../../../,$(kapi-hdrs-y))
 PHONY += kapi
 
 kapi:	$(kapi-hdrs-y)
