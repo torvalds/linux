@@ -12017,9 +12017,9 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 }
 
 static int
-intel_modeset_pipe_config(struct drm_crtc *crtc,
-			  struct intel_crtc_state *pipe_config)
+intel_modeset_pipe_config(struct intel_crtc_state *pipe_config)
 {
+	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_atomic_state *state = pipe_config->base.state;
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
@@ -13386,7 +13386,7 @@ static int intel_atomic_check(struct drm_device *dev,
 			continue;
 		}
 
-		ret = intel_modeset_pipe_config(crtc, pipe_config);
+		ret = intel_modeset_pipe_config(pipe_config);
 		if (ret == -EDEADLK)
 			return ret;
 		if (ret) {
