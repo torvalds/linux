@@ -16,9 +16,6 @@ hostprogs-y		    += gen_opcode_table
 
 HOSTCFLAGS_gen_facilities.o += $(LINUXINCLUDE)
 
-# Ensure output directory exists
-_dummy := $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)')
-
 filechk_facility-defs.h = $(obj)/gen_facilities
 
 filechk_dis-defs.h = \
