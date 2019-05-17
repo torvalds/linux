@@ -671,16 +671,12 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 	r = amdgpu_cs_list_validate(p, &duplicates);
-	if (r) {
-		DRM_ERROR("amdgpu_cs_list_validate(duplicates) failed.\n");
+	if (r)
 		goto error_validate;
-	}
 
 	r = amdgpu_cs_list_validate(p, &p->validated);
-	if (r) {
-		DRM_ERROR("amdgpu_cs_list_validate(validated) failed.\n");
+	if (r)
 		goto error_validate;
-	}
 
 	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved,
 				     p->bytes_moved_vis);
@@ -1383,7 +1379,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r) {
 		if (r == -ENOMEM)
 			DRM_ERROR("Not enough memory for command submission!\n");
-		else if (r != -ERESTARTSYS)
+		else if (r != -ERESTARTSYS && r != -EAGAIN)
 			DRM_ERROR("Failed to process the buffer list %d!\n", r);
 		goto out;
 	}
