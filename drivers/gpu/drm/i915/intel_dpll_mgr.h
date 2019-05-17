@@ -343,7 +343,7 @@ void intel_shared_dpll_swap_state(struct drm_atomic_state *state);
 void intel_shared_dpll_init(struct drm_device *dev);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
-			      struct intel_dpll_hw_state *hw_state);
+			      const struct intel_dpll_hw_state *hw_state);
 int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv);
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);

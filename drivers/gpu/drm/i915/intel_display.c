@@ -11705,17 +11705,19 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 static void intel_dump_crtc_timings(const struct drm_display_mode *mode)
 {
 	DRM_DEBUG_KMS("crtc timings: %d %d %d %d %d %d %d %d %d, "
-			"type: 0x%x flags: 0x%x\n",
-		mode->crtc_clock,
-		mode->crtc_hdisplay, mode->crtc_hsync_start,
-		mode->crtc_hsync_end, mode->crtc_htotal,
-		mode->crtc_vdisplay, mode->crtc_vsync_start,
-		mode->crtc_vsync_end, mode->crtc_vtotal, mode->type, mode->flags);
+		      "type: 0x%x flags: 0x%x\n",
+		      mode->crtc_clock,
+		      mode->crtc_hdisplay, mode->crtc_hsync_start,
+		      mode->crtc_hsync_end, mode->crtc_htotal,
+		      mode->crtc_vdisplay, mode->crtc_vsync_start,
+		      mode->crtc_vsync_end, mode->crtc_vtotal,
+		      mode->type, mode->flags);
 }
 
 static inline void
-intel_dump_m_n_config(struct intel_crtc_state *pipe_config, char *id,
-		      unsigned int lane_count, struct intel_link_m_n *m_n)
+intel_dump_m_n_config(const struct intel_crtc_state *pipe_config,
+		      const char *id, unsigned int lane_count,
+		      const struct intel_link_m_n *m_n)
 {
 	DRM_DEBUG_KMS("%s: lanes: %i; gmch_m: %u, gmch_n: %u, link_m: %u, link_n: %u, tu: %u\n",
 		      id, lane_count,
@@ -11793,7 +11795,7 @@ static const char *output_formats(enum intel_output_format format)
 	return output_format_str[format];
 }
 
-static void intel_dump_pipe_config(struct intel_crtc_state *pipe_config,
+static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 				   const char *context)
 {
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
