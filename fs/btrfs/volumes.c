@@ -4110,11 +4110,16 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	/* allow to reduce meta or sys integrity only if force set */
-	allowed = BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1 |
-			BTRFS_BLOCK_GROUP_RAID10 |
-			BTRFS_BLOCK_GROUP_RAID5 |
-			BTRFS_BLOCK_GROUP_RAID6;
+	/*
+	 * Allow to reduce metadata or system integrity only if force set for
+	 * profiles with redundancy (copies, parity)
+	 */
+	allowed = 0;
+	for (i = 0; i < ARRAY_SIZE(btrfs_raid_array); i++) {
+		if (btrfs_raid_array[i].ncopies >= 2 ||
+		    btrfs_raid_array[i].tolerated_failures >= 1)
+			allowed |= btrfs_raid_array[i].bg_flag;
+	}
 	do {
 		seq = read_seqbegin(&fs_info->profiles_lock);
 
