@@ -3593,6 +3593,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	dev_info(adev->dev, "GPU reset begin!\n");
 
+	cancel_delayed_work_sync(&adev->late_init_work);
+
 	hive = amdgpu_get_xgmi_hive(adev, false);
 
 	/*
