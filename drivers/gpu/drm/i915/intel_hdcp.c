@@ -1402,8 +1402,8 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 		return -EINVAL;
 	}
 
-	device_cnt = HDCP_2_2_DEV_COUNT_HI(rx_info[0]) << 4 ||
-			HDCP_2_2_DEV_COUNT_LO(rx_info[1]);
+	device_cnt = (HDCP_2_2_DEV_COUNT_HI(rx_info[0]) << 4 |
+		      HDCP_2_2_DEV_COUNT_LO(rx_info[1]));
 	if (drm_hdcp_check_ksvs_revoked(dev, msgs.recvid_list.receiver_ids,
 					device_cnt)) {
 		DRM_ERROR("Revoked receiver ID(s) is in list\n");
