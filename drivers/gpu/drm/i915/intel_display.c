@@ -11810,10 +11810,9 @@ static void intel_dump_pipe_config(struct intel_crtc_state *pipe_config,
 		      yesno(pipe_config->base.enable), context);
 
 	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
-	DRM_DEBUG_KMS("output_types: %s (0x%x)\n",
-		      buf, pipe_config->output_types);
-
-	DRM_DEBUG_KMS("output format: %s\n",
+	DRM_DEBUG_KMS("active: %s, output_types: %s (0x%x), output format: %s\n",
+		      yesno(pipe_config->base.active),
+		      buf, pipe_config->output_types,
 		      output_formats(pipe_config->output_format));
 
 	DRM_DEBUG_KMS("cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
@@ -11834,10 +11833,8 @@ static void intel_dump_pipe_config(struct intel_crtc_state *pipe_config,
 					      &pipe_config->dp_m2_n2);
 	}
 
-	DRM_DEBUG_KMS("audio: %i, infoframes: %i\n",
-		      pipe_config->has_audio, pipe_config->has_infoframe);
-
-	DRM_DEBUG_KMS("infoframes enabled: 0x%x\n",
+	DRM_DEBUG_KMS("audio: %i, infoframes: %i, infoframes enabled: 0x%x\n",
+		      pipe_config->has_audio, pipe_config->has_infoframe,
 		      pipe_config->infoframes.enable);
 
 	if (pipe_config->infoframes.enable &
