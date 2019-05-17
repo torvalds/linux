@@ -4047,6 +4047,7 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	u64 num_devices;
 	unsigned seq;
 	bool reducing_integrity;
+	int i;
 
 	if (btrfs_fs_closing(fs_info) ||
 	    atomic_read(&fs_info->balance_pause_req) ||
@@ -4076,16 +4077,11 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 	}
 
 	num_devices = btrfs_num_devices(fs_info);
+	allowed = 0;
+	for (i = 0; i < ARRAY_SIZE(btrfs_raid_array); i++)
+		if (num_devices >= btrfs_raid_array[i].devs_min)
+			allowed |= btrfs_raid_array[i].bg_flag;
 
-	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE | BTRFS_BLOCK_GROUP_DUP;
-	if (num_devices > 1)
-		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1);
-	if (num_devices >= 2)
-		allowed |= BTRFS_BLOCK_GROUP_RAID5;
-	if (num_devices >= 3)
-		allowed |= BTRFS_BLOCK_GROUP_RAID6;
-	if (num_devices > 3)
-		allowed |= BTRFS_BLOCK_GROUP_RAID10;
 	if (validate_convert_profile(&bctl->data, allowed)) {
 		int index = btrfs_bg_flags_to_raid_index(bctl->data.target);
 
