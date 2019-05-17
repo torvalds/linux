@@ -13,7 +13,8 @@
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/clkdev.h>
+#include <linux/clk-provider.h>
+#include <linux/io.h>
 #include "clk.h"
 #include "clk-pll.h"
 

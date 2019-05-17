@@ -18,6 +18,7 @@
 #include <linux/clk-provider.h>
 #include <linux/debugfs.h>
 #include <linux/idr.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

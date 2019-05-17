@@ -6,7 +6,6 @@
 #ifndef __LINUX_CLK_PROVIDER_H
 #define __LINUX_CLK_PROVIDER_H
 
-#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_clk.h>
 

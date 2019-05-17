@@ -8,6 +8,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/slab.h>
