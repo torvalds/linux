@@ -1028,7 +1028,7 @@ patternProperties:
 
   # Normal property name match without a comma
   # These should catch all node/property names without a prefix
-  "^[a-zA-Z0-9#][a-zA-Z0-9+\\-._@]{0,63}$": true
+  "^[a-zA-Z0-9#_][a-zA-Z0-9+\\-._@]{0,63}$": true
   "^[a-zA-Z0-9+\\-._]*@[0-9a-zA-Z,]*$": true
   "^#.*": true
 
