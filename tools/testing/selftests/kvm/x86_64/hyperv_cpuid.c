@@ -89,7 +89,6 @@ struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(struct kvm_vm *vm)
 {
 	int nent = 20; /* should be enough */
 	static struct kvm_cpuid2 *cpuid;
-	int ret;
 
 	cpuid = malloc(sizeof(*cpuid) + nent * sizeof(struct kvm_cpuid_entry2));
 

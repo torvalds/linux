@@ -131,6 +131,7 @@ static void *vcpu_worker(void *data)
 	while (!READ_ONCE(host_quit)) {
 		/* Let the guest dirty the random pages */
 		ret = _vcpu_run(vm, VCPU_ID);
+		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
 		if (get_ucall(vm, VCPU_ID, &uc) == UCALL_SYNC) {
 			pages_count += TEST_PAGES_PER_LOOP;
 			generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
@@ -426,8 +427,11 @@ int main(int argc, char *argv[])
 	unsigned long interval = TEST_HOST_LOOP_INTERVAL;
 	bool mode_selected = false;
 	uint64_t phys_offset = 0;
-	unsigned int mode, host_ipa_limit;
+	unsigned int mode;
 	int opt, i;
+#ifdef __aarch64__
+	unsigned int host_ipa_limit;
+#endif
 
 #ifdef USE_CLEAR_DIRTY_LOG
 	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2)) {
