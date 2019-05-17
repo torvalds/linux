@@ -29,7 +29,7 @@ struct cflayer *cfvidl_create(u8 channel_id, struct dev_info *dev_info)
 	cfsrvl_init(vid, channel_id, dev_info, false);
 	vid->layer.receive = cfvidl_receive;
 	vid->layer.transmit = cfvidl_transmit;
-	snprintf(vid->layer.name, CAIF_LAYER_NAME_SZ - 1, "vid1");
+	snprintf(vid->layer.name, CAIF_LAYER_NAME_SZ, "vid1");
 	return &vid->layer;
 }
 
