@@ -5918,6 +5918,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	u64 stripe_nr;
 	u64 stripe_len;
 	u32 stripe_index;
+	int data_stripes;
 	int i;
 	int ret = 0;
 	int num_stripes;
@@ -5949,6 +5950,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	 * to get to this block
 	 */
 	stripe_nr = div64_u64(stripe_nr, stripe_len);
+	data_stripes = nr_data_stripes(map);
 
 	stripe_offset = stripe_nr * stripe_len;
 	if (offset < stripe_offset) {
@@ -5965,7 +5967,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 
 	/* if we're here for raid56, we need to know the stripe aligned start */
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		unsigned long full_stripe_len = stripe_len * nr_data_stripes(map);
+		unsigned long full_stripe_len = stripe_len * data_stripes;
 		raid56_full_stripe_start = offset;
 
 		/* allow a write of a full stripe, but make sure we don't
@@ -5983,7 +5985,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		   stripe (on a single disk). */
 		if ((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
 		    (op == BTRFS_MAP_WRITE)) {
-			max_len = stripe_len * nr_data_stripes(map) -
+			max_len = stripe_len * data_stripes -
 				(offset - raid56_full_stripe_start);
 		} else {
 			/* we limit the length of each bio to what fits in a stripe */
@@ -6073,7 +6075,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		if (need_raid_map && (need_full_stripe(op) || mirror_num > 1)) {
 			/* push stripe_nr back to the start of the full stripe */
 			stripe_nr = div64_u64(raid56_full_stripe_start,
-					stripe_len * nr_data_stripes(map));
+					stripe_len * data_stripes);
 
 			/* RAID[56] write or recovery. Return all stripes */
 			num_stripes = map->num_stripes;
@@ -6089,10 +6091,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 			 * Mirror #3 is RAID6 Q block.
 			 */
 			stripe_nr = div_u64_rem(stripe_nr,
-					nr_data_stripes(map), &stripe_index);
+					data_stripes, &stripe_index);
 			if (mirror_num > 1)
-				stripe_index = nr_data_stripes(map) +
-						mirror_num - 2;
+				stripe_index = data_stripes + mirror_num - 2;
 
 			/* We distribute the parity blocks across stripes */
 			div_u64_rem(stripe_nr + stripe_index, map->num_stripes,
@@ -6150,8 +6151,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		div_u64_rem(stripe_nr, num_stripes, &rot);
 
 		/* Fill in the logical address of each stripe */
-		tmp = stripe_nr * nr_data_stripes(map);
-		for (i = 0; i < nr_data_stripes(map); i++)
+		tmp = stripe_nr * data_stripes;
+		for (i = 0; i < data_stripes; i++)
 			bbio->raid_map[(i+rot) % num_stripes] =
 				em->start + (tmp + i) * map->stripe_len;
 

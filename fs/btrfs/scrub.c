@@ -2660,18 +2660,18 @@ static int get_raid56_logic_offset(u64 physical, int num,
 	u64 last_offset;
 	u32 stripe_index;
 	u32 rot;
+	const int data_stripes = nr_data_stripes(map);
 
-	last_offset = (physical - map->stripes[num].physical) *
-		      nr_data_stripes(map);
+	last_offset = (physical - map->stripes[num].physical) * data_stripes;
 	if (stripe_start)
 		*stripe_start = last_offset;
 
 	*offset = last_offset;
-	for (i = 0; i < nr_data_stripes(map); i++) {
+	for (i = 0; i < data_stripes; i++) {
 		*offset = last_offset + i * map->stripe_len;
 
 		stripe_nr = div64_u64(*offset, map->stripe_len);
-		stripe_nr = div_u64(stripe_nr, nr_data_stripes(map));
+		stripe_nr = div_u64(stripe_nr, data_stripes);
 
 		/* Work out the disk rotation on this stripe-set */
 		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes, &rot);
