@@ -1105,6 +1105,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				le32_to_cpu(recov_info->buf_size);
 			}
 			break;
+		case IWL_UCODE_TLV_FW_FSEQ_VERSION: {
+			struct {
+				u8 version[32];
+				u8 sha1[20];
+			} *fseq_ver = (void *)tlv_data;
+
+			if (tlv_len != sizeof(*fseq_ver))
+				goto invalid_tlv_len;
+			IWL_INFO(drv, "TLV_FW_FSEQ_VERSION: %s\n",
+				 fseq_ver->version);
+			}
+			break;
 		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
 			struct iwl_umac_debug_addrs *dbg_ptrs =
 				(void *)tlv_data;
