@@ -311,7 +311,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all */
 		for (i = 0; i < WEP_KEYS; i++) {
-			if (ieee->crypt[i] != NULL) {
+			if (ieee->crypt[i]) {
 				if (key_provided)
 					break;
 				ieee80211_crypt_delayed_deinit(
@@ -333,14 +333,14 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	sec.enabled = 1;
 	sec.flags |= SEC_ENABLED;
 
-	if (*crypt != NULL && (*crypt)->ops != NULL &&
+	if (*crypt && (*crypt)->ops &&
 	    strcmp((*crypt)->ops->name, "WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
 		 * on this key */
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
 	}
 
-	if (*crypt == NULL) {
+	if (!*crypt) {
 		struct ieee80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
@@ -468,7 +468,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	crypt = ieee->crypt[key];
 	erq->flags = key + 1;
 
-	if (crypt == NULL || crypt->ops == NULL) {
+	if (!crypt || !crypt->ops) {
 		erq->length = 0;
 		erq->flags |= IW_ENCODE_DISABLED;
 		return 0;
@@ -537,7 +537,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 		for (i = 0; i < WEP_KEYS; i++)
 
-			if (ieee->crypt[i] != NULL)
+			if (ieee->crypt[i])
 
 				break;
 
@@ -582,7 +582,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		goto done;
 	}
 
-	if (*crypt == NULL || (*crypt)->ops != ops) {
+	if (!*crypt || (*crypt)->ops != ops) {
 		struct ieee80211_crypt_data *new_crypt;
 
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
@@ -595,7 +595,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		new_crypt->ops = ops;
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(idx);
-		if (new_crypt->priv == NULL) {
+		if (!new_crypt->priv) {
 			kfree(new_crypt);
 			ret = -EINVAL;
 			goto done;
@@ -683,7 +683,7 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 	encoding->flags = idx + 1;
 	memset(ext, 0, sizeof(*ext));
 
-	if (crypt == NULL || crypt->ops == NULL ) {
+	if (!crypt || !crypt->ops) {
 		ext->alg = IW_ENCODE_ALG_NONE;
 		ext->key_len = 0;
 		encoding->flags |= IW_ENCODE_DISABLED;
@@ -785,7 +785,7 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
 	u8 *buf;
 
-	if (len>MAX_WPA_IE_LEN || (len && ie == NULL)) {
+	if (len>MAX_WPA_IE_LEN || (len && !ie)) {
 	//	printk("return error out, len:%d\n", len);
 	return -EINVAL;
 	}
@@ -797,7 +797,7 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 			return -EINVAL;
 		}
 		buf = kmemdup(ie, len, GFP_KERNEL);
-		if (buf == NULL)
+		if (!buf)
 			return -ENOMEM;
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;

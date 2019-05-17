@@ -67,7 +67,7 @@ ieee80211_frag_cache_find(struct ieee80211_device *ieee, unsigned int seq,
 
 	for (i = 0; i < IEEE80211_FRAG_CACHE_LEN; i++) {
 		entry = &ieee->frag_cache[tid][i];
-		if (entry->skb != NULL &&
+		if (entry->skb &&
 		    time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
 			IEEE80211_DEBUG_FRAG(
 				"expiring fragment cache entry "
@@ -77,7 +77,7 @@ ieee80211_frag_cache_find(struct ieee80211_device *ieee, unsigned int seq,
 			entry->skb = NULL;
 		}
 
-		if (entry->skb != NULL && entry->seq == seq &&
+		if (entry->skb && entry->seq == seq &&
 		    (entry->last_frag + 1 == frag || frag == -1) &&
 		    memcmp(entry->src_addr, src, ETH_ALEN) == 0 &&
 		    memcmp(entry->dst_addr, dst, ETH_ALEN) == 0)
@@ -133,7 +133,7 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 		if (ieee->frag_next_idx[tid] >= IEEE80211_FRAG_CACHE_LEN)
 			ieee->frag_next_idx[tid] = 0;
 
-		if (entry->skb != NULL)
+		if (entry->skb)
 			dev_kfree_skb_any(entry->skb);
 
 		entry->first_frag_time = jiffies;
@@ -1092,7 +1092,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	     ieee->iw_mode == IW_MODE_REPEAT) &&
 	    !from_assoc_ap) {
 		switch (hostap_handle_sta_rx(ieee, dev, skb, rx_stats,
-					     wds != NULL)) {
+					     wds)) {
 		case AP_RX_CONTINUE_NOT_AUTHORIZED:
 		case AP_RX_CONTINUE:
 			break;
@@ -1388,7 +1388,7 @@ static int ieee80211_read_qos_param_element(struct ieee80211_qos_parameter_info
 	int ret = 0;
 	u16 size = sizeof(struct ieee80211_qos_parameter_info) - 2;
 
-	if ((info_element == NULL) || (element_param == NULL))
+	if (!info_element || !element_param)
 		return -1;
 
 	if (info_element->id == QOS_ELEMENT_ID && info_element->len == size) {
@@ -2508,7 +2508,7 @@ static inline void ieee80211_process_probe_response(
 	list_for_each_entry(target, &ieee->network_list, list) {
 		if (is_same_network(target, network, ieee))
 			break;
-		if ((oldest == NULL) ||
+		if (!oldest ||
 		    (target->last_scanned < oldest->last_scanned))
 			oldest = target;
 	}
@@ -2577,7 +2577,7 @@ static inline void ieee80211_process_probe_response(
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	if (is_beacon(beacon->header.frame_ctl) && is_same_network(&ieee->current_network, network, ieee) && \
 		(ieee->state == IEEE80211_LINKED)) {
-		if (ieee->handle_beacon != NULL)
+		if (ieee->handle_beacon)
 			ieee->handle_beacon(ieee->dev,beacon,&ieee->current_network);
 	}
 

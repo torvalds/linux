@@ -2660,13 +2660,13 @@ static int ieee80211_wpa_set_wpa_ie(struct ieee80211_device *ieee,
 	u8 *buf;
 
 	if (param->u.wpa_ie.len > MAX_WPA_IE_LEN ||
-	    (param->u.wpa_ie.len && param->u.wpa_ie.data == NULL))
+	    (param->u.wpa_ie.len && !param->u.wpa_ie.data))
 		return -EINVAL;
 
 	if (param->u.wpa_ie.len) {
 		buf = kmemdup(param->u.wpa_ie.data, param->u.wpa_ie.len,
 			      GFP_KERNEL);
-		if (buf == NULL)
+		if (!buf)
 			return -ENOMEM;
 
 		kfree(ieee->wpa_ie);
