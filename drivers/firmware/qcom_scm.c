@@ -426,11 +426,11 @@ EXPORT_SYMBOL(qcom_scm_set_remote_state);
  * @mem_sz:   size of the region.
  * @srcvm:    vmid for current set of owners, each set bit in
  *            flag indicate a unique owner
- * @newvm:    array having new owners and corrsponding permission
+ * @newvm:    array having new owners and corresponding permission
  *            flags
  * @dest_cnt: number of owners in next set.
  *
- * Return negative errno on failure, 0 on success, with @srcvm updated.
+ * Return negative errno on failure or 0 on success with @srcvm updated.
  */
 int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
 			unsigned int *srcvm,
@@ -495,7 +495,7 @@ int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
 	dma_free_coherent(__scm->dev, ptr_sz, ptr, ptr_dma);
 	if (ret) {
 		dev_err(__scm->dev,
-			"Assign memory protection call failed %d.\n", ret);
+			"Assign memory protection call failed %d\n", ret);
 		return -EINVAL;
 	}
 
