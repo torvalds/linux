@@ -11805,8 +11805,9 @@ static void intel_dump_pipe_config(struct intel_crtc_state *pipe_config,
 	struct drm_framebuffer *fb;
 	char buf[64];
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s]%s\n",
-		      crtc->base.base.id, crtc->base.name, context);
+	DRM_DEBUG_KMS("[CRTC:%d:%s] enable: %s %s\n",
+		      crtc->base.base.id, crtc->base.name,
+		      yesno(pipe_config->base.enable), context);
 
 	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
 	DRM_DEBUG_KMS("output_types: %s (0x%x)\n",
@@ -13399,10 +13400,6 @@ static int intel_atomic_check(struct drm_device *dev,
 
 		if (needs_modeset(&new_crtc_state->base))
 			any_ms = true;
-
-		intel_dump_pipe_config(new_crtc_state,
-				       needs_modeset(&new_crtc_state->base) ?
-				       "[modeset]" : "[fastset]");
 	}
 
 	ret = drm_dp_mst_atomic_check(&state->base);
@@ -13433,6 +13430,17 @@ static int intel_atomic_check(struct drm_device *dev,
 	ret = intel_bw_atomic_check(state);
 	if (ret)
 		return ret;
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (!needs_modeset(&new_crtc_state->base) &&
+		    !new_crtc_state->update_pipe)
+			continue;
+
+		intel_dump_pipe_config(new_crtc_state,
+				       needs_modeset(&new_crtc_state->base) ?
+				       "[modeset]" : "[fastset]");
+	}
 
 	return 0;
 }
