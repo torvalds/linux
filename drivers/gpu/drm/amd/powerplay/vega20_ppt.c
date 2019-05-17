@@ -3000,6 +3000,48 @@ static int vega20_get_current_activity_percent(struct smu_context *smu,
 	return 0;
 }
 
+static int vega20_thermal_get_temperature(struct smu_context *smu,
+					     enum amd_pp_sensors sensor,
+					     uint32_t *value)
+{
+	struct amdgpu_device *adev = smu->adev;
+	SmuMetrics_t metrics;
+	uint32_t temp = 0;
+	int ret = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = vega20_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
+		temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
+				CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
+
+		temp = temp & 0x1ff;
+		temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+		*value = temp;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		*value = metrics.TemperatureEdge *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		*value = metrics.TemperatureHBM *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving temp\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 static int vega20_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -3022,6 +3064,12 @@ static int vega20_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = vega20_get_gpu_power(smu, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = vega20_thermal_get_temperature(smu, sensor, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
