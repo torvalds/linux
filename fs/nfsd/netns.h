@@ -127,6 +127,41 @@ struct nfsd_net {
 	 */
 	bool *nfsd_versions;
 	bool *nfsd4_minorversions;
+
+	/*
+	 * Duplicate reply cache
+	 */
+	struct nfsd_drc_bucket   *drc_hashtbl;
+	struct kmem_cache        *drc_slab;
+
+	/* max number of entries allowed in the cache */
+	unsigned int             max_drc_entries;
+
+	/* number of significant bits in the hash value */
+	unsigned int             maskbits;
+	unsigned int             drc_hashsize;
+
+	/*
+	 * Stats and other tracking of on the duplicate reply cache. All of these and
+	 * the "rc" fields in nfsdstats are protected by the cache_lock
+	 */
+
+	/* total number of entries */
+	atomic_t                 num_drc_entries;
+
+	/* cache misses due only to checksum comparison failures */
+	unsigned int             payload_misses;
+
+	/* amount of memory (in bytes) currently consumed by the DRC */
+	unsigned int             drc_mem_usage;
+
+	/* longest hash chain seen */
+	unsigned int             longest_chain;
+
+	/* size of cache when we saw the longest hash chain */
+	unsigned int             longest_chain_cachesize;
+
+	struct shrinker		nfsd_reply_cache_shrinker;
 };
 
 /* Simple check to find out if a given net was properly initialized */
