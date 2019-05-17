@@ -407,7 +407,9 @@ static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 
 	smu_table->tables = tables;
 
-	smu_tables_init(smu, tables);
+	ret = smu_tables_init(smu, tables);
+	if (ret)
+		return ret;
 
 	ret = smu_v11_0_init_dpm_context(smu);
 	if (ret)
@@ -425,8 +427,11 @@ static int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 		return -EINVAL;
 
 	kfree(smu_table->tables);
+	kfree(smu_table->metrics_table);
 	smu_table->tables = NULL;
 	smu_table->table_count = 0;
+	smu_table->metrics_table = NULL;
+	smu_table->metrics_time = 0;
 
 	ret = smu_v11_0_fini_dpm_context(smu);
 	if (ret)
@@ -449,13 +454,6 @@ static int smu_v11_0_init_power(struct smu_context *smu)
 		return -ENOMEM;
 	smu_power->power_context_size = sizeof(struct smu_11_0_dpm_context);
 
-	smu->metrics_time = 0;
-	smu->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
-	if (!smu->metrics_table) {
-		kfree(smu_power->power_context);
-		return -ENOMEM;
-	}
-
 	return 0;
 }
 
@@ -468,9 +466,7 @@ static int smu_v11_0_fini_power(struct smu_context *smu)
 	if (!smu_power->power_context || smu_power->power_context_size == 0)
 		return -EINVAL;
 
-	kfree(smu->metrics_table);
 	kfree(smu_power->power_context);
-	smu->metrics_table = NULL;
 	smu_power->power_context = NULL;
 	smu_power->power_context_size = 0;
 
@@ -1223,26 +1219,6 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
 	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
 	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
-
-	return ret;
-}
-
-static int smu_v11_0_get_metrics_table(struct smu_context *smu,
-		SmuMetrics_t *metrics_table)
-{
-	int ret = 0;
-
-	if (!smu->metrics_time || time_after(jiffies, smu->metrics_time + HZ / 1000)) {
-		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
-				(void *)metrics_table, false);
-		if (ret) {
-			pr_info("Failed to export SMU metrics table!\n");
-			return ret;
-		}
-		memcpy(smu->metrics_table, metrics_table, sizeof(SmuMetrics_t));
-		smu->metrics_time = jiffies;
-	} else
-		memcpy(metrics_table, smu->metrics_table, sizeof(SmuMetrics_t));
 
 	return ret;
 }

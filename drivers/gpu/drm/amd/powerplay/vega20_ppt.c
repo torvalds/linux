@@ -294,8 +294,10 @@ static int vega20_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_P
 	return val;
 }
 
-static void vega20_tables_init(struct smu_context *smu, struct smu_table *tables)
+static int vega20_tables_init(struct smu_context *smu, struct smu_table *tables)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
@@ -309,6 +311,13 @@ static void vega20_tables_init(struct smu_context *smu, struct smu_table *tables
 	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 		       sizeof(DpmActivityMonitorCoeffInt_t), PAGE_SIZE,
 	               AMDGPU_GEM_DOMAIN_VRAM);
+
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	if (smu_table->metrics_table)
+		return -ENOMEM;
+	smu_table->metrics_time = 0;
+
+	return 0;
 }
 
 static int vega20_allocate_dpm_context(struct smu_context *smu)
@@ -1654,6 +1663,26 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_get_metrics_table(struct smu_context *smu,
+				    SmuMetrics_t *metrics_table)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	int ret = 0;
+
+	if (!smu_table->metrics_time || time_after(jiffies, smu_table->metrics_time + HZ / 1000)) {
+		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
+				(void *)smu_table->metrics_table, false);
+		if (ret) {
+			pr_info("Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		smu_table->metrics_time = jiffies;
+	}
+
+	memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
+
+	return ret;
+}
 static int vega20_get_od_percentage(struct smu_context *smu,
 				    enum pp_clock_type type)
 {
@@ -2933,8 +2962,7 @@ static int vega20_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics,
-			       false);
+	ret = vega20_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
 
@@ -2953,8 +2981,7 @@ static int vega20_get_current_activity_percent(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
-			       (void *)&metrics, false);
+	ret = vega20_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
 

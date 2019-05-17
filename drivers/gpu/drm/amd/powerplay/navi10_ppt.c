@@ -479,7 +479,7 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
-static void navi10_tables_init(struct smu_context *smu, struct smu_table *tables)
+static int navi10_tables_init(struct smu_context *smu, struct smu_table *tables)
 {
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);

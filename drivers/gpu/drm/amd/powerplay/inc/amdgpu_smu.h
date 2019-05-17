@@ -406,6 +406,8 @@ struct smu_table_context
 	void				*power_play_table;
 	uint32_t			power_play_table_size;
 	void				*hardcode_pptable;
+	unsigned long			metrics_time;
+	void				*metrics_table;
 
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;
@@ -524,8 +526,6 @@ struct smu_context
 
 	uint32_t smc_if_version;
 
-	unsigned long metrics_time;
-	void *metrics_table;
 };
 
 struct pptable_funcs {
@@ -589,7 +589,7 @@ struct pptable_funcs {
 	int (*set_ppfeature_status)(struct smu_context *smu, uint64_t ppfeatures);
 	int (*get_ppfeature_status)(struct smu_context *smu, char *buf);
 	bool (*is_dpm_running)(struct smu_context *smu);
-	void (*tables_init)(struct smu_context *smu, struct smu_table *tables);
+	int (*tables_init)(struct smu_context *smu, struct smu_table *tables);
 	int (*set_thermal_fan_table)(struct smu_context *smu);
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
