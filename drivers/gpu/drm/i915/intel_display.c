@@ -13352,89 +13352,85 @@ static int calc_watermark_data(struct intel_atomic_state *state)
  * @state: state to validate
  */
 static int intel_atomic_check(struct drm_device *dev,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_state *_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *crtc_state;
+	struct intel_atomic_state *state = to_intel_atomic_state(_state);
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc *crtc;
 	int ret, i;
-	bool any_ms = intel_state->cdclk.force_min_cdclk_changed;
+	bool any_ms = state->cdclk.force_min_cdclk_changed;
 
 	/* Catch I915_MODE_FLAG_INHERITED */
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
-				      crtc_state, i) {
-		if (crtc_state->mode.private_flags !=
-		    old_crtc_state->mode.private_flags)
-			crtc_state->mode_changed = true;
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (new_crtc_state->base.mode.private_flags !=
+		    old_crtc_state->base.mode.private_flags)
+			new_crtc_state->base.mode_changed = true;
 	}
 
-	ret = drm_atomic_helper_check_modeset(dev, state);
+	ret = drm_atomic_helper_check_modeset(dev, &state->base);
 	if (ret)
 		return ret;
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, crtc_state, i) {
-		struct intel_crtc_state *pipe_config =
-			to_intel_crtc_state(crtc_state);
-
-		if (!needs_modeset(crtc_state))
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (!needs_modeset(&new_crtc_state->base))
 			continue;
 
-		if (!crtc_state->enable) {
+		if (!new_crtc_state->base.enable) {
 			any_ms = true;
 			continue;
 		}
 
-		ret = intel_modeset_pipe_config(pipe_config);
+		ret = intel_modeset_pipe_config(new_crtc_state);
 		if (ret == -EDEADLK)
 			return ret;
 		if (ret) {
-			intel_dump_pipe_config(pipe_config, "[failed]");
+			intel_dump_pipe_config(new_crtc_state, "[failed]");
 			return ret;
 		}
 
-		if (intel_pipe_config_compare(dev_priv,
-					to_intel_crtc_state(old_crtc_state),
-					pipe_config, true)) {
-			crtc_state->mode_changed = false;
-			pipe_config->update_pipe = true;
+		if (intel_pipe_config_compare(dev_priv, old_crtc_state,
+					      new_crtc_state, true)) {
+			new_crtc_state->base.mode_changed = false;
+			new_crtc_state->update_pipe = true;
 		}
 
-		if (needs_modeset(crtc_state))
+		if (needs_modeset(&new_crtc_state->base))
 			any_ms = true;
 
-		intel_dump_pipe_config(pipe_config,
-				       needs_modeset(crtc_state) ?
+		intel_dump_pipe_config(new_crtc_state,
+				       needs_modeset(&new_crtc_state->base) ?
 				       "[modeset]" : "[fastset]");
 	}
 
-	ret = drm_dp_mst_atomic_check(state);
+	ret = drm_dp_mst_atomic_check(&state->base);
 	if (ret)
 		return ret;
 
 	if (any_ms) {
-		ret = intel_modeset_checks(intel_state);
-
+		ret = intel_modeset_checks(state);
 		if (ret)
 			return ret;
 	} else {
-		intel_state->cdclk.logical = dev_priv->cdclk.logical;
+		state->cdclk.logical = dev_priv->cdclk.logical;
 	}
 
-	ret = icl_add_linked_planes(intel_state);
+	ret = icl_add_linked_planes(state);
 	if (ret)
 		return ret;
 
-	ret = drm_atomic_helper_check_planes(dev, state);
+	ret = drm_atomic_helper_check_planes(dev, &state->base);
 	if (ret)
 		return ret;
 
-	intel_fbc_choose_crtc(dev_priv, intel_state);
-	ret = calc_watermark_data(intel_state);
+	intel_fbc_choose_crtc(dev_priv, state);
+	ret = calc_watermark_data(state);
 	if (ret)
 		return ret;
 
-	ret = intel_bw_atomic_check(intel_state);
+	ret = intel_bw_atomic_check(state);
 	if (ret)
 		return ret;
 
