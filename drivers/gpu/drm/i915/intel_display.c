@@ -11793,10 +11793,10 @@ static const char *output_formats(enum intel_output_format format)
 	return output_format_str[format];
 }
 
-static void intel_dump_pipe_config(struct intel_crtc *crtc,
-				   struct intel_crtc_state *pipe_config,
+static void intel_dump_pipe_config(struct intel_crtc_state *pipe_config,
 				   const char *context)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_plane *plane;
@@ -12903,10 +12903,8 @@ verify_crtc_state(struct drm_crtc *crtc,
 	if (!intel_pipe_config_compare(dev_priv, sw_config,
 				       pipe_config, false)) {
 		I915_STATE_WARN(1, "pipe state doesn't match!\n");
-		intel_dump_pipe_config(intel_crtc, pipe_config,
-				       "[hw state]");
-		intel_dump_pipe_config(intel_crtc, sw_config,
-				       "[sw state]");
+		intel_dump_pipe_config(pipe_config, "[hw state]");
+		intel_dump_pipe_config(sw_config, "[sw state]");
 	}
 }
 
@@ -13392,8 +13390,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret == -EDEADLK)
 			return ret;
 		if (ret) {
-			intel_dump_pipe_config(to_intel_crtc(crtc),
-					       pipe_config, "[failed]");
+			intel_dump_pipe_config(pipe_config, "[failed]");
 			return ret;
 		}
 
@@ -13407,7 +13404,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (needs_modeset(crtc_state))
 			any_ms = true;
 
-		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
+		intel_dump_pipe_config(pipe_config,
 				       needs_modeset(crtc_state) ?
 				       "[modeset]" : "[fastset]");
 	}
@@ -16668,8 +16665,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 		intel_sanitize_crtc(crtc, ctx);
-		intel_dump_pipe_config(crtc, crtc_state,
-				       "[setup_hw_state]");
+		intel_dump_pipe_config(crtc_state, "[setup_hw_state]");
 	}
 
 	intel_modeset_update_connector_atomic_state(dev);
