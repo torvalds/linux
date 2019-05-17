@@ -118,7 +118,7 @@ static bool set_watchpoint(pid_t pid, int size, int wp)
 	return false;
 }
 
-static bool run_test(int wr_size, int wp_size, int wr, int wp)
+static bool arun_test(int wr_size, int wp_size, int wr, int wp)
 {
 	int status;
 	siginfo_t siginfo;
@@ -214,6 +214,7 @@ int main(int argc, char **argv)
 	bool result;
 
 	ksft_print_header();
+	ksft_set_plan(213);
 
 	act.sa_handler = sigalrm;
 	sigemptyset(&act.sa_mask);
