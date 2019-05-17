@@ -222,6 +222,7 @@ static int intel_dp_get_fia_supported_lane_count(struct intel_dp *intel_dp)
 	if (tc_port == PORT_TC_NONE || dig_port->tc_type != TC_PORT_TYPEC)
 		return 4;
 
+	lane_info = 0;
 	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		lane_info = (I915_READ(PORT_TX_DFLEXDPSP) &
 			     DP_LANE_ASSIGNMENT_MASK(tc_port)) >>
@@ -5329,8 +5330,8 @@ static bool __intel_digital_port_connected(struct intel_encoder *encoder)
 bool intel_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	bool is_connected = false;
 	intel_wakeref_t wakeref;
-	bool is_connected;
 
 	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		is_connected = __intel_digital_port_connected(encoder);
