@@ -336,16 +336,16 @@ struct btrfs_device_info {
 };
 
 struct btrfs_raid_attr {
-	int sub_stripes;	/* sub_stripes info for map */
-	int dev_stripes;	/* stripes per dev */
-	int devs_max;		/* max devs to use */
-	int devs_min;		/* min devs needed */
-	int tolerated_failures; /* max tolerated fail devs */
-	int devs_increment;	/* ndevs has to be a multiple of this */
-	int ncopies;		/* how many copies to data has */
-	int nparity;		/* number of stripes worth of bytes to store
+	u8 sub_stripes;		/* sub_stripes info for map */
+	u8 dev_stripes;		/* stripes per dev */
+	u8 devs_max;		/* max devs to use */
+	u8 devs_min;		/* min devs needed */
+	u8 tolerated_failures;	/* max tolerated fail devs */
+	u8 devs_increment;	/* ndevs has to be a multiple of this */
+	u8 ncopies;		/* how many copies to data has */
+	u8 nparity;		/* number of stripes worth of bytes to store
 				 * parity information */
-	int mindev_error;	/* error code if min devs requisite is unmet */
+	u8 mindev_error;	/* error code if min devs requisite is unmet */
 	const char raid_name[8]; /* name of the raid */
 	u64 bg_flag;		/* block group flag of the raid */
 };

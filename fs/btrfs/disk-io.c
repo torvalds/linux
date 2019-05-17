@@ -3704,7 +3704,7 @@ int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
 
 	if ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0 ||
 	    (flags & BTRFS_AVAIL_ALLOC_BIT_SINGLE))
-		min_tolerated = min(min_tolerated,
+		min_tolerated = min_t(int, min_tolerated,
 				    btrfs_raid_array[BTRFS_RAID_SINGLE].
 				    tolerated_failures);
 
@@ -3713,7 +3713,7 @@ int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
 			continue;
 		if (!(flags & btrfs_raid_array[raid_type].bg_flag))
 			continue;
-		min_tolerated = min(min_tolerated,
+		min_tolerated = min_t(int, min_tolerated,
 				    btrfs_raid_array[raid_type].
 				    tolerated_failures);
 	}
