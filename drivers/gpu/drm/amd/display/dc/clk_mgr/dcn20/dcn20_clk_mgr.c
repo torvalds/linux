@@ -172,6 +172,10 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PHYCLK, clk_mgr_base->clks.phyclk_khz / 1000);
 	}
 
+	if (dc->debug.force_min_dcfclk_mhz > 0)
+		new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
+				new_clocks->dcfclk_khz : (dc->debug.force_min_dcfclk_mhz * 1000);
+
 	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
 		clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
 		if (pp_smu && pp_smu->set_hard_min_dcfclk_by_freq)
