@@ -142,8 +142,11 @@ struct nfsd_net {
 	unsigned int             drc_hashsize;
 
 	/*
-	 * Stats and other tracking of on the duplicate reply cache. All of these and
-	 * the "rc" fields in nfsdstats are protected by the cache_lock
+	 * Stats and other tracking of on the duplicate reply cache.
+	 * These fields and the "rc" fields in nfsdstats are modified
+	 * with only the per-bucket cache lock, which isn't really safe
+	 * and should be fixed if we want the statistics to be
+	 * completely accurate.
 	 */
 
 	/* total number of entries */
