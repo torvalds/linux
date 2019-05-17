@@ -271,21 +271,33 @@ komeda_component_get_avail_scaler(struct komeda_component *c,
 
 static int
 komeda_layer_check_cfg(struct komeda_layer *layer,
-		       struct komeda_plane_state *kplane_st,
+		       struct komeda_fb *kfb,
 		       struct komeda_data_flow_cfg *dflow)
 {
-	struct komeda_fb *kfb = to_kfb(kplane_st->base.fb);
+	u32 hsize_in, vsize_in;
 
 	if (!komeda_fb_is_layer_supported(kfb, layer->layer_type, dflow->rot))
 		return -EINVAL;
 
-	if (!in_range(&layer->hsize_in, dflow->in_w)) {
-		DRM_DEBUG_ATOMIC("src_w: %d is out of range.\n", dflow->in_w);
+	if (komeda_fb_check_src_coords(kfb, dflow->in_x, dflow->in_y,
+				       dflow->in_w, dflow->in_h))
+		return -EINVAL;
+
+	if (layer->base.id == KOMEDA_COMPONENT_WB_LAYER) {
+		hsize_in = dflow->out_w;
+		vsize_in = dflow->out_h;
+	} else {
+		hsize_in = dflow->in_w;
+		vsize_in = dflow->in_h;
+	}
+
+	if (!in_range(&layer->hsize_in, hsize_in)) {
+		DRM_DEBUG_ATOMIC("invalidate src_w %d.\n", hsize_in);
 		return -EINVAL;
 	}
 
-	if (!in_range(&layer->vsize_in, dflow->in_h)) {
-		DRM_DEBUG_ATOMIC("src_h: %d is out of range.\n", dflow->in_h);
+	if (!in_range(&layer->vsize_in, vsize_in)) {
+		DRM_DEBUG_ATOMIC("invalidate src_h %d.\n", vsize_in);
 		return -EINVAL;
 	}
 
@@ -304,7 +316,7 @@ komeda_layer_validate(struct komeda_layer *layer,
 	struct komeda_layer_state *st;
 	int i, err;
 
-	err = komeda_layer_check_cfg(layer, kplane_st, dflow);
+	err = komeda_layer_check_cfg(layer, kfb, dflow);
 	if (err)
 		return err;
 
@@ -362,11 +374,11 @@ komeda_wb_layer_validate(struct komeda_layer *wb_layer,
 	struct komeda_fb *kfb = to_kfb(conn_st->writeback_job->fb);
 	struct komeda_component_state *c_st;
 	struct komeda_layer_state *st;
-	int i;
+	int i, err;
 
-	if (!komeda_fb_is_layer_supported(kfb, wb_layer->layer_type,
-					  dflow->rot))
-		return -EINVAL;
+	err = komeda_layer_check_cfg(wb_layer, kfb, dflow);
+	if (err)
+		return err;
 
 	c_st = komeda_component_get_state_and_set_user(&wb_layer->base,
 			conn_st->state, conn_st->connector, conn_st->crtc);

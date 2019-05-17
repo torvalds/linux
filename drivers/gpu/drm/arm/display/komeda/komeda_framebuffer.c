@@ -214,6 +214,27 @@ err_cleanup:
 	return ERR_PTR(ret);
 }
 
+int komeda_fb_check_src_coords(const struct komeda_fb *kfb,
+			       u32 src_x, u32 src_y, u32 src_w, u32 src_h)
+{
+	const struct drm_framebuffer *fb = &kfb->base;
+	const struct drm_format_info *info = fb->format;
+
+	if ((src_x + src_w > fb->width) || (src_y + src_h > fb->height)) {
+		DRM_DEBUG_ATOMIC("Invalid source coordinate.\n");
+		return -EINVAL;
+	}
+
+	if ((src_x % info->hsub) || (src_w % info->hsub) ||
+	    (src_y % info->vsub) || (src_h % info->vsub)) {
+		DRM_DEBUG_ATOMIC("Wrong subsampling dimension x:%d, y:%d, w:%d, h:%d for format: %x.\n",
+				 src_x, src_y, src_w, src_h, info->format);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 dma_addr_t
 komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 {
