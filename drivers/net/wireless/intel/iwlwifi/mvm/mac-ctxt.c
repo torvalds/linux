@@ -1082,9 +1082,6 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 		IWL_DEBUG_HC(mvm, "No need to receive beacons\n");
 	}
 
-	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax)
-		cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
-
 	ctxt_ap->bi = cpu_to_le32(vif->bss_conf.beacon_int);
 	ctxt_ap->dtim_interval = cpu_to_le32(vif->bss_conf.beacon_int *
 					     vif->bss_conf.dtim_period);
