@@ -1,7 +1,8 @@
 ARCH=arm64
-BRANCH=android-4.19
+BRANCH=android-mainline
 CLANG_TRIPLE=aarch64-linux-gnu-
 CROSS_COMPILE=aarch64-linux-androidkernel-
+CC=clang
 DEFCONFIG=cuttlefish_defconfig
 EXTRA_CMDS=''
 KERNEL_DIR=common
