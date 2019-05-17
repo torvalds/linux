@@ -41,9 +41,6 @@ void afs_lock_may_be_available(struct afs_vnode *vnode)
 {
 	_enter("{%llx:%llu}", vnode->fid.vid, vnode->fid.vnode);
 
-	if (vnode->lock_state != AFS_VNODE_LOCK_WAITING_FOR_CB)
-		return;
-
 	spin_lock(&vnode->lock);
 	if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
 		afs_next_locker(vnode, 0);
@@ -196,7 +193,7 @@ static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
 	       key_serial(key), type);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_set_lock(&fc, type);
@@ -227,7 +224,7 @@ static int afs_extend_lock(struct afs_vnode *vnode, struct key *key)
 	       key_serial(key));
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, false)) {
 		while (afs_select_current_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_extend_lock(&fc);
@@ -258,7 +255,7 @@ static int afs_release_lock(struct afs_vnode *vnode, struct key *key)
 	       key_serial(key));
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, false)) {
 		while (afs_select_current_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_release_lock(&fc);

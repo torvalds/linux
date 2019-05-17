@@ -361,7 +361,7 @@ found_key:
 	_debug("USE WB KEY %u", key_serial(wbk->key));
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, wbk->key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, wbk->key, false)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_store_data(&fc, mapping, first, last, offset, to);

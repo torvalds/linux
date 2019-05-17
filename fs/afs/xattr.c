@@ -57,7 +57,7 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 		return PTR_ERR(key);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			acl = afs_fs_fetch_acl(&fc);
@@ -71,11 +71,10 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 	if (ret == 0) {
 		ret = acl->size;
 		if (size > 0) {
-			ret = -ERANGE;
-			if (acl->size > size)
-				return -ERANGE;
-			memcpy(buffer, acl->data, acl->size);
-			ret = acl->size;
+			if (acl->size <= size)
+				memcpy(buffer, acl->data, acl->size);
+			else
+				ret = -ERANGE;
 		}
 		kfree(acl);
 	}
@@ -115,7 +114,7 @@ static int afs_xattr_set_acl(const struct xattr_handler *handler,
 	memcpy(acl->data, buffer, size);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_store_acl(&fc, acl);
@@ -149,9 +148,8 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct yfs_acl *yacl = NULL;
 	struct key *key;
-	unsigned int flags = 0;
 	char buf[16], *data;
-	int which = 0, dsize, ret;
+	int which = 0, dsize, ret = -ENOMEM;
 
 	if (strcmp(name, "acl") == 0)
 		which = 0;
@@ -164,20 +162,26 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	else
 		return -EOPNOTSUPP;
 
+	yacl = kzalloc(sizeof(struct yfs_acl), GFP_KERNEL);
+	if (!yacl)
+		goto error;
+
 	if (which == 0)
-		flags |= YFS_ACL_WANT_ACL;
+		yacl->flags |= YFS_ACL_WANT_ACL;
 	else if (which == 3)
-		flags |= YFS_ACL_WANT_VOL_ACL;
+		yacl->flags |= YFS_ACL_WANT_VOL_ACL;
 
 	key = afs_request_key(vnode->volume->cell);
-	if (IS_ERR(key))
-		return PTR_ERR(key);
+	if (IS_ERR(key)) {
+		ret = PTR_ERR(key);
+		goto error_yacl;
+	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			yacl = yfs_fs_fetch_opaque_acl(&fc, flags);
+			yfs_fs_fetch_opaque_acl(&fc, yacl);
 		}
 
 		afs_check_for_remote_deletion(&fc, fc.vnode);
@@ -185,44 +189,45 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 		ret = afs_end_vnode_operation(&fc);
 	}
 
-	if (ret == 0) {
-		switch (which) {
-		case 0:
-			data = yacl->acl->data;
-			dsize = yacl->acl->size;
-			break;
-		case 1:
-			data = buf;
-			dsize = snprintf(buf, sizeof(buf), "%u",
-					 yacl->inherit_flag);
-			break;
-		case 2:
-			data = buf;
-			dsize = snprintf(buf, sizeof(buf), "%u",
-					 yacl->num_cleaned);
-			break;
-		case 3:
-			data = yacl->vol_acl->data;
-			dsize = yacl->vol_acl->size;
-			break;
-		default:
-			ret = -EOPNOTSUPP;
-			goto out;
-		}
+	if (ret < 0)
+		goto error_key;
 
-		ret = dsize;
-		if (size > 0) {
-			if (dsize > size) {
-				ret = -ERANGE;
-				goto out;
-			}
-			memcpy(buffer, data, dsize);
-		}
+	switch (which) {
+	case 0:
+		data = yacl->acl->data;
+		dsize = yacl->acl->size;
+		break;
+	case 1:
+		data = buf;
+		dsize = snprintf(buf, sizeof(buf), "%u", yacl->inherit_flag);
+		break;
+	case 2:
+		data = buf;
+		dsize = snprintf(buf, sizeof(buf), "%u", yacl->num_cleaned);
+		break;
+	case 3:
+		data = yacl->vol_acl->data;
+		dsize = yacl->vol_acl->size;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		goto error_key;
 	}
 
-out:
-	yfs_free_opaque_acl(yacl);
+	ret = dsize;
+	if (size > 0) {
+		if (dsize > size) {
+			ret = -ERANGE;
+			goto error_key;
+		}
+		memcpy(buffer, data, dsize);
+	}
+
+error_key:
 	key_put(key);
+error_yacl:
+	yfs_free_opaque_acl(yacl);
+error:
 	return ret;
 }
 
@@ -258,7 +263,7 @@ static int afs_xattr_set_yfs(const struct xattr_handler *handler,
 	memcpy(acl->data, buffer, size);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			yfs_fs_store_opaque_acl2(&fc, acl);

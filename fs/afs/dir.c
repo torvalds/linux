@@ -704,7 +704,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 		goto no_inline_bulk_status;
 
 	inode = ERR_PTR(-ERESTARTSYS);
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			if (test_bit(AFS_SERVER_FL_NO_IBULK,
 				      &fc.cbi->server->flags)) {
@@ -739,7 +739,7 @@ no_inline_bulk_status:
 	 */
 	cookie->nr_fids = 1;
 	inode = ERR_PTR(-ERESTARTSYS);
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			afs_fs_fetch_status(&fc,
 					    afs_v2net(dvnode),
@@ -1166,7 +1166,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_create(&fc, dentry->d_name.name, mode, data_version,
@@ -1250,7 +1250,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_remove(&fc, vnode, dentry->d_name.name, true,
@@ -1374,7 +1374,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 
@@ -1445,7 +1445,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_create(&fc, dentry->d_name.name, mode, data_version,
@@ -1510,7 +1510,7 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		if (mutex_lock_interruptible_nested(&vnode->io_lock, 1) < 0) {
 			afs_end_vnode_operation(&fc);
 			goto error_key;
@@ -1584,7 +1584,7 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			afs_fs_symlink(&fc, dentry->d_name.name,
@@ -1696,7 +1696,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, orig_dvnode, key)) {
+	if (afs_begin_vnode_operation(&fc, orig_dvnode, key, true)) {
 		if (orig_dvnode != new_dvnode) {
 			if (mutex_lock_interruptible_nested(&new_dvnode->io_lock, 1) < 0) {
 				afs_end_vnode_operation(&fc);

@@ -131,6 +131,7 @@ struct afs_call {
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
 	u32			epoch;
+	unsigned int		max_lifespan;	/* Maximum lifespan to set if not 0 */
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		first_offset;	/* offset into mapping[first] */
@@ -148,6 +149,7 @@ struct afs_call {
 	bool			ret_reply0;	/* T if should return reply[0] on success */
 	bool			upgrade;	/* T to request service upgrade */
 	bool			want_reply_time; /* T if want reply_time */
+	bool			intr;		/* T if interruptible */
 	u16			service_id;	/* Actual service ID (after upgrade) */
 	unsigned int		debug_id;	/* Trace ID */
 	u32			operation_ID;	/* operation ID for an incoming call */
@@ -367,13 +369,13 @@ struct afs_cell {
 	time64_t		last_inactive;	/* Time of last drop of usage count */
 	atomic_t		usage;
 	unsigned long		flags;
-#define AFS_CELL_FL_NOT_READY	0		/* The cell record is not ready for use */
-#define AFS_CELL_FL_NO_GC	1		/* The cell was added manually, don't auto-gc */
-#define AFS_CELL_FL_NOT_FOUND	2		/* Permanent DNS error */
-#define AFS_CELL_FL_DNS_FAIL	3		/* Failed to access DNS */
-#define AFS_CELL_FL_NO_LOOKUP_YET 4		/* Not completed first DNS lookup yet */
+#define AFS_CELL_FL_NO_GC	0		/* The cell was added manually, don't auto-gc */
+#define AFS_CELL_FL_DO_LOOKUP	1		/* DNS lookup requested */
 	enum afs_cell_state	state;
 	short			error;
+	enum dns_record_source	dns_source:8;	/* Latest source of data from lookup */
+	enum dns_lookup_status	dns_status:8;	/* Latest status of data from lookup */
+	unsigned int		dns_lookup_count; /* Counter of DNS lookups */
 
 	/* Active fileserver interaction state. */
 	struct list_head	proc_volumes;	/* procfs volume list */
@@ -772,6 +774,7 @@ struct afs_fs_cursor {
 #define AFS_FS_CURSOR_VNOVOL	0x0008		/* Set if seen VNOVOL */
 #define AFS_FS_CURSOR_CUR_ONLY	0x0010		/* Set if current server only (file lock held) */
 #define AFS_FS_CURSOR_NO_VSLEEP	0x0020		/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
+#define AFS_FS_CURSOR_INTR	0x0040		/* Set if op is interruptible */
 	unsigned short		nr_iterations;	/* Number of server iterations */
 };
 
@@ -1096,7 +1099,7 @@ static inline void afs_put_sysnames(struct afs_sysnames *sysnames) {}
  * rotate.c
  */
 extern bool afs_begin_vnode_operation(struct afs_fs_cursor *, struct afs_vnode *,
-				      struct key *);
+				      struct key *, bool);
 extern bool afs_select_fileserver(struct afs_fs_cursor *);
 extern bool afs_select_current_fileserver(struct afs_fs_cursor *);
 extern int afs_end_vnode_operation(struct afs_fs_cursor *);
@@ -1120,6 +1123,11 @@ extern void afs_send_empty_reply(struct afs_call *);
 extern void afs_send_simple_reply(struct afs_call *, const void *, size_t);
 extern int afs_extract_data(struct afs_call *, bool);
 extern int afs_protocol_error(struct afs_call *, int, enum afs_eproto_cause);
+
+static inline void afs_set_fc_call(struct afs_call *call, struct afs_fs_cursor *fc)
+{
+	call->intr = fc->flags & AFS_FS_CURSOR_INTR;
+}
 
 static inline void afs_extract_begin(struct afs_call *call, void *buf, size_t size)
 {
@@ -1382,7 +1390,7 @@ struct yfs_acl {
 };
 
 extern void yfs_free_opaque_acl(struct yfs_acl *);
-extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *, unsigned int);
+extern struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *, struct yfs_acl *);
 extern int yfs_fs_store_opaque_acl2(struct afs_fs_cursor *, const struct afs_acl *);
 
 /*

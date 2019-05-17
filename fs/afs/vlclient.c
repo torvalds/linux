@@ -157,6 +157,7 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->reply[0] = entry;
 	call->ret_reply0 = true;
+	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -289,6 +290,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->reply[0] = NULL;
 	call->ret_reply0 = true;
+	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
 
 	/* Marshall the parameters */
 	bp = call->request;
@@ -403,6 +405,7 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 	call->upgrade = true;
 	call->want_reply_time = true;
 	call->async = true;
+	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -646,6 +649,7 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 	call->key = vc->key;
 	call->reply[0] = NULL;
 	call->ret_reply0 = true;
+	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
 
 	/* Marshall the parameters */
 	bp = call->request;

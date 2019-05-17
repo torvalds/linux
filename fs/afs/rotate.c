@@ -25,7 +25,7 @@
  * them here also using the io_lock.
  */
 bool afs_begin_vnode_operation(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
-			       struct key *key)
+			       struct key *key, bool intr)
 {
 	memset(fc, 0, sizeof(*fc));
 	fc->vnode = vnode;
@@ -33,10 +33,15 @@ bool afs_begin_vnode_operation(struct afs_fs_cursor *fc, struct afs_vnode *vnode
 	fc->ac.error = SHRT_MAX;
 	fc->error = -EDESTADDRREQ;
 
-	if (mutex_lock_interruptible(&vnode->io_lock) < 0) {
-		fc->error = -EINTR;
-		fc->flags |= AFS_FS_CURSOR_STOP;
-		return false;
+	if (intr) {
+		fc->flags |= AFS_FS_CURSOR_INTR;
+		if (mutex_lock_interruptible(&vnode->io_lock) < 0) {
+			fc->error = -EINTR;
+			fc->flags |= AFS_FS_CURSOR_STOP;
+			return false;
+		}
+	} else {
+		mutex_lock(&vnode->io_lock);
 	}
 
 	if (vnode->lock_state != AFS_VNODE_LOCK_NONE)
@@ -118,10 +123,14 @@ static void afs_busy(struct afs_volume *volume, u32 abort_code)
  */
 static bool afs_sleep_and_retry(struct afs_fs_cursor *fc)
 {
-	msleep_interruptible(1000);
-	if (signal_pending(current)) {
-		fc->error = -ERESTARTSYS;
-		return false;
+	if (fc->flags & AFS_FS_CURSOR_INTR) {
+		msleep_interruptible(1000);
+		if (signal_pending(current)) {
+			fc->error = -ERESTARTSYS;
+			return false;
+		}
+	} else {
+		msleep(1000);
 	}
 
 	return true;
@@ -458,6 +467,8 @@ no_more_servers:
 		afs_prioritise_error(&e, READ_ONCE(s->probe.error),
 				     s->probe.abort_code);
 	}
+
+	error = e.error;
 
 failed_set_error:
 	fc->error = error;

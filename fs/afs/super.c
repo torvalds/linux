@@ -741,7 +741,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		return PTR_ERR(key);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
 		fc.flags |= AFS_FS_CURSOR_NO_VSLEEP;
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);

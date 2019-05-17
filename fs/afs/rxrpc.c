@@ -417,6 +417,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 					  afs_wake_up_async_call :
 					  afs_wake_up_call_waiter),
 					 call->upgrade,
+					 call->intr,
 					 call->debug_id);
 	if (IS_ERR(rxcall)) {
 		ret = PTR_ERR(rxcall);
@@ -425,6 +426,10 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	}
 
 	call->rxcall = rxcall;
+
+	if (call->max_lifespan)
+		rxrpc_kernel_set_max_life(call->net->socket, rxcall,
+					  call->max_lifespan);
 
 	/* send the request */
 	iov[0].iov_base	= call->request;
@@ -648,7 +653,7 @@ long afs_wait_for_call_to_complete(struct afs_call *call,
 			break;
 		}
 
-		if (timeout == 0 &&
+		if (call->intr && timeout == 0 &&
 		    life == last_life && signal_pending(current)) {
 			if (stalled)
 				break;
