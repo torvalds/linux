@@ -11795,21 +11795,49 @@ static const char *output_formats(enum intel_output_format format)
 	return output_format_str[format];
 }
 
+static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	struct drm_format_name_buf format_name;
+
+	if (!fb) {
+		DRM_DEBUG_KMS("[PLANE:%d:%s] fb: [NOFB], visible: %s\n",
+			      plane->base.base.id, plane->base.name,
+			      yesno(plane_state->base.visible));
+		return;
+	}
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s] fb: [FB:%d] %ux%u format = %s, visible: %s\n",
+		      plane->base.base.id, plane->base.name,
+		      fb->base.id, fb->width, fb->height,
+		      drm_get_format_name(fb->format->format, &format_name),
+		      yesno(plane_state->base.visible));
+	DRM_DEBUG_KMS("\trotation: 0x%x, scaler: %d\n",
+		      plane_state->base.rotation, plane_state->scaler_id);
+	if (plane_state->base.visible)
+		DRM_DEBUG_KMS("\tsrc: " DRM_RECT_FP_FMT " dst: " DRM_RECT_FMT "\n",
+			      DRM_RECT_FP_ARG(&plane_state->base.src),
+			      DRM_RECT_ARG(&plane_state->base.dst));
+}
+
 static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
+				   struct intel_atomic_state *state,
 				   const char *context)
 {
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_plane *plane;
-	struct intel_plane *intel_plane;
-	struct intel_plane_state *state;
-	struct drm_framebuffer *fb;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
 	char buf[64];
+	int i;
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s] enable: %s %s\n",
 		      crtc->base.base.id, crtc->base.name,
 		      yesno(pipe_config->base.enable), context);
+
+	if (!pipe_config->base.enable)
+		goto dump_planes;
 
 	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
 	DRM_DEBUG_KMS("active: %s, output_types: %s (0x%x), output format: %s\n",
@@ -11885,35 +11913,13 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 
 	intel_dpll_dump_hw_state(dev_priv, &pipe_config->dpll_hw_state);
 
-	DRM_DEBUG_KMS("planes on this crtc\n");
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		struct drm_format_name_buf format_name;
-		intel_plane = to_intel_plane(plane);
-		if (intel_plane->pipe != crtc->pipe)
-			continue;
+dump_planes:
+	if (!state)
+		return;
 
-		state = to_intel_plane_state(plane->state);
-		fb = state->base.fb;
-		if (!fb) {
-			DRM_DEBUG_KMS("[PLANE:%d:%s] disabled, scaler_id = %d\n",
-				      plane->base.id, plane->name, state->scaler_id);
-			continue;
-		}
-
-		DRM_DEBUG_KMS("[PLANE:%d:%s] FB:%d, fb = %ux%u format = %s\n",
-			      plane->base.id, plane->name,
-			      fb->base.id, fb->width, fb->height,
-			      drm_get_format_name(fb->format->format, &format_name));
-		if (INTEL_GEN(dev_priv) >= 9)
-			DRM_DEBUG_KMS("\tscaler:%d src %dx%d+%d+%d dst %dx%d+%d+%d\n",
-				      state->scaler_id,
-				      state->base.src.x1 >> 16,
-				      state->base.src.y1 >> 16,
-				      drm_rect_width(&state->base.src) >> 16,
-				      drm_rect_height(&state->base.src) >> 16,
-				      state->base.dst.x1, state->base.dst.y1,
-				      drm_rect_width(&state->base.dst),
-				      drm_rect_height(&state->base.dst));
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane->pipe == crtc->pipe)
+			intel_dump_plane_state(plane_state);
 	}
 }
 
@@ -12903,8 +12909,8 @@ verify_crtc_state(struct drm_crtc *crtc,
 	if (!intel_pipe_config_compare(dev_priv, sw_config,
 				       pipe_config, false)) {
 		I915_STATE_WARN(1, "pipe state doesn't match!\n");
-		intel_dump_pipe_config(pipe_config, "[hw state]");
-		intel_dump_pipe_config(sw_config, "[sw state]");
+		intel_dump_pipe_config(pipe_config, NULL, "[hw state]");
+		intel_dump_pipe_config(sw_config, NULL, "[sw state]");
 	}
 }
 
@@ -13432,7 +13438,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		    !new_crtc_state->update_pipe)
 			continue;
 
-		intel_dump_pipe_config(new_crtc_state,
+		intel_dump_pipe_config(new_crtc_state, state,
 				       needs_modeset(&new_crtc_state->base) ?
 				       "[modeset]" : "[fastset]");
 	}
@@ -13449,7 +13455,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	 */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i)
-		intel_dump_pipe_config(new_crtc_state, "[failed]");
+		intel_dump_pipe_config(new_crtc_state, state, "[failed]");
 
 	return ret;
 }
@@ -16677,7 +16683,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 		intel_sanitize_crtc(crtc, ctx);
-		intel_dump_pipe_config(crtc_state, "[setup_hw_state]");
+		intel_dump_pipe_config(crtc_state, NULL, "[setup_hw_state]");
 	}
 
 	intel_modeset_update_connector_atomic_state(dev);
