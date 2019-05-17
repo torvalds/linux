@@ -11917,9 +11917,9 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	}
 }
 
-static bool check_digital_port_conflicts(struct drm_atomic_state *state)
+static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = state->base.dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	unsigned int used_ports = 0;
@@ -11936,7 +11936,9 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 		struct drm_connector_state *connector_state;
 		struct intel_encoder *encoder;
 
-		connector_state = drm_atomic_get_new_connector_state(state, connector);
+		connector_state =
+			drm_atomic_get_new_connector_state(&state->base,
+							   connector);
 		if (!connector_state)
 			connector_state = connector->state;
 
@@ -13235,7 +13237,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int ret = 0, i;
 
-	if (!check_digital_port_conflicts(state)) {
+	if (!check_digital_port_conflicts(intel_state)) {
 		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
 		return -EINVAL;
 	}
