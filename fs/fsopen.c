@@ -92,7 +92,7 @@ static int fscontext_create_fd(struct fs_context *fc, unsigned int o_flags)
 {
 	int fd;
 
-	fd = anon_inode_getfd("fscontext", &fscontext_fops, fc,
+	fd = anon_inode_getfd("[fscontext]", &fscontext_fops, fc,
 			      O_RDWR | o_flags);
 	if (fd < 0)
 		put_fs_context(fc);
