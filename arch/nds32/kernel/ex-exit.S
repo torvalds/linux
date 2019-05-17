@@ -163,7 +163,7 @@ resume_kernel:
 	gie_disable
 	lwi	$t0, [tsk+#TSK_TI_PREEMPT]
 	bnez	$t0, no_work_pending
-need_resched:
+
 	lwi	$t0, [tsk+#TSK_TI_FLAGS]
 	andi	$p1, $t0, #_TIF_NEED_RESCHED
 	beqz	$p1, no_work_pending
@@ -173,7 +173,7 @@ need_resched:
 	beqz	$t0, no_work_pending
 
 	jal	preempt_schedule_irq
-	b	need_resched
+	b	no_work_pending
 #endif
 
 /*
