@@ -409,27 +409,44 @@ static int rename_compat_devs(struct ib_device *device)
 
 int ib_device_rename(struct ib_device *ibdev, const char *name)
 {
+	unsigned long index;
+	void *client_data;
 	int ret;
 
 	down_write(&devices_rwsem);
 	if (!strcmp(name, dev_name(&ibdev->dev))) {
-		ret = 0;
-		goto out;
+		up_write(&devices_rwsem);
+		return 0;
 	}
 
 	if (__ib_device_get_by_name(name)) {
-		ret = -EEXIST;
-		goto out;
+		up_write(&devices_rwsem);
+		return -EEXIST;
 	}
 
 	ret = device_rename(&ibdev->dev, name);
-	if (ret)
-		goto out;
+	if (ret) {
+		up_write(&devices_rwsem);
+		return ret;
+	}
+
 	strlcpy(ibdev->name, name, IB_DEVICE_NAME_MAX);
 	ret = rename_compat_devs(ibdev);
-out:
-	up_write(&devices_rwsem);
-	return ret;
+
+	downgrade_write(&devices_rwsem);
+	down_read(&ibdev->client_data_rwsem);
+	xan_for_each_marked(&ibdev->client_data, index, client_data,
+			    CLIENT_DATA_REGISTERED) {
+		struct ib_client *client = xa_load(&clients, index);
+
+		if (!client || !client->rename)
+			continue;
+
+		client->rename(ibdev, client_data);
+	}
+	up_read(&ibdev->client_data_rwsem);
+	up_read(&devices_rwsem);
+	return 0;
 }
 
 static int alloc_name(struct ib_device *ibdev, const char *name)
