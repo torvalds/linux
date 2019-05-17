@@ -1692,6 +1692,9 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_SYSENTER_ESP:
 		msr_info->data = vmcs_readl(GUEST_SYSENTER_ESP);
 		break;
+	case MSR_IA32_POWER_CTL:
+		msr_info->data = vmx->msr_ia32_power_ctl;
+		break;
 	case MSR_IA32_BNDCFGS:
 		if (!kvm_mpx_supported() ||
 		    (!msr_info->host_initiated &&
@@ -1822,6 +1825,9 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_SYSENTER_ESP:
 		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
+	case MSR_IA32_POWER_CTL:
+		vmx->msr_ia32_power_ctl = data;
+		break;
 	case MSR_IA32_BNDCFGS:
 		if (!kvm_mpx_supported() ||
 		    (!msr_info->host_initiated &&
@@ -1891,7 +1897,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_CR_PAT:
 		if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
-			if (!kvm_mtrr_valid(vcpu, MSR_IA32_CR_PAT, data))
+			if (!kvm_pat_valid(data))
 				return 1;
 			vmcs_write64(GUEST_IA32_PAT, data);
 			vcpu->arch.pat = data;
@@ -2288,7 +2294,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 	min |= VM_EXIT_HOST_ADDR_SPACE_SIZE;
 #endif
 	opt = VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL |
-	      VM_EXIT_SAVE_IA32_PAT |
 	      VM_EXIT_LOAD_IA32_PAT |
 	      VM_EXIT_LOAD_IA32_EFER |
 	      VM_EXIT_CLEAR_BNDCFGS |
@@ -3619,14 +3624,13 @@ static bool vmx_guest_apic_has_interrupt(struct kvm_vcpu *vcpu)
 
 	if (WARN_ON_ONCE(!is_guest_mode(vcpu)) ||
 		!nested_cpu_has_vid(get_vmcs12(vcpu)) ||
-		WARN_ON_ONCE(!vmx->nested.virtual_apic_page))
+		WARN_ON_ONCE(!vmx->nested.virtual_apic_map.gfn))
 		return false;
 
 	rvi = vmx_get_rvi();
 
-	vapic_page = kmap(vmx->nested.virtual_apic_page);
+	vapic_page = vmx->nested.virtual_apic_map.hva;
 	vppr = *((u32 *)(vapic_page + APIC_PROCPRI));
-	kunmap(vmx->nested.virtual_apic_page);
 
 	return ((rvi & 0xf0) > (vppr & 0xf0));
 }
@@ -4827,7 +4831,7 @@ static int handle_cpuid(struct kvm_vcpu *vcpu)
 
 static int handle_rdmsr(struct kvm_vcpu *vcpu)
 {
-	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
+	u32 ecx = kvm_rcx_read(vcpu);
 	struct msr_data msr_info;
 
 	msr_info.index = ecx;
@@ -4840,18 +4844,16 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu)
 
 	trace_kvm_msr_read(ecx, msr_info.data);
 
-	/* FIXME: handling of bits 32:63 of rax, rdx */
-	vcpu->arch.regs[VCPU_REGS_RAX] = msr_info.data & -1u;
-	vcpu->arch.regs[VCPU_REGS_RDX] = (msr_info.data >> 32) & -1u;
+	kvm_rax_write(vcpu, msr_info.data & -1u);
+	kvm_rdx_write(vcpu, (msr_info.data >> 32) & -1u);
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
 static int handle_wrmsr(struct kvm_vcpu *vcpu)
 {
 	struct msr_data msr;
-	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
-	u64 data = (vcpu->arch.regs[VCPU_REGS_RAX] & -1u)
-		| ((u64)(vcpu->arch.regs[VCPU_REGS_RDX] & -1u) << 32);
+	u32 ecx = kvm_rcx_read(vcpu);
+	u64 data = kvm_read_edx_eax(vcpu);
 
 	msr.data = data;
 	msr.index = ecx;
@@ -4922,7 +4924,7 @@ static int handle_wbinvd(struct kvm_vcpu *vcpu)
 static int handle_xsetbv(struct kvm_vcpu *vcpu)
 {
 	u64 new_bv = kvm_read_edx_eax(vcpu);
-	u32 index = kvm_register_read(vcpu, VCPU_REGS_RCX);
+	u32 index = kvm_rcx_read(vcpu);
 
 	if (kvm_set_xcr(vcpu, index, new_bv) == 0)
 		return kvm_skip_emulated_instruction(vcpu);
@@ -5723,8 +5725,16 @@ void dump_vmcs(void)
 	if (secondary_exec_control & SECONDARY_EXEC_TSC_SCALING)
 		pr_err("TSC Multiplier = 0x%016llx\n",
 		       vmcs_read64(TSC_MULTIPLIER));
-	if (cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW)
-		pr_err("TPR Threshold = 0x%02x\n", vmcs_read32(TPR_THRESHOLD));
+	if (cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW) {
+		if (secondary_exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY) {
+			u16 status = vmcs_read16(GUEST_INTR_STATUS);
+			pr_err("SVI|RVI = %02x|%02x ", status >> 8, status & 0xff);
+		}
+		pr_cont("TPR Threshold = 0x%02x\n", vmcs_read32(TPR_THRESHOLD));
+		if (secondary_exec_control & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)
+			pr_err("APIC-access addr = 0x%016llx ", vmcs_read64(APIC_ACCESS_ADDR));
+		pr_cont("virt-APIC addr = 0x%016llx\n", vmcs_read64(VIRTUAL_APIC_PAGE_ADDR));
+	}
 	if (pin_based_exec_ctrl & PIN_BASED_POSTED_INTR)
 		pr_err("PostedIntrVec = 0x%02x\n", vmcs_read16(POSTED_INTR_NV));
 	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_EPT))
@@ -6856,30 +6866,6 @@ static void nested_vmx_entry_exit_ctls_update(struct kvm_vcpu *vcpu)
 	}
 }
 
-static bool guest_cpuid_has_pmu(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpuid_entry2 *entry;
-	union cpuid10_eax eax;
-
-	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
-	if (!entry)
-		return false;
-
-	eax.full = entry->eax;
-	return (eax.split.version_id > 0);
-}
-
-static void nested_vmx_procbased_ctls_update(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	bool pmu_enabled = guest_cpuid_has_pmu(vcpu);
-
-	if (pmu_enabled)
-		vmx->nested.msrs.procbased_ctls_high |= CPU_BASED_RDPMC_EXITING;
-	else
-		vmx->nested.msrs.procbased_ctls_high &= ~CPU_BASED_RDPMC_EXITING;
-}
-
 static void update_intel_pt_cfg(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -6968,7 +6954,6 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	if (nested_vmx_allowed(vcpu)) {
 		nested_vmx_cr_fixed1_bits_update(vcpu);
 		nested_vmx_entry_exit_ctls_update(vcpu);
-		nested_vmx_procbased_ctls_update(vcpu);
 	}
 
 	if (boot_cpu_has(X86_FEATURE_INTEL_PT) &&
@@ -7028,7 +7013,8 @@ static inline int u64_shl_div_u64(u64 a, unsigned int shift,
 	return 0;
 }
 
-static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc)
+static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc,
+			    bool *expired)
 {
 	struct vcpu_vmx *vmx;
 	u64 tscl, guest_tscl, delta_tsc, lapic_timer_advance_cycles;
@@ -7051,10 +7037,9 @@ static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc)
 
 	/* Convert to host delta tsc if tsc scaling is enabled */
 	if (vcpu->arch.tsc_scaling_ratio != kvm_default_tsc_scaling_ratio &&
-			u64_shl_div_u64(delta_tsc,
+	    delta_tsc && u64_shl_div_u64(delta_tsc,
 				kvm_tsc_scaling_ratio_frac_bits,
-				vcpu->arch.tsc_scaling_ratio,
-				&delta_tsc))
+				vcpu->arch.tsc_scaling_ratio, &delta_tsc))
 		return -ERANGE;
 
 	/*
@@ -7067,7 +7052,8 @@ static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc)
 		return -ERANGE;
 
 	vmx->hv_deadline_tsc = tscl + delta_tsc;
-	return delta_tsc == 0;
+	*expired = !delta_tsc;
+	return 0;
 }
 
 static void vmx_cancel_hv_timer(struct kvm_vcpu *vcpu)
@@ -7104,9 +7090,7 @@ static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
 {
 	struct vmcs12 *vmcs12;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	gpa_t gpa;
-	struct page *page = NULL;
-	u64 *pml_address;
+	gpa_t gpa, dst;
 
 	if (is_guest_mode(vcpu)) {
 		WARN_ON_ONCE(vmx->nested.pml_full);
@@ -7126,15 +7110,13 @@ static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
 		}
 
 		gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS) & ~0xFFFull;
+		dst = vmcs12->pml_address + sizeof(u64) * vmcs12->guest_pml_index;
 
-		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->pml_address);
-		if (is_error_page(page))
+		if (kvm_write_guest_page(vcpu->kvm, gpa_to_gfn(dst), &gpa,
+					 offset_in_page(dst), sizeof(gpa)))
 			return 0;
 
-		pml_address = kmap(page);
-		pml_address[vmcs12->guest_pml_index--] = gpa;
-		kunmap(page);
-		kvm_release_page_clean(page);
+		vmcs12->guest_pml_index--;
 	}
 
 	return 0;

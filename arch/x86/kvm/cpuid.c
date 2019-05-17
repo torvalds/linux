@@ -963,13 +963,13 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
-	eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
-	ecx = kvm_register_read(vcpu, VCPU_REGS_RCX);
+	eax = kvm_rax_read(vcpu);
+	ecx = kvm_rcx_read(vcpu);
 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
-	kvm_register_write(vcpu, VCPU_REGS_RAX, eax);
-	kvm_register_write(vcpu, VCPU_REGS_RBX, ebx);
-	kvm_register_write(vcpu, VCPU_REGS_RCX, ecx);
-	kvm_register_write(vcpu, VCPU_REGS_RDX, edx);
+	kvm_rax_write(vcpu, eax);
+	kvm_rbx_write(vcpu, ebx);
+	kvm_rcx_write(vcpu, ecx);
+	kvm_rdx_write(vcpu, edx);
 	return kvm_skip_emulated_instruction(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);

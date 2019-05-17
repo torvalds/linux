@@ -1341,6 +1341,7 @@ menu "ARMv8.3 architectural features"
 config ARM64_PTR_AUTH
 	bool "Enable support for pointer authentication"
 	default y
+	depends on !KVM || ARM64_VHE
 	help
 	  Pointer authentication (part of the ARMv8.3 Extensions) provides
 	  instructions for signing and authenticating pointers against secret
@@ -1354,8 +1355,9 @@ config ARM64_PTR_AUTH
 	  context-switched along with the process.
 
 	  The feature is detected at runtime. If the feature is not present in
-	  hardware it will not be advertised to userspace nor will it be
-	  enabled.
+	  hardware it will not be advertised to userspace/KVM guest nor will it
+	  be enabled. However, KVM guest also require VHE mode and hence
+	  CONFIG_ARM64_VHE=y option to use this feature.
 
 endmenu
 

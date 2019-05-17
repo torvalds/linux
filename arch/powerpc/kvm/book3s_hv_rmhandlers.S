@@ -589,11 +589,8 @@ kvmppc_hv_entry:
 1:
 #endif
 
-	/* Use cr7 as an indication of radix mode */
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	ld	r9, VCORE_KVM(r5)	/* pointer to struct kvm */
-	lbz	r0, KVM_RADIX(r9)
-	cmpwi	cr7, r0, 0
 
 	/*
 	 * POWER7/POWER8 host -> guest partition switch code.
@@ -616,9 +613,6 @@ kvmppc_hv_entry:
 	cmpwi	r6,0
 	bne	10f
 
-	/* Radix has already switched LPID and flushed core TLB */
-	bne	cr7, 22f
-
 	lwz	r7,KVM_LPID(r9)
 BEGIN_FTR_SECTION
 	ld	r6,KVM_SDR1(r9)
@@ -630,41 +624,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPID,r7
 	isync
 
-	/* See if we need to flush the TLB. Hash has to be done in RM */
-	lhz	r6,PACAPACAINDEX(r13)	/* test_bit(cpu, need_tlb_flush) */
-BEGIN_FTR_SECTION
-	/*
-	 * On POWER9, individual threads can come in here, but the
-	 * TLB is shared between the 4 threads in a core, hence
-	 * invalidating on one thread invalidates for all.
-	 * Thus we make all 4 threads use the same bit here.
-	 */
-	clrrdi	r6,r6,2
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	clrldi	r7,r6,64-6		/* extract bit number (6 bits) */
-	srdi	r6,r6,6			/* doubleword number */
-	sldi	r6,r6,3			/* address offset */
-	add	r6,r6,r9
-	addi	r6,r6,KVM_NEED_FLUSH	/* dword in kvm->arch.need_tlb_flush */
-	li	r8,1
-	sld	r8,r8,r7
-	ld	r7,0(r6)
-	and.	r7,r7,r8
-	beq	22f
-	/* Flush the TLB of any entries for this LPID */
-	lwz	r0,KVM_TLB_SETS(r9)
-	mtctr	r0
-	li	r7,0x800		/* IS field = 0b10 */
-	ptesync
-	li	r0,0			/* RS for P9 version of tlbiel */
-28:	tlbiel	r7			/* On P9, rs=0, RIC=0, PRS=0, R=0 */
-	addi	r7,r7,0x1000
-	bdnz	28b
-	ptesync
-23:	ldarx	r7,0,r6			/* clear the bit after TLB flushed */
-	andc	r7,r7,r8
-	stdcx.	r7,0,r6
-	bne	23b
+	/* See if we need to flush the TLB. */
+	mr	r3, r9			/* kvm pointer */
+	lhz	r4, PACAPACAINDEX(r13)	/* physical cpu number */
+	li	r5, 0			/* nested vcpu pointer */
+	bl	kvmppc_check_need_tlb_flush
+	nop
+	ld	r5, HSTATE_KVM_VCORE(r13)
 
 	/* Add timebase offset onto timebase */
 22:	ld	r8,VCORE_TB_OFFSET(r5)
@@ -980,17 +946,27 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 
 #ifdef CONFIG_KVM_XICS
 	/* We are entering the guest on that thread, push VCPU to XIVE */
-	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
-	cmpldi	cr0, r10, 0
-	beq	no_xive
 	ld	r11, VCPU_XIVE_SAVED_STATE(r4)
 	li	r9, TM_QW1_OS
+	lwz	r8, VCPU_XIVE_CAM_WORD(r4)
+	li	r7, TM_QW1_OS + TM_WORD2
+	mfmsr	r0
+	andi.	r0, r0, MSR_DR		/* in real mode? */
+	beq	2f
+	ld	r10, HSTATE_XIVE_TIMA_VIRT(r13)
+	cmpldi	cr1, r10, 0
+	beq     cr1, no_xive
+	eieio
+	stdx	r11,r9,r10
+	stwx	r8,r7,r10
+	b	3f
+2:	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
+	cmpldi	cr1, r10, 0
+	beq	cr1, no_xive
 	eieio
 	stdcix	r11,r9,r10
-	lwz	r11, VCPU_XIVE_CAM_WORD(r4)
-	li	r9, TM_QW1_OS + TM_WORD2
-	stwcix	r11,r9,r10
-	li	r9, 1
+	stwcix	r8,r7,r10
+3:	li	r9, 1
 	stb	r9, VCPU_XIVE_PUSHED(r4)
 	eieio
 
@@ -1009,12 +985,16 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	 * on, we mask it.
 	 */
 	lbz	r0, VCPU_XIVE_ESC_ON(r4)
-	cmpwi	r0,0
-	beq	1f
-	ld	r10, VCPU_XIVE_ESC_RADDR(r4)
+	cmpwi	cr1, r0,0
+	beq	cr1, 1f
 	li	r9, XIVE_ESB_SET_PQ_01
+	beq	4f			/* in real mode? */
+	ld	r10, VCPU_XIVE_ESC_VADDR(r4)
+	ldx	r0, r10, r9
+	b	5f
+4:	ld	r10, VCPU_XIVE_ESC_RADDR(r4)
 	ldcix	r0, r10, r9
-	sync
+5:	sync
 
 	/* We have a possible subtle race here: The escalation interrupt might
 	 * have fired and be on its way to the host queue while we mask it,
@@ -2292,7 +2272,7 @@ hcall_real_table:
 #endif
 	.long	0		/* 0x24 - H_SET_SPRG0 */
 	.long	DOTSYM(kvmppc_h_set_dabr) - hcall_real_table
-	.long	0		/* 0x2c */
+	.long	DOTSYM(kvmppc_rm_h_page_init) - hcall_real_table
 	.long	0		/* 0x30 */
 	.long	0		/* 0x34 */
 	.long	0		/* 0x38 */

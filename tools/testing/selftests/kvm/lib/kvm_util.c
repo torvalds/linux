@@ -1250,6 +1250,38 @@ void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
 		ret, errno);
 }
 
+void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
+			   struct kvm_nested_state *state)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+
+	ret = ioctl(vcpu->fd, KVM_GET_NESTED_STATE, state);
+	TEST_ASSERT(ret == 0,
+		"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
+		ret, errno);
+}
+
+int vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+			  struct kvm_nested_state *state, bool ignore_error)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+
+	ret = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, state);
+	if (!ignore_error) {
+		TEST_ASSERT(ret == 0,
+			"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
+			ret, errno);
+	}
+
+	return ret;
+}
+
 /*
  * VM VCPU System Regs Get
  *
