@@ -13120,29 +13120,27 @@ static void intel_modeset_clear_plls(struct intel_atomic_state *state)
  * multiple pipes, and planes are enabled after the pipe, we need to wait at
  * least 2 vblanks on the first pipe before enabling planes on the second pipe.
  */
-static int haswell_mode_set_planes_workaround(struct drm_atomic_state *state)
+static int haswell_mode_set_planes_workaround(struct intel_atomic_state *state)
 {
-	struct drm_crtc_state *crtc_state;
-	struct intel_crtc *intel_crtc;
-	struct drm_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
 	struct intel_crtc_state *first_crtc_state = NULL;
 	struct intel_crtc_state *other_crtc_state = NULL;
 	enum pipe first_pipe = INVALID_PIPE, enabled_pipe = INVALID_PIPE;
 	int i;
 
 	/* look at all crtc's that are going to be enabled in during modeset */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		intel_crtc = to_intel_crtc(crtc);
-
-		if (!crtc_state->active || !needs_modeset(crtc_state))
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		if (!crtc_state->base.active ||
+		    !needs_modeset(&crtc_state->base))
 			continue;
 
 		if (first_crtc_state) {
-			other_crtc_state = to_intel_crtc_state(crtc_state);
+			other_crtc_state = crtc_state;
 			break;
 		} else {
-			first_crtc_state = to_intel_crtc_state(crtc_state);
-			first_pipe = intel_crtc->pipe;
+			first_crtc_state = crtc_state;
+			first_pipe = crtc->pipe;
 		}
 	}
 
@@ -13151,24 +13149,22 @@ static int haswell_mode_set_planes_workaround(struct drm_atomic_state *state)
 		return 0;
 
 	/* w/a possibly needed, check how many crtc's are already enabled. */
-	for_each_intel_crtc(state->dev, intel_crtc) {
-		struct intel_crtc_state *pipe_config;
+	for_each_intel_crtc(state->base.dev, crtc) {
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
 
-		pipe_config = intel_atomic_get_crtc_state(state, intel_crtc);
-		if (IS_ERR(pipe_config))
-			return PTR_ERR(pipe_config);
+		crtc_state->hsw_workaround_pipe = INVALID_PIPE;
 
-		pipe_config->hsw_workaround_pipe = INVALID_PIPE;
-
-		if (!pipe_config->base.active ||
-		    needs_modeset(&pipe_config->base))
+		if (!crtc_state->base.active ||
+		    needs_modeset(&crtc_state->base))
 			continue;
 
 		/* 2 or more enabled crtcs means no need for w/a */
 		if (enabled_pipe != INVALID_PIPE)
 			return 0;
 
-		enabled_pipe = intel_crtc->pipe;
+		enabled_pipe = crtc->pipe;
 	}
 
 	if (enabled_pipe != INVALID_PIPE)
@@ -13331,7 +13327,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	intel_modeset_clear_plls(intel_state);
 
 	if (IS_HASWELL(dev_priv))
-		return haswell_mode_set_planes_workaround(state);
+		return haswell_mode_set_planes_workaround(intel_state);
 
 	return 0;
 }
