@@ -34,7 +34,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	uvldb = call->buffer;
-	entry = call->reply[0];
+	entry = call->ret_vldb;
 
 	nr_servers = ntohl(uvldb->nServers);
 	if (nr_servers > AFS_NMAXNSERVERS)
@@ -110,7 +110,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 
 static void afs_destroy_vl_get_entry_by_name_u(struct afs_call *call)
 {
-	kfree(call->reply[0]);
+	kfree(call->ret_vldb);
 	afs_flat_call_destructor(call);
 }
 
@@ -155,8 +155,7 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 	}
 
 	call->key = vc->key;
-	call->reply[0] = entry;
-	call->ret_reply0 = true;
+	call->ret_vldb = entry;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
 
 	/* Marshall the parameters */
@@ -215,7 +214,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
-		call->reply[0] = alist;
+		call->ret_alist = alist;
 		call->count = count;
 		call->count2 = nentries;
 		call->unmarshall++;
@@ -230,7 +229,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-		alist = call->reply[0];
+		alist = call->ret_alist;
 		bp = call->buffer;
 		count = min(call->count, 4U);
 		for (i = 0; i < count; i++)
@@ -250,8 +249,7 @@ static int afs_deliver_vl_get_addrs_u(struct afs_call *call)
 
 static void afs_vl_get_addrs_u_destructor(struct afs_call *call)
 {
-	afs_put_server(call->net, (struct afs_server *)call->reply[0]);
-	kfree(call->reply[1]);
+	afs_put_addrlist(call->ret_alist);
 	return afs_flat_call_destructor(call);
 }
 
@@ -288,8 +286,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 		return ERR_PTR(-ENOMEM);
 
 	call->key = vc->key;
-	call->reply[0] = NULL;
-	call->ret_reply0 = true;
+	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
 
 	/* Marshall the parameters */
@@ -360,9 +357,7 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 
 static void afs_destroy_vl_get_capabilities(struct afs_call *call)
 {
-	struct afs_vlserver *server = call->reply[0];
-
-	afs_put_vlserver(call->net, server);
+	afs_put_vlserver(call->net, call->vlserver);
 	afs_flat_call_destructor(call);
 }
 
@@ -400,10 +395,9 @@ struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
 		return ERR_PTR(-ENOMEM);
 
 	call->key = key;
-	call->reply[0] = afs_get_vlserver(server);
-	call->reply[1] = (void *)(long)server_index;
+	call->vlserver = afs_get_vlserver(server);
+	call->server_index = server_index;
 	call->upgrade = true;
-	call->want_reply_time = true;
 	call->async = true;
 	call->max_lifespan = AFS_PROBE_MAX_LIFESPAN;
 
@@ -463,7 +457,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		if (!alist)
 			return -ENOMEM;
 		alist->version = uniquifier;
-		call->reply[0] = alist;
+		call->ret_alist = alist;
 
 		if (call->count == 0)
 			goto extract_volendpoints;
@@ -491,7 +485,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-		alist = call->reply[0];
+		alist = call->ret_alist;
 		bp = call->buffer;
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
@@ -612,7 +606,6 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		break;
 	}
 
-	alist = call->reply[0];
 	_leave(" = 0 [done]");
 	return 0;
 }
@@ -647,8 +640,7 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 		return ERR_PTR(-ENOMEM);
 
 	call->key = vc->key;
-	call->reply[0] = NULL;
-	call->ret_reply0 = true;
+	call->ret_alist = NULL;
 	call->max_lifespan = AFS_VL_MAX_LIFESPAN;
 
 	/* Marshall the parameters */

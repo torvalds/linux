@@ -213,7 +213,7 @@ static int afs_find_cm_server_by_peer(struct afs_call *call)
 		return 0;
 	}
 
-	call->cm_server = server;
+	call->server = server;
 	return afs_record_cm_probe(call, server);
 }
 
@@ -234,7 +234,7 @@ static int afs_find_cm_server_by_uuid(struct afs_call *call,
 		return 0;
 	}
 
-	call->cm_server = server;
+	call->server = server;
 	return afs_record_cm_probe(call, server);
 }
 
@@ -260,8 +260,8 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 	 * server holds up change visibility till it receives our reply so as
 	 * to maintain cache coherency.
 	 */
-	if (call->cm_server)
-		afs_break_callbacks(call->cm_server, call->count, call->request);
+	if (call->server)
+		afs_break_callbacks(call->server, call->count, call->request);
 
 	afs_send_empty_reply(call);
 	afs_put_call(call);
@@ -376,10 +376,10 @@ static void SRXAFSCB_InitCallBackState(struct work_struct *work)
 {
 	struct afs_call *call = container_of(work, struct afs_call, work);
 
-	_enter("{%p}", call->cm_server);
+	_enter("{%p}", call->server);
 
-	if (call->cm_server)
-		afs_init_callback_state(call->cm_server);
+	if (call->server)
+		afs_init_callback_state(call->server);
 	afs_send_empty_reply(call);
 	afs_put_call(call);
 	_leave("");

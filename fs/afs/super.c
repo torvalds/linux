@@ -426,7 +426,7 @@ static int afs_set_super(struct super_block *sb, struct fs_context *fc)
 static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-	struct afs_fid fid;
+	struct afs_iget_data iget_data;
 	struct inode *inode = NULL;
 	int ret;
 
@@ -451,11 +451,13 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 	} else {
 		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
-		fid.vid		= as->volume->vid;
-		fid.vnode	= 1;
-		fid.vnode_hi	= 0;
-		fid.unique	= 1;
-		inode = afs_iget(sb, ctx->key, &fid, NULL, NULL, NULL, NULL);
+		iget_data.fid.vid	= as->volume->vid;
+		iget_data.fid.vnode	= 1;
+		iget_data.fid.vnode_hi	= 0;
+		iget_data.fid.unique	= 1;
+		iget_data.cb_v_break	= as->volume->cb_v_break;
+		iget_data.cb_s_break	= 0;
+		inode = afs_iget(sb, ctx->key, &iget_data, NULL, NULL, NULL);
 	}
 
 	if (IS_ERR(inode))
@@ -677,13 +679,12 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	vnode->volume		= NULL;
 	vnode->lock_key		= NULL;
 	vnode->permit_cache	= NULL;
-	vnode->cb_interest	= NULL;
+	RCU_INIT_POINTER(vnode->cb_interest, NULL);
 #ifdef CONFIG_AFS_FSCACHE
 	vnode->cache		= NULL;
 #endif
 
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
-	vnode->cb_type		= 0;
 	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
 
 	init_rwsem(&vnode->rmdir_lock);
@@ -708,7 +709,7 @@ static void afs_destroy_inode(struct inode *inode)
 
 	_debug("DESTROY INODE %p", inode);
 
-	ASSERTCMP(vnode->cb_interest, ==, NULL);
+	ASSERTCMP(rcu_access_pointer(vnode->cb_interest), ==, NULL);
 
 	atomic_dec(&afs_count_active_inodes);
 }
@@ -749,7 +750,6 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		}
 
 		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
 		ret = afs_end_vnode_operation(&fc);
 	}
 

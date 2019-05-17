@@ -66,7 +66,8 @@ static bool afs_start_fs_iteration(struct afs_fs_cursor *fc,
 	fc->untried = (1UL << fc->server_list->nr_servers) - 1;
 	fc->index = READ_ONCE(fc->server_list->preferred);
 
-	cbi = vnode->cb_interest;
+	cbi = rcu_dereference_protected(vnode->cb_interest,
+					lockdep_is_held(&vnode->io_lock));
 	if (cbi) {
 		/* See if the vnode's preferred record is still available */
 		for (i = 0; i < fc->server_list->nr_servers; i++) {
@@ -87,8 +88,8 @@ static bool afs_start_fs_iteration(struct afs_fs_cursor *fc,
 
 		/* Note that the callback promise is effectively broken */
 		write_seqlock(&vnode->cb_lock);
-		ASSERTCMP(cbi, ==, vnode->cb_interest);
-		vnode->cb_interest = NULL;
+		ASSERTCMP(cbi, ==, rcu_access_pointer(vnode->cb_interest));
+		rcu_assign_pointer(vnode->cb_interest, NULL);
 		if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags))
 			vnode->cb_break++;
 		write_sequnlock(&vnode->cb_lock);
@@ -417,7 +418,9 @@ selected_server:
 	if (error < 0)
 		goto failed_set_error;
 
-	fc->cbi = afs_get_cb_interest(vnode->cb_interest);
+	fc->cbi = afs_get_cb_interest(
+		rcu_dereference_protected(vnode->cb_interest,
+					  lockdep_is_held(&vnode->io_lock)));
 
 	read_lock(&server->fs_lock);
 	alist = rcu_dereference_protected(server->addresses,
@@ -487,11 +490,14 @@ failed:
 bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 {
 	struct afs_vnode *vnode = fc->vnode;
-	struct afs_cb_interest *cbi = vnode->cb_interest;
+	struct afs_cb_interest *cbi;
 	struct afs_addr_list *alist;
 	int error = fc->ac.error;
 
 	_enter("");
+
+	cbi = rcu_dereference_protected(vnode->cb_interest,
+					lockdep_is_held(&vnode->io_lock));
 
 	switch (error) {
 	case SHRT_MAX:
@@ -501,7 +507,7 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 			return false;
 		}
 
-		fc->cbi = afs_get_cb_interest(vnode->cb_interest);
+		fc->cbi = afs_get_cb_interest(cbi);
 
 		read_lock(&cbi->server->fs_lock);
 		alist = rcu_dereference_protected(cbi->server->addresses,

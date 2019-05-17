@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/task_io_accounting_ops.h>
 #include "internal.h"
+#include "afs_fs.h"
 #include "xdr_fs.h"
 
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
@@ -102,8 +103,8 @@ struct afs_lookup_cookie {
 	bool			found;
 	bool			one_only;
 	unsigned short		nr_fids;
-	struct afs_file_status	*statuses;
-	struct afs_callback	*callbacks;
+	struct inode		**inodes;
+	struct afs_status_cb	*statuses;
 	struct afs_fid		fids[50];
 };
 
@@ -638,12 +639,14 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 				   struct key *key)
 {
 	struct afs_lookup_cookie *cookie;
-	struct afs_cb_interest *cbi = NULL;
+	struct afs_cb_interest *dcbi, *cbi = NULL;
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
-	struct afs_iget_data data;
+	struct afs_status_cb *scb;
+	struct afs_iget_data iget_data;
 	struct afs_fs_cursor fc;
-	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct inode *inode = NULL;
+	struct afs_server *server;
+	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
+	struct inode *inode = NULL, *ti;
 	int ret, i;
 
 	_enter("{%lu},%p{%pd},", dir->i_ino, dentry, dentry);
@@ -657,10 +660,14 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	cookie->nr_fids = 1; /* slot 0 is saved for the fid we actually want */
 
 	read_seqlock_excl(&dvnode->cb_lock);
-	if (dvnode->cb_interest &&
-	    dvnode->cb_interest->server &&
-	    test_bit(AFS_SERVER_FL_NO_IBULK, &dvnode->cb_interest->server->flags))
-		cookie->one_only = true;
+	dcbi = rcu_dereference_protected(dvnode->cb_interest,
+					 lockdep_is_held(&dvnode->cb_lock.lock));
+	if (dcbi) {
+		server = dcbi->server;
+		if (server &&
+		    test_bit(AFS_SERVER_FL_NO_IBULK, &server->flags))
+			cookie->one_only = true;
+	}
 	read_sequnlock_excl(&dvnode->cb_lock);
 
 	for (i = 0; i < 50; i++)
@@ -678,23 +685,42 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	/* Check to see if we already have an inode for the primary fid. */
-	data.volume = dvnode->volume;
-	data.fid = cookie->fids[0];
-	inode = ilookup5(dir->i_sb, cookie->fids[0].vnode, afs_iget5_test, &data);
+	iget_data.fid = cookie->fids[0];
+	iget_data.volume = dvnode->volume;
+	iget_data.cb_v_break = dvnode->volume->cb_v_break;
+	iget_data.cb_s_break = 0;
+	inode = ilookup5(dir->i_sb, cookie->fids[0].vnode,
+			 afs_iget5_test, &iget_data);
 	if (inode)
 		goto out;
 
 	/* Need space for examining all the selected files */
 	inode = ERR_PTR(-ENOMEM);
-	cookie->statuses = kcalloc(cookie->nr_fids, sizeof(struct afs_file_status),
-				   GFP_KERNEL);
+	cookie->statuses = kvcalloc(cookie->nr_fids, sizeof(struct afs_status_cb),
+				    GFP_KERNEL);
 	if (!cookie->statuses)
 		goto out;
 
-	cookie->callbacks = kcalloc(cookie->nr_fids, sizeof(struct afs_callback),
-				    GFP_KERNEL);
-	if (!cookie->callbacks)
+	cookie->inodes = kcalloc(cookie->nr_fids, sizeof(struct inode *),
+				 GFP_KERNEL);
+	if (!cookie->inodes)
 		goto out_s;
+
+	for (i = 1; i < cookie->nr_fids; i++) {
+		scb = &cookie->statuses[i];
+
+		/* Find any inodes that already exist and get their
+		 * callback counters.
+		 */
+		iget_data.fid = cookie->fids[i];
+		ti = ilookup5_nowait(dir->i_sb, iget_data.fid.vnode,
+				     afs_iget5_test, &iget_data);
+		if (!IS_ERR_OR_NULL(ti)) {
+			vnode = AFS_FS_I(ti);
+			scb->cb_break = afs_calc_vnode_cb_break(vnode);
+			cookie->inodes[i] = ti;
+		}
+	}
 
 	/* Try FS.InlineBulkStatus first.  Abort codes for the individual
 	 * lookups contained therein are stored in the reply without aborting
@@ -712,11 +738,12 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 				fc.ac.error = -ECONNABORTED;
 				break;
 			}
+			iget_data.cb_v_break = dvnode->volume->cb_v_break;
+			iget_data.cb_s_break = fc.cbi->server->cb_s_break;
 			afs_fs_inline_bulk_status(&fc,
 						  afs_v2net(dvnode),
 						  cookie->fids,
 						  cookie->statuses,
-						  cookie->callbacks,
 						  cookie->nr_fids, NULL);
 		}
 
@@ -737,15 +764,16 @@ no_inline_bulk_status:
 	 * any of the lookups fails - so, for the moment, revert to
 	 * FS.FetchStatus for just the primary fid.
 	 */
-	cookie->nr_fids = 1;
 	inode = ERR_PTR(-ERESTARTSYS);
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
 		while (afs_select_fileserver(&fc)) {
+			iget_data.cb_v_break = dvnode->volume->cb_v_break;
+			iget_data.cb_s_break = fc.cbi->server->cb_s_break;
+			scb = &cookie->statuses[0];
 			afs_fs_fetch_status(&fc,
 					    afs_v2net(dvnode),
 					    cookie->fids,
-					    cookie->statuses,
-					    cookie->callbacks,
+					    scb,
 					    NULL);
 		}
 
@@ -757,26 +785,36 @@ no_inline_bulk_status:
 	if (IS_ERR(inode))
 		goto out_c;
 
-	for (i = 0; i < cookie->nr_fids; i++)
-		cookie->statuses[i].abort_code = 0;
-
 success:
 	/* Turn all the files into inodes and save the first one - which is the
 	 * one we actually want.
 	 */
-	if (cookie->statuses[0].abort_code != 0)
-		inode = ERR_PTR(afs_abort_to_error(cookie->statuses[0].abort_code));
+	scb = &cookie->statuses[0];
+	if (scb->status.abort_code != 0)
+		inode = ERR_PTR(afs_abort_to_error(scb->status.abort_code));
 
 	for (i = 0; i < cookie->nr_fids; i++) {
-		struct inode *ti;
+		struct afs_status_cb *scb = &cookie->statuses[i];
 
-		if (cookie->statuses[i].abort_code != 0)
+		if (!scb->have_status && !scb->have_error)
 			continue;
 
-		ti = afs_iget(dir->i_sb, key, &cookie->fids[i],
-			      &cookie->statuses[i],
-			      &cookie->callbacks[i],
-			      cbi, dvnode);
+		if (cookie->inodes[i]) {
+			afs_vnode_commit_status(&fc, AFS_FS_I(cookie->inodes[i]),
+						scb->cb_break, NULL, scb);
+			continue;
+		}
+
+		if (scb->status.abort_code != 0)
+			continue;
+
+		iget_data.fid = cookie->fids[i];
+		ti = afs_iget(dir->i_sb, key, &iget_data, scb, cbi, dvnode);
+		if (!IS_ERR(ti))
+			afs_cache_permit(AFS_FS_I(ti), key,
+					 0 /* Assume vnode->cb_break is 0 */ +
+					 iget_data.cb_v_break,
+					 scb);
 		if (i == 0) {
 			inode = ti;
 		} else {
@@ -787,9 +825,13 @@ success:
 
 out_c:
 	afs_put_cb_interest(afs_v2net(dvnode), cbi);
-	kfree(cookie->callbacks);
+	if (cookie->inodes) {
+		for (i = 0; i < cookie->nr_fids; i++)
+			iput(cookie->inodes[i]);
+		kfree(cookie->inodes);
+	}
 out_s:
-	kfree(cookie->statuses);
+	kvfree(cookie->statuses);
 out:
 	kfree(cookie);
 	return inode;
@@ -1114,9 +1156,8 @@ void afs_d_release(struct dentry *dentry)
  */
 static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 				struct dentry *new_dentry,
-				struct afs_fid *newfid,
-				struct afs_file_status *newstatus,
-				struct afs_callback *newcb)
+				struct afs_iget_data *new_data,
+				struct afs_status_cb *new_scb)
 {
 	struct afs_vnode *vnode;
 	struct inode *inode;
@@ -1125,7 +1166,7 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 		return;
 
 	inode = afs_iget(fc->vnode->vfs_inode.i_sb, fc->key,
-			 newfid, newstatus, newcb, fc->cbi, fc->vnode);
+			 new_data, new_scb, fc->cbi, fc->vnode);
 	if (IS_ERR(inode)) {
 		/* ENOMEM or EINTR at a really inconvenient time - just abandon
 		 * the new directory on the server.
@@ -1136,8 +1177,17 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 
 	vnode = AFS_FS_I(inode);
 	set_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
-	afs_vnode_commit_status(fc, vnode, 0);
+	if (fc->ac.error == 0)
+		afs_cache_permit(vnode, fc->key, vnode->cb_break, new_scb);
 	d_instantiate(new_dentry, inode);
+}
+
+static void afs_prep_for_new_inode(struct afs_fs_cursor *fc,
+				   struct afs_iget_data *iget_data)
+{
+	iget_data->volume = fc->vnode->volume;
+	iget_data->cb_v_break = fc->vnode->volume->cb_v_break;
+	iget_data->cb_s_break = fc->cbi->server->cb_s_break;
 }
 
 /*
@@ -1145,13 +1195,11 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
  */
 static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
-	struct afs_file_status newstatus;
+	struct afs_iget_data iget_data;
+	struct afs_status_cb *scb;
 	struct afs_fs_cursor fc;
-	struct afs_callback newcb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct afs_fid newfid;
 	struct key *key;
-	u64 data_version = dvnode->status.data_version;
 	int ret;
 
 	mode |= S_IFDIR;
@@ -1159,23 +1207,32 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	_enter("{%llx:%llu},{%pd},%ho",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry, mode);
 
+	ret = -ENOMEM;
+	scb = kcalloc(2, sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		goto error;
+
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
-		goto error;
+		goto error_scb;
 	}
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
+		afs_dataversion_t data_version = dvnode->status.data_version + 1;
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-			afs_fs_create(&fc, dentry->d_name.name, mode, data_version,
-				      &newfid, &newstatus, &newcb);
+			afs_prep_for_new_inode(&fc, &iget_data);
+			afs_fs_create(&fc, dentry->d_name.name, mode,
+				      &scb[0], &iget_data.fid, &scb[1]);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
-		afs_vnode_new_inode(&fc, dentry, &newfid, &newstatus, &newcb);
+		afs_check_for_remote_deletion(&fc, dvnode);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
+					&data_version, &scb[0]);
+		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
@@ -1185,15 +1242,18 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	if (ret == 0 &&
 	    test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_edit_dir_add(dvnode, &dentry->d_name, &newfid,
+		afs_edit_dir_add(dvnode, &dentry->d_name, &iget_data.fid,
 				 afs_edit_dir_for_create);
 
 	key_put(key);
+	kfree(scb);
 	_leave(" = 0");
 	return 0;
 
 error_key:
 	key_put(key);
+error_scb:
+	kfree(scb);
 error:
 	d_drop(dentry);
 	_leave(" = %d", ret);
@@ -1220,14 +1280,18 @@ static void afs_dir_remove_subdir(struct dentry *dentry)
  */
 static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 {
+	struct afs_status_cb *scb;
 	struct afs_fs_cursor fc;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode = NULL;
 	struct key *key;
-	u64 data_version = dvnode->status.data_version;
 	int ret;
 
 	_enter("{%llx:%llu},{%pd}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry);
+
+	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		return -ENOMEM;
 
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
@@ -1251,13 +1315,15 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
+		afs_dataversion_t data_version = dvnode->status.data_version + 1;
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-			afs_fs_remove(&fc, vnode, dentry->d_name.name, true,
-				      data_version);
+			afs_fs_remove(&fc, vnode, dentry->d_name.name, true, scb);
 		}
 
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
+					&data_version, scb);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret == 0) {
 			afs_dir_remove_subdir(dentry);
@@ -1272,6 +1338,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 error_key:
 	key_put(key);
 error:
+	kfree(scb);
 	return ret;
 }
 
@@ -1285,32 +1352,27 @@ error:
  * However, if we didn't have a callback promise outstanding, or it was
  * outstanding on a different server, then it won't break it either...
  */
-int afs_dir_remove_link(struct dentry *dentry, struct key *key,
-			unsigned long d_version_before,
-			unsigned long d_version_after)
+static int afs_dir_remove_link(struct afs_vnode *dvnode, struct dentry *dentry,
+			       struct key *key)
 {
-	bool dir_valid;
 	int ret = 0;
-
-	/* There were no intervening changes on the server if the version
-	 * number we got back was incremented by exactly 1.
-	 */
-	dir_valid = (d_version_after == d_version_before + 1);
 
 	if (d_really_is_positive(dentry)) {
 		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 
 		if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
 			/* Already done */
-		} else if (dir_valid) {
+		} else if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags)) {
+			write_seqlock(&vnode->cb_lock);
 			drop_nlink(&vnode->vfs_inode);
 			if (vnode->vfs_inode.i_nlink == 0) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
-				clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+				__afs_break_callback(vnode);
 			}
+			write_sequnlock(&vnode->cb_lock);
 			ret = 0;
 		} else {
-			clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+			afs_break_callback(vnode);
 
 			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 				kdebug("AFS_VNODE_DELETED");
@@ -1331,11 +1393,10 @@ int afs_dir_remove_link(struct dentry *dentry, struct key *key,
 static int afs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct afs_fs_cursor fc;
+	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode = NULL;
 	struct key *key;
-	unsigned long d_version = (unsigned long)dentry->d_fsdata;
 	bool need_rehash = false;
-	u64 data_version = dvnode->status.data_version;
 	int ret;
 
 	_enter("{%llx:%llu},{%pd}",
@@ -1344,10 +1405,15 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	if (dentry->d_name.len >= AFSNAMEMAX)
 		return -ENAMETOOLONG;
 
+	ret = -ENOMEM;
+	scb = kcalloc(2, sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		goto error;
+
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
-		goto error;
+		goto error_scb;
 	}
 
 	/* Try to make sure we have a callback promise on the victim. */
@@ -1375,29 +1441,33 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
+		afs_dataversion_t data_version = dvnode->status.data_version + 1;
+		afs_dataversion_t data_version_2 = vnode->status.data_version;
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
+			fc.cb_break_2 = afs_calc_vnode_cb_break(vnode);
 
 			if (test_bit(AFS_SERVER_FL_IS_YFS, &fc.cbi->server->flags) &&
 			    !test_bit(AFS_SERVER_FL_NO_RM2, &fc.cbi->server->flags)) {
 				yfs_fs_remove_file2(&fc, vnode, dentry->d_name.name,
-						    data_version);
+						    &scb[0], &scb[1]);
 				if (fc.ac.error != -ECONNABORTED ||
 				    fc.ac.abort_code != RXGEN_OPCODE)
 					continue;
 				set_bit(AFS_SERVER_FL_NO_RM2, &fc.cbi->server->flags);
 			}
 
-			afs_fs_remove(&fc, vnode, dentry->d_name.name, false,
-				      data_version);
+			afs_fs_remove(&fc, vnode, dentry->d_name.name, false, &scb[0]);
 		}
 
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
+					&data_version, &scb[0]);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break_2,
+					&data_version_2, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
-		if (ret == 0)
-			ret = afs_dir_remove_link(
-				dentry, key, d_version,
-				(unsigned long)dvnode->status.data_version);
+		if (ret == 0 && !(scb[1].have_status || scb[1].have_error))
+			ret = afs_dir_remove_link(dvnode, dentry, key);
 		if (ret == 0 &&
 		    test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
 			afs_edit_dir_remove(dvnode, &dentry->d_name,
@@ -1409,6 +1479,8 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 error_key:
 	key_put(key);
+error_scb:
+	kfree(scb);
 error:
 	_leave(" = %d", ret);
 	return ret;
@@ -1420,13 +1492,11 @@ error:
 static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		      bool excl)
 {
+	struct afs_iget_data iget_data;
 	struct afs_fs_cursor fc;
-	struct afs_file_status newstatus;
-	struct afs_callback newcb;
+	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct afs_fid newfid;
 	struct key *key;
-	u64 data_version = dvnode->status.data_version;
 	int ret;
 
 	mode |= S_IFREG;
@@ -1444,17 +1514,26 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		goto error;
 	}
 
+	ret = -ENOMEM;
+	scb = kcalloc(2, sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		goto error_scb;
+
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
+		afs_dataversion_t data_version = dvnode->status.data_version + 1;
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-			afs_fs_create(&fc, dentry->d_name.name, mode, data_version,
-				      &newfid, &newstatus, &newcb);
+			afs_prep_for_new_inode(&fc, &iget_data);
+			afs_fs_create(&fc, dentry->d_name.name, mode,
+				      &scb[0], &iget_data.fid, &scb[1]);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
-		afs_vnode_new_inode(&fc, dentry, &newfid, &newstatus, &newcb);
+		afs_check_for_remote_deletion(&fc, dvnode);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
+					&data_version, &scb[0]);
+		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
@@ -1463,13 +1542,16 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	}
 
 	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_edit_dir_add(dvnode, &dentry->d_name, &newfid,
+		afs_edit_dir_add(dvnode, &dentry->d_name, &iget_data.fid,
 				 afs_edit_dir_for_create);
 
+	kfree(scb);
 	key_put(key);
 	_leave(" = 0");
 	return 0;
 
+error_scb:
+	kfree(scb);
 error_key:
 	key_put(key);
 error:
@@ -1485,14 +1567,11 @@ static int afs_link(struct dentry *from, struct inode *dir,
 		    struct dentry *dentry)
 {
 	struct afs_fs_cursor fc;
-	struct afs_vnode *dvnode, *vnode;
+	struct afs_status_cb *scb;
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
+	struct afs_vnode *vnode = AFS_FS_I(d_inode(from));
 	struct key *key;
-	u64 data_version;
 	int ret;
-
-	vnode = AFS_FS_I(d_inode(from));
-	dvnode = AFS_FS_I(dir);
-	data_version = dvnode->status.data_version;
 
 	_enter("{%llx:%llu},{%llx:%llu},{%pd}",
 	       vnode->fid.vid, vnode->fid.vnode,
@@ -1503,14 +1582,21 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
 
+	ret = -ENOMEM;
+	scb = kcalloc(2, sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		goto error;
+
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
-		goto error;
+		goto error_scb;
 	}
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
+		afs_dataversion_t data_version = dvnode->status.data_version + 1;
+
 		if (mutex_lock_interruptible_nested(&vnode->io_lock, 1) < 0) {
 			afs_end_vnode_operation(&fc);
 			goto error_key;
@@ -1519,11 +1605,14 @@ static int afs_link(struct dentry *from, struct inode *dir,
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
 			fc.cb_break_2 = afs_calc_vnode_cb_break(vnode);
-			afs_fs_link(&fc, vnode, dentry->d_name.name, data_version);
+			afs_fs_link(&fc, vnode, dentry->d_name.name,
+				    &scb[0], &scb[1]);
 		}
 
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break_2);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
+					&data_version, &scb[0]);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break_2,
+					NULL, &scb[1]);
 		ihold(&vnode->vfs_inode);
 		d_instantiate(dentry, &vnode->vfs_inode);
 
@@ -1540,11 +1629,14 @@ static int afs_link(struct dentry *from, struct inode *dir,
 				 afs_edit_dir_for_link);
 
 	key_put(key);
+	kfree(scb);
 	_leave(" = 0");
 	return 0;
 
 error_key:
 	key_put(key);
+error_scb:
+	kfree(scb);
 error:
 	d_drop(dentry);
 	_leave(" = %d", ret);
@@ -1557,12 +1649,11 @@ error:
 static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		       const char *content)
 {
+	struct afs_iget_data iget_data;
 	struct afs_fs_cursor fc;
-	struct afs_file_status newstatus;
+	struct afs_status_cb *scb;
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	struct afs_fid newfid;
 	struct key *key;
-	u64 data_version = dvnode->status.data_version;
 	int ret;
 
 	_enter("{%llx:%llu},{%pd},%s",
@@ -1577,24 +1668,32 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 	if (strlen(content) >= AFSPATHMAX)
 		goto error;
 
+	ret = -ENOMEM;
+	scb = kcalloc(2, sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		goto error;
+
 	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
-		goto error;
+		goto error_scb;
 	}
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, dvnode, key, true)) {
+		afs_dataversion_t data_version = dvnode->status.data_version + 1;
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-			afs_fs_symlink(&fc, dentry->d_name.name,
-				       content, data_version,
-				       &newfid, &newstatus);
+			afs_prep_for_new_inode(&fc, &iget_data);
+			afs_fs_symlink(&fc, dentry->d_name.name, content,
+				       &scb[0], &iget_data.fid, &scb[1]);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
-		afs_vnode_new_inode(&fc, dentry, &newfid, &newstatus, NULL);
+		afs_check_for_remote_deletion(&fc, dvnode);
+		afs_vnode_commit_status(&fc, dvnode, fc.cb_break,
+					&data_version, &scb[0]);
+		afs_vnode_new_inode(&fc, dentry, &iget_data, &scb[1]);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_key;
@@ -1603,15 +1702,18 @@ static int afs_symlink(struct inode *dir, struct dentry *dentry,
 	}
 
 	if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))
-		afs_edit_dir_add(dvnode, &dentry->d_name, &newfid,
+		afs_edit_dir_add(dvnode, &dentry->d_name, &iget_data.fid,
 				 afs_edit_dir_for_symlink);
 
 	key_put(key);
+	kfree(scb);
 	_leave(" = 0");
 	return 0;
 
 error_key:
 	key_put(key);
+error_scb:
+	kfree(scb);
 error:
 	d_drop(dentry);
 	_leave(" = %d", ret);
@@ -1626,11 +1728,11 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		      unsigned int flags)
 {
 	struct afs_fs_cursor fc;
+	struct afs_status_cb *scb;
 	struct afs_vnode *orig_dvnode, *new_dvnode, *vnode;
 	struct dentry *tmp = NULL, *rehash = NULL;
 	struct inode *new_inode;
 	struct key *key;
-	u64 orig_data_version, new_data_version;
 	bool new_negative = d_is_negative(new_dentry);
 	int ret;
 
@@ -1644,8 +1746,6 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	vnode = AFS_FS_I(d_inode(old_dentry));
 	orig_dvnode = AFS_FS_I(old_dir);
 	new_dvnode = AFS_FS_I(new_dir);
-	orig_data_version = orig_dvnode->status.data_version;
-	new_data_version = new_dvnode->status.data_version;
 
 	_enter("{%llx:%llu},{%llx:%llu},{%llx:%llu},{%pd}",
 	       orig_dvnode->fid.vid, orig_dvnode->fid.vnode,
@@ -1653,10 +1753,15 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	       new_dvnode->fid.vid, new_dvnode->fid.vnode,
 	       new_dentry);
 
+	ret = -ENOMEM;
+	scb = kcalloc(2, sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		goto error;
+
 	key = afs_request_key(orig_dvnode->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
-		goto error;
+		goto error_scb;
 	}
 
 	/* For non-directories, check whether the target is busy and if so,
@@ -1690,31 +1795,43 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			new_dentry = tmp;
 			rehash = NULL;
 			new_negative = true;
-			orig_data_version = orig_dvnode->status.data_version;
-			new_data_version = new_dvnode->status.data_version;
 		}
 	}
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, orig_dvnode, key, true)) {
+		afs_dataversion_t orig_data_version;
+		afs_dataversion_t new_data_version;
+		struct afs_status_cb *new_scb = &scb[1];
+
+		orig_data_version = orig_dvnode->status.data_version + 1;
+
 		if (orig_dvnode != new_dvnode) {
 			if (mutex_lock_interruptible_nested(&new_dvnode->io_lock, 1) < 0) {
 				afs_end_vnode_operation(&fc);
 				goto error_rehash;
 			}
+			new_data_version = new_dvnode->status.data_version;
+		} else {
+			new_data_version = orig_data_version;
+			new_scb = &scb[0];
 		}
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(orig_dvnode);
 			fc.cb_break_2 = afs_calc_vnode_cb_break(new_dvnode);
 			afs_fs_rename(&fc, old_dentry->d_name.name,
 				      new_dvnode, new_dentry->d_name.name,
-				      orig_data_version, new_data_version);
+				      &scb[0], new_scb);
 		}
 
-		afs_vnode_commit_status(&fc, orig_dvnode, fc.cb_break);
-		afs_vnode_commit_status(&fc, new_dvnode, fc.cb_break_2);
-		if (orig_dvnode != new_dvnode)
+		afs_vnode_commit_status(&fc, orig_dvnode, fc.cb_break,
+					&orig_data_version, &scb[0]);
+		if (new_dvnode != orig_dvnode) {
+			afs_vnode_commit_status(&fc, new_dvnode, fc.cb_break_2,
+						&new_data_version, &scb[1]);
 			mutex_unlock(&new_dvnode->io_lock);
+		}
 		ret = afs_end_vnode_operation(&fc);
 		if (ret < 0)
 			goto error_rehash;
@@ -1754,6 +1871,8 @@ error_tmp:
 	if (tmp)
 		dput(tmp);
 	key_put(key);
+error_scb:
+	kfree(scb);
 error:
 	_leave(" = %d", ret);
 	return ret;
