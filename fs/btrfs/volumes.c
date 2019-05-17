@@ -1818,7 +1818,7 @@ static u64 find_next_chunk(struct btrfs_fs_info *fs_info)
 	struct rb_node *n;
 	u64 ret = 0;
 
-	em_tree = &fs_info->mapping_tree.map_tree;
+	em_tree = &fs_info->mapping_tree;
 	read_lock(&em_tree->lock);
 	n = rb_last(&em_tree->map.rb_root);
 	if (n) {
@@ -2941,7 +2941,7 @@ struct extent_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
 	struct extent_map_tree *em_tree;
 	struct extent_map *em;
 
-	em_tree = &fs_info->mapping_tree.map_tree;
+	em_tree = &fs_info->mapping_tree;
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, length);
 	read_unlock(&em_tree->lock);
@@ -5144,7 +5144,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	em->block_len = em->len;
 	em->orig_block_len = stripe_size;
 
-	em_tree = &info->mapping_tree.map_tree;
+	em_tree = &info->mapping_tree;
 	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
 	if (ret) {
@@ -5378,21 +5378,16 @@ end:
 	return readonly;
 }
 
-void btrfs_mapping_init(struct btrfs_mapping_tree *tree)
-{
-	extent_map_tree_init(&tree->map_tree);
-}
-
-void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
+void btrfs_mapping_tree_free(struct extent_map_tree *tree)
 {
 	struct extent_map *em;
 
 	while (1) {
-		write_lock(&tree->map_tree.lock);
-		em = lookup_extent_mapping(&tree->map_tree, 0, (u64)-1);
+		write_lock(&tree->lock);
+		em = lookup_extent_mapping(tree, 0, (u64)-1);
 		if (em)
-			remove_extent_mapping(&tree->map_tree, em);
-		write_unlock(&tree->map_tree.lock);
+			remove_extent_mapping(tree, em);
+		write_unlock(&tree->lock);
 		if (!em)
 			break;
 		/* once for us */
@@ -6687,7 +6682,7 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 			  struct btrfs_chunk *chunk)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
+	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
 	struct map_lookup *map;
 	struct extent_map *em;
 	u64 logical;
@@ -6712,9 +6707,9 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 			return ret;
 	}
 
-	read_lock(&map_tree->map_tree.lock);
-	em = lookup_extent_mapping(&map_tree->map_tree, logical, 1);
-	read_unlock(&map_tree->map_tree.lock);
+	read_lock(&map_tree->lock);
+	em = lookup_extent_mapping(map_tree, logical, 1);
+	read_unlock(&map_tree->lock);
 
 	/* already mapped? */
 	if (em && em->start <= logical && em->start + em->len > logical) {
@@ -6783,9 +6778,9 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 
 	}
 
-	write_lock(&map_tree->map_tree.lock);
-	ret = add_extent_mapping(&map_tree->map_tree, em, 0);
-	write_unlock(&map_tree->map_tree.lock);
+	write_lock(&map_tree->lock);
+	ret = add_extent_mapping(map_tree, em, 0);
+	write_unlock(&map_tree->lock);
 	if (ret < 0) {
 		btrfs_err(fs_info,
 			  "failed to add chunk map, start=%llu len=%llu: %d",
@@ -7103,14 +7098,14 @@ out_short_read:
 bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 					struct btrfs_device *failing_dev)
 {
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
+	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	u64 next_start = 0;
 	bool ret = true;
 
-	read_lock(&map_tree->map_tree.lock);
-	em = lookup_extent_mapping(&map_tree->map_tree, 0, (u64)-1);
-	read_unlock(&map_tree->map_tree.lock);
+	read_lock(&map_tree->lock);
+	em = lookup_extent_mapping(map_tree, 0, (u64)-1);
+	read_unlock(&map_tree->lock);
 	/* No chunk at all? Return false anyway */
 	if (!em) {
 		ret = false;
@@ -7148,10 +7143,10 @@ bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 		next_start = extent_map_end(em);
 		free_extent_map(em);
 
-		read_lock(&map_tree->map_tree.lock);
-		em = lookup_extent_mapping(&map_tree->map_tree, next_start,
+		read_lock(&map_tree->lock);
+		em = lookup_extent_mapping(map_tree, next_start,
 					   (u64)(-1) - next_start);
-		read_unlock(&map_tree->map_tree.lock);
+		read_unlock(&map_tree->lock);
 	}
 out:
 	return ret;
@@ -7612,7 +7607,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 				 u64 chunk_offset, u64 devid,
 				 u64 physical_offset, u64 physical_len)
 {
-	struct extent_map_tree *em_tree = &fs_info->mapping_tree.map_tree;
+	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
 	struct btrfs_device *dev;
@@ -7701,7 +7696,7 @@ out:
 
 static int verify_chunk_dev_extent_mapping(struct btrfs_fs_info *fs_info)
 {
-	struct extent_map_tree *em_tree = &fs_info->mapping_tree.map_tree;
+	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct rb_node *node;
 	int ret = 0;

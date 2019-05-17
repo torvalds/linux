@@ -3358,7 +3358,7 @@ void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *block_group)
 
 	if (cleanup) {
 		mutex_lock(&fs_info->chunk_mutex);
-		em_tree = &fs_info->mapping_tree.map_tree;
+		em_tree = &fs_info->mapping_tree;
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, block_group->key.objectid,
 					   1);

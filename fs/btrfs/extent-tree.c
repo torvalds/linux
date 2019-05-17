@@ -9960,7 +9960,7 @@ static int find_first_block_group(struct btrfs_fs_info *fs_info,
 			struct extent_map_tree *em_tree;
 			struct extent_map *em;
 
-			em_tree = &root->fs_info->mapping_tree.map_tree;
+			em_tree = &root->fs_info->mapping_tree;
 			read_lock(&em_tree->lock);
 			em = lookup_extent_mapping(em_tree, found_key.objectid,
 						   found_key.offset);
@@ -10254,21 +10254,21 @@ btrfs_create_block_group_cache(struct btrfs_fs_info *fs_info,
  */
 static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
+	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct btrfs_block_group_cache *bg;
 	u64 start = 0;
 	int ret = 0;
 
 	while (1) {
-		read_lock(&map_tree->map_tree.lock);
+		read_lock(&map_tree->lock);
 		/*
 		 * lookup_extent_mapping will return the first extent map
 		 * intersecting the range, so setting @len to 1 is enough to
 		 * get the first chunk.
 		 */
-		em = lookup_extent_mapping(&map_tree->map_tree, start, 1);
-		read_unlock(&map_tree->map_tree.lock);
+		em = lookup_extent_mapping(map_tree, start, 1);
+		read_unlock(&map_tree->lock);
 		if (!em)
 			break;
 
@@ -10864,7 +10864,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	if (remove_em) {
 		struct extent_map_tree *em_tree;
 
-		em_tree = &fs_info->mapping_tree.map_tree;
+		em_tree = &fs_info->mapping_tree;
 		write_lock(&em_tree->lock);
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
@@ -10882,7 +10882,7 @@ struct btrfs_trans_handle *
 btrfs_start_trans_remove_block_group(struct btrfs_fs_info *fs_info,
 				     const u64 chunk_offset)
 {
-	struct extent_map_tree *em_tree = &fs_info->mapping_tree.map_tree;
+	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
 	unsigned int num_items;

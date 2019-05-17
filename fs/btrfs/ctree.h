@@ -99,10 +99,6 @@ static inline u32 count_max_extents(u64 size)
 	return div_u64(size + BTRFS_MAX_EXTENT_SIZE - 1, BTRFS_MAX_EXTENT_SIZE);
 }
 
-struct btrfs_mapping_tree {
-	struct extent_map_tree map_tree;
-};
-
 static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 {
 	BUG_ON(num_stripes == 0);
@@ -830,7 +826,7 @@ struct btrfs_fs_info {
 	struct extent_io_tree *pinned_extents;
 
 	/* logical->physical extent mapping */
-	struct btrfs_mapping_tree mapping_tree;
+	struct extent_map_tree mapping_tree;
 
 	/*
 	 * block reservation for extent, checksum, root tree and
