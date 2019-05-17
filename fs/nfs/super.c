@@ -742,6 +742,16 @@ int nfs_show_options(struct seq_file *m, struct dentry *root)
 EXPORT_SYMBOL_GPL(nfs_show_options);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
+static void show_lease(struct seq_file *m, struct nfs_server *server)
+{
+	struct nfs_client *clp = server->nfs_client;
+	unsigned long expire;
+
+	seq_printf(m, ",lease_time=%ld", clp->cl_lease_time / HZ);
+	expire = clp->cl_last_renewal + clp->cl_lease_time;
+	seq_printf(m, ",lease_expired=%ld",
+		   time_after(expire, jiffies) ?  0 : (jiffies - expire) / HZ);
+}
 #ifdef CONFIG_NFS_V4_1
 static void show_sessions(struct seq_file *m, struct nfs_server *server)
 {
@@ -850,6 +860,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",acl=0x%x", nfss->acl_bitmask);
 		show_sessions(m, nfss);
 		show_pnfs(m, nfss);
+		show_lease(m, nfss);
 	}
 #endif
 
