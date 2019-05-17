@@ -2426,7 +2426,7 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 		/* DBG_871X("directly xmit pspoll_triggered packet\n"); */
 
 		/* pattrib->triggered = 0; */
-		if (bmcst && xmitframe_hiq_filter(pxmitframe) == true)
+		if (bmcst && xmitframe_hiq_filter(pxmitframe))
 			pattrib->qsel = 0x11;/* HIQ */
 
 		return ret;
@@ -2455,7 +2455,7 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 
 			/* DBG_871X("enqueue, sq_len =%d, tim =%x\n", psta->sleepq_len, pstapriv->tim_bitmap); */
 
-			if (update_tim == true) {
+			if (update_tim) {
 				update_beacon(padapter, _TIM_IE_, NULL, true);
 			} else {
 				chk_bmc_sleepq_cmd(padapter);
@@ -2521,7 +2521,7 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 
 				/* DBG_871X("enqueue, sq_len =%d, tim =%x\n", psta->sleepq_len, pstapriv->tim_bitmap); */
 
-				if (update_tim == true)
+				if (update_tim)
 					/* DBG_871X("sleepq_len == 1, update BCNTIM\n"); */
 					/* upate BCN for TIM IE */
 					update_beacon(padapter, _TIM_IE_, NULL, true);

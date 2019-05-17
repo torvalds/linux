@@ -6763,7 +6763,7 @@ int rtw_chk_start_clnt_join(struct adapter *padapter, u8 *ch, u8 *bw, u8 *offset
 		*offset = cur_ch_offset;
 	}
 
-	return connect_allow == true ? _SUCCESS : _FAIL;
+	return connect_allow ? _SUCCESS : _FAIL;
 }
 
 /* Find union about ch, bw, ch_offset of all linked/linking interfaces */

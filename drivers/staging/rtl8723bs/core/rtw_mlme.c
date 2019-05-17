@@ -1672,7 +1672,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 			roam_target = pmlmepriv->roam_network;
 		}
 
-		if (roam == true) {
+		if (roam) {
 			if (rtw_to_roam(adapter) > 0)
 				rtw_dec_to_roam(adapter); /* this stadel_event is caused by roaming, decrease to_roam */
 			else if (rtw_to_roam(adapter) == 0)

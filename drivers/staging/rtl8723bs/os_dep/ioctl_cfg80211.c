@@ -1650,7 +1650,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	}
 
 check_need_indicate_scan_done:
-	if (true == need_indicate_scan_done)
+	if (need_indicate_scan_done)
 	{
 		rtw_cfg80211_surveydone_event_callback(padapter);
 		rtw_cfg80211_indicate_scan_done(padapter, false);

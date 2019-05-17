@@ -1738,7 +1738,7 @@ static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 			pstapriv->tim_bitmap &= ~BIT(0);
 			pstapriv->sta_dz_bitmap &= ~BIT(0);
 
-			if (update_tim == true)
+			if (update_tim)
 				update_beacon(padapter, _TIM_IE_, NULL, true);
 		} else {/* re check again */
 			rtw_chk_hi_queue_cmd(padapter);

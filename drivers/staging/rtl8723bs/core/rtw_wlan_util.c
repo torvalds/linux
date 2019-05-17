@@ -745,7 +745,7 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 		i = _rtw_camid_search(adapter, addr, kid);
 		if (i >= 0) {
 			/* Fix issue that pairwise and group key have same key id. Pairwise key first, group key can overwirte group only(ex: rekey) */
-			if (sta || _rtw_camid_is_gk(adapter, i) == true)
+			if (sta || _rtw_camid_is_gk(adapter, i))
 				cam_id = i;
 			else
 				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u the same key id as pairwise key\n"

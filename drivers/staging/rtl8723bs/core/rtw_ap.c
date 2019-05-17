@@ -2156,7 +2156,7 @@ u8 ap_free_sta(
 	if (!psta)
 		return beacon_updated;
 
-	if (active == true) {
+	if (active) {
 		/* tear down Rx AMPDU */
 		send_delba(padapter, 0, psta->hwaddr);/*  recipient */
 
