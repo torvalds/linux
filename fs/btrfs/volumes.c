@@ -123,12 +123,14 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	},
 };
 
-const char *get_raid_name(enum btrfs_raid_types type)
+const char *btrfs_bg_type_to_raid_name(u64 flags)
 {
-	if (type >= BTRFS_NR_RAID_TYPES)
+	const int index = btrfs_bg_flags_to_raid_index(flags);
+
+	if (index >= BTRFS_NR_RAID_TYPES)
 		return NULL;
 
-	return btrfs_raid_array[type].raid_name;
+	return btrfs_raid_array[index].raid_name;
 }
 
 /*
@@ -3926,11 +3928,9 @@ static void describe_balance_args(struct btrfs_balance_args *bargs, char *buf,
 		bp += ret;						\
 	} while (0)
 
-	if (flags & BTRFS_BALANCE_ARGS_CONVERT) {
-		int index = btrfs_bg_flags_to_raid_index(bargs->target);
-
-		CHECK_APPEND_1ARG("convert=%s,", get_raid_name(index));
-	}
+	if (flags & BTRFS_BALANCE_ARGS_CONVERT)
+		CHECK_APPEND_1ARG("convert=%s,",
+				  btrfs_bg_type_to_raid_name(bargs->target));
 
 	if (flags & BTRFS_BALANCE_ARGS_SOFT)
 		CHECK_APPEND_NOARG("soft,");
@@ -4088,29 +4088,23 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 			allowed |= btrfs_raid_array[i].bg_flag;
 
 	if (validate_convert_profile(&bctl->data, allowed)) {
-		int index = btrfs_bg_flags_to_raid_index(bctl->data.target);
-
 		btrfs_err(fs_info,
 			  "balance: invalid convert data profile %s",
-			  get_raid_name(index));
+			  btrfs_bg_type_to_raid_name(bctl->data.target));
 		ret = -EINVAL;
 		goto out;
 	}
 	if (validate_convert_profile(&bctl->meta, allowed)) {
-		int index = btrfs_bg_flags_to_raid_index(bctl->meta.target);
-
 		btrfs_err(fs_info,
 			  "balance: invalid convert metadata profile %s",
-			  get_raid_name(index));
+			  btrfs_bg_type_to_raid_name(bctl->meta.target));
 		ret = -EINVAL;
 		goto out;
 	}
 	if (validate_convert_profile(&bctl->sys, allowed)) {
-		int index = btrfs_bg_flags_to_raid_index(bctl->sys.target);
-
 		btrfs_err(fs_info,
 			  "balance: invalid convert system profile %s",
-			  get_raid_name(index));
+			  btrfs_bg_type_to_raid_name(bctl->sys.target));
 		ret = -EINVAL;
 		goto out;
 	}
@@ -4159,12 +4153,10 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 
 	if (btrfs_get_num_tolerated_disk_barrier_failures(meta_target) <
 		btrfs_get_num_tolerated_disk_barrier_failures(data_target)) {
-		int meta_index = btrfs_bg_flags_to_raid_index(meta_target);
-		int data_index = btrfs_bg_flags_to_raid_index(data_target);
-
 		btrfs_warn(fs_info,
 	"balance: metadata profile %s has lower redundancy than data profile %s",
-			   get_raid_name(meta_index), get_raid_name(data_index));
+				btrfs_bg_type_to_raid_name(meta_target),
+				btrfs_bg_type_to_raid_name(data_target));
 	}
 
 	ret = insert_balance_item(fs_info, bctl);

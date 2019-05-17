@@ -556,8 +556,6 @@ static inline enum btrfs_raid_types btrfs_bg_flags_to_raid_index(u64 flags)
 	return BTRFS_RAID_SINGLE; /* BTRFS_BLOCK_GROUP_SINGLE */
 }
 
-const char *get_raid_name(enum btrfs_raid_types type);
-
 void btrfs_commit_device_sizes(struct btrfs_transaction *trans);
 
 struct list_head *btrfs_get_fs_uuids(void);
@@ -567,6 +565,7 @@ bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 					struct btrfs_device *failing_dev);
 
 int btrfs_bg_type_to_factor(u64 flags);
+const char *btrfs_bg_type_to_raid_name(u64 flags);
 int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info);
 
 #endif

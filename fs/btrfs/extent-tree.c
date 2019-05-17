@@ -10146,7 +10146,6 @@ void btrfs_add_raid_kobjects(struct btrfs_fs_info *fs_info)
 	struct btrfs_space_info *space_info;
 	struct raid_kobject *rkobj;
 	LIST_HEAD(list);
-	int index;
 	int ret = 0;
 
 	spin_lock(&fs_info->pending_raid_kobjs_lock);
@@ -10155,10 +10154,9 @@ void btrfs_add_raid_kobjects(struct btrfs_fs_info *fs_info)
 
 	list_for_each_entry(rkobj, &list, list) {
 		space_info = __find_space_info(fs_info, rkobj->flags);
-		index = btrfs_bg_flags_to_raid_index(rkobj->flags);
 
 		ret = kobject_add(&rkobj->kobj, &space_info->kobj,
-				  "%s", get_raid_name(index));
+				"%s", btrfs_bg_type_to_raid_name(rkobj->flags));
 		if (ret) {
 			kobject_put(&rkobj->kobj);
 			break;
