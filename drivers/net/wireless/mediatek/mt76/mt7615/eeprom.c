@@ -42,13 +42,13 @@ static int mt7615_efuse_read(struct mt7615_dev *dev, u32 base,
 
 static int mt7615_efuse_init(struct mt7615_dev *dev)
 {
-	u32 base = mt7615_reg_map(dev, MT_EFUSE_BASE);
-	int len = MT7615_EEPROM_SIZE;
-	int ret, i;
+	u32 val, base = mt7615_reg_map(dev, MT_EFUSE_BASE);
+	int i, len = MT7615_EEPROM_SIZE;
 	void *buf;
 
-	if (mt76_rr(dev, base + MT_EFUSE_BASE_CTRL) & MT_EFUSE_BASE_CTRL_EMPTY)
-		return -EINVAL;
+	val = mt76_rr(dev, base + MT_EFUSE_BASE_CTRL);
+	if (val & MT_EFUSE_BASE_CTRL_EMPTY)
+		return 0;
 
 	dev->mt76.otp.data = devm_kzalloc(dev->mt76.dev, len, GFP_KERNEL);
 	dev->mt76.otp.size = len;
@@ -57,6 +57,8 @@ static int mt7615_efuse_init(struct mt7615_dev *dev)
 
 	buf = dev->mt76.otp.data;
 	for (i = 0; i + 16 <= len; i += 16) {
+		int ret;
+
 		ret = mt7615_efuse_read(dev, base, i, buf + i);
 		if (ret)
 			return ret;
@@ -76,6 +78,18 @@ static int mt7615_eeprom_load(struct mt7615_dev *dev)
 	return mt7615_efuse_init(dev);
 }
 
+static int mt7615_check_eeprom(struct mt76_dev *dev)
+{
+	u16 val = get_unaligned_le16(dev->eeprom.data);
+
+	switch (val) {
+	case 0x7615:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 int mt7615_eeprom_init(struct mt7615_dev *dev)
 {
 	int ret;
@@ -84,7 +98,10 @@ int mt7615_eeprom_init(struct mt7615_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	memcpy(dev->mt76.eeprom.data, dev->mt76.otp.data, MT7615_EEPROM_SIZE);
+	ret = mt7615_check_eeprom(&dev->mt76);
+	if (ret && dev->mt76.otp.data)
+		memcpy(dev->mt76.eeprom.data, dev->mt76.otp.data,
+		       MT7615_EEPROM_SIZE);
 
 	dev->mt76.cap.has_2ghz = true;
 	dev->mt76.cap.has_5ghz = true;
