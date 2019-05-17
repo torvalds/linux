@@ -2283,29 +2283,28 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return min_cdclk;
 }
 
-static int intel_compute_min_cdclk(struct drm_atomic_state *state)
+static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int min_cdclk, i;
 	enum pipe pipe;
 
-	memcpy(intel_state->min_cdclk, dev_priv->min_cdclk,
-	       sizeof(intel_state->min_cdclk));
+	memcpy(state->min_cdclk, dev_priv->min_cdclk,
+	       sizeof(state->min_cdclk));
 
-	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
 		if (min_cdclk < 0)
 			return min_cdclk;
 
-		intel_state->min_cdclk[i] = min_cdclk;
+		state->min_cdclk[i] = min_cdclk;
 	}
 
-	min_cdclk = intel_state->cdclk.force_min_cdclk;
+	min_cdclk = state->cdclk.force_min_cdclk;
 	for_each_pipe(dev_priv, pipe)
-		min_cdclk = max(intel_state->min_cdclk[pipe], min_cdclk);
+		min_cdclk = max(state->min_cdclk[pipe], min_cdclk);
 
 	return min_cdclk;
 }
@@ -2347,10 +2346,9 @@ static u8 cnl_compute_min_voltage_level(struct intel_atomic_state *state)
 	return min_voltage_level;
 }
 
-static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
+static int vlv_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	int min_cdclk, cdclk;
 
 	min_cdclk = intel_compute_min_cdclk(state);
@@ -2359,28 +2357,25 @@ static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 	cdclk = vlv_calc_cdclk(dev_priv, min_cdclk);
 
-	intel_state->cdclk.logical.cdclk = cdclk;
-	intel_state->cdclk.logical.voltage_level =
+	state->cdclk.logical.cdclk = cdclk;
+	state->cdclk.logical.voltage_level =
 		vlv_calc_voltage_level(dev_priv, cdclk);
 
-	if (!intel_state->active_crtcs) {
-		cdclk = vlv_calc_cdclk(dev_priv,
-				       intel_state->cdclk.force_min_cdclk);
+	if (!state->active_crtcs) {
+		cdclk = vlv_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
 
-		intel_state->cdclk.actual.cdclk = cdclk;
-		intel_state->cdclk.actual.voltage_level =
+		state->cdclk.actual.cdclk = cdclk;
+		state->cdclk.actual.voltage_level =
 			vlv_calc_voltage_level(dev_priv, cdclk);
 	} else {
-		intel_state->cdclk.actual =
-			intel_state->cdclk.logical;
+		state->cdclk.actual = state->cdclk.logical;
 	}
 
 	return 0;
 }
 
-static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
+static int bdw_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	int min_cdclk, cdclk;
 
 	min_cdclk = intel_compute_min_cdclk(state);
@@ -2393,36 +2388,35 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 	 */
 	cdclk = bdw_calc_cdclk(min_cdclk);
 
-	intel_state->cdclk.logical.cdclk = cdclk;
-	intel_state->cdclk.logical.voltage_level =
+	state->cdclk.logical.cdclk = cdclk;
+	state->cdclk.logical.voltage_level =
 		bdw_calc_voltage_level(cdclk);
 
-	if (!intel_state->active_crtcs) {
-		cdclk = bdw_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+	if (!state->active_crtcs) {
+		cdclk = bdw_calc_cdclk(state->cdclk.force_min_cdclk);
 
-		intel_state->cdclk.actual.cdclk = cdclk;
-		intel_state->cdclk.actual.voltage_level =
+		state->cdclk.actual.cdclk = cdclk;
+		state->cdclk.actual.voltage_level =
 			bdw_calc_voltage_level(cdclk);
 	} else {
-		intel_state->cdclk.actual =
-			intel_state->cdclk.logical;
+		state->cdclk.actual = state->cdclk.logical;
 	}
 
 	return 0;
 }
 
-static int skl_dpll0_vco(struct intel_atomic_state *intel_state)
+static int skl_dpll0_vco(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_state->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int vco, i;
 
-	vco = intel_state->cdclk.logical.vco;
+	vco = state->cdclk.logical.vco;
 	if (!vco)
 		vco = dev_priv->skl_preferred_vco_freq;
 
-	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!crtc_state->base.enable)
 			continue;
 
@@ -2447,16 +2441,15 @@ static int skl_dpll0_vco(struct intel_atomic_state *intel_state)
 	return vco;
 }
 
-static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
+static int skl_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	int min_cdclk, cdclk, vco;
 
 	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	vco = skl_dpll0_vco(intel_state);
+	vco = skl_dpll0_vco(state);
 
 	/*
 	 * FIXME should also account for plane ratio
@@ -2464,30 +2457,28 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	 */
 	cdclk = skl_calc_cdclk(min_cdclk, vco);
 
-	intel_state->cdclk.logical.vco = vco;
-	intel_state->cdclk.logical.cdclk = cdclk;
-	intel_state->cdclk.logical.voltage_level =
+	state->cdclk.logical.vco = vco;
+	state->cdclk.logical.cdclk = cdclk;
+	state->cdclk.logical.voltage_level =
 		skl_calc_voltage_level(cdclk);
 
-	if (!intel_state->active_crtcs) {
-		cdclk = skl_calc_cdclk(intel_state->cdclk.force_min_cdclk, vco);
+	if (!state->active_crtcs) {
+		cdclk = skl_calc_cdclk(state->cdclk.force_min_cdclk, vco);
 
-		intel_state->cdclk.actual.vco = vco;
-		intel_state->cdclk.actual.cdclk = cdclk;
-		intel_state->cdclk.actual.voltage_level =
+		state->cdclk.actual.vco = vco;
+		state->cdclk.actual.cdclk = cdclk;
+		state->cdclk.actual.voltage_level =
 			skl_calc_voltage_level(cdclk);
 	} else {
-		intel_state->cdclk.actual =
-			intel_state->cdclk.logical;
+		state->cdclk.actual = state->cdclk.logical;
 	}
 
 	return 0;
 }
 
-static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
+static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	int min_cdclk, cdclk, vco;
 
 	min_cdclk = intel_compute_min_cdclk(state);
@@ -2502,36 +2493,34 @@ static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 		vco = bxt_de_pll_vco(dev_priv, cdclk);
 	}
 
-	intel_state->cdclk.logical.vco = vco;
-	intel_state->cdclk.logical.cdclk = cdclk;
-	intel_state->cdclk.logical.voltage_level =
+	state->cdclk.logical.vco = vco;
+	state->cdclk.logical.cdclk = cdclk;
+	state->cdclk.logical.voltage_level =
 		bxt_calc_voltage_level(cdclk);
 
-	if (!intel_state->active_crtcs) {
+	if (!state->active_crtcs) {
 		if (IS_GEMINILAKE(dev_priv)) {
-			cdclk = glk_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+			cdclk = glk_calc_cdclk(state->cdclk.force_min_cdclk);
 			vco = glk_de_pll_vco(dev_priv, cdclk);
 		} else {
-			cdclk = bxt_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+			cdclk = bxt_calc_cdclk(state->cdclk.force_min_cdclk);
 			vco = bxt_de_pll_vco(dev_priv, cdclk);
 		}
 
-		intel_state->cdclk.actual.vco = vco;
-		intel_state->cdclk.actual.cdclk = cdclk;
-		intel_state->cdclk.actual.voltage_level =
+		state->cdclk.actual.vco = vco;
+		state->cdclk.actual.cdclk = cdclk;
+		state->cdclk.actual.voltage_level =
 			bxt_calc_voltage_level(cdclk);
 	} else {
-		intel_state->cdclk.actual =
-			intel_state->cdclk.logical;
+		state->cdclk.actual = state->cdclk.logical;
 	}
 
 	return 0;
 }
 
-static int cnl_modeset_calc_cdclk(struct drm_atomic_state *state)
+static int cnl_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	int min_cdclk, cdclk, vco;
 
 	min_cdclk = intel_compute_min_cdclk(state);
@@ -2541,33 +2530,31 @@ static int cnl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	cdclk = cnl_calc_cdclk(min_cdclk);
 	vco = cnl_cdclk_pll_vco(dev_priv, cdclk);
 
-	intel_state->cdclk.logical.vco = vco;
-	intel_state->cdclk.logical.cdclk = cdclk;
-	intel_state->cdclk.logical.voltage_level =
+	state->cdclk.logical.vco = vco;
+	state->cdclk.logical.cdclk = cdclk;
+	state->cdclk.logical.voltage_level =
 		max(cnl_calc_voltage_level(cdclk),
-		    cnl_compute_min_voltage_level(intel_state));
+		    cnl_compute_min_voltage_level(state));
 
-	if (!intel_state->active_crtcs) {
-		cdclk = cnl_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+	if (!state->active_crtcs) {
+		cdclk = cnl_calc_cdclk(state->cdclk.force_min_cdclk);
 		vco = cnl_cdclk_pll_vco(dev_priv, cdclk);
 
-		intel_state->cdclk.actual.vco = vco;
-		intel_state->cdclk.actual.cdclk = cdclk;
-		intel_state->cdclk.actual.voltage_level =
+		state->cdclk.actual.vco = vco;
+		state->cdclk.actual.cdclk = cdclk;
+		state->cdclk.actual.voltage_level =
 			cnl_calc_voltage_level(cdclk);
 	} else {
-		intel_state->cdclk.actual =
-			intel_state->cdclk.logical;
+		state->cdclk.actual = state->cdclk.logical;
 	}
 
 	return 0;
 }
 
-static int icl_modeset_calc_cdclk(struct drm_atomic_state *state)
+static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	unsigned int ref = intel_state->cdclk.logical.ref;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	unsigned int ref = state->cdclk.logical.ref;
 	int min_cdclk, cdclk, vco;
 
 	min_cdclk = intel_compute_min_cdclk(state);
@@ -2577,22 +2564,22 @@ static int icl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	cdclk = icl_calc_cdclk(min_cdclk, ref);
 	vco = icl_calc_cdclk_pll_vco(dev_priv, cdclk);
 
-	intel_state->cdclk.logical.vco = vco;
-	intel_state->cdclk.logical.cdclk = cdclk;
-	intel_state->cdclk.logical.voltage_level =
+	state->cdclk.logical.vco = vco;
+	state->cdclk.logical.cdclk = cdclk;
+	state->cdclk.logical.voltage_level =
 		max(icl_calc_voltage_level(cdclk),
-		    cnl_compute_min_voltage_level(intel_state));
+		    cnl_compute_min_voltage_level(state));
 
-	if (!intel_state->active_crtcs) {
-		cdclk = icl_calc_cdclk(intel_state->cdclk.force_min_cdclk, ref);
+	if (!state->active_crtcs) {
+		cdclk = icl_calc_cdclk(state->cdclk.force_min_cdclk, ref);
 		vco = icl_calc_cdclk_pll_vco(dev_priv, cdclk);
 
-		intel_state->cdclk.actual.vco = vco;
-		intel_state->cdclk.actual.cdclk = cdclk;
-		intel_state->cdclk.actual.voltage_level =
+		state->cdclk.actual.vco = vco;
+		state->cdclk.actual.cdclk = cdclk;
+		state->cdclk.actual.voltage_level =
 			icl_calc_voltage_level(cdclk);
 	} else {
-		intel_state->cdclk.actual = intel_state->cdclk.logical;
+		state->cdclk.actual = state->cdclk.logical;
 	}
 
 	return 0;

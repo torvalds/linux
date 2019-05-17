@@ -13271,7 +13271,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	if (dev_priv->display.modeset_calc_cdclk) {
 		enum pipe pipe;
 
-		ret = dev_priv->display.modeset_calc_cdclk(state);
+		ret = dev_priv->display.modeset_calc_cdclk(intel_state);
 		if (ret < 0)
 			return ret;
 
