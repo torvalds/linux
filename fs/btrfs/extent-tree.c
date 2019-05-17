@@ -4336,15 +4336,9 @@ static u64 get_profile_num_devs(struct btrfs_fs_info *fs_info, u64 type)
 {
 	u64 num_dev;
 
-	if (type & (BTRFS_BLOCK_GROUP_RAID10 |
-		    BTRFS_BLOCK_GROUP_RAID0 |
-		    BTRFS_BLOCK_GROUP_RAID5 |
-		    BTRFS_BLOCK_GROUP_RAID6))
+	num_dev = btrfs_raid_array[btrfs_bg_flags_to_raid_index(type)].devs_max;
+	if (!num_dev)
 		num_dev = fs_info->fs_devices->rw_devices;
-	else if (type & BTRFS_BLOCK_GROUP_RAID1)
-		num_dev = 2;
-	else
-		num_dev = 1;	/* DUP or single */
 
 	return num_dev;
 }
