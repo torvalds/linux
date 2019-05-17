@@ -58,9 +58,9 @@ static const struct pci_device_id hpwdt_blacklist[] = {
 static int hpwdt_start(struct watchdog_device *wdd)
 {
 	int control = 0x81 | (pretimeout ? 0x4 : 0);
-	int reload = SECS_TO_TICKS(wdd->timeout);
+	int reload = SECS_TO_TICKS(min(wdd->timeout, wdd->max_hw_heartbeat_ms/1000));
 
-	dev_dbg(wdd->parent, "start watchdog 0x%08x:0x%02x\n", reload, control);
+	dev_dbg(wdd->parent, "start watchdog 0x%08x:0x%08x:0x%02x\n", wdd->timeout, reload, control);
 	iowrite16(reload, hpwdt_timer_reg);
 	iowrite8(control, hpwdt_timer_con);
 
@@ -87,9 +87,9 @@ static int hpwdt_stop_core(struct watchdog_device *wdd)
 
 static int hpwdt_ping(struct watchdog_device *wdd)
 {
-	int reload = SECS_TO_TICKS(wdd->timeout);
+	int reload = SECS_TO_TICKS(min(wdd->timeout, wdd->max_hw_heartbeat_ms/1000));
 
-	dev_dbg(wdd->parent, "ping  watchdog 0x%08x\n", reload);
+	dev_dbg(wdd->parent, "ping  watchdog 0x%08x:0x%08x\n", wdd->timeout, reload);
 	iowrite16(reload, hpwdt_timer_reg);
 
 	return 0;
@@ -204,9 +204,9 @@ static struct watchdog_device hpwdt_dev = {
 	.info		= &ident,
 	.ops		= &hpwdt_ops,
 	.min_timeout	= 1,
-	.max_timeout	= HPWDT_MAX_TIMER,
 	.timeout	= DEFAULT_MARGIN,
 	.pretimeout	= PRETIMEOUT_SEC,
+	.max_hw_heartbeat_ms	= HPWDT_MAX_TIMER * 1000,
 };
 
 
