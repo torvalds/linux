@@ -147,7 +147,7 @@ static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int bsr_open(struct inode * inode, struct file * filp)
+static int bsr_open(struct inode *inode, struct file *filp)
 {
 	struct cdev *cdev = inode->i_cdev;
 	struct bsr_dev *dev = container_of(cdev, struct bsr_dev, bsr_cdev);
