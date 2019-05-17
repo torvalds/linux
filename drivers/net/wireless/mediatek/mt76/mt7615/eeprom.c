@@ -90,6 +90,26 @@ static int mt7615_check_eeprom(struct mt76_dev *dev)
 	}
 }
 
+static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
+{
+	u8 val, *eeprom = dev->mt76.eeprom.data;
+
+	val = FIELD_GET(MT_EE_NIC_WIFI_CONF_BAND_SEL,
+			eeprom[MT_EE_WIFI_CONF]);
+	switch (val) {
+	case MT_EE_5GHZ:
+		dev->mt76.cap.has_5ghz = true;
+		break;
+	case MT_EE_2GHZ:
+		dev->mt76.cap.has_2ghz = true;
+		break;
+	default:
+		dev->mt76.cap.has_2ghz = true;
+		dev->mt76.cap.has_5ghz = true;
+		break;
+	}
+}
+
 int mt7615_eeprom_init(struct mt7615_dev *dev)
 {
 	int ret;
@@ -103,9 +123,7 @@ int mt7615_eeprom_init(struct mt7615_dev *dev)
 		memcpy(dev->mt76.eeprom.data, dev->mt76.otp.data,
 		       MT7615_EEPROM_SIZE);
 
-	dev->mt76.cap.has_2ghz = true;
-	dev->mt76.cap.has_5ghz = true;
-
+	mt7615_eeprom_parse_hw_cap(dev);
 	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
 
