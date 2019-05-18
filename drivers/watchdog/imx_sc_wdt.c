@@ -122,13 +122,7 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_reboot(imx_sc_wdd);
 	watchdog_stop_on_unregister(imx_sc_wdd);
 
-	ret = devm_watchdog_register_device(dev, imx_sc_wdd);
-	if (ret) {
-		dev_err(dev, "Failed to register watchdog device\n");
-		return ret;
-	}
-
-	return 0;
+	return devm_watchdog_register_device(dev, imx_sc_wdd);
 }
 
 static int __maybe_unused imx_sc_wdt_suspend(struct device *dev)
