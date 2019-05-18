@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0+
-/*  Copyright (c) 2014-2018  Daktronics,
-			      Matt Sickler <matt.sickler@daktronics.com>,
-			      Jordon Hofer <jordon.hofer@daktronics.com>
-    Adapted i2c-i801.c for use with Kadoka hardware.
-    Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
-    Philip Edelbrock <phil@netroedge.com>, and Mark D. Studebaker
-    <mdsxyz123@yahoo.com>
-    Copyright (C) 2007 - 2012  Jean Delvare <khali@linux-fr.org>
-    Copyright (C) 2010         Intel Corporation,
-				David Woodhouse <dwmw2@infradead.org>
-*/
+/*
+ * KPC2000 i2c driver
+ *
+ * Adapted i2c-i801.c for use with Kadoka hardware.
+ *
+ * Copyright (C) 1998 - 2002
+ *	Frodo Looijaard <frodol@dds.nl>,
+ *	Philip Edelbrock <phil@netroedge.com>,
+ *	Mark D. Studebaker <mdsxyz123@yahoo.com>
+ * Copyright (C) 2007 - 2012
+ *	Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2010 Intel Corporation
+ *	David Woodhouse <dwmw2@infradead.org>
+ * Copyright (C) 2014-2018 Daktronics
+ *	Matt Sickler <matt.sickler@daktronics.com>,
+ *	Jordon Hofer <jordon.hofer@daktronics.com>
+ */
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -445,7 +451,7 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	struct i2c_device *priv = i2c_get_adapdata(adap);
 
 	dev_dbg(&priv->adapter.dev, "i801_access (addr=%0d)  flags=%x  read_write=%x  command=%x  size=%x",
-		addr, flags, read_write, command, size );
+			addr, flags, read_write, command, size );
 
 	hwpec = (priv->features & FEATURE_SMBUS_PEC) && (flags & I2C_CLIENT_PEC) && size != I2C_SMBUS_QUICK && size != I2C_SMBUS_I2C_BLOCK_DATA;
 
