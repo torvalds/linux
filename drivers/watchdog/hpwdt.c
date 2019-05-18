@@ -317,10 +317,8 @@ static int hpwdt_init_one(struct pci_dev *dev,
 
 	hpwdt_dev.parent = &dev->dev;
 	retval = watchdog_register_device(&hpwdt_dev);
-	if (retval < 0) {
-		dev_err(&dev->dev, "watchdog register failed: %d.\n", retval);
+	if (retval < 0)
 		goto error_wd_register;
-	}
 
 	dev_info(&dev->dev, "HPE Watchdog Timer Driver: Version: %s\n",
 				HPWDT_VERSION);
