@@ -384,10 +384,8 @@ static int mei_wdt_register(struct mei_wdt *wdt)
 	watchdog_stop_on_reboot(&wdt->wdd);
 
 	ret = watchdog_register_device(&wdt->wdd);
-	if (ret) {
-		dev_err(dev, "unable to register watchdog device = %d.\n", ret);
+	if (ret)
 		watchdog_set_drvdata(&wdt->wdd, NULL);
-	}
 
 	wdt->state = MEI_WDT_IDLE;
 
