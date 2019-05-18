@@ -137,7 +137,8 @@ MODULE_PARM_DESC(disable_features, "Disable selected driver features");
 #define outb_p(d,a) writeq(d,(void*)a)
 
 /* Make sure the SMBus host is ready to start transmitting.
-   Return 0 if it is, -EBUSY if it is not. */
+ * Return 0 if it is, -EBUSY if it is not.
+ */
 static int i801_check_pre(struct i2c_device *priv)
 {
 	int status;
@@ -226,7 +227,8 @@ static int i801_transaction(struct i2c_device *priv, int xact)
 		return result;
 	}
 	/* the current contents of SMBHSTCNT can be overwritten, since PEC,
-	 * INTREN, SMBSCMD are passed in xact */
+	 * INTREN, SMBSCMD are passed in xact
+	 */
 	outb_p(xact | I801_START, SMBHSTCNT(priv));
 
 	/* We will always wait for a fraction of a second! */
@@ -424,8 +426,9 @@ static int i801_block_transaction(struct i2c_device *priv, union i2c_smbus_data 
 	}
 
 	/* Experience has shown that the block buffer can only be used for
-	   SMBus (not I2C) block transactions, even though the datasheet
-	   doesn't mention this limitation. */
+	 * SMBus (not I2C) block transactions, even though the datasheet
+	 * doesn't mention this limitation.
+	 */
 	if ((priv->features & FEATURE_BLOCK_BUFFER) && command != I2C_SMBUS_I2C_BLOCK_DATA && i801_set_block_buffer_mode(priv) == 0) {
 		result = i801_block_transaction_by_block(priv, data, read_write, hwpec);
 	} else {
@@ -499,11 +502,13 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		dev_dbg(&priv->adapter.dev, "  [acc] SMBUS_I2C_BLOCK_DATA\n");
 		/* NB: page 240 of ICH5 datasheet shows that the R/#W
-		 * bit should be cleared here, even when reading */
+		 * bit should be cleared here, even when reading
+		 */
 		outb_p((addr & 0x7f) << 1, SMBHSTADD(priv));
 		if (read_write == I2C_SMBUS_READ) {
 			/* NB: page 240 of ICH5 datasheet also shows
-			 * that DATA1 is the cmd field when reading */
+			 * that DATA1 is the cmd field when reading
+			 */
 			outb_p(command, SMBHSTDAT1(priv));
 		} else {
 			outb_p(command, SMBHSTCMD(priv));
@@ -533,8 +538,9 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	}
 
 	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
-	   time, so we forcibly disable it after every transaction. Turn off
-	   E32B for the same reason. */
+	 * time, so we forcibly disable it after every transaction. Turn off
+	 * E32B for the same reason.
+	 */
 	if (hwpec || block) {
 		dev_dbg(&priv->adapter.dev, "  [acc] hwpec || block\n");
 		outb_p(inb_p(SMBAUXCTL(priv)) & ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B), SMBAUXCTL(priv));
@@ -573,13 +579,13 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	struct i2c_device *priv = i2c_get_adapdata(adapter);
 
 	/* original settings
-	   u32 f = I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
-	   I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
-	   I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK |
-	   ((priv->features & FEATURE_SMBUS_PEC) ? I2C_FUNC_SMBUS_PEC : 0) |
-	   ((priv->features & FEATURE_I2C_BLOCK_READ) ?
-	   I2C_FUNC_SMBUS_READ_I2C_BLOCK : 0);
-	*/
+	 * u32 f = I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
+	 * I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
+	 * I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK |
+	 * ((priv->features & FEATURE_SMBUS_PEC) ? I2C_FUNC_SMBUS_PEC : 0) |
+	 * ((priv->features & FEATURE_I2C_BLOCK_READ) ?
+	 * I2C_FUNC_SMBUS_READ_I2C_BLOCK : 0);
+	 */
 
 	// http://lxr.free-electrons.com/source/include/uapi/linux/i2c.h#L85
 
