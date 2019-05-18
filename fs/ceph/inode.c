@@ -1476,7 +1476,8 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 			pr_err("fill_inode badness on %p got %d\n", in, rc);
 			err = rc;
 		}
-		iput(in);
+		/* avoid calling iput_final() in mds dispatch threads */
+		ceph_async_iput(in);
 	}
 
 	return err;
@@ -1674,8 +1675,11 @@ retry_lookup:
 				 &req->r_caps_reservation);
 		if (ret < 0) {
 			pr_err("fill_inode badness on %p\n", in);
-			if (d_really_is_negative(dn))
-				iput(in);
+			if (d_really_is_negative(dn)) {
+				/* avoid calling iput_final() in mds
+				 * dispatch threads */
+				ceph_async_iput(in);
+			}
 			d_drop(dn);
 			err = ret;
 			goto next_item;
@@ -1685,7 +1689,7 @@ retry_lookup:
 			if (ceph_security_xattr_deadlock(in)) {
 				dout(" skip splicing dn %p to inode %p"
 				     " (security xattr deadlock)\n", dn, in);
-				iput(in);
+				ceph_async_iput(in);
 				skipped++;
 				goto next_item;
 			}
@@ -1734,6 +1738,25 @@ bool ceph_inode_set_size(struct inode *inode, loff_t size)
 
 	spin_unlock(&ci->i_ceph_lock);
 	return ret;
+}
+
+/*
+ * Put reference to inode, but avoid calling iput_final() in current thread.
+ * iput_final() may wait for reahahead pages. The wait can cause deadlock in
+ * some contexts.
+ */
+void ceph_async_iput(struct inode *inode)
+{
+	if (!inode)
+		return;
+	for (;;) {
+		if (atomic_add_unless(&inode->i_count, -1, 1))
+			break;
+		if (queue_work(ceph_inode_to_client(inode)->inode_wq,
+			       &ceph_inode(inode)->i_work))
+			break;
+		/* queue work failed, i_count must be at least 2 */
+	}
 }
 
 /*
