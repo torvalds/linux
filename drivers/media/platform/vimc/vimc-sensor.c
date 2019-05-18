@@ -221,7 +221,6 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 
 		vfree(vsen->frame);
 		vsen->frame = NULL;
-		return 0;
 	}
 
 	return 0;
