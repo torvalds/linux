@@ -628,7 +628,7 @@ int pi2c_probe(struct platform_device *pldev)
 
 	dev_dbg(&pldev->dev, "pi2c_probe(pldev = %p '%s')\n", pldev, pldev->name);
 
-	priv = kzalloc(sizeof(struct i2c_device), GFP_KERNEL);
+	priv = devm_kzalloc(&pldev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		return -ENOMEM;
 	}
@@ -685,10 +685,6 @@ int pi2c_remove(struct platform_device *pldev)
 	//pci_set_drvdata(dev, NULL);
 
 	//cdev_del(&lddev->cdev);
-	if(lddev != 0) {
-		kfree(lddev);
-		pldev->dev.platform_data = 0;
-	}
 
 	return 0;
 }
