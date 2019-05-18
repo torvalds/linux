@@ -264,6 +264,7 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 int watchdog_register_device(struct watchdog_device *wdd)
 {
+	const char *dev_str;
 	int ret = 0;
 
 	mutex_lock(&wtd_deferred_reg_mutex);
@@ -272,6 +273,14 @@ int watchdog_register_device(struct watchdog_device *wdd)
 	else
 		watchdog_deferred_registration_add(wdd);
 	mutex_unlock(&wtd_deferred_reg_mutex);
+
+	if (ret) {
+		dev_str = wdd->parent ? dev_name(wdd->parent) :
+			  (const char *)wdd->info->identity;
+		pr_err("%s: failed to register watchdog device (err = %d)\n",
+			dev_str, ret);
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(watchdog_register_device);
