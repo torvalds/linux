@@ -575,6 +575,7 @@ static const u8 infoframe_type_to_idx[] = {
 	HDMI_INFOFRAME_TYPE_AVI,
 	HDMI_INFOFRAME_TYPE_SPD,
 	HDMI_INFOFRAME_TYPE_VENDOR,
+	HDMI_INFOFRAME_TYPE_DRM,
 };
 
 u32 intel_hdmi_infoframe_enable(unsigned int type)
@@ -791,6 +792,40 @@ intel_hdmi_compute_hdmi_infoframe(struct intel_encoder *encoder,
 		return false;
 
 	ret = hdmi_vendor_infoframe_check(frame);
+	if (WARN_ON(ret))
+		return false;
+
+	return true;
+}
+
+static bool
+intel_hdmi_compute_drm_infoframe(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct hdmi_drm_infoframe *frame = &crtc_state->infoframes.drm.drm;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int ret;
+
+	if (!(INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)))
+		return true;
+
+	if (!crtc_state->has_infoframe)
+		return true;
+
+	if (!conn_state->hdr_output_metadata)
+		return true;
+
+	crtc_state->infoframes.enable |=
+		intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_DRM);
+
+	ret = drm_hdmi_infoframe_set_hdr_metadata(frame, conn_state);
+	if (ret < 0) {
+		DRM_DEBUG_KMS("couldn't set HDR metadata in infoframe\n");
+		return false;
+	}
+
+	ret = hdmi_drm_infoframe_check(frame);
 	if (WARN_ON(ret))
 		return false;
 
@@ -1183,6 +1218,9 @@ static void hsw_set_infoframes(struct intel_encoder *encoder,
 	intel_write_infoframe(encoder, crtc_state,
 			      HDMI_INFOFRAME_TYPE_VENDOR,
 			      &crtc_state->infoframes.hdmi);
+	intel_write_infoframe(encoder, crtc_state,
+			      HDMI_INFOFRAME_TYPE_DRM,
+			      &crtc_state->infoframes.drm);
 }
 
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
@@ -2386,6 +2424,11 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	if (!intel_hdmi_compute_hdmi_infoframe(encoder, pipe_config, conn_state)) {
 		DRM_DEBUG_KMS("bad HDMI infoframe\n");
+		return -EINVAL;
+	}
+
+	if (!intel_hdmi_compute_drm_infoframe(encoder, pipe_config, conn_state)) {
+		DRM_DEBUG_KMS("bad DRM infoframe\n");
 		return -EINVAL;
 	}
 

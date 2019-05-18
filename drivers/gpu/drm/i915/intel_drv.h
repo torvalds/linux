@@ -912,6 +912,7 @@ struct intel_crtc_state {
 		union hdmi_infoframe avi;
 		union hdmi_infoframe spd;
 		union hdmi_infoframe hdmi;
+		union hdmi_infoframe drm;
 	} infoframes;
 
 	/* HDMI scrambling status */
