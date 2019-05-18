@@ -142,7 +142,10 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	    unlikely(GET_HW_QUEUE(skb) == P54_QUEUE_BEACON))
 		priv->beacon_req_id = data->req_id;
 
-	__skb_queue_after(&priv->tx_queue, target_skb, skb);
+	if (target_skb)
+		__skb_queue_after(&priv->tx_queue, target_skb, skb);
+	else
+		__skb_queue_head(&priv->tx_queue, skb);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 	return 0;
 }
