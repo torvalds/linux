@@ -311,9 +311,17 @@ static int adis16203_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id adis16203_of_match[] = {
+	{ .compatible = "adi,adis16203" },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, adis16203_of_match);
+
 static struct spi_driver adis16203_driver = {
 	.driver = {
 		.name = "adis16203",
+		.of_match_table = adis16203_of_match,
 	},
 	.probe = adis16203_probe,
 	.remove = adis16203_remove,
