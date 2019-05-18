@@ -99,7 +99,7 @@
  * up the machine.
  */
 #define FIFO_COUNT	2	/* Number of 512 byte blocks before INTR */
-#define PARITY_MASK	0x08	/* Parity enabled, 0x00 = disabled */
+#define PARITY_MASK	ACTL_PAREN	/* Parity enabled, 0 = disabled */
 
 enum chip_type {
 	unknown		= 0x00,
@@ -117,18 +117,19 @@ struct fdomain {
 
 static inline void fdomain_make_bus_idle(struct fdomain *fd)
 {
-	outb(0, fd->base + SCSI_Cntl);
-	outb(0, fd->base + SCSI_Mode_Cntl);
+	outb(0, fd->base + REG_BCTL);
+	outb(0, fd->base + REG_MCTL);
 	if (fd->chip == tmc18c50 || fd->chip == tmc18c30)
 		/* Clear forced intr. */
-		outb(0x21 | PARITY_MASK, fd->base + TMC_Cntl);
+		outb(ACTL_RESET | ACTL_CLRFIRQ | PARITY_MASK,
+		     fd->base + REG_ACTL);
 	else
-		outb(0x01 | PARITY_MASK, fd->base + TMC_Cntl);
+		outb(ACTL_RESET | PARITY_MASK, fd->base + REG_ACTL);
 }
 
 static enum chip_type fdomain_identify(int port)
 {
-	u16 id = inb(port + LSB_ID_Code) | inb(port + MSB_ID_Code) << 8;
+	u16 id = inb(port + REG_ID_LSB) | inb(port + REG_ID_MSB) << 8;
 
 	switch (id) {
 	case 0x6127:
@@ -140,10 +141,10 @@ static enum chip_type fdomain_identify(int port)
 	}
 
 	/* Try to toggle 32-bit mode. This only works on an 18c30 chip. */
-	outb(0x80, port + IO_Control);
-	if ((inb(port + Configuration2) & 0x80) == 0x80) {
-		outb(0x00, port + IO_Control);
-		if ((inb(port + Configuration2) & 0x80) == 0x00)
+	outb(CFG2_32BIT, port + REG_CFG2);
+	if ((inb(port + REG_CFG2) & CFG2_32BIT)) {
+		outb(0, port + REG_CFG2);
+		if ((inb(port + REG_CFG2) & CFG2_32BIT) == 0)
 			return tmc18c30;
 	}
 	/* If that failed, we are an 18c50. */
@@ -155,8 +156,8 @@ static int fdomain_test_loopback(int base)
 	int i;
 
 	for (i = 0; i < 255; i++) {
-		outb(i, base + Write_Loopback);
-		if (inb(base + Read_Loopback) != i)
+		outb(i, base + REG_LOOPBACK);
+		if (inb(base + REG_LOOPBACK) != i)
 			return 1;
 	}
 
@@ -165,12 +166,12 @@ static int fdomain_test_loopback(int base)
 
 static void fdomain_reset(int base)
 {
-	outb(1, base + SCSI_Cntl);
+	outb(1, base + REG_BCTL);
 	mdelay(20);
-	outb(0, base + SCSI_Cntl);
+	outb(0, base + REG_BCTL);
 	mdelay(1150);
-	outb(0, base + SCSI_Mode_Cntl);
-	outb(PARITY_MASK, base + TMC_Cntl);
+	outb(0, base + REG_MCTL);
+	outb(PARITY_MASK, base + REG_ACTL);
 }
 
 static int fdomain_select(struct Scsi_Host *sh, int target)
@@ -179,20 +180,20 @@ static int fdomain_select(struct Scsi_Host *sh, int target)
 	unsigned long timeout;
 	struct fdomain *fd = shost_priv(sh);
 
-	outb(0x82, fd->base + SCSI_Cntl); /* Bus Enable + Select */
-	outb(BIT(sh->this_id) | BIT(target), fd->base + SCSI_Data_NoACK);
+	outb(BCTL_BUSEN | BCTL_SEL, fd->base + REG_BCTL);
+	outb(BIT(sh->this_id) | BIT(target), fd->base + REG_SCSI_DATA_NOACK);
 
 	/* Stop arbitration and enable parity */
-	outb(PARITY_MASK, fd->base + TMC_Cntl);
+	outb(PARITY_MASK, fd->base + REG_ACTL);
 
 	timeout = 350;	/* 350 msec */
 
 	do {
-		status = inb(fd->base + SCSI_Status); /* Read adapter status */
-		if (status & 1) {	/* Busy asserted */
+		status = inb(fd->base + REG_BSTAT);
+		if (status & BSTAT_BSY) {
 			/* Enable SCSI Bus */
 			/* (on error, should make bus idle with 0) */
-			outb(0x80, fd->base + SCSI_Cntl);
+			outb(BCTL_BUSEN, fd->base + REG_BCTL);
 			return 0;
 		}
 		mdelay(1);
@@ -203,7 +204,7 @@ static int fdomain_select(struct Scsi_Host *sh, int target)
 
 static void fdomain_finish_cmd(struct fdomain *fd, int result)
 {
-	outb(0x00, fd->base + Interrupt_Cntl);
+	outb(0, fd->base + REG_ICTL);
 	fdomain_make_bus_idle(fd);
 	fd->cur_cmd->result = result;
 	fd->cur_cmd->scsi_done(fd->cur_cmd);
@@ -216,15 +217,15 @@ static void fdomain_read_data(struct scsi_cmnd *cmd)
 	unsigned char *virt, *ptr;
 	size_t offset, len;
 
-	while ((len = inw(fd->base + FIFO_Data_Count)) > 0) {
+	while ((len = inw(fd->base + REG_FIFO_COUNT)) > 0) {
 		offset = scsi_bufflen(cmd) - scsi_get_resid(cmd);
 		virt = scsi_kmap_atomic_sg(scsi_sglist(cmd), scsi_sg_count(cmd),
 					   &offset, &len);
 		ptr = virt + offset;
 		if (len & 1)
-			*ptr++ = inb(fd->base + Read_FIFO);
+			*ptr++ = inb(fd->base + REG_FIFO);
 		if (len > 1)
-			insw(fd->base + Read_FIFO, ptr, len >> 1);
+			insw(fd->base + REG_FIFO, ptr, len >> 1);
 		scsi_set_resid(cmd, scsi_get_resid(cmd) - len);
 		scsi_kunmap_atomic_sg(virt);
 	}
@@ -238,7 +239,7 @@ static void fdomain_write_data(struct scsi_cmnd *cmd)
 	unsigned char *virt, *ptr;
 	size_t offset, len;
 
-	while ((len = FIFO_Size - inw(fd->base + FIFO_Data_Count)) > 512) {
+	while ((len = FIFO_Size - inw(fd->base + REG_FIFO_COUNT)) > 512) {
 		offset = scsi_bufflen(cmd) - scsi_get_resid(cmd);
 		if (len + offset > scsi_bufflen(cmd)) {
 			len = scsi_bufflen(cmd) - offset;
@@ -249,9 +250,9 @@ static void fdomain_write_data(struct scsi_cmnd *cmd)
 					   &offset, &len);
 		ptr = virt + offset;
 		if (len & 1)
-			outb(*ptr++, fd->base + Write_FIFO);
+			outb(*ptr++, fd->base + REG_FIFO);
 		if (len > 1)
-			outsw(fd->base + Write_FIFO, ptr, len >> 1);
+			outsw(fd->base + REG_FIFO, ptr, len >> 1);
 		scsi_set_resid(cmd, scsi_get_resid(cmd) - len);
 		scsi_kunmap_atomic_sg(virt);
 	}
@@ -270,66 +271,68 @@ static void fdomain_work(struct work_struct *work)
 	spin_lock_irqsave(sh->host_lock, flags);
 
 	if (cmd->SCp.phase & in_arbitration) {
-		status = inb(fd->base + TMC_Status);
-		if (!(status & 0x02)) {
+		status = inb(fd->base + REG_ASTAT);
+		if (!(status & ASTAT_ARB)) {
 			fdomain_finish_cmd(fd, DID_BUS_BUSY << 16);
 			goto out;
 		}
 		cmd->SCp.phase = in_selection;
 
-		outb(0x40 | FIFO_COUNT, fd->base + Interrupt_Cntl);
-		outb(0x82, fd->base + SCSI_Cntl); /* Bus Enable + Select */
-		outb(BIT(cmd->device->host->this_id) |
-		     BIT(scmd_id(cmd)), fd->base + SCSI_Data_NoACK);
+		outb(ICTL_SEL | FIFO_COUNT, fd->base + REG_ICTL);
+		outb(BCTL_BUSEN | BCTL_SEL, fd->base + REG_BCTL);
+		outb(BIT(cmd->device->host->this_id) | BIT(scmd_id(cmd)),
+		     fd->base + REG_SCSI_DATA_NOACK);
 		/* Stop arbitration and enable parity */
-		outb(0x10 | PARITY_MASK, fd->base + TMC_Cntl);
+		outb(ACTL_IRQEN | PARITY_MASK, fd->base + REG_ACTL);
 		goto out;
 	} else if (cmd->SCp.phase & in_selection) {
-		status = inb(fd->base + SCSI_Status);
-		if (!(status & 0x01)) {
+		status = inb(fd->base + REG_BSTAT);
+		if (!(status & BSTAT_BSY)) {
 			/* Try again, for slow devices */
 			if (fdomain_select(cmd->device->host, scmd_id(cmd))) {
 				fdomain_finish_cmd(fd, DID_NO_CONNECT << 16);
 				goto out;
 			}
 			/* Stop arbitration and enable parity */
-			outb(0x10 | PARITY_MASK, fd->base + TMC_Cntl);
+			outb(ACTL_IRQEN | PARITY_MASK, fd->base + REG_ACTL);
 		}
 		cmd->SCp.phase = in_other;
-		outb(0x90 | FIFO_COUNT, fd->base + Interrupt_Cntl);
-		outb(0x80, fd->base + SCSI_Cntl);
+		outb(ICTL_FIFO | ICTL_REQ | FIFO_COUNT, fd->base + REG_ICTL);
+		outb(BCTL_BUSEN, fd->base + REG_BCTL);
 		goto out;
 	}
 
 	/* cur_cmd->SCp.phase == in_other: this is the body of the routine */
-	status = inb(fd->base + SCSI_Status);
+	status = inb(fd->base + REG_BSTAT);
 
-	if (status & 0x10) {	/* REQ */
+	if (status & BSTAT_REQ) {
 		switch (status & 0x0e) {
-		case 0x08:	/* COMMAND OUT */
+		case BSTAT_CMD:	/* COMMAND OUT */
 			outb(cmd->cmnd[cmd->SCp.sent_command++],
-			     fd->base + Write_SCSI_Data);
+			     fd->base + REG_SCSI_DATA);
 			break;
-		case 0x00:	/* DATA OUT -- tmc18c50/tmc18c30 only */
+		case 0:	/* DATA OUT -- tmc18c50/tmc18c30 only */
 			if (fd->chip != tmc1800 && !cmd->SCp.have_data_in) {
 				cmd->SCp.have_data_in = -1;
-				outb(0xd0 | PARITY_MASK, fd->base + TMC_Cntl);
+				outb(ACTL_IRQEN | ACTL_FIFOWR | ACTL_FIFOEN |
+				     PARITY_MASK, fd->base + REG_ACTL);
 			}
 			break;
-		case 0x04:	/* DATA IN -- tmc18c50/tmc18c30 only */
+		case BSTAT_IO:	/* DATA IN -- tmc18c50/tmc18c30 only */
 			if (fd->chip != tmc1800 && !cmd->SCp.have_data_in) {
 				cmd->SCp.have_data_in = 1;
-				outb(0x90 | PARITY_MASK, fd->base + TMC_Cntl);
+				outb(ACTL_IRQEN | ACTL_FIFOEN | PARITY_MASK,
+				     fd->base + REG_ACTL);
 			}
 			break;
-		case 0x0c:	/* STATUS IN */
-			cmd->SCp.Status = inb(fd->base + Read_SCSI_Data);
+		case BSTAT_CMD | BSTAT_IO:	/* STATUS IN */
+			cmd->SCp.Status = inb(fd->base + REG_SCSI_DATA);
 			break;
-		case 0x0a:	/* MESSAGE OUT */
-			outb(MESSAGE_REJECT, fd->base + Write_SCSI_Data);
+		case BSTAT_MSG | BSTAT_CMD:	/* MESSAGE OUT */
+			outb(MESSAGE_REJECT, fd->base + REG_SCSI_DATA);
 			break;
-		case 0x0e:	/* MESSAGE IN */
-			cmd->SCp.Message = inb(fd->base + Read_SCSI_Data);
+		case BSTAT_MSG | BSTAT_IO | BSTAT_CMD:	/* MESSAGE IN */
+			cmd->SCp.Message = inb(fd->base + REG_SCSI_DATA);
 			if (!cmd->SCp.Message)
 				++done;
 			break;
@@ -340,10 +343,12 @@ static void fdomain_work(struct work_struct *work)
 	    cmd->SCp.sent_command >= cmd->cmd_len) {
 		if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 			cmd->SCp.have_data_in = -1;
-			outb(0xd0 | PARITY_MASK, fd->base + TMC_Cntl);
+			outb(ACTL_IRQEN | ACTL_FIFOWR | ACTL_FIFOEN |
+			     PARITY_MASK, fd->base + REG_ACTL);
 		} else {
 			cmd->SCp.have_data_in = 1;
-			outb(0x90 | PARITY_MASK, fd->base + TMC_Cntl);
+			outb(ACTL_IRQEN | ACTL_FIFOEN | PARITY_MASK,
+			     fd->base + REG_ACTL);
 		}
 	}
 
@@ -359,10 +364,12 @@ static void fdomain_work(struct work_struct *work)
 				   (DID_OK << 16));
 	} else {
 		if (cmd->SCp.phase & disconnect) {
-			outb(0xd0 | FIFO_COUNT, fd->base + Interrupt_Cntl);
-			outb(0x00, fd->base + SCSI_Cntl);
+			outb(ICTL_FIFO | ICTL_SEL | ICTL_REQ | FIFO_COUNT,
+			     fd->base + REG_ICTL);
+			outb(0, fd->base + REG_BCTL);
 		} else
-			outb(0x90 | FIFO_COUNT, fd->base + Interrupt_Cntl);
+			outb(ICTL_FIFO | ICTL_REQ | FIFO_COUNT,
+			     fd->base + REG_ICTL);
 	}
 out:
 	spin_unlock_irqrestore(sh->host_lock, flags);
@@ -373,10 +380,10 @@ static irqreturn_t fdomain_irq(int irq, void *dev_id)
 	struct fdomain *fd = dev_id;
 
 	/* Is it our IRQ? */
-	if ((inb(fd->base + TMC_Status) & 0x01) == 0)
+	if ((inb(fd->base + REG_ASTAT) & ASTAT_IRQ) == 0)
 		return IRQ_NONE;
 
-	outb(0x00, fd->base + Interrupt_Cntl);
+	outb(0, fd->base + REG_ICTL);
 
 	/* We usually have one spurious interrupt after each command. */
 	if (!fd->cur_cmd)	/* Spurious interrupt */
@@ -406,12 +413,13 @@ static int fdomain_queue(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	fdomain_make_bus_idle(fd);
 
 	/* Start arbitration */
-	outb(0x00, fd->base + Interrupt_Cntl);
-	outb(0x00, fd->base + SCSI_Cntl);	/* Disable data drivers */
-	outb(BIT(cmd->device->host->this_id),
-	     fd->base + SCSI_Data_NoACK);	/* Set our id bit */
-	outb(0x20, fd->base + Interrupt_Cntl);
-	outb(0x14 | PARITY_MASK, fd->base + TMC_Cntl);	/* Start arbitration */
+	outb(0, fd->base + REG_ICTL);
+	outb(0, fd->base + REG_BCTL);	/* Disable data drivers */
+	/* Set our id bit */
+	outb(BIT(cmd->device->host->this_id), fd->base + REG_SCSI_DATA_NOACK);
+	outb(ICTL_ARB, fd->base + REG_ICTL);
+	/* Start arbitration */
+	outb(ACTL_ARB | ACTL_IRQEN | PARITY_MASK, fd->base + REG_ACTL);
 
 	spin_unlock_irqrestore(sh->host_lock, flags);
 
