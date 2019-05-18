@@ -37,7 +37,7 @@ struct cif_match_data {
 	int rsts_num;
 };
 
-int rkcif_debug = 3;
+int rkcif_debug;
 module_param_named(debug, rkcif_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
@@ -205,8 +205,13 @@ err_stream_off:
 /***************************** media controller *******************************/
 static int rkcif_create_links(struct rkcif_device *dev)
 {
-	unsigned int s, pad, id;
+	unsigned int s, pad, id, stream_num = 0;
 	int ret;
+
+	if (dev->chip_id == CHIP_RK1808_CIF)
+		stream_num = RKCIF_MULTI_STREAMS_NUM;
+	else
+		stream_num = RKCIF_SINGLE_STREAM;
 
 	/* sensor links(or mipi-phy) */
 	for (s = 0; s < dev->num_sensors; ++s) {
@@ -223,13 +228,14 @@ static int rkcif_create_links(struct rkcif_device *dev)
 					return -ENXIO;
 				}
 
-				for (id = 0; id < RKCIF_MAX_STREAM_MIPI; id++) {
+				for (id = 0; id < stream_num; id++) {
 					ret = media_entity_create_link(
 							&sensor->sd->entity,
 							pad,
 							&dev->stream[id].vnode.vdev.entity,
 							0,
-							id == pad - 1 ? MEDIA_LNK_FL_ENABLED : 0);
+							(dev->chip_id != CHIP_RK1808_CIF) | (id == pad - 1) ?
+							MEDIA_LNK_FL_ENABLED : 0);
 					if (ret) {
 						dev_err(dev->dev,
 							"failed to create link for %s\n",
@@ -358,13 +364,23 @@ static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 
 static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 {
-	int ret;
+	int stream_num = 0, ret;
 
 	cif_dev->alloc_ctx = vb2_dma_contig_init_ctx(cif_dev->v4l2_dev.dev);
 
-	ret = rkcif_register_stream_vdevs(cif_dev);
-	if (ret < 0)
-		goto err_cleanup_ctx;
+	if (cif_dev->chip_id == CHIP_RK1808_CIF) {
+		stream_num = RKCIF_MULTI_STREAMS_NUM;
+		ret = rkcif_register_stream_vdevs(cif_dev, stream_num,
+						  true);
+		if (ret < 0)
+			goto err_cleanup_ctx;
+	} else {
+		stream_num = RKCIF_SINGLE_STREAM;
+		ret = rkcif_register_stream_vdevs(cif_dev, stream_num,
+						  false);
+		if (ret < 0)
+			goto err_cleanup_ctx;
+	}
 
 	ret = cif_subdev_notifier(cif_dev);
 	if (ret < 0) {
@@ -375,7 +391,7 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 
 	return 0;
 err_unreg_stream_vdev:
-	rkcif_unregister_stream_vdevs(cif_dev);
+	rkcif_unregister_stream_vdevs(cif_dev, stream_num);
 err_cleanup_ctx:
 	vb2_dma_contig_cleanup_ctx(cif_dev->alloc_ctx);
 
@@ -544,9 +560,12 @@ static inline bool is_iommu_enable(struct device *dev)
 	return true;
 }
 
-void rkcif_soft_reset(struct rkcif_device *cif_dev)
+void rkcif_soft_reset(struct rkcif_device *cif_dev, bool is_rst_iommu)
 {
 	unsigned int i;
+
+	if (cif_dev->iommu_en && is_rst_iommu)
+		rkcif_iommu_cleanup(cif_dev);
 
 	for (i = 0; i < ARRAY_SIZE(cif_dev->cif_rst); i++)
 		if (cif_dev->cif_rst[i])
@@ -556,6 +575,8 @@ void rkcif_soft_reset(struct rkcif_device *cif_dev)
 		if (cif_dev->cif_rst[i])
 			reset_control_deassert(cif_dev->cif_rst[i]);
 
+	if (cif_dev->iommu_en && is_rst_iommu)
+		rkcif_iommu_init(cif_dev);
 }
 
 static int rkcif_plat_probe(struct platform_device *pdev)
@@ -644,18 +665,23 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		cif_dev->cif_rst[i] = rst;
 	}
 
+	mutex_init(&cif_dev->stream_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
-	mutex_init(&cif_dev->dev_lock);
+	atomic_set(&cif_dev->fh_cnt, 0);
 	cif_dev->pipe.open = rkcif_pipeline_open;
 	cif_dev->pipe.close = rkcif_pipeline_close;
 	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;
 
-	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID0);
-	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID1);
-	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID2);
-	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID3);
-	rkcif_stream_init(cif_dev, RKCIF_STREAM_DVP);
+	if (data->chip_id == CHIP_RK1808_CIF) {
+		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID0);
+		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID1);
+		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID2);
+		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID3);
+		rkcif_stream_init(cif_dev, RKCIF_STREAM_DVP);
+	} else {
+		rkcif_stream_init(cif_dev, RKCIF_STREAM_CIF);
+	}
 
 	strlcpy(cif_dev->media_dev.model, "rkcif",
 		sizeof(cif_dev->media_dev.model));
@@ -691,12 +717,13 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 				  "No reserved memory region assign to CIF\n");
 	}
 
-	rkcif_soft_reset(cif_dev);
 	pm_runtime_enable(&pdev->dev);
 
 	mutex_lock(&rkcif_dev_mutex);
 	list_add_tail(&cif_dev->list, &rkcif_device_list);
 	mutex_unlock(&rkcif_dev_mutex);
+
+	rkcif_soft_reset(cif_dev, true);
 
 	return 0;
 
@@ -709,13 +736,18 @@ err_unreg_v4l2_dev:
 
 static int rkcif_plat_remove(struct platform_device *pdev)
 {
+	int stream_num = 0;
 	struct rkcif_device *cif_dev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 
 	media_device_unregister(&cif_dev->media_dev);
 	v4l2_device_unregister(&cif_dev->v4l2_dev);
-	rkcif_unregister_stream_vdevs(cif_dev);
+	if (cif_dev->chip_id == CHIP_RK1808_CIF)
+		stream_num = RKCIF_MULTI_STREAMS_NUM;
+	else
+		stream_num = RKCIF_SINGLE_STREAM;
+	rkcif_unregister_stream_vdevs(cif_dev, stream_num);
 	vb2_dma_contig_cleanup_ctx(cif_dev->alloc_ctx);
 
 	return 0;

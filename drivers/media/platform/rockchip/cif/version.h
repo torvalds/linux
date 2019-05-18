@@ -12,9 +12,11 @@
  *1. First version;
  *v0.1.1
  *support the mipi vc multi-channel input in cif driver for rk1808
+ *v0.1.2
+ *Compatible with cif only have single dma mode in driver
  *
  */
 
-#define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x1)
+#define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x2)
 
 #endif

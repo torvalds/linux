@@ -265,4 +265,9 @@
 #define SW_DATATYPE_LS(x)	((x) << 20)
 #define SW_DATATYPE_LE(x)	((x) << 26)
 
+#define SW_FRM_END_ID0(x)	(((x) & CSI_FRAME_END_ID0) >> 8)
+#define SW_FRM_END_ID1(x)	(((x) & CSI_FRAME_END_ID1) >> 10)
+#define SW_FRM_END_ID2(x)	(((x) & CSI_FRAME_END_ID2) >> 12)
+#define SW_FRM_END_ID3(x)	(((x) & CSI_FRAME_END_ID3) >> 14)
+
 #endif

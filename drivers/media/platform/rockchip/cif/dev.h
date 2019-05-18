@@ -19,6 +19,8 @@
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
 
+#define RKCIF_SINGLE_STREAM	1
+#define RKCIF_STREAM_CIF	0
 #define CIF_DVP_VDEV_NAME CIF_VIDEODEVICE_NAME		"_dvp"
 #define CIF_MIPI_ID0_VDEV_NAME CIF_VIDEODEVICE_NAME	"_mipi_id0"
 #define CIF_MIPI_ID1_VDEV_NAME CIF_VIDEODEVICE_NAME	"_mipi_id1"
@@ -29,7 +31,7 @@
  * Rk1808 support 5 channel inputs simultaneously:
  * dvp + 4 mipi virtual channels
  */
-#define RKCIF_MAX_STREAM	5
+#define RKCIF_MULTI_STREAMS_NUM	5
 #define RKCIF_STREAM_MIPI_ID0	0
 #define RKCIF_STREAM_MIPI_ID1	1
 #define RKCIF_STREAM_MIPI_ID2	2
@@ -46,19 +48,12 @@
 #define RKCIF_DEFAULT_WIDTH	640
 #define RKCIF_DEFAULT_HEIGHT	480
 
-#define write_cif_reg(base, addr, val) \
-	do { \
-		writel(val, (addr) + (base)); \
-	} while (0)
+#define write_cif_reg(base, addr, val) writel(val, (addr) + (base))
 #define read_cif_reg(base, addr) readl((addr) + (base))
 #define write_cif_reg_or(base, addr, val) \
-	do { \
-		writel(readl((addr) + (base)) | (val), (addr) + (base)); \
-	} while (0)
+	writel(readl((addr) + (base)) | (val), (addr) + (base))
 #define write_cif_reg_and(base, addr, val) \
-	do { \
-		writel(readl((addr) + (base)) & (val), (addr) + (base)); \
-	} while (0)
+	writel(readl((addr) + (base)) & (val), (addr) + (base))
 
 enum rkcif_state {
 	RKCIF_STATE_DISABLED,
@@ -187,6 +182,15 @@ struct rkcif_vdev_node {
 };
 
 /*
+ * the mark that csi frame0/1 interrupts enabled
+ * in CIF_MIPI_INTEN
+ */
+enum cif_frame_ready {
+	CIF_CSI_FRAME0_READY = 0x1,
+	CIF_CSI_FRAME1_READY
+};
+
+/*
  * struct rkcif_stream - Stream states TODO
  *
  * @vbq_lock: lock to protect buf_queue
@@ -280,24 +284,27 @@ struct rkcif_device {
 	u32				num_sensors;
 	struct rkcif_sensor_info	*active_sensor;
 
-	struct rkcif_stream		stream[RKCIF_MAX_STREAM];
+	struct rkcif_stream		stream[RKCIF_MULTI_STREAMS_NUM];
 	struct rkcif_pipeline		pipe;
 
 	struct csi_channel_info		channels[RKCIF_MAX_CSI_CHANNEL];
 	int				num_channels;
 	int				chip_id;
-	bool				working;
-	bool				is_cif_rst;
-	/* dev operate mutex */
-	struct mutex			dev_lock;
+	atomic_t			stream_cnt;
+	atomic_t			fh_cnt;
+	struct mutex                    stream_lock; /* lock between streams */
 };
 
-void rkcif_unregister_stream_vdevs(struct rkcif_device *dev);
-int rkcif_register_stream_vdevs(struct rkcif_device *dev);
+void rkcif_unregister_stream_vdevs(struct rkcif_device *dev,
+				   int stream_num);
+int rkcif_register_stream_vdevs(struct rkcif_device *dev,
+				int stream_num,
+				bool is_multi_input);
 void rkcif_stream_init(struct rkcif_device *dev, u32 id);
 
 void rkcif_irq_oneframe(struct rkcif_device *cif_dev);
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev);
-void rkcif_soft_reset(struct rkcif_device *cif_dev);
+void rkcif_soft_reset(struct rkcif_device *cif_dev,
+		      bool is_rst_iommu);
 
 #endif
