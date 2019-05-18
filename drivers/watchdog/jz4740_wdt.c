@@ -187,11 +187,7 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(drvdata->rtc_clk);
 	}
 
-	ret = devm_watchdog_register_device(dev, &drvdata->wdt);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return devm_watchdog_register_device(dev, &drvdata->wdt);
 }
 
 static struct platform_driver jz4740_wdt_driver = {
