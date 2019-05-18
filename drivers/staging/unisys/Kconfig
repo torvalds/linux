@@ -4,8 +4,8 @@
 #
 menuconfig UNISYSSPAR
 	bool "Unisys SPAR driver support"
-	---help---
-	Support for the Unisys SPAR drivers
+	help
+	  Support for the Unisys SPAR drivers
 
 if UNISYSSPAR
 
