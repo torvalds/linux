@@ -60,11 +60,10 @@ static DEFINE_MUTEX(wtd_deferred_reg_mutex);
 static LIST_HEAD(wtd_deferred_reg_list);
 static bool wtd_deferred_reg_done;
 
-static int watchdog_deferred_registration_add(struct watchdog_device *wdd)
+static void watchdog_deferred_registration_add(struct watchdog_device *wdd)
 {
 	list_add_tail(&wdd->deferred,
 		      &wtd_deferred_reg_list);
-	return 0;
 }
 
 static void watchdog_deferred_registration_del(struct watchdog_device *wdd)
@@ -265,13 +264,13 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 int watchdog_register_device(struct watchdog_device *wdd)
 {
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&wtd_deferred_reg_mutex);
 	if (wtd_deferred_reg_done)
 		ret = __watchdog_register_device(wdd);
 	else
-		ret = watchdog_deferred_registration_add(wdd);
+		watchdog_deferred_registration_add(wdd);
 	mutex_unlock(&wtd_deferred_reg_mutex);
 	return ret;
 }
