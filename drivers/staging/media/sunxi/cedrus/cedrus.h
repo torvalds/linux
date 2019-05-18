@@ -94,6 +94,7 @@ struct cedrus_dec_ops {
 struct cedrus_variant {
 	unsigned int	capabilities;
 	unsigned int	quirks;
+	unsigned int	mod_rate;
 };
 
 struct cedrus_dev {
