@@ -7,12 +7,14 @@
  * the License, or (at your option) any later version.
  */
 
-#include <drm/drmP.h>
+#include <linux/gpio/consumer.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/platform_device.h>
+
 #include <drm/drm_bridge.h>
 #include <drm/drm_panel.h>
-
-#include <linux/gpio/consumer.h>
-#include <linux/of_graph.h>
 
 struct lvds_encoder {
 	struct drm_bridge bridge;
