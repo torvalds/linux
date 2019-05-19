@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 or later as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
