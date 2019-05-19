@@ -714,6 +714,8 @@ int utf8byte(struct utf8cursor *u8c)
 			}
 
 			leaf = utf8lookup(u8c->data, u8c->hangul, u8c->s);
+			if (!leaf)
+				return -1;
 			ccc = LEAF_CCC(leaf);
 		}
 

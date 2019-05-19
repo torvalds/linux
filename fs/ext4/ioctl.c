@@ -608,7 +608,7 @@ static int ext4_getfsmap_format(struct ext4_fsmap *xfm, void *priv)
 static int ext4_ioc_getfsmap(struct super_block *sb,
 			     struct fsmap_head __user *arg)
 {
-	struct getfsmap_info info = {0};
+	struct getfsmap_info info = { NULL };
 	struct ext4_fsmap_head xhead = {0};
 	struct fsmap_head head;
 	bool aborted = false;
