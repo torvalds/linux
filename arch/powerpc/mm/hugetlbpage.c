@@ -556,7 +556,7 @@ static int __init add_huge_page_size(unsigned long long size)
 	if (size <= PAGE_SIZE || !is_power_of_2(size))
 		return -EINVAL;
 
-	mmu_psize = check_and_get_huge_psize(size);
+	mmu_psize = check_and_get_huge_psize(shift);
 	if (mmu_psize < 0)
 		return -EINVAL;
 
