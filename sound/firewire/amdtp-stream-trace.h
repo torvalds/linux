@@ -22,8 +22,7 @@ TRACE_EVENT(in_packet,
 		__field(int, channel)
 		__field(int, src)
 		__field(int, dest)
-		__field(u32, cip_header0)
-		__field(u32, cip_header1)
+		__dynamic_array(u8, cip_header, cip_header ? 8 : 0)
 		__field(unsigned int, payload_quadlets)
 		__field(unsigned int, data_blocks)
 		__field(unsigned int, data_block_counter)
@@ -37,8 +36,10 @@ TRACE_EVENT(in_packet,
 		__entry->channel = s->context->channel;
 		__entry->src = fw_parent_device(s->unit)->node_id;
 		__entry->dest = fw_parent_device(s->unit)->card->node_id;
-		__entry->cip_header0 = be32_to_cpu(cip_header[0]);
-		__entry->cip_header1 = be32_to_cpu(cip_header[1]);
+		if (cip_header) {
+			memcpy(__get_dynamic_array(cip_header), cip_header,
+			       __get_dynamic_array_len(cip_header));
+		}
 		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks;
 		__entry->data_block_counter = s->data_block_counter,
@@ -47,20 +48,21 @@ TRACE_EVENT(in_packet,
 		__entry->index = index;
 	),
 	TP_printk(
-		"%02u %04u %04x %04x %02d %08x %08x %03u %02u %03u %02u %01u %02u",
+		"%02u %04u %04x %04x %02d %03u %02u %03u %02u %01u %02u %s",
 		__entry->second,
 		__entry->cycle,
 		__entry->src,
 		__entry->dest,
 		__entry->channel,
-		__entry->cip_header0,
-		__entry->cip_header1,
 		__entry->payload_quadlets,
 		__entry->data_blocks,
 		__entry->data_block_counter,
 		__entry->packet_index,
 		__entry->irq,
-		__entry->index)
+		__entry->index,
+		__print_array(__get_dynamic_array(cip_header),
+			      __get_dynamic_array_len(cip_header),
+			      sizeof(u8)))
 );
 
 TRACE_EVENT(out_packet,
@@ -72,8 +74,7 @@ TRACE_EVENT(out_packet,
 		__field(int, channel)
 		__field(int, src)
 		__field(int, dest)
-		__field(u32, cip_header0)
-		__field(u32, cip_header1)
+		__dynamic_array(u8, cip_header, cip_header ? 8 : 0)
 		__field(unsigned int, payload_quadlets)
 		__field(unsigned int, data_blocks)
 		__field(unsigned int, data_block_counter)
@@ -87,8 +88,10 @@ TRACE_EVENT(out_packet,
 		__entry->channel = s->context->channel;
 		__entry->src = fw_parent_device(s->unit)->card->node_id;
 		__entry->dest = fw_parent_device(s->unit)->node_id;
-		__entry->cip_header0 = be32_to_cpu(cip_header[0]);
-		__entry->cip_header1 = be32_to_cpu(cip_header[1]);
+		if (cip_header) {
+			memcpy(__get_dynamic_array(cip_header), cip_header,
+			       __get_dynamic_array_len(cip_header));
+		}
 		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks;
 		__entry->data_block_counter = s->data_block_counter,
@@ -97,20 +100,21 @@ TRACE_EVENT(out_packet,
 		__entry->index = index;
 	),
 	TP_printk(
-		"%02u %04u %04x %04x %02d %08x %08x %03u %02u %03u %02u %01u %02u",
+		"%02u %04u %04x %04x %02d %03u %02u %03u %02u %01u %02u %s",
 		__entry->second,
 		__entry->cycle,
 		__entry->src,
 		__entry->dest,
 		__entry->channel,
-		__entry->cip_header0,
-		__entry->cip_header1,
 		__entry->payload_quadlets,
 		__entry->data_blocks,
 		__entry->data_block_counter,
 		__entry->packet_index,
 		__entry->irq,
-		__entry->index)
+		__entry->index,
+		__print_array(__get_dynamic_array(cip_header),
+			      __get_dynamic_array_len(cip_header),
+			      sizeof(u8)))
 );
 
 TRACE_EVENT(in_packet_without_header,
