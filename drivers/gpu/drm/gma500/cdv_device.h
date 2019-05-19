@@ -15,6 +15,10 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+struct drm_crtc;
+struct drm_device;
+struct psb_intel_mode_device;
+
 extern const struct drm_crtc_helper_funcs cdv_intel_helper_funcs;
 extern const struct drm_crtc_funcs cdv_intel_crtc_funcs;
 extern const struct gma_clock_funcs cdv_clock_funcs;
