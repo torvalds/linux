@@ -368,8 +368,7 @@ end:
 }
 
 static struct ib_umem *mlx4_get_umem_mr(struct ib_udata *udata, u64 start,
-					u64 length, u64 virt_addr,
-					int access_flags)
+					u64 length, int access_flags)
 {
 	/*
 	 * Force registering the memory as writable if the underlying pages
@@ -415,8 +414,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem =
-		mlx4_get_umem_mr(udata, start, length, virt_addr, access_flags);
+	mr->umem = mlx4_get_umem_mr(udata, start, length, access_flags);
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		goto err_free;
@@ -505,7 +503,7 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 
 		mlx4_mr_rereg_mem_cleanup(dev->dev, &mmr->mmr);
 		ib_umem_release(mmr->umem);
-		mmr->umem = mlx4_get_umem_mr(udata, start, length, virt_addr,
+		mmr->umem = mlx4_get_umem_mr(udata, start, length,
 					     mr_access_flags);
 		if (IS_ERR(mmr->umem)) {
 			err = PTR_ERR(mmr->umem);
