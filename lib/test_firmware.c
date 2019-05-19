@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This module provides an interface to trigger and test firmware loading.
  *
