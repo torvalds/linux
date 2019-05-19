@@ -327,7 +327,7 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 
 	/* Actually enable it */
 	PSB_WVDC32(p->dpll, MRST_DPLL_A);
-	DRM_UDELAY(150);
+	udelay(150);
 
 	/* Restore mode */
 	PSB_WVDC32(p->htotal, HTOTAL_A);

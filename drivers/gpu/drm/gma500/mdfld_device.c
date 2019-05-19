@@ -344,7 +344,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 
 	if (pipenum == 1) {
 		/* restore palette (gamma) */
-		/*DRM_UDELAY(50000); */
+		/* udelay(50000); */
 		for (i = 0; i < 256; i++)
 			PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 
@@ -406,7 +406,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 	PSB_WVDC32(pipe->conf, map->conf);
 
 	/* restore palette (gamma) */
-	/*DRM_UDELAY(50000); */
+	/* udelay(50000); */
 	for (i = 0; i < 256; i++)
 		PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 

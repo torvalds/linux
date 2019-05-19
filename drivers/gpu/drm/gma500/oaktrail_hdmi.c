@@ -815,7 +815,7 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 	PSB_WVDC32(hdmi_dev->saveDPLL_ADJUST, DPLL_ADJUST);
 	PSB_WVDC32(hdmi_dev->saveDPLL_UPDATE, DPLL_UPDATE);
 	PSB_WVDC32(hdmi_dev->saveDPLL_CLK_ENABLE, DPLL_CLK_ENABLE);
-	DRM_UDELAY(150);
+	udelay(150);
 
 	/* pipe */
 	PSB_WVDC32(pipeb->src, PIPEBSRC);
