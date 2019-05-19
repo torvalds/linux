@@ -6,6 +6,7 @@
 #include <linux/net.h>
 #include <linux/socket.h>
 #include <uapi/linux/net.h>
+#include <uapi/linux/un.h>
 #include <net/sock.h>
 #include <linux/rcupdate.h>
 #include <linux/medusa/l1/socket.h>

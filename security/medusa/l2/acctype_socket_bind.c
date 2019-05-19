@@ -25,12 +25,12 @@ int __init socket_bind_access_init(void) {
 	return 0;
 }
 
-medusa_answer_t medusa_socket_bind_security(struct socket *sock)
+medusa_answer_t medusa_socket_bind_security(struct socket *sock, struct socket_bind_access *access)
 {
-	struct socket_bind_access access;
 	struct process_kobject process;
 	struct socket_kobject sock_kobj;
 	struct medusa_l1_socket_s *sk_sec = &sock_security(sock->sk);
+	medusa_answer_t retval;
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
 		return MED_YES;
@@ -44,11 +44,32 @@ medusa_answer_t medusa_socket_bind_security(struct socket *sock)
 	if (MEDUSA_MONITORED_ACCESS_S(socket_bind_access, &task_security(current))) {
 		process_kern2kobj(&process, current);
 		socket_kern2kobj(&sock_kobj, sock);
-		access.family = sock->sk->sk_family;
-		access.addrlen = sk_sec->addrlen;
-		access.address = sk_sec->address;
-
-		return MED_DECIDE(socket_bind_access, &access, &process, &sock_kobj);
+		retval = MED_DECIDE(socket_bind_access, access, &process, &sock_kobj);
+		if(retval != MED_ERR) {
+			switch(sock->sk->sk_family) {
+				case AF_INET:
+					sk_sec->address = (struct med_inet_addr_i*)kmalloc(sizeof(struct med_inet_addr_i), GFP_KERNEL);
+					((struct med_inet_addr_i *)sk_sec->address)->port = ((struct med_inet_addr_i *)access->address)->port;
+					((struct med_inet_addr_i *)sk_sec->address)->addrdata = kmalloc(4, GFP_KERNEL);
+					memcpy(((struct med_inet_addr_i *)sk_sec->address)->addrdata, ((struct med_inet_addr_i *)access->address)->addrdata, 4);
+					break;
+				case AF_INET6:
+					sk_sec->address = (struct med_inet_addr_i*)kmalloc(sizeof(struct med_inet_addr_i), GFP_KERNEL);
+					((struct med_inet_addr_i *)sk_sec->address)->port = ((struct med_inet_addr_i *)access->address)->port;
+					((struct med_inet_addr_i *)sk_sec->address)->addrdata = kmalloc(16, GFP_KERNEL);
+					memcpy(((struct med_inet_addr_i *)sk_sec->address)->addrdata, ((struct med_inet_addr_i *)access->address)->addrdata, 16);
+					break;
+				case AF_UNIX:
+					sk_sec->address = (struct med_unix_addr_i*)kmalloc(sizeof(struct med_unix_addr_i), GFP_KERNEL);
+					((struct med_unix_addr_i*)sk_sec->address)->addrdata = kmalloc(UNIX_PATH_MAX, GFP_KERNEL);
+					memcpy(((struct med_unix_addr_i*)sk_sec->address)->addrdata, ((struct med_unix_addr_i*)access->address)->addrdata, UNIX_PATH_MAX);
+					break;
+				default:
+					break;
+			}
+			sk_sec->addrlen = access->addrlen;
+		}
+		return retval;
 	}
 	return MED_YES;
 }
@@ -56,40 +77,45 @@ medusa_answer_t medusa_socket_bind_security(struct socket *sock)
 medusa_answer_t medusa_socket_bind_inet(struct socket *sock, struct sockaddr *address, int addrlen)
 {
 	struct med_inet_addr_i *addr = (struct med_inet_addr_i*)kmalloc(sizeof(struct med_inet_addr_i), GFP_KERNEL);
-	struct medusa_l1_socket_s *sk_sec = &sock_security(sock->sk);
+	struct socket_bind_access access;
 
 	switch(address->sa_family) {
 		case AF_INET6:
 			if (addrlen < SIN6_LEN_RFC2133)
 				return -EINVAL;
 			addr->port = ((struct sockaddr_in6 *) address)->sin6_port;
-			addr->addrdata = (__be32 *)((struct sockaddr_in6 *)address)->sin6_addr.s6_addr;
+			addr->addrdata = kmalloc(16, GFP_KERNEL);
+			memcpy(addr->addrdata, (__be32 *)((struct sockaddr_in6 *)address)->sin6_addr.s6_addr, 16);
 			break;
 		case AF_INET:
 			if (addrlen < sizeof(struct sockaddr_in))
 				return -EINVAL;
 			addr->port = ((struct sockaddr_in *) address)->sin_port;
-			addr->addrdata = (__be32 *)&((struct sockaddr_in *) address)->sin_addr;
+			addr->addrdata = kmalloc(4, GFP_KERNEL);
+			memcpy(addr->addrdata, (__be32 *)&((struct sockaddr_in *) address)->sin_addr, 4);
 			break;
 		default:
 			return MED_ERR;
 	}
-	sk_sec->address = addr;
-	sk_sec->addrlen = addrlen;
+	access.family = sock->sk->sk_family;
+	access.address = addr;
+	access.addrlen = addrlen;
 
-	return medusa_socket_bind_security(sock);
+	return medusa_socket_bind_security(sock, &access);
 }
 
 medusa_answer_t medusa_socket_bind_unix(struct socket *sock, struct sockaddr *address, int addrlen)
 {
 	struct med_unix_addr_i *addr = (struct med_unix_addr_i*)kmalloc(sizeof(struct med_unix_addr_i), GFP_KERNEL);
-	struct medusa_l1_socket_s *sk_sec = &sock_security(sock->sk);
+	struct socket_bind_access access;
 
-	addr->addrdata = ((struct sockaddr_un *) address)->sun_path;
-	sk_sec->address = addr;
-	sk_sec->addrlen = addrlen;
+	addr->addrdata = kmalloc(UNIX_PATH_MAX, GFP_KERNEL);
+	memcpy(addr->addrdata, ((struct sockaddr_un *) address)->sun_path, UNIX_PATH_MAX);
+	access.family = sock->sk->sk_family;
+	access.address = addr;
+	access.addrlen = addrlen;
 
-	return medusa_socket_bind_security(sock);
+	return medusa_socket_bind_security(sock, &access);
 }
 
 medusa_answer_t medusa_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen)
