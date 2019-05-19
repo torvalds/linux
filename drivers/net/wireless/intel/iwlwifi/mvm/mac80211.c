@@ -2254,6 +2254,10 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	flags = 0;
 
+	/* Block 26-tone RU OFDMA transmissions */
+	if (mvmvif->he_ru_2mhz_block)
+		flags |= STA_CTXT_HE_RU_2MHZ_BLOCK;
+
 	/* HTC flags */
 	if (sta->he_cap.he_cap_elem.mac_cap_info[0] &
 	    IEEE80211_HE_MAC_CAP0_HTC_HE)
@@ -3205,6 +3209,51 @@ iwl_mvm_tdls_check_trigger(struct iwl_mvm *mvm,
 				peer_addr, action);
 }
 
+struct iwl_mvm_he_obss_narrow_bw_ru_data {
+	bool tolerated;
+};
+
+static void iwl_mvm_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
+						    struct cfg80211_bss *bss,
+						    void *_data)
+{
+	struct iwl_mvm_he_obss_narrow_bw_ru_data *data = _data;
+	const struct element *elem;
+
+	elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY, bss->ies->data,
+				  bss->ies->len);
+
+	if (!elem || elem->datalen < 10 ||
+	    !(elem->data[10] &
+	      WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT)) {
+		data->tolerated = false;
+	}
+}
+
+static void iwl_mvm_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
+					       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_he_obss_narrow_bw_ru_data iter_data = {
+		.tolerated = true,
+	};
+
+	if (!(vif->bss_conf.chandef.chan->flags & IEEE80211_CHAN_RADAR)) {
+		mvmvif->he_ru_2mhz_block = false;
+		return;
+	}
+
+	cfg80211_bss_iter(hw->wiphy, &vif->bss_conf.chandef,
+			  iwl_mvm_check_he_obss_narrow_bw_ru_iter,
+			  &iter_data);
+
+	/*
+	 * If there is at least one AP on radar channel that cannot
+	 * tolerate 26-tone RU UL OFDMA transmissions using HE TB PPDU.
+	 */
+	mvmvif->he_ru_2mhz_block = !iter_data.tolerated;
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -3306,6 +3355,11 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				iwl_mvm_cfg_he_sta(mvm, vif, mvm_sta->sta_id);
 		} else if (vif->type == NL80211_IFTYPE_STATION) {
 			vif->bss_conf.he_support = sta->he_cap.has_he;
+
+			mvmvif->he_ru_2mhz_block = false;
+			if (sta->he_cap.has_he)
+				iwl_mvm_check_he_obss_narrow_bw_ru(hw, vif);
+
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 		}
 

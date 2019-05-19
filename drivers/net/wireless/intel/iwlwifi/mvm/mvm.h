@@ -504,6 +504,9 @@ struct iwl_mvm_vif {
 
 	/* we can only have 2 GTK + 2 IGTK active at a time */
 	struct ieee80211_key_conf *ap_early_keys[4];
+
+	/* 26-tone RU OFDMA transmissions should be blocked */
+	bool he_ru_2mhz_block;
 };
 
 static inline struct iwl_mvm_vif *
