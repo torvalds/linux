@@ -29,7 +29,7 @@
 #define __MDFLD_DSI_OUTPUT_H__
 
 #include <linux/backlight.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>

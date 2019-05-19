@@ -25,14 +25,15 @@
  * Jackie Li<yaodong.li@intel.com>
  */
 
-#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/moduleparam.h>
+#include <linux/pm_runtime.h>
 
 #include "mdfld_dsi_output.h"
 #include "mdfld_dsi_dpi.h"
 #include "mdfld_output.h"
 #include "mdfld_dsi_pkg_sender.h"
 #include "tc35876x-dsi-lvds.h"
-#include <linux/pm_runtime.h>
 #include <asm/intel_scu_ipc.h>
 
 /* get the LABC from command line. */

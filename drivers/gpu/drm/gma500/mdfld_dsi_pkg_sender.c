@@ -24,7 +24,9 @@
  * Jackie Li<yaodong.li@intel.com>
  */
 
+#include <linux/delay.h>
 #include <linux/freezer.h>
+
 #include <video/mipi_display.h>
 
 #include "mdfld_dsi_output.h"
