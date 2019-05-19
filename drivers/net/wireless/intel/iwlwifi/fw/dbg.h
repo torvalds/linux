@@ -263,23 +263,6 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static inline int
-iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
-{
-	struct iwl_ldbg_config_cmd cmd = {
-		.type = start ? cpu_to_le32(START_DEBUG_RECORDING) :
-				cpu_to_le32(STOP_DEBUG_RECORDING),
-	};
-	struct iwl_host_cmd hcmd = {
-		.id = LDBG_CONFIG_CMD,
-		.flags = CMD_ASYNC,
-		.data[0] = &cmd,
-		.len[0] = sizeof(cmd),
-	};
-
-	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
-}
-
 static inline void
 _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 			   struct iwl_fw_dbg_params *params)
@@ -306,21 +289,24 @@ _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 }
 
 static inline void
-iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt,
+iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 			  struct iwl_fw_dbg_params *params)
 {
 	/* if the FW crashed or not debug monitor cfg was given, there is
 	 * no point in stopping
 	 */
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
-	    (!fwrt->trans->dbg.dest_tlv &&
-	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
+	if (test_bit(STATUS_FW_ERROR, &trans->status) ||
+	    (!trans->dbg.dest_tlv &&
+	     trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
 		return;
 
-	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
-		_iwl_fw_dbg_stop_recording(fwrt->trans, params);
-	else
-		iwl_fw_dbg_start_stop_hcmd(fwrt, false);
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		IWL_ERR(trans,
+			"WRT: unsupported device family %d for debug stop recording\n",
+			trans->cfg->device_family);
+		return;
+	}
+	_iwl_fw_dbg_stop_recording(trans, params);
 }
 
 static inline void
@@ -362,10 +348,13 @@ iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
 	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
 		return;
 
-	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
-		_iwl_fw_dbg_restart_recording(fwrt->trans, params);
-	else
-		iwl_fw_dbg_start_stop_hcmd(fwrt, true);
+	if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		IWL_ERR(fwrt,
+			"WRT: unsupported device family %d for debug restart recording\n",
+			fwrt->trans->cfg->device_family);
+		return;
+	}
+	_iwl_fw_dbg_restart_recording(fwrt->trans, params);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_fw_set_dbg_rec_on(fwrt);
 #endif

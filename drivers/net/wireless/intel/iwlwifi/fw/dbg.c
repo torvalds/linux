@@ -2372,7 +2372,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 		goto out;
 	}
 
-	iwl_fw_dbg_stop_recording(fwrt, &params);
+	iwl_fw_dbg_stop_recording(fwrt->trans, &params);
 
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection start\n");
 	if (fwrt->trans->dbg.ini_valid)

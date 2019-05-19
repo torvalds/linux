@@ -1083,7 +1083,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	 * recording automatically.
 	 */
 	if (mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_9000)
-		_iwl_fw_dbg_stop_recording(mvm->trans, NULL);
+		iwl_fw_dbg_stop_recording(mvm->trans, NULL);
 
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
