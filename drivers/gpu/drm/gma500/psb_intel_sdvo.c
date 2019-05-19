@@ -32,8 +32,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+
 #include "psb_intel_drv.h"
-#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_intel_sdvo_regs.h"
 #include "psb_intel_reg.h"
