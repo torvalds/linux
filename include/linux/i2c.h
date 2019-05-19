@@ -470,6 +470,9 @@ extern struct i2c_client *
 i2c_new_dummy(struct i2c_adapter *adap, u16 address);
 
 extern struct i2c_client *
+devm_i2c_new_dummy_device(struct device *dev, struct i2c_adapter *adap, u16 address);
+
+extern struct i2c_client *
 i2c_new_secondary_device(struct i2c_client *client,
 				const char *name,
 				u16 default_addr);
