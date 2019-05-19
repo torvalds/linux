@@ -8,7 +8,7 @@
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,13 @@ enum iwl_debug_cmds {
 	 */
 	UMAC_RD_WR = 0x1,
 	/**
+	 * @DBGC_SUSPEND_RESUME:
+	 * DBGC suspend/resume commad. Uses a single dword as data:
+	 * 0 - resume DBGC recording
+	 * 1 - suspend DBGC recording
+	 */
+	DBGC_SUSPEND_RESUME = 0x7,
+	/**
 	 * @MFU_ASSERT_DUMP_NTF:
 	 * &struct iwl_mfu_assert_dump_notif
 	 */
@@ -100,6 +107,16 @@ enum {
 	FW_ERR_OBSOLETE_FUNC = 0x12,
 	FW_ERR_UNEXPECTED = 0xFE,
 	FW_ERR_FATAL = 0xFF
+};
+
+/** enum iwl_dbg_suspend_resume_cmds - dbgc suspend resume operations
+ * dbgc suspend resume command operations
+ * @DBGC_RESUME_CMD: resume dbgc recording
+ * @DBGC_SUSPEND_CMD: stop dbgc recording
+ */
+enum iwl_dbg_suspend_resume_cmds {
+	DBGC_RESUME_CMD,
+	DBGC_SUSPEND_CMD,
 };
 
 /**
@@ -379,5 +396,14 @@ struct iwl_ldbg_config_cmd {
 		struct iwl_buffer_allocation_cmd buffer_allocation;
 	}; /* LDBG_CFG_BODY_API_U_VER_2 (partially) */
 } __packed; /* LDBG_CFG_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_dbg_suspend_resume_cmd - dbgc suspend resume command
+ * @operation: suspend or resume operation, uses
+ *	&enum iwl_dbg_suspend_resume_cmds
+ */
+struct iwl_dbg_suspend_resume_cmd {
+	__le32 operation;
+} __packed;
 
 #endif /* __iwl_fw_api_debug_h__ */

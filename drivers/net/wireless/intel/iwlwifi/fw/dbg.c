@@ -2372,7 +2372,10 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 		goto out;
 	}
 
-	iwl_fw_dbg_stop_recording(fwrt->trans, &params);
+	if (iwl_fw_dbg_stop_restart_recording(fwrt, &params, true)) {
+		IWL_ERR(fwrt, "Failed to stop DBGC recording, aborting dump\n");
+		goto out;
+	}
 
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection start\n");
 	if (fwrt->trans->dbg.ini_valid)
@@ -2381,7 +2384,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 		iwl_fw_error_dump(fwrt);
 	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection done\n");
 
-	iwl_fw_dbg_restart_recording(fwrt, &params);
+	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
 
 out:
 	clear_bit(wk_idx, &fwrt->dump.active_wks);
@@ -2870,7 +2873,7 @@ void iwl_fw_dbg_stop_sync(struct iwl_fw_runtime *fwrt)
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
 		iwl_fw_dbg_collect_sync(fwrt, i);
 
-	iwl_fw_dbg_stop_recording(fwrt->trans, NULL);
+	iwl_fw_dbg_stop_restart_recording(fwrt, NULL, true);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_sync);
 
@@ -2938,8 +2941,24 @@ void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
 }
 IWL_EXPORT_SYMBOL(iwl_fw_error_print_fseq_regs);
 
-static void _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
-				       struct iwl_fw_dbg_params *params)
+static int iwl_fw_dbg_suspend_resume_hcmd(struct iwl_trans *trans, bool suspend)
+{
+	struct iwl_dbg_suspend_resume_cmd cmd = {
+		.operation = suspend ?
+			cpu_to_le32(DBGC_SUSPEND_CMD) :
+			cpu_to_le32(DBGC_RESUME_CMD),
+	};
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(DEBUG_GROUP, DBGC_SUSPEND_RESUME),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+	};
+
+	return iwl_trans_send_cmd(trans, &hcmd);
+}
+
+static void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
+				      struct iwl_fw_dbg_params *params)
 {
 	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
@@ -2957,37 +2976,13 @@ static void _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 	 */
 	usleep_range(700, 1000);
 	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	trans->dbg.rec_on = false;
-#endif
 }
 
-void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
-			       struct iwl_fw_dbg_params *params)
+static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
+					struct iwl_fw_dbg_params *params)
 {
-	/* if the FW crashed or not debug monitor cfg was given, there is
-	 * no point in stopping
-	 */
-	if (test_bit(STATUS_FW_ERROR, &trans->status) ||
-	    (!trans->dbg.dest_tlv &&
-	     trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
-		return;
-
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
-		IWL_ERR(trans,
-			"WRT: unsupported device family %d for debug stop recording\n",
-			trans->cfg->device_family);
-		return;
-	}
-	_iwl_fw_dbg_stop_recording(trans, params);
-}
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_recording);
-
-static void _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
-					  struct iwl_fw_dbg_params *params)
-{
-	if (WARN_ON(!params))
-		return;
+	if (!params)
+		return -EIO;
 
 	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
@@ -2997,28 +2992,40 @@ static void _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
 		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
 	}
+
+	return 0;
 }
 
-void iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
-				  struct iwl_fw_dbg_params *params)
+int iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
+				      struct iwl_fw_dbg_params *params,
+				      bool stop)
 {
+	int ret = 0;
+
 	/* if the FW crashed or not debug monitor cfg was given, there is
-	 * no point in restarting
+	 * no point in changing the recording state
 	 */
 	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
 	    (!fwrt->trans->dbg.dest_tlv &&
 	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
-		return;
+		return 0;
 
-	if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
-		IWL_ERR(fwrt,
-			"WRT: unsupported device family %d for debug restart recording\n",
-			fwrt->trans->cfg->device_family);
-		return;
-	}
-	_iwl_fw_dbg_restart_recording(fwrt->trans, params);
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DBG_SUSPEND_RESUME_CMD_SUPP))
+		ret = iwl_fw_dbg_suspend_resume_hcmd(fwrt->trans, stop);
+	else if (stop)
+		iwl_fw_dbg_stop_recording(fwrt->trans, params);
+	else
+		ret = iwl_fw_dbg_restart_recording(fwrt->trans, params);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	iwl_fw_set_dbg_rec_on(fwrt);
+	if (!ret) {
+		if (stop)
+			fwrt->trans->dbg.rec_on = false;
+		else
+			iwl_fw_set_dbg_rec_on(fwrt);
+	}
 #endif
+
+	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_restart_recording);
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_restart_recording);
