@@ -22,7 +22,6 @@
  * Authors: Dave Airlie
  */
 
-#include <drm/drmP.h>
 #include <linux/dma-buf.h>
 
 #include "nouveau_drv.h"

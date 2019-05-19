@@ -24,10 +24,9 @@
  *
  */
 
-#include <drm/drmP.h>
-
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
+#include <linux/sched/signal.h>
 #include <trace/events/dma_fence.h>
 
 #include <nvif/cl826e.h>
