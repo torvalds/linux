@@ -59,7 +59,7 @@
 	};
 
 	padctl@3520000 {
-		status = "okay";
+		status = "disabled";
 
 		avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
 		avdd-usb-supply = <&vdd_3v3_sys>;
@@ -137,7 +137,7 @@
 	};
 
 	usb@3530000 {
-		status = "okay";
+		status = "disabled";
 
 		phys = <&{/padctl@3520000/pads/usb2/lanes/usb2-0}>,
 		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,

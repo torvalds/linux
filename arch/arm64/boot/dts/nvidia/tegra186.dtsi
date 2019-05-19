@@ -60,6 +60,7 @@
 		clock-names = "master_bus", "slave_bus", "rx", "tx", "ptp_ref";
 		resets = <&bpmp TEGRA186_RESET_EQOS>;
 		reset-names = "eqos";
+		iommus = <&smmu TEGRA186_SID_EQOS>;
 		status = "disabled";
 
 		snps,write-requests = <1>;
@@ -338,6 +339,7 @@
 			 <&bpmp TEGRA186_RESET_HDA2CODEC_2X>;
 		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISP>;
+		iommus = <&smmu TEGRA186_SID_HDA>;
 		status = "disabled";
 	};
 
@@ -670,6 +672,10 @@
 			 <&bpmp TEGRA186_RESET_PCIE>,
 			 <&bpmp TEGRA186_RESET_PCIEXCLK>;
 		reset-names = "afi", "pex", "pcie_x";
+
+		iommus = <&smmu TEGRA186_SID_AFI>;
+		iommu-map = <0x0 &smmu TEGRA186_SID_AFI 0x1000>;
+		iommu-map-mask = <0x0>;
 
 		status = "disabled";
 
@@ -1158,6 +1164,7 @@
 
 	bpmp: bpmp {
 		compatible = "nvidia,tegra186-bpmp";
+		iommus = <&smmu TEGRA186_SID_BPMP>;
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
 				    TEGRA_HSP_DB_MASTER_BPMP>;
 		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
