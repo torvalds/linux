@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MT7615E
 	tristate "MediaTek MT7615E (PCIe) support"
 	select MT76_CORE

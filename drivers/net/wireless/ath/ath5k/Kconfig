@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ATH5K
 	tristate "Atheros 5xxx wireless cards support"
 	depends on (PCI || ATH25) && MAC80211

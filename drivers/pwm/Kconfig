@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig PWM
 	bool "Pulse-Width Modulation (PWM) Support"
 	help

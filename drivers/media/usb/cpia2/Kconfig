@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CPIA2
 	tristate "CPiA2 Video For Linux"
 	depends on VIDEO_DEV && USB && VIDEO_V4L2

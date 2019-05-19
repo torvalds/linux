@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile - Intel Omni-Path Virtual Network Controller driver
 # Copyright(c) 2017, Intel Corporation.
 #

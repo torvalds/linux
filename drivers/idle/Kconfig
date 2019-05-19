@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INTEL_IDLE
 	bool "Cpuidle Driver for Intel Processors"
 	depends on CPU_IDLE

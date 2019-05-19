@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config UDF_FS
 	tristate "UDF file system support"
 	select CRC_ITU_T

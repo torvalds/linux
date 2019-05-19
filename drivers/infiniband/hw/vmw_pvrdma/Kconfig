@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_VMWARE_PVRDMA
 	tristate "VMware Paravirtualized RDMA Driver"
 	depends on NETDEVICES && ETHERNET && PCI && INET && VMXNET3

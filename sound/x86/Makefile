@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 snd-hdmi-lpe-audio-objs += \
 	intel_hdmi_audio.o
 

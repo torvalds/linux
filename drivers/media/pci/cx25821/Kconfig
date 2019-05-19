@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX25821
 	tristate "Conexant cx25821 support"
 	depends on VIDEO_DEV && PCI && I2C

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MLX4_INFINIBAND
 	tristate "Mellanox ConnectX HCA support"
 	depends on NETDEVICES && ETHERNET && PCI && INET

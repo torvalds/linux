@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config EXYNOS_THERMAL
 	tristate "Exynos thermal management unit driver"
 	depends on THERMAL_OF

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_SAFESETID
         bool "Gate setid transitions to limit CAP_SET{U/G}ID capabilities"
         depends on SECURITY

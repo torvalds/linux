@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config 64BIT
 	bool "64-bit kernel" if "$(ARCH)" = "sparc"
 	default "$(ARCH)" = "sparc64"

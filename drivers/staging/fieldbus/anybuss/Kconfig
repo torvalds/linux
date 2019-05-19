@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config HMS_ANYBUSS_BUS
 	tristate "HMS Anybus-S Bus Support"
 	select REGMAP

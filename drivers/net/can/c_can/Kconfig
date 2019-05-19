@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig CAN_C_CAN
 	tristate "Bosch C_CAN/D_CAN devices"
 	depends on HAS_IOMEM

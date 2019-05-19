@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # List of programs to build
 hostprogs-y := \
 	test-fsmount \
