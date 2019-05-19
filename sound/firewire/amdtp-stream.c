@@ -493,7 +493,7 @@ static int handle_out_packet(struct amdtp_stream *s,
 				(s->data_block_counter + data_blocks) & 0xff;
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
 
-	trace_out_packet(s, cycle, buffer, payload_length, data_blocks, index);
+	trace_amdtp_packet(s, cycle, buffer, payload_length, data_blocks, index);
 
 	if (queue_out_packet(s, payload_length) < 0)
 		return -EIO;
@@ -524,8 +524,7 @@ static int handle_out_packet_without_header(struct amdtp_stream *s,
 
 	payload_length = data_blocks * 4 * s->data_block_quadlets;
 
-	trace_out_packet_without_header(s, cycle, payload_length, data_blocks,
-					index);
+	trace_amdtp_packet(s, cycle, NULL, payload_length, data_blocks, index);
 
 	if (queue_out_packet(s, payload_length) < 0)
 		return -EIO;
@@ -633,7 +632,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 		return -EIO;
 	}
 
-	trace_in_packet(s, cycle, buffer, payload_length, data_blocks, index);
+	trace_amdtp_packet(s, cycle, buffer, payload_length, data_blocks, index);
 
 	syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
@@ -666,8 +665,7 @@ static int handle_in_packet_without_header(struct amdtp_stream *s,
 	buffer = s->buffer.packets[s->packet_index].buffer;
 	data_blocks = payload_length / sizeof(__be32) / s->data_block_quadlets;
 
-	trace_in_packet_without_header(s, cycle, payload_length, data_blocks,
-				       index);
+	trace_amdtp_packet(s, cycle, NULL, payload_length, data_blocks, index);
 
 	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, NULL);
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
