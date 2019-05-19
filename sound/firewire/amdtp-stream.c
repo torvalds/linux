@@ -493,7 +493,7 @@ static int handle_out_packet(struct amdtp_stream *s,
 				(s->data_block_counter + data_blocks) & 0xff;
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
 
-	trace_out_packet(s, cycle, buffer, payload_length, index);
+	trace_out_packet(s, cycle, buffer, payload_length, data_blocks, index);
 
 	if (queue_out_packet(s, payload_length) < 0)
 		return -EIO;
@@ -554,8 +554,6 @@ static int handle_in_packet(struct amdtp_stream *s,
 	buffer = s->buffer.packets[s->packet_index].buffer;
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
-
-	trace_in_packet(s, cycle, buffer, payload_length, index);
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
@@ -634,6 +632,8 @@ static int handle_in_packet(struct amdtp_stream *s,
 			s->data_block_counter, data_block_counter);
 		return -EIO;
 	}
+
+	trace_in_packet(s, cycle, buffer, payload_length, data_blocks, index);
 
 	syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
