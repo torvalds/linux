@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9x5dm.dtsi - Device Tree file for SAM9x5 display module
  *
@@ -5,8 +6,6 @@
  *                2014 Free Electrons
  *
  *  Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 / {
