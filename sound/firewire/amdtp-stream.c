@@ -659,16 +659,14 @@ static int handle_in_packet_without_header(struct amdtp_stream *s,
 			unsigned int index)
 {
 	__be32 *buffer;
-	unsigned int payload_quadlets;
 	unsigned int data_blocks;
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
-	payload_quadlets = payload_length / 4;
-	data_blocks = payload_quadlets / s->data_block_quadlets;
+	data_blocks = payload_length / sizeof(__be32) / s->data_block_quadlets;
 
-	trace_in_packet_without_header(s, cycle, payload_quadlets, data_blocks,
+	trace_in_packet_without_header(s, cycle, payload_length, data_blocks,
 				       index);
 
 	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, NULL);

@@ -39,7 +39,7 @@ TRACE_EVENT(in_packet,
 		__entry->dest = fw_parent_device(s->unit)->card->node_id;
 		__entry->cip_header0 = be32_to_cpu(cip_header[0]);
 		__entry->cip_header1 = be32_to_cpu(cip_header[1]);
-		__entry->payload_quadlets = payload_length / 4;
+		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks;
 		__entry->data_block_counter = s->data_block_counter,
 		__entry->packet_index = s->packet_index;
@@ -89,7 +89,7 @@ TRACE_EVENT(out_packet,
 		__entry->dest = fw_parent_device(s->unit)->node_id;
 		__entry->cip_header0 = be32_to_cpu(cip_header[0]);
 		__entry->cip_header1 = be32_to_cpu(cip_header[1]);
-		__entry->payload_quadlets = payload_length / 4;
+		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks;
 		__entry->data_block_counter = s->data_block_counter,
 		__entry->packet_index = s->packet_index;
@@ -114,8 +114,8 @@ TRACE_EVENT(out_packet,
 );
 
 TRACE_EVENT(in_packet_without_header,
-	TP_PROTO(const struct amdtp_stream *s, u32 cycles, unsigned int payload_quadlets, unsigned int data_blocks, unsigned int index),
-	TP_ARGS(s, cycles, payload_quadlets, data_blocks, index),
+	TP_PROTO(const struct amdtp_stream *s, u32 cycles, unsigned int payload_length, unsigned int data_blocks, unsigned int index),
+	TP_ARGS(s, cycles, payload_length, data_blocks, index),
 	TP_STRUCT__entry(
 		__field(unsigned int, second)
 		__field(unsigned int, cycle)
@@ -135,7 +135,7 @@ TRACE_EVENT(in_packet_without_header,
 		__entry->channel = s->context->channel;
 		__entry->src = fw_parent_device(s->unit)->node_id;
 		__entry->dest = fw_parent_device(s->unit)->card->node_id;
-		__entry->payload_quadlets = payload_quadlets;
+		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks,
 		__entry->data_block_counter = s->data_block_counter,
 		__entry->packet_index = s->packet_index;
@@ -179,7 +179,7 @@ TRACE_EVENT(out_packet_without_header,
 		__entry->channel = s->context->channel;
 		__entry->src = fw_parent_device(s->unit)->card->node_id;
 		__entry->dest = fw_parent_device(s->unit)->node_id;
-		__entry->payload_quadlets = payload_length / 4;
+		__entry->payload_quadlets = payload_length / sizeof(__be32);
 		__entry->data_blocks = data_blocks,
 		__entry->data_block_counter = s->data_block_counter,
 		__entry->packet_index = s->packet_index;
