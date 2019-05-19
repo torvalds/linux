@@ -2,8 +2,6 @@
 #ifndef __NOUVEAU_GEM_H__
 #define __NOUVEAU_GEM_H__
 
-#include <drm/drmP.h>
-
 #include "nouveau_drv.h"
 #include "nouveau_bo.h"
 
