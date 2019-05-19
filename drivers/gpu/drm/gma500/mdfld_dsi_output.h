@@ -30,16 +30,16 @@
 
 #include <linux/backlight.h>
 
+#include <asm/intel-mid.h>
+
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 
+#include "mdfld_output.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "mdfld_output.h"
-
-#include <asm/intel-mid.h>
 
 #define FLD_MASK(start, end)	(((1 << ((start) - (end) + 1)) - 1) << (end))
 #define FLD_VAL(val, start, end) (((val) << (end)) & FLD_MASK(start, end))

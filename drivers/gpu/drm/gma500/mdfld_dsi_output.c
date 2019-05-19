@@ -29,12 +29,13 @@
 #include <linux/moduleparam.h>
 #include <linux/pm_runtime.h>
 
-#include "mdfld_dsi_output.h"
-#include "mdfld_dsi_dpi.h"
-#include "mdfld_output.h"
-#include "mdfld_dsi_pkg_sender.h"
-#include "tc35876x-dsi-lvds.h"
 #include <asm/intel_scu_ipc.h>
+
+#include "mdfld_dsi_dpi.h"
+#include "mdfld_dsi_output.h"
+#include "mdfld_dsi_pkg_sender.h"
+#include "mdfld_output.h"
+#include "tc35876x-dsi-lvds.h"
 
 /* get the LABC from command line. */
 static int LABC_control = 1;

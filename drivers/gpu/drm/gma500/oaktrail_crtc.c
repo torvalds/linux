@@ -15,16 +15,18 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_fourcc.h>
+
 #include "framebuffer.h"
+#include "gma_display.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "gma_display.h"
-#include "power.h"
 
 #define MRST_LIMIT_LVDS_100L	0
 #define MRST_LIMIT_LVDS_83	1

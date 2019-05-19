@@ -29,9 +29,9 @@
 
 #include <video/mipi_display.h>
 
+#include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_output.h"
 #include "mdfld_dsi_pkg_sender.h"
-#include "mdfld_dsi_dpi.h"
 
 #define MDFLD_DSI_READ_MAX_COUNT		5000
 

@@ -18,18 +18,20 @@
  **************************************************************************/
 
 #include <linux/backlight.h>
-#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/dmi.h>
-#include <drm/drmP.h>
-#include <drm/drm.h>
+#include <linux/module.h>
 
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
 #include <asm/intel-mid.h>
 #include <asm/intel_scu_ipc.h>
-#include "mid_bios.h"
+
+#include <drm/drm.h>
+
 #include "intel_bios.h"
+#include "mid_bios.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static int oaktrail_output_init(struct drm_device *dev)
 {

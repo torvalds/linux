@@ -15,10 +15,12 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  **************************************************************************/
-#include <drm/drmP.h>
+
+#include <linux/highmem.h>
+
+#include "mmu.h"
 #include "psb_drv.h"
 #include "psb_reg.h"
-#include "mmu.h"
 
 /*
  * Code for the SGX MMU:
