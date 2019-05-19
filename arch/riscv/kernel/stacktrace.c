@@ -33,9 +33,9 @@ static void notrace walk_stackframe(struct task_struct *task,
 	unsigned long fp, sp, pc;
 
 	if (regs) {
-		fp = GET_FP(regs);
-		sp = GET_USP(regs);
-		pc = GET_IP(regs);
+		fp = frame_pointer(regs);
+		sp = user_stack_pointer(regs);
+		pc = instruction_pointer(regs);
 	} else if (task == NULL || task == current) {
 		const register unsigned long current_sp __asm__ ("sp");
 		fp = (unsigned long)__builtin_frame_address(0);
@@ -64,12 +64,8 @@ static void notrace walk_stackframe(struct task_struct *task,
 		frame = (struct stackframe *)fp - 1;
 		sp = fp;
 		fp = frame->fp;
-#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 		pc = ftrace_graph_ret_addr(current, NULL, frame->ra,
 					   (unsigned long *)(fp - 8));
-#else
-		pc = frame->ra - 0x4;
-#endif
 	}
 }
 
@@ -82,8 +78,8 @@ static void notrace walk_stackframe(struct task_struct *task,
 	unsigned long *ksp;
 
 	if (regs) {
-		sp = GET_USP(regs);
-		pc = GET_IP(regs);
+		sp = user_stack_pointer(regs);
+		pc = instruction_pointer(regs);
 	} else if (task == NULL || task == current) {
 		const register unsigned long current_sp __asm__ ("sp");
 		sp = current_sp;
