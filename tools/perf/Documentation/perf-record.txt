@@ -406,7 +406,8 @@ symbolic names, e.g. on x86, ax, si. To list the available registers use
 --intr-regs=ax,bx. The list of register is architecture dependent.
 
 --user-regs::
-Capture user registers at sample time. Same arguments as -I.
+Similar to -I, but capture user registers at sample time. To list the available
+user registers use --user-regs=\?.
 
 --running-time::
 Record running and enabled time for read events (:S)
@@ -477,6 +478,11 @@ from the perspective of output size reduction.
 Also at some cases executing less output write syscalls with bigger data size
 can take less time than executing more output write syscalls with smaller data
 size thus lowering runtime profiling overhead.
+
+-z::
+--compression-level[=n]::
+Produce compressed trace using specified level n (default: 1 - fastest compression,
+22 - smallest trace)
 
 --all-kernel::
 Configure all used events to run in kernel space.
