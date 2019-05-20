@@ -977,6 +977,14 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	pr_devel("Releasing xive native device\n");
 
 	/*
+	 * Clear the KVM device file address_space which is used to
+	 * unmap the ESB pages when a device is passed-through.
+	 */
+	mutex_lock(&xive->mapping_lock);
+	xive->mapping = NULL;
+	mutex_unlock(&xive->mapping_lock);
+
+	/*
 	 * Since this is the device release function, we know that
 	 * userspace does not have any open fd or mmap referring to
 	 * the device.  Therefore there can not be any of the
