@@ -728,6 +728,79 @@
 		compatible = "infineon,ir35221";
 		reg = <0x72>;
 	};
+
+	pca2: pca9539@74 {
+		compatible = "nxp,pca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio@0 {
+			reg = <0>;
+		};
+
+		gpio@1 {
+			reg = <1>;
+		};
+
+		gpio@2 {
+			reg = <2>;
+		};
+
+		gpio@3 {
+			reg = <3>;
+		};
+
+		gpio@4 {
+			reg = <4>;
+		};
+
+		gpio@5 {
+			reg = <5>;
+		};
+
+		gpio@6 {
+			reg = <6>;
+		};
+
+		gpio@7 {
+			reg = <7>;
+		};
+
+		gpio@8 {
+			reg = <8>;
+		};
+
+		gpio@9 {
+			reg = <9>;
+		};
+
+		gpio@10 {
+			reg = <10>;
+		};
+
+		gpio@11 {
+			reg = <11>;
+		};
+
+		gpio@12 {
+			reg = <12>;
+		};
+
+		gpio@13 {
+			reg = <13>;
+		};
+
+		gpio@14 {
+			reg = <14>;
+		};
+
+		gpio@15 {
+			reg = <15>;
+		};
+	};
 };
 
 &i2c10 {
@@ -751,6 +824,79 @@
 	ir35221@72 {
 		compatible = "infineon,ir35221";
 		reg = <0x72>;
+	};
+
+	pca3: pca9539@74 {
+		compatible = "nxp,pca9539";
+		reg = <0x74>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio@0 {
+			reg = <0>;
+		};
+
+		gpio@1 {
+			reg = <1>;
+		};
+
+		gpio@2 {
+			reg = <2>;
+		};
+
+		gpio@3 {
+			reg = <3>;
+		};
+
+		gpio@4 {
+			reg = <4>;
+		};
+
+		gpio@5 {
+			reg = <5>;
+		};
+
+		gpio@6 {
+			reg = <6>;
+		};
+
+		gpio@7 {
+			reg = <7>;
+		};
+
+		gpio@8 {
+			reg = <8>;
+		};
+
+		gpio@9 {
+			reg = <9>;
+		};
+
+		gpio@10 {
+			reg = <10>;
+		};
+
+		gpio@11 {
+			reg = <11>;
+		};
+
+		gpio@12 {
+			reg = <12>;
+		};
+
+		gpio@13 {
+			reg = <13>;
+		};
+
+		gpio@14 {
+			reg = <14>;
+		};
+
+		gpio@15 {
+			reg = <15>;
+		};
 	};
 };
 
