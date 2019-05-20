@@ -1330,11 +1330,10 @@ void _rtw_join_timeout_handler (struct timer_list *t)
 					continue;
 				}
 				break;
-			} else {
-				DBG_88E("%s We've try roaming but fail\n", __func__);
-				rtw_indicate_disconnect(adapter);
-				break;
 			}
+			DBG_88E("%s We've try roaming but fail\n", __func__);
+			rtw_indicate_disconnect(adapter);
+			break;
 		}
 	} else {
 		rtw_indicate_disconnect(adapter);
@@ -2058,17 +2057,16 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 			do_join_r = rtw_do_join(padapter);
 			if (do_join_r == _SUCCESS) {
 				break;
-			} else {
-				DBG_88E("roaming do_join return %d\n", do_join_r);
-				pmlmepriv->to_roaming--;
+			}
+			DBG_88E("roaming do_join return %d\n", do_join_r);
+			pmlmepriv->to_roaming--;
 
-				if (pmlmepriv->to_roaming > 0) {
-					continue;
-				} else {
-					DBG_88E("%s(%d) -to roaming fail, indicate_disconnect\n", __func__, __LINE__);
-					rtw_indicate_disconnect(padapter);
-					break;
-				}
+			if (pmlmepriv->to_roaming > 0) {
+				continue;
+			} else {
+				DBG_88E("%s(%d) -to roaming fail, indicate_disconnect\n", __func__, __LINE__);
+				rtw_indicate_disconnect(padapter);
+				break;
 			}
 		}
 	}
