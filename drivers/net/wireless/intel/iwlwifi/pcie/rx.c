@@ -1845,6 +1845,8 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 			 */
 			iwl_pcie_rxmq_restock(trans, trans_pcie->rxq);
 		}
+
+		handled |= CSR_INT_BIT_ALIVE;
 	}
 
 	/* Safely ignore these bits for debug checks below */
@@ -1963,6 +1965,9 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		iwl_enable_rfkill_int(trans);
+	/* Re-enable the ALIVE / Rx interrupt if it occurred */
+	else if (handled & (CSR_INT_BIT_ALIVE | CSR_INT_BIT_FH_RX))
+		iwl_enable_fw_load_int_ctx_info(trans);
 	spin_unlock(&trans_pcie->irq_lock);
 
 out:
