@@ -48,8 +48,7 @@ static struct dentry *ocxlflash_fs_mount(struct file_system_type *fs_type,
 					 int flags, const char *dev_name,
 					 void *data)
 {
-	return mount_pseudo(fs_type, "ocxlflash:", NULL, NULL,
-			    OCXLFLASH_FS_MAGIC);
+	return mount_pseudo(fs_type, NULL, NULL, OCXLFLASH_FS_MAGIC);
 }
 
 static struct file_system_type ocxlflash_fs_type = {

@@ -535,11 +535,7 @@ static struct vfsmount *drm_fs_mnt;
 static struct dentry *drm_fs_mount(struct file_system_type *fs_type, int flags,
 				   const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type,
-			    "drm:",
-			    NULL,
-			    NULL,
-			    0x010203ff);
+	return mount_pseudo(fs_type, NULL, NULL, 0x010203ff);
 }
 
 static struct file_system_type drm_fs_type = {

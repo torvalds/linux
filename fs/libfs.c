@@ -239,14 +239,12 @@ static const struct super_operations simple_super_operations = {
  * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
  * will never be mountable)
  */
-struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type, char *name,
+struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type,
 	const struct super_operations *ops, const struct xattr_handler **xattr,
 	const struct dentry_operations *dops, unsigned long magic)
 {
 	struct super_block *s;
-	struct dentry *dentry;
 	struct inode *root;
-	struct qstr d_name = QSTR_INIT(name, strlen(name));
 
 	s = sget_userns(fs_type, NULL, set_anon_super, SB_KERNMOUNT|SB_NOUSER,
 			&init_user_ns, NULL);
@@ -271,13 +269,9 @@ struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type, char *name,
 	root->i_ino = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
 	root->i_atime = root->i_mtime = root->i_ctime = current_time(root);
-	dentry = __d_alloc(s, &d_name);
-	if (!dentry) {
-		iput(root);
+	s->s_root = d_make_root(root);
+	if (!s->s_root)
 		goto Enomem;
-	}
-	d_instantiate(dentry, root);
-	s->s_root = dentry;
 	s->s_d_op = dops;
 	s->s_flags |= SB_ACTIVE;
 	return dget(s->s_root);

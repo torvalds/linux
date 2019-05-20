@@ -602,7 +602,7 @@ static const struct dentry_operations pfmfs_dentry_operations;
 static struct dentry *
 pfmfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "pfm:", NULL, &pfmfs_dentry_operations,
+	return mount_pseudo(fs_type, NULL, &pfmfs_dentry_operations,
 			PFMFS_MAGIC);
 }
 

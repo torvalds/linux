@@ -242,7 +242,7 @@ static inline void free_handle(unsigned long handle)
 static struct dentry *z3fold_do_mount(struct file_system_type *fs_type,
 				int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "z3fold:", NULL, NULL, 0x33);
+	return mount_pseudo(fs_type, NULL, NULL, 0x33);
 }
 
 static struct file_system_type z3fold_fs = {
