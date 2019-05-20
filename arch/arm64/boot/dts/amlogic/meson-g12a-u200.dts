@@ -15,6 +15,7 @@
 
 	aliases {
 		serial0 = &uart_AO;
+		ethernet0 = &ethmac;
 	};
 
 	chosen {
@@ -148,6 +149,12 @@
 	cvbs_vdac_out: endpoint {
 		remote-endpoint = <&cvbs_connector_in>;
 	};
+};
+
+&ethmac {
+	status = "okay";
+	phy-handle = <&internal_ephy>;
+	phy-mode = "rmii";
 };
 
 &hdmi_tx {
