@@ -586,7 +586,6 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 		cqp_request->waiting = 0;
 		cqp_request->request_done = 0;
 		cqp_request->callback = 0;
-		init_waitqueue_head(&cqp_request->waitq);
 		nes_debug(NES_DBG_CQP, "Got cqp request %p from the available list \n",
 				cqp_request);
 	} else
