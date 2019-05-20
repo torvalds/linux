@@ -30,6 +30,9 @@ static ssize_t state_read(struct file *filp, struct kobject *kobj,
 			  size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
+	unsigned int retries = W1_F3A_RETRIES;
+	ssize_t bytes_read = -EIO;
+
 	dev_dbg(&sl->dev,
 		"Reading %s kobj: %p, off: %0#10x, count: %zu, buff addr: %p",
 		bin_attr->attr.name, kobj, (unsigned int)off, count, buf);
@@ -42,22 +45,30 @@ static ssize_t state_read(struct file *filp, struct kobject *kobj,
 	mutex_lock(&sl->master->bus_mutex);
 	dev_dbg(&sl->dev, "mutex locked");
 
-	if (w1_reset_select_slave(sl)) {
-		mutex_unlock(&sl->master->bus_mutex);
-		return -EIO;
+	if (w1_reset_select_slave(sl))
+		goto out;
+
+	while (retries--) {
+		w1_write_8(sl->master, W1_F3A_FUNC_PIO_ACCESS_READ);
+
+		*buf = w1_read_8(sl->master);
+		/* check for correct complement */
+		if ((*buf & 0x0F) == ((~*buf >> 4) & 0x0F)) {
+			bytes_read = 1;
+			goto out;
+		}
+
+		if (w1_reset_resume_command(sl->master))
+			goto out; /* unrecoverable error */
+
+		dev_warn(&sl->dev, "PIO_ACCESS_READ error, retries left: %d\n", retries);
 	}
 
-	w1_write_8(sl->master, W1_F3A_FUNC_PIO_ACCESS_READ);
-	*buf = w1_read_8(sl->master);
-
+out:
 	mutex_unlock(&sl->master->bus_mutex);
-	dev_dbg(&sl->dev, "mutex unlocked");
-
-	/* check for correct complement */
-	if ((*buf & 0x0F) != ((~*buf >> 4) & 0x0F))
-		return -EIO;
-	else
-		return 1;
+	dev_dbg(&sl->dev, "%s, mutex unlocked, retries: %d\n",
+		(bytes_read > 0) ? "succeeded" : "error", retries);
+	return bytes_read;
 }
 
 static BIN_ATTR_RO(state, 1);
