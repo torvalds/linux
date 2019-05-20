@@ -458,10 +458,6 @@ static int soc_pcm_components_open(struct snd_pcm_substream *substream,
 		component = rtdcom->component;
 		*last = component;
 
-		if (!component->driver->ops ||
-		    !component->driver->ops->open)
-			continue;
-
 		if (component->driver->module_get_upon_open &&
 		    !try_module_get(component->dev->driver->owner)) {
 			dev_err(component->dev,
@@ -469,6 +465,10 @@ static int soc_pcm_components_open(struct snd_pcm_substream *substream,
 				component->name);
 			return -ENODEV;
 		}
+
+		if (!component->driver->ops ||
+		    !component->driver->ops->open)
+			continue;
 
 		ret = component->driver->ops->open(substream);
 		if (ret < 0) {
@@ -495,11 +495,9 @@ static int soc_pcm_components_close(struct snd_pcm_substream *substream,
 		if (component == last)
 			break;
 
-		if (!component->driver->ops ||
-		    !component->driver->ops->close)
-			continue;
-
-		component->driver->ops->close(substream);
+		if (component->driver->ops &&
+		    component->driver->ops->close)
+			component->driver->ops->close(substream);
 
 		if (component->driver->module_get_upon_open)
 			module_put(component->dev->driver->owner);
