@@ -1595,7 +1595,7 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
 		struct flow_match_vlan match;
 
-		flow_rule_match_vlan(rule, &match);
+		flow_rule_match_cvlan(rule, &match);
 		if (match.mask->vlan_id ||
 		    match.mask->vlan_priority ||
 		    match.mask->vlan_tpid) {
@@ -1916,6 +1916,19 @@ struct mlx5_fields {
 		 offsetof(struct pedit_headers, field) + (off), \
 		 MLX5_BYTE_OFF(fte_match_set_lyr_2_4, match_field)}
 
+/* masked values are the same and there are no rewrites that do not have a
+ * match.
+ */
+#define SAME_VAL_MASK(type, valp, maskp, matchvalp, matchmaskp) ({ \
+	type matchmaskx = *(type *)(matchmaskp); \
+	type matchvalx = *(type *)(matchvalp); \
+	type maskx = *(type *)(maskp); \
+	type valx = *(type *)(valp); \
+	\
+	(valx & maskx) == (matchvalx & matchmaskx) && !(maskx & (maskx ^ \
+								 matchmaskx)); \
+})
+
 static bool cmp_val_mask(void *valp, void *maskp, void *matchvalp,
 			 void *matchmaskp, int size)
 {
@@ -1923,16 +1936,13 @@ static bool cmp_val_mask(void *valp, void *maskp, void *matchvalp,
 
 	switch (size) {
 	case sizeof(u8):
-		same = ((*(u8 *)valp) & (*(u8 *)maskp)) ==
-		       ((*(u8 *)matchvalp) & (*(u8 *)matchmaskp));
+		same = SAME_VAL_MASK(u8, valp, maskp, matchvalp, matchmaskp);
 		break;
 	case sizeof(u16):
-		same = ((*(u16 *)valp) & (*(u16 *)maskp)) ==
-		       ((*(u16 *)matchvalp) & (*(u16 *)matchmaskp));
+		same = SAME_VAL_MASK(u16, valp, maskp, matchvalp, matchmaskp);
 		break;
 	case sizeof(u32):
-		same = ((*(u32 *)valp) & (*(u32 *)maskp)) ==
-		       ((*(u32 *)matchvalp) & (*(u32 *)matchmaskp));
+		same = SAME_VAL_MASK(u32, valp, maskp, matchvalp, matchmaskp);
 		break;
 	}
 
@@ -2557,8 +2567,10 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 		/* in case all pedit actions are skipped, remove the MOD_HDR
 		 * flag.
 		 */
-		if (parse_attr->num_mod_hdr_actions == 0)
+		if (parse_attr->num_mod_hdr_actions == 0) {
 			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+			kfree(parse_attr->mod_hdr_actions);
+		}
 	}
 
 	attr->action = action;
@@ -2995,6 +3007,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		 */
 		if (parse_attr->num_mod_hdr_actions == 0) {
 			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+			kfree(parse_attr->mod_hdr_actions);
 			if (!((action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
 			      (action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH)))
 				attr->split_count = 0;

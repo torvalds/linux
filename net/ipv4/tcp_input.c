@@ -6024,6 +6024,9 @@ reset_and_undo:
 static void tcp_rcv_synrecv_state_fastopen(struct sock *sk)
 {
 	tcp_try_undo_loss(sk, false);
+
+	/* Reset rtx states to prevent spurious retransmits_timed_out() */
+	tcp_sk(sk)->retrans_stamp = 0;
 	inet_csk(sk)->icsk_retransmits = 0;
 
 	/* Once we leave TCP_SYN_RECV or TCP_FIN_WAIT_1,
