@@ -258,7 +258,7 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 				       int *num_of_mtts)
 {
 	u64 block_shift = MLX4_MAX_MTT_SHIFT;
-	u64 min_shift = umem->page_shift;
+	u64 min_shift = PAGE_SHIFT;
 	u64 last_block_aligned_end = 0;
 	u64 current_block_start = 0;
 	u64 first_block_start = 0;
@@ -295,8 +295,8 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 			 * in access to the wrong data.
 			 */
 			misalignment_bits =
-			(start_va & (~(((u64)(BIT(umem->page_shift))) - 1ULL)))
-			^ current_block_start;
+				(start_va & (~(((u64)(PAGE_SIZE)) - 1ULL))) ^
+				current_block_start;
 			block_shift = min(alignment_of(misalignment_bits),
 					  block_shift);
 		}
@@ -514,7 +514,7 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			goto release_mpt_entry;
 		}
 		n = ib_umem_page_count(mmr->umem);
-		shift = mmr->umem->page_shift;
+		shift = PAGE_SHIFT;
 
 		err = mlx4_mr_rereg_mem_write(dev->dev, &mmr->mmr,
 					      virt_addr, length, n, shift,

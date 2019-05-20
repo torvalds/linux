@@ -235,8 +235,7 @@ static int hns_roce_ib_get_cq_umem(struct hns_roce_dev *hr_dev,
 					&buf->hr_mtt);
 	} else {
 		ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(*umem),
-				(*umem)->page_shift,
-				&buf->hr_mtt);
+					PAGE_SHIFT, &buf->hr_mtt);
 	}
 	if (ret)
 		goto err_buf;

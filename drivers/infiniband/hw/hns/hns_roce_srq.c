@@ -264,8 +264,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 		} else
 			ret = hns_roce_mtt_init(hr_dev,
 						ib_umem_page_count(srq->umem),
-						srq->umem->page_shift,
-						&srq->mtt);
+						PAGE_SHIFT, &srq->mtt);
 		if (ret)
 			goto err_buf;
 
@@ -291,10 +290,9 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 			ret = hns_roce_mtt_init(hr_dev, npages,
 						page_shift, &srq->idx_que.mtt);
 		} else {
-			ret = hns_roce_mtt_init(hr_dev,
-				       ib_umem_page_count(srq->idx_que.umem),
-				       srq->idx_que.umem->page_shift,
-				       &srq->idx_que.mtt);
+			ret = hns_roce_mtt_init(
+				hr_dev, ib_umem_page_count(srq->idx_que.umem),
+				PAGE_SHIFT, &srq->idx_que.mtt);
 		}
 
 		if (ret) {

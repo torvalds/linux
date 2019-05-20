@@ -1606,8 +1606,9 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		synchronize_srcu(&dev->mr_srcu);
 		/* Destroy all page mappings */
 		if (umem_odp->page_list)
-			mlx5_ib_invalidate_range(umem_odp, ib_umem_start(umem),
-						 ib_umem_end(umem));
+			mlx5_ib_invalidate_range(umem_odp,
+						 ib_umem_start(umem_odp),
+						 ib_umem_end(umem_odp));
 		else
 			mlx5_ib_free_implicit_mr(mr);
 		/*
