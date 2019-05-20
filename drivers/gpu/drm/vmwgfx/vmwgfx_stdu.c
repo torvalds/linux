@@ -111,7 +111,7 @@ struct vmw_stdu_update_gb_image {
  */
 struct vmw_screen_target_display_unit {
 	struct vmw_display_unit base;
-	const struct vmw_surface *display_srf;
+	struct vmw_surface *display_srf;
 	enum stdu_content_type content_fb_type;
 	s32 display_width, display_height;
 
@@ -167,12 +167,9 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
 		SVGA3dCmdDefineGBScreenTarget body;
 	} *cmd;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space defining Screen Target\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_DEFINE_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -229,12 +226,9 @@ static int vmw_stdu_bind_st(struct vmw_private *dev_priv,
 	memset(&image, 0, sizeof(image));
 	image.sid = res ? res->id : SVGA3D_INVALID_ID;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space binding a screen target\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_BIND_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -296,12 +290,9 @@ static int vmw_stdu_update_st(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space updating a Screen Target\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	vmw_stdu_populate_update(cmd, stdu->base.unit,
 				 0, stdu->display_width,
@@ -335,12 +326,9 @@ static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 	if (unlikely(!stdu->defined))
 		return 0;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space, screen target not destroyed\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_DESTROY_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -533,6 +521,7 @@ static void vmw_stdu_bo_fifo_commit(struct vmw_kms_dirty *dirty)
 
 	vmw_fifo_commit(dirty->dev_priv, sizeof(*cmd) + blit_size);
 
+	stdu->display_srf->res.res_dirty = true;
 	ddirty->left = ddirty->top = S32_MAX;
 	ddirty->right = ddirty->bottom = S32_MIN;
 }
@@ -629,20 +618,16 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
 		region.x2 = diff.rect.x2;
 		region.y1 = diff.rect.y1;
 		region.y2 = diff.rect.y2;
-		ret = vmw_kms_update_proxy(
-			(struct vmw_resource *) &stdu->display_srf->res,
-			(const struct drm_clip_rect *) &region, 1, 1);
+		ret = vmw_kms_update_proxy(&stdu->display_srf->res, &region,
+					   1, 1);
 		if (ret)
 			goto out_cleanup;
 
 
 		dev_priv = vmw_priv(stdu->base.crtc.dev);
-		cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-		if (!cmd) {
-			DRM_ERROR("Cannot reserve FIFO space to update STDU");
+		cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+		if (!cmd)
 			goto out_cleanup;
-		}
 
 		vmw_stdu_populate_update(cmd, stdu->base.unit,
 					 region.x1, region.x2,
@@ -820,6 +805,7 @@ static void vmw_kms_stdu_surface_fifo_commit(struct vmw_kms_dirty *dirty)
 		cmd->body.dest.sid = stdu->display_srf->res.id;
 		update = (struct vmw_stdu_update *) &blit[dirty->num_hits];
 		commit_size = sizeof(*cmd) + blit_size + sizeof(*update);
+		stdu->display_srf->res.res_dirty = true;
 	} else {
 		update = dirty->cmd;
 		commit_size = sizeof(*update);
@@ -876,7 +862,8 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	if (!srf)
 		srf = &vfbs->surface->res;
 
-	ret = vmw_validation_add_resource(&val_ctx, srf, 0, NULL, NULL);
+	ret = vmw_validation_add_resource(&val_ctx, srf, 0, VMW_RES_DIRTY_NONE,
+					  NULL, NULL);
 	if (ret)
 		return ret;
 

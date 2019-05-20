@@ -13,11 +13,6 @@
 
 #include <asm/ptrace.h>
 
-static inline int klp_check_compiler_support(void)
-{
-	return 0;
-}
-
 static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 {
 	regs->psw.addr = ip;

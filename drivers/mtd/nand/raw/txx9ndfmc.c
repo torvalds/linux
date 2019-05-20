@@ -159,7 +159,6 @@ static void txx9ndfmc_cmd_ctrl(struct nand_chip *chip, int cmd,
 		if ((ctrl & NAND_CTRL_CHANGE) && cmd == NAND_CMD_NONE)
 			txx9ndfmc_write(dev, 0, TXX9_NDFDTR);
 	}
-	mmiowb();
 }
 
 static int txx9ndfmc_dev_ready(struct nand_chip *chip)

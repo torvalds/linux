@@ -48,14 +48,14 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 	struct iwch_qp *qhp;
 	unsigned long flag;
 
-	spin_lock(&rnicp->lock);
-	qhp = get_qhp(rnicp, CQE_QPID(rsp_msg->cqe));
+	xa_lock(&rnicp->qps);
+	qhp = xa_load(&rnicp->qps, CQE_QPID(rsp_msg->cqe));
 
 	if (!qhp) {
 		pr_err("%s unaffiliated error 0x%x qpid 0x%x\n",
 		       __func__, CQE_STATUS(rsp_msg->cqe),
 		       CQE_QPID(rsp_msg->cqe));
-		spin_unlock(&rnicp->lock);
+		xa_unlock(&rnicp->qps);
 		return;
 	}
 
@@ -65,7 +65,7 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 			 __func__,
 			 qhp->attr.state, qhp->wq.qpid,
 			 CQE_STATUS(rsp_msg->cqe));
-		spin_unlock(&rnicp->lock);
+		xa_unlock(&rnicp->qps);
 		return;
 	}
 
@@ -76,7 +76,7 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 	       CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
 
 	atomic_inc(&qhp->refcnt);
-	spin_unlock(&rnicp->lock);
+	xa_unlock(&rnicp->qps);
 
 	if (qhp->attr.state == IWCH_QP_STATE_RTS) {
 		attrs.next_state = IWCH_QP_STATE_TERMINATE;
@@ -114,21 +114,21 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	unsigned long flag;
 
 	rnicp = (struct iwch_dev *) rdev_p->ulp;
-	spin_lock(&rnicp->lock);
+	xa_lock(&rnicp->qps);
 	chp = get_chp(rnicp, cqid);
-	qhp = get_qhp(rnicp, CQE_QPID(rsp_msg->cqe));
+	qhp = xa_load(&rnicp->qps, CQE_QPID(rsp_msg->cqe));
 	if (!chp || !qhp) {
 		pr_err("BAD AE cqid 0x%x qpid 0x%x opcode %d status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 		       cqid, CQE_QPID(rsp_msg->cqe),
 		       CQE_OPCODE(rsp_msg->cqe), CQE_STATUS(rsp_msg->cqe),
 		       CQE_TYPE(rsp_msg->cqe), CQE_WRID_HI(rsp_msg->cqe),
 		       CQE_WRID_LOW(rsp_msg->cqe));
-		spin_unlock(&rnicp->lock);
+		xa_unlock(&rnicp->qps);
 		goto out;
 	}
 	iwch_qp_add_ref(&qhp->ibqp);
 	atomic_inc(&chp->refcnt);
-	spin_unlock(&rnicp->lock);
+	xa_unlock(&rnicp->qps);
 
 	/*
 	 * 1) completion of our sending a TERMINATE.

@@ -24,6 +24,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_ptrauth.h>
 
 #define CPU_GP_REG_OFFSET(x)	(CPU_GP_REGS + x)
 #define CPU_XREG_OFFSET(x)	CPU_GP_REG_OFFSET(CPU_USER_PT_REGS + 8*x)
@@ -63,6 +64,13 @@ ENTRY(__guest_enter)
 	save_callee_saved_regs x1
 
 	add	x18, x0, #VCPU_CONTEXT
+
+	// Macro ptrauth_switch_to_guest format:
+	// 	ptrauth_switch_to_guest(guest cxt, tmp1, tmp2, tmp3)
+	// The below macro to restore guest keys is not implemented in C code
+	// as it may cause Pointer Authentication key signing mismatch errors
+	// when this feature is enabled for kernel code.
+	ptrauth_switch_to_guest x18, x0, x1, x2
 
 	// Restore guest regs x0-x17
 	ldp	x0, x1,   [x18, #CPU_XREG_OFFSET(0)]
@@ -117,6 +125,13 @@ ENTRY(__guest_exit)
 	save_callee_saved_regs x1
 
 	get_host_ctxt	x2, x3
+
+	// Macro ptrauth_switch_to_guest format:
+	// 	ptrauth_switch_to_host(guest cxt, host cxt, tmp1, tmp2, tmp3)
+	// The below macro to save/restore keys is not implemented in C code
+	// as it may cause Pointer Authentication key signing mismatch errors
+	// when this feature is enabled for kernel code.
+	ptrauth_switch_to_host x1, x2, x3, x4, x5
 
 	// Now restore the host regs
 	restore_callee_saved_regs x2

@@ -832,7 +832,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 	int fsid = bylower ? oip->lowerpath->layer->fsid : 0;
 	bool is_dir, metacopy = false;
 	unsigned long ino = 0;
-	int err = -ENOMEM;
+	int err = oip->newinode ? -EEXIST : -ENOMEM;
 
 	if (!realinode)
 		realinode = d_inode(lowerdentry);
@@ -917,6 +917,7 @@ out:
 	return inode;
 
 out_err:
+	pr_warn_ratelimited("overlayfs: failed to get inode (%i)\n", err);
 	inode = ERR_PTR(err);
 	goto out;
 }

@@ -11,7 +11,10 @@
 
 / {
 	model = "Google Jerry";
-	compatible = "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
+	compatible = "google,veyron-jerry-rev15", "google,veyron-jerry-rev14",
+		     "google,veyron-jerry-rev13", "google,veyron-jerry-rev12",
+		     "google,veyron-jerry-rev11", "google,veyron-jerry-rev10",
+		     "google,veyron-jerry-rev7", "google,veyron-jerry-rev6",
 		     "google,veyron-jerry-rev5", "google,veyron-jerry-rev4",
 		     "google,veyron-jerry-rev3", "google,veyron-jerry",
 		     "google,veyron", "rockchip,rk3288";
@@ -61,7 +64,9 @@
 
 &rk808 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pmic_int_l>;
+	pinctrl-0 = <&pmic_int_l &dvs_1 &dvs_2>;
+	dvs-gpios = <&gpio7 RK_PB4 GPIO_ACTIVE_HIGH>,
+		    <&gpio7 RK_PB7 GPIO_ACTIVE_HIGH>;
 
 	regulators {
 		mic_vcc: LDO_REG2 {
@@ -101,39 +106,39 @@
 &pinctrl {
 	backlight {
 		bl_pwr_en: bl_pwr_en {
-			rockchip,pins = <2 12 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	buck-5v {
 		drv_5v: drv-5v {
-			rockchip,pins = <7 21 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <5 19 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	lcd {
 		lcd_enable_h: lcd-en {
-			rockchip,pins = <7 14 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		avdd_1v8_disp_en: avdd-1v8-disp-en {
-			rockchip,pins = <2 13 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pmic {
 		dvs_1: dvs-1 {
-			rockchip,pins = <7 12 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <7 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
 		dvs_2: dvs-2 {
-			rockchip,pins = <7 15 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <7 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };

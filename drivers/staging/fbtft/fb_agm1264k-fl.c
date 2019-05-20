@@ -383,7 +383,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			/* select right side (sc1)
 			 * set addr
 			 */
-			write_reg(par, 0x01, 1 << 6);
+			write_reg(par, 0x01, BIT(6));
 			write_reg(par, 0x01, (0x17 << 3) | (u8)y);
 
 			/* write bitmap */
@@ -406,7 +406,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 static int write(struct fbtft_par *par, void *buf, size_t len)
 {
 	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
-			  "%s(len=%d): ", __func__, len);
+			  "%s(len=%zu): ", __func__, len);
 
 	gpiod_set_value(par->RW, 0); /* set write mode */
 

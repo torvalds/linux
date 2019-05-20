@@ -298,7 +298,7 @@ static int wdt_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 
 	wdt_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int wdt_release(struct inode *inode, struct file *file)

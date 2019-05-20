@@ -17,23 +17,6 @@ static void cptvf_send_msg_to_pf(struct cpt_vf *cptvf, struct cpt_mbox *mbx)
 			mbx->data);
 }
 
-/* ACKs PF's mailbox message
- */
-void cptvf_mbox_send_ack(struct cpt_vf *cptvf, struct cpt_mbox *mbx)
-{
-	mbx->msg = CPT_MBOX_MSG_TYPE_ACK;
-	cptvf_send_msg_to_pf(cptvf, mbx);
-}
-
-/* NACKs PF's mailbox message that VF is not able to
- * complete the action
- */
-void cptvf_mbox_send_nack(struct cpt_vf *cptvf, struct cpt_mbox *mbx)
-{
-	mbx->msg = CPT_MBOX_MSG_TYPE_NACK;
-	cptvf_send_msg_to_pf(cptvf, mbx);
-}
-
 /* Interrupt handler to handle mailbox messages from VFs */
 void cptvf_handle_mbox_intr(struct cpt_vf *cptvf)
 {

@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/sched/signal.h>
+#include <linux/eventfd.h>
 #include <linux/uaccess.h>
 #include <uapi/misc/ocxl.h>
 #include <asm/reg.h>
@@ -17,70 +18,56 @@ static struct class *ocxl_class;
 static struct mutex minors_idr_lock;
 static struct idr minors_idr;
 
-static struct ocxl_afu *find_and_get_afu(dev_t devno)
+static struct ocxl_file_info *find_file_info(dev_t devno)
 {
-	struct ocxl_afu *afu;
-	int afu_minor;
+	struct ocxl_file_info *info;
 
-	afu_minor = MINOR(devno);
 	/*
 	 * We don't declare an RCU critical section here, as our AFU
 	 * is protected by a reference counter on the device. By the time the
-	 * minor number of a device is removed from the idr, the ref count of
+	 * info reference is removed from the idr, the ref count of
 	 * the device is already at 0, so no user API will access that AFU and
 	 * this function can't return it.
 	 */
-	afu = idr_find(&minors_idr, afu_minor);
-	if (afu)
-		ocxl_afu_get(afu);
-	return afu;
+	info = idr_find(&minors_idr, MINOR(devno));
+	return info;
 }
 
-static int allocate_afu_minor(struct ocxl_afu *afu)
+static int allocate_minor(struct ocxl_file_info *info)
 {
 	int minor;
 
 	mutex_lock(&minors_idr_lock);
-	minor = idr_alloc(&minors_idr, afu, 0, OCXL_NUM_MINORS, GFP_KERNEL);
+	minor = idr_alloc(&minors_idr, info, 0, OCXL_NUM_MINORS, GFP_KERNEL);
 	mutex_unlock(&minors_idr_lock);
 	return minor;
 }
 
-static void free_afu_minor(struct ocxl_afu *afu)
+static void free_minor(struct ocxl_file_info *info)
 {
 	mutex_lock(&minors_idr_lock);
-	idr_remove(&minors_idr, MINOR(afu->dev.devt));
+	idr_remove(&minors_idr, MINOR(info->dev.devt));
 	mutex_unlock(&minors_idr_lock);
 }
 
 static int afu_open(struct inode *inode, struct file *file)
 {
-	struct ocxl_afu *afu;
+	struct ocxl_file_info *info;
 	struct ocxl_context *ctx;
 	int rc;
 
 	pr_debug("%s for device %x\n", __func__, inode->i_rdev);
 
-	afu = find_and_get_afu(inode->i_rdev);
-	if (!afu)
+	info = find_file_info(inode->i_rdev);
+	if (!info)
 		return -ENODEV;
 
-	ctx = ocxl_context_alloc();
-	if (!ctx) {
-		rc = -ENOMEM;
-		goto put_afu;
-	}
-
-	rc = ocxl_context_init(ctx, afu, inode->i_mapping);
+	rc = ocxl_context_alloc(&ctx, info->afu, inode->i_mapping);
 	if (rc)
-		goto put_afu;
-	file->private_data = ctx;
-	ocxl_afu_put(afu);
-	return 0;
+		return rc;
 
-put_afu:
-	ocxl_afu_put(afu);
-	return rc;
+	file->private_data = ctx;
+	return 0;
 }
 
 static long afu_ioctl_attach(struct ocxl_context *ctx,
@@ -100,7 +87,7 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 		return -EINVAL;
 
 	amr = arg.amr & mfspr(SPRN_UAMOR);
-	rc = ocxl_context_attach(ctx, amr);
+	rc = ocxl_context_attach(ctx, amr, current->mm);
 	return rc;
 }
 
@@ -151,10 +138,9 @@ static long afu_ioctl_enable_p9_wait(struct ocxl_context *ctx,
 		mutex_unlock(&ctx->status_mutex);
 
 		if (status == ATTACHED) {
-			int rc;
-			struct link *link = ctx->afu->fn->link;
+			int rc = ocxl_link_update_pe(ctx->afu->fn->link,
+				ctx->pasid, ctx->tidr);
 
-			rc = ocxl_link_update_pe(link, ctx->pasid, ctx->tidr);
 			if (rc)
 				return rc;
 		}
@@ -198,18 +184,40 @@ static long afu_ioctl_get_features(struct ocxl_context *ctx,
 			x == OCXL_IOCTL_GET_FEATURES ? "GET_FEATURES" :	\
 			"UNKNOWN")
 
+static irqreturn_t irq_handler(void *private)
+{
+	struct eventfd_ctx *ev_ctx = private;
+
+	eventfd_signal(ev_ctx, 1);
+	return IRQ_HANDLED;
+}
+
+static void irq_free(void *private)
+{
+	struct eventfd_ctx *ev_ctx = private;
+
+	eventfd_ctx_put(ev_ctx);
+}
+
 static long afu_ioctl(struct file *file, unsigned int cmd,
 		unsigned long args)
 {
 	struct ocxl_context *ctx = file->private_data;
 	struct ocxl_ioctl_irq_fd irq_fd;
+	struct eventfd_ctx *ev_ctx;
+	int irq_id;
 	u64 irq_offset;
 	long rc;
+	bool closed;
 
 	pr_debug("%s for context %d, command %s\n", __func__, ctx->pasid,
 		CMD_STR(cmd));
 
-	if (ctx->status == CLOSED)
+	mutex_lock(&ctx->status_mutex);
+	closed = (ctx->status == CLOSED);
+	mutex_unlock(&ctx->status_mutex);
+
+	if (closed)
 		return -EIO;
 
 	switch (cmd) {
@@ -219,12 +227,13 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case OCXL_IOCTL_IRQ_ALLOC:
-		rc = ocxl_afu_irq_alloc(ctx, &irq_offset);
+		rc = ocxl_afu_irq_alloc(ctx, &irq_id);
 		if (!rc) {
+			irq_offset = ocxl_irq_id_to_offset(ctx, irq_id);
 			rc = copy_to_user((u64 __user *) args, &irq_offset,
 					sizeof(irq_offset));
 			if (rc) {
-				ocxl_afu_irq_free(ctx, irq_offset);
+				ocxl_afu_irq_free(ctx, irq_id);
 				return -EFAULT;
 			}
 		}
@@ -235,7 +244,8 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 				sizeof(irq_offset));
 		if (rc)
 			return -EFAULT;
-		rc = ocxl_afu_irq_free(ctx, irq_offset);
+		irq_id = ocxl_irq_offset_to_id(ctx, irq_offset);
+		rc = ocxl_afu_irq_free(ctx, irq_id);
 		break;
 
 	case OCXL_IOCTL_IRQ_SET_FD:
@@ -245,8 +255,11 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		if (irq_fd.reserved)
 			return -EINVAL;
-		rc = ocxl_afu_irq_set_fd(ctx, irq_fd.irq_offset,
-					irq_fd.eventfd);
+		irq_id = ocxl_irq_offset_to_id(ctx, irq_fd.irq_offset);
+		ev_ctx = eventfd_ctx_fdget(irq_fd.eventfd);
+		if (IS_ERR(ev_ctx))
+			return PTR_ERR(ev_ctx);
+		rc = ocxl_irq_set_handler(ctx, irq_id, irq_handler, irq_free, ev_ctx);
 		break;
 
 	case OCXL_IOCTL_GET_METADATA:
@@ -469,39 +482,102 @@ static const struct file_operations ocxl_afu_fops = {
 	.release        = afu_release,
 };
 
-int ocxl_create_cdev(struct ocxl_afu *afu)
+// Free the info struct
+static void info_release(struct device *dev)
+{
+	struct ocxl_file_info *info = container_of(dev, struct ocxl_file_info, dev);
+
+	free_minor(info);
+	ocxl_afu_put(info->afu);
+	kfree(info);
+}
+
+static int ocxl_file_make_visible(struct ocxl_file_info *info)
 {
 	int rc;
 
-	cdev_init(&afu->cdev, &ocxl_afu_fops);
-	rc = cdev_add(&afu->cdev, afu->dev.devt, 1);
+	cdev_init(&info->cdev, &ocxl_afu_fops);
+	rc = cdev_add(&info->cdev, info->dev.devt, 1);
 	if (rc) {
-		dev_err(&afu->dev, "Unable to add afu char device: %d\n", rc);
+		dev_err(&info->dev, "Unable to add afu char device: %d\n", rc);
 		return rc;
 	}
+
 	return 0;
 }
 
-void ocxl_destroy_cdev(struct ocxl_afu *afu)
+static void ocxl_file_make_invisible(struct ocxl_file_info *info)
 {
-	cdev_del(&afu->cdev);
+	cdev_del(&info->cdev);
 }
 
-int ocxl_register_afu(struct ocxl_afu *afu)
+int ocxl_file_register_afu(struct ocxl_afu *afu)
 {
 	int minor;
+	int rc;
+	struct ocxl_file_info *info;
+	struct ocxl_fn *fn = afu->fn;
+	struct pci_dev *pci_dev = to_pci_dev(fn->dev.parent);
 
-	minor = allocate_afu_minor(afu);
-	if (minor < 0)
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (info == NULL)
+		return -ENOMEM;
+
+	minor = allocate_minor(info);
+	if (minor < 0) {
+		kfree(info);
 		return minor;
-	afu->dev.devt = MKDEV(MAJOR(ocxl_dev), minor);
-	afu->dev.class = ocxl_class;
-	return device_register(&afu->dev);
+	}
+
+	info->dev.parent = &fn->dev;
+	info->dev.devt = MKDEV(MAJOR(ocxl_dev), minor);
+	info->dev.class = ocxl_class;
+	info->dev.release = info_release;
+
+	info->afu = afu;
+	ocxl_afu_get(afu);
+
+	rc = dev_set_name(&info->dev, "%s.%s.%hhu",
+		afu->config.name, dev_name(&pci_dev->dev), afu->config.idx);
+	if (rc)
+		goto err_put;
+
+	rc = device_register(&info->dev);
+	if (rc)
+		goto err_put;
+
+	rc = ocxl_sysfs_register_afu(info);
+	if (rc)
+		goto err_unregister;
+
+	rc = ocxl_file_make_visible(info);
+	if (rc)
+		goto err_unregister;
+
+	ocxl_afu_set_private(afu, info);
+
+	return 0;
+
+err_unregister:
+	ocxl_sysfs_unregister_afu(info); // safe to call even if register failed
+	device_unregister(&info->dev);
+err_put:
+	ocxl_afu_put(afu);
+	free_minor(info);
+	kfree(info);
+	return rc;
 }
 
-void ocxl_unregister_afu(struct ocxl_afu *afu)
+void ocxl_file_unregister_afu(struct ocxl_afu *afu)
 {
-	free_afu_minor(afu);
+	struct ocxl_file_info *info = ocxl_afu_get_private(afu);
+
+	if (!info)
+		return;
+
+	ocxl_file_make_invisible(info);
+	ocxl_sysfs_unregister_afu(info);
+	device_unregister(&info->dev);
 }
 
 static char *ocxl_devnode(struct device *dev, umode_t *mode)

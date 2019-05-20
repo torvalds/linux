@@ -320,32 +320,6 @@ enum {
 #define DL_GAIN_N_40DB_REG (DL_GAIN_N_40DB << 7 | DL_GAIN_N_40DB)
 #define DL_GAIN_REG_MASK 0x0f9f
 
-static void lo_store_gain(struct mt6358_priv *priv)
-{
-	unsigned int reg;
-	unsigned int gain_l, gain_r;
-
-	regmap_read(priv->regmap, MT6358_ZCD_CON1, &reg);
-	gain_l = (reg >> RG_AUDLOLGAIN_SFT) & RG_AUDLOLGAIN_MASK;
-	gain_r = (reg >> RG_AUDLORGAIN_SFT) & RG_AUDLORGAIN_MASK;
-
-	priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTL] = gain_l;
-	priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTR] = gain_r;
-}
-
-static void hp_store_gain(struct mt6358_priv *priv)
-{
-	unsigned int reg;
-	unsigned int gain_l, gain_r;
-
-	regmap_read(priv->regmap, MT6358_ZCD_CON2, &reg);
-	gain_l = (reg >> RG_AUDHPLGAIN_SFT) & RG_AUDHPLGAIN_MASK;
-	gain_r = (reg >> RG_AUDHPRGAIN_SFT) & RG_AUDHPRGAIN_MASK;
-
-	priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTL] = gain_l;
-	priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTR] = gain_r;
-}
-
 static void hp_zcd_disable(struct mt6358_priv *priv)
 {
 	regmap_write(priv->regmap, MT6358_ZCD_CON0, 0x0000);
@@ -405,10 +379,9 @@ static bool is_valid_hp_pga_idx(int reg_idx)
 	       reg_idx == DL_GAIN_N_40DB;
 }
 
-static void headset_volume_ramp(struct mt6358_priv *priv,
-				int from, int to)
+static void headset_volume_ramp(struct mt6358_priv *priv, int from, int to)
 {
-	int offset = 0, count = 1, reg_idx;
+	int offset = 0, count = 0, reg_idx;
 
 	if (!is_valid_hp_pga_idx(from) || !is_valid_hp_pga_idx(to))
 		dev_warn(priv->dev, "%s(), volume index is not valid, from %d, to %d\n",
@@ -422,7 +395,7 @@ static void headset_volume_ramp(struct mt6358_priv *priv,
 	else
 		offset = from - to;
 
-	while (offset > 0) {
+	while (offset >= 0) {
 		if (to > from)
 			reg_idx = from + count;
 		else
@@ -440,25 +413,76 @@ static void headset_volume_ramp(struct mt6358_priv *priv,
 	}
 }
 
+static int mt6358_put_volsw(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct mt6358_priv *priv = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mc =
+			(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg;
+	int ret;
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+	if (ret < 0)
+		return ret;
+
+	switch (mc->reg) {
+	case MT6358_ZCD_CON2:
+		regmap_read(priv->regmap, MT6358_ZCD_CON2, &reg);
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTL] =
+			(reg >> RG_AUDHPLGAIN_SFT) & RG_AUDHPLGAIN_MASK;
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_HPOUTR] =
+			(reg >> RG_AUDHPRGAIN_SFT) & RG_AUDHPRGAIN_MASK;
+		break;
+	case MT6358_ZCD_CON1:
+		regmap_read(priv->regmap, MT6358_ZCD_CON1, &reg);
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTL] =
+			(reg >> RG_AUDLOLGAIN_SFT) & RG_AUDLOLGAIN_MASK;
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_LINEOUTR] =
+			(reg >> RG_AUDLORGAIN_SFT) & RG_AUDLORGAIN_MASK;
+		break;
+	case MT6358_ZCD_CON3:
+		regmap_read(priv->regmap, MT6358_ZCD_CON3, &reg);
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_HSOUTL] =
+			(reg >> RG_AUDHSGAIN_SFT) & RG_AUDHSGAIN_MASK;
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_HSOUTR] =
+			(reg >> RG_AUDHSGAIN_SFT) & RG_AUDHSGAIN_MASK;
+		break;
+	case MT6358_AUDENC_ANA_CON0:
+	case MT6358_AUDENC_ANA_CON1:
+		regmap_read(priv->regmap, MT6358_AUDENC_ANA_CON0, &reg);
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP1] =
+			(reg >> RG_AUDPREAMPLGAIN_SFT) & RG_AUDPREAMPLGAIN_MASK;
+		regmap_read(priv->regmap, MT6358_AUDENC_ANA_CON1, &reg);
+		priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP2] =
+			(reg >> RG_AUDPREAMPRGAIN_SFT) & RG_AUDPREAMPRGAIN_MASK;
+		break;
+	}
+
+	return ret;
+}
+
 static const DECLARE_TLV_DB_SCALE(playback_tlv, -1000, 100, 0);
 static const DECLARE_TLV_DB_SCALE(pga_tlv, 0, 600, 0);
 
 static const struct snd_kcontrol_new mt6358_snd_controls[] = {
 	/* dl pga gain */
-	SOC_DOUBLE_TLV("Headphone Volume",
-		       MT6358_ZCD_CON2, 0, 7, 0x12, 1,
-		       playback_tlv),
-	SOC_DOUBLE_TLV("Lineout Volume",
-		       MT6358_ZCD_CON1, 0, 7, 0x12, 1,
-		       playback_tlv),
-	SOC_SINGLE_TLV("Handset Volume",
-		       MT6358_ZCD_CON3, 0, 0x12, 1,
-		       playback_tlv),
+	SOC_DOUBLE_EXT_TLV("Headphone Volume",
+			   MT6358_ZCD_CON2, 0, 7, 0x12, 1,
+			   snd_soc_get_volsw, mt6358_put_volsw, playback_tlv),
+	SOC_DOUBLE_EXT_TLV("Lineout Volume",
+			   MT6358_ZCD_CON1, 0, 7, 0x12, 1,
+			   snd_soc_get_volsw, mt6358_put_volsw, playback_tlv),
+	SOC_SINGLE_EXT_TLV("Handset Volume",
+			   MT6358_ZCD_CON3, 0, 0x12, 1,
+			   snd_soc_get_volsw, mt6358_put_volsw, playback_tlv),
 	/* ul pga gain */
-	SOC_DOUBLE_R_TLV("PGA Volume",
-			 MT6358_AUDENC_ANA_CON0, MT6358_AUDENC_ANA_CON1,
-			 8, 4, 0,
-			 pga_tlv),
+	SOC_DOUBLE_R_EXT_TLV("PGA Volume",
+			     MT6358_AUDENC_ANA_CON0, MT6358_AUDENC_ANA_CON1,
+			     8, 4, 0,
+			     snd_soc_get_volsw, mt6358_put_volsw, pga_tlv),
 };
 
 /* MUX */
@@ -832,8 +856,6 @@ static int mtk_hp_enable(struct mt6358_priv *priv)
 	/* Reduce ESD resistance of AU_REFN */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON2, 0x4000);
 
-	/* save target gain to restore after hardware open complete */
-	hp_store_gain(priv);
 	/* Set HPR/HPL gain as minimum (~ -40dB) */
 	regmap_write(priv->regmap, MT6358_ZCD_CON2, DL_GAIN_N_40DB_REG);
 
@@ -1043,8 +1065,6 @@ static int mtk_hp_spk_enable(struct mt6358_priv *priv)
 	/* Reduce ESD resistance of AU_REFN */
 	regmap_write(priv->regmap, MT6358_AUDDEC_ANA_CON2, 0x4000);
 
-	/* save target gain to restore after hardware open complete */
-	hp_store_gain(priv);
 	/* Set HPR/HPL gain to -10dB */
 	regmap_write(priv->regmap, MT6358_ZCD_CON2, DL_GAIN_N_10DB_REG);
 
@@ -1104,7 +1124,6 @@ static int mtk_hp_spk_enable(struct mt6358_priv *priv)
 	hp_main_output_ramp(priv, true);
 
 	/* Set LO gain as minimum (~ -40dB) */
-	lo_store_gain(priv);
 	regmap_write(priv->regmap, MT6358_ZCD_CON1, DL_GAIN_N_40DB_REG);
 	/* apply volume setting */
 	headset_volume_ramp(priv,
@@ -1740,6 +1759,21 @@ static void mt6358_dmic_disable(struct mt6358_priv *priv)
 	regmap_write(priv->regmap, MT6358_AUDENC_ANA_CON9, 0x0000);
 }
 
+static void mt6358_restore_pga(struct mt6358_priv *priv)
+{
+	unsigned int gain_l, gain_r;
+
+	gain_l = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP1];
+	gain_r = priv->ana_gain[AUDIO_ANALOG_VOLUME_MICAMP2];
+
+	regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON0,
+			   RG_AUDPREAMPLGAIN_MASK_SFT,
+			   gain_l << RG_AUDPREAMPLGAIN_SFT);
+	regmap_update_bits(priv->regmap, MT6358_AUDENC_ANA_CON1,
+			   RG_AUDPREAMPRGAIN_MASK_SFT,
+			   gain_r << RG_AUDPREAMPRGAIN_SFT);
+}
+
 static int mt_mic_type_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol,
 			     int event)
@@ -1764,6 +1798,7 @@ static int mt_mic_type_event(struct snd_soc_dapm_widget *w,
 			mt6358_amic_enable(priv);
 			break;
 		}
+		mt6358_restore_pga(priv);
 
 		break;
 	case SND_SOC_DAPM_POST_PMD:

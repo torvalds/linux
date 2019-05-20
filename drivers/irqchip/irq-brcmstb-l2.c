@@ -264,6 +264,8 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 		ct->chip.irq_set_wake = irq_gc_set_wake;
 	}
 
+	pr_info("registered L2 intc (%pOF, parent irq: %d)\n", np, parent_irq);
+
 	return 0;
 
 out_free_domain:

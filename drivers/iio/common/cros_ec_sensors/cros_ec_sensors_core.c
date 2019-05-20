@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cros_ec_sensors_core - Common function for Chrome OS EC sensor driver.
  *
  * Copyright (C) 2016 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -25,7 +17,6 @@
 #include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/platform_device.h>
 
 static char *cros_ec_loc[] = {
@@ -269,6 +260,17 @@ static int cros_ec_sensors_read_data_unsafe(struct iio_dev *indio_dev,
 	return 0;
 }
 
+/**
+ * cros_ec_sensors_read_lpc() - read acceleration data from EC shared memory.
+ * @indio_dev: pointer to IIO device.
+ * @scan_mask: bitmap of the sensor indices to scan.
+ * @data: location to store data.
+ *
+ * Note: this is the safe function for reading the EC data. It guarantees
+ * that the data sampled was not modified by the EC while being read.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
 int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 			     unsigned long scan_mask, s16 *data)
 {

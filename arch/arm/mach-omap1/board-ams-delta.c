@@ -749,7 +749,7 @@ static void __init ams_delta_init(void)
 				ARRAY_SIZE(ams_delta_gpio_tables));
 
 	leds_pdev = gpio_led_register_device(PLATFORM_DEVID_NONE, &leds_pdata);
-	if (!IS_ERR(leds_pdev)) {
+	if (!IS_ERR_OR_NULL(leds_pdev)) {
 		leds_gpio_table.dev_id = dev_name(&leds_pdev->dev);
 		gpiod_add_lookup_table(&leds_gpio_table);
 	}

@@ -412,11 +412,11 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 	if (ili->conf->dclk_active_high) {
 		reg = ILI9322_POL_DCLK;
 		connector->display_info.bus_flags |=
-			DRM_BUS_FLAG_PIXDATA_POSEDGE;
+			DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
 	} else {
 		reg = 0;
 		connector->display_info.bus_flags |=
-			DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+			DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
 	}
 	if (ili->conf->de_active_high) {
 		reg |= ILI9322_POL_DE;
@@ -662,8 +662,6 @@ static int ili9322_get_modes(struct drm_panel *panel)
 	struct ili9322 *ili = panel_to_ili9322(panel);
 	struct drm_display_mode *mode;
 
-	strncpy(connector->display_info.name, "ILI9322 TFT LCD driver\0",
-		DRM_DISPLAY_INFO_LEN);
 	connector->display_info.width_mm = ili->conf->width_mm;
 	connector->display_info.height_mm = ili->conf->height_mm;
 

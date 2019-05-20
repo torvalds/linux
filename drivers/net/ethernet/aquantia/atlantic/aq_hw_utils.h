@@ -35,6 +35,7 @@ void aq_hw_write_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk,
 u32 aq_hw_read_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk, u32 shift);
 u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg);
 void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value);
+u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg);
 int aq_hw_err_from_flags(struct aq_hw_s *hw);
 
 #endif /* AQ_HW_UTILS_H */

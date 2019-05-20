@@ -593,7 +593,7 @@ static int spidev_open(struct inode *inode, struct file *filp)
 
 	spidev->users++;
 	filp->private_data = spidev;
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 
 	mutex_unlock(&device_list_lock);
 	return 0;

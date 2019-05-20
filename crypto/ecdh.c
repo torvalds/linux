@@ -166,7 +166,7 @@ static void ecdh_exit(void)
 	crypto_unregister_kpp(&ecdh);
 }
 
-module_init(ecdh_init);
+subsys_initcall(ecdh_init);
 module_exit(ecdh_exit);
 MODULE_ALIAS_CRYPTO("ecdh");
 MODULE_LICENSE("GPL");

@@ -569,9 +569,9 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	ret = usb_submit_urb(oob_port->write_urb, GFP_ATOMIC);
 	if (ret == 0) {
 		oob_priv->dp_write_urb_in_use = 1;
-		port_priv->dp_modem_signals =
-			(port_priv->dp_modem_signals&~(TIOCM_DTR|TIOCM_RTS))
-			| (modem_signals&(TIOCM_DTR|TIOCM_RTS));
+		port_priv->dp_modem_signals &= ~(TIOCM_DTR | TIOCM_RTS);
+		port_priv->dp_modem_signals |=
+				modem_signals & (TIOCM_DTR | TIOCM_RTS);
 	}
 	spin_unlock(&port_priv->dp_port_lock);
 	spin_unlock_irqrestore(&oob_priv->dp_port_lock, flags);
@@ -740,9 +740,9 @@ static void digi_set_termios(struct tty_struct *tty,
 	/* set parity */
 	tty->termios.c_cflag &= ~CMSPAR;
 
-	if ((cflag&(PARENB|PARODD)) != (old_cflag&(PARENB|PARODD))) {
-		if (cflag&PARENB) {
-			if (cflag&PARODD)
+	if ((cflag & (PARENB | PARODD)) != (old_cflag & (PARENB | PARODD))) {
+		if (cflag & PARENB) {
+			if (cflag & PARODD)
 				arg = DIGI_PARITY_ODD;
 			else
 				arg = DIGI_PARITY_EVEN;
@@ -755,9 +755,9 @@ static void digi_set_termios(struct tty_struct *tty,
 		buf[i++] = 0;
 	}
 	/* set word size */
-	if ((cflag&CSIZE) != (old_cflag&CSIZE)) {
+	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
 		arg = -1;
-		switch (cflag&CSIZE) {
+		switch (cflag & CSIZE) {
 		case CS5: arg = DIGI_WORD_SIZE_5; break;
 		case CS6: arg = DIGI_WORD_SIZE_6; break;
 		case CS7: arg = DIGI_WORD_SIZE_7; break;
@@ -765,7 +765,7 @@ static void digi_set_termios(struct tty_struct *tty,
 		default:
 			dev_dbg(dev,
 				"digi_set_termios: can't handle word size %d\n",
-				(cflag&CSIZE));
+				cflag & CSIZE);
 			break;
 		}
 
@@ -779,9 +779,9 @@ static void digi_set_termios(struct tty_struct *tty,
 	}
 
 	/* set stop bits */
-	if ((cflag&CSTOPB) != (old_cflag&CSTOPB)) {
+	if ((cflag & CSTOPB) != (old_cflag & CSTOPB)) {
 
-		if ((cflag&CSTOPB))
+		if ((cflag & CSTOPB))
 			arg = DIGI_STOP_BITS_2;
 		else
 			arg = DIGI_STOP_BITS_1;
@@ -794,15 +794,15 @@ static void digi_set_termios(struct tty_struct *tty,
 	}
 
 	/* set input flow control */
-	if ((iflag&IXOFF) != (old_iflag&IXOFF)
-	    || (cflag&CRTSCTS) != (old_cflag&CRTSCTS)) {
+	if ((iflag & IXOFF) != (old_iflag & IXOFF) ||
+			(cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
 		arg = 0;
-		if (iflag&IXOFF)
+		if (iflag & IXOFF)
 			arg |= DIGI_INPUT_FLOW_CONTROL_XON_XOFF;
 		else
 			arg &= ~DIGI_INPUT_FLOW_CONTROL_XON_XOFF;
 
-		if (cflag&CRTSCTS) {
+		if (cflag & CRTSCTS) {
 			arg |= DIGI_INPUT_FLOW_CONTROL_RTS;
 
 			/* On USB-4 it is necessary to assert RTS prior */
@@ -822,19 +822,18 @@ static void digi_set_termios(struct tty_struct *tty,
 	}
 
 	/* set output flow control */
-	if ((iflag & IXON) != (old_iflag & IXON)
-	    || (cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
+	if ((iflag & IXON) != (old_iflag & IXON) ||
+			(cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
 		arg = 0;
 		if (iflag & IXON)
 			arg |= DIGI_OUTPUT_FLOW_CONTROL_XON_XOFF;
 		else
 			arg &= ~DIGI_OUTPUT_FLOW_CONTROL_XON_XOFF;
 
-		if (cflag & CRTSCTS) {
+		if (cflag & CRTSCTS)
 			arg |= DIGI_OUTPUT_FLOW_CONTROL_CTS;
-		} else {
+		else
 			arg &= ~DIGI_OUTPUT_FLOW_CONTROL_CTS;
-		}
 
 		buf[i++] = DIGI_CMD_SET_OUTPUT_FLOW_CONTROL;
 		buf[i++] = priv->dp_port_num;
@@ -1084,7 +1083,7 @@ static int digi_chars_in_buffer(struct tty_struct *tty)
 static void digi_dtr_rts(struct usb_serial_port *port, int on)
 {
 	/* Adjust DTR and RTS */
-	digi_set_modem_signals(port, on * (TIOCM_DTR|TIOCM_RTS), 1);
+	digi_set_modem_signals(port, on * (TIOCM_DTR | TIOCM_RTS), 1);
 }
 
 static int digi_open(struct tty_struct *tty, struct usb_serial_port *port)

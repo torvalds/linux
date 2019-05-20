@@ -158,14 +158,6 @@
 	status = "okay";
 };
 
-&pio {
-	usb0_id_det: usb0-id-detect-pin {
-		pins = "PD10";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-};
-
 &r_rsb {
 	status = "okay";
 
@@ -314,10 +306,8 @@
 
 &usbphy {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_det>;
 	usb0_vbus-supply = <&reg_drivevbus>;
-	usb0_id_det-gpios = <&pio 3 10 GPIO_ACTIVE_HIGH>; /* PD10 */
+	usb0_id_det-gpios = <&pio 3 10 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PD10 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 };

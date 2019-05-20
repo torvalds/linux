@@ -36,6 +36,7 @@ enum cld_command {
 	Cld_Remove,		/* remove record of this cm_id */
 	Cld_Check,		/* is this cm_id allowed? */
 	Cld_GraceDone,		/* grace period is complete */
+	Cld_GraceStart,
 };
 
 /* representation of long-form NFSv4 client ID */

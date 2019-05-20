@@ -950,8 +950,8 @@ cifs_unix_dfs_readlink(const unsigned int xid, struct cifs_tcon *tcon,
 
 static int
 cifs_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
-		   const char *full_path, char **target_path,
-		   struct cifs_sb_info *cifs_sb)
+		   struct cifs_sb_info *cifs_sb, const char *full_path,
+		   char **target_path, bool is_reparse_point)
 {
 	int rc;
 	int oplock = 0;
@@ -959,6 +959,11 @@ cifs_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 
 	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
+
+	if (is_reparse_point) {
+		cifs_dbg(VFS, "reparse points not handled for SMB1 symlinks\n");
+		return -EOPNOTSUPP;
+	}
 
 	/* Check for unix extensions */
 	if (cap_unix(tcon->ses)) {

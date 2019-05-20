@@ -160,7 +160,17 @@ nvkm_i2c_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
 	struct nvkm_i2c_pad *pad;
+	struct nvkm_i2c_bus *bus;
+	struct nvkm_i2c_aux *aux;
 	u32 mask;
+
+	list_for_each_entry(aux, &i2c->aux, head) {
+		nvkm_i2c_aux_fini(aux);
+	}
+
+	list_for_each_entry(bus, &i2c->bus, head) {
+		nvkm_i2c_bus_fini(bus);
+	}
 
 	if ((mask = (1 << i2c->func->aux) - 1), i2c->func->aux_stat) {
 		i2c->func->aux_mask(i2c, NVKM_I2C_ANY, mask, 0);
@@ -180,6 +190,7 @@ nvkm_i2c_init(struct nvkm_subdev *subdev)
 	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
 	struct nvkm_i2c_bus *bus;
 	struct nvkm_i2c_pad *pad;
+	struct nvkm_i2c_aux *aux;
 
 	list_for_each_entry(pad, &i2c->pad, head) {
 		nvkm_i2c_pad_init(pad);
@@ -187,6 +198,10 @@ nvkm_i2c_init(struct nvkm_subdev *subdev)
 
 	list_for_each_entry(bus, &i2c->bus, head) {
 		nvkm_i2c_bus_init(bus);
+	}
+
+	list_for_each_entry(aux, &i2c->aux, head) {
+		nvkm_i2c_aux_init(aux);
 	}
 
 	return 0;

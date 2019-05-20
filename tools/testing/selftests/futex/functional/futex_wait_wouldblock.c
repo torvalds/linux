@@ -65,6 +65,7 @@ int main(int argc, char *argv[])
 	}
 
 	ksft_print_header();
+	ksft_set_plan(1);
 	ksft_print_msg("%s: Test the unexpected futex value in FUTEX_WAIT\n",
 	       basename(argv[0]));
 

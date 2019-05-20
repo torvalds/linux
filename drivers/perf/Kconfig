@@ -52,6 +52,15 @@ config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
 
+config ARM_SMMU_V3_PMU
+	 tristate "ARM SMMUv3 Performance Monitors Extension"
+	 depends on ARM64 && ACPI && ARM_SMMU_V3
+	   help
+	   Provides support for the ARM SMMUv3 Performance Monitor Counter
+	   Groups (PMCG), which provide monitoring of transactions passing
+	   through the SMMU and allow the resulting information to be filtered
+	   based on the Stream ID of the corresponding master.
+
 config ARM_DSU_PMU
 	tristate "ARM DynamIQ Shared Unit (DSU) PMU"
 	depends on ARM64

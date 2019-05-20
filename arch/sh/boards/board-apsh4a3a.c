@@ -16,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <asm/machvec.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/clock.h>
 
 static struct mtd_partition nor_flash_partitions[] = {

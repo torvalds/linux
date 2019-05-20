@@ -101,7 +101,7 @@ static int watchdog_open(struct inode *inode, struct file *file)
 
 	ret = 0;
 #endif
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 	return ret;
 }
 

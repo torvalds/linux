@@ -160,7 +160,7 @@ static const struct dmi_system_id quark_pci_dmi[] = {
 		.driver_data = (void *)&galileo_stmmac_dmi_data,
 	},
 	/*
-	 * There are 2 types of SIMATIC IOT2000: IOT20202 and IOT2040.
+	 * There are 2 types of SIMATIC IOT2000: IOT2020 and IOT2040.
 	 * The asset tag "6ES7647-0AA00-0YA2" is only for IOT2020 which
 	 * has only one pci network device while other asset tags are
 	 * for IOT2040 which has two.
@@ -208,7 +208,7 @@ static int quark_default_data(struct pci_dev *pdev,
 		ret = 1;
 	}
 
-	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	plat->bus_id = pci_dev_id(pdev);
 	plat->phy_addr = ret;
 	plat->interface = PHY_INTERFACE_MODE_RMII;
 

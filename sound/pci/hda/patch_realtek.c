@@ -119,6 +119,7 @@ struct alc_spec {
 	unsigned int no_depop_delay:1;
 	unsigned int done_hp_init:1;
 	unsigned int no_shutup_pins:1;
+	unsigned int ultra_low_power:1;
 
 	/* for PLL fix */
 	hda_nid_t pll_nid;
@@ -477,12 +478,45 @@ static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
 		set_eapd(codec, *p, on);
 }
 
+static int find_ext_mic_pin(struct hda_codec *codec);
+
+static void alc_headset_mic_no_shutup(struct hda_codec *codec)
+{
+	const struct hda_pincfg *pin;
+	int mic_pin = find_ext_mic_pin(codec);
+	int i;
+
+	/* don't shut up pins when unloading the driver; otherwise it breaks
+	 * the default pin setup at the next load of the driver
+	 */
+	if (codec->bus->shutdown)
+		return;
+
+	snd_array_for_each(&codec->init_pins, i, pin) {
+		/* use read here for syncing after issuing each verb */
+		if (pin->nid != mic_pin)
+			snd_hda_codec_read(codec, pin->nid, 0,
+					AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
+	}
+
+	codec->pins_shutup = 1;
+}
+
 static void alc_shutup_pins(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->no_shutup_pins)
-		snd_hda_shutup_pins(codec);
+	switch (codec->core.vendor_id) {
+	case 0x10ec0286:
+	case 0x10ec0288:
+	case 0x10ec0298:
+		alc_headset_mic_no_shutup(codec);
+		break;
+	default:
+		if (!spec->no_shutup_pins)
+			snd_hda_shutup_pins(codec);
+		break;
+	}
 }
 
 /* generic shutup callback;
@@ -501,7 +535,6 @@ static void alc_eapd_shutup(struct hda_codec *codec)
 /* generic EAPD initialization */
 static void alc_auto_init_amp(struct hda_codec *codec, int type)
 {
-	alc_fill_eapd_coef(codec);
 	alc_auto_setup_eapd(codec, true);
 	alc_write_gpio(codec);
 	switch (type) {
@@ -796,17 +829,28 @@ static int alc_build_controls(struct hda_codec *codec)
  * Common callbacks
  */
 
+static void alc_pre_init(struct hda_codec *codec)
+{
+	alc_fill_eapd_coef(codec);
+}
+
+#define is_s4_resume(codec) \
+	((codec)->core.dev.power.power_state.event == PM_EVENT_RESTORE)
+
 static int alc_init(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
+	/* hibernation resume needs the full chip initialization */
+	if (is_s4_resume(codec))
+		alc_pre_init(codec);
+
 	if (spec->init_hook)
 		spec->init_hook(codec);
 
+	snd_hda_gen_init(codec);
 	alc_fix_pll(codec);
 	alc_auto_init_amp(codec, spec->init_amp);
-
-	snd_hda_gen_init(codec);
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_INIT);
 
@@ -1538,6 +1582,8 @@ static int patch_alc880(struct hda_codec *codec)
 
 	codec->patch_ops.unsol_event = alc880_unsol_event;
 
+	alc_pre_init(codec);
+
 	snd_hda_pick_fixup(codec, alc880_fixup_models, alc880_fixup_tbl,
 		       alc880_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -1788,6 +1834,8 @@ static int patch_alc260(struct hda_codec *codec)
 	spec->gen.beep_nid = 0x01;
 
 	spec->shutup = alc_eapd_shutup;
+
+	alc_pre_init(codec);
 
 	snd_hda_pick_fixup(codec, alc260_fixup_models, alc260_fixup_tbl,
 			   alc260_fixups);
@@ -2492,6 +2540,8 @@ static int patch_alc882(struct hda_codec *codec)
 		break;
 	}
 
+	alc_pre_init(codec);
+
 	snd_hda_pick_fixup(codec, alc882_fixup_models, alc882_fixup_tbl,
 		       alc882_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -2666,6 +2716,8 @@ static int patch_alc262(struct hda_codec *codec)
 #endif
 	alc_fix_pll_init(codec, 0x20, 0x0a, 10);
 
+	alc_pre_init(codec);
+
 	snd_hda_pick_fixup(codec, alc262_fixup_models, alc262_fixup_tbl,
 		       alc262_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -2810,6 +2862,8 @@ static int patch_alc268(struct hda_codec *codec)
 
 	spec->shutup = alc_eapd_shutup;
 
+	alc_pre_init(codec);
+
 	snd_hda_pick_fixup(codec, alc268_fixup_models, alc268_fixup_tbl, alc268_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
@@ -2922,27 +2976,6 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	}
 
 	return alc_parse_auto_config(codec, alc269_ignore, ssids);
-}
-
-static int find_ext_mic_pin(struct hda_codec *codec);
-
-static void alc286_shutup(struct hda_codec *codec)
-{
-	const struct hda_pincfg *pin;
-	int i;
-	int mic_pin = find_ext_mic_pin(codec);
-	/* don't shut up pins when unloading the driver; otherwise it breaks
-	 * the default pin setup at the next load of the driver
-	 */
-	if (codec->bus->shutdown)
-		return;
-	snd_array_for_each(&codec->init_pins, i, pin) {
-		/* use read here for syncing after issuing each verb */
-		if (pin->nid != mic_pin)
-			snd_hda_codec_read(codec, pin->nid, 0,
-					AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
-	}
-	codec->pins_shutup = 1;
 }
 
 static void alc269vb_toggle_power_output(struct hda_codec *codec, int power_up)
@@ -3197,7 +3230,7 @@ static void alc256_init(struct hda_codec *codec)
 	bool hp_pin_sense;
 
 	if (!hp_pin)
-		return;
+		hp_pin = 0x21;
 
 	msleep(30);
 
@@ -3207,17 +3240,25 @@ static void alc256_init(struct hda_codec *codec)
 		msleep(2);
 
 	alc_update_coefex_idx(codec, 0x57, 0x04, 0x0007, 0x1); /* Low power */
+	if (spec->ultra_low_power) {
+		alc_update_coef_idx(codec, 0x03, 1<<1, 1<<1);
+		alc_update_coef_idx(codec, 0x08, 3<<2, 3<<2);
+		alc_update_coef_idx(codec, 0x08, 7<<4, 0);
+		alc_update_coef_idx(codec, 0x3b, 1<<15, 0);
+		alc_update_coef_idx(codec, 0x0e, 7<<6, 7<<6);
+		msleep(30);
+	}
 
 	snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 
-	if (hp_pin_sense)
+	if (hp_pin_sense || spec->ultra_low_power)
 		msleep(85);
 
 	snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
 
-	if (hp_pin_sense)
+	if (hp_pin_sense || spec->ultra_low_power)
 		msleep(100);
 
 	alc_update_coef_idx(codec, 0x46, 3 << 12, 0);
@@ -3232,10 +3273,8 @@ static void alc256_shutup(struct hda_codec *codec)
 	hda_nid_t hp_pin = alc_get_hp_pin(spec);
 	bool hp_pin_sense;
 
-	if (!hp_pin) {
-		alc269_shutup(codec);
-		return;
-	}
+	if (!hp_pin)
+		hp_pin = 0x21;
 
 	hp_pin_sense = snd_hda_jack_detect(codec, hp_pin);
 
@@ -3245,7 +3284,7 @@ static void alc256_shutup(struct hda_codec *codec)
 	snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 
-	if (hp_pin_sense)
+	if (hp_pin_sense || spec->ultra_low_power)
 		msleep(85);
 
 	/* 3k pull low control for Headset jack. */
@@ -3256,11 +3295,20 @@ static void alc256_shutup(struct hda_codec *codec)
 		snd_hda_codec_write(codec, hp_pin, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 
-	if (hp_pin_sense)
+	if (hp_pin_sense || spec->ultra_low_power)
 		msleep(100);
 
 	alc_auto_setup_eapd(codec, false);
 	alc_shutup_pins(codec);
+	if (spec->ultra_low_power) {
+		msleep(50);
+		alc_update_coef_idx(codec, 0x03, 1<<1, 0);
+		alc_update_coef_idx(codec, 0x08, 7<<4, 7<<4);
+		alc_update_coef_idx(codec, 0x08, 3<<2, 0);
+		alc_update_coef_idx(codec, 0x3b, 1<<15, 1<<15);
+		alc_update_coef_idx(codec, 0x0e, 7<<6, 0);
+		msleep(30);
+	}
 }
 
 static void alc225_init(struct hda_codec *codec)
@@ -3270,8 +3318,7 @@ static void alc225_init(struct hda_codec *codec)
 	bool hp1_pin_sense, hp2_pin_sense;
 
 	if (!hp_pin)
-		return;
-
+		hp_pin = 0x21;
 	msleep(30);
 
 	hp1_pin_sense = snd_hda_jack_detect(codec, hp_pin);
@@ -3281,25 +3328,31 @@ static void alc225_init(struct hda_codec *codec)
 		msleep(2);
 
 	alc_update_coefex_idx(codec, 0x57, 0x04, 0x0007, 0x1); /* Low power */
+	if (spec->ultra_low_power) {
+		alc_update_coef_idx(codec, 0x08, 0x0f << 2, 3<<2);
+		alc_update_coef_idx(codec, 0x0e, 7<<6, 7<<6);
+		alc_update_coef_idx(codec, 0x33, 1<<11, 0);
+		msleep(30);
+	}
 
-	if (hp1_pin_sense)
+	if (hp1_pin_sense || spec->ultra_low_power)
 		snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 	if (hp2_pin_sense)
 		snd_hda_codec_write(codec, 0x16, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 
-	if (hp1_pin_sense || hp2_pin_sense)
+	if (hp1_pin_sense || hp2_pin_sense || spec->ultra_low_power)
 		msleep(85);
 
-	if (hp1_pin_sense)
+	if (hp1_pin_sense || spec->ultra_low_power)
 		snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
 	if (hp2_pin_sense)
 		snd_hda_codec_write(codec, 0x16, 0,
 			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
 
-	if (hp1_pin_sense || hp2_pin_sense)
+	if (hp1_pin_sense || hp2_pin_sense || spec->ultra_low_power)
 		msleep(100);
 
 	alc_update_coef_idx(codec, 0x4a, 3 << 10, 0);
@@ -3312,11 +3365,8 @@ static void alc225_shutup(struct hda_codec *codec)
 	hda_nid_t hp_pin = alc_get_hp_pin(spec);
 	bool hp1_pin_sense, hp2_pin_sense;
 
-	if (!hp_pin) {
-		alc269_shutup(codec);
-		return;
-	}
-
+	if (!hp_pin)
+		hp_pin = 0x21;
 	/* 3k pull low control for Headset jack. */
 	alc_update_coef_idx(codec, 0x4a, 0, 3 << 10);
 
@@ -3326,28 +3376,36 @@ static void alc225_shutup(struct hda_codec *codec)
 	if (hp1_pin_sense || hp2_pin_sense)
 		msleep(2);
 
-	if (hp1_pin_sense)
+	if (hp1_pin_sense || spec->ultra_low_power)
 		snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 	if (hp2_pin_sense)
 		snd_hda_codec_write(codec, 0x16, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 
-	if (hp1_pin_sense || hp2_pin_sense)
+	if (hp1_pin_sense || hp2_pin_sense || spec->ultra_low_power)
 		msleep(85);
 
-	if (hp1_pin_sense)
+	if (hp1_pin_sense || spec->ultra_low_power)
 		snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 	if (hp2_pin_sense)
 		snd_hda_codec_write(codec, 0x16, 0,
 			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
 
-	if (hp1_pin_sense || hp2_pin_sense)
+	if (hp1_pin_sense || hp2_pin_sense || spec->ultra_low_power)
 		msleep(100);
 
 	alc_auto_setup_eapd(codec, false);
 	alc_shutup_pins(codec);
+	if (spec->ultra_low_power) {
+		msleep(50);
+		alc_update_coef_idx(codec, 0x08, 0x0f << 2, 0x0c << 2);
+		alc_update_coef_idx(codec, 0x0e, 7<<6, 0);
+		alc_update_coef_idx(codec, 0x33, 1<<11, 1<<11);
+		alc_update_coef_idx(codec, 0x4a, 3<<4, 2<<4);
+		msleep(30);
+	}
 }
 
 static void alc_default_init(struct hda_codec *codec)
@@ -5450,6 +5508,8 @@ static void alc274_fixup_bind_dacs(struct hda_codec *codec,
 		return;
 
 	spec->gen.preferred_dacs = preferred_pairs;
+	spec->gen.auto_mute_via_amp = 1;
+	codec->power_save_node = 0;
 }
 
 /* The DAC of NID 0x3 will introduce click/pop noise on headphones, so invalidate it */
@@ -5525,7 +5585,12 @@ static void alc_fixup_headset_jack(struct hda_codec *codec,
 static void alc295_fixup_chromebook(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
+	struct alc_spec *spec = codec->spec;
+
 	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		spec->ultra_low_power = true;
+		break;
 	case HDA_FIXUP_ACT_INIT:
 		switch (codec->core.vendor_id) {
 		case 0x10ec0295:
@@ -6931,6 +6996,10 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1462, 0xb120, "MSI Cubi MS-B120", ALC283_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x1462, 0xb171, "Cubi N 8GL (MS-B171)", ALC283_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x1558, 0x1325, "System76 Darter Pro (darp5)", ALC293_FIXUP_SYSTEM76_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1558, 0x8550, "System76 Gazelle (gaze14)", ALC293_FIXUP_SYSTEM76_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1558, 0x8551, "System76 Gazelle (gaze14)", ALC293_FIXUP_SYSTEM76_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1558, 0x8560, "System76 Gazelle (gaze14)", ALC269_FIXUP_HEADSET_MIC),
+	SND_PCI_QUIRK(0x1558, 0x8561, "System76 Gazelle (gaze14)", ALC269_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x1036, "Lenovo P520", ALC233_FIXUP_LENOVO_MULTI_CODECS),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Thinkpad SL410/510", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x215e, "Thinkpad L512", ALC269_FIXUP_SKU_IGNORE),
@@ -6973,7 +7042,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x313c, "ThinkCentre Station", ALC294_FIXUP_LENOVO_MIC_LOCATION),
 	SND_PCI_QUIRK(0x17aa, 0x3902, "Lenovo E50-80", ALC269_FIXUP_DMIC_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "IdeaPad S210", ALC283_FIXUP_INT_MIC),
-	SND_PCI_QUIRK(0x17aa, 0x3978, "IdeaPad Y410P", ALC269_FIXUP_NO_SHUTUP),
+	SND_PCI_QUIRK(0x17aa, 0x3978, "Lenovo B50-70", ALC269_FIXUP_DMIC_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x17aa, 0x5013, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
 	SND_PCI_QUIRK(0x17aa, 0x501a, "Thinkpad", ALC283_FIXUP_INT_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x501e, "Thinkpad L440", ALC292_FIXUP_TPT440_DOCK),
@@ -7268,6 +7337,10 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x21, 0x02211020}),
 	SND_HDA_PIN_QUIRK(0x10ec0236, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
 		{0x21, 0x02211020}),
+	SND_HDA_PIN_QUIRK(0x10ec0236, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+		{0x12, 0x40000000},
+		{0x14, 0x90170110},
+		{0x21, 0x02211020}),
 	SND_HDA_PIN_QUIRK(0x10ec0255, 0x1028, "Dell", ALC255_FIXUP_DELL2_MIC_NO_PRESENCE,
 		{0x14, 0x90170110},
 		{0x21, 0x02211020}),
@@ -7541,6 +7614,13 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x12, 0x90a60130},
 		{0x17, 0x90170110},
 		{0x21, 0x04211020}),
+	SND_HDA_PIN_QUIRK(0x10ec0295, 0x1043, "ASUS", ALC294_FIXUP_ASUS_SPK,
+		{0x12, 0x90a60130},
+		{0x17, 0x90170110},
+		{0x21, 0x03211020}),
+	SND_HDA_PIN_QUIRK(0x10ec0295, 0x1028, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE,
+		{0x14, 0x90170110},
+		{0x21, 0x04211020}),
 	SND_HDA_PIN_QUIRK(0x10ec0295, 0x1028, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE,
 		ALC295_STANDARD_PINS,
 		{0x17, 0x21014020},
@@ -7691,7 +7771,6 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0286:
 	case 0x10ec0288:
 		spec->codec_variant = ALC269_TYPE_ALC286;
-		spec->shutup = alc286_shutup;
 		break;
 	case 0x10ec0298:
 		spec->codec_variant = ALC269_TYPE_ALC298;
@@ -7759,6 +7838,8 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->has_alc5505_dsp = 1;
 		spec->init_hook = alc5505_dsp_init;
 	}
+
+	alc_pre_init(codec);
 
 	snd_hda_pick_fixup(codec, alc269_fixup_models,
 		       alc269_fixup_tbl, alc269_fixups);
@@ -7902,6 +7983,8 @@ static int patch_alc861(struct hda_codec *codec)
 	spec->power_hook = alc_power_eapd;
 #endif
 
+	alc_pre_init(codec);
+
 	snd_hda_pick_fixup(codec, NULL, alc861_fixup_tbl, alc861_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
@@ -7998,6 +8081,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->gen.beep_nid = 0x23;
 
 	spec->shutup = alc_eapd_shutup;
+
+	alc_pre_init(codec);
 
 	snd_hda_pick_fixup(codec, NULL, alc861vd_fixup_tbl, alc861vd_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -8733,6 +8818,8 @@ static int patch_alc662(struct hda_codec *codec)
 		spec->init_hook = alc668_restore_default_value;
 		break;
 	}
+
+	alc_pre_init(codec);
 
 	snd_hda_pick_fixup(codec, alc662_fixup_models,
 		       alc662_fixup_tbl, alc662_fixups);

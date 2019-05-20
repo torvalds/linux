@@ -102,4 +102,3 @@
 #define DMA_MACRO_RAZWI_HBW_RD_ID_R_MASK                             0x1FFFFFFF
 
 #endif /* ASIC_REG_DMA_MACRO_MASKS_H_ */
-

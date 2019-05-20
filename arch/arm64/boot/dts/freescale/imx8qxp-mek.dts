@@ -60,6 +60,82 @@
 	};
 };
 
+&adma_i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpi2c1 &pinctrl_ioexp_rst>;
+	status = "okay";
+
+	i2c-switch@71 {
+		compatible = "nxp,pca9646", "nxp,pca9546";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x71>;
+		reset-gpios = <&lsio_gpio1 1 GPIO_ACTIVE_LOW>;
+
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			max7322: gpio@68 {
+				compatible = "maxim,max7322";
+				reg = <0x68>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+		};
+
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			pressure-sensor@60 {
+				compatible = "fsl,mpl3115";
+				reg = <0x60>;
+			};
+		};
+
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			pca9557_a: gpio@1a {
+				compatible = "nxp,pca9557";
+				reg = <0x1a>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			pca9557_b: gpio@1d {
+				compatible = "nxp,pca9557";
+				reg = <0x1d>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			light-sensor@44 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_isl29023>;
+				compatible = "isil,isl29023";
+				reg = <0x44>;
+				interrupt-parent = <&lsio_gpio1>;
+				interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+			};
+		};
+	};
+};
+
 &usdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
@@ -97,6 +173,25 @@
 			IMX8QXP_ENET0_RGMII_RXD1_CONN_ENET0_RGMII_RXD1		0x06000020
 			IMX8QXP_ENET0_RGMII_RXD2_CONN_ENET0_RGMII_RXD2		0x06000020
 			IMX8QXP_ENET0_RGMII_RXD3_CONN_ENET0_RGMII_RXD3		0x06000020
+		>;
+	};
+
+	pinctrl_ioexp_rst: ioexp_rst_grp {
+		fsl,pins = <
+			IMX8QXP_SPI2_SDO_LSIO_GPIO1_IO01			0x06000021
+		>;
+	};
+
+	pinctrl_isl29023: isl29023grp {
+		fsl,pins = <
+			IMX8QXP_SPI2_SDI_LSIO_GPIO1_IO02			0x00000021
+		>;
+	};
+
+	pinctrl_lpi2c1: lpi2c1grp {
+		fsl,pins = <
+			IMX8QXP_USB_SS3_TC1_ADMA_I2C1_SCL			0x06000021
+			IMX8QXP_USB_SS3_TC3_ADMA_I2C1_SDA			0x06000021
 		>;
 	};
 

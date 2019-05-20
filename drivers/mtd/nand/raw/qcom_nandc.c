@@ -1680,14 +1680,12 @@ check_for_erased_page(struct qcom_nand_host *host, u8 *data_buf,
 	u8 *cw_data_buf, *cw_oob_buf;
 	int cw, data_size, oob_size, ret = 0;
 
-	if (!data_buf) {
-		data_buf = chip->data_buf;
-		chip->pagebuf = -1;
-	}
+	if (!data_buf)
+		data_buf = nand_get_data_buf(chip);
 
 	if (!oob_buf) {
+		nand_get_data_buf(chip);
 		oob_buf = chip->oob_poi;
-		chip->pagebuf = -1;
 	}
 
 	for_each_set_bit(cw, &uncorrectable_cws, ecc->steps) {

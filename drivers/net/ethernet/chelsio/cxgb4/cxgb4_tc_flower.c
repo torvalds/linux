@@ -687,11 +687,8 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 
 	ret = ctx.result;
 	/* Check if hw returned error for filter creation */
-	if (ret) {
-		netdev_err(dev, "%s: filter creation err %d\n",
-			   __func__, ret);
+	if (ret)
 		goto free_entry;
-	}
 
 	ch_flower->tc_flower_cookie = cls->cookie;
 	ch_flower->filter_id = ctx.tid;

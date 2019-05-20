@@ -74,6 +74,10 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 
 	ACPI_FUNCTION_NAME(ns_delete_node);
 
+	if (!node) {
+		return_VOID;
+	}
+
 	/* Detach an object if there is one */
 
 	acpi_ns_detach_object(node);

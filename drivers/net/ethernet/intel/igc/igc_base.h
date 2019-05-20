@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c)  2018 Intel Corporation */
 
-#ifndef _IGC_BASE_H
-#define _IGC_BASE_H
+#ifndef _IGC_BASE_H_
+#define _IGC_BASE_H_
 
 /* forward declaration */
 void igc_rx_fifo_flush_base(struct igc_hw *hw);

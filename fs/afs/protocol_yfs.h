@@ -31,9 +31,9 @@ enum YFS_CM_Operations {
 };
 
 enum YFS_FS_Operations {
-	YFSFETCHACL		= 64131, /* YFS Fetch file ACL */
+	YFSFETCHACL		= 64131, /* YFS Fetch file AFS3 ACL */
 	YFSFETCHSTATUS		= 64132, /* YFS Fetch file status */
-	YFSSTOREACL		= 64134, /* YFS Store file ACL */
+	YFSSTOREACL		= 64134, /* YFS Store file AFS3 ACL */
 	YFSSTORESTATUS		= 64135, /* YFS Store file status */
 	YFSREMOVEFILE		= 64136, /* YFS Remove a file */
 	YFSCREATEFILE		= 64137, /* YFS Create a file */
@@ -49,7 +49,7 @@ enum YFS_FS_Operations {
 	YFSRELEASELOCK		= 64158, /* YFS Release a file lock */
 	YFSLOOKUP		= 64161, /* YFS lookup file in directory */
 	YFSFLUSHCPS		= 64165,
-	YFSFETCHOPAQUEACL	= 64168,
+	YFSFETCHOPAQUEACL	= 64168, /* YFS Fetch file YFS ACL */
 	YFSWHOAMI		= 64170,
 	YFSREMOVEACL		= 64171,
 	YFSREMOVEFILE2		= 64173,

@@ -46,7 +46,6 @@ static int read_i2c_reg(void __iomem *addr, u8 index, u8 *data)
 	u32 tmp = index;
 
 	iowrite32((tmp << 17) | IIC_READ, addr + IIC_CSR2);
-	mmiowb();
 	udelay(45); /* wait at least 43 usec for NEW_CYCLE to clear */
 	if (ioread32(addr + IIC_CSR2) & NEW_CYCLE)
 		return -EIO; /* error: NEW_CYCLE not cleared */
@@ -77,7 +76,6 @@ static int write_i2c_reg(void __iomem *addr, u8 index, u8 data)
 	u32 tmp = index;
 
 	iowrite32((tmp << 17) | IIC_WRITE | data, addr + IIC_CSR2);
-	mmiowb();
 	udelay(65); /* wait at least 63 usec for NEW_CYCLE to clear */
 	if (ioread32(addr + IIC_CSR2) & NEW_CYCLE)
 		return -EIO; /* error: NEW_CYCLE not cleared */
@@ -104,7 +102,6 @@ static void write_i2c_reg_nowait(void __iomem *addr, u8 index, u8 data)
 	u32 tmp = index;
 
 	iowrite32((tmp << 17) | IIC_WRITE | data, addr + IIC_CSR2);
-	mmiowb();
 }
 
 /**
@@ -264,7 +261,6 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 						FLD_DN_ODD | FLD_DN_EVEN |
 						CAP_CONT_EVEN | CAP_CONT_ODD,
 							ipd->regs + CSR1);
-		mmiowb();
 	}
 
 	spin_lock(&ipd->lock);
@@ -282,7 +278,6 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 		iowrite32(dma_addr + ipd->width, ipd->regs + ODD_DMA_START);
 		iowrite32(ipd->width, ipd->regs + EVEN_DMA_STRIDE);
 		iowrite32(ipd->width, ipd->regs + ODD_DMA_STRIDE);
-		mmiowb();
 	}
 
 	/* enable interrupts, clear all irq flags */
@@ -437,12 +432,10 @@ static int dt3155_init_board(struct dt3155_priv *pd)
 	/*  resetting the adapter  */
 	iowrite32(ADDR_ERR_ODD | ADDR_ERR_EVEN | FLD_CRPT_ODD | FLD_CRPT_EVEN |
 			FLD_DN_ODD | FLD_DN_EVEN, pd->regs + CSR1);
-	mmiowb();
 	msleep(20);
 
 	/*  initializing adapter registers  */
 	iowrite32(FIFO_EN | SRST, pd->regs + CSR1);
-	mmiowb();
 	iowrite32(0xEEEEEE01, pd->regs + EVEN_PIXEL_FMT);
 	iowrite32(0xEEEEEE01, pd->regs + ODD_PIXEL_FMT);
 	iowrite32(0x00000020, pd->regs + FIFO_TRIGER);
@@ -454,7 +447,6 @@ static int dt3155_init_board(struct dt3155_priv *pd)
 	iowrite32(0, pd->regs + MASK_LENGTH);
 	iowrite32(0x0005007C, pd->regs + FIFO_FLAG_CNT);
 	iowrite32(0x01010101, pd->regs + IIC_CLK_DUR);
-	mmiowb();
 
 	/* verifying that we have a DT3155 board (not just a SAA7116 chip) */
 	read_i2c_reg(pd->regs, DT_ID, &tmp);

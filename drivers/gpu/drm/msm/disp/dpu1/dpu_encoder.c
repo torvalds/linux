@@ -69,6 +69,9 @@
 
 #define MAX_VDISPLAY_SPLIT 1080
 
+/* timeout in frames waiting for frame done */
+#define DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES 5
+
 /**
  * enum dpu_enc_rc_events - events for resource control state machine
  * @DPU_ENC_RC_EVENT_KICKOFF:
@@ -158,7 +161,7 @@ enum dpu_enc_rc_states {
  *				Bit0 = phys_encs[0] etc.
  * @crtc_frame_event_cb:	callback handler for frame event
  * @crtc_frame_event_cb_data:	callback handler private data
- * @frame_done_timeout:		frame done timeout in Hz
+ * @frame_done_timeout_ms:	frame done timeout in ms
  * @frame_done_timer:		watchdog timer for frame done event
  * @vsync_event_timer:		vsync timer
  * @disp_info:			local copy of msm_display_info struct
@@ -196,7 +199,7 @@ struct dpu_encoder_virt {
 	void (*crtc_frame_event_cb)(void *, u32 event);
 	void *crtc_frame_event_cb_data;
 
-	atomic_t frame_done_timeout;
+	atomic_t frame_done_timeout_ms;
 	struct timer_list frame_done_timer;
 	struct timer_list vsync_event_timer;
 
@@ -520,8 +523,8 @@ static void _dpu_encoder_adjust_mode(struct drm_connector *connector,
 
 	list_for_each_entry(cur_mode, &connector->modes, head) {
 		if (cur_mode->vdisplay == adj_mode->vdisplay &&
-			cur_mode->hdisplay == adj_mode->hdisplay &&
-			cur_mode->vrefresh == adj_mode->vrefresh) {
+		    cur_mode->hdisplay == adj_mode->hdisplay &&
+		    drm_mode_vrefresh(cur_mode) == drm_mode_vrefresh(adj_mode)) {
 			adj_mode->private = cur_mode->private;
 			adj_mode->private_flags |= cur_mode->private_flags;
 		}
@@ -959,10 +962,14 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct dpu_kms *dpu_kms;
 	struct list_head *connector_list;
 	struct drm_connector *conn = NULL, *conn_iter;
-	struct dpu_rm_hw_iter pp_iter, ctl_iter;
+	struct drm_crtc *drm_crtc;
+	struct dpu_crtc_state *cstate;
+	struct dpu_rm_hw_iter hw_iter;
 	struct msm_display_topology topology;
 	struct dpu_hw_ctl *hw_ctl[MAX_CHANNELS_PER_ENC] = { NULL };
-	int i = 0, ret;
+	struct dpu_hw_mixer *hw_lm[MAX_CHANNELS_PER_ENC] = { NULL };
+	int num_lm = 0, num_ctl = 0;
+	int i, j, ret;
 
 	if (!drm_enc) {
 		DPU_ERROR("invalid encoder\n");
@@ -990,10 +997,14 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		return;
 	}
 
+	drm_for_each_crtc(drm_crtc, drm_enc->dev)
+		if (drm_crtc->state->encoder_mask & drm_encoder_mask(drm_enc))
+			break;
+
 	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode);
 
 	/* Reserve dynamic resources now. Indicating non-AtomicTest phase */
-	ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, drm_enc->crtc->state,
+	ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, drm_crtc->state,
 			     topology, false);
 	if (ret) {
 		DPU_ERROR_ENC(dpu_enc,
@@ -1001,20 +1012,40 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		return;
 	}
 
-	dpu_rm_init_hw_iter(&pp_iter, drm_enc->base.id, DPU_HW_BLK_PINGPONG);
+	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_PINGPONG);
 	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
 		dpu_enc->hw_pp[i] = NULL;
-		if (!dpu_rm_get_hw(&dpu_kms->rm, &pp_iter))
+		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
 			break;
-		dpu_enc->hw_pp[i] = (struct dpu_hw_pingpong *) pp_iter.hw;
+		dpu_enc->hw_pp[i] = (struct dpu_hw_pingpong *) hw_iter.hw;
 	}
 
-	dpu_rm_init_hw_iter(&ctl_iter, drm_enc->base.id, DPU_HW_BLK_CTL);
+	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_CTL);
 	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
-		if (!dpu_rm_get_hw(&dpu_kms->rm, &ctl_iter))
+		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
 			break;
-		hw_ctl[i] = (struct dpu_hw_ctl *)ctl_iter.hw;
+		hw_ctl[i] = (struct dpu_hw_ctl *)hw_iter.hw;
+		num_ctl++;
 	}
+
+	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_LM);
+	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
+		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
+			break;
+		hw_lm[i] = (struct dpu_hw_mixer *)hw_iter.hw;
+		num_lm++;
+	}
+
+	cstate = to_dpu_crtc_state(drm_crtc->state);
+
+	for (i = 0; i < num_lm; i++) {
+		int ctl_idx = (i < num_ctl) ? i : (num_ctl-1);
+
+		cstate->mixers[i].hw_lm = hw_lm[i];
+		cstate->mixers[i].lm_ctl = hw_ctl[ctl_idx];
+	}
+
+	cstate->num_mixers = num_lm;
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
@@ -1023,17 +1054,37 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 			if (!dpu_enc->hw_pp[i]) {
 				DPU_ERROR_ENC(dpu_enc, "no pp block assigned"
 					     "at idx: %d\n", i);
-				return;
+				goto error;
 			}
 
 			if (!hw_ctl[i]) {
 				DPU_ERROR_ENC(dpu_enc, "no ctl block assigned"
 					     "at idx: %d\n", i);
-				return;
+				goto error;
 			}
 
 			phys->hw_pp = dpu_enc->hw_pp[i];
 			phys->hw_ctl = hw_ctl[i];
+
+			dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id,
+					    DPU_HW_BLK_INTF);
+			for (j = 0; j < MAX_CHANNELS_PER_ENC; j++) {
+				struct dpu_hw_intf *hw_intf;
+
+				if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
+					break;
+
+				hw_intf = (struct dpu_hw_intf *)hw_iter.hw;
+				if (hw_intf->idx == phys->intf_idx)
+					phys->hw_intf = hw_intf;
+			}
+
+			if (!phys->hw_intf) {
+				DPU_ERROR_ENC(dpu_enc,
+					      "no intf block assigned at idx: %d\n",
+					      i);
+				goto error;
+			}
 
 			phys->connector = conn->state->connector;
 			if (phys->ops.mode_set)
@@ -1042,6 +1093,9 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	}
 
 	dpu_enc->mode_set_complete = true;
+
+error:
+	dpu_rm_release(&dpu_kms->rm, drm_enc);
 }
 
 static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
@@ -1182,7 +1236,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	}
 
 	/* after phys waits for frame-done, should be no more frames pending */
-	if (atomic_xchg(&dpu_enc->frame_done_timeout, 0)) {
+	if (atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {
 		DPU_ERROR("enc%d timeout pending\n", drm_enc->base.id);
 		del_timer_sync(&dpu_enc->frame_done_timer);
 	}
@@ -1339,7 +1393,7 @@ static void dpu_encoder_frame_done_callback(
 		}
 
 		if (!dpu_enc->frame_busy_mask[0]) {
-			atomic_set(&dpu_enc->frame_done_timeout, 0);
+			atomic_set(&dpu_enc->frame_done_timeout_ms, 0);
 			del_timer(&dpu_enc->frame_done_timer);
 
 			dpu_encoder_resource_control(drm_enc,
@@ -1547,8 +1601,14 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc,
 		if (!ctl)
 			continue;
 
-		if (phys->split_role != ENC_ROLE_SLAVE)
+		/*
+		 * This is cleared in frame_done worker, which isn't invoked
+		 * for async commits. So don't set this for async, since it'll
+		 * roll over to the next commit.
+		 */
+		if (!async && phys->split_role != ENC_ROLE_SLAVE)
 			set_bit(i, dpu_enc->frame_busy_mask);
+
 		if (!phys->ops.needs_single_flush ||
 				!phys->ops.needs_single_flush(phys))
 			_dpu_encoder_trigger_flush(&dpu_enc->base, phys, 0x0,
@@ -1800,11 +1860,20 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 
 	trace_dpu_enc_kickoff(DRMID(drm_enc));
 
-	atomic_set(&dpu_enc->frame_done_timeout,
-			DPU_FRAME_DONE_TIMEOUT * 1000 /
-			drm_enc->crtc->state->adjusted_mode.vrefresh);
-	mod_timer(&dpu_enc->frame_done_timer, jiffies +
-		((atomic_read(&dpu_enc->frame_done_timeout) * HZ) / 1000));
+	/*
+	 * Asynchronous frames don't handle FRAME_DONE events. As such, they
+	 * shouldn't enable the frame_done watchdog since it will always time
+	 * out.
+	 */
+	if (!async) {
+		unsigned long timeout_ms;
+		timeout_ms = DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES * 1000 /
+			drm_mode_vrefresh(&drm_enc->crtc->state->adjusted_mode);
+
+		atomic_set(&dpu_enc->frame_done_timeout_ms, timeout_ms);
+		mod_timer(&dpu_enc->frame_done_timer,
+			  jiffies + msecs_to_jiffies(timeout_ms));
+	}
 
 	/* All phys encs are ready to go, trigger the kickoff */
 	_dpu_encoder_kickoff_phys(dpu_enc, async);
@@ -2124,7 +2193,7 @@ static void dpu_encoder_frame_done_timeout(struct timer_list *t)
 		DRM_DEBUG_KMS("id:%u invalid timeout frame_busy_mask=%lu\n",
 			      DRMID(drm_enc), dpu_enc->frame_busy_mask[0]);
 		return;
-	} else if (!atomic_xchg(&dpu_enc->frame_done_timeout, 0)) {
+	} else if (!atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {
 		DRM_DEBUG_KMS("id:%u invalid timeout\n", DRMID(drm_enc));
 		return;
 	}
@@ -2170,7 +2239,7 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 
 	spin_lock_init(&dpu_enc->enc_spinlock);
 
-	atomic_set(&dpu_enc->frame_done_timeout, 0);
+	atomic_set(&dpu_enc->frame_done_timeout_ms, 0);
 	timer_setup(&dpu_enc->frame_done_timer,
 			dpu_encoder_frame_done_timeout, 0);
 

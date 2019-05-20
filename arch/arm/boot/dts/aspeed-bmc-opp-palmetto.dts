@@ -32,9 +32,9 @@
 			no-map;
 		};
 
-		flash_memory: region@98000000 {
+		flash_memory: region@5c000000 {
 			no-map;
-			reg = <0x98000000 0x01000000>; /* 16MB */
+			reg = <0x5C000000 0x02000000>; /* 32MB */
 		};
 	};
 

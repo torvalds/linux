@@ -360,6 +360,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	case  NLP_STE_NPR_NODE:
 		if (!(ndlp->nlp_flag & NLP_NPR_ADISC))
 			break;
+		/* fall through */
 	case  NLP_STE_REG_LOGIN_ISSUE:
 	case  NLP_STE_PRLI_ISSUE:
 	case  NLP_STE_UNMAPPED_NODE:
@@ -870,7 +871,7 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * This function will send a unreg_login mailbox command to the firmware
  * to release a rpi.
  **/
-void
+static void
 lpfc_release_rpi(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		 struct lpfc_nodelist *ndlp, uint16_t rpi)
 {
@@ -1732,7 +1733,6 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
 	MAILBOX_t *mb = &pmb->u.mb;
 	uint32_t did  = mb->un.varWords[1];
-	int rc = 0;
 
 	if (mb->mbxStatus) {
 		/* RegLogin failed */
@@ -1805,8 +1805,8 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 			 * GFT_ID to determine if remote port supports NVME.
 			 */
 			if (vport->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
-				rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
-						 0, ndlp->nlp_DID);
+				lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID, 0,
+					    ndlp->nlp_DID);
 				return ndlp->nlp_state;
 			}
 			ndlp->nlp_fc4_type = NLP_FC4_FCP;

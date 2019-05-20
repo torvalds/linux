@@ -1368,8 +1368,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		const char *macaddr = of_get_mac_address(np);
-		if (macaddr)
-			memcpy(ndev->dev_addr, macaddr, ETH_ALEN);
+		if (!IS_ERR(macaddr))
+			ether_addr_copy(ndev->dev_addr, macaddr);
 	}
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);

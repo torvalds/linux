@@ -38,6 +38,7 @@
 #include "scrub/trace.h"
 #include "scrub/btree.h"
 #include "scrub/repair.h"
+#include "scrub/health.h"
 
 /* Common code for the metadata scrubbers. */
 
@@ -206,6 +207,15 @@ xchk_ino_set_preen(
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
 	trace_xchk_ino_preen(sc, ino, __return_address);
+}
+
+/* Record something being wrong with the filesystem primary superblock. */
+void
+xchk_set_corrupt(
+	struct xfs_scrub	*sc)
+{
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+	trace_xchk_fs_error(sc, 0, __return_address);
 }
 
 /* Record a corrupt block. */
@@ -458,13 +468,18 @@ xchk_ag_btcur_init(
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agnumber_t		agno = sa->agno;
 
-	if (sa->agf_bp) {
+	xchk_perag_get(sc->mp, sa);
+	if (sa->agf_bp &&
+	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
 		/* Set up a bnobt cursor for cross-referencing. */
 		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				agno, XFS_BTNUM_BNO);
 		if (!sa->bno_cur)
 			goto err;
+	}
 
+	if (sa->agf_bp &&
+	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_CNT)) {
 		/* Set up a cntbt cursor for cross-referencing. */
 		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				agno, XFS_BTNUM_CNT);
@@ -473,7 +488,8 @@ xchk_ag_btcur_init(
 	}
 
 	/* Set up a inobt cursor for cross-referencing. */
-	if (sa->agi_bp) {
+	if (sa->agi_bp &&
+	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
 		sa->ino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
 					agno, XFS_BTNUM_INO);
 		if (!sa->ino_cur)
@@ -481,7 +497,8 @@ xchk_ag_btcur_init(
 	}
 
 	/* Set up a finobt cursor for cross-referencing. */
-	if (sa->agi_bp && xfs_sb_version_hasfinobt(&mp->m_sb)) {
+	if (sa->agi_bp && xfs_sb_version_hasfinobt(&mp->m_sb) &&
+	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
 		sa->fino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
 				agno, XFS_BTNUM_FINO);
 		if (!sa->fino_cur)
@@ -489,7 +506,8 @@ xchk_ag_btcur_init(
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_sb_version_hasrmapbt(&mp->m_sb)) {
+	if (sa->agf_bp && xfs_sb_version_hasrmapbt(&mp->m_sb) &&
+	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_RMAP)) {
 		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				agno);
 		if (!sa->rmap_cur)
@@ -497,7 +515,8 @@ xchk_ag_btcur_init(
 	}
 
 	/* Set up a refcountbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (sa->agf_bp && xfs_sb_version_hasreflink(&mp->m_sb) &&
+	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_REFC)) {
 		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
 				sa->agf_bp, agno);
 		if (!sa->refc_cur)
@@ -883,4 +902,22 @@ xchk_ilock_inverted(
 		delay(1);
 	}
 	return -EDEADLOCK;
+}
+
+/* Pause background reaping of resources. */
+void
+xchk_stop_reaping(
+	struct xfs_scrub	*sc)
+{
+	sc->flags |= XCHK_REAPING_DISABLED;
+	xfs_stop_block_reaping(sc->mp);
+}
+
+/* Restart background reaping of resources. */
+void
+xchk_start_reaping(
+	struct xfs_scrub	*sc)
+{
+	xfs_start_block_reaping(sc->mp);
+	sc->flags &= ~XCHK_REAPING_DISABLED;
 }
