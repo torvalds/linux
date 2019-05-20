@@ -153,7 +153,6 @@ config USB_ETH_EEM
        depends on USB_ETH
 	select USB_LIBCOMPOSITE
 	select USB_F_EEM
-       default n
        help
          CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
          and therefore can be supported by more hardware.  Technically ECM and
@@ -419,7 +418,6 @@ config USB_G_MULTI_RNDIS
 config USB_G_MULTI_CDC
 	bool "CDC Ethernet + CDC Serial + Storage configuration"
 	depends on USB_G_MULTI
-	default n
 	select USB_F_ECM
 	help
 	  This option enables a configuration with CDC Ethernet (ECM), CDC

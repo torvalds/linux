@@ -58,7 +58,6 @@ config USB_DWC2_PCI
 	tristate "DWC2 PCI"
 	depends on USB_PCI
 	depends on USB_GADGET || !USB_GADGET
-	default n
 	select NOP_USB_XCEIV
 	help
 	  The Designware USB2.0 PCI interface module for controllers
