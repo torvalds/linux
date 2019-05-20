@@ -205,9 +205,9 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		}
 		insert_mmap(ucontext, mm);
 	}
-	pr_debug("created cqid 0x%0x chp %p size 0x%0x, dma_addr 0x%0llx\n",
+	pr_debug("created cqid 0x%0x chp %p size 0x%0x, dma_addr %pad\n",
 		 chp->cq.cqid, chp, (1 << chp->cq.size_log2),
-		 (unsigned long long)chp->cq.dma_addr);
+		 &chp->cq.dma_addr);
 	return &chp->ibcq;
 }
 
@@ -919,10 +919,11 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		insert_mmap(ucontext, mm2);
 	}
 	qhp->ibqp.qp_num = qhp->wq.qpid;
-	pr_debug("%s sq_num_entries %d, rq_num_entries %d qpid 0x%0x qhp %p dma_addr 0x%llx size %d rq_addr 0x%x\n",
-		 __func__, qhp->attr.sq_num_entries, qhp->attr.rq_num_entries,
-		 qhp->wq.qpid, qhp, (unsigned long long)qhp->wq.dma_addr,
-		 1 << qhp->wq.size_log2, qhp->wq.rq_addr);
+	pr_debug(
+		"%s sq_num_entries %d, rq_num_entries %d qpid 0x%0x qhp %p dma_addr %pad size %d rq_addr 0x%x\n",
+		__func__, qhp->attr.sq_num_entries, qhp->attr.rq_num_entries,
+		qhp->wq.qpid, qhp, &qhp->wq.dma_addr, 1 << qhp->wq.size_log2,
+		qhp->wq.rq_addr);
 	return &qhp->ibqp;
 }
 

@@ -565,9 +565,9 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
 	wqe->ctx1 = cpu_to_be64(ctx1);
 	wqe->ctx0 = cpu_to_be64(ctx0);
-	pr_debug("CtrlQP dma_addr 0x%llx workq %p size %d\n",
-		 (unsigned long long)rdev_p->ctrl_qp.dma_addr,
-		 rdev_p->ctrl_qp.workq, 1 << T3_CTRL_QP_SIZE_LOG2);
+	pr_debug("CtrlQP dma_addr %pad workq %p size %d\n",
+		 &rdev_p->ctrl_qp.dma_addr, rdev_p->ctrl_qp.workq,
+		 1 << T3_CTRL_QP_SIZE_LOG2);
 	skb->priority = CPL_PRIORITY_CONTROL;
 	return iwch_cxgb3_ofld_send(rdev_p->t3cdev_p, skb);
 err:
