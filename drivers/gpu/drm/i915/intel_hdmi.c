@@ -2704,6 +2704,36 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder,
 	chv_phy_release_cl2_override(encoder);
 }
 
+static struct i2c_adapter *
+intel_hdmi_get_i2c_adapter(struct drm_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+
+	return intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
+}
+
+static void intel_hdmi_create_i2c_symlink(struct drm_connector *connector)
+{
+	struct i2c_adapter *adapter = intel_hdmi_get_i2c_adapter(connector);
+	struct kobject *i2c_kobj = &adapter->dev.kobj;
+	struct kobject *connector_kobj = &connector->kdev->kobj;
+	int ret;
+
+	ret = sysfs_create_link(connector_kobj, i2c_kobj, i2c_kobj->name);
+	if (ret)
+		DRM_ERROR("Failed to create i2c symlink (%d)\n", ret);
+}
+
+static void intel_hdmi_remove_i2c_symlink(struct drm_connector *connector)
+{
+	struct i2c_adapter *adapter = intel_hdmi_get_i2c_adapter(connector);
+	struct kobject *i2c_kobj = &adapter->dev.kobj;
+	struct kobject *connector_kobj = &connector->kdev->kobj;
+
+	sysfs_remove_link(connector_kobj, i2c_kobj->name);
+}
+
 static int
 intel_hdmi_connector_register(struct drm_connector *connector)
 {
@@ -2714,6 +2744,8 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 		return ret;
 
 	i915_debugfs_connector_add(connector);
+
+	intel_hdmi_create_i2c_symlink(connector);
 
 	return ret;
 }
@@ -2726,6 +2758,13 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 	intel_connector_destroy(connector);
 }
 
+static void intel_hdmi_connector_unregister(struct drm_connector *connector)
+{
+	intel_hdmi_remove_i2c_symlink(connector);
+
+	intel_connector_unregister(connector);
+}
+
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.detect = intel_hdmi_detect,
 	.force = intel_hdmi_force,
@@ -2733,7 +2772,7 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_hdmi_connector_register,
-	.early_unregister = intel_connector_unregister,
+	.early_unregister = intel_hdmi_connector_unregister,
 	.destroy = intel_hdmi_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
