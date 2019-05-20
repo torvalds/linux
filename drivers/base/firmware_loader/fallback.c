@@ -222,7 +222,7 @@ static ssize_t firmware_loading_show(struct device *dev,
 /* one pages buffer should be mapped/unmapped only once */
 static int map_fw_priv_pages(struct fw_priv *fw_priv)
 {
-	if (!fw_priv->is_paged_buf)
+	if (!fw_priv->pages)
 		return 0;
 
 	vunmap(fw_priv->data);
@@ -230,6 +230,11 @@ static int map_fw_priv_pages(struct fw_priv *fw_priv)
 			     PAGE_KERNEL_RO);
 	if (!fw_priv->data)
 		return -ENOMEM;
+
+	/* page table is no longer needed after mapping, let's free */
+	vfree(fw_priv->pages);
+	fw_priv->pages = NULL;
+
 	return 0;
 }
 

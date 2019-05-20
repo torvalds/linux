@@ -252,13 +252,13 @@ static void __free_fw_priv(struct kref *ref)
 	spin_unlock(&fwc->lock);
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
-	if (fw_priv->is_paged_buf) {
+	if (fw_priv->pages) {
+		/* free leftover pages */
 		int i;
-		vunmap(fw_priv->data);
 		for (i = 0; i < fw_priv->nr_pages; i++)
 			__free_page(fw_priv->pages[i]);
 		vfree(fw_priv->pages);
-	} else
+	}
 #endif
 	if (!fw_priv->allocated_size)
 		vfree(fw_priv->data);
