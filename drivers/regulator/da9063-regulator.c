@@ -634,7 +634,6 @@ static const struct regulator_init_data *da9063_get_regulator_initdata(
 	return NULL;
 }
 
-#ifdef CONFIG_OF
 static struct of_regulator_match da9063_matches[] = {
 	[DA9063_ID_BCORE1]           = { .name = "bcore1"           },
 	[DA9063_ID_BCORE2]           = { .name = "bcore2"           },
@@ -712,15 +711,6 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
 	*da9063_reg_matches = da9063_matches;
 	return pdata;
 }
-#else
-static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
-		struct platform_device *pdev,
-		struct of_regulator_match **da9063_reg_matches)
-{
-	*da9063_reg_matches = NULL;
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 static int da9063_regulator_probe(struct platform_device *pdev)
 {

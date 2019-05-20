@@ -257,7 +257,7 @@ config REGULATOR_DA9062
 
 config REGULATOR_DA9063
 	tristate "Dialog Semiconductor DA9063 regulators"
-	depends on MFD_DA9063
+	depends on MFD_DA9063 && OF
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
 	  DA9063 PMICs.
