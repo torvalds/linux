@@ -1181,7 +1181,7 @@ int pm8001_query_task(struct sas_task *task)
 	return rc;
 }
 
-/*  mandatory SAM-3, still need free task/ccb info, abord the specified task */
+/*  mandatory SAM-3, still need free task/ccb info, abort the specified task */
 int pm8001_abort_task(struct sas_task *task)
 {
 	unsigned long flags;
