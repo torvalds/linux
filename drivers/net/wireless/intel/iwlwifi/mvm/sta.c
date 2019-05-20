@@ -67,14 +67,6 @@
 #include "sta.h"
 #include "rs.h"
 
-static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm);
-
-static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
-				u32 sta_id,
-				struct ieee80211_key_conf *key, bool mcast,
-				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags,
-				u8 key_offset, bool mfp);
-
 /*
  * New version of ADD_STA_sta command added new fields at the end of the
  * structure, so sending the size of the relevant API's structure is enough to
