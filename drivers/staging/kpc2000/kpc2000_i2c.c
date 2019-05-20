@@ -28,7 +28,7 @@
 #include <linux/rwsem.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include "../kpc.h"
+#include "kpc.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matt.Sickler@Daktronics.com");
