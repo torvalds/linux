@@ -422,28 +422,21 @@ static void phylink_resolve(struct work_struct *w)
 
 		case MLO_AN_INBAND:
 			phylink_get_mac_state(pl, &link_state);
-			if (pl->phydev) {
-				bool changed = false;
 
-				link_state.link = link_state.link &&
-						  pl->phy_state.link;
+			/* If we have a phy, the "up" state is the union of
+			 * both the PHY and the MAC */
+			if (pl->phydev)
+				link_state.link &= pl->phy_state.link;
 
-				if (pl->phy_state.interface !=
-				    link_state.interface) {
-					link_state.interface = pl->phy_state.interface;
-					changed = true;
-				}
+			/* Only update if the PHY link is up */
+			if (pl->phydev && pl->phy_state.link) {
+				link_state.interface = pl->phy_state.interface;
 
-				/* Propagate the flow control from the PHY
-				 * to the MAC. Also propagate the interface
-				 * if changed.
-				 */
-				if (pl->phy_state.link || changed) {
-					link_state.pause |= pl->phy_state.pause;
-					phylink_resolve_flow(pl, &link_state);
-
-					phylink_mac_config(pl, &link_state);
-				}
+				/* If we have a PHY, we need to update with
+				 * the pause mode bits. */
+				link_state.pause |= pl->phy_state.pause;
+				phylink_resolve_flow(pl, &link_state);
+				phylink_mac_config(pl, &link_state);
 			}
 			break;
 		}
