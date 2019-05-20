@@ -118,6 +118,7 @@ struct augmented_filename {
 #define SYS_EXECVEAT           322
 #define SYS_STATX              332
 #define SYS_MOVE_MOUNT         429
+#define SYS_FSPICK             433
 
 pid_filter(pids_filtered);
 
@@ -253,6 +254,7 @@ int sys_enter(struct syscall_enter_args *args)
 	case SYS_FINIT_MODULE:
 	case SYS_FREMOVEXATTR:
 	case SYS_FSETXATTR:
+	case SYS_FSPICK:
 	case SYS_FUTIMESAT:
 	case SYS_INOTIFY_ADD_WATCH:
 	case SYS_LINKAT:

@@ -1,6 +1,7 @@
 perf-y += clone.o
 perf-y += fcntl.o
 perf-y += flock.o
+perf-y += fspick.o
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86))
 perf-y += ioctl.o
 endif
