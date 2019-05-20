@@ -6,6 +6,7 @@ perf-y += ioctl.o
 endif
 perf-y += kcmp.o
 perf-y += mount_flags.o
+perf-y += move_mount.o
 perf-y += pkey_alloc.o
 perf-y += arch_prctl.o
 perf-y += prctl.o

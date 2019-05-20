@@ -493,6 +493,12 @@ mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/mount_flags.sh
 $(mount_flags_array): $(linux_uapi_dir)/fs.h $(mount_flags_tbl)
 	$(Q)$(SHELL) '$(mount_flags_tbl)' $(linux_uapi_dir) > $@
 
+move_mount_flags_array := $(beauty_outdir)/move_mount_flags_array.c
+move_mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/move_mount_flags.sh
+
+$(move_mount_flags_array): $(linux_uapi_dir)/fs.h $(move_mount_flags_tbl)
+	$(Q)$(SHELL) '$(move_mount_flags_tbl)' $(linux_uapi_dir) > $@
+
 prctl_option_array := $(beauty_outdir)/prctl_option_array.c
 prctl_hdr_dir := $(srctree)/tools/include/uapi/linux/
 prctl_option_tbl := $(srctree)/tools/perf/trace/beauty/prctl_option.sh
@@ -638,6 +644,7 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(madvise_behavior_array) \
 	$(mmap_flags_array) \
 	$(mount_flags_array) \
+	$(move_mount_flags_array) \
 	$(perf_ioctl_array) \
 	$(prctl_option_array) \
 	$(usbdevfs_ioctl_array) \
@@ -925,6 +932,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)$(madvise_behavior_array) \
 		$(OUTPUT)$(mmap_flags_array) \
 		$(OUTPUT)$(mount_flags_array) \
+		$(OUTPUT)$(move_mount_flags_array) \
 		$(OUTPUT)$(drm_ioctl_array) \
 		$(OUTPUT)$(pkey_alloc_access_rights_array) \
 		$(OUTPUT)$(sndrv_ctl_ioctl_array) \

@@ -117,6 +117,7 @@ struct augmented_filename {
 #define SYS_RENAMEAT2          316
 #define SYS_EXECVEAT           322
 #define SYS_STATX              332
+#define SYS_MOVE_MOUNT         429
 
 pid_filter(pids_filtered);
 
@@ -257,6 +258,16 @@ int sys_enter(struct syscall_enter_args *args)
 	case SYS_LINKAT:
 	case SYS_MKDIRAT:
 	case SYS_MKNODAT:
+	// case SYS_MOVE_MOUNT:
+	// For now don't copy move_mount first string arg, as it has two and
+	// 'perf trace's syscall_arg__scnprintf_filename() will use the one
+	// copied here, the first, for both args, duplicating the first and
+	// ignoring the second.
+	//
+	// We need to copy both here and make syscall_arg__scnprintf_filename
+	// skip the first when reading the second, using the size of the first, etc.
+	// Shouldn't be difficult, but now its perf/urgent time, lets wait for
+	// the next devel window.
 	case SYS_MQ_TIMEDSEND:
 	case SYS_NAME_TO_HANDLE_AT:
 	case SYS_NEWFSTATAT:

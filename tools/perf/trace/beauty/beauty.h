@@ -156,6 +156,9 @@ unsigned long syscall_arg__mask_val_mount_flags(struct syscall_arg *arg, unsigne
 size_t syscall_arg__scnprintf_mount_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_MOUNT_FLAGS syscall_arg__scnprintf_mount_flags
 
+size_t syscall_arg__scnprintf_move_mount_flags(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_MOVE_MOUNT_FLAGS syscall_arg__scnprintf_move_mount_flags
+
 size_t syscall_arg__scnprintf_pkey_alloc_access_rights(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PKEY_ALLOC_ACCESS_RIGHTS syscall_arg__scnprintf_pkey_alloc_access_rights
 
