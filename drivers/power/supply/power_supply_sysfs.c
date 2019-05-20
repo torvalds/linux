@@ -492,6 +492,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(cp_switcher_en),
 	POWER_SUPPLY_ATTR(cp_die_temp),
 	POWER_SUPPLY_ATTR(cp_isns),
+	POWER_SUPPLY_ATTR(cp_isns_slave),
 	POWER_SUPPLY_ATTR(cp_toggle_switcher),
 	POWER_SUPPLY_ATTR(cp_irq_status),
 	POWER_SUPPLY_ATTR(cp_ilim),
