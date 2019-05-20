@@ -69,6 +69,7 @@ static ssize_t output_write(struct file *filp, struct kobject *kobj,
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	u8 w1_buf[3];
 	unsigned int retries = W1_F3A_RETRIES;
+	ssize_t bytes_written = -EIO;
 
 	if (count != 1 || off != 0)
 		return -EFAULT;
@@ -78,7 +79,7 @@ static ssize_t output_write(struct file *filp, struct kobject *kobj,
 	dev_dbg(&sl->dev, "mutex locked");
 
 	if (w1_reset_select_slave(sl))
-		goto error;
+		goto out;
 
 	/* according to the DS2413 datasheet the most significant 6 bits
 	   should be set to "1"s, so do it now */
@@ -91,18 +92,20 @@ static ssize_t output_write(struct file *filp, struct kobject *kobj,
 		w1_write_block(sl->master, w1_buf, 3);
 
 		if (w1_read_8(sl->master) == W1_F3A_SUCCESS_CONFIRM_BYTE) {
-			mutex_unlock(&sl->master->bus_mutex);
-			dev_dbg(&sl->dev, "mutex unlocked, retries:%d", retries);
-			return 1;
+			bytes_written = 1;
+			goto out;
 		}
 		if (w1_reset_resume_command(sl->master))
-			goto error;
+			goto out; /* unrecoverable error */
+
+		dev_warn(&sl->dev, "PIO_ACCESS_WRITE error, retries left: %d\n", retries);
 	}
 
-error:
+out:
 	mutex_unlock(&sl->master->bus_mutex);
-	dev_dbg(&sl->dev, "mutex unlocked in error, retries:%d", retries);
-	return -EIO;
+	dev_dbg(&sl->dev, "%s, mutex unlocked, retries: %d\n",
+		(bytes_written > 0) ? "succeeded" : "error", retries);
+	return bytes_written;
 }
 
 static BIN_ATTR(output, S_IRUGO | S_IWUSR | S_IWGRP, NULL, output_write, 1);
