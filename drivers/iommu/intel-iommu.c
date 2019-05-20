@@ -1911,9 +1911,7 @@ static void domain_exit(struct dmar_domain *domain)
 	struct page *freelist;
 
 	/* Remove associated devices and clear attached or cached domains */
-	rcu_read_lock();
 	domain_remove_dev_info(domain);
-	rcu_read_unlock();
 
 	/* destroy iovas */
 	put_iova_domain(&domain->iovad);
@@ -5254,9 +5252,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 
 		old_domain = find_domain(dev);
 		if (old_domain) {
-			rcu_read_lock();
 			dmar_remove_one_dev_info(dev);
-			rcu_read_unlock();
 
 			if (!domain_type_is_vm_or_si(old_domain) &&
 			    list_empty(&old_domain->devices))
