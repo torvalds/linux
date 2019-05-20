@@ -565,24 +565,6 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 		 __func__, server, priority, kvm_eq.flags,
 		 kvm_eq.qshift, kvm_eq.qaddr, kvm_eq.qtoggle, kvm_eq.qindex);
 
-	/*
-	 * sPAPR specifies a "Unconditional Notify (n) flag" for the
-	 * H_INT_SET_QUEUE_CONFIG hcall which forces notification
-	 * without using the coalescing mechanisms provided by the
-	 * XIVE END ESBs. This is required on KVM as notification
-	 * using the END ESBs is not supported.
-	 */
-	if (kvm_eq.flags != KVM_XIVE_EQ_ALWAYS_NOTIFY) {
-		pr_err("invalid flags %d\n", kvm_eq.flags);
-		return -EINVAL;
-	}
-
-	rc = xive_native_validate_queue_size(kvm_eq.qshift);
-	if (rc) {
-		pr_err("invalid queue size %d\n", kvm_eq.qshift);
-		return rc;
-	}
-
 	/* reset queue and disable queueing */
 	if (!kvm_eq.qshift) {
 		q->guest_qaddr  = 0;
@@ -602,6 +584,24 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 		}
 
 		return 0;
+	}
+
+	/*
+	 * sPAPR specifies a "Unconditional Notify (n) flag" for the
+	 * H_INT_SET_QUEUE_CONFIG hcall which forces notification
+	 * without using the coalescing mechanisms provided by the
+	 * XIVE END ESBs. This is required on KVM as notification
+	 * using the END ESBs is not supported.
+	 */
+	if (kvm_eq.flags != KVM_XIVE_EQ_ALWAYS_NOTIFY) {
+		pr_err("invalid flags %d\n", kvm_eq.flags);
+		return -EINVAL;
+	}
+
+	rc = xive_native_validate_queue_size(kvm_eq.qshift);
+	if (rc) {
+		pr_err("invalid queue size %d\n", kvm_eq.qshift);
+		return rc;
 	}
 
 	if (kvm_eq.qaddr & ((1ull << kvm_eq.qshift) - 1)) {
