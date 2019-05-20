@@ -232,7 +232,7 @@ static int map_fw_priv_pages(struct fw_priv *fw_priv)
 		return -ENOMEM;
 
 	/* page table is no longer needed after mapping, let's free */
-	vfree(fw_priv->pages);
+	kvfree(fw_priv->pages);
 	fw_priv->pages = NULL;
 
 	return 0;
@@ -397,7 +397,8 @@ static int fw_realloc_pages(struct fw_sysfs *fw_sysfs, int min_size)
 					 fw_priv->page_array_size * 2);
 		struct page **new_pages;
 
-		new_pages = vmalloc(array_size(new_array_size, sizeof(void *)));
+		new_pages = kvmalloc_array(new_array_size, sizeof(void *),
+					   GFP_KERNEL);
 		if (!new_pages) {
 			fw_load_abort(fw_sysfs);
 			return -ENOMEM;
@@ -406,7 +407,7 @@ static int fw_realloc_pages(struct fw_sysfs *fw_sysfs, int min_size)
 		       fw_priv->page_array_size * sizeof(void *));
 		memset(&new_pages[fw_priv->page_array_size], 0, sizeof(void *) *
 		       (new_array_size - fw_priv->page_array_size));
-		vfree(fw_priv->pages);
+		kvfree(fw_priv->pages);
 		fw_priv->pages = new_pages;
 		fw_priv->page_array_size = new_array_size;
 	}

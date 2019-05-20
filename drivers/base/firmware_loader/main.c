@@ -276,7 +276,7 @@ void fw_free_paged_buf(struct fw_priv *fw_priv)
 
 	for (i = 0; i < fw_priv->nr_pages; i++)
 		__free_page(fw_priv->pages[i]);
-	vfree(fw_priv->pages);
+	kvfree(fw_priv->pages);
 	fw_priv->pages = NULL;
 	fw_priv->page_array_size = 0;
 	fw_priv->nr_pages = 0;
