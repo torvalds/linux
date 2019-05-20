@@ -529,28 +529,34 @@ static void vnt_tx_80211(struct ieee80211_hw *hw,
 
 static int vnt_start(struct ieee80211_hw *hw)
 {
+	int ret = 0;
 	struct vnt_private *priv = hw->priv;
 
 	priv->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
 
-	if (!vnt_alloc_bufs(priv)) {
+	ret = vnt_alloc_bufs(priv);
+	if (ret) {
 		dev_dbg(&priv->usb->dev, "vnt_alloc_bufs fail...\n");
-		return -ENOMEM;
+		goto err;
 	}
 
 	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 
-	if (vnt_init_registers(priv) == false) {
+	ret = vnt_init_registers(priv);
+	if (ret) {
 		dev_dbg(&priv->usb->dev, " init register fail\n");
 		goto free_all;
 	}
 
-	if (vnt_key_init_table(priv))
+	ret = vnt_key_init_table(priv);
+	if (ret)
 		goto free_all;
 
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
-	vnt_int_start_interrupt(priv);
+	ret = vnt_int_start_interrupt(priv);
+	if (ret)
+		goto free_all;
 
 	ieee80211_wake_queues(hw);
 
@@ -563,8 +569,8 @@ free_all:
 
 	usb_kill_urb(priv->interrupt_urb);
 	usb_free_urb(priv->interrupt_urb);
-
-	return -ENOMEM;
+err:
+	return ret;
 }
 
 static void vnt_stop(struct ieee80211_hw *hw)
