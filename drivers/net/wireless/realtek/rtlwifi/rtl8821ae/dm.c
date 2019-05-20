@@ -2958,10 +2958,11 @@ void rtl8821ae_dm_set_tx_ant_by_tx_info(struct ieee80211_hw *hw,
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_dm *rtldm = rtl_dm(rtl_priv(hw));
 	struct fast_ant_training *pfat_table = &rtldm->fat_table;
+	__le32 *pdesc32 = (__le32 *)pdesc;
 
 	if (rtlhal->hw_type != HARDWARE_TYPE_RTL8812AE)
 		return;
 
 	if (rtlefuse->antenna_div_type == CG_TRX_HW_ANTDIV)
-		set_tx_desc_tx_ant(pdesc, pfat_table->antsel_a[mac_id]);
+		set_tx_desc_tx_ant(pdesc32, pfat_table->antsel_a[mac_id]);
 }
