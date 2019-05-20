@@ -187,20 +187,6 @@ int cxio_create_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq, int kernel)
 	return (rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, RDMA_CQ_SETUP, &setup));
 }
 
-#ifdef notyet
-int cxio_resize_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
-{
-	struct rdma_cq_setup setup;
-	setup.id = cq->cqid;
-	setup.base_addr = (u64) (cq->dma_addr);
-	setup.size = 1UL << cq->size_log2;
-	setup.credits = setup.size;
-	setup.credit_thres = setup.size;	/* TBD: overflow recovery */
-	setup.ovfl_mode = 1;
-	return (rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, RDMA_CQ_SETUP, &setup));
-}
-#endif
-
 static u32 get_qpid(struct cxio_rdev *rdev_p, struct cxio_ucontext *uctx)
 {
 	struct cxio_qpid_list *entry;
