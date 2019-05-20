@@ -3858,9 +3858,9 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata);
  *
  * NOTE: for user cq use ib_destroy_cq_user with valid udata!
  */
-static inline int ib_destroy_cq(struct ib_cq *cq)
+static inline void ib_destroy_cq(struct ib_cq *cq)
 {
-	return ib_destroy_cq_user(cq, NULL);
+	ib_destroy_cq_user(cq, NULL);
 }
 
 /**
