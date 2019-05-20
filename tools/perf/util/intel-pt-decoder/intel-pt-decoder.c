@@ -160,6 +160,8 @@ struct intel_pt_decoder {
 	uint64_t period_mask;
 	uint64_t period_ticks;
 	uint64_t last_masked_timestamp;
+	uint64_t tot_cyc_cnt;
+	uint64_t sample_tot_cyc_cnt;
 	bool continuous_period;
 	bool overflow;
 	bool set_fup_tx_flags;
@@ -167,6 +169,7 @@ struct intel_pt_decoder {
 	bool set_fup_mwait;
 	bool set_fup_pwre;
 	bool set_fup_exstop;
+	bool sample_cyc;
 	unsigned int fup_tx_flags;
 	unsigned int tx_flags;
 	uint64_t fup_ptw_payload;
@@ -1323,6 +1326,7 @@ static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
 				decoder->ip += intel_pt_insn.length;
 				return 0;
 			}
+			decoder->sample_cyc = false;
 			decoder->ip += intel_pt_insn.length;
 			if (!decoder->tnt.count) {
 				intel_pt_update_sample_time(decoder);
@@ -1515,6 +1519,9 @@ static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
 	decoder->have_cyc = true;
 
 	decoder->cycle_cnt += decoder->packet.payload;
+	if (decoder->pge)
+		decoder->tot_cyc_cnt += decoder->packet.payload;
+	decoder->sample_cyc = true;
 
 	if (!decoder->cyc_ref_timestamp)
 		return;
@@ -2419,6 +2426,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		decoder->state.err = intel_pt_ext_err(err);
 		decoder->state.from_ip = decoder->ip;
 		intel_pt_update_sample_time(decoder);
+		decoder->sample_tot_cyc_cnt = decoder->tot_cyc_cnt;
 	} else {
 		decoder->state.err = 0;
 		if (decoder->cbr != decoder->cbr_seen && decoder->state.type) {
@@ -2426,14 +2434,18 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			decoder->state.type |= INTEL_PT_CBR_CHG;
 			decoder->state.cbr_payload = decoder->cbr_payload;
 		}
-		if (intel_pt_sample_time(decoder->pkt_state))
+		if (intel_pt_sample_time(decoder->pkt_state)) {
 			intel_pt_update_sample_time(decoder);
+			if (decoder->sample_cyc)
+				decoder->sample_tot_cyc_cnt = decoder->tot_cyc_cnt;
+		}
 	}
 
 	decoder->state.timestamp = decoder->sample_timestamp;
 	decoder->state.est_timestamp = intel_pt_est_timestamp(decoder);
 	decoder->state.cr3 = decoder->cr3;
 	decoder->state.tot_insn_cnt = decoder->tot_insn_cnt;
+	decoder->state.tot_cyc_cnt = decoder->sample_tot_cyc_cnt;
 
 	return &decoder->state;
 }
