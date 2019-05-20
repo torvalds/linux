@@ -27,8 +27,37 @@ struct key *afs_request_key(struct afs_cell *cell)
 	_enter("{%x}", key_serial(cell->anonymous_key));
 
 	_debug("key %s", cell->anonymous_key->description);
-	key = request_key(&key_type_rxrpc, cell->anonymous_key->description,
-			  NULL);
+	key = request_key_net(&key_type_rxrpc, cell->anonymous_key->description,
+			      cell->net->net, NULL);
+	if (IS_ERR(key)) {
+		if (PTR_ERR(key) != -ENOKEY) {
+			_leave(" = %ld", PTR_ERR(key));
+			return key;
+		}
+
+		/* act as anonymous user */
+		_leave(" = {%x} [anon]", key_serial(cell->anonymous_key));
+		return key_get(cell->anonymous_key);
+	} else {
+		/* act as authorised user */
+		_leave(" = {%x} [auth]", key_serial(key));
+		return key;
+	}
+}
+
+/*
+ * Get a key when pathwalk is in rcuwalk mode.
+ */
+struct key *afs_request_key_rcu(struct afs_cell *cell)
+{
+	struct key *key;
+
+	_enter("{%x}", key_serial(cell->anonymous_key));
+
+	_debug("key %s", cell->anonymous_key->description);
+	key = request_key_net_rcu(&key_type_rxrpc,
+				  cell->anonymous_key->description,
+				  cell->net->net);
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) != -ENOKEY) {
 			_leave(" = %ld", PTR_ERR(key));
