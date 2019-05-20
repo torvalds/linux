@@ -41,7 +41,7 @@ Examples:
 Consumer:
 ========
 See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt and
-Documentation/devicetree/bindings/interrupt-controller/arm,gic.txt for
+Documentation/devicetree/bindings/interrupt-controller/arm,gic.yaml for
 further details.
 
 An interrupt consumer on an SoC using crossbar will use:
