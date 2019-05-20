@@ -11,7 +11,9 @@ Optional properties:
 - #address-cells: must be 1 when using sub-nodes.
 - #size-cells: must be 0 when using sub-nodes.
 - phy-handle: see ethernet.txt file in the same directory.
-- local-mac-address: see ethernet.txt file in the same directory.
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Sub-nodes:
 Each PHY can be represented as a sub-node. This is not mandatory.

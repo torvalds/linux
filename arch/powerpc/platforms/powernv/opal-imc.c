@@ -127,7 +127,7 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 								nr_chips))
 		goto error;
 
-	pmu_ptr->mem_info = kcalloc(nr_chips, sizeof(*pmu_ptr->mem_info),
+	pmu_ptr->mem_info = kcalloc(nr_chips + 1, sizeof(*pmu_ptr->mem_info),
 				    GFP_KERNEL);
 	if (!pmu_ptr->mem_info)
 		goto error;
@@ -283,6 +283,9 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 			break;
 		case IMC_TYPE_THREAD:
 			domain = IMC_DOMAIN_THREAD;
+			break;
+		case IMC_TYPE_TRACE:
+			domain = IMC_DOMAIN_TRACE;
 			break;
 		default:
 			pr_warn("IMC Unknown Device type \n");

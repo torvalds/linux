@@ -67,6 +67,8 @@ int iscsit_add_r2t_to_list(
 
 	lockdep_assert_held(&cmd->r2t_lock);
 
+	WARN_ON_ONCE((s32)xfer_len < 0);
+
 	r2t = kmem_cache_zalloc(lio_r2t_cache, GFP_ATOMIC);
 	if (!r2t) {
 		pr_err("Unable to allocate memory for struct iscsi_r2t.\n");
@@ -735,6 +737,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
+	kfree(cmd->overflow_buf);
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
@@ -768,6 +771,8 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = cmd->se_cmd.se_tfo ? &cmd->se_cmd : NULL;
 	int rc;
+
+	WARN_ON(!list_empty(&cmd->i_conn_node));
 
 	__iscsit_free_cmd(cmd, shutdown);
 	if (se_cmd) {

@@ -58,7 +58,7 @@ int install_user_keyrings(void)
 
 	kenter("%p{%u}", user, uid);
 
-	if (user->uid_keyring && user->session_keyring) {
+	if (READ_ONCE(user->uid_keyring) && READ_ONCE(user->session_keyring)) {
 		kleave(" = 0 [exist]");
 		return 0;
 	}
@@ -111,8 +111,10 @@ int install_user_keyrings(void)
 		}
 
 		/* install the keyrings */
-		user->uid_keyring = uid_keyring;
-		user->session_keyring = session_keyring;
+		/* paired with READ_ONCE() */
+		smp_store_release(&user->uid_keyring, uid_keyring);
+		/* paired with READ_ONCE() */
+		smp_store_release(&user->session_keyring, session_keyring);
 	}
 
 	mutex_unlock(&key_user_keyring_mutex);
@@ -227,6 +229,7 @@ static int install_process_keyring(void)
  * Install the given keyring as the session keyring of the given credentials
  * struct, replacing the existing one if any.  If the given keyring is NULL,
  * then install a new anonymous session keyring.
+ * @cred can not be in use by any task yet.
  *
  * Return: 0 on success; -errno on failure.
  */
@@ -254,7 +257,7 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 
 	/* install the keyring */
 	old = cred->session_keyring;
-	rcu_assign_pointer(cred->session_keyring, keyring);
+	cred->session_keyring = keyring;
 
 	if (old)
 		key_put(old);
@@ -339,6 +342,7 @@ void key_fsgid_changed(struct task_struct *tsk)
 key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 {
 	key_ref_t key_ref, ret, err;
+	const struct cred *cred = ctx->cred;
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -352,9 +356,9 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 	err = ERR_PTR(-EAGAIN);
 
 	/* search the thread keyring first */
-	if (ctx->cred->thread_keyring) {
+	if (cred->thread_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(ctx->cred->thread_keyring, 1), ctx);
+			make_key_ref(cred->thread_keyring, 1), ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -370,9 +374,9 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 	}
 
 	/* search the process keyring second */
-	if (ctx->cred->process_keyring) {
+	if (cred->process_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(ctx->cred->process_keyring, 1), ctx);
+			make_key_ref(cred->process_keyring, 1), ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -391,12 +395,9 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 	}
 
 	/* search the session keyring */
-	if (ctx->cred->session_keyring) {
-		rcu_read_lock();
+	if (cred->session_keyring) {
 		key_ref = keyring_search_aux(
-			make_key_ref(rcu_dereference(ctx->cred->session_keyring), 1),
-			ctx);
-		rcu_read_unlock();
+			make_key_ref(cred->session_keyring, 1), ctx);
 
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -415,9 +416,9 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 		}
 	}
 	/* or search the user-session keyring */
-	else if (ctx->cred->user->session_keyring) {
+	else if (READ_ONCE(cred->user->session_keyring)) {
 		key_ref = keyring_search_aux(
-			make_key_ref(ctx->cred->user->session_keyring, 1),
+			make_key_ref(READ_ONCE(cred->user->session_keyring), 1),
 			ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -604,7 +605,7 @@ try_again:
 				goto error;
 			goto reget_creds;
 		} else if (ctx.cred->session_keyring ==
-			   ctx.cred->user->session_keyring &&
+			   READ_ONCE(ctx.cred->user->session_keyring) &&
 			   lflags & KEY_LOOKUP_CREATE) {
 			ret = join_session_keyring(NULL);
 			if (ret < 0)
@@ -612,15 +613,13 @@ try_again:
 			goto reget_creds;
 		}
 
-		rcu_read_lock();
-		key = rcu_dereference(ctx.cred->session_keyring);
+		key = ctx.cred->session_keyring;
 		__key_get(key);
-		rcu_read_unlock();
 		key_ref = make_key_ref(key, 1);
 		break;
 
 	case KEY_SPEC_USER_KEYRING:
-		if (!ctx.cred->user->uid_keyring) {
+		if (!READ_ONCE(ctx.cred->user->uid_keyring)) {
 			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;
@@ -632,7 +631,7 @@ try_again:
 		break;
 
 	case KEY_SPEC_USER_SESSION_KEYRING:
-		if (!ctx.cred->user->session_keyring) {
+		if (!READ_ONCE(ctx.cred->user->session_keyring)) {
 			ret = install_user_keyrings();
 			if (ret < 0)
 				goto error;

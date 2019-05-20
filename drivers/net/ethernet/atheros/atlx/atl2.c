@@ -908,7 +908,6 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 	ATL2_WRITE_REGW(&adapter->hw, REG_MB_TXD_WR_IDX,
 		(adapter->txd_write_ptr >> 2));
 
-	mmiowb();
 	dev_consume_skb_any(skb);
 	return NETDEV_TX_OK;
 }

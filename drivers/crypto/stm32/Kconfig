@@ -24,6 +24,7 @@ config CRYPTO_DEV_STM32_CRYP
 	depends on ARCH_STM32
 	select CRYPTO_HASH
 	select CRYPTO_ENGINE
+	select CRYPTO_DES
 	help
           This enables support for the CRYP (AES/DES/TDES) hw accelerator which
 	  can be found on STMicroelectronics STM32 SOC.

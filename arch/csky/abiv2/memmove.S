@@ -35,11 +35,7 @@ ENTRY(memmove)
 .L_len_larger_16bytes:
 	subi	r1, 16
 	subi	r0, 16
-#if defined(__CSKY_VDSPV2__)
-	vldx.8	vr0, (r1), r19
-	PRE_BNEZAD (r18)
-	vstx.8	vr0, (r0), r19
-#elif defined(__CK860__)
+#if defined(__CK860__)
 	ldw	r3, (r1, 12)
 	stw	r3, (r0, 12)
 	ldw	r3, (r1, 8)

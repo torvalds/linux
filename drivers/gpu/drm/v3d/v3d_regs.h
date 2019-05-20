@@ -216,6 +216,8 @@
 # define V3D_IDENT2_BCG_INT                            BIT(28)
 
 #define V3D_CTL_MISCCFG                                0x00018
+# define V3D_CTL_MISCCFG_QRMAXCNT_MASK                 V3D_MASK(3, 1)
+# define V3D_CTL_MISCCFG_QRMAXCNT_SHIFT                1
 # define V3D_MISCCFG_OVRTMUOUT                         BIT(0)
 
 #define V3D_CTL_L2CACTL                                0x00020

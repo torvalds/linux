@@ -78,7 +78,7 @@ static int epx_c3_open(struct inode *inode, struct file *file)
 	epx_c3_alive = 1;
 	pr_info("Started watchdog timer\n");
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int epx_c3_release(struct inode *inode, struct file *file)

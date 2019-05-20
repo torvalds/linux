@@ -1461,7 +1461,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		mac_addr = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac_addr && is_valid_ether_addr(mac_addr)) {
+	if (!IS_ERR_OR_NULL(mac_addr)) {
 		ether_addr_copy(dev->dev_addr, mac_addr);
 	} else {
 		/* try reading the mac address, if set by the bootloader */

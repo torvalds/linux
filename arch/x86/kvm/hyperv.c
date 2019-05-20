@@ -1535,10 +1535,10 @@ static void kvm_hv_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 
 	longmode = is_64_bit_mode(vcpu);
 	if (longmode)
-		kvm_register_write(vcpu, VCPU_REGS_RAX, result);
+		kvm_rax_write(vcpu, result);
 	else {
-		kvm_register_write(vcpu, VCPU_REGS_RDX, result >> 32);
-		kvm_register_write(vcpu, VCPU_REGS_RAX, result & 0xffffffff);
+		kvm_rdx_write(vcpu, result >> 32);
+		kvm_rax_write(vcpu, result & 0xffffffff);
 	}
 }
 
@@ -1611,18 +1611,18 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	longmode = is_64_bit_mode(vcpu);
 
 	if (!longmode) {
-		param = ((u64)kvm_register_read(vcpu, VCPU_REGS_RDX) << 32) |
-			(kvm_register_read(vcpu, VCPU_REGS_RAX) & 0xffffffff);
-		ingpa = ((u64)kvm_register_read(vcpu, VCPU_REGS_RBX) << 32) |
-			(kvm_register_read(vcpu, VCPU_REGS_RCX) & 0xffffffff);
-		outgpa = ((u64)kvm_register_read(vcpu, VCPU_REGS_RDI) << 32) |
-			(kvm_register_read(vcpu, VCPU_REGS_RSI) & 0xffffffff);
+		param = ((u64)kvm_rdx_read(vcpu) << 32) |
+			(kvm_rax_read(vcpu) & 0xffffffff);
+		ingpa = ((u64)kvm_rbx_read(vcpu) << 32) |
+			(kvm_rcx_read(vcpu) & 0xffffffff);
+		outgpa = ((u64)kvm_rdi_read(vcpu) << 32) |
+			(kvm_rsi_read(vcpu) & 0xffffffff);
 	}
 #ifdef CONFIG_X86_64
 	else {
-		param = kvm_register_read(vcpu, VCPU_REGS_RCX);
-		ingpa = kvm_register_read(vcpu, VCPU_REGS_RDX);
-		outgpa = kvm_register_read(vcpu, VCPU_REGS_R8);
+		param = kvm_rcx_read(vcpu);
+		ingpa = kvm_rdx_read(vcpu);
+		outgpa = kvm_r8_read(vcpu);
 	}
 #endif
 

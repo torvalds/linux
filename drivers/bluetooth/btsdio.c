@@ -376,20 +376,7 @@ static struct sdio_driver btsdio_driver = {
 	.id_table	= btsdio_table,
 };
 
-static int __init btsdio_init(void)
-{
-	BT_INFO("Generic Bluetooth SDIO driver ver %s", VERSION);
-
-	return sdio_register_driver(&btsdio_driver);
-}
-
-static void __exit btsdio_exit(void)
-{
-	sdio_unregister_driver(&btsdio_driver);
-}
-
-module_init(btsdio_init);
-module_exit(btsdio_exit);
+module_sdio_driver(btsdio_driver);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Generic Bluetooth SDIO driver ver " VERSION);

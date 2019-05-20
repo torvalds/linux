@@ -6,6 +6,7 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 ret=0
+test_inet_nat=true
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
@@ -141,17 +142,24 @@ reset_counters()
 
 test_local_dnat6()
 {
+	local family=$1
 	local lret=0
+	local IPF=""
+
+	if [ $family = "inet" ];then
+		IPF="ip6"
+	fi
+
 ip netns exec ns0 nft -f - <<EOF
-table ip6 nat {
+table $family nat {
 	chain output {
 		type nat hook output priority 0; policy accept;
-		ip6 daddr dead:1::99 dnat to dead:2::99
+		ip6 daddr dead:1::99 dnat $IPF to dead:2::99
 	}
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add ip6 dnat hook"
+		echo "SKIP: Could not add add $family dnat hook"
 		return $ksft_skip
 	fi
 
@@ -201,7 +209,7 @@ EOF
 		fi
 	done
 
-	test $lret -eq 0 && echo "PASS: ipv6 ping to ns1 was NATted to ns2"
+	test $lret -eq 0 && echo "PASS: ipv6 ping to ns1 was $family NATted to ns2"
 	ip netns exec ns0 nft flush chain ip6 nat output
 
 	return $lret
@@ -209,15 +217,32 @@ EOF
 
 test_local_dnat()
 {
+	local family=$1
 	local lret=0
-ip netns exec ns0 nft -f - <<EOF
-table ip nat {
+	local IPF=""
+
+	if [ $family = "inet" ];then
+		IPF="ip"
+	fi
+
+ip netns exec ns0 nft -f - <<EOF 2>/dev/null
+table $family nat {
 	chain output {
 		type nat hook output priority 0; policy accept;
-		ip daddr 10.0.1.99 dnat to 10.0.2.99
+		ip daddr 10.0.1.99 dnat $IPF to 10.0.2.99
 	}
 }
 EOF
+	if [ $? -ne 0 ]; then
+		if [ $family = "inet" ];then
+			echo "SKIP: inet nat tests"
+			test_inet_nat=false
+			return $ksft_skip
+		fi
+		echo "SKIP: Could not add add $family dnat hook"
+		return $ksft_skip
+	fi
+
 	# ping netns1, expect rewrite to netns2
 	ip netns exec ns0 ping -q -c 1 10.0.1.99 > /dev/null
 	if [ $? -ne 0 ]; then
@@ -264,9 +289,9 @@ EOF
 		fi
 	done
 
-	test $lret -eq 0 && echo "PASS: ping to ns1 was NATted to ns2"
+	test $lret -eq 0 && echo "PASS: ping to ns1 was $family NATted to ns2"
 
-	ip netns exec ns0 nft flush chain ip nat output
+	ip netns exec ns0 nft flush chain $family nat output
 
 	reset_counters
 	ip netns exec ns0 ping -q -c 1 10.0.1.99 > /dev/null
@@ -313,7 +338,7 @@ EOF
 		fi
 	done
 
-	test $lret -eq 0 && echo "PASS: ping to ns1 OK after nat output chain flush"
+	test $lret -eq 0 && echo "PASS: ping to ns1 OK after $family nat output chain flush"
 
 	return $lret
 }
@@ -321,6 +346,7 @@ EOF
 
 test_masquerade6()
 {
+	local family=$1
 	local natflags=$1
 	local lret=0
 
@@ -352,16 +378,25 @@ test_masquerade6()
 
 # add masquerading rule
 ip netns exec ns0 nft -f - <<EOF
-table ip6 nat {
+table $family nat {
 	chain postrouting {
 		type nat hook postrouting priority 0; policy accept;
 		meta oif veth0 masquerade $natflags
 	}
 }
 EOF
+	if [ $? -ne 0 ]; then
+		echo "SKIP: Could not add add $family masquerade hook"
+		return $ksft_skip
+	fi
+
 	ip netns exec ns2 ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
+<<<<<<< HEAD
+		echo "ERROR: cannot ping ns1 from ns2 with active $family masquerading"
+=======
 		echo "ERROR: cannot ping ns1 from ns2 with active ipv6 masquerade $natflags"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 		lret=1
 	fi
 
@@ -398,6 +433,9 @@ EOF
 		fi
 	done
 
+<<<<<<< HEAD
+	ip netns exec ns0 nft flush chain $family nat postrouting
+=======
 	ip netns exec ns2 ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
 		echo "ERROR: cannot ping ns1 from ns2 with active ipv6 masquerade $natflags (attempt 2)"
@@ -405,19 +443,28 @@ EOF
 	fi
 
 	ip netns exec ns0 nft flush chain ip6 nat postrouting
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not flush ip6 nat postrouting" 1>&2
+		echo "ERROR: Could not flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
+<<<<<<< HEAD
+	test $lret -eq 0 && echo "PASS: $family IPv6 masquerade for ns2"
+=======
 	test $lret -eq 0 && echo "PASS: IPv6 masquerade $natflags for ns2"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 
 	return $lret
 }
 
 test_masquerade()
 {
+<<<<<<< HEAD
+	local family=$1
+=======
 	local natflags=$1
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 	local lret=0
 
 	ip netns exec ns0 sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
@@ -448,16 +495,25 @@ test_masquerade()
 
 # add masquerading rule
 ip netns exec ns0 nft -f - <<EOF
-table ip nat {
+table $family nat {
 	chain postrouting {
 		type nat hook postrouting priority 0; policy accept;
 		meta oif veth0 masquerade $natflags
 	}
 }
 EOF
+	if [ $? -ne 0 ]; then
+		echo "SKIP: Could not add add $family masquerade hook"
+		return $ksft_skip
+	fi
+
 	ip netns exec ns2 ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
+<<<<<<< HEAD
+		echo "ERROR: cannot ping ns1 from ns2 with active $family masquerading"
+=======
 		echo "ERROR: cannot ping ns1 from ns2 with active ip masquere $natflags"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 		lret=1
 	fi
 
@@ -493,6 +549,9 @@ EOF
 		fi
 	done
 
+<<<<<<< HEAD
+	ip netns exec ns0 nft flush chain $family nat postrouting
+=======
 	ip netns exec ns2 ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
 		echo "ERROR: cannot ping ns1 from ns2 with active ip masquerade $natflags (attempt 2)"
@@ -500,18 +559,24 @@ EOF
 	fi
 
 	ip netns exec ns0 nft flush chain ip nat postrouting
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not flush nat postrouting" 1>&2
+		echo "ERROR: Could not flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
+<<<<<<< HEAD
+	test $lret -eq 0 && echo "PASS: $family IP masquerade for ns2"
+=======
 	test $lret -eq 0 && echo "PASS: IP masquerade $natflags for ns2"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 
 	return $lret
 }
 
 test_redirect6()
 {
+	local family=$1
 	local lret=0
 
 	ip netns exec ns0 sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
@@ -541,16 +606,21 @@ test_redirect6()
 
 # add redirect rule
 ip netns exec ns0 nft -f - <<EOF
-table ip6 nat {
+table $family nat {
 	chain prerouting {
 		type nat hook prerouting priority 0; policy accept;
 		meta iif veth1 meta l4proto icmpv6 ip6 saddr dead:2::99 ip6 daddr dead:1::99 redirect
 	}
 }
 EOF
+	if [ $? -ne 0 ]; then
+		echo "SKIP: Could not add add $family redirect hook"
+		return $ksft_skip
+	fi
+
 	ip netns exec ns2 ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping ns1 from ns2 with active ip6 redirect"
+		echo "ERROR: cannot ping ns1 from ns2 via ipv6 with active $family redirect"
 		lret=1
 	fi
 
@@ -574,19 +644,20 @@ EOF
 		fi
 	done
 
-	ip netns exec ns0 nft delete table ip6 nat
+	ip netns exec ns0 nft delete table $family nat
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not delete ip6 nat table" 1>&2
+		echo "ERROR: Could not delete $family nat table" 1>&2
 		lret=1
 	fi
 
-	test $lret -eq 0 && echo "PASS: IPv6 redirection for ns2"
+	test $lret -eq 0 && echo "PASS: $family IPv6 redirection for ns2"
 
 	return $lret
 }
 
 test_redirect()
 {
+	local family=$1
 	local lret=0
 
 	ip netns exec ns0 sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
@@ -617,16 +688,21 @@ test_redirect()
 
 # add redirect rule
 ip netns exec ns0 nft -f - <<EOF
-table ip nat {
+table $family nat {
 	chain prerouting {
 		type nat hook prerouting priority 0; policy accept;
 		meta iif veth1 ip protocol icmp ip saddr 10.0.2.99 ip daddr 10.0.1.99 redirect
 	}
 }
 EOF
+	if [ $? -ne 0 ]; then
+		echo "SKIP: Could not add add $family redirect hook"
+		return $ksft_skip
+	fi
+
 	ip netns exec ns2 ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping ns1 from ns2 with active ip redirect"
+		echo "ERROR: cannot ping ns1 from ns2 with active $family ip redirect"
 		lret=1
 	fi
 
@@ -651,13 +727,13 @@ EOF
 		fi
 	done
 
-	ip netns exec ns0 nft delete table ip nat
+	ip netns exec ns0 nft delete table $family nat
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not delete nat table" 1>&2
+		echo "ERROR: Could not delete $family nat table" 1>&2
 		lret=1
 	fi
 
-	test $lret -eq 0 && echo "PASS: IP redirection for ns2"
+	test $lret -eq 0 && echo "PASS: $family IP redirection for ns2"
 
 	return $lret
 }
@@ -760,20 +836,34 @@ if [ $ret -eq 0 ];then
 fi
 
 reset_counters
-test_local_dnat
-test_local_dnat6
+test_local_dnat ip
+test_local_dnat6 ip6
+reset_counters
+$test_inet_nat && test_local_dnat inet
+$test_inet_nat && test_local_dnat6 inet
 
 reset_counters
+<<<<<<< HEAD
+test_masquerade ip
+test_masquerade6 ip6
+reset_counters
+$test_inet_nat && test_masquerade inet
+$test_inet_nat && test_masquerade6 inet
+=======
 test_masquerade ""
 test_masquerade6 ""
 
 reset_counters
 test_masquerade "fully-random"
 test_masquerade6 "fully-random"
+>>>>>>> cd8dead0c39457e58ec1d36db93aedca811d48f1
 
 reset_counters
-test_redirect
-test_redirect6
+test_redirect ip
+test_redirect6 ip6
+reset_counters
+$test_inet_nat && test_redirect inet
+$test_inet_nat && test_redirect6 inet
 
 for i in 0 1 2; do ip netns del ns$i;done
 

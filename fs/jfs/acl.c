@@ -117,7 +117,8 @@ int jfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		rc = posix_acl_update_mode(inode, &mode, &acl);
 		if (rc)
 			goto end_tx;
-		update_mode = 1;
+		if (mode != inode->i_mode)
+			update_mode = 1;
 	}
 	rc = __jfs_set_acl(tid, inode, type, acl);
 	if (!rc) {

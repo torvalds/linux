@@ -39,7 +39,6 @@
 #include <linux/iommu.h>
 #include <linux/pci.h>
 #include <net/addrconf.h>
-#include <linux/idr.h>
 
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
@@ -80,20 +79,6 @@ static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str)
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d. %d. %d. %d",
 		 (fw_ver >> 24) & 0xFF, (fw_ver >> 16) & 0xFF,
 		 (fw_ver >> 8) & 0xFF, fw_ver & 0xFF);
-}
-
-static struct net_device *qedr_get_netdev(struct ib_device *dev, u8 port_num)
-{
-	struct qedr_dev *qdev;
-
-	qdev = get_qedr_dev(dev);
-	dev_hold(qdev->ndev);
-
-	/* The HW vendor's device driver must guarantee
-	 * that this function returns NULL before the net device has finished
-	 * NETDEV_UNREGISTER state.
-	 */
-	return qdev->ndev;
 }
 
 static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -163,6 +148,14 @@ static const struct attribute_group qedr_attr_group = {
 
 static const struct ib_device_ops qedr_iw_dev_ops = {
 	.get_port_immutable = qedr_iw_port_immutable,
+	.iw_accept = qedr_iw_accept,
+	.iw_add_ref = qedr_iw_qp_add_ref,
+	.iw_connect = qedr_iw_connect,
+	.iw_create_listen = qedr_iw_create_listen,
+	.iw_destroy_listen = qedr_iw_destroy_listen,
+	.iw_get_qp = qedr_iw_get_qp,
+	.iw_reject = qedr_iw_reject,
+	.iw_rem_ref = qedr_iw_qp_rem_ref,
 	.query_gid = qedr_iw_query_gid,
 };
 
@@ -172,21 +165,8 @@ static int qedr_iw_register_device(struct qedr_dev *dev)
 
 	ib_set_device_ops(&dev->ibdev, &qedr_iw_dev_ops);
 
-	dev->ibdev.iwcm = kzalloc(sizeof(*dev->ibdev.iwcm), GFP_KERNEL);
-	if (!dev->ibdev.iwcm)
-		return -ENOMEM;
-
-	dev->ibdev.iwcm->connect = qedr_iw_connect;
-	dev->ibdev.iwcm->accept = qedr_iw_accept;
-	dev->ibdev.iwcm->reject = qedr_iw_reject;
-	dev->ibdev.iwcm->create_listen = qedr_iw_create_listen;
-	dev->ibdev.iwcm->destroy_listen = qedr_iw_destroy_listen;
-	dev->ibdev.iwcm->add_ref = qedr_iw_qp_add_ref;
-	dev->ibdev.iwcm->rem_ref = qedr_iw_qp_rem_ref;
-	dev->ibdev.iwcm->get_qp = qedr_iw_get_qp;
-
-	memcpy(dev->ibdev.iwcm->ifname,
-	       dev->ndev->name, sizeof(dev->ibdev.iwcm->ifname));
+	memcpy(dev->ibdev.iw_ifname,
+	       dev->ndev->name, sizeof(dev->ibdev.iw_ifname));
 
 	return 0;
 }
@@ -220,7 +200,6 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.get_dev_fw_str = qedr_get_dev_fw_str,
 	.get_dma_mr = qedr_get_dma_mr,
 	.get_link_layer = qedr_link_layer,
-	.get_netdev = qedr_get_netdev,
 	.map_mr_sg = qedr_map_mr_sg,
 	.mmap = qedr_mmap,
 	.modify_port = qedr_modify_port,
@@ -239,7 +218,10 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.reg_user_mr = qedr_reg_user_mr,
 	.req_notify_cq = qedr_arm_cq,
 	.resize_cq = qedr_resize_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, qedr_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, qedr_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_srq, qedr_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, qedr_ucontext, ibucontext),
 };
 
@@ -293,6 +275,10 @@ static int qedr_register_device(struct qedr_dev *dev)
 	ib_set_device_ops(&dev->ibdev, &qedr_dev_ops);
 
 	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
+	rc = ib_device_set_netdev(&dev->ibdev, dev->ndev, 1);
+	if (rc)
+		return rc;
+
 	return ib_register_device(&dev->ibdev, "qedr%d");
 }
 
@@ -364,8 +350,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	spin_lock_init(&dev->sgid_lock);
 
 	if (IS_IWARP(dev)) {
-		spin_lock_init(&dev->qpidr.idr_lock);
-		idr_init(&dev->qpidr.idr);
+		xa_init_flags(&dev->qps, XA_FLAGS_LOCK_IRQ);
 		dev->iwarp_wq = create_singlethread_workqueue("qedr_iwarpq");
 	}
 
@@ -760,8 +745,8 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		break;
 	case EVENT_TYPE_SRQ:
 		srq_id = (u16)roce_handle64;
-		spin_lock_irqsave(&dev->srqidr.idr_lock, flags);
-		srq = idr_find(&dev->srqidr.idr, srq_id);
+		xa_lock_irqsave(&dev->srqs, flags);
+		srq = xa_load(&dev->srqs, srq_id);
 		if (srq) {
 			ibsrq = &srq->ibsrq;
 			if (ibsrq->event_handler) {
@@ -775,7 +760,7 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 				  "SRQ event with NULL pointer ibsrq. Handle=%llx\n",
 				  roce_handle64);
 		}
-		spin_unlock_irqrestore(&dev->srqidr.idr_lock, flags);
+		xa_unlock_irqrestore(&dev->srqs, flags);
 		DP_NOTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
 	default:
 		break;

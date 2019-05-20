@@ -30,7 +30,7 @@ config EXTCON_ARIZONA
 
 config EXTCON_AXP288
 	tristate "X-Power AXP288 EXTCON support"
-	depends on MFD_AXP20X && USB_SUPPORT && X86
+	depends on MFD_AXP20X && USB_SUPPORT && X86 && ACPI
 	select USB_ROLE_SWITCH
 	help
 	  Say Y here to enable support for USB peripheral detection
@@ -59,6 +59,13 @@ config EXTCON_INTEL_CHT_WC
 	help
 	  Say Y here to enable extcon support for charger detection / control
 	  on the Intel Cherrytrail Whiskey Cove PMIC.
+
+config EXTCON_INTEL_MRFLD
+	tristate "Intel Merrifield Basin Cove PMIC extcon driver"
+	depends on INTEL_SOC_PMIC_MRFLD
+	help
+	  Say Y here to enable extcon support for charger detection / control
+	  on the Intel Merrifield Basin Cove PMIC.
 
 config EXTCON_MAX14577
 	tristate "Maxim MAX14577/77836 EXTCON Support"

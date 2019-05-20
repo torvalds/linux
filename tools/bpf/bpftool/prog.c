@@ -249,6 +249,9 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	if (info->nr_map_ids)
 		show_prog_maps(fd, info->nr_map_ids);
 
+	if (info->btf_id)
+		jsonw_int_field(json_wtr, "btf_id", info->btf_id);
+
 	if (!hash_empty(prog_table.table)) {
 		struct pinned_obj *obj;
 
@@ -318,6 +321,9 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 				printf("\n\tpinned %s", obj->path);
 		}
 	}
+
+	if (info->btf_id)
+		printf("\n\tbtf_id %d", info->btf_id);
 
 	printf("\n");
 }
@@ -1054,7 +1060,7 @@ static int do_help(int argc, char **argv)
 		"                 tracepoint | raw_tracepoint | xdp | perf_event | cgroup/skb |\n"
 		"                 cgroup/sock | cgroup/dev | lwt_in | lwt_out | lwt_xmit |\n"
 		"                 lwt_seg6local | sockops | sk_skb | sk_msg | lirc_mode2 |\n"
-		"                 sk_reuseport | flow_dissector |\n"
+		"                 sk_reuseport | flow_dissector | cgroup/sysctl |\n"
 		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
 		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
 		"                 cgroup/sendmsg4 | cgroup/sendmsg6 }\n"

@@ -29,7 +29,7 @@
 #include "os_types.h"
 #include "dc_types.h"
 
-struct pp_smu_funcs_rv;
+struct pp_smu_funcs;
 
 struct dm_pp_clock_range {
 	int min_khz;

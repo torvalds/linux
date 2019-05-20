@@ -42,9 +42,10 @@
 #include <net/neighbour.h>
 #include <net/route.h>
 #include <net/netevent.h>
-#include <net/addrconf.h>
+#include <net/ipv6_stubs.h>
 #include <net/ip6_route.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_cache.h>
 #include <rdma/ib_sa.h>
 #include <rdma/ib.h>
 #include <rdma/rdma_netlink.h>
@@ -86,8 +87,8 @@ static inline bool ib_nl_is_good_ip_resp(const struct nlmsghdr *nlh)
 	if (nlh->nlmsg_flags & RDMA_NL_LS_F_ERR)
 		return false;
 
-	ret = nla_parse(tb, LS_NLA_TYPE_MAX - 1, nlmsg_data(nlh),
-			nlmsg_len(nlh), ib_nl_addr_policy, NULL);
+	ret = nla_parse_deprecated(tb, LS_NLA_TYPE_MAX - 1, nlmsg_data(nlh),
+				   nlmsg_len(nlh), ib_nl_addr_policy, NULL);
 	if (ret)
 		return false;
 
@@ -351,7 +352,7 @@ static bool has_gateway(const struct dst_entry *dst, sa_family_t family)
 
 	if (family == AF_INET) {
 		rt = container_of(dst, struct rtable, dst);
-		return rt->rt_uses_gateway;
+		return rt->rt_gw_family == AF_INET;
 	}
 
 	rt6 = container_of(dst, struct rt6_info, dst);
@@ -730,8 +731,8 @@ int roce_resolve_route_from_path(struct sa_path_rec *rec,
 	if (rec->roce.route_resolved)
 		return 0;
 
-	rdma_gid2ip(&sgid._sockaddr, &rec->sgid);
-	rdma_gid2ip(&dgid._sockaddr, &rec->dgid);
+	rdma_gid2ip((struct sockaddr *)&sgid, &rec->sgid);
+	rdma_gid2ip((struct sockaddr *)&dgid, &rec->dgid);
 
 	if (sgid._sockaddr.sa_family != dgid._sockaddr.sa_family)
 		return -EINVAL;
@@ -742,7 +743,7 @@ int roce_resolve_route_from_path(struct sa_path_rec *rec,
 	dev_addr.net = &init_net;
 	dev_addr.sgid_attr = attr;
 
-	ret = addr_resolve(&sgid._sockaddr, &dgid._sockaddr,
+	ret = addr_resolve((struct sockaddr *)&sgid, (struct sockaddr *)&dgid,
 			   &dev_addr, false, true, 0);
 	if (ret)
 		return ret;
@@ -814,22 +815,22 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	struct rdma_dev_addr dev_addr;
 	struct resolve_cb_context ctx;
 	union {
-		struct sockaddr     _sockaddr;
 		struct sockaddr_in  _sockaddr_in;
 		struct sockaddr_in6 _sockaddr_in6;
 	} sgid_addr, dgid_addr;
 	int ret;
 
-	rdma_gid2ip(&sgid_addr._sockaddr, sgid);
-	rdma_gid2ip(&dgid_addr._sockaddr, dgid);
+	rdma_gid2ip((struct sockaddr *)&sgid_addr, sgid);
+	rdma_gid2ip((struct sockaddr *)&dgid_addr, dgid);
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
 	dev_addr.net = &init_net;
 	dev_addr.sgid_attr = sgid_attr;
 
 	init_completion(&ctx.comp);
-	ret = rdma_resolve_ip(&sgid_addr._sockaddr, &dgid_addr._sockaddr,
-			      &dev_addr, 1000, resolve_cb, true, &ctx);
+	ret = rdma_resolve_ip((struct sockaddr *)&sgid_addr,
+			      (struct sockaddr *)&dgid_addr, &dev_addr, 1000,
+			      resolve_cb, true, &ctx);
 	if (ret)
 		return ret;
 

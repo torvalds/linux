@@ -38,6 +38,7 @@
 #include "clock.h"
 #include "stream.h"
 #include "power.h"
+#include "media.h"
 
 /*
  * free a substream
@@ -55,6 +56,7 @@ static void free_substream(struct snd_usb_substream *subs)
 	}
 	kfree(subs->rate_list.list);
 	kfree(subs->str_pd);
+	snd_media_stream_delete(subs);
 }
 
 

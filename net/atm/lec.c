@@ -726,9 +726,7 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 	struct lec_priv *priv;
 
 	if (arg < 0)
-		i = 0;
-	else
-		i = arg;
+		arg = 0;
 	if (arg >= MAX_LEC_ITF)
 		return -EINVAL;
 	i = array_index_nospec(arg, MAX_LEC_ITF);

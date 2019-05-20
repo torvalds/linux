@@ -30,9 +30,6 @@ struct compat_cmsghdr {
 	compat_int_t	cmsg_type;
 };
 
-int compat_sock_get_timestamp(struct sock *, struct timeval __user *);
-int compat_sock_get_timestampns(struct sock *, struct timespec __user *);
-
 #else /* defined(CONFIG_COMPAT) */
 /*
  * To avoid compiler warnings:

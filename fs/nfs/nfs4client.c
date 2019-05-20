@@ -870,6 +870,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		.minorversion = minorversion,
 		.net = net,
 		.timeparms = timeparms,
+		.cred = server->cred,
 	};
 	struct nfs_client *clp;
 
@@ -931,6 +932,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 		.minorversion = minor_version,
 		.net = mds_clp->cl_net,
 		.timeparms = &ds_timeout,
+		.cred = mds_srv->cred,
 	};
 	char buf[INET6_ADDRSTRLEN + 1];
 
@@ -1107,6 +1109,8 @@ struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 
+	server->cred = get_cred(current_cred());
+
 	auth_probe = mount_info->parsed->auth_info.flavor_len < 1;
 
 	/* set up the general RPC client */
@@ -1142,6 +1146,8 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 
 	parent_server = NFS_SB(data->sb);
 	parent_client = parent_server->nfs_client;
+
+	server->cred = get_cred(parent_server->cred);
 
 	/* Initialise the client representation from the parent server */
 	nfs_server_copy_userdata(server, parent_server);

@@ -12,12 +12,17 @@
  * struct ad7606_chip_info - chip specific information
  * @channels:		channel specification
  * @num_channels:	number of channels
- * @has_oversampling:   whether the device has oversampling support
+ * @oversampling_avail	pointer to the array which stores the available
+ *			oversampling ratios.
+ * @oversampling_num	number of elements stored in oversampling_avail array
+ * @os_req_reset	some devices require a reset to update oversampling
  */
 struct ad7606_chip_info {
 	const struct iio_chan_spec	*channels;
 	unsigned int			num_channels;
-	bool				has_oversampling;
+	const unsigned int		*oversampling_avail;
+	unsigned int			oversampling_num;
+	bool				os_req_reset;
 };
 
 /**
@@ -29,6 +34,11 @@ struct ad7606_chip_info {
  * @range		voltage range selection, selects which scale to apply
  * @oversampling	oversampling selection
  * @base_address	address from where to read data in parallel operation
+ * @scale_avail		pointer to the array which stores the available scales
+ * @num_scales		number of elements stored in the scale_avail array
+ * @oversampling_avail	pointer to the array which stores the available
+ *			oversampling ratios.
+ * @num_os_ratios	number of elements stored in oversampling_avail array
  * @lock		protect sensor state from concurrent accesses to GPIOs
  * @gpio_convst	GPIO descriptor for conversion start signal (CONVST)
  * @gpio_reset		GPIO descriptor for device hard-reset
@@ -50,6 +60,10 @@ struct ad7606_state {
 	unsigned int			range;
 	unsigned int			oversampling;
 	void __iomem			*base_address;
+	const unsigned int		*scale_avail;
+	unsigned int			num_scales;
+	const unsigned int		*oversampling_avail;
+	unsigned int			num_os_ratios;
 
 	struct mutex			lock; /* protect sensor state */
 	struct gpio_desc		*gpio_convst;
@@ -64,9 +78,9 @@ struct ad7606_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
-	 * 8 * 16-bit samples + 64-bit timestamp
+	 * 16 * 16-bit samples + 64-bit timestamp
 	 */
-	unsigned short			data[12] ____cacheline_aligned;
+	unsigned short			data[20] ____cacheline_aligned;
 };
 
 /**
@@ -86,7 +100,8 @@ enum ad7606_supported_device_ids {
 	ID_AD7605_4,
 	ID_AD7606_8,
 	ID_AD7606_6,
-	ID_AD7606_4
+	ID_AD7606_4,
+	ID_AD7616,
 };
 
 #ifdef CONFIG_PM_SLEEP

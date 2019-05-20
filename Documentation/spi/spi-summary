@@ -572,6 +572,12 @@ SPI MASTER METHODS
 	0: transfer is finished
 	1: transfer is still in progress
 
+    master->set_cs_timing(struct spi_device *spi, u8 setup_clk_cycles,
+			      u8 hold_clk_cycles, u8 inactive_clk_cycles)
+	This method allows SPI client drivers to request SPI master controller
+	for configuring device specific CS setup, hold and inactive timing
+	requirements.
+
     DEPRECATED METHODS
 
     master->transfer(struct spi_device *spi, struct spi_message *message)

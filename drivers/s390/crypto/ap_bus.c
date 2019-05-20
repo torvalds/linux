@@ -116,7 +116,7 @@ static int user_set_domain;
 static struct bus_type ap_bus_type;
 
 /* Adapter interrupt definitions */
-static void ap_interrupt_handler(struct airq_struct *airq);
+static void ap_interrupt_handler(struct airq_struct *airq, bool floating);
 
 static int ap_airq_flag;
 
@@ -393,7 +393,7 @@ static enum hrtimer_restart ap_poll_timeout(struct hrtimer *unused)
  * ap_interrupt_handler() - Schedule ap_tasklet on interrupt
  * @airq: pointer to adapter interrupt descriptor
  */
-static void ap_interrupt_handler(struct airq_struct *airq)
+static void ap_interrupt_handler(struct airq_struct *airq, bool floating)
 {
 	inc_irq_stat(IRQIO_APB);
 	if (!ap_suspend_flag)

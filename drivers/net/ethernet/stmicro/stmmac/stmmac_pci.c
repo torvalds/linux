@@ -208,7 +208,7 @@ static int quark_default_data(struct pci_dev *pdev,
 		ret = 1;
 	}
 
-	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	plat->bus_id = pci_dev_id(pdev);
 	plat->phy_addr = ret;
 	plat->interface = PHY_INTERFACE_MODE_RMII;
 

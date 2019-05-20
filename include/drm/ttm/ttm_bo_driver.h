@@ -596,7 +596,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
-		       uint64_t file_page_offset, bool need_dma32);
+		       bool need_dma32);
 
 /**
  * ttm_bo_unmap_virtual

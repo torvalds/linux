@@ -46,7 +46,6 @@
 
 	vdd_cpux: gpio-regulator {
 		compatible = "regulator-gpio";
-		pinctrl-names = "default";
 		regulator-name = "vdd-cpux";
 		regulator-type = "voltage";
 		regulator-boot-on;
@@ -133,7 +132,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

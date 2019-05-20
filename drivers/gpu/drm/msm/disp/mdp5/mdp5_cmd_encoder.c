@@ -59,10 +59,10 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 		return -EINVAL;
 	}
 
-	total_lines_x100 = mode->vtotal * mode->vrefresh;
+	total_lines_x100 = mode->vtotal * drm_mode_vrefresh(mode);
 	if (!total_lines_x100) {
 		DRM_DEV_ERROR(dev, "%s: vtotal(%d) or vrefresh(%d) is 0\n",
-				__func__, mode->vtotal, mode->vrefresh);
+			      __func__, mode->vtotal, drm_mode_vrefresh(mode));
 		return -EINVAL;
 	}
 

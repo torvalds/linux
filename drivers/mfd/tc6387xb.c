@@ -80,16 +80,14 @@ static int tc6387xb_resume(struct platform_device *dev)
 
 static void tc6387xb_mmc_pwr(struct platform_device *mmc, int state)
 {
-	struct platform_device *dev = to_platform_device(mmc->dev.parent);
-	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
+	struct tc6387xb *tc6387xb = dev_get_drvdata(mmc->dev.parent);
 
 	tmio_core_mmc_pwr(tc6387xb->scr + 0x200, 0, state);
 }
 
 static void tc6387xb_mmc_clk_div(struct platform_device *mmc, int state)
 {
-	struct platform_device *dev = to_platform_device(mmc->dev.parent);
-	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
+	struct tc6387xb *tc6387xb = dev_get_drvdata(mmc->dev.parent);
 
 	tmio_core_mmc_clk_div(tc6387xb->scr + 0x200, 0, state);
 }
@@ -97,8 +95,7 @@ static void tc6387xb_mmc_clk_div(struct platform_device *mmc, int state)
 
 static int tc6387xb_mmc_enable(struct platform_device *mmc)
 {
-	struct platform_device *dev      = to_platform_device(mmc->dev.parent);
-	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
+	struct tc6387xb *tc6387xb = dev_get_drvdata(mmc->dev.parent);
 
 	clk_prepare_enable(tc6387xb->clk32k);
 
@@ -110,8 +107,7 @@ static int tc6387xb_mmc_enable(struct platform_device *mmc)
 
 static int tc6387xb_mmc_disable(struct platform_device *mmc)
 {
-	struct platform_device *dev      = to_platform_device(mmc->dev.parent);
-	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
+	struct tc6387xb *tc6387xb = dev_get_drvdata(mmc->dev.parent);
 
 	clk_disable_unprepare(tc6387xb->clk32k);
 

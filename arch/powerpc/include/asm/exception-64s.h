@@ -497,6 +497,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	RESTORE_CTR(r1, area);						   \
 	b	bad_stack;						   \
 3:	EXCEPTION_PROLOG_COMMON_1();					   \
+	kuap_save_amr_and_lock r9, r10, cr1, cr0;			   \
 	beq	4f;			/* if from kernel mode		*/ \
 	ACCOUNT_CPU_USER_ENTRY(r13, r9, r10);				   \
 	SAVE_PPR(area, r9);						   \
@@ -691,6 +692,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
  */
 #define EXCEPTION_COMMON_NORET_STACK(area, trap, label, hdlr, additions) \
 	EXCEPTION_PROLOG_COMMON_1();				\
+	kuap_save_amr_and_lock r9, r10, cr1;			\
 	EXCEPTION_PROLOG_COMMON_2(area);			\
 	EXCEPTION_PROLOG_COMMON_3(trap);			\
 	/* Volatile regs are potentially clobbered here */	\

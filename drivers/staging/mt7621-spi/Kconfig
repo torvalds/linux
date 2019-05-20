@@ -1,6 +1,0 @@
-config SPI_MT7621
-	tristate "MediaTek MT7621 SPI Controller"
-	depends on RALINK
-	help
-	  This selects a driver for the MediaTek MT7621 SPI Controller.
-

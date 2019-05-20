@@ -1,0 +1,142 @@
+Kernel driver w83795
+====================
+
+Supported chips:
+
+  * Winbond/Nuvoton W83795G
+
+    Prefix: 'w83795g'
+
+    Addresses scanned: I2C 0x2c - 0x2f
+
+    Datasheet: Available for download on nuvoton.com
+
+  * Winbond/Nuvoton W83795ADG
+
+    Prefix: 'w83795adg'
+
+    Addresses scanned: I2C 0x2c - 0x2f
+
+    Datasheet: Available for download on nuvoton.com
+
+Authors:
+    - Wei Song (Nuvoton)
+    - Jean Delvare <jdelvare@suse.de>
+
+
+Pin mapping
+-----------
+
+Here is a summary of the pin mapping for the W83795G and W83795ADG.
+This can be useful to convert data provided by board manufacturers
+into working libsensors configuration statements.
+
+
+- W83795G
+
+========= ======================= =============== ================
+Pin	  Name			  Register	  Sysfs attribute
+========= ======================= =============== ================
+   13	  VSEN1 (VCORE1)	  10h		  in0
+   14	  VSEN2 (VCORE2)	  11h		  in1
+   15	  VSEN3 (VCORE3)	  12h		  in2
+   16	  VSEN4			  13h		  in3
+   17	  VSEN5			  14h		  in4
+   18	  VSEN6			  15h		  in5
+   19	  VSEN7			  16h		  in6
+   20	  VSEN8			  17h		  in7
+   21	  VSEN9			  18h		  in8
+   22	  VSEN10		  19h		  in9
+   23	  VSEN11		  1Ah		  in10
+   28	  VTT			  1Bh		  in11
+   24	  3VDD			  1Ch		  in12
+   25	  3VSB			  1Dh		  in13
+   26	  VBAT			  1Eh		  in14
+    3	  VSEN12/TR5		  1Fh		  in15/temp5
+    4	  VSEN13/TR5		  20h		  in16/temp6
+  5/  6	  VDSEN14/TR1/TD1	  21h		  in17/temp1
+  7/  8	  VDSEN15/TR2/TD2	  22h		  in18/temp2
+  9/ 10	  VDSEN16/TR3/TD3	  23h		  in19/temp3
+ 11/ 12	  VDSEN17/TR4/TD4	  24h		  in20/temp4
+   40	  FANIN1		  2Eh		  fan1
+   42	  FANIN2		  2Fh		  fan2
+   44	  FANIN3		  30h		  fan3
+   46	  FANIN4		  31h		  fan4
+   48	  FANIN5		  32h		  fan5
+   50	  FANIN6		  33h		  fan6
+   52	  FANIN7		  34h		  fan7
+   54	  FANIN8		  35h		  fan8
+   57	  FANIN9		  36h		  fan9
+   58	  FANIN10		  37h		  fan10
+   59	  FANIN11		  38h		  fan11
+   60	  FANIN12		  39h		  fan12
+   31	  FANIN13		  3Ah		  fan13
+   35	  FANIN14		  3Bh		  fan14
+   41	  FANCTL1		  10h (bank 2)	  pwm1
+   43	  FANCTL2		  11h (bank 2)	  pwm2
+   45	  FANCTL3		  12h (bank 2)	  pwm3
+   47	  FANCTL4		  13h (bank 2)	  pwm4
+   49	  FANCTL5		  14h (bank 2)	  pwm5
+   51	  FANCTL6		  15h (bank 2)	  pwm6
+   53	  FANCTL7		  16h (bank 2)	  pwm7
+   55	  FANCTL8		  17h (bank 2)	  pwm8
+ 29/ 30	  PECI/TSI (DTS1)	  26h		  temp7
+ 29/ 30	  PECI/TSI (DTS2)	  27h		  temp8
+ 29/ 30	  PECI/TSI (DTS3)	  28h		  temp9
+ 29/ 30	  PECI/TSI (DTS4)	  29h		  temp10
+ 29/ 30	  PECI/TSI (DTS5)	  2Ah		  temp11
+ 29/ 30	  PECI/TSI (DTS6)	  2Bh		  temp12
+ 29/ 30	  PECI/TSI (DTS7)	  2Ch		  temp13
+ 29/ 30	  PECI/TSI (DTS8)	  2Dh		  temp14
+   27	  CASEOPEN#		  46h		  intrusion0
+========= ======================= =============== ================
+
+- W83795ADG
+
+========= ======================= =============== ================
+Pin	  Name			  Register	  Sysfs attribute
+========= ======================= =============== ================
+   10	  VSEN1 (VCORE1)	  10h		  in0
+   11	  VSEN2 (VCORE2)	  11h		  in1
+   12	  VSEN3 (VCORE3)	  12h		  in2
+   13	  VSEN4			  13h		  in3
+   14	  VSEN5			  14h		  in4
+   15	  VSEN6			  15h		  in5
+   16	  VSEN7			  16h		  in6
+   17	  VSEN8			  17h		  in7
+   22	  VTT			  1Bh		  in11
+   18	  3VDD			  1Ch		  in12
+   19	  3VSB			  1Dh		  in13
+   20	  VBAT			  1Eh		  in14
+   48	  VSEN12/TR5		  1Fh		  in15/temp5
+    1	  VSEN13/TR5		  20h		  in16/temp6
+  2/  3	  VDSEN14/TR1/TD1	  21h		  in17/temp1
+  4/  5	  VDSEN15/TR2/TD2	  22h		  in18/temp2
+  6/  7	  VDSEN16/TR3/TD3	  23h		  in19/temp3
+  8/  9	  VDSEN17/TR4/TD4	  24h		  in20/temp4
+   32	  FANIN1		  2Eh		  fan1
+   34	  FANIN2		  2Fh		  fan2
+   36	  FANIN3		  30h		  fan3
+   37	  FANIN4		  31h		  fan4
+   38	  FANIN5		  32h		  fan5
+   39	  FANIN6		  33h		  fan6
+   40	  FANIN7		  34h		  fan7
+   41	  FANIN8		  35h		  fan8
+   43	  FANIN9		  36h		  fan9
+   44	  FANIN10		  37h		  fan10
+   45	  FANIN11		  38h		  fan11
+   46	  FANIN12		  39h		  fan12
+   24	  FANIN13		  3Ah		  fan13
+   28	  FANIN14		  3Bh		  fan14
+   33	  FANCTL1		  10h (bank 2)	  pwm1
+   35	  FANCTL2		  11h (bank 2)	  pwm2
+   23	  PECI (DTS1)		  26h		  temp7
+   23	  PECI (DTS2)		  27h		  temp8
+   23	  PECI (DTS3)		  28h		  temp9
+   23	  PECI (DTS4)		  29h		  temp10
+   23	  PECI (DTS5)		  2Ah		  temp11
+   23	  PECI (DTS6)		  2Bh		  temp12
+   23	  PECI (DTS7)		  2Ch		  temp13
+   23	  PECI (DTS8)		  2Dh		  temp14
+   21	  CASEOPEN#		  46h		  intrusion0
+========= ======================= =============== ================

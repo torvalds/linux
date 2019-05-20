@@ -301,6 +301,4 @@ static int __init init_cgroup_netprio(void)
 	register_netdevice_notifier(&netprio_device_notifier);
 	return 0;
 }
-
 subsys_initcall(init_cgroup_netprio);
-MODULE_LICENSE("GPL v2");

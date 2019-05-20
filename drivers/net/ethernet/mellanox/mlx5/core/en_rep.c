@@ -795,7 +795,8 @@ static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 
-	if (!mlx5e_tc_tun_device_to_offload(priv, netdev))
+	if (!mlx5e_tc_tun_device_to_offload(priv, netdev) &&
+	    !is_vlan_dev(netdev))
 		return NOTIFY_OK;
 
 	switch (event) {
@@ -1374,6 +1375,7 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
 
 	params->num_tc                = 1;
+	params->tunneled_offload_en = false;
 
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 
@@ -1389,7 +1391,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	if (rep->vport == MLX5_VPORT_UPLINK) {
-		SET_NETDEV_DEV(netdev, &priv->mdev->pdev->dev);
+		SET_NETDEV_DEV(netdev, mdev->device);
 		netdev->netdev_ops = &mlx5e_netdev_ops_uplink_rep;
 		/* we want a persistent mac for the uplink rep */
 		mlx5_query_nic_vport_mac_address(mdev, 0, netdev->dev_addr);
@@ -1623,13 +1625,7 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 
 static void mlx5e_vf_rep_enable(struct mlx5e_priv *priv)
 {
-	struct net_device *netdev = priv->netdev;
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 max_mtu;
-
-	netdev->min_mtu = ETH_MIN_MTU;
-	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
-	netdev->max_mtu = MLX5E_HW2SW_MTU(&priv->channels.params, max_mtu);
+	mlx5e_set_netdev_mtu_boundaries(priv);
 }
 
 static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event, void *data)

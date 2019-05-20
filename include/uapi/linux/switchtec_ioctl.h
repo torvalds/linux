@@ -50,13 +50,22 @@ struct switchtec_ioctl_flash_part_info {
 	__u32 active;
 };
 
-struct switchtec_ioctl_event_summary {
+struct switchtec_ioctl_event_summary_legacy {
 	__u64 global;
 	__u64 part_bitmap;
 	__u32 local_part;
 	__u32 padding;
 	__u32 part[48];
 	__u32 pff[48];
+};
+
+struct switchtec_ioctl_event_summary {
+	__u64 global;
+	__u64 part_bitmap;
+	__u32 local_part;
+	__u32 padding;
+	__u32 part[48];
+	__u32 pff[255];
 };
 
 #define SWITCHTEC_IOCTL_EVENT_STACK_ERROR		0
@@ -127,6 +136,8 @@ struct switchtec_ioctl_pff_port {
 	_IOWR('W', 0x41, struct switchtec_ioctl_flash_part_info)
 #define SWITCHTEC_IOCTL_EVENT_SUMMARY \
 	_IOR('W', 0x42, struct switchtec_ioctl_event_summary)
+#define SWITCHTEC_IOCTL_EVENT_SUMMARY_LEGACY \
+	_IOR('W', 0x42, struct switchtec_ioctl_event_summary_legacy)
 #define SWITCHTEC_IOCTL_EVENT_CTL \
 	_IOWR('W', 0x43, struct switchtec_ioctl_event_ctl)
 #define SWITCHTEC_IOCTL_PFF_TO_PORT \

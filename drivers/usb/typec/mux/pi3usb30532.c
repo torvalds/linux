@@ -84,7 +84,8 @@ static int pi3usb30532_mux_set(struct typec_mux *mux, int state)
 
 	switch (state) {
 	case TYPEC_STATE_SAFE:
-		new_conf = PI3USB30532_CONF_OPEN;
+		new_conf = (new_conf & PI3USB30532_CONF_SWAP) |
+			   PI3USB30532_CONF_OPEN;
 		break;
 	case TYPEC_STATE_USB:
 		new_conf = (new_conf & PI3USB30532_CONF_SWAP) |
