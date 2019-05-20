@@ -952,19 +952,6 @@ struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
 }
 EXPORT_SYMBOL_GPL(crypto_dequeue_request);
 
-int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm)
-{
-	struct crypto_async_request *req;
-
-	list_for_each_entry(req, &queue->list, list) {
-		if (req->tfm == tfm)
-			return 1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(crypto_tfm_in_queue);
-
 static inline void crypto_inc_byte(u8 *a, unsigned int size)
 {
 	u8 *b = (a + size);
