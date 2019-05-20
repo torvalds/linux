@@ -75,9 +75,7 @@
 	cooling-maps {
 		/*
 		 * After 1st level, throttle the CPU down to as low as 1.4 GHz
-		 * and don't let the GPU go faster than 400 MHz.  Note that we
-		 * won't throttle the GPU lower than 400 MHz due to CPU
-		 * heat--we'll let the GPU do the rest itself.
+		 * and don't let the GPU go faster than 400 MHz.
 		 */
 		cpu_warm_limit_cpu {
 			trip = <&cpu_alert_warm>;
@@ -85,6 +83,10 @@
 					 <&cpu1 THERMAL_NO_LIMIT 4>,
 					 <&cpu2 THERMAL_NO_LIMIT 4>,
 					 <&cpu3 THERMAL_NO_LIMIT 4>;
+		};
+		cpu_warm_limit_gpu {
+			trip = <&cpu_alert_warm>;
+			cooling-device = <&gpu 1 1>;
 		};
 
 		/*
@@ -124,6 +126,12 @@
 					 <&cpu1 8 THERMAL_NO_LIMIT>,
 					 <&cpu2 8 THERMAL_NO_LIMIT>,
 					 <&cpu3 8 THERMAL_NO_LIMIT>;
+		};
+
+		/* At very hot, don't let GPU go over 300 MHz */
+		cpu_very_hot_limit_gpu {
+			trip = <&cpu_alert_very_hot>;
+			cooling-device = <&gpu 2 2>;
 		};
 	};
 };
