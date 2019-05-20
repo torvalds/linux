@@ -197,11 +197,15 @@ static int  read_system_regs(struct kp2000_device *pcard)
     return 0;
 }
 
-irqreturn_t  kp2000_irq_handler(int irq, void *dev_id)
+static irqreturn_t kp2000_irq_handler(int irq, void *dev_id)
 {
-    struct kp2000_device  *pcard = (struct kp2000_device*)dev_id;
-    SetBackEndControl(pcard->dma_common_regs, KPC_DMA_CARD_IRQ_ENABLE | KPC_DMA_CARD_USER_INTERRUPT_MODE | KPC_DMA_CARD_USER_INTERRUPT_ACTIVE);
-    return IRQ_HANDLED;
+	struct kp2000_device *pcard = dev_id;
+
+	writel(KPC_DMA_CARD_IRQ_ENABLE |
+	       KPC_DMA_CARD_USER_INTERRUPT_MODE |
+	       KPC_DMA_CARD_USER_INTERRUPT_ACTIVE,
+	       pcard->dma_common_regs);
+	return IRQ_HANDLED;
 }
 
 static int kp2000_cdev_open(struct inode *inode, struct file *filp)
@@ -484,7 +488,8 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
     //}
 
     //{ Step 12: Enable IRQs in HW
-    SetBackEndControl(pcard->dma_common_regs, KPC_DMA_CARD_IRQ_ENABLE | KPC_DMA_CARD_USER_INTERRUPT_MODE);
+	writel(KPC_DMA_CARD_IRQ_ENABLE | KPC_DMA_CARD_USER_INTERRUPT_MODE,
+	       pcard->dma_common_regs);
     //}
 
     dev_dbg(&pcard->pdev->dev, "kp2000_pcie_probe() complete!\n");
