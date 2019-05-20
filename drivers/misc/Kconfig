@@ -8,7 +8,6 @@ config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
 	select INPUT_POLLDEV
-	default n
 
 config AD525X_DPOT
 	tristate "Analog Devices Digital Potentiometers"
@@ -61,7 +60,6 @@ config ATMEL_TCLIB
 
 config DUMMY_IRQ
 	tristate "Dummy IRQ handler"
-	default n
 	---help---
 	  This module accepts a single 'irq' parameter, which it should register for.
 	  The sole purpose of this module is to help with debugging of systems on
@@ -117,7 +115,6 @@ config PHANTOM
 config INTEL_MID_PTI
 	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
 	depends on PCI && TTY && (X86_INTEL_MID || COMPILE_TEST)
-	default n
 	help
 	  The PTI (Parallel Trace Interface) driver directs
 	  trace data routed from various parts in the system out
@@ -193,7 +190,6 @@ config ATMEL_SSC
 
 config ENCLOSURE_SERVICES
 	tristate "Enclosure Services"
-	default n
 	help
 	  Provides support for intelligent enclosures (bays which
 	  contain storage devices).  You also need either a host
@@ -217,7 +213,6 @@ config SGI_XP
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
 	depends on MFD_CS5535
-	default n
 	help
 	  This driver provides access to MFGPT functionality for other
 	  drivers that need timers.  MFGPTs are available in the CS5535 and
@@ -250,7 +245,6 @@ config CS5535_CLOCK_EVENT_SRC
 config HP_ILO
 	tristate "Channel interface driver for the HP iLO processor"
 	depends on PCI
-	default n
 	help
 	  The channel interface driver allows applications to communicate
 	  with iLO management processors present on HP ProLiant servers.
@@ -285,7 +279,6 @@ config QCOM_FASTRPC
 config SGI_GRU
 	tristate "SGI GRU driver"
 	depends on X86_UV && SMP
-	default n
 	select MMU_NOTIFIER
 	---help---
 	The GRU is a hardware resource located in the system chipset. The GRU
@@ -300,7 +293,6 @@ config SGI_GRU
 config SGI_GRU_DEBUG
 	bool  "SGI GRU driver debug"
 	depends on SGI_GRU
-	default n
 	---help---
 	This option enables additional debugging code for the SGI GRU driver.
 	If you are unsure, say N.
@@ -358,7 +350,6 @@ config SENSORS_BH1770
 config SENSORS_APDS990X
 	 tristate "APDS990X combined als and proximity sensors"
 	 depends on I2C
-	 default n
 	 ---help---
 	   Say Y here if you want to build a driver for Avago APDS990x
 	   combined ambient light and proximity sensor chip.
@@ -386,7 +377,6 @@ config DS1682
 config SPEAR13XX_PCIE_GADGET
 	bool "PCIe gadget support for SPEAr13XX platform"
 	depends on ARCH_SPEAR13XX && BROKEN
-	default n
 	help
 	 This option enables gadget support for PCIe controller. If
 	 board file defines any controller as PCIe endpoint then a sysfs
