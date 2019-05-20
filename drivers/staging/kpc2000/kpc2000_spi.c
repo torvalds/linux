@@ -27,7 +27,7 @@
 #include <linux/spi/flash.h>
 #include <linux/mtd/partitions.h>
 
-#include "../kpc.h"
+#include "kpc.h"
 
 static struct mtd_partition p2kr0_spi0_parts[] = {
 	{ .name = "SLOT_0",	.size = 7798784,		.offset = 0,                },
