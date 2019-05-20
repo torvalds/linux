@@ -722,10 +722,10 @@ int rf69_set_packet_format(struct spi_device *spi,
 	switch (packet_format) {
 	case packet_length_var:
 		return rf69_set_bit(spi, REG_PACKETCONFIG1,
-				    MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
+				    MASK_PACKETCONFIG1_PACKET_FORMAT_VARIABLE);
 	case packet_length_fix:
 		return rf69_clear_bit(spi, REG_PACKETCONFIG1,
-				      MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
+				      MASK_PACKETCONFIG1_PACKET_FORMAT_VARIABLE);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
