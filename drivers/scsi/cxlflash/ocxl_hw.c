@@ -35,10 +35,6 @@
 static int ocxlflash_fs_cnt;
 static struct vfsmount *ocxlflash_vfs_mount;
 
-static const struct dentry_operations ocxlflash_fs_dops = {
-	.d_dname	= simple_dname,
-};
-
 /*
  * ocxlflash_fs_mount() - mount the pseudo-filesystem
  * @fs_type:	File system type.
@@ -52,7 +48,7 @@ static struct dentry *ocxlflash_fs_mount(struct file_system_type *fs_type,
 					 int flags, const char *dev_name,
 					 void *data)
 {
-	return mount_pseudo(fs_type, "ocxlflash:", NULL, &ocxlflash_fs_dops,
+	return mount_pseudo(fs_type, "ocxlflash:", NULL, NULL,
 			    OCXLFLASH_FS_MAGIC);
 }
 
