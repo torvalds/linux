@@ -2738,15 +2738,13 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 		_got = 0;
 		ret = try_get_cap_refs(ci, need, want, endoff,
 				       false, &_got);
-		if (ret == -EAGAIN) {
+		if (ret == -EAGAIN)
 			continue;
-		} else if (!ret) {
-			int err;
-
+		if (!ret) {
 			DEFINE_WAIT_FUNC(wait, woken_wake_function);
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
-			while (!(err = try_get_cap_refs(ci, need, want, endoff,
+			while (!(ret = try_get_cap_refs(ci, need, want, endoff,
 							true, &_got))) {
 				if (signal_pending(current)) {
 					ret = -ERESTARTSYS;
@@ -2756,14 +2754,16 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 			}
 
 			remove_wait_queue(&ci->i_cap_wq, &wait);
-			if (err == -EAGAIN)
+			if (ret == -EAGAIN)
 				continue;
 		}
-		if (ret == -ESTALE) {
-			/* session was killed, try renew caps */
-			ret = ceph_renew_caps(&ci->vfs_inode);
-			if (ret == 0)
-				continue;
+		if (ret < 0) {
+			if (ret == -ESTALE) {
+				/* session was killed, try renew caps */
+				ret = ceph_renew_caps(&ci->vfs_inode);
+				if (ret == 0)
+					continue;
+			}
 			return ret;
 		}
 
