@@ -436,12 +436,6 @@ void efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_pd *pd = to_epd(ibpd);
 
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return;
-	}
-
 	ibdev_dbg(&dev->ibdev, "Dealloc pd[%d]\n", pd->pdn);
 	efa_pd_dealloc(dev, pd->pdn);
 }
@@ -458,12 +452,6 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	struct efa_dev *dev = to_edev(ibqp->pd->device);
 	struct efa_qp *qp = to_eqp(ibqp);
 	int err;
-
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return -EINVAL;
-	}
 
 	ibdev_dbg(&dev->ibdev, "Destroy qp[%u]\n", ibqp->qp_num);
 	err = efa_destroy_qp_handle(dev, qp->qp_handle);
@@ -864,12 +852,6 @@ int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	struct efa_dev *dev = to_edev(ibcq->device);
 	struct efa_cq *cq = to_ecq(ibcq);
 	int err;
-
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return -EINVAL;
-	}
 
 	ibdev_dbg(&dev->ibdev,
 		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
@@ -1555,12 +1537,6 @@ int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	struct efa_com_dereg_mr_params params;
 	struct efa_mr *mr = to_emr(ibmr);
 	int err;
-
-	if (udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
-		ibdev_dbg(&dev->ibdev, "Incompatible ABI params\n");
-		return -EINVAL;
-	}
 
 	ibdev_dbg(&dev->ibdev, "Deregister mr[%d]\n", ibmr->lkey);
 
