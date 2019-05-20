@@ -32,6 +32,14 @@
 #define ODEBUG_CHUNK_SIZE	(1 << ODEBUG_CHUNK_SHIFT)
 #define ODEBUG_CHUNK_MASK	(~(ODEBUG_CHUNK_SIZE - 1))
 
+/*
+ * We limit the freeing of debug objects via workqueue at a maximum
+ * frequency of 10Hz and about 1024 objects for each freeing operation.
+ * So it is freeing at most 10k debug objects per second.
+ */
+#define ODEBUG_FREE_WORK_MAX	1024
+#define ODEBUG_FREE_WORK_DELAY	DIV_ROUND_UP(HZ, 10)
+
 struct debug_bucket {
 	struct hlist_head	list;
 	raw_spinlock_t		lock;
@@ -68,6 +76,7 @@ static int			obj_pool_min_free = ODEBUG_POOL_SIZE;
 static int			obj_pool_free = ODEBUG_POOL_SIZE;
 static int			obj_pool_used;
 static int			obj_pool_max_used;
+static bool			obj_freeing;
 /* The number of objs on the global free list */
 static int			obj_nr_tofree;
 
@@ -91,7 +100,7 @@ static int			debug_objects_allocated;
 static int			debug_objects_freed;
 
 static void free_obj_work(struct work_struct *work);
-static DECLARE_WORK(debug_obj_work, free_obj_work);
+static DECLARE_DELAYED_WORK(debug_obj_work, free_obj_work);
 
 static int __init enable_object_debug(char *str)
 {
@@ -282,13 +291,19 @@ static void free_obj_work(struct work_struct *work)
 	unsigned long flags;
 	HLIST_HEAD(tofree);
 
+	WRITE_ONCE(obj_freeing, false);
 	if (!raw_spin_trylock_irqsave(&pool_lock, flags))
 		return;
+
+	if (obj_pool_free >= debug_objects_pool_size)
+		goto free_objs;
 
 	/*
 	 * The objs on the pool list might be allocated before the work is
 	 * run, so recheck if pool list it full or not, if not fill pool
-	 * list from the global free list.
+	 * list from the global free list. As it is likely that a workload
+	 * may be gearing up to use more and more objects, don't free any
+	 * of them until the next round.
 	 */
 	while (obj_nr_tofree && obj_pool_free < debug_objects_pool_size) {
 		obj = hlist_entry(obj_to_free.first, typeof(*obj), node);
@@ -297,7 +312,10 @@ static void free_obj_work(struct work_struct *work)
 		obj_pool_free++;
 		obj_nr_tofree--;
 	}
+	raw_spin_unlock_irqrestore(&pool_lock, flags);
+	return;
 
+free_objs:
 	/*
 	 * Pool list is already full and there are still objs on the free
 	 * list. Move remaining free objs to a temporary list to free the
@@ -316,7 +334,7 @@ static void free_obj_work(struct work_struct *work)
 	}
 }
 
-static bool __free_object(struct debug_obj *obj)
+static void __free_object(struct debug_obj *obj)
 {
 	struct debug_obj *objs[ODEBUG_BATCH_SIZE];
 	struct debug_percpu_free *percpu_pool;
@@ -336,7 +354,7 @@ static bool __free_object(struct debug_obj *obj)
 		hlist_add_head(&obj->node, &percpu_pool->free_objs);
 		percpu_pool->obj_free++;
 		local_irq_restore(flags);
-		return false;
+		return;
 	}
 
 	/*
@@ -352,7 +370,8 @@ static bool __free_object(struct debug_obj *obj)
 
 free_to_obj_pool:
 	raw_spin_lock(&pool_lock);
-	work = (obj_pool_free > debug_objects_pool_size) && obj_cache;
+	work = (obj_pool_free > debug_objects_pool_size) && obj_cache &&
+	       (obj_nr_tofree < ODEBUG_FREE_WORK_MAX);
 	obj_pool_used--;
 
 	if (work) {
@@ -364,6 +383,21 @@ free_to_obj_pool:
 			while (lookahead_count) {
 				hlist_add_head(&objs[--lookahead_count]->node,
 					       &obj_to_free);
+			}
+		}
+
+		if ((obj_pool_free > debug_objects_pool_size) &&
+		    (obj_nr_tofree < ODEBUG_FREE_WORK_MAX)) {
+			int i;
+
+			/*
+			 * Free one more batch of objects from obj_pool.
+			 */
+			for (i = 0; i < ODEBUG_BATCH_SIZE; i++) {
+				obj = __alloc_object(&obj_pool);
+				hlist_add_head(&obj->node, &obj_to_free);
+				obj_pool_free--;
+				obj_nr_tofree++;
 			}
 		}
 	} else {
@@ -380,7 +414,6 @@ free_to_obj_pool:
 	}
 	raw_spin_unlock(&pool_lock);
 	local_irq_restore(flags);
-	return work;
 }
 
 /*
@@ -389,8 +422,11 @@ free_to_obj_pool:
  */
 static void free_object(struct debug_obj *obj)
 {
-	if (__free_object(obj))
-		schedule_work(&debug_obj_work);
+	__free_object(obj);
+	if (!obj_freeing && obj_nr_tofree) {
+		WRITE_ONCE(obj_freeing, true);
+		schedule_delayed_work(&debug_obj_work, ODEBUG_FREE_WORK_DELAY);
+	}
 }
 
 /*
@@ -880,7 +916,6 @@ static void __debug_check_no_obj_freed(const void *address, unsigned long size)
 	struct hlist_node *tmp;
 	struct debug_obj *obj;
 	int cnt, objs_checked = 0;
-	bool work = false;
 
 	saddr = (unsigned long) address;
 	eaddr = saddr + size;
@@ -911,7 +946,7 @@ repeat:
 				goto repeat;
 			default:
 				hlist_del(&obj->node);
-				work |= __free_object(obj);
+				__free_object(obj);
 				break;
 			}
 		}
@@ -927,8 +962,10 @@ repeat:
 		debug_objects_maxchecked = objs_checked;
 
 	/* Schedule work to actually kmem_cache_free() objects */
-	if (work)
-		schedule_work(&debug_obj_work);
+	if (!obj_freeing && obj_nr_tofree) {
+		WRITE_ONCE(obj_freeing, true);
+		schedule_delayed_work(&debug_obj_work, ODEBUG_FREE_WORK_DELAY);
+	}
 }
 
 void debug_check_no_obj_freed(const void *address, unsigned long size)
