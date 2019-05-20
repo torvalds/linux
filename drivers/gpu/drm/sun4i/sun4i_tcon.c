@@ -236,8 +236,8 @@ static struct sun4i_tcon *sun4i_get_tcon0(struct drm_device *drm)
 	return NULL;
 }
 
-void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
-			const struct drm_encoder *encoder)
+static void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
+			       const struct drm_encoder *encoder)
 {
 	int ret = -ENOTSUPP;
 
@@ -341,8 +341,8 @@ static void sun4i_tcon0_mode_set_cpu(struct sun4i_tcon *tcon,
 	u32 block_space, start_delay;
 	u32 tcon_div;
 
-	tcon->dclk_min_div = 4;
-	tcon->dclk_max_div = 127;
+	tcon->dclk_min_div = SUN6I_DSI_TCON_DIV;
+	tcon->dclk_max_div = SUN6I_DSI_TCON_DIV;
 
 	sun4i_tcon0_mode_set_common(tcon, mode);
 
@@ -561,10 +561,10 @@ static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 	 * Following code is a way to avoid quirks all around TCON
 	 * and DOTCLOCK drivers.
 	 */
-	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
 		clk_set_phase(tcon->dclk, 240);
 
-	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 		clk_set_phase(tcon->dclk, 0);
 
 	regmap_update_bits(tcon->regs, SUN4I_TCON0_IO_POL_REG,

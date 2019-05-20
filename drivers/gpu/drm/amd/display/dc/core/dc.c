@@ -524,6 +524,14 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 	struct dc_stream_state *link_stream;
 	struct dc_link_settings store_settings = *link_setting;
 
+	link->preferred_link_setting = store_settings;
+
+	/* Retrain with preferred link settings only relevant for
+	 * DP signal type
+	 */
+	if (!dc_is_dp_signal(link->connector_signal))
+		return;
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe->stream && pipe->stream->link) {
@@ -538,7 +546,10 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
 
-	link->preferred_link_setting = store_settings;
+	/* Cannot retrain link if backend is off */
+	if (link_stream->dpms_off)
+		return;
+
 	if (link_stream)
 		decide_link_settings(link_stream, &store_settings);
 
@@ -571,6 +582,28 @@ void dc_link_set_test_pattern(struct dc_link *link,
 			p_link_settings,
 			p_custom_pattern,
 			cust_pattern_size);
+}
+
+uint32_t dc_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_setting)
+{
+	uint32_t link_bw_kbps = link_setting->link_rate * LINK_RATE_REF_FREQ_IN_KHZ; /* bytes per sec */
+
+	link_bw_kbps *= 8;   /* 8 bits per byte*/
+	link_bw_kbps *= link_setting->lane_count;
+
+	return link_bw_kbps;
+
+}
+
+const struct dc_link_settings *dc_link_get_link_cap(
+		const struct dc_link *link)
+{
+	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN &&
+			link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
+		return &link->preferred_link_setting;
+	return &link->verified_link_cap;
 }
 
 static void destruct(struct dc *dc)
@@ -621,6 +654,10 @@ static bool construct(struct dc *dc,
 #endif
 
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+	dc->config = init_params->flags;
+
+	memcpy(&dc->bb_overrides, &init_params->bb_overrides, sizeof(dc->bb_overrides));
+
 	dc_dceip = kzalloc(sizeof(*dc_dceip), GFP_KERNEL);
 	if (!dc_dceip) {
 		dm_error("%s: failed to create dceip\n", __func__);
@@ -667,13 +704,6 @@ static bool construct(struct dc *dc,
 	dc_ctx->dc_sink_id_count = 0;
 	dc_ctx->dc_stream_id_count = 0;
 	dc->ctx = dc_ctx;
-
-	dc->current_state = dc_create_state();
-
-	if (!dc->current_state) {
-		dm_error("%s: failed to create validate ctx\n", __func__);
-		goto fail;
-	}
 
 	/* Create logger */
 
@@ -722,13 +752,21 @@ static bool construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc->res_pool = dc_create_resource_pool(
-			dc,
-			init_params->num_virtual_links,
-			dc_version,
-			init_params->asic_id);
+	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_version);
 	if (!dc->res_pool)
 		goto fail;
+
+	/* Creation of current_state must occur after dc->dml
+	 * is initialized in dc_create_resource_pool because
+	 * on creation it copies the contents of dc->dml
+	 */
+
+	dc->current_state = dc_create_state(dc);
+
+	if (!dc->current_state) {
+		dm_error("%s: failed to create validate ctx\n", __func__);
+		goto fail;
+	}
 
 	dc_resource_state_construct(dc, dc->current_state);
 
@@ -746,7 +784,7 @@ fail:
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 {
 	int i, j;
-	struct dc_state *dangling_context = dc_create_state();
+	struct dc_state *dangling_context = dc_create_state(dc);
 	struct dc_state *current_ctx;
 
 	if (dangling_context == NULL)
@@ -810,8 +848,6 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 	if (dc->res_pool->dmcu != NULL)
 		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
-
-	dc->config = init_params->flags;
 
 	dc->build_id = DC_BUILD_ID;
 
@@ -969,7 +1005,7 @@ static bool context_changed(
 	return false;
 }
 
-bool dc_validate_seamless_boot_timing(struct dc *dc,
+bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing)
 {
@@ -1060,7 +1096,13 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc, context);
 
-	dc->hwss.prepare_bandwidth(dc, context);
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->apply_seamless_boot_optimization)
+			dc->optimize_seamless_boot = true;
+	}
+
+	if (!dc->optimize_seamless_boot)
+		dc->hwss.prepare_bandwidth(dc, context);
 
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
@@ -1135,11 +1177,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	/* pplib is notified if disp_num changed */
-	dc->hwss.optimize_bandwidth(dc, context);
+	if (!dc->optimize_seamless_boot)
+		/* pplib is notified if disp_num changed */
+		dc->hwss.optimize_bandwidth(dc, context);
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
+
+	memset(&context->commit_hints, 0, sizeof(context->commit_hints));
 
 	dc_release_state(dc->current_state);
 
@@ -1177,7 +1222,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	int i;
 	struct dc_state *context = dc->current_state;
 
-	if (dc->optimized_required == false)
+	if (!dc->optimized_required || dc->optimize_seamless_boot)
 		return true;
 
 	post_surface_trace(dc);
@@ -1195,16 +1240,58 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	return true;
 }
 
-struct dc_state *dc_create_state(void)
+struct dc_state *dc_create_state(struct dc *dc)
 {
 	struct dc_state *context = kzalloc(sizeof(struct dc_state),
 					   GFP_KERNEL);
 
 	if (!context)
 		return NULL;
+	/* Each context must have their own instance of VBA and in order to
+	 * initialize and obtain IP and SOC the base DML instance from DC is
+	 * initially copied into every context
+	 */
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
+#endif
 
 	kref_init(&context->refcount);
+
 	return context;
+}
+
+struct dc_state *dc_copy_state(struct dc_state *src_ctx)
+{
+	int i, j;
+	struct dc_state *new_ctx = kzalloc(sizeof(struct dc_state),
+					   GFP_KERNEL);
+
+	if (!new_ctx)
+		return NULL;
+
+	memcpy(new_ctx, src_ctx, sizeof(struct dc_state));
+
+	for (i = 0; i < MAX_PIPES; i++) {
+			struct pipe_ctx *cur_pipe = &new_ctx->res_ctx.pipe_ctx[i];
+
+			if (cur_pipe->top_pipe)
+				cur_pipe->top_pipe =  &new_ctx->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
+
+			if (cur_pipe->bottom_pipe)
+				cur_pipe->bottom_pipe = &new_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
+
+	}
+
+	for (i = 0; i < new_ctx->stream_count; i++) {
+			dc_stream_retain(new_ctx->streams[i]);
+			for (j = 0; j < new_ctx->stream_status[i].plane_count; j++)
+				dc_plane_state_retain(
+					new_ctx->stream_status[i].plane_states[j]);
+	}
+
+	kref_init(&new_ctx->refcount);
+
+	return new_ctx;
 }
 
 void dc_retain_state(struct dc_state *context)
@@ -1666,6 +1753,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				continue;
 
 			if (stream_update->dpms_off) {
+				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
 				if (*stream_update->dpms_off) {
 					core_link_disable_stream(pipe_ctx, KEEP_ACQUIRED_RESOURCE);
 					dc->hwss.optimize_bandwidth(dc, dc->current_state);
@@ -1673,6 +1761,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					dc->hwss.prepare_bandwidth(dc, dc->current_state);
 					core_link_enable_stream(dc->current_state, pipe_ctx);
 				}
+				dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
 			}
 
 			if (stream_update->abm_level && pipe_ctx->stream_res.abm) {
@@ -1700,7 +1789,16 @@ static void commit_planes_for_stream(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
-	if (update_type == UPDATE_TYPE_FULL) {
+	if (dc->optimize_seamless_boot && surface_count > 0) {
+		/* Optimize seamless boot flag keeps clocks and watermarks high until
+		 * first flip. After first flip, optimization is required to lower
+		 * bandwidth.
+		 */
+		dc->optimize_seamless_boot = false;
+		dc->optimized_required = true;
+	}
+
+	if (update_type == UPDATE_TYPE_FULL && !dc->optimize_seamless_boot) {
 		dc->hwss.prepare_bandwidth(dc, context);
 		context_clock_trace(dc, context);
 	}
@@ -1800,7 +1898,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	if (update_type >= UPDATE_TYPE_FULL) {
 
 		/* initialize scratch memory for building context */
-		context = dc_create_state();
+		context = dc_create_state(dc);
 		if (context == NULL) {
 			DC_ERROR("Failed to allocate new validate context!\n");
 			return;
@@ -2099,13 +2197,13 @@ void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info)
 {
-	info->displayClock				= (unsigned int)state->bw.dcn.clk.dispclk_khz;
-	info->engineClock				= (unsigned int)state->bw.dcn.clk.dcfclk_khz;
-	info->memoryClock				= (unsigned int)state->bw.dcn.clk.dramclk_khz;
-	info->maxSupportedDppClock		= (unsigned int)state->bw.dcn.clk.max_supported_dppclk_khz;
-	info->dppClock					= (unsigned int)state->bw.dcn.clk.dppclk_khz;
-	info->socClock					= (unsigned int)state->bw.dcn.clk.socclk_khz;
-	info->dcfClockDeepSleep			= (unsigned int)state->bw.dcn.clk.dcfclk_deep_sleep_khz;
-	info->fClock					= (unsigned int)state->bw.dcn.clk.fclk_khz;
-	info->phyClock					= (unsigned int)state->bw.dcn.clk.phyclk_khz;
+	info->displayClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dispclk_khz;
+	info->engineClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dcfclk_khz;
+	info->memoryClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dramclk_khz;
+	info->maxSupportedDppClock		= (unsigned int)state->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz;
+	info->dppClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.dppclk_khz;
+	info->socClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.socclk_khz;
+	info->dcfClockDeepSleep			= (unsigned int)state->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz;
+	info->fClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.fclk_khz;
+	info->phyClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.phyclk_khz;
 }

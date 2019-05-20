@@ -276,7 +276,7 @@ static unsigned long get_acpi_srat_table(void)
 		if (acpi_table) {
 			header = (struct acpi_table_header *)acpi_table;
 
-			if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_SRAT))
+			if (ACPI_COMPARE_NAMESEG(header->signature, ACPI_SIG_SRAT))
 				return acpi_table;
 		}
 		entry += size;

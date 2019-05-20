@@ -577,7 +577,6 @@ il4965_math_div_round(s32 num, s32 denom, s32 * res)
 		sign = -sign;
 		denom = -denom;
 	}
-	*res = 1;
 	*res = ((num * 2 + denom) / (denom * 2)) * sign;
 
 	return 1;

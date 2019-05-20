@@ -25,6 +25,8 @@
 #ifndef __DISPLAY_MODE_STRUCTS_H__
 #define __DISPLAY_MODE_STRUCTS_H__
 
+#define MAX_CLOCK_LIMIT_STATES 8
+
 typedef struct _vcs_dpi_voltage_scaling_st voltage_scaling_st;
 typedef struct _vcs_dpi_soc_bounding_box_st soc_bounding_box_st;
 typedef struct _vcs_dpi_ip_params_st ip_params_st;
@@ -103,7 +105,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double xfc_xbuf_latency_tolerance_us;
 	int use_urgent_burst_bw;
 	unsigned int num_states;
-	struct _vcs_dpi_voltage_scaling_st clock_limits[8];
+	struct _vcs_dpi_voltage_scaling_st clock_limits[MAX_CLOCK_LIMIT_STATES];
 };
 
 struct _vcs_dpi_ip_params_st {
@@ -416,6 +418,7 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int refcyc_per_vm_group_flip;
 	unsigned int refcyc_per_vm_req_vblank;
 	unsigned int refcyc_per_vm_req_flip;
+	unsigned int refcyc_per_vm_dmdata;
 };
 
 struct _vcs_dpi_display_ttu_regs_st {

@@ -117,6 +117,7 @@ struct mv88e6060_priv {
 	 */
 	struct mii_bus *bus;
 	int sw_addr;
+	struct dsa_switch *ds;
 };
 
 #endif

@@ -146,9 +146,11 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 	switch (whence) {
 		case 1:
 			offset += file->f_pos;
+			/* fall through */
 		case 0:
 			if (offset >= 0)
 				break;
+			/* fall through */
 		default:
 			return -EINVAL;
 	}
@@ -1167,6 +1169,20 @@ simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(simple_nosetlease);
 
+/**
+ * simple_get_link - generic helper to get the target of "fast" symlinks
+ * @dentry: not used here
+ * @inode: the symlink inode
+ * @done: not used here
+ *
+ * Generic helper for filesystems to use for symlink inodes where a pointer to
+ * the symlink target is stored in ->i_link.  NOTE: this isn't normally called,
+ * since as an optimization the path lookup code uses any non-NULL ->i_link
+ * directly, without calling ->get_link().  But ->get_link() still must be set,
+ * to mark the inode_operations as being for a symlink.
+ *
+ * Return: the symlink target
+ */
 const char *simple_get_link(struct dentry *dentry, struct inode *inode,
 			    struct delayed_call *done)
 {

@@ -60,6 +60,20 @@ struct xfs_error_cfg {
 typedef struct xfs_mount {
 	struct super_block	*m_super;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
+
+	/*
+	 * Bitsets of per-fs metadata that have been checked and/or are sick.
+	 * Callers must hold m_sb_lock to access these two fields.
+	 */
+	uint8_t			m_fs_checked;
+	uint8_t			m_fs_sick;
+	/*
+	 * Bitsets of rt metadata that have been checked and/or are sick.
+	 * Callers must hold m_sb_lock to access this field.
+	 */
+	uint8_t			m_rt_checked;
+	uint8_t			m_rt_sick;
+
 	struct xfs_ail		*m_ail;		/* fs active log item list */
 
 	struct xfs_sb		m_sb;		/* copy of fs superblock */
@@ -67,6 +81,12 @@ typedef struct xfs_mount {
 	struct percpu_counter	m_icount;	/* allocated inodes counter */
 	struct percpu_counter	m_ifree;	/* free inodes counter */
 	struct percpu_counter	m_fdblocks;	/* free block counter */
+	/*
+	 * Count of data device blocks reserved for delayed allocations,
+	 * including indlen blocks.  Does not include allocated CoW staging
+	 * extents or anything related to the rt device.
+	 */
+	struct percpu_counter	m_delalloc_blks;
 
 	struct xfs_buf		*m_sb_bp;	/* buffer for superblock */
 	char			*m_fsname;	/* filesystem name */
@@ -175,7 +195,6 @@ typedef struct xfs_mount {
 	struct xstats		m_stats;	/* per-fs stats */
 
 	struct workqueue_struct *m_buf_workqueue;
-	struct workqueue_struct	*m_data_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;
 	struct workqueue_struct	*m_cil_workqueue;
 	struct workqueue_struct	*m_reclaim_workqueue;
@@ -214,7 +233,6 @@ typedef struct xfs_mount {
 						   must be synchronous except
 						   for space allocations */
 #define XFS_MOUNT_UNMOUNTING	(1ULL << 1)	/* filesystem is unmounting */
-#define XFS_MOUNT_BAD_SUMMARY	(1ULL << 2)	/* summary counters are bad */
 #define XFS_MOUNT_WAS_CLEAN	(1ULL << 3)
 #define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
 						   operations, typically for
@@ -369,6 +387,15 @@ typedef struct xfs_perag {
 	xfs_agino_t	pagl_pagino;
 	xfs_agino_t	pagl_leftrec;
 	xfs_agino_t	pagl_rightrec;
+
+	/*
+	 * Bitsets of per-ag metadata that have been checked and/or are sick.
+	 * Callers should hold pag_state_lock before accessing this field.
+	 */
+	uint16_t	pag_checked;
+	uint16_t	pag_sick;
+	spinlock_t	pag_state_lock;
+
 	spinlock_t	pagb_lock;	/* lock for pagb_tree */
 	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
 	unsigned int	pagb_gen;	/* generation count for pagb_tree */
@@ -454,5 +481,6 @@ int	xfs_zero_extent(struct xfs_inode *ip, xfs_fsblock_t start_fsb,
 struct xfs_error_cfg * xfs_error_get_cfg(struct xfs_mount *mp,
 		int error_class, int error);
 void xfs_force_summary_recalc(struct xfs_mount *mp);
+void xfs_mod_delalloc(struct xfs_mount *mp, int64_t delta);
 
 #endif	/* __XFS_MOUNT_H__ */

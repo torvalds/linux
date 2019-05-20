@@ -465,8 +465,8 @@ static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return err;
 	}
 
-	err = nlmsg_parse(nlh, crypto_msg_min[type], attrs, CRYPTOCFGA_MAX,
-			  crypto_policy, extack);
+	err = nlmsg_parse_deprecated(nlh, crypto_msg_min[type], attrs,
+				     CRYPTOCFGA_MAX, crypto_policy, extack);
 	if (err < 0)
 		return err;
 

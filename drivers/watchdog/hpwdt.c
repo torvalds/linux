@@ -311,8 +311,7 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		goto error_init_nmi_decoding;
 
 	watchdog_set_nowayout(&hpwdt_dev, nowayout);
-	if (watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL))
-		dev_warn(&dev->dev, "Invalid soft_margin: %d.\n", soft_margin);
+	watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL);
 
 	if (pretimeout && hpwdt_dev.timeout <= PRETIMEOUT_SEC) {
 		dev_warn(&dev->dev, "timeout <= pretimeout. Setting pretimeout to zero\n");

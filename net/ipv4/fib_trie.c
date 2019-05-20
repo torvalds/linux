@@ -183,14 +183,16 @@ struct trie {
 };
 
 static struct key_vector *resize(struct trie *t, struct key_vector *tn);
-static size_t tnode_free_size;
+static unsigned int tnode_free_size;
 
 /*
- * synchronize_rcu after call_rcu for that many pages; it should be especially
- * useful before resizing the root node with PREEMPT_NONE configs; the value was
- * obtained experimentally, aiming to avoid visible slowdown.
+ * synchronize_rcu after call_rcu for outstanding dirty memory; it should be
+ * especially useful before resizing the root node with PREEMPT_NONE configs;
+ * the value was obtained experimentally, aiming to avoid visible slowdown.
  */
-static const int sync_pages = 128;
+unsigned int sysctl_fib_sync_mem = 512 * 1024;
+unsigned int sysctl_fib_sync_mem_min = 64 * 1024;
+unsigned int sysctl_fib_sync_mem_max = 64 * 1024 * 1024;
 
 static struct kmem_cache *fn_alias_kmem __ro_after_init;
 static struct kmem_cache *trie_leaf_kmem __ro_after_init;
@@ -504,7 +506,7 @@ static void tnode_free(struct key_vector *tn)
 		tn = container_of(head, struct tnode, rcu)->kv;
 	}
 
-	if (tnode_free_size >= PAGE_SIZE * sync_pages) {
+	if (tnode_free_size >= sysctl_fib_sync_mem) {
 		tnode_free_size = 0;
 		synchronize_rcu();
 	}
@@ -1468,19 +1470,17 @@ found:
 		if (fi->fib_flags & RTNH_F_DEAD)
 			continue;
 		for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
-			const struct fib_nh *nh = &fi->fib_nh[nhsel];
-			struct in_device *in_dev = __in_dev_get_rcu(nh->nh_dev);
+			struct fib_nh_common *nhc = fib_info_nhc(fi, nhsel);
 
-			if (nh->nh_flags & RTNH_F_DEAD)
+			if (nhc->nhc_flags & RTNH_F_DEAD)
 				continue;
-			if (in_dev &&
-			    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
-			    nh->nh_flags & RTNH_F_LINKDOWN &&
+			if (ip_ignore_linkdown(nhc->nhc_dev) &&
+			    nhc->nhc_flags & RTNH_F_LINKDOWN &&
 			    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 				continue;
 			if (!(flp->flowi4_flags & FLOWI_FLAG_SKIP_NH_OIF)) {
 				if (flp->flowi4_oif &&
-				    flp->flowi4_oif != nh->nh_oif)
+				    flp->flowi4_oif != nhc->nhc_oif)
 					continue;
 			}
 
@@ -1490,6 +1490,7 @@ found:
 			res->prefix = htonl(n->key);
 			res->prefixlen = KEYLENGTH - fa->fa_slen;
 			res->nh_sel = nhsel;
+			res->nhc = nhc;
 			res->type = fa->fa_type;
 			res->scope = fi->fib_scope;
 			res->fi = fi;
@@ -1498,7 +1499,7 @@ found:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup(tb->tb_id, flp, nh, err);
+			trace_fib_table_lookup(tb->tb_id, flp, nhc, err);
 
 			return err;
 		}
@@ -2651,7 +2652,7 @@ static unsigned int fib_flag_trans(int type, __be32 mask, const struct fib_info 
 
 	if (type == RTN_UNREACHABLE || type == RTN_PROHIBIT)
 		flags = RTF_REJECT;
-	if (fi && fi->fib_nh->nh_gw)
+	if (fi && fi->fib_nh->fib_nh_gw4)
 		flags |= RTF_GATEWAY;
 	if (mask == htonl(0xFFFFFFFF))
 		flags |= RTF_HOST;
@@ -2702,7 +2703,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 				   "%d\t%08X\t%d\t%u\t%u",
 				   fi->fib_dev ? fi->fib_dev->name : "*",
 				   prefix,
-				   fi->fib_nh->nh_gw, flags, 0, 0,
+				   fi->fib_nh->fib_nh_gw4, flags, 0, 0,
 				   fi->fib_priority,
 				   mask,
 				   (fi->fib_advmss ?

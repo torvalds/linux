@@ -1190,6 +1190,7 @@ static const struct proto_ops sco_sock_ops = {
 	.recvmsg	= sco_sock_recvmsg,
 	.poll		= bt_sock_poll,
 	.ioctl		= bt_sock_ioctl,
+	.gettstamp	= sock_gettstamp,
 	.mmap		= sock_no_mmap,
 	.socketpair	= sock_no_socketpair,
 	.shutdown	= sco_sock_shutdown,

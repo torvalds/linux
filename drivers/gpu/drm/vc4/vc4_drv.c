@@ -72,30 +72,30 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
+	if (!vc4->v3d)
+		return -ENODEV;
+
 	switch (args->param) {
 	case DRM_VC4_PARAM_V3D_IDENT0:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT0);
-		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
-		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT1:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT1);
-		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
-		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT2:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT2);
-		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
-		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
 	case DRM_VC4_PARAM_SUPPORTS_ETC1:
@@ -200,7 +200,6 @@ static struct drm_driver vc4_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_export = vc4_prime_export,
-	.gem_prime_res_obj = vc4_prime_res_obj,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = vc4_prime_import_sg_table,
 	.gem_prime_vmap = vc4_prime_vmap,
@@ -252,6 +251,7 @@ static int vc4_drm_bind(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
+	struct device_node *node;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
@@ -260,12 +260,19 @@ static int vc4_drm_bind(struct device *dev)
 	if (!vc4)
 		return -ENOMEM;
 
+	/* If VC4 V3D is missing, don't advertise render nodes. */
+	node = of_find_matching_node_and_match(NULL, vc4_v3d_dt_match, NULL);
+	if (!node || !of_device_is_available(node))
+		vc4_drm_driver.driver_features &= ~DRIVER_RENDER;
+	of_node_put(node);
+
 	drm = drm_dev_alloc(&vc4_drm_driver, dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 	platform_set_drvdata(pdev, drm);
 	vc4->dev = drm;
 	drm->dev_private = vc4;
+	INIT_LIST_HEAD(&vc4->debugfs_list);
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)
@@ -281,13 +288,15 @@ static int vc4_drm_bind(struct device *dev)
 
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
+	ret = vc4_kms_load(drm);
+	if (ret < 0)
+		goto unbind_all;
+
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto unbind_all;
 
-	vc4_kms_load(drm);
-
-	drm_fbdev_generic_setup(drm, 32);
+	drm_fbdev_generic_setup(drm, 16);
 
 	return 0;
 
@@ -312,6 +321,7 @@ static void vc4_drm_unbind(struct device *dev)
 
 	drm_mode_config_cleanup(drm);
 
+	drm_atomic_private_obj_fini(&vc4->load_tracker);
 	drm_atomic_private_obj_fini(&vc4->ctm_manager);
 
 	drm_dev_put(drm);

@@ -124,7 +124,7 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 
 	fifo_size = sizeof(*cmds) + sizeof(*flush) + sizeof(*items) * num_items;
 
-	cmds = vmw_fifo_reserve(dev_priv, fifo_size);
+	cmds = VMW_FIFO_RESERVE(dev_priv, fifo_size);
 	/* hardware has hung, can't do anything here */
 	if (!cmds)
 		return -ENOMEM;
@@ -194,7 +194,7 @@ static int vmw_overlay_send_stop(struct vmw_private *dev_priv,
 	int ret;
 
 	for (;;) {
-		cmds = vmw_fifo_reserve(dev_priv, sizeof(*cmds));
+		cmds = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmds));
 		if (cmds)
 			break;
 

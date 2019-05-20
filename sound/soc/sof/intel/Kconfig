@@ -38,7 +38,7 @@ config SND_SOC_SOF_INTEL_HIFI_EP_IPC
 
 config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	tristate
-	select SND_SOC_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	help
 	  This option is not user-selectable but automagically handled by

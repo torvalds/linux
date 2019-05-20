@@ -802,7 +802,7 @@ static int wdt_open(struct inode *inode, struct file *file)
 		 */
 		wdt_is_open = 1;
 		mutex_unlock(&m41t80_rtc_mutex);
-		return nonseekable_open(inode, file);
+		return stream_open(inode, file);
 	}
 	return -ENODEV;
 }

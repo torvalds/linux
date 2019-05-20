@@ -349,15 +349,9 @@ static struct inode *dlmfs_alloc_inode(struct super_block *sb)
 	return &ip->ip_vfs_inode;
 }
 
-static void dlmfs_i_callback(struct rcu_head *head)
+static void dlmfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(dlmfs_inode_cache, DLMFS_I(inode));
-}
-
-static void dlmfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, dlmfs_i_callback);
 }
 
 static void dlmfs_evict_inode(struct inode *inode)
@@ -605,7 +599,7 @@ static const struct inode_operations dlmfs_root_inode_operations = {
 static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= dlmfs_alloc_inode,
-	.destroy_inode	= dlmfs_destroy_inode,
+	.free_inode	= dlmfs_free_inode,
 	.evict_inode	= dlmfs_evict_inode,
 	.drop_inode	= generic_delete_inode,
 };

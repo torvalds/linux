@@ -68,8 +68,6 @@
  * maximum size and use that.
  */
 #define EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE	(1 << 4)
-/* Monitor forgot to set the first detailed is preferred bit. */
-#define EDID_QUIRK_FIRST_DETAILED_PREFERRED	(1 << 5)
 /* use +hsync +vsync for detailed mode */
 #define EDID_QUIRK_DETAILED_SYNC_PP		(1 << 6)
 /* Force reduced-blanking timings for detailed modes */
@@ -107,8 +105,6 @@ static const struct edid_quirk {
 	{ "ACR", 44358, EDID_QUIRK_PREFER_LARGE_60 },
 	/* Acer F51 */
 	{ "API", 0x7602, EDID_QUIRK_PREFER_LARGE_60 },
-	/* Unknown Acer */
-	{ "ACR", 2423, EDID_QUIRK_FIRST_DETAILED_PREFERRED },
 
 	/* AEO model 0 reports 8 bpc, but is a 6 bpc panel */
 	{ "AEO", 0, EDID_QUIRK_FORCE_6BPC },
@@ -145,12 +141,6 @@ static const struct edid_quirk {
 	{ "LPL", 0, EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE },
 	{ "LPL", 0x2a00, EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE },
 
-	/* Philips 107p5 CRT */
-	{ "PHL", 57364, EDID_QUIRK_FIRST_DETAILED_PREFERRED },
-
-	/* Proview AY765C */
-	{ "PTS", 765, EDID_QUIRK_FIRST_DETAILED_PREFERRED },
-
 	/* Samsung SyncMaster 205BW.  Note: irony */
 	{ "SAM", 541, EDID_QUIRK_DETAILED_SYNC_PP },
 	/* Samsung SyncMaster 22[5-6]BW */
@@ -171,6 +161,25 @@ static const struct edid_quirk {
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
 	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
+
+	/* Valve Index Headset */
+	{ "VLV", 0x91a8, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b0, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b1, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b2, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b3, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b4, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b5, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b6, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b7, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b8, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b9, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91ba, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bb, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bc, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bd, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91be, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bf, EDID_QUIRK_NON_DESKTOP },
 
 	/* HTC Vive and Vive Pro VR Headsets */
 	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
@@ -193,6 +202,12 @@ static const struct edid_quirk {
 
 	/* Sony PlayStation VR Headset */
 	{ "SNY", 0x0704, EDID_QUIRK_NON_DESKTOP },
+
+	/* Sensics VR Headsets */
+	{ "SEN", 0x1019, EDID_QUIRK_NON_DESKTOP },
+
+	/* OSVR HDK and HDK2 VR Headsets */
+	{ "SVR", 0x1019, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
@@ -4923,6 +4938,76 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	return 0;
 }
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
+
+/* HDMI Colorspace Spec Definitions */
+#define FULL_COLORIMETRY_MASK		0x1FF
+#define NORMAL_COLORIMETRY_MASK		0x3
+#define EXTENDED_COLORIMETRY_MASK	0x7
+#define EXTENDED_ACE_COLORIMETRY_MASK	0xF
+
+#define C(x) ((x) << 0)
+#define EC(x) ((x) << 2)
+#define ACE(x) ((x) << 5)
+
+#define HDMI_COLORIMETRY_NO_DATA		0x0
+#define HDMI_COLORIMETRY_SMPTE_170M_YCC		(C(1) | EC(0) | ACE(0))
+#define HDMI_COLORIMETRY_BT709_YCC		(C(2) | EC(0) | ACE(0))
+#define HDMI_COLORIMETRY_XVYCC_601		(C(3) | EC(0) | ACE(0))
+#define HDMI_COLORIMETRY_XVYCC_709		(C(3) | EC(1) | ACE(0))
+#define HDMI_COLORIMETRY_SYCC_601		(C(3) | EC(2) | ACE(0))
+#define HDMI_COLORIMETRY_OPYCC_601		(C(3) | EC(3) | ACE(0))
+#define HDMI_COLORIMETRY_OPRGB			(C(3) | EC(4) | ACE(0))
+#define HDMI_COLORIMETRY_BT2020_CYCC		(C(3) | EC(5) | ACE(0))
+#define HDMI_COLORIMETRY_BT2020_RGB		(C(3) | EC(6) | ACE(0))
+#define HDMI_COLORIMETRY_BT2020_YCC		(C(3) | EC(6) | ACE(0))
+#define HDMI_COLORIMETRY_DCI_P3_RGB_D65		(C(3) | EC(7) | ACE(0))
+#define HDMI_COLORIMETRY_DCI_P3_RGB_THEATER	(C(3) | EC(7) | ACE(1))
+
+static const u32 hdmi_colorimetry_val[] = {
+	[DRM_MODE_COLORIMETRY_NO_DATA] = HDMI_COLORIMETRY_NO_DATA,
+	[DRM_MODE_COLORIMETRY_SMPTE_170M_YCC] = HDMI_COLORIMETRY_SMPTE_170M_YCC,
+	[DRM_MODE_COLORIMETRY_BT709_YCC] = HDMI_COLORIMETRY_BT709_YCC,
+	[DRM_MODE_COLORIMETRY_XVYCC_601] = HDMI_COLORIMETRY_XVYCC_601,
+	[DRM_MODE_COLORIMETRY_XVYCC_709] = HDMI_COLORIMETRY_XVYCC_709,
+	[DRM_MODE_COLORIMETRY_SYCC_601] = HDMI_COLORIMETRY_SYCC_601,
+	[DRM_MODE_COLORIMETRY_OPYCC_601] = HDMI_COLORIMETRY_OPYCC_601,
+	[DRM_MODE_COLORIMETRY_OPRGB] = HDMI_COLORIMETRY_OPRGB,
+	[DRM_MODE_COLORIMETRY_BT2020_CYCC] = HDMI_COLORIMETRY_BT2020_CYCC,
+	[DRM_MODE_COLORIMETRY_BT2020_RGB] = HDMI_COLORIMETRY_BT2020_RGB,
+	[DRM_MODE_COLORIMETRY_BT2020_YCC] = HDMI_COLORIMETRY_BT2020_YCC,
+};
+
+#undef C
+#undef EC
+#undef ACE
+
+/**
+ * drm_hdmi_avi_infoframe_colorspace() - fill the HDMI AVI infoframe
+ *                                       colorspace information
+ * @frame: HDMI AVI infoframe
+ * @conn_state: connector state
+ */
+void
+drm_hdmi_avi_infoframe_colorspace(struct hdmi_avi_infoframe *frame,
+				  const struct drm_connector_state *conn_state)
+{
+	u32 colorimetry_val;
+	u32 colorimetry_index = conn_state->colorspace & FULL_COLORIMETRY_MASK;
+
+	if (colorimetry_index >= ARRAY_SIZE(hdmi_colorimetry_val))
+		colorimetry_val = HDMI_COLORIMETRY_NO_DATA;
+	else
+		colorimetry_val = hdmi_colorimetry_val[colorimetry_index];
+
+	frame->colorimetry = colorimetry_val & NORMAL_COLORIMETRY_MASK;
+	/*
+	 * ToDo: Extend it for ACE formats as well. Modify the infoframe
+	 * structure and extend it in drivers/video/hdmi
+	 */
+	frame->extended_colorimetry = (colorimetry_val >> 2) &
+					EXTENDED_COLORIMETRY_MASK;
+}
+EXPORT_SYMBOL(drm_hdmi_avi_infoframe_colorspace);
 
 /**
  * drm_hdmi_avi_infoframe_quant_range() - fill the HDMI AVI infoframe

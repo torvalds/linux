@@ -118,7 +118,7 @@ static int pikawdt_open(struct inode *inode, struct file *file)
 
 	pikawdt_start();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /*

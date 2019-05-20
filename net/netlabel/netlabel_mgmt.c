@@ -315,7 +315,7 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_ADDRSELECT:
-		nla_a = nla_nest_start(skb, NLBL_MGMT_A_SELECTORLIST);
+		nla_a = nla_nest_start_noflag(skb, NLBL_MGMT_A_SELECTORLIST);
 		if (nla_a == NULL)
 			return -ENOMEM;
 
@@ -323,7 +323,8 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 			struct netlbl_domaddr4_map *map4;
 			struct in_addr addr_struct;
 
-			nla_b = nla_nest_start(skb, NLBL_MGMT_A_ADDRSELECTOR);
+			nla_b = nla_nest_start_noflag(skb,
+						      NLBL_MGMT_A_ADDRSELECTOR);
 			if (nla_b == NULL)
 				return -ENOMEM;
 
@@ -357,7 +358,8 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 		netlbl_af6list_foreach_rcu(iter6, &entry->def.addrsel->list6) {
 			struct netlbl_domaddr6_map *map6;
 
-			nla_b = nla_nest_start(skb, NLBL_MGMT_A_ADDRSELECTOR);
+			nla_b = nla_nest_start_noflag(skb,
+						      NLBL_MGMT_A_ADDRSELECTOR);
 			if (nla_b == NULL)
 				return -ENOMEM;
 
@@ -772,57 +774,57 @@ version_failure:
 static const struct genl_ops netlbl_mgmt_genl_ops[] = {
 	{
 	.cmd = NLBL_MGMT_C_ADD,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_add,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_MGMT_C_REMOVE,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_remove,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_MGMT_C_LISTALL,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_mgmt_listall,
 	},
 	{
 	.cmd = NLBL_MGMT_C_ADDDEF,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_adddef,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_MGMT_C_REMOVEDEF,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_removedef,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_MGMT_C_LISTDEF,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_listdef,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_MGMT_C_PROTOCOLS,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_mgmt_protocols,
 	},
 	{
 	.cmd = NLBL_MGMT_C_VERSION,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_version,
 	.dumpit = NULL,
 	},
@@ -833,6 +835,7 @@ static struct genl_family netlbl_mgmt_gnl_family __ro_after_init = {
 	.name = NETLBL_NLTYPE_MGMT_NAME,
 	.version = NETLBL_PROTO_VERSION,
 	.maxattr = NLBL_MGMT_A_MAX,
+	.policy = netlbl_mgmt_genl_policy,
 	.module = THIS_MODULE,
 	.ops = netlbl_mgmt_genl_ops,
 	.n_ops = ARRAY_SIZE(netlbl_mgmt_genl_ops),

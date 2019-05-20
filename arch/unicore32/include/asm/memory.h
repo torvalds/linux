@@ -16,7 +16,7 @@
 
 #include <linux/compiler.h>
 #include <linux/const.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <mach/memory.h>
 
 /*

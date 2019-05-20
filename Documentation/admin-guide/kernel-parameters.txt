@@ -704,8 +704,11 @@
 			upon panic. This parameter reserves the physical
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
-			is selected automatically. Check
-			Documentation/kdump/kdump.txt for further details.
+			is selected automatically.
+			[KNL, x86_64] select a region under 4G first, and
+			fall back to reserve region above 4G when '@offset'
+			hasn't been specified.
+			See Documentation/kdump/kdump.txt for further details.
 
 	crashkernel=range1:size1[,range2:size2,...][@offset]
 			[KNL] Same as above, but depends on the memory
@@ -1585,7 +1588,7 @@
 			Format: { "off" | "enforce" | "fix" | "log" }
 			default: "enforce"
 
-	ima_appraise_tcb [IMA]
+	ima_appraise_tcb [IMA] Deprecated.  Use ima_policy= instead.
 			The builtin appraise policy appraises all files
 			owned by uid=0.
 
@@ -1612,8 +1615,7 @@
 			uid=0.
 
 			The "appraise_tcb" policy appraises the integrity of
-			all files owned by root. (This is the equivalent
-			of ima_appraise_tcb.)
+			all files owned by root.
 
 			The "secure_boot" policy appraises the integrity
 			of files (eg. kexec kernel image, kernel modules,
@@ -1827,6 +1829,9 @@
 
 	ip=		[IP_PNP]
 			See Documentation/filesystems/nfs/nfsroot.txt.
+
+	ipcmni_extend	[KNL] Extend the maximum number of unique System V
+			IPC identifiers from 32,768 to 16,777,216.
 
 	irqaffinity=	[SMP] Set the default irq affinity mask
 			The argument is a cpu list, as described above.
@@ -2141,7 +2146,7 @@
 
 			Default is 'flush'.
 
-			For details see: Documentation/admin-guide/l1tf.rst
+			For details see: Documentation/admin-guide/hw-vuln/l1tf.rst
 
 	l2cr=		[PPC]
 
@@ -2387,6 +2392,32 @@
 			Format: <first>,<last>
 			Specifies range of consoles to be captured by the MDA.
 
+	mds=		[X86,INTEL]
+			Control mitigation for the Micro-architectural Data
+			Sampling (MDS) vulnerability.
+
+			Certain CPUs are vulnerable to an exploit against CPU
+			internal buffers which can forward information to a
+			disclosure gadget under certain conditions.
+
+			In vulnerable processors, the speculatively
+			forwarded data can be used in a cache side channel
+			attack, to access data to which the attacker does
+			not have direct access.
+
+			This parameter controls the MDS mitigation. The
+			options are:
+
+			full       - Enable MDS mitigation on vulnerable CPUs
+			full,nosmt - Enable MDS mitigation and disable
+				     SMT on vulnerable CPUs
+			off        - Unconditionally disable MDS mitigation
+
+			Not specifying this option is equivalent to
+			mds=full.
+
+			For details see: Documentation/admin-guide/hw-vuln/mds.rst
+
 	mem=nn[KMG]	[KNL,BOOT] Force usage of a specific amount of memory
 			Amount of memory to be used when the kernel is not able
 			to see the whole system memory or for test.
@@ -2543,6 +2574,42 @@
 			kernel as of 2.6.30, a preliminary port can be found
 			in the "bleeding edge" mini2440 support kernel at
 			http://repo.or.cz/w/linux-2.6/mini2440.git
+
+	mitigations=
+			[X86,PPC,S390,ARM64] Control optional mitigations for
+			CPU vulnerabilities.  This is a set of curated,
+			arch-independent options, each of which is an
+			aggregation of existing arch-specific options.
+
+			off
+				Disable all optional CPU mitigations.  This
+				improves system performance, but it may also
+				expose users to several CPU vulnerabilities.
+				Equivalent to: nopti [X86,PPC]
+					       kpti=0 [ARM64]
+					       nospectre_v1 [PPC]
+					       nobp=0 [S390]
+					       nospectre_v2 [X86,PPC,S390,ARM64]
+					       spectre_v2_user=off [X86]
+					       spec_store_bypass_disable=off [X86,PPC]
+					       ssbd=force-off [ARM64]
+					       l1tf=off [X86]
+					       mds=off [X86]
+
+			auto (default)
+				Mitigate all CPU vulnerabilities, but leave SMT
+				enabled, even if it's vulnerable.  This is for
+				users who don't want to be surprised by SMT
+				getting disabled across kernel upgrades, or who
+				have other ways of avoiding SMT-based attacks.
+				Equivalent to: (default behavior)
+
+			auto,nosmt
+				Mitigate all CPU vulnerabilities, disabling SMT
+				if needed.  This is for users who always want to
+				be fully mitigated, even if it means losing SMT.
+				Equivalent to: l1tf=flush,nosmt [X86]
+					       mds=full,nosmt [X86]
 
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
@@ -2839,11 +2906,11 @@
 			noexec=on: enable non-executable mappings (default)
 			noexec=off: disable non-executable mappings
 
-	nosmap		[X86]
+	nosmap		[X86,PPC]
 			Disable SMAP (Supervisor Mode Access Prevention)
 			even if it is supported by processor.
 
-	nosmep		[X86]
+	nosmep		[X86,PPC]
 			Disable SMEP (Supervisor Mode Execution Prevention)
 			even if it is supported by processor.
 
@@ -2873,10 +2940,10 @@
 			check bypass). With this option data leaks are possible
 			in the system.
 
-	nospectre_v2	[X86,PPC_FSL_BOOK3E] Disable all mitigations for the Spectre variant 2
-			(indirect branch prediction) vulnerability. System may
-			allow data leaks with this option, which is equivalent
-			to spectre_v2=off.
+	nospectre_v2	[X86,PPC_FSL_BOOK3E,ARM64] Disable all mitigations for
+			the Spectre variant 2 (indirect branch prediction)
+			vulnerability. System may allow data leaks with this
+			option.
 
 	nospec_store_bypass_disable
 			[HW] Disable all mitigations for the Speculative Store Bypass vulnerability
@@ -3110,6 +3177,16 @@
 			This will also cause panics on machine check exceptions.
 			Useful together with panic=30 to trigger a reboot.
 
+	page_alloc.shuffle=
+			[KNL] Boolean flag to control whether the page allocator
+			should randomize its free lists. The randomization may
+			be automatically enabled if the kernel detects it is
+			running on a platform with a direct-mapped memory-side
+			cache, and this parameter can be used to
+			override/disable that behavior. The state of the flag
+			can be read from sysfs at:
+			/sys/module/page_alloc/parameters/shuffle.
+
 	page_owner=	[KNL] Boot-time page_owner enabling option.
 			Storage of the information about who allocated
 			each page is disabled in default. With this switch,
@@ -3135,6 +3212,7 @@
 			bit 2: print timer info
 			bit 3: print locks info if CONFIG_LOCKDEP is on
 			bit 4: print ftrace buffer
+			bit 5: print all printk messages in buffer
 
 	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
@@ -3394,6 +3472,8 @@
 				bridges without forcing it upstream. Note:
 				this removes isolation between devices and
 				may put more devices in an IOMMU group.
+		force_floating	[S390] Force usage of floating interrupts.
+		nomio		[S390] Do not use MIO instructions.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -3623,7 +3703,9 @@
 				see CONFIG_RAS_CEC help text.
 
 	rcu_nocbs=	[KNL]
-			The argument is a cpu list, as described above.
+			The argument is a cpu list, as described above,
+			except that the string "all" can be used to
+			specify every CPU on the system.
 
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
@@ -3986,7 +4068,9 @@
 				[[,]s[mp]#### \
 				[[,]b[ios] | a[cpi] | k[bd] | t[riple] | e[fi] | p[ci]] \
 				[[,]f[orce]
-			Where reboot_mode is one of warm (soft) or cold (hard) or gpio,
+			Where reboot_mode is one of warm (soft) or cold (hard) or gpio
+					(prefix with 'panic_' to set mode for panic
+					reboot only),
 			      reboot_type is one of bios, acpi, kbd, triple, efi, or pci,
 			      reboot_force is either force or not specified,
 			      reboot_cpu is s[mp]#### with #### being the processor
@@ -4703,6 +4787,10 @@
 			[x86] unstable: mark the TSC clocksource as unstable, this
 			marks the TSC unconditionally unstable at bootup and
 			avoids any further wobbles once the TSC watchdog notices.
+			[x86] nowatchdog: disable clocksource watchdog. Used
+			in situations with strict latency requirements (where
+			interruptions from clocksource watchdog are not
+			acceptable).
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
@@ -5172,6 +5260,13 @@
 			to Xen, for use by other domains. Can be also changed at runtime
 			with /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
 			Default value controlled with CONFIG_XEN_SCRUB_PAGES_DEFAULT.
+
+	xen_timer_slop=	[X86-64,XEN]
+			Set the timer slop (in nanoseconds) for the virtual Xen
+			timers (default is 100000). This adjusts the minimum
+			delta of virtualized Xen timers, where lower values
+			improve timer resolution at the expense of processing
+			more timer interrupts.
 
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:

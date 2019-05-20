@@ -894,10 +894,10 @@ EXPORT_SYMBOL(ieee80211_queue_delayed_work);
 static u32
 _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			    struct ieee802_11_elems *elems,
-			    u64 filter, u32 crc, u8 *transmitter_bssid,
-			    u8 *bss_bssid)
+			    u64 filter, u32 crc,
+			    const struct element *check_inherit)
 {
-	const struct element *elem, *sub;
+	const struct element *elem;
 	bool calc_crc = filter != 0;
 	DECLARE_BITMAP(seen_elems, 256);
 	const u8 *ie;
@@ -909,6 +909,11 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		u8 id = elem->id;
 		u8 elen = elem->datalen;
 		const u8 *pos = elem->data;
+
+		if (check_inherit &&
+		    !cfg80211_is_element_inherited(elem,
+						   check_inherit))
+			continue;
 
 		switch (id) {
 		case WLAN_EID_SSID:
@@ -1208,57 +1213,6 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			if (elen >= sizeof(*elems->max_idle_period_ie))
 				elems->max_idle_period_ie = (void *)pos;
 			break;
-		case WLAN_EID_MULTIPLE_BSSID:
-			if (!bss_bssid || !transmitter_bssid || elen < 4)
-				break;
-
-			elems->max_bssid_indicator = pos[0];
-
-			for_each_element(sub, pos + 1, elen - 1) {
-				u8 sub_len = sub->datalen;
-				u8 new_bssid[ETH_ALEN];
-				const u8 *index;
-
-				/*
-				 * we only expect the "non-transmitted BSSID
-				 * profile" subelement (subelement id 0)
-				 */
-				if (sub->id != 0 || sub->datalen < 4) {
-					/* not a valid BSS profile */
-					continue;
-				}
-
-				if (sub->data[0] != WLAN_EID_NON_TX_BSSID_CAP ||
-				    sub->data[1] != 2) {
-					/* The first element of the
-					 * Nontransmitted BSSID Profile is not
-					 * the Nontransmitted BSSID Capability
-					 * element.
-					 */
-					continue;
-				}
-
-				/* found a Nontransmitted BSSID Profile */
-				index = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
-							 sub->data, sub_len);
-				if (!index || index[1] < 1 || index[2] == 0) {
-					/* Invalid MBSSID Index element */
-					continue;
-				}
-
-				cfg80211_gen_new_bssid(transmitter_bssid,
-						       pos[0],
-						       index[2],
-						       new_bssid);
-				if (ether_addr_equal(new_bssid, bss_bssid)) {
-					elems->nontransmitted_bssid_profile =
-						(void *)sub;
-					elems->bssid_index_len = index[1];
-					elems->bssid_index = (void *)&index[2];
-					break;
-				}
-			}
-			break;
 		case WLAN_EID_EXTENSION:
 			if (pos[0] == WLAN_EID_EXT_HE_MU_EDCA &&
 			    elen >= (sizeof(*elems->mu_edca_param_set) + 1)) {
@@ -1300,26 +1254,108 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 	return crc;
 }
 
+static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
+					    struct ieee802_11_elems *elems,
+					    u8 *transmitter_bssid,
+					    u8 *bss_bssid,
+					    u8 *nontransmitted_profile)
+{
+	const struct element *elem, *sub;
+	size_t profile_len = 0;
+	bool found = false;
+
+	if (!bss_bssid || !transmitter_bssid)
+		return profile_len;
+
+	for_each_element_id(elem, WLAN_EID_MULTIPLE_BSSID, start, len) {
+		if (elem->datalen < 2)
+			continue;
+
+		for_each_element(sub, elem->data + 1, elem->datalen - 1) {
+			u8 new_bssid[ETH_ALEN];
+			const u8 *index;
+
+			if (sub->id != 0 || sub->datalen < 4) {
+				/* not a valid BSS profile */
+				continue;
+			}
+
+			if (sub->data[0] != WLAN_EID_NON_TX_BSSID_CAP ||
+			    sub->data[1] != 2) {
+				/* The first element of the
+				 * Nontransmitted BSSID Profile is not
+				 * the Nontransmitted BSSID Capability
+				 * element.
+				 */
+				continue;
+			}
+
+			memset(nontransmitted_profile, 0, len);
+			profile_len = cfg80211_merge_profile(start, len,
+							     elem,
+							     sub,
+							     nontransmitted_profile,
+							     len);
+
+			/* found a Nontransmitted BSSID Profile */
+			index = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
+						 nontransmitted_profile,
+						 profile_len);
+			if (!index || index[1] < 1 || index[2] == 0) {
+				/* Invalid MBSSID Index element */
+				continue;
+			}
+
+			cfg80211_gen_new_bssid(transmitter_bssid,
+					       elem->data[0],
+					       index[2],
+					       new_bssid);
+			if (ether_addr_equal(new_bssid, bss_bssid)) {
+				found = true;
+				elems->bssid_index_len = index[1];
+				elems->bssid_index = (void *)&index[2];
+				break;
+			}
+		}
+	}
+
+	return found ? profile_len : 0;
+}
+
 u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			       struct ieee802_11_elems *elems,
 			       u64 filter, u32 crc, u8 *transmitter_bssid,
 			       u8 *bss_bssid)
 {
+	const struct element *non_inherit = NULL;
+	u8 *nontransmitted_profile;
+	int nontransmitted_profile_len = 0;
+
 	memset(elems, 0, sizeof(*elems));
 	elems->ie_start = start;
 	elems->total_len = len;
 
+	nontransmitted_profile = kmalloc(len, GFP_ATOMIC);
+	if (nontransmitted_profile) {
+		nontransmitted_profile_len =
+			ieee802_11_find_bssid_profile(start, len, elems,
+						      transmitter_bssid,
+						      bss_bssid,
+						      nontransmitted_profile);
+		non_inherit =
+			cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
+					       nontransmitted_profile,
+					       nontransmitted_profile_len);
+	}
+
 	crc = _ieee802_11_parse_elems_crc(start, len, action, elems, filter,
-					  crc, transmitter_bssid, bss_bssid);
+					  crc, non_inherit);
 
 	/* Override with nontransmitted profile, if found */
-	if (transmitter_bssid && elems->nontransmitted_bssid_profile) {
-		const u8 *profile = elems->nontransmitted_bssid_profile;
-
-		_ieee802_11_parse_elems_crc(&profile[2], profile[1],
-					    action, elems, 0, 0,
-					    transmitter_bssid, bss_bssid);
-	}
+	if (nontransmitted_profile_len)
+		_ieee802_11_parse_elems_crc(nontransmitted_profile,
+					    nontransmitted_profile_len,
+					    action, elems, 0, 0, NULL);
 
 	if (elems->tim && !elems->parse_error) {
 		const struct ieee80211_tim_ie *tim_ie = elems->tim;
@@ -1338,6 +1374,8 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 	    elems->bssid_index_len >=
 	    offsetofend(struct ieee80211_bssid_index, dtim_count))
 		elems->dtim_count = elems->bssid_index->dtim_count;
+
+	kfree(nontransmitted_profile);
 
 	return crc;
 }

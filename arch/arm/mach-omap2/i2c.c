@@ -53,15 +53,10 @@ int omap_i2c_reset(struct omap_hwmod *oh)
 	u16 i2c_con;
 	int c = 0;
 
-	if (oh->class->rev == OMAP_I2C_IP_VERSION_2) {
-		i2c_con = OMAP4_I2C_CON_OFFSET;
-	} else if (oh->class->rev == OMAP_I2C_IP_VERSION_1) {
+	if (soc_is_omap24xx() || soc_is_omap34xx() || soc_is_am35xx())
 		i2c_con = OMAP2_I2C_CON_OFFSET;
-	} else {
-		WARN(1, "Cannot reset I2C block %s: unsupported revision\n",
-		     oh->name);
-		return -EINVAL;
-	}
+	else
+		i2c_con = OMAP4_I2C_CON_OFFSET;
 
 	/* Disable I2C */
 	v = omap_hwmod_read(oh, i2c_con);

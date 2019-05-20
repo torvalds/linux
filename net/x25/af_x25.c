@@ -1398,18 +1398,6 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
-	case SIOCGSTAMP:
-		rc = -EINVAL;
-		if (sk)
-			rc = sock_get_timestamp(sk,
-						(struct timeval __user *)argp);
-		break;
-	case SIOCGSTAMPNS:
-		rc = -EINVAL;
-		if (sk)
-			rc = sock_get_timestampns(sk,
-					(struct timespec __user *)argp);
-		break;
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
 	case SIOCGIFDSTADDR:
@@ -1681,26 +1669,12 @@ static int compat_x25_ioctl(struct socket *sock, unsigned int cmd,
 				unsigned long arg)
 {
 	void __user *argp = compat_ptr(arg);
-	struct sock *sk = sock->sk;
-
 	int rc = -ENOIOCTLCMD;
 
 	switch(cmd) {
 	case TIOCOUTQ:
 	case TIOCINQ:
 		rc = x25_ioctl(sock, cmd, (unsigned long)argp);
-		break;
-	case SIOCGSTAMP:
-		rc = -EINVAL;
-		if (sk)
-			rc = compat_sock_get_timestamp(sk,
-					(struct timeval __user*)argp);
-		break;
-	case SIOCGSTAMPNS:
-		rc = -EINVAL;
-		if (sk)
-			rc = compat_sock_get_timestampns(sk,
-					(struct timespec __user*)argp);
 		break;
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
@@ -1765,6 +1739,7 @@ static const struct proto_ops x25_proto_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_x25_ioctl,
 #endif
+	.gettstamp =	sock_gettstamp,
 	.listen =	x25_listen,
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	x25_setsockopt,

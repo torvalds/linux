@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -210,7 +210,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
 		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
-		TFD_QUEUE_CB_SIZE(TFD_CMD_SLOTS);
+		TFD_QUEUE_CB_SIZE(IWL_CMD_QUEUE_SIZE);
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_init_fw_sec(trans, fw, &ctxt_info->dram);

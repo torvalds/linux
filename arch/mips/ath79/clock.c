@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>

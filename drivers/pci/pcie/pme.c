@@ -7,6 +7,8 @@
  * Copyright (C) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
  */
 
+#define dev_fmt(fmt) "PME: " fmt
+
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -194,14 +196,14 @@ static void pcie_pme_handle_request(struct pci_dev *port, u16 req_id)
 		 * assuming that the PME was reported by a PCIe-PCI bridge that
 		 * used devfn different from zero.
 		 */
-		pci_dbg(port, "PME interrupt generated for non-existent device %02x:%02x.%d\n",
-			busnr, PCI_SLOT(devfn), PCI_FUNC(devfn));
+		pci_info(port, "interrupt generated for non-existent device %02x:%02x.%d\n",
+			 busnr, PCI_SLOT(devfn), PCI_FUNC(devfn));
 		found = pcie_pme_from_pci_bridge(bus, 0);
 	}
 
  out:
 	if (!found)
-		pci_dbg(port, "Spurious native PME interrupt!\n");
+		pci_info(port, "Spurious native interrupt!\n");
 }
 
 /**
@@ -341,7 +343,7 @@ static int pcie_pme_probe(struct pcie_device *srv)
 		return ret;
 	}
 
-	pci_info(port, "Signaling PME with IRQ %d\n", srv->irq);
+	pci_info(port, "Signaling with IRQ %d\n", srv->irq);
 
 	pcie_pme_mark_devices(port);
 	pcie_pme_interrupt_enable(port, true);

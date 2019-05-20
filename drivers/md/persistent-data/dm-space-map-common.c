@@ -190,6 +190,8 @@ static int sm_find_free(void *addr, unsigned begin, unsigned end,
 
 static int sm_ll_init(struct ll_disk *ll, struct dm_transaction_manager *tm)
 {
+	memset(ll, 0, sizeof(struct ll_disk));
+
 	ll->tm = tm;
 
 	ll->bitmap_info.tm = tm;

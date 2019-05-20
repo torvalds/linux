@@ -960,6 +960,11 @@ retry:
 		if (ret)
 			goto out;
 
+		if (!drm_lease_held(file_priv, crtc->cursor->base.id)) {
+			ret = -EACCES;
+			goto out;
+		}
+
 		ret = drm_mode_cursor_universal(crtc, req, file_priv, &ctx);
 		goto out;
 	}
@@ -1061,6 +1066,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		return -ENOENT;
 
 	plane = crtc->primary;
+
+	if (!drm_lease_held(file_priv, plane->base.id))
+		return -EACCES;
 
 	if (crtc->funcs->page_flip_target) {
 		u32 current_vblank;

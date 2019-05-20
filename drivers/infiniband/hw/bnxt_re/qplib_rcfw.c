@@ -569,7 +569,7 @@ int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
 	rcfw->pdev = pdev;
 	rcfw->creq.max_elements = BNXT_QPLIB_CREQE_MAX_CNT;
 	hwq_type = bnxt_qplib_get_hwq_type(rcfw->res);
-	if (bnxt_qplib_alloc_init_hwq(rcfw->pdev, &rcfw->creq, NULL, 0,
+	if (bnxt_qplib_alloc_init_hwq(rcfw->pdev, &rcfw->creq, NULL,
 				      &rcfw->creq.max_elements,
 				      BNXT_QPLIB_CREQE_UNITS,
 				      0, PAGE_SIZE, hwq_type)) {
@@ -584,7 +584,7 @@ int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
 
 	rcfw->cmdq.max_elements = rcfw->cmdq_depth;
 	if (bnxt_qplib_alloc_init_hwq
-			(rcfw->pdev, &rcfw->cmdq, NULL, 0,
+			(rcfw->pdev, &rcfw->cmdq, NULL,
 			 &rcfw->cmdq.max_elements,
 			 BNXT_QPLIB_CMDQE_UNITS, 0,
 			 bnxt_qplib_cmdqe_page_size(rcfw->cmdq_depth),

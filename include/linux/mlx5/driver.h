@@ -56,7 +56,6 @@
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
-	MLX5_MAX_NAME_LEN = 16,
 };
 
 enum {
@@ -133,6 +132,7 @@ enum {
 	MLX5_REG_MTRC_CONF	 = 0x9041,
 	MLX5_REG_MTRC_STDB	 = 0x9042,
 	MLX5_REG_MTRC_CTRL	 = 0x9043,
+	MLX5_REG_MPEIN		 = 0x9050,
 	MLX5_REG_MPCNT		 = 0x9051,
 	MLX5_REG_MTPPS		 = 0x9053,
 	MLX5_REG_MTPPSE		 = 0x9054,
@@ -512,8 +512,13 @@ struct mlx5_rl_table {
 	struct mlx5_rl_entry   *rl_entry;
 };
 
+struct mlx5_core_roce {
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_group *fg;
+	struct mlx5_flow_handle *allow_rule;
+};
+
 struct mlx5_priv {
-	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	*eq_table;
 
 	/* pages stuff */
@@ -566,6 +571,7 @@ struct mlx5_priv {
 	struct mlx5_lag		*lag;
 	struct mlx5_devcom	*devcom;
 	unsigned long		pci_dev_data;
+	struct mlx5_core_roce	roce;
 	struct mlx5_fc_stats		fc_stats;
 	struct mlx5_rl_table            rl_table;
 
@@ -642,6 +648,7 @@ struct mlx5_fw_tracer;
 struct mlx5_vxlan;
 
 struct mlx5_core_dev {
+	struct device *device;
 	struct pci_dev	       *pdev;
 	/* sync pci state */
 	struct mutex		pci_status_mutex;
@@ -662,6 +669,7 @@ struct mlx5_core_dev {
 	u64			sys_image_guid;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
+	phys_addr_t             bar_addr;
 	enum mlx5_device_state	state;
 	/* sync interface state */
 	struct mutex		intf_state_mutex;
@@ -681,7 +689,6 @@ struct mlx5_core_dev {
 #endif
 	struct mlx5_clock        clock;
 	struct mlx5_ib_clock_info  *clock_info;
-	struct page             *clock_info_page;
 	struct mlx5_fw_tracer   *tracer;
 };
 
@@ -887,6 +894,7 @@ void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome);
 int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type);
 int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn);
 int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
+void mlx5_health_flush(struct mlx5_core_dev *dev);
 void mlx5_health_cleanup(struct mlx5_core_dev *dev);
 int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);

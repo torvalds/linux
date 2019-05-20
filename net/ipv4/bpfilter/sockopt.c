@@ -77,5 +77,4 @@ static int __init bpfilter_sockopt_init(void)
 
 	return 0;
 }
-
-module_init(bpfilter_sockopt_init);
+device_initcall(bpfilter_sockopt_init);

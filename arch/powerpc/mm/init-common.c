@@ -24,6 +24,32 @@
 #include <linux/string.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
+#include <asm/kup.h>
+
+static bool disable_kuep = !IS_ENABLED(CONFIG_PPC_KUEP);
+static bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
+
+static int __init parse_nosmep(char *p)
+{
+	disable_kuep = true;
+	pr_warn("Disabling Kernel Userspace Execution Prevention\n");
+	return 0;
+}
+early_param("nosmep", parse_nosmep);
+
+static int __init parse_nosmap(char *p)
+{
+	disable_kuap = true;
+	pr_warn("Disabling Kernel Userspace Access Protection\n");
+	return 0;
+}
+early_param("nosmap", parse_nosmap);
+
+void __ref setup_kup(void)
+{
+	setup_kuep(disable_kuep);
+	setup_kuap(disable_kuap);
+}
 
 #define CTOR(shift) static void ctor_##shift(void *addr) \
 {							\

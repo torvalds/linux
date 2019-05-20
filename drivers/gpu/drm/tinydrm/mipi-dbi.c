@@ -21,6 +21,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
@@ -153,15 +154,41 @@ EXPORT_SYMBOL(mipi_dbi_command_read);
  */
 int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len)
 {
+	u8 *cmdbuf;
 	int ret;
 
+	/* SPI requires dma-safe buffers */
+	cmdbuf = kmemdup(&cmd, 1, GFP_KERNEL);
+	if (!cmdbuf)
+		return -ENOMEM;
+
 	mutex_lock(&mipi->cmdlock);
-	ret = mipi->command(mipi, cmd, data, len);
+	ret = mipi->command(mipi, cmdbuf, data, len);
 	mutex_unlock(&mipi->cmdlock);
+
+	kfree(cmdbuf);
 
 	return ret;
 }
 EXPORT_SYMBOL(mipi_dbi_command_buf);
+
+/* This should only be used by mipi_dbi_command() */
+int mipi_dbi_command_stackbuf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len)
+{
+	u8 *buf;
+	int ret;
+
+	buf = kmemdup(data, len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = mipi_dbi_command_buf(mipi, cmd, buf, len);
+
+	kfree(buf);
+
+	return ret;
+}
+EXPORT_SYMBOL(mipi_dbi_command_stackbuf);
 
 /**
  * mipi_dbi_buf_copy - Copy a framebuffer, transforming it if necessary
@@ -192,12 +219,12 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			tinydrm_swab16(dst, src, fb, clip);
+			drm_fb_swab16(dst, src, fb, clip);
 		else
-			tinydrm_memcpy(dst, src, fb, clip);
+			drm_fb_memcpy(dst, src, fb, clip);
 		break;
 	case DRM_FORMAT_XRGB8888:
-		tinydrm_xrgb8888_to_rgb565(dst, src, fb, clip, swap);
+		drm_fb_xrgb8888_to_rgb565(dst, src, fb, clip, swap);
 		break;
 	default:
 		dev_err_once(fb->dev->dev, "Format is not supported: %s\n",
@@ -216,16 +243,18 @@ EXPORT_SYMBOL(mipi_dbi_buf_copy);
 static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct tinydrm_device *tdev = fb->dev->dev_private;
-	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
+	struct mipi_dbi *mipi = drm_to_mipi_dbi(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
 	bool swap = mipi->swap_bytes;
-	int ret = 0;
+	int idx, ret = 0;
 	bool full;
 	void *tr;
 
 	if (!mipi->enabled)
+		return;
+
+	if (!drm_dev_enter(fb->dev, &idx))
 		return;
 
 	full = width == fb->width && height == fb->height;
@@ -254,6 +283,8 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 err_msg:
 	if (ret)
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
+
+	drm_dev_exit(idx);
 }
 
 /**
@@ -308,19 +339,29 @@ void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
+	int idx;
+
+	if (!drm_dev_enter(&mipi->drm, &idx))
+		return;
 
 	mipi->enabled = true;
 	mipi_dbi_fb_dirty(fb, &rect);
 	backlight_enable(mipi->backlight);
+
+	drm_dev_exit(idx);
 }
 EXPORT_SYMBOL(mipi_dbi_enable_flush);
 
 static void mipi_dbi_blank(struct mipi_dbi *mipi)
 {
-	struct drm_device *drm = mipi->tinydrm.drm;
+	struct drm_device *drm = &mipi->drm;
 	u16 height = drm->mode_config.min_height;
 	u16 width = drm->mode_config.min_width;
 	size_t len = width * height * 2;
+	int idx;
+
+	if (!drm_dev_enter(drm, &idx))
+		return;
 
 	memset(mipi->tx_buf, 0, len);
 
@@ -330,6 +371,8 @@ static void mipi_dbi_blank(struct mipi_dbi *mipi)
 			 (height >> 8) & 0xFF, (height - 1) & 0xFF);
 	mipi_dbi_command_buf(mipi, MIPI_DCS_WRITE_MEMORY_START,
 			     (u8 *)mipi->tx_buf, len);
+
+	drm_dev_exit(idx);
 }
 
 /**
@@ -342,8 +385,10 @@ static void mipi_dbi_blank(struct mipi_dbi *mipi)
  */
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
-	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
+	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+
+	if (!mipi->enabled)
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -359,6 +404,12 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 
+static const struct drm_mode_config_funcs mipi_dbi_mode_config_funcs = {
+	.fb_create = drm_gem_fb_create_with_dirty,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
+};
+
 static const uint32_t mipi_dbi_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -366,31 +417,27 @@ static const uint32_t mipi_dbi_formats[] = {
 
 /**
  * mipi_dbi_init - MIPI DBI initialization
- * @dev: Parent device
  * @mipi: &mipi_dbi structure to initialize
- * @pipe_funcs: Display pipe functions
- * @driver: DRM driver
+ * @funcs: Display pipe functions
  * @mode: Display mode
  * @rotation: Initial rotation in degrees Counter Clock Wise
  *
- * This function initializes a &mipi_dbi structure and it's underlying
- * @tinydrm_device. It also sets up the display pipeline.
+ * This function sets up a &drm_simple_display_pipe with a &drm_connector that
+ * has one fixed &drm_display_mode which is rotated according to @rotation.
+ * This mode is used to set the mode config min/max width/height properties.
+ * Additionally &mipi_dbi.tx_buf is allocated.
  *
  * Supported formats: Native RGB565 and emulated XRGB8888.
- *
- * Objects created by this function will be automatically freed on driver
- * detach (devres).
  *
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
-		  const struct drm_simple_display_pipe_funcs *pipe_funcs,
-		  struct drm_driver *driver,
+int mipi_dbi_init(struct mipi_dbi *mipi,
+		  const struct drm_simple_display_pipe_funcs *funcs,
 		  const struct drm_display_mode *mode, unsigned int rotation)
 {
 	size_t bufsize = mode->vdisplay * mode->hdisplay * sizeof(u16);
-	struct tinydrm_device *tdev = &mipi->tinydrm;
+	struct drm_device *drm = &mipi->drm;
 	int ret;
 
 	if (!mipi->command)
@@ -398,16 +445,12 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 
 	mutex_init(&mipi->cmdlock);
 
-	mipi->tx_buf = devm_kmalloc(dev, bufsize, GFP_KERNEL);
+	mipi->tx_buf = devm_kmalloc(drm->dev, bufsize, GFP_KERNEL);
 	if (!mipi->tx_buf)
 		return -ENOMEM;
 
-	ret = devm_tinydrm_init(dev, tdev, driver);
-	if (ret)
-		return ret;
-
 	/* TODO: Maybe add DRM_MODE_CONNECTOR_SPI */
-	ret = tinydrm_display_pipe_init(tdev, pipe_funcs,
+	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					mipi_dbi_formats,
 					ARRAY_SIZE(mipi_dbi_formats), mode,
@@ -415,19 +458,38 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 	if (ret)
 		return ret;
 
-	drm_plane_enable_fb_damage_clips(&tdev->pipe.plane);
+	drm_plane_enable_fb_damage_clips(&mipi->pipe.plane);
 
-	tdev->drm->mode_config.preferred_depth = 16;
+	drm->mode_config.funcs = &mipi_dbi_mode_config_funcs;
+	drm->mode_config.preferred_depth = 16;
 	mipi->rotation = rotation;
 
-	drm_mode_config_reset(tdev->drm);
-
 	DRM_DEBUG_KMS("preferred_depth=%u, rotation = %u\n",
-		      tdev->drm->mode_config.preferred_depth, rotation);
+		      drm->mode_config.preferred_depth, rotation);
 
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dbi_init);
+
+/**
+ * mipi_dbi_release - DRM driver release helper
+ * @drm: DRM device
+ *
+ * This function finalizes and frees &mipi_dbi.
+ *
+ * Drivers can use this as their &drm_driver->release callback.
+ */
+void mipi_dbi_release(struct drm_device *drm)
+{
+	struct mipi_dbi *dbi = drm_to_mipi_dbi(drm);
+
+	DRM_DEBUG_DRIVER("\n");
+
+	drm_mode_config_cleanup(drm);
+	drm_dev_fini(drm);
+	kfree(dbi);
+}
+EXPORT_SYMBOL(mipi_dbi_release);
 
 /**
  * mipi_dbi_hw_reset - Hardware reset of controller
@@ -481,7 +543,7 @@ EXPORT_SYMBOL(mipi_dbi_display_is_on);
 
 static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *mipi, bool cond)
 {
-	struct device *dev = mipi->tinydrm.drm->dev;
+	struct device *dev = mipi->drm.dev;
 	int ret;
 
 	if (mipi->regulator) {
@@ -774,18 +836,18 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 	return 0;
 }
 
-static int mipi_dbi_typec1_command(struct mipi_dbi *mipi, u8 cmd,
+static int mipi_dbi_typec1_command(struct mipi_dbi *mipi, u8 *cmd,
 				   u8 *parameters, size_t num)
 {
-	unsigned int bpw = (cmd == MIPI_DCS_WRITE_MEMORY_START) ? 16 : 8;
+	unsigned int bpw = (*cmd == MIPI_DCS_WRITE_MEMORY_START) ? 16 : 8;
 	int ret;
 
-	if (mipi_dbi_command_is_read(mipi, cmd))
+	if (mipi_dbi_command_is_read(mipi, *cmd))
 		return -ENOTSUPP;
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, parameters, num);
+	MIPI_DBI_DEBUG_COMMAND(*cmd, parameters, num);
 
-	ret = mipi_dbi_spi1_transfer(mipi, 0, &cmd, 1, 8);
+	ret = mipi_dbi_spi1_transfer(mipi, 0, cmd, 1, 8);
 	if (ret || !num)
 		return ret;
 
@@ -794,7 +856,7 @@ static int mipi_dbi_typec1_command(struct mipi_dbi *mipi, u8 cmd,
 
 /* MIPI DBI Type C Option 3 */
 
-static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
+static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 *cmd,
 					u8 *data, size_t len)
 {
 	struct spi_device *spi = mipi->spi;
@@ -803,7 +865,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
 	struct spi_transfer tr[2] = {
 		{
 			.speed_hz = speed_hz,
-			.tx_buf = &cmd,
+			.tx_buf = cmd,
 			.len = 1,
 		}, {
 			.speed_hz = speed_hz,
@@ -821,8 +883,8 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
 	 * Support non-standard 24-bit and 32-bit Nokia read commands which
 	 * start with a dummy clock, so we need to read an extra byte.
 	 */
-	if (cmd == MIPI_DCS_GET_DISPLAY_ID ||
-	    cmd == MIPI_DCS_GET_DISPLAY_STATUS) {
+	if (*cmd == MIPI_DCS_GET_DISPLAY_ID ||
+	    *cmd == MIPI_DCS_GET_DISPLAY_STATUS) {
 		if (!(len == 3 || len == 4))
 			return -EINVAL;
 
@@ -852,7 +914,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
 			data[i] = (buf[i] << 1) | !!(buf[i + 1] & BIT(7));
 	}
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, data, len);
+	MIPI_DBI_DEBUG_COMMAND(*cmd, data, len);
 
 err_free:
 	kfree(buf);
@@ -860,7 +922,7 @@ err_free:
 	return ret;
 }
 
-static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 cmd,
+static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 *cmd,
 				   u8 *par, size_t num)
 {
 	struct spi_device *spi = mipi->spi;
@@ -868,18 +930,18 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 cmd,
 	u32 speed_hz;
 	int ret;
 
-	if (mipi_dbi_command_is_read(mipi, cmd))
+	if (mipi_dbi_command_is_read(mipi, *cmd))
 		return mipi_dbi_typec3_command_read(mipi, cmd, par, num);
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, par, num);
+	MIPI_DBI_DEBUG_COMMAND(*cmd, par, num);
 
 	gpiod_set_value_cansleep(mipi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
-	ret = tinydrm_spi_transfer(spi, speed_hz, NULL, 8, &cmd, 1);
+	ret = tinydrm_spi_transfer(spi, speed_hz, NULL, 8, cmd, 1);
 	if (ret || !num)
 		return ret;
 
-	if (cmd == MIPI_DCS_WRITE_MEMORY_START && !mipi->swap_bytes)
+	if (*cmd == MIPI_DCS_WRITE_MEMORY_START && !mipi->swap_bytes)
 		bpw = 16;
 
 	gpiod_set_value_cansleep(mipi->dc, 1);
@@ -926,7 +988,7 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 	 * Even though it's not the SPI device that does DMA (the master does),
 	 * the dma mask is necessary for the dma_alloc_wc() in
 	 * drm_gem_cma_create(). The dma_addr returned will be a physical
-	 * adddress which might be different from the bus address, but this is
+	 * address which might be different from the bus address, but this is
 	 * not a problem since the address will not be used.
 	 * The virtual address is used in the transfer and the SPI core
 	 * re-maps it on the SPI master device using the DMA streaming API
@@ -976,11 +1038,16 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 	u8 val, cmd = 0, parameters[64];
 	char *buf, *pos, *token;
 	unsigned int i;
-	int ret;
+	int ret, idx;
+
+	if (!drm_dev_enter(&mipi->drm, &idx))
+		return -ENODEV;
 
 	buf = memdup_user_nul(ubuf, count);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		goto err_exit;
+	}
 
 	/* strip trailing whitespace */
 	for (i = count - 1; i > 0; i--)
@@ -1016,6 +1083,8 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 
 err_free:
 	kfree(buf);
+err_exit:
+	drm_dev_exit(idx);
 
 	return ret < 0 ? ret : count;
 }
@@ -1024,8 +1093,11 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 {
 	struct mipi_dbi *mipi = m->private;
 	u8 cmd, val[4];
+	int ret, idx;
 	size_t len;
-	int ret;
+
+	if (!drm_dev_enter(&mipi->drm, &idx))
+		return -ENODEV;
 
 	for (cmd = 0; cmd < 255; cmd++) {
 		if (!mipi_dbi_command_is_read(mipi, cmd))
@@ -1055,6 +1127,8 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 		}
 		seq_printf(m, "%*phN\n", (int)len, val);
 	}
+
+	drm_dev_exit(idx);
 
 	return 0;
 }
@@ -1088,8 +1162,7 @@ static const struct file_operations mipi_dbi_debugfs_command_fops = {
  */
 int mipi_dbi_debugfs_init(struct drm_minor *minor)
 {
-	struct tinydrm_device *tdev = minor->dev->dev_private;
-	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
+	struct mipi_dbi *mipi = drm_to_mipi_dbi(minor->dev);
 	umode_t mode = S_IFREG | S_IWUSR;
 
 	if (mipi->read_commands)

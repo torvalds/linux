@@ -595,7 +595,7 @@ mlx4_free_priv_pages(struct mlx4_ib_mr *mr)
 	}
 }
 
-int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
+int mlx4_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct mlx4_ib_mr *mr = to_mmr(ibmr);
 	int ret;
@@ -655,9 +655,8 @@ int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
 	return 0;
 }
 
-struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd,
-			       enum ib_mr_type mr_type,
-			       u32 max_num_sg)
+struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			       u32 max_num_sg, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_mr *mr;

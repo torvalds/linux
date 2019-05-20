@@ -83,6 +83,8 @@ static inline void _tlbivax_bcast(unsigned long address, unsigned int pid,
 }
 #endif
 
+static inline void print_system_hash_info(void) {}
+
 #else /* CONFIG_PPC_MMU_NOHASH */
 
 extern void hash_preload(struct mm_struct *mm, unsigned long ea,
@@ -91,6 +93,8 @@ extern void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 extern void _tlbie(unsigned long address);
 extern void _tlbia(void);
+
+void print_system_hash_info(void);
 
 #endif /* CONFIG_PPC_MMU_NOHASH */
 
@@ -104,8 +108,8 @@ extern int __map_without_bats;
 extern unsigned int rtas_data, rtas_size;
 
 struct hash_pte;
-extern struct hash_pte *Hash, *Hash_end;
-extern unsigned long Hash_size, Hash_mask;
+extern struct hash_pte *Hash;
+extern u8 early_hash[];
 
 #endif /* CONFIG_PPC32 */
 
@@ -130,6 +134,7 @@ extern void wii_memory_fixups(void);
  */
 #ifdef CONFIG_PPC32
 extern void MMU_init_hw(void);
+void MMU_init_hw_patch(void);
 unsigned long mmu_mapin_ram(unsigned long base, unsigned long top);
 #endif
 

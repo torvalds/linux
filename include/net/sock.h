@@ -236,6 +236,8 @@ struct sock_common {
 	/* public: */
 };
 
+struct bpf_sk_storage;
+
 /**
   *	struct sock - network layer representation of sockets
   *	@__sk_common: shared layout with inet_timewait_sock
@@ -368,6 +370,7 @@ struct sock {
 	atomic_t		sk_drops;
 	int			sk_rcvlowat;
 	struct sk_buff_head	sk_error_queue;
+	struct sk_buff		*sk_rx_skb_cache;
 	struct sk_buff_head	sk_receive_queue;
 	/*
 	 * The backlog queue is special, it is always used with
@@ -414,6 +417,7 @@ struct sock {
 		struct sk_buff	*sk_send_head;
 		struct rb_root	tcp_rtx_queue;
 	};
+	struct sk_buff		*sk_tx_skb_cache;
 	struct sk_buff_head	sk_write_queue;
 	__s32			sk_peek_off;
 	int			sk_write_pending;
@@ -508,6 +512,9 @@ struct sock {
 #endif
 	void                    (*sk_destruct)(struct sock *sk);
 	struct sock_reuseport __rcu	*sk_reuseport_cb;
+#ifdef CONFIG_BPF_SYSCALL
+	struct bpf_sk_storage __rcu	*sk_bpf_storage;
+#endif
 	struct rcu_head		sk_rcu;
 };
 
@@ -966,7 +973,7 @@ static inline void sock_rps_record_flow_hash(__u32 hash)
 static inline void sock_rps_record_flow(const struct sock *sk)
 {
 #ifdef CONFIG_RPS
-	if (static_key_false(&rfs_needed)) {
+	if (static_branch_unlikely(&rfs_needed)) {
 		/* Reading sk->sk_rxhash might incur an expensive cache line
 		 * miss.
 		 *
@@ -1466,6 +1473,11 @@ static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
 	sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
 	sk->sk_wmem_queued -= skb->truesize;
 	sk_mem_uncharge(sk, skb->truesize);
+	if (!sk->sk_tx_skb_cache) {
+		skb_zcopy_clear(skb, true);
+		sk->sk_tx_skb_cache = skb;
+		return;
+	}
 	__kfree_skb(skb);
 }
 
@@ -1607,6 +1619,8 @@ int sock_setsockopt(struct socket *sock, int level, int op,
 
 int sock_getsockopt(struct socket *sock, int level, int op,
 		    char __user *optval, int __user *optlen);
+int sock_gettstamp(struct socket *sock, void __user *userstamp,
+		   bool timeval, bool time32);
 struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 				    int noblock, int *errcode);
 struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
@@ -2427,6 +2441,15 @@ static inline void skb_setup_tx_timestamp(struct sk_buff *skb, __u16 tsflags)
 static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb)
 {
 	__skb_unlink(skb, &sk->sk_receive_queue);
+	if (
+#ifdef CONFIG_RPS
+	    !static_branch_unlikely(&rps_needed) &&
+#endif
+	    !sk->sk_rx_skb_cache) {
+		sk->sk_rx_skb_cache = skb;
+		skb_orphan(skb);
+		return;
+	}
 	__kfree_skb(skb);
 }
 
@@ -2487,8 +2510,6 @@ static inline bool sk_listener(const struct sock *sk)
 }
 
 void sock_enable_timestamp(struct sock *sk, int flag);
-int sock_get_timestamp(struct sock *, struct timeval __user *);
-int sock_get_timestampns(struct sock *, struct timespec __user *);
 int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len, int level,
 		       int type);
 

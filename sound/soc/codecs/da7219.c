@@ -2363,7 +2363,9 @@ err_disable_reg:
 static void da7219_remove(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+#ifdef CONFIG_COMMON_CLK
 	int i;
+#endif
 
 	da7219_aad_exit(component);
 

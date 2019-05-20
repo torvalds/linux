@@ -1213,6 +1213,6 @@
 #define WM831X_LDO1_OK_WIDTH                         1  /* LDO1_OK */
 
 #define WM831X_ISINK_MAX_ISEL 55
-extern int wm831x_isinkv_values[WM831X_ISINK_MAX_ISEL + 1];
+extern const unsigned int wm831x_isinkv_values[WM831X_ISINK_MAX_ISEL + 1];
 
 #endif

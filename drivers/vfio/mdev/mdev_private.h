@@ -30,9 +30,9 @@ struct mdev_device {
 	struct mdev_parent *parent;
 	guid_t uuid;
 	void *driver_data;
-	struct kref ref;
 	struct list_head next;
 	struct kobject *type_kobj;
+	struct device *iommu_device;
 	bool active;
 };
 

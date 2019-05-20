@@ -305,7 +305,6 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 		else if (i % 2)
 			pr_cont(".");
 		writew(sprom[i], bus->mmio + bus->sprom_offset + (i * 2));
-		mmiowb();
 		msleep(20);
 	}
 	err = pci_read_config_dword(pdev, SSB_SPROMCTL, &spromctl);

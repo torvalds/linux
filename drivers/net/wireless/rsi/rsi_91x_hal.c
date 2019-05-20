@@ -31,6 +31,13 @@ static struct ta_metadata metadata_flash_content[] = {
 
 };
 
+static struct ta_metadata metadata[] = {{"pmemdata_dummy", 0x00000000},
+	{"rsi/rs9116_wlan.rps", 0x00000000},
+	{"rsi/rs9116_wlan_bt_classic.rps", 0x00000000},
+	{"rsi/pmemdata_dummy", 0x00000000},
+	{"rsi/rs9116_wlan_bt_classic.rps", 0x00000000}
+};
+
 int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
@@ -829,21 +836,18 @@ static int auto_fw_upgrade(struct rsi_hw *adapter, u8 *flash_content,
 	return 0;
 }
 
-static int rsi_load_firmware(struct rsi_hw *adapter)
+static int rsi_hal_prepare_fwload(struct rsi_hw *adapter)
 {
-	struct rsi_common *common = adapter->priv;
 	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
-	const struct firmware *fw_entry = NULL;
-	u32 regout_val = 0, content_size;
-	u16 tmp_regout_val = 0;
-	struct ta_metadata *metadata_p;
+	u32 regout_val = 0;
 	int status;
 
 	bl_start_cmd_timer(adapter, BL_CMD_TIMEOUT);
 
 	while (!adapter->blcmd_timer_expired) {
 		status = hif_ops->master_reg_read(adapter, SWBL_REGOUT,
-					      &regout_val, 2);
+						  &regout_val,
+						  RSI_COMMON_REG_SIZE);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"%s: REGOUT read failed\n", __func__);
@@ -865,13 +869,26 @@ static int rsi_load_firmware(struct rsi_hw *adapter)
 		(regout_val & 0xff));
 
 	status = hif_ops->master_reg_write(adapter, SWBL_REGOUT,
-					(REGOUT_INVALID | REGOUT_INVALID << 8),
-					2);
-	if (status < 0) {
+					   (REGOUT_INVALID |
+					    REGOUT_INVALID << 8),
+					   RSI_COMMON_REG_SIZE);
+	if (status < 0)
 		rsi_dbg(ERR_ZONE, "%s: REGOUT writing failed..\n", __func__);
-		return status;
-	}
-	mdelay(1);
+	else
+		rsi_dbg(INFO_ZONE,
+			"===> Device is ready to load firmware <===\n");
+
+	return status;
+}
+
+static int rsi_load_9113_firmware(struct rsi_hw *adapter)
+{
+	struct rsi_common *common = adapter->priv;
+	const struct firmware *fw_entry = NULL;
+	u32 content_size;
+	u16 tmp_regout_val = 0;
+	struct ta_metadata *metadata_p;
+	int status;
 
 	status = bl_cmd(adapter, CONFIG_AUTO_READ_MODE, CMD_PASS,
 			"AUTO_READ_CMD");
@@ -902,13 +919,15 @@ static int rsi_load_firmware(struct rsi_hw *adapter)
 
 	/* Get the firmware version */
 	common->lmac_ver.ver.info.fw_ver[0] =
-		fw_entry->data[LMAC_VER_OFFSET] & 0xFF;
+		fw_entry->data[LMAC_VER_OFFSET_9113] & 0xFF;
 	common->lmac_ver.ver.info.fw_ver[1] =
-		fw_entry->data[LMAC_VER_OFFSET + 1] & 0xFF;
-	common->lmac_ver.major = fw_entry->data[LMAC_VER_OFFSET + 2] & 0xFF;
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 1] & 0xFF;
+	common->lmac_ver.major =
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 2] & 0xFF;
 	common->lmac_ver.release_num =
-		fw_entry->data[LMAC_VER_OFFSET + 3] & 0xFF;
-	common->lmac_ver.minor = fw_entry->data[LMAC_VER_OFFSET + 4] & 0xFF;
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 3] & 0xFF;
+	common->lmac_ver.minor =
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 4] & 0xFF;
 	common->lmac_ver.patch_num = 0;
 	rsi_print_version(common);
 
@@ -977,15 +996,157 @@ fail:
 	return status;
 }
 
+static int rsi_load_9116_firmware(struct rsi_hw *adapter)
+{
+	struct rsi_common *common = adapter->priv;
+	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
+	const struct firmware *fw_entry;
+	struct ta_metadata *metadata_p;
+	u8 *ta_firmware, *fw_p;
+	struct bootload_ds bootload_ds;
+	u32 instructions_sz, base_address;
+	u16 block_size = adapter->block_size;
+	u32 dest, len;
+	int status, cnt;
+
+	rsi_dbg(INIT_ZONE, "***** Load 9116 TA Instructions *****\n");
+
+	if (adapter->rsi_host_intf == RSI_HOST_INTF_USB) {
+		status = bl_cmd(adapter, POLLING_MODE, CMD_PASS,
+				"POLLING_MODE");
+		if (status < 0)
+			return status;
+	}
+
+	status = hif_ops->master_reg_write(adapter, MEM_ACCESS_CTRL_FROM_HOST,
+					   RAM_384K_ACCESS_FROM_TA,
+					   RSI_9116_REG_SIZE);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "%s: Unable to access full RAM memory\n",
+			__func__);
+		return status;
+	}
+
+	metadata_p = &metadata[adapter->priv->coex_mode];
+	rsi_dbg(INIT_ZONE, "%s: loading file %s\n", __func__, metadata_p->name);
+	status = request_firmware(&fw_entry, metadata_p->name, adapter->device);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to open file %s\n",
+			__func__, metadata_p->name);
+		return status;
+	}
+
+	ta_firmware = kmemdup(fw_entry->data, fw_entry->size, GFP_KERNEL);
+	if (!ta_firmware)
+		goto fail_release_fw;
+	fw_p = ta_firmware;
+	instructions_sz = fw_entry->size;
+	rsi_dbg(INFO_ZONE, "FW Length = %d bytes\n", instructions_sz);
+
+	common->lmac_ver.major = ta_firmware[LMAC_VER_OFFSET_9116];
+	common->lmac_ver.minor = ta_firmware[LMAC_VER_OFFSET_9116 + 1];
+	common->lmac_ver.release_num = ta_firmware[LMAC_VER_OFFSET_9116 + 2];
+	common->lmac_ver.patch_num = ta_firmware[LMAC_VER_OFFSET_9116 + 3];
+	common->lmac_ver.ver.info.fw_ver[0] =
+		ta_firmware[LMAC_VER_OFFSET_9116 + 4];
+
+	if (instructions_sz % FW_ALIGN_SIZE)
+		instructions_sz +=
+			(FW_ALIGN_SIZE - (instructions_sz % FW_ALIGN_SIZE));
+	rsi_dbg(INFO_ZONE, "instructions_sz : %d\n", instructions_sz);
+
+	if (*(u16 *)fw_p == RSI_9116_FW_MAGIC_WORD) {
+		memcpy(&bootload_ds, fw_p, sizeof(struct bootload_ds));
+		fw_p += le16_to_cpu(bootload_ds.offset);
+		rsi_dbg(INFO_ZONE, "FW start = %x\n", *(u32 *)fw_p);
+
+		cnt = 0;
+		do {
+			rsi_dbg(ERR_ZONE, "%s: Loading chunk %d\n",
+				__func__, cnt);
+
+			dest = le32_to_cpu(bootload_ds.bl_entry[cnt].dst_addr);
+			len = le32_to_cpu(bootload_ds.bl_entry[cnt].control) &
+			      RSI_BL_CTRL_LEN_MASK;
+			rsi_dbg(INFO_ZONE, "length %d destination %x\n",
+				len, dest);
+
+			status = hif_ops->load_data_master_write(adapter, dest,
+								 len,
+								 block_size,
+								 fw_p);
+			if (status < 0) {
+				rsi_dbg(ERR_ZONE,
+					"Failed to load chunk %d\n", cnt);
+				break;
+			}
+			fw_p += len;
+			if (le32_to_cpu(bootload_ds.bl_entry[cnt].control) &
+			    RSI_BL_CTRL_LAST_ENTRY)
+				break;
+			cnt++;
+		} while (1);
+	} else {
+		base_address = metadata_p->address;
+		status = hif_ops->load_data_master_write(adapter,
+							 base_address,
+							 instructions_sz,
+							 block_size,
+							 ta_firmware);
+	}
+	if (status) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Unable to load %s blk\n",
+			__func__, metadata_p->name);
+		goto fail_free_fw;
+	}
+
+	rsi_dbg(INIT_ZONE, "%s: Successfully loaded %s instructions\n",
+		__func__, metadata_p->name);
+
+	if (adapter->rsi_host_intf == RSI_HOST_INTF_SDIO) {
+		if (hif_ops->ta_reset(adapter))
+			rsi_dbg(ERR_ZONE, "Unable to put ta in reset\n");
+	} else {
+		if (bl_cmd(adapter, JUMP_TO_ZERO_PC,
+			   CMD_PASS, "JUMP_TO_ZERO") < 0)
+			rsi_dbg(INFO_ZONE, "Jump to zero command failed\n");
+		else
+			rsi_dbg(INFO_ZONE, "Jump to zero command successful\n");
+	}
+
+fail_free_fw:
+	kfree(ta_firmware);
+fail_release_fw:
+	release_firmware(fw_entry);
+
+	return status;
+}
+
 int rsi_hal_device_init(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
+	int status;
 
 	switch (adapter->device_model) {
 	case RSI_DEV_9113:
-		if (rsi_load_firmware(adapter)) {
+		status = rsi_hal_prepare_fwload(adapter);
+		if (status < 0)
+			return status;
+		if (rsi_load_9113_firmware(adapter)) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to load TA instructions\n",
+				__func__);
+			return -EINVAL;
+		}
+		break;
+	case RSI_DEV_9116:
+		status = rsi_hal_prepare_fwload(adapter);
+		if (status < 0)
+			return status;
+		if (rsi_load_9116_firmware(adapter)) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Failed to load firmware to 9116 device\n",
 				__func__);
 			return -EINVAL;
 		}
