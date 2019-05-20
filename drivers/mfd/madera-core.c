@@ -139,7 +139,7 @@ EXPORT_SYMBOL_GPL(madera_name_from_type);
 static int madera_wait_for_boot(struct madera *madera)
 {
 	ktime_t timeout;
-	unsigned int val;
+	unsigned int val = 0;
 	int ret = 0;
 
 	/*
