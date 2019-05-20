@@ -532,21 +532,13 @@ EXPORT_SYMBOL(drm_dev_unplug);
 static int drm_fs_cnt;
 static struct vfsmount *drm_fs_mnt;
 
-static const struct dentry_operations drm_fs_dops = {
-	.d_dname	= simple_dname,
-};
-
-static const struct super_operations drm_fs_sops = {
-	.statfs		= simple_statfs,
-};
-
 static struct dentry *drm_fs_mount(struct file_system_type *fs_type, int flags,
 				   const char *dev_name, void *data)
 {
 	return mount_pseudo(fs_type,
 			    "drm:",
-			    &drm_fs_sops,
-			    &drm_fs_dops,
+			    NULL,
+			    NULL,
 			    0x010203ff);
 }
 
