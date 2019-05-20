@@ -38,6 +38,10 @@
 #define IPV4_MAX_PMTU		65535U		/* RFC 2675, Section 5.1 */
 #define IPV4_MIN_MTU		68			/* RFC 791 */
 
+extern unsigned int sysctl_fib_sync_mem;
+extern unsigned int sysctl_fib_sync_mem_min;
+extern unsigned int sysctl_fib_sync_mem_max;
+
 struct sock;
 
 struct inet_skb_parm {
@@ -677,7 +681,7 @@ int ip_options_get_from_user(struct net *net, struct ip_options_rcu **optp,
 			     unsigned char __user *data, int optlen);
 void ip_options_undo(struct ip_options *opt);
 void ip_forward_options(struct sk_buff *skb);
-int ip_options_rcv_srr(struct sk_buff *skb);
+int ip_options_rcv_srr(struct sk_buff *skb, struct net_device *dev);
 
 /*
  *	Functions provided by ip_sockglue.c

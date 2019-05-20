@@ -746,7 +746,6 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	struct hns_roce_hem_table *table;
 	dma_addr_t dma_handle;
 	__le64 *mtts;
-	u32 s = start_index * sizeof(u64);
 	u32 bt_page_size;
 	u32 i;
 
@@ -780,7 +779,8 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 		return -EINVAL;
 
 	mtts = hns_roce_table_find(hr_dev, table,
-				mtt->first_seg + s / hr_dev->caps.mtt_entry_sz,
+				mtt->first_seg +
+				start_index / HNS_ROCE_MTT_ENTRY_PER_SEG,
 				&dma_handle);
 	if (!mtts)
 		return -ENOMEM;
@@ -1282,14 +1282,14 @@ free_cmd_mbox:
 	return ret;
 }
 
-int hns_roce_dereg_mr(struct ib_mr *ibmr)
+int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 	int ret = 0;
 
 	if (hr_dev->hw->dereg_mr) {
-		ret = hr_dev->hw->dereg_mr(hr_dev, mr);
+		ret = hr_dev->hw->dereg_mr(hr_dev, mr, udata);
 	} else {
 		hns_roce_mr_free(hr_dev, mr);
 
@@ -1303,7 +1303,7 @@ int hns_roce_dereg_mr(struct ib_mr *ibmr)
 }
 
 struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-				u32 max_num_sg)
+				u32 max_num_sg, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct device *dev = hr_dev->dev;

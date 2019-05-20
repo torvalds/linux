@@ -554,19 +554,6 @@ struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type typ
 }
 EXPORT_SYMBOL(bpf_prog_get_type_path);
 
-static void bpf_evict_inode(struct inode *inode)
-{
-	enum bpf_type type;
-
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-
-	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_link);
-	if (!bpf_inode_type(inode, &type))
-		bpf_any_put(inode->i_private, type);
-}
-
 /*
  * Display the mount options in /proc/mounts.
  */
@@ -579,11 +566,22 @@ static int bpf_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
+static void bpf_free_inode(struct inode *inode)
+{
+	enum bpf_type type;
+
+	if (S_ISLNK(inode->i_mode))
+		kfree(inode->i_link);
+	if (!bpf_inode_type(inode, &type))
+		bpf_any_put(inode->i_private, type);
+	free_inode_nonrcu(inode);
+}
+
 static const struct super_operations bpf_super_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
 	.show_options	= bpf_show_options,
-	.evict_inode	= bpf_evict_inode,
+	.free_inode	= bpf_free_inode,
 };
 
 enum {

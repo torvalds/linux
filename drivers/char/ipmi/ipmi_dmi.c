@@ -47,9 +47,11 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 	memset(&p, 0, sizeof(p));
 
 	name = "dmi-ipmi-si";
+	p.iftype = IPMI_PLAT_IF_SI;
 	switch (type) {
 	case IPMI_DMI_TYPE_SSIF:
 		name = "dmi-ipmi-ssif";
+		p.iftype = IPMI_PLAT_IF_SSIF;
 		p.type = SI_TYPE_INVALID;
 		break;
 	case IPMI_DMI_TYPE_BT:
@@ -66,7 +68,6 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 		return;
 	}
 
-	memset(&p, 0, sizeof(p));
 	p.addr = base_addr;
 	p.space = space;
 	p.regspacing = offset;

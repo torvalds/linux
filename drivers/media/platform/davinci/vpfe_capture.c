@@ -1759,7 +1759,7 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	mutex_lock(&ccdc_lock);
 
-	strncpy(ccdc_cfg->name, vpfe_cfg->ccdc, 32);
+	strscpy(ccdc_cfg->name, vpfe_cfg->ccdc, sizeof(ccdc_cfg->name));
 	/* Get VINT0 irq resource */
 	res1 = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res1) {

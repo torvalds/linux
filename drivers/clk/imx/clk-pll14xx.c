@@ -74,10 +74,9 @@ static unsigned long clk_pll1416x_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	struct clk_pll14xx *pll = to_clk_pll14xx(hw);
-	u32 mdiv, pdiv, sdiv, pll_gnrl, pll_div;
+	u32 mdiv, pdiv, sdiv, pll_div;
 	u64 fvco = parent_rate;
 
-	pll_gnrl = readl_relaxed(pll->base);
 	pll_div = readl_relaxed(pll->base + 4);
 	mdiv = (pll_div & MDIV_MASK) >> MDIV_SHIFT;
 	pdiv = (pll_div & PDIV_MASK) >> PDIV_SHIFT;
@@ -93,11 +92,10 @@ static unsigned long clk_pll1443x_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	struct clk_pll14xx *pll = to_clk_pll14xx(hw);
-	u32 mdiv, pdiv, sdiv, pll_gnrl, pll_div_ctl0, pll_div_ctl1;
+	u32 mdiv, pdiv, sdiv, pll_div_ctl0, pll_div_ctl1;
 	short int kdiv;
 	u64 fvco = parent_rate;
 
-	pll_gnrl = readl_relaxed(pll->base);
 	pll_div_ctl0 = readl_relaxed(pll->base + 4);
 	pll_div_ctl1 = readl_relaxed(pll->base + 8);
 	mdiv = (pll_div_ctl0 & MDIV_MASK) >> MDIV_SHIFT;
@@ -362,7 +360,7 @@ struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 
 	switch (pll_clk->type) {
 	case PLL_1416X:
-		if (!pll->rate_table)
+		if (!pll_clk->rate_table)
 			init.ops = &clk_pll1416x_min_ops;
 		else
 			init.ops = &clk_pll1416x_ops;

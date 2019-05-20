@@ -551,7 +551,7 @@ static __net_init int rds_tcp_init_net(struct net *net)
 		tbl = kmemdup(rds_tcp_sysctl_table,
 			      sizeof(rds_tcp_sysctl_table), GFP_KERNEL);
 		if (!tbl) {
-			pr_warn("could not set allocate syctl table\n");
+			pr_warn("could not set allocate sysctl table\n");
 			return -ENOMEM;
 		}
 		rtn->ctl_table = tbl;
@@ -608,7 +608,7 @@ static void rds_tcp_kill_sock(struct net *net)
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
 		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
-		if (net != c_net || !tc->t_sock)
+		if (net != c_net)
 			continue;
 		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn)) {
 			list_move_tail(&tc->t_tcp_node, &tmp_list);

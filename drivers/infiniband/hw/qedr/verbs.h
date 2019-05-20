@@ -47,16 +47,14 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
 void qedr_dealloc_ucontext(struct ib_ucontext *uctx);
 
 int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
-int qedr_alloc_pd(struct ib_pd *pd, struct ib_ucontext *uctx,
-		  struct ib_udata *udata);
-void qedr_dealloc_pd(struct ib_pd *pd);
+int qedr_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
+void qedr_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 
 struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
-			     struct ib_ucontext *ib_ctx,
 			     struct ib_udata *udata);
 int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
-int qedr_destroy_cq(struct ib_cq *);
+int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 struct ib_qp *qedr_create_qp(struct ib_pd *, struct ib_qp_init_attr *attrs,
 			     struct ib_udata *);
@@ -64,22 +62,21 @@ int qedr_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,
 		   int attr_mask, struct ib_udata *udata);
 int qedr_query_qp(struct ib_qp *, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_qp_init_attr *);
-int qedr_destroy_qp(struct ib_qp *ibqp);
+int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
-struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
-			       struct ib_srq_init_attr *attr,
-			       struct ib_udata *udata);
+int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *attr,
+		    struct ib_udata *udata);
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int qedr_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-int qedr_destroy_srq(struct ib_srq *ibsrq);
+void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
-struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     u32 flags, struct ib_udata *udata);
-int qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
+int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
+		   struct ib_udata *udata);
+void qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
 
-int qedr_dereg_mr(struct ib_mr *);
+int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);
 
 struct ib_mr *qedr_reg_user_mr(struct ib_pd *, u64 start, u64 length,
@@ -89,7 +86,7 @@ int qedr_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		   int sg_nents, unsigned int *sg_offset);
 
 struct ib_mr *qedr_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-			    u32 max_num_sg);
+			    u32 max_num_sg, struct ib_udata *udata);
 int qedr_poll_cq(struct ib_cq *, int num_entries, struct ib_wc *wc);
 int qedr_post_send(struct ib_qp *, const struct ib_send_wr *,
 		   const struct ib_send_wr **bad_wr);

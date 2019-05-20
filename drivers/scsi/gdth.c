@@ -3697,8 +3697,9 @@ static int ioc_general(void __user *arg, char *cmnd)
 
 	rval = 0;
 out_free_buf:
-	dma_free_coherent(&ha->pdev->dev, gen.data_len + gen.sense_len, buf,
-			paddr);
+	if (buf)
+		dma_free_coherent(&ha->pdev->dev, gen.data_len + gen.sense_len,
+				  buf, paddr);
 	return rval;
 }
  

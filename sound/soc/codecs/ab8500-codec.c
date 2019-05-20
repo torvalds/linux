@@ -1062,10 +1062,10 @@ static void anc_iir(struct snd_soc_component *component, unsigned int bnk,
 			snd_soc_component_update_bits(component, AB8500_ANCCONF1,
 					BIT(AB8500_ANCCONF1_ANCIIRINIT),
 					BIT(AB8500_ANCCONF1_ANCIIRINIT));
-			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY);
+			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY*2);
 			snd_soc_component_update_bits(component, AB8500_ANCCONF1,
 					BIT(AB8500_ANCCONF1_ANCIIRINIT), 0);
-			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY);
+			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY*2);
 		} else {
 			snd_soc_component_update_bits(component, AB8500_ANCCONF1,
 					BIT(AB8500_ANCCONF1_ANCIIRUPDATE),
@@ -2129,6 +2129,7 @@ static int ab8500_codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		dev_err(dai->component->dev,
 			"%s: ERROR: The device is either a master or a slave.\n",
 			__func__);
+		/* fall through */
 	default:
 		dev_err(dai->component->dev,
 			"%s: ERROR: Unsupporter master mask 0x%x\n",

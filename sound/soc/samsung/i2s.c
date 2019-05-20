@@ -88,12 +88,6 @@ struct samsung_i2s_priv {
 	struct platform_device *pdev;
 	struct platform_device *pdev_sec;
 
-	/* Memory mapped SFR region */
-	void __iomem *addr;
-
-	/* Spinlock protecting access to the device's registers */
-	spinlock_t lock;
-
 	/* Lock for cross interface checks */
 	spinlock_t pcm_lock;
 
@@ -122,21 +116,21 @@ struct samsung_i2s_priv {
 	/* The clock provider's data */
 	struct clk *clk_table[3];
 	struct clk_onecell_data clk_data;
+
+	/* Spinlock protecting member fields below */
+	spinlock_t lock;
+
+	/* Memory mapped SFR region */
+	void __iomem *addr;
+
+	/* A flag indicating the I2S slave mode operation */
+	bool slave_mode;
 };
 
 /* Returns true if this is the 'overlay' stereo DAI */
 static inline bool is_secondary(struct i2s_dai *i2s)
 {
 	return i2s->drv->id == SAMSUNG_I2S_ID_SECONDARY;
-}
-
-/* If operating in SoC-Slave mode */
-static inline bool is_slave(struct i2s_dai *i2s)
-{
-	struct samsung_i2s_priv *priv = i2s->priv;
-
-	u32 mod = readl(priv->addr + I2SMOD);
-	return (mod & (1 << priv->variant_regs->mss_off)) ? true : false;
 }
 
 /* If this interface of the controller is transmitting data */
@@ -715,6 +709,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	mod &= ~(sdf_mask | lrp_rlow | mod_slave);
 	mod |= tmp;
 	writel(mod, priv->addr + I2SMOD);
+	priv->slave_mode = (mod & mod_slave);
 	spin_unlock_irqrestore(&priv->lock, flags);
 	pm_runtime_put(dai->dev);
 
@@ -917,7 +912,7 @@ static int config_setup(struct i2s_dai *i2s)
 	set_rfs(i2s, rfs);
 
 	/* Don't bother with PSR in Slave mode */
-	if (is_slave(i2s))
+	if (priv->slave_mode)
 		return 0;
 
 	if (!(priv->quirks & QUIRK_NO_MUXPSR)) {
@@ -1130,11 +1125,11 @@ static const struct snd_soc_dapm_widget samsung_i2s_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route samsung_i2s_dapm_routes[] = {
-	{ "Playback Mixer", NULL, "Primary" },
-	{ "Playback Mixer", NULL, "Secondary" },
+	{ "Playback Mixer", NULL, "Primary Playback" },
+	{ "Playback Mixer", NULL, "Secondary Playback" },
 
 	{ "Mixer DAI TX", NULL, "Playback Mixer" },
-	{ "Playback Mixer", NULL, "Mixer DAI RX" },
+	{ "Primary Capture", NULL, "Mixer DAI RX" },
 };
 
 static const struct snd_soc_component_driver samsung_i2s_component = {
@@ -1155,7 +1150,8 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 			  int num_dais)
 {
 	static const char *dai_names[] = { "samsung-i2s", "samsung-i2s-sec" };
-	static const char *stream_names[] = { "Primary", "Secondary" };
+	static const char *stream_names[] = { "Primary Playback",
+					      "Secondary Playback" };
 	struct snd_soc_dai_driver *dai_drv;
 	struct i2s_dai *dai;
 	int i;
@@ -1201,6 +1197,7 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 	dai_drv->capture.channels_max = 2;
 	dai_drv->capture.rates = i2s_dai_data->pcm_rates;
 	dai_drv->capture.formats = SAMSUNG_I2S_FMTS;
+	dai_drv->capture.stream_name = "Primary Capture";
 
 	return 0;
 }

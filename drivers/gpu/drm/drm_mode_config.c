@@ -297,8 +297,9 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.prop_crtc_id = prop;
 
-	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB, "FB_DAMAGE_CLIPS",
-				   0);
+	prop = drm_property_create(dev,
+			DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
+			"FB_DAMAGE_CLIPS", 0);
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.prop_fb_damage_clips = prop;

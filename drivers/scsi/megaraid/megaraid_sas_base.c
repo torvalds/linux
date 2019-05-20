@@ -815,7 +815,6 @@ megasas_fire_cmd_skinny(struct megasas_instance *instance,
 	       &(regs)->inbound_high_queue_port);
 	writel((lower_32_bits(frame_phys_addr) | (frame_count<<1))|1,
 	       &(regs)->inbound_low_queue_port);
-	mmiowb();
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
 }
 
@@ -2725,7 +2724,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 	do {
 		if ((fw_state == MFI_STATE_FAULT) || atomic_read(&instance->fw_outstanding)) {
 			dev_info(&instance->pdev->dev,
-				"%s:%d waiting_for_outstanding: before issue OCR. FW state = 0x%x, oustanding 0x%x\n",
+				"%s:%d waiting_for_outstanding: before issue OCR. FW state = 0x%x, outstanding 0x%x\n",
 				__func__, __LINE__, fw_state, atomic_read(&instance->fw_outstanding));
 			if (i == 3)
 				goto kill_hba_and_failed;
@@ -4648,7 +4647,7 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
  * Return:			0 if DCMD succeeded
  *				 non-zero if failed
  */
-int
+static int
 megasas_host_device_list_query(struct megasas_instance *instance,
 			       bool is_probe)
 {

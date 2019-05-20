@@ -1149,7 +1149,8 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_CBQ_MAX, opt, cbq_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -1305,7 +1306,7 @@ static int cbq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (cbq_dump_attr(skb, &q->link) < 0)
@@ -1340,7 +1341,7 @@ cbq_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle = cl->common.classid;
 	tcm->tcm_info = cl->q->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (cbq_dump_attr(skb, cl) < 0)
@@ -1358,9 +1359,11 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class *)arg;
+	__u32 qlen;
 
 	cl->xstats.avgidle = cl->avgidle;
 	cl->xstats.undertime = 0;
+	qdisc_qstats_qlen_backlog(cl->q, &qlen, &cl->qstats.backlog);
 
 	if (cl->undertime != PSCHED_PASTPERFECT)
 		cl->xstats.undertime = cl->undertime - q->now;
@@ -1368,7 +1371,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
-	    gnet_stats_copy_queue(d, NULL, &cl->qstats, cl->q->q.qlen) < 0)
+	    gnet_stats_copy_queue(d, NULL, &cl->qstats, qlen) < 0)
 		return -1;
 
 	return gnet_stats_copy_app(d, &cl->xstats, sizeof(cl->xstats));
@@ -1471,7 +1474,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_CBQ_MAX, opt, cbq_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -1665,17 +1669,13 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class *)arg;
-	unsigned int qlen, backlog;
 
 	if (cl->filters || cl->children || cl == &q->link)
 		return -EBUSY;
 
 	sch_tree_lock(sch);
 
-	qlen = cl->q->q.qlen;
-	backlog = cl->q->qstats.backlog;
-	qdisc_reset(cl->q);
-	qdisc_tree_reduce_backlog(cl->q, qlen, backlog);
+	qdisc_purge_queue(cl->q);
 
 	if (cl->next_alive)
 		cbq_deactivate_class(cl);

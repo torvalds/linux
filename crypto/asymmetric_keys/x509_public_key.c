@@ -77,7 +77,6 @@ int x509_get_sig_params(struct x509_certificate *cert)
 		goto error;
 
 	desc->tfm = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ret = crypto_shash_digest(desc, cert->tbs, cert->tbs_size, sig->digest);
 	if (ret < 0)

@@ -43,12 +43,10 @@ struct alcor_sdmmc_host {
 	struct  device *dev;
 	struct alcor_pci_priv *alcor_pci;
 
-	struct mmc_host *mmc;
 	struct mmc_request *mrq;
 	struct mmc_command *cmd;
 	struct mmc_data *data;
 	unsigned int dma_on:1;
-	unsigned int early_data:1;
 
 	struct mutex cmd_mutex;
 
@@ -118,6 +116,9 @@ static void alcor_reset(struct alcor_sdmmc_host *host, u8 val)
 	dev_err(host->dev, "%s: timeout\n", __func__);
 }
 
+/*
+ * Perform DMA I/O of a single page.
+ */
 static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 {
 	struct alcor_pci_priv *priv = host->alcor_pci;
@@ -144,8 +145,7 @@ static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 	host->sg_count--;
 }
 
-static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host,
-					bool early)
+static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host)
 {
 	struct alcor_pci_priv *priv = host->alcor_pci;
 	struct mmc_data *data = host->data;
@@ -155,19 +155,26 @@ static void alcor_trigger_data_transfer(struct alcor_sdmmc_host *host,
 		ctrl |= AU6601_DATA_WRITE;
 
 	if (data->host_cookie == COOKIE_MAPPED) {
-		if (host->early_data) {
-			host->early_data = false;
-			return;
-		}
-
-		host->early_data = early;
-
+		/*
+		 * For DMA transfers, this function is called just once,
+		 * at the start of the operation. The hardware can only
+		 * perform DMA I/O on a single page at a time, so here
+		 * we kick off the transfer with the first page, and expect
+		 * subsequent pages to be transferred upon IRQ events
+		 * indicating that the single-page DMA was completed.
+		 */
 		alcor_data_set_dma(host);
 		ctrl |= AU6601_DATA_DMA_MODE;
 		host->dma_on = 1;
 		alcor_write32(priv, data->sg_count * 0x1000,
 			       AU6601_REG_BLOCK_SIZE);
 	} else {
+		/*
+		 * For PIO transfers, we break down each operation
+		 * into several sector-sized transfers. When one sector has
+		 * complete, the IRQ handler will call this function again
+		 * to kick off the transfer of the next sector.
+		 */
 		alcor_write32(priv, data->blksz, AU6601_REG_BLOCK_SIZE);
 	}
 
@@ -231,6 +238,7 @@ static void alcor_prepare_sg_miter(struct alcor_sdmmc_host *host)
 static void alcor_prepare_data(struct alcor_sdmmc_host *host,
 			       struct mmc_command *cmd)
 {
+	struct alcor_pci_priv *priv = host->alcor_pci;
 	struct mmc_data *data = cmd->data;
 
 	if (!data)
@@ -248,7 +256,7 @@ static void alcor_prepare_data(struct alcor_sdmmc_host *host,
 	if (data->host_cookie != COOKIE_MAPPED)
 		alcor_prepare_sg_miter(host);
 
-	alcor_trigger_data_transfer(host, true);
+	alcor_write8(priv, 0, AU6601_DATA_XFER_CTRL);
 }
 
 static void alcor_send_cmd(struct alcor_sdmmc_host *host,
@@ -284,7 +292,7 @@ static void alcor_send_cmd(struct alcor_sdmmc_host *host,
 		break;
 	default:
 		dev_err(host->dev, "%s: cmd->flag (0x%02x) is not valid\n",
-			mmc_hostname(host->mmc), mmc_resp_type(cmd));
+			mmc_hostname(mmc_from_priv(host)), mmc_resp_type(cmd));
 		break;
 	}
 
@@ -325,7 +333,7 @@ static void alcor_request_complete(struct alcor_sdmmc_host *host,
 	host->data = NULL;
 	host->dma_on = 0;
 
-	mmc_request_done(host->mmc, mrq);
+	mmc_request_done(mmc_from_priv(host), mrq);
 }
 
 static void alcor_finish_data(struct alcor_sdmmc_host *host)
@@ -435,7 +443,7 @@ static int alcor_cmd_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 	if (!host->data)
 		return false;
 
-	alcor_trigger_data_transfer(host, false);
+	alcor_trigger_data_transfer(host);
 	host->cmd = NULL;
 	return true;
 }
@@ -456,7 +464,7 @@ static void alcor_cmd_irq_thread(struct alcor_sdmmc_host *host, u32 intmask)
 	if (!host->data)
 		alcor_request_complete(host, 1);
 	else
-		alcor_trigger_data_transfer(host, false);
+		alcor_trigger_data_transfer(host);
 	host->cmd = NULL;
 }
 
@@ -487,15 +495,9 @@ static int alcor_data_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 		break;
 	case AU6601_INT_READ_BUF_RDY:
 		alcor_trf_block_pio(host, true);
-		if (!host->blocks)
-			break;
-		alcor_trigger_data_transfer(host, false);
 		return 1;
 	case AU6601_INT_WRITE_BUF_RDY:
 		alcor_trf_block_pio(host, false);
-		if (!host->blocks)
-			break;
-		alcor_trigger_data_transfer(host, false);
 		return 1;
 	case AU6601_INT_DMA_END:
 		if (!host->sg_count)
@@ -508,8 +510,14 @@ static int alcor_data_irq_done(struct alcor_sdmmc_host *host, u32 intmask)
 		break;
 	}
 
-	if (intmask & AU6601_INT_DATA_END)
-		return 0;
+	if (intmask & AU6601_INT_DATA_END) {
+		if (!host->dma_on && host->blocks) {
+			alcor_trigger_data_transfer(host);
+			return 1;
+		} else {
+			return 0;
+		}
+	}
 
 	return 1;
 }
@@ -555,7 +563,7 @@ static void alcor_cd_irq(struct alcor_sdmmc_host *host, u32 intmask)
 		alcor_request_complete(host, 1);
 	}
 
-	mmc_detect_change(host->mmc, msecs_to_jiffies(1));
+	mmc_detect_change(mmc_from_priv(host), msecs_to_jiffies(1));
 }
 
 static irqreturn_t alcor_irq_thread(int irq, void *d)
@@ -779,12 +787,17 @@ static void alcor_pre_req(struct mmc_host *mmc,
 	data->host_cookie = COOKIE_UNMAPPED;
 
 	/* FIXME: looks like the DMA engine works only with CMD18 */
-	if (cmd->opcode != 18)
+	if (cmd->opcode != MMC_READ_MULTIPLE_BLOCK
+			&& cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK)
 		return;
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
-	 * non-word-aligned buffers or lengths. Also, we don't bother
-	 * with all the DMA setup overhead for short transfers.
+	 * non-word-aligned buffers or lengths. A future improvement
+	 * could be made to use temporary DMA bounce-buffers when these
+	 * requirements are not met.
+	 *
+	 * Also, we don't bother with all the DMA setup overhead for
+	 * short transfers.
 	 */
 	if (data->blocks * data->blksz < AU6601_MAX_DMA_BLOCK_SIZE)
 		return;
@@ -794,6 +807,8 @@ static void alcor_pre_req(struct mmc_host *mmc,
 
 	for_each_sg(data->sg, sg, data->sg_len, i) {
 		if (sg->length != AU6601_MAX_DMA_BLOCK_SIZE)
+			return;
+		if (sg->offset != 0)
 			return;
 	}
 
@@ -967,7 +982,6 @@ static void alcor_timeout_timer(struct work_struct *work)
 		alcor_request_complete(host, 0);
 	}
 
-	mmiowb();
 	mutex_unlock(&host->cmd_mutex);
 }
 
@@ -1033,7 +1047,7 @@ static void alcor_hw_uninit(struct alcor_sdmmc_host *host)
 
 static void alcor_init_mmc(struct alcor_sdmmc_host *host)
 {
-	struct mmc_host *mmc = host->mmc;
+	struct mmc_host *mmc = mmc_from_priv(host);
 
 	mmc->f_min = AU6601_MIN_CLOCK;
 	mmc->f_max = AU6601_MAX_CLOCK;
@@ -1045,26 +1059,21 @@ static void alcor_init_mmc(struct alcor_sdmmc_host *host)
 	mmc->ops = &alcor_sdc_ops;
 
 	/* The hardware does DMA data transfer of 4096 bytes to/from a single
-	 * buffer address. Scatterlists are not supported, but upon DMA
-	 * completion (signalled via IRQ), the original vendor driver does
-	 * then immediately set up another DMA transfer of the next 4096
-	 * bytes.
+	 * buffer address. Scatterlists are not supported at the hardware
+	 * level, however we can work with them at the driver level,
+	 * provided that each segment is exactly 4096 bytes in size.
+	 * Upon DMA completion of a single segment (signalled via IRQ), we
+	 * immediately proceed to transfer the next segment from the
+	 * scatterlist.
 	 *
-	 * This means that we need to handle the I/O in 4096 byte chunks.
-	 * Lacking a way to limit the sglist entries to 4096 bytes, we instead
-	 * impose that only one segment is provided, with maximum size 4096,
-	 * which also happens to be the minimum size. This means that the
-	 * single-entry sglist handled by this driver can be handed directly
-	 * to the hardware, nice and simple.
-	 *
-	 * Unfortunately though, that means we only do 4096 bytes I/O per
-	 * MMC command. A future improvement would be to make the driver
-	 * accept sg lists and entries of any size, and simply iterate
-	 * through them 4096 bytes at a time.
+	 * The overall request is limited to 240 sectors, matching the
+	 * original vendor driver.
 	 */
 	mmc->max_segs = AU6601_MAX_DMA_SEGMENTS;
 	mmc->max_seg_size = AU6601_MAX_DMA_BLOCK_SIZE;
-	mmc->max_req_size = mmc->max_seg_size;
+	mmc->max_blk_count = 240;
+	mmc->max_req_size = mmc->max_blk_count * mmc->max_blk_size;
+	dma_set_max_seg_size(host->dev, mmc->max_seg_size);
 }
 
 static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)
@@ -1081,7 +1090,6 @@ static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)
 	}
 
 	host = mmc_priv(mmc);
-	host->mmc = mmc;
 	host->dev = &pdev->dev;
 	host->cur_power_mode = MMC_POWER_UNDEFINED;
 	host->alcor_pci = priv;
@@ -1113,13 +1121,14 @@ static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)
 static int alcor_pci_sdmmc_drv_remove(struct platform_device *pdev)
 {
 	struct alcor_sdmmc_host *host = dev_get_drvdata(&pdev->dev);
+	struct mmc_host *mmc = mmc_from_priv(host);
 
 	if (cancel_delayed_work_sync(&host->timeout_work))
 		alcor_request_complete(host, 0);
 
 	alcor_hw_uninit(host);
-	mmc_remove_host(host->mmc);
-	mmc_free_host(host->mmc);
+	mmc_remove_host(mmc);
+	mmc_free_host(mmc);
 
 	return 0;
 }

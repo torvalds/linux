@@ -918,8 +918,7 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info)
 	/*
 	 * initially create the quota tree
 	 */
-	quota_root = btrfs_create_tree(trans, fs_info,
-				       BTRFS_QUOTA_TREE_OBJECTID);
+	quota_root = btrfs_create_tree(trans, BTRFS_QUOTA_TREE_OBJECTID);
 	if (IS_ERR(quota_root)) {
 		ret =  PTR_ERR(quota_root);
 		btrfs_abort_transaction(trans, ret);
@@ -1101,7 +1100,7 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 	list_del(&quota_root->dirty_list);
 
 	btrfs_tree_lock(quota_root->node);
-	clean_tree_block(fs_info, quota_root->node);
+	btrfs_clean_tree_block(quota_root->node);
 	btrfs_tree_unlock(quota_root->node);
 	btrfs_free_tree_block(trans, quota_root, quota_root->node, 0, 1);
 

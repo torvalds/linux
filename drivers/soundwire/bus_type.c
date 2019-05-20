@@ -107,7 +107,7 @@ static int sdw_drv_probe(struct device *dev)
 		slave->prop.clk_stop_timeout = 300;
 
 	slave->bus->clk_stop_timeout = max_t(u32, slave->bus->clk_stop_timeout,
-					slave->prop.clk_stop_timeout);
+					     slave->prop.clk_stop_timeout);
 
 	return 0;
 }
@@ -148,7 +148,7 @@ int __sdw_register_driver(struct sdw_driver *drv, struct module *owner)
 
 	if (!drv->probe) {
 		pr_err("driver %s didn't provide SDW probe routine\n",
-							drv->name);
+		       drv->name);
 		return -EINVAL;
 	}
 

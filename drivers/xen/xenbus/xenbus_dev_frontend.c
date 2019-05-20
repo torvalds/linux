@@ -465,7 +465,6 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 	struct watch_adapter *watch;
 	char *path, *token;
 	int err, rc;
-	LIST_HEAD(staging_q);
 
 	path = u->u.buffer + sizeof(u->u.msg);
 	token = memchr(path, 0, u->u.msg.len);
@@ -523,7 +522,6 @@ static ssize_t xenbus_file_write(struct file *filp,
 	uint32_t msg_type;
 	int rc = len;
 	int ret;
-	LIST_HEAD(staging_q);
 
 	/*
 	 * We're expecting usermode to be writing properly formed
@@ -622,9 +620,7 @@ static int xenbus_file_open(struct inode *inode, struct file *filp)
 	if (xen_store_evtchn == 0)
 		return -ENOENT;
 
-	nonseekable_open(inode, filp);
-
-	filp->f_mode &= ~FMODE_ATOMIC_POS; /* cdev-style semantics */
+	stream_open(inode, filp);
 
 	u = kzalloc(sizeof(*u), GFP_KERNEL);
 	if (u == NULL)

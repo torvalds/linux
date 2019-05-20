@@ -149,6 +149,7 @@ enum i40e_state_t {
 	__I40E_CLIENT_L2_CHANGE,
 	__I40E_CLIENT_RESET,
 	__I40E_VIRTCHNL_OP_PENDING,
+	__I40E_RECOVERY_MODE,
 	/* This must be last as it determines the size of the BITMAP */
 	__I40E_STATE_SIZE__,
 };
@@ -319,6 +320,29 @@ struct i40e_udp_port_config {
 	u16 port;
 	u8 type;
 	u8 filter_index;
+};
+
+#define I40_DDP_FLASH_REGION 100
+#define I40E_PROFILE_INFO_SIZE 48
+#define I40E_MAX_PROFILE_NUM 16
+#define I40E_PROFILE_LIST_SIZE \
+	(I40E_PROFILE_INFO_SIZE * I40E_MAX_PROFILE_NUM + 4)
+#define I40E_DDP_PROFILE_PATH "intel/i40e/ddp/"
+#define I40E_DDP_PROFILE_NAME_MAX 64
+
+int i40e_ddp_load(struct net_device *netdev, const u8 *data, size_t size,
+		  bool is_add);
+int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash);
+
+struct i40e_ddp_profile_list {
+	u32 p_count;
+	struct i40e_profile_info p_info[0];
+};
+
+struct i40e_ddp_old_profile_list {
+	struct list_head list;
+	size_t old_ddp_size;
+	u8 old_ddp_buf[0];
 };
 
 /* macros related to FLX_PIT */
@@ -589,6 +613,8 @@ struct i40e_pf {
 	struct sk_buff *ptp_tx_skb;
 	unsigned long ptp_tx_start;
 	struct hwtstamp_config tstamp_config;
+	struct timespec64 ptp_prev_hw_time;
+	ktime_t ptp_reset_start;
 	struct mutex tmreg_lock; /* Used to protect the SYSTIME registers. */
 	u32 ptp_adj_mult;
 	u32 tx_hwtstamp_timeouts;
@@ -610,6 +636,8 @@ struct i40e_pf {
 	u16 override_q_count;
 	u16 last_sw_conf_flags;
 	u16 last_sw_conf_valid_flags;
+	/* List to keep previous DDP profiles to be rolled back in the future */
+	struct list_head ddp_old_prof;
 };
 
 /**
@@ -790,6 +818,8 @@ struct i40e_vsi {
 
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
+
+	unsigned long *af_xdp_zc_qps; /* tracks AF_XDP ZC enabled qps */
 } ____cacheline_internodealigned_in_smp;
 
 struct i40e_netdev_priv {
@@ -1081,6 +1111,8 @@ void i40e_ptp_rx_hwtstamp(struct i40e_pf *pf, struct sk_buff *skb, u8 index);
 void i40e_ptp_set_increment(struct i40e_pf *pf);
 int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr);
 int i40e_ptp_get_ts_config(struct i40e_pf *pf, struct ifreq *ifr);
+void i40e_ptp_save_hw_time(struct i40e_pf *pf);
+void i40e_ptp_restore_hw_time(struct i40e_pf *pf);
 void i40e_ptp_init(struct i40e_pf *pf);
 void i40e_ptp_stop(struct i40e_pf *pf);
 int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi);
@@ -1094,20 +1126,6 @@ void i40e_set_fec_in_flags(u8 fec_cfg, u32 *flags);
 static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 {
 	return !!vsi->xdp_prog;
-}
-
-static inline struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
-{
-	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
-	int qid = ring->queue_index;
-
-	if (ring_is_xdp(ring))
-		qid -= ring->vsi->alloc_queue_pairs;
-
-	if (!xdp_on)
-		return NULL;
-
-	return xdp_get_umem_from_qid(ring->vsi->netdev, qid);
 }
 
 int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);

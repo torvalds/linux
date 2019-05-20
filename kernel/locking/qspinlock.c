@@ -395,7 +395,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	 * 0,1,0 -> 0,0,1
 	 */
 	clear_pending_set_locked(lock);
-	qstat_inc(qstat_lock_pending, true);
+	lockevent_inc(lock_pending);
 	return;
 
 	/*
@@ -403,7 +403,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	 * queuing.
 	 */
 queue:
-	qstat_inc(qstat_lock_slowpath, true);
+	lockevent_inc(lock_slowpath);
 pv_queue:
 	node = this_cpu_ptr(&qnodes[0].mcs);
 	idx = node->count++;
@@ -419,7 +419,7 @@ pv_queue:
 	 * simple enough.
 	 */
 	if (unlikely(idx >= MAX_NODES)) {
-		qstat_inc(qstat_lock_no_node, true);
+		lockevent_inc(lock_no_node);
 		while (!queued_spin_trylock(lock))
 			cpu_relax();
 		goto release;
@@ -430,7 +430,7 @@ pv_queue:
 	/*
 	 * Keep counts of non-zero index values:
 	 */
-	qstat_inc(qstat_lock_use_node2 + idx - 1, idx);
+	lockevent_cond_inc(lock_use_node2 + idx - 1, idx);
 
 	/*
 	 * Ensure that we increment the head node->count before initialising

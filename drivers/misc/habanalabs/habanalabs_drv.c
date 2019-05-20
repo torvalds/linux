@@ -6,6 +6,8 @@
  *
  */
 
+#define pr_fmt(fmt)		"habanalabs: " fmt
+
 #include "habanalabs.h"
 
 #include <linux/pci.h>
@@ -218,7 +220,7 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	hdev->disabled = true;
 	hdev->pdev = pdev; /* can be NULL in case of simulator device */
 
-	if (asic_type == ASIC_AUTO_DETECT) {
+	if (pdev) {
 		hdev->asic_type = get_asic_type(pdev->device);
 		if (hdev->asic_type == ASIC_INVALID) {
 			dev_err(&pdev->dev, "Unsupported ASIC\n");
@@ -228,6 +230,9 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	} else {
 		hdev->asic_type = asic_type;
 	}
+
+	/* Set default DMA mask to 32 bits */
+	hdev->dma_mask = 32;
 
 	mutex_lock(&hl_devs_idr_lock);
 
@@ -334,7 +339,7 @@ static int hl_pci_probe(struct pci_dev *pdev,
 		 " device found [%04x:%04x] (rev %x)\n",
 		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision);
 
-	rc = create_hdev(&hdev, pdev, ASIC_AUTO_DETECT, -1);
+	rc = create_hdev(&hdev, pdev, ASIC_INVALID, -1);
 	if (rc)
 		return rc;
 

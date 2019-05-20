@@ -203,7 +203,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, umode_t mode,
  * RETURN:	Errors from subroutines
  *
  * note:
- * EACCESS: user needs search+write permission on the parent directory
+ * EACCES: user needs search+write permission on the parent directory
  */
 static int jfs_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
 {

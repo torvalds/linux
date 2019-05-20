@@ -10,6 +10,7 @@ Required properties:
     - "renesas,xhci-r8a7743" for r8a7743 SoC
     - "renesas,xhci-r8a7744" for r8a7744 SoC
     - "renesas,xhci-r8a774a1" for r8a774a1 SoC
+    - "renesas,xhci-r8a774c0" for r8a774c0 SoC
     - "renesas,xhci-r8a7790" for r8a7790 SoC
     - "renesas,xhci-r8a7791" for r8a7791 SoC
     - "renesas,xhci-r8a7793" for r8a7793 SoC

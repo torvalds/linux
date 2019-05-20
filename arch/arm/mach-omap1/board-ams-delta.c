@@ -182,6 +182,7 @@ static struct resource latch1_resources[] = {
 
 static struct bgpio_pdata latch1_pdata = {
 	.label	= LATCH1_LABEL,
+	.base	= -1,
 	.ngpio	= LATCH1_NGPIO,
 };
 
@@ -219,6 +220,7 @@ static struct resource latch2_resources[] = {
 
 static struct bgpio_pdata latch2_pdata = {
 	.label	= LATCH2_LABEL,
+	.base	= -1,
 	.ngpio	= LATCH2_NGPIO,
 };
 
@@ -747,7 +749,7 @@ static void __init ams_delta_init(void)
 				ARRAY_SIZE(ams_delta_gpio_tables));
 
 	leds_pdev = gpio_led_register_device(PLATFORM_DEVID_NONE, &leds_pdata);
-	if (!IS_ERR(leds_pdev)) {
+	if (!IS_ERR_OR_NULL(leds_pdev)) {
 		leds_gpio_table.dev_id = dev_name(&leds_pdev->dev);
 		gpiod_add_lookup_table(&leds_gpio_table);
 	}

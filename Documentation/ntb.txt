@@ -41,9 +41,10 @@ mainly used to perform the proper memory window initialization. Typically
 there are two types of memory window interfaces supported by the NTB API:
 inbound translation configured on the local ntb port and outbound translation
 configured by the peer, on the peer ntb port. The first type is
-depicted on the next figure
+depicted on the next figure::
 
-Inbound translation:
+ Inbound translation:
+
  Memory:              Local NTB Port:      Peer NTB Port:      Peer MMIO:
   ____________
  | dma-mapped |-ntb_mw_set_trans(addr)  |
@@ -58,9 +59,10 @@ maps corresponding outbound memory window so to have access to the shared
 memory region.
 
 The second type of interface, that implies the shared windows being
-initialized by a peer device, is depicted on the figure:
+initialized by a peer device, is depicted on the figure::
 
-Outbound translation:
+ Outbound translation:
+
  Memory:        Local NTB Port:    Peer NTB Port:      Peer MMIO:
   ____________                      ______________
  | dma-mapped |                |   | MW base addr |<== memory-mapped IO
@@ -75,11 +77,13 @@ outbound memory window so to have access to the shared memory region.
 
 As one can see the described scenarios can be combined in one portable
 algorithm.
+
  Local device:
   1) Allocate memory for a shared window
   2) Initialize memory window by translated address of the allocated region
      (it may fail if local memory window initialization is unsupported)
   3) Send the translated address and memory window index to a peer device
+
  Peer device:
   1) Initialize memory window with retrieved address of the allocated
      by another device memory region (it may fail if peer memory window
@@ -88,6 +92,7 @@ algorithm.
 
 In accordance with this scenario, the NTB Memory Window API can be used as
 follows:
+
  Local device:
   1) ntb_mw_count(pidx) - retrieve number of memory ranges, which can
      be allocated for memory windows between local device and peer device
@@ -103,6 +108,7 @@ follows:
   5) Send translated base address (usually together with memory window
      number) to the peer device using, for instance, scratchpad or message
      registers.
+
  Peer device:
   1) ntb_peer_mw_set_trans(pidx, midx) - try to set received from other
      device (related to pidx) translated address for specified memory

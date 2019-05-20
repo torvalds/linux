@@ -499,7 +499,8 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt,
 	int err;
 
 	if (opt) {
-		err = nla_parse_nested(tb, TCA_SFB_MAX, opt, sfb_policy, NULL);
+		err = nla_parse_nested_deprecated(tb, TCA_SFB_MAX, opt,
+						  sfb_policy, NULL);
 		if (err < 0)
 			return -EINVAL;
 
@@ -521,8 +522,7 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt,
 		qdisc_hash_add(child, true);
 	sch_tree_lock(sch);
 
-	qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
-				  q->qdisc->qstats.backlog);
+	qdisc_tree_flush_backlog(q->qdisc);
 	qdisc_put(q->qdisc);
 	q->qdisc = child;
 
@@ -581,7 +581,7 @@ static int sfb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	};
 
 	sch->qstats.backlog = q->qdisc->qstats.backlog;
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_SFB_PARMS, sizeof(opt), &opt))

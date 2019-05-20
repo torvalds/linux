@@ -41,6 +41,8 @@ static int __init fm10k_init_module(void)
 	/* create driver workqueue */
 	fm10k_workqueue = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0,
 					  fm10k_driver_name);
+	if (!fm10k_workqueue)
+		return -ENOMEM;
 
 	fm10k_dbg_init();
 
@@ -278,7 +280,7 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 	/* we need the header to contain the greater of either ETH_HLEN or
 	 * 60 bytes if the skb->len is less than 60 for skb_pad.
 	 */
-	pull_len = eth_get_headlen(va, FM10K_RX_HDR_LEN);
+	pull_len = eth_get_headlen(skb->dev, va, FM10K_RX_HDR_LEN);
 
 	/* align pull length to size of long to optimize memcpy performance */
 	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
@@ -1035,13 +1037,8 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 	fm10k_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	/* notify HW of packet */
-	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
 		writel(i, tx_ring->tail);
-
-		/* we need this if more than one processor can write to our tail
-		 * at a time, it synchronizes IO on IA64/Altix systems
-		 */
-		mmiowb();
 	}
 
 	return;

@@ -678,7 +678,6 @@ int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw)
 	}
 
 	shash->tfm = tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	memset(hmac, 0, sizeof(hmac));
 	ret = crypto_shash_digest(shash, challenge, sizeof(hmac), hmac);

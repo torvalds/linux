@@ -102,7 +102,7 @@ static struct phy_driver cis820x_driver[] = {
 	.phy_id		= 0x000fc410,
 	.name		= "Cicada Cis8201",
 	.phy_id_mask	= 0x000ffff0,
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.config_init	= &cis820x_config_init,
 	.ack_interrupt	= &cis820x_ack_interrupt,
 	.config_intr	= &cis820x_config_intr,
@@ -110,7 +110,7 @@ static struct phy_driver cis820x_driver[] = {
 	.phy_id		= 0x000fc440,
 	.name		= "Cicada Cis8204",
 	.phy_id_mask	= 0x000fffc0,
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.config_init	= &cis820x_config_init,
 	.ack_interrupt	= &cis820x_ack_interrupt,
 	.config_intr	= &cis820x_config_intr,

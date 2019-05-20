@@ -11,6 +11,11 @@ modules.builtin
 This file lists all modules that are built into the kernel. This is used
 by modprobe to not fail when trying to load something builtin.
 
+modules.builtin.modinfo
+--------------------------------------------------
+This file contains modinfo from all modules that are built into the kernel.
+Unlike modinfo of a separate module, all fields are prefixed with module name.
+
 
 Environment variables
 

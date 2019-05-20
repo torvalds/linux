@@ -343,6 +343,12 @@ static int __init parisc_init(void)
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
+	/* Don't serialize TLB flushes if we run on one CPU only. */
+	if (num_online_cpus() == 1)
+		pa_serialize_tlb_flushes = 0;
+#endif
+
 	apply_alternatives_all();
 	parisc_setup_cache_timing();
 
@@ -396,6 +402,9 @@ void __init start_parisc(void)
 
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
+
+	/* check QEMU/SeaBIOS marker in PAGE0 */
+	running_on_qemu = (memcmp(&PAGE0->pad0, "SeaBIOS", 8) == 0);
 
 	cpunum = smp_processor_id();
 

@@ -353,9 +353,6 @@ static int cfg80211_wext_siwretry(struct net_device *dev,
 		changed |= WIPHY_PARAM_RETRY_SHORT;
 	}
 
-	if (!changed)
-		return 0;
-
 	err = rdev_set_wiphy_params(rdev, changed);
 	if (err) {
 		wdev->wiphy->retry_short = oshort;

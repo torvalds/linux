@@ -30,7 +30,6 @@
 #include <linux/elf.h>
 
 #include <asm/thread_info.h>
-#include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 

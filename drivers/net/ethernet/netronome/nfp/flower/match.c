@@ -30,20 +30,19 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *ext,
 
 		flow_rule_match_vlan(rule, &match);
 		/* Populate the tci field. */
-		if (match.key->vlan_id || match.key->vlan_priority) {
-			tmp_tci = FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
-					     match.key->vlan_priority) |
-				  FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
-					     match.key->vlan_id) |
-				  NFP_FLOWER_MASK_VLAN_CFI;
-			ext->tci = cpu_to_be16(tmp_tci);
-			tmp_tci = FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
-					     match.mask->vlan_priority) |
-				  FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
-					     match.mask->vlan_id) |
-				  NFP_FLOWER_MASK_VLAN_CFI;
-			msk->tci = cpu_to_be16(tmp_tci);
-		}
+		tmp_tci = NFP_FLOWER_MASK_VLAN_PRESENT;
+		tmp_tci |= FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
+				      match.key->vlan_priority) |
+			   FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
+				      match.key->vlan_id);
+		ext->tci = cpu_to_be16(tmp_tci);
+
+		tmp_tci = NFP_FLOWER_MASK_VLAN_PRESENT;
+		tmp_tci |= FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
+				      match.mask->vlan_priority) |
+			   FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
+				      match.mask->vlan_id);
+		msk->tci = cpu_to_be16(tmp_tci);
 	}
 }
 
@@ -327,13 +326,12 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 				  struct nfp_fl_payload *nfp_flow,
 				  enum nfp_flower_tun_type tun_type)
 {
-	u32 cmsg_port = 0;
+	u32 port_id;
 	int err;
 	u8 *ext;
 	u8 *msk;
 
-	if (nfp_netdev_is_nfp_repr(netdev))
-		cmsg_port = nfp_repr_get_port_id(netdev);
+	port_id = nfp_flower_get_port_id_from_netdev(app, netdev);
 
 	memset(nfp_flow->unmasked_data, 0, key_ls->key_size);
 	memset(nfp_flow->mask_data, 0, key_ls->key_size);
@@ -359,13 +357,13 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 
 	/* Populate Exact Port data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
-				      cmsg_port, false, tun_type);
+				      port_id, false, tun_type);
 	if (err)
 		return err;
 
 	/* Populate Mask Port Data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
-				      cmsg_port, true, tun_type);
+				      port_id, true, tun_type);
 	if (err)
 		return err;
 

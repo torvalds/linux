@@ -641,7 +641,7 @@ static void cptvf_write_vq_saddr(struct cpt_vf *cptvf, u64 val)
 	cpt_write_csr64(cptvf->reg_base, CPTX_VQX_SADDR(0, 0), vqx_saddr.u);
 }
 
-void cptvf_device_init(struct cpt_vf *cptvf)
+static void cptvf_device_init(struct cpt_vf *cptvf)
 {
 	u64 base_addr = 0;
 

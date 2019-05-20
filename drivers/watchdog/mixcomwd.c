@@ -150,7 +150,7 @@ static int mixcomwd_open(struct inode *inode, struct file *file)
 			mixcomwd_timer_alive = 0;
 		}
 	}
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int mixcomwd_release(struct inode *inode, struct file *file)

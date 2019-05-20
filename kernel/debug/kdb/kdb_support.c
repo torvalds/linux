@@ -192,7 +192,7 @@ int kallsyms_symbol_complete(char *prefix_name, int max_len)
 
 	while ((name = kdb_walk_kallsyms(&pos))) {
 		if (strncmp(name, prefix_name, prefix_len) == 0) {
-			strcpy(ks_namebuf, name);
+			strscpy(ks_namebuf, name, sizeof(ks_namebuf));
 			/* Work out the longest name that matches the prefix */
 			if (++number == 1) {
 				prev_len = min_t(int, max_len-1,

@@ -138,7 +138,7 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c0>;
 	pinctrl-1 = <&pinctrl_i2c0_gpio>;
-	scl-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio1 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
@@ -147,12 +147,12 @@
 		reg = <0x48>;
 	};
 
-	at24c04@50 {
+	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
 	};
 
-	at24c04@52 {
+	eeprom@52 {
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 	};

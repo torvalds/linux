@@ -13,6 +13,8 @@
  *
  */
 
+#define dev_fmt(fmt) "pciehp: " fmt
+
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pm_runtime.h>
@@ -115,6 +117,10 @@ static void remove_board(struct controller *ctrl, bool safe_removal)
 		 * removed from the slot/adapter.
 		 */
 		msleep(1000);
+
+		/* Ignore link or presence changes caused by power off */
+		atomic_and(~(PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC),
+			   &ctrl->pending_events);
 	}
 
 	/* turn off Green LED */

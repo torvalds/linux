@@ -425,7 +425,7 @@ static ssize_t ibft_attr_show_acpitbl(void *data, int type, char *buf)
 
 	switch (type) {
 	case ISCSI_BOOT_ACPITBL_SIGNATURE:
-		str += sprintf_string(str, ACPI_NAME_SIZE,
+		str += sprintf_string(str, ACPI_NAMESEG_SIZE,
 				      entry->header->header.signature);
 		break;
 	case ISCSI_BOOT_ACPITBL_OEM_ID:

@@ -26,7 +26,7 @@
 #define NFP_FLOWER_LAYER2_GENEVE_OP	BIT(6)
 
 #define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
-#define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
+#define NFP_FLOWER_MASK_VLAN_PRESENT	BIT(12)
 #define NFP_FLOWER_MASK_VLAN_VID	GENMASK(11, 0)
 
 #define NFP_FLOWER_MASK_MPLS_LB		GENMASK(31, 12)
@@ -82,7 +82,6 @@
 #define NFP_FL_OUT_FLAGS_TYPE_IDX	GENMASK(2, 0)
 
 #define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
-#define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
 
 #define IPV6_FLOW_LABEL_MASK		cpu_to_be32(0x000fffff)
@@ -403,11 +402,13 @@ struct nfp_flower_cmsg_hdr {
 /* Types defined for port related control messages  */
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
+	NFP_FLOWER_CMSG_TYPE_FLOW_MOD =		1,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
 	NFP_FLOWER_CMSG_TYPE_LAG_CONFIG =	4,
 	NFP_FLOWER_CMSG_TYPE_PORT_REIFY =	6,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
+	NFP_FLOWER_CMSG_TYPE_MERGE_HINT =	9,
 	NFP_FLOWER_CMSG_TYPE_NO_NEIGH =		10,
 	NFP_FLOWER_CMSG_TYPE_TUN_MAC =		11,
 	NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS =	12,
@@ -415,6 +416,9 @@ enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_TUN_IPS =		14,
 	NFP_FLOWER_CMSG_TYPE_FLOW_STATS =	15,
 	NFP_FLOWER_CMSG_TYPE_PORT_ECHO =	16,
+	NFP_FLOWER_CMSG_TYPE_QOS_MOD =		18,
+	NFP_FLOWER_CMSG_TYPE_QOS_DEL =		19,
+	NFP_FLOWER_CMSG_TYPE_QOS_STATS =	20,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
 };
 
@@ -452,6 +456,16 @@ struct nfp_flower_cmsg_portreify {
 
 #define NFP_FLOWER_CMSG_PORTREIFY_INFO_EXIST	BIT(0)
 
+/* NFP_FLOWER_CMSG_TYPE_FLOW_MERGE_HINT */
+struct nfp_flower_cmsg_merge_hint {
+	u8 reserved[3];
+	u8 count;
+	struct {
+		__be32 host_ctx;
+		__be64 host_cookie;
+	} __packed flow[0];
+};
+
 enum nfp_flower_cmsg_port_type {
 	NFP_FLOWER_CMSG_PORT_TYPE_UNSPEC =	0x0,
 	NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT =	0x1,
@@ -473,6 +487,13 @@ enum nfp_flower_cmsg_port_vnic_type {
 #define NFP_FLOWER_CMSG_PORT_VNIC		GENMASK(11, 6)
 #define NFP_FLOWER_CMSG_PORT_PCIE_Q		GENMASK(5, 0)
 #define NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM	GENMASK(7, 0)
+
+static inline u32 nfp_flower_internal_port_get_port_id(u8 internal_port)
+{
+	return FIELD_PREP(NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM, internal_port) |
+		FIELD_PREP(NFP_FLOWER_CMSG_PORT_TYPE,
+			   NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT);
+}
 
 static inline u32 nfp_flower_cmsg_phys_port(u8 phys_port)
 {

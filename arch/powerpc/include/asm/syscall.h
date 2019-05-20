@@ -65,22 +65,20 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
 	unsigned long val, mask = -1UL;
-
-	BUG_ON(i + n > 6);
+	unsigned int n = 6;
 
 #ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_32BIT))
 		mask = 0xffffffff;
 #endif
 	while (n--) {
-		if (n == 0 && i == 0)
+		if (n == 0)
 			val = regs->orig_gpr3;
 		else
-			val = regs->gpr[3 + i + n];
+			val = regs->gpr[3 + n];
 
 		args[n] = val & mask;
 	}
@@ -88,20 +86,23 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	memcpy(&regs->gpr[3 + i], args, n * sizeof(args[0]));
+	memcpy(&regs->gpr[3], args, 6 * sizeof(args[0]));
 
 	/* Also copy the first argument into orig_gpr3 */
-	if (i == 0 && n > 0)
-		regs->orig_gpr3 = args[0];
+	regs->orig_gpr3 = args[0];
 }
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
-	int arch = is_32bit_task() ? AUDIT_ARCH_PPC : AUDIT_ARCH_PPC64;
+	int arch;
+
+	if (IS_ENABLED(CONFIG_PPC64) && !test_tsk_thread_flag(task, TIF_32BIT))
+		arch = AUDIT_ARCH_PPC64;
+	else
+		arch = AUDIT_ARCH_PPC;
+
 #ifdef __LITTLE_ENDIAN__
 	arch |= __AUDIT_ARCH_LE;
 #endif

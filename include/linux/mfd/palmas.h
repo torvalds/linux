@@ -553,7 +553,6 @@ struct palmas_pmic {
 	struct palmas *palmas;
 	struct device *dev;
 	struct regulator_desc desc[PALMAS_NUM_REGS];
-	struct regulator_dev *rdev[PALMAS_NUM_REGS];
 	struct mutex mutex;
 
 	int smps123;

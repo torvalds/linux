@@ -335,13 +335,9 @@ static int uniphier_u3hsphy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk_parent))
 		return PTR_ERR(priv->clk_parent);
 
-	priv->clk_ext = devm_clk_get(dev, "phy-ext");
-	if (IS_ERR(priv->clk_ext)) {
-		if (PTR_ERR(priv->clk_ext) == -ENOENT)
-			priv->clk_ext = NULL;
-		else
-			return PTR_ERR(priv->clk_ext);
-	}
+	priv->clk_ext = devm_clk_get_optional(dev, "phy-ext");
+	if (IS_ERR(priv->clk_ext))
+		return PTR_ERR(priv->clk_ext);
 
 	priv->rst = devm_reset_control_get_shared(dev, "phy");
 	if (IS_ERR(priv->rst))

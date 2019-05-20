@@ -220,7 +220,6 @@ static struct watchdog_device sh_wdt_dev = {
 static int sh_wdt_probe(struct platform_device *pdev)
 {
 	struct sh_wdt *wdt;
-	struct resource *res;
 	int rc;
 
 	/*
@@ -245,8 +244,7 @@ static int sh_wdt_probe(struct platform_device *pdev)
 		wdt->clk = NULL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->base = devm_ioremap_resource(wdt->dev, res);
+	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 

@@ -715,7 +715,7 @@ static void nlmclnt_unlock_callback(struct rpc_task *task, void *data)
 	struct nlm_rqst	*req = data;
 	u32 status = ntohl(req->a_res.status);
 
-	if (RPC_ASSASSINATED(task))
+	if (RPC_SIGNALLED(task))
 		goto die;
 
 	if (task->tk_status < 0) {
@@ -783,7 +783,7 @@ static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 	struct nlm_rqst	*req = data;
 	u32 status = ntohl(req->a_res.status);
 
-	if (RPC_ASSASSINATED(task))
+	if (RPC_SIGNALLED(task))
 		goto die;
 
 	if (task->tk_status < 0) {

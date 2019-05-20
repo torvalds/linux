@@ -189,12 +189,6 @@ static bool amd_iommu_pc_present __read_mostly;
 bool amd_iommu_force_isolation __read_mostly;
 
 /*
- * List of protection domains - used during resume
- */
-LIST_HEAD(amd_iommu_pd_list);
-spinlock_t amd_iommu_pd_lock;
-
-/*
  * Pointer to the device table which is shared by all AMD IOMMUs
  * it is indexed by the PCI device id or the HT unit id and contains
  * information about the domain the device belongs to as well as the
@@ -359,7 +353,7 @@ static void iommu_write_l2(struct amd_iommu *iommu, u8 address, u32 val)
 static void iommu_set_exclusion_range(struct amd_iommu *iommu)
 {
 	u64 start = iommu->exclusion_start & PAGE_MASK;
-	u64 limit = (start + iommu->exclusion_length) & PAGE_MASK;
+	u64 limit = (start + iommu->exclusion_length - 1) & PAGE_MASK;
 	u64 entry;
 
 	if (!iommu->exclusion_start)
@@ -2525,8 +2519,6 @@ static int __init early_amd_iommu_init(void)
 	 * error value placeholder
 	 */
 	__set_bit(0, amd_iommu_pd_alloc_bitmap);
-
-	spin_lock_init(&amd_iommu_pd_lock);
 
 	/*
 	 * now the data structures are allocated and basically initialized

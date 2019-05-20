@@ -978,7 +978,7 @@ static bool dce110_clock_source_power_down(
 }
 
 static bool get_pixel_clk_frequency_100hz(
-		struct clock_source *clock_source,
+		const struct clock_source *clock_source,
 		unsigned int inst,
 		unsigned int *pixel_clk_khz)
 {

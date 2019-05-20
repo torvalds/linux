@@ -156,9 +156,9 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	if (IS_ERR(fence))
 		return NULL;
 
-	if (job->done_fence)
-		dma_fence_put(job->done_fence);
-	job->done_fence = dma_fence_get(fence);
+	if (job->irq_fence)
+		dma_fence_put(job->irq_fence);
+	job->irq_fence = dma_fence_get(fence);
 
 	trace_v3d_submit_cl(dev, q == V3D_RENDER, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
@@ -199,9 +199,9 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 		return NULL;
 
 	v3d->tfu_job = job;
-	if (job->done_fence)
-		dma_fence_put(job->done_fence);
-	job->done_fence = dma_fence_get(fence);
+	if (job->irq_fence)
+		dma_fence_put(job->irq_fence);
+	job->irq_fence = dma_fence_get(fence);
 
 	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqno);
 
@@ -231,20 +231,17 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 	mutex_lock(&v3d->reset_lock);
 
 	/* block scheduler */
-	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		struct drm_gpu_scheduler *sched = &v3d->queue[q].sched;
+	for (q = 0; q < V3D_MAX_QUEUES; q++)
+		drm_sched_stop(&v3d->queue[q].sched);
 
-		drm_sched_stop(sched);
-
-		if(sched_job)
-			drm_sched_increase_karma(sched_job);
-	}
+	if (sched_job)
+		drm_sched_increase_karma(sched_job);
 
 	/* get the GPU back into the init state */
 	v3d_reset(v3d);
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++)
-		drm_sched_resubmit_jobs(sched_job->sched);
+		drm_sched_resubmit_jobs(&v3d->queue[q].sched);
 
 	/* Unblock schedulers and restart their jobs. */
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {

@@ -742,6 +742,8 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 		iowait_wakeup,
 		iowait_sdma_drained,
 		hfi1_init_priority);
+	/* Init to a value to start the running average correctly */
+	priv->s_running_pkt_size = piothreshold / 2;
 	return priv;
 }
 
@@ -898,7 +900,9 @@ void notify_error_qp(struct rvt_qp *qp)
 		if (!list_empty(&priv->s_iowait.list) &&
 		    !(qp->s_flags & RVT_S_BUSY) &&
 		    !(priv->s_flags & RVT_S_BUSY)) {
-			qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
+			qp->s_flags &= ~HFI1_S_ANY_WAIT_IO;
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_IB);
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
 			list_del_init(&priv->s_iowait.list);
 			priv->s_iowait.lock = NULL;
 			rvt_put_qp(qp);

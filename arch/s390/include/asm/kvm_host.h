@@ -278,6 +278,7 @@ struct kvm_s390_sie_block {
 #define ECD_HOSTREGMGMT	0x20000000
 #define ECD_MEF		0x08000000
 #define ECD_ETOKENF	0x02000000
+#define ECD_ECC		0x00200000
 	__u32	ecd;			/* 0x01c8 */
 	__u8	reserved1cc[18];	/* 0x01cc */
 	__u64	pp;			/* 0x01de */
@@ -312,6 +313,7 @@ struct kvm_vcpu_stat {
 	u64 halt_successful_poll;
 	u64 halt_attempted_poll;
 	u64 halt_poll_invalid;
+	u64 halt_no_poll_steal;
 	u64 halt_wakeup;
 	u64 instruction_lctl;
 	u64 instruction_lctlg;

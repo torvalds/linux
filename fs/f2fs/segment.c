@@ -580,7 +580,7 @@ static int submit_flush_wait(struct f2fs_sb_info *sbi, nid_t ino)
 	int ret = 0;
 	int i;
 
-	if (!sbi->s_ndevs)
+	if (!f2fs_is_multi_device(sbi))
 		return __submit_flush_wait(sbi, sbi->sb->s_bdev);
 
 	for (i = 0; i < sbi->s_ndevs; i++) {
@@ -648,7 +648,8 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi, nid_t ino)
 		return ret;
 	}
 
-	if (atomic_inc_return(&fcc->queued_flush) == 1 || sbi->s_ndevs > 1) {
+	if (atomic_inc_return(&fcc->queued_flush) == 1 ||
+	    f2fs_is_multi_device(sbi)) {
 		ret = submit_flush_wait(sbi, ino);
 		atomic_dec(&fcc->queued_flush);
 
@@ -754,7 +755,7 @@ int f2fs_flush_device_cache(struct f2fs_sb_info *sbi)
 {
 	int ret = 0, i;
 
-	if (!sbi->s_ndevs)
+	if (!f2fs_is_multi_device(sbi))
 		return 0;
 
 	for (i = 1; i < sbi->s_ndevs; i++) {
@@ -1367,9 +1368,12 @@ static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 {
 	block_t lblkstart = blkstart;
 
+	if (!f2fs_bdev_support_discard(bdev))
+		return 0;
+
 	trace_f2fs_queue_discard(bdev, blkstart, blklen);
 
-	if (sbi->s_ndevs) {
+	if (f2fs_is_multi_device(sbi)) {
 		int devi = f2fs_target_device_index(sbi, blkstart);
 
 		blkstart -= FDEV(devi).start_blk;
@@ -1732,42 +1736,36 @@ static int __f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 	block_t lblkstart = blkstart;
 	int devi = 0;
 
-	if (sbi->s_ndevs) {
+	if (f2fs_is_multi_device(sbi)) {
 		devi = f2fs_target_device_index(sbi, blkstart);
+		if (blkstart < FDEV(devi).start_blk ||
+		    blkstart > FDEV(devi).end_blk) {
+			f2fs_msg(sbi->sb, KERN_ERR, "Invalid block %x",
+				 blkstart);
+			return -EIO;
+		}
 		blkstart -= FDEV(devi).start_blk;
 	}
 
-	/*
-	 * We need to know the type of the zone: for conventional zones,
-	 * use regular discard if the drive supports it. For sequential
-	 * zones, reset the zone write pointer.
-	 */
-	switch (get_blkz_type(sbi, bdev, blkstart)) {
-
-	case BLK_ZONE_TYPE_CONVENTIONAL:
-		if (!blk_queue_discard(bdev_get_queue(bdev)))
-			return 0;
-		return __queue_discard_cmd(sbi, bdev, lblkstart, blklen);
-	case BLK_ZONE_TYPE_SEQWRITE_REQ:
-	case BLK_ZONE_TYPE_SEQWRITE_PREF:
+	/* For sequential zones, reset the zone write pointer */
+	if (f2fs_blkz_is_seq(sbi, devi, blkstart)) {
 		sector = SECTOR_FROM_BLOCK(blkstart);
 		nr_sects = SECTOR_FROM_BLOCK(blklen);
 
 		if (sector & (bdev_zone_sectors(bdev) - 1) ||
 				nr_sects != bdev_zone_sectors(bdev)) {
-			f2fs_msg(sbi->sb, KERN_INFO,
-				"(%d) %s: Unaligned discard attempted (block %x + %x)",
+			f2fs_msg(sbi->sb, KERN_ERR,
+				"(%d) %s: Unaligned zone reset attempted (block %x + %x)",
 				devi, sbi->s_ndevs ? FDEV(devi).path: "",
 				blkstart, blklen);
 			return -EIO;
 		}
 		trace_f2fs_issue_reset_zone(bdev, blkstart);
-		return blkdev_reset_zones(bdev, sector,
-					  nr_sects, GFP_NOFS);
-	default:
-		/* Unknown zone type: broken device ? */
-		return -EIO;
+		return blkdev_reset_zones(bdev, sector, nr_sects, GFP_NOFS);
 	}
+
+	/* For conventional zones, use regular discard if supported */
+	return __queue_discard_cmd(sbi, bdev, lblkstart, blklen);
 }
 #endif
 
@@ -1775,8 +1773,7 @@ static int __issue_discard_async(struct f2fs_sb_info *sbi,
 		struct block_device *bdev, block_t blkstart, block_t blklen)
 {
 #ifdef CONFIG_BLK_DEV_ZONED
-	if (f2fs_sb_has_blkzoned(sbi) &&
-				bdev_zoned_model(bdev) != BLK_ZONED_NONE)
+	if (f2fs_sb_has_blkzoned(sbi) && bdev_is_zoned(bdev))
 		return __f2fs_issue_discard_zone(sbi, bdev, blkstart, blklen);
 #endif
 	return __queue_discard_cmd(sbi, bdev, blkstart, blklen);
@@ -2172,8 +2169,11 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 			 * before, we must track that to know how much space we
 			 * really have.
 			 */
-			if (f2fs_test_bit(offset, se->ckpt_valid_map))
+			if (f2fs_test_bit(offset, se->ckpt_valid_map)) {
+				spin_lock(&sbi->stat_lock);
 				sbi->unusable_block_count++;
+				spin_unlock(&sbi->stat_lock);
+			}
 		}
 
 		if (f2fs_test_and_clear_bit(offset, se->discard_map))
@@ -2220,7 +2220,7 @@ bool f2fs_is_checkpointed_data(struct f2fs_sb_info *sbi, block_t blkaddr)
 	struct seg_entry *se;
 	bool is_cp = false;
 
-	if (!is_valid_data_blkaddr(sbi, blkaddr))
+	if (!__is_valid_data_blkaddr(blkaddr))
 		return true;
 
 	down_read(&sit_i->sentry_lock);
@@ -3089,7 +3089,7 @@ static void update_device_state(struct f2fs_io_info *fio)
 	struct f2fs_sb_info *sbi = fio->sbi;
 	unsigned int devidx;
 
-	if (!sbi->s_ndevs)
+	if (!f2fs_is_multi_device(sbi))
 		return;
 
 	devidx = f2fs_target_device_index(sbi, fio->new_blkaddr);
@@ -3187,13 +3187,18 @@ int f2fs_inplace_write_data(struct f2fs_io_info *fio)
 {
 	int err;
 	struct f2fs_sb_info *sbi = fio->sbi;
+	unsigned int segno;
 
 	fio->new_blkaddr = fio->old_blkaddr;
 	/* i/o temperature is needed for passing down write hints */
 	__get_segment_type(fio);
 
-	f2fs_bug_on(sbi, !IS_DATASEG(get_seg_entry(sbi,
-			GET_SEGNO(sbi, fio->new_blkaddr))->type));
+	segno = GET_SEGNO(sbi, fio->new_blkaddr);
+
+	if (!IS_DATASEG(get_seg_entry(sbi, segno)->type)) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		return -EFAULT;
+	}
 
 	stat_inc_inplace_blocks(fio->sbi);
 
@@ -3336,7 +3341,7 @@ void f2fs_wait_on_block_writeback(struct inode *inode, block_t blkaddr)
 	if (!f2fs_post_read_required(inode))
 		return;
 
-	if (!is_valid_data_blkaddr(sbi, blkaddr))
+	if (!__is_valid_data_blkaddr(blkaddr))
 		return;
 
 	cpage = find_lock_page(META_MAPPING(sbi), blkaddr);

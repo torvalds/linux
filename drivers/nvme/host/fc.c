@@ -14,7 +14,7 @@
 #include "fabrics.h"
 #include <linux/nvme-fc-driver.h>
 #include <linux/nvme-fc.h>
-
+#include <scsi/scsi_transport_fc.h>
 
 /* *************************** Data Structures/Defines ****************** */
 
@@ -202,7 +202,7 @@ static LIST_HEAD(nvme_fc_lport_list);
 static DEFINE_IDA(nvme_fc_local_port_cnt);
 static DEFINE_IDA(nvme_fc_ctrl_cnt);
 
-
+static struct workqueue_struct *nvme_fc_wq;
 
 /*
  * These items are short-term. They will eventually be moved into
@@ -1845,7 +1845,7 @@ nvme_fc_init_queue(struct nvme_fc_ctrl *ctrl, int idx)
 	memset(queue, 0, sizeof(*queue));
 	queue->ctrl = ctrl;
 	queue->qnum = idx;
-	atomic_set(&queue->csn, 1);
+	atomic_set(&queue->csn, 0);
 	queue->dev = ctrl->dev;
 
 	if (idx > 0)
@@ -1887,7 +1887,7 @@ nvme_fc_free_queue(struct nvme_fc_queue *queue)
 	 */
 
 	queue->connection_id = 0;
-	atomic_set(&queue->csn, 1);
+	atomic_set(&queue->csn, 0);
 }
 
 static void
@@ -2054,7 +2054,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 	 */
 	if (ctrl->ctrl.state == NVME_CTRL_CONNECTING) {
 		active = atomic_xchg(&ctrl->err_work_active, 1);
-		if (!active && !schedule_work(&ctrl->err_work)) {
+		if (!active && !queue_work(nvme_fc_wq, &ctrl->err_work)) {
 			atomic_set(&ctrl->err_work_active, 0);
 			WARN_ON(1);
 		}
@@ -2183,7 +2183,6 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 {
 	struct nvme_fc_cmd_iu *cmdiu = &op->cmd_iu;
 	struct nvme_command *sqe = &cmdiu->sqe;
-	u32 csn;
 	int ret, opstate;
 
 	/*
@@ -2198,8 +2197,6 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 
 	/* format the FC-NVME CMD IU and fcp_req */
 	cmdiu->connection_id = cpu_to_be64(queue->connection_id);
-	csn = atomic_inc_return(&queue->csn);
-	cmdiu->csn = cpu_to_be32(csn);
 	cmdiu->data_len = cpu_to_be32(data_len);
 	switch (io_dir) {
 	case NVMEFC_FCP_WRITE:
@@ -2257,11 +2254,24 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	if (!(op->flags & FCOP_FLAGS_AEN))
 		blk_mq_start_request(op->rq);
 
+	cmdiu->csn = cpu_to_be32(atomic_inc_return(&queue->csn));
 	ret = ctrl->lport->ops->fcp_io(&ctrl->lport->localport,
 					&ctrl->rport->remoteport,
 					queue->lldd_handle, &op->fcp_req);
 
 	if (ret) {
+		/*
+		 * If the lld fails to send the command is there an issue with
+		 * the csn value?  If the command that fails is the Connect,
+		 * no - as the connection won't be live.  If it is a command
+		 * post-connect, it's possible a gap in csn may be created.
+		 * Does this matter?  As Linux initiators don't send fused
+		 * commands, no.  The gap would exist, but as there's nothing
+		 * that depends on csn order to be delivered on the target
+		 * side, it shouldn't hurt.  It would be difficult for a
+		 * target to even detect the csn gap as it has no idea when the
+		 * cmd with the csn was supposed to arrive.
+		 */
 		opstate = atomic_xchg(&op->state, FCPOP_STATE_COMPLETE);
 		__nvme_fc_fcpop_chk_teardowns(ctrl, op, opstate);
 
@@ -3389,6 +3399,10 @@ static int __init nvme_fc_init_module(void)
 {
 	int ret;
 
+	nvme_fc_wq = alloc_workqueue("nvme_fc_wq", WQ_MEM_RECLAIM, 0);
+	if (!nvme_fc_wq)
+		return -ENOMEM;
+
 	/*
 	 * NOTE:
 	 * It is expected that in the future the kernel will combine
@@ -3406,7 +3420,7 @@ static int __init nvme_fc_init_module(void)
 	ret = class_register(&fc_class);
 	if (ret) {
 		pr_err("couldn't register class fc\n");
-		return ret;
+		goto out_destroy_wq;
 	}
 
 	/*
@@ -3430,6 +3444,9 @@ out_destroy_device:
 	device_destroy(&fc_class, MKDEV(0, 0));
 out_destroy_class:
 	class_unregister(&fc_class);
+out_destroy_wq:
+	destroy_workqueue(nvme_fc_wq);
+
 	return ret;
 }
 
@@ -3446,6 +3463,7 @@ static void __exit nvme_fc_exit_module(void)
 
 	device_destroy(&fc_class, MKDEV(0, 0));
 	class_unregister(&fc_class);
+	destroy_workqueue(nvme_fc_wq);
 }
 
 module_init(nvme_fc_init_module);

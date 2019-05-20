@@ -371,6 +371,7 @@ static int test_pidfd_send_signal_syscall_support(void)
 int main(int argc, char **argv)
 {
 	ksft_print_header();
+	ksft_set_plan(4);
 
 	test_pidfd_send_signal_syscall_support();
 	test_pidfd_send_signal_simple_success();

@@ -112,7 +112,6 @@ static int kdf_alloc(struct kdf_sdesc **sdesc_ret, char *hashname)
 	if (!sdesc)
 		goto out_free_tfm;
 	sdesc->shash.tfm = tfm;
-	sdesc->shash.flags = 0x0;
 
 	*sdesc_ret = sdesc;
 

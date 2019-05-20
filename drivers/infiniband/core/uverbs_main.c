@@ -208,6 +208,9 @@ void ib_uverbs_release_file(struct kref *ref)
 		kref_put(&file->async_file->ref,
 			 ib_uverbs_release_async_event_file);
 	put_device(&file->device->dev);
+
+	if (file->disassociate_page)
+		__free_pages(file->disassociate_page, 0);
 	kfree(file);
 }
 
@@ -720,7 +723,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			 * then the command request structure starts
 			 * with a '__aligned u64 response' member.
 			 */
-			ret = get_user(response, (const u64 *)buf);
+			ret = get_user(response, (const u64 __user *)buf);
 			if (ret)
 				goto out_unlock;
 
@@ -877,32 +880,51 @@ static void rdma_umap_close(struct vm_area_struct *vma)
 	kfree(priv);
 }
 
+/*
+ * Once the zap_vma_ptes has been called touches to the VMA will come here and
+ * we return a dummy writable zero page for all the pfns.
+ */
+static vm_fault_t rdma_umap_fault(struct vm_fault *vmf)
+{
+	struct ib_uverbs_file *ufile = vmf->vma->vm_file->private_data;
+	struct rdma_umap_priv *priv = vmf->vma->vm_private_data;
+	vm_fault_t ret = 0;
+
+	if (!priv)
+		return VM_FAULT_SIGBUS;
+
+	/* Read only pages can just use the system zero page. */
+	if (!(vmf->vma->vm_flags & (VM_WRITE | VM_MAYWRITE))) {
+		vmf->page = ZERO_PAGE(vmf->address);
+		get_page(vmf->page);
+		return 0;
+	}
+
+	mutex_lock(&ufile->umap_lock);
+	if (!ufile->disassociate_page)
+		ufile->disassociate_page =
+			alloc_pages(vmf->gfp_mask | __GFP_ZERO, 0);
+
+	if (ufile->disassociate_page) {
+		/*
+		 * This VMA is forced to always be shared so this doesn't have
+		 * to worry about COW.
+		 */
+		vmf->page = ufile->disassociate_page;
+		get_page(vmf->page);
+	} else {
+		ret = VM_FAULT_SIGBUS;
+	}
+	mutex_unlock(&ufile->umap_lock);
+
+	return ret;
+}
+
 static const struct vm_operations_struct rdma_umap_ops = {
 	.open = rdma_umap_open,
 	.close = rdma_umap_close,
+	.fault = rdma_umap_fault,
 };
-
-static struct rdma_umap_priv *rdma_user_mmap_pre(struct ib_ucontext *ucontext,
-						 struct vm_area_struct *vma,
-						 unsigned long size)
-{
-	struct ib_uverbs_file *ufile = ucontext->ufile;
-	struct rdma_umap_priv *priv;
-
-	if (vma->vm_end - vma->vm_start != size)
-		return ERR_PTR(-EINVAL);
-
-	/* Driver is using this wrong, must be called by ib_uverbs_mmap */
-	if (WARN_ON(!vma->vm_file ||
-		    vma->vm_file->private_data != ufile))
-		return ERR_PTR(-EINVAL);
-	lockdep_assert_held(&ufile->device->disassociate_srcu);
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return ERR_PTR(-ENOMEM);
-	return priv;
-}
 
 /*
  * Map IO memory into a process. This is to be called by drivers as part of
@@ -912,10 +934,24 @@ static struct rdma_umap_priv *rdma_user_mmap_pre(struct ib_ucontext *ucontext,
 int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
 		      unsigned long pfn, unsigned long size, pgprot_t prot)
 {
-	struct rdma_umap_priv *priv = rdma_user_mmap_pre(ucontext, vma, size);
+	struct ib_uverbs_file *ufile = ucontext->ufile;
+	struct rdma_umap_priv *priv;
 
-	if (IS_ERR(priv))
-		return PTR_ERR(priv);
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (vma->vm_end - vma->vm_start != size)
+		return -EINVAL;
+
+	/* Driver is using this wrong, must be called by ib_uverbs_mmap */
+	if (WARN_ON(!vma->vm_file ||
+		    vma->vm_file->private_data != ufile))
+		return -EINVAL;
+	lockdep_assert_held(&ufile->device->disassociate_srcu);
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	vma->vm_page_prot = prot;
 	if (io_remap_pfn_range(vma, vma->vm_start, pfn, size, prot)) {
@@ -927,35 +963,6 @@ int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
 	return 0;
 }
 EXPORT_SYMBOL(rdma_user_mmap_io);
-
-/*
- * The page case is here for a slightly different reason, the driver expects
- * to be able to free the page it is sharing to user space when it destroys
- * its ucontext, which means we need to zap the user space references.
- *
- * We could handle this differently by providing an API to allocate a shared
- * page and then only freeing the shared page when the last ufile is
- * destroyed.
- */
-int rdma_user_mmap_page(struct ib_ucontext *ucontext,
-			struct vm_area_struct *vma, struct page *page,
-			unsigned long size)
-{
-	struct rdma_umap_priv *priv = rdma_user_mmap_pre(ucontext, vma, size);
-
-	if (IS_ERR(priv))
-		return PTR_ERR(priv);
-
-	if (remap_pfn_range(vma, vma->vm_start, page_to_pfn(page), size,
-			    vma->vm_page_prot)) {
-		kfree(priv);
-		return -EAGAIN;
-	}
-
-	rdma_umap_priv_init(priv, vma);
-	return 0;
-}
-EXPORT_SYMBOL(rdma_user_mmap_page);
 
 void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 {
@@ -992,7 +999,9 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 		 * at a time to get the lock ordering right. Typically there
 		 * will only be one mm, so no big deal.
 		 */
-		down_write(&mm->mmap_sem);
+		down_read(&mm->mmap_sem);
+		if (!mmget_still_valid(mm))
+			goto skip_mm;
 		mutex_lock(&ufile->umap_lock);
 		list_for_each_entry_safe (priv, next_priv, &ufile->umaps,
 					  list) {
@@ -1004,10 +1013,10 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 
 			zap_vma_ptes(vma, vma->vm_start,
 				     vma->vm_end - vma->vm_start);
-			vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
 		}
 		mutex_unlock(&ufile->umap_lock);
-		up_write(&mm->mmap_sem);
+	skip_mm:
+		up_read(&mm->mmap_sem);
 		mmput(mm);
 	}
 }
@@ -1042,6 +1051,11 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 				  &dev->disassociate_srcu);
 	if (!ib_dev) {
 		ret = -EIO;
+		goto err;
+	}
+
+	if (!rdma_dev_access_netns(ib_dev, current->nsproxy->net_ns)) {
+		ret = -EPERM;
 		goto err;
 	}
 
@@ -1083,7 +1097,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 
 	setup_ufile_idr_uobject(file);
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 
 err_module:
 	module_put(ib_dev->owner);

@@ -1139,9 +1139,6 @@ static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q, u16 idx)
 	/* Make sure write' to descriptors are complete before we tell hardware */
 	wmb();
 	sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), idx);
-
-	/* Synchronize I/O on since next processor may write to tail */
-	mmiowb();
 }
 
 
@@ -1354,7 +1351,6 @@ stopped:
 
 	/* reset the Rx prefetch unit */
 	sky2_write32(hw, Y2_QADDR(rxq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
-	mmiowb();
 }
 
 /* Clean out receive buffer area, assumes receiver hardware stopped */
@@ -4808,8 +4804,8 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	 * 2) from internal registers set by bootloader
 	 */
 	iap = of_get_mac_address(hw->pdev->dev.of_node);
-	if (iap)
-		memcpy(dev->dev_addr, iap, ETH_ALEN);
+	if (!IS_ERR(iap))
+		ether_addr_copy(dev->dev_addr, iap);
 	else
 		memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8,
 			      ETH_ALEN);

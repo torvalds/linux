@@ -15,6 +15,7 @@
  */
 
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -34,7 +35,7 @@ static int sha256_update(struct shash_desc *desc, const u8 *data,
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (sctx->count % SHA256_BLOCK_SIZE) + len < SHA256_BLOCK_SIZE)
 		return crypto_sha256_arm_update(desc, data, len);
 
@@ -49,7 +50,7 @@ static int sha256_update(struct shash_desc *desc, const u8 *data,
 static int sha256_finup(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out)
 {
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sha256_arm_finup(desc, data, len, out);
 
 	kernel_neon_begin();

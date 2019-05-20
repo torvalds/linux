@@ -45,6 +45,7 @@ config SCSI_MPT3SAS
 	depends on PCI && SCSI
 	select SCSI_SAS_ATTRS
 	select RAID_ATTRS
+	select IRQ_POLL
 	---help---
 	This driver supports PCI-Express SAS 12Gb/s Host Adapters.
 

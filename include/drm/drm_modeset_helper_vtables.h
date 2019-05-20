@@ -49,6 +49,8 @@
  */
 
 enum mode_set_atomic;
+struct drm_writeback_connector;
+struct drm_writeback_job;
 
 /**
  * struct drm_crtc_helper_funcs - helper operations for CRTCs
@@ -418,6 +420,8 @@ struct drm_crtc_helper_funcs {
 	 * Drivers can use the @old_crtc_state input parameter if the operations
 	 * needed to enable the CRTC don't depend solely on the new state but
 	 * also on the transition between the old state and the new state.
+	 *
+	 * This function is optional.
 	 */
 	void (*atomic_enable)(struct drm_crtc *crtc,
 			      struct drm_crtc_state *old_crtc_state);
@@ -441,6 +445,8 @@ struct drm_crtc_helper_funcs {
 	 * parameter @old_crtc_state which could be used to access the old
 	 * state. Atomic drivers should consider to use this one instead
 	 * of @disable.
+	 *
+	 * This function is optional.
 	 */
 	void (*atomic_disable)(struct drm_crtc *crtc,
 			       struct drm_crtc_state *old_crtc_state);
@@ -989,6 +995,11 @@ struct drm_connector_helper_funcs {
 	 */
 	void (*atomic_commit)(struct drm_connector *connector,
 			      struct drm_connector_state *state);
+
+	int (*prepare_writeback_job)(struct drm_writeback_connector *connector,
+				     struct drm_writeback_job *job);
+	void (*cleanup_writeback_job)(struct drm_writeback_connector *connector,
+				      struct drm_writeback_job *job);
 };
 
 /**

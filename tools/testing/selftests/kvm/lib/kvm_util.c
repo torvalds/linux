@@ -91,6 +91,11 @@ static void vm_open(struct kvm_vm *vm, int perm, unsigned long type)
 	if (vm->kvm_fd < 0)
 		exit(KSFT_SKIP);
 
+	if (!kvm_check_cap(KVM_CAP_IMMEDIATE_EXIT)) {
+		fprintf(stderr, "immediate_exit not available, skipping test\n");
+		exit(KSFT_SKIP);
+	}
+
 	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, type);
 	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
 		"rc: %i errno: %i", vm->fd, errno);
@@ -1243,6 +1248,38 @@ void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
 	ret = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, events);
 	TEST_ASSERT(ret == 0, "KVM_SET_VCPU_EVENTS, failed, rc: %i errno: %i",
 		ret, errno);
+}
+
+void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
+			   struct kvm_nested_state *state)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+
+	ret = ioctl(vcpu->fd, KVM_GET_NESTED_STATE, state);
+	TEST_ASSERT(ret == 0,
+		"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
+		ret, errno);
+}
+
+int vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+			  struct kvm_nested_state *state, bool ignore_error)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+
+	ret = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, state);
+	if (!ignore_error) {
+		TEST_ASSERT(ret == 0,
+			"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
+			ret, errno);
+	}
+
+	return ret;
 }
 
 /*

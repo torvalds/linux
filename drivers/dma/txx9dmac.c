@@ -327,7 +327,6 @@ static void txx9dmac_reset_chan(struct txx9dmac_chan *dc)
 	channel_writel(dc, SAIR, 0);
 	channel_writel(dc, DAIR, 0);
 	channel_writel(dc, CCR, 0);
-	mmiowb();
 }
 
 /* Called with dc->lock held and bh disabled */
@@ -954,7 +953,6 @@ static void txx9dmac_chain_dynamic(struct txx9dmac_chan *dc,
 	dma_sync_single_for_device(chan2parent(&dc->chan),
 				   prev->txd.phys, ddev->descsize,
 				   DMA_TO_DEVICE);
-	mmiowb();
 	if (!(channel_readl(dc, CSR) & TXX9_DMA_CSR_CHNEN) &&
 	    channel_read_CHAR(dc) == prev->txd.phys)
 		/* Restart chain DMA */
@@ -1080,7 +1078,6 @@ static void txx9dmac_free_chan_resources(struct dma_chan *chan)
 static void txx9dmac_off(struct txx9dmac_dev *ddev)
 {
 	dma_writel(ddev, MCR, 0);
-	mmiowb();
 }
 
 static int __init txx9dmac_chan_probe(struct platform_device *pdev)

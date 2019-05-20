@@ -46,7 +46,7 @@ static int afs_probe_cell_name(struct dentry *dentry)
 		return 0;
 	}
 
-	ret = dns_query("afsdb", name, len, "srv=1", NULL, NULL);
+	ret = dns_query("afsdb", name, len, "srv=1", NULL, NULL, false);
 	if (ret == -ENODATA)
 		ret = -EDESTADDRREQ;
 	return ret;
@@ -261,8 +261,7 @@ int afs_dynroot_populate(struct super_block *sb)
 	struct afs_net *net = afs_sb2net(sb);
 	int ret;
 
-	if (mutex_lock_interruptible(&net->proc_cells_lock) < 0)
-		return -ERESTARTSYS;
+	mutex_lock(&net->proc_cells_lock);
 
 	net->dynroot_sb = sb;
 	hlist_for_each_entry(cell, &net->proc_cells, proc_link) {

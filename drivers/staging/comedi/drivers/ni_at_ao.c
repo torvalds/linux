@@ -244,7 +244,7 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 
 		/* write the channel and last data value to the caldac */
 		/* clock the bitstring to the caldac; MSB -> LSB */
-		for (bit = 1 << 10; bit; bit >>= 1) {
+		for (bit = BIT(10); bit; bit >>= 1) {
 			bits = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
 
 			outw(bits, dev->iobase + ATAO_CFG2_REG);

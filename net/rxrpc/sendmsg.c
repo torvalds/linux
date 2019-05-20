@@ -80,7 +80,8 @@ static int rxrpc_wait_for_tx_window_nonintr(struct rxrpc_sock *rx,
 		if (call->state >= RXRPC_CALL_COMPLETE)
 			return call->error;
 
-		if (timeout == 0 &&
+		if (test_bit(RXRPC_CALL_IS_INTR, &call->flags) &&
+		    timeout == 0 &&
 		    tx_win == tx_start && signal_pending(current))
 			return -EINTR;
 
@@ -152,12 +153,13 @@ static void rxrpc_notify_end_tx(struct rxrpc_sock *rx, struct rxrpc_call *call,
 }
 
 /*
- * Queue a DATA packet for transmission, set the resend timeout and send the
- * packet immediately
+ * Queue a DATA packet for transmission, set the resend timeout and send
+ * the packet immediately.  Returns the error from rxrpc_send_data_packet()
+ * in case the caller wants to do something with it.
  */
-static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
-			       struct sk_buff *skb, bool last,
-			       rxrpc_notify_end_tx_t notify_end_tx)
+static int rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
+			      struct sk_buff *skb, bool last,
+			      rxrpc_notify_end_tx_t notify_end_tx)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned long now;
@@ -250,7 +252,8 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 
 out:
 	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
-	_leave("");
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -423,9 +426,10 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (ret < 0)
 				goto out;
 
-			rxrpc_queue_packet(rx, call, skb,
-					   !msg_data_left(msg) && !more,
-					   notify_end_tx);
+			ret = rxrpc_queue_packet(rx, call, skb,
+						 !msg_data_left(msg) && !more,
+						 notify_end_tx);
+			/* Should check for failure here */
 			skb = NULL;
 		}
 	} while (msg_data_left(msg) > 0);
@@ -617,6 +621,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		.call.tx_total_len	= -1,
 		.call.user_call_ID	= 0,
 		.call.nr_timeouts	= 0,
+		.call.intr		= true,
 		.abort_code		= 0,
 		.command		= RXRPC_CMD_SEND_DATA,
 		.exclusive		= false,

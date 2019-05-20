@@ -314,7 +314,8 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	if (!nla)
 		return 0;
 
-	err = nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, em_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_EMATCH_TREE_MAX, nla,
+					  em_policy, NULL);
 	if (err < 0)
 		goto errout;
 
@@ -440,14 +441,14 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 	struct nlattr *top_start;
 	struct nlattr *list_start;
 
-	top_start = nla_nest_start(skb, tlv);
+	top_start = nla_nest_start_noflag(skb, tlv);
 	if (top_start == NULL)
 		goto nla_put_failure;
 
 	if (nla_put(skb, TCA_EMATCH_TREE_HDR, sizeof(tree->hdr), &tree->hdr))
 		goto nla_put_failure;
 
-	list_start = nla_nest_start(skb, TCA_EMATCH_TREE_LIST);
+	list_start = nla_nest_start_noflag(skb, TCA_EMATCH_TREE_LIST);
 	if (list_start == NULL)
 		goto nla_put_failure;
 

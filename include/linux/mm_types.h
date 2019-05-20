@@ -103,7 +103,7 @@ struct page {
 		};
 		struct {	/* slab, slob and slub */
 			union {
-				struct list_head slab_list;	/* uses lru */
+				struct list_head slab_list;
 				struct {	/* Partial pages */
 					struct page *next;
 #ifdef CONFIG_64BIT
@@ -219,6 +219,9 @@ struct page {
 
 #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
 #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+
+#define page_private(page)		((page)->private)
+#define set_page_private(page, v)	((page)->private = (v))
 
 struct page_frag_cache {
 	void * va;
@@ -671,7 +674,7 @@ enum vm_fault_reason {
 
 /* Encode hstate index for a hwpoisoned large page */
 #define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
-#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
+#define VM_FAULT_GET_HINDEX(x) (((__force unsigned int)(x) >> 16) & 0xf)
 
 #define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |	\
 			VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |	\

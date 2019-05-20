@@ -5,16 +5,14 @@
 #include <linux/export.h>
 #include <asm/syscall.h>
 
-static int collect_syscall(struct task_struct *target, long *callno,
-			   unsigned long args[6], unsigned int maxargs,
-			   unsigned long *sp, unsigned long *pc)
+static int collect_syscall(struct task_struct *target, struct syscall_info *info)
 {
 	struct pt_regs *regs;
 
 	if (!try_get_task_stack(target)) {
 		/* Task has no stack, so the task isn't in a syscall. */
-		*sp = *pc = 0;
-		*callno = -1;
+		memset(info, 0, sizeof(*info));
+		info->data.nr = -1;
 		return 0;
 	}
 
@@ -24,12 +22,13 @@ static int collect_syscall(struct task_struct *target, long *callno,
 		return -EAGAIN;
 	}
 
-	*sp = user_stack_pointer(regs);
-	*pc = instruction_pointer(regs);
+	info->sp = user_stack_pointer(regs);
+	info->data.instruction_pointer = instruction_pointer(regs);
 
-	*callno = syscall_get_nr(target, regs);
-	if (*callno != -1L && maxargs > 0)
-		syscall_get_arguments(target, regs, 0, maxargs, args);
+	info->data.nr = syscall_get_nr(target, regs);
+	if (info->data.nr != -1L)
+		syscall_get_arguments(target, regs,
+				      (unsigned long *)&info->data.args[0]);
 
 	put_task_stack(target);
 	return 0;
@@ -38,41 +37,35 @@ static int collect_syscall(struct task_struct *target, long *callno,
 /**
  * task_current_syscall - Discover what a blocked task is doing.
  * @target:		thread to examine
- * @callno:		filled with system call number or -1
- * @args:		filled with @maxargs system call arguments
- * @maxargs:		number of elements in @args to fill
- * @sp:			filled with user stack pointer
- * @pc:			filled with user PC
+ * @info:		structure with the following fields:
+ *			 .sp        - filled with user stack pointer
+ *			 .data.nr   - filled with system call number or -1
+ *			 .data.args - filled with @maxargs system call arguments
+ *			 .data.instruction_pointer - filled with user PC
  *
- * If @target is blocked in a system call, returns zero with *@callno
- * set to the the call's number and @args filled in with its arguments.
- * Registers not used for system call arguments may not be available and
- * it is not kosher to use &struct user_regset calls while the system
+ * If @target is blocked in a system call, returns zero with @info.data.nr
+ * set to the the call's number and @info.data.args filled in with its
+ * arguments. Registers not used for system call arguments may not be available
+ * and it is not kosher to use &struct user_regset calls while the system
  * call is still in progress.  Note we may get this result if @target
  * has finished its system call but not yet returned to user mode, such
  * as when it's stopped for signal handling or syscall exit tracing.
  *
  * If @target is blocked in the kernel during a fault or exception,
- * returns zero with *@callno set to -1 and does not fill in @args.
- * If so, it's now safe to examine @target using &struct user_regset
- * get() calls as long as we're sure @target won't return to user mode.
+ * returns zero with *@info.data.nr set to -1 and does not fill in
+ * @info.data.args. If so, it's now safe to examine @target using
+ * &struct user_regset get() calls as long as we're sure @target won't return
+ * to user mode.
  *
  * Returns -%EAGAIN if @target does not remain blocked.
- *
- * Returns -%EINVAL if @maxargs is too large (maximum is six).
  */
-int task_current_syscall(struct task_struct *target, long *callno,
-			 unsigned long args[6], unsigned int maxargs,
-			 unsigned long *sp, unsigned long *pc)
+int task_current_syscall(struct task_struct *target, struct syscall_info *info)
 {
 	long state;
 	unsigned long ncsw;
 
-	if (unlikely(maxargs > 6))
-		return -EINVAL;
-
 	if (target == current)
-		return collect_syscall(target, callno, args, maxargs, sp, pc);
+		return collect_syscall(target, info);
 
 	state = target->state;
 	if (unlikely(!state))
@@ -80,7 +73,7 @@ int task_current_syscall(struct task_struct *target, long *callno,
 
 	ncsw = wait_task_inactive(target, state);
 	if (unlikely(!ncsw) ||
-	    unlikely(collect_syscall(target, callno, args, maxargs, sp, pc)) ||
+	    unlikely(collect_syscall(target, info)) ||
 	    unlikely(wait_task_inactive(target, state) != ncsw))
 		return -EAGAIN;
 

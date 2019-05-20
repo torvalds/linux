@@ -119,7 +119,7 @@ CONFIG_I2C_PUV3=y
 #	Hardware Monitoring support
 #CONFIG_SENSORS_LM75=m
 #	Generic Thermal sysfs driver
-#CONFIG_THERMAL=m
+#CONFIG_THERMAL=y
 #CONFIG_THERMAL_HWMON=y
 
 #	Multimedia support

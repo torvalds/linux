@@ -71,7 +71,9 @@ struct vop_common {
 	struct vop_reg dsp_blank;
 	struct vop_reg data_blank;
 	struct vop_reg pre_dither_down;
-	struct vop_reg dither_down;
+	struct vop_reg dither_down_sel;
+	struct vop_reg dither_down_mode;
+	struct vop_reg dither_down_en;
 	struct vop_reg dither_up;
 	struct vop_reg gate_en;
 	struct vop_reg mmu_en;
@@ -285,6 +287,16 @@ enum sacle_up_mode {
 enum scale_down_mode {
 	SCALE_DOWN_BIL = 0x0,
 	SCALE_DOWN_AVG = 0x1
+};
+
+enum dither_down_mode {
+	RGB888_TO_RGB565 = 0x0,
+	RGB888_TO_RGB666 = 0x1
+};
+
+enum dither_down_mode_sel {
+	DITHER_DOWN_ALLEGRO = 0x0,
+	DITHER_DOWN_FRC = 0x1
 };
 
 enum vop_pol {

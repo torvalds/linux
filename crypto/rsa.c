@@ -50,34 +50,6 @@ static int _rsa_dec(const struct rsa_mpi_key *key, MPI m, MPI c)
 	return mpi_powm(m, c, key->d, key->n);
 }
 
-/*
- * RSASP1 function [RFC3447 sec 5.2.1]
- * s = m^d mod n
- */
-static int _rsa_sign(const struct rsa_mpi_key *key, MPI s, MPI m)
-{
-	/* (1) Validate 0 <= m < n */
-	if (mpi_cmp_ui(m, 0) < 0 || mpi_cmp(m, key->n) >= 0)
-		return -EINVAL;
-
-	/* (2) s = m^d mod n */
-	return mpi_powm(s, m, key->d, key->n);
-}
-
-/*
- * RSAVP1 function [RFC3447 sec 5.2.2]
- * m = s^e mod n;
- */
-static int _rsa_verify(const struct rsa_mpi_key *key, MPI m, MPI s)
-{
-	/* (1) Validate 0 <= s < n */
-	if (mpi_cmp_ui(s, 0) < 0 || mpi_cmp(s, key->n) >= 0)
-		return -EINVAL;
-
-	/* (2) m = s^e mod n */
-	return mpi_powm(m, s, key->e, key->n);
-}
-
 static inline struct rsa_mpi_key *rsa_get_key(struct crypto_akcipher *tfm)
 {
 	return akcipher_tfm_ctx(tfm);
@@ -155,85 +127,6 @@ static int rsa_dec(struct akcipher_request *req)
 		ret = -EBADMSG;
 err_free_c:
 	mpi_free(c);
-err_free_m:
-	mpi_free(m);
-	return ret;
-}
-
-static int rsa_sign(struct akcipher_request *req)
-{
-	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	const struct rsa_mpi_key *pkey = rsa_get_key(tfm);
-	MPI m, s = mpi_alloc(0);
-	int ret = 0;
-	int sign;
-
-	if (!s)
-		return -ENOMEM;
-
-	if (unlikely(!pkey->n || !pkey->d)) {
-		ret = -EINVAL;
-		goto err_free_s;
-	}
-
-	ret = -ENOMEM;
-	m = mpi_read_raw_from_sgl(req->src, req->src_len);
-	if (!m)
-		goto err_free_s;
-
-	ret = _rsa_sign(pkey, s, m);
-	if (ret)
-		goto err_free_m;
-
-	ret = mpi_write_to_sgl(s, req->dst, req->dst_len, &sign);
-	if (ret)
-		goto err_free_m;
-
-	if (sign < 0)
-		ret = -EBADMSG;
-
-err_free_m:
-	mpi_free(m);
-err_free_s:
-	mpi_free(s);
-	return ret;
-}
-
-static int rsa_verify(struct akcipher_request *req)
-{
-	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	const struct rsa_mpi_key *pkey = rsa_get_key(tfm);
-	MPI s, m = mpi_alloc(0);
-	int ret = 0;
-	int sign;
-
-	if (!m)
-		return -ENOMEM;
-
-	if (unlikely(!pkey->n || !pkey->e)) {
-		ret = -EINVAL;
-		goto err_free_m;
-	}
-
-	s = mpi_read_raw_from_sgl(req->src, req->src_len);
-	if (!s) {
-		ret = -ENOMEM;
-		goto err_free_m;
-	}
-
-	ret = _rsa_verify(pkey, m, s);
-	if (ret)
-		goto err_free_s;
-
-	ret = mpi_write_to_sgl(m, req->dst, req->dst_len, &sign);
-	if (ret)
-		goto err_free_s;
-
-	if (sign < 0)
-		ret = -EBADMSG;
-
-err_free_s:
-	mpi_free(s);
 err_free_m:
 	mpi_free(m);
 	return ret;
@@ -353,8 +246,6 @@ static void rsa_exit_tfm(struct crypto_akcipher *tfm)
 static struct akcipher_alg rsa = {
 	.encrypt = rsa_enc,
 	.decrypt = rsa_dec,
-	.sign = rsa_sign,
-	.verify = rsa_verify,
 	.set_priv_key = rsa_set_priv_key,
 	.set_pub_key = rsa_set_pub_key,
 	.max_size = rsa_max_size,
@@ -391,7 +282,7 @@ static void rsa_exit(void)
 	crypto_unregister_akcipher(&rsa);
 }
 
-module_init(rsa_init);
+subsys_initcall(rsa_init);
 module_exit(rsa_exit);
 MODULE_ALIAS_CRYPTO("rsa");
 MODULE_LICENSE("GPL");

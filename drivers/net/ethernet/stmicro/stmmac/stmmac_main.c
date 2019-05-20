@@ -74,7 +74,7 @@ MODULE_PARM_DESC(phyaddr, "Physical device address");
 #define STMMAC_TX_THRESH	(DMA_TX_SIZE / 4)
 #define STMMAC_RX_THRESH	(DMA_RX_SIZE / 4)
 
-static int flow_ctrl = FLOW_OFF;
+static int flow_ctrl = FLOW_AUTO;
 module_param(flow_ctrl, int, 0644);
 MODULE_PARM_DESC(flow_ctrl, "Flow control ability [on/off]");
 
@@ -1136,11 +1136,13 @@ static void stmmac_clear_rx_descriptors(struct stmmac_priv *priv, u32 queue)
 		if (priv->extend_desc)
 			stmmac_init_rx_desc(priv, &rx_q->dma_erx[i].basic,
 					priv->use_riwt, priv->mode,
-					(i == DMA_RX_SIZE - 1));
+					(i == DMA_RX_SIZE - 1),
+					priv->dma_buf_sz);
 		else
 			stmmac_init_rx_desc(priv, &rx_q->dma_rx[i],
 					priv->use_riwt, priv->mode,
-					(i == DMA_RX_SIZE - 1));
+					(i == DMA_RX_SIZE - 1),
+					priv->dma_buf_sz);
 }
 
 /**
@@ -2614,8 +2616,6 @@ static int stmmac_open(struct net_device *dev)
 	u32 chan;
 	int ret;
 
-	stmmac_check_ether_addr(priv);
-
 	if (priv->hw->pcs != STMMAC_PCS_RGMII &&
 	    priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI) {
@@ -3352,9 +3352,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 {
 	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
 	struct stmmac_channel *ch = &priv->channel[queue];
-	unsigned int entry = rx_q->cur_rx;
+	unsigned int next_entry = rx_q->cur_rx;
 	int coe = priv->hw->rx_csum;
-	unsigned int next_entry;
 	unsigned int count = 0;
 	bool xmac;
 
@@ -3372,9 +3371,11 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 		stmmac_display_ring(priv, rx_head, DMA_RX_SIZE, true);
 	}
 	while (count < limit) {
-		int status;
+		int entry, status;
 		struct dma_desc *p;
 		struct dma_desc *np;
+
+		entry = next_entry;
 
 		if (priv->extend_desc)
 			p = (struct dma_desc *)(rx_q->dma_erx + entry);
@@ -3431,11 +3432,12 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			 *  ignored
 			 */
 			if (frame_len > priv->dma_buf_sz) {
-				netdev_err(priv->dev,
-					   "len %d larger than size (%d)\n",
-					   frame_len, priv->dma_buf_sz);
+				if (net_ratelimit())
+					netdev_err(priv->dev,
+						   "len %d larger than size (%d)\n",
+						   frame_len, priv->dma_buf_sz);
 				priv->dev->stats.rx_length_errors++;
-				break;
+				continue;
 			}
 
 			/* ACS is set; GMAC core strips PAD/FCS for IEEE 802.3
@@ -3470,7 +3472,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 						dev_warn(priv->device,
 							 "packet dropped\n");
 					priv->dev->stats.rx_dropped++;
-					break;
+					continue;
 				}
 
 				dma_sync_single_for_cpu(priv->device,
@@ -3490,11 +3492,12 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			} else {
 				skb = rx_q->rx_skbuff[entry];
 				if (unlikely(!skb)) {
-					netdev_err(priv->dev,
-						   "%s: Inconsistent Rx chain\n",
-						   priv->dev->name);
+					if (net_ratelimit())
+						netdev_err(priv->dev,
+							   "%s: Inconsistent Rx chain\n",
+							   priv->dev->name);
 					priv->dev->stats.rx_dropped++;
-					break;
+					continue;
 				}
 				prefetch(skb->data - NET_IP_ALIGN);
 				rx_q->rx_skbuff[entry] = NULL;
@@ -3529,7 +3532,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			priv->dev->stats.rx_packets++;
 			priv->dev->stats.rx_bytes += frame_len;
 		}
-		entry = next_entry;
 	}
 
 	stmmac_rx_refill(priv, queue);
@@ -4260,7 +4262,7 @@ int stmmac_dvr_probe(struct device *device,
 	priv->wol_irq = res->wol_irq;
 	priv->lpi_irq = res->lpi_irq;
 
-	if (res->mac)
+	if (!IS_ERR_OR_NULL(res->mac))
 		memcpy(priv->dev->dev_addr, res->mac, ETH_ALEN);
 
 	dev_set_drvdata(device, priv->dev);
@@ -4298,6 +4300,8 @@ int stmmac_dvr_probe(struct device *device,
 	ret = stmmac_hw_init(priv);
 	if (ret)
 		goto error_hw_init;
+
+	stmmac_check_ether_addr(priv);
 
 	/* Configure real RX and TX queues */
 	netif_set_real_num_rx_queues(ndev, priv->plat->rx_queues_to_use);

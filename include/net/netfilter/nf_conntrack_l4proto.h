@@ -75,6 +75,12 @@ bool nf_conntrack_invert_icmp_tuple(struct nf_conntrack_tuple *tuple,
 bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,
 				      const struct nf_conntrack_tuple *orig);
 
+int nf_conntrack_inet_error(struct nf_conn *tmpl, struct sk_buff *skb,
+			    unsigned int dataoff,
+			    const struct nf_hook_state *state,
+			    u8 l4proto,
+			    union nf_inet_addr *outer_daddr);
+
 int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
 			      unsigned int dataoff,

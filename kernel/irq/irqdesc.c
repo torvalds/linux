@@ -275,11 +275,12 @@ static struct attribute *irq_attrs[] = {
 	&actions_attr.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(irq);
 
 static struct kobj_type irq_kobj_type = {
 	.release	= irq_kobj_release,
 	.sysfs_ops	= &kobj_sysfs_ops,
-	.default_attrs	= irq_attrs,
+	.default_groups = irq_groups,
 };
 
 static void irq_sysfs_add(int irq, struct irq_desc *desc)
@@ -558,6 +559,7 @@ int __init early_irq_init(void)
 		alloc_masks(&desc[i], node);
 		raw_spin_lock_init(&desc[i].lock);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
+		mutex_init(&desc[i].request_mutex);
 		desc_set_defaults(i, &desc[i], node, NULL, NULL);
 	}
 	return arch_early_irq_init();

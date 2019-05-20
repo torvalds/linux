@@ -75,7 +75,7 @@ static int msm_gpu_open(struct inode *inode, struct file *file)
 	struct msm_gpu_show_priv *show_priv;
 	int ret;
 
-	if (!gpu)
+	if (!gpu || !gpu->funcs->gpu_state_get)
 		return -ENODEV;
 
 	show_priv = kmalloc(sizeof(*show_priv), GFP_KERNEL);

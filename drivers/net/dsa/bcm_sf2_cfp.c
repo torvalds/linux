@@ -886,6 +886,9 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	     fs->m_ext.data[1]))
 		return -EINVAL;
 
+	if (fs->location != RX_CLS_LOC_ANY && fs->location >= CFP_NUM_RULES)
+		return -EINVAL;
+
 	if (fs->location != RX_CLS_LOC_ANY &&
 	    test_bit(fs->location, priv->cfp.used))
 		return -EBUSY;
@@ -973,6 +976,9 @@ static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port, u32 loc)
 {
 	struct cfp_rule *rule;
 	int ret;
+
+	if (loc >= CFP_NUM_RULES)
+		return -EINVAL;
 
 	/* Refuse deleting unused rules, and those that are not unique since
 	 * that could leave IPv6 rules with one of the chained rule in the
