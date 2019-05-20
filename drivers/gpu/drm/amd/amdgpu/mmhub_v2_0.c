@@ -121,6 +121,8 @@ static void mmhub_v2_0_init_cache_regs(struct amdgpu_device *adev)
 	tmp = RREG32_SOC15(MMHUB, 0, mmMMVM_L2_CNTL);
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, ENABLE_L2_CACHE, 1);
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, ENABLE_L2_FRAGMENT_PROCESSING, 0);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL,
+			    ENABLE_DEFAULT_PAGE_OUT_TO_SYSTEM_MEMORY, 1);
 	/* XXX for emulation, Refer to closed source code.*/
 	tmp = REG_SET_FIELD(tmp, MMVM_L2_CNTL, L2_PDE0_CACHE_TAG_GENERATION_MODE,
 			    0);
