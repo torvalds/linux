@@ -39,6 +39,7 @@ static struct hc_driver __read_mostly exynos_ehci_hc_driver;
 
 struct exynos_ehci_hcd {
 	struct clk *clk;
+	struct device_node *of_node;
 	struct phy *phy[PHY_NUMBER];
 };
 
@@ -203,6 +204,13 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
 
+	/*
+	 * Workaround: reset of_node pointer to avoid conflict between Exynos
+	 * EHCI port subnodes and generic USB device bindings
+	 */
+	exynos_ehci->of_node = pdev->dev.of_node;
+	pdev->dev.of_node = NULL;
+
 	/* DMA burst Enable */
 	writel(EHCI_INSNREG00_ENABLE_DMA_BURST, EHCI_INSNREG00(hcd->regs));
 
@@ -219,6 +227,7 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 
 fail_add_hcd:
 	exynos_ehci_phy_disable(&pdev->dev);
+	pdev->dev.of_node = exynos_ehci->of_node;
 fail_io:
 	clk_disable_unprepare(exynos_ehci->clk);
 fail_clk:
@@ -230,6 +239,8 @@ static int exynos_ehci_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct exynos_ehci_hcd *exynos_ehci = to_exynos_ehci(hcd);
+
+	pdev->dev.of_node = exynos_ehci->of_node;
 
 	usb_remove_hcd(hcd);
 
