@@ -26,6 +26,7 @@
 #define ODEBUG_POOL_SIZE	1024
 #define ODEBUG_POOL_MIN_LEVEL	256
 #define ODEBUG_POOL_PERCPU_SIZE	64
+#define ODEBUG_BATCH_SIZE	16
 
 #define ODEBUG_CHUNK_SHIFT	PAGE_SHIFT
 #define ODEBUG_CHUNK_SIZE	(1 << ODEBUG_CHUNK_SHIFT)
@@ -203,11 +204,10 @@ static struct debug_obj *__alloc_object(struct hlist_head *list)
 static struct debug_obj *
 alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
 {
-	struct debug_percpu_free *percpu_pool;
+	struct debug_percpu_free *percpu_pool = this_cpu_ptr(&percpu_obj_pool);
 	struct debug_obj *obj;
 
 	if (likely(obj_cache)) {
-		percpu_pool = this_cpu_ptr(&percpu_obj_pool);
 		obj = __alloc_object(&percpu_pool->free_objs);
 		if (obj) {
 			percpu_pool->obj_free--;
@@ -219,10 +219,32 @@ alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
 	obj = __alloc_object(&obj_pool);
 	if (obj) {
 		obj_pool_used++;
+		obj_pool_free--;
+
+		/*
+		 * Looking ahead, allocate one batch of debug objects and
+		 * put them into the percpu free pool.
+		 */
+		if (likely(obj_cache)) {
+			int i;
+
+			for (i = 0; i < ODEBUG_BATCH_SIZE; i++) {
+				struct debug_obj *obj2;
+
+				obj2 = __alloc_object(&obj_pool);
+				if (!obj2)
+					break;
+				hlist_add_head(&obj2->node,
+					       &percpu_pool->free_objs);
+				percpu_pool->obj_free++;
+				obj_pool_used++;
+				obj_pool_free--;
+			}
+		}
+
 		if (obj_pool_used > obj_pool_max_used)
 			obj_pool_max_used = obj_pool_used;
 
-		obj_pool_free--;
 		if (obj_pool_free < obj_pool_min_free)
 			obj_pool_min_free = obj_pool_free;
 	}
@@ -288,22 +310,39 @@ static void free_obj_work(struct work_struct *work)
 
 static bool __free_object(struct debug_obj *obj)
 {
+	struct debug_obj *objs[ODEBUG_BATCH_SIZE];
+	struct debug_percpu_free *percpu_pool;
+	int lookahead_count = 0;
 	unsigned long flags;
 	bool work;
-	struct debug_percpu_free *percpu_pool;
 
 	local_irq_save(flags);
+	if (!obj_cache)
+		goto free_to_obj_pool;
+
 	/*
 	 * Try to free it into the percpu pool first.
 	 */
 	percpu_pool = this_cpu_ptr(&percpu_obj_pool);
-	if (obj_cache && percpu_pool->obj_free < ODEBUG_POOL_PERCPU_SIZE) {
+	if (percpu_pool->obj_free < ODEBUG_POOL_PERCPU_SIZE) {
 		hlist_add_head(&obj->node, &percpu_pool->free_objs);
 		percpu_pool->obj_free++;
 		local_irq_restore(flags);
 		return false;
 	}
 
+	/*
+	 * As the percpu pool is full, look ahead and pull out a batch
+	 * of objects from the percpu pool and free them as well.
+	 */
+	for (; lookahead_count < ODEBUG_BATCH_SIZE; lookahead_count++) {
+		objs[lookahead_count] = __alloc_object(&percpu_pool->free_objs);
+		if (!objs[lookahead_count])
+			break;
+		percpu_pool->obj_free--;
+	}
+
+free_to_obj_pool:
 	raw_spin_lock(&pool_lock);
 	work = (obj_pool_free > debug_objects_pool_size) && obj_cache;
 	obj_pool_used--;
@@ -311,9 +350,25 @@ static bool __free_object(struct debug_obj *obj)
 	if (work) {
 		obj_nr_tofree++;
 		hlist_add_head(&obj->node, &obj_to_free);
+		if (lookahead_count) {
+			obj_nr_tofree += lookahead_count;
+			obj_pool_used -= lookahead_count;
+			while (lookahead_count) {
+				hlist_add_head(&objs[--lookahead_count]->node,
+					       &obj_to_free);
+			}
+		}
 	} else {
 		obj_pool_free++;
 		hlist_add_head(&obj->node, &obj_pool);
+		if (lookahead_count) {
+			obj_pool_free += lookahead_count;
+			obj_pool_used -= lookahead_count;
+			while (lookahead_count) {
+				hlist_add_head(&objs[--lookahead_count]->node,
+					       &obj_pool);
+			}
+		}
 	}
 	raw_spin_unlock(&pool_lock);
 	local_irq_restore(flags);
@@ -1228,7 +1283,7 @@ free:
  */
 void __init debug_objects_mem_init(void)
 {
-	int cpu;
+	int cpu, extras;
 
 	if (!debug_objects_enabled)
 		return;
@@ -1253,4 +1308,12 @@ void __init debug_objects_mem_init(void)
 		pr_warn("out of memory.\n");
 	} else
 		debug_objects_selftest();
+
+	/*
+	 * Increase the thresholds for allocating and freeing objects
+	 * according to the number of possible CPUs available in the system.
+	 */
+	extras = num_possible_cpus() * ODEBUG_BATCH_SIZE;
+	debug_objects_pool_size += extras;
+	debug_objects_pool_min_level += extras;
 }
