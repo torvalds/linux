@@ -34,9 +34,9 @@ Optional properties:
 			ath9k wireless chip (in this case the calibration /
 			EEPROM data will be loaded from userspace using the
 			kernel firmware loader).
-- mac-address: See ethernet.txt in the parent directory
-- local-mac-address: See ethernet.txt in the parent directory
 
+The MAC address will be determined using the optional properties defined in
+net/ethernet.txt.
 
 In this example, the node is defined as child node of the PCI controller:
 &pci0 {

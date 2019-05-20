@@ -162,8 +162,10 @@ static int xor_tweak(struct skcipher_request *req, bool second_pass)
 	}
 
 	err = skcipher_walk_virt(&w, req, false);
-	iv = (__be32 *)w.iv;
+	if (err)
+		return err;
 
+	iv = (__be32 *)w.iv;
 	counter[0] = be32_to_cpu(iv[3]);
 	counter[1] = be32_to_cpu(iv[2]);
 	counter[2] = be32_to_cpu(iv[1]);
@@ -435,7 +437,7 @@ static void __exit crypto_module_exit(void)
 	crypto_unregister_template(&crypto_tmpl);
 }
 
-module_init(crypto_module_init);
+subsys_initcall(crypto_module_init);
 module_exit(crypto_module_exit);
 
 MODULE_LICENSE("GPL");

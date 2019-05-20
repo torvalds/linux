@@ -35,7 +35,6 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/unwinder.h>

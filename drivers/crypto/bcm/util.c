@@ -242,7 +242,6 @@ int do_shash(unsigned char *name, unsigned char *result,
 		goto do_shash_err;
 	}
 	sdesc->shash.tfm = hash;
-	sdesc->shash.flags = 0x0;
 
 	if (key_len > 0) {
 		rc = crypto_shash_setkey(hash, key, key_len);

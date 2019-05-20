@@ -211,6 +211,8 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct comedi_async *async = s->async;
 
+	lockdep_assert_held(&dev->mutex);
+
 	/* Round up new_size to multiple of PAGE_SIZE */
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 

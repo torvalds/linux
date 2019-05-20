@@ -354,7 +354,7 @@ acpi_status acpi_db_find_name_in_namespace(char *name_arg)
 	char acpi_name[5] = "____";
 	char *acpi_name_ptr = acpi_name;
 
-	if (strlen(name_arg) > ACPI_NAME_SIZE) {
+	if (strlen(name_arg) > ACPI_NAMESEG_SIZE) {
 		acpi_os_printf("Name must be no longer than 4 characters\n");
 		return (AE_OK);
 	}

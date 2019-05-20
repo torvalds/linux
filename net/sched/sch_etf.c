@@ -351,7 +351,8 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_ETF_MAX, opt, etf_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_ETF_MAX, opt, etf_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -460,7 +461,7 @@ static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_etf_qopt opt = { };
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 

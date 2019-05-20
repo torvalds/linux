@@ -261,9 +261,14 @@ int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm)
 
 int nfp_abm_ctrl_prio_map_update(struct nfp_abm_link *alink, u32 *packed)
 {
+	const u32 cmd = NFP_NET_CFG_MBOX_CMD_PCI_DSCP_PRIOMAP_SET;
 	struct nfp_net *nn = alink->vnic;
 	unsigned int i;
 	int err;
+
+	err = nfp_net_mbox_lock(nn, alink->abm->prio_map_len);
+	if (err)
+		return err;
 
 	/* Write data_len and wipe reserved */
 	nn_writeq(nn, nn->tlv_caps.mbox_off + NFP_NET_ABM_MBOX_DATALEN,
@@ -273,8 +278,7 @@ int nfp_abm_ctrl_prio_map_update(struct nfp_abm_link *alink, u32 *packed)
 		nn_writel(nn, nn->tlv_caps.mbox_off + NFP_NET_ABM_MBOX_DATA + i,
 			  packed[i / sizeof(u32)]);
 
-	err = nfp_net_reconfig_mbox(nn,
-				    NFP_NET_CFG_MBOX_CMD_PCI_DSCP_PRIOMAP_SET);
+	err = nfp_net_mbox_reconfig_and_unlock(nn, cmd);
 	if (err)
 		nfp_err(alink->abm->app->cpp,
 			"setting DSCP -> VQ map failed with error %d\n", err);

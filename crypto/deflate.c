@@ -334,7 +334,7 @@ static void __exit deflate_mod_fini(void)
 	crypto_unregister_scomps(scomp, ARRAY_SIZE(scomp));
 }
 
-module_init(deflate_mod_init);
+subsys_initcall(deflate_mod_init);
 module_exit(deflate_mod_fini);
 
 MODULE_LICENSE("GPL");

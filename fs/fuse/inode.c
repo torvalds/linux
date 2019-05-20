@@ -81,14 +81,12 @@ struct fuse_forget_link *fuse_alloc_forget(void)
 
 static struct inode *fuse_alloc_inode(struct super_block *sb)
 {
-	struct inode *inode;
 	struct fuse_inode *fi;
 
-	inode = kmem_cache_alloc(fuse_inode_cachep, GFP_KERNEL);
-	if (!inode)
+	fi = kmem_cache_alloc(fuse_inode_cachep, GFP_KERNEL);
+	if (!fi)
 		return NULL;
 
-	fi = get_fuse_inode(inode);
 	fi->i_time = 0;
 	fi->inval_mask = 0;
 	fi->nodeid = 0;
@@ -100,40 +98,36 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	spin_lock_init(&fi->lock);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget) {
-		kmem_cache_free(fuse_inode_cachep, inode);
+		kmem_cache_free(fuse_inode_cachep, fi);
 		return NULL;
 	}
 
-	return inode;
+	return &fi->inode;
 }
 
-static void fuse_i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kmem_cache_free(fuse_inode_cachep, inode);
-}
-
-static void fuse_destroy_inode(struct inode *inode)
+static void fuse_free_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
-		WARN_ON(!list_empty(&fi->write_files));
-		WARN_ON(!list_empty(&fi->queued_writes));
-	}
+
 	mutex_destroy(&fi->mutex);
 	kfree(fi->forget);
-	call_rcu(&inode->i_rcu, fuse_i_callback);
+	kmem_cache_free(fuse_inode_cachep, fi);
 }
 
 static void fuse_evict_inode(struct inode *inode)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (inode->i_sb->s_flags & SB_ACTIVE) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
-		struct fuse_inode *fi = get_fuse_inode(inode);
 		fuse_queue_forget(fc, fi->forget, fi->nodeid, fi->nlookup);
 		fi->forget = NULL;
+	}
+	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
+		WARN_ON(!list_empty(&fi->write_files));
+		WARN_ON(!list_empty(&fi->queued_writes));
 	}
 }
 
@@ -237,7 +231,8 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 
 		if (oldsize != attr->size) {
 			truncate_pagecache(inode, attr->size);
-			inval = true;
+			if (!fc->explicit_inval_data)
+				inval = true;
 		} else if (fc->auto_inval_data) {
 			struct timespec64 new_mtime = {
 				.tv_sec = attr->mtime,
@@ -814,7 +809,7 @@ static const struct export_operations fuse_export_operations = {
 
 static const struct super_operations fuse_super_operations = {
 	.alloc_inode    = fuse_alloc_inode,
-	.destroy_inode  = fuse_destroy_inode,
+	.free_inode     = fuse_free_inode,
 	.evict_inode	= fuse_evict_inode,
 	.write_inode	= fuse_write_inode,
 	.drop_inode	= generic_delete_inode,
@@ -912,6 +907,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 				fc->dont_mask = 1;
 			if (arg->flags & FUSE_AUTO_INVAL_DATA)
 				fc->auto_inval_data = 1;
+			else if (arg->flags & FUSE_EXPLICIT_INVAL_DATA)
+				fc->explicit_inval_data = 1;
 			if (arg->flags & FUSE_DO_READDIRPLUS) {
 				fc->do_readdirplus = 1;
 				if (arg->flags & FUSE_READDIRPLUS_AUTO)
@@ -973,7 +970,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 		FUSE_WRITEBACK_CACHE | FUSE_NO_OPEN_SUPPORT |
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
 		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
-		FUSE_NO_OPENDIR_SUPPORT;
+		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
@@ -1397,8 +1394,8 @@ static int __init fuse_init(void)
 {
 	int res;
 
-	printk(KERN_INFO "fuse init (API version %i.%i)\n",
-	       FUSE_KERNEL_VERSION, FUSE_KERNEL_MINOR_VERSION);
+	pr_info("init (API version %i.%i)\n",
+		FUSE_KERNEL_VERSION, FUSE_KERNEL_MINOR_VERSION);
 
 	INIT_LIST_HEAD(&fuse_conn_list);
 	res = fuse_fs_init();
@@ -1434,7 +1431,7 @@ static int __init fuse_init(void)
 
 static void __exit fuse_exit(void)
 {
-	printk(KERN_DEBUG "fuse exit\n");
+	pr_debug("exit\n");
 
 	fuse_ctl_cleanup();
 	fuse_sysfs_cleanup();

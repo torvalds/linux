@@ -83,6 +83,7 @@
 #include "amdgpu_gem.h"
 #include "amdgpu_doorbell.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_smu.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -156,6 +157,8 @@ extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
 extern uint amdgpu_dc_feature_mask;
 extern struct amdgpu_mgpu_info mgpu_info;
+extern int amdgpu_ras_enable;
+extern uint amdgpu_ras_mask;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
@@ -433,6 +436,12 @@ struct amdgpu_cs_chunk {
 	void			*kdata;
 };
 
+struct amdgpu_cs_post_dep {
+	struct drm_syncobj *syncobj;
+	struct dma_fence_chain *chain;
+	u64 point;
+};
+
 struct amdgpu_cs_parser {
 	struct amdgpu_device	*adev;
 	struct drm_file		*filp;
@@ -462,8 +471,8 @@ struct amdgpu_cs_parser {
 	/* user fence */
 	struct amdgpu_bo_list_entry	uf_entry;
 
-	unsigned num_post_dep_syncobjs;
-	struct drm_syncobj **post_dep_syncobjs;
+	unsigned			num_post_deps;
+	struct amdgpu_cs_post_dep	*post_deps;
 };
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
@@ -702,7 +711,6 @@ enum amd_hw_ip_block_type {
 struct amd_powerplay {
 	void *pp_handle;
 	const struct amd_pm_funcs *pp_funcs;
-	uint32_t pp_feature;
 };
 
 #define AMDGPU_RESET_MAGIC_NUM 64
@@ -825,6 +833,7 @@ struct amdgpu_device {
 	/* For pre-DCE11. DCE11 and later are in "struct amdgpu_device->dm" */
 	struct work_struct		hotplug_work;
 	struct amdgpu_irq_src		crtc_irq;
+	struct amdgpu_irq_src		vupdate_irq;
 	struct amdgpu_irq_src		pageflip_irq;
 	struct amdgpu_irq_src		hpd_irq;
 
@@ -841,6 +850,9 @@ struct amdgpu_device {
 	/* powerplay */
 	struct amd_powerplay		powerplay;
 	bool				pp_force_state_enabled;
+
+	/* smu */
+	struct smu_context		smu;
 
 	/* dpm */
 	struct amdgpu_pm		pm;
@@ -922,6 +934,8 @@ struct amdgpu_device {
 
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
+
+	bool                            in_baco_reset;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

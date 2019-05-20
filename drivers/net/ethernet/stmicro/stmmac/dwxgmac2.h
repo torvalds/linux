@@ -143,6 +143,11 @@
 #define XGMAC_RSF			BIT(5)
 #define XGMAC_RTC			GENMASK(1, 0)
 #define XGMAC_RTC_SHIFT			0
+#define XGMAC_MTL_RXQ_FLOW_CONTROL(x)	(0x00001150 + (0x80 * (x)))
+#define XGMAC_RFD			GENMASK(31, 17)
+#define XGMAC_RFD_SHIFT			17
+#define XGMAC_RFA			GENMASK(15, 1)
+#define XGMAC_RFA_SHIFT			1
 #define XGMAC_MTL_QINTEN(x)		(0x00001170 + (0x80 * (x)))
 #define XGMAC_RXOIE			BIT(16)
 #define XGMAC_MTL_QINT_STATUS(x)	(0x00001174 + (0x80 * (x)))

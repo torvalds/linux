@@ -80,6 +80,7 @@ struct dc_stream_state {
 	struct dc_info_packet vrr_infopacket;
 	struct dc_info_packet vsc_infopacket;
 	struct dc_info_packet vsp_infopacket;
+	struct dc_info_packet dpsdp_infopacket;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -221,6 +222,13 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i);
  */
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream);
 
+/*
+ * Send dp sdp message.
+ */
+bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
+		const uint8_t *custom_sdp_message,
+		unsigned int sdp_message_size);
+
 /* TODO: Return parsed values rather than direct register read
  * This has a dependency on the caller (amdgpu_display_get_crtc_scanoutpos)
  * being refactored properly to be dce-specific
@@ -298,6 +306,8 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
  * Create a new default stream for the requested sink
  */
 struct dc_stream_state *dc_create_stream_for_sink(struct dc_sink *dc_sink);
+
+struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream);
 
 void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink);
 

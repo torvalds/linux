@@ -46,7 +46,7 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_hdrs.h>
-#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 #include <rdma/rdmavt_cq.h>
 
 struct qib_ctxtdata;

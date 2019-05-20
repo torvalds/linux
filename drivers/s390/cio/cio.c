@@ -564,7 +564,7 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 }
 
 static struct irqaction io_interrupt = {
-	.name	 = "IO",
+	.name	 = "I/O",
 	.handler = do_cio_interrupt,
 };
 

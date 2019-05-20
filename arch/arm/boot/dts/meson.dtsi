@@ -252,6 +252,15 @@
 				#size-cells = <0>;
 				status = "disabled";
 			};
+
+			rtc: rtc@740 {
+				compatible = "amlogic,meson6-rtc";
+				reg = <0x740 0x14>;
+				interrupts = <GIC_SPI 72 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				status = "disabled";
+			};
 		};
 
 		usb0: usb@c9040000 {

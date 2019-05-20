@@ -372,7 +372,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	ns = nsecs - s * NSEC_PER_SEC;
 
 	scripting_context->event_data = data;
-	scripting_context->pevent = evsel->tp_format->pevent;
+	scripting_context->pevent = evsel->tp_format->tep;
 
 	ENTER;
 	SAVETMPS;

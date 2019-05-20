@@ -4,31 +4,7 @@
  *
  * Copyright 2019 Google LLC
  *
- * There is only one attribute used for debugging, called raw.
- * You can write a hexadecimal sentence to raw, and that series of bytes
- * will be sent to the EC. Then, you can read the bytes of response
- * by reading from raw.
- *
- * For writing:
- * Bytes 0-1 indicate the message type:
- *         00 F0 = Execute Legacy Command
- *         00 F2 = Read/Write NVRAM Property
- * Byte 2 provides the command code
- * Bytes 3+ consist of the data passed in the request
- *
- * When referencing the EC interface spec, byte 2 corresponds to MBOX[0],
- * byte 3 corresponds to MBOX[1], etc.
- *
- * At least three bytes are required, for the msg type and command,
- * with additional bytes optional for additional data.
- *
- * Example:
- * // Request EC info type 3 (EC firmware build date)
- * $ echo 00 f0 38 00 03 00 > raw
- * // View the result. The decoded ASCII result "12/21/18" is
- * // included after the raw hex.
- * $ cat raw
- * 00 31 32 2f 32 31 2f 31 38 00 38 00 01 00 2f 00  .12/21/18.8...
+ * See Documentation/ABI/testing/debugfs-wilco-ec for usage.
  */
 
 #include <linux/ctype.h>
@@ -136,18 +112,15 @@ static ssize_t raw_write(struct file *file, const char __user *user_buf,
 	ret = parse_hex_sentence(buf, kcount, request_data, TYPE_AND_DATA_SIZE);
 	if (ret < 0)
 		return ret;
-	/* Need at least two bytes for message type and one for command */
+	/* Need at least two bytes for message type and one byte of data */
 	if (ret < 3)
 		return -EINVAL;
 
-	/* Clear response data buffer */
-	memset(debug_info->raw_data, '\0', EC_MAILBOX_DATA_SIZE_EXTENDED);
-
 	msg.type = request_data[0] << 8 | request_data[1];
-	msg.flags = WILCO_EC_FLAG_RAW;
-	msg.command = request_data[2];
-	msg.request_data = ret > 3 ? request_data + 3 : 0;
-	msg.request_size = ret - 3;
+	msg.flags = 0;
+	msg.request_data = request_data + 2;
+	msg.request_size = ret - 2;
+	memset(debug_info->raw_data, 0, sizeof(debug_info->raw_data));
 	msg.response_data = debug_info->raw_data;
 	msg.response_size = EC_MAILBOX_DATA_SIZE;
 
@@ -174,7 +147,8 @@ static ssize_t raw_read(struct file *file, char __user *user_buf, size_t count,
 		fmt_len = hex_dump_to_buffer(debug_info->raw_data,
 					     debug_info->response_size,
 					     16, 1, debug_info->formatted_data,
-					     FORMATTED_BUFFER_SIZE, true);
+					     sizeof(debug_info->formatted_data),
+					     true);
 		/* Only return response the first time it is read */
 		debug_info->response_size = 0;
 	}
@@ -189,6 +163,51 @@ static const struct file_operations fops_raw = {
 	.write = raw_write,
 	.llseek = no_llseek,
 };
+
+#define CMD_KB_CHROME		0x88
+#define SUB_CMD_H1_GPIO		0x0A
+
+struct h1_gpio_status_request {
+	u8 cmd;		/* Always CMD_KB_CHROME */
+	u8 reserved;
+	u8 sub_cmd;	/* Always SUB_CMD_H1_GPIO */
+} __packed;
+
+struct hi_gpio_status_response {
+	u8 status;	/* 0 if allowed */
+	u8 val;		/* BIT(0)=ENTRY_TO_FACT_MODE, BIT(1)=SPI_CHROME_SEL */
+} __packed;
+
+static int h1_gpio_get(void *arg, u64 *val)
+{
+	struct wilco_ec_device *ec = arg;
+	struct h1_gpio_status_request rq;
+	struct hi_gpio_status_response rs;
+	struct wilco_ec_message msg;
+	int ret;
+
+	memset(&rq, 0, sizeof(rq));
+	rq.cmd = CMD_KB_CHROME;
+	rq.sub_cmd = SUB_CMD_H1_GPIO;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.type = WILCO_EC_MSG_LEGACY;
+	msg.request_data = &rq;
+	msg.request_size = sizeof(rq);
+	msg.response_data = &rs;
+	msg.response_size = sizeof(rs);
+	ret = wilco_ec_mailbox(ec, &msg);
+	if (ret < 0)
+		return ret;
+	if (rs.status)
+		return -EIO;
+
+	*val = rs.val;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_h1_gpio, h1_gpio_get, NULL, "0x%02llx\n");
 
 /**
  * wilco_ec_debugfs_probe() - Create the debugfs node
@@ -211,6 +230,8 @@ static int wilco_ec_debugfs_probe(struct platform_device *pdev)
 	if (!debug_info->dir)
 		return 0;
 	debugfs_create_file("raw", 0644, debug_info->dir, NULL, &fops_raw);
+	debugfs_create_file("h1_gpio", 0444, debug_info->dir, ec,
+			    &fops_h1_gpio);
 
 	return 0;
 }

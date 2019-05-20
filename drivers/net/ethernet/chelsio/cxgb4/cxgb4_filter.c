@@ -524,8 +524,7 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 		return -ENOMEM;
 
 	fwr = __skb_put(skb, len);
-	t4_mk_filtdelwr(f->tid, fwr, (adapter->flags & CXGB4_SHUTTING_DOWN) ? -1
-			: adapter->sge.fw_evtq.abs_id);
+	t4_mk_filtdelwr(f->tid, fwr, adapter->sge.fw_evtq.abs_id);
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
 	 * When we get the Work Request Reply we'll clear the pending status.
@@ -744,16 +743,40 @@ void clear_filter(struct adapter *adap, struct filter_entry *f)
 
 void clear_all_filters(struct adapter *adapter)
 {
+	struct net_device *dev = adapter->port[0];
 	unsigned int i;
 
 	if (adapter->tids.ftid_tab) {
 		struct filter_entry *f = &adapter->tids.ftid_tab[0];
 		unsigned int max_ftid = adapter->tids.nftids +
 					adapter->tids.nsftids;
-
+		/* Clear all TCAM filters */
 		for (i = 0; i < max_ftid; i++, f++)
 			if (f->valid || f->pending)
-				clear_filter(adapter, f);
+				cxgb4_del_filter(dev, i, &f->fs);
+	}
+
+	/* Clear all hash filters */
+	if (is_hashfilter(adapter) && adapter->tids.tid_tab) {
+		struct filter_entry *f;
+		unsigned int sb;
+
+		for (i = adapter->tids.hash_base;
+		     i <= adapter->tids.ntids; i++) {
+			f = (struct filter_entry *)
+				adapter->tids.tid_tab[i];
+
+			if (f && (f->valid || f->pending))
+				cxgb4_del_filter(dev, i, &f->fs);
+		}
+
+		sb = t4_read_reg(adapter, LE_DB_SRVR_START_INDEX_A);
+		for (i = 0; i < sb; i++) {
+			f = (struct filter_entry *)adapter->tids.tid_tab[i];
+
+			if (f && (f->valid || f->pending))
+				cxgb4_del_filter(dev, i, &f->fs);
+		}
 	}
 }
 
@@ -1568,9 +1591,8 @@ int cxgb4_del_filter(struct net_device *dev, int filter_id,
 	struct filter_ctx ctx;
 	int ret;
 
-	/* If we are shutting down the adapter do not wait for completion */
 	if (netdev2adap(dev)->flags & CXGB4_SHUTTING_DOWN)
-		return __cxgb4_del_filter(dev, filter_id, fs, NULL);
+		return 0;
 
 	init_completion(&ctx.completion);
 
@@ -1722,12 +1744,13 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 		break;
 
 	default:
-		dev_err(adap->pdev_dev, "%s: filter creation PROBLEM; status = %u\n",
-			__func__, status);
+		if (status != CPL_ERR_TCAM_FULL)
+			dev_err(adap->pdev_dev, "%s: filter creation PROBLEM; status = %u\n",
+				__func__, status);
 
 		if (ctx) {
 			if (status == CPL_ERR_TCAM_FULL)
-				ctx->result = -EAGAIN;
+				ctx->result = -ENOSPC;
 			else
 				ctx->result = -EINVAL;
 		}

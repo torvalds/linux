@@ -243,7 +243,7 @@ static int tanbac_tb0219_open(struct inode *inode, struct file *file)
 	case 16 ... 23:
 	case 32 ... 39:
 	case 48 ... 55:
-		return nonseekable_open(inode, file);
+		return stream_open(inode, file);
 	default:
 		break;
 	}

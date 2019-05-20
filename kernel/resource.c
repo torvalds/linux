@@ -520,9 +520,12 @@ EXPORT_SYMBOL_GPL(page_is_ram);
 int region_intersects(resource_size_t start, size_t size, unsigned long flags,
 		      unsigned long desc)
 {
-	resource_size_t end = start + size - 1;
+	struct resource res;
 	int type = 0; int other = 0;
 	struct resource *p;
+
+	res.start = start;
+	res.end = start + size - 1;
 
 	read_lock(&resource_lock);
 	for (p = iomem_resource.child; p ; p = p->sibling) {
@@ -530,11 +533,7 @@ int region_intersects(resource_size_t start, size_t size, unsigned long flags,
 				((desc == IORES_DESC_NONE) ||
 				 (desc == p->desc)));
 
-		if (start >= p->start && start <= p->end)
-			is_type ? type++ : other++;
-		if (end >= p->start && end <= p->end)
-			is_type ? type++ : other++;
-		if (p->start >= start && p->end <= end)
+		if (resource_overlaps(p, &res))
 			is_type ? type++ : other++;
 	}
 	read_unlock(&resource_lock);

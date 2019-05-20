@@ -146,11 +146,12 @@ static const struct watchdog_ops rn5t618_wdt_ops = {
 
 static int rn5t618_wdt_probe(struct platform_device *pdev)
 {
-	struct rn5t618 *rn5t618 = dev_get_drvdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
+	struct rn5t618 *rn5t618 = dev_get_drvdata(dev->parent);
 	struct rn5t618_wdt *wdt;
 	int min_timeout, max_timeout;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(struct rn5t618_wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(struct rn5t618_wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -163,10 +164,10 @@ static int rn5t618_wdt_probe(struct platform_device *pdev)
 	wdt->wdt_dev.min_timeout = min_timeout;
 	wdt->wdt_dev.max_timeout = max_timeout;
 	wdt->wdt_dev.timeout = max_timeout;
-	wdt->wdt_dev.parent = &pdev->dev;
+	wdt->wdt_dev.parent = dev;
 
 	watchdog_set_drvdata(&wdt->wdt_dev, wdt);
-	watchdog_init_timeout(&wdt->wdt_dev, timeout, &pdev->dev);
+	watchdog_init_timeout(&wdt->wdt_dev, timeout, dev);
 	watchdog_set_nowayout(&wdt->wdt_dev, nowayout);
 
 	platform_set_drvdata(pdev, wdt);

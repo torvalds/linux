@@ -42,7 +42,7 @@ static int igt_add_request(void *arg)
 	/* Basic preliminary test to create a request and let it loose! */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS],
+	request = mock_request(i915->engine[RCS0],
 			       i915->kernel_context,
 			       HZ / 10);
 	if (!request)
@@ -66,7 +66,7 @@ static int igt_wait_request(void *arg)
 	/* Submit a request, then wait upon it */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS], i915->kernel_context, T);
+	request = mock_request(i915->engine[RCS0], i915->kernel_context, T);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -136,19 +136,17 @@ static int igt_fence_wait(void *arg)
 	/* Submit a request, treat it as a fence and wait upon it */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS], i915->kernel_context, T);
+	request = mock_request(i915->engine[RCS0], i915->kernel_context, T);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_locked;
 	}
-	mutex_unlock(&i915->drm.struct_mutex); /* safe as we are single user */
 
 	if (dma_fence_wait_timeout(&request->fence, false, T) != -ETIME) {
 		pr_err("fence wait success before submit (expected timeout)!\n");
-		goto out_device;
+		goto out_locked;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
 	i915_request_add(request);
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -195,7 +193,7 @@ static int igt_request_rewind(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	ctx[0] = mock_context(i915, "A");
-	request = mock_request(i915->engine[RCS], ctx[0], 2 * HZ);
+	request = mock_request(i915->engine[RCS0], ctx[0], 2 * HZ);
 	if (!request) {
 		err = -ENOMEM;
 		goto err_context_0;
@@ -205,7 +203,7 @@ static int igt_request_rewind(void *arg)
 	i915_request_add(request);
 
 	ctx[1] = mock_context(i915, "B");
-	vip = mock_request(i915->engine[RCS], ctx[1], 0);
+	vip = mock_request(i915->engine[RCS0], ctx[1], 0);
 	if (!vip) {
 		err = -ENOMEM;
 		goto err_context_1;
@@ -226,8 +224,7 @@ static int igt_request_rewind(void *arg)
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	if (i915_request_wait(vip, 0, HZ) == -ETIME) {
-		pr_err("timed out waiting for high priority request, vip.seqno=%d, current seqno=%d\n",
-		       vip->global_seqno, intel_engine_get_seqno(i915->engine[RCS]));
+		pr_err("timed out waiting for high priority request\n");
 		goto err;
 	}
 
@@ -418,7 +415,7 @@ static int mock_breadcrumbs_smoketest(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct smoketest t = {
-		.engine = i915->engine[RCS],
+		.engine = i915->engine[RCS0],
 		.ncontexts = 1024,
 		.max_batch = 1024,
 		.request_alloc = __mock_request_alloc
@@ -622,13 +619,11 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	}
 
 	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_chipset_flush(i915);
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
+	i915_gem_chipset_flush(i915);
 
 	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
@@ -780,10 +775,6 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	if (err)
 		goto err;
 
-	err = i915_gem_object_set_to_wc_domain(obj, true);
-	if (err)
-		goto err;
-
 	cmd = i915_gem_object_pin_map(obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
@@ -802,9 +793,11 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 		*cmd++ = lower_32_bits(vma->node.start);
 	}
 	*cmd++ = MI_BATCH_BUFFER_END; /* terminate early in case of error */
-	i915_gem_chipset_flush(i915);
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
+
+	i915_gem_chipset_flush(i915);
 
 	return vma;
 
@@ -1219,7 +1212,7 @@ out_flush:
 		num_fences += atomic_long_read(&t[id].num_fences);
 	}
 	pr_info("Completed %lu waits for %lu fences across %d engines and %d cpus\n",
-		num_waits, num_fences, RUNTIME_INFO(i915)->num_rings, ncpus);
+		num_waits, num_fences, RUNTIME_INFO(i915)->num_engines, ncpus);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	ret = igt_live_test_end(&live) ?: ret;
@@ -1246,7 +1239,7 @@ int i915_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_breadcrumbs_smoketest),
 	};
 
-	if (i915_terminally_wedged(&i915->gpu_error))
+	if (i915_terminally_wedged(i915))
 		return 0;
 
 	return i915_subtests(tests, i915);

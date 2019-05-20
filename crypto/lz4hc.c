@@ -165,7 +165,7 @@ static void __exit lz4hc_mod_fini(void)
 	crypto_unregister_scomp(&scomp);
 }
 
-module_init(lz4hc_mod_init);
+subsys_initcall(lz4hc_mod_init);
 module_exit(lz4hc_mod_fini);
 
 MODULE_LICENSE("GPL");

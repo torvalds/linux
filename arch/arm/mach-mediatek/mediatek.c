@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <asm/mach/arch.h>
 #include <linux/of.h>
 #include <linux/clk-provider.h>

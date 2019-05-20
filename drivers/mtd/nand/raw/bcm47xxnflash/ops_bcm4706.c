@@ -428,7 +428,7 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	}
 
 	/* Configure FLASH */
-	chipsize = b47n->nand_chip.chipsize >> 20;
+	chipsize = nanddev_target_size(&b47n->nand_chip.base) >> 20;
 	tbits = ffs(chipsize); /* find first bit set */
 	if (!tbits || tbits != fls(chipsize)) {
 		pr_err("Invalid flash size: 0x%lX\n", chipsize);

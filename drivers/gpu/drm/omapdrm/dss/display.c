@@ -23,6 +23,9 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_modes.h>
+
 #include "omapdss.h"
 
 static int disp_num_counter;
@@ -38,8 +41,6 @@ void omapdss_display_init(struct omap_dss_device *dssdev)
 	id = of_alias_get_id(dssdev->dev->of_node, "display");
 	if (id < 0)
 		id = disp_num_counter++;
-
-	dssdev->alias_id = id;
 
 	/* Use 'label' property for name, if it exists */
 	of_property_read_string(dssdev->dev->of_node, "label", &dssdev->name);
@@ -58,3 +59,22 @@ struct omap_dss_device *omapdss_display_get(struct omap_dss_device *output)
 	return omapdss_device_get(output);
 }
 EXPORT_SYMBOL_GPL(omapdss_display_get);
+
+int omapdss_display_get_modes(struct drm_connector *connector,
+			      const struct videomode *vm)
+{
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_create(connector->dev);
+	if (!mode)
+		return 0;
+
+	drm_display_mode_from_videomode(vm, mode);
+
+	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+	drm_mode_set_name(mode);
+	drm_mode_probed_add(connector, mode);
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(omapdss_display_get_modes);

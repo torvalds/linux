@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-#include "dra72x.dtsi"
+#include "am5718.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "dra7-mmc-iodelay.dtsi"

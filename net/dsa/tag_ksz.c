@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * net/dsa/tag_ksz.c - Microchip KSZ Switch tag format handling
  * Copyright (c) 2017 Microchip Technology
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/etherdevice.h>
@@ -137,11 +133,16 @@ static struct sk_buff *ksz9477_rcv(struct sk_buff *skb, struct net_device *dev,
 	return ksz_common_rcv(skb, dev, port, len);
 }
 
-const struct dsa_device_ops ksz9477_netdev_ops = {
+static const struct dsa_device_ops ksz9477_netdev_ops = {
+	.name	= "ksz9477",
+	.proto	= DSA_TAG_PROTO_KSZ9477,
 	.xmit	= ksz9477_xmit,
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ9477_INGRESS_TAG_LEN,
 };
+
+DSA_TAG_DRIVER(ksz9477_netdev_ops);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9477);
 
 #define KSZ9893_TAIL_TAG_OVERRIDE	BIT(5)
 #define KSZ9893_TAIL_TAG_LOOKUP		BIT(6)
@@ -170,8 +171,22 @@ static struct sk_buff *ksz9893_xmit(struct sk_buff *skb,
 	return nskb;
 }
 
-const struct dsa_device_ops ksz9893_netdev_ops = {
+static const struct dsa_device_ops ksz9893_netdev_ops = {
+	.name	= "ksz9893",
+	.proto	= DSA_TAG_PROTO_KSZ9893,
 	.xmit	= ksz9893_xmit,
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ_INGRESS_TAG_LEN,
 };
+
+DSA_TAG_DRIVER(ksz9893_netdev_ops);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9893);
+
+static struct dsa_tag_driver *dsa_tag_driver_array[] = {
+	&DSA_TAG_DRIVER_NAME(ksz9477_netdev_ops),
+	&DSA_TAG_DRIVER_NAME(ksz9893_netdev_ops),
+};
+
+module_dsa_tag_drivers(dsa_tag_driver_array);
+
+MODULE_LICENSE("GPL");

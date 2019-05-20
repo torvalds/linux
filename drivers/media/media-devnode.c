@@ -251,6 +251,7 @@ int __must_check media_devnode_register(struct media_device *mdev,
 	/* Part 2: Initialize the character device */
 	cdev_init(&devnode->cdev, &media_devnode_fops);
 	devnode->cdev.owner = owner;
+	kobject_set_name(&devnode->cdev.kobj, "media%d", devnode->minor);
 
 	/* Part 3: Add the media and char device */
 	ret = cdev_device_add(&devnode->cdev, &devnode->dev);
@@ -290,8 +291,9 @@ void media_devnode_unregister(struct media_devnode *devnode)
 	mutex_lock(&media_devnode_lock);
 	/* Delete the cdev on this minor as well */
 	cdev_device_del(&devnode->cdev, &devnode->dev);
-	mutex_unlock(&media_devnode_lock);
 	devnode->media_dev = NULL;
+	mutex_unlock(&media_devnode_lock);
+
 	put_device(&devnode->dev);
 }
 

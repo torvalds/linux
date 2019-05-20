@@ -48,7 +48,6 @@
 #include "meson_vpp.h"
 #include "meson_viu.h"
 #include "meson_venc.h"
-#include "meson_canvas.h"
 #include "meson_registers.h"
 
 #define DRIVER_NAME "meson"
@@ -91,6 +90,18 @@ static irqreturn_t meson_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static int meson_dumb_create(struct drm_file *file, struct drm_device *dev,
+			     struct drm_mode_create_dumb *args)
+{
+	/*
+	 * We need 64bytes aligned stride, and PAGE aligned size
+	 */
+	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8), SZ_64);
+	args->size = PAGE_ALIGN(args->pitch * args->height);
+
+	return drm_gem_cma_dumb_create_internal(file, dev, args);
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver meson_driver = {
@@ -113,7 +124,7 @@ static struct drm_driver meson_driver = {
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 
 	/* GEM Ops */
-	.dumb_create		= drm_gem_cma_dumb_create,
+	.dumb_create		= meson_dumb_create,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
@@ -231,50 +242,31 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	}
 
 	priv->canvas = meson_canvas_get(dev);
-	if (!IS_ERR(priv->canvas)) {
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_osd1);
-		if (ret)
-			goto free_drm;
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_0);
-		if (ret) {
-			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
-			goto free_drm;
-		}
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_1);
-		if (ret) {
-			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
-			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
-			goto free_drm;
-		}
-		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_2);
-		if (ret) {
-			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
-			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
-			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
-			goto free_drm;
-		}
-	} else {
-		priv->canvas = NULL;
+	if (IS_ERR(priv->canvas)) {
+		ret = PTR_ERR(priv->canvas);
+		goto free_drm;
+	}
 
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmc");
-		if (!res) {
-			ret = -EINVAL;
-			goto free_drm;
-		}
-		/* Simply ioremap since it may be a shared register zone */
-		regs = devm_ioremap(dev, res->start, resource_size(res));
-		if (!regs) {
-			ret = -EADDRNOTAVAIL;
-			goto free_drm;
-		}
-
-		priv->dmc = devm_regmap_init_mmio(dev, regs,
-						  &meson_regmap_config);
-		if (IS_ERR(priv->dmc)) {
-			dev_err(&pdev->dev, "Couldn't create the DMC regmap\n");
-			ret = PTR_ERR(priv->dmc);
-			goto free_drm;
-		}
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_osd1);
+	if (ret)
+		goto free_drm;
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_0);
+	if (ret) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		goto free_drm;
+	}
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_1);
+	if (ret) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+		goto free_drm;
+	}
+	ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_2);
+	if (ret) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+		goto free_drm;
 	}
 
 	priv->vsync_irq = platform_get_irq(pdev, 0);
@@ -467,6 +459,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "amlogic,meson-gxbb-vpu" },
 	{ .compatible = "amlogic,meson-gxl-vpu" },
 	{ .compatible = "amlogic,meson-gxm-vpu" },
+	{ .compatible = "amlogic,meson-g12a-vpu" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);

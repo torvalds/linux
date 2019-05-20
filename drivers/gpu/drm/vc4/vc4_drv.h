@@ -7,7 +7,6 @@
  */
 
 #include <linux/mm_types.h>
-#include <linux/reservation.h>
 #include <drm/drmP.h>
 #include <drm/drm_util.h>
 #include <drm/drm_encoder.h>
@@ -185,9 +184,19 @@ struct vc4_dev {
 	/* Bitmask of the current bin_alloc used for overflow memory. */
 	uint32_t bin_alloc_overflow;
 
+	/* Incremented when an underrun error happened after an atomic commit.
+	 * This is particularly useful to detect when a specific modeset is too
+	 * demanding in term of memory or HVS bandwidth which is hard to guess
+	 * at atomic check time.
+	 */
+	atomic_t underrun;
+
 	struct work_struct overflow_mem_work;
 
 	int power_refcount;
+
+	/* Set to true when the load tracker is active. */
+	bool load_tracker_enabled;
 
 	/* Mutex controlling the power refcount. */
 	struct mutex power_lock;
@@ -201,6 +210,12 @@ struct vc4_dev {
 
 	struct drm_modeset_lock ctm_state_lock;
 	struct drm_private_obj ctm_manager;
+	struct drm_private_obj load_tracker;
+
+	/* List of vc4_debugfs_info_entry for adding to debugfs once
+	 * the minor is available (after drm_dev_register()).
+	 */
+	struct list_head debugfs_list;
 };
 
 static inline struct vc4_dev *
@@ -239,10 +254,6 @@ struct vc4_bo {
 	 * DRM_IOCTL_VC4_CREATE_SHADER_BO.
 	 */
 	struct vc4_validated_shader_info *validated_shader;
-
-	/* normally (resv == &_resv) except for imported bo's */
-	struct reservation_object *resv;
-	struct reservation_object _resv;
 
 	/* One of enum vc4_kernel_bo_type, or VC4_BO_TYPE_COUNT + i
 	 * for user-allocated labels.
@@ -290,6 +301,7 @@ struct vc4_v3d {
 	struct platform_device *pdev;
 	void __iomem *regs;
 	struct clk *clk;
+	struct debugfs_regset32 regset;
 };
 
 struct vc4_hvs {
@@ -306,6 +318,7 @@ struct vc4_hvs {
 	spinlock_t mm_lock;
 
 	struct drm_mm_node mitchell_netravali_filter;
+	struct debugfs_regset32 regset;
 };
 
 struct vc4_plane {
@@ -376,6 +389,16 @@ struct vc4_plane_state {
 	 * when async update is not possible.
 	 */
 	bool dlist_initialized;
+
+	/* Load of this plane on the HVS block. The load is expressed in HVS
+	 * cycles/sec.
+	 */
+	u64 hvs_load;
+
+	/* Memory bandwidth needed for this plane. This is expressed in
+	 * bytes/sec.
+	 */
+	u64 membus_load;
 };
 
 static inline struct vc4_plane_state *
@@ -411,10 +434,12 @@ struct vc4_crtc_data {
 	int hvs_channel;
 
 	enum vc4_encoder_type encoder_types[4];
+	const char *debugfs_name;
 };
 
 struct vc4_crtc {
 	struct drm_crtc base;
+	struct platform_device *pdev;
 	const struct vc4_crtc_data *data;
 	void __iomem *regs;
 
@@ -431,6 +456,8 @@ struct vc4_crtc {
 	u32 cob_size;
 
 	struct drm_pending_vblank_event *event;
+
+	struct debugfs_regset32 regset;
 };
 
 static inline struct vc4_crtc *
@@ -443,6 +470,8 @@ to_vc4_crtc(struct drm_crtc *crtc)
 #define V3D_WRITE(offset, val) writel(val, vc4->v3d->regs + offset)
 #define HVS_READ(offset) readl(vc4->hvs->regs + offset)
 #define HVS_WRITE(offset, val) writel(val, vc4->hvs->regs + offset)
+
+#define VC4_REG32(reg) { .name = #reg, .offset = reg }
 
 struct vc4_exec_info {
 	/* Sequence number for this bin/render job. */
@@ -685,7 +714,6 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 vm_fault_t vc4_fault(struct vm_fault *vmf);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
-struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
@@ -693,7 +721,6 @@ struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
 void *vc4_prime_vmap(struct drm_gem_object *obj);
 int vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
-int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
 int vc4_bo_inc_usecnt(struct vc4_bo *bo);
 void vc4_bo_dec_usecnt(struct vc4_bo *bo);
 void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo);
@@ -701,7 +728,6 @@ void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;
-int vc4_crtc_debugfs_regs(struct seq_file *m, void *arg);
 bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,
 			     ktime_t *stime, ktime_t *etime,
@@ -714,17 +740,37 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
+#ifdef CONFIG_DEBUG_FS
+void vc4_debugfs_add_file(struct drm_device *drm,
+			  const char *filename,
+			  int (*show)(struct seq_file*, void*),
+			  void *data);
+void vc4_debugfs_add_regset32(struct drm_device *drm,
+			      const char *filename,
+			      struct debugfs_regset32 *regset);
+#else
+static inline void vc4_debugfs_add_file(struct drm_device *drm,
+					const char *filename,
+					int (*show)(struct seq_file*, void*),
+					void *data)
+{
+}
+
+static inline void vc4_debugfs_add_regset32(struct drm_device *drm,
+					    const char *filename,
+					    struct debugfs_regset32 *regset)
+{
+}
+#endif
 
 /* vc4_drv.c */
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
 
 /* vc4_dpi.c */
 extern struct platform_driver vc4_dpi_driver;
-int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_dsi.c */
 extern struct platform_driver vc4_dsi_driver;
-int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_fence.c */
 extern const struct dma_fence_ops vc4_fence_ops;
@@ -752,15 +798,12 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_hdmi_driver;
-int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_vec.c */
 extern struct platform_driver vc4_vec_driver;
-int vc4_vec_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_txp.c */
 extern struct platform_driver vc4_txp_driver;
-int vc4_txp_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_irq.c */
 irqreturn_t vc4_irq(int irq, void *arg);
@@ -772,7 +815,8 @@ void vc4_irq_reset(struct drm_device *dev);
 /* vc4_hvs.c */
 extern struct platform_driver vc4_hvs_driver;
 void vc4_hvs_dump_state(struct drm_device *dev);
-int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused);
+void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel);
+void vc4_hvs_mask_underrun(struct drm_device *dev, int channel);
 
 /* vc4_kms.c */
 int vc4_kms_load(struct drm_device *dev);
@@ -787,9 +831,10 @@ void vc4_plane_async_set_fb(struct drm_plane *plane,
 
 /* vc4_v3d.c */
 extern struct platform_driver vc4_v3d_driver;
-int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused);
-int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused);
+extern const struct of_device_id vc4_v3d_dt_match[];
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4);
+int vc4_v3d_pm_get(struct vc4_dev *vc4);
+void vc4_v3d_pm_put(struct vc4_dev *vc4);
 
 /* vc4_validate.c */
 int

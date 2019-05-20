@@ -76,7 +76,7 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = NULL;
-	int ret = -EINVAL;;
+	int ret = -EINVAL;
 	PHM_FUNC_CHECK(hwmgr);
 	adev = hwmgr->adev;
 

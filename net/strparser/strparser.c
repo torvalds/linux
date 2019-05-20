@@ -14,7 +14,8 @@
 #include <linux/file.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/poll.h>
@@ -297,7 +298,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 			break;
 		}
 
-		/* Positive extra indicates ore bytes than needed for the
+		/* Positive extra indicates more bytes than needed for the
 		 * message
 		 */
 
@@ -545,7 +546,7 @@ void strp_check_rcv(struct strparser *strp)
 }
 EXPORT_SYMBOL_GPL(strp_check_rcv);
 
-static int __init strp_mod_init(void)
+static int __init strp_dev_init(void)
 {
 	strp_wq = create_singlethread_workqueue("kstrp");
 	if (unlikely(!strp_wq))
@@ -553,11 +554,4 @@ static int __init strp_mod_init(void)
 
 	return 0;
 }
-
-static void __exit strp_mod_exit(void)
-{
-	destroy_workqueue(strp_wq);
-}
-module_init(strp_mod_init);
-module_exit(strp_mod_exit);
-MODULE_LICENSE("GPL");
+device_initcall(strp_dev_init);
