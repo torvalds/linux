@@ -164,7 +164,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	memcpy(iml_img, trans->iml, trans->iml_len);
 
-	iwl_enable_interrupts(trans);
+	iwl_enable_fw_load_int_ctx_info(trans);
 
 	/* kick FW self load */
 	iwl_write64(trans, CSR_CTXT_INFO_ADDR,
