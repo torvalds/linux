@@ -37,14 +37,10 @@
 static int cxl_fs_cnt;
 static struct vfsmount *cxl_vfs_mount;
 
-static const struct dentry_operations cxl_fs_dops = {
-	.d_dname	= simple_dname,
-};
-
 static struct dentry *cxl_fs_mount(struct file_system_type *fs_type, int flags,
 				const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "cxl:", NULL, &cxl_fs_dops,
+	return mount_pseudo(fs_type, "cxl:", NULL, NULL,
 			CXL_PSEUDO_FS_MAGIC);
 }
 
