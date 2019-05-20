@@ -1,11 +1,5 @@
-/*
- * Copyright (C) 2012 Sven Schnelle <svens@stackframe.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (C) 2012 Sven Schnelle <svens@stackframe.org>
 
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -29,14 +23,6 @@
 #define DS2404_COPY_SCRATCHPAD_CMD 0x55
 #define DS2404_READ_MEMORY_CMD 0xf0
 
-struct ds2404;
-
-struct ds2404_chip_ops {
-	int (*map_io)(struct ds2404 *chip, struct platform_device *pdev,
-		      struct ds2404_platform_data *pdata);
-	void (*unmap_io)(struct ds2404 *chip);
-};
-
 #define DS2404_RST	0
 #define DS2404_CLK	1
 #define DS2404_DQ	2
@@ -48,7 +34,6 @@ struct ds2404_gpio {
 
 struct ds2404 {
 	struct ds2404_gpio *gpio;
-	const struct ds2404_chip_ops *ops;
 	struct rtc_device *rtc;
 };
 
@@ -87,18 +72,13 @@ err_request:
 	return err;
 }
 
-static void ds2404_gpio_unmap(struct ds2404 *chip)
+static void ds2404_gpio_unmap(void *data)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ds2404_gpio); i++)
 		gpio_free(ds2404_gpio[i].gpio);
 }
-
-static const struct ds2404_chip_ops ds2404_gpio_ops = {
-	.map_io		= ds2404_gpio_map,
-	.unmap_io	= ds2404_gpio_unmap,
-};
 
 static void ds2404_reset(struct device *dev)
 {
@@ -206,20 +186,20 @@ static int ds2404_read_time(struct device *dev, struct rtc_time *dt)
 	ds2404_read_memory(dev, 0x203, 4, (u8 *)&time);
 	time = le32_to_cpu(time);
 
-	rtc_time_to_tm(time, dt);
+	rtc_time64_to_tm(time, dt);
 	return 0;
 }
 
-static int ds2404_set_mmss(struct device *dev, unsigned long secs)
+static int ds2404_set_time(struct device *dev, struct rtc_time *dt)
 {
-	u32 time = cpu_to_le32(secs);
+	u32 time = cpu_to_le32(rtc_tm_to_time64(dt));
 	ds2404_write_memory(dev, 0x203, 4, (u8 *)&time);
 	return 0;
 }
 
 static const struct rtc_class_ops ds2404_rtc_ops = {
 	.read_time	= ds2404_read_time,
-	.set_mmss	= ds2404_set_mmss,
+	.set_time	= ds2404_set_time,
 };
 
 static int rtc_probe(struct platform_device *pdev)
@@ -232,11 +212,17 @@ static int rtc_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	chip->ops = &ds2404_gpio_ops;
+	chip->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(chip->rtc))
+		return PTR_ERR(chip->rtc);
 
-	retval = chip->ops->map_io(chip, pdev, pdata);
+	retval = ds2404_gpio_map(chip, pdev, pdata);
 	if (retval)
-		goto err_chip;
+		return retval;
+
+	retval = devm_add_action_or_reset(&pdev->dev, ds2404_gpio_unmap, chip);
+	if (retval)
+		return retval;
 
 	dev_info(&pdev->dev, "using GPIOs RST:%d, CLK:%d, DQ:%d\n",
 		 chip->gpio[DS2404_RST].gpio, chip->gpio[DS2404_CLK].gpio,
@@ -244,34 +230,19 @@ static int rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
-	chip->rtc = devm_rtc_device_register(&pdev->dev, "ds2404",
-					&ds2404_rtc_ops, THIS_MODULE);
-	if (IS_ERR(chip->rtc)) {
-		retval = PTR_ERR(chip->rtc);
-		goto err_io;
-	}
+	chip->rtc->ops = &ds2404_rtc_ops;
+	chip->rtc->range_max = U32_MAX;
+
+	retval = rtc_register_device(chip->rtc);
+	if (retval)
+		return retval;
 
 	ds2404_enable_osc(&pdev->dev);
-	return 0;
-
-err_io:
-	chip->ops->unmap_io(chip);
-err_chip:
-	return retval;
-}
-
-static int rtc_remove(struct platform_device *dev)
-{
-	struct ds2404 *chip = platform_get_drvdata(dev);
-
-	chip->ops->unmap_io(chip);
-
 	return 0;
 }
 
 static struct platform_driver rtc_device_driver = {
 	.probe	= rtc_probe,
-	.remove = rtc_remove,
 	.driver = {
 		.name	= "ds2404",
 	},

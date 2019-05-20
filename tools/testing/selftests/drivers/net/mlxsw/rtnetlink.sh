@@ -27,6 +27,7 @@ ALL_TESTS="
 	lag_dev_deletion_test
 	vlan_interface_uppers_test
 	bridge_extern_learn_test
+	neigh_offload_test
 	devlink_reload_test
 "
 NUM_NETIFS=2
@@ -579,6 +580,31 @@ bridge_extern_learn_test()
 	log_test "externally learned fdb entry"
 
 	ip link del dev br0
+}
+
+neigh_offload_test()
+{
+	# Test that IPv4 and IPv6 neighbour entries are marked as offloaded
+	RET=0
+
+	ip -4 address add 192.0.2.1/24 dev $swp1
+	ip -6 address add 2001:db8:1::1/64 dev $swp1
+
+	ip -4 neigh add 192.0.2.2 lladdr de:ad:be:ef:13:37 nud perm dev $swp1
+	ip -6 neigh add 2001:db8:1::2 lladdr de:ad:be:ef:13:37 nud perm \
+		dev $swp1
+
+	ip -4 neigh show dev $swp1 | grep 192.0.2.2 | grep -q offload
+	check_err $? "ipv4 neigh entry not marked as offloaded when should"
+	ip -6 neigh show dev $swp1 | grep 2001:db8:1::2 | grep -q offload
+	check_err $? "ipv6 neigh entry not marked as offloaded when should"
+
+	log_test "neighbour offload indication"
+
+	ip -6 neigh del 2001:db8:1::2 dev $swp1
+	ip -4 neigh del 192.0.2.2 dev $swp1
+	ip -6 address del 2001:db8:1::1/64 dev $swp1
+	ip -4 address del 192.0.2.1/24 dev $swp1
 }
 
 devlink_reload_test()

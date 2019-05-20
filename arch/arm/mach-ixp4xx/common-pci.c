@@ -31,7 +31,7 @@
 
 #include <asm/cputype.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/mach/pci.h>
 #include <mach/hardware.h>
 

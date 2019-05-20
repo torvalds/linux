@@ -170,7 +170,7 @@ static const struct i2c_device_id tmp103_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp103_id);
 
-static const struct of_device_id tmp103_of_match[] = {
+static const struct of_device_id __maybe_unused tmp103_of_match[] = {
 	{ .compatible = "ti,tmp103" },
 	{ },
 };

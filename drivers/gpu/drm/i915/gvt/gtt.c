@@ -811,7 +811,7 @@ static int reclaim_one_ppgtt_mm(struct intel_gvt *gvt);
 
 /* Allocate shadow page table without guest page. */
 static struct intel_vgpu_ppgtt_spt *ppgtt_alloc_spt(
-		struct intel_vgpu *vgpu, intel_gvt_gtt_type_t type)
+		struct intel_vgpu *vgpu, enum intel_gvt_gtt_type type)
 {
 	struct device *kdev = &vgpu->gvt->dev_priv->drm.pdev->dev;
 	struct intel_vgpu_ppgtt_spt *spt = NULL;
@@ -861,7 +861,7 @@ err_free_spt:
 
 /* Allocate shadow page table associated with specific gfn. */
 static struct intel_vgpu_ppgtt_spt *ppgtt_alloc_spt_gfn(
-		struct intel_vgpu *vgpu, intel_gvt_gtt_type_t type,
+		struct intel_vgpu *vgpu, enum intel_gvt_gtt_type type,
 		unsigned long gfn, bool guest_pde_ips)
 {
 	struct intel_vgpu_ppgtt_spt *spt;
@@ -936,7 +936,7 @@ static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	struct intel_vgpu_ppgtt_spt *s;
-	intel_gvt_gtt_type_t cur_pt_type;
+	enum intel_gvt_gtt_type cur_pt_type;
 
 	GEM_BUG_ON(!gtt_type_is_pt(get_next_pt_type(e->type)));
 
@@ -1075,6 +1075,9 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 		}
 	} else {
 		int type = get_next_pt_type(we->type);
+
+		if (!gtt_type_is_pt(type))
+			goto err;
 
 		spt = ppgtt_alloc_spt_gfn(vgpu, type, ops->get_pfn(we), ips);
 		if (IS_ERR(spt)) {
@@ -1855,7 +1858,7 @@ static void vgpu_free_mm(struct intel_vgpu_mm *mm)
  * Zero on success, negative error code in pointer if failed.
  */
 struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t root_entry_type, u64 pdps[])
+		enum intel_gvt_gtt_type root_entry_type, u64 pdps[])
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_vgpu_mm *mm;
@@ -2309,7 +2312,7 @@ int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 }
 
 static int alloc_scratch_pages(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t type)
+		enum intel_gvt_gtt_type type)
 {
 	struct intel_vgpu_gtt *gtt = &vgpu->gtt;
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
@@ -2504,6 +2507,7 @@ static void clean_spt_oos(struct intel_gvt *gvt)
 	list_for_each_safe(pos, n, &gtt->oos_page_free_list_head) {
 		oos_page = container_of(pos, struct intel_vgpu_oos_page, list);
 		list_del(&oos_page->list);
+		free_page((unsigned long)oos_page->mem);
 		kfree(oos_page);
 	}
 }
@@ -2522,6 +2526,12 @@ static int setup_spt_oos(struct intel_gvt *gvt)
 		oos_page = kzalloc(sizeof(*oos_page), GFP_KERNEL);
 		if (!oos_page) {
 			ret = -ENOMEM;
+			goto fail;
+		}
+		oos_page->mem = (void *)__get_free_pages(GFP_KERNEL, 0);
+		if (!oos_page->mem) {
+			ret = -ENOMEM;
+			kfree(oos_page);
 			goto fail;
 		}
 
@@ -2587,7 +2597,7 @@ struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
  * Zero on success, negative error code if failed.
  */
 struct intel_vgpu_mm *intel_vgpu_get_ppgtt_mm(struct intel_vgpu *vgpu,
-		intel_gvt_gtt_type_t root_entry_type, u64 pdps[])
+		enum intel_gvt_gtt_type root_entry_type, u64 pdps[])
 {
 	struct intel_vgpu_mm *mm;
 

@@ -376,7 +376,7 @@ static int wdrtas_open(struct inode *inode, struct file *file)
 	wdrtas_timer_start();
 	wdrtas_timer_keepalive();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /**
@@ -442,7 +442,7 @@ static ssize_t wdrtas_temp_read(struct file *file, char __user *buf,
  */
 static int wdrtas_temp_open(struct inode *inode, struct file *file)
 {
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /**

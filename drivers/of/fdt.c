@@ -1131,7 +1131,7 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 			strncpy(cmdline + cmdline_len, p, copy_len);
 			cmdline[cmdline_len + copy_len] = '\0';
 		} else {
-			strlcpy(cmdline, p, min((int)l, COMMAND_LINE_SIZE));
+			strlcpy(cmdline, p, min(l, COMMAND_LINE_SIZE));
 		}
 	}
 

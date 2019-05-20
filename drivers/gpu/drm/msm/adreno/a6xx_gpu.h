@@ -46,9 +46,8 @@ struct a6xx_gpu {
 int a6xx_gmu_resume(struct a6xx_gpu *gpu);
 int a6xx_gmu_stop(struct a6xx_gpu *gpu);
 
-int a6xx_gmu_wait_for_idle(struct a6xx_gpu *gpu);
+int a6xx_gmu_wait_for_idle(struct a6xx_gmu *gmu);
 
-int a6xx_gmu_reset(struct a6xx_gpu *a6xx_gpu);
 bool a6xx_gmu_isidle(struct a6xx_gmu *gmu);
 
 int a6xx_gmu_set_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state);

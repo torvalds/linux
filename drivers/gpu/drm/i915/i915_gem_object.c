@@ -24,6 +24,22 @@
 
 #include "i915_drv.h"
 #include "i915_gem_object.h"
+#include "i915_globals.h"
+
+static struct i915_global_object {
+	struct i915_global base;
+	struct kmem_cache *slab_objects;
+} global;
+
+struct drm_i915_gem_object *i915_gem_object_alloc(void)
+{
+	return kmem_cache_zalloc(global.slab_objects, GFP_KERNEL);
+}
+
+void i915_gem_object_free(struct drm_i915_gem_object *obj)
+{
+	return kmem_cache_free(global.slab_objects, obj);
+}
 
 /**
  * Mark up the object's coherency levels for a given cache_level
@@ -45,4 +61,30 @@ void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 
 	obj->cache_dirty =
 		!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE);
+}
+
+static void i915_global_objects_shrink(void)
+{
+	kmem_cache_shrink(global.slab_objects);
+}
+
+static void i915_global_objects_exit(void)
+{
+	kmem_cache_destroy(global.slab_objects);
+}
+
+static struct i915_global_object global = { {
+	.shrink = i915_global_objects_shrink,
+	.exit = i915_global_objects_exit,
+} };
+
+int __init i915_global_objects_init(void)
+{
+	global.slab_objects =
+		KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
+	if (!global.slab_objects)
+		return -ENOMEM;
+
+	i915_global_register(&global.base);
+	return 0;
 }

@@ -136,6 +136,7 @@ struct genl_family nl802154_family __ro_after_init = {
 	.name		= IEEE802154_NL_NAME,
 	.version	= 1,
 	.maxattr	= IEEE802154_ATTR_MAX,
+	.policy		= ieee802154_policy,
 	.module		= THIS_MODULE,
 	.ops		= ieee802154_ops,
 	.n_ops		= ARRAY_SIZE(ieee802154_ops),

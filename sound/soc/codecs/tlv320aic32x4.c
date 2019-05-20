@@ -14,7 +14,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -33,6 +33,7 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/of_clk.h>
 #include <linux/regulator/consumer.h>
 
 #include <sound/tlv320aic32x4.h>
@@ -46,29 +47,13 @@
 
 #include "tlv320aic32x4.h"
 
-struct aic32x4_rate_divs {
-	u32 mclk;
-	u32 rate;
-	u8 p_val;
-	u8 pll_j;
-	u16 pll_d;
-	u16 dosr;
-	u8 ndac;
-	u8 mdac;
-	u8 aosr;
-	u8 nadc;
-	u8 madc;
-	u8 blck_N;
-};
-
 struct aic32x4_priv {
 	struct regmap *regmap;
-	u32 sysclk;
 	u32 power_cfg;
 	u32 micpga_routing;
 	bool swapdacs;
 	int rstn_gpio;
-	struct clk *mclk;
+	const char *mclk_name;
 
 	struct regulator *supply_ldo;
 	struct regulator *supply_iov;
@@ -257,9 +242,24 @@ static DECLARE_TLV_DB_SCALE(tlv_driver_gain, -600, 100, 0);
 /* -12dB min, 0.5dB steps */
 static DECLARE_TLV_DB_SCALE(tlv_adc_vol, -1200, 50, 0);
 
+static const char * const lo_cm_text[] = {
+	"Full Chip", "1.65V",
+};
+
+static SOC_ENUM_SINGLE_DECL(lo_cm_enum, AIC32X4_CMMODE, 3, lo_cm_text);
+
+static const char * const ptm_text[] = {
+	"P3", "P2", "P1",
+};
+
+static SOC_ENUM_SINGLE_DECL(l_ptm_enum, AIC32X4_LPLAYBACK, 2, ptm_text);
+static SOC_ENUM_SINGLE_DECL(r_ptm_enum, AIC32X4_RPLAYBACK, 2, ptm_text);
+
 static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 	SOC_DOUBLE_R_S_TLV("PCM Playback Volume", AIC32X4_LDACVOL,
 			AIC32X4_RDACVOL, 0, -0x7f, 0x30, 7, 0, tlv_pcm),
+	SOC_ENUM("DAC Left Playback PowerTune Switch", l_ptm_enum),
+	SOC_ENUM("DAC Right Playback PowerTune Switch", r_ptm_enum),
 	SOC_DOUBLE_R_S_TLV("HP Driver Gain Volume", AIC32X4_HPLGAIN,
 			AIC32X4_HPRGAIN, 0, -0x6, 0x1d, 5, 0,
 			tlv_driver_gain),
@@ -270,6 +270,7 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 			AIC32X4_HPRGAIN, 6, 0x01, 1),
 	SOC_DOUBLE_R("LO DAC Playback Switch", AIC32X4_LOLGAIN,
 			AIC32X4_LORGAIN, 6, 0x01, 1),
+	SOC_ENUM("LO Playback Common Mode Switch", lo_cm_enum),
 	SOC_DOUBLE_R("Mic PGA Switch", AIC32X4_LMICPGAVOL,
 			AIC32X4_RMICPGAVOL, 7, 0x01, 1),
 
@@ -303,38 +304,6 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 			0, 0x1F, 0),
 	SOC_DOUBLE_R("AGC Signal Debounce", AIC32X4_LAGC7, AIC32X4_RAGC7,
 			0, 0x0F, 0),
-};
-
-static const struct aic32x4_rate_divs aic32x4_divs[] = {
-	/* 8k rate */
-	{12000000, 8000, 1, 7, 6800, 768, 5, 3, 128, 5, 18, 24},
-	{24000000, 8000, 2, 7, 6800, 768, 15, 1, 64, 45, 4, 24},
-	{25000000, 8000, 2, 7, 3728, 768, 15, 1, 64, 45, 4, 24},
-	/* 11.025k rate */
-	{12000000, 11025, 1, 7, 5264, 512, 8, 2, 128, 8, 8, 16},
-	{24000000, 11025, 2, 7, 5264, 512, 16, 1, 64, 32, 4, 16},
-	/* 16k rate */
-	{12000000, 16000, 1, 7, 6800, 384, 5, 3, 128, 5, 9, 12},
-	{24000000, 16000, 2, 7, 6800, 384, 15, 1, 64, 18, 5, 12},
-	{25000000, 16000, 2, 7, 3728, 384, 15, 1, 64, 18, 5, 12},
-	/* 22.05k rate */
-	{12000000, 22050, 1, 7, 5264, 256, 4, 4, 128, 4, 8, 8},
-	{24000000, 22050, 2, 7, 5264, 256, 16, 1, 64, 16, 4, 8},
-	{25000000, 22050, 2, 7, 2253, 256, 16, 1, 64, 16, 4, 8},
-	/* 32k rate */
-	{12000000, 32000, 1, 7, 1680, 192, 2, 7, 64, 2, 21, 6},
-	{24000000, 32000, 2, 7, 1680, 192, 7, 2, 64, 7, 6, 6},
-	/* 44.1k rate */
-	{12000000, 44100, 1, 7, 5264, 128, 2, 8, 128, 2, 8, 4},
-	{24000000, 44100, 2, 7, 5264, 128, 8, 2, 64, 8, 4, 4},
-	{25000000, 44100, 2, 7, 2253, 128, 8, 2, 64, 8, 4, 4},
-	/* 48k rate */
-	{12000000, 48000, 1, 8, 1920, 128, 2, 8, 128, 2, 8, 4},
-	{24000000, 48000, 2, 8, 1920, 128, 8, 2, 64, 8, 4, 4},
-	{25000000, 48000, 2, 7, 8643, 128, 8, 2, 64, 8, 4, 4},
-
-	/* 96k rate */
-	{25000000, 96000, 2, 7, 8643, 64, 4, 4, 64, 4, 4, 1},
 };
 
 static const struct snd_kcontrol_new hpl_output_mixer_controls[] = {
@@ -391,7 +360,7 @@ static const struct snd_kcontrol_new in3r_to_lmixer_controls[] = {
 	SOC_DAPM_ENUM("IN3_R L- Switch", in3r_lpga_n_enum),
 };
 
-/*  Right mixer pins */
+/*	Right mixer pins */
 static SOC_ENUM_SINGLE_DECL(in1r_rpga_p_enum, AIC32X4_RMICPGAPIN, 6, resistor_text);
 static SOC_ENUM_SINGLE_DECL(in2r_rpga_p_enum, AIC32X4_RMICPGAPIN, 4, resistor_text);
 static SOC_ENUM_SINGLE_DECL(in3r_rpga_p_enum, AIC32X4_RMICPGAPIN, 2, resistor_text);
@@ -595,7 +564,7 @@ static const struct snd_soc_dapm_route aic32x4_dapm_routes[] = {
 static const struct regmap_range_cfg aic32x4_regmap_pages[] = {
 	{
 		.selector_reg = 0,
-		.selector_mask  = 0xff,
+		.selector_mask	= 0xff,
 		.window_start = 0,
 		.window_len = 128,
 		.range_min = 0,
@@ -610,35 +579,17 @@ const struct regmap_config aic32x4_regmap_config = {
 };
 EXPORT_SYMBOL(aic32x4_regmap_config);
 
-static inline int aic32x4_get_divs(int mclk, int rate)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(aic32x4_divs); i++) {
-		if ((aic32x4_divs[i].rate == rate)
-		    && (aic32x4_divs[i].mclk == mclk)) {
-			return i;
-		}
-	}
-	printk(KERN_ERR "aic32x4: master clock and sample rate is not supported\n");
-	return -EINVAL;
-}
-
 static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_component *component = codec_dai->component;
-	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
+	struct clk *mclk;
+	struct clk *pll;
 
-	switch (freq) {
-	case 12000000:
-	case 24000000:
-	case 25000000:
-		aic32x4->sysclk = freq;
-		return 0;
-	}
-	printk(KERN_ERR "aic32x4: invalid frequency to set DAI system clock\n");
-	return -EINVAL;
+	pll = devm_clk_get(component->dev, "pll");
+	mclk = clk_get_parent(pll);
+
+	return clk_set_rate(mclk, freq);
 }
 
 static int aic32x4_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -688,103 +639,175 @@ static int aic32x4_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	snd_soc_component_update_bits(component, AIC32X4_IFACE1,
-			    AIC32X4_IFACE1_DATATYPE_MASK |
-			    AIC32X4_IFACE1_MASTER_MASK, iface_reg_1);
+				AIC32X4_IFACE1_DATATYPE_MASK |
+				AIC32X4_IFACE1_MASTER_MASK, iface_reg_1);
 	snd_soc_component_update_bits(component, AIC32X4_IFACE2,
-			    AIC32X4_DATA_OFFSET_MASK, iface_reg_2);
+				AIC32X4_DATA_OFFSET_MASK, iface_reg_2);
 	snd_soc_component_update_bits(component, AIC32X4_IFACE3,
-			    AIC32X4_BCLKINV_MASK, iface_reg_3);
+				AIC32X4_BCLKINV_MASK, iface_reg_3);
 
 	return 0;
 }
 
+static int aic32x4_set_aosr(struct snd_soc_component *component, u8 aosr)
+{
+	return snd_soc_component_write(component, AIC32X4_AOSR, aosr);
+}
+
+static int aic32x4_set_dosr(struct snd_soc_component *component, u16 dosr)
+{
+	snd_soc_component_write(component, AIC32X4_DOSRMSB, dosr >> 8);
+	snd_soc_component_write(component, AIC32X4_DOSRLSB,
+		      (dosr & 0xff));
+
+	return 0;
+}
+
+static int aic32x4_set_processing_blocks(struct snd_soc_component *component,
+						u8 r_block, u8 p_block)
+{
+	if (r_block > 18 || p_block > 25)
+		return -EINVAL;
+
+	snd_soc_component_write(component, AIC32X4_ADCSPB, r_block);
+	snd_soc_component_write(component, AIC32X4_DACSPB, p_block);
+
+	return 0;
+}
+
+static int aic32x4_setup_clocks(struct snd_soc_component *component,
+				unsigned int sample_rate)
+{
+	u8 aosr;
+	u16 dosr;
+	u8 adc_resource_class, dac_resource_class;
+	u8 madc, nadc, mdac, ndac, max_nadc, min_mdac, max_ndac;
+	u8 dosr_increment;
+	u16 max_dosr, min_dosr;
+	unsigned long adc_clock_rate, dac_clock_rate;
+	int ret;
+
+	struct clk_bulk_data clocks[] = {
+		{ .id = "pll" },
+		{ .id = "nadc" },
+		{ .id = "madc" },
+		{ .id = "ndac" },
+		{ .id = "mdac" },
+		{ .id = "bdiv" },
+	};
+	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
+	if (ret)
+		return ret;
+
+	if (sample_rate <= 48000) {
+		aosr = 128;
+		adc_resource_class = 6;
+		dac_resource_class = 8;
+		dosr_increment = 8;
+		aic32x4_set_processing_blocks(component, 1, 1);
+	} else if (sample_rate <= 96000) {
+		aosr = 64;
+		adc_resource_class = 6;
+		dac_resource_class = 8;
+		dosr_increment = 4;
+		aic32x4_set_processing_blocks(component, 1, 9);
+	} else if (sample_rate == 192000) {
+		aosr = 32;
+		adc_resource_class = 3;
+		dac_resource_class = 4;
+		dosr_increment = 2;
+		aic32x4_set_processing_blocks(component, 13, 19);
+	} else {
+		dev_err(component->dev, "Sampling rate not supported\n");
+		return -EINVAL;
+	}
+
+	madc = DIV_ROUND_UP((32 * adc_resource_class), aosr);
+	max_dosr = (AIC32X4_MAX_DOSR_FREQ / sample_rate / dosr_increment) *
+			dosr_increment;
+	min_dosr = (AIC32X4_MIN_DOSR_FREQ / sample_rate / dosr_increment) *
+			dosr_increment;
+	max_nadc = AIC32X4_MAX_CODEC_CLKIN_FREQ / (madc * aosr * sample_rate);
+
+	for (nadc = max_nadc; nadc > 0; --nadc) {
+		adc_clock_rate = nadc * madc * aosr * sample_rate;
+		for (dosr = max_dosr; dosr >= min_dosr;
+				dosr -= dosr_increment) {
+			min_mdac = DIV_ROUND_UP((32 * dac_resource_class), dosr);
+			max_ndac = AIC32X4_MAX_CODEC_CLKIN_FREQ /
+					(min_mdac * dosr * sample_rate);
+			for (mdac = min_mdac; mdac <= 128; ++mdac) {
+				for (ndac = max_ndac; ndac > 0; --ndac) {
+					dac_clock_rate = ndac * mdac * dosr *
+							sample_rate;
+					if (dac_clock_rate == adc_clock_rate) {
+						if (clk_round_rate(clocks[0].clk, dac_clock_rate) == 0)
+							continue;
+
+						clk_set_rate(clocks[0].clk,
+							dac_clock_rate);
+
+						clk_set_rate(clocks[1].clk,
+							sample_rate * aosr *
+							madc);
+						clk_set_rate(clocks[2].clk,
+							sample_rate * aosr);
+						aic32x4_set_aosr(component,
+							aosr);
+
+						clk_set_rate(clocks[3].clk,
+							sample_rate * dosr *
+							mdac);
+						clk_set_rate(clocks[4].clk,
+							sample_rate * dosr);
+						aic32x4_set_dosr(component,
+							dosr);
+
+						clk_set_rate(clocks[5].clk,
+							sample_rate * 32);
+						return 0;
+					}
+				}
+			}
+		}
+	}
+
+	dev_err(component->dev,
+		"Could not set clocks to support sample rate.\n");
+	return -EINVAL;
+}
+
 static int aic32x4_hw_params(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *params,
-			     struct snd_soc_dai *dai)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	u8 iface1_reg = 0;
 	u8 dacsetup_reg = 0;
-	int i;
 
-	i = aic32x4_get_divs(aic32x4->sysclk, params_rate(params));
-	if (i < 0) {
-		printk(KERN_ERR "aic32x4: sampling rate not supported\n");
-		return i;
-	}
-
-	/* MCLK as PLL_CLKIN */
-	snd_soc_component_update_bits(component, AIC32X4_CLKMUX, AIC32X4_PLL_CLKIN_MASK,
-			    AIC32X4_PLL_CLKIN_MCLK << AIC32X4_PLL_CLKIN_SHIFT);
-	/* PLL as CODEC_CLKIN */
-	snd_soc_component_update_bits(component, AIC32X4_CLKMUX, AIC32X4_CODEC_CLKIN_MASK,
-			    AIC32X4_CODEC_CLKIN_PLL << AIC32X4_CODEC_CLKIN_SHIFT);
-	/* DAC_MOD_CLK as BDIV_CLKIN */
-	snd_soc_component_update_bits(component, AIC32X4_IFACE3, AIC32X4_BDIVCLK_MASK,
-			    AIC32X4_DACMOD2BCLK << AIC32X4_BDIVCLK_SHIFT);
-
-	/* We will fix R value to 1 and will make P & J=K.D as variable */
-	snd_soc_component_update_bits(component, AIC32X4_PLLPR, AIC32X4_PLL_R_MASK, 0x01);
-
-	/* PLL P value */
-	snd_soc_component_update_bits(component, AIC32X4_PLLPR, AIC32X4_PLL_P_MASK,
-			    aic32x4_divs[i].p_val << AIC32X4_PLL_P_SHIFT);
-
-	/* PLL J value */
-	snd_soc_component_write(component, AIC32X4_PLLJ, aic32x4_divs[i].pll_j);
-
-	/* PLL D value */
-	snd_soc_component_write(component, AIC32X4_PLLDMSB, (aic32x4_divs[i].pll_d >> 8));
-	snd_soc_component_write(component, AIC32X4_PLLDLSB, (aic32x4_divs[i].pll_d & 0xff));
-
-	/* NDAC divider value */
-	snd_soc_component_update_bits(component, AIC32X4_NDAC,
-			    AIC32X4_NDAC_MASK, aic32x4_divs[i].ndac);
-
-	/* MDAC divider value */
-	snd_soc_component_update_bits(component, AIC32X4_MDAC,
-			    AIC32X4_MDAC_MASK, aic32x4_divs[i].mdac);
-
-	/* DOSR MSB & LSB values */
-	snd_soc_component_write(component, AIC32X4_DOSRMSB, aic32x4_divs[i].dosr >> 8);
-	snd_soc_component_write(component, AIC32X4_DOSRLSB, (aic32x4_divs[i].dosr & 0xff));
-
-	/* NADC divider value */
-	snd_soc_component_update_bits(component, AIC32X4_NADC,
-			    AIC32X4_NADC_MASK, aic32x4_divs[i].nadc);
-
-	/* MADC divider value */
-	snd_soc_component_update_bits(component, AIC32X4_MADC,
-			    AIC32X4_MADC_MASK, aic32x4_divs[i].madc);
-
-	/* AOSR value */
-	snd_soc_component_write(component, AIC32X4_AOSR, aic32x4_divs[i].aosr);
-
-	/* BCLK N divider */
-	snd_soc_component_update_bits(component, AIC32X4_BCLKN,
-			    AIC32X4_BCLK_MASK, aic32x4_divs[i].blck_N);
+	aic32x4_setup_clocks(component, params_rate(params));
 
 	switch (params_width(params)) {
 	case 16:
 		iface1_reg |= (AIC32X4_WORD_LEN_16BITS <<
-			       AIC32X4_IFACE1_DATALEN_SHIFT);
+				   AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 20:
 		iface1_reg |= (AIC32X4_WORD_LEN_20BITS <<
-			       AIC32X4_IFACE1_DATALEN_SHIFT);
+				   AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 24:
 		iface1_reg |= (AIC32X4_WORD_LEN_24BITS <<
-			       AIC32X4_IFACE1_DATALEN_SHIFT);
+				   AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 32:
 		iface1_reg |= (AIC32X4_WORD_LEN_32BITS <<
-			       AIC32X4_IFACE1_DATALEN_SHIFT);
+				   AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	}
 	snd_soc_component_update_bits(component, AIC32X4_IFACE1,
-			    AIC32X4_IFACE1_DATALEN_MASK, iface1_reg);
+				AIC32X4_IFACE1_DATALEN_MASK, iface1_reg);
 
 	if (params_channels(params) == 1) {
 		dacsetup_reg = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2LCHN;
@@ -795,7 +818,7 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 			dacsetup_reg = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
 	}
 	snd_soc_component_update_bits(component, AIC32X4_DACSETUP,
-			    AIC32X4_DAC_CHAN_MASK, dacsetup_reg);
+				AIC32X4_DAC_CHAN_MASK, dacsetup_reg);
 
 	return 0;
 }
@@ -805,7 +828,7 @@ static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
 	struct snd_soc_component *component = dai->component;
 
 	snd_soc_component_update_bits(component, AIC32X4_DACMUTE,
-			    AIC32X4_MUTEON, mute ? AIC32X4_MUTEON : 0);
+				AIC32X4_MUTEON, mute ? AIC32X4_MUTEON : 0);
 
 	return 0;
 }
@@ -813,41 +836,25 @@ static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
 static int aic32x4_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
-	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	struct clk_bulk_data clocks[] = {
+		{ .id = "madc" },
+		{ .id = "mdac" },
+		{ .id = "bdiv" },
+	};
+
+	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
+	if (ret)
+		return ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		/* Switch on master clock */
-		ret = clk_prepare_enable(aic32x4->mclk);
+		ret = clk_bulk_prepare_enable(ARRAY_SIZE(clocks), clocks);
 		if (ret) {
-			dev_err(component->dev, "Failed to enable master clock\n");
+			dev_err(component->dev, "Failed to enable clocks\n");
 			return ret;
 		}
-
-		/* Switch on PLL */
-		snd_soc_component_update_bits(component, AIC32X4_PLLPR,
-				    AIC32X4_PLLEN, AIC32X4_PLLEN);
-
-		/* Switch on NDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NDAC,
-				    AIC32X4_NDACEN, AIC32X4_NDACEN);
-
-		/* Switch on MDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MDAC,
-				    AIC32X4_MDACEN, AIC32X4_MDACEN);
-
-		/* Switch on NADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NADC,
-				    AIC32X4_NADCEN, AIC32X4_NADCEN);
-
-		/* Switch on MADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MADC,
-				    AIC32X4_MADCEN, AIC32X4_MADCEN);
-
-		/* Switch on BCLK_N Divider */
-		snd_soc_component_update_bits(component, AIC32X4_BCLKN,
-				    AIC32X4_BCLKEN, AIC32X4_BCLKEN);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
@@ -856,32 +863,7 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
 			break;
 
-		/* Switch off BCLK_N Divider */
-		snd_soc_component_update_bits(component, AIC32X4_BCLKN,
-				    AIC32X4_BCLKEN, 0);
-
-		/* Switch off MADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MADC,
-				    AIC32X4_MADCEN, 0);
-
-		/* Switch off NADC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NADC,
-				    AIC32X4_NADCEN, 0);
-
-		/* Switch off MDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_MDAC,
-				    AIC32X4_MDACEN, 0);
-
-		/* Switch off NDAC Divider */
-		snd_soc_component_update_bits(component, AIC32X4_NDAC,
-				    AIC32X4_NDACEN, 0);
-
-		/* Switch off PLL */
-		snd_soc_component_update_bits(component, AIC32X4_PLLPR,
-				    AIC32X4_PLLEN, 0);
-
-		/* Switch off master clock */
-		clk_disable_unprepare(aic32x4->mclk);
+		clk_bulk_disable_unprepare(ARRAY_SIZE(clocks), clocks);
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
@@ -889,8 +871,8 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
-#define AIC32X4_RATES	SNDRV_PCM_RATE_8000_96000
-#define AIC32X4_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE \
+#define AIC32X4_RATES	SNDRV_PCM_RATE_8000_192000
+#define AIC32X4_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE \
 			 | SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops aic32x4_ops = {
@@ -903,17 +885,17 @@ static const struct snd_soc_dai_ops aic32x4_ops = {
 static struct snd_soc_dai_driver aic32x4_dai = {
 	.name = "tlv320aic32x4-hifi",
 	.playback = {
-		     .stream_name = "Playback",
-		     .channels_min = 1,
-		     .channels_max = 2,
-		     .rates = AIC32X4_RATES,
-		     .formats = AIC32X4_FORMATS,},
+			 .stream_name = "Playback",
+			 .channels_min = 1,
+			 .channels_max = 2,
+			 .rates = AIC32X4_RATES,
+			 .formats = AIC32X4_FORMATS,},
 	.capture = {
-		    .stream_name = "Capture",
-		    .channels_min = 1,
-		    .channels_max = 2,
-		    .rates = AIC32X4_RATES,
-		    .formats = AIC32X4_FORMATS,},
+			.stream_name = "Capture",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = AIC32X4_RATES,
+			.formats = AIC32X4_FORMATS,},
 	.ops = &aic32x4_ops,
 	.symmetric_rates = 1,
 };
@@ -926,7 +908,7 @@ static void aic32x4_setup_gpios(struct snd_soc_component *component)
 	/* MFP1 */
 	if (aic32x4->setup->gpio_func[0] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_DINCTL,
-		      aic32x4->setup->gpio_func[0]);
+			  aic32x4->setup->gpio_func[0]);
 		snd_soc_add_component_controls(component, aic32x4_mfp1,
 			ARRAY_SIZE(aic32x4_mfp1));
 	}
@@ -934,7 +916,7 @@ static void aic32x4_setup_gpios(struct snd_soc_component *component)
 	/* MFP2 */
 	if (aic32x4->setup->gpio_func[1] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_DOUTCTL,
-		      aic32x4->setup->gpio_func[1]);
+			  aic32x4->setup->gpio_func[1]);
 		snd_soc_add_component_controls(component, aic32x4_mfp2,
 			ARRAY_SIZE(aic32x4_mfp2));
 	}
@@ -942,7 +924,7 @@ static void aic32x4_setup_gpios(struct snd_soc_component *component)
 	/* MFP3 */
 	if (aic32x4->setup->gpio_func[2] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_SCLKCTL,
-		      aic32x4->setup->gpio_func[2]);
+			  aic32x4->setup->gpio_func[2]);
 		snd_soc_add_component_controls(component, aic32x4_mfp3,
 			ARRAY_SIZE(aic32x4_mfp3));
 	}
@@ -950,7 +932,7 @@ static void aic32x4_setup_gpios(struct snd_soc_component *component)
 	/* MFP4 */
 	if (aic32x4->setup->gpio_func[3] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_MISOCTL,
-		      aic32x4->setup->gpio_func[3]);
+			  aic32x4->setup->gpio_func[3]);
 		snd_soc_add_component_controls(component, aic32x4_mfp4,
 			ARRAY_SIZE(aic32x4_mfp4));
 	}
@@ -958,7 +940,7 @@ static void aic32x4_setup_gpios(struct snd_soc_component *component)
 	/* MFP5 */
 	if (aic32x4->setup->gpio_func[4] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_GPIOCTL,
-		      aic32x4->setup->gpio_func[4]);
+			  aic32x4->setup->gpio_func[4]);
 		snd_soc_add_component_controls(component, aic32x4_mfp5,
 			ARRAY_SIZE(aic32x4_mfp5));
 	}
@@ -968,6 +950,18 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	u32 tmp_reg;
+	int ret;
+
+	struct clk_bulk_data clocks[] = {
+		{ .id = "codec_clkin" },
+		{ .id = "pll" },
+		{ .id = "bdiv" },
+		{ .id = "mdac" },
+	};
+
+	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
+	if (ret)
+		return ret;
 
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
 		ndelay(10);
@@ -980,10 +974,13 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	if (aic32x4->setup)
 		aic32x4_setup_gpios(component);
 
+	clk_set_parent(clocks[0].clk, clocks[1].clk);
+	clk_set_parent(clocks[2].clk, clocks[3].clk);
+
 	/* Power platform configuration */
 	if (aic32x4->power_cfg & AIC32X4_PWR_MICBIAS_2075_LDOIN) {
-		snd_soc_component_write(component, AIC32X4_MICBIAS, AIC32X4_MICBIAS_LDOIN |
-						      AIC32X4_MICBIAS_2075V);
+		snd_soc_component_write(component, AIC32X4_MICBIAS,
+				AIC32X4_MICBIAS_LDOIN | AIC32X4_MICBIAS_2075V);
 	}
 	if (aic32x4->power_cfg & AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE)
 		snd_soc_component_write(component, AIC32X4_PWRCFG, AIC32X4_AVDDWEAKDISABLE);
@@ -1046,11 +1043,17 @@ static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
 		struct device_node *np)
 {
 	struct aic32x4_setup_data *aic32x4_setup;
+	int ret;
 
 	aic32x4_setup = devm_kzalloc(aic32x4->dev, sizeof(*aic32x4_setup),
 							GFP_KERNEL);
 	if (!aic32x4_setup)
 		return -ENOMEM;
+
+	ret = of_property_match_string(np, "clock-names", "mclk");
+	if (ret < 0)
+		return -EINVAL;
+	aic32x4->mclk_name = of_clk_get_parent_name(np, ret);
 
 	aic32x4->swapdacs = false;
 	aic32x4->micpga_routing = 0;
@@ -1173,7 +1176,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		return PTR_ERR(regmap);
 
 	aic32x4 = devm_kzalloc(dev, sizeof(struct aic32x4_priv),
-			       GFP_KERNEL);
+				   GFP_KERNEL);
 	if (aic32x4 == NULL)
 		return -ENOMEM;
 
@@ -1185,6 +1188,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		aic32x4->swapdacs = pdata->swapdacs;
 		aic32x4->micpga_routing = pdata->micpga_routing;
 		aic32x4->rstn_gpio = pdata->rstn_gpio;
+		aic32x4->mclk_name = "mclk";
 	} else if (np) {
 		ret = aic32x4_parse_dt(aic32x4, np);
 		if (ret) {
@@ -1196,13 +1200,12 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		aic32x4->swapdacs = false;
 		aic32x4->micpga_routing = 0;
 		aic32x4->rstn_gpio = -1;
+		aic32x4->mclk_name = "mclk";
 	}
 
-	aic32x4->mclk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(aic32x4->mclk)) {
-		dev_err(dev, "Failed getting the mclk. The current implementation does not support the usage of this codec without mclk\n");
-		return PTR_ERR(aic32x4->mclk);
-	}
+	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
+	if (ret)
+		return ret;
 
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
 		ret = devm_gpio_request_one(dev, aic32x4->rstn_gpio,

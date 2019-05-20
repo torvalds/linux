@@ -48,7 +48,7 @@ struct ib_uverbs_device;
 void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 			     enum rdma_remove_reason reason);
 
-int uobj_destroy(struct ib_uobject *uobj);
+int uobj_destroy(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs);
 
 /*
  * uverbs_uobject_get is called in order to increase the reference count on
@@ -83,9 +83,8 @@ void uverbs_close_fd(struct file *f);
  * uverbs_finalize_objects are called.
  */
 struct ib_uobject *
-uverbs_get_uobject_from_file(u16 object_id,
-			     struct ib_uverbs_file *ufile,
-			     enum uverbs_obj_access access, s64 id);
+uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
+			     s64 id, struct uverbs_attr_bundle *attrs);
 
 /*
  * Note that certain finalize stages could return a status:
@@ -103,8 +102,8 @@ uverbs_get_uobject_from_file(u16 object_id,
  * object.
  */
 int uverbs_finalize_object(struct ib_uobject *uobj,
-			   enum uverbs_obj_access access,
-			   bool commit);
+			   enum uverbs_obj_access access, bool commit,
+			   struct uverbs_attr_bundle *attrs);
 
 int uverbs_output_written(const struct uverbs_attr_bundle *bundle, size_t idx);
 

@@ -288,11 +288,8 @@ int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
 	int rc;
 	struct netlbl_lsm_secattr secattr;
 	struct sk_security_struct *sksec = ep->base.sk->sk_security;
-	struct sockaddr *addr;
 	struct sockaddr_in addr4;
-#if IS_ENABLED(CONFIG_IPV6)
 	struct sockaddr_in6 addr6;
-#endif
 
 	if (ep->base.sk->sk_family != PF_INET &&
 				ep->base.sk->sk_family != PF_INET6)
@@ -310,16 +307,15 @@ int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
 	if (ip_hdr(skb)->version == 4) {
 		addr4.sin_family = AF_INET;
 		addr4.sin_addr.s_addr = ip_hdr(skb)->saddr;
-		addr = (struct sockaddr *)&addr4;
-#if IS_ENABLED(CONFIG_IPV6)
-	} else {
+		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr4, &secattr);
+	} else if (IS_ENABLED(CONFIG_IPV6) && ip_hdr(skb)->version == 6) {
 		addr6.sin6_family = AF_INET6;
 		addr6.sin6_addr = ipv6_hdr(skb)->saddr;
-		addr = (struct sockaddr *)&addr6;
-#endif
+		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr6, &secattr);
+	} else {
+		rc = -EAFNOSUPPORT;
 	}
 
-	rc = netlbl_conn_setattr(ep->base.sk, addr, &secattr);
 	if (rc == 0)
 		sksec->nlbl_state = NLBL_LABELED;
 

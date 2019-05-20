@@ -91,6 +91,7 @@ struct brcmf_bus_ops {
 	int (*get_fwname)(struct device *dev, const char *ext,
 			  unsigned char *fw_name);
 	void (*debugfs_create)(struct device *dev);
+	int (*reset)(struct device *dev);
 };
 
 
@@ -245,6 +246,15 @@ void brcmf_bus_debugfs_create(struct brcmf_bus *bus)
 	return bus->ops->debugfs_create(bus->dev);
 }
 
+static inline
+int brcmf_bus_reset(struct brcmf_bus *bus)
+{
+	if (!bus->ops->reset)
+		return -EOPNOTSUPP;
+
+	return bus->ops->reset(bus->dev);
+}
+
 /*
  * interface functions from common layer
  */
@@ -262,6 +272,8 @@ void brcmf_detach(struct device *dev);
 void brcmf_dev_reset(struct device *dev);
 /* Request from bus module to initiate a coredump */
 void brcmf_dev_coredump(struct device *dev);
+/* Indication that firmware has halted or crashed */
+void brcmf_fw_crashed(struct device *dev);
 
 /* Configure the "global" bus state used by upper layers */
 void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);

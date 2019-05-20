@@ -1407,7 +1407,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		if (neigh->nud_state & NUD_VALID) {
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
 				  " is %pM, Gateway is 0x%08X \n", dst_ip,
-				  neigh->ha, ntohl(rt->rt_gateway));
+				  neigh->ha, ntohl(rt->rt_gw4));
 
 			if (arpindex >= 0) {
 				if (ether_addr_equal(nesadapter->arp_table[arpindex].mac_addr, neigh->ha)) {
@@ -3033,7 +3033,8 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 		/* Need to free the Last Streaming Mode Message */
 		if (nesqp->ietf_frame) {
 			if (nesqp->lsmm_mr)
-				nesibdev->ibdev.ops.dereg_mr(nesqp->lsmm_mr);
+				nesibdev->ibdev.ops.dereg_mr(nesqp->lsmm_mr,
+							     NULL);
 			pci_free_consistent(nesdev->pcidev,
 					    nesqp->private_data_len + nesqp->ietf_frame_size,
 					    nesqp->ietf_frame, nesqp->ietf_frame_pbase);

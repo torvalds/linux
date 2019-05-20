@@ -675,12 +675,6 @@ extern struct list_head amd_iommu_list;
 extern struct amd_iommu *amd_iommus[MAX_IOMMUS];
 
 /*
- * Declarations for the global list of all protection domains
- */
-extern spinlock_t amd_iommu_pd_lock;
-extern struct list_head amd_iommu_pd_list;
-
-/*
  * Structure defining one entry in the device table
  */
 struct dev_table_entry {

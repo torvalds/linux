@@ -21,6 +21,11 @@ config DRM_MSM
 	help
 	  DRM/KMS driver for MSM/snapdragon.
 
+config DRM_MSM_GPU_STATE
+	bool
+	depends on DRM_MSM && (DEBUG_FS || DEV_COREDUMP)
+	default y
+
 config DRM_MSM_REGISTER_LOGGING
 	bool "MSM DRM register logging"
 	depends on DRM_MSM

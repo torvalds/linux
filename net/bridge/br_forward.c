@@ -173,6 +173,7 @@ static struct net_bridge_port *maybe_deliver(
 	struct net_bridge_port *prev, struct net_bridge_port *p,
 	struct sk_buff *skb, bool local_orig)
 {
+	u8 igmp_type = br_multicast_igmp_type(skb);
 	int err;
 
 	if (!should_deliver(p, skb))
@@ -184,8 +185,9 @@ static struct net_bridge_port *maybe_deliver(
 	err = deliver_clone(prev, skb, local_orig);
 	if (err)
 		return ERR_PTR(err);
-
 out:
+	br_multicast_count(p->br, p, skb, igmp_type, BR_MCAST_DIR_TX);
+
 	return p;
 }
 
@@ -193,7 +195,6 @@ out:
 void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig)
 {
-	u8 igmp_type = br_multicast_igmp_type(skb);
 	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port *p;
 
@@ -226,9 +227,6 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		prev = maybe_deliver(prev, p, skb, local_orig);
 		if (IS_ERR(prev))
 			goto out;
-		if (prev == p)
-			br_multicast_count(p->br, p, skb, igmp_type,
-					   BR_MCAST_DIR_TX);
 	}
 
 	if (!prev)
@@ -277,7 +275,6 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 			bool local_rcv, bool local_orig)
 {
 	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
-	u8 igmp_type = br_multicast_igmp_type(skb);
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port_group *p;
@@ -304,13 +301,9 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		}
 
 		prev = maybe_deliver(prev, port, skb, local_orig);
-delivered:
 		if (IS_ERR(prev))
 			goto out;
-		if (prev == port)
-			br_multicast_count(port->br, port, skb, igmp_type,
-					   BR_MCAST_DIR_TX);
-
+delivered:
 		if ((unsigned long)lport >= (unsigned long)port)
 			p = rcu_dereference(p->next);
 		if ((unsigned long)rport >= (unsigned long)port)

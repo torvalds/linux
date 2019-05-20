@@ -92,11 +92,12 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "cbc-aes-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_NEED_FALLBACK,
 			.cra_ctxsize = sizeof(struct sun4i_tfm_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
 			.cra_init = sun4i_ss_cipher_init,
+			.cra_exit = sun4i_ss_cipher_exit,
 		}
 	}
 },
@@ -107,17 +108,17 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 		.decrypt        = sun4i_ss_ecb_aes_decrypt,
 		.min_keysize	= AES_MIN_KEY_SIZE,
 		.max_keysize	= AES_MAX_KEY_SIZE,
-		.ivsize		= AES_BLOCK_SIZE,
 		.base = {
 			.cra_name = "ecb(aes)",
 			.cra_driver_name = "ecb-aes-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_NEED_FALLBACK,
 			.cra_ctxsize = sizeof(struct sun4i_tfm_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
 			.cra_init = sun4i_ss_cipher_init,
+			.cra_exit = sun4i_ss_cipher_exit,
 		}
 	}
 },
@@ -134,11 +135,12 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "cbc-des-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_NEED_FALLBACK,
 			.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
 			.cra_init = sun4i_ss_cipher_init,
+			.cra_exit = sun4i_ss_cipher_exit,
 		}
 	}
 },
@@ -154,11 +156,12 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "ecb-des-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_NEED_FALLBACK,
 			.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
 			.cra_init = sun4i_ss_cipher_init,
+			.cra_exit = sun4i_ss_cipher_exit,
 		}
 	}
 },
@@ -175,11 +178,12 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "cbc-des3-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_NEED_FALLBACK,
 			.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
 			.cra_init = sun4i_ss_cipher_init,
+			.cra_exit = sun4i_ss_cipher_exit,
 		}
 	}
 },
@@ -190,16 +194,17 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 		.decrypt        = sun4i_ss_ecb_des3_decrypt,
 		.min_keysize    = DES3_EDE_KEY_SIZE,
 		.max_keysize    = DES3_EDE_KEY_SIZE,
-		.ivsize         = DES3_EDE_BLOCK_SIZE,
 		.base = {
 			.cra_name = "ecb(des3_ede)",
 			.cra_driver_name = "ecb-des3-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY | CRYPTO_ALG_NEED_FALLBACK,
 			.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
 			.cra_init = sun4i_ss_cipher_init,
+			.cra_exit = sun4i_ss_cipher_exit,
 		}
 	}
 },

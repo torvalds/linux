@@ -116,7 +116,7 @@ static int pnx833x_wdt_open(struct inode *inode, struct file *file)
 
 	pr_info("Started watchdog timer\n");
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int pnx833x_wdt_release(struct inode *inode, struct file *file)

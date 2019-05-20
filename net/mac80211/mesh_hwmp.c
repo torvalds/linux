@@ -318,8 +318,8 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 				  cfg80211_calculate_bitrate(&rinfo));
 }
 
-static u32 airtime_link_metric_get(struct ieee80211_local *local,
-				   struct sta_info *sta)
+u32 airtime_link_metric_get(struct ieee80211_local *local,
+			    struct sta_info *sta)
 {
 	/* This should be adjusted for each device */
 	int device_constant = 1 << ARITH_SHIFT;
@@ -1130,16 +1130,17 @@ int mesh_nexthop_resolve(struct ieee80211_sub_if_data *sdata,
 	struct mesh_path *mpath;
 	struct sk_buff *skb_to_free = NULL;
 	u8 *target_addr = hdr->addr3;
-	int err = 0;
 
 	/* Nulls are only sent to peers for PS and should be pre-addressed */
 	if (ieee80211_is_qos_nullfunc(hdr->frame_control))
 		return 0;
 
-	rcu_read_lock();
-	err = mesh_nexthop_lookup(sdata, skb);
-	if (!err)
-		goto endlookup;
+	/* Allow injected packets to bypass mesh routing */
+	if (info->control.flags & IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP)
+		return 0;
+
+	if (!mesh_nexthop_lookup(sdata, skb))
+		return 0;
 
 	/* no nexthop found, start resolving */
 	mpath = mesh_path_lookup(sdata, target_addr);
@@ -1147,8 +1148,7 @@ int mesh_nexthop_resolve(struct ieee80211_sub_if_data *sdata,
 		mpath = mesh_path_add(sdata, target_addr);
 		if (IS_ERR(mpath)) {
 			mesh_path_discard_frame(sdata, skb);
-			err = PTR_ERR(mpath);
-			goto endlookup;
+			return PTR_ERR(mpath);
 		}
 	}
 
@@ -1161,13 +1161,10 @@ int mesh_nexthop_resolve(struct ieee80211_sub_if_data *sdata,
 	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 	ieee80211_set_qos_hdr(sdata, skb);
 	skb_queue_tail(&mpath->frame_queue, skb);
-	err = -ENOENT;
 	if (skb_to_free)
 		mesh_path_discard_frame(sdata, skb_to_free);
 
-endlookup:
-	rcu_read_unlock();
-	return err;
+	return -ENOENT;
 }
 
 /**
@@ -1187,13 +1184,10 @@ int mesh_nexthop_lookup(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *next_hop;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u8 *target_addr = hdr->addr3;
-	int err = -ENOENT;
 
-	rcu_read_lock();
 	mpath = mesh_path_lookup(sdata, target_addr);
-
 	if (!mpath || !(mpath->flags & MESH_PATH_ACTIVE))
-		goto endlookup;
+		return -ENOENT;
 
 	if (time_after(jiffies,
 		       mpath->exp_time -
@@ -1208,12 +1202,10 @@ int mesh_nexthop_lookup(struct ieee80211_sub_if_data *sdata,
 		memcpy(hdr->addr1, next_hop->sta.addr, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 		ieee80211_mps_set_frame_flags(sdata, next_hop, hdr);
-		err = 0;
+		return 0;
 	}
 
-endlookup:
-	rcu_read_unlock();
-	return err;
+	return -ENOENT;
 }
 
 void mesh_path_timer(struct timer_list *t)

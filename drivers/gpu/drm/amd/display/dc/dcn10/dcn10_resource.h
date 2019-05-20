@@ -39,7 +39,7 @@ struct dcn10_resource_pool {
 	struct resource_pool base;
 };
 struct resource_pool *dcn10_create_resource_pool(
-		uint8_t num_virtual_links,
+		const struct dc_init_data *init_data,
 		struct dc *dc);
 
 

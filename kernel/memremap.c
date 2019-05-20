@@ -45,7 +45,6 @@ vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 	 */
 	return devmem->page_fault(vma, addr, page, flags, pmdp);
 }
-EXPORT_SYMBOL(device_private_entry_fault);
 #endif /* CONFIG_DEVICE_PRIVATE */
 
 static void pgmap_array_delete(struct resource *res)
@@ -148,6 +147,12 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 			&pgmap->altmap : NULL;
 	struct resource *res = &pgmap->res;
 	struct dev_pagemap *conflict_pgmap;
+	struct mhp_restrictions restrictions = {
+		/*
+		 * We do not want any optional features only our own memmap
+		*/
+		.altmap = altmap,
+	};
 	pgprot_t pgprot = PAGE_KERNEL;
 	int error, nid, is_ram;
 
@@ -214,7 +219,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	 */
 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
 		error = add_pages(nid, align_start >> PAGE_SHIFT,
-				align_size >> PAGE_SHIFT, NULL, false);
+				align_size >> PAGE_SHIFT, &restrictions);
 	} else {
 		error = kasan_add_zero_shadow(__va(align_start), align_size);
 		if (error) {
@@ -222,8 +227,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 			goto err_kasan;
 		}
 
-		error = arch_add_memory(nid, align_start, align_size, altmap,
-				false);
+		error = arch_add_memory(nid, align_start, align_size,
+					&restrictions);
 	}
 
 	if (!error) {

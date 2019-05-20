@@ -7,12 +7,15 @@ Required properties:
  - reg: PHY register address offset and length in "general
    register files"
 
-Optional clocks using the clock bindings (see ../clock/clock-bindings.txt),
-specified by name:
+Optional properties:
  - clock-names: Should contain "emmcclk".  Although this is listed as optional
 		(because most boards can get basic functionality without having
 		access to it), it is strongly suggested.
+		See ../clock/clock-bindings.txt for details.
  - clocks: Should have a phandle to the card clock exported by the SDHCI driver.
+ - drive-impedance-ohm: Specifies the drive impedance in Ohm.
+                        Possible values are 33, 40, 50, 66 and 100.
+                        If not set, the default value of 50 will be applied.
 
 Example:
 
@@ -29,6 +32,7 @@ grf: syscon@ff770000 {
 		reg = <0xf780 0x20>;
 		clocks = <&sdhci>;
 		clock-names = "emmcclk";
+		drive-impedance-ohm = <50>;
 		#phy-cells = <0>;
 	};
 };

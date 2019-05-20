@@ -43,6 +43,8 @@ struct clp_fh_list_entry {
 
 #define CLP_SET_ENABLE_PCI_FN	0	/* Yes, 0 enables it */
 #define CLP_SET_DISABLE_PCI_FN	1	/* Yes, 1 disables it */
+#define CLP_SET_ENABLE_MIO	2
+#define CLP_SET_DISABLE_MIO	3
 
 #define CLP_UTIL_STR_LEN	64
 #define CLP_PFIP_NR_SEGMENTS	4
@@ -80,7 +82,8 @@ struct clp_req_query_pci {
 struct clp_rsp_query_pci {
 	struct clp_rsp_hdr hdr;
 	u16 vfn;			/* virtual fn number */
-	u16			:  7;
+	u16			:  6;
+	u16 mio_addr_avail	:  1;
 	u16 util_str_avail	:  1;	/* utility string available? */
 	u16 pfgid		:  8;	/* pci function group id */
 	u32 fid;			/* pci function id */
@@ -96,6 +99,15 @@ struct clp_rsp_query_pci {
 	u32 reserved[11];
 	u32 uid;			/* user defined id */
 	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
+	u32 reserved2[16];
+	u32 mio_valid : 6;
+	u32 : 26;
+	u32 : 32;
+	struct {
+		u64 wb;
+		u64 wt;
+	} addr[PCI_BAR_COUNT];
+	u32 reserved3[6];
 } __packed;
 
 /* Query PCI function group request */
@@ -118,7 +130,11 @@ struct clp_rsp_query_pci_grp {
 	u8 refresh		:  1;	/* TLB refresh mode */
 	u16 reserved2;
 	u16 mui;
-	u64 reserved3;
+	u16			: 16;
+	u16 maxfaal;
+	u16			:  4;
+	u16 dnoi		: 12;
+	u16 maxcpu;
 	u64 dasm;			/* dma address space mask */
 	u64 msia;			/* MSI address */
 	u64 reserved4;

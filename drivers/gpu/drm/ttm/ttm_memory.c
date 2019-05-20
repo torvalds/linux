@@ -81,7 +81,7 @@ static void ttm_mem_zone_kobj_release(struct kobject *kobj)
 	struct ttm_mem_zone *zone =
 		container_of(kobj, struct ttm_mem_zone, kobj);
 
-	pr_info("Zone %7s: Used memory at exit: %llu kiB\n",
+	pr_info("Zone %7s: Used memory at exit: %llu KiB\n",
 		zone->name, (unsigned long long)zone->used_mem >> 10);
 	kfree(zone);
 }
@@ -448,7 +448,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 #endif
 	for (i = 0; i < glob->num_zones; ++i) {
 		zone = glob->zones[i];
-		pr_info("Zone %7s: Available graphics memory: %llu kiB\n",
+		pr_info("Zone %7s: Available graphics memory: %llu KiB\n",
 			zone->name, (unsigned long long)zone->max_mem >> 10);
 	}
 	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
@@ -523,7 +523,7 @@ static void ttm_mem_global_free_zone(struct ttm_mem_global *glob,
 void ttm_mem_global_free(struct ttm_mem_global *glob,
 			 uint64_t amount)
 {
-	return ttm_mem_global_free_zone(glob, NULL, amount);
+	return ttm_mem_global_free_zone(glob, glob->zone_kernel, amount);
 }
 EXPORT_SYMBOL(ttm_mem_global_free);
 
@@ -622,10 +622,10 @@ int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
 {
 	/**
 	 * Normal allocations of kernel memory are registered in
-	 * all zones.
+	 * the kernel zone.
 	 */
 
-	return ttm_mem_global_alloc_zone(glob, NULL, memory, ctx);
+	return ttm_mem_global_alloc_zone(glob, glob->zone_kernel, memory, ctx);
 }
 EXPORT_SYMBOL(ttm_mem_global_alloc);
 

@@ -94,6 +94,8 @@ struct dc_link_settings {
 	enum dc_lane_count lane_count;
 	enum dc_link_rate link_rate;
 	enum dc_link_spread link_spread;
+	bool use_link_rate_set;
+	uint8_t link_rate_set;
 };
 
 struct dc_lane_settings {
@@ -420,10 +422,24 @@ union edp_configuration_cap {
 	uint8_t raw;
 };
 
+union dprx_feature {
+	struct {
+		uint8_t GTC_CAP:1;                             // bit 0: DP 1.3+
+		uint8_t SST_SPLIT_SDP_CAP:1;                   // bit 1: DP 1.4
+		uint8_t AV_SYNC_CAP:1;                         // bit 2: DP 1.3+
+		uint8_t VSC_SDP_COLORIMETRY_SUPPORTED:1;       // bit 3: DP 1.3+
+		uint8_t VSC_EXT_VESA_SDP_SUPPORTED:1;          // bit 4: DP 1.4
+		uint8_t VSC_EXT_VESA_SDP_CHAINING_SUPPORTED:1; // bit 5: DP 1.4
+		uint8_t VSC_EXT_CEA_SDP_SUPPORTED:1;           // bit 6: DP 1.4
+		uint8_t VSC_EXT_CEA_SDP_CHAINING_SUPPORTED:1;  // bit 7: DP 1.4
+	} bits;
+	uint8_t raw;
+};
+
 union training_aux_rd_interval {
 	struct {
 		uint8_t TRAINIG_AUX_RD_INTERVAL:7;
-		uint8_t EXT_RECIEVER_CAP_FIELD_PRESENT:1;
+		uint8_t EXT_RECEIVER_CAP_FIELD_PRESENT:1;
 	} bits;
 	uint8_t raw;
 };

@@ -88,6 +88,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
 		enable-active-high;
 	};
 
@@ -99,6 +100,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio1 26 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
 		enable-active-high;
 		regulator-always-on;
 	};
@@ -216,7 +218,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-reset-duration = <10>;
 	phy-reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 	phy-supply = <&reg_enet>;
@@ -247,9 +249,9 @@
 		gpio-cfg = <
 			0x0000 /* 0:Default */
 			0x0000 /* 1:Default */
-			0x0013 /* 2:FN_DMICCLK */
+			0x0000 /* 2:FN_DMICCLK */
 			0x0000 /* 3:Default */
-			0x8014 /* 4:FN_DMICCDAT */
+			0x0000 /* 4:FN_DMICCDAT */
 			0x0000 /* 5:Default */
 		>;
 	};

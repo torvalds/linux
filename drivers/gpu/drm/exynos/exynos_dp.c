@@ -83,7 +83,8 @@ static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 
 	mode = drm_mode_create(connector->dev);
 	if (!mode) {
-		DRM_ERROR("failed to create a new display mode.\n");
+		DRM_DEV_ERROR(dp->dev,
+			      "failed to create a new display mode.\n");
 		return num_modes;
 	}
 
@@ -111,7 +112,8 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 	if (dp->ptn_bridge) {
 		ret = drm_bridge_attach(&dp->encoder, dp->ptn_bridge, bridge);
 		if (ret) {
-			DRM_ERROR("Failed to attach bridge to drm\n");
+			DRM_DEV_ERROR(dp->dev,
+				      "Failed to attach bridge to drm\n");
 			bridge->next = NULL;
 			return ret;
 		}
@@ -147,7 +149,8 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 
 	ret = of_get_videomode(dp->dev->of_node, &dp->vm, OF_USE_NATIVE_MODE);
 	if (ret) {
-		DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
+		DRM_DEV_ERROR(dp->dev,
+			      "failed: of_get_videomode() : %d\n", ret);
 		return ret;
 	}
 	return 0;

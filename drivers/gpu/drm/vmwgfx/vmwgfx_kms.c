@@ -64,11 +64,9 @@ static int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	if (!image)
 		return -EINVAL;
 
-	cmd = vmw_fifo_reserve(dev_priv, cmd_size);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, cmd_size);
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	memset(cmd, 0, sizeof(*cmd));
 
@@ -1202,7 +1200,7 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 	vmw_bo_unreference(&res->backup);
 	res->backup = vmw_bo_reference(bo_mob);
 	res->backup_offset = 0;
-	vmw_resource_unreserve(res, false, NULL, 0);
+	vmw_resource_unreserve(res, false, false, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 
 	return 0;
@@ -2468,13 +2466,11 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 
 		dirty->unit = unit;
 		if (dirty->fifo_reserve_size > 0) {
-			dirty->cmd = vmw_fifo_reserve(dev_priv,
+			dirty->cmd = VMW_FIFO_RESERVE(dev_priv,
 						      dirty->fifo_reserve_size);
-			if (!dirty->cmd) {
-				DRM_ERROR("Couldn't reserve fifo space "
-					  "for dirty blits.\n");
+			if (!dirty->cmd)
 				return -ENOMEM;
-			}
+
 			memset(dirty->cmd, 0, dirty->fifo_reserve_size);
 		}
 		dirty->num_hits = 0;
@@ -2604,12 +2600,9 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 	if (!clips)
 		return 0;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) * num_clips);
-	if (!cmd) {
-		DRM_ERROR("Couldn't reserve fifo space for proxy surface "
-			  "update.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd) * num_clips);
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < num_clips; ++i, clips += increment, ++cmd) {
 		box = &cmd->body.box;
@@ -2827,7 +2820,8 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 			container_of(update->vfb, typeof(*vfbs), base);
 
 		ret = vmw_validation_add_resource(&val_ctx, &vfbs->surface->res,
-						  0, NULL, NULL);
+						  0, VMW_RES_DIRTY_NONE, NULL,
+						  NULL);
 	}
 
 	if (ret)
@@ -2838,7 +2832,7 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 		goto out_unref;
 
 	reserved_size = update->calc_fifo_size(update, num_hits);
-	cmd_start = vmw_fifo_reserve(update->dev_priv, reserved_size);
+	cmd_start = VMW_FIFO_RESERVE(update->dev_priv, reserved_size);
 	if (!cmd_start) {
 		ret = -ENOMEM;
 		goto out_revert;

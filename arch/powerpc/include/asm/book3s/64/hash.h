@@ -29,6 +29,10 @@
 #define H_PGTABLE_EADDR_SIZE	(H_PTE_INDEX_SIZE + H_PMD_INDEX_SIZE + \
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
+/*
+ * Top 2 bits are ignored in page table walk.
+ */
+#define EA_MASK			(~(0xcUL << 60))
 
 /*
  * We store the slot details in the second half of page table.
@@ -42,58 +46,63 @@
 #endif
 
 /*
- * Define the address range of the kernel non-linear virtual area. In contrast
- * to the linear mapping, this is managed using the kernel page tables and then
- * inserted into the hash page table to actually take effect, similarly to user
- * mappings.
+ * +------------------------------+
+ * |                              |
+ * |                              |
+ * |                              |
+ * +------------------------------+  Kernel virtual map end (0xc00e000000000000)
+ * |                              |
+ * |                              |
+ * |      512TB/16TB of vmemmap   |
+ * |                              |
+ * |                              |
+ * +------------------------------+  Kernel vmemmap  start
+ * |                              |
+ * |      512TB/16TB of IO map    |
+ * |                              |
+ * +------------------------------+  Kernel IO map start
+ * |                              |
+ * |      512TB/16TB of vmap      |
+ * |                              |
+ * +------------------------------+  Kernel virt start (0xc008000000000000)
+ * |                              |
+ * |                              |
+ * |                              |
+ * +------------------------------+  Kernel linear (0xc.....)
  */
-#define H_KERN_VIRT_START ASM_CONST(0xD000000000000000)
 
-/*
- * Allow virtual mapping of one context size.
- * 512TB for 64K page size
- * 64TB for 4K page size
- */
-#define H_KERN_VIRT_SIZE (1UL << MAX_EA_BITS_PER_CONTEXT)
+#define H_VMALLOC_START		H_KERN_VIRT_START
+#define H_VMALLOC_SIZE		H_KERN_MAP_SIZE
+#define H_VMALLOC_END		(H_VMALLOC_START + H_VMALLOC_SIZE)
 
-/*
- * 8TB IO mapping size
- */
-#define H_KERN_IO_SIZE ASM_CONST(0x80000000000) /* 8T */
+#define H_KERN_IO_START		H_VMALLOC_END
+#define H_KERN_IO_SIZE		H_KERN_MAP_SIZE
+#define H_KERN_IO_END		(H_KERN_IO_START + H_KERN_IO_SIZE)
 
-/*
- * The vmalloc space starts at the beginning of the kernel non-linear virtual
- * region, and occupies 504T (64K) or 56T (4K)
- */
-#define H_VMALLOC_START H_KERN_VIRT_START
-#define H_VMALLOC_SIZE (H_KERN_VIRT_SIZE - H_KERN_IO_SIZE)
-#define H_VMALLOC_END  (H_VMALLOC_START + H_VMALLOC_SIZE)
+#define H_VMEMMAP_START		H_KERN_IO_END
+#define H_VMEMMAP_SIZE		H_KERN_MAP_SIZE
+#define H_VMEMMAP_END		(H_VMEMMAP_START + H_VMEMMAP_SIZE)
 
-#define H_KERN_IO_START H_VMALLOC_END
+#define NON_LINEAR_REGION_ID(ea)	((((unsigned long)ea - H_KERN_VIRT_START) >> REGION_SHIFT) + 2)
 
 /*
  * Region IDs
  */
-#define REGION_SHIFT		60UL
-#define REGION_MASK		(0xfUL << REGION_SHIFT)
-#define REGION_ID(ea)		(((unsigned long)(ea)) >> REGION_SHIFT)
-
-#define VMALLOC_REGION_ID	(REGION_ID(H_VMALLOC_START))
-#define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
-#define VMEMMAP_REGION_ID	(0xfUL)	/* Server only */
-#define USER_REGION_ID		(0UL)
+#define USER_REGION_ID		0
+#define LINEAR_MAP_REGION_ID	1
+#define VMALLOC_REGION_ID	NON_LINEAR_REGION_ID(H_VMALLOC_START)
+#define IO_REGION_ID		NON_LINEAR_REGION_ID(H_KERN_IO_START)
+#define VMEMMAP_REGION_ID	NON_LINEAR_REGION_ID(H_VMEMMAP_START)
+#define INVALID_REGION_ID	(VMEMMAP_REGION_ID + 1)
 
 /*
  * Defines the address of the vmemap area, in its own region on
  * hash table CPUs.
  */
-#define H_VMEMMAP_BASE		(VMEMMAP_REGION_ID << REGION_SHIFT)
-
 #ifdef CONFIG_PPC_MM_SLICES
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 #endif /* CONFIG_PPC_MM_SLICES */
-
 
 /* PTEIDX nibble */
 #define _PTEIDX_SECONDARY	0x8
@@ -103,6 +112,26 @@
 #define H_PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
 
 #ifndef __ASSEMBLY__
+static inline int get_region_id(unsigned long ea)
+{
+	int region_id;
+	int id = (ea >> 60UL);
+
+	if (id == 0)
+		return USER_REGION_ID;
+
+	if (id != (PAGE_OFFSET >> 60))
+		return INVALID_REGION_ID;
+
+	if (ea < H_KERN_VIRT_START)
+		return LINEAR_MAP_REGION_ID;
+
+	BUILD_BUG_ON(NON_LINEAR_REGION_ID(H_VMALLOC_START) != 2);
+
+	region_id = NON_LINEAR_REGION_ID(ea);
+	return region_id;
+}
+
 #define	hash__pmd_bad(pmd)		(pmd_val(pmd) & H_PMD_BAD_BITS)
 #define	hash__pud_bad(pud)		(pud_val(pud) & H_PUD_BAD_BITS)
 static inline int hash__pgd_bad(pgd_t pgd)

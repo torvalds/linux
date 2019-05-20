@@ -834,7 +834,6 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	int ret, bank_num;
 	struct zynq_gpio *gpio;
 	struct gpio_chip *chip;
-	struct resource *res;
 	const struct of_device_id *match;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
@@ -849,8 +848,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	gpio->p_data = match->data;
 	platform_set_drvdata(pdev, gpio);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gpio->base_addr = devm_ioremap_resource(&pdev->dev, res);
+	gpio->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio->base_addr))
 		return PTR_ERR(gpio->base_addr);
 

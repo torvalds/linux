@@ -107,13 +107,13 @@ typedef struct _HT_INFORMATION_ELE {
 typedef enum _HT_SPEC_VER {
 	HT_SPEC_VER_IEEE = 0,
 	HT_SPEC_VER_EWC = 1,
-}HT_SPEC_VER, *PHT_SPEC_VER;
+} HT_SPEC_VER, *PHT_SPEC_VER;
 
 typedef enum _HT_AGGRE_MODE_E {
 	HT_AGG_AUTO = 0,
 	HT_AGG_FORCE_ENABLE = 1,
 	HT_AGG_FORCE_DISABLE = 2,
-}HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
+} HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
 
 /*
  *  The Data structure is used to keep HT related variables when card is

@@ -34,7 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/completion.h>
 #include <linux/netdevice.h>
 #include <linux/sched/mm.h>
@@ -315,16 +315,15 @@ struct c4iw_dev {
 	struct ib_device ibdev;
 	struct c4iw_rdev rdev;
 	u32 device_cap_flags;
-	struct idr cqidr;
-	struct idr qpidr;
-	struct idr mmidr;
-	spinlock_t lock;
+	struct xarray cqs;
+	struct xarray qps;
+	struct xarray mrs;
 	struct mutex db_mutex;
 	struct dentry *debugfs_root;
 	enum db_state db_state;
-	struct idr hwtid_idr;
-	struct idr atid_idr;
-	struct idr stid_idr;
+	struct xarray hwtids;
+	struct xarray atids;
+	struct xarray stids;
 	struct list_head db_fc_list;
 	u32 avail_ird;
 	wait_queue_head_t wait;
@@ -349,70 +348,12 @@ static inline struct c4iw_dev *rdev_to_c4iw_dev(struct c4iw_rdev *rdev)
 
 static inline struct c4iw_cq *get_chp(struct c4iw_dev *rhp, u32 cqid)
 {
-	return idr_find(&rhp->cqidr, cqid);
+	return xa_load(&rhp->cqs, cqid);
 }
 
 static inline struct c4iw_qp *get_qhp(struct c4iw_dev *rhp, u32 qpid)
 {
-	return idr_find(&rhp->qpidr, qpid);
-}
-
-static inline struct c4iw_mr *get_mhp(struct c4iw_dev *rhp, u32 mmid)
-{
-	return idr_find(&rhp->mmidr, mmid);
-}
-
-static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
-				 void *handle, u32 id, int lock)
-{
-	int ret;
-
-	if (lock) {
-		idr_preload(GFP_KERNEL);
-		spin_lock_irq(&rhp->lock);
-	}
-
-	ret = idr_alloc(idr, handle, id, id + 1, GFP_ATOMIC);
-
-	if (lock) {
-		spin_unlock_irq(&rhp->lock);
-		idr_preload_end();
-	}
-
-	return ret < 0 ? ret : 0;
-}
-
-static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
-				void *handle, u32 id)
-{
-	return _insert_handle(rhp, idr, handle, id, 1);
-}
-
-static inline int insert_handle_nolock(struct c4iw_dev *rhp, struct idr *idr,
-				       void *handle, u32 id)
-{
-	return _insert_handle(rhp, idr, handle, id, 0);
-}
-
-static inline void _remove_handle(struct c4iw_dev *rhp, struct idr *idr,
-				   u32 id, int lock)
-{
-	if (lock)
-		spin_lock_irq(&rhp->lock);
-	idr_remove(idr, id);
-	if (lock)
-		spin_unlock_irq(&rhp->lock);
-}
-
-static inline void remove_handle(struct c4iw_dev *rhp, struct idr *idr, u32 id)
-{
-	_remove_handle(rhp, idr, id, 1);
-}
-
-static inline void remove_handle_nolock(struct c4iw_dev *rhp,
-					 struct idr *idr, u32 id)
-{
-	_remove_handle(rhp, idr, id, 0);
+	return xa_load(&rhp->qps, qpid);
 }
 
 extern uint c4iw_max_read_depth;
@@ -1038,9 +979,8 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 void c4iw_qp_add_ref(struct ib_qp *qp);
 void c4iw_qp_rem_ref(struct ib_qp *qp);
-struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
-			    enum ib_mr_type mr_type,
-			    u32 max_num_sg);
+struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			    u32 max_num_sg, struct ib_udata *udata);
 int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		   unsigned int *sg_offset);
 int c4iw_dealloc_mw(struct ib_mw *mw);
@@ -1051,21 +991,19 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
-int c4iw_dereg_mr(struct ib_mr *ib_mr);
-int c4iw_destroy_cq(struct ib_cq *ib_cq);
+int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
+int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
-			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata);
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 int c4iw_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask srq_attr_mask,
 		    struct ib_udata *udata);
-int c4iw_destroy_srq(struct ib_srq *ib_srq);
-struct ib_srq *c4iw_create_srq(struct ib_pd *pd,
-			       struct ib_srq_init_attr *attrs,
-			       struct ib_udata *udata);
-int c4iw_destroy_qp(struct ib_qp *ib_qp);
+void c4iw_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata);
+int c4iw_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *attrs,
+		    struct ib_udata *udata);
+int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata);
 struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *attrs,
 			     struct ib_udata *udata);

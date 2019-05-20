@@ -252,6 +252,12 @@ void adreno_gpu_state_destroy(struct msm_gpu_state *state);
 int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state);
 int adreno_gpu_state_put(struct msm_gpu_state *state);
 
+/*
+ * For a5xx and a6xx targets load the zap shader that is used to pull the GPU
+ * out of secure mode
+ */
+int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid);
+
 /* ringbuffer helpers (the parts that are adreno specific) */
 
 static inline void

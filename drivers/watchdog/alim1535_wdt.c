@@ -249,7 +249,7 @@ static int ali_open(struct inode *inode, struct file *file)
 
 	/* Activate */
 	ali_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /*

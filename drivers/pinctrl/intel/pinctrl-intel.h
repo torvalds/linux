@@ -177,13 +177,14 @@ int intel_pinctrl_probe_by_hid(struct platform_device *pdev);
 int intel_pinctrl_probe_by_uid(struct platform_device *pdev);
 
 #ifdef CONFIG_PM_SLEEP
-int intel_pinctrl_suspend(struct device *dev);
-int intel_pinctrl_resume(struct device *dev);
+int intel_pinctrl_suspend_noirq(struct device *dev);
+int intel_pinctrl_resume_noirq(struct device *dev);
 #endif
 
-#define INTEL_PINCTRL_PM_OPS(_name)						  \
-const struct dev_pm_ops _name = {						  \
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend, intel_pinctrl_resume) \
+#define INTEL_PINCTRL_PM_OPS(_name)					\
+const struct dev_pm_ops _name = {					\
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend_noirq,	\
+				      intel_pinctrl_resume_noirq)	\
 }
 
 #endif /* PINCTRL_INTEL_H */

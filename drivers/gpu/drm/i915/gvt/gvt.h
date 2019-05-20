@@ -94,7 +94,6 @@ struct intel_vgpu_fence {
 
 struct intel_vgpu_mmio {
 	void *vreg;
-	void *sreg;
 };
 
 #define INTEL_GVT_MAX_BAR_NUM 4
@@ -111,11 +110,9 @@ struct intel_vgpu_cfg_space {
 
 #define vgpu_cfg_space(vgpu) ((vgpu)->cfg_space.virtual_cfg_space)
 
-#define INTEL_GVT_MAX_PIPE 4
-
 struct intel_vgpu_irq {
 	bool irq_warn_once[INTEL_GVT_EVENT_MAX];
-	DECLARE_BITMAP(flip_done_event[INTEL_GVT_MAX_PIPE],
+	DECLARE_BITMAP(flip_done_event[I915_MAX_PIPES],
 		       INTEL_GVT_EVENT_MAX);
 };
 
@@ -144,9 +141,9 @@ enum {
 
 struct intel_vgpu_submission_ops {
 	const char *name;
-	int (*init)(struct intel_vgpu *vgpu, unsigned long engine_mask);
-	void (*clean)(struct intel_vgpu *vgpu, unsigned long engine_mask);
-	void (*reset)(struct intel_vgpu *vgpu, unsigned long engine_mask);
+	int (*init)(struct intel_vgpu *vgpu, intel_engine_mask_t engine_mask);
+	void (*clean)(struct intel_vgpu *vgpu, intel_engine_mask_t engine_mask);
+	void (*reset)(struct intel_vgpu *vgpu, intel_engine_mask_t engine_mask);
 };
 
 struct intel_vgpu_submission {
@@ -449,10 +446,6 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	(*(u64 *)(vgpu->mmio.vreg + i915_mmio_reg_offset(reg)))
 #define vgpu_vreg64(vgpu, offset) \
 	(*(u64 *)(vgpu->mmio.vreg + (offset)))
-#define vgpu_sreg_t(vgpu, reg) \
-	(*(u32 *)(vgpu->mmio.sreg + i915_mmio_reg_offset(reg)))
-#define vgpu_sreg(vgpu, offset) \
-	(*(u32 *)(vgpu->mmio.sreg + (offset)))
 
 #define for_each_active_vgpu(gvt, vgpu, id) \
 	idr_for_each_entry((&(gvt)->vgpu_idr), (vgpu), (id)) \
@@ -488,7 +481,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_release_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
-				 unsigned int engine_mask);
+				 intel_engine_mask_t engine_mask);
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu);
