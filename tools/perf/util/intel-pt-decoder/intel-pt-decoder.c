@@ -479,6 +479,12 @@ static int intel_pt_bad_packet(struct intel_pt_decoder *decoder)
 	return -EBADMSG;
 }
 
+static inline void intel_pt_update_sample_time(struct intel_pt_decoder *decoder)
+{
+	decoder->sample_timestamp = decoder->timestamp;
+	decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
+}
+
 static int intel_pt_get_data(struct intel_pt_decoder *decoder)
 {
 	struct intel_pt_buffer buffer = { .buf = 0, };
@@ -1319,8 +1325,7 @@ static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
 			}
 			decoder->ip += intel_pt_insn.length;
 			if (!decoder->tnt.count) {
-				decoder->sample_timestamp = decoder->timestamp;
-				decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
+				intel_pt_update_sample_time(decoder);
 				return -EAGAIN;
 			}
 			decoder->tnt.payload <<= 1;
@@ -2413,8 +2418,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 	if (err) {
 		decoder->state.err = intel_pt_ext_err(err);
 		decoder->state.from_ip = decoder->ip;
-		decoder->sample_timestamp = decoder->timestamp;
-		decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
+		intel_pt_update_sample_time(decoder);
 	} else {
 		decoder->state.err = 0;
 		if (decoder->cbr != decoder->cbr_seen && decoder->state.type) {
@@ -2422,10 +2426,8 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			decoder->state.type |= INTEL_PT_CBR_CHG;
 			decoder->state.cbr_payload = decoder->cbr_payload;
 		}
-		if (intel_pt_sample_time(decoder->pkt_state)) {
-			decoder->sample_timestamp = decoder->timestamp;
-			decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
-		}
+		if (intel_pt_sample_time(decoder->pkt_state))
+			intel_pt_update_sample_time(decoder);
 	}
 
 	decoder->state.timestamp = decoder->sample_timestamp;
