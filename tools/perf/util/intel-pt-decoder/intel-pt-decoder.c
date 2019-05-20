@@ -163,6 +163,9 @@ struct intel_pt_decoder {
 	uint64_t last_masked_timestamp;
 	uint64_t tot_cyc_cnt;
 	uint64_t sample_tot_cyc_cnt;
+	uint64_t base_cyc_cnt;
+	uint64_t cyc_cnt_timestamp;
+	double tsc_to_cyc;
 	bool continuous_period;
 	bool overflow;
 	bool set_fup_tx_flags;
@@ -1423,6 +1426,42 @@ static int intel_pt_overflow(struct intel_pt_decoder *decoder)
 	return -EOVERFLOW;
 }
 
+static inline void intel_pt_mtc_cyc_cnt_pge(struct intel_pt_decoder *decoder)
+{
+	if (decoder->have_cyc)
+		return;
+
+	decoder->cyc_cnt_timestamp = decoder->timestamp;
+	decoder->base_cyc_cnt = decoder->tot_cyc_cnt;
+}
+
+static inline void intel_pt_mtc_cyc_cnt_cbr(struct intel_pt_decoder *decoder)
+{
+	decoder->tsc_to_cyc = decoder->cbr / decoder->max_non_turbo_ratio_fp;
+
+	if (decoder->pge)
+		intel_pt_mtc_cyc_cnt_pge(decoder);
+}
+
+static inline void intel_pt_mtc_cyc_cnt_upd(struct intel_pt_decoder *decoder)
+{
+	uint64_t tot_cyc_cnt, tsc_delta;
+
+	if (decoder->have_cyc)
+		return;
+
+	decoder->sample_cyc = true;
+
+	if (!decoder->pge || decoder->timestamp <= decoder->cyc_cnt_timestamp)
+		return;
+
+	tsc_delta = decoder->timestamp - decoder->cyc_cnt_timestamp;
+	tot_cyc_cnt = tsc_delta * decoder->tsc_to_cyc + decoder->base_cyc_cnt;
+
+	if (tot_cyc_cnt > decoder->tot_cyc_cnt)
+		decoder->tot_cyc_cnt = tot_cyc_cnt;
+}
+
 static void intel_pt_calc_tma(struct intel_pt_decoder *decoder)
 {
 	uint32_t ctc = decoder->packet.payload;
@@ -1431,6 +1470,11 @@ static void intel_pt_calc_tma(struct intel_pt_decoder *decoder)
 
 	if (!decoder->tsc_ctc_ratio_d)
 		return;
+
+	if (decoder->pge && !decoder->in_psb)
+		intel_pt_mtc_cyc_cnt_pge(decoder);
+	else
+		intel_pt_mtc_cyc_cnt_upd(decoder);
 
 	decoder->last_mtc = (ctc >> decoder->mtc_shift) & 0xff;
 	decoder->ctc_timestamp = decoder->tsc_timestamp - fc;
@@ -1487,6 +1531,8 @@ static void intel_pt_calc_mtc_timestamp(struct intel_pt_decoder *decoder)
 	else
 		decoder->timestamp = timestamp;
 
+	intel_pt_mtc_cyc_cnt_upd(decoder);
+
 	decoder->timestamp_insn_cnt = 0;
 	decoder->last_mtc = mtc;
 
@@ -1511,6 +1557,8 @@ static void intel_pt_calc_cbr(struct intel_pt_decoder *decoder)
 
 	decoder->cbr = cbr;
 	decoder->cbr_cyc_to_tsc = decoder->max_non_turbo_ratio_fp / cbr;
+
+	intel_pt_mtc_cyc_cnt_cbr(decoder);
 }
 
 static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
@@ -1706,6 +1754,7 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 				decoder->state.to_ip = decoder->ip;
 			}
 			decoder->state.type |= INTEL_PT_TRACE_BEGIN;
+			intel_pt_mtc_cyc_cnt_pge(decoder);
 			return 0;
 
 		case INTEL_PT_TIP:
@@ -1776,6 +1825,7 @@ next:
 
 		case INTEL_PT_TIP_PGE: {
 			decoder->pge = true;
+			intel_pt_mtc_cyc_cnt_pge(decoder);
 			if (decoder->packet.count == 0) {
 				intel_pt_log_at("Skipping zero TIP.PGE",
 						decoder->pos);
@@ -2138,6 +2188,7 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 
 		case INTEL_PT_TIP_PGE:
 			decoder->pge = true;
+			intel_pt_mtc_cyc_cnt_pge(decoder);
 			if (intel_pt_have_ip(decoder))
 				intel_pt_set_ip(decoder);
 			if (!decoder->ip)
