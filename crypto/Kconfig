@@ -282,6 +282,7 @@ config CRYPTO_CCM
 	select CRYPTO_CTR
 	select CRYPTO_HASH
 	select CRYPTO_AEAD
+	select CRYPTO_MANAGER
 	help
 	  Support for Counter with CBC MAC. Required for IPsec.
 
@@ -291,6 +292,7 @@ config CRYPTO_GCM
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH
 	select CRYPTO_NULL
+	select CRYPTO_MANAGER
 	help
 	  Support for Galois/Counter Mode (GCM) and Galois Message
 	  Authentication Code (GMAC). Required for IPSec.
@@ -300,6 +302,7 @@ config CRYPTO_CHACHA20POLY1305
 	select CRYPTO_CHACHA20
 	select CRYPTO_POLY1305
 	select CRYPTO_AEAD
+	select CRYPTO_MANAGER
 	help
 	  ChaCha20-Poly1305 AEAD support, RFC7539.
 
@@ -414,6 +417,7 @@ config CRYPTO_SEQIV
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_NULL
 	select CRYPTO_RNG_DEFAULT
+	select CRYPTO_MANAGER
 	help
 	  This IV generator generates an IV based on a sequence number by
 	  xoring it with a salt.  This algorithm is mainly useful for CTR
@@ -423,6 +427,7 @@ config CRYPTO_ECHAINIV
 	select CRYPTO_AEAD
 	select CRYPTO_NULL
 	select CRYPTO_RNG_DEFAULT
+	select CRYPTO_MANAGER
 	default m
 	help
 	  This IV generator generates an IV based on the encryption of
@@ -459,6 +464,7 @@ config CRYPTO_CTR
 config CRYPTO_CTS
 	tristate "CTS support"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	help
 	  CTS: Cipher Text Stealing
 	  This is the Cipher Text Stealing mode as described by
@@ -524,6 +530,7 @@ config CRYPTO_XTS
 config CRYPTO_KEYWRAP
 	tristate "Key wrapping support"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	help
 	  Support for key wrapping (NIST SP800-38F / RFC3394) without
 	  padding.
@@ -554,6 +561,7 @@ config CRYPTO_ADIANTUM
 	select CRYPTO_CHACHA20
 	select CRYPTO_POLY1305
 	select CRYPTO_NHPOLY1305
+	select CRYPTO_MANAGER
 	help
 	  Adiantum is a tweakable, length-preserving encryption mode
 	  designed for fast and secure disk encryption, especially on
