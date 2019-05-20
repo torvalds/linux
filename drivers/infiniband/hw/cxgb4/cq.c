@@ -1135,9 +1135,9 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		mm2->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm2);
 	}
-	pr_debug("cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
-		 chp->cq.cqid, chp, chp->cq.size,
-		 chp->cq.memsize, (unsigned long long)chp->cq.dma_addr);
+	pr_debug("cqid 0x%0x chp %p size %u memsize %zu, dma_addr %pad\n",
+		 chp->cq.cqid, chp, chp->cq.size, chp->cq.memsize,
+		 &chp->cq.dma_addr);
 	return &chp->ibcq;
 err_free_mm2:
 	kfree(mm2);
