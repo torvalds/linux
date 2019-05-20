@@ -1646,9 +1646,6 @@ static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	u32 opcode = 0;
 	int ret;
 
-	if (ib_cq == NULL)
-		return 0;
-
 	nescq = to_nescq(ib_cq);
 	nesvnic = to_nesvnic(ib_cq->device);
 	nesdev = nesvnic->nesdev;
@@ -3708,9 +3705,6 @@ void  nes_port_ibevent(struct nes_vnic *nesvnic)
  */
 void nes_destroy_ofa_device(struct nes_ib_device *nesibdev)
 {
-	if (nesibdev == NULL)
-		return;
-
 	nes_unregister_ofa_device(nesibdev);
 
 	ib_dealloc_device(&nesibdev->ibdev);
