@@ -47,7 +47,7 @@ linux (5.0.0-16.17) disco; urgency=medium
     - SAUCE: shiftfs: lock down certain superblock flags
 
   * Please package libbpf (which is done out of the kernel src) in Debian [for
-    19.10] (LP: #1826410)
+    19.10] (LP: #1828234)
     - SAUCE: tools -- fix add ability to disable libbfd
 
   * Disco update: 5.0.8 upstream stable release (LP: #1828415)
