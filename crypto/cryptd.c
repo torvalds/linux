@@ -925,7 +925,7 @@ static int cryptd_create(struct crypto_template *tmpl, struct rtattr **tb)
 	switch (algt->type & algt->mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_BLKCIPHER:
 		return cryptd_create_skcipher(tmpl, tb, &queue);
-	case CRYPTO_ALG_TYPE_DIGEST:
+	case CRYPTO_ALG_TYPE_HASH:
 		return cryptd_create_hash(tmpl, tb, &queue);
 	case CRYPTO_ALG_TYPE_AEAD:
 		return cryptd_create_aead(tmpl, tb, &queue);
