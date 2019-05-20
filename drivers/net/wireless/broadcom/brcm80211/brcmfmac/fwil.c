@@ -303,7 +303,7 @@ brcmf_create_bsscfg(s32 bsscfgidx, char *name, char *data, u32 datalen,
 		return brcmf_create_iovar(name, data, datalen, buf, buflen);
 
 	prefixlen = strlen(prefix);
-	namelen = strlen(name) + 1; /* lengh of iovar  name + null */
+	namelen = strlen(name) + 1; /* length of iovar  name + null */
 	iolen = prefixlen + namelen + sizeof(bsscfgidx_le) + datalen;
 
 	if (buflen < iolen) {
