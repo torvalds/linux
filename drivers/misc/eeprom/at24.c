@@ -685,23 +685,6 @@ static int at24_probe(struct i2c_client *client)
 			return err;
 	}
 
-	i2c_set_clientdata(client, at24);
-
-	/* enable runtime pm */
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	/*
-	 * Perform a one-byte test read to verify that the
-	 * chip is functional.
-	 */
-	err = at24_read(at24, 0, &test_byte, 1);
-	pm_runtime_idle(dev);
-	if (err) {
-		err = -ENODEV;
-		goto err_runtime_pm;
-	}
-
 	nvmem_config.name = dev_name(dev);
 	nvmem_config.dev = dev;
 	nvmem_config.read_only = !writable;
@@ -717,9 +700,24 @@ static int at24_probe(struct i2c_client *client)
 	nvmem_config.size = byte_len;
 
 	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
-	if (IS_ERR(at24->nvmem)) {
-		err = PTR_ERR(at24->nvmem);
-		goto err_runtime_pm;
+	if (IS_ERR(at24->nvmem))
+		return PTR_ERR(at24->nvmem);
+
+	i2c_set_clientdata(client, at24);
+
+	/* enable runtime pm */
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	/*
+	 * Perform a one-byte test read to verify that the
+	 * chip is functional.
+	 */
+	err = at24_read(at24, 0, &test_byte, 1);
+	pm_runtime_idle(dev);
+	if (err) {
+		pm_runtime_disable(dev);
+		return -ENODEV;
 	}
 
 	dev_info(dev, "%u byte %s EEPROM, %s, %u bytes/write\n",
@@ -727,11 +725,6 @@ static int at24_probe(struct i2c_client *client)
 		 writable ? "writable" : "read-only", at24->write_max);
 
 	return 0;
-
-err_runtime_pm:
-	pm_runtime_disable(dev);
-
-	return err;
 }
 
 static int at24_remove(struct i2c_client *client)
