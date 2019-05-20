@@ -87,9 +87,6 @@ extern struct attribute *kpc_uio_class_attrs[];
 int   kp2000_probe_cores(struct kp2000_device *pcard);
 void  kp2000_remove_cores(struct kp2000_device *pcard);
 
-extern struct file_operations  kp2000_fops;
-
-
 // Define this quick little macro because the expression is used frequently
 #define PCARD_TO_DEV(pcard)  (&(pcard->pdev->dev))
 
