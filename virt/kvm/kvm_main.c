@@ -1722,8 +1722,10 @@ static int __kvm_map_gfn(struct kvm_memory_slot *slot, gfn_t gfn,
 	if (pfn_valid(pfn)) {
 		page = pfn_to_page(pfn);
 		hva = kmap(page);
+#ifdef CONFIG_HAS_IOMEM
 	} else {
 		hva = memremap(pfn_to_hpa(pfn), PAGE_SIZE, MEMREMAP_WB);
+#endif
 	}
 
 	if (!hva)
