@@ -363,6 +363,9 @@ static void vnt_free_tx_bufs(struct vnt_private *priv)
 
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = priv->tx_context[ii];
+		if (!tx_context)
+			continue;
+
 		/* deallocate URBs */
 		if (tx_context->urb) {
 			usb_kill_urb(tx_context->urb);
