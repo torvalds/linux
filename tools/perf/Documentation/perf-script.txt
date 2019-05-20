@@ -117,7 +117,7 @@ OPTIONS
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
-        brstackoff, callindent, insn, insnlen, synth, phys_addr, metric, misc, srccode.
+        brstackoff, callindent, insn, insnlen, synth, phys_addr, metric, misc, srccode, ipc.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -201,6 +201,9 @@ OPTIONS
 	instruction.
 
 	The synth field is used by synthesized events which may be created when
+	Instruction Trace decoding.
+
+	The ipc (instructions per cycle) field is synthesized and may have a value when
 	Instruction Trace decoding.
 
 	Finally, a user may not set fields to none for all event types.
