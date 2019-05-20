@@ -316,16 +316,16 @@ A: When a netdev of a physical NIC is initialized, Linux usually
    all the traffic, you can force the netdev to only have 1 queue, queue
    id 0, and then bind to queue 0. You can use ethtool to do this::
 
-   sudo ethtool -L <interface> combined 1
+     sudo ethtool -L <interface> combined 1
 
    If you want to only see part of the traffic, you can program the
    NIC through ethtool to filter out your traffic to a single queue id
    that you can bind your XDP socket to. Here is one example in which
    UDP traffic to and from port 4242 are sent to queue 2::
 
-   sudo ethtool -N <interface> rx-flow-hash udp4 fn
-   sudo ethtool -N <interface> flow-type udp4 src-port 4242 dst-port \
-   4242 action 2
+     sudo ethtool -N <interface> rx-flow-hash udp4 fn
+     sudo ethtool -N <interface> flow-type udp4 src-port 4242 dst-port \
+     4242 action 2
 
    A number of other ways are possible all up to the capabilitites of
    the NIC you have.
