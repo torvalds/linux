@@ -274,7 +274,7 @@ static int igt_evict_for_cache_color(void *arg)
 		err = PTR_ERR(obj);
 		goto cleanup;
 	}
-	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 	quirk_add(obj, &objects);
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
@@ -290,7 +290,7 @@ static int igt_evict_for_cache_color(void *arg)
 		err = PTR_ERR(obj);
 		goto cleanup;
 	}
-	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 	quirk_add(obj, &objects);
 
 	/* Neighbouring; same colour - should fit */
@@ -455,7 +455,7 @@ static int igt_evict_contexts(void *arg)
 			struct i915_gem_context *ctx;
 
 			ctx = live_context(i915, file);
-			if (!ctx)
+			if (IS_ERR(ctx))
 				break;
 
 			/* We will need some GGTT space for the rq's context */
@@ -547,7 +547,7 @@ int i915_gem_evict_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_evict_contexts),
 	};
 
-	if (i915_terminally_wedged(&i915->gpu_error))
+	if (i915_terminally_wedged(i915))
 		return 0;
 
 	return i915_subtests(tests, i915);

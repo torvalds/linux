@@ -12,6 +12,7 @@ enum ice_status {
 	ICE_ERR_PARAM				= -1,
 	ICE_ERR_NOT_IMPL			= -2,
 	ICE_ERR_NOT_READY			= -3,
+	ICE_ERR_NOT_SUPPORTED			= -4,
 	ICE_ERR_BAD_PTR				= -5,
 	ICE_ERR_INVAL_SIZE			= -6,
 	ICE_ERR_DEVICE_NOT_SUPPORTED		= -8,

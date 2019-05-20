@@ -1569,18 +1569,19 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			  "WARN: xHC returned failed port status event\n");
 
 	port_id = GET_PORT_ID(le32_to_cpu(event->generic.field[0]));
-	xhci_dbg(xhci, "Port Status Change Event for port %d\n", port_id);
-
 	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
+
 	if ((port_id <= 0) || (port_id > max_ports)) {
-		xhci_warn(xhci, "Invalid port id %d\n", port_id);
+		xhci_warn(xhci, "Port change event with invalid port ID %d\n",
+			  port_id);
 		inc_deq(xhci, xhci->event_ring);
 		return;
 	}
 
 	port = &xhci->hw_ports[port_id - 1];
 	if (!port || !port->rhub || port->hcd_portnum == DUPLICATE_ENTRY) {
-		xhci_warn(xhci, "Event for invalid port %u\n", port_id);
+		xhci_warn(xhci, "Port change event, no port for port ID %u\n",
+			  port_id);
 		bogus_port_status = true;
 		goto cleanup;
 	}
@@ -1596,6 +1597,9 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	bus_state = &port->rhub->bus_state;
 	hcd_portnum = port->hcd_portnum;
 	portsc = readl(port->addr);
+
+	xhci_dbg(xhci, "Port change event, %d-%d, id %d, portsc: 0x%x\n",
+		 hcd->self.busnum, hcd_portnum + 1, port_id, portsc);
 
 	trace_xhci_handle_port_status(hcd_portnum, portsc);
 
@@ -1647,10 +1651,13 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		}
 	}
 
-	if ((portsc & PORT_PLC) && (portsc & PORT_PLS_MASK) == XDEV_U0 &&
-			DEV_SUPERSPEED_ANY(portsc)) {
+	if ((portsc & PORT_PLC) &&
+	    DEV_SUPERSPEED_ANY(portsc) &&
+	    ((portsc & PORT_PLS_MASK) == XDEV_U0 ||
+	     (portsc & PORT_PLS_MASK) == XDEV_U1 ||
+	     (portsc & PORT_PLS_MASK) == XDEV_U2)) {
 		xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
-		/* We've just brought the device into U0 through either the
+		/* We've just brought the device into U0/1/2 through either the
 		 * Resume state after a device remote wakeup, or through the
 		 * U3Exit state after a host-initiated resume.  If it's a device
 		 * initiated remote wake, don't pass up the link state change,
@@ -3272,6 +3279,12 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			field |= TRB_IOC;
 			more_trbs_coming = false;
 			td->last_trb = ring->enqueue;
+
+			if (xhci_urb_suitable_for_idt(urb)) {
+				memcpy(&send_addr, urb->transfer_buffer,
+				       trb_buff_len);
+				field |= TRB_IDT;
+			}
 		}
 
 		/* Only set interrupt on short packet for IN endpoints */
@@ -3410,6 +3423,12 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	if (urb->transfer_buffer_length > 0) {
 		u32 length_field, remainder;
+
+		if (xhci_urb_suitable_for_idt(urb)) {
+			memcpy(&urb->transfer_dma, urb->transfer_buffer,
+			       urb->transfer_buffer_length);
+			field |= TRB_IDT;
+		}
 
 		remainder = xhci_td_remainder(xhci, 0,
 				urb->transfer_buffer_length,

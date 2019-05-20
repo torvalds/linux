@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/bitops.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
@@ -22,9 +23,6 @@ DEFINE_SPINLOCK(pmc_pcr_lock);
 #define PERIPHERAL_ID_MIN	2
 #define PERIPHERAL_ID_MAX	31
 #define PERIPHERAL_MASK(id)	(1 << ((id) & PERIPHERAL_ID_MAX))
-
-#define PERIPHERAL_RSHIFT_MASK	0x3
-#define PERIPHERAL_RSHIFT(val)	(((val) >> 16) & PERIPHERAL_RSHIFT_MASK)
 
 #define PERIPHERAL_MAX_SHIFT	3
 
@@ -43,6 +41,7 @@ struct clk_sam9x5_peripheral {
 	spinlock_t *lock;
 	u32 id;
 	u32 div;
+	const struct clk_pcr_layout *layout;
 	bool auto_div;
 };
 
@@ -169,13 +168,13 @@ static int clk_sam9x5_peripheral_enable(struct clk_hw *hw)
 		return 0;
 
 	spin_lock_irqsave(periph->lock, flags);
-	regmap_write(periph->regmap, AT91_PMC_PCR,
-		     (periph->id & AT91_PMC_PCR_PID_MASK));
-	regmap_update_bits(periph->regmap, AT91_PMC_PCR,
-			   AT91_PMC_PCR_DIV_MASK | AT91_PMC_PCR_CMD |
+	regmap_write(periph->regmap, periph->layout->offset,
+		     (periph->id & periph->layout->pid_mask));
+	regmap_update_bits(periph->regmap, periph->layout->offset,
+			   periph->layout->div_mask | periph->layout->cmd |
 			   AT91_PMC_PCR_EN,
-			   AT91_PMC_PCR_DIV(periph->div) |
-			   AT91_PMC_PCR_CMD |
+			   field_prep(periph->layout->div_mask, periph->div) |
+			   periph->layout->cmd |
 			   AT91_PMC_PCR_EN);
 	spin_unlock_irqrestore(periph->lock, flags);
 
@@ -191,11 +190,11 @@ static void clk_sam9x5_peripheral_disable(struct clk_hw *hw)
 		return;
 
 	spin_lock_irqsave(periph->lock, flags);
-	regmap_write(periph->regmap, AT91_PMC_PCR,
-		     (periph->id & AT91_PMC_PCR_PID_MASK));
-	regmap_update_bits(periph->regmap, AT91_PMC_PCR,
-			   AT91_PMC_PCR_EN | AT91_PMC_PCR_CMD,
-			   AT91_PMC_PCR_CMD);
+	regmap_write(periph->regmap, periph->layout->offset,
+		     (periph->id & periph->layout->pid_mask));
+	regmap_update_bits(periph->regmap, periph->layout->offset,
+			   AT91_PMC_PCR_EN | periph->layout->cmd,
+			   periph->layout->cmd);
 	spin_unlock_irqrestore(periph->lock, flags);
 }
 
@@ -209,9 +208,9 @@ static int clk_sam9x5_peripheral_is_enabled(struct clk_hw *hw)
 		return 1;
 
 	spin_lock_irqsave(periph->lock, flags);
-	regmap_write(periph->regmap, AT91_PMC_PCR,
-		     (periph->id & AT91_PMC_PCR_PID_MASK));
-	regmap_read(periph->regmap, AT91_PMC_PCR, &status);
+	regmap_write(periph->regmap, periph->layout->offset,
+		     (periph->id & periph->layout->pid_mask));
+	regmap_read(periph->regmap, periph->layout->offset, &status);
 	spin_unlock_irqrestore(periph->lock, flags);
 
 	return status & AT91_PMC_PCR_EN ? 1 : 0;
@@ -229,13 +228,13 @@ clk_sam9x5_peripheral_recalc_rate(struct clk_hw *hw,
 		return parent_rate;
 
 	spin_lock_irqsave(periph->lock, flags);
-	regmap_write(periph->regmap, AT91_PMC_PCR,
-		     (periph->id & AT91_PMC_PCR_PID_MASK));
-	regmap_read(periph->regmap, AT91_PMC_PCR, &status);
+	regmap_write(periph->regmap, periph->layout->offset,
+		     (periph->id & periph->layout->pid_mask));
+	regmap_read(periph->regmap, periph->layout->offset, &status);
 	spin_unlock_irqrestore(periph->lock, flags);
 
 	if (status & AT91_PMC_PCR_EN) {
-		periph->div = PERIPHERAL_RSHIFT(status);
+		periph->div = field_get(periph->layout->div_mask, status);
 		periph->auto_div = false;
 	} else {
 		clk_sam9x5_peripheral_autodiv(periph);
@@ -328,6 +327,7 @@ static const struct clk_ops sam9x5_peripheral_ops = {
 
 struct clk_hw * __init
 at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
+				    const struct clk_pcr_layout *layout,
 				    const char *name, const char *parent_name,
 				    u32 id, const struct clk_range *range)
 {
@@ -354,7 +354,9 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 	periph->div = 0;
 	periph->regmap = regmap;
 	periph->lock = lock;
-	periph->auto_div = true;
+	if (layout->div_mask)
+		periph->auto_div = true;
+	periph->layout = layout;
 	periph->range = *range;
 
 	hw = &periph->hw;

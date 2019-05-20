@@ -91,6 +91,12 @@ static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	 *   MP0CLK DS
 	 */
 	data->registry_data.disallowed_features = 0xE0041C00;
+	/* ECC feature should be disabled on old SMUs */
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
+	hwmgr->smu_version = smum_get_argument(hwmgr);
+	if (hwmgr->smu_version < 0x282100)
+		data->registry_data.disallowed_features |= FEATURE_ECC_MASK;
+
 	data->registry_data.od_state_in_dc_support = 0;
 	data->registry_data.thermal_support = 1;
 	data->registry_data.skip_baco_hardware = 0;
@@ -357,6 +363,7 @@ static void vega20_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->smu_features[GNLD_DS_MP1CLK].smu_feature_id = FEATURE_DS_MP1CLK_BIT;
 	data->smu_features[GNLD_DS_MP0CLK].smu_feature_id = FEATURE_DS_MP0CLK_BIT;
 	data->smu_features[GNLD_XGMI].smu_feature_id = FEATURE_XGMI_BIT;
+	data->smu_features[GNLD_ECC].smu_feature_id = FEATURE_ECC_BIT;
 
 	for (i = 0; i < GNLD_FEATURES_MAX; i++) {
 		data->smu_features[i].smu_feature_bitmap =
@@ -427,6 +434,7 @@ static int vega20_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 
 	data->total_active_cus = adev->gfx.cu_info.number;
+	data->is_custom_profile_set = false;
 
 	return 0;
 }
@@ -443,6 +451,7 @@ static int vega20_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	int ret = 0;
 
 	ret = vega20_init_sclk_threshold(hwmgr);
@@ -450,7 +459,15 @@ static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 			"Failed to init sclk threshold!",
 			return ret);
 
-	return 0;
+	if (adev->in_baco_reset) {
+		adev->in_baco_reset = 0;
+
+		ret = vega20_baco_apply_vdci_flush_workaround(hwmgr);
+		if (ret)
+			pr_err("Failed to apply vega20 baco workaround!\n");
+	}
+
+	return ret;
 }
 
 /*
@@ -3020,7 +3037,8 @@ static int vega20_get_ppfeature_status(struct pp_hwmgr *hwmgr, char *buf)
 				"FCLK_DS",
 				"MP1CLK_DS",
 				"MP0CLK_DS",
-				"XGMI"};
+				"XGMI",
+				"ECC"};
 	static const char *output_title[] = {
 				"FEATURES",
 				"BITMASK",
@@ -3442,7 +3460,18 @@ static void vega20_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 		return ;
 
 	data->vce_power_gated = bgate;
-	vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+	if (bgate) {
+		vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_GATE);
+	} else {
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_UNGATE);
+		vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+	}
+
 }
 
 static void vega20_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
@@ -3462,6 +3491,7 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	struct vega20_single_dpm_table *dpm_table;
 	bool vblank_too_short = false;
 	bool disable_mclk_switching;
+	bool disable_fclk_switching;
 	uint32_t i, latency;
 
 	disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
@@ -3537,13 +3567,20 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	if (hwmgr->display_config->nb_pstate_switch_disable)
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
+	if ((disable_mclk_switching &&
+	    (dpm_table->dpm_state.hard_min_level == dpm_table->dpm_levels[dpm_table->count - 1].value)) ||
+	     hwmgr->display_config->min_mem_set_clock / 100 >= dpm_table->dpm_levels[dpm_table->count - 1].value)
+		disable_fclk_switching = true;
+	else
+		disable_fclk_switching = false;
+
 	/* fclk */
 	dpm_table = &(data->dpm_table.fclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
 	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
 	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
-	if (hwmgr->display_config->nb_pstate_switch_disable)
+	if (hwmgr->display_config->nb_pstate_switch_disable || disable_fclk_switching)
 		dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
 	/* vclk */
@@ -3810,16 +3847,19 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
 	int workload_type, result = 0;
+	uint32_t power_profile_mode = input[size];
 
-	hwmgr->power_profile_mode = input[size];
-
-	if (hwmgr->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", hwmgr->power_profile_mode);
+	if (power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", power_profile_mode);
 		return -EINVAL;
 	}
 
-	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size < 10)
+	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+		if (size == 0 && !data->is_custom_profile_set)
+			return -EINVAL;
+		if (size < 10 && size != 0)
 			return -EINVAL;
 
 		result = vega20_get_activity_monitor_coeff(hwmgr,
@@ -3828,6 +3868,13 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 		PP_ASSERT_WITH_CODE(!result,
 				"[SetPowerProfile] Failed to get activity monitor!",
 				return result);
+
+		/* If size==0, then we want to apply the already-configured
+		 * CUSTOM profile again. Just apply it, since we checked its
+		 * validity above
+		 */
+		if (size == 0)
+			goto out;
 
 		switch (input[0]) {
 		case 0: /* Gfxclk */
@@ -3879,16 +3926,20 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 		result = vega20_set_activity_monitor_coeff(hwmgr,
 				(uint8_t *)(&activity_monitor),
 				WORKLOAD_PPLIB_CUSTOM_BIT);
+		data->is_custom_profile_set = true;
 		PP_ASSERT_WITH_CODE(!result,
 				"[SetPowerProfile] Failed to set activity monitor!",
 				return result);
 	}
 
+out:
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type =
-		conv_power_profile_to_pplib_workload(hwmgr->power_profile_mode);
+		conv_power_profile_to_pplib_workload(power_profile_mode);
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
 						1 << workload_type);
+
+	hwmgr->power_profile_mode = power_profile_mode;
 
 	return 0;
 }

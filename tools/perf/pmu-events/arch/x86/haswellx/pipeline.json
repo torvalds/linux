@@ -1,6 +1,5 @@
 [
     {
-        "EventCode": "0x00",
         "UMask": "0x1",
         "BriefDescription": "Instructions retired from execution.",
         "Counter": "Fixed counter 0",
@@ -11,7 +10,6 @@
         "CounterHTOff": "Fixed counter 0"
     },
     {
-        "EventCode": "0x00",
         "UMask": "0x2",
         "BriefDescription": "Core cycles when the thread is not in halt state.",
         "Counter": "Fixed counter 1",
@@ -21,7 +19,6 @@
         "CounterHTOff": "Fixed counter 1"
     },
     {
-        "EventCode": "0x00",
         "UMask": "0x2",
         "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
         "Counter": "Fixed counter 1",
@@ -31,7 +28,6 @@
         "CounterHTOff": "Fixed counter 1"
     },
     {
-        "EventCode": "0x00",
         "UMask": "0x3",
         "BriefDescription": "Reference cycles when the core is not in halt state.",
         "Counter": "Fixed counter 2",
@@ -1098,6 +1094,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "UOPS_RETIRED.ALL",
+        "PublicDescription": "Counts the number of micro-ops retired. Use Cmask=1 and invert to count active cycles or stalled cycles.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -1142,6 +1139,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "UOPS_RETIRED.RETIRE_SLOTS",
+        "PublicDescription": "This event counts the number of retirement slots used each cycle.  There are potentially 4 slots that can be used each cycle - meaning, 4 uops or 4 instructions could retire each cycle.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -1201,6 +1199,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.CONDITIONAL",
+        "PublicDescription": "Counts the number of conditional branch instructions retired.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -1241,6 +1240,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.NEAR_RETURN",
+        "PublicDescription": "Counts the number of near return instructions retired.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -1261,6 +1261,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
+        "PublicDescription": "Number of near taken branches retired.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -1312,6 +1313,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
+        "PublicDescription": "Number of near branch instructions retired that were taken but mispredicted.",
         "SampleAfterValue": "400009",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },

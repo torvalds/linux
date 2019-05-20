@@ -50,15 +50,6 @@ static struct drr_class *drr_find_class(struct Qdisc *sch, u32 classid)
 	return container_of(clc, struct drr_class, common);
 }
 
-static void drr_purge_queue(struct drr_class *cl)
-{
-	unsigned int len = cl->qdisc->q.qlen;
-	unsigned int backlog = cl->qdisc->qstats.backlog;
-
-	qdisc_reset(cl->qdisc);
-	qdisc_tree_reduce_backlog(cl->qdisc, len, backlog);
-}
-
 static const struct nla_policy drr_policy[TCA_DRR_MAX + 1] = {
 	[TCA_DRR_QUANTUM]	= { .type = NLA_U32 },
 };
@@ -79,7 +70,8 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_DRR_MAX, opt, drr_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -167,7 +159,7 @@ static int drr_delete_class(struct Qdisc *sch, unsigned long arg)
 
 	sch_tree_lock(sch);
 
-	drr_purge_queue(cl);
+	qdisc_purge_queue(cl->qdisc);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
 	sch_tree_unlock(sch);
@@ -253,7 +245,7 @@ static int drr_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle	= cl->common.classid;
 	tcm->tcm_info	= cl->qdisc->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_u32(skb, TCA_DRR_QUANTUM, cl->quantum))
@@ -269,7 +261,8 @@ static int drr_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 				struct gnet_dump *d)
 {
 	struct drr_class *cl = (struct drr_class *)arg;
-	__u32 qlen = cl->qdisc->q.qlen;
+	__u32 qlen = qdisc_qlen_sum(cl->qdisc);
+	struct Qdisc *cl_q = cl->qdisc;
 	struct tc_drr_stats xstats;
 
 	memset(&xstats, 0, sizeof(xstats));
@@ -279,7 +272,7 @@ static int drr_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
-	    gnet_stats_copy_queue(d, NULL, &cl->qdisc->qstats, qlen) < 0)
+	    gnet_stats_copy_queue(d, cl_q->cpu_qstats, &cl_q->qstats, qlen) < 0)
 		return -1;
 
 	return gnet_stats_copy_app(d, &xstats, sizeof(xstats));

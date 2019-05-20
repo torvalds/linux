@@ -541,6 +541,18 @@ static void vop_core_clks_disable(struct vop *vop)
 	clk_disable(vop->hclk);
 }
 
+static void vop_win_disable(struct vop *vop, const struct vop_win_data *win)
+{
+	if (win->phy->scl && win->phy->scl->ext) {
+		VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_NONE);
+		VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_NONE);
+		VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, SCALE_NONE);
+		VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
+	}
+
+	VOP_WIN_SET(vop, win, enable, 0);
+}
+
 static int vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -586,7 +598,7 @@ static int vop_enable(struct drm_crtc *crtc)
 		struct vop_win *vop_win = &vop->win[i];
 		const struct vop_win_data *win = vop_win->data;
 
-		VOP_WIN_SET(vop, win, enable, 0);
+		vop_win_disable(vop, win);
 	}
 	spin_unlock(&vop->reg_lock);
 
@@ -735,7 +747,7 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 
 	spin_lock(&vop->reg_lock);
 
-	VOP_WIN_SET(vop, win, enable, 0);
+	vop_win_disable(vop, win);
 
 	spin_unlock(&vop->reg_lock);
 }
@@ -1029,6 +1041,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	uint32_t pin_pol, val;
+	int dither_bpc = s->output_bpc ? s->output_bpc : 10;
 	int ret;
 
 	mutex_lock(&vop->vop_lock);
@@ -1086,10 +1099,18 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	    !(vop_data->feature & VOP_FEATURE_OUTPUT_RGB10))
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
 
-	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA && s->output_bpc == 8)
+	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA && dither_bpc <= 8)
 		VOP_REG_SET(vop, common, pre_dither_down, 1);
 	else
 		VOP_REG_SET(vop, common, pre_dither_down, 0);
+
+	if (dither_bpc == 6) {
+		VOP_REG_SET(vop, common, dither_down_sel, DITHER_DOWN_ALLEGRO);
+		VOP_REG_SET(vop, common, dither_down_mode, RGB888_TO_RGB666);
+		VOP_REG_SET(vop, common, dither_down_en, 1);
+	} else {
+		VOP_REG_SET(vop, common, dither_down_en, 0);
+	}
 
 	VOP_REG_SET(vop, common, out_mode, s->output_mode);
 
@@ -1622,7 +1643,7 @@ static int vop_initial(struct vop *vop)
 		int channel = i * 2 + 1;
 
 		VOP_WIN_SET(vop, win, channel, (channel + 1) << 4 | channel);
-		VOP_WIN_SET(vop, win, enable, 0);
+		vop_win_disable(vop, win);
 		VOP_WIN_SET(vop, win, gate, 1);
 	}
 

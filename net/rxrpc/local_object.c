@@ -180,7 +180,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		/* Fall through and set IPv4 options too otherwise we don't get
 		 * errors from IPv4 packets sent through the IPv6 socket.
 		 */
-
+		/* Fall through */
 	case AF_INET:
 		/* we want to receive ICMP errors */
 		opt = 1;
@@ -304,7 +304,8 @@ nomem:
 	ret = -ENOMEM;
 sock_error:
 	mutex_unlock(&rxnet->local_mutex);
-	kfree(local);
+	if (local)
+		call_rcu(&local->rcu, rxrpc_local_rcu);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 

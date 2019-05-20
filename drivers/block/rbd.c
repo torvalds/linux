@@ -833,7 +833,7 @@ static int parse_rbd_opts_token(char *c, void *private)
 		pctx->opts->queue_depth = intval;
 		break;
 	case Opt_alloc_size:
-		if (intval < 1) {
+		if (intval < SECTOR_SIZE) {
 			pr_err("alloc_size out of range\n");
 			return -EINVAL;
 		}
@@ -924,23 +924,6 @@ static void rbd_put_client(struct rbd_client *rbdc)
 		kref_put(&rbdc->kref, rbd_client_release);
 }
 
-static int wait_for_latest_osdmap(struct ceph_client *client)
-{
-	u64 newest_epoch;
-	int ret;
-
-	ret = ceph_monc_get_version(&client->monc, "osdmap", &newest_epoch);
-	if (ret)
-		return ret;
-
-	if (client->osdc.osdmap->epoch >= newest_epoch)
-		return 0;
-
-	ceph_osdc_maybe_request_map(&client->osdc);
-	return ceph_monc_wait_osdmap(&client->monc, newest_epoch,
-				     client->options->mount_timeout);
-}
-
 /*
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.  Either way, ceph_opts is consumed by this
@@ -951,7 +934,7 @@ static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 	struct rbd_client *rbdc;
 	int ret;
 
-	mutex_lock_nested(&client_mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock(&client_mutex);
 	rbdc = rbd_client_find(ceph_opts);
 	if (rbdc) {
 		ceph_destroy_options(ceph_opts);
@@ -960,7 +943,8 @@ static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 		 * Using an existing client.  Make sure ->pg_pools is up to
 		 * date before we look up the pool id in do_rbd_add().
 		 */
-		ret = wait_for_latest_osdmap(rbdc->client);
+		ret = ceph_wait_for_latest_osdmap(rbdc->client,
+					rbdc->client->options->mount_timeout);
 		if (ret) {
 			rbd_warn(NULL, "failed to get latest osdmap: %d", ret);
 			rbd_put_client(rbdc);
@@ -1342,7 +1326,7 @@ static void rbd_obj_zero_range(struct rbd_obj_request *obj_req, u32 off,
 		zero_bvecs(&obj_req->bvec_pos, off, bytes);
 		break;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 }
 
@@ -1597,7 +1581,7 @@ static void rbd_obj_request_destroy(struct kref *kref)
 		kfree(obj_request->bvec_pos.bvecs);
 		break;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 
 	kfree(obj_request->img_extents);
@@ -1797,7 +1781,7 @@ static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
 						    &obj_req->bvec_pos);
 		break;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 }
 
@@ -2052,7 +2036,7 @@ static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 			ret = rbd_obj_setup_zeroout(obj_req);
 			break;
 		default:
-			rbd_assert(0);
+			BUG();
 		}
 		if (ret < 0)
 			return ret;
@@ -2399,7 +2383,7 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 						      &obj_req->bvec_pos);
 			break;
 		default:
-			rbd_assert(0);
+			BUG();
 		}
 	} else {
 		ret = rbd_img_fill_from_bvecs(child_img_req,
@@ -2531,7 +2515,7 @@ static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 		num_osd_ops += count_zeroout_ops(obj_req);
 		break;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 
 	obj_req->osd_req = rbd_osd_req_create(obj_req, num_osd_ops);
@@ -2558,7 +2542,7 @@ static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 		__rbd_obj_setup_zeroout(obj_req, which);
 		break;
 	default:
-		rbd_assert(0);
+		BUG();
 	}
 
 	ret = ceph_osdc_alloc_messages(obj_req->osd_req, GFP_NOIO);
@@ -3858,8 +3842,12 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 
-	rbd_assert(op_type == OBJ_OP_READ ||
-		   rbd_dev->spec->snap_id == CEPH_NOSNAP);
+	if (op_type != OBJ_OP_READ && rbd_dev->spec->snap_id != CEPH_NOSNAP) {
+		rbd_warn(rbd_dev, "%s on read-only snapshot",
+			 obj_op_name(op_type));
+		result = -EIO;
+		goto err;
+	}
 
 	/*
 	 * Quit early if the mapped snapshot no longer exists.  It's
@@ -4203,12 +4191,12 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	q->limits.max_sectors = queue_max_hw_sectors(q);
 	blk_queue_max_segments(q, USHRT_MAX);
 	blk_queue_max_segment_size(q, UINT_MAX);
-	blk_queue_io_min(q, objset_bytes);
-	blk_queue_io_opt(q, objset_bytes);
+	blk_queue_io_min(q, rbd_dev->opts->alloc_size);
+	blk_queue_io_opt(q, rbd_dev->opts->alloc_size);
 
 	if (rbd_dev->opts->trim) {
 		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
-		q->limits.discard_granularity = objset_bytes;
+		q->limits.discard_granularity = rbd_dev->opts->alloc_size;
 		blk_queue_max_discard_sectors(q, objset_bytes >> SECTOR_SHIFT);
 		blk_queue_max_write_zeroes_sectors(q, objset_bytes >> SECTOR_SHIFT);
 	}

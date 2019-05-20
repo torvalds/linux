@@ -42,9 +42,9 @@ int __read_mostly watchdog_user_enabled = 1;
 int __read_mostly nmi_watchdog_user_enabled = NMI_WATCHDOG_DEFAULT;
 int __read_mostly soft_watchdog_user_enabled = 1;
 int __read_mostly watchdog_thresh = 10;
-int __read_mostly nmi_watchdog_available;
+static int __read_mostly nmi_watchdog_available;
 
-struct cpumask watchdog_allowed_mask __read_mostly;
+static struct cpumask watchdog_allowed_mask __read_mostly;
 
 struct cpumask watchdog_cpumask __read_mostly;
 unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
@@ -554,13 +554,15 @@ static void softlockup_start_all(void)
 
 int lockup_detector_online_cpu(unsigned int cpu)
 {
-	watchdog_enable(cpu);
+	if (cpumask_test_cpu(cpu, &watchdog_allowed_mask))
+		watchdog_enable(cpu);
 	return 0;
 }
 
 int lockup_detector_offline_cpu(unsigned int cpu)
 {
-	watchdog_disable(cpu);
+	if (cpumask_test_cpu(cpu, &watchdog_allowed_mask))
+		watchdog_disable(cpu);
 	return 0;
 }
 
@@ -588,7 +590,7 @@ static void lockup_detector_reconfigure(void)
  * Create the watchdog thread infrastructure and configure the detector(s).
  *
  * The threads are not unparked as watchdog_allowed_mask is empty.  When
- * the threads are sucessfully initialized, take the proper locks and
+ * the threads are successfully initialized, take the proper locks and
  * unpark the threads in the watchdog_cpumask if the watchdog is enabled.
  */
 static __init void lockup_detector_setup(void)

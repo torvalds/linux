@@ -28,6 +28,8 @@
 #define FF_LAYOUT_POLL_RETRY_MAX     (15*HZ)
 #define FF_LAYOUTRETURN_MAXERR 20
 
+static unsigned short io_maxretrans;
+
 static void ff_layout_read_record_layoutstats_done(struct rpc_task *task,
 		struct nfs_pgio_header *hdr);
 static int ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
@@ -871,7 +873,7 @@ ff_layout_pg_get_read(struct nfs_pageio_descriptor *pgio,
 {
 	pnfs_put_lseg(pgio->pg_lseg);
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
-					   req->wb_context,
+					   nfs_req_openctx(req),
 					   0,
 					   NFS4_MAX_UINT64,
 					   IOMODE_READ,
@@ -925,6 +927,7 @@ retry:
 	pgm = &pgio->pg_mirrors[0];
 	pgm->pg_bsize = mirror->mirror_ds->ds_versions[0].rsize;
 
+	pgio->pg_maxretrans = io_maxretrans;
 	return;
 out_nolseg:
 	if (pgio->pg_error < 0)
@@ -950,7 +953,7 @@ retry:
 	pnfs_generic_pg_check_layout(pgio);
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
-						   req->wb_context,
+						   nfs_req_openctx(req),
 						   0,
 						   NFS4_MAX_UINT64,
 						   IOMODE_RW,
@@ -992,6 +995,7 @@ retry:
 		pgm->pg_bsize = mirror->mirror_ds->ds_versions[0].wsize;
 	}
 
+	pgio->pg_maxretrans = io_maxretrans;
 	return;
 
 out_mds:
@@ -1006,7 +1010,7 @@ ff_layout_pg_get_mirror_count_write(struct nfs_pageio_descriptor *pgio,
 {
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
-						   req->wb_context,
+						   nfs_req_openctx(req),
 						   0,
 						   NFS4_MAX_UINT64,
 						   IOMODE_RW,
@@ -1289,6 +1293,7 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 static int ff_layout_read_done_cb(struct rpc_task *task,
 				struct nfs_pgio_header *hdr)
 {
+	int new_idx = hdr->pgio_mirror_idx;
 	int err;
 
 	trace_nfs4_pnfs_read(hdr, task->tk_status);
@@ -1307,7 +1312,7 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 	case -NFS4ERR_RESET_TO_PNFS:
 		if (ff_layout_choose_best_ds_for_read(hdr->lseg,
 					hdr->pgio_mirror_idx + 1,
-					&hdr->pgio_mirror_idx))
+					&new_idx))
 			goto out_layouterror;
 		set_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 		return task->tk_status;
@@ -1320,7 +1325,9 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 
 	return 0;
 out_layouterror:
+	ff_layout_read_record_layoutstats_done(task, hdr);
 	ff_layout_send_layouterror(hdr->lseg);
+	hdr->pgio_mirror_idx = new_idx;
 out_eagain:
 	rpc_restart_call_prepare(task);
 	return -EAGAIN;
@@ -2512,3 +2519,7 @@ MODULE_DESCRIPTION("The NFSv4 flexfile layout driver");
 
 module_init(nfs4flexfilelayout_init);
 module_exit(nfs4flexfilelayout_exit);
+
+module_param(io_maxretrans, ushort, 0644);
+MODULE_PARM_DESC(io_maxretrans, "The  number of times the NFSv4.1 client "
+			"retries an I/O request before returning an error. ");

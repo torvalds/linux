@@ -36,7 +36,7 @@ void autofs_clean_ino(struct autofs_info *ino)
 
 void autofs_free_ino(struct autofs_info *ino)
 {
-	kfree(ino);
+	kfree_rcu(ino, rcu);
 }
 
 void autofs_kill_sb(struct super_block *sb)

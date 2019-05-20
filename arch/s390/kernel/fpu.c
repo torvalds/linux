@@ -23,7 +23,7 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 
 	if (flags & KERNEL_FPC)
 		/* Save floating point control */
-		asm volatile("stfpc %0" : "=m" (state->fpc));
+		asm volatile("stfpc %0" : "=Q" (state->fpc));
 
 	if (!MACHINE_HAS_VX) {
 		if (flags & KERNEL_VXR_V0V7) {

@@ -828,9 +828,11 @@ void policydb_destroy(struct policydb *p)
 	hashtab_map(p->range_tr, range_tr_destroy, NULL);
 	hashtab_destroy(p->range_tr);
 
-	for (i = 0; i < p->p_types.nprim; i++)
-		ebitmap_destroy(&p->type_attr_map_array[i]);
-	kvfree(p->type_attr_map_array);
+	if (p->type_attr_map_array) {
+		for (i = 0; i < p->p_types.nprim; i++)
+			ebitmap_destroy(&p->type_attr_map_array[i]);
+		kvfree(p->type_attr_map_array);
+	}
 
 	ebitmap_destroy(&p->filename_trans_ttypes);
 	ebitmap_destroy(&p->policycaps);
@@ -2496,10 +2498,13 @@ int policydb_read(struct policydb *p, void *fp)
 	if (!p->type_attr_map_array)
 		goto bad;
 
+	/* just in case ebitmap_init() becomes more than just a memset(0): */
+	for (i = 0; i < p->p_types.nprim; i++)
+		ebitmap_init(&p->type_attr_map_array[i]);
+
 	for (i = 0; i < p->p_types.nprim; i++) {
 		struct ebitmap *e = &p->type_attr_map_array[i];
 
-		ebitmap_init(e);
 		if (p->policyvers >= POLICYDB_VERSION_AVTAB) {
 			rc = ebitmap_read(e, fp);
 			if (rc)

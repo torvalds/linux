@@ -136,6 +136,10 @@ void inet_sock_destruct(struct sock *sk)
 	struct inet_sock *inet = inet_sk(sk);
 
 	__skb_queue_purge(&sk->sk_receive_queue);
+	if (sk->sk_rx_skb_cache) {
+		__kfree_skb(sk->sk_rx_skb_cache);
+		sk->sk_rx_skb_cache = NULL;
+	}
 	__skb_queue_purge(&sk->sk_error_queue);
 
 	sk_mem_reclaim(sk);
@@ -156,7 +160,7 @@ void inet_sock_destruct(struct sock *sk)
 	WARN_ON(sk->sk_forward_alloc);
 
 	kfree(rcu_dereference_protected(inet->inet_opt, 1));
-	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
+	dst_release(rcu_dereference_protected(sk->sk_dst_cache, 1));
 	dst_release(sk->sk_rx_dst);
 	sk_refcnt_debug_dec(sk);
 }
@@ -911,12 +915,6 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	struct rtentry rt;
 
 	switch (cmd) {
-	case SIOCGSTAMP:
-		err = sock_get_timestamp(sk, (struct timeval __user *)arg);
-		break;
-	case SIOCGSTAMPNS:
-		err = sock_get_timestampns(sk, (struct timespec __user *)arg);
-		break;
 	case SIOCADDRT:
 	case SIOCDELRT:
 		if (copy_from_user(&rt, p, sizeof(struct rtentry)))
@@ -988,6 +986,7 @@ const struct proto_ops inet_stream_ops = {
 	.getname	   = inet_getname,
 	.poll		   = tcp_poll,
 	.ioctl		   = inet_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = inet_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
@@ -1023,6 +1022,7 @@ const struct proto_ops inet_dgram_ops = {
 	.getname	   = inet_getname,
 	.poll		   = udp_poll,
 	.ioctl		   = inet_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = sock_no_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
@@ -1055,6 +1055,7 @@ static const struct proto_ops inet_sockraw_ops = {
 	.getname	   = inet_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = sock_no_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,

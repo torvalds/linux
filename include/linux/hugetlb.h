@@ -123,9 +123,7 @@ void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
 void free_huge_page(struct page *page);
 void hugetlb_fix_reserve_counts(struct inode *inode);
 extern struct mutex *hugetlb_fault_mutex_table;
-u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
-				struct vm_area_struct *vma,
-				struct address_space *mapping,
+u32 hugetlb_fault_mutex_hash(struct hstate *h, struct address_space *mapping,
 				pgoff_t idx, unsigned long address);
 
 pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
@@ -203,7 +201,6 @@ static inline void hugetlb_show_meminfo(void)
 #define pud_huge(x)	0
 #define is_hugepage_only_range(mm, addr, len)	0
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
-#define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
 #define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
 				src_addr, pagep)	({ BUG(); 0; })
 #define huge_pte_offset(mm, address, sz)	0
@@ -233,6 +230,13 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
 			unsigned long end, struct page *ref_page)
 {
 	BUG();
+}
+static inline vm_fault_t hugetlb_fault(struct mm_struct *mm,
+				struct vm_area_struct *vma, unsigned long address,
+				unsigned int flags)
+{
+	BUG();
+	return 0;
 }
 
 #endif /* !CONFIG_HUGETLB_PAGE */

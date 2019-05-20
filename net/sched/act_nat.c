@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/tc_act/tc_nat.h>
 #include <net/act_api.h>
+#include <net/pkt_cls.h>
 #include <net/icmp.h>
 #include <net/ip.h>
 #include <net/netlink.h>
@@ -38,10 +39,12 @@ static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 
 static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			struct tc_action **a, int ovr, int bind,
-			bool rtnl_held, struct netlink_ext_ack *extack)
+			bool rtnl_held,	struct tcf_proto *tp,
+			struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, nat_net_id);
 	struct nlattr *tb[TCA_NAT_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_nat *parm;
 	int ret = 0, err;
 	struct tcf_nat *p;
@@ -49,7 +52,8 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_NAT_MAX, nla, nat_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_NAT_MAX, nla, nat_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -76,6 +80,9 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	} else {
 		return err;
 	}
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 	p = to_tcf_nat(*a);
 
 	spin_lock_bh(&p->tcf_lock);
@@ -84,13 +91,18 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	p->mask = parm->mask;
 	p->flags = parm->flags;
 
-	p->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	spin_unlock_bh(&p->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 
 	return ret;
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,

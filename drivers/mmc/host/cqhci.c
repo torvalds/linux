@@ -537,6 +537,8 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
 		 CQHCI_ACT(0x5) |
 		 CQHCI_CMD_INDEX(mrq->cmd->opcode) |
 		 CQHCI_CMD_TIMING(timing) | CQHCI_RESP_TYPE(resp_type));
+	if (cq_host->ops->update_dcmd_desc)
+		cq_host->ops->update_dcmd_desc(mmc, mrq, &data);
 	*task_desc |= data;
 	desc = (u8 *)task_desc;
 	pr_debug("%s: cqhci: dcmd: cmd: %d timing: %d resp: %d\n",

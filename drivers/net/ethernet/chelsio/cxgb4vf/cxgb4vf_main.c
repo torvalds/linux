@@ -518,8 +518,8 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 			break;
 		}
 		cpl = (void *)p;
-		/*FALLTHROUGH*/
 	}
+		/* Fall through */
 
 	case CPL_SGE_EGR_UPDATE: {
 		/*
@@ -1477,22 +1477,6 @@ static int cxgb4vf_get_link_ksettings(struct net_device *dev,
 	} else {
 		base->speed = SPEED_UNKNOWN;
 		base->duplex = DUPLEX_UNKNOWN;
-	}
-
-	if (pi->link_cfg.fc & PAUSE_RX) {
-		if (pi->link_cfg.fc & PAUSE_TX) {
-			ethtool_link_ksettings_add_link_mode(link_ksettings,
-							     advertising,
-							     Pause);
-		} else {
-			ethtool_link_ksettings_add_link_mode(link_ksettings,
-							     advertising,
-							     Asym_Pause);
-		}
-	} else if (pi->link_cfg.fc & PAUSE_TX) {
-		ethtool_link_ksettings_add_link_mode(link_ksettings,
-						     advertising,
-						     Asym_Pause);
 	}
 
 	base->autoneg = pi->link_cfg.autoneg;

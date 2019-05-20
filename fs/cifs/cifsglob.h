@@ -60,6 +60,12 @@
 #define CIFS_MAX_ACTIMEO (1 << 30)
 
 /*
+ * Max persistent and resilient handle timeout (milliseconds).
+ * Windows durable max was 960000 (16 minutes)
+ */
+#define SMB3_MAX_HANDLE_TIMEOUT 960000
+
+/*
  * MAX_REQ is the maximum number of requests that WE will send
  * on one socket concurrently.
  */
@@ -349,7 +355,8 @@ struct smb_version_operations {
 			       struct cifs_sb_info *);
 	/* query symlink target */
 	int (*query_symlink)(const unsigned int, struct cifs_tcon *,
-			     const char *, char **, struct cifs_sb_info *);
+			     struct cifs_sb_info *, const char *,
+			     char **, bool);
 	/* open a file for non-posix mounts */
 	int (*open)(const unsigned int, struct cifs_open_parms *,
 		    __u32 *, FILE_ALL_INFO *);
@@ -487,6 +494,11 @@ struct smb_version_operations {
 			 char *full_path,
 			 umode_t mode,
 			 dev_t device_number);
+	/* version specific fiemap implementation */
+	int (*fiemap)(struct cifs_tcon *tcon, struct cifsFileInfo *,
+		      struct fiemap_extent_info *, u64, u64);
+	/* version specific llseek implementation */
+	loff_t (*llseek)(struct file *, struct cifs_tcon *, loff_t, int);
 };
 
 struct smb_version_values {
@@ -586,9 +598,14 @@ struct smb_vol {
 	struct nls_table *local_nls;
 	unsigned int echo_interval; /* echo interval in secs */
 	__u64 snapshot_time; /* needed for timewarp tokens */
+	__u32 handle_timeout; /* persistent and durable handle timeout in ms */
 	unsigned int max_credits; /* smb3 max_credits 10 < credits < 60000 */
 };
 
+/**
+ * CIFS superblock mount flags (mnt_cifs_flags) to consider when
+ * trying to reuse existing superblock for a new mount
+ */
 #define CIFS_MOUNT_MASK (CIFS_MOUNT_NO_PERM | CIFS_MOUNT_SET_UID | \
 			 CIFS_MOUNT_SERVER_INUM | CIFS_MOUNT_DIRECT_IO | \
 			 CIFS_MOUNT_NO_XATTR | CIFS_MOUNT_MAP_SPECIAL_CHR | \
@@ -599,8 +616,13 @@ struct smb_vol {
 			 CIFS_MOUNT_NOPOSIXBRL | CIFS_MOUNT_NOSSYNC | \
 			 CIFS_MOUNT_FSCACHE | CIFS_MOUNT_MF_SYMLINKS | \
 			 CIFS_MOUNT_MULTIUSER | CIFS_MOUNT_STRICT_IO | \
-			 CIFS_MOUNT_CIFS_BACKUPUID | CIFS_MOUNT_CIFS_BACKUPGID)
+			 CIFS_MOUNT_CIFS_BACKUPUID | CIFS_MOUNT_CIFS_BACKUPGID | \
+			 CIFS_MOUNT_NO_DFS)
 
+/**
+ * Generic VFS superblock mount flags (s_flags) to consider when
+ * trying to reuse existing superblock for a new mount
+ */
 #define CIFS_MS_MASK (SB_RDONLY | SB_MANDLOCK | SB_NOEXEC | SB_NOSUID | \
 		      SB_NODEV | SB_SYNCHRONOUS)
 
@@ -707,10 +729,15 @@ struct TCP_Server_Info {
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t in_send; /* requests trying to send */
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
+	atomic_t num_cmds[NUMBER_OF_SMB2_COMMANDS]; /* total requests by cmd */
 	atomic_t smb2slowcmd[NUMBER_OF_SMB2_COMMANDS]; /* count resps > 1 sec */
+	__u64 time_per_cmd[NUMBER_OF_SMB2_COMMANDS]; /* total time per cmd */
+	__u32 slowest_cmd[NUMBER_OF_SMB2_COMMANDS];
+	__u32 fastest_cmd[NUMBER_OF_SMB2_COMMANDS];
 #endif /* STATS2 */
 	unsigned int	max_read;
 	unsigned int	max_write;
+	__le16	compress_algorithm;
 	__le16	cipher_type;
 	 /* save initital negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
@@ -1058,6 +1085,7 @@ struct cifs_tcon {
 	__u32 vol_serial_number;
 	__le64 vol_create_time;
 	__u64 snapshot_time; /* for timewarp tokens - timestamp of snapshot */
+	__u32 handle_timeout; /* persistent and durable handle timeout in ms */
 	__u32 ss_flags;		/* sector size flags */
 	__u32 perf_sector_size; /* best sector size for perf */
 	__u32 max_chunks;
@@ -1325,6 +1353,7 @@ cifsFileInfo_get_locked(struct cifsFileInfo *cifs_file)
 }
 
 struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file);
+void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_hdlr);
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 
 #define CIFS_CACHE_READ_FLG	1
@@ -1664,11 +1693,11 @@ static inline bool is_retryable_error(int error)
 
 /* Type of Request to SendReceive2 */
 #define   CIFS_BLOCKING_OP      1    /* operation can block */
-#define   CIFS_ASYNC_OP         2    /* do not wait for response */
+#define   CIFS_NON_BLOCKING     2    /* do not block waiting for credits */
 #define   CIFS_TIMEOUT_MASK 0x003    /* only one of above set in req */
 #define   CIFS_LOG_ERROR    0x010    /* log NT STATUS if non-zero */
 #define   CIFS_LARGE_BUF_OP 0x020    /* large request buffer */
-#define   CIFS_NO_RESP      0x040    /* no response buffer required */
+#define   CIFS_NO_RSP_BUF   0x040    /* no response buffer required */
 
 /* Type of request operation */
 #define   CIFS_ECHO_OP      0x080    /* echo request */
@@ -1678,6 +1707,7 @@ static inline bool is_retryable_error(int error)
 
 #define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
 #define   CIFS_TRANSFORM_REQ 0x0800    /* transform request before sending */
+#define   CIFS_NO_SRV_RSP    0x1000    /* there is no server response */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
@@ -1847,6 +1877,7 @@ GLOBAL_EXTERN spinlock_t gidsidlock;
 #endif /* CONFIG_CIFS_ACL */
 
 void cifs_oplock_break(struct work_struct *work);
+void cifs_queue_oplock_break(struct cifsFileInfo *cfile);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;

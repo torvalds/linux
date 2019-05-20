@@ -394,6 +394,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	if (err)
 		goto out_no_clid;
 
+	clnt->cl_cred	  = get_cred(args->cred);
 	clnt->cl_procinfo = version->procs;
 	clnt->cl_maxproc  = version->nrprocs;
 	clnt->cl_prog     = args->prognumber ? : program->number;
@@ -439,6 +440,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 out_no_path:
 	rpc_free_iostats(clnt->cl_metrics);
 out_no_stats:
+	put_cred(clnt->cl_cred);
 	rpc_free_clid(clnt);
 out_no_clid:
 	kfree(clnt);
@@ -484,8 +486,11 @@ static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 	}
 
 	clnt->cl_softrtry = 1;
-	if (args->flags & RPC_CLNT_CREATE_HARDRTRY)
+	if (args->flags & (RPC_CLNT_CREATE_HARDRTRY|RPC_CLNT_CREATE_SOFTERR)) {
 		clnt->cl_softrtry = 0;
+		if (args->flags & RPC_CLNT_CREATE_SOFTERR)
+			clnt->cl_softerr = 1;
+	}
 
 	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
 		clnt->cl_autobind = 1;
@@ -623,10 +628,12 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
 	new->cl_softrtry = clnt->cl_softrtry;
+	new->cl_softerr = clnt->cl_softerr;
 	new->cl_noretranstimeo = clnt->cl_noretranstimeo;
 	new->cl_discrtry = clnt->cl_discrtry;
 	new->cl_chatty = clnt->cl_chatty;
 	new->cl_principal = clnt->cl_principal;
+	new->cl_cred = get_cred(clnt->cl_cred);
 	return new;
 
 out_err:
@@ -648,6 +655,7 @@ struct rpc_clnt *rpc_clone_client(struct rpc_clnt *clnt)
 		.prognumber	= clnt->cl_prog,
 		.version	= clnt->cl_vers,
 		.authflavor	= clnt->cl_auth->au_flavor,
+		.cred		= clnt->cl_cred,
 	};
 	return __rpc_clone_client(&args, clnt);
 }
@@ -669,6 +677,7 @@ rpc_clone_client_set_auth(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		.prognumber	= clnt->cl_prog,
 		.version	= clnt->cl_vers,
 		.authflavor	= flavor,
+		.cred		= clnt->cl_cred,
 	};
 	return __rpc_clone_client(&args, clnt);
 }
@@ -827,14 +836,8 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	 * Spin lock all_tasks to prevent changes...
 	 */
 	spin_lock(&clnt->cl_lock);
-	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task) {
-		if (!RPC_IS_ACTIVATED(rovr))
-			continue;
-		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
-			rovr->tk_flags |= RPC_TASK_KILLED;
-			rpc_exit(rovr, -EIO);
-		}
-	}
+	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task)
+		rpc_signal_task(rovr);
 	spin_unlock(&clnt->cl_lock);
 }
 EXPORT_SYMBOL_GPL(rpc_killall_tasks);
@@ -882,6 +885,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 	xprt_iter_destroy(&clnt->cl_xpi);
 	rpciod_down();
+	put_cred(clnt->cl_cred);
 	rpc_free_clid(clnt);
 	kfree(clnt);
 	return parent;
@@ -946,6 +950,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 		.prognumber	= program->number,
 		.version	= vers,
 		.authflavor	= old->cl_auth->au_flavor,
+		.cred		= old->cl_cred,
 	};
 	struct rpc_clnt *clnt;
 	int err;
@@ -1007,6 +1012,8 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 		atomic_inc(&clnt->cl_count);
 		if (clnt->cl_softrtry)
 			task->tk_flags |= RPC_TASK_SOFT;
+		if (clnt->cl_softerr)
+			task->tk_flags |= RPC_TASK_TIMEOUT;
 		if (clnt->cl_noretranstimeo)
 			task->tk_flags |= RPC_TASK_NO_RETRANS_TIMEOUT;
 		if (atomic_read(&clnt->cl_swapper))
@@ -1470,22 +1477,14 @@ void rpc_force_rebind(struct rpc_clnt *clnt)
 }
 EXPORT_SYMBOL_GPL(rpc_force_rebind);
 
-/*
- * Restart an (async) RPC call from the call_prepare state.
- * Usually called from within the exit handler.
- */
-int
-rpc_restart_call_prepare(struct rpc_task *task)
+static int
+__rpc_restart_call(struct rpc_task *task, void (*action)(struct rpc_task *))
 {
-	if (RPC_ASSASSINATED(task))
-		return 0;
-	task->tk_action = call_start;
 	task->tk_status = 0;
-	if (task->tk_ops->rpc_call_prepare != NULL)
-		task->tk_action = rpc_prepare_task;
+	task->tk_rpc_status = 0;
+	task->tk_action = action;
 	return 1;
 }
-EXPORT_SYMBOL_GPL(rpc_restart_call_prepare);
 
 /*
  * Restart an (async) RPC call. Usually called from within the
@@ -1494,13 +1493,22 @@ EXPORT_SYMBOL_GPL(rpc_restart_call_prepare);
 int
 rpc_restart_call(struct rpc_task *task)
 {
-	if (RPC_ASSASSINATED(task))
-		return 0;
-	task->tk_action = call_start;
-	task->tk_status = 0;
-	return 1;
+	return __rpc_restart_call(task, call_start);
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call);
+
+/*
+ * Restart an (async) RPC call from the call_prepare state.
+ * Usually called from within the exit handler.
+ */
+int
+rpc_restart_call_prepare(struct rpc_task *task)
+{
+	if (task->tk_ops->rpc_call_prepare != NULL)
+		return __rpc_restart_call(task, rpc_prepare_task);
+	return rpc_restart_call(task);
+}
+EXPORT_SYMBOL_GPL(rpc_restart_call_prepare);
 
 const char
 *rpc_proc_name(const struct rpc_task *task)
@@ -1514,6 +1522,19 @@ const char
 			return "NULL";
 	} else
 		return "no proc";
+}
+
+static void
+__rpc_call_rpcerror(struct rpc_task *task, int tk_status, int rpc_status)
+{
+	task->tk_rpc_status = rpc_status;
+	rpc_exit(task, tk_status);
+}
+
+static void
+rpc_call_rpcerror(struct rpc_task *task, int status)
+{
+	__rpc_call_rpcerror(task, status, status);
 }
 
 /*
@@ -1540,7 +1561,6 @@ call_start(struct rpc_task *task)
 	clnt->cl_stats->rpccnt++;
 	task->tk_action = call_reserve;
 	rpc_task_set_transport(task, clnt);
-	call_reserve(task);
 }
 
 /*
@@ -1554,9 +1574,6 @@ call_reserve(struct rpc_task *task)
 	task->tk_status  = 0;
 	task->tk_action  = call_reserveresult;
 	xprt_reserve(task);
-	if (rpc_task_need_resched(task))
-		return;
-	 call_reserveresult(task);
 }
 
 static void call_retry_reserve(struct rpc_task *task);
@@ -1579,13 +1596,12 @@ call_reserveresult(struct rpc_task *task)
 	if (status >= 0) {
 		if (task->tk_rqstp) {
 			task->tk_action = call_refresh;
-			call_refresh(task);
 			return;
 		}
 
 		printk(KERN_ERR "%s: status=%d, but no request slot, exiting\n",
 				__func__, status);
-		rpc_exit(task, -EIO);
+		rpc_call_rpcerror(task, -EIO);
 		return;
 	}
 
@@ -1605,7 +1621,6 @@ call_reserveresult(struct rpc_task *task)
 		/* fall through */
 	case -EAGAIN:	/* woken up; retry */
 		task->tk_action = call_retry_reserve;
-		call_retry_reserve(task);
 		return;
 	case -EIO:	/* probably a shutdown */
 		break;
@@ -1614,7 +1629,7 @@ call_reserveresult(struct rpc_task *task)
 				__func__, status);
 		break;
 	}
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 }
 
 /*
@@ -1628,9 +1643,6 @@ call_retry_reserve(struct rpc_task *task)
 	task->tk_status  = 0;
 	task->tk_action  = call_reserveresult;
 	xprt_retry_reserve(task);
-	if (rpc_task_need_resched(task))
-		return;
-	call_reserveresult(task);
 }
 
 /*
@@ -1645,9 +1657,6 @@ call_refresh(struct rpc_task *task)
 	task->tk_status = 0;
 	task->tk_client->cl_stats->rpcauthrefresh++;
 	rpcauth_refreshcred(task);
-	if (rpc_task_need_resched(task))
-		return;
-	call_refreshresult(task);
 }
 
 /*
@@ -1666,7 +1675,6 @@ call_refreshresult(struct rpc_task *task)
 	case 0:
 		if (rpcauth_uptodatecred(task)) {
 			task->tk_action = call_allocate;
-			call_allocate(task);
 			return;
 		}
 		/* Use rate-limiting and a max number of retries if refresh
@@ -1685,12 +1693,11 @@ call_refreshresult(struct rpc_task *task)
 		task->tk_cred_retry--;
 		dprintk("RPC: %5u %s: retry refresh creds\n",
 				task->tk_pid, __func__);
-		call_refresh(task);
 		return;
 	}
 	dprintk("RPC: %5u %s: refresh creds failed with error %d\n",
 				task->tk_pid, __func__, status);
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 }
 
 /*
@@ -1711,10 +1718,8 @@ call_allocate(struct rpc_task *task)
 	task->tk_status = 0;
 	task->tk_action = call_encode;
 
-	if (req->rq_buffer) {
-		call_encode(task);
+	if (req->rq_buffer)
 		return;
-	}
 
 	if (proc->p_proc != 0) {
 		BUG_ON(proc->p_arglen == 0);
@@ -1740,14 +1745,10 @@ call_allocate(struct rpc_task *task)
 
 	status = xprt->ops->buf_alloc(task);
 	xprt_inject_disconnect(xprt);
-	if (status == 0) {
-		if (rpc_task_need_resched(task))
-			return;
-		call_encode(task);
+	if (status == 0)
 		return;
-	}
 	if (status != -ENOMEM) {
-		rpc_exit(task, status);
+		rpc_call_rpcerror(task, status);
 		return;
 	}
 
@@ -1813,10 +1814,17 @@ call_encode(struct rpc_task *task)
 			rpc_delay(task, HZ >> 4);
 			break;
 		case -EKEYEXPIRED:
-			task->tk_action = call_refresh;
+			if (!task->tk_cred_retry) {
+				rpc_exit(task, task->tk_status);
+			} else {
+				task->tk_action = call_refresh;
+				task->tk_cred_retry--;
+				dprintk("RPC: %5u %s: retry refresh creds\n",
+					task->tk_pid, __func__);
+			}
 			break;
 		default:
-			rpc_exit(task, task->tk_status);
+			rpc_call_rpcerror(task, task->tk_status);
 		}
 		return;
 	} else {
@@ -1828,8 +1836,12 @@ call_encode(struct rpc_task *task)
 		xprt_request_enqueue_receive(task);
 	xprt_request_enqueue_transmit(task);
 out:
-	task->tk_action = call_bind;
-	call_bind(task);
+	task->tk_action = call_transmit;
+	/* Check that the connection is OK */
+	if (!xprt_bound(task->tk_xprt))
+		task->tk_action = call_bind;
+	else if (!xprt_connected(task->tk_xprt))
+		task->tk_action = call_connect;
 }
 
 /*
@@ -1847,7 +1859,6 @@ rpc_task_handle_transmitted(struct rpc_task *task)
 {
 	xprt_end_transmit(task);
 	task->tk_action = call_transmit_status;
-	call_transmit_status(task);
 }
 
 /*
@@ -1865,7 +1876,6 @@ call_bind(struct rpc_task *task)
 
 	if (xprt_bound(xprt)) {
 		task->tk_action = call_connect;
-		call_connect(task);
 		return;
 	}
 
@@ -1875,7 +1885,6 @@ call_bind(struct rpc_task *task)
 	if (!xprt_prepare_transmit(task))
 		return;
 
-	task->tk_timeout = xprt->bind_timeout;
 	xprt->ops->rpcbind(task);
 }
 
@@ -1896,7 +1905,6 @@ call_bind_status(struct rpc_task *task)
 		dprint_status(task);
 		task->tk_status = 0;
 		task->tk_action = call_connect;
-		call_connect(task);
 		return;
 	}
 
@@ -1957,7 +1965,7 @@ call_bind_status(struct rpc_task *task)
 				task->tk_pid, -task->tk_status);
 	}
 
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 	return;
 
 retry_timeout:
@@ -1981,7 +1989,6 @@ call_connect(struct rpc_task *task)
 
 	if (xprt_connected(xprt)) {
 		task->tk_action = call_transmit;
-		call_transmit(task);
 		return;
 	}
 
@@ -1993,7 +2000,7 @@ call_connect(struct rpc_task *task)
 	if (task->tk_status < 0)
 		return;
 	if (task->tk_flags & RPC_TASK_NOCONNECT) {
-		rpc_exit(task, -ENOTCONN);
+		rpc_call_rpcerror(task, -ENOTCONN);
 		return;
 	}
 	if (!xprt_prepare_transmit(task))
@@ -2051,10 +2058,9 @@ call_connect_status(struct rpc_task *task)
 	case 0:
 		clnt->cl_stats->netreconn++;
 		task->tk_action = call_transmit;
-		call_transmit(task);
 		return;
 	}
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 	return;
 out_retry:
 	/* Check for timeouts before looping back to call_bind */
@@ -2087,9 +2093,6 @@ call_transmit(struct rpc_task *task)
 		xprt_transmit(task);
 	}
 	xprt_end_transmit(task);
-	if (rpc_task_need_resched(task))
-		return;
-	call_transmit_status(task);
 }
 
 /*
@@ -2105,11 +2108,8 @@ call_transmit_status(struct rpc_task *task)
 	 * test first.
 	 */
 	if (rpc_task_transmitted(task)) {
-		if (task->tk_status == 0)
-			xprt_request_wait_receive(task);
-		if (rpc_task_need_resched(task))
-			return;
-		call_status(task);
+		task->tk_status = 0;
+		xprt_request_wait_receive(task);
 		return;
 	}
 
@@ -2145,7 +2145,7 @@ call_transmit_status(struct rpc_task *task)
 			if (!task->tk_msg.rpc_proc->p_proc)
 				trace_xprt_ping(task->tk_xprt,
 						task->tk_status);
-			rpc_exit(task, task->tk_status);
+			rpc_call_rpcerror(task, task->tk_status);
 			return;
 		}
 		/* fall through */
@@ -2170,7 +2170,6 @@ call_bc_encode(struct rpc_task *task)
 {
 	xprt_request_enqueue_transmit(task);
 	task->tk_action = call_bc_transmit;
-	call_bc_transmit(task);
 }
 
 /*
@@ -2194,6 +2193,9 @@ static void
 call_bc_transmit_status(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
+
+	if (rpc_task_transmitted(task))
+		task->tk_status = 0;
 
 	dprint_status(task);
 
@@ -2261,7 +2263,6 @@ call_status(struct rpc_task *task)
 	status = task->tk_status;
 	if (status >= 0) {
 		task->tk_action = call_decode;
-		call_decode(task);
 		return;
 	}
 
@@ -2308,7 +2309,16 @@ call_status(struct rpc_task *task)
 	rpc_check_timeout(task);
 	return;
 out_exit:
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
+}
+
+static bool
+rpc_check_connected(const struct rpc_rqst *req)
+{
+	/* No allocated request or transport? return true */
+	if (!req || !req->rq_xprt)
+		return true;
+	return xprt_connected(req->rq_xprt);
 }
 
 static void
@@ -2322,29 +2332,41 @@ rpc_check_timeout(struct rpc_task *task)
 	dprintk("RPC: %5u call_timeout (major)\n", task->tk_pid);
 	task->tk_timeouts++;
 
-	if (RPC_IS_SOFTCONN(task)) {
-		rpc_exit(task, -ETIMEDOUT);
+	if (RPC_IS_SOFTCONN(task) && !rpc_check_connected(task->tk_rqstp)) {
+		rpc_call_rpcerror(task, -ETIMEDOUT);
 		return;
 	}
+
 	if (RPC_IS_SOFT(task)) {
+		/*
+		 * Once a "no retrans timeout" soft tasks (a.k.a NFSv4) has
+		 * been sent, it should time out only if the transport
+		 * connection gets terminally broken.
+		 */
+		if ((task->tk_flags & RPC_TASK_NO_RETRANS_TIMEOUT) &&
+		    rpc_check_connected(task->tk_rqstp))
+			return;
+
 		if (clnt->cl_chatty) {
-			printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
+			pr_notice_ratelimited(
+				"%s: server %s not responding, timed out\n",
 				clnt->cl_program->name,
 				task->tk_xprt->servername);
 		}
 		if (task->tk_flags & RPC_TASK_TIMEOUT)
-			rpc_exit(task, -ETIMEDOUT);
+			rpc_call_rpcerror(task, -ETIMEDOUT);
 		else
-			rpc_exit(task, -EIO);
+			__rpc_call_rpcerror(task, -EIO, -ETIMEDOUT);
 		return;
 	}
 
 	if (!(task->tk_flags & RPC_CALL_MAJORSEEN)) {
 		task->tk_flags |= RPC_CALL_MAJORSEEN;
 		if (clnt->cl_chatty) {
-			printk(KERN_NOTICE "%s: server %s not responding, still trying\n",
-			clnt->cl_program->name,
-			task->tk_xprt->servername);
+			pr_notice_ratelimited(
+				"%s: server %s not responding, still trying\n",
+				clnt->cl_program->name,
+				task->tk_xprt->servername);
 		}
 	}
 	rpc_force_rebind(clnt);
@@ -2374,7 +2396,7 @@ call_decode(struct rpc_task *task)
 
 	if (task->tk_flags & RPC_CALL_MAJORSEEN) {
 		if (clnt->cl_chatty) {
-			printk(KERN_NOTICE "%s: server %s OK\n",
+			pr_notice_ratelimited("%s: server %s OK\n",
 				clnt->cl_program->name,
 				task->tk_xprt->servername);
 		}
@@ -2897,7 +2919,7 @@ static void rpc_show_task(const struct rpc_clnt *clnt,
 
 	printk(KERN_INFO "%5u %04x %6d %8p %8p %8ld %8p %sv%u %s a:%ps q:%s\n",
 		task->tk_pid, task->tk_flags, task->tk_status,
-		clnt, task->tk_rqstp, task->tk_timeout, task->tk_ops,
+		clnt, task->tk_rqstp, rpc_task_timeout(task), task->tk_ops,
 		clnt->cl_program->name, clnt->cl_vers, rpc_proc_name(task),
 		task->tk_action, rpc_waitq);
 }

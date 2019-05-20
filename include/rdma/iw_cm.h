@@ -118,31 +118,6 @@ enum iw_flags {
 	IW_F_NO_PORT_MAP = (1 << 0),
 };
 
-struct iw_cm_verbs {
-	void		(*add_ref)(struct ib_qp *qp);
-
-	void		(*rem_ref)(struct ib_qp *qp);
-
-	struct ib_qp *	(*get_qp)(struct ib_device *device,
-				  int qpn);
-
-	int		(*connect)(struct iw_cm_id *cm_id,
-				   struct iw_cm_conn_param *conn_param);
-
-	int		(*accept)(struct iw_cm_id *cm_id,
-				  struct iw_cm_conn_param *conn_param);
-
-	int		(*reject)(struct iw_cm_id *cm_id,
-				  const void *pdata, u8 pdata_len);
-
-	int		(*create_listen)(struct iw_cm_id *cm_id,
-					 int backlog);
-
-	int		(*destroy_listen)(struct iw_cm_id *cm_id);
-	char		ifname[IFNAMSIZ];
-	enum iw_flags	driver_flags;
-};
-
 /**
  * iw_create_cm_id - Create an IW CM identifier.
  *

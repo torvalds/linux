@@ -1,6 +1,6 @@
 menuconfig SND_SOC_INTEL_MACH
 	bool "Intel Machine drivers"
-	depends on SND_SOC_INTEL_SST_TOPLEVEL
+	depends on SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
 	help
          Intel ASoC Machine Drivers. If you have a Intel machine that
          has an audio controller with a DSP and I2S or DMIC port, then
@@ -16,7 +16,9 @@ if SND_SOC_INTEL_HASWELL
 
 config SND_SOC_INTEL_HASWELL_MACH
 	tristate "Haswell Lynxpoint"
-	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM
+	depends on I2C
+	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT5640
 	help
 	  This adds support for the Lynxpoint Audio DSP on Intel(R) Haswell
@@ -24,9 +26,16 @@ config SND_SOC_INTEL_HASWELL_MACH
 	  Say Y or m if you have such a device.
 	  If unsure select "N".
 
+endif ## SND_SOC_INTEL_HASWELL
+
+if SND_SOC_INTEL_HASWELL || SND_SOC_SOF_BROADWELL
+
 config SND_SOC_INTEL_BDW_RT5677_MACH
 	tristate "Broadwell with RT5677 codec"
-	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM && GPIOLIB
+	depends on I2C
+	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
+	depends on GPIOLIB || COMPILE_TEST
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT5677
 	help
 	  This adds support for Intel Broadwell platform based boards with
@@ -36,20 +45,23 @@ config SND_SOC_INTEL_BDW_RT5677_MACH
 
 config SND_SOC_INTEL_BROADWELL_MACH
 	tristate "Broadwell Wildcatpoint"
-	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM
+	depends on I2C
+	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT286
 	help
 	  This adds support for the Wilcatpoint Audio DSP on Intel(R) Broadwell
 	  Ultrabook platforms.
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
-endif ## SND_SOC_INTEL_HASWELL
+endif ## SND_SOC_INTEL_HASWELL || SND_SOC_SOF_BROADWELL
 
 if SND_SOC_INTEL_BAYTRAIL
 
 config SND_SOC_INTEL_BYT_MAX98090_MACH
 	tristate "Baytrail with MAX98090 codec"
-	depends on X86_INTEL_LPSS && I2C
+	depends on I2C
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_MAX98090
 	help
 	  This adds audio driver for Intel Baytrail platform based boards
@@ -59,7 +71,8 @@ config SND_SOC_INTEL_BYT_MAX98090_MACH
 
 config SND_SOC_INTEL_BYT_RT5640_MACH
 	tristate "Baytrail with RT5640 codec"
-	depends on X86_INTEL_LPSS && I2C
+	depends on I2C
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT5640
 	help
 	  This adds audio driver for Intel Baytrail platform based boards
@@ -68,11 +81,12 @@ config SND_SOC_INTEL_BYT_RT5640_MACH
 
 endif ## SND_SOC_INTEL_BAYTRAIL
 
-if SND_SST_ATOM_HIFI2_PLATFORM
+if SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
 
 config SND_SOC_INTEL_BYTCR_RT5640_MACH
 	tristate "Baytrail and Baytrail-CR with RT5640 codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5640
 	help
@@ -83,7 +97,8 @@ config SND_SOC_INTEL_BYTCR_RT5640_MACH
 
 config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	tristate "Baytrail and Baytrail-CR with RT5651 codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5651
 	help
@@ -94,7 +109,8 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 
 config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 	tristate "Cherrytrail & Braswell with RT5672 codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5670
         help
@@ -105,7 +121,8 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 
 config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	tristate "Cherrytrail & Braswell with RT5645/5650 codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_RT5645
 	help
@@ -116,7 +133,8 @@ config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 
 config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	tristate "Cherrytrail & Braswell with MAX98090 & TI codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_MAX98090
 	select SND_SOC_TS3A227E
 	help
@@ -127,7 +145,8 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 
 config SND_SOC_INTEL_CHT_BSW_NAU8824_MACH
 	tristate "Cherrytrail & Braswell with NAU88L24 codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_NAU8824
 	help
@@ -138,7 +157,8 @@ config SND_SOC_INTEL_CHT_BSW_NAU8824_MACH
 
 config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 	tristate "Baytrail & Cherrytrail with DA7212/7213 codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_DA7213
 	help
@@ -149,7 +169,8 @@ config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 
 config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	tristate "Baytrail & Cherrytrail with ES8316 codec"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_ACPI
 	select SND_SOC_ES8316
 	help
@@ -158,9 +179,14 @@ config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+endif ## SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
+
+if SND_SST_ATOM_HIFI2_PLATFORM
+
 config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 	tristate "Baytrail & Cherrytrail platform with no codec (MinnowBoard MAX, Up)"
-	depends on X86_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on X86_INTEL_LPSS || COMPILE_TEST
 	help
 	  This adds support for ASoC machine driver for the MinnowBoard Max or
 	  Up boards and provides access to I2S signals on the Low-Speed
@@ -176,7 +202,8 @@ if SND_SOC_INTEL_SKL
 
 config SND_SOC_INTEL_SKL_RT286_MACH
 	tristate "SKL with RT286 I2S mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT286
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
@@ -188,7 +215,8 @@ config SND_SOC_INTEL_SKL_RT286_MACH
 
 config SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH
 	tristate "SKL with NAU88L25 and SSM4567 in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_NAU8825
 	select SND_SOC_SSM4567
 	select SND_SOC_DMIC
@@ -201,7 +229,8 @@ config SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH
 
 config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 	tristate "SKL with NAU88L25 and MAX98357A in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_NAU8825
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
@@ -218,7 +247,8 @@ if SND_SOC_INTEL_APL
 
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
@@ -232,7 +262,8 @@ config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 
 config SND_SOC_INTEL_BXT_RT298_MACH
 	tristate "Broxton with RT298 I2S mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT298
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
@@ -249,7 +280,8 @@ if SND_SOC_INTEL_KBL
 
 config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 	tristate "KBL with RT5663 and MAX98927 in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT5663
 	select SND_SOC_MAX98927
 	select SND_SOC_DMIC
@@ -263,7 +295,8 @@ config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 
 config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
         tristate "KBL with RT5663, RT5514 and MAX98927 in I2S Mode"
-        depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
         depends on SPI
         select SND_SOC_RT5663
         select SND_SOC_RT5514
@@ -278,7 +311,8 @@ config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
 
 config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 	tristate "KBL with DA7219 and MAX98357A in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
@@ -290,7 +324,8 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 
 config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
 	tristate "KBL with DA7219 and MAX98927 in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98927
 	select SND_SOC_MAX98373
@@ -304,7 +339,8 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
 
 config SND_SOC_INTEL_KBL_RT5660_MACH
 	tristate "KBL with RT5660 in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT5660
 	select SND_SOC_HDAC_HDMI
 	help
@@ -314,11 +350,12 @@ config SND_SOC_INTEL_KBL_RT5660_MACH
 
 endif ## SND_SOC_INTEL_KBL
 
-if SND_SOC_INTEL_GLK
+if SND_SOC_INTEL_GLK || (SND_SOC_SOF_GEMINILAKE  && SND_SOC_SOF_HDA_LINK)
 
 config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	tristate "GLK with RT5682 and MAX98357A in I2S Mode"
-	depends on MFD_INTEL_LPSS && I2C && ACPI
+	depends on I2C && ACPI
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_RT5682
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
@@ -330,9 +367,9 @@ config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
-endif ## SND_SOC_INTEL_GLK
+endif ## SND_SOC_INTEL_GLK || (SND_SOC_SOF_GEMINILAKE  && SND_SOC_SOF_HDA_LINK)
 
-if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
+if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
 config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
 	tristate "SKL/KBL/BXT/APL with HDA Codecs"
@@ -344,6 +381,22 @@ config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
           Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
-endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
+endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
+
+if SND_SOC_SOF_HDA_COMMON || SND_SOC_SOF_BAYTRAIL
+config SND_SOC_INTEL_SOF_RT5682_MACH
+	tristate "SOF with rt5682 codec in I2S Mode"
+	depends on I2C && ACPI
+	depends on (SND_SOC_SOF_HDA_COMMON && MFD_INTEL_LPSS) ||\
+		   (SND_SOC_SOF_BAYTRAIL && X86_INTEL_LPSS)
+	select SND_SOC_RT5682
+	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI if SND_SOC_SOF_HDA_COMMON
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with rt5682 codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
+endif ## SND_SOC_SOF_HDA_COMMON || SND_SOC_SOF_BAYTRAIL
 
 endif ## SND_SOC_INTEL_MACH

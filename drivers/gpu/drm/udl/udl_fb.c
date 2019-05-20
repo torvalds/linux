@@ -32,7 +32,7 @@ module_param(fb_bpp, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 module_param(fb_defio, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 
 struct udl_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct udl_framebuffer ufb;
 	int fb_count;
 };
@@ -82,7 +82,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 		      int width, int height)
 {
 	struct drm_device *dev = fb->base.dev;
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	int i, ret;
 	char *cmd;
 	cycles_t start_cycles, end_cycles;
@@ -210,10 +210,10 @@ static int udl_fb_open(struct fb_info *info, int user)
 {
 	struct udl_fbdev *ufbdev = info->par;
 	struct drm_device *dev = ufbdev->ufb.base.dev;
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 
 	/* If the USB device is gone, we don't accept new opens */
-	if (drm_dev_is_unplugged(udl->ddev))
+	if (drm_dev_is_unplugged(&udl->drm))
 		return -ENODEV;
 
 	ufbdev->fb_count++;
@@ -392,7 +392,6 @@ static int udlfb_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(info);
 		goto out_gfree;
 	}
-	info->par = ufbdev;
 
 	ret = udl_framebuffer_init(dev, &ufbdev->ufb, &mode_cmd, obj);
 	if (ret)
@@ -402,15 +401,12 @@ static int udlfb_create(struct drm_fb_helper *helper,
 
 	ufbdev->helper.fb = fb;
 
-	strcpy(info->fix.id, "udldrmfb");
-
 	info->screen_base = ufbdev->ufb.obj->vmapping;
 	info->fix.smem_len = size;
 	info->fix.smem_start = (unsigned long)ufbdev->ufb.obj->vmapping;
 
 	info->fbops = &udlfb_ops;
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, &ufbdev->helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &ufbdev->helper, sizes);
 
 	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
 		      fb->width, fb->height,
@@ -441,7 +437,7 @@ static void udl_fbdev_destroy(struct drm_device *dev,
 
 int udl_fbdev_init(struct drm_device *dev)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	int bpp_sel = fb_bpp;
 	struct udl_fbdev *ufbdev;
 	int ret;
@@ -480,7 +476,7 @@ free:
 
 void udl_fbdev_cleanup(struct drm_device *dev)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	if (!udl->fbdev)
 		return;
 
@@ -491,7 +487,7 @@ void udl_fbdev_cleanup(struct drm_device *dev)
 
 void udl_fbdev_unplug(struct drm_device *dev)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct udl_fbdev *ufbdev;
 	if (!udl->fbdev)
 		return;

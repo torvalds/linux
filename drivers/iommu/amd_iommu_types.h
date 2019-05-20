@@ -374,6 +374,8 @@
 #define IOMMU_PROT_IR 0x01
 #define IOMMU_PROT_IW 0x02
 
+#define IOMMU_UNITY_MAP_FLAG_EXCL_RANGE	(1 << 2)
+
 /* IOMMU capabilities */
 #define IOMMU_CAP_IOTLB   24
 #define IOMMU_CAP_NPCACHE 26
@@ -671,12 +673,6 @@ extern struct list_head amd_iommu_list;
  * The indices are referenced in the protection domains
  */
 extern struct amd_iommu *amd_iommus[MAX_IOMMUS];
-
-/*
- * Declarations for the global list of all protection domains
- */
-extern spinlock_t amd_iommu_pd_lock;
-extern struct list_head amd_iommu_pd_list;
 
 /*
  * Structure defining one entry in the device table

@@ -48,21 +48,15 @@ struct screen_info screen_info = {
 };
 #endif
 
-unsigned long va_pa_offset;
-EXPORT_SYMBOL(va_pa_offset);
-unsigned long pfn_base;
-EXPORT_SYMBOL(pfn_base);
-
-unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
-EXPORT_SYMBOL(empty_zero_page);
-
 /* The lucky hart to first increment this variable will boot the other cores */
 atomic_t hart_lottery;
 unsigned long boot_cpu_hartid;
 
-void __init parse_dtb(unsigned int hartid, void *dtb)
+void __init parse_dtb(phys_addr_t dtb_phys)
 {
-	if (early_init_dt_scan(__va(dtb)))
+	void *dtb = __va(dtb_phys);
+
+	if (early_init_dt_scan(dtb))
 		return;
 
 	pr_err("No DTB passed to the kernel\n");

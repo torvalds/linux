@@ -152,28 +152,6 @@ at91_clk_register_slow_osc(void __iomem *sckcr,
 	return hw;
 }
 
-static void __init
-of_at91sam9x5_clk_slow_osc_setup(struct device_node *np, void __iomem *sckcr)
-{
-	struct clk_hw *hw;
-	const char *parent_name;
-	const char *name = np->name;
-	u32 startup;
-	bool bypass;
-
-	parent_name = of_clk_get_parent_name(np, 0);
-	of_property_read_string(np, "clock-output-names", &name);
-	of_property_read_u32(np, "atmel,startup-time-usec", &startup);
-	bypass = of_property_read_bool(np, "atmel,osc-bypass");
-
-	hw = at91_clk_register_slow_osc(sckcr, name, parent_name, startup,
-					 bypass);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
-}
-
 static unsigned long clk_slow_rc_osc_recalc_rate(struct clk_hw *hw,
 						 unsigned long parent_rate)
 {
@@ -266,28 +244,6 @@ at91_clk_register_slow_rc_osc(void __iomem *sckcr,
 	return hw;
 }
 
-static void __init
-of_at91sam9x5_clk_slow_rc_osc_setup(struct device_node *np, void __iomem *sckcr)
-{
-	struct clk_hw *hw;
-	u32 frequency = 0;
-	u32 accuracy = 0;
-	u32 startup = 0;
-	const char *name = np->name;
-
-	of_property_read_string(np, "clock-output-names", &name);
-	of_property_read_u32(np, "clock-frequency", &frequency);
-	of_property_read_u32(np, "clock-accuracy", &accuracy);
-	of_property_read_u32(np, "atmel,startup-time-usec", &startup);
-
-	hw = at91_clk_register_slow_rc_osc(sckcr, name, frequency, accuracy,
-					    startup);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
-}
-
 static int clk_sam9x5_slow_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_sam9x5_slow *slowck = to_clk_sam9x5_slow(hw);
@@ -365,67 +321,71 @@ at91_clk_register_sam9x5_slow(void __iomem *sckcr,
 	return hw;
 }
 
-static void __init
-of_at91sam9x5_clk_slow_setup(struct device_node *np, void __iomem *sckcr)
+static void __init at91sam9x5_sckc_register(struct device_node *np,
+					    unsigned int rc_osc_startup_us)
 {
-	struct clk_hw *hw;
-	const char *parent_names[2];
-	unsigned int num_parents;
-	const char *name = np->name;
-
-	num_parents = of_clk_get_parent_count(np);
-	if (num_parents == 0 || num_parents > 2)
-		return;
-
-	of_clk_parent_fill(np, parent_names, num_parents);
-
-	of_property_read_string(np, "clock-output-names", &name);
-
-	hw = at91_clk_register_sam9x5_slow(sckcr, name, parent_names,
-					    num_parents);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
-}
-
-static const struct of_device_id sckc_clk_ids[] __initconst = {
-	/* Slow clock */
-	{
-		.compatible = "atmel,at91sam9x5-clk-slow-osc",
-		.data = of_at91sam9x5_clk_slow_osc_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-slow-rc-osc",
-		.data = of_at91sam9x5_clk_slow_rc_osc_setup,
-	},
-	{
-		.compatible = "atmel,at91sam9x5-clk-slow",
-		.data = of_at91sam9x5_clk_slow_setup,
-	},
-	{ /*sentinel*/ }
-};
-
-static void __init of_at91sam9x5_sckc_setup(struct device_node *np)
-{
-	struct device_node *childnp;
-	void (*clk_setup)(struct device_node *, void __iomem *);
-	const struct of_device_id *clk_id;
+	const char *parent_names[2] = { "slow_rc_osc", "slow_osc" };
 	void __iomem *regbase = of_iomap(np, 0);
+	struct device_node *child = NULL;
+	const char *xtal_name;
+	struct clk_hw *hw;
+	bool bypass;
 
 	if (!regbase)
 		return;
 
-	for_each_child_of_node(np, childnp) {
-		clk_id = of_match_node(sckc_clk_ids, childnp);
-		if (!clk_id)
-			continue;
-		clk_setup = clk_id->data;
-		clk_setup(childnp, regbase);
+	hw = at91_clk_register_slow_rc_osc(regbase, parent_names[0], 32768,
+					   50000000, rc_osc_startup_us);
+	if (IS_ERR(hw))
+		return;
+
+	xtal_name = of_clk_get_parent_name(np, 0);
+	if (!xtal_name) {
+		/* DT backward compatibility */
+		child = of_get_compatible_child(np, "atmel,at91sam9x5-clk-slow-osc");
+		if (!child)
+			return;
+
+		xtal_name = of_clk_get_parent_name(child, 0);
+		bypass = of_property_read_bool(child, "atmel,osc-bypass");
+
+		child =  of_get_compatible_child(np, "atmel,at91sam9x5-clk-slow");
+	} else {
+		bypass = of_property_read_bool(np, "atmel,osc-bypass");
 	}
+
+	if (!xtal_name)
+		return;
+
+	hw = at91_clk_register_slow_osc(regbase, parent_names[1], xtal_name,
+					1200000, bypass);
+	if (IS_ERR(hw))
+		return;
+
+	hw = at91_clk_register_sam9x5_slow(regbase, "slowck", parent_names, 2);
+	if (IS_ERR(hw))
+		return;
+
+	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
+
+	/* DT backward compatibility */
+	if (child)
+		of_clk_add_hw_provider(child, of_clk_hw_simple_get, hw);
+}
+
+static void __init of_at91sam9x5_sckc_setup(struct device_node *np)
+{
+	at91sam9x5_sckc_register(np, 75);
 }
 CLK_OF_DECLARE(at91sam9x5_clk_sckc, "atmel,at91sam9x5-sckc",
 	       of_at91sam9x5_sckc_setup);
+
+static void __init of_sama5d3_sckc_setup(struct device_node *np)
+{
+	at91sam9x5_sckc_register(np, 500);
+}
+CLK_OF_DECLARE(sama5d3_clk_sckc, "atmel,sama5d3-sckc",
+	       of_sama5d3_sckc_setup);
 
 static int clk_sama5d4_slow_osc_prepare(struct clk_hw *hw)
 {

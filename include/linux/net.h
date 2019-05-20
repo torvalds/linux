@@ -83,6 +83,12 @@ enum sock_type {
 
 #endif /* ARCH_HAS_SOCKET_TYPES */
 
+/**
+ * enum sock_shutdown_cmd - Shutdown types
+ * @SHUT_RD: shutdown receptions
+ * @SHUT_WR: shutdown transmissions
+ * @SHUT_RDWR: shutdown receptions/transmissions
+ */
 enum sock_shutdown_cmd {
 	SHUT_RD,
 	SHUT_WR,
@@ -155,6 +161,8 @@ struct proto_ops {
 	int	 	(*compat_ioctl) (struct socket *sock, unsigned int cmd,
 				      unsigned long arg);
 #endif
+	int		(*gettstamp) (struct socket *sock, void __user *userstamp,
+				      bool timeval, bool time32);
 	int		(*listen)    (struct socket *sock, int len);
 	int		(*shutdown)  (struct socket *sock, int flags);
 	int		(*setsockopt)(struct socket *sock, int level,

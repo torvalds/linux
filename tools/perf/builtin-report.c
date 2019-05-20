@@ -47,9 +47,11 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
+#include "sane_ctype.h"
 #include <signal.h>
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
+#include <linux/time64.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -134,9 +136,6 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	if (!ui__has_annotation() && !rep->symbol_ipc)
 		return 0;
 
-	hist__account_cycles(sample->branch_stack, al, sample,
-			     rep->nonany_branch_mode);
-
 	if (sort__mode == SORT_MODE__BRANCH) {
 		bi = he->branch_info;
 		err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
@@ -178,9 +177,6 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 
 	if (!ui__has_annotation() && !rep->symbol_ipc)
 		return 0;
-
-	hist__account_cycles(sample->branch_stack, al, sample,
-			     rep->nonany_branch_mode);
 
 	bi = he->branch_info;
 	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
@@ -279,6 +275,11 @@ static int process_sample_event(struct perf_tool *tool,
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
+
+	if (ui__has_annotation() || rep->symbol_ipc) {
+		hist__account_cycles(sample->branch_stack, &al, sample,
+				     rep->nonany_branch_mode);
+	}
 
 	ret = hist_entry_iter__add(&iter, &al, rep->max_stack, rep);
 	if (ret < 0)
@@ -926,6 +927,43 @@ report_parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 	return parse_callchain_report_opt(arg);
 }
 
+static int
+parse_time_quantum(const struct option *opt, const char *arg,
+		   int unset __maybe_unused)
+{
+	unsigned long *time_q = opt->value;
+	char *end;
+
+	*time_q = strtoul(arg, &end, 0);
+	if (end == arg)
+		goto parse_err;
+	if (*time_q == 0) {
+		pr_err("time quantum cannot be 0");
+		return -1;
+	}
+	while (isspace(*end))
+		end++;
+	if (*end == 0)
+		return 0;
+	if (!strcmp(end, "s")) {
+		*time_q *= NSEC_PER_SEC;
+		return 0;
+	}
+	if (!strcmp(end, "ms")) {
+		*time_q *= NSEC_PER_MSEC;
+		return 0;
+	}
+	if (!strcmp(end, "us")) {
+		*time_q *= NSEC_PER_USEC;
+		return 0;
+	}
+	if (!strcmp(end, "ns"))
+		return 0;
+parse_err:
+	pr_err("Cannot parse time quantum `%s'\n", arg);
+	return -1;
+}
+
 int
 report_parse_ignore_callees_opt(const struct option *opt __maybe_unused,
 				const char *arg, int unset __maybe_unused)
@@ -1044,10 +1082,9 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "header-only", &report.header_only,
 		    "Show only data header."),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
-		   "sort by key(s): pid, comm, dso, symbol, parent, cpu, srcline, ..."
-		   " Please refer the man page for the complete list."),
+		   sort_help("sort by key(s):")),
 	OPT_STRING('F', "fields", &field_order, "key[,keys...]",
-		   "output field(s): overhead, period, sample plus all of sort keys"),
+		   sort_help("output field(s): overhead period sample ")),
 	OPT_BOOLEAN(0, "show-cpu-utilization", &symbol_conf.show_cpu_utilization,
 		    "Show sample percentage for different cpu modes"),
 	OPT_BOOLEAN_FLAG(0, "showcpuutilization", &symbol_conf.show_cpu_utilization,
@@ -1120,6 +1157,8 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
 	OPT_BOOLEAN(0, "mem-mode", &report.mem_mode, "mem access profile"),
+	OPT_INTEGER(0, "samples", &symbol_conf.res_sample,
+		    "Number of samples to save per histogram entry for individual browsing"),
 	OPT_CALLBACK(0, "percent-limit", &report, "percent",
 		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
@@ -1147,6 +1186,10 @@ int cmd_report(int argc, const char **argv)
 	OPT_CALLBACK(0, "percent-type", &report.annotation_opts, "local-period",
 		     "Set percent type local/global-period/hits",
 		     annotate_parse_percent_type),
+	OPT_BOOLEAN(0, "ns", &symbol_conf.nanosecs, "Show times in nanosecs"),
+	OPT_CALLBACK(0, "time-quantum", &symbol_conf.time_quantum, "time (ms|us|ns|s)",
+		     "Set time quantum for time sort key (default 100ms)",
+		     parse_time_quantum),
 	OPT_END()
 	};
 	struct perf_data data = {
@@ -1214,6 +1257,9 @@ repeat:
 	session = perf_session__new(&data, false, &report.tool);
 	if (session == NULL)
 		return -1;
+
+	if (zstd_init(&(session->zstd_data), 0) < 0)
+		pr_warning("Decompression initialization failed. Reported data may be incomplete.\n");
 
 	if (report.queue_size) {
 		ordered_events__set_alloc_size(&session->ordered_events,
@@ -1405,7 +1451,7 @@ repeat:
 error:
 	if (report.ptime_range)
 		zfree(&report.ptime_range);
-
+	zstd_fini(&(session->zstd_data));
 	perf_session__delete(session);
 	return ret;
 }

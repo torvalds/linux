@@ -34,6 +34,7 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 
 #define DRIVER_VERSION	"0.3"
 #define DRIVER_AUTHOR	"Alex Williamson <alex.williamson@redhat.com>"
@@ -704,8 +705,8 @@ static int vfio_group_nb_add_dev(struct vfio_group *group, struct device *dev)
 		return 0;
 
 	/* TODO Prevent device auto probing */
-	WARN(1, "Device %s added to live group %d!\n", dev_name(dev),
-	     iommu_group_id(group->iommu_group));
+	dev_WARN(dev, "Device added to live group %d!\n",
+		 iommu_group_id(group->iommu_group));
 
 	return 0;
 }
@@ -748,25 +749,22 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 		 */
 		break;
 	case IOMMU_GROUP_NOTIFY_BIND_DRIVER:
-		pr_debug("%s: Device %s, group %d binding to driver\n",
-			 __func__, dev_name(dev),
-			 iommu_group_id(group->iommu_group));
+		dev_dbg(dev, "%s: group %d binding to driver\n", __func__,
+			iommu_group_id(group->iommu_group));
 		break;
 	case IOMMU_GROUP_NOTIFY_BOUND_DRIVER:
-		pr_debug("%s: Device %s, group %d bound to driver %s\n",
-			 __func__, dev_name(dev),
-			 iommu_group_id(group->iommu_group), dev->driver->name);
+		dev_dbg(dev, "%s: group %d bound to driver %s\n", __func__,
+			iommu_group_id(group->iommu_group), dev->driver->name);
 		BUG_ON(vfio_group_nb_verify(group, dev));
 		break;
 	case IOMMU_GROUP_NOTIFY_UNBIND_DRIVER:
-		pr_debug("%s: Device %s, group %d unbinding from driver %s\n",
-			 __func__, dev_name(dev),
-			 iommu_group_id(group->iommu_group), dev->driver->name);
+		dev_dbg(dev, "%s: group %d unbinding from driver %s\n",
+			__func__, iommu_group_id(group->iommu_group),
+			dev->driver->name);
 		break;
 	case IOMMU_GROUP_NOTIFY_UNBOUND_DRIVER:
-		pr_debug("%s: Device %s, group %d unbound from driver\n",
-			 __func__, dev_name(dev),
-			 iommu_group_id(group->iommu_group));
+		dev_dbg(dev, "%s: group %d unbound from driver\n", __func__,
+			iommu_group_id(group->iommu_group));
 		/*
 		 * XXX An unbound device in a live group is ok, but we'd
 		 * really like to avoid the above BUG_ON by preventing other
@@ -830,8 +828,8 @@ int vfio_add_group_dev(struct device *dev,
 
 	device = vfio_group_get_device(group, dev);
 	if (device) {
-		WARN(1, "Device %s already exists on group %d\n",
-		     dev_name(dev), iommu_group_id(iommu_group));
+		dev_WARN(dev, "Device already exists on group %d\n",
+			 iommu_group_id(iommu_group));
 		vfio_device_put(device);
 		vfio_group_put(group);
 		return -EBUSY;
@@ -904,30 +902,17 @@ void *vfio_device_data(struct vfio_device *device)
 }
 EXPORT_SYMBOL_GPL(vfio_device_data);
 
-/* Given a referenced group, check if it contains the device */
-static bool vfio_dev_present(struct vfio_group *group, struct device *dev)
-{
-	struct vfio_device *device;
-
-	device = vfio_group_get_device(group, dev);
-	if (!device)
-		return false;
-
-	vfio_device_put(device);
-	return true;
-}
-
 /*
  * Decrement the device reference count and wait for the device to be
  * removed.  Open file descriptors for the device... */
 void *vfio_del_group_dev(struct device *dev)
 {
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct vfio_device *device = dev_get_drvdata(dev);
 	struct vfio_group *group = device->group;
 	void *device_data = device->device_data;
 	struct vfio_unbound_dev *unbound;
 	unsigned int i = 0;
-	long ret;
 	bool interrupted = false;
 
 	/*
@@ -964,6 +949,8 @@ void *vfio_del_group_dev(struct device *dev)
 	 * interval with counter to allow the driver to take escalating
 	 * measures to release the device if it has the ability to do so.
 	 */
+	add_wait_queue(&vfio.release_q, &wait);
+
 	do {
 		device = vfio_group_get_device(group, dev);
 		if (!device)
@@ -975,12 +962,10 @@ void *vfio_del_group_dev(struct device *dev)
 		vfio_device_put(device);
 
 		if (interrupted) {
-			ret = wait_event_timeout(vfio.release_q,
-					!vfio_dev_present(group, dev), HZ * 10);
+			wait_woken(&wait, TASK_UNINTERRUPTIBLE, HZ * 10);
 		} else {
-			ret = wait_event_interruptible_timeout(vfio.release_q,
-					!vfio_dev_present(group, dev), HZ * 10);
-			if (ret == -ERESTARTSYS) {
+			wait_woken(&wait, TASK_INTERRUPTIBLE, HZ * 10);
+			if (signal_pending(current)) {
 				interrupted = true;
 				dev_warn(dev,
 					 "Device is currently in use, task"
@@ -989,8 +974,10 @@ void *vfio_del_group_dev(struct device *dev)
 					 current->comm, task_pid_nr(current));
 			}
 		}
-	} while (ret <= 0);
 
+	} while (1);
+
+	remove_wait_queue(&vfio.release_q, &wait);
 	/*
 	 * In order to support multiple devices per group, devices can be
 	 * plucked from the group while other devices in the group are still

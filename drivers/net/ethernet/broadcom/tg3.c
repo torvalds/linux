@@ -1073,7 +1073,6 @@ static void tg3_int_reenable(struct tg3_napi *tnapi)
 	struct tg3 *tp = tnapi->tp;
 
 	tw32_mailbox(tnapi->int_mbox, tnapi->last_tag << 24);
-	mmiowb();
 
 	/* When doing tagged status, this work check is unnecessary.
 	 * The last_tag we write above tells the chip which piece of
@@ -4283,7 +4282,7 @@ static void tg3_power_down(struct tg3 *tp)
 	pci_set_power_state(tp->pdev, PCI_D3hot);
 }
 
-static void tg3_aux_stat_to_speed_duplex(struct tg3 *tp, u32 val, u16 *speed, u8 *duplex)
+static void tg3_aux_stat_to_speed_duplex(struct tg3 *tp, u32 val, u32 *speed, u8 *duplex)
 {
 	switch (val & MII_TG3_AUX_STAT_SPDMASK) {
 	case MII_TG3_AUX_STAT_10HALF:
@@ -4787,7 +4786,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, bool force_reset)
 	bool current_link_up;
 	u32 bmsr, val;
 	u32 lcl_adv, rmt_adv;
-	u16 current_speed;
+	u32 current_speed;
 	u8 current_duplex;
 	int i, err;
 
@@ -5719,7 +5718,7 @@ out:
 static int tg3_setup_fiber_phy(struct tg3 *tp, bool force_reset)
 {
 	u32 orig_pause_cfg;
-	u16 orig_active_speed;
+	u32 orig_active_speed;
 	u8 orig_active_duplex;
 	u32 mac_status;
 	bool current_link_up;
@@ -5823,7 +5822,7 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, bool force_reset)
 {
 	int err = 0;
 	u32 bmsr, bmcr;
-	u16 current_speed = SPEED_UNKNOWN;
+	u32 current_speed = SPEED_UNKNOWN;
 	u8 current_duplex = DUPLEX_UNKNOWN;
 	bool current_link_up = false;
 	u32 local_adv, remote_adv, sgsr;
@@ -6999,7 +6998,6 @@ next_pkt_nopost:
 			tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG,
 				     tpr->rx_jmb_prod_idx);
 		}
-		mmiowb();
 	} else if (work_mask) {
 		/* rx_std_buffers[] and rx_jmb_buffers[] entries must be
 		 * updated before the producer indices can be updated.
@@ -7210,8 +7208,6 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 			tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG,
 				     dpr->rx_jmb_prod_idx);
 
-		mmiowb();
-
 		if (err)
 			tw32_f(HOSTCC_MODE, tp->coal_now);
 	}
@@ -7278,7 +7274,6 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 						  HOSTCC_MODE_ENABLE |
 						  tnapi->coal_now);
 			}
-			mmiowb();
 			break;
 		}
 	}
@@ -8156,10 +8151,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_wake_queue(txq);
 	}
 
-	if (!skb->xmit_more || netif_xmit_stopped(txq)) {
+	if (!netdev_xmit_more() || netif_xmit_stopped(txq)) {
 		/* Packets are ready, update Tx producer idx on card. */
 		tw32_tx_mbox(tnapi->prodmbox, entry);
-		mmiowb();
 	}
 
 	return NETDEV_TX_OK;
@@ -12762,9 +12756,6 @@ static int tg3_set_phys_id(struct net_device *dev,
 			    enum ethtool_phys_id_state state)
 {
 	struct tg3 *tp = netdev_priv(dev);
-
-	if (!netif_running(tp->dev))
-		return -EAGAIN;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:

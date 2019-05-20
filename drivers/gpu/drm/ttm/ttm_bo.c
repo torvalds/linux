@@ -49,9 +49,8 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj);
  * ttm_global_mutex - protecting the global BO state
  */
 DEFINE_MUTEX(ttm_global_mutex);
-struct ttm_bo_global ttm_bo_glob = {
-	.use_count = 0
-};
+unsigned ttm_bo_glob_use_count;
+struct ttm_bo_global ttm_bo_glob;
 
 static struct attribute ttm_bo_count = {
 	.name = "bo_count",
@@ -876,8 +875,10 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 		reservation_object_add_shared_fence(bo->resv, fence);
 
 		ret = reservation_object_reserve_shared(bo->resv, 1);
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			dma_fence_put(fence);
 			return ret;
+		}
 
 		dma_fence_put(bo->moving);
 		bo->moving = fence;
@@ -1529,12 +1530,13 @@ static void ttm_bo_global_release(void)
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 
 	mutex_lock(&ttm_global_mutex);
-	if (--glob->use_count > 0)
+	if (--ttm_bo_glob_use_count > 0)
 		goto out;
 
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
 	ttm_mem_global_release(&ttm_mem_glob);
+	memset(glob, 0, sizeof(*glob));
 out:
 	mutex_unlock(&ttm_global_mutex);
 }
@@ -1546,7 +1548,7 @@ static int ttm_bo_global_init(void)
 	unsigned i;
 
 	mutex_lock(&ttm_global_mutex);
-	if (++glob->use_count > 1)
+	if (++ttm_bo_glob_use_count > 1)
 		goto out;
 
 	ret = ttm_mem_global_init(&ttm_mem_glob);
@@ -1624,7 +1626,6 @@ EXPORT_SYMBOL(ttm_bo_device_release);
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
-		       uint64_t file_page_offset,
 		       bool need_dma32)
 {
 	struct ttm_bo_global *glob = &ttm_bo_glob;
@@ -1646,8 +1647,9 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	if (unlikely(ret != 0))
 		goto out_no_sys;
 
-	drm_vma_offset_manager_init(&bdev->vma_manager, file_page_offset,
-				    0x10000000);
+	drm_vma_offset_manager_init(&bdev->vma_manager,
+				    DRM_FILE_PAGE_OFFSET_START,
+				    DRM_FILE_PAGE_OFFSET_SIZE);
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = mapping;

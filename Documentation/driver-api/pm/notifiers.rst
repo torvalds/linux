@@ -1,10 +1,14 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 =============================
 Suspend/Hibernation Notifiers
 =============================
 
-::
+:Copyright: |copy| 2016 Intel Corporation
 
- Copyright (c) 2016 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+
 
 There are some operations that subsystems or drivers may want to carry out
 before hibernation/suspend or after restore/resume, but they require the system

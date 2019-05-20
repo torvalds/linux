@@ -312,9 +312,6 @@ void asm_offsets(void)
 		- offsetof(struct task_struct, thread.fstate.f[0])
 	);
 
-	/* The assembler needs access to THREAD_SIZE as well. */
-	DEFINE(ASM_THREAD_SIZE, THREAD_SIZE);
-
 	/*
 	 * We allocate a pt_regs on the stack when entering the kernel.  This
 	 * ensures the alignment is sane.

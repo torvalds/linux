@@ -9,6 +9,7 @@
 #ifndef _ASM_ARC_SYSCALL_H
 #define _ASM_ARC_SYSCALL_H  1
 
+#include <uapi/linux/audit.h>
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <asm/unistd.h>
@@ -55,17 +56,26 @@ syscall_set_return_value(struct task_struct *task, struct pt_regs *regs,
  */
 static inline void
 syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
-		      unsigned int i, unsigned int n, unsigned long *args)
+		      unsigned long *args)
 {
 	unsigned long *inside_ptregs = &(regs->r0);
-	inside_ptregs -= i;
-
-	BUG_ON((i + n) > 6);
+	unsigned int n = 6;
+	unsigned int i = 0;
 
 	while (n--) {
 		args[i++] = (*inside_ptregs);
 		inside_ptregs--;
 	}
+}
+
+static inline int
+syscall_get_arch(struct task_struct *task)
+{
+	return IS_ENABLED(CONFIG_ISA_ARCOMPACT)
+		? (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
+			? AUDIT_ARCH_ARCOMPACTBE : AUDIT_ARCH_ARCOMPACT)
+		: (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
+			? AUDIT_ARCH_ARCV2BE : AUDIT_ARCH_ARCV2);
 }
 
 #endif

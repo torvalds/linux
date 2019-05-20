@@ -69,10 +69,10 @@
 	printk(KERN_ERR KBUILD_MODNAME ": %s: Error - " fmt,		\
 	       __func__, ##__VA_ARGS__)
 #define rt2x00_err(dev, fmt, ...)					\
-	wiphy_err((dev)->hw->wiphy, "%s: Error - " fmt,			\
+	wiphy_err_ratelimited((dev)->hw->wiphy, "%s: Error - " fmt,	\
 		  __func__, ##__VA_ARGS__)
 #define rt2x00_warn(dev, fmt, ...)					\
-	wiphy_warn((dev)->hw->wiphy, "%s: Warning - " fmt,		\
+	wiphy_warn_ratelimited((dev)->hw->wiphy, "%s: Warning - " fmt,	\
 		   __func__, ##__VA_ARGS__)
 #define rt2x00_info(dev, fmt, ...)					\
 	wiphy_info((dev)->hw->wiphy, "%s: Info - " fmt,			\
@@ -673,7 +673,6 @@ enum rt2x00_state_flags {
 	CONFIG_CHANNEL_HT40,
 	CONFIG_POWERSAVING,
 	CONFIG_HT_DISABLED,
-	CONFIG_QOS_DISABLED,
 	CONFIG_MONITORING,
 
 	/*
@@ -981,8 +980,6 @@ struct rt2x00_dev {
 	 */
 	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
 
-	unsigned long last_nostatus_check;
-
 	/*
 	 * Timer to ensure tx status reports are read (rt2800usb).
 	 */
@@ -1017,6 +1014,7 @@ struct rt2x00_dev {
 	unsigned int extra_tx_headroom;
 
 	struct usb_anchor *anchor;
+	unsigned int num_proto_errs;
 
 	/* Clock for System On Chip devices. */
 	struct clk *clk;

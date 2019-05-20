@@ -88,19 +88,38 @@
 #                                                                              7fab593ea956 48 89 15 3b 13 22 00                            movq  %rdx, 0x22133b(%rip)
 # 8107675243232  2    ls       22011  22011  hardware interrupt     No         7fab593ea956 _dl_start+0x26 (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
 
+from __future__ import print_function
+
 import sys
 import weakref
 import threading
 import string
-import cPickle
+try:
+	# Python2
+	import cPickle as pickle
+	# size of pickled integer big enough for record size
+	glb_nsz = 8
+except ImportError:
+	import pickle
+	glb_nsz = 16
 import re
 import os
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtSql import *
+pyside_version_1 = True
 from decimal import *
 from ctypes import *
 from multiprocessing import Process, Array, Value, Event
+
+# xrange is range in Python3
+try:
+	xrange
+except NameError:
+	xrange = range
+
+def printerr(*args, **keyword_args):
+	print(*args, file=sys.stderr, **keyword_args)
 
 # Data formatting helpers
 
@@ -437,6 +456,10 @@ class CallGraphLevelItemBase(object):
 		self.query_done = False;
 		self.child_count = 0
 		self.child_items = []
+		if parent_item:
+			self.level = parent_item.level + 1
+		else:
+			self.level = 0
 
 	def getChildItem(self, row):
 		return self.child_items[row]
@@ -858,8 +881,13 @@ class TreeWindowBase(QMdiSubWindow):
 		super(TreeWindowBase, self).__init__(parent)
 
 		self.model = None
-		self.view = None
 		self.find_bar = None
+
+		self.view = QTreeView()
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTreeCellsToClipboard
+
+		self.context_menu = TreeContextMenu(self.view)
 
 	def DisplayFound(self, ids):
 		if not len(ids):
@@ -902,7 +930,6 @@ class CallGraphWindow(TreeWindowBase):
 
 		self.model = LookupCreateModel("Context-Sensitive Call Graph", lambda x=glb: CallGraphModel(x))
 
-		self.view = QTreeView()
 		self.view.setModel(self.model)
 
 		for c, w in ((0, 250), (1, 100), (2, 60), (3, 70), (4, 70), (5, 100)):
@@ -925,7 +952,6 @@ class CallTreeWindow(TreeWindowBase):
 
 		self.model = LookupCreateModel("Call Tree", lambda x=glb: CallTreeModel(x))
 
-		self.view = QTreeView()
 		self.view.setModel(self.model)
 
 		for c, w in ((0, 230), (1, 100), (2, 100), (3, 70), (4, 70), (5, 100)):
@@ -1004,10 +1030,6 @@ class ChildDataItemFinder():
 
 glb_chunk_sz = 10000
 
-# size of pickled integer big enough for record size
-
-glb_nsz = 8
-
 # Background process for SQL data fetcher
 
 class SQLFetcherProcess():
@@ -1066,7 +1088,7 @@ class SQLFetcherProcess():
 				return True
 			if space >= glb_nsz:
 				# Use 0 (or space < glb_nsz) to mean there is no more at the top of the buffer
-				nd = cPickle.dumps(0, cPickle.HIGHEST_PROTOCOL)
+				nd = pickle.dumps(0, pickle.HIGHEST_PROTOCOL)
 				self.buffer[self.local_head : self.local_head + len(nd)] = nd
 			self.local_head = 0
 		if self.local_tail - self.local_head > sz:
@@ -1084,9 +1106,9 @@ class SQLFetcherProcess():
 			self.wait_event.wait()
 
 	def AddToBuffer(self, obj):
-		d = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
+		d = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
 		n = len(d)
-		nd = cPickle.dumps(n, cPickle.HIGHEST_PROTOCOL)
+		nd = pickle.dumps(n, pickle.HIGHEST_PROTOCOL)
 		sz = n + glb_nsz
 		self.WaitForSpace(sz)
 		pos = self.local_head
@@ -1198,12 +1220,12 @@ class SQLFetcher(QObject):
 		pos = self.local_tail
 		if len(self.buffer) - pos < glb_nsz:
 			pos = 0
-		n = cPickle.loads(self.buffer[pos : pos + glb_nsz])
+		n = pickle.loads(self.buffer[pos : pos + glb_nsz])
 		if n == 0:
 			pos = 0
-			n = cPickle.loads(self.buffer[0 : glb_nsz])
+			n = pickle.loads(self.buffer[0 : glb_nsz])
 		pos += glb_nsz
-		obj = cPickle.loads(self.buffer[pos : pos + n])
+		obj = pickle.loads(self.buffer[pos : pos + n])
 		self.local_tail = pos + n
 		return obj
 
@@ -1512,6 +1534,19 @@ def BranchDataPrep(query):
 			" (" + dsoname(query.value(15)) + ")")
 	return data
 
+def BranchDataPrepWA(query):
+	data = []
+	data.append(query.value(0))
+	# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+	data.append("{:>19}".format(query.value(1)))
+	for i in xrange(2, 8):
+		data.append(query.value(i))
+	data.append(tohex(query.value(8)).rjust(16) + " " + query.value(9) + offstr(query.value(10)) +
+			" (" + dsoname(query.value(11)) + ")" + " -> " +
+			tohex(query.value(12)) + " " + query.value(13) + offstr(query.value(14)) +
+			" (" + dsoname(query.value(15)) + ")")
+	return data
+
 # Branch data model
 
 class BranchModel(TreeModel):
@@ -1539,7 +1574,11 @@ class BranchModel(TreeModel):
 			" AND evsel_id = " + str(self.event_id) +
 			" ORDER BY samples.id"
 			" LIMIT " + str(glb_chunk_sz))
-		self.fetcher = SQLFetcher(glb, sql, BranchDataPrep, self.AddSample)
+		if pyside_version_1 and sys.version_info[0] == 3:
+			prep = BranchDataPrepWA
+		else:
+			prep = BranchDataPrep
+		self.fetcher = SQLFetcher(glb, sql, prep, self.AddSample)
 		self.fetcher.done.connect(self.Update)
 		self.fetcher.Fetch(glb_chunk_sz)
 
@@ -1617,9 +1656,13 @@ class BranchWindow(QMdiSubWindow):
 
 		self.view = QTreeView()
 		self.view.setUniformRowHeights(True)
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTreeCellsToClipboard
 		self.view.setModel(self.model)
 
 		self.ResizeColumnsToContents()
+
+		self.context_menu = TreeContextMenu(self.view)
 
 		self.find_bar = FindBar(self, self, True)
 
@@ -2065,14 +2108,6 @@ def IsSelectable(db, table, sql = ""):
 		return False
 	return True
 
-# SQL data preparation
-
-def SQLTableDataPrep(query, count):
-	data = []
-	for i in xrange(count):
-		data.append(query.value(i))
-	return data
-
 # SQL table data model item
 
 class SQLTableItem():
@@ -2096,7 +2131,7 @@ class SQLTableModel(TableModel):
 		self.more = True
 		self.populated = 0
 		self.column_headers = column_headers
-		self.fetcher = SQLFetcher(glb, sql, lambda x, y=len(column_headers): SQLTableDataPrep(x, y), self.AddSample)
+		self.fetcher = SQLFetcher(glb, sql, lambda x, y=len(column_headers): self.SQLTableDataPrep(x, y), self.AddSample)
 		self.fetcher.done.connect(self.Update)
 		self.fetcher.Fetch(glb_chunk_sz)
 
@@ -2140,6 +2175,12 @@ class SQLTableModel(TableModel):
 	def columnHeader(self, column):
 		return self.column_headers[column]
 
+	def SQLTableDataPrep(self, query, count):
+		data = []
+		for i in xrange(count):
+			data.append(query.value(i))
+		return data
+
 # SQL automatic table data model
 
 class SQLAutoTableModel(SQLTableModel):
@@ -2168,7 +2209,31 @@ class SQLAutoTableModel(SQLTableModel):
 			QueryExec(query, "SELECT column_name FROM information_schema.columns WHERE table_schema = '" + schema + "' and table_name = '" + select_table_name + "'")
 			while query.next():
 				column_headers.append(query.value(0))
+		if pyside_version_1 and sys.version_info[0] == 3:
+			if table_name == "samples_view":
+				self.SQLTableDataPrep = self.samples_view_DataPrep
+			if table_name == "samples":
+				self.SQLTableDataPrep = self.samples_DataPrep
 		super(SQLAutoTableModel, self).__init__(glb, sql, column_headers, parent)
+
+	def samples_view_DataPrep(self, query, count):
+		data = []
+		data.append(query.value(0))
+		# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+		data.append("{:>19}".format(query.value(1)))
+		for i in xrange(2, count):
+			data.append(query.value(i))
+		return data
+
+	def samples_DataPrep(self, query, count):
+		data = []
+		for i in xrange(9):
+			data.append(query.value(i))
+		# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+		data.append("{:>19}".format(query.value(9)))
+		for i in xrange(10, count):
+			data.append(query.value(i))
+		return data
 
 # Base class for custom ResizeColumnsToContents
 
@@ -2207,6 +2272,240 @@ class ResizeColumnsToContentsBase(QObject):
 		self.data_model.rowsInserted.disconnect(self.UpdateColumnWidths)
 		self.ResizeColumnsToContents()
 
+# Convert value to CSV
+
+def ToCSValue(val):
+	if '"' in val:
+		val = val.replace('"', '""')
+	if "," in val or '"' in val:
+		val = '"' + val + '"'
+	return val
+
+# Key to sort table model indexes by row / column, assuming fewer than 1000 columns
+
+glb_max_cols = 1000
+
+def RowColumnKey(a):
+	return a.row() * glb_max_cols + a.column()
+
+# Copy selected table cells to clipboard
+
+def CopyTableCellsToClipboard(view, as_csv=False, with_hdr=False):
+	indexes = sorted(view.selectedIndexes(), key=RowColumnKey)
+	idx_cnt = len(indexes)
+	if not idx_cnt:
+		return
+	if idx_cnt == 1:
+		with_hdr=False
+	min_row = indexes[0].row()
+	max_row = indexes[0].row()
+	min_col = indexes[0].column()
+	max_col = indexes[0].column()
+	for i in indexes:
+		min_row = min(min_row, i.row())
+		max_row = max(max_row, i.row())
+		min_col = min(min_col, i.column())
+		max_col = max(max_col, i.column())
+	if max_col > glb_max_cols:
+		raise RuntimeError("glb_max_cols is too low")
+	max_width = [0] * (1 + max_col - min_col)
+	for i in indexes:
+		c = i.column() - min_col
+		max_width[c] = max(max_width[c], len(str(i.data())))
+	text = ""
+	pad = ""
+	sep = ""
+	if with_hdr:
+		model = indexes[0].model()
+		for col in range(min_col, max_col + 1):
+			val = model.headerData(col, Qt.Horizontal)
+			if as_csv:
+				text += sep + ToCSValue(val)
+				sep = ","
+			else:
+				c = col - min_col
+				max_width[c] = max(max_width[c], len(val))
+				width = max_width[c]
+				align = model.headerData(col, Qt.Horizontal, Qt.TextAlignmentRole)
+				if align & Qt.AlignRight:
+					val = val.rjust(width)
+				text += pad + sep + val
+				pad = " " * (width - len(val))
+				sep = "  "
+		text += "\n"
+		pad = ""
+		sep = ""
+	last_row = min_row
+	for i in indexes:
+		if i.row() > last_row:
+			last_row = i.row()
+			text += "\n"
+			pad = ""
+			sep = ""
+		if as_csv:
+			text += sep + ToCSValue(str(i.data()))
+			sep = ","
+		else:
+			width = max_width[i.column() - min_col]
+			if i.data(Qt.TextAlignmentRole) & Qt.AlignRight:
+				val = str(i.data()).rjust(width)
+			else:
+				val = str(i.data())
+			text += pad + sep + val
+			pad = " " * (width - len(val))
+			sep = "  "
+	QApplication.clipboard().setText(text)
+
+def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
+	indexes = view.selectedIndexes()
+	if not len(indexes):
+		return
+
+	selection = view.selectionModel()
+
+	first = None
+	for i in indexes:
+		above = view.indexAbove(i)
+		if not selection.isSelected(above):
+			first = i
+			break
+
+	if first is None:
+		raise RuntimeError("CopyTreeCellsToClipboard internal error")
+
+	model = first.model()
+	row_cnt = 0
+	col_cnt = model.columnCount(first)
+	max_width = [0] * col_cnt
+
+	indent_sz = 2
+	indent_str = " " * indent_sz
+
+	expanded_mark_sz = 2
+	if sys.version_info[0] == 3:
+		expanded_mark = "\u25BC "
+		not_expanded_mark = "\u25B6 "
+	else:
+		expanded_mark = unicode(chr(0xE2) + chr(0x96) + chr(0xBC) + " ", "utf-8")
+		not_expanded_mark =  unicode(chr(0xE2) + chr(0x96) + chr(0xB6) + " ", "utf-8")
+	leaf_mark = "  "
+
+	if not as_csv:
+		pos = first
+		while True:
+			row_cnt += 1
+			row = pos.row()
+			for c in range(col_cnt):
+				i = pos.sibling(row, c)
+				if c:
+					n = len(str(i.data()))
+				else:
+					n = len(str(i.data()).strip())
+					n += (i.internalPointer().level - 1) * indent_sz
+					n += expanded_mark_sz
+				max_width[c] = max(max_width[c], n)
+			pos = view.indexBelow(pos)
+			if not selection.isSelected(pos):
+				break
+
+	text = ""
+	pad = ""
+	sep = ""
+	if with_hdr:
+		for c in range(col_cnt):
+			val = model.headerData(c, Qt.Horizontal, Qt.DisplayRole).strip()
+			if as_csv:
+				text += sep + ToCSValue(val)
+				sep = ","
+			else:
+				max_width[c] = max(max_width[c], len(val))
+				width = max_width[c]
+				align = model.headerData(c, Qt.Horizontal, Qt.TextAlignmentRole)
+				if align & Qt.AlignRight:
+					val = val.rjust(width)
+				text += pad + sep + val
+				pad = " " * (width - len(val))
+				sep = "   "
+		text += "\n"
+		pad = ""
+		sep = ""
+
+	pos = first
+	while True:
+		row = pos.row()
+		for c in range(col_cnt):
+			i = pos.sibling(row, c)
+			val = str(i.data())
+			if not c:
+				if model.hasChildren(i):
+					if view.isExpanded(i):
+						mark = expanded_mark
+					else:
+						mark = not_expanded_mark
+				else:
+					mark = leaf_mark
+				val = indent_str * (i.internalPointer().level - 1) + mark + val.strip()
+			if as_csv:
+				text += sep + ToCSValue(val)
+				sep = ","
+			else:
+				width = max_width[c]
+				if c and i.data(Qt.TextAlignmentRole) & Qt.AlignRight:
+					val = val.rjust(width)
+				text += pad + sep + val
+				pad = " " * (width - len(val))
+				sep = "   "
+		pos = view.indexBelow(pos)
+		if not selection.isSelected(pos):
+			break
+		text = text.rstrip() + "\n"
+		pad = ""
+		sep = ""
+
+	QApplication.clipboard().setText(text)
+
+def CopyCellsToClipboard(view, as_csv=False, with_hdr=False):
+	view.CopyCellsToClipboard(view, as_csv, with_hdr)
+
+def CopyCellsToClipboardHdr(view):
+	CopyCellsToClipboard(view, False, True)
+
+def CopyCellsToClipboardCSV(view):
+	CopyCellsToClipboard(view, True, True)
+
+# Context menu
+
+class ContextMenu(object):
+
+	def __init__(self, view):
+		self.view = view
+		self.view.setContextMenuPolicy(Qt.CustomContextMenu)
+		self.view.customContextMenuRequested.connect(self.ShowContextMenu)
+
+	def ShowContextMenu(self, pos):
+		menu = QMenu(self.view)
+		self.AddActions(menu)
+		menu.exec_(self.view.mapToGlobal(pos))
+
+	def AddCopy(self, menu):
+		menu.addAction(CreateAction("&Copy selection", "Copy to clipboard", lambda: CopyCellsToClipboardHdr(self.view), self.view))
+		menu.addAction(CreateAction("Copy selection as CS&V", "Copy to clipboard as CSV", lambda: CopyCellsToClipboardCSV(self.view), self.view))
+
+	def AddActions(self, menu):
+		self.AddCopy(menu)
+
+class TreeContextMenu(ContextMenu):
+
+	def __init__(self, view):
+		super(TreeContextMenu, self).__init__(view)
+
+	def AddActions(self, menu):
+		i = self.view.currentIndex()
+		text = str(i.data()).strip()
+		if len(text):
+			menu.addAction(CreateAction('Copy "' + text + '"', "Copy to clipboard", lambda: QApplication.clipboard().setText(text), self.view))
+		self.AddCopy(menu)
+
 # Table window
 
 class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
@@ -2225,8 +2524,12 @@ class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 		self.view.verticalHeader().setVisible(False)
 		self.view.sortByColumn(-1, Qt.AscendingOrder)
 		self.view.setSortingEnabled(True)
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTableCellsToClipboard
 
 		self.ResizeColumnsToContents()
+
+		self.context_menu = ContextMenu(self.view)
 
 		self.find_bar = FindBar(self, self, True)
 
@@ -2341,6 +2644,10 @@ class TopCallsWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 		self.view.setModel(self.model)
 		self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
 		self.view.verticalHeader().setVisible(False)
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTableCellsToClipboard
+
+		self.context_menu = ContextMenu(self.view)
 
 		self.ResizeColumnsToContents()
 
@@ -2606,6 +2913,60 @@ class HelpOnlyWindow(QMainWindow):
 
 		self.setCentralWidget(self.text)
 
+# PostqreSQL server version
+
+def PostqreSQLServerVersion(db):
+	query = QSqlQuery(db)
+	QueryExec(query, "SELECT VERSION()")
+	if query.next():
+		v_str = query.value(0)
+		v_list = v_str.strip().split(" ")
+		if v_list[0] == "PostgreSQL" and v_list[2] == "on":
+			return v_list[1]
+		return v_str
+	return "Unknown"
+
+# SQLite version
+
+def SQLiteVersion(db):
+	query = QSqlQuery(db)
+	QueryExec(query, "SELECT sqlite_version()")
+	if query.next():
+		return query.value(0)
+	return "Unknown"
+
+# About dialog
+
+class AboutDialog(QDialog):
+
+	def __init__(self, glb, parent=None):
+		super(AboutDialog, self).__init__(parent)
+
+		self.setWindowTitle("About Exported SQL Viewer")
+		self.setMinimumWidth(300)
+
+		pyside_version = "1" if pyside_version_1 else "2"
+
+		text = "<pre>"
+		text += "Python version:     " + sys.version.split(" ")[0] + "\n"
+		text += "PySide version:     " + pyside_version + "\n"
+		text += "Qt version:         " + qVersion() + "\n"
+		if glb.dbref.is_sqlite3:
+			text += "SQLite version:     " + SQLiteVersion(glb.db) + "\n"
+		else:
+			text += "PostqreSQL version: " + PostqreSQLServerVersion(glb.db) + "\n"
+		text += "</pre>"
+
+		self.text = QTextBrowser()
+		self.text.setHtml(text)
+		self.text.setReadOnly(True)
+		self.text.setOpenExternalLinks(True)
+
+		self.vbox = QVBoxLayout()
+		self.vbox.addWidget(self.text)
+
+		self.setLayout(self.vbox);
+
 # Font resize
 
 def ResizeFont(widget, diff):
@@ -2678,6 +3039,8 @@ class MainWindow(QMainWindow):
 		file_menu.addAction(CreateExitAction(glb.app, self))
 
 		edit_menu = menu.addMenu("&Edit")
+		edit_menu.addAction(CreateAction("&Copy", "Copy to clipboard", self.CopyToClipboard, self, QKeySequence.Copy))
+		edit_menu.addAction(CreateAction("Copy as CS&V", "Copy to clipboard as CSV", self.CopyToClipboardCSV, self))
 		edit_menu.addAction(CreateAction("&Find...", "Find items", self.Find, self, QKeySequence.Find))
 		edit_menu.addAction(CreateAction("Fetch &more records...", "Fetch more records", self.FetchMoreRecords, self, [QKeySequence(Qt.Key_F8)]))
 		edit_menu.addAction(CreateAction("&Shrink Font", "Make text smaller", self.ShrinkFont, self, [QKeySequence("Ctrl+-")]))
@@ -2701,6 +3064,21 @@ class MainWindow(QMainWindow):
 
 		help_menu = menu.addMenu("&Help")
 		help_menu.addAction(CreateAction("&Exported SQL Viewer Help", "Helpful information", self.Help, self, QKeySequence.HelpContents))
+		help_menu.addAction(CreateAction("&About Exported SQL Viewer", "About this application", self.About, self))
+
+	def Try(self, fn):
+		win = self.mdi_area.activeSubWindow()
+		if win:
+			try:
+				fn(win.view)
+			except:
+				pass
+
+	def CopyToClipboard(self):
+		self.Try(CopyCellsToClipboardHdr)
+
+	def CopyToClipboardCSV(self):
+		self.Try(CopyCellsToClipboardCSV)
 
 	def Find(self):
 		win = self.mdi_area.activeSubWindow()
@@ -2719,12 +3097,10 @@ class MainWindow(QMainWindow):
 				pass
 
 	def ShrinkFont(self):
-		win = self.mdi_area.activeSubWindow()
-		ShrinkFont(win.view)
+		self.Try(ShrinkFont)
 
 	def EnlargeFont(self):
-		win = self.mdi_area.activeSubWindow()
-		EnlargeFont(win.view)
+		self.Try(EnlargeFont)
 
 	def EventMenu(self, events, reports_menu):
 		branches_events = 0
@@ -2773,6 +3149,10 @@ class MainWindow(QMainWindow):
 
 	def Help(self):
 		HelpWindow(self.glb, self)
+
+	def About(self):
+		dialog = AboutDialog(self.glb, self)
+		dialog.exec_()
 
 # XED Disassembler
 
@@ -2854,9 +3234,13 @@ class LibXED():
 		ok = self.xed_format_context(2, inst.xedp, inst.bufferp, sizeof(inst.buffer), ip, 0, 0)
 		if not ok:
 			return 0, ""
+		if sys.version_info[0] == 2:
+			result = inst.buffer.value
+		else:
+			result = inst.buffer.value.decode()
 		# Return instruction length and the disassembled instruction text
 		# For now, assume the length is in byte 166
-		return inst.xedd[166], inst.buffer.value
+		return inst.xedd[166], result
 
 def TryOpen(file_name):
 	try:
@@ -2872,9 +3256,14 @@ def Is64Bit(f):
 	header = f.read(7)
 	f.seek(pos)
 	magic = header[0:4]
-	eclass = ord(header[4])
-	encoding = ord(header[5])
-	version = ord(header[6])
+	if sys.version_info[0] == 2:
+		eclass = ord(header[4])
+		encoding = ord(header[5])
+		version = ord(header[6])
+	else:
+		eclass = header[4]
+		encoding = header[5]
+		version = header[6]
 	if magic == chr(127) + "ELF" and eclass > 0 and eclass < 3 and encoding > 0 and encoding < 3 and version == 1:
 		result = True if eclass == 2 else False
 	return result
@@ -2973,7 +3362,7 @@ class DBRef():
 
 def Main():
 	if (len(sys.argv) < 2):
-		print >> sys.stderr, "Usage is: exported-sql-viewer.py {<database name> | --help-only}"
+		printerr("Usage is: exported-sql-viewer.py {<database name> | --help-only}");
 		raise Exception("Too few arguments")
 
 	dbname = sys.argv[1]
@@ -2986,8 +3375,8 @@ def Main():
 
 	is_sqlite3 = False
 	try:
-		f = open(dbname)
-		if f.read(15) == "SQLite format 3":
+		f = open(dbname, "rb")
+		if f.read(15) == b'SQLite format 3':
 			is_sqlite3 = True
 		f.close()
 	except:

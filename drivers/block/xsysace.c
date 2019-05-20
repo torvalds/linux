@@ -1032,6 +1032,7 @@ static int ace_setup(struct ace_device *ace)
 	ace->gd->major = ace_major;
 	ace->gd->first_minor = ace->id * ACE_NUM_MINORS;
 	ace->gd->fops = &ace_fops;
+	ace->gd->events = DISK_EVENT_MEDIA_CHANGE;
 	ace->gd->queue = ace->queue;
 	ace->gd->private_data = ace;
 	snprintf(ace->gd->disk_name, 32, "xs%c", ace->id + 'a');
@@ -1090,6 +1091,8 @@ static int ace_setup(struct ace_device *ace)
 	return 0;
 
 err_read:
+	/* prevent double queue cleanup */
+	ace->gd->queue = NULL;
 	put_disk(ace->gd);
 err_alloc_disk:
 	blk_cleanup_queue(ace->queue);

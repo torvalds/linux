@@ -360,8 +360,8 @@ static ssize_t queue_poll_delay_show(struct request_queue *q, char *page)
 {
 	int val;
 
-	if (q->poll_nsec == -1)
-		val = -1;
+	if (q->poll_nsec == BLK_MQ_POLL_CLASSIC)
+		val = BLK_MQ_POLL_CLASSIC;
 	else
 		val = q->poll_nsec / 1000;
 
@@ -380,10 +380,12 @@ static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 	if (err < 0)
 		return err;
 
-	if (val == -1)
-		q->poll_nsec = -1;
-	else
+	if (val == BLK_MQ_POLL_CLASSIC)
+		q->poll_nsec = BLK_MQ_POLL_CLASSIC;
+	else if (val >= 0)
 		q->poll_nsec = val * 1000;
+	else
+		return -EINVAL;
 
 	return count;
 }
@@ -726,7 +728,7 @@ static struct queue_sysfs_entry throtl_sample_time_entry = {
 };
 #endif
 
-static struct attribute *default_attrs[] = {
+static struct attribute *queue_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
@@ -767,6 +769,25 @@ static struct attribute *default_attrs[] = {
 #endif
 	NULL,
 };
+
+static umode_t queue_attr_visible(struct kobject *kobj, struct attribute *attr,
+				int n)
+{
+	struct request_queue *q =
+		container_of(kobj, struct request_queue, kobj);
+
+	if (attr == &queue_io_timeout_entry.attr &&
+		(!q->mq_ops || !q->mq_ops->timeout))
+			return 0;
+
+	return attr->mode;
+}
+
+static struct attribute_group queue_attr_group = {
+	.attrs = queue_attrs,
+	.is_visible = queue_attr_visible,
+};
+
 
 #define to_queue(atr) container_of((atr), struct queue_sysfs_entry, attr)
 
@@ -888,7 +909,6 @@ static const struct sysfs_ops queue_sysfs_ops = {
 
 struct kobj_type blk_queue_ktype = {
 	.sysfs_ops	= &queue_sysfs_ops,
-	.default_attrs	= default_attrs,
 	.release	= blk_release_queue,
 };
 
@@ -934,6 +954,14 @@ int blk_register_queue(struct gendisk *disk)
 	ret = kobject_add(&q->kobj, kobject_get(&dev->kobj), "%s", "queue");
 	if (ret < 0) {
 		blk_trace_remove_sysfs(dev);
+		goto unlock;
+	}
+
+	ret = sysfs_create_group(&q->kobj, &queue_attr_group);
+	if (ret) {
+		blk_trace_remove_sysfs(dev);
+		kobject_del(&q->kobj);
+		kobject_put(&dev->kobj);
 		goto unlock;
 	}
 

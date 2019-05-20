@@ -216,8 +216,8 @@ config GENEVE
 
 config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
-	depends on INET && NET_UDP_TUNNEL
-	select NET_IP_TUNNEL
+	depends on INET
+	select NET_UDP_TUNNEL
 	---help---
 	  This allows one to create gtp virtual interfaces that provide
 	  the GPRS Tunneling Protocol datapath (GTP-U). This tunneling protocol
@@ -505,6 +505,7 @@ source "drivers/net/hyperv/Kconfig"
 config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
+	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
 	  be used to test various control path networking APIs, especially

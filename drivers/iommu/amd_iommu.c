@@ -165,7 +165,7 @@ static inline u16 get_pci_device_id(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 
-	return PCI_DEVID(pdev->bus->number, pdev->devfn);
+	return pci_dev_id(pdev);
 }
 
 static inline int get_acpihid_device_id(struct device *dev,
@@ -1723,31 +1723,6 @@ static void dma_ops_free_iova(struct dma_ops_domain *dma_dom,
  *
  ****************************************************************************/
 
-/*
- * This function adds a protection domain to the global protection domain list
- */
-static void add_domain_to_list(struct protection_domain *domain)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
-	list_add(&domain->list, &amd_iommu_pd_list);
-	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
-}
-
-/*
- * This function removes a protection domain to the global
- * protection domain list
- */
-static void del_domain_from_list(struct protection_domain *domain)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
-	list_del(&domain->list);
-	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
-}
-
 static u16 domain_id_alloc(void)
 {
 	int id;
@@ -1838,8 +1813,6 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 	if (!dom)
 		return;
 
-	del_domain_from_list(&dom->domain);
-
 	put_iova_domain(&dom->iovad);
 
 	free_pagetable(&dom->domain);
@@ -1879,8 +1852,6 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 
 	/* Initialize reserved ranges */
 	copy_reserved_iova(&reserved_iova_ranges, &dma_dom->iovad);
-
-	add_domain_to_list(&dma_dom->domain);
 
 	return dma_dom;
 
@@ -2122,23 +2093,6 @@ out_err:
 	return ret;
 }
 
-/* FIXME: Move this to PCI code */
-#define PCI_PRI_TLP_OFF		(1 << 15)
-
-static bool pci_pri_tlp_required(struct pci_dev *pdev)
-{
-	u16 status;
-	int pos;
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
-	if (!pos)
-		return false;
-
-	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
-
-	return (status & PCI_PRI_TLP_OFF) ? true : false;
-}
-
 /*
  * If a device is not yet associated with a domain, this function makes the
  * device visible in the domain
@@ -2167,7 +2121,7 @@ static int attach_device(struct device *dev,
 
 			dev_data->ats.enabled = true;
 			dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
-			dev_data->pri_tlp     = pci_pri_tlp_required(pdev);
+			dev_data->pri_tlp     = pci_prg_resp_pasid_required(pdev);
 		}
 	} else if (amd_iommu_iotlb_sup &&
 		   pci_enable_ats(pdev, PAGE_SHIFT) == 0) {
@@ -2608,7 +2562,12 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 
 	/* Everything is mapped - write the right values into s->dma_address */
 	for_each_sg(sglist, s, nelems, i) {
-		s->dma_address += address + s->offset;
+		/*
+		 * Add in the remaining piece of the scatter-gather offset that
+		 * was masked out when we were determining the physical address
+		 * via (sg_phys(s) & PAGE_MASK) earlier.
+		 */
+		s->dma_address += address + (s->offset & ~PAGE_MASK);
 		s->dma_length   = s->length;
 	}
 
@@ -2892,8 +2851,6 @@ static void protection_domain_free(struct protection_domain *domain)
 	if (!domain)
 		return;
 
-	del_domain_from_list(domain);
-
 	if (domain->id)
 		domain_id_free(domain->id);
 
@@ -2922,8 +2879,6 @@ static struct protection_domain *protection_domain_alloc(void)
 
 	if (protection_domain_init(domain))
 		goto out_err;
-
-	add_domain_to_list(domain);
 
 	return domain;
 
@@ -3164,21 +3119,24 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 		return;
 
 	list_for_each_entry(entry, &amd_iommu_unity_map, list) {
+		int type, prot = 0;
 		size_t length;
-		int prot = 0;
 
 		if (devid < entry->devid_start || devid > entry->devid_end)
 			continue;
 
+		type   = IOMMU_RESV_DIRECT;
 		length = entry->address_end - entry->address_start;
 		if (entry->prot & IOMMU_PROT_IR)
 			prot |= IOMMU_READ;
 		if (entry->prot & IOMMU_PROT_IW)
 			prot |= IOMMU_WRITE;
+		if (entry->prot & IOMMU_UNITY_MAP_FLAG_EXCL_RANGE)
+			/* Exclusion range */
+			type = IOMMU_RESV_RESERVED;
 
 		region = iommu_alloc_resv_region(entry->address_start,
-						 length, prot,
-						 IOMMU_RESV_DIRECT);
+						 length, prot, type);
 		if (!region) {
 			dev_err(dev, "Out of memory allocating dm-regions\n");
 			return;

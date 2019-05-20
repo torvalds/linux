@@ -227,7 +227,7 @@ static int ddcb_info_show(struct seq_file *s, void *unused)
 	seq_puts(s, "DDCB QUEUE:\n");
 	seq_printf(s, "  ddcb_max:            %d\n"
 		   "  ddcb_daddr:          %016llx - %016llx\n"
-		   "  ddcb_vaddr:          %016llx\n"
+		   "  ddcb_vaddr:          %p\n"
 		   "  ddcbs_in_flight:     %u\n"
 		   "  ddcbs_max_in_flight: %u\n"
 		   "  ddcbs_completed:     %u\n"
@@ -237,7 +237,7 @@ static int ddcb_info_show(struct seq_file *s, void *unused)
 		   queue->ddcb_max, (long long)queue->ddcb_daddr,
 		   (long long)queue->ddcb_daddr +
 		   (queue->ddcb_max * DDCB_LENGTH),
-		   (long long)queue->ddcb_vaddr, queue->ddcbs_in_flight,
+		   queue->ddcb_vaddr, queue->ddcbs_in_flight,
 		   queue->ddcbs_max_in_flight, queue->ddcbs_completed,
 		   queue->return_on_busy, queue->wait_on_busy,
 		   cd->irqs_processed);

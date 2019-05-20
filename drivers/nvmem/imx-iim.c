@@ -104,7 +104,6 @@ static int imx_iim_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct iim_priv *iim;
 	struct nvmem_device *nvmem;
 	struct nvmem_config cfg = {};
@@ -114,8 +113,7 @@ static int imx_iim_probe(struct platform_device *pdev)
 	if (!iim)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iim->base = devm_ioremap_resource(dev, res);
+	iim->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iim->base))
 		return PTR_ERR(iim->base);
 

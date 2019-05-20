@@ -1525,8 +1525,7 @@ static __init int pt_init(void)
 	}
 
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
-		pt_pmu.pmu.capabilities =
-			PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_AUX_SW_DOUBLEBUF;
+		pt_pmu.pmu.capabilities = PERF_PMU_CAP_AUX_NO_SG;
 
 	pt_pmu.pmu.capabilities	|= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_ITRACE;
 	pt_pmu.pmu.attr_groups		 = pt_attr_groups;

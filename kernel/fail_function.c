@@ -210,7 +210,7 @@ static int fei_seq_show(struct seq_file *m, void *v)
 {
 	struct fei_attr *attr = list_entry(v, struct fei_attr, list);
 
-	seq_printf(m, "%pf\n", attr->kp.addr);
+	seq_printf(m, "%ps\n", attr->kp.addr);
 	return 0;
 }
 

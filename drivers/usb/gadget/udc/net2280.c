@@ -789,8 +789,7 @@ static int read_fifo(struct net2280_ep *ep, struct net2280_request *req)
 		(void) readl(&ep->regs->ep_rsp);
 	}
 
-	return is_short || ((req->req.actual == req->req.length) &&
-			!req->req.zero);
+	return is_short || req->req.actual == req->req.length;
 }
 
 /* fill out dma descriptor to match a given request */
@@ -866,9 +865,6 @@ static void start_queue(struct net2280_ep *ep, u32 dmactl, u32 td_dma)
 	(void) readl(&ep->dev->pci->pcimstctl);
 
 	writel(BIT(DMA_START), &dma->dmastat);
-
-	if (!ep->is_in)
-		stop_out_naking(ep);
 }
 
 static void start_dma(struct net2280_ep *ep, struct net2280_request *req)
@@ -907,6 +903,7 @@ static void start_dma(struct net2280_ep *ep, struct net2280_request *req)
 			writel(BIT(DMA_START), &dma->dmastat);
 			return;
 		}
+		stop_out_naking(ep);
 	}
 
 	tmp = dmactl_default;
@@ -1060,7 +1057,7 @@ net2280_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			/* PIO ... stuff the fifo, or unblock it.  */
 			if (ep->is_in)
 				write_fifo(ep, _req);
-			else if (list_empty(&ep->queue)) {
+			else {
 				u32	s;
 
 				/* OUT FIFO might have packet(s) buffered */
@@ -1275,9 +1272,9 @@ static int net2280_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 			break;
 	}
 	if (&req->req != _req) {
+		ep->stopped = stopped;
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
-		dev_err(&ep->dev->pdev->dev, "%s: Request mismatch\n",
-								__func__);
+		ep_dbg(ep->dev, "%s: Request mismatch\n", __func__);
 		return -EINVAL;
 	}
 

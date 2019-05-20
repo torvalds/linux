@@ -20,6 +20,7 @@
 
 enum devx_obj_flags {
 	DEVX_OBJ_FLAGS_INDIRECT_MKEY = 1 << 0,
+	DEVX_OBJ_FLAGS_DCT = 1 << 1,
 };
 
 struct devx_async_data {
@@ -39,7 +40,10 @@ struct devx_obj {
 	u32			dinlen; /* destroy inbox length */
 	u32			dinbox[MLX5_MAX_DESTROY_INBOX_SIZE_DW];
 	u32			flags;
-	struct mlx5_ib_devx_mr	devx_mr;
+	union {
+		struct mlx5_ib_devx_mr	devx_mr;
+		struct mlx5_core_dct	core_dct;
+	};
 };
 
 struct devx_umem {
@@ -81,6 +85,10 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
 	if (is_user && capable(CAP_NET_RAW) &&
 	    (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RAW_TX))
 		cap |= MLX5_UCTX_CAP_RAW_TX;
+	if (is_user && capable(CAP_SYS_RAWIO) &&
+	    (MLX5_CAP_GEN(dev->mdev, uctx_cap) &
+	     MLX5_UCTX_CAP_INTERNAL_DEV_RES))
+		cap |= MLX5_UCTX_CAP_INTERNAL_DEV_RES;
 
 	MLX5_SET(create_uctx_in, in, opcode, MLX5_CMD_OP_CREATE_UCTX);
 	MLX5_SET(uctx, uctx, cap, cap);
@@ -146,7 +154,7 @@ bool mlx5_ib_devx_is_flow_counter(void *obj, u32 *counter_id)
  * must be considered upon checking for a valid object id.
  * For that the opcode of the creator command is encoded as part of the obj_id.
  */
-static u64 get_enc_obj_id(u16 opcode, u32 obj_id)
+static u64 get_enc_obj_id(u32 opcode, u32 obj_id)
 {
 	return ((u64)opcode << 32) | obj_id;
 }
@@ -159,7 +167,9 @@ static u64 devx_get_obj_id(const void *in)
 	switch (opcode) {
 	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
 	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
-		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_GENERAL_OBJECT,
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_GENERAL_OBJECT |
+					MLX5_GET(general_obj_in_cmd_hdr, in,
+						 obj_type) << 16,
 					MLX5_GET(general_obj_in_cmd_hdr, in,
 						 obj_id));
 		break;
@@ -347,7 +357,6 @@ static u64 devx_get_obj_id(const void *in)
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RQ,
 					MLX5_GET(arm_rq_in, in, srq_number));
 		break;
-	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_DCT,
 					MLX5_GET(drain_dct_in, in, dctn));
@@ -370,8 +379,10 @@ static u64 devx_get_obj_id(const void *in)
 	return obj_id;
 }
 
-static bool devx_is_valid_obj_id(struct ib_uobject *uobj, const void *in)
+static bool devx_is_valid_obj_id(struct uverbs_attr_bundle *attrs,
+				 struct ib_uobject *uobj, const void *in)
 {
+	struct mlx5_ib_dev *dev = mlx5_udata_to_mdev(&attrs->driver_udata);
 	u64 obj_id = devx_get_obj_id(in);
 
 	if (!obj_id)
@@ -386,7 +397,6 @@ static bool devx_is_valid_obj_id(struct ib_uobject *uobj, const void *in)
 	case UVERBS_OBJECT_SRQ:
 	{
 		struct mlx5_core_srq *srq = &(to_msrq(uobj->object)->msrq);
-		struct mlx5_ib_dev *dev = to_mdev(uobj->context->device);
 		u16 opcode;
 
 		switch (srq->common.res) {
@@ -618,7 +628,6 @@ static bool devx_is_obj_modify_cmd(const void *in)
 	case MLX5_CMD_OP_2RST_QP:
 	case MLX5_CMD_OP_ARM_XRC_SRQ:
 	case MLX5_CMD_OP_ARM_RQ:
-	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
 	case MLX5_CMD_OP_ARM_XRQ:
 	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
@@ -679,6 +688,7 @@ static bool devx_is_whitelist_cmd(void *in)
 	switch (opcode) {
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_CONTEXT:
+	case MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT:
 		return true;
 	default:
 		return false;
@@ -716,6 +726,7 @@ static bool devx_is_general_cmd(void *in)
 	switch (opcode) {
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_CONTEXT:
+	case MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT:
 	case MLX5_CMD_OP_QUERY_VPORT_STATE:
 	case MLX5_CMD_OP_QUERY_ADAPTER:
 	case MLX5_CMD_OP_QUERY_ISSI:
@@ -1115,7 +1126,8 @@ static void devx_cleanup_mkey(struct devx_obj *obj)
 }
 
 static int devx_obj_cleanup(struct ib_uobject *uobject,
-			    enum rdma_remove_reason why)
+			    enum rdma_remove_reason why,
+			    struct uverbs_attr_bundle *attrs)
 {
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	struct devx_obj *obj = uobject->object;
@@ -1124,12 +1136,17 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
 		devx_cleanup_mkey(obj);
 
-	ret = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
+	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
+		ret = mlx5_core_destroy_dct(obj->mdev, &obj->core_dct);
+	else
+		ret = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out,
+				    sizeof(out));
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
-		struct mlx5_ib_dev *dev = to_mdev(uobject->context->device);
+		struct mlx5_ib_dev *dev =
+			mlx5_udata_to_mdev(&attrs->driver_udata);
 
 		call_srcu(&dev->mr_srcu, &obj->devx_mr.rcu,
 			  devx_free_indirect_mkey);
@@ -1156,6 +1173,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	struct devx_obj *obj;
+	u16 obj_type = 0;
 	int err;
 	int uid;
 	u32 obj_id;
@@ -1185,9 +1203,17 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 		devx_set_umem_valid(cmd_in);
 	}
 
-	err = mlx5_cmd_exec(dev->mdev, cmd_in,
-			    cmd_in_len,
-			    cmd_out, cmd_out_len);
+	if (opcode == MLX5_CMD_OP_CREATE_DCT) {
+		obj->flags |= DEVX_OBJ_FLAGS_DCT;
+		err = mlx5_core_create_dct(dev->mdev, &obj->core_dct,
+					   cmd_in, cmd_in_len,
+					   cmd_out, cmd_out_len);
+	} else {
+		err = mlx5_cmd_exec(dev->mdev, cmd_in,
+				    cmd_in_len,
+				    cmd_out, cmd_out_len);
+	}
+
 	if (err)
 		goto obj_free;
 
@@ -1207,14 +1233,22 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	if (err)
 		goto err_copy;
 
-	obj->obj_id = get_enc_obj_id(opcode, obj_id);
+	if (opcode == MLX5_CMD_OP_CREATE_GENERAL_OBJECT)
+		obj_type = MLX5_GET(general_obj_in_cmd_hdr, cmd_in, obj_type);
+
+	obj->obj_id = get_enc_obj_id(opcode | obj_type << 16, obj_id);
+
 	return 0;
 
 err_copy:
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
 		devx_cleanup_mkey(obj);
 obj_destroy:
-	mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
+	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
+		mlx5_core_destroy_dct(obj->mdev, &obj->core_dct);
+	else
+		mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out,
+			      sizeof(out));
 obj_free:
 	kfree(obj);
 	return err;
@@ -1242,7 +1276,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 	if (!devx_is_obj_modify_cmd(cmd_in))
 		return -EINVAL;
 
-	if (!devx_is_valid_obj_id(uobj, cmd_in))
+	if (!devx_is_valid_obj_id(attrs, uobj, cmd_in))
 		return -EINVAL;
 
 	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
@@ -1284,7 +1318,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 	if (!devx_is_obj_query_cmd(cmd_in))
 		return -EINVAL;
 
-	if (!devx_is_valid_obj_id(uobj, cmd_in))
+	if (!devx_is_valid_obj_id(attrs, uobj, cmd_in))
 		return -EINVAL;
 
 	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
@@ -1332,7 +1366,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC)(
 
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, MLX5_IB_ATTR_DEVX_ASYNC_CMD_FD_ALLOC_HANDLE);
-	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+	struct mlx5_ib_dev *mdev = mlx5_udata_to_mdev(&attrs->driver_udata);
 
 	ev_file = container_of(uobj, struct devx_async_cmd_event_file,
 			       uobj);
@@ -1394,7 +1428,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_ASYNC_QUERY)(
 	if (err)
 		return err;
 
-	if (!devx_is_valid_obj_id(uobj, cmd_in))
+	if (!devx_is_valid_obj_id(attrs, uobj, cmd_in))
 		return -EINVAL;
 
 	fd_uobj = uverbs_attr_get_uobject(attrs,
@@ -1581,7 +1615,8 @@ err_obj_free:
 }
 
 static int devx_umem_cleanup(struct ib_uobject *uobject,
-			     enum rdma_remove_reason why)
+			     enum rdma_remove_reason why,
+			     struct uverbs_attr_bundle *attrs)
 {
 	struct devx_umem *obj = uobject->object;
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
@@ -1686,7 +1721,7 @@ static __poll_t devx_async_cmd_event_poll(struct file *filp,
 	return pollflags;
 }
 
-const struct file_operations devx_async_cmd_event_fops = {
+static const struct file_operations devx_async_cmd_event_fops = {
 	.owner	 = THIS_MODULE,
 	.read	 = devx_async_cmd_event_read,
 	.poll    = devx_async_cmd_event_poll,
@@ -1882,7 +1917,7 @@ static bool devx_is_supported(struct ib_device *device)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 
-	return !dev->rep && MLX5_CAP_GEN(dev->mdev, log_max_uctx);
+	return MLX5_CAP_GEN(dev->mdev, log_max_uctx);
 }
 
 const struct uapi_definition mlx5_ib_devx_defs[] = {

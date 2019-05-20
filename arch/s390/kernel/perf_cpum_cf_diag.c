@@ -196,23 +196,30 @@ static void cf_diag_perf_event_destroy(struct perf_event *event)
  */
 static int __hw_perf_event_init(struct perf_event *event)
 {
-	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 	struct perf_event_attr *attr = &event->attr;
+	struct cpu_cf_events *cpuhw;
 	enum cpumf_ctr_set i;
 	int err = 0;
 
-	debug_sprintf_event(cf_diag_dbg, 5,
-			    "%s event %p cpu %d authorized %#x\n", __func__,
-			    event, event->cpu, cpuhw->info.auth_ctl);
+	debug_sprintf_event(cf_diag_dbg, 5, "%s event %p cpu %d\n", __func__,
+			    event, event->cpu);
 
 	event->hw.config = attr->config;
 	event->hw.config_base = 0;
-	local64_set(&event->count, 0);
 
-	/* Add all authorized counter sets to config_base */
+	/* Add all authorized counter sets to config_base. The
+	 * the hardware init function is either called per-cpu or just once
+	 * for all CPUS (event->cpu == -1).  This depends on the whether
+	 * counting is started for all CPUs or on a per workload base where
+	 * the perf event moves from one CPU to another CPU.
+	 * Checking the authorization on any CPU is fine as the hardware
+	 * applies the same authorization settings to all CPUs.
+	 */
+	cpuhw = &get_cpu_var(cpu_cf_events);
 	for (i = CPUMF_CTR_SET_BASIC; i < CPUMF_CTR_SET_MAX; ++i)
 		if (cpuhw->info.auth_ctl & cpumf_ctr_ctl[i])
 			event->hw.config_base |= cpumf_ctr_ctl[i];
+	put_cpu_var(cpu_cf_events);
 
 	/* No authorized counter sets, nothing to count/sample */
 	if (!event->hw.config_base) {
@@ -299,15 +306,20 @@ static size_t cf_diag_ctrset_size(enum cpumf_ctr_set ctrset,
 			ctrset_size = 2;
 		break;
 	case CPUMF_CTR_SET_CRYPTO:
-		ctrset_size = 16;
+		if (info->csvn >= 1 && info->csvn <= 5)
+			ctrset_size = 16;
+		else if (info->csvn == 6)
+			ctrset_size = 20;
 		break;
 	case CPUMF_CTR_SET_EXT:
 		if (info->csvn == 1)
 			ctrset_size = 32;
 		else if (info->csvn == 2)
 			ctrset_size = 48;
-		else if (info->csvn >= 3)
+		else if (info->csvn >= 3 && info->csvn <= 5)
 			ctrset_size = 128;
+		else if (info->csvn == 6)
+			ctrset_size = 160;
 		break;
 	case CPUMF_CTR_SET_MT_DIAG:
 		if (info->csvn > 3)

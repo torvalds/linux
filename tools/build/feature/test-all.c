@@ -178,6 +178,14 @@
 # include "test-reallocarray.c"
 #undef main
 
+#define main main_test_disassembler_four_args
+# include "test-disassembler-four-args.c"
+#undef main
+
+#define main main_test_zstd
+# include "test-libzstd.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -219,6 +227,8 @@ int main(int argc, char *argv[])
 	main_test_setns();
 	main_test_libaio();
 	main_test_reallocarray();
+	main_test_disassembler_four_args();
+	main_test_libzstd();
 
 	return 0;
 }

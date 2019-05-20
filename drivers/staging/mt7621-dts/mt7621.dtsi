@@ -372,15 +372,82 @@
 
 		mediatek,ethsys = <&ethsys>;
 
-		mediatek,switch = <&gsw>;
 
+		gmac0: mac@0 {
+			compatible = "mediatek,eth-mac";
+			reg = <0>;
+			phy-mode = "rgmii";
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+				pause;
+			};
+		};
+		gmac1: mac@1 {
+			compatible = "mediatek,eth-mac";
+			reg = <1>;
+			status = "off";
+			phy-mode = "rgmii";
+			phy-handle = <&phy5>;
+		};
 		mdio-bus {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			phy1f: ethernet-phy@1f {
-				reg = <0x1f>;
+			phy5: ethernet-phy@5 {
+				reg = <5>;
 				phy-mode = "rgmii";
+			};
+
+			switch0: switch0@0 {
+				compatible = "mediatek,mt7621";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+				mediatek,mcm;
+				resets = <&rstctrl 2>;
+				reset-names = "mcm";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+					port@0 {
+						status = "off";
+						reg = <0>;
+						label = "lan0";
+					};
+					port@1 {
+						status = "off";
+						reg = <1>;
+						label = "lan1";
+					};
+					port@2 {
+						status = "off";
+						reg = <2>;
+						label = "lan2";
+					};
+					port@3 {
+						status = "off";
+						reg = <3>;
+						label = "lan3";
+					};
+					port@4 {
+						status = "off";
+						reg = <4>;
+						label = "lan4";
+					};
+					port@6 {
+						reg = <6>;
+						label = "cpu";
+						ethernet = <&gmac0>;
+						phy-mode = "trgmii";
+						fixed-link {
+							speed = <1000>;
+							full-duplex;
+						};
+					};
+				};
 			};
 		};
 	};
@@ -424,7 +491,7 @@
 		reset-names = "pcie", "pcie0", "pcie1", "pcie2";
 		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
 		clock-names = "pcie0", "pcie1", "pcie2";
-		phys = <&pcie0_port>, <&pcie1_port>, <&pcie2_port>;
+		phys = <&pcie0_phy 0>, <&pcie0_phy 1>, <&pcie1_phy 0>;
 		phy-names = "pcie-phy0", "pcie-phy1", "pcie-phy2";
 
 		pcie@0,0 {
@@ -455,29 +522,12 @@
 	pcie0_phy: pcie-phy@1e149000 {
 		compatible = "mediatek,mt7621-pci-phy";
 		reg = <0x1e149000 0x0700>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		pcie0_port: pcie-phy@0 {
-			reg = <0>;
-			#phy-cells = <0>;
-		};
-
-		pcie1_port: pcie-phy@1 {
-			reg = <1>;
-			#phy-cells = <0>;
-		};
+		#phy-cells = <1>;
 	};
 
 	pcie1_phy: pcie-phy@1e14a000 {
 		compatible = "mediatek,mt7621-pci-phy";
 		reg = <0x1e14a000 0x0700>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		pcie2_port: pcie-phy@0 {
-			reg = <0>;
-			#phy-cells = <0>;
-		};
+		#phy-cells = <1>;
 	};
 };

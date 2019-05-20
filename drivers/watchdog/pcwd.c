@@ -695,7 +695,7 @@ static int pcwd_open(struct inode *inode, struct file *file)
 	/* Activate */
 	pcwd_start();
 	pcwd_keepalive();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int pcwd_close(struct inode *inode, struct file *file)
@@ -734,7 +734,7 @@ static int pcwd_temp_open(struct inode *inode, struct file *file)
 	if (!pcwd_private.supports_temp)
 		return -ENODEV;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int pcwd_temp_close(struct inode *inode, struct file *file)

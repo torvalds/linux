@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C && BROKEN

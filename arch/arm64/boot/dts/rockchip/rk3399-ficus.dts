@@ -95,53 +95,53 @@
 	gmac {
 		rgmii_sleep_pins: rgmii-sleep-pins {
 			rockchip,pins =
-				<3 15 RK_FUNC_GPIO &pcfg_output_low>;
+				<3 RK_PB7 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 
 	pcie {
 		pcie_drv: pcie-drv {
 			rockchip,pins =
-				<1 24 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 	};
 
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
-				<4 27 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	leds {
 		user_led1: user_led1 {
 			rockchip,pins =
-				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		user_led2: user_led2 {
 			rockchip,pins =
-				<4 26 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		user_led3: user_led3 {
 			rockchip,pins =
-				<4 30 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		user_led4: user_led4 {
 			rockchip,pins =
-				<1 0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		wlan_led: wlan_led {
 			rockchip,pins =
-				<1 1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_led: bt_led {
 			rockchip,pins =
-				<1 4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

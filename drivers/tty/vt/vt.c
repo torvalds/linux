@@ -1520,7 +1520,8 @@ static void csi_J(struct vc_data *vc, int vpar)
 			return;
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
-	update_region(vc, (unsigned long) start, count);
+	if (con_should_update(vc))
+		do_update_region(vc, (unsigned long) start, count);
 	vc->vc_need_wrap = 0;
 }
 
@@ -1804,7 +1805,7 @@ void mouse_report(struct tty_struct *tty, int butt, int mrx, int mry)
 	respond_string(buf, tty->port);
 }
 
-/* invoked via ioctl(TIOCLINUX) and through set_selection */
+/* invoked via ioctl(TIOCLINUX) and through set_selection_user */
 int mouse_reporting(void)
 {
 	return vc_cons[fg_console].d->vc_report_mouse;
@@ -3008,7 +3009,7 @@ static struct console vt_console_driver = {
  * There are some functions which can sleep for arbitrary periods
  * (paste_selection) but we don't need the lock there anyway.
  *
- * set_selection has locking, and definitely needs it
+ * set_selection_user has locking, and definitely needs it
  */
 
 int tioclinux(struct tty_struct *tty, unsigned long arg)
@@ -3028,7 +3029,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	{
 		case TIOCL_SETSEL:
 			console_lock();
-			ret = set_selection((struct tiocl_selection __user *)(p+1), tty);
+			ret = set_selection_user((struct tiocl_selection
+						 __user *)(p+1), tty);
 			console_unlock();
 			break;
 		case TIOCL_PASTESEL:
@@ -4178,8 +4180,6 @@ void do_blank_screen(int entering_gfx)
 		return;
 	}
 
-	if (blank_state != blank_normal_wait)
-		return;
 	blank_state = blank_off;
 
 	/* don't blank graphics */

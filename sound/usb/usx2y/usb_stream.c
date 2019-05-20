@@ -155,9 +155,9 @@ void usb_stream_free(struct usb_stream_kernel *sk)
 	if (!s)
 		return;
 
-	free_pages((unsigned long)sk->write_page, get_order(s->write_size));
+	free_pages_exact(sk->write_page, s->write_size);
 	sk->write_page = NULL;
-	free_pages((unsigned long)s, get_order(s->read_size));
+	free_pages_exact(s, s->read_size);
 	sk->s = NULL;
 }
 
@@ -172,7 +172,6 @@ struct usb_stream *usb_stream_new(struct usb_stream_kernel *sk,
 	int read_size = sizeof(struct usb_stream);
 	int write_size;
 	int usb_frames = dev->speed == USB_SPEED_HIGH ? 8000 : 1000;
-	int pg;
 
 	in_pipe = usb_rcvisocpipe(dev, in_endpoint);
 	out_pipe = usb_sndisocpipe(dev, out_endpoint);
@@ -202,11 +201,10 @@ struct usb_stream *usb_stream_new(struct usb_stream_kernel *sk,
 		goto out;
 	}
 
-	pg = get_order(read_size);
-	sk->s = (void *) __get_free_pages(GFP_KERNEL|__GFP_COMP|__GFP_ZERO|
-					  __GFP_NOWARN, pg);
+	sk->s = alloc_pages_exact(read_size,
+				  GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
 	if (!sk->s) {
-		snd_printk(KERN_WARNING "couldn't __get_free_pages()\n");
+		pr_warn("us122l: couldn't allocate read buffer\n");
 		goto out;
 	}
 	sk->s->cfg.version = USB_STREAM_INTERFACE_VERSION;
@@ -221,13 +219,11 @@ struct usb_stream *usb_stream_new(struct usb_stream_kernel *sk,
 	sk->s->period_size = frame_size * period_frames;
 
 	sk->s->write_size = write_size;
-	pg = get_order(write_size);
 
-	sk->write_page =
-		(void *)__get_free_pages(GFP_KERNEL|__GFP_COMP|__GFP_ZERO|
-					 __GFP_NOWARN, pg);
+	sk->write_page = alloc_pages_exact(write_size,
+					   GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
 	if (!sk->write_page) {
-		snd_printk(KERN_WARNING "couldn't __get_free_pages()\n");
+		pr_warn("us122l: couldn't allocate write buffer\n");
 		usb_stream_free(sk);
 		return NULL;
 	}

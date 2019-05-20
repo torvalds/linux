@@ -40,7 +40,7 @@ struct tlv {
 struct sdu_header {
 	__dev16 cmd_evt;
 	__dev16 len;
-	__dev32 dftEpsId;
+	__dev32 dft_eps_id;
 	__dev32 bearer_ID;
 	__dev32 nic_type;
 } __packed;

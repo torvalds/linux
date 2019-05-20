@@ -759,23 +759,21 @@ static void cacheinfo_create_index_dir(struct cache *cache, int index,
 
 	index_dir = kzalloc(sizeof(*index_dir), GFP_KERNEL);
 	if (!index_dir)
-		goto err;
+		return;
 
 	index_dir->cache = cache;
 
 	rc = kobject_init_and_add(&index_dir->kobj, &cache_index_type,
 				  cache_dir->kobj, "index%d", index);
-	if (rc)
-		goto err;
+	if (rc) {
+		kobject_put(&index_dir->kobj);
+		return;
+	}
 
 	index_dir->next = cache_dir->index;
 	cache_dir->index = index_dir;
 
 	cacheinfo_create_index_opt_attrs(index_dir);
-
-	return;
-err:
-	kfree(index_dir);
 }
 
 static void cacheinfo_sysfs_populate(unsigned int cpu_id,

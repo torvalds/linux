@@ -2007,6 +2007,10 @@ static u64 numa_get_avg_runtime(struct task_struct *p, u64 *period)
 	if (p->last_task_numa_placement) {
 		delta = runtime - p->last_sum_exec_runtime;
 		*period = now - p->last_task_numa_placement;
+
+		/* Avoid time going backwards, prevent potential divide error: */
+		if (unlikely((s64)*period < 0))
+			*period = 0;
 	} else {
 		delta = p->se.avg.load_sum;
 		*period = LOAD_AVG_MAX;
@@ -2593,7 +2597,7 @@ out:
 /*
  * Drive the periodic memory faults..
  */
-void task_tick_numa(struct rq *rq, struct task_struct *curr)
+static void task_tick_numa(struct rq *rq, struct task_struct *curr)
 {
 	struct callback_head *work = &curr->numa_work;
 	u64 period, now;
@@ -3567,7 +3571,7 @@ static inline u64 cfs_rq_last_update_time(struct cfs_rq *cfs_rq)
  * Synchronize entity load avg of dequeued entity without locking
  * the previous rq.
  */
-void sync_entity_load_avg(struct sched_entity *se)
+static void sync_entity_load_avg(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	u64 last_update_time;
@@ -3580,7 +3584,7 @@ void sync_entity_load_avg(struct sched_entity *se)
  * Task first catches up with cfs_rq, and then subtract
  * itself from the cfs_rq (task must be off the queue now).
  */
-void remove_entity_load_avg(struct sched_entity *se)
+static void remove_entity_load_avg(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	unsigned long flags;
@@ -4885,6 +4889,8 @@ static enum hrtimer_restart sched_cfs_slack_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+extern const u64 max_cfs_quota_period;
+
 static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 {
 	struct cfs_bandwidth *cfs_b =
@@ -4892,12 +4898,35 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 	unsigned long flags;
 	int overrun;
 	int idle = 0;
+	int count = 0;
 
 	raw_spin_lock_irqsave(&cfs_b->lock, flags);
 	for (;;) {
 		overrun = hrtimer_forward_now(timer, cfs_b->period);
 		if (!overrun)
 			break;
+
+		if (++count > 3) {
+			u64 new, old = ktime_to_ns(cfs_b->period);
+
+			new = (old * 147) / 128; /* ~115% */
+			new = min(new, max_cfs_quota_period);
+
+			cfs_b->period = ns_to_ktime(new);
+
+			/* since max is 1s, this is limited to 1e9^2, which fits in u64 */
+			cfs_b->quota *= new;
+			cfs_b->quota = div64_u64(cfs_b->quota, old);
+
+			pr_warn_ratelimited(
+	"cfs_period_timer[cpu%d]: period too short, scaling up (new cfs_period_us %lld, cfs_quota_us = %lld)\n",
+				smp_processor_id(),
+				div_u64(new, NSEC_PER_USEC),
+				div_u64(cfs_b->quota, NSEC_PER_USEC));
+
+			/* reset count so we don't come right back in here */
+			count = 0;
+		}
 
 		idle = do_sched_cfs_period_timer(cfs_b, overrun, flags);
 	}
@@ -5116,7 +5145,6 @@ static inline void hrtick_update(struct rq *rq)
 
 #ifdef CONFIG_SMP
 static inline unsigned long cpu_util(int cpu);
-static unsigned long capacity_of(int cpu);
 
 static inline bool cpu_overutilized(int cpu)
 {
@@ -7492,7 +7520,6 @@ static void detach_task(struct task_struct *p, struct lb_env *env)
 {
 	lockdep_assert_held(&env->src_rq->lock);
 
-	p->on_rq = TASK_ON_RQ_MIGRATING;
 	deactivate_task(env->src_rq, p, DEQUEUE_NOCLOCK);
 	set_task_cpu(p, env->dst_cpu);
 }
@@ -7628,7 +7655,6 @@ static void attach_task(struct rq *rq, struct task_struct *p)
 
 	BUG_ON(task_rq(p) != rq);
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
-	p->on_rq = TASK_ON_RQ_QUEUED;
 	check_preempt_curr(rq, p, 0);
 }
 
@@ -7784,10 +7810,10 @@ static void update_cfs_rq_h_load(struct cfs_rq *cfs_rq)
 	if (cfs_rq->last_h_load_update == now)
 		return;
 
-	cfs_rq->h_load_next = NULL;
+	WRITE_ONCE(cfs_rq->h_load_next, NULL);
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
-		cfs_rq->h_load_next = se;
+		WRITE_ONCE(cfs_rq->h_load_next, se);
 		if (cfs_rq->last_h_load_update == now)
 			break;
 	}
@@ -7797,7 +7823,7 @@ static void update_cfs_rq_h_load(struct cfs_rq *cfs_rq)
 		cfs_rq->last_h_load_update = now;
 	}
 
-	while ((se = cfs_rq->h_load_next) != NULL) {
+	while ((se = READ_ONCE(cfs_rq->h_load_next)) != NULL) {
 		load = cfs_rq->h_load;
 		load = div64_ul(load * se->avg.load_avg,
 			cfs_rq_load_avg(cfs_rq) + 1);
@@ -8057,6 +8083,18 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
 {
 	return ((rq->cpu_capacity * sd->imbalance_pct) <
 				(rq->cpu_capacity_orig * 100));
+}
+
+/*
+ * Check whether a rq has a misfit task and if it looks like we can actually
+ * help that task: we can migrate the task to a CPU of higher capacity, or
+ * the task's current CPU is heavily pressured.
+ */
+static inline int check_misfit_status(struct rq *rq, struct sched_domain *sd)
+{
+	return rq->misfit_task_load &&
+		(rq->cpu_capacity_orig < rq->rd->max_cpu_capacity ||
+		 check_cpu_capacity(rq, sd));
 }
 
 /*
@@ -9510,22 +9548,26 @@ static inline int on_null_domain(struct rq *rq)
  * - When one of the busy CPUs notice that there may be an idle rebalancing
  *   needed, they will kick the idle load balancer, which then does idle
  *   load balancing for all the idle CPUs.
+ * - HK_FLAG_MISC CPUs are used for this task, because HK_FLAG_SCHED not set
+ *   anywhere yet.
  */
 
 static inline int find_new_ilb(void)
 {
-	int ilb = cpumask_first(nohz.idle_cpus_mask);
+	int ilb;
 
-	if (ilb < nr_cpu_ids && idle_cpu(ilb))
-		return ilb;
+	for_each_cpu_and(ilb, nohz.idle_cpus_mask,
+			      housekeeping_cpumask(HK_FLAG_MISC)) {
+		if (idle_cpu(ilb))
+			return ilb;
+	}
 
 	return nr_cpu_ids;
 }
 
 /*
- * Kick a CPU to do the nohz balancing, if it is time for it. We pick the
- * nohz_load_balancer CPU (if there is one) otherwise fallback to any idle
- * CPU (if there is one).
+ * Kick a CPU to do the nohz balancing, if it is time for it. We pick any
+ * idle CPU in the HK_FLAG_MISC housekeeping set (if there is one).
  */
 static void kick_ilb(unsigned int flags)
 {
@@ -9586,12 +9628,62 @@ static void nohz_balancer_kick(struct rq *rq)
 	if (time_before(now, nohz.next_balance))
 		goto out;
 
-	if (rq->nr_running >= 2 || rq->misfit_task_load) {
+	if (rq->nr_running >= 2) {
 		flags = NOHZ_KICK_MASK;
 		goto out;
 	}
 
 	rcu_read_lock();
+
+	sd = rcu_dereference(rq->sd);
+	if (sd) {
+		/*
+		 * If there's a CFS task and the current CPU has reduced
+		 * capacity; kick the ILB to see if there's a better CPU to run
+		 * on.
+		 */
+		if (rq->cfs.h_nr_running >= 1 && check_cpu_capacity(rq, sd)) {
+			flags = NOHZ_KICK_MASK;
+			goto unlock;
+		}
+	}
+
+	sd = rcu_dereference(per_cpu(sd_asym_packing, cpu));
+	if (sd) {
+		/*
+		 * When ASYM_PACKING; see if there's a more preferred CPU
+		 * currently idle; in which case, kick the ILB to move tasks
+		 * around.
+		 */
+		for_each_cpu_and(i, sched_domain_span(sd), nohz.idle_cpus_mask) {
+			if (sched_asym_prefer(i, cpu)) {
+				flags = NOHZ_KICK_MASK;
+				goto unlock;
+			}
+		}
+	}
+
+	sd = rcu_dereference(per_cpu(sd_asym_cpucapacity, cpu));
+	if (sd) {
+		/*
+		 * When ASYM_CPUCAPACITY; see if there's a higher capacity CPU
+		 * to run the misfit task on.
+		 */
+		if (check_misfit_status(rq, sd)) {
+			flags = NOHZ_KICK_MASK;
+			goto unlock;
+		}
+
+		/*
+		 * For asymmetric systems, we do not want to nicely balance
+		 * cache use, instead we want to embrace asymmetry and only
+		 * ensure tasks have enough CPU capacity.
+		 *
+		 * Skip the LLC logic because it's not relevant in that case.
+		 */
+		goto unlock;
+	}
+
 	sds = rcu_dereference(per_cpu(sd_llc_shared, cpu));
 	if (sds) {
 		/*
@@ -9607,26 +9699,6 @@ static void nohz_balancer_kick(struct rq *rq)
 		if (nr_busy > 1) {
 			flags = NOHZ_KICK_MASK;
 			goto unlock;
-		}
-
-	}
-
-	sd = rcu_dereference(rq->sd);
-	if (sd) {
-		if ((rq->cfs.h_nr_running >= 1) &&
-		    check_cpu_capacity(rq, sd)) {
-			flags = NOHZ_KICK_MASK;
-			goto unlock;
-		}
-	}
-
-	sd = rcu_dereference(per_cpu(sd_asym_packing, cpu));
-	if (sd) {
-		for_each_cpu_and(i, sched_domain_span(sd), nohz.idle_cpus_mask) {
-			if (sched_asym_prefer(i, cpu)) {
-				flags = NOHZ_KICK_MASK;
-				goto unlock;
-			}
 		}
 	}
 unlock:

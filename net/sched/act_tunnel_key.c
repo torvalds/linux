@@ -17,6 +17,7 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_tunnel_key.h>
@@ -75,8 +76,9 @@ tunnel_key_copy_geneve_opt(const struct nlattr *nla, void *dst, int dst_len,
 	int err, data_len, opt_len;
 	u8 *data;
 
-	err = nla_parse_nested(tb, TCA_TUNNEL_KEY_ENC_OPT_GENEVE_MAX,
-			       nla, geneve_opt_policy, extack);
+	err = nla_parse_nested_deprecated(tb,
+					  TCA_TUNNEL_KEY_ENC_OPT_GENEVE_MAX,
+					  nla, geneve_opt_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -124,8 +126,8 @@ static int tunnel_key_copy_opts(const struct nlattr *nla, u8 *dst,
 	int err, rem, opt_len, len = nla_len(nla), opts_len = 0;
 	const struct nlattr *attr, *head = nla_data(nla);
 
-	err = nla_validate(head, len, TCA_TUNNEL_KEY_ENC_OPTS_MAX,
-			   enc_opts_policy, extack);
+	err = nla_validate_deprecated(head, len, TCA_TUNNEL_KEY_ENC_OPTS_MAX,
+				      enc_opts_policy, extack);
 	if (err)
 		return err;
 
@@ -210,12 +212,14 @@ static void tunnel_key_release_params(struct tcf_tunnel_key_params *p)
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
+			   struct tcf_proto *tp,
 			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
 	struct nlattr *tb[TCA_TUNNEL_KEY_MAX + 1];
 	struct tcf_tunnel_key_params *params_new;
 	struct metadata_dst *metadata = NULL;
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_tunnel_key *parm;
 	struct tcf_tunnel_key *t;
 	bool exists = false;
@@ -232,8 +236,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_TUNNEL_KEY_MAX, nla, tunnel_key_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, TCA_TUNNEL_KEY_MAX, nla,
+					  tunnel_key_policy, extack);
 	if (err < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to parse nested tunnel key attributes");
 		return err;
@@ -359,6 +363,12 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		goto release_tun_meta;
 	}
 
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0) {
+		ret = err;
+		exists = true;
+		goto release_tun_meta;
+	}
 	t = to_tunnel_key(*a);
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
@@ -366,22 +376,28 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
 		ret = -ENOMEM;
 		exists = true;
-		goto release_tun_meta;
+		goto put_chain;
 	}
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
 
 	spin_lock_bh(&t->tcf_lock);
-	t->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(t->params, params_new,
 			   lockdep_is_held(&t->tcf_lock));
 	spin_unlock_bh(&t->tcf_lock);
 	tunnel_key_release_params(params_new);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 
 	return ret;
+
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 release_tun_meta:
 	if (metadata)
@@ -411,7 +427,7 @@ static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
 	u8 *src = (u8 *)(info + 1);
 	struct nlattr *start;
 
-	start = nla_nest_start(skb, TCA_TUNNEL_KEY_ENC_OPTS_GENEVE);
+	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_GENEVE);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -445,7 +461,7 @@ static int tunnel_key_opts_dump(struct sk_buff *skb,
 	if (!info->options_len)
 		return 0;
 
-	start = nla_nest_start(skb, TCA_TUNNEL_KEY_ENC_OPTS);
+	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS);
 	if (!start)
 		return -EMSGSIZE;
 

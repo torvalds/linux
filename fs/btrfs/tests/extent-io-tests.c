@@ -73,11 +73,15 @@ static int test_find_delalloc(u32 sectorsize)
 
 	inode = btrfs_new_test_inode();
 	if (!inode) {
-		test_err("failed to allocate test inode");
+		test_std_err(TEST_ALLOC_INODE);
 		return -ENOMEM;
 	}
 
-	extent_io_tree_init(&tmp, NULL);
+	/*
+	 * Passing NULL as we don't have fs_info but tracepoints are not used
+	 * at this point
+	 */
+	extent_io_tree_init(NULL, &tmp, IO_TREE_SELFTEST, NULL);
 
 	/*
 	 * First go through and create and mark all of our pages dirty, we pin
@@ -374,8 +378,8 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_fs_info *fs_info;
 	unsigned long len;
-	unsigned long *bitmap;
-	struct extent_buffer *eb;
+	unsigned long *bitmap = NULL;
+	struct extent_buffer *eb = NULL;
 	int ret;
 
 	test_msg("running extent buffer bitmap tests");
@@ -388,18 +392,23 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 		? sectorsize * 4 : sectorsize;
 
 	fs_info = btrfs_alloc_dummy_fs_info(len, len);
+	if (!fs_info) {
+		test_std_err(TEST_ALLOC_FS_INFO);
+		return -ENOMEM;
+	}
 
 	bitmap = kmalloc(len, GFP_KERNEL);
 	if (!bitmap) {
 		test_err("couldn't allocate test bitmap");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	eb = __alloc_dummy_extent_buffer(fs_info, 0, len);
 	if (!eb) {
-		test_err("couldn't allocate test extent buffer");
-		kfree(bitmap);
-		return -ENOMEM;
+		test_std_err(TEST_ALLOC_ROOT);
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	ret = __test_eb_bitmaps(bitmap, eb, len);
@@ -408,17 +417,18 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 
 	/* Do it over again with an extent buffer which isn't page-aligned. */
 	free_extent_buffer(eb);
-	eb = __alloc_dummy_extent_buffer(NULL, nodesize / 2, len);
+	eb = __alloc_dummy_extent_buffer(fs_info, nodesize / 2, len);
 	if (!eb) {
-		test_err("couldn't allocate test extent buffer");
-		kfree(bitmap);
-		return -ENOMEM;
+		test_std_err(TEST_ALLOC_ROOT);
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	ret = __test_eb_bitmaps(bitmap, eb, len);
 out:
 	free_extent_buffer(eb);
 	kfree(bitmap);
+	btrfs_free_dummy_fs_info(fs_info);
 	return ret;
 }
 
@@ -434,6 +444,5 @@ int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 
 	ret = test_eb_bitmaps(sectorsize, nodesize);
 out:
-	test_msg("extent I/O tests finished");
 	return ret;
 }

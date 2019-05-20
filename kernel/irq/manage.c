@@ -196,6 +196,7 @@ int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	case IRQ_SET_MASK_OK:
 	case IRQ_SET_MASK_OK_DONE:
 		cpumask_copy(desc->irq_common_data.affinity, mask);
+		/* fall through */
 	case IRQ_SET_MASK_OK_NOCOPY:
 		irq_validate_effective_affinity(data);
 		irq_set_thread_affinity(desc);
@@ -356,8 +357,10 @@ irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify)
 	desc->affinity_notify = notify;
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
-	if (old_notify)
+	if (old_notify) {
+		cancel_work_sync(&old_notify->work);
 		kref_put(&old_notify->kref, old_notify->release);
+	}
 
 	return 0;
 }
@@ -778,7 +781,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 		ret = 0;
 		break;
 	default:
-		pr_err("Setting trigger mode %lu for irq %u failed (%pF)\n",
+		pr_err("Setting trigger mode %lu for irq %u failed (%pS)\n",
 		       flags, irq_desc_get_irq(desc), chip->irq_set_type);
 	}
 	if (unmask)

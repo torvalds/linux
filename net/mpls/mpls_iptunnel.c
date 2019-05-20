@@ -137,12 +137,22 @@ static int mpls_xmit(struct sk_buff *skb)
 
 	mpls_stats_inc_outucastpkts(out_dev, skb);
 
-	if (rt)
-		err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gateway,
-				 skb);
-	else if (rt6)
-		err = neigh_xmit(NEIGH_ND_TABLE, out_dev, &rt6->rt6i_gateway,
-				 skb);
+	if (rt) {
+		if (rt->rt_gw_family == AF_INET)
+			err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gw4,
+					 skb);
+		else if (rt->rt_gw_family == AF_INET6)
+			err = neigh_xmit(NEIGH_ND_TABLE, out_dev, &rt->rt_gw6,
+					 skb);
+	} else if (rt6) {
+		if (ipv6_addr_v4mapped(&rt6->rt6i_gateway)) {
+			/* 6PE (RFC 4798) */
+			err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt6->rt6i_gateway.s6_addr32[3],
+					 skb);
+		} else
+			err = neigh_xmit(NEIGH_ND_TABLE, out_dev, &rt6->rt6i_gateway,
+					 skb);
+	}
 	if (err)
 		net_dbg_ratelimited("%s: packet transmission failed: %d\n",
 				    __func__, err);
@@ -168,8 +178,8 @@ static int mpls_build_state(struct nlattr *nla,
 	u8 n_labels;
 	int ret;
 
-	ret = nla_parse_nested(tb, MPLS_IPTUNNEL_MAX, nla,
-			       mpls_iptunnel_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, MPLS_IPTUNNEL_MAX, nla,
+					  mpls_iptunnel_policy, extack);
 	if (ret < 0)
 		return ret;
 

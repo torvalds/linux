@@ -53,6 +53,7 @@
 #include <asm/sigp.h>
 #include <asm/idle.h>
 #include <asm/nmi.h>
+#include <asm/stacktrace.h>
 #include <asm/topology.h>
 #include "entry.h"
 
@@ -266,7 +267,8 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->machine_flags = S390_lowcore.machine_flags;
-	lc->user_timer = lc->system_timer = lc->steal_timer = 0;
+	lc->user_timer = lc->system_timer =
+		lc->steal_timer = lc->avg_steal_timer = 0;
 	__ctl_store(lc->cregs_save_area, 0, 15);
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
@@ -688,7 +690,7 @@ void __init smp_save_dump_cpus(void)
 			smp_save_cpu_regs(sa, addr, is_boot_cpu, page);
 	}
 	memblock_free(page, PAGE_SIZE);
-	diag308_reset();
+	diag_dma_ops.diag308_reset();
 	pcpu_set_smt(0);
 }
 #endif /* CONFIG_CRASH_DUMP */

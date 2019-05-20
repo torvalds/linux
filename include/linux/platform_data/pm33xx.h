@@ -51,6 +51,11 @@ struct am33xx_pm_platform_data {
 			       unsigned long args);
 	struct  am33xx_pm_sram_addr *(*get_sram_addrs)(void);
 	void __iomem *(*get_rtc_base_addr)(void);
+	void (*save_context)(void);
+	void (*restore_context)(void);
+	void (*prepare_rtc_suspend)(void);
+	void (*prepare_rtc_resume)(void);
+	int (*check_off_mode_enable)(void);
 };
 
 struct am33xx_pm_sram_data {

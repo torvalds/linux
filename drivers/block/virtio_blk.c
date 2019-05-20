@@ -513,6 +513,8 @@ static int init_vq(struct virtio_blk *vblk)
 	if (err)
 		num_vqs = 1;
 
+	num_vqs = min_t(unsigned int, nr_cpu_ids, num_vqs);
+
 	vblk->vqs = kmalloc_array(num_vqs, sizeof(*vblk->vqs), GFP_KERNEL);
 	if (!vblk->vqs)
 		return -ENOMEM;
@@ -691,7 +693,8 @@ static int virtblk_map_queues(struct blk_mq_tag_set *set)
 {
 	struct virtio_blk *vblk = set->driver_data;
 
-	return blk_mq_virtio_map_queues(&set->map[0], vblk->vdev, 0);
+	return blk_mq_virtio_map_queues(&set->map[HCTX_TYPE_DEFAULT],
+					vblk->vdev, 0);
 }
 
 #ifdef CONFIG_VIRTIO_BLK_SCSI

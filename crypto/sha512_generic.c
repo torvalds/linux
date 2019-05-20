@@ -223,7 +223,7 @@ static void __exit sha512_generic_mod_fini(void)
 	crypto_unregister_shashes(sha512_algs, ARRAY_SIZE(sha512_algs));
 }
 
-module_init(sha512_generic_mod_init);
+subsys_initcall(sha512_generic_mod_init);
 module_exit(sha512_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

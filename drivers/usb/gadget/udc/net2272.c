@@ -573,8 +573,7 @@ net2272_read_fifo(struct net2272_ep *ep, struct net2272_request *req)
 
 		/* completion */
 		if (unlikely(cleanup || is_short ||
-				((req->req.actual == req->req.length)
-				 && !req->req.zero))) {
+				req->req.actual == req->req.length)) {
 
 			if (cleanup) {
 				net2272_out_flush(ep);
@@ -945,6 +944,7 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 			break;
 	}
 	if (&req->req != _req) {
+		ep->stopped = stopped;
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
 		return -EINVAL;
 	}

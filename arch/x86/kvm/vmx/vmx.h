@@ -142,8 +142,11 @@ struct nested_vmx {
 	 * pointers, so we must keep them pinned while L2 runs.
 	 */
 	struct page *apic_access_page;
-	struct page *virtual_apic_page;
-	struct page *pi_desc_page;
+	struct kvm_host_map virtual_apic_map;
+	struct kvm_host_map pi_desc_map;
+
+	struct kvm_host_map msr_bitmap_map;
+
 	struct pi_desc *pi_desc;
 	bool pi_pending;
 	u16 posted_intr_nv;
@@ -169,7 +172,7 @@ struct nested_vmx {
 	} smm;
 
 	gpa_t hv_evmcs_vmptr;
-	struct page *hv_evmcs_page;
+	struct kvm_host_map hv_evmcs_map;
 	struct hv_enlightened_vmcs *hv_evmcs;
 };
 
@@ -190,7 +193,6 @@ struct vcpu_vmx {
 	u64		      msr_guest_kernel_gs_base;
 #endif
 
-	u64		      arch_capabilities;
 	u64		      spec_ctrl;
 
 	u32 vm_entry_controls_shadow;
@@ -257,6 +259,8 @@ struct vcpu_vmx {
 	u32 host_pkru;
 
 	unsigned long host_debugctlmsr;
+
+	u64 msr_ia32_power_ctl;
 
 	/*
 	 * Only bits masked by msr_ia32_feature_control_valid_bits can be set in
@@ -517,5 +521,7 @@ static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)
 	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
 	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
 }
+
+void dump_vmcs(void);
 
 #endif /* __KVM_X86_VMX_H */

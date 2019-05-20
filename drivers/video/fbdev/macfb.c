@@ -120,10 +120,7 @@ struct jet_cmap_regs {
 #define PIXEL_TO_MM(a)	(((a)*10)/28)	/* width in mm at 72 dpi */
 
 static struct fb_var_screeninfo macfb_defined = {
-	.bits_per_pixel	= 8,
 	.activate	= FB_ACTIVATE_NOW,
-	.width		= -1,
-	.height		= -1,
 	.right_margin	= 32,
 	.upper_margin	= 16,
 	.lower_margin	= 4,
@@ -139,7 +136,6 @@ static struct fb_fix_screeninfo macfb_fix = {
 static void *slot_addr;
 static struct fb_info fb_info;
 static u32 pseudo_palette[16];
-static int inverse;
 static int vidtest;
 
 /*
@@ -152,7 +148,7 @@ static int dafb_setpalette(unsigned int regno, unsigned int red,
 			   unsigned int green, unsigned int blue,
 			   struct fb_info *info)
 {
-	static int lastreg = -1;
+	static int lastreg = -2;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -201,9 +197,6 @@ static int v8_brazil_setpalette(unsigned int regno, unsigned int red,
 	unsigned int bpp = info->var.bits_per_pixel;
 	unsigned long flags;
 
-	if (bpp > 8)
-		return 1; /* failsafe */
-
 	local_irq_save(flags);
 
 	/* On these chips, the CLUT register numbers are spread out
@@ -233,9 +226,6 @@ static int rbv_setpalette(unsigned int regno, unsigned int red,
 			  struct fb_info *info)
 {
 	unsigned long flags;
-
-	if (info->var.bits_per_pixel > 8)
-		return 1; /* failsafe */
 
 	local_irq_save(flags);
 
@@ -353,9 +343,6 @@ static int civic_setpalette(unsigned int regno, unsigned int red,
 	unsigned long flags;
 	int clut_status;
 	
-	if (info->var.bits_per_pixel > 8)
-		return 1; /* failsafe */
-
 	local_irq_save(flags);
 
 	/* Set the register address */
@@ -532,7 +519,7 @@ static void __init macfb_setup(char *options)
 			continue;
 
 		if (!strcmp(this_opt, "inverse"))
-			inverse = 1;
+			fb_invert_cmaps();
 		else
 			if (!strcmp(this_opt, "vidtest"))
 				vidtest = 1; /* enable experimental CLUT code */
@@ -688,17 +675,14 @@ static int __init macfb_init(void)
 		case NUBUS_DRHW_APPLE_MDC:
 			strcpy(macfb_fix.id, "Mac Disp. Card");
 			macfb_setpalette = mdc_setpalette;
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 		case NUBUS_DRHW_APPLE_TFB:
 			strcpy(macfb_fix.id, "Toby");
 			macfb_setpalette = toby_setpalette;
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 		case NUBUS_DRHW_APPLE_JET:
 			strcpy(macfb_fix.id, "Jet");
 			macfb_setpalette = jet_setpalette;
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 		default:
 			strcpy(macfb_fix.id, "Generic NuBus");
@@ -731,7 +715,6 @@ static int __init macfb_init(void)
 			strcpy(macfb_fix.id, "DAFB");
 			macfb_setpalette = dafb_setpalette;
 			dafb_cmap_regs = ioremap(DAFB_BASE, 0x1000);
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 
 		/*
@@ -741,7 +724,6 @@ static int __init macfb_init(void)
 			strcpy(macfb_fix.id, "V8");
 			macfb_setpalette = v8_brazil_setpalette;
 			v8_brazil_cmap_regs = ioremap(DAC_BASE, 0x1000);
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 
 		/*
@@ -755,7 +737,6 @@ static int __init macfb_init(void)
 			strcpy(macfb_fix.id, "Brazil");
 			macfb_setpalette = v8_brazil_setpalette;
 			v8_brazil_cmap_regs = ioremap(DAC_BASE, 0x1000);
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 
 		/*
@@ -772,7 +753,6 @@ static int __init macfb_init(void)
 			strcpy(macfb_fix.id, "Sonora");
 			macfb_setpalette = v8_brazil_setpalette;
 			v8_brazil_cmap_regs = ioremap(DAC_BASE, 0x1000);
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 
 		/*
@@ -785,7 +765,6 @@ static int __init macfb_init(void)
 			strcpy(macfb_fix.id, "RBV");
 			macfb_setpalette = rbv_setpalette;
 			rbv_cmap_regs = ioremap(DAC_BASE, 0x1000);
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 
 		/*
@@ -796,7 +775,6 @@ static int __init macfb_init(void)
 			strcpy(macfb_fix.id, "Civic");
 			macfb_setpalette = civic_setpalette;
 			civic_cmap_regs = ioremap(CIVIC_BASE, 0x1000);
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 
 		
@@ -810,7 +788,6 @@ static int __init macfb_init(void)
 				macfb_setpalette = v8_brazil_setpalette;
 				v8_brazil_cmap_regs =
 					ioremap(DAC_BASE, 0x1000);
-				macfb_defined.activate = FB_ACTIVATE_NOW;
 			}
 			break;
 
@@ -823,7 +800,6 @@ static int __init macfb_init(void)
 				macfb_setpalette = v8_brazil_setpalette;
 				v8_brazil_cmap_regs =
 					ioremap(DAC_BASE, 0x1000);
-				macfb_defined.activate = FB_ACTIVATE_NOW;
 			}
 			break;
 
@@ -892,7 +868,6 @@ static int __init macfb_init(void)
 			strcpy(macfb_fix.id, "CSC");
 			macfb_setpalette = csc_setpalette;
 			csc_cmap_regs = ioremap(CSC_BASE, 0x1000);
-			macfb_defined.activate = FB_ACTIVATE_NOW;
 			break;
 
 		default:

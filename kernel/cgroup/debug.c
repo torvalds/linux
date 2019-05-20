@@ -64,8 +64,8 @@ static int current_css_set_read(struct seq_file *seq, void *v)
 		css = cset->subsys[ss->id];
 		if (!css)
 			continue;
-		seq_printf(seq, "%2d: %-4s\t- %lx[%d]\n", ss->id, ss->name,
-			  (unsigned long)css, css->id);
+		seq_printf(seq, "%2d: %-4s\t- %p[%d]\n", ss->id, ss->name,
+			  css, css->id);
 	}
 	rcu_read_unlock();
 	spin_unlock_irq(&css_set_lock);
@@ -224,8 +224,8 @@ static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 		if (css->parent)
 			snprintf(pbuf, sizeof(pbuf) - 1, " P=%d",
 				 css->parent->id);
-		seq_printf(seq, "%2d: %-4s\t- %lx[%d] %d%s\n", ss->id, ss->name,
-			  (unsigned long)css, css->id,
+		seq_printf(seq, "%2d: %-4s\t- %p[%d] %d%s\n", ss->id, ss->name,
+			  css, css->id,
 			  atomic_read(&css->online_cnt), pbuf);
 	}
 

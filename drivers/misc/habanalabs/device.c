@@ -5,11 +5,16 @@
  * All Rights Reserved.
  */
 
+#define pr_fmt(fmt)			"habanalabs: " fmt
+
 #include "habanalabs.h"
 
 #include <linux/pci.h>
 #include <linux/sched/signal.h>
 #include <linux/hwmon.h>
+#include <uapi/misc/habanalabs.h>
+
+#define HL_PLDM_PENDING_RESET_PER_SEC	(HL_PENDING_RESET_PER_SEC * 10)
 
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev)
 {
@@ -18,6 +23,20 @@ bool hl_device_disabled_or_in_reset(struct hl_device *hdev)
 	else
 		return false;
 }
+
+enum hl_device_status hl_device_status(struct hl_device *hdev)
+{
+	enum hl_device_status status;
+
+	if (hdev->disabled)
+		status = HL_DEVICE_STATUS_MALFUNCTION;
+	else if (atomic_read(&hdev->in_reset))
+		status = HL_DEVICE_STATUS_IN_RESET;
+	else
+		status = HL_DEVICE_STATUS_OPERATIONAL;
+
+	return status;
+};
 
 static void hpriv_release(struct kref *ref)
 {
@@ -216,6 +235,7 @@ static int device_early_init(struct hl_device *hdev)
 	spin_lock_init(&hdev->hw_queues_mirror_lock);
 	atomic_set(&hdev->in_reset, 0);
 	atomic_set(&hdev->fd_open_cnt, 0);
+	atomic_set(&hdev->cs_active_cnt, 0);
 
 	return 0;
 
@@ -413,6 +433,27 @@ int hl_device_suspend(struct hl_device *hdev)
 
 	pci_save_state(hdev->pdev);
 
+	/* Block future CS/VM/JOB completion operations */
+	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
+	if (rc) {
+		dev_err(hdev->dev, "Can't suspend while in reset\n");
+		return -EIO;
+	}
+
+	/* This blocks all other stuff that is not blocked by in_reset */
+	hdev->disabled = true;
+
+	/*
+	 * Flush anyone that is inside the critical section of enqueue
+	 * jobs to the H/W
+	 */
+	hdev->asic_funcs->hw_queues_lock(hdev);
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	/* Flush processes that are sending message to CPU */
+	mutex_lock(&hdev->send_cpu_message_lock);
+	mutex_unlock(&hdev->send_cpu_message_lock);
+
 	rc = hdev->asic_funcs->suspend(hdev);
 	if (rc)
 		dev_err(hdev->dev,
@@ -440,30 +481,51 @@ int hl_device_resume(struct hl_device *hdev)
 
 	pci_set_power_state(hdev->pdev, PCI_D0);
 	pci_restore_state(hdev->pdev);
-	rc = pci_enable_device(hdev->pdev);
+	rc = pci_enable_device_mem(hdev->pdev);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to enable PCI device in resume\n");
 		return rc;
 	}
 
+	pci_set_master(hdev->pdev);
+
 	rc = hdev->asic_funcs->resume(hdev);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to enable PCI access from device CPU\n");
-		return rc;
+		dev_err(hdev->dev, "Failed to resume device after suspend\n");
+		goto disable_device;
+	}
+
+
+	hdev->disabled = false;
+	atomic_set(&hdev->in_reset, 0);
+
+	rc = hl_device_reset(hdev, true, false);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to reset device during resume\n");
+		goto disable_device;
 	}
 
 	return 0;
+
+disable_device:
+	pci_clear_master(hdev->pdev);
+	pci_disable_device(hdev->pdev);
+
+	return rc;
 }
 
-static void hl_device_hard_reset_pending(struct work_struct *work)
+static void device_kill_open_processes(struct hl_device *hdev)
 {
-	struct hl_device_reset_work *device_reset_work =
-		container_of(work, struct hl_device_reset_work, reset_work);
-	struct hl_device *hdev = device_reset_work->hdev;
-	u16 pending_cnt = HL_PENDING_RESET_PER_SEC;
+	u16 pending_total, pending_cnt;
 	struct task_struct *task = NULL;
+
+	if (hdev->pldm)
+		pending_total = HL_PLDM_PENDING_RESET_PER_SEC;
+	else
+		pending_total = HL_PENDING_RESET_PER_SEC;
+
+	pending_cnt = pending_total;
 
 	/* Flush all processes that are inside hl_open */
 	mutex_lock(&hdev->fd_open_cnt_lock);
@@ -489,7 +551,36 @@ static void hl_device_hard_reset_pending(struct work_struct *work)
 		}
 	}
 
+	/* We killed the open users, but because the driver cleans up after the
+	 * user contexts are closed (e.g. mmu mappings), we need to wait again
+	 * to make sure the cleaning phase is finished before continuing with
+	 * the reset
+	 */
+
+	pending_cnt = pending_total;
+
+	while ((atomic_read(&hdev->fd_open_cnt)) && (pending_cnt)) {
+
+		pending_cnt--;
+
+		ssleep(1);
+	}
+
+	if (atomic_read(&hdev->fd_open_cnt))
+		dev_crit(hdev->dev,
+			"Going to hard reset with open user contexts\n");
+
 	mutex_unlock(&hdev->fd_open_cnt_lock);
+
+}
+
+static void device_hard_reset_pending(struct work_struct *work)
+{
+	struct hl_device_reset_work *device_reset_work =
+		container_of(work, struct hl_device_reset_work, reset_work);
+	struct hl_device *hdev = device_reset_work->hdev;
+
+	device_kill_open_processes(hdev);
 
 	hl_device_reset(hdev, true, true);
 
@@ -552,14 +643,14 @@ again:
 	if ((hard_reset) && (!from_hard_reset_thread)) {
 		struct hl_device_reset_work *device_reset_work;
 
+		hdev->hard_reset_pending = true;
+
 		if (!hdev->pdev) {
 			dev_err(hdev->dev,
 				"Reset action is NOT supported in simulator\n");
 			rc = -EINVAL;
 			goto out_err;
 		}
-
-		hdev->hard_reset_pending = true;
 
 		device_reset_work = kzalloc(sizeof(*device_reset_work),
 						GFP_ATOMIC);
@@ -574,7 +665,7 @@ again:
 		 * from a dedicated work
 		 */
 		INIT_WORK(&device_reset_work->reset_work,
-				hl_device_hard_reset_pending);
+				device_hard_reset_pending);
 		device_reset_work->hdev = hdev;
 		schedule_work(&device_reset_work->reset_work);
 
@@ -602,17 +693,9 @@ again:
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
 
-	if (hard_reset) {
-		/* Release kernel context */
-		if (hl_ctx_put(hdev->kernel_ctx) != 1) {
-			dev_err(hdev->dev,
-				"kernel ctx is alive during hard reset\n");
-			rc = -EBUSY;
-			goto out_err;
-		}
-
+	/* Release kernel context */
+	if ((hard_reset) && (hl_ctx_put(hdev->kernel_ctx) == 1))
 		hdev->kernel_ctx = NULL;
-	}
 
 	/* Reset the H/W. It will be in idle state after this returns */
 	hdev->asic_funcs->hw_fini(hdev, hard_reset);
@@ -627,16 +710,24 @@ again:
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_reset(hdev, &hdev->completion_queue[i]);
 
-	/* Make sure the setup phase for the user context will run again */
+	/* Make sure the context switch phase will run again */
 	if (hdev->user_ctx) {
-		atomic_set(&hdev->user_ctx->thread_restore_token, 1);
-		hdev->user_ctx->thread_restore_wait_token = 0;
+		atomic_set(&hdev->user_ctx->thread_ctx_switch_token, 1);
+		hdev->user_ctx->thread_ctx_switch_wait_token = 0;
 	}
 
 	/* Finished tear-down, starting to re-initialize */
 
 	if (hard_reset) {
 		hdev->device_cpu_disabled = false;
+		hdev->hard_reset_pending = false;
+
+		if (hdev->kernel_ctx) {
+			dev_crit(hdev->dev,
+				"kernel ctx was alive during hard reset, something is terribly wrong\n");
+			rc = -EBUSY;
+			goto out_err;
+		}
 
 		/* Allocate the kernel context */
 		hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx),
@@ -691,8 +782,6 @@ again:
 		}
 
 		hl_set_max_power(hdev, hdev->max_power);
-
-		hdev->hard_reset_pending = false;
 	} else {
 		rc = hdev->asic_funcs->soft_reset_late_init(hdev);
 		if (rc) {
@@ -969,10 +1058,21 @@ void hl_device_fini(struct hl_device *hdev)
 			WARN(1, "Failed to remove device because reset function did not finish\n");
 			return;
 		}
-	};
+	}
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
+
+	/*
+	 * Flush anyone that is inside the critical section of enqueue
+	 * jobs to the H/W
+	 */
+	hdev->asic_funcs->hw_queues_lock(hdev);
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	hdev->hard_reset_pending = true;
+
+	device_kill_open_processes(hdev);
 
 	hl_hwmon_fini(hdev);
 
@@ -1047,7 +1147,13 @@ int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr,
 	 * either by the direct access of the device or by another core
 	 */
 	u32 *paddr = (u32 *) (uintptr_t) addr;
-	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us);
+	ktime_t timeout;
+
+	/* timeout should be longer when working with simulator */
+	if (!hdev->pdev)
+		timeout_us *= 10;
+
+	timeout = ktime_add_us(ktime_get(), timeout_us);
 
 	might_sleep();
 

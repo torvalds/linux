@@ -21,42 +21,8 @@
 #include <linux/slab.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
-
-struct tcf_police_params {
-	int			tcfp_result;
-	u32			tcfp_ewma_rate;
-	s64			tcfp_burst;
-	u32			tcfp_mtu;
-	s64			tcfp_mtu_ptoks;
-	struct psched_ratecfg	rate;
-	bool			rate_present;
-	struct psched_ratecfg	peak;
-	bool			peak_present;
-	struct rcu_head rcu;
-};
-
-struct tcf_police {
-	struct tc_action	common;
-	struct tcf_police_params __rcu *params;
-
-	spinlock_t		tcfp_lock ____cacheline_aligned_in_smp;
-	s64			tcfp_toks;
-	s64			tcfp_ptoks;
-	s64			tcfp_t_c;
-};
-
-#define to_police(pc) ((struct tcf_police *)pc)
-
-/* old policer structure from before tc actions */
-struct tc_police_compat {
-	u32			index;
-	int			action;
-	u32			limit;
-	u32			burst;
-	u32			mtu;
-	struct tc_ratespec	rate;
-	struct tc_ratespec	peakrate;
-};
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_police.h>
 
 /* Each policer is serialized by its individual spinlock */
 
@@ -83,10 +49,12 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       struct nlattr *est, struct tc_action **a,
 			       int ovr, int bind, bool rtnl_held,
+			       struct tcf_proto *tp,
 			       struct netlink_ext_ack *extack)
 {
 	int ret = 0, tcfp_result = TC_ACT_OK, err, size;
 	struct nlattr *tb[TCA_POLICE_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
@@ -97,7 +65,8 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, police_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_POLICE_MAX, nla,
+					  police_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -128,6 +97,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	police = to_police(*a);
 	if (parm->rate.rate) {
@@ -213,12 +185,14 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	if (new->peak_present)
 		police->tcfp_ptoks = new->tcfp_mtu_ptoks;
 	spin_unlock_bh(&police->tcfp_lock);
-	police->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(police->params,
 			   new,
 			   lockdep_is_held(&police->tcf_lock));
 	spin_unlock_bh(&police->tcf_lock);
 
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (new)
 		kfree_rcu(new, rcu);
 
@@ -229,6 +203,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
 	tcf_idr_release(*a, bind);
 	return err;
 }
@@ -305,6 +282,20 @@ static void tcf_police_cleanup(struct tc_action *a)
 		kfree_rcu(p, rcu);
 }
 
+static void tcf_police_stats_update(struct tc_action *a,
+				    u64 bytes, u32 packets,
+				    u64 lastuse, bool hw)
+{
+	struct tcf_police *police = to_police(a);
+	struct tcf_t *tm = &police->tcf_tm;
+
+	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+	if (hw)
+		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
+				   bytes, packets);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
+}
+
 static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 			       int bind, int ref)
 {
@@ -368,6 +359,7 @@ static struct tc_action_ops act_police_ops = {
 	.kind		=	"police",
 	.id		=	TCA_ID_POLICE,
 	.owner		=	THIS_MODULE,
+	.stats_update	=	tcf_police_stats_update,
 	.act		=	tcf_police_act,
 	.dump		=	tcf_police_dump,
 	.init		=	tcf_police_init,

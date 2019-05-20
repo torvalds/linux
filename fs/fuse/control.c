@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/fs_context.h>
 
 #define FUSE_CTL_SUPER_MAGIC 0x65735543
 
@@ -317,7 +318,7 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 	drop_nlink(d_inode(fuse_control_sb->s_root));
 }
 
-static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
+static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)
 {
 	static const struct tree_descr empty_descr = {""};
 	struct fuse_conn *fc;
@@ -343,10 +344,19 @@ static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct dentry *fuse_ctl_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name, void *raw_data)
+static int fuse_ctl_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, raw_data, fuse_ctl_fill_super);
+	return vfs_get_super(fc, vfs_get_single_super, fuse_ctl_fill_super);
+}
+
+static const struct fs_context_operations fuse_ctl_context_ops = {
+	.get_tree	= fuse_ctl_get_tree,
+};
+
+static int fuse_ctl_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &fuse_ctl_context_ops;
+	return 0;
 }
 
 static void fuse_ctl_kill_sb(struct super_block *sb)
@@ -365,7 +375,7 @@ static void fuse_ctl_kill_sb(struct super_block *sb)
 static struct file_system_type fuse_ctl_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fusectl",
-	.mount		= fuse_ctl_mount,
+	.init_fs_context = fuse_ctl_init_fs_context,
 	.kill_sb	= fuse_ctl_kill_sb,
 };
 MODULE_ALIAS_FS("fusectl");

@@ -20,9 +20,9 @@
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 
-#include <net/route.h>
-#include <net/ip6_route.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_expect.h>
@@ -30,11 +30,13 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_conntrack_sip.h>
 
+#define HELPER_NAME "sip"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP connection tracking helper");
 MODULE_ALIAS("ip_conntrack_sip");
-MODULE_ALIAS_NFCT_HELPER("sip");
+MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
 #define MAX_PORTS	8
 static unsigned short ports[MAX_PORTS];
@@ -871,38 +873,33 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 	} else if (sip_external_media) {
 		struct net_device *dev = skb_dst(skb)->dev;
 		struct net *net = dev_net(dev);
-		struct rtable *rt;
-		struct flowi4 fl4 = {};
-#if IS_ENABLED(CONFIG_IPV6)
-		struct flowi6 fl6 = {};
-#endif
+		struct flowi fl;
 		struct dst_entry *dst = NULL;
+
+		memset(&fl, 0, sizeof(fl));
 
 		switch (nf_ct_l3num(ct)) {
 			case NFPROTO_IPV4:
-				fl4.daddr = daddr->ip;
-				rt = ip_route_output_key(net, &fl4);
-				if (!IS_ERR(rt))
-					dst = &rt->dst;
+				fl.u.ip4.daddr = daddr->ip;
+				nf_ip_route(net, &dst, &fl, false);
 				break;
 
-#if IS_ENABLED(CONFIG_IPV6)
 			case NFPROTO_IPV6:
-				fl6.daddr = daddr->in6;
-				dst = ip6_route_output(net, NULL, &fl6);
-				if (dst->error) {
-					dst_release(dst);
-					dst = NULL;
-				}
+				fl.u.ip6.daddr = daddr->in6;
+				nf_ip6_route(net, &dst, &fl, false);
 				break;
-#endif
 		}
 
 		/* Don't predict any conntracks when media endpoint is reachable
 		 * through the same interface as the signalling peer.
 		 */
-		if (dst && dst->dev == dev)
-			return NF_ACCEPT;
+		if (dst) {
+			bool external_media = (dst->dev == dev);
+
+			dst_release(dst);
+			if (external_media)
+				return NF_ACCEPT;
+		}
 	}
 
 	/* We need to check whether the registration exists before attempting
@@ -933,7 +930,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 		    nfct_help(exp->master)->helper != nfct_help(ct)->helper ||
 		    exp->class != class)
 			break;
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 		if (!direct_rtp &&
 		    (!nf_inet_addr_cmp(&exp->saved_addr, &exp->tuple.dst.u3) ||
 		     exp->saved_proto.udp.port != exp->tuple.dst.u.udp.port) &&
@@ -1674,21 +1671,21 @@ static int __init nf_conntrack_sip_init(void)
 		ports[ports_c++] = SIP_PORT;
 
 	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&sip[4 * i], AF_INET, IPPROTO_UDP, "sip",
-				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX, sip_help_udp,
+		nf_ct_helper_init(&sip[4 * i], AF_INET, IPPROTO_UDP,
+				  HELPER_NAME, SIP_PORT, ports[i], i,
+				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_udp,
 				  NULL, THIS_MODULE);
-		nf_ct_helper_init(&sip[4 * i + 1], AF_INET, IPPROTO_TCP, "sip",
-				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX, sip_help_tcp,
+		nf_ct_helper_init(&sip[4 * i + 1], AF_INET, IPPROTO_TCP,
+				  HELPER_NAME, SIP_PORT, ports[i], i,
+				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_tcp,
 				  NULL, THIS_MODULE);
-		nf_ct_helper_init(&sip[4 * i + 2], AF_INET6, IPPROTO_UDP, "sip",
-				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX, sip_help_udp,
+		nf_ct_helper_init(&sip[4 * i + 2], AF_INET6, IPPROTO_UDP,
+				  HELPER_NAME, SIP_PORT, ports[i], i,
+				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_udp,
 				  NULL, THIS_MODULE);
-		nf_ct_helper_init(&sip[4 * i + 3], AF_INET6, IPPROTO_TCP, "sip",
-				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX, sip_help_tcp,
+		nf_ct_helper_init(&sip[4 * i + 3], AF_INET6, IPPROTO_TCP,
+				  HELPER_NAME, SIP_PORT, ports[i], i,
+				  sip_exp_policy, SIP_EXPECT_MAX, sip_help_tcp,
 				  NULL, THIS_MODULE);
 	}
 

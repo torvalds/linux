@@ -42,12 +42,6 @@ Video Encoder
 .. kernel-doc:: drivers/gpu/drm/meson/meson_venc.c
    :doc: Video Encoder
 
-Video Canvas Management
-=======================
-
-.. kernel-doc:: drivers/gpu/drm/meson/meson_canvas.c
-   :doc: Canvas
-
 Video Clocks
 ============
 

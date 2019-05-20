@@ -52,6 +52,7 @@ static inline bool mm_iommu_is_devmem(struct mm_struct *mm, unsigned long hpa,
 {
 	return false;
 }
+static inline void mm_iommu_init(struct mm_struct *mm) { }
 #endif
 extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
 extern void set_context(unsigned long id, pgd_t *pgd);
@@ -228,16 +229,9 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 #endif
 }
 
-#ifdef CONFIG_PPC_BOOK3E_64
-static inline void arch_exit_mmap(struct mm_struct *mm)
-{
-}
-#else
 extern void arch_exit_mmap(struct mm_struct *mm);
-#endif
 
 static inline void arch_unmap(struct mm_struct *mm,
-			      struct vm_area_struct *vma,
 			      unsigned long start, unsigned long end)
 {
 	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)

@@ -291,8 +291,7 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 				vector[i] = op.msix_entries[i].vector;
 			}
 		} else {
-			printk(KERN_DEBUG "enable msix get value %x\n",
-				op.value);
+			pr_info("enable msix get value %x\n", op.value);
 			err = op.value;
 		}
 	} else {
@@ -364,12 +363,12 @@ static void pci_frontend_disable_msi(struct pci_dev *dev)
 	err = do_pci_op(pdev, &op);
 	if (err == XEN_PCI_ERR_dev_not_found) {
 		/* XXX No response from backend, what shall we do? */
-		printk(KERN_DEBUG "get no response from backend for disable MSI\n");
+		pr_info("get no response from backend for disable MSI\n");
 		return;
 	}
 	if (err)
 		/* how can pciback notify us fail? */
-		printk(KERN_DEBUG "get fake response frombackend\n");
+		pr_info("get fake response from backend\n");
 }
 
 static struct xen_pci_frontend_ops pci_frontend_ops = {
@@ -1104,7 +1103,7 @@ static void __ref pcifront_backend_changed(struct xenbus_device *xdev,
 	case XenbusStateClosed:
 		if (xdev->state == XenbusStateClosed)
 			break;
-		/* Missed the backend's CLOSING state -- fallthrough */
+		/* fall through - Missed the backend's CLOSING state. */
 	case XenbusStateClosing:
 		dev_warn(&xdev->dev, "backend going away!\n");
 		pcifront_try_disconnect(pdev);

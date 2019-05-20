@@ -13,7 +13,7 @@ static void ci_leaf_init(struct cacheinfo *this_leaf,
 	this_leaf->level = level;
 	this_leaf->type = type;
 	this_leaf->coherency_line_size = CACHE_LINE_SIZE(cache_type);
-	this_leaf->number_of_sets = CACHE_SET(cache_type);;
+	this_leaf->number_of_sets = CACHE_SET(cache_type);
 	this_leaf->ways_of_associativity = CACHE_WAY(cache_type);
 	this_leaf->size = this_leaf->number_of_sets *
 	    this_leaf->coherency_line_size * this_leaf->ways_of_associativity;

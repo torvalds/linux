@@ -1,4 +1,0 @@
-include/generated/ti-emif-asm-offsets.h: drivers/memory/emif-asm-offsets.s FORCE
-	$(call filechk,offsets,__TI_EMIF_ASM_OFFSETS_H__)
-
-targets += emif-asm-offsets.s

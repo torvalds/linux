@@ -3119,6 +3119,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 		goto err_free_wq;
 
 	mutex_init(&ar->conf_mutex);
+	mutex_init(&ar->dump_mutex);
 	spin_lock_init(&ar->data_lock);
 
 	INIT_LIST_HEAD(&ar->peers);

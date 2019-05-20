@@ -327,8 +327,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
-struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
-						struct intel_crtc_state *state,
+struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc_state *state,
 						struct intel_encoder *encoder);
 void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
 			       struct intel_crtc *crtc,
@@ -341,8 +340,6 @@ void intel_shared_dpll_init(struct drm_device *dev);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state);
-int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
-			       u32 pll_id);
 int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv);
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);

@@ -514,6 +514,13 @@ err:
 	return ret;
 }
 
+static void exynos_bus_shutdown(struct platform_device *pdev)
+{
+	struct exynos_bus *bus = dev_get_drvdata(&pdev->dev);
+
+	devfreq_suspend_device(bus->devfreq);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int exynos_bus_resume(struct device *dev)
 {
@@ -556,6 +563,7 @@ MODULE_DEVICE_TABLE(of, exynos_bus_of_match);
 
 static struct platform_driver exynos_bus_platdrv = {
 	.probe		= exynos_bus_probe,
+	.shutdown	= exynos_bus_shutdown,
 	.driver = {
 		.name	= "exynos-bus",
 		.pm	= &exynos_bus_pm,

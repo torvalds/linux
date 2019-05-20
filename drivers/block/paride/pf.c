@@ -319,6 +319,7 @@ static void __init pf_init_units(void)
 		disk->first_minor = unit;
 		strcpy(disk->disk_name, pf->name);
 		disk->fops = &pf_fops;
+		disk->events = DISK_EVENT_MEDIA_CHANGE;
 		if (!(*drives[unit])[D_PRT])
 			pf_drive_count++;
 	}
@@ -761,8 +762,14 @@ static int pf_detect(void)
 		return 0;
 
 	printk("%s: No ATAPI disk detected\n", name);
-	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++)
+	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
+		if (!pf->disk)
+			continue;
+		blk_cleanup_queue(pf->disk->queue);
+		pf->disk->queue = NULL;
+		blk_mq_free_tag_set(&pf->tag_set);
 		put_disk(pf->disk);
+	}
 	pi_unregister_driver(par_drv);
 	return -1;
 }
@@ -1025,8 +1032,13 @@ static int __init pf_init(void)
 	pf_busy = 0;
 
 	if (register_blkdev(major, name)) {
-		for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++)
+		for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
+			if (!pf->disk)
+				continue;
+			blk_cleanup_queue(pf->disk->queue);
+			blk_mq_free_tag_set(&pf->tag_set);
 			put_disk(pf->disk);
+		}
 		return -EBUSY;
 	}
 
@@ -1047,13 +1059,18 @@ static void __exit pf_exit(void)
 	int unit;
 	unregister_blkdev(major, name);
 	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
-		if (!pf->present)
+		if (!pf->disk)
 			continue;
-		del_gendisk(pf->disk);
+
+		if (pf->present)
+			del_gendisk(pf->disk);
+
 		blk_cleanup_queue(pf->disk->queue);
 		blk_mq_free_tag_set(&pf->tag_set);
 		put_disk(pf->disk);
-		pi_release(pf->pi);
+
+		if (pf->present)
+			pi_release(pf->pi);
 	}
 }
 

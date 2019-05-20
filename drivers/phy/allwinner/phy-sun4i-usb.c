@@ -485,8 +485,11 @@ static int sun4i_usb_phy_set_mode(struct phy *_phy,
 	struct sun4i_usb_phy_data *data = to_sun4i_usb_phy_data(phy);
 	int new_mode;
 
-	if (phy->index != 0)
+	if (phy->index != 0) {
+		if (mode == PHY_MODE_USB_HOST)
+			return 0;
 		return -EINVAL;
+	}
 
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
@@ -551,6 +554,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	struct sun4i_usb_phy_data *data =
 		container_of(work, struct sun4i_usb_phy_data, detect.work);
 	struct phy *phy0 = data->phys[0].phy;
+	struct sun4i_usb_phy *phy = phy_get_drvdata(phy0);
 	bool force_session_end, id_notify = false, vbus_notify = false;
 	int id_det, vbus_det;
 
@@ -606,6 +610,9 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 			sun4i_usb_phy0_set_vbus_detect(phy0, 1);
 			mutex_unlock(&phy0->mutex);
 		}
+
+		/* Enable PHY0 passby for host mode only. */
+		sun4i_usb_phy_passby(phy, !id_det);
 
 		/* Re-route PHY0 if necessary */
 		if (data->cfg->phy0_dual_route)

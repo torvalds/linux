@@ -1191,7 +1191,10 @@ xfs_iread_extents(
 	 * Root level must use BMAP_BROOT_PTR_ADDR macro to get ptr out.
 	 */
 	level = be16_to_cpu(block->bb_level);
-	ASSERT(level > 0);
+	if (unlikely(level == 0)) {
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
+		return -EFSCORRUPTED;
+	}
 	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, 1, ifp->if_broot_bytes);
 	bno = be64_to_cpu(*pp);
 
@@ -2006,6 +2009,9 @@ xfs_bmap_add_extent_delay_real(
 			goto done;
 	}
 
+	if (da_new != da_old)
+		xfs_mod_delalloc(mp, (int64_t)da_new - da_old);
+
 	if (bma->cur) {
 		da_new += bma->cur->bc_private.b.allocated;
 		bma->cur->bc_private.b.allocated = 0;
@@ -2637,6 +2643,7 @@ xfs_bmap_add_extent_hole_delay(
 		/*
 		 * Nothing to do for disk quota accounting here.
 		 */
+		xfs_mod_delalloc(ip->i_mount, (int64_t)newlen - oldlen);
 	}
 }
 
@@ -3349,8 +3356,10 @@ xfs_bmap_btalloc_accounting(
 		 * already have quota reservation and there's nothing to do
 		 * yet.
 		 */
-		if (ap->wasdel)
+		if (ap->wasdel) {
+			xfs_mod_delalloc(ap->ip->i_mount, -(int64_t)args->len);
 			return;
+		}
 
 		/*
 		 * Otherwise, we've allocated blocks in a hole. The transaction
@@ -3369,8 +3378,10 @@ xfs_bmap_btalloc_accounting(
 	/* data/attr fork only */
 	ap->ip->i_d.di_nblocks += args->len;
 	xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
-	if (ap->wasdel)
+	if (ap->wasdel) {
 		ap->ip->i_delayed_blks -= args->len;
+		xfs_mod_delalloc(ap->ip->i_mount, -(int64_t)args->len);
+	}
 	xfs_trans_mod_dquot_byino(ap->tp, ap->ip,
 		ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT : XFS_TRANS_DQ_BCOUNT,
 		args->len);
@@ -3966,6 +3977,7 @@ xfs_bmapi_reserve_delalloc(
 
 
 	ip->i_delayed_blks += alen;
+	xfs_mod_delalloc(ip->i_mount, alen + indlen);
 
 	got->br_startoff = aoff;
 	got->br_startblock = nullstartblock(indlen);
@@ -4249,9 +4261,13 @@ xfs_bmapi_write(
 	struct xfs_bmbt_irec	*mval,		/* output: map values */
 	int			*nmap)		/* i/o: mval size/count */
 {
+	struct xfs_bmalloca	bma = {
+		.tp		= tp,
+		.ip		= ip,
+		.total		= total,
+	};
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ifork	*ifp;
-	struct xfs_bmalloca	bma = { NULL };	/* args for xfs_bmap_alloc */
 	xfs_fileoff_t		end;		/* end of mapped file region */
 	bool			eof = false;	/* after the end of extents */
 	int			error;		/* error return */
@@ -4319,10 +4335,6 @@ xfs_bmapi_write(
 		eof = true;
 	if (!xfs_iext_peek_prev_extent(ifp, &bma.icur, &bma.prev))
 		bma.prev.br_startoff = NULLFILEOFF;
-	bma.tp = tp;
-	bma.ip = ip;
-	bma.total = total;
-	bma.datatype = 0;
 	bma.minleft = xfs_bmapi_minleft(tp, ip, whichfork);
 
 	n = 0;
@@ -4837,8 +4849,10 @@ xfs_bmap_del_extent_delay(
 	da_diff = da_old - da_new;
 	if (!isrt)
 		da_diff += del->br_blockcount;
-	if (da_diff)
+	if (da_diff) {
 		xfs_mod_fdblocks(mp, da_diff, false);
+		xfs_mod_delalloc(mp, -da_diff);
+	}
 	return error;
 }
 

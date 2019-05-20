@@ -34,6 +34,7 @@
 #include "xfs_refcount_btree.h"
 #include "xfs_reflink.h"
 #include "xfs_extent_busy.h"
+#include "xfs_health.h"
 
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -231,6 +232,7 @@ xfs_initialize_perag(
 		error = xfs_iunlink_init(pag);
 		if (error)
 			goto out_hash_destroy;
+		spin_lock_init(&pag->pag_state_lock);
 	}
 
 	index = xfs_set_inode_alloc(mp, agcount);
@@ -644,7 +646,7 @@ xfs_check_summary_counts(
 	    (mp->m_sb.sb_fdblocks > mp->m_sb.sb_dblocks ||
 	     !xfs_verify_icount(mp, mp->m_sb.sb_icount) ||
 	     mp->m_sb.sb_ifree > mp->m_sb.sb_icount))
-		mp->m_flags |= XFS_MOUNT_BAD_SUMMARY;
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);
 
 	/*
 	 * We can safely re-initialise incore superblock counters from the
@@ -659,7 +661,7 @@ xfs_check_summary_counts(
 	 */
 	if ((!xfs_sb_version_haslazysbcount(&mp->m_sb) ||
 	     XFS_LAST_UNMOUNT_WAS_CLEAN(mp)) &&
-	    !(mp->m_flags & XFS_MOUNT_BAD_SUMMARY))
+	    !xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS))
 		return 0;
 
 	return xfs_initialize_perag_data(mp, mp->m_sb.sb_agcount);
@@ -1068,6 +1070,7 @@ xfs_mountfs(
 	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_health_unmount(mp);
  out_log_dealloc:
 	mp->m_flags |= XFS_MOUNT_UNMOUNTING;
 	xfs_log_mount_cancel(mp);
@@ -1104,7 +1107,7 @@ xfs_unmountfs(
 	uint64_t		resblks;
 	int			error;
 
-	xfs_icache_disable_reclaim(mp);
+	xfs_stop_block_reaping(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
@@ -1150,6 +1153,7 @@ xfs_unmountfs(
 	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_health_unmount(mp);
 
 	xfs_qm_unmount(mp);
 
@@ -1445,7 +1449,26 @@ xfs_force_summary_recalc(
 	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
 		return;
 
-	spin_lock(&mp->m_sb_lock);
-	mp->m_flags |= XFS_MOUNT_BAD_SUMMARY;
-	spin_unlock(&mp->m_sb_lock);
+	xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);
+}
+
+/*
+ * Update the in-core delayed block counter.
+ *
+ * We prefer to update the counter without having to take a spinlock for every
+ * counter update (i.e. batching).  Each change to delayed allocation
+ * reservations can change can easily exceed the default percpu counter
+ * batching, so we use a larger batch factor here.
+ *
+ * Note that we don't currently have any callers requiring fast summation
+ * (e.g. percpu_counter_read) so we can use a big batch value here.
+ */
+#define XFS_DELALLOC_BATCH	(4096)
+void
+xfs_mod_delalloc(
+	struct xfs_mount	*mp,
+	int64_t			delta)
+{
+	percpu_counter_add_batch(&mp->m_delalloc_blks, delta,
+			XFS_DELALLOC_BATCH);
 }

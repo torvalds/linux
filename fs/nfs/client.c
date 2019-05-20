@@ -284,6 +284,7 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 	struct nfs_client *clp;
 	const struct sockaddr *sap = data->addr;
 	struct nfs_net *nn = net_generic(data->net, nfs_net_id);
+	int error;
 
 again:
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
@@ -296,9 +297,11 @@ again:
 		if (clp->cl_cons_state > NFS_CS_READY) {
 			refcount_inc(&clp->cl_count);
 			spin_unlock(&nn->nfs_client_lock);
-			nfs_wait_client_init_complete(clp);
+			error = nfs_wait_client_init_complete(clp);
 			nfs_put_client(clp);
 			spin_lock(&nn->nfs_client_lock);
+			if (error < 0)
+				return ERR_PTR(error);
 			goto again;
 		}
 
@@ -407,6 +410,8 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_init)
 		clp = nfs_match_client(cl_init);
 		if (clp) {
 			spin_unlock(&nn->nfs_client_lock);
+			if (IS_ERR(clp))
+				return clp;
 			if (new)
 				new->rpc_ops->free_client(new);
 			return nfs_found_client(cl_init, clp);
@@ -453,7 +458,7 @@ void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 	case XPRT_TRANSPORT_RDMA:
 		if (retrans == NFS_UNSPEC_RETRANS)
 			to->to_retries = NFS_DEF_TCP_RETRANS;
-		if (timeo == NFS_UNSPEC_TIMEO || to->to_retries == 0)
+		if (timeo == NFS_UNSPEC_TIMEO || to->to_initval == 0)
 			to->to_initval = NFS_DEF_TCP_TIMEO * HZ / 10;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
 			to->to_initval = NFS_MAX_TCP_TIMEOUT;
@@ -500,6 +505,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
+		.cred		= cl_init->cred,
 	};
 
 	if (test_bit(NFS_CS_DISCRTRY, &clp->cl_flags))
@@ -552,6 +558,7 @@ static int nfs_start_lockd(struct nfs_server *server)
 					1 : 0,
 		.net		= clp->cl_net,
 		.nlmclnt_ops 	= clp->cl_nfs_mod->rpc_ops->nlmclnt_ops,
+		.cred		= current_cred(),
 	};
 
 	if (nlm_init.nfs_version > 3)
@@ -598,6 +605,8 @@ int nfs_init_server_rpcclient(struct nfs_server *server,
 			sizeof(server->client->cl_timeout_default));
 	server->client->cl_timeout = &server->client->cl_timeout_default;
 	server->client->cl_softrtry = 0;
+	if (server->flags & NFS_MOUNT_SOFTERR)
+		server->client->cl_softerr = 1;
 	if (server->flags & NFS_MOUNT_SOFT)
 		server->client->cl_softrtry = 1;
 
@@ -652,6 +661,7 @@ static int nfs_init_server(struct nfs_server *server,
 		.proto = data->nfs_server.protocol,
 		.net = data->net,
 		.timeparms = &timeparms,
+		.cred = server->cred,
 	};
 	struct nfs_client *clp;
 	int error;
@@ -920,6 +930,7 @@ void nfs_free_server(struct nfs_server *server)
 	ida_destroy(&server->lockowner_id);
 	ida_destroy(&server->openowner_id);
 	nfs_free_iostats(server->io_stats);
+	put_cred(server->cred);
 	kfree(server);
 	nfs_release_automount_timer();
 }
@@ -939,6 +950,8 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info,
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	server->cred = get_cred(current_cred());
 
 	error = -ENOMEM;
 	fattr = nfs_alloc_fattr();
@@ -1005,6 +1018,8 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	server->cred = get_cred(source->cred);
 
 	error = -ENOMEM;
 	fattr_fsinfo = nfs_alloc_fattr();

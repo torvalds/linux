@@ -229,7 +229,7 @@ static int gef_wdt_open(struct inode *inode, struct file *file)
 
 	gef_wdt_handler_enable();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int gef_wdt_release(struct inode *inode, struct file *file)

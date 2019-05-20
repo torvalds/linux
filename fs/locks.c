@@ -352,6 +352,12 @@ EXPORT_SYMBOL_GPL(locks_alloc_lock);
 
 void locks_release_private(struct file_lock *fl)
 {
+	BUG_ON(waitqueue_active(&fl->fl_wait));
+	BUG_ON(!list_empty(&fl->fl_list));
+	BUG_ON(!list_empty(&fl->fl_blocked_requests));
+	BUG_ON(!list_empty(&fl->fl_blocked_member));
+	BUG_ON(!hlist_unhashed(&fl->fl_link));
+
 	if (fl->fl_ops) {
 		if (fl->fl_ops->fl_release_private)
 			fl->fl_ops->fl_release_private(fl);
@@ -371,12 +377,6 @@ EXPORT_SYMBOL_GPL(locks_release_private);
 /* Free a lock which is not in use. */
 void locks_free_lock(struct file_lock *fl)
 {
-	BUG_ON(waitqueue_active(&fl->fl_wait));
-	BUG_ON(!list_empty(&fl->fl_list));
-	BUG_ON(!list_empty(&fl->fl_blocked_requests));
-	BUG_ON(!list_empty(&fl->fl_blocked_member));
-	BUG_ON(!hlist_unhashed(&fl->fl_link));
-
 	locks_release_private(fl);
 	kmem_cache_free(filelock_cache, fl);
 }
@@ -1160,6 +1160,11 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 			 */
 			error = -EDEADLK;
 			spin_lock(&blocked_lock_lock);
+			/*
+			 * Ensure that we don't find any locks blocked on this
+			 * request during deadlock detection.
+			 */
+			__locks_wake_up_blocks(request);
 			if (likely(!posix_locks_deadlock(request, fl))) {
 				error = FILE_LOCK_DEFERRED;
 				__locks_insert_block(fl, request,
@@ -1471,7 +1476,7 @@ static void lease_clear_pending(struct file_lock *fl, int arg)
 	switch (arg) {
 	case F_UNLCK:
 		fl->fl_flags &= ~FL_UNLOCK_PENDING;
-		/* fall through: */
+		/* fall through */
 	case F_RDLCK:
 		fl->fl_flags &= ~FL_DOWNGRADE_PENDING;
 	}

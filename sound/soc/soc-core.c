@@ -947,7 +947,7 @@ static void soc_cleanup_component(struct snd_soc_component *component)
 	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
 	soc_cleanup_component_debugfs(component);
 	component->card = NULL;
-	if (!component->driver->ignore_module_refcount)
+	if (!component->driver->module_get_upon_open)
 		module_put(component->dev->driver->owner);
 }
 
@@ -1381,7 +1381,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 		return 0;
 	}
 
-	if (!component->driver->ignore_module_refcount &&
+	if (!component->driver->module_get_upon_open &&
 	    !try_module_get(component->dev->driver->owner))
 		return -ENODEV;
 
@@ -1974,10 +1974,13 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 			continue;
 
 		/* for this machine ? */
+		if (!strcmp(component->driver->ignore_machine,
+			    card->dev->driver->name))
+			goto match;
 		if (strcmp(component->driver->ignore_machine,
-			   card->dev->driver->name))
+			   dev_name(card->dev)))
 			continue;
-
+match:
 		/* machine matches, so override the rtd data */
 		for_each_card_prelinks(card, i, dai_link) {
 
@@ -2797,6 +2800,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 
 		ret = soc_init_dai_link(card, link);
 		if (ret) {
+			soc_cleanup_platform(card);
 			dev_err(card->dev, "ASoC: failed to init link %s\n",
 				link->name);
 			mutex_unlock(&client_mutex);
@@ -2819,6 +2823,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
+	spin_lock_init(&card->dpcm_lock);
 
 	return snd_soc_bind_card(card);
 }
@@ -2826,10 +2831,21 @@ EXPORT_SYMBOL_GPL(snd_soc_register_card);
 
 static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
 {
+	struct snd_soc_pcm_runtime *rtd;
+	int order;
+
 	if (card->instantiated) {
 		card->instantiated = false;
 		snd_soc_dapm_shutdown(card);
 		snd_soc_flush_all_delayed_work(card);
+
+		/* remove all components used by DAI links on this card */
+		for_each_comp_order(order) {
+			for_each_card_rtds(card, rtd) {
+				soc_remove_link_components(card, rtd, order);
+			}
+		}
+
 		soc_cleanup_card_resources(card);
 		if (!unregister)
 			list_add(&card->list, &unbind_card_list);

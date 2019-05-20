@@ -395,6 +395,7 @@ struct mlx5_wqe_signature_seg {
 
 struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
+	__be32	data[0];
 };
 
 enum mlx5_sig_type {
@@ -557,7 +558,8 @@ static inline struct mlx5_core_mkey *__mlx5_mr_lookup(struct mlx5_core_dev *dev,
 
 int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 			 struct mlx5_core_dct *qp,
-			 u32 *in, int inlen);
+			 u32 *in, int inlen,
+			 u32 *out, int outlen);
 int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			struct mlx5_core_qp *qp,
 			u32 *in,

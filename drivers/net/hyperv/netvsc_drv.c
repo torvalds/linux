@@ -109,6 +109,15 @@ static void netvsc_set_rx_mode(struct net_device *net)
 	rcu_read_unlock();
 }
 
+static void netvsc_tx_enable(struct netvsc_device *nvscdev,
+			     struct net_device *ndev)
+{
+	nvscdev->tx_disable = false;
+	virt_wmb(); /* ensure queue wake up mechanism is on */
+
+	netif_tx_wake_all_queues(ndev);
+}
+
 static int netvsc_open(struct net_device *net)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(net);
@@ -129,7 +138,7 @@ static int netvsc_open(struct net_device *net)
 	rdev = nvdev->extension;
 	if (!rdev->link_state) {
 		netif_carrier_on(net);
-		netif_tx_wake_all_queues(net);
+		netvsc_tx_enable(nvdev, net);
 	}
 
 	if (vf_netdev) {
@@ -184,6 +193,17 @@ static int netvsc_wait_until_empty(struct netvsc_device *nvdev)
 	}
 }
 
+static void netvsc_tx_disable(struct netvsc_device *nvscdev,
+			      struct net_device *ndev)
+{
+	if (nvscdev) {
+		nvscdev->tx_disable = true;
+		virt_wmb(); /* ensure txq will not wake up after stop */
+	}
+
+	netif_tx_disable(ndev);
+}
+
 static int netvsc_close(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
@@ -192,7 +212,7 @@ static int netvsc_close(struct net_device *net)
 	struct netvsc_device *nvdev = rtnl_dereference(net_device_ctx->nvdev);
 	int ret;
 
-	netif_tx_disable(net);
+	netvsc_tx_disable(nvdev, net);
 
 	/* No need to close rndis filter if it is removed already */
 	if (!nvdev)
@@ -308,7 +328,7 @@ static inline int netvsc_get_tx_queue(struct net_device *ndev,
  * If a valid queue has already been assigned, then use that.
  * Otherwise compute tx queue based on hash and the send table.
  *
- * This is basically similar to default (__netdev_pick_tx) with the added step
+ * This is basically similar to default (netdev_pick_tx) with the added step
  * of using the host send_table when no other queue has been assigned.
  *
  * TODO support XPS - but get_xps_queue not exported
@@ -331,8 +351,7 @@ static u16 netvsc_pick_tx(struct net_device *ndev, struct sk_buff *skb)
 }
 
 static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
-			       struct net_device *sb_dev,
-			       select_queue_fallback_t fallback)
+			       struct net_device *sb_dev)
 {
 	struct net_device_context *ndc = netdev_priv(ndev);
 	struct net_device *vf_netdev;
@@ -344,10 +363,9 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 		const struct net_device_ops *vf_ops = vf_netdev->netdev_ops;
 
 		if (vf_ops->ndo_select_queue)
-			txq = vf_ops->ndo_select_queue(vf_netdev, skb,
-						       sb_dev, fallback);
+			txq = vf_ops->ndo_select_queue(vf_netdev, skb, sb_dev);
 		else
-			txq = fallback(vf_netdev, skb, NULL);
+			txq = netdev_pick_tx(vf_netdev, skb, NULL);
 
 		/* Record the queue selected by VF so that it can be
 		 * used for common case where VF has more queues than
@@ -920,7 +938,7 @@ static int netvsc_detach(struct net_device *ndev,
 
 	/* If device was up (receiving) then shutdown */
 	if (netif_running(ndev)) {
-		netif_tx_disable(ndev);
+		netvsc_tx_disable(nvdev, ndev);
 
 		ret = rndis_filter_close(nvdev);
 		if (ret) {
@@ -1908,7 +1926,7 @@ static void netvsc_link_change(struct work_struct *w)
 		if (rdev->link_state) {
 			rdev->link_state = false;
 			netif_carrier_on(net);
-			netif_tx_wake_all_queues(net);
+			netvsc_tx_enable(net_device, net);
 		} else {
 			notify = true;
 		}
@@ -1918,7 +1936,7 @@ static void netvsc_link_change(struct work_struct *w)
 		if (!rdev->link_state) {
 			rdev->link_state = true;
 			netif_carrier_off(net);
-			netif_tx_stop_all_queues(net);
+			netvsc_tx_disable(net_device, net);
 		}
 		kfree(event);
 		break;
@@ -1927,7 +1945,7 @@ static void netvsc_link_change(struct work_struct *w)
 		if (!rdev->link_state) {
 			rdev->link_state = true;
 			netif_carrier_off(net);
-			netif_tx_stop_all_queues(net);
+			netvsc_tx_disable(net_device, net);
 			event->event = RNDIS_STATUS_MEDIA_CONNECT;
 			spin_lock_irqsave(&ndev_ctx->lock, flags);
 			list_add(&event->list, &ndev_ctx->reconfig_events);

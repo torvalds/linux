@@ -410,7 +410,6 @@ struct mt7530_port {
 	bool enable;
 	u32 pm;
 	u16 pvid;
-	bool vlan_filtering;
 };
 
 /* struct mt7530_priv -	This is the main data structure for holding the state

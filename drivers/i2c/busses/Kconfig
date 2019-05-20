@@ -77,6 +77,16 @@ config I2C_AMD8111
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-amd8111.
 
+config I2C_AMD_MP2
+	tristate "AMD MP2 PCIe"
+	depends on PCI && ACPI
+	help
+	  If you say yes to this option, support will be included for the AMD
+	  MP2 PCIe I2C adapter.
+
+	  This driver can also be built as modules.  If so, the modules will
+	  be called i2c-amd-mp2-pci and i2c-amd-mp2-plat.
+
 config I2C_HIX5HD2
 	tristate "Hix5hd2 high-speed I2C driver"
 	depends on ARCH_HISI || ARCH_HIX5HD2 || COMPILE_TEST
@@ -131,6 +141,7 @@ config I2C_I801
 	    Cannon Lake (PCH)
 	    Cedar Fork (PCH)
 	    Ice Lake (PCH)
+	    Comet Lake (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -175,6 +186,7 @@ config I2C_PIIX4
 	    AMD Hudson-2
 	    AMD ML
 	    AMD CZ
+	    Hygon CZ
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
@@ -387,6 +399,19 @@ config I2C_AT91
 	  the latency to fill the transmission register is too long. If you
 	  are facing this situation, use the i2c-gpio driver.
 
+config I2C_AT91_SLAVE_EXPERIMENTAL
+	tristate "Microchip AT91 I2C experimental slave mode"
+	depends on I2C_AT91
+	select I2C_SLAVE
+	help
+	  If you say yes to this option, support for the slave mode will be
+	  added. Caution: do not use it for production. This feature has not
+	  been tested in a heavy way, help wanted.
+	  There are known bugs:
+	    - It can hang, on a SAMA5D4, after several transfers.
+	    - There are some mismtaches with a SAMA5D4 as slave and a SAMA5D2 as
+	    master.
+
 config I2C_AU1550
 	tristate "Au1550/Au1200/Au1300 SMBus interface"
 	depends on MIPS_ALCHEMY
@@ -424,6 +449,7 @@ config I2C_BCM_IPROC
 	tristate "Broadcom iProc I2C controller"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	default ARCH_BCM_IPROC
+	select I2C_SLAVE
 	help
 	  If you say yes to this option, support will be included for the
 	  Broadcom iProc I2C controller.

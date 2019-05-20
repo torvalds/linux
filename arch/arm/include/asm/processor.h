@@ -135,8 +135,8 @@ static inline void prefetchw(const void *ptr)
 	__asm__ __volatile__(
 		".arch_extension	mp\n"
 		__ALT_SMP_ASM(
-			WASM(pldw)		"\t%a0",
-			WASM(pld)		"\t%a0"
+			"pldw\t%a0",
+			"pld\t%a0"
 		)
 		:: "p" (ptr));
 }

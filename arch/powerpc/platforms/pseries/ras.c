@@ -539,43 +539,44 @@ static void pseries_print_mce_info(struct pt_regs *regs,
 	int disposition = rtas_error_disposition(errp);
 
 	static const char * const initiators[] = {
-		"Unknown",
-		"CPU",
-		"PCI",
-		"ISA",
-		"Memory",
-		"Power Mgmt",
+		[0] = "Unknown",
+		[1] = "CPU",
+		[2] = "PCI",
+		[3] = "ISA",
+		[4] = "Memory",
+		[5] = "Power Mgmt",
 	};
 	static const char * const mc_err_types[] = {
-		"UE",
-		"SLB",
-		"ERAT",
-		"TLB",
-		"D-Cache",
-		"Unknown",
-		"I-Cache",
+		[0] = "UE",
+		[1] = "SLB",
+		[2] = "ERAT",
+		[3] = "Unknown",
+		[4] = "TLB",
+		[5] = "D-Cache",
+		[6] = "Unknown",
+		[7] = "I-Cache",
 	};
 	static const char * const mc_ue_types[] = {
-		"Indeterminate",
-		"Instruction fetch",
-		"Page table walk ifetch",
-		"Load/Store",
-		"Page table walk Load/Store",
+		[0] = "Indeterminate",
+		[1] = "Instruction fetch",
+		[2] = "Page table walk ifetch",
+		[3] = "Load/Store",
+		[4] = "Page table walk Load/Store",
 	};
 
 	/* SLB sub errors valid values are 0x0, 0x1, 0x2 */
 	static const char * const mc_slb_types[] = {
-		"Parity",
-		"Multihit",
-		"Indeterminate",
+		[0] = "Parity",
+		[1] = "Multihit",
+		[2] = "Indeterminate",
 	};
 
 	/* TLB and ERAT sub errors valid values are 0x1, 0x2, 0x3 */
 	static const char * const mc_soft_types[] = {
-		"Unknown",
-		"Parity",
-		"Multihit",
-		"Indeterminate",
+		[0] = "Unknown",
+		[1] = "Parity",
+		[2] = "Multihit",
+		[3] = "Indeterminate",
 	};
 
 	if (!rtas_error_extended(errp)) {
@@ -706,6 +707,87 @@ out:
 	return disposition;
 }
 
+#ifdef CONFIG_MEMORY_FAILURE
+
+static DEFINE_PER_CPU(int, rtas_ue_count);
+static DEFINE_PER_CPU(unsigned long, rtas_ue_paddr[MAX_MC_EVT]);
+
+#define UE_EFFECTIVE_ADDR_PROVIDED	0x40
+#define UE_LOGICAL_ADDR_PROVIDED	0x20
+
+
+static void pseries_hwpoison_work_fn(struct work_struct *work)
+{
+	unsigned long paddr;
+	int index;
+
+	while (__this_cpu_read(rtas_ue_count) > 0) {
+		index = __this_cpu_read(rtas_ue_count) - 1;
+		paddr = __this_cpu_read(rtas_ue_paddr[index]);
+		memory_failure(paddr >> PAGE_SHIFT, 0);
+		__this_cpu_dec(rtas_ue_count);
+	}
+}
+
+static DECLARE_WORK(hwpoison_work, pseries_hwpoison_work_fn);
+
+static void queue_ue_paddr(unsigned long paddr)
+{
+	int index;
+
+	index = __this_cpu_inc_return(rtas_ue_count) - 1;
+	if (index >= MAX_MC_EVT) {
+		__this_cpu_dec(rtas_ue_count);
+		return;
+	}
+	this_cpu_write(rtas_ue_paddr[index], paddr);
+	schedule_work(&hwpoison_work);
+}
+
+static void pseries_do_memory_failure(struct pt_regs *regs,
+				      struct pseries_mc_errorlog *mce_log)
+{
+	unsigned long paddr;
+
+	if (mce_log->sub_err_type & UE_LOGICAL_ADDR_PROVIDED) {
+		paddr = be64_to_cpu(mce_log->logical_address);
+	} else if (mce_log->sub_err_type & UE_EFFECTIVE_ADDR_PROVIDED) {
+		unsigned long pfn;
+
+		pfn = addr_to_pfn(regs,
+				  be64_to_cpu(mce_log->effective_address));
+		if (pfn == ULONG_MAX)
+			return;
+		paddr = pfn << PAGE_SHIFT;
+	} else {
+		return;
+	}
+	queue_ue_paddr(paddr);
+}
+
+static void pseries_process_ue(struct pt_regs *regs,
+			       struct rtas_error_log *errp)
+{
+	struct pseries_errorlog *pseries_log;
+	struct pseries_mc_errorlog *mce_log;
+
+	if (!rtas_error_extended(errp))
+		return;
+
+	pseries_log = get_pseries_errorlog(errp, PSERIES_ELOG_SECT_ID_MCE);
+	if (!pseries_log)
+		return;
+
+	mce_log = (struct pseries_mc_errorlog *)pseries_log->data;
+
+	if (mce_log->error_type == MC_ERROR_TYPE_UE)
+		pseries_do_memory_failure(regs, mce_log);
+}
+#else
+static inline void pseries_process_ue(struct pt_regs *regs,
+				      struct rtas_error_log *errp) { }
+#endif /*CONFIG_MEMORY_FAILURE */
+
 /*
  * Process MCE rtas errlog event.
  */
@@ -763,6 +845,8 @@ static int recover_mce(struct pt_regs *regs, struct rtas_error_log *err)
 		_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
 		recovered = 1;
 	}
+
+	pseries_process_ue(regs, err);
 
 	/* Queue irq work to log this rtas event later. */
 	irq_work_queue(&mce_errlog_process_work);

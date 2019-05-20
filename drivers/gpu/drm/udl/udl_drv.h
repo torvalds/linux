@@ -50,8 +50,8 @@ struct urb_list {
 struct udl_fbdev;
 
 struct udl_device {
+	struct drm_device drm;
 	struct device *dev;
-	struct drm_device *ddev;
 	struct usb_device *udev;
 	struct drm_crtc *crtc;
 
@@ -70,6 +70,8 @@ struct udl_device {
 	atomic_t bytes_sent; /* to usb, after compression including overhead */
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
 };
+
+#define to_udl(x) container_of(x, struct udl_device, drm)
 
 struct udl_gem_object {
 	struct drm_gem_object base;
@@ -102,8 +104,8 @@ struct urb *udl_get_urb(struct drm_device *dev);
 int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len);
 void udl_urb_completion(struct urb *urb);
 
-int udl_driver_load(struct drm_device *dev, unsigned long flags);
-void udl_driver_unload(struct drm_device *dev);
+int udl_init(struct udl_device *udl);
+void udl_fini(struct drm_device *dev);
 
 int udl_fbdev_init(struct drm_device *dev);
 void udl_fbdev_cleanup(struct drm_device *dev);

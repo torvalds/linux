@@ -190,18 +190,11 @@ struct smc_connection {
 	u64			peer_token;	/* SMC-D token of peer */
 };
 
-struct smc_connect_info {
-	int			flags;
-	int			alen;
-	struct sockaddr		addr;
-};
-
 struct smc_sock {				/* smc sock container */
 	struct sock		sk;
 	struct socket		*clcsock;	/* internal tcp socket */
 	struct smc_connection	conn;		/* smc connection */
 	struct smc_sock		*listen_smc;	/* listen parent */
-	struct smc_connect_info *connect_info;	/* connect address & flags */
 	struct work_struct	connect_work;	/* handle non-blocking connect*/
 	struct work_struct	tcp_listen_work;/* handle tcp socket accepts */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
@@ -218,6 +211,10 @@ struct smc_sock {				/* smc sock container */
 						/* shutdown wr or close
 						 * started, waiting for unsent
 						 * data to be sent
+						 */
+	u8			connect_nonblock : 1;
+						/* non-blocking connect in
+						 * flight
 						 */
 	struct mutex            clcsock_release_lock;
 						/* protects clcsock of a listen

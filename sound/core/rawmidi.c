@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/nospec.h>
 #include <sound/rawmidi.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -381,7 +382,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK))
 		return -EINVAL;		/* invalid combination */
 
-	err = nonseekable_open(inode, file);
+	err = stream_open(inode, file);
 	if (err < 0)
 		return err;
 
@@ -601,6 +602,7 @@ static int __snd_rawmidi_info_select(struct snd_card *card,
 		return -ENXIO;
 	if (info->stream < 0 || info->stream > 1)
 		return -EINVAL;
+	info->stream = array_index_nospec(info->stream, 2);
 	pstr = &rmidi->streams[info->stream];
 	if (pstr->substream_count == 0)
 		return -ENOENT;

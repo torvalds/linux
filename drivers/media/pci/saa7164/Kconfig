@@ -8,7 +8,7 @@ config VIDEO_SAA7164
 	select DVB_TDA10048 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_S5H1411 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  This is a video4linux driver for NXP SAA7164 based
 	  TV cards.
 

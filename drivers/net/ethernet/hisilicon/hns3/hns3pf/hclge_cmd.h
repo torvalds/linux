@@ -109,7 +109,11 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
+	HCLGE_OPC_QUERY_MAC_TNL_INT	= 0x0310,
+	HCLGE_OPC_MAC_TNL_INT_EN	= 0x0311,
+	HCLGE_OPC_CLEAR_MAC_TNL_INT	= 0x0312,
 	HCLGE_OPC_SERDES_LOOPBACK       = 0x0315,
+	HCLGE_OPC_CONFIG_FEC_MODE	= 0x031A,
 
 	/* PFC/Pause commands */
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
@@ -237,8 +241,11 @@ enum hclge_opcode_type {
 	/* Led command */
 	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
 
+	/* NCL config command */
+	HCLGE_OPC_QUERY_NCL_CONFIG	= 0x7011,
+
 	/* SFP command */
-	HCLGE_OPC_SFP_GET_SPEED		= 0x7104,
+	HCLGE_OPC_GET_SFP_INFO		= 0x7104,
 
 	/* Error INT commands */
 	HCLGE_MAC_COMMON_INT_EN		= 0x030E,
@@ -593,9 +600,30 @@ struct hclge_config_auto_neg_cmd {
 	u8      rsv[20];
 };
 
-struct hclge_sfp_speed_cmd {
-	__le32	sfp_speed;
-	u32	rsv[5];
+struct hclge_sfp_info_cmd {
+	__le32 speed;
+	u8 query_type; /* 0: sfp speed, 1: active speed */
+	u8 active_fec;
+	u8 autoneg; /* autoneg state */
+	u8 autoneg_ability; /* whether support autoneg */
+	__le32 speed_ability; /* speed ability for current media */
+	__le32 module_type;
+	u8 rsv[8];
+};
+
+#define HCLGE_MAC_CFG_FEC_AUTO_EN_B	0
+#define HCLGE_MAC_CFG_FEC_MODE_S	1
+#define HCLGE_MAC_CFG_FEC_MODE_M	GENMASK(3, 1)
+#define HCLGE_MAC_CFG_FEC_SET_DEF_B	0
+#define HCLGE_MAC_CFG_FEC_CLR_DEF_B	1
+
+#define HCLGE_MAC_FEC_OFF		0
+#define HCLGE_MAC_FEC_BASER		1
+#define HCLGE_MAC_FEC_RS		2
+struct hclge_config_fec_cmd {
+	u8 fec_mode;
+	u8 default_config;
+	u8 rsv[22];
 };
 
 #define HCLGE_MAC_UPLINK_PORT		0x100

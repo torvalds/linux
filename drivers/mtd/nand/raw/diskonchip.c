@@ -1028,6 +1028,7 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 {
 	struct nand_chip *this = mtd_to_nand(mtd);
 	struct doc_priv *doc = nand_get_controller_data(this);
+	struct nand_memory_organization *memorg;
 	int ret = 0;
 	u_char *buf;
 	struct NFTLMediaHeader *mh;
@@ -1035,6 +1036,8 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 	int numparts = 0;
 	unsigned blocks, maxblocks;
 	int offs, numheaders;
+
+	memorg = nanddev_get_memorg(&this->base);
 
 	buf = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!buf) {
@@ -1082,6 +1085,7 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 	   implementation of the NAND layer.  */
 	if (mh->UnitSizeFactor != 0xff) {
 		this->bbt_erase_shift += (0xff - mh->UnitSizeFactor);
+		memorg->pages_per_eraseblock <<= (0xff - mh->UnitSizeFactor);
 		mtd->erasesize <<= (0xff - mh->UnitSizeFactor);
 		pr_info("Setting virtual erase size to %d\n", mtd->erasesize);
 		blocks = mtd->size >> this->bbt_erase_shift;
@@ -1287,7 +1291,7 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 	struct doc_priv *doc = nand_get_controller_data(this);
 	struct mtd_partition parts[5];
 
-	if (this->numchips > doc->chips_per_floor) {
+	if (nanddev_ntargets(&this->base) > doc->chips_per_floor) {
 		pr_err("Multi-floor INFTL devices not yet supported.\n");
 		return -EIO;
 	}
@@ -1477,6 +1481,7 @@ static int __init doc_probe(unsigned long physadr)
 			break;
 		case DOC_ChipID_DocMilPlus32:
 			pr_err("DiskOnChip Millennium Plus 32MB is not supported, ignoring.\n");
+			/* fall through */
 		default:
 			ret = -ENODEV;
 			goto notfound;
