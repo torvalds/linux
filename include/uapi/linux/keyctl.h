@@ -67,6 +67,7 @@
 #define KEYCTL_PKEY_SIGN		27	/* Create a public key signature */
 #define KEYCTL_PKEY_VERIFY		28	/* Verify a public key signature */
 #define KEYCTL_RESTRICT_KEYRING		29	/* Restrict keys allowed to link to a keyring */
+#define KEYCTL_MOVE			30	/* Move keys between keyrings */
 
 /* keyctl structures */
 struct keyctl_dh_params {
@@ -111,5 +112,7 @@ struct keyctl_pkey_params {
 	};
 	__u32		__spare[7];
 };
+
+#define KEYCTL_MOVE_EXCL	0x00000001 /* Do not displace from the to-keyring */
 
 #endif /*  _LINUX_KEYCTL_H */

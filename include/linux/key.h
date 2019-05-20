@@ -310,6 +310,11 @@ extern int key_update(key_ref_t key,
 extern int key_link(struct key *keyring,
 		    struct key *key);
 
+extern int key_move(struct key *key,
+		    struct key *from_keyring,
+		    struct key *to_keyring,
+		    unsigned int flags);
+
 extern int key_unlink(struct key *keyring,
 		      struct key *key);
 

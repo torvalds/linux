@@ -1222,6 +1222,40 @@ int __key_link_lock(struct key *keyring,
 }
 
 /*
+ * Lock keyrings for move (link/unlink combination).
+ */
+int __key_move_lock(struct key *l_keyring, struct key *u_keyring,
+		    const struct keyring_index_key *index_key)
+	__acquires(&l_keyring->sem)
+	__acquires(&u_keyring->sem)
+	__acquires(&keyring_serialise_link_lock)
+{
+	if (l_keyring->type != &key_type_keyring ||
+	    u_keyring->type != &key_type_keyring)
+		return -ENOTDIR;
+
+	/* We have to be very careful here to take the keyring locks in the
+	 * right order, lest we open ourselves to deadlocking against another
+	 * move operation.
+	 */
+	if (l_keyring < u_keyring) {
+		down_write(&l_keyring->sem);
+		down_write_nested(&u_keyring->sem, 1);
+	} else {
+		down_write(&u_keyring->sem);
+		down_write_nested(&l_keyring->sem, 1);
+	}
+
+	/* Serialise link/link calls to prevent parallel calls causing a cycle
+	 * when linking two keyring in opposite orders.
+	 */
+	if (index_key->type == &key_type_keyring)
+		mutex_lock(&keyring_serialise_link_lock);
+
+	return 0;
+}
+
+/*
  * Preallocate memory so that a key can be linked into to a keyring.
  */
 int __key_link_begin(struct key *keyring,
@@ -1493,6 +1527,80 @@ int key_unlink(struct key *keyring, struct key *key)
 	return ret;
 }
 EXPORT_SYMBOL(key_unlink);
+
+/**
+ * key_move - Move a key from one keyring to another
+ * @key: The key to move
+ * @from_keyring: The keyring to remove the link from.
+ * @to_keyring: The keyring to make the link in.
+ * @flags: Qualifying flags, such as KEYCTL_MOVE_EXCL.
+ *
+ * Make a link in @to_keyring to a key, such that the keyring holds a reference
+ * on that key and the key can potentially be found by searching that keyring
+ * whilst simultaneously removing a link to the key from @from_keyring.
+ *
+ * This function will write-lock both keyring's semaphores and will consume
+ * some of the user's key data quota to hold the link on @to_keyring.
+ *
+ * Returns 0 if successful, -ENOTDIR if either keyring isn't a keyring,
+ * -EKEYREVOKED if either keyring has been revoked, -ENFILE if the second
+ * keyring is full, -EDQUOT if there is insufficient key data quota remaining
+ * to add another link or -ENOMEM if there's insufficient memory.  If
+ * KEYCTL_MOVE_EXCL is set, then -EEXIST will be returned if there's already a
+ * matching key in @to_keyring.
+ *
+ * It is assumed that the caller has checked that it is permitted for a link to
+ * be made (the keyring should have Write permission and the key Link
+ * permission).
+ */
+int key_move(struct key *key,
+	     struct key *from_keyring,
+	     struct key *to_keyring,
+	     unsigned int flags)
+{
+	struct assoc_array_edit *from_edit = NULL, *to_edit = NULL;
+	int ret;
+
+	kenter("%d,%d,%d", key->serial, from_keyring->serial, to_keyring->serial);
+
+	if (from_keyring == to_keyring)
+		return 0;
+
+	key_check(key);
+	key_check(from_keyring);
+	key_check(to_keyring);
+
+	ret = __key_move_lock(from_keyring, to_keyring, &key->index_key);
+	if (ret < 0)
+		goto out;
+	ret = __key_unlink_begin(from_keyring, key, &from_edit);
+	if (ret < 0)
+		goto error;
+	ret = __key_link_begin(to_keyring, &key->index_key, &to_edit);
+	if (ret < 0)
+		goto error;
+
+	ret = -EEXIST;
+	if (to_edit->dead_leaf && (flags & KEYCTL_MOVE_EXCL))
+		goto error;
+
+	ret = __key_link_check_restriction(to_keyring, key);
+	if (ret < 0)
+		goto error;
+	ret = __key_link_check_live_key(to_keyring, key);
+	if (ret < 0)
+		goto error;
+
+	__key_unlink(from_keyring, key, &from_edit);
+	__key_link(key, &to_edit);
+error:
+	__key_link_end(to_keyring, &key->index_key, to_edit);
+	__key_unlink_end(from_keyring, key, from_edit);
+out:
+	kleave(" = %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL(key_move);
 
 /**
  * keyring_clear - Clear a keyring
