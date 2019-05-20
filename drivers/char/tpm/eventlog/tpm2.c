@@ -36,7 +36,7 @@
 static size_t calc_tpm2_event_size(struct tcg_pcr_event2_head *event,
 				   struct tcg_pcr_event *event_header)
 {
-	return __calc_tpm2_event_size(event, event_header);
+	return __calc_tpm2_event_size(event, event_header, false);
 }
 
 static void *tpm2_bios_measurements_start(struct seq_file *m, loff_t *pos)
