@@ -130,8 +130,9 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 
 		copy_len = len > C4IW_MAX_INLINE_SIZE ? C4IW_MAX_INLINE_SIZE :
 			   len;
-		wr_len = roundup(sizeof *req + sizeof *sc +
-				 roundup(copy_len, T4_ULPTX_MIN_IO), 16);
+		wr_len = roundup(sizeof(*req) + sizeof(*sc) +
+					 roundup(copy_len, T4_ULPTX_MIN_IO),
+				 16);
 
 		if (!skb) {
 			skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
