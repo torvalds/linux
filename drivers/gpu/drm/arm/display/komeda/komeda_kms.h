@@ -7,6 +7,7 @@
 #ifndef _KOMEDA_KMS_H_
 #define _KOMEDA_KMS_H_
 
+#include <linux/list.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -46,6 +47,8 @@ struct komeda_plane {
 struct komeda_plane_state {
 	/** @base: &drm_plane_state */
 	struct drm_plane_state base;
+	/** @zlist_node: zorder list node */
+	struct list_head zlist_node;
 
 	/* @img_enhancement: on/off image enhancement */
 	u8 img_enhancement : 1;

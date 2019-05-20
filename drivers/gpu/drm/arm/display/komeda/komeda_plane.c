@@ -22,7 +22,7 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 
 	memset(dflow, 0, sizeof(*dflow));
 
-	dflow->blending_zorder = st->zpos;
+	dflow->blending_zorder = st->normalized_zpos;
 
 	/* if format doesn't have alpha, fix blend mode to PIXEL_NONE */
 	dflow->pixel_blend_mode = fb->format->has_alpha ?
@@ -342,6 +342,10 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 			BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 			DRM_COLOR_YCBCR_BT601,
 			DRM_COLOR_YCBCR_LIMITED_RANGE);
+	if (err)
+		goto cleanup;
+
+	err = drm_plane_create_zpos_property(plane, layer->base.id, 0, 8);
 	if (err)
 		goto cleanup;
 

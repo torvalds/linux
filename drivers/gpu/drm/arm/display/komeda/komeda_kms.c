@@ -100,6 +100,90 @@ static const struct drm_mode_config_helper_funcs komeda_mode_config_helpers = {
 	.atomic_commit_tail = komeda_kms_commit_tail,
 };
 
+static int komeda_plane_state_list_add(struct drm_plane_state *plane_st,
+				       struct list_head *zorder_list)
+{
+	struct komeda_plane_state *new = to_kplane_st(plane_st);
+	struct komeda_plane_state *node, *last;
+
+	last = list_empty(zorder_list) ?
+	       NULL : list_last_entry(zorder_list, typeof(*last), zlist_node);
+
+	/* Considering the list sequence is zpos increasing, so if list is empty
+	 * or the zpos of new node bigger than the last node in list, no need
+	 * loop and just insert the new one to the tail of the list.
+	 */
+	if (!last || (new->base.zpos > last->base.zpos)) {
+		list_add_tail(&new->zlist_node, zorder_list);
+		return 0;
+	}
+
+	/* Build the list by zpos increasing */
+	list_for_each_entry(node, zorder_list, zlist_node) {
+		if (new->base.zpos < node->base.zpos) {
+			list_add_tail(&new->zlist_node, &node->zlist_node);
+			break;
+		} else if (node->base.zpos == new->base.zpos) {
+			struct drm_plane *a = node->base.plane;
+			struct drm_plane *b = new->base.plane;
+
+			/* Komeda doesn't support setting a same zpos for
+			 * different planes.
+			 */
+			DRM_DEBUG_ATOMIC("PLANE: %s and PLANE: %s are configured same zpos: %d.\n",
+					 a->name, b->name, node->base.zpos);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
+				      struct drm_crtc_state *crtc_st)
+{
+	struct drm_atomic_state *state = crtc_st->state;
+	struct komeda_plane_state *kplane_st;
+	struct drm_plane_state *plane_st;
+	struct drm_framebuffer *fb;
+	struct drm_plane *plane;
+	struct list_head zorder_list;
+	int order = 0, err;
+
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating normalized zpos values\n",
+			 crtc->base.id, crtc->name);
+
+	INIT_LIST_HEAD(&zorder_list);
+
+	/* This loop also added all effected planes into the new state */
+	drm_for_each_plane_mask(plane, crtc->dev, crtc_st->plane_mask) {
+		plane_st = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_st))
+			return PTR_ERR(plane_st);
+
+		/* Build a list by zpos increasing */
+		err = komeda_plane_state_list_add(plane_st, &zorder_list);
+		if (err)
+			return err;
+	}
+
+	list_for_each_entry(kplane_st, &zorder_list, zlist_node) {
+		plane_st = &kplane_st->base;
+		fb = plane_st->fb;
+		plane = plane_st->plane;
+
+		plane_st->normalized_zpos = order++;
+
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, normalized zpos: %d\n",
+				 plane->base.id, plane->name,
+				 plane_st->zpos, plane_st->normalized_zpos);
+	}
+
+	crtc_st->zpos_changed = true;
+
+	return 0;
+}
+
 static int komeda_kms_check(struct drm_device *dev,
 			    struct drm_atomic_state *state)
 {
@@ -111,12 +195,16 @@ static int komeda_kms_check(struct drm_device *dev,
 	if (err)
 		return err;
 
-	/* komeda need to re-calculate resource assumption in every commit
+	/* Komeda need to re-calculate resource assumption in every commit
 	 * so need to add all affected_planes (even unchanged) to
 	 * drm_atomic_state.
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_st, new_crtc_st, i) {
 		err = drm_atomic_add_affected_planes(state, crtc);
+		if (err)
+			return err;
+
+		err = komeda_crtc_normalize_zpos(crtc, new_crtc_st);
 		if (err)
 			return err;
 	}
