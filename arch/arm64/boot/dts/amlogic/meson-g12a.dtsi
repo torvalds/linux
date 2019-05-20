@@ -290,6 +290,7 @@
 								 "hdmitx_sck";
 							function = "hdmitx";
 							bias-disable;
+							drive-strength-microamp = <4000>;
 						};
 					};
 
