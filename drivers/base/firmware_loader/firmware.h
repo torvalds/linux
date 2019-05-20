@@ -133,4 +133,10 @@ static inline void fw_state_done(struct fw_priv *fw_priv)
 int assign_fw(struct firmware *fw, struct device *device,
 	      enum fw_opt opt_flags);
 
+#ifdef CONFIG_FW_LOADER_USER_HELPER
+void fw_free_paged_buf(struct fw_priv *fw_priv);
+#else
+static inline void fw_free_paged_buf(struct fw_priv *fw_priv) {}
+#endif
+
 #endif /* __FIRMWARE_LOADER_H */

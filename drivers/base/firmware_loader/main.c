@@ -251,15 +251,7 @@ static void __free_fw_priv(struct kref *ref)
 	list_del(&fw_priv->list);
 	spin_unlock(&fwc->lock);
 
-#ifdef CONFIG_FW_LOADER_USER_HELPER
-	if (fw_priv->pages) {
-		/* free leftover pages */
-		int i;
-		for (i = 0; i < fw_priv->nr_pages; i++)
-			__free_page(fw_priv->pages[i]);
-		vfree(fw_priv->pages);
-	}
-#endif
+	fw_free_paged_buf(fw_priv); /* free leftover pages */
 	if (!fw_priv->allocated_size)
 		vfree(fw_priv->data);
 	kfree_const(fw_priv->fw_name);
@@ -273,6 +265,23 @@ static void free_fw_priv(struct fw_priv *fw_priv)
 	if (!kref_put(&fw_priv->ref, __free_fw_priv))
 		spin_unlock(&fwc->lock);
 }
+
+#ifdef CONFIG_FW_LOADER_USER_HELPER
+void fw_free_paged_buf(struct fw_priv *fw_priv)
+{
+	int i;
+
+	if (!fw_priv->pages)
+		return;
+
+	for (i = 0; i < fw_priv->nr_pages; i++)
+		__free_page(fw_priv->pages[i]);
+	vfree(fw_priv->pages);
+	fw_priv->pages = NULL;
+	fw_priv->page_array_size = 0;
+	fw_priv->nr_pages = 0;
+}
+#endif
 
 /* direct firmware loading support */
 static char fw_path_para[256];
