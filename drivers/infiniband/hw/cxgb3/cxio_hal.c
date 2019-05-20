@@ -219,7 +219,7 @@ static u32 get_qpid(struct cxio_rdev *rdev_p, struct cxio_ucontext *uctx)
 		if (!qpid)
 			goto out;
 		for (i = qpid+1; i & rdev_p->qpmask; i++) {
-			entry = kmalloc(sizeof *entry, GFP_KERNEL);
+			entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 			if (!entry)
 				break;
 			entry->qpid = i;
@@ -237,7 +237,7 @@ static void put_qpid(struct cxio_rdev *rdev_p, u32 qpid,
 {
 	struct cxio_qpid_list *entry;
 
-	entry = kmalloc(sizeof *entry, GFP_KERNEL);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return;
 	pr_debug("%s qpid 0x%x\n", __func__, qpid);

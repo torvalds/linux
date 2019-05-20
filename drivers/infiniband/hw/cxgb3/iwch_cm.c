@@ -170,7 +170,7 @@ static void release_tid(struct t3cdev *tdev, u32 hwtid, struct sk_buff *skb)
 {
 	struct cpl_tid_release *req;
 
-	skb = get_skb(skb, sizeof *req, GFP_KERNEL);
+	skb = get_skb(skb, sizeof(*req), GFP_KERNEL);
 	if (!skb)
 		return;
 	req = skb_put(skb, sizeof(*req));

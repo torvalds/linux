@@ -127,7 +127,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 
 	if (udata) {
 		if (!t3a_device(rhp)) {
-			if (ib_copy_from_udata(&ureq, udata, sizeof (ureq))) {
+			if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
 				kfree(chp);
 				return ERR_PTR(-EFAULT);
 			}
@@ -172,7 +172,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		struct iwch_ucontext *ucontext = rdma_udata_to_drv_context(
 			udata, struct iwch_ucontext, ibucontext);
 
-		mm = kmalloc(sizeof *mm, GFP_KERNEL);
+		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
 		if (!mm) {
 			iwch_destroy_cq(&chp->ibcq, udata);
 			return ERR_PTR(-ENOMEM);
@@ -185,7 +185,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		spin_unlock(&ucontext->mmap_lock);
 		mm->key = uresp.key;
 		mm->addr = virt_to_phys(chp->cq.queue);
-		if (udata->outlen < sizeof uresp) {
+		if (udata->outlen < sizeof(uresp)) {
 			if (!warned++)
 				pr_warn("Warning - downlevel libcxgb3 (non-fatal)\n");
 			mm->len = PAGE_ALIGN((1UL << uresp.size_log2) *
@@ -196,7 +196,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 					     sizeof(struct t3_cqe));
 			uresp.memsize = mm->len;
 			uresp.reserved = 0;
-			resplen = sizeof uresp;
+			resplen = sizeof(uresp);
 		}
 		if (ib_copy_to_udata(udata, &uresp, resplen)) {
 			kfree(mm);
@@ -553,7 +553,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	for_each_sg_dma_page(mhp->umem->sg_head.sgl, &sg_iter, mhp->umem->nmap, 0) {
 		pages[i++] = cpu_to_be64(sg_page_iter_dma_address(&sg_iter));
-		if (i == PAGE_SIZE / sizeof *pages) {
+		if (i == PAGE_SIZE / sizeof(*pages)) {
 			err = iwch_write_pbl(mhp, pages, i, n);
 			if (err)
 				goto pbl_done;
@@ -587,7 +587,7 @@ pbl_done:
 		pr_debug("%s user resp pbl_addr 0x%x\n", __func__,
 			 uresp.pbl_addr);
 
-		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
+		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
 			iwch_dereg_mr(&mhp->ibmr, udata);
 			err = -EFAULT;
 			goto err;
@@ -880,13 +880,13 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 
 		struct iwch_mm_entry *mm1, *mm2;
 
-		mm1 = kmalloc(sizeof *mm1, GFP_KERNEL);
+		mm1 = kmalloc(sizeof(*mm1), GFP_KERNEL);
 		if (!mm1) {
 			iwch_destroy_qp(&qhp->ibqp, udata);
 			return ERR_PTR(-ENOMEM);
 		}
 
-		mm2 = kmalloc(sizeof *mm2, GFP_KERNEL);
+		mm2 = kmalloc(sizeof(*mm2), GFP_KERNEL);
 		if (!mm2) {
 			kfree(mm1);
 			iwch_destroy_qp(&qhp->ibqp, udata);
@@ -903,7 +903,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		uresp.db_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
 		spin_unlock(&ucontext->mmap_lock);
-		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
+		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
 			kfree(mm1);
 			kfree(mm2);
 			iwch_destroy_qp(&qhp->ibqp, udata);
@@ -911,7 +911,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		}
 		mm1->key = uresp.key;
 		mm1->addr = virt_to_phys(qhp->wq.queue);
-		mm1->len = PAGE_ALIGN(wqsize * sizeof (union t3_wr));
+		mm1->len = PAGE_ALIGN(wqsize * sizeof(union t3_wr));
 		insert_mmap(ucontext, mm1);
 		mm2->key = uresp.db_key;
 		mm2->addr = qhp->wq.udb & PAGE_MASK;
@@ -932,7 +932,7 @@ static int iwch_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct iwch_dev *rhp;
 	struct iwch_qp *qhp;
 	enum iwch_qp_attr_mask mask = 0;
-	struct iwch_qp_attributes attrs;
+	struct iwch_qp_attributes attrs = {};
 
 	pr_debug("%s ib_qp %p\n", __func__, ibqp);
 
@@ -944,7 +944,6 @@ static int iwch_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (!attr_mask)
 		return 0;
 
-	memset(&attrs, 0, sizeof attrs);
 	qhp = to_iwch_qp(ibqp);
 	rhp = qhp->rhp;
 
@@ -1040,7 +1039,6 @@ static int iwch_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 		return -EINVAL;
 
 	dev = to_iwch_dev(ibdev);
-	memset(props, 0, sizeof *props);
 	memcpy(&props->sys_image_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
 	props->hw_ver = dev->rdev.t3cdev_p->type;
 	props->fw_ver = fw_vers_string_to_u64(dev);
