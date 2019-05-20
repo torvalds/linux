@@ -519,6 +519,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	/* compute number of dai links */
 	sof_audio_card_rt5682.num_links = 1 + dmic_num + hdmi_num;
+
 	if (sof_rt5682_quirk & SOF_SPEAKER_AMP_PRESENT)
 		sof_audio_card_rt5682.num_links++;
 
