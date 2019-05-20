@@ -139,6 +139,9 @@ static inline int check_pad(struct v4l2_subdev *sd, __u32 pad)
 static inline int check_format(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_format *format)
 {
+	if (!format)
+		return -EINVAL;
+
 	return check_which(format->which) ? : check_pad(sd, format->pad);
 }
 
@@ -162,6 +165,9 @@ static int call_enum_mbus_code(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_mbus_code_enum *code)
 {
+	if (!code)
+		return -EINVAL;
+
 	return check_which(code->which) ? : check_pad(sd, code->pad) ? :
 	       sd->ops->pad->enum_mbus_code(sd, cfg, code);
 }
@@ -170,6 +176,9 @@ static int call_enum_frame_size(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
+	if (!fse)
+		return -EINVAL;
+
 	return check_which(fse->which) ? : check_pad(sd, fse->pad) ? :
 	       sd->ops->pad->enum_frame_size(sd, cfg, fse);
 }
@@ -177,6 +186,9 @@ static int call_enum_frame_size(struct v4l2_subdev *sd,
 static inline int check_frame_interval(struct v4l2_subdev *sd,
 				       struct v4l2_subdev_frame_interval *fi)
 {
+	if (!fi)
+		return -EINVAL;
+
 	return check_pad(sd, fi->pad);
 }
 
@@ -198,6 +210,9 @@ static int call_enum_frame_interval(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_interval_enum *fie)
 {
+	if (!fie)
+		return -EINVAL;
+
 	return check_which(fie->which) ? : check_pad(sd, fie->pad) ? :
 	       sd->ops->pad->enum_frame_interval(sd, cfg, fie);
 }
@@ -205,6 +220,9 @@ static int call_enum_frame_interval(struct v4l2_subdev *sd,
 static inline int check_selection(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_selection *sel)
 {
+	if (!sel)
+		return -EINVAL;
+
 	return check_which(sel->which) ? : check_pad(sd, sel->pad);
 }
 
@@ -227,6 +245,9 @@ static int call_set_selection(struct v4l2_subdev *sd,
 static inline int check_edid(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_edid *edid)
 {
+	if (!edid)
+		return -EINVAL;
+
 	if (edid->blocks && edid->edid == NULL)
 		return -EINVAL;
 
@@ -246,6 +267,9 @@ static int call_set_edid(struct v4l2_subdev *sd, struct v4l2_subdev_edid *edid)
 static int call_dv_timings_cap(struct v4l2_subdev *sd,
 			       struct v4l2_dv_timings_cap *cap)
 {
+	if (!cap)
+		return -EINVAL;
+
 	return check_pad(sd, cap->pad) ? :
 	       sd->ops->pad->dv_timings_cap(sd, cap);
 }
@@ -253,6 +277,9 @@ static int call_dv_timings_cap(struct v4l2_subdev *sd,
 static int call_enum_dv_timings(struct v4l2_subdev *sd,
 				struct v4l2_enum_dv_timings *dvt)
 {
+	if (!dvt)
+		return -EINVAL;
+
 	return check_pad(sd, dvt->pad) ? :
 	       sd->ops->pad->enum_dv_timings(sd, dvt);
 }
