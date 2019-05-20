@@ -1070,11 +1070,6 @@ static int i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	struct i40iw_device *iwdev;
 	struct i40iw_sc_cq *cq;
 
-	if (!ib_cq) {
-		i40iw_pr_err("ib_cq == NULL\n");
-		return 0;
-	}
-
 	iwcq = to_iwcq(ib_cq);
 	iwdev = to_iwdev(ib_cq->device);
 	cq = &iwcq->sc_cq;
@@ -2771,9 +2766,6 @@ void i40iw_port_ibevent(struct i40iw_device *iwdev)
  */
 void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
 {
-	if (!iwibdev)
-		return;
-
 	ib_unregister_device(&iwibdev->ibdev);
 	wait_event_timeout(iwibdev->iwdev->close_wq,
 			   !atomic64_read(&iwibdev->iwdev->use_count),
