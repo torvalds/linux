@@ -2259,6 +2259,26 @@ static struct clk_regmap meson8b_cts_mclk_i958 = {
 	},
 };
 
+static struct clk_regmap meson8b_cts_i958 = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.mask = 0x1,
+		.shift = 27,
+		},
+	.hw.init = &(struct clk_init_data){
+		.name = "cts_i958",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = (const char *[]){ "cts_amclk",
+						  "cts_mclk_i958" },
+		.num_parents = 2,
+		/*
+		 * The parent is specific to origin of the audio data. Let the
+		 * consumer choose the appropriate parent.
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 
 static MESON_GATE(meson8b_ddr, HHI_GCLK_MPEG0, 0);
@@ -2544,6 +2564,7 @@ static struct clk_hw_onecell_data meson8_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958_SEL]   = &meson8b_cts_mclk_i958_sel.hw,
 		[CLKID_CTS_MCLK_I958_DIV]   = &meson8b_cts_mclk_i958_div.hw,
 		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
+		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -2759,6 +2780,7 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958_SEL]   = &meson8b_cts_mclk_i958_sel.hw,
 		[CLKID_CTS_MCLK_I958_DIV]   = &meson8b_cts_mclk_i958_div.hw,
 		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
+		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -2976,6 +2998,7 @@ static struct clk_hw_onecell_data meson8m2_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958_SEL]   = &meson8b_cts_mclk_i958_sel.hw,
 		[CLKID_CTS_MCLK_I958_DIV]   = &meson8b_cts_mclk_i958_div.hw,
 		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
+		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -3171,6 +3194,7 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_cts_mclk_i958_sel,
 	&meson8b_cts_mclk_i958_div,
 	&meson8b_cts_mclk_i958,
+	&meson8b_cts_i958,
 };
 
 static const struct meson8b_clk_reset_line {
