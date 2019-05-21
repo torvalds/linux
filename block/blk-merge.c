@@ -358,7 +358,6 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	unsigned front_seg_size;
 	struct bio *fbio, *bbio;
 	struct bvec_iter iter;
-	bool new_bio = false;
 
 	if (!bio)
 		return 0;
@@ -379,31 +378,12 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	nr_phys_segs = 0;
 	for_each_bio(bio) {
 		bio_for_each_bvec(bv, bio, iter) {
-			if (new_bio) {
-				if (seg_size + bv.bv_len
-				    > queue_max_segment_size(q))
-					goto new_segment;
-				if (!biovec_phys_mergeable(q, &bvprv, &bv))
-					goto new_segment;
-
-				seg_size += bv.bv_len;
-
-				if (nr_phys_segs == 1 && seg_size >
-						front_seg_size)
-					front_seg_size = seg_size;
-
-				continue;
-			}
-new_segment:
 			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
 					&front_seg_size, NULL, UINT_MAX);
-			new_bio = false;
 		}
 		bbio = bio;
-		if (likely(bio->bi_iter.bi_size)) {
+		if (likely(bio->bi_iter.bi_size))
 			bvprv = bv;
-			new_bio = true;
-		}
 	}
 
 	fbio->bi_seg_front_size = front_seg_size;
@@ -725,7 +705,6 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 			req->bio->bi_seg_front_size = seg_size;
 		if (next->nr_phys_segments == 1)
 			next->biotail->bi_seg_back_size = seg_size;
-		total_phys_segments--;
 	}
 
 	if (total_phys_segments > queue_max_segments(q))
