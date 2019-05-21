@@ -4,6 +4,7 @@
  *
  * Author(s): Tony Krowiak <akrowiak@linux.ibm.com>
  *	      Halil Pasic <pasic@linux.ibm.com>
+ *	      Pierre Morel <pmorel@linux.ibm.com>
  *
  * Copyright IBM Corp. 2018
  */
@@ -89,5 +90,15 @@ struct ap_matrix_mdev {
 
 extern int vfio_ap_mdev_register(void);
 extern void vfio_ap_mdev_unregister(void);
+int vfio_ap_mdev_reset_queue(unsigned int apid, unsigned int apqi,
+			     unsigned int retry);
 
+struct vfio_ap_queue {
+	struct ap_matrix_mdev *matrix_mdev;
+	unsigned long saved_pfn;
+	int	apqn;
+#define VFIO_AP_ISC_INVALID 0xff
+	unsigned char saved_isc;
+};
+struct ap_queue_status vfio_ap_irq_disable(struct vfio_ap_queue *q);
 #endif /* _VFIO_AP_PRIVATE_H_ */
