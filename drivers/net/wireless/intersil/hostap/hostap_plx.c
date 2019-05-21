@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define PRISM2_PLX
 
 /* Host AP driver's support for PC Cards on PCI adapters using PLX9052 is

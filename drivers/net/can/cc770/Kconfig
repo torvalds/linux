@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig CAN_CC770
 	tristate "Bosch CC770 and Intel AN82527 devices"
 	depends on HAS_IOMEM

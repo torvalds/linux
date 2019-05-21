@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*  Silan SC92031 PCI Fast Ethernet Adapter driver
  *
  *  Based on vendor drivers:

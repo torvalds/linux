@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CDNS_I3C_MASTER
 	tristate "Cadence I3C master driver"
 	depends on I3C

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 preferred-plugin-hostcc := $(if-success,[ $(gcc-version) -ge 40800 ],$(HOSTCXX),$(HOSTCC))
 
 config PLUGIN_HOSTCC

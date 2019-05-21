@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sama5d3xmb_gmac.dtsi - Device Tree Include file for SAMA5D3x motherboard
  * Gigabit Ethernet
  *
  *  Copyright (C) 2016 Atmel,
- *
- * Licensed under GPLv2 or later.
  */
 
 / {

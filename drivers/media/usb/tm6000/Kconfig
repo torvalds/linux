@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_TM6000
 	tristate "TV Master TM5600/6000/6010 driver"
 	depends on VIDEO_DEV && I2C && INPUT && RC_CORE && USB

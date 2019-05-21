@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_TOMOYO
 	bool "TOMOYO Linux Support"
 	depends on SECURITY

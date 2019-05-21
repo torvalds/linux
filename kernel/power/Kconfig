@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SUSPEND
 	bool "Suspend to RAM and standby"
 	depends on ARCH_SUSPEND_POSSIBLE

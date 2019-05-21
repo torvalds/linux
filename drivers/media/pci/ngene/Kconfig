@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_NGENE
 	tristate "Micronas nGene support"
 	depends on DVB_CORE && PCI && I2C

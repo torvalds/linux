@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Western Digital WD7193, WD7197 and WD7296 SCSI cards
  * Copyright 2013 Ondrej Zary

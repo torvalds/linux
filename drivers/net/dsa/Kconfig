@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Distributed Switch Architecture drivers"
 	depends on HAVE_NET_DSA
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_OMAP1
 
 menu "TI OMAP1 specific features"

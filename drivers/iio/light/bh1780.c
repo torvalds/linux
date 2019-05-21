@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ROHM 1780GLI Ambient Light Sensor Driver
  *

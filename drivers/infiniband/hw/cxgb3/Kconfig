@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_CXGB3
 	tristate "Chelsio RDMA Driver"
 	depends on CHELSIO_T3

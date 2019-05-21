@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm PM8xxx PMIC XOADC driver
  *

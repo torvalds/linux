@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_ARCPGU
 	tristate "ARC PGU"
 	depends on DRM && OF

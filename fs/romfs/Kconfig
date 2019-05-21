@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ROMFS_FS
 	tristate "ROM file system support"
 	depends on BLOCK || MTD

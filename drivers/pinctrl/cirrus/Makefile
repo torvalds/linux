@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Cirrus Logic pinctrl drivers
 obj-$(CONFIG_PINCTRL_LOCHNAGAR)	+= pinctrl-lochnagar.o
 

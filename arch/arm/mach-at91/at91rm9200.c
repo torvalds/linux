@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Setup code for AT91RM9200
  *
  *  Copyright (C) 2011 Atmel,
  *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
  *                2012 Joachim Eastwood <manabian@gmail.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/of.h>

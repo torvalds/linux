@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_DDBRIDGE
 	tristate "Digital Devices bridge support"
 	depends on DVB_CORE && PCI && I2C

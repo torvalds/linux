@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * D-Link DIR-685 router I2C-based Touchkeys input driver
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>

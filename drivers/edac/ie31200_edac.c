@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel E3-1200
  * Copyright (C) 2014 Jason Baron <jbaron@akamai.com>

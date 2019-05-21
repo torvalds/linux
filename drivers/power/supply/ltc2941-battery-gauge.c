@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C client/driver for the Linear Technology LTC2941, LTC2942, LTC2943
  * and LTC2944 Battery Gas Gauge IC

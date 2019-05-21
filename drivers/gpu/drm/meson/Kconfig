@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_MESON
 	tristate "DRM Support for Amlogic Meson Display Controller"
 	depends on DRM && OF && (ARM || ARM64)

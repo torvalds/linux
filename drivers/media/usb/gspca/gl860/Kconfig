@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config USB_GL860
 	tristate "GL860 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

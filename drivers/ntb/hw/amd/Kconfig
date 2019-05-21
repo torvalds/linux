@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NTB_AMD
 	tristate "AMD Non-Transparent Bridge support"
 	depends on X86_64

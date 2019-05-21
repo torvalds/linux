@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Audio support for Texas Instruments SoCs"
 depends on DMA_OMAP || TI_EDMA || COMPILE_TEST
 

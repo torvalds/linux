@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CONFIGFS_FS
 	tristate "Userspace-driven configuration filesystem"
 	select SYSFS
