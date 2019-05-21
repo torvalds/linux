@@ -611,6 +611,7 @@ struct pptable_funcs {
 					     enum smu_clk_type clk_type,
 					     uint32_t *value);
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
+	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
 };
 
 struct smu_funcs
@@ -897,6 +898,8 @@ struct smu_funcs
 	((smu)->funcs->register_irq_handler ? (smu)->funcs->register_irq_handler(smu) : 0)
 #define smu_set_azalia_d3_pme(smu) \
 	((smu)->funcs->set_azalia_d3_pme ? (smu)->funcs->set_azalia_d3_pme((smu)) : 0)
+#define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
+	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

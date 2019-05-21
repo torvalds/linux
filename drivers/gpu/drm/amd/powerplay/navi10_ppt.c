@@ -1248,6 +1248,35 @@ static int navi10_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
+static int navi10_get_uclk_dpm_states(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states)
+{
+	uint32_t num_discrete_levels = 0;
+	uint16_t *dpm_levels = NULL;
+	uint16_t i = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *driver_ppt = NULL;
+
+	if (!clocks_in_khz || !num_states || !table_context->driver_pptable)
+		return -EINVAL;
+
+	driver_ppt = table_context->driver_pptable;
+	num_discrete_levels = driver_ppt->DpmDescriptor[PPCLK_UCLK].NumDiscreteLevels;
+	dpm_levels = driver_ppt->FreqTableUclk;
+
+	if (num_discrete_levels == 0 || dpm_levels == NULL)
+		return -EINVAL;
+
+	*num_states = num_discrete_levels;
+	for (i = 0; i < num_discrete_levels; i++) {
+		/* convert to khz */
+		*clocks_in_khz = (*dpm_levels) * 1000;
+		clocks_in_khz++;
+		dpm_levels++;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1281,6 +1310,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_profiling_clk_mask = navi10_get_profiling_clk_mask,
 	.set_watermarks_table = navi10_set_watermarks_table,
 	.read_sensor = navi10_read_sensor,
+	.get_uclk_dpm_states = navi10_get_uclk_dpm_states,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
