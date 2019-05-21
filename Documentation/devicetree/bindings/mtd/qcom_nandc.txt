@@ -47,8 +47,8 @@ Required properties:
 - #size-cells:		see partition.txt
 
 Optional properties:
-- nand-bus-width:	see nand.txt
-- nand-ecc-strength:	see nand.txt. If not specified, then ECC strength will
+- nand-bus-width:	see nand-controller.yaml
+- nand-ecc-strength:	see nand-controller.yaml. If not specified, then ECC strength will
 			be used according to chip requirement and available
 			OOB size.
 

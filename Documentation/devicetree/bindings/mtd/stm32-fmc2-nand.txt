@@ -24,9 +24,9 @@ Required properties:
 - reg: describes the CS lines assigned to the NAND device.
 
 Optional properties:
-- nand-on-flash-bbt: see nand.txt
-- nand-ecc-strength: see nand.txt
-- nand-ecc-step-size: see nand.txt
+- nand-on-flash-bbt: see nand-controller.yaml
+- nand-ecc-strength: see nand-controller.yaml
+- nand-ecc-step-size: see nand-controller.yaml
 
 The following ECC strength and step size are currently supported:
  - nand-ecc-strength = <1>, nand-ecc-step-size = <512> (Hamming)
