@@ -37,9 +37,6 @@ static ssize_t ssid_show(struct device *dev, struct device_attribute *attr,
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
-	if (!pcard)
-		return -ENXIO;
-
 	return sprintf(buf, "%016llx\n", pcard->ssid);
 }
 static DEVICE_ATTR_RO(ssid);
@@ -48,9 +45,6 @@ static ssize_t ddna_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
-
-	if (!pcard)
-		return -ENXIO;
 
 	return sprintf(buf, "%016llx\n", pcard->ddna);
 }
@@ -61,9 +55,6 @@ static ssize_t card_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
-	if (!pcard)
-		return -ENXIO;
-
 	return sprintf(buf, "%08x\n", pcard->card_id);
 }
 static DEVICE_ATTR_RO(card_id);
@@ -72,9 +63,6 @@ static ssize_t hw_rev_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
-
-	if (!pcard)
-		return -ENXIO;
 
 	return sprintf(buf, "%08x\n", pcard->hardware_revision);
 }
@@ -85,9 +73,6 @@ static ssize_t build_show(struct device *dev, struct device_attribute *attr,
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
-	if (!pcard)
-		return -ENXIO;
-
 	return sprintf(buf, "%08x\n", pcard->build_version);
 }
 static DEVICE_ATTR_RO(build);
@@ -96,9 +81,6 @@ static ssize_t build_date_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
-
-	if (!pcard)
-		return -ENXIO;
 
 	return sprintf(buf, "%08x\n", pcard->build_datestamp);
 }
@@ -109,9 +91,6 @@ static ssize_t build_time_show(struct device *dev,
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
-	if (!pcard)
-		return -ENXIO;
-
 	return sprintf(buf, "%08x\n", pcard->build_timestamp);
 }
 static DEVICE_ATTR_RO(build_time);
@@ -121,9 +100,6 @@ static ssize_t cpld_reg_show(struct device *dev, struct device_attribute *attr,
 {
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
 	u64 val;
-
-	if (!pcard)
-		return -ENXIO;
 
 	val = readq(pcard->sysinfo_regs_base + REG_CPLD_CONFIG);
 	return sprintf(buf, "%016llx\n", val);
@@ -137,9 +113,6 @@ static ssize_t cpld_reconfigure(struct device *dev,
 	struct kp2000_device *pcard = dev_get_drvdata(dev);
 	long wr_val;
 	int rv;
-
-	if (!pcard)
-		return -ENXIO;
 
 	rv = kstrtol(buf, 0, &wr_val);
 	if (rv < 0)
