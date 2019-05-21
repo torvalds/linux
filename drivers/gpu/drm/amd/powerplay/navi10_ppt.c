@@ -114,6 +114,7 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(PowerDownVcn,		PPSMC_MSG_PowerDownVcn),
 	MSG_MAP(PowerUpJpeg,		PPSMC_MSG_PowerUpJpeg),
 	MSG_MAP(PowerDownJpeg,		PPSMC_MSG_PowerDownJpeg),
+	MSG_MAP(BacoAudioD3PME,		PPSMC_MSG_BacoAudioD3PME),
 };
 
 static int navi10_clk_map[SMU_CLK_COUNT] = {

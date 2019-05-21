@@ -118,8 +118,9 @@
 #define PPSMC_MSG_SetGeminiApertureLow           0x44
 
 #define PPSMC_MSG_GetVoltageByDpmOverdrive       0x45
+#define PPSMC_MSG_BacoAudioD3PME                 0x48
 
-#define PPSMC_Message_Count                      0x47
+#define PPSMC_Message_Count                      0x49
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;

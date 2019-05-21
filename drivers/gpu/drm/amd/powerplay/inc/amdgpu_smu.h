@@ -239,6 +239,7 @@ enum smu_message_type
 	SMU_MSG_PowerDownVcn,
 	SMU_MSG_PowerUpJpeg,
 	SMU_MSG_PowerDownJpeg,
+	SMU_MSG_BacoAudioD3PME,
 	SMU_MSG_MAX_COUNT,
 };
 
@@ -687,6 +688,7 @@ struct smu_funcs
 	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
 	int (*gfx_off_control)(struct smu_context *smu, bool enable);
 	int (*register_irq_handler)(struct smu_context *smu);
+	int (*set_azalia_d3_pme)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -893,6 +895,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_thermal_temperature_range? (smu)->ppt_funcs->get_thermal_temperature_range((smu), (range)) : 0)
 #define smu_register_irq_handler(smu) \
 	((smu)->funcs->register_irq_handler ? (smu)->funcs->register_irq_handler(smu) : 0)
+#define smu_set_azalia_d3_pme(smu) \
+	((smu)->funcs->set_azalia_d3_pme ? (smu)->funcs->set_azalia_d3_pme((smu)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

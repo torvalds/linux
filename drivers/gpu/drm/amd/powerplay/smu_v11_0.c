@@ -1663,6 +1663,17 @@ static int smu_v11_0_register_irq_handler(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+	ret = smu_send_smc_msg(smu, SMU_MSG_BacoAudioD3PME);
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1711,6 +1722,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
+	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
