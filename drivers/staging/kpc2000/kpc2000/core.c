@@ -29,15 +29,21 @@
  * SysFS Attributes
  ******************************************************/
 
+static struct kp2000_device *get_pcard(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	if (!pdev)
+		return NULL;
+
+	return pci_get_drvdata(pdev);
+}
+
 static ssize_t show_attr(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct kp2000_device *pcard;
+	struct kp2000_device *pcard = get_pcard(dev);
 
-	if (!pdev)
-		return -ENXIO;
-	pcard = pci_get_drvdata(pdev);
 	if (!pcard)
 		return -ENXIO;
 
@@ -72,14 +78,9 @@ static ssize_t show_attr(struct device *dev, struct device_attribute *attr,
 static ssize_t show_cpld_config_reg(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct kp2000_device *pcard;
+	struct kp2000_device *pcard = get_pcard(dev);
 	u64 val;
 
-	if (!pdev)
-		return -ENXIO;
-
-	pcard = pci_get_drvdata(pdev);
 	if (!pcard)
 		return -ENXIO;
 
@@ -91,14 +92,10 @@ static ssize_t cpld_reconfigure(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct kp2000_device *pcard = get_pcard(dev);
 	long wr_val;
-	struct kp2000_device *pcard;
 	int rv;
 
-	if (!pdev)
-		return -ENXIO;
-	pcard = pci_get_drvdata(pdev);
 	if (!pcard)
 		return -ENXIO;
 
