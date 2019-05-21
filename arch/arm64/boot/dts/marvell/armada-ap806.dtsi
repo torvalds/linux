@@ -318,7 +318,7 @@
 			cooling-maps { };
 		};
 
-		ap_thermal_cpu1: ap-thermal-cpu1 {
+		ap_thermal_cpu0: ap-thermal-cpu0 {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -328,7 +328,7 @@
 			cooling-maps { };
 		};
 
-		ap_thermal_cpu2: ap-thermal-cpu2 {
+		ap_thermal_cpu1: ap-thermal-cpu1 {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -338,7 +338,7 @@
 			cooling-maps { };
 		};
 
-		ap_thermal_cpu3: ap-thermal-cpu3 {
+		ap_thermal_cpu2: ap-thermal-cpu2 {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -348,7 +348,7 @@
 			cooling-maps { };
 		};
 
-		ap_thermal_cpu4: ap-thermal-cpu4 {
+		ap_thermal_cpu3: ap-thermal-cpu3 {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
