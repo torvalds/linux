@@ -72,6 +72,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CX20442 if TTY
+	select SND_SOC_CX2072X if I2C
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA7218 if I2C
@@ -583,6 +584,12 @@ config SND_SOC_CS53L30
 config SND_SOC_CX20442
 	tristate
 	depends on TTY
+
+config SND_SOC_CX2072X
+	tristate "Conexant CX2072X CODEC"
+	depends on I2C
+	help
+	  Enable support for Conexant CX20721 and CX20723 codec chips.
 
 config SND_SOC_JZ4740_CODEC
 	depends on MIPS || COMPILE_TEST
