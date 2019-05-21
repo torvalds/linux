@@ -24,6 +24,7 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/list.h>
+#include <linux/dma/mxs-dma.h>
 
 #include <asm/irq.h>
 
