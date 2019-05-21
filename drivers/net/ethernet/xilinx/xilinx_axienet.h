@@ -484,6 +484,11 @@ static inline u32 axienet_ior(struct axienet_local *lp, off_t offset)
 	return in_be32(lp->regs + offset);
 }
 
+static inline u32 axinet_ior_read_mcr(struct axienet_local *lp)
+{
+	return axienet_ior(lp, XAE_MDIO_MCR_OFFSET);
+}
+
 /**
  * axienet_iow - Memory mapped Axi Ethernet register write
  * @lp:         Pointer to axienet local structure
