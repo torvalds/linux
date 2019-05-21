@@ -2446,6 +2446,34 @@ static int vega20_update_specified_od8_value(struct smu_context *smu,
 	return 0;
 }
 
+static int vega20_update_od8_settings(struct smu_context *smu,
+				      uint32_t index,
+				      uint32_t value)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	int ret;
+
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
+			       table_context->overdrive_table, false);
+	if (ret) {
+		pr_err("Failed to export over drive table!\n");
+		return ret;
+	}
+
+	ret = vega20_update_specified_od8_value(smu, index, value);
+	if (ret)
+		return ret;
+
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
+			       table_context->overdrive_table, true);
+	if (ret) {
+		pr_err("Failed to import over drive table!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int vega20_set_od_percentage(struct smu_context *smu,
 				    enum smu_clk_type clk_type,
 				    uint32_t value)
@@ -2492,7 +2520,7 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 	od_clk /= 100;
 	od_clk += golden_dpm_table->dpm_levels[golden_dpm_table->count - 1].value;
 
-	ret = smu_update_od8_settings(smu, index, od_clk);
+	ret = vega20_update_od8_settings(smu, index, od_clk);
 	if (ret) {
 		pr_err("[Setoverdrive] failed to set od clk!\n");
 		goto set_od_failed;
@@ -3204,7 +3232,6 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_od_percentage = vega20_get_od_percentage,
 	.get_power_profile_mode = vega20_get_power_profile_mode,
 	.set_power_profile_mode = vega20_set_power_profile_mode,
-	.update_specified_od8_value = vega20_update_specified_od8_value,
 	.set_od_percentage = vega20_set_od_percentage,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,
 	.dpm_set_uvd_enable = vega20_dpm_set_uvd_enable,

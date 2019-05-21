@@ -1400,32 +1400,6 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v11_0_update_od8_settings(struct smu_context *smu,
-					uint32_t index,
-					uint32_t value)
-{
-	struct smu_table_context *table_context = &smu->smu_table;
-	int ret;
-
-	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
-			       table_context->overdrive_table, false);
-	if (ret) {
-		pr_err("Failed to export over drive table!\n");
-		return ret;
-	}
-
-	smu_update_specified_od8_value(smu, index, value);
-
-	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
-			       table_context->overdrive_table, true);
-	if (ret) {
-		pr_err("Failed to import over drive table!\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int smu_v11_0_get_current_rpm(struct smu_context *smu,
 				     uint32_t *current_rpm)
 {
@@ -1713,7 +1687,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.set_watermarks_for_clock_ranges = smu_v11_0_set_watermarks_for_clock_ranges,
 	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
-	.update_od8_settings = smu_v11_0_update_od8_settings,
 	.get_current_rpm = smu_v11_0_get_current_rpm,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,

@@ -561,9 +561,6 @@ struct pptable_funcs {
 	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
 	int (*force_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t mask);
 	int (*set_default_od8_settings)(struct smu_context *smu);
-	int (*update_specified_od8_value)(struct smu_context *smu,
-					  uint32_t index,
-					  uint32_t value);
 	int (*get_od_percentage)(struct smu_context *smu, enum smu_clk_type clk_type);
 	int (*set_od_percentage)(struct smu_context *smu,
 				 enum smu_clk_type clk_type,
@@ -678,9 +675,6 @@ struct smu_funcs
 	int (*set_od8_default_settings)(struct smu_context *smu,
 					bool initialize);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
-	int (*update_od8_settings)(struct smu_context *smu,
-				   uint32_t index,
-				   uint32_t value);
 	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
@@ -741,8 +735,6 @@ struct smu_funcs
 	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
 #define smu_set_od8_default_settings(smu, initialize) \
 	((smu)->funcs->set_od8_default_settings ? (smu)->funcs->set_od8_default_settings((smu), (initialize)) : 0)
-#define smu_update_od8_settings(smu, index, value) \
-	((smu)->funcs->update_od8_settings ? (smu)->funcs->update_od8_settings((smu), (index), (value)) : 0)
 #define smu_get_current_rpm(smu, speed) \
 	((smu)->funcs->get_current_rpm ? (smu)->funcs->get_current_rpm((smu), (speed)) : 0)
 #define smu_set_fan_speed_rpm(smu, speed) \
@@ -779,8 +771,6 @@ struct smu_funcs
 	((smu)->ppt_funcs->populate_umd_state_clk ? (smu)->ppt_funcs->populate_umd_state_clk((smu)) : 0)
 #define smu_set_default_od8_settings(smu) \
 	((smu)->ppt_funcs->set_default_od8_settings ? (smu)->ppt_funcs->set_default_od8_settings((smu)) : 0)
-#define smu_update_specified_od8_value(smu, index, value) \
-	((smu)->ppt_funcs->update_specified_od8_value ? (smu)->ppt_funcs->update_specified_od8_value((smu), (index), (value)) : 0)
 #define smu_get_power_limit(smu, limit, def) \
 	((smu)->funcs->get_power_limit ? (smu)->funcs->get_power_limit((smu), (limit), (def)) : 0)
 #define smu_set_power_limit(smu, limit) \
