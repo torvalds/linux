@@ -138,8 +138,6 @@ struct gpmi_nand_data {
 	struct scatterlist	data_sgl;
 	char			*data_buffer_dma;
 
-	void			*page_buffer_virt;
-	dma_addr_t		page_buffer_phys;
 	unsigned int		page_buffer_size;
 
 	void			*payload_virt;
