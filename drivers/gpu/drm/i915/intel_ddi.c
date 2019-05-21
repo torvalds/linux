@@ -1717,6 +1717,14 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 	 */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
 		temp |= TRANS_MSA_SAMPLING_444 | TRANS_MSA_CLRSP_YCBCR;
+	/*
+	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
+	 * of Color Encoding Format and Content Color Gamut] while sending
+	 * YCBCR 420 signals we should program MSA MISC1 fields which
+	 * indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		temp |= TRANS_MSA_USE_VSC_SDP;
 	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 }
 

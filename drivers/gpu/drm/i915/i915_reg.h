@@ -9527,6 +9527,7 @@ enum skl_power_gate {
 #define  TRANS_MSA_12_BPC		(3 << 5)
 #define  TRANS_MSA_16_BPC		(4 << 5)
 #define  TRANS_MSA_CEA_RANGE		(1 << 3)
+#define  TRANS_MSA_USE_VSC_SDP		(1 << 14)
 
 /* LCPLL Control */
 #define LCPLL_CTL			_MMIO(0x130040)
