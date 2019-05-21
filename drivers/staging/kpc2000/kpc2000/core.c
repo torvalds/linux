@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <linux/kernel.h>
+#include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -24,6 +25,8 @@
 #include <linux/jiffies.h>
 #include "pcie.h"
 #include "uapi.h"
+
+static DEFINE_IDA(card_num_ida);
 
 /*******************************************************
  * SysFS Attributes
@@ -388,7 +391,6 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 {
 	int err = 0;
 	struct kp2000_device *pcard;
-	static int card_count = 1;
 	int rv;
 	unsigned long reg_bar_phys_addr;
 	unsigned long reg_bar_phys_len;
@@ -414,9 +416,14 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	/*
 	 * Step 2: Initialize trivial pcard elements
 	 */
-	pcard->card_num = card_count;
-	card_count++;
-	scnprintf(pcard->name, 16, "kpcard%d", pcard->card_num);
+	err = ida_simple_get(&card_num_ida, 1, INT_MAX, GFP_KERNEL);
+	if (err < 0) {
+		dev_err(&pdev->dev, "probe: failed to get card number (%d)\n",
+			err);
+		goto out2;
+	}
+	pcard->card_num = err;
+	scnprintf(pcard->name, 16, "kpcard%u", pcard->card_num);
 
 	mutex_init(&pcard->sem);
 	mutex_lock(&pcard->sem);
@@ -630,6 +637,8 @@ out4:
 	pci_disable_device(pcard->pdev);
 out3:
 	mutex_unlock(&pcard->sem);
+	ida_simple_remove(&card_num_ida, pcard->card_num);
+out2:
 	kfree(pcard);
 	return err;
 }
@@ -663,6 +672,7 @@ static void kp2000_pcie_remove(struct pci_dev *pdev)
 	pci_disable_device(pcard->pdev);
 	pci_set_drvdata(pdev, NULL);
 	mutex_unlock(&pcard->sem);
+	ida_simple_remove(&card_num_ida, pcard->card_num);
 	kfree(pcard);
 }
 
@@ -698,6 +708,7 @@ static void __exit  kp2000_pcie_exit(void)
 {
 	pci_unregister_driver(&kp2000_driver_inst);
 	class_destroy(kpc_uio_class);
+	ida_destroy(&card_num_ida);
 }
 module_exit(kp2000_pcie_exit);
 
