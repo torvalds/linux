@@ -16,7 +16,7 @@
 
 #define DRV_NAME "wilco-ec-debugfs"
 
-/* The 256 raw bytes will take up more space when represented as a hex string */
+/* The raw bytes will take up more space when represented as a hex string */
 #define FORMATTED_BUFFER_SIZE (EC_MAILBOX_DATA_SIZE * 4)
 
 struct wilco_ec_debugfs {

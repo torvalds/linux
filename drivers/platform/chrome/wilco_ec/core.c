@@ -93,8 +93,20 @@ static int wilco_ec_probe(struct platform_device *pdev)
 		goto unregister_rtc;
 	}
 
+	/* Register child device that will be found by the telemetry driver. */
+	ec->telem_pdev = platform_device_register_data(dev, "wilco_telem",
+						       PLATFORM_DEVID_AUTO,
+						       ec, sizeof(*ec));
+	if (IS_ERR(ec->telem_pdev)) {
+		dev_err(dev, "Failed to create telemetry platform device\n");
+		ret = PTR_ERR(ec->telem_pdev);
+		goto remove_sysfs;
+	}
+
 	return 0;
 
+remove_sysfs:
+	wilco_ec_remove_sysfs(ec);
 unregister_rtc:
 	platform_device_unregister(ec->rtc_pdev);
 unregister_debugfs:
@@ -109,6 +121,7 @@ static int wilco_ec_remove(struct platform_device *pdev)
 	struct wilco_ec_device *ec = platform_get_drvdata(pdev);
 
 	wilco_ec_remove_sysfs(ec);
+	platform_device_unregister(ec->telem_pdev);
 	platform_device_unregister(ec->rtc_pdev);
 	if (ec->debugfs_pdev)
 		platform_device_unregister(ec->debugfs_pdev);

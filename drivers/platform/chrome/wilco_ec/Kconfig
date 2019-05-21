@@ -27,3 +27,10 @@ config WILCO_EC_EVENTS
 	  (such as power state changes) to userspace. The EC sends the events
 	  over ACPI, and a driver queues up the events to be read by a
 	  userspace daemon from /dev/wilco_event using read() and poll().
+
+config WILCO_EC_TELEMETRY
+	tristate "Enable querying telemetry data from EC"
+	depends on WILCO_EC
+	help
+	  If you say Y here, you get support to query EC telemetry data from
+	  /dev/wilco_telem0 using write() and then read().
