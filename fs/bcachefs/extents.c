@@ -1529,6 +1529,9 @@ enum merge_result bch2_extent_merge(struct bch_fs *c,
 	union bch_extent_entry *en_r = er.v->start;
 	struct bch_extent_crc_unpacked crc_l, crc_r;
 
+	if (bkey_val_u64s(&l->k) != bkey_val_u64s(&r->k))
+		return BCH_MERGE_NOMERGE;
+
 	crc_l = bch2_extent_crc_unpack(el.k, NULL);
 
 	extent_for_each_entry(el, en_l) {
