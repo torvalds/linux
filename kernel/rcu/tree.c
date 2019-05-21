@@ -2773,7 +2773,8 @@ static int rcu_pending(void)
 	/* Has RCU gone idle with this CPU needing another grace period? */
 	if (!rcu_gp_in_progress() &&
 	    rcu_segcblist_is_enabled(&rdp->cblist) &&
-	    !rcu_segcblist_is_offloaded(&rdp->cblist) &&
+	    (!IS_ENABLED(CONFIG_RCU_NOCB_CPU) ||
+	     !rcu_segcblist_is_offloaded(&rdp->cblist)) &&
 	    !rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
 		return 1;
 
