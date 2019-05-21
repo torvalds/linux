@@ -348,7 +348,7 @@ static int smu_early_init(void *handle)
 	struct smu_context *smu = &adev->smu;
 
 	smu->adev = adev;
-	smu->pm_enabled = amdgpu_dpm;
+	smu->pm_enabled = !!amdgpu_dpm;
 	mutex_init(&smu->mutex);
 
 	return smu_set_funcs(adev);
