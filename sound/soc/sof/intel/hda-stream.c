@@ -438,6 +438,26 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	return ret;
 }
 
+int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
+			   struct snd_pcm_substream *substream)
+{
+	struct hdac_stream *stream = substream->runtime->private_data;
+	struct hdac_ext_stream *link_dev = container_of(stream,
+							struct hdac_ext_stream,
+							hstream);
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	u32 mask = 0x1 << stream->index;
+
+	spin_lock(&bus->reg_lock);
+	/* couple host and link DMA if link DMA channel is idle */
+	if (!link_dev->link_locked)
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
+					SOF_HDA_REG_PP_PPCTL, mask, 0);
+	spin_unlock(&bus->reg_lock);
+
+	return 0;
+}
+
 irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
 {
 	struct hdac_bus *bus = context;
