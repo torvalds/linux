@@ -62,13 +62,12 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 	obj = afbdev->afb.obj;
 	gbo = drm_gem_vram_of_gem(obj);
 
-	/*
-	 * try and reserve the BO, if we fail with busy
-	 * then the BO is being moved and we should
-	 * store up the damage until later.
+	/* Try to lock the BO. If we fail with -EBUSY then
+	 * the BO is being moved and we should store up the
+	 * damage until later.
 	 */
 	if (drm_can_sleep())
-		ret = drm_gem_vram_reserve(gbo, true);
+		ret = drm_gem_vram_lock(gbo, true);
 	if (ret) {
 		if (ret != -EBUSY)
 			return;
@@ -127,7 +126,7 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 		drm_gem_vram_kunmap(gbo);
 
 out:
-	drm_gem_vram_unreserve(gbo);
+	drm_gem_vram_unlock(gbo);
 }
 
 static void ast_fillrect(struct fb_info *info,

@@ -23,9 +23,9 @@ static void mga_hide_cursor(struct mga_device *mdev)
 	WREG8(MGA_CURPOSXL, 0);
 	WREG8(MGA_CURPOSXH, 0);
 	if (mdev->cursor.pixels_1->pin_count)
-		drm_gem_vram_unpin_reserved(mdev->cursor.pixels_1);
+		drm_gem_vram_unpin_locked(mdev->cursor.pixels_1);
 	if (mdev->cursor.pixels_2->pin_count)
-		drm_gem_vram_unpin_reserved(mdev->cursor.pixels_2);
+		drm_gem_vram_unpin_locked(mdev->cursor.pixels_2);
 }
 
 int mga_crtc_cursor_set(struct drm_crtc *crtc,
@@ -80,53 +80,53 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!obj)
 		return -ENOENT;
 
-	ret = drm_gem_vram_reserve(pixels_1, true);
+	ret = drm_gem_vram_lock(pixels_1, true);
 	if (ret) {
 		WREG8(MGA_CURPOSXL, 0);
 		WREG8(MGA_CURPOSXH, 0);
 		goto out_unref;
 	}
-	ret = drm_gem_vram_reserve(pixels_2, true);
+	ret = drm_gem_vram_lock(pixels_2, true);
 	if (ret) {
 		WREG8(MGA_CURPOSXL, 0);
 		WREG8(MGA_CURPOSXH, 0);
-		drm_gem_vram_unreserve(pixels_1);
-		goto out_unreserve1;
+		drm_gem_vram_unlock(pixels_1);
+		goto out_unlock1;
 	}
 
 	/* Move cursor buffers into VRAM if they aren't already */
 	if (!pixels_1->pin_count) {
-		ret = drm_gem_vram_pin_reserved(pixels_1,
-						DRM_GEM_VRAM_PL_FLAG_VRAM);
+		ret = drm_gem_vram_pin_locked(pixels_1,
+					      DRM_GEM_VRAM_PL_FLAG_VRAM);
 		if (ret)
 			goto out1;
 		gpu_addr = drm_gem_vram_offset(pixels_1);
 		if (gpu_addr < 0) {
-			drm_gem_vram_unpin_reserved(pixels_1);
+			drm_gem_vram_unpin_locked(pixels_1);
 			goto out1;
 		}
 		mdev->cursor.pixels_1_gpu_addr = gpu_addr;
 	}
 	if (!pixels_2->pin_count) {
-		ret = drm_gem_vram_pin_reserved(pixels_2,
-						DRM_GEM_VRAM_PL_FLAG_VRAM);
+		ret = drm_gem_vram_pin_locked(pixels_2,
+					      DRM_GEM_VRAM_PL_FLAG_VRAM);
 		if (ret) {
-			drm_gem_vram_unpin_reserved(pixels_1);
+			drm_gem_vram_unpin_locked(pixels_1);
 			goto out1;
 		}
 		gpu_addr = drm_gem_vram_offset(pixels_2);
 		if (gpu_addr < 0) {
-			drm_gem_vram_unpin_reserved(pixels_1);
-			drm_gem_vram_unpin_reserved(pixels_2);
+			drm_gem_vram_unpin_locked(pixels_1);
+			drm_gem_vram_unpin_locked(pixels_2);
 			goto out1;
 		}
 		mdev->cursor.pixels_2_gpu_addr = gpu_addr;
 	}
 
 	gbo = drm_gem_vram_of_gem(obj);
-	ret = drm_gem_vram_reserve(gbo, true);
+	ret = drm_gem_vram_lock(gbo, true);
 	if (ret) {
-		dev_err(&dev->pdev->dev, "failed to reserve user bo\n");
+		dev_err(&dev->pdev->dev, "failed to lock user bo\n");
 		goto out1;
 	}
 	src = drm_gem_vram_kmap(gbo, true, NULL);
@@ -250,13 +250,13 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
  out3:
 	drm_gem_vram_kunmap(gbo);
  out2:
-	drm_gem_vram_unreserve(gbo);
+	drm_gem_vram_unlock(gbo);
  out1:
 	if (ret)
 		mga_hide_cursor(mdev);
-	drm_gem_vram_unreserve(pixels_1);
-out_unreserve1:
-	drm_gem_vram_unreserve(pixels_2);
+	drm_gem_vram_unlock(pixels_1);
+out_unlock1:
+	drm_gem_vram_unlock(pixels_2);
 out_unref:
 	drm_gem_object_put_unlocked(obj);
 
