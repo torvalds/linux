@@ -429,7 +429,7 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		return err;
 
 	s->sph = 1;
-	s->fdf = MOTU_FDF_AM824;
+	s->ctx_data.rx.fdf = MOTU_FDF_AM824;
 
 	return 0;
 }
