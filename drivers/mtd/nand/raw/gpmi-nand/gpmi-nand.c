@@ -1852,9 +1852,7 @@ static void block_mark_swapping(struct gpmi_nand_data *this,
 	p[1] = (p[1] & mask) | (from_oob >> (8 - bit));
 }
 
-static int gpmi_ecc_read_page_data(struct nand_chip *chip,
-				   uint8_t *buf, int oob_required,
-				   int page)
+static int gpmi_ecc_read_page_data(struct nand_chip *chip, uint8_t *buf)
 {
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
@@ -1865,8 +1863,6 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	unsigned int  max_bitflips = 0;
 	int           ret;
 	bool          direct = false;
-
-	dev_dbg(this->dev, "page number is : %d\n", page);
 
 	payload_phys = this->payload_phys;
 
@@ -1982,6 +1978,22 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 	/* handle the block mark swapping */
 	block_mark_swapping(this, buf, this->auxiliary_virt);
 
+	return max_bitflips;
+}
+
+static int gpmi_ecc_read_page(struct nand_chip *chip, uint8_t *buf,
+			      int oob_required, int page)
+{
+	struct gpmi_nand_data *this = nand_get_controller_data(chip);
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ret;
+
+	nand_read_page_op(chip, page, 0, NULL, 0);
+
+	ret = gpmi_ecc_read_page_data(chip, buf);
+	if (ret < 0)
+		return ret;
+
 	if (oob_required) {
 		/*
 		 * It's time to deliver the OOB bytes. See gpmi_ecc_read_oob()
@@ -1997,15 +2009,7 @@ static int gpmi_ecc_read_page_data(struct nand_chip *chip,
 		chip->oob_poi[0] = ((uint8_t *)this->auxiliary_virt)[0];
 	}
 
-	return max_bitflips;
-}
-
-static int gpmi_ecc_read_page(struct nand_chip *chip, uint8_t *buf,
-			      int oob_required, int page)
-{
-	nand_read_page_op(chip, page, 0, NULL, 0);
-
-	return gpmi_ecc_read_page_data(chip, buf, oob_required, page);
+	return ret;
 }
 
 /* Fake a virtual small page for the subpage read */
@@ -2086,7 +2090,7 @@ static int gpmi_ecc_read_subpage(struct nand_chip *chip, uint32_t offs,
 
 	/* Read the subpage now */
 	this->swap_block_mark = false;
-	max_bitflips = gpmi_ecc_read_page_data(chip, buf, 0, page);
+	max_bitflips = gpmi_ecc_read_page_data(chip, buf);
 
 	/* Restore */
 	writel(r1_old, bch_regs + HW_BCH_FLASH0LAYOUT0);
