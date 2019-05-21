@@ -1597,7 +1597,7 @@ static struct bch_fs *__bch2_open_as_blockdevs(const char *dev_name, char * cons
 		 */
 
 		c1 = bch2_path_to_fs(devs[0]);
-		if (!c1)
+		if (IS_ERR(c1))
 			return c;
 
 		for (i = 1; i < nr_devs; i++) {
