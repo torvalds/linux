@@ -8,110 +8,64 @@
 #include <asm/irq.h>
 #include <asm/fiq.h>
 
-static void iomd_ack_irq_a(struct irq_data *d)
-{
-	unsigned int val, mask;
+// These are offsets from the stat register for each IRQ bank
+#define STAT	0x00
+#define REQ	0x04
+#define CLR	0x04
+#define MASK	0x08
 
-	mask = 1 << d->irq;
-	val = iomd_readb(IOMD_IRQMASKA);
-	iomd_writeb(val & ~mask, IOMD_IRQMASKA);
-	iomd_writeb(mask, IOMD_IRQCLRA);
+static void __iomem *iomd_get_base(struct irq_data *d)
+{
+	void *cd = irq_data_get_irq_chip_data(d);
+
+	return (void __iomem *)(unsigned long)cd;
 }
 
-static void iomd_mask_irq_a(struct irq_data *d)
+static void iomd_set_base_mask(unsigned int irq, void __iomem *base, u32 mask)
 {
-	unsigned int val, mask;
+	struct irq_data *d = irq_get_irq_data(irq);
 
-	mask = 1 << d->irq;
-	val = iomd_readb(IOMD_IRQMASKA);
-	iomd_writeb(val & ~mask, IOMD_IRQMASKA);
+	d->mask = mask;
+	irq_set_chip_data(irq, (void *)(unsigned long)base);
 }
 
-static void iomd_unmask_irq_a(struct irq_data *d)
+static void iomd_irq_mask_ack(struct irq_data *d)
 {
-	unsigned int val, mask;
+	void __iomem *base = iomd_get_base(d);
+	unsigned int val, mask = d->mask;
 
-	mask = 1 << d->irq;
-	val = iomd_readb(IOMD_IRQMASKA);
-	iomd_writeb(val | mask, IOMD_IRQMASKA);
+	val = readb(base + MASK);
+	writeb(val & ~mask, base + MASK);
+	writeb(mask, base + CLR);
 }
 
-static struct irq_chip iomd_a_chip = {
-	.irq_ack	= iomd_ack_irq_a,
-	.irq_mask	= iomd_mask_irq_a,
-	.irq_unmask	= iomd_unmask_irq_a,
+static void iomd_irq_mask(struct irq_data *d)
+{
+	void __iomem *base = iomd_get_base(d);
+	unsigned int val, mask = d->mask;
+
+	val = readb(base + MASK);
+	writeb(val & ~mask, base + MASK);
+}
+
+static void iomd_irq_unmask(struct irq_data *d)
+{
+	void __iomem *base = iomd_get_base(d);
+	unsigned int val, mask = d->mask;
+
+	val = readb(base + MASK);
+	writeb(val | mask, base + MASK);
+}
+
+static struct irq_chip iomd_chip_clr = {
+	.irq_mask_ack	= iomd_irq_mask_ack,
+	.irq_mask	= iomd_irq_mask,
+	.irq_unmask	= iomd_irq_unmask,
 };
 
-static void iomd_mask_irq_b(struct irq_data *d)
-{
-	unsigned int val, mask;
-
-	mask = 1 << (d->irq & 7);
-	val = iomd_readb(IOMD_IRQMASKB);
-	iomd_writeb(val & ~mask, IOMD_IRQMASKB);
-}
-
-static void iomd_unmask_irq_b(struct irq_data *d)
-{
-	unsigned int val, mask;
-
-	mask = 1 << (d->irq & 7);
-	val = iomd_readb(IOMD_IRQMASKB);
-	iomd_writeb(val | mask, IOMD_IRQMASKB);
-}
-
-static struct irq_chip iomd_b_chip = {
-	.irq_ack	= iomd_mask_irq_b,
-	.irq_mask	= iomd_mask_irq_b,
-	.irq_unmask	= iomd_unmask_irq_b,
-};
-
-static void iomd_mask_irq_dma(struct irq_data *d)
-{
-	unsigned int val, mask;
-
-	mask = 1 << (d->irq & 7);
-	val = iomd_readb(IOMD_DMAMASK);
-	iomd_writeb(val & ~mask, IOMD_DMAMASK);
-}
-
-static void iomd_unmask_irq_dma(struct irq_data *d)
-{
-	unsigned int val, mask;
-
-	mask = 1 << (d->irq & 7);
-	val = iomd_readb(IOMD_DMAMASK);
-	iomd_writeb(val | mask, IOMD_DMAMASK);
-}
-
-static struct irq_chip iomd_dma_chip = {
-	.irq_ack	= iomd_mask_irq_dma,
-	.irq_mask	= iomd_mask_irq_dma,
-	.irq_unmask	= iomd_unmask_irq_dma,
-};
-
-static void iomd_mask_irq_fiq(struct irq_data *d)
-{
-	unsigned int val, mask;
-
-	mask = 1 << (d->irq & 7);
-	val = iomd_readb(IOMD_FIQMASK);
-	iomd_writeb(val & ~mask, IOMD_FIQMASK);
-}
-
-static void iomd_unmask_irq_fiq(struct irq_data *d)
-{
-	unsigned int val, mask;
-
-	mask = 1 << (d->irq & 7);
-	val = iomd_readb(IOMD_FIQMASK);
-	iomd_writeb(val | mask, IOMD_FIQMASK);
-}
-
-static struct irq_chip iomd_fiq_chip = {
-	.irq_ack	= iomd_mask_irq_fiq,
-	.irq_mask	= iomd_mask_irq_fiq,
-	.irq_unmask	= iomd_unmask_irq_fiq,
+static struct irq_chip iomd_chip_noclr = {
+	.irq_mask	= iomd_irq_mask,
+	.irq_unmask	= iomd_irq_unmask,
 };
 
 extern unsigned char rpc_default_fiq_start, rpc_default_fiq_end;
@@ -141,30 +95,37 @@ void __init rpc_init_irq(void)
 
 		switch (irq) {
 		case 0 ... 7:
-			irq_set_chip_and_handler(irq, &iomd_a_chip,
+			irq_set_chip_and_handler(irq, &iomd_chip_clr,
 						 handle_level_irq);
 			irq_modify_status(irq, clr, set);
+			iomd_set_base_mask(irq, IOMD_BASE + IOMD_IRQSTATA,
+					   BIT(irq));
 			break;
 
 		case 8 ... 15:
-			irq_set_chip_and_handler(irq, &iomd_b_chip,
+			irq_set_chip_and_handler(irq, &iomd_chip_noclr,
 						 handle_level_irq);
 			irq_modify_status(irq, clr, set);
+			iomd_set_base_mask(irq, IOMD_BASE + IOMD_IRQSTATB,
+					   BIT(irq - 8));
 			break;
 
 		case 16 ... 21:
-			irq_set_chip_and_handler(irq, &iomd_dma_chip,
+			irq_set_chip_and_handler(irq, &iomd_chip_noclr,
 						 handle_level_irq);
 			irq_modify_status(irq, clr, set);
+			iomd_set_base_mask(irq, IOMD_BASE + IOMD_DMASTAT,
+					   BIT(irq - 16));
 			break;
 
 		case 64 ... 71:
-			irq_set_chip(irq, &iomd_fiq_chip);
+			irq_set_chip(irq, &iomd_chip_noclr);
 			irq_modify_status(irq, clr, set);
+			iomd_set_base_mask(irq, IOMD_BASE + IOMD_FIQSTAT,
+					   BIT(irq - 64));
 			break;
 		}
 	}
 
 	init_FIQ(FIQ_START);
 }
-
