@@ -7761,6 +7761,12 @@ W:	http://industrypack.sourceforge.net
 S:	Maintained
 F:	drivers/ipack/
 
+INFINEON DPS310 Driver
+M:	Eddie James <eajames@linux.ibm.com>
+L:	linux-iio@vger.kernel.org
+F:	drivers/iio/pressure/dps310.c
+S:	Maintained
+
 INFINIBAND SUBSYSTEM
 M:	Doug Ledford <dledford@redhat.com>
 M:	Jason Gunthorpe <jgg@mellanox.com>
