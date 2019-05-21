@@ -1989,6 +1989,30 @@ static int opal_enable_disable_shadow_mbr(struct opal_dev *dev,
 	return ret;
 }
 
+static int opal_set_mbr_done(struct opal_dev *dev,
+			     struct opal_mbr_done *mbr_done)
+{
+	u8 mbr_done_tf = mbr_done->done_flag == OPAL_MBR_DONE ?
+		OPAL_TRUE : OPAL_FALSE;
+
+	const struct opal_step mbr_steps[] = {
+		{ start_admin1LSP_opal_session, &mbr_done->key },
+		{ set_mbr_done, &mbr_done_tf },
+		{ end_opal_session, }
+	};
+	int ret;
+
+	if (mbr_done->done_flag != OPAL_MBR_DONE &&
+	    mbr_done->done_flag != OPAL_MBR_NOT_DONE)
+		return -EINVAL;
+
+	mutex_lock(&dev->dev_lock);
+	setup_opal_dev(dev);
+	ret = execute_steps(dev, mbr_steps, ARRAY_SIZE(mbr_steps));
+	mutex_unlock(&dev->dev_lock);
+	return ret;
+}
+
 static int opal_save(struct opal_dev *dev, struct opal_lock_unlock *lk_unlk)
 {
 	struct opal_suspend_data *suspend;
@@ -2309,6 +2333,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_ENABLE_DISABLE_MBR:
 		ret = opal_enable_disable_shadow_mbr(dev, p);
+		break;
+	case IOC_OPAL_MBR_DONE:
+		ret = opal_set_mbr_done(dev, p);
 		break;
 	case IOC_OPAL_ERASE_LR:
 		ret = opal_erase_locking_range(dev, p);

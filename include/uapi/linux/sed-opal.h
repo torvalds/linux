@@ -20,6 +20,11 @@ enum opal_mbr {
 	OPAL_MBR_DISABLE = 0x01,
 };
 
+enum opal_mbr_done_flag {
+	OPAL_MBR_NOT_DONE = 0x0,
+	OPAL_MBR_DONE = 0x01
+};
+
 enum opal_user {
 	OPAL_ADMIN1 = 0x0,
 	OPAL_USER1 = 0x01,
@@ -95,6 +100,12 @@ struct opal_mbr_data {
 	__u8 __align[7];
 };
 
+struct opal_mbr_done {
+	struct opal_key key;
+	__u8 done_flag;
+	__u8 __align[7];
+};
+
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
@@ -108,5 +119,6 @@ struct opal_mbr_data {
 #define IOC_OPAL_ERASE_LR           _IOW('p', 230, struct opal_session_info)
 #define IOC_OPAL_SECURE_ERASE_LR    _IOW('p', 231, struct opal_session_info)
 #define IOC_OPAL_PSID_REVERT_TPR    _IOW('p', 232, struct opal_key)
+#define IOC_OPAL_MBR_DONE           _IOW('p', 233, struct opal_mbr_done)
 
 #endif /* _UAPI_SED_OPAL_H */
