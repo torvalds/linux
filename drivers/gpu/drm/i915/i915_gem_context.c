@@ -98,7 +98,6 @@
 #include "i915_user_extensions.h"
 
 #define I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE (1 << 1)
-#define I915_CONTEXT_PARAM_VM 0x9
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
@@ -966,8 +965,6 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	struct i915_hw_ppgtt *ppgtt;
 	int ret;
 
-	return -EINVAL; /* nothing to see here; please move along */
-
 	if (!ctx->ppgtt)
 		return -ENODEV;
 
@@ -1065,8 +1062,6 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 {
 	struct i915_hw_ppgtt *ppgtt, *old;
 	int err;
-
-	return -EINVAL; /* nothing to see here; please move along */
 
 	if (args->size)
 		return -EINVAL;
