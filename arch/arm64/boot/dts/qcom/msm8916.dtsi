@@ -158,6 +158,8 @@
 		};
 
 		idle-states {
+			entry-method = "psci";
+
 			CPU_SPC: spc {
 				compatible = "arm,idle-state";
 				arm,psci-suspend-param = <0x40000002>;
