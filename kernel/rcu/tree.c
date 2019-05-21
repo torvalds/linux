@@ -210,10 +210,9 @@ static long rcu_get_n_cbs_cpu(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 
-	if (rcu_segcblist_is_enabled(&rdp->cblist) &&
-	    !rcu_segcblist_is_offloaded(&rdp->cblist)) /* Online normal CPU? */
+	if (rcu_segcblist_is_enabled(&rdp->cblist))
 		return rcu_segcblist_n_cbs(&rdp->cblist);
-	return rcu_get_n_cbs_nocb_cpu(rdp); /* Works for offline, too. */
+	return 0;
 }
 
 void rcu_softirq_qs(void)
@@ -3181,6 +3180,7 @@ void rcutree_migrate_callbacks(int cpu)
 	needwake = rcu_advance_cbs(my_rnp, rdp) ||
 		   rcu_advance_cbs(my_rnp, my_rdp);
 	rcu_segcblist_merge(&my_rdp->cblist, &rdp->cblist);
+	rcu_segcblist_disable(&rdp->cblist);
 	WARN_ON_ONCE(rcu_segcblist_empty(&my_rdp->cblist) !=
 		     !rcu_segcblist_n_cbs(&my_rdp->cblist));
 	if (rcu_segcblist_is_offloaded(&my_rdp->cblist)) {

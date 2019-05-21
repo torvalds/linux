@@ -194,8 +194,6 @@ struct rcu_data {
 
 	/* 5) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
-	atomic_long_t nocb_q_count;	/* # CBs waiting for nocb */
-	atomic_long_t nocb_q_count_lazy; /*  invocation (all stages). */
 	struct rcu_head *nocb_cb_head;	/* CBs ready to invoke. */
 	struct rcu_head **nocb_cb_tail;
 	struct swait_queue_head nocb_cb_wq; /* For nocb kthreads to sleep on. */
@@ -437,7 +435,6 @@ static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
 #ifdef CONFIG_RCU_NOCB_CPU
 static void __init rcu_organize_nocb_kthreads(void);
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
-static unsigned long rcu_get_n_cbs_nocb_cpu(struct rcu_data *rdp);
 static void rcu_bind_gp_kthread(void);
 static bool rcu_nohz_full_cpu(void);
 static void rcu_dynticks_task_enter(void);
