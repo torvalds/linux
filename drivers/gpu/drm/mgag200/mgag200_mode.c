@@ -858,8 +858,6 @@ static void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
 	WREG_ECRT(0x0, ((u8)(addr >> 16) & 0xf) | crtcext0);
 }
 
-
-/* ast is different - we will force move buffers out of VRAM */
 static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				int x, int y, int atomic)
@@ -872,12 +870,15 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 	s64 gpu_addr;
 	void *base;
 
-	/* push the previous fb to system ram */
 	if (!atomic && fb) {
 		mga_fb = to_mga_framebuffer(fb);
 		obj = mga_fb->obj;
 		gbo = drm_gem_vram_of_gem(obj);
-		drm_gem_vram_push_to_system(gbo);
+
+		/* unmap if console */
+		if (&mdev->mfbdev->mfb == mga_fb)
+			drm_gem_vram_kunmap(gbo);
+		drm_gem_vram_unpin(gbo);
 	}
 
 	mga_fb = to_mga_framebuffer(crtc->primary->fb);
@@ -1425,11 +1426,15 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("\n");
 	mga_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
+		struct mga_device *mdev = crtc->dev->dev_private;
 		struct mga_framebuffer *mga_fb = to_mga_framebuffer(crtc->primary->fb);
 		struct drm_gem_object *obj = mga_fb->obj;
 		struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(obj);
 
-		drm_gem_vram_push_to_system(gbo);
+		/* unmap if console */
+		if (&mdev->mfbdev->mfb == mga_fb)
+			drm_gem_vram_kunmap(gbo);
+		drm_gem_vram_unpin(gbo);
 	}
 	crtc->primary->fb = NULL;
 }

@@ -79,8 +79,6 @@
  * RAM. Call drm_gem_vram_pin() with &DRM_GEM_VRAM_PL_FLAG_VRAM or
  * &DRM_GEM_VRAM_PL_FLAG_SYSTEM to pin a buffer object in video RAM or system
  * memory. Call drm_gem_vram_unpin() to release the pinned object afterwards.
- * If you have to evict a buffer object from video RAM (e.g., for freeing up
- * memory), unpin the buffer and call drm_gem_vram_push_to_system().
  *
  * A buffer object that is pinned in video RAM has a fixed address within that
  * memory region. Call drm_gem_vram_offset() to retrieve this value. Typically

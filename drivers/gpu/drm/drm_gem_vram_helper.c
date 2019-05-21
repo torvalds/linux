@@ -380,56 +380,6 @@ int drm_gem_vram_unpin_reserved(struct drm_gem_vram_object *gbo)
 EXPORT_SYMBOL(drm_gem_vram_unpin_reserved);
 
 /**
- * drm_gem_vram_push_to_system() - \
-	Unpins a GEM VRAM object and moves it to system memory
- * @gbo:	the GEM VRAM object
- *
- * This operation only works if the caller holds the final pin on the
- * buffer object.
- *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise.
- */
-int drm_gem_vram_push_to_system(struct drm_gem_vram_object *gbo)
-{
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
-
-	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
-	if (ret < 0)
-		return ret;
-
-	if (WARN_ON_ONCE(!gbo->pin_count))
-		goto out;
-
-	--gbo->pin_count;
-	if (gbo->pin_count)
-		goto out;
-
-	if (gbo->kmap.virtual)
-		ttm_bo_kunmap(&gbo->kmap);
-
-	drm_gem_vram_placement(gbo, TTM_PL_FLAG_SYSTEM);
-	for (i = 0; i < gbo->placement.num_placement ; ++i)
-		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret)
-		goto err_ttm_bo_unreserve;
-
-out:
-	ttm_bo_unreserve(&gbo->bo);
-
-	return 0;
-
-err_ttm_bo_unreserve:
-	ttm_bo_unreserve(&gbo->bo);
-	return ret;
-}
-EXPORT_SYMBOL(drm_gem_vram_push_to_system);
-
-/**
  * drm_gem_vram_kmap_at() - Maps a GEM VRAM object into kernel address space
  * @gbo:	the GEM VRAM object
  * @map:	establish a mapping if necessary

@@ -86,7 +86,6 @@ int drm_gem_vram_pin_reserved(struct drm_gem_vram_object *gbo,
 			      unsigned long pl_flag);
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
 int drm_gem_vram_unpin_reserved(struct drm_gem_vram_object *gbo);
-int drm_gem_vram_push_to_system(struct drm_gem_vram_object *gbo);
 void *drm_gem_vram_kmap_at(struct drm_gem_vram_object *gbo, bool map,
 			   bool *is_iomem, struct ttm_bo_kmap_obj *kmap);
 void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
