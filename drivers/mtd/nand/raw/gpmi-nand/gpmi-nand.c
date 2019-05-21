@@ -2244,14 +2244,17 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
+	int ret;
 
 	dev_dbg(this->dev, "page number is %d\n", page);
 	/* clear the OOB buffer */
 	memset(chip->oob_poi, ~0, mtd->oobsize);
 
 	/* Read out the conventional OOB. */
-	nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
+	ret = nand_read_page_op(chip, page, mtd->writesize, chip->oob_poi,
+				mtd->oobsize);
+	if (ret)
+		return ret;
 
 	/*
 	 * Now, we want to make sure the block mark is correct. In the
@@ -2260,8 +2263,9 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 	 */
 	if (GPMI_IS_MX23(this)) {
 		/* Read the block mark into the first byte of the OOB buffer. */
-		nand_read_page_op(chip, page, 0, NULL, 0);
-		chip->oob_poi[0] = chip->legacy.read_byte(chip);
+		ret = nand_read_page_op(chip, page, 0, chip->oob_poi, 1);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -2526,6 +2530,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	u8 *buffer = nand_get_data_buf(chip);
 	int saved_chip_number;
 	int found_an_ncb_fingerprint = false;
+	int ret;
 
 	/* Compute the number of strides in a search area. */
 	search_area_size_in_strides = 1 << rom_geo->search_area_stride_exponent;
@@ -2548,8 +2553,10 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 		 * Read the NCB fingerprint. The fingerprint is four bytes long
 		 * and starts in the 12th byte of the page.
 		 */
-		nand_read_page_op(chip, page, 12, NULL, 0);
-		chip->legacy.read_buf(chip, buffer, strlen(fingerprint));
+		ret = nand_read_page_op(chip, page, 12, buffer,
+					strlen(fingerprint));
+		if (ret)
+			continue;
 
 		/* Look for the fingerprint. */
 		if (!memcmp(buffer, fingerprint, strlen(fingerprint))) {
@@ -2691,9 +2698,12 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 
 		/* Send the command to read the conventional block mark. */
 		nand_select_target(chip, chipnr);
-		nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
-		block_mark = chip->legacy.read_byte(chip);
+		ret = nand_read_page_op(chip, page, mtd->writesize, &block_mark,
+					1);
 		nand_deselect_target(chip);
+
+		if (ret)
+			continue;
 
 		/*
 		 * Check if the block is marked bad. If so, we need to mark it
