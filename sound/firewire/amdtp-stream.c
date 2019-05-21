@@ -707,6 +707,14 @@ static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
 	return cycle;
 }
 
+static inline void cancel_stream(struct amdtp_stream *s)
+{
+	s->packet_index = -1;
+	if (in_interrupt())
+		amdtp_stream_pcm_abort(s);
+	WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
+}
+
 static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
@@ -726,10 +734,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	for (i = 0; i < packets; ++i) {
 		cycle = increment_cycle_count(cycle, 1);
 		if (s->handle_packet(s, 0, cycle, i) < 0) {
-			s->packet_index = -1;
-			if (in_interrupt())
-				amdtp_stream_pcm_abort(s);
-			WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
+			cancel_stream(s);
 			return;
 		}
 	}
@@ -779,10 +784,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	/* Queueing error or detecting invalid payload. */
 	if (i < packets) {
-		s->packet_index = -1;
-		if (in_interrupt())
-			amdtp_stream_pcm_abort(s);
-		WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
+		cancel_stream(s);
 		return;
 	}
 
