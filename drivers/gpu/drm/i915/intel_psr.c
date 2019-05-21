@@ -229,16 +229,6 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 	}
 }
 
-static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
-{
-	u8 dprx = 0;
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
-			      &dprx) != 1)
-		return false;
-	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
-}
-
 static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 {
 	u8 alpm_caps = 0;

@@ -2093,6 +2093,36 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
+static int
+intel_dp_ycbcr420_config(struct intel_dp *intel_dp,
+			 struct drm_connector *connector,
+			 struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_info *info = &connector->display_info;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	int ret;
+
+	if (!drm_mode_is_420_only(info, adjusted_mode) ||
+	    !intel_dp_get_colorimetry_status(intel_dp) ||
+	    !connector->ycbcr_420_allowed)
+		return 0;
+
+	crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
+
+	/* YCBCR 420 output conversion needs a scaler */
+	ret = skl_update_scaler_crtc(crtc_state);
+	if (ret) {
+		DRM_DEBUG_KMS("Scaler allocation for output failed\n");
+		return ret;
+	}
+
+	intel_pch_panel_fitting(crtc, crtc_state, DRM_MODE_SCALE_FULLSCREEN);
+
+	return 0;
+}
+
 bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
@@ -2132,7 +2162,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		to_intel_digital_connector_state(conn_state);
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_CONSTANT_N);
-	int ret, output_bpp;
+	int ret = 0, output_bpp;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -2140,6 +2170,12 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	if (lspcon->active)
 		lspcon_ycbcr420_config(&intel_connector->base, pipe_config);
+	else
+		ret = intel_dp_ycbcr420_config(intel_dp, &intel_connector->base,
+					       pipe_config);
+
+	if (ret)
+		return ret;
 
 	pipe_config->has_drrs = false;
 	if (IS_G4X(dev_priv) || port == PORT_A)
@@ -4057,6 +4093,16 @@ intel_dp_read_dpcd(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("DPCD: %*ph\n", (int) sizeof(intel_dp->dpcd), intel_dp->dpcd);
 
 	return intel_dp->dpcd[DP_DPCD_REV] != 0;
+}
+
+bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
+{
+	u8 dprx = 0;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
+			      &dprx) != 1)
+		return false;
+	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
 }
 
 static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
