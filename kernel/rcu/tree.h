@@ -194,8 +194,6 @@ struct rcu_data {
 
 	/* 5) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
-	struct rcu_head *nocb_head;	/* CBs waiting for kthread. */
-	struct rcu_head **nocb_tail;
 	atomic_long_t nocb_q_count;	/* # CBs waiting for nocb */
 	atomic_long_t nocb_q_count_lazy; /*  invocation (all stages). */
 	struct rcu_head *nocb_cb_head;	/* CBs ready to invoke. */
@@ -211,7 +209,6 @@ struct rcu_data {
 					/* CBs waiting for GP. */
 	struct rcu_head **nocb_gp_tail;
 	bool nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
-	bool nocb_gp_forced;		/* Forced nocb GP thread wakeup? */
 	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
 	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */
 	struct task_struct *nocb_cb_kthread;

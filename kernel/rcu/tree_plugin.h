@@ -1911,7 +1911,6 @@ void __init rcu_init_nohz(void)
 /* Initialize per-rcu_data variables for no-CBs CPUs. */
 static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 {
-	rdp->nocb_tail = &rdp->nocb_head;
 	init_swait_queue_head(&rdp->nocb_cb_wq);
 	init_swait_queue_head(&rdp->nocb_gp_wq);
 	rdp->nocb_cb_tail = &rdp->nocb_cb_head;
