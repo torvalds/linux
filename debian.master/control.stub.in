@@ -13,6 +13,8 @@ Build-Depends:
  libelf-dev <!stage1>,
  libnewt-dev <!stage1>,
  libiberty-dev <!stage1>,
+ default-jdk-headless <!stage1>,
+ java-common <!stage1>,
  rsync <!stage1>,
  libdw-dev <!stage1>,
  libpci-dev <!stage1>,
