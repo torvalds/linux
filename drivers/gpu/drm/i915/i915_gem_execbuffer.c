@@ -2318,6 +2318,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 {
 	struct i915_execbuffer eb;
 	struct dma_fence *in_fence = NULL;
+	struct dma_fence *exec_fence = NULL;
 	struct sync_file *out_fence = NULL;
 	int out_fence_fd = -1;
 	int err;
@@ -2360,11 +2361,24 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 			return -EINVAL;
 	}
 
+	if (args->flags & I915_EXEC_FENCE_SUBMIT) {
+		if (in_fence) {
+			err = -EINVAL;
+			goto err_in_fence;
+		}
+
+		exec_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
+		if (!exec_fence) {
+			err = -EINVAL;
+			goto err_in_fence;
+		}
+	}
+
 	if (args->flags & I915_EXEC_FENCE_OUT) {
 		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
 		if (out_fence_fd < 0) {
 			err = out_fence_fd;
-			goto err_in_fence;
+			goto err_exec_fence;
 		}
 	}
 
@@ -2494,6 +2508,13 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 			goto err_request;
 	}
 
+	if (exec_fence) {
+		err = i915_request_await_execution(eb.request, exec_fence,
+						   eb.engine->bond_execute);
+		if (err < 0)
+			goto err_request;
+	}
+
 	if (fences) {
 		err = await_fence_array(&eb, fences);
 		if (err)
@@ -2555,6 +2576,8 @@ err_destroy:
 err_out_fence:
 	if (out_fence_fd != -1)
 		put_unused_fd(out_fence_fd);
+err_exec_fence:
+	dma_fence_put(exec_fence);
 err_in_fence:
 	dma_fence_put(in_fence);
 	return err;
