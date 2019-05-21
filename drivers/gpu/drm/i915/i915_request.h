@@ -283,6 +283,10 @@ int i915_request_await_object(struct i915_request *to,
 			      bool write);
 int i915_request_await_dma_fence(struct i915_request *rq,
 				 struct dma_fence *fence);
+int i915_request_await_execution(struct i915_request *rq,
+				 struct dma_fence *fence,
+				 void (*hook)(struct i915_request *rq,
+					      struct dma_fence *signal));
 
 void i915_request_add(struct i915_request *rq);
 

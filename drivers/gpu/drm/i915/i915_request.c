@@ -38,6 +38,8 @@ struct execute_cb {
 	struct list_head link;
 	struct irq_work work;
 	struct i915_sw_fence *fence;
+	void (*hook)(struct i915_request *rq, struct dma_fence *signal);
+	struct i915_request *signal;
 };
 
 static struct i915_global_request {
@@ -329,6 +331,17 @@ static void irq_execute_cb(struct irq_work *wrk)
 	kmem_cache_free(global.slab_execute_cbs, cb);
 }
 
+static void irq_execute_cb_hook(struct irq_work *wrk)
+{
+	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
+
+	cb->hook(container_of(cb->fence, struct i915_request, submit),
+		 &cb->signal->fence);
+	i915_request_put(cb->signal);
+
+	irq_execute_cb(wrk);
+}
+
 static void __notify_execute_cb(struct i915_request *rq)
 {
 	struct execute_cb *cb;
@@ -355,14 +368,19 @@ static void __notify_execute_cb(struct i915_request *rq)
 }
 
 static int
-i915_request_await_execution(struct i915_request *rq,
-			     struct i915_request *signal,
-			     gfp_t gfp)
+__i915_request_await_execution(struct i915_request *rq,
+			       struct i915_request *signal,
+			       void (*hook)(struct i915_request *rq,
+					    struct dma_fence *signal),
+			       gfp_t gfp)
 {
 	struct execute_cb *cb;
 
-	if (i915_request_is_active(signal))
+	if (i915_request_is_active(signal)) {
+		if (hook)
+			hook(rq, &signal->fence);
 		return 0;
+	}
 
 	cb = kmem_cache_alloc(global.slab_execute_cbs, gfp);
 	if (!cb)
@@ -372,8 +390,18 @@ i915_request_await_execution(struct i915_request *rq,
 	i915_sw_fence_await(cb->fence);
 	init_irq_work(&cb->work, irq_execute_cb);
 
+	if (hook) {
+		cb->hook = hook;
+		cb->signal = i915_request_get(signal);
+		cb->work.func = irq_execute_cb_hook;
+	}
+
 	spin_lock_irq(&signal->lock);
 	if (i915_request_is_active(signal)) {
+		if (hook) {
+			hook(rq, &signal->fence);
+			i915_request_put(signal);
+		}
 		i915_sw_fence_complete(cb->fence);
 		kmem_cache_free(global.slab_execute_cbs, cb);
 	} else {
@@ -834,7 +862,7 @@ emit_semaphore_wait(struct i915_request *to,
 		return err;
 
 	/* Only submit our spinner after the signaler is running! */
-	err = i915_request_await_execution(to, from, gfp);
+	err = __i915_request_await_execution(to, from, NULL, gfp);
 	if (err)
 		return err;
 
@@ -965,6 +993,52 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 		/* Record the latest fence used against each timeline */
 		if (fence->context != rq->i915->mm.unordered_timeline)
 			i915_timeline_sync_set(rq->timeline, fence);
+	} while (--nchild);
+
+	return 0;
+}
+
+int
+i915_request_await_execution(struct i915_request *rq,
+			     struct dma_fence *fence,
+			     void (*hook)(struct i915_request *rq,
+					  struct dma_fence *signal))
+{
+	struct dma_fence **child = &fence;
+	unsigned int nchild = 1;
+	int ret;
+
+	if (dma_fence_is_array(fence)) {
+		struct dma_fence_array *array = to_dma_fence_array(fence);
+
+		/* XXX Error for signal-on-any fence arrays */
+
+		child = array->fences;
+		nchild = array->num_fences;
+		GEM_BUG_ON(!nchild);
+	}
+
+	do {
+		fence = *child++;
+		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+			continue;
+
+		/*
+		 * We don't squash repeated fence dependencies here as we
+		 * want to run our callback in all cases.
+		 */
+
+		if (dma_fence_is_i915(fence))
+			ret = __i915_request_await_execution(rq,
+							     to_request(fence),
+							     hook,
+							     I915_FENCE_GFP);
+		else
+			ret = i915_sw_fence_await_dma_fence(&rq->submit, fence,
+							    I915_FENCE_TIMEOUT,
+							    GFP_KERNEL);
+		if (ret < 0)
+			return ret;
 	} while (--nchild);
 
 	return 0;
