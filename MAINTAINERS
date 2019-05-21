@@ -11227,7 +11227,7 @@ F:	drivers/video/fbdev/riva/
 F:	drivers/video/fbdev/nvidia/
 
 NVM EXPRESS DRIVER
-M:	Keith Busch <keith.busch@intel.com>
+M:	Keith Busch <kbusch@kernel.org>
 M:	Jens Axboe <axboe@fb.com>
 M:	Christoph Hellwig <hch@lst.de>
 M:	Sagi Grimberg <sagi@grimberg.me>
