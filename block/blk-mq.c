@@ -282,12 +282,12 @@ bool blk_mq_can_queue(struct blk_mq_hw_ctx *hctx)
 EXPORT_SYMBOL(blk_mq_can_queue);
 
 /*
- * Only need start/end time stamping if we have stats enabled, or using
- * an IO scheduler.
+ * Only need start/end time stamping if we have iostat or
+ * blk stats enabled, or using an IO scheduler.
  */
 static inline bool blk_mq_need_time_stamp(struct request *rq)
 {
-	return (rq->rq_flags & RQF_IO_STAT) || rq->q->elevator;
+	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS)) || rq->q->elevator;
 }
 
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
