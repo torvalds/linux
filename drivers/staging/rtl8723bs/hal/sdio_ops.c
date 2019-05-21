@@ -1207,7 +1207,6 @@ u8 RecvOnePkt(struct adapter *adapter, u32 size)
 {
 	struct recv_buf *recvbuf;
 	struct dvobj_priv *sddev;
-	struct sdio_data *psdio;
 	struct sdio_func *func;
 
 	u8 res = false;
