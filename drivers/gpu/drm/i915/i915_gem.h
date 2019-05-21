@@ -91,4 +91,9 @@ static inline bool __tasklet_enable(struct tasklet_struct *t)
 	return atomic_dec_and_test(&t->count);
 }
 
+static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
+{
+	return test_bit(TASKLET_STATE_SCHED, &t->state);
+}
+
 #endif /* __I915_GEM_H__ */

@@ -150,17 +150,26 @@ sched_lock_engine(const struct i915_sched_node *node,
 		  struct intel_engine_cs *locked,
 		  struct sched_cache *cache)
 {
-	struct intel_engine_cs *engine = node_to_request(node)->engine;
+	const struct i915_request *rq = node_to_request(node);
+	struct intel_engine_cs *engine;
 
 	GEM_BUG_ON(!locked);
 
-	if (engine != locked) {
+	/*
+	 * Virtual engines complicate acquiring the engine timeline lock,
+	 * as their rq->engine pointer is not stable until under that
+	 * engine lock. The simple ploy we use is to take the lock then
+	 * check that the rq still belongs to the newly locked engine.
+	 */
+	while (locked != (engine = READ_ONCE(rq->engine))) {
 		spin_unlock(&locked->timeline.lock);
 		memset(cache, 0, sizeof(*cache));
 		spin_lock(&engine->timeline.lock);
+		locked = engine;
 	}
 
-	return engine;
+	GEM_BUG_ON(locked != engine);
+	return locked;
 }
 
 static inline int rq_prio(const struct i915_request *rq)
@@ -272,6 +281,7 @@ static void __i915_schedule(struct i915_sched_node *node,
 	spin_lock(&engine->timeline.lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
+	engine = sched_lock_engine(node, engine, &cache);
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
 		INIT_LIST_HEAD(&dep->dfs_link);
 
@@ -283,8 +293,11 @@ static void __i915_schedule(struct i915_sched_node *node,
 		if (prio <= node->attr.priority || node_signaled(node))
 			continue;
 
+		GEM_BUG_ON(node_to_request(node)->engine != engine);
+
 		node->attr.priority = prio;
 		if (!list_empty(&node->link)) {
+			GEM_BUG_ON(intel_engine_is_virtual(engine));
 			if (!cache.priolist)
 				cache.priolist =
 					i915_sched_lookup_priolist(engine,

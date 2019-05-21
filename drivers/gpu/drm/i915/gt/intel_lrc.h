@@ -114,4 +114,13 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 							const char *prefix),
 				   unsigned int max);
 
+struct intel_context *
+intel_execlists_create_virtual(struct i915_gem_context *ctx,
+			       struct intel_engine_cs **siblings,
+			       unsigned int count);
+
+struct intel_context *
+intel_execlists_clone_virtual(struct i915_gem_context *ctx,
+			      struct intel_engine_cs *src);
+
 #endif /* _INTEL_LRC_H_ */

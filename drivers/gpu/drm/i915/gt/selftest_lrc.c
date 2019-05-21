@@ -1310,6 +1310,185 @@ err_unlock:
 	return err;
 }
 
+static int nop_virtual_engine(struct drm_i915_private *i915,
+			      struct intel_engine_cs **siblings,
+			      unsigned int nsibling,
+			      unsigned int nctx,
+			      unsigned int flags)
+#define CHAIN BIT(0)
+{
+	IGT_TIMEOUT(end_time);
+	struct i915_request *request[16];
+	struct i915_gem_context *ctx[16];
+	struct intel_context *ve[16];
+	unsigned long n, prime, nc;
+	struct igt_live_test t;
+	ktime_t times[2] = {};
+	int err;
+
+	GEM_BUG_ON(!nctx || nctx > ARRAY_SIZE(ctx));
+
+	for (n = 0; n < nctx; n++) {
+		ctx[n] = kernel_context(i915);
+		if (!ctx[n]) {
+			err = -ENOMEM;
+			nctx = n;
+			goto out;
+		}
+
+		ve[n] = intel_execlists_create_virtual(ctx[n],
+						       siblings, nsibling);
+		if (IS_ERR(ve[n])) {
+			kernel_context_close(ctx[n]);
+			err = PTR_ERR(ve[n]);
+			nctx = n;
+			goto out;
+		}
+
+		err = intel_context_pin(ve[n]);
+		if (err) {
+			intel_context_put(ve[n]);
+			kernel_context_close(ctx[n]);
+			nctx = n;
+			goto out;
+		}
+	}
+
+	err = igt_live_test_begin(&t, i915, __func__, ve[0]->engine->name);
+	if (err)
+		goto out;
+
+	for_each_prime_number_from(prime, 1, 8192) {
+		times[1] = ktime_get_raw();
+
+		if (flags & CHAIN) {
+			for (nc = 0; nc < nctx; nc++) {
+				for (n = 0; n < prime; n++) {
+					request[nc] =
+						i915_request_create(ve[nc]);
+					if (IS_ERR(request[nc])) {
+						err = PTR_ERR(request[nc]);
+						goto out;
+					}
+
+					i915_request_add(request[nc]);
+				}
+			}
+		} else {
+			for (n = 0; n < prime; n++) {
+				for (nc = 0; nc < nctx; nc++) {
+					request[nc] =
+						i915_request_create(ve[nc]);
+					if (IS_ERR(request[nc])) {
+						err = PTR_ERR(request[nc]);
+						goto out;
+					}
+
+					i915_request_add(request[nc]);
+				}
+			}
+		}
+
+		for (nc = 0; nc < nctx; nc++) {
+			if (i915_request_wait(request[nc],
+					      I915_WAIT_LOCKED,
+					      HZ / 10) < 0) {
+				pr_err("%s(%s): wait for %llx:%lld timed out\n",
+				       __func__, ve[0]->engine->name,
+				       request[nc]->fence.context,
+				       request[nc]->fence.seqno);
+
+				GEM_TRACE("%s(%s) failed at request %llx:%lld\n",
+					  __func__, ve[0]->engine->name,
+					  request[nc]->fence.context,
+					  request[nc]->fence.seqno);
+				GEM_TRACE_DUMP();
+				i915_gem_set_wedged(i915);
+				break;
+			}
+		}
+
+		times[1] = ktime_sub(ktime_get_raw(), times[1]);
+		if (prime == 1)
+			times[0] = times[1];
+
+		if (__igt_timeout(end_time, NULL))
+			break;
+	}
+
+	err = igt_live_test_end(&t);
+	if (err)
+		goto out;
+
+	pr_info("Requestx%d latencies on %s: 1 = %lluns, %lu = %lluns\n",
+		nctx, ve[0]->engine->name, ktime_to_ns(times[0]),
+		prime, div64_u64(ktime_to_ns(times[1]), prime));
+
+out:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+
+	for (nc = 0; nc < nctx; nc++) {
+		intel_context_unpin(ve[nc]);
+		intel_context_put(ve[nc]);
+		kernel_context_close(ctx[nc]);
+	}
+	return err;
+}
+
+static int live_virtual_engine(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *siblings[MAX_ENGINE_INSTANCE + 1];
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	unsigned int class, inst;
+	int err = -ENODEV;
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0;
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	for_each_engine(engine, i915, id) {
+		err = nop_virtual_engine(i915, &engine, 1, 1, 0);
+		if (err) {
+			pr_err("Failed to wrap engine %s: err=%d\n",
+			       engine->name, err);
+			goto out_unlock;
+		}
+	}
+
+	for (class = 0; class <= MAX_ENGINE_CLASS; class++) {
+		int nsibling, n;
+
+		nsibling = 0;
+		for (inst = 0; inst <= MAX_ENGINE_INSTANCE; inst++) {
+			if (!i915->engine_class[class][inst])
+				continue;
+
+			siblings[nsibling++] = i915->engine_class[class][inst];
+		}
+		if (nsibling < 2)
+			continue;
+
+		for (n = 1; n <= nsibling + 1; n++) {
+			err = nop_virtual_engine(i915, siblings, nsibling,
+						 n, 0);
+			if (err)
+				goto out_unlock;
+		}
+
+		err = nop_virtual_engine(i915, siblings, nsibling, n, CHAIN);
+		if (err)
+			goto out_unlock;
+	}
+
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 int intel_execlists_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
@@ -1322,6 +1501,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_chain_preempt),
 		SUBTEST(live_preempt_hang),
 		SUBTEST(live_preempt_smoke),
+		SUBTEST(live_virtual_engine),
 	};
 
 	if (!HAS_EXECLISTS(i915))

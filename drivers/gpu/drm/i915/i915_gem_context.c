@@ -86,6 +86,7 @@
  */
 
 #include <linux/log2.h>
+#include <linux/nospec.h>
 
 #include <drm/i915_drm.h>
 
@@ -1218,7 +1219,6 @@ __intel_context_reconfigure_sseu(struct intel_context *ce,
 	int ret;
 
 	GEM_BUG_ON(INTEL_GEN(ce->gem_context->i915) < 8);
-	GEM_BUG_ON(ce->engine->id != RCS0);
 
 	ret = intel_context_lock_pinned(ce);
 	if (ret)
@@ -1412,7 +1412,100 @@ struct set_engines {
 	struct i915_gem_engines *engines;
 };
 
+static int
+set_engines__load_balance(struct i915_user_extension __user *base, void *data)
+{
+	struct i915_context_engines_load_balance __user *ext =
+		container_of_user(base, typeof(*ext), base);
+	const struct set_engines *set = data;
+	struct intel_engine_cs *stack[16];
+	struct intel_engine_cs **siblings;
+	struct intel_context *ce;
+	u16 num_siblings, idx;
+	unsigned int n;
+	int err;
+
+	if (!HAS_EXECLISTS(set->ctx->i915))
+		return -ENODEV;
+
+	if (USES_GUC_SUBMISSION(set->ctx->i915))
+		return -ENODEV; /* not implement yet */
+
+	if (get_user(idx, &ext->engine_index))
+		return -EFAULT;
+
+	if (idx >= set->engines->num_engines) {
+		DRM_DEBUG("Invalid placement value, %d >= %d\n",
+			  idx, set->engines->num_engines);
+		return -EINVAL;
+	}
+
+	idx = array_index_nospec(idx, set->engines->num_engines);
+	if (set->engines->engines[idx]) {
+		DRM_DEBUG("Invalid placement[%d], already occupied\n", idx);
+		return -EEXIST;
+	}
+
+	if (get_user(num_siblings, &ext->num_siblings))
+		return -EFAULT;
+
+	err = check_user_mbz(&ext->flags);
+	if (err)
+		return err;
+
+	err = check_user_mbz(&ext->mbz64);
+	if (err)
+		return err;
+
+	siblings = stack;
+	if (num_siblings > ARRAY_SIZE(stack)) {
+		siblings = kmalloc_array(num_siblings,
+					 sizeof(*siblings),
+					 GFP_KERNEL);
+		if (!siblings)
+			return -ENOMEM;
+	}
+
+	for (n = 0; n < num_siblings; n++) {
+		struct i915_engine_class_instance ci;
+
+		if (copy_from_user(&ci, &ext->engines[n], sizeof(ci))) {
+			err = -EFAULT;
+			goto out_siblings;
+		}
+
+		siblings[n] = intel_engine_lookup_user(set->ctx->i915,
+						       ci.engine_class,
+						       ci.engine_instance);
+		if (!siblings[n]) {
+			DRM_DEBUG("Invalid sibling[%d]: { class:%d, inst:%d }\n",
+				  n, ci.engine_class, ci.engine_instance);
+			err = -EINVAL;
+			goto out_siblings;
+		}
+	}
+
+	ce = intel_execlists_create_virtual(set->ctx, siblings, n);
+	if (IS_ERR(ce)) {
+		err = PTR_ERR(ce);
+		goto out_siblings;
+	}
+
+	if (cmpxchg(&set->engines->engines[idx], NULL, ce)) {
+		intel_context_put(ce);
+		err = -EEXIST;
+		goto out_siblings;
+	}
+
+out_siblings:
+	if (siblings != stack)
+		kfree(siblings);
+
+	return err;
+}
+
 static const i915_user_extension_fn set_engines__extensions[] = {
+	[I915_CONTEXT_ENGINES_EXT_LOAD_BALANCE] = set_engines__load_balance,
 };
 
 static int
@@ -1737,14 +1830,29 @@ static int clone_engines(struct i915_gem_context *dst,
 
 	clone->i915 = dst->i915;
 	for (n = 0; n < e->num_engines; n++) {
+		struct intel_engine_cs *engine;
+
 		if (!e->engines[n]) {
 			clone->engines[n] = NULL;
 			continue;
 		}
+		engine = e->engines[n]->engine;
 
-		clone->engines[n] =
-			intel_context_create(dst, e->engines[n]->engine);
-		if (!clone->engines[n]) {
+		/*
+		 * Virtual engines are singletons; they can only exist
+		 * inside a single context, because they embed their
+		 * HW context... As each virtual context implies a single
+		 * timeline (each engine can only dequeue a single request
+		 * at any time), it would be surprising for two contexts
+		 * to use the same engine. So let's create a copy of
+		 * the virtual engine instead.
+		 */
+		if (intel_engine_is_virtual(engine))
+			clone->engines[n] =
+				intel_execlists_clone_virtual(dst, engine);
+		else
+			clone->engines[n] = intel_context_create(dst, engine);
+		if (IS_ERR_OR_NULL(clone->engines[n])) {
 			__free_engines(clone, n);
 			goto err_unlock;
 		}
