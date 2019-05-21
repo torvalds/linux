@@ -477,16 +477,16 @@ static void mxs_dma_free_chan_resources(struct dma_chan *chan)
  *            ......
  *            ->device_prep_slave_sg(0);
  *            ......
- *            ->device_prep_slave_sg(DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+ *            ->device_prep_slave_sg(DMA_CTRL_ACK);
  *            ......
  *    [3] If there are more than two DMA commands in the DMA chain, the code
  *        should be:
  *            ......
  *            ->device_prep_slave_sg(0);                                // First
  *            ......
- *            ->device_prep_slave_sg(DMA_PREP_INTERRUPT [| DMA_CTRL_ACK]);
+ *            ->device_prep_slave_sg(DMA_CTRL_ACK]);
  *            ......
- *            ->device_prep_slave_sg(DMA_PREP_INTERRUPT | DMA_CTRL_ACK); // Last
+ *            ->device_prep_slave_sg(DMA_CTRL_ACK); // Last
  *            ......
  */
 static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
@@ -500,13 +500,12 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 	struct scatterlist *sg;
 	u32 i, j;
 	u32 *pio;
-	bool append = flags & DMA_PREP_INTERRUPT;
-	int idx = append ? mxs_chan->desc_count : 0;
+	int idx = 0;
 
-	if (mxs_chan->status == DMA_IN_PROGRESS && !append)
-		return NULL;
+	if (mxs_chan->status == DMA_IN_PROGRESS)
+		idx = mxs_chan->desc_count;
 
-	if (sg_len + (append ? idx : 0) > NUM_CCW) {
+	if (sg_len + idx > NUM_CCW) {
 		dev_err(mxs_dma->dma_device.dev,
 				"maximum number of sg exceeded: %d > %d\n",
 				sg_len, NUM_CCW);
@@ -520,7 +519,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 	 * If the sg is prepared with append flag set, the sg
 	 * will be appended to the last prepared sg.
 	 */
-	if (append) {
+	if (idx) {
 		BUG_ON(idx < 1);
 		ccw = &mxs_chan->ccw[idx - 1];
 		ccw->next = mxs_chan->ccw_phys + sizeof(*ccw) * idx;
