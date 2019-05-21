@@ -241,9 +241,13 @@ processor idle states, defined as device tree nodes, are listed.
 			   - "psci"
 			# On ARM 32-bit systems this property is optional
 
-The nodes describing the idle states (state) can only be defined within the
-idle-states node, any other configuration is considered invalid and therefore
-must be ignored.
+This assumes that the "enable-method" property is set to "psci" in the cpu
+node[6] that is responsible for setting up CPU idle management in the OS
+implementation.
+
+The nodes describing the idle states (state) can only be defined
+within the idle-states node, any other configuration is considered invalid
+and therefore must be ignored.
 
 ===========================================
 4 - state node
@@ -697,3 +701,6 @@ cpus {
 
 [5] Devicetree Specification
     https://www.devicetree.org/specifications/
+
+[6] ARM Linux Kernel documentation - Booting AArch64 Linux
+    Documentation/arm64/booting.txt
