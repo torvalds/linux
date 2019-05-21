@@ -1723,8 +1723,214 @@ static int create_setparam(struct i915_user_extension __user *ext, void *data)
 	return ctx_setparam(arg->fpriv, arg->ctx, &local.param);
 }
 
+static int clone_engines(struct i915_gem_context *dst,
+			 struct i915_gem_context *src)
+{
+	struct i915_gem_engines *e = i915_gem_context_lock_engines(src);
+	struct i915_gem_engines *clone;
+	bool user_engines;
+	unsigned long n;
+
+	clone = kmalloc(struct_size(e, engines, e->num_engines), GFP_KERNEL);
+	if (!clone)
+		goto err_unlock;
+
+	clone->i915 = dst->i915;
+	for (n = 0; n < e->num_engines; n++) {
+		if (!e->engines[n]) {
+			clone->engines[n] = NULL;
+			continue;
+		}
+
+		clone->engines[n] =
+			intel_context_create(dst, e->engines[n]->engine);
+		if (!clone->engines[n]) {
+			__free_engines(clone, n);
+			goto err_unlock;
+		}
+	}
+	clone->num_engines = n;
+
+	user_engines = i915_gem_context_user_engines(src);
+	i915_gem_context_unlock_engines(src);
+
+	free_engines(dst->engines);
+	RCU_INIT_POINTER(dst->engines, clone);
+	if (user_engines)
+		i915_gem_context_set_user_engines(dst);
+	else
+		i915_gem_context_clear_user_engines(dst);
+	return 0;
+
+err_unlock:
+	i915_gem_context_unlock_engines(src);
+	return -ENOMEM;
+}
+
+static int clone_flags(struct i915_gem_context *dst,
+		       struct i915_gem_context *src)
+{
+	dst->user_flags = src->user_flags;
+	return 0;
+}
+
+static int clone_schedattr(struct i915_gem_context *dst,
+			   struct i915_gem_context *src)
+{
+	dst->sched = src->sched;
+	return 0;
+}
+
+static int clone_sseu(struct i915_gem_context *dst,
+		      struct i915_gem_context *src)
+{
+	struct i915_gem_engines *e = i915_gem_context_lock_engines(src);
+	struct i915_gem_engines *clone;
+	unsigned long n;
+	int err;
+
+	clone = dst->engines; /* no locking required; sole access */
+	if (e->num_engines != clone->num_engines) {
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	for (n = 0; n < e->num_engines; n++) {
+		struct intel_context *ce = e->engines[n];
+
+		if (clone->engines[n]->engine->class != ce->engine->class) {
+			/* Must have compatible engine maps! */
+			err = -EINVAL;
+			goto unlock;
+		}
+
+		/* serialises with set_sseu */
+		err = intel_context_lock_pinned(ce);
+		if (err)
+			goto unlock;
+
+		clone->engines[n]->sseu = ce->sseu;
+		intel_context_unlock_pinned(ce);
+	}
+
+	err = 0;
+unlock:
+	i915_gem_context_unlock_engines(src);
+	return err;
+}
+
+static int clone_timeline(struct i915_gem_context *dst,
+			  struct i915_gem_context *src)
+{
+	if (src->timeline) {
+		GEM_BUG_ON(src->timeline == dst->timeline);
+
+		if (dst->timeline)
+			i915_timeline_put(dst->timeline);
+		dst->timeline = i915_timeline_get(src->timeline);
+	}
+
+	return 0;
+}
+
+static int clone_vm(struct i915_gem_context *dst,
+		    struct i915_gem_context *src)
+{
+	struct i915_hw_ppgtt *ppgtt;
+
+	rcu_read_lock();
+	do {
+		ppgtt = READ_ONCE(src->ppgtt);
+		if (!ppgtt)
+			break;
+
+		if (!kref_get_unless_zero(&ppgtt->ref))
+			continue;
+
+		/*
+		 * This ppgtt may have be reallocated between
+		 * the read and the kref, and reassigned to a third
+		 * context. In order to avoid inadvertent sharing
+		 * of this ppgtt with that third context (and not
+		 * src), we have to confirm that we have the same
+		 * ppgtt after passing through the strong memory
+		 * barrier implied by a successful
+		 * kref_get_unless_zero().
+		 *
+		 * Once we have acquired the current ppgtt of src,
+		 * we no longer care if it is released from src, as
+		 * it cannot be reallocated elsewhere.
+		 */
+
+		if (ppgtt == READ_ONCE(src->ppgtt))
+			break;
+
+		i915_ppgtt_put(ppgtt);
+	} while (1);
+	rcu_read_unlock();
+
+	if (ppgtt) {
+		__assign_ppgtt(dst, ppgtt);
+		i915_ppgtt_put(ppgtt);
+	}
+
+	return 0;
+}
+
+static int create_clone(struct i915_user_extension __user *ext, void *data)
+{
+	static int (* const fn[])(struct i915_gem_context *dst,
+				  struct i915_gem_context *src) = {
+#define MAP(x, y) [ilog2(I915_CONTEXT_CLONE_##x)] = y
+		MAP(ENGINES, clone_engines),
+		MAP(FLAGS, clone_flags),
+		MAP(SCHEDATTR, clone_schedattr),
+		MAP(SSEU, clone_sseu),
+		MAP(TIMELINE, clone_timeline),
+		MAP(VM, clone_vm),
+#undef MAP
+	};
+	struct drm_i915_gem_context_create_ext_clone local;
+	const struct create_ext *arg = data;
+	struct i915_gem_context *dst = arg->ctx;
+	struct i915_gem_context *src;
+	int err, bit;
+
+	if (copy_from_user(&local, ext, sizeof(local)))
+		return -EFAULT;
+
+	BUILD_BUG_ON(GENMASK(BITS_PER_TYPE(local.flags) - 1, ARRAY_SIZE(fn)) !=
+		     I915_CONTEXT_CLONE_UNKNOWN);
+
+	if (local.flags & I915_CONTEXT_CLONE_UNKNOWN)
+		return -EINVAL;
+
+	if (local.rsvd)
+		return -EINVAL;
+
+	rcu_read_lock();
+	src = __i915_gem_context_lookup_rcu(arg->fpriv, local.clone_id);
+	rcu_read_unlock();
+	if (!src)
+		return -ENOENT;
+
+	GEM_BUG_ON(src == dst);
+
+	for (bit = 0; bit < ARRAY_SIZE(fn); bit++) {
+		if (!(local.flags & BIT(bit)))
+			continue;
+
+		err = fn[bit](dst, src);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static const i915_user_extension_fn create_extensions[] = {
 	[I915_CONTEXT_CREATE_EXT_SETPARAM] = create_setparam,
+	[I915_CONTEXT_CREATE_EXT_CLONE] = create_clone,
 };
 
 static bool client_is_banned(struct drm_i915_file_private *file_priv)
