@@ -4,6 +4,8 @@
 
 #include <linux/dmaengine.h>
 
+#define MXS_DMA_CTRL_WAIT4END	BIT(31)
+
 /*
  * The mxs dmaengine can do PIO transfers. We pass a pointer to the PIO words
  * in the second argument to dmaengine_prep_slave_sg when the direction is

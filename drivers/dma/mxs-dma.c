@@ -541,7 +541,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 		ccw->bits = 0;
 		ccw->bits |= CCW_IRQ;
 		ccw->bits |= CCW_DEC_SEM;
-		if (flags & DMA_CTRL_ACK)
+		if (flags & MXS_DMA_CTRL_WAIT4END)
 			ccw->bits |= CCW_WAIT4END;
 		ccw->bits |= CCW_HALT_ON_TERM;
 		ccw->bits |= CCW_TERM_FLUSH;
@@ -573,7 +573,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 				ccw->bits &= ~CCW_CHAIN;
 				ccw->bits |= CCW_IRQ;
 				ccw->bits |= CCW_DEC_SEM;
-				if (flags & DMA_CTRL_ACK)
+				if (flags & MXS_DMA_CTRL_WAIT4END)
 					ccw->bits |= CCW_WAIT4END;
 			}
 		}

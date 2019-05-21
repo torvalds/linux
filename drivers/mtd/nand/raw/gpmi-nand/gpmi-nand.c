@@ -926,7 +926,8 @@ static int gpmi_send_command(struct gpmi_nand_data *this)
 	sg_init_one(sgl, this->cmd_buffer, this->command_length);
 	dma_map_sg(this->dev, sgl, 1, DMA_TO_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel,
-				sgl, 1, DMA_MEM_TO_DEV, DMA_CTRL_ACK);
+				sgl, 1, DMA_MEM_TO_DEV,
+				MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		return -EINVAL;
 
@@ -996,7 +997,8 @@ static int gpmi_send_data(struct gpmi_nand_data *this, const void *buf, int len)
 	/* [2] send DMA request */
 	prepare_data_dma(this, buf, len, DMA_TO_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
-					1, DMA_MEM_TO_DEV, DMA_CTRL_ACK);
+					1, DMA_MEM_TO_DEV,
+					MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		return -EINVAL;
 
@@ -1033,7 +1035,8 @@ static int gpmi_read_data(struct gpmi_nand_data *this, void *buf, int len)
 	/* [2] : send DMA request */
 	direct = prepare_data_dma(this, buf, len, DMA_FROM_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
-					1, DMA_DEV_TO_MEM, DMA_CTRL_ACK);
+					1, DMA_DEV_TO_MEM,
+					MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		return -EINVAL;
 
@@ -1083,7 +1086,8 @@ static int gpmi_send_page(struct gpmi_nand_data *this, dma_addr_t payload,
 	pio[5] = auxiliary;
 
 	desc = mxs_dmaengine_prep_pio(channel, pio, ARRAY_SIZE(pio),
-				      DMA_TRANS_NONE, DMA_CTRL_ACK);
+				      DMA_TRANS_NONE,
+				      MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		return -EINVAL;
 
@@ -1140,7 +1144,8 @@ static int gpmi_read_page(struct gpmi_nand_data *this, dma_addr_t payload,
 	pio[4] = payload;
 	pio[5] = auxiliary;
 	desc = mxs_dmaengine_prep_pio(channel, pio, ARRAY_SIZE(pio),
-				      DMA_TRANS_NONE, DMA_CTRL_ACK);
+				      DMA_TRANS_NONE,
+				      MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		return -EINVAL;
 
@@ -1157,7 +1162,7 @@ static int gpmi_read_page(struct gpmi_nand_data *this, dma_addr_t payload,
 	pio[1] = 0;
 	pio[2] = 0; /* clear GPMI_HW_GPMI_ECCCTRL, disable the BCH. */
 	desc = mxs_dmaengine_prep_pio(channel, pio, 3, DMA_TRANS_NONE,
-				      DMA_CTRL_ACK);
+				      MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		return -EINVAL;
 
