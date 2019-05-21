@@ -96,8 +96,6 @@
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
 
-#define I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE (1 << 1)
-
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
 static struct i915_global_gem_context {
@@ -505,8 +503,6 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	BUILD_BUG_ON(I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE &
-		     ~I915_CONTEXT_CREATE_FLAGS_UNKNOWN);
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE &&
 	    !HAS_EXECLISTS(dev_priv))
 		return ERR_PTR(-EINVAL);

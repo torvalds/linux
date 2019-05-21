@@ -1469,8 +1469,9 @@ struct drm_i915_gem_context_create_ext {
 	__u32 ctx_id; /* output: id of new context*/
 	__u32 flags;
 #define I915_CONTEXT_CREATE_FLAGS_USE_EXTENSIONS	(1u << 0)
+#define I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE	(1u << 1)
 #define I915_CONTEXT_CREATE_FLAGS_UNKNOWN \
-	(-(I915_CONTEXT_CREATE_FLAGS_USE_EXTENSIONS << 1))
+	(-(I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE << 1))
 	__u64 extensions;
 };
 
