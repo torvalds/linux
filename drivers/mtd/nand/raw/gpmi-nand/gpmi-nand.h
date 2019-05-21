@@ -154,9 +154,6 @@ struct gpmi_nand_data {
 #define DMA_CHANS		8
 	struct dma_chan		*dma_chans[DMA_CHANS];
 	struct completion	dma_done;
-
-	/* private */
-	void			*private;
 };
 
 /* BCH : Status Block Completion Codes */
