@@ -12,9 +12,12 @@ maintainers:
 
 description:
   Any property defined as part of the core regulator binding, defined in
-  regulator.txt, can also be used. However a fixed voltage regulator is
+  regulator.yaml, can also be used. However a fixed voltage regulator is
   expected to have the regulator-min-microvolt and regulator-max-microvolt
   to be the same.
+
+allOf:
+  - $ref: "regulator.yaml#"
 
 properties:
   compatible:
