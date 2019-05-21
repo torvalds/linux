@@ -278,7 +278,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 
-			gpio = <&gpio TEGRA_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 
 			vin-supply = <&vdd_5v0_sys>;
@@ -292,7 +292,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 
-			gpio = <&gpio TEGRA_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 
 			vin-supply = <&vdd_5v0_sys>;
