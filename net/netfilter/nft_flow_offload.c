@@ -72,6 +72,7 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
 	struct nf_flow_route route;
 	struct flow_offload *flow;
 	enum ip_conntrack_dir dir;
+	bool is_tcp = false;
 	struct nf_conn *ct;
 	int ret;
 
@@ -84,6 +85,8 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
 
 	switch (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum) {
 	case IPPROTO_TCP:
+		is_tcp = true;
+		break;
 	case IPPROTO_UDP:
 		break;
 	default:
@@ -107,6 +110,11 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
 	flow = flow_offload_alloc(ct, &route);
 	if (!flow)
 		goto err_flow_alloc;
+
+	if (is_tcp) {
+		ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+		ct->proto.tcp.seen[1].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+	}
 
 	ret = flow_offload_add(flowtable, flow);
 	if (ret < 0)
