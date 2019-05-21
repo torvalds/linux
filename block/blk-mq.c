@@ -44,12 +44,12 @@ static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
 
 static int blk_mq_poll_stats_bkt(const struct request *rq)
 {
-	int ddir, bytes, bucket;
+	int ddir, sectors, bucket;
 
 	ddir = rq_data_dir(rq);
-	bytes = blk_rq_bytes(rq);
+	sectors = blk_rq_stats_sectors(rq);
 
-	bucket = ddir + 2*(ilog2(bytes) - 9);
+	bucket = ddir + 2 * ilog2(sectors);
 
 	if (bucket < 0)
 		return -1;
@@ -333,6 +333,7 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	else
 		rq->start_time_ns = 0;
 	rq->io_start_time_ns = 0;
+	rq->stats_sectors = 0;
 	rq->nr_phys_segments = 0;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	rq->nr_integrity_segments = 0;
@@ -681,9 +682,7 @@ void blk_mq_start_request(struct request *rq)
 
 	if (test_bit(QUEUE_FLAG_STATS, &q->queue_flags)) {
 		rq->io_start_time_ns = ktime_get_ns();
-#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-		rq->throtl_size = blk_rq_sectors(rq);
-#endif
+		rq->stats_sectors = blk_rq_sectors(rq);
 		rq->rq_flags |= RQF_STATS;
 		rq_qos_issue(q, rq);
 	}

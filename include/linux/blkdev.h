@@ -206,9 +206,12 @@ struct request {
 #ifdef CONFIG_BLK_WBT
 	unsigned short wbt_flags;
 #endif
-#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	unsigned short throtl_size;
-#endif
+	/*
+	 * rq sectors used for blk stats. It has the same value
+	 * with blk_rq_sectors(rq), except that it never be zeroed
+	 * by completion.
+	 */
+	unsigned short stats_sectors;
 
 	/*
 	 * Number of scatter-gather DMA addr+len pairs after
@@ -917,6 +920,7 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
  * blk_rq_err_bytes()		: bytes left till the next error boundary
  * blk_rq_sectors()		: sectors left in the entire request
  * blk_rq_cur_sectors()		: sectors left in the current segment
+ * blk_rq_stats_sectors()	: sectors of the entire request used for stats
  */
 static inline sector_t blk_rq_pos(const struct request *rq)
 {
@@ -943,6 +947,11 @@ static inline unsigned int blk_rq_sectors(const struct request *rq)
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> SECTOR_SHIFT;
+}
+
+static inline unsigned int blk_rq_stats_sectors(const struct request *rq)
+{
+	return rq->stats_sectors;
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
