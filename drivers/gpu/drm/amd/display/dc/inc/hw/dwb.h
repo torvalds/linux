@@ -38,6 +38,7 @@ enum dce_version;
 
 enum dwb_sw_version {
 	dwb_ver_1_0 = 1,
+	dwb_ver_2_0 = 2,
 };
 
 enum dwb_source {
@@ -112,8 +113,9 @@ struct dwb_caps {
 		unsigned int support_ogam	:1;
 		unsigned int support_wbscl	:1;
 		unsigned int support_ocsc	:1;
+		unsigned int support_stereo :1;
 	} caps;
-	unsigned int	 reserved2[10];	/* Reserved for future use, MUST BE 0. */
+	unsigned int	 reserved2[9];	/* Reserved for future use, MUST BE 0. */
 };
 
 struct dwbc {

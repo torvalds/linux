@@ -582,6 +582,7 @@ struct dc_info_packet_128 {
 	uint8_t hb3;
 	uint8_t sb[128];
 };
+
 #define DC_PLANE_UPDATE_TIMES_MAX 10
 
 struct dc_plane_flip_time {
