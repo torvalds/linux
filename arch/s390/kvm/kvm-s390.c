@@ -2461,6 +2461,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		set_kvm_facility(kvm->arch.model.fac_list, 147);
 	}
 
+	if (css_general_characteristics.aiv && test_facility(65))
+		set_kvm_facility(kvm->arch.model.fac_mask, 65);
+
 	kvm->arch.model.cpuid = kvm_s390_get_initial_cpuid();
 	kvm->arch.model.ibc = sclp.ibc & 0x0fff;
 
