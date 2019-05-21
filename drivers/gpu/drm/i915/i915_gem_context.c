@@ -1363,6 +1363,7 @@ static int set_sseu(struct i915_gem_context *ctx,
 	struct drm_i915_gem_context_param_sseu user_sseu;
 	struct intel_context *ce;
 	struct intel_sseu sseu;
+	unsigned long lookup;
 	int ret;
 
 	if (args->size < sizeof(user_sseu))
@@ -1375,10 +1376,17 @@ static int set_sseu(struct i915_gem_context *ctx,
 			   sizeof(user_sseu)))
 		return -EFAULT;
 
-	if (user_sseu.flags || user_sseu.rsvd)
+	if (user_sseu.rsvd)
 		return -EINVAL;
 
-	ce = lookup_user_engine(ctx, 0, &user_sseu.engine);
+	if (user_sseu.flags & ~(I915_CONTEXT_SSEU_FLAG_ENGINE_INDEX))
+		return -EINVAL;
+
+	lookup = 0;
+	if (user_sseu.flags & I915_CONTEXT_SSEU_FLAG_ENGINE_INDEX)
+		lookup |= LOOKUP_USER_INDEX;
+
+	ce = lookup_user_engine(ctx, lookup, &user_sseu.engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
@@ -1821,6 +1829,7 @@ static int get_sseu(struct i915_gem_context *ctx,
 {
 	struct drm_i915_gem_context_param_sseu user_sseu;
 	struct intel_context *ce;
+	unsigned long lookup;
 	int err;
 
 	if (args->size == 0)
@@ -1832,10 +1841,17 @@ static int get_sseu(struct i915_gem_context *ctx,
 			   sizeof(user_sseu)))
 		return -EFAULT;
 
-	if (user_sseu.flags || user_sseu.rsvd)
+	if (user_sseu.rsvd)
 		return -EINVAL;
 
-	ce = lookup_user_engine(ctx, 0, &user_sseu.engine);
+	if (user_sseu.flags & ~(I915_CONTEXT_SSEU_FLAG_ENGINE_INDEX))
+		return -EINVAL;
+
+	lookup = 0;
+	if (user_sseu.flags & I915_CONTEXT_SSEU_FLAG_ENGINE_INDEX)
+		lookup |= LOOKUP_USER_INDEX;
+
+	ce = lookup_user_engine(ctx, lookup, &user_sseu.engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 

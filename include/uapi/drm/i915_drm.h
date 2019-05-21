@@ -1576,9 +1576,10 @@ struct drm_i915_gem_context_param_sseu {
 	struct i915_engine_class_instance engine;
 
 	/*
-	 * Unused for now. Must be cleared to zero.
+	 * Unknown flags must be cleared to zero.
 	 */
 	__u32 flags;
+#define I915_CONTEXT_SSEU_FLAG_ENGINE_INDEX (1u << 0)
 
 	/*
 	 * Mask of slices to enable for the context. Valid values are a subset
