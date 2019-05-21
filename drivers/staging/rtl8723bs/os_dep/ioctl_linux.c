@@ -3096,7 +3096,7 @@ static int rtw_dbg_port(struct net_device *dev,
 
 							DBG_871X("enable driver ctrl ampdu density = %d\n", extra_arg);
 
-							if ((extra_arg & 0x07) > 0x07)
+							if (extra_arg > 0x07)
 								padapter->driver_ampdu_spacing = 0xFF;
 							else
 								padapter->driver_ampdu_spacing = extra_arg;
