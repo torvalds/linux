@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "kgd_pp_interface.h"
 #include "dm_pp_interface.h"
+#include "dm_pp_smu.h"
 
 #define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
 #define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
@@ -678,6 +679,7 @@ struct smu_funcs
 	int (*gfx_off_control)(struct smu_context *smu, bool enable);
 	int (*register_irq_handler)(struct smu_context *smu);
 	int (*set_azalia_d3_pme)(struct smu_context *smu);
+	int (*get_max_sustainable_clocks_by_dc)(struct smu_context *smu, struct pp_smu_nv_clock_table *max_clocks);
 };
 
 #define smu_init_microcode(smu) \
@@ -884,6 +886,8 @@ struct smu_funcs
 	((smu)->funcs->set_azalia_d3_pme ? (smu)->funcs->set_azalia_d3_pme((smu)) : 0)
 #define smu_get_uclk_dpm_states(smu, clocks_in_khz, num_states) \
 	((smu)->ppt_funcs->get_uclk_dpm_states ? (smu)->ppt_funcs->get_uclk_dpm_states((smu), (clocks_in_khz), (num_states)) : 0)
+#define smu_get_max_sustainable_clocks_by_dc(smu, max_clocks) \
+	((smu)->funcs->get_max_sustainable_clocks_by_dc ? (smu)->funcs->get_max_sustainable_clocks_by_dc((smu), (max_clocks)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

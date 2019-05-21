@@ -1598,6 +1598,36 @@ static int smu_v11_0_register_irq_handler(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
+		struct pp_smu_nv_clock_table *max_clocks)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_max_sustainable_clocks *sustainable_clocks = NULL;
+
+	if (!max_clocks || !table_context->max_sustainable_clocks)
+		return -EINVAL;
+
+	sustainable_clocks = table_context->max_sustainable_clocks;
+
+	max_clocks->dcfClockInKhz =
+			(unsigned int) sustainable_clocks->dcef_clock * 1000;
+	max_clocks->displayClockInKhz =
+			(unsigned int) sustainable_clocks->display_clock * 1000;
+	max_clocks->phyClockInKhz =
+			(unsigned int) sustainable_clocks->phy_clock * 1000;
+	max_clocks->pixelClockInKhz =
+			(unsigned int) sustainable_clocks->pixel_clock * 1000;
+	max_clocks->uClockInKhz =
+			(unsigned int) sustainable_clocks->uclock * 1000;
+	max_clocks->socClockInKhz =
+			(unsigned int) sustainable_clocks->soc_clock * 1000;
+	max_clocks->dscClockInKhz = 0;
+	max_clocks->dppClockInKhz = 0;
+	max_clocks->fabricClockInKhz = 0;
+
+	return 0;
+}
+
 static int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
 {
 	int ret = 0;
@@ -1656,6 +1686,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
+	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
