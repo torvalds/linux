@@ -5,6 +5,7 @@
 #include <linux/dmaengine.h>
 
 #define MXS_DMA_CTRL_WAIT4END	BIT(31)
+#define MXS_DMA_CTRL_WAIT4RDY	BIT(30)
 
 /*
  * The mxs dmaengine can do PIO transfers. We pass a pointer to the PIO words

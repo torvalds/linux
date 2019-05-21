@@ -78,6 +78,7 @@
 #define BM_CCW_COMMAND		(3 << 0)
 #define CCW_CHAIN		(1 << 2)
 #define CCW_IRQ			(1 << 3)
+#define CCW_WAIT4RDY		(1 << 5)
 #define CCW_DEC_SEM		(1 << 6)
 #define CCW_WAIT4END		(1 << 7)
 #define CCW_HALT_ON_TERM	(1 << 8)
@@ -547,6 +548,8 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 		ccw->bits |= CCW_TERM_FLUSH;
 		ccw->bits |= BF_CCW(sg_len, PIO_NUM);
 		ccw->bits |= BF_CCW(MXS_DMA_CMD_NO_XFER, COMMAND);
+		if (flags & MXS_DMA_CTRL_WAIT4RDY)
+			ccw->bits |= CCW_WAIT4RDY;
 	} else {
 		for_each_sg(sgl, sg, sg_len, i) {
 			if (sg_dma_len(sg) > MAX_XFER_BYTES) {

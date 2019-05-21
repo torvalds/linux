@@ -103,6 +103,14 @@ struct gpmi_nfc_hardware_timing {
 	u32 ctrl1n;
 };
 
+#define GPMI_MAX_TRANSFERS	8
+
+struct gpmi_transfer {
+	u8 cmdbuf[8];
+	struct scatterlist sgl;
+	enum dma_data_direction direction;
+};
+
 struct gpmi_nand_data {
 	/* Devdata */
 	const struct gpmi_devdata *devdata;
@@ -126,22 +134,17 @@ struct gpmi_nand_data {
 	struct boot_rom_geometry rom_geometry;
 
 	/* MTD / NAND */
+	struct nand_controller	base;
 	struct nand_chip	nand;
 
-	/* General-use Variables */
-	int			current_chip;
-	unsigned int		command_length;
+	struct gpmi_transfer	transfers[GPMI_MAX_TRANSFERS];
+	int			ntransfers;
 
-	struct scatterlist	cmd_sgl;
-	char			*cmd_buffer;
+	bool			bch;
+	uint32_t		bch_flashlayout0;
+	uint32_t		bch_flashlayout1;
 
-	struct scatterlist	data_sgl;
 	char			*data_buffer_dma;
-
-	unsigned int		page_buffer_size;
-
-	void			*payload_virt;
-	dma_addr_t		payload_phys;
 
 	void			*auxiliary_virt;
 	dma_addr_t		auxiliary_phys;
