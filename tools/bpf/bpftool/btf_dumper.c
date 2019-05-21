@@ -73,37 +73,104 @@ static int btf_dumper_array(const struct btf_dumper *d, __u32 type_id,
 	return ret;
 }
 
+static void btf_int128_print(json_writer_t *jw, const void *data,
+			     bool is_plain_text)
+{
+	/* data points to a __int128 number.
+	 * Suppose
+	 *     int128_num = *(__int128 *)data;
+	 * The below formulas shows what upper_num and lower_num represents:
+	 *     upper_num = int128_num >> 64;
+	 *     lower_num = int128_num & 0xffffffffFFFFFFFFULL;
+	 */
+	__u64 upper_num, lower_num;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	upper_num = *(__u64 *)data;
+	lower_num = *(__u64 *)(data + 8);
+#else
+	upper_num = *(__u64 *)(data + 8);
+	lower_num = *(__u64 *)data;
+#endif
+
+	if (is_plain_text) {
+		if (upper_num == 0)
+			jsonw_printf(jw, "0x%llx", lower_num);
+		else
+			jsonw_printf(jw, "0x%llx%016llx", upper_num, lower_num);
+	} else {
+		if (upper_num == 0)
+			jsonw_printf(jw, "\"0x%llx\"", lower_num);
+		else
+			jsonw_printf(jw, "\"0x%llx%016llx\"", upper_num, lower_num);
+	}
+}
+
+static void btf_int128_shift(__u64 *print_num, u16 left_shift_bits,
+			     u16 right_shift_bits)
+{
+	__u64 upper_num, lower_num;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	upper_num = print_num[0];
+	lower_num = print_num[1];
+#else
+	upper_num = print_num[1];
+	lower_num = print_num[0];
+#endif
+
+	/* shake out un-needed bits by shift/or operations */
+	if (left_shift_bits >= 64) {
+		upper_num = lower_num << (left_shift_bits - 64);
+		lower_num = 0;
+	} else {
+		upper_num = (upper_num << left_shift_bits) |
+			    (lower_num >> (64 - left_shift_bits));
+		lower_num = lower_num << left_shift_bits;
+	}
+
+	if (right_shift_bits >= 64) {
+		lower_num = upper_num >> (right_shift_bits - 64);
+		upper_num = 0;
+	} else {
+		lower_num = (lower_num >> right_shift_bits) |
+			    (upper_num << (64 - right_shift_bits));
+		upper_num = upper_num >> right_shift_bits;
+	}
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	print_num[0] = upper_num;
+	print_num[1] = lower_num;
+#else
+	print_num[0] = lower_num;
+	print_num[1] = upper_num;
+#endif
+}
+
 static void btf_dumper_bitfield(__u32 nr_bits, __u8 bit_offset,
 				const void *data, json_writer_t *jw,
 				bool is_plain_text)
 {
 	int left_shift_bits, right_shift_bits;
+	__u64 print_num[2] = {};
 	int bytes_to_copy;
 	int bits_to_copy;
-	__u64 print_num;
 
-	data += BITS_ROUNDDOWN_BYTES(bit_offset);
-	bit_offset = BITS_PER_BYTE_MASKED(bit_offset);
 	bits_to_copy = bit_offset + nr_bits;
 	bytes_to_copy = BITS_ROUNDUP_BYTES(bits_to_copy);
 
-	print_num = 0;
-	memcpy(&print_num, data, bytes_to_copy);
+	memcpy(print_num, data, bytes_to_copy);
 #if defined(__BIG_ENDIAN_BITFIELD)
 	left_shift_bits = bit_offset;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	left_shift_bits = 64 - bits_to_copy;
+	left_shift_bits = 128 - bits_to_copy;
 #else
 #error neither big nor little endian
 #endif
-	right_shift_bits = 64 - nr_bits;
+	right_shift_bits = 128 - nr_bits;
 
-	print_num <<= left_shift_bits;
-	print_num >>= right_shift_bits;
-	if (is_plain_text)
-		jsonw_printf(jw, "0x%llx", print_num);
-	else
-		jsonw_printf(jw, "%llu", print_num);
+	btf_int128_shift(print_num, left_shift_bits, right_shift_bits);
+	btf_int128_print(jw, print_num, is_plain_text);
 }
 
 
@@ -115,10 +182,12 @@ static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
 	int total_bits_offset;
 
 	/* bits_offset is at most 7.
-	 * BTF_INT_OFFSET() cannot exceed 64 bits.
+	 * BTF_INT_OFFSET() cannot exceed 128 bits.
 	 */
 	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
-	btf_dumper_bitfield(nr_bits, total_bits_offset, data, jw,
+	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
+	bit_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
+	btf_dumper_bitfield(nr_bits, bit_offset, data, jw,
 			    is_plain_text);
 }
 
@@ -136,6 +205,11 @@ static int btf_dumper_int(const struct btf_type *t, __u8 bit_offset,
 	    BITS_PER_BYTE_MASKED(nr_bits)) {
 		btf_dumper_int_bits(*int_type, bit_offset, data, jw,
 				    is_plain_text);
+		return 0;
+	}
+
+	if (nr_bits == 128) {
+		btf_int128_print(jw, data, is_plain_text);
 		return 0;
 	}
 
@@ -216,11 +290,12 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 		}
 
 		jsonw_name(d->jw, btf__name_by_offset(d->btf, m[i].name_off));
+		data_off = data + BITS_ROUNDDOWN_BYTES(bit_offset);
 		if (bitfield_size) {
-			btf_dumper_bitfield(bitfield_size, bit_offset,
-					    data, d->jw, d->is_plain_text);
+			btf_dumper_bitfield(bitfield_size,
+					    BITS_PER_BYTE_MASKED(bit_offset),
+					    data_off, d->jw, d->is_plain_text);
 		} else {
-			data_off = data + BITS_ROUNDDOWN_BYTES(bit_offset);
 			ret = btf_dumper_do_type(d, m[i].type,
 						 BITS_PER_BYTE_MASKED(bit_offset),
 						 data_off);

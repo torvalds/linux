@@ -224,7 +224,8 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			extoff = NULL;
 			break;
 		}
-		if (extoff->n_samples > PTP_MAX_SAMPLES) {
+		if (extoff->n_samples > PTP_MAX_SAMPLES
+		    || extoff->rsv[0] || extoff->rsv[1] || extoff->rsv[2]) {
 			err = -EINVAL;
 			break;
 		}

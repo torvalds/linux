@@ -32,6 +32,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_device.h>
 
 /**
  * DOC: overview
@@ -178,7 +179,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	state = drm_atomic_state_alloc(fb->dev);
 	if (!state) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_drop_locks;
 	}
 	state->acquire_ctx = &ctx;
 
@@ -238,6 +239,7 @@ out:
 	kfree(rects);
 	drm_atomic_state_put(state);
 
+out_drop_locks:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
@@ -332,3 +334,44 @@ drm_atomic_helper_damage_iter_next(struct drm_atomic_helper_damage_iter *iter,
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_damage_iter_next);
+
+/**
+ * drm_atomic_helper_damage_merged - Merged plane damage
+ * @old_state: Old plane state for validation.
+ * @state: Plane state from which to iterate the damage clips.
+ * @rect: Returns the merged damage rectangle
+ *
+ * This function merges any valid plane damage clips into one rectangle and
+ * returns it in @rect.
+ *
+ * For details see: drm_atomic_helper_damage_iter_init() and
+ * drm_atomic_helper_damage_iter_next().
+ *
+ * Returns:
+ * True if there is valid plane damage otherwise false.
+ */
+bool drm_atomic_helper_damage_merged(const struct drm_plane_state *old_state,
+				     struct drm_plane_state *state,
+				     struct drm_rect *rect)
+{
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect clip;
+	bool valid = false;
+
+	rect->x1 = INT_MAX;
+	rect->y1 = INT_MAX;
+	rect->x2 = 0;
+	rect->y2 = 0;
+
+	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+	drm_atomic_for_each_plane_damage(&iter, &clip) {
+		rect->x1 = min(rect->x1, clip.x1);
+		rect->y1 = min(rect->y1, clip.y1);
+		rect->x2 = max(rect->x2, clip.x2);
+		rect->y2 = max(rect->y2, clip.y2);
+		valid = true;
+	}
+
+	return valid;
+}
+EXPORT_SYMBOL(drm_atomic_helper_damage_merged);

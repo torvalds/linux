@@ -49,13 +49,11 @@ struct caam_drv_private_jr {
 	atomic_t tfm_count ____cacheline_aligned;
 
 	/* Job ring info */
-	int ringsize;	/* Size of rings (assume input = output) */
 	struct caam_jrentry_info *entinfo;	/* Alloc'ed 1 per ring entry */
 	spinlock_t inplock ____cacheline_aligned; /* Input ring index lock */
-	int inp_ring_write_index;	/* Input index "tail" */
+	u32 inpring_avail;	/* Number of free entries in input ring */
 	int head;			/* entinfo (s/w ring) head index */
 	dma_addr_t *inpring;	/* Base of input ring, alloc DMA-safe */
-	spinlock_t outlock ____cacheline_aligned; /* Output ring index lock */
 	int out_ring_read_index;	/* Output index "tail" */
 	int tail;			/* entinfo (s/w ring) tail index */
 	struct jr_outentry *outring;	/* Base of output ring, DMA-safe */
@@ -106,7 +104,6 @@ struct caam_drv_private {
 	struct dentry *dfs_root;
 	struct dentry *ctl; /* controller dir */
 	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
-	struct dentry *ctl_kek, *ctl_tkek, *ctl_tdsk;
 #endif
 };
 

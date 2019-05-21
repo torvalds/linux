@@ -46,6 +46,17 @@ applicable to all devices.
     dv-timings
     control
     extended-controls
+    ext-ctrls-camera
+    ext-ctrls-flash
+    ext-ctrls-image-source
+    ext-ctrls-image-process
+    ext-ctrls-codec
+    ext-ctrls-jpeg
+    ext-ctrls-dv
+    ext-ctrls-rf-tuner
+    ext-ctrls-fm-tx
+    ext-ctrls-fm-rx
+    ext-ctrls-detect
     format
     planar-apis
     selection-api

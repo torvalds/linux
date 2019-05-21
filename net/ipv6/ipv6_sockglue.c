@@ -787,6 +787,12 @@ done:
 			goto e_inval;
 		retv = ip6_ra_control(sk, val);
 		break;
+	case IPV6_ROUTER_ALERT_ISOLATE:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		np->rtalert_isolate = valbool;
+		retv = 0;
+		break;
 	case IPV6_MTU_DISCOVER:
 		if (optlen < sizeof(int))
 			goto e_inval;
@@ -1356,6 +1362,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_RECVFRAGSIZE:
 		val = np->rxopt.bits.recvfragsize;
+		break;
+
+	case IPV6_ROUTER_ALERT_ISOLATE:
+		val = np->rtalert_isolate;
 		break;
 
 	default:

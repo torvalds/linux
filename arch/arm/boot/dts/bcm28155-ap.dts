@@ -22,6 +22,7 @@
 	compatible = "brcm,bcm28155-ap", "brcm,bcm11351";
 
 	memory {
+		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 

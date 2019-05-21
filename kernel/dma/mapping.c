@@ -46,45 +46,6 @@ static int dmam_match(struct device *dev, void *res, void *match_data)
 }
 
 /**
- * dmam_alloc_coherent - Managed dma_alloc_coherent()
- * @dev: Device to allocate coherent memory for
- * @size: Size of allocation
- * @dma_handle: Out argument for allocated DMA handle
- * @gfp: Allocation flags
- *
- * Managed dma_alloc_coherent().  Memory allocated using this function
- * will be automatically released on driver detach.
- *
- * RETURNS:
- * Pointer to allocated memory on success, NULL on failure.
- */
-void *dmam_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, gfp_t gfp)
-{
-	struct dma_devres *dr;
-	void *vaddr;
-
-	dr = devres_alloc(dmam_release, sizeof(*dr), gfp);
-	if (!dr)
-		return NULL;
-
-	vaddr = dma_alloc_coherent(dev, size, dma_handle, gfp);
-	if (!vaddr) {
-		devres_free(dr);
-		return NULL;
-	}
-
-	dr->vaddr = vaddr;
-	dr->dma_handle = *dma_handle;
-	dr->size = size;
-
-	devres_add(dev, dr);
-
-	return vaddr;
-}
-EXPORT_SYMBOL(dmam_alloc_coherent);
-
-/**
  * dmam_free_coherent - Managed dma_free_coherent()
  * @dev: Device to free coherent memory for
  * @size: Size of allocation
@@ -143,61 +104,6 @@ void *dmam_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	return vaddr;
 }
 EXPORT_SYMBOL(dmam_alloc_attrs);
-
-#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
-
-static void dmam_coherent_decl_release(struct device *dev, void *res)
-{
-	dma_release_declared_memory(dev);
-}
-
-/**
- * dmam_declare_coherent_memory - Managed dma_declare_coherent_memory()
- * @dev: Device to declare coherent memory for
- * @phys_addr: Physical address of coherent memory to be declared
- * @device_addr: Device address of coherent memory to be declared
- * @size: Size of coherent memory to be declared
- * @flags: Flags
- *
- * Managed dma_declare_coherent_memory().
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int dmam_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
-				 dma_addr_t device_addr, size_t size, int flags)
-{
-	void *res;
-	int rc;
-
-	res = devres_alloc(dmam_coherent_decl_release, 0, GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
-	rc = dma_declare_coherent_memory(dev, phys_addr, device_addr, size,
-					 flags);
-	if (!rc)
-		devres_add(dev, res);
-	else
-		devres_free(res);
-
-	return rc;
-}
-EXPORT_SYMBOL(dmam_declare_coherent_memory);
-
-/**
- * dmam_release_declared_memory - Managed dma_release_declared_memory().
- * @dev: Device to release declared coherent memory for
- *
- * Managed dmam_release_declared_memory().
- */
-void dmam_release_declared_memory(struct device *dev)
-{
-	WARN_ON(devres_destroy(dev, dmam_coherent_decl_release, NULL, NULL));
-}
-EXPORT_SYMBOL(dmam_release_declared_memory);
-
-#endif
 
 /*
  * Create scatter-list for the already allocated DMA buffer.
@@ -301,7 +207,6 @@ int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL(dma_mmap_attrs);
 
-#ifndef ARCH_HAS_DMA_GET_REQUIRED_MASK
 static u64 dma_default_get_required_mask(struct device *dev)
 {
 	u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
@@ -332,7 +237,6 @@ u64 dma_get_required_mask(struct device *dev)
 	return dma_default_get_required_mask(dev);
 }
 EXPORT_SYMBOL_GPL(dma_get_required_mask);
-#endif
 
 #ifndef arch_dma_alloc_attrs
 #define arch_dma_alloc_attrs(dev)	(true)
@@ -412,18 +316,23 @@ int dma_supported(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_supported);
 
-#ifndef HAVE_ARCH_DMA_SET_MASK
+#ifdef CONFIG_ARCH_HAS_DMA_SET_MASK
+void arch_dma_set_mask(struct device *dev, u64 mask);
+#else
+#define arch_dma_set_mask(dev, mask)	do { } while (0)
+#endif
+
 int dma_set_mask(struct device *dev, u64 mask)
 {
 	if (!dev->dma_mask || !dma_supported(dev, mask))
 		return -EIO;
 
+	arch_dma_set_mask(dev, mask);
 	dma_check_mask(dev, mask);
 	*dev->dma_mask = mask;
 	return 0;
 }
 EXPORT_SYMBOL(dma_set_mask);
-#endif
 
 #ifndef CONFIG_ARCH_HAS_DMA_SET_COHERENT_MASK
 int dma_set_coherent_mask(struct device *dev, u64 mask)
@@ -451,3 +360,17 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		ops->cache_sync(dev, vaddr, size, dir);
 }
 EXPORT_SYMBOL(dma_cache_sync);
+
+size_t dma_max_mapping_size(struct device *dev)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	size_t size = SIZE_MAX;
+
+	if (dma_is_direct(ops))
+		size = dma_direct_max_mapping_size(dev);
+	else if (ops && ops->max_mapping_size)
+		size = ops->max_mapping_size(dev);
+
+	return size;
+}
+EXPORT_SYMBOL_GPL(dma_max_mapping_size);

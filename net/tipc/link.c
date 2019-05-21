@@ -869,6 +869,8 @@ void tipc_link_reset(struct tipc_link *l)
 	__skb_queue_head_init(&list);
 
 	l->in_session = false;
+	/* Force re-synch of peer session number before establishing */
+	l->peer_session--;
 	l->session++;
 	l->mtu = l->advertised_mtu;
 
@@ -1126,7 +1128,7 @@ static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 			skb_queue_tail(mc_inputq, skb);
 			return true;
 		}
-		/* else: fall through */
+		/* fall through */
 	case CONN_MANAGER:
 		skb_queue_tail(inputq, skb);
 		return true;
@@ -1145,7 +1147,7 @@ static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 	default:
 		pr_warn("Dropping received illegal msg type\n");
 		kfree_skb(skb);
-		return false;
+		return true;
 	};
 }
 
@@ -1425,6 +1427,10 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 		l->rcv_unacked = 0;
 	} else {
 		/* RESET_MSG or ACTIVATE_MSG */
+		if (mtyp == ACTIVATE_MSG) {
+			msg_set_dest_session_valid(hdr, 1);
+			msg_set_dest_session(hdr, l->peer_session);
+		}
 		msg_set_max_pkt(hdr, l->advertised_mtu);
 		strcpy(data, l->if_name);
 		msg_set_size(hdr, INT_H_SIZE + TIPC_MAX_IF_NAME);
@@ -1642,6 +1648,17 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
 			break;
 		}
+
+		/* If this endpoint was re-created while peer was ESTABLISHING
+		 * it doesn't know current session number. Force re-synch.
+		 */
+		if (mtyp == ACTIVATE_MSG && msg_dest_session_valid(hdr) &&
+		    l->session != msg_dest_session(hdr)) {
+			if (less(l->session, msg_dest_session(hdr)))
+				l->session = msg_dest_session(hdr) + 1;
+			break;
+		}
+
 		/* ACTIVATE_MSG serves as PEER_RESET if link is already down */
 		if (mtyp == RESET_MSG || !link_is_up(l))
 			rc = tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);

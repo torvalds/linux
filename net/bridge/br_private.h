@@ -107,6 +107,7 @@ struct br_tunnel_info {
 /* private vlan flags */
 enum {
 	BR_VLFLAG_PER_PORT_STATS = BIT(0),
+	BR_VLFLAG_ADDED_BY_SWITCHDEV = BIT(1),
 };
 
 /**
@@ -572,7 +573,8 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		  struct net_device *dev, const unsigned char *addr, u16 vid);
 int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[], struct net_device *dev,
-	       const unsigned char *addr, u16 vid, u16 nlh_flags);
+	       const unsigned char *addr, u16 vid, u16 nlh_flags,
+	       struct netlink_ext_ack *extack);
 int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		struct net_device *dev, struct net_device *fdev, int *idx);
 int br_fdb_get(struct sk_buff *skb, struct nlattr *tb[], struct net_device *dev,

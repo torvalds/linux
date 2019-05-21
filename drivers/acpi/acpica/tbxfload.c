@@ -3,7 +3,7 @@
  *
  * Module Name: tbxfload - Table load/unload external interfaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -69,23 +69,18 @@ acpi_status ACPI_INIT_FUNCTION acpi_load_tables(void)
 				"While loading namespace from ACPI tables"));
 	}
 
-	if (acpi_gbl_execute_tables_as_methods) {
-		/*
-		 * If the module-level code support is enabled, initialize the objects
-		 * in the namespace that remain uninitialized. This runs the executable
-		 * AML that may be part of the declaration of these name objects:
-		 *     operation_regions, buffer_fields, Buffers, and Packages.
-		 *
-		 * Note: The module-level code is optional at this time, but will
-		 * become the default in the future.
-		 */
-		status = acpi_ns_initialize_objects();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+	/*
+	 * Initialize the objects in the namespace that remain uninitialized.
+	 * This runs the executable AML that may be part of the declaration of
+	 * these name objects:
+	 *     operation_regions, buffer_fields, Buffers, and Packages.
+	 *
+	 */
+	status = acpi_ns_initialize_objects();
+	if (ACPI_SUCCESS(status)) {
+		acpi_gbl_namespace_initialized = TRUE;
 	}
 
-	acpi_gbl_namespace_initialized = TRUE;
 	return_ACPI_STATUS(status);
 }
 
@@ -123,7 +118,7 @@ acpi_status acpi_tb_load_namespace(void)
 	table = &acpi_gbl_root_table_list.tables[acpi_gbl_dsdt_index];
 
 	if (!acpi_gbl_root_table_list.current_table_count ||
-	    !ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_DSDT) ||
+	    !ACPI_COMPARE_NAMESEG(table->signature.ascii, ACPI_SIG_DSDT) ||
 	    ACPI_FAILURE(acpi_tb_validate_table(table))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
@@ -175,11 +170,12 @@ acpi_status acpi_tb_load_namespace(void)
 		table = &acpi_gbl_root_table_list.tables[i];
 
 		if (!table->address ||
-		    (!ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_SSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_PSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_OSDT))
+		    (!ACPI_COMPARE_NAMESEG
+		     (table->signature.ascii, ACPI_SIG_SSDT)
+		     && !ACPI_COMPARE_NAMESEG(table->signature.ascii,
+					      ACPI_SIG_PSDT)
+		     && !ACPI_COMPARE_NAMESEG(table->signature.ascii,
+					      ACPI_SIG_OSDT))
 		    || ACPI_FAILURE(acpi_tb_validate_table(table))) {
 			continue;
 		}
@@ -369,7 +365,7 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 		 * only these types can contain AML and thus are the only types
 		 * that can create namespace objects.
 		 */
-		if (ACPI_COMPARE_NAME
+		if (ACPI_COMPARE_NAMESEG
 		    (acpi_gbl_root_table_list.tables[i].signature.ascii,
 		     ACPI_SIG_DSDT)) {
 			status = AE_TYPE;

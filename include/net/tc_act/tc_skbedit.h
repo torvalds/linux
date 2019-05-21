@@ -44,7 +44,7 @@ static inline bool is_tcf_skbedit_mark(const struct tc_action *a)
 #ifdef CONFIG_NET_CLS_ACT
 	u32 flags;
 
-	if (a->ops && a->ops->type == TCA_ACT_SKBEDIT) {
+	if (a->ops && a->ops->id == TCA_ID_SKBEDIT) {
 		rcu_read_lock();
 		flags = rcu_dereference(to_skbedit(a)->params)->flags;
 		rcu_read_unlock();

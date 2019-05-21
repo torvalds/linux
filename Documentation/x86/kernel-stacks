@@ -59,7 +59,7 @@ If that assumption is ever broken then the stacks will become corrupt.
 
 The currently assigned IST stacks are :-
 
-* DOUBLEFAULT_STACK.  EXCEPTION_STKSZ (PAGE_SIZE).
+* ESTACK_DF.  EXCEPTION_STKSZ (PAGE_SIZE).
 
   Used for interrupt 8 - Double Fault Exception (#DF).
 
@@ -68,7 +68,7 @@ The currently assigned IST stacks are :-
   Using a separate stack allows the kernel to recover from it well enough
   in many cases to still output an oops.
 
-* NMI_STACK.  EXCEPTION_STKSZ (PAGE_SIZE).
+* ESTACK_NMI.  EXCEPTION_STKSZ (PAGE_SIZE).
 
   Used for non-maskable interrupts (NMI).
 
@@ -76,7 +76,7 @@ The currently assigned IST stacks are :-
   middle of switching stacks.  Using IST for NMI events avoids making
   assumptions about the previous state of the kernel stack.
 
-* DEBUG_STACK.  DEBUG_STKSZ
+* ESTACK_DB.  EXCEPTION_STKSZ (PAGE_SIZE).
 
   Used for hardware debug interrupts (interrupt 1) and for software
   debug interrupts (INT3).
@@ -86,7 +86,12 @@ The currently assigned IST stacks are :-
   avoids making assumptions about the previous state of the kernel
   stack.
 
-* MCE_STACK.  EXCEPTION_STKSZ (PAGE_SIZE).
+  To handle nested #DB correctly there exist two instances of DB stacks. On
+  #DB entry the IST stackpointer for #DB is switched to the second instance
+  so a nested #DB starts from a clean stack. The nested #DB switches
+  the IST stackpointer to a guard hole to catch triple nesting.
+
+* ESTACK_MCE.  EXCEPTION_STKSZ (PAGE_SIZE).
 
   Used for interrupt 18 - Machine Check Exception (#MC).
 

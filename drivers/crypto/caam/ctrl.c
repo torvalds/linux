@@ -18,12 +18,8 @@
 #include "desc_constr.h"
 #include "ctrl.h"
 
-bool caam_little_end;
-EXPORT_SYMBOL(caam_little_end);
 bool caam_dpaa2;
 EXPORT_SYMBOL(caam_dpaa2);
-bool caam_imx;
-EXPORT_SYMBOL(caam_imx);
 
 #ifdef CONFIG_CAAM_QI
 #include "qi.h"
@@ -472,6 +468,24 @@ static int caam_get_era(struct caam_ctrl __iomem *ctrl)
 		return caam_get_era_from_hw(ctrl);
 }
 
+/*
+ * ERRATA: imx6 devices (imx6D, imx6Q, imx6DL, imx6S, imx6DP and imx6DQ)
+ * have an issue wherein AXI bus transactions may not occur in the correct
+ * order. This isn't a problem running single descriptors, but can be if
+ * running multiple concurrent descriptors. Reworking the driver to throttle
+ * to single requests is impractical, thus the workaround is to limit the AXI
+ * pipeline to a depth of 1 (from it's default of 4) to preclude this situation
+ * from occurring.
+ */
+static void handle_imx6_err005766(u32 *mcr)
+{
+	if (of_machine_is_compatible("fsl,imx6q") ||
+	    of_machine_is_compatible("fsl,imx6dl") ||
+	    of_machine_is_compatible("fsl,imx6qp"))
+		clrsetbits_32(mcr, MCFGR_AXIPIPE_MASK,
+			      1 << MCFGR_AXIPIPE_SHIFT);
+}
+
 static const struct of_device_id caam_match[] = {
 	{
 		.compatible = "fsl,sec-v4.0",
@@ -643,6 +657,8 @@ static int caam_probe(struct platform_device *pdev)
 			      MCFGR_WDENABLE | MCFGR_LARGE_BURST |
 			      (sizeof(dma_addr_t) == sizeof(u64) ?
 			       MCFGR_LONG_PTR : 0));
+
+	handle_imx6_err005766(&ctrl->mcr);
 
 	/*
 	 *  Read the Compile Time paramters and SCFGR to determine
@@ -863,27 +879,18 @@ static int caam_probe(struct platform_device *pdev)
 	/* Internal covering keys (useful in non-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];
 	ctrlpriv->ctl_kek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	ctrlpriv->ctl_kek = debugfs_create_blob("kek",
-						S_IRUSR |
-						S_IRGRP | S_IROTH,
-						ctrlpriv->ctl,
-						&ctrlpriv->ctl_kek_wrap);
+	debugfs_create_blob("kek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+			    &ctrlpriv->ctl_kek_wrap);
 
 	ctrlpriv->ctl_tkek_wrap.data = (__force void *)&ctrlpriv->ctrl->tkek[0];
 	ctrlpriv->ctl_tkek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	ctrlpriv->ctl_tkek = debugfs_create_blob("tkek",
-						 S_IRUSR |
-						 S_IRGRP | S_IROTH,
-						 ctrlpriv->ctl,
-						 &ctrlpriv->ctl_tkek_wrap);
+	debugfs_create_blob("tkek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+			    &ctrlpriv->ctl_tkek_wrap);
 
 	ctrlpriv->ctl_tdsk_wrap.data = (__force void *)&ctrlpriv->ctrl->tdsk[0];
 	ctrlpriv->ctl_tdsk_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	ctrlpriv->ctl_tdsk = debugfs_create_blob("tdsk",
-						 S_IRUSR |
-						 S_IRGRP | S_IROTH,
-						 ctrlpriv->ctl,
-						 &ctrlpriv->ctl_tdsk_wrap);
+	debugfs_create_blob("tdsk", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+			    &ctrlpriv->ctl_tdsk_wrap);
 #endif
 	return 0;
 

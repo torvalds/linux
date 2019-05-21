@@ -7,7 +7,7 @@
  */
 #include "sched.h"
 
-DEFINE_PER_CPU(struct update_util_data *, cpufreq_update_util_data);
+DEFINE_PER_CPU(struct update_util_data __rcu *, cpufreq_update_util_data);
 
 /**
  * cpufreq_add_update_util_hook - Populate the CPU's update_util_data pointer.
@@ -48,8 +48,8 @@ EXPORT_SYMBOL_GPL(cpufreq_add_update_util_hook);
  *
  * Clear the update_util_data pointer for the given CPU.
  *
- * Callers must use RCU-sched callbacks to free any memory that might be
- * accessed via the old update_util_data pointer or invoke synchronize_sched()
+ * Callers must use RCU callbacks to free any memory that might be
+ * accessed via the old update_util_data pointer or invoke synchronize_rcu()
  * right after this function to avoid use-after-free.
  */
 void cpufreq_remove_update_util_hook(int cpu)

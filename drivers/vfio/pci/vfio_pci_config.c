@@ -691,7 +691,7 @@ static int vfio_pm_config_write(struct vfio_pci_device *vdev, int pos,
 			break;
 		}
 
-		pci_set_power_state(vdev->pdev, state);
+		vfio_pci_set_power_state(vdev, state);
 	}
 
 	return count;

@@ -252,12 +252,12 @@ static umode_t max31790_fan_is_visible(const void *_data, u32 attr, int channel)
 	case hwmon_fan_fault:
 		if (channel < NR_CHANNEL ||
 		    (fan_config & MAX31790_FAN_CFG_TACH_INPUT))
-			return S_IRUGO;
+			return 0444;
 		return 0;
 	case hwmon_fan_target:
 		if (channel < NR_CHANNEL &&
 		    !(fan_config & MAX31790_FAN_CFG_TACH_INPUT))
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		return 0;
 	default:
 		return 0;
@@ -353,7 +353,7 @@ static umode_t max31790_pwm_is_visible(const void *_data, u32 attr, int channel)
 	case hwmon_pwm_input:
 	case hwmon_pwm_enable:
 		if (!(fan_config & MAX31790_FAN_CFG_TACH_INPUT))
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		return 0;
 	default:
 		return 0;
@@ -400,45 +400,27 @@ static umode_t max31790_is_visible(const void *data,
 	}
 }
 
-static const u32 max31790_fan_config[] = {
-	HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	HWMON_F_INPUT | HWMON_F_FAULT,
-	0
-};
-
-static const struct hwmon_channel_info max31790_fan = {
-	.type = hwmon_fan,
-	.config = max31790_fan_config,
-};
-
-static const u32 max31790_pwm_config[] = {
-	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	0
-};
-
-static const struct hwmon_channel_info max31790_pwm = {
-	.type = hwmon_pwm,
-	.config = max31790_pwm_config,
-};
-
 static const struct hwmon_channel_info *max31790_info[] = {
-	&max31790_fan,
-	&max31790_pwm,
+	HWMON_CHANNEL_INFO(fan,
+			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE),
 	NULL
 };
 

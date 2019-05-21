@@ -400,9 +400,14 @@ extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_map_pxm_to_online_node(int pxm);
+int acpi_map_pxm_to_node(int pxm);
 int acpi_get_node(acpi_handle handle);
 #else
 static inline int acpi_map_pxm_to_online_node(int pxm)
+{
+	return 0;
+}
+static inline int acpi_map_pxm_to_node(int pxm)
 {
 	return 0;
 }
@@ -664,11 +669,13 @@ static inline bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
 	return false;
 }
 
-static inline const char *
-acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv)
+static inline struct acpi_device *
+acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv)
 {
 	return NULL;
 }
+
+static inline void acpi_dev_put(struct acpi_device *adev) {}
 
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
@@ -953,9 +960,6 @@ acpi_handle_printk(const char *level, void *handle, const char *fmt, ...) {}
 #if defined(CONFIG_ACPI) && defined(CONFIG_DYNAMIC_DEBUG)
 __printf(3, 4)
 void __acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle, const char *fmt, ...);
-#else
-#define __acpi_handle_debug(descriptor, handle, fmt, ...)		\
-	acpi_handle_printk(KERN_DEBUG, handle, fmt, ##__VA_ARGS__);
 #endif
 
 /*
@@ -985,12 +989,8 @@ void __acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle, const c
 #else
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define acpi_handle_debug(handle, fmt, ...)				\
-do {									\
-	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);			\
-	if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT))		\
-		__acpi_handle_debug(&descriptor, handle, pr_fmt(fmt),	\
-				##__VA_ARGS__);				\
-} while (0)
+	_dynamic_func_call(fmt, __acpi_handle_debug,			\
+			   handle, pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define acpi_handle_debug(handle, fmt, ...)				\
 ({									\
@@ -1014,6 +1014,13 @@ struct acpi_gpio_mapping {
 
 /* Ignore IoRestriction field */
 #define ACPI_GPIO_QUIRK_NO_IO_RESTRICTION	BIT(0)
+/*
+ * When ACPI GPIO mapping table is in use the index parameter inside it
+ * refers to the GPIO resource in _CRS method. That index has no
+ * distinction of actual type of the resource. When consumer wants to
+ * get GpioIo type explicitly, this quirk may be used.
+ */
+#define ACPI_GPIO_QUIRK_ONLY_GPIOIO		BIT(1)
 
 	unsigned int quirks;
 };
@@ -1058,17 +1065,6 @@ static inline bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 {
 	return -ENXIO;
-}
-#endif
-
-#if defined(CONFIG_ACPI) && IS_ENABLED(CONFIG_I2C)
-bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
-			       struct acpi_resource_i2c_serialbus **i2c);
-#else
-static inline bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
-					     struct acpi_resource_i2c_serialbus **i2c)
-{
-	return false;
 }
 #endif
 

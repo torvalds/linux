@@ -4,7 +4,7 @@
 #include <asm/trace.h>
 #include <asm/asm-prototypes.h>
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 struct static_key opal_tracepoint_key = STATIC_KEY_INIT;
 
 int opal_tracepoint_regfunc(void)

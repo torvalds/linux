@@ -3,7 +3,7 @@
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -293,7 +293,7 @@ acpi_status (*acpi_internal_method) (struct acpi_walk_state * walk_state);
  * expected_return_btypes - Allowed type(s) for the return value
  */
 struct acpi_name_info {
-	char name[ACPI_NAME_SIZE];
+	char name[ACPI_NAMESEG_SIZE];
 	u16 argument_list;
 	u8 expected_btypes;
 };
@@ -370,7 +370,7 @@ typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_node *
 					      converted_object);
 
 struct acpi_simple_repair_info {
-	char name[ACPI_NAME_SIZE];
+	char name[ACPI_NAMESEG_SIZE];
 	u32 unexpected_btypes;
 	u32 package_index;
 	acpi_object_converter object_converter;
@@ -802,7 +802,7 @@ struct acpi_comment_addr_node {
 
 /*
  * File node - used for "Include" operator file stack and
- * depdendency tree for the -ca option
+ * dependency tree for the -ca option
  */
 struct acpi_file_node {
 	void *file;

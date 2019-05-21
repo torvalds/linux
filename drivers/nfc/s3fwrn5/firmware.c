@@ -449,7 +449,6 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 		SHASH_DESC_ON_STACK(desc, tfm);
 
 		desc->tfm = tfm;
-		desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		ret = crypto_shash_digest(desc, fw->image, image_size,
 					  hash_data);

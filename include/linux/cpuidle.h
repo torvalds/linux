@@ -69,11 +69,9 @@ struct cpuidle_state {
 
 /* Idle State Flags */
 #define CPUIDLE_FLAG_NONE       (0x00)
-#define CPUIDLE_FLAG_POLLING	(0x01) /* polling state */
-#define CPUIDLE_FLAG_COUPLED	(0x02) /* state applies to multiple cpus */
-#define CPUIDLE_FLAG_TIMER_STOP (0x04)  /* timer is stopped on this state */
-
-#define CPUIDLE_DRIVER_FLAGS_MASK (0xFFFF0000)
+#define CPUIDLE_FLAG_POLLING	BIT(0) /* polling state */
+#define CPUIDLE_FLAG_COUPLED	BIT(1) /* state applies to multiple cpus */
+#define CPUIDLE_FLAG_TIMER_STOP BIT(2) /* timer is stopped on this state */
 
 struct cpuidle_device_kobj;
 struct cpuidle_state_kobj;
@@ -85,6 +83,7 @@ struct cpuidle_device {
 	unsigned int		use_deepest_state:1;
 	unsigned int		poll_time_limit:1;
 	unsigned int		cpu;
+	ktime_t			next_hrtimer;
 
 	int			last_residency;
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];

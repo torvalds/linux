@@ -3,7 +3,7 @@
  *
  * Name: actbl1.h - Additional ACPI table definitions
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -562,7 +562,7 @@ struct acpi_dmar_hardware_unit {
 
 #define ACPI_DMAR_INCLUDE_ALL       (1)
 
-/* 1: Reserved Memory Defininition */
+/* 1: Reserved Memory Definition */
 
 struct acpi_dmar_reserved_memory {
 	struct acpi_dmar_header header;
@@ -1001,6 +1001,11 @@ struct acpi_table_gtdt {
 #define ACPI_GTDT_INTERRUPT_POLARITY    (1<<1)
 #define ACPI_GTDT_ALWAYS_ON             (1<<2)
 
+struct acpi_gtdt_el2 {
+	u32 virtual_el2_timer_gsiv;
+	u32 virtual_el2_timer_flags;
+};
+
 /* Common GTDT subtable header */
 
 struct acpi_gtdt_header {
@@ -1390,7 +1395,7 @@ struct acpi_table_hmat {
 /* Values for HMAT structure types */
 
 enum acpi_hmat_type {
-	ACPI_HMAT_TYPE_ADDRESS_RANGE = 0,	/* Memory subystem address range */
+	ACPI_HMAT_TYPE_ADDRESS_RANGE = 0,	/* Memory subsystem address range */
 	ACPI_HMAT_TYPE_LOCALITY = 1,	/* System locality latency and bandwidth information */
 	ACPI_HMAT_TYPE_CACHE = 2,	/* Memory side cache information */
 	ACPI_HMAT_TYPE_RESERVED = 3	/* 3 and greater are reserved */
@@ -1406,17 +1411,17 @@ struct acpi_hmat_structure {
  * HMAT Structures, correspond to Type in struct acpi_hmat_structure
  */
 
-/* 0: Memory subystem address range */
+/* 0: Memory proximity domain attributes */
 
-struct acpi_hmat_address_range {
+struct acpi_hmat_proximity_domain {
 	struct acpi_hmat_structure header;
 	u16 flags;
 	u16 reserved1;
 	u32 processor_PD;	/* Processor proximity domain */
 	u32 memory_PD;		/* Memory proximity domain */
 	u32 reserved2;
-	u64 physical_address_base;	/* Physical address range base */
-	u64 physical_address_length;	/* Physical address range length */
+	u64 reserved3;
+	u64 reserved4;
 };
 
 /* Masks for Flags field above */

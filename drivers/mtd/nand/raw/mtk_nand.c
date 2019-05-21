@@ -1451,8 +1451,7 @@ static int mtk_nfc_probe(struct platform_device *pdev)
 	if (!nfc)
 		return -ENOMEM;
 
-	spin_lock_init(&nfc->controller.lock);
-	init_waitqueue_head(&nfc->controller.wq);
+	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
 	nfc->controller.ops = &mtk_nfc_controller_ops;
 

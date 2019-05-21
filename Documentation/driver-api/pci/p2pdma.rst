@@ -49,7 +49,7 @@ For example, in the NVMe Target Copy Offload implementation:
   in that it exposes any CMB (Controller Memory Buffer) as a P2P memory
   resource (provider), it accepts P2P memory pages as buffers in requests
   to be used directly (client) and it can also make use of the CMB as
-  submission queue entries (orchastrator).
+  submission queue entries (orchestrator).
 * The RDMA driver is a client in this arrangement so that an RNIC
   can DMA directly to the memory exposed by the NVMe device.
 * The NVMe Target driver (nvmet) can orchestrate the data from the RNIC
@@ -111,7 +111,7 @@ that's compatible with all clients using  :c:func:`pci_p2pmem_find()`.
 If more than one provider is supported, the one nearest to all the clients will
 be chosen first. If more than one provider is an equal distance away, the
 one returned will be chosen at random (it is not an arbitrary but
-truely random). This function returns the PCI device to use for the provider
+truly random). This function returns the PCI device to use for the provider
 with a reference taken and therefore when it's no longer needed it should be
 returned with pci_dev_put().
 
@@ -132,10 +132,6 @@ precludes passing these pages to userspace.
 P2P memory is also technically IO memory but should never have any side
 effects behind it. Thus, the order of loads and stores should not be important
 and ioreadX(), iowriteX() and friends should not be necessary.
-However, as the memory is not cache coherent, if access ever needs to
-be protected by a spinlock then :c:func:`mmiowb()` must be used before
-unlocking the lock. (See ACQUIRES VS I/O ACCESSES in
-Documentation/memory-barriers.txt)
 
 
 P2P DMA Support Library

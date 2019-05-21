@@ -26,9 +26,6 @@ ENTRY(startup_continue)
 0:	larl	%r1,tod_clock_base
 	mvc	0(16,%r1),__LC_BOOT_CLOCK
 	larl	%r13,.LPG1		# get base
-	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
-	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
-					# move IPL device to lowcore
 	larl	%r0,boot_vdso_data
 	stg	%r0,__LC_VDSO_PER_CPU
 #
@@ -63,22 +60,6 @@ ENTRY(startup_continue)
 
 	.align	16
 .LPG1:
-.Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
-	.quad	0			# cr1: primary space segment table
-	.quad	.Lduct			# cr2: dispatchable unit control table
-	.quad	0			# cr3: instruction authorization
-	.quad	0xffff			# cr4: instruction authorization
-	.quad	.Lduct			# cr5: primary-aste origin
-	.quad	0			# cr6:	I/O interrupts
-	.quad	0			# cr7:	secondary space segment table
-	.quad	0			# cr8:	access registers translation
-	.quad	0			# cr9:	tracing off
-	.quad	0			# cr10: tracing off
-	.quad	0			# cr11: tracing off
-	.quad	0			# cr12: tracing off
-	.quad	0			# cr13: home space segment table
-	.quad	0xc0000000		# cr14: machine check handling off
-	.quad	.Llinkage_stack		# cr15: linkage stack operations
 .Lpcmsk:.quad	0x0000000180000000
 .L4malign:.quad 0xffffffffffc00000
 .Lscan2g:.quad	0x80000000 + 0x20000 - 8	# 2GB + 128K - 8
@@ -86,14 +67,5 @@ ENTRY(startup_continue)
 .Lparmaddr:
 	.quad	PARMAREA
 	.align	64
-.Lduct: .long	0,.Laste,.Laste,0,.Lduald,0,0,0
-	.long	0,0,0,0,0,0,0,0
-.Laste:	.quad	0,0xffffffffffffffff,0,0,0,0,0,0
-	.align	128
-.Lduald:.rept	8
-	.long	0x80000000,0,0,0	# invalid access-list entries
-	.endr
-.Llinkage_stack:
-	.long	0,0,0x89000000,0,0,0,0x8a000000,0
 .Ldw:	.quad	0x0002000180000000,0x0000000000000000
 .Laregs:.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

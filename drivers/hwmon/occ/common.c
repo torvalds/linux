@@ -1,11 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright IBM Corp 2019
 
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <asm/unaligned.h>
@@ -138,6 +141,7 @@ static int occ_poll(struct occ *occ)
 	/* mutex should already be locked if necessary */
 	rc = occ->send_cmd(occ, cmd);
 	if (rc) {
+		occ->last_error = rc;
 		if (occ->error_count++ > OCC_ERROR_COUNT_THRESHOLD)
 			occ->error = rc;
 
@@ -146,6 +150,7 @@ static int occ_poll(struct occ *occ)
 
 	/* clear error since communication was successful */
 	occ->error_count = 0;
+	occ->last_error = 0;
 	occ->error = 0;
 
 	/* check for safe state */
@@ -207,6 +212,8 @@ int occ_update_response(struct occ *occ)
 	if (time_after(jiffies, occ->last_update + OCC_UPDATE_FREQUENCY)) {
 		rc = occ_poll(occ);
 		occ->last_update = jiffies;
+	} else {
+		rc = occ->last_error;
 	}
 
 	mutex_unlock(&occ->lock);
@@ -380,8 +387,8 @@ static ssize_t occ_show_power_1(struct device *dev,
 		val *= 1000000ULL;
 		break;
 	case 2:
-		val = get_unaligned_be32(&power->update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 3:
 		val = get_unaligned_be16(&power->value) * 1000000ULL;
@@ -425,8 +432,8 @@ static ssize_t occ_show_power_2(struct device *dev,
 				       &power->update_tag);
 		break;
 	case 2:
-		val = get_unaligned_be32(&power->update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 3:
 		val = get_unaligned_be16(&power->value) * 1000000ULL;
@@ -463,8 +470,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->system.update_tag);
 		break;
 	case 2:
-		val = get_unaligned_be32(&power->system.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->system.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 3:
 		val = get_unaligned_be16(&power->system.value) * 1000000ULL;
@@ -477,8 +484,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->proc.update_tag);
 		break;
 	case 6:
-		val = get_unaligned_be32(&power->proc.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->proc.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 7:
 		val = get_unaligned_be16(&power->proc.value) * 1000000ULL;
@@ -491,8 +498,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->vdd.update_tag);
 		break;
 	case 10:
-		val = get_unaligned_be32(&power->vdd.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->vdd.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 11:
 		val = get_unaligned_be16(&power->vdd.value) * 1000000ULL;
@@ -505,8 +512,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->vdn.update_tag);
 		break;
 	case 14:
-		val = get_unaligned_be32(&power->vdn.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->vdn.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 15:
 		val = get_unaligned_be16(&power->vdn.value) * 1000000ULL;
@@ -889,6 +896,8 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 				s++;
 			}
 		}
+
+		s = (sensors->power.num_sensors * 4) + 1;
 	} else {
 		for (i = 0; i < sensors->power.num_sensors; ++i) {
 			s = i + 1;
@@ -917,11 +926,11 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 						     show_power, NULL, 3, i);
 			attr++;
 		}
+
+		s = sensors->power.num_sensors + 1;
 	}
 
 	if (sensors->caps.num_sensors >= 1) {
-		s = sensors->power.num_sensors + 1;
-
 		snprintf(attr->name, sizeof(attr->name), "power%d_label", s);
 		attr->sensor = OCC_INIT_ATTR(attr->name, 0444, show_caps, NULL,
 					     0, 0);
@@ -1096,3 +1105,8 @@ int occ_setup(struct occ *occ, const char *name)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(occ_setup);
+
+MODULE_AUTHOR("Eddie James <eajames@linux.ibm.com>");
+MODULE_DESCRIPTION("Common OCC hwmon code");
+MODULE_LICENSE("GPL");

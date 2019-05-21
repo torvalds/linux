@@ -12,14 +12,11 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/crypto.h>
 #include <crypto/algapi.h>
-
-#define ARC4_MIN_KEY_SIZE	1
-#define ARC4_MAX_KEY_SIZE	256
-#define ARC4_BLOCK_SIZE		1
+#include <crypto/arc4.h>
+#include <crypto/internal/skcipher.h>
+#include <linux/init.h>
+#include <linux/module.h>
 
 struct arc4_ctx {
 	u32 S[256];
@@ -48,6 +45,12 @@ static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	}
 
 	return 0;
+}
+
+static int arc4_set_key_skcipher(struct crypto_skcipher *tfm, const u8 *in_key,
+				 unsigned int key_len)
+{
+	return arc4_set_key(&tfm->base, in_key, key_len);
 }
 
 static void arc4_crypt(struct arc4_ctx *ctx, u8 *out, const u8 *in,
@@ -92,30 +95,25 @@ static void arc4_crypt_one(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	arc4_crypt(crypto_tfm_ctx(tfm), out, in, 1);
 }
 
-static int ecb_arc4_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-			  struct scatterlist *src, unsigned int nbytes)
+static int ecb_arc4_crypt(struct skcipher_request *req)
 {
-	struct arc4_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	struct blkcipher_walk walk;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct arc4_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	int err;
 
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-
-	err = blkcipher_walk_virt(desc, &walk);
+	err = skcipher_walk_virt(&walk, req, false);
 
 	while (walk.nbytes > 0) {
-		u8 *wsrc = walk.src.virt.addr;
-		u8 *wdst = walk.dst.virt.addr;
-
-		arc4_crypt(ctx, wdst, wsrc, walk.nbytes);
-
-		err = blkcipher_walk_done(desc, &walk, 0);
+		arc4_crypt(ctx, walk.dst.virt.addr, walk.src.virt.addr,
+			   walk.nbytes);
+		err = skcipher_walk_done(&walk, 0);
 	}
 
 	return err;
 }
 
-static struct crypto_alg arc4_algs[2] = { {
+static struct crypto_alg arc4_cipher = {
 	.cra_name		=	"arc4",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	ARC4_BLOCK_SIZE,
@@ -130,37 +128,42 @@ static struct crypto_alg arc4_algs[2] = { {
 			.cia_decrypt		=	arc4_crypt_one,
 		},
 	},
-}, {
-	.cra_name		=	"ecb(arc4)",
-	.cra_priority		=	100,
-	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		=	ARC4_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct arc4_ctx),
-	.cra_alignmask		=	0,
-	.cra_type		=	&crypto_blkcipher_type,
-	.cra_module		=	THIS_MODULE,
-	.cra_u			=	{
-		.blkcipher = {
-			.min_keysize	=	ARC4_MIN_KEY_SIZE,
-			.max_keysize	=	ARC4_MAX_KEY_SIZE,
-			.setkey		=	arc4_set_key,
-			.encrypt	=	ecb_arc4_crypt,
-			.decrypt	=	ecb_arc4_crypt,
-		},
-	},
-} };
+};
+
+static struct skcipher_alg arc4_skcipher = {
+	.base.cra_name		=	"ecb(arc4)",
+	.base.cra_priority	=	100,
+	.base.cra_blocksize	=	ARC4_BLOCK_SIZE,
+	.base.cra_ctxsize	=	sizeof(struct arc4_ctx),
+	.base.cra_module	=	THIS_MODULE,
+	.min_keysize		=	ARC4_MIN_KEY_SIZE,
+	.max_keysize		=	ARC4_MAX_KEY_SIZE,
+	.setkey			=	arc4_set_key_skcipher,
+	.encrypt		=	ecb_arc4_crypt,
+	.decrypt		=	ecb_arc4_crypt,
+};
 
 static int __init arc4_init(void)
 {
-	return crypto_register_algs(arc4_algs, ARRAY_SIZE(arc4_algs));
+	int err;
+
+	err = crypto_register_alg(&arc4_cipher);
+	if (err)
+		return err;
+
+	err = crypto_register_skcipher(&arc4_skcipher);
+	if (err)
+		crypto_unregister_alg(&arc4_cipher);
+	return err;
 }
 
 static void __exit arc4_exit(void)
 {
-	crypto_unregister_algs(arc4_algs, ARRAY_SIZE(arc4_algs));
+	crypto_unregister_alg(&arc4_cipher);
+	crypto_unregister_skcipher(&arc4_skcipher);
 }
 
-module_init(arc4_init);
+subsys_initcall(arc4_init);
 module_exit(arc4_exit);
 
 MODULE_LICENSE("GPL");

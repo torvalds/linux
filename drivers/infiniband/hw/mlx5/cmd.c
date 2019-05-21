@@ -345,3 +345,40 @@ int mlx5_cmd_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id,
 				       counter_set_id);
 	return err;
 }
+
+int mlx5_cmd_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
+		     u16 opmod, u8 port)
+{
+	int outlen = MLX5_ST_SZ_BYTES(mad_ifc_out);
+	int inlen = MLX5_ST_SZ_BYTES(mad_ifc_in);
+	int err = -ENOMEM;
+	void *data;
+	void *resp;
+	u32 *out;
+	u32 *in;
+
+	in = kzalloc(inlen, GFP_KERNEL);
+	out = kzalloc(outlen, GFP_KERNEL);
+	if (!in || !out)
+		goto out;
+
+	MLX5_SET(mad_ifc_in, in, opcode, MLX5_CMD_OP_MAD_IFC);
+	MLX5_SET(mad_ifc_in, in, op_mod, opmod);
+	MLX5_SET(mad_ifc_in, in, port, port);
+
+	data = MLX5_ADDR_OF(mad_ifc_in, in, mad);
+	memcpy(data, inb, MLX5_FLD_SZ_BYTES(mad_ifc_in, mad));
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
+	if (err)
+		goto out;
+
+	resp = MLX5_ADDR_OF(mad_ifc_out, out, response_mad_packet);
+	memcpy(outb, resp,
+	       MLX5_FLD_SZ_BYTES(mad_ifc_out, response_mad_packet));
+
+out:
+	kfree(out);
+	kfree(in);
+	return err;
+}

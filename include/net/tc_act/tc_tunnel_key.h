@@ -34,7 +34,7 @@ static inline bool is_tcf_tunnel_set(const struct tc_action *a)
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params = rtnl_dereference(t->params);
 
-	if (a->ops && a->ops->type == TCA_ACT_TUNNEL_KEY)
+	if (a->ops && a->ops->id == TCA_ID_TUNNEL_KEY)
 		return params->tcft_action == TCA_TUNNEL_KEY_ACT_SET;
 #endif
 	return false;
@@ -46,7 +46,7 @@ static inline bool is_tcf_tunnel_release(const struct tc_action *a)
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params = rtnl_dereference(t->params);
 
-	if (a->ops && a->ops->type == TCA_ACT_TUNNEL_KEY)
+	if (a->ops && a->ops->id == TCA_ID_TUNNEL_KEY)
 		return params->tcft_action == TCA_TUNNEL_KEY_ACT_RELEASE;
 #endif
 	return false;

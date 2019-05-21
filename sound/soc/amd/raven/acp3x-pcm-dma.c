@@ -367,10 +367,10 @@ static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_pcm_substream *substream)
 
 static int acp3x_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
-						     SNDRV_DMA_TYPE_DEV,
-						     NULL, MIN_BUFFER,
-						     MAX_BUFFER);
+	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+					      rtd->pcm->card->dev,
+					      MIN_BUFFER, MAX_BUFFER);
+	return 0;
 }
 
 static int acp3x_dma_hw_free(struct snd_pcm_substream *substream)
@@ -611,13 +611,15 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 	}
 	irqflags = *((unsigned int *)(pdev->dev.platform_data));
 
-	adata = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dev_data),
-			     GFP_KERNEL);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
 			return -ENODEV;
 	}
+
+	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
+	if (!adata)
+		return -ENOMEM;
 
 	adata->acp3x_base = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));

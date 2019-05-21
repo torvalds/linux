@@ -66,5 +66,6 @@ static inline void snd_pcm_timer_done(struct snd_pcm_substream *substream) {}
 #endif
 
 void __snd_pcm_xrun(struct snd_pcm_substream *substream);
+void snd_pcm_group_init(struct snd_pcm_group *group);
 
 #endif	/* __SOUND_CORE_PCM_LOCAL_H */

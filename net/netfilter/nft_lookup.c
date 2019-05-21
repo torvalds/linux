@@ -121,20 +121,21 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
+static void nft_lookup_deactivate(const struct nft_ctx *ctx,
+				  const struct nft_expr *expr,
+				  enum nft_trans_phase phase)
+{
+	struct nft_lookup *priv = nft_expr_priv(expr);
+
+	nf_tables_deactivate_set(ctx, priv->set, &priv->binding, phase);
+}
+
 static void nft_lookup_activate(const struct nft_ctx *ctx,
 				const struct nft_expr *expr)
 {
 	struct nft_lookup *priv = nft_expr_priv(expr);
 
-	nf_tables_rebind_set(ctx, priv->set, &priv->binding);
-}
-
-static void nft_lookup_deactivate(const struct nft_ctx *ctx,
-				  const struct nft_expr *expr)
-{
-	struct nft_lookup *priv = nft_expr_priv(expr);
-
-	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
+	priv->set->use++;
 }
 
 static void nft_lookup_destroy(const struct nft_ctx *ctx,

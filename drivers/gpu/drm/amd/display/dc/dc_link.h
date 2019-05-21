@@ -30,6 +30,7 @@
 #include "grph_object_defs.h"
 
 struct dc_link_status {
+	bool link_active;
 	struct dpcd_caps *dpcd_caps;
 };
 
@@ -110,6 +111,7 @@ struct dc_link {
 	union ddi_channel_mapping ddi_channel_mapping;
 	struct connector_device_tag_info device_tag;
 	struct dpcd_caps dpcd_caps;
+	uint32_t dongle_max_pix_clk;
 	unsigned short chip_caps;
 	unsigned int dpcd_sink_count;
 	enum edp_revision edp_revision;
@@ -124,6 +126,7 @@ struct dc_link {
 	struct dc_link_status link_status;
 
 	struct link_trace link_trace;
+	struct gpio *hpd_gpio;
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
@@ -146,8 +149,7 @@ static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_
  */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link,
 		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp,
-		const struct dc_stream_state *stream);
+		uint32_t frame_ramp);
 
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 

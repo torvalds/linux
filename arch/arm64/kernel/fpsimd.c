@@ -1258,14 +1258,14 @@ static inline void fpsimd_hotplug_init(void) { }
  */
 static int __init fpsimd_init(void)
 {
-	if (elf_hwcap & HWCAP_FP) {
+	if (cpu_have_named_feature(FP)) {
 		fpsimd_pm_init();
 		fpsimd_hotplug_init();
 	} else {
 		pr_notice("Floating-point is not implemented\n");
 	}
 
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		pr_notice("Advanced SIMD is not implemented\n");
 
 	return sve_sysctl_init();

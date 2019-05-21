@@ -71,6 +71,7 @@ config KPROBES
 config JUMP_LABEL
        bool "Optimize very unlikely/likely branches"
        depends on HAVE_ARCH_JUMP_LABEL
+       depends on CC_HAS_ASM_GOTO
        help
          This option enables a transparent branch optimization that
 	 makes certain almost-always-true or almost-always-false branch
@@ -248,6 +249,10 @@ config ARCH_HAS_FORTIFY_SOURCE
 config ARCH_HAS_SET_MEMORY
 	bool
 
+# Select if arch has all set_direct_map_invalid/default() functions
+config ARCH_HAS_SET_DIRECT_MAP
+	bool
+
 # Select if arch init_task must go in the __init_task_data section
 config ARCH_TASK_STRUCT_ON_STACK
        bool
@@ -274,6 +279,16 @@ config ARCH_THREAD_STACK_ALLOCATOR
 # Select if arch wants to size task_struct dynamically via arch_task_struct_size:
 config ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	bool
+
+config ARCH_32BIT_OFF_T
+	bool
+	depends on !64BIT
+	help
+	  All new 32-bit architectures should have 64-bit off_t type on
+	  userspace side which corresponds to the loff_t kernel type. This
+	  is the requirement for modern ABIs. Some existing architectures
+	  still support 32-bit off_t. This option is enabled for all such
+	  architectures explicitly.
 
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
@@ -372,7 +387,13 @@ config HAVE_ARCH_JUMP_LABEL_RELATIVE
 config HAVE_RCU_TABLE_FREE
 	bool
 
-config HAVE_RCU_TABLE_INVALIDATE
+config HAVE_RCU_TABLE_NO_INVALIDATE
+	bool
+
+config HAVE_MMU_GATHER_PAGE_SIZE
+	bool
+
+config HAVE_MMU_GATHER_NO_GATHER
 	bool
 
 config ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -700,6 +721,9 @@ config HAVE_ARCH_HASH
 	  file which provides platform-specific implementations of some
 	  functions in <linux/hash.h> or fs/namei.c.
 
+config HAVE_ARCH_NVRAM_OPS
+	bool
+
 config ISA_BUS_API
 	def_bool ISA
 
@@ -758,7 +782,7 @@ config 64BIT_TIME
 	  handling.
 
 config COMPAT_32BIT_TIME
-	def_bool (!64BIT && 64BIT_TIME) || COMPAT
+	def_bool !64BIT || COMPAT
 	help
 	  This enables 32 bit time_t support in addition to 64 bit time_t support.
 	  This is relevant on all 32-bit architectures, and 64-bit architectures
@@ -883,6 +907,18 @@ config HAVE_ARCH_PREL32_RELOCATIONS
 	  for PCI fixup, initcalls etc which are only half the size on 64 bit
 	  architectures, and don't require runtime relocation on relocatable
 	  kernels.
+
+config ARCH_USE_MEMREMAP_PROT
+	bool
+
+config LOCK_EVENT_COUNTS
+	bool "Locking event counts collection"
+	depends on DEBUG_FS
+	---help---
+	  Enable light-weight counting of various locking related events
+	  in the system with minimal performance impact. This reduces
+	  the chance of application behavior change because of timing
+	  differences. The counts are reported via debugfs.
 
 source "kernel/gcov/Kconfig"
 

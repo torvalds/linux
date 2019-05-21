@@ -12,7 +12,7 @@
 #include <linux/spinlock.h>
 #include <asm/pgtable.h>
 
-#if defined(__CSKYABIV2__)
+#ifdef CONFIG_CPU_CK810
 #define IS_BSR32(hi16, lo16)		(((hi16) & 0xFC00) == 0xE000)
 #define IS_JSRI32(hi16, lo16)		((hi16) == 0xEAE0)
 
@@ -25,6 +25,26 @@
 	*(uint16_t *)(addr) = 0xE8Fa;		\
 	*((uint16_t *)(addr) + 1) = 0x0000;	\
 } while (0)
+
+static void jsri_2_lrw_jsr(uint32_t *location)
+{
+	uint16_t *location_tmp = (uint16_t *)location;
+
+	if (IS_BSR32(*location_tmp, *(location_tmp + 1)))
+		return;
+
+	if (IS_JSRI32(*location_tmp, *(location_tmp + 1))) {
+		/* jsri 0x...  --> lrw r26, 0x... */
+		CHANGE_JSRI_TO_LRW(location);
+		/* lsli r0, r0 --> jsr r26 */
+		SET_JSR32_R26(location + 1);
+	}
+}
+#else
+static void inline jsri_2_lrw_jsr(uint32_t *location)
+{
+	return;
+}
 #endif
 
 int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
@@ -35,9 +55,6 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 	Elf32_Sym	*sym;
 	uint32_t	*location;
 	short		*temp;
-#if defined(__CSKYABIV2__)
-	uint16_t	*location_tmp;
-#endif
 
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -59,18 +76,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 		case R_CSKY_PCRELJSR_IMM11BY2:
 			break;
 		case R_CSKY_PCRELJSR_IMM26BY2:
-#if defined(__CSKYABIV2__)
-			location_tmp = (uint16_t *)location;
-			if (IS_BSR32(*location_tmp, *(location_tmp + 1)))
-				break;
-
-			if (IS_JSRI32(*location_tmp, *(location_tmp + 1))) {
-				/* jsri 0x...  --> lrw r26, 0x... */
-				CHANGE_JSRI_TO_LRW(location);
-				/* lsli r0, r0 --> jsr r26 */
-				SET_JSR32_R26(location + 1);
-			}
-#endif
+			jsri_2_lrw_jsr(location);
 			break;
 		case R_CSKY_ADDR_HI16:
 			temp = ((short  *)location) + 1;

@@ -92,19 +92,6 @@ static const unsigned short normal_i2c[] = {
 #define LM95235_REVISION	0xB1
 #define LM95245_REVISION	0xB3
 
-static const u8 lm95245_reg_address[] = {
-	LM95245_REG_R_LOCAL_TEMPH_S,
-	LM95245_REG_R_LOCAL_TEMPL_S,
-	LM95245_REG_R_REMOTE_TEMPH_S,
-	LM95245_REG_R_REMOTE_TEMPL_S,
-	LM95245_REG_R_REMOTE_TEMPH_U,
-	LM95245_REG_R_REMOTE_TEMPL_U,
-	LM95245_REG_RW_LOCAL_OS_TCRIT_LIMIT,
-	LM95245_REG_RW_REMOTE_TCRIT_LIMIT,
-	LM95245_REG_RW_COMMON_HYSTERESIS,
-	LM95245_REG_R_STATUS1,
-};
-
 /* Client data (each client gets its own) */
 struct lm95245_data {
 	struct regmap *regmap;
@@ -421,14 +408,14 @@ static umode_t lm95245_temp_is_visible(const void *data, u32 attr, int channel)
 	case hwmon_temp_max_hyst:
 	case hwmon_temp_crit_alarm:
 	case hwmon_temp_fault:
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_type:
 	case hwmon_temp_max:
 	case hwmon_temp_crit:
 	case hwmon_temp_offset:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	case hwmon_temp_crit_hyst:
-		return (channel == 0) ? S_IRUGO | S_IWUSR : S_IRUGO;
+		return (channel == 0) ? 0644 : 0444;
 	default:
 		return 0;
 	}
@@ -442,7 +429,7 @@ static umode_t lm95245_is_visible(const void *data,
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		default:
 			return 0;
 		}
@@ -545,32 +532,16 @@ static const struct regmap_config lm95245_regmap_config = {
 	.use_single_write = true,
 };
 
-static const u32 lm95245_chip_config[] = {
-	HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info lm95245_chip = {
-	.type = hwmon_chip,
-	.config = lm95245_chip_config,
-};
-
-static const u32 lm95245_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_CRIT_ALARM,
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST | HWMON_T_CRIT |
-		HWMON_T_CRIT_HYST | HWMON_T_FAULT | HWMON_T_MAX_ALARM |
-		HWMON_T_CRIT_ALARM | HWMON_T_TYPE | HWMON_T_OFFSET,
-	0
-};
-
-static const struct hwmon_channel_info lm95245_temp = {
-	.type = hwmon_temp,
-	.config = lm95245_temp_config,
-};
-
 static const struct hwmon_channel_info *lm95245_info[] = {
-	&lm95245_chip,
-	&lm95245_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_CRIT_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_FAULT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_TYPE | HWMON_T_OFFSET),
 	NULL
 };
 
@@ -623,7 +594,7 @@ static const struct i2c_device_id lm95245_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm95245_id);
 
-static const struct of_device_id lm95245_of_match[] = {
+static const struct of_device_id __maybe_unused lm95245_of_match[] = {
 	{ .compatible = "national,lm95235" },
 	{ .compatible = "national,lm95245" },
 	{ },

@@ -121,7 +121,6 @@ static int __init declare_of_platform_devices(void)
 	return 0;
 }
 machine_arch_initcall(mpc86xx_hpcn, declare_of_platform_devices);
-machine_arch_initcall(mpc86xx_hpcn, swiotlb_setup_bus_notifier);
 
 define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",

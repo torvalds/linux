@@ -103,10 +103,6 @@
 	((n > BCM590XX_REG_VSR) && (n < BCM590XX_REG_VBUS))
 #define BCM590XX_REG_IS_VBUS(n)	(n == BCM590XX_REG_VBUS)
 
-struct bcm590xx_board {
-	struct regulator_init_data *bcm590xx_pmu_init_data[BCM590XX_NUM_REGS];
-};
-
 /* LDO group A: supported voltages in microvolts */
 static const unsigned int ldo_a_table[] = {
 	1200000, 1800000, 2500000, 2700000, 2800000,
@@ -242,8 +238,12 @@ static int bcm590xx_get_enable_register(int id)
 		case BCM590XX_REG_SDSR2:
 			reg = BCM590XX_SDSR2PMCTRL1;
 			break;
+		case BCM590XX_REG_VSR:
+			reg = BCM590XX_VSRPMCTRL1;
+			break;
 		case BCM590XX_REG_VBUS:
 			reg = BCM590XX_OTG_CTRL;
+			break;
 		}
 
 
@@ -276,104 +276,14 @@ static const struct regulator_ops bcm590xx_ops_vbus = {
 	.disable		= regulator_disable_regmap,
 };
 
-#define BCM590XX_MATCH(_name, _id) \
-	{ \
-		.name = #_name, \
-		.driver_data = (void *)&bcm590xx_regs[BCM590XX_REG_##_id], \
-	}
-
-static struct of_regulator_match bcm590xx_matches[] = {
-	BCM590XX_MATCH(rfldo, RFLDO),
-	BCM590XX_MATCH(camldo1, CAMLDO1),
-	BCM590XX_MATCH(camldo2, CAMLDO2),
-	BCM590XX_MATCH(simldo1, SIMLDO1),
-	BCM590XX_MATCH(simldo2, SIMLDO2),
-	BCM590XX_MATCH(sdldo, SDLDO),
-	BCM590XX_MATCH(sdxldo, SDXLDO),
-	BCM590XX_MATCH(mmcldo1, MMCLDO1),
-	BCM590XX_MATCH(mmcldo2, MMCLDO2),
-	BCM590XX_MATCH(audldo, AUDLDO),
-	BCM590XX_MATCH(micldo, MICLDO),
-	BCM590XX_MATCH(usbldo, USBLDO),
-	BCM590XX_MATCH(vibldo, VIBLDO),
-	BCM590XX_MATCH(csr, CSR),
-	BCM590XX_MATCH(iosr1, IOSR1),
-	BCM590XX_MATCH(iosr2, IOSR2),
-	BCM590XX_MATCH(msr, MSR),
-	BCM590XX_MATCH(sdsr1, SDSR1),
-	BCM590XX_MATCH(sdsr2, SDSR2),
-	BCM590XX_MATCH(vsr, VSR),
-	BCM590XX_MATCH(gpldo1, GPLDO1),
-	BCM590XX_MATCH(gpldo2, GPLDO2),
-	BCM590XX_MATCH(gpldo3, GPLDO3),
-	BCM590XX_MATCH(gpldo4, GPLDO4),
-	BCM590XX_MATCH(gpldo5, GPLDO5),
-	BCM590XX_MATCH(gpldo6, GPLDO6),
-	BCM590XX_MATCH(vbus, VBUS),
-};
-
-static struct bcm590xx_board *bcm590xx_parse_dt_reg_data(
-		struct platform_device *pdev,
-		struct of_regulator_match **bcm590xx_reg_matches)
-{
-	struct bcm590xx_board *data;
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regulators;
-	struct of_regulator_match *matches = bcm590xx_matches;
-	int count = ARRAY_SIZE(bcm590xx_matches);
-	int idx = 0;
-	int ret;
-
-	if (!np) {
-		dev_err(&pdev->dev, "of node not found\n");
-		return NULL;
-	}
-
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return NULL;
-
-	np = of_node_get(np);
-	regulators = of_get_child_by_name(np, "regulators");
-	if (!regulators) {
-		dev_warn(&pdev->dev, "regulator node not found\n");
-		return NULL;
-	}
-
-	ret = of_regulator_match(&pdev->dev, regulators, matches, count);
-	of_node_put(regulators);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n",
-			ret);
-		return NULL;
-	}
-
-	*bcm590xx_reg_matches = matches;
-
-	for (idx = 0; idx < count; idx++) {
-		if (!matches[idx].init_data || !matches[idx].of_node)
-			continue;
-
-		data->bcm590xx_pmu_init_data[idx] = matches[idx].init_data;
-	}
-
-	return data;
-}
-
 static int bcm590xx_probe(struct platform_device *pdev)
 {
 	struct bcm590xx *bcm590xx = dev_get_drvdata(pdev->dev.parent);
-	struct bcm590xx_board *pmu_data = NULL;
 	struct bcm590xx_reg *pmu;
 	struct regulator_config config = { };
 	struct bcm590xx_info *info;
-	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
-	struct of_regulator_match *bcm590xx_reg_matches = NULL;
 	int i;
-
-	pmu_data = bcm590xx_parse_dt_reg_data(pdev,
-					      &bcm590xx_reg_matches);
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
@@ -393,13 +303,10 @@ static int bcm590xx_probe(struct platform_device *pdev)
 	info = bcm590xx_regs;
 
 	for (i = 0; i < BCM590XX_NUM_REGS; i++, info++) {
-		if (pmu_data)
-			reg_data = pmu_data->bcm590xx_pmu_init_data[i];
-		else
-			reg_data = NULL;
-
 		/* Register the regulators */
 		pmu->desc[i].name = info->name;
+		pmu->desc[i].of_match = of_match_ptr(info->name);
+		pmu->desc[i].regulators_node = of_match_ptr("regulators");
 		pmu->desc[i].supply_name = info->vin_name;
 		pmu->desc[i].id = i;
 		pmu->desc[i].volt_table = info->volt_table;
@@ -429,15 +336,11 @@ static int bcm590xx_probe(struct platform_device *pdev)
 		pmu->desc[i].owner = THIS_MODULE;
 
 		config.dev = bcm590xx->dev;
-		config.init_data = reg_data;
 		config.driver_data = pmu;
 		if (BCM590XX_REG_IS_GPLDO(i) || BCM590XX_REG_IS_VBUS(i))
 			config.regmap = bcm590xx->regmap_sec;
 		else
 			config.regmap = bcm590xx->regmap_pri;
-
-		if (bcm590xx_reg_matches)
-			config.of_node = bcm590xx_reg_matches[i].of_node;
 
 		rdev = devm_regulator_register(&pdev->dev, &pmu->desc[i],
 					       &config);

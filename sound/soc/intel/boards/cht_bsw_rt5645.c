@@ -530,8 +530,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = snd_soc_cards[0].soc_card;
 	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
 	struct cht_mc_private *drv;
-	const char *i2c_name = NULL;
+	struct acpi_device *adev;
 	bool found = false;
 	bool is_bytcr = false;
 	int dai_index = 0;
@@ -572,10 +573,11 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		}
 
 	/* fixup codec name based on HID */
-	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-	if (i2c_name) {
+	adev = acpi_dev_get_first_match_dev(mach->id, NULL, -1);
+	if (adev) {
 		snprintf(cht_rt5645_codec_name, sizeof(cht_rt5645_codec_name),
-			"%s%s", "i2c-", i2c_name);
+			 "i2c-%s", acpi_dev_name(adev));
+		put_device(&adev->dev);
 		cht_dailink[dai_index].codec_name = cht_rt5645_codec_name;
 	}
 
@@ -662,6 +664,14 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		cht_dailink[dai_index].cpu_dai_name =
 			cht_rt5645_cpu_dai_name;
 	}
+
+	/* override plaform name, if required */
+	platform_name = mach->mach_params.platform;
+
+	ret_val = snd_soc_fixup_dai_links_platform_name(card,
+							platform_name);
+	if (ret_val)
+		return ret_val;
 
 	drv->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
 	if (IS_ERR(drv->mclk)) {

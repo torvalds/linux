@@ -345,8 +345,6 @@ static void slic_set_rx_mode(struct net_device *dev)
 	if (sdev->promisc != set_promisc) {
 		sdev->promisc = set_promisc;
 		slic_configure_rcv(sdev);
-		/* make sure writes to receiver cant leak out of the lock */
-		mmiowb();
 	}
 	spin_unlock_bh(&sdev->link_lock);
 }
@@ -795,8 +793,8 @@ static int slic_init_stat_queue(struct slic_device *sdev)
 	size = stq->len * sizeof(*descs) + DESC_ALIGN_MASK;
 
 	for (i = 0; i < SLIC_NUM_STAT_DESC_ARRAYS; i++) {
-		descs = dma_zalloc_coherent(&sdev->pdev->dev, size, &paddr,
-					    GFP_KERNEL);
+		descs = dma_alloc_coherent(&sdev->pdev->dev, size, &paddr,
+					   GFP_KERNEL);
 		if (!descs) {
 			netdev_err(sdev->netdev,
 				   "failed to allocate status descriptors\n");
@@ -1240,8 +1238,8 @@ static int slic_init_shmem(struct slic_device *sdev)
 	struct slic_shmem_data *sm_data;
 	dma_addr_t paddr;
 
-	sm_data = dma_zalloc_coherent(&sdev->pdev->dev, sizeof(*sm_data),
-				      &paddr, GFP_KERNEL);
+	sm_data = dma_alloc_coherent(&sdev->pdev->dev, sizeof(*sm_data),
+				     &paddr, GFP_KERNEL);
 	if (!sm_data) {
 		dev_err(&sdev->pdev->dev, "failed to allocate shared memory\n");
 		return -ENOMEM;
@@ -1461,8 +1459,6 @@ static netdev_tx_t slic_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (slic_get_free_tx_descs(txq) < SLIC_MAX_REQ_TX_DESCS)
 		netif_stop_queue(dev);
-	/* make sure writes to io-memory cant leak out of tx queue lock */
-	mmiowb();
 
 	return NETDEV_TX_OK;
 drop_skb:
@@ -1621,8 +1617,8 @@ static int slic_read_eeprom(struct slic_device *sdev)
 	int err = 0;
 	u8 *mac[2];
 
-	eeprom = dma_zalloc_coherent(&sdev->pdev->dev, SLIC_EEPROM_SIZE,
-				     &paddr, GFP_KERNEL);
+	eeprom = dma_alloc_coherent(&sdev->pdev->dev, SLIC_EEPROM_SIZE,
+				    &paddr, GFP_KERNEL);
 	if (!eeprom)
 		return -ENOMEM;
 

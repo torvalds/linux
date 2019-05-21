@@ -130,8 +130,13 @@ static void __init fwnmi_init(void)
 	 * It will be used in real mode mce handler, hence it needs to be
 	 * below RMA.
 	 */
-	mce_data_buf = __va(memblock_alloc_base(RTAS_ERROR_LOG_MAX * nr_cpus,
-					RTAS_ERROR_LOG_MAX, ppc64_rma_size));
+	mce_data_buf = memblock_alloc_try_nid_raw(RTAS_ERROR_LOG_MAX * nr_cpus,
+					RTAS_ERROR_LOG_MAX, MEMBLOCK_LOW_LIMIT,
+					ppc64_rma_size, NUMA_NO_NODE);
+	if (!mce_data_buf)
+		panic("Failed to allocate %d bytes below %pa for MCE buffer\n",
+		      RTAS_ERROR_LOG_MAX * nr_cpus, &ppc64_rma_size);
+
 	for_each_possible_cpu(i) {
 		paca_ptrs[i]->mce_data_buf = mce_data_buf +
 						(RTAS_ERROR_LOG_MAX * i);
@@ -140,8 +145,13 @@ static void __init fwnmi_init(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* Allocate per cpu slb area to save old slb contents during MCE */
 	size = sizeof(struct slb_entry) * mmu_slb_size * nr_cpus;
-	slb_ptr = __va(memblock_alloc_base(size, sizeof(struct slb_entry),
-					   ppc64_rma_size));
+	slb_ptr = memblock_alloc_try_nid_raw(size, sizeof(struct slb_entry),
+					MEMBLOCK_LOW_LIMIT, ppc64_rma_size,
+					NUMA_NO_NODE);
+	if (!slb_ptr)
+		panic("Failed to allocate %zu bytes below %pa for slb area\n",
+		      size, &ppc64_rma_size);
+
 	for_each_possible_cpu(i)
 		paca_ptrs[i]->mce_faulty_slbs = slb_ptr + (mmu_slb_size * i);
 #endif

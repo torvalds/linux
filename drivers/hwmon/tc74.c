@@ -86,7 +86,7 @@ ret_unlock:
 	return ret;
 }
 
-static ssize_t show_temp_input(struct device *dev,
+static ssize_t temp_input_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct tc74_data *data = dev_get_drvdata(dev);
@@ -98,7 +98,7 @@ static ssize_t show_temp_input(struct device *dev,
 
 	return sprintf(buf, "%d\n", data->temp_input * 1000);
 }
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp_input, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp_input, 0);
 
 static struct attribute *tc74_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

@@ -283,12 +283,20 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 	/* use endpoint/port reg if exist */
 	ret = of_graph_parse_endpoint(ep, &info);
 	if (ret == 0) {
-		if (info.id)
+		/*
+		 * Because it will count port/endpoint if it doesn't have "reg".
+		 * But, we can't judge whether it has "no reg", or "reg = <0>"
+		 * only of_graph_parse_endpoint().
+		 * We need to check "reg" property
+		 */
+		if (of_get_property(ep,   "reg", NULL))
 			return info.id;
-		if (info.port)
+
+		node = of_get_parent(ep);
+		of_node_put(node);
+		if (of_get_property(node, "reg", NULL))
 			return info.port;
 	}
-
 	node = of_graph_get_port_parent(ep);
 
 	/*
@@ -386,16 +394,13 @@ int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 
-int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
+void asoc_simple_card_canonicalize_platform(struct snd_soc_dai_link *dai_link)
 {
 	/* Assumes platform == cpu */
-	if (!dai_link->platform->of_node)
-		dai_link->platform->of_node = dai_link->cpu_of_node;
-
-	return 0;
-
+	if (!dai_link->platforms->of_node)
+		dai_link->platforms->of_node = dai_link->cpu_of_node;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_dailink);
+EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_platform);
 
 void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 				       int is_single_links)

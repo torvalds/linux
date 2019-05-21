@@ -10,6 +10,14 @@ menu "Library routines"
 config RAID6_PQ
 	tristate
 
+config RAID6_PQ_BENCHMARK
+	bool "Automatically choose fastest RAID6 PQ functions"
+	depends on RAID6_PQ
+	default y
+	help
+	  Benchmark all available RAID6 PQ functions on init and choose the
+	  fastest one.
+
 config BITREVERSE
 	tristate
 
@@ -588,6 +596,10 @@ config ARCH_HAS_UACCESS_FLUSHCACHE
 
 config ARCH_HAS_UACCESS_MCSAFE
 	bool
+
+# Temporary. Goes away when all archs are cleaned up
+config ARCH_STACKWALK
+       bool
 
 config STACKDEPOT
 	bool

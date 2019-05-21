@@ -609,6 +609,8 @@ static const struct usb_device_id id_table_combined[] = {
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_NT_ORIONLXM_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE(FTDI_VID, FTDI_NT_ORIONLX_PLUS_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_NT_ORION_IO_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SYNAPSE_SS200_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CUSTOMWARE_MINIPLEX_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CUSTOMWARE_MINIPLEX2_PID) },
@@ -1025,6 +1027,8 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(CYPRESS_VID, CYPRESS_WICED_BT_USB_PID) },
 	{ USB_DEVICE(CYPRESS_VID, CYPRESS_WICED_WL_USB_PID) },
 	{ USB_DEVICE(AIRBUS_DS_VID, AIRBUS_DS_P8GR) },
+	/* EZPrototypes devices */
+	{ USB_DEVICE(EZPROTOTYPES_VID, HJELMSLUND_USB485_ISO_PID) },
 	{ }					/* Terminating entry */
 };
 
@@ -1783,6 +1787,10 @@ static int ftdi_set_bitmode(struct usb_serial_port *port, u8 mode)
 	int result;
 	u16 val;
 
+	result = usb_autopm_get_interface(serial->interface);
+	if (result)
+		return result;
+
 	val = (mode << 8) | (priv->gpio_output << 4) | priv->gpio_value;
 	result = usb_control_msg(serial->dev,
 				 usb_sndctrlpipe(serial->dev, 0),
@@ -1794,6 +1802,8 @@ static int ftdi_set_bitmode(struct usb_serial_port *port, u8 mode)
 			"bitmode request failed for value 0x%04x: %d\n",
 			val, result);
 	}
+
+	usb_autopm_put_interface(serial->interface);
 
 	return result;
 }
@@ -1846,9 +1856,15 @@ static int ftdi_read_cbus_pins(struct usb_serial_port *port)
 	unsigned char *buf;
 	int result;
 
+	result = usb_autopm_get_interface(serial->interface);
+	if (result)
+		return result;
+
 	buf = kmalloc(1, GFP_KERNEL);
-	if (!buf)
+	if (!buf) {
+		usb_autopm_put_interface(serial->interface);
 		return -ENOMEM;
+	}
 
 	result = usb_control_msg(serial->dev,
 				 usb_rcvctrlpipe(serial->dev, 0),
@@ -1863,6 +1879,7 @@ static int ftdi_read_cbus_pins(struct usb_serial_port *port)
 	}
 
 	kfree(buf);
+	usb_autopm_put_interface(serial->interface);
 
 	return result;
 }

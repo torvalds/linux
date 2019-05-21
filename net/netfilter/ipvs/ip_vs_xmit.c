@@ -126,7 +126,7 @@ static struct rtable *do_output_route4(struct net *net, __be32 daddr,
 {
 	struct flowi4 fl4;
 	struct rtable *rt;
-	int loop = 0;
+	bool loop = false;
 
 	memset(&fl4, 0, sizeof(fl4));
 	fl4.daddr = daddr;
@@ -149,7 +149,7 @@ retry:
 		ip_rt_put(rt);
 		*saddr = fl4.saddr;
 		flowi4_update_output(&fl4, 0, 0, daddr, fl4.saddr);
-		loop++;
+		loop = true;
 		goto retry;
 	}
 	*saddr = fl4.saddr;

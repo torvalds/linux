@@ -1556,8 +1556,8 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 		return PTR_ERR(master->pclk);
 
 	master->sysclk = devm_clk_get(&pdev->dev, "sysclk");
-	if (IS_ERR(master->pclk))
-		return PTR_ERR(master->pclk);
+	if (IS_ERR(master->sysclk))
+		return PTR_ERR(master->sysclk);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

@@ -362,11 +362,11 @@ static umode_t ltc4245_is_visible(const void *_data,
 		case hwmon_in_input:
 			if (channel > 9 && !data->use_extra_gpios)
 				return 0;
-			return S_IRUGO;
+			return 0444;
 		case hwmon_in_min_alarm:
 			if (channel > 8)
 				return 0;
-			return S_IRUGO;
+			return 0444;
 		default:
 			return 0;
 		}
@@ -374,14 +374,14 @@ static umode_t ltc4245_is_visible(const void *_data,
 		switch (attr) {
 		case hwmon_curr_input:
 		case hwmon_curr_max_alarm:
-			return S_IRUGO;
+			return 0444;
 		default:
 			return 0;
 		}
 	case hwmon_power:
 		switch (attr) {
 		case hwmon_power_input:
-			return S_IRUGO;
+			return 0444;
 		default:
 			return 0;
 		}
@@ -390,57 +390,30 @@ static umode_t ltc4245_is_visible(const void *_data,
 	}
 }
 
-static const u32 ltc4245_in_config[] = {
-	HWMON_I_INPUT,			/* dummy, skipped in is_visible */
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT | HWMON_I_MIN_ALARM,
-	HWMON_I_INPUT,
-	HWMON_I_INPUT,
-	HWMON_I_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info ltc4245_in = {
-	.type = hwmon_in,
-	.config = ltc4245_in_config,
-};
-
-static const u32 ltc4245_curr_config[] = {
-	HWMON_C_INPUT | HWMON_C_MAX_ALARM,
-	HWMON_C_INPUT | HWMON_C_MAX_ALARM,
-	HWMON_C_INPUT | HWMON_C_MAX_ALARM,
-	HWMON_C_INPUT | HWMON_C_MAX_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info ltc4245_curr = {
-	.type = hwmon_curr,
-	.config = ltc4245_curr_config,
-};
-
-static const u32 ltc4245_power_config[] = {
-	HWMON_P_INPUT,
-	HWMON_P_INPUT,
-	HWMON_P_INPUT,
-	HWMON_P_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info ltc4245_power = {
-	.type = hwmon_power,
-	.config = ltc4245_power_config,
-};
-
 static const struct hwmon_channel_info *ltc4245_info[] = {
-	&ltc4245_in,
-	&ltc4245_curr,
-	&ltc4245_power,
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT | HWMON_I_MIN_ALARM,
+			   HWMON_I_INPUT,
+			   HWMON_I_INPUT,
+			   HWMON_I_INPUT),
+	HWMON_CHANNEL_INFO(curr,
+			   HWMON_C_INPUT | HWMON_C_MAX_ALARM,
+			   HWMON_C_INPUT | HWMON_C_MAX_ALARM,
+			   HWMON_C_INPUT | HWMON_C_MAX_ALARM,
+			   HWMON_C_INPUT | HWMON_C_MAX_ALARM),
+	HWMON_CHANNEL_INFO(power,
+			   HWMON_P_INPUT,
+			   HWMON_P_INPUT,
+			   HWMON_P_INPUT,
+			   HWMON_P_INPUT),
 	NULL
 };
 

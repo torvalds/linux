@@ -61,6 +61,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x08e6, 0x5501) }, /* Gemalto Prox-PU/CU contactless smartcard reader */
 	{ USB_DEVICE(0x08FD, 0x000A) }, /* Digianswer A/S , ZigBee/802.15.4 MAC Device */
 	{ USB_DEVICE(0x0908, 0x01FF) }, /* Siemens RUGGEDCOM USB Serial Console */
+	{ USB_DEVICE(0x0B00, 0x3070) }, /* Ingenico 3070 */
 	{ USB_DEVICE(0x0BED, 0x1100) }, /* MEI (TM) Cashflow-SC Bill/Voucher Acceptor */
 	{ USB_DEVICE(0x0BED, 0x1101) }, /* MEI series 2000 Combo Acceptor */
 	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */
@@ -79,6 +80,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x804E) }, /* Software Bisque Paramount ME build-in converter */
 	{ USB_DEVICE(0x10C4, 0x8053) }, /* Enfora EDG1228 */
 	{ USB_DEVICE(0x10C4, 0x8054) }, /* Enfora GSM2228 */
+	{ USB_DEVICE(0x10C4, 0x8056) }, /* Lorenz Messtechnik devices */
 	{ USB_DEVICE(0x10C4, 0x8066) }, /* Argussoft In-System Programmer */
 	{ USB_DEVICE(0x10C4, 0x806F) }, /* IMS USB to RS422 Converter Cable */
 	{ USB_DEVICE(0x10C4, 0x807A) }, /* Crumb128 board */
@@ -245,6 +247,7 @@ struct cp210x_serial_private {
 	u8			gpio_input;
 #endif
 	u8			partnum;
+	speed_t			min_speed;
 	speed_t			max_speed;
 	bool			use_actual_rate;
 };
@@ -443,10 +446,10 @@ struct cp210x_pin_mode {
 #define CP210X_PIN_MODE_GPIO		BIT(0)
 
 /*
- * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xf bytes.
- * Structure needs padding due to unused/unspecified bytes.
+ * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xf bytes
+ * on a CP2105 chip. Structure needs padding due to unused/unspecified bytes.
  */
-struct cp210x_config {
+struct cp210x_dual_port_config {
 	__le16	gpio_mode;
 	u8	__pad0[2];
 	__le16	reset_state;
@@ -457,6 +460,19 @@ struct cp210x_config {
 	u8	device_cfg;
 } __packed;
 
+/*
+ * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xd bytes
+ * on a CP2104 chip. Structure needs padding due to unused/unspecified bytes.
+ */
+struct cp210x_single_port_config {
+	__le16	gpio_mode;
+	u8	__pad0[2];
+	__le16	reset_state;
+	u8	__pad1[4];
+	__le16	suspend_state;
+	u8	device_cfg;
+} __packed;
+
 /* GPIO modes */
 #define CP210X_SCI_GPIO_MODE_OFFSET	9
 #define CP210X_SCI_GPIO_MODE_MASK	GENMASK(11, 9)
@@ -464,10 +480,18 @@ struct cp210x_config {
 #define CP210X_ECI_GPIO_MODE_OFFSET	2
 #define CP210X_ECI_GPIO_MODE_MASK	GENMASK(3, 2)
 
+#define CP210X_GPIO_MODE_OFFSET		8
+#define CP210X_GPIO_MODE_MASK		GENMASK(11, 8)
+
 /* CP2105 port configuration values */
 #define CP2105_GPIO0_TXLED_MODE		BIT(0)
 #define CP2105_GPIO1_RXLED_MODE		BIT(1)
 #define CP2105_GPIO1_RS485_MODE		BIT(2)
+
+/* CP2104 port configuration values */
+#define CP2104_GPIO0_TXLED_MODE		BIT(0)
+#define CP2104_GPIO1_RXLED_MODE		BIT(1)
+#define CP2104_GPIO2_RS485_MODE		BIT(2)
 
 /* CP2102N configuration array indices */
 #define CP210X_2NCONFIG_CONFIG_VERSION_IDX	2
@@ -1051,13 +1075,10 @@ static speed_t cp210x_get_an205_rate(speed_t baud)
 	return cp210x_an205_table1[i].rate;
 }
 
-static speed_t cp210x_get_actual_rate(struct usb_serial *serial, speed_t baud)
+static speed_t cp210x_get_actual_rate(speed_t baud)
 {
-	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	unsigned int prescale = 1;
 	unsigned int div;
-
-	baud = clamp(baud, 300u, priv->max_speed);
 
 	if (baud <= 365)
 		prescale = 4;
@@ -1101,20 +1122,18 @@ static void cp210x_change_speed(struct tty_struct *tty,
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	u32 baud;
 
-	baud = tty->termios.c_ospeed;
-
 	/*
 	 * This maps the requested rate to the actual rate, a valid rate on
 	 * cp2102 or cp2103, or to an arbitrary rate in [1M, max_speed].
 	 *
 	 * NOTE: B0 is not implemented.
 	 */
+	baud = clamp(tty->termios.c_ospeed, priv->min_speed, priv->max_speed);
+
 	if (priv->use_actual_rate)
-		baud = cp210x_get_actual_rate(serial, baud);
+		baud = cp210x_get_actual_rate(baud);
 	else if (baud < 1000000)
 		baud = cp210x_get_an205_rate(baud);
-	else if (baud > priv->max_speed)
-		baud = priv->max_speed;
 
 	dev_dbg(&port->dev, "%s - setting baud rate to %u\n", __func__, baud);
 	if (cp210x_write_u32_reg(port, CP210X_SET_BAUDRATE, baud)) {
@@ -1353,8 +1372,13 @@ static int cp210x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	if (priv->partnum == CP210X_PARTNUM_CP2105)
 		req_type = REQTYPE_INTERFACE_TO_HOST;
 
+	result = usb_autopm_get_interface(serial->interface);
+	if (result)
+		return result;
+
 	result = cp210x_read_vendor_block(serial, req_type,
 					  CP210X_READ_LATCH, &buf, sizeof(buf));
+	usb_autopm_put_interface(serial->interface);
 	if (result < 0)
 		return result;
 
@@ -1375,6 +1399,10 @@ static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 
 	buf.mask = BIT(gpio);
 
+	result = usb_autopm_get_interface(serial->interface);
+	if (result)
+		goto out;
+
 	if (priv->partnum == CP210X_PARTNUM_CP2105) {
 		result = cp210x_write_vendor_block(serial,
 						   REQTYPE_HOST_TO_INTERFACE,
@@ -1392,6 +1420,8 @@ static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 					 NULL, 0, USB_CTRL_SET_TIMEOUT);
 	}
 
+	usb_autopm_put_interface(serial->interface);
+out:
 	if (result < 0) {
 		dev_err(&serial->interface->dev, "failed to set GPIO value: %d\n",
 				result);
@@ -1470,7 +1500,7 @@ static int cp2105_gpioconf_init(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	struct cp210x_pin_mode mode;
-	struct cp210x_config config;
+	struct cp210x_dual_port_config config;
 	u8 intf_num = cp210x_interface_num(serial);
 	u8 iface_config;
 	int result;
@@ -1529,6 +1559,56 @@ static int cp2105_gpioconf_init(struct usb_serial *serial)
 	return 0;
 }
 
+static int cp2104_gpioconf_init(struct usb_serial *serial)
+{
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	struct cp210x_single_port_config config;
+	u8 iface_config;
+	u8 gpio_latch;
+	int result;
+	u8 i;
+
+	result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
+					  CP210X_GET_PORTCONFIG, &config,
+					  sizeof(config));
+	if (result < 0)
+		return result;
+
+	priv->gc.ngpio = 4;
+
+	iface_config = config.device_cfg;
+	priv->gpio_pushpull = (u8)((le16_to_cpu(config.gpio_mode) &
+					CP210X_GPIO_MODE_MASK) >>
+					CP210X_GPIO_MODE_OFFSET);
+	gpio_latch = (u8)((le16_to_cpu(config.reset_state) &
+					CP210X_GPIO_MODE_MASK) >>
+					CP210X_GPIO_MODE_OFFSET);
+
+	/* mark all pins which are not in GPIO mode */
+	if (iface_config & CP2104_GPIO0_TXLED_MODE)	/* GPIO 0 */
+		priv->gpio_altfunc |= BIT(0);
+	if (iface_config & CP2104_GPIO1_RXLED_MODE)	/* GPIO 1 */
+		priv->gpio_altfunc |= BIT(1);
+	if (iface_config & CP2104_GPIO2_RS485_MODE)	/* GPIO 2 */
+		priv->gpio_altfunc |= BIT(2);
+
+	/*
+	 * Like CP2102N, CP2104 has also no strict input and output pin
+	 * modes.
+	 * Do the same input mode emulation as CP2102N.
+	 */
+	for (i = 0; i < priv->gc.ngpio; ++i) {
+		/*
+		 * Set direction to "input" iff pin is open-drain and reset
+		 * value is 1.
+		 */
+		if (!(priv->gpio_pushpull & BIT(i)) && (gpio_latch & BIT(i)))
+			priv->gpio_input |= BIT(i);
+	}
+
+	return 0;
+}
+
 static int cp2102n_gpioconf_init(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
@@ -1574,12 +1654,6 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 	if (config_version != 0x01)
 		return -ENOTSUPP;
 
-	/*
-	 * We only support 4 GPIOs even on the QFN28 package, because
-	 * config locations of GPIOs 4-6 determined using reverse
-	 * engineering revealed conflicting offsets with other
-	 * documented functions. So we'll just play it safe for now.
-	 */
 	priv->gc.ngpio = 4;
 
 	/*
@@ -1593,6 +1667,19 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 
 	/* 0 indicates GPIO mode, 1 is alternate function */
 	priv->gpio_altfunc = (gpio_ctrl >> 2) & 0x0f;
+
+	if (priv->partnum == CP210X_PARTNUM_CP2102N_QFN28) {
+		/*
+		 * For the QFN28 package, GPIO4-6 are controlled by
+		 * the low three bits of the mode/latch fields.
+		 * Contrary to the document linked above, the bits for
+		 * the SUSPEND pins are elsewhere.  No alternate
+		 * function is available for these pins.
+		 */
+		priv->gc.ngpio = 7;
+		gpio_latch |= (gpio_rst_latch & 7) << 4;
+		priv->gpio_pushpull |= (gpio_pushpull & 7) << 4;
+	}
 
 	/*
 	 * The CP2102N does not strictly has input and output pin modes,
@@ -1620,6 +1707,9 @@ static int cp210x_gpio_init(struct usb_serial *serial)
 	int result;
 
 	switch (priv->partnum) {
+	case CP210X_PARTNUM_CP2104:
+		result = cp2104_gpioconf_init(serial);
+		break;
 	case CP210X_PARTNUM_CP2105:
 		result = cp2105_gpioconf_init(serial);
 		break;
@@ -1716,6 +1806,7 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	bool use_actual_rate = false;
+	speed_t min = 300;
 	speed_t max;
 
 	switch (priv->partnum) {
@@ -1738,6 +1829,7 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 			use_actual_rate = true;
 			max = 2000000;	/* ECI */
 		} else {
+			min = 2400;
 			max = 921600;	/* SCI */
 		}
 		break;
@@ -1752,6 +1844,7 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 		break;
 	}
 
+	priv->min_speed = min;
 	priv->max_speed = max;
 	priv->use_actual_rate = use_actual_rate;
 }

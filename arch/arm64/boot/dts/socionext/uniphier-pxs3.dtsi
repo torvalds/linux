@@ -39,7 +39,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x000>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -48,7 +48,7 @@
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x001>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -57,7 +57,7 @@
 
 		cpu2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x002>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -66,7 +66,7 @@
 
 		cpu3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0x003>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
@@ -725,6 +725,53 @@
 				resets = <&sys_rst 13>, <&sys_rst 21>;
 				vbus-supply = <&usb1_vbus0>;
 			};
+		};
+
+		pcie: pcie@66000000 {
+			compatible = "socionext,uniphier-pcie", "snps,dw-pcie";
+			status = "disabled";
+			reg-names = "dbi", "link", "config";
+			reg = <0x66000000 0x1000>, <0x66010000 0x10000>,
+			      <0x2fff0000 0x10000>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			clocks = <&sys_clk 24>;
+			resets = <&sys_rst 24>;
+			num-lanes = <1>;
+			num-viewport = <1>;
+			bus-range = <0x0 0xff>;
+			device_type = "pci";
+			ranges =
+			/* downstream I/O */
+				<0x81000000 0 0x00000000 0x2ffe0000 0 0x00010000>,
+			/* non-prefetchable memory */
+				<0x82000000 0 0x20000000 0x20000000 0 0x0ffe0000>;
+			#interrupt-cells = <1>;
+			interrupt-names = "dma", "msi";
+			interrupts = <0 224 4>, <0 225 4>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc 0>,	/* INTA */
+					<0 0 0 2 &pcie_intc 1>,	/* INTB */
+					<0 0 0 3 &pcie_intc 2>,	/* INTC */
+					<0 0 0 4 &pcie_intc 3>;	/* INTD */
+			phy-names = "pcie-phy";
+			phys = <&pcie_phy>;
+
+			pcie_intc: legacy-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <0 226 4>;
+			};
+		};
+
+		pcie_phy: phy@66038000 {
+			compatible = "socionext,uniphier-pxs3-pcie-phy";
+			reg = <0x66038000 0x4000>;
+			#phy-cells = <0>;
+			clocks = <&sys_clk 24>;
+			resets = <&sys_rst 24>;
+			socionext,syscon = <&soc_glue>;
 		};
 
 		nand: nand@68000000 {

@@ -4,6 +4,7 @@ comment "Linux Kernel Configuration for Hexagon"
 
 config HEXAGON
 	def_bool y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_NO_PREEMPT
 	select HAVE_OPROFILE
@@ -62,12 +63,6 @@ config GENERIC_CSUM
 # Use the generic interrupt handling code in kernel/irq/:
 #
 config GENERIC_IRQ_PROBE
-	def_bool y
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool n
-
-config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
 config GENERIC_HWEIGHT

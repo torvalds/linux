@@ -214,6 +214,7 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, union drm_amdgpu_cs
 		case AMDGPU_CHUNK_ID_DEPENDENCIES:
 		case AMDGPU_CHUNK_ID_SYNCOBJ_IN:
 		case AMDGPU_CHUNK_ID_SYNCOBJ_OUT:
+		case AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES:
 			break;
 
 		default:
@@ -1090,6 +1091,15 @@ static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
 
 		fence = amdgpu_ctx_get_fence(ctx, entity,
 					     deps[i].handle);
+
+		if (chunk->chunk_id == AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES) {
+			struct drm_sched_fence *s_fence = to_drm_sched_fence(fence);
+			struct dma_fence *old = fence;
+
+			fence = dma_fence_get(&s_fence->scheduled);
+			dma_fence_put(old);
+		}
+
 		if (IS_ERR(fence)) {
 			r = PTR_ERR(fence);
 			amdgpu_ctx_put(ctx);
@@ -1177,7 +1187,8 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 
 		chunk = &p->chunks[i];
 
-		if (chunk->chunk_id == AMDGPU_CHUNK_ID_DEPENDENCIES) {
+		if (chunk->chunk_id == AMDGPU_CHUNK_ID_DEPENDENCIES ||
+		    chunk->chunk_id == AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES) {
 			r = amdgpu_cs_process_fence_dep(p, chunk);
 			if (r)
 				return r;
@@ -1427,6 +1438,9 @@ int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 	fence = amdgpu_cs_get_fence(adev, filp, &info->in.fence);
 	if (IS_ERR(fence))
 		return PTR_ERR(fence);
+
+	if (!fence)
+		fence = dma_fence_get_stub();
 
 	switch (info->in.what) {
 	case AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ:

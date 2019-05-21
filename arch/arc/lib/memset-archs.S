@@ -7,11 +7,39 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/cache.h>
 
-#undef PREALLOC_NOT_AVAIL
+/*
+ * The memset implementation below is optimized to use prefetchw and prealloc
+ * instruction in case of CPU with 64B L1 data cache line (L1_CACHE_SHIFT == 6)
+ * If you want to implement optimized memset for other possible L1 data cache
+ * line lengths (32B and 128B) you should rewrite code carefully checking
+ * we don't call any prefetchw/prealloc instruction for L1 cache lines which
+ * don't belongs to memset area.
+ */
+
+#if L1_CACHE_SHIFT == 6
+
+.macro PREALLOC_INSTR	reg, off
+	prealloc	[\reg, \off]
+.endm
+
+.macro PREFETCHW_INSTR	reg, off
+	prefetchw	[\reg, \off]
+.endm
+
+#else
+
+.macro PREALLOC_INSTR	reg, off
+.endm
+
+.macro PREFETCHW_INSTR	reg, off
+.endm
+
+#endif
 
 ENTRY_CFI(memset)
-	prefetchw [r0]		; Prefetch the write location
+	PREFETCHW_INSTR	r0, 0	; Prefetch the first write location
 	mov.f	0, r2
 ;;; if size is zero
 	jz.d	[blink]
@@ -48,11 +76,8 @@ ENTRY_CFI(memset)
 
 	lpnz	@.Lset64bytes
 	;; LOOP START
-#ifdef PREALLOC_NOT_AVAIL
-	prefetchw [r3, 64]	;Prefetch the next write location
-#else
-	prealloc  [r3, 64]
-#endif
+	PREALLOC_INSTR	r3, 64	; alloc next line w/o fetching
+
 #ifdef CONFIG_ARC_HAS_LL64
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]
@@ -85,7 +110,6 @@ ENTRY_CFI(memset)
 	lsr.f	lp_count, r2, 5 ;Last remaining  max 124 bytes
 	lpnz	.Lset32bytes
 	;; LOOP START
-	prefetchw   [r3, 32]	;Prefetch the next write location
 #ifdef CONFIG_ARC_HAS_LL64
 	std.ab	r4, [r3, 8]
 	std.ab	r4, [r3, 8]

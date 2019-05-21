@@ -1066,7 +1066,7 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  *
  * content type (HDMI specific):
  *	Indicates content type setting to be used in HDMI infoframes to indicate
- *	content type for the external device, so that it adjusts it's display
+ *	content type for the external device, so that it adjusts its display
  *	settings accordingly.
  *
  *	The value of this property can be one of the following:
@@ -1138,7 +1138,71 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
 
 /**
- * drm_create_tv_properties - create TV specific connector properties
+ * drm_mode_attach_tv_margin_properties - attach TV connector margin properties
+ * @connector: DRM connector
+ *
+ * Called by a driver when it needs to attach TV margin props to a connector.
+ * Typically used on SDTV and HDMI connectors.
+ */
+void drm_connector_attach_tv_margin_properties(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_left_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_right_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_top_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_bottom_margin_property,
+				   0);
+}
+EXPORT_SYMBOL(drm_connector_attach_tv_margin_properties);
+
+/**
+ * drm_mode_create_tv_margin_properties - create TV connector margin properties
+ * @dev: DRM device
+ *
+ * Called by a driver's HDMI connector initialization routine, this function
+ * creates the TV margin properties for a given device. No need to call this
+ * function for an SDTV connector, it's already called from
+ * drm_mode_create_tv_properties().
+ */
+int drm_mode_create_tv_margin_properties(struct drm_device *dev)
+{
+	if (dev->mode_config.tv_left_margin_property)
+		return 0;
+
+	dev->mode_config.tv_left_margin_property =
+		drm_property_create_range(dev, 0, "left margin", 0, 100);
+	if (!dev->mode_config.tv_left_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_right_margin_property =
+		drm_property_create_range(dev, 0, "right margin", 0, 100);
+	if (!dev->mode_config.tv_right_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_top_margin_property =
+		drm_property_create_range(dev, 0, "top margin", 0, 100);
+	if (!dev->mode_config.tv_top_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_bottom_margin_property =
+		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
+	if (!dev->mode_config.tv_bottom_margin_property)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_tv_margin_properties);
+
+/**
+ * drm_mode_create_tv_properties - create TV specific connector properties
  * @dev: DRM device
  * @num_modes: number of different TV formats (modes) supported
  * @modes: array of pointers to strings containing name of each format
@@ -1183,24 +1247,7 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 	/*
 	 * Other, TV specific properties: margins & TV modes.
 	 */
-	dev->mode_config.tv_left_margin_property =
-		drm_property_create_range(dev, 0, "left margin", 0, 100);
-	if (!dev->mode_config.tv_left_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_right_margin_property =
-		drm_property_create_range(dev, 0, "right margin", 0, 100);
-	if (!dev->mode_config.tv_right_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_top_margin_property =
-		drm_property_create_range(dev, 0, "top margin", 0, 100);
-	if (!dev->mode_config.tv_top_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_bottom_margin_property =
-		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
-	if (!dev->mode_config.tv_bottom_margin_property)
+	if (drm_mode_create_tv_margin_properties(dev))
 		goto nomem;
 
 	dev->mode_config.tv_mode_property =
@@ -1320,7 +1367,7 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
  *
  *	Absence of the property should indicate absence of support.
  *
- * "vrr_enabled":
+ * "VRR_ENABLED":
  *	Default &drm_crtc boolean property that notifies the driver that the
  *	content on the CRTC is suitable for variable refresh rate presentation.
  *	The driver will take this property as a hint to enable variable
@@ -2077,7 +2124,7 @@ EXPORT_SYMBOL(drm_mode_get_tile_group);
  * identifier for the tile group.
  *
  * RETURNS:
- * new tile group or error.
+ * new tile group or NULL.
  */
 struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 						  char topology[8])
@@ -2087,7 +2134,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	kref_init(&tg->refcount);
 	memcpy(tg->group_data, topology, 8);
@@ -2099,7 +2146,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 		tg->id = ret;
 	} else {
 		kfree(tg);
-		tg = ERR_PTR(ret);
+		tg = NULL;
 	}
 
 	mutex_unlock(&dev->mode_config.idr_mutex);

@@ -48,7 +48,6 @@
 #define KERNEL_DS	((mm_segment_t) { ~0UL })		/* cf. access_ok() */
 #define USER_DS		((mm_segment_t) { TASK_SIZE-1 })	/* cf. access_ok() */
 
-#define get_ds()  (KERNEL_DS)
 #define get_fs()  (current_thread_info()->addr_limit)
 #define set_fs(x) (current_thread_info()->addr_limit = (x))
 

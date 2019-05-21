@@ -688,7 +688,6 @@ static int kexec_calculate_store_digests(struct kimage *image)
 		goto out_free_desc;
 
 	desc->tfm   = tfm;
-	desc->flags = 0;
 
 	ret = crypto_shash_init(desc);
 	if (ret < 0)

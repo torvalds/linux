@@ -41,12 +41,9 @@ void hook_debug_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 			   int sig, int code, const char *name);
 
 struct mm_struct;
-extern void show_pte(unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
 extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
-
-int handle_guest_sea(phys_addr_t addr, unsigned int esr);
 
 #endif	/* __ASSEMBLY__ */
 

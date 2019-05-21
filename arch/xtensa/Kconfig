@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 config XTENSA
 	def_bool y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
@@ -42,9 +45,6 @@ config XTENSA
 	  architecture supports all processor configurations and extensions,
 	  with reasonable minimum requirements.  The Xtensa Linux project has
 	  a home page at <http://www.linux-xtensa.org/>.
-
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool y
 
 config GENERIC_HWEIGHT
 	def_bool y
@@ -164,7 +164,7 @@ config XTENSA_FAKE_NMI
 	  If unsure, say N.
 
 config XTENSA_UNALIGNED_USER
-	bool "Unaligned memory access in use space"
+	bool "Unaligned memory access in user space"
 	help
 	  The Xtensa architecture currently does not handle unaligned
 	  memory accesses in hardware but through an exception handler.
@@ -447,11 +447,10 @@ config USE_OF
 	bool "Flattened Device Tree support"
 	select OF
 	select OF_EARLY_FLATTREE
-	select OF_RESERVED_MEM
 	help
 	  Include support for flattened device tree machine descriptions.
 
-config BUILTIN_DTB
+config BUILTIN_DTB_SOURCE
 	string "DTB to build into the kernel image"
 	depends on OF
 

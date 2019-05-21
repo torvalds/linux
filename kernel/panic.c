@@ -318,12 +318,7 @@ void panic(const char *fmt, ...)
 	}
 #endif
 #if defined(CONFIG_S390)
-	{
-		unsigned long caller;
-
-		caller = (unsigned long)__builtin_return_address(0);
-		disabled_wait(caller);
-	}
+	disabled_wait();
 #endif
 	pr_emerg("---[ end Kernel panic - not syncing: %s ]---\n", buf);
 	local_irq_enable();
@@ -642,16 +637,14 @@ static int clear_warn_once_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(clear_warn_once_fops,
-			NULL,
-			clear_warn_once_set,
-			"%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(clear_warn_once_fops, NULL, clear_warn_once_set,
+			 "%lld\n");
 
 static __init int register_warn_debugfs(void)
 {
 	/* Don't care about failure */
-	debugfs_create_file("clear_warn_once", 0200, NULL,
-			    NULL, &clear_warn_once_fops);
+	debugfs_create_file_unsafe("clear_warn_once", 0200, NULL, NULL,
+				   &clear_warn_once_fops);
 	return 0;
 }
 

@@ -109,8 +109,6 @@ struct rocker_world_ops {
 	int (*port_attr_bridge_flags_set)(struct rocker_port *rocker_port,
 					  unsigned long brport_flags,
 					  struct switchdev_trans *trans);
-	int (*port_attr_bridge_flags_get)(const struct rocker_port *rocker_port,
-					  unsigned long *p_brport_flags);
 	int (*port_attr_bridge_flags_support_get)(const struct rocker_port *
 						  rocker_port,
 						  unsigned long *

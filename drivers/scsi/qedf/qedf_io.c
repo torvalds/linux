@@ -807,7 +807,6 @@ void qedf_ring_doorbell(struct qedf_rport *fcport)
 	writel(*(u32 *)&dbell, fcport->p_doorbell);
 	/* Make sure SQ index is updated so f/w prcesses requests in order */
 	wmb();
-	mmiowb();
 }
 
 static void qedf_trace_io(struct qedf_rport *fcport, struct qedf_ioreq *io_req,
@@ -1125,12 +1124,6 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	if (!sc_cmd->request) {
 		QEDF_WARN(&(qedf->dbg_ctx), "sc_cmd->request is NULL, "
 		    "sc_cmd=%p.\n", sc_cmd);
-		return;
-	}
-
-	if (!sc_cmd->request->special) {
-		QEDF_WARN(&(qedf->dbg_ctx), "request->special is NULL so "
-		    "request not valid, sc_cmd=%p.\n", sc_cmd);
 		return;
 	}
 

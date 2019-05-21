@@ -96,6 +96,14 @@ cpu_to_caam(16)
 cpu_to_caam(32)
 cpu_to_caam(64)
 
+static inline void wr_reg32_relaxed(void __iomem *reg, u32 data)
+{
+	if (caam_little_end)
+		writel_relaxed(data, reg);
+	else
+		writel_relaxed(cpu_to_be32(data), reg);
+}
+
 static inline void wr_reg32(void __iomem *reg, u32 data)
 {
 	if (caam_little_end)
@@ -252,6 +260,9 @@ struct version_regs {
 /* CHA Version ID */
 #define CHA_VER_VID_SHIFT	24
 #define CHA_VER_VID_MASK	(0xffull << CHA_VER_VID_SHIFT)
+
+/* CHA Miscellaneous Information - AESA_MISC specific */
+#define CHA_VER_MISC_AES_GCM	BIT(1 + CHA_VER_MISC_SHIFT)
 
 /*
  * caam_perfmon - Performance Monitor/Secure Memory Status/

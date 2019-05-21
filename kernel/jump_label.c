@@ -18,8 +18,6 @@
 #include <linux/cpu.h>
 #include <asm/sections.h>
 
-#ifdef HAVE_JUMP_LABEL
-
 /* mutex to protect coming/going of the the jump_label table */
 static DEFINE_MUTEX(jump_label_mutex);
 
@@ -80,13 +78,13 @@ jump_label_sort_entries(struct jump_entry *start, struct jump_entry *stop)
 static void jump_label_update(struct static_key *key);
 
 /*
- * There are similar definitions for the !HAVE_JUMP_LABEL case in jump_label.h.
+ * There are similar definitions for the !CONFIG_JUMP_LABEL case in jump_label.h.
  * The use of 'atomic_read()' requires atomic.h and its problematic for some
  * kernel headers such as kernel.h and others. Since static_key_count() is not
- * used in the branch statements as it is for the !HAVE_JUMP_LABEL case its ok
+ * used in the branch statements as it is for the !CONFIG_JUMP_LABEL case its ok
  * to have it be a function here. Similarly, for 'static_key_enable()' and
  * 'static_key_disable()', which require bug.h. This should allow jump_label.h
- * to be included from most/all places for HAVE_JUMP_LABEL.
+ * to be included from most/all places for CONFIG_JUMP_LABEL.
  */
 int static_key_count(struct static_key *key)
 {
@@ -204,11 +202,13 @@ void static_key_disable(struct static_key *key)
 }
 EXPORT_SYMBOL_GPL(static_key_disable);
 
-static void __static_key_slow_dec_cpuslocked(struct static_key *key,
-					   unsigned long rate_limit,
-					   struct delayed_work *work)
+static bool static_key_slow_try_dec(struct static_key *key)
 {
-	lockdep_assert_cpus_held();
+	int val;
+
+	val = atomic_fetch_add_unless(&key->enabled, -1, 1);
+	if (val == 1)
+		return false;
 
 	/*
 	 * The negative count check is valid even when a negative
@@ -217,63 +217,70 @@ static void __static_key_slow_dec_cpuslocked(struct static_key *key,
 	 * returns is unbalanced, because all other static_key_slow_inc()
 	 * instances block while the update is in progress.
 	 */
-	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex)) {
-		WARN(atomic_read(&key->enabled) < 0,
-		     "jump label: negative count!\n");
-		return;
-	}
+	WARN(val < 0, "jump label: negative count!\n");
+	return true;
+}
 
-	if (rate_limit) {
-		atomic_inc(&key->enabled);
-		schedule_delayed_work(work, rate_limit);
-	} else {
+static void __static_key_slow_dec_cpuslocked(struct static_key *key)
+{
+	lockdep_assert_cpus_held();
+
+	if (static_key_slow_try_dec(key))
+		return;
+
+	jump_label_lock();
+	if (atomic_dec_and_test(&key->enabled))
 		jump_label_update(key);
-	}
 	jump_label_unlock();
 }
 
-static void __static_key_slow_dec(struct static_key *key,
-				  unsigned long rate_limit,
-				  struct delayed_work *work)
+static void __static_key_slow_dec(struct static_key *key)
 {
 	cpus_read_lock();
-	__static_key_slow_dec_cpuslocked(key, rate_limit, work);
+	__static_key_slow_dec_cpuslocked(key);
 	cpus_read_unlock();
 }
 
-static void jump_label_update_timeout(struct work_struct *work)
+void jump_label_update_timeout(struct work_struct *work)
 {
 	struct static_key_deferred *key =
 		container_of(work, struct static_key_deferred, work.work);
-	__static_key_slow_dec(&key->key, 0, NULL);
+	__static_key_slow_dec(&key->key);
 }
+EXPORT_SYMBOL_GPL(jump_label_update_timeout);
 
 void static_key_slow_dec(struct static_key *key)
 {
 	STATIC_KEY_CHECK_USE(key);
-	__static_key_slow_dec(key, 0, NULL);
+	__static_key_slow_dec(key);
 }
 EXPORT_SYMBOL_GPL(static_key_slow_dec);
 
 void static_key_slow_dec_cpuslocked(struct static_key *key)
 {
 	STATIC_KEY_CHECK_USE(key);
-	__static_key_slow_dec_cpuslocked(key, 0, NULL);
+	__static_key_slow_dec_cpuslocked(key);
 }
 
-void static_key_slow_dec_deferred(struct static_key_deferred *key)
+void __static_key_slow_dec_deferred(struct static_key *key,
+				    struct delayed_work *work,
+				    unsigned long timeout)
 {
 	STATIC_KEY_CHECK_USE(key);
-	__static_key_slow_dec(&key->key, key->timeout, &key->work);
-}
-EXPORT_SYMBOL_GPL(static_key_slow_dec_deferred);
 
-void static_key_deferred_flush(struct static_key_deferred *key)
+	if (static_key_slow_try_dec(key))
+		return;
+
+	schedule_delayed_work(work, timeout);
+}
+EXPORT_SYMBOL_GPL(__static_key_slow_dec_deferred);
+
+void __static_key_deferred_flush(void *key, struct delayed_work *work)
 {
 	STATIC_KEY_CHECK_USE(key);
-	flush_delayed_work(&key->work);
+	flush_delayed_work(work);
 }
-EXPORT_SYMBOL_GPL(static_key_deferred_flush);
+EXPORT_SYMBOL_GPL(__static_key_deferred_flush);
 
 void jump_label_rate_limit(struct static_key_deferred *key,
 		unsigned long rl)
@@ -791,5 +798,3 @@ static __init int jump_label_test(void)
 }
 early_initcall(jump_label_test);
 #endif /* STATIC_KEYS_SELFTEST */
-
-#endif /* HAVE_JUMP_LABEL */

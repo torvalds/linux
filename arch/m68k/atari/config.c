@@ -78,7 +78,6 @@ static void atari_heartbeat(int on);
 
 /* atari specific timer functions (in time.c) */
 extern void atari_sched_init(irq_handler_t);
-extern u32 atari_gettimeoffset(void);
 extern int atari_mste_hwclk (int, struct rtc_time *);
 extern int atari_tt_hwclk (int, struct rtc_time *);
 
@@ -148,7 +147,7 @@ int __init atari_parse_bootinfo(const struct bi_record *record)
 /* Parse the Atari-specific switches= option. */
 static int __init atari_switches_setup(char *str)
 {
-	char switches[strlen(str) + 1];
+	char switches[COMMAND_LINE_SIZE];
 	char *p;
 	int ovsc_shift;
 	char *args = switches;
@@ -205,7 +204,6 @@ void __init config_atari(void)
 	mach_init_IRQ        = atari_init_IRQ;
 	mach_get_model	 = atari_get_model;
 	mach_get_hardware_list = atari_get_hardware_list;
-	arch_gettimeoffset   = atari_gettimeoffset;
 	mach_reset           = atari_reset;
 	mach_max_dma_address = 0xffffff;
 #if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)

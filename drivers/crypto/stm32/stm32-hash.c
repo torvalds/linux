@@ -181,8 +181,6 @@ struct stm32_hash_dev {
 	u32			dma_mode;
 	u32			dma_maxburst;
 
-	spinlock_t		lock; /* lock to protect queue */
-
 	struct ahash_request	*req;
 	struct crypto_engine	*engine;
 
@@ -977,7 +975,7 @@ static int stm32_hash_export(struct ahash_request *req, void *out)
 
 	pm_runtime_get_sync(hdev->dev);
 
-	while (!(stm32_hash_read(hdev, HASH_SR) & HASH_SR_DATA_INPUT_READY))
+	while ((stm32_hash_read(hdev, HASH_SR) & HASH_SR_BUSY))
 		cpu_relax();
 
 	rctx->hw_context = kmalloc_array(3 + HASH_CSR_REGISTER_NUMBER,
@@ -1564,7 +1562,7 @@ err_engine:
 
 static int stm32_hash_remove(struct platform_device *pdev)
 {
-	static struct stm32_hash_dev *hdev;
+	struct stm32_hash_dev *hdev;
 	int ret;
 
 	hdev = platform_get_drvdata(pdev);

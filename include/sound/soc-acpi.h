@@ -22,20 +22,37 @@ struct snd_soc_acpi_package_context {
 #define SND_ACPI_I2C_ID_LEN (4 + ACPI_ID_LEN + 3 + 1)
 
 #if IS_ENABLED(CONFIG_ACPI)
+/* acpi match */
+struct snd_soc_acpi_mach *
+snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines);
+
 bool snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 				    struct snd_soc_acpi_package_context *ctx);
+
+/* check all codecs */
+struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg);
+
 #else
+/* acpi match */
+static inline struct snd_soc_acpi_mach *
+snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
+{
+	return NULL;
+}
+
 static inline bool
 snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 				   struct snd_soc_acpi_package_context *ctx)
 {
 	return false;
 }
-#endif
 
-/* acpi match */
-struct snd_soc_acpi_mach *
-snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines);
+/* check all codecs */
+static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
+{
+	return NULL;
+}
+#endif
 
 /**
  * snd_soc_acpi_mach_params: interface for machine driver configuration
@@ -69,9 +86,6 @@ struct snd_soc_acpi_mach_params {
  *  is not constant since this field may be updated at run-time
  * @sof_fw_filename: Sound Open Firmware file name, if enabled
  * @sof_tplg_filename: Sound Open Firmware topology file name, if enabled
- * @asoc_plat_name: ASoC platform name, used for binding machine drivers
- * if non NULL
- * @new_mach_data: machine driver private data fixup
  */
 /* Descriptor for SST ASoC machine driver */
 struct snd_soc_acpi_mach {
@@ -85,8 +99,6 @@ struct snd_soc_acpi_mach {
 	struct snd_soc_acpi_mach_params mach_params;
 	const char *sof_fw_filename;
 	const char *sof_tplg_filename;
-	const char *asoc_plat_name;
-	struct platform_device * (*new_mach_data)(void *pdata);
 };
 
 #define SND_SOC_ACPI_MAX_CODECS 3
@@ -104,8 +116,5 @@ struct snd_soc_acpi_codecs {
 	int num_codecs;
 	u8 codecs[SND_SOC_ACPI_MAX_CODECS][ACPI_ID_LEN];
 };
-
-/* check all codecs */
-struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg);
 
 #endif

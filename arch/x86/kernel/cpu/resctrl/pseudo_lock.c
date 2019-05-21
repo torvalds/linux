@@ -34,13 +34,6 @@
 #include "pseudo_lock_event.h"
 
 /*
- * MSR_MISC_FEATURE_CONTROL register enables the modification of hardware
- * prefetcher state. Details about this register can be found in the MSR
- * tables for specific platforms found in Intel's SDM.
- */
-#define MSR_MISC_FEATURE_CONTROL	0x000001a4
-
-/*
  * The bits needed to disable hardware prefetching varies based on the
  * platform. During initialization we will discover which bits to use.
  */

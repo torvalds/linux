@@ -121,9 +121,8 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 		     : "memory");					\
 })
 
+#define __io_par(v)		__iormb(v)
 #define __iowmb()		wmb()
-
-#define mmiowb()		do { } while (0)
 
 /*
  * Relaxed I/O memory access primitives. These follow the Device memory

@@ -37,6 +37,8 @@
 #include "../../perf.h"
 #include "../callchain.h"
 #include "../machine.h"
+#include "../map.h"
+#include "../symbol.h"
 #include "../thread.h"
 #include "../event.h"
 #include "../trace-event.h"
@@ -370,7 +372,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	ns = nsecs - s * NSEC_PER_SEC;
 
 	scripting_context->event_data = data;
-	scripting_context->pevent = evsel->tp_format->pevent;
+	scripting_context->pevent = evsel->tp_format->tep;
 
 	ENTER;
 	SAVETMPS;

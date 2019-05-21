@@ -285,7 +285,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct rtllib_tkip_data *tkey = priv;
-		int len;
+	int len;
 	u8 *pos;
 	struct rtllib_hdr_4addr *hdr;
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
@@ -507,7 +507,6 @@ static int michael_mic(struct crypto_shash *tfm_michael, u8 *key, u8 *hdr,
 	int err;
 
 	desc->tfm = tfm_michael;
-	desc->flags = 0;
 
 	if (crypto_shash_setkey(tfm_michael, key, 8))
 		return -1;

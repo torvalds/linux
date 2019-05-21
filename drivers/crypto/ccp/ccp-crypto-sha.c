@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) SHA crypto API support
  *
- * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2018 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
@@ -293,8 +293,6 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (key_len > block_size) {
 		/* Must hash the input key */
 		sdesc->tfm = shash;
-		sdesc->flags = crypto_ahash_get_flags(tfm) &
-			CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		ret = crypto_shash_digest(sdesc, key, key_len,
 					  ctx->u.sha.key);

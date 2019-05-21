@@ -141,38 +141,20 @@ static umode_t tmp102_is_visible(const void *data, enum hwmon_sensor_types type,
 
 	switch (attr) {
 	case hwmon_temp_input:
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_max_hyst:
 	case hwmon_temp_max:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	default:
 		return 0;
 	}
 }
 
-static u32 tmp102_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0
-};
-
-static const struct hwmon_channel_info tmp102_chip = {
-	.type = hwmon_chip,
-	.config = tmp102_chip_config,
-};
-
-static u32 tmp102_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST,
-	0
-};
-
-static const struct hwmon_channel_info tmp102_temp = {
-	.type = hwmon_temp,
-	.config = tmp102_temp_config,
-};
-
 static const struct hwmon_channel_info *tmp102_info[] = {
-	&tmp102_chip,
-	&tmp102_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST),
 	NULL
 };
 
@@ -321,7 +303,7 @@ static const struct i2c_device_id tmp102_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp102_id);
 
-static const struct of_device_id tmp102_of_match[] = {
+static const struct of_device_id __maybe_unused tmp102_of_match[] = {
 	{ .compatible = "ti,tmp102" },
 	{ },
 };

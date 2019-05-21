@@ -134,6 +134,7 @@ struct venus_core {
 	struct video_firmware {
 		struct device *dev;
 		struct iommu_domain *iommu_domain;
+		size_t mapped_mem_size;
 	} fw;
 	struct mutex lock;
 	struct list_head instances;
@@ -218,7 +219,7 @@ struct venus_buffer {
 #define to_venus_buffer(ptr)	container_of(ptr, struct venus_buffer, vb)
 
 /**
- * struct venus_inst - holds per instance paramerters
+ * struct venus_inst - holds per instance parameters
  *
  * @list:	used for attach an instance to the core
  * @lock:	instance lock

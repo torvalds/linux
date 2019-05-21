@@ -133,6 +133,7 @@ enum {
 	Opt_rasize,
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
+	Opt_caps_max,
 	Opt_readdir_max_entries,
 	Opt_readdir_max_bytes,
 	Opt_congestion_kb,
@@ -175,6 +176,7 @@ static match_table_t fsopt_tokens = {
 	{Opt_rasize, "rasize=%d"},
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
+	{Opt_caps_max, "caps_max=%d"},
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
 	{Opt_readdir_max_bytes, "readdir_max_bytes=%d"},
 	{Opt_congestion_kb, "write_congestion_kb=%d"},
@@ -285,6 +287,11 @@ static int parse_fsopt_token(char *c, void *private)
 		if (intval < 1)
 			return -EINVAL;
 		fsopt->caps_wanted_delay_max = intval;
+		break;
+	case Opt_caps_max:
+		if (intval < 0)
+			return -EINVAL;
+		fsopt->caps_max = intval;
 		break;
 	case Opt_readdir_max_entries:
 		if (intval < 1)
@@ -530,7 +537,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 	seq_putc(m, ',');
 	pos = m->count;
 
-	ret = ceph_print_client_options(m, fsc->client);
+	ret = ceph_print_client_options(m, fsc->client, false);
 	if (ret)
 		return ret;
 
@@ -576,6 +583,8 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",rasize=%d", fsopt->rasize);
 	if (fsopt->congestion_kb != default_congestion_kb())
 		seq_printf(m, ",write_congestion_kb=%d", fsopt->congestion_kb);
+	if (fsopt->caps_max)
+		seq_printf(m, ",caps_max=%d", fsopt->caps_max);
 	if (fsopt->caps_wanted_delay_min != CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT)
 		seq_printf(m, ",caps_wanted_delay_min=%d",
 			 fsopt->caps_wanted_delay_min);
@@ -640,7 +649,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	opt = NULL; /* fsc->client now owns this */
 
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
-	fsc->client->osdc.abort_on_full = true;
+	ceph_set_opt(fsc->client, ABORT_ON_FULL);
 
 	if (!fsopt->mds_namespace) {
 		ceph_monc_want_map(&fsc->client->monc, CEPH_SUB_MDSMAP,
@@ -671,6 +680,9 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	fsc->trunc_wq = alloc_workqueue("ceph-trunc", 0, 1);
 	if (!fsc->trunc_wq)
 		goto fail_pg_inv_wq;
+	fsc->cap_wq = alloc_workqueue("ceph-cap", 0, 1);
+	if (!fsc->cap_wq)
+		goto fail_trunc_wq;
 
 	/* set up mempools */
 	err = -ENOMEM;
@@ -678,13 +690,12 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	size = sizeof (struct page *) * (page_count ? page_count : 1);
 	fsc->wb_pagevec_pool = mempool_create_kmalloc_pool(10, size);
 	if (!fsc->wb_pagevec_pool)
-		goto fail_trunc_wq;
-
-	/* caps */
-	fsc->min_caps = fsopt->max_readdir;
+		goto fail_cap_wq;
 
 	return fsc;
 
+fail_cap_wq:
+	destroy_workqueue(fsc->cap_wq);
 fail_trunc_wq:
 	destroy_workqueue(fsc->trunc_wq);
 fail_pg_inv_wq:
@@ -706,6 +717,7 @@ static void flush_fs_workqueues(struct ceph_fs_client *fsc)
 	flush_workqueue(fsc->wb_wq);
 	flush_workqueue(fsc->pg_inv_wq);
 	flush_workqueue(fsc->trunc_wq);
+	flush_workqueue(fsc->cap_wq);
 }
 
 static void destroy_fs_client(struct ceph_fs_client *fsc)
@@ -715,6 +727,7 @@ static void destroy_fs_client(struct ceph_fs_client *fsc)
 	destroy_workqueue(fsc->wb_wq);
 	destroy_workqueue(fsc->pg_inv_wq);
 	destroy_workqueue(fsc->trunc_wq);
+	destroy_workqueue(fsc->cap_wq);
 
 	mempool_destroy(fsc->wb_pagevec_pool);
 

@@ -65,7 +65,7 @@ static struct attribute *bundle_attrs[] = {
 ATTRIBUTE_GROUPS(bundle);
 
 static struct gb_bundle *gb_bundle_find(struct gb_interface *intf,
-							u8 bundle_id)
+					u8 bundle_id)
 {
 	struct gb_bundle *bundle;
 

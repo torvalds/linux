@@ -77,6 +77,14 @@
 #define TEXASR_TE	0x0000000004000000
 #define TEXASR_ROT	0x0000000002000000
 
+/* MSR register bits */
+#define MSR_TS_S_LG     33              /* Trans Mem state: Suspended */
+
+#define __MASK(X)       (1UL<<(X))
+
+/* macro to check TM MSR bits */
+#define MSR_TS_S        __MASK(MSR_TS_S_LG)   /* Transaction Suspended */
+
 /* Vector Instructions */
 #define VSX_XX1(xs, ra, rb)	(((xs) & 0x1f) << 21 | ((ra) << 16) |  \
 				 ((rb) << 11) | (((xs) >> 5)))

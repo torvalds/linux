@@ -199,15 +199,15 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	lp->rx_bd_ci = 0;
 
 	/* Allocate the Tx and Rx buffer descriptors. */
-	lp->tx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
-					  sizeof(*lp->tx_bd_v) * TX_BD_NUM,
-					  &lp->tx_bd_p, GFP_KERNEL);
+	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
+					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
+					 &lp->tx_bd_p, GFP_KERNEL);
 	if (!lp->tx_bd_v)
 		goto out;
 
-	lp->rx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
-					  sizeof(*lp->rx_bd_v) * RX_BD_NUM,
-					  &lp->rx_bd_p, GFP_KERNEL);
+	lp->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
+					 sizeof(*lp->rx_bd_v) * RX_BD_NUM,
+					 &lp->rx_bd_p, GFP_KERNEL);
 	if (!lp->rx_bd_v)
 		goto out;
 
@@ -595,7 +595,7 @@ static void axienet_start_xmit_done(struct net_device *ndev)
 				(cur_p->cntrl & XAXIDMA_BD_CTRL_LENGTH_MASK),
 				DMA_TO_DEVICE);
 		if (cur_p->app4)
-			dev_kfree_skb_irq((struct sk_buff *)cur_p->app4);
+			dev_consume_skb_irq((struct sk_buff *)cur_p->app4);
 		/*cur_p->phys = 0;*/
 		cur_p->app0 = 0;
 		cur_p->app1 = 0;
@@ -1575,12 +1575,14 @@ static int axienet_probe(struct platform_device *pdev)
 	ret = of_address_to_resource(np, 0, &dmares);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to get DMA resource\n");
+		of_node_put(np);
 		goto free_netdev;
 	}
 	lp->dma_regs = devm_ioremap_resource(&pdev->dev, &dmares);
 	if (IS_ERR(lp->dma_regs)) {
 		dev_err(&pdev->dev, "could not map DMA regs\n");
 		ret = PTR_ERR(lp->dma_regs);
+		of_node_put(np);
 		goto free_netdev;
 	}
 	lp->rx_irq = irq_of_parse_and_map(np, 1);

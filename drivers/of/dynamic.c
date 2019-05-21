@@ -207,11 +207,8 @@ static void __of_attach_node(struct device_node *np)
 
 	if (!of_node_check_flag(np, OF_OVERLAY)) {
 		np->name = __of_get_property(np, "name", NULL);
-		np->type = __of_get_property(np, "device_type", NULL);
 		if (!np->name)
 			np->name = "<NULL>";
-		if (!np->type)
-			np->type = "<NULL>";
 
 		phandle = __of_get_property(np, "phandle", &sz);
 		if (!phandle)

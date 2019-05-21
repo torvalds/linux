@@ -106,7 +106,7 @@ void mt76_write_mac_initvals(struct mt76x02_dev *dev)
 		{ MT_TX_SW_CFG1,		0x00010000 },
 		{ MT_TX_SW_CFG2,		0x00000000 },
 		{ MT_TXOP_CTRL_CFG,		0x0400583f },
-		{ MT_TX_RTS_CFG,		0x00100020 },
+		{ MT_TX_RTS_CFG,		0x00ffff20 },
 		{ MT_TX_TIMEOUT_CFG,		0x000a2290 },
 		{ MT_TX_RETRY_CFG,		0x47f01f0f },
 		{ MT_EXP_ACK_TIME,		0x002c00dc },
@@ -143,6 +143,7 @@ void mt76_write_mac_initvals(struct mt76x02_dev *dev)
 		{ MT_VHT_HT_FBK_CFG1,		0xedcba980 },
 		{ MT_PROT_AUTO_TX_CFG,		0x00830083 },
 		{ MT_HT_CTRL_CFG,		0x000001ff },
+		{ MT_TX_LINK_CFG,		0x00001020 },
 	};
 	struct mt76_reg_pair prot_vals[] = {
 		{ MT_CCK_PROT_CFG,		DEFAULT_PROT_CFG_CCK },

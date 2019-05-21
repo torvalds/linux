@@ -6,13 +6,13 @@
 #define __IPU3_MMU_H
 
 /**
- * struct ipu3_mmu_info - Describes mmu geometry
+ * struct imgu_mmu_info - Describes mmu geometry
  *
  * @aperture_start:	First address that can be mapped
  * @aperture_end:	Last address that can be mapped
  * @pgsize_bitmap:	Bitmap of page sizes in use
  */
-struct ipu3_mmu_info {
+struct imgu_mmu_info {
 	dma_addr_t aperture_start;
 	dma_addr_t aperture_end;
 	unsigned long pgsize_bitmap;
@@ -21,15 +21,15 @@ struct ipu3_mmu_info {
 struct device;
 struct scatterlist;
 
-struct ipu3_mmu_info *ipu3_mmu_init(struct device *parent, void __iomem *base);
-void ipu3_mmu_exit(struct ipu3_mmu_info *info);
-void ipu3_mmu_suspend(struct ipu3_mmu_info *info);
-void ipu3_mmu_resume(struct ipu3_mmu_info *info);
+struct imgu_mmu_info *imgu_mmu_init(struct device *parent, void __iomem *base);
+void imgu_mmu_exit(struct imgu_mmu_info *info);
+void imgu_mmu_suspend(struct imgu_mmu_info *info);
+void imgu_mmu_resume(struct imgu_mmu_info *info);
 
-int ipu3_mmu_map(struct ipu3_mmu_info *info, unsigned long iova,
+int imgu_mmu_map(struct imgu_mmu_info *info, unsigned long iova,
 		 phys_addr_t paddr, size_t size);
-size_t ipu3_mmu_unmap(struct ipu3_mmu_info *info, unsigned long iova,
+size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 		      size_t size);
-size_t ipu3_mmu_map_sg(struct ipu3_mmu_info *info, unsigned long iova,
+size_t imgu_mmu_map_sg(struct imgu_mmu_info *info, unsigned long iova,
 		       struct scatterlist *sg, unsigned int nents);
 #endif

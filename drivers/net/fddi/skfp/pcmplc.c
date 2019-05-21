@@ -851,6 +851,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 
 	case ACTIONS(PC5_SIGNAL) :
 		ACTIONS_DONE() ;
+		/* fall through */
 	case PC5_SIGNAL :
 		if ((cmd != PC_SIGNAL) && (cmd != PC_TIMEOUT_LCT))
 			break ;

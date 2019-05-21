@@ -4,11 +4,14 @@ UFSHC nodes are defined to describe on-chip UFS host controllers.
 Each UFS controller instance should have its own node.
 
 Required properties:
-- compatible		: must contain "jedec,ufs-1.1" or "jedec,ufs-2.0", may
-			  also list one or more of the following:
-					  "qcom,msm8994-ufshc"
-					  "qcom,msm8996-ufshc"
-					  "qcom,ufshc"
+- compatible		: must contain "jedec,ufs-1.1" or "jedec,ufs-2.0"
+
+			  For Qualcomm SoCs must contain, as below, an
+			  SoC-specific compatible along with "qcom,ufshc" and
+			  the appropriate jedec string:
+			    "qcom,msm8994-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
+			    "qcom,msm8996-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
+			    "qcom,sdm845-ufshc", "qcom,ufshc", "jedec,ufs-2.0"
 - interrupts        : <interrupt mapping for UFS host controller IRQ>
 - reg               : <registers mapping>
 

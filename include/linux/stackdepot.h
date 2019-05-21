@@ -23,10 +23,10 @@
 
 typedef u32 depot_stack_handle_t;
 
-struct stack_trace;
+depot_stack_handle_t stack_depot_save(unsigned long *entries,
+				      unsigned int nr_entries, gfp_t gfp_flags);
 
-depot_stack_handle_t depot_save_stack(struct stack_trace *trace, gfp_t flags);
-
-void depot_fetch_stack(depot_stack_handle_t handle, struct stack_trace *trace);
+unsigned int stack_depot_fetch(depot_stack_handle_t handle,
+			       unsigned long **entries);
 
 #endif

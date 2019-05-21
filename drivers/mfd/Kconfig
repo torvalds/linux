@@ -102,6 +102,7 @@ config MFD_AAT2870_CORE
 config MFD_AT91_USART
 	tristate "AT91 USART Driver"
 	select MFD_CORE
+	depends on ARCH_AT91 || COMPILE_TEST
 	help
 	  Select this to get support for AT91 USART IP. This is a wrapper
 	  over at91-usart-serial driver and usart-spi-driver. Only one function
@@ -214,7 +215,6 @@ config MFD_CROS_EC
 config MFD_CROS_EC_CHARDEV
         tristate "Chrome OS Embedded Controller userspace device interface"
         depends on MFD_CROS_EC
-        select CROS_EC_CTL
         ---help---
           This driver adds support to talk with the ChromeOS EC from userspace.
 
@@ -518,10 +518,10 @@ config INTEL_SOC_PMIC
 	bool "Support for Crystal Cove PMIC"
 	depends on ACPI && HAS_IOMEM && I2C=y && GPIOLIB && COMMON_CLK
 	depends on X86 || COMPILE_TEST
+	depends on I2C_DESIGNWARE_PLATFORM=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	select I2C_DESIGNWARE_PLATFORM
 	help
 	  Select this option to enable support for Crystal Cove PMIC
 	  on some Intel SoC systems. The PMIC provides ADC, GPIO,
@@ -547,10 +547,10 @@ config INTEL_SOC_PMIC_CHTWC
 	bool "Support for Intel Cherry Trail Whiskey Cove PMIC"
 	depends on ACPI && HAS_IOMEM && I2C=y && COMMON_CLK
 	depends on X86 || COMPILE_TEST
+	depends on I2C_DESIGNWARE_PLATFORM=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	select I2C_DESIGNWARE_PLATFORM
 	help
 	  Select this option to enable support for the Intel Cherry Trail
 	  Whiskey Cove PMIC found on some Intel Cherry Trail systems.
@@ -927,7 +927,7 @@ config UCB1400_CORE
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on (ARM || HEXAGON || COMPILE_TEST)
-	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 	select MFD_CORE
 	select REGMAP
 	help
@@ -1065,6 +1065,8 @@ config MFD_SI476X_CORE
 
 config MFD_SM501
 	tristate "Silicon Motion SM501"
+	depends on HAS_DMA
+	select DMA_DECLARE_COHERENT
 	 ---help---
 	  This is the core driver for the Silicon Motion SM501 multimedia
 	  companion chip. This device is a multifunction device which may
@@ -1204,7 +1206,7 @@ config MFD_STMPE
 
 	  Currently supported devices are:
 
-		STMPE811: GPIO, Touchscreen
+		STMPE811: GPIO, Touchscreen, ADC
 		STMPE1601: GPIO, Keypad
 		STMPE1801: GPIO, Keypad
 		STMPE2401: GPIO, Keypad
@@ -1217,6 +1219,7 @@ config MFD_STMPE
 		GPIO: stmpe-gpio
 		Keypad: stmpe-keypad
 		Touchscreen: stmpe-ts
+		ADC: stmpe-adc
 
 menu "STMicroelectronics STMPE Interface Drivers"
 depends on MFD_STMPE
@@ -1243,7 +1246,7 @@ config MFD_STA2X11
 
 config MFD_SUN6I_PRCM
 	bool "Allwinner A31 PRCM controller"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	select MFD_CORE
 	help
 	  Support for the PRCM (Power/Reset/Clock Management) unit available
@@ -1418,10 +1421,10 @@ config MFD_TPS65217
 
 config MFD_TPS68470
 	bool "TI TPS68470 Power Management / LED chips"
-	depends on ACPI && I2C=y
+	depends on ACPI && PCI && I2C=y
+	depends on I2C_DESIGNWARE_PLATFORM=y
 	select MFD_CORE
 	select REGMAP_I2C
-	select I2C_DESIGNWARE_PLATFORM
 	help
 	  If you say yes here you get support for the TPS68470 series of
 	  Power Management / LED chips.
@@ -1673,8 +1676,17 @@ config MFD_TC6393XB
 	select GPIOLIB
 	select MFD_CORE
 	select MFD_TMIO
+	select DMA_DECLARE_COHERENT
 	help
 	  Support for Toshiba Mobile IO Controller TC6393XB
+
+config MFD_TQMX86
+	tristate "TQ-Systems IO controller TQMX86"
+	select MFD_CORE
+	help
+	  Say yes here to enable support for various functions of the
+	  TQ-Systems IO controller and watchdog device, found on their
+	  ComExpress CPU modules.
 
 config MFD_VX855
 	tristate "VIA VX855/VX875 integrated south bridge"
@@ -1684,6 +1696,14 @@ config MFD_VX855
 	  Say yes here to enable support for various functions of the
 	  VIA VX855/VX875 south bridge. You will need to enable the vx855_spi
 	  and/or vx855_gpio drivers for this to do anything useful.
+
+config MFD_LOCHNAGAR
+	bool "Cirrus Logic Lochnagar Audio Development Board"
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C=y && OF
+	help
+	  Support for Cirrus Logic Lochnagar audio development board.
 
 config MFD_ARIZONA
 	select REGMAP
@@ -1870,6 +1890,22 @@ config MFD_STM32_TIMERS
 	  Select this option to enable STM32 timers driver used
 	  for PWM and IIO Timer. This driver allow to share the
 	  registers between the others drivers.
+
+config MFD_STPMIC1
+	tristate "Support for STPMIC1 PMIC"
+	depends on (I2C=y && OF)
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Support for ST Microelectronics STPMIC1 PMIC. STPMIC1 has power on
+	  key, watchdog and regulator functionalities which are supported via
+	  the relevant subsystems. This driver provides core support for the
+	  STPMIC1. In order to use the actual functionaltiy of the device other
+	  drivers must be enabled.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stpmic1.
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100

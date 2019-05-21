@@ -475,6 +475,7 @@ ENDPROC(__primary_switched)
 
 ENTRY(kimage_vaddr)
 	.quad		_text - TEXT_OFFSET
+EXPORT_SYMBOL(kimage_vaddr)
 
 /*
  * If we're fortunate enough to boot at EL2, ensure that the world is
@@ -504,7 +505,7 @@ ENTRY(el2_setup)
 	 * kernel is intended to run at EL2.
 	 */
 	mrs	x2, id_aa64mmfr1_el1
-	ubfx	x2, x2, #8, #4
+	ubfx	x2, x2, #ID_AA64MMFR1_VHE_SHIFT, #4
 #else
 	mov	x2, xzr
 #endif
@@ -537,9 +538,8 @@ set_hcr:
 #ifdef CONFIG_ARM_GIC_V3
 	/* GICv3 system register access */
 	mrs	x0, id_aa64pfr0_el1
-	ubfx	x0, x0, #24, #4
-	cmp	x0, #1
-	b.ne	3f
+	ubfx	x0, x0, #ID_AA64PFR0_GIC_SHIFT, #4
+	cbz	x0, 3f
 
 	mrs_s	x0, SYS_ICC_SRE_EL2
 	orr	x0, x0, #ICC_SRE_EL2_SRE	// Set ICC_SRE_EL2.SRE==1
@@ -564,8 +564,8 @@ set_hcr:
 #endif
 
 	/* EL2 debug */
-	mrs	x1, id_aa64dfr0_el1		// Check ID_AA64DFR0_EL1 PMUVer
-	sbfx	x0, x1, #8, #4
+	mrs	x1, id_aa64dfr0_el1
+	sbfx	x0, x1, #ID_AA64DFR0_PMUVER_SHIFT, #4
 	cmp	x0, #1
 	b.lt	4f				// Skip if no PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
@@ -574,7 +574,7 @@ set_hcr:
 	csel	x3, xzr, x0, lt			// all PMU counters from EL1
 
 	/* Statistical profiling */
-	ubfx	x0, x1, #32, #4			// Check ID_AA64DFR0_EL1 PMSVer
+	ubfx	x0, x1, #ID_AA64DFR0_PMSVER_SHIFT, #4
 	cbz	x0, 7f				// Skip if SPE not present
 	cbnz	x2, 6f				// VHE?
 	mrs_s	x4, SYS_PMBIDR_EL1		// If SPE available at EL2,
@@ -684,7 +684,7 @@ ENTRY(__boot_cpu_mode)
  * with MMU turned off.
  */
 ENTRY(__early_cpu_boot_status)
-	.long 	0
+	.quad 	0
 
 	.popsection
 

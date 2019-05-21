@@ -1005,7 +1005,6 @@ struct ca0132_spec {
 	unsigned int scp_resp_header;
 	unsigned int scp_resp_data[4];
 	unsigned int scp_resp_count;
-	bool alt_firmware_present;
 	bool startup_check_entered;
 	bool dsp_reload;
 
@@ -7518,7 +7517,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 	bool dsp_loaded = false;
 	struct ca0132_spec *spec = codec->spec;
 	const struct dsp_image_seg *dsp_os_image;
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = NULL;
 	/*
 	 * Alternate firmwares for different variants. The Recon3Di apparently
 	 * can use the default firmware, but I'll leave the option in case
@@ -7529,33 +7528,26 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 	case QUIRK_R3D:
 	case QUIRK_AE5:
 		if (request_firmware(&fw_entry, DESKTOP_EFX_FILE,
-					codec->card->dev) != 0) {
+					codec->card->dev) != 0)
 			codec_dbg(codec, "Desktop firmware not found.");
-			spec->alt_firmware_present = false;
-		} else {
+		else
 			codec_dbg(codec, "Desktop firmware selected.");
-			spec->alt_firmware_present = true;
-		}
 		break;
 	case QUIRK_R3DI:
 		if (request_firmware(&fw_entry, R3DI_EFX_FILE,
-					codec->card->dev) != 0) {
+					codec->card->dev) != 0)
 			codec_dbg(codec, "Recon3Di alt firmware not detected.");
-			spec->alt_firmware_present = false;
-		} else {
+		else
 			codec_dbg(codec, "Recon3Di firmware selected.");
-			spec->alt_firmware_present = true;
-		}
 		break;
 	default:
-		spec->alt_firmware_present = false;
 		break;
 	}
 	/*
 	 * Use default ctefx.bin if no alt firmware is detected, or if none
 	 * exists for your particular codec.
 	 */
-	if (!spec->alt_firmware_present) {
+	if (!fw_entry) {
 		codec_dbg(codec, "Default firmware selected.");
 		if (request_firmware(&fw_entry, EFX_FILE,
 					codec->card->dev) != 0)
@@ -8451,8 +8443,10 @@ static void ca0132_free(struct hda_codec *codec)
 	ca0132_exit_chip(codec);
 
 	snd_hda_power_down(codec);
-	if (IS_ENABLED(CONFIG_PCI) && spec->mem_base)
+#ifdef CONFIG_PCI
+	if (spec->mem_base)
 		pci_iounmap(codec->bus->pci, spec->mem_base);
+#endif
 	kfree(spec->spec_init_verbs);
 	kfree(codec->spec);
 }

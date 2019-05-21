@@ -242,7 +242,7 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 		goto unlock;
 
 	/*
-	 * It is assumed that venc or extenal encoder will set a default
+	 * It is assumed that venc or external encoder will set a default
 	 * mode in the sub device. For external encoder or LCD pannel output,
 	 * we also need to set up the lcd port for the required mode. So setup
 	 * the lcd port for the default mode that is configured in the board

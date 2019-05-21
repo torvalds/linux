@@ -58,6 +58,7 @@
 #define FUTUREMAX_DANCE_MAT       BIT(13)
 #define NSG_MR5U_REMOTE_BT        BIT(14)
 #define NSG_MR7U_REMOTE_BT        BIT(15)
+#define SHANWAN_GAMEPAD           BIT(16)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -1490,6 +1491,7 @@ static int sony_register_sensors(struct sony_sc *sc)
  */
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
 {
+	struct sony_sc *sc = hid_get_drvdata(hdev);
 	const int buf_size =
 		max(SIXAXIS_REPORT_0xF2_SIZE, SIXAXIS_REPORT_0xF5_SIZE);
 	u8 *buf;
@@ -1519,14 +1521,15 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 
 	/*
 	 * But the USB interrupt would cause SHANWAN controllers to
-	 * start rumbling non-stop.
+	 * start rumbling non-stop, so skip step 3 for these controllers.
 	 */
-	if (strcmp(hdev->name, "SHANWAN PS3 GamePad")) {
-		ret = hid_hw_output_report(hdev, buf, 1);
-		if (ret < 0) {
-			hid_info(hdev, "can't set operational mode: step 3, ignoring\n");
-			ret = 0;
-		}
+	if (sc->quirks & SHANWAN_GAMEPAD)
+		goto out;
+
+	ret = hid_hw_output_report(hdev, buf, 1);
+	if (ret < 0) {
+		hid_info(hdev, "can't set operational mode: step 3, ignoring\n");
+		ret = 0;
 	}
 
 out:
@@ -2097,9 +2100,14 @@ static void sixaxis_send_output_report(struct sony_sc *sc)
 		}
 	}
 
-	hid_hw_raw_request(sc->hdev, report->report_id, (u8 *)report,
-			sizeof(struct sixaxis_output_report),
-			HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	/* SHANWAN controllers require output reports via intr channel */
+	if (sc->quirks & SHANWAN_GAMEPAD)
+		hid_hw_output_report(sc->hdev, (u8 *)report,
+				sizeof(struct sixaxis_output_report));
+	else
+		hid_hw_raw_request(sc->hdev, report->report_id, (u8 *)report,
+				sizeof(struct sixaxis_output_report),
+				HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
 }
 
 static void dualshock4_send_output_report(struct sony_sc *sc)
@@ -2810,6 +2818,9 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (!strcmp(hdev->name, "FutureMax Dance Mat"))
 		quirks |= FUTUREMAX_DANCE_MAT;
+
+	if (!strcmp(hdev->name, "SHANWAN PS3 GamePad"))
+		quirks |= SHANWAN_GAMEPAD;
 
 	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
 	if (sc == NULL) {

@@ -50,6 +50,7 @@
 #include <linux/compat.h>
 #include <linux/start_kernel.h>
 
+#include <asm/boot_data.h>
 #include <asm/ipl.h>
 #include <asm/facility.h>
 #include <asm/smp.h>
@@ -65,11 +66,13 @@
 #include <asm/diag.h>
 #include <asm/os_info.h>
 #include <asm/sclp.h>
+#include <asm/stacktrace.h>
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
 #include <asm/mem_detect.h>
+#include <asm/uv.h>
 #include "entry.h"
 
 /*
@@ -89,11 +92,24 @@ char elf_platform[ELF_PLATFORM_SIZE];
 
 unsigned long int_hwcap = 0;
 
+#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
+int __bootdata_preserved(prot_virt_guest);
+#endif
+
 int __bootdata(noexec_disabled);
 int __bootdata(memory_end_set);
 unsigned long __bootdata(memory_end);
 unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
+
+struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
+struct exception_table_entry *__bootdata_preserved(__stop_dma_ex_table);
+unsigned long __bootdata_preserved(__swsusp_reset_dma);
+unsigned long __bootdata_preserved(__stext_dma);
+unsigned long __bootdata_preserved(__etext_dma);
+unsigned long __bootdata_preserved(__sdma);
+unsigned long __bootdata_preserved(__edma);
+unsigned long __bootdata_preserved(__kaslr_offset);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);
@@ -369,7 +385,7 @@ void __init arch_call_rest_init(void)
 		: : [_frame] "a" (frame));
 }
 
-static void __init setup_lowcore(void)
+static void __init setup_lowcore_dat_off(void)
 {
 	struct lowcore *lc;
 
@@ -378,21 +394,22 @@ static void __init setup_lowcore(void)
 	 */
 	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * PAGE_SIZE);
 	lc = memblock_alloc_low(sizeof(*lc), sizeof(*lc));
+	if (!lc)
+		panic("%s: Failed to allocate %zu bytes align=%zx\n",
+		      __func__, sizeof(*lc), sizeof(*lc));
+
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
 	lc->svc_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
+		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->nodat_stack = ((unsigned long) &init_thread_union)
@@ -422,6 +439,9 @@ static void __init setup_lowcore(void)
 	 * all CPUs in cast *one* of them does a PSW restart.
 	 */
 	restart_stack = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	if (!restart_stack)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, THREAD_SIZE, THREAD_SIZE);
 	restart_stack += STACK_INIT_OFFSET;
 
 	/*
@@ -450,6 +470,16 @@ static void __init setup_lowcore(void)
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
+}
+
+static void __init setup_lowcore_dat_on(void)
+{
+	__ctl_clear_bit(0, 28);
+	S390_lowcore.external_new_psw.mask |= PSW_MASK_DAT;
+	S390_lowcore.svc_new_psw.mask |= PSW_MASK_DAT;
+	S390_lowcore.program_new_psw.mask |= PSW_MASK_DAT;
+	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
+	__ctl_set_bit(0, 28);
 }
 
 static struct resource code_resource = {
@@ -488,6 +518,9 @@ static void __init setup_resources(void)
 
 	for_each_memblock(memory, reg) {
 		res = memblock_alloc(sizeof(*res), 8);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+			      __func__, sizeof(*res), 8);
 		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 
 		res->name = "System RAM";
@@ -502,6 +535,9 @@ static void __init setup_resources(void)
 				continue;
 			if (std_res->end > res->end) {
 				sub_res = memblock_alloc(sizeof(*sub_res), 8);
+				if (!sub_res)
+					panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+					      __func__, sizeof(*sub_res), 8);
 				*sub_res = *std_res;
 				sub_res->end = res->end;
 				std_res->start = res->end + 1;
@@ -716,6 +752,15 @@ static void __init reserve_initrd(void)
 #endif
 }
 
+/*
+ * Reserve the memory area used to pass the certificate lists
+ */
+static void __init reserve_certificate_list(void)
+{
+	if (ipl_cert_list_addr)
+		memblock_reserve(ipl_cert_list_addr, ipl_cert_list_size);
+}
+
 static void __init reserve_mem_detect_info(void)
 {
 	unsigned long start, size;
@@ -794,18 +839,10 @@ static void __init reserve_kernel(void)
 {
 	unsigned long start_pfn = PFN_UP(__pa(_end));
 
-#ifdef CONFIG_DMA_API_DEBUG
-	/*
-	 * DMA_API_DEBUG code stumbles over addresses from the
-	 * range [PARMAREA_END, _stext]. Mark the memory as reserved
-	 * so it is not used for CONFIG_DMA_API_DEBUG=y.
-	 */
-	memblock_reserve(0, PFN_PHYS(start_pfn));
-#else
-	memblock_reserve(0, PARMAREA_END);
+	memblock_reserve(0, HEAD_END);
 	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
 			 - (unsigned long)_stext);
-#endif
+	memblock_reserve(__sdma, __edma - __sdma);
 }
 
 static void __init setup_memory(void)
@@ -903,7 +940,15 @@ static int __init setup_hwcaps(void)
 			elf_hwcap |= HWCAP_S390_VXRS_EXT;
 		if (test_facility(135))
 			elf_hwcap |= HWCAP_S390_VXRS_BCD;
+		if (test_facility(148))
+			elf_hwcap |= HWCAP_S390_VXRS_EXT2;
+		if (test_facility(152))
+			elf_hwcap |= HWCAP_S390_VXRS_PDE;
 	}
+	if (test_facility(150))
+		elf_hwcap |= HWCAP_S390_SORT;
+	if (test_facility(151))
+		elf_hwcap |= HWCAP_S390_DFLT;
 
 	/*
 	 * Guarded storage support HWCAP_S390_GS is bit 12.
@@ -968,6 +1013,9 @@ static void __init setup_randomness(void)
 
 	vmms = (struct sysinfo_3_2_2 *) memblock_phys_alloc(PAGE_SIZE,
 							    PAGE_SIZE);
+	if (!vmms)
+		panic("Failed to allocate memory for sysinfo structure\n");
+
 	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free((unsigned long) vmms, PAGE_SIZE);
@@ -990,6 +1038,57 @@ static void __init setup_task_size(void)
 }
 
 /*
+ * Issue diagnose 318 to set the control program name and
+ * version codes.
+ */
+static void __init setup_control_program_code(void)
+{
+	union diag318_info diag318_info = {
+		.cpnc = CPNC_LINUX,
+		.cpvc_linux = 0,
+		.cpvc_distro = {0},
+	};
+
+	if (!sclp.has_diag318)
+		return;
+
+	diag_stat_inc(DIAG_STAT_X318);
+	asm volatile("diag %0,0,0x318\n" : : "d" (diag318_info.val));
+}
+
+/*
+ * Print the component list from the IPL report
+ */
+static void __init log_component_list(void)
+{
+	struct ipl_rb_component_entry *ptr, *end;
+	char *str;
+
+	if (!early_ipl_comp_list_addr)
+		return;
+	if (ipl_block.hdr.flags & IPL_PL_FLAG_IPLSR)
+		pr_info("Linux is running with Secure-IPL enabled\n");
+	else
+		pr_info("Linux is running with Secure-IPL disabled\n");
+	ptr = (void *) early_ipl_comp_list_addr;
+	end = (void *) ptr + early_ipl_comp_list_size;
+	pr_info("The IPL report contains the following components:\n");
+	while (ptr < end) {
+		if (ptr->flags & IPL_RB_COMPONENT_FLAG_SIGNED) {
+			if (ptr->flags & IPL_RB_COMPONENT_FLAG_VERIFIED)
+				str = "signed, verified";
+			else
+				str = "signed, verification failed";
+		} else {
+			str = "not signed";
+		}
+		pr_info("%016llx - %016llx (%s)\n",
+			ptr->addr, ptr->addr + ptr->len, str);
+		ptr++;
+	}
+}
+
+/*
  * Setup function called from init/main.c just after the banner
  * was printed.
  */
@@ -1006,6 +1105,10 @@ void __init setup_arch(char **cmdline_p)
 		pr_info("Linux is running under KVM in 64-bit mode\n");
 	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 64-bit mode\n");
+	else
+		pr_info("Linux is running as a guest in 64-bit mode\n");
+
+	log_component_list();
 
 	/* Have one command line that is parsed and saved in /proc/cmdline */
 	/* boot_command_line has been already set up in early.c */
@@ -1031,12 +1134,14 @@ void __init setup_arch(char **cmdline_p)
 	os_info_init();
 	setup_ipl();
 	setup_task_size();
+	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_memory_end();
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
+	reserve_certificate_list();
 	reserve_mem_detect_info();
 	memblock_allow_resize();
 
@@ -1070,7 +1175,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	setup_resources();
-	setup_lowcore();
+	setup_lowcore_dat_off();
 	smp_fill_possible_mask();
 	cpu_detect_mhz_feature();
         cpu_init();
@@ -1082,6 +1187,12 @@ void __init setup_arch(char **cmdline_p)
 	 * Create kernel page tables and switch to virtual addressing.
 	 */
         paging_init();
+
+	/*
+	 * After paging_init created the kernel page table, the new PSWs
+	 * in lowcore can now run with DAT enabled.
+	 */
+	setup_lowcore_dat_on();
 
         /* Setup default console */
 	conmode_default();

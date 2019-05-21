@@ -310,7 +310,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	if (flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long tmp_val;
 
-		tmp_val = tep_read_number(fmtf->event->pevent,
+		tmp_val = tep_read_number(fmtf->event->tep,
 					  data + offset, len);
 		offset = tmp_val;
 		len = offset >> 16;
@@ -354,7 +354,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 			unsigned long long value_int;
 
 			value_int = tep_read_number(
-					fmtf->event->pevent,
+					fmtf->event->tep,
 					data + offset + i * len, len);
 
 			if (!(flags & TEP_FIELD_IS_SIGNED))
@@ -1578,7 +1578,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 {
 	struct perf_session *session;
 	struct perf_data data = {
-		.file      = { .path = input, .fd = -1 },
+		.path	   = input,
 		.mode      = PERF_DATA_MODE_READ,
 		.force     = opts->force,
 	};
@@ -1650,7 +1650,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	fprintf(stderr,
 		"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
-		data.file.path, path);
+		data.path, path);
 
 	fprintf(stderr,
 		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",

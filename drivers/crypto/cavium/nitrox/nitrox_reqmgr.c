@@ -303,8 +303,6 @@ static void post_se_instr(struct nitrox_softreq *sr,
 
 	/* Ring doorbell with count 1 */
 	writeq(1, cmdq->dbell_csr_addr);
-	/* orders the doorbell rings */
-	mmiowb();
 
 	cmdq->write_idx = incr_index(idx, 1, ndev->qlen);
 
@@ -537,6 +535,8 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 	struct nitrox_device *ndev = cmdq->ndev;
 	struct nitrox_softreq *sr;
 	int req_completed = 0, err = 0, budget;
+	completion_t callback;
+	void *cb_arg;
 
 	/* check all pending requests */
 	budget = atomic_read(&cmdq->pending_count);
@@ -564,13 +564,13 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 		smp_mb__after_atomic();
 		/* remove from response list */
 		response_list_del(sr, cmdq);
-
 		/* ORH error code */
 		err = READ_ONCE(*sr->resp.orh) & 0xff;
+		callback = sr->callback;
+		cb_arg = sr->cb_arg;
 		softreq_destroy(sr);
-
-		if (sr->callback)
-			sr->callback(sr->cb_arg, err);
+		if (callback)
+			callback(cb_arg, err);
 
 		req_completed++;
 	}
@@ -597,8 +597,6 @@ void pkt_slc_resp_tasklet(unsigned long data)
 	 * MSI-X interrupt generates if Completion count > Threshold
 	 */
 	writeq(slc_cnts.value, cmdq->compl_cnt_csr_addr);
-	/* order the writes */
-	mmiowb();
 
 	if (atomic_read(&cmdq->backlog_count))
 		schedule_work(&cmdq->backlog_qflush);

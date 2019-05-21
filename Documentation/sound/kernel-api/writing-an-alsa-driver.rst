@@ -3520,14 +3520,14 @@ allocator will try to get an area as large as possible within the
 given size.
 
 The second argument (type) and the third argument (device pointer) are
-dependent on the bus. In the case of the ISA bus, pass
-:c:func:`snd_dma_isa_data()` as the third argument with
+dependent on the bus. For normal devices, pass the device pointer
+(typically identical as ``card->dev``) to the third argument with
 ``SNDRV_DMA_TYPE_DEV`` type. For the continuous buffer unrelated to the
 bus can be pre-allocated with ``SNDRV_DMA_TYPE_CONTINUOUS`` type and the
 ``snd_dma_continuous_data(GFP_KERNEL)`` device pointer, where
-``GFP_KERNEL`` is the kernel allocation flag to use. For the PCI
-scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with
-``snd_dma_pci_data(pci)`` (see the `Non-Contiguous Buffers`_
+``GFP_KERNEL`` is the kernel allocation flag to use. For the
+scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with the device
+pointer (see the `Non-Contiguous Buffers`_
 section).
 
 Once the buffer is pre-allocated, you can use the allocator in the
@@ -3924,15 +3924,12 @@ The scheme of the real suspend job is as follows.
 2. Call :c:func:`snd_power_change_state()` with
    ``SNDRV_CTL_POWER_D3hot`` to change the power status.
 
-3. Call :c:func:`snd_pcm_suspend_all()` to suspend the running
-   PCM streams.
-
-4. If AC97 codecs are used, call :c:func:`snd_ac97_suspend()` for
+3. If AC97 codecs are used, call :c:func:`snd_ac97_suspend()` for
    each codec.
 
-5. Save the register values if necessary.
+4. Save the register values if necessary.
 
-6. Stop the hardware if necessary.
+5. Stop the hardware if necessary.
 
 A typical code would be like:
 
@@ -3946,12 +3943,10 @@ A typical code would be like:
           /* (2) */
           snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
           /* (3) */
-          snd_pcm_suspend_all(chip->pcm);
-          /* (4) */
           snd_ac97_suspend(chip->ac97);
-          /* (5) */
+          /* (4) */
           snd_mychip_save_registers(chip);
-          /* (6) */
+          /* (5) */
           snd_mychip_stop_hardware(chip);
           return 0;
   }
@@ -3994,13 +3989,9 @@ A typical code would be like:
           return 0;
   }
 
-As shown in the above, it's better to save registers after suspending
-the PCM operations via :c:func:`snd_pcm_suspend_all()` or
-:c:func:`snd_pcm_suspend()`. It means that the PCM streams are
-already stopped when the register snapshot is taken. But, remember that
-you don't have to restart the PCM stream in the resume callback. It'll
-be restarted via trigger call with ``SNDRV_PCM_TRIGGER_RESUME`` when
-necessary.
+Note that, at the time this callback gets called, the PCM stream has
+been already suspended via its own PM ops calling
+:c:func:`snd_pcm_suspend_all()` internally.
 
 OK, we have all callbacks now. Let's set them up. In the initialization
 of the card, make sure that you can get the chip data from the card

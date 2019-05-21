@@ -36,6 +36,9 @@ static LIST_HEAD(panel_list);
  * The DRM panel helpers allow drivers to register panel objects with a
  * central registry and provide functions to retrieve those panels in display
  * drivers.
+ *
+ * For easy integration into drivers using the &drm_bridge infrastructure please
+ * take look at drm_panel_bridge_add() and devm_drm_panel_bridge_add().
  */
 
 /**

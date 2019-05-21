@@ -172,8 +172,6 @@ static int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
 	/* Trigger the PF FW */
 	writeb_relaxed(1, &zone_data->trigger.vf_pf_channel.addr_valid);
 
-	mmiowb();
-
 	/* Wait for PF to complete */
 	while ((tout >= 0) && (!*done)) {
 		msleep(interval);
@@ -957,7 +955,7 @@ int bnx2x_vfpf_update_vlan(struct bnx2x *bp, u16 vid, u8 vf_qid, bool add)
 	bnx2x_sample_bulletin(bp);
 
 	if (bp->shadow_bulletin.content.valid_bitmap & 1 << VLAN_VALID) {
-		BNX2X_ERR("Hypervisor will dicline the request, avoiding\n");
+		BNX2X_ERR("Hypervisor will decline the request, avoiding\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -1179,7 +1177,6 @@ static void bnx2x_vf_mbx_resp_send_msg(struct bnx2x *bp,
 
 	/* ack the FW */
 	storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
-	mmiowb();
 
 	/* copy the response header including status-done field,
 	 * must be last dmae, must be after FW is acked
@@ -1654,13 +1651,9 @@ static int bnx2x_vf_mbx_macvlan_list(struct bnx2x *bp,
 {
 	int i, j;
 	struct bnx2x_vf_mac_vlan_filters *fl = NULL;
-	size_t fsz;
 
-	fsz = tlv->n_mac_vlan_filters *
-	      sizeof(struct bnx2x_vf_mac_vlan_filter) +
-	      sizeof(struct bnx2x_vf_mac_vlan_filters);
-
-	fl = kzalloc(fsz, GFP_KERNEL);
+	fl = kzalloc(struct_size(fl, filters, tlv->n_mac_vlan_filters),
+		     GFP_KERNEL);
 	if (!fl)
 		return -ENOMEM;
 
@@ -2178,7 +2171,6 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		 */
 		storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
 		/* Firmware ack should be written before unlocking channel */
-		mmiowb();
 		bnx2x_unlock_vf_pf_channel(bp, vf, mbx->first_tlv.tl.type);
 	}
 }

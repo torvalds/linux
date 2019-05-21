@@ -23,8 +23,10 @@
 #define __CRYPTO4XX_CORE_H__
 
 #include <linux/ratelimit.h>
+#include <linux/mutex.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/aead.h>
+#include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_sa.h"
@@ -62,7 +64,6 @@ union shadow_sa_buf {
 struct pd_uinfo {
 	struct crypto4xx_device *dev;
 	u32   state;
-	u32 using_sd;
 	u32 first_gd;		/* first gather discriptor
 				used by this packet */
 	u32 num_gd;             /* number of gather discriptor
@@ -119,6 +120,7 @@ struct crypto4xx_core_device {
 	u32 irq;
 	struct tasklet_struct tasklet;
 	spinlock_t lock;
+	struct mutex rng_lock;
 };
 
 struct crypto4xx_ctx {
@@ -128,7 +130,7 @@ struct crypto4xx_ctx {
 	__le32 iv_nonce;
 	u32 sa_len;
 	union {
-		struct crypto_skcipher *cipher;
+		struct crypto_sync_skcipher *cipher;
 		struct crypto_aead *aead;
 	} sw_cipher;
 };
@@ -143,6 +145,7 @@ struct crypto4xx_alg_common {
 		struct skcipher_alg cipher;
 		struct ahash_alg hash;
 		struct aead_alg aead;
+		struct rng_alg rng;
 	} u;
 };
 

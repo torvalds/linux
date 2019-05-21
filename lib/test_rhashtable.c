@@ -177,16 +177,11 @@ static int __init test_rht_lookup(struct rhashtable *ht, struct test_obj *array,
 
 static void test_bucket_stats(struct rhashtable *ht, unsigned int entries)
 {
-	unsigned int err, total = 0, chain_len = 0;
+	unsigned int total = 0, chain_len = 0;
 	struct rhashtable_iter hti;
 	struct rhash_head *pos;
 
-	err = rhashtable_walk_init(ht, &hti, GFP_KERNEL);
-	if (err) {
-		pr_warn("Test failed: allocation error");
-		return;
-	}
-
+	rhashtable_walk_enter(ht, &hti);
 	rhashtable_walk_start(&hti);
 
 	while ((pos = rhashtable_walk_next(&hti))) {
@@ -395,7 +390,7 @@ static int __init test_rhltable(unsigned int entries)
 			if (WARN(err, "cannot remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existant element %d, error %d not %d",
+			if (WARN(err != -ENOENT, "removed non-existent element %d, error %d not %d",
 			     i, err, -ENOENT))
 				continue;
 		}
@@ -440,7 +435,7 @@ static int __init test_rhltable(unsigned int entries)
 			if (WARN(err, "cannot remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existant element, error %d not %d",
+			if (WARN(err != -ENOENT, "removed non-existent element, error %d not %d",
 				 err, -ENOENT))
 			continue;
 		}
@@ -541,38 +536,45 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 static int __init test_insert_dup(struct test_obj_rhl *rhl_test_objects,
 				  int cnt, bool slow)
 {
-	struct rhltable rhlt;
+	struct rhltable *rhlt;
 	unsigned int i, ret;
 	const char *key;
 	int err = 0;
 
-	err = rhltable_init(&rhlt, &test_rht_params_dup);
-	if (WARN_ON(err))
+	rhlt = kmalloc(sizeof(*rhlt), GFP_KERNEL);
+	if (WARN_ON(!rhlt))
+		return -EINVAL;
+
+	err = rhltable_init(rhlt, &test_rht_params_dup);
+	if (WARN_ON(err)) {
+		kfree(rhlt);
 		return err;
+	}
 
 	for (i = 0; i < cnt; i++) {
 		rhl_test_objects[i].value.tid = i;
-		key = rht_obj(&rhlt.ht, &rhl_test_objects[i].list_node.rhead);
+		key = rht_obj(&rhlt->ht, &rhl_test_objects[i].list_node.rhead);
 		key += test_rht_params_dup.key_offset;
 
 		if (slow) {
-			err = PTR_ERR(rhashtable_insert_slow(&rhlt.ht, key,
+			err = PTR_ERR(rhashtable_insert_slow(&rhlt->ht, key,
 							     &rhl_test_objects[i].list_node.rhead));
 			if (err == -EAGAIN)
 				err = 0;
 		} else
-			err = rhltable_insert(&rhlt,
+			err = rhltable_insert(rhlt,
 					      &rhl_test_objects[i].list_node,
 					      test_rht_params_dup);
 		if (WARN(err, "error %d on element %d/%d (%s)\n", err, i, cnt, slow? "slow" : "fast"))
 			goto skip_print;
 	}
 
-	ret = print_ht(&rhlt);
+	ret = print_ht(rhlt);
 	WARN(ret != cnt, "missing rhltable elements (%d != %d, %s)\n", ret, cnt, slow? "slow" : "fast");
 
 skip_print:
-	rhltable_destroy(&rhlt);
+	rhltable_destroy(rhlt);
+	kfree(rhlt);
 
 	return 0;
 }

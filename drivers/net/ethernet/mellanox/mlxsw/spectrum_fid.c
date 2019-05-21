@@ -997,8 +997,8 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_dummy_ops = {
 static const struct mlxsw_sp_fid_family mlxsw_sp_fid_dummy_family = {
 	.type			= MLXSW_SP_FID_TYPE_DUMMY,
 	.fid_size		= sizeof(struct mlxsw_sp_fid),
-	.start_index		= MLXSW_SP_RFID_BASE - 1,
-	.end_index		= MLXSW_SP_RFID_BASE - 1,
+	.start_index		= VLAN_N_VID - 1,
+	.end_index		= VLAN_N_VID - 1,
 	.ops			= &mlxsw_sp_fid_dummy_ops,
 };
 
@@ -1188,8 +1188,7 @@ static int mlxsw_sp_fid_family_register(struct mlxsw_sp *mlxsw_sp,
 
 	fid_family->mlxsw_sp = mlxsw_sp;
 	INIT_LIST_HEAD(&fid_family->fids_list);
-	fid_family->fids_bitmap = kcalloc(BITS_TO_LONGS(nr_fids),
-					  sizeof(unsigned long), GFP_KERNEL);
+	fid_family->fids_bitmap = bitmap_zalloc(nr_fids, GFP_KERNEL);
 	if (!fid_family->fids_bitmap) {
 		err = -ENOMEM;
 		goto err_alloc_fids_bitmap;
@@ -1206,7 +1205,7 @@ static int mlxsw_sp_fid_family_register(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_fid_flood_tables_init:
-	kfree(fid_family->fids_bitmap);
+	bitmap_free(fid_family->fids_bitmap);
 err_alloc_fids_bitmap:
 	kfree(fid_family);
 	return err;
@@ -1217,7 +1216,7 @@ mlxsw_sp_fid_family_unregister(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_fid_family *fid_family)
 {
 	mlxsw_sp->fid_core->fid_family_arr[fid_family->type] = NULL;
-	kfree(fid_family->fids_bitmap);
+	bitmap_free(fid_family->fids_bitmap);
 	WARN_ON_ONCE(!list_empty(&fid_family->fids_list));
 	kfree(fid_family);
 }

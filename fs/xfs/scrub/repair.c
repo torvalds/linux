@@ -743,7 +743,8 @@ xrep_findroot_block(
 
 	/* Ensure the block magic matches the btree type we're looking for. */
 	btblock = XFS_BUF_TO_BLOCK(bp);
-	if (be32_to_cpu(btblock->bb_magic) != fab->magic)
+	ASSERT(fab->buf_ops->magic[1] != 0);
+	if (btblock->bb_magic != fab->buf_ops->magic[1])
 		goto out;
 
 	/*
@@ -768,18 +769,23 @@ xrep_findroot_block(
 		if (!uuid_equal(&btblock->bb_u.s.bb_uuid,
 				&mp->m_sb.sb_meta_uuid))
 			goto out;
+		/*
+		 * Read verifiers can reference b_ops, so we set the pointer
+		 * here.  If the verifier fails we'll reset the buffer state
+		 * to what it was before we touched the buffer.
+		 */
+		bp->b_ops = fab->buf_ops;
 		fab->buf_ops->verify_read(bp);
 		if (bp->b_error) {
+			bp->b_ops = NULL;
 			bp->b_error = 0;
 			goto out;
 		}
 
 		/*
 		 * Some read verifiers will (re)set b_ops, so we must be
-		 * careful not to blow away any such assignment.
+		 * careful not to change b_ops after running the verifier.
 		 */
-		if (!bp->b_ops)
-			bp->b_ops = fab->buf_ops;
 	}
 
 	/*

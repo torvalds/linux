@@ -265,7 +265,6 @@ static int adiantum_hash_message(struct skcipher_request *req,
 	int err;
 
 	hash_desc->tfm = tctx->hash;
-	hash_desc->flags = 0;
 
 	err = crypto_shash_init(hash_desc);
 	if (err)
@@ -539,6 +538,8 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	ictx = skcipher_instance_ctx(inst);
 
 	/* Stream cipher, e.g. "xchacha12" */
+	crypto_set_skcipher_spawn(&ictx->streamcipher_spawn,
+				  skcipher_crypto_instance(inst));
 	err = crypto_grab_skcipher(&ictx->streamcipher_spawn, streamcipher_name,
 				   0, crypto_requires_sync(algt->type,
 							   algt->mask));
@@ -547,6 +548,8 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	streamcipher_alg = crypto_spawn_skcipher_alg(&ictx->streamcipher_spawn);
 
 	/* Block cipher, e.g. "aes" */
+	crypto_set_spawn(&ictx->blockcipher_spawn,
+			 skcipher_crypto_instance(inst));
 	err = crypto_grab_spawn(&ictx->blockcipher_spawn, blockcipher_name,
 				CRYPTO_ALG_TYPE_CIPHER, CRYPTO_ALG_TYPE_MASK);
 	if (err)
@@ -655,7 +658,7 @@ static void __exit adiantum_module_exit(void)
 	crypto_unregister_template(&adiantum_tmpl);
 }
 
-module_init(adiantum_module_init);
+subsys_initcall(adiantum_module_init);
 module_exit(adiantum_module_exit);
 
 MODULE_DESCRIPTION("Adiantum length-preserving encryption mode");

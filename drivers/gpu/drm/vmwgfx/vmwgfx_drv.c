@@ -26,6 +26,7 @@
  **************************************************************************/
 #include <linux/module.h>
 #include <linux/console.h>
+#include <linux/dma-mapping.h>
 
 #include <drm/drmP.h>
 #include "vmwgfx_drv.h"
@@ -34,7 +35,6 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
-#include <linux/intel-iommu.h>
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0
@@ -551,9 +551,8 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
  *
  * @dev_priv: Pointer to a struct vmw_private
  *
- * This functions tries to determine the IOMMU setup and what actions
- * need to be taken by the driver to make system pages visible to the
- * device.
+ * This functions tries to determine what actions need to be taken by the
+ * driver to make system pages visible to the device.
  * If this function decides that DMA is not possible, it returns -EINVAL.
  * The driver may then try to disable features of the device that require
  * DMA.
@@ -563,57 +562,22 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 	static const char *names[vmw_dma_map_max] = {
 		[vmw_dma_phys] = "Using physical TTM page addresses.",
 		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
-		[vmw_dma_map_populate] = "Keeping DMA mappings.",
+		[vmw_dma_map_populate] = "Caching DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
-#ifdef CONFIG_X86
-	const struct dma_map_ops *dma_ops = get_dma_ops(dev_priv->dev->dev);
-
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_enabled) {
-		dev_priv->map_mode = vmw_dma_map_populate;
-		goto out_fixup;
-	}
-#endif
-
-	if (!(vmw_force_iommu || vmw_force_coherent)) {
-		dev_priv->map_mode = vmw_dma_phys;
-		DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
-		return 0;
-	}
-
-	dev_priv->map_mode = vmw_dma_map_populate;
-
-	if (dma_ops && dma_ops->sync_single_for_cpu)
-		dev_priv->map_mode = vmw_dma_alloc_coherent;
-#ifdef CONFIG_SWIOTLB
-	if (swiotlb_nr_tbl() == 0)
-		dev_priv->map_mode = vmw_dma_map_populate;
-#endif
-
-#ifdef CONFIG_INTEL_IOMMU
-out_fixup:
-#endif
-	if (dev_priv->map_mode == vmw_dma_map_populate &&
-	    vmw_restrict_iommu)
-		dev_priv->map_mode = vmw_dma_map_bind;
 
 	if (vmw_force_coherent)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
+	else if (vmw_restrict_iommu)
+		dev_priv->map_mode = vmw_dma_map_bind;
+	else
+		dev_priv->map_mode = vmw_dma_map_populate;
 
-#if !defined(CONFIG_SWIOTLB) && !defined(CONFIG_INTEL_IOMMU)
-	/*
-	 * No coherent page pool
-	 */
-	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
+	/* No TTM coherent page pool? FIXME: Ask TTM instead! */
+        if (!(IS_ENABLED(CONFIG_SWIOTLB) || IS_ENABLED(CONFIG_INTEL_IOMMU)) &&
+	    (dev_priv->map_mode == vmw_dma_alloc_coherent))
 		return -EINVAL;
-#endif
-
-#else /* CONFIG_X86 */
-	dev_priv->map_mode = vmw_dma_map_populate;
-#endif /* CONFIG_X86 */
 
 	DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
-
 	return 0;
 }
 
@@ -625,24 +589,20 @@ out_fixup:
  * With 32-bit we can only handle 32 bit PFNs. Optionally set that
  * restriction also for 64-bit systems.
  */
-#ifdef CONFIG_INTEL_IOMMU
 static int vmw_dma_masks(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
+	int ret = 0;
 
-	if (intel_iommu_enabled &&
+	ret = dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64));
+	if (dev_priv->map_mode != vmw_dma_phys &&
 	    (sizeof(unsigned long) == 4 || vmw_restrict_dma_mask)) {
 		DRM_INFO("Restricting DMA addresses to 44 bits.\n");
-		return dma_set_mask(dev->dev, DMA_BIT_MASK(44));
+		return dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(44));
 	}
-	return 0;
+
+	return ret;
 }
-#else
-static int vmw_dma_masks(struct vmw_private *dev_priv)
-{
-	return 0;
-}
-#endif
 
 static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
@@ -1582,7 +1542,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
+	.driver_features =
 	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,

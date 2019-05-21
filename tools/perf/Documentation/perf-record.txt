@@ -88,6 +88,20 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
+        - a BPF source file (ending in .c) or a precompiled object file (ending
+          in .o) selects one or more BPF events.
+          The BPF program can attach to various perf events based on the ELF section
+          names.
+
+          When processing a '.c' file, perf searches an installed LLVM to compile it
+          into an object file first. Optional clang options can be passed via the
+          '--clang-opt' command line option, e.g.:
+
+            perf record --clang-opt "-DLINUX_VERSION_CODE=0x50000" \
+                        -e tests/bpf-script-example.c
+
+          Note: '--clang-opt' must be placed before '--event/-e'.
+
 	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
 	  Each event is separated by commas and the group should be quoted to
 	  prevent the shell interpretation.  You also need to use --group on
@@ -440,6 +454,30 @@ Use <n> control blocks in asynchronous (Posix AIO) trace writing mode (default: 
 Asynchronous mode is supported only when linking Perf tool with libc library
 providing implementation for Posix AIO API.
 
+--affinity=mode::
+Set affinity mask of trace reading thread according to the policy defined by 'mode' value:
+  node - thread affinity mask is set to NUMA node cpu mask of the processed mmap buffer
+  cpu  - thread affinity mask is set to cpu of the processed mmap buffer
+
+--mmap-flush=number::
+
+Specify minimal number of bytes that is extracted from mmap data pages and
+processed for output. One can specify the number using B/K/M/G suffixes.
+
+The maximal allowed value is a quarter of the size of mmaped data pages.
+
+The default option value is 1 byte which means that every time that the output
+writing thread finds some new data in the mmaped buffer the data is extracted,
+possibly compressed (-z) and written to the output, perf.data or pipe.
+
+Larger data chunks are compressed more effectively in comparison to smaller
+chunks so extraction of larger chunks from the mmap data pages is preferable
+from the perspective of output size reduction.
+
+Also at some cases executing less output write syscalls with bigger data size
+can take less time than executing more output write syscalls with smaller data
+size thus lowering runtime profiling overhead.
+
 --all-kernel::
 Configure all used events to run in kernel space.
 
@@ -475,6 +513,10 @@ The reason for the latter two is to reduce the data file switching
 overhead. You can still switch them on with:
 
   --switch-output --no-no-buildid  --no-no-buildid-cache
+
+--switch-max-files=N::
+
+When rotating perf.data with --switch-output, only keep N files.
 
 --dry-run::
 Parse options then exit. --dry-run can be used to detect errors in cmdline

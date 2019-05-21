@@ -147,7 +147,7 @@ struct ptp_pin_desc {
 #define PTP_SYS_OFFSET_PRECISE \
 	_IOWR(PTP_CLK_MAGIC, 8, struct ptp_sys_offset_precise)
 #define PTP_SYS_OFFSET_EXTENDED \
-	_IOW(PTP_CLK_MAGIC, 9, struct ptp_sys_offset_extended)
+	_IOWR(PTP_CLK_MAGIC, 9, struct ptp_sys_offset_extended)
 
 struct ptp_extts_event {
 	struct ptp_clock_time t; /* Time event occured. */

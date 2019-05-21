@@ -27,17 +27,11 @@
 */
 
 #define PCF85063_REG_CTRL1		0x00 /* status */
+#define PCF85063_REG_CTRL1_CAP_SEL	BIT(0)
 #define PCF85063_REG_CTRL1_STOP		BIT(5)
-#define PCF85063_REG_CTRL2		0x01
 
 #define PCF85063_REG_SC			0x04 /* datetime */
 #define PCF85063_REG_SC_OS		0x80
-#define PCF85063_REG_MN			0x05
-#define PCF85063_REG_HR			0x06
-#define PCF85063_REG_DM			0x07
-#define PCF85063_REG_DW			0x08
-#define PCF85063_REG_MO			0x09
-#define PCF85063_REG_YR			0x0A
 
 static struct i2c_driver pcf85063_driver;
 
@@ -180,6 +174,39 @@ static const struct rtc_class_ops pcf85063_rtc_ops = {
 	.set_time	= pcf85063_rtc_set_time
 };
 
+static int pcf85063_load_capacitance(struct i2c_client *client)
+{
+	u32 load;
+	int rc;
+	u8 reg;
+
+	rc = i2c_smbus_read_byte_data(client, PCF85063_REG_CTRL1);
+	if (rc < 0)
+		return rc;
+
+	reg = rc;
+	load = 7000;
+	of_property_read_u32(client->dev.of_node, "quartz-load-femtofarads",
+			     &load);
+
+	switch (load) {
+	default:
+		dev_warn(&client->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
+			 load);
+		/* fall through */
+	case 7000:
+		reg &= ~PCF85063_REG_CTRL1_CAP_SEL;
+		break;
+	case 12500:
+		reg |= PCF85063_REG_CTRL1_CAP_SEL;
+		break;
+	}
+
+	rc = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, reg);
+
+	return rc;
+}
+
 static int pcf85063_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
@@ -196,6 +223,11 @@ static int pcf85063_probe(struct i2c_client *client,
 		dev_err(&client->dev, "RTC chip is not present\n");
 		return err;
 	}
+
+	err = pcf85063_load_capacitance(client);
+	if (err < 0)
+		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
+			 err);
 
 	rtc = devm_rtc_device_register(&client->dev,
 				       pcf85063_driver.driver.name,

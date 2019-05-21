@@ -47,8 +47,8 @@ static int alloc_dbdma_descriptor_ring(struct i2sbus_dev *i2sdev,
 	/* We use the PCI APIs for now until the generic one gets fixed
 	 * enough or until we get some macio-specific versions
 	 */
-	r->space = dma_zalloc_coherent(&macio_get_pci_dev(i2sdev->macio)->dev,
-				       r->size, &r->bus_addr, GFP_KERNEL);
+	r->space = dma_alloc_coherent(&macio_get_pci_dev(i2sdev->macio)->dev,
+				      r->size, &r->bus_addr, GFP_KERNEL);
 	if (!r->space)
 		return -ENOMEM;
 
@@ -380,10 +380,6 @@ static int i2sbus_suspend(struct macio_dev* dev, pm_message_t state)
 	int err, ret = 0;
 
 	list_for_each_entry(i2sdev, &control->list, item) {
-		/* Notify Alsa */
-		/* Suspend PCM streams */
-		snd_pcm_suspend_all(i2sdev->sound.pcm);
-
 		/* Notify codecs */
 		list_for_each_entry(cii, &i2sdev->sound.codec_list, list) {
 			err = 0;

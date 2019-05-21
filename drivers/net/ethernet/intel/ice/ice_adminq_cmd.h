@@ -657,8 +657,13 @@ struct ice_aqc_get_topo {
 
 /* Update TSE (indirect 0x0403)
  * Get TSE (indirect 0x0404)
+ * Add TSE (indirect 0x0401)
+ * Delete TSE (indirect 0x040F)
+ * Move TSE (indirect 0x0408)
+ * Suspend Nodes (indirect 0x0409)
+ * Resume Nodes (indirect 0x040A)
  */
-struct ice_aqc_get_cfg_elem {
+struct ice_aqc_sched_elem_cmd {
 	__le16 num_elem_req;	/* Used by commands */
 	__le16 num_elem_resp;	/* Used by responses */
 	__le32 reserved;
@@ -672,18 +677,6 @@ struct ice_aqc_get_cfg_elem {
  */
 struct ice_aqc_suspend_resume_elem {
 	__le32 teid[1];
-};
-
-/* Add TSE (indirect 0x0401)
- * Delete TSE (indirect 0x040F)
- * Move TSE (indirect 0x0408)
- */
-struct ice_aqc_add_move_delete_elem {
-	__le16 num_grps_req;
-	__le16 num_grps_updated;
-	__le32 reserved;
-	__le32 addr_high;
-	__le32 addr_low;
 };
 
 struct ice_aqc_elem_info_bw {
@@ -854,11 +847,46 @@ struct ice_aqc_get_phy_caps {
 #define ICE_PHY_TYPE_LOW_40GBASE_KR4		BIT_ULL(33)
 #define ICE_PHY_TYPE_LOW_40G_XLAUI_AOC_ACC	BIT_ULL(34)
 #define ICE_PHY_TYPE_LOW_40G_XLAUI		BIT_ULL(35)
+#define ICE_PHY_TYPE_LOW_50GBASE_CR2		BIT_ULL(36)
+#define ICE_PHY_TYPE_LOW_50GBASE_SR2		BIT_ULL(37)
+#define ICE_PHY_TYPE_LOW_50GBASE_LR2		BIT_ULL(38)
+#define ICE_PHY_TYPE_LOW_50GBASE_KR2		BIT_ULL(39)
+#define ICE_PHY_TYPE_LOW_50G_LAUI2_AOC_ACC	BIT_ULL(40)
+#define ICE_PHY_TYPE_LOW_50G_LAUI2		BIT_ULL(41)
+#define ICE_PHY_TYPE_LOW_50G_AUI2_AOC_ACC	BIT_ULL(42)
+#define ICE_PHY_TYPE_LOW_50G_AUI2		BIT_ULL(43)
+#define ICE_PHY_TYPE_LOW_50GBASE_CP		BIT_ULL(44)
+#define ICE_PHY_TYPE_LOW_50GBASE_SR		BIT_ULL(45)
+#define ICE_PHY_TYPE_LOW_50GBASE_FR		BIT_ULL(46)
+#define ICE_PHY_TYPE_LOW_50GBASE_LR		BIT_ULL(47)
+#define ICE_PHY_TYPE_LOW_50GBASE_KR_PAM4	BIT_ULL(48)
+#define ICE_PHY_TYPE_LOW_50G_AUI1_AOC_ACC	BIT_ULL(49)
+#define ICE_PHY_TYPE_LOW_50G_AUI1		BIT_ULL(50)
+#define ICE_PHY_TYPE_LOW_100GBASE_CR4		BIT_ULL(51)
+#define ICE_PHY_TYPE_LOW_100GBASE_SR4		BIT_ULL(52)
+#define ICE_PHY_TYPE_LOW_100GBASE_LR4		BIT_ULL(53)
+#define ICE_PHY_TYPE_LOW_100GBASE_KR4		BIT_ULL(54)
+#define ICE_PHY_TYPE_LOW_100G_CAUI4_AOC_ACC	BIT_ULL(55)
+#define ICE_PHY_TYPE_LOW_100G_CAUI4		BIT_ULL(56)
+#define ICE_PHY_TYPE_LOW_100G_AUI4_AOC_ACC	BIT_ULL(57)
+#define ICE_PHY_TYPE_LOW_100G_AUI4		BIT_ULL(58)
+#define ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4	BIT_ULL(59)
+#define ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4	BIT_ULL(60)
+#define ICE_PHY_TYPE_LOW_100GBASE_CP2		BIT_ULL(61)
+#define ICE_PHY_TYPE_LOW_100GBASE_SR2		BIT_ULL(62)
+#define ICE_PHY_TYPE_LOW_100GBASE_DR		BIT_ULL(63)
 #define ICE_PHY_TYPE_LOW_MAX_INDEX		63
+/* The second set of defines is for phy_type_high. */
+#define ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4	BIT_ULL(0)
+#define ICE_PHY_TYPE_HIGH_100G_CAUI2_AOC_ACC	BIT_ULL(1)
+#define ICE_PHY_TYPE_HIGH_100G_CAUI2		BIT_ULL(2)
+#define ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC	BIT_ULL(3)
+#define ICE_PHY_TYPE_HIGH_100G_AUI2		BIT_ULL(4)
+#define ICE_PHY_TYPE_HIGH_MAX_INDEX		19
 
 struct ice_aqc_get_phy_caps_data {
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 reserved;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 	u8 caps;
 #define ICE_AQC_PHY_EN_TX_LINK_PAUSE			BIT(0)
 #define ICE_AQC_PHY_EN_RX_LINK_PAUSE			BIT(1)
@@ -923,7 +951,7 @@ struct ice_aqc_set_phy_cfg {
 /* Set PHY config command data structure */
 struct ice_aqc_set_phy_cfg_data {
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 rsvd0;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 	u8 caps;
 #define ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY		BIT(0)
 #define ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY		BIT(1)
@@ -1032,10 +1060,12 @@ struct ice_aqc_get_link_status_data {
 #define ICE_AQ_LINK_SPEED_20GB		BIT(6)
 #define ICE_AQ_LINK_SPEED_25GB		BIT(7)
 #define ICE_AQ_LINK_SPEED_40GB		BIT(8)
+#define ICE_AQ_LINK_SPEED_50GB		BIT(9)
+#define ICE_AQ_LINK_SPEED_100GB		BIT(10)
 #define ICE_AQ_LINK_SPEED_UNKNOWN	BIT(15)
 	__le32 reserved3; /* Aligns next field to 8-byte boundary */
 	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
-	__le64 reserved4;
+	__le64 phy_type_high; /* Use values from ICE_PHY_TYPE_HIGH_* */
 };
 
 /* Set event mask command (direct 0x0613) */
@@ -1053,6 +1083,16 @@ struct ice_aqc_set_event_mask {
 #define ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL	BIT(8)
 #define ICE_AQ_LINK_EVENT_PORT_TX_SUSPENDED	BIT(9)
 	u8	reserved1[6];
+};
+
+/* Set Port Identification LED (direct, 0x06E9) */
+struct ice_aqc_set_port_id_led {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 ident_mode;
+#define ICE_AQC_PORT_IDENT_LED_BLINK	BIT(0)
+#define ICE_AQC_PORT_IDENT_LED_ORIG	0
+	u8 rsvd[13];
 };
 
 /* NVM Read command (indirect 0x0701)
@@ -1341,12 +1381,12 @@ struct ice_aq_desc {
 		struct ice_aqc_get_phy_caps get_phy;
 		struct ice_aqc_set_phy_cfg set_phy;
 		struct ice_aqc_restart_an restart_an;
+		struct ice_aqc_set_port_id_led set_port_id_led;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
 		struct ice_aqc_sw_rules sw_rules;
 		struct ice_aqc_get_topo get_topo;
-		struct ice_aqc_get_cfg_elem get_update_elem;
+		struct ice_aqc_sched_elem_cmd sched_elem_cmd;
 		struct ice_aqc_query_txsched_res query_sched_res;
-		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
 		struct ice_aqc_nvm nvm;
 		struct ice_aqc_pf_vf_msg virt;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
@@ -1442,6 +1482,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_restart_an				= 0x0605,
 	ice_aqc_opc_get_link_status			= 0x0607,
 	ice_aqc_opc_set_event_mask			= 0x0613,
+	ice_aqc_opc_set_port_id_led			= 0x06E9,
 
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,

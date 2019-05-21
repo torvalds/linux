@@ -302,7 +302,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb,
 	skb_set_inner_ipproto(skb, ipproto);
 
 	if (tunnel->collect_md)
-		ip_md_tunnel_xmit(skb, dev, ipproto);
+		ip_md_tunnel_xmit(skb, dev, ipproto, 0);
 	else
 		ip_tunnel_xmit(skb, dev, tiph, ipproto);
 	return NETDEV_TX_OK;

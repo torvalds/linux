@@ -1218,23 +1218,17 @@ DEFINE_EVENT(xfs_readpage_class, name,	\
 DEFINE_READPAGE_EVENT(xfs_vm_readpage);
 DEFINE_READPAGE_EVENT(xfs_vm_readpages);
 
-TRACE_DEFINE_ENUM(XFS_IO_HOLE);
-TRACE_DEFINE_ENUM(XFS_IO_DELALLOC);
-TRACE_DEFINE_ENUM(XFS_IO_UNWRITTEN);
-TRACE_DEFINE_ENUM(XFS_IO_OVERWRITE);
-TRACE_DEFINE_ENUM(XFS_IO_COW);
-
 DECLARE_EVENT_CLASS(xfs_imap_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
-		 int type, struct xfs_bmbt_irec *irec),
-	TP_ARGS(ip, offset, count, type, irec),
+		 int whichfork, struct xfs_bmbt_irec *irec),
+	TP_ARGS(ip, offset, count, whichfork, irec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
 		__field(loff_t, size)
 		__field(loff_t, offset)
 		__field(size_t, count)
-		__field(int, type)
+		__field(int, whichfork)
 		__field(xfs_fileoff_t, startoff)
 		__field(xfs_fsblock_t, startblock)
 		__field(xfs_filblks_t, blockcount)
@@ -1245,33 +1239,33 @@ DECLARE_EVENT_CLASS(xfs_imap_class,
 		__entry->size = ip->i_d.di_size;
 		__entry->offset = offset;
 		__entry->count = count;
-		__entry->type = type;
+		__entry->whichfork = whichfork;
 		__entry->startoff = irec ? irec->br_startoff : 0;
 		__entry->startblock = irec ? irec->br_startblock : 0;
 		__entry->blockcount = irec ? irec->br_blockcount : 0;
 	),
 	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset 0x%llx count %zd "
-		  "type %s startoff 0x%llx startblock %lld blockcount 0x%llx",
+		  "fork %s startoff 0x%llx startblock %lld blockcount 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->size,
 		  __entry->offset,
 		  __entry->count,
-		  __print_symbolic(__entry->type, XFS_IO_TYPES),
+		  __entry->whichfork == XFS_COW_FORK ? "cow" : "data",
 		  __entry->startoff,
 		  (int64_t)__entry->startblock,
 		  __entry->blockcount)
 )
 
-#define DEFINE_IOMAP_EVENT(name)	\
+#define DEFINE_IMAP_EVENT(name)	\
 DEFINE_EVENT(xfs_imap_class, name,	\
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,	\
-		 int type, struct xfs_bmbt_irec *irec),		\
-	TP_ARGS(ip, offset, count, type, irec))
-DEFINE_IOMAP_EVENT(xfs_map_blocks_found);
-DEFINE_IOMAP_EVENT(xfs_map_blocks_alloc);
-DEFINE_IOMAP_EVENT(xfs_iomap_alloc);
-DEFINE_IOMAP_EVENT(xfs_iomap_found);
+		 int whichfork, struct xfs_bmbt_irec *irec),		\
+	TP_ARGS(ip, offset, count, whichfork, irec))
+DEFINE_IMAP_EVENT(xfs_map_blocks_found);
+DEFINE_IMAP_EVENT(xfs_map_blocks_alloc);
+DEFINE_IMAP_EVENT(xfs_iomap_alloc);
+DEFINE_IMAP_EVENT(xfs_iomap_found);
 
 DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count),
@@ -3078,7 +3072,7 @@ DEFINE_EVENT(xfs_inode_irec_class, name, \
 DEFINE_INODE_EVENT(xfs_reflink_set_inode_flag);
 DEFINE_INODE_EVENT(xfs_reflink_unset_inode_flag);
 DEFINE_ITRUNC_EVENT(xfs_reflink_update_inode_size);
-DEFINE_IOMAP_EVENT(xfs_reflink_remap_imap);
+DEFINE_IMAP_EVENT(xfs_reflink_remap_imap);
 TRACE_EVENT(xfs_reflink_remap_blocks_loop,
 	TP_PROTO(struct xfs_inode *src, xfs_fileoff_t soffset,
 		 xfs_filblks_t len, struct xfs_inode *dest,
@@ -3202,12 +3196,9 @@ DEFINE_INODE_ERROR_EVENT(xfs_reflink_unshare_error);
 
 /* copy on write */
 DEFINE_INODE_IREC_EVENT(xfs_reflink_trim_around_shared);
-DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_alloc);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_found);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_enospc);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_convert_cow);
-
-DEFINE_RW_EVENT(xfs_reflink_reserve_cow);
 
 DEFINE_SIMPLE_IO_EVENT(xfs_reflink_bounce_dio_write);
 
@@ -3370,6 +3361,84 @@ DEFINE_TRANS_EVENT(xfs_trans_free);
 DEFINE_TRANS_EVENT(xfs_trans_roll);
 DEFINE_TRANS_EVENT(xfs_trans_add_item);
 DEFINE_TRANS_EVENT(xfs_trans_free_items);
+
+TRACE_EVENT(xfs_iunlink_update_bucket,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, unsigned int bucket,
+		 xfs_agino_t old_ptr, xfs_agino_t new_ptr),
+	TP_ARGS(mp, agno, bucket, old_ptr, new_ptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, old_ptr)
+		__field(xfs_agino_t, new_ptr)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->bucket = bucket;
+		__entry->old_ptr = old_ptr;
+		__entry->new_ptr = new_ptr;
+	),
+	TP_printk("dev %d:%d agno %u bucket %u old 0x%x new 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->old_ptr,
+		  __entry->new_ptr)
+);
+
+TRACE_EVENT(xfs_iunlink_update_dinode,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agino_t agino,
+		 xfs_agino_t old_ptr, xfs_agino_t new_ptr),
+	TP_ARGS(mp, agno, agino, old_ptr, new_ptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, old_ptr)
+		__field(xfs_agino_t, new_ptr)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->agino = agino;
+		__entry->old_ptr = old_ptr;
+		__entry->new_ptr = new_ptr;
+	),
+	TP_printk("dev %d:%d agno %u agino 0x%x old 0x%x new 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino,
+		  __entry->old_ptr,
+		  __entry->new_ptr)
+);
+
+DECLARE_EVENT_CLASS(xfs_ag_inode_class,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+	),
+	TP_printk("dev %d:%d agno %u agino %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno, __entry->agino)
+)
+
+#define DEFINE_AGINODE_EVENT(name) \
+DEFINE_EVENT(xfs_ag_inode_class, name, \
+	TP_PROTO(struct xfs_inode *ip), \
+	TP_ARGS(ip))
+DEFINE_AGINODE_EVENT(xfs_iunlink);
+DEFINE_AGINODE_EVENT(xfs_iunlink_remove);
+DEFINE_AG_EVENT(xfs_iunlink_map_prev_fallback);
 
 #endif /* _TRACE_XFS_H */
 

@@ -35,13 +35,12 @@ extern void debug_dma_map_single(struct device *dev, const void *addr,
 
 extern void debug_dma_map_page(struct device *dev, struct page *page,
 			       size_t offset, size_t size,
-			       int direction, dma_addr_t dma_addr,
-			       bool map_single);
+			       int direction, dma_addr_t dma_addr);
 
 extern void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 extern void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
-				 size_t size, int direction, bool map_single);
+				 size_t size, int direction);
 
 extern void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 			     int nents, int mapped_ents, int direction);
@@ -95,8 +94,7 @@ static inline void debug_dma_map_single(struct device *dev, const void *addr,
 
 static inline void debug_dma_map_page(struct device *dev, struct page *page,
 				      size_t offset, size_t size,
-				      int direction, dma_addr_t dma_addr,
-				      bool map_single)
+				      int direction, dma_addr_t dma_addr)
 {
 }
 
@@ -106,8 +104,7 @@ static inline void debug_dma_mapping_error(struct device *dev,
 }
 
 static inline void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
-					size_t size, int direction,
-					bool map_single)
+					size_t size, int direction)
 {
 }
 

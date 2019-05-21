@@ -120,8 +120,8 @@ account_global_scheduler_latency(struct task_struct *tsk,
 				break;
 			}
 
-			/* 0 and ULONG_MAX entries mean end of backtrace: */
-			if (record == 0 || record == ULONG_MAX)
+			/* 0 entry marks end of backtrace: */
+			if (!record)
 				break;
 		}
 		if (same) {
@@ -139,20 +139,6 @@ account_global_scheduler_latency(struct task_struct *tsk,
 
 	/* Allocted a new one: */
 	memcpy(&latency_record[i], lat, sizeof(struct latency_record));
-}
-
-/*
- * Iterator to store a backtrace into a latency record entry
- */
-static inline void store_stacktrace(struct task_struct *tsk,
-					struct latency_record *lat)
-{
-	struct stack_trace trace;
-
-	memset(&trace, 0, sizeof(trace));
-	trace.max_entries = LT_BACKTRACEDEPTH;
-	trace.entries = &lat->backtrace[0];
-	save_stack_trace_tsk(tsk, &trace);
 }
 
 /**
@@ -191,7 +177,8 @@ __account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 	lat.count = 1;
 	lat.time = usecs;
 	lat.max = usecs;
-	store_stacktrace(tsk, &lat);
+
+	stack_trace_save_tsk(tsk, lat.backtrace, LT_BACKTRACEDEPTH, 0);
 
 	raw_spin_lock_irqsave(&latency_lock, flags);
 
@@ -210,8 +197,8 @@ __account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 				break;
 			}
 
-			/* 0 and ULONG_MAX entries mean end of backtrace: */
-			if (record == 0 || record == ULONG_MAX)
+			/* 0 entry is end of backtrace */
+			if (!record)
 				break;
 		}
 		if (same) {
@@ -252,10 +239,10 @@ static int lstats_show(struct seq_file *m, void *v)
 				   lr->count, lr->time, lr->max);
 			for (q = 0; q < LT_BACKTRACEDEPTH; q++) {
 				unsigned long bt = lr->backtrace[q];
+
 				if (!bt)
 					break;
-				if (bt == ULONG_MAX)
-					break;
+
 				seq_printf(m, " %ps", (void *)bt);
 			}
 			seq_puts(m, "\n");

@@ -512,7 +512,7 @@ static void __exit pcrypt_exit(void)
 	crypto_unregister_template(&pcrypt_tmpl);
 }
 
-module_init(pcrypt_init);
+subsys_initcall(pcrypt_init);
 module_exit(pcrypt_exit);
 
 MODULE_LICENSE("GPL");

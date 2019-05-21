@@ -18,6 +18,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>
+#include <linux/kmemleak.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -40,6 +41,8 @@
 #include <linux/log2.h>
 #include <linux/inetdevice.h>
 #include <net/addrconf.h>
+
+#include <trace/events/neigh.h>
 
 #define DEBUG
 #define NEIGH_DEBUG 1
@@ -101,6 +104,7 @@ static void neigh_cleanup_and_release(struct neighbour *neigh)
 	if (neigh->parms->neigh_cleanup)
 		neigh->parms->neigh_cleanup(neigh);
 
+	trace_neigh_cleanup_and_release(neigh, 0);
 	__neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	neigh_release(neigh);
@@ -443,12 +447,14 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	ret = kmalloc(sizeof(*ret), GFP_ATOMIC);
 	if (!ret)
 		return NULL;
-	if (size <= PAGE_SIZE)
+	if (size <= PAGE_SIZE) {
 		buckets = kzalloc(size, GFP_ATOMIC);
-	else
+	} else {
 		buckets = (struct neighbour __rcu **)
 			  __get_free_pages(GFP_ATOMIC | __GFP_ZERO,
 					   get_order(size));
+		kmemleak_alloc(buckets, size, 1, GFP_ATOMIC);
+	}
 	if (!buckets) {
 		kfree(ret);
 		return NULL;
@@ -468,10 +474,12 @@ static void neigh_hash_free_rcu(struct rcu_head *head)
 	size_t size = (1 << nht->hash_shift) * sizeof(struct neighbour *);
 	struct neighbour __rcu **buckets = nht->hash_buckets;
 
-	if (size <= PAGE_SIZE)
+	if (size <= PAGE_SIZE) {
 		kfree(buckets);
-	else
+	} else {
+		kmemleak_free(buckets);
 		free_pages((unsigned long)buckets, get_order(size));
+	}
 	kfree(nht);
 }
 
@@ -1002,7 +1010,7 @@ static void neigh_probe(struct neighbour *neigh)
 	if (neigh->ops->solicit)
 		neigh->ops->solicit(neigh, skb);
 	atomic_inc(&neigh->probes);
-	kfree_skb(skb);
+	consume_skb(skb);
 }
 
 /* Called when a timer expires for a neighbour entry. */
@@ -1090,6 +1098,8 @@ out:
 	if (notify)
 		neigh_update_notify(neigh, 0);
 
+	trace_neigh_timer_handler(neigh, 0);
+
 	neigh_release(neigh);
 }
 
@@ -1160,6 +1170,7 @@ out_unlock_bh:
 	else
 		write_unlock(&neigh->lock);
 	local_bh_enable();
+	trace_neigh_event_send_done(neigh, rc);
 	return rc;
 
 out_dead:
@@ -1167,6 +1178,7 @@ out_dead:
 		goto out_unlock_bh;
 	write_unlock_bh(&neigh->lock);
 	kfree_skb(skb);
+	trace_neigh_event_send_dead(neigh, 1);
 	return 1;
 }
 EXPORT_SYMBOL(__neigh_event_send);
@@ -1221,6 +1233,8 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 	int notify = 0;
 	struct net_device *dev;
 	int update_isrouter = 0;
+
+	trace_neigh_update(neigh, lladdr, new, flags, nlmsg_pid);
 
 	write_lock_bh(&neigh->lock);
 
@@ -1387,6 +1401,8 @@ out:
 
 	if (notify)
 		neigh_update_notify(neigh, nlmsg_pid);
+
+	trace_neigh_update_done(neigh, err);
 
 	return err;
 }

@@ -16,6 +16,8 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/cpu_device_id.h>
+#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
@@ -23,6 +25,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include "../../codecs/hdac_hdmi.h"
 #include "../../codecs/da7219.h"
 #include "../../codecs/da7219-aad.h"
@@ -48,6 +51,7 @@ struct bxt_card_private {
 enum {
 	BXT_DPCM_AUDIO_PB = 0,
 	BXT_DPCM_AUDIO_CP,
+	BXT_DPCM_AUDIO_HS_PB,
 	BXT_DPCM_AUDIO_REF_CP,
 	BXT_DPCM_AUDIO_DMIC_CP,
 	BXT_DPCM_AUDIO_HDMI1_PB,
@@ -102,7 +106,7 @@ static const struct snd_soc_dapm_widget broxton_widgets[] = {
 			platform_clock_control,	SND_SOC_DAPM_POST_PMD|SND_SOC_DAPM_PRE_PMU),
 };
 
-static const struct snd_soc_dapm_route broxton_map[] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
 	{"Headphone Jack", NULL, "HPL"},
 	{"Headphone Jack", NULL, "HPR"},
@@ -117,15 +121,6 @@ static const struct snd_soc_dapm_route broxton_map[] = {
 	{"DMic", NULL, "SoC DMIC"},
 
 	/* CODEC BE connections */
-	{"HiFi Playback", NULL, "ssp5 Tx"},
-	{"ssp5 Tx", NULL, "codec0_out"},
-
-	{"Playback", NULL, "ssp1 Tx"},
-	{"ssp1 Tx", NULL, "codec1_out"},
-
-	{"codec0_in", NULL, "ssp1 Rx"},
-	{"ssp1 Rx", NULL, "Capture"},
-
 	{"HDMI1", NULL, "hif5-0 Output"},
 	{"HDMI2", NULL, "hif6-0 Output"},
 	{"HDMI2", NULL, "hif7-0 Output"},
@@ -143,6 +138,28 @@ static const struct snd_soc_dapm_route broxton_map[] = {
 
 	{ "Headphone Jack", NULL, "Platform Clock" },
 	{ "Headset Mic", NULL, "Platform Clock" },
+};
+
+static const struct snd_soc_dapm_route broxton_map[] = {
+	{"HiFi Playback", NULL, "ssp5 Tx"},
+	{"ssp5 Tx", NULL, "codec0_out"},
+
+	{"Playback", NULL, "ssp1 Tx"},
+	{"ssp1 Tx", NULL, "codec1_out"},
+
+	{"codec0_in", NULL, "ssp1 Rx"},
+	{"ssp1 Rx", NULL, "Capture"},
+};
+
+static const struct snd_soc_dapm_route gemini_map[] = {
+	{"HiFi Playback", NULL, "ssp1 Tx"},
+	{"ssp1 Tx", NULL, "codec0_out"},
+
+	{"Playback", NULL, "ssp2 Tx"},
+	{"ssp2 Tx", NULL, "codec1_out"},
+
+	{"codec0_in", NULL, "ssp2 Rx"},
+	{"ssp2 Rx", NULL, "Capture"},
 };
 
 static int broxton_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -191,6 +208,12 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(rtd->dev, "Headset Jack creation failed: %d\n", ret);
 		return ret;
 	}
+
+	snd_jack_set_key(broxton_headset.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
+	snd_jack_set_key(broxton_headset.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
+	snd_jack_set_key(broxton_headset.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
+	snd_jack_set_key(broxton_headset.jack, SND_JACK_BTN_3,
+			 KEY_VOICECOMMAND);
 
 	da7219_aad_jack_det(component, &broxton_headset);
 
@@ -383,6 +406,20 @@ static struct snd_soc_dai_link broxton_dais[] = {
 		.dpcm_capture = 1,
 		.ops = &broxton_da7219_fe_ops,
 	},
+	[BXT_DPCM_AUDIO_HS_PB] = {
+		.name = "Bxt Audio Headset Playback",
+		.stream_name = "Headset Playback",
+		.cpu_dai_name = "System Pin2",
+		.platform_name = "0000:00:0e.0",
+		.dynamic = 1,
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.nonatomic = 1,
+		.trigger = {
+			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.dpcm_playback = 1,
+		.ops = &broxton_da7219_fe_ops,
+	},
 	[BXT_DPCM_AUDIO_REF_CP] =
 	{
 		.name = "Bxt Audio Reference cap",
@@ -531,6 +568,11 @@ static struct snd_soc_dai_link broxton_dais[] = {
 	},
 };
 
+static const struct x86_cpu_id glk_ids[] = {
+	{ X86_VENDOR_INTEL, 6, 0x7A }, /* Geminilake CPU_ID */
+	{}
+};
+
 #define NAME_SIZE	32
 static int bxt_card_late_probe(struct snd_soc_card *card)
 {
@@ -539,6 +581,13 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 	struct snd_soc_component *component = NULL;
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
+
+	if (x86_match_cpu(glk_ids))
+		snd_soc_dapm_add_routes(&card->dapm, gemini_map,
+					ARRAY_SIZE(gemini_map));
+	else
+		snd_soc_dapm_add_routes(&card->dapm, broxton_map,
+					ARRAY_SIZE(broxton_map));
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
 		component = pcm->codec_dai->component;
@@ -575,8 +624,8 @@ static struct snd_soc_card broxton_audio_card = {
 	.num_controls = ARRAY_SIZE(broxton_controls),
 	.dapm_widgets = broxton_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(broxton_widgets),
-	.dapm_routes = broxton_map,
-	.num_dapm_routes = ARRAY_SIZE(broxton_map),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 	.fully_routed = true,
 	.late_probe = bxt_card_late_probe,
 };
@@ -584,6 +633,9 @@ static struct snd_soc_card broxton_audio_card = {
 static int broxton_audio_probe(struct platform_device *pdev)
 {
 	struct bxt_card_private *ctx;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
+	int ret;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -593,9 +645,44 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 	broxton_audio_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&broxton_audio_card, ctx);
+	if (x86_match_cpu(glk_ids)) {
+		unsigned int i;
+
+		broxton_audio_card.name = "glkda7219max";
+		/* Fixup the SSP entries for geminilake */
+		for (i = 0; i < ARRAY_SIZE(broxton_dais); i++) {
+			/* MAXIM_CODEC is connected to SSP1. */
+			if (!strcmp(broxton_dais[i].codec_dai_name,
+				    BXT_MAXIM_CODEC_DAI)) {
+				broxton_dais[i].name = "SSP1-Codec";
+				broxton_dais[i].cpu_dai_name = "SSP1 Pin";
+			}
+			/* DIALOG_CODE is connected to SSP2 */
+			else if (!strcmp(broxton_dais[i].codec_dai_name,
+					 BXT_DIALOG_CODEC_DAI)) {
+				broxton_dais[i].name = "SSP2-Codec";
+				broxton_dais[i].cpu_dai_name = "SSP2 Pin";
+			}
+		}
+	}
+
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
+
+	ret = snd_soc_fixup_dai_links_platform_name(&broxton_audio_card,
+						    platform_name);
+	if (ret)
+		return ret;
 
 	return devm_snd_soc_register_card(&pdev->dev, &broxton_audio_card);
 }
+
+static const struct platform_device_id bxt_board_ids[] = {
+	{ .name = "bxt_da7219_max98357a" },
+	{ .name = "glk_da7219_max98357a" },
+	{ }
+};
 
 static struct platform_driver broxton_audio = {
 	.probe = broxton_audio_probe,
@@ -603,6 +690,7 @@ static struct platform_driver broxton_audio = {
 		.name = "bxt_da7219_max98357a",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = bxt_board_ids,
 };
 module_platform_driver(broxton_audio)
 
@@ -612,5 +700,7 @@ MODULE_AUTHOR("Sathyanarayana Nujella <sathyanarayana.nujella@intel.com>");
 MODULE_AUTHOR("Rohit Ainapure <rohit.m.ainapure@intel.com>");
 MODULE_AUTHOR("Harsha Priya <harshapriya.n@intel.com>");
 MODULE_AUTHOR("Conrad Cooke <conrad.cooke@intel.com>");
+MODULE_AUTHOR("Naveen Manohar <naveen.m@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:bxt_da7219_max98357a");
+MODULE_ALIAS("platform:glk_da7219_max98357a");

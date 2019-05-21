@@ -11,7 +11,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <setjmp.h>
-#include <signal.h>
 
 #include "ebb.h"
 

@@ -47,7 +47,7 @@ static int __init warp_probe(void)
 	if (!of_machine_is_compatible("pika,warp"))
 		return 0;
 
-	/* For __dma_nommu_alloc_coherent */
+	/* For arch_dma_alloc */
 	ISA_DMA_THRESHOLD = ~0L;
 
 	return 1;

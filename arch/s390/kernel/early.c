@@ -30,6 +30,7 @@
 #include <asm/sclp.h>
 #include <asm/facility.h>
 #include <asm/boot_data.h>
+#include <asm/pci_insn.h>
 #include "entry.h"
 
 /*
@@ -63,10 +64,10 @@ static noinline __init void detect_machine_type(void)
 	if (stsi(vmms, 3, 2, 2) || !vmms->count)
 		return;
 
-	/* Running under KVM? If not we assume z/VM */
+	/* Detect known hypervisors */
 	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
-	else
+	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
@@ -138,9 +139,9 @@ static void early_pgm_check_handler(void)
 	unsigned long addr;
 
 	addr = S390_lowcore.program_old_psw.addr;
-	fixup = search_exception_tables(addr);
+	fixup = s390_search_extables(addr);
 	if (!fixup)
-		disabled_wait(0);
+		disabled_wait();
 	/* Disable low address protection before storing into lowcore. */
 	__ctl_store(cr0, 0, 0);
 	cr0_new = cr0 & ~(1UL << 28);
@@ -164,8 +165,6 @@ static noinline __init void setup_lowcore_early(void)
 
 static noinline __init void setup_facility_list(void)
 {
-	stfle(S390_lowcore.stfle_fac_list,
-	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	memcpy(S390_lowcore.alt_stfle_fac_list,
 	       S390_lowcore.stfle_fac_list,
 	       sizeof(S390_lowcore.alt_stfle_fac_list));
@@ -237,6 +236,7 @@ static __init void detect_machine_facilities(void)
 		clock_comparator_max = -1ULL >> 1;
 		__ctl_set_bit(0, 53);
 	}
+	enable_mio_ctl();
 }
 
 static inline void save_vector_registers(void)
@@ -298,7 +298,7 @@ static void __init check_image_bootable(void)
 	sclp_early_printk("Linux kernel boot failure: An attempt to boot a vmlinux ELF image failed.\n");
 	sclp_early_printk("This image does not contain all parts necessary for starting up. Use\n");
 	sclp_early_printk("bzImage or arch/s390/boot/compressed/vmlinux instead.\n");
-	disabled_wait(0xbadb007);
+	disabled_wait();
 }
 
 void __init startup_init(void)
@@ -311,7 +311,6 @@ void __init startup_init(void)
 	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
-	ipl_store_parameters();
 	setup_boot_command_line();
 	detect_diag9c();
 	detect_diag44();

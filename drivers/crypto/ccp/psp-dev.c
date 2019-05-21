@@ -1,7 +1,7 @@
 /*
  * AMD Platform Security Processor (PSP) interface
  *
- * Copyright (C) 2016-2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2018 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  *
@@ -437,6 +437,7 @@ static int sev_get_api_version(void)
 	psp_master->api_major = status->api_major;
 	psp_master->api_minor = status->api_minor;
 	psp_master->build = status->build;
+	psp_master->sev_state = status->state;
 
 	return 0;
 }
@@ -579,6 +580,69 @@ e_free_pek:
 	kfree(pek_blob);
 e_free:
 	kfree(data);
+	return ret;
+}
+
+static int sev_ioctl_do_get_id2(struct sev_issue_cmd *argp)
+{
+	struct sev_user_data_get_id2 input;
+	struct sev_data_get_id *data;
+	void *id_blob = NULL;
+	int ret;
+
+	/* SEV GET_ID is available from SEV API v0.16 and up */
+	if (!SEV_VERSION_GREATER_OR_EQUAL(0, 16))
+		return -ENOTSUPP;
+
+	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
+		return -EFAULT;
+
+	/* Check if we have write access to the userspace buffer */
+	if (input.address &&
+	    input.length &&
+	    !access_ok(input.address, input.length))
+		return -EFAULT;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	if (input.address && input.length) {
+		id_blob = kmalloc(input.length, GFP_KERNEL);
+		if (!id_blob) {
+			kfree(data);
+			return -ENOMEM;
+		}
+
+		data->address = __psp_pa(id_blob);
+		data->len = input.length;
+	}
+
+	ret = __sev_do_cmd_locked(SEV_CMD_GET_ID, data, &argp->error);
+
+	/*
+	 * Firmware will return the length of the ID value (either the minimum
+	 * required length or the actual length written), return it to the user.
+	 */
+	input.length = data->len;
+
+	if (copy_to_user((void __user *)argp->data, &input, sizeof(input))) {
+		ret = -EFAULT;
+		goto e_free;
+	}
+
+	if (id_blob) {
+		if (copy_to_user((void __user *)input.address,
+				 id_blob, data->len)) {
+			ret = -EFAULT;
+			goto e_free;
+		}
+	}
+
+e_free:
+	kfree(id_blob);
+	kfree(data);
+
 	return ret;
 }
 
@@ -760,7 +824,11 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 		ret = sev_ioctl_do_pdh_export(&input);
 		break;
 	case SEV_GET_ID:
+		pr_warn_once("SEV_GET_ID command is deprecated, use SEV_GET_ID2\n");
 		ret = sev_ioctl_do_get_id(&input);
+		break;
+	case SEV_GET_ID2:
+		ret = sev_ioctl_do_get_id2(&input);
 		break;
 	default:
 		ret = -EINVAL;
@@ -857,15 +925,15 @@ static int sev_misc_init(struct psp_device *psp)
 	return 0;
 }
 
-static int sev_init(struct psp_device *psp)
+static int psp_check_sev_support(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
 	if (!(ioread32(psp->io_regs + psp->vdata->feature_reg) & 1)) {
-		dev_dbg(psp->dev, "device does not support SEV\n");
-		return 1;
+		dev_dbg(psp->dev, "psp does not support SEV\n");
+		return -ENODEV;
 	}
 
-	return sev_misc_init(psp);
+	return 0;
 }
 
 int psp_dev_init(struct sp_device *sp)
@@ -890,6 +958,10 @@ int psp_dev_init(struct sp_device *sp)
 
 	psp->io_regs = sp->io_map;
 
+	ret = psp_check_sev_support(psp);
+	if (ret)
+		goto e_disable;
+
 	/* Disable and clear interrupts until ready */
 	iowrite32(0, psp->io_regs + psp->vdata->inten_reg);
 	iowrite32(-1, psp->io_regs + psp->vdata->intsts_reg);
@@ -901,7 +973,7 @@ int psp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	ret = sev_init(psp);
+	ret = sev_misc_init(psp);
 	if (ret)
 		goto e_irq;
 
@@ -921,6 +993,11 @@ e_err:
 	sp->psp_data = NULL;
 
 	dev_notice(dev, "psp initialization failed\n");
+
+	return ret;
+
+e_disable:
+	sp->psp_data = NULL;
 
 	return ret;
 }
@@ -964,6 +1041,21 @@ void psp_pci_init(void)
 	if (sev_get_api_version())
 		goto err;
 
+	/*
+	 * If platform is not in UNINIT state then firmware upgrade and/or
+	 * platform INIT command will fail. These command require UNINIT state.
+	 *
+	 * In a normal boot we should never run into case where the firmware
+	 * is not in UNINIT state on boot. But in case of kexec boot, a reboot
+	 * may not go through a typical shutdown sequence and may leave the
+	 * firmware in INIT or WORKING state.
+	 */
+
+	if (psp_master->sev_state != SEV_STATE_UNINIT) {
+		sev_platform_shutdown(NULL);
+		psp_master->sev_state = SEV_STATE_UNINIT;
+	}
+
 	if (SEV_VERSION_GREATER_OR_EQUAL(0, 15) &&
 	    sev_update_firmware(psp_master->dev) == 0)
 		sev_get_api_version();
@@ -972,7 +1064,7 @@ void psp_pci_init(void)
 	rc = sev_platform_init(&error);
 	if (rc) {
 		dev_err(sp->dev, "SEV: failed to INIT error %#x\n", error);
-		goto err;
+		return;
 	}
 
 	dev_info(sp->dev, "SEV API:%d.%d build:%d\n", psp_master->api_major,

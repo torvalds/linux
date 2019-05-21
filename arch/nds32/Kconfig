@@ -5,6 +5,7 @@
 
 config NDS32
         def_bool y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_WANT_FRAME_POINTERS if FTRACE
@@ -58,9 +59,6 @@ config GENERIC_HWEIGHT
 config GENERIC_LOCKBREAK
         def_bool y
 	depends on PREEMPT
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y

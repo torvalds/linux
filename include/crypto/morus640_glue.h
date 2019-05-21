@@ -1,15 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * The MORUS-640 Authenticated-Encryption Algorithm
  *   Common glue skeleton -- header file
  *
  * Copyright (c) 2016-2018 Ondrej Mosnacek <omosnacek@gmail.com>
  * Copyright (C) 2017-2018 Red Hat, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #ifndef _CRYPTO_MORUS640_GLUE_H
@@ -52,16 +47,7 @@ int crypto_morus640_glue_setauthsize(struct crypto_aead *tfm,
 int crypto_morus640_glue_encrypt(struct aead_request *req);
 int crypto_morus640_glue_decrypt(struct aead_request *req);
 
-int cryptd_morus640_glue_setkey(struct crypto_aead *aead, const u8 *key,
-				unsigned int keylen);
-int cryptd_morus640_glue_setauthsize(struct crypto_aead *aead,
-				     unsigned int authsize);
-int cryptd_morus640_glue_encrypt(struct aead_request *req);
-int cryptd_morus640_glue_decrypt(struct aead_request *req);
-int cryptd_morus640_glue_init_tfm(struct crypto_aead *aead);
-void cryptd_morus640_glue_exit_tfm(struct crypto_aead *aead);
-
-#define MORUS640_DECLARE_ALGS(id, driver_name, priority) \
+#define MORUS640_DECLARE_ALG(id, driver_name, priority) \
 	static const struct morus640_glue_ops crypto_morus640_##id##_ops = {\
 		.init = crypto_morus640_##id##_init, \
 		.ad = crypto_morus640_##id##_ad, \
@@ -82,55 +68,29 @@ void cryptd_morus640_glue_exit_tfm(struct crypto_aead *aead);
 	{ \
 	} \
 	\
-	static struct aead_alg crypto_morus640_##id##_algs[] = {\
-		{ \
-			.setkey = crypto_morus640_glue_setkey, \
-			.setauthsize = crypto_morus640_glue_setauthsize, \
-			.encrypt = crypto_morus640_glue_encrypt, \
-			.decrypt = crypto_morus640_glue_decrypt, \
-			.init = crypto_morus640_##id##_init_tfm, \
-			.exit = crypto_morus640_##id##_exit_tfm, \
+	static struct aead_alg crypto_morus640_##id##_alg = {\
+		.setkey = crypto_morus640_glue_setkey, \
+		.setauthsize = crypto_morus640_glue_setauthsize, \
+		.encrypt = crypto_morus640_glue_encrypt, \
+		.decrypt = crypto_morus640_glue_decrypt, \
+		.init = crypto_morus640_##id##_init_tfm, \
+		.exit = crypto_morus640_##id##_exit_tfm, \
+		\
+		.ivsize = MORUS_NONCE_SIZE, \
+		.maxauthsize = MORUS_MAX_AUTH_SIZE, \
+		.chunksize = MORUS640_BLOCK_SIZE, \
+		\
+		.base = { \
+			.cra_flags = CRYPTO_ALG_INTERNAL, \
+			.cra_blocksize = 1, \
+			.cra_ctxsize = sizeof(struct morus640_ctx), \
+			.cra_alignmask = 0, \
+			.cra_priority = priority, \
 			\
-			.ivsize = MORUS_NONCE_SIZE, \
-			.maxauthsize = MORUS_MAX_AUTH_SIZE, \
-			.chunksize = MORUS640_BLOCK_SIZE, \
+			.cra_name = "__morus640", \
+			.cra_driver_name = "__"driver_name, \
 			\
-			.base = { \
-				.cra_flags = CRYPTO_ALG_INTERNAL, \
-				.cra_blocksize = 1, \
-				.cra_ctxsize = sizeof(struct morus640_ctx), \
-				.cra_alignmask = 0, \
-				\
-				.cra_name = "__morus640", \
-				.cra_driver_name = "__"driver_name, \
-				\
-				.cra_module = THIS_MODULE, \
-			} \
-		}, { \
-			.setkey = cryptd_morus640_glue_setkey, \
-			.setauthsize = cryptd_morus640_glue_setauthsize, \
-			.encrypt = cryptd_morus640_glue_encrypt, \
-			.decrypt = cryptd_morus640_glue_decrypt, \
-			.init = cryptd_morus640_glue_init_tfm, \
-			.exit = cryptd_morus640_glue_exit_tfm, \
-			\
-			.ivsize = MORUS_NONCE_SIZE, \
-			.maxauthsize = MORUS_MAX_AUTH_SIZE, \
-			.chunksize = MORUS640_BLOCK_SIZE, \
-			\
-			.base = { \
-				.cra_flags = CRYPTO_ALG_ASYNC, \
-				.cra_blocksize = 1, \
-				.cra_ctxsize = sizeof(struct crypto_aead *), \
-				.cra_alignmask = 0, \
-				\
-				.cra_priority = priority, \
-				\
-				.cra_name = "morus640", \
-				.cra_driver_name = driver_name, \
-				\
-				.cra_module = THIS_MODULE, \
-			} \
+			.cra_module = THIS_MODULE, \
 		} \
 	}
 

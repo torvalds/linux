@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/suspend.h>
+#include <linux/gpio/consumer.h>
 
 #define VDD_LOW_SEL 0x0D
 #define VDD_HIGH_SEL 0x3F
@@ -118,8 +119,6 @@ enum {
  * @lpm: LPM GPIO descriptor
  */
 struct mcp16502 {
-	struct regulator_dev *rdev[NUM_REGULATORS];
-	struct regmap *rmap;
 	struct gpio_desc *lpm;
 };
 
@@ -178,13 +177,12 @@ static unsigned int mcp16502_get_mode(struct regulator_dev *rdev)
 {
 	unsigned int val;
 	int ret, reg;
-	struct mcp16502 *mcp = rdev_get_drvdata(rdev);
 
 	reg = mcp16502_get_reg(rdev, MCP16502_OPMODE_ACTIVE);
 	if (reg < 0)
 		return reg;
 
-	ret = regmap_read(mcp->rmap, reg, &val);
+	ret = regmap_read(rdev->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -210,7 +208,6 @@ static int _mcp16502_set_mode(struct regulator_dev *rdev, unsigned int mode,
 {
 	int val;
 	int reg;
-	struct mcp16502 *mcp = rdev_get_drvdata(rdev);
 
 	reg = mcp16502_get_reg(rdev, op_mode);
 	if (reg < 0)
@@ -227,7 +224,7 @@ static int _mcp16502_set_mode(struct regulator_dev *rdev, unsigned int mode,
 		return -EINVAL;
 	}
 
-	reg = regmap_update_bits(mcp->rmap, reg, MCP16502_MODE, val);
+	reg = regmap_update_bits(rdev->regmap, reg, MCP16502_MODE, val);
 	return reg;
 }
 
@@ -246,9 +243,8 @@ static int mcp16502_get_status(struct regulator_dev *rdev)
 {
 	int ret;
 	unsigned int val;
-	struct mcp16502 *mcp = rdev_get_drvdata(rdev);
 
-	ret = regmap_read(mcp->rmap, MCP16502_STAT_BASE(rdev_get_id(rdev)),
+	ret = regmap_read(rdev->regmap, MCP16502_STAT_BASE(rdev_get_id(rdev)),
 			  &val);
 	if (ret)
 		return ret;
@@ -289,7 +285,6 @@ static int mcp16502_suspend_get_target_reg(struct regulator_dev *rdev)
  */
 static int mcp16502_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 {
-	struct mcp16502 *mcp = rdev_get_drvdata(rdev);
 	int sel = regulator_map_voltage_linear_range(rdev, uV, uV);
 	int reg = mcp16502_suspend_get_target_reg(rdev);
 
@@ -299,7 +294,7 @@ static int mcp16502_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	if (reg < 0)
 		return reg;
 
-	return regmap_update_bits(mcp->rmap, reg, MCP16502_VSEL, sel);
+	return regmap_update_bits(rdev->regmap, reg, MCP16502_VSEL, sel);
 }
 
 /*
@@ -327,13 +322,12 @@ static int mcp16502_set_suspend_mode(struct regulator_dev *rdev,
  */
 static int mcp16502_set_suspend_enable(struct regulator_dev *rdev)
 {
-	struct mcp16502 *mcp = rdev_get_drvdata(rdev);
 	int reg = mcp16502_suspend_get_target_reg(rdev);
 
 	if (reg < 0)
 		return reg;
 
-	return regmap_update_bits(mcp->rmap, reg, MCP16502_EN, MCP16502_EN);
+	return regmap_update_bits(rdev->regmap, reg, MCP16502_EN, MCP16502_EN);
 }
 
 /*
@@ -341,13 +335,12 @@ static int mcp16502_set_suspend_enable(struct regulator_dev *rdev)
  */
 static int mcp16502_set_suspend_disable(struct regulator_dev *rdev)
 {
-	struct mcp16502 *mcp = rdev_get_drvdata(rdev);
 	int reg = mcp16502_suspend_get_target_reg(rdev);
 
 	if (reg < 0)
 		return reg;
 
-	return regmap_update_bits(mcp->rmap, reg, MCP16502_EN, 0);
+	return regmap_update_bits(rdev->regmap, reg, MCP16502_EN, 0);
 }
 #endif /* CONFIG_SUSPEND */
 
@@ -434,36 +427,15 @@ static const struct regmap_config mcp16502_regmap_config = {
 	.wr_table	= &mcp16502_yes_reg_table,
 };
 
-/*
- * set_up_regulators() - initialize all regulators
- */
-static int setup_regulators(struct mcp16502 *mcp, struct device *dev,
-			    struct regulator_config config)
-{
-	int i;
-
-	for (i = 0; i < NUM_REGULATORS; i++) {
-		mcp->rdev[i] = devm_regulator_register(dev,
-						       &mcp16502_desc[i],
-						       &config);
-		if (IS_ERR(mcp->rdev[i])) {
-			dev_err(dev,
-				"failed to register %s regulator %ld\n",
-				mcp16502_desc[i].name, PTR_ERR(mcp->rdev[i]));
-			return PTR_ERR(mcp->rdev[i]);
-		}
-	}
-
-	return 0;
-}
-
 static int mcp16502_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 	struct device *dev;
 	struct mcp16502 *mcp;
-	int ret = 0;
+	struct regmap *rmap;
+	int i, ret;
 
 	dev = &client->dev;
 	config.dev = dev;
@@ -472,15 +444,15 @@ static int mcp16502_probe(struct i2c_client *client,
 	if (!mcp)
 		return -ENOMEM;
 
-	mcp->rmap = devm_regmap_init_i2c(client, &mcp16502_regmap_config);
-	if (IS_ERR(mcp->rmap)) {
-		ret = PTR_ERR(mcp->rmap);
+	rmap = devm_regmap_init_i2c(client, &mcp16502_regmap_config);
+	if (IS_ERR(rmap)) {
+		ret = PTR_ERR(rmap);
 		dev_err(dev, "regmap init failed: %d\n", ret);
 		return ret;
 	}
 
 	i2c_set_clientdata(client, mcp);
-	config.regmap = mcp->rmap;
+	config.regmap = rmap;
 	config.driver_data = mcp;
 
 	mcp->lpm = devm_gpiod_get(dev, "lpm", GPIOD_OUT_LOW);
@@ -489,9 +461,15 @@ static int mcp16502_probe(struct i2c_client *client,
 		return PTR_ERR(mcp->lpm);
 	}
 
-	ret = setup_regulators(mcp, dev, config);
-	if (ret != 0)
-		return ret;
+	for (i = 0; i < NUM_REGULATORS; i++) {
+		rdev = devm_regulator_register(dev, &mcp16502_desc[i], &config);
+		if (IS_ERR(rdev)) {
+			dev_err(dev,
+				"failed to register %s regulator %ld\n",
+				mcp16502_desc[i].name, PTR_ERR(rdev));
+			return PTR_ERR(rdev);
+		}
+	}
 
 	mcp16502_gpio_set_mode(mcp, MCP16502_OPMODE_ACTIVE);
 
@@ -546,7 +524,6 @@ static struct i2c_driver mcp16502_drv = {
 
 module_i2c_driver(mcp16502_drv);
 
-MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MCP16502 PMIC driver");
 MODULE_AUTHOR("Andrei Stefanescu andrei.stefanescu@microchip.com");

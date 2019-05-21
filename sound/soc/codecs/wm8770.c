@@ -666,8 +666,9 @@ static int wm8770_spi_probe(struct spi_device *spi)
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8770->supplies); i++) {
-		ret = regulator_register_notifier(wm8770->supplies[i].consumer,
-						  &wm8770->disable_nb[i]);
+		ret = devm_regulator_register_notifier(
+						wm8770->supplies[i].consumer,
+						&wm8770->disable_nb[i]);
 		if (ret) {
 			dev_err(&spi->dev,
 				"Failed to register regulator notifier: %d\n",
@@ -687,25 +688,12 @@ static int wm8770_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int wm8770_spi_remove(struct spi_device *spi)
-{
-	struct wm8770_priv *wm8770 = spi_get_drvdata(spi);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8770->supplies); ++i)
-		regulator_unregister_notifier(wm8770->supplies[i].consumer,
-					      &wm8770->disable_nb[i]);
-
-	return 0;
-}
-
 static struct spi_driver wm8770_spi_driver = {
 	.driver = {
 		.name = "wm8770",
 		.of_match_table = wm8770_of_match,
 	},
 	.probe = wm8770_spi_probe,
-	.remove = wm8770_spi_remove
 };
 
 module_spi_driver(wm8770_spi_driver);

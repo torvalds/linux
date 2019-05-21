@@ -30,10 +30,10 @@
 	.section .text
 ENTRY(swsusp_arch_suspend)
 	lg	%r1,__LC_NODAT_STACK
-	aghi	%r1,-STACK_FRAME_OVERHEAD
 	stmg	%r6,%r15,__SF_GPRS(%r1)
+	aghi	%r1,-STACK_FRAME_OVERHEAD
 	stg	%r15,__SF_BACKCHAIN(%r1)
-	lgr	%r1,%r15
+	lgr	%r15,%r1
 
 	/* Store FPU registers */
 	brasl	%r14,save_fpu_regs
@@ -108,6 +108,7 @@ ENTRY(swsusp_arch_suspend)
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0
 	BR_EX	%r14
+ENDPROC(swsusp_arch_suspend)
 
 /*
  * Restore saved memory image to correct place and restore register context.
@@ -124,12 +125,12 @@ ENTRY(swsusp_arch_resume)
 	lghi	%r2,1
 	brasl	%r14,arch_set_page_states
 
-	/* Deactivate DAT */
-	stnsm	__SF_EMPTY(%r15),0xfb
-
 	/* Set prefix page to zero */
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
 	spx	__SF_EMPTY(%r15)
+
+	/* Deactivate DAT */
+	stnsm	__SF_EMPTY(%r15),0xfb
 
 	/* Restore saved image */
 	larl	%r1,restore_pblist
@@ -154,20 +155,13 @@ ENTRY(swsusp_arch_resume)
 	ptlb				/* flush tlb */
 
 	/* Reset System */
-	larl	%r1,restart_entry
-	larl	%r2,.Lrestart_diag308_psw
-	og	%r1,0(%r2)
-	stg	%r1,0(%r0)
 	larl	%r1,.Lnew_pgm_check_psw
 	epsw	%r2,%r3
 	stm	%r2,%r3,0(%r1)
 	mvc	__LC_PGM_NEW_PSW(16,%r0),0(%r1)
-	lghi	%r0,0
-	diag	%r0,%r0,0x308
-restart_entry:
-	lhi	%r1,1
-	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE
-	sam64
+	larl	%r1,__swsusp_reset_dma
+	lg	%r1,0(%r1)
+	BASR_EX	%r14,%r1
 #ifdef CONFIG_SMP
 	larl	%r1,smp_cpu_mt_shift
 	icm	%r1,15,0(%r1)
@@ -267,6 +261,7 @@ restore_registers:
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0
 	BR_EX	%r14
+ENDPROC(swsusp_arch_resume)
 
 	.section .data..nosave,"aw",@progbits
 	.align	8
@@ -275,8 +270,6 @@ restore_registers:
 .Lpanic_string:
 	.asciz	"Resume not possible because suspend CPU is no longer available\n"
 	.align	8
-.Lrestart_diag308_psw:
-	.long	0x00080000,0x80000000
 .Lrestart_suspend_psw:
 	.quad	0x0000000180000000,restart_suspend
 .Lnew_pgm_check_psw:

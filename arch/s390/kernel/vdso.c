@@ -29,7 +29,7 @@
 #include <asm/vdso.h>
 #include <asm/facility.h>
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_COMPAT_VDSO
 extern char vdso32_start, vdso32_end;
 static void *vdso32_kbase = &vdso32_start;
 static unsigned int vdso32_pages;
@@ -55,7 +55,7 @@ static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 
 	vdso_pagelist = vdso64_pagelist;
 	vdso_pages = vdso64_pages;
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_COMPAT_VDSO
 	if (vma->vm_mm->context.compat_mm) {
 		vdso_pagelist = vdso32_pagelist;
 		vdso_pages = vdso32_pages;
@@ -76,7 +76,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	unsigned long vdso_pages;
 
 	vdso_pages = vdso64_pages;
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_COMPAT_VDSO
 	if (vma->vm_mm->context.compat_mm)
 		vdso_pages = vdso32_pages;
 #endif
@@ -223,11 +223,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return 0;
 
 	vdso_pages = vdso64_pages;
-#ifdef CONFIG_COMPAT
-	if (is_compat_task()) {
+#ifdef CONFIG_COMPAT_VDSO
+	mm->context.compat_mm = is_compat_task();
+	if (mm->context.compat_mm)
 		vdso_pages = vdso32_pages;
-		mm->context.compat_mm = 1;
-	}
 #endif
 	/*
 	 * vDSO has a problem and was disabled, just don't "enable" it for
@@ -281,7 +280,7 @@ static int __init vdso_init(void)
 	int i;
 
 	vdso_init_data(vdso_data);
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_COMPAT_VDSO
 	/* Calculate the size of the 32 bit vDSO */
 	vdso32_pages = ((&vdso32_end - &vdso32_start
 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
@@ -292,7 +291,6 @@ static int __init vdso_init(void)
 	BUG_ON(vdso32_pagelist == NULL);
 	for (i = 0; i < vdso32_pages - 1; i++) {
 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
-		ClearPageReserved(pg);
 		get_page(pg);
 		vdso32_pagelist[i] = pg;
 	}
@@ -310,7 +308,6 @@ static int __init vdso_init(void)
 	BUG_ON(vdso64_pagelist == NULL);
 	for (i = 0; i < vdso64_pages - 1; i++) {
 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
-		ClearPageReserved(pg);
 		get_page(pg);
 		vdso64_pagelist[i] = pg;
 	}

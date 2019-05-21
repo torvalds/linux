@@ -35,6 +35,16 @@ trying to get it to work optimally on a given system.
 
    admin-guide/index
 
+Firmware-related documentation
+------------------------------
+The following holds information on the kernel's expectations regarding the
+platform firmwares.
+
+.. toctree::
+   :maxdepth: 2
+
+   firmware-guide/index
+
 Application-developer documentation
 -----------------------------------
 
@@ -83,6 +93,7 @@ needed).
    media/index
    networking/index
    input/index
+   hwmon/index
    gpu/index
    security/index
    sound/index
@@ -90,6 +101,7 @@ needed).
    filesystems/index
    vm/index
    bpf/index
+   misc-devices/index
 
 Architecture-specific documentation
 -----------------------------------

@@ -368,24 +368,18 @@ static void uas_data_cmplt(struct urb *urb)
 	struct scsi_cmnd *cmnd = urb->context;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
-	struct scsi_data_buffer *sdb = NULL;
+	struct scsi_data_buffer *sdb = &cmnd->sdb;
 	unsigned long flags;
 	int status = urb->status;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 
 	if (cmdinfo->data_in_urb == urb) {
-		sdb = scsi_in(cmnd);
 		cmdinfo->state &= ~DATA_IN_URB_INFLIGHT;
 		cmdinfo->data_in_urb = NULL;
 	} else if (cmdinfo->data_out_urb == urb) {
-		sdb = scsi_out(cmnd);
 		cmdinfo->state &= ~DATA_OUT_URB_INFLIGHT;
 		cmdinfo->data_out_urb = NULL;
-	}
-	if (sdb == NULL) {
-		WARN_ON_ONCE(1);
-		goto out;
 	}
 
 	if (devinfo->resetting)
@@ -401,9 +395,9 @@ static void uas_data_cmplt(struct urb *urb)
 		if (status != -ENOENT && status != -ECONNRESET && status != -ESHUTDOWN)
 			uas_log_cmd_state(cmnd, "data cmplt err", status);
 		/* error: no data transfered */
-		sdb->resid = sdb->length;
+		scsi_set_resid(cmnd, sdb->length);
 	} else {
-		sdb->resid = sdb->length - urb->actual_length;
+		scsi_set_resid(cmnd, sdb->length - urb->actual_length);
 	}
 	uas_try_complete(cmnd, __func__);
 out:
@@ -426,8 +420,7 @@ static struct urb *uas_alloc_data_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	struct usb_device *udev = devinfo->udev;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct urb *urb = usb_alloc_urb(0, gfp);
-	struct scsi_data_buffer *sdb = (dir == DMA_FROM_DEVICE)
-		? scsi_in(cmnd) : scsi_out(cmnd);
+	struct scsi_data_buffer *sdb = &cmnd->sdb;
 	unsigned int pipe = (dir == DMA_FROM_DEVICE)
 		? devinfo->data_in_pipe : devinfo->data_out_pipe;
 

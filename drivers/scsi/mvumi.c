@@ -143,8 +143,9 @@ static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 
 	case RESOURCE_UNCACHED_MEMORY:
 		size = round_up(size, 8);
-		res->virt_addr = dma_zalloc_coherent(&mhba->pdev->dev, size,
-				&res->bus_addr, GFP_KERNEL);
+		res->virt_addr = dma_alloc_coherent(&mhba->pdev->dev, size,
+						    &res->bus_addr,
+						    GFP_KERNEL);
 		if (!res->virt_addr) {
 			dev_err(&mhba->pdev->dev,
 					"unable to allocate consistent mem,"
@@ -246,8 +247,8 @@ static int mvumi_internal_cmd_sgl(struct mvumi_hba *mhba, struct mvumi_cmd *cmd,
 	if (size == 0)
 		return 0;
 
-	virt_addr = dma_zalloc_coherent(&mhba->pdev->dev, size, &phy_addr,
-			GFP_KERNEL);
+	virt_addr = dma_alloc_coherent(&mhba->pdev->dev, size, &phy_addr,
+				       GFP_KERNEL);
 	if (!virt_addr)
 		return -1;
 
@@ -717,8 +718,8 @@ static int mvumi_host_reset(struct scsi_cmnd *scmd)
 
 	mhba = (struct mvumi_hba *) scmd->device->host->hostdata;
 
-	scmd_printk(KERN_NOTICE, scmd, "RESET -%ld cmd=%x retries=%x\n",
-			scmd->serial_number, scmd->cmnd[0], scmd->retries);
+	scmd_printk(KERN_NOTICE, scmd, "RESET -%u cmd=%x retries=%x\n",
+			scmd->request->tag, scmd->cmnd[0], scmd->retries);
 
 	return mhba->instancet->reset_host(mhba);
 }
@@ -2103,7 +2104,6 @@ static int mvumi_queue_command(struct Scsi_Host *shost,
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(shost->host_lock, irq_flags);
-	scsi_cmd_get_serial(shost, scmd);
 
 	mhba = (struct mvumi_hba *) shost->hostdata;
 	scmd->result = 0;

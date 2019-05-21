@@ -114,7 +114,7 @@ static inline void VXGE_COMPLETE_VPATH_TX(struct vxge_fifo *fifo)
 
 		/* free SKBs */
 		for (temp = completed; temp != skb_ptr; temp++)
-			dev_kfree_skb_irq(*temp);
+			dev_consume_skb_irq(*temp);
 	} while (more);
 }
 
@@ -1826,7 +1826,6 @@ static int vxge_poll_msix(struct napi_struct *napi, int budget)
 		vxge_hw_channel_msix_unmask(
 				(struct __vxge_hw_channel *)ring->handle,
 				ring->rx_vector_no);
-		mmiowb();
 	}
 
 	/* We are copying and returning the local variable, in case if after
@@ -2234,8 +2233,6 @@ static irqreturn_t vxge_tx_msix_handle(int irq, void *dev_id)
 	vxge_hw_channel_msix_unmask((struct __vxge_hw_channel *)fifo->handle,
 				    fifo->tx_vector_no);
 
-	mmiowb();
-
 	return IRQ_HANDLED;
 }
 
@@ -2272,14 +2269,12 @@ vxge_alarm_msix_handle(int irq, void *dev_id)
 		 */
 		vxge_hw_vpath_msix_mask(vdev->vpaths[i].handle, msix_id);
 		vxge_hw_vpath_msix_clear(vdev->vpaths[i].handle, msix_id);
-		mmiowb();
 
 		status = vxge_hw_vpath_alarm_process(vdev->vpaths[i].handle,
 			vdev->exec_mode);
 		if (status == VXGE_HW_OK) {
 			vxge_hw_vpath_msix_unmask(vdev->vpaths[i].handle,
 						  msix_id);
-			mmiowb();
 			continue;
 		}
 		vxge_debug_intr(VXGE_ERR,
@@ -2553,7 +2548,7 @@ static int vxge_add_isr(struct vxgedev *vdev)
 			vxge_debug_init(VXGE_ERR,
 				"%s: Defaulting to INTA",
 				vdev->ndev->name);
-				goto INTA_MODE;
+			goto INTA_MODE;
 		}
 
 		msix_idx = (vdev->vpaths[0].handle->vpath->vp_id *

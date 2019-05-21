@@ -316,6 +316,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_DESTROY_GENERAL_OBJECT:
 	case MLX5_CMD_OP_DEALLOC_MEMIC:
 	case MLX5_CMD_OP_PAGE_FAULT_RESUME:
+	case MLX5_CMD_OP_QUERY_HOST_PARAMS:
 		return MLX5_CMD_STAT_OK;
 
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
@@ -627,6 +628,7 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(QUERY_MODIFY_HEADER_CONTEXT);
 	MLX5_COMMAND_STR_CASE(ALLOC_MEMIC);
 	MLX5_COMMAND_STR_CASE(DEALLOC_MEMIC);
+	MLX5_COMMAND_STR_CASE(QUERY_HOST_PARAMS);
 	default: return "unknown command opcode";
 	}
 }
@@ -915,7 +917,6 @@ static void cmd_work_handler(struct work_struct *work)
 	mlx5_core_dbg(dev, "writing 0x%x to command doorbell\n", 1 << ent->idx);
 	wmb();
 	iowrite32be(1 << ent->idx, &dev->iseg->cmd_dbell);
-	mmiowb();
 	/* if not in polling don't use ent after this point */
 	if (cmd_mode == CMD_MODE_POLLING || poll_cmd) {
 		poll_timeout(ent);
@@ -1583,6 +1584,24 @@ no_trig:
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
 }
 
+void mlx5_cmd_flush(struct mlx5_core_dev *dev)
+{
+	struct mlx5_cmd *cmd = &dev->cmd;
+	int i;
+
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		while (down_trylock(&cmd->sem))
+			mlx5_cmd_trigger_completions(dev);
+
+	while (down_trylock(&cmd->pages_sem))
+		mlx5_cmd_trigger_completions(dev);
+
+	/* Unlock cmdif */
+	up(&cmd->pages_sem);
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		up(&cmd->sem);
+}
+
 static int status_to_err(u8 status)
 {
 	return status ? -1 : 0; /* TBD more meaningful codes */
@@ -1711,12 +1730,57 @@ int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 }
 EXPORT_SYMBOL(mlx5_cmd_exec);
 
-int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
-		     void *out, int out_size, mlx5_cmd_cbk_t callback,
-		     void *context)
+void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
+			     struct mlx5_async_ctx *ctx)
 {
-	return cmd_exec(dev, in, in_size, out, out_size, callback, context,
-			false);
+	ctx->dev = dev;
+	/* Starts at 1 to avoid doing wake_up if we are not cleaning up */
+	atomic_set(&ctx->num_inflight, 1);
+	init_waitqueue_head(&ctx->wait);
+}
+EXPORT_SYMBOL(mlx5_cmd_init_async_ctx);
+
+/**
+ * mlx5_cmd_cleanup_async_ctx - Clean up an async_ctx
+ * @ctx: The ctx to clean
+ *
+ * Upon return all callbacks given to mlx5_cmd_exec_cb() have been called. The
+ * caller must ensure that mlx5_cmd_exec_cb() is not called during or after
+ * the call mlx5_cleanup_async_ctx().
+ */
+void mlx5_cmd_cleanup_async_ctx(struct mlx5_async_ctx *ctx)
+{
+	atomic_dec(&ctx->num_inflight);
+	wait_event(ctx->wait, atomic_read(&ctx->num_inflight) == 0);
+}
+EXPORT_SYMBOL(mlx5_cmd_cleanup_async_ctx);
+
+static void mlx5_cmd_exec_cb_handler(int status, void *_work)
+{
+	struct mlx5_async_work *work = _work;
+	struct mlx5_async_ctx *ctx = work->ctx;
+
+	work->user_callback(status, work);
+	if (atomic_dec_and_test(&ctx->num_inflight))
+		wake_up(&ctx->wait);
+}
+
+int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
+		     void *out, int out_size, mlx5_async_cbk_t callback,
+		     struct mlx5_async_work *work)
+{
+	int ret;
+
+	work->ctx = ctx;
+	work->user_callback = callback;
+	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
+		return -EIO;
+	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,
+		       mlx5_cmd_exec_cb_handler, work, false);
+	if (ret && atomic_dec_and_test(&ctx->num_inflight))
+		wake_up(&ctx->wait);
+
+	return ret;
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_cb);
 
@@ -1789,8 +1853,8 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 {
 	struct device *ddev = &dev->pdev->dev;
 
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 
@@ -1804,9 +1868,9 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 
 	dma_free_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE, cmd->cmd_alloc_buf,
 			  cmd->alloc_dma);
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev,
-						 2 * MLX5_ADAPTER_PAGE_SIZE - 1,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev,
+						2 * MLX5_ADAPTER_PAGE_SIZE - 1,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 

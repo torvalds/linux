@@ -1408,7 +1408,7 @@ myri10ge_tx_done(struct myri10ge_slice_state *ss, int mcp_index)
 		if (skb) {
 			ss->stats.tx_bytes += skb->len;
 			ss->stats.tx_packets++;
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 			if (len)
 				pci_unmap_single(pdev,
 						 dma_unmap_addr(&tx->info[idx],
@@ -1439,7 +1439,6 @@ myri10ge_tx_done(struct myri10ge_slice_state *ss, int mcp_index)
 			tx->queue_active = 0;
 			put_be32(htonl(1), tx->send_stop);
 			mb();
-			mmiowb();
 		}
 		__netif_tx_unlock(dev_queue);
 	}
@@ -2861,7 +2860,6 @@ again:
 		tx->queue_active = 1;
 		put_be32(htonl(1), tx->send_go);
 		mb();
-		mmiowb();
 	}
 	tx->pkt_start++;
 	if ((avail - count) < MXGEFW_MAX_SEND_DESC) {
@@ -3604,9 +3602,9 @@ static int myri10ge_alloc_slices(struct myri10ge_priv *mgp)
 	for (i = 0; i < mgp->num_slices; i++) {
 		ss = &mgp->ss[i];
 		bytes = mgp->max_intr_slots * sizeof(*ss->rx_done.entry);
-		ss->rx_done.entry = dma_zalloc_coherent(&pdev->dev, bytes,
-							&ss->rx_done.bus,
-							GFP_KERNEL);
+		ss->rx_done.entry = dma_alloc_coherent(&pdev->dev, bytes,
+						       &ss->rx_done.bus,
+						       GFP_KERNEL);
 		if (ss->rx_done.entry == NULL)
 			goto abort;
 		bytes = sizeof(*ss->fw_stats);

@@ -55,8 +55,6 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 #define __iormb()               rmb()
 #define __iowmb()               wmb()
 
-#define mmiowb()        __asm__ __volatile__ ("msync all" : : : "memory");
-
 /*
  * {read,write}{b,w,l,q}_relaxed() are like the regular version, but
  * are not guaranteed to provide ordering against spinlocks or memory

@@ -24,7 +24,9 @@
 			"Headphone Jack", "MICBIAS",
 			"IN1", "Headphone Jack",
 			"Speakers", "SPKL",
-			"Speakers", "SPKR";
+			"Speakers", "SPKR",
+			"I2S Playback", "Mixer DAI TX",
+			"HiFi Playback", "Mixer DAI TX";
 
 		assigned-clocks = <&clock CLK_MOUT_EPLL>,
 				<&clock CLK_MOUT_MAU_EPLL>,
@@ -51,7 +53,7 @@
 				<196608000>;
 
 		cpu {
-			sound-dai = <&i2s0 0>;
+			sound-dai = <&i2s0 0>, <&i2s0 1>;
 		};
 		codec {
 			sound-dai = <&hdmi>, <&max98090>;

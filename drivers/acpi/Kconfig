@@ -10,6 +10,7 @@ menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on ARCH_SUPPORTS_ACPI
 	select PNP
+	select NLS
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -354,6 +355,16 @@ config ACPI_TABLE_UPGRADE
 	  This option provides functionality to upgrade arbitrary ACPI tables
 	  via initrd. No functional change if no ACPI tables are passed via
 	  initrd, therefore it's safe to say Y.
+	  See Documentation/acpi/initrd_table_override.txt for details
+
+config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
+	bool "Override ACPI tables from built-in initrd"
+	depends on ACPI_TABLE_UPGRADE
+	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION=""
+	help
+	  This option provides functionality to override arbitrary ACPI tables
+	  from built-in uncompressed initrd.
+
 	  See Documentation/acpi/initrd_table_override.txt for details
 
 config ACPI_DEBUG

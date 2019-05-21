@@ -847,6 +847,24 @@ sanitization_vlan_aware_test()
 
 	log_test "vlan-aware - failed enslavement to vlan-aware bridge"
 
+	bridge vlan del vid 10 dev vxlan20
+	bridge vlan add vid 20 dev vxlan20 pvid untagged
+
+	# Test that offloading of an unsupported tunnel fails when it is
+	# triggered by addition of VLAN to a local port
+	RET=0
+
+	# TOS must be set to inherit
+	ip link set dev vxlan10 type vxlan tos 42
+
+	ip link set dev $swp1 master br0
+	bridge vlan add vid 10 dev $swp1 &> /dev/null
+	check_fail $?
+
+	log_test "vlan-aware - failed vlan addition to a local port"
+
+	ip link set dev vxlan10 type vxlan tos inherit
+
 	ip link del dev vxlan20
 	ip link del dev vxlan10
 	ip link del dev br0

@@ -71,9 +71,6 @@ struct cmd_tbl {
 	enum bp_result (*set_crtc_timing)(
 		struct bios_parser *bp,
 		struct bp_hw_crtc_timing_parameters *bp_params);
-	enum bp_result (*select_crtc_source)(
-		struct bios_parser *bp,
-		struct bp_crtc_source_select *bp_params);
 	enum bp_result (*enable_crtc)(
 		struct bios_parser *bp,
 		enum controller_id controller_id,

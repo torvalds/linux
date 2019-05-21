@@ -3,7 +3,7 @@
  *
  * Module Name: utdecode - Utility decoding routines (value-to-string)
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -78,7 +78,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"IPMI",			/* 0x07 */
 	"GeneralPurposeIo",	/* 0x08 */
 	"GenericSerialBus",	/* 0x09 */
-	"PCC"			/* 0x0A */
+	"PlatformCommChannel"	/* 0x0A */
 };
 
 const char *acpi_ut_get_region_name(u8 space_id)
@@ -239,7 +239,7 @@ const char *acpi_ut_get_node_name(void *object)
 {
 	struct acpi_namespace_node *node = (struct acpi_namespace_node *)object;
 
-	/* Must return a string of exactly 4 characters == ACPI_NAME_SIZE */
+	/* Must return a string of exactly 4 characters == ACPI_NAMESEG_SIZE */
 
 	if (!object) {
 		return ("NULL");
@@ -284,7 +284,7 @@ const char *acpi_ut_get_node_name(void *object)
 
 static const char *acpi_gbl_desc_type_names[] = {
 	/* 00 */ "Not a Descriptor",
-	/* 01 */ "Cached",
+	/* 01 */ "Cached Object",
 	/* 02 */ "State-Generic",
 	/* 03 */ "State-Update",
 	/* 04 */ "State-Package",
@@ -295,10 +295,10 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 09 */ "State-Result",
 	/* 10 */ "State-Notify",
 	/* 11 */ "State-Thread",
-	/* 12 */ "Walk",
-	/* 13 */ "Parser",
-	/* 14 */ "Operand",
-	/* 15 */ "Node"
+	/* 12 */ "Tree Walk State",
+	/* 13 */ "Parse Tree Op",
+	/* 14 */ "Operand Object",
+	/* 15 */ "Namespace Node"
 };
 
 const char *acpi_ut_get_descriptor_name(void *object)
@@ -430,8 +430,10 @@ static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 								/* 0C */ "Reserved (was previously Shutdown Request)",
 								/* Reserved in ACPI 6.0 */
 	/* 0D */ "System Resource Affinity Update",
-								/* 0E */ "Heterogeneous Memory Attributes Update"
+								/* 0E */ "Heterogeneous Memory Attributes Update",
 								/* ACPI 6.2 */
+						/* 0F */ "Error Disconnect Recover"
+						/* ACPI 6.3 */
 };
 
 static const char *acpi_gbl_device_notify[5] = {
@@ -461,13 +463,13 @@ static const char *acpi_gbl_thermal_notify[5] = {
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
 {
 
-	/* 00 - 0D are "common to all object types" (from ACPI Spec) */
+	/* 00 - 0F are "common to all object types" (from ACPI Spec) */
 
 	if (notify_value <= ACPI_GENERIC_NOTIFY_MAX) {
 		return (acpi_gbl_generic_notify[notify_value]);
 	}
 
-	/* 0E - 7F are reserved */
+	/* 10 - 7F are reserved */
 
 	if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
 		return ("Reserved");

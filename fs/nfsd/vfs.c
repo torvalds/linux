@@ -557,9 +557,11 @@ __be32 nfsd4_clone_file_range(struct file *src, u64 src_pos, struct file *dst,
 	loff_t cloned;
 
 	cloned = vfs_clone_file_range(src, src_pos, dst, dst_pos, count, 0);
+	if (cloned < 0)
+		return nfserrno(cloned);
 	if (count && cloned != count)
-		cloned = -EINVAL;
-	return nfserrno(cloned < 0 ? cloned : 0);
+		return nfserrno(-EINVAL);
+	return 0;
 }
 
 ssize_t nfsd_copy_file_range(struct file *src, u64 src_pos, struct file *dst,

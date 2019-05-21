@@ -84,6 +84,7 @@ struct qxl_bo {
 	struct ttm_bo_kmap_obj		kmap;
 	unsigned int pin_count;
 	void				*kptr;
+	unsigned int                    map_count;
 	int                             type;
 
 	/* Constant after initialization */
@@ -130,10 +131,13 @@ struct qxl_mman {
 };
 
 struct qxl_memslot {
+	int             index;
+	const char      *name;
 	uint8_t		generation;
 	uint64_t	start_phys_addr;
-	uint64_t	end_phys_addr;
+	uint64_t	size;
 	uint64_t	high_bits;
+	uint64_t        gpu_offset;
 };
 
 enum {
@@ -216,8 +220,6 @@ struct qxl_device {
 	struct qxl_mman		mman;
 	struct qxl_gem		gem;
 
-	struct drm_fb_helper	fb_helper;
-
 	void *ram_physical;
 
 	struct qxl_ring *release_ring;
@@ -226,16 +228,12 @@ struct qxl_device {
 
 	struct qxl_ram_header *ram_header;
 
-	unsigned int primary_created:1;
+	struct qxl_bo *primary_bo;
+	struct qxl_bo *dumb_shadow_bo;
+	struct qxl_head *dumb_heads;
 
-	struct qxl_memslot	*mem_slots;
-	uint8_t		n_mem_slots;
-
-	uint8_t		main_mem_slot;
-	uint8_t		surfaces_mem_slot;
-	uint8_t		slot_id_bits;
-	uint8_t		slot_gen_bits;
-	uint64_t	va_slot_mask;
+	struct qxl_memslot main_slot;
+	struct qxl_memslot surfaces_slot;
 
 	spinlock_t	release_lock;
 	struct idr	release_idr;
@@ -308,29 +306,19 @@ void qxl_ring_free(struct qxl_ring *ring);
 void qxl_ring_init_hdr(struct qxl_ring *ring);
 int qxl_check_idle(struct qxl_ring *ring);
 
-static inline void *
-qxl_fb_virtual_address(struct qxl_device *qdev, unsigned long physical)
-{
-	DRM_DEBUG_DRIVER("not implemented (%lu)\n", physical);
-	return 0;
-}
-
 static inline uint64_t
 qxl_bo_physical_address(struct qxl_device *qdev, struct qxl_bo *bo,
 			unsigned long offset)
 {
-	int slot_id = bo->type == QXL_GEM_DOMAIN_VRAM ? qdev->main_mem_slot : qdev->surfaces_mem_slot;
-	struct qxl_memslot *slot = &(qdev->mem_slots[slot_id]);
+	struct qxl_memslot *slot =
+		(bo->tbo.mem.mem_type == TTM_PL_VRAM)
+		? &qdev->main_slot : &qdev->surfaces_slot;
+
+	WARN_ON_ONCE((bo->tbo.offset & slot->gpu_offset) != slot->gpu_offset);
 
 	/* TODO - need to hold one of the locks to read tbo.offset */
-	return slot->high_bits | (bo->tbo.offset + offset);
+	return slot->high_bits | (bo->tbo.offset - slot->gpu_offset + offset);
 }
-
-/* qxl_fb.c */
-#define QXLFB_CONN_LIMIT 1
-
-int qxl_fbdev_init(struct qxl_device *qdev);
-void qxl_fbdev_fini(struct qxl_device *qdev);
 
 /* qxl_display.c */
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev);
@@ -392,7 +380,6 @@ void qxl_update_screen(struct qxl_device *qxl);
 /* qxl io operations (qxl_cmd.c) */
 
 void qxl_io_create_primary(struct qxl_device *qdev,
-			   unsigned int offset,
 			   struct qxl_bo *bo);
 void qxl_io_destroy_primary(struct qxl_device *qdev);
 void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id);
@@ -437,22 +424,13 @@ int qxl_alloc_bo_reserved(struct qxl_device *qdev,
 			  struct qxl_bo **_bo);
 /* qxl drawing commands */
 
-void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
-			int stride /* filled in if 0 */);
-
 void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		       struct drm_framebuffer *fb,
 		       struct qxl_bo *bo,
 		       unsigned int flags, unsigned int color,
 		       struct drm_clip_rect *clips,
-		       unsigned int num_clips, int inc);
-
-void qxl_draw_fill(struct qxl_draw_fill *qxl_draw_fill_rec);
-
-void qxl_draw_copyarea(struct qxl_device *qdev,
-		       u32 width, u32 height,
-		       u32 sx, u32 sy,
-		       u32 dx, u32 dy);
+		       unsigned int num_clips, int inc,
+		       uint32_t dumb_shadow_offset);
 
 void qxl_release_free(struct qxl_device *qdev,
 		      struct qxl_release *release);
@@ -485,9 +463,6 @@ int qxl_gem_prime_mmap(struct drm_gem_object *obj,
 int qxl_irq_init(struct qxl_device *qdev);
 irqreturn_t qxl_irq_handler(int irq, void *arg);
 
-/* qxl_fb.c */
-bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj);
-
 int qxl_debugfs_add_files(struct qxl_device *qdev,
 			  struct drm_info_list *files,
 			  unsigned int nfiles);
@@ -497,8 +472,7 @@ int qxl_surface_id_alloc(struct qxl_device *qdev,
 void qxl_surface_id_dealloc(struct qxl_device *qdev,
 			    uint32_t surface_id);
 int qxl_hw_surface_alloc(struct qxl_device *qdev,
-			 struct qxl_bo *surf,
-			 struct ttm_mem_reg *mem);
+			 struct qxl_bo *surf);
 int qxl_hw_surface_dealloc(struct qxl_device *qdev,
 			   struct qxl_bo *surf);
 

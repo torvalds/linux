@@ -191,7 +191,7 @@ enum psp_gfx_fw_type
     GFX_FW_TYPE_MMSCH       = 19,
     GFX_FW_TYPE_RLC_RESTORE_LIST_GPM_MEM        = 20,
     GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM        = 21,
-    GFX_FW_TYPE_RLC_RESTORE_LIST_CNTL           = 22,
+    GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_CNTL       = 22,
     GFX_FW_TYPE_UVD1        = 23,
     GFX_FW_TYPE_MAX         = 24
 };

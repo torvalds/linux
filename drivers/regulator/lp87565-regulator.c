@@ -34,6 +34,10 @@
 			.ramp_delay		= _delay,		\
 			.linear_ranges		= _lr,			\
 			.n_linear_ranges	= ARRAY_SIZE(_lr),	\
+			.curr_table = lp87565_buck_uA,			\
+			.n_current_limits = ARRAY_SIZE(lp87565_buck_uA),\
+			.csel_reg = (_cr),				\
+			.csel_mask = LP87565_BUCK_CTRL_2_ILIM,		\
 		},							\
 		.ctrl2_reg = _cr,					\
 	}
@@ -51,7 +55,7 @@ static const struct regulator_linear_range buck0_1_2_3_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1420000, 0x9e, 0xff, 20000),
 };
 
-static unsigned int lp87565_buck_ramp_delay[] = {
+static const unsigned int lp87565_buck_ramp_delay[] = {
 	30000, 15000, 10000, 7500, 3800, 1900, 940, 470
 };
 
@@ -102,45 +106,8 @@ static int lp87565_buck_set_ramp_delay(struct regulator_dev *rdev,
 	return 0;
 }
 
-static int lp87565_buck_set_current_limit(struct regulator_dev *rdev,
-					  int min_uA, int max_uA)
-{
-	int id = rdev_get_id(rdev);
-	struct lp87565 *lp87565 = rdev_get_drvdata(rdev);
-	int i;
-
-	for (i = ARRAY_SIZE(lp87565_buck_uA) - 1; i >= 0; i--) {
-		if (lp87565_buck_uA[i] >= min_uA &&
-		    lp87565_buck_uA[i] <= max_uA)
-			return regmap_update_bits(lp87565->regmap,
-						  regulators[id].ctrl2_reg,
-						  LP87565_BUCK_CTRL_2_ILIM,
-						  i << __ffs(LP87565_BUCK_CTRL_2_ILIM));
-	}
-
-	return -EINVAL;
-}
-
-static int lp87565_buck_get_current_limit(struct regulator_dev *rdev)
-{
-	int id = rdev_get_id(rdev);
-	struct lp87565 *lp87565 = rdev_get_drvdata(rdev);
-	int ret;
-	unsigned int val;
-
-	ret = regmap_read(lp87565->regmap, regulators[id].ctrl2_reg, &val);
-	if (ret)
-		return ret;
-
-	val = (val & LP87565_BUCK_CTRL_2_ILIM) >>
-	       __ffs(LP87565_BUCK_CTRL_2_ILIM);
-
-	return (val < ARRAY_SIZE(lp87565_buck_uA)) ?
-			lp87565_buck_uA[val] : -EINVAL;
-}
-
-/* Operations permitted on BUCK0, BUCK1 */
-static struct regulator_ops lp87565_buck_ops = {
+/* Operations permitted on BUCKs */
+static const struct regulator_ops lp87565_buck_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -150,8 +117,8 @@ static struct regulator_ops lp87565_buck_ops = {
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_ramp_delay		= lp87565_buck_set_ramp_delay,
-	.set_current_limit	= lp87565_buck_set_current_limit,
-	.get_current_limit	= lp87565_buck_get_current_limit,
+	.set_current_limit	= regulator_set_current_limit_regmap,
+	.get_current_limit	= regulator_get_current_limit_regmap,
 };
 
 static const struct lp87565_regulator regulators[] = {
@@ -193,7 +160,7 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 	struct lp87565 *lp87565 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
-	int i, min_idx = LP87565_BUCK_1, max_idx = LP87565_BUCK_3;
+	int i, min_idx = LP87565_BUCK_0, max_idx = LP87565_BUCK_3;
 
 	platform_set_drvdata(pdev, lp87565);
 

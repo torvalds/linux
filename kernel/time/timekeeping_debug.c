@@ -37,15 +37,8 @@ DEFINE_SHOW_ATTRIBUTE(tk_debug_sleep_time);
 
 static int __init tk_debug_sleep_time_init(void)
 {
-	struct dentry *d;
-
-	d = debugfs_create_file("sleep_time", 0444, NULL, NULL,
-		&tk_debug_sleep_time_fops);
-	if (!d) {
-		pr_err("Failed to create sleep_time debug file\n");
-		return -ENOMEM;
-	}
-
+	debugfs_create_file("sleep_time", 0444, NULL, NULL,
+			    &tk_debug_sleep_time_fops);
 	return 0;
 }
 late_initcall(tk_debug_sleep_time_init);

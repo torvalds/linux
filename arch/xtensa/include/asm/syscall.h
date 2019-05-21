@@ -59,45 +59,24 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
 	static const unsigned int reg[] = XTENSA_SYSCALL_ARGUMENT_REGS;
-	unsigned int j;
+	unsigned int i;
 
-	if (n == 0)
-		return;
-
-	WARN_ON_ONCE(i + n > SYSCALL_MAX_ARGS);
-
-	for (j = 0; j < n; ++j) {
-		if (i + j < SYSCALL_MAX_ARGS)
-			args[j] = regs->areg[reg[i + j]];
-		else
-			args[j] = 0;
-	}
+	for (i = 0; i < 6; ++i)
+		args[i] = regs->areg[reg[i]];
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
 	static const unsigned int reg[] = XTENSA_SYSCALL_ARGUMENT_REGS;
-	unsigned int j;
+	unsigned int i;
 
-	if (n == 0)
-		return;
-
-	if (WARN_ON_ONCE(i + n > SYSCALL_MAX_ARGS)) {
-		if (i < SYSCALL_MAX_ARGS)
-			n = SYSCALL_MAX_ARGS - i;
-		else
-			return;
-	}
-
-	for (j = 0; j < n; ++j)
-		regs->areg[reg[i + j]] = args[j];
+	for (i = 0; i < 6; ++i)
+		regs->areg[reg[i]] = args[i];
 }
 
 asmlinkage long xtensa_rt_sigreturn(struct pt_regs*);

@@ -158,7 +158,7 @@ static u32 add_marker_len(struct nand_bbt_descr *td)
 
 /**
  * read_bbt - [GENERIC] Read the bad block table starting from page
- * @chip: NAND chip object
+ * @this: NAND chip object
  * @buf: temporary buffer
  * @page: the starting page
  * @num: the number of bbt descriptors to read

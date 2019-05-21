@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * For further information, see the Documentation/hwmon/max197 file.
+ * For further information, see the Documentation/hwmon/max197.rst file.
  */
 
 #ifndef _PDATA_MAX197_H

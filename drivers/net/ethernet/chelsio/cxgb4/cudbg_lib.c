@@ -81,7 +81,7 @@ static int is_fw_attached(struct cudbg_init *pdbg_init)
 {
 	struct adapter *padap = pdbg_init->adap;
 
-	if (!(padap->flags & FW_OK) || padap->use_bd)
+	if (!(padap->flags & CXGB4_FW_OK) || padap->use_bd)
 		return 0;
 
 	return 1;

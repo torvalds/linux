@@ -1578,7 +1578,6 @@ void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint)
 		sc_del_credit_return_intr(sc);
 	trace_hfi1_wantpiointr(sc, needint, sc->credit_ctrl);
 	if (needint) {
-		mmiowb();
 		sc_return_credits(sc);
 	}
 }
@@ -1599,8 +1598,7 @@ static void sc_piobufavail(struct send_context *sc)
 	struct rvt_qp *qp;
 	struct hfi1_qp_priv *priv;
 	unsigned long flags;
-	uint i, n = 0, max_idx = 0;
-	u8 max_starved_cnt = 0;
+	uint i, n = 0, top_idx = 0;
 
 	if (dd->send_contexts[sc->sw_index].type != SC_KERNEL &&
 	    dd->send_contexts[sc->sw_index].type != SC_VL15)
@@ -1619,11 +1617,18 @@ static void sc_piobufavail(struct send_context *sc)
 		if (n == ARRAY_SIZE(qps))
 			break;
 		wait = list_first_entry(list, struct iowait, list);
+		iowait_get_priority(wait);
 		qp = iowait_to_qp(wait);
 		priv = qp->priv;
 		list_del_init(&priv->s_iowait.list);
 		priv->s_iowait.lock = NULL;
-		iowait_starve_find_max(wait, &max_starved_cnt, n, &max_idx);
+		if (n) {
+			priv = qps[top_idx]->priv;
+			top_idx = iowait_priority_update_top(wait,
+							     &priv->s_iowait,
+							     n, top_idx);
+		}
+
 		/* refcount held until actual wake up */
 		qps[n++] = qp;
 	}
@@ -1638,12 +1643,12 @@ static void sc_piobufavail(struct send_context *sc)
 	}
 	write_sequnlock_irqrestore(&sc->waitlock, flags);
 
-	/* Wake up the most starved one first */
+	/* Wake up the top-priority one first */
 	if (n)
-		hfi1_qp_wakeup(qps[max_idx],
+		hfi1_qp_wakeup(qps[top_idx],
 			       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 	for (i = 0; i < n; i++)
-		if (i != max_idx)
+		if (i != top_idx)
 			hfi1_qp_wakeup(qps[i],
 				       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 }
@@ -2098,11 +2103,10 @@ int init_credit_return(struct hfi1_devdata *dd)
 		int bytes = TXE_NUM_CONTEXTS * sizeof(struct credit_return);
 
 		set_dev_node(&dd->pcidev->dev, i);
-		dd->cr_base[i].va = dma_zalloc_coherent(
-					&dd->pcidev->dev,
-					bytes,
-					&dd->cr_base[i].dma,
-					GFP_KERNEL);
+		dd->cr_base[i].va = dma_alloc_coherent(&dd->pcidev->dev,
+						       bytes,
+						       &dd->cr_base[i].dma,
+						       GFP_KERNEL);
 		if (!dd->cr_base[i].va) {
 			set_dev_node(&dd->pcidev->dev, dd->node);
 			dd_dev_err(dd,

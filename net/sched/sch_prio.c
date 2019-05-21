@@ -72,6 +72,7 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 static int
 prio_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 {
+	unsigned int len = qdisc_pkt_len(skb);
 	struct Qdisc *qdisc;
 	int ret;
 
@@ -88,7 +89,7 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 
 	ret = qdisc_enqueue(skb, qdisc, to_free);
 	if (ret == NET_XMIT_SUCCESS) {
-		qdisc_qstats_backlog_inc(sch, skb);
+		sch->qstats.backlog += len;
 		sch->q.qlen++;
 		return NET_XMIT_SUCCESS;
 	}
@@ -215,12 +216,8 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 	q->bands = qopt->bands;
 	memcpy(q->prio2band, qopt->priomap, TC_PRIO_MAX+1);
 
-	for (i = q->bands; i < oldbands; i++) {
-		struct Qdisc *child = q->queues[i];
-
-		qdisc_tree_reduce_backlog(child, child->q.qlen,
-					  child->qstats.backlog);
-	}
+	for (i = q->bands; i < oldbands; i++)
+		qdisc_tree_flush_backlog(q->queues[i]);
 
 	for (i = oldbands; i < q->bands; i++) {
 		q->queues[i] = queues[i];
@@ -364,7 +361,7 @@ static int prio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	cl_q = q->queues[cl - 1];
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl_q->bstats) < 0 ||
-	    gnet_stats_copy_queue(d, NULL, &cl_q->qstats, cl_q->q.qlen) < 0)
+	    qdisc_qstats_copy(d, cl_q) < 0)
 		return -1;
 
 	return 0;

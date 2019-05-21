@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -99,7 +99,7 @@ static int wil_sring_alloc(struct wil6210_priv *wil,
 	/* Status messages are allocated and initialized to 0. This is necessary
 	 * since DR bit should be initialized to 0.
 	 */
-	sring->va = dma_zalloc_coherent(dev, sz, &sring->pa, GFP_KERNEL);
+	sring->va = dma_alloc_coherent(dev, sz, &sring->pa, GFP_KERNEL);
 	if (!sring->va)
 		return -ENOMEM;
 
@@ -381,15 +381,15 @@ static int wil_ring_alloc_desc_ring(struct wil6210_priv *wil,
 	if (!ring->ctx)
 		goto err;
 
-	ring->va = dma_zalloc_coherent(dev, sz, &ring->pa, GFP_KERNEL);
+	ring->va = dma_alloc_coherent(dev, sz, &ring->pa, GFP_KERNEL);
 	if (!ring->va)
 		goto err_free_ctx;
 
 	if (ring->is_rx) {
 		sz = sizeof(*ring->edma_rx_swtail.va);
 		ring->edma_rx_swtail.va =
-			dma_zalloc_coherent(dev, sz, &ring->edma_rx_swtail.pa,
-					    GFP_KERNEL);
+			dma_alloc_coherent(dev, sz, &ring->edma_rx_swtail.pa,
+					   GFP_KERNEL);
 		if (!ring->edma_rx_swtail.va)
 			goto err_free_va;
 	}
@@ -727,7 +727,7 @@ static int wil_ring_init_tx_edma(struct wil6210_vif *vif, int ring_id,
 	txdata->enabled = 0;
 	spin_unlock_bh(&txdata->lock);
 	wil_ring_free_edma(wil, ring);
-	wil->ring2cid_tid[ring_id][0] = WIL6210_MAX_CID;
+	wil->ring2cid_tid[ring_id][0] = max_assoc_sta;
 	wil->ring2cid_tid[ring_id][1] = 0;
 
  out:
@@ -932,7 +932,7 @@ again:
 	eop = wil_rx_status_get_eop(msg);
 
 	cid = wil_rx_status_get_cid(msg);
-	if (unlikely(!wil_val_in_range(cid, 0, WIL6210_MAX_CID))) {
+	if (unlikely(!wil_val_in_range(cid, 0, max_assoc_sta))) {
 		wil_err(wil, "Corrupt cid=%d, sring->swhead=%d\n",
 			cid, sring->swhead);
 		rxdata->skipping = true;
@@ -1137,7 +1137,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 	/* Total number of completed descriptors in all descriptor rings */
 	int desc_cnt = 0;
 	int cid;
-	struct wil_net_stats *stats = NULL;
+	struct wil_net_stats *stats;
 	struct wil_tx_enhanced_desc *_d;
 	unsigned int ring_id;
 	unsigned int num_descs;
@@ -1187,8 +1187,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 		ndev = vif_to_ndev(vif);
 
 		cid = wil->ring2cid_tid[ring_id][0];
-		if (cid < WIL6210_MAX_CID)
-			stats = &wil->sta[cid].stats;
+		stats = (cid < max_assoc_sta ? &wil->sta[cid].stats : NULL);
 
 		wil_dbg_txrx(wil,
 			     "tx_status: completed desc_ring (%d), num_descs (%d)\n",

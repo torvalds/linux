@@ -10,7 +10,7 @@
 #include <linux/sys.h>
 #include <linux/linkage.h>
 
-#define __SYSCALL(nr, entry, nargs) .long entry
+#define __SYSCALL(nr, entry)	.long entry
 	.data
 ENTRY(sys_call_table)
 #include <asm/syscall_table.h>

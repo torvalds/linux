@@ -48,7 +48,7 @@ static const int ldo_cont_enable_time[] = {
 static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 {
 	enum lm363x_regulator_id id = rdev_get_id(rdev);
-	u8 val, addr, mask;
+	unsigned int val, addr, mask;
 
 	switch (id) {
 	case LM3631_LDO_CONT:
@@ -71,7 +71,7 @@ static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 		return 0;
 	}
 
-	if (regmap_read(rdev->regmap, addr, (unsigned int *)&val))
+	if (regmap_read(rdev->regmap, addr, &val))
 		return -EINVAL;
 
 	val = (val & mask) >> LM3631_ENTIME_SHIFT;
@@ -82,13 +82,13 @@ static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 		return ENABLE_TIME_USEC * val;
 }
 
-static struct regulator_ops lm363x_boost_voltage_table_ops = {
+static const struct regulator_ops lm363x_boost_voltage_table_ops = {
 	.list_voltage     = regulator_list_voltage_linear,
 	.set_voltage_sel  = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel  = regulator_get_voltage_sel_regmap,
 };
 
-static struct regulator_ops lm363x_regulator_voltage_table_ops = {
+static const struct regulator_ops lm363x_regulator_voltage_table_ops = {
 	.list_voltage     = regulator_list_voltage_linear,
 	.set_voltage_sel  = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel  = regulator_get_voltage_sel_regmap,
@@ -258,6 +258,9 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 	 * Register update is required if the pin is used.
 	 */
 	gpiod = lm363x_regulator_of_get_enable_gpio(dev, id);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+
 	if (gpiod) {
 		cfg.ena_gpiod = gpiod;
 
@@ -265,8 +268,7 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 					 LM3632_EXT_EN_MASK,
 					 LM3632_EXT_EN_MASK);
 		if (ret) {
-			if (gpiod)
-				gpiod_put(gpiod);
+			gpiod_put(gpiod);
 			dev_err(dev, "External pin err: %d\n", ret);
 			return ret;
 		}

@@ -100,7 +100,7 @@ static void sm3_compress(u32 *w, u32 *wt, u32 *m)
 
 	for (i = 0; i <= 63; i++) {
 
-		ss1 = rol32((rol32(a, 12) + e + rol32(t(i), i)), 7);
+		ss1 = rol32((rol32(a, 12) + e + rol32(t(i), i & 31)), 7);
 
 		ss2 = ss1 ^ rol32(a, 12);
 
@@ -199,7 +199,7 @@ static void __exit sm3_generic_mod_fini(void)
 	crypto_unregister_shash(&sm3_alg);
 }
 
-module_init(sm3_generic_mod_init);
+subsys_initcall(sm3_generic_mod_init);
 module_exit(sm3_generic_mod_fini);
 
 MODULE_LICENSE("GPL v2");

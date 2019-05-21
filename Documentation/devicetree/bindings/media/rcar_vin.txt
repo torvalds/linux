@@ -7,12 +7,13 @@ family of devices.
 Each VIN instance has a single parallel input that supports RGB and YUV video,
 with both external synchronization and BT.656 synchronization for the latter.
 Depending on the instance the VIN input is connected to external SoC pins, or
-on Gen3 platforms to a CSI-2 receiver.
+on Gen3 and RZ/G2 platforms to a CSI-2 receiver.
 
  - compatible: Must be one or more of the following
    - "renesas,vin-r8a7743" for the R8A7743 device
    - "renesas,vin-r8a7744" for the R8A7744 device
    - "renesas,vin-r8a7745" for the R8A7745 device
+   - "renesas,vin-r8a774c0" for the R8A774C0 device
    - "renesas,vin-r8a7778" for the R8A7778 device
    - "renesas,vin-r8a7779" for the R8A7779 device
    - "renesas,vin-r8a7790" for the R8A7790 device
@@ -61,10 +62,10 @@ The per-board settings Gen2 platforms:
     - data-enable-active: polarity of CLKENB signal, see [1] for
       description. Default is active high.
 
-The per-board settings Gen3 platforms:
+The per-board settings Gen3 and RZ/G2 platforms:
 
-Gen3 platforms can support both a single connected parallel input source
-from external SoC pins (port@0) and/or multiple parallel input sources
+Gen3 and RZ/G2 platforms can support both a single connected parallel input
+source from external SoC pins (port@0) and/or multiple parallel input sources
 from local SoC CSI-2 receivers (port@1) depending on SoC.
 
 - renesas,id - ID number of the VIN, VINx in the documentation.

@@ -2,7 +2,7 @@
 #ifndef __ASM_PROTOTYPES_H
 #define __ASM_PROTOTYPES_H
 /*
- * CONFIG_MODEVERIONS requires a C declaration to generate the appropriate CRC
+ * CONFIG_MODVERSIONS requires a C declaration to generate the appropriate CRC
  * for each symbol. Since commit:
  *
  *   4efca4ed05cbdfd1 ("kbuild: modversions for EXPORT_SYMBOL() for asm")

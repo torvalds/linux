@@ -135,8 +135,8 @@ static int spi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
 	return -ENOTSUPP;
 }
 
-static bool spi_mem_default_supports_op(struct spi_mem *mem,
-					const struct spi_mem_op *op)
+bool spi_mem_default_supports_op(struct spi_mem *mem,
+				 const struct spi_mem_op *op)
 {
 	if (spi_check_buswidth_req(mem, op->cmd.buswidth, true))
 		return false;
@@ -537,7 +537,6 @@ EXPORT_SYMBOL_GPL(spi_mem_dirmap_create);
 /**
  * spi_mem_dirmap_destroy() - Destroy a direct mapping descriptor
  * @desc: the direct mapping descriptor to destroy
- * @info: direct mapping information
  *
  * This function destroys a direct mapping descriptor previously created by
  * spi_mem_dirmap_create().
@@ -548,11 +547,82 @@ void spi_mem_dirmap_destroy(struct spi_mem_dirmap_desc *desc)
 
 	if (!desc->nodirmap && ctlr->mem_ops && ctlr->mem_ops->dirmap_destroy)
 		ctlr->mem_ops->dirmap_destroy(desc);
+
+	kfree(desc);
 }
 EXPORT_SYMBOL_GPL(spi_mem_dirmap_destroy);
 
+static void devm_spi_mem_dirmap_release(struct device *dev, void *res)
+{
+	struct spi_mem_dirmap_desc *desc = *(struct spi_mem_dirmap_desc **)res;
+
+	spi_mem_dirmap_destroy(desc);
+}
+
 /**
- * spi_mem_dirmap_dirmap_read() - Read data through a direct mapping
+ * devm_spi_mem_dirmap_create() - Create a direct mapping descriptor and attach
+ *				  it to a device
+ * @dev: device the dirmap desc will be attached to
+ * @mem: SPI mem device this direct mapping should be created for
+ * @info: direct mapping information
+ *
+ * devm_ variant of the spi_mem_dirmap_create() function. See
+ * spi_mem_dirmap_create() for more details.
+ *
+ * Return: a valid pointer in case of success, and ERR_PTR() otherwise.
+ */
+struct spi_mem_dirmap_desc *
+devm_spi_mem_dirmap_create(struct device *dev, struct spi_mem *mem,
+			   const struct spi_mem_dirmap_info *info)
+{
+	struct spi_mem_dirmap_desc **ptr, *desc;
+
+	ptr = devres_alloc(devm_spi_mem_dirmap_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	desc = spi_mem_dirmap_create(mem, info);
+	if (IS_ERR(desc)) {
+		devres_free(ptr);
+	} else {
+		*ptr = desc;
+		devres_add(dev, ptr);
+	}
+
+	return desc;
+}
+EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_create);
+
+static int devm_spi_mem_dirmap_match(struct device *dev, void *res, void *data)
+{
+        struct spi_mem_dirmap_desc **ptr = res;
+
+        if (WARN_ON(!ptr || !*ptr))
+                return 0;
+
+	return *ptr == data;
+}
+
+/**
+ * devm_spi_mem_dirmap_destroy() - Destroy a direct mapping descriptor attached
+ *				   to a device
+ * @dev: device the dirmap desc is attached to
+ * @desc: the direct mapping descriptor to destroy
+ *
+ * devm_ variant of the spi_mem_dirmap_destroy() function. See
+ * spi_mem_dirmap_destroy() for more details.
+ */
+void devm_spi_mem_dirmap_destroy(struct device *dev,
+				 struct spi_mem_dirmap_desc *desc)
+{
+	devres_release(dev, devm_spi_mem_dirmap_release,
+		       devm_spi_mem_dirmap_match, desc);
+}
+EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_destroy);
+
+/**
+ * spi_mem_dirmap_read() - Read data through a direct mapping
  * @desc: direct mapping descriptor
  * @offs: offset to start reading from. Note that this is not an absolute
  *	  offset, but the offset within the direct mapping which already has
@@ -598,7 +668,7 @@ ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
 EXPORT_SYMBOL_GPL(spi_mem_dirmap_read);
 
 /**
- * spi_mem_dirmap_dirmap_write() - Write data through a direct mapping
+ * spi_mem_dirmap_write() - Write data through a direct mapping
  * @desc: direct mapping descriptor
  * @offs: offset to start writing from. Note that this is not an absolute
  *	  offset, but the offset within the direct mapping which already has

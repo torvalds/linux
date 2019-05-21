@@ -297,7 +297,7 @@ static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->crycbd = 0;
 
 	apie_h = vcpu->arch.sie_block->eca & ECA_APIE;
-	if (!apie_h && !key_msk)
+	if (!apie_h && (!key_msk || fmt_o == CRYCB_FORMAT0))
 		return 0;
 
 	if (!crycb_addr)

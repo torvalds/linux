@@ -121,6 +121,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 	struct guehdr *guehdr;
 	void *data;
 	u16 doffset = 0;
+	u8 proto_ctype;
 
 	if (!fou)
 		return 1;
@@ -212,13 +213,14 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(guehdr->control))
 		return gue_control_message(skb, guehdr);
 
+	proto_ctype = guehdr->proto_ctype;
 	__skb_pull(skb, sizeof(struct udphdr) + hdrlen);
 	skb_reset_transport_header(skb);
 
 	if (iptunnel_pull_offloads(skb))
 		goto drop;
 
-	return -guehdr->proto_ctype;
+	return -proto_ctype;
 
 drop:
 	kfree_skb(skb);
@@ -1020,10 +1022,11 @@ static int gue_err(struct sk_buff *skb, u32 info)
 {
 	int transport_offset = skb_transport_offset(skb);
 	struct guehdr *guehdr;
-	size_t optlen;
+	size_t len, optlen;
 	int ret;
 
-	if (skb->len < sizeof(struct udphdr) + sizeof(struct guehdr))
+	len = sizeof(struct udphdr) + sizeof(struct guehdr);
+	if (!pskb_may_pull(skb, transport_offset + len))
 		return -EINVAL;
 
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
@@ -1058,6 +1061,10 @@ static int gue_err(struct sk_buff *skb, u32 info)
 
 	optlen = guehdr->hlen << 2;
 
+	if (!pskb_may_pull(skb, transport_offset + len + optlen))
+		return -EINVAL;
+
+	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 	if (validate_gue_flags(guehdr, optlen))
 		return -EINVAL;
 
@@ -1065,7 +1072,8 @@ static int gue_err(struct sk_buff *skb, u32 info)
 	 * recursion. Besides, this kind of encapsulation can't even be
 	 * configured currently. Discard this.
 	 */
-	if (guehdr->proto_ctype == IPPROTO_UDP)
+	if (guehdr->proto_ctype == IPPROTO_UDP ||
+	    guehdr->proto_ctype == IPPROTO_UDPLITE)
 		return -EOPNOTSUPP;
 
 	skb_set_transport_header(skb, -(int)sizeof(struct icmphdr));

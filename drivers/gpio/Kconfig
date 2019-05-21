@@ -258,6 +258,7 @@ config GPIO_HLWD
 	tristate "Nintendo Wii (Hollywood) GPIO"
 	depends on OF_GPIO
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Select this to support the GPIO controller of the Nintendo Wii.
 
@@ -654,6 +655,15 @@ config GPIO_LOONGSON1
 	help
 	  Say Y or M here to support GPIO on Loongson1 SoCs.
 
+config GPIO_AMD_FCH
+	tristate "GPIO support for AMD Fusion Controller Hub (G-series SOCs)"
+	help
+	  This option enables driver for GPIO on AMDs Fusion Controller Hub,
+	  as found on G-series SOCs (eg. GX-412TC)
+
+	  Note: This driver doesn't registers itself automatically, as it
+	  needs to be provided with platform specific configuration.
+	  (See eg. CONFIG_PCENGINES_APU2.)
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
@@ -829,6 +839,13 @@ config GPIO_ADNP
 	  example: if a controller provides 48 pins, 6 registers will be
 	  enough to represent all pins, but the driver will assume a
 	  register layout for 64 pins (8 registers).
+
+config GPIO_GW_PLD
+	tristate "Gateworks PLD GPIO Expander"
+	depends on OF_GPIO
+	help
+	  Say yes here to provide access to the Gateworks I2C PLD GPIO
+	  Expander. This is used at least on the Cambria GW2358-4.
 
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
@@ -1189,6 +1206,13 @@ config GPIO_TPS68470
 	  This driver config is bool, as the GPIO functionality
 	  of the TPS68470 must be available before dependent
 	  drivers are loaded.
+
+config GPIO_TQMX86
+	tristate "TQ-Systems QTMX86 GPIO"
+	depends on MFD_TQMX86 || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  This driver supports GPIO on the TQMX86 IO controller.
 
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"

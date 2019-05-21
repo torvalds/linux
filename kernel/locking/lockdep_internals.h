@@ -22,6 +22,10 @@ enum lock_usage_bit {
 	LOCK_USAGE_STATES
 };
 
+#define LOCK_USAGE_READ_MASK 1
+#define LOCK_USAGE_DIR_MASK  2
+#define LOCK_USAGE_STATE_MASK (~(LOCK_USAGE_READ_MASK | LOCK_USAGE_DIR_MASK))
+
 /*
  * Usage-state bitmasks:
  */
@@ -38,13 +42,35 @@ enum {
 	__LOCKF(USED)
 };
 
-#define LOCKF_ENABLED_IRQ (LOCKF_ENABLED_HARDIRQ | LOCKF_ENABLED_SOFTIRQ)
-#define LOCKF_USED_IN_IRQ (LOCKF_USED_IN_HARDIRQ | LOCKF_USED_IN_SOFTIRQ)
+#define LOCKDEP_STATE(__STATE)	LOCKF_ENABLED_##__STATE |
+static const unsigned long LOCKF_ENABLED_IRQ =
+#include "lockdep_states.h"
+	0;
+#undef LOCKDEP_STATE
 
-#define LOCKF_ENABLED_IRQ_READ \
-		(LOCKF_ENABLED_HARDIRQ_READ | LOCKF_ENABLED_SOFTIRQ_READ)
-#define LOCKF_USED_IN_IRQ_READ \
-		(LOCKF_USED_IN_HARDIRQ_READ | LOCKF_USED_IN_SOFTIRQ_READ)
+#define LOCKDEP_STATE(__STATE)	LOCKF_USED_IN_##__STATE |
+static const unsigned long LOCKF_USED_IN_IRQ =
+#include "lockdep_states.h"
+	0;
+#undef LOCKDEP_STATE
+
+#define LOCKDEP_STATE(__STATE)	LOCKF_ENABLED_##__STATE##_READ |
+static const unsigned long LOCKF_ENABLED_IRQ_READ =
+#include "lockdep_states.h"
+	0;
+#undef LOCKDEP_STATE
+
+#define LOCKDEP_STATE(__STATE)	LOCKF_USED_IN_##__STATE##_READ |
+static const unsigned long LOCKF_USED_IN_IRQ_READ =
+#include "lockdep_states.h"
+	0;
+#undef LOCKDEP_STATE
+
+#define LOCKF_ENABLED_IRQ_ALL (LOCKF_ENABLED_IRQ | LOCKF_ENABLED_IRQ_READ)
+#define LOCKF_USED_IN_IRQ_ALL (LOCKF_USED_IN_IRQ | LOCKF_USED_IN_IRQ_READ)
+
+#define LOCKF_IRQ (LOCKF_ENABLED_IRQ | LOCKF_USED_IN_IRQ)
+#define LOCKF_IRQ_READ (LOCKF_ENABLED_IRQ_READ | LOCKF_USED_IN_IRQ_READ)
 
 /*
  * CONFIG_LOCKDEP_SMALL is defined for sparc. Sparc requires .text,
@@ -96,7 +122,8 @@ struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i);
 
 extern unsigned long nr_lock_classes;
 extern unsigned long nr_list_entries;
-extern unsigned long nr_lock_chains;
+long lockdep_next_lockchain(long i);
+unsigned long lock_chain_count(void);
 extern int nr_chain_hlocks;
 extern unsigned long nr_stack_trace_entries;
 
