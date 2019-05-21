@@ -194,8 +194,6 @@ struct rcu_data {
 
 	/* 5) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
-	struct rcu_head *nocb_cb_head;	/* CBs ready to invoke. */
-	struct rcu_head **nocb_cb_tail;
 	struct swait_queue_head nocb_cb_wq; /* For nocb kthreads to sleep on. */
 	struct task_struct *nocb_gp_kthread;
 	raw_spinlock_t nocb_lock;	/* Guard following pair of fields. */

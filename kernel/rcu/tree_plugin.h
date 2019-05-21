@@ -1913,7 +1913,6 @@ static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 {
 	init_swait_queue_head(&rdp->nocb_cb_wq);
 	init_swait_queue_head(&rdp->nocb_gp_wq);
-	rdp->nocb_cb_tail = &rdp->nocb_cb_head;
 	raw_spin_lock_init(&rdp->nocb_lock);
 	timer_setup(&rdp->nocb_timer, do_nocb_deferred_wakeup_timer, 0);
 }
