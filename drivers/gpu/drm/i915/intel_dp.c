@@ -1850,6 +1850,19 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 	}
 }
 
+static int intel_dp_output_bpp(const struct intel_crtc_state *crtc_state, int bpp)
+{
+	/*
+	 * bpp value was assumed to RGB format. And YCbCr 4:2:0 output
+	 * format of the number of bytes per pixel will be half the number
+	 * of bytes of RGB pixel.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		bpp /= 2;
+
+	return bpp;
+}
+
 /* Optimize link config in order: max bpp, min clock, min lanes */
 static int
 intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
@@ -2223,7 +2236,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (pipe_config->dsc_params.compression_enable)
 		output_bpp = pipe_config->dsc_params.compressed_bpp;
 	else
-		output_bpp = pipe_config->pipe_bpp;
+		output_bpp = intel_dp_output_bpp(pipe_config, pipe_config->pipe_bpp);
 
 	intel_link_compute_m_n(output_bpp,
 			       pipe_config->lane_count,

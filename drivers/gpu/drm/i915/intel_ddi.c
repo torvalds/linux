@@ -1457,7 +1457,8 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	else
 		dotclock = pipe_config->port_clock;
 
-	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
+	    !intel_crtc_has_dp_encoder(pipe_config))
 		dotclock *= 2;
 
 	if (pipe_config->pixel_multiplier)
