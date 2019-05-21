@@ -698,15 +698,13 @@ static int max732x_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	ret = gpiochip_add_data(&chip->gpio_chip, chip);
+	ret = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
 	if (ret)
 		return ret;
 
 	ret = max732x_irq_setup(chip, id);
-	if (ret) {
-		gpiochip_remove(&chip->gpio_chip);
+	if (ret)
 		return ret;
-	}
 
 	if (pdata && pdata->setup) {
 		ret = pdata->setup(client, chip->gpio_chip.base,
@@ -735,8 +733,6 @@ static int max732x_remove(struct i2c_client *client)
 			return ret;
 		}
 	}
-
-	gpiochip_remove(&chip->gpio_chip);
 
 	return 0;
 }
