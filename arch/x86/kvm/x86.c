@@ -2547,7 +2547,15 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		break;
 	case MSR_IA32_MISC_ENABLE:
-		vcpu->arch.ia32_misc_enable_msr = data;
+		if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT) &&
+		    ((vcpu->arch.ia32_misc_enable_msr ^ data) & MSR_IA32_MISC_ENABLE_MWAIT)) {
+			if (!guest_cpuid_has(vcpu, X86_FEATURE_XMM3))
+				return 1;
+			vcpu->arch.ia32_misc_enable_msr = data;
+			kvm_update_cpuid(vcpu);
+		} else {
+			vcpu->arch.ia32_misc_enable_msr = data;
+		}
 		break;
 	case MSR_IA32_SMBASE:
 		if (!msr_info->host_initiated)
