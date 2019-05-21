@@ -1504,8 +1504,92 @@ out_siblings:
 	return err;
 }
 
+static int
+set_engines__bond(struct i915_user_extension __user *base, void *data)
+{
+	struct i915_context_engines_bond __user *ext =
+		container_of_user(base, typeof(*ext), base);
+	const struct set_engines *set = data;
+	struct i915_engine_class_instance ci;
+	struct intel_engine_cs *virtual;
+	struct intel_engine_cs *master;
+	u16 idx, num_bonds;
+	int err, n;
+
+	if (get_user(idx, &ext->virtual_index))
+		return -EFAULT;
+
+	if (idx >= set->engines->num_engines) {
+		DRM_DEBUG("Invalid index for virtual engine: %d >= %d\n",
+			  idx, set->engines->num_engines);
+		return -EINVAL;
+	}
+
+	idx = array_index_nospec(idx, set->engines->num_engines);
+	if (!set->engines->engines[idx]) {
+		DRM_DEBUG("Invalid engine at %d\n", idx);
+		return -EINVAL;
+	}
+	virtual = set->engines->engines[idx]->engine;
+
+	err = check_user_mbz(&ext->flags);
+	if (err)
+		return err;
+
+	for (n = 0; n < ARRAY_SIZE(ext->mbz64); n++) {
+		err = check_user_mbz(&ext->mbz64[n]);
+		if (err)
+			return err;
+	}
+
+	if (copy_from_user(&ci, &ext->master, sizeof(ci)))
+		return -EFAULT;
+
+	master = intel_engine_lookup_user(set->ctx->i915,
+					  ci.engine_class, ci.engine_instance);
+	if (!master) {
+		DRM_DEBUG("Unrecognised master engine: { class:%u, instance:%u }\n",
+			  ci.engine_class, ci.engine_instance);
+		return -EINVAL;
+	}
+
+	if (get_user(num_bonds, &ext->num_bonds))
+		return -EFAULT;
+
+	for (n = 0; n < num_bonds; n++) {
+		struct intel_engine_cs *bond;
+
+		if (copy_from_user(&ci, &ext->engines[n], sizeof(ci)))
+			return -EFAULT;
+
+		bond = intel_engine_lookup_user(set->ctx->i915,
+						ci.engine_class,
+						ci.engine_instance);
+		if (!bond) {
+			DRM_DEBUG("Unrecognised engine[%d] for bonding: { class:%d, instance: %d }\n",
+				  n, ci.engine_class, ci.engine_instance);
+			return -EINVAL;
+		}
+
+		/*
+		 * A non-virtual engine has no siblings to choose between; and
+		 * a submit fence will always be directed to the one engine.
+		 */
+		if (intel_engine_is_virtual(virtual)) {
+			err = intel_virtual_engine_attach_bond(virtual,
+							       master,
+							       bond);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
 static const i915_user_extension_fn set_engines__extensions[] = {
 	[I915_CONTEXT_ENGINES_EXT_LOAD_BALANCE] = set_engines__load_balance,
+	[I915_CONTEXT_ENGINES_EXT_BOND] = set_engines__bond,
 };
 
 static int

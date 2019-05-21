@@ -123,4 +123,8 @@ struct intel_context *
 intel_execlists_clone_virtual(struct i915_gem_context *ctx,
 			      struct intel_engine_cs *src);
 
+int intel_virtual_engine_attach_bond(struct intel_engine_cs *engine,
+				     const struct intel_engine_cs *master,
+				     const struct intel_engine_cs *sibling);
+
 #endif /* _INTEL_LRC_H_ */

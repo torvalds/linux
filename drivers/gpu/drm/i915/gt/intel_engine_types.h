@@ -406,6 +406,13 @@ struct intel_engine_cs {
 	void		(*submit_request)(struct i915_request *rq);
 
 	/*
+	 * Called on signaling of a SUBMIT_FENCE, passing along the signaling
+	 * request down to the bonded pairs.
+	 */
+	void            (*bond_execute)(struct i915_request *rq,
+					struct dma_fence *signal);
+
+	/*
 	 * Call when the priority on a request has changed and it and its
 	 * dependencies may need rescheduling. Note the request itself may
 	 * not be ready to run!
