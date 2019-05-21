@@ -374,15 +374,6 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_NETX
-	bool "Hilscher NetX based"
-	select ARM_VIC
-	select CLKSRC_MMIO
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	help
-	  This enables support for systems based on the Hilscher NetX Soc
-
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
 	depends on MMU
@@ -766,8 +757,6 @@ source "arch/arm/mach-mv78xx0/Kconfig"
 source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-mxs/Kconfig"
-
-source "arch/arm/mach-netx/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
 
