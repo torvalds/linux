@@ -106,6 +106,13 @@ struct opal_mbr_done {
 	__u8 __align[7];
 };
 
+struct opal_shadow_mbr {
+	struct opal_key key;
+	const __u64 data;
+	__u64 offset;
+	__u64 size;
+};
+
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
 #define IOC_OPAL_LOCK_UNLOCK	    _IOW('p', 221, struct opal_lock_unlock)
 #define IOC_OPAL_TAKE_OWNERSHIP	    _IOW('p', 222, struct opal_key)
@@ -120,5 +127,6 @@ struct opal_mbr_done {
 #define IOC_OPAL_SECURE_ERASE_LR    _IOW('p', 231, struct opal_session_info)
 #define IOC_OPAL_PSID_REVERT_TPR    _IOW('p', 232, struct opal_key)
 #define IOC_OPAL_MBR_DONE           _IOW('p', 233, struct opal_mbr_done)
+#define IOC_OPAL_WRITE_SHADOW_MBR   _IOW('p', 234, struct opal_shadow_mbr)
 
 #endif /* _UAPI_SED_OPAL_H */
