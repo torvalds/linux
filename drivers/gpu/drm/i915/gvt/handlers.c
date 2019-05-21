@@ -1364,7 +1364,6 @@ static int dma_ctrl_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	u32 trtte = *(u32 *)p_data;
 
 	if ((trtte & 1) && (trtte & (1 << 1)) == 0) {
@@ -1373,11 +1372,6 @@ static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 		return -EINVAL;
 	}
 	write_vreg(vgpu, offset, p_data, bytes);
-	/* TRTTE is not per-context */
-
-	mmio_hw_access_pre(dev_priv);
-	I915_WRITE(_MMIO(offset), vgpu_vreg(vgpu, offset));
-	mmio_hw_access_post(dev_priv);
 
 	return 0;
 }
@@ -1385,15 +1379,6 @@ static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gen9_trtt_chicken_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	u32 val = *(u32 *)p_data;
-
-	if (val & 1) {
-		/* unblock hw logic */
-		mmio_hw_access_pre(dev_priv);
-		I915_WRITE(_MMIO(offset), val);
-		mmio_hw_access_post(dev_priv);
-	}
 	write_vreg(vgpu, offset, p_data, bytes);
 	return 0;
 }
