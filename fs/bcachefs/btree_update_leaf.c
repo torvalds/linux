@@ -544,13 +544,6 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	struct btree_insert_entry *i;
 	int ret;
 
-	if (likely(!(trans->flags & BTREE_INSERT_NO_CLEAR_REPLICAS)) &&
-	    trans->fs_usage_deltas) {
-		memset(&trans->fs_usage_deltas->fs_usage, 0,
-		       sizeof(trans->fs_usage_deltas->fs_usage));
-		trans->fs_usage_deltas->used = 0;
-	}
-
 	trans_for_each_update_iter(trans, i)
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
 
@@ -561,7 +554,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 			if (ret == -EINTR)
 				trace_trans_restart_mark(trans->ip);
 			if (ret)
-				return ret;
+				goto out_clear_replicas;
 		}
 
 	btree_trans_lock_write(c, trans);
@@ -655,6 +648,12 @@ out:
 	}
 
 	bch2_journal_res_put(&c->journal, &trans->journal_res);
+out_clear_replicas:
+	if (trans->fs_usage_deltas) {
+		memset(&trans->fs_usage_deltas->fs_usage, 0,
+		       sizeof(trans->fs_usage_deltas->fs_usage));
+		trans->fs_usage_deltas->used = 0;
+	}
 
 	return ret;
 }

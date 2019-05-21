@@ -1260,30 +1260,31 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 
 /* trans_mark: */
 
-static void replicas_deltas_realloc(struct btree_trans *trans)
+static struct replicas_delta_list *
+replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 {
 	struct replicas_delta_list *d = trans->fs_usage_deltas;
-	unsigned new_size = d ? d->size * 2 : 128;
+	unsigned new_size = d ? (d->size + more) * 2 : 128;
 
-	d = krealloc(d, sizeof(*d) + new_size, GFP_NOIO|__GFP_ZERO);
-	BUG_ON(!d);
+	if (!d || d->used + more > d->size) {
+		d = krealloc(d, sizeof(*d) + new_size, GFP_NOIO|__GFP_ZERO);
+		BUG_ON(!d);
 
-	d->size = new_size;
-	trans->fs_usage_deltas = d;
+		d->size = new_size;
+		trans->fs_usage_deltas = d;
+	}
+	return d;
 }
 
 static inline void update_replicas_list(struct btree_trans *trans,
 					struct bch_replicas_entry *r,
 					s64 sectors)
 {
-	struct replicas_delta_list *d = trans->fs_usage_deltas;
+	struct replicas_delta_list *d;
 	struct replicas_delta *n;
 	unsigned b = replicas_entry_bytes(r) + 8;
 
-	if (!d || d->used + b > d->size) {
-		replicas_deltas_realloc(trans);
-		d = trans->fs_usage_deltas;
-	}
+	d = replicas_deltas_realloc(trans, b);
 
 	n = (void *) d->d + d->used;
 	n->delta = sectors;
@@ -1566,9 +1567,7 @@ int bch2_trans_mark_key(struct btree_trans *trans,
 		return bch2_trans_mark_extent(trans, k,
 				sectors, BCH_DATA_USER);
 	case KEY_TYPE_inode:
-		if (!trans->fs_usage_deltas)
-			replicas_deltas_realloc(trans);
-		d = trans->fs_usage_deltas;
+		d = replicas_deltas_realloc(trans, 0);
 
 		if (inserting)
 			d->fs_usage.nr_inodes++;
@@ -1578,9 +1577,7 @@ int bch2_trans_mark_key(struct btree_trans *trans,
 	case KEY_TYPE_reservation: {
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 
-		if (!trans->fs_usage_deltas)
-			replicas_deltas_realloc(trans);
-		d = trans->fs_usage_deltas;
+		d = replicas_deltas_realloc(trans, 0);
 
 		sectors *= replicas;
 		replicas = clamp_t(unsigned, replicas, 1,
