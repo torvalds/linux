@@ -2532,14 +2532,12 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int stride;
 	unsigned int page;
 	u8 *buffer = nand_get_data_buf(chip);
-	int saved_chip_number;
 	int found_an_ncb_fingerprint = false;
 	int ret;
 
 	/* Compute the number of strides in a search area. */
 	search_area_size_in_strides = 1 << rom_geo->search_area_stride_exponent;
 
-	saved_chip_number = this->current_chip;
 	nand_select_target(chip, 0);
 
 	/*
@@ -2570,10 +2568,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 
 	}
 
-	if (saved_chip_number >= 0)
-		nand_select_target(chip, saved_chip_number);
-	else
-		nand_deselect_target(chip);
+	nand_deselect_target(chip);
 
 	if (found_an_ncb_fingerprint)
 		dev_dbg(dev, "\tFound a fingerprint\n");
@@ -2597,7 +2592,6 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int stride;
 	unsigned int page;
 	u8 *buffer = nand_get_data_buf(chip);
-	int saved_chip_number;
 	int status;
 
 	/* Compute the search area geometry. */
@@ -2614,8 +2608,6 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	dev_dbg(dev, "\tin Strides: %u\n", search_area_size_in_strides);
 	dev_dbg(dev, "\tin Pages  : %u\n", search_area_size_in_pages);
 
-	/* Select chip 0. */
-	saved_chip_number = this->current_chip;
 	nand_select_target(chip, 0);
 
 	/* Loop over blocks in the first search area, erasing them. */
@@ -2647,11 +2639,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 			dev_err(dev, "[%s] Write failed.\n", __func__);
 	}
 
-	/* Deselect chip 0. */
-	if (saved_chip_number >= 0)
-		nand_select_target(chip, saved_chip_number);
-	else
-		nand_deselect_target(chip);
+	nand_deselect_target(chip);
 
 	return 0;
 }
