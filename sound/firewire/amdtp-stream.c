@@ -57,7 +57,6 @@
 #define QUEUE_LENGTH		48
 
 #define IR_HEADER_SIZE		8	// For header and timestamp.
-#define OUT_PACKET_HEADER_SIZE	0
 #define HEADER_TSTAMP_MASK	0x0000ffff
 
 static void pcm_period_tasklet(unsigned long data);
@@ -428,8 +427,7 @@ static void pcm_period_tasklet(unsigned long data)
 		snd_pcm_period_elapsed(pcm);
 }
 
-static int queue_packet(struct amdtp_stream *s, unsigned int header_length,
-			unsigned int payload_length)
+static int queue_packet(struct amdtp_stream *s, unsigned int payload_length)
 {
 	struct fw_iso_packet p = {0};
 	int err = 0;
@@ -439,7 +437,15 @@ static int queue_packet(struct amdtp_stream *s, unsigned int header_length,
 
 	p.interrupt = IS_ALIGNED(s->packet_index + 1, INTERRUPT_INTERVAL);
 	p.tag = s->tag;
-	p.header_length = header_length;
+
+	if (s->direction == AMDTP_IN_STREAM) {
+		// Queue one packet for IR context.
+		p.header_length = s->ctx_data.tx.ctx_header_size;
+	} else {
+		// No header for this packet.
+		p.header_length = 0;
+	}
+
 	if (payload_length > 0)
 		p.payload_length = payload_length;
 	else
@@ -460,13 +466,12 @@ end:
 static inline int queue_out_packet(struct amdtp_stream *s,
 				   unsigned int payload_length)
 {
-	return queue_packet(s, OUT_PACKET_HEADER_SIZE, payload_length);
+	return queue_packet(s, payload_length);
 }
 
 static inline int queue_in_packet(struct amdtp_stream *s)
 {
-	return queue_packet(s, s->ctx_data.tx.ctx_header_size,
-			    s->ctx_data.tx.max_payload_length);
+	return queue_packet(s, s->ctx_data.tx.max_payload_length);
 }
 
 static int handle_out_packet(struct amdtp_stream *s,
@@ -888,7 +893,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 	} else {
 		dir = DMA_TO_DEVICE;
 		type = FW_ISO_CONTEXT_TRANSMIT;
-		ctx_header_size = OUT_PACKET_HEADER_SIZE;
+		ctx_header_size = 0;	// No effect for IT context.
 	}
 	err = iso_packets_buffer_init(&s->buffer, s->unit, QUEUE_LENGTH,
 				      amdtp_stream_get_max_payload(s), dir);
