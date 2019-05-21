@@ -26,6 +26,7 @@
 #define __I915_UTILS_H
 
 #include <linux/list.h>
+#include <linux/overflow.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -77,6 +78,39 @@
 /* Note we don't consider signbits :| */
 #define overflows_type(x, T) \
 	(sizeof(x) > sizeof(T) && (x) >> BITS_PER_TYPE(T))
+
+static inline bool
+__check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
+{
+	size_t sz;
+
+	if (check_mul_overflow(count, arr, &sz))
+		return false;
+
+	if (check_add_overflow(sz, base, &sz))
+		return false;
+
+	*size = sz;
+	return true;
+}
+
+/**
+ * check_struct_size() - Calculate size of structure with trailing array.
+ * @p: Pointer to the structure.
+ * @member: Name of the array member.
+ * @n: Number of elements in the array.
+ * @sz: Total size of structure and array
+ *
+ * Calculates size of memory needed for structure @p followed by an
+ * array of @n @member elements, like struct_size() but reports
+ * whether it overflowed, and the resultant size in @sz
+ *
+ * Return: false if the calculation overflowed.
+ */
+#define check_struct_size(p, member, n, sz) \
+	likely(__check_struct_size(sizeof(*(p)), \
+				   sizeof(*(p)->member) + __must_be_array((p)->member), \
+				   n, sz))
 
 #define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\

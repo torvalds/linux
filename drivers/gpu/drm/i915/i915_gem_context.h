@@ -112,6 +112,24 @@ static inline void i915_gem_context_set_force_single_submission(struct i915_gem_
 	__set_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
 }
 
+static inline bool
+i915_gem_context_user_engines(const struct i915_gem_context *ctx)
+{
+	return test_bit(CONTEXT_USER_ENGINES, &ctx->flags);
+}
+
+static inline void
+i915_gem_context_set_user_engines(struct i915_gem_context *ctx)
+{
+	set_bit(CONTEXT_USER_ENGINES, &ctx->flags);
+}
+
+static inline void
+i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
+{
+	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
+}
+
 int __i915_gem_context_pin_hw_id(struct i915_gem_context *ctx);
 static inline int i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
 {

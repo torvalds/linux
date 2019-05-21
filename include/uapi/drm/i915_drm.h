@@ -136,6 +136,7 @@ enum drm_i915_gem_engine_class {
 struct i915_engine_class_instance {
 	__u16 engine_class; /* see enum drm_i915_gem_engine_class */
 	__u16 engine_instance;
+#define I915_ENGINE_CLASS_INVALID_NONE -1
 };
 
 /**
@@ -1522,6 +1523,26 @@ struct drm_i915_gem_context_param {
 	 * See DRM_I915_GEM_VM_CREATE and DRM_I915_GEM_VM_DESTROY.
 	 */
 #define I915_CONTEXT_PARAM_VM		0x9
+
+/*
+ * I915_CONTEXT_PARAM_ENGINES:
+ *
+ * Bind this context to operate on this subset of available engines. Henceforth,
+ * the I915_EXEC_RING selector for DRM_IOCTL_I915_GEM_EXECBUFFER2 operates as
+ * an index into this array of engines; I915_EXEC_DEFAULT selecting engine[0]
+ * and upwards. Slots 0...N are filled in using the specified (class, instance).
+ * Use
+ *	engine_class: I915_ENGINE_CLASS_INVALID,
+ *	engine_instance: I915_ENGINE_CLASS_INVALID_NONE
+ * to specify a gap in the array that can be filled in later, e.g. by a
+ * virtual engine used for load balancing.
+ *
+ * Setting the number of engines bound to the context to 0, by passing a zero
+ * sized argument, will revert back to default settings.
+ *
+ * See struct i915_context_param_engines.
+ */
+#define I915_CONTEXT_PARAM_ENGINES	0xa
 /* Must be kept compact -- no holes and well documented */
 
 	__u64 value;
@@ -1584,6 +1605,16 @@ struct drm_i915_gem_context_param_sseu {
 	 */
 	__u32 rsvd;
 };
+
+struct i915_context_param_engines {
+	__u64 extensions; /* linked chain of extension blocks, 0 terminates */
+	struct i915_engine_class_instance engines[0];
+} __attribute__((packed));
+
+#define I915_DEFINE_CONTEXT_PARAM_ENGINES(name__, N__) struct { \
+	__u64 extensions; \
+	struct i915_engine_class_instance engines[N__]; \
+} __attribute__((packed)) name__
 
 struct drm_i915_gem_context_create_ext_setparam {
 #define I915_CONTEXT_CREATE_EXT_SETPARAM 0

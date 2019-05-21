@@ -2165,7 +2165,10 @@ eb_select_engine(struct i915_execbuffer *eb,
 	unsigned int idx;
 	int err;
 
-	idx = eb_select_legacy_ring(eb, file, args);
+	if (i915_gem_context_user_engines(eb->gem_context))
+		idx = args->flags & I915_EXEC_RING_MASK;
+	else
+		idx = eb_select_legacy_ring(eb, file, args);
 
 	ce = i915_gem_context_get_engine(eb->gem_context, idx);
 	if (IS_ERR(ce))

@@ -146,6 +146,7 @@ struct i915_gem_context {
 #define CONTEXT_BANNED			0
 #define CONTEXT_CLOSED			1
 #define CONTEXT_FORCE_SINGLE_SUBMISSION	2
+#define CONTEXT_USER_ENGINES		3
 
 	/**
 	 * @hw_id: - unique identifier for the context
