@@ -7395,6 +7395,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
+	if (INTEL_GEN(dev_priv) >= 11)
+		connector->ycbcr_420_allowed = true;
+
 	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
 	intel_dp_aux_init(intel_dp);
