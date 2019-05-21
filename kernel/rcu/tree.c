@@ -2087,6 +2087,8 @@ int rcutree_dead_cpu(unsigned int cpu)
 static void rcu_do_batch(struct rcu_data *rdp)
 {
 	unsigned long flags;
+	const bool offloaded = IS_ENABLED(CONFIG_RCU_NOCB_CPU) &&
+			       rcu_segcblist_is_offloaded(&rdp->cblist);
 	struct rcu_head *rhp;
 	struct rcu_cblist rcl = RCU_CBLIST_INITIALIZER(rcl);
 	long bl, count;
@@ -2128,12 +2130,11 @@ static void rcu_do_batch(struct rcu_data *rdp)
 		 * Stop only if limit reached and CPU has something to do.
 		 * Note: The rcl structure counts down from zero.
 		 */
-		if (-rcl.len >= bl &&
-		    !rcu_segcblist_is_offloaded(&rdp->cblist) &&
+		if (-rcl.len >= bl && !offloaded &&
 		    (need_resched() ||
 		     (!is_idle_task(current) && !rcu_is_callbacks_kthread())))
 			break;
-		if (rcu_segcblist_is_offloaded(&rdp->cblist)) {
+		if (offloaded) {
 			WARN_ON_ONCE(in_serving_softirq());
 			local_bh_enable();
 			lockdep_assert_irqs_enabled();
@@ -2175,8 +2176,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	rcu_nocb_unlock_irqrestore(rdp, flags);
 
 	/* Re-invoke RCU core processing if there are callbacks remaining. */
-	if (!rcu_segcblist_is_offloaded(&rdp->cblist) &&
-	    rcu_segcblist_ready_cbs(&rdp->cblist))
+	if (!offloaded && rcu_segcblist_ready_cbs(&rdp->cblist))
 		invoke_rcu_core();
 }
 
