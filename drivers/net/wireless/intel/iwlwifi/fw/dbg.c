@@ -2937,3 +2937,88 @@ void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
 	iwl_trans_release_nic_access(trans, &flags);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_error_print_fseq_regs);
+
+static void _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
+				       struct iwl_fw_dbg_params *params)
+{
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		return;
+	}
+
+	if (params) {
+		params->in_sample = iwl_read_umac_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_read_umac_prph(trans, DBGC_OUT_CTRL);
+	}
+
+	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
+	/* wait for the DBGC to finish writing the internal buffer to DRAM to
+	 * avoid halting the HW while writing
+	 */
+	usleep_range(700, 1000);
+	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	trans->dbg.rec_on = false;
+#endif
+}
+
+void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
+			       struct iwl_fw_dbg_params *params)
+{
+	/* if the FW crashed or not debug monitor cfg was given, there is
+	 * no point in stopping
+	 */
+	if (test_bit(STATUS_FW_ERROR, &trans->status) ||
+	    (!trans->dbg.dest_tlv &&
+	     trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
+		return;
+
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		IWL_ERR(trans,
+			"WRT: unsupported device family %d for debug stop recording\n",
+			trans->cfg->device_family);
+		return;
+	}
+	_iwl_fw_dbg_stop_recording(trans, params);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_recording);
+
+static void _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
+					  struct iwl_fw_dbg_params *params)
+{
+	if (WARN_ON(!params))
+		return;
+
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+	} else {
+		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
+		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
+	}
+}
+
+void iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
+				  struct iwl_fw_dbg_params *params)
+{
+	/* if the FW crashed or not debug monitor cfg was given, there is
+	 * no point in restarting
+	 */
+	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
+	    (!fwrt->trans->dbg.dest_tlv &&
+	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
+		return;
+
+	if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		IWL_ERR(fwrt,
+			"WRT: unsupported device family %d for debug restart recording\n",
+			fwrt->trans->cfg->device_family);
+		return;
+	}
+	_iwl_fw_dbg_restart_recording(fwrt->trans, params);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_fw_set_dbg_rec_on(fwrt);
+#endif
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_restart_recording);
