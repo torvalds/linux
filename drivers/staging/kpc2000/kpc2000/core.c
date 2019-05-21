@@ -32,20 +32,10 @@ static DEFINE_IDA(card_num_ida);
  * SysFS Attributes
  ******************************************************/
 
-static struct kp2000_device *get_pcard(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-
-	if (!pdev)
-		return NULL;
-
-	return pci_get_drvdata(pdev);
-}
-
 static ssize_t ssid_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
 	if (!pcard)
 		return -ENXIO;
@@ -57,7 +47,7 @@ static DEVICE_ATTR_RO(ssid);
 static ssize_t ddna_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
 	if (!pcard)
 		return -ENXIO;
@@ -69,7 +59,7 @@ static DEVICE_ATTR_RO(ddna);
 static ssize_t card_id_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
 	if (!pcard)
 		return -ENXIO;
@@ -81,7 +71,7 @@ static DEVICE_ATTR_RO(card_id);
 static ssize_t hw_rev_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
 	if (!pcard)
 		return -ENXIO;
@@ -93,7 +83,7 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t build_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
 	if (!pcard)
 		return -ENXIO;
@@ -105,7 +95,7 @@ static DEVICE_ATTR_RO(build);
 static ssize_t build_date_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
 	if (!pcard)
 		return -ENXIO;
@@ -117,7 +107,7 @@ static DEVICE_ATTR_RO(build_date);
 static ssize_t build_time_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 
 	if (!pcard)
 		return -ENXIO;
@@ -129,7 +119,7 @@ static DEVICE_ATTR_RO(build_time);
 static ssize_t cpld_reg_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 	u64 val;
 
 	if (!pcard)
@@ -144,7 +134,7 @@ static ssize_t cpld_reconfigure(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct kp2000_device *pcard = get_pcard(dev);
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
 	long wr_val;
 	int rv;
 
