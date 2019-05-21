@@ -773,6 +773,7 @@ static int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 
 	if (!smu->pm_enabled)
 		return ret;
+
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count);
 	return ret;
 }
