@@ -164,13 +164,11 @@ struct talitos_private {
  */
 static inline bool has_ftr_sec1(struct talitos_private *priv)
 {
-#if defined(CONFIG_CRYPTO_DEV_TALITOS1) && defined(CONFIG_CRYPTO_DEV_TALITOS2)
-	return priv->features & TALITOS_FTR_SEC1 ? true : false;
-#elif defined(CONFIG_CRYPTO_DEV_TALITOS1)
-	return true;
-#else
-	return false;
-#endif
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_TALITOS1) &&
+	    IS_ENABLED(CONFIG_CRYPTO_DEV_TALITOS2))
+		return priv->features & TALITOS_FTR_SEC1;
+
+	return IS_ENABLED(CONFIG_CRYPTO_DEV_TALITOS1);
 }
 
 /*
