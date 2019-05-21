@@ -81,8 +81,10 @@ struct ap_matrix_mdev {
 	struct list_head node;
 	struct ap_matrix matrix;
 	struct notifier_block group_notifier;
+	struct notifier_block iommu_notifier;
 	struct kvm *kvm;
 	struct kvm_s390_module_hook pqap_hook;
+	struct mdev_device *mdev;
 };
 
 extern int vfio_ap_mdev_register(void);
