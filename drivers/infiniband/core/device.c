@@ -270,7 +270,7 @@ struct ib_port_data_rcu {
 	struct ib_port_data pdata[];
 };
 
-static int ib_device_check_mandatory(struct ib_device *device)
+static void ib_device_check_mandatory(struct ib_device *device)
 {
 #define IB_MANDATORY_FUNC(x) { offsetof(struct ib_device_ops, x), #x }
 	static const struct {
@@ -305,8 +305,6 @@ static int ib_device_check_mandatory(struct ib_device *device)
 			break;
 		}
 	}
-
-	return 0;
 }
 
 /*
@@ -1175,10 +1173,7 @@ static int setup_device(struct ib_device *device)
 	int ret;
 
 	setup_dma_device(device);
-
-	ret = ib_device_check_mandatory(device);
-	if (ret)
-		return ret;
+	ib_device_check_mandatory(device);
 
 	ret = setup_port_data(device);
 	if (ret) {
