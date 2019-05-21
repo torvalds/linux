@@ -162,8 +162,7 @@ static unsigned get_max_segment_size(struct request_queue *q,
  * variables.
  */
 static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
-		unsigned *nsegs, unsigned *last_seg_size,
-		unsigned *front_seg_size, unsigned *sectors, unsigned max_segs)
+		unsigned *nsegs, unsigned *sectors, unsigned max_segs)
 {
 	unsigned len = bv->bv_len;
 	unsigned total_len = 0;
@@ -185,27 +184,11 @@ static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
 			break;
 	}
 
-	if (!new_nsegs)
-		return !!len;
-
-	/* update front segment size */
-	if (!*nsegs) {
-		unsigned first_seg_size;
-
-		if (new_nsegs == 1)
-			first_seg_size = get_max_segment_size(q, bv->bv_offset);
-		else
-			first_seg_size = queue_max_segment_size(q);
-
-		if (*front_seg_size < first_seg_size)
-			*front_seg_size = first_seg_size;
+	if (new_nsegs) {
+		*nsegs += new_nsegs;
+		if (sectors)
+			*sectors += total_len >> 9;
 	}
-
-	/* update other varibles */
-	*last_seg_size = seg_size;
-	*nsegs += new_nsegs;
-	if (sectors)
-		*sectors += total_len >> 9;
 
 	/* split in the middle of the bvec if len != 0 */
 	return !!len;
@@ -218,8 +201,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 {
 	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
-	unsigned seg_size = 0, nsegs = 0, sectors = 0;
-	unsigned front_seg_size = bio->bi_seg_front_size;
+	unsigned nsegs = 0, sectors = 0;
 	bool do_split = true;
 	struct bio *new = NULL;
 	const unsigned max_sectors = get_max_io_size(q, bio);
@@ -243,8 +225,6 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 				/* split in the middle of bvec */
 				bv.bv_len = (max_sectors - sectors) << 9;
 				bvec_split_segs(q, &bv, &nsegs,
-						&seg_size,
-						&front_seg_size,
 						&sectors, max_segs);
 			}
 			goto split;
@@ -258,12 +238,9 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 
 		if (bv.bv_offset + bv.bv_len <= PAGE_SIZE) {
 			nsegs++;
-			seg_size = bv.bv_len;
 			sectors += bv.bv_len >> 9;
-			if (nsegs == 1 && seg_size > front_seg_size)
-				front_seg_size = seg_size;
-		} else if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
-				    &front_seg_size, &sectors, max_segs)) {
+		} else if (bvec_split_segs(q, &bv, &nsegs, &sectors,
+				max_segs)) {
 			goto split;
 		}
 	}
@@ -277,10 +254,6 @@ split:
 		if (new)
 			bio = new;
 	}
-
-	bio->bi_seg_front_size = front_seg_size;
-	if (seg_size > bio->bi_seg_back_size)
-		bio->bi_seg_back_size = seg_size;
 
 	return do_split ? new : NULL;
 }
@@ -336,16 +309,12 @@ EXPORT_SYMBOL(blk_queue_split);
 static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					     struct bio *bio)
 {
-	struct bio_vec uninitialized_var(bv), bvprv = { NULL };
-	unsigned int seg_size, nr_phys_segs;
-	unsigned front_seg_size;
-	struct bio *fbio, *bbio;
+	unsigned int nr_phys_segs = 0;
 	struct bvec_iter iter;
+	struct bio_vec bv;
 
 	if (!bio)
 		return 0;
-
-	front_seg_size = bio->bi_seg_front_size;
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
@@ -356,22 +325,10 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 		return 1;
 	}
 
-	fbio = bio;
-	seg_size = 0;
-	nr_phys_segs = 0;
 	for_each_bio(bio) {
-		bio_for_each_bvec(bv, bio, iter) {
-			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
-					&front_seg_size, NULL, UINT_MAX);
-		}
-		bbio = bio;
-		if (likely(bio->bi_iter.bi_size))
-			bvprv = bv;
+		bio_for_each_bvec(bv, bio, iter)
+			bvec_split_segs(q, &bv, &nr_phys_segs, NULL, UINT_MAX);
 	}
-
-	fbio->bi_seg_front_size = front_seg_size;
-	if (seg_size > bbio->bi_seg_back_size)
-		bbio->bi_seg_back_size = seg_size;
 
 	return nr_phys_segs;
 }
@@ -390,24 +347,6 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
 	bio->bi_next = nxt;
 
 	bio_set_flag(bio, BIO_SEG_VALID);
-}
-
-static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
-				   struct bio *nxt)
-{
-	struct bio_vec end_bv = { NULL }, nxt_bv;
-
-	if (bio->bi_seg_back_size + nxt->bi_seg_front_size >
-	    queue_max_segment_size(q))
-		return 0;
-
-	if (!bio_has_data(bio))
-		return 1;
-
-	bio_get_last_bvec(bio, &end_bv);
-	bio_get_first_bvec(nxt, &nxt_bv);
-
-	return biovec_phys_mergeable(q, &end_bv, &nxt_bv);
 }
 
 static inline struct scatterlist *blk_next_sg(struct scatterlist **sg,
@@ -669,8 +608,6 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 				struct request *next)
 {
 	int total_phys_segments;
-	unsigned int seg_size =
-		req->biotail->bi_seg_back_size + next->bio->bi_seg_front_size;
 
 	if (req_gap_back_merge(req, next->bio))
 		return 0;
@@ -683,13 +620,6 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 		return 0;
 
 	total_phys_segments = req->nr_phys_segments + next->nr_phys_segments;
-	if (blk_phys_contig_segment(q, req->biotail, next->bio)) {
-		if (req->nr_phys_segments == 1)
-			req->bio->bi_seg_front_size = seg_size;
-		if (next->nr_phys_segments == 1)
-			next->biotail->bi_seg_back_size = seg_size;
-	}
-
 	if (total_phys_segments > queue_max_segments(q))
 		return 0;
 
