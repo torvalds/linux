@@ -39,6 +39,7 @@ void native_io_delay(void)
 		 * are shorter until calibrated):
 		 */
 		udelay(2);
+		break;
 	case CONFIG_IO_DELAY_TYPE_NONE:
 		break;
 	}
