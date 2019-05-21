@@ -1689,6 +1689,44 @@ static int vega20_get_metrics_table(struct smu_context *smu,
 
 	return ret;
 }
+
+static int vega20_set_default_od_settings(struct smu_context *smu,
+					  bool initialize)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	int ret;
+
+	if (initialize) {
+		if (table_context->overdrive_table)
+			return -EINVAL;
+
+		table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
+
+		if (!table_context->overdrive_table)
+			return -ENOMEM;
+
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
+				       table_context->overdrive_table, false);
+		if (ret) {
+			pr_err("Failed to export over drive table!\n");
+			return ret;
+		}
+
+		ret = vega20_set_default_od8_setttings(smu);
+		if (ret)
+			return ret;
+	}
+
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
+			       table_context->overdrive_table, true);
+	if (ret) {
+		pr_err("Failed to import over drive table!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int vega20_get_od_percentage(struct smu_context *smu,
 				    enum smu_clk_type clk_type)
 {
@@ -3228,11 +3266,11 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.print_clk_levels = vega20_print_clk_levels,
 	.force_clk_levels = vega20_force_clk_levels,
 	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
-	.set_default_od8_settings = vega20_set_default_od8_setttings,
 	.get_od_percentage = vega20_get_od_percentage,
 	.get_power_profile_mode = vega20_get_power_profile_mode,
 	.set_power_profile_mode = vega20_set_power_profile_mode,
 	.set_od_percentage = vega20_set_od_percentage,
+	.set_default_od_settings = vega20_set_default_od_settings,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,
 	.dpm_set_uvd_enable = vega20_dpm_set_uvd_enable,
 	.dpm_set_vce_enable = vega20_dpm_set_vce_enable,

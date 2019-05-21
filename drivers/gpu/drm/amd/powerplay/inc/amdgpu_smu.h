@@ -609,6 +609,7 @@ struct pptable_funcs {
 					     uint32_t *value);
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
+	int (*set_default_od_settings)(struct smu_context *smu, bool initialize);
 };
 
 struct smu_funcs
@@ -672,8 +673,6 @@ struct smu_funcs
 	int (*notify_smu_enable_pwe)(struct smu_context *smu);
 	int (*set_watermarks_for_clock_ranges)(struct smu_context *smu,
 					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
-	int (*set_od8_default_settings)(struct smu_context *smu,
-					bool initialize);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
 	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
@@ -733,8 +732,8 @@ struct smu_funcs
 	((smu)->funcs->system_features_control ? (smu)->funcs->system_features_control((smu), (en)) : 0)
 #define smu_init_max_sustainable_clocks(smu) \
 	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
-#define smu_set_od8_default_settings(smu, initialize) \
-	((smu)->funcs->set_od8_default_settings ? (smu)->funcs->set_od8_default_settings((smu), (initialize)) : 0)
+#define smu_set_default_od_settings(smu, initialize) \
+	((smu)->ppt_funcs->set_default_od_settings ? (smu)->ppt_funcs->set_default_od_settings((smu), (initialize)) : 0)
 #define smu_get_current_rpm(smu, speed) \
 	((smu)->funcs->get_current_rpm ? (smu)->funcs->get_current_rpm((smu), (speed)) : 0)
 #define smu_set_fan_speed_rpm(smu, speed) \

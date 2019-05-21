@@ -1357,49 +1357,6 @@ static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
-					      bool initialize)
-{
-	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_table *table = &table_context->tables[SMU_TABLE_OVERDRIVE];
-	int ret;
-
-	/**
-	 * TODO: Enable overdrive for navi10, that replies on smc/pptable
-	 * support.
-	 */
-	if (smu->adev->asic_type == CHIP_NAVI10)
-		return 0;
-
-	if (initialize) {
-		if (table_context->overdrive_table)
-			return -EINVAL;
-
-		table_context->overdrive_table = kzalloc(table->size, GFP_KERNEL);
-
-		if (!table_context->overdrive_table)
-			return -ENOMEM;
-
-		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
-				       table_context->overdrive_table, false);
-		if (ret) {
-			pr_err("Failed to export over drive table!\n");
-			return ret;
-		}
-
-		smu_set_default_od8_settings(smu);
-	}
-
-	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE,
-			       table_context->overdrive_table, true);
-	if (ret) {
-		pr_err("Failed to import over drive table!\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int smu_v11_0_get_current_rpm(struct smu_context *smu,
 				     uint32_t *current_rpm)
 {
@@ -1686,7 +1643,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.set_watermarks_for_clock_ranges = smu_v11_0_set_watermarks_for_clock_ranges,
-	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
 	.get_current_rpm = smu_v11_0_get_current_rpm,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
