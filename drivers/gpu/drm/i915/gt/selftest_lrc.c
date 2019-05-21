@@ -1489,6 +1489,136 @@ out_unlock:
 	return err;
 }
 
+static int mask_virtual_engine(struct drm_i915_private *i915,
+			       struct intel_engine_cs **siblings,
+			       unsigned int nsibling)
+{
+	struct i915_request *request[MAX_ENGINE_INSTANCE + 1];
+	struct i915_gem_context *ctx;
+	struct intel_context *ve;
+	struct igt_live_test t;
+	unsigned int n;
+	int err;
+
+	/*
+	 * Check that by setting the execution mask on a request, we can
+	 * restrict it to our desired engine within the virtual engine.
+	 */
+
+	ctx = kernel_context(i915);
+	if (!ctx)
+		return -ENOMEM;
+
+	ve = intel_execlists_create_virtual(ctx, siblings, nsibling);
+	if (IS_ERR(ve)) {
+		err = PTR_ERR(ve);
+		goto out_close;
+	}
+
+	err = intel_context_pin(ve);
+	if (err)
+		goto out_put;
+
+	err = igt_live_test_begin(&t, i915, __func__, ve->engine->name);
+	if (err)
+		goto out_unpin;
+
+	for (n = 0; n < nsibling; n++) {
+		request[n] = i915_request_create(ve);
+		if (IS_ERR(request)) {
+			err = PTR_ERR(request);
+			nsibling = n;
+			goto out;
+		}
+
+		/* Reverse order as it's more likely to be unnatural */
+		request[n]->execution_mask = siblings[nsibling - n - 1]->mask;
+
+		i915_request_get(request[n]);
+		i915_request_add(request[n]);
+	}
+
+	for (n = 0; n < nsibling; n++) {
+		if (i915_request_wait(request[n], I915_WAIT_LOCKED, HZ / 10) < 0) {
+			pr_err("%s(%s): wait for %llx:%lld timed out\n",
+			       __func__, ve->engine->name,
+			       request[n]->fence.context,
+			       request[n]->fence.seqno);
+
+			GEM_TRACE("%s(%s) failed at request %llx:%lld\n",
+				  __func__, ve->engine->name,
+				  request[n]->fence.context,
+				  request[n]->fence.seqno);
+			GEM_TRACE_DUMP();
+			i915_gem_set_wedged(i915);
+			err = -EIO;
+			goto out;
+		}
+
+		if (request[n]->engine != siblings[nsibling - n - 1]) {
+			pr_err("Executed on wrong sibling '%s', expected '%s'\n",
+			       request[n]->engine->name,
+			       siblings[nsibling - n - 1]->name);
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+	err = igt_live_test_end(&t);
+	if (err)
+		goto out;
+
+out:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+
+	for (n = 0; n < nsibling; n++)
+		i915_request_put(request[n]);
+
+out_unpin:
+	intel_context_unpin(ve);
+out_put:
+	intel_context_put(ve);
+out_close:
+	kernel_context_close(ctx);
+	return err;
+}
+
+static int live_virtual_mask(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *siblings[MAX_ENGINE_INSTANCE + 1];
+	unsigned int class, inst;
+	int err = 0;
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0;
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	for (class = 0; class <= MAX_ENGINE_CLASS; class++) {
+		unsigned int nsibling;
+
+		nsibling = 0;
+		for (inst = 0; inst <= MAX_ENGINE_INSTANCE; inst++) {
+			if (!i915->engine_class[class][inst])
+				break;
+
+			siblings[nsibling++] = i915->engine_class[class][inst];
+		}
+		if (nsibling < 2)
+			continue;
+
+		err = mask_virtual_engine(i915, siblings, nsibling);
+		if (err)
+			goto out_unlock;
+	}
+
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+}
+
 int intel_execlists_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
@@ -1502,6 +1632,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_preempt_hang),
 		SUBTEST(live_preempt_smoke),
 		SUBTEST(live_virtual_engine),
+		SUBTEST(live_virtual_mask),
 	};
 
 	if (!HAS_EXECLISTS(i915))

@@ -28,6 +28,8 @@
 #include <linux/dma-fence.h>
 #include <linux/lockdep.h>
 
+#include "gt/intel_engine_types.h"
+
 #include "i915_gem.h"
 #include "i915_scheduler.h"
 #include "i915_selftest.h"
@@ -156,6 +158,7 @@ struct i915_request {
 	 */
 	struct i915_sched_node sched;
 	struct i915_dependency dep;
+	intel_engine_mask_t execution_mask;
 
 	/*
 	 * A convenience pointer to the current breadcrumb value stored in

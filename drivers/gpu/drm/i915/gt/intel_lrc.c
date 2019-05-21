@@ -509,6 +509,15 @@ execlists_context_schedule_in(struct i915_request *rq)
 	rq->hw_context->active = rq->engine;
 }
 
+static void kick_siblings(struct i915_request *rq)
+{
+	struct virtual_engine *ve = to_virtual_engine(rq->hw_context->engine);
+	struct i915_request *next = READ_ONCE(ve->request);
+
+	if (next && next->execution_mask & ~rq->execution_mask)
+		tasklet_schedule(&ve->base.execlists.tasklet);
+}
+
 static inline void
 execlists_context_schedule_out(struct i915_request *rq, unsigned long status)
 {
@@ -516,6 +525,18 @@ execlists_context_schedule_out(struct i915_request *rq, unsigned long status)
 	intel_engine_context_out(rq->engine);
 	execlists_context_status_change(rq, status);
 	trace_i915_request_out(rq);
+
+	/*
+	 * If this is part of a virtual engine, its next request may have
+	 * been blocked waiting for access to the active context. We have
+	 * to kick all the siblings again in case we need to switch (e.g.
+	 * the next request is not runnable on this engine). Hopefully,
+	 * we will already have submitted the next request before the
+	 * tasklet runs and do not need to rebuild each virtual tree
+	 * and kick everyone again.
+	 */
+	if (rq->engine != rq->hw_context->engine)
+		kick_siblings(rq);
 }
 
 static u64 execlists_update_context(struct i915_request *rq)
@@ -744,6 +765,9 @@ static bool virtual_matches(const struct virtual_engine *ve,
 			    const struct intel_engine_cs *engine)
 {
 	const struct intel_engine_cs *active;
+
+	if (!(rq->execution_mask & engine->mask)) /* We peeked too soon! */
+		return false;
 
 	/*
 	 * We track when the HW has completed saving the context image
@@ -3118,11 +3142,43 @@ static const struct intel_context_ops virtual_context_ops = {
 	.destroy = virtual_context_destroy,
 };
 
+static intel_engine_mask_t virtual_submission_mask(struct virtual_engine *ve)
+{
+	struct i915_request *rq;
+	intel_engine_mask_t mask;
+
+	rq = READ_ONCE(ve->request);
+	if (!rq)
+		return 0;
+
+	/* The rq is ready for submission; rq->execution_mask is now stable. */
+	mask = rq->execution_mask;
+	if (unlikely(!mask)) {
+		/* Invalid selection, submit to a random engine in error */
+		i915_request_skip(rq, -ENODEV);
+		mask = ve->siblings[0]->mask;
+	}
+
+	GEM_TRACE("%s: rq=%llx:%lld, mask=%x, prio=%d\n",
+		  ve->base.name,
+		  rq->fence.context, rq->fence.seqno,
+		  mask, ve->base.execlists.queue_priority_hint);
+
+	return mask;
+}
+
 static void virtual_submission_tasklet(unsigned long data)
 {
 	struct virtual_engine * const ve = (struct virtual_engine *)data;
 	const int prio = ve->base.execlists.queue_priority_hint;
+	intel_engine_mask_t mask;
 	unsigned int n;
+
+	rcu_read_lock();
+	mask = virtual_submission_mask(ve);
+	rcu_read_unlock();
+	if (unlikely(!mask))
+		return;
 
 	local_irq_disable();
 	for (n = 0; READ_ONCE(ve->request) && n < ve->num_siblings; n++) {
@@ -3130,6 +3186,17 @@ static void virtual_submission_tasklet(unsigned long data)
 		struct ve_node * const node = &ve->nodes[sibling->id];
 		struct rb_node **parent, *rb;
 		bool first;
+
+		if (unlikely(!(mask & sibling->mask))) {
+			if (!RB_EMPTY_NODE(&node->rb)) {
+				spin_lock(&sibling->timeline.lock);
+				rb_erase_cached(&node->rb,
+						&sibling->execlists.virtual);
+				RB_CLEAR_NODE(&node->rb);
+				spin_unlock(&sibling->timeline.lock);
+			}
+			continue;
+		}
 
 		spin_lock(&sibling->timeline.lock);
 

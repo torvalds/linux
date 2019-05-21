@@ -694,6 +694,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->batch = NULL;
 	rq->capture_list = NULL;
 	rq->waitboost = false;
+	rq->execution_mask = ALL_ENGINES;
 
 	INIT_LIST_HEAD(&rq->active_list);
 	INIT_LIST_HEAD(&rq->execute_cb);
