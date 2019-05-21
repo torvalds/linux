@@ -1183,7 +1183,7 @@ F:	Documentation/gpu/afbc.rst
 ARM MFM AND FLOPPY DRIVERS
 M:	Ian Molton <spyro@f2s.com>
 S:	Maintained
-F:	arch/arm/lib/floppydma.S
+F:	arch/arm/mach-rpc/floppydma.S
 F:	arch/arm/include/asm/floppy.h
 
 ARM PMU PROFILING AND DEBUGGING
