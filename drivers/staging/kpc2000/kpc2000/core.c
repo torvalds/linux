@@ -39,7 +39,7 @@ static struct kp2000_device *get_pcard(struct device *dev)
 	return pci_get_drvdata(pdev);
 }
 
-static ssize_t show_attr(struct device *dev, struct device_attribute *attr,
+static ssize_t ssid_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct kp2000_device *pcard = get_pcard(dev);
@@ -47,36 +47,84 @@ static ssize_t show_attr(struct device *dev, struct device_attribute *attr,
 	if (!pcard)
 		return -ENXIO;
 
-	if (strcmp("ssid", attr->attr.name) == 0)
-		return scnprintf(buf, PAGE_SIZE, "%016llx\n", pcard->ssid);
-
-	if (strcmp("ddna", attr->attr.name) == 0)
-		return scnprintf(buf, PAGE_SIZE, "%016llx\n", pcard->ddna);
-
-	if (strcmp("card_id", attr->attr.name) == 0)
-		return scnprintf(buf, PAGE_SIZE, "%08x\n", pcard->card_id);
-
-	if (strcmp("hw_rev", attr->attr.name) == 0)
-		return scnprintf(buf, PAGE_SIZE, "%08x\n",
-				 pcard->hardware_revision);
-
-	if (strcmp("build", attr->attr.name) == 0)
-		return scnprintf(buf, PAGE_SIZE, "%08x\n",
-				 pcard->build_version);
-
-	if (strcmp("build_date", attr->attr.name) == 0)
-		return scnprintf(buf, PAGE_SIZE, "%08x\n",
-				 pcard->build_datestamp);
-
-	if (strcmp("build_time", attr->attr.name) == 0)
-		return scnprintf(buf, PAGE_SIZE, "%08x\n",
-				 pcard->build_timestamp);
-
-	return -ENXIO;
+	return sprintf(buf, "%016llx\n", pcard->ssid);
 }
+static DEVICE_ATTR_RO(ssid);
 
-static ssize_t show_cpld_config_reg(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t ddna_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct kp2000_device *pcard = get_pcard(dev);
+
+	if (!pcard)
+		return -ENXIO;
+
+	return sprintf(buf, "%016llx\n", pcard->ddna);
+}
+static DEVICE_ATTR_RO(ddna);
+
+static ssize_t card_id_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct kp2000_device *pcard = get_pcard(dev);
+
+	if (!pcard)
+		return -ENXIO;
+
+	return sprintf(buf, "%08x\n", pcard->card_id);
+}
+static DEVICE_ATTR_RO(card_id);
+
+static ssize_t hw_rev_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct kp2000_device *pcard = get_pcard(dev);
+
+	if (!pcard)
+		return -ENXIO;
+
+	return sprintf(buf, "%08x\n", pcard->hardware_revision);
+}
+static DEVICE_ATTR_RO(hw_rev);
+
+static ssize_t build_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct kp2000_device *pcard = get_pcard(dev);
+
+	if (!pcard)
+		return -ENXIO;
+
+	return sprintf(buf, "%08x\n", pcard->build_version);
+}
+static DEVICE_ATTR_RO(build);
+
+static ssize_t build_date_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct kp2000_device *pcard = get_pcard(dev);
+
+	if (!pcard)
+		return -ENXIO;
+
+	return sprintf(buf, "%08x\n", pcard->build_datestamp);
+}
+static DEVICE_ATTR_RO(build_date);
+
+static ssize_t build_time_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct kp2000_device *pcard = get_pcard(dev);
+
+	if (!pcard)
+		return -ENXIO;
+
+	return sprintf(buf, "%08x\n", pcard->build_timestamp);
+}
+static DEVICE_ATTR_RO(build_time);
+
+static ssize_t cpld_reg_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct kp2000_device *pcard = get_pcard(dev);
 	u64 val;
@@ -85,8 +133,9 @@ static ssize_t show_cpld_config_reg(struct device *dev,
 		return -ENXIO;
 
 	val = readq(pcard->sysinfo_regs_base + REG_CPLD_CONFIG);
-	return scnprintf(buf, PAGE_SIZE, "%016llx\n", val);
+	return sprintf(buf, "%016llx\n", val);
 }
+static DEVICE_ATTR_RO(cpld_reg);
 
 static ssize_t cpld_reconfigure(struct device *dev,
 				struct device_attribute *attr,
@@ -110,16 +159,7 @@ static ssize_t cpld_reconfigure(struct device *dev,
 	writeq(wr_val, pcard->sysinfo_regs_base + REG_CPLD_CONFIG);
 	return count;
 }
-
-DEVICE_ATTR(ssid,       0444, show_attr, NULL);
-DEVICE_ATTR(ddna,       0444, show_attr, NULL);
-DEVICE_ATTR(card_id,    0444, show_attr, NULL);
-DEVICE_ATTR(hw_rev,     0444, show_attr, NULL);
-DEVICE_ATTR(build,      0444, show_attr, NULL);
-DEVICE_ATTR(build_date, 0444, show_attr, NULL);
-DEVICE_ATTR(build_time, 0444, show_attr, NULL);
-DEVICE_ATTR(cpld_reg,   0444, show_cpld_config_reg, NULL);
-DEVICE_ATTR(cpld_reconfigure,   0220, NULL, cpld_reconfigure);
+static DEVICE_ATTR(cpld_reconfigure, 0220, NULL, cpld_reconfigure);
 
 static const struct attribute *kp_attr_list[] = {
 	&dev_attr_ssid.attr,
