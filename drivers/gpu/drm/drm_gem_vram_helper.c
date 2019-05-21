@@ -284,6 +284,8 @@ int drm_gem_vram_pin_locked(struct drm_gem_vram_object *gbo,
 	int i, ret;
 	struct ttm_operation_ctx ctx = { false, false };
 
+	lockdep_assert_held(&gbo->bo.resv->lock.base);
+
 	if (gbo->pin_count) {
 		++gbo->pin_count;
 		return 0;
@@ -360,6 +362,8 @@ int drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo)
 {
 	int i, ret;
 	struct ttm_operation_ctx ctx = { false, false };
+
+	lockdep_assert_held(&gbo->bo.resv->lock.base);
 
 	if (WARN_ON_ONCE(!gbo->pin_count))
 		return 0;
