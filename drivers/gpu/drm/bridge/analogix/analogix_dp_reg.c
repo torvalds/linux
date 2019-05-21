@@ -1041,7 +1041,7 @@ static ssize_t analogix_dp_get_psr_status(struct analogix_dp_device *dp)
 }
 
 int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
-			     struct edp_vsc_psr *vsc, bool blocking)
+			     struct dp_sdp *vsc, bool blocking)
 {
 	unsigned int val;
 	int ret;
@@ -1069,8 +1069,8 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 	writel(0x5D, dp->reg_base + ANALOGIX_DP_SPD_PB3);
 
 	/* configure DB0 / DB1 values */
-	writel(vsc->DB0, dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB0);
-	writel(vsc->DB1, dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB1);
+	writel(vsc->db[0], dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB0);
+	writel(vsc->db[1], dp->reg_base + ANALOGIX_DP_VSC_SHADOW_DB1);
 
 	/* set reuse spd inforframe */
 	val = readl(dp->reg_base + ANALOGIX_DP_VIDEO_CTL_3);
@@ -1092,8 +1092,8 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 
 	ret = readx_poll_timeout(analogix_dp_get_psr_status, dp, psr_status,
 		psr_status >= 0 &&
-		((vsc->DB1 && psr_status == DP_PSR_SINK_ACTIVE_RFB) ||
-		(!vsc->DB1 && psr_status == DP_PSR_SINK_INACTIVE)), 1500,
+		((vsc->db[1] && psr_status == DP_PSR_SINK_ACTIVE_RFB) ||
+		(!vsc->db[1] && psr_status == DP_PSR_SINK_INACTIVE)), 1500,
 		DP_TIMEOUT_PSR_LOOP_MS * 1000);
 	if (ret) {
 		dev_warn(dp->dev, "Failed to apply PSR %d\n", ret);

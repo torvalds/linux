@@ -342,7 +342,7 @@ static void intel_psr_setup_vsc(struct intel_dp *intel_dp,
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct edp_vsc_psr psr_vsc;
+	struct dp_sdp psr_vsc;
 
 	if (dev_priv->psr.psr2_enabled) {
 		/* Prepare VSC Header for SU as per EDP 1.4 spec, Table 6.11 */
