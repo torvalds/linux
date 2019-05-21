@@ -262,7 +262,7 @@ drm_format_info_is_yuv_sampling_444(const struct drm_format_info *info)
 
 /**
  * drm_format_info_plane_width - width of the plane given the first plane
- * @format: pixel format info
+ * @info: pixel format info
  * @width: width of the first plane
  * @plane: plane index
  *
@@ -284,7 +284,7 @@ int drm_format_info_plane_width(const struct drm_format_info *info, int width,
 
 /**
  * drm_format_info_plane_height - height of the plane given the first plane
- * @format: pixel format info
+ * @info: pixel format info
  * @height: height of the first plane
  * @plane: plane index
  *
