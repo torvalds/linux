@@ -14,6 +14,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pm_runtime.h>
 #include "gpmi-nand.h"
 #include "gpmi-regs.h"
 #include "bch-regs.h"
@@ -141,24 +142,11 @@ err_clk:
 	return ret;
 }
 
-static int gpmi_enable_clk(struct gpmi_nand_data *this)
-{
-	return __gpmi_enable_clk(this, true);
-}
-
-static int gpmi_disable_clk(struct gpmi_nand_data *this)
-{
-	return __gpmi_enable_clk(this, false);
-}
-
 static int gpmi_init(struct gpmi_nand_data *this)
 {
 	struct resources *r = &this->resources;
 	int ret;
 
-	ret = gpmi_enable_clk(this);
-	if (ret)
-		return ret;
 	ret = gpmi_reset_block(r->gpmi_regs, false);
 	if (ret)
 		goto err_out;
@@ -190,10 +178,8 @@ static int gpmi_init(struct gpmi_nand_data *this)
 	 */
 	writel(BM_GPMI_CTRL1_DECOUPLE_CS, r->gpmi_regs + HW_GPMI_CTRL1_SET);
 
-	gpmi_disable_clk(this);
 	return 0;
 err_out:
-	gpmi_disable_clk(this);
 	return ret;
 }
 
@@ -561,8 +547,8 @@ static int bch_set_geometry(struct gpmi_nand_data *this)
 	page_size     = bch_geo->page_size;
 	gf_len        = bch_geo->gf_len;
 
-	ret = gpmi_enable_clk(this);
-	if (ret)
+	ret = pm_runtime_get_sync(this->dev);
+	if (ret < 0)
 		return ret;
 
 	/*
@@ -595,10 +581,11 @@ static int bch_set_geometry(struct gpmi_nand_data *this)
 	writel(BM_BCH_CTRL_COMPLETE_IRQ_EN,
 				r->bch_regs + HW_BCH_CTRL_SET);
 
-	gpmi_disable_clk(this);
-	return 0;
+	ret = 0;
 err_out:
-	gpmi_disable_clk(this);
+	pm_runtime_mark_last_busy(this->dev);
+	pm_runtime_put_autosuspend(this->dev);
+
 	return ret;
 }
 
@@ -1754,13 +1741,12 @@ static void gpmi_select_chip(struct nand_chip *chip, int chipnr)
 	 * die is selected/unselected.
 	 */
 	if (this->current_chip < 0 && chipnr >= 0) {
-		ret = gpmi_enable_clk(this);
-		if (ret)
+		ret = pm_runtime_get_sync(this->dev);
+		if (ret < 0)
 			dev_err(this->dev, "Failed to enable the clock\n");
 	} else if (this->current_chip >= 0 && chipnr < 0) {
-		ret = gpmi_disable_clk(this);
-		if (ret)
-			dev_err(this->dev, "Failed to disable the clock\n");
+		pm_runtime_mark_last_busy(this->dev);
+		pm_runtime_put_autosuspend(this->dev);
 	}
 
 	/*
@@ -2924,6 +2910,16 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto exit_acquire_resources;
 
+	ret = __gpmi_enable_clk(this, true);
+	if (ret)
+		goto exit_nfc_init;
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 500);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	ret = gpmi_init(this);
 	if (ret)
 		goto exit_nfc_init;
@@ -2932,11 +2928,16 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto exit_nfc_init;
 
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
+
 	dev_info(this->dev, "driver registered.\n");
 
 	return 0;
 
 exit_nfc_init:
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	release_resources(this);
 exit_acquire_resources:
 
@@ -2946,6 +2947,9 @@ exit_acquire_resources:
 static int gpmi_nand_remove(struct platform_device *pdev)
 {
 	struct gpmi_nand_data *this = platform_get_drvdata(pdev);
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	nand_release(&this->nand);
 	gpmi_free_dma_buffer(this);
@@ -2989,8 +2993,23 @@ static int gpmi_pm_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
+static int __maybe_unused gpmi_runtime_suspend(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+
+	return __gpmi_enable_clk(this, false);
+}
+
+static int __maybe_unused gpmi_runtime_resume(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+
+	return __gpmi_enable_clk(this, true);
+}
+
 static const struct dev_pm_ops gpmi_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(gpmi_pm_suspend, gpmi_pm_resume)
+	SET_RUNTIME_PM_OPS(gpmi_runtime_suspend, gpmi_runtime_resume, NULL)
 };
 
 static struct platform_driver gpmi_nand_driver = {
