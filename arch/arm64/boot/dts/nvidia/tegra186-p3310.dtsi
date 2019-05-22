@@ -4,7 +4,7 @@
 #include <dt-bindings/mfd/max77620.h>
 
 / {
-	model = "NVIDIA Tegra186 P3310 Processor Module";
+	model = "NVIDIA Jetson TX2";
 	compatible = "nvidia,p3310", "nvidia,tegra186";
 
 	aliases {
