@@ -337,13 +337,10 @@ void intel_uc_fini(struct drm_i915_private *i915)
 	intel_guc_fini(guc);
 }
 
-void intel_uc_sanitize(struct drm_i915_private *i915)
+static void __uc_sanitize(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
 	struct intel_huc *huc = &i915->huc;
-
-	if (!USES_GUC(i915))
-		return;
 
 	GEM_BUG_ON(!HAS_GUC(i915));
 
@@ -351,6 +348,14 @@ void intel_uc_sanitize(struct drm_i915_private *i915)
 	intel_guc_sanitize(guc);
 
 	__intel_uc_reset_hw(i915);
+}
+
+void intel_uc_sanitize(struct drm_i915_private *i915)
+{
+	if (!USES_GUC(i915))
+		return;
+
+	__uc_sanitize(i915);
 }
 
 int intel_uc_init_hw(struct drm_i915_private *i915)
@@ -438,6 +443,8 @@ err_communication:
 err_log_capture:
 	guc_capture_load_err_log(guc);
 err_out:
+	__uc_sanitize(i915);
+
 	/*
 	 * Note that there is no fallback as either user explicitly asked for
 	 * the GuC or driver default option was to run with the GuC enabled.
@@ -462,6 +469,7 @@ void intel_uc_fini_hw(struct drm_i915_private *i915)
 		intel_guc_submission_disable(guc);
 
 	guc_disable_communication(guc);
+	__uc_sanitize(i915);
 }
 
 /**
@@ -478,7 +486,7 @@ void intel_uc_reset_prepare(struct drm_i915_private *i915)
 		return;
 
 	guc_disable_communication(guc);
-	intel_uc_sanitize(i915);
+	__uc_sanitize(i915);
 }
 
 void intel_uc_runtime_suspend(struct drm_i915_private *i915)
