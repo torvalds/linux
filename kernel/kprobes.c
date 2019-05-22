@@ -2289,6 +2289,7 @@ static int __init init_kprobes(void)
 		init_test_probes();
 	return err;
 }
+postcore_initcall(init_kprobes);
 
 #ifdef CONFIG_DEBUG_FS
 static void report_probe(struct seq_file *pi, struct kprobe *p,
@@ -2614,5 +2615,3 @@ error:
 
 late_initcall(debugfs_kprobe_init);
 #endif /* CONFIG_DEBUG_FS */
-
-module_init(init_kprobes);
