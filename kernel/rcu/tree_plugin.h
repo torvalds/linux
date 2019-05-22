@@ -1668,12 +1668,12 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 	unsigned long cur_gp_seq;
 	unsigned long flags;
 	bool gotcbs;
-	bool needwait_gp = false;
+	bool needwait_gp = false; // This prevents actual uninitialized use.
 	bool needwake;
 	bool needwake_gp;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
-	unsigned long wait_gp_seq;
+	unsigned long wait_gp_seq = 0; // Suppress "use uninitialized" warning.
 
 	/*
 	 * Each pass through the following loop checks for CBs and for the
