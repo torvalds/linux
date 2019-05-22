@@ -158,8 +158,9 @@ static int parport_config(struct pcmcia_device *link)
     return 0;
 
 failed:
-    parport_cs_release(link);
-    return -ENODEV;
+	parport_cs_release(link);
+	kfree(link->priv);
+	return -ENODEV;
 } /* parport_config */
 
 static void parport_cs_release(struct pcmcia_device *link)

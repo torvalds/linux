@@ -569,7 +569,6 @@ static const struct dev_pm_ops tegra_gpio_pm_ops = {
 static int tegra_gpio_probe(struct platform_device *pdev)
 {
 	struct tegra_gpio_info *tgi;
-	struct resource *res;
 	struct tegra_gpio_bank *bank;
 	unsigned int gpio, i, j;
 	int ret;
@@ -645,8 +644,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 		bank->tgi = tgi;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tgi->regs = devm_ioremap_resource(&pdev->dev, res);
+	tgi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tgi->regs))
 		return PTR_ERR(tgi->regs);
 

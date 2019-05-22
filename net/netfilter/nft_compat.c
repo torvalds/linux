@@ -198,8 +198,8 @@ static int nft_parse_compat(const struct nlattr *attr, u16 *proto, bool *inv)
 	u32 flags;
 	int err;
 
-	err = nla_parse_nested(tb, NFTA_RULE_COMPAT_MAX, attr,
-			       nft_rule_compat_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, NFTA_RULE_COMPAT_MAX, attr,
+					  nft_rule_compat_policy, NULL);
 	if (err < 0)
 		return err;
 

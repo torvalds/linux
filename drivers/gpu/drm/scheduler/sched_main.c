@@ -349,10 +349,9 @@ void drm_sched_increase_karma(struct drm_sched_job *bad)
 EXPORT_SYMBOL(drm_sched_increase_karma);
 
 /**
- * drm_sched_hw_job_reset - stop the scheduler if it contains the bad job
+ * drm_sched_stop - stop the scheduler
  *
  * @sched: scheduler instance
- * @bad: bad scheduler job
  *
  * Stop the scheduler and also removes and frees all completed jobs.
  * Note: bad job will not be freed as it might be used later and so it's

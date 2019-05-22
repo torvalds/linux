@@ -160,7 +160,7 @@ static inline bool nvmet_rdma_need_data_out(struct nvmet_rdma_rsp *rsp)
 {
 	return !nvme_is_write(rsp->req.cmd) &&
 		rsp->req.transfer_len &&
-		!rsp->req.rsp->status &&
+		!rsp->req.cqe->status &&
 		!(rsp->flags & NVMET_RDMA_REQ_INLINE_DATA);
 }
 
@@ -364,16 +364,17 @@ static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
 		struct nvmet_rdma_rsp *r)
 {
 	/* NVMe CQE / RDMA SEND */
-	r->req.rsp = kmalloc(sizeof(*r->req.rsp), GFP_KERNEL);
-	if (!r->req.rsp)
+	r->req.cqe = kmalloc(sizeof(*r->req.cqe), GFP_KERNEL);
+	if (!r->req.cqe)
 		goto out;
 
-	r->send_sge.addr = ib_dma_map_single(ndev->device, r->req.rsp,
-			sizeof(*r->req.rsp), DMA_TO_DEVICE);
+	r->send_sge.addr = ib_dma_map_single(ndev->device, r->req.cqe,
+			sizeof(*r->req.cqe), DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(ndev->device, r->send_sge.addr))
 		goto out_free_rsp;
 
-	r->send_sge.length = sizeof(*r->req.rsp);
+	r->req.p2p_client = &ndev->device->dev;
+	r->send_sge.length = sizeof(*r->req.cqe);
 	r->send_sge.lkey = ndev->pd->local_dma_lkey;
 
 	r->send_cqe.done = nvmet_rdma_send_done;
@@ -388,7 +389,7 @@ static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
 	return 0;
 
 out_free_rsp:
-	kfree(r->req.rsp);
+	kfree(r->req.cqe);
 out:
 	return -ENOMEM;
 }
@@ -397,8 +398,8 @@ static void nvmet_rdma_free_rsp(struct nvmet_rdma_device *ndev,
 		struct nvmet_rdma_rsp *r)
 {
 	ib_dma_unmap_single(ndev->device, r->send_sge.addr,
-				sizeof(*r->req.rsp), DMA_TO_DEVICE);
-	kfree(r->req.rsp);
+				sizeof(*r->req.cqe), DMA_TO_DEVICE);
+	kfree(r->req.cqe);
 }
 
 static int
@@ -762,8 +763,6 @@ static void nvmet_rdma_handle_command(struct nvmet_rdma_queue *queue,
 	ib_dma_sync_single_for_cpu(queue->dev->device,
 		cmd->send_sge.addr, cmd->send_sge.length,
 		DMA_TO_DEVICE);
-
-	cmd->req.p2p_client = &queue->dev->device->dev;
 
 	if (!nvmet_req_init(&cmd->req, &queue->nvme_cq,
 			&queue->nvme_sq, &nvmet_rdma_ops))

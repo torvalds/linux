@@ -523,7 +523,7 @@ static void __exit crypto_morus640_module_exit(void)
 	crypto_unregister_aead(&crypto_morus640_alg);
 }
 
-module_init(crypto_morus640_module_init);
+subsys_initcall(crypto_morus640_module_init);
 module_exit(crypto_morus640_module_exit);
 
 MODULE_LICENSE("GPL");

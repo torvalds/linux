@@ -54,7 +54,10 @@
 #define CLK_I2C3		28
 #define CLK_I2C4		29
 #define CLK_LPTIMER		30
-
-#define END_PRIMARY_CLK_F7	31
+#define CLK_PLL_SRC		31
+#define CLK_DFSDM1		32
+#define CLK_ADFSDM1		33
+#define CLK_F769_DSI		34
+#define END_PRIMARY_CLK_F7	35
 
 #endif

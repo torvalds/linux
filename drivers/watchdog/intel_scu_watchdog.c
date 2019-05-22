@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/compiler.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -224,7 +223,7 @@ static int intel_scu_set_heartbeat(u32 t)
 		 watchdog_device.timer_tbl_ptr->freq_hz);
 	pr_debug("set_heartbeat: timer_set is %x (hex)\n",
 		 watchdog_device.timer_set);
-	pr_debug("set_hearbeat: timer_margin is %x (hex)\n", timer_margin);
+	pr_debug("set_heartbeat: timer_margin is %x (hex)\n", timer_margin);
 	pr_debug("set_heartbeat: threshold is %x (hex)\n",
 		 watchdog_device.threshold);
 	pr_debug("set_heartbeat: soft_threshold is %x (hex)\n",
@@ -304,7 +303,7 @@ static int intel_scu_open(struct inode *inode, struct file *file)
 	if (watchdog_device.driver_closed)
 		return -EPERM;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int intel_scu_release(struct inode *inode, struct file *file)
@@ -545,21 +544,4 @@ register_reboot_error:
 	iounmap(watchdog_device.timer_load_count_addr);
 	return ret;
 }
-
-static void __exit intel_scu_watchdog_exit(void)
-{
-
-	misc_deregister(&watchdog_device.miscdev);
-	unregister_reboot_notifier(&watchdog_device.intel_scu_notifier);
-	/* disable the timer */
-	iowrite32(0x00000002, watchdog_device.timer_control_addr);
-	iounmap(watchdog_device.timer_load_count_addr);
-}
-
 late_initcall(intel_scu_watchdog_init);
-module_exit(intel_scu_watchdog_exit);
-
-MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("Intel SCU Watchdog Device Driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(WDT_VER);

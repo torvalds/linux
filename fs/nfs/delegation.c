@@ -1034,6 +1034,18 @@ void nfs_mark_test_expired_all_delegations(struct nfs_client *clp)
 }
 
 /**
+ * nfs_test_expired_all_delegations - test all delegations for a client
+ * @clp: nfs_client to process
+ *
+ * Helper for handling "recallable state revoked" status from server.
+ */
+void nfs_test_expired_all_delegations(struct nfs_client *clp)
+{
+	nfs_mark_test_expired_all_delegations(clp);
+	nfs4_schedule_state_manager(clp);
+}
+
+/**
  * nfs_reap_expired_delegations - reap expired delegations
  * @clp: nfs_client to process
  *

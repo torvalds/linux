@@ -404,15 +404,6 @@ config CRYPTO_DEV_SAHARA
 	  This option enables support for the SAHARA HW crypto accelerator
 	  found in some Freescale i.MX chips.
 
-config CRYPTO_DEV_MXC_SCC
-	tristate "Support for Freescale Security Controller (SCC)"
-	depends on ARCH_MXC && OF
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
-	help
-	  This option enables support for the Security Controller (SCC)
-	  found in Freescale i.MX25 chips.
-
 config CRYPTO_DEV_EXYNOS_RNG
 	tristate "EXYNOS HW pseudo random number generator support"
 	depends on ARCH_EXYNOS || COMPILE_TEST

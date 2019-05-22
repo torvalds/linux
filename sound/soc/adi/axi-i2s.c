@@ -43,6 +43,9 @@ struct axi_i2s {
 	struct clk *clk;
 	struct clk *clk_ref;
 
+	bool   has_capture;
+	bool   has_playback;
+
 	struct snd_soc_dai_driver dai_driver;
 
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
@@ -136,8 +139,10 @@ static int axi_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct axi_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
-	snd_soc_dai_init_dma_data(dai, &i2s->playback_dma_data,
-		&i2s->capture_dma_data);
+	snd_soc_dai_init_dma_data(
+		dai,
+		i2s->has_playback ? &i2s->playback_dma_data : NULL,
+		i2s->has_capture  ? &i2s->capture_dma_data  : NULL);
 
 	return 0;
 }
@@ -151,18 +156,6 @@ static const struct snd_soc_dai_ops axi_i2s_dai_ops = {
 
 static struct snd_soc_dai_driver axi_i2s_dai = {
 	.probe = axi_i2s_dai_probe,
-	.playback = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_KNOT,
-		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE,
-	},
-	.capture = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_KNOT,
-		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE,
-	},
 	.ops = &axi_i2s_dai_ops,
 	.symmetric_rates = 1,
 };
@@ -178,6 +171,19 @@ static const struct regmap_config axi_i2s_regmap_config = {
 	.max_register = AXI_I2S_REG_STATUS,
 };
 
+static void axi_i2s_parse_of(struct axi_i2s *i2s, const struct device_node *np)
+{
+	struct property *dma_names;
+	const char *dma_name;
+
+	of_property_for_each_string(np, "dma-names", dma_names, dma_name) {
+		if (strcmp(dma_name, "rx") == 0)
+			i2s->has_capture = true;
+		if (strcmp(dma_name, "tx") == 0)
+			i2s->has_playback = true;
+	}
+}
+
 static int axi_i2s_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -190,6 +196,8 @@ static int axi_i2s_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, i2s);
+
+	axi_i2s_parse_of(i2s, pdev->dev.of_node);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -213,13 +221,29 @@ static int axi_i2s_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	i2s->playback_dma_data.addr = res->start + AXI_I2S_REG_TX_FIFO;
-	i2s->playback_dma_data.addr_width = 4;
-	i2s->playback_dma_data.maxburst = 1;
+	if (i2s->has_playback) {
+		axi_i2s_dai.playback.channels_min = 2;
+		axi_i2s_dai.playback.channels_max = 2;
+		axi_i2s_dai.playback.rates = SNDRV_PCM_RATE_KNOT;
+		axi_i2s_dai.playback.formats =
+			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE;
 
-	i2s->capture_dma_data.addr = res->start + AXI_I2S_REG_RX_FIFO;
-	i2s->capture_dma_data.addr_width = 4;
-	i2s->capture_dma_data.maxburst = 1;
+		i2s->playback_dma_data.addr = res->start + AXI_I2S_REG_TX_FIFO;
+		i2s->playback_dma_data.addr_width = 4;
+		i2s->playback_dma_data.maxburst = 1;
+	}
+
+	if (i2s->has_capture) {
+		axi_i2s_dai.capture.channels_min = 2;
+		axi_i2s_dai.capture.channels_max = 2;
+		axi_i2s_dai.capture.rates = SNDRV_PCM_RATE_KNOT;
+		axi_i2s_dai.capture.formats =
+			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE;
+
+		i2s->capture_dma_data.addr = res->start + AXI_I2S_REG_RX_FIFO;
+		i2s->capture_dma_data.addr_width = 4;
+		i2s->capture_dma_data.maxburst = 1;
+	}
 
 	i2s->ratnum.num = clk_get_rate(i2s->clk_ref) / 2 / AXI_I2S_BITS_PER_FRAME;
 	i2s->ratnum.den_step = 1;
@@ -239,6 +263,10 @@ static int axi_i2s_probe(struct platform_device *pdev)
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret)
 		goto err_clk_disable;
+
+	dev_info(&pdev->dev, "probed, capture %s, playback %s\n",
+		 i2s->has_capture ? "enabled" : "disabled",
+		 i2s->has_playback ? "enabled" : "disabled");
 
 	return 0;
 

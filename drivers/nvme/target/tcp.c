@@ -161,14 +161,14 @@ static inline bool nvmet_tcp_has_data_in(struct nvmet_tcp_cmd *cmd)
 
 static inline bool nvmet_tcp_need_data_in(struct nvmet_tcp_cmd *cmd)
 {
-	return nvmet_tcp_has_data_in(cmd) && !cmd->req.rsp->status;
+	return nvmet_tcp_has_data_in(cmd) && !cmd->req.cqe->status;
 }
 
 static inline bool nvmet_tcp_need_data_out(struct nvmet_tcp_cmd *cmd)
 {
 	return !nvme_is_write(cmd->req.cmd) &&
 		cmd->req.transfer_len > 0 &&
-		!cmd->req.rsp->status;
+		!cmd->req.cqe->status;
 }
 
 static inline bool nvmet_tcp_has_inline_data(struct nvmet_tcp_cmd *cmd)
@@ -371,13 +371,14 @@ static void nvmet_setup_c2h_data_pdu(struct nvmet_tcp_cmd *cmd)
 	cmd->state = NVMET_TCP_SEND_DATA_PDU;
 
 	pdu->hdr.type = nvme_tcp_c2h_data;
-	pdu->hdr.flags = NVME_TCP_F_DATA_LAST;
+	pdu->hdr.flags = NVME_TCP_F_DATA_LAST | (queue->nvme_sq.sqhd_disabled ?
+						NVME_TCP_F_DATA_SUCCESS : 0);
 	pdu->hdr.hlen = sizeof(*pdu);
 	pdu->hdr.pdo = pdu->hdr.hlen + hdgst;
 	pdu->hdr.plen =
 		cpu_to_le32(pdu->hdr.hlen + hdgst +
 				cmd->req.transfer_len + ddgst);
-	pdu->command_id = cmd->req.rsp->command_id;
+	pdu->command_id = cmd->req.cqe->command_id;
 	pdu->data_length = cpu_to_le32(cmd->req.transfer_len);
 	pdu->data_offset = cpu_to_le32(cmd->wbytes_done);
 
@@ -542,8 +543,19 @@ static int nvmet_try_send_data(struct nvmet_tcp_cmd *cmd)
 		cmd->state = NVMET_TCP_SEND_DDGST;
 		cmd->offset = 0;
 	} else {
-		nvmet_setup_response_pdu(cmd);
+		if (queue->nvme_sq.sqhd_disabled) {
+			cmd->queue->snd_cmd = NULL;
+			nvmet_tcp_put_cmd(cmd);
+		} else {
+			nvmet_setup_response_pdu(cmd);
+		}
 	}
+
+	if (queue->nvme_sq.sqhd_disabled) {
+		kfree(cmd->iov);
+		sgl_free(cmd->req.sg);
+	}
+
 	return 1;
 
 }
@@ -619,7 +631,13 @@ static int nvmet_try_send_ddgst(struct nvmet_tcp_cmd *cmd)
 		return ret;
 
 	cmd->offset += ret;
-	nvmet_setup_response_pdu(cmd);
+
+	if (queue->nvme_sq.sqhd_disabled) {
+		cmd->queue->snd_cmd = NULL;
+		nvmet_tcp_put_cmd(cmd);
+	} else {
+		nvmet_setup_response_pdu(cmd);
+	}
 	return 1;
 }
 
@@ -753,12 +771,6 @@ static int nvmet_tcp_handle_icreq(struct nvmet_tcp_queue *queue)
 	if (icreq->hpda != 0) {
 		pr_err("queue %d: unsupported hpda %d\n", queue->idx,
 			icreq->hpda);
-		return -EPROTO;
-	}
-
-	if (icreq->maxr2t != 0) {
-		pr_err("queue %d: unsupported maxr2t %d\n", queue->idx,
-			le32_to_cpu(icreq->maxr2t) + 1);
 		return -EPROTO;
 	}
 
@@ -1206,7 +1218,7 @@ static int nvmet_tcp_alloc_cmd(struct nvmet_tcp_queue *queue,
 			sizeof(*c->rsp_pdu) + hdgst, GFP_KERNEL | __GFP_ZERO);
 	if (!c->rsp_pdu)
 		goto out_free_cmd;
-	c->req.rsp = &c->rsp_pdu->cqe;
+	c->req.cqe = &c->rsp_pdu->cqe;
 
 	c->data_pdu = page_frag_alloc(&queue->pf_cache,
 			sizeof(*c->data_pdu) + hdgst, GFP_KERNEL | __GFP_ZERO);

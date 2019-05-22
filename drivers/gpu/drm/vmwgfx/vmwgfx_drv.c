@@ -546,29 +546,13 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
 }
 
 /**
- * vmw_assume_iommu - Figure out whether coherent dma-remapping might be
- * taking place.
- * @dev: Pointer to the struct drm_device.
- *
- * Return: true if iommu present, false otherwise.
- */
-static bool vmw_assume_iommu(struct drm_device *dev)
-{
-	const struct dma_map_ops *ops = get_dma_ops(dev->dev);
-
-	return !dma_is_direct(ops) && ops &&
-		ops->map_page != dma_direct_map_page;
-}
-
-/**
  * vmw_dma_select_mode - Determine how DMA mappings should be set up for this
  * system.
  *
  * @dev_priv: Pointer to a struct vmw_private
  *
- * This functions tries to determine the IOMMU setup and what actions
- * need to be taken by the driver to make system pages visible to the
- * device.
+ * This functions tries to determine what actions need to be taken by the
+ * driver to make system pages visible to the device.
  * If this function decides that DMA is not possible, it returns -EINVAL.
  * The driver may then try to disable features of the device that require
  * DMA.
@@ -578,22 +562,15 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 	static const char *names[vmw_dma_map_max] = {
 		[vmw_dma_phys] = "Using physical TTM page addresses.",
 		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
-		[vmw_dma_map_populate] = "Keeping DMA mappings.",
+		[vmw_dma_map_populate] = "Caching DMA mappings.",
 		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
 
 	if (vmw_force_coherent)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
-	else if (vmw_assume_iommu(dev_priv->dev))
-		dev_priv->map_mode = vmw_dma_map_populate;
-	else if (!vmw_force_iommu)
-		dev_priv->map_mode = vmw_dma_phys;
-	else if (IS_ENABLED(CONFIG_SWIOTLB) && swiotlb_nr_tbl())
-		dev_priv->map_mode = vmw_dma_alloc_coherent;
+	else if (vmw_restrict_iommu)
+		dev_priv->map_mode = vmw_dma_map_bind;
 	else
 		dev_priv->map_mode = vmw_dma_map_populate;
-
-	if (dev_priv->map_mode == vmw_dma_map_populate && vmw_restrict_iommu)
-		dev_priv->map_mode = vmw_dma_map_bind;
 
 	/* No TTM coherent page pool? FIXME: Ask TTM instead! */
         if (!(IS_ENABLED(CONFIG_SWIOTLB) || IS_ENABLED(CONFIG_INTEL_IOMMU)) &&

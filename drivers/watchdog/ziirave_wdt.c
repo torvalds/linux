@@ -658,11 +658,7 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 	w_priv->wdd.parent = &client->dev;
 	w_priv->wdd.groups = ziirave_wdt_groups;
 
-	ret = watchdog_init_timeout(&w_priv->wdd, wdt_timeout, &client->dev);
-	if (ret) {
-		dev_info(&client->dev,
-			 "Unable to select timeout value, using default\n");
-	}
+	watchdog_init_timeout(&w_priv->wdd, wdt_timeout, &client->dev);
 
 	/*
 	 * The default value set in the watchdog should be perfectly valid, so

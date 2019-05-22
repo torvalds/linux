@@ -39,6 +39,11 @@ snd_emux_hwdep_load_patch(struct snd_emux *emu, void __user *arg)
 	if (copy_from_user(&patch, arg, sizeof(patch)))
 		return -EFAULT;
 
+	if (patch.key == GUS_PATCH)
+		return snd_soundfont_load_guspatch(emu->sflist, arg,
+						   patch.len + sizeof(patch),
+						   TMP_CLIENT_ID);
+
 	if (patch.type >= SNDRV_SFNT_LOAD_INFO &&
 	    patch.type <= SNDRV_SFNT_PROBE_DATA) {
 		err = snd_soundfont_load(emu->sflist, arg, patch.len + sizeof(patch), TMP_CLIENT_ID);

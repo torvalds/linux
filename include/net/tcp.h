@@ -1314,7 +1314,7 @@ static inline void tcp_update_wl(struct tcp_sock *tp, u32 seq)
 static inline __sum16 tcp_v4_check(int len, __be32 saddr,
 				   __be32 daddr, __wsum base)
 {
-	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
+	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_TCP, base);
 }
 
 static inline bool tcp_checksum_complete(struct sk_buff *skb)
@@ -2198,7 +2198,7 @@ extern struct static_key_false tcp_have_smc;
 void clean_acked_data_enable(struct inet_connection_sock *icsk,
 			     void (*cad)(struct sock *sk, u32 ack_seq));
 void clean_acked_data_disable(struct inet_connection_sock *icsk);
-
+void clean_acked_data_flush(void);
 #endif
 
 #endif	/* _TCP_H */

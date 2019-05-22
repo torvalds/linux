@@ -209,3 +209,7 @@
 &rtc {
 	compatible = "allwinner,sun50i-h5-rtc";
 };
+
+&sid {
+	compatible = "allwinner,sun50i-h5-sid";
+};

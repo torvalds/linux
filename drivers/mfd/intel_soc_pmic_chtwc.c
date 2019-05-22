@@ -60,6 +60,7 @@ static struct mfd_cell cht_wc_dev[] = {
 		.resources = cht_wc_ext_charger_resources,
 	},
 	{	.name = "cht_wcove_region", },
+	{	.name = "cht_wcove_leds", },
 };
 
 /*

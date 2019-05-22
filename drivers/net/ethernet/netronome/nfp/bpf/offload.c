@@ -22,6 +22,7 @@
 #include <net/tc_act/tc_mirred.h>
 
 #include "main.h"
+#include "../ccm.h"
 #include "../nfp_app.h"
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
@@ -452,7 +453,7 @@ int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
 
 	if (len < sizeof(struct cmsg_bpf_event) + pkt_size + data_size)
 		return -EINVAL;
-	if (cbe->hdr.ver != CMSG_MAP_ABI_VERSION)
+	if (cbe->hdr.ver != NFP_CCM_ABI_VERSION)
 		return -EINVAL;
 
 	rcu_read_lock();

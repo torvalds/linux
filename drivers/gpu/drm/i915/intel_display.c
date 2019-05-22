@@ -12082,6 +12082,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 			  struct intel_crtc_state *pipe_config,
 			  bool adjust)
 {
+	struct intel_crtc *crtc = to_intel_crtc(current_config->base.crtc);
 	bool ret = true;
 	bool fixup_inherited = adjust &&
 		(current_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
@@ -12302,6 +12303,14 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) < 4)
 		PIPE_CONF_CHECK_X(gmch_pfit.pgm_ratios);
 	PIPE_CONF_CHECK_X(gmch_pfit.lvds_border_bits);
+
+	/*
+	 * Changing the EDP transcoder input mux
+	 * (A_ONOFF vs. A_ON) requires a full modeset.
+	 */
+	if (IS_HASWELL(dev_priv) && crtc->pipe == PIPE_A &&
+	    current_config->cpu_transcoder == TRANSCODER_EDP)
+		PIPE_CONF_CHECK_BOOL(pch_pfit.enabled);
 
 	if (!adjust) {
 		PIPE_CONF_CHECK_I(pipe_src_w);

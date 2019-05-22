@@ -863,22 +863,23 @@ out:
 /**
  * i40e_init_dcb
  * @hw: pointer to the hw struct
+ * @enable_mib_change: enable mib change event
  *
  * Update DCB configuration from the Firmware
  **/
-i40e_status i40e_init_dcb(struct i40e_hw *hw)
+i40e_status i40e_init_dcb(struct i40e_hw *hw, bool enable_mib_change)
 {
 	i40e_status ret = 0;
 	struct i40e_lldp_variables lldp_cfg;
 	u8 adminstatus = 0;
 
 	if (!hw->func_caps.dcb)
-		return ret;
+		return I40E_NOT_SUPPORTED;
 
 	/* Read LLDP NVM area */
 	ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
 	if (ret)
-		return ret;
+		return I40E_ERR_NOT_READY;
 
 	/* Get the LLDP AdminStatus for the current port */
 	adminstatus = lldp_cfg.adminstatus >> (hw->port * 4);
@@ -887,7 +888,7 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw)
 	/* LLDP agent disabled */
 	if (!adminstatus) {
 		hw->dcbx_status = I40E_DCBX_STATUS_DISABLED;
-		return ret;
+		return I40E_ERR_NOT_READY;
 	}
 
 	/* Get DCBX status */
@@ -896,26 +897,19 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw)
 		return ret;
 
 	/* Check the DCBX Status */
-	switch (hw->dcbx_status) {
-	case I40E_DCBX_STATUS_DONE:
-	case I40E_DCBX_STATUS_IN_PROGRESS:
+	if (hw->dcbx_status == I40E_DCBX_STATUS_DONE ||
+	    hw->dcbx_status == I40E_DCBX_STATUS_IN_PROGRESS) {
 		/* Get current DCBX configuration */
 		ret = i40e_get_dcb_config(hw);
 		if (ret)
 			return ret;
-		break;
-	case I40E_DCBX_STATUS_DISABLED:
-		return ret;
-	case I40E_DCBX_STATUS_NOT_STARTED:
-	case I40E_DCBX_STATUS_MULTIPLE_PEERS:
-	default:
-		break;
+	} else if (hw->dcbx_status == I40E_DCBX_STATUS_DISABLED) {
+		return I40E_ERR_NOT_READY;
 	}
 
 	/* Configure the LLDP MIB change event */
-	ret = i40e_aq_cfg_lldp_mib_change_event(hw, true, NULL);
-	if (ret)
-		return ret;
+	if (enable_mib_change)
+		ret = i40e_aq_cfg_lldp_mib_change_event(hw, true, NULL);
 
 	return ret;
 }

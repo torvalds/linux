@@ -157,3 +157,10 @@ LIBBPF_0.0.2 {
 		bpf_program__bpil_addr_to_offs;
 		bpf_program__bpil_offs_to_addr;
 } LIBBPF_0.0.1;
+
+LIBBPF_0.0.3 {
+	global:
+		bpf_map__is_internal;
+		bpf_map_freeze;
+		btf__finalize_data;
+} LIBBPF_0.0.2;

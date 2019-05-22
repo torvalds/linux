@@ -14,7 +14,7 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 /*
  * Clocks are derived from MCLK, which is 25MHz

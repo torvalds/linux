@@ -23,8 +23,6 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	int rc = 0;
 	uint32_t did, sid;
 	uint16_t xid;
-	uint32_t start_time = jiffies / HZ;
-	uint32_t current_time;
 	struct fcoe_wqe *sqe;
 	unsigned long flags;
 	u16 sqe_idx;
@@ -59,18 +57,12 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 		goto els_err;
 	}
 
-retry_els:
 	els_req = qedf_alloc_cmd(fcport, QEDF_ELS);
 	if (!els_req) {
-		current_time = jiffies / HZ;
-		if ((current_time - start_time) > 10) {
-			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS,
-				   "els: Failed els 0x%x\n", op);
-			rc = -ENOMEM;
-			goto els_err;
-		}
-		mdelay(20 * USEC_PER_MSEC);
-		goto retry_els;
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_ELS,
+			  "Failed to alloc ELS request 0x%x\n", op);
+		rc = -ENOMEM;
+		goto els_err;
 	}
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "initiate_els els_req = "
@@ -143,6 +135,8 @@ retry_els:
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Ringing doorbell for ELS "
 		   "req\n");
 	qedf_ring_doorbell(fcport);
+	set_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
+
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 els_err:
 	return rc;
@@ -151,20 +145,15 @@ els_err:
 void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *els_req)
 {
-	struct fcoe_task_context *task_ctx;
-	struct scsi_cmnd *sc_cmd;
-	uint16_t xid;
 	struct fcoe_cqe_midpath_info *mp_info;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered with xid = 0x%x"
 		   " cmd_type = %d.\n", els_req->xid, els_req->cmd_type);
 
+	clear_bit(QEDF_CMD_OUTSTANDING, &els_req->flags);
+
 	/* Kill the ELS timer */
 	cancel_delayed_work(&els_req->timeout_work);
-
-	xid = els_req->xid;
-	task_ctx = qedf_get_task_mem(&qedf->tasks, xid);
-	sc_cmd = els_req->sc_cmd;
 
 	/* Get ELS response length from CQE */
 	mp_info = &cqe->cqe_info.midpath_info;
@@ -205,8 +194,12 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 		   " orig xid = 0x%x, rrq_xid = 0x%x, refcount=%d\n",
 		   orig_io_req, orig_io_req->xid, rrq_req->xid, refcount);
 
-	/* This should return the aborted io_req to the command pool */
-	if (orig_io_req)
+	/*
+	 * This should return the aborted io_req to the command pool. Note that
+	 * we need to check the refcound in case the original request was
+	 * flushed but we get a completion on this xid.
+	 */
+	if (orig_io_req && refcount > 0)
 		kref_put(&orig_io_req->refcount, qedf_release_cmd);
 
 out_free:
@@ -233,6 +226,7 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	uint32_t sid;
 	uint32_t r_a_tov;
 	int rc;
+	int refcount;
 
 	if (!aborted_io_req) {
 		QEDF_ERR(NULL, "abort_io_req is NULL.\n");
@@ -240,6 +234,15 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	}
 
 	fcport = aborted_io_req->fcport;
+
+	if (!fcport) {
+		refcount = kref_read(&aborted_io_req->refcount);
+		QEDF_ERR(NULL,
+			 "RRQ work was queued prior to a flush xid=0x%x, refcount=%d.\n",
+			 aborted_io_req->xid, refcount);
+		kref_put(&aborted_io_req->refcount, qedf_release_cmd);
+		return -EINVAL;
+	}
 
 	/* Check that fcport is still offloaded */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
@@ -253,6 +256,19 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	}
 
 	qedf = fcport->qedf;
+
+	/*
+	 * Sanity check that we can send a RRQ to make sure that refcount isn't
+	 * 0
+	 */
+	refcount = kref_read(&aborted_io_req->refcount);
+	if (refcount != 1) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_ELS,
+			  "refcount for xid=%x io_req=%p refcount=%d is not 1.\n",
+			  aborted_io_req->xid, aborted_io_req, refcount);
+		return -EINVAL;
+	}
+
 	lport = qedf->lport;
 	sid = fcport->sid;
 	r_a_tov = lport->r_a_tov;
@@ -335,32 +351,49 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 	struct fc_lport *lport;
 	struct fc_rport_priv *rdata;
 	u32 port_id;
+	unsigned long flags;
 
 	if (!fcport)
 		return;
 
+	spin_lock_irqsave(&fcport->rport_lock, flags);
 	if (test_bit(QEDF_RPORT_IN_RESET, &fcport->flags) ||
 	    !test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) ||
 	    test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
 		QEDF_ERR(&(fcport->qedf->dbg_ctx), "fcport %p already in reset or not offloaded.\n",
 		    fcport);
+		spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		return;
 	}
 
 	/* Set that we are now in reset */
 	set_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
+	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
 	rdata = fcport->rdata;
-	if (rdata) {
+	if (rdata && !kref_get_unless_zero(&rdata->kref)) {
+		fcport->rdata = NULL;
+		rdata = NULL;
+	}
+
+	if (rdata && rdata->rp_state == RPORT_ST_READY) {
 		lport = fcport->qedf->lport;
 		port_id = rdata->ids.port_id;
 		QEDF_ERR(&(fcport->qedf->dbg_ctx),
 		    "LOGO port_id=%x.\n", port_id);
 		fc_rport_logoff(rdata);
+		kref_put(&rdata->kref, fc_rport_destroy);
+		mutex_lock(&lport->disc.disc_mutex);
 		/* Recreate the rport and log back in */
 		rdata = fc_rport_create(lport, port_id);
-		if (rdata)
+		if (rdata) {
+			mutex_unlock(&lport->disc.disc_mutex);
 			fc_rport_login(rdata);
+			fcport->rdata = rdata;
+		} else {
+			mutex_unlock(&lport->disc.disc_mutex);
+			fcport->rdata = NULL;
+		}
 	}
 	clear_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
 }
@@ -569,7 +602,7 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 	struct qedf_rport *fcport;
 	struct fc_lport *lport;
 	struct qedf_els_cb_arg *cb_arg = NULL;
-	u32 sid, r_a_tov;
+	u32 r_a_tov;
 	int rc;
 
 	if (!orig_io_req) {
@@ -595,7 +628,6 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 
 	qedf = fcport->qedf;
 	lport = qedf->lport;
-	sid = fcport->sid;
 	r_a_tov = lport->r_a_tov;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Sending SRR orig_io=%p, "

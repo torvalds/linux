@@ -17,6 +17,7 @@
 #include <crypto/gf128mul.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/cpufeature.h>
@@ -89,7 +90,7 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 						struct ghash_key const *k,
 						const char *head))
 {
-	if (likely(may_use_simd())) {
+	if (likely(crypto_simd_usable())) {
 		kernel_neon_begin();
 		simd_update(blocks, dg, src, key, head);
 		kernel_neon_end();
@@ -441,7 +442,7 @@ static int gcm_encrypt(struct aead_request *req)
 
 	err = skcipher_walk_aead_encrypt(&walk, req, false);
 
-	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+	if (likely(crypto_simd_usable() && walk.total >= 2 * AES_BLOCK_SIZE)) {
 		u32 const *rk = NULL;
 
 		kernel_neon_begin();
@@ -473,9 +474,11 @@ static int gcm_encrypt(struct aead_request *req)
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
 		while (walk.nbytes >= (2 * AES_BLOCK_SIZE)) {
-			int blocks = walk.nbytes / AES_BLOCK_SIZE;
+			const int blocks =
+				walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
 			u8 *dst = walk.dst.virt.addr;
 			u8 *src = walk.src.virt.addr;
+			int remaining = blocks;
 
 			do {
 				__aes_arm64_encrypt(ctx->aes_key.key_enc,
@@ -485,9 +488,9 @@ static int gcm_encrypt(struct aead_request *req)
 
 				dst += AES_BLOCK_SIZE;
 				src += AES_BLOCK_SIZE;
-			} while (--blocks > 0);
+			} while (--remaining > 0);
 
-			ghash_do_update(walk.nbytes / AES_BLOCK_SIZE, dg,
+			ghash_do_update(blocks, dg,
 					walk.dst.virt.addr, &ctx->ghash_key,
 					NULL, pmull_ghash_update_p64);
 
@@ -563,7 +566,7 @@ static int gcm_decrypt(struct aead_request *req)
 
 	err = skcipher_walk_aead_decrypt(&walk, req, false);
 
-	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+	if (likely(crypto_simd_usable() && walk.total >= 2 * AES_BLOCK_SIZE)) {
 		u32 const *rk = NULL;
 
 		kernel_neon_begin();
@@ -609,7 +612,7 @@ static int gcm_decrypt(struct aead_request *req)
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
 		while (walk.nbytes >= (2 * AES_BLOCK_SIZE)) {
-			int blocks = walk.nbytes / AES_BLOCK_SIZE;
+			int blocks = walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
 			u8 *dst = walk.dst.virt.addr;
 			u8 *src = walk.src.virt.addr;
 
@@ -704,10 +707,10 @@ static int __init ghash_ce_mod_init(void)
 {
 	int ret;
 
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		ret = crypto_register_shashes(ghash_alg,
 					      ARRAY_SIZE(ghash_alg));
 	else
@@ -717,7 +720,7 @@ static int __init ghash_ce_mod_init(void)
 	if (ret)
 		return ret;
 
-	if (elf_hwcap & HWCAP_PMULL) {
+	if (cpu_have_named_feature(PMULL)) {
 		ret = crypto_register_aead(&gcm_aes_alg);
 		if (ret)
 			crypto_unregister_shashes(ghash_alg,
@@ -728,7 +731,7 @@ static int __init ghash_ce_mod_init(void)
 
 static void __exit ghash_ce_mod_exit(void)
 {
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		crypto_unregister_shashes(ghash_alg, ARRAY_SIZE(ghash_alg));
 	else
 		crypto_unregister_shash(ghash_alg);

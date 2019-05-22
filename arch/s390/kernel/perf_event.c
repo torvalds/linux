@@ -21,6 +21,7 @@
 #include <asm/lowcore.h>
 #include <asm/processor.h>
 #include <asm/sysinfo.h>
+#include <asm/unwind.h>
 
 const char *perf_pmu_name(void)
 {
@@ -219,20 +220,13 @@ static int __init service_level_perf_register(void)
 }
 arch_initcall(service_level_perf_register);
 
-static int __perf_callchain_kernel(void *data, unsigned long address, int reliable)
-{
-	struct perf_callchain_entry_ctx *entry = data;
-
-	perf_callchain_store(entry, address);
-	return 0;
-}
-
 void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
-	if (user_mode(regs))
-		return;
-	dump_trace(__perf_callchain_kernel, entry, NULL, regs->gprs[15]);
+	struct unwind_state state;
+
+	unwind_for_each_frame(&state, current, regs, 0)
+		perf_callchain_store(entry, state.ip);
 }
 
 /* Perf definitions for PMU event attributes in sysfs */

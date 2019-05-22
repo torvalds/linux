@@ -288,8 +288,11 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 #endif
 	max_gfn = (1ul << (guest_pa_bits - guest_page_shift)) - 1;
 	guest_page_size = (1ul << guest_page_shift);
-	/* 1G of guest page sized pages */
-	guest_num_pages = (1ul << (30 - guest_page_shift));
+	/*
+	 * A little more than 1G of guest page sized pages.  Cover the
+	 * case where the size is not aligned to 64 pages.
+	 */
+	guest_num_pages = (1ul << (30 - guest_page_shift)) + 3;
 	host_page_size = getpagesize();
 	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
@@ -311,7 +314,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 #ifdef USE_CLEAR_DIRTY_LOG
 	struct kvm_enable_cap cap = {};
 
-	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT;
+	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
 	cap.args[0] = 1;
 	vm_enable_cap(vm, &cap);
 #endif
@@ -359,7 +362,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		kvm_vm_get_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap);
 #ifdef USE_CLEAR_DIRTY_LOG
 		kvm_vm_clear_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap, 0,
-				       DIV_ROUND_UP(host_num_pages, 64) * 64);
+				       host_num_pages);
 #endif
 		vm_dirty_log_verify(bmap);
 		iteration++;
@@ -427,7 +430,7 @@ int main(int argc, char *argv[])
 	int opt, i;
 
 #ifdef USE_CLEAR_DIRTY_LOG
-	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT)) {
+	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2)) {
 		fprintf(stderr, "KVM_CLEAR_DIRTY_LOG not available, skipping tests\n");
 		exit(KSFT_SKIP);
 	}

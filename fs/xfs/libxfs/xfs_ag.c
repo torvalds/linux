@@ -19,6 +19,8 @@
 #include "xfs_ialloc.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
+#include "xfs_ag_resv.h"
+#include "xfs_health.h"
 
 static struct xfs_buf *
 xfs_get_aghdr_buf(
@@ -460,4 +462,56 @@ xfs_ag_extend_space(
 					be32_to_cpu(agf->agf_length) - len),
 				len, &XFS_RMAP_OINFO_SKIP_UPDATE,
 				XFS_AG_RESV_NONE);
+}
+
+/* Retrieve AG geometry. */
+int
+xfs_ag_get_geometry(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	struct xfs_ag_geometry	*ageo)
+{
+	struct xfs_buf		*agi_bp;
+	struct xfs_buf		*agf_bp;
+	struct xfs_agi		*agi;
+	struct xfs_agf		*agf;
+	struct xfs_perag	*pag;
+	unsigned int		freeblks;
+	int			error;
+
+	if (agno >= mp->m_sb.sb_agcount)
+		return -EINVAL;
+
+	/* Lock the AG headers. */
+	error = xfs_ialloc_read_agi(mp, NULL, agno, &agi_bp);
+	if (error)
+		return error;
+	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agf_bp);
+	if (error)
+		goto out_agi;
+	pag = xfs_perag_get(mp, agno);
+
+	/* Fill out form. */
+	memset(ageo, 0, sizeof(*ageo));
+	ageo->ag_number = agno;
+
+	agi = XFS_BUF_TO_AGI(agi_bp);
+	ageo->ag_icount = be32_to_cpu(agi->agi_count);
+	ageo->ag_ifree = be32_to_cpu(agi->agi_freecount);
+
+	agf = XFS_BUF_TO_AGF(agf_bp);
+	ageo->ag_length = be32_to_cpu(agf->agf_length);
+	freeblks = pag->pagf_freeblks +
+		   pag->pagf_flcount +
+		   pag->pagf_btreeblks -
+		   xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE);
+	ageo->ag_freeblks = freeblks;
+	xfs_ag_geom_health(pag, ageo);
+
+	/* Release resources. */
+	xfs_perag_put(pag);
+	xfs_buf_relse(agf_bp);
+out_agi:
+	xfs_buf_relse(agi_bp);
+	return error;
 }

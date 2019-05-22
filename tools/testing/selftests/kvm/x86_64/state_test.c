@@ -134,11 +134,6 @@ int main(int argc, char *argv[])
 
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
-	if (!kvm_check_cap(KVM_CAP_IMMEDIATE_EXIT)) {
-		fprintf(stderr, "immediate_exit not available, skipping test\n");
-		exit(KSFT_SKIP);
-	}
-
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
@@ -179,18 +174,10 @@ int main(int argc, char *argv[])
 			    uc.args[1] == stage, "Unexpected register values vmexit #%lx, got %lx",
 			    stage, (ulong)uc.args[1]);
 
-		/*
-		 * When KVM exits to userspace with KVM_EXIT_IO, KVM guarantees
-		 * guest state is consistent only after userspace re-enters the
-		 * kernel with KVM_RUN.  Complete IO prior to migrating state
-		 * to a new VM.
-		 */
-		vcpu_run_complete_io(vm, VCPU_ID);
-
+		state = vcpu_save_state(vm, VCPU_ID);
 		memset(&regs1, 0, sizeof(regs1));
 		vcpu_regs_get(vm, VCPU_ID, &regs1);
 
-		state = vcpu_save_state(vm, VCPU_ID);
 		kvm_vm_release(vm);
 
 		/* Restore state in a new VM.  */

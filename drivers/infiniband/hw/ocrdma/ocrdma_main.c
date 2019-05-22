@@ -62,8 +62,6 @@ MODULE_DESCRIPTION(OCRDMA_ROCE_DRV_DESC " " OCRDMA_ROCE_DRV_VERSION);
 MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static DEFINE_IDR(ocrdma_dev_id);
-
 void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
 {
 	u8 mac_addr[6];
@@ -161,7 +159,6 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = ocrdma_get_dma_mr,
 	.get_link_layer = ocrdma_link_layer,
-	.get_netdev = ocrdma_get_netdev,
 	.get_port_immutable = ocrdma_port_immutable,
 	.map_mr_sg = ocrdma_map_mr_sg,
 	.mmap = ocrdma_mmap,
@@ -179,6 +176,8 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.reg_user_mr = ocrdma_reg_user_mr,
 	.req_notify_cq = ocrdma_arm_cq,
 	.resize_cq = ocrdma_resize_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, ocrdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, ocrdma_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, ocrdma_ucontext, ibucontext),
 };
@@ -189,10 +188,14 @@ static const struct ib_device_ops ocrdma_dev_srq_ops = {
 	.modify_srq = ocrdma_modify_srq,
 	.post_srq_recv = ocrdma_post_srq_recv,
 	.query_srq = ocrdma_query_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, ocrdma_srq, ibsrq),
 };
 
 static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
+	int ret;
+
 	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
@@ -247,6 +250,10 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	}
 	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_OCRDMA;
+	ret = ib_device_set_netdev(&dev->ibdev, dev->nic_info.netdev, 1);
+	if (ret)
+		return ret;
+
 	return ib_register_device(&dev->ibdev, "ocrdma%d");
 }
 
@@ -304,15 +311,13 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		pr_err("Unable to allocate ib device\n");
 		return NULL;
 	}
+
 	dev->mbx_cmd = kzalloc(sizeof(struct ocrdma_mqe_emb_cmd), GFP_KERNEL);
 	if (!dev->mbx_cmd)
-		goto idr_err;
+		goto init_err;
 
 	memcpy(&dev->nic_info, dev_info, sizeof(*dev_info));
-	dev->id = idr_alloc(&ocrdma_dev_id, NULL, 0, 0, GFP_KERNEL);
-	if (dev->id < 0)
-		goto idr_err;
-
+	dev->id = PCI_FUNC(dev->nic_info.pdev->devfn);
 	status = ocrdma_init_hw(dev);
 	if (status)
 		goto init_err;
@@ -349,8 +354,6 @@ alloc_err:
 	ocrdma_free_resources(dev);
 	ocrdma_cleanup_hw(dev);
 init_err:
-	idr_remove(&ocrdma_dev_id, dev->id);
-idr_err:
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
 	pr_err("%s() leaving. ret=%d\n", __func__, status);
@@ -360,7 +363,6 @@ idr_err:
 static void ocrdma_remove_free(struct ocrdma_dev *dev)
 {
 
-	idr_remove(&ocrdma_dev_id, dev->id);
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
 }
@@ -465,7 +467,6 @@ static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
 	ocrdma_rem_debugfs();
-	idr_destroy(&ocrdma_dev_id);
 }
 
 module_init(ocrdma_init_module);

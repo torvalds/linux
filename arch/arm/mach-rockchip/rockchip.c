@@ -17,6 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/irqchip.h>
 #include <linux/clk-provider.h>

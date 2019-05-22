@@ -371,8 +371,9 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(of_regulator_match);
 
-struct device_node *regulator_of_get_init_node(struct device *dev,
-					       const struct regulator_desc *desc)
+static struct
+device_node *regulator_of_get_init_node(struct device *dev,
+					const struct regulator_desc *desc)
 {
 	struct device_node *search, *child;
 	const char *name;

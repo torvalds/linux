@@ -33,7 +33,6 @@ config DEBUG_PAGEALLOC
 
 config DEBUG_PAGEALLOC_ENABLE_DEFAULT
 	bool "Enable debug page memory allocations by default?"
-	default n
 	depends on DEBUG_PAGEALLOC
 	---help---
 	  Enable debug page memory allocations by default? This value

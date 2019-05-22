@@ -77,7 +77,7 @@ static int indydog_open(struct inode *inode, struct file *file)
 
 	pr_info("Started watchdog timer\n");
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int indydog_release(struct inode *inode, struct file *file)

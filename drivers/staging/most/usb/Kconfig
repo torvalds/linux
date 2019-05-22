@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # MOST USB configuration
 #
@@ -5,7 +6,7 @@
 config MOST_USB
 	tristate "USB"
 	depends on USB && NET
-	---help---
+	help
 	  Say Y here if you want to connect via USB to network tranceiver.
 	  This device driver depends on the networking AIM.
 

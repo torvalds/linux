@@ -207,7 +207,6 @@ static void g4x_write_infoframe(struct intel_encoder *encoder,
 
 	I915_WRITE(VIDEO_DIP_CTL, val);
 
-	mmiowb();
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(VIDEO_DIP_DATA, *data);
 		data++;
@@ -215,7 +214,6 @@ static void g4x_write_infoframe(struct intel_encoder *encoder,
 	/* Write every possible data byte to force correct ECC calculation. */
 	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
 		I915_WRITE(VIDEO_DIP_DATA, 0);
-	mmiowb();
 
 	val |= g4x_infoframe_enable(type);
 	val &= ~VIDEO_DIP_FREQ_MASK;
@@ -282,7 +280,6 @@ static void ibx_write_infoframe(struct intel_encoder *encoder,
 
 	I915_WRITE(reg, val);
 
-	mmiowb();
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
@@ -290,7 +287,6 @@ static void ibx_write_infoframe(struct intel_encoder *encoder,
 	/* Write every possible data byte to force correct ECC calculation. */
 	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
-	mmiowb();
 
 	val |= g4x_infoframe_enable(type);
 	val &= ~VIDEO_DIP_FREQ_MASK;
@@ -364,7 +360,6 @@ static void cpt_write_infoframe(struct intel_encoder *encoder,
 
 	I915_WRITE(reg, val);
 
-	mmiowb();
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
@@ -372,7 +367,6 @@ static void cpt_write_infoframe(struct intel_encoder *encoder,
 	/* Write every possible data byte to force correct ECC calculation. */
 	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
-	mmiowb();
 
 	val |= g4x_infoframe_enable(type);
 	val &= ~VIDEO_DIP_FREQ_MASK;
@@ -439,7 +433,6 @@ static void vlv_write_infoframe(struct intel_encoder *encoder,
 
 	I915_WRITE(reg, val);
 
-	mmiowb();
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(VLV_TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
@@ -447,7 +440,6 @@ static void vlv_write_infoframe(struct intel_encoder *encoder,
 	/* Write every possible data byte to force correct ECC calculation. */
 	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
 		I915_WRITE(VLV_TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
-	mmiowb();
 
 	val |= g4x_infoframe_enable(type);
 	val &= ~VIDEO_DIP_FREQ_MASK;
@@ -514,7 +506,6 @@ static void hsw_write_infoframe(struct intel_encoder *encoder,
 	val &= ~hsw_infoframe_enable(type);
 	I915_WRITE(ctl_reg, val);
 
-	mmiowb();
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(hsw_dip_data_reg(dev_priv, cpu_transcoder,
 					    type, i >> 2), *data);
@@ -524,7 +515,6 @@ static void hsw_write_infoframe(struct intel_encoder *encoder,
 	for (; i < data_size; i += 4)
 		I915_WRITE(hsw_dip_data_reg(dev_priv, cpu_transcoder,
 					    type, i >> 2), 0);
-	mmiowb();
 
 	val |= hsw_infoframe_enable(type);
 	I915_WRITE(ctl_reg, val);

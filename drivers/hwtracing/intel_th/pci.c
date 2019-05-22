@@ -17,7 +17,13 @@
 
 #define DRIVER_NAME "intel_th_pci"
 
-#define BAR_MASK (BIT(TH_MMIO_CONFIG) | BIT(TH_MMIO_SW))
+enum {
+	TH_PCI_CONFIG_BAR	= 0,
+	TH_PCI_STH_SW_BAR	= 2,
+	TH_PCI_RTIT_BAR		= 4,
+};
+
+#define BAR_MASK (BIT(TH_PCI_CONFIG_BAR) | BIT(TH_PCI_STH_SW_BAR))
 
 #define PCI_REG_NPKDSC	0x80
 #define NPKDSC_TSACT	BIT(5)
@@ -66,8 +72,12 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	struct intel_th_drvdata *drvdata = (void *)id->driver_data;
+	struct resource resource[TH_MMIO_END + TH_NVEC_MAX] = {
+		[TH_MMIO_CONFIG]	= pdev->resource[TH_PCI_CONFIG_BAR],
+		[TH_MMIO_SW]		= pdev->resource[TH_PCI_STH_SW_BAR],
+	};
+	int err, r = TH_MMIO_SW + 1, i;
 	struct intel_th *th;
-	int err;
 
 	err = pcim_enable_device(pdev);
 	if (err)
@@ -77,8 +87,19 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	th = intel_th_alloc(&pdev->dev, drvdata, pdev->resource,
-			    DEVICE_COUNT_RESOURCE, pdev->irq);
+	if (pdev->resource[TH_PCI_RTIT_BAR].start) {
+		resource[TH_MMIO_RTIT] = pdev->resource[TH_PCI_RTIT_BAR];
+		r++;
+	}
+
+	err = pci_alloc_irq_vectors(pdev, 1, 8, PCI_IRQ_ALL_TYPES);
+	if (err > 0)
+		for (i = 0; i < err; i++, r++) {
+			resource[r].flags = IORESOURCE_IRQ;
+			resource[r].start = pci_irq_vector(pdev, i);
+		}
+
+	th = intel_th_alloc(&pdev->dev, drvdata, resource, r);
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 
@@ -95,10 +116,13 @@ static void intel_th_pci_remove(struct pci_dev *pdev)
 	struct intel_th *th = pci_get_drvdata(pdev);
 
 	intel_th_free(th);
+
+	pci_free_irq_vectors(pdev);
 }
 
 static const struct intel_th_drvdata intel_th_2x = {
 	.tscu_enable	= 1,
+	.has_mintctl	= 1,
 };
 
 static const struct pci_device_id intel_th_pci_id_table[] = {
@@ -163,6 +187,11 @@ static const struct pci_device_id intel_th_pci_id_table[] = {
 	{
 		/* Ice Lake PCH */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x34a6),
+		.driver_data = (kernel_ulong_t)&intel_th_2x,
+	},
+	{
+		/* Comet Lake */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x02a6),
 		.driver_data = (kernel_ulong_t)&intel_th_2x,
 	},
 	{ 0 },

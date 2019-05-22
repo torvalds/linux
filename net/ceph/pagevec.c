@@ -27,7 +27,7 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
 	while (got < num_pages) {
 		rc = get_user_pages_fast(
 		    (unsigned long)data + ((unsigned long)got * PAGE_SIZE),
-		    num_pages - got, write_page, pages + got);
+		    num_pages - got, write_page ? FOLL_WRITE : 0, pages + got);
 		if (rc < 0)
 			break;
 		BUG_ON(rc == 0);
