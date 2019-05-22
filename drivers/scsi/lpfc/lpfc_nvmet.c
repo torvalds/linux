@@ -1766,6 +1766,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 			nvmet_fc_rcv_fcp_abort(phba->targetport,
 					       &ctxp->ctx.fcp_req);
 		} else {
+			cancel_work_sync(&ctxp->ctxbuf->defer_work);
 			spin_lock_irqsave(&ctxp->ctxlock, iflag);
 			lpfc_nvmet_defer_release(phba, ctxp);
 			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
@@ -1777,7 +1778,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 			lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
 						       ctxp->oxid);
 
-		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 0);
+		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
 		return 0;
 	}
 
