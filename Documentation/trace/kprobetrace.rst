@@ -146,6 +146,20 @@ You can check the total number of probe hits and probe miss-hits via
 The first column is event name, the second is the number of probe hits,
 the third is the number of probe miss-hits.
 
+Kernel Boot Parameter
+---------------------
+You can add and enable new kprobe events when booting up the kernel by
+"kprobe_event=" parameter. The parameter accepts a semicolon-delimited
+kprobe events, which format is similar to the kprobe_events.
+The difference is that the probe definition parameters are comma-delimited
+instead of space. For example, adding myprobe event on do_sys_open like below
+
+  p:myprobe do_sys_open dfd=%ax filename=%dx flags=%cx mode=+4($stack)
+
+should be below for kernel boot parameter (just replace spaces with comma)
+
+  p:myprobe,do_sys_open,dfd=%ax,filename=%dx,flags=%cx,mode=+4($stack)
+
 
 Usage examples
 --------------
