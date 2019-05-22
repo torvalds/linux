@@ -57,7 +57,6 @@
 #define QUEUE_LENGTH		48
 
 #define IR_HEADER_SIZE		8	// For header and timestamp.
-#define OUT_PACKET_HEADER_SIZE	0
 #define HEADER_TSTAMP_MASK	0x0000ffff
 
 static void pcm_period_tasklet(unsigned long data);
@@ -260,11 +259,18 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	s->data_block_quadlets = data_block_quadlets;
 	s->syt_interval = amdtp_syt_intervals[sfc];
 
-	/* default buffering in the device */
-	s->transfer_delay = TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
-	if (s->flags & CIP_BLOCKING)
-		/* additional buffering needed to adjust for no-data packets */
-		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
+	// default buffering in the device.
+	if (s->direction == AMDTP_OUT_STREAM) {
+		s->ctx_data.rx.transfer_delay =
+					TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
+
+		if (s->flags & CIP_BLOCKING) {
+			// additional buffering needed to adjust for no-data
+			// packets.
+			s->ctx_data.rx.transfer_delay +=
+				TICKS_PER_SECOND * s->syt_interval / rate;
+		}
+	}
 
 	return 0;
 }
@@ -321,10 +327,10 @@ static unsigned int calculate_data_blocks(struct amdtp_stream *s,
 	/* Non-blocking mode. */
 	} else {
 		if (!cip_sfc_is_base_44100(s->sfc)) {
-			/* Sample_rate / 8000 is an integer, and precomputed. */
-			data_blocks = s->data_block_state;
+			// Sample_rate / 8000 is an integer, and precomputed.
+			data_blocks = s->ctx_data.rx.data_block_state;
 		} else {
-			phase = s->data_block_state;
+			phase = s->ctx_data.rx.data_block_state;
 
 		/*
 		 * This calculates the number of data blocks per packet so that
@@ -343,7 +349,7 @@ static unsigned int calculate_data_blocks(struct amdtp_stream *s,
 				data_blocks = 11 * (s->sfc >> 1) + (phase == 0);
 			if (++phase >= (80 >> (s->sfc >> 1)))
 				phase = 0;
-			s->data_block_state = phase;
+			s->ctx_data.rx.data_block_state = phase;
 		}
 	}
 
@@ -355,9 +361,10 @@ static unsigned int calculate_syt(struct amdtp_stream *s,
 {
 	unsigned int syt_offset, phase, index, syt;
 
-	if (s->last_syt_offset < TICKS_PER_CYCLE) {
+	if (s->ctx_data.rx.last_syt_offset < TICKS_PER_CYCLE) {
 		if (!cip_sfc_is_base_44100(s->sfc))
-			syt_offset = s->last_syt_offset + s->syt_offset_state;
+			syt_offset = s->ctx_data.rx.last_syt_offset +
+				     s->ctx_data.rx.syt_offset_state;
 		else {
 		/*
 		 * The time, in ticks, of the n'th SYT_INTERVAL sample is:
@@ -369,21 +376,21 @@ static unsigned int calculate_syt(struct amdtp_stream *s,
 		 *   1386 1386 1387 1386 1386 1386 1387 1386 1386 1386 1387 ...
 		 * This code generates _exactly_ the same sequence.
 		 */
-			phase = s->syt_offset_state;
+			phase = s->ctx_data.rx.syt_offset_state;
 			index = phase % 13;
-			syt_offset = s->last_syt_offset;
+			syt_offset = s->ctx_data.rx.last_syt_offset;
 			syt_offset += 1386 + ((index && !(index & 3)) ||
 					      phase == 146);
 			if (++phase >= 147)
 				phase = 0;
-			s->syt_offset_state = phase;
+			s->ctx_data.rx.syt_offset_state = phase;
 		}
 	} else
-		syt_offset = s->last_syt_offset - TICKS_PER_CYCLE;
-	s->last_syt_offset = syt_offset;
+		syt_offset = s->ctx_data.rx.last_syt_offset - TICKS_PER_CYCLE;
+	s->ctx_data.rx.last_syt_offset = syt_offset;
 
 	if (syt_offset < TICKS_PER_CYCLE) {
-		syt_offset += s->transfer_delay;
+		syt_offset += s->ctx_data.rx.transfer_delay;
 		syt = (cycle + syt_offset / TICKS_PER_CYCLE) << 12;
 		syt += syt_offset % TICKS_PER_CYCLE;
 
@@ -420,8 +427,7 @@ static void pcm_period_tasklet(unsigned long data)
 		snd_pcm_period_elapsed(pcm);
 }
 
-static int queue_packet(struct amdtp_stream *s, unsigned int header_length,
-			unsigned int payload_length)
+static int queue_packet(struct amdtp_stream *s, unsigned int payload_length)
 {
 	struct fw_iso_packet p = {0};
 	int err = 0;
@@ -431,7 +437,15 @@ static int queue_packet(struct amdtp_stream *s, unsigned int header_length,
 
 	p.interrupt = IS_ALIGNED(s->packet_index + 1, INTERRUPT_INTERVAL);
 	p.tag = s->tag;
-	p.header_length = header_length;
+
+	if (s->direction == AMDTP_IN_STREAM) {
+		// Queue one packet for IR context.
+		p.header_length = s->ctx_data.tx.ctx_header_size;
+	} else {
+		// No header for this packet.
+		p.header_length = 0;
+	}
+
 	if (payload_length > 0)
 		p.payload_length = payload_length;
 	else
@@ -452,12 +466,12 @@ end:
 static inline int queue_out_packet(struct amdtp_stream *s,
 				   unsigned int payload_length)
 {
-	return queue_packet(s, OUT_PACKET_HEADER_SIZE, payload_length);
+	return queue_packet(s, payload_length);
 }
 
 static inline int queue_in_packet(struct amdtp_stream *s)
 {
-	return queue_packet(s, IR_HEADER_SIZE, s->max_payload_length);
+	return queue_packet(s, s->ctx_data.tx.max_payload_length);
 }
 
 static int handle_out_packet(struct amdtp_stream *s,
@@ -484,9 +498,9 @@ static int handle_out_packet(struct amdtp_stream *s,
 				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
 				s->data_block_counter);
 	buffer[1] = cpu_to_be32(CIP_EOH |
-				((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
-				((s->fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
-				(syt & CIP_SYT_MASK));
+			((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
+			((s->ctx_data.rx.fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
+			(syt & CIP_SYT_MASK));
 
 	if (!(s->flags & CIP_DBC_IS_END_EVENT))
 		s->data_block_counter =
@@ -610,14 +624,14 @@ static int handle_in_packet(struct amdtp_stream *s,
 		data_block_counter = s->data_block_counter;
 
 	if (((s->flags & CIP_SKIP_DBC_ZERO_CHECK) &&
-	     data_block_counter == s->tx_first_dbc) ||
+	     data_block_counter == s->ctx_data.tx.first_dbc) ||
 	    s->data_block_counter == UINT_MAX) {
 		lost = false;
 	} else if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 		lost = data_block_counter != s->data_block_counter;
 	} else {
-		if (data_blocks > 0 && s->tx_dbc_interval > 0)
-			dbc_interval = s->tx_dbc_interval;
+		if (data_blocks > 0 && s->ctx_data.tx.dbc_interval > 0)
+			dbc_interval = s->ctx_data.tx.dbc_interval;
 		else
 			dbc_interval = data_blocks;
 
@@ -680,13 +694,12 @@ static int handle_in_packet_without_header(struct amdtp_stream *s,
 	return 0;
 }
 
-/*
- * In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
- * the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
- * it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
- */
-static inline u32 compute_cycle_count(u32 tstamp)
+// In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
+// the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
+// it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
+static inline u32 compute_cycle_count(__be32 ctx_header_tstamp)
 {
+	u32 tstamp = be32_to_cpu(ctx_header_tstamp) & HEADER_TSTAMP_MASK;
 	return (((tstamp >> 13) & 0x07) * 8000) + (tstamp & 0x1fff);
 }
 
@@ -698,31 +711,46 @@ static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
 	return cycle;
 }
 
+// Align to actual cycle count for the packet which is going to be scheduled.
+// This module queued the same number of isochronous cycle as QUEUE_LENGTH to
+// skip isochronous cycle, therefore it's OK to just increment the cycle by
+// QUEUE_LENGTH for scheduled cycle.
+static inline u32 compute_it_cycle(const __be32 ctx_header_tstamp)
+{
+	u32 cycle = compute_cycle_count(ctx_header_tstamp);
+	return increment_cycle_count(cycle, QUEUE_LENGTH);
+}
+
+static inline void cancel_stream(struct amdtp_stream *s)
+{
+	s->packet_index = -1;
+	if (in_interrupt())
+		amdtp_stream_pcm_abort(s);
+	WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
+}
+
 static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
 {
 	struct amdtp_stream *s = private_data;
-	unsigned int i, packets = header_length / 4;
-	u32 cycle;
+	const __be32 *ctx_header = header;
+	unsigned int i, packets = header_length / sizeof(*ctx_header);
 
 	if (s->packet_index < 0)
 		return;
 
-	cycle = compute_cycle_count(tstamp);
-
-	/* Align to actual cycle count for the last packet. */
-	cycle = increment_cycle_count(cycle, QUEUE_LENGTH - packets);
-
 	for (i = 0; i < packets; ++i) {
-		cycle = increment_cycle_count(cycle, 1);
+		u32 cycle;
+
+		cycle = compute_it_cycle(*ctx_header);
+
 		if (s->handle_packet(s, 0, cycle, i) < 0) {
-			s->packet_index = -1;
-			if (in_interrupt())
-				amdtp_stream_pcm_abort(s);
-			WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
+			cancel_stream(s);
 			return;
 		}
+
+		++ctx_header;
 	}
 
 	fw_iso_context_queue_flush(s->context);
@@ -740,18 +768,17 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	if (s->packet_index < 0)
 		return;
 
-	/* The number of packets in buffer */
-	packets = header_length / IR_HEADER_SIZE;
+	// The number of packets in buffer.
+	packets = header_length / s->ctx_data.tx.ctx_header_size;
 
 	/* For buffer-over-run prevention. */
-	max_payload_length = s->max_payload_length;
+	max_payload_length = s->ctx_data.tx.max_payload_length;
 
 	for (i = 0; i < packets; i++) {
 		u32 iso_header = be32_to_cpu(ctx_header[0]);
-		unsigned int cycle;
+		u32 cycle;
 
-		tstamp = be32_to_cpu(ctx_header[1]) & HEADER_TSTAMP_MASK;
-		cycle = compute_cycle_count(tstamp);
+		cycle = compute_cycle_count(ctx_header[1]);
 
 		/* The number of bytes in this packet */
 		payload_length = iso_header >> ISO_DATA_LENGTH_SHIFT;
@@ -765,15 +792,12 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		if (s->handle_packet(s, payload_length, cycle, i) < 0)
 			break;
 
-		ctx_header += IR_HEADER_SIZE / sizeof(__be32);
+		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
 	}
 
 	/* Queueing error or detecting invalid payload. */
 	if (i < packets) {
-		s->packet_index = -1;
-		if (in_interrupt())
-			amdtp_stream_pcm_abort(s);
-		WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
+		cancel_stream(s);
 		return;
 	}
 
@@ -786,9 +810,8 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 					void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
-	__be32 *ctx_header = header;
+	const __be32 *ctx_header = header;
 	u32 cycle;
-	unsigned int packets;
 
 	/*
 	 * For in-stream, first packet has come.
@@ -798,8 +821,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	wake_up(&s->callback_wait);
 
 	if (s->direction == AMDTP_IN_STREAM) {
-		tstamp = be32_to_cpu(ctx_header[1]) & HEADER_TSTAMP_MASK;
-		cycle = compute_cycle_count(tstamp);
+		cycle = compute_cycle_count(ctx_header[1]);
 
 		context->callback.sc = in_stream_callback;
 		if (s->flags & CIP_NO_HEADER)
@@ -807,9 +829,8 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 		else
 			s->handle_packet = handle_in_packet;
 	} else {
-		packets = header_length / 4;
-		cycle = compute_cycle_count(tstamp);
-		cycle = increment_cycle_count(cycle, QUEUE_LENGTH - packets);
+		cycle = compute_it_cycle(*ctx_header);
+
 		context->callback.sc = out_stream_callback;
 		if (s->flags & CIP_NO_HEADER)
 			s->handle_packet = handle_out_packet_without_header;
@@ -837,7 +858,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 	static const struct {
 		unsigned int data_block;
 		unsigned int syt_offset;
-	} initial_state[] = {
+	} *entry, initial_state[] = {
 		[CIP_SFC_32000]  = {  4, 3072 },
 		[CIP_SFC_48000]  = {  6, 1024 },
 		[CIP_SFC_96000]  = { 12, 1024 },
@@ -846,7 +867,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		[CIP_SFC_88200]  = {  0,   67 },
 		[CIP_SFC_176400] = {  0,   67 },
 	};
-	unsigned int header_size;
+	unsigned int ctx_header_size;
 	enum dma_data_direction dir;
 	int type, tag, err;
 
@@ -858,23 +879,26 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		goto err_unlock;
 	}
 
-	if (s->direction == AMDTP_IN_STREAM)
+	if (s->direction == AMDTP_IN_STREAM) {
 		s->data_block_counter = UINT_MAX;
-	else
+	} else {
+		entry = &initial_state[s->sfc];
+
 		s->data_block_counter = 0;
-	s->data_block_state = initial_state[s->sfc].data_block;
-	s->syt_offset_state = initial_state[s->sfc].syt_offset;
-	s->last_syt_offset = TICKS_PER_CYCLE;
+		s->ctx_data.rx.data_block_state = entry->data_block;
+		s->ctx_data.rx.syt_offset_state = entry->syt_offset;
+		s->ctx_data.rx.last_syt_offset = TICKS_PER_CYCLE;
+	}
 
 	/* initialize packet buffer */
 	if (s->direction == AMDTP_IN_STREAM) {
 		dir = DMA_FROM_DEVICE;
 		type = FW_ISO_CONTEXT_RECEIVE;
-		header_size = IR_HEADER_SIZE;
+		ctx_header_size = IR_HEADER_SIZE;
 	} else {
 		dir = DMA_TO_DEVICE;
 		type = FW_ISO_CONTEXT_TRANSMIT;
-		header_size = OUT_PACKET_HEADER_SIZE;
+		ctx_header_size = 0;	// No effect for IT context.
 	}
 	err = iso_packets_buffer_init(&s->buffer, s->unit, QUEUE_LENGTH,
 				      amdtp_stream_get_max_payload(s), dir);
@@ -882,8 +906,8 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		goto err_unlock;
 
 	s->context = fw_iso_context_create(fw_parent_device(s->unit)->card,
-					   type, channel, speed, header_size,
-					   amdtp_stream_first_callback, s);
+					  type, channel, speed, ctx_header_size,
+					  amdtp_stream_first_callback, s);
 	if (IS_ERR(s->context)) {
 		err = PTR_ERR(s->context);
 		if (err == -EBUSY)
@@ -894,8 +918,11 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 
 	amdtp_stream_update(s);
 
-	if (s->direction == AMDTP_IN_STREAM)
-		s->max_payload_length = amdtp_stream_get_max_payload(s);
+	if (s->direction == AMDTP_IN_STREAM) {
+		s->ctx_data.tx.max_payload_length =
+						amdtp_stream_get_max_payload(s);
+		s->ctx_data.tx.ctx_header_size = ctx_header_size;
+	}
 
 	if (s->flags & CIP_NO_HEADER)
 		s->tag = TAG_NO_CIP_HEADER;
