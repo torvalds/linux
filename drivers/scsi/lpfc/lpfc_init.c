@@ -5055,7 +5055,7 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 				bf_get(lpfc_acqe_fc_la_speed, acqe_fc));
 
 	phba->sli4_hba.link_state.logical_speed =
-				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc);
+				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
 	/* We got FC link speed, convert to fc_linkspeed (READ_TOPOLOGY) */
 	phba->fc_linkspeed =
 		 lpfc_async_link_speed_to_read_top(
@@ -5158,8 +5158,14 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 				bf_get(lpfc_acqe_fc_la_port_number, acqe_fc);
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_fc);
-	phba->sli4_hba.link_state.logical_speed =
+
+	if (bf_get(lpfc_acqe_fc_la_att_type, acqe_fc) ==
+	    LPFC_FC_LA_TYPE_LINK_DOWN)
+		phba->sli4_hba.link_state.logical_speed = 0;
+	else if	(!phba->sli4_hba.conf_trunk)
+		phba->sli4_hba.link_state.logical_speed =
 				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2896 Async FC event - Speed:%dGBaud Topology:x%x "
 			"LA Type:x%x Port Type:%d Port Number:%d Logical speed:"
