@@ -452,6 +452,7 @@ struct lpfc_hba_eq_hdl {
 	uint32_t idx;
 	char handler_name[LPFC_SLI4_HANDLER_NAME_SZ];
 	struct lpfc_hba *phba;
+	struct lpfc_queue *eq;
 };
 
 /*BB Credit recovery value*/
@@ -552,6 +553,7 @@ struct lpfc_vector_map_info {
 	uint16_t	flag;
 #define LPFC_CPU_MAP_HYPER	0x1
 #define LPFC_CPU_MAP_UNASSIGN	0x2
+#define LPFC_CPU_FIRST_IRQ	0x4
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 

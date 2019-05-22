@@ -5548,6 +5548,7 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 	int qidx;
 	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_queue *eq;
 
 	sli4_hba->sli4_write_cq_db(phba, sli4_hba->mbx_cq, 0, LPFC_QUEUE_REARM);
 	sli4_hba->sli4_write_cq_db(phba, sli4_hba->els_cq, 0, LPFC_QUEUE_REARM);
@@ -5555,18 +5556,24 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 		sli4_hba->sli4_write_cq_db(phba, sli4_hba->nvmels_cq, 0,
 					   LPFC_QUEUE_REARM);
 
-	qp = sli4_hba->hdwq;
 	if (sli4_hba->hdwq) {
+		/* Loop thru all Hardware Queues */
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
-			sli4_hba->sli4_write_cq_db(phba, qp[qidx].fcp_cq, 0,
+			qp = &sli4_hba->hdwq[qidx];
+			/* ARM the corresponding CQ */
+			sli4_hba->sli4_write_cq_db(phba, qp->fcp_cq, 0,
 						   LPFC_QUEUE_REARM);
-			sli4_hba->sli4_write_cq_db(phba, qp[qidx].nvme_cq, 0,
+			sli4_hba->sli4_write_cq_db(phba, qp->nvme_cq, 0,
 						   LPFC_QUEUE_REARM);
 		}
 
-		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++)
-			sli4_hba->sli4_write_eq_db(phba, qp[qidx].hba_eq,
-						0, LPFC_QUEUE_REARM);
+		/* Loop thru all IRQ vectors */
+		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
+			eq = sli4_hba->hba_eq_hdl[qidx].eq;
+			/* ARM the corresponding EQ */
+			sli4_hba->sli4_write_eq_db(phba, eq,
+						   0, LPFC_QUEUE_REARM);
+		}
 	}
 
 	if (phba->nvmet_support) {
@@ -7858,20 +7865,22 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 	uint32_t eqidx;
 	struct lpfc_queue *fpeq = NULL;
+	struct lpfc_queue *eq;
 	bool mbox_pending;
 
 	if (unlikely(!phba) || (phba->sli_rev != LPFC_SLI_REV4))
 		return false;
 
-	/* Find the eq associated with the mcq */
-
-	if (sli4_hba->hdwq)
-		for (eqidx = 0; eqidx < phba->cfg_irq_chann; eqidx++)
-			if (sli4_hba->hdwq[eqidx].hba_eq->queue_id ==
-			    sli4_hba->mbx_cq->assoc_qid) {
-				fpeq = sli4_hba->hdwq[eqidx].hba_eq;
+	/* Find the EQ associated with the mbox CQ */
+	if (sli4_hba->hdwq) {
+		for (eqidx = 0; eqidx < phba->cfg_irq_chann; eqidx++) {
+			eq = phba->sli4_hba.hba_eq_hdl[eqidx].eq;
+			if (eq->queue_id == sli4_hba->mbx_cq->assoc_qid) {
+				fpeq = eq;
 				break;
 			}
+		}
+	}
 	if (!fpeq)
 		return false;
 
@@ -14217,7 +14226,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/* Get to the EQ struct associated with this vector */
-	fpeq = phba->sli4_hba.hdwq[hba_eqidx].hba_eq;
+	fpeq = phba->sli4_hba.hba_eq_hdl[hba_eqidx].eq;
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
 
@@ -14502,7 +14511,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	/* set values by EQ_DELAY register if supported */
 	if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
 		for (qidx = startq; qidx < phba->cfg_irq_chann; qidx++) {
-			eq = phba->sli4_hba.hdwq[qidx].hba_eq;
+			eq = phba->sli4_hba.hba_eq_hdl[qidx].eq;
 			if (!eq)
 				continue;
 
@@ -14511,7 +14520,6 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 			if (++cnt >= numq)
 				break;
 		}
-
 		return;
 	}
 
@@ -14539,7 +14547,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 		dmult = LPFC_DMULT_MAX;
 
 	for (qidx = startq; qidx < phba->cfg_irq_chann; qidx++) {
-		eq = phba->sli4_hba.hdwq[qidx].hba_eq;
+		eq = phba->sli4_hba.hba_eq_hdl[qidx].eq;
 		if (!eq)
 			continue;
 		eq->q_mode = usdelay;

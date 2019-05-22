@@ -5115,7 +5115,8 @@ lpfc_cq_max_proc_limit_store(struct device *dev, struct device_attribute *attr,
 
 	/* set the values on the cq's */
 	for (i = 0; i < phba->cfg_irq_chann; i++) {
-		eq = phba->sli4_hba.hdwq[i].hba_eq;
+		/* Get the EQ corresponding to the IRQ vector */
+		eq = phba->sli4_hba.hba_eq_hdl[i].eq;
 		if (!eq)
 			continue;
 
