@@ -245,12 +245,6 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 }
 
 int
-nouveau_abi16_ioctl_setparam(ABI16_IOCTL_ARGS)
-{
-	return -EINVAL;
-}
-
-int
 nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_channel_alloc *init = data;
