@@ -3432,11 +3432,14 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	if (urb->transfer_buffer_length > 0) {
 		u32 length_field, remainder;
+		u64 addr;
 
 		if (xhci_urb_suitable_for_idt(urb)) {
-			memcpy(&urb->transfer_dma, urb->transfer_buffer,
+			memcpy(&addr, urb->transfer_buffer,
 			       urb->transfer_buffer_length);
 			field |= TRB_IDT;
+		} else {
+			addr = (u64) urb->transfer_dma;
 		}
 
 		remainder = xhci_td_remainder(xhci, 0,
@@ -3449,8 +3452,8 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		if (setup->bRequestType & USB_DIR_IN)
 			field |= TRB_DIR_IN;
 		queue_trb(xhci, ep_ring, true,
-				lower_32_bits(urb->transfer_dma),
-				upper_32_bits(urb->transfer_dma),
+				lower_32_bits(addr),
+				upper_32_bits(addr),
 				length_field,
 				field | ep_ring->cycle_state);
 	}
