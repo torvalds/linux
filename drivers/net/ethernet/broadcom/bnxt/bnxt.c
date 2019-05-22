@@ -6379,7 +6379,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
 		return 0;
 
-	if (bp->flags & BNXT_FLAG_ROCE_CAP) {
+	if ((bp->flags & BNXT_FLAG_ROCE_CAP) && !is_kdump_kernel()) {
 		pg_lvl = 2;
 		extra_qps = 65536;
 		extra_srqs = 8192;
@@ -10437,7 +10437,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 
 	if (sh)
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
-	dflt_rings = netif_get_num_default_rss_queues();
+	dflt_rings = is_kdump_kernel() ? 1 : netif_get_num_default_rss_queues();
 	/* Reduce default rings on multi-port cards so that total default
 	 * rings do not exceed CPU count.
 	 */
