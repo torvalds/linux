@@ -447,8 +447,7 @@ bool hubp2_dmdata_status_done(struct hubp *hubp)
 bool hubp2_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate,
-	uint8_t vmid)
+	bool flip_immediate)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -458,7 +457,7 @@ bool hubp2_program_surface_flip_and_addr(
 
 	// Program VMID reg
 	REG_UPDATE(VMID_SETTINGS_0,
-			VMID, vmid);
+			VMID, address->vmid);
 
 	if (address->type == PLN_ADDR_TYPE_GRPH_STEREO) {
 		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x1);

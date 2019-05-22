@@ -51,12 +51,9 @@ void dcn20_vmid_setup(struct dcn20_vmid *vmid, const struct dcn_vmid_page_table_
 	REG_SET_2(CNTL, 0,
 			VM_CONTEXT0_PAGE_TABLE_DEPTH, config->depth,
 			VM_CONTEXT0_PAGE_TABLE_BLOCK_SIZE, config->block_size);
-}
 
-void dcn20_vmid_set_ptb(struct dcn20_vmid *vmid, uint64_t base)
-{
 	REG_SET(PAGE_TABLE_BASE_ADDR_HI32, 0,
-			VM_CONTEXT0_PAGE_DIRECTORY_ENTRY_HI32, (base >> 32) & 0xFFFFFFFF);
+			VM_CONTEXT0_PAGE_DIRECTORY_ENTRY_HI32, (config->page_table_base_addr >> 32) & 0xFFFFFFFF);
 	REG_SET(PAGE_TABLE_BASE_ADDR_LO32, 0,
-			VM_CONTEXT0_PAGE_DIRECTORY_ENTRY_LO32, base & 0xFFFFFFFF);
+			VM_CONTEXT0_PAGE_DIRECTORY_ENTRY_LO32, config->page_table_base_addr & 0xFFFFFFFF);
 }

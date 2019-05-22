@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,28 +23,22 @@
  *
  */
 
-#ifndef DAL_DC_INC_HW_VMID_H_
-#define DAL_DC_INC_HW_VMID_H_
+#ifndef MOD_VMID_H_
+#define MOD_VMID_H_
 
-#include "core_types.h"
-#include "dchubbub.h"
+#define MAX_VMID 16
 
-struct dcn_vmid_registers {
-	uint32_t CNTL;
-	uint32_t PAGE_TABLE_BASE_ADDR_HI32;
-	uint32_t PAGE_TABLE_BASE_ADDR_LO32;
-	uint32_t PAGE_TABLE_START_ADDR_HI32;
-	uint32_t PAGE_TABLE_START_ADDR_LO32;
-	uint32_t PAGE_TABLE_END_ADDR_HI32;
-	uint32_t PAGE_TABLE_END_ADDR_LO32;
+#include "dc.h"
+
+struct mod_vmid {
+	int dummy;
 };
 
-struct dcn_vmid_page_table_config {
-	uint64_t	page_table_start_addr;
-	uint64_t	page_table_end_addr;
-	enum dcn_hubbub_page_table_depth	depth;
-	enum dcn_hubbub_page_table_block_size	block_size;
-	uint64_t	page_table_base_addr;
-};
+uint8_t mod_vmid_get_for_ptb(struct mod_vmid *mod_vmid, uint64_t ptb);
+void mod_vmid_reset(struct mod_vmid *mod_vmid);
+struct mod_vmid *mod_vmid_create(
+		struct dc *dc,
+		unsigned int num_vmid,
+		struct dc_virtual_addr_space_config *va_config);
 
-#endif /* DAL_DC_INC_HW_VMID_H_ */
+#endif /* MOD_VMID_H_ */

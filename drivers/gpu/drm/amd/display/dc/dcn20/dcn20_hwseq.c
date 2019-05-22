@@ -1122,15 +1122,13 @@ void dcn20_enable_plane(
 		print_rq_dlg_ttu(dc, pipe_ctx);
 	}
 */
-	if (dc->vm_config.valid) {
+	if (dc->vm_pa_config.valid) {
 		struct vm_system_aperture_param apt;
 
 		apt.sys_default.quad_part = 0;
-		apt.sys_high.quad_part = 0;
-		apt.sys_low.quad_part = 0;
 
-		apt.sys_high.quad_part = dc->vm_config.pa_config.system_aperture.start_addr;
-		apt.sys_low.quad_part = dc->vm_config.pa_config.system_aperture.end_addr;
+		apt.sys_high.quad_part = dc->vm_pa_config.system_aperture.start_addr;
+		apt.sys_low.quad_part = dc->vm_pa_config.system_aperture.end_addr;
 
 		// Program system aperture settings
 		pipe_ctx->plane_res.hubp->funcs->hubp_set_vm_system_aperture_settings(pipe_ctx->plane_res.hubp, &apt);
@@ -1565,26 +1563,43 @@ void dcn20_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	dce110_disable_stream(pipe_ctx, option);
 }
 
-static void dcn20_init_dchub(struct dce_hwseq *hws, struct dc *dc, struct dc_addr_space_config *config)
+static void dcn20_init_vm_ctx(
+		struct dce_hwseq *hws,
+		struct dc *dc,
+		struct dc_virtual_addr_space_config *va_config,
+		int vmid)
 {
-	struct hubbub_addr_config hubbub_config;
+	struct dcn_hubbub_virt_addr_config config;
 
-	hubbub_config.pa_config.system_aperture.fb_top = config->pa_config.system_aperture.fb_top;
-	hubbub_config.pa_config.system_aperture.fb_offset = config->pa_config.system_aperture.fb_offset;
-	hubbub_config.pa_config.system_aperture.fb_base = config->pa_config.system_aperture.fb_base;
-	hubbub_config.pa_config.system_aperture.agp_top = config->pa_config.system_aperture.agp_top;
-	hubbub_config.pa_config.system_aperture.agp_bot = config->pa_config.system_aperture.agp_bot;
-	hubbub_config.pa_config.system_aperture.agp_base = config->pa_config.system_aperture.agp_base;
-	hubbub_config.pa_config.gart_config.page_table_start_addr = config->pa_config.gart_config.page_table_start_addr;
-	hubbub_config.pa_config.gart_config.page_table_end_addr = config->pa_config.gart_config.page_table_end_addr;
-	hubbub_config.pa_config.gart_config.page_table_base_addr = config->pa_config.gart_config.page_table_base_addr;
+	if (vmid == 0) {
+		ASSERT(0); /* VMID cannot be 0 for vm context */
+		return;
+	}
 
-	hubbub_config.va_config.page_table_start_addr = config->va_config.page_table_start_addr;
-	hubbub_config.va_config.page_table_end_addr = config->va_config.page_table_end_addr;
-	hubbub_config.va_config.page_table_block_size = config->va_config.page_table_block_size_in_bytes;
-	hubbub_config.va_config.page_table_depth = config->va_config.page_table_depth;
+	config.page_table_start_addr = va_config->page_table_start_addr;
+	config.page_table_end_addr = va_config->page_table_end_addr;
+	config.page_table_block_size = va_config->page_table_block_size_in_bytes;
+	config.page_table_depth = va_config->page_table_depth;
+	config.page_table_base_addr = va_config->page_table_base_addr;
 
-	dc->res_pool->hubbub->funcs->init_dchub(dc->res_pool->hubbub, &hubbub_config);
+	dc->res_pool->hubbub->funcs->init_vm_ctx(dc->res_pool->hubbub, &config, vmid);
+}
+
+static int dcn20_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
+{
+	struct dcn_hubbub_phys_addr_config config;
+
+	config.system_aperture.fb_top = pa_config->system_aperture.fb_top;
+	config.system_aperture.fb_offset = pa_config->system_aperture.fb_offset;
+	config.system_aperture.fb_base = pa_config->system_aperture.fb_base;
+	config.system_aperture.agp_top = pa_config->system_aperture.agp_top;
+	config.system_aperture.agp_bot = pa_config->system_aperture.agp_bot;
+	config.system_aperture.agp_base = pa_config->system_aperture.agp_base;
+	config.gart_config.page_table_start_addr = pa_config->gart_config.page_table_start_addr;
+	config.gart_config.page_table_end_addr = pa_config->gart_config.page_table_end_addr;
+	config.gart_config.page_table_base_addr = pa_config->gart_config.page_table_base_addr;
+
+	return dc->res_pool->hubbub->funcs->init_dchub_sys_ctx(dc->res_pool->hubbub, &config);
 }
 
 static bool patch_address_for_sbs_tb_stereo(
@@ -1619,30 +1634,19 @@ static void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	uint8_t vmid;
 
 	if (plane_state == NULL)
 		return;
 
 	addr_patched = patch_address_for_sbs_tb_stereo(pipe_ctx, &addr);
 
-	// Call Helper to assign correct VMID to this PTB
-	vmid = get_vmid_for_ptb(dc->vm_helper,
-			plane_state->address.page_table_base.quad_part,
-			pipe_ctx->pipe_idx);
-
-	// Call hubbub to program PTB of VMID only if its VA
-	// PA PTB is a one-time setup at init
-	if (vmid > 0 && dc->res_pool->hubbub->funcs->setup_vmid_ptb)
-		dc->res_pool->hubbub->funcs->setup_vmid_ptb(dc->res_pool->hubbub,
-				plane_state->address.page_table_base.quad_part,
-				vmid);
+	// Call Helper to track VMID use
+	vm_helper_mark_vmid_used(dc->vm_helper, plane_state->address.vmid, pipe_ctx->plane_res.hubp->inst);
 
 	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
 			pipe_ctx->plane_res.hubp,
 			&plane_state->address,
-			plane_state->flip_immediate,
-			vmid);
+			plane_state->flip_immediate);
 
 	plane_state->status.requested_address = plane_state->address;
 
@@ -1991,7 +1995,8 @@ void dcn20_hw_sequencer_construct(struct dc *dc)
 	dc->hwss.blank_pixel_data = dcn20_blank_pixel_data;
 	dc->hwss.dmdata_status_done = dcn20_dmdata_status_done;
 	dc->hwss.disable_stream = dcn20_disable_stream;
-	dc->hwss.init_dchub = dcn20_init_dchub;
+	dc->hwss.init_sys_ctx = dcn20_init_sys_ctx;
+	dc->hwss.init_vm_ctx = dcn20_init_vm_ctx;
 	dc->hwss.disable_stream_gating = dcn20_disable_stream_gating;
 	dc->hwss.enable_stream_gating = dcn20_enable_stream_gating;
 	dc->hwss.setup_vupdate_interrupt = dcn20_setup_vupdate_interrupt;

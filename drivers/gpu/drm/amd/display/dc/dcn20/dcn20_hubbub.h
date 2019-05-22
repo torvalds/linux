@@ -89,9 +89,11 @@ bool hubbub2_initialize_vmids(struct hubbub *hubbub,
 		const struct dc_dcc_surface_param *input,
 		struct dc_surface_dcc_cap *output);
 
-void hubbub2_init_dchub(struct hubbub *hubbub,
-		struct hubbub_addr_config *config);
-
+int hubbub2_init_dchub_sys_ctx(struct hubbub *hubbub,
+		struct dcn_hubbub_phys_addr_config *pa_config);
+void hubbub2_init_vm_ctx(struct hubbub *hubbub,
+		struct dcn_hubbub_virt_addr_config *va_config,
+		int vmid);
 void hubbub2_update_dchub(struct hubbub *hubbub,
 		struct dchub_init_data *dh_data);
 
@@ -101,9 +103,5 @@ void hubbub2_get_dchub_ref_freq(struct hubbub *hubbub,
 
 void hubbub2_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm);
-
-void hubbub2_setup_vmid_ptb(struct hubbub *hubbub,
-		uint64_t ptb,
-		uint8_t vmid);
 
 #endif

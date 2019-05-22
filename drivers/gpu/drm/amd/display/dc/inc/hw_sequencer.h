@@ -75,7 +75,8 @@ struct resource_pool;
 struct resource_context;
 struct stream_resource;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
-struct dc_addr_space_config;
+struct dc_phy_addr_space_config;
+struct dc_virtual_addr_space_config;
 #endif
 
 struct hw_sequencer_funcs {
@@ -132,11 +133,15 @@ struct hw_sequencer_funcs {
 		struct dchub_init_data *dh_data);
 
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
-	void (*init_dchub)(
-		struct dce_hwseq *hws,
-		struct dc *dc,
-		struct dc_addr_space_config *dh_data);
-
+	int (*init_sys_ctx)(
+			struct dce_hwseq *hws,
+			struct dc *dc,
+			struct dc_phy_addr_space_config *pa_config);
+	void (*init_vm_ctx)(
+			struct dce_hwseq *hws,
+			struct dc *dc,
+			struct dc_virtual_addr_space_config *va_config,
+			int vmid);
 #endif
 	void (*update_mpcc)(
 		struct dc *dc,

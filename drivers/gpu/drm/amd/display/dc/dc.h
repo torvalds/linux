@@ -403,21 +403,17 @@ struct dc_phy_addr_space_config {
 		uint64_t page_table_end_addr;
 		uint64_t page_table_base_addr;
 	} gart_config;
+
+	bool valid;
 };
 
 struct dc_virtual_addr_space_config {
+	uint64_t	page_table_base_addr;
 	uint64_t	page_table_start_addr;
 	uint64_t	page_table_end_addr;
 	uint32_t	page_table_block_size_in_bytes;
 	uint8_t		page_table_depth; // 1 = 1 level, 2 = 2 level, etc.  0 = invalid
 };
-
-struct dc_addr_space_config {
-	struct dc_phy_addr_space_config		pa_config;
-	struct dc_virtual_addr_space_config	va_config;
-	uint32_t	valid:1;
-};
-
 #endif
 
 struct dc_bounding_box_overrides {
@@ -449,7 +445,7 @@ struct dc {
 #endif
 	struct dc_context *ctx;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
-	struct dc_addr_space_config vm_config;
+	struct dc_phy_addr_space_config vm_pa_config;
 #endif
 
 	uint8_t link_count;
@@ -539,8 +535,11 @@ struct dc_callback_init {
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
+int dc_get_vmid_use_vector(struct dc *dc);
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
-bool dc_init_memory_hub(struct dc *dc, struct dc_addr_space_config *config);
+void dc_setup_vm_context(struct dc *dc, struct dc_virtual_addr_space_config *va_config, int vmid);
+/* Returns the number of vmids supported */
+int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_config);
 #endif
 void dc_init_callbacks(struct dc *dc,
 		const struct dc_callback_init *init_params);

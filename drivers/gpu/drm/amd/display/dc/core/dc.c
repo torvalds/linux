@@ -808,26 +808,6 @@ void dc_destroy(struct dc **dc)
 	*dc = NULL;
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
-bool dc_init_memory_hub(struct dc *dc, struct dc_addr_space_config *config)
-{
-	// Memory hub init isn't done as part of dc_create because in windows, dal/dc is
-	// constructed before the vm config is setup in kmd so there's no way
-	// they can give it to us at boot/dc_create
-	bool vmSupported;
-
-	// Call HWSS to setup HUBBUB for address config
-	dc->hwss.init_dchub(dc->hwseq, dc, config);
-
-	// Pre-init system aperture start/end for all HUBP instances (if not gating?)
-	// or cache system aperture if using power gating
-	memcpy(&dc->vm_config, config, sizeof(struct dc_addr_space_config));
-
-	vmSupported = (dc->ctx->asic_id.chip_family == FAMILY_NV) ? true : false;
-	return vmSupported;
-}
-
-#endif
 static void enable_timing_multisync(
 		struct dc *dc,
 		struct dc_state *ctx)

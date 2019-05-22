@@ -87,6 +87,7 @@ struct dcn_hubbub_virt_addr_config {
 	uint64_t				page_table_end_addr;
 	enum dcn_hubbub_page_table_block_size	page_table_block_size;
 	enum dcn_hubbub_page_table_depth	page_table_depth;
+	uint64_t				page_table_base_addr;
 };
 
 struct hubbub_addr_config {
@@ -105,18 +106,13 @@ struct hubbub_funcs {
 			struct dchub_init_data *dh_data);
 
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
-	void (*init_dchub)(
+	int (*init_dchub_sys_ctx)(
 			struct hubbub *hubbub,
-			struct hubbub_addr_config *config);
-	void (*setup_vmid_ptb)(
+			struct dcn_hubbub_phys_addr_config *pa_config);
+	void (*init_vm_ctx)(
 			struct hubbub *hubbub,
-			uint64_t ptb,
-			uint8_t vmid);
-
-	void (*set_ptb)(
-			struct hubbub *hubbub,
-			uint8_t vmid,
-			uint64_t base_addr);
+			struct dcn_hubbub_virt_addr_config *va_config,
+			int vmid);
 
 #endif
 	bool (*get_dcc_compression_cap)(struct hubbub *hubbub,

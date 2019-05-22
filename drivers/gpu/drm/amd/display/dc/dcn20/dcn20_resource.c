@@ -2899,7 +2899,7 @@ static bool construct(
 
 	// Init the vm_helper
 	if (dc->vm_helper)
-		init_vm_helper(dc->vm_helper, 16, pool->base.pipe_count);
+		vm_helper_init(dc->vm_helper, 16);
 
 	/*************************************************
 	 *  Create resources                             *

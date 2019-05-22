@@ -47,6 +47,11 @@
 #define FN(reg_name, field_name) \
 	hubbub1->shifts->field_name, hubbub1->masks->field_name
 
+#ifdef NUM_VMID
+#undef NUM_VMID
+#endif
+#define NUM_VMID 16
+
 bool hubbub2_dcc_support_swizzle(
 		enum swizzle_mode_values swizzle,
 		unsigned int bytes_per_element,
@@ -294,15 +299,6 @@ bool hubbub2_get_dcc_compression_cap(struct hubbub *hubbub,
 	return true;
 }
 
-void hubbub2_setup_vmid_ptb(struct hubbub *hubbub,
-		uint64_t ptb,
-		uint8_t vmid)
-{
-	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
-
-	dcn20_vmid_set_ptb(&hubbub1->vmid[vmid], ptb);
-}
-
 static enum dcn_hubbub_page_table_depth page_table_depth_to_hw(unsigned int page_table_depth)
 {
 	enum dcn_hubbub_page_table_depth depth = 0;
@@ -347,49 +343,53 @@ static enum dcn_hubbub_page_table_block_size page_table_block_size_to_hw(unsigne
 	return block_size;
 }
 
-void hubbub2_init_dchub(struct hubbub *hubbub,
-		struct hubbub_addr_config *config)
+void hubbub2_init_vm_ctx(struct hubbub *hubbub,
+		struct dcn_hubbub_virt_addr_config *va_config,
+		int vmid)
 {
-	int i;
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
-	struct dcn_vmid_page_table_config phys_config;
 	struct dcn_vmid_page_table_config virt_config;
 
-	REG_SET(DCN_VM_FB_LOCATION_BASE, 0,
-			FB_BASE, config->pa_config.system_aperture.fb_base);
-	REG_SET(DCN_VM_FB_LOCATION_TOP, 0,
-			FB_TOP, config->pa_config.system_aperture.fb_top);
-	REG_SET(DCN_VM_FB_OFFSET, 0,
-			FB_OFFSET, config->pa_config.system_aperture.fb_offset);
-	REG_SET(DCN_VM_AGP_BOT, 0,
-			AGP_BOT, config->pa_config.system_aperture.agp_bot);
-	REG_SET(DCN_VM_AGP_TOP, 0,
-			AGP_TOP, config->pa_config.system_aperture.agp_top);
-	REG_SET(DCN_VM_AGP_BASE, 0,
-			AGP_BASE, config->pa_config.system_aperture.agp_base);
+	virt_config.page_table_start_addr = va_config->page_table_start_addr >> 12;
+	virt_config.page_table_end_addr = va_config->page_table_end_addr >> 12;
+	virt_config.depth = page_table_depth_to_hw(va_config->page_table_depth);
+	virt_config.block_size = page_table_block_size_to_hw(va_config->page_table_block_size);
+	virt_config.page_table_base_addr = va_config->page_table_base_addr;
 
-	if (config->pa_config.gart_config.page_table_start_addr != config->pa_config.gart_config.page_table_end_addr) {
+	dcn20_vmid_setup(&hubbub1->vmid[vmid], &virt_config);
+}
+
+int hubbub2_init_dchub_sys_ctx(struct hubbub *hubbub,
+		struct dcn_hubbub_phys_addr_config *pa_config)
+{
+	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+	struct dcn_vmid_page_table_config phys_config;
+
+	REG_SET(DCN_VM_FB_LOCATION_BASE, 0,
+			FB_BASE, pa_config->system_aperture.fb_base);
+	REG_SET(DCN_VM_FB_LOCATION_TOP, 0,
+			FB_TOP, pa_config->system_aperture.fb_top);
+	REG_SET(DCN_VM_FB_OFFSET, 0,
+			FB_OFFSET, pa_config->system_aperture.fb_offset);
+	REG_SET(DCN_VM_AGP_BOT, 0,
+			AGP_BOT, pa_config->system_aperture.agp_bot);
+	REG_SET(DCN_VM_AGP_TOP, 0,
+			AGP_TOP, pa_config->system_aperture.agp_top);
+	REG_SET(DCN_VM_AGP_BASE, 0,
+			AGP_BASE, pa_config->system_aperture.agp_base);
+
+	if (pa_config->gart_config.page_table_start_addr != pa_config->gart_config.page_table_end_addr) {
 		phys_config.depth = 1;
 		phys_config.block_size = 4096;
-		phys_config.page_table_start_addr = config->pa_config.gart_config.page_table_start_addr >> 12;
-		phys_config.page_table_end_addr = config->pa_config.gart_config.page_table_end_addr >> 12;
+		phys_config.page_table_start_addr = pa_config->gart_config.page_table_start_addr >> 12;
+		phys_config.page_table_end_addr = pa_config->gart_config.page_table_end_addr >> 12;
+		phys_config.page_table_base_addr = pa_config->gart_config.page_table_base_addr;
 
 		// Init VMID 0 based on PA config
 		dcn20_vmid_setup(&hubbub1->vmid[0], &phys_config);
-		dcn20_vmid_set_ptb(&hubbub1->vmid[0], config->pa_config.gart_config.page_table_base_addr);
 	}
 
-	if (config->va_config.page_table_start_addr != config->va_config.page_table_end_addr) {
-		// Init VMID 1-15 based on VA config
-		for (i = 1; i < 16; i++) {
-			virt_config.page_table_start_addr = config->va_config.page_table_start_addr >> 12;
-			virt_config.page_table_end_addr = config->va_config.page_table_end_addr >> 12;
-			virt_config.depth = page_table_depth_to_hw(config->va_config.page_table_depth);
-			virt_config.block_size = page_table_block_size_to_hw(config->va_config.page_table_block_size);
-
-			dcn20_vmid_setup(&hubbub1->vmid[i], &virt_config);
-		}
-	}
+	return NUM_VMID;
 }
 
 void hubbub2_update_dchub(struct hubbub *hubbub,
@@ -564,8 +564,8 @@ static void hubbub2_program_watermarks(
 
 static const struct hubbub_funcs hubbub2_funcs = {
 	.update_dchub = hubbub2_update_dchub,
-	.init_dchub = hubbub2_init_dchub,
-	.setup_vmid_ptb = hubbub2_setup_vmid_ptb,
+	.init_dchub_sys_ctx = hubbub2_init_dchub_sys_ctx,
+	.init_vm_ctx = hubbub2_init_vm_ctx,
 	.dcc_support_swizzle = hubbub2_dcc_support_swizzle,
 	.dcc_support_pixel_format = hubbub2_dcc_support_pixel_format,
 	.get_dcc_compression_cap = hubbub2_get_dcc_compression_cap,

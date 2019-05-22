@@ -720,8 +720,7 @@ void hubp1_dcc_control(struct hubp *hubp,
 bool hubp1_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate,
-	uint8_t vmid);
+	bool flip_immediate);
 
 #endif
 bool hubp1_is_flip_pending(struct hubp *hubp);

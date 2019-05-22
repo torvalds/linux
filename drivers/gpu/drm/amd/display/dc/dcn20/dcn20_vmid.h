@@ -86,6 +86,5 @@ struct dcn20_vmid {
 };
 
 void dcn20_vmid_setup(struct dcn20_vmid *vmid, const struct dcn_vmid_page_table_config *config);
-void dcn20_vmid_set_ptb(struct dcn20_vmid *vmid, uint64_t base);
 
 #endif /* DAL_DC_DCN20_DCN20_VMID_H_ */
