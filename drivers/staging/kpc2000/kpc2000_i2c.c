@@ -19,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/export.h>
 #include <linux/slab.h>
