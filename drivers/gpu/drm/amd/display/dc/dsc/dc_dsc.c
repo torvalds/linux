@@ -242,9 +242,6 @@ static bool intersect_dsc_caps(
 }
 
 struct dc_dsc_policy {
-	float max_compression_ratio_legacy;
-	float sst_compression_legacy; // Maximum quality if 0.0
-	float mst_compression_legacy;
 	bool use_min_slices_h;
 	int max_slices_h; // Maximum available if 0
 	int num_slices_v;
@@ -274,18 +271,14 @@ static inline uint32_t calc_dsc_bpp_x16(uint32_t stream_bandwidth_kbps, uint32_t
 }
 
 const struct dc_dsc_policy dsc_policy = {
-	.max_compression_ratio_legacy = 3.0f, // DSC Policy: Limit compression to 3:1 at most in all cases
-	.sst_compression_legacy = 0.0f, // DSC Policy: SST - Maximum quality (0.0)
-	.mst_compression_legacy = 3.0f, // DSC Policy: MST - always 3:1 compression
 	.use_min_slices_h = true, // DSC Policy: Use minimum number of slices that fits the pixel clock
 	.max_slices_h = 0, // DSC Policy: Use max available slices (in our case 4 for or 8, depending on the mode)
-
 	/* DSC Policy: Number of vertical slices set to 2 for no particular reason.
 	 * Seems small enough to not affect the quality too much, while still providing some error
 	 * propagation control (which may also help debugging).
 	 */
 	.num_slices_v = 16,
-	.max_target_bpp = 24,
+	.max_target_bpp = 16,
 	.min_target_bpp = 8,
 };
 
