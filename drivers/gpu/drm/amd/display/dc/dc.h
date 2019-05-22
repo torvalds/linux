@@ -70,6 +70,8 @@ struct dc_plane_cap {
 		uint32_t argb8888 : 1;
 		uint32_t nv12 : 1;
 		uint32_t fp16 : 1;
+		uint32_t p010 : 1;
+		uint32_t ayuv : 1;
 	} pixel_format_support;
 	// max upscaling factor x1000
 	// upscaling factors are always >= 1
