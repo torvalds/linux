@@ -85,8 +85,12 @@ static
 void parse_core_table_entry(struct core_table_entry *cte, const u64 read_val, const u8 entry_rev)
 {
 	switch (entry_rev) {
-	case 0: parse_core_table_entry_v0(cte, read_val); break;
-	default: cte->type = 0; break;
+	case 0:
+		parse_core_table_entry_v0(cte, read_val);
+		break;
+	default:
+		cte->type = 0;
+		break;
 	}
 }
 
@@ -387,7 +391,8 @@ static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
 		capabilities_reg = readq( pcard->dma_bar_base + KPC_DMA_S2C_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i) );
 		if (capabilities_reg & ENGINE_CAP_PRESENT_MASK) {
 			err = create_dma_engine_core(pcard, (KPC_DMA_S2C_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i)), i,  pcard->pdev->irq);
-			if (err) goto err_out;
+			if (err)
+				goto err_out;
 		}
 	}
 	// C2S Engines
@@ -395,7 +400,8 @@ static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
 		capabilities_reg = readq( pcard->dma_bar_base + KPC_DMA_C2S_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i) );
 		if (capabilities_reg & ENGINE_CAP_PRESENT_MASK) {
 			err = create_dma_engine_core(pcard, (KPC_DMA_C2S_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i)), 32+i,  pcard->pdev->irq);
-			if (err) goto err_out;
+			if (err)
+				goto err_out;
 		}
 	}
 
@@ -418,7 +424,8 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	dev_dbg(&pcard->pdev->dev, "kp2000_probe_cores(pcard = %p / %d)\n", pcard, pcard->card_num);
 
 	err = kp2000_setup_dma_controller(pcard);
-	if (err) return err;
+	if (err)
+		return err;
 
 	INIT_LIST_HEAD(&pcard->uio_devices_list);
 
