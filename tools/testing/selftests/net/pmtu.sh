@@ -152,10 +152,10 @@ tests="
 	cleanup_ipv4_exception		ipv4: cleanup of cached exceptions
 	cleanup_ipv6_exception		ipv6: cleanup of cached exceptions"
 
-NS_A="ns-$(mktemp -u XXXXXX)"
-NS_B="ns-$(mktemp -u XXXXXX)"
-NS_R1="ns-$(mktemp -u XXXXXX)"
-NS_R2="ns-$(mktemp -u XXXXXX)"
+NS_A="ns-A"
+NS_B="ns-B"
+NS_R1="ns-R1"
+NS_R2="ns-R2"
 ns_a="ip netns exec ${NS_A}"
 ns_b="ip netns exec ${NS_B}"
 ns_r1="ip netns exec ${NS_R1}"
@@ -212,7 +212,6 @@ dummy6_0_addr="fc00:1000::0"
 dummy6_1_addr="fc00:1001::0"
 dummy6_mask="64"
 
-cleanup_done=1
 err_buf=
 tcpdump_pids=
 
@@ -495,7 +494,7 @@ setup_routing() {
 setup() {
 	[ "$(id -u)" -ne 0 ] && echo "  need to run as root" && return $ksft_skip
 
-	cleanup_done=0
+	cleanup
 	for arg do
 		eval setup_${arg} || { echo "  ${arg} not supported"; return 1; }
 	done
@@ -519,11 +518,9 @@ cleanup() {
 	done
 	tcpdump_pids=
 
-	[ ${cleanup_done} -eq 1 ] && return
 	for n in ${NS_A} ${NS_B} ${NS_R1} ${NS_R2}; do
 		ip netns del ${n} 2> /dev/null
 	done
-	cleanup_done=1
 }
 
 mtu() {
@@ -1136,6 +1133,9 @@ done
 
 trap cleanup EXIT
 
+# start clean
+cleanup
+
 for t in ${tests}; do
 	[ $desc -eq 0 ] && name="${t}" && desc=1 && continue || desc=0
 
@@ -1156,7 +1156,6 @@ for t in ${tests}; do
 
 		eval test_${name}
 		ret=$?
-		cleanup
 
 		if [ $ret -eq 0 ]; then
 			printf "TEST: %-60s  [ OK ]\n" "${t}"
