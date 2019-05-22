@@ -1053,7 +1053,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	return obj;
 
 err_cb:
-	ib_destroy_cq(cq);
+	ib_destroy_cq_user(cq, uverbs_get_cleared_udata(attrs));
 
 err_file:
 	if (ev_file)
@@ -1489,7 +1489,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 err_cb:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 
 err_put:
 	if (!IS_ERR(xrcd_uobj))
@@ -1622,7 +1622,7 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_destroy:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 err_xrcd:
 	uobj_put_read(xrcd_uobj);
 err_put:
@@ -2464,7 +2464,8 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
+	rdma_destroy_ah_user(ah, RDMA_DESTROY_AH_SLEEPABLE,
+			     uverbs_get_cleared_udata(attrs));
 
 err_put:
 	uobj_put_obj_read(pd);
