@@ -1189,11 +1189,10 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 	fib_info_hash_free(old_laddrhash, bytes);
 }
 
-__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh)
+__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh,
+				unsigned char scope)
 {
-	nh->nh_saddr = inet_select_addr(nh->fib_nh_dev,
-					nh->fib_nh_gw4,
-					nh->nh_parent->fib_scope);
+	nh->nh_saddr = inet_select_addr(nh->fib_nh_dev, nh->fib_nh_gw4, scope);
 	nh->nh_saddr_genid = atomic_read(&net->ipv4.dev_addr_genid);
 
 	return nh->nh_saddr;
@@ -1211,7 +1210,7 @@ __be32 fib_result_prefsrc(struct net *net, struct fib_result *res)
 	if (nh->nh_saddr_genid == atomic_read(&net->ipv4.dev_addr_genid))
 		return nh->nh_saddr;
 
-	return fib_info_update_nh_saddr(net, nh);
+	return fib_info_update_nh_saddr(net, nh, res->fi->fib_scope);
 }
 
 static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
@@ -1393,7 +1392,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 
 	change_nexthops(fi) {
-		fib_info_update_nh_saddr(net, nexthop_nh);
+		fib_info_update_nh_saddr(net, nexthop_nh, fi->fib_scope);
 		if (nexthop_nh->fib_nh_gw_family == AF_INET6)
 			fi->fib_nh_is_v6 = true;
 	} endfor_nexthops(fi)

@@ -201,7 +201,8 @@ static inline struct fib_nh_common *fib_info_nhc(struct fib_info *fi, int nhsel)
 #define FIB_TABLE_HASHSZ 2
 #endif
 
-__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
+__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh,
+				unsigned char scope);
 __be32 fib_result_prefsrc(struct net *net, struct fib_result *res);
 
 #define FIB_RES_NHC(res)		((res).nhc)
