@@ -475,16 +475,15 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 }
 
 static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
-			     const __be32 *ctx_header, unsigned int index)
+			     const __be32 *ctx_header, __be32 *buffer,
+			     unsigned int index)
 {
-	__be32 *buffer;
 	unsigned int syt;
 	unsigned int data_blocks;
 	unsigned int pcm_frames;
 	unsigned int payload_length;
 	struct snd_pcm_substream *pcm;
 
-	buffer = s->buffer.packets[s->packet_index].buffer;
 	syt = calculate_syt(s, cycle);
 	data_blocks = calculate_data_blocks(s, syt);
 	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
@@ -522,16 +521,14 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 
 static int handle_out_packet_without_header(struct amdtp_stream *s,
 				unsigned int cycle, const __be32 *ctx_header,
-				unsigned int index)
+				__be32 *buffer, unsigned int index)
 {
-	__be32 *buffer;
 	unsigned int syt;
 	unsigned int data_blocks;
 	unsigned int pcm_frames;
 	unsigned int payload_length;
 	struct snd_pcm_substream *pcm;
 
-	buffer = s->buffer.packets[s->packet_index].buffer;
 	syt = calculate_syt(s, cycle);
 	data_blocks = calculate_data_blocks(s, syt);
 	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, &syt);
@@ -553,9 +550,9 @@ static int handle_out_packet_without_header(struct amdtp_stream *s,
 }
 
 static int handle_in_packet(struct amdtp_stream *s, unsigned int cycle,
-			    const __be32 *ctx_header, unsigned int index)
+			    const __be32 *ctx_header, __be32 *buffer,
+			    unsigned int index)
 {
-	__be32 *buffer;
 	unsigned int payload_length;
 	u32 cip_header[2];
 	unsigned int sph, fmt, fdf, syt;
@@ -573,7 +570,6 @@ static int handle_in_packet(struct amdtp_stream *s, unsigned int cycle,
 		return -EIO;
 	}
 
-	buffer = s->buffer.packets[s->packet_index].buffer;
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
 
@@ -678,17 +674,15 @@ end:
 
 static int handle_in_packet_without_header(struct amdtp_stream *s,
 				unsigned int cycle, const __be32 *ctx_header,
-				unsigned int index)
+				__be32 *buffer, unsigned int index)
 {
-	__be32 *buffer;
 	unsigned int payload_length;
 	unsigned int data_blocks;
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
 	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
-	buffer = s->buffer.packets[s->packet_index].buffer;
-	data_blocks = payload_length / sizeof(__be32) / s->data_block_quadlets;
+	data_blocks = payload_length / 4 / s->data_block_quadlets;
 
 	trace_amdtp_packet(s, cycle, NULL, payload_length, data_blocks, index);
 
@@ -753,10 +747,12 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; ++i) {
 		u32 cycle;
+		__be32 *buffer;
 
 		cycle = compute_it_cycle(*ctx_header);
+		buffer = s->buffer.packets[s->packet_index].buffer;
 
-		if (s->handle_packet(s, cycle, ctx_header, i) < 0) {
+		if (s->handle_packet(s, cycle, ctx_header, buffer, i) < 0) {
 			cancel_stream(s);
 			return;
 		}
@@ -783,10 +779,12 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; i++) {
 		u32 cycle;
+		__be32 *buffer;
 
 		cycle = compute_cycle_count(ctx_header[1]);
+		buffer = s->buffer.packets[s->packet_index].buffer;
 
-		if (s->handle_packet(s, cycle, ctx_header, i) < 0)
+		if (s->handle_packet(s, cycle, ctx_header, buffer, i) < 0)
 			break;
 
 		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
