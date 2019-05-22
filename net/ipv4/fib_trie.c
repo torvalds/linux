@@ -1943,6 +1943,78 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 	return found;
 }
 
+/* derived from fib_trie_free */
+static void __fib_info_notify_update(struct net *net, struct fib_table *tb,
+				     struct nl_info *info)
+{
+	struct trie *t = (struct trie *)tb->tb_data;
+	struct key_vector *pn = t->kv;
+	unsigned long cindex = 1;
+	struct fib_alias *fa;
+
+	for (;;) {
+		struct key_vector *n;
+
+		if (!(cindex--)) {
+			t_key pkey = pn->key;
+
+			if (IS_TRIE(pn))
+				break;
+
+			n = pn;
+			pn = node_parent(pn);
+			cindex = get_index(pkey, pn);
+			continue;
+		}
+
+		/* grab the next available node */
+		n = get_child(pn, cindex);
+		if (!n)
+			continue;
+
+		if (IS_TNODE(n)) {
+			/* record pn and cindex for leaf walking */
+			pn = n;
+			cindex = 1ul << n->bits;
+
+			continue;
+		}
+
+		hlist_for_each_entry(fa, &n->leaf, fa_list) {
+			struct fib_info *fi = fa->fa_info;
+
+			if (!fi || !fi->nh_updated || fa->tb_id != tb->tb_id)
+				continue;
+
+			rtmsg_fib(RTM_NEWROUTE, htonl(n->key), fa,
+				  KEYLENGTH - fa->fa_slen, tb->tb_id,
+				  info, NLM_F_REPLACE);
+
+			/* call_fib_entry_notifiers will be removed when
+			 * in-kernel notifier is implemented and supported
+			 * for nexthop objects
+			 */
+			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
+						 n->key,
+						 KEYLENGTH - fa->fa_slen, fa,
+						 NULL);
+		}
+	}
+}
+
+void fib_info_notify_update(struct net *net, struct nl_info *info)
+{
+	unsigned int h;
+
+	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
+		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
+		struct fib_table *tb;
+
+		hlist_for_each_entry_rcu(tb, head, tb_hlist)
+			__fib_info_notify_update(net, tb, info);
+	}
+}
+
 static void fib_leaf_notify(struct net *net, struct key_vector *l,
 			    struct fib_table *tb, struct notifier_block *nb)
 {
