@@ -1206,7 +1206,7 @@ void process_receive(struct s_smc *smc)
 		}
 		/*
 		 * SUPERNET 3 Bug: FORMAC delivers status words
-		 * of aborded frames to the BMU
+		 * of aborted frames to the BMU
 		 */
 		if (len <= 4) {
 			DB_RX(2, "Frame length = 0");
@@ -1343,7 +1343,7 @@ void process_receive(struct s_smc *smc)
 				break ;
 			default :
 				/*
-				 * unknown FC abord the frame
+				 * unknown FC abort the frame
 				 */
 				DB_RX(2, "unknown FC error");
 				smt_free_mbuf(smc,mb) ;

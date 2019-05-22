@@ -63,30 +63,6 @@ static clockid_t get_clockid(int fd)
 	return (((unsigned int) ~fd) << 3) | CLOCKFD;
 }
 
-static void handle_alarm(int s)
-{
-	printf("received signal %d\n", s);
-}
-
-static int install_handler(int signum, void (*handler)(int))
-{
-	struct sigaction action;
-	sigset_t mask;
-
-	/* Unblock the signal. */
-	sigemptyset(&mask);
-	sigaddset(&mask, signum);
-	sigprocmask(SIG_UNBLOCK, &mask, NULL);
-
-	/* Install the signal handler. */
-	action.sa_handler = handler;
-	action.sa_flags = 0;
-	sigemptyset(&action.sa_mask);
-	sigaction(signum, &action, NULL);
-
-	return 0;
-}
-
 static long ppb_to_scaled_ppm(int ppb)
 {
 	/*
@@ -112,8 +88,6 @@ static void usage(char *progname)
 {
 	fprintf(stderr,
 		"usage: %s [options]\n"
-		" -a val     request a one-shot alarm after 'val' seconds\n"
-		" -A val     request a periodic alarm every 'val' seconds\n"
 		" -c         query the ptp clock's capabilities\n"
 		" -d name    device to open\n"
 		" -e val     read 'val' external time stamp events\n"
@@ -148,14 +122,8 @@ int main(int argc, char *argv[])
 	struct ptp_pin_desc desc;
 	struct timespec ts;
 	struct timex tx;
-
-	static timer_t timerid;
-	struct itimerspec timeout;
-	struct sigevent sigevent;
-
 	struct ptp_clock_time *pct;
 	struct ptp_sys_offset *sysoff;
-
 
 	char *progname;
 	unsigned int i;
@@ -170,10 +138,8 @@ int main(int argc, char *argv[])
 	int gettime = 0;
 	int index = 0;
 	int list_pins = 0;
-	int oneshot = 0;
 	int pct_offset = 0;
 	int n_samples = 0;
-	int periodic = 0;
 	int perout = -1;
 	int pin_index = -1, pin_func;
 	int pps = -1;
@@ -185,14 +151,8 @@ int main(int argc, char *argv[])
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? 1+progname : argv[0];
-	while (EOF != (c = getopt(argc, argv, "a:A:cd:e:f:ghi:k:lL:p:P:sSt:T:v"))) {
+	while (EOF != (c = getopt(argc, argv, "cd:e:f:ghi:k:lL:p:P:sSt:T:v"))) {
 		switch (c) {
-		case 'a':
-			oneshot = atoi(optarg);
-			break;
-		case 'A':
-			periodic = atoi(optarg);
-			break;
 		case 'c':
 			capabilities = 1;
 			break;
@@ -391,49 +351,6 @@ int main(int argc, char *argv[])
 			printf("name %s index %u func %u chan %u\n",
 			       desc.name, desc.index, desc.func, desc.chan);
 		}
-	}
-
-	if (oneshot) {
-		install_handler(SIGALRM, handle_alarm);
-		/* Create a timer. */
-		sigevent.sigev_notify = SIGEV_SIGNAL;
-		sigevent.sigev_signo = SIGALRM;
-		if (timer_create(clkid, &sigevent, &timerid)) {
-			perror("timer_create");
-			return -1;
-		}
-		/* Start the timer. */
-		memset(&timeout, 0, sizeof(timeout));
-		timeout.it_value.tv_sec = oneshot;
-		if (timer_settime(timerid, 0, &timeout, NULL)) {
-			perror("timer_settime");
-			return -1;
-		}
-		pause();
-		timer_delete(timerid);
-	}
-
-	if (periodic) {
-		install_handler(SIGALRM, handle_alarm);
-		/* Create a timer. */
-		sigevent.sigev_notify = SIGEV_SIGNAL;
-		sigevent.sigev_signo = SIGALRM;
-		if (timer_create(clkid, &sigevent, &timerid)) {
-			perror("timer_create");
-			return -1;
-		}
-		/* Start the timer. */
-		memset(&timeout, 0, sizeof(timeout));
-		timeout.it_interval.tv_sec = periodic;
-		timeout.it_value.tv_sec = periodic;
-		if (timer_settime(timerid, 0, &timeout, NULL)) {
-			perror("timer_settime");
-			return -1;
-		}
-		while (1) {
-			pause();
-		}
-		timer_delete(timerid);
 	}
 
 	if (perout >= 0) {
