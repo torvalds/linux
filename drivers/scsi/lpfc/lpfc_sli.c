@@ -13582,14 +13582,9 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		goto rearm_and_exit;
 
 	/* Process all the entries to the CQ */
+	cq->q_flag = 0;
 	cqe = lpfc_sli4_cq_get(cq);
 	while (cqe) {
-#if defined(CONFIG_SCSI_LPFC_DEBUG_FS) && defined(BUILD_NVME)
-		if (phba->ktime_on)
-			cq->isr_timestamp = ktime_get_ns();
-		else
-			cq->isr_timestamp = 0;
-#endif
 		workposted |= handler(phba, cq, cqe);
 		__lpfc_sli4_consume_cqe(phba, cq, cqe);
 
@@ -13602,6 +13597,9 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 						LPFC_QUEUE_NOARM);
 			consumed = 0;
 		}
+
+		if (count == LPFC_NVMET_CQ_NOTIFY)
+			cq->q_flag |= HBA_NVMET_CQ_NOTIFY;
 
 		cqe = lpfc_sli4_cq_get(cq);
 	}
@@ -13918,10 +13916,10 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			goto drop;
 
 		if (fc_hdr->fh_type == FC_TYPE_FCP) {
-			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length,  rcqe);
+			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length, rcqe);
 			lpfc_nvmet_unsol_fcp_event(
-				phba, idx, dma_buf,
-				cq->isr_timestamp);
+				phba, idx, dma_buf, cq->isr_timestamp,
+				cq->q_flag & HBA_NVMET_CQ_NOTIFY);
 			return false;
 		}
 drop:
@@ -14087,6 +14085,12 @@ process_cq:
 	}
 
 work_cq:
+#if defined(CONFIG_SCSI_LPFC_DEBUG_FS)
+	if (phba->ktime_on)
+		cq->isr_timestamp = ktime_get_ns();
+	else
+		cq->isr_timestamp = 0;
+#endif
 	if (!queue_work_on(cq->chann, phba->wq, &cq->irqwork))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0363 Cannot schedule soft IRQ "

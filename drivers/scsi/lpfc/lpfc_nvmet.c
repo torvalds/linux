@@ -395,8 +395,9 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (ctxp->ts_cmd_nvme) {
-			ctxp->ts_cmd_nvme = ktime_get_ns();
+		/* NOTE: isr time stamp is stale when context is re-assigned*/
+		if (ctxp->ts_isr_cmd) {
+			ctxp->ts_cmd_nvme = 0;
 			ctxp->ts_nvme_data = 0;
 			ctxp->ts_data_wqput = 0;
 			ctxp->ts_isr_data = 0;
@@ -1877,6 +1878,10 @@ lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 
 	payload = (uint32_t *)(nvmebuf->dbuf.virt);
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (ctxp->ts_isr_cmd)
+		ctxp->ts_cmd_nvme = ktime_get_ns();
+#endif
 	/*
 	 * The calling sequence should be:
 	 * nvmet_fc_rcv_fcp_req->lpfc_nvmet_xmt_fcp_op/cmp- req->done
@@ -2015,6 +2020,8 @@ lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
  * @phba: pointer to lpfc hba data structure.
  * @idx: relative index of MRQ vector
  * @nvmebuf: pointer to lpfc nvme command HBQ data structure.
+ * @isr_timestamp: in jiffies.
+ * @cqflag: cq processing information regarding workload.
  *
  * This routine is used for processing the WQE associated with a unsolicited
  * event. It first determines whether there is an existing ndlp that matches
@@ -2027,7 +2034,8 @@ static void
 lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 			    uint32_t idx,
 			    struct rqb_dmabuf *nvmebuf,
-			    uint64_t isr_timestamp)
+			    uint64_t isr_timestamp,
+			    uint8_t cqflag)
 {
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
@@ -2136,24 +2144,41 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (isr_timestamp) {
+	if (isr_timestamp)
 		ctxp->ts_isr_cmd = isr_timestamp;
-		ctxp->ts_cmd_nvme = ktime_get_ns();
-		ctxp->ts_nvme_data = 0;
-		ctxp->ts_data_wqput = 0;
-		ctxp->ts_isr_data = 0;
-		ctxp->ts_data_nvme = 0;
-		ctxp->ts_nvme_status = 0;
-		ctxp->ts_status_wqput = 0;
-		ctxp->ts_isr_status = 0;
-		ctxp->ts_status_nvme = 0;
-	} else {
-		ctxp->ts_cmd_nvme = 0;
-	}
+	ctxp->ts_cmd_nvme = 0;
+	ctxp->ts_nvme_data = 0;
+	ctxp->ts_data_wqput = 0;
+	ctxp->ts_isr_data = 0;
+	ctxp->ts_data_nvme = 0;
+	ctxp->ts_nvme_status = 0;
+	ctxp->ts_status_wqput = 0;
+	ctxp->ts_isr_status = 0;
+	ctxp->ts_status_nvme = 0;
 #endif
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_in);
-	lpfc_nvmet_process_rcv_fcp_req(ctx_buf);
+	/* check for cq processing load */
+	if (!cqflag) {
+		lpfc_nvmet_process_rcv_fcp_req(ctx_buf);
+		return;
+	}
+
+	if (!queue_work(phba->wq, &ctx_buf->defer_work)) {
+		atomic_inc(&tgtp->rcv_fcp_cmd_drop);
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+				"6325 Unable to queue work for oxid x%x. "
+				"FCP Drop IO [x%x x%x x%x]\n",
+				ctxp->oxid,
+				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->rcv_fcp_cmd_out),
+				atomic_read(&tgtp->xmt_fcp_release));
+
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
+		lpfc_nvmet_defer_release(phba, ctxp);
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
+	}
 }
 
 /**
@@ -2190,6 +2215,8 @@ lpfc_nvmet_unsol_ls_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
  * @phba: pointer to lpfc hba data structure.
  * @idx: relative index of MRQ vector
  * @nvmebuf: pointer to received nvme data structure.
+ * @isr_timestamp: in jiffies.
+ * @cqflag: cq processing information regarding workload.
  *
  * This routine is used to process an unsolicited event received from a SLI
  * (Service Level Interface) ring. The actual processing of the data buffer
@@ -2201,14 +2228,14 @@ void
 lpfc_nvmet_unsol_fcp_event(struct lpfc_hba *phba,
 			   uint32_t idx,
 			   struct rqb_dmabuf *nvmebuf,
-			   uint64_t isr_timestamp)
+			   uint64_t isr_timestamp,
+			   uint8_t cqflag)
 {
 	if (phba->nvmet_support == 0) {
 		lpfc_rq_buf_free(phba, &nvmebuf->hbuf);
 		return;
 	}
-	lpfc_nvmet_unsol_fcp_buffer(phba, idx, nvmebuf,
-				    isr_timestamp);
+	lpfc_nvmet_unsol_fcp_buffer(phba, idx, nvmebuf, isr_timestamp, cqflag);
 }
 
 /**
