@@ -75,7 +75,7 @@ static void pci_sw_counter_show(struct seq_file *m)
 
 	for (i = 0; i < ARRAY_SIZE(pci_sw_names); i++, counter++)
 		seq_printf(m, "%26s:\t%llu\n", pci_sw_names[i],
-			   (s64)atomic64_read(counter));
+			   atomic64_read(counter));
 }
 
 static int pci_perf_show(struct seq_file *m, void *v)
