@@ -263,6 +263,9 @@ static void intel_pdi_init(struct sdw_intel *sdw,
 	config->pcm_out = (pcm_cap & SDW_SHIM_PCMSCAP_OSS) >>
 					SDW_REG_SHIFT(SDW_SHIM_PCMSCAP_OSS);
 
+	dev_dbg(sdw->cdns.dev, "PCM cap bd:%d in:%d out:%d\n",
+		config->pcm_bd, config->pcm_in, config->pcm_out);
+
 	/* PDM Stream Capability */
 	pdm_cap = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
 
@@ -272,6 +275,9 @@ static void intel_pdi_init(struct sdw_intel *sdw,
 					SDW_REG_SHIFT(SDW_SHIM_PDMSCAP_ISS);
 	config->pdm_out = (pdm_cap & SDW_SHIM_PDMSCAP_OSS) >>
 					SDW_REG_SHIFT(SDW_SHIM_PDMSCAP_OSS);
+
+	dev_dbg(sdw->cdns.dev, "PDM cap bd:%d in:%d out:%d\n",
+		config->pdm_bd, config->pdm_in, config->pdm_out);
 }
 
 static int
