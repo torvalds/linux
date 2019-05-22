@@ -332,7 +332,7 @@ static __always_inline int atomic_sub_if_positive(atomic_t *v, int offset)
 #define atomic_dec_if_positive(v)	atomic_sub_if_positive(v, 1)
 
 #ifndef CONFIG_GENERIC_ATOMIC64
-static __always_inline long atomic64_sub_if_positive(atomic64_t *v, int offset)
+static __always_inline long atomic64_sub_if_positive(atomic64_t *v, long offset)
 {
        long prev, rc;
 
