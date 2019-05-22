@@ -192,7 +192,7 @@ int fib_unmerge(struct net *net)
 	return 0;
 }
 
-static void fib_flush(struct net *net)
+void fib_flush(struct net *net)
 {
 	int flushed = 0;
 	unsigned int h;
