@@ -32,6 +32,7 @@
 #include "selftests/igt_gem_utils.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_wedge_me.h"
+#include "selftests/igt_atomic.h"
 
 #include "selftests/mock_context.h"
 #include "selftests/mock_drm.h"
@@ -1603,44 +1604,8 @@ err_unlock:
 	return err;
 }
 
-static void __preempt_begin(void)
-{
-	preempt_disable();
-}
-
-static void __preempt_end(void)
-{
-	preempt_enable();
-}
-
-static void __softirq_begin(void)
-{
-	local_bh_disable();
-}
-
-static void __softirq_end(void)
-{
-	local_bh_enable();
-}
-
-static void __hardirq_begin(void)
-{
-	local_irq_disable();
-}
-
-static void __hardirq_end(void)
-{
-	local_irq_enable();
-}
-
-struct atomic_section {
-	const char *name;
-	void (*critical_section_begin)(void);
-	void (*critical_section_end)(void);
-};
-
 static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
-				     const struct atomic_section *p,
+				     const struct igt_atomic_section *p,
 				     const char *mode)
 {
 	struct tasklet_struct * const t = &engine->execlists.tasklet;
@@ -1665,7 +1630,7 @@ static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
 }
 
 static int igt_atomic_reset_engine(struct intel_engine_cs *engine,
-				   const struct atomic_section *p)
+				   const struct igt_atomic_section *p)
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_request *rq;
@@ -1716,79 +1681,43 @@ out:
 	return err;
 }
 
-static void force_reset(struct drm_i915_private *i915)
+static int igt_reset_engines_atomic(void *arg)
 {
-	i915_gem_set_wedged(i915);
-	i915_reset(i915, 0, NULL);
-}
-
-static int igt_atomic_reset(void *arg)
-{
-	static const struct atomic_section phases[] = {
-		{ "preempt", __preempt_begin, __preempt_end },
-		{ "softirq", __softirq_begin, __softirq_end },
-		{ "hardirq", __hardirq_begin, __hardirq_end },
-		{ }
-	};
 	struct drm_i915_private *i915 = arg;
-	intel_wakeref_t wakeref;
+	const typeof(*igt_atomic_phases) *p;
 	int err = 0;
 
-	/* Check that the resets are usable from atomic context */
+	/* Check that the engines resets are usable from atomic context */
+
+	if (!intel_has_reset_engine(i915))
+		return 0;
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0;
 
 	igt_global_reset_lock(i915);
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
 
 	/* Flush any requests before we get started and check basics */
-	force_reset(i915);
-	if (i915_reset_failed(i915))
+	if (!igt_force_reset(i915))
 		goto unlock;
 
-	if (intel_has_gpu_reset(i915)) {
-		const typeof(*phases) *p;
-
-		for (p = phases; p->name; p++) {
-			GEM_TRACE("intel_gpu_reset under %s\n", p->name);
-
-			p->critical_section_begin();
-			err = intel_gpu_reset(i915, ALL_ENGINES);
-			p->critical_section_end();
-
-			if (err) {
-				pr_err("intel_gpu_reset failed under %s\n",
-				       p->name);
-				goto out;
-			}
-		}
-
-		force_reset(i915);
-	}
-
-	if (USES_GUC_SUBMISSION(i915))
-		goto unlock;
-
-	if (intel_has_reset_engine(i915)) {
+	for (p = igt_atomic_phases; p->name; p++) {
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
 		for_each_engine(engine, i915, id) {
-			const typeof(*phases) *p;
-
-			for (p = phases; p->name; p++) {
-				err = igt_atomic_reset_engine(engine, p);
-				if (err)
-					goto out;
-			}
+			err = igt_atomic_reset_engine(engine, p);
+			if (err)
+				goto out;
 		}
 	}
 
 out:
 	/* As we poke around the guts, do a full reset before continuing. */
-	force_reset(i915);
+	igt_force_reset(i915);
 
 unlock:
-	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	igt_global_reset_unlock(i915);
 
@@ -1804,13 +1733,13 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_reset_idle_engine),
 		SUBTEST(igt_reset_active_engine),
 		SUBTEST(igt_reset_engines),
+		SUBTEST(igt_reset_engines_atomic),
 		SUBTEST(igt_reset_queue),
 		SUBTEST(igt_reset_wait),
 		SUBTEST(igt_reset_evict_ggtt),
 		SUBTEST(igt_reset_evict_ppgtt),
 		SUBTEST(igt_reset_evict_fence),
 		SUBTEST(igt_handle_error),
-		SUBTEST(igt_atomic_reset),
 	};
 	intel_wakeref_t wakeref;
 	bool saved_hangcheck;

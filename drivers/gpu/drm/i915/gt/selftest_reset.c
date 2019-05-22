@@ -5,6 +5,7 @@
 
 #include "i915_selftest.h"
 #include "selftests/igt_reset.h"
+#include "selftests/igt_atomic.h"
 
 static int igt_global_reset(void *arg)
 {
@@ -54,11 +55,50 @@ static int igt_wedged_reset(void *arg)
 	return i915_reset_failed(i915) ? -EIO : 0;
 }
 
+static int igt_atomic_reset(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	const typeof(*igt_atomic_phases) *p;
+	int err = 0;
+
+	/* Check that the resets are usable from atomic context */
+
+	igt_global_reset_lock(i915);
+	mutex_lock(&i915->drm.struct_mutex);
+
+	/* Flush any requests before we get started and check basics */
+	if (!igt_force_reset(i915))
+		goto unlock;
+
+	for (p = igt_atomic_phases; p->name; p++) {
+		GEM_TRACE("intel_gpu_reset under %s\n", p->name);
+
+		p->critical_section_begin();
+		err = intel_gpu_reset(i915, ALL_ENGINES);
+		p->critical_section_end();
+
+		if (err) {
+			pr_err("intel_gpu_reset failed under %s\n", p->name);
+			break;
+		}
+	}
+
+	/* As we poke around the guts, do a full reset before continuing. */
+	igt_force_reset(i915);
+
+unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	igt_global_reset_unlock(i915);
+
+	return err;
+}
+
 int intel_reset_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_global_reset), /* attempt to recover GPU first */
 		SUBTEST(igt_wedged_reset),
+		SUBTEST(igt_atomic_reset),
 	};
 	intel_wakeref_t wakeref;
 	int err = 0;
