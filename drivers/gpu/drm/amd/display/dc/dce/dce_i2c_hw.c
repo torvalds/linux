@@ -149,6 +149,36 @@ static void process_channel_reply(
 	}
 }
 
+static bool is_engine_available(struct dce_i2c_hw *dce_i2c_hw)
+{
+	unsigned int arbitrate;
+	unsigned int i2c_hw_status;
+
+	REG_GET(HW_STATUS, DC_I2C_DDC1_HW_STATUS, &i2c_hw_status);
+	if (i2c_hw_status == DC_I2C_STATUS__DC_I2C_STATUS_USED_BY_HW)
+		return false;
+
+	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
+	if (arbitrate == DC_I2C_REG_RW_CNTL_STATUS_DMCU_ONLY)
+		return false;
+
+	return true;
+}
+
+static bool is_hw_busy(struct dce_i2c_hw *dce_i2c_hw)
+{
+	uint32_t i2c_sw_status = 0;
+
+	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
+	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_IDLE)
+		return false;
+
+	if (is_engine_available(dce_i2c_hw))
+		return false;
+
+	return true;
+}
+
 static bool process_transaction(
 	struct dce_i2c_hw *dce_i2c_hw,
 	struct i2c_request_transaction_data *request)
@@ -158,6 +188,11 @@ static bool process_transaction(
 
 	bool last_transaction = false;
 	uint32_t value = 0;
+
+	if (is_hw_busy(dce_i2c_hw)) {
+		request->status = I2C_CHANNEL_OPERATION_ENGINE_BUSY;
+		return false;
+	}
 
 	last_transaction = ((dce_i2c_hw->transaction_count == 3) ||
 			(request->action == DCE_I2C_TRANSACTION_ACTION_I2C_WRITE) ||
@@ -294,25 +329,10 @@ static bool setup_engine(
 	 * Enable restart of SW I2C that was interrupted by HW
 	 * disable queuing of software while I2C is in use by HW
 	 */
-	REG_UPDATE_2(DC_I2C_ARBITRATION,
-		     DC_I2C_NO_QUEUED_SW_GO, 0,
-		     DC_I2C_SW_PRIORITY, DC_I2C_ARBITRATION__DC_I2C_SW_PRIORITY_NORMAL);
+	REG_UPDATE(DC_I2C_ARBITRATION,
+			DC_I2C_NO_QUEUED_SW_GO, 0);
 
 	return true;
-}
-
-static bool is_hw_busy(struct dce_i2c_hw *dce_i2c_hw)
-{
-	uint32_t i2c_sw_status = 0;
-
-	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
-	if (i2c_sw_status == DC_I2C_STATUS__DC_I2C_STATUS_IDLE)
-		return false;
-
-	reset_hw_engine(dce_i2c_hw);
-
-	REG_GET(DC_I2C_SW_STATUS, DC_I2C_SW_STATUS, &i2c_sw_status);
-	return i2c_sw_status != DC_I2C_STATUS__DC_I2C_STATUS_IDLE;
 }
 
 static void release_engine(
@@ -347,16 +367,6 @@ static void release_engine(
 	REG_UPDATE_2(DC_I2C_ARBITRATION, DC_I2C_SW_DONE_USING_I2C_REG, 1,
 		DC_I2C_SW_USE_I2C_REG_REQ, 0);
 
-}
-
-static bool is_engine_available(struct dce_i2c_hw *dce_i2c_hw)
-{
-	unsigned int arbitrate;
-
-	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
-	if (arbitrate == DC_I2C_REG_RW_CNTL_STATUS_DMCU_ONLY)
-		return false;
-	return true;
 }
 
 struct dce_i2c_hw *acquire_i2c_hw_engine(
@@ -456,6 +466,7 @@ static void submit_channel_request_hw(
 		request->status = I2C_CHANNEL_OPERATION_ENGINE_BUSY;
 		return;
 	}
+	reset_hw_engine(dce_i2c_hw);
 
 	execute_transaction(dce_i2c_hw);
 
