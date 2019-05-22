@@ -293,28 +293,26 @@ static int install_session_keyring(struct key *keyring)
 /*
  * Handle the fsuid changing.
  */
-void key_fsuid_changed(struct task_struct *tsk)
+void key_fsuid_changed(struct cred *new_cred)
 {
 	/* update the ownership of the thread keyring */
-	BUG_ON(!tsk->cred);
-	if (tsk->cred->thread_keyring) {
-		down_write(&tsk->cred->thread_keyring->sem);
-		tsk->cred->thread_keyring->uid = tsk->cred->fsuid;
-		up_write(&tsk->cred->thread_keyring->sem);
+	if (new_cred->thread_keyring) {
+		down_write(&new_cred->thread_keyring->sem);
+		new_cred->thread_keyring->uid = new_cred->fsuid;
+		up_write(&new_cred->thread_keyring->sem);
 	}
 }
 
 /*
  * Handle the fsgid changing.
  */
-void key_fsgid_changed(struct task_struct *tsk)
+void key_fsgid_changed(struct cred *new_cred)
 {
 	/* update the ownership of the thread keyring */
-	BUG_ON(!tsk->cred);
-	if (tsk->cred->thread_keyring) {
-		down_write(&tsk->cred->thread_keyring->sem);
-		tsk->cred->thread_keyring->gid = tsk->cred->fsgid;
-		up_write(&tsk->cred->thread_keyring->sem);
+	if (new_cred->thread_keyring) {
+		down_write(&new_cred->thread_keyring->sem);
+		new_cred->thread_keyring->gid = new_cred->fsgid;
+		up_write(&new_cred->thread_keyring->sem);
 	}
 }
 
