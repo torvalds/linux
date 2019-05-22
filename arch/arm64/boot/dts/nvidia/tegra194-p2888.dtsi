@@ -4,7 +4,7 @@
 #include <dt-bindings/mfd/max77620.h>
 
 / {
-	model = "NVIDIA Tegra194 P2888 Processor Module";
+	model = "NVIDIA Jetson AGX Xavier";
 	compatible = "nvidia,p2888", "nvidia,tegra194";
 
 	aliases {
