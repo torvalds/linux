@@ -2635,7 +2635,8 @@ static void update_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_
 		calculated_states[i].state = i;
 		calculated_states[i].dram_speed_mts = uclk_states[i] * 16 / 1000;
 
-		min_fclk_required_by_uclk = ((unsigned long long)uclk_states[i]) * 1008 / 1000000;
+		// FCLK:UCLK ratio is 1.08
+		min_fclk_required_by_uclk = ((unsigned long long)uclk_states[i]) * 1080 / 1000000;
 
 		calculated_states[i].fabricclk_mhz = (min_fclk_required_by_uclk < min_dcfclk) ?
 				min_dcfclk : min_fclk_required_by_uclk;
@@ -2989,21 +2990,19 @@ static bool construct(
 
 			ranges.num_reader_wm_sets = 1;
 		} else if (dcn2_0_soc.num_states > 1) {
-			for (i = 0; i < 4 && i < dcn2_0_soc.num_states - 1; i++) {
+			for (i = 0; i < 4 && i < dcn2_0_soc.num_states; i++) {
 				ranges.reader_wm_sets[i].wm_inst = i;
 				ranges.reader_wm_sets[i].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 				ranges.reader_wm_sets[i].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
-				ranges.reader_wm_sets[i].min_fill_clk_mhz = dcn2_0_soc.clock_limits[i].dram_speed_mts / 16;
-				ranges.reader_wm_sets[i].max_fill_clk_mhz = dcn2_0_soc.clock_limits[i + 1].dram_speed_mts / 16;
+				ranges.reader_wm_sets[i].min_fill_clk_mhz = (i > 0) ? (dcn2_0_soc.clock_limits[i - 1].dram_speed_mts / 16) + 1 : 0;
+				ranges.reader_wm_sets[i].max_fill_clk_mhz = dcn2_0_soc.clock_limits[i].dram_speed_mts / 16;
 
 				ranges.num_reader_wm_sets = i + 1;
 			}
-		}
 
-		ranges.reader_wm_sets[0].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
-		ranges.reader_wm_sets[0].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
-		ranges.reader_wm_sets[ranges.num_reader_wm_sets - 1].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
-		ranges.reader_wm_sets[ranges.num_reader_wm_sets - 1].max_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
+			ranges.reader_wm_sets[0].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
+			ranges.reader_wm_sets[ranges.num_reader_wm_sets - 1].max_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
+		}
 
 		ranges.num_writer_wm_sets = 1;
 
