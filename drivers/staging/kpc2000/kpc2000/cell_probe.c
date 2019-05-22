@@ -320,7 +320,7 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 
 	kudev->uioinfo.mem[0].name = "uiomap";
 	kudev->uioinfo.mem[0].addr = pci_resource_start(pcard->pdev, REG_BAR) + cte.offset;
-	kudev->uioinfo.mem[0].size = (cte.length + PAGE_SIZE-1) & ~(PAGE_SIZE-1); // Round up to nearest PAGE_SIZE boundary
+	kudev->uioinfo.mem[0].size = (cte.length + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1); // Round up to nearest PAGE_SIZE boundary
 	kudev->uioinfo.mem[0].memtype = UIO_MEM_PHYS;
 
 	kudev->dev = device_create(kpc_uio_class, &pcard->pdev->dev, MKDEV(0,0), kudev, "%s.%d.%d.%d", kudev->uioinfo.name, pcard->card_num, cte.type, kudev->core_num);
@@ -399,7 +399,7 @@ static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
 	for (i = 0 ; i < 32 ; i++) {
 		capabilities_reg = readq( pcard->dma_bar_base + KPC_DMA_C2S_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i) );
 		if (capabilities_reg & ENGINE_CAP_PRESENT_MASK) {
-			err = create_dma_engine_core(pcard, (KPC_DMA_C2S_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i)), 32+i,  pcard->pdev->irq);
+			err = create_dma_engine_core(pcard, (KPC_DMA_C2S_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i)), 32 + i,  pcard->pdev->irq);
 			if (err)
 				goto err_out;
 		}
@@ -481,7 +481,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	// Finally, instantiate a UIO device for the core_table.
 	cte.type                = 0; // CORE_ID_BOARD_INFO
 	cte.offset              = 0; // board info is always at the beginning
-	cte.length              = 512*8;
+	cte.length              = 512 * 8;
 	cte.s2c_dma_present     = false;
 	cte.s2c_dma_channel_num = 0;
 	cte.c2s_dma_present     = false;
