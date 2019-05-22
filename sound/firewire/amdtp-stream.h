@@ -116,7 +116,7 @@ struct amdtp_stream {
 			unsigned int ctx_header_size;
 
 			// limit for payload of iso packet.
-			unsigned int max_payload_length;
+			unsigned int max_ctx_payload_length;
 
 			// For quirks of CIP headers.
 			// Fixed interval of dbc between previos/current
