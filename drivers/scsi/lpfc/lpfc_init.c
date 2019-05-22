@@ -11333,24 +11333,43 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					   mbx_sli4_parameters);
 	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
 	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
-	phba->nvme_support = (bf_get(cfg_nvme, mbx_sli4_parameters) &&
-			      bf_get(cfg_xib, mbx_sli4_parameters));
 
-	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP) ||
-	    !phba->nvme_support) {
-		phba->nvme_support = 0;
-		phba->nvmet_support = 0;
-		phba->cfg_nvmet_mrq = 0;
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_NVME,
-				"6101 Disabling NVME support: "
-				"Not supported by firmware: %d %d\n",
-				bf_get(cfg_nvme, mbx_sli4_parameters),
-				bf_get(cfg_xib, mbx_sli4_parameters));
+	/* Check for firmware nvme support */
+	rc = (bf_get(cfg_nvme, mbx_sli4_parameters) &&
+		     bf_get(cfg_xib, mbx_sli4_parameters));
 
-		/* If firmware doesn't support NVME, just use SCSI support */
-		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
-			return -ENODEV;
-		phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
+	if (rc) {
+		/* Save this to indicate the Firmware supports NVME */
+		sli4_params->nvme = 1;
+
+		/* Firmware NVME support, check driver FC4 NVME support */
+		if (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_NVME,
+					"6133 Disabling NVME support: "
+					"FC4 type not supported: x%x\n",
+					phba->cfg_enable_fc4_type);
+			goto fcponly;
+		}
+	} else {
+		/* No firmware NVME support, check driver FC4 NVME support */
+		sli4_params->nvme = 0;
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_NVME,
+					"6101 Disabling NVME support: Not "
+					"supported by firmware (%d %d) x%x\n",
+					bf_get(cfg_nvme, mbx_sli4_parameters),
+					bf_get(cfg_xib, mbx_sli4_parameters),
+					phba->cfg_enable_fc4_type);
+fcponly:
+			phba->nvme_support = 0;
+			phba->nvmet_support = 0;
+			phba->cfg_nvmet_mrq = 0;
+
+			/* If no FC4 type support, move to just SCSI support */
+			if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
+				return -ENODEV;
+			phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
+		}
 	}
 
 	/* Only embed PBDE for if_type 6, PBDE support requires xib be set */
