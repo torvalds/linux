@@ -676,13 +676,20 @@ static int handle_in_packet(struct amdtp_stream *s, unsigned int cycle,
 	}
 
 	cip_header = ctx_header + 2;
-	err = check_cip_header(s, cip_header, payload_length, &data_blocks,
-			       &syt);
-	if (err < 0) {
-		if (err != -EAGAIN)
-			return err;
-		pcm_frames = 0;
-		goto end;
+	if (!(s->flags & CIP_NO_HEADER)) {
+		cip_header = &ctx_header[2];
+		err = check_cip_header(s, cip_header, payload_length,
+				       &data_blocks, &syt);
+		if (err < 0) {
+			if (err != -EAGAIN)
+				return err;
+			pcm_frames = 0;
+			goto end;
+		}
+	} else {
+		cip_header = NULL;
+		data_blocks = payload_length / 4 / s->data_block_quadlets;
+		syt = 0;
 	}
 
 	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
@@ -690,33 +697,6 @@ static int handle_in_packet(struct amdtp_stream *s, unsigned int cycle,
 
 	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, &syt);
 end:
-	if (queue_in_packet(s) < 0)
-		return -EIO;
-
-	pcm = READ_ONCE(s->pcm);
-	if (pcm && pcm_frames > 0)
-		update_pcm_pointers(s, pcm, pcm_frames);
-
-	return 0;
-}
-
-static int handle_in_packet_without_header(struct amdtp_stream *s,
-				unsigned int cycle, const __be32 *ctx_header,
-				__be32 *buffer, unsigned int index)
-{
-	unsigned int payload_length;
-	unsigned int data_blocks;
-	struct snd_pcm_substream *pcm;
-	unsigned int pcm_frames;
-
-	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
-	data_blocks = payload_length / 4 / s->data_block_quadlets;
-
-	trace_amdtp_packet(s, cycle, NULL, payload_length, data_blocks, index);
-
-	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, NULL);
-	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
-
 	if (queue_in_packet(s) < 0)
 		return -EIO;
 
@@ -812,7 +792,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		cycle = compute_cycle_count(ctx_header[1]);
 		buffer = s->buffer.packets[s->packet_index].buffer;
 
-		if (s->handle_packet(s, cycle, ctx_header, buffer, i) < 0)
+		if (handle_in_packet(s, cycle, ctx_header, buffer, i) < 0)
 			break;
 
 		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
@@ -847,10 +827,6 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 		cycle = compute_cycle_count(ctx_header[1]);
 
 		context->callback.sc = in_stream_callback;
-		if (s->flags & CIP_NO_HEADER)
-			s->handle_packet = handle_in_packet_without_header;
-		else
-			s->handle_packet = handle_in_packet;
 	} else {
 		cycle = compute_it_cycle(*ctx_header);
 
