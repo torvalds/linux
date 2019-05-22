@@ -364,7 +364,6 @@ struct sdw_slave_prop {
 /**
  * struct sdw_master_prop - Master properties
  * @revision: MIPI spec version of the implementation
- * @master_count: Number of masters
  * @clk_stop_mode: Bitmap for Clock Stop modes supported
  * @max_freq: Maximum Bus clock frequency, in Hz
  * @num_clk_gears: Number of clock gears supported
@@ -380,7 +379,6 @@ struct sdw_slave_prop {
  */
 struct sdw_master_prop {
 	u32 revision;
-	u32 master_count;
 	enum sdw_clk_stop_mode clk_stop_mode;
 	u32 max_freq;
 	u32 num_clk_gears;
