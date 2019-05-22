@@ -4090,9 +4090,9 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 		}
 		if ((phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC ||
 		     phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC) &&
-		    val != FLAGS_TOPOLOGY_MODE_PT_PT) {
+		    val == 4) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"3114 Only non-FC-AL mode is supported\n");
+				"3114 Loop mode not supported\n");
 			return -EINVAL;
 		}
 		phba->cfg_topology = val;
