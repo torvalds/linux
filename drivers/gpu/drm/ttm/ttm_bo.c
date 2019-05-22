@@ -773,32 +773,72 @@ EXPORT_SYMBOL(ttm_bo_eviction_valuable);
  * b. Otherwise, trylock it.
  */
 static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
-			struct ttm_operation_ctx *ctx, bool *locked)
+			struct ttm_operation_ctx *ctx, bool *locked, bool *busy)
 {
 	bool ret = false;
 
-	*locked = false;
 	if (bo->resv == ctx->resv) {
 		reservation_object_assert_held(bo->resv);
 		if (ctx->flags & TTM_OPT_FLAG_ALLOW_RES_EVICT
 		    || !list_empty(&bo->ddestroy))
 			ret = true;
+		*locked = false;
+		if (busy)
+			*busy = false;
 	} else {
-		*locked = reservation_object_trylock(bo->resv);
-		ret = *locked;
+		ret = reservation_object_trylock(bo->resv);
+		*locked = ret;
+		if (busy)
+			*busy = !ret;
 	}
 
 	return ret;
 }
 
+/**
+ * ttm_mem_evict_wait_busy - wait for a busy BO to become available
+ *
+ * @busy_bo: BO which couldn't be locked with trylock
+ * @ctx: operation context
+ * @ticket: acquire ticket
+ *
+ * Try to lock a busy buffer object to avoid failing eviction.
+ */
+static int ttm_mem_evict_wait_busy(struct ttm_buffer_object *busy_bo,
+				   struct ttm_operation_ctx *ctx,
+				   struct ww_acquire_ctx *ticket)
+{
+	int r;
+
+	if (!busy_bo || !ticket)
+		return -EBUSY;
+
+	if (ctx->interruptible)
+		r = reservation_object_lock_interruptible(busy_bo->resv,
+							  ticket);
+	else
+		r = reservation_object_lock(busy_bo->resv, ticket);
+
+	/*
+	 * TODO: It would be better to keep the BO locked until allocation is at
+	 * least tried one more time, but that would mean a much larger rework
+	 * of TTM.
+	 */
+	if (!r)
+		reservation_object_unlock(busy_bo->resv);
+
+	return r == -EDEADLK ? -EAGAIN : r;
+}
+
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 			       uint32_t mem_type,
 			       const struct ttm_place *place,
-			       struct ttm_operation_ctx *ctx)
+			       struct ttm_operation_ctx *ctx,
+			       struct ww_acquire_ctx *ticket)
 {
+	struct ttm_buffer_object *bo = NULL, *busy_bo = NULL;
 	struct ttm_bo_global *glob = bdev->glob;
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
-	struct ttm_buffer_object *bo = NULL;
 	bool locked = false;
 	unsigned i;
 	int ret;
@@ -806,8 +846,15 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &man->lru[i], lru) {
-			if (!ttm_bo_evict_swapout_allowable(bo, ctx, &locked))
+			bool busy;
+
+			if (!ttm_bo_evict_swapout_allowable(bo, ctx, &locked,
+							    &busy)) {
+				if (busy && !busy_bo &&
+				    bo->resv->lock.ctx != ticket)
+					busy_bo = bo;
 				continue;
+			}
 
 			if (place && !bdev->driver->eviction_valuable(bo,
 								      place)) {
@@ -826,8 +873,13 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	}
 
 	if (!bo) {
+		if (busy_bo)
+			ttm_bo_get(busy_bo);
 		spin_unlock(&glob->lru_lock);
-		return -EBUSY;
+		ret = ttm_mem_evict_wait_busy(busy_bo, ctx, ticket);
+		if (busy_bo)
+			ttm_bo_put(busy_bo);
+		return ret;
 	}
 
 	kref_get(&bo->list_kref);
@@ -913,7 +965,8 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 			return ret;
 		if (mem->mm_node)
 			break;
-		ret = ttm_mem_evict_first(bdev, mem->mem_type, place, ctx);
+		ret = ttm_mem_evict_first(bdev, mem->mem_type, place, ctx,
+					  bo->resv->lock.ctx);
 		if (unlikely(ret != 0))
 			return ret;
 	} while (1);
@@ -1428,7 +1481,8 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		while (!list_empty(&man->lru[i])) {
 			spin_unlock(&glob->lru_lock);
-			ret = ttm_mem_evict_first(bdev, mem_type, NULL, &ctx);
+			ret = ttm_mem_evict_first(bdev, mem_type, NULL, &ctx,
+						  NULL);
 			if (ret)
 				return ret;
 			spin_lock(&glob->lru_lock);
@@ -1799,7 +1853,8 @@ int ttm_bo_swapout(struct ttm_bo_global *glob, struct ttm_operation_ctx *ctx)
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &glob->swap_lru[i], swap) {
-			if (ttm_bo_evict_swapout_allowable(bo, ctx, &locked)) {
+			if (ttm_bo_evict_swapout_allowable(bo, ctx, &locked,
+							   NULL)) {
 				ret = 0;
 				break;
 			}
