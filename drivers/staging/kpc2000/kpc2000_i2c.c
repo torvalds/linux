@@ -126,10 +126,6 @@ struct i2c_device {
 /* Not really a feature, but it's convenient to handle it as such */
 #define FEATURE_IDF             (1 << 15)
 
-static unsigned int disable_features;
-module_param(disable_features, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(disable_features, "Disable selected driver features");
-
 // FIXME!
 #undef inb_p
 #define inb_p(a) readq((void*)a)
