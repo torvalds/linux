@@ -125,6 +125,10 @@ struct pinctrl_ops {
  *	the hardware description
  * @custom_conf_items: Information how to print @params in debugfs, must be
  *	the same size as the @custom_params, i.e. @num_custom_params
+ * @link_consumers: If true create a device link between pinctrl and its
+ *	consumers (i.e. the devices requesting pin control states). This is
+ *	sometimes necessary to ascertain the right suspend/resume order for
+ *	example.
  */
 struct pinctrl_desc {
 	const char *name;
@@ -139,6 +143,7 @@ struct pinctrl_desc {
 	const struct pinconf_generic_params *custom_params;
 	const struct pin_config_item *custom_conf_items;
 #endif
+	bool link_consumers;
 };
 
 /* External interface to pin controller */
