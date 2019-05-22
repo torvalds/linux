@@ -1277,8 +1277,9 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 
 	if (!smu->pm_enabled)
 		return -EINVAL;
+
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) ||
-	    smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+		smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
 			clk_select = SMU_DCEFCLK;
