@@ -186,7 +186,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_REF_SURFACE, vmw_surface_reference_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
-	VMW_IOCTL_DEF(VMW_EXECBUF, NULL, DRM_AUTH |
+	VMW_IOCTL_DEF(VMW_EXECBUF, vmw_execbuf_ioctl, DRM_AUTH |
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_FENCE_WAIT, vmw_fence_obj_wait_ioctl,
 		      DRM_RENDER_ALLOW),
@@ -1117,15 +1117,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 			&vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (nr == DRM_COMMAND_BASE + DRM_VMW_EXECBUF) {
-			ret = (long) drm_ioctl_permit(ioctl->flags, file_priv);
-			if (unlikely(ret != 0))
-				return ret;
-
-			if (unlikely((cmd & (IOC_IN | IOC_OUT)) != IOC_IN))
-				goto out_io_encoding;
-
-			return (long) vmw_execbuf_ioctl(dev, arg, file_priv,
-							_IOC_SIZE(cmd));
+			return ioctl_func(filp, cmd, arg);
 		} else if (nr == DRM_COMMAND_BASE + DRM_VMW_UPDATE_LAYOUT) {
 			if (!drm_is_current_master(file_priv) &&
 			    !capable(CAP_SYS_ADMIN))

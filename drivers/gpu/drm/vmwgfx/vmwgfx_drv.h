@@ -910,8 +910,8 @@ static inline struct page *vmw_piter_page(struct vmw_piter *viter)
  * Command submission - vmwgfx_execbuf.c
  */
 
-extern int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
-			     struct drm_file *file_priv, size_t size);
+extern int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
 extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       struct vmw_private *dev_priv,
 			       void __user *user_commands,
