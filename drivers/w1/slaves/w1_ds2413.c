@@ -24,6 +24,7 @@
 #define W1_F3A_FUNC_PIO_ACCESS_READ        0xF5
 #define W1_F3A_FUNC_PIO_ACCESS_WRITE       0x5A
 #define W1_F3A_SUCCESS_CONFIRM_BYTE        0xAA
+#define W1_F3A_INVALID_PIO_STATE           0xFF
 
 static ssize_t state_read(struct file *filp, struct kobject *kobj,
 			  struct bin_attribute *bin_attr, char *buf, loff_t off,
@@ -45,6 +46,7 @@ static ssize_t state_read(struct file *filp, struct kobject *kobj,
 	mutex_lock(&sl->master->bus_mutex);
 	dev_dbg(&sl->dev, "mutex locked");
 
+next:
 	if (w1_reset_select_slave(sl))
 		goto out;
 
@@ -52,10 +54,15 @@ static ssize_t state_read(struct file *filp, struct kobject *kobj,
 		w1_write_8(sl->master, W1_F3A_FUNC_PIO_ACCESS_READ);
 
 		*buf = w1_read_8(sl->master);
-		/* check for correct complement */
 		if ((*buf & 0x0F) == ((~*buf >> 4) & 0x0F)) {
+			/* complement is correct */
 			bytes_read = 1;
 			goto out;
+		} else if (*buf == W1_F3A_INVALID_PIO_STATE) {
+			/* slave didn't respond, try to select it again */
+			dev_warn(&sl->dev, "slave device did not respond to PIO_ACCESS_READ, " \
+					    "reselecting, retries left: %d\n", retries);
+			goto next;
 		}
 
 		if (w1_reset_resume_command(sl->master))
