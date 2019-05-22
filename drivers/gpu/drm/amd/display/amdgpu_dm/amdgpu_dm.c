@@ -2967,13 +2967,13 @@ static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 }
 
 static enum dc_color_depth
-convert_color_depth_from_display_info(const struct drm_connector *connector)
+convert_color_depth_from_display_info(const struct drm_connector *connector,
+				      const struct drm_connector_state *state)
 {
 	uint32_t bpc = connector->display_info.bpc;
 
-	/* TODO: Use passed in state instead of the current state. */
-	if (connector->state) {
-		bpc = connector->state->max_bpc;
+	if (state) {
+		bpc = state->max_bpc;
 		/* Round down to the nearest even number. */
 		bpc = bpc - (bpc & 1);
 	}
@@ -3094,11 +3094,12 @@ static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_
 
 }
 
-static void
-fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
-					     const struct drm_display_mode *mode_in,
-					     const struct drm_connector *connector,
-					     const struct dc_stream_state *old_stream)
+static void fill_stream_properties_from_drm_display_mode(
+	struct dc_stream_state *stream,
+	const struct drm_display_mode *mode_in,
+	const struct drm_connector *connector,
+	const struct drm_connector_state *connector_state,
+	const struct dc_stream_state *old_stream)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
 	const struct drm_display_info *info = &connector->display_info;
@@ -3121,7 +3122,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 
 	timing_out->timing_3d_format = TIMING_3D_FORMAT_NONE;
 	timing_out->display_color_depth = convert_color_depth_from_display_info(
-			connector);
+		connector, connector_state);
 	timing_out->scan_type = SCANNING_TYPE_NODATA;
 	timing_out->hdmi_vic = 0;
 
@@ -3318,6 +3319,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 {
 	struct drm_display_mode *preferred_mode = NULL;
 	struct drm_connector *drm_connector;
+	const struct drm_connector_state *con_state =
+		dm_state ? &dm_state->base : NULL;
 	struct dc_stream_state *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
 	bool native_mode_found = false;
@@ -3390,10 +3393,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	*/
 	if (!scale || mode_refresh != preferred_refresh)
 		fill_stream_properties_from_drm_display_mode(stream,
-			&mode, &aconnector->base, NULL);
+			&mode, &aconnector->base, con_state, NULL);
 	else
 		fill_stream_properties_from_drm_display_mode(stream,
-			&mode, &aconnector->base, old_stream);
+			&mode, &aconnector->base, con_state, old_stream);
 
 	update_stream_scaling_settings(&mode, dm_state, stream);
 
