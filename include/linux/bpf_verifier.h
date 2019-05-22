@@ -233,6 +233,7 @@ struct bpf_insn_aux_data {
 	int sanitize_stack_off; /* stack slot to be cleared */
 	bool seen; /* this insn was processed by the verifier */
 	u8 alu_state; /* used in combination with alu_limit */
+	bool prune_point;
 	unsigned int orig_idx; /* original instruction index */
 };
 
