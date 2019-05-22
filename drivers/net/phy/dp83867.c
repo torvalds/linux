@@ -93,9 +93,9 @@ enum {
 };
 
 struct dp83867_private {
-	int rx_id_delay;
-	int tx_id_delay;
-	int fifo_depth;
+	u32 rx_id_delay;
+	u32 tx_id_delay;
+	u32 fifo_depth;
 	int io_impedance;
 	int port_mirroring;
 	bool rxctrl_strap_quirk;
