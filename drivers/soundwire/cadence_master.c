@@ -237,19 +237,19 @@ cdns_fill_msg_resp(struct sdw_cdns *cdns,
 	for (i = 0; i < count; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
 			no_ack = 1;
-			dev_dbg(cdns->dev, "Msg Ack not received\n");
+			dev_dbg_ratelimited(cdns->dev, "Msg Ack not received\n");
 			if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
 				nack = 1;
-				dev_err(cdns->dev, "Msg NACK received\n");
+				dev_err_ratelimited(cdns->dev, "Msg NACK received\n");
 			}
 		}
 	}
 
 	if (nack) {
-		dev_err(cdns->dev, "Msg NACKed for Slave %d\n", msg->dev_num);
+		dev_err_ratelimited(cdns->dev, "Msg NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
 	} else if (no_ack) {
-		dev_dbg(cdns->dev, "Msg ignored for Slave %d\n", msg->dev_num);
+		dev_dbg_ratelimited(cdns->dev, "Msg ignored for Slave %d\n", msg->dev_num);
 		return SDW_CMD_IGNORED;
 	}
 
@@ -357,12 +357,12 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 
 	/* For NACK, NO ack, don't return err if we are in Broadcast mode */
 	if (nack) {
-		dev_err(cdns->dev,
-			"SCP_addrpage NACKed for Slave %d\n", msg->dev_num);
+		dev_err_ratelimited(cdns->dev,
+				    "SCP_addrpage NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
 	} else if (no_ack) {
-		dev_dbg(cdns->dev,
-			"SCP_addrpage ignored for Slave %d\n", msg->dev_num);
+		dev_dbg_ratelimited(cdns->dev,
+				    "SCP_addrpage ignored for Slave %d\n", msg->dev_num);
 		return SDW_CMD_IGNORED;
 	}
 
@@ -525,9 +525,9 @@ static int cdns_update_slave_status(struct sdw_cdns *cdns,
 
 		/* first check if Slave reported multiple status */
 		if (set_status > 1) {
-			dev_warn(cdns->dev,
-				 "Slave reported multiple Status: %d\n",
-				 status[i]);
+			dev_warn_ratelimited(cdns->dev,
+					     "Slave reported multiple Status: %d\n",
+					     status[i]);
 			/*
 			 * TODO: we need to reread the status here by
 			 * issuing a PING cmd
@@ -613,7 +613,7 @@ irqreturn_t sdw_cdns_thread(int irq, void *dev_id)
 	struct sdw_cdns *cdns = dev_id;
 	u32 slave0, slave1;
 
-	dev_dbg(cdns->dev, "Slave status change\n");
+	dev_dbg_ratelimited(cdns->dev, "Slave status change\n");
 
 	slave0 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT0);
 	slave1 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT1);
