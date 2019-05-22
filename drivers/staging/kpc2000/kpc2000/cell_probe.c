@@ -241,8 +241,8 @@ int  kp2000_check_uio_irq(struct kp2000_device *pcard, u32 irq_num)
 	u64 interrupt_active   =  readq(pcard->sysinfo_regs_base + REG_INTERRUPT_ACTIVE);
 	u64 interrupt_mask_inv = ~readq(pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
 	u64 irq_check_mask = (1 << irq_num);
-	if (interrupt_active & irq_check_mask){ // if it's active (interrupt pending)
-		if (interrupt_mask_inv & irq_check_mask){    // and if it's not masked off
+	if (interrupt_active & irq_check_mask) { // if it's active (interrupt pending)
+		if (interrupt_mask_inv & irq_check_mask) {    // and if it's not masked off
 			return 1;
 		}
 	}
@@ -256,7 +256,7 @@ irqreturn_t  kuio_handler(int irq, struct uio_info *uioinfo)
 	if (irq != kudev->pcard->pdev->irq)
 		return IRQ_NONE;
 
-	if (kp2000_check_uio_irq(kudev->pcard, kudev->cte.irq_base_num)){
+	if (kp2000_check_uio_irq(kudev->pcard, kudev->cte.irq_base_num)) {
 		writeq((1 << kudev->cte.irq_base_num), kudev->pcard->sysinfo_regs_base + REG_INTERRUPT_ACTIVE); // Clear the active flag
 		return IRQ_HANDLED;
 	}
@@ -272,7 +272,7 @@ int kuio_irqcontrol(struct uio_info *uioinfo, s32 irq_on)
 
 	mutex_lock(&pcard->sem);
 	mask = readq(pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
-	if (irq_on){
+	if (irq_on) {
 		mask &= ~(1 << (kudev->cte.irq_base_num));
 	} else {
 		mask |= (1 << (kudev->cte.irq_base_num));
@@ -292,7 +292,7 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 	dev_dbg(&pcard->pdev->dev, "Found UIO core:   type = %02d  dma = %02x / %02x  offset = 0x%x  length = 0x%x (%d regs)\n", cte.type, KPC_OLD_S2C_DMA_CH_NUM(cte), KPC_OLD_C2S_DMA_CH_NUM(cte), cte.offset, cte.length, cte.length / 8);
 
 	kudev = kzalloc(sizeof(struct kpc_uio_device), GFP_KERNEL);
-	if (!kudev){
+	if (!kudev) {
 		dev_err(&pcard->pdev->dev, "probe_core_uio: failed to kzalloc kpc_uio_device\n");
 		return -ENOMEM;
 	}
@@ -305,7 +305,7 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 	kudev->uioinfo.priv = kudev;
 	kudev->uioinfo.name = name;
 	kudev->uioinfo.version = "0.0";
-	if (cte.irq_count > 0){
+	if (cte.irq_count > 0) {
 		kudev->uioinfo.irq_flags = IRQF_SHARED;
 		kudev->uioinfo.irq = pcard->pdev->irq;
 		kudev->uioinfo.handler = kuio_handler;
@@ -328,7 +328,7 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 	dev_set_drvdata(kudev->dev, kudev);
 
 	rv = uio_register_device(kudev->dev, &kudev->uioinfo);
-	if (rv){
+	if (rv) {
 		dev_err(&pcard->pdev->dev, "probe_core_uio failed uio_register_device: %d\n", rv);
 		put_device(kudev->dev);
 		kfree(kudev);
@@ -383,17 +383,17 @@ static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
 	u64 capabilities_reg;
 
 	// S2C Engines
-	for (i = 0 ; i < 32 ; i++){
+	for (i = 0 ; i < 32 ; i++) {
 		capabilities_reg = readq( pcard->dma_bar_base + KPC_DMA_S2C_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i) );
-		if (capabilities_reg & ENGINE_CAP_PRESENT_MASK){
+		if (capabilities_reg & ENGINE_CAP_PRESENT_MASK) {
 			err = create_dma_engine_core(pcard, (KPC_DMA_S2C_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i)), i,  pcard->pdev->irq);
 			if (err) goto err_out;
 		}
 	}
 	// C2S Engines
-	for (i = 0 ; i < 32 ; i++){
+	for (i = 0 ; i < 32 ; i++) {
 		capabilities_reg = readq( pcard->dma_bar_base + KPC_DMA_C2S_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i) );
-		if (capabilities_reg & ENGINE_CAP_PRESENT_MASK){
+		if (capabilities_reg & ENGINE_CAP_PRESENT_MASK) {
 			err = create_dma_engine_core(pcard, (KPC_DMA_C2S_BASE_OFFSET + (KPC_DMA_ENGINE_SIZE * i)), 32+i,  pcard->pdev->irq);
 			if (err) goto err_out;
 		}
@@ -423,23 +423,23 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	INIT_LIST_HEAD(&pcard->uio_devices_list);
 
 	// First, iterate the core table looking for the highest CORE_ID
-	for (i = 0 ; i < pcard->core_table_length ; i++){
+	for (i = 0 ; i < pcard->core_table_length ; i++) {
 		read_val = readq(pcard->sysinfo_regs_base + ((pcard->core_table_offset + i) * 8));
 		parse_core_table_entry(&cte, read_val, pcard->core_table_rev);
 		dbg_cte(pcard, &cte);
-		if (cte.type > highest_core_id){
+		if (cte.type > highest_core_id) {
 			highest_core_id = cte.type;
 		}
-		if (cte.type == KP_CORE_ID_INVALID){
+		if (cte.type == KP_CORE_ID_INVALID) {
 			dev_info(&pcard->pdev->dev, "Found Invalid core: %016llx\n", read_val);
 		}
 	}
 	// Then, iterate over the possible core types.
-	for (current_type_id = 1 ; current_type_id <= highest_core_id ; current_type_id++){
+	for (current_type_id = 1 ; current_type_id <= highest_core_id ; current_type_id++) {
 		unsigned int core_num = 0;
 		// Foreach core type, iterate the whole table and instantiate subdevices for each core.
 		// Yes, this is O(n*m) but the actual runtime is small enough that it's an acceptable tradeoff.
-		for (i = 0 ; i < pcard->core_table_length ; i++){
+		for (i = 0 ; i < pcard->core_table_length ; i++) {
 			read_val = readq(pcard->sysinfo_regs_base + ((pcard->core_table_offset + i) * 8));
 			parse_core_table_entry(&cte, read_val, pcard->core_table_rev);
 
@@ -482,7 +482,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	cte.irq_count           = 0;
 	cte.irq_base_num        = 0;
 	err = probe_core_uio(0, pcard, "kpc_uio", cte);
-	if (err){
+	if (err) {
 		dev_err(&pcard->pdev->dev, "kp2000_probe_cores: failed to add board_info core: %d\n", err);
 		goto error;
 	}
@@ -499,7 +499,7 @@ void  kp2000_remove_cores(struct kp2000_device *pcard)
 {
 	struct list_head *ptr;
 	struct list_head *next;
-	list_for_each_safe(ptr, next, &pcard->uio_devices_list){
+	list_for_each_safe(ptr, next, &pcard->uio_devices_list) {
 		struct kpc_uio_device *kudev = list_entry(ptr, struct kpc_uio_device, list);
 		uio_unregister_device(&kudev->uioinfo);
 		device_unregister(kudev->dev);
