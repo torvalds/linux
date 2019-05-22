@@ -373,7 +373,7 @@ static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_apply_point apply_point);
 
-void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_stop_sync(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_lmac1_set_alive_err_table(struct iwl_trans *trans,
 						    u32 lmac_error_event_table)

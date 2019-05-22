@@ -1140,6 +1140,7 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 		return ret;
 	}
 
+	iwl_fw_dbg_stop_sync(&mvm->fwrt);
 	/*
 	 * Stop and start the transport without entering low power
 	 * mode. This will save the state of other components on the

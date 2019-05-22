@@ -2862,7 +2862,7 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
 
-void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt)
+void iwl_fw_dbg_stop_sync(struct iwl_fw_runtime *fwrt)
 {
 	int i;
 
@@ -2870,9 +2870,9 @@ void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt)
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
 		iwl_fw_dbg_collect_sync(fwrt, i);
 
-	iwl_trans_stop_device(fwrt->trans);
+	iwl_fw_dbg_stop_recording(fwrt->trans, NULL);
 }
-IWL_EXPORT_SYMBOL(iwl_fwrt_stop_device);
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_sync);
 
 void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t)
 {
