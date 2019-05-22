@@ -140,8 +140,10 @@ struct ipu_ic {
 	const struct ic_task_regoffs *reg;
 	const struct ic_task_bitfields *bit;
 
-	enum ipu_color_space in_cs, g_in_cs;
-	enum ipu_color_space out_cs;
+	struct ipu_ic_colorspace in_cs;
+	struct ipu_ic_colorspace g_in_cs;
+	struct ipu_ic_colorspace out_cs;
+
 	bool graphics;
 	bool rotation;
 	bool in_use;
@@ -169,60 +171,11 @@ static inline void ipu_ic_write(struct ipu_ic *ic, u32 value, unsigned offset)
 	writel(value, ic->priv->base + offset);
 }
 
-struct ic_csc_params {
-	s16 coeff[3][3];	/* signed 9-bit integer coefficients */
-	s16 offset[3];		/* signed 11+2-bit fixed point offset */
-	u8 scale:2;		/* scale coefficients * 2^(scale-1) */
-	bool sat:1;		/* saturate to (16, 235(Y) / 240(U, V)) */
-};
-
-/*
- * Y = R *  .299 + G *  .587 + B *  .114;
- * U = R * -.169 + G * -.332 + B *  .500 + 128.;
- * V = R *  .500 + G * -.419 + B * -.0813 + 128.;
- */
-static const struct ic_csc_params ic_csc_rgb2ycbcr = {
-	.coeff = {
-		{ 77, 150, 29 },
-		{ 469, 427, 128 },
-		{ 128, 405, 491 },
-	},
-	.offset = { 0, 512, 512 },
-	.scale = 1,
-};
-
-/* transparent RGB->RGB matrix for graphics combining */
-static const struct ic_csc_params ic_csc_rgb2rgb = {
-	.coeff = {
-		{ 128, 0, 0 },
-		{ 0, 128, 0 },
-		{ 0, 0, 128 },
-	},
-	.scale = 2,
-};
-
-/*
- * R = (1.164 * (Y - 16)) + (1.596 * (Cr - 128));
- * G = (1.164 * (Y - 16)) - (0.392 * (Cb - 128)) - (0.813 * (Cr - 128));
- * B = (1.164 * (Y - 16)) + (2.017 * (Cb - 128);
- */
-static const struct ic_csc_params ic_csc_ycbcr2rgb = {
-	.coeff = {
-		{ 149, 0, 204 },
-		{ 149, 462, 408 },
-		{ 149, 255, 0 },
-	},
-	.offset = { -446, 266, -554 },
-	.scale = 2,
-};
-
 static int init_csc(struct ipu_ic *ic,
-		    enum ipu_color_space inf,
-		    enum ipu_color_space outf,
+		    const struct ipu_ic_csc *csc,
 		    int csc_index)
 {
 	struct ipu_ic_priv *priv = ic->priv;
-	const struct ic_csc_params *params;
 	u32 __iomem *base;
 	const u16 (*c)[3];
 	const u16 *a;
@@ -231,27 +184,16 @@ static int init_csc(struct ipu_ic *ic,
 	base = (u32 __iomem *)
 		(priv->tpmem_base + ic->reg->tpmem_csc[csc_index]);
 
-	if (inf == IPUV3_COLORSPACE_YUV && outf == IPUV3_COLORSPACE_RGB)
-		params = &ic_csc_ycbcr2rgb;
-	else if (inf == IPUV3_COLORSPACE_RGB && outf == IPUV3_COLORSPACE_YUV)
-		params = &ic_csc_rgb2ycbcr;
-	else if (inf == IPUV3_COLORSPACE_RGB && outf == IPUV3_COLORSPACE_RGB)
-		params = &ic_csc_rgb2rgb;
-	else {
-		dev_err(priv->ipu->dev, "Unsupported color space conversion\n");
-		return -EINVAL;
-	}
-
 	/* Cast to unsigned */
-	c = (const u16 (*)[3])params->coeff;
-	a = (const u16 *)params->offset;
+	c = (const u16 (*)[3])csc->params.coeff;
+	a = (const u16 *)csc->params.offset;
 
 	param = ((a[0] & 0x1f) << 27) | ((c[0][0] & 0x1ff) << 18) |
 		((c[1][1] & 0x1ff) << 9) | (c[2][2] & 0x1ff);
 	writel(param, base++);
 
-	param = ((a[0] & 0x1fe0) >> 5) | (params->scale << 8) |
-		(params->sat << 10);
+	param = ((a[0] & 0x1fe0) >> 5) | (csc->params.scale << 8) |
+		(csc->params.sat << 10);
 	writel(param, base++);
 
 	param = ((a[1] & 0x1f) << 27) | ((c[0][1] & 0x1ff) << 18) |
@@ -338,14 +280,14 @@ void ipu_ic_task_enable(struct ipu_ic *ic)
 	if (ic->rotation)
 		ic_conf |= ic->bit->ic_conf_rot_en;
 
-	if (ic->in_cs != ic->out_cs)
+	if (ic->in_cs.cs != ic->out_cs.cs)
 		ic_conf |= ic->bit->ic_conf_csc1_en;
 
 	if (ic->graphics) {
 		ic_conf |= ic->bit->ic_conf_cmb_en;
 		ic_conf |= ic->bit->ic_conf_csc1_en;
 
-		if (ic->g_in_cs != ic->out_cs)
+		if (ic->g_in_cs.cs != ic->out_cs.cs)
 			ic_conf |= ic->bit->ic_conf_csc2_en;
 	}
 
@@ -380,11 +322,12 @@ void ipu_ic_task_disable(struct ipu_ic *ic)
 EXPORT_SYMBOL_GPL(ipu_ic_task_disable);
 
 int ipu_ic_task_graphics_init(struct ipu_ic *ic,
-			      enum ipu_color_space in_g_cs,
+			      const struct ipu_ic_colorspace *g_in_cs,
 			      bool galpha_en, u32 galpha,
 			      bool colorkey_en, u32 colorkey)
 {
 	struct ipu_ic_priv *priv = ic->priv;
+	struct ipu_ic_csc csc2;
 	unsigned long flags;
 	u32 reg, ic_conf;
 	int ret = 0;
@@ -397,20 +340,35 @@ int ipu_ic_task_graphics_init(struct ipu_ic *ic,
 	ic_conf = ipu_ic_read(ic, IC_CONF);
 
 	if (!(ic_conf & ic->bit->ic_conf_csc1_en)) {
+		struct ipu_ic_csc csc1;
+
+		ret = ipu_ic_calc_csc(&csc1,
+				      V4L2_YCBCR_ENC_601,
+				      V4L2_QUANTIZATION_FULL_RANGE,
+				      IPUV3_COLORSPACE_RGB,
+				      V4L2_YCBCR_ENC_601,
+				      V4L2_QUANTIZATION_FULL_RANGE,
+				      IPUV3_COLORSPACE_RGB);
+		if (ret)
+			goto unlock;
+
 		/* need transparent CSC1 conversion */
-		ret = init_csc(ic, IPUV3_COLORSPACE_RGB,
-			       IPUV3_COLORSPACE_RGB, 0);
+		ret = init_csc(ic, &csc1, 0);
 		if (ret)
 			goto unlock;
 	}
 
-	ic->g_in_cs = in_g_cs;
+	ic->g_in_cs = *g_in_cs;
+	csc2.in_cs = ic->g_in_cs;
+	csc2.out_cs = ic->out_cs;
 
-	if (ic->g_in_cs != ic->out_cs) {
-		ret = init_csc(ic, ic->g_in_cs, ic->out_cs, 1);
-		if (ret)
-			goto unlock;
-	}
+	ret = __ipu_ic_calc_csc(&csc2);
+	if (ret)
+		goto unlock;
+
+	ret = init_csc(ic, &csc2, 1);
+	if (ret)
+		goto unlock;
 
 	if (galpha_en) {
 		ic_conf |= IC_CONF_IC_GLB_LOC_A;
@@ -437,10 +395,9 @@ unlock:
 EXPORT_SYMBOL_GPL(ipu_ic_task_graphics_init);
 
 int ipu_ic_task_init_rsc(struct ipu_ic *ic,
+			 const struct ipu_ic_csc *csc,
 			 int in_width, int in_height,
 			 int out_width, int out_height,
-			 enum ipu_color_space in_cs,
-			 enum ipu_color_space out_cs,
 			 u32 rsc)
 {
 	struct ipu_ic_priv *priv = ic->priv;
@@ -472,28 +429,23 @@ int ipu_ic_task_init_rsc(struct ipu_ic *ic,
 	ipu_ic_write(ic, rsc, ic->reg->rsc);
 
 	/* Setup color space conversion */
-	ic->in_cs = in_cs;
-	ic->out_cs = out_cs;
+	ic->in_cs = csc->in_cs;
+	ic->out_cs = csc->out_cs;
 
-	if (ic->in_cs != ic->out_cs) {
-		ret = init_csc(ic, ic->in_cs, ic->out_cs, 0);
-		if (ret)
-			goto unlock;
-	}
+	ret = init_csc(ic, csc, 0);
 
-unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return ret;
 }
 
 int ipu_ic_task_init(struct ipu_ic *ic,
+		     const struct ipu_ic_csc *csc,
 		     int in_width, int in_height,
-		     int out_width, int out_height,
-		     enum ipu_color_space in_cs,
-		     enum ipu_color_space out_cs)
+		     int out_width, int out_height)
 {
-	return ipu_ic_task_init_rsc(ic, in_width, in_height, out_width,
-				    out_height, in_cs, out_cs, 0);
+	return ipu_ic_task_init_rsc(ic, csc,
+				    in_width, in_height,
+				    out_width, out_height, 0);
 }
 EXPORT_SYMBOL_GPL(ipu_ic_task_init);
 
