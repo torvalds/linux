@@ -1028,59 +1028,38 @@ out:
 }
 
 /*
- * caller should hold session s_mutex.
+ * caller should hold session s_mutex and dentry->d_lock.
  */
-static void update_dentry_lease(struct dentry *dentry,
-				struct ceph_mds_reply_lease *lease,
-				struct ceph_mds_session *session,
-				unsigned long from_time,
-				struct ceph_vino *tgt_vino,
-				struct ceph_vino *dir_vino)
+static void __update_dentry_lease(struct inode *dir, struct dentry *dentry,
+				  struct ceph_mds_reply_lease *lease,
+				  struct ceph_mds_session *session,
+				  unsigned long from_time,
+				  struct ceph_mds_session **old_lease_session)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	long unsigned duration = le32_to_cpu(lease->duration_ms);
 	long unsigned ttl = from_time + (duration * HZ) / 1000;
 	long unsigned half_ttl = from_time + (duration * HZ / 2) / 1000;
-	struct inode *dir;
-	struct ceph_mds_session *old_lease_session = NULL;
 
-	/*
-	 * Make sure dentry's inode matches tgt_vino. NULL tgt_vino means that
-	 * we expect a negative dentry.
-	 */
-	if (!tgt_vino && d_really_is_positive(dentry))
-		return;
-
-	if (tgt_vino && (d_really_is_negative(dentry) ||
-			!ceph_ino_compare(d_inode(dentry), tgt_vino)))
-		return;
-
-	spin_lock(&dentry->d_lock);
 	dout("update_dentry_lease %p duration %lu ms ttl %lu\n",
 	     dentry, duration, ttl);
 
-	dir = d_inode(dentry->d_parent);
-
-	/* make sure parent matches dir_vino */
-	if (!ceph_ino_compare(dir, dir_vino))
-		goto out_unlock;
-
 	/* only track leases on regular dentries */
 	if (ceph_snap(dir) != CEPH_NOSNAP)
-		goto out_unlock;
+		return;
 
 	di->lease_shared_gen = atomic_read(&ceph_inode(dir)->i_shared_gen);
 	if (duration == 0) {
 		__ceph_dentry_dir_lease_touch(di);
-		goto out_unlock;
+		return;
 	}
 
 	if (di->lease_gen == session->s_cap_gen &&
 	    time_before(ttl, di->time))
-		goto out_unlock;  /* we already have a newer lease. */
+		return;  /* we already have a newer lease. */
 
 	if (di->lease_session && di->lease_session != session) {
-		old_lease_session = di->lease_session;
+		*old_lease_session = di->lease_session;
 		di->lease_session = NULL;
 	}
 
@@ -1093,6 +1072,62 @@ static void update_dentry_lease(struct dentry *dentry,
 	di->time = ttl;
 
 	__ceph_dentry_lease_touch(di);
+}
+
+static inline void update_dentry_lease(struct inode *dir, struct dentry *dentry,
+					struct ceph_mds_reply_lease *lease,
+					struct ceph_mds_session *session,
+					unsigned long from_time)
+{
+	struct ceph_mds_session *old_lease_session = NULL;
+	spin_lock(&dentry->d_lock);
+	__update_dentry_lease(dir, dentry, lease, session, from_time,
+			      &old_lease_session);
+	spin_unlock(&dentry->d_lock);
+	if (old_lease_session)
+		ceph_put_mds_session(old_lease_session);
+}
+
+/*
+ * update dentry lease without having parent inode locked
+ */
+static void update_dentry_lease_careful(struct dentry *dentry,
+					struct ceph_mds_reply_lease *lease,
+					struct ceph_mds_session *session,
+					unsigned long from_time,
+					char *dname, u32 dname_len,
+					struct ceph_vino *pdvino,
+					struct ceph_vino *ptvino)
+
+{
+	struct inode *dir;
+	struct ceph_mds_session *old_lease_session = NULL;
+
+	spin_lock(&dentry->d_lock);
+	/* make sure dentry's name matches target */
+	if (dentry->d_name.len != dname_len ||
+	    memcmp(dentry->d_name.name, dname, dname_len))
+		goto out_unlock;
+
+	dir = d_inode(dentry->d_parent);
+	/* make sure parent matches dvino */
+	if (!ceph_ino_compare(dir, pdvino))
+		goto out_unlock;
+
+	/* make sure dentry's inode matches target. NULL ptvino means that
+	 * we expect a negative dentry */
+	if (ptvino) {
+		if (d_really_is_negative(dentry))
+			goto out_unlock;
+		if (!ceph_ino_compare(d_inode(dentry), ptvino))
+			goto out_unlock;
+	} else {
+		if (d_really_is_positive(dentry))
+			goto out_unlock;
+	}
+
+	__update_dentry_lease(dir, dentry, lease, session,
+			      from_time, &old_lease_session);
 out_unlock:
 	spin_unlock(&dentry->d_lock);
 	if (old_lease_session)
@@ -1155,19 +1190,6 @@ static int splice_dentry(struct dentry **pdn, struct inode *in)
 		     dn, d_inode(dn), ceph_vinop(d_inode(dn)));
 	}
 	return 0;
-}
-
-static int d_name_cmp(struct dentry *dentry, const char *name, size_t len)
-{
-	int ret;
-
-	/* take d_lock to ensure dentry->d_name stability */
-	spin_lock(&dentry->d_lock);
-	ret = dentry->d_name.len - len;
-	if (!ret)
-		ret = memcmp(dentry->d_name.name, name, len);
-	spin_unlock(&dentry->d_lock);
-	return ret;
 }
 
 /*
@@ -1372,10 +1394,9 @@ retry_lookup:
 			} else if (have_lease) {
 				if (d_unhashed(dn))
 					d_add(dn, NULL);
-				update_dentry_lease(dn, rinfo->dlease,
-						    session,
-						    req->r_request_started,
-						    NULL, &dvino);
+				update_dentry_lease(dir, dn,
+						    rinfo->dlease, session,
+						    req->r_request_started);
 			}
 			goto done;
 		}
@@ -1397,11 +1418,9 @@ retry_lookup:
 		}
 
 		if (have_lease) {
-			tvino.ino = le64_to_cpu(rinfo->targeti.in->ino);
-			tvino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
-			update_dentry_lease(dn, rinfo->dlease, session,
-					    req->r_request_started,
-					    &tvino, &dvino);
+			update_dentry_lease(dir, dn,
+					    rinfo->dlease, session,
+					    req->r_request_started);
 		}
 		dout(" final dn %p\n", dn);
 	} else if ((req->r_op == CEPH_MDS_OP_LOOKUPSNAP ||
@@ -1419,27 +1438,20 @@ retry_lookup:
 		err = splice_dentry(&req->r_dentry, in);
 		if (err < 0)
 			goto done;
-	} else if (rinfo->head->is_dentry &&
-		   !d_name_cmp(req->r_dentry, rinfo->dname, rinfo->dname_len)) {
+	} else if (rinfo->head->is_dentry && req->r_dentry) {
+		/* parent inode is not locked, be carefull */
 		struct ceph_vino *ptvino = NULL;
-
-		if ((le32_to_cpu(rinfo->diri.in->cap.caps) & CEPH_CAP_FILE_SHARED) ||
-		    le32_to_cpu(rinfo->dlease->duration_ms)) {
-			dvino.ino = le64_to_cpu(rinfo->diri.in->ino);
-			dvino.snap = le64_to_cpu(rinfo->diri.in->snapid);
-
-			if (rinfo->head->is_target) {
-				tvino.ino = le64_to_cpu(rinfo->targeti.in->ino);
-				tvino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
-				ptvino = &tvino;
-			}
-
-			update_dentry_lease(req->r_dentry, rinfo->dlease,
-				session, req->r_request_started, ptvino,
-				&dvino);
-		} else {
-			dout("%s: no dentry lease or dir cap\n", __func__);
+		dvino.ino = le64_to_cpu(rinfo->diri.in->ino);
+		dvino.snap = le64_to_cpu(rinfo->diri.in->snapid);
+		if (rinfo->head->is_target) {
+			tvino.ino = le64_to_cpu(rinfo->targeti.in->ino);
+			tvino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
+			ptvino = &tvino;
 		}
+		update_dentry_lease_careful(req->r_dentry, rinfo->dlease,
+					    session, req->r_request_started,
+					    rinfo->dname, rinfo->dname_len,
+					    &dvino, ptvino);
 	}
 done:
 	dout("fill_trace done err=%d\n", err);
@@ -1601,7 +1613,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	/* FIXME: release caps/leases if error occurs */
 	for (i = 0; i < rinfo->dir_nr; i++) {
 		struct ceph_mds_reply_dir_entry *rde = rinfo->dir_entries + i;
-		struct ceph_vino tvino, dvino;
+		struct ceph_vino tvino;
 
 		dname.name = rde->name;
 		dname.len = rde->name_len;
@@ -1702,9 +1714,9 @@ retry_lookup:
 
 		ceph_dentry(dn)->offset = rde->offset;
 
-		dvino = ceph_vino(d_inode(parent));
-		update_dentry_lease(dn, rde->lease, req->r_session,
-				    req->r_request_started, &tvino, &dvino);
+		update_dentry_lease(d_inode(parent), dn,
+				    rde->lease, req->r_session,
+				    req->r_request_started);
 
 		if (err == 0 && skipped == 0 && cache_ctl.index >= 0) {
 			ret = fill_readdir_cache(d_inode(parent), dn,
