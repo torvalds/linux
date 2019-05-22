@@ -649,7 +649,6 @@ static struct platform_driver i2c_plat_driver_i = {
 	.remove     = pi2c_remove,
 	.driver     = {
 		.name   = KP_DRIVER_NAME_I2C,
-		.owner  = THIS_MODULE,
 	},
 };
 
