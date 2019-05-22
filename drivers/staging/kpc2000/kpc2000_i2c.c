@@ -139,8 +139,6 @@ static int i801_check_pre(struct i2c_device *priv)
 {
 	int status;
 
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
-
 	status = inb_p(SMBHSTSTS(priv));
 	if (status & SMBHSTSTS_HOST_BUSY) {
 		dev_err(&priv->adapter.dev, "SMBus is busy, can't use it! (status=%x)\n", status);
@@ -164,8 +162,6 @@ static int i801_check_pre(struct i2c_device *priv)
 static int i801_check_post(struct i2c_device *priv, int status, int timeout)
 {
 	int result = 0;
-
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
 
 	/* If the SMBus is still busy, we give up */
 	if (timeout) {
@@ -214,8 +210,6 @@ static int i801_transaction(struct i2c_device *priv, int xact)
 	int result;
 	int timeout = 0;
 
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
-
 	result = i801_check_pre(priv);
 	if (result < 0)
 		return result;
@@ -244,8 +238,6 @@ static void i801_wait_hwpec(struct i2c_device *priv)
 	int timeout = 0;
 	int status;
 
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
-
 	do {
 		usleep_range(250, 500);
 		status = inb_p(SMBHSTSTS(priv));
@@ -261,8 +253,6 @@ static int i801_block_transaction_by_block(struct i2c_device *priv, union i2c_sm
 {
 	int i, len;
 	int status;
-
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
 
 	inb_p(SMBHSTCNT(priv)); /* reset the data buffer index */
 
@@ -297,8 +287,6 @@ static int i801_block_transaction_byte_by_byte(struct i2c_device *priv, union i2
 	int status;
 	int result;
 	int timeout;
-
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
 
 	result = i801_check_pre(priv);
 	if (result < 0)
@@ -364,8 +352,6 @@ static int i801_block_transaction_byte_by_byte(struct i2c_device *priv, union i2
 
 static int i801_set_block_buffer_mode(struct i2c_device *priv)
 {
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
-
 	outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_E32B, SMBAUXCTL(priv));
 	if ((inb_p(SMBAUXCTL(priv)) & SMBAUXCTL_E32B) == 0)
 		return -EIO;
@@ -377,8 +363,6 @@ static int i801_block_transaction(struct i2c_device *priv, union i2c_smbus_data 
 {
 	int result = 0;
 	//unsigned char hostc;
-
-	dev_dbg(&priv->adapter.dev, "%s\n", __func__);
 
 	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
 		if (read_write == I2C_SMBUS_WRITE) {
@@ -426,10 +410,6 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	int block = 0;
 	int ret, xact = 0;
 	struct i2c_device *priv = i2c_get_adapdata(adap);
-
-	dev_dbg(&priv->adapter.dev,
-		"%s (addr=%0d)  flags=%x  read_write=%x  command=%x  size=%x",
-		__func__, addr, flags, read_write, command, size);
 
 	hwpec = (priv->features & FEATURE_SMBUS_PEC) && (flags & I2C_CLIENT_PEC) && size != I2C_SMBUS_QUICK && size != I2C_SMBUS_I2C_BLOCK_DATA;
 
@@ -605,9 +585,6 @@ int pi2c_probe(struct platform_device *pldev)
 	struct i2c_device *priv;
 	struct resource *res;
 
-	dev_dbg(&pldev->dev, "%s(pldev = %p '%s')\n", __func__, pldev,
-		pldev->name);
-
 	priv = devm_kzalloc(&pldev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -652,9 +629,6 @@ int pi2c_probe(struct platform_device *pldev)
 int pi2c_remove(struct platform_device *pldev)
 {
 	struct i2c_device *lddev;
-
-	dev_dbg(&pldev->dev, "%s(pldev = %p '%s')\n", __func__, pldev,
-		pldev->name);
 
 	lddev = (struct i2c_device *)pldev->dev.platform_data;
 
