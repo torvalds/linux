@@ -96,9 +96,58 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	return total_length;
 }
 
+static int
+query_engine_info(struct drm_i915_private *i915,
+		  struct drm_i915_query_item *query_item)
+{
+	struct drm_i915_query_engine_info __user *query_ptr =
+				u64_to_user_ptr(query_item->data_ptr);
+	struct drm_i915_engine_info __user *info_ptr;
+	struct drm_i915_query_engine_info query;
+	struct drm_i915_engine_info info = { };
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int len, ret;
+
+	if (query_item->flags)
+		return -EINVAL;
+
+	len = sizeof(struct drm_i915_query_engine_info) +
+	      RUNTIME_INFO(i915)->num_engines *
+	      sizeof(struct drm_i915_engine_info);
+
+	ret = copy_query_item(&query, sizeof(query), len, query_item);
+	if (ret != 0)
+		return ret;
+
+	if (query.num_engines || query.rsvd[0] || query.rsvd[1] ||
+	    query.rsvd[2])
+		return -EINVAL;
+
+	info_ptr = &query_ptr->engines[0];
+
+	for_each_engine(engine, i915, id) {
+		info.engine.engine_class = engine->uabi_class;
+		info.engine.engine_instance = engine->instance;
+		info.capabilities = engine->uabi_capabilities;
+
+		if (__copy_to_user(info_ptr, &info, sizeof(info)))
+			return -EFAULT;
+
+		query.num_engines++;
+		info_ptr++;
+	}
+
+	if (__copy_to_user(query_ptr, &query, sizeof(query)))
+		return -EFAULT;
+
+	return len;
+}
+
 static int (* const i915_query_funcs[])(struct drm_i915_private *dev_priv,
 					struct drm_i915_query_item *query_item) = {
 	query_topology_info,
+	query_engine_info,
 };
 
 int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)

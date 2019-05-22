@@ -349,6 +349,45 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+static void __setup_engine_capabilities(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+
+	if (engine->class == VIDEO_DECODE_CLASS) {
+		/*
+		 * HEVC support is present on first engine instance
+		 * before Gen11 and on all instances afterwards.
+		 */
+		if (INTEL_GEN(i915) >= 11 ||
+		    (INTEL_GEN(i915) >= 9 && engine->instance == 0))
+			engine->uabi_capabilities |=
+				I915_VIDEO_CLASS_CAPABILITY_HEVC;
+
+		/*
+		 * SFC block is present only on even logical engine
+		 * instances.
+		 */
+		if ((INTEL_GEN(i915) >= 11 &&
+		     RUNTIME_INFO(i915)->vdbox_sfc_access & engine->mask) ||
+		    (INTEL_GEN(i915) >= 9 && engine->instance == 0))
+			engine->uabi_capabilities |=
+				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
+	} else if (engine->class == VIDEO_ENHANCEMENT_CLASS) {
+		if (INTEL_GEN(i915) >= 9)
+			engine->uabi_capabilities |=
+				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
+	}
+}
+
+static void intel_setup_engine_capabilities(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id)
+		__setup_engine_capabilities(engine);
+}
+
 /**
  * intel_engines_cleanup() - free the resources allocated for Command Streamers
  * @i915: the i915 devic
@@ -413,6 +452,8 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
 
 	i915_check_and_clear_faults(i915);
+
+	intel_setup_engine_capabilities(i915);
 
 	return 0;
 

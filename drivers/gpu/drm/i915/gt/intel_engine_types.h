@@ -280,6 +280,8 @@ struct intel_engine_cs {
 	u32 context_size;
 	u32 mmio_base;
 
+	u32 uabi_capabilities;
+
 	struct intel_sseu sseu;
 
 	struct intel_ring *buffer;
