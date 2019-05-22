@@ -2533,8 +2533,6 @@ struct ppb_lock {
 	int locked;
 };
 
-#define MAX_SECTORS			512
-
 #define DO_XXLOCK_ONEBLOCK_LOCK		((void *)1)
 #define DO_XXLOCK_ONEBLOCK_UNLOCK	((void *)2)
 #define DO_XXLOCK_ONEBLOCK_GETLOCK	((void *)3)
@@ -2633,6 +2631,7 @@ static int __maybe_unused cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs,
 	int i;
 	int sectors;
 	int ret;
+	int max_sectors;
 
 	/*
 	 * PPB unlocking always unlocks all sectors of the flash chip.
@@ -2640,7 +2639,11 @@ static int __maybe_unused cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs,
 	 * first check the locking status of all sectors and save
 	 * it for future use.
 	 */
-	sect = kcalloc(MAX_SECTORS, sizeof(struct ppb_lock), GFP_KERNEL);
+	max_sectors = 0;
+	for (i = 0; i < mtd->numeraseregions; i++)
+		max_sectors += regions[i].numblocks;
+
+	sect = kcalloc(max_sectors, sizeof(struct ppb_lock), GFP_KERNEL);
 	if (!sect)
 		return -ENOMEM;
 
@@ -2689,9 +2692,9 @@ static int __maybe_unused cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs,
 		}
 
 		sectors++;
-		if (sectors >= MAX_SECTORS) {
+		if (sectors >= max_sectors) {
 			printk(KERN_ERR "Only %d sectors for PPB locking supported!\n",
-			       MAX_SECTORS);
+			       max_sectors);
 			kfree(sect);
 			return -EINVAL;
 		}
