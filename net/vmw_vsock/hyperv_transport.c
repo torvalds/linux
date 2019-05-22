@@ -55,8 +55,9 @@ struct hvs_recv_buf {
 };
 
 /* We can send up to HVS_MTU_SIZE bytes of payload to the host, but let's use
- * a small size, i.e. HVS_SEND_BUF_SIZE, to minimize the dynamically-allocated
- * buffer, because tests show there is no significant performance difference.
+ * a smaller size, i.e. HVS_SEND_BUF_SIZE, to maximize concurrency between the
+ * guest and the host processing as one VMBUS packet is the smallest processing
+ * unit.
  *
  * Note: the buffer can be eliminated in the future when we add new VMBus
  * ringbuffer APIs that allow us to directly copy data from userspace buffer
@@ -674,7 +675,9 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 	struct hvsock *hvs = vsk->trans;
 	struct vmbus_channel *chan = hvs->chan;
 	struct hvs_send_buf *send_buf;
-	ssize_t to_write, max_writable, ret;
+	ssize_t to_write, max_writable;
+	ssize_t ret = 0;
+	ssize_t bytes_written = 0;
 
 	BUILD_BUG_ON(sizeof(*send_buf) != PAGE_SIZE_4K);
 
@@ -682,20 +685,34 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 	if (!send_buf)
 		return -ENOMEM;
 
-	max_writable = hvs_channel_writable_bytes(chan);
-	to_write = min_t(ssize_t, len, max_writable);
-	to_write = min_t(ssize_t, to_write, HVS_SEND_BUF_SIZE);
+	/* Reader(s) could be draining data from the channel as we write.
+	 * Maximize bandwidth, by iterating until the channel is found to be
+	 * full.
+	 */
+	while (len) {
+		max_writable = hvs_channel_writable_bytes(chan);
+		if (!max_writable)
+			break;
+		to_write = min_t(ssize_t, len, max_writable);
+		to_write = min_t(ssize_t, to_write, HVS_SEND_BUF_SIZE);
+		/* memcpy_from_msg is safe for loop as it advances the offsets
+		 * within the message iterator.
+		 */
+		ret = memcpy_from_msg(send_buf->data, msg, to_write);
+		if (ret < 0)
+			goto out;
 
-	ret = memcpy_from_msg(send_buf->data, msg, to_write);
-	if (ret < 0)
-		goto out;
+		ret = hvs_send_data(hvs->chan, send_buf, to_write);
+		if (ret < 0)
+			goto out;
 
-	ret = hvs_send_data(hvs->chan, send_buf, to_write);
-	if (ret < 0)
-		goto out;
-
-	ret = to_write;
+		bytes_written += to_write;
+		len -= to_write;
+	}
 out:
+	/* If any data has been sent, return that */
+	if (bytes_written)
+		ret = bytes_written;
 	kfree(send_buf);
 	return ret;
 }
