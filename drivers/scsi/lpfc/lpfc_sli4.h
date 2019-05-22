@@ -845,6 +845,8 @@ struct lpfc_sli4_hba {
 	struct list_head lpfc_nvmet_sgl_list;
 	spinlock_t abts_nvmet_buf_list_lock; /* list of aborted NVMET IOs */
 	struct list_head lpfc_abts_nvmet_ctx_list;
+	spinlock_t t_active_list_lock; /* list of active NVMET IOs */
+	struct list_head t_active_ctx_list;
 	struct list_head lpfc_nvmet_io_wait_list;
 	struct lpfc_nvmet_ctx_info *nvmet_ctx_info;
 	struct lpfc_sglq **lpfc_sglq_active_list;

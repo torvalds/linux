@@ -6551,6 +6551,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		spin_lock_init(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_io_wait_list);
+		spin_lock_init(&phba->sli4_hba.t_active_list_lock);
+		INIT_LIST_HEAD(&phba->sli4_hba.t_active_ctx_list);
 	}
 
 	/* This abort list used by worker thread */
