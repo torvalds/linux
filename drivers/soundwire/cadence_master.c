@@ -487,7 +487,8 @@ static int cdns_update_slave_status(struct sdw_cdns *cdns,
 {
 	enum sdw_slave_status status[SDW_MAX_DEVICES + 1];
 	bool is_slave = false;
-	u64 slave, mask;
+	u64 slave;
+	u32 mask;
 	int i, set_status;
 
 	/* combine the two status */
@@ -527,7 +528,7 @@ static int cdns_update_slave_status(struct sdw_cdns *cdns,
 		if (set_status > 1) {
 			dev_warn_ratelimited(cdns->dev,
 					     "Slave reported multiple Status: %d\n",
-					     status[i]);
+					     mask);
 			/*
 			 * TODO: we need to reread the status here by
 			 * issuing a PING cmd
