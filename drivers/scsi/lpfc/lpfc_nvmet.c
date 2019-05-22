@@ -343,16 +343,23 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	}
 
 	if (ctxp->rqb_buffer) {
-		nvmebuf = ctxp->rqb_buffer;
 		spin_lock_irqsave(&ctxp->ctxlock, iflag);
-		ctxp->rqb_buffer = NULL;
-		if (ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) {
-			ctxp->flag &= ~LPFC_NVMET_CTX_REUSE_WQ;
-			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
-			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+		nvmebuf = ctxp->rqb_buffer;
+		/* check if freed in another path whilst acquiring lock */
+		if (nvmebuf) {
+			ctxp->rqb_buffer = NULL;
+			if (ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) {
+				ctxp->flag &= ~LPFC_NVMET_CTX_REUSE_WQ;
+				spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+				nvmebuf->hrq->rqbp->rqb_free_buffer(phba,
+								    nvmebuf);
+			} else {
+				spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+				/* repost */
+				lpfc_rq_buf_free(phba, &nvmebuf->hbuf);
+			}
 		} else {
 			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
-			lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
 		}
 	}
 	ctxp->state = LPFC_NVMET_STE_FREE;
