@@ -494,7 +494,7 @@ void intel_uc_runtime_suspend(struct drm_i915_private *i915)
 	struct intel_guc *guc = &i915->guc;
 	int err;
 
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+	if (!intel_guc_is_loaded(guc))
 		return;
 
 	err = intel_guc_suspend(guc);
@@ -509,7 +509,7 @@ void intel_uc_suspend(struct drm_i915_private *i915)
 	struct intel_guc *guc = &i915->guc;
 	intel_wakeref_t wakeref;
 
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+	if (!intel_guc_is_loaded(guc))
 		return;
 
 	with_intel_runtime_pm(i915, wakeref)
@@ -521,10 +521,7 @@ int intel_uc_resume(struct drm_i915_private *i915)
 	struct intel_guc *guc = &i915->guc;
 	int err;
 
-	if (!USES_GUC(i915))
-		return 0;
-
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+	if (!intel_guc_is_loaded(guc))
 		return 0;
 
 	guc_enable_communication(guc);
