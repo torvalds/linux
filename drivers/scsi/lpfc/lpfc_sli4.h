@@ -549,7 +549,9 @@ struct lpfc_vector_map_info {
 	uint16_t	irq;
 	uint16_t	eq;
 	uint16_t	hdwq;
-	uint16_t	hyper;
+	uint16_t	flag;
+#define LPFC_CPU_MAP_HYPER	0x1
+#define LPFC_CPU_MAP_UNASSIGN	0x2
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 

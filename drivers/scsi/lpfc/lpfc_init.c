@@ -10653,24 +10653,31 @@ lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
 static void
 lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 {
-	int i, cpu, idx;
+	int i, cpu, idx, new_cpu, start_cpu, first_cpu;
 	int max_phys_id, min_phys_id;
 	int max_core_id, min_core_id;
 	struct lpfc_vector_map_info *cpup;
+	struct lpfc_vector_map_info *new_cpup;
 	const struct cpumask *maskp;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
 
 	/* Init cpu_map array */
-	memset(phba->sli4_hba.cpu_map, 0xff,
-	       (sizeof(struct lpfc_vector_map_info) *
-	       phba->sli4_hba.num_possible_cpu));
+	for_each_possible_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+		cpup->phys_id = LPFC_VECTOR_MAP_EMPTY;
+		cpup->core_id = LPFC_VECTOR_MAP_EMPTY;
+		cpup->hdwq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->eq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->irq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->flag = 0;
+	}
 
 	max_phys_id = 0;
-	min_phys_id = 0xffff;
+	min_phys_id = LPFC_VECTOR_MAP_EMPTY;
 	max_core_id = 0;
-	min_core_id = 0xffff;
+	min_core_id = LPFC_VECTOR_MAP_EMPTY;
 
 	/* Update CPU map with physical id and core id of each CPU */
 	for_each_present_cpu(cpu) {
@@ -10679,13 +10686,12 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 		cpuinfo = &cpu_data(cpu);
 		cpup->phys_id = cpuinfo->phys_proc_id;
 		cpup->core_id = cpuinfo->cpu_core_id;
-		cpup->hyper = lpfc_find_hyper(phba, cpu,
-					      cpup->phys_id, cpup->core_id);
+		if (lpfc_find_hyper(phba, cpu, cpup->phys_id, cpup->core_id))
+			cpup->flag |= LPFC_CPU_MAP_HYPER;
 #else
 		/* No distinction between CPUs for other platforms */
 		cpup->phys_id = 0;
 		cpup->core_id = cpu;
-		cpup->hyper = 0;
 #endif
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -10711,6 +10717,12 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 		eqi->icnt = 0;
 	}
 
+	/* This loop sets up all CPUs that are affinitized with a
+	 * irq vector assigned to the driver. All affinitized CPUs
+	 * will get a link to that vectors IRQ and EQ. For now we
+	 * are assuming all CPUs using the same EQ will all share
+	 * the same hardware queue.
+	 */
 	for (idx = 0; idx <  phba->cfg_irq_chann; idx++) {
 		maskp = pci_irq_get_affinity(phba->pcidev, idx);
 		if (!maskp)
@@ -10726,6 +10738,119 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 					"3336 Set Affinity: CPU %d "
 					"hdwq %d irq %d\n",
 					cpu, cpup->hdwq, cpup->irq);
+		}
+	}
+
+	/* After looking at each irq vector assigned to this pcidev, its
+	 * possible to see that not ALL CPUs have been accounted for.
+	 * Next we will set any unassigned cpu map entries to a IRQ
+	 * on the same phys_id
+	 */
+	first_cpu = cpumask_first(cpu_present_mask);
+	start_cpu = first_cpu;
+
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* Is this CPU entry unassigned */
+		if (cpup->eq == LPFC_VECTOR_MAP_EMPTY) {
+			/* Mark CPU as IRQ not assigned by the kernel */
+			cpup->flag |= LPFC_CPU_MAP_UNASSIGN;
+
+			/* If so, find a new_cpup thats on the the same
+			 * phys_id as cpup. start_cpu will start where we
+			 * left off so all unassigned entries don't get assgined
+			 * the IRQ of the first entry.
+			 */
+			new_cpu = start_cpu;
+			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
+				    (new_cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
+				    (new_cpup->phys_id == cpup->phys_id))
+					goto found_same;
+				new_cpu = cpumask_next(
+					new_cpu, cpu_present_mask);
+				if (new_cpu == nr_cpumask_bits)
+					new_cpu = first_cpu;
+			}
+			/* At this point, we leave the CPU as unassigned */
+			continue;
+found_same:
+			/* We found a matching phys_id, so copy the IRQ info */
+			cpup->eq = new_cpup->eq;
+			cpup->hdwq = new_cpup->hdwq;
+			cpup->irq = new_cpup->irq;
+
+			/* Bump start_cpu to the next slot to minmize the
+			 * chance of having multiple unassigned CPU entries
+			 * selecting the same IRQ.
+			 */
+			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (start_cpu == nr_cpumask_bits)
+				start_cpu = first_cpu;
+
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3337 Set Affinity: CPU %d "
+					"hdwq %d irq %d from id %d same "
+					"phys_id (%d)\n",
+					cpu, cpup->hdwq, cpup->irq,
+					new_cpu, cpup->phys_id);
+		}
+	}
+
+	/* Set any unassigned cpu map entries to a IRQ on any phys_id */
+	start_cpu = first_cpu;
+
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* Is this entry unassigned */
+		if (cpup->eq == LPFC_VECTOR_MAP_EMPTY) {
+			/* Mark it as IRQ not assigned by the kernel */
+			cpup->flag |= LPFC_CPU_MAP_UNASSIGN;
+
+			/* If so, find a new_cpup thats on any phys_id
+			 * as the cpup. start_cpu will start where we
+			 * left off so all unassigned entries don't get
+			 * assigned the IRQ of the first entry.
+			 */
+			new_cpu = start_cpu;
+			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
+				    (new_cpup->irq != LPFC_VECTOR_MAP_EMPTY))
+					goto found_any;
+				new_cpu = cpumask_next(
+					new_cpu, cpu_present_mask);
+				if (new_cpu == nr_cpumask_bits)
+					new_cpu = first_cpu;
+			}
+			/* We should never leave an entry unassigned */
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3339 Set Affinity: CPU %d "
+					"hdwq %d irq %d UNASSIGNED\n",
+					cpu, cpup->hdwq, cpup->irq);
+			continue;
+found_any:
+			/* We found an available entry, copy the IRQ info */
+			cpup->eq = new_cpup->eq;
+			cpup->hdwq = new_cpup->hdwq;
+			cpup->irq = new_cpup->irq;
+
+			/* Bump start_cpu to the next slot to minmize the
+			 * chance of having multiple unassigned CPU entries
+			 * selecting the same IRQ.
+			 */
+			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (start_cpu == nr_cpumask_bits)
+				start_cpu = first_cpu;
+
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3338 Set Affinity: CPU %d "
+					"hdwq %d irq %d from id %d (%d/%d)\n",
+					cpu, cpup->hdwq, cpup->irq, new_cpu,
+					new_cpup->phys_id, new_cpup->core_id);
 		}
 	}
 	return;
