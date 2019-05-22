@@ -398,7 +398,6 @@
 384	i386	arch_prctl		sys_arch_prctl			__ia32_compat_sys_arch_prctl
 385	i386	io_pgetevents		sys_io_pgetevents_time32	__ia32_compat_sys_io_pgetevents
 386	i386	rseq			sys_rseq			__ia32_sys_rseq
-# don't use numbers 387 through 392, add new calls at the end
 393	i386	semget			sys_semget    			__ia32_sys_semget
 394	i386	semctl			sys_semctl    			__ia32_compat_sys_semctl
 395	i386	shmget			sys_shmget    			__ia32_sys_shmget
@@ -433,3 +432,9 @@
 425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
 426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
 427	i386	io_uring_register	sys_io_uring_register		__ia32_sys_io_uring_register
+428	i386	open_tree		sys_open_tree			__ia32_sys_open_tree
+429	i386	move_mount		sys_move_mount			__ia32_sys_move_mount
+430	i386	fsopen			sys_fsopen			__ia32_sys_fsopen
+431	i386	fsconfig		sys_fsconfig			__ia32_sys_fsconfig
+432	i386	fsmount			sys_fsmount			__ia32_sys_fsmount
+433	i386	fspick			sys_fspick			__ia32_sys_fspick

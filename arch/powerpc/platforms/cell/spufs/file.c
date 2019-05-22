@@ -588,7 +588,7 @@ static int spufs_pipe_open(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	file->private_data = i->i_ctx;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /*

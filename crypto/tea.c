@@ -274,7 +274,7 @@ MODULE_ALIAS_CRYPTO("tea");
 MODULE_ALIAS_CRYPTO("xtea");
 MODULE_ALIAS_CRYPTO("xeta");
 
-module_init(tea_mod_init);
+subsys_initcall(tea_mod_init);
 module_exit(tea_mod_fini);
 
 MODULE_LICENSE("GPL");

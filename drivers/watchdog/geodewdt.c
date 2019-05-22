@@ -92,7 +92,7 @@ static int geodewdt_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 
 	geodewdt_ping();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int geodewdt_release(struct inode *inode, struct file *file)

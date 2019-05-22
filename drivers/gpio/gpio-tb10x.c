@@ -120,7 +120,6 @@ static irqreturn_t tb10x_gpio_irq_cascade(int irq, void *data)
 static int tb10x_gpio_probe(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio;
-	struct resource *mem;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	int ret = -EBUSY;
@@ -136,8 +135,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (tb10x_gpio == NULL)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tb10x_gpio->base = devm_ioremap_resource(dev, mem);
+	tb10x_gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tb10x_gpio->base))
 		return PTR_ERR(tb10x_gpio->base);
 

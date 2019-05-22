@@ -101,7 +101,7 @@ static int iop_wdt_open(struct inode *inode, struct file *file)
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 	wdt_enable();
 	set_bit(WDT_ENABLED, &wdt_status);
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static ssize_t iop_wdt_write(struct file *file, const char *data, size_t len,

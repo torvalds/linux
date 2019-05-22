@@ -23,6 +23,8 @@
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/uuid.h>
+
 #include "jfs_types.h"
 #include "jfs_xtree.h"
 #include "jfs_dtree.h"
@@ -178,8 +180,8 @@ struct jfs_sb_info {
 	pxd_t		logpxd;		/* pxd describing log	*/
 	pxd_t		fsckpxd;	/* pxd describing fsck wkspc */
 	pxd_t		ait2;		/* pxd describing AIT copy	*/
-	char		uuid[16];	/* 128-bit uuid for volume	*/
-	char		loguuid[16];	/* 128-bit uuid for log	*/
+	uuid_t		uuid;		/* 128-bit uuid for volume	*/
+	uuid_t		loguuid;	/* 128-bit uuid for log	*/
 	/*
 	 * commit_state is used for synchronization of the jfs_commit
 	 * threads.  It is protected by LAZY_LOCK().

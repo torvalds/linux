@@ -304,7 +304,6 @@ void drbd_csum_ee(struct crypto_shash *tfm, struct drbd_peer_request *peer_req, 
 	void *src;
 
 	desc->tfm = tfm;
-	desc->flags = 0;
 
 	crypto_shash_init(desc);
 
@@ -332,7 +331,6 @@ void drbd_csum_bio(struct crypto_shash *tfm, struct bio *bio, void *digest)
 	struct bvec_iter iter;
 
 	desc->tfm = tfm;
-	desc->flags = 0;
 
 	crypto_shash_init(desc);
 

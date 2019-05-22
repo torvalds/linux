@@ -24,7 +24,7 @@
 #include <linux/export.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
 #include "pci.h"

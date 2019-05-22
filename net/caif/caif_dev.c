@@ -186,15 +186,19 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 		goto noxoff;
 
 	if (likely(!netif_queue_stopped(caifd->netdev))) {
+		struct Qdisc *sch;
+
 		/* If we run with a TX queue, check if the queue is too long*/
 		txq = netdev_get_tx_queue(skb->dev, 0);
-		qlen = qdisc_qlen(rcu_dereference_bh(txq->qdisc));
-
-		if (likely(qlen == 0))
+		sch = rcu_dereference_bh(txq->qdisc);
+		if (likely(qdisc_is_empty(sch)))
 			goto noxoff;
 
+		/* can check for explicit qdisc len value only !NOLOCK,
+		 * always set flow off otherwise
+		 */
 		high = (caifd->netdev->tx_queue_len * q_high) / 100;
-		if (likely(qlen < high))
+		if (!(sch->flags & TCQ_F_NOLOCK) && likely(sch->q.qlen < high))
 			goto noxoff;
 	}
 

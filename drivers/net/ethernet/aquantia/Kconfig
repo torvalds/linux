@@ -17,7 +17,8 @@ if NET_VENDOR_AQUANTIA
 
 config AQTION
 	tristate "aQuantia AQtion(tm) Support"
-	depends on PCI && X86_64
+	depends on PCI
+	depends on X86_64 || ARM64 || COMPILE_TEST
 	---help---
 	  This enables the support for the aQuantia AQtion(tm) Ethernet card.
 

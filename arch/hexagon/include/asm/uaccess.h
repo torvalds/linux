@@ -24,7 +24,6 @@
  * User space memory access functions
  */
 #include <linux/mm.h>
-#include <asm/segment.h>
 #include <asm/sections.h>
 
 /*

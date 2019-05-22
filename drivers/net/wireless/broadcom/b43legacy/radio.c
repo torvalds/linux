@@ -95,7 +95,6 @@ void b43legacy_radio_lock(struct b43legacy_wldev *dev)
 	B43legacy_WARN_ON(status & B43legacy_MACCTL_RADIOLOCK);
 	status |= B43legacy_MACCTL_RADIOLOCK;
 	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
-	mmiowb();
 	udelay(10);
 }
 
@@ -108,7 +107,6 @@ void b43legacy_radio_unlock(struct b43legacy_wldev *dev)
 	B43legacy_WARN_ON(!(status & B43legacy_MACCTL_RADIOLOCK));
 	status &= ~B43legacy_MACCTL_RADIOLOCK;
 	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
-	mmiowb();
 }
 
 u16 b43legacy_radio_read16(struct b43legacy_wldev *dev, u16 offset)
@@ -141,7 +139,6 @@ u16 b43legacy_radio_read16(struct b43legacy_wldev *dev, u16 offset)
 void b43legacy_radio_write16(struct b43legacy_wldev *dev, u16 offset, u16 val)
 {
 	b43legacy_write16(dev, B43legacy_MMIO_RADIO_CONTROL, offset);
-	mmiowb();
 	b43legacy_write16(dev, B43legacy_MMIO_RADIO_DATA_LOW, val);
 }
 
@@ -333,7 +330,6 @@ u8 b43legacy_radio_aci_scan(struct b43legacy_wldev *dev)
 void b43legacy_nrssi_hw_write(struct b43legacy_wldev *dev, u16 offset, s16 val)
 {
 	b43legacy_phy_write(dev, B43legacy_PHY_NRSSILT_CTRL, offset);
-	mmiowb();
 	b43legacy_phy_write(dev, B43legacy_PHY_NRSSILT_DATA, (u16)val);
 }
 

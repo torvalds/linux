@@ -1301,12 +1301,6 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		return put_user(amount, (unsigned int __user *) argp);
 	}
 
-	case SIOCGSTAMP:
-		return sock_get_timestamp(sk, (struct timeval __user *) argp);
-
-	case SIOCGSTAMPNS:
-		return sock_get_timestampns(sk, (struct timespec __user *) argp);
-
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
 	case SIOCGIFDSTADDR:
@@ -1474,6 +1468,7 @@ static const struct proto_ops rose_proto_ops = {
 	.getname	=	rose_getname,
 	.poll		=	datagram_poll,
 	.ioctl		=	rose_ioctl,
+	.gettstamp	=	sock_gettstamp,
 	.listen		=	rose_listen,
 	.shutdown	=	sock_no_shutdown,
 	.setsockopt	=	rose_setsockopt,

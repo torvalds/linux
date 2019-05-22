@@ -3171,6 +3171,9 @@ static __init int nfit_test_init(void)
 	acpi_nfit_test();
 	device_dax_test();
 	mcsafe_test();
+	dax_pmem_test();
+	dax_pmem_core_test();
+	dax_pmem_compat_test();
 
 	nfit_test_setup(nfit_test_lookup, nfit_test_evaluate_dsm);
 

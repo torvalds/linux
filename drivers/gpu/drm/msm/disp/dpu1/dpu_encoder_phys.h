@@ -200,6 +200,7 @@ struct dpu_encoder_irq {
  * @hw_mdptop:		Hardware interface to the top registers
  * @hw_ctl:		Hardware interface to the ctl registers
  * @hw_pp:		Hardware interface to the ping pong registers
+ * @hw_intf:		Hardware interface to the intf registers
  * @dpu_kms:		Pointer to the dpu_kms top level
  * @cached_mode:	DRM mode cached at mode_set time, acted on in enable
  * @enabled:		Whether the encoder has enabled and running a mode
@@ -228,6 +229,7 @@ struct dpu_encoder_phys {
 	struct dpu_hw_mdp *hw_mdptop;
 	struct dpu_hw_ctl *hw_ctl;
 	struct dpu_hw_pingpong *hw_pp;
+	struct dpu_hw_intf *hw_intf;
 	struct dpu_kms *dpu_kms;
 	struct drm_display_mode cached_mode;
 	enum dpu_enc_split_role split_role;
@@ -249,19 +251,6 @@ static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)
 	atomic_inc_return(&phys->pending_ctlstart_cnt);
 	return atomic_inc_return(&phys->pending_kickoff_cnt);
 }
-
-/**
- * struct dpu_encoder_phys_vid - sub-class of dpu_encoder_phys to handle video
- *	mode specific operations
- * @base:	Baseclass physical encoder structure
- * @hw_intf:	Hardware interface to the intf registers
- * @timing_params: Current timing parameter
- */
-struct dpu_encoder_phys_vid {
-	struct dpu_encoder_phys base;
-	struct dpu_hw_intf *hw_intf;
-	struct intf_timing_params timing_params;
-};
 
 /**
  * struct dpu_encoder_phys_cmd - sub-class of dpu_encoder_phys to handle command

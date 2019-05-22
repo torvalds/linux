@@ -144,21 +144,21 @@ fsl_edma_irq_init(struct platform_device *pdev, struct fsl_edma_engine *fsl_edma
 				fsl_edma_irq_handler, 0, "eDMA", fsl_edma);
 		if (ret) {
 			dev_err(&pdev->dev, "Can't register eDMA IRQ.\n");
-			 return  ret;
+			return ret;
 		}
 	} else {
 		ret = devm_request_irq(&pdev->dev, fsl_edma->txirq,
 				fsl_edma_tx_handler, 0, "eDMA tx", fsl_edma);
 		if (ret) {
 			dev_err(&pdev->dev, "Can't register eDMA tx IRQ.\n");
-			return  ret;
+			return ret;
 		}
 
 		ret = devm_request_irq(&pdev->dev, fsl_edma->errirq,
 				fsl_edma_err_handler, 0, "eDMA err", fsl_edma);
 		if (ret) {
 			dev_err(&pdev->dev, "Can't register eDMA err IRQ.\n");
-			return  ret;
+			return ret;
 		}
 	}
 

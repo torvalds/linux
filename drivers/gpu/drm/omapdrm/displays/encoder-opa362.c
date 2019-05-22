@@ -41,48 +41,20 @@ static void opa362_disconnect(struct omap_dss_device *src,
 	omapdss_device_disconnect(dst, dst->next);
 }
 
-static int opa362_enable(struct omap_dss_device *dssdev)
+static void opa362_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	dev_dbg(dssdev->dev, "enable\n");
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
 
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 1);
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
 }
 
 static void opa362_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	dev_dbg(dssdev->dev, "disable\n");
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
 
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
-
-	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static const struct omap_dss_device_ops opa362_ops = {
@@ -116,7 +88,6 @@ static int opa362_probe(struct platform_device *pdev)
 	dssdev->ops = &opa362_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
-	dssdev->output_type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(1) | BIT(0);
 
@@ -141,13 +112,7 @@ static int __exit opa362_remove(struct platform_device *pdev)
 		omapdss_device_put(dssdev->next);
 	omapdss_device_unregister(&ddata->dssdev);
 
-	WARN_ON(omapdss_device_is_enabled(dssdev));
-	if (omapdss_device_is_enabled(dssdev))
-		opa362_disable(dssdev);
-
-	WARN_ON(omapdss_device_is_connected(dssdev));
-	if (omapdss_device_is_connected(dssdev))
-		omapdss_device_disconnect(NULL, dssdev);
+	opa362_disable(dssdev);
 
 	return 0;
 }

@@ -39,6 +39,14 @@
 #include <linux/spi/spi_bitbang.h>
 #include <linux/types.h>
 
+#ifdef CONFIG_FSL_SOC
+#include <sysdev/fsl_soc.h>
+#endif
+
+/* Specific to the MPC8306/MPC8309 */
+#define IMMR_SPI_CS_OFFSET 0x14c
+#define SPI_BOOT_SEL_BIT   0x80000000
+
 #include "spi-fsl-lib.h"
 #include "spi-fsl-cpm.h"
 #include "spi-fsl-spi.h"
@@ -355,33 +363,50 @@ static int fsl_spi_bufs(struct spi_device *spi, struct spi_transfer *t,
 static int fsl_spi_do_one_msg(struct spi_master *master,
 			      struct spi_message *m)
 {
+	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
 	struct spi_device *spi = m->spi;
 	struct spi_transfer *t, *first;
 	unsigned int cs_change;
 	const int nsecs = 50;
-	int status;
+	int status, last_bpw;
+
+	/*
+	 * In CPU mode, optimize large byte transfers to use larger
+	 * bits_per_word values to reduce number of interrupts taken.
+	 */
+	if (!(mpc8xxx_spi->flags & SPI_CPM_MODE)) {
+		list_for_each_entry(t, &m->transfers, transfer_list) {
+			if (t->len < 256 || t->bits_per_word != 8)
+				continue;
+			if ((t->len & 3) == 0)
+				t->bits_per_word = 32;
+			else if ((t->len & 1) == 0)
+				t->bits_per_word = 16;
+		}
+	}
 
 	/* Don't allow changes if CS is active */
-	first = list_first_entry(&m->transfers, struct spi_transfer,
-			transfer_list);
+	cs_change = 1;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if ((first->bits_per_word != t->bits_per_word) ||
-			(first->speed_hz != t->speed_hz)) {
+		if (cs_change)
+			first = t;
+		cs_change = t->cs_change;
+		if (first->speed_hz != t->speed_hz) {
 			dev_err(&spi->dev,
-				"bits_per_word/speed_hz should be same for the same SPI transfer\n");
+				"speed_hz cannot change while CS is active\n");
 			return -EINVAL;
 		}
 	}
 
+	last_bpw = -1;
 	cs_change = 1;
 	status = -EINVAL;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->bits_per_word || t->speed_hz) {
-			if (cs_change)
-				status = fsl_spi_setup_transfer(spi, t);
-			if (status < 0)
-				break;
-		}
+		if (cs_change || last_bpw != t->bits_per_word)
+			status = fsl_spi_setup_transfer(spi, t);
+		if (status < 0)
+			break;
+		last_bpw = t->bits_per_word;
 
 		if (cs_change) {
 			fsl_spi_chipselect(spi, BITBANG_CS_ACTIVE);
@@ -701,10 +726,17 @@ static void fsl_spi_cs_control(struct spi_device *spi, bool on)
 	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
 	u16 cs = spi->chip_select;
-	int gpio = pinfo->gpios[cs];
-	bool alow = pinfo->alow_flags[cs];
 
-	gpio_set_value(gpio, on ^ alow);
+	if (cs < pinfo->ngpios) {
+		int gpio = pinfo->gpios[cs];
+		bool alow = pinfo->alow_flags[cs];
+
+		gpio_set_value(gpio, on ^ alow);
+	} else {
+		if (WARN_ON_ONCE(cs > pinfo->ngpios || !pinfo->immr_spi_cs))
+			return;
+		iowrite32be(on ? SPI_BOOT_SEL_BIT : 0, pinfo->immr_spi_cs);
+	}
 }
 
 static int of_fsl_spi_get_chipselects(struct device *dev)
@@ -712,12 +744,15 @@ static int of_fsl_spi_get_chipselects(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
 	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
+	bool spisel_boot = IS_ENABLED(CONFIG_FSL_SOC) &&
+		of_property_read_bool(np, "fsl,spisel_boot");
 	int ngpios;
 	int i = 0;
 	int ret;
 
 	ngpios = of_gpio_count(np);
-	if (ngpios <= 0) {
+	ngpios = max(ngpios, 0);
+	if (ngpios == 0 && !spisel_boot) {
 		/*
 		 * SPI w/o chip-select line. One SPI device is still permitted
 		 * though.
@@ -726,6 +761,7 @@ static int of_fsl_spi_get_chipselects(struct device *dev)
 		return 0;
 	}
 
+	pinfo->ngpios = ngpios;
 	pinfo->gpios = kmalloc_array(ngpios, sizeof(*pinfo->gpios),
 				     GFP_KERNEL);
 	if (!pinfo->gpios)
@@ -769,7 +805,18 @@ static int of_fsl_spi_get_chipselects(struct device *dev)
 		}
 	}
 
-	pdata->max_chipselect = ngpios;
+#if IS_ENABLED(CONFIG_FSL_SOC)
+	if (spisel_boot) {
+		pinfo->immr_spi_cs = ioremap(get_immrbase() + IMMR_SPI_CS_OFFSET, 4);
+		if (!pinfo->immr_spi_cs) {
+			ret = -ENOMEM;
+			i = ngpios - 1;
+			goto err_loop;
+		}
+	}
+#endif
+
+	pdata->max_chipselect = ngpios + spisel_boot;
 	pdata->cs_control = fsl_spi_cs_control;
 
 	return 0;

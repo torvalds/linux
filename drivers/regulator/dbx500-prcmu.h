@@ -15,18 +15,14 @@
 
 /**
  * struct dbx500_regulator_info - dbx500 regulator information
- * @dev: device pointer
  * @desc: regulator description
- * @rdev: regulator device pointer
  * @is_enabled: status of the regulator
  * @epod_id: id for EPOD (power domain)
  * @is_ramret: RAM retention switch for EPOD (power domain)
  *
  */
 struct dbx500_regulator_info {
-	struct device *dev;
 	struct regulator_desc desc;
-	struct regulator_dev *rdev;
 	bool is_enabled;
 	u16 epod_id;
 	bool is_ramret;

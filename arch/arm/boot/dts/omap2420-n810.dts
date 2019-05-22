@@ -48,7 +48,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&aic33_pins>;
 
-		gpio-reset = <&gpio4 22 GPIO_ACTIVE_LOW>; /* gpio118 */
+		reset-gpios = <&gpio4 22 GPIO_ACTIVE_LOW>; /* gpio118 */
 
 		ai3x-gpio-func = <
 			10 /* AIC3X_GPIO1_FUNC_DIGITAL_MIC_MODCLK */

@@ -1,32 +1,20 @@
-==========================
-drm/tinydrm Driver library
-==========================
+============================
+drm/tinydrm Tiny DRM drivers
+============================
 
-.. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-core.c
-   :doc: overview
+tinydrm is a collection of DRM drivers that are so small they can fit in a
+single source file.
 
-Core functionality
-==================
-
-.. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-core.c
-   :doc: core
-
-.. kernel-doc:: include/drm/tinydrm/tinydrm.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-core.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-pipe.c
-   :export:
-
-Additional helpers
-==================
+Helpers
+=======
 
 .. kernel-doc:: include/drm/tinydrm/tinydrm-helpers.h
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-helpers.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-pipe.c
    :export:
 
 MIPI DBI Compatible Controllers

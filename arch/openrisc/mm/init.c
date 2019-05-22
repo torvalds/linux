@@ -32,7 +32,6 @@
 #include <linux/blkdev.h>	/* for initrd_* */
 #include <linux/pagemap.h>
 
-#include <asm/segment.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/dma.h>
@@ -222,16 +221,4 @@ void __init mem_init(void)
 	printk("mem_init_done ...........................................\n");
 	mem_init_done = 1;
 	return;
-}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-#endif
-
-void free_initmem(void)
-{
-	free_initmem_default(-1);
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef __ASM_NDS32_IO_H
@@ -54,8 +54,6 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 
 #define __iormb()               rmb()
 #define __iowmb()               wmb()
-
-#define mmiowb()        __asm__ __volatile__ ("msync all" : : : "memory");
 
 /*
  * {read,write}{b,w,l,q}_relaxed() are like the regular version, but

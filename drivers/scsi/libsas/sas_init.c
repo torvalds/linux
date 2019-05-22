@@ -87,25 +87,27 @@ EXPORT_SYMBOL_GPL(sas_free_task);
 /*------------ SAS addr hash -----------*/
 void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 {
-        const u32 poly = 0x00DB2777;
-        u32     r = 0;
-        int     i;
+	const u32 poly = 0x00DB2777;
+	u32 r = 0;
+	int i;
 
-        for (i = 0; i < 8; i++) {
-                int b;
-                for (b = 7; b >= 0; b--) {
-                        r <<= 1;
-                        if ((1 << b) & sas_addr[i]) {
-                                if (!(r & 0x01000000))
-                                        r ^= poly;
-                        } else if (r & 0x01000000)
-                                r ^= poly;
-                }
-        }
+	for (i = 0; i < SAS_ADDR_SIZE; i++) {
+		int b;
 
-        hashed[0] = (r >> 16) & 0xFF;
-        hashed[1] = (r >> 8) & 0xFF ;
-        hashed[2] = r & 0xFF;
+		for (b = (SAS_ADDR_SIZE - 1); b >= 0; b--) {
+			r <<= 1;
+			if ((1 << b) & sas_addr[i]) {
+				if (!(r & 0x01000000))
+					r ^= poly;
+			} else if (r & 0x01000000) {
+				r ^= poly;
+			}
+		}
+	}
+
+	hashed[0] = (r >> 16) & 0xFF;
+	hashed[1] = (r >> 8) & 0xFF;
+	hashed[2] = r & 0xFF;
 }
 
 int sas_register_ha(struct sas_ha_struct *sas_ha)
@@ -623,7 +625,7 @@ struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy)
 	if (atomic_read(&phy->event_nr) > phy->ha->event_thres) {
 		if (i->dft->lldd_control_phy) {
 			if (cmpxchg(&phy->in_shutdown, 0, 1) == 0) {
-				pr_notice("The phy%02d bursting events, shut it down.\n",
+				pr_notice("The phy%d bursting events, shut it down.\n",
 					  phy->id);
 				sas_notify_phy_event(phy, PHYE_SHUTDOWN);
 			}

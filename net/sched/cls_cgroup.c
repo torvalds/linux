@@ -32,6 +32,8 @@ static int cls_cgroup_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	struct cls_cgroup_head *head = rcu_dereference_bh(tp->root);
 	u32 classid = task_get_classid(skb);
 
+	if (unlikely(!head))
+		return -1;
 	if (!classid)
 		return -1;
 	if (!tcf_em_tree_match(skb, &head->ematches, NULL))
@@ -104,8 +106,9 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 	new->handle = handle;
 	new->tp = tp;
-	err = nla_parse_nested(tb, TCA_CGROUP_MAX, tca[TCA_OPTIONS],
-			       cgroup_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_CGROUP_MAX,
+					  tca[TCA_OPTIONS], cgroup_policy,
+					  NULL);
 	if (err < 0)
 		goto errout;
 
@@ -176,7 +179,7 @@ static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = head->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

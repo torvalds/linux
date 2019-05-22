@@ -105,7 +105,7 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 	u64 vsid, vsidkey;
 	int psize, ssize;
 
-	switch (REGION_ID(ea)) {
+	switch (get_region_id(ea)) {
 	case USER_REGION_ID:
 		pr_devel("%s: 0x%llx -- USER_REGION_ID\n", __func__, ea);
 		if (mm == NULL)
@@ -117,16 +117,20 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 		break;
 	case VMALLOC_REGION_ID:
 		pr_devel("%s: 0x%llx -- VMALLOC_REGION_ID\n", __func__, ea);
-		if (ea < VMALLOC_END)
-			psize = mmu_vmalloc_psize;
-		else
-			psize = mmu_io_psize;
+		psize = mmu_vmalloc_psize;
 		ssize = mmu_kernel_ssize;
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
 		vsidkey = SLB_VSID_KERNEL;
 		break;
-	case KERNEL_REGION_ID:
-		pr_devel("%s: 0x%llx -- KERNEL_REGION_ID\n", __func__, ea);
+	case IO_REGION_ID:
+		pr_devel("%s: 0x%llx -- IO_REGION_ID\n", __func__, ea);
+		psize = mmu_io_psize;
+		ssize = mmu_kernel_ssize;
+		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
+		vsidkey = SLB_VSID_KERNEL;
+		break;
+	case LINEAR_MAP_REGION_ID:
+		pr_devel("%s: 0x%llx -- LINEAR_MAP_REGION_ID\n", __func__, ea);
 		psize = mmu_linear_psize;
 		ssize = mmu_kernel_ssize;
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);

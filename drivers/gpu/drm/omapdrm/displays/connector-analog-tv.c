@@ -35,50 +35,9 @@ static void tvc_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int tvc_enable(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	dev_dbg(ddata->dev, "enable\n");
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return r;
-}
-
-static void tvc_disable(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	dev_dbg(ddata->dev, "disable\n");
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
-	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
-}
-
 static const struct omap_dss_device_ops tvc_ops = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
-
-	.enable			= tvc_enable,
-	.disable		= tvc_disable,
 };
 
 static int tvc_probe(struct platform_device *pdev)
@@ -97,6 +56,7 @@ static int tvc_probe(struct platform_device *pdev)
 	dssdev->ops = &tvc_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
 
@@ -109,11 +69,8 @@ static int tvc_probe(struct platform_device *pdev)
 static int __exit tvc_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *dssdev = &ddata->dssdev;
 
 	omapdss_device_unregister(&ddata->dssdev);
-
-	tvc_disable(dssdev);
 
 	return 0;
 }

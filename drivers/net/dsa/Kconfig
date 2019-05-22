@@ -41,7 +41,7 @@ config NET_DSA_MT7530
 
 config NET_DSA_MV88E6060
 	tristate "Marvell 88E6060 ethernet switch chip support"
-	depends on NET_DSA && NET_DSA_LEGACY
+	depends on NET_DSA
 	select NET_DSA_TAG_TRAILER
 	---help---
 	  This enables support for the Marvell 88E6060 ethernet switch
@@ -50,6 +50,8 @@ config NET_DSA_MV88E6060
 source "drivers/net/dsa/microchip/Kconfig"
 
 source "drivers/net/dsa/mv88e6xxx/Kconfig"
+
+source "drivers/net/dsa/sja1105/Kconfig"
 
 config NET_DSA_QCA8K
 	tristate "Qualcomm Atheros QCA8K Ethernet switch family support"

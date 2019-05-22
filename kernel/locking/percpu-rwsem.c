@@ -7,6 +7,8 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 
+#include "rwsem.h"
+
 int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
 			const char *name, struct lock_class_key *rwsem_key)
 {

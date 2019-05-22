@@ -9,6 +9,7 @@
 
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 
 #include <loongson1.h>
 #include "clk.h"

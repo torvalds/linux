@@ -90,7 +90,6 @@ static int get_e820_md5(struct e820_table *table, void *buf)
 	}
 
 	desc->tfm = tfm;
-	desc->flags = 0;
 
 	size = offsetof(struct e820_table, entries) +
 		sizeof(struct e820_entry) * table->nr_entries;

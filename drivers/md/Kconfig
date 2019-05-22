@@ -436,6 +436,15 @@ config DM_DELAY
 
 	If unsure, say N.
 
+config DM_DUST
+	tristate "Bad sector simulation target"
+	depends on BLK_DEV_DM
+	---help---
+	A target that simulates bad sector behavior.
+	Useful for testing.
+
+	If unsure, say N.
+
 config DM_INIT
 	bool "DM \"dm-mod.create=\" parameter support"
 	depends on BLK_DEV_DM=y

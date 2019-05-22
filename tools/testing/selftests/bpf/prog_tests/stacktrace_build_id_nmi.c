@@ -1,13 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
+static __u64 read_perf_max_sample_freq(void)
+{
+	__u64 sample_freq = 5000; /* fallback to 5000 on error */
+	FILE *f;
+
+	f = fopen("/proc/sys/kernel/perf_event_max_sample_rate", "r");
+	if (f == NULL)
+		return sample_freq;
+	fscanf(f, "%llu", &sample_freq);
+	fclose(f);
+	return sample_freq;
+}
+
 void test_stacktrace_build_id_nmi(void)
 {
 	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
 	const char *file = "./test_stacktrace_build_id.o";
 	int err, pmu_fd, prog_fd;
 	struct perf_event_attr attr = {
-		.sample_freq = 5000,
 		.freq = 1,
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
@@ -19,6 +31,8 @@ void test_stacktrace_build_id_nmi(void)
 	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
 	int build_id_matches = 0;
 	int retry = 1;
+
+	attr.sample_freq = read_perf_max_sample_freq();
 
 retry:
 	err = bpf_prog_load(file, BPF_PROG_TYPE_PERF_EVENT, &obj, &prog_fd);

@@ -57,11 +57,6 @@ struct nonnull_arg_data {
 	int arg_index;
 };
 
-struct vla_bound_data {
-	struct source_location location;
-	struct type_descriptor *type;
-};
-
 struct out_of_bounds_data {
 	struct source_location location;
 	struct type_descriptor *array_type;

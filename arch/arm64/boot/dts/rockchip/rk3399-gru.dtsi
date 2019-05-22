@@ -676,29 +676,29 @@ ap_i2c_audio: &i2c8 {
 
 	backlight-enable {
 		bl_en: bl-en {
-			rockchip,pins = <1 17 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	cros-ec {
 		ec_ap_int_l: ec-ap-int-l {
-			rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	discrete-regulators {
 		sd_io_pwr_en: sd-io-pwr-en {
-			rockchip,pins = <RK_GPIO2 2 RK_FUNC_GPIO
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 
 		sd_pwr_1800_sel: sd-pwr-1800-sel {
-			rockchip,pins = <RK_GPIO2 28 RK_FUNC_GPIO
+			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 
 		sd_slot_pwr_en: sd-slot-pwr-en {
-			rockchip,pins = <RK_GPIO4 29 RK_FUNC_GPIO
+			rockchip,pins = <4 RK_PD5 RK_FUNC_GPIO
 					 &pcfg_pull_none>;
 		};
 	};
@@ -706,17 +706,17 @@ ap_i2c_audio: &i2c8 {
 	codec {
 		/* Has external pullup */
 		headset_int_l: headset-int-l {
-			rockchip,pins = <1 23 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		mic_int: mic-int {
-			rockchip,pins = <1 13 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	max98357a {
 		sdmode_en: sdmode-en {
-			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -727,7 +727,7 @@ ap_i2c_audio: &i2c8 {
 			 * to hack this as gpio, so the EP could be able to
 			 * de-assert it along and make ClockPM(CPM) work.
 			 */
-			rockchip,pins = <2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -738,20 +738,20 @@ ap_i2c_audio: &i2c8 {
 		 */
 		sdmmc_bus4: sdmmc-bus4 {
 			rockchip,pins =
-				<4 8 RK_FUNC_1 &pcfg_pull_none_8ma>,
-				<4 9 RK_FUNC_1 &pcfg_pull_none_8ma>,
-				<4 10 RK_FUNC_1 &pcfg_pull_none_8ma>,
-				<4 11 RK_FUNC_1 &pcfg_pull_none_8ma>;
+				<4 RK_PB0 1 &pcfg_pull_none_8ma>,
+				<4 RK_PB1 1 &pcfg_pull_none_8ma>,
+				<4 RK_PB2 1 &pcfg_pull_none_8ma>,
+				<4 RK_PB3 1 &pcfg_pull_none_8ma>;
 		};
 
 		sdmmc_clk: sdmmc-clk {
 			rockchip,pins =
-				<4 12 RK_FUNC_1 &pcfg_pull_none_8ma>;
+				<4 RK_PB4 1 &pcfg_pull_none_8ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
 			rockchip,pins =
-				<4 13 RK_FUNC_1 &pcfg_pull_none_8ma>;
+				<4 RK_PB5 1 &pcfg_pull_none_8ma>;
 		};
 
 		/*
@@ -765,12 +765,12 @@ ap_i2c_audio: &i2c8 {
 		 */
 		sdmmc_cd: sdmmc-cd {
 			rockchip,pins =
-				<0 7 RK_FUNC_1 &pcfg_pull_none>;
+				<0 RK_PA7 1 &pcfg_pull_none>;
 		};
 
 		/* This is where we actually hook up CD; has external pull */
 		sdmmc_cd_gpio: sdmmc-cd-gpio {
-			rockchip,pins = <4 24 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -780,47 +780,47 @@ ap_i2c_audio: &i2c8 {
 			 * Pull down SPI1 CLK/CS/RX/TX during suspend, to
 			 * prevent leakage.
 			 */
-			rockchip,pins = <1 9 RK_FUNC_GPIO &pcfg_pull_down>,
-					<1 10 RK_FUNC_GPIO &pcfg_pull_down>,
-					<1 7 RK_FUNC_GPIO &pcfg_pull_down>,
-					<1 8 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>,
+					<1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>,
+					<1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_down>,
+					<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
 	touchscreen {
 		touch_int_l: touch-int-l {
-			rockchip,pins = <3 13 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		touch_reset_l: touch-reset-l {
-			rockchip,pins = <4 26 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	trackpad {
 		ap_i2c_tp_pu_en: ap-i2c-tp-pu-en {
-			rockchip,pins = <3 12 RK_FUNC_GPIO &pcfg_output_high>;
+			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 
 		trackpad_int_l: trackpad-int-l {
-			rockchip,pins = <1 4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	wifi: wifi {
 		wlan_module_reset_l: wlan-module-reset-l {
-			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
 			/* Kevin has an external pull up, but Gru does not */
-			rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	write-protect {
 		ap_fw_wp: ap-fw-wp {
-			rockchip,pins = <1 18 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

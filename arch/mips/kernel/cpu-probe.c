@@ -1973,6 +1973,14 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		panic("Unknown Ingenic Processor ID!");
 		break;
 	}
+
+	/*
+	 * The config0 register in the Xburst CPUs with a processor ID of
+	 * PRID_COMP_INGENIC_D0 report themselves as MIPS32r2 compatible,
+	 * but they don't actually support this ISA.
+	 */
+	if ((c->processor_id & PRID_COMP_MASK) == PRID_COMP_INGENIC_D0)
+		c->isa_level &= ~MIPS_CPU_ISA_M32R2;
 }
 
 static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)

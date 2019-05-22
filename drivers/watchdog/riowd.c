@@ -76,7 +76,7 @@ static void riowd_writereg(struct riowd *p, u8 val, int index)
 
 static int riowd_open(struct inode *inode, struct file *filp)
 {
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 	return 0;
 }
 

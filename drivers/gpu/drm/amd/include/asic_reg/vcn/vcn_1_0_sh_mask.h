@@ -312,6 +312,11 @@
 //UVD_GPCOM_VCPU_DATA1
 #define UVD_GPCOM_VCPU_DATA1__DATA1__SHIFT                                                                    0x0
 #define UVD_GPCOM_VCPU_DATA1__DATA1_MASK                                                                      0xFFFFFFFFL
+//UVD_ENGINE_CNTL
+#define UVD_ENGINE_CNTL__ENGINE_START_MASK 0x1
+#define UVD_ENGINE_CNTL__ENGINE_START__SHIFT 0x0
+#define UVD_ENGINE_CNTL__ENGINE_START_MODE_MASK 0x2
+#define UVD_ENGINE_CNTL__ENGINE_START_MODE__SHIFT 0x1
 //UVD_UDEC_DBW_UV_ADDR_CONFIG
 #define UVD_UDEC_DBW_UV_ADDR_CONFIG__NUM_PIPES__SHIFT                                                         0x0
 #define UVD_UDEC_DBW_UV_ADDR_CONFIG__PIPE_INTERLEAVE_SIZE__SHIFT                                              0x3

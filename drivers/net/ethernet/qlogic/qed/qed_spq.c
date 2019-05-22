@@ -341,9 +341,6 @@ void qed_eq_prod_update(struct qed_hwfn *p_hwfn, u16 prod)
 		   USTORM_EQE_CONS_OFFSET(p_hwfn->rel_pf_id);
 
 	REG_WR16(p_hwfn, addr, prod);
-
-	/* keep prod updates ordered */
-	mmiowb();
 }
 
 int qed_eq_completion(struct qed_hwfn *p_hwfn, void *cookie)

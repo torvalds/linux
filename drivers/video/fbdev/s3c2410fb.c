@@ -777,7 +777,7 @@ static int s3c2410fb_cpufreq_transition(struct notifier_block *nb,
 	long delta_f;
 
 	info = container_of(nb, struct s3c2410fb_info, freq_transition);
-	fbinfo = platform_get_drvdata(to_platform_device(info->dev));
+	fbinfo = dev_get_drvdata(info->dev);
 
 	/* work out change, <0 for speed-up */
 	delta_f = info->clk_rate - clk_get_rate(info->clk);

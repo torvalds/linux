@@ -245,8 +245,19 @@ config ARCH_HAS_FORTIFY_SOURCE
 	  An architecture should select this when it can successfully
 	  build and run with CONFIG_FORTIFY_SOURCE.
 
+#
+# Select if the arch provides a historic keepinit alias for the retain_initrd
+# command line option
+#
+config ARCH_HAS_KEEPINITRD
+	bool
+
 # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
 config ARCH_HAS_SET_MEMORY
+	bool
+
+# Select if arch has all set_direct_map_invalid/default() functions
+config ARCH_HAS_SET_DIRECT_MAP
 	bool
 
 # Select if arch init_task must go in the __init_task_data section
@@ -383,7 +394,13 @@ config HAVE_ARCH_JUMP_LABEL_RELATIVE
 config HAVE_RCU_TABLE_FREE
 	bool
 
-config HAVE_RCU_TABLE_INVALIDATE
+config HAVE_RCU_TABLE_NO_INVALIDATE
+	bool
+
+config HAVE_MMU_GATHER_PAGE_SIZE
+	bool
+
+config HAVE_MMU_GATHER_NO_GATHER
 	bool
 
 config ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -764,7 +781,7 @@ config COMPAT_OLD_SIGACTION
 	bool
 
 config 64BIT_TIME
-	def_bool ARCH_HAS_64BIT_TIME
+	def_bool y
 	help
 	  This should be selected by all architectures that need to support
 	  new system calls with a 64-bit time_t. This is relevant on all 32-bit
@@ -900,6 +917,15 @@ config HAVE_ARCH_PREL32_RELOCATIONS
 
 config ARCH_USE_MEMREMAP_PROT
 	bool
+
+config LOCK_EVENT_COUNTS
+	bool "Locking event counts collection"
+	depends on DEBUG_FS
+	---help---
+	  Enable light-weight counting of various locking related events
+	  in the system with minimal performance impact. This reduces
+	  the chance of application behavior change because of timing
+	  differences. The counts are reported via debugfs.
 
 source "kernel/gcov/Kconfig"
 

@@ -34,6 +34,8 @@
 #include <asm/cpuidle.h>
 #include <asm/atomic.h>
 
+#include <asm-generic/mmiowb_types.h>
+
 register struct paca_struct *local_paca asm("r13");
 
 #if defined(CONFIG_DEBUG_PREEMPT) && defined(CONFIG_SMP)
@@ -171,9 +173,7 @@ struct paca_struct {
 	u16 trap_save;			/* Used when bad stack is encountered */
 	u8 irq_soft_mask;		/* mask for irq soft masking */
 	u8 irq_happened;		/* irq happened while soft-disabled */
-	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
-	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	u8 pmcregs_in_use;		/* pseries puts this in lppaca */
 #endif
@@ -183,23 +183,28 @@ struct paca_struct {
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	/* Per-core mask tracking idle threads and a lock bit-[L][TTTTTTTT] */
-	u32 *core_idle_state_ptr;
-	u8 thread_idle_state;		/* PNV_THREAD_RUNNING/NAP/SLEEP	*/
-	/* Mask to indicate thread id in core */
-	u8 thread_mask;
-	/* Mask to denote subcore sibling threads */
-	u8 subcore_sibling_mask;
-	/* Flag to request this thread not to stop */
-	atomic_t dont_stop;
-	/* The PSSCR value that the kernel requested before going to stop */
-	u64 requested_psscr;
+	/* PowerNV idle fields */
+	/* PNV_CORE_IDLE_* bits, all siblings work on thread 0 paca */
+	unsigned long idle_state;
+	union {
+		/* P7/P8 specific fields */
+		struct {
+			/* PNV_THREAD_RUNNING/NAP/SLEEP	*/
+			u8 thread_idle_state;
+			/* Mask to denote subcore sibling threads */
+			u8 subcore_sibling_mask;
+		};
 
-	/*
-	 * Save area for additional SPRs that need to be
-	 * saved/restored during cpuidle stop.
-	 */
-	struct stop_sprs stop_sprs;
+		/* P9 specific fields */
+		struct {
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+			/* The PSSCR value that the kernel requested before going to stop */
+			u64 requested_psscr;
+			/* Flag to request this thread not to stop */
+			atomic_t dont_stop;
+#endif
+		};
+	};
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -263,6 +268,9 @@ struct paca_struct {
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #ifdef CONFIG_STACKPROTECTOR
 	unsigned long canary;
+#endif
+#ifdef CONFIG_MMIOWB
+	struct mmiowb_state mmiowb_state;
 #endif
 } ____cacheline_aligned;
 

@@ -255,8 +255,8 @@ static void xfrmi_scrub_packet(struct sk_buff *skb, bool xnet)
 
 static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 {
+	const struct xfrm_mode *inner_mode;
 	struct pcpu_sw_netstats *tstats;
-	struct xfrm_mode *inner_mode;
 	struct net_device *dev;
 	struct xfrm_state *x;
 	struct xfrm_if *xi;
@@ -284,7 +284,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 	xnet = !net_eq(xi->net, dev_net(skb->dev));
 
 	if (xnet) {
-		inner_mode = x->inner_mode;
+		inner_mode = &x->inner_mode;
 
 		if (x->sel.family == AF_UNSPEC) {
 			inner_mode = xfrm_ip2inner_mode(x, XFRM_MODE_SKB_CB(skb)->protocol);
@@ -296,7 +296,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 		}
 
 		if (!xfrm_policy_check(NULL, XFRM_POLICY_IN, skb,
-				       inner_mode->afinfo->family))
+				       inner_mode->family))
 			return -EPERM;
 	}
 
