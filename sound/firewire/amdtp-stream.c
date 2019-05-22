@@ -474,14 +474,14 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 	return queue_packet(s, s->ctx_data.tx.max_payload_length);
 }
 
-static int handle_out_packet(struct amdtp_stream *s,
-			     unsigned int payload_length, unsigned int cycle,
-			     unsigned int index)
+static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
+			     const __be32 *ctx_header, unsigned int index)
 {
 	__be32 *buffer;
 	unsigned int syt;
 	unsigned int data_blocks;
 	unsigned int pcm_frames;
+	unsigned int payload_length;
 	struct snd_pcm_substream *pcm;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
@@ -521,13 +521,14 @@ static int handle_out_packet(struct amdtp_stream *s,
 }
 
 static int handle_out_packet_without_header(struct amdtp_stream *s,
-			unsigned int payload_length, unsigned int cycle,
-			unsigned int index)
+				unsigned int cycle, const __be32 *ctx_header,
+				unsigned int index)
 {
 	__be32 *buffer;
 	unsigned int syt;
 	unsigned int data_blocks;
 	unsigned int pcm_frames;
+	unsigned int payload_length;
 	struct snd_pcm_substream *pcm;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
@@ -551,11 +552,11 @@ static int handle_out_packet_without_header(struct amdtp_stream *s,
 	return 0;
 }
 
-static int handle_in_packet(struct amdtp_stream *s,
-			    unsigned int payload_length, unsigned int cycle,
-			    unsigned int index)
+static int handle_in_packet(struct amdtp_stream *s, unsigned int cycle,
+			    const __be32 *ctx_header, unsigned int index)
 {
 	__be32 *buffer;
+	unsigned int payload_length;
 	u32 cip_header[2];
 	unsigned int sph, fmt, fdf, syt;
 	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
@@ -563,6 +564,14 @@ static int handle_in_packet(struct amdtp_stream *s,
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 	bool lost;
+
+	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
+	if (payload_length > s->ctx_data.tx.max_payload_length) {
+		dev_err(&s->unit->device,
+			"Detect jumbo payload: %04x %04x\n",
+			payload_length, s->ctx_data.tx.max_payload_length);
+		return -EIO;
+	}
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
 	cip_header[0] = be32_to_cpu(buffer[0]);
@@ -668,14 +677,16 @@ end:
 }
 
 static int handle_in_packet_without_header(struct amdtp_stream *s,
-			unsigned int payload_length, unsigned int cycle,
-			unsigned int index)
+				unsigned int cycle, const __be32 *ctx_header,
+				unsigned int index)
 {
 	__be32 *buffer;
+	unsigned int payload_length;
 	unsigned int data_blocks;
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
+	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
 	buffer = s->buffer.packets[s->packet_index].buffer;
 	data_blocks = payload_length / sizeof(__be32) / s->data_block_quadlets;
 
@@ -745,7 +756,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 		cycle = compute_it_cycle(*ctx_header);
 
-		if (s->handle_packet(s, 0, cycle, i) < 0) {
+		if (s->handle_packet(s, cycle, ctx_header, i) < 0) {
 			cancel_stream(s);
 			return;
 		}
@@ -762,7 +773,6 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 {
 	struct amdtp_stream *s = private_data;
 	unsigned int i, packets;
-	unsigned int payload_length, max_payload_length;
 	__be32 *ctx_header = header;
 
 	if (s->packet_index < 0)
@@ -771,25 +781,12 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	// The number of packets in buffer.
 	packets = header_length / s->ctx_data.tx.ctx_header_size;
 
-	/* For buffer-over-run prevention. */
-	max_payload_length = s->ctx_data.tx.max_payload_length;
-
 	for (i = 0; i < packets; i++) {
-		u32 iso_header = be32_to_cpu(ctx_header[0]);
 		u32 cycle;
 
 		cycle = compute_cycle_count(ctx_header[1]);
 
-		/* The number of bytes in this packet */
-		payload_length = iso_header >> ISO_DATA_LENGTH_SHIFT;
-		if (payload_length > max_payload_length) {
-			dev_err(&s->unit->device,
-				"Detect jumbo payload: %04x %04x\n",
-				payload_length, max_payload_length);
-			break;
-		}
-
-		if (s->handle_packet(s, payload_length, cycle, i) < 0)
+		if (s->handle_packet(s, cycle, ctx_header, i) < 0)
 			break;
 
 		ctx_header += s->ctx_data.tx.ctx_header_size / sizeof(*ctx_header);
