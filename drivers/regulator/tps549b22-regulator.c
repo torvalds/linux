@@ -49,12 +49,12 @@
 #define ON_OFF_CFG_OPT_MSK		0x0c
 #define VOL_MIN_IDX			0x133
 #define VOL_MAX_IDX			0x266
-#define VOL_STEP			2500
+#define VOL_STEP_DEF			2500
 
-#define VOL2REG(vol_sel) \
-		(((vol_sel) / VOL_STEP) & VOL_MSK)
-#define REG2VOL(val) \
-		(VOL_STEP * ((val) & VOL_MSK))
+#define VOL2REG(vol_sel, vol_step) \
+		((vol_sel) / (vol_step) & VOL_MSK)
+#define REG2VOL(val, vol_step) \
+		((vol_step) * ((val) & VOL_MSK))
 
 #define TPS549b22_NUM_REGULATORS	1
 
@@ -65,6 +65,7 @@ struct tps549b22 {
 	struct regulator_dev **rdev;
 	struct regmap *regmap_8bits;
 	struct regmap *regmap_16bits;
+	int vol_step;
 };
 
 struct tps549b22_board {
@@ -82,10 +83,12 @@ struct tps549b22_regulator_subdev {
 static int tps549b22_dcdc_list_voltage(struct regulator_dev *rdev,
 				       unsigned int index)
 {
+	struct tps549b22 *tps549b22 = rdev_get_drvdata(rdev);
+
 	if (index + VOL_MIN_IDX > VOL_MAX_IDX)
 		return -EINVAL;
 
-	return REG2VOL(index + VOL_MIN_IDX);
+	return REG2VOL(index + VOL_MIN_IDX, tps549b22->vol_step);
 }
 
 static int tps549b22_reg_init(struct tps549b22 *tps549b22)
@@ -147,7 +150,7 @@ static int tps549b22dcdc_get_voltage(struct regulator_dev *rdev)
 			  TPS549b22_REG_COMMAND,
 			  &val);
 	if (!err)
-		return REG2VOL(val);
+		return REG2VOL(val, tps549b22->vol_step);
 
 	return -1;
 }
@@ -158,25 +161,25 @@ static int tps549b22dcdc_set_voltage(struct regulator_dev *rdev,
 				     unsigned int *selector)
 {
 	struct tps549b22 *tps549b22 = rdev_get_drvdata(rdev);
-	u32 val;
+	int val;
 	int err;
 
-	if (min_uV < REG2VOL(VOL_MIN_IDX) ||
-	    min_uV > REG2VOL(VOL_MAX_IDX)) {
+	if (min_uV < REG2VOL(VOL_MIN_IDX, tps549b22->vol_step) ||
+	    min_uV > REG2VOL(VOL_MAX_IDX, tps549b22->vol_step)) {
 		dev_warn(rdev_get_dev(rdev),
 			 "this voltage is out of limit! voltage set is %d mv\n",
-			 REG2VOL(min_uV));
+			 REG2VOL(min_uV, tps549b22->vol_step));
 		return -EINVAL;
 	}
 
 	for (val = VOL_MIN_IDX; val <= VOL_MAX_IDX; val++)
-		if (REG2VOL(val) >= min_uV)
+		if (REG2VOL(val, tps549b22->vol_step) >= min_uV)
 			break;
 
-	if (REG2VOL(val) > max_uV)
+	if (REG2VOL(val, tps549b22->vol_step) > max_uV)
 		dev_warn(rdev_get_dev(rdev),
 			 "this voltage is not support! voltage set is %d mv\n",
-			 REG2VOL(val));
+			 REG2VOL(val, tps549b22->vol_step));
 
 	err = regmap_update_bits(tps549b22->regmap_16bits,
 				 TPS549b22_REG_COMMAND,
@@ -185,7 +188,7 @@ static int tps549b22dcdc_set_voltage(struct regulator_dev *rdev,
 	if (err)
 		dev_err(rdev_get_dev(rdev),
 			"set voltage is error! voltage set is %d mv\n",
-			REG2VOL(val));
+			REG2VOL(val, tps549b22->vol_step));
 
 	return err;
 }
@@ -236,6 +239,14 @@ tps549b22_parse_dt(struct tps549b22 *tps549b22)
 				   regs,
 				   tps549b22_reg_matches,
 				   TPS549b22_NUM_REGULATORS);
+
+	if (of_property_read_u32(tps549b22_reg_matches[0].of_node,
+				 "voltage-step",
+				 &tps549b22->vol_step))
+		tps549b22->vol_step = VOL_STEP_DEF;
+
+	dev_info(tps549b22->dev, "voltage-step: %duV\n", tps549b22->vol_step);
+
 	of_node_put(regs);
 	of_node_put(tps549b22_np);
 
