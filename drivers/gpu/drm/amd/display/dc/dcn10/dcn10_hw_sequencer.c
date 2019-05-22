@@ -1236,8 +1236,7 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
 			pipe_ctx->plane_res.hubp,
 			&plane_state->address,
-			plane_state->flip_immediate,
-			0);
+			plane_state->flip_immediate);
 
 	plane_state->status.requested_address = plane_state->address;
 

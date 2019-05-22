@@ -458,6 +458,7 @@ struct dc_callback_init {
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
+int dc_get_vmid_use_vector(struct dc *dc);
 void dc_init_callbacks(struct dc *dc,
 		const struct dc_callback_init *init_params);
 void dc_destroy(struct dc **dc);
