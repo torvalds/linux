@@ -648,7 +648,7 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 		return 0;
 
 	/* Enable DP0 interrupts */
-	val = prop->dp0_prop->device_interrupts;
+	val = prop->dp0_prop->imp_def_interrupts;
 	val |= SDW_DP0_INT_PORT_READY | SDW_DP0_INT_BRA_FAILURE;
 
 	ret = sdw_update(slave, SDW_DP0_INTMASK, val, val);

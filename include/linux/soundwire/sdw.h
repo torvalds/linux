@@ -206,10 +206,11 @@ enum sdw_clk_stop_mode {
  * (inclusive)
  * @num_words: number of wordlengths supported
  * @words: wordlengths supported
- * @flow_controlled: Slave implementation results in an OK_NotReady
+ * @BRA_flow_controlled: Slave implementation results in an OK_NotReady
  * response
  * @simple_ch_prep_sm: If channel prepare sequence is required
- * @device_interrupts: If implementation-defined interrupts are supported
+ * @imp_def_interrupts: If set, each bit corresponds to support for
+ * implementation-defined interrupts
  *
  * The wordlengths are specified by Spec as max, min AND number of
  * discrete values, implementation can define based on the wordlengths they
@@ -220,9 +221,9 @@ struct sdw_dp0_prop {
 	u32 min_word;
 	u32 num_words;
 	u32 *words;
-	bool flow_controlled;
+	bool BRA_flow_controlled;
 	bool simple_ch_prep_sm;
-	bool device_interrupts;
+	bool imp_def_interrupts;
 };
 
 /**
@@ -272,7 +273,7 @@ struct sdw_dpn_audio_mode {
  * @simple_ch_prep_sm: If the port supports simplified channel prepare state
  * machine
  * @ch_prep_timeout: Port-specific timeout value, in milliseconds
- * @device_interrupts: If set, each bit corresponds to support for
+ * @imp_def_interrupts: If set, each bit corresponds to support for
  * implementation-defined interrupts
  * @max_ch: Maximum channels supported
  * @min_ch: Minimum channels supported
@@ -297,7 +298,7 @@ struct sdw_dpn_prop {
 	u32 max_grouping;
 	bool simple_ch_prep_sm;
 	u32 ch_prep_timeout;
-	u32 device_interrupts;
+	u32 imp_def_interrupts;
 	u32 max_ch;
 	u32 min_ch;
 	u32 num_ch;
