@@ -29,6 +29,7 @@ Contents:
    segmentation-offloads
    scaling
    tls
+   tls-offload
 
 .. only::  subproject
 

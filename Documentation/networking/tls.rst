@@ -1,3 +1,5 @@
+.. _kernel_tls:
+
 ==========
 Kernel TLS
 ==========
