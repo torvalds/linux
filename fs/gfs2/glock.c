@@ -604,9 +604,22 @@ __acquires(&gl->gl_lockref.lock)
 	spin_unlock(&gl->gl_lockref.lock);
 	if (glops->go_sync)
 		glops->go_sync(gl);
-	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags))
+	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags)) {
+		/*
+		 * The call to go_sync should have cleared out the ail list.
+		 * If there are still items, we have a problem. We ought to
+		 * withdraw, but we can't because the withdraw code also uses
+		 * glocks. Warn about the error, dump the glock, then fall
+		 * through and wait for logd to do the withdraw for us.
+		 */
+		if ((atomic_read(&gl->gl_ail_count) != 0) &&
+		    (!cmpxchg(&sdp->sd_log_error, 0, -EIO))) {
+			gfs2_assert_warn(sdp, !atomic_read(&gl->gl_ail_count));
+			gfs2_dump_glock(NULL, gl, true);
+		}
 		glops->go_inval(gl, target == LM_ST_DEFERRED ? 0 : DIO_METADATA);
-	clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
+		clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
+	}
 
 	gfs2_glock_hold(gl);
 	if (sdp->sd_lockstruct.ls_ops->lm_lock)	{
