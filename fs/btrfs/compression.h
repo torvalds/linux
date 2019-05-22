@@ -61,7 +61,7 @@ struct compressed_bio {
 	 * the start of a variable length array of checksums only
 	 * used by reads
 	 */
-	u32 sums;
+	u8 sums[];
 };
 
 static inline unsigned int btrfs_compress_type(unsigned int type_level)

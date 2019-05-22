@@ -57,12 +57,14 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 				 struct compressed_bio *cb,
 				 u64 disk_start)
 {
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	int ret;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
 	u32 csum;
-	u32 *cb_sum = &cb->sums;
+	u8 *cb_sum = cb->sums;
 
 	if (inode->flags & BTRFS_INODE_NODATASUM)
 		return 0;
@@ -76,13 +78,13 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 		btrfs_csum_final(csum, (u8 *)&csum);
 		kunmap_atomic(kaddr);
 
-		if (csum != *cb_sum) {
+		if (memcmp(&csum, cb_sum, csum_size)) {
 			btrfs_print_data_csum_error(inode, disk_start, csum,
-					*cb_sum, cb->mirror_num);
+					*(u32 *)cb_sum, cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}
-		cb_sum++;
+		cb_sum += csum_size;
 
 	}
 	ret = 0;
@@ -536,7 +538,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	struct extent_map *em;
 	blk_status_t ret = BLK_STS_RESOURCE;
 	int faili = 0;
-	u32 *sums;
+	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
+	u8 *sums;
 
 	em_tree = &BTRFS_I(inode)->extent_tree;
 
@@ -558,7 +561,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->errors = 0;
 	cb->inode = inode;
 	cb->mirror_num = mirror_num;
-	sums = &cb->sums;
+	sums = cb->sums;
 
 	cb->start = em->orig_start;
 	em_len = em->len;
@@ -617,6 +620,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		page->mapping = NULL;
 		if (submit || bio_add_page(comp_bio, page, PAGE_SIZE, 0) <
 		    PAGE_SIZE) {
+			unsigned int nr_sectors;
+
 			ret = btrfs_bio_wq_end_io(fs_info, comp_bio,
 						  BTRFS_WQ_ENDIO_DATA);
 			BUG_ON(ret); /* -ENOMEM */
@@ -631,11 +636,13 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 			if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 				ret = btrfs_lookup_bio_sums(inode, comp_bio,
-							    (u8 *)sums);
+							    sums);
 				BUG_ON(ret); /* -ENOMEM */
 			}
-			sums += DIV_ROUND_UP(comp_bio->bi_iter.bi_size,
-					     fs_info->sectorsize);
+
+			nr_sectors = DIV_ROUND_UP(comp_bio->bi_iter.bi_size,
+						  fs_info->sectorsize);
+			sums += csum_size * nr_sectors;
 
 			ret = btrfs_map_bio(fs_info, comp_bio, mirror_num, 0);
 			if (ret) {
@@ -657,7 +664,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	BUG_ON(ret); /* -ENOMEM */
 
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = btrfs_lookup_bio_sums(inode, comp_bio, (u8 *) sums);
+		ret = btrfs_lookup_bio_sums(inode, comp_bio, sums);
 		BUG_ON(ret); /* -ENOMEM */
 	}
 
