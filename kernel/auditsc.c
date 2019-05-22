@@ -601,12 +601,20 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_WATCH:
-			if (name)
-				result = audit_watch_compare(rule->watch, name->ino, name->dev);
+			if (name) {
+				result = audit_watch_compare(rule->watch,
+							     name->ino,
+							     name->dev);
+				if (f->op == Audit_not_equal)
+					result = !result;
+			}
 			break;
 		case AUDIT_DIR:
-			if (ctx)
+			if (ctx) {
 				result = match_tree_refs(ctx, rule->tree);
+				if (f->op == Audit_not_equal)
+					result = !result;
+			}
 			break;
 		case AUDIT_LOGINUID:
 			result = audit_uid_comparator(audit_get_loginuid(tsk),
@@ -689,9 +697,13 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_PERM:
 			result = audit_match_perm(ctx, f->val);
+			if (f->op == Audit_not_equal)
+				result = !result;
 			break;
 		case AUDIT_FILETYPE:
 			result = audit_match_filetype(ctx, f->val);
+			if (f->op == Audit_not_equal)
+				result = !result;
 			break;
 		case AUDIT_FIELD_COMPARE:
 			result = audit_field_compare(tsk, cred, f, ctx, name);
