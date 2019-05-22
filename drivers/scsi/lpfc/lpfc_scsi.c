@@ -3879,10 +3879,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	 */
 	spin_lock(&lpfc_cmd->buf_lock);
 	lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
-	if (lpfc_cmd->waitq) {
+	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
-		lpfc_cmd->waitq = NULL;
-	}
 	spin_unlock(&lpfc_cmd->buf_lock);
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
@@ -4718,6 +4716,9 @@ wait_for_cmpl:
 				 iocb->sli4_xritag, ret,
 				 cmnd->device->id, cmnd->device->lun);
 	}
+
+	lpfc_cmd->waitq = NULL;
+
 	spin_unlock(&lpfc_cmd->buf_lock);
 	goto out;
 
