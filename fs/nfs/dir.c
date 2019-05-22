@@ -80,6 +80,10 @@ static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir
 		ctx->dup_cookie = 0;
 		ctx->cred = get_cred(cred);
 		spin_lock(&dir->i_lock);
+		if (list_empty(&nfsi->open_files) &&
+		    (nfsi->cache_validity & NFS_INO_DATA_INVAL_DEFER))
+			nfsi->cache_validity |= NFS_INO_INVALID_DATA |
+				NFS_INO_REVAL_FORCED;
 		list_add(&ctx->list, &nfsi->open_files);
 		spin_unlock(&dir->i_lock);
 		return ctx;
