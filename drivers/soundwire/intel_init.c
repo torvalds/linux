@@ -81,6 +81,7 @@ static struct sdw_intel_ctx
 
 	/* Check SNDWLCAP.LCOUNT */
 	caps = ioread32(res->mmio_base + SDW_SHIM_BASE + SDW_SHIM_LCAP);
+	caps &= GENMASK(2, 0);
 
 	/* Check HW supported vs property value and use min of two */
 	count = min_t(u8, caps, count);
@@ -89,6 +90,9 @@ static struct sdw_intel_ctx
 	if (count > SDW_MAX_LINKS) {
 		dev_err(&adev->dev, "Link count %d exceeds max %d\n",
 			count, SDW_MAX_LINKS);
+		return NULL;
+	} else if (!count) {
+		dev_warn(&adev->dev, "No SoundWire links detected\n");
 		return NULL;
 	}
 
