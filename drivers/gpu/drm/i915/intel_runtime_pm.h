@@ -6,12 +6,14 @@
 #ifndef __INTEL_RUNTIME_PM_H__
 #define __INTEL_RUNTIME_PM_H__
 
-#include <linux/stackdepot.h>
 #include <linux/types.h>
 
-struct drm_i915_private;
+#include "intel_display.h"
+#include "intel_wakeref.h"
 
-typedef depot_stack_handle_t intel_wakeref_t;
+struct drm_i915_private;
+struct drm_printer;
+struct intel_encoder;
 
 enum i915_drm_suspend_mode {
 	I915_DRM_SUSPEND_IDLE,
