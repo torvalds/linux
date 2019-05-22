@@ -10725,11 +10725,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err_pci_clean;
 	}
 
-	/* Read the adapter's DSN to use as the eswitch switch_id */
-	rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
-	if (rc)
-		goto init_err_pci_clean;
-
+	if (BNXT_PF(bp)) {
+		/* Read the adapter's DSN to use as the eswitch switch_id */
+		rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
+		if (rc)
+			goto init_err_pci_clean;
+	}
 	bnxt_hwrm_func_qcfg(bp);
 	bnxt_hwrm_vnic_qcaps(bp);
 	bnxt_hwrm_port_led_qcaps(bp);
