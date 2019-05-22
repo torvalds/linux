@@ -796,13 +796,14 @@ static int intel_prop_read(struct sdw_bus *bus)
 	sdw_master_read_prop(bus);
 
 	/* BIOS is not giving some values correctly. So, lets override them */
-	bus->prop.num_freq = 1;
-	bus->prop.freq = devm_kcalloc(bus->dev, bus->prop.num_freq,
-				      sizeof(*bus->prop.freq), GFP_KERNEL);
-	if (!bus->prop.freq)
+	bus->prop.num_clk_freq = 1;
+	bus->prop.clk_freq = devm_kcalloc(bus->dev, bus->prop.num_clk_freq,
+					  sizeof(*bus->prop.clk_freq),
+					  GFP_KERNEL);
+	if (!bus->prop.clk_freq)
 		return -ENOMEM;
 
-	bus->prop.freq[0] = bus->prop.max_freq;
+	bus->prop.clk_freq[0] = bus->prop.max_clk_freq;
 	bus->prop.err_threshold = 5;
 
 	return 0;

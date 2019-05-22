@@ -58,31 +58,32 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 
 	fwnode_property_read_u32(link,
 				 "mipi-sdw-max-clock-frequency",
-				 &prop->max_freq);
+				 &prop->max_clk_freq);
 
 	nval = fwnode_property_read_u32_array(link,
 			"mipi-sdw-clock-frequencies-supported", NULL, 0);
 	if (nval > 0) {
-		prop->num_freq = nval;
-		prop->freq = devm_kcalloc(bus->dev, prop->num_freq,
-					  sizeof(*prop->freq), GFP_KERNEL);
-		if (!prop->freq)
+		prop->num_clk_freq = nval;
+		prop->clk_freq = devm_kcalloc(bus->dev, prop->num_clk_freq,
+					      sizeof(*prop->clk_freq),
+					      GFP_KERNEL);
+		if (!prop->clk_freq)
 			return -ENOMEM;
 
 		fwnode_property_read_u32_array(link,
 				"mipi-sdw-clock-frequencies-supported",
-				prop->freq, prop->num_freq);
+				prop->clk_freq, prop->num_clk_freq);
 	}
 
 	/*
 	 * Check the frequencies supported. If FW doesn't provide max
 	 * freq, then populate here by checking values.
 	 */
-	if (!prop->max_freq && prop->freq) {
-		prop->max_freq = prop->freq[0];
-		for (i = 1; i < prop->num_freq; i++) {
-			if (prop->freq[i] > prop->max_freq)
-				prop->max_freq = prop->freq[i];
+	if (!prop->max_clk_freq && prop->clk_freq) {
+		prop->max_clk_freq = prop->clk_freq[0];
+		for (i = 1; i < prop->num_clk_freq; i++) {
+			if (prop->clk_freq[i] > prop->max_clk_freq)
+				prop->max_clk_freq = prop->clk_freq[i];
 		}
 	}
 
