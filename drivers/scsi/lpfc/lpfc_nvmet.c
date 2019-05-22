@@ -1642,7 +1642,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 
 		lpfc_nvmeio_data(phba,
 				 "NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
-				 xri, smp_processor_id(), 0);
+				 xri, raw_smp_processor_id(), 0);
 
 		req = &ctxp->ctx.fcp_req;
 		if (req)
