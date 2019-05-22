@@ -94,6 +94,7 @@ static void lpfc_sli4_disable_intr(struct lpfc_hba *);
 static uint32_t lpfc_sli4_enable_intr(struct lpfc_hba *, uint32_t);
 static void lpfc_sli4_oas_verify(struct lpfc_hba *phba);
 static uint16_t lpfc_find_cpu_handle(struct lpfc_hba *, uint16_t, int);
+static void lpfc_setup_bg(struct lpfc_hba *, struct Scsi_Host *);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
@@ -4348,6 +4349,9 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	timer_setup(&vport->delayed_disc_tmo, lpfc_delayed_disc_tmo, 0);
 
+	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED)
+		lpfc_setup_bg(phba, shost);
+
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
 		goto out_put_shost;
@@ -7669,8 +7673,6 @@ lpfc_post_init_setup(struct lpfc_hba *phba)
 	 */
 	shost = pci_get_drvdata(phba->pcidev);
 	shost->can_queue = phba->cfg_hba_queue_depth - 10;
-	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED)
-		lpfc_setup_bg(phba, shost);
 
 	lpfc_host_attrib_init(shost);
 
