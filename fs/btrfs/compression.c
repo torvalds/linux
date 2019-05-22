@@ -631,7 +631,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 			if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 				ret = btrfs_lookup_bio_sums(inode, comp_bio,
-							    sums);
+							    (u8 *)sums);
 				BUG_ON(ret); /* -ENOMEM */
 			}
 			sums += DIV_ROUND_UP(comp_bio->bi_iter.bi_size,
@@ -657,7 +657,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	BUG_ON(ret); /* -ENOMEM */
 
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = btrfs_lookup_bio_sums(inode, comp_bio, sums);
+		ret = btrfs_lookup_bio_sums(inode, comp_bio, (u8 *) sums);
 		BUG_ON(ret); /* -ENOMEM */
 	}
 

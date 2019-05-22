@@ -23,7 +23,7 @@ struct btrfs_ordered_sum {
 	int len;
 	struct list_head list;
 	/* last field is a variable length array of csums */
-	u32 sums[];
+	u8 sums[];
 };
 
 /*
@@ -183,7 +183,7 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
 int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 				struct btrfs_ordered_extent *ordered);
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
-			   u32 *sum, int len);
+			   u8 *sum, int len);
 u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len);
 u64 btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,

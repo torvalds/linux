@@ -924,14 +924,16 @@ out:
  * be reclaimed before their checksum is actually put into the btree
  */
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
-			   u32 *sum, int len)
+			   u8 *sum, int len)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ordered_sum *ordered_sum;
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
 	unsigned long num_sectors;
 	unsigned long i;
 	u32 sectorsize = btrfs_inode_sectorsize(inode);
+	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	int index = 0;
 
 	ordered = btrfs_lookup_ordered_extent(inode, offset);
@@ -947,10 +949,10 @@ int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
 			num_sectors = ordered_sum->len >>
 				      inode->i_sb->s_blocksize_bits;
 			num_sectors = min_t(int, len - index, num_sectors - i);
-			memcpy(sum + index, ordered_sum->sums + i,
-			       num_sectors);
+			memcpy(sum + index, ordered_sum->sums + i * csum_size,
+			       num_sectors * csum_size);
 
-			index += (int)num_sectors;
+			index += (int)num_sectors * csum_size;
 			if (index == len)
 				goto out;
 			disk_bytenr += num_sectors * sectorsize;

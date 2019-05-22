@@ -2448,7 +2448,7 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 	ASSERT(index < UINT_MAX);
 
 	num_sectors = sum->len / sctx->fs_info->sectorsize;
-	memcpy(csum, sum->sums + index, sctx->csum_size);
+	memcpy(csum, sum->sums + index * sctx->csum_size, sctx->csum_size);
 	if (index == num_sectors - 1) {
 		list_del(&sum->list);
 		kfree(sum);
