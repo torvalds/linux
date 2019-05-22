@@ -641,7 +641,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		INIT_LIST_HEAD(&dev_priv->res_lru[i]);
 	}
 
-	mutex_init(&dev_priv->init_mutex);
 	init_waitqueue_head(&dev_priv->fence_queue);
 	init_waitqueue_head(&dev_priv->fifo_queue);
 	dev_priv->fence_queue_waiters = 0;

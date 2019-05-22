@@ -484,11 +484,6 @@ struct vmw_private {
 
 	spinlock_t resource_lock;
 	struct idr res_idr[vmw_res_max];
-	/*
-	 * Block lastclose from racing with firstopen.
-	 */
-
-	struct mutex init_mutex;
 
 	/*
 	 * A resource manager for kernel-only surfaces and
