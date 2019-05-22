@@ -12,6 +12,7 @@ following device-specific properties.
 Required properties:
 
 - compatible: should be one of the following:
+		"rockchip,rk3228-dw-hdmi"
 		"rockchip,rk3288-dw-hdmi"
 		"rockchip,rk3328-dw-hdmi"
 		"rockchip,rk3399-dw-hdmi"
