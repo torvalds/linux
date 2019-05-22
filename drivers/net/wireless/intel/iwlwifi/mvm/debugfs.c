@@ -1758,6 +1758,38 @@ iwl_dbgfs_uapsd_noagg_bssids_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t
+iwl_dbgfs_ltr_config_write(struct iwl_mvm *mvm,
+			   char *buf, size_t count, loff_t *ppos)
+{
+	int ret;
+	struct iwl_ltr_config_cmd ltr_config = {0};
+
+	if (!iwl_mvm_firmware_running(mvm))
+		return -EIO;
+
+	if (sscanf(buf, "%x,%x,%x,%x,%x,%x,%x",
+		   &ltr_config.flags,
+		   &ltr_config.static_long,
+		   &ltr_config.static_short,
+		   &ltr_config.ltr_cfg_values[0],
+		   &ltr_config.ltr_cfg_values[1],
+		   &ltr_config.ltr_cfg_values[2],
+		   &ltr_config.ltr_cfg_values[3]) != 7) {
+		return -EINVAL;
+	}
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0, sizeof(ltr_config),
+				   &ltr_config);
+	mutex_unlock(&mvm->mutex);
+
+	if (ret)
+		IWL_ERR(mvm, "failed to send ltr configuration cmd\n");
+
+	return ret ?: count;
+}
+
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 
 /* Device wide debugfs entries */
@@ -1805,6 +1837,8 @@ MVM_DEBUGFS_READ_FILE_OPS(sar_geo_profile);
 MVM_DEBUGFS_READ_WRITE_STA_FILE_OPS(amsdu_len, 16);
 
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(he_sniffer_params, 32);
+
+MVM_DEBUGFS_WRITE_FILE_OPS(ltr_config, 512);
 
 static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
@@ -1992,6 +2026,9 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, 0400);
 #endif
 	MVM_DEBUGFS_ADD_FILE(he_sniffer_params, mvm->debugfs_dir, 0600);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_LTR_GEN2))
+		MVM_DEBUGFS_ADD_FILE(ltr_config, mvm->debugfs_dir, 0200);
 
 	debugfs_create_bool("enable_scan_iteration_notif", 0600,
 			    mvm->debugfs_dir, &mvm->scan_iter_notif_enabled);
