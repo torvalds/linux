@@ -28,6 +28,7 @@ Contents:
    checksum-offloads
    segmentation-offloads
    scaling
+   tls
 
 .. only::  subproject
 
