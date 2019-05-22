@@ -1472,7 +1472,7 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
 		memcpy(&params, &bus->params, sizeof(params));
 
 		/* TODO: Support Asynchronous mode */
-		if ((prop->max_freq % stream->params.rate) != 0) {
+		if ((prop->max_clk_freq % stream->params.rate) != 0) {
 			dev_err(bus->dev, "Async mode not supported\n");
 			return -EINVAL;
 		}
