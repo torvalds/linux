@@ -150,13 +150,13 @@ static int sdw_slave_read_dp0(struct sdw_slave *slave,
 				dp0->words, dp0->num_words);
 	}
 
-	dp0->flow_controlled = fwnode_property_read_bool(port,
+	dp0->BRA_flow_controlled = fwnode_property_read_bool(port,
 				"mipi-sdw-bra-flow-controlled");
 
 	dp0->simple_ch_prep_sm = fwnode_property_read_bool(port,
 				"mipi-sdw-simplified-channel-prepare-sm");
 
-	dp0->device_interrupts = fwnode_property_read_bool(port,
+	dp0->imp_def_interrupts = fwnode_property_read_bool(port,
 				"mipi-sdw-imp-def-dp0-interrupts-supported");
 
 	return 0;
@@ -225,7 +225,7 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 
 		fwnode_property_read_u32(node,
 				"mipi-sdw-imp-def-dpn-interrupts-supported",
-				&dpn[i].device_interrupts);
+				&dpn[i].imp_def_interrupts);
 
 		fwnode_property_read_u32(node, "mipi-sdw-min-channel-number",
 					 &dpn[i].min_ch);
