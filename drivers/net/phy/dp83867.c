@@ -28,6 +28,7 @@
 #define DP83867_CFG4            0x0031
 #define DP83867_RGMIICTL	0x0032
 #define DP83867_STRAP_STS1	0x006E
+#define DP83867_STRAP_STS2	0x006f
 #define DP83867_RGMIIDCTL	0x0086
 #define DP83867_IO_MUX_CFG	0x0170
 
@@ -55,13 +56,23 @@
 /* STRAP_STS1 bits */
 #define DP83867_STRAP_STS1_RESERVED		BIT(11)
 
+/* STRAP_STS2 bits */
+#define DP83867_STRAP_STS2_CLK_SKEW_TX_MASK	GENMASK(6, 4)
+#define DP83867_STRAP_STS2_CLK_SKEW_TX_SHIFT	4
+#define DP83867_STRAP_STS2_CLK_SKEW_RX_MASK	GENMASK(2, 0)
+#define DP83867_STRAP_STS2_CLK_SKEW_RX_SHIFT	0
+#define DP83867_STRAP_STS2_CLK_SKEW_NONE	BIT(2)
+
 /* PHY CTRL bits */
 #define DP83867_PHYCR_FIFO_DEPTH_SHIFT		14
 #define DP83867_PHYCR_FIFO_DEPTH_MASK		(3 << 14)
 #define DP83867_PHYCR_RESERVED_MASK		BIT(11)
 
 /* RGMIIDCTL bits */
+#define DP83867_RGMII_TX_CLK_DELAY_MAX		0xf
 #define DP83867_RGMII_TX_CLK_DELAY_SHIFT	4
+#define DP83867_RGMII_RX_CLK_DELAY_MAX		0xf
+#define DP83867_RGMII_RX_CLK_DELAY_SHIFT	0
 
 /* IO_MUX_CFG bits */
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL	0x1f
@@ -178,19 +189,56 @@ static int dp83867_of_init(struct phy_device *phydev)
 	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
 					"ti,dp83867-rxctrl-strap-quirk");
 
-	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
-				   &dp83867->rx_id_delay);
-	if (ret &&
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	     phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID))
-		return ret;
+	/* Existing behavior was to use default pin strapping delay in rgmii
+	 * mode, but rgmii should have meant no delay.  Warn existing users.
+	 */
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
+		const u16 val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_STRAP_STS2);
+		const u16 txskew = (val & DP83867_STRAP_STS2_CLK_SKEW_TX_MASK) >>
+				   DP83867_STRAP_STS2_CLK_SKEW_TX_SHIFT;
+		const u16 rxskew = (val & DP83867_STRAP_STS2_CLK_SKEW_RX_MASK) >>
+				   DP83867_STRAP_STS2_CLK_SKEW_RX_SHIFT;
 
-	ret = of_property_read_u32(of_node, "ti,tx-internal-delay",
-				   &dp83867->tx_id_delay);
-	if (ret &&
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	     phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID))
-		return ret;
+		if (txskew != DP83867_STRAP_STS2_CLK_SKEW_NONE ||
+		    rxskew != DP83867_STRAP_STS2_CLK_SKEW_NONE)
+			phydev_warn(phydev,
+				    "PHY has delays via pin strapping, but phy-mode = 'rgmii'\n"
+				    "Should be 'rgmii-id' to use internal delays\n");
+	}
+
+	/* RX delay *must* be specified if internal delay of RX is used. */
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) {
+		ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
+					   &dp83867->rx_id_delay);
+		if (ret) {
+			phydev_err(phydev, "ti,rx-internal-delay must be specified\n");
+			return ret;
+		}
+		if (dp83867->rx_id_delay > DP83867_RGMII_RX_CLK_DELAY_MAX) {
+			phydev_err(phydev,
+				   "ti,rx-internal-delay value of %u out of range\n",
+				   dp83867->rx_id_delay);
+			return -EINVAL;
+		}
+	}
+
+	/* TX delay *must* be specified if internal delay of RX is used. */
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+		ret = of_property_read_u32(of_node, "ti,tx-internal-delay",
+					   &dp83867->tx_id_delay);
+		if (ret) {
+			phydev_err(phydev, "ti,tx-internal-delay must be specified\n");
+			return ret;
+		}
+		if (dp83867->tx_id_delay > DP83867_RGMII_TX_CLK_DELAY_MAX) {
+			phydev_err(phydev,
+				   "ti,tx-internal-delay value of %u out of range\n",
+				   dp83867->tx_id_delay);
+			return -EINVAL;
+		}
+	}
 
 	if (of_property_read_bool(of_node, "enet-phy-lane-swap"))
 		dp83867->port_mirroring = DP83867_PORT_MIRROING_EN;
@@ -259,10 +307,16 @@ static int dp83867_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
+	/* If rgmii mode with no internal delay is selected, we do NOT use
+	 * aligned mode as one might expect.  Instead we use the PHY's default
+	 * based on pin strapping.  And the "mode 0" default is to *use*
+	 * internal delay with a value of 7 (2.00 ns).
+	 */
 	if ((phydev->interface >= PHY_INTERFACE_MODE_RGMII_ID) &&
 	    (phydev->interface <= PHY_INTERFACE_MODE_RGMII_RXID)) {
 		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIICTL);
 
+		val &= ~(DP83867_RGMII_TX_CLK_DELAY_EN | DP83867_RGMII_RX_CLK_DELAY_EN);
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
 			val |= (DP83867_RGMII_TX_CLK_DELAY_EN | DP83867_RGMII_RX_CLK_DELAY_EN);
 
