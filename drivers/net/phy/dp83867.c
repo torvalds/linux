@@ -75,8 +75,7 @@
 #define DP83867_RGMII_RX_CLK_DELAY_SHIFT	0
 
 /* IO_MUX_CFG bits */
-#define DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL	0x1f
-
+#define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MASK	0x1f
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX	0x0
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN	0x1f
 #define DP83867_IO_MUX_CFG_CLK_O_DISABLE	BIT(6)
@@ -162,8 +161,6 @@ static int dp83867_of_init(struct phy_device *phydev)
 	if (!of_node)
 		return -ENODEV;
 
-	dp83867->io_impedance = -EINVAL;
-
 	/* Optional configuration */
 	ret = of_property_read_u32(of_node, "ti,clk-output-sel",
 				   &dp83867->clk_output_sel);
@@ -185,6 +182,8 @@ static int dp83867_of_init(struct phy_device *phydev)
 		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX;
 	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
 		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN;
+	else
+		dp83867->io_impedance = -1; /* leave at default */
 
 	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
 					"ti,dp83867-rxctrl-strap-quirk");
@@ -333,13 +332,13 @@ static int dp83867_config_init(struct phy_device *phydev)
 
 		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIIDCTL,
 			      delay);
-
-		if (dp83867->io_impedance >= 0)
-			phy_modify_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG,
-				       DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL,
-				       dp83867->io_impedance &
-				       DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL);
 	}
+
+	/* If specified, set io impedance */
+	if (dp83867->io_impedance >= 0)
+		phy_modify_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG,
+			       DP83867_IO_MUX_CFG_IO_IMPEDANCE_MASK,
+			       dp83867->io_impedance);
 
 	/* Enable Interrupt output INT_OE in CFG3 register */
 	if (phy_interrupt_is_valid(phydev)) {
