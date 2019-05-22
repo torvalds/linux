@@ -493,7 +493,7 @@ void intel_uc_reset_prepare(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
 
-	if (!USES_GUC(i915))
+	if (!intel_guc_is_loaded(guc))
 		return;
 
 	guc_stop_communication(guc);
