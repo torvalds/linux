@@ -1394,3 +1394,7 @@ void __i915_fini_wedge(struct i915_wedge_me *w)
 	destroy_delayed_work_on_stack(&w->work);
 	w->i915 = NULL;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_reset.c"
+#endif
