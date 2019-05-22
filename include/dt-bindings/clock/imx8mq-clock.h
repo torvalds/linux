@@ -401,6 +401,7 @@
 #define IMX8MQ_CLK_GPIO5_ROOT			263
 
 #define IMX8MQ_CLK_SNVS_ROOT			264
+#define IMX8MQ_CLK_GIC				265
 
-#define IMX8MQ_CLK_END				265
+#define IMX8MQ_CLK_END				266
 #endif /* __DT_BINDINGS_CLOCK_IMX8MQ_H */
