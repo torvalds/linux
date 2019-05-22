@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/timer.h>
 #include <linux/uaccess.h>
 
 #include "rk_nand_blk.h"
@@ -40,8 +41,8 @@ static int rk_nand_shutdown_state;
 /*1:flash 2:emmc 4:sdcard0 8:sdcard1*/
 static int rknand_boot_media = 2;
 static DECLARE_WAIT_QUEUE_HEAD(rk29_nandc_wait);
-static void rk_nand_iqr_timeout_hack(unsigned long data);
-static DEFINE_TIMER(rk_nand_iqr_timeout, rk_nand_iqr_timeout_hack, 0, 0);
+static void rk_nand_iqr_timeout_hack(struct timer_list *unused);
+static DEFINE_TIMER(rk_nand_iqr_timeout, rk_nand_iqr_timeout_hack);
 static int nandc0_xfer_completed_flag;
 static int nandc0_ready_completed_flag;
 static int nandc1_xfer_completed_flag;
@@ -188,7 +189,7 @@ int rk_nand_schedule_enable_config(int en)
 	return tmp;
 }
 
-static void rk_nand_iqr_timeout_hack(unsigned long data)
+static void rk_nand_iqr_timeout_hack(struct timer_list *unused)
 {
 	del_timer(&rk_nand_iqr_timeout);
 	rk_timer_add = 0;

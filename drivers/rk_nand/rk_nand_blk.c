@@ -183,12 +183,12 @@ static int nand_dev_transfer(struct nand_blk_dev *dev,
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(rknand_thread_wait);
-static void rk_ftl_gc_timeout_hack(unsigned long data);
-static DEFINE_TIMER(rk_ftl_gc_timeout, rk_ftl_gc_timeout_hack, 0, 0);
+static void rk_ftl_gc_timeout_hack(struct timer_list *unused);
+static DEFINE_TIMER(rk_ftl_gc_timeout, rk_ftl_gc_timeout_hack);
 static unsigned long rk_ftl_gc_jiffies;
 static unsigned long rk_ftl_gc_do;
 
-static void rk_ftl_gc_timeout_hack(unsigned long data)
+static void rk_ftl_gc_timeout_hack(struct timer_list *unused)
 {
 	del_timer(&rk_ftl_gc_timeout);
 	rk_ftl_gc_do++;
@@ -288,7 +288,7 @@ static int nand_blktrans_thread(void *arg)
 		buf = 0;
 		res = 0;
 
-		if (req->cmd_flags & REQ_DISCARD) {
+		if (req->cmd_flags & REQ_OP_DISCARD) {
 			spin_unlock_irq(rq->queue_lock);
 			rknand_device_lock();
 			if (FtlDiscard(blk_rq_pos(req) +
@@ -299,7 +299,7 @@ static int nand_blktrans_thread(void *arg)
 			if (!__blk_end_request_cur(req, res))
 				req = NULL;
 			continue;
-		} else if (req->cmd_flags & REQ_FLUSH) {
+		} else if (req->cmd_flags & REQ_OP_FLUSH) {
 			spin_unlock_irq(rq->queue_lock);
 			rknand_device_lock();
 			rk_ftl_cache_write_back();
@@ -310,7 +310,7 @@ static int nand_blktrans_thread(void *arg)
 			continue;
 		}
 
-		rw_flag = req->cmd_flags & REQ_WRITE;
+		rw_flag = req->cmd_flags & REQ_OP_WRITE;
 		if (rw_flag == READ && mtd_read_temp_buffer) {
 			buf = mtd_read_temp_buffer;
 			req_check_buffer_align(req, &buf);
@@ -586,7 +586,6 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 			 part->name);
 	} else {
 		gd->flags = GENHD_FL_EXT_DEVT;
-		gd->driverfs_dev = g_nand_device;
 		gd->minors = 255;
 		snprintf(gd->disk_name,
 			 sizeof(gd->disk_name),
@@ -674,8 +673,10 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 	blk_queue_max_hw_sectors(nandr->rq, MTD_RW_SECTORS);
 	blk_queue_max_segments(nandr->rq, MTD_RW_SECTORS);
 
-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nandr->rq);
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, nandr->rq);
 	blk_queue_max_discard_sectors(nandr->rq, UINT_MAX >> 9);
+	/* discard_granularity config to one nand page size 32KB*/
+	nandr->rq->limits.discard_granularity = 64 << 9;
 
 	nandr->rq->queuedata = nandr;
 	INIT_LIST_HEAD(&nandr->devs);
