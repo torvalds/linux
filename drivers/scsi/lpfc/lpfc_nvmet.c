@@ -907,7 +907,6 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 		 * before freeing ctxp and iocbq.
 		 */
 		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-		ctxp->rqb_buffer = 0;
 		atomic_inc(&nvmep->xmt_ls_rsp);
 		return 0;
 	}
