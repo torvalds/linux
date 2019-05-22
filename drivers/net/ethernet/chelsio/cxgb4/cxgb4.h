@@ -600,6 +600,7 @@ struct port_info {
 	u8 vin;
 	u8 vivld;
 	u8 smt_idx;
+	u8 rx_cchan;
 };
 
 struct dentry;

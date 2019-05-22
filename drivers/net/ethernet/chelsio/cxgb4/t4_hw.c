@@ -6209,6 +6209,37 @@ unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx)
 }
 
 /**
+ *      t4_get_tp_e2c_map - return the E2C channel map associated with a port
+ *      @adapter: the adapter
+ *      @pidx: the port index
+ */
+unsigned int t4_get_tp_e2c_map(struct adapter *adapter, int pidx)
+{
+	unsigned int nports;
+	u32 param, val = 0;
+	int ret;
+
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
+	if (pidx >= nports) {
+		CH_WARN(adapter, "TP E2C Channel Port Index %d >= Nports %d\n",
+			pidx, nports);
+		return 0;
+	}
+
+	/* FW version >= 1.16.44.0 can determine E2C channel map using
+	 * FW_PARAMS_PARAM_DEV_TPCHMAP API.
+	 */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_TPCHMAP));
+	ret = t4_query_params_ns(adapter, adapter->mbox, adapter->pf,
+				 0, 1, &param, &val);
+	if (!ret)
+		return (val >> (8 * pidx)) & 0xff;
+
+	return 0;
+}
+
+/**
  *	t4_get_tp_ch_map - return TP ingress channels associated with a port
  *	@adapter: the adapter
  *	@pidx: the port index
@@ -9583,6 +9614,7 @@ int t4_init_portinfo(struct port_info *pi, int mbox,
 	pi->tx_chan = port;
 	pi->lport = port;
 	pi->rss_size = rss_size;
+	pi->rx_cchan = t4_get_tp_e2c_map(pi->adapter, port);
 
 	/* If fw supports returning the VIN as part of FW_VI_CMD,
 	 * save the returned values.
