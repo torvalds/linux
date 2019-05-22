@@ -7,7 +7,7 @@
 #include "tegra194-p2888.dtsi"
 
 / {
-	model = "NVIDIA Jetson AGX Xavier Development Kit";
+	model = "NVIDIA Jetson AGX Xavier Developer Kit";
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
 	cbb {
