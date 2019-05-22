@@ -65,7 +65,8 @@
 
 /* PHY CTRL bits */
 #define DP83867_PHYCR_FIFO_DEPTH_SHIFT		14
-#define DP83867_PHYCR_FIFO_DEPTH_MASK		(3 << 14)
+#define DP83867_PHYCR_FIFO_DEPTH_MAX		0x03
+#define DP83867_PHYCR_FIFO_DEPTH_MASK		GENMASK(15, 14)
 #define DP83867_PHYCR_RESERVED_MASK		BIT(11)
 
 /* RGMIIDCTL bits */
@@ -245,8 +246,20 @@ static int dp83867_of_init(struct phy_device *phydev)
 	if (of_property_read_bool(of_node, "enet-phy-lane-no-swap"))
 		dp83867->port_mirroring = DP83867_PORT_MIRROING_DIS;
 
-	return of_property_read_u32(of_node, "ti,fifo-depth",
+	ret = of_property_read_u32(of_node, "ti,fifo-depth",
 				   &dp83867->fifo_depth);
+	if (ret) {
+		phydev_err(phydev,
+			   "ti,fifo-depth property is required\n");
+		return ret;
+	}
+	if (dp83867->fifo_depth > DP83867_PHYCR_FIFO_DEPTH_MAX) {
+		phydev_err(phydev,
+			   "ti,fifo-depth value %u out of range\n",
+			   dp83867->fifo_depth);
+		return -EINVAL;
+	}
+	return 0;
 }
 #else
 static int dp83867_of_init(struct phy_device *phydev)
