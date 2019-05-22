@@ -579,7 +579,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 /********************************
  *** Part 2 - Driver Handlers ***
  ********************************/
-int pi2c_probe(struct platform_device *pldev)
+static int pi2c_probe(struct platform_device *pldev)
 {
 	int err;
 	struct i2c_device *priv;
@@ -626,7 +626,7 @@ int pi2c_probe(struct platform_device *pldev)
 	return 0;
 }
 
-int pi2c_remove(struct platform_device *pldev)
+static int pi2c_remove(struct platform_device *pldev)
 {
 	struct i2c_device *lddev;
 
@@ -644,7 +644,7 @@ int pi2c_remove(struct platform_device *pldev)
 	return 0;
 }
 
-struct platform_driver i2c_plat_driver_i = {
+static struct platform_driver i2c_plat_driver_i = {
 	.probe      = pi2c_probe,
 	.remove     = pi2c_remove,
 	.driver     = {
