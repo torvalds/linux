@@ -64,6 +64,8 @@ enum dentist_divider_range {
  ***************************************************************************************
  */
 
+/* Macros */
+
 #define TO_CLK_MGR_INTERNAL(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_internal, base)
 

@@ -26,8 +26,6 @@
 #include "dccg.h"
 #include "clk_mgr_internal.h"
 
-
-#include "dcn20/dcn20_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
