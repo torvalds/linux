@@ -327,7 +327,8 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 
 	kudev->dev = device_create(kpc_uio_class, &pcard->pdev->dev, MKDEV(0, 0), kudev, "%s.%d.%d.%d", kudev->uioinfo.name, pcard->card_num, cte.type, kudev->core_num);
 	if (IS_ERR(kudev->dev)) {
-		dev_err(&pcard->pdev->dev, "probe_core_uio device_create failed!\n");
+		dev_err(&pcard->pdev->dev, "%s: device_create failed!\n",
+			__func__);
 		kfree(kudev);
 		return -ENODEV;
 	}
@@ -335,7 +336,8 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 
 	rv = uio_register_device(kudev->dev, &kudev->uioinfo);
 	if (rv) {
-		dev_err(&pcard->pdev->dev, "probe_core_uio failed uio_register_device: %d\n", rv);
+		dev_err(&pcard->pdev->dev, "%s: failed uio_register_device: %d\n",
+			__func__, rv);
 		put_device(kudev->dev);
 		kfree(kudev);
 		return rv;
@@ -410,7 +412,8 @@ static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
 	return 0;
 
 err_out:
-	dev_err(&pcard->pdev->dev, "kp2000_setup_dma_controller: failed to add a DMA Engine: %d\n", err);
+	dev_err(&pcard->pdev->dev, "%s: failed to add a DMA Engine: %d\n",
+		__func__, err);
 	return err;
 }
 
@@ -423,7 +426,8 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	unsigned int highest_core_id = 0;
 	struct core_table_entry cte;
 
-	dev_dbg(&pcard->pdev->dev, "kp2000_probe_cores(pcard = %p / %d)\n", pcard, pcard->card_num);
+	dev_dbg(&pcard->pdev->dev, "%s(pcard = %p / %d)\n", __func__, pcard,
+		pcard->card_num);
 
 	err = kp2000_setup_dma_controller(pcard);
 	if (err)
@@ -472,8 +476,8 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 			}
 			if (err) {
 				dev_err(&pcard->pdev->dev,
-					"kp2000_probe_cores: failed to add core %d: %d\n",
-					i, err);
+					"%s: failed to add core %d: %d\n",
+					__func__, i, err);
 				goto error;
 			}
 			core_num++;
@@ -492,7 +496,8 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	cte.irq_base_num        = 0;
 	err = probe_core_uio(0, pcard, "kpc_uio", cte);
 	if (err) {
-		dev_err(&pcard->pdev->dev, "kp2000_probe_cores: failed to add board_info core: %d\n", err);
+		dev_err(&pcard->pdev->dev, "%s: failed to add board_info core: %d\n",
+			__func__, err);
 		goto error;
 	}
 
