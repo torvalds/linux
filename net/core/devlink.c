@@ -21,6 +21,7 @@
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/refcount.h>
+#include <linux/workqueue.h>
 #include <rdma/ib_verbs.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -5390,6 +5391,38 @@ void devlink_free(struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devlink_free);
 
+static void devlink_port_type_warn(struct work_struct *work)
+{
+	WARN(true, "Type was not set for devlink port.");
+}
+
+static bool devlink_port_type_should_warn(struct devlink_port *devlink_port)
+{
+	/* Ignore CPU and DSA flavours. */
+	return devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_CPU &&
+	       devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_DSA;
+}
+
+#define DEVLINK_PORT_TYPE_WARN_TIMEOUT (HZ * 30)
+
+static void devlink_port_type_warn_schedule(struct devlink_port *devlink_port)
+{
+	if (!devlink_port_type_should_warn(devlink_port))
+		return;
+	/* Schedule a work to WARN in case driver does not set port
+	 * type within timeout.
+	 */
+	schedule_delayed_work(&devlink_port->type_warn_dw,
+			      DEVLINK_PORT_TYPE_WARN_TIMEOUT);
+}
+
+static void devlink_port_type_warn_cancel(struct devlink_port *devlink_port)
+{
+	if (!devlink_port_type_should_warn(devlink_port))
+		return;
+	cancel_delayed_work_sync(&devlink_port->type_warn_dw);
+}
+
 /**
  *	devlink_port_register - Register devlink port
  *
@@ -5419,6 +5452,8 @@ int devlink_port_register(struct devlink *devlink,
 	list_add_tail(&devlink_port->list, &devlink->port_list);
 	INIT_LIST_HEAD(&devlink_port->param_list);
 	mutex_unlock(&devlink->lock);
+	INIT_DELAYED_WORK(&devlink_port->type_warn_dw, &devlink_port_type_warn);
+	devlink_port_type_warn_schedule(devlink_port);
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 	return 0;
 }
@@ -5433,6 +5468,7 @@ void devlink_port_unregister(struct devlink_port *devlink_port)
 {
 	struct devlink *devlink = devlink_port->devlink;
 
+	devlink_port_type_warn_cancel(devlink_port);
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_DEL);
 	mutex_lock(&devlink->lock);
 	list_del(&devlink_port->list);
@@ -5446,6 +5482,7 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 {
 	if (WARN_ON(!devlink_port->registered))
 		return;
+	devlink_port_type_warn_cancel(devlink_port);
 	spin_lock(&devlink_port->type_lock);
 	devlink_port->type = type;
 	devlink_port->type_dev = type_dev;
@@ -5519,6 +5556,7 @@ EXPORT_SYMBOL_GPL(devlink_port_type_ib_set);
 void devlink_port_type_clear(struct devlink_port *devlink_port)
 {
 	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_NOTSET, NULL);
+	devlink_port_type_warn_schedule(devlink_port);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_clear);
 
