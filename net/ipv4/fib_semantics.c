@@ -1092,15 +1092,13 @@ out:
 	return err;
 }
 
-static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
-			struct netlink_ext_ack *extack)
+int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
+		 struct netlink_ext_ack *extack)
 {
-	struct net *net = cfg->fc_nlinfo.nl_net;
-	u32 table = cfg->fc_table;
 	int err;
 
 	if (nh->fib_nh_gw_family == AF_INET)
-		err = fib_check_nh_v4_gw(net, nh, table, cfg->fc_scope, extack);
+		err = fib_check_nh_v4_gw(net, nh, table, scope, extack);
 	else if (nh->fib_nh_gw_family == AF_INET6)
 		err = fib_check_nh_v6_gw(net, nh, table, extack);
 	else
@@ -1191,11 +1189,10 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 	fib_info_hash_free(old_laddrhash, bytes);
 }
 
-__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh)
+__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh,
+				unsigned char scope)
 {
-	nh->nh_saddr = inet_select_addr(nh->fib_nh_dev,
-					nh->fib_nh_gw4,
-					nh->nh_parent->fib_scope);
+	nh->nh_saddr = inet_select_addr(nh->fib_nh_dev, nh->fib_nh_gw4, scope);
 	nh->nh_saddr_genid = atomic_read(&net->ipv4.dev_addr_genid);
 
 	return nh->nh_saddr;
@@ -1213,7 +1210,7 @@ __be32 fib_result_prefsrc(struct net *net, struct fib_result *res)
 	if (nh->nh_saddr_genid == atomic_read(&net->ipv4.dev_addr_genid))
 		return nh->nh_saddr;
 
-	return fib_info_update_nh_saddr(net, nh);
+	return fib_info_update_nh_saddr(net, nh, res->fi->fib_scope);
 }
 
 static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
@@ -1377,7 +1374,9 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		int linkdown = 0;
 
 		change_nexthops(fi) {
-			err = fib_check_nh(cfg, nexthop_nh, extack);
+			err = fib_check_nh(cfg->fc_nlinfo.nl_net, nexthop_nh,
+					   cfg->fc_table, cfg->fc_scope,
+					   extack);
 			if (err != 0)
 				goto failure;
 			if (nexthop_nh->fib_nh_flags & RTNH_F_LINKDOWN)
@@ -1393,7 +1392,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 
 	change_nexthops(fi) {
-		fib_info_update_nh_saddr(net, nexthop_nh);
+		fib_info_update_nh_saddr(net, nexthop_nh, fi->fib_scope);
 		if (nexthop_nh->fib_nh_gw_family == AF_INET6)
 			fi->fib_nh_is_v6 = true;
 	} endfor_nexthops(fi)
@@ -1713,7 +1712,7 @@ static int call_fib_nh_notifiers(struct fib_nh *nh,
  * - if the new MTU is greater than the PMTU, don't make any change
  * - otherwise, unlock and set PMTU
  */
-static void nh_update_mtu(struct fib_nh_common *nhc, u32 new, u32 orig)
+void fib_nhc_update_mtu(struct fib_nh_common *nhc, u32 new, u32 orig)
 {
 	struct fnhe_hash_bucket *bucket;
 	int i;
@@ -1749,7 +1748,7 @@ void fib_sync_mtu(struct net_device *dev, u32 orig_mtu)
 
 	hlist_for_each_entry(nh, head, nh_hash) {
 		if (nh->fib_nh_dev == dev)
-			nh_update_mtu(&nh->nh_common, dev->mtu, orig_mtu);
+			fib_nhc_update_mtu(&nh->nh_common, dev->mtu, orig_mtu);
 	}
 }
 

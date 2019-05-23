@@ -393,10 +393,10 @@ static int call_fib6_entry_notifier(struct notifier_block *nb, struct net *net,
 	return call_fib6_notifier(nb, net, event_type, &info.info);
 }
 
-static int call_fib6_entry_notifiers(struct net *net,
-				     enum fib_event_type event_type,
-				     struct fib6_info *rt,
-				     struct netlink_ext_ack *extack)
+int call_fib6_entry_notifiers(struct net *net,
+			      enum fib_event_type event_type,
+			      struct fib6_info *rt,
+			      struct netlink_ext_ack *extack)
 {
 	struct fib6_entry_notifier_info info = {
 		.info.extack = extack,
@@ -1220,6 +1220,14 @@ static void __fib6_update_sernum_upto_root(struct fib6_info *rt,
 void fib6_update_sernum_upto_root(struct net *net, struct fib6_info *rt)
 {
 	__fib6_update_sernum_upto_root(rt, fib6_new_sernum(net));
+}
+
+/* allow ipv4 to update sernum via ipv6_stub */
+void fib6_update_sernum_stub(struct net *net, struct fib6_info *f6i)
+{
+	spin_lock_bh(&f6i->fib6_table->tb6_lock);
+	fib6_update_sernum_upto_root(net, f6i);
+	spin_unlock_bh(&f6i->fib6_table->tb6_lock);
 }
 
 /*
