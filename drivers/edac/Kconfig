@@ -539,4 +539,11 @@ config EDAC_DMC520
 	  Support for error detection and correction on the
 	  SoCs with ARM DMC-520 DRAM controller.
 
+config EDAC_NPCM7XX
+	tristate "Nuvoton NPCM7xx DDR Memory Controller"
+	depends on ARCH_NPCM7XX
+	help
+	  Support for error detection and correction on the
+	  Nuvoton NPCM7xx DDR memory controller.
+
 endif # EDAC
