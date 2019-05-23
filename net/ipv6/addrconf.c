@@ -6341,16 +6341,16 @@ void addrconf_disable_policy_idev(struct inet6_dev *idev, int val)
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
 		spin_lock(&ifa->lock);
 		if (ifa->rt) {
-			struct fib6_info *rt = ifa->rt;
+			struct fib6_nh *nh = &ifa->rt->fib6_nh;
 			int cpu;
 
 			rcu_read_lock();
 			ifa->rt->dst_nopolicy = val ? true : false;
-			if (rt->rt6i_pcpu) {
+			if (nh->rt6i_pcpu) {
 				for_each_possible_cpu(cpu) {
 					struct rt6_info **rtp;
 
-					rtp = per_cpu_ptr(rt->rt6i_pcpu, cpu);
+					rtp = per_cpu_ptr(nh->rt6i_pcpu, cpu);
 					addrconf_set_nopolicy(*rtp, val);
 				}
 			}

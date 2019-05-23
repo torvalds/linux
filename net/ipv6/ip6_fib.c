@@ -155,12 +155,6 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 	if (!f6i)
 		return NULL;
 
-	f6i->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
-	if (!f6i->rt6i_pcpu) {
-		kfree(f6i);
-		return NULL;
-	}
-
 	INIT_LIST_HEAD(&f6i->fib6_siblings);
 	refcount_set(&f6i->fib6_ref, 1);
 
@@ -176,25 +170,6 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 
 	bucket = rcu_dereference_protected(f6i->rt6i_exception_bucket, 1);
 	kfree(bucket);
-
-	if (f6i->rt6i_pcpu) {
-		int cpu;
-
-		for_each_possible_cpu(cpu) {
-			struct rt6_info **ppcpu_rt;
-			struct rt6_info *pcpu_rt;
-
-			ppcpu_rt = per_cpu_ptr(f6i->rt6i_pcpu, cpu);
-			pcpu_rt = *ppcpu_rt;
-			if (pcpu_rt) {
-				dst_dev_put(&pcpu_rt->dst);
-				dst_release(&pcpu_rt->dst);
-				*ppcpu_rt = NULL;
-			}
-		}
-
-		free_percpu(f6i->rt6i_pcpu);
-	}
 
 	fib6_nh_release(&f6i->fib6_nh);
 
@@ -902,7 +877,11 @@ insert_above:
 static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 				const struct fib6_table *table)
 {
+	struct fib6_nh *fib6_nh = &f6i->fib6_nh;
 	int cpu;
+
+	if (!fib6_nh->rt6i_pcpu)
+		return;
 
 	/* Make sure rt6_make_pcpu_route() wont add other percpu routes
 	 * while we are cleaning them here.
@@ -917,7 +896,7 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 		struct rt6_info **ppcpu_rt;
 		struct rt6_info *pcpu_rt;
 
-		ppcpu_rt = per_cpu_ptr(f6i->rt6i_pcpu, cpu);
+		ppcpu_rt = per_cpu_ptr(fib6_nh->rt6i_pcpu, cpu);
 		pcpu_rt = *ppcpu_rt;
 		if (pcpu_rt) {
 			struct fib6_info *from;
@@ -933,8 +912,7 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 {
 	struct fib6_table *table = rt->fib6_table;
 
-	if (rt->rt6i_pcpu)
-		fib6_drop_pcpu_from(rt, table);
+	fib6_drop_pcpu_from(rt, table);
 
 	if (refcount_read(&rt->fib6_ref) != 1) {
 		/* This route is used as dummy address holder in some split

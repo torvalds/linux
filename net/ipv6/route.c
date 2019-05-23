@@ -1270,7 +1270,7 @@ static struct rt6_info *rt6_get_pcpu_route(const struct fib6_result *res)
 {
 	struct rt6_info *pcpu_rt, **p;
 
-	p = this_cpu_ptr(res->f6i->rt6i_pcpu);
+	p = this_cpu_ptr(res->nh->rt6i_pcpu);
 	pcpu_rt = *p;
 
 	if (pcpu_rt)
@@ -1291,7 +1291,7 @@ static struct rt6_info *rt6_make_pcpu_route(struct net *net,
 	}
 
 	dst_hold(&pcpu_rt->dst);
-	p = this_cpu_ptr(res->f6i->rt6i_pcpu);
+	p = this_cpu_ptr(res->nh->rt6i_pcpu);
 	prev = cmpxchg(p, NULL, pcpu_rt);
 	BUG_ON(prev);
 
@@ -3068,6 +3068,12 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 	    !netif_carrier_ok(dev))
 		fib6_nh->fib_nh_flags |= RTNH_F_LINKDOWN;
 
+	fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
+	if (!fib6_nh->rt6i_pcpu) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	err = fib_nh_common_init(&fib6_nh->nh_common, cfg->fc_encap,
 				 cfg->fc_encap_type, cfg, gfp_flags, extack);
 	if (err)
@@ -3092,6 +3098,25 @@ out:
 
 void fib6_nh_release(struct fib6_nh *fib6_nh)
 {
+	if (fib6_nh->rt6i_pcpu) {
+		int cpu;
+
+		for_each_possible_cpu(cpu) {
+			struct rt6_info **ppcpu_rt;
+			struct rt6_info *pcpu_rt;
+
+			ppcpu_rt = per_cpu_ptr(fib6_nh->rt6i_pcpu, cpu);
+			pcpu_rt = *ppcpu_rt;
+			if (pcpu_rt) {
+				dst_dev_put(&pcpu_rt->dst);
+				dst_release(&pcpu_rt->dst);
+				*ppcpu_rt = NULL;
+			}
+		}
+
+		free_percpu(fib6_nh->rt6i_pcpu);
+	}
+
 	fib_nh_common_release(&fib6_nh->nh_common);
 }
 
