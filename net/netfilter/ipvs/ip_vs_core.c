@@ -898,7 +898,7 @@ static int handle_response_icmp(int af, struct sk_buff *skb,
 	if (IPPROTO_TCP == protocol || IPPROTO_UDP == protocol ||
 	    IPPROTO_SCTP == protocol)
 		offset += 2 * sizeof(__u16);
-	if (!skb_make_writable(skb, offset))
+	if (skb_ensure_writable(skb, offset))
 		goto out;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1288,7 +1288,7 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 
 	IP_VS_DBG_PKT(11, af, pp, skb, iph->off, "Outgoing packet");
 
-	if (!skb_make_writable(skb, iph->len))
+	if (skb_ensure_writable(skb, iph->len))
 		goto drop;
 
 	/* mangle the packet */

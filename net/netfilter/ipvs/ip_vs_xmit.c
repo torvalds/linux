@@ -279,7 +279,7 @@ static inline bool decrement_ttl(struct netns_ipvs *ipvs,
 		}
 
 		/* don't propagate ttl change to cloned packets */
-		if (!skb_make_writable(skb, sizeof(struct ipv6hdr)))
+		if (skb_ensure_writable(skb, sizeof(struct ipv6hdr)))
 			return false;
 
 		ipv6_hdr(skb)->hop_limit--;
@@ -294,7 +294,7 @@ static inline bool decrement_ttl(struct netns_ipvs *ipvs,
 		}
 
 		/* don't propagate ttl change to cloned packets */
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return false;
 
 		/* Decrease ttl */
@@ -796,7 +796,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	/* copy-on-write the packet before mangling it */
-	if (!skb_make_writable(skb, sizeof(struct iphdr)))
+	if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 		goto tx_error;
 
 	if (skb_cow(skb, rt->dst.dev->hard_header_len))
@@ -885,7 +885,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	/* copy-on-write the packet before mangling it */
-	if (!skb_make_writable(skb, sizeof(struct ipv6hdr)))
+	if (skb_ensure_writable(skb, sizeof(struct ipv6hdr)))
 		goto tx_error;
 
 	if (skb_cow(skb, rt->dst.dev->hard_header_len))
@@ -1404,7 +1404,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	/* copy-on-write the packet before mangling it */
-	if (!skb_make_writable(skb, offset))
+	if (skb_ensure_writable(skb, offset))
 		goto tx_error;
 
 	if (skb_cow(skb, rt->dst.dev->hard_header_len))
@@ -1493,7 +1493,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	/* copy-on-write the packet before mangling it */
-	if (!skb_make_writable(skb, offset))
+	if (skb_ensure_writable(skb, offset))
 		goto tx_error;
 
 	if (skb_cow(skb, rt->dst.dev->hard_header_len))
