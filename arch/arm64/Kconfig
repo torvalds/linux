@@ -475,16 +475,15 @@ config ARM64_ERRATUM_1024718
 
 	  If unsure, say Y.
 
-config ARM64_ERRATUM_1188873
+config ARM64_ERRATUM_1418040
 	bool "Cortex-A76/Neoverse-N1: MRC read following MRRC read of specific Generic Timer in AArch32 might give incorrect result"
 	default y
 	depends on COMPAT
-	select ARM_ARCH_TIMER_OOL_WORKAROUND
 	help
 	  This option adds a workaround for ARM Cortex-A76/Neoverse-N1
-	  erratum 1188873.
+	  errata 1188873 and 1418040.
 
-	  Affected Cortex-A76/Neoverse-N1 cores (r0p0, r1p0, r2p0) could
+	  Affected Cortex-A76/Neoverse-N1 cores (r0p0 to r3p1) could
 	  cause register corruption when accessing the timer registers
 	  from AArch32 userspace.
 
