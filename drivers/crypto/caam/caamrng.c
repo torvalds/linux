@@ -113,10 +113,8 @@ static void rng_done(struct device *jrdev, u32 *desc, u32 err, void *context)
 	/* Buffer refilled, invalidate cache */
 	dma_sync_single_for_cpu(jrdev, bd->addr, RN_BUF_SIZE, DMA_FROM_DEVICE);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rng refreshed buf@: ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, bd->buf, RN_BUF_SIZE, 1);
-#endif
+	print_hex_dump_debug("rng refreshed buf@: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			     bd->buf, RN_BUF_SIZE, 1);
 }
 
 static inline int submit_job(struct caam_rng_ctx *ctx, int to_current)
@@ -209,10 +207,10 @@ static inline int rng_create_sh_desc(struct caam_rng_ctx *ctx)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rng shdesc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
-		       desc, desc_bytes(desc), 1);
-#endif
+
+	print_hex_dump_debug("rng shdesc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			     desc, desc_bytes(desc), 1);
+
 	return 0;
 }
 
@@ -233,10 +231,10 @@ static inline int rng_create_job_desc(struct caam_rng_ctx *ctx, int buf_id)
 	}
 
 	append_seq_out_ptr_intlen(desc, bd->addr, RN_BUF_SIZE, 0);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rng job desc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
-		       desc, desc_bytes(desc), 1);
-#endif
+
+	print_hex_dump_debug("rng job desc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			     desc, desc_bytes(desc), 1);
+
 	return 0;
 }
 

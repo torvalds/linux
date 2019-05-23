@@ -576,13 +576,11 @@ static int aead_setkey(struct crypto_aead *aead,
 	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-#ifdef DEBUG
-	printk(KERN_ERR "keylen %d enckeylen %d authkeylen %d\n",
+	dev_dbg(jrdev, "keylen %d enckeylen %d authkeylen %d\n",
 	       keys.authkeylen + keys.enckeylen, keys.enckeylen,
 	       keys.authkeylen);
-	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	/*
 	 * If DKP is supported, use it in the shared descriptor to generate
@@ -616,11 +614,10 @@ static int aead_setkey(struct crypto_aead *aead,
 	memcpy(ctx->key + ctx->adata.keylen_pad, keys.enckey, keys.enckeylen);
 	dma_sync_single_for_device(jrdev, ctx->key_dma, ctx->adata.keylen_pad +
 				   keys.enckeylen, ctx->dir);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
-		       ctx->adata.keylen_pad + keys.enckeylen, 1);
-#endif
+
+	print_hex_dump_debug("ctx.key@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
+			     ctx->adata.keylen_pad + keys.enckeylen, 1);
 
 skip_split_key:
 	ctx->cdata.keylen = keys.enckeylen;
@@ -671,10 +668,8 @@ static int gcm_setkey(struct crypto_aead *aead,
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	memcpy(ctx->key, key, keylen);
 	dma_sync_single_for_device(jrdev, ctx->key_dma, keylen, ctx->dir);
@@ -692,10 +687,8 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	if (keylen < 4)
 		return -EINVAL;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	memcpy(ctx->key, key, keylen);
 
@@ -718,10 +711,8 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	if (keylen < 4)
 		return -EINVAL;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	memcpy(ctx->key, key, keylen);
 
@@ -750,10 +741,8 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 			       OP_ALG_AAI_CTR_MOD128);
 	const bool is_rfc3686 = alg->caam.rfc3686;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 	/*
 	 * AES-CTR needs to load IV in CONTEXT1 reg
 	 * at an offset of 128bits (16bytes)
@@ -942,9 +931,7 @@ static void aead_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	struct aead_request *req = context;
 	struct aead_edesc *edesc;
 
-#ifdef DEBUG
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct aead_edesc, hw_desc[0]);
 
@@ -964,9 +951,7 @@ static void aead_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	struct aead_request *req = context;
 	struct aead_edesc *edesc;
 
-#ifdef DEBUG
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct aead_edesc, hw_desc[0]);
 
@@ -994,9 +979,7 @@ static void skcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	int ivsize = crypto_skcipher_ivsize(skcipher);
 
-#ifdef DEBUG
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct skcipher_edesc, hw_desc[0]);
 
@@ -1013,12 +996,11 @@ static void skcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		scatterwalk_map_and_copy(req->iv, req->dst, req->cryptlen -
 					 ivsize, ivsize, 0);
 
-#ifdef DEBUG
 	if (ivsize)
-		print_hex_dump(KERN_ERR, "dstiv  @"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
-			       edesc->src_nents > 1 ? 100 : ivsize, 1);
-#endif
+		print_hex_dump_debug("dstiv  @"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
+				     edesc->src_nents > 1 ? 100 : ivsize, 1);
+
 	caam_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
 		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
 		     edesc->dst_nents > 1 ? 100 : req->cryptlen, 1);
@@ -1033,12 +1015,10 @@ static void skcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 {
 	struct skcipher_request *req = context;
 	struct skcipher_edesc *edesc;
-#ifdef DEBUG
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	int ivsize = crypto_skcipher_ivsize(skcipher);
 
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct skcipher_edesc, hw_desc[0]);
 	if (err)
@@ -1046,10 +1026,8 @@ static void skcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 
 	skcipher_unmap(jrdev, edesc, req);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "dstiv  @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, req->iv, ivsize, 1);
-#endif
+	print_hex_dump_debug("dstiv  @"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, req->iv, ivsize, 1);
 	caam_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
 		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
 		     edesc->dst_nents > 1 ? 100 : req->cryptlen, 1);
@@ -1245,6 +1223,7 @@ static void init_skcipher_job(struct skcipher_request *req,
 {
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct caam_ctx *ctx = crypto_skcipher_ctx(skcipher);
+	struct device *jrdev = ctx->jrdev;
 	int ivsize = crypto_skcipher_ivsize(skcipher);
 	u32 *desc = edesc->hw_desc;
 	u32 *sh_desc;
@@ -1252,12 +1231,11 @@ static void init_skcipher_job(struct skcipher_request *req,
 	dma_addr_t src_dma, dst_dma, ptr;
 	int len, sec4_sg_index = 0;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "presciv@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, req->iv, ivsize, 1);
-	pr_err("asked=%d, cryptlen%d\n",
+	print_hex_dump_debug("presciv@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, req->iv, ivsize, 1);
+	dev_dbg(jrdev, "asked=%d, cryptlen%d\n",
 	       (int)edesc->src_nents > 1 ? 100 : req->cryptlen, req->cryptlen);
-#endif
+
 	caam_dump_sg(KERN_ERR, "src    @" __stringify(__LINE__)": ",
 		     DUMP_PREFIX_ADDRESS, 16, 4, req->src,
 		     edesc->src_nents > 1 ? 100 : req->cryptlen, 1);
@@ -1450,11 +1428,10 @@ static int gcm_encrypt(struct aead_request *req)
 
 	/* Create and submit job descriptor */
 	init_gcm_job(req, edesc, all_contig, true);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "aead jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-		       desc_bytes(edesc->hw_desc), 1);
-#endif
+
+	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
 
 	desc = edesc->hw_desc;
 	ret = caam_jr_enqueue(jrdev, desc, aead_encrypt_done, req);
@@ -1560,11 +1537,10 @@ static int aead_encrypt(struct aead_request *req)
 
 	/* Create and submit job descriptor */
 	init_authenc_job(req, edesc, all_contig, true);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "aead jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-		       desc_bytes(edesc->hw_desc), 1);
-#endif
+
+	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
 
 	desc = edesc->hw_desc;
 	ret = caam_jr_enqueue(jrdev, desc, aead_encrypt_done, req);
@@ -1595,11 +1571,10 @@ static int gcm_decrypt(struct aead_request *req)
 
 	/* Create and submit job descriptor*/
 	init_gcm_job(req, edesc, all_contig, false);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "aead jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-		       desc_bytes(edesc->hw_desc), 1);
-#endif
+
+	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
 
 	desc = edesc->hw_desc;
 	ret = caam_jr_enqueue(jrdev, desc, aead_decrypt_done, req);
@@ -1643,11 +1618,10 @@ static int aead_decrypt(struct aead_request *req)
 
 	/* Create and submit job descriptor*/
 	init_authenc_job(req, edesc, all_contig, false);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "aead jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-		       desc_bytes(edesc->hw_desc), 1);
-#endif
+
+	print_hex_dump_debug("aead jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
 
 	desc = edesc->hw_desc;
 	ret = caam_jr_enqueue(jrdev, desc, aead_decrypt_done, req);
@@ -1804,11 +1778,9 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 
 	edesc->iv_dma = iv_dma;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "skcipher sec4_sg@" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->sec4_sg,
-		       sec4_sg_bytes, 1);
-#endif
+	print_hex_dump_debug("skcipher sec4_sg@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->sec4_sg,
+			     sec4_sg_bytes, 1);
 
 	return edesc;
 }
@@ -1829,11 +1801,11 @@ static int skcipher_encrypt(struct skcipher_request *req)
 
 	/* Create and submit job descriptor*/
 	init_skcipher_job(req, edesc, true);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "skcipher jobdesc@" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-		       desc_bytes(edesc->hw_desc), 1);
-#endif
+
+	print_hex_dump_debug("skcipher jobdesc@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
+
 	desc = edesc->hw_desc;
 	ret = caam_jr_enqueue(jrdev, desc, skcipher_encrypt_done, req);
 
@@ -1873,11 +1845,10 @@ static int skcipher_decrypt(struct skcipher_request *req)
 	/* Create and submit job descriptor*/
 	init_skcipher_job(req, edesc, false);
 	desc = edesc->hw_desc;
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "skcipher jobdesc@" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
-		       desc_bytes(edesc->hw_desc), 1);
-#endif
+
+	print_hex_dump_debug("skcipher jobdesc@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, edesc->hw_desc,
+			     desc_bytes(edesc->hw_desc), 1);
 
 	ret = caam_jr_enqueue(jrdev, desc, skcipher_decrypt_done, req);
 	if (!ret) {

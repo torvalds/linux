@@ -214,13 +214,11 @@ static int aead_setkey(struct crypto_aead *aead, const u8 *key,
 	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-#ifdef DEBUG
-	dev_err(jrdev, "keylen %d enckeylen %d authkeylen %d\n",
+	dev_dbg(jrdev, "keylen %d enckeylen %d authkeylen %d\n",
 		keys.authkeylen + keys.enckeylen, keys.enckeylen,
 		keys.authkeylen);
-	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	/*
 	 * If DKP is supported, use it in the shared descriptor to generate
@@ -387,10 +385,8 @@ static int gcm_setkey(struct crypto_aead *aead,
 	struct device *jrdev = ctx->jrdev;
 	int ret;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	memcpy(ctx->key, key, keylen);
 	dma_sync_single_for_device(jrdev->parent, ctx->key_dma, keylen,
@@ -487,10 +483,8 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	if (keylen < 4)
 		return -EINVAL;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	memcpy(ctx->key, key, keylen);
 	/*
@@ -591,10 +585,8 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	if (keylen < 4)
 		return -EINVAL;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 
 	memcpy(ctx->key, key, keylen);
 	/*
@@ -646,10 +638,9 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	const bool is_rfc3686 = alg->caam.rfc3686;
 	int ret = 0;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
+	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
+
 	/*
 	 * AES-CTR needs to load IV in CONTEXT1 reg
 	 * at an offset of 128bits (16bytes)
@@ -1199,23 +1190,19 @@ static void skcipher_done(struct caam_drv_req *drv_req, u32 status)
 	struct device *qidev = caam_ctx->qidev;
 	int ivsize = crypto_skcipher_ivsize(skcipher);
 
-#ifdef DEBUG
-	dev_err(qidev, "%s %d: status 0x%x\n", __func__, __LINE__, status);
-#endif
+	dev_dbg(qidev, "%s %d: status 0x%x\n", __func__, __LINE__, status);
 
 	edesc = container_of(drv_req, typeof(*edesc), drv_req);
 
 	if (status)
 		caam_jr_strstatus(qidev, status);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "dstiv  @" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
-		       edesc->src_nents > 1 ? 100 : ivsize, 1);
+	print_hex_dump_debug("dstiv  @" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
+			     edesc->src_nents > 1 ? 100 : ivsize, 1);
 	caam_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
 		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
 		     edesc->dst_nents > 1 ? 100 : req->cryptlen, 1);
-#endif
 
 	skcipher_unmap(qidev, edesc, req);
 

@@ -235,11 +235,10 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 			  ctx->ctx_len, true, ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_dma,
 				   desc_bytes(desc), ctx->dir);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "ahash update shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+
+	print_hex_dump_debug("ahash update shdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	/* ahash_update_first shared descriptor */
 	desc = ctx->sh_desc_update_first;
@@ -247,11 +246,9 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 			  ctx->ctx_len, false, ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_first_dma,
 				   desc_bytes(desc), ctx->dir);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "ahash update first shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("ahash update first shdesc@"__stringify(__LINE__)
+			     ": ", DUMP_PREFIX_ADDRESS, 16, 4, desc,
+			     desc_bytes(desc), 1);
 
 	/* ahash_final shared descriptor */
 	desc = ctx->sh_desc_fin;
@@ -259,11 +256,10 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 			  ctx->ctx_len, true, ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_fin_dma,
 				   desc_bytes(desc), ctx->dir);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ahash final shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
+
+	print_hex_dump_debug("ahash final shdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc,
+			     desc_bytes(desc), 1);
 
 	/* ahash_digest shared descriptor */
 	desc = ctx->sh_desc_digest;
@@ -271,12 +267,10 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 			  ctx->ctx_len, false, ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_digest_dma,
 				   desc_bytes(desc), ctx->dir);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "ahash digest shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
+
+	print_hex_dump_debug("ahash digest shdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc,
+			     desc_bytes(desc), 1);
 
 	return 0;
 }
@@ -320,9 +314,9 @@ static int axcbc_set_sh_desc(struct crypto_ahash *ahash)
 			    ctx->ctx_len, ctx->key_dma);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_first_dma,
 				   desc_bytes(desc), ctx->dir);
-	print_hex_dump_debug("axcbc update first shdesc@" __stringify(__LINE__)" : ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
-			     1);
+	print_hex_dump_debug("axcbc update first shdesc@" __stringify(__LINE__)
+			     " : ", DUMP_PREFIX_ADDRESS, 16, 4, desc,
+			     desc_bytes(desc), 1);
 
 	/* shared descriptor for ahash_digest */
 	desc = ctx->sh_desc_digest;
@@ -369,8 +363,8 @@ static int acmac_set_sh_desc(struct crypto_ahash *ahash)
 			    ctx->ctx_len, 0);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_first_dma,
 				   desc_bytes(desc), ctx->dir);
-	print_hex_dump_debug("acmac update first shdesc@" __stringify(__LINE__)" : ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, desc,
+	print_hex_dump_debug("acmac update first shdesc@" __stringify(__LINE__)
+			     " : ", DUMP_PREFIX_ADDRESS, 16, 4, desc,
 			     desc_bytes(desc), 1);
 
 	/* shared descriptor for ahash_digest */
@@ -421,12 +415,11 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
 	append_seq_store(desc, digestsize, LDST_CLASS_2_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "key_in@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, *keylen, 1);
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("key_in@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key, *keylen, 1);
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	result.err = 0;
 	init_completion(&result.completion);
@@ -436,11 +429,10 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
 		/* in progress */
 		wait_for_completion(&result.completion);
 		ret = result.err;
-#ifdef DEBUG
-		print_hex_dump(KERN_ERR,
-			       "digested key@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, key, digestsize, 1);
-#endif
+
+		print_hex_dump_debug("digested key@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, key,
+				     digestsize, 1);
 	}
 	dma_unmap_single(jrdev, key_dma, *keylen, DMA_BIDIRECTIONAL);
 
@@ -455,15 +447,14 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+	struct device *jrdev = ctx->jrdev;
 	int blocksize = crypto_tfm_alg_blocksize(&ahash->base);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctx->jrdev->parent);
 	int ret;
 	u8 *hashed_key = NULL;
 
-#ifdef DEBUG
-	printk(KERN_ERR "keylen %d\n", keylen);
-#endif
+	dev_dbg(jrdev, "keylen %d\n", keylen);
 
 	if (keylen > blocksize) {
 		hashed_key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
@@ -592,11 +583,9 @@ static void ahash_done(struct device *jrdev, u32 *desc, u32 err,
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct caam_hash_state *state = ahash_request_ctx(req);
-#ifdef DEBUG
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
@@ -606,11 +595,9 @@ static void ahash_done(struct device *jrdev, u32 *desc, u32 err,
 	memcpy(req->result, state->caam_ctx, digestsize);
 	kfree(edesc);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
-		       ctx->ctx_len, 1);
-#endif
+	print_hex_dump_debug("ctx@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
+			     ctx->ctx_len, 1);
 
 	req->base.complete(&req->base, err);
 }
@@ -623,11 +610,9 @@ static void ahash_done_bi(struct device *jrdev, u32 *desc, u32 err,
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct caam_hash_state *state = ahash_request_ctx(req);
-#ifdef DEBUG
 	int digestsize = crypto_ahash_digestsize(ahash);
 
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
@@ -637,15 +622,13 @@ static void ahash_done_bi(struct device *jrdev, u32 *desc, u32 err,
 	switch_buf(state);
 	kfree(edesc);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
-		       ctx->ctx_len, 1);
+	print_hex_dump_debug("ctx@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
+			     ctx->ctx_len, 1);
 	if (req->result)
-		print_hex_dump(KERN_ERR, "result@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, req->result,
-			       digestsize, 1);
-#endif
+		print_hex_dump_debug("result@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, req->result,
+				     digestsize, 1);
 
 	req->base.complete(&req->base, err);
 }
@@ -658,11 +641,9 @@ static void ahash_done_ctx_src(struct device *jrdev, u32 *desc, u32 err,
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct caam_hash_state *state = ahash_request_ctx(req);
-#ifdef DEBUG
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
@@ -672,11 +653,9 @@ static void ahash_done_ctx_src(struct device *jrdev, u32 *desc, u32 err,
 	memcpy(req->result, state->caam_ctx, digestsize);
 	kfree(edesc);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
-		       ctx->ctx_len, 1);
-#endif
+	print_hex_dump_debug("ctx@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
+			     ctx->ctx_len, 1);
 
 	req->base.complete(&req->base, err);
 }
@@ -689,11 +668,9 @@ static void ahash_done_ctx_dst(struct device *jrdev, u32 *desc, u32 err,
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct caam_hash_state *state = ahash_request_ctx(req);
-#ifdef DEBUG
 	int digestsize = crypto_ahash_digestsize(ahash);
 
-	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
@@ -703,15 +680,13 @@ static void ahash_done_ctx_dst(struct device *jrdev, u32 *desc, u32 err,
 	switch_buf(state);
 	kfree(edesc);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
-		       ctx->ctx_len, 1);
+	print_hex_dump_debug("ctx@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
+			     ctx->ctx_len, 1);
 	if (req->result)
-		print_hex_dump(KERN_ERR, "result@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, req->result,
-			       digestsize, 1);
-#endif
+		print_hex_dump_debug("result@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, req->result,
+				     digestsize, 1);
 
 	req->base.complete(&req->base, err);
 }
@@ -887,11 +862,9 @@ static int ahash_update_ctx(struct ahash_request *req)
 
 		append_seq_out_ptr(desc, state->ctx_dma, ctx->ctx_len, 0);
 
-#ifdef DEBUG
-		print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-			       desc_bytes(desc), 1);
-#endif
+		print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, desc,
+				     desc_bytes(desc), 1);
 
 		ret = caam_jr_enqueue(jrdev, desc, ahash_done_bi, req);
 		if (ret)
@@ -904,13 +877,12 @@ static int ahash_update_ctx(struct ahash_request *req)
 		*buflen = *next_buflen;
 		*next_buflen = last_buflen;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "buf@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, buf, *buflen, 1);
-	print_hex_dump(KERN_ERR, "next buf@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, next_buf,
-		       *next_buflen, 1);
-#endif
+
+	print_hex_dump_debug("buf@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, buf, *buflen, 1);
+	print_hex_dump_debug("next buf@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, next_buf,
+			     *next_buflen, 1);
 
 	return ret;
 unmap_ctx:
@@ -970,10 +942,9 @@ static int ahash_final_ctx(struct ahash_request *req)
 			  LDST_SGF);
 	append_seq_out_ptr(desc, state->ctx_dma, digestsize, 0);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	ret = caam_jr_enqueue(jrdev, desc, ahash_done_ctx_src, req);
 	if (ret)
@@ -1051,10 +1022,9 @@ static int ahash_finup_ctx(struct ahash_request *req)
 
 	append_seq_out_ptr(desc, state->ctx_dma, digestsize, 0);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	ret = caam_jr_enqueue(jrdev, desc, ahash_done_ctx_src, req);
 	if (ret)
@@ -1128,10 +1098,9 @@ static int ahash_digest(struct ahash_request *req)
 		return -ENOMEM;
 	}
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	ret = caam_jr_enqueue(jrdev, desc, ahash_done, req);
 	if (!ret) {
@@ -1183,10 +1152,9 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	if (ret)
 		goto unmap;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	ret = caam_jr_enqueue(jrdev, desc, ahash_done, req);
 	if (!ret) {
@@ -1308,11 +1276,9 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 		if (ret)
 			goto unmap_ctx;
 
-#ifdef DEBUG
-		print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-			       desc_bytes(desc), 1);
-#endif
+		print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, desc,
+				     desc_bytes(desc), 1);
 
 		ret = caam_jr_enqueue(jrdev, desc, ahash_done_ctx_dst, req);
 		if (ret)
@@ -1328,13 +1294,12 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 		*buflen = *next_buflen;
 		*next_buflen = 0;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "buf@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, buf, *buflen, 1);
-	print_hex_dump(KERN_ERR, "next buf@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, next_buf,
-		       *next_buflen, 1);
-#endif
+
+	print_hex_dump_debug("buf@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, buf, *buflen, 1);
+	print_hex_dump_debug("next buf@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, next_buf, *next_buflen,
+			     1);
 
 	return ret;
  unmap_ctx:
@@ -1409,10 +1374,9 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 	if (ret)
 		goto unmap;
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	ret = caam_jr_enqueue(jrdev, desc, ahash_done, req);
 	if (!ret) {
@@ -1512,11 +1476,9 @@ static int ahash_update_first(struct ahash_request *req)
 		if (ret)
 			goto unmap_ctx;
 
-#ifdef DEBUG
-		print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-			       desc_bytes(desc), 1);
-#endif
+		print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, desc,
+				     desc_bytes(desc), 1);
 
 		ret = caam_jr_enqueue(jrdev, desc, ahash_done_ctx_dst, req);
 		if (ret)
@@ -1534,11 +1496,10 @@ static int ahash_update_first(struct ahash_request *req)
 					 req->nbytes, 0);
 		switch_buf(state);
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "next buf@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, next_buf,
-		       *next_buflen, 1);
-#endif
+
+	print_hex_dump_debug("next buf@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, next_buf, *next_buflen,
+			     1);
 
 	return ret;
  unmap_ctx:
