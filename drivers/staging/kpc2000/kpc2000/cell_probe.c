@@ -25,7 +25,7 @@
  *                                                              D                   C2S DMA Present
  *                                                               DDD                C2S DMA Channel Number    [up to 8 channels]
  *                                                                  II              IRQ Count [0 to 3 IRQs per core]
-                                                                      1111111000
+ *                                                                    1111111000
  *                                                                    IIIIIII       IRQ Base Number [up to 128 IRQs per card]
  *                                                                           ___    Spare
  *
