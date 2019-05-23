@@ -277,6 +277,8 @@ patternProperties:
     description: Ecole Polytechnique Fédérale de Lausanne
   "^epson,.*":
     description: Seiko Epson Corp.
+  "^esp,.*":
+    description: Espressif Systems Co. Ltd.
   "^est,.*":
     description: ESTeem Wireless Modems
   "^ettus,.*":
