@@ -108,15 +108,15 @@ struct amdtp_stream {
 	struct iso_packets_buffer buffer;
 	int packet_index;
 	int tag;
-	int (*handle_packet)(struct amdtp_stream *s,
-			unsigned int payload_quadlets, unsigned int cycle,
-			unsigned int index);
+	int (*handle_packet)(struct amdtp_stream *s, unsigned int cycle,
+			     const __be32 *ctx_header, __be32 *buffer,
+			     unsigned int index);
 	union {
 		struct {
 			unsigned int ctx_header_size;
 
 			// limit for payload of iso packet.
-			unsigned int max_payload_length;
+			unsigned int max_ctx_payload_length;
 
 			// For quirks of CIP headers.
 			// Fixed interval of dbc between previos/current
