@@ -82,14 +82,6 @@
 #define HASH_MSG_LEN			8
 #define MAX_CTX_LEN			(HASH_MSG_LEN + SHA512_DIGEST_SIZE)
 
-#ifdef DEBUG
-/* for print_hex_dumps with line references */
-#define debug(format, arg...) printk(format, arg)
-#else
-#define debug(format, arg...)
-#endif
-
-
 static struct list_head hash_list;
 
 /* ahash per-session context */
