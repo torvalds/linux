@@ -245,6 +245,7 @@ int  kp2000_check_uio_irq(struct kp2000_device *pcard, u32 irq_num)
 	u64 interrupt_active   =  readq(pcard->sysinfo_regs_base + REG_INTERRUPT_ACTIVE);
 	u64 interrupt_mask_inv = ~readq(pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
 	u64 irq_check_mask = (1 << irq_num);
+
 	if (interrupt_active & irq_check_mask) { // if it's active (interrupt pending)
 		if (interrupt_mask_inv & irq_check_mask) {    // and if it's not masked off
 			return 1;
@@ -257,6 +258,7 @@ static
 irqreturn_t  kuio_handler(int irq, struct uio_info *uioinfo)
 {
 	struct kpc_uio_device *kudev = uioinfo->priv;
+
 	if (irq != kudev->pcard->pdev->irq)
 		return IRQ_NONE;
 
@@ -506,8 +508,10 @@ void  kp2000_remove_cores(struct kp2000_device *pcard)
 {
 	struct list_head *ptr;
 	struct list_head *next;
+
 	list_for_each_safe(ptr, next, &pcard->uio_devices_list) {
 		struct kpc_uio_device *kudev = list_entry(ptr, struct kpc_uio_device, list);
+
 		uio_unregister_device(&kudev->uioinfo);
 		device_unregister(kudev->dev);
 		list_del(&kudev->list);
