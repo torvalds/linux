@@ -424,6 +424,8 @@ struct gen6_hw_ppgtt {
 
 	unsigned int pin_count;
 	bool scan_for_unused_pt;
+
+	struct gen6_ppgtt_cleanup_work *work;
 };
 
 #define __to_gen6_ppgtt(base) container_of(base, struct gen6_hw_ppgtt, base)

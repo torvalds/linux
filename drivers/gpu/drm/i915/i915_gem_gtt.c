@@ -1828,11 +1828,34 @@ static void gen6_ppgtt_free_pd(struct gen6_hw_ppgtt *ppgtt)
 			free_pt(&ppgtt->base.vm, pt);
 }
 
+struct gen6_ppgtt_cleanup_work {
+	struct work_struct base;
+	struct i915_vma *vma;
+};
+
+static void gen6_ppgtt_cleanup_work(struct work_struct *wrk)
+{
+	struct gen6_ppgtt_cleanup_work *work =
+		container_of(wrk, typeof(*work), base);
+	/* Side note, vma->vm is the GGTT not the ppgtt we just destroyed! */
+	struct drm_i915_private *i915 = work->vma->vm->i915;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	i915_vma_destroy(work->vma);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	kfree(work);
+}
+
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
+	struct gen6_ppgtt_cleanup_work *work = ppgtt->work;
 
-	i915_vma_destroy(ppgtt->vma);
+	/* FIXME remove the struct_mutex to bring the locking under control */
+	INIT_WORK(&work->base, gen6_ppgtt_cleanup_work);
+	work->vma = ppgtt->vma;
+	schedule_work(&work->base);
 
 	gen6_ppgtt_free_pd(ppgtt);
 	gen6_ppgtt_free_scratch(vm);
@@ -2011,9 +2034,13 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 
 	ppgtt->base.vm.pte_encode = ggtt->vm.pte_encode;
 
+	ppgtt->work = kmalloc(sizeof(*ppgtt->work), GFP_KERNEL);
+	if (!ppgtt->work)
+		goto err_free;
+
 	err = gen6_ppgtt_init_scratch(ppgtt);
 	if (err)
-		goto err_free;
+		goto err_work;
 
 	ppgtt->vma = pd_vma_create(ppgtt, GEN6_PD_SIZE);
 	if (IS_ERR(ppgtt->vma)) {
@@ -2025,6 +2052,8 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 
 err_scratch:
 	gen6_ppgtt_free_scratch(&ppgtt->base.vm);
+err_work:
+	kfree(ppgtt->work);
 err_free:
 	kfree(ppgtt);
 	return ERR_PTR(err);
