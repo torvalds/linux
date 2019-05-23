@@ -1638,6 +1638,11 @@ static void mlx5e_rep_enable(struct mlx5e_priv *priv)
 	mlx5e_set_netdev_mtu_boundaries(priv);
 }
 
+static int mlx5e_update_rep_rx(struct mlx5e_priv *priv)
+{
+	return 0;
+}
+
 static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, events_nb);
@@ -1713,6 +1718,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init_tx		= mlx5e_init_rep_tx,
 	.cleanup_tx		= mlx5e_cleanup_rep_tx,
 	.enable		        = mlx5e_rep_enable,
+	.update_rx		= mlx5e_update_rep_rx,
 	.update_stats           = mlx5e_rep_update_hw_counters,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
@@ -1728,6 +1734,7 @@ static const struct mlx5e_profile mlx5e_uplink_rep_profile = {
 	.cleanup_tx		= mlx5e_cleanup_rep_tx,
 	.enable		        = mlx5e_uplink_rep_enable,
 	.disable	        = mlx5e_uplink_rep_disable,
+	.update_rx		= mlx5e_update_rep_rx,
 	.update_stats           = mlx5e_uplink_rep_update_hw_counters,
 	.update_carrier	        = mlx5e_update_carrier,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,

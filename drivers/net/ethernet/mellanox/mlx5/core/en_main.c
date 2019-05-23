@@ -2845,7 +2845,7 @@ static void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 	if (hw_modify)
 		hw_modify(priv);
 
-	mlx5e_refresh_tirs(priv, false);
+	priv->profile->update_rx(priv);
 	mlx5e_activate_priv_channels(priv);
 
 	/* return carrier back if needed */
@@ -2892,7 +2892,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 	if (err)
 		goto err_clear_state_opened_flag;
 
-	mlx5e_refresh_tirs(priv, false);
+	priv->profile->update_rx(priv);
 	mlx5e_activate_priv_channels(priv);
 	if (priv->profile->update_carrier)
 		priv->profile->update_carrier(priv);
@@ -4928,6 +4928,11 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 	mlx5_lag_remove(mdev);
 }
 
+int mlx5e_update_nic_rx(struct mlx5e_priv *priv)
+{
+	return mlx5e_refresh_tirs(priv, false);
+}
+
 static const struct mlx5e_profile mlx5e_nic_profile = {
 	.init		   = mlx5e_nic_init,
 	.cleanup	   = mlx5e_nic_cleanup,
@@ -4937,6 +4942,7 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.cleanup_tx	   = mlx5e_cleanup_nic_tx,
 	.enable		   = mlx5e_nic_enable,
 	.disable	   = mlx5e_nic_disable,
+	.update_rx	   = mlx5e_update_nic_rx,
 	.update_stats	   = mlx5e_update_ndo_stats,
 	.update_carrier	   = mlx5e_update_carrier,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe,
