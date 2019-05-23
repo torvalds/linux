@@ -477,6 +477,19 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 	return queue_packet(s, s->ctx_data.tx.max_ctx_payload_length);
 }
 
+static void generate_cip_header(struct amdtp_stream *s, __be32 cip_header[2],
+				unsigned int syt)
+{
+	cip_header[0] = cpu_to_be32(READ_ONCE(s->source_node_id_field) |
+				(s->data_block_quadlets << CIP_DBS_SHIFT) |
+				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
+				s->data_block_counter);
+	cip_header[1] = cpu_to_be32(CIP_EOH |
+			((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
+			((s->ctx_data.rx.fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
+			(syt & CIP_SYT_MASK));
+}
+
 static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 			     const __be32 *ctx_header, __be32 *buffer,
 			     unsigned int index)
@@ -495,14 +508,7 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 		s->data_block_counter =
 				(s->data_block_counter + data_blocks) & 0xff;
 
-	buffer[0] = cpu_to_be32(READ_ONCE(s->source_node_id_field) |
-				(s->data_block_quadlets << CIP_DBS_SHIFT) |
-				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
-				s->data_block_counter);
-	buffer[1] = cpu_to_be32(CIP_EOH |
-			((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
-			((s->ctx_data.rx.fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
-			(syt & CIP_SYT_MASK));
+	generate_cip_header(s, buffer, syt);
 
 	if (!(s->flags & CIP_DBC_IS_END_EVENT))
 		s->data_block_counter =
