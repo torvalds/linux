@@ -23,6 +23,7 @@
 #include <linux/sched/mm.h>
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/metrics.h>
 
 #include "sunrpc.h"
 
@@ -832,6 +833,10 @@ rpc_reset_task_statistics(struct rpc_task *task)
 void rpc_exit_task(struct rpc_task *task)
 {
 	task->tk_action = NULL;
+	if (task->tk_ops->rpc_count_stats)
+		task->tk_ops->rpc_count_stats(task, task->tk_calldata);
+	else if (task->tk_client)
+		rpc_count_iostats(task, task->tk_client->cl_metrics);
 	if (task->tk_ops->rpc_call_done != NULL) {
 		task->tk_ops->rpc_call_done(task, task->tk_calldata);
 		if (task->tk_action != NULL) {
