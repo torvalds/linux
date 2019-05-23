@@ -1615,7 +1615,7 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 				 unsigned long flags)
 				 __releases(rdp->nocb_lock)
 {
-	int len;
+	long len;
 	struct task_struct *t;
 
 	// If we are being polled or there is no kthread, just leave.
