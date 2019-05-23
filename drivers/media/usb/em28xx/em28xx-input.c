@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/input.h>
 #include <linux/slab.h>
 #include <linux/bitrev.h>
 
@@ -603,10 +604,7 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 	set_bit(EM28XX_SNAPSHOT_KEY, input_dev->keybit);
 	input_dev->keycodesize = 0;
 	input_dev->keycodemax = 0;
-	input_dev->id.bustype = BUS_USB;
-	input_dev->id.vendor = le16_to_cpu(udev->descriptor.idVendor);
-	input_dev->id.product = le16_to_cpu(udev->descriptor.idProduct);
-	input_dev->id.version = 1;
+	usb_to_input_id(udev, &input_dev->id);
 	input_dev->dev.parent = &dev->intf->dev;
 
 	err = input_register_device(input_dev);
@@ -823,10 +821,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 
 	rc->device_name = em28xx_boards[dev->model].name;
 	rc->input_phys = ir->phys;
-	rc->input_id.bustype = BUS_USB;
-	rc->input_id.version = 1;
-	rc->input_id.vendor = le16_to_cpu(udev->descriptor.idVendor);
-	rc->input_id.product = le16_to_cpu(udev->descriptor.idProduct);
+	usb_to_input_id(udev, &rc->input_id);
 	rc->dev.parent = &dev->intf->dev;
 	rc->driver_name = MODULE_NAME;
 
