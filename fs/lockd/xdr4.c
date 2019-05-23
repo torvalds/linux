@@ -118,7 +118,6 @@ nlm4_decode_lock(__be32 *p, struct nlm_lock *lock)
 	lock->svid  = ntohl(*p++);
 
 	locks_init_lock(fl);
-	fl->fl_owner = current->files;
 	fl->fl_pid   = (pid_t)lock->svid;
 	fl->fl_flags = FL_POSIX;
 	fl->fl_type  = F_RDLCK;		/* as good as anything else */

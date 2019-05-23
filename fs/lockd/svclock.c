@@ -332,6 +332,93 @@ restart:
 	mutex_unlock(&file->f_mutex);
 }
 
+static struct nlm_lockowner *
+nlmsvc_get_lockowner(struct nlm_lockowner *lockowner)
+{
+	refcount_inc(&lockowner->count);
+	return lockowner;
+}
+
+static void nlmsvc_put_lockowner(struct nlm_lockowner *lockowner)
+{
+	if (!refcount_dec_and_lock(&lockowner->count, &lockowner->host->h_lock))
+		return;
+	list_del(&lockowner->list);
+	spin_unlock(&lockowner->host->h_lock);
+	nlmsvc_release_host(lockowner->host);
+	kfree(lockowner);
+}
+
+static struct nlm_lockowner *__nlmsvc_find_lockowner(struct nlm_host *host, pid_t pid)
+{
+	struct nlm_lockowner *lockowner;
+	list_for_each_entry(lockowner, &host->h_lockowners, list) {
+		if (lockowner->pid != pid)
+			continue;
+		return nlmsvc_get_lockowner(lockowner);
+	}
+	return NULL;
+}
+
+static struct nlm_lockowner *nlmsvc_find_lockowner(struct nlm_host *host, pid_t pid)
+{
+	struct nlm_lockowner *res, *new = NULL;
+
+	spin_lock(&host->h_lock);
+	res = __nlmsvc_find_lockowner(host, pid);
+
+	if (res == NULL) {
+		spin_unlock(&host->h_lock);
+		new = kmalloc(sizeof(*res), GFP_KERNEL);
+		spin_lock(&host->h_lock);
+		res = __nlmsvc_find_lockowner(host, pid);
+		if (res == NULL && new != NULL) {
+			res = new;
+			/* fs/locks.c will manage the refcount through lock_ops */
+			refcount_set(&new->count, 1);
+			new->pid = pid;
+			new->host = nlm_get_host(host);
+			list_add(&new->list, &host->h_lockowners);
+			new = NULL;
+		}
+	}
+
+	spin_unlock(&host->h_lock);
+	kfree(new);
+	return res;
+}
+
+void
+nlmsvc_release_lockowner(struct nlm_lock *lock)
+{
+	if (lock->fl.fl_owner)
+		nlmsvc_put_lockowner(lock->fl.fl_owner);
+}
+
+static void nlmsvc_locks_copy_lock(struct file_lock *new, struct file_lock *fl)
+{
+	struct nlm_lockowner *nlm_lo = (struct nlm_lockowner *)fl->fl_owner;
+	new->fl_owner = nlmsvc_get_lockowner(nlm_lo);
+}
+
+static void nlmsvc_locks_release_private(struct file_lock *fl)
+{
+	nlmsvc_put_lockowner((struct nlm_lockowner *)fl->fl_owner);
+}
+
+const struct file_lock_operations nlmsvc_lock_ops = {
+	.fl_copy_lock = nlmsvc_locks_copy_lock,
+	.fl_release_private = nlmsvc_locks_release_private,
+};
+
+void nlmsvc_locks_init_private(struct file_lock *fl, struct nlm_host *host,
+						pid_t pid)
+{
+	fl->fl_owner = nlmsvc_find_lockowner(host, pid);
+	if (fl->fl_owner != NULL)
+		fl->fl_ops = &nlmsvc_lock_ops;
+}
+
 /*
  * Initialize arguments for GRANTED call. The nlm_rqst structure
  * has been cleared already.
@@ -509,6 +596,7 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 {
 	int			error;
 	__be32			ret;
+	struct nlm_lockowner	*test_owner;
 
 	dprintk("lockd: nlmsvc_testlock(%s/%ld, ty=%d, %Ld-%Ld)\n",
 				locks_inode(file->f_file)->i_sb->s_id,
@@ -521,6 +609,9 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 		ret = nlm_lck_denied_grace_period;
 		goto out;
 	}
+
+	/* If there's a conflicting lock, remember to clean up the test lock */
+	test_owner = (struct nlm_lockowner *)lock->fl.fl_owner;
 
 	error = vfs_test_lock(file->f_file, &lock->fl);
 	if (error) {
@@ -548,6 +639,11 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 	conflock->fl.fl_start = lock->fl.fl_start;
 	conflock->fl.fl_end = lock->fl.fl_end;
 	locks_release_private(&lock->fl);
+
+	/* Clean up the test lock */
+	lock->fl.fl_owner = NULL;
+	nlmsvc_put_lockowner(test_owner);
+
 	ret = nlm_lck_denied;
 out:
 	return ret;
