@@ -94,7 +94,6 @@ void parse_core_table_entry(struct core_table_entry *cte, const u64 read_val, co
 	}
 }
 
-
 static int probe_core_basic(unsigned int core_num, struct kp2000_device *pcard,
 			    char *name, const struct core_table_entry cte)
 {
@@ -110,7 +109,6 @@ static int probe_core_basic(unsigned int core_num, struct kp2000_device *pcard,
 	};
 
 	dev_dbg(&pcard->pdev->dev, "Found Basic core: type = %02d  dma = %02x / %02x  offset = 0x%x  length = 0x%x (%d regs)\n", cte.type, KPC_OLD_S2C_DMA_CH_NUM(cte), KPC_OLD_C2S_DMA_CH_NUM(cte), cte.offset, cte.length, cte.length / 8);
-
 
 	cell.platform_data = &core_pdata;
 	cell.pdata_size = sizeof(struct kpc_core_device_platdata);
@@ -136,7 +134,6 @@ static int probe_core_basic(unsigned int core_num, struct kp2000_device *pcard,
 			       0,                      // irq_base
 			       NULL);                  // struct irq_domain *
 }
-
 
 struct kpc_uio_device {
 	struct list_head list;
@@ -345,7 +342,6 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 
 	return 0;
 }
-
 
 static int  create_dma_engine_core(struct kp2000_device *pcard, size_t engine_regs_offset, int engine_num, int irq_num)
 {
