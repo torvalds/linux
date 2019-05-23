@@ -165,3 +165,22 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 
 	return obj->paddr + offset;
 }
+
+/* if the fb can be supported by a specific layer */
+bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type)
+{
+	struct drm_framebuffer *fb = &kfb->base;
+	struct komeda_dev *mdev = fb->dev->dev_private;
+	const struct komeda_format_caps *caps;
+	u32 fourcc = fb->format->format;
+	u64 modifier = fb->modifier;
+
+	caps = komeda_get_format_caps(&mdev->fmt_tbl, fourcc, modifier);
+	if (!caps)
+		return false;
+
+	if (!(caps->supported_layer_types & layer_type))
+		return false;
+
+	return true;
+}

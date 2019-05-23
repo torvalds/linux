@@ -423,10 +423,17 @@ struct komeda_plane_state;
 struct komeda_crtc_state;
 struct komeda_crtc;
 
+void pipeline_composition_size(struct komeda_crtc_state *kcrtc_st,
+			       u16 *hsize, u16 *vsize);
+
 int komeda_build_layer_data_flow(struct komeda_layer *layer,
 				 struct komeda_plane_state *kplane_st,
 				 struct komeda_crtc_state *kcrtc_st,
 				 struct komeda_data_flow_cfg *dflow);
+int komeda_build_wb_data_flow(struct komeda_layer *wb_layer,
+			      struct drm_connector_state *conn_st,
+			      struct komeda_crtc_state *kcrtc_st,
+			      struct komeda_data_flow_cfg *dflow);
 int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
 				   struct komeda_crtc_state *kcrtc_st);
 

@@ -12,6 +12,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_writeback.h>
+#include <drm/drm_print.h>
 #include <video/videomode.h>
 #include <video/display_timing.h>
 
@@ -73,6 +74,9 @@ struct komeda_crtc {
 	 */
 	struct komeda_pipeline *slave;
 
+	/** @wb_conn: komeda write back connector */
+	struct komeda_wb_connector *wb_conn;
+
 	/** @disable_done: this flip_done is for tracing the disable */
 	struct completion *disable_done;
 };
@@ -116,6 +120,27 @@ struct komeda_kms_dev {
 #define to_kcrtc(p)	container_of(p, struct komeda_crtc, base)
 #define to_kcrtc_st(p)	container_of(p, struct komeda_crtc_state, base)
 #define to_kdev(p)	container_of(p, struct komeda_kms_dev, base)
+#define to_wb_conn(x)	container_of(x, struct drm_writeback_connector, base)
+
+static inline bool is_writeback_only(struct drm_crtc_state *st)
+{
+	struct komeda_wb_connector *wb_conn = to_kcrtc(st->crtc)->wb_conn;
+	struct drm_connector *conn = wb_conn ? &wb_conn->base.base : NULL;
+
+	return conn && (st->connector_mask == BIT(drm_connector_index(conn)));
+}
+
+static inline bool
+is_only_changed_connector(struct drm_crtc_state *st, struct drm_connector *conn)
+{
+	struct drm_crtc_state *old_st;
+	u32 changed_connectors;
+
+	old_st = drm_atomic_get_old_crtc_state(st->state, st->crtc);
+	changed_connectors = st->connector_mask ^ old_st->connector_mask;
+
+	return BIT(drm_connector_index(conn)) == changed_connectors;
+}
 
 int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 
@@ -123,6 +148,8 @@ int komeda_kms_add_crtcs(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 int komeda_kms_add_planes(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 int komeda_kms_add_private_objs(struct komeda_kms_dev *kms,
 				struct komeda_dev *mdev);
+int komeda_kms_add_wb_connectors(struct komeda_kms_dev *kms,
+				 struct komeda_dev *mdev);
 void komeda_kms_cleanup_private_objs(struct komeda_kms_dev *kms);
 
 void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,

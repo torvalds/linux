@@ -252,6 +252,12 @@ int komeda_kms_add_private_objs(struct komeda_kms_dev *kms,
 				return err;
 		}
 
+		if (pipe->wb_layer) {
+			err = komeda_layer_obj_add(kms, pipe->wb_layer);
+			if (err)
+				return err;
+		}
+
 		err = komeda_compiz_obj_add(kms, pipe->compiz);
 		if (err)
 			return err;

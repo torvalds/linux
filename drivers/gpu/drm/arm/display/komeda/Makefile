@@ -14,6 +14,7 @@ komeda-y := \
 	komeda_kms.o \
 	komeda_crtc.o \
 	komeda_plane.o \
+	komeda_wb_connector.o \
 	komeda_private_obj.o
 
 komeda-y += \

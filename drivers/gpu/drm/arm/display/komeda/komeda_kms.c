@@ -188,6 +188,10 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 	if (err)
 		goto cleanup_mode_config;
 
+	err = komeda_kms_add_wb_connectors(kms, mdev);
+	if (err)
+		goto cleanup_mode_config;
+
 	err = component_bind_all(mdev->dev, kms);
 	if (err)
 		goto cleanup_mode_config;

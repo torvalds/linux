@@ -165,6 +165,15 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 	if (events & KOMEDA_EVENT_VSYNC)
 		drm_crtc_handle_vblank(crtc);
 
+	if (events & KOMEDA_EVENT_EOW) {
+		struct komeda_wb_connector *wb_conn = kcrtc->wb_conn;
+
+		if (wb_conn)
+			drm_writeback_signal_completion(&wb_conn->base, 0);
+		else
+			DRM_WARN("CRTC[%d]: EOW happen but no wb_connector.\n",
+				 drm_crtc_index(&kcrtc->base));
+	}
 	/* will handle it together with the write back support */
 	if (events & KOMEDA_EVENT_EOW)
 		DRM_DEBUG("EOW.\n");
@@ -201,6 +210,8 @@ komeda_crtc_do_flush(struct drm_crtc *crtc,
 	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc->state);
 	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
 	struct komeda_pipeline *master = kcrtc->master;
+	struct komeda_wb_connector *wb_conn = kcrtc->wb_conn;
+	struct drm_connector_state *conn_st;
 
 	DRM_DEBUG_ATOMIC("CRTC%d_FLUSH: active_pipes: 0x%x, affected: 0x%x.\n",
 			 drm_crtc_index(crtc),
@@ -209,6 +220,10 @@ komeda_crtc_do_flush(struct drm_crtc *crtc,
 	/* step 1: update the pipeline/component state to HW */
 	if (has_bit(master->id, kcrtc_st->affected_pipes))
 		komeda_pipeline_update(master, old->state);
+
+	conn_st = wb_conn ? wb_conn->base.base.state : NULL;
+	if (conn_st && conn_st->writeback_job)
+		drm_writeback_queue_job(&wb_conn->base, conn_st);
 
 	/* step 2: notify the HW to kickoff the update */
 	mdev->funcs->flush(mdev, master->id, kcrtc_st->active_pipes);

@@ -288,10 +288,98 @@ static int d71_layer_init(struct d71_dev *d71,
 	return 0;
 }
 
+static void d71_wb_layer_update(struct komeda_component *c,
+				struct komeda_component_state *state)
+{
+	struct komeda_layer_state *st = to_layer_st(state);
+	struct drm_connector_state *conn_st = state->wb_conn->state;
+	struct drm_framebuffer *fb = conn_st->writeback_job->fb;
+	struct komeda_fb *kfb = to_kfb(fb);
+	u32 __iomem *reg = c->reg;
+	u32 ctrl = L_EN | LW_OFM, mask = L_EN | LW_OFM | LW_TBU_EN;
+	int i;
+
+	for (i = 0; i < fb->format->num_planes; i++) {
+		malidp_write32(reg + i * LAYER_PER_PLANE_REGS, BLK_P0_PTR_LOW,
+			       lower_32_bits(st->addr[i]));
+		malidp_write32(reg + i * LAYER_PER_PLANE_REGS, BLK_P0_PTR_HIGH,
+			       upper_32_bits(st->addr[i]));
+
+		malidp_write32(reg + i * LAYER_PER_PLANE_REGS, BLK_P0_STRIDE,
+			       fb->pitches[i] & 0xFFFF);
+	}
+
+	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);
+	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize, st->vsize));
+	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(&state->inputs[0]));
+	malidp_write32_mask(reg, BLK_CONTROL, mask, ctrl);
+}
+
+static void d71_wb_layer_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v[12], i;
+
+	dump_block_header(sf, c->reg);
+
+	get_values_from_reg(c->reg, 0x80, 1, v);
+	seq_printf(sf, "LW_INPUT_ID0:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(c->reg, 0xD0, 3, v);
+	seq_printf(sf, "LW_CONTROL:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "LW_PROG_LINE:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "LW_FORMAT:\t\t0x%X\n", v[2]);
+
+	get_values_from_reg(c->reg, 0xE0, 1, v);
+	seq_printf(sf, "LW_IN_SIZE:\t\t0x%X\n", v[0]);
+
+	for (i = 0; i < 2; i++) {
+		get_values_from_reg(c->reg, 0x100 + i * 0x10, 3, v);
+		seq_printf(sf, "LW_P%u_PTR_LOW:\t\t0x%X\n", i, v[0]);
+		seq_printf(sf, "LW_P%u_PTR_HIGH:\t\t0x%X\n", i, v[1]);
+		seq_printf(sf, "LW_P%u_STRIDE:\t\t0x%X\n", i, v[2]);
+	}
+
+	get_values_from_reg(c->reg, 0x130, 12, v);
+	for (i = 0; i < 12; i++)
+		seq_printf(sf, "LW_RGB_YUV_COEFF%u:\t0x%X\n", i, v[i]);
+}
+
+static void d71_wb_layer_disable(struct komeda_component *c)
+{
+	malidp_write32(c->reg, BLK_INPUT_ID0, 0);
+	malidp_write32_mask(c->reg, BLK_CONTROL, L_EN, 0);
+}
+
+static const struct komeda_component_funcs d71_wb_layer_funcs = {
+	.update		= d71_wb_layer_update,
+	.disable	= d71_wb_layer_disable,
+	.dump_register	= d71_wb_layer_dump,
+};
+
 static int d71_wb_layer_init(struct d71_dev *d71,
 			     struct block_header *blk, u32 __iomem *reg)
 {
-	DRM_DEBUG("Detect D71_Wb_Layer.\n");
+	struct komeda_component *c;
+	struct komeda_layer *wb_layer;
+	u32 pipe_id, layer_id;
+
+	get_resources_id(blk->block_info, &pipe_id, &layer_id);
+
+	c = komeda_component_add(&d71->pipes[pipe_id]->base, sizeof(*wb_layer),
+				 layer_id, BLOCK_INFO_INPUT_ID(blk->block_info),
+				 &d71_wb_layer_funcs,
+				 1, get_valid_inputs(blk), 0, reg,
+				 "LPU%d_LAYER_WR", pipe_id);
+	if (IS_ERR(c)) {
+		DRM_ERROR("Failed to add wb_layer component\n");
+		return PTR_ERR(c);
+	}
+
+	wb_layer = to_layer(c);
+	wb_layer->layer_type = KOMEDA_FMT_WB_LAYER;
+
+	set_range(&wb_layer->hsize_in, D71_MIN_LINE_SIZE, d71->max_line_size);
+	set_range(&wb_layer->vsize_in, D71_MIN_VERTICAL_SIZE, d71->max_vsize);
 
 	return 0;
 }

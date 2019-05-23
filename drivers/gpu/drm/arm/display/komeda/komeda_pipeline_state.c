@@ -308,8 +308,41 @@ komeda_layer_validate(struct komeda_layer *layer,
 	return 0;
 }
 
-static void pipeline_composition_size(struct komeda_crtc_state *kcrtc_st,
-				      u16 *hsize, u16 *vsize)
+static int
+komeda_wb_layer_validate(struct komeda_layer *wb_layer,
+			 struct drm_connector_state *conn_st,
+			 struct komeda_data_flow_cfg *dflow)
+{
+	struct komeda_fb *kfb = to_kfb(conn_st->writeback_job->fb);
+	struct komeda_component_state *c_st;
+	struct komeda_layer_state *st;
+	int i;
+
+	if (!komeda_fb_is_layer_supported(kfb, wb_layer->layer_type))
+		return -EINVAL;
+
+	c_st = komeda_component_get_state_and_set_user(&wb_layer->base,
+			conn_st->state, conn_st->connector, conn_st->crtc);
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	st = to_layer_st(c_st);
+
+	st->hsize = dflow->out_w;
+	st->vsize = dflow->out_h;
+
+	for (i = 0; i < kfb->base.format->num_planes; i++)
+		st->addr[i] = komeda_fb_get_pixel_addr(kfb, dflow->out_x,
+						       dflow->out_y, i);
+
+	komeda_component_add_input(&st->base, &dflow->input, 0);
+	komeda_component_set_output(&dflow->input, &wb_layer->base, 0);
+
+	return 0;
+}
+
+void pipeline_composition_size(struct komeda_crtc_state *kcrtc_st,
+			       u16 *hsize, u16 *vsize)
 {
 	struct drm_display_mode *m = &kcrtc_st->base.adjusted_mode;
 
@@ -476,6 +509,20 @@ int komeda_build_layer_data_flow(struct komeda_layer *layer,
 	err = komeda_compiz_set_input(pipe->compiz, kcrtc_st, dflow);
 
 	return err;
+}
+
+int komeda_build_wb_data_flow(struct komeda_layer *wb_layer,
+			      struct drm_connector_state *conn_st,
+			      struct komeda_crtc_state *kcrtc_st,
+			      struct komeda_data_flow_cfg *dflow)
+{
+	if ((dflow->in_w != dflow->out_w) ||
+	    (dflow->in_h != dflow->out_h)) {
+		DRM_DEBUG_ATOMIC("current do not support scaling writeback.\n");
+		return -EINVAL;
+	}
+
+	return komeda_wb_layer_validate(wb_layer, conn_st, dflow);
 }
 
 /* build display output data flow, the data path is:
