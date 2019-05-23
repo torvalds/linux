@@ -890,43 +890,17 @@ static int build_inv_stag(union t4_wr *wqe, const struct ib_send_wr *wr,
 	return 0;
 }
 
-static void free_qp_work(struct work_struct *work)
-{
-	struct c4iw_ucontext *ucontext;
-	struct c4iw_qp *qhp;
-	struct c4iw_dev *rhp;
-
-	qhp = container_of(work, struct c4iw_qp, free_work);
-	ucontext = qhp->ucontext;
-	rhp = qhp->rhp;
-
-	pr_debug("qhp %p ucontext %p\n", qhp, ucontext);
-	destroy_qp(&rhp->rdev, &qhp->wq,
-		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx, !qhp->srq);
-
-	c4iw_put_wr_wait(qhp->wr_waitp);
-	kfree(qhp);
-}
-
-static void queue_qp_free(struct kref *kref)
-{
-	struct c4iw_qp *qhp;
-
-	qhp = container_of(kref, struct c4iw_qp, kref);
-	pr_debug("qhp %p\n", qhp);
-	queue_work(qhp->rhp->rdev.free_workq, &qhp->free_work);
-}
-
 void c4iw_qp_add_ref(struct ib_qp *qp)
 {
 	pr_debug("ib_qp %p\n", qp);
-	kref_get(&to_c4iw_qp(qp)->kref);
+	refcount_inc(&to_c4iw_qp(qp)->qp_refcnt);
 }
 
 void c4iw_qp_rem_ref(struct ib_qp *qp)
 {
 	pr_debug("ib_qp %p\n", qp);
-	kref_put(&to_c4iw_qp(qp)->kref, queue_qp_free);
+	if (refcount_dec_and_test(&to_c4iw_qp(qp)->qp_refcnt))
+		complete(&to_c4iw_qp(qp)->qp_rel_comp);
 }
 
 static void add_to_fc_list(struct list_head *head, struct list_head *entry)
@@ -2098,10 +2072,12 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_qp *qhp;
+	struct c4iw_ucontext *ucontext;
 	struct c4iw_qp_attributes attrs;
 
 	qhp = to_c4iw_qp(ib_qp);
 	rhp = qhp->rhp;
+	ucontext = qhp->ucontext;
 
 	attrs.next_state = C4IW_QP_STATE_ERROR;
 	if (qhp->attr.state == C4IW_QP_STATE_TERMINATE)
@@ -2119,7 +2095,17 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 
 	c4iw_qp_rem_ref(ib_qp);
 
+	wait_for_completion(&qhp->qp_rel_comp);
+
 	pr_debug("ib_qp %p qpid 0x%0x\n", ib_qp, qhp->wq.sq.qid);
+	pr_debug("qhp %p ucontext %p\n", qhp, ucontext);
+
+	destroy_qp(&rhp->rdev, &qhp->wq,
+		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx, !qhp->srq);
+
+	c4iw_put_wr_wait(qhp->wr_waitp);
+
+	kfree(qhp);
 	return 0;
 }
 
@@ -2229,8 +2215,8 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	spin_lock_init(&qhp->lock);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
-	kref_init(&qhp->kref);
-	INIT_WORK(&qhp->free_work, free_qp_work);
+	init_completion(&qhp->qp_rel_comp);
+	refcount_set(&qhp->qp_refcnt, 1);
 
 	ret = xa_insert_irq(&rhp->qps, qhp->wq.sq.qid, qhp, GFP_KERNEL);
 	if (ret)

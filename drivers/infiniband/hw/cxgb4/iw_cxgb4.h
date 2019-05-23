@@ -490,13 +490,13 @@ struct c4iw_qp {
 	struct t4_wq wq;
 	spinlock_t lock;
 	struct mutex mutex;
-	struct kref kref;
 	wait_queue_head_t wait;
 	int sq_sig_all;
 	struct c4iw_srq *srq;
-	struct work_struct free_work;
 	struct c4iw_ucontext *ucontext;
 	struct c4iw_wr_wait *wr_waitp;
+	struct completion qp_rel_comp;
+	refcount_t qp_refcnt;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
