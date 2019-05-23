@@ -254,7 +254,8 @@ struct komeda_scaler_state {
 	u16 hsize_in, vsize_in;
 	u16 hsize_out, vsize_out;
 	u8 en_scaling : 1,
-	   en_alpha : 1; /* enable alpha processing */
+	   en_alpha : 1, /* enable alpha processing */
+	   en_img_enhancement : 1;
 };
 
 struct komeda_compiz {
@@ -313,7 +314,8 @@ struct komeda_data_flow_cfg {
 	u32 rot;
 	int blending_zorder;
 	u8 pixel_blend_mode, layer_alpha;
-	u8 en_scaling : 1;
+	u8 en_scaling : 1,
+	   en_img_enhancement : 1;
 };
 
 struct komeda_pipeline_funcs {

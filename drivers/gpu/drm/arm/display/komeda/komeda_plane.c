@@ -15,6 +15,7 @@ static int
 komeda_plane_init_data_flow(struct drm_plane_state *st,
 			    struct komeda_data_flow_cfg *dflow)
 {
+	struct komeda_plane_state *kplane_st = to_kplane_st(st);
 	struct drm_framebuffer *fb = st->fb;
 
 	memset(dflow, 0, sizeof(*dflow));
@@ -23,7 +24,7 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 
 	/* if format doesn't have alpha, fix blend mode to PIXEL_NONE */
 	dflow->pixel_blend_mode = fb->format->has_alpha ?
-		st->pixel_blend_mode : DRM_MODE_BLEND_PIXEL_NONE;
+			st->pixel_blend_mode : DRM_MODE_BLEND_PIXEL_NONE;
 	dflow->layer_alpha = st->alpha >> 8;
 
 	dflow->out_x = st->crtc_x;
@@ -35,6 +36,8 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 	dflow->in_y = st->src_y >> 16;
 	dflow->in_w = st->src_w >> 16;
 	dflow->in_h = st->src_h >> 16;
+
+	dflow->en_img_enhancement = kplane_st->img_enhancement;
 
 	komeda_complete_data_flow_cfg(dflow);
 
@@ -131,7 +134,7 @@ static void komeda_plane_reset(struct drm_plane *plane)
 static struct drm_plane_state *
 komeda_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
-	struct komeda_plane_state *new;
+	struct komeda_plane_state *new, *old;
 
 	if (WARN_ON(!plane->state))
 		return NULL;
@@ -142,6 +145,10 @@ komeda_plane_atomic_duplicate_state(struct drm_plane *plane)
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &new->base);
 
+	old = to_kplane_st(plane->state);
+
+	new->img_enhancement = old->img_enhancement;
+
 	return &new->base;
 }
 
@@ -151,6 +158,40 @@ komeda_plane_atomic_destroy_state(struct drm_plane *plane,
 {
 	__drm_atomic_helper_plane_destroy_state(state);
 	kfree(to_kplane_st(state));
+}
+
+static int
+komeda_plane_atomic_get_property(struct drm_plane *plane,
+				 const struct drm_plane_state *state,
+				 struct drm_property *property,
+				 uint64_t *val)
+{
+	struct komeda_plane *kplane = to_kplane(plane);
+	struct komeda_plane_state *st = to_kplane_st(state);
+
+	if (property == kplane->prop_img_enhancement)
+		*val = st->img_enhancement;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+komeda_plane_atomic_set_property(struct drm_plane *plane,
+				 struct drm_plane_state *state,
+				 struct drm_property *property,
+				 uint64_t val)
+{
+	struct komeda_plane *kplane = to_kplane(plane);
+	struct komeda_plane_state *st = to_kplane_st(state);
+
+	if (property == kplane->prop_img_enhancement)
+		st->img_enhancement = !!val;
+	else
+		return -EINVAL;
+
+	return 0;
 }
 
 static bool
@@ -172,8 +213,32 @@ static const struct drm_plane_funcs komeda_plane_funcs = {
 	.reset			= komeda_plane_reset,
 	.atomic_duplicate_state	= komeda_plane_atomic_duplicate_state,
 	.atomic_destroy_state	= komeda_plane_atomic_destroy_state,
+	.atomic_get_property	= komeda_plane_atomic_get_property,
+	.atomic_set_property	= komeda_plane_atomic_set_property,
 	.format_mod_supported	= komeda_plane_format_mod_supported,
 };
+
+static int
+komeda_plane_create_layer_properties(struct komeda_plane *kplane,
+				     struct komeda_layer *layer)
+{
+	struct drm_device *drm = kplane->base.dev;
+	struct drm_plane *plane = &kplane->base;
+	struct drm_property *prop = NULL;
+
+	/* property: layer image_enhancement */
+	if (layer->base.supported_outputs & KOMEDA_PIPELINE_SCALERS) {
+		prop = drm_property_create_bool(drm, DRM_MODE_PROP_ATOMIC,
+						"img_enhancement");
+		if (!prop)
+			return -ENOMEM;
+
+		drm_object_attach_property(&plane->base, prop, 0);
+		kplane->prop_img_enhancement = prop;
+	}
+
+	return 0;
+}
 
 /* for komeda, which is pipeline can be share between crtcs */
 static u32 get_possible_crtcs(struct komeda_kms_dev *kms,
@@ -235,6 +300,10 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 		goto cleanup;
 
 	drm_plane_helper_add(plane, &komeda_plane_helper_funcs);
+
+	err = komeda_plane_create_layer_properties(kplane, layer);
+	if (err)
+		goto cleanup;
 
 	return 0;
 cleanup:

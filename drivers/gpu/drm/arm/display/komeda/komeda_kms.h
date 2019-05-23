@@ -32,6 +32,9 @@ struct komeda_plane {
 	 * Layers with same capabilities.
 	 */
 	struct komeda_layer *layer;
+
+	/** @prop_img_enhancement: for on/off image enhancement */
+	struct drm_property *prop_img_enhancement;
 };
 
 /**
@@ -44,7 +47,8 @@ struct komeda_plane_state {
 	/** @base: &drm_plane_state */
 	struct drm_plane_state base;
 
-	/* private properties */
+	/* @img_enhancement: on/off image enhancement */
+	u8 img_enhancement : 1;
 };
 
 /**

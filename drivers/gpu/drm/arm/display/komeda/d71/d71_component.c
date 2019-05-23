@@ -610,6 +610,7 @@ static void d71_scaler_update(struct komeda_component *c,
 	ctrl = 0;
 	ctrl |= st->en_scaling ? SC_CTRL_SCL : 0;
 	ctrl |= st->en_alpha ? SC_CTRL_AP : 0;
+	ctrl |= st->en_img_enhancement ? SC_CTRL_IENH : 0;
 
 	malidp_write32(reg, BLK_CONTROL, ctrl);
 	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(&state->inputs[0]));

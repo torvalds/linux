@@ -457,7 +457,7 @@ komeda_scaler_validate(void *user,
 	struct komeda_scaler *scaler;
 	int err = 0;
 
-	if (!dflow->en_scaling)
+	if (!(dflow->en_scaling || dflow->en_img_enhancement))
 		return 0;
 
 	scaler = komeda_component_get_avail_scaler(dflow->input.component,
@@ -482,9 +482,11 @@ komeda_scaler_validate(void *user,
 	st->vsize_in = dflow->in_h;
 	st->hsize_out = dflow->out_w;
 	st->vsize_out = dflow->out_h;
-	st->en_scaling = dflow->en_scaling;
+
 	/* Enable alpha processing if the next stage needs the pixel alpha */
 	st->en_alpha = dflow->pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE;
+	st->en_scaling = dflow->en_scaling;
+	st->en_img_enhancement = dflow->en_img_enhancement;
 
 	komeda_component_add_input(&st->base, &dflow->input, 0);
 	komeda_component_set_output(&dflow->input, &scaler->base, 0);
