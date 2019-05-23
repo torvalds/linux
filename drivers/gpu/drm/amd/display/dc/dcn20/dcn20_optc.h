@@ -106,9 +106,6 @@ void optc2_get_optc_source(struct timing_generator *optc,
 
 void optc2_triplebuffer_lock(struct timing_generator *optc);
 void optc2_triplebuffer_unlock(struct timing_generator *optc);
-void optc2_lock(struct timing_generator *optc);
-void optc2_lock_global(struct timing_generator *optc);
-void optc2_setup_global_lock(struct timing_generator *optc);
 void optc2_lock_doublebuffer_disable(struct timing_generator *optc);
 void optc2_lock_doublebuffer_enable(struct timing_generator *optc);
 void optc2_program_manual_trigger(struct timing_generator *optc);

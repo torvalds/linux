@@ -189,10 +189,8 @@ struct timing_generator_funcs {
 	bool (*did_triggered_reset_occur)(struct timing_generator *tg);
 	void (*setup_global_swap_lock)(struct timing_generator *tg,
 							const struct dcp_gsl_params *gsl_params);
-	void (*setup_global_lock)(struct timing_generator *tg);
 	void (*unlock)(struct timing_generator *tg);
 	void (*lock)(struct timing_generator *tg);
-	void (*lock_global)(struct timing_generator *tg);
 	void (*lock_doublebuffer_disable)(struct timing_generator *tg);
 	void (*lock_doublebuffer_enable)(struct timing_generator *tg);
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
