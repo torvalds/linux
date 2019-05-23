@@ -309,7 +309,7 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 	} else {
 		printk(KERN_ERR "Attempted to relay unknown signal %d (si_code = %d) with errno %d\n",
 		       sig, code, err);
-		force_sig(sig, current);
+		force_sig(sig);
 	}
 }
 

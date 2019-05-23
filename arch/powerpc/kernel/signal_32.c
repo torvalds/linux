@@ -1249,7 +1249,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 				   current->comm, current->pid,
 				   rt_sf, regs->nip, regs->link);
 
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -1338,7 +1338,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 					   current->comm, current->pid,
 					   ctx, regs->nip, regs->link);
 
-		force_sig(SIGSEGV, current);
+		force_sig(SIGSEGV);
 		goto out;
 	}
 
@@ -1516,6 +1516,6 @@ badframe:
 				   current->comm, current->pid,
 				   addr, regs->nip, regs->link);
 
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }

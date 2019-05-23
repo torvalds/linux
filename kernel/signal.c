@@ -1595,9 +1595,9 @@ send_sig(int sig, struct task_struct *p, int priv)
 }
 EXPORT_SYMBOL(send_sig);
 
-void force_sig(int sig, struct task_struct *p)
+void force_sig(int sig)
 {
-	force_sig_info(sig, SEND_SIG_PRIV, p);
+	force_sig_info(sig, SEND_SIG_PRIV, current);
 }
 EXPORT_SYMBOL(force_sig);
 
@@ -1617,7 +1617,7 @@ void force_sigsegv(int sig)
 		p->sighand->action[sig - 1].sa.sa_handler = SIG_DFL;
 		spin_unlock_irqrestore(&p->sighand->siglock, flags);
 	}
-	force_sig(SIGSEGV, p);
+	force_sig(SIGSEGV);
 }
 
 int force_sig_fault(int sig, int code, void __user *addr

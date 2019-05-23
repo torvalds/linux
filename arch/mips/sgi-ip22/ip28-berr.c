@@ -462,7 +462,7 @@ void ip22_be_interrupt(int irq)
 	if (ip28_be_interrupt(regs) != MIPS_BE_DISCARD) {
 		/* Assume it would be too dangerous to continue ... */
 		die_if_kernel("Oops", regs);
-		force_sig(SIGBUS, current);
+		force_sig(SIGBUS);
 	} else if (debug_be_interrupt)
 		show_regs(regs);
 }

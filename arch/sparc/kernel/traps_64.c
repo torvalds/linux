@@ -2181,7 +2181,7 @@ bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
 				addr += PAGE_SIZE;
 			}
 		}
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 
 		return true;
 	}

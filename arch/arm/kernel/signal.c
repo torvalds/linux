@@ -250,7 +250,7 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 	return regs->ARM_r0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -283,7 +283,7 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->ARM_r0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

@@ -254,7 +254,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	show_signal(tsk, signr, "trap ", str, regs, error_code);
 
 	if (!sicode)
-		force_sig(signr, tsk);
+		force_sig(signr);
 	else
 		force_sig_fault(signr, sicode, addr, tsk);
 }
@@ -566,7 +566,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
 
-	force_sig(SIGSEGV, tsk);
+	force_sig(SIGSEGV);
 }
 NOKPROBE_SYMBOL(do_general_protection);
 

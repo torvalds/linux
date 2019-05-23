@@ -111,7 +111,7 @@ static int check_uid_transition(kuid_t parent, kuid_t child)
 	 * that could arise from a missing whitelist entry preventing a
 	 * privileged process from dropping to a lesser-privileged one.
 	 */
-	force_sig(SIGKILL, current);
+	force_sig(SIGKILL);
 	return -EACCES;
 }
 
@@ -203,7 +203,7 @@ static int safesetid_task_fix_setuid(struct cred *new,
 		break;
 	default:
 		pr_warn("Unknown setid state %d\n", flags);
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 		return -EINVAL;
 	}
 	return 0;

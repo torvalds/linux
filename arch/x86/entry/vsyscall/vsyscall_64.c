@@ -268,7 +268,7 @@ do_ret:
 	return true;
 
 sigsegv:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return true;
 }
 

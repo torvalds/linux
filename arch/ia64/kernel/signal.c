@@ -152,7 +152,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	return retval;
 
   give_sigsegv:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return retval;
 }
 

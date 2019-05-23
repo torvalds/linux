@@ -1329,7 +1329,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		local_irq_enable();
 
 		if (kill_it || do_memory_failure(&m))
-			force_sig(SIGBUS, current);
+			force_sig(SIGBUS);
 		local_irq_disable();
 		ist_end_non_atomic();
 	} else {

@@ -288,7 +288,7 @@ void unhandled_interruption(struct pt_regs *regs)
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGKILL);
-	force_sig(SIGKILL, current);
+	force_sig(SIGKILL);
 }
 
 void unhandled_exceptions(unsigned long entry, unsigned long addr,
@@ -299,7 +299,7 @@ void unhandled_exceptions(unsigned long entry, unsigned long addr,
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGKILL);
-	force_sig(SIGKILL, current);
+	force_sig(SIGKILL);
 }
 
 extern int do_page_fault(unsigned long entry, unsigned long addr,
@@ -326,7 +326,7 @@ void do_revinsn(struct pt_regs *regs)
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGILL);
-	force_sig(SIGILL, current);
+	force_sig(SIGILL);
 }
 
 #ifdef CONFIG_ALIGNMENT_TRAP

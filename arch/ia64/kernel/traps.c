@@ -589,14 +589,14 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		printk(KERN_ERR "Unexpected IA-32 exception (Trap 45)\n");
 		printk(KERN_ERR "  iip - 0x%lx, ifa - 0x%lx, isr - 0x%lx\n",
 		       iip, ifa, isr);
-		force_sig(SIGSEGV, current);
+		force_sig(SIGSEGV);
 		return;
 
 	      case 46:
 		printk(KERN_ERR "Unexpected IA-32 intercept trap (Trap 46)\n");
 		printk(KERN_ERR "  iip - 0x%lx, ifa - 0x%lx, isr - 0x%lx, iim - 0x%lx\n",
 		       iip, ifa, isr, iim);
-		force_sig(SIGSEGV, current);
+		force_sig(SIGSEGV);
 		return;
 
 	      case 47:
@@ -608,5 +608,5 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		break;
 	}
 	if (!die_if_kernel(buf, &regs, error))
-		force_sig(SIGILL, current);
+		force_sig(SIGILL);
 }
