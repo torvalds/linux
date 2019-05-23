@@ -1271,7 +1271,9 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 			goto unapply_new_state;
 		}
 
-		pinctrl_link_add(setting->pctldev, p->dev);
+		/* Do not link hogs (circular dependency) */
+		if (p != setting->pctldev->p)
+			pinctrl_link_add(setting->pctldev, p->dev);
 	}
 
 	p->state = state;
