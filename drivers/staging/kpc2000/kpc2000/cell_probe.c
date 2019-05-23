@@ -273,11 +273,10 @@ int kuio_irqcontrol(struct uio_info *uioinfo, s32 irq_on)
 
 	mutex_lock(&pcard->sem);
 	mask = readq(pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
-	if (irq_on) {
+	if (irq_on)
 		mask &= ~(1 << (kudev->cte.irq_base_num));
-	} else {
+	else
 		mask |= (1 << (kudev->cte.irq_base_num));
-	}
 	writeq(mask, pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
 	mutex_unlock(&pcard->sem);
 
@@ -432,12 +431,10 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 		read_val = readq(pcard->sysinfo_regs_base + ((pcard->core_table_offset + i) * 8));
 		parse_core_table_entry(&cte, read_val, pcard->core_table_rev);
 		dbg_cte(pcard, &cte);
-		if (cte.type > highest_core_id) {
+		if (cte.type > highest_core_id)
 			highest_core_id = cte.type;
-		}
-		if (cte.type == KP_CORE_ID_INVALID) {
+		if (cte.type == KP_CORE_ID_INVALID)
 			dev_info(&pcard->pdev->dev, "Found Invalid core: %016llx\n", read_val);
-		}
 	}
 	// Then, iterate over the possible core types.
 	for (current_type_id = 1 ; current_type_id <= highest_core_id ; current_type_id++) {
