@@ -1309,6 +1309,14 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	args->handle = MAKE_HANDLE(args->gpu_id, idr_handle);
 	args->mmap_offset = offset;
 
+	/* MMIO is mapped through kfd device
+	 * Generate a kfd mmap offset
+	 */
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
+		args->mmap_offset = KFD_MMAP_TYPE_MMIO | KFD_MMAP_GPU_ID(args->gpu_id);
+		args->mmap_offset <<= PAGE_SHIFT;
+	}
+
 	return 0;
 
 err_free:
@@ -1853,6 +1861,39 @@ err_i1:
 	return retcode;
 }
 
+static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
+		      struct vm_area_struct *vma)
+{
+	phys_addr_t address;
+	int ret;
+
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	address = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
+
+	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
+				VM_DONTDUMP | VM_PFNMAP;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	pr_debug("Process %d mapping mmio page\n"
+		 "     target user address == 0x%08llX\n"
+		 "     physical address    == 0x%08llX\n"
+		 "     vm_flags            == 0x%04lX\n"
+		 "     size                == 0x%04lX\n",
+		 process->pasid, (unsigned long long) vma->vm_start,
+		 address, vma->vm_flags, PAGE_SIZE);
+
+	ret = io_remap_pfn_range(vma,
+				vma->vm_start,
+				address >> PAGE_SHIFT,
+				PAGE_SIZE,
+				vma->vm_page_prot);
+	return ret;
+}
+
+
 static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct kfd_process *process;
@@ -1883,6 +1924,10 @@ static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 		if (!dev)
 			return -ENODEV;
 		return kfd_reserved_mem_mmap(dev, process, vma);
+	case KFD_MMAP_TYPE_MMIO:
+		if (!dev)
+			return -ENODEV;
+		return kfd_mmio_mmap(dev, process, vma);
 	}
 
 	return -EFAULT;
