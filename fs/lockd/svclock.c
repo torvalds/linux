@@ -788,25 +788,7 @@ nlmsvc_notify_blocked(struct file_lock *fl)
 	printk(KERN_WARNING "lockd: notification for unknown block!\n");
 }
 
-static int nlmsvc_same_owner(struct file_lock *fl1, struct file_lock *fl2)
-{
-	return fl1->fl_owner == fl2->fl_owner && fl1->fl_pid == fl2->fl_pid;
-}
-
-/*
- * Since NLM uses two "keys" for tracking locks, we need to hash them down
- * to one for the blocked_hash. Here, we're just xor'ing the host address
- * with the pid in order to create a key value for picking a hash bucket.
- */
-static unsigned long
-nlmsvc_owner_key(struct file_lock *fl)
-{
-	return (unsigned long)fl->fl_owner ^ (unsigned long)fl->fl_pid;
-}
-
 const struct lock_manager_operations nlmsvc_lock_operations = {
-	.lm_compare_owner = nlmsvc_same_owner,
-	.lm_owner_key = nlmsvc_owner_key,
 	.lm_notify = nlmsvc_notify_blocked,
 	.lm_grant = nlmsvc_grant_deferred,
 };
