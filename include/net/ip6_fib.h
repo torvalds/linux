@@ -169,8 +169,8 @@ struct fib6_info {
 					fib6_destroying:1,
 					unused:3;
 
-	struct fib6_nh			fib6_nh;
 	struct rcu_head			rcu;
+	struct fib6_nh			fib6_nh[0];
 };
 
 struct rt6_info {
@@ -280,7 +280,7 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 	dst_release(&rt->dst);
 }
 
-struct fib6_info *fib6_info_alloc(gfp_t gfp_flags);
+struct fib6_info *fib6_info_alloc(gfp_t gfp_flags, bool with_fib6_nh);
 void fib6_info_destroy_rcu(struct rcu_head *head);
 
 static inline void fib6_info_hold(struct fib6_info *f6i)
@@ -443,7 +443,7 @@ void rt6_get_prefsrc(const struct rt6_info *rt, struct in6_addr *addr)
 
 static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
 {
-	return f6i->fib6_nh.fib_nh_dev;
+	return f6i->fib6_nh->fib_nh_dev;
 }
 
 int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,

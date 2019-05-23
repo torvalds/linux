@@ -70,7 +70,7 @@ static inline bool rt6_qualify_for_ecmp(const struct fib6_info *f6i)
 {
 	/* the RTF_ADDRCONF flag filters out RA's */
 	return !(f6i->fib6_flags & RTF_ADDRCONF) &&
-		f6i->fib6_nh.fib_nh_gw_family;
+		f6i->fib6_nh->fib_nh_gw_family;
 }
 
 void ip6_route_input(struct sk_buff *skb);
@@ -275,7 +275,7 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 
 static inline bool rt6_duplicate_nexthop(struct fib6_info *a, struct fib6_info *b)
 {
-	struct fib6_nh *nha = &a->fib6_nh, *nhb = &b->fib6_nh;
+	struct fib6_nh *nha = a->fib6_nh, *nhb = b->fib6_nh;
 
 	return nha->fib_nh_dev == nhb->fib_nh_dev &&
 	       ipv6_addr_equal(&nha->fib_nh_gw6, &nhb->fib_nh_gw6) &&
