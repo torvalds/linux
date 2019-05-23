@@ -551,6 +551,132 @@ static int d71_compiz_init(struct d71_dev *d71,
 	return 0;
 }
 
+static void d71_scaler_update_filter_lut(u32 __iomem *reg, u32 hsize_in,
+					 u32 vsize_in, u32 hsize_out,
+					 u32 vsize_out)
+{
+	u32 val = 0;
+
+	if (hsize_in <= hsize_out)
+		val  |= 0x62;
+	else if (hsize_in <= (hsize_out + hsize_out / 2))
+		val |= 0x63;
+	else if (hsize_in <= hsize_out * 2)
+		val |= 0x64;
+	else if (hsize_in <= hsize_out * 2 + (hsize_out * 3) / 4)
+		val |= 0x65;
+	else
+		val |= 0x66;
+
+	if (vsize_in <= vsize_out)
+		val  |= SC_VTSEL(0x6A);
+	else if (vsize_in <= (vsize_out + vsize_out / 2))
+		val |= SC_VTSEL(0x6B);
+	else if (vsize_in <= vsize_out * 2)
+		val |= SC_VTSEL(0x6C);
+	else if (vsize_in <= vsize_out * 2 + vsize_out * 3 / 4)
+		val |= SC_VTSEL(0x6D);
+	else
+		val |= SC_VTSEL(0x6E);
+
+	malidp_write32(reg, SC_COEFFTAB, val);
+}
+
+static void d71_scaler_update(struct komeda_component *c,
+			      struct komeda_component_state *state)
+{
+	struct komeda_scaler_state *st = to_scaler_st(state);
+	u32 __iomem *reg = c->reg;
+	u32 init_ph, delta_ph, ctrl;
+
+	d71_scaler_update_filter_lut(reg, st->hsize_in, st->vsize_in,
+				     st->hsize_out, st->vsize_out);
+
+	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize_in, st->vsize_in));
+	malidp_write32(reg, SC_OUT_SIZE, HV_SIZE(st->hsize_out, st->vsize_out));
+
+	init_ph = (st->hsize_in << 15) / st->hsize_out;
+	malidp_write32(reg, SC_H_INIT_PH, init_ph);
+
+	delta_ph = (st->hsize_in << 16) / st->hsize_out;
+	malidp_write32(reg, SC_H_DELTA_PH, delta_ph);
+
+	init_ph = (st->vsize_in << 15) / st->vsize_out;
+	malidp_write32(reg, SC_V_INIT_PH, init_ph);
+
+	delta_ph = (st->vsize_in << 16) / st->vsize_out;
+	malidp_write32(reg, SC_V_DELTA_PH, delta_ph);
+
+	ctrl = 0;
+	ctrl |= st->en_scaling ? SC_CTRL_SCL : 0;
+	ctrl |= st->en_alpha ? SC_CTRL_AP : 0;
+
+	malidp_write32(reg, BLK_CONTROL, ctrl);
+	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(&state->inputs[0]));
+}
+
+static void d71_scaler_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v[9];
+
+	dump_block_header(sf, c->reg);
+
+	get_values_from_reg(c->reg, 0x80, 1, v);
+	seq_printf(sf, "SC_INPUT_ID0:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(c->reg, 0xD0, 1, v);
+	seq_printf(sf, "SC_CONTROL:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(c->reg, 0xDC, 9, v);
+	seq_printf(sf, "SC_COEFFTAB:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "SC_IN_SIZE:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "SC_OUT_SIZE:\t\t0x%X\n", v[2]);
+	seq_printf(sf, "SC_H_CROP:\t\t0x%X\n", v[3]);
+	seq_printf(sf, "SC_V_CROP:\t\t0x%X\n", v[4]);
+	seq_printf(sf, "SC_H_INIT_PH:\t\t0x%X\n", v[5]);
+	seq_printf(sf, "SC_H_DELTA_PH:\t\t0x%X\n", v[6]);
+	seq_printf(sf, "SC_V_INIT_PH:\t\t0x%X\n", v[7]);
+	seq_printf(sf, "SC_V_DELTA_PH:\t\t0x%X\n", v[8]);
+}
+
+static const struct komeda_component_funcs d71_scaler_funcs = {
+	.update		= d71_scaler_update,
+	.disable	= d71_component_disable,
+	.dump_register	= d71_scaler_dump,
+};
+
+static int d71_scaler_init(struct d71_dev *d71,
+			   struct block_header *blk, u32 __iomem *reg)
+{
+	struct komeda_component *c;
+	struct komeda_scaler *scaler;
+	u32 pipe_id, comp_id;
+
+	get_resources_id(blk->block_info, &pipe_id, &comp_id);
+
+	c = komeda_component_add(&d71->pipes[pipe_id]->base, sizeof(*scaler),
+				 comp_id, BLOCK_INFO_INPUT_ID(blk->block_info),
+				 &d71_scaler_funcs,
+				 1, get_valid_inputs(blk), 1, reg,
+				 "CU%d_SCALER%d",
+				 pipe_id, BLOCK_INFO_BLK_ID(blk->block_info));
+
+	if (IS_ERR(c)) {
+		DRM_ERROR("Failed to initialize scaler");
+		return PTR_ERR(c);
+	}
+
+	scaler = to_scaler(c);
+	set_range(&scaler->hsize, 4, d71->max_line_size);
+	set_range(&scaler->vsize, 4, 4096);
+	scaler->max_downscaling = 6;
+	scaler->max_upscaling = 64;
+
+	malidp_write32(c->reg, BLK_CONTROL, 0);
+
+	return 0;
+}
+
 static void d71_improc_update(struct komeda_component *c,
 			      struct komeda_component_state *state)
 {
@@ -771,8 +897,11 @@ int d71_probe_block(struct d71_dev *d71,
 		err = d71_compiz_init(d71, blk, reg);
 		break;
 
-	case D71_BLK_TYPE_CU_SPLITTER:
 	case D71_BLK_TYPE_CU_SCALER:
+		err = d71_scaler_init(d71, blk, reg);
+		break;
+
+	case D71_BLK_TYPE_CU_SPLITTER:
 	case D71_BLK_TYPE_CU_MERGER:
 		break;
 
