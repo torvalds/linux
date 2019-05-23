@@ -111,6 +111,7 @@ enum {
 enum {
 	ADC_TYPE_NORMAL = 0,
 	ADC_TYPE_LOOPBACK,
+	ADC_TYPE_DBG,
 	ADC_TYPE_ALL,
 };
 
@@ -171,6 +172,7 @@ struct rk3308_codec_priv {
 	u32 used_adc_grps;
 	/* The ADC group which is used for loop back */
 	u32 loopback_grp;
+	u32 cur_dbg_grp;
 	u32 en_always_grps[ADC_LR_GROUP_MAX];
 	u32 en_always_grps_num;
 	u32 skip_grps[ADC_LR_GROUP_MAX];
@@ -211,6 +213,8 @@ struct rk3308_codec_priv {
 	unsigned int hpout_l_dgain;
 	unsigned int hpout_r_dgain;
 
+	bool adc_grps_endisable[ADC_LR_GROUP_MAX];
+	bool dac_endisable;
 	bool enable_all_adcs;
 	bool enable_micbias;
 	bool micbias1;
@@ -1341,6 +1345,18 @@ static bool adc_for_each_grp(struct rk3308_codec_priv *rk3308,
 		dev_dbg(rk3308->plat_dev,
 			"ADC_TYPE_ALL, idx: %d, get grp: %d\n",
 			idx, *grp);
+	} else if (type == ADC_TYPE_DBG) {
+		if (idx >= ADC_LR_GROUP_MAX)
+			return false;
+
+		if (idx == (int)rk3308->cur_dbg_grp)
+			*grp = idx;
+		else
+			*grp = ADC_GRP_SKIP_MAGIC;
+
+		dev_dbg(rk3308->plat_dev,
+			"ADC_TYPE_DBG, idx: %d, get grp: %d\n",
+			idx, *grp);
 	} else {
 		if (idx >= 1)
 			return false;
@@ -2265,6 +2281,8 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 		rk3308_codec_digital_fadein(rk3308);
 	}
 
+	rk3308->dac_endisable = true;
+
 	/* TODO: TRY TO TEST DRIVE STRENGTH */
 
 	return 0;
@@ -2416,6 +2434,8 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 	 * IF USING LINE-IN
 	 * rk3308_codec_adc_ana_disable(rk3308, type);
 	 */
+
+	rk3308->dac_endisable = false;
 
 	return 0;
 }
@@ -3226,6 +3246,13 @@ static int rk3308_codec_adc_ana_enable(struct rk3308_codec_priv *rk3308,
 		}
 	}
 
+	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
+			continue;
+
+		rk3308->adc_grps_endisable[grp] = true;
+	}
+
 	return 0;
 }
 
@@ -3352,6 +3379,13 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 				   RK3308_ADC_CH2_MIC_INIT);
 	}
 
+	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp < 0 || grp > ADC_LR_GROUP_MAX - 1)
+			continue;
+
+		rk3308->adc_grps_endisable[grp] = false;
+	}
+
 	return 0;
 }
 
@@ -3439,6 +3473,20 @@ static void rk3308_codec_dac_mclk_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_MCLK_MSK,
 			   RK3308_DAC_MCLK_EN);
 	udelay(20);
+}
+
+static int rk3308_codec_open_dbg_capture(struct rk3308_codec_priv *rk3308)
+{
+	rk3308_codec_adc_ana_enable(rk3308, ADC_TYPE_DBG);
+
+	return 0;
+}
+
+static int rk3308_codec_close_dbg_capture(struct rk3308_codec_priv *rk3308)
+{
+	rk3308_codec_adc_ana_disable(rk3308, ADC_TYPE_DBG);
+
+	return 0;
 }
 
 static int rk3308_codec_close_all_capture(struct rk3308_codec_priv *rk3308)
@@ -4506,6 +4554,85 @@ static ssize_t adc_zerocross_store(struct device *dev,
 	return count;
 }
 
+static ssize_t adc_grps_endisable_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	int count = 0, i;
+
+	count += sprintf(buf + count, "enabled adc grps:");
+	for (i = 0; i < ADC_LR_GROUP_MAX; i++)
+		count += sprintf(buf + count, "%d ",
+				 rk3308->adc_grps_endisable[i]);
+
+	count += sprintf(buf + count, "\n");
+	return count;
+}
+
+static ssize_t adc_grps_endisable_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	int grp, endisable, ret;
+
+	ret = sscanf(buf, "%d,%d", &grp, &endisable);
+	if (ret != 2) {
+		dev_err(rk3308->plat_dev, "%s sscanf failed: %d\n",
+			__func__, ret);
+		return -EFAULT;
+	}
+
+	rk3308->cur_dbg_grp = grp;
+
+	if (endisable)
+		rk3308_codec_open_dbg_capture(rk3308);
+	else
+		rk3308_codec_close_dbg_capture(rk3308);
+
+	dev_info(dev, "ADC grp %d endisable: %d\n", grp, endisable);
+
+	return count;
+}
+
+static ssize_t dac_endisable_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+
+	return sprintf(buf, "%d\n", rk3308->dac_endisable);
+}
+
+static ssize_t dac_endisable_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	unsigned long endisable;
+	int ret = kstrtoul(buf, 10, &endisable);
+
+	if (ret < 0) {
+		dev_err(dev, "Invalid endisable: %ld, ret: %d\n",
+			endisable, ret);
+		return -EINVAL;
+	}
+
+	if (endisable)
+		rk3308_codec_open_playback(rk3308);
+	else
+		rk3308_codec_close_playback(rk3308);
+
+	dev_info(dev, "DAC endisable: %ld\n", endisable);
+
+	return count;
+}
+
 static ssize_t dac_output_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -4587,9 +4714,11 @@ static ssize_t enable_all_adcs_store(struct device *dev,
 
 static const struct device_attribute acodec_attrs[] = {
 	__ATTR_RW(adc_grps),
+	__ATTR_RW(adc_grps_endisable),
 	__ATTR_RW(adc_grps_route),
 	__ATTR_RW(adc_grp0_in),
 	__ATTR_RW(adc_zerocross),
+	__ATTR_RW(dac_endisable),
 	__ATTR_RW(dac_output),
 	__ATTR_RW(enable_all_adcs),
 	__ATTR_RW(pm_state),
