@@ -291,10 +291,8 @@ static int probe_core_uio(unsigned int core_num, struct kp2000_device *pcard,
 	dev_dbg(&pcard->pdev->dev, "Found UIO core:   type = %02d  dma = %02x / %02x  offset = 0x%x  length = 0x%x (%d regs)\n", cte.type, KPC_OLD_S2C_DMA_CH_NUM(cte), KPC_OLD_C2S_DMA_CH_NUM(cte), cte.offset, cte.length, cte.length / 8);
 
 	kudev = kzalloc(sizeof(*kudev), GFP_KERNEL);
-	if (!kudev) {
-		dev_err(&pcard->pdev->dev, "probe_core_uio: failed to kzalloc kpc_uio_device\n");
+	if (!kudev)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&kudev->list);
 	kudev->pcard = pcard;
