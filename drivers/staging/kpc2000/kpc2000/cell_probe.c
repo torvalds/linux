@@ -128,15 +128,13 @@ static int probe_core_basic(unsigned int core_num, struct kp2000_device *pcard,
 
 	cell.resources = resources;
 
-	return mfd_add_devices(
-		PCARD_TO_DEV(pcard),    // parent
-		pcard->card_num * 100,  // id
-		&cell,                  // struct mfd_cell *
-		1,                      // ndevs
-		&pcard->regs_base_resource,
-		0,                      // irq_base
-		NULL                    // struct irq_domain *
-	);
+	return mfd_add_devices(PCARD_TO_DEV(pcard),    // parent
+			       pcard->card_num * 100,  // id
+			       &cell,                  // struct mfd_cell *
+			       1,                      // ndevs
+			       &pcard->regs_base_resource,
+			       0,                      // irq_base
+			       NULL);                  // struct irq_domain *
 }
 
 
@@ -373,15 +371,13 @@ static int  create_dma_engine_core(struct kp2000_device *pcard, size_t engine_re
 
 	cell.resources = resources;
 
-	return mfd_add_devices(
-		PCARD_TO_DEV(pcard),    // parent
-		pcard->card_num * 100,  // id
-		&cell,                  // struct mfd_cell *
-		1,                      // ndevs
-		&pcard->dma_base_resource,
-		0,                      // irq_base
-		NULL                    // struct irq_domain *
-	);
+	return mfd_add_devices(PCARD_TO_DEV(pcard),    // parent
+			       pcard->card_num * 100,  // id
+			       &cell,                  // struct mfd_cell *
+			       1,                      // ndevs
+			       &pcard->dma_base_resource,
+			       0,                      // irq_base
+			       NULL);                  // struct irq_domain *
 }
 
 static int  kp2000_setup_dma_controller(struct kp2000_device *pcard)
@@ -462,7 +458,7 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 			switch (cte.type) {
 			case KP_CORE_ID_I2C:
 				err = probe_core_basic(core_num, pcard,
-				KP_DRIVER_NAME_I2C, cte);
+						       KP_DRIVER_NAME_I2C, cte);
 				break;
 
 			case KP_CORE_ID_SPI:
