@@ -485,10 +485,13 @@ static void temac_set_multicast_list(struct net_device *ndev)
 						    multi_addr_lsw);
 			i++;
 		}
-	} else {
+	}
+
+	/* Clear all or remaining/unused address table entries */
+	while (i < MULTICAST_CAM_TABLE_NUM) {
 		temac_indirect_out32_locked(lp, XTE_MAW0_OFFSET, 0);
 		temac_indirect_out32_locked(lp, XTE_MAW1_OFFSET, i << 16);
-		}
+		i++;
 	}
 
 	/* Enable address filter block if currently disabled */
