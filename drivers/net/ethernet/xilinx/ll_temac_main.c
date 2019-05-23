@@ -389,13 +389,6 @@ static void temac_set_multicast_list(struct net_device *ndev)
 	mutex_lock(lp->indirect_mutex);
 	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC) ||
 	    netdev_mc_count(ndev) > MULTICAST_CAM_TABLE_NUM) {
-		/*
-		 *	We must make the kernel realise we had to move
-		 *	into promisc mode or we start all out war on
-		 *	the cable. If it was a promisc request the
-		 *	flag is already set. If not we assert it.
-		 */
-		ndev->flags |= IFF_PROMISC;
 		temac_indirect_out32(lp, XTE_AFM_OFFSET, XTE_AFM_EPPRM_MASK);
 		dev_info(&ndev->dev, "Promiscuous mode enabled.\n");
 	} else if (!netdev_mc_empty(ndev)) {
