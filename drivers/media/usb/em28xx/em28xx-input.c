@@ -276,21 +276,8 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 		break;
 
 	case RC_PROTO_BIT_NEC:
-		poll_result->scancode = msg[1] << 8 | msg[2];
-		if ((msg[3] ^ msg[4]) != 0xff) {	/* 32 bits NEC */
-			poll_result->protocol = RC_PROTO_NEC32;
-			poll_result->scancode = RC_SCANCODE_NEC32((msg[1] << 24) |
-								  (msg[2] << 16) |
-								  (msg[3] << 8)  |
-								  (msg[4]));
-		} else if ((msg[1] ^ msg[2]) != 0xff) {	/* 24 bits NEC */
-			poll_result->protocol = RC_PROTO_NECX;
-			poll_result->scancode = RC_SCANCODE_NECX(msg[1] << 8 |
-								 msg[2], msg[3]);
-		} else {				/* Normal NEC */
-			poll_result->protocol = RC_PROTO_NEC;
-			poll_result->scancode = RC_SCANCODE_NEC(msg[1], msg[3]);
-		}
+		poll_result->scancode = ir_nec_bytes_to_scancode(msg[1], msg[2], msg[3], msg[4],
+								 &poll_result->protocol);
 		break;
 
 	case RC_PROTO_BIT_RC6_0:
