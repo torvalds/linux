@@ -694,7 +694,7 @@ bool hubp2_construct(
 	hubp2->hubp_shift = hubp_shift;
 	hubp2->hubp_mask = hubp_mask;
 	hubp2->base.inst = inst;
-	hubp2->base.opp_id = 0xf;
+	hubp2->base.opp_id = OPP_ID_INVALID;
 	hubp2->base.mpcc_id = 0xf;
 
 	return true;

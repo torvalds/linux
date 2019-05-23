@@ -605,7 +605,7 @@ static void dcn20_init_hw(struct dc *dc)
 		pipe_ctx->plane_res.dpp = dpp;
 		pipe_ctx->plane_res.mpcc_inst = dpp->inst;
 		hubp->mpcc_id = dpp->inst;
-		hubp->opp_id = 0xf;
+		hubp->opp_id = OPP_ID_INVALID;
 		hubp->power_gated = false;
 		pipe_ctx->stream_res.opp = NULL;
 
@@ -1307,7 +1307,7 @@ static void dcn20_apply_ctx_for_surface(
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
 			if (old_pipe_ctx->stream_res.tg == tg &&
 			    old_pipe_ctx->plane_res.hubp &&
-			    old_pipe_ctx->plane_res.hubp->opp_id != 0xf)
+			    old_pipe_ctx->plane_res.hubp->opp_id != OPP_ID_INVALID)
 				dcn20_disable_plane(dc, old_pipe_ctx);
 		}
 
