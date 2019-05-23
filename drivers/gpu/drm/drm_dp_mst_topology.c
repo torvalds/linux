@@ -1582,7 +1582,11 @@ static void process_single_up_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	if (ret != 1)
 		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
 
-	txmsg->dst->tx_slots[txmsg->seqno] = NULL;
+	if (txmsg->seqno != -1) {
+		WARN_ON((unsigned int)txmsg->seqno >
+			ARRAY_SIZE(txmsg->dst->tx_slots));
+		txmsg->dst->tx_slots[txmsg->seqno] = NULL;
+	}
 }
 
 static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
