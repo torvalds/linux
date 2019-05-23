@@ -1859,21 +1859,10 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	struct kvm *kvm = xive->kvm;
 	struct kvm_vcpu *vcpu;
 	int i;
-	int was_ready;
 
 	pr_devel("Releasing xive device\n");
 
-	debugfs_remove(xive->dentry);
-
 	/*
-	 * Clearing mmu_ready temporarily while holding kvm->lock
-	 * is a way of ensuring that no vcpus can enter the guest
-	 * until we drop kvm->lock.  Doing kick_all_cpus_sync()
-	 * ensures that any vcpu executing inside the guest has
-	 * exited the guest.  Once kick_all_cpus_sync() has finished,
-	 * we know that no vcpu can be executing the XIVE push or
-	 * pull code, or executing a XICS hcall.
-	 *
 	 * Since this is the device release function, we know that
 	 * userspace does not have any open fd referring to the
 	 * device.  Therefore there can not be any of the device
@@ -1881,9 +1870,8 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 	 * and similarly, the connect_vcpu and set/clr_mapped
 	 * functions also cannot be being executed.
 	 */
-	was_ready = kvm->arch.mmu_ready;
-	kvm->arch.mmu_ready = 0;
-	kick_all_cpus_sync();
+
+	debugfs_remove(xive->dentry);
 
 	/*
 	 * We should clean up the vCPU interrupt presenters first.
@@ -1892,12 +1880,22 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 		/*
 		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
 		 * (i.e. kvmppc_xive_[gs]et_icp) can be done concurrently.
+		 * Holding the vcpu->mutex also means that the vcpu cannot
+		 * be executing the KVM_RUN ioctl, and therefore it cannot
+		 * be executing the XIVE push or pull code or accessing
+		 * the XIVE MMIO regions.
 		 */
 		mutex_lock(&vcpu->mutex);
 		kvmppc_xive_cleanup_vcpu(vcpu);
 		mutex_unlock(&vcpu->mutex);
 	}
 
+	/*
+	 * Now that we have cleared vcpu->arch.xive_vcpu, vcpu->arch.irq_type
+	 * and vcpu->arch.xive_esc_[vr]addr on each vcpu, we are safe
+	 * against xive code getting called during vcpu execution or
+	 * set/get one_reg operations.
+	 */
 	kvm->arch.xive = NULL;
 
 	/* Mask and free interrupts */
@@ -1910,8 +1908,6 @@ static void kvmppc_xive_release(struct kvm_device *dev)
 
 	if (xive->vp_base != XIVE_INVALID_VP)
 		xive_native_free_vp_block(xive->vp_base);
-
-	kvm->arch.mmu_ready = was_ready;
 
 	/*
 	 * A reference of the kvmppc_xive pointer is now kept under
