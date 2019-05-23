@@ -7,8 +7,7 @@ struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 {
 	struct flow_rule *rule;
 
-	rule = kzalloc(sizeof(struct flow_rule) +
-		       sizeof(struct flow_action_entry) * num_actions,
+	rule = kzalloc(struct_size(rule, action.entries, num_actions),
 		       GFP_KERNEL);
 	if (!rule)
 		return NULL;
