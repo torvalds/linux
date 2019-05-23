@@ -874,20 +874,14 @@ insert_above:
 	return ln;
 }
 
-static void fib6_drop_pcpu_from(struct fib6_info *f6i,
-				const struct fib6_table *table)
+static void __fib6_drop_pcpu_from(struct fib6_nh *fib6_nh,
+				  const struct fib6_info *match,
+				  const struct fib6_table *table)
 {
-	struct fib6_nh *fib6_nh = &f6i->fib6_nh;
 	int cpu;
 
 	if (!fib6_nh->rt6i_pcpu)
 		return;
-
-	/* Make sure rt6_make_pcpu_route() wont add other percpu routes
-	 * while we are cleaning them here.
-	 */
-	f6i->fib6_destroying = 1;
-	mb(); /* paired with the cmpxchg() in rt6_make_pcpu_route() */
 
 	/* release the reference to this fib entry from
 	 * all of its cached pcpu routes
@@ -898,13 +892,34 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 
 		ppcpu_rt = per_cpu_ptr(fib6_nh->rt6i_pcpu, cpu);
 		pcpu_rt = *ppcpu_rt;
-		if (pcpu_rt) {
+
+		/* only dropping the 'from' reference if the cached route
+		 * is using 'match'. The cached pcpu_rt->from only changes
+		 * from a fib6_info to NULL (ip6_dst_destroy); it can never
+		 * change from one fib6_info reference to another
+		 */
+		if (pcpu_rt && rcu_access_pointer(pcpu_rt->from) == match) {
 			struct fib6_info *from;
 
 			from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
 			fib6_info_release(from);
 		}
 	}
+}
+
+static void fib6_drop_pcpu_from(struct fib6_info *f6i,
+				const struct fib6_table *table)
+{
+	struct fib6_nh *fib6_nh;
+
+	/* Make sure rt6_make_pcpu_route() wont add other percpu routes
+	 * while we are cleaning them here.
+	 */
+	f6i->fib6_destroying = 1;
+	mb(); /* paired with the cmpxchg() in rt6_make_pcpu_route() */
+
+	fib6_nh = &f6i->fib6_nh;
+	__fib6_drop_pcpu_from(fib6_nh, f6i, table);
 }
 
 static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
