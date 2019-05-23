@@ -491,14 +491,15 @@ static void ib_device_release(struct device *device)
 
 	free_netdevs(dev);
 	WARN_ON(refcount_read(&dev->refcount));
-	ib_cache_release_one(dev);
-	ib_security_release_port_pkey_list(dev);
-	xa_destroy(&dev->compat_devs);
-	xa_destroy(&dev->client_data);
-	if (dev->port_data)
+	if (dev->port_data) {
+		ib_cache_release_one(dev);
+		ib_security_release_port_pkey_list(dev);
 		kfree_rcu(container_of(dev->port_data, struct ib_port_data_rcu,
 				       pdata[0]),
 			  rcu_head);
+	}
+	xa_destroy(&dev->compat_devs);
+	xa_destroy(&dev->client_data);
 	kfree_rcu(dev, rcu_head);
 }
 
@@ -1951,6 +1952,9 @@ static void free_netdevs(struct ib_device *ib_dev)
 {
 	unsigned long flags;
 	unsigned int port;
+
+	if (!ib_dev->port_data)
+		return;
 
 	rdma_for_each_port (ib_dev, port) {
 		struct ib_port_data *pdata = &ib_dev->port_data[port];
