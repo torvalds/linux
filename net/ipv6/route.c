@@ -3430,7 +3430,7 @@ out_put:
 	return err;
 }
 
-static int ip6_del_cached_rt(struct rt6_info *rt, struct fib6_config *cfg)
+static int __ip6_del_cached_rt(struct rt6_info *rt, struct fib6_config *cfg)
 {
 	int rc = -ESRCH;
 
@@ -3446,10 +3446,25 @@ out:
 	return rc;
 }
 
+static int ip6_del_cached_rt(struct fib6_config *cfg, struct fib6_info *rt,
+			     struct fib6_nh *nh)
+{
+	struct fib6_result res = {
+		.f6i = rt,
+		.nh = nh,
+	};
+	struct rt6_info *rt_cache;
+
+	rt_cache = rt6_find_cached_rt(&res, &cfg->fc_dst, &cfg->fc_src);
+	if (rt_cache)
+		return __ip6_del_cached_rt(rt_cache, cfg);
+
+	return 0;
+}
+
 static int ip6_route_del(struct fib6_config *cfg,
 			 struct netlink_ext_ack *extack)
 {
-	struct rt6_info *rt_cache;
 	struct fib6_table *table;
 	struct fib6_info *rt;
 	struct fib6_node *fn;
@@ -3474,21 +3489,12 @@ static int ip6_route_del(struct fib6_config *cfg,
 
 			nh = rt->fib6_nh;
 			if (cfg->fc_flags & RTF_CACHE) {
-				struct fib6_result res = {
-					.f6i = rt,
-					.nh = nh,
-				};
 				int rc;
 
-				rt_cache = rt6_find_cached_rt(&res,
-							      &cfg->fc_dst,
-							      &cfg->fc_src);
-				if (rt_cache) {
-					rc = ip6_del_cached_rt(rt_cache, cfg);
-					if (rc != -ESRCH) {
-						rcu_read_unlock();
-						return rc;
-					}
+				rc = ip6_del_cached_rt(cfg, rt, nh);
+				if (rc != -ESRCH) {
+					rcu_read_unlock();
+					return rc;
 				}
 				continue;
 			}
