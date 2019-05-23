@@ -661,7 +661,7 @@ static const struct resource_caps res_cap_nv10 = {
 		.num_audio = 7,
 		.num_stream_encoder = 6,
 		.num_pll = 6,
-		.num_dwb = 0,
+		.num_dwb = 1,
 		.num_ddc = 6,
 		.num_vmid = 16,
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
