@@ -22,7 +22,7 @@
  * Authors: AMD
  *
  */
-
+#include "../dc.h"
 #include "reg_helper.h"
 #include "dce_audio.h"
 #include "dce/dce_11_0_d.h"
@@ -841,8 +841,6 @@ void dce_aud_wall_dto_setup(
 		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
 				DCCG_AUDIO_DTO_SEL, 1);
 
-		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
-			DCCG_AUDIO_DTO_SEL, 1);
 			/* DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1)
 			 * Select 512fs for DP TODO: web register definition
 			 * does not match register header file
