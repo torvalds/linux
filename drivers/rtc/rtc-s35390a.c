@@ -45,12 +45,13 @@
 /* flag for STATUS2 */
 #define S35390A_FLAG_TEST	0x01
 
-#define S35390A_INT2_MODE_MASK		0xF0
-
+/* INT2 pin output mode */
+#define S35390A_INT2_MODE_MASK		0x0E
 #define S35390A_INT2_MODE_NOINTR	0x00
-#define S35390A_INT2_MODE_FREQ		0x10
-#define S35390A_INT2_MODE_ALARM		0x40
-#define S35390A_INT2_MODE_PMIN_EDG	0x20
+#define S35390A_INT2_MODE_ALARM		BIT(1) /* INT2AE */
+#define S35390A_INT2_MODE_PMIN_EDG	BIT(2) /* INT2ME */
+#define S35390A_INT2_MODE_FREQ		BIT(3) /* INT2FE */
+#define S35390A_INT2_MODE_PMIN		(BIT(3) | BIT(2)) /* INT2FE | INT2ME */
 
 static const struct i2c_device_id s35390a_id[] = {
 	{ "s35390a", 0 },
@@ -303,9 +304,6 @@ static int s35390a_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	else
 		sts = S35390A_INT2_MODE_NOINTR;
 
-	/* This chip expects the bits of each byte to be in reverse order */
-	sts = bitrev8(sts);
-
 	/* set interupt mode*/
 	err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
 	if (err < 0)
@@ -343,7 +341,7 @@ static int s35390a_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	if (err < 0)
 		return err;
 
-	if ((bitrev8(sts) & S35390A_INT2_MODE_MASK) != S35390A_INT2_MODE_ALARM) {
+	if ((sts & S35390A_INT2_MODE_MASK) != S35390A_INT2_MODE_ALARM) {
 		/*
 		 * When the alarm isn't enabled, the register to configure
 		 * the alarm time isn't accessible.
