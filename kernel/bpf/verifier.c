@@ -5436,7 +5436,25 @@ enum {
 	BRANCH = 2,
 };
 
-#define STATE_LIST_MARK ((struct bpf_verifier_state_list *) -1L)
+static u32 state_htab_size(struct bpf_verifier_env *env)
+{
+	return env->prog->len;
+}
+
+static struct bpf_verifier_state_list **explored_state(
+					struct bpf_verifier_env *env,
+					int idx)
+{
+	struct bpf_verifier_state *cur = env->cur_state;
+	struct bpf_func_state *state = cur->frame[cur->curframe];
+
+	return &env->explored_states[(idx ^ state->callsite) % state_htab_size(env)];
+}
+
+static void init_explored_state(struct bpf_verifier_env *env, int idx)
+{
+	env->insn_aux_data[idx].prune_point = true;
+}
 
 /* t, w, e - match pseudo-code above:
  * t - index of current instruction
@@ -5462,7 +5480,7 @@ static int push_insn(int t, int w, int e, struct bpf_verifier_env *env)
 
 	if (e == BRANCH)
 		/* mark branch target for state pruning */
-		env->explored_states[w] = STATE_LIST_MARK;
+		init_explored_state(env, w);
 
 	if (insn_state[w] == 0) {
 		/* tree-edge */
@@ -5530,9 +5548,9 @@ peek_stack:
 			else if (ret < 0)
 				goto err_free;
 			if (t + 1 < insn_cnt)
-				env->explored_states[t + 1] = STATE_LIST_MARK;
+				init_explored_state(env, t + 1);
 			if (insns[t].src_reg == BPF_PSEUDO_CALL) {
-				env->explored_states[t] = STATE_LIST_MARK;
+				init_explored_state(env, t);
 				ret = push_insn(t, t + insns[t].imm + 1, BRANCH, env);
 				if (ret == 1)
 					goto peek_stack;
@@ -5555,10 +5573,10 @@ peek_stack:
 			 * after every call and jump
 			 */
 			if (t + 1 < insn_cnt)
-				env->explored_states[t + 1] = STATE_LIST_MARK;
+				init_explored_state(env, t + 1);
 		} else {
 			/* conditional jump with two edges */
-			env->explored_states[t] = STATE_LIST_MARK;
+			init_explored_state(env, t);
 			ret = push_insn(t, t + 1, FALLTHROUGH, env);
 			if (ret == 1)
 				goto peek_stack;
@@ -6006,12 +6024,10 @@ static void clean_live_states(struct bpf_verifier_env *env, int insn,
 	struct bpf_verifier_state_list *sl;
 	int i;
 
-	sl = env->explored_states[insn];
-	if (!sl)
-		return;
-
-	while (sl != STATE_LIST_MARK) {
-		if (sl->state.curframe != cur->curframe)
+	sl = *explored_state(env, insn);
+	while (sl) {
+		if (sl->state.insn_idx != insn ||
+		    sl->state.curframe != cur->curframe)
 			goto next;
 		for (i = 0; i <= cur->curframe; i++)
 			if (sl->state.frame[i]->callsite != cur->frame[i]->callsite)
@@ -6365,18 +6381,21 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	struct bpf_verifier_state *cur = env->cur_state, *new;
 	int i, j, err, states_cnt = 0;
 
-	pprev = &env->explored_states[insn_idx];
-	sl = *pprev;
-
-	if (!sl)
+	if (!env->insn_aux_data[insn_idx].prune_point)
 		/* this 'insn_idx' instruction wasn't marked, so we will not
 		 * be doing state search here
 		 */
 		return 0;
 
+	pprev = explored_state(env, insn_idx);
+	sl = *pprev;
+
 	clean_live_states(env, insn_idx, cur);
 
-	while (sl != STATE_LIST_MARK) {
+	while (sl) {
+		states_cnt++;
+		if (sl->state.insn_idx != insn_idx)
+			goto next;
 		if (states_equal(env, &sl->state, cur)) {
 			sl->hit_cnt++;
 			/* reached equivalent register/stack state,
@@ -6394,7 +6413,6 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 				return err;
 			return 1;
 		}
-		states_cnt++;
 		sl->miss_cnt++;
 		/* heuristic to determine whether this state is beneficial
 		 * to keep checking from state equivalence point of view.
@@ -6421,6 +6439,7 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 			sl = *pprev;
 			continue;
 		}
+next:
 		pprev = &sl->next;
 		sl = *pprev;
 	}
@@ -6452,8 +6471,9 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 		kfree(new_sl);
 		return err;
 	}
-	new_sl->next = env->explored_states[insn_idx];
-	env->explored_states[insn_idx] = new_sl;
+	new->insn_idx = insn_idx;
+	new_sl->next = *explored_state(env, insn_idx);
+	*explored_state(env, insn_idx) = new_sl;
 	/* connect new state to parentage chain. Current frame needs all
 	 * registers connected. Only r6 - r9 of the callers are alive (pushed
 	 * to the stack implicitly by JITs) so in callers' frames connect just
@@ -8131,16 +8151,15 @@ static void free_states(struct bpf_verifier_env *env)
 	if (!env->explored_states)
 		return;
 
-	for (i = 0; i < env->prog->len; i++) {
+	for (i = 0; i < state_htab_size(env); i++) {
 		sl = env->explored_states[i];
 
-		if (sl)
-			while (sl != STATE_LIST_MARK) {
-				sln = sl->next;
-				free_verifier_state(&sl->state, false);
-				kfree(sl);
-				sl = sln;
-			}
+		while (sl) {
+			sln = sl->next;
+			free_verifier_state(&sl->state, false);
+			kfree(sl);
+			sl = sln;
+		}
 	}
 
 	kvfree(env->explored_states);
@@ -8240,7 +8259,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 			goto skip_full_check;
 	}
 
-	env->explored_states = kvcalloc(env->prog->len,
+	env->explored_states = kvcalloc(state_htab_size(env),
 				       sizeof(struct bpf_verifier_state_list *),
 				       GFP_USER);
 	ret = -ENOMEM;

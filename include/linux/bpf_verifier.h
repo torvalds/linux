@@ -187,6 +187,7 @@ struct bpf_func_state {
 struct bpf_verifier_state {
 	/* call stack tracking */
 	struct bpf_func_state *frame[MAX_CALL_FRAMES];
+	u32 insn_idx;
 	u32 curframe;
 	u32 active_spin_lock;
 	bool speculative;
@@ -233,6 +234,7 @@ struct bpf_insn_aux_data {
 	int sanitize_stack_off; /* stack slot to be cleared */
 	bool seen; /* this insn was processed by the verifier */
 	u8 alu_state; /* used in combination with alu_limit */
+	bool prune_point;
 	unsigned int orig_idx; /* original instruction index */
 };
 
