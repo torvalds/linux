@@ -1021,9 +1021,10 @@ static void skcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 					 ivsize, ivsize, 0);
 
 #ifdef DEBUG
-	print_hex_dump(KERN_ERR, "dstiv  @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
-		       edesc->src_nents > 1 ? 100 : ivsize, 1);
+	if (ivsize)
+		print_hex_dump(KERN_ERR, "dstiv  @"__stringify(__LINE__)": ",
+			       DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
+			       edesc->src_nents > 1 ? 100 : ivsize, 1);
 #endif
 	caam_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
 		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
