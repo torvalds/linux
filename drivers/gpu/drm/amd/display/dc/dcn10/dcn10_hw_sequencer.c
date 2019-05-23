@@ -1025,7 +1025,7 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		pipe_ctx->plane_res.dpp = dpp;
 		pipe_ctx->plane_res.mpcc_inst = dpp->inst;
 		hubp->mpcc_id = dpp->inst;
-		hubp->opp_id = 0xf;
+		hubp->opp_id = OPP_ID_INVALID;
 		hubp->power_gated = false;
 
 		dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
@@ -2371,7 +2371,7 @@ static void dcn10_apply_ctx_for_surface(
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
 			if (old_pipe_ctx->stream_res.tg == tg &&
 			    old_pipe_ctx->plane_res.hubp &&
-			    old_pipe_ctx->plane_res.hubp->opp_id != 0xf)
+			    old_pipe_ctx->plane_res.hubp->opp_id != OPP_ID_INVALID)
 				dcn10_disable_plane(dc, old_pipe_ctx);
 		}
 

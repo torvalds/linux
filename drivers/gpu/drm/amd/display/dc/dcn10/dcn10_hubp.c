@@ -63,7 +63,7 @@ void hubp1_set_blank(struct hubp *hubp, bool blank)
 		}
 
 		hubp->mpcc_id = 0xf;
-		hubp->opp_id = 0xf;
+		hubp->opp_id = OPP_ID_INVALID;
 	}
 }
 
@@ -1226,7 +1226,7 @@ void dcn10_hubp_construct(
 	hubp1->hubp_shift = hubp_shift;
 	hubp1->hubp_mask = hubp_mask;
 	hubp1->base.inst = inst;
-	hubp1->base.opp_id = 0xf;
+	hubp1->base.opp_id = OPP_ID_INVALID;
 	hubp1->base.mpcc_id = 0xf;
 }
 
