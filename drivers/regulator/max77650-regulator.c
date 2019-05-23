@@ -29,8 +29,6 @@
 
 #define MAX77650_REGULATOR_CURR_LIM_MASK	GENMASK(7, 6)
 
-static struct max77650_regulator_desc max77651_SBB1_desc;
-
 enum {
 	MAX77650_REGULATOR_ID_LDO = 0,
 	MAX77650_REGULATOR_ID_SBB0,
@@ -44,6 +42,8 @@ struct max77650_regulator_desc {
 	unsigned int regA;
 	unsigned int regB;
 };
+
+static struct max77650_regulator_desc max77651_SBB1_desc;
 
 static const unsigned int max77651_sbb1_volt_range_sel[] = {
 	0x0, 0x1, 0x2, 0x3
