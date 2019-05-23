@@ -163,8 +163,7 @@ static void show_segv_info(struct uml_pt_regs *regs)
 static void bad_segv(struct faultinfo fi, unsigned long ip)
 {
 	current->thread.arch.faultinfo = fi;
-	force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *) FAULT_ADDRESS(fi),
-			current);
+	force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *) FAULT_ADDRESS(fi));
 }
 
 void fatal_sigsegv(void)
@@ -268,13 +267,11 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 
 	if (err == -EACCES) {
 		current->thread.arch.faultinfo = fi;
-		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address,
-				current);
+		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address);
 	} else {
 		BUG_ON(err != -EFAULT);
 		current->thread.arch.faultinfo = fi;
-		force_sig_fault(SIGSEGV, si_code, (void __user *) address,
-				current);
+		force_sig_fault(SIGSEGV, si_code, (void __user *) address);
 	}
 
 out:
@@ -304,8 +301,7 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 	if ((err == 0) && (siginfo_layout(sig, code) == SIL_FAULT)) {
 		struct faultinfo *fi = UPT_FAULTINFO(regs);
 		current->thread.arch.faultinfo = *fi;
-		force_sig_fault(sig, code, (void __user *)FAULT_ADDRESS(*fi),
-				current);
+		force_sig_fault(sig, code, (void __user *)FAULT_ADDRESS(*fi));
 	} else {
 		printk(KERN_ERR "Attempted to relay unknown signal %d (si_code = %d) with errno %d\n",
 		       sig, code, err);

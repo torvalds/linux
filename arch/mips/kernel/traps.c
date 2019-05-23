@@ -705,7 +705,7 @@ asmlinkage void do_ov(struct pt_regs *regs)
 	prev_state = exception_enter();
 	die_if_kernel("Integer overflow", regs);
 
-	force_sig_fault(SIGFPE, FPE_INTOVF, (void __user *)regs->cp0_epc, current);
+	force_sig_fault(SIGFPE, FPE_INTOVF, (void __user *)regs->cp0_epc);
 	exception_exit(prev_state);
 }
 
@@ -750,7 +750,7 @@ int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 		return 1;
 
 	case SIGBUS:
-		force_sig_fault(SIGBUS, BUS_ADRERR, fault_addr, current);
+		force_sig_fault(SIGBUS, BUS_ADRERR, fault_addr);
 		return 1;
 
 	case SIGSEGV:
@@ -761,7 +761,7 @@ int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 		else
 			si_code = SEGV_MAPERR;
 		up_read(&current->mm->mmap_sem);
-		force_sig_fault(SIGSEGV, si_code, fault_addr, current);
+		force_sig_fault(SIGSEGV, si_code, fault_addr);
 		return 1;
 
 	default:
@@ -943,7 +943,7 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 		die_if_kernel(b, regs);
 		force_sig_fault(SIGFPE,
 				code == BRK_DIVZERO ? FPE_INTDIV : FPE_INTOVF,
-				(void __user *) regs->cp0_epc, current);
+				(void __user *) regs->cp0_epc);
 		break;
 	case BRK_BUG:
 		die_if_kernel("Kernel bug detected", regs);
@@ -968,7 +968,7 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 		scnprintf(b, sizeof(b), "%s instruction in kernel code", str);
 		die_if_kernel(b, regs);
 		if (si_code) {
-			force_sig_fault(SIGTRAP, si_code, NULL,	current);
+			force_sig_fault(SIGTRAP, si_code, NULL);
 		} else {
 			force_sig(SIGTRAP);
 		}
@@ -1521,7 +1521,7 @@ asmlinkage void do_watch(struct pt_regs *regs)
 	if (test_tsk_thread_flag(current, TIF_LOAD_WATCH)) {
 		mips_read_watch_registers();
 		local_irq_enable();
-		force_sig_fault(SIGTRAP, TRAP_HWBKPT, NULL, current);
+		force_sig_fault(SIGTRAP, TRAP_HWBKPT, NULL);
 	} else {
 		mips_clear_watch_registers();
 		local_irq_enable();

@@ -106,7 +106,7 @@ static bool write_ok_or_segv(unsigned long ptr, size_t size)
 		thread->cr2		= ptr;
 		thread->trap_nr		= X86_TRAP_PF;
 
-		force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)ptr, current);
+		force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)ptr);
 		return false;
 	} else {
 		return true;

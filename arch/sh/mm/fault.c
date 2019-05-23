@@ -41,7 +41,7 @@ static inline int notify_page_fault(struct pt_regs *regs, int trap)
 static void
 force_sig_info_fault(int si_signo, int si_code, unsigned long address)
 {
-	force_sig_fault(si_signo, si_code, (void __user *)address, current);
+	force_sig_fault(si_signo, si_code, (void __user *)address);
 }
 
 /*

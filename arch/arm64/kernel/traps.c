@@ -259,7 +259,7 @@ void arm64_force_sig_fault(int signo, int code, void __user *addr,
 	if (signo == SIGKILL)
 		force_sig(SIGKILL);
 	else
-		force_sig_fault(signo, code, addr, current);
+		force_sig_fault(signo, code, addr);
 }
 
 void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,

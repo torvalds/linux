@@ -187,7 +187,7 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 	}
 
 #endif
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, current);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address);
 	return 0;
 }
 

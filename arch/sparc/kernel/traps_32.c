@@ -103,7 +103,7 @@ void do_hw_interrupt(struct pt_regs *regs, unsigned long type)
 		die_if_kernel("Kernel bad trap", regs);
 
 	force_sig_fault(SIGILL, ILL_ILLTRP,
-			(void __user *)regs->pc, type - 0x80, current);
+			(void __user *)regs->pc, type - 0x80);
 }
 
 void do_illegal_instruction(struct pt_regs *regs, unsigned long pc, unsigned long npc,
@@ -327,7 +327,7 @@ void handle_reg_access(struct pt_regs *regs, unsigned long pc, unsigned long npc
 	printk("Register Access Exception at PC %08lx NPC %08lx PSR %08lx\n",
 	       pc, npc, psr);
 #endif
-	force_sig_fault(SIGBUS, BUS_OBJERR, (void __user *)pc, 0, current);
+	force_sig_fault(SIGBUS, BUS_OBJERR, (void __user *)pc, 0);
 }
 
 void handle_cp_disabled(struct pt_regs *regs, unsigned long pc, unsigned long npc,

@@ -1127,7 +1127,7 @@ asmlinkage void trap_c(struct frame *fp)
 		addr = (void __user*) fp->un.fmtb.daddr;
 		break;
 	}
-	force_sig_fault(sig, si_code, addr, current);
+	force_sig_fault(sig, si_code, addr);
 }
 
 void die_if_kernel (char *str, struct pt_regs *fp, int nr)
@@ -1159,6 +1159,6 @@ asmlinkage void fpsp040_die(void)
 #ifdef CONFIG_M68KFPU_EMU
 asmlinkage void fpemu_signal(int signal, int code, void *addr)
 {
-	force_sig_fault(signal, code, addr, current);
+	force_sig_fault(signal, code, addr);
 }
 #endif

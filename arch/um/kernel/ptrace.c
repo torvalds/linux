@@ -117,8 +117,7 @@ static void send_sigtrap(struct uml_pt_regs *regs, int error_code)
 	/* Send us the fake SIGTRAP */
 	force_sig_fault(SIGTRAP, TRAP_BRKPT,
 			/* User-mode eip? */
-			UPT_IS_USER(regs) ? (void __user *) UPT_IP(regs) : NULL,
-			current);
+			UPT_IS_USER(regs) ? (void __user *) UPT_IP(regs) : NULL);
 }
 
 /*

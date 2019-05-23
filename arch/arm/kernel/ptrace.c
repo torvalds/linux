@@ -204,7 +204,7 @@ void ptrace_disable(struct task_struct *child)
 void ptrace_break(struct pt_regs *regs)
 {
 	force_sig_fault(SIGTRAP, TRAP_BRKPT,
-			(void __user *)instruction_pointer(regs), current);
+			(void __user *)instruction_pointer(regs));
 }
 
 static int break_trap(struct pt_regs *regs, unsigned int instr)

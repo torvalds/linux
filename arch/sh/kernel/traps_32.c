@@ -533,7 +533,7 @@ uspace_segv:
 		       "access (PC %lx PR %lx)\n", current->comm, regs->pc,
 		       regs->pr);
 
-		force_sig_fault(SIGBUS, si_code, (void __user *)address, current);
+		force_sig_fault(SIGBUS, si_code, (void __user *)address);
 	} else {
 		inc_unaligned_kernel_access();
 
@@ -603,7 +603,7 @@ asmlinkage void do_divide_error(unsigned long r4)
 		/* Let gcc know unhandled cases don't make it past here */
 		return;
 	}
-	force_sig_fault(SIGFPE, code, NULL, current);
+	force_sig_fault(SIGFPE, code, NULL);
 }
 #endif
 

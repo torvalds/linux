@@ -409,7 +409,7 @@ bad_area:
 #endif
 		show_signal_msg(regs, code, address, tsk, vma);
 
-		force_sig_fault(signo, si_code, (void __user *) address, current);
+		force_sig_fault(signo, si_code, (void __user *) address);
 		return;
 	}
 

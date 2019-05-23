@@ -205,7 +205,7 @@ int bad_syscall(int n, struct pt_regs *regs)
 	}
 
 	force_sig_fault(SIGILL, ILL_ILLTRP,
-			(void __user *)instruction_pointer(regs) - 4, current);
+			(void __user *)instruction_pointer(regs) - 4);
 	die_if_kernel("Oops - bad syscall", regs, n);
 	return regs->uregs[0];
 }
@@ -263,7 +263,7 @@ static void send_sigtrap(struct pt_regs *regs, int error_code, int si_code)
 	tsk->thread.error_code = error_code;
 
 	force_sig_fault(SIGTRAP, si_code,
-			(void __user *)instruction_pointer(regs), current);
+			(void __user *)instruction_pointer(regs));
 }
 
 void do_debug_trap(unsigned long entry, unsigned long addr,

@@ -202,7 +202,7 @@ bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
 		tsk->thread.fault_address = address;
-		force_sig_fault(SIGSEGV, si_code, (void __user *)address, current);
+		force_sig_fault(SIGSEGV, si_code, (void __user *)address);
 		return;
 	}
 
@@ -237,5 +237,5 @@ do_sigbus:
 		goto no_context;
 
 	tsk->thread.fault_address = address;
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, current);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address);
 }

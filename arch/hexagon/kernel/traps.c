@@ -420,7 +420,7 @@ void do_trap0(struct pt_regs *regs)
 			 * may want to use a different trap0 flavor.
 			 */
 			force_sig_fault(SIGTRAP, TRAP_BRKPT,
-					(void __user *) pt_elr(regs), current);
+					(void __user *) pt_elr(regs));
 		} else {
 #ifdef CONFIG_KGDB
 			kgdb_handle_exception(pt_cause(regs), SIGTRAP,

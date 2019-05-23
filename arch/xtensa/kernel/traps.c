@@ -330,7 +330,7 @@ do_unaligned_user (struct pt_regs *regs)
 			    "(pid = %d, pc = %#010lx)\n",
 			    regs->excvaddr, current->comm,
 			    task_pid_nr(current), regs->pc);
-	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr);
 }
 #endif
 
