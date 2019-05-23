@@ -126,6 +126,20 @@ komeda_pipeline_get_component(struct komeda_pipeline *pipe, int id)
 	return c;
 }
 
+struct komeda_component *
+komeda_pipeline_get_first_component(struct komeda_pipeline *pipe,
+				    u32 comp_mask)
+{
+	struct komeda_component *c = NULL;
+	int id;
+
+	id = find_first_bit((unsigned long *)&comp_mask, 32);
+	if (id < 32)
+		c = komeda_pipeline_get_component(pipe, id);
+
+	return c;
+}
+
 /** komeda_component_add - Add a component to &komeda_pipeline */
 struct komeda_component *
 komeda_component_add(struct komeda_pipeline *pipe,
