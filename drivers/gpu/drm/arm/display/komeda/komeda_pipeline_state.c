@@ -390,6 +390,7 @@ komeda_scaler_check_cfg(struct komeda_scaler *scaler,
 			struct komeda_data_flow_cfg *dflow)
 {
 	u32 hsize_in, vsize_in, hsize_out, vsize_out;
+	u32 max_upscaling;
 
 	hsize_in = dflow->in_w;
 	vsize_in = dflow->in_h;
@@ -408,13 +409,21 @@ komeda_scaler_check_cfg(struct komeda_scaler *scaler,
 		return -EINVAL;
 	}
 
-	if (!scaling_ratio_valid(hsize_in, hsize_out, scaler->max_upscaling,
+	/* If input comes from compiz that means the scaling is for writeback
+	 * and scaler can not do upscaling for writeback
+	 */
+	if (has_bit(dflow->input.component->id, KOMEDA_PIPELINE_COMPIZS))
+		max_upscaling = 1;
+	else
+		max_upscaling = scaler->max_upscaling;
+
+	if (!scaling_ratio_valid(hsize_in, hsize_out, max_upscaling,
 				 scaler->max_downscaling)) {
 		DRM_DEBUG_ATOMIC("Invalid horizontal scaling ratio");
 		return -EINVAL;
 	}
 
-	if (!scaling_ratio_valid(vsize_in, vsize_out, scaler->max_upscaling,
+	if (!scaling_ratio_valid(vsize_in, vsize_out, max_upscaling,
 				 scaler->max_downscaling)) {
 		DRM_DEBUG_ATOMIC("Invalid vertical scaling ratio");
 		return -EINVAL;
@@ -614,6 +623,17 @@ komeda_timing_ctrlr_validate(struct komeda_timing_ctrlr *ctrlr,
 	return 0;
 }
 
+void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow)
+{
+	u32 w = dflow->in_w;
+	u32 h = dflow->in_h;
+
+	if (drm_rotation_90_or_270(dflow->rot))
+		swap(w, h);
+
+	dflow->en_scaling = (w != dflow->out_w) || (h != dflow->out_h);
+}
+
 int komeda_build_layer_data_flow(struct komeda_layer *layer,
 				 struct komeda_plane_state *kplane_st,
 				 struct komeda_crtc_state *kcrtc_st,
@@ -641,16 +661,18 @@ int komeda_build_layer_data_flow(struct komeda_layer *layer,
 	return err;
 }
 
+/* writeback data path: compiz -> scaler -> wb_layer -> memory */
 int komeda_build_wb_data_flow(struct komeda_layer *wb_layer,
 			      struct drm_connector_state *conn_st,
 			      struct komeda_crtc_state *kcrtc_st,
 			      struct komeda_data_flow_cfg *dflow)
 {
-	if ((dflow->in_w != dflow->out_w) ||
-	    (dflow->in_h != dflow->out_h)) {
-		DRM_DEBUG_ATOMIC("current do not support scaling writeback.\n");
-		return -EINVAL;
-	}
+	struct drm_connector *conn = conn_st->connector;
+	int err;
+
+	err = komeda_scaler_validate(conn, kcrtc_st, dflow);
+	if (err)
+		return err;
 
 	return komeda_wb_layer_validate(wb_layer, conn_st, dflow);
 }

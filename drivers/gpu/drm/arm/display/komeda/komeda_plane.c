@@ -16,7 +16,6 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 			    struct komeda_data_flow_cfg *dflow)
 {
 	struct drm_framebuffer *fb = st->fb;
-	u32 w, h;
 
 	memset(dflow, 0, sizeof(*dflow));
 
@@ -37,12 +36,7 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 	dflow->in_w = st->src_w >> 16;
 	dflow->in_h = st->src_h >> 16;
 
-	w = dflow->in_w;
-	h = dflow->in_h;
-	if (drm_rotation_90_or_270(dflow->rot))
-		swap(w, h);
-
-	dflow->en_scaling = (w != dflow->out_w) || (h != dflow->out_h);
+	komeda_complete_data_flow_cfg(dflow);
 
 	return 0;
 }
