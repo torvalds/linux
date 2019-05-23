@@ -658,9 +658,6 @@ static inline int locks_overlap(struct file_lock *fl1, struct file_lock *fl2)
  */
 static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 {
-	if (fl1->fl_lmops && fl1->fl_lmops->lm_compare_owner)
-		return fl2->fl_lmops == fl1->fl_lmops &&
-			fl1->fl_lmops->lm_compare_owner(fl1, fl2);
 	return fl1->fl_owner == fl2->fl_owner;
 }
 
@@ -701,8 +698,6 @@ static void locks_delete_global_locks(struct file_lock *fl)
 static unsigned long
 posix_owner_key(struct file_lock *fl)
 {
-	if (fl->fl_lmops && fl->fl_lmops->lm_owner_key)
-		return fl->fl_lmops->lm_owner_key(fl);
 	return (unsigned long)fl->fl_owner;
 }
 
