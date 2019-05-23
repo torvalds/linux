@@ -58,7 +58,6 @@ struct em28xx_ir_poll_result {
 struct em28xx_IR {
 	struct em28xx *dev;
 	struct rc_dev *rc;
-	char name[32];
 	char phys[32];
 
 	/* poll decoder */
@@ -832,14 +831,10 @@ static int em28xx_ir_init(struct em28xx *dev)
 	/* This is how often we ask the chip for IR information */
 	ir->polling = 100; /* ms */
 
-	/* init input device */
-	snprintf(ir->name, sizeof(ir->name), "%s IR",
-		 dev_name(&dev->intf->dev));
-
 	usb_make_path(udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	rc->device_name = ir->name;
+	rc->device_name = em28xx_boards[dev->model].name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_USB;
 	rc->input_id.version = 1;
