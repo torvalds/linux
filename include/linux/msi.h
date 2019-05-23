@@ -64,6 +64,10 @@ struct ti_sci_inta_msi_desc {
  * @msg:	The last set MSI message cached for reuse
  * @affinity:	Optional pointer to a cpu affinity mask for this descriptor
  *
+ * @write_msi_msg:	Callback that may be called when the MSI message
+ *			address or data changes
+ * @write_msi_msg_data:	Data parameter for the callback.
+ *
  * @masked:	[PCI MSI/X] Mask bits
  * @is_msix:	[PCI MSI/X] True if MSI-X
  * @multiple:	[PCI MSI/X] log2 num of messages allocated
@@ -90,6 +94,9 @@ struct msi_desc {
 	const void			*iommu_cookie;
 #endif
 
+	void (*write_msi_msg)(struct msi_desc *entry, void *data);
+	void *write_msi_msg_data;
+
 	union {
 		/* PCI MSI/X specific data */
 		struct {
@@ -100,6 +107,7 @@ struct msi_desc {
 				u8	multi_cap	: 3;
 				u8	maskbit		: 1;
 				u8	is_64		: 1;
+				u8	is_virtual	: 1;
 				u16	entry_nr;
 				unsigned default_irq;
 			} msi_attrib;
