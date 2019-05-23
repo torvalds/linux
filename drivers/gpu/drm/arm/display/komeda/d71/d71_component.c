@@ -134,6 +134,27 @@ static u32 to_rot_ctrl(u32 rot)
 	return lr_ctrl;
 }
 
+static u32 to_ad_ctrl(u64 modifier)
+{
+	u32 afbc_ctrl = AD_AEN;
+
+	if (!modifier)
+		return 0;
+
+	if ((modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) ==
+	    AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
+		afbc_ctrl |= AD_WB;
+
+	if (modifier & AFBC_FORMAT_MOD_YTR)
+		afbc_ctrl |= AD_YT;
+	if (modifier & AFBC_FORMAT_MOD_SPLIT)
+		afbc_ctrl |= AD_BS;
+	if (modifier & AFBC_FORMAT_MOD_TILED)
+		afbc_ctrl |= AD_TH;
+
+	return afbc_ctrl;
+}
+
 static inline u32 to_d71_input_id(struct komeda_component_output *output)
 {
 	struct komeda_component *comp = output->component;
@@ -171,6 +192,24 @@ static void d71_layer_update(struct komeda_component *c,
 		malidp_write32(reg,
 			       BLK_P0_STRIDE + i * LAYER_PER_PLANE_REGS * 4,
 			       fb->pitches[i] & 0xFFFF);
+	}
+
+	malidp_write32(reg, AD_CONTROL, to_ad_ctrl(fb->modifier));
+	if (fb->modifier) {
+		u64 addr;
+
+		malidp_write32(reg, LAYER_AD_H_CROP, HV_CROP(st->afbc_crop_l,
+							     st->afbc_crop_r));
+		malidp_write32(reg, LAYER_AD_V_CROP, HV_CROP(st->afbc_crop_t,
+							     st->afbc_crop_b));
+		/* afbc 1.2 wants payload, afbc 1.0/1.1 wants end_addr */
+		if (fb->modifier & AFBC_FORMAT_MOD_TILED)
+			addr = st->addr[0] + kfb->offset_payload;
+		else
+			addr = st->addr[0] + kfb->afbc_size - 1;
+
+		malidp_write32(reg, BLK_P1_PTR_LOW, lower_32_bits(addr));
+		malidp_write32(reg, BLK_P1_PTR_HIGH, upper_32_bits(addr));
 	}
 
 	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);

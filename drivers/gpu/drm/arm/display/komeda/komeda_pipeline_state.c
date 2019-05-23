@@ -291,8 +291,22 @@ komeda_layer_validate(struct komeda_layer *layer,
 	st = to_layer_st(c_st);
 
 	st->rot = dflow->rot;
-	st->hsize = kfb->aligned_w;
-	st->vsize = kfb->aligned_h;
+
+	if (fb->modifier) {
+		st->hsize = kfb->aligned_w;
+		st->vsize = kfb->aligned_h;
+		st->afbc_crop_l = dflow->in_x;
+		st->afbc_crop_r = kfb->aligned_w - dflow->in_x - dflow->in_w;
+		st->afbc_crop_t = dflow->in_y;
+		st->afbc_crop_b = kfb->aligned_h - dflow->in_y - dflow->in_h;
+	} else {
+		st->hsize = dflow->in_w;
+		st->vsize = dflow->in_h;
+		st->afbc_crop_l = 0;
+		st->afbc_crop_r = 0;
+		st->afbc_crop_t = 0;
+		st->afbc_crop_b = 0;
+	}
 
 	for (i = 0; i < fb->format->num_planes; i++)
 		st->addr[i] = komeda_fb_get_pixel_addr(kfb, dflow->in_x,

@@ -235,6 +235,10 @@ struct komeda_layer_state {
 	/* layer specific configuration state */
 	u16 hsize, vsize;
 	u32 rot;
+	u16 afbc_crop_l;
+	u16 afbc_crop_r;
+	u16 afbc_crop_t;
+	u16 afbc_crop_b;
 	dma_addr_t addr[3];
 };
 

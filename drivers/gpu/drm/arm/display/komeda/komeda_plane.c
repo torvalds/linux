@@ -151,6 +151,18 @@ komeda_plane_atomic_destroy_state(struct drm_plane *plane,
 	kfree(to_kplane_st(state));
 }
 
+static bool
+komeda_plane_format_mod_supported(struct drm_plane *plane,
+				  u32 format, u64 modifier)
+{
+	struct komeda_dev *mdev = plane->dev->dev_private;
+	struct komeda_plane *kplane = to_kplane(plane);
+	u32 layer_type = kplane->layer->layer_type;
+
+	return komeda_format_mod_supported(&mdev->fmt_tbl, layer_type,
+					   format, modifier);
+}
+
 static const struct drm_plane_funcs komeda_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
@@ -158,6 +170,7 @@ static const struct drm_plane_funcs komeda_plane_funcs = {
 	.reset			= komeda_plane_reset,
 	.atomic_duplicate_state	= komeda_plane_atomic_duplicate_state,
 	.atomic_destroy_state	= komeda_plane_atomic_destroy_state,
+	.format_mod_supported	= komeda_plane_format_mod_supported,
 };
 
 /* for komeda, which is pipeline can be share between crtcs */
@@ -210,7 +223,7 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 	err = drm_universal_plane_init(&kms->base, plane,
 			get_possible_crtcs(kms, c->pipeline),
 			&komeda_plane_funcs,
-			formats, n_formats, NULL,
+			formats, n_formats, komeda_supported_modifiers,
 			get_plane_type(kms, c),
 			"%s", c->name);
 

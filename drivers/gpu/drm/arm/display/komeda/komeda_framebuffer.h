@@ -25,6 +25,10 @@ struct komeda_fb {
 	u32 aligned_w;
 	/** @aligned_h: aligned frame buffer height */
 	u32 aligned_h;
+	/** @afbc_size: minimum size of afbc */
+	u32 afbc_size;
+	/** @offset_payload: start of afbc body buffer */
+	u32 offset_payload;
 };
 
 #define to_kfb(dfb)	container_of(dfb, struct komeda_fb, base)

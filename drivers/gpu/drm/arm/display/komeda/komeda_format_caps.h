@@ -77,6 +77,8 @@ struct komeda_format_caps_table {
 	const struct komeda_format_caps *format_caps;
 };
 
+extern u64 komeda_supported_modifiers[];
+
 const struct komeda_format_caps *
 komeda_get_format_caps(struct komeda_format_caps_table *table,
 		       u32 fourcc, u64 modifier);
@@ -85,5 +87,8 @@ u32 *komeda_get_layer_fourcc_list(struct komeda_format_caps_table *table,
 				  u32 layer_type, u32 *n_fmts);
 
 void komeda_put_fourcc_list(u32 *fourcc_list);
+
+bool komeda_format_mod_supported(struct komeda_format_caps_table *table,
+				 u32 layer_type, u32 fourcc, u64 modifier);
 
 #endif
