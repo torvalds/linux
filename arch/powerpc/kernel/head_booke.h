@@ -83,7 +83,7 @@ END_BTB_FLUSH_SECTION
 	SAVE_4GPRS(3, r11);						     \
 	SAVE_2GPRS(7, r11)
 
-.macro SYSCALL_ENTRY trapno intno
+.macro SYSCALL_ENTRY trapno intno srr1
 	mfspr	r10, SPRN_SPRG_THREAD
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
@@ -94,7 +94,7 @@ BEGIN_FTR_SECTION
 	mfspr	r11, SPRN_SRR1
 	mtocrf	0x80, r11	/* check MSR[GS] without clobbering reg */
 	bf	3, 1975f
-	b	kvmppc_handler_BOOKE_INTERRUPT_\intno\()_SPRN_SRR1
+	b	kvmppc_handler_\intno\()_\srr1
 1975:
 	mr	r12, r13
 	lwz	r13, THREAD_NORMSAVE(2)(r10)
