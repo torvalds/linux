@@ -4914,7 +4914,7 @@ static inline bool is_eotf_supported(u8 output_eotf, u8 sink_eotf)
  * drm_hdmi_infoframe_set_hdr_metadata() - fill an HDMI DRM infoframe with
  *                                         HDR metadata from userspace
  * @frame: HDMI DRM infoframe
- * @hdr_metadata: hdr_source_metadata info from userspace
+ * @conn_state: Connector state containing HDR metadata
  *
  * Return: 0 on success or a negative error code on failure.
  */
