@@ -1600,7 +1600,8 @@ static void wake_nocb_gp_defer(struct rcu_data *rdp, int waketype,
 {
 	if (rdp->nocb_defer_wakeup == RCU_NOCB_WAKE_NOT)
 		mod_timer(&rdp->nocb_timer, jiffies + 1);
-	WRITE_ONCE(rdp->nocb_defer_wakeup, waketype);
+	if (rdp->nocb_defer_wakeup < waketype)
+		WRITE_ONCE(rdp->nocb_defer_wakeup, waketype);
 	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, reason);
 }
 
