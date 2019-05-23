@@ -62,16 +62,12 @@ config GPIO_SYSFS
 	bool "/sys/class/gpio/... (sysfs interface)"
 	depends on SYSFS
 	help
-	  Say Y here to add a sysfs interface for GPIOs.
+	  Say Y here to add the legacy sysfs interface for GPIOs.
 
-	  This is mostly useful to work around omissions in a system's
-	  kernel support.  Those are common in custom and semicustom
-	  hardware assembled using standard kernels with a minimum of
-	  custom patches.  In those cases, userspace code may import
-	  a given GPIO from the kernel, if no kernel driver requested it.
-
-	  Kernel drivers may also request that a particular GPIO be
-	  exported to userspace; this can be useful when debugging.
+	  This ABI is deprecated. If you want to use GPIO from userspace,
+	  use the character device /dev/gpiochipN with the appropriate
+	  ioctl() operations instead. The character device is always
+	  available.
 
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
