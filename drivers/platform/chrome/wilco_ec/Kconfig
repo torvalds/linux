@@ -18,3 +18,12 @@ config WILCO_EC_DEBUGFS
 	  manipulation and allow for testing arbitrary commands.  This
 	  interface is intended for debug only and will not be present
 	  on production devices.
+
+config WILCO_EC_EVENTS
+	tristate "Enable event forwarding from EC to userspace"
+	depends on WILCO_EC
+	help
+	  If you say Y here, you get support for the EC to send events
+	  (such as power state changes) to userspace. The EC sends the events
+	  over ACPI, and a driver queues up the events to be read by a
+	  userspace daemon from /dev/wilco_event using read() and poll().
