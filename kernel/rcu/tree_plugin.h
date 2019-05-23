@@ -1628,6 +1628,7 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 	// Need to actually to a wakeup.
 	len = rcu_segcblist_n_cbs(&rdp->cblist);
 	if (was_alldone) {
+		rdp->qlen_last_fqs_check = len;
 		if (!irqs_disabled_flags(flags)) {
 			/* ... if queue was empty ... */
 			wake_nocb_gp(rdp, false, flags);
@@ -1638,9 +1639,9 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 					   TPS("WakeEmptyIsDeferred"));
 			rcu_nocb_unlock_irqrestore(rdp, flags);
 		}
-		rdp->qlen_last_fqs_check = 0;
 	} else if (len > rdp->qlen_last_fqs_check + qhimark) {
 		/* ... or if many callbacks queued. */
+		rdp->qlen_last_fqs_check = len;
 		if (!irqs_disabled_flags(flags)) {
 			wake_nocb_gp(rdp, true, flags);
 			trace_rcu_nocb_wake(rcu_state.name, rdp->cpu,
@@ -1650,7 +1651,6 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 					   TPS("WakeOvfIsDeferred"));
 			rcu_nocb_unlock_irqrestore(rdp, flags);
 		}
-		rdp->qlen_last_fqs_check = LONG_MAX / 2;
 	} else {
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WakeNot"));
 		rcu_nocb_unlock_irqrestore(rdp, flags);
