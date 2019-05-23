@@ -224,6 +224,17 @@ static int guc_enable_communication(struct intel_guc *guc)
 	return 0;
 }
 
+static void guc_stop_communication(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+
+	if (HAS_GUC_CT(i915))
+		intel_guc_ct_stop(&guc->ct);
+
+	guc->send = intel_guc_send_nop;
+	guc->handler = intel_guc_to_host_event_handler_nop;
+}
+
 static void guc_disable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
@@ -485,7 +496,7 @@ void intel_uc_reset_prepare(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return;
 
-	guc_disable_communication(guc);
+	guc_stop_communication(guc);
 	__uc_sanitize(i915);
 }
 
