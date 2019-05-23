@@ -58,9 +58,11 @@
 
 #include <linux/completion.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 
 struct ntb_client;
 struct ntb_dev;
+struct ntb_msi;
 struct pci_dev;
 
 /**
@@ -426,6 +428,10 @@ struct ntb_dev {
 	spinlock_t			ctx_lock;
 	/* block unregister until device is fully released */
 	struct completion		released;
+
+#ifdef CONFIG_NTB_MSI
+	struct ntb_msi *msi;
+#endif
 };
 #define dev_ntb(__dev) container_of((__dev), struct ntb_dev, dev)
 
@@ -1625,6 +1631,73 @@ static inline int ntb_peer_highest_mw_idx(struct ntb_dev *ntb, int pidx)
 		return ret;
 
 	return ntb_mw_count(ntb, pidx) - ret - 1;
+}
+
+struct ntb_msi_desc {
+	u32 addr_offset;
+	u32 data;
+};
+
+#ifdef CONFIG_NTB_MSI
+
+int ntb_msi_init(struct ntb_dev *ntb, void (*desc_changed)(void *ctx));
+int ntb_msi_setup_mws(struct ntb_dev *ntb);
+void ntb_msi_clear_mws(struct ntb_dev *ntb);
+int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb, irq_handler_t handler,
+				  irq_handler_t thread_fn,
+				  const char *name, void *dev_id,
+				  struct ntb_msi_desc *msi_desc);
+void ntbm_msi_free_irq(struct ntb_dev *ntb, unsigned int irq, void *dev_id);
+int ntb_msi_peer_trigger(struct ntb_dev *ntb, int peer,
+			 struct ntb_msi_desc *desc);
+int ntb_msi_peer_addr(struct ntb_dev *ntb, int peer,
+		      struct ntb_msi_desc *desc,
+		      phys_addr_t *msi_addr);
+
+#else /* not CONFIG_NTB_MSI */
+
+static inline int ntb_msi_init(struct ntb_dev *ntb,
+			       void (*desc_changed)(void *ctx))
+{
+	return -EOPNOTSUPP;
+}
+static inline int ntb_msi_setup_mws(struct ntb_dev *ntb)
+{
+	return -EOPNOTSUPP;
+}
+static inline void ntb_msi_clear_mws(struct ntb_dev *ntb) {}
+static inline int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb,
+						irq_handler_t handler,
+						irq_handler_t thread_fn,
+						const char *name, void *dev_id,
+						struct ntb_msi_desc *msi_desc)
+{
+	return -EOPNOTSUPP;
+}
+static inline void ntbm_msi_free_irq(struct ntb_dev *ntb, unsigned int irq,
+				     void *dev_id) {}
+static inline int ntb_msi_peer_trigger(struct ntb_dev *ntb, int peer,
+				       struct ntb_msi_desc *desc)
+{
+	return -EOPNOTSUPP;
+}
+static inline int ntb_msi_peer_addr(struct ntb_dev *ntb, int peer,
+				    struct ntb_msi_desc *desc,
+				    phys_addr_t *msi_addr)
+{
+	return -EOPNOTSUPP;
+
+}
+
+#endif /* CONFIG_NTB_MSI */
+
+static inline int ntbm_msi_request_irq(struct ntb_dev *ntb,
+				       irq_handler_t handler,
+				       const char *name, void *dev_id,
+				       struct ntb_msi_desc *msi_desc)
+{
+	return ntbm_msi_request_threaded_irq(ntb, handler, NULL, name,
+					     dev_id, msi_desc);
 }
 
 #endif
