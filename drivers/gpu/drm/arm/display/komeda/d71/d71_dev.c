@@ -390,7 +390,7 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 
 	for (i = 0; i < d71->num_pipelines; i++) {
 		pipe = komeda_pipeline_add(mdev, sizeof(struct d71_pipeline),
-					   NULL);
+					   &d71_pipeline_funcs);
 		if (IS_ERR(pipe)) {
 			err = PTR_ERR(pipe);
 			goto err_cleanup;

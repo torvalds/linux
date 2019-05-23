@@ -387,6 +387,7 @@ static bool scaling_ratio_valid(u32 size_in, u32 size_out,
 
 static int
 komeda_scaler_check_cfg(struct komeda_scaler *scaler,
+			struct komeda_crtc_state *kcrtc_st,
 			struct komeda_data_flow_cfg *dflow)
 {
 	u32 hsize_in, vsize_in, hsize_out, vsize_out;
@@ -428,6 +429,20 @@ komeda_scaler_check_cfg(struct komeda_scaler *scaler,
 		DRM_DEBUG_ATOMIC("Invalid vertical scaling ratio");
 		return -EINVAL;
 	}
+
+	if (hsize_in > hsize_out || vsize_in > vsize_out) {
+		struct komeda_pipeline *pipe = scaler->base.pipeline;
+		int err;
+
+		err = pipe->funcs->downscaling_clk_check(pipe,
+					&kcrtc_st->base.adjusted_mode,
+					komeda_calc_mclk(kcrtc_st), dflow);
+		if (err) {
+			DRM_DEBUG_ATOMIC("mclk can't satisfy the clock requirement of the downscaling\n");
+			return err;
+		}
+	}
+
 	return 0;
 }
 
@@ -452,7 +467,7 @@ komeda_scaler_validate(void *user,
 		return -EINVAL;
 	}
 
-	err = komeda_scaler_check_cfg(scaler, dflow);
+	err = komeda_scaler_check_cfg(scaler, kcrtc_st, dflow);
 	if (err)
 		return err;
 

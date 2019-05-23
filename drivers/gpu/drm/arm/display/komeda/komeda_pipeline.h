@@ -316,8 +316,14 @@ struct komeda_data_flow_cfg {
 	u8 en_scaling : 1;
 };
 
-/** struct komeda_pipeline_funcs */
 struct komeda_pipeline_funcs {
+	/* check if the mclk (main engine clock) can satisfy the clock
+	 * requirements of the downscaling that specified by dflow
+	 */
+	int (*downscaling_clk_check)(struct komeda_pipeline *pipe,
+				     struct drm_display_mode *mode,
+				     unsigned long mclk_rate,
+				     struct komeda_data_flow_cfg *dflow);
 	/* dump_register: Optional, dump registers to seq_file */
 	void (*dump_register)(struct komeda_pipeline *pipe,
 			      struct seq_file *sf);

@@ -677,6 +677,47 @@ static int d71_scaler_init(struct d71_dev *d71,
 	return 0;
 }
 
+static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
+				     struct drm_display_mode *mode,
+				     unsigned long mclk_rate,
+				     struct komeda_data_flow_cfg *dflow)
+{
+	u32 h_in = dflow->in_w;
+	u32 v_in = dflow->in_h;
+	u32 v_out = dflow->out_h;
+	u64 fraction, denominator;
+
+	/* D71 downscaling must satisfy the following equation
+	 *
+	 *   MCLK                   h_in * v_in
+	 * ------- >= ---------------------------------------------
+	 *  PXLCLK     (h_total - (1 + 2 * v_in / v_out)) * v_out
+	 *
+	 * In only horizontal downscaling situation, the right side should be
+	 * multiplied by (h_total - 3) / (h_active - 3), then equation becomes
+	 *
+	 *   MCLK          h_in
+	 * ------- >= ----------------
+	 *  PXLCLK     (h_active - 3)
+	 *
+	 * To avoid precision lost the equation 1 will be convert to:
+	 *
+	 *   MCLK             h_in * v_in
+	 * ------- >= -----------------------------------
+	 *  PXLCLK     (h_total -1 ) * v_out -  2 * v_in
+	 */
+	if (v_in == v_out) {
+		fraction = h_in;
+		denominator = mode->hdisplay - 3;
+	} else {
+		fraction = h_in * v_in;
+		denominator = (mode->htotal - 1) * v_out -  2 * v_in;
+	}
+
+	return mclk_rate * denominator >= mode->clock * 1000 * fraction ?
+	       0 : -EINVAL;
+}
+
 static void d71_improc_update(struct komeda_component *c,
 			      struct komeda_component_state *state)
 {
@@ -939,3 +980,7 @@ int d71_probe_block(struct d71_dev *d71,
 
 	return err;
 }
+
+const struct komeda_pipeline_funcs d71_pipeline_funcs = {
+	.downscaling_clk_check = d71_downscaling_clk_check,
+};
