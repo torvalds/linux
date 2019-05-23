@@ -436,14 +436,14 @@ static int s35390a_probe(struct i2c_client *client,
 	unsigned int i;
 	struct s35390a *s35390a;
 	char buf, status1;
+	struct device *dev = &client->dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
 		goto exit;
 	}
 
-	s35390a = devm_kzalloc(&client->dev, sizeof(struct s35390a),
-				GFP_KERNEL);
+	s35390a = devm_kzalloc(dev, sizeof(struct s35390a), GFP_KERNEL);
 	if (!s35390a) {
 		err = -ENOMEM;
 		goto exit;
@@ -457,8 +457,8 @@ static int s35390a_probe(struct i2c_client *client,
 		s35390a->client[i] = i2c_new_dummy(client->adapter,
 					client->addr + i);
 		if (!s35390a->client[i]) {
-			dev_err(&client->dev, "Address %02x unavailable\n",
-						client->addr + i);
+			dev_err(dev, "Address %02x unavailable\n",
+				client->addr + i);
 			err = -EBUSY;
 			goto exit_dummy;
 		}
@@ -467,7 +467,7 @@ static int s35390a_probe(struct i2c_client *client,
 	err_read = s35390a_read_status(s35390a, &status1);
 	if (err_read < 0) {
 		err = err_read;
-		dev_err(&client->dev, "error resetting chip\n");
+		dev_err(dev, "error resetting chip\n");
 		goto exit_dummy;
 	}
 
@@ -481,22 +481,21 @@ static int s35390a_probe(struct i2c_client *client,
 		buf = 0;
 		err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &buf, 1);
 		if (err < 0) {
-			dev_err(&client->dev, "error disabling alarm");
+			dev_err(dev, "error disabling alarm");
 			goto exit_dummy;
 		}
 	} else {
 		err = s35390a_disable_test_mode(s35390a);
 		if (err < 0) {
-			dev_err(&client->dev, "error disabling test mode\n");
+			dev_err(dev, "error disabling test mode\n");
 			goto exit_dummy;
 		}
 	}
 
-	device_set_wakeup_capable(&client->dev, 1);
+	device_set_wakeup_capable(dev, 1);
 
-	s35390a->rtc = devm_rtc_device_register(&client->dev,
-					s35390a_driver.driver.name,
-					&s35390a_rtc_ops, THIS_MODULE);
+	s35390a->rtc = devm_rtc_device_register(dev, s35390a_driver.driver.name,
+						&s35390a_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(s35390a->rtc)) {
 		err = PTR_ERR(s35390a->rtc);
