@@ -30,15 +30,8 @@
 #define ALLOW_PKT	1
 #define TCP_ECN_OK	1
 
-#define HBM_DEBUG 0  // Set to 1 to enable debugging
-#if HBM_DEBUG
-#define bpf_printk(fmt, ...)					\
-({								\
-	char ____fmt[] = fmt;					\
-	bpf_trace_printk(____fmt, sizeof(____fmt),		\
-			 ##__VA_ARGS__);			\
-})
-#else
+#ifndef HBM_DEBUG  // Define HBM_DEBUG to enable debugging
+#undef bpf_printk
 #define bpf_printk(fmt, ...)
 #endif
 
