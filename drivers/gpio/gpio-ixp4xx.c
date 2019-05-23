@@ -205,20 +205,20 @@ static int ixp4xx_gpio_irq_domain_translate(struct irq_domain *domain,
 					    unsigned long *hwirq,
 					    unsigned int *type)
 {
+	int ret;
 
 	/* We support standard DT translation */
 	if (is_of_node(fwspec->fwnode) && fwspec->param_count == 2) {
-		*hwirq = fwspec->param[0];
-		*type = fwspec->param[1];
-		return 0;
+		return irq_domain_translate_twocell(domain, fwspec,
+						    hwirq, type);
 	}
 
 	/* This goes away when we transition to DT */
 	if (is_fwnode_irqchip(fwspec->fwnode)) {
-		if (fwspec->param_count != 2)
-			return -EINVAL;
-		*hwirq = fwspec->param[0];
-		*type = fwspec->param[1];
+		ret = irq_domain_translate_twocell(domain, fwspec,
+						   hwirq, type);
+		if (ret)
+			return ret;
 		WARN_ON(*type == IRQ_TYPE_NONE);
 		return 0;
 	}
