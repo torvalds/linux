@@ -913,7 +913,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 		struct inode *dir;
 
 		rcu_read_lock();
-		parent = req->r_dentry->d_parent;
+		parent = READ_ONCE(req->r_dentry->d_parent);
 		dir = req->r_parent ? : d_inode_rcu(parent);
 
 		if (!dir || dir->i_sb != mdsc->fsc->sb) {
@@ -2145,7 +2145,7 @@ retry:
 			memcpy(path + pos, temp->d_name.name, temp->d_name.len);
 		}
 		spin_unlock(&temp->d_lock);
-		temp = temp->d_parent;
+		temp = READ_ONCE(temp->d_parent);
 
 		/* Are we at the root? */
 		if (IS_ROOT(temp))
