@@ -496,56 +496,38 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 {
 	unsigned int syt;
 	unsigned int data_blocks;
-	unsigned int pcm_frames;
 	unsigned int payload_length;
+	__be32 *cip_header;
+	unsigned int pcm_frames;
 	struct snd_pcm_substream *pcm;
 
 	syt = calculate_syt(s, cycle);
 	data_blocks = calculate_data_blocks(s, syt);
-	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
+
+	payload_length = data_blocks * sizeof(__be32) * s->data_block_quadlets;
+	if (!(s->flags & CIP_NO_HEADER)) {
+		cip_header = buffer;
+		buffer += 2;
+		payload_length += 2 * sizeof(__be32);
+	} else {
+		cip_header = NULL;
+	}
+
+	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, &syt);
 
 	if (s->flags & CIP_DBC_IS_END_EVENT)
 		s->data_block_counter =
 				(s->data_block_counter + data_blocks) & 0xff;
 
-	generate_cip_header(s, buffer, syt);
+	if (cip_header)
+		generate_cip_header(s, cip_header, syt);
 
 	if (!(s->flags & CIP_DBC_IS_END_EVENT))
 		s->data_block_counter =
 				(s->data_block_counter + data_blocks) & 0xff;
-	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
 
-	trace_amdtp_packet(s, cycle, buffer, payload_length, data_blocks, index);
-
-	if (queue_out_packet(s, payload_length) < 0)
-		return -EIO;
-
-	pcm = READ_ONCE(s->pcm);
-	if (pcm && pcm_frames > 0)
-		update_pcm_pointers(s, pcm, pcm_frames);
-
-	/* No need to return the number of handled data blocks. */
-	return 0;
-}
-
-static int handle_out_packet_without_header(struct amdtp_stream *s,
-				unsigned int cycle, const __be32 *ctx_header,
-				__be32 *buffer, unsigned int index)
-{
-	unsigned int syt;
-	unsigned int data_blocks;
-	unsigned int pcm_frames;
-	unsigned int payload_length;
-	struct snd_pcm_substream *pcm;
-
-	syt = calculate_syt(s, cycle);
-	data_blocks = calculate_data_blocks(s, syt);
-	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, &syt);
-	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
-
-	payload_length = data_blocks * 4 * s->data_block_quadlets;
-
-	trace_amdtp_packet(s, cycle, NULL, payload_length, data_blocks, index);
+	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
+			   index);
 
 	if (queue_out_packet(s, payload_length) < 0)
 		return -EIO;
@@ -554,7 +536,6 @@ static int handle_out_packet_without_header(struct amdtp_stream *s,
 	if (pcm && pcm_frames > 0)
 		update_pcm_pointers(s, pcm, pcm_frames);
 
-	/* No need to return the number of handled data blocks. */
 	return 0;
 }
 
@@ -766,7 +747,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		cycle = compute_it_cycle(*ctx_header);
 		buffer = s->buffer.packets[s->packet_index].buffer;
 
-		if (s->handle_packet(s, cycle, ctx_header, buffer, i) < 0) {
+		if (handle_out_packet(s, cycle, ctx_header, buffer, i) < 0) {
 			cancel_stream(s);
 			return;
 		}
@@ -837,10 +818,6 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 		cycle = compute_it_cycle(*ctx_header);
 
 		context->callback.sc = out_stream_callback;
-		if (s->flags & CIP_NO_HEADER)
-			s->handle_packet = handle_out_packet_without_header;
-		else
-			s->handle_packet = handle_out_packet;
 	}
 
 	s->start_cycle = cycle;
