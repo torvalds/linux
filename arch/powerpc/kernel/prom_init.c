@@ -1566,9 +1566,6 @@ static void __init reserve_mem(u64 base, u64 size)
 static void __init prom_init_mem(void)
 {
 	phandle node;
-#ifdef DEBUG_PROM
-	char *path;
-#endif
 	char type[64];
 	unsigned int plen;
 	cell_t *p, *endp;
@@ -1590,9 +1587,6 @@ static void __init prom_init_mem(void)
 	prom_debug("root_size_cells: %x\n", rsc);
 
 	prom_debug("scanning memory:\n");
-#ifdef DEBUG_PROM
-	path = prom_scratch;
-#endif
 
 	for (node = 0; prom_next_node(&node); ) {
 		type[0] = 0;
@@ -1617,9 +1611,10 @@ static void __init prom_init_mem(void)
 		endp = p + (plen / sizeof(cell_t));
 
 #ifdef DEBUG_PROM
-		memset(path, 0, sizeof(prom_scratch));
-		call_prom("package-to-path", 3, 1, node, path, sizeof(prom_scratch) - 1);
-		prom_debug("  node %s :\n", path);
+		memset(prom_scratch, 0, sizeof(prom_scratch));
+		call_prom("package-to-path", 3, 1, node, prom_scratch,
+			  sizeof(prom_scratch) - 1);
+		prom_debug("  node %s :\n", prom_scratch);
 #endif /* DEBUG_PROM */
 
 		while ((endp - p) >= (rac + rsc)) {
