@@ -1461,25 +1461,74 @@ static unsigned int fib6_mtu(const struct fib6_result *res)
 	return mtu - lwtunnel_headroom(nh->fib_nh_lws, mtu);
 }
 
+#define FIB6_EXCEPTION_BUCKET_FLUSHED  0x1UL
+
+/* used when the flushed bit is not relevant, only access to the bucket
+ * (ie., all bucket users except rt6_insert_exception);
+ *
+ * called under rcu lock; sometimes called with rt6_exception_lock held
+ */
+static
+struct rt6_exception_bucket *fib6_nh_get_excptn_bucket(const struct fib6_nh *nh,
+						       spinlock_t *lock)
+{
+	struct rt6_exception_bucket *bucket;
+
+	if (lock)
+		bucket = rcu_dereference_protected(nh->rt6i_exception_bucket,
+						   lockdep_is_held(lock));
+	else
+		bucket = rcu_dereference(nh->rt6i_exception_bucket);
+
+	/* remove bucket flushed bit if set */
+	if (bucket) {
+		unsigned long p = (unsigned long)bucket;
+
+		p &= ~FIB6_EXCEPTION_BUCKET_FLUSHED;
+		bucket = (struct rt6_exception_bucket *)p;
+	}
+
+	return bucket;
+}
+
+static bool fib6_nh_excptn_bucket_flushed(struct rt6_exception_bucket *bucket)
+{
+	unsigned long p = (unsigned long)bucket;
+
+	return !!(p & FIB6_EXCEPTION_BUCKET_FLUSHED);
+}
+
+/* called with rt6_exception_lock held */
+static void fib6_nh_excptn_bucket_set_flushed(struct fib6_nh *nh,
+					      spinlock_t *lock)
+{
+	struct rt6_exception_bucket *bucket;
+	unsigned long p;
+
+	bucket = rcu_dereference_protected(nh->rt6i_exception_bucket,
+					   lockdep_is_held(lock));
+
+	p = (unsigned long)bucket;
+	p |= FIB6_EXCEPTION_BUCKET_FLUSHED;
+	bucket = (struct rt6_exception_bucket *)p;
+	rcu_assign_pointer(nh->rt6i_exception_bucket, bucket);
+}
+
 static int rt6_insert_exception(struct rt6_info *nrt,
 				const struct fib6_result *res)
 {
 	struct net *net = dev_net(nrt->dst.dev);
 	struct rt6_exception_bucket *bucket;
+	struct fib6_info *f6i = res->f6i;
 	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
-	struct fib6_info *f6i = res->f6i;
+	struct fib6_nh *nh = res->nh;
 	int err = 0;
 
 	spin_lock_bh(&rt6_exception_lock);
 
-	if (f6i->exception_bucket_flushed) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	bucket = rcu_dereference_protected(f6i->rt6i_exception_bucket,
-					lockdep_is_held(&rt6_exception_lock));
+	bucket = rcu_dereference_protected(nh->rt6i_exception_bucket,
+					  lockdep_is_held(&rt6_exception_lock));
 	if (!bucket) {
 		bucket = kcalloc(FIB6_EXCEPTION_BUCKET_SIZE, sizeof(*bucket),
 				 GFP_ATOMIC);
@@ -1487,7 +1536,10 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 			err = -ENOMEM;
 			goto out;
 		}
-		rcu_assign_pointer(f6i->rt6i_exception_bucket, bucket);
+		rcu_assign_pointer(nh->rt6i_exception_bucket, bucket);
+	} else if (fib6_nh_excptn_bucket_flushed(bucket)) {
+		err = -EINVAL;
+		goto out;
 	}
 
 #ifdef CONFIG_IPV6_SUBTREES
@@ -1550,21 +1602,24 @@ static void fib6_nh_flush_exceptions(struct fib6_nh *nh, struct fib6_info *from)
 	int i;
 
 	spin_lock_bh(&rt6_exception_lock);
-	/* Prevent rt6_insert_exception() to recreate the bucket list */
-	from->exception_bucket_flushed = 1;
 
-	bucket = rcu_dereference_protected(from->rt6i_exception_bucket,
-				    lockdep_is_held(&rt6_exception_lock));
+	bucket = fib6_nh_get_excptn_bucket(nh, &rt6_exception_lock);
 	if (!bucket)
 		goto out;
 
+	/* Prevent rt6_insert_exception() to recreate the bucket list */
+	if (!from)
+		fib6_nh_excptn_bucket_set_flushed(nh, &rt6_exception_lock);
+
 	for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
-		hlist_for_each_entry_safe(rt6_ex, tmp, &bucket->chain, hlist)
-			rt6_remove_exception(bucket, rt6_ex);
-		WARN_ON_ONCE(bucket->depth);
+		hlist_for_each_entry_safe(rt6_ex, tmp, &bucket->chain, hlist) {
+			if (!from ||
+			    rcu_access_pointer(rt6_ex->rt6i->from) == from)
+				rt6_remove_exception(bucket, rt6_ex);
+		}
+		WARN_ON_ONCE(!from && bucket->depth);
 		bucket++;
 	}
-
 out:
 	spin_unlock_bh(&rt6_exception_lock);
 }
@@ -1602,7 +1657,7 @@ static struct rt6_info *rt6_find_cached_rt(const struct fib6_result *res,
 		src_key = saddr;
 find_ex:
 #endif
-	bucket = rcu_dereference(res->f6i->rt6i_exception_bucket);
+	bucket = fib6_nh_get_excptn_bucket(res->nh, NULL);
 	rt6_ex = __rt6_find_exception_rcu(&bucket, daddr, src_key);
 
 	if (rt6_ex && !rt6_check_expired(rt6_ex->rt6i))
@@ -1620,7 +1675,7 @@ find_ex:
 }
 
 /* Remove the passed in cached rt from the hash table that contains it */
-static int fib6_nh_remove_exception(const struct fib6_info *from, int plen,
+static int fib6_nh_remove_exception(const struct fib6_nh *nh, int plen,
 				    const struct rt6_info *rt)
 {
 	const struct in6_addr *src_key = NULL;
@@ -1628,15 +1683,16 @@ static int fib6_nh_remove_exception(const struct fib6_info *from, int plen,
 	struct rt6_exception *rt6_ex;
 	int err;
 
-	if (!rcu_access_pointer(from->rt6i_exception_bucket))
+	if (!rcu_access_pointer(nh->rt6i_exception_bucket))
 		return -ENOENT;
 
 	spin_lock_bh(&rt6_exception_lock);
-	bucket = rcu_dereference_protected(from->rt6i_exception_bucket,
-				    lockdep_is_held(&rt6_exception_lock));
+	bucket = fib6_nh_get_excptn_bucket(nh, &rt6_exception_lock);
+
 #ifdef CONFIG_IPV6_SUBTREES
-	/* plen != 0 indicates 'from' is in subtree and exception
-	 * table is indexed by a hash of both rt6i_dst and rt6i_src.
+	/* rt6i_src.plen != 0 indicates 'from' is in subtree
+	 * and exception table is indexed by a hash of
+	 * both rt6i_dst and rt6i_src.
 	 * Otherwise, the exception table is indexed by
 	 * a hash of only rt6i_dst.
 	 */
@@ -1662,37 +1718,35 @@ static int rt6_remove_exception_rt(struct rt6_info *rt)
 	struct fib6_info *from;
 
 	from = rcu_dereference(rt->from);
-	if (!from ||
-	    !(rt->rt6i_flags & RTF_CACHE))
+	if (!from || !(rt->rt6i_flags & RTF_CACHE))
 		return -EINVAL;
 
-	return fib6_nh_remove_exception(from, from->fib6_src.plen, rt);
+	return fib6_nh_remove_exception(&from->fib6_nh,
+					from->fib6_src.plen, rt);
 }
 
 /* Find rt6_ex which contains the passed in rt cache and
  * refresh its stamp
  */
-static void fib6_nh_update_exception(const struct fib6_info *from, int plen,
+static void fib6_nh_update_exception(const struct fib6_nh *nh, int plen,
 				     const struct rt6_info *rt)
 {
 	const struct in6_addr *src_key = NULL;
 	struct rt6_exception_bucket *bucket;
 	struct rt6_exception *rt6_ex;
 
-	bucket = rcu_dereference(from->rt6i_exception_bucket);
-
+	bucket = fib6_nh_get_excptn_bucket(nh, NULL);
 #ifdef CONFIG_IPV6_SUBTREES
-	/* plen != 0 indicates 'from' is in subtree and exception
-	 * table is indexed by a hash of both rt6i_dst and rt6i_src.
+	/* rt6i_src.plen != 0 indicates 'from' is in subtree
+	 * and exception table is indexed by a hash of
+	 * both rt6i_dst and rt6i_src.
 	 * Otherwise, the exception table is indexed by
 	 * a hash of only rt6i_dst.
 	 */
 	if (plen)
 		src_key = &rt->rt6i_src.addr;
 #endif
-	rt6_ex = __rt6_find_exception_rcu(&bucket,
-					  &rt->rt6i_dst.addr,
-					  src_key);
+	rt6_ex = __rt6_find_exception_rcu(&bucket, &rt->rt6i_dst.addr, src_key);
 	if (rt6_ex)
 		rt6_ex->stamp = jiffies;
 }
@@ -1707,7 +1761,7 @@ static void rt6_update_exception_stamp_rt(struct rt6_info *rt)
 	if (!from || !(rt->rt6i_flags & RTF_CACHE))
 		goto unlock;
 
-	fib6_nh_update_exception(from, from->fib6_src.plen, rt);
+	fib6_nh_update_exception(&from->fib6_nh, from->fib6_src.plen, rt);
 unlock:
 	rcu_read_unlock();
 }
@@ -1735,15 +1789,13 @@ static bool rt6_mtu_change_route_allowed(struct inet6_dev *idev,
 }
 
 static void rt6_exceptions_update_pmtu(struct inet6_dev *idev,
-				       struct fib6_info *rt, int mtu)
+				       const struct fib6_nh *nh, int mtu)
 {
 	struct rt6_exception_bucket *bucket;
 	struct rt6_exception *rt6_ex;
 	int i;
 
-	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
-					lockdep_is_held(&rt6_exception_lock));
-
+	bucket = fib6_nh_get_excptn_bucket(nh, &rt6_exception_lock);
 	if (!bucket)
 		return;
 
@@ -1765,21 +1817,19 @@ static void rt6_exceptions_update_pmtu(struct inet6_dev *idev,
 
 #define RTF_CACHE_GATEWAY	(RTF_GATEWAY | RTF_CACHE)
 
-static void rt6_exceptions_clean_tohost(struct fib6_info *rt,
-					struct in6_addr *gateway)
+static void fib6_nh_exceptions_clean_tohost(const struct fib6_nh *nh,
+					    const struct in6_addr *gateway)
 {
 	struct rt6_exception_bucket *bucket;
 	struct rt6_exception *rt6_ex;
 	struct hlist_node *tmp;
 	int i;
 
-	if (!rcu_access_pointer(rt->rt6i_exception_bucket))
+	if (!rcu_access_pointer(nh->rt6i_exception_bucket))
 		return;
 
 	spin_lock_bh(&rt6_exception_lock);
-	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
-				     lockdep_is_held(&rt6_exception_lock));
-
+	bucket = fib6_nh_get_excptn_bucket(nh, &rt6_exception_lock);
 	if (bucket) {
 		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
 			hlist_for_each_entry_safe(rt6_ex, tmp,
@@ -1844,7 +1894,7 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 	gc_args->more++;
 }
 
-static void fib6_nh_age_exceptions(struct fib6_info *rt,
+static void fib6_nh_age_exceptions(const struct fib6_nh *nh,
 				   struct fib6_gc_args *gc_args,
 				   unsigned long now)
 {
@@ -1853,14 +1903,12 @@ static void fib6_nh_age_exceptions(struct fib6_info *rt,
 	struct hlist_node *tmp;
 	int i;
 
-	if (!rcu_access_pointer(rt->rt6i_exception_bucket))
+	if (!rcu_access_pointer(nh->rt6i_exception_bucket))
 		return;
 
 	rcu_read_lock_bh();
 	spin_lock(&rt6_exception_lock);
-	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
-				    lockdep_is_held(&rt6_exception_lock));
-
+	bucket = fib6_nh_get_excptn_bucket(nh, &rt6_exception_lock);
 	if (bucket) {
 		for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
 			hlist_for_each_entry_safe(rt6_ex, tmp,
@@ -1875,11 +1923,11 @@ static void fib6_nh_age_exceptions(struct fib6_info *rt,
 	rcu_read_unlock_bh();
 }
 
-void rt6_age_exceptions(struct fib6_info *rt,
+void rt6_age_exceptions(struct fib6_info *f6i,
 			struct fib6_gc_args *gc_args,
 			unsigned long now)
 {
-	fib6_nh_age_exceptions(rt, gc_args, now);
+	fib6_nh_age_exceptions(&f6i->fib6_nh, gc_args, now);
 }
 
 /* must be called with rcu lock held */
@@ -3122,6 +3170,19 @@ out:
 
 void fib6_nh_release(struct fib6_nh *fib6_nh)
 {
+	struct rt6_exception_bucket *bucket;
+
+	rcu_read_lock();
+
+	fib6_nh_flush_exceptions(fib6_nh, NULL);
+	bucket = fib6_nh_get_excptn_bucket(fib6_nh, NULL);
+	if (bucket) {
+		rcu_assign_pointer(fib6_nh->rt6i_exception_bucket, NULL);
+		kfree(bucket);
+	}
+
+	rcu_read_unlock();
+
 	if (fib6_nh->rt6i_pcpu) {
 		int cpu;
 
@@ -3411,9 +3472,11 @@ static int ip6_route_del(struct fib6_config *cfg,
 		for_each_fib6_node_rt_rcu(fn) {
 			struct fib6_nh *nh;
 
+			nh = &rt->fib6_nh;
 			if (cfg->fc_flags & RTF_CACHE) {
 				struct fib6_result res = {
 					.f6i = rt,
+					.nh = nh,
 				};
 				int rc;
 
@@ -3430,7 +3493,6 @@ static int ip6_route_del(struct fib6_config *cfg,
 				continue;
 			}
 
-			nh = &rt->fib6_nh;
 			if (cfg->fc_ifindex &&
 			    (!nh->fib_nh_dev ||
 			     nh->fib_nh_dev->ifindex != cfg->fc_ifindex))
@@ -3947,18 +4009,17 @@ void rt6_remove_prefsrc(struct inet6_ifaddr *ifp)
 static int fib6_clean_tohost(struct fib6_info *rt, void *arg)
 {
 	struct in6_addr *gateway = (struct in6_addr *)arg;
+	struct fib6_nh *nh = &rt->fib6_nh;
 
 	if (((rt->fib6_flags & RTF_RA_ROUTER) == RTF_RA_ROUTER) &&
-	    rt->fib6_nh.fib_nh_gw_family &&
-	    ipv6_addr_equal(gateway, &rt->fib6_nh.fib_nh_gw6)) {
+	    nh->fib_nh_gw_family && ipv6_addr_equal(gateway, &nh->fib_nh_gw6))
 		return -1;
-	}
 
 	/* Further clean up cached routes in exception table.
 	 * This is needed because cached route may have a different
 	 * gateway than its 'parent' in the case of an ip redirect.
 	 */
-	rt6_exceptions_clean_tohost(rt, gateway);
+	fib6_nh_exceptions_clean_tohost(nh, gateway);
 
 	return 0;
 }
@@ -4225,10 +4286,10 @@ struct rt6_mtu_change_arg {
 	struct fib6_info *f6i;
 };
 
-static int fib6_nh_mtu_change(struct fib6_info *f6i, void *_arg)
+static int fib6_nh_mtu_change(struct fib6_nh *nh, void *_arg)
 {
 	struct rt6_mtu_change_arg *arg = (struct rt6_mtu_change_arg *)_arg;
-	struct fib6_nh *nh = &f6i->fib6_nh;
+	struct fib6_info *f6i = arg->f6i;
 
 	/* For administrative MTU increase, there is no way to discover
 	 * IPv6 PMTU increase, so PMTU increase should be updated here.
@@ -4244,7 +4305,7 @@ static int fib6_nh_mtu_change(struct fib6_info *f6i, void *_arg)
 			fib6_metric_set(f6i, RTAX_MTU, arg->mtu);
 
 		spin_lock_bh(&rt6_exception_lock);
-		rt6_exceptions_update_pmtu(idev, f6i, arg->mtu);
+		rt6_exceptions_update_pmtu(idev, nh, arg->mtu);
 		spin_unlock_bh(&rt6_exception_lock);
 	}
 
@@ -4270,7 +4331,7 @@ static int rt6_mtu_change_route(struct fib6_info *f6i, void *p_arg)
 		return 0;
 
 	arg->f6i = f6i;
-	return fib6_nh_mtu_change(f6i, arg);
+	return fib6_nh_mtu_change(&f6i->fib6_nh, arg);
 }
 
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu)

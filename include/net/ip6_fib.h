@@ -133,6 +133,7 @@ struct fib6_nh {
 #endif
 
 	struct rt6_info * __percpu *rt6i_pcpu;
+	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
 };
 
 struct fib6_info {
@@ -158,18 +159,15 @@ struct fib6_info {
 	struct rt6key			fib6_src;
 	struct rt6key			fib6_prefsrc;
 
-	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
-
 	u32				fib6_metric;
 	u8				fib6_protocol;
 	u8				fib6_type;
-	u8				exception_bucket_flushed:1,
-					should_flush:1,
+	u8				should_flush:1,
 					dst_nocount:1,
 					dst_nopolicy:1,
 					dst_host:1,
 					fib6_destroying:1,
-					unused:2;
+					unused:3;
 
 	struct fib6_nh			fib6_nh;
 	struct rcu_head			rcu;
