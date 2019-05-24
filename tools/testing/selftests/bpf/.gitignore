@@ -35,3 +35,5 @@ test_sysctl
 alu32
 libbpf.pc
 libbpf.so.*
+test_hashmap
+test_btf_dump
