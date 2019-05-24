@@ -1847,6 +1847,33 @@ static void gen6_ppgtt_cleanup_work(struct work_struct *wrk)
 	kfree(work);
 }
 
+static int nop_set_pages(struct i915_vma *vma)
+{
+	return -ENODEV;
+}
+
+static void nop_clear_pages(struct i915_vma *vma)
+{
+}
+
+static int nop_bind(struct i915_vma *vma,
+		    enum i915_cache_level cache_level,
+		    u32 unused)
+{
+	return -ENODEV;
+}
+
+static void nop_unbind(struct i915_vma *vma)
+{
+}
+
+static const struct i915_vma_ops nop_vma_ops = {
+	.set_pages = nop_set_pages,
+	.clear_pages = nop_clear_pages,
+	.bind_vma = nop_bind,
+	.unbind_vma = nop_unbind,
+};
+
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
@@ -1855,6 +1882,7 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	/* FIXME remove the struct_mutex to bring the locking under control */
 	INIT_WORK(&work->base, gen6_ppgtt_cleanup_work);
 	work->vma = ppgtt->vma;
+	work->vma->ops = &nop_vma_ops;
 	schedule_work(&work->base);
 
 	gen6_ppgtt_free_pd(ppgtt);
