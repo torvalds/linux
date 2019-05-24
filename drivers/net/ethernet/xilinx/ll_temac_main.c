@@ -452,7 +452,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 	u32 multi_addr_msw, multi_addr_lsw;
-	int i;
+	int i = 0;
 	unsigned long flags;
 	bool promisc_mode_disabled = false;
 
@@ -468,7 +468,6 @@ static void temac_set_multicast_list(struct net_device *ndev)
 	if (!netdev_mc_empty(ndev)) {
 		struct netdev_hw_addr *ha;
 
-		i = 0;
 		netdev_for_each_mc_addr(ha, ndev) {
 			if (WARN_ON(i >= MULTICAST_CAM_TABLE_NUM))
 				break;
