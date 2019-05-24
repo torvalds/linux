@@ -15,6 +15,8 @@ struct intel_plane_state;
 
 extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
 
+unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
+				   const struct intel_plane_state *plane_state);
 void intel_update_plane(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);

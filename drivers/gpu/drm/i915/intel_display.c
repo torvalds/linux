@@ -50,6 +50,7 @@
 #include "intel_acpi.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
+#include "intel_bw.h"
 #include "intel_color.h"
 #include "intel_cdclk.h"
 #include "intel_crt.h"
@@ -3155,6 +3156,7 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 
 	intel_set_plane_visible(crtc_state, plane_state, false);
 	fixup_active_planes(crtc_state);
+	crtc_state->data_rate[plane->id] = 0;
 
 	if (plane->id == PLANE_PRIMARY)
 		intel_pre_disable_primary_noatomic(&crtc->base);
@@ -6879,6 +6881,8 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_bw_state *bw_state =
+		to_intel_bw_state(dev_priv->bw_obj.state);
 	enum intel_display_power_domain domain;
 	struct intel_plane *plane;
 	u64 domains;
@@ -6941,6 +6945,9 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	dev_priv->active_crtcs &= ~(1 << intel_crtc->pipe);
 	dev_priv->min_cdclk[intel_crtc->pipe] = 0;
 	dev_priv->min_voltage_level[intel_crtc->pipe] = 0;
+
+	bw_state->data_rate[intel_crtc->pipe] = 0;
+	bw_state->num_active_planes[intel_crtc->pipe] = 0;
 }
 
 /*
@@ -11280,6 +11287,7 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	if (!is_crtc_enabled) {
 		plane_state->visible = visible = false;
 		to_intel_crtc_state(crtc_state)->active_planes &= ~BIT(plane->id);
+		to_intel_crtc_state(crtc_state)->data_rate[plane->id] = 0;
 	}
 
 	if (!was_visible && !visible)
@@ -13406,7 +13414,15 @@ static int intel_atomic_check(struct drm_device *dev,
 		return ret;
 
 	intel_fbc_choose_crtc(dev_priv, intel_state);
-	return calc_watermark_data(intel_state);
+	ret = calc_watermark_data(intel_state);
+	if (ret)
+		return ret;
+
+	ret = intel_bw_atomic_check(intel_state);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int intel_atomic_prepare_commit(struct drm_device *dev,
@@ -15789,6 +15805,10 @@ int intel_modeset_init(struct drm_device *dev)
 
 	drm_mode_config_init(dev);
 
+	ret = intel_bw_init(dev_priv);
+	if (ret)
+		return ret;
+
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 
@@ -16417,8 +16437,11 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	drm_connector_list_iter_end(&conn_iter);
 
 	for_each_intel_crtc(dev, crtc) {
+		struct intel_bw_state *bw_state =
+			to_intel_bw_state(dev_priv->bw_obj.state);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane *plane;
 		int min_cdclk = 0;
 
 		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
@@ -16456,6 +16479,21 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		dev_priv->min_cdclk[crtc->pipe] = min_cdclk;
 		dev_priv->min_voltage_level[crtc->pipe] =
 			crtc_state->min_voltage_level;
+
+		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+			const struct intel_plane_state *plane_state =
+				to_intel_plane_state(plane->base.state);
+
+			/*
+			 * FIXME don't have the fb yet, so can't
+			 * use intel_plane_data_rate() :(
+			 */
+			if (plane_state->base.visible)
+				crtc_state->data_rate[plane->id] =
+					4 * crtc_state->pixel_rate;
+		}
+
+		intel_bw_crtc_update(bw_state, crtc_state);
 
 		intel_pipe_config_sanity_check(dev_priv, crtc_state);
 	}
