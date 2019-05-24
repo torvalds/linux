@@ -332,6 +332,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	drm_i915_getparam_t *param = data;
 	int value;
 
@@ -385,12 +386,12 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = i915_cmd_parser_get_version(dev_priv);
 		break;
 	case I915_PARAM_SUBSLICE_TOTAL:
-		value = sseu_subslice_total(&RUNTIME_INFO(dev_priv)->sseu);
+		value = sseu_subslice_total(sseu);
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_EU_TOTAL:
-		value = RUNTIME_INFO(dev_priv)->sseu.eu_total;
+		value = sseu->eu_total;
 		if (!value)
 			return -ENODEV;
 		break;
@@ -407,7 +408,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = HAS_POOLED_EU(dev_priv);
 		break;
 	case I915_PARAM_MIN_EU_IN_POOL:
-		value = RUNTIME_INFO(dev_priv)->sseu.min_eu_in_pool;
+		value = sseu->min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
 		value = intel_huc_check_status(&dev_priv->huc);
@@ -458,12 +459,12 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = intel_engines_has_context_isolation(dev_priv);
 		break;
 	case I915_PARAM_SLICE_MASK:
-		value = RUNTIME_INFO(dev_priv)->sseu.slice_mask;
+		value = sseu->slice_mask;
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_SUBSLICE_MASK:
-		value = RUNTIME_INFO(dev_priv)->sseu.subslice_mask[0];
+		value = sseu->subslice_mask[0];
 		if (!value)
 			return -ENODEV;
 		break;
