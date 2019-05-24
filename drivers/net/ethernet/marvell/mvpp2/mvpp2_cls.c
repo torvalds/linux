@@ -1068,7 +1068,7 @@ static int mvpp2_port_c2_tcam_rule_add(struct mvpp2_port *port,
 	struct flow_action_entry *act;
 	struct mvpp2_cls_c2_entry c2;
 	u8 qh, ql, pmap;
-	int index;
+	int index, ctx;
 
 	memset(&c2, 0, sizeof(c2));
 
@@ -1108,14 +1108,36 @@ static int mvpp2_port_c2_tcam_rule_add(struct mvpp2_port *port,
 		 */
 		c2.act = MVPP22_CLS_C2_ACT_COLOR(MVPP22_C2_COL_NO_UPD_LOCK);
 
+		/* Update RSS status after matching this entry */
+		if (act->queue.ctx)
+			c2.attr[2] |= MVPP22_CLS_C2_ATTR2_RSS_EN;
+
+		/* Always lock the RSS_EN decision. We might have high prio
+		 * rules steering to an RXQ, and a lower one steering to RSS,
+		 * we don't want the low prio RSS rule overwriting this flag.
+		 */
+		c2.act = MVPP22_CLS_C2_ACT_RSS_EN(MVPP22_C2_UPD_LOCK);
+
 		/* Mark packet as "forwarded to software", needed for RSS */
 		c2.act |= MVPP22_CLS_C2_ACT_FWD(MVPP22_C2_FWD_SW_LOCK);
 
 		c2.act |= MVPP22_CLS_C2_ACT_QHIGH(MVPP22_C2_UPD_LOCK) |
 			   MVPP22_CLS_C2_ACT_QLOW(MVPP22_C2_UPD_LOCK);
 
-		qh = ((act->queue.index + port->first_rxq) >> 3) & MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
-		ql = (act->queue.index + port->first_rxq) & MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+		if (act->queue.ctx) {
+			/* Get the global ctx number */
+			ctx = mvpp22_rss_ctx(port, act->queue.ctx);
+			if (ctx < 0)
+				return -EINVAL;
+
+			qh = (ctx >> 3) & MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
+			ql = ctx & MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+		} else {
+			qh = ((act->queue.index + port->first_rxq) >> 3) &
+			      MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
+			ql = (act->queue.index + port->first_rxq) &
+			      MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+		}
 
 		c2.attr[0] = MVPP22_CLS_C2_ATTR0_QHIGH(qh) |
 			      MVPP22_CLS_C2_ATTR0_QLOW(ql);
@@ -1233,6 +1255,13 @@ static int mvpp2_cls_rfs_parse_rule(struct mvpp2_rfs_rule *rule)
 
 	act = &flow->action.entries[0];
 	if (act->id != FLOW_ACTION_QUEUE && act->id != FLOW_ACTION_DROP)
+		return -EOPNOTSUPP;
+
+	/* When both an RSS context and an queue index are set, the index
+	 * is considered as an offset to be added to the indirection table
+	 * entries. We don't support this, so reject this rule.
+	 */
+	if (act->queue.ctx && act->queue.index)
 		return -EOPNOTSUPP;
 
 	/* For now, only use the C2 engine which has a HEK size limited to 64
@@ -1455,10 +1484,31 @@ static struct mvpp2_rss_table *mvpp22_rss_table_get(struct mvpp2 *priv,
 int mvpp22_port_rss_ctx_delete(struct mvpp2_port *port, u32 port_ctx)
 {
 	struct mvpp2 *priv = port->priv;
-	int rss_ctx = mvpp22_rss_ctx(port, port_ctx);
+	struct ethtool_rxnfc *rxnfc;
+	int i, rss_ctx, ret;
+
+	rss_ctx = mvpp22_rss_ctx(port, port_ctx);
 
 	if (rss_ctx < 0 || rss_ctx >= MVPP22_N_RSS_TABLES)
 		return -EINVAL;
+
+	/* Invalidate any active classification rule that use this context */
+	for (i = 0; i < MVPP2_N_RFS_ENTRIES_PER_FLOW; i++) {
+		if (!port->rfs_rules[i])
+			continue;
+
+		rxnfc = &port->rfs_rules[i]->rxnfc;
+		if (!(rxnfc->fs.flow_type & FLOW_RSS) ||
+		    rxnfc->rss_context != port_ctx)
+			continue;
+
+		ret = mvpp2_ethtool_cls_rule_del(port, rxnfc);
+		if (ret) {
+			netdev_warn(port->dev,
+				    "couldn't remove classification rule %d associated to this context",
+				    rxnfc->fs.location);
+		}
+	}
 
 	kfree(priv->rss_tables[rss_ctx]);
 
