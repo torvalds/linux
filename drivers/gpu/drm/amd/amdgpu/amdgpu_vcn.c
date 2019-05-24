@@ -137,6 +137,16 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	if (adev->vcn.indirect_sram) {
+		r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
+			    AMDGPU_GEM_DOMAIN_VRAM, &adev->vcn.dpg_sram_bo,
+			    &adev->vcn.dpg_sram_gpu_addr, &adev->vcn.dpg_sram_cpu_addr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to allocate DPG bo\n", r);
+			return r;
+		}
+	}
+
 	return 0;
 }
 
@@ -145,6 +155,12 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	int i;
 
 	kvfree(adev->vcn.saved_bo);
+
+	if (adev->vcn.indirect_sram) {
+		amdgpu_bo_free_kernel(&adev->vcn.dpg_sram_bo,
+			      &adev->vcn.dpg_sram_gpu_addr,
+			      (void **)&adev->vcn.dpg_sram_cpu_addr);
+	}
 
 	amdgpu_bo_free_kernel(&adev->vcn.vcpu_bo,
 			      &adev->vcn.gpu_addr,

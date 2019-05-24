@@ -164,6 +164,12 @@ struct amdgpu_vcn {
 	struct amdgpu_vcn_reg	internal, external;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
 		struct dpg_pause_state *new_state);
+
+	bool			indirect_sram;
+	struct amdgpu_bo	*dpg_sram_bo;
+	void			*dpg_sram_cpu_addr;
+	uint64_t		dpg_sram_gpu_addr;
+	uint32_t		*dpg_sram_curr_addr;
 };
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
