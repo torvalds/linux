@@ -15,10 +15,11 @@ struct drm_i915_private;
 #define GEN_MAX_SLICES		(6) /* CNL upper bound */
 #define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
 #define GEN_SSEU_STRIDE(max_entries) DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
+#define GEN_MAX_SUBSLICE_STRIDE GEN_SSEU_STRIDE(GEN_MAX_SUBSLICES)
 
 struct sseu_dev_info {
 	u8 slice_mask;
-	u8 subslice_mask[GEN_MAX_SLICES];
+	u8 subslice_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICE_STRIDE];
 	u16 eu_total;
 	u8 eu_per_subslice;
 	u8 min_eu_in_pool;
@@ -32,6 +33,9 @@ struct sseu_dev_info {
 	u8 max_slices;
 	u8 max_subslices;
 	u8 max_eus_per_subslice;
+
+	u8 ss_stride;
+	u8 eu_stride;
 
 	/* We don't have more than 8 eus per subslice at the moment and as we
 	 * store eus enabled using bits, no need to multiply by eus per
@@ -63,11 +67,32 @@ intel_sseu_from_device_info(const struct sseu_dev_info *sseu)
 	return value;
 }
 
+static inline bool
+intel_sseu_has_subslice(const struct sseu_dev_info *sseu, int slice,
+			int subslice)
+{
+	u8 mask = sseu->subslice_mask[slice * sseu->ss_stride +
+				      subslice / BITS_PER_BYTE];
+
+	return mask & BIT(subslice % BITS_PER_BYTE);
+}
+
+void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
+			 u8 max_subslices, u8 max_eus_per_subslice);
+
 unsigned int
 intel_sseu_subslice_total(const struct sseu_dev_info *sseu);
 
 unsigned int
 intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice);
+
+void intel_sseu_copy_subslices(const struct sseu_dev_info *sseu, int slice,
+			       u8 *to_mask);
+
+u32  intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice);
+
+void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
+			      u32 ss_mask);
 
 u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
 			 const struct intel_sseu *req_sseu);

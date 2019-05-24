@@ -784,7 +784,7 @@ wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		u32 slice = fls(sseu->slice_mask);
 		u32 fuse3 =
 			intel_uncore_read(&i915->uncore, GEN10_MIRROR_FUSE3);
-		u8 ss_mask = sseu->subslice_mask[slice];
+		u32 ss_mask = intel_sseu_get_subslices(sseu, slice);
 
 		u8 enabled_mask = (ss_mask | ss_mask >>
 				   GEN10_L3BANK_PAIR_COUNT) & GEN10_L3BANK_MASK;
