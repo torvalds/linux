@@ -131,6 +131,9 @@ struct fib6_nh {
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	unsigned long		last_probe;
 #endif
+
+	struct rt6_info * __percpu *rt6i_pcpu;
+	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
 };
 
 struct fib6_info {
@@ -156,22 +159,18 @@ struct fib6_info {
 	struct rt6key			fib6_src;
 	struct rt6key			fib6_prefsrc;
 
-	struct rt6_info * __percpu	*rt6i_pcpu;
-	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
-
 	u32				fib6_metric;
 	u8				fib6_protocol;
 	u8				fib6_type;
-	u8				exception_bucket_flushed:1,
-					should_flush:1,
+	u8				should_flush:1,
 					dst_nocount:1,
 					dst_nopolicy:1,
 					dst_host:1,
 					fib6_destroying:1,
-					unused:2;
+					unused:3;
 
-	struct fib6_nh			fib6_nh;
 	struct rcu_head			rcu;
+	struct fib6_nh			fib6_nh[0];
 };
 
 struct rt6_info {
@@ -281,7 +280,7 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 	dst_release(&rt->dst);
 }
 
-struct fib6_info *fib6_info_alloc(gfp_t gfp_flags);
+struct fib6_info *fib6_info_alloc(gfp_t gfp_flags, bool with_fib6_nh);
 void fib6_info_destroy_rcu(struct rcu_head *head);
 
 static inline void fib6_info_hold(struct fib6_info *f6i)
@@ -444,7 +443,7 @@ void rt6_get_prefsrc(const struct rt6_info *rt, struct in6_addr *addr)
 
 static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
 {
-	return f6i->fib6_nh.fib_nh_dev;
+	return f6i->fib6_nh->fib_nh_dev;
 }
 
 int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,

@@ -147,19 +147,17 @@ static __be32 addr_bit_set(const void *token, int fn_bit)
 	       addr[fn_bit >> 5];
 }
 
-struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
+struct fib6_info *fib6_info_alloc(gfp_t gfp_flags, bool with_fib6_nh)
 {
 	struct fib6_info *f6i;
+	size_t sz = sizeof(*f6i);
 
-	f6i = kzalloc(sizeof(*f6i), gfp_flags);
+	if (with_fib6_nh)
+		sz += sizeof(struct fib6_nh);
+
+	f6i = kzalloc(sz, gfp_flags);
 	if (!f6i)
 		return NULL;
-
-	f6i->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
-	if (!f6i->rt6i_pcpu) {
-		kfree(f6i);
-		return NULL;
-	}
 
 	INIT_LIST_HEAD(&f6i->fib6_siblings);
 	refcount_set(&f6i->fib6_ref, 1);
@@ -170,36 +168,11 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 void fib6_info_destroy_rcu(struct rcu_head *head)
 {
 	struct fib6_info *f6i = container_of(head, struct fib6_info, rcu);
-	struct rt6_exception_bucket *bucket;
 
 	WARN_ON(f6i->fib6_node);
 
-	bucket = rcu_dereference_protected(f6i->rt6i_exception_bucket, 1);
-	kfree(bucket);
-
-	if (f6i->rt6i_pcpu) {
-		int cpu;
-
-		for_each_possible_cpu(cpu) {
-			struct rt6_info **ppcpu_rt;
-			struct rt6_info *pcpu_rt;
-
-			ppcpu_rt = per_cpu_ptr(f6i->rt6i_pcpu, cpu);
-			pcpu_rt = *ppcpu_rt;
-			if (pcpu_rt) {
-				dst_dev_put(&pcpu_rt->dst);
-				dst_release(&pcpu_rt->dst);
-				*ppcpu_rt = NULL;
-			}
-		}
-
-		free_percpu(f6i->rt6i_pcpu);
-	}
-
-	fib6_nh_release(&f6i->fib6_nh);
-
+	fib6_nh_release(f6i->fib6_nh);
 	ip_fib_metrics_put(f6i->fib6_metrics);
-
 	kfree(f6i);
 }
 EXPORT_SYMBOL_GPL(fib6_info_destroy_rcu);
@@ -899,16 +872,14 @@ insert_above:
 	return ln;
 }
 
-static void fib6_drop_pcpu_from(struct fib6_info *f6i,
-				const struct fib6_table *table)
+static void __fib6_drop_pcpu_from(struct fib6_nh *fib6_nh,
+				  const struct fib6_info *match,
+				  const struct fib6_table *table)
 {
 	int cpu;
 
-	/* Make sure rt6_make_pcpu_route() wont add other percpu routes
-	 * while we are cleaning them here.
-	 */
-	f6i->fib6_destroying = 1;
-	mb(); /* paired with the cmpxchg() in rt6_make_pcpu_route() */
+	if (!fib6_nh->rt6i_pcpu)
+		return;
 
 	/* release the reference to this fib entry from
 	 * all of its cached pcpu routes
@@ -917,9 +888,15 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 		struct rt6_info **ppcpu_rt;
 		struct rt6_info *pcpu_rt;
 
-		ppcpu_rt = per_cpu_ptr(f6i->rt6i_pcpu, cpu);
+		ppcpu_rt = per_cpu_ptr(fib6_nh->rt6i_pcpu, cpu);
 		pcpu_rt = *ppcpu_rt;
-		if (pcpu_rt) {
+
+		/* only dropping the 'from' reference if the cached route
+		 * is using 'match'. The cached pcpu_rt->from only changes
+		 * from a fib6_info to NULL (ip6_dst_destroy); it can never
+		 * change from one fib6_info reference to another
+		 */
+		if (pcpu_rt && rcu_access_pointer(pcpu_rt->from) == match) {
 			struct fib6_info *from;
 
 			from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
@@ -928,13 +905,27 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 	}
 }
 
+static void fib6_drop_pcpu_from(struct fib6_info *f6i,
+				const struct fib6_table *table)
+{
+	struct fib6_nh *fib6_nh;
+
+	/* Make sure rt6_make_pcpu_route() wont add other percpu routes
+	 * while we are cleaning them here.
+	 */
+	f6i->fib6_destroying = 1;
+	mb(); /* paired with the cmpxchg() in rt6_make_pcpu_route() */
+
+	fib6_nh = f6i->fib6_nh;
+	__fib6_drop_pcpu_from(fib6_nh, f6i, table);
+}
+
 static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 			  struct net *net)
 {
 	struct fib6_table *table = rt->fib6_table;
 
-	if (rt->rt6i_pcpu)
-		fib6_drop_pcpu_from(rt, table);
+	fib6_drop_pcpu_from(rt, table);
 
 	if (refcount_read(&rt->fib6_ref) != 1) {
 		/* This route is used as dummy address holder in some split
@@ -2314,14 +2305,14 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 #else
 	seq_puts(seq, "00000000000000000000000000000000 00 ");
 #endif
-	if (rt->fib6_nh.fib_nh_gw_family) {
+	if (rt->fib6_nh->fib_nh_gw_family) {
 		flags |= RTF_GATEWAY;
-		seq_printf(seq, "%pi6", &rt->fib6_nh.fib_nh_gw6);
+		seq_printf(seq, "%pi6", &rt->fib6_nh->fib_nh_gw6);
 	} else {
 		seq_puts(seq, "00000000000000000000000000000000");
 	}
 
-	dev = rt->fib6_nh.fib_nh_dev;
+	dev = rt->fib6_nh->fib_nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
 		   rt->fib6_metric, refcount_read(&rt->fib6_ref), 0,
 		   flags, dev ? dev->name : "");
