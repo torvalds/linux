@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <gelf.h>
 #include <bpf.h>
+#include <libbpf.h>
 #include <linux/btf.h>
 
 #include "btf.h"
@@ -340,112 +340,6 @@ static int dump_btf_raw(const struct btf *btf,
 	return 0;
 }
 
-static bool check_btf_endianness(GElf_Ehdr *ehdr)
-{
-	static unsigned int const endian = 1;
-
-	switch (ehdr->e_ident[EI_DATA]) {
-	case ELFDATA2LSB:
-		return *(unsigned char const *)&endian == 1;
-	case ELFDATA2MSB:
-		return *(unsigned char const *)&endian == 0;
-	default:
-		return 0;
-	}
-}
-
-static int btf_load_from_elf(const char *path, struct btf **btf)
-{
-	int err = -1, fd = -1, idx = 0;
-	Elf_Data *btf_data = NULL;
-	Elf_Scn *scn = NULL;
-	Elf *elf = NULL;
-	GElf_Ehdr ehdr;
-
-	if (elf_version(EV_CURRENT) == EV_NONE) {
-		p_err("failed to init libelf for %s", path);
-		return -1;
-	}
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		p_err("failed to open %s: %s", path, strerror(errno));
-		return -1;
-	}
-
-	elf = elf_begin(fd, ELF_C_READ, NULL);
-	if (!elf) {
-		p_err("failed to open %s as ELF file", path);
-		goto done;
-	}
-	if (!gelf_getehdr(elf, &ehdr)) {
-		p_err("failed to get EHDR from %s", path);
-		goto done;
-	}
-	if (!check_btf_endianness(&ehdr)) {
-		p_err("non-native ELF endianness is not supported");
-		goto done;
-	}
-	if (!elf_rawdata(elf_getscn(elf, ehdr.e_shstrndx), NULL)) {
-		p_err("failed to get e_shstrndx from %s\n", path);
-		goto done;
-	}
-
-	while ((scn = elf_nextscn(elf, scn)) != NULL) {
-		GElf_Shdr sh;
-		char *name;
-
-		idx++;
-		if (gelf_getshdr(scn, &sh) != &sh) {
-			p_err("failed to get section(%d) header from %s",
-			      idx, path);
-			goto done;
-		}
-		name = elf_strptr(elf, ehdr.e_shstrndx, sh.sh_name);
-		if (!name) {
-			p_err("failed to get section(%d) name from %s",
-			      idx, path);
-			goto done;
-		}
-		if (strcmp(name, BTF_ELF_SEC) == 0) {
-			btf_data = elf_getdata(scn, 0);
-			if (!btf_data) {
-				p_err("failed to get section(%d, %s) data from %s",
-				      idx, name, path);
-				goto done;
-			}
-			break;
-		}
-	}
-
-	if (!btf_data) {
-		p_err("%s ELF section not found in %s", BTF_ELF_SEC, path);
-		goto done;
-	}
-
-	*btf = btf__new(btf_data->d_buf, btf_data->d_size);
-	if (IS_ERR(*btf)) {
-		err = PTR_ERR(*btf);
-		*btf = NULL;
-		p_err("failed to load BTF data from %s: %s",
-		      path, strerror(err));
-		goto done;
-	}
-
-	err = 0;
-done:
-	if (err) {
-		if (*btf) {
-			btf__free(*btf);
-			*btf = NULL;
-		}
-	}
-	if (elf)
-		elf_end(elf);
-	close(fd);
-	return err;
-}
-
 static int do_dump(int argc, char **argv)
 {
 	struct btf *btf = NULL;
@@ -522,9 +416,14 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		err = btf_load_from_elf(*argv, &btf);
-		if (err)
+		btf = btf__parse_elf(*argv, NULL);
+		if (IS_ERR(btf)) {
+			err = PTR_ERR(btf);
+			btf = NULL;
+			p_err("failed to load BTF from %s: %s", 
+			      *argv, strerror(err));
 			goto done;
+		}
 		NEXT_ARG();
 	} else {
 		err = -1;
