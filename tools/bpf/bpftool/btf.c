@@ -340,11 +340,49 @@ static int dump_btf_raw(const struct btf *btf,
 	return 0;
 }
 
+static void __printf(2, 0) btf_dump_printf(void *ctx,
+					   const char *fmt, va_list args)
+{
+	vfprintf(stdout, fmt, args);
+}
+
+static int dump_btf_c(const struct btf *btf,
+		      __u32 *root_type_ids, int root_type_cnt)
+{
+	struct btf_dump *d;
+	int err = 0, i;
+
+	d = btf_dump__new(btf, NULL, NULL, btf_dump_printf);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
+
+	if (root_type_cnt) {
+		for (i = 0; i < root_type_cnt; i++) {
+			err = btf_dump__dump_type(d, root_type_ids[i]);
+			if (err)
+				goto done;
+		}
+	} else {
+		int cnt = btf__get_nr_types(btf);
+
+		for (i = 1; i <= cnt; i++) {
+			err = btf_dump__dump_type(d, i);
+			if (err)
+				goto done;
+		}
+	}
+
+done:
+	btf_dump__free(d);
+	return err;
+}
+
 static int do_dump(int argc, char **argv)
 {
 	struct btf *btf = NULL;
 	__u32 root_type_ids[2];
 	int root_type_cnt = 0;
+	bool dump_c = false;
 	__u32 btf_id = -1;
 	const char *src;
 	int fd = -1;
@@ -431,6 +469,29 @@ static int do_dump(int argc, char **argv)
 		goto done;
 	}
 
+	while (argc) {
+		if (is_prefix(*argv, "format")) {
+			NEXT_ARG();
+			if (argc < 1) {
+				p_err("expecting value for 'format' option\n");
+				goto done;
+			}
+			if (strcmp(*argv, "c") == 0) {
+				dump_c = true;
+			} else if (strcmp(*argv, "raw") == 0) {
+				dump_c = false;
+			} else {
+				p_err("unrecognized format specifier: '%s', possible values: raw, c",
+				      *argv);
+				goto done;
+			}
+			NEXT_ARG();
+		} else {
+			p_err("unrecognized option: '%s'", *argv);
+			goto done;
+		}
+	}
+
 	if (!btf) {
 		err = btf__get_from_id(btf_id, &btf);
 		if (err) {
@@ -444,7 +505,16 @@ static int do_dump(int argc, char **argv)
 		}
 	}
 
-	dump_btf_raw(btf, root_type_ids, root_type_cnt);
+	if (dump_c) {
+		if (json_output) {
+			p_err("JSON output for C-syntax dump is not supported");
+			err = -ENOTSUP;
+			goto done;
+		}
+		err = dump_btf_c(btf, root_type_ids, root_type_cnt);
+	} else {
+		err = dump_btf_raw(btf, root_type_ids, root_type_cnt);
+	}
 
 done:
 	close(fd);
@@ -460,10 +530,11 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s btf dump BTF_SRC\n"
+		"Usage: %s btf dump BTF_SRC [format FORMAT]\n"
 		"       %s btf help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
+		"       FORMAT  := { raw | c }\n"
 		"       " HELP_SPEC_MAP "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
