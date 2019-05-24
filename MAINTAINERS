@@ -5128,6 +5128,13 @@ S:	Maintained
 F:	drivers/gpu/drm/tinydrm/st7735r.c
 F:	Documentation/devicetree/bindings/display/sitronix,st7735r.txt
 
+DRM DRIVER FOR ST-ERICSSON MCDE
+M:	Linus Walleij <linus.walleij@linaro.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/mcde/
+F:	Documentation/devicetree/bindings/display/ste,mcde.txt
+
 DRM DRIVER FOR TDFX VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/tdfx/
