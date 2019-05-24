@@ -2279,6 +2279,11 @@ int spi_register_controller(struct spi_controller *ctlr)
 			status = spi_get_gpio_descs(ctlr);
 			if (status)
 				return status;
+			/*
+			 * A controller using GPIO descriptors always
+			 * supports SPI_CS_HIGH if need be.
+			 */
+			ctlr->mode_bits |= SPI_CS_HIGH;
 		} else {
 			/* Legacy code path for GPIOs from DT */
 			status = of_spi_register_master(ctlr);
