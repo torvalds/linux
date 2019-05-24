@@ -58,26 +58,21 @@ static struct inet_frags nf_frags;
 static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_frag6_timeout",
-		.data		= &init_net.nf_frag.fqdir.timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_frag6_low_thresh",
-		.data		= &init_net.nf_frag.fqdir.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.nf_frag.fqdir.high_thresh
 	},
 	{
 		.procname	= "nf_conntrack_frag6_high_thresh",
-		.data		= &init_net.nf_frag.fqdir.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.nf_frag.fqdir.low_thresh
 	},
 	{ }
 };
@@ -93,14 +88,14 @@ static int nf_ct_frag6_sysctl_register(struct net *net)
 				GFP_KERNEL);
 		if (table == NULL)
 			goto err_alloc;
-
-		table[0].data = &net->nf_frag.fqdir.timeout;
-		table[1].data = &net->nf_frag.fqdir.low_thresh;
-		table[1].extra2 = &net->nf_frag.fqdir.high_thresh;
-		table[2].data = &net->nf_frag.fqdir.high_thresh;
-		table[2].extra1 = &net->nf_frag.fqdir.low_thresh;
-		table[2].extra2 = &init_net.nf_frag.fqdir.high_thresh;
 	}
+
+	table[0].data	= &net->nf_frag.fqdir.timeout;
+	table[1].data	= &net->nf_frag.fqdir.low_thresh;
+	table[1].extra2	= &net->nf_frag.fqdir.high_thresh;
+	table[2].data	= &net->nf_frag.fqdir.high_thresh;
+	table[2].extra1	= &net->nf_frag.fqdir.low_thresh;
+	table[2].extra2	= &init_net.nf_frag.fqdir.high_thresh;
 
 	hdr = register_net_sysctl(net, "net/netfilter", table);
 	if (hdr == NULL)
