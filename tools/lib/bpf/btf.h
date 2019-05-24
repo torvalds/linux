@@ -4,6 +4,7 @@
 #ifndef __LIBBPF_BTF_H
 #define __LIBBPF_BTF_H
 
+#include <stdarg.h>
 #include <linux/types.h>
 
 #ifdef __cplusplus
@@ -101,6 +102,22 @@ struct btf_dedup_opts {
 
 LIBBPF_API int btf__dedup(struct btf *btf, struct btf_ext *btf_ext,
 			  const struct btf_dedup_opts *opts);
+
+struct btf_dump;
+
+struct btf_dump_opts {
+	void *ctx;
+};
+
+typedef void (*btf_dump_printf_fn_t)(void *ctx, const char *fmt, va_list args);
+
+LIBBPF_API struct btf_dump *btf_dump__new(const struct btf *btf,
+					  const struct btf_ext *btf_ext,
+					  const struct btf_dump_opts *opts,
+					  btf_dump_printf_fn_t printf_fn);
+LIBBPF_API void btf_dump__free(struct btf_dump *d);
+
+LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);
 
 #ifdef __cplusplus
 } /* extern "C" */

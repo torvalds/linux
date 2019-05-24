@@ -167,5 +167,8 @@ LIBBPF_0.0.3 {
 
 LIBBPF_0.0.4 {
 	global:
+		btf_dump__dump_type;
+		btf_dump__free;
+		btf_dump__new;
 		btf__parse_elf;
 } LIBBPF_0.0.3;
