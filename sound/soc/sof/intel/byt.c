@@ -327,15 +327,13 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 	/* reply message from DSP */
 	if (ipcx & SHIM_BYT_IPCX_DONE &&
 	    !(imrx & SHIM_IMRX_DONE)) {
-		unsigned long flags;
-
 		/* Mask Done interrupt before first */
 		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR,
 						   SHIM_IMRX,
 						   SHIM_IMRX_DONE,
 						   SHIM_IMRX_DONE);
 
-		spin_lock_irqsave(&sdev->ipc_lock, flags);
+		spin_lock_irq(&sdev->ipc_lock);
 
 		/*
 		 * handle immediate reply from DSP core. If the msg is
@@ -349,7 +347,7 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 
 		byt_dsp_done(sdev);
 
-		spin_unlock_irqrestore(&sdev->ipc_lock, flags);
+		spin_unlock_irq(&sdev->ipc_lock);
 	}
 
 	/* new message from DSP */
