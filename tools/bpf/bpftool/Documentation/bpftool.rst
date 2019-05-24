@@ -66,6 +66,9 @@ OPTIONS
 		  Do not automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
+	-d, --debug
+		  Print all logs available from libbpf, including debug-level
+		  information.
 
 SEE ALSO
 ========

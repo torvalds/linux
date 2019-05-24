@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include <bpf.h>
+#include <libbpf.h>
 
 #include "main.h"
 
@@ -75,6 +76,13 @@ static int do_version(int argc, char **argv)
 		printf("%s v%s\n", bin_name, BPFTOOL_VERSION);
 	}
 	return 0;
+}
+
+static int __printf(2, 0)
+print_all_levels(__maybe_unused enum libbpf_print_level level,
+		 const char *format, va_list args)
+{
+	return vfprintf(stderr, format, args);
 }
 
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
@@ -317,6 +325,7 @@ int main(int argc, char **argv)
 		{ "bpffs",	no_argument,	NULL,	'f' },
 		{ "mapcompat",	no_argument,	NULL,	'm' },
 		{ "nomount",	no_argument,	NULL,	'n' },
+		{ "debug",	no_argument,	NULL,	'd' },
 		{ 0 }
 	};
 	int opt, ret;
@@ -332,7 +341,7 @@ int main(int argc, char **argv)
 	hash_init(map_table.table);
 
 	opterr = 0;
-	while ((opt = getopt_long(argc, argv, "Vhpjfmn",
+	while ((opt = getopt_long(argc, argv, "Vhpjfmnd",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
@@ -361,6 +370,9 @@ int main(int argc, char **argv)
 			break;
 		case 'n':
 			block_mount = true;
+			break;
+		case 'd':
+			libbpf_set_print(print_all_levels);
 			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
