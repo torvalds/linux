@@ -2,6 +2,7 @@
 
 config KPC2000
 	bool "Daktronics KPC Device support"
+	select MFD_CORE
 	depends on PCI
 	depends on UIO
 	help
