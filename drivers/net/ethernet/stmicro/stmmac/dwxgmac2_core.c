@@ -310,7 +310,7 @@ static void dwxgmac2_set_filter(struct mac_device_info *hw,
 	u32 value = XGMAC_FILTER_RA;
 
 	if (dev->flags & IFF_PROMISC) {
-		value |= XGMAC_FILTER_PR;
+		value |= XGMAC_FILTER_PR | XGMAC_FILTER_PCF;
 	} else if ((dev->flags & IFF_ALLMULTI) ||
 		   (netdev_mc_count(dev) > HASH_TABLE_SIZE)) {
 		value |= XGMAC_FILTER_PM;
