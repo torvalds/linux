@@ -283,7 +283,8 @@ int bch2_copygc_start(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct task_struct *t;
 
-	BUG_ON(ca->copygc_thread);
+	if (ca->copygc_thread)
+		return 0;
 
 	if (c->opts.nochanges)
 		return 0;
