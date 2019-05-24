@@ -638,11 +638,24 @@ _bpftool()
                             esac
                             return 0
                             ;;
+                        format)
+                            COMPREPLY=( $( compgen -W "c raw" -- "$cur" ) )
+                            ;;
                         *)
-                            if [[ $cword == 6 ]] && [[ ${words[3]} == "map" ]]; then
-                                 COMPREPLY+=( $( compgen -W 'key value kv all' -- \
-                                     "$cur" ) )
-                            fi
+                            # emit extra options
+                            case ${words[3]} in
+                                id|file)
+                                    _bpftool_once_attr 'format'
+                                    ;;
+                                map|prog)
+                                    if [[ ${words[3]} == "map" ]] && [[ $cword == 6 ]]; then
+                                        COMPREPLY+=( $( compgen -W "key value kv all" -- "$cur" ) )
+                                    fi
+                                    _bpftool_once_attr 'format'
+                                    ;;
+                                *)
+                                    ;;
+                            esac
                             return 0
                             ;;
                     esac
