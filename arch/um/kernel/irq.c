@@ -384,10 +384,8 @@ EXPORT_SYMBOL(deactivate_fd);
  */
 int deactivate_all_fds(void)
 {
-	unsigned long flags;
 	struct irq_entry *to_free;
 
-	spin_lock_irqsave(&irq_lock, flags);
 	/* Stop IO. The IRQ loop has no lock so this is our
 	 * only way of making sure we are safe to dispose
 	 * of all IRQ handlers
@@ -404,7 +402,6 @@ int deactivate_all_fds(void)
 		to_free = to_free->next;
 	}
 	garbage_collect_irq_entries();
-	spin_unlock_irqrestore(&irq_lock, flags);
 	os_close_epoll_fd();
 	return 0;
 }
