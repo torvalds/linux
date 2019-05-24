@@ -542,6 +542,9 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
+	unsigned mark_flags = trans->flags & BTREE_INSERT_BUCKET_INVALIDATE
+		? BCH_BUCKET_MARK_BUCKET_INVALIDATE
+		: 0;
 	int ret;
 
 	trans_for_each_update_iter(trans, i)
@@ -618,7 +621,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	trans_for_each_update_iter(trans, i)
 		if (update_has_triggers(trans, i) &&
 		    !update_triggers_transactional(trans, i))
-			bch2_mark_update(trans, i, &fs_usage->u, 0);
+			bch2_mark_update(trans, i, &fs_usage->u, mark_flags);
 
 	if (fs_usage && trans->fs_usage_deltas)
 		bch2_replicas_delta_list_apply(c, &fs_usage->u,
@@ -632,6 +635,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		trans_for_each_update_iter(trans, i)
 			if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
 				bch2_mark_update(trans, i, NULL,
+						 mark_flags|
 						 BCH_BUCKET_MARK_GC);
 
 	trans_for_each_update(trans, i)

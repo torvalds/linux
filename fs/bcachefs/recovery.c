@@ -258,8 +258,9 @@ retry:
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 
 	if (split_compressed) {
-		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k), false,
-					  -((s64) k->k.size)) ?:
+		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k),
+					  -((s64) k->k.size),
+					  BCH_BUCKET_MARK_OVERWRITE) ?:
 		      bch2_trans_commit(&trans, &disk_res, NULL,
 					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL|

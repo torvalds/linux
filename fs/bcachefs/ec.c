@@ -611,17 +611,21 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 	ec_stripes_heap *h = &c->ec_stripes_heap;
 	size_t i;
 
-	heap_verify_backpointer(c, idx);
+	if (m->alive) {
+		heap_verify_backpointer(c, idx);
 
-	h->data[m->heap_idx].blocks_nonempty = m->blocks_nonempty;
+		h->data[m->heap_idx].blocks_nonempty = m->blocks_nonempty;
 
-	i = m->heap_idx;
-	heap_sift_up(h,	  i, ec_stripes_heap_cmp,
-		     ec_stripes_heap_set_backpointer);
-	heap_sift_down(h, i, ec_stripes_heap_cmp,
-		       ec_stripes_heap_set_backpointer);
+		i = m->heap_idx;
+		heap_sift_up(h,	  i, ec_stripes_heap_cmp,
+			     ec_stripes_heap_set_backpointer);
+		heap_sift_down(h, i, ec_stripes_heap_cmp,
+			       ec_stripes_heap_set_backpointer);
 
-	heap_verify_backpointer(c, idx);
+		heap_verify_backpointer(c, idx);
+	} else {
+		bch2_stripes_heap_insert(c, m, idx);
+	}
 
 	if (stripe_idx_to_delete(c) >= 0)
 		schedule_work(&c->ec_stripe_delete_work);
@@ -1274,7 +1278,9 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN, 0, k, ret)
-		bch2_mark_key(c, k, true, 0, NULL, 0, 0);
+		bch2_mark_key(c, k, 0, NULL, 0,
+			      BCH_BUCKET_MARK_ALLOC_READ|
+			      BCH_BUCKET_MARK_NOATOMIC);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret) {
@@ -1285,7 +1291,9 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	for_each_journal_key(*journal_keys, i)
 		if (i->btree_id == BTREE_ID_EC)
 			bch2_mark_key(c, bkey_i_to_s_c(i->k),
-				      true, 0, NULL, 0, 0);
+				      0, NULL, 0,
+				      BCH_BUCKET_MARK_ALLOC_READ|
+				      BCH_BUCKET_MARK_NOATOMIC);
 
 	return 0;
 }

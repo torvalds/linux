@@ -547,6 +547,68 @@ static inline void update_cached_sectors(struct bch_fs *c,
 	update_replicas(c, fs_usage, &r.e, sectors);
 }
 
+static struct replicas_delta_list *
+replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
+{
+	struct replicas_delta_list *d = trans->fs_usage_deltas;
+	unsigned new_size = d ? (d->size + more) * 2 : 128;
+
+	if (!d || d->used + more > d->size) {
+		d = krealloc(d, sizeof(*d) + new_size, GFP_NOIO|__GFP_ZERO);
+		BUG_ON(!d);
+
+		d->size = new_size;
+		trans->fs_usage_deltas = d;
+	}
+	return d;
+}
+
+static inline void update_replicas_list(struct btree_trans *trans,
+					struct bch_replicas_entry *r,
+					s64 sectors)
+{
+	struct replicas_delta_list *d;
+	struct replicas_delta *n;
+	unsigned b = replicas_entry_bytes(r) + 8;
+
+	d = replicas_deltas_realloc(trans, b);
+
+	n = (void *) d->d + d->used;
+	n->delta = sectors;
+	memcpy((void *) n + offsetof(struct replicas_delta, r),
+	       r, replicas_entry_bytes(r));
+	d->used += b;
+}
+
+static inline void update_cached_sectors_list(struct btree_trans *trans,
+					      unsigned dev, s64 sectors)
+{
+	struct bch_replicas_padded r;
+
+	bch2_replicas_entry_cached(&r.e, dev);
+
+	update_replicas_list(trans, &r.e, sectors);
+}
+
+void bch2_replicas_delta_list_apply(struct bch_fs *c,
+				    struct bch_fs_usage *fs_usage,
+				    struct replicas_delta_list *r)
+{
+	struct replicas_delta *d = r->d;
+	struct replicas_delta *top = (void *) r->d + r->used;
+
+	acc_u64s((u64 *) fs_usage,
+		 (u64 *) &r->fs_usage, sizeof(*fs_usage) / sizeof(u64));
+
+	while (d != top) {
+		BUG_ON((void *) d > (void *) top);
+
+		update_replicas(c, fs_usage, &d->r, d->delta);
+
+		d = (void *) d + replicas_entry_bytes(&d->r) + 8;
+	}
+}
+
 #define do_mark_fn(fn, c, pos, flags, ...)				\
 ({									\
 	int gc, ret = 0;						\
@@ -630,23 +692,20 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 }
 
 static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
-			   bool inserting,
 			   struct bch_fs_usage *fs_usage,
-			   unsigned journal_seq, unsigned flags,
-			   bool gc)
+			   u64 journal_seq, unsigned flags)
 {
+	bool gc = flags & BCH_BUCKET_MARK_GC;
 	struct bkey_alloc_unpacked u;
 	struct bch_dev *ca;
 	struct bucket *g;
 	struct bucket_mark old, m;
 
-	if (!inserting)
-		return 0;
-
 	/*
 	 * alloc btree is read in by bch2_alloc_read, not gc:
 	 */
-	if (flags & BCH_BUCKET_MARK_GC)
+	if ((flags & BCH_BUCKET_MARK_GC) &&
+	    !(flags & BCH_BUCKET_MARK_BUCKET_INVALIDATE))
 		return 0;
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
@@ -663,7 +722,7 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 		m.dirty_sectors		= u.dirty_sectors;
 		m.cached_sectors	= u.cached_sectors;
 
-		if (!(flags & BCH_BUCKET_MARK_GC)) {
+		if (journal_seq) {
 			m.journal_seq_valid	= 1;
 			m.journal_seq		= journal_seq;
 		}
@@ -682,7 +741,8 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 	 * not:
 	 */
 
-	if (old.cached_sectors) {
+	if ((flags & BCH_BUCKET_MARK_BUCKET_INVALIDATE) &&
+	    old.cached_sectors) {
 		update_cached_sectors(c, fs_usage, ca->dev_idx,
 				      -old.cached_sectors);
 		trace_invalidate(ca, bucket_to_sector(ca, k.k->p.offset),
@@ -773,11 +833,12 @@ static s64 ptr_disk_sectors_delta(struct extent_ptr_decoded p,
 
 static void bucket_set_stripe(struct bch_fs *c,
 			      const struct bch_stripe *v,
-			      bool enabled,
 			      struct bch_fs_usage *fs_usage,
 			      u64 journal_seq,
-			      bool gc)
+			      unsigned flags)
 {
+	bool enabled = !(flags & BCH_BUCKET_MARK_OVERWRITE);
+	bool gc = flags & BCH_BUCKET_MARK_GC;
 	unsigned i;
 
 	for (i = 0; i < v->nr_blocks; i++) {
@@ -803,9 +864,9 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 			      struct extent_ptr_decoded p,
 			      s64 sectors, enum bch_data_type data_type,
 			      struct bch_fs_usage *fs_usage,
-			      unsigned journal_seq, unsigned flags,
-			      bool gc)
+			      u64 journal_seq, unsigned flags)
 {
+	bool gc = flags & BCH_BUCKET_MARK_GC;
 	struct bucket_mark old, new;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 	struct bucket *g = PTR_BUCKET(ca, &p.ptr, gc);
@@ -872,9 +933,9 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 				struct bch_extent_stripe_ptr p,
 				enum bch_data_type data_type,
 				struct bch_fs_usage *fs_usage,
-				s64 sectors, unsigned flags,
-				bool gc)
+				s64 sectors, unsigned flags)
 {
+	bool gc = flags & BCH_BUCKET_MARK_GC;
 	struct stripe *m;
 	unsigned old, new, nr_data;
 	int blocks_nonempty_delta;
@@ -927,8 +988,7 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			    s64 sectors, enum bch_data_type data_type,
 			    struct bch_fs_usage *fs_usage,
-			    unsigned journal_seq, unsigned flags,
-			    bool gc)
+			    unsigned journal_seq, unsigned flags)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -949,7 +1009,7 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			? sectors
 			: ptr_disk_sectors_delta(p, sectors);
 		bool stale = bch2_mark_pointer(c, p, disk_sectors, data_type,
-					fs_usage, journal_seq, flags, gc);
+					fs_usage, journal_seq, flags);
 
 		if (p.ptr.cached) {
 			if (disk_sectors && !stale)
@@ -962,7 +1022,7 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			for (i = 0; i < p.ec_nr; i++) {
 				ret = bch2_mark_stripe_ptr(c, p.ec[i],
 						data_type, fs_usage,
-						disk_sectors, flags, gc);
+						disk_sectors, flags);
 				if (ret)
 					return ret;
 			}
@@ -978,11 +1038,10 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 }
 
 static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
-			    bool inserting,
 			    struct bch_fs_usage *fs_usage,
-			    u64 journal_seq, unsigned flags,
-			    bool gc)
+			    u64 journal_seq, unsigned flags)
 {
+	bool gc = flags & BCH_BUCKET_MARK_GC;
 	struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
 	size_t idx = s.k->p.offset;
 	struct stripe *m = genradix_ptr(&c->stripes[gc], idx);
@@ -990,19 +1049,14 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 
 	spin_lock(&c->ec_stripes_heap_lock);
 
-	if (!m || (!inserting && !m->alive)) {
+	if (!m || ((flags & BCH_BUCKET_MARK_OVERWRITE) && !m->alive)) {
 		spin_unlock(&c->ec_stripes_heap_lock);
 		bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
 				    idx);
 		return -1;
 	}
 
-	if (!gc && m->alive)
-		bch2_stripes_heap_del(c, m, idx);
-
-	memset(m, 0, sizeof(*m));
-
-	if (inserting) {
+	if (!(flags & BCH_BUCKET_MARK_OVERWRITE)) {
 		m->sectors	= le16_to_cpu(s.v->sectors);
 		m->algorithm	= s.v->algorithm;
 		m->nr_blocks	= s.v->nr_blocks;
@@ -1010,11 +1064,11 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 
 		bch2_bkey_to_replicas(&m->r.e, k);
 
-	/*
-	 * XXX: account for stripes somehow here
-	 */
+		/*
+		 * XXX: account for stripes somehow here
+		 */
 #if 0
-	update_replicas(c, fs_usage, &m->r.e, stripe_sectors);
+		update_replicas(c, fs_usage, &m->r.e, stripe_sectors);
 #endif
 
 		/* gc recalculates these fields: */
@@ -1027,53 +1081,54 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 		}
 
 		if (!gc)
-			bch2_stripes_heap_insert(c, m, idx);
-		else
-			m->alive = true;
+			bch2_stripes_heap_update(c, m, idx);
+		m->alive	= true;
+	} else {
+		if (!gc)
+			bch2_stripes_heap_del(c, m, idx);
+		memset(m, 0, sizeof(*m));
 	}
 
 	spin_unlock(&c->ec_stripes_heap_lock);
 
-	bucket_set_stripe(c, s.v, inserting, fs_usage, 0, gc);
+	bucket_set_stripe(c, s.v, fs_usage, 0, flags);
 	return 0;
 }
 
 int bch2_mark_key_locked(struct bch_fs *c,
-		   struct bkey_s_c k,
-		   bool inserting, s64 sectors,
+		   struct bkey_s_c k, s64 sectors,
 		   struct bch_fs_usage *fs_usage,
 		   u64 journal_seq, unsigned flags)
 {
-	bool gc = flags & BCH_BUCKET_MARK_GC;
 	int ret = 0;
 
 	preempt_disable();
 
-	if (!fs_usage || gc)
-		fs_usage = fs_usage_ptr(c, journal_seq, gc);
+	if (!fs_usage || (flags & BCH_BUCKET_MARK_GC))
+		fs_usage = fs_usage_ptr(c, journal_seq,
+					flags & BCH_BUCKET_MARK_GC);
 
 	switch (k.k->type) {
 	case KEY_TYPE_alloc:
-		ret = bch2_mark_alloc(c, k, inserting,
-				fs_usage, journal_seq, flags, gc);
+		ret = bch2_mark_alloc(c, k, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_btree_ptr:
-		ret = bch2_mark_extent(c, k, inserting
-				?  c->opts.btree_node_size
-				: -c->opts.btree_node_size,
-				BCH_DATA_BTREE,
-				fs_usage, journal_seq, flags, gc);
+		sectors = !(flags & BCH_BUCKET_MARK_OVERWRITE)
+			?  c->opts.btree_node_size
+			: -c->opts.btree_node_size;
+
+		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_BTREE,
+				fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_extent:
 		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
-				fs_usage, journal_seq, flags, gc);
+				fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_stripe:
-		ret = bch2_mark_stripe(c, k, inserting,
-				fs_usage, journal_seq, flags, gc);
+		ret = bch2_mark_stripe(c, k, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_inode:
-		if (inserting)
+		if (!(flags & BCH_BUCKET_MARK_OVERWRITE))
 			fs_usage->nr_inodes++;
 		else
 			fs_usage->nr_inodes--;
@@ -1097,14 +1152,14 @@ int bch2_mark_key_locked(struct bch_fs *c,
 }
 
 int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
-		  bool inserting, s64 sectors,
+		  s64 sectors,
 		  struct bch_fs_usage *fs_usage,
 		  u64 journal_seq, unsigned flags)
 {
 	int ret;
 
 	percpu_down_read(&c->mark_lock);
-	ret = bch2_mark_key_locked(c, k, inserting, sectors,
+	ret = bch2_mark_key_locked(c, k, sectors,
 				   fs_usage, journal_seq, flags);
 	percpu_up_read(&c->mark_lock);
 
@@ -1144,9 +1199,9 @@ inline int bch2_mark_overwrite(struct btree_trans *trans,
 			sectors = old.k->p.offset - new->k.p.offset;
 			BUG_ON(sectors <= 0);
 
-			bch2_mark_key_locked(c, old, true, sectors,
+			bch2_mark_key_locked(c, old, sectors,
 				fs_usage, trans->journal_res.seq,
-				flags);
+				BCH_BUCKET_MARK_INSERT|flags);
 
 			sectors = bkey_start_offset(&new->k) -
 				old.k->p.offset;
@@ -1156,8 +1211,9 @@ inline int bch2_mark_overwrite(struct btree_trans *trans,
 		BUG_ON(sectors >= 0);
 	}
 
-	return bch2_mark_key_locked(c, old, false, sectors, fs_usage,
-				    trans->journal_res.seq, flags) ?: 1;
+	return bch2_mark_key_locked(c, old, sectors, fs_usage,
+				    trans->journal_res.seq,
+				    BCH_BUCKET_MARK_OVERWRITE|flags) ?: 1;
 }
 
 int bch2_mark_update(struct btree_trans *trans,
@@ -1176,10 +1232,11 @@ int bch2_mark_update(struct btree_trans *trans,
 		return 0;
 
 	if (!(trans->flags & BTREE_INSERT_NOMARK_INSERT))
-		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
+		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k),
 			bpos_min(insert->k->k.p, b->key.k.p).offset -
 			bkey_start_offset(&insert->k->k),
-			fs_usage, trans->journal_res.seq, flags);
+			fs_usage, trans->journal_res.seq,
+			BCH_BUCKET_MARK_INSERT|flags);
 
 	if (unlikely(trans->flags & BTREE_INSERT_NOMARK_OVERWRITES))
 		return 0;
@@ -1259,67 +1316,6 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 }
 
 /* trans_mark: */
-
-static struct replicas_delta_list *
-replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
-{
-	struct replicas_delta_list *d = trans->fs_usage_deltas;
-	unsigned new_size = d ? (d->size + more) * 2 : 128;
-
-	if (!d || d->used + more > d->size) {
-		d = krealloc(d, sizeof(*d) + new_size, GFP_NOIO|__GFP_ZERO);
-		BUG_ON(!d);
-
-		d->size = new_size;
-		trans->fs_usage_deltas = d;
-	}
-	return d;
-}
-
-static inline void update_replicas_list(struct btree_trans *trans,
-					struct bch_replicas_entry *r,
-					s64 sectors)
-{
-	struct replicas_delta_list *d;
-	struct replicas_delta *n;
-	unsigned b = replicas_entry_bytes(r) + 8;
-
-	d = replicas_deltas_realloc(trans, b);
-
-	n = (void *) d->d + d->used;
-	n->delta = sectors;
-	memcpy(&n->r, r, replicas_entry_bytes(r));
-	d->used += b;
-}
-
-static inline void update_cached_sectors_list(struct btree_trans *trans,
-					      unsigned dev, s64 sectors)
-{
-	struct bch_replicas_padded r;
-
-	bch2_replicas_entry_cached(&r.e, dev);
-
-	update_replicas_list(trans, &r.e, sectors);
-}
-
-void bch2_replicas_delta_list_apply(struct bch_fs *c,
-				    struct bch_fs_usage *fs_usage,
-				    struct replicas_delta_list *r)
-{
-	struct replicas_delta *d = r->d;
-	struct replicas_delta *top = (void *) r->d + r->used;
-
-	acc_u64s((u64 *) fs_usage,
-		 (u64 *) &r->fs_usage, sizeof(*fs_usage) / sizeof(u64));
-
-	while (d != top) {
-		BUG_ON((void *) d > (void *) top);
-
-		update_replicas(c, fs_usage, &d->r, d->delta);
-
-		d = (void *) d + replicas_entry_bytes(&d->r) + 8;
-	}
-}
 
 static int trans_get_key(struct btree_trans *trans,
 			 enum btree_id btree_id, struct bpos pos,
@@ -1550,26 +1546,27 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_trans_mark_key(struct btree_trans *trans,
-			struct bkey_s_c k,
-			bool inserting, s64 sectors)
+int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
+			s64 sectors, unsigned flags)
 {
 	struct replicas_delta_list *d;
 	struct bch_fs *c = trans->c;
 
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:
-		return bch2_trans_mark_extent(trans, k, inserting
-				?  c->opts.btree_node_size
-				: -c->opts.btree_node_size,
-				BCH_DATA_BTREE);
+		sectors = !(flags & BCH_BUCKET_MARK_OVERWRITE)
+			?  c->opts.btree_node_size
+			: -c->opts.btree_node_size;
+
+		return bch2_trans_mark_extent(trans, k, sectors,
+					      BCH_DATA_BTREE);
 	case KEY_TYPE_extent:
-		return bch2_trans_mark_extent(trans, k,
-				sectors, BCH_DATA_USER);
+		return bch2_trans_mark_extent(trans, k, sectors,
+					      BCH_DATA_USER);
 	case KEY_TYPE_inode:
 		d = replicas_deltas_realloc(trans, 0);
 
-		if (inserting)
+		if (!(flags & BCH_BUCKET_MARK_OVERWRITE))
 			d->fs_usage.nr_inodes++;
 		else
 			d->fs_usage.nr_inodes--;
@@ -1605,9 +1602,10 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 		return 0;
 
 	ret = bch2_trans_mark_key(trans,
-			bkey_i_to_s_c(insert->k), true,
+			bkey_i_to_s_c(insert->k),
 			bpos_min(insert->k->k.p, b->key.k.p).offset -
-			bkey_start_offset(&insert->k->k));
+			bkey_start_offset(&insert->k->k),
+			BCH_BUCKET_MARK_INSERT);
 	if (ret)
 		return ret;
 
@@ -1641,8 +1639,8 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 				sectors = k.k->p.offset - insert->k->k.p.offset;
 				BUG_ON(sectors <= 0);
 
-				ret = bch2_trans_mark_key(trans, k, true,
-							  sectors);
+				ret = bch2_trans_mark_key(trans, k, sectors,
+						BCH_BUCKET_MARK_INSERT);
 				if (ret)
 					return ret;
 
@@ -1654,7 +1652,8 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 			BUG_ON(sectors >= 0);
 		}
 
-		ret = bch2_trans_mark_key(trans, k, false, sectors);
+		ret = bch2_trans_mark_key(trans, k, sectors,
+					  BCH_BUCKET_MARK_OVERWRITE);
 		if (ret)
 			return ret;
 
