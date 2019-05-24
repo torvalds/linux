@@ -44,8 +44,14 @@
  *2. clear unready subdevice when kernel boot complete
  *3. fix diff isp ver to get frame num
  *4. enable af awb irq
+ *
+ *v0.1.4:
+ *1. add dmarx patch;
+ *2. fix get zero data when start stream again;
+ *3. add pipeline power management;
+ *
  */
 
-#define RKISP1_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x3)
+#define RKISP1_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x4)
 
 #endif
