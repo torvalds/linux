@@ -4176,7 +4176,7 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 				RUNTIME_INFO(dev_priv)->sseu.subslice_mask[s];
 		}
 		sseu->eu_total = sseu->eu_per_subslice *
-				 sseu_subslice_total(sseu);
+				 intel_sseu_subslice_total(sseu);
 
 		/* subtract fused off EU(s) from enabled slice(s) */
 		for (s = 0; s < fls(sseu->slice_mask); s++) {
@@ -4200,7 +4200,7 @@ static void i915_print_sseu_info(struct seq_file *m, bool is_available_info,
 	seq_printf(m, "  %s Slice Total: %u\n", type,
 		   hweight8(sseu->slice_mask));
 	seq_printf(m, "  %s Subslice Total: %u\n", type,
-		   sseu_subslice_total(sseu));
+		   intel_sseu_subslice_total(sseu));
 	for (s = 0; s < fls(sseu->slice_mask); s++) {
 		seq_printf(m, "  %s Slice%i subslices: %u\n", type,
 			   s, intel_sseu_subslices_per_slice(sseu, s));

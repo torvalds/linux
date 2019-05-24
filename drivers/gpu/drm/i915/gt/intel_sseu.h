@@ -63,11 +63,11 @@ intel_sseu_from_device_info(const struct sseu_dev_info *sseu)
 	return value;
 }
 
-static inline unsigned int
-intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice)
-{
-	return hweight8(sseu->subslice_mask[slice]);
-}
+unsigned int
+intel_sseu_subslice_total(const struct sseu_dev_info *sseu);
+
+unsigned int
+intel_sseu_subslices_per_slice(const struct sseu_dev_info *sseu, u8 slice);
 
 u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
 			 const struct intel_sseu *req_sseu);

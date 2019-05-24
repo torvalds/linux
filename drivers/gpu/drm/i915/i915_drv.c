@@ -386,7 +386,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = i915_cmd_parser_get_version(dev_priv);
 		break;
 	case I915_PARAM_SUBSLICE_TOTAL:
-		value = sseu_subslice_total(sseu);
+		value = intel_sseu_subslice_total(sseu);
 		if (!value)
 			return -ENODEV;
 		break;
