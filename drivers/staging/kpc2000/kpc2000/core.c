@@ -655,7 +655,7 @@ static struct pci_driver kp2000_driver_inst = {
 	.remove =	kp2000_pcie_remove,
 };
 
-static int __init  kp2000_pcie_init(void)
+static int __init kp2000_pcie_init(void)
 {
 	kpc_uio_class = class_create(THIS_MODULE, "kpc_uio");
 	if (IS_ERR(kpc_uio_class))
@@ -666,7 +666,7 @@ static int __init  kp2000_pcie_init(void)
 }
 module_init(kp2000_pcie_init);
 
-static void __exit  kp2000_pcie_exit(void)
+static void __exit kp2000_pcie_exit(void)
 {
 	pci_unregister_driver(&kp2000_driver_inst);
 	class_destroy(kpc_uio_class);
