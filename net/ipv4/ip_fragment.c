@@ -82,9 +82,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	struct ipq *qp = container_of(q, struct ipq, q);
-	struct netns_ipv4 *ipv4 = container_of(q->fqdir, struct netns_ipv4,
-					       fqdir);
-	struct net *net = container_of(ipv4, struct net, ipv4);
+	struct net *net = q->fqdir->net;
 
 	const struct frag_v4_compare_key *key = a;
 
@@ -142,7 +140,7 @@ static void ip_expire(struct timer_list *t)
 	int err;
 
 	qp = container_of(frag, struct ipq, q);
-	net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
+	net = qp->q.fqdir->net;
 
 	rcu_read_lock();
 	spin_lock(&qp->q.lock);
@@ -236,12 +234,8 @@ static int ip_frag_too_far(struct ipq *qp)
 
 	rc = qp->q.fragments_tail && (end - start) > max;
 
-	if (rc) {
-		struct net *net;
-
-		net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
-		__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
-	}
+	if (rc)
+		__IP_INC_STATS(qp->q.fqdir->net, IPSTATS_MIB_REASMFAILS);
 
 	return rc;
 }
@@ -273,7 +267,7 @@ static int ip_frag_reinit(struct ipq *qp)
 /* Add new segment to existing queue. */
 static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 {
-	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
+	struct net *net = qp->q.fqdir->net;
 	int ihl, end, flags, offset;
 	struct sk_buff *prev_tail;
 	struct net_device *dev;
@@ -399,7 +393,7 @@ err:
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 			 struct sk_buff *prev_tail, struct net_device *dev)
 {
-	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
+	struct net *net = qp->q.fqdir->net;
 	struct iphdr *iph;
 	void *reasm_data;
 	int len, err;
@@ -673,7 +667,7 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 
 	net->ipv4.fqdir.max_dist = 64;
 
-	res = fqdir_init(&net->ipv4.fqdir, &ip4_frags);
+	res = fqdir_init(&net->ipv4.fqdir, &ip4_frags, net);
 	if (res < 0)
 		return res;
 	res = ip4_frags_ns_ctl_register(net);
