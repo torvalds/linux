@@ -145,13 +145,13 @@ static void inet_frags_free_cb(void *ptr, void *arg)
 	inet_frag_put(fq);
 }
 
-void inet_frags_exit_net(struct fqdir *fqdir)
+void fqdir_exit(struct fqdir *fqdir)
 {
 	fqdir->high_thresh = 0; /* prevent creation of new frags */
 
 	rhashtable_free_and_destroy(&fqdir->rhashtable, inet_frags_free_cb, NULL);
 }
-EXPORT_SYMBOL(inet_frags_exit_net);
+EXPORT_SYMBOL(fqdir_exit);
 
 void inet_frag_kill(struct inet_frag_queue *fq)
 {

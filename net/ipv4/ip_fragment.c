@@ -685,14 +685,14 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 		return res;
 	res = ip4_frags_ns_ctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&net->ipv4.frags);
+		fqdir_exit(&net->ipv4.frags);
 	return res;
 }
 
 static void __net_exit ipv4_frags_exit_net(struct net *net)
 {
 	ip4_frags_ns_ctl_unregister(net);
-	inet_frags_exit_net(&net->ipv4.frags);
+	fqdir_exit(&net->ipv4.frags);
 }
 
 static struct pernet_operations ip4_frags_ops = {

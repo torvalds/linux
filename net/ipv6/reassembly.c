@@ -528,14 +528,14 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 
 	res = ip6_frags_ns_sysctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&net->ipv6.frags);
+		fqdir_exit(&net->ipv6.frags);
 	return res;
 }
 
 static void __net_exit ipv6_frags_exit_net(struct net *net)
 {
 	ip6_frags_ns_sysctl_unregister(net);
-	inet_frags_exit_net(&net->ipv6.frags);
+	fqdir_exit(&net->ipv6.frags);
 }
 
 static struct pernet_operations ip6_frags_ops = {

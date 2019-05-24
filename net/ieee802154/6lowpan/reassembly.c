@@ -464,7 +464,7 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 		return res;
 	res = lowpan_frags_ns_sysctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&ieee802154_lowpan->frags);
+		fqdir_exit(&ieee802154_lowpan->frags);
 	return res;
 }
 
@@ -474,7 +474,7 @@ static void __net_exit lowpan_frags_exit_net(struct net *net)
 		net_ieee802154_lowpan(net);
 
 	lowpan_frags_ns_sysctl_unregister(net);
-	inet_frags_exit_net(&ieee802154_lowpan->frags);
+	fqdir_exit(&ieee802154_lowpan->frags);
 }
 
 static struct pernet_operations lowpan_frags_ops = {

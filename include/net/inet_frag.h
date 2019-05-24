@@ -109,7 +109,7 @@ static inline int inet_frags_init_net(struct fqdir *fqdir)
 	atomic_long_set(&fqdir->mem, 0);
 	return rhashtable_init(&fqdir->rhashtable, &fqdir->f->rhash_params);
 }
-void inet_frags_exit_net(struct fqdir *fqdir);
+void fqdir_exit(struct fqdir *fqdir);
 
 void inet_frag_kill(struct inet_frag_queue *q);
 void inet_frag_destroy(struct inet_frag_queue *q);
