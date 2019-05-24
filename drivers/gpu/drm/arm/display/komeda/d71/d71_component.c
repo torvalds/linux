@@ -156,11 +156,15 @@ static u32 to_ad_ctrl(u64 modifier)
 	return afbc_ctrl;
 }
 
-static inline u32 to_d71_input_id(struct komeda_component_output *output)
+static inline u32 to_d71_input_id(struct komeda_component_state *st, int idx)
 {
-	struct komeda_component *comp = output->component;
+	struct komeda_component_output *input = &st->inputs[idx];
 
-	return comp ? (comp->hw_id + output->output_port) : 0;
+	/* if input is not active, set hw input_id(0) to disable it */
+	if (has_bit(idx, st->active_inputs))
+		return input->component->hw_id + input->output_port;
+	else
+		return 0;
 }
 
 static void d71_layer_update_fb(struct komeda_component *c,
@@ -388,7 +392,7 @@ static void d71_wb_layer_update(struct komeda_component *c,
 		ctrl |= LW_TBU_EN;
 
 	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize, st->vsize));
-	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(&state->inputs[0]));
+	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(state, 0));
 	malidp_write32_mask(reg, BLK_CONTROL, mask, ctrl);
 }
 
@@ -512,15 +516,15 @@ static void d71_compiz_update(struct komeda_component *c,
 	struct komeda_compiz_state *st = to_compiz_st(state);
 	u32 __iomem *reg = c->reg;
 	u32 __iomem *id_reg, *cfg_reg;
-	u32 index, input_hw_id;
+	u32 index;
 
 	for_each_changed_input(state, index) {
 		id_reg = reg + index;
 		cfg_reg = reg + index * CU_PER_INPUT_REGS;
-		input_hw_id = to_d71_input_id(&state->inputs[index]);
 		if (state->active_inputs & BIT(index)) {
 			compiz_enable_input(id_reg, cfg_reg,
-					    input_hw_id, &st->cins[index]);
+					    to_d71_input_id(state, index),
+					    &st->cins[index]);
 		} else {
 			malidp_write32(id_reg, BLK_INPUT_ID0, 0);
 			malidp_write32(cfg_reg, CU_INPUT0_CONTROL, 0);
@@ -696,7 +700,7 @@ static void d71_scaler_update(struct komeda_component *c,
 		ctrl |= SC_CTRL_LS;
 
 	malidp_write32(reg, BLK_CONTROL, ctrl);
-	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(&state->inputs[0]));
+	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(state, 0));
 }
 
 static void d71_scaler_dump(struct komeda_component *c, struct seq_file *sf)
@@ -813,7 +817,7 @@ static void d71_merger_update(struct komeda_component *c,
 
 	for_each_changed_input(state, index)
 		malidp_write32(reg, MG_INPUT_ID0 + index * 4,
-			       to_d71_input_id(&state->inputs[index]));
+			       to_d71_input_id(state, index));
 
 	malidp_write32(reg, MG_SIZE, HV_SIZE(st->hsize_merged,
 					     st->vsize_merged));
@@ -880,13 +884,11 @@ static void d71_improc_update(struct komeda_component *c,
 {
 	struct komeda_improc_state *st = to_improc_st(state);
 	u32 __iomem *reg = c->reg;
-	u32 index, input_hw_id;
+	u32 index;
 
-	for_each_changed_input(state, index) {
-		input_hw_id = state->active_inputs & BIT(index) ?
-			      to_d71_input_id(&state->inputs[index]) : 0;
-		malidp_write32(reg, BLK_INPUT_ID0 + index * 4, input_hw_id);
-	}
+	for_each_changed_input(state, index)
+		malidp_write32(reg, BLK_INPUT_ID0 + index * 4,
+			       to_d71_input_id(state, index));
 
 	malidp_write32(reg, BLK_SIZE, HV_SIZE(st->hsize, st->vsize));
 }
