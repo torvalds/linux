@@ -1743,6 +1743,32 @@ static void hns3_nic_net_timeout(struct net_device *ndev)
 		h->ae_algo->ops->reset_event(h->pdev, h);
 }
 
+#ifdef CONFIG_RFS_ACCEL
+static int hns3_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
+			      u16 rxq_index, u32 flow_id)
+{
+	struct hnae3_handle *h = hns3_get_handle(dev);
+	struct flow_keys fkeys;
+
+	if (!h->ae_algo->ops->add_arfs_entry)
+		return -EOPNOTSUPP;
+
+	if (skb->encapsulation)
+		return -EPROTONOSUPPORT;
+
+	if (!skb_flow_dissect_flow_keys(skb, &fkeys, 0))
+		return -EPROTONOSUPPORT;
+
+	if ((fkeys.basic.n_proto != htons(ETH_P_IP) &&
+	     fkeys.basic.n_proto != htons(ETH_P_IPV6)) ||
+	    (fkeys.basic.ip_proto != IPPROTO_TCP &&
+	     fkeys.basic.ip_proto != IPPROTO_UDP))
+		return -EPROTONOSUPPORT;
+
+	return h->ae_algo->ops->add_arfs_entry(h, rxq_index, flow_id, &fkeys);
+}
+#endif
+
 static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_open		= hns3_nic_net_open,
 	.ndo_stop		= hns3_nic_net_stop,
@@ -1758,6 +1784,10 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= hns3_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= hns3_vlan_rx_kill_vid,
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer	= hns3_rx_flow_steer,
+#endif
+
 };
 
 bool hns3_is_phys_func(struct pci_dev *pdev)
@@ -2849,6 +2879,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 		return ret;
 	}
 
+	skb_record_rx_queue(skb, ring->tqp->tqp_index);
 	*out_skb = skb;
 
 	return 0;
