@@ -22,6 +22,7 @@ static int check_load(const char *file, enum bpf_prog_type type)
 	attr.file = file;
 	attr.prog_type = type;
 	attr.log_level = 4;
+	attr.prog_flags = BPF_F_TEST_RND_HI32;
 	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
 	bpf_object__close(obj);
 	if (err)
