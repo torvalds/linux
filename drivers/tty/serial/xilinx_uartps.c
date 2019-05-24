@@ -686,8 +686,6 @@ static void cdns_uart_set_termios(struct uart_port *port,
 	unsigned long flags;
 	unsigned int ctrl_reg, mode_reg;
 
-	spin_lock_irqsave(&port->lock, flags);
-
 	/* Wait for the transmit FIFO to empty before making changes */
 	if (!(readl(port->membase + CDNS_UART_CR) &
 				CDNS_UART_CR_TX_DIS)) {
@@ -696,6 +694,7 @@ static void cdns_uart_set_termios(struct uart_port *port,
 			cpu_relax();
 		}
 	}
+	spin_lock_irqsave(&port->lock, flags);
 
 	/* Disable the TX and RX to set baud rate */
 	ctrl_reg = readl(port->membase + CDNS_UART_CR);
