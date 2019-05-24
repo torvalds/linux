@@ -90,12 +90,12 @@ static int nf_ct_frag6_sysctl_register(struct net *net)
 			goto err_alloc;
 	}
 
-	table[0].data	= &net->nf_frag.fqdir.timeout;
-	table[1].data	= &net->nf_frag.fqdir.low_thresh;
-	table[1].extra2	= &net->nf_frag.fqdir.high_thresh;
-	table[2].data	= &net->nf_frag.fqdir.high_thresh;
-	table[2].extra1	= &net->nf_frag.fqdir.low_thresh;
-	table[2].extra2	= &init_net.nf_frag.fqdir.high_thresh;
+	table[0].data	= &net->nf_frag.fqdir->timeout;
+	table[1].data	= &net->nf_frag.fqdir->low_thresh;
+	table[1].extra2	= &net->nf_frag.fqdir->high_thresh;
+	table[2].data	= &net->nf_frag.fqdir->high_thresh;
+	table[2].extra1	= &net->nf_frag.fqdir->low_thresh;
+	table[2].extra2	= &init_net.nf_frag.fqdir->high_thresh;
 
 	hdr = register_net_sysctl(net, "net/netfilter", table);
 	if (hdr == NULL)
@@ -162,7 +162,7 @@ static struct frag_queue *fq_find(struct net *net, __be32 id, u32 user,
 	};
 	struct inet_frag_queue *q;
 
-	q = inet_frag_find(&net->nf_frag.fqdir, &key);
+	q = inet_frag_find(net->nf_frag.fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -489,23 +489,24 @@ static int nf_ct_net_init(struct net *net)
 {
 	int res;
 
-	net->nf_frag.fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
-	net->nf_frag.fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
-	net->nf_frag.fqdir.timeout = IPV6_FRAG_TIMEOUT;
-
 	res = fqdir_init(&net->nf_frag.fqdir, &nf_frags, net);
 	if (res < 0)
 		return res;
+
+	net->nf_frag.fqdir->high_thresh = IPV6_FRAG_HIGH_THRESH;
+	net->nf_frag.fqdir->low_thresh = IPV6_FRAG_LOW_THRESH;
+	net->nf_frag.fqdir->timeout = IPV6_FRAG_TIMEOUT;
+
 	res = nf_ct_frag6_sysctl_register(net);
 	if (res < 0)
-		fqdir_exit(&net->nf_frag.fqdir);
+		fqdir_exit(net->nf_frag.fqdir);
 	return res;
 }
 
 static void nf_ct_net_exit(struct net *net)
 {
 	nf_ct_frags6_sysctl_unregister(net);
-	fqdir_exit(&net->nf_frag.fqdir);
+	fqdir_exit(net->nf_frag.fqdir);
 }
 
 static struct pernet_operations nf_ct_net_ops = {

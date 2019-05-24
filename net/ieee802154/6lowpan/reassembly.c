@@ -79,7 +79,7 @@ fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 	key.src = *src;
 	key.dst = *dst;
 
-	q = inet_frag_find(&ieee802154_lowpan->fqdir, &key);
+	q = inet_frag_find(ieee802154_lowpan->fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -377,11 +377,11 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 			table[0].procname = NULL;
 	}
 
-	table[0].data	= &ieee802154_lowpan->fqdir.high_thresh;
-	table[0].extra1	= &ieee802154_lowpan->fqdir.low_thresh;
-	table[1].data	= &ieee802154_lowpan->fqdir.low_thresh;
-	table[1].extra2	= &ieee802154_lowpan->fqdir.high_thresh;
-	table[2].data	= &ieee802154_lowpan->fqdir.timeout;
+	table[0].data	= &ieee802154_lowpan->fqdir->high_thresh;
+	table[0].extra1	= &ieee802154_lowpan->fqdir->low_thresh;
+	table[1].data	= &ieee802154_lowpan->fqdir->low_thresh;
+	table[1].extra2	= &ieee802154_lowpan->fqdir->high_thresh;
+	table[2].data	= &ieee802154_lowpan->fqdir->timeout;
 
 	hdr = register_net_sysctl(net, "net/ieee802154/6lowpan", table);
 	if (hdr == NULL)
@@ -449,16 +449,18 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 		net_ieee802154_lowpan(net);
 	int res;
 
-	ieee802154_lowpan->fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
-	ieee802154_lowpan->fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
-	ieee802154_lowpan->fqdir.timeout = IPV6_FRAG_TIMEOUT;
 
 	res = fqdir_init(&ieee802154_lowpan->fqdir, &lowpan_frags, net);
 	if (res < 0)
 		return res;
+
+	ieee802154_lowpan->fqdir->high_thresh = IPV6_FRAG_HIGH_THRESH;
+	ieee802154_lowpan->fqdir->low_thresh = IPV6_FRAG_LOW_THRESH;
+	ieee802154_lowpan->fqdir->timeout = IPV6_FRAG_TIMEOUT;
+
 	res = lowpan_frags_ns_sysctl_register(net);
 	if (res < 0)
-		fqdir_exit(&ieee802154_lowpan->fqdir);
+		fqdir_exit(ieee802154_lowpan->fqdir);
 	return res;
 }
 
@@ -468,7 +470,7 @@ static void __net_exit lowpan_frags_exit_net(struct net *net)
 		net_ieee802154_lowpan(net);
 
 	lowpan_frags_ns_sysctl_unregister(net);
-	fqdir_exit(&ieee802154_lowpan->fqdir);
+	fqdir_exit(ieee802154_lowpan->fqdir);
 }
 
 static struct pernet_operations lowpan_frags_ops = {

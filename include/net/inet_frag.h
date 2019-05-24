@@ -105,14 +105,25 @@ struct inet_frags {
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-static inline int fqdir_init(struct fqdir *fqdir, struct inet_frags *f,
+static inline int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f,
 			     struct net *net)
 {
+	struct fqdir *fqdir = kzalloc(sizeof(*fqdir), GFP_KERNEL);
+	int res;
+
+	if (!fqdir)
+		return -ENOMEM;
 	fqdir->f = f;
 	fqdir->net = net;
-	atomic_long_set(&fqdir->mem, 0);
-	return rhashtable_init(&fqdir->rhashtable, &fqdir->f->rhash_params);
+	res = rhashtable_init(&fqdir->rhashtable, &fqdir->f->rhash_params);
+	if (res < 0) {
+		kfree(fqdir);
+		return res;
+	}
+	*fqdirp = fqdir;
+	return 0;
 }
+
 void fqdir_exit(struct fqdir *fqdir);
 
 void inet_frag_kill(struct inet_frag_queue *q);

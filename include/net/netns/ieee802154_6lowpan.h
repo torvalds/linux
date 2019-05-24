@@ -16,7 +16,7 @@ struct netns_sysctl_lowpan {
 
 struct netns_ieee802154_lowpan {
 	struct netns_sysctl_lowpan sysctl;
-	struct fqdir		fqdir;
+	struct fqdir		*fqdir;
 };
 
 #endif

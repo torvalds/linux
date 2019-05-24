@@ -98,7 +98,7 @@ fq_find(struct net *net, __be32 id, const struct ipv6hdr *hdr, int iif)
 					    IPV6_ADDR_LINKLOCAL)))
 		key.iif = 0;
 
-	q = inet_frag_find(&net->ipv6.fqdir, &key);
+	q = inet_frag_find(net->ipv6.fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -443,11 +443,11 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 			goto err_alloc;
 
 	}
-	table[0].data	= &net->ipv6.fqdir.high_thresh;
-	table[0].extra1	= &net->ipv6.fqdir.low_thresh;
-	table[1].data	= &net->ipv6.fqdir.low_thresh;
-	table[1].extra2	= &net->ipv6.fqdir.high_thresh;
-	table[2].data	= &net->ipv6.fqdir.timeout;
+	table[0].data	= &net->ipv6.fqdir->high_thresh;
+	table[0].extra1	= &net->ipv6.fqdir->low_thresh;
+	table[1].data	= &net->ipv6.fqdir->low_thresh;
+	table[1].extra2	= &net->ipv6.fqdir->high_thresh;
+	table[2].data	= &net->ipv6.fqdir->timeout;
 
 	hdr = register_net_sysctl(net, "net/ipv6", table);
 	if (!hdr)
@@ -510,24 +510,24 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 {
 	int res;
 
-	net->ipv6.fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
-	net->ipv6.fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
-	net->ipv6.fqdir.timeout = IPV6_FRAG_TIMEOUT;
-
 	res = fqdir_init(&net->ipv6.fqdir, &ip6_frags, net);
 	if (res < 0)
 		return res;
 
+	net->ipv6.fqdir->high_thresh = IPV6_FRAG_HIGH_THRESH;
+	net->ipv6.fqdir->low_thresh = IPV6_FRAG_LOW_THRESH;
+	net->ipv6.fqdir->timeout = IPV6_FRAG_TIMEOUT;
+
 	res = ip6_frags_ns_sysctl_register(net);
 	if (res < 0)
-		fqdir_exit(&net->ipv6.fqdir);
+		fqdir_exit(net->ipv6.fqdir);
 	return res;
 }
 
 static void __net_exit ipv6_frags_exit_net(struct net *net)
 {
 	ip6_frags_ns_sysctl_unregister(net);
-	fqdir_exit(&net->ipv6.fqdir);
+	fqdir_exit(net->ipv6.fqdir);
 }
 
 static struct pernet_operations ip6_frags_ops = {

@@ -209,7 +209,7 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 	};
 	struct inet_frag_queue *q;
 
-	q = inet_frag_find(&net->ipv4.fqdir, &key);
+	q = inet_frag_find(net->ipv4.fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -589,12 +589,12 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 			goto err_alloc;
 
 	}
-	table[0].data	= &net->ipv4.fqdir.high_thresh;
-	table[0].extra1	= &net->ipv4.fqdir.low_thresh;
-	table[1].data	= &net->ipv4.fqdir.low_thresh;
-	table[1].extra2	= &net->ipv4.fqdir.high_thresh;
-	table[2].data	= &net->ipv4.fqdir.timeout;
-	table[3].data	= &net->ipv4.fqdir.max_dist;
+	table[0].data	= &net->ipv4.fqdir->high_thresh;
+	table[0].extra1	= &net->ipv4.fqdir->low_thresh;
+	table[1].data	= &net->ipv4.fqdir->low_thresh;
+	table[1].extra2	= &net->ipv4.fqdir->high_thresh;
+	table[2].data	= &net->ipv4.fqdir->timeout;
+	table[3].data	= &net->ipv4.fqdir->max_dist;
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
 	if (!hdr)
@@ -642,6 +642,9 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 {
 	int res;
 
+	res = fqdir_init(&net->ipv4.fqdir, &ip4_frags, net);
+	if (res < 0)
+		return res;
 	/* Fragment cache limits.
 	 *
 	 * The fragment memory accounting code, (tries to) account for
@@ -656,30 +659,27 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	 * we will prune down to 3MB, making room for approx 8 big 64K
 	 * fragments 8x128k.
 	 */
-	net->ipv4.fqdir.high_thresh = 4 * 1024 * 1024;
-	net->ipv4.fqdir.low_thresh  = 3 * 1024 * 1024;
+	net->ipv4.fqdir->high_thresh = 4 * 1024 * 1024;
+	net->ipv4.fqdir->low_thresh  = 3 * 1024 * 1024;
 	/*
 	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
 	 * RFC791 is wrong proposing to prolongate timer each fragment arrival
 	 * by TTL.
 	 */
-	net->ipv4.fqdir.timeout = IP_FRAG_TIME;
+	net->ipv4.fqdir->timeout = IP_FRAG_TIME;
 
-	net->ipv4.fqdir.max_dist = 64;
+	net->ipv4.fqdir->max_dist = 64;
 
-	res = fqdir_init(&net->ipv4.fqdir, &ip4_frags, net);
-	if (res < 0)
-		return res;
 	res = ip4_frags_ns_ctl_register(net);
 	if (res < 0)
-		fqdir_exit(&net->ipv4.fqdir);
+		fqdir_exit(net->ipv4.fqdir);
 	return res;
 }
 
 static void __net_exit ipv4_frags_exit_net(struct net *net)
 {
 	ip4_frags_ns_ctl_unregister(net);
-	fqdir_exit(&net->ipv4.fqdir);
+	fqdir_exit(net->ipv4.fqdir);
 }
 
 static struct pernet_operations ip4_frags_ops = {

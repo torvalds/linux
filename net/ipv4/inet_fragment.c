@@ -150,6 +150,7 @@ void fqdir_exit(struct fqdir *fqdir)
 	fqdir->high_thresh = 0; /* prevent creation of new frags */
 
 	rhashtable_free_and_destroy(&fqdir->rhashtable, inet_frags_free_cb, NULL);
+	kfree(fqdir);
 }
 EXPORT_SYMBOL(fqdir_exit);
 
