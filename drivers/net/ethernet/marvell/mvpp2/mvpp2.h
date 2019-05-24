@@ -923,7 +923,7 @@ struct mvpp2_port {
 	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
 
 	/* List of steering rules active on that port */
-	struct mvpp2_ethtool_fs *rfs_rules[MVPP2_N_RFS_RULES];
+	struct mvpp2_ethtool_fs *rfs_rules[MVPP2_N_RFS_ENTRIES_PER_FLOW];
 	int n_rfs_rules;
 };
 
