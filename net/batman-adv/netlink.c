@@ -31,6 +31,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <net/genetlink.h>
+#include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <net/sock.h>
 #include <uapi/linux/batadv_packet.h>
@@ -49,8 +50,6 @@
 #include "soft-interface.h"
 #include "tp_meter.h"
 #include "translation-table.h"
-
-struct net;
 
 struct genl_family batadv_netlink_family;
 

@@ -210,16 +210,15 @@ enum batadv_uev_type {
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
+#include <linux/netdevice.h>
 #include <linux/percpu.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
 #include <uapi/linux/batadv_packet.h>
 
 #include "types.h"
-
-struct net_device;
-struct packet_type;
-struct seq_file;
-struct sk_buff;
+#include "main.h"
 
 /**
  * batadv_print_vid() - return printable version of vid information

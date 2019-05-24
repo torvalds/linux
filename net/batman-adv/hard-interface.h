@@ -11,13 +11,12 @@
 
 #include <linux/compiler.h>
 #include <linux/kref.h>
+#include <linux/netdevice.h>
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
-
-struct net_device;
-struct net;
+#include <net/net_namespace.h>
 
 /**
  * enum batadv_hard_if_state - State of a hard interface

@@ -9,12 +9,11 @@
 
 #include "main.h"
 
+#include <linux/netdevice.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
-
-struct batadv_ogm_packet;
-struct net_device;
-struct seq_file;
-struct sk_buff;
+#include <uapi/linux/batadv_packet.h>
 
 #ifdef CONFIG_BATMAN_ADV_NC
 

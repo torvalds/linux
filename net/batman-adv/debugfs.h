@@ -9,8 +9,8 @@
 
 #include "main.h"
 
-struct file;
-struct net_device;
+#include <linux/fs.h>
+#include <linux/netdevice.h>
 
 #define BATADV_DEBUGFS_SUBDIR "batman_adv"
 

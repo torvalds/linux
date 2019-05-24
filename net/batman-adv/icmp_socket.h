@@ -10,8 +10,7 @@
 #include "main.h"
 
 #include <linux/types.h>
-
-struct batadv_icmp_header;
+#include <uapi/linux/batadv_packet.h>
 
 #define BATADV_ICMP_SOCKET "socket"
 

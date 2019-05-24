@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
+#include <linux/netlink.h>
 #include <linux/percpu.h>
 #include <linux/printk.h>
 #include <linux/random.h>
