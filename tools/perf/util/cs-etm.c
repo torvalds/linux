@@ -80,6 +80,7 @@ struct cs_etm_queue {
 	struct cs_etm_decoder *decoder;
 	struct auxtrace_buffer *buffer;
 	unsigned int queue_nr;
+	u8 pending_timestamp;
 	u64 offset;
 	const unsigned char *buf;
 	size_t buf_len, buf_used;
@@ -131,6 +132,19 @@ int cs_etm__get_cpu(u8 trace_chan_id, int *cpu)
 	metadata = inode->priv;
 	*cpu = (int)metadata[CS_ETM_CPU];
 	return 0;
+}
+
+void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
+					      u8 trace_chan_id)
+{
+	/*
+	 * Wnen a timestamp packet is encountered the backend code
+	 * is stopped so that the front end has time to process packets
+	 * that were accumulated in the traceID queue.  Since there can
+	 * be more than one channel per cs_etm_queue, we need to specify
+	 * what traceID queue needs servicing.
+	 */
+	etmq->pending_timestamp = trace_chan_id;
 }
 
 static void cs_etm__clear_packet_queue(struct cs_etm_packet_queue *queue)
@@ -940,6 +954,11 @@ int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
 
 	cs_etm__set_pid_tid_cpu(etm, tidq);
 	return 0;
+}
+
+bool cs_etm__etmq_is_timeless(struct cs_etm_queue *etmq)
+{
+	return !!etmq->etm->timeless_decoding;
 }
 
 static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
