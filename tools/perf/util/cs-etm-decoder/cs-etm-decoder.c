@@ -41,15 +41,14 @@ static u32
 cs_etm_decoder__mem_access(const void *context,
 			   const ocsd_vaddr_t address,
 			   const ocsd_mem_space_acc_t mem_space __maybe_unused,
+			   const u8 trace_chan_id,
 			   const u32 req_size,
 			   u8 *buffer)
 {
 	struct cs_etm_decoder *decoder = (struct cs_etm_decoder *) context;
 
-	return decoder->mem_access(decoder->data,
-				   address,
-				   req_size,
-				   buffer);
+	return decoder->mem_access(decoder->data, trace_chan_id,
+				   address, req_size, buffer);
 }
 
 int cs_etm_decoder__add_mem_access_cb(struct cs_etm_decoder *decoder,
@@ -58,9 +57,10 @@ int cs_etm_decoder__add_mem_access_cb(struct cs_etm_decoder *decoder,
 {
 	decoder->mem_access = cb_func;
 
-	if (ocsd_dt_add_callback_mem_acc(decoder->dcd_tree, start, end,
-					 OCSD_MEM_SPACE_ANY,
-					 cs_etm_decoder__mem_access, decoder))
+	if (ocsd_dt_add_callback_trcid_mem_acc(decoder->dcd_tree, start, end,
+					       OCSD_MEM_SPACE_ANY,
+					       cs_etm_decoder__mem_access,
+					       decoder))
 		return -1;
 
 	return 0;
