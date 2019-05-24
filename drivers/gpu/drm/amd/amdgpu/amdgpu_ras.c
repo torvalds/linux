@@ -244,8 +244,8 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 
 	return 0;
 }
-/*
- * DOC: ras debugfs control interface
+/**
+ * DOC: AMDGPU RAS debugfs control interface
  *
  * It accepts struct ras_debug_if who has two members.
  *
