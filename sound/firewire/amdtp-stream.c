@@ -674,6 +674,8 @@ static int handle_in_packet(struct amdtp_stream *s, unsigned int cycle,
 		cip_header = NULL;
 		data_blocks = payload_length / 4 / s->data_block_quadlets;
 		syt = 0;
+		s->data_block_counter =
+				(s->data_block_counter + data_blocks) & 0xff;
 	}
 
 	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
