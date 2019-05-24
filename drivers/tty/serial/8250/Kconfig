@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # The 8250/16550 serial drivers.  You shouldn't be in this list unless
 # you somehow have an implicit or explicit dependency on SERIAL_8250.

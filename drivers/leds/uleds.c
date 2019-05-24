@@ -74,7 +74,7 @@ static int uleds_open(struct inode *inode, struct file *file)
 	udev->state = ULEDS_STATE_UNKNOWN;
 
 	file->private_data = udev;
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 }

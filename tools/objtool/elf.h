@@ -61,7 +61,8 @@ struct symbol {
 	unsigned char bind, type;
 	unsigned long offset;
 	unsigned int len;
-	struct symbol *pfunc, *cfunc;
+	struct symbol *pfunc, *cfunc, *alias;
+	bool uaccess_safe;
 };
 
 struct rela {

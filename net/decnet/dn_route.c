@@ -1651,8 +1651,8 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_dn_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+				     rtm_dn_policy, extack);
 	if (err < 0)
 		return err;
 

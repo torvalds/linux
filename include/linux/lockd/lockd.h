@@ -70,6 +70,7 @@ struct nlm_host {
 	struct nsm_handle	*h_nsmhandle;	/* NSM status handle */
 	char			*h_addrbuf;	/* address eyecatcher */
 	struct net		*net;		/* host net */
+	const struct cred	*h_cred;
 	char			nodename[UNX_MAXNODENAME + 1];
 	const struct nlmclnt_operations	*h_nlmclnt_ops;	/* Callback ops for NLM users */
 };
@@ -229,7 +230,8 @@ struct nlm_host  *nlmclnt_lookup_host(const struct sockaddr *sap,
 					const u32 version,
 					const char *hostname,
 					int noresvport,
-					struct net *net);
+					struct net *net,
+					const struct cred *cred);
 void		  nlmclnt_release_host(struct nlm_host *);
 struct nlm_host  *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 					const char *hostname,

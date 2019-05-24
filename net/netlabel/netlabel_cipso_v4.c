@@ -99,9 +99,10 @@ static int netlbl_cipsov4_add_common(struct genl_info *info,
 
 	doi_def->doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
 
-	if (nla_validate_nested(info->attrs[NLBL_CIPSOV4_A_TAGLST],
-				NLBL_CIPSOV4_A_MAX,
-				netlbl_cipsov4_genl_policy, NULL) != 0)
+	if (nla_validate_nested_deprecated(info->attrs[NLBL_CIPSOV4_A_TAGLST],
+					   NLBL_CIPSOV4_A_MAX,
+					   netlbl_cipsov4_genl_policy,
+					   NULL) != 0)
 		return -EINVAL;
 
 	nla_for_each_nested(nla, info->attrs[NLBL_CIPSOV4_A_TAGLST], nla_rem)
@@ -146,9 +147,10 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 	    !info->attrs[NLBL_CIPSOV4_A_MLSLVLLST])
 		return -EINVAL;
 
-	if (nla_validate_nested(info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
-				NLBL_CIPSOV4_A_MAX,
-				netlbl_cipsov4_genl_policy, NULL) != 0)
+	if (nla_validate_nested_deprecated(info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
+					   NLBL_CIPSOV4_A_MAX,
+					   netlbl_cipsov4_genl_policy,
+					   NULL) != 0)
 		return -EINVAL;
 
 	doi_def = kmalloc(sizeof(*doi_def), GFP_KERNEL);
@@ -170,9 +172,10 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 			    info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
 			    nla_a_rem)
 		if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSLVL) {
-			if (nla_validate_nested(nla_a, NLBL_CIPSOV4_A_MAX,
-						netlbl_cipsov4_genl_policy,
-						NULL) != 0)
+			if (nla_validate_nested_deprecated(nla_a,
+							   NLBL_CIPSOV4_A_MAX,
+							   netlbl_cipsov4_genl_policy,
+							   NULL) != 0)
 				goto add_std_failure;
 			nla_for_each_nested(nla_b, nla_a, nla_b_rem)
 				switch (nla_type(nla_b)) {
@@ -234,19 +237,20 @@ static int netlbl_cipsov4_add_std(struct genl_info *info,
 		}
 
 	if (info->attrs[NLBL_CIPSOV4_A_MLSCATLST]) {
-		if (nla_validate_nested(info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
-					NLBL_CIPSOV4_A_MAX,
-					netlbl_cipsov4_genl_policy, NULL) != 0)
+		if (nla_validate_nested_deprecated(info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
+						   NLBL_CIPSOV4_A_MAX,
+						   netlbl_cipsov4_genl_policy,
+						   NULL) != 0)
 			goto add_std_failure;
 
 		nla_for_each_nested(nla_a,
 				    info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
 				    nla_a_rem)
 			if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSCAT) {
-				if (nla_validate_nested(nla_a,
-							NLBL_CIPSOV4_A_MAX,
-							netlbl_cipsov4_genl_policy,
-							NULL) != 0)
+				if (nla_validate_nested_deprecated(nla_a,
+								   NLBL_CIPSOV4_A_MAX,
+								   netlbl_cipsov4_genl_policy,
+								   NULL) != 0)
 					goto add_std_failure;
 				nla_for_each_nested(nla_b, nla_a, nla_b_rem)
 					switch (nla_type(nla_b)) {
@@ -498,7 +502,7 @@ list_start:
 	if (ret_val != 0)
 		goto list_failure_lock;
 
-	nla_a = nla_nest_start(ans_skb, NLBL_CIPSOV4_A_TAGLST);
+	nla_a = nla_nest_start_noflag(ans_skb, NLBL_CIPSOV4_A_TAGLST);
 	if (nla_a == NULL) {
 		ret_val = -ENOMEM;
 		goto list_failure_lock;
@@ -517,7 +521,8 @@ list_start:
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_TRANS:
-		nla_a = nla_nest_start(ans_skb, NLBL_CIPSOV4_A_MLSLVLLST);
+		nla_a = nla_nest_start_noflag(ans_skb,
+					      NLBL_CIPSOV4_A_MLSLVLLST);
 		if (nla_a == NULL) {
 			ret_val = -ENOMEM;
 			goto list_failure_lock;
@@ -529,7 +534,8 @@ list_start:
 			    CIPSO_V4_INV_LVL)
 				continue;
 
-			nla_b = nla_nest_start(ans_skb, NLBL_CIPSOV4_A_MLSLVL);
+			nla_b = nla_nest_start_noflag(ans_skb,
+						      NLBL_CIPSOV4_A_MLSLVL);
 			if (nla_b == NULL) {
 				ret_val = -ENOMEM;
 				goto list_retry;
@@ -548,7 +554,8 @@ list_start:
 		}
 		nla_nest_end(ans_skb, nla_a);
 
-		nla_a = nla_nest_start(ans_skb, NLBL_CIPSOV4_A_MLSCATLST);
+		nla_a = nla_nest_start_noflag(ans_skb,
+					      NLBL_CIPSOV4_A_MLSCATLST);
 		if (nla_a == NULL) {
 			ret_val = -ENOMEM;
 			goto list_retry;
@@ -560,7 +567,8 @@ list_start:
 			    CIPSO_V4_INV_CAT)
 				continue;
 
-			nla_b = nla_nest_start(ans_skb, NLBL_CIPSOV4_A_MLSCAT);
+			nla_b = nla_nest_start_noflag(ans_skb,
+						      NLBL_CIPSOV4_A_MLSCAT);
 			if (nla_b == NULL) {
 				ret_val = -ENOMEM;
 				goto list_retry;
@@ -733,29 +741,29 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 static const struct genl_ops netlbl_cipsov4_ops[] = {
 	{
 	.cmd = NLBL_CIPSOV4_C_ADD,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_cipsov4_genl_policy,
 	.doit = netlbl_cipsov4_add,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CIPSOV4_C_REMOVE,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_cipsov4_genl_policy,
 	.doit = netlbl_cipsov4_remove,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CIPSOV4_C_LIST,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_cipsov4_genl_policy,
 	.doit = netlbl_cipsov4_list,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_CIPSOV4_C_LISTALL,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_cipsov4_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_cipsov4_listall,
 	},
@@ -766,6 +774,7 @@ static struct genl_family netlbl_cipsov4_gnl_family __ro_after_init = {
 	.name = NETLBL_NLTYPE_CIPSOV4_NAME,
 	.version = NETLBL_PROTO_VERSION,
 	.maxattr = NLBL_CIPSOV4_A_MAX,
+	.policy = netlbl_cipsov4_genl_policy,
 	.module = THIS_MODULE,
 	.ops = netlbl_cipsov4_ops,
 	.n_ops = ARRAY_SIZE(netlbl_cipsov4_ops),

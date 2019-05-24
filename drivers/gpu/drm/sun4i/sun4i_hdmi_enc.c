@@ -217,7 +217,7 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int ret;
 
-	edid = drm_get_edid(connector, hdmi->i2c);
+	edid = drm_get_edid(connector, hdmi->ddc_i2c ?: hdmi->i2c);
 	if (!edid)
 		return 0;
 
@@ -231,6 +231,28 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 	kfree(edid);
 
 	return ret;
+}
+
+static struct i2c_adapter *sun4i_hdmi_get_ddc(struct device *dev)
+{
+	struct device_node *phandle, *remote;
+	struct i2c_adapter *ddc;
+
+	remote = of_graph_get_remote_node(dev->of_node, 1, -1);
+	if (!remote)
+		return ERR_PTR(-EINVAL);
+
+	phandle = of_parse_phandle(remote, "ddc-i2c-bus", 0);
+	of_node_put(remote);
+	if (!phandle)
+		return ERR_PTR(-ENODEV);
+
+	ddc = of_get_i2c_adapter_by_node(phandle);
+	of_node_put(phandle);
+	if (!ddc)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	return ddc;
 }
 
 static const struct drm_connector_helper_funcs sun4i_hdmi_connector_helper_funcs = {
@@ -580,6 +602,15 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 		goto err_disable_mod_clk;
 	}
 
+	hdmi->ddc_i2c = sun4i_hdmi_get_ddc(dev);
+	if (IS_ERR(hdmi->ddc_i2c)) {
+		ret = PTR_ERR(hdmi->ddc_i2c);
+		if (ret == -ENODEV)
+			hdmi->ddc_i2c = NULL;
+		else
+			goto err_del_i2c_adapter;
+	}
+
 	drm_encoder_helper_add(&hdmi->encoder,
 			       &sun4i_hdmi_helper_funcs);
 	ret = drm_encoder_init(drm,
@@ -589,14 +620,14 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 			       NULL);
 	if (ret) {
 		dev_err(dev, "Couldn't initialise the HDMI encoder\n");
-		goto err_del_i2c_adapter;
+		goto err_put_ddc_i2c;
 	}
 
 	hdmi->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
 								  dev->of_node);
 	if (!hdmi->encoder.possible_crtcs) {
 		ret = -EPROBE_DEFER;
-		goto err_del_i2c_adapter;
+		goto err_put_ddc_i2c;
 	}
 
 #ifdef CONFIG_DRM_SUN4I_HDMI_CEC
@@ -635,6 +666,8 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 err_cleanup_connector:
 	cec_delete_adapter(hdmi->cec_adap);
 	drm_encoder_cleanup(&hdmi->encoder);
+err_put_ddc_i2c:
+	i2c_put_adapter(hdmi->ddc_i2c);
 err_del_i2c_adapter:
 	i2c_del_adapter(hdmi->i2c);
 err_disable_mod_clk:
@@ -655,6 +688,7 @@ static void sun4i_hdmi_unbind(struct device *dev, struct device *master,
 	drm_connector_cleanup(&hdmi->connector);
 	drm_encoder_cleanup(&hdmi->encoder);
 	i2c_del_adapter(hdmi->i2c);
+	i2c_put_adapter(hdmi->ddc_i2c);
 	clk_disable_unprepare(hdmi->mod_clk);
 	clk_disable_unprepare(hdmi->bus_clk);
 }

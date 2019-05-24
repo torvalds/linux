@@ -798,16 +798,11 @@ static void start_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	enable_phy_v1_hw(hisi_hba, phy_no);
 }
 
-static void stop_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
-{
-	disable_phy_v1_hw(hisi_hba, phy_no);
-}
-
 static void phy_hard_reset_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
-	stop_phy_v1_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
 	msleep(100);
-	start_phy_v1_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
 }
 
 static void start_phys_v1_hw(struct timer_list *t)
@@ -817,7 +812,7 @@ static void start_phys_v1_hw(struct timer_list *t)
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x12a);
-		start_phy_v1_hw(hisi_hba, i);
+		hisi_sas_phy_enable(hisi_hba, i, 1);
 	}
 }
 
@@ -1695,8 +1690,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		for (j = 0; j < HISI_SAS_PHY_INT_NR; j++, idx++) {
 			irq = platform_get_irq(pdev, idx);
 			if (!irq) {
-				dev_err(dev,
-					"irq init: fail map phy interrupt %d\n",
+				dev_err(dev, "irq init: fail map phy interrupt %d\n",
 					idx);
 				return -ENOENT;
 			}
@@ -1704,8 +1698,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 			rc = devm_request_irq(dev, irq, phy_interrupts[j], 0,
 					      DRV_NAME " phy", phy);
 			if (rc) {
-				dev_err(dev, "irq init: could not request "
-					"phy interrupt %d, rc=%d\n",
+				dev_err(dev, "irq init: could not request phy interrupt %d, rc=%d\n",
 					irq, rc);
 				return -ENOENT;
 			}
@@ -1742,8 +1735,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		rc = devm_request_irq(dev, irq, fatal_interrupts[i], 0,
 				      DRV_NAME " fatal", hisi_hba);
 		if (rc) {
-			dev_err(dev,
-				"irq init: could not request fatal interrupt %d, rc=%d\n",
+			dev_err(dev, "irq init: could not request fatal interrupt %d, rc=%d\n",
 				irq, rc);
 			return -ENOENT;
 		}
@@ -1823,6 +1815,7 @@ static struct scsi_host_template sht_v1_hw = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= host_attrs_v1_hw,
+	.host_reset             = hisi_sas_host_reset,
 };
 
 static const struct hisi_sas_hw hisi_sas_v1_hw = {

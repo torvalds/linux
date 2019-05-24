@@ -205,7 +205,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_RED_MAX, opt, red_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_RED_MAX, opt, red_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -318,7 +319,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (err)
 		goto nla_put_failure;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_RED_PARMS, sizeof(opt), &opt) ||

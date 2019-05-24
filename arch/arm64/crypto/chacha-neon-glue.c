@@ -21,6 +21,7 @@
 
 #include <crypto/algapi.h>
 #include <crypto/chacha.h>
+#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -90,7 +91,7 @@ static int chacha_neon(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct chacha_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !may_use_simd())
+	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !crypto_simd_usable())
 		return crypto_chacha_crypt(req);
 
 	return chacha_neon_stream_xor(req, ctx, req->iv);
@@ -104,7 +105,7 @@ static int xchacha_neon(struct skcipher_request *req)
 	u32 state[16];
 	u8 real_iv[16];
 
-	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !may_use_simd())
+	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !crypto_simd_usable())
 		return crypto_xchacha_crypt(req);
 
 	crypto_chacha_init(state, ctx, req->iv);
@@ -173,7 +174,7 @@ static struct skcipher_alg algs[] = {
 
 static int __init chacha_simd_mod_init(void)
 {
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
 	return crypto_register_skciphers(algs, ARRAY_SIZE(algs));

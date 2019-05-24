@@ -18,7 +18,7 @@
 #include <linux/sh_intc.h>
 #include <cpu/sh7786.h>
 #include "pcie-sh7786.h"
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 struct sh7786_pcie_port {
 	struct pci_channel	*hose;

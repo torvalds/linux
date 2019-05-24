@@ -314,7 +314,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 #ifdef USE_CLEAR_DIRTY_LOG
 	struct kvm_enable_cap cap = {};
 
-	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT;
+	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
 	cap.args[0] = 1;
 	vm_enable_cap(vm, &cap);
 #endif
@@ -430,7 +430,7 @@ int main(int argc, char *argv[])
 	int opt, i;
 
 #ifdef USE_CLEAR_DIRTY_LOG
-	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT)) {
+	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2)) {
 		fprintf(stderr, "KVM_CLEAR_DIRTY_LOG not available, skipping tests\n");
 		exit(KSFT_SKIP);
 	}

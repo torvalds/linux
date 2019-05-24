@@ -33,7 +33,6 @@
 extern "C" {
 #endif
 
-#define DRM_DISPLAY_INFO_LEN	32
 #define DRM_CONNECTOR_NAME_LEN	32
 #define DRM_DISPLAY_MODE_LEN	32
 #define DRM_PROP_NAME_LEN	32
@@ -622,7 +621,8 @@ struct drm_color_ctm {
 
 struct drm_color_lut {
 	/*
-	 * Data is U0.16 fixed point format.
+	 * Values are mapped linearly to 0.0 - 1.0 range, with 0x0 == 0.0 and
+	 * 0xffff == 1.0.
 	 */
 	__u16 red;
 	__u16 green;

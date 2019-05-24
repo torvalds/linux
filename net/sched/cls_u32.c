@@ -847,7 +847,7 @@ static struct tc_u_knode *u32_init_knode(struct net *net, struct tcf_proto *tp,
 	/* Similarly success statistics must be moved as pointers */
 	new->pcpu_success = n->pcpu_success;
 #endif
-	memcpy(&new->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
+	memcpy(&new->sel, s, struct_size(s, keys, s->nkeys));
 
 	if (tcf_exts_init(&new->exts, net, TCA_U32_ACT, TCA_U32_POLICE)) {
 		kfree(new);
@@ -884,7 +884,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		}
 	}
 
-	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_U32_MAX, opt, u32_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -1294,7 +1295,7 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = n->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

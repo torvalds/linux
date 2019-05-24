@@ -86,8 +86,9 @@ static struct watchdog_device ux500_wdt = {
 
 static int ux500_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
-	struct ux500_wdt_data *pdata = dev_get_platdata(&pdev->dev);
+	struct ux500_wdt_data *pdata = dev_get_platdata(dev);
 
 	if (pdata) {
 		if (pdata->timeout > 0)
@@ -96,7 +97,7 @@ static int ux500_wdt_probe(struct platform_device *pdev)
 			ux500_wdt.max_timeout = WATCHDOG_MAX28;
 	}
 
-	ux500_wdt.parent = &pdev->dev;
+	ux500_wdt.parent = dev;
 	watchdog_set_nowayout(&ux500_wdt, nowayout);
 
 	/* disable auto off on sleep */
@@ -105,18 +106,11 @@ static int ux500_wdt_probe(struct platform_device *pdev)
 	/* set HW initial value */
 	prcmu_load_a9wdog(PRCMU_WDOG_ALL, timeout * 1000);
 
-	ret = watchdog_register_device(&ux500_wdt);
+	ret = devm_watchdog_register_device(dev, &ux500_wdt);
 	if (ret)
 		return ret;
 
-	dev_info(&pdev->dev, "initialized\n");
-
-	return 0;
-}
-
-static int ux500_wdt_remove(struct platform_device *dev)
-{
-	watchdog_unregister_device(&ux500_wdt);
+	dev_info(dev, "initialized\n");
 
 	return 0;
 }
@@ -153,7 +147,6 @@ static int ux500_wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver ux500_wdt_driver = {
 	.probe		= ux500_wdt_probe,
-	.remove		= ux500_wdt_remove,
 	.suspend	= ux500_wdt_suspend,
 	.resume		= ux500_wdt_resume,
 	.driver		= {

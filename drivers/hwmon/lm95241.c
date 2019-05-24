@@ -418,33 +418,15 @@ static void lm95241_init_client(struct i2c_client *client,
 				  data->model);
 }
 
-static const u32 lm95241_chip_config[] = {
-	HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info lm95241_chip = {
-	.type = hwmon_chip,
-	.config = lm95241_chip_config,
-};
-
-static const u32 lm95241_temp_config[] = {
-	HWMON_T_INPUT,
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN | HWMON_T_TYPE |
-		HWMON_T_FAULT,
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN | HWMON_T_TYPE |
-		HWMON_T_FAULT,
-	0
-};
-
-static const struct hwmon_channel_info lm95241_temp = {
-	.type = hwmon_temp,
-	.config = lm95241_temp_config,
-};
-
 static const struct hwmon_channel_info *lm95241_info[] = {
-	&lm95241_chip,
-	&lm95241_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+			   HWMON_T_TYPE | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+			   HWMON_T_TYPE | HWMON_T_FAULT),
 	NULL
 };
 

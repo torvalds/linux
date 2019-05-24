@@ -27,7 +27,7 @@ DECLARE_EVENT_CLASS(preemptirq_template,
 		__entry->parent_offs = (u32)(parent_ip - (unsigned long)_stext);
 	),
 
-	TP_printk("caller=%pF parent=%pF",
+	TP_printk("caller=%pS parent=%pS",
 		  (void *)((unsigned long)(_stext) + __entry->caller_offs),
 		  (void *)((unsigned long)(_stext) + __entry->parent_offs))
 );

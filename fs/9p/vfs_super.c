@@ -344,7 +344,7 @@ static int v9fs_write_inode_dotl(struct inode *inode,
 
 static const struct super_operations v9fs_super_ops = {
 	.alloc_inode = v9fs_alloc_inode,
-	.destroy_inode = v9fs_destroy_inode,
+	.free_inode = v9fs_free_inode,
 	.statfs = simple_statfs,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = v9fs_show_options,
@@ -354,7 +354,7 @@ static const struct super_operations v9fs_super_ops = {
 
 static const struct super_operations v9fs_super_ops_dotl = {
 	.alloc_inode = v9fs_alloc_inode,
-	.destroy_inode = v9fs_destroy_inode,
+	.free_inode = v9fs_free_inode,
 	.statfs = v9fs_statfs,
 	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,

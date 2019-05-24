@@ -14,6 +14,7 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/sha.h>
 #include <crypto/sha256_base.h>
 #include <linux/cryptohash.h>
@@ -89,7 +90,7 @@ static int sha256_update_neon(struct shash_desc *desc, const u8 *data,
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return sha256_base_do_update(desc, data, len,
 				(sha256_block_fn *)sha256_block_data_order);
 
@@ -119,7 +120,7 @@ static int sha256_update_neon(struct shash_desc *desc, const u8 *data,
 static int sha256_finup_neon(struct shash_desc *desc, const u8 *data,
 			     unsigned int len, u8 *out)
 {
-	if (!may_use_simd()) {
+	if (!crypto_simd_usable()) {
 		if (len)
 			sha256_base_do_update(desc, data, len,
 				(sha256_block_fn *)sha256_block_data_order);
@@ -173,7 +174,7 @@ static int __init sha256_mod_init(void)
 	if (ret)
 		return ret;
 
-	if (elf_hwcap & HWCAP_ASIMD) {
+	if (cpu_have_named_feature(ASIMD)) {
 		ret = crypto_register_shashes(neon_algs, ARRAY_SIZE(neon_algs));
 		if (ret)
 			crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
@@ -183,7 +184,7 @@ static int __init sha256_mod_init(void)
 
 static void __exit sha256_mod_fini(void)
 {
-	if (elf_hwcap & HWCAP_ASIMD)
+	if (cpu_have_named_feature(ASIMD))
 		crypto_unregister_shashes(neon_algs, ARRAY_SIZE(neon_algs));
 	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 }

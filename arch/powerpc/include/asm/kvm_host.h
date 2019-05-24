@@ -201,6 +201,8 @@ struct kvmppc_spapr_tce_iommu_table {
 	struct kref kref;
 };
 
+#define TCES_PER_PAGE	(PAGE_SIZE / sizeof(u64))
+
 struct kvmppc_spapr_tce_table {
 	struct list_head list;
 	struct kvm *kvm;
@@ -210,6 +212,7 @@ struct kvmppc_spapr_tce_table {
 	u64 offset;		/* in pages */
 	u64 size;		/* window size in pages */
 	struct list_head iommu_tables;
+	struct mutex alloc_lock;
 	struct page *pages[0];
 };
 
@@ -222,6 +225,7 @@ extern struct kvm_device_ops kvm_xics_ops;
 struct kvmppc_xive;
 struct kvmppc_xive_vcpu;
 extern struct kvm_device_ops kvm_xive_ops;
+extern struct kvm_device_ops kvm_xive_native_ops;
 
 struct kvmppc_passthru_irqmap;
 
@@ -312,7 +316,11 @@ struct kvm_arch {
 #endif
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_xics *xics;
-	struct kvmppc_xive *xive;
+	struct kvmppc_xive *xive;    /* Current XIVE device in use */
+	struct {
+		struct kvmppc_xive *native;
+		struct kvmppc_xive *xics_on_xive;
+	} xive_devices;
 	struct kvmppc_passthru_irqmap *pimap;
 #endif
 	struct kvmppc_ops *kvm_ops;
@@ -449,6 +457,7 @@ struct kvmppc_passthru_irqmap {
 #define KVMPPC_IRQ_DEFAULT	0
 #define KVMPPC_IRQ_MPIC		1
 #define KVMPPC_IRQ_XICS		2 /* Includes a XIVE option */
+#define KVMPPC_IRQ_XIVE		3 /* XIVE native exploitation mode */
 
 #define MMIO_HPTE_CACHE_SIZE	4
 

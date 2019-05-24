@@ -126,7 +126,7 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 static int function_handler(struct trace_seq *s, struct tep_record *record,
 			    struct tep_event *event, void *context)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *tep = event->tep;
 	unsigned long long function;
 	unsigned long long pfunction;
 	const char *func;
@@ -136,12 +136,12 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
-	func = tep_find_function(pevent, function);
+	func = tep_find_function(tep, function);
 
 	if (tep_get_field_val(s, event, "parent_ip", record, &pfunction, 1))
 		return trace_seq_putc(s, '!');
 
-	parent = tep_find_function(pevent, pfunction);
+	parent = tep_find_function(tep, pfunction);
 
 	if (parent && ftrace_indent->set)
 		index = add_and_get_index(parent, func, record->cpu);
@@ -164,9 +164,9 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	return 0;
 }
 
-int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
-	tep_register_event_handler(pevent, -1, "ftrace", "function",
+	tep_register_event_handler(tep, -1, "ftrace", "function",
 				   function_handler, NULL);
 
 	tep_plugin_add_options("ftrace", plugin_options);
@@ -174,11 +174,11 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 	return 0;
 }
 
-void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 {
 	int i, x;
 
-	tep_unregister_event_handler(pevent, -1, "ftrace", "function",
+	tep_unregister_event_handler(tep, -1, "ftrace", "function",
 				     function_handler, NULL);
 
 	for (i = 0; i <= cpus; i++) {

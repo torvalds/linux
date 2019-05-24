@@ -85,6 +85,8 @@ struct record_opts {
 	u64          clockid_res_ns;
 	int	     nr_cblocks;
 	int	     affinity;
+	int	     mmap_flush;
+	unsigned int comp_level;
 };
 
 enum perf_affinity {

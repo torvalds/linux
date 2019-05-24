@@ -1051,7 +1051,9 @@ static int imx7_csi_set_fmt(struct v4l2_subdev *sd,
 		goto out_unlock;
 	}
 
-	imx7_csi_try_fmt(csi, cfg, sdformat, &cc);
+	ret = imx7_csi_try_fmt(csi, cfg, sdformat, &cc);
+	if (ret < 0)
+		goto out_unlock;
 
 	fmt = imx7_csi_get_format(csi, cfg, sdformat->pad, sdformat->which);
 	if (!fmt) {
@@ -1124,7 +1126,7 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	if (ret < 0)
 		return ret;
 
-	ret = imx_media_capture_device_register(csi->vdev);
+	ret = imx_media_capture_device_register(csi->imxmd, csi->vdev);
 	if (ret < 0)
 		return ret;
 
@@ -1271,7 +1273,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &csi->sd);
 
 	ret = imx_media_of_add_csi(imxmd, node);
-	if (ret < 0)
+	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
 		goto cleanup;
 
 	ret = imx_media_dev_notifier_register(imxmd);

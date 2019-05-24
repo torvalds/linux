@@ -76,7 +76,7 @@ static int live_nop_switch(void *arg)
 	}
 
 	for (n = 0; n < nctx; n++) {
-		ctx[n] = i915_gem_create_context(i915, file->driver_priv);
+		ctx[n] = live_context(i915, file);
 		if (IS_ERR(ctx[n])) {
 			err = PTR_ERR(ctx[n]);
 			goto out_unlock;
@@ -220,6 +220,7 @@ gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
 		offset += PAGE_SIZE;
 	}
 	*cmd = MI_BATCH_BUFFER_END;
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	err = i915_gem_object_set_to_gtt_domain(obj, false);
@@ -372,7 +373,8 @@ static int cpu_fill(struct drm_i915_gem_object *obj, u32 value)
 	return 0;
 }
 
-static int cpu_check(struct drm_i915_gem_object *obj, unsigned int max)
+static noinline int cpu_check(struct drm_i915_gem_object *obj,
+			      unsigned int idx, unsigned int max)
 {
 	unsigned int n, m, needs_flush;
 	int err;
@@ -390,8 +392,10 @@ static int cpu_check(struct drm_i915_gem_object *obj, unsigned int max)
 
 		for (m = 0; m < max; m++) {
 			if (map[m] != m) {
-				pr_err("Invalid value at page %d, offset %d: found %x expected %x\n",
-				       n, m, map[m], m);
+				pr_err("%pS: Invalid value at object %d page %d/%ld, offset %d/%d: found %x expected %x\n",
+				       __builtin_return_address(0), idx,
+				       n, real_page_count(obj), m, max,
+				       map[m], m);
 				err = -EINVAL;
 				goto out_unmap;
 			}
@@ -399,8 +403,9 @@ static int cpu_check(struct drm_i915_gem_object *obj, unsigned int max)
 
 		for (; m < DW_PER_PAGE; m++) {
 			if (map[m] != STACK_MAGIC) {
-				pr_err("Invalid value at page %d, offset %d: found %x expected %x\n",
-				       n, m, map[m], STACK_MAGIC);
+				pr_err("%pS: Invalid value at object %d page %d, offset %d: found %x expected %x (uninitialised)\n",
+				       __builtin_return_address(0), idx, n, m,
+				       map[m], STACK_MAGIC);
 				err = -EINVAL;
 				goto out_unmap;
 			}
@@ -478,12 +483,8 @@ static unsigned long max_dwords(struct drm_i915_gem_object *obj)
 static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_object *obj = NULL;
-	unsigned long ncontexts, ndwords, dw;
-	struct igt_live_test t;
-	struct drm_file *file;
-	IGT_TIMEOUT(end_time);
-	LIST_HEAD(objects);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int err = -ENODEV;
 
 	/*
@@ -495,38 +496,42 @@ static int igt_ctx_exec(void *arg)
 	if (!DRIVER_CAPS(i915)->has_logical_contexts)
 		return 0;
 
-	file = mock_file(i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
+	for_each_engine(engine, i915, id) {
+		struct drm_i915_gem_object *obj = NULL;
+		unsigned long ncontexts, ndwords, dw;
+		struct igt_live_test t;
+		struct drm_file *file;
+		IGT_TIMEOUT(end_time);
+		LIST_HEAD(objects);
 
-	mutex_lock(&i915->drm.struct_mutex);
+		if (!intel_engine_can_store_dword(engine))
+			continue;
 
-	err = igt_live_test_begin(&t, i915, __func__, "");
-	if (err)
-		goto out_unlock;
+		if (!engine->context_size)
+			continue; /* No logical context support in HW */
 
-	ncontexts = 0;
-	ndwords = 0;
-	dw = 0;
-	while (!time_after(jiffies, end_time)) {
-		struct intel_engine_cs *engine;
-		struct i915_gem_context *ctx;
-		unsigned int id;
+		file = mock_file(i915);
+		if (IS_ERR(file))
+			return PTR_ERR(file);
 
-		ctx = i915_gem_create_context(i915, file->driver_priv);
-		if (IS_ERR(ctx)) {
-			err = PTR_ERR(ctx);
+		mutex_lock(&i915->drm.struct_mutex);
+
+		err = igt_live_test_begin(&t, i915, __func__, engine->name);
+		if (err)
 			goto out_unlock;
-		}
 
-		for_each_engine(engine, i915, id) {
+		ncontexts = 0;
+		ndwords = 0;
+		dw = 0;
+		while (!time_after(jiffies, end_time)) {
+			struct i915_gem_context *ctx;
 			intel_wakeref_t wakeref;
 
-			if (!engine->context_size)
-				continue; /* No logical context support in HW */
-
-			if (!intel_engine_can_store_dword(engine))
-				continue;
+			ctx = live_context(i915, file);
+			if (IS_ERR(ctx)) {
+				err = PTR_ERR(ctx);
+				goto out_unlock;
+			}
 
 			if (!obj) {
 				obj = create_test_object(ctx, file, &objects);
@@ -536,7 +541,6 @@ static int igt_ctx_exec(void *arg)
 				}
 			}
 
-			err = 0;
 			with_intel_runtime_pm(i915, wakeref)
 				err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
@@ -551,28 +555,152 @@ static int igt_ctx_exec(void *arg)
 				obj = NULL;
 				dw = 0;
 			}
+
 			ndwords++;
+			ncontexts++;
 		}
-		ncontexts++;
-	}
-	pr_info("Submitted %lu contexts (across %u engines), filling %lu dwords\n",
-		ncontexts, RUNTIME_INFO(i915)->num_rings, ndwords);
 
-	dw = 0;
-	list_for_each_entry(obj, &objects, st_link) {
-		unsigned int rem =
-			min_t(unsigned int, ndwords - dw, max_dwords(obj));
+		pr_info("Submitted %lu contexts to %s, filling %lu dwords\n",
+			ncontexts, engine->name, ndwords);
 
-		err = cpu_check(obj, rem);
-		if (err)
-			break;
+		ncontexts = dw = 0;
+		list_for_each_entry(obj, &objects, st_link) {
+			unsigned int rem =
+				min_t(unsigned int, ndwords - dw, max_dwords(obj));
 
-		dw += rem;
-	}
+			err = cpu_check(obj, ncontexts++, rem);
+			if (err)
+				break;
+
+			dw += rem;
+		}
 
 out_unlock:
+		if (igt_live_test_end(&t))
+			err = -EIO;
+		mutex_unlock(&i915->drm.struct_mutex);
+
+		mock_file_free(i915, file);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int igt_shared_ctx_exec(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *parent;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct igt_live_test t;
+	struct drm_file *file;
+	int err = 0;
+
+	/*
+	 * Create a few different contexts with the same mm and write
+	 * through each ctx using the GPU making sure those writes end
+	 * up in the expected pages of our obj.
+	 */
+	if (!DRIVER_CAPS(i915)->has_logical_contexts)
+		return 0;
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	parent = live_context(i915, file);
+	if (IS_ERR(parent)) {
+		err = PTR_ERR(parent);
+		goto out_unlock;
+	}
+
+	if (!parent->ppgtt) { /* not full-ppgtt; nothing to share */
+		err = 0;
+		goto out_unlock;
+	}
+
+	err = igt_live_test_begin(&t, i915, __func__, "");
+	if (err)
+		goto out_unlock;
+
+	for_each_engine(engine, i915, id) {
+		unsigned long ncontexts, ndwords, dw;
+		struct drm_i915_gem_object *obj = NULL;
+		IGT_TIMEOUT(end_time);
+		LIST_HEAD(objects);
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		dw = 0;
+		ndwords = 0;
+		ncontexts = 0;
+		while (!time_after(jiffies, end_time)) {
+			struct i915_gem_context *ctx;
+			intel_wakeref_t wakeref;
+
+			ctx = kernel_context(i915);
+			if (IS_ERR(ctx)) {
+				err = PTR_ERR(ctx);
+				goto out_test;
+			}
+
+			__assign_ppgtt(ctx, parent->ppgtt);
+
+			if (!obj) {
+				obj = create_test_object(parent, file, &objects);
+				if (IS_ERR(obj)) {
+					err = PTR_ERR(obj);
+					kernel_context_close(ctx);
+					goto out_test;
+				}
+			}
+
+			err = 0;
+			with_intel_runtime_pm(i915, wakeref)
+				err = gpu_fill(obj, ctx, engine, dw);
+			if (err) {
+				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
+				       ndwords, dw, max_dwords(obj),
+				       engine->name, ctx->hw_id,
+				       yesno(!!ctx->ppgtt), err);
+				kernel_context_close(ctx);
+				goto out_test;
+			}
+
+			if (++dw == max_dwords(obj)) {
+				obj = NULL;
+				dw = 0;
+			}
+
+			ndwords++;
+			ncontexts++;
+
+			kernel_context_close(ctx);
+		}
+		pr_info("Submitted %lu contexts to %s, filling %lu dwords\n",
+			ncontexts, engine->name, ndwords);
+
+		ncontexts = dw = 0;
+		list_for_each_entry(obj, &objects, st_link) {
+			unsigned int rem =
+				min_t(unsigned int, ndwords - dw, max_dwords(obj));
+
+			err = cpu_check(obj, ncontexts++, rem);
+			if (err)
+				goto out_test;
+
+			dw += rem;
+		}
+	}
+out_test:
 	if (igt_live_test_end(&t))
 		err = -EIO;
+out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	mock_file_free(i915, file);
@@ -604,11 +732,8 @@ static struct i915_vma *rpcs_query_batch(struct i915_vma *vma)
 	*cmd++ = upper_32_bits(vma->node.start);
 	*cmd = MI_BATCH_BUFFER_END;
 
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
-
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
 
 	vma = i915_vma_instance(obj, vma->vm, NULL);
 	if (IS_ERR(vma)) {
@@ -923,7 +1048,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	       unsigned int flags)
 {
 	struct intel_sseu default_sseu = intel_device_default_sseu(i915);
-	struct intel_engine_cs *engine = i915->engine[RCS];
+	struct intel_engine_cs *engine = i915->engine[RCS0];
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_context *ctx;
 	struct intel_sseu pg_sseu;
@@ -962,11 +1087,12 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	ctx = i915_gem_create_context(i915, file->driver_priv);
+	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
 		goto out_unlock;
 	}
+	i915_gem_context_clear_bannable(ctx); /* to reset and beyond! */
 
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
@@ -1047,7 +1173,7 @@ static int igt_ctx_readonly(void *arg)
 	struct drm_i915_gem_object *obj = NULL;
 	struct i915_gem_context *ctx;
 	struct i915_hw_ppgtt *ppgtt;
-	unsigned long ndwords, dw;
+	unsigned long idx, ndwords, dw;
 	struct igt_live_test t;
 	struct drm_file *file;
 	I915_RND_STATE(prng);
@@ -1071,7 +1197,7 @@ static int igt_ctx_readonly(void *arg)
 	if (err)
 		goto out_unlock;
 
-	ctx = i915_gem_create_context(i915, file->driver_priv);
+	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out_unlock;
@@ -1125,9 +1251,10 @@ static int igt_ctx_readonly(void *arg)
 		}
 	}
 	pr_info("Submitted %lu dwords (across %u engines)\n",
-		ndwords, RUNTIME_INFO(i915)->num_rings);
+		ndwords, RUNTIME_INFO(i915)->num_engines);
 
 	dw = 0;
+	idx = 0;
 	list_for_each_entry(obj, &objects, st_link) {
 		unsigned int rem =
 			min_t(unsigned int, ndwords - dw, max_dwords(obj));
@@ -1137,7 +1264,7 @@ static int igt_ctx_readonly(void *arg)
 		if (i915_gem_object_is_readonly(obj))
 			num_writes = 0;
 
-		err = cpu_check(obj, num_writes);
+		err = cpu_check(obj, idx++, num_writes);
 		if (err)
 			break;
 
@@ -1201,11 +1328,8 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	}
 	*cmd++ = value;
 	*cmd = MI_BATCH_BUFFER_END;
+	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
-
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
 
 	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
 	if (IS_ERR(vma)) {
@@ -1298,11 +1422,9 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		*cmd++ = result;
 	}
 	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_object_unpin_map(obj);
 
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
+	i915_gem_object_flush_map(obj);
+	i915_gem_object_unpin_map(obj);
 
 	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
 	if (IS_ERR(vma)) {
@@ -1396,13 +1518,13 @@ static int igt_vm_isolation(void *arg)
 	if (err)
 		goto out_unlock;
 
-	ctx_a = i915_gem_create_context(i915, file->driver_priv);
+	ctx_a = live_context(i915, file);
 	if (IS_ERR(ctx_a)) {
 		err = PTR_ERR(ctx_a);
 		goto out_unlock;
 	}
 
-	ctx_b = i915_gem_create_context(i915, file->driver_priv);
+	ctx_b = live_context(i915, file);
 	if (IS_ERR(ctx_b)) {
 		err = PTR_ERR(ctx_b);
 		goto out_unlock;
@@ -1432,7 +1554,7 @@ static int igt_vm_isolation(void *arg)
 
 			div64_u64_rem(i915_prandom_u64_state(&prng),
 				      vm_total, &offset);
-			offset &= ~sizeof(u32);
+			offset &= -sizeof(u32);
 			offset += I915_GTT_PAGE_SIZE;
 
 			err = write_to_scratch(ctx_a, engine,
@@ -1458,7 +1580,7 @@ static int igt_vm_isolation(void *arg)
 		count += this;
 	}
 	pr_info("Checked %lu scratch offsets across %d engines\n",
-		count, RUNTIME_INFO(i915)->num_rings);
+		count, RUNTIME_INFO(i915)->num_engines);
 
 out_rpm:
 	intel_runtime_pm_put(i915, wakeref);
@@ -1472,10 +1594,10 @@ out_unlock:
 }
 
 static __maybe_unused const char *
-__engine_name(struct drm_i915_private *i915, unsigned int engines)
+__engine_name(struct drm_i915_private *i915, intel_engine_mask_t engines)
 {
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 
 	if (engines == ALL_ENGINES)
 		return "all";
@@ -1488,67 +1610,60 @@ __engine_name(struct drm_i915_private *i915, unsigned int engines)
 
 static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 					  struct i915_gem_context *ctx,
-					  unsigned int engines)
+					  intel_engine_mask_t engines)
 {
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
-	int err;
+	intel_engine_mask_t tmp;
+	int pass;
 
 	GEM_TRACE("Testing %s\n", __engine_name(i915, engines));
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		struct i915_request *rq;
+	for (pass = 0; pass < 4; pass++) { /* Once busy; once idle; repeat */
+		bool from_idle = pass & 1;
+		int err;
 
-		rq = i915_request_alloc(engine, ctx);
-		if (IS_ERR(rq))
-			return PTR_ERR(rq);
+		if (!from_idle) {
+			for_each_engine_masked(engine, i915, engines, tmp) {
+				struct i915_request *rq;
 
-		i915_request_add(rq);
-	}
+				rq = i915_request_alloc(engine, ctx);
+				if (IS_ERR(rq))
+					return PTR_ERR(rq);
 
-	err = i915_gem_switch_to_kernel_context(i915);
-	if (err)
-		return err;
+				i915_request_add(rq);
+			}
+		}
 
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		if (!engine_has_kernel_context_barrier(engine)) {
-			pr_err("kernel context not last on engine %s!\n",
-			       engine->name);
+		err = i915_gem_switch_to_kernel_context(i915,
+							i915->gt.active_engines);
+		if (err)
+			return err;
+
+		if (!from_idle) {
+			err = i915_gem_wait_for_idle(i915,
+						     I915_WAIT_LOCKED,
+						     MAX_SCHEDULE_TIMEOUT);
+			if (err)
+				return err;
+		}
+
+		if (i915->gt.active_requests) {
+			pr_err("%d active requests remain after switching to kernel context, pass %d (%s) on %s engine%s\n",
+			       i915->gt.active_requests,
+			       pass, from_idle ? "idle" : "busy",
+			       __engine_name(i915, engines),
+			       is_power_of_2(engines) ? "" : "s");
 			return -EINVAL;
 		}
+
+		/* XXX Bonus points for proving we are the kernel context! */
+
+		mutex_unlock(&i915->drm.struct_mutex);
+		drain_delayed_work(&i915->gt.idle_work);
+		mutex_lock(&i915->drm.struct_mutex);
 	}
 
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err)
-		return err;
-
-	GEM_BUG_ON(i915->gt.active_requests);
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		if (engine->last_retired_context->gem_context != i915->kernel_context) {
-			pr_err("engine %s not idling in kernel context!\n",
-			       engine->name);
-			return -EINVAL;
-		}
-	}
-
-	err = i915_gem_switch_to_kernel_context(i915);
-	if (err)
-		return err;
-
-	if (i915->gt.active_requests) {
-		pr_err("switch-to-kernel-context emitted %d requests even though it should already be idling in the kernel context\n",
-		       i915->gt.active_requests);
-		return -EINVAL;
-	}
-
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		if (!intel_engine_has_kernel_context(engine)) {
-			pr_err("kernel context not last on engine %s!\n",
-			       engine->name);
-			return -EINVAL;
-		}
-	}
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		return -EIO;
 
 	return 0;
 }
@@ -1592,8 +1707,6 @@ static int igt_switch_to_kernel_context(void *arg)
 
 out_unlock:
 	GEM_TRACE_DUMP_ON(err);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		err = -EIO;
 
 	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -1602,10 +1715,117 @@ out_unlock:
 	return err;
 }
 
+static void mock_barrier_task(void *data)
+{
+	unsigned int *counter = data;
+
+	++*counter;
+}
+
+static int mock_context_barrier(void *arg)
+{
+#undef pr_fmt
+#define pr_fmt(x) "context_barrier_task():" # x
+	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx;
+	struct i915_request *rq;
+	intel_wakeref_t wakeref;
+	unsigned int counter;
+	int err;
+
+	/*
+	 * The context barrier provides us with a callback after it emits
+	 * a request; useful for retiring old state after loading new.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	ctx = mock_context(i915, "mock");
+	if (!ctx) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	counter = 0;
+	err = context_barrier_task(ctx, 0,
+				   NULL, mock_barrier_task, &counter);
+	if (err) {
+		pr_err("Failed at line %d, err=%d\n", __LINE__, err);
+		goto out;
+	}
+	if (counter == 0) {
+		pr_err("Did not retire immediately with 0 engines\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	counter = 0;
+	err = context_barrier_task(ctx, ALL_ENGINES,
+				   NULL, mock_barrier_task, &counter);
+	if (err) {
+		pr_err("Failed at line %d, err=%d\n", __LINE__, err);
+		goto out;
+	}
+	if (counter == 0) {
+		pr_err("Did not retire immediately for all inactive engines\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	rq = ERR_PTR(-ENODEV);
+	with_intel_runtime_pm(i915, wakeref)
+		rq = i915_request_alloc(i915->engine[RCS0], ctx);
+	if (IS_ERR(rq)) {
+		pr_err("Request allocation failed!\n");
+		goto out;
+	}
+	i915_request_add(rq);
+	GEM_BUG_ON(list_empty(&ctx->active_engines));
+
+	counter = 0;
+	context_barrier_inject_fault = BIT(RCS0);
+	err = context_barrier_task(ctx, ALL_ENGINES,
+				   NULL, mock_barrier_task, &counter);
+	context_barrier_inject_fault = 0;
+	if (err == -ENXIO)
+		err = 0;
+	else
+		pr_err("Did not hit fault injection!\n");
+	if (counter != 0) {
+		pr_err("Invoked callback on error!\n");
+		err = -EIO;
+	}
+	if (err)
+		goto out;
+
+	counter = 0;
+	err = context_barrier_task(ctx, ALL_ENGINES,
+				   NULL, mock_barrier_task, &counter);
+	if (err) {
+		pr_err("Failed at line %d, err=%d\n", __LINE__, err);
+		goto out;
+	}
+	mock_device_flush(i915);
+	if (counter == 0) {
+		pr_err("Did not retire on each active engines\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+out:
+	mock_context_close(ctx);
+unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+#undef pr_fmt
+#define pr_fmt(x) x
+}
+
 int i915_gem_context_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_switch_to_kernel_context),
+		SUBTEST(mock_context_barrier),
 	};
 	struct drm_i915_private *i915;
 	int err;
@@ -1628,10 +1848,11 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),
 		SUBTEST(igt_ctx_sseu),
+		SUBTEST(igt_shared_ctx_exec),
 		SUBTEST(igt_vm_isolation),
 	};
 
-	if (i915_terminally_wedged(&dev_priv->gpu_error))
+	if (i915_terminally_wedged(dev_priv))
 		return 0;
 
 	return i915_subtests(tests, dev_priv);

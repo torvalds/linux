@@ -46,6 +46,11 @@ void hci_req_purge(struct hci_request *req)
 	skb_queue_purge(&req->cmd_q);
 }
 
+bool hci_req_status_pend(struct hci_dev *hdev)
+{
+	return hdev->req_status == HCI_REQ_PEND;
+}
+
 static int req_run(struct hci_request *req, hci_req_complete_t complete,
 		   hci_req_complete_skb_t complete_skb)
 {

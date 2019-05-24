@@ -15,6 +15,7 @@
 #define _LINUX_PUBLIC_KEY_H
 
 #include <linux/keyctl.h>
+#include <linux/oid_registry.h>
 
 /*
  * Cryptographic data for the public-key subtype of the asymmetric key type.
@@ -25,6 +26,9 @@
 struct public_key {
 	void *key;
 	u32 keylen;
+	enum OID algo;
+	void *params;
+	u32 paramlen;
 	bool key_is_private;
 	const char *id_type;
 	const char *pkey_algo;

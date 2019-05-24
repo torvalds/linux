@@ -217,7 +217,7 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
 {
 	struct mesh_path *mpath;
 
-	mpath = rhashtable_lookup_fast(&tbl->rhead, dst, mesh_rht_params);
+	mpath = rhashtable_lookup(&tbl->rhead, dst, mesh_rht_params);
 
 	if (mpath && mpath_expired(mpath)) {
 		spin_lock_bh(&mpath->state_lock);

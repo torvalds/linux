@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 .. |struct dev_pm_ops| replace:: :c:type:`struct dev_pm_ops <dev_pm_ops>`
 .. |struct dev_pm_domain| replace:: :c:type:`struct dev_pm_domain <dev_pm_domain>`
 .. |struct bus_type| replace:: :c:type:`struct bus_type <bus_type>`
@@ -12,11 +15,12 @@
 Device Power Management Basics
 ==============================
 
-::
+:Copyright: |copy| 2010-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+:Copyright: |copy| 2010 Alan Stern <stern@rowland.harvard.edu>
+:Copyright: |copy| 2016 Intel Corporation
 
- Copyright (c) 2010-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
- Copyright (c) 2010 Alan Stern <stern@rowland.harvard.edu>
- Copyright (c) 2016 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+
 
 Most of the code in Linux is device drivers, so most of the Linux power
 management (PM) code is also driver-specific.  Most drivers will do very

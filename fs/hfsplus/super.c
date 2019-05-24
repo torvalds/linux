@@ -18,7 +18,7 @@
 #include <linux/nls.h>
 
 static struct inode *hfsplus_alloc_inode(struct super_block *sb);
-static void hfsplus_destroy_inode(struct inode *inode);
+static void hfsplus_free_inode(struct inode *inode);
 
 #include "hfsplus_fs.h"
 #include "xattr.h"
@@ -361,7 +361,7 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations hfsplus_sops = {
 	.alloc_inode	= hfsplus_alloc_inode,
-	.destroy_inode	= hfsplus_destroy_inode,
+	.free_inode	= hfsplus_free_inode,
 	.write_inode	= hfsplus_write_inode,
 	.evict_inode	= hfsplus_evict_inode,
 	.put_super	= hfsplus_put_super,
@@ -628,16 +628,9 @@ static struct inode *hfsplus_alloc_inode(struct super_block *sb)
 	return i ? &i->vfs_inode : NULL;
 }
 
-static void hfsplus_i_callback(struct rcu_head *head)
+static void hfsplus_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-
 	kmem_cache_free(hfsplus_inode_cachep, HFSPLUS_I(inode));
-}
-
-static void hfsplus_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, hfsplus_i_callback);
 }
 
 #define HFSPLUS_INODE_SIZE	sizeof(struct hfsplus_inode_info)

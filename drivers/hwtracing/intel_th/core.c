@@ -430,9 +430,9 @@ static const struct intel_th_subdevice {
 		.nres	= 1,
 		.res	= {
 			{
-				/* Handle TSCU from GTH driver */
+				/* Handle TSCU and CTS from GTH driver */
 				.start	= REG_GTH_OFFSET,
-				.end	= REG_TSCU_OFFSET + REG_TSCU_LENGTH - 1,
+				.end	= REG_CTS_OFFSET + REG_CTS_LENGTH - 1,
 				.flags	= IORESOURCE_MEM,
 			},
 		},
@@ -491,13 +491,31 @@ static const struct intel_th_subdevice {
 				.flags	= IORESOURCE_MEM,
 			},
 			{
-				.start	= 1, /* use resource[1] */
+				.start	= TH_MMIO_SW,
 				.end	= 0,
 				.flags	= IORESOURCE_MEM,
 			},
 		},
 		.id	= -1,
 		.name	= "sth",
+		.type	= INTEL_TH_SOURCE,
+	},
+	{
+		.nres	= 2,
+		.res	= {
+			{
+				.start	= REG_STH_OFFSET,
+				.end	= REG_STH_OFFSET + REG_STH_LENGTH - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.start	= TH_MMIO_RTIT,
+				.end	= 0,
+				.flags	= IORESOURCE_MEM,
+			},
+		},
+		.id	= -1,
+		.name	= "rtit",
 		.type	= INTEL_TH_SOURCE,
 	},
 	{
@@ -584,7 +602,6 @@ intel_th_subdevice_alloc(struct intel_th *th,
 	struct intel_th_device *thdev;
 	struct resource res[3];
 	unsigned int req = 0;
-	bool is64bit = false;
 	int r, err;
 
 	thdev = intel_th_device_alloc(th, subdev->type, subdev->name,
@@ -594,18 +611,12 @@ intel_th_subdevice_alloc(struct intel_th *th,
 
 	thdev->drvdata = th->drvdata;
 
-	for (r = 0; r < th->num_resources; r++)
-		if (th->resource[r].flags & IORESOURCE_MEM_64) {
-			is64bit = true;
-			break;
-		}
-
 	memcpy(res, subdev->res,
 	       sizeof(struct resource) * subdev->nres);
 
 	for (r = 0; r < subdev->nres; r++) {
 		struct resource *devres = th->resource;
-		int bar = 0; /* cut subdevices' MMIO from resource[0] */
+		int bar = TH_MMIO_CONFIG;
 
 		/*
 		 * Take .end == 0 to mean 'take the whole bar',
@@ -614,8 +625,9 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		 */
 		if (!res[r].end && res[r].flags == IORESOURCE_MEM) {
 			bar = res[r].start;
-			if (is64bit)
-				bar *= 2;
+			err = -ENODEV;
+			if (bar >= th->num_resources)
+				goto fail_put_device;
 			res[r].start = 0;
 			res[r].end = resource_size(&devres[bar]) - 1;
 		}
@@ -627,7 +639,12 @@ intel_th_subdevice_alloc(struct intel_th *th,
 			dev_dbg(th->dev, "%s:%d @ %pR\n",
 				subdev->name, r, &res[r]);
 		} else if (res[r].flags & IORESOURCE_IRQ) {
-			res[r].start	= th->irq;
+			/*
+			 * Only pass on the IRQ if we have useful interrupts:
+			 * the ones that can be configured via MINTCTL.
+			 */
+			if (INTEL_TH_CAP(th, has_mintctl) && th->irq != -1)
+				res[r].start = th->irq;
 		}
 	}
 
@@ -758,8 +775,13 @@ static int intel_th_populate(struct intel_th *th)
 
 		thdev = intel_th_subdevice_alloc(th, subdev);
 		/* note: caller should free subdevices from th::thdev[] */
-		if (IS_ERR(thdev))
+		if (IS_ERR(thdev)) {
+			/* ENODEV for individual subdevices is allowed */
+			if (PTR_ERR(thdev) == -ENODEV)
+				continue;
+
 			return PTR_ERR(thdev);
+		}
 
 		th->thdev[th->num_thdevs++] = thdev;
 	}
@@ -809,26 +831,40 @@ static const struct file_operations intel_th_output_fops = {
 	.llseek	= noop_llseek,
 };
 
+static irqreturn_t intel_th_irq(int irq, void *data)
+{
+	struct intel_th *th = data;
+	irqreturn_t ret = IRQ_NONE;
+	struct intel_th_driver *d;
+	int i;
+
+	for (i = 0; i < th->num_thdevs; i++) {
+		if (th->thdev[i]->type != INTEL_TH_OUTPUT)
+			continue;
+
+		d = to_intel_th_driver(th->thdev[i]->dev.driver);
+		if (d && d->irq)
+			ret |= d->irq(th->thdev[i]);
+	}
+
+	if (ret == IRQ_NONE)
+		pr_warn_ratelimited("nobody cared for irq\n");
+
+	return ret;
+}
+
 /**
  * intel_th_alloc() - allocate a new Intel TH device and its subdevices
  * @dev:	parent device
- * @devres:	parent's resources
- * @ndevres:	number of resources
+ * @devres:	resources indexed by th_mmio_idx
  * @irq:	irq number
  */
 struct intel_th *
 intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
-	       struct resource *devres, unsigned int ndevres, int irq)
+	       struct resource *devres, unsigned int ndevres)
 {
+	int err, r, nr_mmios = 0;
 	struct intel_th *th;
-	int err, r;
-
-	if (irq == -1)
-		for (r = 0; r < ndevres; r++)
-			if (devres[r].flags & IORESOURCE_IRQ) {
-				irq = devres[r].start;
-				break;
-			}
 
 	th = kzalloc(sizeof(*th), GFP_KERNEL);
 	if (!th)
@@ -846,12 +882,32 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 		err = th->major;
 		goto err_ida;
 	}
+	th->irq = -1;
 	th->dev = dev;
 	th->drvdata = drvdata;
 
-	th->resource = devres;
-	th->num_resources = ndevres;
-	th->irq = irq;
+	for (r = 0; r < ndevres; r++)
+		switch (devres[r].flags & IORESOURCE_TYPE_BITS) {
+		case IORESOURCE_MEM:
+			th->resource[nr_mmios++] = devres[r];
+			break;
+		case IORESOURCE_IRQ:
+			err = devm_request_irq(dev, devres[r].start,
+					       intel_th_irq, IRQF_SHARED,
+					       dev_name(dev), th);
+			if (err)
+				goto err_chrdev;
+
+			if (th->irq == -1)
+				th->irq = devres[r].start;
+			break;
+		default:
+			dev_warn(dev, "Unknown resource type %lx\n",
+				 devres[r].flags);
+			break;
+		}
+
+	th->num_resources = nr_mmios;
 
 	dev_set_drvdata(dev, th);
 
@@ -867,6 +923,10 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 	}
 
 	return th;
+
+err_chrdev:
+	__unregister_chrdev(th->major, 0, TH_POSSIBLE_OUTPUTS,
+			    "intel_th/output");
 
 err_ida:
 	ida_simple_remove(&intel_th_ida, th->id);
@@ -926,6 +986,27 @@ int intel_th_trace_enable(struct intel_th_device *thdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_th_trace_enable);
+
+/**
+ * intel_th_trace_switch() - execute a switch sequence
+ * @thdev:	output device that requests tracing switch
+ */
+int intel_th_trace_switch(struct intel_th_device *thdev)
+{
+	struct intel_th_device *hub = to_intel_th_device(thdev->dev.parent);
+	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
+
+	if (WARN_ON_ONCE(hub->type != INTEL_TH_SWITCH))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(thdev->type != INTEL_TH_OUTPUT))
+		return -EINVAL;
+
+	hubdrv->trig_switch(hub, &thdev->output);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_th_trace_switch);
 
 /**
  * intel_th_trace_disable() - disable tracing for an output device

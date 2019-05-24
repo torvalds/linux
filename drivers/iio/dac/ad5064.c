@@ -112,6 +112,8 @@ struct ad5064_state {
 	bool				use_internal_vref;
 
 	ad5064_write_func		write;
+	/* Lock used to maintain consistency between cached and dev state */
+	struct mutex lock;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -248,11 +250,11 @@ static int ad5064_set_powerdown_mode(struct iio_dev *indio_dev,
 	struct ad5064_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	st->pwr_down_mode[chan->channel] = mode + 1;
 
 	ret = ad5064_sync_powerdown_mode(st, chan);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -291,11 +293,11 @@ static ssize_t ad5064_write_dac_powerdown(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	st->pwr_down[chan->channel] = pwr_down;
 
 	ret = ad5064_sync_powerdown_mode(st, chan);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 	return ret ? ret : len;
 }
 
@@ -349,12 +351,12 @@ static int ad5064_write_raw(struct iio_dev *indio_dev,
 		if (val >= (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 		ret = ad5064_write(st, AD5064_CMD_WRITE_INPUT_N_UPDATE_N,
 				chan->address, val, chan->scan_type.shift);
 		if (ret == 0)
 			st->dac_cache[chan->channel] = val;
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 		break;
 	default:
 		ret = -EINVAL;
@@ -856,6 +858,7 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 		return  -ENOMEM;
 
 	st = iio_priv(indio_dev);
+	mutex_init(&st->lock);
 	dev_set_drvdata(dev, indio_dev);
 
 	st->chip_info = &ad5064_chip_info_tbl[type];

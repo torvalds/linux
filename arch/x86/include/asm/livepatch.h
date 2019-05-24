@@ -24,14 +24,6 @@
 #include <asm/setup.h>
 #include <linux/ftrace.h>
 
-static inline int klp_check_compiler_support(void)
-{
-#ifndef CC_USING_FENTRY
-	return 1;
-#endif
-	return 0;
-}
-
 static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 {
 	regs->ip = ip;

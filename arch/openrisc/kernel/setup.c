@@ -39,7 +39,6 @@
 #include <linux/device.h>
 
 #include <asm/sections.h>
-#include <asm/segment.h>
 #include <asm/pgtable.h>
 #include <asm/types.h>
 #include <asm/setup.h>

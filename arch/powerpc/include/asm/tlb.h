@@ -27,8 +27,8 @@
 #define tlb_start_vma(tlb, vma)	do { } while (0)
 #define tlb_end_vma(tlb, vma)	do { } while (0)
 #define __tlb_remove_tlb_entry	__tlb_remove_tlb_entry
-#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
 
+#define tlb_flush tlb_flush
 extern void tlb_flush(struct mmu_gather *tlb);
 
 /* Get the generic bits... */
@@ -44,22 +44,6 @@ static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
 	if (pte_val(*ptep) & _PAGE_HASHPTE)
 		flush_hash_entry(tlb->mm, ptep, address);
 #endif
-}
-
-static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
-						     unsigned int page_size)
-{
-	if (!tlb->page_size)
-		tlb->page_size = page_size;
-	else if (tlb->page_size != page_size) {
-		if (!tlb->fullmm)
-			tlb_flush_mmu(tlb);
-		/*
-		 * update the page size after flush for the new
-		 * mmu_gather.
-		 */
-		tlb->page_size = page_size;
-	}
 }
 
 #ifdef CONFIG_SMP

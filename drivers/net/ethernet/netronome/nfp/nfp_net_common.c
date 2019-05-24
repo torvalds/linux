@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/lockdep.h>
 #include <linux/mm.h>
 #include <linux/overflow.h>
 #include <linux/page_ref.h>
@@ -137,20 +138,37 @@ static bool nfp_net_reconfig_check_done(struct nfp_net *nn, bool last_check)
 	return false;
 }
 
-static int nfp_net_reconfig_wait(struct nfp_net *nn, unsigned long deadline)
+static bool __nfp_net_reconfig_wait(struct nfp_net *nn, unsigned long deadline)
 {
 	bool timed_out = false;
+	int i;
 
-	/* Poll update field, waiting for NFP to ack the config */
+	/* Poll update field, waiting for NFP to ack the config.
+	 * Do an opportunistic wait-busy loop, afterward sleep.
+	 */
+	for (i = 0; i < 50; i++) {
+		if (nfp_net_reconfig_check_done(nn, false))
+			return false;
+		udelay(4);
+	}
+
 	while (!nfp_net_reconfig_check_done(nn, timed_out)) {
-		msleep(1);
+		usleep_range(250, 500);
 		timed_out = time_is_before_eq_jiffies(deadline);
 	}
+
+	return timed_out;
+}
+
+static int nfp_net_reconfig_wait(struct nfp_net *nn, unsigned long deadline)
+{
+	if (__nfp_net_reconfig_wait(nn, deadline))
+		return -EIO;
 
 	if (nn_readl(nn, NFP_NET_CFG_UPDATE) & NFP_NET_CFG_UPDATE_ERR)
 		return -EIO;
 
-	return timed_out ? -EIO : 0;
+	return 0;
 }
 
 static void nfp_net_reconfig_timer(struct timer_list *t)
@@ -243,7 +261,7 @@ static void nfp_net_reconfig_wait_posted(struct nfp_net *nn)
 }
 
 /**
- * nfp_net_reconfig() - Reconfigure the firmware
+ * __nfp_net_reconfig() - Reconfigure the firmware
  * @nn:      NFP Net device to reconfigure
  * @update:  The value for the update field in the BAR config
  *
@@ -253,9 +271,11 @@ static void nfp_net_reconfig_wait_posted(struct nfp_net *nn)
  *
  * Return: Negative errno on error, 0 on success
  */
-int nfp_net_reconfig(struct nfp_net *nn, u32 update)
+static int __nfp_net_reconfig(struct nfp_net *nn, u32 update)
 {
 	int ret;
+
+	lockdep_assert_held(&nn->bar_lock);
 
 	nfp_net_reconfig_sync_enter(nn);
 
@@ -274,8 +294,31 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update)
 	return ret;
 }
 
+int nfp_net_reconfig(struct nfp_net *nn, u32 update)
+{
+	int ret;
+
+	nn_ctrl_bar_lock(nn);
+	ret = __nfp_net_reconfig(nn, update);
+	nn_ctrl_bar_unlock(nn);
+
+	return ret;
+}
+
+int nfp_net_mbox_lock(struct nfp_net *nn, unsigned int data_size)
+{
+	if (nn->tlv_caps.mbox_len < NFP_NET_CFG_MBOX_SIMPLE_VAL + data_size) {
+		nn_err(nn, "mailbox too small for %u of data (%u)\n",
+		       data_size, nn->tlv_caps.mbox_len);
+		return -EIO;
+	}
+
+	nn_ctrl_bar_lock(nn);
+	return 0;
+}
+
 /**
- * nfp_net_reconfig_mbox() - Reconfigure the firmware via the mailbox
+ * nfp_net_mbox_reconfig() - Reconfigure the firmware via the mailbox
  * @nn:        NFP Net device to reconfigure
  * @mbox_cmd:  The value for the mailbox command
  *
@@ -283,25 +326,30 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update)
  *
  * Return: Negative errno on error, 0 on success
  */
-int nfp_net_reconfig_mbox(struct nfp_net *nn, u32 mbox_cmd)
+int nfp_net_mbox_reconfig(struct nfp_net *nn, u32 mbox_cmd)
 {
 	u32 mbox = nn->tlv_caps.mbox_off;
 	int ret;
 
-	if (!nfp_net_has_mbox(&nn->tlv_caps)) {
-		nn_err(nn, "no mailbox present, command: %u\n", mbox_cmd);
-		return -EIO;
-	}
-
+	lockdep_assert_held(&nn->bar_lock);
 	nn_writeq(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_CMD, mbox_cmd);
 
-	ret = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_MBOX);
+	ret = __nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_MBOX);
 	if (ret) {
 		nn_err(nn, "Mailbox update error\n");
 		return ret;
 	}
 
 	return -nn_readl(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_RET);
+}
+
+int nfp_net_mbox_reconfig_and_unlock(struct nfp_net *nn, u32 mbox_cmd)
+{
+	int ret;
+
+	ret = nfp_net_mbox_reconfig(nn, mbox_cmd);
+	nn_ctrl_bar_unlock(nn);
+	return ret;
 }
 
 /* Interrupt configuration and handling
@@ -909,7 +957,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 		nfp_net_tx_ring_stop(nd_q, tx_ring);
 
 	tx_ring->wr_ptr_add += nr_frags + 1;
-	if (__netdev_tx_sent_queue(nd_q, txbuf->real_len, skb->xmit_more))
+	if (__netdev_tx_sent_queue(nd_q, txbuf->real_len, netdev_xmit_more()))
 		nfp_net_tx_xmit_more_flush(tx_ring);
 
 	return NETDEV_TX_OK;
@@ -1635,6 +1683,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		struct nfp_net_rx_buf *rxbuf;
 		struct nfp_net_rx_desc *rxd;
 		struct nfp_meta_parsed meta;
+		bool redir_egress = false;
 		struct net_device *netdev;
 		dma_addr_t new_dma_addr;
 		u32 meta_len_xdp = 0;
@@ -1770,13 +1819,16 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			struct nfp_net *nn;
 
 			nn = netdev_priv(dp->netdev);
-			netdev = nfp_app_repr_get(nn->app, meta.portid);
+			netdev = nfp_app_dev_get(nn->app, meta.portid,
+						 &redir_egress);
 			if (unlikely(!netdev)) {
 				nfp_net_rx_drop(dp, r_vec, rx_ring, rxbuf,
 						NULL);
 				continue;
 			}
-			nfp_repr_inc_rx_stats(netdev, pkt_len);
+
+			if (nfp_netdev_is_nfp_repr(netdev))
+				nfp_repr_inc_rx_stats(netdev, pkt_len);
 		}
 
 		skb = build_skb(rxbuf->frag, true_bufsz);
@@ -1811,7 +1863,13 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		if (meta_len_xdp)
 			skb_metadata_set(skb, meta_len_xdp);
 
-		napi_gro_receive(&rx_ring->r_vec->napi, skb);
+		if (likely(!redir_egress)) {
+			napi_gro_receive(&rx_ring->r_vec->napi, skb);
+		} else {
+			skb->dev = netdev;
+			__skb_push(skb, ETH_HLEN);
+			dev_queue_xmit(skb);
+		}
 	}
 
 	if (xdp_prog) {
@@ -3111,7 +3169,9 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 static int
 nfp_net_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
+	const u32 cmd = NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD;
 	struct nfp_net *nn = netdev_priv(netdev);
+	int err;
 
 	/* Priority tagged packets with vlan id 0 are processed by the
 	 * NFP as untagged packets
@@ -3119,17 +3179,23 @@ nfp_net_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	if (!vid)
 		return 0;
 
+	err = nfp_net_mbox_lock(nn, NFP_NET_CFG_VLAN_FILTER_SZ);
+	if (err)
+		return err;
+
 	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_VID, vid);
 	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_PROTO,
 		  ETH_P_8021Q);
 
-	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD);
+	return nfp_net_mbox_reconfig_and_unlock(nn, cmd);
 }
 
 static int
 nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
+	const u32 cmd = NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL;
 	struct nfp_net *nn = netdev_priv(netdev);
+	int err;
 
 	/* Priority tagged packets with vlan id 0 are processed by the
 	 * NFP as untagged packets
@@ -3137,11 +3203,15 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	if (!vid)
 		return 0;
 
+	err = nfp_net_mbox_lock(nn, NFP_NET_CFG_VLAN_FILTER_SZ);
+	if (err)
+		return err;
+
 	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_VID, vid);
 	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_PROTO,
 		  ETH_P_8021Q);
 
-	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL);
+	return nfp_net_mbox_reconfig_and_unlock(nn, cmd);
 }
 
 static void nfp_net_stat64(struct net_device *netdev,
@@ -3324,8 +3394,11 @@ nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	struct nfp_net *nn = netdev_priv(netdev);
 	int n;
 
+	/* If port is defined, devlink_port is registered and devlink core
+	 * is taking care of name formatting.
+	 */
 	if (nn->port)
-		return nfp_port_get_phys_port_name(netdev, name, len);
+		return -EOPNOTSUPP;
 
 	if (nn->dp.is_vf || nn->vnic_no_name)
 		return -EOPNOTSUPP;
@@ -3517,6 +3590,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
 	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
 	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,
+	.ndo_set_vf_trust	= nfp_app_set_vf_trust,
 	.ndo_get_vf_config	= nfp_app_get_vf_config,
 	.ndo_set_vf_link_state  = nfp_app_set_vf_link_state,
 	.ndo_setup_tc		= nfp_port_setup_tc,
@@ -3530,8 +3604,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_udp_tunnel_add	= nfp_net_add_vxlan_port,
 	.ndo_udp_tunnel_del	= nfp_net_del_vxlan_port,
 	.ndo_bpf		= nfp_net_xdp,
-	.ndo_get_port_parent_id	= nfp_port_get_port_parent_id,
-	.ndo_get_devlink	= nfp_devlink_get_devlink,
+	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 
 /**
@@ -3548,7 +3621,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.resv, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -3564,7 +3637,6 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_RSS      ? "RSS1 "     : "",
 		nn->cap & NFP_NET_CFG_CTRL_RSS2     ? "RSS2 "     : "",
 		nn->cap & NFP_NET_CFG_CTRL_CTAG_FILTER ? "CTAG_FILTER " : "",
-		nn->cap & NFP_NET_CFG_CTRL_L2SWITCH ? "L2SWITCH " : "",
 		nn->cap & NFP_NET_CFG_CTRL_MSIXAUTO ? "AUTOMASK " : "",
 		nn->cap & NFP_NET_CFG_CTRL_IRQMOD   ? "IRQMOD "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_VXLAN    ? "VXLAN "    : "",
@@ -3632,6 +3704,8 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 	nn->dp.txd_cnt = NFP_NET_TX_DESCS_DEFAULT;
 	nn->dp.rxd_cnt = NFP_NET_RX_DESCS_DEFAULT;
 
+	mutex_init(&nn->bar_lock);
+
 	spin_lock_init(&nn->reconfig_lock);
 	spin_lock_init(&nn->link_status_lock);
 
@@ -3659,6 +3733,9 @@ err_free_nn:
 void nfp_net_free(struct nfp_net *nn)
 {
 	WARN_ON(timer_pending(&nn->reconfig_timer) || nn->reconfig_posted);
+
+	mutex_destroy(&nn->bar_lock);
+
 	if (nn->dp.netdev)
 		free_netdev(nn->dp.netdev);
 	else
@@ -3920,9 +3997,6 @@ int nfp_net_init(struct nfp_net *nn)
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
 
-	if (nn->dp.netdev)
-		nfp_net_netdev_init(nn);
-
 	/* Stash the re-configuration queue away.  First odd queue in TX Bar */
 	nn->qcp_cfg = nn->tx_bar + NFP_QCP_QUEUE_ADDR_SZ;
 
@@ -3934,6 +4008,9 @@ int nfp_net_init(struct nfp_net *nn)
 				   NFP_NET_CFG_UPDATE_GEN);
 	if (err)
 		return err;
+
+	if (nn->dp.netdev)
+		nfp_net_netdev_init(nn);
 
 	nfp_net_vecs_init(nn);
 

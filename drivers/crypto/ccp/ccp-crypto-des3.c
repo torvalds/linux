@@ -43,24 +43,11 @@ static int ccp_des3_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	struct ccp_crypto_ablkcipher_alg *alg =
 		ccp_crypto_ablkcipher_alg(crypto_ablkcipher_tfm(tfm));
 	u32 *flags = &tfm->base.crt_flags;
+	int err;
 
-
-	/* From des_generic.c:
-	 *
-	 * RFC2451:
-	 *   If the first two or last two independent 64-bit keys are
-	 *   equal (k1 == k2 or k2 == k3), then the DES3 operation is simply the
-	 *   same as DES.  Implementers MUST reject keys that exhibit this
-	 *   property.
-	 */
-	const u32 *K = (const u32 *)key;
-
-	if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-		     !((K[2] ^ K[4]) | (K[3] ^ K[5]))) &&
-		     (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
-		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
+	err = __des3_verify_key(flags, key);
+	if (unlikely(err))
+		return err;
 
 	/* It's not clear that there is any support for a keysize of 112.
 	 * If needed, the caller should make K1 == K3

@@ -2,7 +2,7 @@ config VIDEO_STK1160_COMMON
 	tristate "STK1160 USB video capture support"
 	depends on VIDEO_DEV && I2C
 
-	---help---
+	help
 	  This is a video4linux driver for STK1160 based video capture devices.
 
 	  To compile this driver as a module, choose M here: the

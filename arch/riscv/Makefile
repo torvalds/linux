@@ -39,9 +39,8 @@ endif
 KBUILD_CFLAGS += -Wall
 
 # ISA string setting
-riscv-march-$(CONFIG_ARCH_RV32I)	:= rv32im
-riscv-march-$(CONFIG_ARCH_RV64I)	:= rv64im
-riscv-march-$(CONFIG_RISCV_ISA_A)	:= $(riscv-march-y)a
+riscv-march-$(CONFIG_ARCH_RV32I)	:= rv32ima
+riscv-march-$(CONFIG_ARCH_RV64I)	:= rv64ima
 riscv-march-$(CONFIG_FPU)		:= $(riscv-march-y)fd
 riscv-march-$(CONFIG_RISCV_ISA_C)	:= $(riscv-march-y)c
 KBUILD_CFLAGS += -march=$(subst fd,,$(riscv-march-y))

@@ -3004,8 +3004,6 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	sp->flags |= SRB_SENT;
 	ha->actthreads++;
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
-	/* Enforce mmio write ordering; see comment in qla1280_isp_cmd(). */
-	mmiowb();
 
  out:
 	if (status)
@@ -3254,8 +3252,6 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	sp->flags |= SRB_SENT;
 	ha->actthreads++;
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
-	/* Enforce mmio write ordering; see comment in qla1280_isp_cmd(). */
-	mmiowb();
 
 out:
 	if (status)
@@ -3367,19 +3363,8 @@ qla1280_isp_cmd(struct scsi_qla_host *ha)
 
 	/*
 	 * Update request index to mailbox4 (Request Queue In).
-	 * The mmiowb() ensures that this write is ordered with writes by other
-	 * CPUs.  Without the mmiowb(), it is possible for the following:
-	 *    CPUA posts write of index 5 to mailbox4
-	 *    CPUA releases host lock
-	 *    CPUB acquires host lock
-	 *    CPUB posts write of index 6 to mailbox4
-	 *    On PCI bus, order reverses and write of 6 posts, then index 5,
-	 *       causing chip to issue full queue of stale commands
-	 * The mmiowb() prevents future writes from crossing the barrier.
-	 * See Documentation/driver-api/device-io.rst for more information.
 	 */
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
-	mmiowb();
 
 	LEAVE("qla1280_isp_cmd");
 }

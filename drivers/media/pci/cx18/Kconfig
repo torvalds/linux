@@ -13,7 +13,7 @@ config VIDEO_CX18
 	select DVB_S5H1411 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA8290 if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  This is a video4linux driver for Conexant cx23418 based
 	  PCI combo video recorder devices.
 
@@ -27,7 +27,7 @@ config VIDEO_CX18_ALSA
 	tristate "Conexant 23418 DMA audio support"
 	depends on VIDEO_CX18 && SND
 	select SND_PCM
-	---help---
+	help
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 23418 based TV cards using ALSA.
 

@@ -774,13 +774,6 @@ config TRACE_EVAL_MAP_FILE
 
 	If unsure, say N
 
-config TRACING_EVENTS_GPIO
-	bool "Trace gpio events"
-	depends on GPIOLIB
-	default y
-	help
-	  Enable tracing events for gpio subsystem
-
 config GCOV_PROFILE_FTRACE
 	bool "Enable GCOV profiling on ftrace subsystem"
 	depends on GCOV_KERNEL

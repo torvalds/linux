@@ -384,9 +384,15 @@ int phy_reset(struct phy *phy)
 	if (!phy || !phy->ops->reset)
 		return 0;
 
+	ret = phy_pm_runtime_get_sync(phy);
+	if (ret < 0 && ret != -ENOTSUPP)
+		return ret;
+
 	mutex_lock(&phy->mutex);
 	ret = phy->ops->reset(phy);
 	mutex_unlock(&phy->mutex);
+
+	phy_pm_runtime_put(phy);
 
 	return ret;
 }
@@ -563,6 +569,11 @@ void phy_put(struct phy *phy)
 {
 	if (!phy || IS_ERR(phy))
 		return;
+
+	mutex_lock(&phy->mutex);
+	if (phy->ops->release)
+		phy->ops->release(phy);
+	mutex_unlock(&phy->mutex);
 
 	module_put(phy->ops->owner);
 	put_device(&phy->dev);

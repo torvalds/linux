@@ -34,6 +34,23 @@ model features for SVE is included in Appendix A.
   following sections: software that needs to verify that those interfaces are
   present must check for HWCAP_SVE instead.
 
+* On hardware that supports the SVE2 extensions, HWCAP2_SVE2 will also
+  be reported in the AT_HWCAP2 aux vector entry.  In addition to this,
+  optional extensions to SVE2 may be reported by the presence of:
+
+	HWCAP2_SVE2
+	HWCAP2_SVEAES
+	HWCAP2_SVEPMULL
+	HWCAP2_SVEBITPERM
+	HWCAP2_SVESHA3
+	HWCAP2_SVESM4
+
+  This list may be extended over time as the SVE architecture evolves.
+
+  These extensions are also reported via the CPU ID register ID_AA64ZFR0_EL1,
+  which userspace can read using an MRS instruction.  See elf_hwcaps.txt and
+  cpu-feature-registers.txt for details.
+
 * Debuggers should restrict themselves to interacting with the target via the
   NT_ARM_SVE regset.  The recommended way of detecting support for this regset
   is to connect to a target process first and then attempt a

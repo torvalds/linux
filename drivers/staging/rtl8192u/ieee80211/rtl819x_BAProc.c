@@ -108,7 +108,7 @@ void ResetBaEntry(struct ba_record *pBA)
 static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, struct ba_record *pBA, u16 StatusCode, u8 type)
 {
 	struct sk_buff *skb = NULL;
-	 struct rtl_80211_hdr_3addr *BAReq = NULL;
+	struct rtl_80211_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 	//category(1) + action field(1) + Dialog Token(1) + BA Parameter Set(2) +  BA Timeout Value(2) +  BA Start SeqCtrl(2)(or StatusCode(2))
@@ -118,10 +118,8 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 		return NULL;
 	}
 	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
-	if (!skb) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
+	if (!skb)
 		return NULL;
-	}
 
 	memset(skb->data, 0, sizeof(struct rtl_80211_hdr_3addr));	//I wonder whether it's necessary. Apparently kernel will not do it when alloc a skb.
 	skb_reserve(skb, ieee->tx_headroom);
@@ -189,7 +187,7 @@ static struct sk_buff *ieee80211_DELBA(
 {
 	union delba_param_set	DelbaParamSet;
 	struct sk_buff *skb = NULL;
-	 struct rtl_80211_hdr_3addr *Delba = NULL;
+	struct rtl_80211_hdr_3addr *Delba = NULL;
 	u8 *tag = NULL;
 	//len = head len + DELBA Parameter Set(2) + Reason Code(2)
 	u16 len = 6 + ieee->tx_headroom;
@@ -205,10 +203,8 @@ static struct sk_buff *ieee80211_DELBA(
 	DelbaParamSet.field.tid	= pBA->param_set.field.tid;
 
 	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
-	if (!skb) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
+	if (!skb)
 		return NULL;
-	}
 //	memset(skb->data, 0, len+sizeof( struct rtl_80211_hdr_3addr));
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -318,7 +314,7 @@ static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
  ********************************************************************************************************************/
 int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
-	 struct rtl_80211_hdr_3addr *req = NULL;
+	struct rtl_80211_hdr_3addr *req = NULL;
 	u16 rc = 0;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	struct ba_record *pBA = NULL;
@@ -388,9 +384,9 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	pBA->start_seq_ctrl = *pBaStartSeqCtrl;
 	//for half N mode we only aggregate 1 frame
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-	pBA->param_set.field.buffer_size = 1;
+		pBA->param_set.field.buffer_size = 1;
 	else
-	pBA->param_set.field.buffer_size = 32;
+		pBA->param_set.field.buffer_size = 32;
 	ActivateBAEntry(ieee, pBA, pBA->timeout_value);
 	ieee80211_send_ADDBARsp(ieee, dst, pBA, ADDBA_STATUS_SUCCESS);
 
@@ -418,7 +414,7 @@ OnADDBAReq_Fail:
  ********************************************************************************************************************/
 int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
-	 struct rtl_80211_hdr_3addr *rsp = NULL;
+	struct rtl_80211_hdr_3addr *rsp = NULL;
 	struct ba_record        *pPendingBA, *pAdmittedBA;
 	struct tx_ts_record     *pTS = NULL;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
@@ -542,7 +538,7 @@ OnADDBARsp_Reject:
  ********************************************************************************************************************/
 int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
-	 struct rtl_80211_hdr_3addr *delba = NULL;
+	struct rtl_80211_hdr_3addr *delba = NULL;
 	union delba_param_set   *pDelBaParamSet = NULL;
 	u8			*dst = NULL;
 

@@ -368,6 +368,12 @@
 #define MON_BUFF_WRPTR_VER2		(0xa03c24)
 #define MON_BUFF_CYCLE_CNT_VER2		(0xa03c28)
 #define MON_BUFF_SHIFT_VER2		(0x8)
+/* FW monitor familiy AX210 and on */
+#define DBGC_CUR_DBGBUF_BASE_ADDR_LSB		(0xd03c20)
+#define DBGC_CUR_DBGBUF_BASE_ADDR_MSB		(0xd03c24)
+#define DBGC_CUR_DBGBUF_STATUS			(0xd03c1c)
+#define DBGC_DBGBUF_WRAP_AROUND			(0xd03c2c)
+#define DBGC_CUR_DBGBUF_STATUS_OFFSET_MSK	(0x00ffffff)
 
 #define MON_DMARB_RD_CTL_ADDR		(0xa03c60)
 #define MON_DMARB_RD_DATA_ADDR		(0xa03c5c)

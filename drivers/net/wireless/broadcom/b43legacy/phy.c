@@ -134,7 +134,6 @@ u16 b43legacy_phy_read(struct b43legacy_wldev *dev, u16 offset)
 void b43legacy_phy_write(struct b43legacy_wldev *dev, u16 offset, u16 val)
 {
 	b43legacy_write16(dev, B43legacy_MMIO_PHY_CONTROL, offset);
-	mmiowb();
 	b43legacy_write16(dev, B43legacy_MMIO_PHY_DATA, val);
 }
 

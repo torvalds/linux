@@ -39,7 +39,6 @@
 #include <linux/device.h>
 #include <linux/pid_namespace.h>
 #include <asm/io.h>
-#include <linux/poll.h>
 #include <linux/uaccess.h>
 
 #include <linux/coda.h>

@@ -263,7 +263,8 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (!opt)
 		return handle ? -EINVAL : 0; /* Succeed if it is old method. */
 
-	err = nla_parse_nested(tb, TCA_FW_MAX, opt, fw_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FW_MAX, opt, fw_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -402,7 +403,7 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, void *fh,
 	if (!f->res.classid && !tcf_exts_has_actions(&f->exts))
 		return skb->len;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

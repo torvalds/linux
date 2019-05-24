@@ -81,7 +81,7 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.phy_id = STE101P_PHY_ID,
 	.phy_id_mask = 0xfffffff0,
 	.name = "STe101p",
-	.features = PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.config_init = ste10Xp_config_init,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
@@ -91,7 +91,7 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.phy_id = STE100P_PHY_ID,
 	.phy_id_mask = 0xffffffff,
 	.name = "STe100p",
-	.features = PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.config_init = ste10Xp_config_init,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,

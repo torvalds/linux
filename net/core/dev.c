@@ -131,7 +131,6 @@
 #include <trace/events/napi.h>
 #include <trace/events/net.h>
 #include <trace/events/skb.h>
-#include <linux/pci.h>
 #include <linux/inetdevice.h>
 #include <linux/cpu_rmap.h>
 #include <linux/static_key.h>
@@ -146,6 +145,7 @@
 #include <net/udp_tunnel.h>
 #include <linux/net_namespace.h>
 #include <linux/indirect_call_wrapper.h>
+#include <net/devlink.h>
 
 #include "net-sysfs.h"
 
@@ -3482,6 +3482,15 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
 			__qdisc_drop(skb, &to_free);
 			rc = NET_XMIT_DROP;
+		} else if ((q->flags & TCQ_F_CAN_BYPASS) && q->empty &&
+			   qdisc_run_begin(q)) {
+			qdisc_bstats_cpu_update(q, skb);
+
+			if (sch_direct_xmit(skb, q, dev, txq, NULL, true))
+				__qdisc_run(q);
+
+			qdisc_run_end(q);
+			rc = NET_XMIT_SUCCESS;
 		} else {
 			rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
 			qdisc_run(q);
@@ -3569,9 +3578,6 @@ static void skb_update_prio(struct sk_buff *skb)
 #else
 #define skb_update_prio(skb)
 #endif
-
-DEFINE_PER_CPU(int, xmit_recursion);
-EXPORT_SYMBOL(xmit_recursion);
 
 /**
  *	dev_loopback_xmit - loop back @skb
@@ -3703,23 +3709,21 @@ get_cpus_map:
 }
 
 u16 dev_pick_tx_zero(struct net_device *dev, struct sk_buff *skb,
-		     struct net_device *sb_dev,
-		     select_queue_fallback_t fallback)
+		     struct net_device *sb_dev)
 {
 	return 0;
 }
 EXPORT_SYMBOL(dev_pick_tx_zero);
 
 u16 dev_pick_tx_cpu_id(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev,
-		       select_queue_fallback_t fallback)
+		       struct net_device *sb_dev)
 {
 	return (u16)raw_smp_processor_id() % dev->real_num_tx_queues;
 }
 EXPORT_SYMBOL(dev_pick_tx_cpu_id);
 
-static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
-			    struct net_device *sb_dev)
+u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
+		     struct net_device *sb_dev)
 {
 	struct sock *sk = skb->sk;
 	int queue_index = sk_tx_queue_get(sk);
@@ -3743,10 +3747,11 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 
 	return queue_index;
 }
+EXPORT_SYMBOL(netdev_pick_tx);
 
-struct netdev_queue *netdev_pick_tx(struct net_device *dev,
-				    struct sk_buff *skb,
-				    struct net_device *sb_dev)
+struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
+					 struct sk_buff *skb,
+					 struct net_device *sb_dev)
 {
 	int queue_index = 0;
 
@@ -3761,10 +3766,9 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 		const struct net_device_ops *ops = dev->netdev_ops;
 
 		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb, sb_dev,
-							    __netdev_pick_tx);
+			queue_index = ops->ndo_select_queue(dev, skb, sb_dev);
 		else
-			queue_index = __netdev_pick_tx(dev, skb, sb_dev);
+			queue_index = netdev_pick_tx(dev, skb, sb_dev);
 
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
@@ -3838,7 +3842,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	else
 		skb_dst_force(skb);
 
-	txq = netdev_pick_tx(dev, skb, sb_dev);
+	txq = netdev_core_pick_tx(dev, skb, sb_dev);
 	q = rcu_dereference_bh(txq->qdisc);
 
 	trace_net_dev_queue(skb);
@@ -3863,8 +3867,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 		int cpu = smp_processor_id(); /* ok because BHs are off */
 
 		if (txq->xmit_lock_owner != cpu) {
-			if (unlikely(__this_cpu_read(xmit_recursion) >
-				     XMIT_RECURSION_LIMIT))
+			if (dev_xmit_recursion())
 				goto recursion_alert;
 
 			skb = validate_xmit_skb(skb, dev, &again);
@@ -3874,9 +3877,9 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 			HARD_TX_LOCK(dev, txq, cpu);
 
 			if (!netif_xmit_stopped(txq)) {
-				__this_cpu_inc(xmit_recursion);
+				dev_xmit_recursion_inc();
 				skb = dev_hard_start_xmit(skb, dev, txq, &rc);
-				__this_cpu_dec(xmit_recursion);
+				dev_xmit_recursion_dec();
 				if (dev_xmit_complete(rc)) {
 					HARD_TX_UNLOCK(dev, txq);
 					goto out;
@@ -3989,9 +3992,9 @@ EXPORT_SYMBOL(rps_sock_flow_table);
 u32 rps_cpu_mask __read_mostly;
 EXPORT_SYMBOL(rps_cpu_mask);
 
-struct static_key rps_needed __read_mostly;
+struct static_key_false rps_needed __read_mostly;
 EXPORT_SYMBOL(rps_needed);
-struct static_key rfs_needed __read_mostly;
+struct static_key_false rfs_needed __read_mostly;
 EXPORT_SYMBOL(rfs_needed);
 
 static struct rps_dev_flow *
@@ -4443,7 +4446,7 @@ void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog)
 	bool free_skb = true;
 	int cpu, rc;
 
-	txq = netdev_pick_tx(dev, skb, NULL);
+	txq = netdev_core_pick_tx(dev, skb, NULL);
 	cpu = smp_processor_id();
 	HARD_TX_LOCK(dev, txq, cpu);
 	if (!netif_xmit_stopped(txq)) {
@@ -4517,7 +4520,7 @@ static int netif_rx_internal(struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_RPS
-	if (static_key_false(&rps_needed)) {
+	if (static_branch_unlikely(&rps_needed)) {
 		struct rps_dev_flow voidflow, *rflow = &voidflow;
 		int cpu;
 
@@ -4984,7 +4987,8 @@ static int __netif_receive_skb_one_core(struct sk_buff *skb, bool pfmemalloc)
 
 	ret = __netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
 	if (pt_prev)
-		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+		ret = INDIRECT_CALL_INET(pt_prev->func, ipv6_rcv, ip_rcv, skb,
+					 skb->dev, pt_prev, orig_dev);
 	return ret;
 }
 
@@ -5030,7 +5034,8 @@ static inline void __netif_receive_skb_list_ptype(struct list_head *head,
 	else
 		list_for_each_entry_safe(skb, next, head, list) {
 			skb_list_del_init(skb);
-			pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+			INDIRECT_CALL_INET(pt_prev->func, ipv6_rcv, ip_rcv, skb,
+					   skb->dev, pt_prev, orig_dev);
 		}
 }
 
@@ -5188,7 +5193,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 
 	rcu_read_lock();
 #ifdef CONFIG_RPS
-	if (static_key_false(&rps_needed)) {
+	if (static_branch_unlikely(&rps_needed)) {
 		struct rps_dev_flow voidflow, *rflow = &voidflow;
 		int cpu = get_rps_cpu(skb->dev, skb, &rflow);
 
@@ -5236,7 +5241,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 
 	rcu_read_lock();
 #ifdef CONFIG_RPS
-	if (static_key_false(&rps_needed)) {
+	if (static_branch_unlikely(&rps_needed)) {
 		list_for_each_entry_safe(skb, next, head, list) {
 			struct rps_dev_flow voidflow, *rflow = &voidflow;
 			int cpu = get_rps_cpu(skb->dev, skb, &rflow);
@@ -7886,10 +7891,14 @@ int dev_get_phys_port_name(struct net_device *dev,
 			   char *name, size_t len)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+	int err;
 
-	if (!ops->ndo_get_phys_port_name)
-		return -EOPNOTSUPP;
-	return ops->ndo_get_phys_port_name(dev, name, len);
+	if (ops->ndo_get_phys_port_name) {
+		err = ops->ndo_get_phys_port_name(dev, name, len);
+		if (err != -EOPNOTSUPP)
+			return err;
+	}
+	return devlink_compat_phys_port_name_get(dev, name, len);
 }
 EXPORT_SYMBOL(dev_get_phys_port_name);
 
@@ -7909,13 +7918,20 @@ int dev_get_port_parent_id(struct net_device *dev,
 	struct netdev_phys_item_id first = { };
 	struct net_device *lower_dev;
 	struct list_head *iter;
-	int err = -EOPNOTSUPP;
+	int err;
 
-	if (ops->ndo_get_port_parent_id)
-		return ops->ndo_get_port_parent_id(dev, ppid);
+	if (ops->ndo_get_port_parent_id) {
+		err = ops->ndo_get_port_parent_id(dev, ppid);
+		if (err != -EOPNOTSUPP)
+			return err;
+	}
+
+	err = devlink_compat_switch_id_get(dev, ppid);
+	if (!err || err != -EOPNOTSUPP)
+		return err;
 
 	if (!recurse)
-		return err;
+		return -EOPNOTSUPP;
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
 		err = dev_get_port_parent_id(lower_dev, ppid, recurse);

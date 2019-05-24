@@ -366,7 +366,7 @@ static int wb_smsc_wdt_open(struct inode *inode, struct file *file)
 	pr_info("Watchdog enabled. Timeout set to %d %s\n",
 		timeout, (unit == UNIT_SECOND) ? "second(s)" : "minute(s)");
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /* close => shut off the timer */

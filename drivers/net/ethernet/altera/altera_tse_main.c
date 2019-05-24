@@ -1537,7 +1537,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 
 	/* get default MAC address from device tree */
 	macaddr = of_get_mac_address(pdev->dev.of_node);
-	if (macaddr)
+	if (!IS_ERR(macaddr))
 		ether_addr_copy(ndev->dev_addr, macaddr);
 	else
 		eth_hw_addr_random(ndev);

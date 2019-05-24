@@ -153,6 +153,7 @@ void rt2800mmio_stop_queue(struct data_queue *queue);
 void rt2800mmio_queue_init(struct data_queue *queue);
 
 /* Initialization functions */
+int rt2800mmio_probe_hw(struct rt2x00_dev *rt2x00dev);
 bool rt2800mmio_get_entry_state(struct queue_entry *entry);
 void rt2800mmio_clear_entry(struct queue_entry *entry);
 int rt2800mmio_init_queues(struct rt2x00_dev *rt2x00dev);

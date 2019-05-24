@@ -5,7 +5,6 @@
 
 #include "rc-core-priv.h"
 #include <linux/module.h>
-#include <linux/version.h>
 
 #define RCMM_UNIT		166667	/* nanosecs */
 #define RCMM_PREFIX_PULSE	416666  /* 166666.666666666*2.5 */

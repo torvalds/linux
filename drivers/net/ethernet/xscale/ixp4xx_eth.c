@@ -31,14 +31,15 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/net_tstamp.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/ptp_classify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <mach/ixp46x_ts.h>
-#include <mach/npe.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/npe.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
 #define DEBUG_DESC		0
 #define DEBUG_RX		0
@@ -1497,6 +1498,15 @@ static struct platform_driver ixp4xx_eth_driver = {
 static int __init eth_init_module(void)
 {
 	int err;
+
+	/*
+	 * FIXME: we bail out on device tree boot but this really needs
+	 * to be fixed in a nicer way: this registers the MDIO bus before
+	 * even matching the driver infrastructure, we should only probe
+	 * detected hardware.
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
 	if ((err = ixp4xx_mdio_register()))
 		return err;
 	return platform_driver_register(&ixp4xx_eth_driver);

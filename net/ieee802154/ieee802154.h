@@ -20,7 +20,6 @@ void ieee802154_nl_exit(void);
 #define IEEE802154_OP(_cmd, _func)			\
 	{						\
 		.cmd	= _cmd,				\
-		.policy	= ieee802154_policy,		\
 		.doit	= _func,			\
 		.dumpit	= NULL,				\
 		.flags	= GENL_ADMIN_PERM,		\
@@ -29,7 +28,6 @@ void ieee802154_nl_exit(void);
 #define IEEE802154_DUMP(_cmd, _func, _dump)		\
 	{						\
 		.cmd	= _cmd,				\
-		.policy	= ieee802154_policy,		\
 		.doit	= _func,			\
 		.dumpit	= _dump,			\
 	}

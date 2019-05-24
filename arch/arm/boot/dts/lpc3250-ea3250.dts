@@ -201,6 +201,7 @@
 &mac {
 	phy-mode = "rmii";
 	use-iram;
+	status = "okay";
 };
 
 /* Here, choose exactly one from: ohci, usbd */

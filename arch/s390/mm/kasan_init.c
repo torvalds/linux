@@ -28,7 +28,7 @@ static void __init kasan_early_panic(const char *reason)
 {
 	sclp_early_printk("The Linux kernel failed to boot with the KernelAddressSanitizer:\n");
 	sclp_early_printk(reason);
-	disabled_wait(0);
+	disabled_wait();
 }
 
 static void * __init kasan_early_alloc_segment(void)

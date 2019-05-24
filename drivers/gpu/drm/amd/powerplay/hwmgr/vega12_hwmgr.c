@@ -45,6 +45,7 @@
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
+#include "vega12_baco.h"
 
 
 static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
@@ -2626,8 +2627,12 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.start_thermal_controller = vega12_start_thermal_controller,
 	.powergate_gfx = vega12_gfx_off_control,
 	.get_performance_level = vega12_get_performance_level,
+	.get_asic_baco_capability = smu9_baco_get_capability,
+	.get_asic_baco_state = smu9_baco_get_state,
+	.set_asic_baco_state = vega12_baco_set_state,
 	.get_ppfeature_status = vega12_get_ppfeature_status,
 	.set_ppfeature_status = vega12_set_ppfeature_status,
+
 };
 
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr)

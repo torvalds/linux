@@ -23,6 +23,9 @@
 #define AFSPATHMAX		1024	/* Maximum length of a pathname plus NUL */
 #define AFSOPAQUEMAX		1024	/* Maximum length of an opaque field */
 
+#define AFS_VL_MAX_LIFESPAN	(120 * HZ)
+#define AFS_PROBE_MAX_LIFESPAN	(30 * HZ)
+
 typedef u64			afs_volid_t;
 typedef u64			afs_vnodeid_t;
 typedef u64			afs_dataversion_t;
@@ -69,8 +72,8 @@ typedef enum {
 
 struct afs_callback {
 	time64_t		expires_at;	/* Time at which expires */
-	unsigned		version;	/* Callback version */
-	afs_callback_type_t	type;		/* Type of callback */
+	//unsigned		version;	/* Callback version */
+	//afs_callback_type_t	type;		/* Type of callback */
 };
 
 struct afs_callback_break {
@@ -142,6 +145,15 @@ struct afs_file_status {
 	u32			nlink;		/* link count */
 	s32			lock_count;	/* file lock count (0=UNLK -1=WRLCK +ve=#RDLCK */
 	u32			abort_code;	/* Abort if bulk-fetching this failed */
+};
+
+struct afs_status_cb {
+	struct afs_file_status	status;
+	struct afs_callback	callback;
+	unsigned int		cb_break;	/* Pre-op callback break counter */
+	bool			have_status;	/* True if status record was retrieved */
+	bool			have_cb;	/* True if cb record was retrieved */
+	bool			have_error;	/* True if status.abort_code indicates an error */
 };
 
 /*

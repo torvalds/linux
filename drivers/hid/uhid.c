@@ -632,7 +632,7 @@ static int uhid_char_open(struct inode *inode, struct file *file)
 	INIT_WORK(&uhid->worker, uhid_device_add_worker);
 
 	file->private_data = uhid;
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 }

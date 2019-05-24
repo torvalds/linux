@@ -354,9 +354,11 @@ int imx6_set_lpm(enum mxc_cpu_pwr_mode mode)
 	 *
 	 * Note that IRQ #32 is GIC SPI #0.
 	 */
-	imx_gpc_hwirq_unmask(0);
+	if (mode != WAIT_CLOCKED)
+		imx_gpc_hwirq_unmask(0);
 	writel_relaxed(val, ccm_base + CLPCR);
-	imx_gpc_hwirq_mask(0);
+	if (mode != WAIT_CLOCKED)
+		imx_gpc_hwirq_mask(0);
 
 	return 0;
 }
@@ -631,7 +633,7 @@ static void imx6_pm_stby_poweroff(void)
 static int imx6_pm_stby_poweroff_probe(void)
 {
 	if (pm_power_off) {
-		pr_warn("%s: pm_power_off already claimed  %p %pf!\n",
+		pr_warn("%s: pm_power_off already claimed  %p %ps!\n",
 			__func__, pm_power_off, pm_power_off);
 		return -EBUSY;
 	}

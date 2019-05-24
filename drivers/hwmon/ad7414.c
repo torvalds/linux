@@ -215,7 +215,7 @@ static const struct i2c_device_id ad7414_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad7414_id);
 
-static const struct of_device_id ad7414_of_match[] = {
+static const struct of_device_id __maybe_unused ad7414_of_match[] = {
 	{ .compatible = "ad,ad7414" },
 	{ },
 };

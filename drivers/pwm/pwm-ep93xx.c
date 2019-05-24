@@ -35,7 +35,7 @@
 
 #include <asm/div64.h>
 
-#include <mach/platform.h>	/* for ep93xx_pwm_{acquire,release}_gpio() */
+#include <linux/soc/cirrus/ep93xx.h>	/* for ep93xx_pwm_{acquire,release}_gpio() */
 
 #define EP93XX_PWMx_TERM_COUNT	0x00
 #define EP93XX_PWMx_DUTY_CYCLE	0x04

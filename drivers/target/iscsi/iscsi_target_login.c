@@ -883,9 +883,6 @@ int iscsit_setup_np(
 		return -EINVAL;
 	}
 
-	np->np_ip_proto = IPPROTO_TCP;
-	np->np_sock_type = SOCK_STREAM;
-
 	ret = sock_create(sockaddr->ss_family, np->np_sock_type,
 			np->np_ip_proto, &sock);
 	if (ret < 0) {
@@ -1159,13 +1156,13 @@ static struct iscsi_conn *iscsit_alloc_conn(struct iscsi_np *np)
 
 	if (!zalloc_cpumask_var(&conn->conn_cpumask, GFP_KERNEL)) {
 		pr_err("Unable to allocate conn->conn_cpumask\n");
-		goto free_mask;
+		goto free_conn_ops;
 	}
 
 	return conn;
 
-free_mask:
-	free_cpumask_var(conn->conn_cpumask);
+free_conn_ops:
+	kfree(conn->conn_ops);
 put_transport:
 	iscsit_put_transport(conn->conn_transport);
 free_conn:

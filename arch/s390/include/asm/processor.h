@@ -156,25 +156,6 @@ struct thread_struct {
 
 typedef struct thread_struct thread_struct;
 
-/*
- * Stack layout of a C stack frame.
- */
-#ifndef __PACK_STACK
-struct stack_frame {
-	unsigned long back_chain;
-	unsigned long empty1[5];
-	unsigned long gprs[10];
-	unsigned int  empty2[8];
-};
-#else
-struct stack_frame {
-	unsigned long empty1[5];
-	unsigned int  empty2[8];
-	unsigned long gprs[10];
-	unsigned long back_chain;
-};
-#endif
-
 #define ARCH_MIN_TASKALIGN	8
 
 #define INIT_THREAD {							\
@@ -206,11 +187,7 @@ struct mm_struct;
 struct seq_file;
 struct pt_regs;
 
-typedef int (*dump_trace_func_t)(void *data, unsigned long address, int reliable);
-void dump_trace(dump_trace_func_t func, void *data,
-		struct task_struct *task, unsigned long sp);
 void show_registers(struct pt_regs *regs);
-
 void show_cacheinfo(struct seq_file *m);
 
 /* Free all resources held by a thread. */
@@ -243,55 +220,6 @@ static __no_kasan_or_inline unsigned short stap(void)
 	asm volatile("stap %0" : "=Q" (cpu_address));
 	return cpu_address;
 }
-
-#define CALL_ARGS_0()							\
-	register unsigned long r2 asm("2")
-#define CALL_ARGS_1(arg1)						\
-	register unsigned long r2 asm("2") = (unsigned long)(arg1)
-#define CALL_ARGS_2(arg1, arg2)						\
-	CALL_ARGS_1(arg1);						\
-	register unsigned long r3 asm("3") = (unsigned long)(arg2)
-#define CALL_ARGS_3(arg1, arg2, arg3)					\
-	CALL_ARGS_2(arg1, arg2);					\
-	register unsigned long r4 asm("4") = (unsigned long)(arg3)
-#define CALL_ARGS_4(arg1, arg2, arg3, arg4)				\
-	CALL_ARGS_3(arg1, arg2, arg3);					\
-	register unsigned long r4 asm("5") = (unsigned long)(arg4)
-#define CALL_ARGS_5(arg1, arg2, arg3, arg4, arg5)			\
-	CALL_ARGS_4(arg1, arg2, arg3, arg4);				\
-	register unsigned long r4 asm("6") = (unsigned long)(arg5)
-
-#define CALL_FMT_0
-#define CALL_FMT_1 CALL_FMT_0, "0" (r2)
-#define CALL_FMT_2 CALL_FMT_1, "d" (r3)
-#define CALL_FMT_3 CALL_FMT_2, "d" (r4)
-#define CALL_FMT_4 CALL_FMT_3, "d" (r5)
-#define CALL_FMT_5 CALL_FMT_4, "d" (r6)
-
-#define CALL_CLOBBER_5 "0", "1", "14", "cc", "memory"
-#define CALL_CLOBBER_4 CALL_CLOBBER_5
-#define CALL_CLOBBER_3 CALL_CLOBBER_4, "5"
-#define CALL_CLOBBER_2 CALL_CLOBBER_3, "4"
-#define CALL_CLOBBER_1 CALL_CLOBBER_2, "3"
-#define CALL_CLOBBER_0 CALL_CLOBBER_1
-
-#define CALL_ON_STACK(fn, stack, nr, args...)				\
-({									\
-	CALL_ARGS_##nr(args);						\
-	unsigned long prev;						\
-									\
-	asm volatile(							\
-		"	la	%[_prev],0(15)\n"			\
-		"	la	15,0(%[_stack])\n"			\
-		"	stg	%[_prev],%[_bc](15)\n"			\
-		"	brasl	14,%[_fn]\n"				\
-		"	la	15,0(%[_prev])\n"			\
-		: "+&d" (r2), [_prev] "=&a" (prev)			\
-		: [_stack] "a" (stack),					\
-		  [_bc] "i" (offsetof(struct stack_frame, back_chain)),	\
-		  [_fn] "X" (fn) CALL_FMT_##nr : CALL_CLOBBER_##nr);	\
-	r2;								\
-})
 
 /*
  * Give up the time slice of the virtual PU.
@@ -339,10 +267,10 @@ static __no_kasan_or_inline void __load_psw_mask(unsigned long mask)
 
 	asm volatile(
 		"	larl	%0,1f\n"
-		"	stg	%0,%O1+8(%R1)\n"
-		"	lpswe	%1\n"
+		"	stg	%0,%1\n"
+		"	lpswe	%2\n"
 		"1:"
-		: "=&d" (addr), "=Q" (psw) : "Q" (psw) : "memory", "cc");
+		: "=&d" (addr), "=Q" (psw.addr) : "Q" (psw) : "memory", "cc");
 }
 
 /*
@@ -387,12 +315,12 @@ void enabled_wait(void);
 /*
  * Function to drop a processor into disabled wait state
  */
-static inline void __noreturn disabled_wait(unsigned long code)
+static inline void __noreturn disabled_wait(void)
 {
 	psw_t psw;
 
 	psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
-	psw.addr = code;
+	psw.addr = _THIS_IP_;
 	__load_psw(psw);
 	while (1);
 }

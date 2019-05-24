@@ -147,7 +147,6 @@ static int ttl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ttl_module *mod;
 	struct gpio_chip *gpio;
-	struct resource *res;
 	int ret;
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -164,8 +163,7 @@ static int ttl_probe(struct platform_device *pdev)
 	spin_lock_init(&mod->lock);
 
 	/* get access to the MODULbus registers for this module */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mod->regs = devm_ioremap_resource(dev, res);
+	mod->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mod->regs))
 		return PTR_ERR(mod->regs);
 

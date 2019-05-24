@@ -23,7 +23,10 @@
 #include <linux/mutex.h>
 
 #define CROS_EC_DEV_NAME "cros_ec"
+#define CROS_EC_DEV_FP_NAME "cros_fp"
 #define CROS_EC_DEV_PD_NAME "cros_pd"
+#define CROS_EC_DEV_TP_NAME "cros_tp"
+#define CROS_EC_DEV_ISH_NAME "cros_ish"
 
 /*
  * The EC is unresponsive for a time after a reboot command.  Add a
@@ -120,6 +123,7 @@ struct cros_ec_command {
  * @pkt_xfer: Send packet to EC and get response.
  * @lock: One transaction at a time.
  * @mkbp_event_supported: True if this EC supports the MKBP event protocol.
+ * @host_sleep_v1: True if this EC supports the sleep v1 command.
  * @event_notifier: Interrupt event notifier for transport devices.
  * @event_data: Raw payload transferred with the MKBP event.
  * @event_size: Size in bytes of the event data.
@@ -153,6 +157,7 @@ struct cros_ec_device {
 			struct cros_ec_command *msg);
 	struct mutex lock;
 	bool mkbp_event_supported;
+	bool host_sleep_v1;
 	struct blocking_notifier_head event_notifier;
 
 	struct ec_response_get_next_event_v1 event_data;

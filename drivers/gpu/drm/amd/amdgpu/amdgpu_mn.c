@@ -256,14 +256,14 @@ static int amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
 	/* TODO we should be able to split locking for interval tree and
 	 * amdgpu_mn_invalidate_node
 	 */
-	if (amdgpu_mn_read_lock(amn, range->blockable))
+	if (amdgpu_mn_read_lock(amn, mmu_notifier_range_blockable(range)))
 		return -EAGAIN;
 
 	it = interval_tree_iter_first(&amn->objects, range->start, end);
 	while (it) {
 		struct amdgpu_mn_node *node;
 
-		if (!range->blockable) {
+		if (!mmu_notifier_range_blockable(range)) {
 			amdgpu_mn_read_unlock(amn);
 			return -EAGAIN;
 		}
@@ -299,7 +299,7 @@ static int amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
 	/* notification is exclusive, but interval is inclusive */
 	end = range->end - 1;
 
-	if (amdgpu_mn_read_lock(amn, range->blockable))
+	if (amdgpu_mn_read_lock(amn, mmu_notifier_range_blockable(range)))
 		return -EAGAIN;
 
 	it = interval_tree_iter_first(&amn->objects, range->start, end);
@@ -307,7 +307,7 @@ static int amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
 		struct amdgpu_mn_node *node;
 		struct amdgpu_bo *bo;
 
-		if (!range->blockable) {
+		if (!mmu_notifier_range_blockable(range)) {
 			amdgpu_mn_read_unlock(amn);
 			return -EAGAIN;
 		}

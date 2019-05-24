@@ -397,6 +397,9 @@ if ($arch eq "x86_64") {
 } elsif ($arch eq "nds32") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_NDS32_HI20_RELA\\s+_mcount\$";
     $alignment = 2;
+} elsif ($arch eq "csky") {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_CKCORE_PCREL_JSR_IMM26BY2\\s+_mcount\$";
+    $alignment = 2;
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }
@@ -493,7 +496,7 @@ sub update_funcs
 #
 # Step 2: find the sections and mcount call sites
 #
-open(IN, "$objdump -hdr $inputfile|") || die "error running $objdump";
+open(IN, "LANG=C $objdump -hdr $inputfile|") || die "error running $objdump";
 
 my $text;
 

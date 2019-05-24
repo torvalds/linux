@@ -30,7 +30,7 @@
  * the recommended way for applications to use the coprocessor, and
  * the driver interface is not intended for general use.
  *
- * See Documentation/sparc/oradax/oracle-dax.txt for more details.
+ * See Documentation/sparc/oradax/oracle-dax.rst for more details.
  */
 
 #include <linux/uaccess.h>
@@ -437,7 +437,7 @@ static int dax_lock_page(void *va, struct page **p)
 
 	dax_dbg("uva %p", va);
 
-	ret = get_user_pages_fast((unsigned long)va, 1, 1, p);
+	ret = get_user_pages_fast((unsigned long)va, 1, FOLL_WRITE, p);
 	if (ret == 1) {
 		dax_dbg("locked page %p, for VA %p", *p, va);
 		return 0;

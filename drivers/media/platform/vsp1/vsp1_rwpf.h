@@ -61,6 +61,7 @@ struct vsp1_rwpf {
 	} flip;
 
 	struct vsp1_rwpf_memory mem;
+	bool writeback;
 
 	struct vsp1_dl_manager *dlm;
 };

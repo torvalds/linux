@@ -15,6 +15,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 
 #include "clk.h"
 

@@ -33,8 +33,8 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	kgid_t gid = GLOBAL_ROOT_GID;
 
 	if (target->iattr) {
-		uid = target->iattr->ia_iattr.ia_uid;
-		gid = target->iattr->ia_iattr.ia_gid;
+		uid = target->iattr->ia_uid;
+		gid = target->iattr->ia_gid;
 	}
 
 	kn = kernfs_new_node(parent, name, S_IFLNK|S_IRWXUGO, uid, gid,

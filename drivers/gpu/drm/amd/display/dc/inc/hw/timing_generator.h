@@ -187,8 +187,10 @@ struct timing_generator_funcs {
 	bool (*did_triggered_reset_occur)(struct timing_generator *tg);
 	void (*setup_global_swap_lock)(struct timing_generator *tg,
 							const struct dcp_gsl_params *gsl_params);
+	void (*setup_global_lock)(struct timing_generator *tg);
 	void (*unlock)(struct timing_generator *tg);
 	void (*lock)(struct timing_generator *tg);
+	void (*lock_global)(struct timing_generator *tg);
 	void (*enable_reset_trigger)(struct timing_generator *tg,
 				     int source_tg_inst);
 	void (*enable_crtc_reset)(struct timing_generator *tg,

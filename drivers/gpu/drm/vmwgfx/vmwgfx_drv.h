@@ -48,7 +48,6 @@
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 15
 #define VMWGFX_DRIVER_PATCHLEVEL 0
-#define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_VALIDATIONS 2048
@@ -700,6 +699,8 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 				  uint32_t *inout_id,
 				  struct vmw_resource **out);
 extern void vmw_resource_unreserve(struct vmw_resource *res,
+				   bool dirty_set,
+				   bool dirty,
 				   bool switch_backup,
 				   struct vmw_buffer_object *new_backup,
 				   unsigned long new_backup_offset);
@@ -812,7 +813,6 @@ extern int vmw_fifo_init(struct vmw_private *dev_priv,
 			 struct vmw_fifo_state *fifo);
 extern void vmw_fifo_release(struct vmw_private *dev_priv,
 			     struct vmw_fifo_state *fifo);
-extern void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes);
 extern void *
 vmw_fifo_reserve_dx(struct vmw_private *dev_priv, uint32_t bytes, int ctx_id);
 extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
@@ -827,6 +827,18 @@ extern int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
 				     uint32_t cid);
 extern int vmw_fifo_flush(struct vmw_private *dev_priv,
 			  bool interruptible);
+
+#define VMW_FIFO_RESERVE_DX(__priv, __bytes, __ctx_id)                        \
+({                                                                            \
+	vmw_fifo_reserve_dx(__priv, __bytes, __ctx_id) ? : ({                 \
+		DRM_ERROR("FIFO reserve failed at %s for %u bytes\n",         \
+			  __func__, (unsigned int) __bytes);                  \
+		NULL;                                                         \
+	});                                                                   \
+})
+
+#define VMW_FIFO_RESERVE(__priv, __bytes)                                     \
+	VMW_FIFO_RESERVE_DX(__priv, __bytes, SVGA3D_INVALID_ID)
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -1311,6 +1323,20 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 int vmw_host_get_guestinfo(const char *guest_info_param,
 			   char *buffer, size_t *length);
 int vmw_host_log(const char *log);
+
+/* VMW logging */
+
+/**
+ * VMW_DEBUG_USER - Debug output for user-space debugging.
+ *
+ * @fmt: printf() like format string.
+ *
+ * This macro is for logging user-space error and debugging messages for e.g.
+ * command buffer execution errors due to malformed commands, invalid context,
+ * etc.
+ */
+#define VMW_DEBUG_USER(fmt, ...)                                              \
+	DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__)
 
 /**
  * Inline helper functions

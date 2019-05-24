@@ -30,6 +30,8 @@
 #include <mach/hardware.h>
 #include <asm/mach/pci.h>
 
+#include "irqs.h"
+
 #define SLOT0_DEVID	0
 #define SLOT1_DEVID	1
 #define INTA		10 /* slot 1 has INTA and INTB crossed */

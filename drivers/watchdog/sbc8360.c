@@ -271,7 +271,7 @@ static int sbc8360_open(struct inode *inode, struct file *file)
 	/* Activate and ping once to start the countdown */
 	sbc8360_activate();
 	sbc8360_ping();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int sbc8360_close(struct inode *inode, struct file *file)

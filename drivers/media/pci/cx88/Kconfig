@@ -6,7 +6,7 @@ config VIDEO_CX88
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_WM8775 if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  This is a video4linux driver for Conexant 2388x based
 	  TV cards.
 
@@ -17,7 +17,7 @@ config VIDEO_CX88_ALSA
 	tristate "Conexant 2388x DMA audio support"
 	depends on VIDEO_CX88 && SND
 	select SND_PCM
-	---help---
+	help
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 2388x based TV cards using ALSA.
 
@@ -33,7 +33,7 @@ config VIDEO_CX88_BLACKBIRD
 	tristate "Blackbird MPEG encoder support (cx2388x + cx23416)"
 	depends on VIDEO_CX88
 	select VIDEO_CX2341X
-	---help---
+	help
 	  This adds support for MPEG encoder cards based on the
 	  Blackbird reference design, using the Conexant 2388x
 	  and 23416 chips.
@@ -64,7 +64,7 @@ config VIDEO_CX88_DVB
 	select DVB_DS3000 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TS2020 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  This adds support for DVB/ATSC cards based on the
 	  Conexant 2388x chip.
 
@@ -75,7 +75,7 @@ config VIDEO_CX88_ENABLE_VP3054
 	bool "VP-3054 Secondary I2C Bus Support"
 	default y
 	depends on VIDEO_CX88_DVB && DVB_MT352
-	---help---
+	help
 	  This adds DVB-T support for cards based on the
 	  Conexant 2388x chip and the MT352 demodulator,
 	  which also require support for the VP-3054

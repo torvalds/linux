@@ -2623,7 +2623,6 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	wmb();
 	DOORBELL_RELAXED(bp, txdata->cid, txdata->tx_db.raw);
 
-	mmiowb();
 	barrier();
 
 	num_pkts++;

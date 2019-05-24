@@ -227,7 +227,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		break;
 	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
-		if (!(data & (pmu->global_ctrl_mask & ~(3ull<<62)))) {
+		if (!(data & pmu->global_ovf_ctrl_mask)) {
 			if (!msr_info->host_initiated)
 				pmu->global_status &= ~data;
 			pmu->global_ovf_ctrl = data;
@@ -297,6 +297,12 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->global_ctrl = ((1ull << pmu->nr_arch_gp_counters) - 1) |
 		(((1ull << pmu->nr_arch_fixed_counters) - 1) << INTEL_PMC_IDX_FIXED);
 	pmu->global_ctrl_mask = ~pmu->global_ctrl;
+	pmu->global_ovf_ctrl_mask = pmu->global_ctrl_mask
+			& ~(MSR_CORE_PERF_GLOBAL_OVF_CTRL_OVF_BUF |
+			    MSR_CORE_PERF_GLOBAL_OVF_CTRL_COND_CHGD);
+	if (kvm_x86_ops->pt_supported())
+		pmu->global_ovf_ctrl_mask &=
+				~MSR_CORE_PERF_GLOBAL_OVF_CTRL_TRACE_TOPA_PMI;
 
 	entry = kvm_find_cpuid_entry(vcpu, 7, 0);
 	if (entry &&

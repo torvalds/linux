@@ -8,7 +8,7 @@
  *
  * ADS7830 support, by Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
  *
- * For further information, see the Documentation/hwmon/ads7828 file.
+ * For further information, see the Documentation/hwmon/ads7828.rst file.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -200,7 +200,7 @@ static const struct i2c_device_id ads7828_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ads7828_device_ids);
 
-static const struct of_device_id ads7828_of_match[] = {
+static const struct of_device_id __maybe_unused ads7828_of_match[] = {
 	{
 		.compatible = "ti,ads7828",
 		.data = (void *)ads7828

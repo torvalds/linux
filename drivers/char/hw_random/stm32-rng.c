@@ -161,12 +161,20 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 #endif
 	priv->rng.read = stm32_rng_read,
 	priv->rng.priv = (unsigned long) dev;
+	priv->rng.quality = 900;
 
 	pm_runtime_set_autosuspend_delay(dev, 100);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 
 	return devm_hwrng_register(dev, &priv->rng);
+}
+
+static int stm32_rng_remove(struct platform_device *ofdev)
+{
+	pm_runtime_disable(&ofdev->dev);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -210,6 +218,7 @@ static struct platform_driver stm32_rng_driver = {
 		.of_match_table = stm32_rng_match,
 	},
 	.probe = stm32_rng_probe,
+	.remove = stm32_rng_remove,
 };
 
 module_platform_driver(stm32_rng_driver);

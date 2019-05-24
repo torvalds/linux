@@ -521,8 +521,15 @@ static noinline bool afs_update_server_record(struct afs_fs_cursor *fc, struct a
 	alist = afs_vl_lookup_addrs(fc->vnode->volume->cell, fc->key,
 				    &server->uuid);
 	if (IS_ERR(alist)) {
-		fc->ac.error = PTR_ERR(alist);
-		_leave(" = f [%d]", fc->ac.error);
+		if ((PTR_ERR(alist) == -ERESTARTSYS ||
+		     PTR_ERR(alist) == -EINTR) &&
+		    !(fc->flags & AFS_FS_CURSOR_INTR) &&
+		    server->addresses) {
+			_leave(" = t [intr]");
+			return true;
+		}
+		fc->error = PTR_ERR(alist);
+		_leave(" = f [%d]", fc->error);
 		return false;
 	}
 
@@ -574,7 +581,11 @@ retry:
 	ret = wait_on_bit(&server->flags, AFS_SERVER_FL_UPDATING,
 			  TASK_INTERRUPTIBLE);
 	if (ret == -ERESTARTSYS) {
-		fc->ac.error = ret;
+		if (!(fc->flags & AFS_FS_CURSOR_INTR) && server->addresses) {
+			_leave(" = t [intr]");
+			return true;
+		}
+		fc->error = ret;
 		_leave(" = f [intr]");
 		return false;
 	}

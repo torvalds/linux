@@ -14,6 +14,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>

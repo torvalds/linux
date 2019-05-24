@@ -1760,8 +1760,10 @@ void core_alua_free_tg_pt_gp(
 	 * can be made while we are releasing struct t10_alua_tg_pt_gp.
 	 */
 	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
-	list_del(&tg_pt_gp->tg_pt_gp_list);
-	dev->t10_alua.alua_tg_pt_gps_counter--;
+	if (tg_pt_gp->tg_pt_gp_valid_id) {
+		list_del(&tg_pt_gp->tg_pt_gp_list);
+		dev->t10_alua.alua_tg_pt_gps_count--;
+	}
 	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
 	/*

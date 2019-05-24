@@ -35,6 +35,13 @@
 			reg = <0x9ef00000 0x00100000>;
 			no-map;
 		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 
 	leds {
@@ -238,6 +245,7 @@
 
 &gfx {
 	status = "okay";
+	memory-region = <&gfx_memory>;
 };
 
 &pinctrl {

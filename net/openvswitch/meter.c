@@ -127,7 +127,7 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
 			      OVS_METER_ATTR_PAD))
 		goto error;
 
-	nla = nla_nest_start(reply, OVS_METER_ATTR_BANDS);
+	nla = nla_nest_start_noflag(reply, OVS_METER_ATTR_BANDS);
 	if (!nla)
 		goto error;
 
@@ -136,7 +136,7 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
 	for (i = 0; i < meter->n_bands; ++i, ++band) {
 		struct nlattr *band_nla;
 
-		band_nla = nla_nest_start(reply, OVS_BAND_ATTR_UNSPEC);
+		band_nla = nla_nest_start_noflag(reply, OVS_BAND_ATTR_UNSPEC);
 		if (!band_nla || nla_put(reply, OVS_BAND_ATTR_STATS,
 					 sizeof(struct ovs_flow_stats),
 					 &band->stats))
@@ -166,11 +166,11 @@ static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
 	    nla_put_u32(reply, OVS_METER_ATTR_MAX_BANDS, DP_MAX_BANDS))
 		goto nla_put_failure;
 
-	nla = nla_nest_start(reply, OVS_METER_ATTR_BANDS);
+	nla = nla_nest_start_noflag(reply, OVS_METER_ATTR_BANDS);
 	if (!nla)
 		goto nla_put_failure;
 
-	band_nla = nla_nest_start(reply, OVS_BAND_ATTR_UNSPEC);
+	band_nla = nla_nest_start_noflag(reply, OVS_BAND_ATTR_UNSPEC);
 	if (!band_nla)
 		goto nla_put_failure;
 	/* Currently only DROP band type is supported. */
@@ -227,9 +227,9 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 		struct nlattr *attr[OVS_BAND_ATTR_MAX + 1];
 		u32 band_max_delta_t;
 
-		err = nla_parse((struct nlattr **)&attr, OVS_BAND_ATTR_MAX,
-				nla_data(nla), nla_len(nla), band_policy,
-				NULL);
+		err = nla_parse_deprecated((struct nlattr **)&attr,
+					   OVS_BAND_ATTR_MAX, nla_data(nla),
+					   nla_len(nla), band_policy, NULL);
 		if (err)
 			goto exit_free_meter;
 
@@ -526,27 +526,27 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 
 static struct genl_ops dp_meter_genl_ops[] = {
 	{ .cmd = OVS_METER_CMD_FEATURES,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,		  /* OK for unprivileged users. */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_features
 	},
 	{ .cmd = OVS_METER_CMD_SET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   *  privilege.
 					   */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_set,
 	},
 	{ .cmd = OVS_METER_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,		  /* OK for unprivileged users. */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_get,
 	},
 	{ .cmd = OVS_METER_CMD_DEL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
 					   *  privilege.
 					   */
-		.policy = meter_policy,
 		.doit = ovs_meter_cmd_del
 	},
 };
@@ -560,6 +560,7 @@ struct genl_family dp_meter_genl_family __ro_after_init = {
 	.name = OVS_METER_FAMILY,
 	.version = OVS_METER_VERSION,
 	.maxattr = OVS_METER_ATTR_MAX,
+	.policy = meter_policy,
 	.netnsok = true,
 	.parallel_ops = true,
 	.ops = dp_meter_genl_ops,

@@ -18,6 +18,9 @@
 #include <linux/sched.h>
 #include <linux/uidgid.h>
 #include <linux/filter.h>
+#include <linux/ctype.h>
+
+#include "../../lib/kstrtox.h"
 
 /* If kernel subsystem is allowing eBPF programs to call this function,
  * inside its own verifier_ops->get_func_proto() callback it should return
@@ -363,4 +366,132 @@ const struct bpf_func_proto bpf_get_local_storage_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 #endif
+
+#define BPF_STRTOX_BASE_MASK 0x1F
+
+static int __bpf_strtoull(const char *buf, size_t buf_len, u64 flags,
+			  unsigned long long *res, bool *is_negative)
+{
+	unsigned int base = flags & BPF_STRTOX_BASE_MASK;
+	const char *cur_buf = buf;
+	size_t cur_len = buf_len;
+	unsigned int consumed;
+	size_t val_len;
+	char str[64];
+
+	if (!buf || !buf_len || !res || !is_negative)
+		return -EINVAL;
+
+	if (base != 0 && base != 8 && base != 10 && base != 16)
+		return -EINVAL;
+
+	if (flags & ~BPF_STRTOX_BASE_MASK)
+		return -EINVAL;
+
+	while (cur_buf < buf + buf_len && isspace(*cur_buf))
+		++cur_buf;
+
+	*is_negative = (cur_buf < buf + buf_len && *cur_buf == '-');
+	if (*is_negative)
+		++cur_buf;
+
+	consumed = cur_buf - buf;
+	cur_len -= consumed;
+	if (!cur_len)
+		return -EINVAL;
+
+	cur_len = min(cur_len, sizeof(str) - 1);
+	memcpy(str, cur_buf, cur_len);
+	str[cur_len] = '\0';
+	cur_buf = str;
+
+	cur_buf = _parse_integer_fixup_radix(cur_buf, &base);
+	val_len = _parse_integer(cur_buf, base, res);
+
+	if (val_len & KSTRTOX_OVERFLOW)
+		return -ERANGE;
+
+	if (val_len == 0)
+		return -EINVAL;
+
+	cur_buf += val_len;
+	consumed += cur_buf - str;
+
+	return consumed;
+}
+
+static int __bpf_strtoll(const char *buf, size_t buf_len, u64 flags,
+			 long long *res)
+{
+	unsigned long long _res;
+	bool is_negative;
+	int err;
+
+	err = __bpf_strtoull(buf, buf_len, flags, &_res, &is_negative);
+	if (err < 0)
+		return err;
+	if (is_negative) {
+		if ((long long)-_res > 0)
+			return -ERANGE;
+		*res = -_res;
+	} else {
+		if ((long long)_res < 0)
+			return -ERANGE;
+		*res = _res;
+	}
+	return err;
+}
+
+BPF_CALL_4(bpf_strtol, const char *, buf, size_t, buf_len, u64, flags,
+	   long *, res)
+{
+	long long _res;
+	int err;
+
+	err = __bpf_strtoll(buf, buf_len, flags, &_res);
+	if (err < 0)
+		return err;
+	if (_res != (long)_res)
+		return -ERANGE;
+	*res = _res;
+	return err;
+}
+
+const struct bpf_func_proto bpf_strtol_proto = {
+	.func		= bpf_strtol,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_MEM,
+	.arg2_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_LONG,
+};
+
+BPF_CALL_4(bpf_strtoul, const char *, buf, size_t, buf_len, u64, flags,
+	   unsigned long *, res)
+{
+	unsigned long long _res;
+	bool is_negative;
+	int err;
+
+	err = __bpf_strtoull(buf, buf_len, flags, &_res, &is_negative);
+	if (err < 0)
+		return err;
+	if (is_negative)
+		return -EINVAL;
+	if (_res != (unsigned long)_res)
+		return -ERANGE;
+	*res = _res;
+	return err;
+}
+
+const struct bpf_func_proto bpf_strtoul_proto = {
+	.func		= bpf_strtoul,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_MEM,
+	.arg2_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_LONG,
+};
 #endif

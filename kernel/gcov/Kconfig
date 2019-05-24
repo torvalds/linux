@@ -53,6 +53,7 @@ config GCOV_PROFILE_ALL
 choice
 	prompt "Specify GCOV format"
 	depends on GCOV_KERNEL
+	depends on CC_IS_GCC
 	---help---
 	The gcov format is usually determined by the GCC version, and the
 	default is chosen according to your GCC version. However, there are
@@ -62,7 +63,7 @@ choice
 
 config GCOV_FORMAT_3_4
 	bool "GCC 3.4 format"
-	depends on CC_IS_GCC && GCC_VERSION < 40700
+	depends on GCC_VERSION < 40700
 	---help---
 	Select this option to use the format defined by GCC 3.4.
 

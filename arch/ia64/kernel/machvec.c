@@ -10,7 +10,9 @@
 
 #include <asm/page.h>
 
-struct ia64_machine_vector ia64_mv;
+struct ia64_machine_vector ia64_mv = {
+	.mmiowb	= ___ia64_mmiowb
+};
 EXPORT_SYMBOL(ia64_mv);
 
 static struct ia64_machine_vector * __init

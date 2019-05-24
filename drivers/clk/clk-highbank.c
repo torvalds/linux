@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -272,7 +271,7 @@ static const struct clk_ops periclk_ops = {
 	.set_rate = clk_periclk_set_rate,
 };
 
-static __init struct clk *hb_clk_init(struct device_node *node, const struct clk_ops *ops)
+static void __init hb_clk_init(struct device_node *node, const struct clk_ops *ops, unsigned long clkflags)
 {
 	u32 reg;
 	struct hb_clk *hb_clk;
@@ -284,11 +283,11 @@ static __init struct clk *hb_clk_init(struct device_node *node, const struct clk
 
 	rc = of_property_read_u32(node, "reg", &reg);
 	if (WARN_ON(rc))
-		return NULL;
+		return;
 
 	hb_clk = kzalloc(sizeof(*hb_clk), GFP_KERNEL);
 	if (WARN_ON(!hb_clk))
-		return NULL;
+		return;
 
 	/* Map system registers */
 	srnp = of_find_compatible_node(NULL, NULL, "calxeda,hb-sregs");
@@ -301,7 +300,7 @@ static __init struct clk *hb_clk_init(struct device_node *node, const struct clk
 
 	init.name = clk_name;
 	init.ops = ops;
-	init.flags = 0;
+	init.flags = clkflags;
 	parent_name = of_clk_get_parent_name(node, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
@@ -311,33 +310,31 @@ static __init struct clk *hb_clk_init(struct device_node *node, const struct clk
 	rc = clk_hw_register(NULL, &hb_clk->hw);
 	if (WARN_ON(rc)) {
 		kfree(hb_clk);
-		return NULL;
+		return;
 	}
-	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &hb_clk->hw);
-	return hb_clk->hw.clk;
+	of_clk_add_hw_provider(node, of_clk_hw_simple_get, &hb_clk->hw);
 }
 
 static void __init hb_pll_init(struct device_node *node)
 {
-	hb_clk_init(node, &clk_pll_ops);
+	hb_clk_init(node, &clk_pll_ops, 0);
 }
 CLK_OF_DECLARE(hb_pll, "calxeda,hb-pll-clock", hb_pll_init);
 
 static void __init hb_a9periph_init(struct device_node *node)
 {
-	hb_clk_init(node, &a9periphclk_ops);
+	hb_clk_init(node, &a9periphclk_ops, 0);
 }
 CLK_OF_DECLARE(hb_a9periph, "calxeda,hb-a9periph-clock", hb_a9periph_init);
 
 static void __init hb_a9bus_init(struct device_node *node)
 {
-	struct clk *clk = hb_clk_init(node, &a9bclk_ops);
-	clk_prepare_enable(clk);
+	hb_clk_init(node, &a9bclk_ops, CLK_IS_CRITICAL);
 }
 CLK_OF_DECLARE(hb_a9bus, "calxeda,hb-a9bus-clock", hb_a9bus_init);
 
 static void __init hb_emmc_init(struct device_node *node)
 {
-	hb_clk_init(node, &periclk_ops);
+	hb_clk_init(node, &periclk_ops, 0);
 }
 CLK_OF_DECLARE(hb_emmc, "calxeda,hb-emmc-clock", hb_emmc_init);

@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA  02110-1301, USA.
  */
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include "../hardware.h"
 #include "devices-common.h"

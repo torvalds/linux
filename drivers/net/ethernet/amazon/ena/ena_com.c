@@ -731,7 +731,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 	if (rc)
 		pr_err("Cannot set LLQ configuration: %d\n", rc);
 
-	return 0;
+	return rc;
 }
 
 static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *comp_ctx,
@@ -2016,7 +2016,6 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	mb();
 	writel_relaxed((u32)aenq->head,
 		       dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
-	mmiowb();
 }
 
 int ena_com_dev_reset(struct ena_com_dev *ena_dev,
@@ -2195,7 +2194,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 	if (unlikely(ret))
 		return ret;
 
-	if (get_resp.u.flow_hash_func.supported_func & (1 << rss->hash_func)) {
+	if (!(get_resp.u.flow_hash_func.supported_func & BIT(rss->hash_func))) {
 		pr_err("Func hash %d isn't supported by device, abort\n",
 		       rss->hash_func);
 		return -EOPNOTSUPP;
@@ -2280,6 +2279,7 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 		return -EINVAL;
 	}
 
+	rss->hash_func = func;
 	rc = ena_com_set_hash_function(ena_dev);
 
 	/* Restore the old function */
@@ -2802,7 +2802,11 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 	/* if moderation is supported by device we set adaptive moderation */
 	delay_resolution = get_resp.u.intr_moderation.intr_delay_resolution;
 	ena_com_update_intr_delay_resolution(ena_dev, delay_resolution);
-	ena_com_enable_adaptive_moderation(ena_dev);
+
+	/* Disable adaptive moderation by default - can be enabled from
+	 * ethtool
+	 */
+	ena_com_disable_adaptive_moderation(ena_dev);
 
 	return 0;
 err:

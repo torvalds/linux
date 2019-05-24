@@ -16,13 +16,15 @@ import gdb
 from linux import utils
 
 list_head = utils.CachedType("struct list_head")
+hlist_head = utils.CachedType("struct hlist_head")
+hlist_node = utils.CachedType("struct hlist_node")
 
 
 def list_for_each(head):
     if head.type == list_head.get_type().pointer():
         head = head.dereference()
     elif head.type != list_head.get_type():
-        raise gdb.GdbError("Must be struct list_head not {}"
+        raise TypeError("Must be struct list_head not {}"
                            .format(head.type))
 
     node = head['next'].dereference()
@@ -33,9 +35,24 @@ def list_for_each(head):
 
 def list_for_each_entry(head, gdbtype, member):
     for node in list_for_each(head):
-        if node.type != list_head.get_type().pointer():
-            raise TypeError("Type {} found. Expected struct list_head *."
-                            .format(node.type))
+        yield utils.container_of(node, gdbtype, member)
+
+
+def hlist_for_each(head):
+    if head.type == hlist_head.get_type().pointer():
+        head = head.dereference()
+    elif head.type != hlist_head.get_type():
+        raise TypeError("Must be struct hlist_head not {}"
+                           .format(head.type))
+
+    node = head['first'].dereference()
+    while node.address:
+        yield node.address
+        node = node['next'].dereference()
+
+
+def hlist_for_each_entry(head, gdbtype, member):
+    for node in hlist_for_each(head):
         yield utils.container_of(node, gdbtype, member)
 
 
@@ -109,5 +126,6 @@ class LxListChk(gdb.Command):
         if len(argv) != 1:
             raise gdb.GdbError("lx-list-check takes one argument")
         list_check(gdb.parse_and_eval(argv[0]))
+
 
 LxListChk()

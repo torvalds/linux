@@ -864,7 +864,15 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	/* Recalculate frame rate */
 	ov7675_get_framerate(sd, tpf);
 
-	return ov7675_apply_framerate(sd);
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the framerate will be restored right after power-up.
+	 */
+	if (info->on)
+		return ov7675_apply_framerate(sd);
+
+	return 0;
 }
 
 static void ov7670_get_framerate_legacy(struct v4l2_subdev *sd,
@@ -895,7 +903,16 @@ static int ov7670_set_framerate_legacy(struct v4l2_subdev *sd,
 	info->clkrc = (info->clkrc & 0x80) | div;
 	tpf->numerator = 1;
 	tpf->denominator = info->clock_speed / div;
-	return ov7670_write(sd, REG_CLKRC, info->clkrc);
+
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the framerate will be restored right after power-up.
+	 */
+	if (info->on)
+		return ov7670_write(sd, REG_CLKRC, info->clkrc);
+
+	return 0;
 }
 
 /*
@@ -1105,9 +1122,13 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = ov7670_apply_fmt(sd);
-	if (ret)
-		return ret;
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the frame format will be restored right after power-up.
+	 */
+	if (info->on)
+		return ov7670_apply_fmt(sd);
 
 	return 0;
 }
@@ -1664,6 +1685,7 @@ static int ov7670_s_power(struct v4l2_subdev *sd, int on)
 
 	if (on) {
 		ov7670_power_on (sd);
+		ov7670_init(sd, 0);
 		ov7670_apply_fmt(sd);
 		ov7675_apply_framerate(sd);
 		v4l2_ctrl_handler_setup(&info->hdl);

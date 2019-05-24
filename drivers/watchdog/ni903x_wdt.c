@@ -217,9 +217,7 @@ static int ni903x_acpi_add(struct acpi_device *device)
 	wdd->parent = dev;
 	watchdog_set_drvdata(wdd, wdt);
 	watchdog_set_nowayout(wdd, nowayout);
-	ret = watchdog_init_timeout(wdd, timeout, dev);
-	if (ret)
-		dev_err(dev, "unable to set timeout value, using default\n");
+	watchdog_init_timeout(wdd, timeout, dev);
 
 	ret = watchdog_register_device(wdd);
 	if (ret) {

@@ -4,5 +4,5 @@ config VIDEO_SMIAPP
 	depends on MEDIA_CAMERA_SUPPORT
 	select VIDEO_SMIAPP_PLL
 	select V4L2_FWNODE
-	---help---
+	help
 	  This is a generic driver for SMIA++/SMIA camera modules.

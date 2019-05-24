@@ -22,6 +22,7 @@
 #include <asm/byteorder.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu-features.h>
+#include <asm/isa-rev.h>
 #include <asm/uasm.h>
 
 /* Registers used by JIT */
@@ -125,14 +126,20 @@ static enum reg_val_type get_reg_val_type(const struct jit_ctx *ctx,
 }
 
 /* Simply emit the instruction if the JIT memory space has been allocated */
-#define emit_instr(ctx, func, ...)			\
-do {							\
-	if ((ctx)->target != NULL) {			\
-		u32 *p = &(ctx)->target[ctx->idx];	\
-		uasm_i_##func(&p, ##__VA_ARGS__);	\
-	}						\
-	(ctx)->idx++;					\
+#define emit_instr_long(ctx, func64, func32, ...)		\
+do {								\
+	if ((ctx)->target != NULL) {				\
+		u32 *p = &(ctx)->target[ctx->idx];		\
+		if (IS_ENABLED(CONFIG_64BIT))			\
+			uasm_i_##func64(&p, ##__VA_ARGS__);	\
+		else						\
+			uasm_i_##func32(&p, ##__VA_ARGS__);	\
+	}							\
+	(ctx)->idx++;						\
 } while (0)
+
+#define emit_instr(ctx, func, ...)				\
+	emit_instr_long(ctx, func, func, ##__VA_ARGS__)
 
 static unsigned int j_target(struct jit_ctx *ctx, int target_idx)
 {
@@ -274,17 +281,17 @@ static int gen_int_prologue(struct jit_ctx *ctx)
 		 * If RA we are doing a function call and may need
 		 * extra 8-byte tmp area.
 		 */
-		stack_adjust += 16;
+		stack_adjust += 2 * sizeof(long);
 	if (ctx->flags & EBPF_SAVE_S0)
-		stack_adjust += 8;
+		stack_adjust += sizeof(long);
 	if (ctx->flags & EBPF_SAVE_S1)
-		stack_adjust += 8;
+		stack_adjust += sizeof(long);
 	if (ctx->flags & EBPF_SAVE_S2)
-		stack_adjust += 8;
+		stack_adjust += sizeof(long);
 	if (ctx->flags & EBPF_SAVE_S3)
-		stack_adjust += 8;
+		stack_adjust += sizeof(long);
 	if (ctx->flags & EBPF_SAVE_S4)
-		stack_adjust += 8;
+		stack_adjust += sizeof(long);
 
 	BUILD_BUG_ON(MAX_BPF_STACK & 7);
 	locals_size = (ctx->flags & EBPF_SEEN_FP) ? MAX_BPF_STACK : 0;
@@ -298,41 +305,49 @@ static int gen_int_prologue(struct jit_ctx *ctx)
 	 * On tail call we skip this instruction, and the TCC is
 	 * passed in $v1 from the caller.
 	 */
-	emit_instr(ctx, daddiu, MIPS_R_V1, MIPS_R_ZERO, MAX_TAIL_CALL_CNT);
+	emit_instr(ctx, addiu, MIPS_R_V1, MIPS_R_ZERO, MAX_TAIL_CALL_CNT);
 	if (stack_adjust)
-		emit_instr(ctx, daddiu, MIPS_R_SP, MIPS_R_SP, -stack_adjust);
+		emit_instr_long(ctx, daddiu, addiu,
+					MIPS_R_SP, MIPS_R_SP, -stack_adjust);
 	else
 		return 0;
 
-	store_offset = stack_adjust - 8;
+	store_offset = stack_adjust - sizeof(long);
 
 	if (ctx->flags & EBPF_SAVE_RA) {
-		emit_instr(ctx, sd, MIPS_R_RA, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, sd, sw,
+					MIPS_R_RA, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S0) {
-		emit_instr(ctx, sd, MIPS_R_S0, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, sd, sw,
+					MIPS_R_S0, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S1) {
-		emit_instr(ctx, sd, MIPS_R_S1, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, sd, sw,
+					MIPS_R_S1, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S2) {
-		emit_instr(ctx, sd, MIPS_R_S2, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, sd, sw,
+					MIPS_R_S2, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S3) {
-		emit_instr(ctx, sd, MIPS_R_S3, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, sd, sw,
+					MIPS_R_S3, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S4) {
-		emit_instr(ctx, sd, MIPS_R_S4, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, sd, sw,
+					MIPS_R_S4, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 
 	if ((ctx->flags & EBPF_SEEN_TC) && !(ctx->flags & EBPF_TCC_IN_V1))
-		emit_instr(ctx, daddu, MIPS_R_S4, MIPS_R_V1, MIPS_R_ZERO);
+		emit_instr_long(ctx, daddu, addu,
+					MIPS_R_S4, MIPS_R_V1, MIPS_R_ZERO);
 
 	return 0;
 }
@@ -341,7 +356,7 @@ static int build_int_epilogue(struct jit_ctx *ctx, int dest_reg)
 {
 	const struct bpf_prog *prog = ctx->skf;
 	int stack_adjust = ctx->stack_size;
-	int store_offset = stack_adjust - 8;
+	int store_offset = stack_adjust - sizeof(long);
 	enum reg_val_type td;
 	int r0 = MIPS_R_V0;
 
@@ -353,33 +368,40 @@ static int build_int_epilogue(struct jit_ctx *ctx, int dest_reg)
 	}
 
 	if (ctx->flags & EBPF_SAVE_RA) {
-		emit_instr(ctx, ld, MIPS_R_RA, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, ld, lw,
+					MIPS_R_RA, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S0) {
-		emit_instr(ctx, ld, MIPS_R_S0, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, ld, lw,
+					MIPS_R_S0, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S1) {
-		emit_instr(ctx, ld, MIPS_R_S1, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, ld, lw,
+					MIPS_R_S1, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S2) {
-		emit_instr(ctx, ld, MIPS_R_S2, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, ld, lw,
+				MIPS_R_S2, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S3) {
-		emit_instr(ctx, ld, MIPS_R_S3, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, ld, lw,
+					MIPS_R_S3, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	if (ctx->flags & EBPF_SAVE_S4) {
-		emit_instr(ctx, ld, MIPS_R_S4, store_offset, MIPS_R_SP);
-		store_offset -= 8;
+		emit_instr_long(ctx, ld, lw,
+					MIPS_R_S4, store_offset, MIPS_R_SP);
+		store_offset -= sizeof(long);
 	}
 	emit_instr(ctx, jr, dest_reg);
 
 	if (stack_adjust)
-		emit_instr(ctx, daddiu, MIPS_R_SP, MIPS_R_SP, stack_adjust);
+		emit_instr_long(ctx, daddiu, addiu,
+					MIPS_R_SP, MIPS_R_SP, stack_adjust);
 	else
 		emit_instr(ctx, nop);
 
@@ -646,6 +668,10 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	s64 t64s;
 	int bpf_op = BPF_OP(insn->code);
 
+	if (IS_ENABLED(CONFIG_32BIT) && ((BPF_CLASS(insn->code) == BPF_ALU64)
+						|| (bpf_op == BPF_DW)))
+		return -EINVAL;
+
 	switch (insn->code) {
 	case BPF_ALU64 | BPF_ADD | BPF_K: /* ALU64_IMM */
 	case BPF_ALU64 | BPF_SUB | BPF_K: /* ALU64_IMM */
@@ -678,8 +704,12 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (insn->imm == 1) /* Mult by 1 is a nop */
 			break;
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
-		emit_instr(ctx, dmultu, MIPS_R_AT, dst);
-		emit_instr(ctx, mflo, dst);
+		if (MIPS_ISA_REV >= 6) {
+			emit_instr(ctx, dmulu, dst, dst, MIPS_R_AT);
+		} else {
+			emit_instr(ctx, dmultu, MIPS_R_AT, dst);
+			emit_instr(ctx, mflo, dst);
+		}
 		break;
 	case BPF_ALU64 | BPF_NEG | BPF_K: /* ALU64_IMM */
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
@@ -701,8 +731,12 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (insn->imm == 1) /* Mult by 1 is a nop */
 			break;
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
-		emit_instr(ctx, multu, dst, MIPS_R_AT);
-		emit_instr(ctx, mflo, dst);
+		if (MIPS_ISA_REV >= 6) {
+			emit_instr(ctx, mulu, dst, dst, MIPS_R_AT);
+		} else {
+			emit_instr(ctx, multu, dst, MIPS_R_AT);
+			emit_instr(ctx, mflo, dst);
+		}
 		break;
 	case BPF_ALU | BPF_NEG | BPF_K: /* ALU_IMM */
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
@@ -733,6 +767,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		}
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
+		if (MIPS_ISA_REV >= 6) {
+			if (bpf_op == BPF_DIV)
+				emit_instr(ctx, divu_r6, dst, dst, MIPS_R_AT);
+			else
+				emit_instr(ctx, modu, dst, dst, MIPS_R_AT);
+			break;
+		}
 		emit_instr(ctx, divu, dst, MIPS_R_AT);
 		if (bpf_op == BPF_DIV)
 			emit_instr(ctx, mflo, dst);
@@ -755,6 +796,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		}
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
+		if (MIPS_ISA_REV >= 6) {
+			if (bpf_op == BPF_DIV)
+				emit_instr(ctx, ddivu_r6, dst, dst, MIPS_R_AT);
+			else
+				emit_instr(ctx, modu, dst, dst, MIPS_R_AT);
+			break;
+		}
 		emit_instr(ctx, ddivu, dst, MIPS_R_AT);
 		if (bpf_op == BPF_DIV)
 			emit_instr(ctx, mflo, dst);
@@ -820,11 +868,23 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			emit_instr(ctx, and, dst, dst, src);
 			break;
 		case BPF_MUL:
-			emit_instr(ctx, dmultu, dst, src);
-			emit_instr(ctx, mflo, dst);
+			if (MIPS_ISA_REV >= 6) {
+				emit_instr(ctx, dmulu, dst, dst, src);
+			} else {
+				emit_instr(ctx, dmultu, dst, src);
+				emit_instr(ctx, mflo, dst);
+			}
 			break;
 		case BPF_DIV:
 		case BPF_MOD:
+			if (MIPS_ISA_REV >= 6) {
+				if (bpf_op == BPF_DIV)
+					emit_instr(ctx, ddivu_r6,
+							dst, dst, src);
+				else
+					emit_instr(ctx, modu, dst, dst, src);
+				break;
+			}
 			emit_instr(ctx, ddivu, dst, src);
 			if (bpf_op == BPF_DIV)
 				emit_instr(ctx, mflo, dst);
@@ -904,6 +964,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		case BPF_DIV:
 		case BPF_MOD:
+			if (MIPS_ISA_REV >= 6) {
+				if (bpf_op == BPF_DIV)
+					emit_instr(ctx, divu_r6, dst, dst, src);
+				else
+					emit_instr(ctx, modu, dst, dst, src);
+				break;
+			}
 			emit_instr(ctx, divu, dst, src);
 			if (bpf_op == BPF_DIV)
 				emit_instr(ctx, mflo, dst);
@@ -1007,8 +1074,15 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			emit_instr(ctx, dsubu, MIPS_R_T8, dst, src);
 			emit_instr(ctx, sltu, MIPS_R_AT, dst, src);
 			/* SP known to be non-zero, movz becomes boolean not */
-			emit_instr(ctx, movz, MIPS_R_T9, MIPS_R_SP, MIPS_R_T8);
-			emit_instr(ctx, movn, MIPS_R_T9, MIPS_R_ZERO, MIPS_R_T8);
+			if (MIPS_ISA_REV >= 6) {
+				emit_instr(ctx, seleqz, MIPS_R_T9,
+						MIPS_R_SP, MIPS_R_T8);
+			} else {
+				emit_instr(ctx, movz, MIPS_R_T9,
+						MIPS_R_SP, MIPS_R_T8);
+				emit_instr(ctx, movn, MIPS_R_T9,
+						MIPS_R_ZERO, MIPS_R_T8);
+			}
 			emit_instr(ctx, or, MIPS_R_AT, MIPS_R_T9, MIPS_R_AT);
 			cmp_eq = bpf_op == BPF_JGT;
 			dst = MIPS_R_AT;
@@ -1235,7 +1309,7 @@ jeq_common:
 
 	case BPF_JMP | BPF_CALL:
 		ctx->flags |= EBPF_SAVE_RA;
-		t64s = (s64)insn->imm + (s64)__bpf_call_base;
+		t64s = (s64)insn->imm + (long)__bpf_call_base;
 		emit_const_to_reg(ctx, MIPS_R_T9, (u64)t64s);
 		emit_instr(ctx, jalr, MIPS_R_RA, MIPS_R_T9);
 		/* delay slot */
@@ -1367,6 +1441,17 @@ jeq_common:
 		if (src < 0)
 			return src;
 		if (BPF_MODE(insn->code) == BPF_XADD) {
+			/*
+			 * If mem_off does not fit within the 9 bit ll/sc
+			 * instruction immediate field, use a temp reg.
+			 */
+			if (MIPS_ISA_REV >= 6 &&
+			    (mem_off >= BIT(8) || mem_off < -BIT(8))) {
+				emit_instr(ctx, daddiu, MIPS_R_T6,
+						dst, mem_off);
+				mem_off = 0;
+				dst = MIPS_R_T6;
+			}
 			switch (BPF_SIZE(insn->code)) {
 			case BPF_W:
 				if (get_reg_val_type(ctx, this_idx, insn->src_reg) == REG_32BIT) {
@@ -1721,7 +1806,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	unsigned int image_size;
 	u8 *image_ptr;
 
-	if (!prog->jit_requested || !cpu_has_mips64r2)
+	if (!prog->jit_requested || MIPS_ISA_REV < 2)
 		return prog;
 
 	tmp = bpf_jit_blind_constants(prog);

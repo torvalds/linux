@@ -1917,8 +1917,7 @@ int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	if (!urb)
 		return -ENOMEM;
 
-	req_len = sizeof(struct usb_req_write_regs) +
-		  count * sizeof(struct reg_data);
+	req_len = struct_size(req, reg_writes, count);
 	req = kmalloc(req_len, GFP_KERNEL);
 	if (!req) {
 		r = -ENOMEM;

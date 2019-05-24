@@ -31,7 +31,7 @@ struct hibmc_framebuffer {
 };
 
 struct hibmc_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct hibmc_framebuffer *fb;
 	int size;
 };

@@ -57,8 +57,6 @@ static int hmac_setkey(struct crypto_shash *parent,
 	unsigned int i;
 
 	shash->tfm = hash;
-	shash->flags = crypto_shash_get_flags(parent)
-		& CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	if (keylen > bs) {
 		int err;
@@ -91,8 +89,6 @@ static int hmac_export(struct shash_desc *pdesc, void *out)
 {
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
 
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-
 	return crypto_shash_export(desc, out);
 }
 
@@ -102,7 +98,6 @@ static int hmac_import(struct shash_desc *pdesc, const void *in)
 	struct hmac_ctx *ctx = hmac_ctx(pdesc->tfm);
 
 	desc->tfm = ctx->hash;
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_import(desc, in);
 }
@@ -117,8 +112,6 @@ static int hmac_update(struct shash_desc *pdesc,
 {
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
 
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-
 	return crypto_shash_update(desc, data, nbytes);
 }
 
@@ -129,8 +122,6 @@ static int hmac_final(struct shash_desc *pdesc, u8 *out)
 	int ss = crypto_shash_statesize(parent);
 	char *opad = crypto_shash_ctx_aligned(parent) + ss;
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
-
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_final(desc, out) ?:
 	       crypto_shash_import(desc, opad) ?:
@@ -146,8 +137,6 @@ static int hmac_finup(struct shash_desc *pdesc, const u8 *data,
 	int ss = crypto_shash_statesize(parent);
 	char *opad = crypto_shash_ctx_aligned(parent) + ss;
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
-
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_finup(desc, data, nbytes, out) ?:
 	       crypto_shash_import(desc, opad) ?:
@@ -268,7 +257,7 @@ static void __exit hmac_module_exit(void)
 	crypto_unregister_template(&hmac_tmpl);
 }
 
-module_init(hmac_module_init);
+subsys_initcall(hmac_module_init);
 module_exit(hmac_module_exit);
 
 MODULE_LICENSE("GPL");

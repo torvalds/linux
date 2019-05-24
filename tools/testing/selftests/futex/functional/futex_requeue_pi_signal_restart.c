@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
 	}
 
 	ksft_print_header();
+	ksft_set_plan(1);
 	ksft_print_msg("%s: Test signal handling during requeue_pi\n",
 	       basename(argv[0]));
 	ksft_print_msg("\tArguments: <none>\n");

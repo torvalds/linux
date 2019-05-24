@@ -210,7 +210,7 @@ static int __init maple_cpufreq_init(void)
 	 */
 	valp = of_get_property(cpunode, "clock-frequency", NULL);
 	if (!valp)
-		return -ENODEV;
+		goto bail_noprops;
 	max_freq = (*valp)/1000;
 	maple_cpu_freqs[0].frequency = max_freq;
 	maple_cpu_freqs[1].frequency = max_freq/2;
@@ -230,10 +230,6 @@ static int __init maple_cpufreq_init(void)
 		maple_cpu_freqs[maple_pmode_cur].frequency/1000);
 
 	rc = cpufreq_register_driver(&maple_cpufreq_driver);
-
-	of_node_put(cpunode);
-
-	return rc;
 
 bail_noprops:
 	of_node_put(cpunode);

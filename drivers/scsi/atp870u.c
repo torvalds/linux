@@ -194,12 +194,11 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				((unsigned char *) &adrcnt)[2] = atp_readb_io(dev, c, 0x12);
 				((unsigned char *) &adrcnt)[1] = atp_readb_io(dev, c, 0x13);
 				((unsigned char *) &adrcnt)[0] = atp_readb_io(dev, c, 0x14);
-				if (dev->id[c][target_id].last_len != adrcnt)
-				{
-			   		k = dev->id[c][target_id].last_len;
+				if (dev->id[c][target_id].last_len != adrcnt) {
+					k = dev->id[c][target_id].last_len;
 			   		k -= adrcnt;
 			   		dev->id[c][target_id].tran_len = k;			   
-			   	dev->id[c][target_id].last_len = adrcnt;			   
+					dev->id[c][target_id].last_len = adrcnt;
 				}
 #ifdef ED_DBGP
 				printk("dev->id[c][target_id].last_len = %d dev->id[c][target_id].tran_len = %d\n",dev->id[c][target_id].last_len,dev->id[c][target_id].tran_len);

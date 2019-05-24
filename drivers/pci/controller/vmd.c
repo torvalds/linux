@@ -95,10 +95,8 @@ struct vmd_dev {
 	struct irq_domain	*irq_domain;
 	struct pci_bus		*bus;
 
-#ifdef CONFIG_X86_DEV_DMA_OPS
 	struct dma_map_ops	dma_ops;
 	struct dma_domain	dma_domain;
-#endif
 };
 
 static inline struct vmd_dev *vmd_from_bus(struct pci_bus *bus)
@@ -293,7 +291,6 @@ static struct msi_domain_info vmd_msi_domain_info = {
 	.chip		= &vmd_msi_controller,
 };
 
-#ifdef CONFIG_X86_DEV_DMA_OPS
 /*
  * VMD replaces the requester ID with its own.  DMA mappings for devices in a
  * VMD domain need to be mapped for the VMD, not the device requiring
@@ -438,10 +435,6 @@ static void vmd_setup_dma_ops(struct vmd_dev *vmd)
 	add_dma_domain(domain);
 }
 #undef ASSIGN_VMD_DMA_OPS
-#else
-static void vmd_teardown_dma_ops(struct vmd_dev *vmd) {}
-static void vmd_setup_dma_ops(struct vmd_dev *vmd) {}
-#endif
 
 static char __iomem *vmd_cfg_addr(struct vmd_dev *vmd, struct pci_bus *bus,
 				  unsigned int devfn, int reg, int len)

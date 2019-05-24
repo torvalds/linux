@@ -13,7 +13,7 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_print.h>
-#include <drm/tinydrm/tinydrm.h>
+#include <drm/drm_simple_kms_helper.h>
 
 struct tinydrm_connector {
 	struct drm_connector base;
@@ -129,7 +129,8 @@ static int tinydrm_rotate_mode(struct drm_display_mode *mode,
 
 /**
  * tinydrm_display_pipe_init - Initialize display pipe
- * @tdev: tinydrm device
+ * @drm: DRM device
+ * @pipe: Display pipe
  * @funcs: Display pipe functions
  * @connector_type: Connector type
  * @formats: Array of supported formats (DRM_FORMAT\_\*)
@@ -143,16 +144,15 @@ static int tinydrm_rotate_mode(struct drm_display_mode *mode,
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int
-tinydrm_display_pipe_init(struct tinydrm_device *tdev,
-			  const struct drm_simple_display_pipe_funcs *funcs,
-			  int connector_type,
-			  const uint32_t *formats,
-			  unsigned int format_count,
-			  const struct drm_display_mode *mode,
-			  unsigned int rotation)
+int tinydrm_display_pipe_init(struct drm_device *drm,
+			      struct drm_simple_display_pipe *pipe,
+			      const struct drm_simple_display_pipe_funcs *funcs,
+			      int connector_type,
+			      const uint32_t *formats,
+			      unsigned int format_count,
+			      const struct drm_display_mode *mode,
+			      unsigned int rotation)
 {
-	struct drm_device *drm = tdev->drm;
 	struct drm_display_mode mode_copy;
 	struct drm_connector *connector;
 	int ret;
@@ -177,7 +177,7 @@ tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 	if (IS_ERR(connector))
 		return PTR_ERR(connector);
 
-	return drm_simple_display_pipe_init(drm, &tdev->pipe, funcs, formats,
+	return drm_simple_display_pipe_init(drm, pipe, funcs, formats,
 					    format_count, modifiers, connector);
 }
 EXPORT_SYMBOL(tinydrm_display_pipe_init);

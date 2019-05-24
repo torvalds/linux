@@ -538,7 +538,8 @@ static void gred_vq_apply(struct gred_sched *table, const struct nlattr *entry)
 	struct nlattr *tb[TCA_GRED_VQ_MAX + 1];
 	u32 dp;
 
-	nla_parse_nested(tb, TCA_GRED_VQ_MAX, entry, gred_vq_policy, NULL);
+	nla_parse_nested_deprecated(tb, TCA_GRED_VQ_MAX, entry,
+				    gred_vq_policy, NULL);
 
 	dp = nla_get_u32(tb[TCA_GRED_VQ_DP]);
 
@@ -568,8 +569,8 @@ static int gred_vq_validate(struct gred_sched *table, u32 cdp,
 	int err;
 	u32 dp;
 
-	err = nla_parse_nested(tb, TCA_GRED_VQ_MAX, entry, gred_vq_policy,
-			       extack);
+	err = nla_parse_nested_deprecated(tb, TCA_GRED_VQ_MAX, entry,
+					  gred_vq_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -610,8 +611,8 @@ static int gred_vqs_validate(struct gred_sched *table, u32 cdp,
 	const struct nlattr *attr;
 	int rem, err;
 
-	err = nla_validate_nested(vqs, TCA_GRED_VQ_ENTRY_MAX,
-				  gred_vqe_policy, extack);
+	err = nla_validate_nested_deprecated(vqs, TCA_GRED_VQ_ENTRY_MAX,
+					     gred_vqe_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -650,7 +651,8 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_GRED_MAX, opt, gred_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -737,7 +739,8 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_GRED_MAX, opt, gred_policy,
+					  extack);
 	if (err < 0)
 		return err;
 
@@ -772,7 +775,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (gred_offload_dump_stats(sch))
 		goto nla_put_failure;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_GRED_DPS, sizeof(sopt), &sopt))
@@ -790,7 +793,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	/* Old style all-in-one dump of VQs */
-	parms = nla_nest_start(skb, TCA_GRED_PARMS);
+	parms = nla_nest_start_noflag(skb, TCA_GRED_PARMS);
 	if (parms == NULL)
 		goto nla_put_failure;
 
@@ -841,7 +844,7 @@ append_opt:
 	nla_nest_end(skb, parms);
 
 	/* Dump the VQs again, in more structured way */
-	vqs = nla_nest_start(skb, TCA_GRED_VQ_LIST);
+	vqs = nla_nest_start_noflag(skb, TCA_GRED_VQ_LIST);
 	if (!vqs)
 		goto nla_put_failure;
 
@@ -852,7 +855,7 @@ append_opt:
 		if (!q)
 			continue;
 
-		vq = nla_nest_start(skb, TCA_GRED_VQ_ENTRY);
+		vq = nla_nest_start_noflag(skb, TCA_GRED_VQ_ENTRY);
 		if (!vq)
 			goto nla_put_failure;
 

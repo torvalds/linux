@@ -2795,6 +2795,8 @@ static int __init init_ray_cs(void)
 	rc = pcmcia_register_driver(&ray_driver);
 	pr_debug("raylink init_module register_pcmcia_driver returns 0x%x\n",
 	      rc);
+	if (rc)
+		return rc;
 
 #ifdef CONFIG_PROC_FS
 	proc_mkdir("driver/ray_cs", NULL);
@@ -2818,11 +2820,7 @@ static void __exit exit_ray_cs(void)
 	pr_debug("ray_cs: cleanup_module\n");
 
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("driver/ray_cs/ray_cs", NULL);
-	remove_proc_entry("driver/ray_cs/essid", NULL);
-	remove_proc_entry("driver/ray_cs/net_type", NULL);
-	remove_proc_entry("driver/ray_cs/translate", NULL);
-	remove_proc_entry("driver/ray_cs", NULL);
+	remove_proc_subtree("driver/ray_cs", NULL);
 #endif
 
 	pcmcia_unregister_driver(&ray_driver);

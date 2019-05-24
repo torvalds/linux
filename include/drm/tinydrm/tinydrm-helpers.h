@@ -11,8 +11,12 @@
 #define __LINUX_TINYDRM_HELPERS_H
 
 struct backlight_device;
+struct drm_device;
+struct drm_display_mode;
 struct drm_framebuffer;
 struct drm_rect;
+struct drm_simple_display_pipe;
+struct drm_simple_display_pipe_funcs;
 struct spi_transfer;
 struct spi_message;
 struct spi_device;
@@ -33,15 +37,14 @@ static inline bool tinydrm_machine_little_endian(void)
 #endif
 }
 
-void tinydrm_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_rect *clip);
-void tinydrm_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_rect *clip);
-void tinydrm_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
-				struct drm_framebuffer *fb,
-				struct drm_rect *clip, bool swap);
-void tinydrm_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
-			       struct drm_rect *clip);
+int tinydrm_display_pipe_init(struct drm_device *drm,
+			      struct drm_simple_display_pipe *pipe,
+			      const struct drm_simple_display_pipe_funcs *funcs,
+			      int connector_type,
+			      const uint32_t *formats,
+			      unsigned int format_count,
+			      const struct drm_display_mode *mode,
+			      unsigned int rotation);
 
 size_t tinydrm_spi_max_transfer_size(struct spi_device *spi, size_t max_len);
 bool tinydrm_spi_bpw_supported(struct spi_device *spi, u8 bpw);

@@ -837,7 +837,7 @@ static int watchdog_open(struct inode *inode, struct file *filp)
 	watchdog_trigger(data);
 	filp->private_data = data;
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int watchdog_release(struct inode *inode, struct file *filp)

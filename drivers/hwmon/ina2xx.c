@@ -507,7 +507,7 @@ static const struct i2c_device_id ina2xx_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ina2xx_id);
 
-static const struct of_device_id ina2xx_of_match[] = {
+static const struct of_device_id __maybe_unused ina2xx_of_match[] = {
 	{
 		.compatible = "ti,ina219",
 		.data = (void *)ina219

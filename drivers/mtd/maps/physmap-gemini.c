@@ -86,7 +86,7 @@ static void gemini_flash_disable_pins(void)
 static map_word __xipram gemini_flash_map_read(struct map_info *map,
 					       unsigned long ofs)
 {
-	map_word __xipram ret;
+	map_word ret;
 
 	gemini_flash_enable_pins();
 	ret = inline_map_read(map, ofs);

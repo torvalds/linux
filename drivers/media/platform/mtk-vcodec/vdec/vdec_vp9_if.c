@@ -481,15 +481,15 @@ static void vp9_swap_frm_bufs(struct vdec_vp9_inst *inst)
 		 */
 		if ((frm_to_show->fb != NULL) &&
 			(inst->cur_fb->base_y.size >=
-			frm_to_show->fb->base_y.size)) {
+			frm_to_show->fb->base_y.size) &&
+			(inst->cur_fb->base_c.size >=
+			frm_to_show->fb->base_c.size)) {
 			memcpy((void *)inst->cur_fb->base_y.va,
 				(void *)frm_to_show->fb->base_y.va,
-				vsi->buf_w *
-				vsi->buf_h);
+				frm_to_show->fb->base_y.size);
 			memcpy((void *)inst->cur_fb->base_c.va,
 				(void *)frm_to_show->fb->base_c.va,
-				vsi->buf_w *
-				vsi->buf_h / 2);
+				frm_to_show->fb->base_c.size);
 		} else {
 			/* After resolution change case, current CAPTURE buffer
 			 * may have less buffer size than frm_to_show buffer
@@ -702,10 +702,8 @@ static void init_all_fb_lists(struct vdec_vp9_inst *inst)
 
 static void get_pic_info(struct vdec_vp9_inst *inst, struct vdec_pic_info *pic)
 {
-	pic->y_bs_sz = inst->vsi->buf_sz_y_bs;
-	pic->c_bs_sz = inst->vsi->buf_sz_c_bs;
-	pic->y_len_sz = inst->vsi->buf_len_sz_y;
-	pic->c_len_sz = inst->vsi->buf_len_sz_c;
+	pic->fb_sz[0] = inst->vsi->buf_sz_y_bs + inst->vsi->buf_len_sz_y;
+	pic->fb_sz[1] = inst->vsi->buf_sz_c_bs + inst->vsi->buf_len_sz_c;
 
 	pic->pic_w = inst->vsi->pic_w;
 	pic->pic_h = inst->vsi->pic_h;
@@ -714,8 +712,9 @@ static void get_pic_info(struct vdec_vp9_inst *inst, struct vdec_pic_info *pic)
 
 	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
 		 pic->pic_w, pic->pic_h, pic->buf_w, pic->buf_h);
-	mtk_vcodec_debug(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
-		 pic->y_len_sz, pic->c_bs_sz, pic->c_len_sz);
+	mtk_vcodec_debug(inst, "fb size: Y(%d), C(%d)",
+		pic->fb_sz[0],
+		pic->fb_sz[1]);
 }
 
 static void get_disp_fb(struct vdec_vp9_inst *inst, struct vdec_fb **out_fb)
@@ -895,7 +894,7 @@ static int vdec_vp9_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 
 		if (vsi->resolution_changed) {
 			if (!vp9_alloc_work_buf(inst)) {
-				ret = -EINVAL;
+				ret = -EIO;
 				goto DECODE_ERROR;
 			}
 		}
@@ -924,14 +923,12 @@ static int vdec_vp9_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 
 		if (vsi->show_existing_frame && (vsi->frm_to_show_idx <
 					VP9_MAX_FRM_BUF_NUM)) {
-			mtk_vcodec_err(inst,
+			mtk_vcodec_debug(inst,
 				"Skip Decode drv->new_fb_idx=%d, drv->frm_to_show_idx=%d",
 				vsi->new_fb_idx, vsi->frm_to_show_idx);
 
 			vp9_ref_cnt_fb(inst, &vsi->new_fb_idx,
 					vsi->frm_to_show_idx);
-			ret = -EINVAL;
-			goto DECODE_ERROR;
 		}
 
 		/* VPU assign the buffer pointer in its address space,

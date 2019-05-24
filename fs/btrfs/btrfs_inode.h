@@ -148,12 +148,6 @@ struct btrfs_inode {
 	u64 last_unlink_trans;
 
 	/*
-	 * Track the transaction id of the last transaction used to create a
-	 * hard link for the inode. This is used by the log tree (fsync).
-	 */
-	u64 last_link_trans;
-
-	/*
 	 * Number of bytes outstanding that are going to need csums.  This is
 	 * used in ENOSPC accounting.
 	 */
@@ -202,8 +196,6 @@ struct btrfs_inode {
 
 	struct inode vfs_inode;
 };
-
-extern unsigned char btrfs_filetype_table[];
 
 static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {

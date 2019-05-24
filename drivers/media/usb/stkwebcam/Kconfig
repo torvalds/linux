@@ -1,7 +1,7 @@
 config USB_STKWEBCAM
 	tristate "USB Syntek DC1125 Camera support"
 	depends on VIDEO_V4L2
-	---help---
+	help
 	  Say Y here if you want to use this type of camera.
 	  Supported devices are typically found in some Asus laptops,
 	  with USB id 174f:a311 and 05e1:0501. Other Syntek cameras

@@ -45,6 +45,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   gfp_t,
 					   rxrpc_notify_rx_t,
 					   bool,
+					   bool,
 					   unsigned int);
 int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
 			   struct msghdr *, size_t,
@@ -68,5 +69,7 @@ u32 rxrpc_kernel_get_epoch(struct socket *, struct rxrpc_call *);
 bool rxrpc_kernel_get_reply_time(struct socket *, struct rxrpc_call *,
 				 ktime_t *);
 bool rxrpc_kernel_call_is_complete(struct rxrpc_call *);
+void rxrpc_kernel_set_max_life(struct socket *, struct rxrpc_call *,
+			       unsigned long);
 
 #endif /* _NET_RXRPC_H */

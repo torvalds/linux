@@ -178,7 +178,7 @@ static void __exit michael_mic_exit(void)
 }
 
 
-module_init(michael_mic_init);
+subsys_initcall(michael_mic_init);
 module_exit(michael_mic_exit);
 
 MODULE_LICENSE("GPL v2");

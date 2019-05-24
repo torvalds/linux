@@ -656,10 +656,14 @@ static int rxrpc_wait_for_channel(struct rxrpc_call *call, gfp_t gfp)
 
 		add_wait_queue_exclusive(&call->waitq, &myself);
 		for (;;) {
-			set_current_state(TASK_INTERRUPTIBLE);
+			if (test_bit(RXRPC_CALL_IS_INTR, &call->flags))
+				set_current_state(TASK_INTERRUPTIBLE);
+			else
+				set_current_state(TASK_UNINTERRUPTIBLE);
 			if (call->call_id)
 				break;
-			if (signal_pending(current)) {
+			if (test_bit(RXRPC_CALL_IS_INTR, &call->flags) &&
+			    signal_pending(current)) {
 				ret = -ERESTARTSYS;
 				break;
 			}

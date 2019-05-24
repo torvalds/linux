@@ -158,7 +158,7 @@ static int rockchip_pdm_hw_params(struct snd_pcm_substream *substream,
 	struct rk_pdm_dev *pdm = to_info(dai);
 	unsigned int val = 0;
 	unsigned int clk_rate, clk_div, samplerate;
-	unsigned int clk_src, clk_out;
+	unsigned int clk_src, clk_out = 0;
 	unsigned long m, n;
 	bool change;
 	int ret;

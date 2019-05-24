@@ -283,11 +283,6 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	codec_dai		=
 	dai_props->codec_dai	= &priv->dais[li->dais++];
 
-	ret = asoc_simple_parse_daifmt(dev, node, codec,
-				       prefix, &dai_link->dai_fmt);
-	if (ret < 0)
-		goto dai_link_of_err;
-
 	simple_parse_mclk_fs(top, cpu, codec, dai_props, prefix);
 
 	ret = asoc_simple_parse_cpu(cpu, dai_link, &single_cpu);
@@ -295,6 +290,11 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 		goto dai_link_of_err;
 
 	ret = asoc_simple_parse_codec(codec, dai_link);
+	if (ret < 0)
+		goto dai_link_of_err;
+
+	ret = asoc_simple_parse_daifmt(dev, node, dai_link->codecs->of_node,
+				       prefix, &dai_link->dai_fmt);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -607,7 +607,7 @@ static int simple_soc_probe(struct snd_soc_card *card)
 	return 0;
 }
 
-static int simple_probe(struct platform_device *pdev)
+static int asoc_simple_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_priv *priv;
 	struct device *dev = &pdev->dev;
@@ -705,7 +705,7 @@ err:
 	return ret;
 }
 
-static int simple_remove(struct platform_device *pdev)
+static int asoc_simple_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -726,8 +726,8 @@ static struct platform_driver asoc_simple_card = {
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = simple_of_match,
 	},
-	.probe = simple_probe,
-	.remove = simple_remove,
+	.probe = asoc_simple_probe,
+	.remove = asoc_simple_remove,
 };
 
 module_platform_driver(asoc_simple_card);

@@ -55,7 +55,6 @@ static struct sdesc *init_sdesc(struct crypto_shash *alg)
 	if (!sdesc)
 		return ERR_PTR(-ENOMEM);
 	sdesc->shash.tfm = alg;
-	sdesc->shash.flags = 0x0;
 	return sdesc;
 }
 

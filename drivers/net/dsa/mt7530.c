@@ -828,11 +828,9 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	mt7530_rmw(priv, MT7530_PVC_P(port), VLAN_ATTR_MASK,
 		   VLAN_ATTR(MT7530_VLAN_TRANSPARENT));
 
-	priv->ports[port].vlan_filtering = false;
-
 	for (i = 0; i < MT7530_NUM_PORTS; i++) {
 		if (dsa_is_user_port(ds, i) &&
-		    priv->ports[i].vlan_filtering) {
+		    dsa_port_is_vlan_filtering(&ds->ports[i])) {
 			all_user_ports_removed = false;
 			break;
 		}
@@ -891,8 +889,8 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 		 * And the other port's port matrix cannot be broken when the
 		 * other port is still a VLAN-aware port.
 		 */
-		if (!priv->ports[i].vlan_filtering &&
-		    dsa_is_user_port(ds, i) && i != port) {
+		if (dsa_is_user_port(ds, i) && i != port &&
+		   !dsa_port_is_vlan_filtering(&ds->ports[i])) {
 			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
@@ -909,8 +907,6 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 		mt7530_rmw(priv, MT7530_PCR_P(port), PCR_MATRIX_MASK,
 			   PCR_MATRIX(BIT(MT7530_CPU_PORT)));
 	priv->ports[port].pm = PCR_MATRIX(BIT(MT7530_CPU_PORT));
-
-	mt7530_port_set_vlan_unaware(ds, port);
 
 	mutex_unlock(&priv->reg_mutex);
 }
@@ -1013,10 +1009,6 @@ static int
 mt7530_port_vlan_filtering(struct dsa_switch *ds, int port,
 			   bool vlan_filtering)
 {
-	struct mt7530_priv *priv = ds->priv;
-
-	priv->ports[port].vlan_filtering = vlan_filtering;
-
 	if (vlan_filtering) {
 		/* The port is being kept as VLAN-unaware port when bridge is
 		 * set up with vlan_filtering not being set, Otherwise, the
@@ -1025,6 +1017,8 @@ mt7530_port_vlan_filtering(struct dsa_switch *ds, int port,
 		 */
 		mt7530_port_set_vlan_aware(ds, port);
 		mt7530_port_set_vlan_aware(ds, MT7530_CPU_PORT);
+	} else {
+		mt7530_port_set_vlan_unaware(ds, port);
 	}
 
 	return 0;
@@ -1139,7 +1133,7 @@ mt7530_port_vlan_add(struct dsa_switch *ds, int port,
 	/* The port is kept as VLAN-unaware if bridge with vlan_filtering not
 	 * being set.
 	 */
-	if (!priv->ports[port].vlan_filtering)
+	if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
 		return;
 
 	mutex_lock(&priv->reg_mutex);
@@ -1170,7 +1164,7 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
 	/* The port is kept as VLAN-unaware if bridge with vlan_filtering not
 	 * being set.
 	 */
-	if (!priv->ports[port].vlan_filtering)
+	if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
 		return 0;
 
 	mutex_lock(&priv->reg_mutex);

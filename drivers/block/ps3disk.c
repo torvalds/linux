@@ -102,7 +102,7 @@ static void ps3disk_scatter_gather(struct ps3_storage_device *dev,
 
 	rq_for_each_segment(bvec, req, iter) {
 		unsigned long flags;
-		dev_dbg(&dev->sbd.core, "%s:%u: bio %u: %u sectors from %lu\n",
+		dev_dbg(&dev->sbd.core, "%s:%u: bio %u: %u sectors from %llu\n",
 			__func__, __LINE__, i, bio_sectors(iter.bio),
 			iter.bio->bi_iter.bi_sector);
 
@@ -496,7 +496,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		     dev->regions[dev->region_idx].size*priv->blocking_factor);
 
 	dev_info(&dev->sbd.core,
-		 "%s is a %s (%llu MiB total, %lu MiB for OtherOS)\n",
+		 "%s is a %s (%llu MiB total, %llu MiB for OtherOS)\n",
 		 gendisk->disk_name, priv->model, priv->raw_capacity >> 11,
 		 get_capacity(gendisk) >> 11);
 

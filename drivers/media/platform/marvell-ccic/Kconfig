@@ -5,7 +5,7 @@ config VIDEO_CAFE_CCIC
 	select VIDEOBUF2_VMALLOC
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_DMA_SG
-	---help---
+	help
 	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
 	  CMOS camera controller.  This is the controller found on first-
 	  generation OLPC systems.
@@ -19,7 +19,7 @@ config VIDEO_MMP_CAMERA
 	select VIDEOBUF2_VMALLOC
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_DMA_SG
-	---help---
+	help
 	  This is a Video4Linux2 driver for the integrated camera
 	  controller found on Marvell Armada 610 application
 	  processors (and likely beyond).  This is the controller found

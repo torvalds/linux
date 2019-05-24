@@ -1293,7 +1293,9 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 			len = maxpages * PAGE_SIZE;
 		addr &= ~(PAGE_SIZE - 1);
 		n = DIV_ROUND_UP(len, PAGE_SIZE);
-		res = get_user_pages_fast(addr, n, iov_iter_rw(i) != WRITE, pages);
+		res = get_user_pages_fast(addr, n,
+				iov_iter_rw(i) != WRITE ?  FOLL_WRITE : 0,
+				pages);
 		if (unlikely(res < 0))
 			return res;
 		return (res == n ? len : res * PAGE_SIZE) - *start;
@@ -1374,7 +1376,8 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 		p = get_pages_array(n);
 		if (!p)
 			return -ENOMEM;
-		res = get_user_pages_fast(addr, n, iov_iter_rw(i) != WRITE, p);
+		res = get_user_pages_fast(addr, n,
+				iov_iter_rw(i) != WRITE ?  FOLL_WRITE : 0, p);
 		if (unlikely(res < 0)) {
 			kvfree(p);
 			return res;

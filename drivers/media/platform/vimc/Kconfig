@@ -4,7 +4,7 @@ config VIDEO_VIMC
 	select VIDEOBUF2_VMALLOC
 	select VIDEO_V4L2_TPG
 	default n
-	---help---
+	help
 	  Skeleton driver for Virtual Media Controller
 
 	  This driver can be compared to the vivid driver for emulating

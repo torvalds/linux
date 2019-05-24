@@ -79,32 +79,6 @@ struct ishtp_fw_client {
 	uint8_t client_id;
 };
 
-/**
- * struct ishtp_msg_data - ISHTP message data struct
- * @size:	Size of data in the *data
- * @data:	Pointer to data
- */
-struct ishtp_msg_data {
-	uint32_t size;
-	unsigned char *data;
-};
-
-/*
- * struct ishtp_cl_rb - request block structure
- * @list:	Link to list members
- * @cl:		ISHTP client instance
- * @buffer:	message header
- * @buf_idx:	Index into buffer
- * @read_time:	 unused at this time
- */
-struct ishtp_cl_rb {
-	struct list_head list;
-	struct ishtp_cl *cl;
-	struct ishtp_msg_data buffer;
-	unsigned long buf_idx;
-	unsigned long read_time;
-};
-
 /*
  * Control info for IPC messages ISHTP/IPC sending FIFO -
  * list with inline data buffer
@@ -262,11 +236,6 @@ static inline unsigned long ishtp_secs_to_jiffies(unsigned long sec)
 static inline int ish_ipc_reset(struct ishtp_device *dev)
 {
 	return dev->ops->ipc_reset(dev);
-}
-
-static inline int ish_hw_reset(struct ishtp_device *dev)
-{
-	return dev->ops->hw_reset(dev);
 }
 
 /* Exported function */

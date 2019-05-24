@@ -86,7 +86,8 @@ static unsigned long mmap_upper_limit(struct rlimit *rlim_stack)
 		stack_base = STACK_SIZE_MAX;
 
 	/* Add space for stack randomization. */
-	stack_base += (STACK_RND_MASK << PAGE_SHIFT);
+	if (current->flags & PF_RANDOMIZE)
+		stack_base += (STACK_RND_MASK << PAGE_SHIFT);
 
 	return PAGE_ALIGN(STACK_TOP - stack_base);
 }

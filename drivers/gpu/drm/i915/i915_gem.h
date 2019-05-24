@@ -73,20 +73,25 @@ struct drm_i915_private;
 #define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 
-#define I915_NUM_ENGINES 8
+#define I915_GEM_IDLE_TIMEOUT (HZ / 5)
 
 void i915_gem_park(struct drm_i915_private *i915);
 void i915_gem_unpark(struct drm_i915_private *i915);
 
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
 {
-	if (atomic_inc_return(&t->count) == 1)
+	if (!atomic_fetch_inc(&t->count))
 		tasklet_unlock_wait(t);
 }
 
 static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
 {
 	return !atomic_read(&t->count);
+}
+
+static inline bool __tasklet_enable(struct tasklet_struct *t)
+{
+	return atomic_dec_and_test(&t->count);
 }
 
 #endif /* __I915_GEM_H__ */

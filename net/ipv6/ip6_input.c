@@ -29,6 +29,7 @@
 #include <linux/icmpv6.h>
 #include <linux/mroute6.h>
 #include <linux/slab.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -47,6 +48,8 @@
 #include <net/inet_ecn.h>
 #include <net/dst_metadata.h>
 
+INDIRECT_CALLABLE_DECLARE(void udp_v6_early_demux(struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(void tcp_v6_early_demux(struct sk_buff *));
 static void ip6_rcv_finish_core(struct net *net, struct sock *sk,
 				struct sk_buff *skb)
 {
@@ -57,7 +60,8 @@ static void ip6_rcv_finish_core(struct net *net, struct sock *sk,
 
 		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
 		if (ipprot && (edemux = READ_ONCE(ipprot->early_demux)))
-			edemux(skb);
+			INDIRECT_CALL_2(edemux, tcp_v6_early_demux,
+					udp_v6_early_demux, skb);
 	}
 	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);
@@ -316,6 +320,9 @@ void ipv6_list_rcv(struct list_head *head, struct packet_type *pt,
 	ip6_sublist_rcv(&sublist, curr_dev, curr_net);
 }
 
+INDIRECT_CALLABLE_DECLARE(int udpv6_rcv(struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(int tcp_v6_rcv(struct sk_buff *));
+
 /*
  *	Deliver the packet to the host
  */
@@ -391,7 +398,8 @@ resubmit_final:
 		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
 			goto discard;
 
-		ret = ipprot->handler(skb);
+		ret = INDIRECT_CALL_2(ipprot->handler, tcp_v6_rcv, udpv6_rcv,
+				      skb);
 		if (ret > 0) {
 			if (ipprot->flags & INET6_PROTO_FINAL) {
 				/* Not an extension header, most likely UDP

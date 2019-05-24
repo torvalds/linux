@@ -2439,7 +2439,6 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	atl1_tx_map(adapter, skb, ptpd);
 	atl1_tx_queue(adapter, count, ptpd);
 	atl1_update_mailbox(adapter);
-	mmiowb();
 	return NETDEV_TX_OK;
 }
 

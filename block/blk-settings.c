@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to setting various queue properties from drivers
  */
@@ -661,22 +662,6 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 	}
 }
 EXPORT_SYMBOL(disk_stack_limits);
-
-/**
- * blk_queue_dma_pad - set pad mask
- * @q:     the request queue for the device
- * @mask:  pad mask
- *
- * Set dma pad mask.
- *
- * Appending pad buffer to a request modifies the last entry of a
- * scatter list such that it includes the pad buffer.
- **/
-void blk_queue_dma_pad(struct request_queue *q, unsigned int mask)
-{
-	q->dma_pad_mask = mask;
-}
-EXPORT_SYMBOL(blk_queue_dma_pad);
 
 /**
  * blk_queue_update_dma_pad - update pad mask

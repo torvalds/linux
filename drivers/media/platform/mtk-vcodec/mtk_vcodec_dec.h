@@ -45,7 +45,6 @@ struct vdec_fb {
  * @list:	link list
  * @used:	Capture buffer contain decoded frame data and keep in
  *			codec data structure
- * @ready_to_display:	Capture buffer not display yet
  * @queued_in_vb2:	Capture buffer is queue in vb2
  * @queued_in_v4l2:	Capture buffer is in v4l2 driver, but not in vb2
  *			queue yet
@@ -60,7 +59,6 @@ struct mtk_video_dec_buf {
 	struct list_head	list;
 
 	bool	used;
-	bool	ready_to_display;
 	bool	queued_in_vb2;
 	bool	queued_in_v4l2;
 	bool	lastframe;

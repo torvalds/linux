@@ -839,7 +839,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	memcpy(&fe->ops.tuner_ops, &dvb_pll_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	strncpy(fe->ops.tuner_ops.info.name, desc->name,
+	strscpy(fe->ops.tuner_ops.info.name, desc->name,
 		sizeof(fe->ops.tuner_ops.info.name));
 
 	fe->ops.tuner_ops.info.frequency_min_hz = desc->min;

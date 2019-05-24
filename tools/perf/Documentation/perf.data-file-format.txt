@@ -272,6 +272,19 @@ struct {
 
 Two uint64_t for the time of first sample and the time of last sample.
 
+        HEADER_COMPRESSED = 27,
+
+struct {
+	u32	version;
+	u32	type;
+	u32	level;
+	u32	ratio;
+	u32	mmap_len;
+};
+
+Indicates that trace contains records of PERF_RECORD_COMPRESSED type
+that have perf_events records in compressed form.
+
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
 
@@ -436,6 +449,17 @@ struct auxtrace_error_event {
 
 Describes a header feature. These are records used in pipe-mode that
 contain information that otherwise would be in perf.data file's header.
+
+	PERF_RECORD_COMPRESSED 			= 81,
+
+struct compressed_event {
+	struct perf_event_header	header;
+	char				data[];
+};
+
+The header is followed by compressed data frame that can be decompressed
+into array of perf trace records. The size of the entire compressed event
+record including the header is limited by the max value of header.size.
 
 Event types
 

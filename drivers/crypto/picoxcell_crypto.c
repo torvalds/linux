@@ -753,16 +753,35 @@ static int spacc_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	struct spacc_ablk_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 tmp[DES_EXPKEY_WORDS];
 
-	if (len > DES3_EDE_KEY_SIZE) {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
-
 	if (unlikely(!des_ekey(tmp, key)) &&
 	    (crypto_ablkcipher_get_flags(cipher) &
 	     CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
+	}
+
+	memcpy(ctx->key, key, len);
+	ctx->key_len = len;
+
+	return 0;
+}
+
+/*
+ * Set the 3DES key for a block cipher transform. This also performs weak key
+ * checking if the transform has requested it.
+ */
+static int spacc_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+			     unsigned int len)
+{
+	struct spacc_ablk_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+	u32 flags;
+	int err;
+
+	flags = crypto_ablkcipher_get_flags(cipher);
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(cipher, flags);
+		return err;
 	}
 
 	memcpy(ctx->key, key, len);
@@ -1196,7 +1215,7 @@ static const struct dev_pm_ops spacc_pm_ops = {
 
 static inline struct spacc_engine *spacc_dev_to_engine(struct device *dev)
 {
-	return dev ? platform_get_drvdata(to_platform_device(dev)) : NULL;
+	return dev ? dev_get_drvdata(dev) : NULL;
 }
 
 static ssize_t spacc_stat_irq_thresh_show(struct device *dev,
@@ -1353,7 +1372,7 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_type = &crypto_ablkcipher_type,
 			.cra_module = THIS_MODULE,
 			.cra_ablkcipher = {
-				.setkey = spacc_des_setkey,
+				.setkey = spacc_des3_setkey,
 				.encrypt = spacc_ablk_encrypt,
 				.decrypt = spacc_ablk_decrypt,
 				.min_keysize = DES3_EDE_KEY_SIZE,
@@ -1380,7 +1399,7 @@ static struct spacc_alg ipsec_engine_algs[] = {
 			.cra_type = &crypto_ablkcipher_type,
 			.cra_module = THIS_MODULE,
 			.cra_ablkcipher = {
-				.setkey = spacc_des_setkey,
+				.setkey = spacc_des3_setkey,
 				.encrypt = spacc_ablk_encrypt,
 				.decrypt = spacc_ablk_decrypt,
 				.min_keysize = DES3_EDE_KEY_SIZE,

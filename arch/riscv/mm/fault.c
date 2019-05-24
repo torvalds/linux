@@ -229,8 +229,9 @@ vmalloc_fault:
 		pte_t *pte_k;
 		int index;
 
+		/* User mode accesses just cause a SIGSEGV */
 		if (user_mode(regs))
-			goto bad_area;
+			return do_trap(regs, SIGSEGV, code, addr, tsk);
 
 		/*
 		 * Synchronize this task's top level page-table
@@ -239,13 +240,9 @@ vmalloc_fault:
 		 * Do _not_ use "tsk->active_mm->pgd" here.
 		 * We might be inside an interrupt in the middle
 		 * of a task switch.
-		 *
-		 * Note: Use the old spbtr name instead of using the current
-		 * satp name to support binutils 2.29 which doesn't know about
-		 * the privileged ISA 1.10 yet.
 		 */
 		index = pgd_index(addr);
-		pgd = (pgd_t *)pfn_to_virt(csr_read(sptbr)) + index;
+		pgd = (pgd_t *)pfn_to_virt(csr_read(CSR_SATP)) + index;
 		pgd_k = init_mm.pgd + index;
 
 		if (!pgd_present(*pgd_k))

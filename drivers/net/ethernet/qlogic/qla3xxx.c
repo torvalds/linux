@@ -1858,7 +1858,6 @@ static void ql_update_small_bufq_prod_index(struct ql3_adapter *qdev)
 		wmb();
 		writel_relaxed(qdev->small_buf_q_producer_index,
 			       &port_regs->CommonRegs.rxSmallQProducerIndex);
-		mmiowb();
 	}
 }
 

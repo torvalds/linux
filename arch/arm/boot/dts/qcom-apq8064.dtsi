@@ -714,6 +714,7 @@
 					interrupt-controller;
 					#interrupt-cells = <2>;
 					gpio-controller;
+					gpio-ranges = <&pm8921_gpio 0 0 44>;
 					#gpio-cells = <2>;
 
 				};
@@ -1302,8 +1303,9 @@
 				<0x04700300 0x200>,
 				<0x04700500 0x5c>;
 			reg-names = "dsi_pll", "dsi_phy", "dsi_phy_regulator";
-			clock-names = "iface_clk";
-			clocks = <&mmcc DSI_M_AHB_CLK>;
+			clock-names = "iface_clk", "ref";
+			clocks = <&mmcc DSI_M_AHB_CLK>,
+				 <&cxo_board>;
 		};
 
 

@@ -42,7 +42,7 @@ information about e.g. the mux function.
 The following generic properties as defined in pinctrl-bindings.txt are valid
 to specify in a pin configuration subnode:
 
- pins, function, bias-disable, bias-pull-down, bias-pull,up, drive-strength,
+ pins, function, bias-disable, bias-pull-down, bias-pull-up, drive-strength,
  output-low, output-high.
 
 Non-empty subnodes must specify the 'pins' property.

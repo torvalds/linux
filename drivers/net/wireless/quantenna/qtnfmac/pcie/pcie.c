@@ -56,7 +56,7 @@ int qtnf_pcie_control_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 
 	if (ret == -ETIMEDOUT) {
 		pr_err("EP firmware is dead\n");
-		bus->fw_state = QTNF_FW_STATE_EP_DEAD;
+		bus->fw_state = QTNF_FW_STATE_DEAD;
 	}
 
 	return ret;
@@ -128,32 +128,22 @@ static int qtnf_dbg_shm_stats(struct seq_file *s, void *data)
 	return 0;
 }
 
-void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success)
+int qtnf_pcie_fw_boot_done(struct qtnf_bus *bus)
 {
-	struct qtnf_pcie_bus_priv *priv = get_bus_priv(bus);
-	struct pci_dev *pdev = priv->pdev;
 	int ret;
 
-	if (boot_success) {
-		bus->fw_state = QTNF_FW_STATE_FW_DNLD_DONE;
-
-		ret = qtnf_core_attach(bus);
-		if (ret) {
-			pr_err("failed to attach core\n");
-			boot_success = false;
-		}
-	}
-
-	if (boot_success) {
+	bus->fw_state = QTNF_FW_STATE_BOOT_DONE;
+	ret = qtnf_core_attach(bus);
+	if (ret) {
+		pr_err("failed to attach core\n");
+	} else {
 		qtnf_debugfs_init(bus, DRV_NAME);
 		qtnf_debugfs_add_entry(bus, "mps", qtnf_dbg_mps_show);
 		qtnf_debugfs_add_entry(bus, "msi_enabled", qtnf_dbg_msi_show);
 		qtnf_debugfs_add_entry(bus, "shm_stats", qtnf_dbg_shm_stats);
-	} else {
-		bus->fw_state = QTNF_FW_STATE_DETACHED;
 	}
 
-	put_device(&pdev->dev);
+	return ret;
 }
 
 static void qtnf_tune_pcie_mps(struct pci_dev *pdev)
@@ -344,7 +334,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pcie_priv = get_bus_priv(bus);
 	pci_set_drvdata(pdev, bus);
 	bus->dev = &pdev->dev;
-	bus->fw_state = QTNF_FW_STATE_RESET;
+	bus->fw_state = QTNF_FW_STATE_DETACHED;
 	pcie_priv->pdev = pdev;
 	pcie_priv->tx_stopped = 0;
 	pcie_priv->rx_bd_num = rx_bd_size_param;
@@ -364,6 +354,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pcie_priv->pcie_irq_count = 0;
 	pcie_priv->tx_reclaim_done = 0;
 	pcie_priv->tx_reclaim_req = 0;
+	pcie_priv->tx_eapol = 0;
 
 	pcie_priv->workqueue = create_singlethread_workqueue("QTNF_PCIE");
 	if (!pcie_priv->workqueue) {
@@ -419,8 +410,7 @@ static void qtnf_pcie_remove(struct pci_dev *dev)
 
 	cancel_work_sync(&bus->fw_work);
 
-	if (bus->fw_state == QTNF_FW_STATE_ACTIVE ||
-	    bus->fw_state == QTNF_FW_STATE_EP_DEAD)
+	if (qtnf_fw_is_attached(bus))
 		qtnf_core_detach(bus);
 
 	netif_napi_del(&bus->mux_napi);

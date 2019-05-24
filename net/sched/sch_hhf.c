@@ -518,7 +518,8 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_HHF_MAX, opt, hhf_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_HHF_MAX, opt, hhf_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -654,7 +655,7 @@ static int hhf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 

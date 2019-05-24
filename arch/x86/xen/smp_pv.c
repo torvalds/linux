@@ -361,7 +361,9 @@ static int xen_pv_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int rc;
 
-	common_cpu_up(cpu, idle);
+	rc = common_cpu_up(cpu, idle);
+	if (rc)
+		return rc;
 
 	xen_setup_runstate_info(cpu);
 

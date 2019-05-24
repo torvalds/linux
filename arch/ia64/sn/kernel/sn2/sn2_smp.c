@@ -120,13 +120,6 @@ void sn_migrate(struct task_struct *task)
 		cpu_relax();
 }
 
-void sn_tlb_migrate_finish(struct mm_struct *mm)
-{
-	/* flush_tlb_mm is inefficient if more than 1 users of mm */
-	if (mm == current->mm && mm && atomic_read(&mm->mm_users) == 1)
-		flush_tlb_mm(mm);
-}
-
 static void
 sn2_ipi_flush_all_tlb(struct mm_struct *mm)
 {

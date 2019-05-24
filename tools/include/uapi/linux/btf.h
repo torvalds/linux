@@ -39,11 +39,11 @@ struct btf_type {
 	 *             struct, union and fwd
 	 */
 	__u32 info;
-	/* "size" is used by INT, ENUM, STRUCT and UNION.
+	/* "size" is used by INT, ENUM, STRUCT, UNION and DATASEC.
 	 * "size" tells the size of the type it is describing.
 	 *
 	 * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
-	 * FUNC and FUNC_PROTO.
+	 * FUNC, FUNC_PROTO and VAR.
 	 * "type" is a type_id referring to another type.
 	 */
 	union {
@@ -70,8 +70,10 @@ struct btf_type {
 #define BTF_KIND_RESTRICT	11	/* Restrict	*/
 #define BTF_KIND_FUNC		12	/* Function	*/
 #define BTF_KIND_FUNC_PROTO	13	/* Function Proto	*/
-#define BTF_KIND_MAX		13
-#define NR_BTF_KINDS		14
+#define BTF_KIND_VAR		14	/* Variable	*/
+#define BTF_KIND_DATASEC	15	/* Section	*/
+#define BTF_KIND_MAX		BTF_KIND_DATASEC
+#define NR_BTF_KINDS		(BTF_KIND_MAX + 1)
 
 /* For some specific BTF_KIND, "struct btf_type" is immediately
  * followed by extra data.
@@ -136,6 +138,28 @@ struct btf_member {
 struct btf_param {
 	__u32	name_off;
 	__u32	type;
+};
+
+enum {
+	BTF_VAR_STATIC = 0,
+	BTF_VAR_GLOBAL_ALLOCATED,
+};
+
+/* BTF_KIND_VAR is followed by a single "struct btf_var" to describe
+ * additional information related to the variable such as its linkage.
+ */
+struct btf_var {
+	__u32	linkage;
+};
+
+/* BTF_KIND_DATASEC is followed by multiple "struct btf_var_secinfo"
+ * to describe all BTF_KIND_VAR types it contains along with it's
+ * in-section offset as well as size.
+ */
+struct btf_var_secinfo {
+	__u32	type;
+	__u32	offset;
+	__u32	size;
 };
 
 #endif /* _UAPI__LINUX_BTF_H__ */

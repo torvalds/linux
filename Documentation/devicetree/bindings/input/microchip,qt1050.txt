@@ -1,0 +1,78 @@
+Microchip AT42QT1050 Five-channel Touch Sensor IC
+
+The AT42QT1050 (QT1050) is a QTouchADC sensor device. The device can sense from
+one to five keys, dependent on mode. The QT1050 includes all signal processing
+functions necessary to provide stable sensing under a wide variety of changing
+conditions, and the outputs are fully debounced.
+
+The touchkey device node should be placed inside an I2C bus node.
+
+Required properties:
+- compatible: Must be "microchip,qt1050"
+- reg: The I2C address of the device
+- interrupts: The sink for the touchpad's IRQ output,
+  see ../interrupt-controller/interrupts.txt
+
+Optional properties:
+- wakeup-source: touch keys can be used as a wakeup source
+
+Each button (key) is represented as a sub-node:
+
+Each not specified key or key with linux,code set to KEY_RESERVED gets disabled
+in HW.
+
+Subnode properties:
+- linux,code: Keycode to emit.
+- reg: The key number. Valid values: 0, 1, 2, 3, 4.
+
+Optional subnode-properties:
+
+If a optional property is missing or has a invalid value the default value is
+taken.
+
+- microchip,pre-charge-time-ns:
+  Each touchpad need some time to precharge. The value depends on the mechanical
+  layout.
+  Valid value range: 0 - 637500; values must be a multiple of 2500;
+  default is 0.
+- microchip,average-samples:
+  Number of data samples which are averaged for each read.
+  Valid values: 1, 4, 16, 64, 256, 1024, 4096, 16384; default is 1.
+- microchip,average-scaling:
+  The scaling factor which is used to scale the average-samples.
+  Valid values: 1, 2, 4, 8, 16, 32, 64, 128; default is 1.
+- microchip,threshold:
+  Number of counts to register a touch detection.
+  Valid value range: 0 - 255; default is 20.
+
+Example:
+QT1050 with 3 non continuous keys, key2 and key4 are disabled.
+
+touchkeys@41 {
+	compatible = "microchip,qt1050";
+	reg = <0x41>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
+
+	up@0 {
+		reg = <0>;
+		linux,code = <KEY_UP>;
+		microchip,average-samples = <64>;
+		microchip,average-scaling = <16>;
+		microchip,pre-charge-time-ns = <10000>;
+	};
+
+	right@1 {
+		reg = <1>;
+		linux,code = <KEY_RIGHT>;
+		microchip,average-samples = <64>;
+		microchip,average-scaling = <8>;
+	};
+
+	down@3 {
+		reg = <3>;
+		linux,code = <KEY_DOWN>;
+		microchip,average-samples = <256>;
+		microchip,average-scaling = <16>;
+	};
+};

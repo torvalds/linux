@@ -11,7 +11,6 @@
  * any later version.
  */
 
-#include <crypto/cryptd.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/morus640_glue.h>
@@ -199,90 +198,6 @@ void crypto_morus640_glue_init_ops(struct crypto_aead *aead,
 	ctx->ops = ops;
 }
 EXPORT_SYMBOL_GPL(crypto_morus640_glue_init_ops);
-
-int cryptd_morus640_glue_setkey(struct crypto_aead *aead, const u8 *key,
-				unsigned int keylen)
-{
-	struct cryptd_aead **ctx = crypto_aead_ctx(aead);
-	struct cryptd_aead *cryptd_tfm = *ctx;
-
-	return crypto_aead_setkey(&cryptd_tfm->base, key, keylen);
-}
-EXPORT_SYMBOL_GPL(cryptd_morus640_glue_setkey);
-
-int cryptd_morus640_glue_setauthsize(struct crypto_aead *aead,
-				     unsigned int authsize)
-{
-	struct cryptd_aead **ctx = crypto_aead_ctx(aead);
-	struct cryptd_aead *cryptd_tfm = *ctx;
-
-	return crypto_aead_setauthsize(&cryptd_tfm->base, authsize);
-}
-EXPORT_SYMBOL_GPL(cryptd_morus640_glue_setauthsize);
-
-int cryptd_morus640_glue_encrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct cryptd_aead **ctx = crypto_aead_ctx(aead);
-	struct cryptd_aead *cryptd_tfm = *ctx;
-
-	aead = &cryptd_tfm->base;
-	if (irq_fpu_usable() && (!in_atomic() ||
-				 !cryptd_aead_queued(cryptd_tfm)))
-		aead = cryptd_aead_child(cryptd_tfm);
-
-	aead_request_set_tfm(req, aead);
-
-	return crypto_aead_encrypt(req);
-}
-EXPORT_SYMBOL_GPL(cryptd_morus640_glue_encrypt);
-
-int cryptd_morus640_glue_decrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct cryptd_aead **ctx = crypto_aead_ctx(aead);
-	struct cryptd_aead *cryptd_tfm = *ctx;
-
-	aead = &cryptd_tfm->base;
-	if (irq_fpu_usable() && (!in_atomic() ||
-				 !cryptd_aead_queued(cryptd_tfm)))
-		aead = cryptd_aead_child(cryptd_tfm);
-
-	aead_request_set_tfm(req, aead);
-
-	return crypto_aead_decrypt(req);
-}
-EXPORT_SYMBOL_GPL(cryptd_morus640_glue_decrypt);
-
-int cryptd_morus640_glue_init_tfm(struct crypto_aead *aead)
-{
-	struct cryptd_aead *cryptd_tfm;
-	struct cryptd_aead **ctx = crypto_aead_ctx(aead);
-	const char *name = crypto_aead_alg(aead)->base.cra_driver_name;
-	char internal_name[CRYPTO_MAX_ALG_NAME];
-
-	if (snprintf(internal_name, CRYPTO_MAX_ALG_NAME, "__%s", name)
-			>= CRYPTO_MAX_ALG_NAME)
-		return -ENAMETOOLONG;
-
-	cryptd_tfm = cryptd_alloc_aead(internal_name, CRYPTO_ALG_INTERNAL,
-				       CRYPTO_ALG_INTERNAL);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-
-	*ctx = cryptd_tfm;
-	crypto_aead_set_reqsize(aead, crypto_aead_reqsize(&cryptd_tfm->base));
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cryptd_morus640_glue_init_tfm);
-
-void cryptd_morus640_glue_exit_tfm(struct crypto_aead *aead)
-{
-	struct cryptd_aead **ctx = crypto_aead_ctx(aead);
-
-	cryptd_free_aead(*ctx);
-}
-EXPORT_SYMBOL_GPL(cryptd_morus640_glue_exit_tfm);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ondrej Mosnacek <omosnacek@gmail.com>");

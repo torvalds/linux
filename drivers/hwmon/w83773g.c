@@ -44,7 +44,7 @@ static const struct i2c_device_id w83773_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, w83773_id);
 
-static const struct of_device_id w83773_of_match[] = {
+static const struct of_device_id __maybe_unused w83773_of_match[] = {
 	{
 		.compatible = "nuvoton,w83773g"
 	},
@@ -237,31 +237,13 @@ static umode_t w83773_is_visible(const void *data, enum hwmon_sensor_types type,
 	return 0;
 }
 
-static const u32 w83773_chip_config[] = {
-	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info w83773_chip = {
-	.type = hwmon_chip,
-	.config = w83773_chip_config,
-};
-
-static const u32 w83773_temp_config[] = {
-	HWMON_T_INPUT,
-	HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_OFFSET,
-	HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_OFFSET,
-	0
-};
-
-static const struct hwmon_channel_info w83773_temp = {
-	.type = hwmon_temp,
-	.config = w83773_temp_config,
-};
-
 static const struct hwmon_channel_info *w83773_info[] = {
-	&w83773_chip,
-	&w83773_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT,
+			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_OFFSET),
 	NULL
 };
 

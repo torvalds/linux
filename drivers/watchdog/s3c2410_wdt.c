@@ -522,7 +522,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct s3c2410_wdt *wdt;
-	struct resource *wdt_mem;
 	struct resource *wdt_irq;
 	unsigned int wtcon;
 	int started = 0;
@@ -554,8 +553,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	/* get the memory region for the watchdog timer */
-	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->reg_base = devm_ioremap_resource(dev, wdt_mem);
+	wdt->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->reg_base)) {
 		ret = PTR_ERR(wdt->reg_base);
 		goto err;

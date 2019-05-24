@@ -231,7 +231,7 @@ static inline int plist_node_empty(const struct plist_node *node)
  * @type:	the type of the struct this is embedded in
  * @member:	the name of the list_head within the struct
  */
-#ifdef CONFIG_DEBUG_PI_LIST
+#ifdef CONFIG_DEBUG_PLIST
 # define plist_first_entry(head, type, member)	\
 ({ \
 	WARN_ON(plist_head_empty(head)); \
@@ -248,7 +248,7 @@ static inline int plist_node_empty(const struct plist_node *node)
  * @type:	the type of the struct this is embedded in
  * @member:	the name of the list_head within the struct
  */
-#ifdef CONFIG_DEBUG_PI_LIST
+#ifdef CONFIG_DEBUG_PLIST
 # define plist_last_entry(head, type, member)	\
 ({ \
 	WARN_ON(plist_head_empty(head)); \

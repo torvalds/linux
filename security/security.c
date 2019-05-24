@@ -866,6 +866,11 @@ int security_add_mnt_opt(const char *option, const char *val, int len,
 }
 EXPORT_SYMBOL(security_add_mnt_opt);
 
+int security_move_mount(const struct path *from_path, const struct path *to_path)
+{
+	return call_int_hook(move_mount, 0, from_path, to_path);
+}
+
 int security_inode_alloc(struct inode *inode)
 {
 	int rc = lsm_inode_alloc(inode);
@@ -1317,6 +1322,12 @@ int security_inode_copy_up_xattr(const char *name)
 	return call_int_hook(inode_copy_up_xattr, -EOPNOTSUPP, name);
 }
 EXPORT_SYMBOL(security_inode_copy_up_xattr);
+
+int security_kernfs_init_security(struct kernfs_node *kn_dir,
+				  struct kernfs_node *kn)
+{
+	return call_int_hook(kernfs_init_security, 0, kn_dir, kn);
+}
 
 int security_file_permission(struct file *file, int mask)
 {

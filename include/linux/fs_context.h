@@ -13,8 +13,10 @@
 #define _LINUX_FS_CONTEXT_H
 
 #include <linux/kernel.h>
+#include <linux/refcount.h>
 #include <linux/errno.h>
 #include <linux/security.h>
+#include <linux/mutex.h>
 
 struct cred;
 struct dentry;
@@ -32,6 +34,19 @@ enum fs_context_purpose {
 	FS_CONTEXT_FOR_MOUNT,		/* New superblock for explicit mount */
 	FS_CONTEXT_FOR_SUBMOUNT,	/* New superblock for automatic submount */
 	FS_CONTEXT_FOR_RECONFIGURE,	/* Superblock reconfiguration (remount) */
+};
+
+/*
+ * Userspace usage phase for fsopen/fspick.
+ */
+enum fs_context_phase {
+	FS_CONTEXT_CREATE_PARAMS,	/* Loading params for sb creation */
+	FS_CONTEXT_CREATING,		/* A superblock is being created */
+	FS_CONTEXT_AWAITING_MOUNT,	/* Superblock created, awaiting fsmount() */
+	FS_CONTEXT_AWAITING_RECONF,	/* Awaiting initialisation for reconfiguration */
+	FS_CONTEXT_RECONF_PARAMS,	/* Loading params for reconfiguration */
+	FS_CONTEXT_RECONFIGURING,	/* Reconfiguring the superblock */
+	FS_CONTEXT_FAILED,		/* Failed to correctly transition a context */
 };
 
 /*
@@ -74,12 +89,14 @@ struct fs_parameter {
  */
 struct fs_context {
 	const struct fs_context_operations *ops;
+	struct mutex		uapi_mutex;	/* Userspace access mutex */
 	struct file_system_type	*fs_type;
 	void			*fs_private;	/* The filesystem's context */
 	struct dentry		*root;		/* The root and superblock */
 	struct user_namespace	*user_ns;	/* The user namespace for this mount */
 	struct net		*net_ns;	/* The network namespace for this mount */
 	const struct cred	*cred;		/* The mounter's credentials */
+	struct fc_log		*log;		/* Logging buffer */
 	const char		*source;	/* The source name (eg. dev path) */
 	const char		*subtype;	/* The subtype to set on the superblock */
 	void			*security;	/* Linux S&M options */
@@ -88,6 +105,7 @@ struct fs_context {
 	unsigned int		sb_flags_mask;	/* Superblock flags that were changed */
 	unsigned int		lsm_flags;	/* Information flags from the fs to the LSM */
 	enum fs_context_purpose	purpose:8;
+	enum fs_context_phase	phase:8;	/* The phase the context is in */
 	bool			need_free:1;	/* Need to call ops->free() */
 	bool			global:1;	/* Goes into &init_user_ns */
 };
@@ -135,15 +153,21 @@ extern int vfs_get_super(struct fs_context *fc,
 
 extern const struct file_operations fscontext_fops;
 
-#ifdef CONFIG_PRINTK
+/*
+ * Mount error, warning and informational message logging.  This structure is
+ * shareable between a mount and a subordinate mount.
+ */
+struct fc_log {
+	refcount_t	usage;
+	u8		head;		/* Insertion index in buffer[] */
+	u8		tail;		/* Removal index in buffer[] */
+	u8		need_free;	/* Mask of kfree'able items in buffer[] */
+	struct module	*owner;		/* Owner module for strings that don't then need freeing */
+	char		*buffer[8];
+};
+
 extern __attribute__((format(printf, 2, 3)))
 void logfc(struct fs_context *fc, const char *fmt, ...);
-#else
-static inline __attribute__((format(printf, 2, 3)))
-void logfc(struct fs_context *fc, const char *fmt, ...)
-{
-}
-#endif
 
 /**
  * infof - Store supplementary informational message

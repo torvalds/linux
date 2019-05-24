@@ -331,6 +331,7 @@ struct usba_udc {
 	struct usba_ep *usba_ep;
 	bool bias_pulse_needed;
 	bool clocked;
+	bool suspended;
 
 	u16 devstatus;
 

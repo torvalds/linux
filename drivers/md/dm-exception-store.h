@@ -11,6 +11,7 @@
 #define _LINUX_DM_EXCEPTION_STORE
 
 #include <linux/blkdev.h>
+#include <linux/list_bl.h>
 #include <linux/device-mapper.h>
 
 /*
@@ -27,7 +28,7 @@ typedef sector_t chunk_t;
  * chunk within the device.
  */
 struct dm_exception {
-	struct list_head hash_list;
+	struct hlist_bl_node hash_list;
 
 	chunk_t old_chunk;
 	chunk_t new_chunk;
@@ -135,9 +136,8 @@ struct dm_dev *dm_snap_cow(struct dm_snapshot *snap);
 /*
  * Funtions to manipulate consecutive chunks
  */
-#  if defined(CONFIG_LBDAF) || (BITS_PER_LONG == 64)
-#    define DM_CHUNK_CONSECUTIVE_BITS 8
-#    define DM_CHUNK_NUMBER_BITS 56
+#define DM_CHUNK_CONSECUTIVE_BITS 8
+#define DM_CHUNK_NUMBER_BITS 56
 
 static inline chunk_t dm_chunk_number(chunk_t chunk)
 {
@@ -162,29 +162,6 @@ static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
 
 	e->new_chunk -= (1ULL << DM_CHUNK_NUMBER_BITS);
 }
-
-#  else
-#    define DM_CHUNK_CONSECUTIVE_BITS 0
-
-static inline chunk_t dm_chunk_number(chunk_t chunk)
-{
-	return chunk;
-}
-
-static inline unsigned dm_consecutive_chunk_count(struct dm_exception *e)
-{
-	return 0;
-}
-
-static inline void dm_consecutive_chunk_count_inc(struct dm_exception *e)
-{
-}
-
-static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
-{
-}
-
-#  endif
 
 /*
  * Return the number of sectors in the device.

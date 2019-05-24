@@ -133,7 +133,7 @@ static void __exit blowfish_mod_fini(void)
 	crypto_unregister_alg(&alg);
 }
 
-module_init(blowfish_mod_init);
+subsys_initcall(blowfish_mod_init);
 module_exit(blowfish_mod_fini);
 
 MODULE_LICENSE("GPL");

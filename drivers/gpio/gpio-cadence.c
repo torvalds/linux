@@ -148,7 +148,6 @@ static struct irq_chip cdns_gpio_irqchip = {
 static int cdns_gpio_probe(struct platform_device *pdev)
 {
 	struct cdns_gpio_chip *cgpio;
-	struct resource *res;
 	int ret, irq;
 	u32 dir_prev;
 	u32 num_gpios = 32;
@@ -157,8 +156,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	if (!cgpio)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cgpio->regs = devm_ioremap_resource(&pdev->dev, res);
+	cgpio->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cgpio->regs))
 		return PTR_ERR(cgpio->regs);
 

@@ -68,6 +68,7 @@
 #include "format.h"
 #include "power.h"
 #include "stream.h"
+#include "media.h"
 
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("USB Audio");
@@ -673,6 +674,11 @@ static int usb_audio_probe(struct usb_interface *intf,
 	if (err < 0)
 		goto __error;
 
+	if (quirk && quirk->shares_media_device) {
+		/* don't want to fail when snd_media_device_create() fails */
+		snd_media_device_create(chip, intf);
+	}
+
 	usb_chip[chip->index] = chip;
 	chip->num_interfaces++;
 	usb_set_intfdata(intf, chip);
@@ -732,6 +738,14 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 		list_for_each(p, &chip->midi_list) {
 			snd_usbmidi_disconnect(p);
 		}
+		/*
+		 * Nice to check quirk && quirk->shares_media_device and
+		 * then call the snd_media_device_delete(). Don't have
+		 * access to the quirk here. snd_media_device_delete()
+		 * accesses mixer_list
+		 */
+		snd_media_device_delete(chip);
+
 		/* release mixer resources */
 		list_for_each_entry(mixer, &chip->mixer_list, list) {
 			snd_usb_mixer_disconnect(mixer);

@@ -219,7 +219,7 @@ static int read_sections(struct elf *elf)
 static int read_symbols(struct elf *elf)
 {
 	struct section *symtab, *sec;
-	struct symbol *sym, *pfunc;
+	struct symbol *sym, *pfunc, *alias;
 	struct list_head *entry, *tmp;
 	int symbols_nr, i;
 	char *coldstr;
@@ -239,6 +239,7 @@ static int read_symbols(struct elf *elf)
 			return -1;
 		}
 		memset(sym, 0, sizeof(*sym));
+		alias = sym;
 
 		sym->idx = i;
 
@@ -288,11 +289,17 @@ static int read_symbols(struct elf *elf)
 				break;
 			}
 
-			if (sym->offset == s->offset && sym->len >= s->len) {
-				entry = tmp;
-				break;
+			if (sym->offset == s->offset) {
+				if (sym->len == s->len && alias == sym)
+					alias = s;
+
+				if (sym->len >= s->len) {
+					entry = tmp;
+					break;
+				}
 			}
 		}
+		sym->alias = alias;
 		list_add(&sym->list, entry);
 		hash_add(sym->sec->symbol_hash, &sym->hash, sym->idx);
 	}

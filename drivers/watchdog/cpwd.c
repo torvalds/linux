@@ -394,7 +394,7 @@ static int cpwd_open(struct inode *inode, struct file *f)
 
 	mutex_unlock(&cpwd_mutex);
 
-	return nonseekable_open(inode, f);
+	return stream_open(inode, f);
 }
 
 static int cpwd_release(struct inode *inode, struct file *file)

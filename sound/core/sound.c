@@ -134,8 +134,11 @@ static struct snd_minor *autoload_device(unsigned int minor)
 	if (dev == SNDRV_MINOR_CONTROL) {
 		/* /dev/aloadC? */
 		int card = SNDRV_MINOR_CARD(minor);
-		if (snd_cards[card] == NULL)
+		struct snd_card *ref = snd_card_ref(card);
+		if (!ref)
 			snd_request_card(card);
+		else
+			snd_card_unref(ref);
 	} else if (dev == SNDRV_MINOR_GLOBAL) {
 		/* /dev/aloadSEQ */
 		snd_request_other(minor);

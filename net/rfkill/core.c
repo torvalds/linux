@@ -1143,7 +1143,7 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 
 	file->private_data = data;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 
  free:
 	mutex_unlock(&data->mtx);

@@ -212,6 +212,10 @@ static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 	hwmgr->smu_version = smu10_read_arg_from_smc(hwmgr);
 	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
+	if (adev->rev_id < 0x8 && adev->pdev->device != 0x15d8 &&
+	    adev->pm.fw_version < 0x1e45)
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+
 	if (smu10_verify_smc_interface(hwmgr))
 		return -EINVAL;
 

@@ -1178,6 +1178,10 @@ void hubp1_vtg_sel(struct hubp *hubp, uint32_t otg_inst)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_VTG_SEL, otg_inst);
 }
 
+void hubp1_init(struct hubp *hubp)
+{
+	//do nothing
+}
 static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_program_surface_flip_and_addr =
 			hubp1_program_surface_flip_and_addr,
@@ -1201,7 +1205,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_clear_underflow = hubp1_clear_underflow,
 	.hubp_disable_control =  hubp1_disable_control,
 	.hubp_get_underflow_status = hubp1_get_underflow_status,
-
+	.hubp_init = hubp1_init,
 };
 
 /*****************************************/

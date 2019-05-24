@@ -518,7 +518,7 @@ process_sq_wqe:
 
 flush_skbs:
 	netdev_txq = netdev_get_tx_queue(netdev, q_id);
-	if ((!skb->xmit_more) || (netif_xmit_stopped(netdev_txq)))
+	if ((!netdev_xmit_more()) || (netif_xmit_stopped(netdev_txq)))
 		hinic_sq_write_db(txq->sq, prod_idx, wqe_size, 0);
 
 	return err;

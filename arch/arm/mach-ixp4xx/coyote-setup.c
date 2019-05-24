@@ -25,6 +25,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 #define COYOTE_IDE_BASE_PHYS	IXP4XX_EXP_BUS_BASE(3)
 #define COYOTE_IDE_BASE_VIRT	0xFFFE1000
 #define COYOTE_IDE_REGION_SIZE	0x1000

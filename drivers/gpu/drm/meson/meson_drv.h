@@ -29,7 +29,6 @@ struct meson_drm {
 	struct device *dev;
 	void __iomem *io_base;
 	struct regmap *hhi;
-	struct regmap *dmc;
 	int vsync_irq;
 
 	struct meson_canvas *canvas;
@@ -63,6 +62,10 @@ struct meson_drm {
 		uint32_t osd_sc_h_phase_step;
 		uint32_t osd_sc_h_ctrl0;
 		uint32_t osd_sc_v_ctrl0;
+		uint32_t osd_blend_din0_scope_h;
+		uint32_t osd_blend_din0_scope_v;
+		uint32_t osb_blend0_size;
+		uint32_t osb_blend1_size;
 
 		bool vd1_enabled;
 		bool vd1_commit;

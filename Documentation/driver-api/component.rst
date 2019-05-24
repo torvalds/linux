@@ -1,3 +1,5 @@
+.. _component:
+
 ======================================
 Component Helper for Aggregate Drivers
 ======================================

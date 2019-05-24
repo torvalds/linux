@@ -25,6 +25,7 @@ struct dma_chan;
 struct pxa2xx_spi_controller {
 	u16 num_chipselect;
 	u8 enable_dma;
+	u8 dma_burst_size;
 	bool is_slave;
 
 	/* DMA engine specific config */

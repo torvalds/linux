@@ -291,6 +291,20 @@ int iio_read_avail_channel_raw(struct iio_channel *chan,
 			       const int **vals, int *length);
 
 /**
+ * iio_read_avail_channel_attribute() - read available channel attribute values
+ * @chan:		The channel being queried.
+ * @vals:		Available values read back.
+ * @type:		Type of values read back.
+ * @length:		Number of entries in vals.
+ * @attribute:		info attribute to be read back.
+ *
+ * Returns an error code, IIO_AVAIL_RANGE or IIO_AVAIL_LIST.
+ */
+int iio_read_avail_channel_attribute(struct iio_channel *chan,
+				     const int **vals, int *type, int *length,
+				     enum iio_chan_info_enum attribute);
+
+/**
  * iio_get_channel_type() - get the type of a channel
  * @channel:		The channel being queried.
  * @type:		The type of the channel.

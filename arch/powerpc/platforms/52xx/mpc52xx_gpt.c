@@ -628,7 +628,7 @@ static int mpc52xx_wdt_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = mpc52xx_gpt_wdt;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int mpc52xx_wdt_release(struct inode *inode, struct file *file)

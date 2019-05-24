@@ -453,7 +453,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 
 			/* Dump a _PLD buffer if present */
 
-			if (ACPI_COMPARE_NAME
+			if (ACPI_COMPARE_NAMESEG
 			    ((ACPI_CAST_PTR
 			      (struct acpi_namespace_node,
 			       acpi_gbl_db_method_info.method)->name.ascii),

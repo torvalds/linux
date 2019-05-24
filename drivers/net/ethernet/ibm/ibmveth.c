@@ -93,7 +93,7 @@ struct ibmveth_stat {
 #define IBMVETH_STAT_OFF(stat) offsetof(struct ibmveth_adapter, stat)
 #define IBMVETH_GET_STAT(a, off) *((u64 *)(((unsigned long)(a)) + off))
 
-struct ibmveth_stat ibmveth_stats[] = {
+static struct ibmveth_stat ibmveth_stats[] = {
 	{ "replenish_task_cycles", IBMVETH_STAT_OFF(replenish_task_cycles) },
 	{ "replenish_no_mem", IBMVETH_STAT_OFF(replenish_no_mem) },
 	{ "replenish_add_buff_failure",

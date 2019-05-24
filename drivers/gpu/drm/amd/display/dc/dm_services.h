@@ -52,30 +52,17 @@ irq_handler_idx dm_register_interrupt(
  * GPU registers access
  *
  */
-
+uint32_t dm_read_reg_func(
+	const struct dc_context *ctx,
+	uint32_t address,
+	const char *func_name);
 /* enable for debugging new code, this adds 50k to the driver size. */
 /* #define DM_CHECK_ADDR_0 */
 
 #define dm_read_reg(ctx, address)	\
 		dm_read_reg_func(ctx, address, __func__)
 
-static inline uint32_t dm_read_reg_func(
-	const struct dc_context *ctx,
-	uint32_t address,
-	const char *func_name)
-{
-	uint32_t value;
-#ifdef DM_CHECK_ADDR_0
-	if (address == 0) {
-		DC_ERR("invalid register read; address = 0\n");
-		return 0;
-	}
-#endif
-	value = cgs_read_register(ctx->cgs_device, address);
-	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
 
-	return value;
-}
 
 #define dm_write_reg(ctx, address, value)	\
 	dm_write_reg_func(ctx, address, value, __func__)
@@ -144,8 +131,12 @@ static inline uint32_t set_reg_field_value_ex(
 		reg_name ## __ ## reg_field ## _MASK,\
 		reg_name ## __ ## reg_field ## __SHIFT)
 
-uint32_t generic_reg_update_ex(const struct dc_context *ctx,
+uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 		uint32_t addr, uint32_t reg_val, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1, ...);
+
+uint32_t generic_reg_update_ex(const struct dc_context *ctx,
+		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1, ...);
 
 #define FD(reg_field)	reg_field ## __SHIFT, \
@@ -155,7 +146,7 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
  * return number of poll before condition is met
  * return 0 if condition is not meet after specified time out tries
  */
-unsigned int generic_reg_wait(const struct dc_context *ctx,
+void generic_reg_wait(const struct dc_context *ctx,
 	uint32_t addr, uint32_t mask, uint32_t shift, uint32_t condition_value,
 	unsigned int delay_between_poll_us, unsigned int time_out_num_tries,
 	const char *func_name, int line);
@@ -172,11 +163,10 @@ unsigned int generic_reg_wait(const struct dc_context *ctx,
 
 #define generic_reg_update_soc15(ctx, inst_offset, reg_name, n, ...)\
 		generic_reg_update_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] +  mm##reg_name + inst_offset, \
-		dm_read_reg_func(ctx, mm##reg_name + DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + inst_offset, __func__), \
 		n, __VA_ARGS__)
 
 #define generic_reg_set_soc15(ctx, inst_offset, reg_name, n, ...)\
-		generic_reg_update_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + mm##reg_name + inst_offset, 0, \
+		generic_reg_set_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + mm##reg_name + inst_offset, 0, \
 		n, __VA_ARGS__)
 
 #define get_reg_field_value_soc15(reg_value, block, reg_num, reg_name, reg_field)\
@@ -223,8 +213,8 @@ bool dm_pp_notify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges);
 
-void dm_pp_get_funcs_rv(struct dc_context *ctx,
-		struct pp_smu_funcs_rv *funcs);
+void dm_pp_get_funcs(struct dc_context *ctx,
+		struct pp_smu_funcs *funcs);
 
 /* DAL calls this function to notify PP about completion of Mode Set.
  * For PP it means that current DCE clocks are those which were returned

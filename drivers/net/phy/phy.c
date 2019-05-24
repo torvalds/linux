@@ -43,7 +43,6 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(NOLINK)
 	PHY_STATE_STR(FORCING)
 	PHY_STATE_STR(HALTED)
-	PHY_STATE_STR(RESUMING)
 	}
 
 	return NULL;
@@ -61,6 +60,32 @@ static void phy_link_down(struct phy_device *phydev, bool do_carrier)
 	phy_led_trigger_change_speed(phydev);
 }
 
+static const char *phy_pause_str(struct phy_device *phydev)
+{
+	bool local_pause, local_asym_pause;
+
+	if (phydev->autoneg == AUTONEG_DISABLE)
+		goto no_pause;
+
+	local_pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+					phydev->advertising);
+	local_asym_pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+					     phydev->advertising);
+
+	if (local_pause && phydev->pause)
+		return "rx/tx";
+
+	if (local_asym_pause && phydev->asym_pause) {
+		if (local_pause)
+			return "rx";
+		if (phydev->pause)
+			return "tx";
+	}
+
+no_pause:
+	return "off";
+}
+
 /**
  * phy_print_status - Convenience function to print out the current phy status
  * @phydev: the phy_device struct
@@ -72,7 +97,7 @@ void phy_print_status(struct phy_device *phydev)
 			"Link is Up - %s/%s - flow control %s\n",
 			phy_speed_to_str(phydev->speed),
 			phy_duplex_to_str(phydev->duplex),
-			phydev->pause ? "rx/tx" : "off");
+			phy_pause_str(phydev));
 	} else	{
 		netdev_info(phydev->attached_dev, "Link is Down\n");
 	}
@@ -213,10 +238,6 @@ static inline bool phy_check_valid(int speed, int duplex,
 static void phy_sanitize_settings(struct phy_device *phydev)
 {
 	const struct phy_setting *setting;
-
-	/* Sanitize settings based on PHY capabilities */
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported))
-		phydev->autoneg = AUTONEG_DISABLE;
 
 	setting = phy_find_valid(phydev->speed, phydev->duplex,
 				 phydev->supported);
@@ -863,10 +884,7 @@ void phy_start(struct phy_device *phydev)
 			goto out;
 	}
 
-	if (phydev->state == PHY_READY)
-		phydev->state = PHY_UP;
-	else
-		phydev->state = PHY_RESUMING;
+	phydev->state = PHY_UP;
 
 	phy_start_machine(phydev);
 out:
@@ -891,9 +909,6 @@ void phy_state_machine(struct work_struct *work)
 
 	old_state = phydev->state;
 
-	if (phydev->drv && phydev->drv->link_change_notify)
-		phydev->drv->link_change_notify(phydev);
-
 	switch (phydev->state) {
 	case PHY_DOWN:
 	case PHY_READY:
@@ -904,7 +919,6 @@ void phy_state_machine(struct work_struct *work)
 		break;
 	case PHY_NOLINK:
 	case PHY_RUNNING:
-	case PHY_RESUMING:
 		err = phy_check_link_status(phydev);
 		break;
 	case PHY_FORCING:
@@ -940,10 +954,13 @@ void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
-	if (old_state != phydev->state)
+	if (old_state != phydev->state) {
 		phydev_dbg(phydev, "PHY state change %s -> %s\n",
 			   phy_state_to_str(old_state),
 			   phy_state_to_str(phydev->state));
+		if (phydev->drv && phydev->drv->link_change_notify)
+			phydev->drv->link_change_notify(phydev);
+	}
 
 	/* Only re-schedule a PHY state machine change if we are polling the
 	 * PHY, if PHY_IGNORE_INTERRUPT is set, then we will be moving

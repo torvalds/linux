@@ -267,23 +267,6 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 			goto split;
 		}
 
-		if (bvprvp) {
-			if (seg_size + bv.bv_len > queue_max_segment_size(q))
-				goto new_segment;
-			if (!biovec_phys_mergeable(q, bvprvp, &bv))
-				goto new_segment;
-
-			seg_size += bv.bv_len;
-			bvprv = bv;
-			bvprvp = &bvprv;
-			sectors += bv.bv_len >> 9;
-
-			if (nsegs == 1 && seg_size > front_seg_size)
-				front_seg_size = seg_size;
-
-			continue;
-		}
-new_segment:
 		if (nsegs == max_segs)
 			goto split;
 
@@ -370,12 +353,12 @@ EXPORT_SYMBOL(blk_queue_split);
 static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					     struct bio *bio)
 {
-	struct bio_vec bv, bvprv = { NULL };
-	int prev = 0;
+	struct bio_vec uninitialized_var(bv), bvprv = { NULL };
 	unsigned int seg_size, nr_phys_segs;
 	unsigned front_seg_size;
 	struct bio *fbio, *bbio;
 	struct bvec_iter iter;
+	bool new_bio = false;
 
 	if (!bio)
 		return 0;
@@ -396,7 +379,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	nr_phys_segs = 0;
 	for_each_bio(bio) {
 		bio_for_each_bvec(bv, bio, iter) {
-			if (prev) {
+			if (new_bio) {
 				if (seg_size + bv.bv_len
 				    > queue_max_segment_size(q))
 					goto new_segment;
@@ -404,7 +387,6 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					goto new_segment;
 
 				seg_size += bv.bv_len;
-				bvprv = bv;
 
 				if (nr_phys_segs == 1 && seg_size >
 						front_seg_size)
@@ -413,12 +395,15 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 				continue;
 			}
 new_segment:
-			bvprv = bv;
-			prev = 1;
 			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
 					&front_seg_size, NULL, UINT_MAX);
+			new_bio = false;
 		}
 		bbio = bio;
+		if (likely(bio->bi_iter.bi_size)) {
+			bvprv = bv;
+			new_bio = true;
+		}
 	}
 
 	fbio->bi_seg_front_size = front_seg_size;
@@ -484,79 +469,97 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 		struct scatterlist **sg)
 {
 	unsigned nbytes = bvec->bv_len;
-	unsigned nsegs = 0, total = 0, offset = 0;
+	unsigned nsegs = 0, total = 0;
 
 	while (nbytes > 0) {
-		unsigned seg_size;
-		struct page *pg;
-		unsigned idx;
+		unsigned offset = bvec->bv_offset + total;
+		unsigned len = min(get_max_segment_size(q, offset), nbytes);
+		struct page *page = bvec->bv_page;
+
+		/*
+		 * Unfortunately a fair number of drivers barf on scatterlists
+		 * that have an offset larger than PAGE_SIZE, despite other
+		 * subsystems dealing with that invariant just fine.  For now
+		 * stick to the legacy format where we never present those from
+		 * the block layer, but the code below should be removed once
+		 * these offenders (mostly MMC/SD drivers) are fixed.
+		 */
+		page += (offset >> PAGE_SHIFT);
+		offset &= ~PAGE_MASK;
 
 		*sg = blk_next_sg(sg, sglist);
+		sg_set_page(*sg, page, len, offset);
 
-		seg_size = get_max_segment_size(q, bvec->bv_offset + total);
-		seg_size = min(nbytes, seg_size);
-
-		offset = (total + bvec->bv_offset) % PAGE_SIZE;
-		idx = (total + bvec->bv_offset) / PAGE_SIZE;
-		pg = bvec_nth_page(bvec->bv_page, idx);
-
-		sg_set_page(*sg, pg, seg_size, offset);
-
-		total += seg_size;
-		nbytes -= seg_size;
+		total += len;
+		nbytes -= len;
 		nsegs++;
 	}
 
 	return nsegs;
 }
 
-static inline void
-__blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
-		     struct scatterlist *sglist, struct bio_vec *bvprv,
-		     struct scatterlist **sg, int *nsegs)
+static inline int __blk_bvec_map_sg(struct bio_vec bv,
+		struct scatterlist *sglist, struct scatterlist **sg)
+{
+	*sg = blk_next_sg(sg, sglist);
+	sg_set_page(*sg, bv.bv_page, bv.bv_len, bv.bv_offset);
+	return 1;
+}
+
+/* only try to merge bvecs into one sg if they are from two bios */
+static inline bool
+__blk_segment_map_sg_merge(struct request_queue *q, struct bio_vec *bvec,
+			   struct bio_vec *bvprv, struct scatterlist **sg)
 {
 
 	int nbytes = bvec->bv_len;
 
-	if (*sg) {
-		if ((*sg)->length + nbytes > queue_max_segment_size(q))
-			goto new_segment;
-		if (!biovec_phys_mergeable(q, bvprv, bvec))
-			goto new_segment;
+	if (!*sg)
+		return false;
 
-		(*sg)->length += nbytes;
-	} else {
-new_segment:
-		if (bvec->bv_offset + bvec->bv_len <= PAGE_SIZE) {
-			*sg = blk_next_sg(sg, sglist);
-			sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
-			(*nsegs) += 1;
-		} else
-			(*nsegs) += blk_bvec_map_sg(q, bvec, sglist, sg);
-	}
-	*bvprv = *bvec;
-}
+	if ((*sg)->length + nbytes > queue_max_segment_size(q))
+		return false;
 
-static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
-		struct scatterlist *sglist, struct scatterlist **sg)
-{
-	*sg = sglist;
-	sg_set_page(*sg, bv.bv_page, bv.bv_len, bv.bv_offset);
-	return 1;
+	if (!biovec_phys_mergeable(q, bvprv, bvec))
+		return false;
+
+	(*sg)->length += nbytes;
+
+	return true;
 }
 
 static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 			     struct scatterlist *sglist,
 			     struct scatterlist **sg)
 {
-	struct bio_vec bvec, bvprv = { NULL };
+	struct bio_vec uninitialized_var(bvec), bvprv = { NULL };
 	struct bvec_iter iter;
 	int nsegs = 0;
+	bool new_bio = false;
 
-	for_each_bio(bio)
-		bio_for_each_bvec(bvec, bio, iter)
-			__blk_segment_map_sg(q, &bvec, sglist, &bvprv, sg,
-					     &nsegs);
+	for_each_bio(bio) {
+		bio_for_each_bvec(bvec, bio, iter) {
+			/*
+			 * Only try to merge bvecs from two bios given we
+			 * have done bio internal merge when adding pages
+			 * to bio
+			 */
+			if (new_bio &&
+			    __blk_segment_map_sg_merge(q, &bvec, &bvprv, sg))
+				goto next_bvec;
+
+			if (bvec.bv_offset + bvec.bv_len <= PAGE_SIZE)
+				nsegs += __blk_bvec_map_sg(bvec, sglist, sg);
+			else
+				nsegs += blk_bvec_map_sg(q, &bvec, sglist, sg);
+ next_bvec:
+			new_bio = false;
+		}
+		if (likely(bio->bi_iter.bi_size)) {
+			bvprv = bvec;
+			new_bio = true;
+		}
+	}
 
 	return nsegs;
 }
@@ -572,9 +575,9 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	int nsegs = 0;
 
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
-		nsegs = __blk_bvec_map_sg(q, rq->special_vec, sglist, &sg);
+		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, &sg);
 	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
-		nsegs = __blk_bvec_map_sg(q, bio_iovec(rq->bio), sglist, &sg);
+		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, &sg);
 	else if (rq->bio)
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
 

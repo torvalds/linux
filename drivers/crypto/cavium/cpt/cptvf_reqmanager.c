@@ -223,7 +223,7 @@ scatter_gather_clean:
 	return ret;
 }
 
-int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
+static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 		     u32 qno)
 {
 	struct pci_dev *pdev = cptvf->pdev;
@@ -270,7 +270,7 @@ int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 	return ret;
 }
 
-void do_request_cleanup(struct cpt_vf *cptvf,
+static void do_request_cleanup(struct cpt_vf *cptvf,
 			struct cpt_info_buffer *info)
 {
 	int i;
@@ -316,7 +316,7 @@ void do_request_cleanup(struct cpt_vf *cptvf,
 	kzfree(info);
 }
 
-void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
+static void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
 {
 	struct pci_dev *pdev = cptvf->pdev;
 

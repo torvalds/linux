@@ -64,5 +64,6 @@ extern int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 extern int gfs2_map_journal_extents(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd);
 extern void gfs2_free_journal_extents(struct gfs2_jdesc *jd);
 extern int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length);
+extern int gfs2_lblk_to_dblk(struct inode *inode, u32 lblock, u64 *dblock);
 
 #endif /* __BMAP_DOT_H__ */

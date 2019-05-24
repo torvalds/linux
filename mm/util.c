@@ -318,7 +318,7 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
  * get_user_pages_fast() - pin user pages in memory
  * @start:	starting user address
  * @nr_pages:	number of pages from start to pin
- * @write:	whether pages will be written to
+ * @gup_flags:	flags modifying pin behaviour
  * @pages:	array that receives pointers to the pages pinned.
  *		Should be at least nr_pages long.
  *
@@ -339,10 +339,10 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
  * were pinned, returns -errno.
  */
 int __weak get_user_pages_fast(unsigned long start,
-				int nr_pages, int write, struct page **pages)
+				int nr_pages, unsigned int gup_flags,
+				struct page **pages)
 {
-	return get_user_pages_unlocked(start, nr_pages, pages,
-				       write ? FOLL_WRITE : 0);
+	return get_user_pages_unlocked(start, nr_pages, pages, gup_flags);
 }
 EXPORT_SYMBOL_GPL(get_user_pages_fast);
 
@@ -652,7 +652,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
  */
 int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 {
-	long free, allowed, reserve;
+	long allowed;
 
 	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
 			-(s64)vm_committed_as_batch * num_online_cpus(),
@@ -667,51 +667,9 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		return 0;
 
 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
-		free = global_zone_page_state(NR_FREE_PAGES);
-		free += global_node_page_state(NR_FILE_PAGES);
-
-		/*
-		 * shmem pages shouldn't be counted as free in this
-		 * case, they can't be purged, only swapped out, and
-		 * that won't affect the overall amount of available
-		 * memory in the system.
-		 */
-		free -= global_node_page_state(NR_SHMEM);
-
-		free += get_nr_swap_pages();
-
-		/*
-		 * Any slabs which are created with the
-		 * SLAB_RECLAIM_ACCOUNT flag claim to have contents
-		 * which are reclaimable, under pressure.  The dentry
-		 * cache and most inode caches should fall into this
-		 */
-		free += global_node_page_state(NR_SLAB_RECLAIMABLE);
-
-		/*
-		 * Part of the kernel memory, which can be released
-		 * under memory pressure.
-		 */
-		free += global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
-
-		/*
-		 * Leave reserved pages. The pages are not for anonymous pages.
-		 */
-		if (free <= totalreserve_pages)
+		if (pages > totalram_pages() + total_swap_pages)
 			goto error;
-		else
-			free -= totalreserve_pages;
-
-		/*
-		 * Reserve some for root
-		 */
-		if (!cap_sys_admin)
-			free -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
-
-		if (free > pages)
-			return 0;
-
-		goto error;
+		return 0;
 	}
 
 	allowed = vm_commit_limit();
@@ -725,7 +683,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 	 * Don't let a single process grow so big a user can't recover
 	 */
 	if (mm) {
-		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
+		long reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
+
 		allowed -= min_t(long, mm->total_vm / 32, reserve);
 	}
 

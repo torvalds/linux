@@ -439,6 +439,7 @@ config RTC_DRV_PCF8523
 
 config RTC_DRV_PCF85063
 	tristate "NXP PCF85063"
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the PCF85063 RTC chip
 
@@ -447,7 +448,6 @@ config RTC_DRV_PCF85063
 
 config RTC_DRV_PCF85363
 	tristate "NXP PCF85363"
-	depends on I2C
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the PCF85363 RTC chip.
@@ -602,7 +602,6 @@ config RTC_DRV_FM3130
 
 config RTC_DRV_RX8010
 	tristate "Epson RX8010SJ"
-	depends on I2C
 	help
 	  If you say yes here you get support for the Epson RX8010SJ RTC
 	  chip.
@@ -1432,7 +1431,7 @@ config RTC_DRV_AT91RM9200
 config RTC_DRV_AT91SAM9
 	tristate "AT91SAM9 RTT as RTC"
 	depends on ARCH_AT91 || COMPILE_TEST
-	depends on HAS_IOMEM
+	depends on OF && HAS_IOMEM
 	select MFD_SYSCON
 	help
 	  Some AT91SAM9 SoCs provide an RTT (Real Time Timer) block which
@@ -1841,6 +1840,17 @@ config RTC_DRV_RTD119X
 	  If you say yes here, you get support for the RTD1295 SoC
 	  Real Time Clock.
 
+config RTC_DRV_ASPEED
+	tristate "ASPEED RTC"
+	depends on OF
+	depends on ARCH_ASPEED || COMPILE_TEST
+	help
+	  If you say yes here you get support for the ASPEED BMC SoC real time
+	  clocks.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-aspeed".
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
@@ -1857,7 +1867,8 @@ config RTC_DRV_HID_SENSOR_TIME
 
 config RTC_DRV_GOLDFISH
 	tristate "Goldfish Real Time Clock"
-	depends on MIPS && (GOLDFISH || COMPILE_TEST)
+	depends on OF && HAS_IOMEM
+	depends on GOLDFISH || COMPILE_TEST
 	help
 	  Say yes to enable RTC driver for the Goldfish based virtual platform.
 

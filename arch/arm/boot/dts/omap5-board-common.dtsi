@@ -667,14 +667,16 @@
 	};
 };
 
-&mcpdm {
+&mcpdm_module {
+	/* Module on the SoC needs external clock from the PMIC */
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
 
+&mcpdm {
 	clocks = <&twl6040>;
 	clock-names = "pdmclk";
-
-	status = "okay";
 };
 
 &mcbsp1 {

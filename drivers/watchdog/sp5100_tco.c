@@ -395,9 +395,7 @@ static int sp5100_tco_probe(struct platform_device *pdev)
 	wdd->min_timeout = 1;
 	wdd->max_timeout = 0xffff;
 
-	if (watchdog_init_timeout(wdd, heartbeat, NULL))
-		dev_info(dev, "timeout value invalid, using %d\n",
-			 wdd->timeout);
+	watchdog_init_timeout(wdd, heartbeat, NULL);
 	watchdog_set_nowayout(wdd, nowayout);
 	watchdog_stop_on_reboot(wdd);
 	watchdog_stop_on_unregister(wdd);

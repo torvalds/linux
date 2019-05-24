@@ -2,7 +2,7 @@ config USB_PWC
 	tristate "USB Philips Cameras"
 	depends on VIDEO_V4L2
 	select VIDEOBUF2_VMALLOC
-	---help---
+	help
 	  Say Y or M here if you want to use one of these Philips & OEM
 	  webcams:
 	   * Philips PCA645, PCA646
@@ -41,7 +41,7 @@ config USB_PWC_INPUT_EVDEV
 	bool "USB Philips Cameras input events device support"
 	default y
 	depends on USB_PWC && (USB_PWC=INPUT || INPUT=y)
-	---help---
+	help
 	  This option makes USB Philips cameras register the snapshot button as
 	  an input device to report button events.
 

@@ -365,14 +365,6 @@ static int vmw_resource_do_validate(struct vmw_resource *res,
 			list_add_tail(&res->mob_head, &res->backup->res_list);
 	}
 
-	/*
-	 * Only do this on write operations, and move to
-	 * vmw_resource_unreserve if it can be called after
-	 * backup buffers have been unreserved. Otherwise
-	 * sort out locking.
-	 */
-	res->res_dirty = true;
-
 	return 0;
 
 out_bind_failed:
@@ -386,6 +378,8 @@ out_bind_failed:
  * command submission.
  *
  * @res:               Pointer to the struct vmw_resource to unreserve.
+ * @dirty_set:         Change dirty status of the resource.
+ * @dirty:             When changing dirty status indicates the new status.
  * @switch_backup:     Backup buffer has been switched.
  * @new_backup:        Pointer to new backup buffer if command submission
  *                     switched. May be NULL.
@@ -395,6 +389,8 @@ out_bind_failed:
  * resource lru list, so that it can be evicted if necessary.
  */
 void vmw_resource_unreserve(struct vmw_resource *res,
+			    bool dirty_set,
+			    bool dirty,
 			    bool switch_backup,
 			    struct vmw_buffer_object *new_backup,
 			    unsigned long new_backup_offset)
@@ -421,6 +417,9 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 	}
 	if (switch_backup)
 		res->backup_offset = new_backup_offset;
+
+	if (dirty_set)
+		res->res_dirty = dirty;
 
 	if (!res->func->may_evict || res->id == -1 || res->pin_count)
 		return;
@@ -696,7 +695,7 @@ void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
 		if (!res->func->unbind)
 			continue;
 
-		(void) res->func->unbind(res, true, &val_buf);
+		(void) res->func->unbind(res, res->res_dirty, &val_buf);
 		res->backup_dirty = true;
 		res->res_dirty = false;
 		list_del_init(&res->mob_head);
@@ -731,12 +730,9 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
 	dx_query_ctx = dx_query_mob->dx_query_ctx;
 	dev_priv     = dx_query_ctx->dev_priv;
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), dx_query_ctx->id);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for "
-			  "query MOB read back.\n");
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), dx_query_ctx->id);
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_DX_READBACK_ALL_QUERY;
 	cmd->header.size = sizeof(cmd->body);
@@ -932,7 +928,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 	res->pin_count++;
 
 out_no_validate:
-	vmw_resource_unreserve(res, false, NULL, 0UL);
+	vmw_resource_unreserve(res, false, false, false, NULL, 0UL);
 out_no_reserve:
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 	ttm_write_unlock(&dev_priv->reservation_sem);
@@ -968,7 +964,7 @@ void vmw_resource_unpin(struct vmw_resource *res)
 		ttm_bo_unreserve(&vbo->base);
 	}
 
-	vmw_resource_unreserve(res, false, NULL, 0UL);
+	vmw_resource_unreserve(res, false, false, false, NULL, 0UL);
 
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 	ttm_read_unlock(&dev_priv->reservation_sem);

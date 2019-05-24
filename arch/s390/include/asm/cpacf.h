@@ -28,6 +28,7 @@
 #define CPACF_KMCTR		0xb92d		/* MSA4 */
 #define CPACF_PRNO		0xb93c		/* MSA5 */
 #define CPACF_KMA		0xb929		/* MSA8 */
+#define CPACF_KDSA		0xb93a		/* MSA9 */
 
 /*
  * En/decryption modifier bits
@@ -202,7 +203,7 @@ static inline int __cpacf_check_opcode(unsigned int opcode)
 	}
 }
 
-static inline int cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
+static __always_inline int cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
 {
 	if (__cpacf_check_opcode(opcode)) {
 		__cpacf_query(opcode, mask);

@@ -1,1 +1,1 @@
-obj-y	:= test_run.o
+obj-$(CONFIG_BPF_SYSCALL)	:= test_run.o

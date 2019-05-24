@@ -23,15 +23,14 @@
 #include <linux/err.h>
 #include <linux/crypto.h>
 #include <linux/delay.h>
-#include <linux/hardirq.h>
+#include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
 #include <crypto/ghash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/b128ops.h>
-
-#define IN_INTERRUPT in_interrupt()
 
 void gcm_init_p8(u128 htable[16], const u64 Xi[2]);
 void gcm_gmult_p8(u64 Xi[2], const u128 htable[16]);
@@ -102,7 +101,6 @@ static int p8_ghash_init(struct shash_desc *desc)
 	dctx->bytes = 0;
 	memset(dctx->shash, 0, GHASH_DIGEST_SIZE);
 	dctx->fallback_desc.tfm = ctx->fallback;
-	dctx->fallback_desc.flags = desc->flags;
 	return crypto_shash_init(&dctx->fallback_desc);
 }
 
@@ -131,7 +129,7 @@ static int p8_ghash_update(struct shash_desc *desc,
 	struct p8_ghash_ctx *ctx = crypto_tfm_ctx(crypto_shash_tfm(desc->tfm));
 	struct p8_ghash_desc_ctx *dctx = shash_desc_ctx(desc);
 
-	if (IN_INTERRUPT) {
+	if (!crypto_simd_usable()) {
 		return crypto_shash_update(&dctx->fallback_desc, src,
 					   srclen);
 	} else {
@@ -182,7 +180,7 @@ static int p8_ghash_final(struct shash_desc *desc, u8 *out)
 	struct p8_ghash_ctx *ctx = crypto_tfm_ctx(crypto_shash_tfm(desc->tfm));
 	struct p8_ghash_desc_ctx *dctx = shash_desc_ctx(desc);
 
-	if (IN_INTERRUPT) {
+	if (!crypto_simd_usable()) {
 		return crypto_shash_final(&dctx->fallback_desc, out);
 	} else {
 		if (dctx->bytes) {

@@ -148,13 +148,12 @@ static const struct of_device_id sun6i_prcm_dt_ids[] = {
 
 static int sun6i_prcm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	const struct prcm_data *data;
 	struct resource *res;
 	int ret;
 
-	match = of_match_node(sun6i_prcm_dt_ids, np);
+	match = of_match_node(sun6i_prcm_dt_ids, pdev->dev.of_node);
 	if (!match)
 		return -EINVAL;
 

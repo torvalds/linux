@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/module.h>
 #include <net/netfilter/nf_tables_core.h>
 
 static int __init nf_tables_set_module_init(void)

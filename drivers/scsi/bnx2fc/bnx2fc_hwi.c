@@ -991,7 +991,6 @@ void bnx2fc_arm_cq(struct bnx2fc_rport *tgt)
 			FCOE_CQE_TOGGLE_BIT_SHIFT);
 	msg = *((u32 *)rx_db);
 	writel(cpu_to_le32(msg), tgt->ctx_base);
-	mmiowb();
 
 }
 
@@ -1409,7 +1408,6 @@ void bnx2fc_ring_doorbell(struct bnx2fc_rport *tgt)
 				(tgt->sq_curr_toggle_bit << 15);
 	msg = *((u32 *)sq_db);
 	writel(cpu_to_le32(msg), tgt->ctx_base);
-	mmiowb();
 
 }
 

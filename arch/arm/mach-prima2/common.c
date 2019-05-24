@@ -8,7 +8,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <linux/of.h>

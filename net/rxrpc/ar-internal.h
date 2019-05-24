@@ -482,6 +482,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_BEGAN_RX_TIMER,	/* We began the expect_rx_by timer */
 	RXRPC_CALL_RX_HEARD,		/* The peer responded at least once to this call */
 	RXRPC_CALL_RX_UNDERRUN,		/* Got data underrun */
+	RXRPC_CALL_IS_INTR,		/* The call is interruptible */
 };
 
 /*
@@ -711,6 +712,7 @@ struct rxrpc_call_params {
 		u32		normal;		/* Max time since last call packet (msec) */
 	} timeouts;
 	u8			nr_timeouts;	/* Number of timeouts specified */
+	bool			intr;		/* The call is interruptible */
 };
 
 struct rxrpc_send_params {

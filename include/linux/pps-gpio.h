@@ -23,10 +23,11 @@
 #define _PPS_GPIO_H
 
 struct pps_gpio_platform_data {
+	struct gpio_desc *gpio_pin;
+	struct gpio_desc *echo_pin;
 	bool assert_falling_edge;
 	bool capture_clear;
-	unsigned int gpio_pin;
-	const char *gpio_label;
+	unsigned int echo_active_ms;
 };
 
 #endif /* _PPS_GPIO_H */

@@ -223,7 +223,8 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	if (opt == NULL)
 		return -EINVAL;
 
-	error = nla_parse_nested(tb, TCA_ATM_MAX, opt, atm_policy, NULL);
+	error = nla_parse_nested_deprecated(tb, TCA_ATM_MAX, opt, atm_policy,
+					    NULL);
 	if (error < 0)
 		return error;
 
@@ -609,7 +610,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	tcm->tcm_handle = flow->common.classid;
 	tcm->tcm_info = flow->q->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

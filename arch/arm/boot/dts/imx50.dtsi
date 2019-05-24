@@ -26,11 +26,21 @@
 		gpio3 = &gpio4;
 		gpio4 = &gpio5;
 		gpio5 = &gpio6;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc2;
+		mmc2 = &esdhc3;
+		mmc3 = &esdhc4;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
+		spi0 = &ecspi1;
+		spi1 = &ecspi2;
+		spi2 = &cspi;
 	};
 
 	cpus {
@@ -74,6 +84,14 @@
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
+	};
+
+	usbphy0: usbphy-0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
 	};
 
 	soc {
@@ -187,7 +205,8 @@
 				compatible = "fsl,imx50-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
 				interrupts = <18>;
-				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -411,7 +430,7 @@
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
 				clocks = <&clks IMX5_CLK_SDMA_GATE>,
-					 <&clks IMX5_CLK_SDMA_GATE>;
+					 <&clks IMX5_CLK_AHB>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx50.bin";

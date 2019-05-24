@@ -841,11 +841,6 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 		return -ENOTSUPP;
 
 	for (i = 0; i < i3c_nxfers; i++) {
-		if (i3c_xfers[i].len > COMMAND_PORT_ARG_DATA_LEN_MAX)
-			return -ENOTSUPP;
-	}
-
-	for (i = 0; i < i3c_nxfers; i++) {
 		if (i3c_xfers[i].rnw)
 			nrxwords += DIV_ROUND_UP(i3c_xfers[i].len, 4);
 		else
@@ -972,11 +967,6 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 	if (i2c_nxfers > master->caps.cmdfifodepth)
 		return -ENOTSUPP;
-
-	for (i = 0; i < i2c_nxfers; i++) {
-		if (i2c_xfers[i].len > COMMAND_PORT_ARG_DATA_LEN_MAX)
-			return -ENOTSUPP;
-	}
 
 	for (i = 0; i < i2c_nxfers; i++) {
 		if (i2c_xfers[i].flags & I2C_M_RD)

@@ -43,6 +43,7 @@
 #include <asm/tm.h>
 #include <asm/asm-prototypes.h>
 #include <asm/debug.h>
+#include <asm/hw_breakpoint.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -3088,7 +3089,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		dbginfo.sizeof_condition = 0;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		dbginfo.features = PPC_DEBUG_FEATURE_DATA_BP_RANGE;
-		if (cpu_has_feature(CPU_FTR_DAWR))
+		if (dawr_enabled())
 			dbginfo.features |= PPC_DEBUG_FEATURE_DATA_BP_DAWR;
 #else
 		dbginfo.features = 0;

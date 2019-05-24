@@ -912,7 +912,8 @@ static int em_meta_change(struct net *net, void *data, int len,
 	struct tcf_meta_hdr *hdr;
 	struct meta_match *meta = NULL;
 
-	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy, NULL);
+	err = nla_parse_deprecated(tb, TCA_EM_META_MAX, data, len,
+				   meta_policy, NULL);
 	if (err < 0)
 		goto errout;
 

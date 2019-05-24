@@ -217,6 +217,20 @@ enum pmbus_regs {
 	PMBUS_VIRT_PWM_ENABLE_2,
 	PMBUS_VIRT_PWM_ENABLE_3,
 	PMBUS_VIRT_PWM_ENABLE_4,
+
+	/* Samples for average
+	 *
+	 * Drivers wanting to expose functionality for changing the number of
+	 * samples used for average values should implement support in
+	 * {read,write}_word_data callback for either PMBUS_VIRT_SAMPLES if it
+	 * applies to all types of measurements, or any number of specific
+	 * PMBUS_VIRT_*_SAMPLES registers to allow for individual control.
+	 */
+	PMBUS_VIRT_SAMPLES,
+	PMBUS_VIRT_IN_SAMPLES,
+	PMBUS_VIRT_CURR_SAMPLES,
+	PMBUS_VIRT_POWER_SAMPLES,
+	PMBUS_VIRT_TEMP_SAMPLES,
 };
 
 /*
@@ -371,6 +385,7 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_STATUS_VMON	BIT(19)
 #define PMBUS_HAVE_PWM12	BIT(20)
 #define PMBUS_HAVE_PWM34	BIT(21)
+#define PMBUS_HAVE_SAMPLES	BIT(22)
 
 #define PMBUS_PAGE_VIRTUAL	BIT(31)
 
@@ -417,6 +432,9 @@ struct pmbus_driver_info {
 	/* Regulator functionality, if supported by this chip driver. */
 	int num_regulators;
 	const struct regulator_desc *reg_desc;
+
+	/* custom attributes */
+	const struct attribute_group **groups;
 };
 
 /* Regulator ops */

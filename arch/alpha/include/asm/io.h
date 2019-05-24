@@ -513,8 +513,6 @@ extern inline void writeq(u64 b, volatile void __iomem *addr)
 #define writel_relaxed(b, addr)	__raw_writel(b, addr)
 #define writeq_relaxed(b, addr)	__raw_writeq(b, addr)
 
-#define mmiowb()
-
 /*
  * String version of IO memory access ops:
  */

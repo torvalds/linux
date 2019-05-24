@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2016-2018 Toradex AG
  */
@@ -17,6 +17,7 @@
 
 	pcie@1003000 {
 		status = "okay";
+
 		avddio-pex-supply = <&reg_1v05_vdd>;
 		avdd-pex-pll-supply = <&reg_1v05_vdd>;
 		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
@@ -1796,6 +1797,7 @@
 		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-2}>,
 		       <&{/padctl@7009f000/pads/pcie/lanes/pcie-0}>;
 		phy-names = "usb2-0", "usb3-1", "usb2-1", "usb2-2", "usb3-0";
+
 		avddio-pex-supply = <&reg_1v05_vdd>;
 		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
 		avdd-pll-utmip-supply = <&reg_1v8_vddio>;
@@ -1807,6 +1809,11 @@
 	};
 
 	padctl@7009f000 {
+		avdd-pll-utmip-supply = <&reg_1v8_vddio>;
+		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
+		avdd-pex-pll-supply = <&reg_1v05_vdd>;
+		hvdd-pex-pll-e-supply = <&reg_module_3v3>;
+
 		pads {
 			usb2 {
 				status = "okay";

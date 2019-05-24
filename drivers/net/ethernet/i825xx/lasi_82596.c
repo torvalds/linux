@@ -105,7 +105,7 @@
 #define DMA_WBACK_INV(ndev, addr, len) \
 	do { dma_cache_sync((ndev)->dev.parent, (void *)addr, len, DMA_BIDIRECTIONAL); } while (0)
 
-#define SYSBUS      0x0000006c;
+#define SYSBUS      0x0000006c
 
 /* big endian CPU, 82596 "big" endian mode */
 #define SWAP32(x)   (((u32)(x)<<16) | ((((u32)(x)))>>16))
@@ -141,7 +141,8 @@ static void mpu_port(struct net_device *dev, int c, dma_addr_t x)
 	}
 
 	gsc_writel(a, dev->base_addr + PA_CPU_PORT_L_ACCESS);
-	udelay(1);
+	if (!running_on_qemu)
+		udelay(1);
 	gsc_writel(b, dev->base_addr + PA_CPU_PORT_L_ACCESS);
 }
 

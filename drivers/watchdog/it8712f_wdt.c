@@ -327,7 +327,7 @@ static int it8712f_wdt_open(struct inode *inode, struct file *file)
 	ret = it8712f_wdt_enable();
 	if (ret)
 		return ret;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int it8712f_wdt_release(struct inode *inode, struct file *file)

@@ -1092,7 +1092,7 @@ static void __exit camellia_fini(void)
 	crypto_unregister_alg(&camellia_alg);
 }
 
-module_init(camellia_init);
+subsys_initcall(camellia_init);
 module_exit(camellia_fini);
 
 MODULE_DESCRIPTION("Camellia Cipher Algorithm");

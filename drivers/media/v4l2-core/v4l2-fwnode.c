@@ -163,7 +163,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		}
 
 		if (use_default_lane_mapping)
-			pr_debug("using default lane mapping\n");
+			pr_debug("no lane mapping given, using defaults\n");
 	}
 
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
@@ -175,6 +175,10 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 					       num_data_lanes);
 
 		have_data_lanes = true;
+		if (use_default_lane_mapping) {
+			pr_debug("data-lanes property exists; disabling default mapping\n");
+			use_default_lane_mapping = false;
+		}
 	}
 
 	for (i = 0; i < num_data_lanes; i++) {
@@ -225,6 +229,10 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	if (bus_type == V4L2_MBUS_CSI2_DPHY ||
 	    bus_type == V4L2_MBUS_CSI2_CPHY || lanes_used ||
 	    have_clk_lane || (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
+		/* Only D-PHY has a clock lane. */
+		unsigned int dfl_data_lane_index =
+			bus_type == V4L2_MBUS_CSI2_DPHY;
+
 		bus->flags = flags;
 		if (bus_type == V4L2_MBUS_UNKNOWN)
 			vep->bus_type = V4L2_MBUS_CSI2_DPHY;
@@ -233,7 +241,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		if (use_default_lane_mapping) {
 			bus->clock_lane = 0;
 			for (i = 0; i < num_data_lanes; i++)
-				bus->data_lanes[i] = 1 + i;
+				bus->data_lanes[i] = dfl_data_lane_index + i;
 		} else {
 			bus->clock_lane = clock_lane;
 			for (i = 0; i < num_data_lanes; i++)
@@ -820,7 +828,10 @@ error:
  * underneath the fwnode identified by the previous tuple, etc. until you
  * reached the fwnode you need.
  *
- * An example with a graph, as defined in Documentation/acpi/dsd/graph.txt:
+ * THIS EXAMPLE EXISTS MERELY TO DOCUMENT THIS FUNCTION. DO NOT USE IT AS A
+ * REFERENCE IN HOW ACPI TABLES SHOULD BE WRITTEN!! See documentation under
+ * Documentation/acpi/dsd instead and especially graph.txt,
+ * data-node-references.txt and leds.txt .
  *
  *	Scope (\_SB.PCI0.I2C2)
  *	{

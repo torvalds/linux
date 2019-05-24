@@ -68,7 +68,6 @@ static int ecryptfs_hash_digest(struct crypto_shash *tfm,
 	int err;
 
 	desc->tfm = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	err = crypto_shash_digest(desc, src, len, dst);
 	shash_desc_zero(desc);
 	return err;

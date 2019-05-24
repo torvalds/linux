@@ -8,7 +8,10 @@
 #define _CORESIGHT_TMC_H
 
 #include <linux/dma-mapping.h>
+#include <linux/idr.h>
 #include <linux/miscdevice.h>
+#include <linux/mutex.h>
+#include <linux/refcount.h>
 
 #define TMC_RSZ			0x004
 #define TMC_STS			0x00c
@@ -133,6 +136,7 @@ struct etr_buf_operations;
 
 /**
  * struct etr_buf - Details of the buffer used by ETR
+ * refcount	; Number of sources currently using this etr_buf.
  * @mode	: Mode of the ETR buffer, contiguous, Scatter Gather etc.
  * @full	: Trace data overflow
  * @size	: Size of the buffer.
@@ -143,6 +147,7 @@ struct etr_buf_operations;
  * @private	: Backend specific information for the buf
  */
 struct etr_buf {
+	refcount_t			refcount;
 	enum etr_mode			mode;
 	bool				full;
 	ssize_t				size;
@@ -160,6 +165,8 @@ struct etr_buf {
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.tmc" entry.
  * @spinlock:	only one at a time pls.
+ * @pid:	Process ID of the process being monitored by the session
+ *		that is using this component.
  * @buf:	Snapshot of the trace data for ETF/ETB.
  * @etr_buf:	details of buffer used in TMC-ETR
  * @len:	size of the available trace for ETF/ETB.
@@ -170,6 +177,8 @@ struct etr_buf {
  * @trigger_cntr: amount of words to store after a trigger.
  * @etr_caps:	Bitmask of capabilities of the TMC ETR, inferred from the
  *		device configuration register (DEVID)
+ * @idr:	Holds etr_bufs allocated for this ETR.
+ * @idr_mutex:	Access serialisation for idr.
  * @perf_data:	PERF buffer for ETR.
  * @sysfs_data:	SYSFS buffer for ETR.
  */
@@ -179,6 +188,7 @@ struct tmc_drvdata {
 	struct coresight_device	*csdev;
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
+	pid_t			pid;
 	bool			reading;
 	union {
 		char		*buf;		/* TMC ETB */
@@ -191,6 +201,8 @@ struct tmc_drvdata {
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;
 	u32			etr_caps;
+	struct idr		idr;
+	struct mutex		idr_mutex;
 	struct etr_buf		*sysfs_buf;
 	void			*perf_data;
 };

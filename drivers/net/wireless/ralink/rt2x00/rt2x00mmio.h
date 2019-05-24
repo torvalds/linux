@@ -80,8 +80,6 @@ int rt2x00mmio_regbusy_read(struct rt2x00_dev *rt2x00dev,
  *
  * @desc: Pointer to device descriptor
  * @desc_dma: DMA pointer to &desc.
- * @data: Pointer to device's entry memory.
- * @data_dma: DMA pointer to &data.
  */
 struct queue_entry_priv_mmio {
 	__le32 *desc;

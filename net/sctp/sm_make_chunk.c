@@ -1684,7 +1684,6 @@ static struct sctp_cookie_param *sctp_pack_cookie(
 
 		/* Sign the message.  */
 		desc->tfm = sctp_sk(ep->base.sk)->hmac;
-		desc->flags = 0;
 
 		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
 					  sizeof(ep->secret_key)) ?:
@@ -1755,7 +1754,6 @@ struct sctp_association *sctp_unpack_cookie(
 		int err;
 
 		desc->tfm = sctp_sk(ep->base.sk)->hmac;
-		desc->flags = 0;
 
 		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
 					  sizeof(ep->secret_key)) ?:

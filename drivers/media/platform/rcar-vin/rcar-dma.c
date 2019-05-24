@@ -486,7 +486,7 @@ static void rvin_set_coeff(struct rvin_dev *vin, unsigned short xs)
 	}
 
 	/* Use previous value if its XS value is closer */
-	if (p_prev_set && p_set &&
+	if (p_prev_set &&
 	    xs - p_prev_set->xs_value < p_set->xs_value - xs)
 		p_set = p_prev_set;
 

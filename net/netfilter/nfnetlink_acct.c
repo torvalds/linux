@@ -248,8 +248,8 @@ static int nfnl_acct_start(struct netlink_callback *cb)
 	if (!attr)
 		return 0;
 
-	err = nla_parse_nested(tb, NFACCT_FILTER_MAX, attr, filter_policy,
-			       NULL);
+	err = nla_parse_nested_deprecated(tb, NFACCT_FILTER_MAX, attr,
+					  filter_policy, NULL);
 	if (err < 0)
 		return err;
 

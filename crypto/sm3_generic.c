@@ -199,7 +199,7 @@ static void __exit sm3_generic_mod_fini(void)
 	crypto_unregister_shash(&sm3_alg);
 }
 
-module_init(sm3_generic_mod_init);
+subsys_initcall(sm3_generic_mod_init);
 module_exit(sm3_generic_mod_fini);
 
 MODULE_LICENSE("GPL v2");

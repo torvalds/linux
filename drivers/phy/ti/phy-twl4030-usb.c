@@ -172,6 +172,7 @@ struct twl4030_usb {
 
 	int			irq;
 	enum musb_vbus_id_status linkstat;
+	atomic_t		connected;
 	bool			vbus_supplied;
 	bool			musb_mailbox_pending;
 
@@ -575,39 +576,29 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 {
 	struct twl4030_usb *twl = _twl;
 	enum musb_vbus_id_status status;
-	bool status_changed = false;
 	int err;
 
 	status = twl4030_usb_linkstat(twl);
 
 	mutex_lock(&twl->lock);
-	if (status >= 0 && status != twl->linkstat) {
-		status_changed =
-			cable_present(twl->linkstat) !=
-			cable_present(status);
-		twl->linkstat = status;
-	}
+	twl->linkstat = status;
 	mutex_unlock(&twl->lock);
 
-	if (status_changed) {
-		/* FIXME add a set_power() method so that B-devices can
-		 * configure the charger appropriately.  It's not always
-		 * correct to consume VBUS power, and how much current to
-		 * consume is a function of the USB configuration chosen
-		 * by the host.
-		 *
-		 * REVISIT usb_gadget_vbus_connect(...) as needed, ditto
-		 * its disconnect() sibling, when changing to/from the
-		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
-		 * starts to handle softconnect right.
-		 */
-		if (cable_present(status)) {
+	if (cable_present(status)) {
+		if (atomic_add_unless(&twl->connected, 1, 1)) {
+			dev_dbg(twl->dev, "%s: cable connected %i\n",
+				__func__, status);
 			pm_runtime_get_sync(twl->dev);
-		} else {
+			twl->musb_mailbox_pending = true;
+		}
+	} else {
+		if (atomic_add_unless(&twl->connected, -1, 0)) {
+			dev_dbg(twl->dev, "%s: cable disconnected %i\n",
+				__func__, status);
 			pm_runtime_mark_last_busy(twl->dev);
 			pm_runtime_put_autosuspend(twl->dev);
+			twl->musb_mailbox_pending = true;
 		}
-		twl->musb_mailbox_pending = true;
 	}
 	if (twl->musb_mailbox_pending) {
 		err = musb_mailbox(status);

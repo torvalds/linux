@@ -474,13 +474,39 @@ csio_reduce_sqsets(struct csio_hw *hw, int cnt)
 	csio_dbg(hw, "Reduced sqsets to %d\n", hw->num_sqsets);
 }
 
+static void csio_calc_sets(struct irq_affinity *affd, unsigned int nvecs)
+{
+	struct csio_hw *hw = affd->priv;
+	u8 i;
+
+	if (!nvecs)
+		return;
+
+	if (nvecs < hw->num_pports) {
+		affd->nr_sets = 1;
+		affd->set_size[0] = nvecs;
+		return;
+	}
+
+	affd->nr_sets = hw->num_pports;
+	for (i = 0; i < hw->num_pports; i++)
+		affd->set_size[i] = nvecs / hw->num_pports;
+}
+
 static int
 csio_enable_msix(struct csio_hw *hw)
 {
 	int i, j, k, n, min, cnt;
 	int extra = CSIO_EXTRA_VECS;
 	struct csio_scsi_cpu_info *info;
-	struct irq_affinity desc = { .pre_vectors = 2 };
+	struct irq_affinity desc = {
+		.pre_vectors = CSIO_EXTRA_VECS,
+		.calc_sets = csio_calc_sets,
+		.priv = hw,
+	};
+
+	if (hw->num_pports > IRQ_AFFINITY_MAX_SETS)
+		return -ENOSPC;
 
 	min = hw->num_pports + extra;
 	cnt = hw->num_sqsets + extra;

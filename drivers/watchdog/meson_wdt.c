@@ -164,28 +164,27 @@ MODULE_DEVICE_TABLE(of, meson_wdt_dt_ids);
 
 static int meson_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct device *dev = &pdev->dev;
 	struct meson_wdt_dev *meson_wdt;
 	const struct of_device_id *of_id;
 	int err;
 
-	meson_wdt = devm_kzalloc(&pdev->dev, sizeof(*meson_wdt), GFP_KERNEL);
+	meson_wdt = devm_kzalloc(dev, sizeof(*meson_wdt), GFP_KERNEL);
 	if (!meson_wdt)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	meson_wdt->wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	meson_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(meson_wdt->wdt_base))
 		return PTR_ERR(meson_wdt->wdt_base);
 
-	of_id = of_match_device(meson_wdt_dt_ids, &pdev->dev);
+	of_id = of_match_device(meson_wdt_dt_ids, dev);
 	if (!of_id) {
-		dev_err(&pdev->dev, "Unable to initialize WDT data\n");
+		dev_err(dev, "Unable to initialize WDT data\n");
 		return -ENODEV;
 	}
 	meson_wdt->data = of_id->data;
 
-	meson_wdt->wdt_dev.parent = &pdev->dev;
+	meson_wdt->wdt_dev.parent = dev;
 	meson_wdt->wdt_dev.info = &meson_wdt_info;
 	meson_wdt->wdt_dev.ops = &meson_wdt_ops;
 	meson_wdt->wdt_dev.max_timeout =
@@ -197,18 +196,18 @@ static int meson_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&meson_wdt->wdt_dev, meson_wdt);
 
-	watchdog_init_timeout(&meson_wdt->wdt_dev, timeout, &pdev->dev);
+	watchdog_init_timeout(&meson_wdt->wdt_dev, timeout, dev);
 	watchdog_set_nowayout(&meson_wdt->wdt_dev, nowayout);
 	watchdog_set_restart_priority(&meson_wdt->wdt_dev, 128);
 
 	meson_wdt_stop(&meson_wdt->wdt_dev);
 
 	watchdog_stop_on_reboot(&meson_wdt->wdt_dev);
-	err = devm_watchdog_register_device(&pdev->dev, &meson_wdt->wdt_dev);
+	err = devm_watchdog_register_device(dev, &meson_wdt->wdt_dev);
 	if (err)
 		return err;
 
-	dev_info(&pdev->dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
+	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
 		 meson_wdt->wdt_dev.timeout, nowayout);
 
 	return 0;
