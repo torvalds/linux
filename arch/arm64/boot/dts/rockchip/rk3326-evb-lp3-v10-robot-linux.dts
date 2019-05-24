@@ -694,6 +694,21 @@
 				<2 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,/* cif_href */
 				<2 RK_PB2 RK_FUNC_1 &pcfg_pull_none>;/* cif_clkin */
 		};
+
+		cif_pin_m1: cif-pin-m1 {
+			rockchip,pins =
+				<3 RK_PA3 RK_FUNC_3 &pcfg_pull_none>,/* cif_data2 */
+				<3 RK_PA5 RK_FUNC_3 &pcfg_pull_none>,/* cif_data3 */
+				<3 RK_PA7 RK_FUNC_3 &pcfg_pull_none>,/* cif_data4 */
+				<3 RK_PB0 RK_FUNC_3 &pcfg_pull_none>,/* cif_data5 */
+				<3 RK_PB1 RK_FUNC_3 &pcfg_pull_none>,/* cif_data6 */
+				<3 RK_PB4 RK_FUNC_3 &pcfg_pull_none>,/* cif_data7 */
+				<3 RK_PB6 RK_FUNC_3 &pcfg_pull_none>,/* cif_data8 */
+				<3 RK_PB7 RK_FUNC_3 &pcfg_pull_none>,/* cif_data9 */
+				<3 RK_PD1 RK_FUNC_3 &pcfg_pull_none>,/* cif_sync */
+				<3 RK_PD2 RK_FUNC_3 &pcfg_pull_none>,/* cif_href */
+				<3 RK_PD3 RK_FUNC_3 &pcfg_pull_none>;/* cif_clkin */
+		};
 	};
 
 	pmic {
