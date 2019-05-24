@@ -45,6 +45,11 @@
 #define VCN_ENC_CMD_REG_WRITE		0x0000000b
 #define VCN_ENC_CMD_REG_WAIT		0x0000000c
 
+#define VCN_VID_SOC_ADDRESS_2_0 	0x1fa00
+#define VCN_AON_SOC_ADDRESS_2_0 	0x1f800
+#define VCN_VID_IP_ADDRESS_2_0		0x0
+#define VCN_AON_IP_ADDRESS_2_0		0x30000
+
 #define RREG32_SOC15_DPG_MODE(ip, inst, reg, mask, sram_sel) 				\
 	({	WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_MASK, mask); 			\
 		WREG32_SOC15(ip, inst, mmUVD_DPG_LMA_CTL, 				\
@@ -64,6 +69,49 @@
 			((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) 	\
 			<< UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT) | 			\
 			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
+	} while (0)
+
+#define SOC15_DPG_MODE_OFFSET_2_0(ip, inst, reg) 						\
+	({											\
+		uint32_t internal_reg_offset, addr;						\
+		bool video_range, aon_range;							\
+												\
+		addr = (adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg);		\
+		addr <<= 2; 									\
+		video_range = ((((0xFFFFF & addr) >= (VCN_VID_SOC_ADDRESS_2_0)) && 		\
+				((0xFFFFF & addr) < ((VCN_VID_SOC_ADDRESS_2_0 + 0x2600)))));	\
+		aon_range   = ((((0xFFFFF & addr) >= (VCN_AON_SOC_ADDRESS_2_0)) && 		\
+				((0xFFFFF & addr) < ((VCN_AON_SOC_ADDRESS_2_0 + 0x600)))));	\
+		if (video_range) 								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN_VID_SOC_ADDRESS_2_0) + 	\
+				(VCN_VID_IP_ADDRESS_2_0));					\
+		else if (aon_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN_AON_SOC_ADDRESS_2_0) + 	\
+				(VCN_AON_IP_ADDRESS_2_0));					\
+		else										\
+			internal_reg_offset = (0xFFFFF & addr);					\
+												\
+		internal_reg_offset >>= 2;							\
+	})
+
+#define RREG32_SOC15_DPG_MODE_2_0(offset, mask_en) 						\
+	({ 											\
+		WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_CTL, 					\
+			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT | 				\
+			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT | 				\
+			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); 			\
+		RREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_DATA); 					\
+	})
+
+#define WREG32_SOC15_DPG_MODE_2_0(offset, value, mask_en, indirect)				\
+	do { 											\
+		if (!indirect) { 								\
+			WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_DATA, value); 			\
+			WREG32_SOC15(VCN, 0, mmUVD_DPG_LMA_CTL, 				\
+				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT | 			\
+				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT | 			\
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); 		\
+		} 										\
 	} while (0)
 
 enum engine_status_constants {
