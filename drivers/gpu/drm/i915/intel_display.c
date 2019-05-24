@@ -12163,7 +12163,7 @@ encoder_retry:
 	return 0;
 }
 
-static bool intel_fuzzy_clock_check(int clock1, int clock2)
+bool intel_fuzzy_clock_check(int clock1, int clock2)
 {
 	int diff;
 
