@@ -326,23 +326,18 @@ err:
 static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_high_thresh",
-		.data		= &init_net.ieee802154_lowpan.fqdir.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.ieee802154_lowpan.fqdir.low_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_low_thresh",
-		.data		= &init_net.ieee802154_lowpan.fqdir.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.ieee802154_lowpan.fqdir.high_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_time",
-		.data		= &init_net.ieee802154_lowpan.fqdir.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -377,16 +372,16 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 		if (table == NULL)
 			goto err_alloc;
 
-		table[0].data = &ieee802154_lowpan->fqdir.high_thresh;
-		table[0].extra1 = &ieee802154_lowpan->fqdir.low_thresh;
-		table[1].data = &ieee802154_lowpan->fqdir.low_thresh;
-		table[1].extra2 = &ieee802154_lowpan->fqdir.high_thresh;
-		table[2].data = &ieee802154_lowpan->fqdir.timeout;
-
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns)
 			table[0].procname = NULL;
 	}
+
+	table[0].data	= &ieee802154_lowpan->fqdir.high_thresh;
+	table[0].extra1	= &ieee802154_lowpan->fqdir.low_thresh;
+	table[1].data	= &ieee802154_lowpan->fqdir.low_thresh;
+	table[1].extra2	= &ieee802154_lowpan->fqdir.high_thresh;
+	table[2].data	= &ieee802154_lowpan->fqdir.timeout;
 
 	hdr = register_net_sysctl(net, "net/ieee802154/6lowpan", table);
 	if (hdr == NULL)
