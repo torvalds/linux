@@ -29,7 +29,6 @@
 #include "dm_services_types.h"
 #include "dc.h"
 #include "dc/inc/core_types.h"
-#include "dal_asic_id.h"
 
 #include "vid.h"
 #include "amdgpu.h"
@@ -641,7 +640,7 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 static int load_dmcu_fw(struct amdgpu_device *adev)
 {
-	const char *fw_name_dmcu = NULL;
+	const char *fw_name_dmcu;
 	int r;
 	const struct dmcu_firmware_header_v1_0 *hdr;
 
@@ -664,14 +663,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		return 0;
 	case CHIP_RAVEN:
-		if (ASICREV_IS_PICASSO(adev->external_rev_id))
-			fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
-		else if (ASICREV_IS_RAVEN2(adev->external_rev_id))
-			fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
-#endif
-		else
-			return 0;
+		fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
 		break;
 	default:
 		DRM_ERROR("Unsupported ASIC type: 0x%X\n", adev->asic_type);
