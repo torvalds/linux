@@ -301,6 +301,17 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 
 	drm_plane_helper_add(plane, &komeda_plane_helper_funcs);
 
+	err = drm_plane_create_alpha_property(plane);
+	if (err)
+		goto cleanup;
+
+	err = drm_plane_create_blend_mode_property(plane,
+			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+			BIT(DRM_MODE_BLEND_PREMULTI)   |
+			BIT(DRM_MODE_BLEND_COVERAGE));
+	if (err)
+		goto cleanup;
+
 	err = komeda_plane_create_layer_properties(kplane, layer);
 	if (err)
 		goto cleanup;
