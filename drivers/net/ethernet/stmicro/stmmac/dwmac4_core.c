@@ -440,6 +440,8 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 		writel(mc_filter[1], ioaddr + GMAC_HASH_TAB_32_63);
 	}
 
+	value |= GMAC_PACKET_FILTER_HPF;
+
 	/* Handle multiple unicast addresses */
 	if (netdev_uc_count(dev) > GMAC_MAX_PERFECT_ADDRESSES) {
 		/* Switch to promiscuous mode if more than 128 addrs
