@@ -401,7 +401,7 @@ int deactivate_all_fds(void)
 		);
 		to_free = to_free->next;
 	}
-	garbage_collect_irq_entries();
+	/* don't garbage collect - we can no longer call kfree() here */
 	os_close_epoll_fd();
 	return 0;
 }
