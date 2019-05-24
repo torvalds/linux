@@ -9,7 +9,11 @@
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <net/nexthop.h>
+#include <net/route.h>
 #include <net/sock.h>
+
+#define NH_DEV_HASHBITS  8
+#define NH_DEV_HASHSIZE (1U << NH_DEV_HASHBITS)
 
 static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 	[NHA_UNSPEC]		= { .strict_start_type = NHA_UNSPEC + 1 },
@@ -25,12 +29,39 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 	[NHA_MASTER]		= { .type = NLA_U32 },
 };
 
+static unsigned int nh_dev_hashfn(unsigned int val)
+{
+	unsigned int mask = NH_DEV_HASHSIZE - 1;
+
+	return (val ^
+		(val >> NH_DEV_HASHBITS) ^
+		(val >> (NH_DEV_HASHBITS * 2))) & mask;
+}
+
+static void nexthop_devhash_add(struct net *net, struct nh_info *nhi)
+{
+	struct net_device *dev = nhi->fib_nhc.nhc_dev;
+	struct hlist_head *head;
+	unsigned int hash;
+
+	WARN_ON(!dev);
+
+	hash = nh_dev_hashfn(dev->ifindex);
+	head = &net->nexthop.devhash[hash];
+	hlist_add_head(&nhi->dev_hash, head);
+}
+
 void nexthop_free_rcu(struct rcu_head *head)
 {
 	struct nexthop *nh = container_of(head, struct nexthop, rcu);
 	struct nh_info *nhi;
 
 	nhi = rcu_dereference_raw(nh->nh_info);
+	switch (nhi->family) {
+	case AF_INET:
+		fib_nh_release(nh->net, &nhi->fib_nh);
+		break;
+	}
 	kfree(nhi);
 
 	kfree(nh);
@@ -96,6 +127,7 @@ static u32 nh_find_unused_id(struct net *net)
 static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 			int event, u32 portid, u32 seq, unsigned int nlflags)
 {
+	struct fib_nh *fib_nh;
 	struct nlmsghdr *nlh;
 	struct nh_info *nhi;
 	struct nhmsg *nhm;
@@ -120,6 +152,22 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 		if (nla_put_flag(skb, NHA_BLACKHOLE))
 			goto nla_put_failure;
 		goto out;
+	} else {
+		const struct net_device *dev;
+
+		dev = nhi->fib_nhc.nhc_dev;
+		if (dev && nla_put_u32(skb, NHA_OIF, dev->ifindex))
+			goto nla_put_failure;
+	}
+
+	nhm->nh_scope = nhi->fib_nhc.nhc_scope;
+	switch (nhi->family) {
+	case AF_INET:
+		fib_nh = &nhi->fib_nh;
+		if (fib_nh->fib_nh_gw_family &&
+		    nla_put_u32(skb, NHA_GATEWAY, fib_nh->fib_nh_gw4))
+			goto nla_put_failure;
+		break;
 	}
 
 out:
@@ -132,12 +180,20 @@ nla_put_failure:
 
 static size_t nh_nlmsg_size(struct nexthop *nh)
 {
+	struct nh_info *nhi = rtnl_dereference(nh->nh_info);
 	size_t sz = nla_total_size(4);    /* NHA_ID */
 
 	/* covers NHA_BLACKHOLE since NHA_OIF and BLACKHOLE
 	 * are mutually exclusive
 	 */
 	sz += nla_total_size(4);  /* NHA_OIF */
+
+	switch (nhi->family) {
+	case AF_INET:
+		if (nhi->fib_nh.fib_nh_gw_family)
+			sz += nla_total_size(4);  /* NHA_GATEWAY */
+		break;
+	}
 
 	return sz;
 }
@@ -169,6 +225,15 @@ errout:
 		rtnl_set_sk_err(info->nl_net, RTNLGRP_NEXTHOP, err);
 }
 
+static void __remove_nexthop(struct net *net, struct nexthop *nh)
+{
+	struct nh_info *nhi;
+
+	nhi = rtnl_dereference(nh->nh_info);
+	if (nhi->fib_nhc.nhc_dev)
+		hlist_del(&nhi->dev_hash);
+}
+
 static void remove_nexthop(struct net *net, struct nexthop *nh,
 			   bool skip_fib, struct nl_info *nlinfo)
 {
@@ -178,6 +243,7 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 	if (nlinfo)
 		nexthop_notify(RTM_DELNEXTHOP, nh, nlinfo);
 
+	__remove_nexthop(net, nh);
 	nh_base_seq_inc(net);
 
 	nexthop_put(nh);
@@ -244,6 +310,24 @@ out:
 	return rc;
 }
 
+/* rtnl */
+/* remove all nexthops tied to a device being deleted */
+static void nexthop_flush_dev(struct net_device *dev)
+{
+	unsigned int hash = nh_dev_hashfn(dev->ifindex);
+	struct net *net = dev_net(dev);
+	struct hlist_head *head = &net->nexthop.devhash[hash];
+	struct hlist_node *n;
+	struct nh_info *nhi;
+
+	hlist_for_each_entry_safe(nhi, n, head, dev_hash) {
+		if (nhi->fib_nhc.nhc_dev != dev)
+			continue;
+
+		remove_nexthop(net, nhi->nh_parent, false, NULL);
+	}
+}
+
 /* rtnl; called when net namespace is deleted */
 static void flush_all_nexthops(struct net *net)
 {
@@ -256,6 +340,38 @@ static void flush_all_nexthops(struct net *net)
 		remove_nexthop(net, nh, false, NULL);
 		cond_resched();
 	}
+}
+
+static int nh_create_ipv4(struct net *net, struct nexthop *nh,
+			  struct nh_info *nhi, struct nh_config *cfg,
+			  struct netlink_ext_ack *extack)
+{
+	struct fib_nh *fib_nh = &nhi->fib_nh;
+	struct fib_config fib_cfg = {
+		.fc_oif   = cfg->nh_ifindex,
+		.fc_gw4   = cfg->gw.ipv4,
+		.fc_gw_family = cfg->gw.ipv4 ? AF_INET : 0,
+		.fc_flags = cfg->nh_flags,
+	};
+	u32 tb_id = l3mdev_fib_table(cfg->dev);
+	int err = -EINVAL;
+
+	err = fib_nh_init(net, fib_nh, &fib_cfg, 1, extack);
+	if (err) {
+		fib_nh_release(net, fib_nh);
+		goto out;
+	}
+
+	/* sets nh_dev if successful */
+	err = fib_check_nh(net, fib_nh, tb_id, 0, extack);
+	if (!err) {
+		nh->nh_flags = fib_nh->fib_nh_flags;
+		fib_info_update_nh_saddr(net, fib_nh, fib_nh->fib_nh_scope);
+	} else {
+		fib_nh_release(net, fib_nh);
+	}
+out:
+	return err;
 }
 
 static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
@@ -287,11 +403,20 @@ static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
 		cfg->nh_ifindex = net->loopback_dev->ifindex;
 	}
 
+	switch (cfg->nh_family) {
+	case AF_INET:
+		err = nh_create_ipv4(net, nh, nhi, cfg, extack);
+		break;
+	}
+
 	if (err) {
 		kfree(nhi);
 		kfree(nh);
 		return ERR_PTR(err);
 	}
+
+	/* add the entry to the device based hash */
+	nexthop_devhash_add(net, nhi);
 
 	rcu_assign_pointer(nh->nh_info, nhi);
 
@@ -329,6 +454,7 @@ static struct nexthop *nexthop_add(struct net *net, struct nh_config *cfg,
 
 	err = insert_nexthop(net, nh, cfg, extack);
 	if (err) {
+		__remove_nexthop(net, nh);
 		nexthop_put(nh);
 		nh = ERR_PTR(err);
 	}
@@ -360,6 +486,8 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 	}
 
 	switch (nhm->nh_family) {
+	case AF_INET:
+		break;
 	default:
 		NL_SET_ERR_MSG(extack, "Invalid address family");
 		goto out;
@@ -414,6 +542,32 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		NL_SET_ERR_MSG(extack, "Carrier for nexthop device is down");
 		err = -ENETDOWN;
 		goto out;
+	}
+
+	err = -EINVAL;
+	if (tb[NHA_GATEWAY]) {
+		struct nlattr *gwa = tb[NHA_GATEWAY];
+
+		switch (cfg->nh_family) {
+		case AF_INET:
+			if (nla_len(gwa) != sizeof(u32)) {
+				NL_SET_ERR_MSG(extack, "Invalid gateway");
+				goto out;
+			}
+			cfg->gw.ipv4 = nla_get_be32(gwa);
+			break;
+		default:
+			NL_SET_ERR_MSG(extack,
+				       "Unknown address family for gateway");
+			goto out;
+		}
+	} else {
+		/* device only nexthop (no gateway) */
+		if (cfg->nh_flags & RTNH_F_ONLINK) {
+			NL_SET_ERR_MSG(extack,
+				       "ONLINK flag can not be set for nexthop without a gateway");
+			goto out;
+		}
 	}
 
 	err = 0;
@@ -683,16 +837,68 @@ out_err:
 	return err;
 }
 
+static void nexthop_sync_mtu(struct net_device *dev, u32 orig_mtu)
+{
+	unsigned int hash = nh_dev_hashfn(dev->ifindex);
+	struct net *net = dev_net(dev);
+	struct hlist_head *head = &net->nexthop.devhash[hash];
+	struct hlist_node *n;
+	struct nh_info *nhi;
+
+	hlist_for_each_entry_safe(nhi, n, head, dev_hash) {
+		if (nhi->fib_nhc.nhc_dev == dev) {
+			if (nhi->family == AF_INET)
+				fib_nhc_update_mtu(&nhi->fib_nhc, dev->mtu,
+						   orig_mtu);
+		}
+	}
+}
+
+/* rtnl */
+static int nh_netdev_event(struct notifier_block *this,
+			   unsigned long event, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netdev_notifier_info_ext *info_ext;
+
+	switch (event) {
+	case NETDEV_DOWN:
+	case NETDEV_UNREGISTER:
+		nexthop_flush_dev(dev);
+		break;
+	case NETDEV_CHANGE:
+		if (!(dev_get_flags(dev) & (IFF_RUNNING | IFF_LOWER_UP)))
+			nexthop_flush_dev(dev);
+		break;
+	case NETDEV_CHANGEMTU:
+		info_ext = ptr;
+		nexthop_sync_mtu(dev, info_ext->ext.mtu);
+		rt_cache_flush(dev_net(dev));
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block nh_netdev_notifier = {
+	.notifier_call = nh_netdev_event,
+};
+
 static void __net_exit nexthop_net_exit(struct net *net)
 {
 	rtnl_lock();
 	flush_all_nexthops(net);
 	rtnl_unlock();
+	kfree(net->nexthop.devhash);
 }
 
 static int __net_init nexthop_net_init(struct net *net)
 {
+	size_t sz = sizeof(struct hlist_head) * NH_DEV_HASHSIZE;
+
 	net->nexthop.rb_root = RB_ROOT;
+	net->nexthop.devhash = kzalloc(sz, GFP_KERNEL);
+	if (!net->nexthop.devhash)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -705,6 +911,8 @@ static struct pernet_operations nexthop_net_ops = {
 static int __init nexthop_init(void)
 {
 	register_pernet_subsys(&nexthop_net_ops);
+
+	register_netdevice_notifier(&nh_netdev_notifier);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNEXTHOP, rtm_new_nexthop, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_DELNEXTHOP, rtm_del_nexthop, NULL, 0);

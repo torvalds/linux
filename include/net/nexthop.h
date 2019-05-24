@@ -29,6 +29,10 @@ struct nh_config {
 	int		nh_ifindex;
 	struct net_device *dev;
 
+	union {
+		__be32		ipv4;
+	} gw;
+
 	u32		nlflags;
 	struct nl_info	nlinfo;
 };
@@ -42,6 +46,7 @@ struct nh_info {
 
 	union {
 		struct fib_nh_common	fib_nhc;
+		struct fib_nh		fib_nh;
 	};
 };
 
