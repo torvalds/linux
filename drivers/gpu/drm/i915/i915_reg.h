@@ -126,7 +126,7 @@
  */
 #define REG_BIT(__n)							\
 	((u32)(BIT(__n) +						\
-	       BUILD_BUG_ON_ZERO(__builtin_constant_p(__n) &&		\
+	       BUILD_BUG_ON_ZERO(__is_constexpr(__n) &&		\
 				 ((__n) < 0 || (__n) > 31))))
 
 /**
@@ -140,8 +140,8 @@
  */
 #define REG_GENMASK(__high, __low)					\
 	((u32)(GENMASK(__high, __low) +					\
-	       BUILD_BUG_ON_ZERO(__builtin_constant_p(__high) &&	\
-				 __builtin_constant_p(__low) &&		\
+	       BUILD_BUG_ON_ZERO(__is_constexpr(__high) &&	\
+				 __is_constexpr(__low) &&		\
 				 ((__low) < 0 || (__high) > 31 || (__low) > (__high)))))
 
 /*
