@@ -12,6 +12,9 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/atomic.h>
+#include <linux/pagemap.h>
+#include <linux/mmu_notifier.h>
+#include <asm/cacheflush.h>
 
 struct vhost_work;
 typedef void (*vhost_work_fn_t)(struct vhost_work *work);
@@ -80,6 +83,21 @@ enum vhost_uaddr_type {
 	VHOST_NUM_ADDRS = 3,
 };
 
+struct vhost_map {
+	int npages;
+	void *addr;
+	struct page **pages;
+};
+
+struct vhost_uaddr {
+	unsigned long uaddr;
+	size_t size;
+	bool write;
+};
+
+#define VHOST_ARCH_CAN_ACCEL_UACCESS defined(CONFIG_MMU_NOTIFIER) && \
+	ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE == 0
+
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
 	struct vhost_dev *dev;
@@ -90,7 +108,22 @@ struct vhost_virtqueue {
 	struct vring_desc __user *desc;
 	struct vring_avail __user *avail;
 	struct vring_used __user *used;
+
+#if VHOST_ARCH_CAN_ACCEL_UACCESS
+	/* Read by memory accessors, modified by meta data
+	 * prefetching, MMU notifier and vring ioctl().
+	 * Synchonrized through mmu_lock (writers) and RCU (writers
+	 * and readers).
+	 */
+	struct vhost_map __rcu *maps[VHOST_NUM_ADDRS];
+	/* Read by MMU notifier, modified by vring ioctl(),
+	 * synchronized through MMU notifier
+	 * registering/unregistering.
+	 */
+	struct vhost_uaddr uaddrs[VHOST_NUM_ADDRS];
+#endif
 	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
+
 	struct file *kick;
 	struct eventfd_ctx *call_ctx;
 	struct eventfd_ctx *error_ctx;
@@ -145,6 +178,8 @@ struct vhost_virtqueue {
 	bool user_be;
 #endif
 	u32 busyloop_timeout;
+	spinlock_t mmu_lock;
+	int invalidate_count;
 };
 
 struct vhost_msg_node {
@@ -158,6 +193,9 @@ struct vhost_msg_node {
 
 struct vhost_dev {
 	struct mm_struct *mm;
+#ifdef CONFIG_MMU_NOTIFIER
+	struct mmu_notifier mmu_notifier;
+#endif
 	struct mutex mutex;
 	struct vhost_virtqueue **vqs;
 	int nvqs;
