@@ -262,7 +262,6 @@ static int kp2000_cdev_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-
 static ssize_t kp2000_cdev_read(struct file *filp, char __user *buf,
 				size_t count, loff_t *f_pos)
 {
