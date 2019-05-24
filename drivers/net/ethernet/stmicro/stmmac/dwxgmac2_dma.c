@@ -299,10 +299,6 @@ static void dwxgmac2_dma_stop_rx(void __iomem *ioaddr, u32 chan)
 	value = readl(ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
 	value &= ~XGMAC_RXST;
 	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
-
-	value = readl(ioaddr + XGMAC_RX_CONFIG);
-	value &= ~XGMAC_CONFIG_RE;
-	writel(value, ioaddr + XGMAC_RX_CONFIG);
 }
 
 static int dwxgmac2_dma_interrupt(void __iomem *ioaddr,
