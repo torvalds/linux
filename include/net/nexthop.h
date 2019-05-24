@@ -35,6 +35,9 @@ struct nh_config {
 		struct in6_addr	ipv6;
 	} gw;
 
+	struct nlattr	*nh_encap;
+	u16		nh_encap_type;
+
 	u32		nlflags;
 	struct nl_info	nlinfo;
 };

@@ -9,6 +9,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <net/ipv6_stubs.h>
+#include <net/lwtunnel.h>
 #include <net/nexthop.h>
 #include <net/route.h>
 #include <net/sock.h>
@@ -182,6 +183,11 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 		break;
 	}
 
+	if (nhi->fib_nhc.nhc_lwtstate &&
+	    lwtunnel_fill_encap(skb, nhi->fib_nhc.nhc_lwtstate,
+				NHA_ENCAP, NHA_ENCAP_TYPE) < 0)
+		goto nla_put_failure;
+
 out:
 	nlmsg_end(skb, nlh);
 	return 0;
@@ -211,6 +217,11 @@ static size_t nh_nlmsg_size(struct nexthop *nh)
 		if (nhi->fib6_nh.fib_nh_gw_family)
 			sz += nla_total_size(sizeof(const struct in6_addr));
 		break;
+	}
+
+	if (nhi->fib_nhc.nhc_lwtstate) {
+		sz += lwtunnel_get_encap_size(nhi->fib_nhc.nhc_lwtstate);
+		sz += nla_total_size(2);  /* NHA_ENCAP_TYPE */
 	}
 
 	return sz;
@@ -370,6 +381,8 @@ static int nh_create_ipv4(struct net *net, struct nexthop *nh,
 		.fc_gw4   = cfg->gw.ipv4,
 		.fc_gw_family = cfg->gw.ipv4 ? AF_INET : 0,
 		.fc_flags = cfg->nh_flags,
+		.fc_encap = cfg->nh_encap,
+		.fc_encap_type = cfg->nh_encap_type,
 	};
 	u32 tb_id = l3mdev_fib_table(cfg->dev);
 	int err = -EINVAL;
@@ -402,6 +415,8 @@ static int nh_create_ipv6(struct net *net,  struct nexthop *nh,
 		.fc_ifindex = cfg->nh_ifindex,
 		.fc_gateway = cfg->gw.ipv6,
 		.fc_flags = cfg->nh_flags,
+		.fc_encap = cfg->nh_encap,
+		.fc_encap_type = cfg->nh_encap_type,
 	};
 	int err = -EINVAL;
 
@@ -561,7 +576,8 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		cfg->nh_id = nla_get_u32(tb[NHA_ID]);
 
 	if (tb[NHA_BLACKHOLE]) {
-		if (tb[NHA_GATEWAY] || tb[NHA_OIF]) {
+		if (tb[NHA_GATEWAY] || tb[NHA_OIF] ||
+		    tb[NHA_ENCAP]   || tb[NHA_ENCAP_TYPE]) {
 			NL_SET_ERR_MSG(extack, "Blackhole attribute can not be used with gateway or oif");
 			goto out;
 		}
@@ -625,6 +641,25 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			goto out;
 		}
 	}
+
+	if (tb[NHA_ENCAP]) {
+		cfg->nh_encap = tb[NHA_ENCAP];
+
+		if (!tb[NHA_ENCAP_TYPE]) {
+			NL_SET_ERR_MSG(extack, "LWT encapsulation type is missing");
+			goto out;
+		}
+
+		cfg->nh_encap_type = nla_get_u16(tb[NHA_ENCAP_TYPE]);
+		err = lwtunnel_valid_encap_type(cfg->nh_encap_type, extack);
+		if (err < 0)
+			goto out;
+
+	} else if (tb[NHA_ENCAP_TYPE]) {
+		NL_SET_ERR_MSG(extack, "LWT encapsulation attribute is missing");
+		goto out;
+	}
+
 
 	err = 0;
 out:
