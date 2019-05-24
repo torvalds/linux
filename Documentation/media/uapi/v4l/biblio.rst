@@ -122,6 +122,15 @@ ITU BT.1119
 
 :author:    International Telecommunication Union (http://www.itu.ch)
 
+.. _h264:
+
+ITU-T Rec. H.264 Specification (04/2017 Edition)
+================================================
+
+:title:     ITU-T Recommendation H.264 "Advanced Video Coding for Generic Audiovisual Services"
+
+:author:    International Telecommunication Union (http://www.itu.ch)
+
 .. _jfif:
 
 JFIF
