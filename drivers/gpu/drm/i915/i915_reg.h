@@ -1846,6 +1846,9 @@ enum i915_power_well_id {
 #define   VOLTAGE_INFO_MASK		(3 << 24)
 #define   VOLTAGE_INFO_SHIFT		24
 
+#define ICL_PORT_COMP_DW8(port)		_MMIO(_ICL_PORT_COMP_DW(8, port))
+#define   IREFGEN			(1 << 24)
+
 #define CNL_PORT_COMP_DW9		_MMIO(0x162124)
 #define ICL_PORT_COMP_DW9(port)		_MMIO(_ICL_PORT_COMP_DW(9, port))
 

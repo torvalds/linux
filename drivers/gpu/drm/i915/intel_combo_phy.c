@@ -275,6 +275,12 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 
 		cnl_set_procmon_ref_values(dev_priv, port);
 
+		if (port == PORT_A) {
+			val = I915_READ(ICL_PORT_COMP_DW8(port));
+			val |= IREFGEN;
+			I915_WRITE(ICL_PORT_COMP_DW8(port), val);
+		}
+
 		val = I915_READ(ICL_PORT_COMP_DW0(port));
 		val |= COMP_INIT;
 		I915_WRITE(ICL_PORT_COMP_DW0(port), val);
