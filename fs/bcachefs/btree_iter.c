@@ -959,9 +959,10 @@ static void btree_iter_up(struct btree_iter *iter)
 int __must_check __bch2_btree_iter_traverse(struct btree_iter *);
 
 static int __btree_iter_traverse_all(struct btree_trans *trans,
-				     struct btree_iter *iter, int ret)
+				     struct btree_iter *orig_iter, int ret)
 {
 	struct bch_fs *c = trans->c;
+	struct btree_iter *iter;
 	u8 sorted[BTREE_ITER_MAX];
 	unsigned i, nr_sorted = 0;
 
@@ -990,8 +991,8 @@ retry_all:
 
 	if (unlikely(ret == -EIO)) {
 		trans->error = true;
-		iter->flags |= BTREE_ITER_ERROR;
-		iter->l[iter->level].b = BTREE_ITER_NO_NODE_ERROR;
+		orig_iter->flags |= BTREE_ITER_ERROR;
+		orig_iter->l[orig_iter->level].b = BTREE_ITER_NO_NODE_ERROR;
 		goto out;
 	}
 
