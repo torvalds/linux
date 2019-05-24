@@ -79,7 +79,7 @@ static void ip6_frag_expire(struct timer_list *t)
 	struct net *net;
 
 	fq = container_of(frag, struct frag_queue, q);
-	net = container_of(fq->q.net, struct net, ipv6.frags);
+	net = container_of(fq->q.fqdir, struct net, ipv6.frags);
 
 	ip6frag_expire_frag_queue(net, fq);
 }
@@ -200,7 +200,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	fq->q.stamp = skb->tstamp;
 	fq->q.meat += skb->len;
 	fq->ecn |= ecn;
-	add_frag_mem_limit(fq->q.net, skb->truesize);
+	add_frag_mem_limit(fq->q.fqdir, skb->truesize);
 
 	fragsize = -skb_network_offset(skb) + skb->len;
 	if (fragsize > fq->q.max_size)
@@ -254,7 +254,7 @@ err:
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 			  struct sk_buff *prev_tail, struct net_device *dev)
 {
-	struct net *net = container_of(fq->q.net, struct net, ipv6.frags);
+	struct net *net = container_of(fq->q.fqdir, struct net, ipv6.frags);
 	unsigned int nhoff;
 	void *reasm_data;
 	int payload_len;

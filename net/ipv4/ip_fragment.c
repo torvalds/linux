@@ -82,7 +82,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	struct ipq *qp = container_of(q, struct ipq, q);
-	struct netns_ipv4 *ipv4 = container_of(q->net, struct netns_ipv4,
+	struct netns_ipv4 *ipv4 = container_of(q->fqdir, struct netns_ipv4,
 					       frags);
 	struct net *net = container_of(ipv4, struct net, ipv4);
 
@@ -90,7 +90,7 @@ static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 
 	q->key.v4 = *key;
 	qp->ecn = 0;
-	qp->peer = q->net->max_dist ?
+	qp->peer = q->fqdir->max_dist ?
 		inet_getpeer_v4(net->ipv4.peers, key->saddr, key->vif, 1) :
 		NULL;
 }
@@ -142,7 +142,7 @@ static void ip_expire(struct timer_list *t)
 	int err;
 
 	qp = container_of(frag, struct ipq, q);
-	net = container_of(qp->q.net, struct net, ipv4.frags);
+	net = container_of(qp->q.fqdir, struct net, ipv4.frags);
 
 	rcu_read_lock();
 	spin_lock(&qp->q.lock);
@@ -222,7 +222,7 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 static int ip_frag_too_far(struct ipq *qp)
 {
 	struct inet_peer *peer = qp->peer;
-	unsigned int max = qp->q.net->max_dist;
+	unsigned int max = qp->q.fqdir->max_dist;
 	unsigned int start, end;
 
 	int rc;
@@ -239,7 +239,7 @@ static int ip_frag_too_far(struct ipq *qp)
 	if (rc) {
 		struct net *net;
 
-		net = container_of(qp->q.net, struct net, ipv4.frags);
+		net = container_of(qp->q.fqdir, struct net, ipv4.frags);
 		__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 	}
 
@@ -250,13 +250,13 @@ static int ip_frag_reinit(struct ipq *qp)
 {
 	unsigned int sum_truesize = 0;
 
-	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
+	if (!mod_timer(&qp->q.timer, jiffies + qp->q.fqdir->timeout)) {
 		refcount_inc(&qp->q.refcnt);
 		return -ETIMEDOUT;
 	}
 
 	sum_truesize = inet_frag_rbtree_purge(&qp->q.rb_fragments);
-	sub_frag_mem_limit(qp->q.net, sum_truesize);
+	sub_frag_mem_limit(qp->q.fqdir, sum_truesize);
 
 	qp->q.flags = 0;
 	qp->q.len = 0;
@@ -273,7 +273,7 @@ static int ip_frag_reinit(struct ipq *qp)
 /* Add new segment to existing queue. */
 static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 {
-	struct net *net = container_of(qp->q.net, struct net, ipv4.frags);
+	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.frags);
 	int ihl, end, flags, offset;
 	struct sk_buff *prev_tail;
 	struct net_device *dev;
@@ -352,7 +352,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	qp->q.stamp = skb->tstamp;
 	qp->q.meat += skb->len;
 	qp->ecn |= ecn;
-	add_frag_mem_limit(qp->q.net, skb->truesize);
+	add_frag_mem_limit(qp->q.fqdir, skb->truesize);
 	if (offset == 0)
 		qp->q.flags |= INET_FRAG_FIRST_IN;
 
@@ -399,7 +399,7 @@ err:
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 			 struct sk_buff *prev_tail, struct net_device *dev)
 {
-	struct net *net = container_of(qp->q.net, struct net, ipv4.frags);
+	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.frags);
 	struct iphdr *iph;
 	void *reasm_data;
 	int len, err;
