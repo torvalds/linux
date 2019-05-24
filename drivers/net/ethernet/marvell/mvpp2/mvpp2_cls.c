@@ -969,11 +969,21 @@ u32 mvpp2_cls_c2_hit_count(struct mvpp2 *priv, int c2_index)
 	return mvpp2_read(priv, MVPP22_CLS_C2_HIT_CTR);
 }
 
-static void mvpp2_rss_port_c2_enable(struct mvpp2_port *port)
+static void mvpp2_rss_port_c2_enable(struct mvpp2_port *port, u32 ctx)
 {
 	struct mvpp2_cls_c2_entry c2;
+	u8 qh, ql;
 
 	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+
+	/* The RxQ number is used to select the RSS table. It that case, we set
+	 * it to be the ctx number.
+	 */
+	qh = (ctx >> 3) & MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
+	ql = ctx & MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+
+	c2.attr[0] = MVPP22_CLS_C2_ATTR0_QHIGH(qh) |
+		     MVPP22_CLS_C2_ATTR0_QLOW(ql);
 
 	c2.attr[2] |= MVPP22_CLS_C2_ATTR2_RSS_EN;
 
@@ -983,22 +993,45 @@ static void mvpp2_rss_port_c2_enable(struct mvpp2_port *port)
 static void mvpp2_rss_port_c2_disable(struct mvpp2_port *port)
 {
 	struct mvpp2_cls_c2_entry c2;
+	u8 qh, ql;
 
 	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+
+	/* Reset the default destination RxQ to the port's first rx queue. */
+	qh = (port->first_rxq >> 3) & MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
+	ql = port->first_rxq & MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+
+	c2.attr[0] = MVPP22_CLS_C2_ATTR0_QHIGH(qh) |
+		      MVPP22_CLS_C2_ATTR0_QLOW(ql);
 
 	c2.attr[2] &= ~MVPP22_CLS_C2_ATTR2_RSS_EN;
 
 	mvpp2_cls_c2_write(port->priv, &c2);
 }
 
-void mvpp22_port_rss_enable(struct mvpp2_port *port)
+static inline int mvpp22_rss_ctx(struct mvpp2_port *port, int port_rss_ctx)
 {
-	mvpp2_rss_port_c2_enable(port);
+	return port->rss_ctx[port_rss_ctx];
 }
 
-void mvpp22_port_rss_disable(struct mvpp2_port *port)
+int mvpp22_port_rss_enable(struct mvpp2_port *port)
 {
+	if (mvpp22_rss_ctx(port, 0) < 0)
+		return -EINVAL;
+
+	mvpp2_rss_port_c2_enable(port, mvpp22_rss_ctx(port, 0));
+
+	return 0;
+}
+
+int mvpp22_port_rss_disable(struct mvpp2_port *port)
+{
+	if (mvpp22_rss_ctx(port, 0) < 0)
+		return -EINVAL;
+
 	mvpp2_rss_port_c2_disable(port);
+
+	return 0;
 }
 
 static void mvpp22_port_c2_lookup_disable(struct mvpp2_port *port, int entry)
@@ -1331,19 +1364,136 @@ static inline u32 mvpp22_rxfh_indir(struct mvpp2_port *port, u32 rxq)
 	return port->first_rxq + ((rxq * nrxqs + rxq / cpus) % port->nrxqs);
 }
 
-void mvpp22_rss_fill_table(struct mvpp2_port *port, u32 table)
+static void mvpp22_rss_fill_table(struct mvpp2_port *port,
+				  struct mvpp2_rss_table *table,
+				  u32 rss_ctx)
 {
 	struct mvpp2 *priv = port->priv;
 	int i;
 
 	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++) {
-		u32 sel = MVPP22_RSS_INDEX_TABLE(table) |
+		u32 sel = MVPP22_RSS_INDEX_TABLE(rss_ctx) |
 			  MVPP22_RSS_INDEX_TABLE_ENTRY(i);
 		mvpp2_write(priv, MVPP22_RSS_INDEX, sel);
 
 		mvpp2_write(priv, MVPP22_RSS_TABLE_ENTRY,
-			    mvpp22_rxfh_indir(port, port->indir[i]));
+			    mvpp22_rxfh_indir(port, table->indir[i]));
 	}
+}
+
+static int mvpp22_rss_context_create(struct mvpp2_port *port, u32 *rss_ctx)
+{
+	struct mvpp2 *priv = port->priv;
+	u32 ctx;
+
+	/* Find the first free RSS table */
+	for (ctx = 0; ctx < MVPP22_N_RSS_TABLES; ctx++) {
+		if (!priv->rss_tables[ctx])
+			break;
+	}
+
+	if (ctx == MVPP22_N_RSS_TABLES)
+		return -EINVAL;
+
+	priv->rss_tables[ctx] = kzalloc(sizeof(*priv->rss_tables[ctx]),
+					GFP_KERNEL);
+	if (!priv->rss_tables[ctx])
+		return -ENOMEM;
+
+	*rss_ctx = ctx;
+
+	/* Set the table width: replace the whole classifier Rx queue number
+	 * with the ones configured in RSS table entries.
+	 */
+	mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_TABLE(ctx));
+	mvpp2_write(priv, MVPP22_RSS_WIDTH, 8);
+
+	mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_QUEUE(ctx));
+	mvpp2_write(priv, MVPP22_RXQ2RSS_TABLE, MVPP22_RSS_TABLE_POINTER(ctx));
+
+	return 0;
+}
+
+int mvpp22_port_rss_ctx_create(struct mvpp2_port *port, u32 *port_ctx)
+{
+	u32 rss_ctx;
+	int ret, i;
+
+	ret = mvpp22_rss_context_create(port, &rss_ctx);
+	if (ret)
+		return ret;
+
+	/* Find the first available context number in the port, starting from 1.
+	 * Context 0 on each port is reserved for the default context.
+	 */
+	for (i = 1; i < MVPP22_N_RSS_TABLES; i++) {
+		if (port->rss_ctx[i] < 0)
+			break;
+	}
+
+	port->rss_ctx[i] = rss_ctx;
+	*port_ctx = i;
+
+	return 0;
+}
+
+static struct mvpp2_rss_table *mvpp22_rss_table_get(struct mvpp2 *priv,
+						    int rss_ctx)
+{
+	if (rss_ctx < 0 || rss_ctx >= MVPP22_N_RSS_TABLES)
+		return NULL;
+
+	return priv->rss_tables[rss_ctx];
+}
+
+int mvpp22_port_rss_ctx_delete(struct mvpp2_port *port, u32 port_ctx)
+{
+	struct mvpp2 *priv = port->priv;
+	int rss_ctx = mvpp22_rss_ctx(port, port_ctx);
+
+	if (rss_ctx < 0 || rss_ctx >= MVPP22_N_RSS_TABLES)
+		return -EINVAL;
+
+	kfree(priv->rss_tables[rss_ctx]);
+
+	priv->rss_tables[rss_ctx] = NULL;
+	port->rss_ctx[port_ctx] = -1;
+
+	return 0;
+}
+
+int mvpp22_port_rss_ctx_indir_set(struct mvpp2_port *port, u32 port_ctx,
+				  const u32 *indir)
+{
+	int rss_ctx = mvpp22_rss_ctx(port, port_ctx);
+	struct mvpp2_rss_table *rss_table = mvpp22_rss_table_get(port->priv,
+								 rss_ctx);
+
+	if (!rss_table)
+		return -EINVAL;
+
+	memcpy(rss_table->indir, indir,
+	       MVPP22_RSS_TABLE_ENTRIES * sizeof(rss_table->indir[0]));
+
+	mvpp22_rss_fill_table(port, rss_table, rss_ctx);
+
+	return 0;
+}
+
+int mvpp22_port_rss_ctx_indir_get(struct mvpp2_port *port, u32 port_ctx,
+				  u32 *indir)
+{
+	int rss_ctx =  mvpp22_rss_ctx(port, port_ctx);
+	struct mvpp2_rss_table *rss_table = mvpp22_rss_table_get(port->priv,
+								 rss_ctx);
+
+	if (!rss_table)
+		return -EINVAL;
+
+	memcpy(indir, rss_table->indir,
+	       MVPP22_RSS_TABLE_ENTRIES * sizeof(rss_table->indir[0]));
+
+	return 0;
 }
 
 int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info)
@@ -1427,32 +1577,32 @@ int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info)
 	return 0;
 }
 
-void mvpp22_port_rss_init(struct mvpp2_port *port)
+int mvpp22_port_rss_init(struct mvpp2_port *port)
 {
-	struct mvpp2 *priv = port->priv;
-	int i;
+	struct mvpp2_rss_table *table;
+	u32 context = 0;
+	int i, ret;
 
-	/* Set the table width: replace the whole classifier Rx queue number
-	 * with the ones configured in RSS table entries.
-	 */
-	mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_TABLE(port->id));
-	mvpp2_write(priv, MVPP22_RSS_WIDTH, 8);
+	for (i = 0; i < MVPP22_N_RSS_TABLES; i++)
+		port->rss_ctx[i] = -1;
 
-	/* The default RxQ is used as a key to select the RSS table to use.
-	 * We use one RSS table per port.
-	 */
-	mvpp2_write(priv, MVPP22_RSS_INDEX,
-		    MVPP22_RSS_INDEX_QUEUE(port->first_rxq));
-	mvpp2_write(priv, MVPP22_RXQ2RSS_TABLE,
-		    MVPP22_RSS_TABLE_POINTER(port->id));
+	ret = mvpp22_rss_context_create(port, &context);
+	if (ret)
+		return ret;
+
+	table = mvpp22_rss_table_get(port->priv, context);
+	if (!table)
+		return -EINVAL;
+
+	port->rss_ctx[0] = context;
 
 	/* Configure the first table to evenly distribute the packets across
 	 * real Rx Queues. The table entries map a hash to a port Rx Queue.
 	 */
 	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++)
-		port->indir[i] = ethtool_rxfh_indir_default(i, port->nrxqs);
+		table->indir[i] = ethtool_rxfh_indir_default(i, port->nrxqs);
 
-	mvpp22_rss_fill_table(port, port->id);
+	mvpp22_rss_fill_table(port, table, mvpp22_rss_ctx(port, 0));
 
 	/* Configure default flows */
 	mvpp2_port_rss_hash_opts_set(port, MVPP22_FLOW_IP4, MVPP22_CLS_HEK_IP4_2T);
@@ -1461,4 +1611,6 @@ void mvpp22_port_rss_init(struct mvpp2_port *port)
 	mvpp2_port_rss_hash_opts_set(port, MVPP22_FLOW_TCP6, MVPP22_CLS_HEK_IP6_5T);
 	mvpp2_port_rss_hash_opts_set(port, MVPP22_FLOW_UDP4, MVPP22_CLS_HEK_IP4_5T);
 	mvpp2_port_rss_hash_opts_set(port, MVPP22_FLOW_UDP6, MVPP22_CLS_HEK_IP6_5T);
+
+	return 0;
 }

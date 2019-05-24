@@ -626,6 +626,7 @@
 #define MVPP2_N_RFS_RULES		(MVPP2_N_RFS_ENTRIES_PER_FLOW * 7)
 
 /* RSS constants */
+#define MVPP22_N_RSS_TABLES		8
 #define MVPP22_RSS_TABLE_ENTRIES	32
 
 /* IPv6 max L3 address size */
@@ -727,6 +728,10 @@ enum mvpp2_prs_l3_cast {
 /* Definitions */
 struct mvpp2_dbgfs_entries;
 
+struct mvpp2_rss_table {
+	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
+};
+
 /* Shared Packet Processor resources */
 struct mvpp2 {
 	/* Shared registers' base addresses */
@@ -790,6 +795,9 @@ struct mvpp2 {
 
 	/* Debugfs entries private data */
 	struct mvpp2_dbgfs_entries *dbgfs_entries;
+
+	/* RSS Indirection tables */
+	struct mvpp2_rss_table *rss_tables[MVPP22_N_RSS_TABLES];
 };
 
 struct mvpp2_pcpu_stats {
@@ -921,12 +929,14 @@ struct mvpp2_port {
 
 	u32 tx_time_coal;
 
-	/* RSS indirection table */
-	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
-
 	/* List of steering rules active on that port */
 	struct mvpp2_ethtool_fs *rfs_rules[MVPP2_N_RFS_ENTRIES_PER_FLOW];
 	int n_rfs_rules;
+
+	/* Each port has its own view of the rss contexts, so that it can number
+	 * them from 0
+	 */
+	int rss_ctx[MVPP22_N_RSS_TABLES];
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the
