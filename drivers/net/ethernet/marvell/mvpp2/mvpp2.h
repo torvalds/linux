@@ -148,6 +148,8 @@
 #define MVPP22_CLS_C2_ATTR2			0x1b6c
 #define     MVPP22_CLS_C2_ATTR2_RSS_EN		BIT(30)
 #define MVPP22_CLS_C2_ATTR3			0x1b70
+#define MVPP22_CLS_C2_TCAM_CTRL			0x1b90
+#define     MVPP22_CLS_C2_TCAM_BYPASS_FIFO	BIT(0)
 
 /* Descriptor Manager Top Registers */
 #define MVPP2_RXQ_NUM_REG			0x2040

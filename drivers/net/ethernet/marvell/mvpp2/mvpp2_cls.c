@@ -923,6 +923,12 @@ void mvpp2_cls_init(struct mvpp2 *priv)
 		mvpp2_cls_c2_write(priv, &c2);
 	}
 
+	/* Disable the FIFO stages in C2 engine, which are only used in BIST
+	 * mode
+	 */
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_CTRL,
+		    MVPP22_CLS_C2_TCAM_BYPASS_FIFO);
+
 	mvpp2_cls_port_init_flows(priv);
 }
 
