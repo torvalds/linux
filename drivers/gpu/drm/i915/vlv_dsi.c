@@ -1793,7 +1793,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	if (!fixed_mode) {
 		DRM_DEBUG_KMS("no fixed mode\n");
-		goto err;
+		goto err_cleanup_connector;
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
@@ -1803,6 +1803,8 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	return;
 
+err_cleanup_connector:
+	drm_connector_cleanup(&intel_connector->base);
 err:
 	drm_encoder_cleanup(&intel_encoder->base);
 	kfree(intel_dsi);
