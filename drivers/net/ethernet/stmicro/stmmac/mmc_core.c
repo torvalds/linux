@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include "hwif.h"
 #include "mmc.h"
 
 /* MAC Management Counters register offset */
@@ -128,7 +129,7 @@
 #define MMC_RX_ICMP_GD_OCTETS		0x180
 #define MMC_RX_ICMP_ERR_OCTETS		0x184
 
-void dwmac_mmc_ctrl(void __iomem *mmcaddr, unsigned int mode)
+static void dwmac_mmc_ctrl(void __iomem *mmcaddr, unsigned int mode)
 {
 	u32 value = readl(mmcaddr + MMC_CNTRL);
 
@@ -141,7 +142,7 @@ void dwmac_mmc_ctrl(void __iomem *mmcaddr, unsigned int mode)
 }
 
 /* To mask all all interrupts.*/
-void dwmac_mmc_intr_all_mask(void __iomem *mmcaddr)
+static void dwmac_mmc_intr_all_mask(void __iomem *mmcaddr)
 {
 	writel(MMC_DEFAULT_MASK, mmcaddr + MMC_RX_INTR_MASK);
 	writel(MMC_DEFAULT_MASK, mmcaddr + MMC_TX_INTR_MASK);
@@ -153,7 +154,7 @@ void dwmac_mmc_intr_all_mask(void __iomem *mmcaddr)
  * counter after a read. So all the field of the mmc struct
  * have to be incremented.
  */
-void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
+static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 {
 	mmc->mmc_tx_octetcount_gb += readl(mmcaddr + MMC_TX_OCTETCOUNT_GB);
 	mmc->mmc_tx_framecount_gb += readl(mmcaddr + MMC_TX_FRAMECOUNT_GB);
@@ -266,3 +267,9 @@ void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	mmc->mmc_rx_icmp_gd_octets += readl(mmcaddr + MMC_RX_ICMP_GD_OCTETS);
 	mmc->mmc_rx_icmp_err_octets += readl(mmcaddr + MMC_RX_ICMP_ERR_OCTETS);
 }
+
+const struct stmmac_mmc_ops dwmac_mmc_ops = {
+	.ctrl = dwmac_mmc_ctrl,
+	.intr_all_mask = dwmac_mmc_intr_all_mask,
+	.read = dwmac_mmc_read,
+};

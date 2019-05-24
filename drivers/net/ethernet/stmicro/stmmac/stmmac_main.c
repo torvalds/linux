@@ -2128,10 +2128,10 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 	unsigned int mode = MMC_CNTRL_RESET_ON_READ | MMC_CNTRL_COUNTER_RESET |
 			    MMC_CNTRL_PRESET | MMC_CNTRL_FULL_HALF_PRESET;
 
-	dwmac_mmc_intr_all_mask(priv->mmcaddr);
+	stmmac_mmc_intr_all_mask(priv, priv->mmcaddr);
 
 	if (priv->dma_cap.rmon) {
-		dwmac_mmc_ctrl(priv->mmcaddr, mode);
+		stmmac_mmc_ctrl(priv, priv->mmcaddr, mode);
 		memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
 	} else
 		netdev_info(priv->dev, "No MAC Management Counters available\n");

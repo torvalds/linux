@@ -537,7 +537,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	if (ret) {
 		/* If supported, for new GMAC chips expose the MMC counters */
 		if (priv->dma_cap.rmon) {
-			dwmac_mmc_read(priv->mmcaddr, &priv->mmc);
+			stmmac_mmc_read(priv, priv->mmcaddr, &priv->mmc);
 
 			for (i = 0; i < STMMAC_MMC_STATS_LEN; i++) {
 				char *p;
