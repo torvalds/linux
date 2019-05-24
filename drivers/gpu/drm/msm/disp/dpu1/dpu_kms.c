@@ -231,7 +231,7 @@ void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
 			regset, &dpu_fops_regset32);
 }
 
-static int _dpu_debugfs_init(struct dpu_kms *dpu_kms)
+static int _dpu_debugfs_init(struct dpu_kms *dpu_kms, struct drm_minor *minor)
 {
 	void *p = dpu_hw_util_get_log_mask_ptr();
 	struct dentry *entry;
@@ -239,7 +239,7 @@ static int _dpu_debugfs_init(struct dpu_kms *dpu_kms)
 	if (!p)
 		return -EINVAL;
 
-	entry = debugfs_create_dir("debug", dpu_kms->dev->primary->debugfs_root);
+	entry = debugfs_create_dir("debug", minor->debugfs_root);
 	if (IS_ERR_OR_NULL(entry))
 		return -ENODEV;
 
@@ -581,7 +581,7 @@ fail:
 #ifdef CONFIG_DEBUG_FS
 static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
-	return _dpu_debugfs_init(to_dpu_kms(kms));
+	return _dpu_debugfs_init(to_dpu_kms(kms), minor);
 }
 #endif
 
