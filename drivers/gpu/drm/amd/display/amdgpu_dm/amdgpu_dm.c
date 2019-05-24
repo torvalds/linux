@@ -37,6 +37,9 @@
 #include "amdgpu_ucode.h"
 #include "atom.h"
 #include "amdgpu_dm.h"
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+#include "amdgpu_dm_hdcp.h"
+#endif
 #include "amdgpu_pm.h"
 
 #include "amd_shared.h"
@@ -646,11 +649,18 @@ void amdgpu_dm_audio_eld_notify(struct amdgpu_device *adev, int pin)
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct dc_callback_init init_params;
+#endif
+
 	adev->dm.ddev = adev->ddev;
 	adev->dm.adev = adev;
 
 	/* Zero all the fields */
 	memset(&init_data, 0, sizeof(init_data));
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	memset(&init_params, 0, sizeof(init_params));
+#endif
 
 	mutex_init(&adev->dm.dc_lock);
 	mutex_init(&adev->dm.audio_lock);
@@ -725,6 +735,16 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	amdgpu_dm_init_color_mod();
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	adev->dm.hdcp_workqueue = hdcp_create_workqueue(&adev->psp, &init_params.cp_psp, adev->dm.dc);
+
+	if (!adev->dm.hdcp_workqueue)
+		DRM_ERROR("amdgpu: failed to initialize hdcp_workqueue.\n");
+	else
+		DRM_DEBUG_DRIVER("amdgpu: hdcp_workqueue init done %p.\n", adev->dm.hdcp_workqueue);
+
+	dc_init_callbacks(adev->dm.dc, &init_params);
+#endif
 	if (amdgpu_dm_initialize_drm_device(adev)) {
 		DRM_ERROR(
 		"amdgpu: failed to initialize sw for display support.\n");
@@ -765,6 +785,16 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 	amdgpu_dm_audio_fini(adev);
 
 	amdgpu_dm_destroy_drm_device(&adev->dm);
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	if (adev->dm.hdcp_workqueue) {
+		hdcp_destroy(adev->dm.hdcp_workqueue);
+		adev->dm.hdcp_workqueue = NULL;
+	}
+
+	if (adev->dm.dc)
+		dc_deinit_callbacks(adev->dm.dc);
+#endif
 
 	/* DC Destroy TODO: Replace destroy DAL */
 	if (adev->dm.dc)

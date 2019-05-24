@@ -225,6 +225,9 @@ struct amdgpu_display_manager {
 	struct amdgpu_dm_backlight_caps backlight_caps;
 
 	struct mod_freesync *freesync_module;
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct hdcp_workqueue *hdcp_workqueue;
+#endif
 
 	struct drm_atomic_state *cached_state;
 
