@@ -108,9 +108,6 @@ struct amdtp_stream {
 	struct iso_packets_buffer buffer;
 	int packet_index;
 	int tag;
-	int (*handle_packet)(struct amdtp_stream *s, unsigned int cycle,
-			     const __be32 *ctx_header, __be32 *buffer,
-			     unsigned int index);
 	union {
 		struct {
 			unsigned int ctx_header_size;
