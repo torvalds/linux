@@ -8,11 +8,13 @@
 #define __INTEL_SSEU_H__
 
 #include <linux/types.h>
+#include <linux/kernel.h>
 
 struct drm_i915_private;
 
 #define GEN_MAX_SLICES		(6) /* CNL upper bound */
 #define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
+#define GEN_SSEU_STRIDE(max_entries) DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
 
 struct sseu_dev_info {
 	u8 slice_mask;
