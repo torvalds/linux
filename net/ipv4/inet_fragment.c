@@ -124,33 +124,48 @@ void inet_frags_fini(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frags_fini);
 
+/* called from rhashtable_free_and_destroy() at netns_frags dismantle */
 static void inet_frags_free_cb(void *ptr, void *arg)
 {
 	struct inet_frag_queue *fq = ptr;
+	int count;
 
-	/* If we can not cancel the timer, it means this frag_queue
-	 * is already disappearing, we have nothing to do.
-	 * Otherwise, we own a refcount until the end of this function.
-	 */
-	if (!del_timer(&fq->timer))
-		return;
+	count = del_timer_sync(&fq->timer) ? 1 : 0;
 
 	spin_lock_bh(&fq->lock);
 	if (!(fq->flags & INET_FRAG_COMPLETE)) {
 		fq->flags |= INET_FRAG_COMPLETE;
-		refcount_dec(&fq->refcnt);
+		count++;
+	} else if (fq->flags & INET_FRAG_HASH_DEAD) {
+		count++;
 	}
 	spin_unlock_bh(&fq->lock);
 
-	inet_frag_put(fq);
+	if (refcount_sub_and_test(count, &fq->refcnt))
+		inet_frag_destroy(fq);
+}
+
+static void fqdir_rwork_fn(struct work_struct *work)
+{
+	struct fqdir *fqdir = container_of(to_rcu_work(work),
+					   struct fqdir, destroy_rwork);
+
+	rhashtable_free_and_destroy(&fqdir->rhashtable, inet_frags_free_cb, NULL);
+	kfree(fqdir);
 }
 
 void fqdir_exit(struct fqdir *fqdir)
 {
 	fqdir->high_thresh = 0; /* prevent creation of new frags */
 
-	rhashtable_free_and_destroy(&fqdir->rhashtable, inet_frags_free_cb, NULL);
-	kfree(fqdir);
+	/* paired with READ_ONCE() in inet_frag_kill() :
+	 * We want to prevent rhashtable_remove_fast() calls
+	 */
+	smp_store_release(&fqdir->dead, true);
+
+	INIT_RCU_WORK(&fqdir->destroy_rwork, fqdir_rwork_fn);
+	queue_rcu_work(system_wq, &fqdir->destroy_rwork);
+
 }
 EXPORT_SYMBOL(fqdir_exit);
 
@@ -163,8 +178,18 @@ void inet_frag_kill(struct inet_frag_queue *fq)
 		struct fqdir *fqdir = fq->fqdir;
 
 		fq->flags |= INET_FRAG_COMPLETE;
-		rhashtable_remove_fast(&fqdir->rhashtable, &fq->node, fqdir->f->rhash_params);
-		refcount_dec(&fq->refcnt);
+		rcu_read_lock();
+		/* This READ_ONCE() is paired with smp_store_release()
+		 * in inet_frags_exit_net().
+		 */
+		if (!READ_ONCE(fqdir->dead)) {
+			rhashtable_remove_fast(&fqdir->rhashtable, &fq->node,
+					       fqdir->f->rhash_params);
+			refcount_dec(&fq->refcnt);
+		} else {
+			fq->flags |= INET_FRAG_HASH_DEAD;
+		}
+		rcu_read_unlock();
 	}
 }
 EXPORT_SYMBOL(inet_frag_kill);
