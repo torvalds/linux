@@ -750,10 +750,11 @@ static int do_detach(int argc, char **argv)
 
 static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
-	enum bpf_attach_type expected_attach_type;
-	struct bpf_object_open_attr attr = {
-		.prog_type	= BPF_PROG_TYPE_UNSPEC,
+	struct bpf_object_load_attr load_attr = { 0 };
+	struct bpf_object_open_attr open_attr = {
+		.prog_type = BPF_PROG_TYPE_UNSPEC,
 	};
+	enum bpf_attach_type expected_attach_type;
 	struct map_replace *map_replace = NULL;
 	struct bpf_program *prog = NULL, *pos;
 	unsigned int old_map_fds = 0;
@@ -767,7 +768,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 	if (!REQ_ARGS(2))
 		return -1;
-	attr.file = GET_ARG();
+	open_attr.file = GET_ARG();
 	pinfile = GET_ARG();
 
 	while (argc) {
@@ -776,7 +777,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 			NEXT_ARG();
 
-			if (attr.prog_type != BPF_PROG_TYPE_UNSPEC) {
+			if (open_attr.prog_type != BPF_PROG_TYPE_UNSPEC) {
 				p_err("program type already specified");
 				goto err_free_reuse_maps;
 			}
@@ -793,7 +794,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			strcat(type, *argv);
 			strcat(type, "/");
 
-			err = libbpf_prog_type_by_name(type, &attr.prog_type,
+			err = libbpf_prog_type_by_name(type,
+						       &open_attr.prog_type,
 						       &expected_attach_type);
 			free(type);
 			if (err < 0)
@@ -881,16 +883,16 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 	set_max_rlimit();
 
-	obj = __bpf_object__open_xattr(&attr, bpf_flags);
+	obj = __bpf_object__open_xattr(&open_attr, bpf_flags);
 	if (IS_ERR_OR_NULL(obj)) {
 		p_err("failed to open object file");
 		goto err_free_reuse_maps;
 	}
 
 	bpf_object__for_each_program(pos, obj) {
-		enum bpf_prog_type prog_type = attr.prog_type;
+		enum bpf_prog_type prog_type = open_attr.prog_type;
 
-		if (attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
+		if (open_attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
 			const char *sec_name = bpf_program__title(pos, false);
 
 			err = libbpf_prog_type_by_name(sec_name, &prog_type,
@@ -960,7 +962,12 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		goto err_close_obj;
 	}
 
-	err = bpf_object__load(obj);
+	load_attr.obj = obj;
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		load_attr.log_level = 1 + 2 + 4;
+
+	err = bpf_object__load_xattr(&load_attr);
 	if (err) {
 		p_err("failed to load object file");
 		goto err_close_obj;

@@ -26,6 +26,7 @@ bool pretty_output;
 bool json_output;
 bool show_pinned;
 bool block_mount;
+bool verifier_logs;
 int bpf_flags;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
@@ -373,6 +374,7 @@ int main(int argc, char **argv)
 			break;
 		case 'd':
 			libbpf_set_print(print_all_levels);
+			verifier_logs = true;
 			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
