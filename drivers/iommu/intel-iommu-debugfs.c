@@ -14,6 +14,13 @@
 
 #include <asm/irq_remapping.h>
 
+struct tbl_walk {
+	u16 bus;
+	u16 devfn;
+	struct root_entry *rt_entry;
+	struct context_entry *ctx_entry;
+};
+
 struct iommu_regset {
 	int offset;
 	const char *regs;
@@ -131,16 +138,25 @@ out:
 }
 DEFINE_SHOW_ATTRIBUTE(iommu_regset);
 
-static void ctx_tbl_entry_show(struct seq_file *m, struct intel_iommu *iommu,
-			       int bus)
+static inline void print_tbl_walk(struct seq_file *m)
+{
+	struct tbl_walk *tbl_wlk = m->private;
+
+	seq_printf(m, "%02x:%02x.%x\t0x%016llx:0x%016llx\t0x%016llx:0x%016llx\n",
+		   tbl_wlk->bus, PCI_SLOT(tbl_wlk->devfn),
+		   PCI_FUNC(tbl_wlk->devfn), tbl_wlk->rt_entry->hi,
+		   tbl_wlk->rt_entry->lo, tbl_wlk->ctx_entry->hi,
+		   tbl_wlk->ctx_entry->lo);
+}
+
+static void ctx_tbl_walk(struct seq_file *m, struct intel_iommu *iommu, u16 bus)
 {
 	struct context_entry *context;
-	int devfn;
-
-	seq_printf(m, " Context Table Entries for Bus: %d\n", bus);
-	seq_puts(m, "  Entry\tB:D.F\tHigh\tLow\n");
+	u16 devfn;
 
 	for (devfn = 0; devfn < 256; devfn++) {
+		struct tbl_walk tbl_wlk = {0};
+
 		context = iommu_context_addr(iommu, bus, devfn, 0);
 		if (!context)
 			return;
@@ -148,33 +164,34 @@ static void ctx_tbl_entry_show(struct seq_file *m, struct intel_iommu *iommu,
 		if (!context_present(context))
 			continue;
 
-		seq_printf(m, "  %-5d\t%02x:%02x.%x\t%-6llx\t%llx\n", devfn,
-			   bus, PCI_SLOT(devfn), PCI_FUNC(devfn),
-			   context[0].hi, context[0].lo);
+		tbl_wlk.bus = bus;
+		tbl_wlk.devfn = devfn;
+		tbl_wlk.rt_entry = &iommu->root_entry[bus];
+		tbl_wlk.ctx_entry = context;
+		m->private = &tbl_wlk;
+
+		print_tbl_walk(m);
 	}
 }
 
-static void root_tbl_entry_show(struct seq_file *m, struct intel_iommu *iommu)
+static void root_tbl_walk(struct seq_file *m, struct intel_iommu *iommu)
 {
 	unsigned long flags;
-	int bus;
+	u16 bus;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	seq_printf(m, "IOMMU %s: Root Table Address:%llx\n", iommu->name,
+	seq_printf(m, "IOMMU %s: Root Table Address: 0x%llx\n", iommu->name,
 		   (u64)virt_to_phys(iommu->root_entry));
-	seq_puts(m, "Root Table Entries:\n");
+	seq_puts(m, "B.D.F\tRoot_entry\t\t\t\tContext_entry\n");
 
-	for (bus = 0; bus < 256; bus++) {
-		if (!(iommu->root_entry[bus].lo & 1))
-			continue;
+	/*
+	 * No need to check if the root entry is present or not because
+	 * iommu_context_addr() performs the same check before returning
+	 * context entry.
+	 */
+	for (bus = 0; bus < 256; bus++)
+		ctx_tbl_walk(m, iommu, bus);
 
-		seq_printf(m, " Bus: %d H: %llx L: %llx\n", bus,
-			   iommu->root_entry[bus].hi,
-			   iommu->root_entry[bus].lo);
-
-		ctx_tbl_entry_show(m, iommu, bus);
-		seq_putc(m, '\n');
-	}
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -185,7 +202,7 @@ static int dmar_translation_struct_show(struct seq_file *m, void *unused)
 
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
-		root_tbl_entry_show(m, iommu);
+		root_tbl_walk(m, iommu);
 		seq_putc(m, '\n');
 	}
 	rcu_read_unlock();
