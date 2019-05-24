@@ -13,6 +13,15 @@ config STMMAC_ETH
 
 if STMMAC_ETH
 
+config STMMAC_SELFTESTS
+	bool "Support for STMMAC Selftests"
+	depends on STMMAC_ETH
+	default n
+	---help---
+	  This adds support for STMMAC Selftests using ethtool. Enable this
+	  feature if you are facing problems with your HW and submit the test
+	  results to the netdev Mailing List.
+
 config STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH

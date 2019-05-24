@@ -310,7 +310,7 @@ static void dwxgmac2_set_filter(struct mac_device_info *hw,
 	u32 value = XGMAC_FILTER_RA;
 
 	if (dev->flags & IFF_PROMISC) {
-		value |= XGMAC_FILTER_PR;
+		value |= XGMAC_FILTER_PR | XGMAC_FILTER_PCF;
 	} else if ((dev->flags & IFF_ALLMULTI) ||
 		   (netdev_mc_count(dev) > HASH_TABLE_SIZE)) {
 		value |= XGMAC_FILTER_PM;
@@ -319,6 +319,18 @@ static void dwxgmac2_set_filter(struct mac_device_info *hw,
 	}
 
 	writel(value, ioaddr + XGMAC_PACKET_FILTER);
+}
+
+static void dwxgmac2_set_mac_loopback(void __iomem *ioaddr, bool enable)
+{
+	u32 value = readl(ioaddr + XGMAC_RX_CONFIG);
+
+	if (enable)
+		value |= XGMAC_CONFIG_LM;
+	else
+		value &= ~XGMAC_CONFIG_LM;
+
+	writel(value, ioaddr + XGMAC_RX_CONFIG);
 }
 
 const struct stmmac_ops dwxgmac210_ops = {
@@ -350,6 +362,7 @@ const struct stmmac_ops dwxgmac210_ops = {
 	.pcs_get_adv_lp = NULL,
 	.debug = NULL,
 	.set_filter = dwxgmac2_set_filter,
+	.set_mac_loopback = dwxgmac2_set_mac_loopback,
 };
 
 int dwxgmac2_setup(struct stmmac_priv *priv)
