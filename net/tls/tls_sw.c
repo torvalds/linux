@@ -1712,13 +1712,12 @@ int tls_sw_recvmsg(struct sock *sk,
 		copied = err;
 	}
 
-	len = len - copied;
-	if (len) {
-		target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
-		timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
-	} else {
+	if (len <= copied)
 		goto recv_end;
-	}
+
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
+	len = len - copied;
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 
 	do {
 		bool retain_skb = false;
@@ -1853,7 +1852,7 @@ pick_next_record:
 		}
 
 		/* If we have a new message from strparser, continue now. */
-		if (decrypted >= target && !ctx->recv_pkt)
+		if (decrypted + copied >= target && !ctx->recv_pkt)
 			break;
 	} while (len);
 
