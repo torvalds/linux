@@ -8,6 +8,7 @@
 #include <linux/nexthop.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <net/ipv6_stubs.h>
 #include <net/nexthop.h>
 #include <net/route.h>
 #include <net/sock.h>
@@ -60,6 +61,9 @@ void nexthop_free_rcu(struct rcu_head *head)
 	switch (nhi->family) {
 	case AF_INET:
 		fib_nh_release(nh->net, &nhi->fib_nh);
+		break;
+	case AF_INET6:
+		ipv6_stub->fib6_nh_release(&nhi->fib6_nh);
 		break;
 	}
 	kfree(nhi);
@@ -127,6 +131,7 @@ static u32 nh_find_unused_id(struct net *net)
 static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 			int event, u32 portid, u32 seq, unsigned int nlflags)
 {
+	struct fib6_nh *fib6_nh;
 	struct fib_nh *fib_nh;
 	struct nlmsghdr *nlh;
 	struct nh_info *nhi;
@@ -168,6 +173,13 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 		    nla_put_u32(skb, NHA_GATEWAY, fib_nh->fib_nh_gw4))
 			goto nla_put_failure;
 		break;
+
+	case AF_INET6:
+		fib6_nh = &nhi->fib6_nh;
+		if (fib6_nh->fib_nh_gw_family &&
+		    nla_put_in6_addr(skb, NHA_GATEWAY, &fib6_nh->fib_nh_gw6))
+			goto nla_put_failure;
+		break;
 	}
 
 out:
@@ -192,6 +204,12 @@ static size_t nh_nlmsg_size(struct nexthop *nh)
 	case AF_INET:
 		if (nhi->fib_nh.fib_nh_gw_family)
 			sz += nla_total_size(4);  /* NHA_GATEWAY */
+		break;
+
+	case AF_INET6:
+		/* NHA_GATEWAY */
+		if (nhi->fib6_nh.fib_nh_gw_family)
+			sz += nla_total_size(sizeof(const struct in6_addr));
 		break;
 	}
 
@@ -374,6 +392,33 @@ out:
 	return err;
 }
 
+static int nh_create_ipv6(struct net *net,  struct nexthop *nh,
+			  struct nh_info *nhi, struct nh_config *cfg,
+			  struct netlink_ext_ack *extack)
+{
+	struct fib6_nh *fib6_nh = &nhi->fib6_nh;
+	struct fib6_config fib6_cfg = {
+		.fc_table = l3mdev_fib_table(cfg->dev),
+		.fc_ifindex = cfg->nh_ifindex,
+		.fc_gateway = cfg->gw.ipv6,
+		.fc_flags = cfg->nh_flags,
+	};
+	int err = -EINVAL;
+
+	if (!ipv6_addr_any(&cfg->gw.ipv6))
+		fib6_cfg.fc_flags |= RTF_GATEWAY;
+
+	/* sets nh_dev if successful */
+	err = ipv6_stub->fib6_nh_init(net, fib6_nh, &fib6_cfg, GFP_KERNEL,
+				      extack);
+	if (err)
+		ipv6_stub->fib6_nh_release(fib6_nh);
+	else
+		nh->nh_flags = fib6_nh->fib_nh_flags;
+
+	return err;
+}
+
 static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
 				      struct netlink_ext_ack *extack)
 {
@@ -406,6 +451,9 @@ static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
 	switch (cfg->nh_family) {
 	case AF_INET:
 		err = nh_create_ipv4(net, nh, nhi, cfg, extack);
+		break;
+	case AF_INET6:
+		err = nh_create_ipv6(net, nh, nhi, cfg, extack);
 		break;
 	}
 
@@ -487,6 +535,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 
 	switch (nhm->nh_family) {
 	case AF_INET:
+	case AF_INET6:
 		break;
 	default:
 		NL_SET_ERR_MSG(extack, "Invalid address family");
@@ -555,6 +604,13 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 				goto out;
 			}
 			cfg->gw.ipv4 = nla_get_be32(gwa);
+			break;
+		case AF_INET6:
+			if (nla_len(gwa) != sizeof(struct in6_addr)) {
+				NL_SET_ERR_MSG(extack, "Invalid gateway");
+				goto out;
+			}
+			cfg->gw.ipv6 = nla_get_in6_addr(gwa);
 			break;
 		default:
 			NL_SET_ERR_MSG(extack,

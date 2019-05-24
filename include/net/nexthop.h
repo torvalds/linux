@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <net/ip_fib.h>
+#include <net/ip6_fib.h>
 #include <net/netlink.h>
 
 #define NEXTHOP_VALID_USER_FLAGS RTNH_F_ONLINK
@@ -31,6 +32,7 @@ struct nh_config {
 
 	union {
 		__be32		ipv4;
+		struct in6_addr	ipv6;
 	} gw;
 
 	u32		nlflags;
@@ -47,6 +49,7 @@ struct nh_info {
 	union {
 		struct fib_nh_common	fib_nhc;
 		struct fib_nh		fib_nh;
+		struct fib6_nh		fib6_nh;
 	};
 };
 
