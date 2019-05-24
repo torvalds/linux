@@ -1667,7 +1667,7 @@ skip_req_irq:
  * ice_napi_del - Remove NAPI handler for the VSI
  * @vsi: VSI for which NAPI handler is to be removed
  */
-void ice_napi_del(struct ice_vsi *vsi)
+static void ice_napi_del(struct ice_vsi *vsi)
 {
 	int v_idx;
 
@@ -2302,7 +2302,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	ice_init_pf(pf);
 
-	err = ice_init_pf_dcb(pf);
+	err = ice_init_pf_dcb(pf, false);
 	if (err) {
 		clear_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
@@ -2933,7 +2933,7 @@ static void ice_napi_enable_all(struct ice_vsi *vsi)
 	if (!vsi->netdev)
 		return;
 
-	ice_for_each_q_vector(vsi, q_idx)  {
+	ice_for_each_q_vector(vsi, q_idx) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[q_idx];
 
 		if (q_vector->rx.ring || q_vector->tx.ring)

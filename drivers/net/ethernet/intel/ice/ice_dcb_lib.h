@@ -14,7 +14,7 @@ void ice_dcb_rebuild(struct ice_pf *pf);
 u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
 void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi);
-int ice_init_pf_dcb(struct ice_pf *pf);
+int ice_init_pf_dcb(struct ice_pf *pf, bool locked);
 void ice_update_dcb_stats(struct ice_pf *pf);
 int
 ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
@@ -40,7 +40,8 @@ static inline u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
 	return 1;
 }
 
-static inline int ice_init_pf_dcb(struct ice_pf *pf)
+static inline int
+ice_init_pf_dcb(struct ice_pf *pf, bool __always_unused locked)
 {
 	dev_dbg(&pf->pdev->dev, "DCB not supported\n");
 	return -EOPNOTSUPP;

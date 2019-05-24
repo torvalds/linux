@@ -1134,7 +1134,7 @@ static int ice_alloc_vfs(struct ice_pf *pf, u16 num_alloc_vfs)
 			   GFP_KERNEL);
 	if (!vfs) {
 		ret = -ENOMEM;
-		goto err_unroll_sriov;
+		goto err_pci_disable_sriov;
 	}
 	pf->vf = vfs;
 
@@ -1154,12 +1154,19 @@ static int ice_alloc_vfs(struct ice_pf *pf, u16 num_alloc_vfs)
 	pf->num_alloc_vfs = num_alloc_vfs;
 
 	/* VF resources get allocated during reset */
-	if (!ice_reset_all_vfs(pf, true))
+	if (!ice_reset_all_vfs(pf, true)) {
+		ret = -EIO;
 		goto err_unroll_sriov;
+	}
 
 	goto err_unroll_intr;
 
 err_unroll_sriov:
+	pf->vf = NULL;
+	devm_kfree(&pf->pdev->dev, vfs);
+	vfs = NULL;
+	pf->num_alloc_vfs = 0;
+err_pci_disable_sriov:
 	pci_disable_sriov(pf->pdev);
 err_unroll_intr:
 	/* rearm interrupts here */
@@ -1807,16 +1814,16 @@ error_param:
 static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
-	struct virtchnl_irq_map_info *irqmap_info =
-	    (struct virtchnl_irq_map_info *)msg;
+	struct virtchnl_irq_map_info *irqmap_info;
 	u16 vsi_id, vsi_q_id, vector_id;
 	struct virtchnl_vector_map *map;
-	struct ice_vsi *vsi = NULL;
 	struct ice_pf *pf = vf->pf;
+	struct ice_vsi *vsi;
 	unsigned long qmap;
 	u16 num_q_vectors;
 	int i;
 
+	irqmap_info = (struct virtchnl_irq_map_info *)msg;
 	num_q_vectors = irqmap_info->num_vectors - ICE_NONQ_VECS_VF;
 	vsi = pf->vsi[vf->lan_vsi_idx];
 
@@ -1903,9 +1910,8 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 	}
 
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	if (!vsi) {
+	if (!vsi)
 		goto error_param;
-	}
 
 	if (qci->num_queue_pairs > ICE_MAX_BASE_QS_PER_VF) {
 		dev_err(&pf->pdev->dev,

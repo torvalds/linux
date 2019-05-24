@@ -277,10 +277,10 @@ struct ice_vsi {
 	struct list_head tmp_sync_list;		/* MAC filters to be synced */
 	struct list_head tmp_unsync_list;	/* MAC filters to be unsynced */
 
-	u8 irqs_ready;
-	u8 current_isup;		 /* Sync 'link up' logging */
-	u8 stat_offsets_loaded;
-	u8 vlan_ena;
+	u8 irqs_ready:1;
+	u8 current_isup:1;		 /* Sync 'link up' logging */
+	u8 stat_offsets_loaded:1;
+	u8 vlan_ena:1;
 
 	/* queue information */
 	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
@@ -330,7 +330,7 @@ enum ice_pf_flags {
 	ICE_FLAG_DCB_CAPABLE,
 	ICE_FLAG_DCB_ENA,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
-	ICE_FLAG_DISABLE_FW_LLDP,
+	ICE_FLAG_ENABLE_FW_LLDP,
 	ICE_FLAG_ETHTOOL_CTXT,		/* set when ethtool holds RTNL lock */
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
@@ -384,7 +384,7 @@ struct ice_pf {
 	struct ice_hw_port_stats stats;
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
-	u8 stat_prev_loaded;	/* has previous stats been loaded */
+	u8 stat_prev_loaded:1; /* has previous stats been loaded */
 #ifdef CONFIG_DCB
 	u16 dcbx_cap;
 #endif /* CONFIG_DCB */
@@ -451,7 +451,6 @@ int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
-void ice_napi_del(struct ice_vsi *vsi);
 #ifdef CONFIG_DCB
 int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked);
 void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked);
