@@ -4391,7 +4391,7 @@ static DEVICE_ATTR(allow_tsx_force_abort, 0644,
 
 static struct attribute *intel_pmu_attrs[] = {
 	&dev_attr_freeze_on_smi.attr,
-	NULL, /* &dev_attr_allow_tsx_force_abort.attr.attr */
+	&dev_attr_allow_tsx_force_abort.attr,
 	NULL,
 };
 
@@ -4417,6 +4417,15 @@ static umode_t
 exra_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return x86_pmu.version >= 2 ? attr->mode : 0;
+}
+
+static umode_t
+default_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	if (attr == &dev_attr_allow_tsx_force_abort.attr)
+		return x86_pmu.flags & PMU_FL_TFA ? attr->mode : 0;
+
+	return attr->mode;
 }
 
 static struct attribute_group group_events_td  = {
@@ -4455,7 +4464,8 @@ static struct attribute_group group_format_extra_skl = {
 };
 
 static struct attribute_group group_default = {
-	.attrs = intel_pmu_attrs,
+	.attrs      = intel_pmu_attrs,
+	.is_visible = default_is_visible,
 };
 
 static const struct attribute_group *attr_update[] = {
@@ -4979,7 +4989,6 @@ __init int intel_pmu_init(void)
 			x86_pmu.get_event_constraints = tfa_get_event_constraints;
 			x86_pmu.enable_all = intel_tfa_pmu_enable_all;
 			x86_pmu.commit_scheduling = intel_tfa_commit_scheduling;
-			intel_pmu_attrs[1] = &dev_attr_allow_tsx_force_abort.attr;
 		}
 
 		pr_cont("Skylake events, ");
