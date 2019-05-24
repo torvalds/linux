@@ -136,6 +136,16 @@ struct cs_etm_packet {
 
 #define CS_ETM_PACKET_MAX_BUFFER 1024
 
+/*
+ * When working with per-thread scenarios the process under trace can
+ * be scheduled on any CPU and as such, more than one traceID may be
+ * associated with the same process.  Since a traceID of '0' is illegal
+ * as per the CoreSight architecture, use that specific value to
+ * identify the queue where all packets (with any traceID) are
+ * aggregated.
+ */
+#define CS_ETM_PER_THREAD_TRACEID 0
+
 struct cs_etm_packet_queue {
 	u32 packet_count;
 	u32 head;
@@ -172,7 +182,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu);
 struct cs_etm_packet_queue
-*cs_etm__etmq_get_packet_queue(struct cs_etm_queue *etmq);
+*cs_etm__etmq_get_packet_queue(struct cs_etm_queue *etmq, u8 trace_chan_id);
 #else
 static inline int
 cs_etm__process_auxtrace_info(union perf_event *event __maybe_unused,
@@ -188,7 +198,8 @@ static inline int cs_etm__get_cpu(u8 trace_chan_id __maybe_unused,
 }
 
 static inline struct cs_etm_packet_queue *cs_etm__etmq_get_packet_queue(
-				struct cs_etm_queue *etmq __maybe_unused)
+				struct cs_etm_queue *etmq __maybe_unused,
+				u8 trace_chan_id __maybe_unused)
 {
 	return NULL;
 }
