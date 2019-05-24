@@ -190,7 +190,7 @@
 };
 
 &gpmc {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nandflash_pins>;
 	ranges = <0 0 0x08000000 0x1000000>;   /* CS0: NAND */
