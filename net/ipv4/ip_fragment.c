@@ -672,9 +672,8 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	net->ipv4.fqdir.timeout = IP_FRAG_TIME;
 
 	net->ipv4.fqdir.max_dist = 64;
-	net->ipv4.fqdir.f = &ip4_frags;
 
-	res = inet_frags_init_net(&net->ipv4.fqdir);
+	res = fqdir_init(&net->ipv4.fqdir, &ip4_frags);
 	if (res < 0)
 		return res;
 	res = ip4_frags_ns_ctl_register(net);

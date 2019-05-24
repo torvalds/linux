@@ -515,9 +515,8 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 	net->ipv6.fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	net->ipv6.fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->ipv6.fqdir.timeout = IPV6_FRAG_TIMEOUT;
-	net->ipv6.fqdir.f = &ip6_frags;
 
-	res = inet_frags_init_net(&net->ipv6.fqdir);
+	res = fqdir_init(&net->ipv6.fqdir, &ip6_frags);
 	if (res < 0)
 		return res;
 

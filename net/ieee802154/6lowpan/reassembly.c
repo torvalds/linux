@@ -452,9 +452,8 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 	ieee802154_lowpan->fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	ieee802154_lowpan->fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
 	ieee802154_lowpan->fqdir.timeout = IPV6_FRAG_TIMEOUT;
-	ieee802154_lowpan->fqdir.f = &lowpan_frags;
 
-	res = inet_frags_init_net(&ieee802154_lowpan->fqdir);
+	res = fqdir_init(&ieee802154_lowpan->fqdir, &lowpan_frags);
 	if (res < 0)
 		return res;
 	res = lowpan_frags_ns_sysctl_register(net);

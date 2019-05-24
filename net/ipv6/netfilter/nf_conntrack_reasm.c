@@ -494,9 +494,8 @@ static int nf_ct_net_init(struct net *net)
 	net->nf_frag.fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	net->nf_frag.fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->nf_frag.fqdir.timeout = IPV6_FRAG_TIMEOUT;
-	net->nf_frag.fqdir.f = &nf_frags;
 
-	res = inet_frags_init_net(&net->nf_frag.fqdir);
+	res = fqdir_init(&net->nf_frag.fqdir, &nf_frags);
 	if (res < 0)
 		return res;
 	res = nf_ct_frag6_sysctl_register(net);

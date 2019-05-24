@@ -104,8 +104,9 @@ struct inet_frags {
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-static inline int inet_frags_init_net(struct fqdir *fqdir)
+static inline int fqdir_init(struct fqdir *fqdir, struct inet_frags *f)
 {
+	fqdir->f = f;
 	atomic_long_set(&fqdir->mem, 0);
 	return rhashtable_init(&fqdir->rhashtable, &fqdir->f->rhash_params);
 }
