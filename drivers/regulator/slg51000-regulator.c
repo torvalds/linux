@@ -35,14 +35,9 @@ enum slg51000_regulators {
 	SLG51000_MAX_REGULATORS,
 };
 
-struct slg51000_pdata {
-	struct gpio_desc *ena_gpiod;
-};
-
 struct slg51000 {
 	struct device *dev;
 	struct regmap *regmap;
-	struct slg51000_pdata regl_pdata[SLG51000_MAX_REGULATORS];
 	struct regulator_desc *rdesc[SLG51000_MAX_REGULATORS];
 	struct regulator_dev *rdev[SLG51000_MAX_REGULATORS];
 	struct gpio_desc *cs_gpiod;
@@ -204,14 +199,14 @@ static int slg51000_of_parse_cb(struct device_node *np,
 				struct regulator_config *config)
 {
 	struct slg51000 *chip = config->driver_data;
-	struct slg51000_pdata *rpdata = &chip->regl_pdata[desc->id];
+	struct gpio_desc *ena_gpiod;
 	enum gpiod_flags gflags = GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE;
 
-	rpdata->ena_gpiod = devm_gpiod_get_from_of_node(chip->dev, np,
-							"enable-gpios", 0,
-							gflags, "gpio-en-ldo");
-	if (rpdata->ena_gpiod) {
-		config->ena_gpiod = rpdata->ena_gpiod;
+	ena_gpiod = devm_gpiod_get_from_of_node(chip->dev, np,
+						"enable-gpios", 0,
+						gflags, "gpio-en-ldo");
+	if (ena_gpiod) {
+		config->ena_gpiod = ena_gpiod;
 		devm_gpiod_unhinge(chip->dev, config->ena_gpiod);
 	}
 
