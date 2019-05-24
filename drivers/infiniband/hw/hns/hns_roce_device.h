@@ -37,9 +37,12 @@
 
 #define DRV_NAME "hns_roce"
 
+/* hip08 is a pci device, it includes two version according pci version id */
+#define PCI_REVISION_ID_HIP08_A			0x20
+#define PCI_REVISION_ID_HIP08_B			0x21
+
 #define HNS_ROCE_HW_VER1	('h' << 24 | 'i' << 16 | '0' << 8 | '6')
 
-#define MAC_ADDR_OCTET_NUM			6
 #define HNS_ROCE_MAX_MSG_LEN			0x80000000
 
 #define HNS_ROCE_ALOGN_UP(a, b) ((((a) + (b) - 1) / (b)) * (b))
@@ -48,6 +51,10 @@
 
 #define HNS_ROCE_BA_SIZE			(32 * 4096)
 
+#define BA_BYTE_LEN				8
+
+#define BITS_PER_BYTE				8
+
 /* Hardware specification only for v1 engine */
 #define HNS_ROCE_MIN_CQE_NUM			0x40
 #define HNS_ROCE_MIN_WQE_NUM			0x20
@@ -55,6 +62,7 @@
 /* Hardware specification only for v1 engine */
 #define HNS_ROCE_MAX_INNER_MTPT_NUM		0x7
 #define HNS_ROCE_MAX_MTPT_PBL_NUM		0x100000
+#define HNS_ROCE_MAX_SGE_NUM			2
 
 #define HNS_ROCE_EACH_FREE_CQ_WAIT_MSECS	20
 #define HNS_ROCE_MAX_FREE_CQ_WAIT_CNT	\
@@ -63,6 +71,9 @@
 #define HNS_ROCE_MIN_CQE_CNT			16
 
 #define HNS_ROCE_MAX_IRQ_NUM			128
+
+#define HNS_ROCE_SGE_IN_WQE			2
+#define HNS_ROCE_SGE_SHIFT			4
 
 #define EQ_ENABLE				1
 #define EQ_DISABLE				0
@@ -81,6 +92,7 @@
 #define HNS_ROCE_MAX_PORTS			6
 #define HNS_ROCE_MAX_GID_NUM			16
 #define HNS_ROCE_GID_SIZE			16
+#define HNS_ROCE_SGE_SIZE			16
 
 #define HNS_ROCE_HOP_NUM_0			0xff
 
@@ -110,6 +122,8 @@
 #define PAGES_SHIFT_16				16
 #define PAGES_SHIFT_24				24
 #define PAGES_SHIFT_32				32
+
+#define HNS_ROCE_PCI_BAR_NUM			2
 
 #define HNS_ROCE_IDX_QUE_ENTRY_SZ		4
 #define SRQ_DB_REG				0x230
@@ -212,6 +226,9 @@ enum hns_roce_mtt_type {
 	MTT_TYPE_SRQWQE,
 	MTT_TYPE_IDX
 };
+
+#define HNS_ROCE_DB_TYPE_COUNT			2
+#define HNS_ROCE_DB_UNIT_SIZE			4
 
 enum {
 	HNS_ROCE_DB_PER_PAGE = PAGE_SIZE / 4
@@ -413,8 +430,8 @@ struct hns_roce_buf {
 struct hns_roce_db_pgdir {
 	struct list_head	list;
 	DECLARE_BITMAP(order0, HNS_ROCE_DB_PER_PAGE);
-	DECLARE_BITMAP(order1, HNS_ROCE_DB_PER_PAGE / 2);
-	unsigned long		*bits[2];
+	DECLARE_BITMAP(order1, HNS_ROCE_DB_PER_PAGE / HNS_ROCE_DB_TYPE_COUNT);
+	unsigned long		*bits[HNS_ROCE_DB_TYPE_COUNT];
 	u32			*page;
 	dma_addr_t		db_dma;
 };
@@ -535,7 +552,7 @@ struct hns_roce_av {
 	u8          hop_limit;
 	__le32      sl_tclass_flowlabel;
 	u8          dgid[HNS_ROCE_GID_SIZE];
-	u8          mac[6];
+	u8          mac[ETH_ALEN];
 	__le16      vlan;
 	bool	    vlan_en;
 };
@@ -939,6 +956,16 @@ struct hns_roce_hw {
 	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
 
+enum hns_phy_state {
+	HNS_ROCE_PHY_SLEEP		= 1,
+	HNS_ROCE_PHY_POLLING		= 2,
+	HNS_ROCE_PHY_DISABLED		= 3,
+	HNS_ROCE_PHY_TRAINING		= 4,
+	HNS_ROCE_PHY_LINKUP		= 5,
+	HNS_ROCE_PHY_LINKERR		= 6,
+	HNS_ROCE_PHY_TEST		= 7
+};
+
 struct hns_roce_dev {
 	struct ib_device	ib_dev;
 	struct platform_device  *pdev;
@@ -961,7 +988,7 @@ struct hns_roce_dev {
 	struct hns_roce_caps	caps;
 	struct xarray		qp_table_xa;
 
-	unsigned char	dev_addr[HNS_ROCE_MAX_PORTS][MAC_ADDR_OCTET_NUM];
+	unsigned char	dev_addr[HNS_ROCE_MAX_PORTS][ETH_ALEN];
 	u64			sys_image_guid;
 	u32                     vendor_id;
 	u32                     vendor_part_id;

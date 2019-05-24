@@ -314,11 +314,11 @@ static void hns_roce_loop_free(struct hns_roce_dev *hr_dev,
 			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
 					  mr->pbl_l1_dma_addr[i]);
 
-			for (j = 0; j < pbl_bt_sz / 8; j++) {
+			for (j = 0; j < pbl_bt_sz / BA_BYTE_LEN; j++) {
 				if (i == loop_i && j >= loop_j)
 					break;
 
-				bt_idx = i * pbl_bt_sz / 8 + j;
+				bt_idx = i * pbl_bt_sz / BA_BYTE_LEN + j;
 				dma_free_coherent(dev, pbl_bt_sz,
 						  mr->pbl_bt_l2[bt_idx],
 						  mr->pbl_l2_dma_addr[bt_idx]);
@@ -329,8 +329,8 @@ static void hns_roce_loop_free(struct hns_roce_dev *hr_dev,
 			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
 					  mr->pbl_l1_dma_addr[i]);
 
-			for (j = 0; j < pbl_bt_sz / 8; j++) {
-				bt_idx = i * pbl_bt_sz / 8 + j;
+			for (j = 0; j < pbl_bt_sz / BA_BYTE_LEN; j++) {
+				bt_idx = i * pbl_bt_sz / BA_BYTE_LEN + j;
 				dma_free_coherent(dev, pbl_bt_sz,
 						  mr->pbl_bt_l2[bt_idx],
 						  mr->pbl_l2_dma_addr[bt_idx]);
@@ -533,7 +533,7 @@ static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
 {
 	struct device *dev = hr_dev->dev;
 	unsigned long index = 0;
-	int ret = 0;
+	int ret;
 
 	/* Allocate a key for mr from mr_table */
 	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
@@ -559,7 +559,8 @@ static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
 		mr->pbl_l0_dma_addr = 0;
 	} else {
 		if (!hr_dev->caps.pbl_hop_num) {
-			mr->pbl_buf = dma_alloc_coherent(dev, npages * 8,
+			mr->pbl_buf = dma_alloc_coherent(dev,
+							 npages * BA_BYTE_LEN,
 							 &(mr->pbl_dma_addr),
 							 GFP_KERNEL);
 			if (!mr->pbl_buf)
@@ -590,9 +591,8 @@ static void hns_roce_mhop_free(struct hns_roce_dev *hr_dev,
 	if (mhop_num == HNS_ROCE_HOP_NUM_0)
 		return;
 
-	/* hop_num = 1 */
 	if (mhop_num == 1) {
-		dma_free_coherent(dev, (unsigned int)(npages * 8),
+		dma_free_coherent(dev, (unsigned int)(npages * BA_BYTE_LEN),
 				  mr->pbl_buf, mr->pbl_dma_addr);
 		return;
 	}
@@ -603,12 +603,13 @@ static void hns_roce_mhop_free(struct hns_roce_dev *hr_dev,
 	if (mhop_num == 2) {
 		for (i = 0; i < mr->l0_chunk_last_num; i++) {
 			if (i == mr->l0_chunk_last_num - 1) {
-				npages_allocated = i * (pbl_bt_sz / 8);
+				npages_allocated =
+						i * (pbl_bt_sz / BA_BYTE_LEN);
 
 				dma_free_coherent(dev,
-					      (npages - npages_allocated) * 8,
-					      mr->pbl_bt_l1[i],
-					      mr->pbl_l1_dma_addr[i]);
+				      (npages - npages_allocated) * BA_BYTE_LEN,
+				       mr->pbl_bt_l1[i],
+				       mr->pbl_l1_dma_addr[i]);
 
 				break;
 			}
@@ -621,16 +622,17 @@ static void hns_roce_mhop_free(struct hns_roce_dev *hr_dev,
 			dma_free_coherent(dev, pbl_bt_sz, mr->pbl_bt_l1[i],
 					  mr->pbl_l1_dma_addr[i]);
 
-			for (j = 0; j < pbl_bt_sz / 8; j++) {
-				bt_idx = i * (pbl_bt_sz / 8) + j;
+			for (j = 0; j < pbl_bt_sz / BA_BYTE_LEN; j++) {
+				bt_idx = i * (pbl_bt_sz / BA_BYTE_LEN) + j;
 
 				if ((i == mr->l0_chunk_last_num - 1)
 				    && j == mr->l1_chunk_last_num - 1) {
 					npages_allocated = bt_idx *
-							   (pbl_bt_sz / 8);
+						      (pbl_bt_sz / BA_BYTE_LEN);
 
 					dma_free_coherent(dev,
-					      (npages - npages_allocated) * 8,
+					      (npages - npages_allocated) *
+					      BA_BYTE_LEN,
 					      mr->pbl_bt_l2[bt_idx],
 					      mr->pbl_l2_dma_addr[bt_idx]);
 
@@ -675,7 +677,8 @@ static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 			npages = ib_umem_page_count(mr->umem);
 
 		if (!hr_dev->caps.pbl_hop_num)
-			dma_free_coherent(dev, (unsigned int)(npages * 8),
+			dma_free_coherent(dev,
+					  (unsigned int)(npages * BA_BYTE_LEN),
 					  mr->pbl_buf, mr->pbl_dma_addr);
 		else
 			hns_roce_mhop_free(hr_dev, mr);
@@ -1070,6 +1073,7 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 				    (k << umem->page_shift);
 
 			if (!hr_dev->caps.pbl_hop_num) {
+				/* for hip06, page addr is aligned to 4K */
 				mr->pbl_buf[i++] = page_addr >> 12;
 			} else if (hr_dev->caps.pbl_hop_num == 1) {
 				mr->pbl_buf[i++] = page_addr;
@@ -1080,7 +1084,7 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 					mr->pbl_bt_l2[i][j] = page_addr;
 
 				j++;
-				if (j >= (pbl_bt_sz / 8)) {
+				if (j >= (pbl_bt_sz / BA_BYTE_LEN)) {
 					i++;
 					j = 0;
 				}
@@ -1130,7 +1134,8 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	} else {
 		u64 pbl_size = 1;
 
-		bt_size = (1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT)) / 8;
+		bt_size = (1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT)) /
+			  BA_BYTE_LEN;
 		for (i = 0; i < hr_dev->caps.pbl_hop_num; i++)
 			pbl_size *= bt_size;
 		if (n > pbl_size) {

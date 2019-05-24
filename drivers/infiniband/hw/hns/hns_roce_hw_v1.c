@@ -813,7 +813,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 		attr.dest_qp_num	= hr_qp->qpn;
 		memcpy(rdma_ah_retrieve_dmac(&attr.ah_attr),
 		       hr_dev->dev_addr[port],
-		       MAC_ADDR_OCTET_NUM);
+		       ETH_ALEN);
 
 		memcpy(&dgid.raw, &subnet_prefix, sizeof(u64));
 		memcpy(&dgid.raw[8], hr_dev->dev_addr[port], 3);

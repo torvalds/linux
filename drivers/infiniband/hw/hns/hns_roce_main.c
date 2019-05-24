@@ -64,10 +64,10 @@ static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 	u8 phy_port;
 	u32 i = 0;
 
-	if (!memcmp(hr_dev->dev_addr[port], addr, MAC_ADDR_OCTET_NUM))
+	if (!memcmp(hr_dev->dev_addr[port], addr, ETH_ALEN))
 		return 0;
 
-	for (i = 0; i < MAC_ADDR_OCTET_NUM; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		hr_dev->dev_addr[port][i] = addr[i];
 
 	phy_port = hr_dev->iboe.phy_port[port];
@@ -281,7 +281,8 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 	props->active_mtu = mtu ? min(props->max_mtu, mtu) : IB_MTU_256;
 	props->state = (netif_running(net_dev) && netif_carrier_ok(net_dev)) ?
 			IB_PORT_ACTIVE : IB_PORT_DOWN;
-	props->phys_state = (props->state == IB_PORT_ACTIVE) ? 5 : 3;
+	props->phys_state = (props->state == IB_PORT_ACTIVE) ?
+			     HNS_ROCE_PHY_LINKUP : HNS_ROCE_PHY_DISABLED;
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
