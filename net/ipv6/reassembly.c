@@ -401,23 +401,18 @@ static const struct inet6_protocol frag_protocol = {
 static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{
 		.procname	= "ip6frag_high_thresh",
-		.data		= &init_net.ipv6.fqdir.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.ipv6.fqdir.low_thresh
 	},
 	{
 		.procname	= "ip6frag_low_thresh",
-		.data		= &init_net.ipv6.fqdir.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.ipv6.fqdir.high_thresh
 	},
 	{
 		.procname	= "ip6frag_time",
-		.data		= &init_net.ipv6.fqdir.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -449,12 +444,12 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 		if (!table)
 			goto err_alloc;
 
-		table[0].data = &net->ipv6.fqdir.high_thresh;
-		table[0].extra1 = &net->ipv6.fqdir.low_thresh;
-		table[1].data = &net->ipv6.fqdir.low_thresh;
-		table[1].extra2 = &net->ipv6.fqdir.high_thresh;
-		table[2].data = &net->ipv6.fqdir.timeout;
 	}
+	table[0].data	= &net->ipv6.fqdir.high_thresh;
+	table[0].extra1	= &net->ipv6.fqdir.low_thresh;
+	table[1].data	= &net->ipv6.fqdir.low_thresh;
+	table[1].extra2	= &net->ipv6.fqdir.high_thresh;
+	table[2].data	= &net->ipv6.fqdir.timeout;
 
 	hdr = register_net_sysctl(net, "net/ipv6", table);
 	if (!hdr)
