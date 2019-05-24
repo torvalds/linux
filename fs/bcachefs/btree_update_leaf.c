@@ -620,11 +620,12 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		    !update_triggers_transactional(trans, i))
 			bch2_mark_update(trans, i, &fs_usage->u, 0);
 
-	if (fs_usage && trans->fs_usage_deltas) {
+	if (fs_usage && trans->fs_usage_deltas)
 		bch2_replicas_delta_list_apply(c, &fs_usage->u,
 					       trans->fs_usage_deltas);
+
+	if (fs_usage)
 		bch2_trans_fs_usage_apply(trans, fs_usage);
-	}
 
 	if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
 	    unlikely(c->gc_pos.phase))
