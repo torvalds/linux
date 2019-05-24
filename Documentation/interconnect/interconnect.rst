@@ -89,6 +89,5 @@ Interconnect consumers
 
 Interconnect consumers are the clients which use the interconnect APIs to
 get paths between endpoints and set their bandwidth/latency/QoS requirements
-for these interconnect paths.
-
-.. kernel-doc:: include/linux/interconnect.h
+for these interconnect paths.  These interfaces are not currently
+documented.
