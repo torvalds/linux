@@ -626,6 +626,7 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		return true;
 	case CHIP_RAVEN:
+		return (adev->pdev->device == 0x15d8);
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	default:
@@ -812,8 +813,16 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	int chansize, numchan;
 	int r;
 
-	if (amdgpu_emu_mode != 1)
+	if (amdgpu_sriov_vf(adev)) {
+		/* For Vega10 SR-IOV, vram_width can't be read from ATOM as RAVEN,
+		 * and DF related registers is not readable, seems hardcord is the
+		 * only way to set the correct vram_width
+		 */
+		adev->gmc.vram_width = 2048;
+	} else if (amdgpu_emu_mode != 1) {
 		adev->gmc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
+	}
+
 	if (!adev->gmc.vram_width) {
 		/* hbm memory channel size */
 		if (adev->flags & AMD_IS_APU)
