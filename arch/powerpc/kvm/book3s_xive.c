@@ -271,14 +271,14 @@ static int xive_provision_queue(struct kvm_vcpu *vcpu, u8 prio)
 	return rc;
 }
 
-/* Called with kvm_lock held */
+/* Called with xive->lock held */
 static int xive_check_provisioning(struct kvm *kvm, u8 prio)
 {
 	struct kvmppc_xive *xive = kvm->arch.xive;
 	struct kvm_vcpu *vcpu;
 	int i, rc;
 
-	lockdep_assert_held(&kvm->lock);
+	lockdep_assert_held(&xive->lock);
 
 	/* Already provisioned ? */
 	if (xive->qmap & (1 << prio))
@@ -621,9 +621,12 @@ int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
 		 irq, server, priority);
 
 	/* First, check provisioning of queues */
-	if (priority != MASKED)
+	if (priority != MASKED) {
+		mutex_lock(&xive->lock);
 		rc = xive_check_provisioning(xive->kvm,
 			      xive_prio_from_guest(priority));
+		mutex_unlock(&xive->lock);
+	}
 	if (rc) {
 		pr_devel("  provisioning failure %d !\n", rc);
 		return rc;
@@ -1199,7 +1202,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		return -ENOMEM;
 
 	/* We need to synchronize with queue provisioning */
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&xive->lock);
 	vcpu->arch.xive_vcpu = xc;
 	xc->xive = xive;
 	xc->vcpu = vcpu;
@@ -1283,7 +1286,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		xive_vm_esb_load(&xc->vp_ipi_data, XIVE_ESB_SET_PQ_00);
 
 bail:
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&xive->lock);
 	if (r) {
 		kvmppc_xive_cleanup_vcpu(vcpu);
 		return r;
@@ -1527,13 +1530,12 @@ static int xive_get_source(struct kvmppc_xive *xive, long irq, u64 addr)
 struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 	struct kvmppc_xive *xive, int irq)
 {
-	struct kvm *kvm = xive->kvm;
 	struct kvmppc_xive_src_block *sb;
 	int i, bid;
 
 	bid = irq >> KVMPPC_XICS_ICS_SHIFT;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&xive->lock);
 
 	/* block already exists - somebody else got here first */
 	if (xive->src_blocks[bid])
@@ -1560,7 +1562,7 @@ struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 		xive->max_sbid = bid;
 
 out:
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&xive->lock);
 	return xive->src_blocks[bid];
 }
 
@@ -1670,9 +1672,9 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	/* If we have a priority target the interrupt */
 	if (act_prio != MASKED) {
 		/* First, check provisioning of queues */
-		mutex_lock(&xive->kvm->lock);
+		mutex_lock(&xive->lock);
 		rc = xive_check_provisioning(xive->kvm, act_prio);
-		mutex_unlock(&xive->kvm->lock);
+		mutex_unlock(&xive->lock);
 
 		/* Target interrupt */
 		if (rc == 0)
@@ -1963,6 +1965,7 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 	dev->private = xive;
 	xive->dev = dev;
 	xive->kvm = kvm;
+	mutex_init(&xive->lock);
 
 	/* Already there ? */
 	if (kvm->arch.xive)

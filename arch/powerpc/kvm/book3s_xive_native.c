@@ -114,7 +114,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&xive->lock);
 
 	if (kvmppc_xive_find_server(vcpu->kvm, server_num)) {
 		pr_devel("Duplicate !\n");
@@ -159,7 +159,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 
 	/* TODO: reset all queues to a clean state ? */
 bail:
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&xive->lock);
 	if (rc)
 		kvmppc_xive_native_cleanup_vcpu(vcpu);
 
@@ -772,7 +772,7 @@ static int kvmppc_xive_reset(struct kvmppc_xive *xive)
 
 	pr_devel("%s\n", __func__);
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&xive->lock);
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
@@ -810,7 +810,7 @@ static int kvmppc_xive_reset(struct kvmppc_xive *xive)
 		}
 	}
 
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&xive->lock);
 
 	return 0;
 }
@@ -878,7 +878,7 @@ static int kvmppc_xive_native_eq_sync(struct kvmppc_xive *xive)
 
 	pr_devel("%s\n", __func__);
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&xive->lock);
 	for (i = 0; i <= xive->max_sbid; i++) {
 		struct kvmppc_xive_src_block *sb = xive->src_blocks[i];
 
@@ -892,7 +892,7 @@ static int kvmppc_xive_native_eq_sync(struct kvmppc_xive *xive)
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		kvmppc_xive_native_vcpu_eq_sync(vcpu);
 	}
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&xive->lock);
 
 	return 0;
 }
@@ -965,7 +965,7 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 }
 
 /*
- * Called when device fd is closed
+ * Called when device fd is closed.  kvm->lock is held.
  */
 static void kvmppc_xive_native_release(struct kvm_device *dev)
 {
@@ -1064,6 +1064,7 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 	xive->kvm = kvm;
 	kvm->arch.xive = xive;
 	mutex_init(&xive->mapping_lock);
+	mutex_init(&xive->lock);
 
 	/*
 	 * Allocate a bunch of VPs. KVM_MAX_VCPUS is a large value for
