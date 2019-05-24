@@ -115,8 +115,6 @@ static int __init imx8_soc_init(void)
 	if (!id)
 		goto free_soc;
 
-	of_node_put(root);
-
 	data = id->data;
 	if (data) {
 		soc_dev_attr->soc_id = data->name;
@@ -131,6 +129,8 @@ static int __init imx8_soc_init(void)
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev))
 		goto free_rev;
+
+	of_node_put(root);
 
 	return 0;
 
