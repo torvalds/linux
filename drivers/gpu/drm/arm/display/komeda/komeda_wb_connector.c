@@ -13,11 +13,7 @@ komeda_wb_init_data_flow(struct komeda_layer *wb_layer,
 			 struct komeda_crtc_state *kcrtc_st,
 			 struct komeda_data_flow_cfg *dflow)
 {
-	struct drm_framebuffer *fb = conn_st->writeback_job ?
-				     conn_st->writeback_job->fb : NULL;
-
-	if (!fb)
-		return -EINVAL;
+	struct drm_framebuffer *fb = conn_st->writeback_job->fb;
 
 	memset(dflow, 0, sizeof(*dflow));
 
@@ -42,9 +38,14 @@ komeda_wb_encoder_atomic_check(struct drm_encoder *encoder,
 			       struct drm_connector_state *conn_st)
 {
 	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc_st);
+	struct drm_writeback_job *writeback_job = conn_st->writeback_job;
 	struct komeda_layer *wb_layer;
 	struct komeda_data_flow_cfg dflow;
 	int err;
+
+	if (!writeback_job || !writeback_job->fb) {
+		return 0;
+	}
 
 	if (!crtc_st->active) {
 		DRM_DEBUG_ATOMIC("Cannot write the composition result out on a inactive CRTC.\n");
