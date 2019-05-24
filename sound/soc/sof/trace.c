@@ -13,10 +13,9 @@
 #include "sof-priv.h"
 #include "ops.h"
 
-static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
-				   loff_t pos, size_t buffer_size)
+static size_t sof_trace_avail(struct snd_sof_dev *sdev,
+			      loff_t pos, size_t buffer_size)
 {
-	wait_queue_entry_t wait;
 	loff_t host_offset = READ_ONCE(sdev->host_offset);
 
 	/*
@@ -31,6 +30,19 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 	if (host_offset > pos)
 		return host_offset - pos;
 
+	return 0;
+}
+
+static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
+				   loff_t pos, size_t buffer_size)
+{
+	wait_queue_entry_t wait;
+	size_t ret = sof_trace_avail(sdev, pos, buffer_size);
+
+	/* data immediately available */
+	if (ret)
+		return ret;
+
 	/* wait for available trace data from FW */
 	init_waitqueue_entry(&wait, current);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -42,12 +54,7 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 	}
 	remove_wait_queue(&sdev->trace_sleep, &wait);
 
-	/* return bytes available for copy */
-	host_offset = READ_ONCE(sdev->host_offset);
-	if (host_offset < pos)
-		return buffer_size - pos;
-
-	return host_offset - pos;
+	return sof_trace_avail(sdev, pos, buffer_size);
 }
 
 static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
