@@ -78,6 +78,7 @@ struct cs_etm_queue {
 	struct cs_etm_packet *packet;
 	const unsigned char *buf;
 	size_t buf_len, buf_used;
+	struct cs_etm_packet_queue packet_queue;
 };
 
 static int cs_etm__update_queues(struct cs_etm_auxtrace *etm);
@@ -123,6 +124,36 @@ int cs_etm__get_cpu(u8 trace_chan_id, int *cpu)
 	metadata = inode->priv;
 	*cpu = (int)metadata[CS_ETM_CPU];
 	return 0;
+}
+
+static void cs_etm__clear_packet_queue(struct cs_etm_packet_queue *queue)
+{
+	int i;
+
+	queue->head = 0;
+	queue->tail = 0;
+	queue->packet_count = 0;
+	for (i = 0; i < CS_ETM_PACKET_MAX_BUFFER; i++) {
+		queue->packet_buffer[i].isa = CS_ETM_ISA_UNKNOWN;
+		queue->packet_buffer[i].start_addr = CS_ETM_INVAL_ADDR;
+		queue->packet_buffer[i].end_addr = CS_ETM_INVAL_ADDR;
+		queue->packet_buffer[i].instr_count = 0;
+		queue->packet_buffer[i].last_instr_taken_branch = false;
+		queue->packet_buffer[i].last_instr_size = 0;
+		queue->packet_buffer[i].last_instr_type = 0;
+		queue->packet_buffer[i].last_instr_subtype = 0;
+		queue->packet_buffer[i].last_instr_cond = 0;
+		queue->packet_buffer[i].flags = 0;
+		queue->packet_buffer[i].exception_number = UINT32_MAX;
+		queue->packet_buffer[i].trace_chan_id = UINT8_MAX;
+		queue->packet_buffer[i].cpu = INT_MIN;
+	}
+}
+
+struct cs_etm_packet_queue
+*cs_etm__etmq_get_packet_queue(struct cs_etm_queue *etmq)
+{
+	return &etmq->packet_queue;
 }
 
 static void cs_etm__packet_dump(const char *pkt_string)
@@ -513,6 +544,7 @@ static int cs_etm__setup_queue(struct cs_etm_auxtrace *etm,
 	etmq->pid = -1;
 	etmq->offset = 0;
 	etmq->period_instructions = 0;
+	cs_etm__clear_packet_queue(&etmq->packet_queue);
 
 out:
 	return ret;
@@ -1542,10 +1574,13 @@ out:
 static int cs_etm__process_decoder_queue(struct cs_etm_queue *etmq)
 {
 	int ret;
+	struct cs_etm_packet_queue *packet_queue;
+
+	packet_queue = cs_etm__etmq_get_packet_queue(etmq);
 
 		/* Process each packet in this chunk */
 		while (1) {
-			ret = cs_etm_decoder__get_packet(etmq->decoder,
+			ret = cs_etm_decoder__get_packet(packet_queue,
 							 etmq->packet);
 			if (ret <= 0)
 				/*

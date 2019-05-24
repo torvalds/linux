@@ -18,8 +18,6 @@
 #include "intlist.h"
 #include "util.h"
 
-#define MAX_BUFFER 1024
-
 /* use raw logging */
 #ifdef CS_DEBUG_RAW
 #define CS_LOG_RAW_FRAMES
@@ -31,18 +29,12 @@
 #endif
 #endif
 
-#define CS_ETM_INVAL_ADDR	0xdeadbeefdeadbeefUL
-
 struct cs_etm_decoder {
 	void *data;
 	void (*packet_printer)(const char *msg);
 	dcd_tree_handle_t dcd_tree;
 	cs_etm_mem_cb_type mem_access;
 	ocsd_datapath_resp_t prev_return;
-	u32 packet_count;
-	u32 head;
-	u32 tail;
-	struct cs_etm_packet packet_buffer[MAX_BUFFER];
 };
 
 static u32
@@ -88,14 +80,14 @@ int cs_etm_decoder__reset(struct cs_etm_decoder *decoder)
 	return 0;
 }
 
-int cs_etm_decoder__get_packet(struct cs_etm_decoder *decoder,
+int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 			       struct cs_etm_packet *packet)
 {
-	if (!decoder || !packet)
+	if (!packet_queue || !packet)
 		return -EINVAL;
 
 	/* Nothing to do, might as well just return */
-	if (decoder->packet_count == 0)
+	if (packet_queue->packet_count == 0)
 		return 0;
 	/*
 	 * The queueing process in function cs_etm_decoder__buffer_packet()
@@ -106,11 +98,12 @@ int cs_etm_decoder__get_packet(struct cs_etm_decoder *decoder,
 	 * value.  Otherwise the first element of the packet queue is not
 	 * used.
 	 */
-	decoder->head = (decoder->head + 1) & (MAX_BUFFER - 1);
+	packet_queue->head = (packet_queue->head + 1) &
+			     (CS_ETM_PACKET_MAX_BUFFER - 1);
 
-	*packet = decoder->packet_buffer[decoder->head];
+	*packet = packet_queue->packet_buffer[packet_queue->head];
 
-	decoder->packet_count--;
+	packet_queue->packet_count--;
 
 	return 1;
 }
@@ -276,84 +269,60 @@ cs_etm_decoder__create_etm_packet_printer(struct cs_etm_trace_params *t_params,
 						     trace_config);
 }
 
-static void cs_etm_decoder__clear_buffer(struct cs_etm_decoder *decoder)
-{
-	int i;
-
-	decoder->head = 0;
-	decoder->tail = 0;
-	decoder->packet_count = 0;
-	for (i = 0; i < MAX_BUFFER; i++) {
-		decoder->packet_buffer[i].isa = CS_ETM_ISA_UNKNOWN;
-		decoder->packet_buffer[i].start_addr = CS_ETM_INVAL_ADDR;
-		decoder->packet_buffer[i].end_addr = CS_ETM_INVAL_ADDR;
-		decoder->packet_buffer[i].instr_count = 0;
-		decoder->packet_buffer[i].last_instr_taken_branch = false;
-		decoder->packet_buffer[i].last_instr_size = 0;
-		decoder->packet_buffer[i].last_instr_type = 0;
-		decoder->packet_buffer[i].last_instr_subtype = 0;
-		decoder->packet_buffer[i].last_instr_cond = 0;
-		decoder->packet_buffer[i].flags = 0;
-		decoder->packet_buffer[i].exception_number = UINT32_MAX;
-		decoder->packet_buffer[i].trace_chan_id = UINT8_MAX;
-		decoder->packet_buffer[i].cpu = INT_MIN;
-	}
-}
-
 static ocsd_datapath_resp_t
-cs_etm_decoder__buffer_packet(struct cs_etm_decoder *decoder,
+cs_etm_decoder__buffer_packet(struct cs_etm_packet_queue *packet_queue,
 			      const u8 trace_chan_id,
 			      enum cs_etm_sample_type sample_type)
 {
 	u32 et = 0;
 	int cpu;
 
-	if (decoder->packet_count >= MAX_BUFFER - 1)
+	if (packet_queue->packet_count >= CS_ETM_PACKET_MAX_BUFFER - 1)
 		return OCSD_RESP_FATAL_SYS_ERR;
 
 	if (cs_etm__get_cpu(trace_chan_id, &cpu) < 0)
 		return OCSD_RESP_FATAL_SYS_ERR;
 
-	et = decoder->tail;
-	et = (et + 1) & (MAX_BUFFER - 1);
-	decoder->tail = et;
-	decoder->packet_count++;
+	et = packet_queue->tail;
+	et = (et + 1) & (CS_ETM_PACKET_MAX_BUFFER - 1);
+	packet_queue->tail = et;
+	packet_queue->packet_count++;
 
-	decoder->packet_buffer[et].sample_type = sample_type;
-	decoder->packet_buffer[et].isa = CS_ETM_ISA_UNKNOWN;
-	decoder->packet_buffer[et].cpu = cpu;
-	decoder->packet_buffer[et].start_addr = CS_ETM_INVAL_ADDR;
-	decoder->packet_buffer[et].end_addr = CS_ETM_INVAL_ADDR;
-	decoder->packet_buffer[et].instr_count = 0;
-	decoder->packet_buffer[et].last_instr_taken_branch = false;
-	decoder->packet_buffer[et].last_instr_size = 0;
-	decoder->packet_buffer[et].last_instr_type = 0;
-	decoder->packet_buffer[et].last_instr_subtype = 0;
-	decoder->packet_buffer[et].last_instr_cond = 0;
-	decoder->packet_buffer[et].flags = 0;
-	decoder->packet_buffer[et].exception_number = UINT32_MAX;
-	decoder->packet_buffer[et].trace_chan_id = trace_chan_id;
+	packet_queue->packet_buffer[et].sample_type = sample_type;
+	packet_queue->packet_buffer[et].isa = CS_ETM_ISA_UNKNOWN;
+	packet_queue->packet_buffer[et].cpu = cpu;
+	packet_queue->packet_buffer[et].start_addr = CS_ETM_INVAL_ADDR;
+	packet_queue->packet_buffer[et].end_addr = CS_ETM_INVAL_ADDR;
+	packet_queue->packet_buffer[et].instr_count = 0;
+	packet_queue->packet_buffer[et].last_instr_taken_branch = false;
+	packet_queue->packet_buffer[et].last_instr_size = 0;
+	packet_queue->packet_buffer[et].last_instr_type = 0;
+	packet_queue->packet_buffer[et].last_instr_subtype = 0;
+	packet_queue->packet_buffer[et].last_instr_cond = 0;
+	packet_queue->packet_buffer[et].flags = 0;
+	packet_queue->packet_buffer[et].exception_number = UINT32_MAX;
+	packet_queue->packet_buffer[et].trace_chan_id = trace_chan_id;
 
-	if (decoder->packet_count == MAX_BUFFER - 1)
+	if (packet_queue->packet_count == CS_ETM_PACKET_MAX_BUFFER - 1)
 		return OCSD_RESP_WAIT;
 
 	return OCSD_RESP_CONT;
 }
 
 static ocsd_datapath_resp_t
-cs_etm_decoder__buffer_range(struct cs_etm_decoder *decoder,
+cs_etm_decoder__buffer_range(struct cs_etm_packet_queue *packet_queue,
 			     const ocsd_generic_trace_elem *elem,
 			     const uint8_t trace_chan_id)
 {
 	int ret = 0;
 	struct cs_etm_packet *packet;
 
-	ret = cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+	ret = cs_etm_decoder__buffer_packet(packet_queue, trace_chan_id,
 					    CS_ETM_RANGE);
 	if (ret != OCSD_RESP_CONT && ret != OCSD_RESP_WAIT)
 		return ret;
 
-	packet = &decoder->packet_buffer[decoder->tail];
+	packet = &packet_queue->packet_buffer[packet_queue->tail];
 
 	switch (elem->isa) {
 	case ocsd_isa_aarch64:
@@ -400,36 +369,36 @@ cs_etm_decoder__buffer_range(struct cs_etm_decoder *decoder,
 }
 
 static ocsd_datapath_resp_t
-cs_etm_decoder__buffer_discontinuity(struct cs_etm_decoder *decoder,
-					   const uint8_t trace_chan_id)
+cs_etm_decoder__buffer_discontinuity(struct cs_etm_packet_queue *queue,
+				     const uint8_t trace_chan_id)
 {
-	return cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+	return cs_etm_decoder__buffer_packet(queue, trace_chan_id,
 					     CS_ETM_DISCONTINUITY);
 }
 
 static ocsd_datapath_resp_t
-cs_etm_decoder__buffer_exception(struct cs_etm_decoder *decoder,
+cs_etm_decoder__buffer_exception(struct cs_etm_packet_queue *queue,
 				 const ocsd_generic_trace_elem *elem,
 				 const uint8_t trace_chan_id)
 {	int ret = 0;
 	struct cs_etm_packet *packet;
 
-	ret = cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+	ret = cs_etm_decoder__buffer_packet(queue, trace_chan_id,
 					    CS_ETM_EXCEPTION);
 	if (ret != OCSD_RESP_CONT && ret != OCSD_RESP_WAIT)
 		return ret;
 
-	packet = &decoder->packet_buffer[decoder->tail];
+	packet = &queue->packet_buffer[queue->tail];
 	packet->exception_number = elem->exception_number;
 
 	return ret;
 }
 
 static ocsd_datapath_resp_t
-cs_etm_decoder__buffer_exception_ret(struct cs_etm_decoder *decoder,
+cs_etm_decoder__buffer_exception_ret(struct cs_etm_packet_queue *queue,
 				     const uint8_t trace_chan_id)
 {
-	return cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+	return cs_etm_decoder__buffer_packet(queue, trace_chan_id,
 					     CS_ETM_EXCEPTION_RET);
 }
 
@@ -441,6 +410,13 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 {
 	ocsd_datapath_resp_t resp = OCSD_RESP_CONT;
 	struct cs_etm_decoder *decoder = (struct cs_etm_decoder *) context;
+	struct cs_etm_queue *etmq = decoder->data;
+	struct cs_etm_packet_queue *packet_queue;
+
+	/* First get the packet queue */
+	packet_queue = cs_etm__etmq_get_packet_queue(etmq);
+	if (!packet_queue)
+		return OCSD_RESP_FATAL_SYS_ERR;
 
 	switch (elem->elem_type) {
 	case OCSD_GEN_TRC_ELEM_UNKNOWN:
@@ -448,19 +424,19 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 	case OCSD_GEN_TRC_ELEM_EO_TRACE:
 	case OCSD_GEN_TRC_ELEM_NO_SYNC:
 	case OCSD_GEN_TRC_ELEM_TRACE_ON:
-		resp = cs_etm_decoder__buffer_discontinuity(decoder,
+		resp = cs_etm_decoder__buffer_discontinuity(packet_queue,
 							    trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_INSTR_RANGE:
-		resp = cs_etm_decoder__buffer_range(decoder, elem,
+		resp = cs_etm_decoder__buffer_range(packet_queue, elem,
 						    trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_EXCEPTION:
-		resp = cs_etm_decoder__buffer_exception(decoder, elem,
+		resp = cs_etm_decoder__buffer_exception(packet_queue, elem,
 							trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_EXCEPTION_RET:
-		resp = cs_etm_decoder__buffer_exception_ret(decoder,
+		resp = cs_etm_decoder__buffer_exception_ret(packet_queue,
 							    trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_PE_CONTEXT:
@@ -554,7 +530,6 @@ cs_etm_decoder__new(int num_cpu, struct cs_etm_decoder_params *d_params,
 
 	decoder->data = d_params->data;
 	decoder->prev_return = OCSD_RESP_CONT;
-	cs_etm_decoder__clear_buffer(decoder);
 	format = (d_params->formatted ? OCSD_TRC_SRC_FRAME_FORMATTED :
 					 OCSD_TRC_SRC_SINGLE);
 	flags = 0;
