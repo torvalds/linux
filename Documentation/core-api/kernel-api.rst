@@ -358,8 +358,6 @@ Read-Copy Update (RCU)
 
 .. kernel-doc:: kernel/rcu/tree.c
 
-.. kernel-doc:: kernel/rcu/tree_plugin.h
-
 .. kernel-doc:: kernel/rcu/tree_exp.h
 
 .. kernel-doc:: kernel/rcu/update.c
