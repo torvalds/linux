@@ -3753,7 +3753,7 @@ static int rtw_set_beacon(struct net_device *dev, struct ieee_param *param, int 
 
 }
 
-static int rtw_hostapd_sta_flush(struct net_device *dev)
+static void rtw_hostapd_sta_flush(struct net_device *dev)
 {
 	/* _irqL irqL; */
 	/* struct list_head	*phead, *plist; */
@@ -3765,8 +3765,7 @@ static int rtw_hostapd_sta_flush(struct net_device *dev)
 
 	flush_all_cam_entry(padapter);	/* clear CAM */
 
-	return rtw_sta_flush(padapter);
-
+	rtw_sta_flush(padapter);
 }
 
 static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
@@ -4253,7 +4252,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	switch (param->cmd) {
 	case RTL871X_HOSTAPD_FLUSH:
 
-		ret = rtw_hostapd_sta_flush(dev);
+		rtw_hostapd_sta_flush(dev);
 
 		break;
 
