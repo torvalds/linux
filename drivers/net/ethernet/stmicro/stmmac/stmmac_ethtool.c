@@ -589,6 +589,8 @@ static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 		}
 
 		return len;
+	case ETH_SS_TEST:
+		return stmmac_selftest_get_count(priv);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -624,6 +626,9 @@ static void stmmac_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 				ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+		break;
+	case ETH_SS_TEST:
+		stmmac_selftest_get_strings(priv, p);
 		break;
 	default:
 		WARN_ON(1);
@@ -890,6 +895,7 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.nway_reset = phy_ethtool_nway_reset,
 	.get_pauseparam = stmmac_get_pauseparam,
 	.set_pauseparam = stmmac_set_pauseparam,
+	.self_test = stmmac_selftest_run,
 	.get_ethtool_stats = stmmac_get_ethtool_stats,
 	.get_strings = stmmac_get_strings,
 	.get_wol = stmmac_get_wol,
