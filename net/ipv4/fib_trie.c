@@ -1961,7 +1961,6 @@ static void __fib_info_notify_update(struct net *net, struct fib_table *tb,
 			if (IS_TRIE(pn))
 				break;
 
-			n = pn;
 			pn = node_parent(pn);
 			cindex = get_index(pkey, pn);
 			continue;
