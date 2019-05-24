@@ -578,6 +578,15 @@ static const struct key_info tuple_key_info[] = {
 #define MAX_KEY_BYTES	(MAX_KEY_DWORDS * 4)
 #define MAX_META_DATA_LENGTH	32
 
+/* assigned by firmware, the real filter number for each pf may be less */
+#define MAX_FD_FILTER_NUM	4096
+
+enum HCLGE_FD_ACTIVE_RULE_TYPE {
+	HCLGE_FD_RULE_NONE,
+	HCLGE_FD_ARFS_ACTIVE,
+	HCLGE_FD_EP_ACTIVE,
+};
+
 enum HCLGE_FD_PACKET_TYPE {
 	NIC_PACKET,
 	ROCE_PACKET,
@@ -630,6 +639,7 @@ struct hclge_fd_rule {
 	u16 vf_id;
 	u16 queue_id;
 	u16 location;
+	enum HCLGE_FD_ACTIVE_RULE_TYPE rule_type;
 };
 
 struct hclge_fd_ad_data {
@@ -809,7 +819,10 @@ struct hclge_dev {
 
 	struct hclge_fd_cfg fd_cfg;
 	struct hlist_head fd_rule_list;
+	spinlock_t fd_rule_lock; /* protect fd_rule_list and fd_bmap */
 	u16 hclge_fd_rule_num;
+	unsigned long fd_bmap[BITS_TO_LONGS(MAX_FD_FILTER_NUM)];
+	enum HCLGE_FD_ACTIVE_RULE_TYPE fd_active_type;
 	u8 fd_en;
 
 	u16 wanted_umv_size;
