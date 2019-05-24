@@ -80,6 +80,13 @@ log_test()
 	fi
 }
 
+log_debug()
+{
+	if [ "$VERBOSE" = "1" ]; then
+		echo "$*"
+	fi
+}
+
 run_cmd()
 {
 	local cmd="$*"
@@ -167,6 +174,7 @@ setup()
 
 		case "${ns}" in
 		h[12]) ip netns exec $ns sysctl -q -w net.ipv4.conf.all.accept_redirects=1
+		       ip netns exec $ns sysctl -q -w net.ipv6.conf.all.forwarding=0
 		       ip netns exec $ns sysctl -q -w net.ipv6.conf.all.accept_redirects=1
 		       ip netns exec $ns sysctl -q -w net.ipv6.conf.all.keep_addr_on_down=1
 			;;
@@ -250,12 +258,14 @@ setup()
 		echo "Error: Failed to get link-local address of r1's eth0"
 		exit 1
 	fi
+	log_debug "initial gateway is R1's lladdr = ${R1_LLADDR}"
 
 	R2_LLADDR=$(get_linklocal r2 eth0)
 	if [ $? -ne 0 ]; then
 		echo "Error: Failed to get link-local address of r2's eth0"
 		exit 1
 	fi
+	log_debug "initial gateway is R2's lladdr = ${R2_LLADDR}"
 }
 
 change_h2_mtu()
@@ -289,15 +299,26 @@ check_exception()
 		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -q "cache expires [0-9]*sec${mtu}"
 	else
+		# want to verify that neither mtu nor redirected appears in
+		# the route get output. The -v will wipe out the cache line
+		# if either are set so the last grep -q will not find a match
 		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
-		grep -q "cache"
+		grep -E -v 'mtu|redirected' | grep -q "cache"
 	fi
 	log_test $? 0 "IPv4: ${desc}"
 
 	if [ "$with_redirect" = "yes" ]; then
-		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | grep -q "${H2_N2_IP6} from :: via ${R2_LLADDR} dev br0.*${mtu}"
+		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
+		grep -q "${H2_N2_IP6} from :: via ${R2_LLADDR} dev br0.*${mtu}"
+	elif [ -n "${mtu}" ]; then
+		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
+		grep -q "${mtu}"
 	else
-		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | grep -q "${mtu}"
+		# IPv6 is a bit harder. First strip out the match if it
+		# contains an mtu exception and then look for the first
+		# gateway - R1's lladdr
+		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
+		grep -v "mtu" | grep -q "${R1_LLADDR}"
 	fi
 	log_test $? 0 "IPv6: ${desc}"
 }
@@ -306,8 +327,8 @@ run_ping()
 {
 	local sz=$1
 
-	run_cmd ip netns exec h1 ping -q -M want -i 0.2 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP}
-	run_cmd ip netns exec h1 ${ping6} -q -M want -i 0.2 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP6}
+	run_cmd ip netns exec h1 ping -q -M want -i 0.5 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP}
+	run_cmd ip netns exec h1 ${ping6} -q -M want -i 0.5 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP6}
 }
 
 replace_route_legacy()
@@ -315,6 +336,17 @@ replace_route_legacy()
 	# r1 to h2 via r2 and eth0
 	run_cmd ip -netns r1    ro replace ${H2_N2}   via ${R2_N1_IP}  dev eth0
 	run_cmd ip -netns r1 -6 ro replace ${H2_N2_6} via ${R2_LLADDR} dev eth0
+}
+
+reset_route_legacy()
+{
+	run_cmd ip -netns r1    ro del ${H2_N2}
+	run_cmd ip -netns r1 -6 ro del ${H2_N2_6}
+
+	run_cmd ip -netns h1    ro del ${H1_VRF_ARG} ${H2_N2}
+	run_cmd ip -netns h1 -6 ro del ${H1_VRF_ARG} ${H2_N2_6}
+
+	initial_route_legacy
 }
 
 initial_route_legacy()
@@ -373,9 +405,7 @@ do_test()
 
 	# remove exceptions and restore routing
 	change_h2_mtu 1500
-	ip -netns h1 li set br0 down
-	ip -netns h1 li set br0 up
-	eval initial_route_${ttype}
+	eval reset_route_${ttype}
 
 	check_connectivity
 	if [ $? -ne 0 ]; then
