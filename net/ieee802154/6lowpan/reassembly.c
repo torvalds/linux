@@ -79,7 +79,7 @@ fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 	key.src = *src;
 	key.dst = *dst;
 
-	q = inet_frag_find(&ieee802154_lowpan->frags, &key);
+	q = inet_frag_find(&ieee802154_lowpan->fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -326,23 +326,23 @@ err:
 static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_high_thresh",
-		.data		= &init_net.ieee802154_lowpan.frags.high_thresh,
+		.data		= &init_net.ieee802154_lowpan.fqdir.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.ieee802154_lowpan.frags.low_thresh
+		.extra1		= &init_net.ieee802154_lowpan.fqdir.low_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_low_thresh",
-		.data		= &init_net.ieee802154_lowpan.frags.low_thresh,
+		.data		= &init_net.ieee802154_lowpan.fqdir.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.ieee802154_lowpan.frags.high_thresh
+		.extra2		= &init_net.ieee802154_lowpan.fqdir.high_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_time",
-		.data		= &init_net.ieee802154_lowpan.frags.timeout,
+		.data		= &init_net.ieee802154_lowpan.fqdir.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -377,11 +377,11 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 		if (table == NULL)
 			goto err_alloc;
 
-		table[0].data = &ieee802154_lowpan->frags.high_thresh;
-		table[0].extra1 = &ieee802154_lowpan->frags.low_thresh;
-		table[1].data = &ieee802154_lowpan->frags.low_thresh;
-		table[1].extra2 = &ieee802154_lowpan->frags.high_thresh;
-		table[2].data = &ieee802154_lowpan->frags.timeout;
+		table[0].data = &ieee802154_lowpan->fqdir.high_thresh;
+		table[0].extra1 = &ieee802154_lowpan->fqdir.low_thresh;
+		table[1].data = &ieee802154_lowpan->fqdir.low_thresh;
+		table[1].extra2 = &ieee802154_lowpan->fqdir.high_thresh;
+		table[2].data = &ieee802154_lowpan->fqdir.timeout;
 
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns)
@@ -454,17 +454,17 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 		net_ieee802154_lowpan(net);
 	int res;
 
-	ieee802154_lowpan->frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
-	ieee802154_lowpan->frags.low_thresh = IPV6_FRAG_LOW_THRESH;
-	ieee802154_lowpan->frags.timeout = IPV6_FRAG_TIMEOUT;
-	ieee802154_lowpan->frags.f = &lowpan_frags;
+	ieee802154_lowpan->fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
+	ieee802154_lowpan->fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
+	ieee802154_lowpan->fqdir.timeout = IPV6_FRAG_TIMEOUT;
+	ieee802154_lowpan->fqdir.f = &lowpan_frags;
 
-	res = inet_frags_init_net(&ieee802154_lowpan->frags);
+	res = inet_frags_init_net(&ieee802154_lowpan->fqdir);
 	if (res < 0)
 		return res;
 	res = lowpan_frags_ns_sysctl_register(net);
 	if (res < 0)
-		fqdir_exit(&ieee802154_lowpan->frags);
+		fqdir_exit(&ieee802154_lowpan->fqdir);
 	return res;
 }
 
@@ -474,7 +474,7 @@ static void __net_exit lowpan_frags_exit_net(struct net *net)
 		net_ieee802154_lowpan(net);
 
 	lowpan_frags_ns_sysctl_unregister(net);
-	fqdir_exit(&ieee802154_lowpan->frags);
+	fqdir_exit(&ieee802154_lowpan->fqdir);
 }
 
 static struct pernet_operations lowpan_frags_ops = {

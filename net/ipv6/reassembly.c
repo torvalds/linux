@@ -79,7 +79,7 @@ static void ip6_frag_expire(struct timer_list *t)
 	struct net *net;
 
 	fq = container_of(frag, struct frag_queue, q);
-	net = container_of(fq->q.fqdir, struct net, ipv6.frags);
+	net = container_of(fq->q.fqdir, struct net, ipv6.fqdir);
 
 	ip6frag_expire_frag_queue(net, fq);
 }
@@ -100,7 +100,7 @@ fq_find(struct net *net, __be32 id, const struct ipv6hdr *hdr, int iif)
 					    IPV6_ADDR_LINKLOCAL)))
 		key.iif = 0;
 
-	q = inet_frag_find(&net->ipv6.frags, &key);
+	q = inet_frag_find(&net->ipv6.fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -254,7 +254,7 @@ err:
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 			  struct sk_buff *prev_tail, struct net_device *dev)
 {
-	struct net *net = container_of(fq->q.fqdir, struct net, ipv6.frags);
+	struct net *net = container_of(fq->q.fqdir, struct net, ipv6.fqdir);
 	unsigned int nhoff;
 	void *reasm_data;
 	int payload_len;
@@ -401,23 +401,23 @@ static const struct inet6_protocol frag_protocol = {
 static struct ctl_table ip6_frags_ns_ctl_table[] = {
 	{
 		.procname	= "ip6frag_high_thresh",
-		.data		= &init_net.ipv6.frags.high_thresh,
+		.data		= &init_net.ipv6.fqdir.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.ipv6.frags.low_thresh
+		.extra1		= &init_net.ipv6.fqdir.low_thresh
 	},
 	{
 		.procname	= "ip6frag_low_thresh",
-		.data		= &init_net.ipv6.frags.low_thresh,
+		.data		= &init_net.ipv6.fqdir.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.ipv6.frags.high_thresh
+		.extra2		= &init_net.ipv6.fqdir.high_thresh
 	},
 	{
 		.procname	= "ip6frag_time",
-		.data		= &init_net.ipv6.frags.timeout,
+		.data		= &init_net.ipv6.fqdir.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -449,11 +449,11 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 		if (!table)
 			goto err_alloc;
 
-		table[0].data = &net->ipv6.frags.high_thresh;
-		table[0].extra1 = &net->ipv6.frags.low_thresh;
-		table[1].data = &net->ipv6.frags.low_thresh;
-		table[1].extra2 = &net->ipv6.frags.high_thresh;
-		table[2].data = &net->ipv6.frags.timeout;
+		table[0].data = &net->ipv6.fqdir.high_thresh;
+		table[0].extra1 = &net->ipv6.fqdir.low_thresh;
+		table[1].data = &net->ipv6.fqdir.low_thresh;
+		table[1].extra2 = &net->ipv6.fqdir.high_thresh;
+		table[2].data = &net->ipv6.fqdir.timeout;
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv6", table);
@@ -517,25 +517,25 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 {
 	int res;
 
-	net->ipv6.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
-	net->ipv6.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
-	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
-	net->ipv6.frags.f = &ip6_frags;
+	net->ipv6.fqdir.high_thresh = IPV6_FRAG_HIGH_THRESH;
+	net->ipv6.fqdir.low_thresh = IPV6_FRAG_LOW_THRESH;
+	net->ipv6.fqdir.timeout = IPV6_FRAG_TIMEOUT;
+	net->ipv6.fqdir.f = &ip6_frags;
 
-	res = inet_frags_init_net(&net->ipv6.frags);
+	res = inet_frags_init_net(&net->ipv6.fqdir);
 	if (res < 0)
 		return res;
 
 	res = ip6_frags_ns_sysctl_register(net);
 	if (res < 0)
-		fqdir_exit(&net->ipv6.frags);
+		fqdir_exit(&net->ipv6.fqdir);
 	return res;
 }
 
 static void __net_exit ipv6_frags_exit_net(struct net *net)
 {
 	ip6_frags_ns_sysctl_unregister(net);
-	fqdir_exit(&net->ipv6.frags);
+	fqdir_exit(&net->ipv6.fqdir);
 }
 
 static struct pernet_operations ip6_frags_ops = {

@@ -83,7 +83,7 @@ static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	struct ipq *qp = container_of(q, struct ipq, q);
 	struct netns_ipv4 *ipv4 = container_of(q->fqdir, struct netns_ipv4,
-					       frags);
+					       fqdir);
 	struct net *net = container_of(ipv4, struct net, ipv4);
 
 	const struct frag_v4_compare_key *key = a;
@@ -142,7 +142,7 @@ static void ip_expire(struct timer_list *t)
 	int err;
 
 	qp = container_of(frag, struct ipq, q);
-	net = container_of(qp->q.fqdir, struct net, ipv4.frags);
+	net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
 
 	rcu_read_lock();
 	spin_lock(&qp->q.lock);
@@ -211,7 +211,7 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 	};
 	struct inet_frag_queue *q;
 
-	q = inet_frag_find(&net->ipv4.frags, &key);
+	q = inet_frag_find(&net->ipv4.fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -239,7 +239,7 @@ static int ip_frag_too_far(struct ipq *qp)
 	if (rc) {
 		struct net *net;
 
-		net = container_of(qp->q.fqdir, struct net, ipv4.frags);
+		net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
 		__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 	}
 
@@ -273,7 +273,7 @@ static int ip_frag_reinit(struct ipq *qp)
 /* Add new segment to existing queue. */
 static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 {
-	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.frags);
+	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
 	int ihl, end, flags, offset;
 	struct sk_buff *prev_tail;
 	struct net_device *dev;
@@ -399,7 +399,7 @@ err:
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 			 struct sk_buff *prev_tail, struct net_device *dev)
 {
-	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.frags);
+	struct net *net = container_of(qp->q.fqdir, struct net, ipv4.fqdir);
 	struct iphdr *iph;
 	void *reasm_data;
 	int len, err;
@@ -544,30 +544,30 @@ static int dist_min;
 static struct ctl_table ip4_frags_ns_ctl_table[] = {
 	{
 		.procname	= "ipfrag_high_thresh",
-		.data		= &init_net.ipv4.frags.high_thresh,
+		.data		= &init_net.ipv4.fqdir.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.ipv4.frags.low_thresh
+		.extra1		= &init_net.ipv4.fqdir.low_thresh
 	},
 	{
 		.procname	= "ipfrag_low_thresh",
-		.data		= &init_net.ipv4.frags.low_thresh,
+		.data		= &init_net.ipv4.fqdir.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.ipv4.frags.high_thresh
+		.extra2		= &init_net.ipv4.fqdir.high_thresh
 	},
 	{
 		.procname	= "ipfrag_time",
-		.data		= &init_net.ipv4.frags.timeout,
+		.data		= &init_net.ipv4.fqdir.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ipfrag_max_dist",
-		.data		= &init_net.ipv4.frags.max_dist,
+		.data		= &init_net.ipv4.fqdir.max_dist,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -600,12 +600,12 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 		if (!table)
 			goto err_alloc;
 
-		table[0].data = &net->ipv4.frags.high_thresh;
-		table[0].extra1 = &net->ipv4.frags.low_thresh;
-		table[1].data = &net->ipv4.frags.low_thresh;
-		table[1].extra2 = &net->ipv4.frags.high_thresh;
-		table[2].data = &net->ipv4.frags.timeout;
-		table[3].data = &net->ipv4.frags.max_dist;
+		table[0].data = &net->ipv4.fqdir.high_thresh;
+		table[0].extra1 = &net->ipv4.fqdir.low_thresh;
+		table[1].data = &net->ipv4.fqdir.low_thresh;
+		table[1].extra2 = &net->ipv4.fqdir.high_thresh;
+		table[2].data = &net->ipv4.fqdir.timeout;
+		table[3].data = &net->ipv4.fqdir.max_dist;
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
@@ -668,31 +668,31 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	 * we will prune down to 3MB, making room for approx 8 big 64K
 	 * fragments 8x128k.
 	 */
-	net->ipv4.frags.high_thresh = 4 * 1024 * 1024;
-	net->ipv4.frags.low_thresh  = 3 * 1024 * 1024;
+	net->ipv4.fqdir.high_thresh = 4 * 1024 * 1024;
+	net->ipv4.fqdir.low_thresh  = 3 * 1024 * 1024;
 	/*
 	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
 	 * RFC791 is wrong proposing to prolongate timer each fragment arrival
 	 * by TTL.
 	 */
-	net->ipv4.frags.timeout = IP_FRAG_TIME;
+	net->ipv4.fqdir.timeout = IP_FRAG_TIME;
 
-	net->ipv4.frags.max_dist = 64;
-	net->ipv4.frags.f = &ip4_frags;
+	net->ipv4.fqdir.max_dist = 64;
+	net->ipv4.fqdir.f = &ip4_frags;
 
-	res = inet_frags_init_net(&net->ipv4.frags);
+	res = inet_frags_init_net(&net->ipv4.fqdir);
 	if (res < 0)
 		return res;
 	res = ip4_frags_ns_ctl_register(net);
 	if (res < 0)
-		fqdir_exit(&net->ipv4.frags);
+		fqdir_exit(&net->ipv4.fqdir);
 	return res;
 }
 
 static void __net_exit ipv4_frags_exit_net(struct net *net)
 {
 	ip4_frags_ns_ctl_unregister(net);
-	fqdir_exit(&net->ipv4.frags);
+	fqdir_exit(&net->ipv4.fqdir);
 }
 
 static struct pernet_operations ip4_frags_ops = {
