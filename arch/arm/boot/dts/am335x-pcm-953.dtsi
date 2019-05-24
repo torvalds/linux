@@ -136,22 +136,6 @@
 &davinci_mdio {
 	phy1: ethernet-phy@2 {
 		reg = <2>;
-
-		/* Register 260 (104h) – RGMII Clock and Control Pad Skew */
-		rxc-skew-ps = <1400>;
-		rxdv-skew-ps = <0>;
-		txc-skew-ps = <1400>;
-		txen-skew-ps = <0>;
-		/* Register 261 (105h) – RGMII RX Data Pad Skew */
-		rxd3-skew-ps = <0>;
-		rxd2-skew-ps = <0>;
-		rxd1-skew-ps = <0>;
-		rxd0-skew-ps = <0>;
-		/* Register 262 (106h) – RGMII TX Data Pad Skew */
-		txd3-skew-ps = <0>;
-		txd2-skew-ps = <0>;
-		txd1-skew-ps = <0>;
-		txd0-skew-ps = <0>;
 	};
 };
 
