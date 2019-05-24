@@ -2080,7 +2080,7 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_BUF_REF_R_EN);
 
 	/* Waiting the stable reference voltage */
-	udelay(50);
+	mdelay(1);
 
 	if (rk3308->dac_output == DAC_HPOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
@@ -2115,7 +2115,7 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_R_HPMIX_EN);
 
 	/* Waiting the stable HPMIX */
-	udelay(50);
+	mdelay(1);
 
 	/* Step 06. Reset HPMIX and recover HPMIX gains */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
