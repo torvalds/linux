@@ -7267,11 +7267,9 @@ static void megasas_shutdown_controller(struct megasas_instance *instance,
 static int
 megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	struct Scsi_Host *host;
 	struct megasas_instance *instance;
 
 	instance = pci_get_drvdata(pdev);
-	host = instance->host;
 	instance->unload = 1;
 
 	dev_info(&pdev->dev, "%s is called\n", __func__);
@@ -8395,7 +8393,7 @@ megasas_aen_polling(struct work_struct *work)
 	struct megasas_instance *instance = ev->instance;
 	union megasas_evt_class_locale class_locale;
 	int event_type = 0;
-	u32 seq_num, wait_time = MEGASAS_RESET_WAIT_TIME;
+	u32 seq_num;
 	int error;
 	u8  dcmd_ret = DCMD_SUCCESS;
 
@@ -8404,10 +8402,6 @@ megasas_aen_polling(struct work_struct *work)
 		kfree(ev);
 		return;
 	}
-
-	/* Adjust event workqueue thread wait time for VF mode */
-	if (instance->requestorId)
-		wait_time = MEGASAS_ROUTINE_WAIT_TIME_VF;
 
 	/* Don't run the event workqueue thread if OCR is running */
 	mutex_lock(&instance->reset_mutex);
