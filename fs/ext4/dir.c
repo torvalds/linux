@@ -671,7 +671,7 @@ static int ext4_d_compare(const struct dentry *dentry, unsigned int len,
 	if (!IS_CASEFOLDED(dentry->d_parent->d_inode)) {
 		if (len != name->len)
 			return -1;
-		return !memcmp(str, name, len);
+		return memcmp(str, name->name, len);
 	}
 
 	return ext4_ci_compare(dentry->d_parent->d_inode, name, &qstr);
