@@ -193,6 +193,7 @@ int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
  */
 
 int running_on_qemu __read_mostly;
+EXPORT_SYMBOL(running_on_qemu);
 
 void __cpuidle arch_cpu_idle_dead(void)
 {

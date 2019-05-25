@@ -594,8 +594,7 @@ static int dlfb_render_hline(struct dlfb_data *dlfb, struct urb **urb_ptr,
 	return 0;
 }
 
-static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y,
-	       int width, int height, char *data)
+static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y, int width, int height)
 {
 	int i, ret;
 	char *cmd;
@@ -607,21 +606,29 @@ static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y,
 
 	start_cycles = get_cycles();
 
+	mutex_lock(&dlfb->render_mutex);
+
 	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
 	width = DL_ALIGN_UP(width + (x-aligned_x), sizeof(unsigned long));
 	x = aligned_x;
 
 	if ((width <= 0) ||
 	    (x + width > dlfb->info->var.xres) ||
-	    (y + height > dlfb->info->var.yres))
-		return -EINVAL;
+	    (y + height > dlfb->info->var.yres)) {
+		ret = -EINVAL;
+		goto unlock_ret;
+	}
 
-	if (!atomic_read(&dlfb->usb_active))
-		return 0;
+	if (!atomic_read(&dlfb->usb_active)) {
+		ret = 0;
+		goto unlock_ret;
+	}
 
 	urb = dlfb_get_urb(dlfb);
-	if (!urb)
-		return 0;
+	if (!urb) {
+		ret = 0;
+		goto unlock_ret;
+	}
 	cmd = urb->transfer_buffer;
 
 	for (i = y; i < y + height ; i++) {
@@ -641,7 +648,7 @@ static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y,
 			*cmd++ = 0xAF;
 		/* Send partial buffer remaining before exiting */
 		len = cmd - (char *) urb->transfer_buffer;
-		ret = dlfb_submit_urb(dlfb, urb, len);
+		dlfb_submit_urb(dlfb, urb, len);
 		bytes_sent += len;
 	} else
 		dlfb_urb_completion(urb);
@@ -655,7 +662,55 @@ error:
 		    >> 10)), /* Kcycles */
 		   &dlfb->cpu_kcycles_used);
 
-	return 0;
+	ret = 0;
+
+unlock_ret:
+	mutex_unlock(&dlfb->render_mutex);
+	return ret;
+}
+
+static void dlfb_init_damage(struct dlfb_data *dlfb)
+{
+	dlfb->damage_x = INT_MAX;
+	dlfb->damage_x2 = 0;
+	dlfb->damage_y = INT_MAX;
+	dlfb->damage_y2 = 0;
+}
+
+static void dlfb_damage_work(struct work_struct *w)
+{
+	struct dlfb_data *dlfb = container_of(w, struct dlfb_data, damage_work);
+	int x, x2, y, y2;
+
+	spin_lock_irq(&dlfb->damage_lock);
+	x = dlfb->damage_x;
+	x2 = dlfb->damage_x2;
+	y = dlfb->damage_y;
+	y2 = dlfb->damage_y2;
+	dlfb_init_damage(dlfb);
+	spin_unlock_irq(&dlfb->damage_lock);
+
+	if (x < x2 && y < y2)
+		dlfb_handle_damage(dlfb, x, y, x2 - x, y2 - y);
+}
+
+static void dlfb_offload_damage(struct dlfb_data *dlfb, int x, int y, int width, int height)
+{
+	unsigned long flags;
+	int x2 = x + width;
+	int y2 = y + height;
+
+	if (x >= x2 || y >= y2)
+		return;
+
+	spin_lock_irqsave(&dlfb->damage_lock, flags);
+	dlfb->damage_x = min(x, dlfb->damage_x);
+	dlfb->damage_x2 = max(x2, dlfb->damage_x2);
+	dlfb->damage_y = min(y, dlfb->damage_y);
+	dlfb->damage_y2 = max(y2, dlfb->damage_y2);
+	spin_unlock_irqrestore(&dlfb->damage_lock, flags);
+
+	schedule_work(&dlfb->damage_work);
 }
 
 /*
@@ -679,7 +734,7 @@ static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
 				(u32)info->var.yres);
 
 		dlfb_handle_damage(dlfb, 0, start, info->var.xres,
-			lines, info->screen_base);
+			lines);
 	}
 
 	return result;
@@ -694,8 +749,8 @@ static void dlfb_ops_copyarea(struct fb_info *info,
 
 	sys_copyarea(info, area);
 
-	dlfb_handle_damage(dlfb, area->dx, area->dy,
-			area->width, area->height, info->screen_base);
+	dlfb_offload_damage(dlfb, area->dx, area->dy,
+			area->width, area->height);
 }
 
 static void dlfb_ops_imageblit(struct fb_info *info,
@@ -705,8 +760,8 @@ static void dlfb_ops_imageblit(struct fb_info *info,
 
 	sys_imageblit(info, image);
 
-	dlfb_handle_damage(dlfb, image->dx, image->dy,
-			image->width, image->height, info->screen_base);
+	dlfb_offload_damage(dlfb, image->dx, image->dy,
+			image->width, image->height);
 }
 
 static void dlfb_ops_fillrect(struct fb_info *info,
@@ -716,8 +771,8 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 
 	sys_fillrect(info, rect);
 
-	dlfb_handle_damage(dlfb, rect->dx, rect->dy, rect->width,
-			      rect->height, info->screen_base);
+	dlfb_offload_damage(dlfb, rect->dx, rect->dy, rect->width,
+			      rect->height);
 }
 
 /*
@@ -739,17 +794,19 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	int bytes_identical = 0;
 	int bytes_rendered = 0;
 
+	mutex_lock(&dlfb->render_mutex);
+
 	if (!fb_defio)
-		return;
+		goto unlock_ret;
 
 	if (!atomic_read(&dlfb->usb_active))
-		return;
+		goto unlock_ret;
 
 	start_cycles = get_cycles();
 
 	urb = dlfb_get_urb(dlfb);
 	if (!urb)
-		return;
+		goto unlock_ret;
 
 	cmd = urb->transfer_buffer;
 
@@ -782,6 +839,8 @@ error:
 	atomic_add(((unsigned int) ((end_cycles - start_cycles)
 		    >> 10)), /* Kcycles */
 		   &dlfb->cpu_kcycles_used);
+unlock_ret:
+	mutex_unlock(&dlfb->render_mutex);
 }
 
 static int dlfb_get_edid(struct dlfb_data *dlfb, char *edid, int len)
@@ -859,8 +918,7 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 		if (area.y > info->var.yres)
 			area.y = info->var.yres;
 
-		dlfb_handle_damage(dlfb, area.x, area.y, area.w, area.h,
-			   info->screen_base);
+		dlfb_handle_damage(dlfb, area.x, area.y, area.w, area.h);
 	}
 
 	return 0;
@@ -941,6 +999,10 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 static void dlfb_ops_destroy(struct fb_info *info)
 {
 	struct dlfb_data *dlfb = info->par;
+
+	cancel_work_sync(&dlfb->damage_work);
+
+	mutex_destroy(&dlfb->render_mutex);
 
 	if (info->cmap.len != 0)
 		fb_dealloc_cmap(&info->cmap);
@@ -1065,8 +1127,7 @@ static int dlfb_ops_set_par(struct fb_info *info)
 			pix_framebuffer[i] = 0x37e6;
 	}
 
-	dlfb_handle_damage(dlfb, 0, 0, info->var.xres, info->var.yres,
-			   info->screen_base);
+	dlfb_handle_damage(dlfb, 0, 0, info->var.xres, info->var.yres);
 
 	return 0;
 }
@@ -1638,6 +1699,11 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	info->pseudo_palette = dlfb->pseudo_palette;
 	dlfb->ops = dlfb_ops;
 	info->fbops = &dlfb->ops;
+
+	mutex_init(&dlfb->render_mutex);
+	dlfb_init_damage(dlfb);
+	spin_lock_init(&dlfb->damage_lock);
+	INIT_WORK(&dlfb->damage_work, dlfb_damage_work);
 
 	INIT_LIST_HEAD(&info->modelist);
 
