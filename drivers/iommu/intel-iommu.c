@@ -4548,39 +4548,6 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 	return 0;
 }
 
-/*
- * Here we only respond to action of unbound device from driver.
- *
- * Added device is not attached to its DMAR domain here yet. That will happen
- * when mapping the device to iova.
- */
-static int device_notifier(struct notifier_block *nb,
-				  unsigned long action, void *data)
-{
-	struct device *dev = data;
-	struct dmar_domain *domain;
-
-	if (iommu_dummy(dev))
-		return 0;
-
-	if (action == BUS_NOTIFY_REMOVED_DEVICE) {
-		domain = find_domain(dev);
-		if (!domain)
-			return 0;
-
-		dmar_remove_one_dev_info(dev);
-	} else if (action == BUS_NOTIFY_ADD_DEVICE) {
-		if (iommu_should_identity_map(dev))
-			domain_add_dev_info(si_domain, dev);
-	}
-
-	return 0;
-}
-
-static struct notifier_block device_nb = {
-	.notifier_call = device_notifier,
-};
-
 static int intel_iommu_memory_notifier(struct notifier_block *nb,
 				       unsigned long val, void *v)
 {
@@ -4955,7 +4922,6 @@ int __init intel_iommu_init(void)
 	}
 
 	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
-	bus_register_notifier(&pci_bus_type, &device_nb);
 	if (si_domain && !hw_pass_through)
 		register_memory_notifier(&intel_iommu_memory_nb);
 	cpuhp_setup_state(CPUHP_IOMMU_INTEL_DEAD, "iommu/intel:dead", NULL,
