@@ -435,11 +435,23 @@
 	status = "okay";
 
 	spiflash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "gigadevice,gd25q128", "jedec,spi-nor";
 		reg = <0>;
+		m25p,fast-read;
 
 		/* maximum speed for Rockchip SPI */
 		spi-max-frequency = <50000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			loader@8000 {
+				label = "loader";
+				reg = <0x8000 0x3F0000>;
+			};
+		};
 	};
 };
 
