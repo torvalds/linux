@@ -783,8 +783,8 @@ patternProperties:
     description: Silergy Corp.
   "^siliconmitus,.*":
     description: Silicon Mitus, Inc.
-  "^simte,.*":
-    description: k
+  "^simtek,.*":
+    description: Cypress Semiconductor Corporation (Simtek Corporation)
   "^sirf,.*":
     description: SiRF Technology, Inc.
   "^sis,.*":
