@@ -15,7 +15,6 @@
 #include <linux/trace_seq.h>
 #include <linux/trace_events.h>
 #include <linux/compiler.h>
-#include <linux/trace_seq.h>
 #include <linux/glob.h>
 
 #ifdef CONFIG_FTRACE_SYSCALLS
