@@ -142,6 +142,7 @@ enum print_line_t {
 enum print_line_t trace_handle_return(struct trace_seq *s);
 
 void tracing_generic_entry_update(struct trace_entry *entry,
+				  unsigned short type,
 				  unsigned long flags,
 				  int pc);
 struct trace_event_file;
