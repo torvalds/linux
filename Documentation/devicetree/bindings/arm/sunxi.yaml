@@ -263,7 +263,7 @@ properties:
 
       - description: ICNova A20 SWAC
         items:
-          - const: swac,icnova-a20-swac
+          - const: incircuit,icnova-a20-swac
           - const: incircuit,icnova-a20
           - const: allwinner,sun7i-a20
 
