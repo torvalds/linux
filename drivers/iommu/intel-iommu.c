@@ -302,14 +302,8 @@ static inline void context_clear_entry(struct context_entry *context)
 static struct dmar_domain *si_domain;
 static int hw_pass_through = 1;
 
-/*
- * Domain represents a virtual machine, more than one devices
- * across iommus may be owned in one domain, e.g. kvm guest.
- */
-#define DOMAIN_FLAG_VIRTUAL_MACHINE	(1 << 0)
-
 /* si_domain contains mulitple devices */
-#define DOMAIN_FLAG_STATIC_IDENTITY	(1 << 1)
+#define DOMAIN_FLAG_STATIC_IDENTITY		BIT(0)
 
 #define for_each_domain_iommu(idx, domain)			\
 	for (idx = 0; idx < g_num_of_iommus; idx++)		\
@@ -540,20 +534,9 @@ static inline void free_devinfo_mem(void *vaddr)
 	kmem_cache_free(iommu_devinfo_cache, vaddr);
 }
 
-static inline int domain_type_is_vm(struct dmar_domain *domain)
-{
-	return domain->flags & DOMAIN_FLAG_VIRTUAL_MACHINE;
-}
-
 static inline int domain_type_is_si(struct dmar_domain *domain)
 {
 	return domain->flags & DOMAIN_FLAG_STATIC_IDENTITY;
-}
-
-static inline int domain_type_is_vm_or_si(struct dmar_domain *domain)
-{
-	return domain->flags & (DOMAIN_FLAG_VIRTUAL_MACHINE |
-				DOMAIN_FLAG_STATIC_IDENTITY);
 }
 
 static inline int domain_pfn_supported(struct dmar_domain *domain,
@@ -603,7 +586,9 @@ struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 	int iommu_id;
 
 	/* si_domain and vm domain should not get here. */
-	BUG_ON(domain_type_is_vm_or_si(domain));
+	if (WARN_ON(domain->domain.type != IOMMU_DOMAIN_DMA))
+		return NULL;
+
 	for_each_domain_iommu(iommu_id, domain)
 		break;
 
@@ -1651,7 +1636,6 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 	if (!iommu->domains || !iommu->domain_ids)
 		return;
 
-again:
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry_safe(info, tmp, &device_domain_list, global) {
 		struct dmar_domain *domain;
@@ -1665,18 +1649,6 @@ again:
 		domain = info->domain;
 
 		__dmar_remove_one_dev_info(info);
-
-		if (!domain_type_is_vm_or_si(domain)) {
-			/*
-			 * The domain_exit() function  can't be called under
-			 * device_domain_lock, as it takes this lock itself.
-			 * So release the lock here and re-run the loop
-			 * afterwards.
-			 */
-			spin_unlock_irqrestore(&device_domain_lock, flags);
-			domain_exit(domain);
-			goto again;
-		}
 	}
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
@@ -2339,7 +2311,7 @@ static int domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			  struct scatterlist *sg, unsigned long phys_pfn,
 			  unsigned long nr_pages, int prot)
 {
-	int ret;
+	int iommu_id, ret;
 	struct intel_iommu *iommu;
 
 	/* Do the real mapping first */
@@ -2347,18 +2319,8 @@ static int domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 	if (ret)
 		return ret;
 
-	/* Notify about the new mapping */
-	if (domain_type_is_vm(domain)) {
-		/* VM typed domains can have more than one IOMMUs */
-		int iommu_id;
-
-		for_each_domain_iommu(iommu_id, domain) {
-			iommu = g_iommus[iommu_id];
-			__mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
-		}
-	} else {
-		/* General domains only have one IOMMU */
-		iommu = domain_get_iommu(domain);
+	for_each_domain_iommu(iommu_id, domain) {
+		iommu = g_iommus[iommu_id];
 		__mapping_notify_one(iommu, domain, iov_pfn, nr_pages);
 	}
 
@@ -4599,9 +4561,6 @@ static int device_notifier(struct notifier_block *nb,
 			return 0;
 
 		dmar_remove_one_dev_info(dev);
-		if (!domain_type_is_vm_or_si(domain) &&
-		    list_empty(&domain->devices))
-			domain_exit(domain);
 	} else if (action == BUS_NOTIFY_ADD_DEVICE) {
 		if (iommu_should_identity_map(dev, 1))
 			domain_add_dev_info(si_domain, dev);
@@ -5070,8 +5029,10 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 	struct iommu_domain *domain;
 
 	switch (type) {
+	case IOMMU_DOMAIN_DMA:
+	/* fallthrough */
 	case IOMMU_DOMAIN_UNMANAGED:
-		dmar_domain = alloc_domain(DOMAIN_FLAG_VIRTUAL_MACHINE);
+		dmar_domain = alloc_domain(0);
 		if (!dmar_domain) {
 			pr_err("Can't allocate dmar_domain\n");
 			return NULL;
@@ -5081,6 +5042,14 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 			domain_exit(dmar_domain);
 			return NULL;
 		}
+
+		if (type == IOMMU_DOMAIN_DMA &&
+		    init_iova_flush_queue(&dmar_domain->iovad,
+					  iommu_flush_iova, iova_entry_free)) {
+			pr_warn("iova flush queue initialization failed\n");
+			intel_iommu_strict = 1;
+		}
+
 		domain_update_iommu_cap(dmar_domain);
 
 		domain = &dmar_domain->domain;
@@ -5291,13 +5260,8 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		struct dmar_domain *old_domain;
 
 		old_domain = find_domain(dev);
-		if (old_domain) {
+		if (old_domain)
 			dmar_remove_one_dev_info(dev);
-
-			if (!domain_type_is_vm_or_si(old_domain) &&
-			    list_empty(&old_domain->devices))
-				domain_exit(old_domain);
-		}
 	}
 
 	ret = prepare_domain_attach_device(domain, dev);
