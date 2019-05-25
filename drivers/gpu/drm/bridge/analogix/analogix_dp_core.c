@@ -1411,8 +1411,6 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->color_space = COLOR_YCBCR444;
 	else if (display_info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 		video->color_space = COLOR_YCBCR422;
-	else if (display_info->color_formats & DRM_COLOR_FORMAT_RGB444)
-		video->color_space = COLOR_RGB;
 	else
 		video->color_space = COLOR_RGB;
 
