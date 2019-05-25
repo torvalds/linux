@@ -266,12 +266,11 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 		 */
 		hw_atl_rpo_lro_max_coalescing_interval_set(self, 50);
 
-
 		hw_atl_rpo_lro_qsessions_lim_set(self, 1U);
 
 		hw_atl_rpo_lro_total_desc_lim_set(self, 2U);
 
-		hw_atl_rpo_lro_patch_optimization_en_set(self, 0U);
+		hw_atl_rpo_lro_patch_optimization_en_set(self, 1U);
 
 		hw_atl_rpo_lro_min_pay_of_first_pkt_set(self, 10U);
 
