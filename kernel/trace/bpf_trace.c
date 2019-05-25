@@ -600,6 +600,12 @@ BPF_CALL_1(bpf_send_signal, u32, sig)
 		return -EPERM;
 
 	if (in_nmi()) {
+		/* Do an early check on signal validity. Otherwise,
+		 * the error is lost in deferred irq_work.
+		 */
+		if (unlikely(!valid_signal(sig)))
+			return -EINVAL;
+
 		work = this_cpu_ptr(&send_signal_work);
 		if (work->irq_work.flags & IRQ_WORK_BUSY)
 			return -EBUSY;
