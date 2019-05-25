@@ -318,6 +318,14 @@ trace_event_name(struct trace_event_call *call)
 		return call->name;
 }
 
+static inline struct list_head *
+trace_get_fields(struct trace_event_call *event_call)
+{
+	if (!event_call->class->get_fields)
+		return &event_call->class->fields;
+	return event_call->class->get_fields(event_call);
+}
+
 struct trace_array;
 struct trace_subsystem_dir;
 
