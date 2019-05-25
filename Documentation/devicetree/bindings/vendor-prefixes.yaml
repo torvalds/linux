@@ -668,7 +668,7 @@ patternProperties:
   "^plantower,.*":
     description: Plantower Co., Ltd
   "^plathome,.*":
-    description: Plat'Home Co., Ltd.
+    description: Plat\'Home Co., Ltd.
   "^plda,.*":
     description: PLDA
   "^plx,.*":
