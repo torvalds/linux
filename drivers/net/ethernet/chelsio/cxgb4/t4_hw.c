@@ -6213,7 +6213,7 @@ unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx)
  *      @adapter: the adapter
  *      @pidx: the port index
  */
-unsigned int t4_get_tp_e2c_map(struct adapter *adapter, int pidx)
+static unsigned int t4_get_tp_e2c_map(struct adapter *adapter, int pidx)
 {
 	unsigned int nports;
 	u32 param, val = 0;
