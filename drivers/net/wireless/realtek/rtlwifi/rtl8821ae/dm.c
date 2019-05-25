@@ -655,10 +655,9 @@ static void rtl8821ae_dm_check_rssi_monitor(struct ieee80211_hw *hw)
 	u8 h2c_parameter[4] = { 0 };
 	long tmp_entry_max_pwdb = 0, tmp_entry_min_pwdb = 0xff;
 	u8 stbc_tx = 0;
-	u64 cur_txokcnt = 0, cur_rxokcnt = 0;
+	u64 cur_rxokcnt = 0;
 	static u64 last_txokcnt = 0, last_rxokcnt;
 
-	cur_txokcnt = rtlpriv->stats.txbytesunicast - last_txokcnt;
 	cur_rxokcnt = rtlpriv->stats.rxbytesunicast - last_rxokcnt;
 	last_txokcnt = rtlpriv->stats.txbytesunicast;
 	last_rxokcnt = rtlpriv->stats.rxbytesunicast;
@@ -2654,7 +2653,6 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	u32 edca_be = 0x5ea42b;
 	u8 iot_peer = 0;
 	bool *pb_is_cur_rdl_state = NULL;
-	bool b_last_is_cur_rdl_state = false;
 	bool b_bias_on_rx = false;
 	bool b_edca_turbo_on = false;
 
@@ -2672,7 +2670,6 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	 * list paramter for different platform
 	 *===============================
 	 */
-	b_last_is_cur_rdl_state = rtlpriv->dm.is_cur_rdlstate;
 	pb_is_cur_rdl_state = &rtlpriv->dm.is_cur_rdlstate;
 
 	cur_tx_ok_cnt = rtlpriv->stats.txbytesunicast - rtldm->last_tx_ok_cnt;
