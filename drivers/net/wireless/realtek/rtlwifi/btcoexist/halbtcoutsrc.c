@@ -1741,30 +1741,6 @@ void exhalbtc_rf_status_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 }
 
-void exhalbtc_stack_operation_notify(struct btc_coexist *btcoexist, u8 type)
-{
-	u8 stack_op_type;
-
-	if (!halbtc_is_bt_coexist_available(btcoexist))
-		return;
-	btcoexist->statistics.cnt_stack_operation_notify++;
-	if (btcoexist->manual_control)
-		return;
-
-	if ((type == HCI_BT_OP_INQUIRY_START) ||
-	    (type == HCI_BT_OP_PAGING_START) ||
-	    (type == HCI_BT_OP_PAIRING_START)) {
-		stack_op_type = BTC_STACK_OP_INQ_PAGE_PAIR_START;
-	} else if ((type == HCI_BT_OP_INQUIRY_FINISH) ||
-		   (type == HCI_BT_OP_PAGING_SUCCESS) ||
-		   (type == HCI_BT_OP_PAGING_UNSUCCESS) ||
-		   (type == HCI_BT_OP_PAIRING_FINISH)) {
-		stack_op_type = BTC_STACK_OP_INQ_PAGE_PAIR_FINISH;
-	} else {
-		stack_op_type = BTC_STACK_OP_NONE;
-	}
-}
-
 void exhalbtc_halt_notify(struct btc_coexist *btcoexist)
 {
 	if (!halbtc_is_bt_coexist_available(btcoexist))
