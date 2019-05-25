@@ -109,8 +109,7 @@
 		gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
 		enable-active-high;
 		gpios-states = <0x1>;
-		states = <1100000 0x0
-			  1300000 0x1>;
+		states = <1100000 0>, <1300000 1>;
 	};
 };
 
