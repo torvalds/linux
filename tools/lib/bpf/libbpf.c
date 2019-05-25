@@ -3460,9 +3460,7 @@ bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset)
 
 long libbpf_get_error(const void *ptr)
 {
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
-	return 0;
+	return PTR_ERR_OR_ZERO(ptr);
 }
 
 int bpf_prog_load(const char *file, enum bpf_prog_type type,
