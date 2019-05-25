@@ -1578,7 +1578,7 @@ void exhalbtc_scan_notify_wifi_only(struct wifi_only_cfg *wifionly_cfg,
 
 void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
 {
-	u8 asso_type, asso_type_v2;
+	u8 asso_type;
 	bool wifi_under_5g;
 
 	if (!halbtc_is_bt_coexist_available(btcoexist))
@@ -1589,15 +1589,10 @@ void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_UNDER_5G, &wifi_under_5g);
 
-	if (action) {
+	if (action)
 		asso_type = BTC_ASSOCIATE_START;
-		asso_type_v2 = wifi_under_5g ? BTC_ASSOCIATE_5G_START :
-					       BTC_ASSOCIATE_START;
-	} else {
+	else
 		asso_type = BTC_ASSOCIATE_FINISH;
-		asso_type_v2 = wifi_under_5g ? BTC_ASSOCIATE_5G_FINISH :
-					       BTC_ASSOCIATE_FINISH;
-	}
 
 	halbtc_leave_low_power(btcoexist);
 
