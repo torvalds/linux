@@ -7047,20 +7047,14 @@ static void rtl_hw_init_8168g(struct rtl8169_private *tp)
 		return;
 }
 
-static void rtl_hw_init_8168ep(struct rtl8169_private *tp)
-{
-	rtl8168ep_stop_cmac(tp);
-	rtl_hw_init_8168g(tp);
-}
-
 static void rtl_hw_initialize(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_49 ... RTL_GIGA_MAC_VER_51:
+		rtl8168ep_stop_cmac(tp);
+		/* fall through */
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_48:
 		rtl_hw_init_8168g(tp);
-		break;
-	case RTL_GIGA_MAC_VER_49 ... RTL_GIGA_MAC_VER_51:
-		rtl_hw_init_8168ep(tp);
 		break;
 	default:
 		break;
