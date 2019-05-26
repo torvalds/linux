@@ -1916,6 +1916,36 @@ static int qed_roce_ll2_set_mac_filter(struct qed_dev *cdev,
 	return rc;
 }
 
+static int qed_iwarp_set_engine_affin(struct qed_dev *cdev, bool b_reset)
+{
+	enum qed_eng eng;
+	u8 ppfid = 0;
+	int rc;
+
+	/* Make sure iwarp cmt mode is enabled before setting affinity */
+	if (!cdev->iwarp_cmt)
+		return -EINVAL;
+
+	if (b_reset)
+		eng = QED_BOTH_ENG;
+	else
+		eng = cdev->l2_affin_hint ? QED_ENG1 : QED_ENG0;
+
+	rc = qed_llh_set_ppfid_affinity(cdev, ppfid, eng);
+	if (rc) {
+		DP_NOTICE(cdev,
+			  "Failed to set the engine affinity of ppfid %d\n",
+			  ppfid);
+		return rc;
+	}
+
+	DP_VERBOSE(cdev, (QED_MSG_RDMA | QED_MSG_SP),
+		   "LLH: Set the engine affinity of non-RoCE packets as %d\n",
+		   eng);
+
+	return 0;
+}
+
 static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.common = &qed_common_ops_pass,
 	.fill_dev_info = &qed_fill_rdma_dev_info,
@@ -1955,6 +1985,7 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.ll2_set_fragment_of_tx_packet = &qed_ll2_set_fragment_of_tx_packet,
 	.ll2_set_mac_filter = &qed_roce_ll2_set_mac_filter,
 	.ll2_get_stats = &qed_ll2_get_stats,
+	.iwarp_set_engine_affin = &qed_iwarp_set_engine_affin,
 	.iwarp_connect = &qed_iwarp_connect,
 	.iwarp_create_listen = &qed_iwarp_create_listen,
 	.iwarp_destroy_listen = &qed_iwarp_destroy_listen,

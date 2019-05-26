@@ -670,6 +670,8 @@ struct qed_rdma_ops {
 	int (*ll2_set_mac_filter)(struct qed_dev *cdev,
 				  u8 *old_mac_address, u8 *new_mac_address);
 
+	int (*iwarp_set_engine_affin)(struct qed_dev *cdev, bool b_reset);
+
 	int (*iwarp_connect)(void *rdma_cxt,
 			     struct qed_iwarp_connect_in *iparams,
 			     struct qed_iwarp_connect_out *oparams);
