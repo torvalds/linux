@@ -643,8 +643,11 @@ static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 		dget(dentry);
 		if (d_is_dir(dentry)) {
 			ret = simple_rmdir(d_inode(parent), dentry);
+			if (!ret)
+				fsnotify_rmdir(d_inode(parent), dentry);
 		} else {
 			simple_unlink(d_inode(parent), dentry);
+			fsnotify_unlink(d_inode(parent), dentry);
 		}
 		if (!ret)
 			d_delete(dentry);
