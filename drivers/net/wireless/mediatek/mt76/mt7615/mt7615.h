@@ -105,6 +105,8 @@ u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 int mt7615_register_device(struct mt7615_dev *dev);
 void mt7615_unregister_device(struct mt7615_dev *dev);
 int mt7615_eeprom_init(struct mt7615_dev *dev);
+int mt7615_eeprom_get_power_index(struct ieee80211_channel *chan,
+				  u8 chain_idx);
 int mt7615_dma_init(struct mt7615_dev *dev);
 void mt7615_dma_cleanup(struct mt7615_dev *dev);
 int mt7615_mcu_init(struct mt7615_dev *dev);
@@ -167,6 +169,7 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_init_mac(struct mt7615_dev *dev);
 int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val);
 int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter);
+int mt7615_mcu_set_tx_power(struct mt7615_dev *dev);
 void mt7615_mcu_exit(struct mt7615_dev *dev);
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,

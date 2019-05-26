@@ -110,6 +110,40 @@ static void mt7615_eeprom_parse_hw_cap(struct mt7615_dev *dev)
 	}
 }
 
+int mt7615_eeprom_get_power_index(struct ieee80211_channel *chan,
+				  u8 chain_idx)
+{
+	int index;
+
+	if (chain_idx > 3)
+		return -EINVAL;
+
+	if (chan->band == NL80211_BAND_2GHZ) {
+		index = MT_EE_TX0_2G_TARGET_POWER + chain_idx * 6;
+	} else {
+		int group = mt7615_get_channel_group(chan->hw_value);
+
+		switch (chain_idx) {
+		case 1:
+			index = MT_EE_TX1_5G_G0_TARGET_POWER;
+			break;
+		case 2:
+			index = MT_EE_TX2_5G_G0_TARGET_POWER;
+			break;
+		case 3:
+			index = MT_EE_TX3_5G_G0_TARGET_POWER;
+			break;
+		case 0:
+		default:
+			index = MT_EE_TX0_5G_G0_TARGET_POWER;
+			break;
+		}
+		index += 5 * group;
+	}
+
+	return index;
+}
+
 int mt7615_eeprom_init(struct mt7615_dev *dev)
 {
 	int ret;

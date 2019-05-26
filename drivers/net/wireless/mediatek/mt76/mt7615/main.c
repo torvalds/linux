@@ -201,6 +201,9 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 		mutex_unlock(&dev->mt76.mutex);
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_POWER)
+		ret = mt7615_mcu_set_tx_power(dev);
+
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		mutex_lock(&dev->mt76.mutex);
 
