@@ -12,3 +12,5 @@ obj-y += ioremap.o
 obj-y += cacheflush.o
 obj-y += context.o
 obj-y += sifive_l2_cache.o
+
+obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
