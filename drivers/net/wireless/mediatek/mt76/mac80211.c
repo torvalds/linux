@@ -766,10 +766,21 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	*dbm = DIV_ROUND_UP(dev->txpower_cur, 2);
 
 	/* convert from per-chain power to combined
-	 * output on 2x2 devices
+	 * output power
 	 */
-	if (n_chains > 1)
+	switch (n_chains) {
+	case 4:
+		*dbm += 6;
+		break;
+	case 3:
+		*dbm += 4;
+		break;
+	case 2:
 		*dbm += 3;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
