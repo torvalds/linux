@@ -115,7 +115,6 @@ struct i2c_device {
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS         0x8c22
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS      0x9c22
 
-
 #define FEATURE_SMBUS_PEC       BIT(0)
 #define FEATURE_BLOCK_BUFFER    BIT(1)
 #define FEATURE_BLOCK_PROC      BIT(2)
@@ -521,8 +520,6 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	return 0;
 }
 
-
-
 static u32 i801_func(struct i2c_adapter *adapter)
 {
 	struct i2c_device *priv = i2c_get_adapdata(adapter);
@@ -570,8 +567,6 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer     = i801_access,
 	.functionality  = i801_func,
 };
-
-
 
 /********************************
  *** Part 2 - Driver Handlers ***
