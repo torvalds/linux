@@ -1710,7 +1710,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* Workaround for a communication error on CFL (bko#199007) and CNL */
 	if (IS_CFL(pci) || IS_CNL(pci))
-		chip->polling_mode = 1;
+		azx_bus(chip)->polling_mode = 1;
 
 	if (chip->driver_type == AZX_DRIVER_NVIDIA) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
