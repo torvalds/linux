@@ -312,7 +312,8 @@ static void qedr_free_mem_sb(struct qedr_dev *dev,
 			     struct qed_sb_info *sb_info, int sb_id)
 {
 	if (sb_info->sb_virt) {
-		dev->ops->common->sb_release(dev->cdev, sb_info, sb_id);
+		dev->ops->common->sb_release(dev->cdev, sb_info, sb_id,
+					     QED_SB_TYPE_CNQ);
 		dma_free_coherent(&dev->pdev->dev, sizeof(*sb_info->sb_virt),
 				  (void *)sb_info->sb_virt, sb_info->sb_phys);
 	}

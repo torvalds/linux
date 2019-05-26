@@ -1306,7 +1306,8 @@ static void qede_free_mem_sb(struct qede_dev *edev, struct qed_sb_info *sb_info,
 			     u16 sb_id)
 {
 	if (sb_info->sb_virt) {
-		edev->ops->common->sb_release(edev->cdev, sb_info, sb_id);
+		edev->ops->common->sb_release(edev->cdev, sb_info, sb_id,
+					      QED_SB_TYPE_L2_QUEUE);
 		dma_free_coherent(&edev->pdev->dev, sizeof(*sb_info->sb_virt),
 				  (void *)sb_info->sb_virt, sb_info->sb_phys);
 		memset(sb_info, 0, sizeof(*sb_info));

@@ -1301,26 +1301,21 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 {
 	struct qed_hwfn *p_hwfn;
 	struct qed_ptt *p_ptt;
-	int hwfn_index;
 	u16 rel_sb_id;
-	u8 n_hwfns;
 	u32 rc;
 
-	/* RoCE uses single engine and CMT uses two engines. When using both
-	 * we force only a single engine. Storage uses only engine 0 too.
-	 */
-	if (type == QED_SB_TYPE_L2_QUEUE)
-		n_hwfns = cdev->num_hwfns;
-	else
-		n_hwfns = 1;
-
-	hwfn_index = sb_id % n_hwfns;
-	p_hwfn = &cdev->hwfns[hwfn_index];
-	rel_sb_id = sb_id / n_hwfns;
+	/* RoCE/Storage use a single engine in CMT mode while L2 uses both */
+	if (type == QED_SB_TYPE_L2_QUEUE) {
+		p_hwfn = &cdev->hwfns[sb_id % cdev->num_hwfns];
+		rel_sb_id = sb_id / cdev->num_hwfns;
+	} else {
+		p_hwfn = QED_AFFIN_HWFN(cdev);
+		rel_sb_id = sb_id;
+	}
 
 	DP_VERBOSE(cdev, NETIF_MSG_INTR,
 		   "hwfn [%d] <--[init]-- SB %04x [0x%04x upper]\n",
-		   hwfn_index, rel_sb_id, sb_id);
+		   IS_LEAD_HWFN(p_hwfn) ? 0 : 1, rel_sb_id, sb_id);
 
 	if (IS_PF(p_hwfn->cdev)) {
 		p_ptt = qed_ptt_acquire(p_hwfn);
@@ -1339,20 +1334,26 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 }
 
 static u32 qed_sb_release(struct qed_dev *cdev,
-			  struct qed_sb_info *sb_info, u16 sb_id)
+			  struct qed_sb_info *sb_info,
+			  u16 sb_id,
+			  enum qed_sb_type type)
 {
 	struct qed_hwfn *p_hwfn;
-	int hwfn_index;
 	u16 rel_sb_id;
 	u32 rc;
 
-	hwfn_index = sb_id % cdev->num_hwfns;
-	p_hwfn = &cdev->hwfns[hwfn_index];
-	rel_sb_id = sb_id / cdev->num_hwfns;
+	/* RoCE/Storage use a single engine in CMT mode while L2 uses both */
+	if (type == QED_SB_TYPE_L2_QUEUE) {
+		p_hwfn = &cdev->hwfns[sb_id % cdev->num_hwfns];
+		rel_sb_id = sb_id / cdev->num_hwfns;
+	} else {
+		p_hwfn = QED_AFFIN_HWFN(cdev);
+		rel_sb_id = sb_id;
+	}
 
 	DP_VERBOSE(cdev, NETIF_MSG_INTR,
 		   "hwfn [%d] <--[init]-- SB %04x [0x%04x upper]\n",
-		   hwfn_index, rel_sb_id, sb_id);
+		   IS_LEAD_HWFN(p_hwfn) ? 0 : 1, rel_sb_id, sb_id);
 
 	rc = qed_int_sb_release(p_hwfn, sb_info, rel_sb_id);
 
@@ -2372,6 +2373,11 @@ static int qed_read_module_eeprom(struct qed_dev *cdev, char *buf,
 	return rc;
 }
 
+static u8 qed_get_affin_hwfn_idx(struct qed_dev *cdev)
+{
+	return QED_AFFIN_HWFN_IDX(cdev);
+}
+
 static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_memory = &qed_selftest_memory,
 	.selftest_interrupt = &qed_selftest_interrupt,
@@ -2419,6 +2425,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.db_recovery_add = &qed_db_recovery_add,
 	.db_recovery_del = &qed_db_recovery_del,
 	.read_module_eeprom = &qed_read_module_eeprom,
+	.get_affin_hwfn_idx = &qed_get_affin_hwfn_idx,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,
