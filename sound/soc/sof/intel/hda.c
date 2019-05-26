@@ -32,6 +32,9 @@
 /* platform specific devices */
 #include "shim.h"
 
+#define IS_CFL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa348)
+#define IS_CNL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9dc8)
+
 /*
  * Debug
  */
@@ -213,6 +216,11 @@ static int hda_init(struct snd_sof_dev *sdev)
 	ext_ops = snd_soc_hdac_hda_get_ops();
 #endif
 	sof_hda_bus_init(bus, &pci->dev, ext_ops);
+
+	/* Workaround for a communication error on CFL (bko#199007) and CNL */
+	if (IS_CFL(pci) || IS_CNL(pci))
+		bus->polling_mode = 1;
+
 	bus->use_posbuf = 1;
 	bus->bdl_pos_adj = 0;
 
