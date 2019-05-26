@@ -591,6 +591,8 @@ static int pi2c_probe(struct platform_device *pldev)
 		return -ENXIO;
 
 	priv->smba = (unsigned long)ioremap_nocache(res->start, resource_size(res));
+	if (!priv->smba)
+		return -ENOMEM;
 
 	platform_set_drvdata(pldev, priv);
 
