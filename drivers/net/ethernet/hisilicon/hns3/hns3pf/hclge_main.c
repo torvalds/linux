@@ -35,6 +35,8 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 static bool hclge_get_hw_reset_stat(struct hnae3_handle *handle);
 static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
 			       u16 *allocated_size, bool is_alloc);
+static void hclge_rfs_filter_expire(struct hclge_dev *hdev);
+static void hclge_clear_arfs_rules(struct hnae3_handle *handle);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -1226,8 +1228,10 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->tm_info.hw_pfc_map = 0;
 	hdev->wanted_umv_size = cfg.umv_space;
 
-	if (hnae3_dev_fd_supported(hdev))
+	if (hnae3_dev_fd_supported(hdev)) {
 		hdev->fd_en = true;
+		hdev->fd_active_type = HCLGE_FD_RULE_NONE;
+	}
 
 	ret = hclge_parse_speed(cfg.default_speed, &hdev->hw.mac.speed);
 	if (ret) {
@@ -2508,6 +2512,9 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 
 static void hclge_update_port_capability(struct hclge_mac *mac)
 {
+	/* update fec ability by speed */
+	hclge_convert_setting_fec(mac);
+
 	/* firmware can not identify back plane type, the media type
 	 * read from configuration can help deal it
 	 */
@@ -2580,6 +2587,10 @@ static int hclge_get_sfp_info(struct hclge_dev *hdev, struct hclge_mac *mac)
 		mac->speed_ability = le32_to_cpu(resp->speed_ability);
 		mac->autoneg = resp->autoneg;
 		mac->support_autoneg = resp->autoneg_ability;
+		if (!resp->active_fec)
+			mac->fec_mode = 0;
+		else
+			mac->fec_mode = BIT(resp->active_fec);
 	} else {
 		mac->speed_type = QUERY_SFP_SPEED;
 	}
@@ -2645,6 +2656,7 @@ static void hclge_service_timer(struct timer_list *t)
 
 	mod_timer(&hdev->service_timer, jiffies + HZ);
 	hdev->hw_stats.stats_timer++;
+	hdev->fd_arfs_expire_timer++;
 	hclge_task_schedule(hdev);
 }
 
@@ -3521,6 +3533,10 @@ static void hclge_service_task(struct work_struct *work)
 	hclge_update_port_info(hdev);
 	hclge_update_link_status(hdev);
 	hclge_update_vport_alive(hdev);
+	if (hdev->fd_arfs_expire_timer >= HCLGE_FD_ARFS_EXPIRE_TIMER_INTERVAL) {
+		hclge_rfs_filter_expire(hdev);
+		hdev->fd_arfs_expire_timer = 0;
+	}
 	hclge_service_complete(hdev);
 }
 
@@ -4906,14 +4922,18 @@ static bool hclge_fd_rule_exist(struct hclge_dev *hdev, u16 location)
 	struct hclge_fd_rule *rule = NULL;
 	struct hlist_node *node2;
 
+	spin_lock_bh(&hdev->fd_rule_lock);
 	hlist_for_each_entry_safe(rule, node2, &hdev->fd_rule_list, rule_node) {
 		if (rule->location >= location)
 			break;
 	}
 
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
 	return  rule && rule->location == location;
 }
 
+/* make sure being called after lock up with fd_rule_lock */
 static int hclge_fd_update_rule_list(struct hclge_dev *hdev,
 				     struct hclge_fd_rule *new_rule,
 				     u16 location,
@@ -4937,9 +4957,13 @@ static int hclge_fd_update_rule_list(struct hclge_dev *hdev,
 		kfree(rule);
 		hdev->hclge_fd_rule_num--;
 
-		if (!is_add)
-			return 0;
+		if (!is_add) {
+			if (!hdev->hclge_fd_rule_num)
+				hdev->fd_active_type = HCLGE_FD_RULE_NONE;
+			clear_bit(location, hdev->fd_bmap);
 
+			return 0;
+		}
 	} else if (!is_add) {
 		dev_err(&hdev->pdev->dev,
 			"delete fail, rule %d is inexistent\n",
@@ -4954,7 +4978,9 @@ static int hclge_fd_update_rule_list(struct hclge_dev *hdev,
 	else
 		hlist_add_head(&new_rule->rule_node, &hdev->fd_rule_list);
 
+	set_bit(location, hdev->fd_bmap);
 	hdev->hclge_fd_rule_num++;
+	hdev->fd_active_type = new_rule->rule_type;
 
 	return 0;
 }
@@ -5112,6 +5138,36 @@ static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 	return 0;
 }
 
+/* make sure being called after lock up with fd_rule_lock */
+static int hclge_fd_config_rule(struct hclge_dev *hdev,
+				struct hclge_fd_rule *rule)
+{
+	int ret;
+
+	if (!rule) {
+		dev_err(&hdev->pdev->dev,
+			"The flow director rule is NULL\n");
+		return -EINVAL;
+	}
+
+	/* it will never fail here, so needn't to check return value */
+	hclge_fd_update_rule_list(hdev, rule, rule->location, true);
+
+	ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
+	if (ret)
+		goto clear_rule;
+
+	ret = hclge_config_key(hdev, HCLGE_FD_STAGE_1, rule);
+	if (ret)
+		goto clear_rule;
+
+	return 0;
+
+clear_rule:
+	hclge_fd_update_rule_list(hdev, rule, rule->location, false);
+	return ret;
+}
+
 static int hclge_add_fd_entry(struct hnae3_handle *handle,
 			      struct ethtool_rxnfc *cmd)
 {
@@ -5174,8 +5230,10 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 		return -ENOMEM;
 
 	ret = hclge_fd_get_tuple(hdev, fs, rule);
-	if (ret)
-		goto free_rule;
+	if (ret) {
+		kfree(rule);
+		return ret;
+	}
 
 	rule->flow_type = fs->flow_type;
 
@@ -5184,23 +5242,18 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 	rule->vf_id = dst_vport_id;
 	rule->queue_id = q_index;
 	rule->action = action;
+	rule->rule_type = HCLGE_FD_EP_ACTIVE;
 
-	ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
-	if (ret)
-		goto free_rule;
+	/* to avoid rule conflict, when user configure rule by ethtool,
+	 * we need to clear all arfs rules
+	 */
+	hclge_clear_arfs_rules(handle);
 
-	ret = hclge_config_key(hdev, HCLGE_FD_STAGE_1, rule);
-	if (ret)
-		goto free_rule;
+	spin_lock_bh(&hdev->fd_rule_lock);
+	ret = hclge_fd_config_rule(hdev, rule);
 
-	ret = hclge_fd_update_rule_list(hdev, rule, fs->location, true);
-	if (ret)
-		goto free_rule;
+	spin_unlock_bh(&hdev->fd_rule_lock);
 
-	return ret;
-
-free_rule:
-	kfree(rule);
 	return ret;
 }
 
@@ -5232,8 +5285,12 @@ static int hclge_del_fd_entry(struct hnae3_handle *handle,
 	if (ret)
 		return ret;
 
-	return hclge_fd_update_rule_list(hdev, NULL, fs->location,
-					 false);
+	spin_lock_bh(&hdev->fd_rule_lock);
+	ret = hclge_fd_update_rule_list(hdev, NULL, fs->location, false);
+
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
+	return ret;
 }
 
 static void hclge_del_all_fd_entries(struct hnae3_handle *handle,
@@ -5243,25 +5300,30 @@ static void hclge_del_all_fd_entries(struct hnae3_handle *handle,
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_fd_rule *rule;
 	struct hlist_node *node;
+	u16 location;
 
 	if (!hnae3_dev_fd_supported(hdev))
 		return;
 
+	spin_lock_bh(&hdev->fd_rule_lock);
+	for_each_set_bit(location, hdev->fd_bmap,
+			 hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1])
+		hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true, location,
+				     NULL, false);
+
 	if (clear_list) {
 		hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list,
 					  rule_node) {
-			hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true,
-					     rule->location, NULL, false);
 			hlist_del(&rule->rule_node);
 			kfree(rule);
-			hdev->hclge_fd_rule_num--;
 		}
-	} else {
-		hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list,
-					  rule_node)
-			hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true,
-					     rule->location, NULL, false);
+		hdev->fd_active_type = HCLGE_FD_RULE_NONE;
+		hdev->hclge_fd_rule_num = 0;
+		bitmap_zero(hdev->fd_bmap,
+			    hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1]);
 	}
+
+	spin_unlock_bh(&hdev->fd_rule_lock);
 }
 
 static int hclge_restore_fd_entries(struct hnae3_handle *handle)
@@ -5283,6 +5345,7 @@ static int hclge_restore_fd_entries(struct hnae3_handle *handle)
 	if (!hdev->fd_en)
 		return 0;
 
+	spin_lock_bh(&hdev->fd_rule_lock);
 	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
 		ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
 		if (!ret)
@@ -5292,11 +5355,18 @@ static int hclge_restore_fd_entries(struct hnae3_handle *handle)
 			dev_warn(&hdev->pdev->dev,
 				 "Restore rule %d failed, remove it\n",
 				 rule->location);
+			clear_bit(rule->location, hdev->fd_bmap);
 			hlist_del(&rule->rule_node);
 			kfree(rule);
 			hdev->hclge_fd_rule_num--;
 		}
 	}
+
+	if (hdev->hclge_fd_rule_num)
+		hdev->fd_active_type = HCLGE_FD_EP_ACTIVE;
+
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
 	return 0;
 }
 
@@ -5329,13 +5399,18 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 
 	fs = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
+	spin_lock_bh(&hdev->fd_rule_lock);
+
 	hlist_for_each_entry_safe(rule, node2, &hdev->fd_rule_list, rule_node) {
 		if (rule->location >= fs->location)
 			break;
 	}
 
-	if (!rule || fs->location != rule->location)
+	if (!rule || fs->location != rule->location) {
+		spin_unlock_bh(&hdev->fd_rule_lock);
+
 		return -ENOENT;
+	}
 
 	fs->flow_type = rule->flow_type;
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
@@ -5474,6 +5549,7 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 
 		break;
 	default:
+		spin_unlock_bh(&hdev->fd_rule_lock);
 		return -EOPNOTSUPP;
 	}
 
@@ -5505,6 +5581,8 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 		fs->ring_cookie |= vf_id;
 	}
 
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
 	return 0;
 }
 
@@ -5522,18 +5600,208 @@ static int hclge_get_all_rules(struct hnae3_handle *handle,
 
 	cmd->data = hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1];
 
+	spin_lock_bh(&hdev->fd_rule_lock);
 	hlist_for_each_entry_safe(rule, node2,
 				  &hdev->fd_rule_list, rule_node) {
-		if (cnt == cmd->rule_cnt)
+		if (cnt == cmd->rule_cnt) {
+			spin_unlock_bh(&hdev->fd_rule_lock);
 			return -EMSGSIZE;
+		}
 
 		rule_locs[cnt] = rule->location;
 		cnt++;
 	}
 
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
 	cmd->rule_cnt = cnt;
 
 	return 0;
+}
+
+static void hclge_fd_get_flow_tuples(const struct flow_keys *fkeys,
+				     struct hclge_fd_rule_tuples *tuples)
+{
+	tuples->ether_proto = be16_to_cpu(fkeys->basic.n_proto);
+	tuples->ip_proto = fkeys->basic.ip_proto;
+	tuples->dst_port = be16_to_cpu(fkeys->ports.dst);
+
+	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
+		tuples->src_ip[3] = be32_to_cpu(fkeys->addrs.v4addrs.src);
+		tuples->dst_ip[3] = be32_to_cpu(fkeys->addrs.v4addrs.dst);
+	} else {
+		memcpy(tuples->src_ip,
+		       fkeys->addrs.v6addrs.src.in6_u.u6_addr32,
+		       sizeof(tuples->src_ip));
+		memcpy(tuples->dst_ip,
+		       fkeys->addrs.v6addrs.dst.in6_u.u6_addr32,
+		       sizeof(tuples->dst_ip));
+	}
+}
+
+/* traverse all rules, check whether an existed rule has the same tuples */
+static struct hclge_fd_rule *
+hclge_fd_search_flow_keys(struct hclge_dev *hdev,
+			  const struct hclge_fd_rule_tuples *tuples)
+{
+	struct hclge_fd_rule *rule = NULL;
+	struct hlist_node *node;
+
+	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
+		if (!memcmp(tuples, &rule->tuples, sizeof(*tuples)))
+			return rule;
+	}
+
+	return NULL;
+}
+
+static void hclge_fd_build_arfs_rule(const struct hclge_fd_rule_tuples *tuples,
+				     struct hclge_fd_rule *rule)
+{
+	rule->unused_tuple = BIT(INNER_SRC_MAC) | BIT(INNER_DST_MAC) |
+			     BIT(INNER_VLAN_TAG_FST) | BIT(INNER_IP_TOS) |
+			     BIT(INNER_SRC_PORT);
+	rule->action = 0;
+	rule->vf_id = 0;
+	rule->rule_type = HCLGE_FD_ARFS_ACTIVE;
+	if (tuples->ether_proto == ETH_P_IP) {
+		if (tuples->ip_proto == IPPROTO_TCP)
+			rule->flow_type = TCP_V4_FLOW;
+		else
+			rule->flow_type = UDP_V4_FLOW;
+	} else {
+		if (tuples->ip_proto == IPPROTO_TCP)
+			rule->flow_type = TCP_V6_FLOW;
+		else
+			rule->flow_type = UDP_V6_FLOW;
+	}
+	memcpy(&rule->tuples, tuples, sizeof(rule->tuples));
+	memset(&rule->tuples_mask, 0xFF, sizeof(rule->tuples_mask));
+}
+
+static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
+				      u16 flow_id, struct flow_keys *fkeys)
+{
+#ifdef CONFIG_RFS_ACCEL
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_fd_rule_tuples new_tuples;
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_fd_rule *rule;
+	u16 tmp_queue_id;
+	u16 bit_id;
+	int ret;
+
+	if (!hnae3_dev_fd_supported(hdev))
+		return -EOPNOTSUPP;
+
+	memset(&new_tuples, 0, sizeof(new_tuples));
+	hclge_fd_get_flow_tuples(fkeys, &new_tuples);
+
+	spin_lock_bh(&hdev->fd_rule_lock);
+
+	/* when there is already fd rule existed add by user,
+	 * arfs should not work
+	 */
+	if (hdev->fd_active_type == HCLGE_FD_EP_ACTIVE) {
+		spin_unlock_bh(&hdev->fd_rule_lock);
+
+		return -EOPNOTSUPP;
+	}
+
+	/* check is there flow director filter existed for this flow,
+	 * if not, create a new filter for it;
+	 * if filter exist with different queue id, modify the filter;
+	 * if filter exist with same queue id, do nothing
+	 */
+	rule = hclge_fd_search_flow_keys(hdev, &new_tuples);
+	if (!rule) {
+		bit_id = find_first_zero_bit(hdev->fd_bmap, MAX_FD_FILTER_NUM);
+		if (bit_id >= hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1]) {
+			spin_unlock_bh(&hdev->fd_rule_lock);
+
+			return -ENOSPC;
+		}
+
+		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+		if (!rule) {
+			spin_unlock_bh(&hdev->fd_rule_lock);
+
+			return -ENOMEM;
+		}
+
+		set_bit(bit_id, hdev->fd_bmap);
+		rule->location = bit_id;
+		rule->flow_id = flow_id;
+		rule->queue_id = queue_id;
+		hclge_fd_build_arfs_rule(&new_tuples, rule);
+		ret = hclge_fd_config_rule(hdev, rule);
+
+		spin_unlock_bh(&hdev->fd_rule_lock);
+
+		if (ret)
+			return ret;
+
+		return rule->location;
+	}
+
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
+	if (rule->queue_id == queue_id)
+		return rule->location;
+
+	tmp_queue_id = rule->queue_id;
+	rule->queue_id = queue_id;
+	ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
+	if (ret) {
+		rule->queue_id = tmp_queue_id;
+		return ret;
+	}
+
+	return rule->location;
+#endif
+}
+
+static void hclge_rfs_filter_expire(struct hclge_dev *hdev)
+{
+#ifdef CONFIG_RFS_ACCEL
+	struct hnae3_handle *handle = &hdev->vport[0].nic;
+	struct hclge_fd_rule *rule;
+	struct hlist_node *node;
+	HLIST_HEAD(del_list);
+
+	spin_lock_bh(&hdev->fd_rule_lock);
+	if (hdev->fd_active_type != HCLGE_FD_ARFS_ACTIVE) {
+		spin_unlock_bh(&hdev->fd_rule_lock);
+		return;
+	}
+	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
+		if (rps_may_expire_flow(handle->netdev, rule->queue_id,
+					rule->flow_id, rule->location)) {
+			hlist_del_init(&rule->rule_node);
+			hlist_add_head(&rule->rule_node, &del_list);
+			hdev->hclge_fd_rule_num--;
+			clear_bit(rule->location, hdev->fd_bmap);
+		}
+	}
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
+	hlist_for_each_entry_safe(rule, node, &del_list, rule_node) {
+		hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true,
+				     rule->location, NULL, false);
+		kfree(rule);
+	}
+#endif
+}
+
+static void hclge_clear_arfs_rules(struct hnae3_handle *handle)
+{
+#ifdef CONFIG_RFS_ACCEL
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	if (hdev->fd_active_type == HCLGE_FD_ARFS_ACTIVE)
+		hclge_del_all_fd_entries(handle, true);
+#endif
 }
 
 static bool hclge_get_hw_reset_stat(struct hnae3_handle *handle)
@@ -5565,10 +5833,12 @@ static void hclge_enable_fd(struct hnae3_handle *handle, bool enable)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	bool clear;
 
 	hdev->fd_en = enable;
+	clear = hdev->fd_active_type == HCLGE_FD_ARFS_ACTIVE ? true : false;
 	if (!enable)
-		hclge_del_all_fd_entries(handle, false);
+		hclge_del_all_fd_entries(handle, clear);
 	else
 		hclge_restore_fd_entries(handle);
 }
@@ -5837,6 +6107,8 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	int i;
 
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
+
+	hclge_clear_arfs_rules(handle);
 
 	/* If it is not PF reset, the firmware will disable the MAC,
 	 * so it only need to stop phy here.
@@ -8143,6 +8415,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	mutex_init(&hdev->vport_lock);
 	mutex_init(&hdev->vport_cfg_mutex);
+	spin_lock_init(&hdev->fd_rule_lock);
 
 	ret = hclge_pci_init(hdev);
 	if (ret) {
@@ -8908,6 +9181,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fd_all_rules = hclge_get_all_rules,
 	.restore_fd_rules = hclge_restore_fd_entries,
 	.enable_fd = hclge_enable_fd,
+	.add_arfs_entry = hclge_add_fd_entry_by_arfs,
 	.dbg_run_cmd = hclge_dbg_run_cmd,
 	.handle_hw_ras_error = hclge_handle_hw_ras_error,
 	.get_hw_reset_stat = hclge_get_hw_reset_stat,
