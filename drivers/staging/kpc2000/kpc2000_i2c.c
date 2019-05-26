@@ -116,12 +116,12 @@ struct i2c_device {
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS      0x9c22
 
 
-#define FEATURE_SMBUS_PEC       (1 << 0)
-#define FEATURE_BLOCK_BUFFER    (1 << 1)
-#define FEATURE_BLOCK_PROC      (1 << 2)
-#define FEATURE_I2C_BLOCK_READ  (1 << 3)
+#define FEATURE_SMBUS_PEC       BIT(0)
+#define FEATURE_BLOCK_BUFFER    BIT(1)
+#define FEATURE_BLOCK_PROC      BIT(2)
+#define FEATURE_I2C_BLOCK_READ  BIT(3)
 /* Not really a feature, but it's convenient to handle it as such */
-#define FEATURE_IDF             (1 << 15)
+#define FEATURE_IDF             BIT(15)
 
 // FIXME!
 #undef inb_p
