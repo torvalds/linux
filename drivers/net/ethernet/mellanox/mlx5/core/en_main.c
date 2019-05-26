@@ -5108,6 +5108,11 @@ static void mlx5e_detach(struct mlx5_core_dev *mdev, void *vpriv)
 	struct mlx5e_priv *priv = vpriv;
 	struct net_device *netdev = priv->netdev;
 
+#ifdef CONFIG_MLX5_ESWITCH
+	if (MLX5_ESWITCH_MANAGER(mdev) && vpriv == mdev)
+		return;
+#endif
+
 	if (!netif_device_present(netdev))
 		return;
 
