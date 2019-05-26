@@ -241,11 +241,17 @@ enum qed_dmae_address_type_t {
 #define QED_DMAE_FLAG_VF_SRC		0x00000002
 #define QED_DMAE_FLAG_VF_DST		0x00000004
 #define QED_DMAE_FLAG_COMPLETION_DST	0x00000008
+#define QED_DMAE_FLAG_PORT		0x00000010
+#define QED_DMAE_FLAG_PF_SRC		0x00000020
+#define QED_DMAE_FLAG_PF_DST		0x00000040
 
 struct qed_dmae_params {
 	u32 flags; /* consists of QED_DMAE_FLAG_* values */
 	u8 src_vfid;
 	u8 dst_vfid;
+	u8 port_id;
+	u8 src_pfid;
+	u8 dst_pfid;
 };
 
 /**
@@ -257,7 +263,7 @@ struct qed_dmae_params {
  * @param source_addr
  * @param grc_addr (dmae_data_offset)
  * @param size_in_dwords
- * @param flags (one of the flags defined above)
+ * @param p_params (default parameters will be used in case of NULL)
  */
 int
 qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
@@ -265,7 +271,7 @@ qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		  u64 source_addr,
 		  u32 grc_addr,
 		  u32 size_in_dwords,
-		  u32 flags);
+		  struct qed_dmae_params *p_params);
 
  /**
  * @brief qed_dmae_grc2host - Read data from dmae data offset
@@ -275,11 +281,11 @@ qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
  * @param grc_addr (dmae_data_offset)
  * @param dest_addr
  * @param size_in_dwords
- * @param flags - one of the flags defined above
+ * @param p_params (default parameters will be used in case of NULL)
  */
 int qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		      u32 grc_addr, dma_addr_t dest_addr, u32 size_in_dwords,
-		      u32 flags);
+		      struct qed_dmae_params *p_params);
 
 /**
  * @brief qed_dmae_host2host - copy data from to source address
@@ -290,7 +296,7 @@ int qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
  * @param source_addr
  * @param dest_addr
  * @param size_in_dwords
- * @param params
+ * @param p_params (default parameters will be used in case of NULL)
  */
 int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 		       struct qed_ptt *p_ptt,
