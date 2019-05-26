@@ -140,6 +140,7 @@ struct qed_cxt_mngr;
 struct qed_sb_sp_info;
 struct qed_ll2_info;
 struct qed_mcp_info;
+struct qed_llh_info;
 
 struct qed_rt_data {
 	u32	*init_val;
@@ -741,6 +742,7 @@ struct qed_dev {
 #define QED_DEV_ID_MASK		0xff00
 #define QED_DEV_ID_MASK_BB	0x1600
 #define QED_DEV_ID_MASK_AH	0x8000
+#define QED_IS_E4(dev)  (QED_IS_BB(dev) || QED_IS_AH(dev))
 
 	u16	chip_num;
 #define CHIP_NUM_MASK                   0xffff
@@ -801,6 +803,11 @@ struct qed_dev {
 	u8				num_hwfns;
 	struct qed_hwfn			hwfns[MAX_HWFNS_PER_DEVICE];
 
+	/* Engine affinity */
+	u8				l2_affin_hint;
+	u8				fir_affin;
+	u8				iwarp_affin;
+
 	/* SRIOV */
 	struct qed_hw_sriov_info *p_iov_info;
 #define IS_QED_SRIOV(cdev)              (!!(cdev)->p_iov_info)
@@ -814,6 +821,10 @@ struct qed_dev {
 
 	/* Recovery */
 	bool recov_in_prog;
+
+	/* LLH info */
+	u8 ppfid_bitmap;
+	struct qed_llh_info *p_llh_info;
 
 	/* Linux specific here */
 	struct  qede_dev		*edev;
@@ -852,6 +863,9 @@ struct qed_dev {
 	u32 rdma_max_inline;
 	u32 rdma_max_srq_sge;
 	u16 tunn_feature_mask;
+
+	struct devlink			*dl;
+	bool				iwarp_cmt;
 };
 
 #define NUM_OF_VFS(dev)         (QED_IS_BB(dev) ? MAX_NUM_VFS_BB \
@@ -904,6 +918,14 @@ void qed_set_fw_mac_addr(__le16 *fw_msb,
 			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac);
 
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
+#define QED_IS_CMT(dev)		((dev)->num_hwfns > 1)
+/* Macros for getting the engine-affinitized hwfn (FIR: fcoe,iscsi,roce) */
+#define QED_FIR_AFFIN_HWFN(dev)		(&(dev)->hwfns[dev->fir_affin])
+#define QED_IWARP_AFFIN_HWFN(dev)       (&(dev)->hwfns[dev->iwarp_affin])
+#define QED_AFFIN_HWFN(dev)				   \
+	(QED_IS_IWARP_PERSONALITY(QED_LEADING_HWFN(dev)) ? \
+	 QED_IWARP_AFFIN_HWFN(dev) : QED_FIR_AFFIN_HWFN(dev))
+#define QED_AFFIN_HWFN_IDX(dev) (IS_LEAD_HWFN(QED_AFFIN_HWFN(dev)) ? 0 : 1)
 
 /* Flags for indication of required queues */
 #define PQ_FLAGS_RLS    (BIT(0))
@@ -922,8 +944,6 @@ u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc);
 u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf);
 u16 qed_get_cm_pq_idx_ofld_mtc(struct qed_hwfn *p_hwfn, u8 tc);
 u16 qed_get_cm_pq_idx_llt_mtc(struct qed_hwfn *p_hwfn, u8 tc);
-
-#define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 
 /* doorbell recovery mechanism */
 void qed_db_recovery_dp(struct qed_hwfn *p_hwfn);
