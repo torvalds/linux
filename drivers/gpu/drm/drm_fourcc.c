@@ -27,7 +27,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fourcc.h>
 
 static char printable_char(int c)

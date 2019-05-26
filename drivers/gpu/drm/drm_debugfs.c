@@ -24,20 +24,23 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/export.h>
+#include <linux/uaccess.h>
 
-#include <drm/drm_client.h>
-#include <drm/drm_debugfs.h>
-#include <drm/drm_edid.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_auth.h>
+#include <drm/drm_client.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_file.h>
 #include <drm/drm_gem.h>
-#include <drm/drmP.h>
 
-#include "drm_internal.h"
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
 

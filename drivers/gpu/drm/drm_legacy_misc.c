@@ -33,7 +33,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
 #include "drm_legacy.h"
 

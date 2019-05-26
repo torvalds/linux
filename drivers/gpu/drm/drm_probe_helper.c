@@ -32,14 +32,15 @@
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_client.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fourcc.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_sysfs.h>
 
 #include "drm_crtc_helper_internal.h"
 

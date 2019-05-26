@@ -33,15 +33,27 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <linux/export.h>
+#include <linux/pci.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
+
 #if defined(__ia64__)
 #include <linux/efi.h>
 #include <linux/slab.h>
 #endif
 #include <linux/mem_encrypt.h>
+
 #include <asm/pgtable.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
 #include "drm_legacy.h"
 

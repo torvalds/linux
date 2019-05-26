@@ -14,7 +14,6 @@
 #include <linux/reservation.h>
 #include <linux/slab.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_damage_helper.h>
