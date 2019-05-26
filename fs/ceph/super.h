@@ -934,6 +934,10 @@ struct ceph_acl_sec_ctx {
 	void *default_acl;
 	void *acl;
 #endif
+#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
+	void *sec_ctx;
+	u32 sec_ctxlen;
+#endif
 	struct ceph_pagelist *pagelist;
 };
 
@@ -948,6 +952,21 @@ static inline bool ceph_security_xattr_deadlock(struct inode *in)
 static inline bool ceph_security_xattr_wanted(struct inode *in)
 {
 	return false;
+}
+#endif
+
+#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
+extern int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
+				     struct ceph_acl_sec_ctx *ctx);
+extern void ceph_security_invalidate_secctx(struct inode *inode);
+#else
+static inline int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
+					    struct ceph_acl_sec_ctx *ctx)
+{
+	return 0;
+}
+static inline void ceph_security_invalidate_secctx(struct inode *inode)
+{
 }
 #endif
 

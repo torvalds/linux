@@ -454,6 +454,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		err = ceph_pre_init_acls(dir, &mode, &as_ctx);
 		if (err < 0)
 			return err;
+		err = ceph_security_init_secctx(dentry, mode, &as_ctx);
+		if (err < 0)
+			goto out_ctx;
 	}
 
 	/* do the open */

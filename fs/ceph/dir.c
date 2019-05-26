@@ -839,6 +839,9 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 	err = ceph_pre_init_acls(dir, &mode, &as_ctx);
 	if (err < 0)
 		goto out;
+	err = ceph_security_init_secctx(dentry, mode, &as_ctx);
+	if (err < 0)
+		goto out;
 
 	dout("mknod in dir %p dentry %p mode 0%ho rdev %d\n",
 	     dir, dentry, mode, rdev);
@@ -884,6 +887,7 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
+	struct ceph_acl_sec_ctx as_ctx = {};
 	int err;
 
 	if (ceph_snap(dir) != CEPH_NOSNAP)
@@ -893,6 +897,10 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 		err = -EDQUOT;
 		goto out;
 	}
+
+	err = ceph_security_init_secctx(dentry, S_IFLNK | 0777, &as_ctx);
+	if (err < 0)
+		goto out;
 
 	dout("symlink in dir %p dentry %p to '%s'\n", dir, dentry, dest);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SYMLINK, USE_AUTH_MDS);
@@ -919,6 +927,7 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 out:
 	if (err)
 		d_drop(dentry);
+	ceph_release_acl_sec_ctx(&as_ctx);
 	return err;
 }
 
@@ -951,6 +960,9 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	mode |= S_IFDIR;
 	err = ceph_pre_init_acls(dir, &mode, &as_ctx);
+	if (err < 0)
+		goto out;
+	err = ceph_security_init_secctx(dentry, mode, &as_ctx);
 	if (err < 0)
 		goto out;
 

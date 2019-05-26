@@ -8,6 +8,7 @@
 #include <linux/ceph/decode.h>
 
 #include <linux/xattr.h>
+#include <linux/security.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/slab.h>
 
@@ -17,26 +18,9 @@
 static int __remove_xattr(struct ceph_inode_info *ci,
 			  struct ceph_inode_xattr *xattr);
 
-static const struct xattr_handler ceph_other_xattr_handler;
-
-/*
- * List of handlers for synthetic system.* attributes. Other
- * attributes are handled directly.
- */
-const struct xattr_handler *ceph_xattr_handlers[] = {
-#ifdef CONFIG_CEPH_FS_POSIX_ACL
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
-#endif
-	&ceph_other_xattr_handler,
-	NULL,
-};
-
 static bool ceph_is_valid_xattr(const char *name)
 {
 	return !strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN) ||
-	       !strncmp(name, XATTR_SECURITY_PREFIX,
-			XATTR_SECURITY_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
@@ -1196,6 +1180,111 @@ bool ceph_security_xattr_deadlock(struct inode *in)
 	spin_unlock(&ci->i_ceph_lock);
 	return ret;
 }
+
+#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
+int ceph_security_init_secctx(struct dentry *dentry, umode_t mode,
+			   struct ceph_acl_sec_ctx *as_ctx)
+{
+	struct ceph_pagelist *pagelist = as_ctx->pagelist;
+	const char *name;
+	size_t name_len;
+	int err;
+
+	err = security_dentry_init_security(dentry, mode, &dentry->d_name,
+					    &as_ctx->sec_ctx,
+					    &as_ctx->sec_ctxlen);
+	if (err < 0) {
+		WARN_ON_ONCE(err != -EOPNOTSUPP);
+		err = 0; /* do nothing */
+		goto out;
+	}
+
+	err = -ENOMEM;
+	if (!pagelist) {
+		pagelist = ceph_pagelist_alloc(GFP_KERNEL);
+		if (!pagelist)
+			goto out;
+		err = ceph_pagelist_reserve(pagelist, PAGE_SIZE);
+		if (err)
+			goto out;
+		ceph_pagelist_encode_32(pagelist, 1);
+	}
+
+	/*
+	 * FIXME: Make security_dentry_init_security() generic. Currently
+	 * It only supports single security module and only selinux has
+	 * dentry_init_security hook.
+	 */
+	name = XATTR_NAME_SELINUX;
+	name_len = strlen(name);
+	err = ceph_pagelist_reserve(pagelist,
+				    4 * 2 + name_len + as_ctx->sec_ctxlen);
+	if (err)
+		goto out;
+
+	if (as_ctx->pagelist) {
+		/* update count of KV pairs */
+		BUG_ON(pagelist->length <= sizeof(__le32));
+		if (list_is_singular(&pagelist->head)) {
+			le32_add_cpu((__le32*)pagelist->mapped_tail, 1);
+		} else {
+			struct page *page = list_first_entry(&pagelist->head,
+							     struct page, lru);
+			void *addr = kmap_atomic(page);
+			le32_add_cpu((__le32*)addr, 1);
+			kunmap_atomic(addr);
+		}
+	} else {
+		as_ctx->pagelist = pagelist;
+	}
+
+	ceph_pagelist_encode_32(pagelist, name_len);
+	ceph_pagelist_append(pagelist, name, name_len);
+
+	ceph_pagelist_encode_32(pagelist, as_ctx->sec_ctxlen);
+	ceph_pagelist_append(pagelist, as_ctx->sec_ctx, as_ctx->sec_ctxlen);
+
+	err = 0;
+out:
+	if (pagelist && !as_ctx->pagelist)
+		ceph_pagelist_release(pagelist);
+	return err;
+}
+
+void ceph_security_invalidate_secctx(struct inode *inode)
+{
+	security_inode_invalidate_secctx(inode);
+}
+
+static int ceph_xattr_set_security_label(const struct xattr_handler *handler,
+				    struct dentry *unused, struct inode *inode,
+				    const char *key, const void *buf,
+				    size_t buflen, int flags)
+{
+	if (security_ismaclabel(key)) {
+		const char *name = xattr_full_name(handler, key);
+		return __ceph_setxattr(inode, name, buf, buflen, flags);
+	}
+	return  -EOPNOTSUPP;
+}
+
+static int ceph_xattr_get_security_label(const struct xattr_handler *handler,
+				    struct dentry *unused, struct inode *inode,
+				    const char *key, void *buf, size_t buflen)
+{
+	if (security_ismaclabel(key)) {
+		const char *name = xattr_full_name(handler, key);
+		return __ceph_getxattr(inode, name, buf, buflen);
+	}
+	return  -EOPNOTSUPP;
+}
+
+static const struct xattr_handler ceph_security_label_handler = {
+	.prefix = XATTR_SECURITY_PREFIX,
+	.get    = ceph_xattr_get_security_label,
+	.set    = ceph_xattr_set_security_label,
+};
+#endif
 #endif
 
 void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx)
@@ -1204,6 +1293,25 @@ void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx)
 	posix_acl_release(as_ctx->acl);
 	posix_acl_release(as_ctx->default_acl);
 #endif
+#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
+	security_release_secctx(as_ctx->sec_ctx, as_ctx->sec_ctxlen);
+#endif
 	if (as_ctx->pagelist)
 		ceph_pagelist_release(as_ctx->pagelist);
 }
+
+/*
+ * List of handlers for synthetic system.* attributes. Other
+ * attributes are handled directly.
+ */
+const struct xattr_handler *ceph_xattr_handlers[] = {
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	&posix_acl_access_xattr_handler,
+	&posix_acl_default_xattr_handler,
+#endif
+#ifdef CONFIG_CEPH_FS_SECURITY_LABEL
+	&ceph_security_label_handler,
+#endif
+	&ceph_other_xattr_handler,
+	NULL,
+};

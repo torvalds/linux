@@ -3156,6 +3156,7 @@ static void handle_cap_grant(struct inode *inode,
 			ci->i_xattrs.blob = ceph_buffer_get(xattr_buf);
 			ci->i_xattrs.version = version;
 			ceph_forget_all_cached_acls(inode);
+			ceph_security_invalidate_secctx(inode);
 		}
 	}
 
