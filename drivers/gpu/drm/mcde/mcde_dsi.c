@@ -191,7 +191,7 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	}
 
 	dev_dbg(d->dev,
-		"message to channel %d, %u bytes",
+		"message to channel %d, %zd bytes",
 		msg->channel,
 		txlen);
 

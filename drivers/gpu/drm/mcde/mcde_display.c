@@ -823,7 +823,7 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	u32 formatter_ppl = mode->hdisplay; /* pixels per line */
 	u32 formatter_lpf = mode->vdisplay; /* lines per frame */
 	int pkt_size, fifo_wtrmrk;
-	int cpp = drm_format_plane_cpp(format, 0);
+	int cpp = fb->format->cpp[0];
 	int formatter_cpp;
 	struct drm_format_name_buf tmp;
 	u32 formatter_frame;
