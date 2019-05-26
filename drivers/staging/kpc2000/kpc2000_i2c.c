@@ -590,7 +590,9 @@ static int pi2c_probe(struct platform_device *pldev)
 	if (!res)
 		return -ENXIO;
 
-	priv->smba = (unsigned long)ioremap_nocache(res->start, resource_size(res));
+	priv->smba = (unsigned long)devm_ioremap_nocache(&pldev->dev,
+							 res->start,
+							 resource_size(res));
 	if (!priv->smba)
 		return -ENOMEM;
 
