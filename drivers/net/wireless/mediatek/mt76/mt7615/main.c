@@ -191,31 +191,28 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	struct mt7615_dev *dev = hw->priv;
 	int ret = 0;
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		mutex_lock(&dev->mt76.mutex);
+	mutex_lock(&dev->mt76.mutex);
 
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
 		ret = mt7615_set_channel(dev, &hw->conf.chandef);
 		ieee80211_wake_queues(hw);
-
-		mutex_unlock(&dev->mt76.mutex);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		ret = mt7615_mcu_set_tx_power(dev);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
-		mutex_lock(&dev->mt76.mutex);
-
 		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
 			dev->mt76.rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
 		else
 			dev->mt76.rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
 
 		mt76_wr(dev, MT_WF_RFCR, dev->mt76.rxfilter);
-
-		mutex_unlock(&dev->mt76.mutex);
 	}
+
+	mutex_unlock(&dev->mt76.mutex);
+
 	return ret;
 }
 
