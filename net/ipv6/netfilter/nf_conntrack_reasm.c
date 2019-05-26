@@ -58,26 +58,21 @@ static struct inet_frags nf_frags;
 static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_frag6_timeout",
-		.data		= &init_net.nf_frag.frags.timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_frag6_low_thresh",
-		.data		= &init_net.nf_frag.frags.low_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra2		= &init_net.nf_frag.frags.high_thresh
 	},
 	{
 		.procname	= "nf_conntrack_frag6_high_thresh",
-		.data		= &init_net.nf_frag.frags.high_thresh,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &init_net.nf_frag.frags.low_thresh
 	},
 	{ }
 };
@@ -93,14 +88,14 @@ static int nf_ct_frag6_sysctl_register(struct net *net)
 				GFP_KERNEL);
 		if (table == NULL)
 			goto err_alloc;
-
-		table[0].data = &net->nf_frag.frags.timeout;
-		table[1].data = &net->nf_frag.frags.low_thresh;
-		table[1].extra2 = &net->nf_frag.frags.high_thresh;
-		table[2].data = &net->nf_frag.frags.high_thresh;
-		table[2].extra1 = &net->nf_frag.frags.low_thresh;
-		table[2].extra2 = &init_net.nf_frag.frags.high_thresh;
 	}
+
+	table[0].data	= &net->nf_frag.fqdir->timeout;
+	table[1].data	= &net->nf_frag.fqdir->low_thresh;
+	table[1].extra2	= &net->nf_frag.fqdir->high_thresh;
+	table[2].data	= &net->nf_frag.fqdir->high_thresh;
+	table[2].extra1	= &net->nf_frag.fqdir->low_thresh;
+	table[2].extra2	= &init_net.nf_frag.fqdir->high_thresh;
 
 	hdr = register_net_sysctl(net, "net/netfilter", table);
 	if (hdr == NULL)
@@ -148,12 +143,10 @@ static void nf_ct_frag6_expire(struct timer_list *t)
 {
 	struct inet_frag_queue *frag = from_timer(frag, t, timer);
 	struct frag_queue *fq;
-	struct net *net;
 
 	fq = container_of(frag, struct frag_queue, q);
-	net = container_of(fq->q.net, struct net, nf_frag.frags);
 
-	ip6frag_expire_frag_queue(net, fq);
+	ip6frag_expire_frag_queue(fq->q.fqdir->net, fq);
 }
 
 /* Creation primitives. */
@@ -169,7 +162,7 @@ static struct frag_queue *fq_find(struct net *net, __be32 id, u32 user,
 	};
 	struct inet_frag_queue *q;
 
-	q = inet_frag_find(&net->nf_frag.frags, &key);
+	q = inet_frag_find(net->nf_frag.fqdir, &key);
 	if (!q)
 		return NULL;
 
@@ -276,7 +269,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 	fq->ecn |= ecn;
 	if (payload_len > fq->q.max_size)
 		fq->q.max_size = payload_len;
-	add_frag_mem_limit(fq->q.net, skb->truesize);
+	add_frag_mem_limit(fq->q.fqdir, skb->truesize);
 
 	/* The first fragment.
 	 * nhoffset is obtained from the first fragment, of course.
@@ -496,24 +489,24 @@ static int nf_ct_net_init(struct net *net)
 {
 	int res;
 
-	net->nf_frag.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
-	net->nf_frag.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
-	net->nf_frag.frags.timeout = IPV6_FRAG_TIMEOUT;
-	net->nf_frag.frags.f = &nf_frags;
-
-	res = inet_frags_init_net(&net->nf_frag.frags);
+	res = fqdir_init(&net->nf_frag.fqdir, &nf_frags, net);
 	if (res < 0)
 		return res;
+
+	net->nf_frag.fqdir->high_thresh = IPV6_FRAG_HIGH_THRESH;
+	net->nf_frag.fqdir->low_thresh = IPV6_FRAG_LOW_THRESH;
+	net->nf_frag.fqdir->timeout = IPV6_FRAG_TIMEOUT;
+
 	res = nf_ct_frag6_sysctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&net->nf_frag.frags);
+		fqdir_exit(net->nf_frag.fqdir);
 	return res;
 }
 
 static void nf_ct_net_exit(struct net *net)
 {
 	nf_ct_frags6_sysctl_unregister(net);
-	inet_frags_exit_net(&net->nf_frag.frags);
+	fqdir_exit(net->nf_frag.fqdir);
 }
 
 static struct pernet_operations nf_ct_net_ops = {

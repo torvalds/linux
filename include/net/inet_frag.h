@@ -4,18 +4,22 @@
 
 #include <linux/rhashtable-types.h>
 
-struct netns_frags {
+/* Per netns frag queues directory */
+struct fqdir {
 	/* sysctls */
 	long			high_thresh;
 	long			low_thresh;
 	int			timeout;
 	int			max_dist;
 	struct inet_frags	*f;
+	struct net		*net;
+	bool			dead;
 
 	struct rhashtable       rhashtable ____cacheline_aligned_in_smp;
 
 	/* Keep atomic mem on separate cachelines in structs that include it */
 	atomic_long_t		mem ____cacheline_aligned_in_smp;
+	struct rcu_work		destroy_rwork;
 };
 
 /**
@@ -24,11 +28,13 @@ struct netns_frags {
  * @INET_FRAG_FIRST_IN: first fragment has arrived
  * @INET_FRAG_LAST_IN: final fragment has arrived
  * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
+ * @INET_FRAG_HASH_DEAD: inet_frag_kill() has not removed fq from rhashtable
  */
 enum {
 	INET_FRAG_FIRST_IN	= BIT(0),
 	INET_FRAG_LAST_IN	= BIT(1),
 	INET_FRAG_COMPLETE	= BIT(2),
+	INET_FRAG_HASH_DEAD	= BIT(3),
 };
 
 struct frag_v4_compare_key {
@@ -64,7 +70,7 @@ struct frag_v6_compare_key {
  * @meat: length of received fragments so far
  * @flags: fragment queue flags
  * @max_size: maximum received fragment size
- * @net: namespace that this frag belongs to
+ * @fqdir: pointer to struct fqdir
  * @rcu: rcu head for freeing deferall
  */
 struct inet_frag_queue {
@@ -84,7 +90,7 @@ struct inet_frag_queue {
 	int			meat;
 	__u8			flags;
 	u16			max_size;
-	struct netns_frags      *net;
+	struct fqdir		*fqdir;
 	struct rcu_head		rcu;
 };
 
@@ -103,16 +109,30 @@ struct inet_frags {
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-static inline int inet_frags_init_net(struct netns_frags *nf)
+static inline int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f,
+			     struct net *net)
 {
-	atomic_long_set(&nf->mem, 0);
-	return rhashtable_init(&nf->rhashtable, &nf->f->rhash_params);
+	struct fqdir *fqdir = kzalloc(sizeof(*fqdir), GFP_KERNEL);
+	int res;
+
+	if (!fqdir)
+		return -ENOMEM;
+	fqdir->f = f;
+	fqdir->net = net;
+	res = rhashtable_init(&fqdir->rhashtable, &fqdir->f->rhash_params);
+	if (res < 0) {
+		kfree(fqdir);
+		return res;
+	}
+	*fqdirp = fqdir;
+	return 0;
 }
-void inet_frags_exit_net(struct netns_frags *nf);
+
+void fqdir_exit(struct fqdir *fqdir);
 
 void inet_frag_kill(struct inet_frag_queue *q);
 void inet_frag_destroy(struct inet_frag_queue *q);
-struct inet_frag_queue *inet_frag_find(struct netns_frags *nf, void *key);
+struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key);
 
 /* Free all skbs in the queue; return the sum of their truesizes. */
 unsigned int inet_frag_rbtree_purge(struct rb_root *root);
@@ -125,19 +145,19 @@ static inline void inet_frag_put(struct inet_frag_queue *q)
 
 /* Memory Tracking Functions. */
 
-static inline long frag_mem_limit(const struct netns_frags *nf)
+static inline long frag_mem_limit(const struct fqdir *fqdir)
 {
-	return atomic_long_read(&nf->mem);
+	return atomic_long_read(&fqdir->mem);
 }
 
-static inline void sub_frag_mem_limit(struct netns_frags *nf, long val)
+static inline void sub_frag_mem_limit(struct fqdir *fqdir, long val)
 {
-	atomic_long_sub(val, &nf->mem);
+	atomic_long_sub(val, &fqdir->mem);
 }
 
-static inline void add_frag_mem_limit(struct netns_frags *nf, long val)
+static inline void add_frag_mem_limit(struct fqdir *fqdir, long val)
 {
-	atomic_long_add(val, &nf->mem);
+	atomic_long_add(val, &fqdir->mem);
 }
 
 /* RFC 3168 support :
