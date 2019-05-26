@@ -71,6 +71,12 @@ _bpftool_get_prog_tags()
         command sed -n 's/.*"tag": "\(.*\)",$/\1/p' )" -- "$cur" ) )
 }
 
+_bpftool_get_btf_ids()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
+        command sed -n 's/.*"btf_id": \(.*\),\?$/\1/p' )" -- "$cur" ) )
+}
+
 _bpftool_get_obj_map_names()
 {
     local obj
@@ -634,6 +640,9 @@ _bpftool()
                                     ;;
                                 map)
                                     _bpftool_get_map_ids
+                                    ;;
+                                dump)
+                                    _bpftool_get_btf_ids
                                     ;;
                             esac
                             return 0
