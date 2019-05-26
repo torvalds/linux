@@ -863,6 +863,9 @@ struct qed_dev {
 	u32 rdma_max_inline;
 	u32 rdma_max_srq_sge;
 	u16 tunn_feature_mask;
+
+	struct devlink			*dl;
+	bool				iwarp_cmt;
 };
 
 #define NUM_OF_VFS(dev)         (QED_IS_BB(dev) ? MAX_NUM_VFS_BB \
