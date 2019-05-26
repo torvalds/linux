@@ -198,8 +198,7 @@ static inline void fsnotify_unlink(struct inode *dir, struct dentry *dentry)
 	/* Expected to be called before d_delete() */
 	WARN_ON_ONCE(d_is_negative(dentry));
 
-	/* TODO: call fsnotify_dirent() */
-	fsnotify_nameremove(dentry, 0);
+	fsnotify_dirent(dir, dentry, FS_DELETE);
 }
 
 /*
@@ -222,8 +221,7 @@ static inline void fsnotify_rmdir(struct inode *dir, struct dentry *dentry)
 	/* Expected to be called before d_delete() */
 	WARN_ON_ONCE(d_is_negative(dentry));
 
-	/* TODO: call fsnotify_dirent() */
-	fsnotify_nameremove(dentry, 1);
+	fsnotify_dirent(dir, dentry, FS_DELETE | FS_ISDIR);
 }
 
 /*
