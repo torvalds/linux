@@ -55,7 +55,6 @@ struct innolux_panel {
 
 	struct backlight_device *backlight;
 	struct regulator_bulk_data *supplies;
-	unsigned int num_supplies;
 	struct gpio_desc *enable_gpio;
 
 	bool prepared;
