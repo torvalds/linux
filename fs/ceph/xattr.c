@@ -1197,3 +1197,13 @@ bool ceph_security_xattr_deadlock(struct inode *in)
 	return ret;
 }
 #endif
+
+void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx)
+{
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	posix_acl_release(as_ctx->acl);
+	posix_acl_release(as_ctx->default_acl);
+#endif
+	if (as_ctx->pagelist)
+		ceph_pagelist_release(as_ctx->pagelist);
+}

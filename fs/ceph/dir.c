@@ -825,7 +825,7 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
-	struct ceph_acls_info acls = {};
+	struct ceph_acl_sec_ctx as_ctx = {};
 	int err;
 
 	if (ceph_snap(dir) != CEPH_NOSNAP)
@@ -836,7 +836,7 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	err = ceph_pre_init_acls(dir, &mode, &acls);
+	err = ceph_pre_init_acls(dir, &mode, &as_ctx);
 	if (err < 0)
 		goto out;
 
@@ -855,9 +855,9 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 	req->r_args.mknod.rdev = cpu_to_le32(rdev);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_AUTH_EXCL;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
-	if (acls.pagelist) {
-		req->r_pagelist = acls.pagelist;
-		acls.pagelist = NULL;
+	if (as_ctx.pagelist) {
+		req->r_pagelist = as_ctx.pagelist;
+		as_ctx.pagelist = NULL;
 	}
 	err = ceph_mdsc_do_request(mdsc, dir, req);
 	if (!err && !req->r_reply_info.head->is_dentry)
@@ -865,10 +865,10 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 	ceph_mdsc_put_request(req);
 out:
 	if (!err)
-		ceph_init_inode_acls(d_inode(dentry), &acls);
+		ceph_init_inode_acls(d_inode(dentry), &as_ctx);
 	else
 		d_drop(dentry);
-	ceph_release_acls_info(&acls);
+	ceph_release_acl_sec_ctx(&as_ctx);
 	return err;
 }
 
@@ -927,7 +927,7 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
-	struct ceph_acls_info acls = {};
+	struct ceph_acl_sec_ctx as_ctx = {};
 	int err = -EROFS;
 	int op;
 
@@ -950,7 +950,7 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	}
 
 	mode |= S_IFDIR;
-	err = ceph_pre_init_acls(dir, &mode, &acls);
+	err = ceph_pre_init_acls(dir, &mode, &as_ctx);
 	if (err < 0)
 		goto out;
 
@@ -967,9 +967,9 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	req->r_args.mkdir.mode = cpu_to_le32(mode);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_AUTH_EXCL;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
-	if (acls.pagelist) {
-		req->r_pagelist = acls.pagelist;
-		acls.pagelist = NULL;
+	if (as_ctx.pagelist) {
+		req->r_pagelist = as_ctx.pagelist;
+		as_ctx.pagelist = NULL;
 	}
 	err = ceph_mdsc_do_request(mdsc, dir, req);
 	if (!err &&
@@ -979,10 +979,10 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	ceph_mdsc_put_request(req);
 out:
 	if (!err)
-		ceph_init_inode_acls(d_inode(dentry), &acls);
+		ceph_init_inode_acls(d_inode(dentry), &as_ctx);
 	else
 		d_drop(dentry);
-	ceph_release_acls_info(&acls);
+	ceph_release_acl_sec_ctx(&as_ctx);
 	return err;
 }
 

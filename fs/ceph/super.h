@@ -929,6 +929,14 @@ extern void __ceph_build_xattrs_blob(struct ceph_inode_info *ci);
 extern void __ceph_destroy_xattrs(struct ceph_inode_info *ci);
 extern const struct xattr_handler *ceph_xattr_handlers[];
 
+struct ceph_acl_sec_ctx {
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	void *default_acl;
+	void *acl;
+#endif
+	struct ceph_pagelist *pagelist;
+};
+
 #ifdef CONFIG_SECURITY
 extern bool ceph_security_xattr_deadlock(struct inode *in);
 extern bool ceph_security_xattr_wanted(struct inode *in);
@@ -943,21 +951,17 @@ static inline bool ceph_security_xattr_wanted(struct inode *in)
 }
 #endif
 
-/* acl.c */
-struct ceph_acls_info {
-	void *default_acl;
-	void *acl;
-	struct ceph_pagelist *pagelist;
-};
+void ceph_release_acl_sec_ctx(struct ceph_acl_sec_ctx *as_ctx);
 
+/* acl.c */
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 
 struct posix_acl *ceph_get_acl(struct inode *, int);
 int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
-		       struct ceph_acls_info *info);
-void ceph_init_inode_acls(struct inode *inode, struct ceph_acls_info *info);
-void ceph_release_acls_info(struct ceph_acls_info *info);
+		       struct ceph_acl_sec_ctx *as_ctx);
+void ceph_init_inode_acls(struct inode *inode,
+			  struct ceph_acl_sec_ctx *as_ctx);
 
 static inline void ceph_forget_all_cached_acls(struct inode *inode)
 {
@@ -970,15 +974,12 @@ static inline void ceph_forget_all_cached_acls(struct inode *inode)
 #define ceph_set_acl NULL
 
 static inline int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
-				     struct ceph_acls_info *info)
+				     struct ceph_acl_sec_ctx *as_ctx)
 {
 	return 0;
 }
 static inline void ceph_init_inode_acls(struct inode *inode,
-					struct ceph_acls_info *info)
-{
-}
-static inline void ceph_release_acls_info(struct ceph_acls_info *info)
+					struct ceph_acl_sec_ctx *as_ctx)
 {
 }
 static inline int ceph_acl_chmod(struct dentry *dentry, struct inode *inode)

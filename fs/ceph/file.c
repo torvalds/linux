@@ -437,7 +437,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	struct dentry *dn;
-	struct ceph_acls_info acls = {};
+	struct ceph_acl_sec_ctx as_ctx = {};
 	int mask;
 	int err;
 
@@ -451,7 +451,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (flags & O_CREAT) {
 		if (ceph_quota_is_max_files_exceeded(dir))
 			return -EDQUOT;
-		err = ceph_pre_init_acls(dir, &mode, &acls);
+		err = ceph_pre_init_acls(dir, &mode, &as_ctx);
 		if (err < 0)
 			return err;
 	}
@@ -460,16 +460,16 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	req = prepare_open_request(dir->i_sb, flags, mode);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
-		goto out_acl;
+		goto out_ctx;
 	}
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	if (flags & O_CREAT) {
 		req->r_dentry_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_AUTH_EXCL;
 		req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
-		if (acls.pagelist) {
-			req->r_pagelist = acls.pagelist;
-			acls.pagelist = NULL;
+		if (as_ctx.pagelist) {
+			req->r_pagelist = as_ctx.pagelist;
+			as_ctx.pagelist = NULL;
 		}
 	}
 
@@ -507,7 +507,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	} else {
 		dout("atomic_open finish_open on dn %p\n", dn);
 		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
-			ceph_init_inode_acls(d_inode(dentry), &acls);
+			ceph_init_inode_acls(d_inode(dentry), &as_ctx);
 			file->f_mode |= FMODE_CREATED;
 		}
 		err = finish_open(file, dentry, ceph_open);
@@ -516,8 +516,8 @@ out_req:
 	if (!req->r_err && req->r_target_inode)
 		ceph_put_fmode(ceph_inode(req->r_target_inode), req->r_fmode);
 	ceph_mdsc_put_request(req);
-out_acl:
-	ceph_release_acls_info(&acls);
+out_ctx:
+	ceph_release_acl_sec_ctx(&as_ctx);
 	dout("atomic_open result=%d\n", err);
 	return err;
 }
