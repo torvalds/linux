@@ -42,6 +42,9 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#include "dce60/dce60_resource.h"
+#endif
 #include "dce80/dce80_resource.h"
 #include "dce100/dce100_resource.h"
 #include "dce110/dce110_resource.h"
@@ -63,6 +66,18 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 	switch (asic_id.chip_family) {
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	case FAMILY_SI:
+		if (ASIC_REV_IS_TAHITI_P(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_PITCAIRN_PM(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_CAPEVERDE_M(asic_id.hw_internal_rev))
+		dc_version = DCE_VERSION_6_0;
+		else if (ASIC_REV_IS_OLAND_M(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_6_4;
+		else
+			dc_version = DCE_VERSION_6_1;
+		break;
+#endif
 	case FAMILY_CI:
 		dc_version = DCE_VERSION_8_0;
 		break;
@@ -129,6 +144,20 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	struct resource_pool *res_pool = NULL;
 
 	switch (dc_version) {
+#if defined(CONFIG_DRM_AMD_DC_SI)
+	case DCE_VERSION_6_0:
+		res_pool = dce60_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+	case DCE_VERSION_6_1:
+		res_pool = dce61_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+	case DCE_VERSION_6_4:
+		res_pool = dce64_create_resource_pool(
+			init_data->num_virtual_links, dc);
+		break;
+#endif
 	case DCE_VERSION_8_0:
 		res_pool = dce80_create_resource_pool(
 				init_data->num_virtual_links, dc);
