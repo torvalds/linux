@@ -1574,12 +1574,12 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE) {
 		if (!test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
-			qed_llh_add_protocol_filter(p_hwfn, p_ptt,
-						    ETH_P_FCOE, 0,
-						    QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
-					    ETH_P_FIP, 0,
-					    QED_LLH_FILTER_ETHERTYPE);
+			qed_llh_add_protocol_filter(p_hwfn->cdev, 0,
+						    QED_LLH_FILTER_ETHERTYPE,
+						    ETH_P_FCOE, 0);
+		qed_llh_add_protocol_filter(p_hwfn->cdev, 0,
+					    QED_LLH_FILTER_ETHERTYPE,
+					    ETH_P_FIP, 0);
 	}
 
 out:
@@ -1980,12 +1980,12 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE) {
 		if (!test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
-			qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
-						       ETH_P_FCOE, 0,
-						      QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
-					       ETH_P_FIP, 0,
-					       QED_LLH_FILTER_ETHERTYPE);
+			qed_llh_remove_protocol_filter(p_hwfn->cdev, 0,
+						       QED_LLH_FILTER_ETHERTYPE,
+						       ETH_P_FCOE, 0);
+		qed_llh_remove_protocol_filter(p_hwfn->cdev, 0,
+					       QED_LLH_FILTER_ETHERTYPE,
+					       ETH_P_FIP, 0);
 	}
 
 out:
@@ -2386,8 +2386,6 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 		goto release_terminate;
 	}
 
-	rc = qed_llh_add_mac_filter(QED_LEADING_HWFN(cdev), p_ptt,
-				    params->ll2_mac_address);
 	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
 	if (rc) {
 		DP_ERR(cdev, "Failed to allocate LLH filter\n");
@@ -2423,8 +2421,6 @@ static int qed_ll2_stop(struct qed_dev *cdev)
 		goto fail;
 	}
 
-	qed_llh_remove_mac_filter(QED_LEADING_HWFN(cdev), p_ptt,
-				  cdev->ll2_mac_address);
 	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
 	eth_zero_addr(cdev->ll2_mac_address);
 

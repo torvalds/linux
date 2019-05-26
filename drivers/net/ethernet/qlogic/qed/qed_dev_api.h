@@ -374,26 +374,66 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 		   u8 *dst_id);
 
 /**
- * @brief qed_llh_add_mac_filter - configures a MAC filter in llh
+ * @brief qed_llh_get_num_ppfid - Return the allocated number of LLH filter
+ *	banks that are allocated to the PF.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param p_filter - MAC to add
+ * @param cdev
+ *
+ * @return u8 - Number of LLH filter banks
  */
-int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt, u8 *p_filter);
+u8 qed_llh_get_num_ppfid(struct qed_dev *cdev);
+
+enum qed_eng {
+	QED_ENG0,
+	QED_ENG1,
+	QED_BOTH_ENG,
+};
 
 /**
- * @brief qed_llh_remove_mac_filter - removes a MAC filter from llh
+ * @brief qed_llh_set_ppfid_affinity - Set the engine affinity for the given
+ *	LLH filter bank.
  *
- * @param p_hwfn
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param eng
+ *
+ * @return int
+ */
+int qed_llh_set_ppfid_affinity(struct qed_dev *cdev,
+			       u8 ppfid, enum qed_eng eng);
+
+/**
+ * @brief qed_llh_set_roce_affinity - Set the RoCE engine affinity
+ *
+ * @param cdev
+ * @param eng
+ *
+ * @return int
+ */
+int qed_llh_set_roce_affinity(struct qed_dev *cdev, enum qed_eng eng);
+
+/**
+ * @brief qed_llh_add_mac_filter - Add a LLH MAC filter into the given filter
+ *	bank.
+ *
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param mac_addr - MAC to add
+ */
+int qed_llh_add_mac_filter(struct qed_dev *cdev,
+			   u8 ppfid, u8 mac_addr[ETH_ALEN]);
+
+/**
+ * @brief qed_llh_remove_mac_filter - Remove a LLH MAC filter from the given
+ *	filter bank.
+ *
  * @param p_ptt
  * @param p_filter - MAC to remove
  */
-void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt, u8 *p_filter);
+void qed_llh_remove_mac_filter(struct qed_dev *cdev,
+			       u8 ppfid, u8 mac_addr[ETH_ALEN]);
 
-enum qed_llh_port_filter_type_t {
+enum qed_llh_prot_filter_type_t {
 	QED_LLH_FILTER_ETHERTYPE,
 	QED_LLH_FILTER_TCP_SRC_PORT,
 	QED_LLH_FILTER_TCP_DEST_PORT,
@@ -404,36 +444,37 @@ enum qed_llh_port_filter_type_t {
 };
 
 /**
- * @brief qed_llh_add_protocol_filter - configures a protocol filter in llh
+ * @brief qed_llh_add_protocol_filter - Add a LLH protocol filter into the
+ *	given filter bank.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param type - type of filters and comparing
  * @param source_port_or_eth_type - source port or ethertype to add
  * @param dest_port - destination port to add
  * @param type - type of filters and comparing
  */
 int
-qed_llh_add_protocol_filter(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    u16 source_port_or_eth_type,
-			    u16 dest_port,
-			    enum qed_llh_port_filter_type_t type);
+qed_llh_add_protocol_filter(struct qed_dev *cdev,
+			    u8 ppfid,
+			    enum qed_llh_prot_filter_type_t type,
+			    u16 source_port_or_eth_type, u16 dest_port);
 
 /**
- * @brief qed_llh_remove_protocol_filter - remove a protocol filter in llh
+ * @brief qed_llh_remove_protocol_filter - Remove a LLH protocol filter from
+ *	the given filter bank.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param type - type of filters and comparing
  * @param source_port_or_eth_type - source port or ethertype to add
  * @param dest_port - destination port to add
- * @param type - type of filters and comparing
  */
 void
-qed_llh_remove_protocol_filter(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt,
-			       u16 source_port_or_eth_type,
-			       u16 dest_port,
-			       enum qed_llh_port_filter_type_t type);
+qed_llh_remove_protocol_filter(struct qed_dev *cdev,
+			       u8 ppfid,
+			       enum qed_llh_prot_filter_type_t type,
+			       u16 source_port_or_eth_type, u16 dest_port);
 
 /**
  * *@brief Cleanup of previous driver remains prior to load

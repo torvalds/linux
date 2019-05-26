@@ -700,7 +700,7 @@ static int qed_rdma_setup(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
-		rc = qed_iwarp_setup(p_hwfn, p_ptt, params);
+		rc = qed_iwarp_setup(p_hwfn, params);
 		if (rc)
 			return rc;
 	} else {
@@ -742,7 +742,7 @@ static int qed_rdma_stop(void *rdma_cxt)
 	       (ll2_ethertype_en & 0xFFFE));
 
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
-		rc = qed_iwarp_stop(p_hwfn, p_ptt);
+		rc = qed_iwarp_stop(p_hwfn);
 		if (rc) {
 			qed_ptt_release(p_hwfn, p_ptt);
 			return rc;
@@ -1899,23 +1899,12 @@ static int qed_roce_ll2_set_mac_filter(struct qed_dev *cdev,
 				       u8 *old_mac_address,
 				       u8 *new_mac_address)
 {
-	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
-	struct qed_ptt *p_ptt;
 	int rc = 0;
 
-	p_ptt = qed_ptt_acquire(p_hwfn);
-	if (!p_ptt) {
-		DP_ERR(cdev,
-		       "qed roce ll2 mac filter set: failed to acquire PTT\n");
-		return -EINVAL;
-	}
-
 	if (old_mac_address)
-		qed_llh_remove_mac_filter(p_hwfn, p_ptt, old_mac_address);
+		qed_llh_remove_mac_filter(cdev, 0, old_mac_address);
 	if (new_mac_address)
-		rc = qed_llh_add_mac_filter(p_hwfn, p_ptt, new_mac_address);
-
-	qed_ptt_release(p_hwfn, p_ptt);
+		rc = qed_llh_add_mac_filter(cdev, 0, new_mac_address);
 
 	if (rc)
 		DP_ERR(cdev,
