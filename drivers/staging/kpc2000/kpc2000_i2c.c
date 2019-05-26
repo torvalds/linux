@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/fs.h>
-#include <linux/rwsem.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include "kpc.h"
@@ -38,7 +37,6 @@ struct i2c_device {
 	unsigned long           smba;
 	struct i2c_adapter      adapter;
 	struct platform_device *pldev;
-	struct rw_semaphore     rw_sem;
 	unsigned int            features;
 };
 
@@ -606,7 +604,6 @@ static int pi2c_probe(struct platform_device *pldev)
 	priv->features |= FEATURE_BLOCK_BUFFER;
 
 	//init_MUTEX(&lddata->sem);
-	init_rwsem(&priv->rw_sem);
 
 	/* set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = &pldev->dev;
