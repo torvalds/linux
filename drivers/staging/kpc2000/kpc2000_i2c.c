@@ -36,7 +36,6 @@ MODULE_SOFTDEP("pre: i2c-dev");
 struct i2c_device {
 	unsigned long           smba;
 	struct i2c_adapter      adapter;
-	struct platform_device *pldev;
 	unsigned int            features;
 };
 
@@ -595,7 +594,6 @@ static int pi2c_probe(struct platform_device *pldev)
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	priv->smba = (unsigned long)ioremap_nocache(res->start, resource_size(res));
 
-	priv->pldev = pldev;
 	pldev->dev.platform_data = priv;
 
 	priv->features |= FEATURE_IDF;
