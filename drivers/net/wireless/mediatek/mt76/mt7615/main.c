@@ -493,4 +493,5 @@ const struct ieee80211_ops mt7615_ops = {
 	.sw_scan_start = mt7615_sw_scan,
 	.sw_scan_complete = mt7615_sw_scan_complete,
 	.release_buffered_frames = mt76_release_buffered_frames,
+	.get_txpower = mt76_get_txpower,
 };
