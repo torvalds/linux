@@ -818,14 +818,17 @@ static struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct qed_rdma_port *p_port = p_hwfn->p_rdma_info->port;
+	struct qed_mcp_link_state *p_link_output;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "RDMA Query port\n");
 
-	/* Link may have changed */
-	p_port->port_state = p_hwfn->mcp_info->link_output.link_up ?
-			     QED_RDMA_PORT_UP : QED_RDMA_PORT_DOWN;
+	/* The link state is saved only for the leading hwfn */
+	p_link_output = &QED_LEADING_HWFN(p_hwfn->cdev)->mcp_info->link_output;
 
-	p_port->link_speed = p_hwfn->mcp_info->link_output.speed;
+	p_port->port_state = p_link_output->link_up ? QED_RDMA_PORT_UP
+	    : QED_RDMA_PORT_DOWN;
+
+	p_port->link_speed = p_link_output->speed;
 
 	p_port->max_msg_size = RDMA_MAX_DATA_SIZE_IN_WQE;
 
@@ -870,7 +873,7 @@ static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
 static int qed_fill_rdma_dev_info(struct qed_dev *cdev,
 				  struct qed_dev_rdma_info *info)
 {
-	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_hwfn *p_hwfn = QED_AFFIN_HWFN(cdev);
 
 	memset(info, 0, sizeof(*info));
 
@@ -889,9 +892,9 @@ static int qed_rdma_get_sb_start(struct qed_dev *cdev)
 	int feat_num;
 
 	if (cdev->num_hwfns > 1)
-		feat_num = FEAT_NUM(QED_LEADING_HWFN(cdev), QED_PF_L2_QUE);
+		feat_num = FEAT_NUM(QED_AFFIN_HWFN(cdev), QED_PF_L2_QUE);
 	else
-		feat_num = FEAT_NUM(QED_LEADING_HWFN(cdev), QED_PF_L2_QUE) *
+		feat_num = FEAT_NUM(QED_AFFIN_HWFN(cdev), QED_PF_L2_QUE) *
 			   cdev->num_hwfns;
 
 	return feat_num;
@@ -899,7 +902,7 @@ static int qed_rdma_get_sb_start(struct qed_dev *cdev)
 
 static int qed_rdma_get_min_cnq_msix(struct qed_dev *cdev)
 {
-	int n_cnq = FEAT_NUM(QED_LEADING_HWFN(cdev), QED_RDMA_CNQ);
+	int n_cnq = FEAT_NUM(QED_AFFIN_HWFN(cdev), QED_RDMA_CNQ);
 	int n_msix = cdev->int_params.rdma_msix_cnt;
 
 	return min_t(int, n_cnq, n_msix);
@@ -1653,7 +1656,7 @@ static int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
 
 static void *qed_rdma_get_rdma_ctx(struct qed_dev *cdev)
 {
-	return QED_LEADING_HWFN(cdev);
+	return QED_AFFIN_HWFN(cdev);
 }
 
 static int qed_rdma_modify_srq(void *rdma_cxt,
@@ -1881,7 +1884,7 @@ err:
 static int qed_rdma_init(struct qed_dev *cdev,
 			 struct qed_rdma_start_in_params *params)
 {
-	return qed_rdma_start(QED_LEADING_HWFN(cdev), params);
+	return qed_rdma_start(QED_AFFIN_HWFN(cdev), params);
 }
 
 static void qed_rdma_remove_user(void *rdma_cxt, u16 dpi)

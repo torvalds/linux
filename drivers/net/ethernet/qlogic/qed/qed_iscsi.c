@@ -1082,7 +1082,7 @@ struct qed_hash_iscsi_con {
 static int qed_fill_iscsi_dev_info(struct qed_dev *cdev,
 				   struct qed_dev_iscsi_info *info)
 {
-	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_hwfn *hwfn = QED_AFFIN_HWFN(cdev);
 
 	int rc;
 
@@ -1141,8 +1141,8 @@ static int qed_iscsi_stop(struct qed_dev *cdev)
 	}
 
 	/* Stop the iscsi */
-	rc = qed_sp_iscsi_func_stop(QED_LEADING_HWFN(cdev),
-				    QED_SPQ_MODE_EBLOCK, NULL);
+	rc = qed_sp_iscsi_func_stop(QED_AFFIN_HWFN(cdev), QED_SPQ_MODE_EBLOCK,
+				    NULL);
 	cdev->flags &= ~QED_FLAG_STORAGE_STARTED;
 
 	return rc;
@@ -1161,9 +1161,8 @@ static int qed_iscsi_start(struct qed_dev *cdev,
 		return 0;
 	}
 
-	rc = qed_sp_iscsi_func_start(QED_LEADING_HWFN(cdev),
-				     QED_SPQ_MODE_EBLOCK, NULL, event_context,
-				     async_event_cb);
+	rc = qed_sp_iscsi_func_start(QED_AFFIN_HWFN(cdev), QED_SPQ_MODE_EBLOCK,
+				     NULL, event_context, async_event_cb);
 	if (rc) {
 		DP_NOTICE(cdev, "Failed to start iscsi\n");
 		return rc;
@@ -1182,8 +1181,7 @@ static int qed_iscsi_start(struct qed_dev *cdev,
 		return -ENOMEM;
 	}
 
-	rc = qed_cxt_get_tid_mem_info(QED_LEADING_HWFN(cdev),
-				      tid_info);
+	rc = qed_cxt_get_tid_mem_info(QED_AFFIN_HWFN(cdev), tid_info);
 	if (rc) {
 		DP_NOTICE(cdev, "Failed to gather task information\n");
 		qed_iscsi_stop(cdev);
@@ -1215,7 +1213,7 @@ static int qed_iscsi_acquire_conn(struct qed_dev *cdev,
 		return -ENOMEM;
 
 	/* Acquire the connection */
-	rc = qed_iscsi_acquire_connection(QED_LEADING_HWFN(cdev), NULL,
+	rc = qed_iscsi_acquire_connection(QED_AFFIN_HWFN(cdev), NULL,
 					  &hash_con->con);
 	if (rc) {
 		DP_NOTICE(cdev, "Failed to acquire Connection\n");
@@ -1229,7 +1227,7 @@ static int qed_iscsi_acquire_conn(struct qed_dev *cdev,
 	hash_add(cdev->connections, &hash_con->node, *handle);
 
 	if (p_doorbell)
-		*p_doorbell = qed_iscsi_get_db_addr(QED_LEADING_HWFN(cdev),
+		*p_doorbell = qed_iscsi_get_db_addr(QED_AFFIN_HWFN(cdev),
 						    *handle);
 
 	return 0;
@@ -1247,7 +1245,7 @@ static int qed_iscsi_release_conn(struct qed_dev *cdev, u32 handle)
 	}
 
 	hlist_del(&hash_con->node);
-	qed_iscsi_release_connection(QED_LEADING_HWFN(cdev), hash_con->con);
+	qed_iscsi_release_connection(QED_AFFIN_HWFN(cdev), hash_con->con);
 	kfree(hash_con);
 
 	return 0;
@@ -1324,7 +1322,7 @@ static int qed_iscsi_offload_conn(struct qed_dev *cdev,
 	/* Set default values on other connection fields */
 	con->offl_flags = 0x1;
 
-	return qed_sp_iscsi_conn_offload(QED_LEADING_HWFN(cdev), con,
+	return qed_sp_iscsi_conn_offload(QED_AFFIN_HWFN(cdev), con,
 					 QED_SPQ_MODE_EBLOCK, NULL);
 }
 
@@ -1351,7 +1349,7 @@ static int qed_iscsi_update_conn(struct qed_dev *cdev,
 	con->first_seq_length = conn_info->first_seq_length;
 	con->exp_stat_sn = conn_info->exp_stat_sn;
 
-	return qed_sp_iscsi_conn_update(QED_LEADING_HWFN(cdev), con,
+	return qed_sp_iscsi_conn_update(QED_AFFIN_HWFN(cdev), con,
 					QED_SPQ_MODE_EBLOCK, NULL);
 }
 
@@ -1366,8 +1364,7 @@ static int qed_iscsi_clear_conn_sq(struct qed_dev *cdev, u32 handle)
 		return -EINVAL;
 	}
 
-	return qed_sp_iscsi_conn_clear_sq(QED_LEADING_HWFN(cdev),
-					  hash_con->con,
+	return qed_sp_iscsi_conn_clear_sq(QED_AFFIN_HWFN(cdev), hash_con->con,
 					  QED_SPQ_MODE_EBLOCK, NULL);
 }
 
@@ -1385,14 +1382,13 @@ static int qed_iscsi_destroy_conn(struct qed_dev *cdev,
 
 	hash_con->con->abortive_dsconnect = abrt_conn;
 
-	return qed_sp_iscsi_conn_terminate(QED_LEADING_HWFN(cdev),
-					   hash_con->con,
+	return qed_sp_iscsi_conn_terminate(QED_AFFIN_HWFN(cdev), hash_con->con,
 					   QED_SPQ_MODE_EBLOCK, NULL);
 }
 
 static int qed_iscsi_stats(struct qed_dev *cdev, struct qed_iscsi_stats *stats)
 {
-	return qed_iscsi_get_stats(QED_LEADING_HWFN(cdev), stats);
+	return qed_iscsi_get_stats(QED_AFFIN_HWFN(cdev), stats);
 }
 
 static int qed_iscsi_change_mac(struct qed_dev *cdev,
@@ -1407,8 +1403,7 @@ static int qed_iscsi_change_mac(struct qed_dev *cdev,
 		return -EINVAL;
 	}
 
-	return qed_sp_iscsi_mac_update(QED_LEADING_HWFN(cdev),
-				       hash_con->con,
+	return qed_sp_iscsi_mac_update(QED_AFFIN_HWFN(cdev), hash_con->con,
 				       QED_SPQ_MODE_EBLOCK, NULL);
 }
 
