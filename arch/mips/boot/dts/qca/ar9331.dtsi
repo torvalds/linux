@@ -116,6 +116,32 @@
 			};
 		};
 
+		eth0: ethernet@19000000 {
+			compatible = "qca,ar9330-eth";
+			reg = <0x19000000 0x200>;
+			interrupts = <4>;
+
+			resets = <&rst 9>, <&rst 22>;
+			reset-names = "mac", "mdio";
+			clocks = <&pll ATH79_CLK_AHB>, <&pll ATH79_CLK_AHB>;
+			clock-names = "eth", "mdio";
+
+			status = "disabled";
+		};
+
+		eth1: ethernet@1a000000 {
+			compatible = "qca,ar9330-eth";
+			reg = <0x1a000000 0x200>;
+			interrupts = <5>;
+
+			resets = <&rst 13>, <&rst 23>;
+			reset-names = "mac", "mdio";
+			clocks = <&pll ATH79_CLK_AHB>, <&pll ATH79_CLK_AHB>;
+			clock-names = "eth", "mdio";
+
+			status = "disabled";
+		};
+
 		usb: usb@1b000100 {
 			compatible = "chipidea,usb2";
 			reg = <0x1b000000 0x200>;
