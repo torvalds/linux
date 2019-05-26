@@ -589,7 +589,7 @@ static int pi2c_probe(struct platform_device *pldev)
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	priv->smba = (unsigned long)ioremap_nocache(res->start, resource_size(res));
 
-	pldev->dev.platform_data = priv;
+	platform_set_drvdata(pldev, priv);
 
 	priv->features |= FEATURE_IDF;
 	priv->features |= FEATURE_I2C_BLOCK_READ;
@@ -620,7 +620,7 @@ static int pi2c_remove(struct platform_device *pldev)
 {
 	struct i2c_device *lddev;
 
-	lddev = (struct i2c_device *)pldev->dev.platform_data;
+	lddev = (struct i2c_device *)platform_get_drvdata(pldev);
 
 	i2c_del_adapter(&lddev->adapter);
 
