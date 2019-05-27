@@ -100,6 +100,20 @@ static void sysc_parse_dts_quirks(struct sysc *ddata, struct device_node *np,
 
 static void sysc_write(struct sysc *ddata, int offset, u32 value)
 {
+	if (ddata->cfg.quirks & SYSC_QUIRK_16BIT) {
+		writew_relaxed(value & 0xffff, ddata->module_va + offset);
+
+		/* Only i2c revision has LO and HI register with stride of 4 */
+		if (ddata->offsets[SYSC_REVISION] >= 0 &&
+		    offset == ddata->offsets[SYSC_REVISION]) {
+			u16 hi = value >> 16;
+
+			writew_relaxed(hi, ddata->module_va + offset + 4);
+		}
+
+		return;
+	}
+
 	writel_relaxed(value, ddata->module_va + offset);
 }
 
@@ -109,7 +123,14 @@ static u32 sysc_read(struct sysc *ddata, int offset)
 		u32 val;
 
 		val = readw_relaxed(ddata->module_va + offset);
-		val |= (readw_relaxed(ddata->module_va + offset + 4) << 16);
+
+		/* Only i2c revision has LO and HI register with stride of 4 */
+		if (ddata->offsets[SYSC_REVISION] >= 0 &&
+		    offset == ddata->offsets[SYSC_REVISION]) {
+			u16 tmp = readw_relaxed(ddata->module_va + offset + 4);
+
+			val |= tmp << 16;
+		}
 
 		return val;
 	}
