@@ -59,26 +59,26 @@ static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 				    u32 length)
 {
 	struct safexcel_token *token;
-	unsigned offset = 0;
+	u32 offset = 0, block_sz = 0;
 
 	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) {
 		switch (ctx->alg) {
 		case SAFEXCEL_DES:
-			offset = DES_BLOCK_SIZE / sizeof(u32);
-			memcpy(cdesc->control_data.token, iv, DES_BLOCK_SIZE);
+			block_sz = DES_BLOCK_SIZE;
 			cdesc->control_data.options |= EIP197_OPTION_2_TOKEN_IV_CMD;
 			break;
 		case SAFEXCEL_3DES:
-			offset = DES3_EDE_BLOCK_SIZE / sizeof(u32);
-			memcpy(cdesc->control_data.token, iv, DES3_EDE_BLOCK_SIZE);
+			block_sz = DES3_EDE_BLOCK_SIZE;
 			cdesc->control_data.options |= EIP197_OPTION_2_TOKEN_IV_CMD;
 			break;
 		case SAFEXCEL_AES:
-			offset = AES_BLOCK_SIZE / sizeof(u32);
-			memcpy(cdesc->control_data.token, iv, AES_BLOCK_SIZE);
+			block_sz = AES_BLOCK_SIZE;
 			cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
 			break;
 		}
+
+		offset = block_sz / sizeof(u32);
+		memcpy(cdesc->control_data.token, iv, block_sz);
 	}
 
 	token = (struct safexcel_token *)(cdesc->control_data.token + offset);
@@ -90,6 +90,25 @@ static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	token[0].instructions = EIP197_TOKEN_INS_LAST |
 				EIP197_TOKEN_INS_TYPE_CRYTO |
 				EIP197_TOKEN_INS_TYPE_OUTPUT;
+
+	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) {
+		u32 last = (EIP197_MAX_TOKENS - 1) - offset;
+
+		token[last].opcode = EIP197_TOKEN_OPCODE_CTX_ACCESS;
+		token[last].packet_length = EIP197_TOKEN_DIRECTION_EXTERNAL |
+					    EIP197_TOKEN_EXEC_IF_SUCCESSFUL|
+					    EIP197_TOKEN_CTX_OFFSET(0x2);
+		token[last].stat = EIP197_TOKEN_STAT_LAST_HASH |
+			EIP197_TOKEN_STAT_LAST_PACKET;
+		token[last].instructions =
+			EIP197_TOKEN_INS_ORIGIN_LEN(block_sz / sizeof(u32)) |
+			EIP197_TOKEN_INS_ORIGIN_IV0;
+
+		/* Store the updated IV values back in the internal context
+		 * registers.
+		 */
+		cdesc->control_data.control1 |= CONTEXT_CONTROL_CRYPTO_STORE;
+	}
 }
 
 static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
@@ -559,6 +578,7 @@ static int safexcel_skcipher_handle_result(struct safexcel_crypto_priv *priv,
 {
 	struct skcipher_request *req = skcipher_request_cast(async);
 	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(async->tfm);
 	int err;
 
 	if (sreq->needs_inv) {
@@ -569,6 +589,24 @@ static int safexcel_skcipher_handle_result(struct safexcel_crypto_priv *priv,
 		err = safexcel_handle_req_result(priv, ring, async, req->src,
 						 req->dst, req->cryptlen, sreq,
 						 should_complete, ret);
+
+		if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) {
+			u32 block_sz = 0;
+
+			switch (ctx->alg) {
+			case SAFEXCEL_DES:
+				block_sz = DES_BLOCK_SIZE;
+				break;
+			case SAFEXCEL_3DES:
+				block_sz = DES3_EDE_BLOCK_SIZE;
+				break;
+			case SAFEXCEL_AES:
+				block_sz = AES_BLOCK_SIZE;
+				break;
+			}
+
+			memcpy(req->iv, ctx->base.ctxr->data, block_sz);
+		}
 	}
 
 	return err;
