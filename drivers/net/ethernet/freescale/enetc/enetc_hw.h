@@ -127,7 +127,7 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_TBSR_BUSY	BIT(0)
 #define ENETC_TBMR_VIH	BIT(9)
 #define ENETC_TBMR_PRIO_MASK		GENMASK(2, 0)
-#define ENETC_TBMR_PRIO_SET(val)	val
+#define ENETC_TBMR_SET_PRIO(val)	((val) & ENETC_TBMR_PRIO_MASK)
 #define ENETC_TBMR_EN	BIT(31)
 #define ENETC_TBSR	0x4
 #define ENETC_TBBAR0	0x10
@@ -543,4 +543,14 @@ static inline void enetc_enable_txvlan(struct enetc_hw *hw, int si_idx,
 
 	val = (val & ~ENETC_TBMR_VIH) | (en ? ENETC_TBMR_VIH : 0);
 	enetc_txbdr_wr(hw, si_idx, ENETC_TBMR, val);
+}
+
+static inline void enetc_set_bdr_prio(struct enetc_hw *hw, int bdr_idx,
+				      int prio)
+{
+	u32 val = enetc_txbdr_rd(hw, bdr_idx, ENETC_TBMR);
+
+	val &= ~ENETC_TBMR_PRIO_MASK;
+	val |= ENETC_TBMR_SET_PRIO(prio);
+	enetc_txbdr_wr(hw, bdr_idx, ENETC_TBMR, val);
 }

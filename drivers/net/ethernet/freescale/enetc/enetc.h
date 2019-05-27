@@ -229,6 +229,9 @@ struct net_device_stats *enetc_get_stats(struct net_device *ndev);
 int enetc_set_features(struct net_device *ndev,
 		       netdev_features_t features);
 int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd);
+int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
+		   void *type_data);
+
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
 
