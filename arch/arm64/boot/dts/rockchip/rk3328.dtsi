@@ -995,7 +995,7 @@
 			      "cec",
 			      "hclk_vio";
 		phys = <&hdmiphy>;
-		phy-names = "hdmi_phy";
+		phy-names = "hdmi";
 		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&hdmi_cec &hdmii2c_xfer &hdmi_hpd>;
 		pinctrl-1 = <&i2c3_gpio>;
