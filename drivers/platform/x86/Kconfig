@@ -780,6 +780,16 @@ config INTEL_WMI_THUNDERBOLT
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel-wmi-thunderbolt.
 
+config XIAOMI_WMI
+	  tristate "Xiaomi WMI key driver"
+	  depends on ACPI_WMI
+	  depends on INPUT
+	  help
+	  Say Y here if you want to support WMI-based keys on Xiaomi notebooks.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called xiaomi-wmi.
+
 config MSI_WMI
 	tristate "MSI WMI extras"
 	depends on ACPI_WMI
