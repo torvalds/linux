@@ -154,6 +154,25 @@ static void fqdir_rwork_fn(struct work_struct *work)
 	kfree(fqdir);
 }
 
+int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net)
+{
+	struct fqdir *fqdir = kzalloc(sizeof(*fqdir), GFP_KERNEL);
+	int res;
+
+	if (!fqdir)
+		return -ENOMEM;
+	fqdir->f = f;
+	fqdir->net = net;
+	res = rhashtable_init(&fqdir->rhashtable, &fqdir->f->rhash_params);
+	if (res < 0) {
+		kfree(fqdir);
+		return res;
+	}
+	*fqdirp = fqdir;
+	return 0;
+}
+EXPORT_SYMBOL(fqdir_init);
+
 void fqdir_exit(struct fqdir *fqdir)
 {
 	fqdir->high_thresh = 0; /* prevent creation of new frags */
