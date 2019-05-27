@@ -170,6 +170,22 @@
 			interrupts = <6>;
 		};
 
+		spi: spi@b00 {
+			compatible = "ralink,mt7621-spi";
+			reg = <0xb00 0x100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_spi_spi>;
+
+			resets = <&resetc 18>;
+			reset-names = "spi";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
+
 		uart0: uartlite@c00 {
 			compatible = "ns16550a";
 			reg = <0xc00 0x100>;
