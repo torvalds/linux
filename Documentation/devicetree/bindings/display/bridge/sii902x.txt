@@ -5,7 +5,7 @@ Required properties:
 	- reg: i2c address of the bridge
 
 Optional properties:
-	- interrupts: describe the interrupt line used to inform the host 
+	- interrupts: describe the interrupt line used to inform the host
 	  about hotplug events.
 	- reset-gpios: OF device-tree gpio specification for RST_N pin.
 
