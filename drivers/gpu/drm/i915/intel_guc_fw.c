@@ -58,6 +58,13 @@ MODULE_FIRMWARE(BXT_GUC_FIRMWARE_PATH);
 #define KBL_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(KBL)
 MODULE_FIRMWARE(KBL_GUC_FIRMWARE_PATH);
 
+#define GLK_GUC_FW_PREFIX glk
+#define GLK_GUC_FW_MAJOR 32
+#define GLK_GUC_FW_MINOR 0
+#define GLK_GUC_FW_PATCH 3
+#define GLK_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(GLK)
+MODULE_FIRMWARE(GLK_GUC_FIRMWARE_PATH);
+
 static void guc_fw_select(struct intel_uc_fw *guc_fw)
 {
 	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
@@ -72,6 +79,10 @@ static void guc_fw_select(struct intel_uc_fw *guc_fw)
 		guc_fw->path = i915_modparams.guc_firmware_path;
 		guc_fw->major_ver_wanted = 0;
 		guc_fw->minor_ver_wanted = 0;
+	} else if (IS_GEMINILAKE(i915)) {
+		guc_fw->path = GLK_GUC_FIRMWARE_PATH;
+		guc_fw->major_ver_wanted = GLK_GUC_FW_MAJOR;
+		guc_fw->minor_ver_wanted = GLK_GUC_FW_MINOR;
 	} else if (IS_KABYLAKE(i915) || IS_COFFEELAKE(i915)) {
 		guc_fw->path = KBL_GUC_FIRMWARE_PATH;
 		guc_fw->major_ver_wanted = KBL_GUC_FW_MAJOR;
