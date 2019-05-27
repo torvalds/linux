@@ -177,8 +177,6 @@ static void conf_message(const char *fmt, ...)
 static const char *conf_filename;
 static int conf_lineno, conf_warnings;
 
-const char conf_defname[] = "arch/$(ARCH)/defconfig";
-
 static void conf_warning(const char *fmt, ...)
 {
 	va_list ap;
@@ -231,21 +229,6 @@ static const char *conf_get_autoconfig_name(void)
 	char *name = getenv("KCONFIG_AUTOCONFIG");
 
 	return name ? name : "include/config/auto.conf";
-}
-
-char *conf_get_default_confname(void)
-{
-	static char fullname[PATH_MAX+1];
-	char *env, *name;
-
-	name = expand_string(conf_defname);
-	env = getenv(SRCTREE);
-	if (env) {
-		snprintf(fullname, sizeof(fullname), "%s/%s", env, name);
-		if (is_present(fullname))
-			return fullname;
-	}
-	return name;
 }
 
 static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
