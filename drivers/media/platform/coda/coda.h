@@ -217,6 +217,8 @@ struct coda_ctx {
 	struct v4l2_ctrl_handler	ctrls;
 	struct v4l2_ctrl		*h264_profile_ctrl;
 	struct v4l2_ctrl		*h264_level_ctrl;
+	struct v4l2_ctrl		*mpeg4_profile_ctrl;
+	struct v4l2_ctrl		*mpeg4_level_ctrl;
 	struct v4l2_fh			fh;
 	int				gopcounter;
 	int				runcounter;
@@ -327,6 +329,9 @@ int coda_h264_level(int level_idc);
 int coda_sps_parse_profile(struct coda_ctx *ctx, struct vb2_buffer *vb);
 int coda_h264_sps_fixup(struct coda_ctx *ctx, int width, int height, char *buf,
 			int *size, int max_size);
+
+int coda_mpeg4_profile(int profile_idc);
+int coda_mpeg4_level(int level_idc);
 
 void coda_update_profile_level_ctrls(struct coda_ctx *ctx, u8 profile_idc,
 				     u8 level_idc);

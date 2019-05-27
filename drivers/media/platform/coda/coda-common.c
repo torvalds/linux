@@ -1590,6 +1590,15 @@ void coda_update_profile_level_ctrls(struct coda_ctx *ctx, u8 profile_idc,
 		profile = coda_h264_profile(profile_idc);
 		level = coda_h264_level(level_idc);
 		break;
+	case V4L2_PIX_FMT_MPEG4:
+		codec_name = "MPEG-4";
+		profile_cid = V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE;
+		level_cid = V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL;
+		profile_ctrl = ctx->mpeg4_profile_ctrl;
+		level_ctrl = ctx->mpeg4_level_ctrl;
+		profile = coda_mpeg4_profile(profile_idc);
+		level = coda_mpeg4_level(level_idc);
+		break;
 	default:
 		return;
 	}
@@ -2119,6 +2128,20 @@ static void coda_decode_ctrls(struct coda_ctx *ctx)
 		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_H264_LEVEL, max, 0, max);
 	if (ctx->h264_level_ctrl)
 		ctx->h264_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	ctx->mpeg4_profile_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
+		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE,
+		V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_CODING_EFFICIENCY, 0,
+		V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_CODING_EFFICIENCY);
+	if (ctx->mpeg4_profile_ctrl)
+		ctx->mpeg4_profile_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	ctx->mpeg4_level_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
+		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL,
+		V4L2_MPEG_VIDEO_MPEG4_LEVEL_5, 0,
+		V4L2_MPEG_VIDEO_MPEG4_LEVEL_5);
+	if (ctx->mpeg4_level_ctrl)
+		ctx->mpeg4_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 }
 
 static int coda_ctrls_setup(struct coda_ctx *ctx)
