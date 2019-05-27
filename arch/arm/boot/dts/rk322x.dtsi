@@ -993,7 +993,7 @@
 		resets = <&cru SRST_HDMI_P>;
 		reset-names = "hdmi";
 		phys = <&hdmi_phy>;
-		phy-names = "hdmi_phy";
+		phy-names = "hdmi";
 		rockchip,grf = <&grf>;
 		status = "disabled";
 
