@@ -589,7 +589,7 @@ inline int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 	if (rdesc->result_data.error_code & 0x407f) {
 		/* Fatal error (bits 0-7, 14) */
 		dev_err(priv->dev,
-			"cipher: result: result descriptor error (%d)\n",
+			"cipher: result: result descriptor error (0x%x)\n",
 			rdesc->result_data.error_code);
 		return -EIO;
 	} else if (rdesc->result_data.error_code == BIT(9)) {
