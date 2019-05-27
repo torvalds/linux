@@ -79,6 +79,9 @@
 #define HUC_STATUS2             _MMIO(0xD3B0)
 #define   HUC_FW_VERIFIED       (1<<7)
 
+#define GEN11_HUC_KERNEL_LOAD_INFO	_MMIO(0xC1DC)
+#define   HUC_LOAD_SUCCESSFUL		  (1 << 0)
+
 #define GUC_WOPCM_SIZE			_MMIO(0xc050)
 #define   GUC_WOPCM_SIZE_LOCKED		  (1<<0)
 #define   GUC_WOPCM_SIZE_SHIFT		12
