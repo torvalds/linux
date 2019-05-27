@@ -34,6 +34,13 @@ static void gen8_guc_raise_irq(struct intel_guc *guc)
 	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
 }
 
+static void gen11_guc_raise_irq(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	I915_WRITE(GEN11_GUC_HOST_INTERRUPT, 0);
+}
+
 static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
 {
 	GEM_BUG_ON(!guc->send_regs.base);
@@ -63,6 +70,8 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 
 void intel_guc_init_early(struct intel_guc *guc)
 {
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+
 	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
 	intel_guc_log_init_early(&guc->log);
@@ -71,7 +80,10 @@ void intel_guc_init_early(struct intel_guc *guc)
 	spin_lock_init(&guc->irq_lock);
 	guc->send = intel_guc_send_nop;
 	guc->handler = intel_guc_to_host_event_handler_nop;
-	guc->notify = gen8_guc_raise_irq;
+	if (INTEL_GEN(i915) >= 11)
+		guc->notify = gen11_guc_raise_irq;
+	else
+		guc->notify = gen8_guc_raise_irq;
 }
 
 static int guc_init_wq(struct intel_guc *guc)
