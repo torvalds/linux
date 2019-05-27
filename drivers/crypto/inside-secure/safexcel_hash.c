@@ -230,19 +230,17 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		if (!extra)
 			extra = crypto_ahash_blocksize(ahash);
 
-		if (extra) {
-			sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
-					   req->cache_next, extra,
-					   areq->nbytes - extra);
+		sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
+				   req->cache_next, extra,
+				   areq->nbytes - extra);
 
-			queued -= extra;
-			len -= extra;
+		queued -= extra;
+		len -= extra;
 
-			if (!queued) {
-				*commands = 0;
-				*results = 0;
-				return 0;
-			}
+		if (!queued) {
+			*commands = 0;
+			*results = 0;
+			return 0;
 		}
 	}
 
