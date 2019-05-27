@@ -183,6 +183,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		dma_unmap_single(priv->dev, sreq->cache_dma, sreq->cache_sz,
 				 DMA_TO_DEVICE);
 		sreq->cache_dma = 0;
+		sreq->cache_sz = 0;
 	}
 
 	if (sreq->finish)
@@ -344,6 +345,7 @@ unmap_cache:
 	if (req->cache_dma) {
 		dma_unmap_single(priv->dev, req->cache_dma, req->cache_sz,
 				 DMA_TO_DEVICE);
+		req->cache_dma = 0;
 		req->cache_sz = 0;
 	}
 
