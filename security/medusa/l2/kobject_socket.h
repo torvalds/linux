@@ -15,6 +15,38 @@
 
 #define sock_security(sk) (*(struct medusa_l1_socket_s*)(sk->sk_security))
 
+struct med_inet6_addr_i {
+	__be16 port;
+	__be32 addrdata[16];
+};
+
+struct med_inet_addr_i {
+	__be16 port;
+	__be32 addrdata[4];
+};
+
+struct med_unix_addr_i {
+	char addrdata[UNIX_PATH_MAX];
+};
+
+union MED_ADDRESS {
+	struct med_inet6_addr_i inet6_i;
+	struct med_inet_addr_i inet_i;
+	struct med_unix_addr_i unix_i;
+};
+typedef union MED_ADDRESS MED_ADDRESS;
+
+/**
+ * struct medusa_l1_socket_s - additional security struct for socket objects
+ *
+ * @MEDUSA_OBJECT_VARS - members used in Medusa VS access evaluation process
+ */
+struct medusa_l1_socket_s {
+	MEDUSA_OBJECT_VARS;
+	int addrlen;
+	MED_ADDRESS address;
+};
+
 struct socket_kobject {
 	dev_t dev;
 	unsigned long ino;
@@ -22,7 +54,7 @@ struct socket_kobject {
 	int type;
 	int family;
 	int addrlen;
-	void *address;
+	union MED_ADDRESS address;
 	kuid_t uid;
 
 	MEDUSA_OBJECT_VARS;

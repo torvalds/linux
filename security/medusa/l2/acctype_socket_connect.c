@@ -8,7 +8,7 @@ struct socket_connect_access {
 	MEDUSA_ACCESS_HEADER;
 	sa_family_t family;
 	int addrlen;
-	void *address;
+	MED_ADDRESS address;
 };
 
 MED_ATTRS(socket_connect_access) {
@@ -47,26 +47,20 @@ medusa_answer_t medusa_socket_connect(struct socket *sock, struct sockaddr *addr
 		access.family = address->sa_family;
 		access.addrlen = addrlen;
 		switch(address->sa_family) {
-			case AF_INET6:
-				if (addrlen < SIN6_LEN_RFC2133)
-					return -EINVAL;
-				access.address = (struct med_inet_addr_i*)kmalloc(sizeof(struct med_inet_addr_i), GFP_KERNEL);
-				((struct med_inet_addr_i*)(access.address))->port = ((struct sockaddr_in6 *) address)->sin6_port;
-				((struct med_inet_addr_i*)(access.address))->addrdata = kmalloc(16, GFP_KERNEL);
-				memcpy(((struct med_inet_addr_i*)(access.address))->addrdata, (__be32 *)((struct sockaddr_in6 *)address)->sin6_addr.s6_addr, 16);
-				break;
 			case AF_INET:
 				if (addrlen < sizeof(struct sockaddr_in))
 					return -EINVAL;
-				access.address = (struct med_inet_addr_i*)kmalloc(sizeof(struct med_inet_addr_i), GFP_KERNEL);
-				((struct med_inet_addr_i*)(access.address))->port = ((struct sockaddr_in *) address)->sin_port;
-				((struct med_inet_addr_i*)(access.address))->addrdata = kmalloc(4, GFP_KERNEL);
-				memcpy(((struct med_inet_addr_i*)(access.address))->addrdata, (__be32 *)&((struct sockaddr_in *) address)->sin_addr, 4);
+				access.address.inet_i.port = ((struct sockaddr_in *) address)->sin_port;
+				memcpy(access.address.inet_i.addrdata, (__be32 *)&((struct sockaddr_in *) address)->sin_addr, 4);
+				break;
+			case AF_INET6:
+				if (addrlen < SIN6_LEN_RFC2133)
+					return -EINVAL;
+				access.address.inet6_i.port = ((struct sockaddr_in6 *) address)->sin6_port;
+				memcpy(access.address.inet6_i.addrdata, (__be32 *)((struct sockaddr_in6 *)address)->sin6_addr.s6_addr, 16);
 				break;
 			case AF_UNIX:
-				access.address = (struct med_unix_addr_i*)kmalloc(sizeof(struct med_unix_addr_i), GFP_KERNEL);
-				((struct med_unix_addr_i*)(access.address))->addrdata = kmalloc(UNIX_PATH_MAX, GFP_KERNEL);
-				memcpy(((struct med_unix_addr_i*)(access.address))->addrdata, ((struct sockaddr_un *) address)->sun_path, UNIX_PATH_MAX);
+				memcpy(access.address.unix_i.addrdata, ((struct sockaddr_un *) address)->sun_path, UNIX_PATH_MAX);
 				break;
 			default:
 				return MED_YES;

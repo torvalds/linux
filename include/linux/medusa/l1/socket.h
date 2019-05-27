@@ -17,26 +17,6 @@
 
 #pragma GCC optimize ("Og")
 
-/**
- * struct medusa_l1_socket_s - additional security struct for socket objects
- *
- * @MEDUSA_OBJECT_VARS - members used in Medusa VS access evaluation process
- */
-struct medusa_l1_socket_s {
-	MEDUSA_OBJECT_VARS;
-	int addrlen;
-	void *address;
-};
-
-struct med_inet_addr_i {
-	__be16 port;
-	__be32 *addrdata;
-};
-
-struct med_unix_addr_i {
-	char *addrdata;
-};
-
 extern medusa_answer_t medusa_socket_create(int family, int type, int protocol);
 extern medusa_answer_t medusa_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen);
 extern medusa_answer_t medusa_socket_connect(struct socket *sock, struct sockaddr *address, int addrlen);

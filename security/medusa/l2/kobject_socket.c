@@ -39,21 +39,15 @@ int socket_kern2kobj(struct socket_kobject * sock_kobj, struct socket * sock)
 	if (sk_sec->addrlen > 0) {
 		switch(sock->ops->family) {
 			case AF_INET:
-				sock_kobj->address = (struct med_inet_addr_i*)kmalloc(sizeof(struct med_inet_addr_i), GFP_KERNEL);
-				((struct med_inet_addr_i *)sock_kobj->address)->port = ((struct med_inet_addr_i *)sk_sec->address)->port;
-				((struct med_inet_addr_i *)sock_kobj->address)->addrdata = kmalloc(4, GFP_KERNEL);
-				memcpy(((struct med_inet_addr_i *)sock_kobj->address)->addrdata, ((struct med_inet_addr_i *)sk_sec->address)->addrdata, 4);
+				sock_kobj->address.inet_i.port = sk_sec->address.inet_i.port;
+				memcpy(sock_kobj->address.inet_i.addrdata, sk_sec->address.inet_i.addrdata, 4);
 				break;
 			case AF_INET6:
-				sock_kobj->address = (struct med_inet_addr_i*)kmalloc(sizeof(struct med_inet_addr_i), GFP_KERNEL);
-				((struct med_inet_addr_i *)sock_kobj->address)->port = ((struct med_inet_addr_i *)sk_sec->address)->port;
-				((struct med_inet_addr_i *)sock_kobj->address)->addrdata = kmalloc(16, GFP_KERNEL);
-				memcpy(((struct med_inet_addr_i *)sock_kobj->address)->addrdata, ((struct med_inet_addr_i *)sk_sec->address)->addrdata, 16);
+				sock_kobj->address.inet6_i.port = sk_sec->address.inet6_i.port;
+				memcpy(sock_kobj->address.inet6_i.addrdata, sk_sec->address.inet6_i.addrdata, 16);
 				break;
 			case AF_UNIX:
-				sock_kobj->address = (struct med_unix_addr_i*)kmalloc(sizeof(struct med_unix_addr_i), GFP_KERNEL);
-				((struct med_unix_addr_i*)sock_kobj->address)->addrdata = kmalloc(UNIX_PATH_MAX, GFP_KERNEL);
-				memcpy(((struct med_unix_addr_i*)sock_kobj->address)->addrdata, ((struct med_unix_addr_i*)sk_sec->address)->addrdata, UNIX_PATH_MAX);
+				memcpy(sock_kobj->address.unix_i.addrdata, sk_sec->address.unix_i.addrdata, UNIX_PATH_MAX);
 				break;
 			default:
 				break;
