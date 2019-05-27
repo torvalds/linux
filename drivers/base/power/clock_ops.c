@@ -93,8 +93,6 @@ static int __pm_clk_add(struct device *dev, const char *con_id,
 	if (con_id) {
 		ce->con_id = kstrdup(con_id, GFP_KERNEL);
 		if (!ce->con_id) {
-			dev_err(dev,
-				"Not enough memory for clock connection ID.\n");
 			kfree(ce);
 			return -ENOMEM;
 		}
