@@ -89,9 +89,10 @@ struct sysc {
 	struct ti_sysc_cookie cookie;
 	const char *name;
 	u32 revision;
-	bool enabled;
-	bool needs_resume;
-	bool child_needs_resume;
+	unsigned int enabled:1;
+	unsigned int needs_resume:1;
+	unsigned int child_needs_resume:1;
+	unsigned int disable_on_idle:1;
 	struct delayed_work idle_work;
 };
 
@@ -1021,6 +1022,9 @@ static int __maybe_unused sysc_runtime_suspend_legacy(struct device *dev,
 		dev_err(dev, "%s: could not idle: %i\n",
 			__func__, error);
 
+	if (ddata->disable_on_idle)
+		reset_control_assert(ddata->rsts);
+
 	return 0;
 }
 
@@ -1029,6 +1033,9 @@ static int __maybe_unused sysc_runtime_resume_legacy(struct device *dev,
 {
 	struct ti_sysc_platform_data *pdata;
 	int error;
+
+	if (ddata->disable_on_idle)
+		reset_control_deassert(ddata->rsts);
 
 	pdata = dev_get_platdata(ddata->dev);
 	if (!pdata)
@@ -1077,6 +1084,9 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 err_allow_idle:
 	sysc_clkdm_allow_idle(ddata);
 
+	if (ddata->disable_on_idle)
+		reset_control_assert(ddata->rsts);
+
 	return error;
 }
 
@@ -1089,6 +1099,9 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 
 	if (ddata->enabled)
 		return 0;
+
+	if (ddata->disable_on_idle)
+		reset_control_deassert(ddata->rsts);
 
 	sysc_clkdm_deny_idle(ddata);
 
@@ -2306,7 +2319,7 @@ static int sysc_probe(struct platform_device *pdev)
 	}
 
 	if (!of_get_available_child_count(ddata->dev->of_node))
-		reset_control_assert(ddata->rsts);
+		ddata->disable_on_idle = true;
 
 	return 0;
 
