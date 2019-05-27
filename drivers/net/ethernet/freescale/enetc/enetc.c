@@ -307,13 +307,14 @@ static int enetc_bd_ready_count(struct enetc_bdr *tx_ring, int ci)
 static void enetc_get_tx_tstamp(struct enetc_hw *hw, union enetc_tx_bd *txbd,
 				u64 *tstamp)
 {
-	u32 lo, hi;
+	u32 lo, hi, tstamp_lo;
 
 	lo = enetc_rd(hw, ENETC_SICTR0);
 	hi = enetc_rd(hw, ENETC_SICTR1);
-	if (lo <= txbd->wb.tstamp)
+	tstamp_lo = le32_to_cpu(txbd->wb.tstamp);
+	if (lo <= tstamp_lo)
 		hi -= 1;
-	*tstamp = (u64)hi << 32 | txbd->wb.tstamp;
+	*tstamp = (u64)hi << 32 | tstamp_lo;
 }
 
 static void enetc_tstamp_tx(struct sk_buff *skb, u64 tstamp)
@@ -483,16 +484,17 @@ static void enetc_get_rx_tstamp(struct net_device *ndev,
 	struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_hw *hw = &priv->si->hw;
-	u32 lo, hi;
+	u32 lo, hi, tstamp_lo;
 	u64 tstamp;
 
-	if (rxbd->r.flags & ENETC_RXBD_FLAG_TSTMP) {
+	if (le16_to_cpu(rxbd->r.flags) & ENETC_RXBD_FLAG_TSTMP) {
 		lo = enetc_rd(hw, ENETC_SICTR0);
 		hi = enetc_rd(hw, ENETC_SICTR1);
-		if (lo <= rxbd->r.tstamp)
+		tstamp_lo = le32_to_cpu(rxbd->r.tstamp);
+		if (lo <= tstamp_lo)
 			hi -= 1;
 
-		tstamp = (u64)hi << 32 | rxbd->r.tstamp;
+		tstamp = (u64)hi << 32 | tstamp_lo;
 		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
 		shhwtstamps->hwtstamp = ns_to_ktime(tstamp);
 	}
