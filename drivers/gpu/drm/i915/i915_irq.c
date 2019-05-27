@@ -624,6 +624,42 @@ void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv)
 	gen9_reset_guc_interrupts(dev_priv);
 }
 
+void gen11_reset_guc_interrupts(struct drm_i915_private *i915)
+{
+	spin_lock_irq(&i915->irq_lock);
+	gen11_reset_one_iir(i915, 0, GEN11_GUC);
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+void gen11_enable_guc_interrupts(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (!dev_priv->guc.interrupts.enabled) {
+		u32 events = REG_FIELD_PREP(ENGINE1_MASK,
+					    GEN11_GUC_INTR_GUC2HOST);
+
+		WARN_ON_ONCE(gen11_reset_one_iir(dev_priv, 0, GEN11_GUC));
+		I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, events);
+		I915_WRITE(GEN11_GUC_SG_INTR_MASK, ~events);
+		dev_priv->guc.interrupts.enabled = true;
+	}
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+void gen11_disable_guc_interrupts(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->guc.interrupts.enabled = false;
+
+	I915_WRITE(GEN11_GUC_SG_INTR_MASK, ~0);
+	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
+
+	spin_unlock_irq(&dev_priv->irq_lock);
+	synchronize_irq(dev_priv->drm.irq);
+
+	gen11_reset_guc_interrupts(dev_priv);
+}
+
 /**
  * bdw_update_port_irq - update DE port interrupt
  * @dev_priv: driver private
@@ -1893,6 +1929,12 @@ static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
 		intel_guc_to_host_event_handler(&dev_priv->guc);
 }
 
+static void gen11_guc_irq_handler(struct drm_i915_private *i915, u16 iir)
+{
+	if (iir & GEN11_GUC_INTR_GUC2HOST)
+		intel_guc_to_host_event_handler(&i915->guc);
+}
+
 static void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
@@ -3015,6 +3057,9 @@ static void
 gen11_other_irq_handler(struct drm_i915_private * const i915,
 			const u8 instance, const u16 iir)
 {
+	if (instance == OTHER_GUC_INSTANCE)
+		return gen11_guc_irq_handler(i915, iir);
+
 	if (instance == OTHER_GTPM_INSTANCE)
 		return gen11_rps_irq_handler(i915, iir);
 
@@ -3545,6 +3590,8 @@ static void gen11_gt_irq_reset(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
 	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
+	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
+	I915_WRITE(GEN11_GUC_SG_INTR_MASK,  ~0);
 }
 
 static void gen11_irq_reset(struct drm_device *dev)
@@ -4200,6 +4247,10 @@ static void gen11_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 	dev_priv->pm_imr = ~dev_priv->pm_ier;
 	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
 	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
+
+	/* Same thing for GuC interrupts */
+	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
+	I915_WRITE(GEN11_GUC_SG_INTR_MASK,  ~0);
 }
 
 static void icp_irq_postinstall(struct drm_device *dev)
@@ -4707,7 +4758,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	for (i = 0; i < MAX_L3_SLICES; ++i)
 		dev_priv->l3_parity.remap_info[i] = NULL;
 
-	if (HAS_GUC_SCHED(dev_priv))
+	if (HAS_GUC_SCHED(dev_priv) && INTEL_GEN(dev_priv) < 11)
 		dev_priv->pm_guc_events = GEN9_GUC_TO_HOST_INT_EVENT;
 
 	/* Let's track the enabled rps events */

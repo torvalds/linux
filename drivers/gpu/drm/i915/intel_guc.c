@@ -88,6 +88,9 @@ void intel_guc_init_early(struct intel_guc *guc)
 	guc->handler = intel_guc_to_host_event_handler_nop;
 	if (INTEL_GEN(i915) >= 11) {
 		guc->notify = gen11_guc_raise_irq;
+		guc->interrupts.reset = gen11_reset_guc_interrupts;
+		guc->interrupts.enable = gen11_enable_guc_interrupts;
+		guc->interrupts.disable = gen11_disable_guc_interrupts;
 	} else {
 		guc->notify = gen8_guc_raise_irq;
 		guc->interrupts.reset = gen9_reset_guc_interrupts;

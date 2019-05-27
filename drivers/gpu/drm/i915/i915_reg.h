@@ -290,6 +290,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OTHER_CLASS		4
 #define MAX_ENGINE_CLASS	4
 
+#define OTHER_GUC_INSTANCE	0
 #define OTHER_GTPM_INSTANCE	1
 #define MAX_ENGINE_INSTANCE    3
 
@@ -7492,6 +7493,9 @@ enum {
 #define GEN11_GPM_WGBOXPERF_INTR_MASK	_MMIO(0x1900ec)
 #define GEN11_CRYPTO_RSVD_INTR_MASK	_MMIO(0x1900f0)
 #define GEN11_GUNIT_CSME_INTR_MASK	_MMIO(0x1900f4)
+
+#define   ENGINE1_MASK			REG_GENMASK(31, 16)
+#define   ENGINE0_MASK			REG_GENMASK(15, 0)
 
 #define ILK_DISPLAY_CHICKEN2	_MMIO(0x42004)
 /* Required on all Ironlake and Sandybridge according to the B-Spec. */
