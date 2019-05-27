@@ -398,6 +398,12 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 
 		/* Processing Engine configuration */
 
+		/* Token & context configuration */
+		val = EIP197_PE_EIP96_TOKEN_CTRL_CTX_UPDATES |
+		      EIP197_PE_EIP96_TOKEN_CTRL_REUSE_CTX |
+		      EIP197_PE_EIP96_TOKEN_CTRL_POST_REUSE_CTX;
+		writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_TOKEN_CTRL(pe));
+
 		/* H/W capabilities selection */
 		val = EIP197_FUNCTION_RSVD;
 		val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
