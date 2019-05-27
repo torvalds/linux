@@ -763,6 +763,8 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk_disable;
 
+	dma_dev->copy_align = (dmac->chan.address_align_mask + 1);
+
 	axi_dmac_write(dmac, AXI_DMAC_REG_IRQ_MASK, 0x00);
 
 	ret = dma_async_device_register(dma_dev);
