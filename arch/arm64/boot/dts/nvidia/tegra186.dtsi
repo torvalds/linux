@@ -173,6 +173,9 @@
 		clock-names = "div-clk";
 		resets = <&bpmp TEGRA186_RESET_I2C4>;
 		reset-names = "i2c";
+		pinctrl-names = "default", "idle";
+		pinctrl-0 = <&state_dpaux1_i2c>;
+		pinctrl-1 = <&state_dpaux1_off>;
 		status = "disabled";
 	};
 
@@ -201,6 +204,9 @@
 		clock-names = "div-clk";
 		resets = <&bpmp TEGRA186_RESET_I2C6>;
 		reset-names = "i2c";
+		pinctrl-names = "default", "idle";
+		pinctrl-0 = <&state_dpaux_i2c>;
+		pinctrl-1 = <&state_dpaux_off>;
 		status = "disabled";
 	};
 
