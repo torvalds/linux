@@ -235,14 +235,21 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	return vm;
 }
 
-static void vcpu_setup(struct kvm_vm *vm, int vcpuid)
+void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *init)
 {
-	struct kvm_vcpu_init init;
+	struct kvm_vcpu_init default_init = { .target = -1, };
 	uint64_t sctlr_el1, tcr_el1;
 
-	memset(&init, 0, sizeof(init));
-	init.target = KVM_ARM_TARGET_GENERIC_V8;
-	vcpu_ioctl(vm, vcpuid, KVM_ARM_VCPU_INIT, &init);
+	if (!init)
+		init = &default_init;
+
+	if (init->target == -1) {
+		struct kvm_vcpu_init preferred;
+		vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &preferred);
+		init->target = preferred.target;
+	}
+
+	vcpu_ioctl(vm, vcpuid, KVM_ARM_VCPU_INIT, init);
 
 	/*
 	 * Enable FP/ASIMD to avoid trapping when accessing Q0-Q15
@@ -312,7 +319,7 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 					DEFAULT_ARM64_GUEST_STACK_VADDR_MIN, 0, 0);
 
 	vm_vcpu_add(vm, vcpuid);
-	vcpu_setup(vm, vcpuid);
+	aarch64_vcpu_setup(vm, vcpuid, NULL);
 
 	set_reg(vm, vcpuid, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
 	set_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), (uint64_t)guest_code);
