@@ -223,10 +223,11 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		 * fit into full blocks, cache it for the next send() call.
 		 */
 		extra = queued & (crypto_ahash_blocksize(ahash) - 1);
+
+		/* If this is not the last request and the queued data
+		 * is a multiple of a block, cache the last one for now.
+		 */
 		if (!extra)
-			/* If this is not the last request and the queued data
-			 * is a multiple of a block, cache the last one for now.
-			 */
 			extra = crypto_ahash_blocksize(ahash);
 
 		if (extra) {
