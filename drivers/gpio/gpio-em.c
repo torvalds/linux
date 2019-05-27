@@ -305,16 +305,14 @@ static int em_gio_probe(struct platform_device *pdev)
 	p->base0 = devm_ioremap_nocache(&pdev->dev, io[0]->start,
 					resource_size(io[0]));
 	if (!p->base0) {
-		dev_err(&pdev->dev, "failed to remap low I/O memory\n");
-		ret = -ENXIO;
+		ret = -ENOMEM;
 		goto err0;
 	}
 
 	p->base1 = devm_ioremap_nocache(&pdev->dev, io[1]->start,
 				   resource_size(io[1]));
 	if (!p->base1) {
-		dev_err(&pdev->dev, "failed to remap high I/O memory\n");
-		ret = -ENXIO;
+		ret = -ENOMEM;
 		goto err0;
 	}
 
