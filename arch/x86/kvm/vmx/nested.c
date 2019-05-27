@@ -2781,7 +2781,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		[launched]"i"(offsetof(struct loaded_vmcs, launched)),
 		[host_state_rsp]"i"(offsetof(struct loaded_vmcs, host_state.rsp)),
 		[wordsize]"i"(sizeof(ulong))
-	      : "cc", "memory"
+	      : "memory"
 	);
 
 	if (vmx->msr_autoload.host.nr)
