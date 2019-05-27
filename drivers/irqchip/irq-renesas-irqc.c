@@ -126,30 +126,19 @@ static int irqc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const char *name = dev_name(dev);
 	struct irqc_priv *p;
-	struct resource *io;
 	struct resource *irq;
 	int ret;
 	int k;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (!p) {
-		ret = -ENOMEM;
-		goto err0;
-	}
+	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
 
 	p->dev = dev;
 	platform_set_drvdata(pdev, p);
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
-
-	/* get hold of manadatory IOMEM */
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!io) {
-		dev_err(dev, "not enough IOMEM resources\n");
-		ret = -EINVAL;
-		goto err1;
-	}
 
 	/* allow any number of IRQs between 1 and IRQC_IRQ_MAX */
 	for (k = 0; k < IRQC_IRQ_MAX; k++) {
@@ -166,14 +155,14 @@ static int irqc_probe(struct platform_device *pdev)
 	if (p->number_of_irqs < 1) {
 		dev_err(dev, "not enough IRQ resources\n");
 		ret = -EINVAL;
-		goto err1;
+		goto err_runtime_pm_disable;
 	}
 
 	/* ioremap IOMEM and setup read/write callbacks */
-	p->iomem = ioremap_nocache(io->start, resource_size(io));
-	if (!p->iomem) {
-		ret = -ENXIO;
-		goto err2;
+	p->iomem = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(p->iomem)) {
+		ret = PTR_ERR(p->iomem);
+		goto err_runtime_pm_disable;
 	}
 
 	p->cpu_int_base = p->iomem + IRQC_INT_CPU_BASE(0); /* SYS-SPI */
@@ -183,7 +172,7 @@ static int irqc_probe(struct platform_device *pdev)
 	if (!p->irq_domain) {
 		ret = -ENXIO;
 		dev_err(dev, "cannot initialize irq domain\n");
-		goto err2;
+		goto err_runtime_pm_disable;
 	}
 
 	ret = irq_alloc_domain_generic_chips(p->irq_domain, p->number_of_irqs,
@@ -191,7 +180,7 @@ static int irqc_probe(struct platform_device *pdev)
 					     0, 0, IRQ_GC_INIT_NESTED_LOCK);
 	if (ret) {
 		dev_err(dev, "cannot allocate generic chip\n");
-		goto err3;
+		goto err_remove_domain;
 	}
 
 	p->gc = irq_get_domain_generic_chip(p->irq_domain, 0);
@@ -206,46 +195,33 @@ static int irqc_probe(struct platform_device *pdev)
 
 	/* request interrupts one by one */
 	for (k = 0; k < p->number_of_irqs; k++) {
-		if (request_irq(p->irq[k].requested_irq, irqc_irq_handler,
-				0, name, &p->irq[k])) {
+		if (devm_request_irq(dev, p->irq[k].requested_irq,
+				     irqc_irq_handler, 0, name, &p->irq[k])) {
 			dev_err(dev, "failed to request IRQ\n");
 			ret = -ENOENT;
-			goto err4;
+			goto err_remove_domain;
 		}
 	}
 
 	dev_info(dev, "driving %d irqs\n", p->number_of_irqs);
 
 	return 0;
-err4:
-	while (--k >= 0)
-		free_irq(p->irq[k].requested_irq, &p->irq[k]);
 
-err3:
+err_remove_domain:
 	irq_domain_remove(p->irq_domain);
-err2:
-	iounmap(p->iomem);
-err1:
+err_runtime_pm_disable:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
-	kfree(p);
-err0:
 	return ret;
 }
 
 static int irqc_remove(struct platform_device *pdev)
 {
 	struct irqc_priv *p = platform_get_drvdata(pdev);
-	int k;
-
-	for (k = 0; k < p->number_of_irqs; k++)
-		free_irq(p->irq[k].requested_irq, &p->irq[k]);
 
 	irq_domain_remove(p->irq_domain);
-	iounmap(p->iomem);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	kfree(p);
 	return 0;
 }
 
