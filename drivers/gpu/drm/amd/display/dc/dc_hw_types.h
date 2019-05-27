@@ -453,7 +453,11 @@ struct dc_gamma {
 	/* private to DC core */
 	struct dc_context *ctx;
 
+	/* is_identity is used for RGB256 gamma identity which can also be programmed in INPUT_LUT.
+	 * is_logical_identity indicates the given gamma ramp regardless of type is identity.
+	 */
 	bool is_identity;
+	bool is_logical_identity;
 };
 
 /* Used by both ipp amd opp functions*/

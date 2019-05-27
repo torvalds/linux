@@ -1569,7 +1569,8 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 			output_tf->tf == TRANSFER_FUNCTION_SRGB) {
 		if (ramp == NULL)
 			return true;
-		if (ramp->is_identity || (!mapUserRamp && ramp->type == GAMMA_RGB_256))
+		if ((ramp->is_logical_identity) ||
+				(!mapUserRamp && ramp->type == GAMMA_RGB_256))
 			return true;
 	}
 
