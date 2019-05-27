@@ -54,7 +54,7 @@ read_bmof(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static int wmi_bmof_probe(struct wmi_device *wdev)
+static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 {
 	struct bmof_priv *priv;
 	int ret;

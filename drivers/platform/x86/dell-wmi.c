@@ -672,7 +672,7 @@ static int dell_wmi_events_set_enabled(bool enable)
 	return dell_smbios_error(ret);
 }
 
-static int dell_wmi_probe(struct wmi_device *wdev)
+static int dell_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct dell_wmi_priv *priv;
 	int ret;

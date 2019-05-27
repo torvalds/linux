@@ -56,7 +56,8 @@ static const struct attribute_group tbt_attribute_group = {
 	.attrs = tbt_attrs,
 };
 
-static int intel_wmi_thunderbolt_probe(struct wmi_device *wdev)
+static int intel_wmi_thunderbolt_probe(struct wmi_device *wdev,
+				       const void *context)
 {
 	int ret;
 

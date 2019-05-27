@@ -945,7 +945,8 @@ static int wmi_dev_probe(struct device *dev)
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
 
 	if (wdriver->probe) {
-		ret = wdriver->probe(dev_to_wdev(dev));
+		ret = wdriver->probe(dev_to_wdev(dev),
+				find_guid_context(wblock, wdriver));
 		if (ret != 0)
 			goto probe_failure;
 	}

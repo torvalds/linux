@@ -106,7 +106,8 @@ EXPORT_SYMBOL_GPL(dell_wmi_get_hotfix);
  * WMI buffer length        12       4    <length>
  * WMI hotfix number        16       4    <hotfix>
  */
-static int dell_wmi_descriptor_probe(struct wmi_device *wdev)
+static int dell_wmi_descriptor_probe(struct wmi_device *wdev,
+				     const void *context)
 {
 	union acpi_object *obj = NULL;
 	struct descriptor_priv *priv;
