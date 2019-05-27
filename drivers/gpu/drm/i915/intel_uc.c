@@ -130,6 +130,15 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 					  "no HuC firmware");
 	}
 
+	/* XXX: GuC submission is unavailable for now */
+	if (intel_uc_is_using_guc_submission(i915)) {
+		DRM_INFO("Incompatible option detected: %s=%d, %s!\n",
+			 "enable_guc", i915_modparams.enable_guc,
+			 "GuC submission not supported");
+		DRM_INFO("Switching to non-GuC submission mode!\n");
+		i915_modparams.enable_guc &= ~ENABLE_GUC_SUBMISSION;
+	}
+
 	/* A negative value means "use platform/config default" */
 	if (i915_modparams.guc_log_level < 0)
 		i915_modparams.guc_log_level =
@@ -297,6 +306,9 @@ int intel_uc_init(struct drm_i915_private *i915)
 
 	if (!HAS_GUC(i915))
 		return -ENODEV;
+
+	/* XXX: GuC submission is unavailable for now */
+	GEM_BUG_ON(USES_GUC_SUBMISSION(i915));
 
 	ret = intel_guc_init(guc);
 	if (ret)
