@@ -40,6 +40,8 @@ Mandatory nodes specific to STM32 DSI:
 - panel or bridge node: A node containing the panel or bridge description as
   documented in [6].
   - port: panel or bridge port node, connected to the DSI output port (port@1).
+Optional properties:
+- phy-dsi-supply: phandle of the regulator that provides the supply voltage.
 
 Note: You can find more documentation in the following references
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -101,6 +103,7 @@ Example 2: DSI panel
 			clock-names = "pclk", "ref";
 			resets = <&rcc STM32F4_APB2_RESET(DSI)>;
 			reset-names = "apb";
+			phy-dsi-supply = <&reg18>;
 
 			ports {
 				#address-cells = <1>;

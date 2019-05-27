@@ -3341,8 +3341,6 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 		if (!ring || !ring->sched.thread)
 			continue;
 
-		drm_sched_stop(&ring->sched);
-
 		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
 		amdgpu_fence_driver_force_completion(ring);
 	}
@@ -3350,8 +3348,7 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 	if(job)
 		drm_sched_increase_karma(&job->base);
 
-
-
+	/* Don't suspend on bare metal if we are not going to HW reset the ASIC */
 	if (!amdgpu_sriov_vf(adev)) {
 
 		if (!need_full_reset)
@@ -3489,38 +3486,21 @@ end:
 	return r;
 }
 
-static void amdgpu_device_post_asic_reset(struct amdgpu_device *adev,
-					  struct amdgpu_job *job)
+static bool amdgpu_device_lock_adev(struct amdgpu_device *adev, bool trylock)
 {
-	int i;
+	if (trylock) {
+		if (!mutex_trylock(&adev->lock_reset))
+			return false;
+	} else
+		mutex_lock(&adev->lock_reset);
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-
-		if (!ring || !ring->sched.thread)
-			continue;
-
-		if (!adev->asic_reset_res)
-			drm_sched_resubmit_jobs(&ring->sched);
-
-		drm_sched_start(&ring->sched, !adev->asic_reset_res);
-	}
-
-	if (!amdgpu_device_has_dc_support(adev)) {
-		drm_helper_resume_force_mode(adev->ddev);
-	}
-
-	adev->asic_reset_res = 0;
-}
-
-static void amdgpu_device_lock_adev(struct amdgpu_device *adev)
-{
-	mutex_lock(&adev->lock_reset);
 	atomic_inc(&adev->gpu_reset_counter);
 	adev->in_gpu_reset = 1;
 	/* Block kfd: SRIOV would do it separately */
 	if (!amdgpu_sriov_vf(adev))
                 amdgpu_amdkfd_pre_reset(adev);
+
+	return true;
 }
 
 static void amdgpu_device_unlock_adev(struct amdgpu_device *adev)
@@ -3548,40 +3528,42 @@ static void amdgpu_device_unlock_adev(struct amdgpu_device *adev)
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			      struct amdgpu_job *job)
 {
-	int r;
-	struct amdgpu_hive_info *hive = NULL;
-	bool need_full_reset = false;
-	struct amdgpu_device *tmp_adev = NULL;
 	struct list_head device_list, *device_list_handle =  NULL;
+	bool need_full_reset, job_signaled;
+	struct amdgpu_hive_info *hive = NULL;
+	struct amdgpu_device *tmp_adev = NULL;
+	int i, r = 0;
 
+	need_full_reset = job_signaled = false;
 	INIT_LIST_HEAD(&device_list);
 
 	dev_info(adev->dev, "GPU reset begin!\n");
 
+	hive = amdgpu_get_xgmi_hive(adev, false);
+
 	/*
-	 * In case of XGMI hive disallow concurrent resets to be triggered
-	 * by different nodes. No point also since the one node already executing
-	 * reset will also reset all the other nodes in the hive.
+	 * Here we trylock to avoid chain of resets executing from
+	 * either trigger by jobs on different adevs in XGMI hive or jobs on
+	 * different schedulers for same device while this TO handler is running.
+	 * We always reset all schedulers for device and all devices for XGMI
+	 * hive so that should take care of them too.
 	 */
-	hive = amdgpu_get_xgmi_hive(adev, 0);
-	if (hive && adev->gmc.xgmi.num_physical_nodes > 1 &&
-	    !mutex_trylock(&hive->reset_lock))
+
+	if (hive && !mutex_trylock(&hive->reset_lock)) {
+		DRM_INFO("Bailing on TDR for s_job:%llx, hive: %llx as another already in progress",
+			 job->base.id, hive->hive_id);
 		return 0;
+	}
 
 	/* Start with adev pre asic reset first for soft reset check.*/
-	amdgpu_device_lock_adev(adev);
-	r = amdgpu_device_pre_asic_reset(adev,
-					 job,
-					 &need_full_reset);
-	if (r) {
-		/*TODO Should we stop ?*/
-		DRM_ERROR("GPU pre asic reset failed with err, %d for drm dev, %s ",
-			  r, adev->ddev->unique);
-		adev->asic_reset_res = r;
+	if (!amdgpu_device_lock_adev(adev, !hive)) {
+		DRM_INFO("Bailing on TDR for s_job:%llx, as another already in progress",
+					 job->base.id);
+		return 0;
 	}
 
 	/* Build list of devices to reset */
-	if  (need_full_reset && adev->gmc.xgmi.num_physical_nodes > 1) {
+	if  (adev->gmc.xgmi.num_physical_nodes > 1) {
 		if (!hive) {
 			amdgpu_device_unlock_adev(adev);
 			return -ENODEV;
@@ -3598,13 +3580,56 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		device_list_handle = &device_list;
 	}
 
+	/* block all schedulers and reset given job's ring */
+	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
+		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+			struct amdgpu_ring *ring = tmp_adev->rings[i];
+
+			if (!ring || !ring->sched.thread)
+				continue;
+
+			drm_sched_stop(&ring->sched, &job->base);
+		}
+	}
+
+
+	/*
+	 * Must check guilty signal here since after this point all old
+	 * HW fences are force signaled.
+	 *
+	 * job->base holds a reference to parent fence
+	 */
+	if (job && job->base.s_fence->parent &&
+	    dma_fence_is_signaled(job->base.s_fence->parent))
+		job_signaled = true;
+
+	if (!amdgpu_device_ip_need_full_reset(adev))
+		device_list_handle = &device_list;
+
+	if (job_signaled) {
+		dev_info(adev->dev, "Guilty job already signaled, skipping HW reset");
+		goto skip_hw_reset;
+	}
+
+
+	/* Guilty job will be freed after this*/
+	r = amdgpu_device_pre_asic_reset(adev,
+					 job,
+					 &need_full_reset);
+	if (r) {
+		/*TODO Should we stop ?*/
+		DRM_ERROR("GPU pre asic reset failed with err, %d for drm dev, %s ",
+			  r, adev->ddev->unique);
+		adev->asic_reset_res = r;
+	}
+
 retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
 
 		if (tmp_adev == adev)
 			continue;
 
-		amdgpu_device_lock_adev(tmp_adev);
+		amdgpu_device_lock_adev(tmp_adev, false);
 		r = amdgpu_device_pre_asic_reset(tmp_adev,
 						 NULL,
 						 &need_full_reset);
@@ -3628,9 +3653,28 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 			goto retry;
 	}
 
+skip_hw_reset:
+
 	/* Post ASIC reset for all devs .*/
 	list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
-		amdgpu_device_post_asic_reset(tmp_adev, tmp_adev == adev ? job : NULL);
+		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+			struct amdgpu_ring *ring = tmp_adev->rings[i];
+
+			if (!ring || !ring->sched.thread)
+				continue;
+
+			/* No point to resubmit jobs if we didn't HW reset*/
+			if (!tmp_adev->asic_reset_res && !job_signaled)
+				drm_sched_resubmit_jobs(&ring->sched);
+
+			drm_sched_start(&ring->sched, !tmp_adev->asic_reset_res);
+		}
+
+		if (!amdgpu_device_has_dc_support(tmp_adev) && !job_signaled) {
+			drm_helper_resume_force_mode(tmp_adev->ddev);
+		}
+
+		tmp_adev->asic_reset_res = 0;
 
 		if (r) {
 			/* bad news, how to tell it to userspace ? */
@@ -3643,7 +3687,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		amdgpu_device_unlock_adev(tmp_adev);
 	}
 
-	if (hive && adev->gmc.xgmi.num_physical_nodes > 1)
+	if (hive)
 		mutex_unlock(&hive->reset_lock);
 
 	if (r)

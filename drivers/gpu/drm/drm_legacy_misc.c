@@ -51,6 +51,26 @@ void drm_legacy_destroy_members(struct drm_device *dev)
 	mutex_destroy(&dev->ctxlist_mutex);
 }
 
+int drm_legacy_setup(struct drm_device * dev)
+{
+	int ret;
+
+	if (dev->driver->firstopen &&
+	    drm_core_check_feature(dev, DRIVER_LEGACY)) {
+		ret = dev->driver->firstopen(dev);
+		if (ret != 0)
+			return ret;
+	}
+
+	ret = drm_legacy_dma_setup(dev);
+	if (ret < 0)
+		return ret;
+
+
+	DRM_DEBUG("\n");
+	return 0;
+}
+
 void drm_legacy_dev_reinit(struct drm_device *dev)
 {
 	if (dev->irq_enabled)

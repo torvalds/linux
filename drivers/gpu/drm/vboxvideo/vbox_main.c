@@ -274,7 +274,7 @@ void vbox_hw_fini(struct vbox_private *vbox)
 int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj)
 {
-	struct vbox_bo *vboxbo;
+	struct drm_gem_vram_object *gbo;
 	int ret;
 
 	*obj = NULL;
@@ -283,79 +283,16 @@ int vbox_gem_create(struct vbox_private *vbox,
 	if (size == 0)
 		return -EINVAL;
 
-	ret = vbox_bo_create(vbox, size, 0, 0, &vboxbo);
-	if (ret) {
+	gbo = drm_gem_vram_create(&vbox->ddev, &vbox->ddev.vram_mm->bdev,
+				  size, 0, false);
+	if (IS_ERR(gbo)) {
+		ret = PTR_ERR(gbo);
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("failed to allocate GEM object\n");
 		return ret;
 	}
 
-	*obj = &vboxbo->gem;
+	*obj = &gbo->gem;
 
 	return 0;
-}
-
-int vbox_dumb_create(struct drm_file *file,
-		     struct drm_device *dev, struct drm_mode_create_dumb *args)
-{
-	struct vbox_private *vbox =
-		container_of(dev, struct vbox_private, ddev);
-	struct drm_gem_object *gobj;
-	u32 handle;
-	int ret;
-
-	args->pitch = args->width * ((args->bpp + 7) / 8);
-	args->size = args->pitch * args->height;
-
-	ret = vbox_gem_create(vbox, args->size, false, &gobj);
-	if (ret)
-		return ret;
-
-	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_put_unlocked(gobj);
-	if (ret)
-		return ret;
-
-	args->handle = handle;
-
-	return 0;
-}
-
-void vbox_gem_free_object(struct drm_gem_object *obj)
-{
-	struct vbox_bo *vbox_bo = gem_to_vbox_bo(obj);
-
-	ttm_bo_put(&vbox_bo->bo);
-}
-
-static inline u64 vbox_bo_mmap_offset(struct vbox_bo *bo)
-{
-	return drm_vma_node_offset_addr(&bo->bo.vma_node);
-}
-
-int
-vbox_dumb_mmap_offset(struct drm_file *file,
-		      struct drm_device *dev,
-		      u32 handle, u64 *offset)
-{
-	struct drm_gem_object *obj;
-	int ret;
-	struct vbox_bo *bo;
-
-	mutex_lock(&dev->struct_mutex);
-	obj = drm_gem_object_lookup(file, handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
-
-	bo = gem_to_vbox_bo(obj);
-	*offset = vbox_bo_mmap_offset(bo);
-
-	drm_gem_object_put(obj);
-	ret = 0;
-
-out_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
 }

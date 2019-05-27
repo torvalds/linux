@@ -387,7 +387,7 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	mutex_lock(&pfdev->reset_lock);
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++)
-		drm_sched_stop(&pfdev->js->queue[i].sched);
+		drm_sched_stop(&pfdev->js->queue[i].sched, sched_job);
 
 	if (sched_job)
 		drm_sched_increase_karma(sched_job);

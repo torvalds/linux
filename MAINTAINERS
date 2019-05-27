@@ -5413,6 +5413,7 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM PANEL DRIVERS
 M:	Thierry Reding <thierry.reding@gmail.com>
+R:	Sam Ravnborg <sam@ravnborg.org>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
@@ -5441,7 +5442,6 @@ F:	Documentation/gpu/xen-front.rst
 DRM TTM SUBSYSTEM
 M:	Christian Koenig <christian.koenig@amd.com>
 M:	Huang Rui <ray.huang@amd.com>
-M:	Junwei Zhang <Jerry.Zhang@amd.com>
 T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Maintained
 L:	dri-devel@lists.freedesktop.org

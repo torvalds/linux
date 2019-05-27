@@ -463,23 +463,6 @@ static struct drm_crtc_state *malidp_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &state->base;
 }
 
-static void malidp_crtc_reset(struct drm_crtc *crtc)
-{
-	struct malidp_crtc_state *state = NULL;
-
-	if (crtc->state) {
-		state = to_malidp_crtc_state(crtc->state);
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-	}
-
-	kfree(state);
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		crtc->state = &state->base;
-		crtc->state->crtc = crtc;
-	}
-}
-
 static void malidp_crtc_destroy_state(struct drm_crtc *crtc,
 				      struct drm_crtc_state *state)
 {
@@ -491,6 +474,17 @@ static void malidp_crtc_destroy_state(struct drm_crtc *crtc,
 	}
 
 	kfree(mali_state);
+}
+
+static void malidp_crtc_reset(struct drm_crtc *crtc)
+{
+	struct malidp_crtc_state *state =
+		kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (crtc->state)
+		malidp_crtc_destroy_state(crtc, crtc->state);
+
+	__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
 
 static int malidp_crtc_enable_vblank(struct drm_crtc *crtc)

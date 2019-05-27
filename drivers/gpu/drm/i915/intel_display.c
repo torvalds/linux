@@ -14605,9 +14605,8 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		ret = -ENOMEM;
 		goto fail;
 	}
+	__drm_atomic_helper_crtc_reset(&intel_crtc->base, &crtc_state->base);
 	intel_crtc->config = crtc_state;
-	intel_crtc->base.state = &crtc_state->base;
-	crtc_state->base.crtc = &intel_crtc->base;
 
 	primary = intel_primary_plane_create(dev_priv, pipe);
 	if (IS_ERR(primary)) {
@@ -16149,7 +16148,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		__drm_atomic_helper_crtc_destroy_state(&crtc_state->base);
 		memset(crtc_state, 0, sizeof(*crtc_state));
-		crtc_state->base.crtc = &crtc->base;
+		__drm_atomic_helper_crtc_reset(&crtc->base, &crtc_state->base);
 
 		crtc_state->base.active = crtc_state->base.enable =
 			dev_priv->display.get_pipe_config(crtc, crtc_state);

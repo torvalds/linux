@@ -23,25 +23,25 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 {
 	int i;
 	struct drm_gem_object *obj;
-	struct mgag200_bo *bo;
+	struct drm_gem_vram_object *gbo;
 	int src_offset, dst_offset;
 	int bpp = mfbdev->mfb.base.format->cpp[0];
 	int ret = -EBUSY;
+	u8 *dst;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
 	unsigned long flags;
 
 	obj = mfbdev->mfb.obj;
-	bo = gem_to_mga_bo(obj);
+	gbo = drm_gem_vram_of_gem(obj);
 
-	/*
-	 * try and reserve the BO, if we fail with busy
-	 * then the BO is being moved and we should
-	 * store up the damage until later.
+	/* Try to lock the BO. If we fail with -EBUSY then
+	 * the BO is being moved and we should store up the
+	 * damage until later.
 	 */
 	if (drm_can_sleep())
-		ret = mgag200_bo_reserve(bo, true);
+		ret = drm_gem_vram_lock(gbo, true);
 	if (ret) {
 		if (ret != -EBUSY)
 			return;
@@ -75,25 +75,32 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	mfbdev->x2 = mfbdev->y2 = 0;
 	spin_unlock_irqrestore(&mfbdev->dirty_lock, flags);
 
-	if (!bo->kmap.virtual) {
-		ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
-		if (ret) {
+	dst = drm_gem_vram_kmap(gbo, false, NULL);
+	if (IS_ERR(dst)) {
+		DRM_ERROR("failed to kmap fb updates\n");
+		goto out;
+	} else if (!dst) {
+		dst = drm_gem_vram_kmap(gbo, true, NULL);
+		if (IS_ERR(dst)) {
 			DRM_ERROR("failed to kmap fb updates\n");
-			mgag200_bo_unreserve(bo);
-			return;
+			goto out;
 		}
 		unmap = true;
 	}
+
 	for (i = y; i <= y2; i++) {
 		/* assume equal stride for now */
-		src_offset = dst_offset = i * mfbdev->mfb.base.pitches[0] + (x * bpp);
-		memcpy_toio(bo->kmap.virtual + src_offset, mfbdev->sysram + src_offset, (x2 - x + 1) * bpp);
-
+		src_offset = dst_offset =
+			i * mfbdev->mfb.base.pitches[0] + (x * bpp);
+		memcpy_toio(dst + dst_offset, mfbdev->sysram + src_offset,
+			    (x2 - x + 1) * bpp);
 	}
-	if (unmap)
-		ttm_bo_kunmap(&bo->kmap);
 
-	mgag200_bo_unreserve(bo);
+	if (unmap)
+		drm_gem_vram_kunmap(gbo);
+
+out:
+	drm_gem_vram_unlock(gbo);
 }
 
 static void mga_fillrect(struct fb_info *info,

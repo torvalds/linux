@@ -517,6 +517,10 @@ struct drm_connector_state {
 	 * Used by the atomic helpers to select the encoder, through the
 	 * &drm_connector_helper_funcs.atomic_best_encoder or
 	 * &drm_connector_helper_funcs.best_encoder callbacks.
+	 *
+	 * NOTE: Atomic drivers must fill this out (either themselves or through
+	 * helpers), for otherwise the GETCONNECTOR and GETENCODER IOCTLs will
+	 * not return correct data to userspace.
 	 */
 	struct drm_encoder *best_encoder;
 
@@ -599,6 +603,12 @@ struct drm_connector_state {
 	 * and the connector bpc limitations obtained from edid.
 	 */
 	u8 max_bpc;
+
+	/**
+	 * @hdr_output_metadata:
+	 * DRM blob property for HDR output metadata
+	 */
+	struct drm_property_blob *hdr_output_metadata;
 };
 
 /**
@@ -1239,6 +1249,10 @@ struct drm_connector {
 	 * &drm_mode_config.connector_free_work.
 	 */
 	struct llist_node free_node;
+
+	/* HDR metdata */
+	struct hdr_output_metadata hdr_output_metadata;
+	struct hdr_sink_metadata hdr_sink_metadata;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
