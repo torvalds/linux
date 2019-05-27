@@ -1765,6 +1765,7 @@ static const struct ath10k_htt_tx_ops htt_tx_ops_hl = {
 	.htt_send_rx_ring_cfg = ath10k_htt_send_rx_ring_cfg_hl,
 	.htt_send_frag_desc_bank_cfg = ath10k_htt_send_frag_desc_bank_cfg_32,
 	.htt_tx = ath10k_htt_tx_hl,
+	.htt_h2t_aggr_cfg_msg = ath10k_htt_h2t_aggr_cfg_msg_32,
 };
 
 void ath10k_htt_set_tx_ops(struct ath10k_htt *htt)
