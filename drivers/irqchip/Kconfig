@@ -225,6 +225,10 @@ config RENESAS_IRQC
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config RENESAS_RZA1_IRQC
+	bool
+	select IRQ_DOMAIN_HIERARCHY
+
 config ST_IRQCHIP
 	bool
 	select REGMAP
