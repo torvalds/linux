@@ -146,6 +146,28 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 	return false;
 }
 
+static const void *find_guid_context(struct wmi_block *wblock,
+				      struct wmi_driver *wdriver)
+{
+	const struct wmi_device_id *id;
+	uuid_le guid_input;
+
+	if (wblock == NULL || wdriver == NULL)
+		return NULL;
+	if (wdriver->id_table == NULL)
+		return NULL;
+
+	id = wdriver->id_table;
+	while (*id->guid_string) {
+		if (uuid_le_to_bin(id->guid_string, &guid_input))
+			continue;
+		if (!memcmp(wblock->gblock.guid, &guid_input, 16))
+			return id->context;
+		id++;
+	}
+	return NULL;
+}
+
 static int get_subobj_info(acpi_handle handle, const char *pathname,
 			   struct acpi_device_info **info)
 {
