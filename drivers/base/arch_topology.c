@@ -137,7 +137,6 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 					       sizeof(*raw_capacity),
 					       GFP_KERNEL);
 			if (!raw_capacity) {
-				pr_err("cpu_capacity: failed to allocate memory for raw capacities\n");
 				cap_parsing_failed = true;
 				return false;
 			}
@@ -217,10 +216,8 @@ static int __init register_cpufreq_notifier(void)
 	if (!acpi_disabled || !raw_capacity)
 		return -EINVAL;
 
-	if (!alloc_cpumask_var(&cpus_to_visit, GFP_KERNEL)) {
-		pr_err("cpu_capacity: failed to allocate memory for cpus_to_visit\n");
+	if (!alloc_cpumask_var(&cpus_to_visit, GFP_KERNEL))
 		return -ENOMEM;
-	}
 
 	cpumask_copy(cpus_to_visit, cpu_possible_mask);
 
