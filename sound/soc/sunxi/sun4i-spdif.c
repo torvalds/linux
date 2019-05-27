@@ -161,6 +161,17 @@
 #define SUN4I_SPDIF_SAMFREQ_176_4KHZ		0xc
 #define SUN4I_SPDIF_SAMFREQ_192KHZ		0xe
 
+/**
+ * struct sun4i_spdif_quirks - Differences between SoC variants.
+ *
+ * @reg_dac_tx_data: TX FIFO offset for DMA config.
+ * @has_reset: SoC needs reset deasserted.
+ */
+struct sun4i_spdif_quirks {
+	unsigned int reg_dac_txdata;
+	bool has_reset;
+};
+
 struct sun4i_spdif_dev {
 	struct platform_device *pdev;
 	struct clk *spdif_clk;
@@ -403,11 +414,6 @@ static struct snd_soc_dai_driver sun4i_spdif_dai = {
 	.probe = sun4i_spdif_soc_dai_probe,
 	.ops = &sun4i_spdif_dai_ops,
 	.name = "spdif",
-};
-
-struct sun4i_spdif_quirks {
-	unsigned int reg_dac_txdata;	/* TX FIFO offset for DMA config */
-	bool has_reset;
 };
 
 static const struct sun4i_spdif_quirks sun4i_a10_spdif_quirks = {
