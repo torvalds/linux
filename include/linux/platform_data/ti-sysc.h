@@ -19,6 +19,7 @@ enum ti_sysc_module_type {
 
 struct ti_sysc_cookie {
 	void *data;
+	void *clkdm;
 };
 
 /**
@@ -125,9 +126,16 @@ struct ti_sysc_module_data {
 };
 
 struct device;
+struct clk;
 
 struct ti_sysc_platform_data {
 	struct of_dev_auxdata *auxdata;
+	int (*init_clockdomain)(struct device *dev, struct clk *fck,
+				struct clk *ick, struct ti_sysc_cookie *cookie);
+	void (*clkdm_deny_idle)(struct device *dev,
+				const struct ti_sysc_cookie *cookie);
+	void (*clkdm_allow_idle)(struct device *dev,
+				 const struct ti_sysc_cookie *cookie);
 	int (*init_module)(struct device *dev,
 			   const struct ti_sysc_module_data *data,
 			   struct ti_sysc_cookie *cookie);

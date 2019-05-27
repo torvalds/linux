@@ -3445,6 +3445,7 @@ static int omap_hwmod_check_module(struct device *dev,
  * @dev: struct device
  * @oh: module
  * @sysc_fields: sysc register bits
+ * @clockdomain: clockdomain
  * @rev_offs: revision register offset
  * @sysc_offs: sysconfig register offset
  * @syss_offs: sysstatus register offset
@@ -3456,6 +3457,7 @@ static int omap_hwmod_check_module(struct device *dev,
 static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 				      const struct ti_sysc_module_data *data,
 				      struct sysc_regbits *sysc_fields,
+				      struct clockdomain *clkdm,
 				      s32 rev_offs, s32 sysc_offs,
 				      s32 syss_offs, u32 sysc_flags,
 				      u32 idlemodes)
@@ -3463,8 +3465,6 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 	struct omap_hwmod_class_sysconfig *sysc;
 	struct omap_hwmod_class *class = NULL;
 	struct omap_hwmod_ocp_if *oi = NULL;
-	struct clockdomain *clkdm = NULL;
-	struct clk *clk = NULL;
 	void __iomem *regs = NULL;
 	unsigned long flags;
 
@@ -3509,36 +3509,6 @@ static int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 		 */
 		oi->slave = oh;
 		oi->user = OCP_USER_MPU | OCP_USER_SDMA;
-	}
-
-	if (!oh->_clk) {
-		struct clk_hw_omap *hwclk;
-
-		clk = of_clk_get_by_name(dev->of_node, "fck");
-		if (!IS_ERR(clk))
-			clk_prepare(clk);
-		else
-			clk = NULL;
-
-		/*
-		 * Populate clockdomain based on dts clock. It is needed for
-		 * clkdm_deny_idle() and clkdm_allow_idle() until we have have
-		 * interconnect driver and reset driver capable of blocking
-		 * clockdomain idle during reset, enable and idle.
-		 */
-		if (clk) {
-			hwclk = to_clk_hw_omap(__clk_get_hw(clk));
-			if (hwclk && hwclk->clkdm_name)
-				clkdm = clkdm_lookup(hwclk->clkdm_name);
-		}
-
-		/*
-		 * Note that we assume interconnect driver manages the clocks
-		 * and do not need to populate oh->_clk for dynamically
-		 * allocated modules.
-		 */
-		clk_unprepare(clk);
-		clk_put(clk);
 	}
 
 	spin_lock_irqsave(&oh->_lock, flags);
@@ -3626,7 +3596,7 @@ int omap_hwmod_init_module(struct device *dev,
 	u32 sysc_flags, idlemodes;
 	int error;
 
-	if (!dev || !data)
+	if (!dev || !data || !data->name || !cookie)
 		return -EINVAL;
 
 	oh = _lookup(data->name);
@@ -3697,7 +3667,8 @@ int omap_hwmod_init_module(struct device *dev,
 		return error;
 
 	return omap_hwmod_allocate_module(dev, oh, data, sysc_fields,
-					  rev_offs, sysc_offs, syss_offs,
+					  cookie->clkdm, rev_offs,
+					  sysc_offs, syss_offs,
 					  sysc_flags, idlemodes);
 }
 

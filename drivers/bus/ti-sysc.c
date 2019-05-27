@@ -422,6 +422,30 @@ static void sysc_disable_opt_clocks(struct sysc *ddata)
 	}
 }
 
+static void sysc_clkdm_deny_idle(struct sysc *ddata)
+{
+	struct ti_sysc_platform_data *pdata;
+
+	if (ddata->legacy_mode)
+		return;
+
+	pdata = dev_get_platdata(ddata->dev);
+	if (pdata && pdata->clkdm_deny_idle)
+		pdata->clkdm_deny_idle(ddata->dev, &ddata->cookie);
+}
+
+static void sysc_clkdm_allow_idle(struct sysc *ddata)
+{
+	struct ti_sysc_platform_data *pdata;
+
+	if (ddata->legacy_mode)
+		return;
+
+	pdata = dev_get_platdata(ddata->dev);
+	if (pdata && pdata->clkdm_allow_idle)
+		pdata->clkdm_allow_idle(ddata->dev, &ddata->cookie);
+}
+
 /**
  * sysc_init_resets - init rstctrl reset line if configured
  * @ddata: device driver data
@@ -795,6 +819,7 @@ static void sysc_show_registers(struct sysc *ddata)
 
 #define SYSC_IDLE_MASK	(SYSC_NR_IDLEMODES - 1)
 
+/* Caller needs to manage sysc_clkdm_deny_idle() and sysc_clkdm_allow_idle() */
 static int sysc_enable_module(struct device *dev)
 {
 	struct sysc *ddata;
@@ -804,11 +829,6 @@ static int sysc_enable_module(struct device *dev)
 	ddata = dev_get_drvdata(dev);
 	if (ddata->offsets[SYSC_SYSCONFIG] == -ENODEV)
 		return 0;
-
-	/*
-	 * TODO: Need to prevent clockdomain autoidle?
-	 * See clkdm_deny_idle() in arch/mach-omap2/omap_hwmod.c
-	 */
 
 	regbits = ddata->cap->regbits;
 	reg = sysc_read(ddata, ddata->offsets[SYSC_SYSCONFIG]);
@@ -861,6 +881,7 @@ static int sysc_best_idle_mode(u32 idlemodes, u32 *best_mode)
 	return 0;
 }
 
+/* Caller needs to manage sysc_clkdm_deny_idle() and sysc_clkdm_allow_idle() */
 static int sysc_disable_module(struct device *dev)
 {
 	struct sysc *ddata;
@@ -871,11 +892,6 @@ static int sysc_disable_module(struct device *dev)
 	ddata = dev_get_drvdata(dev);
 	if (ddata->offsets[SYSC_SYSCONFIG] == -ENODEV)
 		return 0;
-
-	/*
-	 * TODO: Need to prevent clockdomain autoidle?
-	 * See clkdm_deny_idle() in arch/mach-omap2/omap_hwmod.c
-	 */
 
 	regbits = ddata->cap->regbits;
 	reg = sysc_read(ddata, ddata->offsets[SYSC_SYSCONFIG]);
@@ -966,14 +982,16 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 	if (!ddata->enabled)
 		return 0;
 
+	sysc_clkdm_deny_idle(ddata);
+
 	if (ddata->legacy_mode) {
 		error = sysc_runtime_suspend_legacy(dev, ddata);
 		if (error)
-			return error;
+			goto err_allow_idle;
 	} else {
 		error = sysc_disable_module(dev);
 		if (error)
-			return error;
+			goto err_allow_idle;
 	}
 
 	sysc_disable_main_clocks(ddata);
@@ -982,6 +1000,9 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 		sysc_disable_opt_clocks(ddata);
 
 	ddata->enabled = false;
+
+err_allow_idle:
+	sysc_clkdm_allow_idle(ddata);
 
 	return error;
 }
@@ -996,10 +1017,12 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 	if (ddata->enabled)
 		return 0;
 
+	sysc_clkdm_deny_idle(ddata);
+
 	if (sysc_opt_clks_needed(ddata)) {
 		error = sysc_enable_opt_clocks(ddata);
 		if (error)
-			return error;
+			goto err_allow_idle;
 	}
 
 	error = sysc_enable_main_clocks(ddata);
@@ -1018,6 +1041,8 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 
 	ddata->enabled = true;
 
+	sysc_clkdm_allow_idle(ddata);
+
 	return 0;
 
 err_main_clocks:
@@ -1025,6 +1050,8 @@ err_main_clocks:
 err_opt_clocks:
 	if (sysc_opt_clks_needed(ddata))
 		sysc_disable_opt_clocks(ddata);
+err_allow_idle:
+	sysc_clkdm_allow_idle(ddata);
 
 	return error;
 }
@@ -1245,6 +1272,33 @@ static void sysc_init_revision_quirks(struct sysc *ddata)
 	}
 }
 
+static int sysc_clockdomain_init(struct sysc *ddata)
+{
+	struct ti_sysc_platform_data *pdata = dev_get_platdata(ddata->dev);
+	struct clk *fck = NULL, *ick = NULL;
+	int error;
+
+	if (!pdata || !pdata->init_clockdomain)
+		return 0;
+
+	switch (ddata->nr_clocks) {
+	case 2:
+		ick = ddata->clocks[SYSC_ICK];
+		/* fallthrough */
+	case 1:
+		fck = ddata->clocks[SYSC_FCK];
+		break;
+	case 0:
+		return 0;
+	}
+
+	error = pdata->init_clockdomain(ddata->dev, fck, ick, &ddata->cookie);
+	if (!error || error == -ENODEV)
+		return 0;
+
+	return error;
+}
+
 /*
  * Note that pdata->init_module() typically does a reset first. After
  * pdata->init_module() is done, PM runtime can be used for the interconnect
@@ -1255,7 +1309,7 @@ static int sysc_legacy_init(struct sysc *ddata)
 	struct ti_sysc_platform_data *pdata = dev_get_platdata(ddata->dev);
 	int error;
 
-	if (!ddata->legacy_mode || !pdata || !pdata->init_module)
+	if (!pdata || !pdata->init_module)
 		return 0;
 
 	error = pdata->init_module(ddata->dev, ddata->mdata, &ddata->cookie);
@@ -1347,7 +1401,13 @@ static int sysc_init_module(struct sysc *ddata)
 	    (SYSC_QUIRK_NO_IDLE | SYSC_QUIRK_NO_IDLE_ON_INIT))
 		manage_clocks = false;
 
+	error = sysc_clockdomain_init(ddata);
+	if (error)
+		return error;
+
 	if (manage_clocks) {
+		sysc_clkdm_deny_idle(ddata);
+
 		error = sysc_enable_opt_clocks(ddata);
 		if (error)
 			return error;
@@ -1360,20 +1420,33 @@ static int sysc_init_module(struct sysc *ddata)
 	ddata->revision = sysc_read_revision(ddata);
 	sysc_init_revision_quirks(ddata);
 
-	error = sysc_legacy_init(ddata);
-	if (error)
-		goto err_main_clocks;
+	if (ddata->legacy_mode) {
+		error = sysc_legacy_init(ddata);
+		if (error)
+			goto err_main_clocks;
+	}
+
+	if (!ddata->legacy_mode && manage_clocks) {
+		error = sysc_enable_module(ddata->dev);
+		if (error)
+			goto err_main_clocks;
+	}
 
 	error = sysc_reset(ddata);
 	if (error)
 		dev_err(ddata->dev, "Reset failed with %d\n", error);
 
+	if (!ddata->legacy_mode && manage_clocks)
+		sysc_disable_module(ddata->dev);
+
 err_main_clocks:
 	if (manage_clocks)
 		sysc_disable_main_clocks(ddata);
 err_opt_clocks:
-	if (manage_clocks)
+	if (manage_clocks) {
 		sysc_disable_opt_clocks(ddata);
+		sysc_clkdm_allow_idle(ddata);
+	}
 
 	return error;
 }
@@ -2012,20 +2085,22 @@ static int sysc_init_pdata(struct sysc *ddata)
 	struct ti_sysc_platform_data *pdata = dev_get_platdata(ddata->dev);
 	struct ti_sysc_module_data *mdata;
 
-	if (!pdata || !ddata->legacy_mode)
+	if (!pdata)
 		return 0;
 
 	mdata = devm_kzalloc(ddata->dev, sizeof(*mdata), GFP_KERNEL);
 	if (!mdata)
 		return -ENOMEM;
 
-	mdata->name = ddata->legacy_mode;
-	mdata->module_pa = ddata->module_pa;
-	mdata->module_size = ddata->module_size;
-	mdata->offsets = ddata->offsets;
-	mdata->nr_offsets = SYSC_MAX_REGS;
-	mdata->cap = ddata->cap;
-	mdata->cfg = &ddata->cfg;
+	if (ddata->legacy_mode) {
+		mdata->name = ddata->legacy_mode;
+		mdata->module_pa = ddata->module_pa;
+		mdata->module_size = ddata->module_size;
+		mdata->offsets = ddata->offsets;
+		mdata->nr_offsets = SYSC_MAX_REGS;
+		mdata->cap = ddata->cap;
+		mdata->cfg = &ddata->cfg;
+	}
 
 	ddata->mdata = mdata;
 
