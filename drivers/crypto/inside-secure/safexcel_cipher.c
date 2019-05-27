@@ -73,7 +73,6 @@ static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 			memcpy(cdesc->control_data.token, iv, DES3_EDE_BLOCK_SIZE);
 			cdesc->control_data.options |= EIP197_OPTION_2_TOKEN_IV_CMD;
 			break;
-
 		case SAFEXCEL_AES:
 			offset = AES_BLOCK_SIZE / sizeof(u32);
 			memcpy(cdesc->control_data.token, iv, AES_BLOCK_SIZE);
