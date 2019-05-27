@@ -510,6 +510,7 @@ struct Scsi_Host *fdomain_create(int base, int irq, int this_id,
 	static const char * const chip_names[] = {
 		"Unknown", "TMC-1800", "TMC-18C50", "TMC-18C30"
 	};
+	unsigned long irq_flags = 0;
 
 	chip = fdomain_identify(base);
 	if (!chip)
@@ -541,8 +542,10 @@ struct Scsi_Host *fdomain_create(int base, int irq, int this_id,
 	fd->chip = chip;
 	INIT_WORK(&fd->work, fdomain_work);
 
-	if (request_irq(irq, fdomain_irq, dev_is_pci(dev) ? IRQF_SHARED : 0,
-			  "fdomain", fd))
+	if (dev_is_pci(dev) || !strcmp(dev->bus->name, "pcmcia"))
+		irq_flags = IRQF_SHARED;
+
+	if (request_irq(irq, fdomain_irq, irq_flags, "fdomain", fd))
 		goto fail_put;
 
 	shost_printk(KERN_INFO, sh, "%s chip at 0x%x irq %d SCSI ID %d\n",
