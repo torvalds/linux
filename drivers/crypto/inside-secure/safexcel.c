@@ -720,11 +720,10 @@ handle_results:
 	}
 
 acknowledge:
-	if (i) {
+	if (i)
 		writel(EIP197_xDR_PROC_xD_PKT(i) |
 		       EIP197_xDR_PROC_xD_COUNT(tot_descs * priv->config.rd_offset),
 		       EIP197_HIA_RDR(priv, ring) + EIP197_HIA_xDR_PROC_COUNT);
-	}
 
 	/* If the number of requests overflowed the counter, try to proceed more
 	 * requests.
