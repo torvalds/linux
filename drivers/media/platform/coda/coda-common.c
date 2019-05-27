@@ -1590,6 +1590,15 @@ void coda_update_profile_level_ctrls(struct coda_ctx *ctx, u8 profile_idc,
 		profile = coda_h264_profile(profile_idc);
 		level = coda_h264_level(level_idc);
 		break;
+	case V4L2_PIX_FMT_MPEG2:
+		codec_name = "MPEG-2";
+		profile_cid = V4L2_CID_MPEG_VIDEO_MPEG2_PROFILE;
+		level_cid = V4L2_CID_MPEG_VIDEO_MPEG2_LEVEL;
+		profile_ctrl = ctx->mpeg2_profile_ctrl;
+		level_ctrl = ctx->mpeg2_level_ctrl;
+		profile = coda_mpeg2_profile(profile_idc);
+		level = coda_mpeg2_level(level_idc);
+		break;
 	case V4L2_PIX_FMT_MPEG4:
 		codec_name = "MPEG-4";
 		profile_cid = V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE;
@@ -1949,6 +1958,8 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP:
 		ctx->params.mpeg4_inter_qp = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_MPEG2_PROFILE:
+	case V4L2_CID_MPEG_VIDEO_MPEG2_LEVEL:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
 		/* nothing to do, these are fixed */
@@ -2128,6 +2139,20 @@ static void coda_decode_ctrls(struct coda_ctx *ctx)
 		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_H264_LEVEL, max, 0, max);
 	if (ctx->h264_level_ctrl)
 		ctx->h264_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	ctx->mpeg2_profile_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
+		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_MPEG2_PROFILE,
+		V4L2_MPEG_VIDEO_MPEG2_PROFILE_HIGH, 0,
+		V4L2_MPEG_VIDEO_MPEG2_PROFILE_HIGH);
+	if (ctx->mpeg2_profile_ctrl)
+		ctx->mpeg2_profile_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	ctx->mpeg2_level_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
+		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_MPEG2_LEVEL,
+		V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH, 0,
+		V4L2_MPEG_VIDEO_MPEG2_LEVEL_HIGH);
+	if (ctx->mpeg2_level_ctrl)
+		ctx->mpeg2_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	ctx->mpeg4_profile_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
 		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE,
