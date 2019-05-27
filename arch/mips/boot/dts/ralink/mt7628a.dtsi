@@ -161,6 +161,9 @@
 			compatible = "ns16550a";
 			reg = <0xc00 0x100>;
 
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart0_uart>;
+
 			resets = <&resetc 12>;
 			reset-names = "uart0";
 
@@ -174,6 +177,9 @@
 			compatible = "ns16550a";
 			reg = <0xd00 0x100>;
 
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart1_uart>;
+
 			resets = <&resetc 19>;
 			reset-names = "uart1";
 
@@ -186,6 +192,9 @@
 		uart2: uart2@e00 {
 			compatible = "ns16550a";
 			reg = <0xe00 0x100>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinmux_uart2_uart>;
 
 			resets = <&resetc 20>;
 			reset-names = "uart2";
