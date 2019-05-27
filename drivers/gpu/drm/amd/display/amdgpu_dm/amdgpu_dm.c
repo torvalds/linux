@@ -616,6 +616,10 @@ error:
 static void amdgpu_dm_fini(struct amdgpu_device *adev)
 {
 	amdgpu_dm_destroy_drm_device(&adev->dm);
+
+	/* DC Destroy TODO: Replace destroy DAL */
+	if (adev->dm.dc)
+		dc_destroy(&adev->dm.dc);
 	/*
 	 * TODO: pageflip, vlank interrupt
 	 *
@@ -630,9 +634,6 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 		mod_freesync_destroy(adev->dm.freesync_module);
 		adev->dm.freesync_module = NULL;
 	}
-	/* DC Destroy TODO: Replace destroy DAL */
-	if (adev->dm.dc)
-		dc_destroy(&adev->dm.dc);
 
 	mutex_destroy(&adev->dm.dc_lock);
 
