@@ -181,18 +181,27 @@ static int sii902x_get_modes(struct drm_connector *connector)
 {
 	struct sii902x *sii902x = connector_to_sii902x(connector);
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	u8 output_mode = SII902X_SYS_CTRL_OUTPUT_DVI;
 	struct edid *edid;
 	int num = 0, ret;
 
 	edid = drm_get_edid(connector, sii902x->i2cmux->adapter[0]);
 	drm_connector_update_edid_property(connector, edid);
 	if (edid) {
+		if (drm_detect_hdmi_monitor(edid))
+			output_mode = SII902X_SYS_CTRL_OUTPUT_HDMI;
+
 		num = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}
 
 	ret = drm_display_info_set_bus_formats(&connector->display_info,
 					       &bus_format, 1);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(sii902x->regmap, SII902X_SYS_CTRL_DATA,
+				 SII902X_SYS_CTRL_OUTPUT_MODE, output_mode);
 	if (ret)
 		return ret;
 
