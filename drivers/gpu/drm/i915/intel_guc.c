@@ -250,14 +250,7 @@ void intel_guc_fini(struct intel_guc *guc)
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
 	u32 level = intel_guc_log_get_level(&guc->log);
-	u32 flags;
-	u32 ads;
-
-	ads = intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT;
-	flags = ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
-
-	if (!GUC_LOG_LEVEL_IS_ENABLED(level))
-		flags |= GUC_LOG_DEFAULT_DISABLED;
+	u32 flags = 0;
 
 	if (!GUC_LOG_LEVEL_IS_VERBOSE(level))
 		flags |= GUC_LOG_DISABLED;
@@ -272,11 +265,7 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	flags |=  GUC_CTL_VCS2_ENABLED;
-
-	if (USES_GUC_SUBMISSION(guc_to_i915(guc)))
-		flags |= GUC_CTL_KERNEL_SUBMISSIONS;
-	else
+	if (!USES_GUC_SUBMISSION(guc_to_i915(guc)))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
 
 	return flags;
@@ -340,6 +329,14 @@ static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 	return flags;
 }
 
+static u32 guc_ctl_ads_flags(struct intel_guc *guc)
+{
+	u32 ads = intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT;
+	u32 flags = ads << GUC_ADS_ADDR_SHIFT;
+
+	return flags;
+}
+
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
@@ -353,20 +350,11 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	memset(params, 0, sizeof(params));
 
-	/*
-	 * GuC ARAT increment is 10 ns. GuC default scheduler quantum is one
-	 * second. This ARAR is calculated by:
-	 * Scheduler-Quantum-in-ns / ARAT-increment-in-ns = 1000000000 / 10
-	 */
-	params[GUC_CTL_ARAT_HIGH] = 0;
-	params[GUC_CTL_ARAT_LOW] = 100000000;
-
-	params[GUC_CTL_WA] |= GUC_CTL_WA_UK_BY_DRIVER;
-
-	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
-	params[GUC_CTL_LOG_PARAMS]  = guc_ctl_log_params_flags(guc);
-	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
 	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
+	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
+	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
+	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
+	params[GUC_CTL_ADS] = guc_ctl_ads_flags(guc);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		DRM_DEBUG_DRIVER("param[%2d] = %#x\n", i, params[i]);
@@ -550,25 +538,33 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-/*
- * The ENTER/EXIT_S_STATE actions queue the save/restore operation in GuC FW and
- * then return, so waiting on the H2G is not enough to guarantee GuC is done.
- * When all the processing is done, GuC writes INTEL_GUC_SLEEP_STATE_SUCCESS to
- * scratch register 14, so we can poll on that. Note that GuC does not ensure
- * that the value in the register is different from
- * INTEL_GUC_SLEEP_STATE_SUCCESS while the action is in progress so we need to
- * take care of that ourselves as well.
+/**
+ * intel_guc_suspend() - notify GuC entering suspend state
+ * @guc:	the guc
  */
-static int guc_sleep_state_action(struct intel_guc *guc,
-				  const u32 *action, u32 len)
+int intel_guc_suspend(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	int ret;
 	u32 status;
+	u32 action[] = {
+		INTEL_GUC_ACTION_ENTER_S_STATE,
+		GUC_POWER_D1, /* any value greater than GUC_POWER_D0 */
+	};
+
+	/*
+	 * The ENTER_S_STATE action queues the save/restore operation in GuC FW
+	 * and then returns, so waiting on the H2G is not enough to guarantee
+	 * GuC is done. When all the processing is done, GuC writes
+	 * INTEL_GUC_SLEEP_STATE_SUCCESS to scratch register 14, so we can poll
+	 * on that. Note that GuC does not ensure that the value in the register
+	 * is different from INTEL_GUC_SLEEP_STATE_SUCCESS while the action is
+	 * in progress so we need to take care of that ourselves as well.
+	 */
 
 	I915_WRITE(SOFT_SCRATCH(14), INTEL_GUC_SLEEP_STATE_INVALID_MASK);
 
-	ret = intel_guc_send(guc, action, len);
+	ret = intel_guc_send(guc, action, ARRAY_SIZE(action));
 	if (ret)
 		return ret;
 
@@ -586,21 +582,6 @@ static int guc_sleep_state_action(struct intel_guc *guc,
 	}
 
 	return 0;
-}
-
-/**
- * intel_guc_suspend() - notify GuC entering suspend state
- * @guc:	the guc
- */
-int intel_guc_suspend(struct intel_guc *guc)
-{
-	u32 data[] = {
-		INTEL_GUC_ACTION_ENTER_S_STATE,
-		GUC_POWER_D1, /* any value greater than GUC_POWER_D0 */
-		intel_guc_ggtt_offset(guc, guc->shared_data)
-	};
-
-	return guc_sleep_state_action(guc, data, ARRAY_SIZE(data));
 }
 
 /**
@@ -632,13 +613,12 @@ int intel_guc_reset_engine(struct intel_guc *guc,
  */
 int intel_guc_resume(struct intel_guc *guc)
 {
-	u32 data[] = {
+	u32 action[] = {
 		INTEL_GUC_ACTION_EXIT_S_STATE,
 		GUC_POWER_D0,
-		intel_guc_ggtt_offset(guc, guc->shared_data)
 	};
 
-	return guc_sleep_state_action(guc, data, ARRAY_SIZE(data));
+	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
 /**

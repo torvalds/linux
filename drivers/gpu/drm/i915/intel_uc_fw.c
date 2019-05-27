@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/bitfield.h>
 #include <linux/firmware.h>
 #include <drm/drm_print.h>
 
@@ -119,21 +120,20 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		goto fail;
 	}
 
-	/*
-	 * The GuC firmware image has the version number embedded at a
-	 * well-known offset within the firmware blob; note that major / minor
-	 * version are TWO bytes each (i.e. u16), although all pointers and
-	 * offsets are defined in terms of bytes (u8).
-	 */
+	/* Get version numbers from the CSS header */
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
-		uc_fw->major_ver_found = css->guc.sw_version >> 16;
-		uc_fw->minor_ver_found = css->guc.sw_version & 0xFFFF;
+		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MAJOR,
+						   css->sw_version);
+		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_GUC_MINOR,
+						   css->sw_version);
 		break;
 
 	case INTEL_UC_FW_TYPE_HUC:
-		uc_fw->major_ver_found = css->huc.sw_version >> 16;
-		uc_fw->minor_ver_found = css->huc.sw_version & 0xFFFF;
+		uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MAJOR,
+						   css->sw_version);
+		uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_HUC_MINOR,
+						   css->sw_version);
 		break;
 
 	default:

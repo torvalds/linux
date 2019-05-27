@@ -156,7 +156,7 @@ static const struct engine_info intel_engines[] = {
 };
 
 /**
- * ___intel_engine_context_size() - return the size of the context for an engine
+ * intel_engine_context_size() - return the size of the context for an engine
  * @dev_priv: i915 device private
  * @class: engine class
  *
@@ -169,8 +169,7 @@ static const struct engine_info intel_engines[] = {
  * in LRC mode, but does not include the "shared data page" used with
  * GuC submission. The caller should account for this if using the GuC.
  */
-static u32
-__intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
+u32 intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 {
 	u32 cxt_size;
 
@@ -327,8 +326,8 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 
 	engine->uabi_class = intel_engine_classes[info->class].uabi_class;
 
-	engine->context_size = __intel_engine_context_size(dev_priv,
-							   engine->class);
+	engine->context_size = intel_engine_context_size(dev_priv,
+							 engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
 	if (engine->context_size)
