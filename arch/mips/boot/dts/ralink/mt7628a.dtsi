@@ -157,6 +157,19 @@
 			reg = <0x300 0x100>;
 		};
 
+		gpio: gpio@600 {
+			compatible = "mediatek,mt7621-gpio";
+			reg = <0x600 0x100>;
+
+			gpio-controller;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <6>;
+		};
+
 		uart0: uartlite@c00 {
 			compatible = "ns16550a";
 			reg = <0xc00 0x100>;
