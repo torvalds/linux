@@ -336,7 +336,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	might_sleep();
 
 	/* sanity checks */
-	if (cid >= max_assoc_sta) {
+	if (cid >= wil->max_assoc_sta) {
 		wil_err(wil, "BACK: invalid CID %d\n", cid);
 		rc = -EINVAL;
 		goto out;

@@ -806,8 +806,8 @@ static void wmi_evt_ready(struct wil6210_vif *vif, int id, void *d, int len)
 		}
 	}
 
-	max_assoc_sta = min_t(uint, max_assoc_sta, fw_max_assoc_sta);
-	wil_dbg_wmi(wil, "setting max assoc sta to %d\n", max_assoc_sta);
+	wil->max_assoc_sta = min_t(uint, max_assoc_sta, fw_max_assoc_sta);
+	wil_dbg_wmi(wil, "setting max assoc sta to %d\n", wil->max_assoc_sta);
 
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, wil->status);
@@ -974,7 +974,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 			evt->assoc_req_len, evt->assoc_resp_len);
 		return;
 	}
-	if (evt->cid >= max_assoc_sta) {
+	if (evt->cid >= wil->max_assoc_sta) {
 		wil_err(wil, "Connect CID invalid : %d\n", evt->cid);
 		return;
 	}
@@ -1236,7 +1236,7 @@ static void wmi_evt_ring_en(struct wil6210_vif *vif, int id, void *d, int len)
 		return;
 
 	cid = wil->ring2cid_tid[vri][0];
-	if (!wil_cid_valid(cid)) {
+	if (!wil_cid_valid(wil, cid)) {
 		wil_err(wil, "invalid cid %d for vring %d\n", cid, vri);
 		return;
 	}
@@ -1439,7 +1439,7 @@ static void wil_link_stats_store_basic(struct wil6210_vif *vif,
 	u8 cid = basic->cid;
 	struct wil_sta_info *sta;
 
-	if (cid < 0 || cid >= max_assoc_sta) {
+	if (cid < 0 || cid >= wil->max_assoc_sta) {
 		wil_err(wil, "invalid cid %d\n", cid);
 		return;
 	}
@@ -1589,7 +1589,7 @@ static int wil_find_cid_ringid_sta(struct wil6210_priv *wil,
 			continue;
 
 		lcid = wil->ring2cid_tid[i][0];
-		if (lcid >= max_assoc_sta) /* skip BCAST */
+		if (lcid >= wil->max_assoc_sta) /* skip BCAST */
 			continue;
 
 		wil_dbg_wmi(wil, "find sta -> ringid %d cid %d\n", i, lcid);
@@ -2135,7 +2135,7 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
-		.pcp_max_assoc_sta = max_assoc_sta,
+		.pcp_max_assoc_sta = wil->max_assoc_sta,
 		.hidden_ssid = hidden_ssid,
 		.is_go = is_go,
 		.ap_sme_offload_mode = disable_ap_sme ?

@@ -315,6 +315,7 @@ struct htt_stats_req {
 } __packed;
 
 #define HTT_STATS_REQ_CFG_STAT_TYPE_INVALID 0xff
+#define HTT_STATS_BIT_MASK GENMASK(16, 0)
 
 /*
  * htt_oob_sync_req - request out-of-band sync
@@ -733,6 +734,20 @@ struct htt_rx_indication_hl {
 	struct htt_rx_indication_mpdu_range mpdu_ranges[0];
 } __packed;
 
+struct htt_hl_rx_desc {
+	__le32 info;
+	__le32 pn_31_0;
+	union {
+		struct {
+			__le16 pn_47_32;
+			__le16 pn_63_48;
+		} pn16;
+		__le32 pn_63_32;
+	} u0;
+	__le32 pn_95_64;
+	__le32 pn_127_96;
+} __packed;
+
 static inline struct htt_rx_indication_mpdu_range *
 		htt_rx_ind_get_mpdu_ranges(struct htt_rx_indication *rx_ind)
 {
@@ -790,6 +805,21 @@ struct htt_rx_peer_unmap {
 	__le16 peer_id;
 } __packed;
 
+enum htt_txrx_sec_cast_type {
+	HTT_TXRX_SEC_MCAST = 0,
+	HTT_TXRX_SEC_UCAST
+};
+
+enum htt_rx_pn_check_type {
+	HTT_RX_NON_PN_CHECK = 0,
+	HTT_RX_PN_CHECK
+};
+
+enum htt_rx_tkip_demic_type {
+	HTT_RX_NON_TKIP_MIC = 0,
+	HTT_RX_TKIP_MIC
+};
+
 enum htt_security_types {
 	HTT_SECURITY_NONE,
 	HTT_SECURITY_WEP128,
@@ -802,6 +832,9 @@ enum htt_security_types {
 
 	HTT_NUM_SECURITY_TYPES /* keep this last! */
 };
+
+#define ATH10K_HTT_TXRX_PEER_SECURITY_MAX 2
+#define ATH10K_TXRX_NUM_EXT_TIDS 19
 
 enum htt_security_flags {
 #define HTT_SECURITY_TYPE_MASK 0x7F
@@ -1009,6 +1042,11 @@ struct htt_rx_fragment_indication {
 
 	u8 fw_msdu_rx_desc[0];
 } __packed;
+
+#define ATH10K_IEEE80211_EXTIV               BIT(5)
+#define ATH10K_IEEE80211_TKIP_MICLEN         8   /* trailing MIC */
+
+#define HTT_RX_FRAG_IND_INFO0_HEADER_LEN     16
 
 #define HTT_RX_FRAG_IND_INFO0_EXT_TID_MASK     0x1F
 #define HTT_RX_FRAG_IND_INFO0_EXT_TID_LSB      0
@@ -2055,6 +2093,9 @@ struct ath10k_htt_rx_ops {
 				    int idx);
 	void* (*htt_get_vaddr_ring)(struct ath10k_htt *htt);
 	void (*htt_reset_paddrs_ring)(struct ath10k_htt *htt, int idx);
+	bool (*htt_rx_proc_rx_frag_ind)(struct ath10k_htt *htt,
+					struct htt_rx_fragment_indication *rx,
+					struct sk_buff *skb);
 };
 
 static inline size_t ath10k_htt_get_rx_ring_size(struct ath10k_htt *htt)
@@ -2094,6 +2135,16 @@ static inline void ath10k_htt_reset_paddrs_ring(struct ath10k_htt *htt, int idx)
 		htt->rx_ops->htt_reset_paddrs_ring(htt, idx);
 }
 
+static inline bool ath10k_htt_rx_proc_rx_frag_ind(struct ath10k_htt *htt,
+						  struct htt_rx_fragment_indication *rx,
+						  struct sk_buff *skb)
+{
+	if (!htt->rx_ops->htt_rx_proc_rx_frag_ind)
+		return true;
+
+	return htt->rx_ops->htt_rx_proc_rx_frag_ind(htt, rx, skb);
+}
+
 #define RX_HTT_HDR_STATUS_LEN 64
 
 /* This structure layout is programmed via rx ring setup
@@ -2128,10 +2179,8 @@ struct htt_rx_desc {
 #define HTT_RX_DESC_HL_INFO_ENCRYPTED_LSB          12
 #define HTT_RX_DESC_HL_INFO_CHAN_INFO_PRESENT_MASK 0x00002000
 #define HTT_RX_DESC_HL_INFO_CHAN_INFO_PRESENT_LSB  13
-#define HTT_RX_DESC_HL_INFO_MCAST_BCAST_MASK       0x00008000
-#define HTT_RX_DESC_HL_INFO_MCAST_BCAST_LSB        15
-#define HTT_RX_DESC_HL_INFO_FRAGMENT_MASK          0x00010000
-#define HTT_RX_DESC_HL_INFO_FRAGMENT_LSB           16
+#define HTT_RX_DESC_HL_INFO_MCAST_BCAST_MASK       0x00010000
+#define HTT_RX_DESC_HL_INFO_MCAST_BCAST_LSB        16
 #define HTT_RX_DESC_HL_INFO_KEY_ID_OCT_MASK        0x01fe0000
 #define HTT_RX_DESC_HL_INFO_KEY_ID_OCT_LSB         17
 
@@ -2195,7 +2244,8 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
-int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
+int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u32 mask, u32 reset_mask,
+			     u64 cookie);
 int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,
 				u8 max_subfrms_amsdu);
