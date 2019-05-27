@@ -644,7 +644,7 @@ struct safexcel_ahash_export_state {
 	u32 digest;
 
 	u32 state[SHA512_DIGEST_SIZE / sizeof(u32)];
-	u8 cache[SHA512_BLOCK_SIZE];
+	u8 cache[SHA512_BLOCK_SIZE << 1];
 };
 
 /*
