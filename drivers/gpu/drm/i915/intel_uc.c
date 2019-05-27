@@ -24,8 +24,9 @@
 
 #include "gt/intel_reset.h"
 #include "intel_uc.h"
-#include "intel_guc_submission.h"
 #include "intel_guc.h"
+#include "intel_guc_ads.h"
+#include "intel_guc_submission.h"
 #include "i915_drv.h"
 
 static void guc_free_load_err_log(struct intel_guc *guc);
@@ -414,6 +415,7 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 				goto err_out;
 		}
 
+		intel_guc_ads_reset(guc);
 		intel_guc_init_params(guc);
 		ret = intel_guc_fw_upload(guc);
 		if (ret == 0)
