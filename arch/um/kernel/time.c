@@ -37,14 +37,14 @@ static int itimer_shutdown(struct clock_event_device *evt)
 
 static int itimer_set_periodic(struct clock_event_device *evt)
 {
-	os_timer_set_interval();
+	os_timer_set_interval(NSEC_PER_SEC / HZ);
 	return 0;
 }
 
 static int itimer_next_event(unsigned long delta,
 			     struct clock_event_device *evt)
 {
-	return os_timer_one_shot(delta);
+	return os_timer_one_shot(delta + 1);
 }
 
 static int itimer_one_shot(struct clock_event_device *evt)

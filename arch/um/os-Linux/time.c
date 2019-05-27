@@ -50,18 +50,15 @@ int os_timer_create(void)
 	return 0;
 }
 
-int os_timer_set_interval(void)
+int os_timer_set_interval(unsigned long long nsecs)
 {
 	struct itimerspec its;
-	unsigned long long nsec;
 
-	nsec = UM_NSEC_PER_SEC / UM_HZ;
+	its.it_value.tv_sec = nsecs / UM_NSEC_PER_SEC;
+	its.it_value.tv_nsec = nsecs % UM_NSEC_PER_SEC;
 
-	its.it_value.tv_sec = 0;
-	its.it_value.tv_nsec = nsec;
-
-	its.it_interval.tv_sec = 0;
-	its.it_interval.tv_nsec = nsec;
+	its.it_interval.tv_sec = nsecs / UM_NSEC_PER_SEC;
+	its.it_interval.tv_nsec = nsecs % UM_NSEC_PER_SEC;
 
 	if (timer_settime(event_high_res_timer, 0, &its, NULL) == -1)
 		return -errno;
@@ -69,12 +66,11 @@ int os_timer_set_interval(void)
 	return 0;
 }
 
-int os_timer_one_shot(unsigned long ticks)
+int os_timer_one_shot(unsigned long long nsecs)
 {
-	unsigned long long nsec = ticks + 1;
 	struct itimerspec its = {
-		.it_value.tv_sec = nsec / UM_NSEC_PER_SEC,
-		.it_value.tv_nsec = nsec % UM_NSEC_PER_SEC,
+		.it_value.tv_sec = nsecs / UM_NSEC_PER_SEC,
+		.it_value.tv_nsec = nsecs % UM_NSEC_PER_SEC,
 
 		.it_interval.tv_sec = 0,
 		.it_interval.tv_nsec = 0, // we cheat here
