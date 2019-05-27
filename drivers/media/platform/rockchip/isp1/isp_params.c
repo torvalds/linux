@@ -2556,7 +2556,7 @@ rkisp1_params_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &node->vlock;
+	q->lock = &params_vdev->dev->apilock;
 	q->dev = params_vdev->dev->dev;
 
 	return vb2_queue_init(q);
@@ -2588,7 +2588,6 @@ int rkisp1_register_params_vdev(struct rkisp1_isp_params_vdev *params_vdev,
 	struct video_device *vdev = &node->vdev;
 
 	params_vdev->dev = dev;
-	mutex_init(&node->vlock);
 	spin_lock_init(&params_vdev->config_lock);
 
 	strlcpy(vdev->name, "rkisp1-input-params", sizeof(vdev->name));
@@ -2601,7 +2600,7 @@ int rkisp1_register_params_vdev(struct rkisp1_isp_params_vdev *params_vdev,
 	 * Provide a mutex to v4l2 core. It will be used
 	 * to protect all fops and v4l2 ioctls.
 	 */
-	vdev->lock = &node->vlock;
+	vdev->lock = &dev->apilock;
 	vdev->v4l2_dev = v4l2_dev;
 	vdev->queue = &node->buf_queue;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_META_OUTPUT;

@@ -1054,6 +1054,7 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	isp_dev->clk_rate_tbl = match_data->clk_rate_tbl;
 	isp_dev->num_clk_rate_tbl = match_data->num_clk_rate_tbl;
 
+	mutex_init(&isp_dev->apilock);
 	atomic_set(&isp_dev->pipe.power_cnt, 0);
 	atomic_set(&isp_dev->pipe.stream_cnt, 0);
 	atomic_set(&isp_dev->open_cnt, 0);

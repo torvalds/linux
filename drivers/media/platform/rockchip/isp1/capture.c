@@ -943,6 +943,7 @@ static int raw_config_mi(struct rkisp1_stream *stream)
 
 		in_size = raw->out_fmt.plane_fmt[0].sizeimage;
 	}
+
 	dmatx0_set_pic_size(base, in_frm->width, in_frm->height);
 	dmatx0_set_pic_off(base, 0);
 	dmatx0_ctrl(base,
@@ -1591,7 +1592,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->min_buffers_needed = CIF_ISP_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &node->vlock;
+	q->lock = &stream->ispdev->apilock;
 	q->dev = stream->ispdev->dev;
 
 	return vb2_queue_init(q);
@@ -1726,7 +1727,7 @@ int rkisp1_fop_release(struct file *file)
 	int ret;
 
 	ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
-	ret = vb2_fop_release(file);
+	ret |= vb2_fop_release(file);
 	atomic_dec(&dev->open_cnt);
 
 	return ret;
@@ -2037,14 +2038,13 @@ static int rkisp1_register_stream_vdev(struct rkisp1_stream *stream)
 	}
 	strlcpy(vdev->name, vdev_name, sizeof(vdev->name));
 	node = vdev_to_node(vdev);
-	mutex_init(&node->vlock);
 
 	vdev->ioctl_ops = &rkisp1_v4l2_ioctl_ops;
 	vdev->release = video_device_release_empty;
 	vdev->fops = &rkisp1_fops;
 	vdev->minor = -1;
 	vdev->v4l2_dev = v4l2_dev;
-	vdev->lock = &node->vlock;
+	vdev->lock = &dev->apilock;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
 				V4L2_CAP_STREAMING;
 	video_set_drvdata(vdev, stream);

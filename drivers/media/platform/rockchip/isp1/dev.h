@@ -164,6 +164,7 @@ struct rkisp1_device {
 	enum rkisp1_isp_state isp_state;
 	unsigned int isp_err_cnt;
 	enum rkisp1_isp_inp isp_inp;
+	struct mutex apilock; /* mutex to serialize the calls from user */
 };
 
 #endif

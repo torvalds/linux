@@ -395,7 +395,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->min_buffers_needed = CIF_ISP_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->lock = &node->vlock;
+	q->lock = &stream->ispdev->apilock;
 
 	return vb2_queue_init(q);
 }
@@ -586,13 +586,12 @@ static int rkisp1_register_dmarx_video(struct rkisp1_stream *stream)
 	int ret = 0;
 
 	node = vdev_to_node(vdev);
-	mutex_init(&node->vlock);
 
 	vdev->release = video_device_release_empty;
 	vdev->fops = &rkisp1_fops;
 	vdev->minor = -1;
 	vdev->v4l2_dev = v4l2_dev;
-	vdev->lock = &node->vlock;
+	vdev->lock = &dev->apilock;
 	video_set_drvdata(vdev, stream);
 
 	vdev->ioctl_ops = &rkisp1_dmarx_ioctl;
