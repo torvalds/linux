@@ -134,6 +134,19 @@
 			};
 		};
 
+		watchdog: watchdog@100 {
+			compatible = "mediatek,mt7621-wdt";
+			reg = <0x100 0x30>;
+
+			resets = <&resetc 8>;
+			reset-names = "wdt";
+
+			interrupt-parent = <&intc>;
+			interrupts = <24>;
+
+			status = "disabled";
+		};
+
 		intc: interrupt-controller@200 {
 			compatible = "ralink,rt2880-intc";
 			reg = <0x200 0x100>;
