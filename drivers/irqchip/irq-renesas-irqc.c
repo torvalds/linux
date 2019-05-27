@@ -124,10 +124,11 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 
 static int irqc_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	const char *name = dev_name(dev);
 	struct irqc_priv *p;
 	struct resource *io;
 	struct resource *irq;
-	const char *name = dev_name(&pdev->dev);
 	int ret;
 	int k;
 
@@ -140,13 +141,13 @@ static int irqc_probe(struct platform_device *pdev)
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
 
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 
 	/* get hold of manadatory IOMEM */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io) {
-		dev_err(&pdev->dev, "not enough IOMEM resources\n");
+		dev_err(dev, "not enough IOMEM resources\n");
 		ret = -EINVAL;
 		goto err1;
 	}
@@ -164,7 +165,7 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p->number_of_irqs = k;
 	if (p->number_of_irqs < 1) {
-		dev_err(&pdev->dev, "not enough IRQ resources\n");
+		dev_err(dev, "not enough IRQ resources\n");
 		ret = -EINVAL;
 		goto err1;
 	}
@@ -178,12 +179,11 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p->cpu_int_base = p->iomem + IRQC_INT_CPU_BASE(0); /* SYS-SPI */
 
-	p->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
-					      p->number_of_irqs,
+	p->irq_domain = irq_domain_add_linear(dev->of_node, p->number_of_irqs,
 					      &irq_generic_chip_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
-		dev_err(&pdev->dev, "cannot initialize irq domain\n");
+		dev_err(dev, "cannot initialize irq domain\n");
 		goto err2;
 	}
 
@@ -191,7 +191,7 @@ static int irqc_probe(struct platform_device *pdev)
 					     1, name, handle_level_irq,
 					     0, 0, IRQ_GC_INIT_NESTED_LOCK);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot allocate generic chip\n");
+		dev_err(dev, "cannot allocate generic chip\n");
 		goto err3;
 	}
 
@@ -209,13 +209,13 @@ static int irqc_probe(struct platform_device *pdev)
 	for (k = 0; k < p->number_of_irqs; k++) {
 		if (request_irq(p->irq[k].requested_irq, irqc_irq_handler,
 				0, name, &p->irq[k])) {
-			dev_err(&pdev->dev, "failed to request IRQ\n");
+			dev_err(dev, "failed to request IRQ\n");
 			ret = -ENOENT;
 			goto err4;
 		}
 	}
 
-	dev_info(&pdev->dev, "driving %d irqs\n", p->number_of_irqs);
+	dev_info(dev, "driving %d irqs\n", p->number_of_irqs);
 
 	return 0;
 err4:
@@ -227,8 +227,8 @@ err3:
 err2:
 	iounmap(p->iomem);
 err1:
-	pm_runtime_put(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put(dev);
+	pm_runtime_disable(dev);
 	kfree(p);
 err0:
 	return ret;
