@@ -27,14 +27,14 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/init.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/fips.h>
 #include <linux/string.h>
 #include <crypto/xts.h>
 #include <asm/cpacf.h>
 
 static u8 *ctrblk;
-static DEFINE_SPINLOCK(ctrblk_lock);
+static DEFINE_MUTEX(ctrblk_lock);
 
 static cpacf_mask_t km_functions, kmc_functions, kmctr_functions,
 		    kma_functions;
@@ -698,7 +698,7 @@ static int ctr_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 	unsigned int n, nbytes;
 	int ret, locked;
 
-	locked = spin_trylock(&ctrblk_lock);
+	locked = mutex_trylock(&ctrblk_lock);
 
 	ret = blkcipher_walk_virt_block(desc, walk, AES_BLOCK_SIZE);
 	while ((nbytes = walk->nbytes) >= AES_BLOCK_SIZE) {
@@ -716,7 +716,7 @@ static int ctr_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 		ret = blkcipher_walk_done(desc, walk, nbytes - n);
 	}
 	if (locked)
-		spin_unlock(&ctrblk_lock);
+		mutex_unlock(&ctrblk_lock);
 	/*
 	 * final block may be < AES_BLOCK_SIZE, copy only nbytes
 	 */
