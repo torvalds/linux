@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common prep/pmac/chrp boot and setup code.
  */

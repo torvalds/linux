@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config RDMA_RXE
 	tristate "Software RDMA over Ethernet (RoCE) driver"
 	depends on INET && PCI && INFINIBAND

@@ -168,7 +168,6 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 
 static int __die(const char *str, int err, struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
 	static int die_counter;
 	int ret;
 
@@ -181,9 +180,6 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 		return ret;
 
 	print_modules();
-	pr_emerg("Process %.*s (pid: %d, stack limit = 0x%p)\n",
-		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk),
-		 end_of_stack(tsk));
 	show_regs(regs);
 
 	if (!user_mode(regs))

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "IXP4xx SoC drivers"
 
 config IXP4XX_QMGR

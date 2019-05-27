@@ -59,7 +59,7 @@
 	C(NO_CLOSING_PAREN,	"No closing paren found"),		\
 	C(SUBSYS_NOT_FOUND,	"Missing subsystem"),			\
 	C(INVALID_SUBSYS_EVENT,	"Invalid subsystem or event name"),	\
-	C(INVALID_REF_KEY,	"Using variable references as keys not supported"), \
+	C(INVALID_REF_KEY,	"Using variable references in keys not supported"), \
 	C(VAR_NOT_FOUND,	"Couldn't find variable"),		\
 	C(FIELD_NOT_FOUND,	"Couldn't find field"),
 
@@ -1854,6 +1854,9 @@ static u64 hist_field_var_ref(struct hist_field *hist_field,
 	struct hist_elt_data *elt_data;
 	u64 var_val = 0;
 
+	if (WARN_ON_ONCE(!elt))
+		return var_val;
+
 	elt_data = elt->private_data;
 	var_val = elt_data->var_ref_vals[hist_field->var_ref_idx];
 
@@ -3582,13 +3585,19 @@ static bool cond_snapshot_update(struct trace_array *tr, void *cond_data)
 	struct track_data *track_data = tr->cond_snapshot->cond_data;
 	struct hist_elt_data *elt_data, *track_elt_data;
 	struct snapshot_context *context = cond_data;
+	struct action_data *action;
 	u64 track_val;
 
 	if (!track_data)
 		return false;
 
+	action = track_data->action_data;
+
 	track_val = get_track_val(track_data->hist_data, context->elt,
 				  track_data->action_data);
+
+	if (!action->track_data.check_val(track_data->track_val, track_val))
+		return false;
 
 	track_data->track_val = track_val;
 	memcpy(track_data->key, context->key, track_data->key_len);
@@ -4503,7 +4512,7 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 			goto out;
 		}
 
-		if (hist_field->flags & HIST_FIELD_FL_VAR_REF) {
+		if (field_has_hist_vars(hist_field, 0))	{
 			hist_err(tr, HIST_ERR_INVALID_REF_KEY, errpos(field_str));
 			destroy_hist_field(hist_field, 0);
 			ret = -EINVAL;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_PINCTRL_MESON) += pinctrl-meson.o
 obj-$(CONFIG_PINCTRL_MESON8_PMX) += pinctrl-meson8-pmx.o
 obj-$(CONFIG_PINCTRL_MESON8) += pinctrl-meson8.o

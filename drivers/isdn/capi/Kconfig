@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CAPI_TRACE
 	bool "CAPI trace support"
 	default y
