@@ -47,7 +47,7 @@ struct irqc_priv {
 	void __iomem *cpu_int_base;
 	struct irqc_irq irq[IRQC_IRQ_MAX];
 	unsigned int number_of_irqs;
-	struct platform_device *pdev;
+	struct device *dev;
 	struct irq_chip_generic *gc;
 	struct irq_domain *irq_domain;
 	atomic_t wakeup_path;
@@ -60,8 +60,7 @@ static struct irqc_priv *irq_data_to_priv(struct irq_data *data)
 
 static void irqc_dbg(struct irqc_irq *i, char *str)
 {
-	dev_dbg(&i->p->pdev->dev, "%s (%d:%d)\n",
-		str, i->requested_irq, i->hw_irq);
+	dev_dbg(i->p->dev, "%s (%d:%d)\n", str, i->requested_irq, i->hw_irq);
 }
 
 static unsigned char irqc_sense[IRQ_TYPE_SENSE_MASK + 1] = {
@@ -138,7 +137,7 @@ static int irqc_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	p->pdev = pdev;
+	p->dev = dev;
 	platform_set_drvdata(pdev, p);
 
 	pm_runtime_enable(dev);
