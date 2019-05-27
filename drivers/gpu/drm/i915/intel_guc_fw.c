@@ -65,6 +65,13 @@ MODULE_FIRMWARE(KBL_GUC_FIRMWARE_PATH);
 #define GLK_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(GLK)
 MODULE_FIRMWARE(GLK_GUC_FIRMWARE_PATH);
 
+#define ICL_GUC_FW_PREFIX icl
+#define ICL_GUC_FW_MAJOR 32
+#define ICL_GUC_FW_MINOR 0
+#define ICL_GUC_FW_PATCH 3
+#define ICL_GUC_FIRMWARE_PATH __MAKE_GUC_FW_PATH(ICL)
+MODULE_FIRMWARE(ICL_GUC_FIRMWARE_PATH);
+
 static void guc_fw_select(struct intel_uc_fw *guc_fw)
 {
 	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
@@ -79,6 +86,10 @@ static void guc_fw_select(struct intel_uc_fw *guc_fw)
 		guc_fw->path = i915_modparams.guc_firmware_path;
 		guc_fw->major_ver_wanted = 0;
 		guc_fw->minor_ver_wanted = 0;
+	} else if (IS_ICELAKE(i915)) {
+		guc_fw->path = ICL_GUC_FIRMWARE_PATH;
+		guc_fw->major_ver_wanted = ICL_GUC_FW_MAJOR;
+		guc_fw->minor_ver_wanted = ICL_GUC_FW_MINOR;
 	} else if (IS_GEMINILAKE(i915)) {
 		guc_fw->path = GLK_GUC_FIRMWARE_PATH;
 		guc_fw->major_ver_wanted = GLK_GUC_FW_MAJOR;
