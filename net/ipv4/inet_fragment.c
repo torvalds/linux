@@ -110,14 +110,18 @@ int inet_frags_init(struct inet_frags *f)
 	if (!f->frags_cachep)
 		return -ENOMEM;
 
+	refcount_set(&f->refcnt, 1);
+	init_completion(&f->completion);
 	return 0;
 }
 EXPORT_SYMBOL(inet_frags_init);
 
 void inet_frags_fini(struct inet_frags *f)
 {
-	/* We must wait that all inet_frag_destroy_rcu() have completed. */
-	rcu_barrier();
+	if (refcount_dec_and_test(&f->refcnt))
+		complete(&f->completion);
+
+	wait_for_completion(&f->completion);
 
 	kmem_cache_destroy(f->frags_cachep);
 	f->frags_cachep = NULL;
@@ -149,8 +153,19 @@ static void fqdir_rwork_fn(struct work_struct *work)
 {
 	struct fqdir *fqdir = container_of(to_rcu_work(work),
 					   struct fqdir, destroy_rwork);
+	struct inet_frags *f = fqdir->f;
 
 	rhashtable_free_and_destroy(&fqdir->rhashtable, inet_frags_free_cb, NULL);
+
+	/* We need to make sure all ongoing call_rcu(..., inet_frag_destroy_rcu)
+	 * have completed, since they need to dereference fqdir.
+	 * Would it not be nice to have kfree_rcu_barrier() ? :)
+	 */
+	rcu_barrier();
+
+	if (refcount_dec_and_test(&f->refcnt))
+		complete(&f->completion);
+
 	kfree(fqdir);
 }
 
@@ -168,6 +183,7 @@ int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net)
 		kfree(fqdir);
 		return res;
 	}
+	refcount_inc(&f->refcnt);
 	*fqdirp = fqdir;
 	return 0;
 }
