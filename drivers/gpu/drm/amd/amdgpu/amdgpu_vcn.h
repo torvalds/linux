@@ -111,6 +111,9 @@
 				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT | 			\
 				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT | 			\
 				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); 		\
+		} else { 									\
+			*adev->vcn.dpg_sram_curr_addr++ = offset; 				\
+			*adev->vcn.dpg_sram_curr_addr++ = value; 				\
 		} 										\
 	} while (0)
 
