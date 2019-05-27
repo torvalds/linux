@@ -1492,6 +1492,12 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	intel_gvt_hypervisor_read_gpa(vgpu, ring_context_gpa +
 			RING_CTX_OFF(ctx_ctrl.val), &ctx_ctl, 4);
 
+	if (!intel_gvt_ggtt_validate_range(vgpu, start,
+				_RING_CTL_BUF_SIZE(ctl))) {
+		gvt_vgpu_err("context contain invalid rb at: 0x%x\n", start);
+		return ERR_PTR(-EINVAL);
+	}
+
 	workload = alloc_workload(vgpu);
 	if (IS_ERR(workload))
 		return workload;
@@ -1516,9 +1522,31 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 		workload->wa_ctx.indirect_ctx.size =
 			(indirect_ctx & INDIRECT_CTX_SIZE_MASK) *
 			CACHELINE_BYTES;
+
+		if (workload->wa_ctx.indirect_ctx.size != 0) {
+			if (!intel_gvt_ggtt_validate_range(vgpu,
+				workload->wa_ctx.indirect_ctx.guest_gma,
+				workload->wa_ctx.indirect_ctx.size)) {
+				kmem_cache_free(s->workloads, workload);
+				gvt_vgpu_err("invalid wa_ctx at: 0x%lx\n",
+				    workload->wa_ctx.indirect_ctx.guest_gma);
+				return ERR_PTR(-EINVAL);
+			}
+		}
+
 		workload->wa_ctx.per_ctx.guest_gma =
 			per_ctx & PER_CTX_ADDR_MASK;
 		workload->wa_ctx.per_ctx.valid = per_ctx & 1;
+		if (workload->wa_ctx.per_ctx.valid) {
+			if (!intel_gvt_ggtt_validate_range(vgpu,
+				workload->wa_ctx.per_ctx.guest_gma,
+				CACHELINE_BYTES)) {
+				kmem_cache_free(s->workloads, workload);
+				gvt_vgpu_err("invalid per_ctx at: 0x%lx\n",
+					workload->wa_ctx.per_ctx.guest_gma);
+				return ERR_PTR(-EINVAL);
+			}
+		}
 	}
 
 	gvt_dbg_el("workload %p ring id %d head %x tail %x start %x ctl %x\n",
