@@ -1834,6 +1834,9 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	assert_rpm_wakelock_held(dev_priv);
 	if (!i915_vma_set_userfault(vma) && !obj->userfault_count++)
 		list_add(&obj->userfault_link, &dev_priv->mm.userfault_list);
+	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
+		intel_wakeref_auto(&dev_priv->mm.userfault_wakeref,
+				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 	GEM_BUG_ON(!obj->userfault_count);
 
 	i915_vma_set_ggtt_write(vma);
@@ -4671,6 +4674,8 @@ void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
 	GEM_BUG_ON(dev_priv->gt.awake);
 
+	intel_wakeref_auto_fini(&dev_priv->mm.userfault_wakeref);
+
 	i915_gem_suspend_late(dev_priv);
 	intel_disable_gt_powersave(dev_priv);
 
@@ -4746,7 +4751,9 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 	INIT_LIST_HEAD(&i915->mm.unbound_list);
 	INIT_LIST_HEAD(&i915->mm.bound_list);
 	INIT_LIST_HEAD(&i915->mm.fence_list);
+
 	INIT_LIST_HEAD(&i915->mm.userfault_list);
+	intel_wakeref_auto_init(&i915->mm.userfault_wakeref, i915);
 
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
 }

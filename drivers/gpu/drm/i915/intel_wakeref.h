@@ -9,7 +9,9 @@
 
 #include <linux/atomic.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 #include <linux/stackdepot.h>
+#include <linux/timer.h>
 
 struct drm_i915_private;
 
@@ -129,5 +131,34 @@ intel_wakeref_active(struct intel_wakeref *wf)
 {
 	return READ_ONCE(wf->wakeref);
 }
+
+struct intel_wakeref_auto {
+	struct drm_i915_private *i915;
+	struct timer_list timer;
+	intel_wakeref_t wakeref;
+	spinlock_t lock;
+	refcount_t count;
+};
+
+/**
+ * intel_wakeref_auto: Delay the runtime-pm autosuspend
+ * @wf: the wakeref
+ * @timeout: relative timeout in jiffies
+ *
+ * The runtime-pm core uses a suspend delay after the last wakeref
+ * is released before triggering runtime suspend of the device. That
+ * delay is configurable via sysfs with little regard to the device
+ * characteristics. Instead, we want to tune the autosuspend based on our
+ * HW knowledge. intel_wakeref_auto() delays the sleep by the supplied
+ * timeout.
+ *
+ * Pass @timeout = 0 to cancel a previous autosuspend by executing the
+ * suspend immediately.
+ */
+void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout);
+
+void intel_wakeref_auto_init(struct intel_wakeref_auto *wf,
+			     struct drm_i915_private *i915);
+void intel_wakeref_auto_fini(struct intel_wakeref_auto *wf);
 
 #endif /* INTEL_WAKEREF_H */

@@ -875,6 +875,9 @@ struct i915_gem_mm {
 	 */
 	struct list_head userfault_list;
 
+	/* Manual runtime pm autosuspend delay for user GGTT mmaps */
+	struct intel_wakeref_auto userfault_wakeref;
+
 	/**
 	 * List of objects which are pending destruction.
 	 */
