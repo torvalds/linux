@@ -335,9 +335,14 @@ static inline pmd_t pte_pmd(pte_t pte)
 	return __pmd(pte_val(pte));
 }
 
-static inline pgprot_t mk_sect_prot(pgprot_t prot)
+static inline pgprot_t mk_pud_sect_prot(pgprot_t prot)
 {
-	return __pgprot(pgprot_val(prot) & ~PTE_TABLE_BIT);
+	return __pgprot((pgprot_val(prot) & ~PUD_TABLE_BIT) | PUD_TYPE_SECT);
+}
+
+static inline pgprot_t mk_pmd_sect_prot(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~PMD_TABLE_BIT) | PMD_TYPE_SECT);
 }
 
 #ifdef CONFIG_NUMA_BALANCING
