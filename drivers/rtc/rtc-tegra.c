@@ -2,7 +2,7 @@
 /*
  * An RTC driver for the NVIDIA Tegra 200 series internal RTC.
  *
- * Copyright (c) 2010, NVIDIA Corporation.
+ * Copyright (c) 2010-2019, NVIDIA Corporation.
  */
 
 #include <linux/clk.h>
@@ -274,7 +274,7 @@ static const struct of_device_id tegra_rtc_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_rtc_dt_match);
 
-static int __init tegra_rtc_probe(struct platform_device *pdev)
+static int tegra_rtc_probe(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info;
 	struct resource *res;
@@ -406,6 +406,7 @@ static void tegra_rtc_shutdown(struct platform_device *pdev)
 }
 
 static struct platform_driver tegra_rtc_driver = {
+	.probe = tegra_rtc_probe,
 	.remove = tegra_rtc_remove,
 	.shutdown = tegra_rtc_shutdown,
 	.driver = {
@@ -414,8 +415,7 @@ static struct platform_driver tegra_rtc_driver = {
 		.pm = &tegra_rtc_pm_ops,
 	},
 };
-
-module_platform_driver_probe(tegra_rtc_driver, tegra_rtc_probe);
+module_platform_driver(tegra_rtc_driver);
 
 MODULE_AUTHOR("Jon Mayo <jmayo@nvidia.com>");
 MODULE_DESCRIPTION("driver for Tegra internal RTC");
