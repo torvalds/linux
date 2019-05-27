@@ -1377,10 +1377,17 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		if (err && !nbytes)
 			break;
 
-		if (write)
+		if (write) {
+			if (!capable(CAP_FSETID)) {
+				struct fuse_write_in *inarg;
+
+				inarg = &req->misc.write.in;
+				inarg->write_flags |= FUSE_WRITE_KILL_PRIV;
+			}
 			nres = fuse_send_write(req, io, pos, nbytes, owner);
-		else
+		} else {
 			nres = fuse_send_read(req, io, pos, nbytes, owner);
+		}
 
 		if (!io->async)
 			fuse_release_user_pages(req, io->should_dirty);
