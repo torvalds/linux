@@ -1426,10 +1426,6 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 
 	GEM_BUG_ON(!guc->execbuf_client);
 
-	err = intel_guc_sample_forcewake(guc);
-	if (err)
-		return err;
-
 	err = guc_clients_enable(guc);
 	if (err)
 		return err;

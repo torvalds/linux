@@ -439,12 +439,12 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 			goto err_communication;
 	}
 
+	ret = intel_guc_sample_forcewake(guc);
+	if (ret)
+		goto err_communication;
+
 	if (USES_GUC_SUBMISSION(i915)) {
 		ret = intel_guc_submission_enable(guc);
-		if (ret)
-			goto err_communication;
-	} else if (INTEL_GEN(i915) < 11) {
-		ret = intel_guc_sample_forcewake(guc);
 		if (ret)
 			goto err_communication;
 	}
