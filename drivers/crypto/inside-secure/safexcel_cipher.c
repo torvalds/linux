@@ -369,16 +369,10 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 	safexcel_complete(priv, ring);
 
 	if (src == dst) {
-		dma_unmap_sg(priv->dev, src,
-			     sg_nents_for_len(src, cryptlen),
-			     DMA_BIDIRECTIONAL);
+		dma_unmap_sg(priv->dev, src, sg_nents(src), DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(priv->dev, src,
-			     sg_nents_for_len(src, cryptlen),
-			     DMA_TO_DEVICE);
-		dma_unmap_sg(priv->dev, dst,
-			     sg_nents_for_len(dst, cryptlen),
-			     DMA_FROM_DEVICE);
+		dma_unmap_sg(priv->dev, src, sg_nents(src), DMA_TO_DEVICE);
+		dma_unmap_sg(priv->dev, dst, sg_nents(dst), DMA_FROM_DEVICE);
 	}
 
 	*should_complete = true;
@@ -403,26 +397,21 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 	int i, ret = 0;
 
 	if (src == dst) {
-		nr_src = dma_map_sg(priv->dev, src,
-				    sg_nents_for_len(src, totlen),
+		nr_src = dma_map_sg(priv->dev, src, sg_nents(src),
 				    DMA_BIDIRECTIONAL);
 		nr_dst = nr_src;
 		if (!nr_src)
 			return -EINVAL;
 	} else {
-		nr_src = dma_map_sg(priv->dev, src,
-				    sg_nents_for_len(src, totlen),
+		nr_src = dma_map_sg(priv->dev, src, sg_nents(src),
 				    DMA_TO_DEVICE);
 		if (!nr_src)
 			return -EINVAL;
 
-		nr_dst = dma_map_sg(priv->dev, dst,
-				    sg_nents_for_len(dst, totlen),
+		nr_dst = dma_map_sg(priv->dev, dst, sg_nents(dst),
 				    DMA_FROM_DEVICE);
 		if (!nr_dst) {
-			dma_unmap_sg(priv->dev, src,
-				     sg_nents_for_len(src, totlen),
-				     DMA_TO_DEVICE);
+			dma_unmap_sg(priv->dev, src, nr_src, DMA_TO_DEVICE);
 			return -EINVAL;
 		}
 	}
@@ -472,7 +461,7 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 
 	/* result descriptors */
 	for_each_sg(dst, sg, nr_dst, i) {
-		bool first = !i, last = (i == nr_dst - 1);
+		bool first = !i, last = sg_is_last(sg);
 		u32 len = sg_dma_len(sg);
 
 		rdesc = safexcel_add_rdesc(priv, ring, first, last,
@@ -501,16 +490,10 @@ cdesc_rollback:
 		safexcel_ring_rollback_wptr(priv, &priv->ring[ring].cdr);
 
 	if (src == dst) {
-		dma_unmap_sg(priv->dev, src,
-			     sg_nents_for_len(src, totlen),
-			     DMA_BIDIRECTIONAL);
+		dma_unmap_sg(priv->dev, src, nr_src, DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(priv->dev, src,
-			     sg_nents_for_len(src, totlen),
-			     DMA_TO_DEVICE);
-		dma_unmap_sg(priv->dev, dst,
-			     sg_nents_for_len(dst, totlen),
-			     DMA_FROM_DEVICE);
+		dma_unmap_sg(priv->dev, src, nr_src, DMA_TO_DEVICE);
+		dma_unmap_sg(priv->dev, dst, nr_dst, DMA_FROM_DEVICE);
 	}
 
 	return ret;

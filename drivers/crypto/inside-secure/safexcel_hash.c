@@ -273,8 +273,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	}
 
 	/* Now handle the current ahash request buffer(s) */
-	req->nents = dma_map_sg(priv->dev, areq->src,
-				sg_nents_for_len(areq->src, areq->nbytes),
+	req->nents = dma_map_sg(priv->dev, areq->src, sg_nents(areq->src),
 				DMA_TO_DEVICE);
 	if (!req->nents) {
 		ret = -ENOMEM;
