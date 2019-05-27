@@ -86,10 +86,14 @@ void intel_guc_init_early(struct intel_guc *guc)
 	spin_lock_init(&guc->irq_lock);
 	guc->send = intel_guc_send_nop;
 	guc->handler = intel_guc_to_host_event_handler_nop;
-	if (INTEL_GEN(i915) >= 11)
+	if (INTEL_GEN(i915) >= 11) {
 		guc->notify = gen11_guc_raise_irq;
-	else
+	} else {
 		guc->notify = gen8_guc_raise_irq;
+		guc->interrupts.reset = gen9_reset_guc_interrupts;
+		guc->interrupts.enable = gen9_enable_guc_interrupts;
+		guc->interrupts.disable = gen9_disable_guc_interrupts;
+	}
 }
 
 static int guc_init_wq(struct intel_guc *guc)

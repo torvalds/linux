@@ -55,8 +55,14 @@ struct intel_guc {
 
 	/* intel_guc_recv interrupt related state */
 	spinlock_t irq_lock;
-	bool interrupts_enabled;
 	unsigned int msg_enabled_mask;
+
+	struct {
+		bool enabled;
+		void (*reset)(struct drm_i915_private *i915);
+		void (*enable)(struct drm_i915_private *i915);
+		void (*disable)(struct drm_i915_private *i915);
+	} interrupts;
 
 	struct i915_vma *ads_vma;
 	struct i915_vma *stage_desc_pool;

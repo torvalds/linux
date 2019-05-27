@@ -218,11 +218,26 @@ static void guc_free_load_err_log(struct intel_guc *guc)
 		i915_gem_object_put(guc->load_err_log);
 }
 
+static void guc_reset_interrupts(struct intel_guc *guc)
+{
+	guc->interrupts.reset(guc_to_i915(guc));
+}
+
+static void guc_enable_interrupts(struct intel_guc *guc)
+{
+	guc->interrupts.enable(guc_to_i915(guc));
+}
+
+static void guc_disable_interrupts(struct intel_guc *guc)
+{
+	guc->interrupts.disable(guc_to_i915(guc));
+}
+
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 
-	gen9_enable_guc_interrupts(i915);
+	guc_enable_interrupts(guc);
 
 	if (HAS_GUC_CT(i915))
 		return intel_guc_ct_enable(&guc->ct);
@@ -250,7 +265,7 @@ static void guc_disable_communication(struct intel_guc *guc)
 	if (HAS_GUC_CT(i915))
 		intel_guc_ct_disable(&guc->ct);
 
-	gen9_disable_guc_interrupts(i915);
+	guc_disable_interrupts(guc);
 
 	guc->send = intel_guc_send_nop;
 	guc->handler = intel_guc_to_host_event_handler_nop;
@@ -391,7 +406,7 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(!HAS_GUC(i915));
 
-	gen9_reset_guc_interrupts(i915);
+	guc_reset_interrupts(guc);
 
 	/* WaEnableuKernelHeaderValidFix:skl */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
