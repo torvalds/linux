@@ -1631,6 +1631,7 @@ static int amdgpu_device_fw_loading(struct amdgpu_device *adev)
 {
 	int r = 0;
 	int i;
+	uint32_t smu_version;
 
 	if (adev->asic_type >= CHIP_VEGA10) {
 		for (i = 0; i < adev->num_ip_blocks; i++) {
@@ -1656,16 +1657,9 @@ static int amdgpu_device_fw_loading(struct amdgpu_device *adev)
 			}
 		}
 	}
+	r = amdgpu_pm_load_smu_firmware(adev, &smu_version);
 
-	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->load_firmware) {
-		r = adev->powerplay.pp_funcs->load_firmware(adev->powerplay.pp_handle);
-		if (r) {
-			pr_err("firmware loading failed\n");
-			return r;
-		}
-	}
-
-	return 0;
+	return r;
 }
 
 /**

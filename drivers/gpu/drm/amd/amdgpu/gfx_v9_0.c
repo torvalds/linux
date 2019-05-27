@@ -28,6 +28,7 @@
 #include "soc15.h"
 #include "soc15d.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_pm.h"
 
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
@@ -97,6 +98,7 @@ MODULE_FIRMWARE("amdgpu/raven2_me.bin");
 MODULE_FIRMWARE("amdgpu/raven2_mec.bin");
 MODULE_FIRMWARE("amdgpu/raven2_mec2.bin");
 MODULE_FIRMWARE("amdgpu/raven2_rlc.bin");
+MODULE_FIRMWARE("amdgpu/raven_kicker_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
@@ -591,7 +593,8 @@ static void gfx_v9_0_check_if_need_gfxoff(struct amdgpu_device *adev)
 	case CHIP_RAVEN:
 		if (adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
 			break;
-		if ((adev->gfx.rlc_fw_version < 531) ||
+		if ((adev->gfx.rlc_fw_version != 106 &&
+		     adev->gfx.rlc_fw_version < 531) ||
 		    (adev->gfx.rlc_fw_version == 53815) ||
 		    (adev->gfx.rlc_feature_version < 1) ||
 		    !adev->gfx.rlc.is_rlc_v2_1)
@@ -615,6 +618,7 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	unsigned int i = 0;
 	uint16_t version_major;
 	uint16_t version_minor;
+	uint32_t smu_version;
 
 	DRM_DEBUG("\n");
 
@@ -685,6 +689,12 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 		(((adev->pdev->revision >= 0xC8) && (adev->pdev->revision <= 0xCF)) ||
 		((adev->pdev->revision >= 0xD8) && (adev->pdev->revision <= 0xDF))))
 		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc_am4.bin", chip_name);
+	else if (!strcmp(chip_name, "raven") && (amdgpu_pm_load_smu_firmware(adev, &smu_version) == 0) &&
+		(smu_version >= 0x41e2b))
+		/**
+		*SMC is loaded by SBIOS on APU and it's able to get the SMU version directly.
+		*/
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_kicker_rlc.bin", chip_name);
 	else
 		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
 	err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
