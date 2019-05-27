@@ -20,6 +20,7 @@
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/fpga/adi-axi-common.h>
 
 #include <dt-bindings/dma/axi-dmac.h>
 
@@ -110,7 +111,8 @@ struct axi_dmac_chan {
 	unsigned int dest_type;
 
 	unsigned int max_length;
-	unsigned int align_mask;
+	unsigned int address_align_mask;
+	unsigned int length_align_mask;
 
 	bool hw_cyclic;
 	bool hw_2d;
@@ -169,14 +171,14 @@ static bool axi_dmac_check_len(struct axi_dmac_chan *chan, unsigned int len)
 {
 	if (len == 0)
 		return false;
-	if ((len & chan->align_mask) != 0) /* Not aligned */
+	if ((len & chan->length_align_mask) != 0) /* Not aligned */
 		return false;
 	return true;
 }
 
 static bool axi_dmac_check_addr(struct axi_dmac_chan *chan, dma_addr_t addr)
 {
-	if ((addr & chan->align_mask) != 0) /* Not aligned */
+	if ((addr & chan->address_align_mask) != 0) /* Not aligned */
 		return false;
 	return true;
 }
@@ -394,7 +396,7 @@ static struct axi_dmac_sg *axi_dmac_fill_linear_sg(struct axi_dmac_chan *chan,
 	num_segments = DIV_ROUND_UP(period_len, chan->max_length);
 	segment_size = DIV_ROUND_UP(period_len, num_segments);
 	/* Take care of alignment */
-	segment_size = ((segment_size - 1) | chan->align_mask) + 1;
+	segment_size = ((segment_size - 1) | chan->length_align_mask) + 1;
 
 	for (i = 0; i < num_periods; i++) {
 		len = period_len;
@@ -623,7 +625,7 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 		return ret;
 	chan->dest_width = val / 8;
 
-	chan->align_mask = max(chan->dest_width, chan->src_width) - 1;
+	chan->address_align_mask = max(chan->dest_width, chan->src_width) - 1;
 
 	if (axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
 		chan->direction = DMA_MEM_TO_MEM;
@@ -640,6 +642,9 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 static int axi_dmac_detect_caps(struct axi_dmac *dmac)
 {
 	struct axi_dmac_chan *chan = &dmac->chan;
+	unsigned int version;
+
+	version = axi_dmac_read(dmac, ADI_AXI_REG_VERSION);
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_FLAGS, AXI_DMAC_FLAG_CYCLIC);
 	if (axi_dmac_read(dmac, AXI_DMAC_REG_FLAGS) == AXI_DMAC_FLAG_CYCLIC)
@@ -668,6 +673,14 @@ static int axi_dmac_detect_caps(struct axi_dmac *dmac)
 		dev_err(dmac->dma_dev.dev,
 			"Source memory-mapped interface not supported.");
 		return -ENODEV;
+	}
+
+	if (version >= ADI_AXI_PCORE_VER(4, 1, 'a')) {
+		axi_dmac_write(dmac, AXI_DMAC_REG_X_LENGTH, 0x00);
+		chan->length_align_mask =
+			axi_dmac_read(dmac, AXI_DMAC_REG_X_LENGTH);
+	} else {
+		chan->length_align_mask = chan->address_align_mask;
 	}
 
 	return 0;
