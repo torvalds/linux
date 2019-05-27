@@ -893,7 +893,7 @@ set_midle:
 	/* Set MIDLE mode */
 	idlemodes = ddata->cfg.midlemodes;
 	if (!idlemodes || regbits->midle_shift < 0)
-		return 0;
+		goto set_autoidle;
 
 	best_mode = fls(ddata->cfg.midlemodes) - 1;
 	if (best_mode > SYSC_IDLE_MASK) {
@@ -904,6 +904,14 @@ set_midle:
 	reg &= ~(SYSC_IDLE_MASK << regbits->midle_shift);
 	reg |= best_mode << regbits->midle_shift;
 	sysc_write(ddata, ddata->offsets[SYSC_SYSCONFIG], reg);
+
+set_autoidle:
+	/* Autoidle bit must enabled separately if available */
+	if (regbits->autoidle_shift >= 0 &&
+	    ddata->cfg.sysc_val & BIT(regbits->autoidle_shift)) {
+		reg |= 1 << regbits->autoidle_shift;
+		sysc_write(ddata, ddata->offsets[SYSC_SYSCONFIG], reg);
+	}
 
 	return 0;
 }
@@ -966,6 +974,9 @@ set_sidle:
 
 	reg &= ~(SYSC_IDLE_MASK << regbits->sidle_shift);
 	reg |= best_mode << regbits->sidle_shift;
+	if (regbits->autoidle_shift >= 0 &&
+	    ddata->cfg.sysc_val & BIT(regbits->autoidle_shift))
+		reg |= 1 << regbits->autoidle_shift;
 	sysc_write(ddata, ddata->offsets[SYSC_SYSCONFIG], reg);
 
 	return 0;
