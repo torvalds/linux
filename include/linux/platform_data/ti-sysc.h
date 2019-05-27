@@ -47,6 +47,7 @@ struct sysc_regbits {
 	s8 emufree_shift;
 };
 
+#define SYSS_QUIRK_RESETDONE_INVERTED	BIT(14)
 #define SYSC_QUIRK_SWSUP_MSTANDBY	BIT(13)
 #define SYSC_QUIRK_SWSUP_SIDLE_ACT	BIT(12)
 #define SYSC_QUIRK_SWSUP_SIDLE		BIT(11)
