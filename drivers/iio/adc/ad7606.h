@@ -43,6 +43,7 @@ struct ad7606_chip_info {
  * @range		voltage range selection, selects which scale to apply
  * @oversampling	oversampling selection
  * @base_address	address from where to read data in parallel operation
+ * @sw_mode_en		software mode enabled
  * @scale_avail		pointer to the array which stores the available scales
  * @num_scales		number of elements stored in the scale_avail array
  * @oversampling_avail	pointer to the array which stores the available
@@ -71,6 +72,7 @@ struct ad7606_state {
 	unsigned int			range[16];
 	unsigned int			oversampling;
 	void __iomem			*base_address;
+	bool				sw_mode_en;
 	const unsigned int		*scale_avail;
 	unsigned int			num_scales;
 	const unsigned int		*oversampling_avail;

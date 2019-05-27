@@ -140,7 +140,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 			   int *val2,
 			   long m)
 {
-	int ret;
+	int ret, ch = 0;
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	switch (m) {
@@ -157,8 +157,10 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 		*val = (short)ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
+		if (st->sw_mode_en)
+			ch = chan->address;
 		*val = 0;
-		*val2 = st->scale_avail[st->range[0]];
+		*val2 = st->scale_avail[st->range[ch]];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = st->oversampling;
@@ -233,7 +235,9 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
 		i = find_closest(val2, st->scale_avail, st->num_scales);
-		ret = st->write_scale(indio_dev, chan->address, i);
+		if (st->sw_mode_en)
+			ch = chan->address;
+		ret = st->write_scale(indio_dev, ch, i);
 		if (ret < 0) {
 			mutex_unlock(&st->lock);
 			return ret;
@@ -615,6 +619,36 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 
 	st->write_scale = ad7606_write_scale_hw;
 	st->write_os = ad7606_write_os_hw;
+
+	if (st->chip_info->sw_mode_config)
+		st->sw_mode_en = device_property_present(st->dev,
+							 "adi,sw-mode");
+
+	if (st->sw_mode_en) {
+		/* After reset, in software mode, ±10 V is set by default */
+		memset32(st->range, 2, ARRAY_SIZE(st->range));
+		indio_dev->info = &ad7606_info_os_and_range;
+
+		/*
+		 * In software mode, the range gpio has no longer its function.
+		 * Instead, the scale can be configured individually for each
+		 * channel from the range registers.
+		 */
+		if (st->chip_info->write_scale_sw)
+			st->write_scale = st->chip_info->write_scale_sw;
+
+		/*
+		 * In software mode, the oversampling is no longer configured
+		 * with GPIO pins. Instead, the oversampling can be configured
+		 * in configuratiion register.
+		 */
+		if (st->chip_info->write_os_sw)
+			st->write_os = st->chip_info->write_os_sw;
+
+		ret = st->chip_info->sw_mode_config(indio_dev);
+		if (ret < 0)
+			return ret;
+	}
 
 	st->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 					  indio_dev->name, indio_dev->id);
