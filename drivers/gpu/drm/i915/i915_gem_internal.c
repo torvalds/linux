@@ -28,9 +28,6 @@
 #define QUIET (__GFP_NORETRY | __GFP_NOWARN)
 #define MAYFAIL (__GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 
-/* convert swiotlb segment size into sensible units (pages)! */
-#define IO_TLB_SEGPAGES (IO_TLB_SEGSIZE << IO_TLB_SHIFT >> PAGE_SHIFT)
-
 static void internal_free_pages(struct sg_table *st)
 {
 	struct scatterlist *sg;

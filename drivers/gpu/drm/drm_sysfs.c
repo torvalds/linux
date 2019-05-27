@@ -78,6 +78,7 @@ int drm_sysfs_init(void)
 	}
 
 	drm_class->devnode = drm_devnode;
+	drm_setup_hdcp_srm(drm_class);
 	return 0;
 }
 
@@ -90,6 +91,7 @@ void drm_sysfs_destroy(void)
 {
 	if (IS_ERR_OR_NULL(drm_class))
 		return;
+	drm_teardown_hdcp_srm(drm_class);
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
 	drm_class = NULL;

@@ -24,6 +24,7 @@
 
 #include "../i915_selftest.h"
 
+#include "igt_gem_utils.h"
 #include "lib_sw_fence.h"
 #include "mock_context.h"
 #include "mock_drm.h"
@@ -460,7 +461,7 @@ static int igt_evict_contexts(void *arg)
 
 			/* We will need some GGTT space for the rq's context */
 			igt_evict_ctl.fail_if_busy = true;
-			rq = i915_request_alloc(engine, ctx);
+			rq = igt_request_alloc(ctx, engine);
 			igt_evict_ctl.fail_if_busy = false;
 
 			if (IS_ERR(rq)) {

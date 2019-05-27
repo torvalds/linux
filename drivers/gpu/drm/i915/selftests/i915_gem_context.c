@@ -24,10 +24,12 @@
 
 #include <linux/prime_numbers.h>
 
-#include "../i915_reset.h"
-#include "../i915_selftest.h"
+#include "gt/intel_reset.h"
+#include "i915_selftest.h"
+
 #include "i915_random.h"
 #include "igt_flush_test.h"
+#include "igt_gem_utils.h"
 #include "igt_live_test.h"
 #include "igt_reset.h"
 #include "igt_spinner.h"
@@ -90,7 +92,7 @@ static int live_nop_switch(void *arg)
 
 		times[0] = ktime_get_raw();
 		for (n = 0; n < nctx; n++) {
-			rq = i915_request_alloc(engine, ctx[n]);
+			rq = igt_request_alloc(ctx[n], engine);
 			if (IS_ERR(rq)) {
 				err = PTR_ERR(rq);
 				goto out_unlock;
@@ -120,7 +122,7 @@ static int live_nop_switch(void *arg)
 			times[1] = ktime_get_raw();
 
 			for (n = 0; n < prime; n++) {
-				rq = i915_request_alloc(engine, ctx[n % nctx]);
+				rq = igt_request_alloc(ctx[n % nctx], engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					goto out_unlock;
@@ -300,7 +302,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		goto err_vma;
 	}
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_batch;
@@ -754,8 +756,7 @@ err:
 
 static int
 emit_rpcs_query(struct drm_i915_gem_object *obj,
-		struct i915_gem_context *ctx,
-		struct intel_engine_cs *engine,
+		struct intel_context *ce,
 		struct i915_request **rq_out)
 {
 	struct i915_request *rq;
@@ -763,9 +764,9 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int err;
 
-	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
+	GEM_BUG_ON(!intel_engine_can_store_dword(ce->engine));
 
-	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
+	vma = i915_vma_instance(obj, &ce->gem_context->ppgtt->vm, NULL);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -783,13 +784,15 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 		goto err_vma;
 	}
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = i915_request_create(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_batch;
 	}
 
-	err = engine->emit_bb_start(rq, batch->node.start, batch->node.size, 0);
+	err = rq->engine->emit_bb_start(rq,
+					batch->node.start, batch->node.size,
+					0);
 	if (err)
 		goto err_request;
 
@@ -833,8 +836,7 @@ static int
 __sseu_prepare(struct drm_i915_private *i915,
 	       const char *name,
 	       unsigned int flags,
-	       struct i915_gem_context *ctx,
-	       struct intel_engine_cs *engine,
+	       struct intel_context *ce,
 	       struct igt_spinner **spin)
 {
 	struct i915_request *rq;
@@ -852,7 +854,10 @@ __sseu_prepare(struct drm_i915_private *i915,
 	if (ret)
 		goto err_free;
 
-	rq = igt_spinner_create_request(*spin, ctx, engine, MI_NOOP);
+	rq = igt_spinner_create_request(*spin,
+					ce->gem_context,
+					ce->engine,
+					MI_NOOP);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
 		goto err_fini;
@@ -879,8 +884,7 @@ err_free:
 
 static int
 __read_slice_count(struct drm_i915_private *i915,
-		   struct i915_gem_context *ctx,
-		   struct intel_engine_cs *engine,
+		   struct intel_context *ce,
 		   struct drm_i915_gem_object *obj,
 		   struct igt_spinner *spin,
 		   u32 *rpcs)
@@ -891,7 +895,7 @@ __read_slice_count(struct drm_i915_private *i915,
 	u32 *buf, val;
 	long ret;
 
-	ret = emit_rpcs_query(obj, ctx, engine, &rq);
+	ret = emit_rpcs_query(obj, ce, &rq);
 	if (ret)
 		return ret;
 
@@ -955,31 +959,29 @@ static int
 __sseu_finish(struct drm_i915_private *i915,
 	      const char *name,
 	      unsigned int flags,
-	      struct i915_gem_context *ctx,
-	      struct i915_gem_context *kctx,
-	      struct intel_engine_cs *engine,
+	      struct intel_context *ce,
 	      struct drm_i915_gem_object *obj,
 	      unsigned int expected,
 	      struct igt_spinner *spin)
 {
-	unsigned int slices =
-		hweight32(intel_device_default_sseu(i915).slice_mask);
+	unsigned int slices = hweight32(ce->engine->sseu.slice_mask);
 	u32 rpcs = 0;
 	int ret = 0;
 
 	if (flags & TEST_RESET) {
-		ret = i915_reset_engine(engine, "sseu");
+		ret = i915_reset_engine(ce->engine, "sseu");
 		if (ret)
 			goto out;
 	}
 
-	ret = __read_slice_count(i915, ctx, engine, obj,
+	ret = __read_slice_count(i915, ce, obj,
 				 flags & TEST_RESET ? NULL : spin, &rpcs);
 	ret = __check_rpcs(name, rpcs, ret, expected, "Context", "!");
 	if (ret)
 		goto out;
 
-	ret = __read_slice_count(i915, kctx, engine, obj, NULL, &rpcs);
+	ret = __read_slice_count(i915, ce->engine->kernel_context, obj,
+				 NULL, &rpcs);
 	ret = __check_rpcs(name, rpcs, ret, slices, "Kernel context", "!");
 
 out:
@@ -993,7 +995,7 @@ out:
 		if (ret)
 			return ret;
 
-		ret = __read_slice_count(i915, ctx, engine, obj, NULL, &rpcs);
+		ret = __read_slice_count(i915, ce, obj, NULL, &rpcs);
 		ret = __check_rpcs(name, rpcs, ret, expected,
 				   "Context", " after idle!");
 	}
@@ -1005,28 +1007,22 @@ static int
 __sseu_test(struct drm_i915_private *i915,
 	    const char *name,
 	    unsigned int flags,
-	    struct i915_gem_context *ctx,
-	    struct intel_engine_cs *engine,
+	    struct intel_context *ce,
 	    struct drm_i915_gem_object *obj,
 	    struct intel_sseu sseu)
 {
 	struct igt_spinner *spin = NULL;
-	struct i915_gem_context *kctx;
 	int ret;
 
-	kctx = kernel_context(i915);
-	if (IS_ERR(kctx))
-		return PTR_ERR(kctx);
-
-	ret = __sseu_prepare(i915, name, flags, ctx, engine, &spin);
+	ret = __sseu_prepare(i915, name, flags, ce, &spin);
 	if (ret)
-		goto out_context;
+		return ret;
 
-	ret = __i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
+	ret = __intel_context_reconfigure_sseu(ce, sseu);
 	if (ret)
 		goto out_spin;
 
-	ret = __sseu_finish(i915, name, flags, ctx, kctx, engine, obj,
+	ret = __sseu_finish(i915, name, flags, ce, obj,
 			    hweight32(sseu.slice_mask), spin);
 
 out_spin:
@@ -1035,10 +1031,6 @@ out_spin:
 		igt_spinner_fini(spin);
 		kfree(spin);
 	}
-
-out_context:
-	kernel_context_close(kctx);
-
 	return ret;
 }
 
@@ -1047,10 +1039,11 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	       const char *name,
 	       unsigned int flags)
 {
-	struct intel_sseu default_sseu = intel_device_default_sseu(i915);
 	struct intel_engine_cs *engine = i915->engine[RCS0];
+	struct intel_sseu default_sseu = engine->sseu;
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_context *ctx;
+	struct intel_context *ce;
 	struct intel_sseu pg_sseu;
 	intel_wakeref_t wakeref;
 	struct drm_file *file;
@@ -1102,23 +1095,33 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 
 	wakeref = intel_runtime_pm_get(i915);
 
+	ce = i915_gem_context_get_engine(ctx, RCS0);
+	if (IS_ERR(ce)) {
+		ret = PTR_ERR(ce);
+		goto out_rpm;
+	}
+
+	ret = intel_context_pin(ce);
+	if (ret)
+		goto out_context;
+
 	/* First set the default mask. */
-	ret = __sseu_test(i915, name, flags, ctx, engine, obj, default_sseu);
+	ret = __sseu_test(i915, name, flags, ce, obj, default_sseu);
 	if (ret)
 		goto out_fail;
 
 	/* Then set a power-gated configuration. */
-	ret = __sseu_test(i915, name, flags, ctx, engine, obj, pg_sseu);
+	ret = __sseu_test(i915, name, flags, ce, obj, pg_sseu);
 	if (ret)
 		goto out_fail;
 
 	/* Back to defaults. */
-	ret = __sseu_test(i915, name, flags, ctx, engine, obj, default_sseu);
+	ret = __sseu_test(i915, name, flags, ce, obj, default_sseu);
 	if (ret)
 		goto out_fail;
 
 	/* One last power-gated configuration for the road. */
-	ret = __sseu_test(i915, name, flags, ctx, engine, obj, pg_sseu);
+	ret = __sseu_test(i915, name, flags, ce, obj, pg_sseu);
 	if (ret)
 		goto out_fail;
 
@@ -1126,9 +1129,12 @@ out_fail:
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		ret = -EIO;
 
-	i915_gem_object_put(obj);
-
+	intel_context_unpin(ce);
+out_context:
+	intel_context_put(ce);
+out_rpm:
 	intel_runtime_pm_put(i915, wakeref);
+	i915_gem_object_put(obj);
 
 out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -1345,7 +1351,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto err_unpin;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -1440,7 +1446,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto err_unpin;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -1608,113 +1614,6 @@ __engine_name(struct drm_i915_private *i915, intel_engine_mask_t engines)
 	return "none";
 }
 
-static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
-					  struct i915_gem_context *ctx,
-					  intel_engine_mask_t engines)
-{
-	struct intel_engine_cs *engine;
-	intel_engine_mask_t tmp;
-	int pass;
-
-	GEM_TRACE("Testing %s\n", __engine_name(i915, engines));
-	for (pass = 0; pass < 4; pass++) { /* Once busy; once idle; repeat */
-		bool from_idle = pass & 1;
-		int err;
-
-		if (!from_idle) {
-			for_each_engine_masked(engine, i915, engines, tmp) {
-				struct i915_request *rq;
-
-				rq = i915_request_alloc(engine, ctx);
-				if (IS_ERR(rq))
-					return PTR_ERR(rq);
-
-				i915_request_add(rq);
-			}
-		}
-
-		err = i915_gem_switch_to_kernel_context(i915,
-							i915->gt.active_engines);
-		if (err)
-			return err;
-
-		if (!from_idle) {
-			err = i915_gem_wait_for_idle(i915,
-						     I915_WAIT_LOCKED,
-						     MAX_SCHEDULE_TIMEOUT);
-			if (err)
-				return err;
-		}
-
-		if (i915->gt.active_requests) {
-			pr_err("%d active requests remain after switching to kernel context, pass %d (%s) on %s engine%s\n",
-			       i915->gt.active_requests,
-			       pass, from_idle ? "idle" : "busy",
-			       __engine_name(i915, engines),
-			       is_power_of_2(engines) ? "" : "s");
-			return -EINVAL;
-		}
-
-		/* XXX Bonus points for proving we are the kernel context! */
-
-		mutex_unlock(&i915->drm.struct_mutex);
-		drain_delayed_work(&i915->gt.idle_work);
-		mutex_lock(&i915->drm.struct_mutex);
-	}
-
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		return -EIO;
-
-	return 0;
-}
-
-static int igt_switch_to_kernel_context(void *arg)
-{
-	struct drm_i915_private *i915 = arg;
-	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
-	intel_wakeref_t wakeref;
-	int err;
-
-	/*
-	 * A core premise of switching to the kernel context is that
-	 * if an engine is already idling in the kernel context, we
-	 * do not emit another request and wake it up. The other being
-	 * that we do indeed end up idling in the kernel context.
-	 */
-
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
-
-	ctx = kernel_context(i915);
-	if (IS_ERR(ctx)) {
-		mutex_unlock(&i915->drm.struct_mutex);
-		return PTR_ERR(ctx);
-	}
-
-	/* First check idling each individual engine */
-	for_each_engine(engine, i915, id) {
-		err = __igt_switch_to_kernel_context(i915, ctx, BIT(id));
-		if (err)
-			goto out_unlock;
-	}
-
-	/* Now en masse */
-	err = __igt_switch_to_kernel_context(i915, ctx, ALL_ENGINES);
-	if (err)
-		goto out_unlock;
-
-out_unlock:
-	GEM_TRACE_DUMP_ON(err);
-
-	intel_runtime_pm_put(i915, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	kernel_context_close(ctx);
-	return err;
-}
-
 static void mock_barrier_task(void *data)
 {
 	unsigned int *counter = data;
@@ -1729,7 +1628,6 @@ static int mock_context_barrier(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
 	struct i915_request *rq;
-	intel_wakeref_t wakeref;
 	unsigned int counter;
 	int err;
 
@@ -1767,20 +1665,17 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 	if (counter == 0) {
-		pr_err("Did not retire immediately for all inactive engines\n");
+		pr_err("Did not retire immediately for all unused engines\n");
 		err = -EINVAL;
 		goto out;
 	}
 
-	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(i915, wakeref)
-		rq = i915_request_alloc(i915->engine[RCS0], ctx);
+	rq = igt_request_alloc(ctx, i915->engine[RCS0]);
 	if (IS_ERR(rq)) {
 		pr_err("Request allocation failed!\n");
 		goto out;
 	}
 	i915_request_add(rq);
-	GEM_BUG_ON(list_empty(&ctx->active_engines));
 
 	counter = 0;
 	context_barrier_inject_fault = BIT(RCS0);
@@ -1824,7 +1719,6 @@ unlock:
 int i915_gem_context_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(igt_switch_to_kernel_context),
 		SUBTEST(mock_context_barrier),
 	};
 	struct drm_i915_private *i915;
@@ -1843,7 +1737,6 @@ int i915_gem_context_mock_selftests(void)
 int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(igt_switch_to_kernel_context),
 		SUBTEST(live_nop_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),

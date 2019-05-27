@@ -52,4 +52,22 @@ static inline void i915_priolist_free(struct i915_priolist *p)
 		__i915_priolist_free(p);
 }
 
+static inline bool i915_scheduler_need_preempt(int prio, int active)
+{
+	/*
+	 * Allow preemption of low -> normal -> high, but we do
+	 * not allow low priority tasks to preempt other low priority
+	 * tasks under the impression that latency for low priority
+	 * tasks does not matter (as much as background throughput),
+	 * so kiss.
+	 *
+	 * More naturally we would write
+	 *	prio >= max(0, last);
+	 * except that we wish to prevent triggering preemption at the same
+	 * priority level: the task that is running should remain running
+	 * to preserve FIFO ordering of dependencies.
+	 */
+	return prio > max(I915_PRIORITY_NORMAL - 1, active);
+}
+
 #endif /* _I915_SCHEDULER_H_ */

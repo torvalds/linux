@@ -108,6 +108,7 @@ u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
 				int mode_hdisplay);
 
 bool intel_dp_read_dpcd(struct intel_dp *intel_dp);
+bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp);
 int intel_dp_link_required(int pixel_clock, int bpp);
 int intel_dp_max_data_rate(int max_link_clock, int max_lanes);
 bool intel_digital_port_connected(struct intel_encoder *encoder);

@@ -24,6 +24,7 @@
 
 #include "../i915_selftest.h"
 
+#include "igt_flush_test.h"
 #include "mock_gem_device.h"
 #include "huge_gem_object.h"
 
@@ -468,7 +469,7 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
-	rq = i915_request_alloc(i915->engine[RCS0], i915->kernel_context);
+	rq = i915_request_create(i915->engine[RCS0]->kernel_context);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
@@ -505,17 +506,21 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 {
 	i915_gem_shrinker_unregister(i915);
 
-	mutex_lock(&i915->drm.struct_mutex);
-	if (!i915->gt.active_requests++) {
-		intel_wakeref_t wakeref;
+	intel_gt_pm_get(i915);
 
-		with_intel_runtime_pm(i915, wakeref)
-			i915_gem_unpark(i915);
-	}
+	cancel_delayed_work_sync(&i915->gem.retire_work);
+	flush_work(&i915->gem.idle_work);
+}
+
+static void restore_retire_worker(struct drm_i915_private *i915)
+{
+	intel_gt_pm_put(i915);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	cancel_delayed_work_sync(&i915->gt.retire_work);
-	cancel_delayed_work_sync(&i915->gt.idle_work);
+	i915_gem_shrinker_register(i915);
 }
 
 static int igt_mmap_offset_exhaustion(void *arg)
@@ -615,13 +620,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 out:
 	drm_mm_remove_node(&resv);
 out_park:
-	mutex_lock(&i915->drm.struct_mutex);
-	if (--i915->gt.active_requests)
-		queue_delayed_work(i915->wq, &i915->gt.retire_work, 0);
-	else
-		queue_delayed_work(i915->wq, &i915->gt.idle_work, 0);
-	mutex_unlock(&i915->drm.struct_mutex);
-	i915_gem_shrinker_register(i915);
+	restore_retire_worker(i915);
 	return err;
 err_obj:
 	i915_gem_object_put(obj);

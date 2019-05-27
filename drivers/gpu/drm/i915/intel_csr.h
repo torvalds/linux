@@ -8,6 +8,10 @@
 
 struct drm_i915_private;
 
+#define CSR_VERSION(major, minor)	((major) << 16 | (minor))
+#define CSR_VERSION_MAJOR(version)	((version) >> 16)
+#define CSR_VERSION_MINOR(version)	((version) & 0xffff)
+
 void intel_csr_ucode_init(struct drm_i915_private *i915);
 void intel_csr_load_program(struct drm_i915_private *i915);
 void intel_csr_ucode_fini(struct drm_i915_private *i915);

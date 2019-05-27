@@ -29,16 +29,23 @@
 
 #include "i915_drv.h"
 #include "intel_audio.h"
+#include "intel_combo_phy.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_dp.h"
+#include "intel_dp_link_training.h"
+#include "intel_dpio_phy.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_fifo_underrun.h"
+#include "intel_gmbus.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
+#include "intel_hotplug.h"
 #include "intel_lspcon.h"
 #include "intel_panel.h"
 #include "intel_psr.h"
+#include "intel_vdsc.h"
 
 struct ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */
@@ -1450,7 +1457,8 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	else
 		dotclock = pipe_config->port_clock;
 
-	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
+	    !intel_crtc_has_dp_encoder(pipe_config))
 		dotclock *= 2;
 
 	if (pipe_config->pixel_multiplier)
@@ -1710,6 +1718,14 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 	 */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
 		temp |= TRANS_MSA_SAMPLING_444 | TRANS_MSA_CLRSP_YCBCR;
+	/*
+	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
+	 * of Color Encoding Format and Content Color Gamut] while sending
+	 * YCBCR 420 signals we should program MSA MISC1 fields which
+	 * indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		temp |= TRANS_MSA_USE_VSC_SDP;
 	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 }
 
@@ -1772,9 +1788,7 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 			 * eDP when not using the panel fitter, and when not
 			 * using motion blur mitigation (which we don't
 			 * support). */
-			if (IS_HASWELL(dev_priv) &&
-			    (crtc_state->pch_pfit.enabled ||
-			     crtc_state->pch_pfit.force_thru))
+			if (crtc_state->pch_pfit.force_thru)
 				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
 			else
 				temp |= TRANS_DDI_EDP_INPUT_A_ON;
@@ -3111,6 +3125,15 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	else
 		intel_prepare_dp_ddi_buffers(encoder, crtc_state);
 
+	if (intel_port_is_combophy(dev_priv, port)) {
+		bool lane_reversal =
+			dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
+
+		intel_combo_phy_power_up_lanes(dev_priv, port, false,
+					       crtc_state->lane_count,
+					       lane_reversal);
+	}
+
 	intel_ddi_init_dp_buf_reg(encoder);
 	if (!is_mst)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
@@ -3375,6 +3398,7 @@ static void intel_enable_ddi_dp(struct intel_encoder *encoder,
 
 	intel_edp_backlight_on(crtc_state, conn_state);
 	intel_psr_enable(intel_dp, crtc_state);
+	intel_dp_ycbcr_420_enable(intel_dp, crtc_state);
 	intel_edp_drrs_enable(intel_dp, crtc_state);
 
 	if (crtc_state->has_audio)
@@ -3844,6 +3868,7 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 				    struct intel_crtc_state *pipe_config,
 				    struct drm_connector_state *conn_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 	int ret;
@@ -3858,6 +3883,12 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
+	if (IS_HASWELL(dev_priv) && crtc->pipe == PIPE_A &&
+	    pipe_config->cpu_transcoder == TRANSCODER_EDP)
+		pipe_config->pch_pfit.force_thru =
+			pipe_config->pch_pfit.enabled ||
+			pipe_config->crc_enabled;
+
 	if (IS_GEN9_LP(dev_priv))
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
@@ -3865,7 +3896,6 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
 	return 0;
-
 }
 
 static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)

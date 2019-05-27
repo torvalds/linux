@@ -34,6 +34,8 @@
 #include <drm/drm_syncobj.h>
 #include <drm/i915_drm.h>
 
+#include "gt/intel_gt_pm.h"
+
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_trace.h"
@@ -236,7 +238,8 @@ struct i915_execbuffer {
 	unsigned int *flags;
 
 	struct intel_engine_cs *engine; /** engine to queue the request to */
-	struct i915_gem_context *ctx; /** context for building the request */
+	struct intel_context *context; /* logical state for the request */
+	struct i915_gem_context *gem_context; /** caller's context */
 	struct i915_address_space *vm; /** GTT and vma for the request */
 
 	struct i915_request *request; /** our request to build */
@@ -738,7 +741,7 @@ static int eb_select_context(struct i915_execbuffer *eb)
 	if (unlikely(!ctx))
 		return -ENOENT;
 
-	eb->ctx = ctx;
+	eb->gem_context = ctx;
 	if (ctx->ppgtt) {
 		eb->vm = &ctx->ppgtt->vm;
 		eb->invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
@@ -784,7 +787,6 @@ static struct i915_request *__eb_wait_for_ring(struct intel_ring *ring)
 
 static int eb_wait_for_ring(const struct i915_execbuffer *eb)
 {
-	const struct intel_context *ce;
 	struct i915_request *rq;
 	int ret = 0;
 
@@ -794,11 +796,7 @@ static int eb_wait_for_ring(const struct i915_execbuffer *eb)
 	 * keeping all of their resources pinned.
 	 */
 
-	ce = intel_context_lookup(eb->ctx, eb->engine);
-	if (!ce || !ce->ring) /* first use, assume empty! */
-		return 0;
-
-	rq = __eb_wait_for_ring(ce->ring);
+	rq = __eb_wait_for_ring(eb->context->ring);
 	if (rq) {
 		mutex_unlock(&eb->i915->drm.struct_mutex);
 
@@ -817,15 +815,15 @@ static int eb_wait_for_ring(const struct i915_execbuffer *eb)
 
 static int eb_lookup_vmas(struct i915_execbuffer *eb)
 {
-	struct radix_tree_root *handles_vma = &eb->ctx->handles_vma;
+	struct radix_tree_root *handles_vma = &eb->gem_context->handles_vma;
 	struct drm_i915_gem_object *obj;
 	unsigned int i, batch;
 	int err;
 
-	if (unlikely(i915_gem_context_is_closed(eb->ctx)))
+	if (unlikely(i915_gem_context_is_closed(eb->gem_context)))
 		return -ENOENT;
 
-	if (unlikely(i915_gem_context_is_banned(eb->ctx)))
+	if (unlikely(i915_gem_context_is_banned(eb->gem_context)))
 		return -EIO;
 
 	INIT_LIST_HEAD(&eb->relocs);
@@ -870,8 +868,8 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 		if (!vma->open_count++)
 			i915_vma_reopen(vma);
 		list_add(&lut->obj_link, &obj->lut_list);
-		list_add(&lut->ctx_link, &eb->ctx->handles_list);
-		lut->ctx = eb->ctx;
+		list_add(&lut->ctx_link, &eb->gem_context->handles_list);
+		lut->ctx = eb->gem_context;
 		lut->handle = handle;
 
 add_vma:
@@ -1227,7 +1225,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_unmap;
 
-	rq = i915_request_alloc(eb->engine, eb->ctx);
+	rq = i915_request_create(eb->context);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
@@ -2079,9 +2077,7 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 	return file_priv->bsd_engine;
 }
 
-#define I915_USER_RINGS (4)
-
-static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
+static const enum intel_engine_id user_ring_map[] = {
 	[I915_EXEC_DEFAULT]	= RCS0,
 	[I915_EXEC_RENDER]	= RCS0,
 	[I915_EXEC_BLT]		= BCS0,
@@ -2089,31 +2085,57 @@ static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
 	[I915_EXEC_VEBOX]	= VECS0
 };
 
-static struct intel_engine_cs *
-eb_select_engine(struct drm_i915_private *dev_priv,
-		 struct drm_file *file,
-		 struct drm_i915_gem_execbuffer2 *args)
+static int eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
 {
+	int err;
+
+	/*
+	 * ABI: Before userspace accesses the GPU (e.g. execbuffer), report
+	 * EIO if the GPU is already wedged.
+	 */
+	err = i915_terminally_wedged(eb->i915);
+	if (err)
+		return err;
+
+	/*
+	 * Pinning the contexts may generate requests in order to acquire
+	 * GGTT space, so do this first before we reserve a seqno for
+	 * ourselves.
+	 */
+	err = intel_context_pin(ce);
+	if (err)
+		return err;
+
+	eb->engine = ce->engine;
+	eb->context = ce;
+	return 0;
+}
+
+static void eb_unpin_context(struct i915_execbuffer *eb)
+{
+	intel_context_unpin(eb->context);
+}
+
+static unsigned int
+eb_select_legacy_ring(struct i915_execbuffer *eb,
+		      struct drm_file *file,
+		      struct drm_i915_gem_execbuffer2 *args)
+{
+	struct drm_i915_private *i915 = eb->i915;
 	unsigned int user_ring_id = args->flags & I915_EXEC_RING_MASK;
-	struct intel_engine_cs *engine;
 
-	if (user_ring_id > I915_USER_RINGS) {
-		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
-		return NULL;
-	}
-
-	if ((user_ring_id != I915_EXEC_BSD) &&
-	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
+	if (user_ring_id != I915_EXEC_BSD &&
+	    (args->flags & I915_EXEC_BSD_MASK)) {
 		DRM_DEBUG("execbuf with non bsd ring but with invalid "
 			  "bsd dispatch flags: %d\n", (int)(args->flags));
-		return NULL;
+		return -1;
 	}
 
-	if (user_ring_id == I915_EXEC_BSD && HAS_ENGINE(dev_priv, VCS1)) {
+	if (user_ring_id == I915_EXEC_BSD && HAS_ENGINE(i915, VCS1)) {
 		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
 
 		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {
-			bsd_idx = gen8_dispatch_bsd_engine(dev_priv, file);
+			bsd_idx = gen8_dispatch_bsd_engine(i915, file);
 		} else if (bsd_idx >= I915_EXEC_BSD_RING1 &&
 			   bsd_idx <= I915_EXEC_BSD_RING2) {
 			bsd_idx >>= I915_EXEC_BSD_SHIFT;
@@ -2121,20 +2143,42 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 		} else {
 			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
 				  bsd_idx);
-			return NULL;
+			return -1;
 		}
 
-		engine = dev_priv->engine[_VCS(bsd_idx)];
-	} else {
-		engine = dev_priv->engine[user_ring_map[user_ring_id]];
+		return _VCS(bsd_idx);
 	}
 
-	if (!engine) {
-		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
-		return NULL;
+	if (user_ring_id >= ARRAY_SIZE(user_ring_map)) {
+		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
+		return -1;
 	}
 
-	return engine;
+	return user_ring_map[user_ring_id];
+}
+
+static int
+eb_select_engine(struct i915_execbuffer *eb,
+		 struct drm_file *file,
+		 struct drm_i915_gem_execbuffer2 *args)
+{
+	struct intel_context *ce;
+	unsigned int idx;
+	int err;
+
+	if (i915_gem_context_user_engines(eb->gem_context))
+		idx = args->flags & I915_EXEC_RING_MASK;
+	else
+		idx = eb_select_legacy_ring(eb, file, args);
+
+	ce = i915_gem_context_get_engine(eb->gem_context, idx);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	err = eb_pin_context(eb, ce);
+	intel_context_put(ce);
+
+	return err;
 }
 
 static void
@@ -2275,8 +2319,8 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 {
 	struct i915_execbuffer eb;
 	struct dma_fence *in_fence = NULL;
+	struct dma_fence *exec_fence = NULL;
 	struct sync_file *out_fence = NULL;
-	intel_wakeref_t wakeref;
 	int out_fence_fd = -1;
 	int err;
 
@@ -2318,11 +2362,24 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 			return -EINVAL;
 	}
 
+	if (args->flags & I915_EXEC_FENCE_SUBMIT) {
+		if (in_fence) {
+			err = -EINVAL;
+			goto err_in_fence;
+		}
+
+		exec_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
+		if (!exec_fence) {
+			err = -EINVAL;
+			goto err_in_fence;
+		}
+	}
+
 	if (args->flags & I915_EXEC_FENCE_OUT) {
 		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
 		if (out_fence_fd < 0) {
 			err = out_fence_fd;
-			goto err_in_fence;
+			goto err_exec_fence;
 		}
 	}
 
@@ -2336,12 +2393,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (unlikely(err))
 		goto err_destroy;
 
-	eb.engine = eb_select_engine(eb.i915, file, args);
-	if (!eb.engine) {
-		err = -EINVAL;
-		goto err_engine;
-	}
-
 	/*
 	 * Take a local wakeref for preparing to dispatch the execbuf as
 	 * we expect to access the hardware fairly frequently in the
@@ -2349,15 +2400,19 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	 * wakeref that we hold until the GPU has been idle for at least
 	 * 100ms.
 	 */
-	wakeref = intel_runtime_pm_get(eb.i915);
+	intel_gt_pm_get(eb.i915);
 
 	err = i915_mutex_lock_interruptible(dev);
 	if (err)
 		goto err_rpm;
 
-	err = eb_wait_for_ring(&eb); /* may temporarily drop struct_mutex */
+	err = eb_select_engine(&eb, file, args);
 	if (unlikely(err))
 		goto err_unlock;
+
+	err = eb_wait_for_ring(&eb); /* may temporarily drop struct_mutex */
+	if (unlikely(err))
+		goto err_engine;
 
 	err = eb_relocate(&eb);
 	if (err) {
@@ -2442,7 +2497,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	GEM_BUG_ON(eb.reloc_cache.rq);
 
 	/* Allocate a request for this batch buffer nice and early. */
-	eb.request = i915_request_alloc(eb.engine, eb.ctx);
+	eb.request = i915_request_create(eb.context);
 	if (IS_ERR(eb.request)) {
 		err = PTR_ERR(eb.request);
 		goto err_batch_unpin;
@@ -2450,6 +2505,13 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	if (in_fence) {
 		err = i915_request_await_dma_fence(eb.request, in_fence);
+		if (err < 0)
+			goto err_request;
+	}
+
+	if (exec_fence) {
+		err = i915_request_await_execution(eb.request, exec_fence,
+						   eb.engine->bond_execute);
 		if (err < 0)
 			goto err_request;
 	}
@@ -2480,8 +2542,8 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	trace_i915_request_queue(eb.request, eb.batch_flags);
 	err = eb_submit(&eb);
 err_request:
-	i915_request_add(eb.request);
 	add_to_client(eb.request, file);
+	i915_request_add(eb.request);
 
 	if (fences)
 		signal_fence_array(&eb, fences);
@@ -2503,17 +2565,20 @@ err_batch_unpin:
 err_vma:
 	if (eb.exec)
 		eb_release_vmas(&eb);
+err_engine:
+	eb_unpin_context(&eb);
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
-	intel_runtime_pm_put(eb.i915, wakeref);
-err_engine:
-	i915_gem_context_put(eb.ctx);
+	intel_gt_pm_put(eb.i915);
+	i915_gem_context_put(eb.gem_context);
 err_destroy:
 	eb_destroy(&eb);
 err_out_fence:
 	if (out_fence_fd != -1)
 		put_unused_fd(out_fence_fd);
+err_exec_fence:
+	dma_fence_put(exec_fence);
 err_in_fence:
 	dma_fence_put(in_fence);
 	return err;

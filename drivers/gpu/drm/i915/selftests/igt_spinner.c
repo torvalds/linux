@@ -4,6 +4,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "igt_gem_utils.h"
 #include "igt_spinner.h"
 
 int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
@@ -114,7 +115,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	if (err)
 		goto unpin_vma;
 
-	rq = i915_request_alloc(engine, ctx);
+	rq = igt_request_alloc(ctx, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto unpin_hws;

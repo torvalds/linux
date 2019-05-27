@@ -90,7 +90,7 @@ void intel_guc_fw_init_early(struct intel_guc *guc)
 {
 	struct intel_uc_fw *guc_fw = &guc->fw;
 
-	intel_uc_fw_init(guc_fw, INTEL_UC_FW_TYPE_GUC);
+	intel_uc_fw_init_early(guc_fw, INTEL_UC_FW_TYPE_GUC);
 	guc_fw_select(guc_fw);
 }
 
@@ -122,14 +122,16 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 }
 
 /* Copy RSA signature from the fw image to HW for verification */
-static void guc_xfer_rsa(struct intel_guc *guc, struct i915_vma *vma)
+static void guc_xfer_rsa(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uc_fw *fw = &guc->fw;
+	struct sg_table *pages = fw->obj->mm.pages;
 	u32 rsa[UOS_RSA_SCRATCH_COUNT];
 	int i;
 
-	sg_pcopy_to_buffer(vma->pages->sgl, vma->pages->nents,
-			   rsa, sizeof(rsa), guc->fw.rsa_offset);
+	sg_pcopy_to_buffer(pages->sgl, pages->nents,
+			   rsa, sizeof(rsa), fw->rsa_offset);
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
@@ -201,7 +203,7 @@ static int guc_wait_ucode(struct intel_guc *guc)
  * transfer between GTT locations. This functionality is left out of the API
  * for now as there is no need for it.
  */
-static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
+static int guc_xfer_ucode(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_uc_fw *guc_fw = &guc->fw;
@@ -214,7 +216,7 @@ static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
 	I915_WRITE(DMA_COPY_SIZE, guc_fw->header_size + guc_fw->ucode_size);
 
 	/* Set the source address for the new blob */
-	offset = intel_guc_ggtt_offset(guc, vma) + guc_fw->header_offset;
+	offset = intel_uc_fw_ggtt_offset(guc_fw) + guc_fw->header_offset;
 	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
 	I915_WRITE(DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
 
@@ -233,7 +235,7 @@ static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
-static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
+static int guc_fw_xfer(struct intel_uc_fw *guc_fw)
 {
 	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -250,9 +252,9 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 	 * by the DMA engine in one operation, whereas the RSA signature is
 	 * loaded via MMIO.
 	 */
-	guc_xfer_rsa(guc, vma);
+	guc_xfer_rsa(guc);
 
-	ret = guc_xfer_ucode(guc, vma);
+	ret = guc_xfer_ucode(guc);
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 

@@ -277,8 +277,11 @@ i915_vma_compare(struct i915_vma *vma,
 	 */
 	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL >= I915_GGTT_VIEW_PARTIAL);
 	BUILD_BUG_ON(I915_GGTT_VIEW_PARTIAL >= I915_GGTT_VIEW_ROTATED);
+	BUILD_BUG_ON(I915_GGTT_VIEW_ROTATED >= I915_GGTT_VIEW_REMAPPED);
 	BUILD_BUG_ON(offsetof(typeof(*view), rotated) !=
 		     offsetof(typeof(*view), partial));
+	BUILD_BUG_ON(offsetof(typeof(*view), rotated) !=
+		     offsetof(typeof(*view), remapped));
 	return memcmp(&vma->ggtt_view.partial, &view->partial, view->type);
 }
 

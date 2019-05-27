@@ -202,7 +202,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	rq = i915_request_alloc(i915->engine[RCS0], i915->kernel_context);
+	rq = i915_request_create(i915->engine[RCS0]->kernel_context);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);

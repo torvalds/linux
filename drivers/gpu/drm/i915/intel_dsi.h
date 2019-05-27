@@ -28,6 +28,9 @@
 #include <drm/drm_mipi_dsi.h>
 #include "intel_drv.h"
 
+#define INTEL_DSI_VIDEO_MODE	0
+#define INTEL_DSI_COMMAND_MODE	1
+
 /* Dual Link support */
 #define DSI_DUAL_LINK_NONE		0
 #define DSI_DUAL_LINK_FRONT_BACK	1
@@ -151,6 +154,9 @@ static inline u16 intel_dsi_encoder_ports(struct intel_encoder *encoder)
 	return enc_to_intel_dsi(&encoder->base)->ports;
 }
 
+/* icl_dsi.c */
+void icl_dsi_init(struct drm_i915_private *dev_priv);
+
 /* intel_dsi.c */
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
 int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);
@@ -166,6 +172,7 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 					   const struct mipi_dsi_host_ops *funcs,
 					   enum port port);
+void vlv_dsi_init(struct drm_i915_private *dev_priv);
 
 /* vlv_dsi_pll.c */
 int vlv_dsi_pll_compute(struct intel_encoder *encoder,

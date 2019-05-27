@@ -370,6 +370,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
+	.has_rps = true, \
 	.ppgtt_type = INTEL_PPGTT_ALIASING, \
 	.ppgtt_size = 31, \
 	I9XX_PIPE_OFFSETS, \
@@ -417,6 +418,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
+	.has_rps = true, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
@@ -470,6 +472,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.num_pipes = 2,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
+	.has_rps = true,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
 	.ppgtt_type = INTEL_PPGTT_FULL,
@@ -565,6 +568,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_64bit_reloc = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
+	.has_rps = true,
 	.has_logical_ring_contexts = 1,
 	.display.has_gmch = 1,
 	.ppgtt_type = INTEL_PPGTT_FULL,
@@ -596,8 +600,6 @@ static const struct intel_device_info intel_cherryview_info = {
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
-	/* Display WA #0477 WaDisableIPC: skl */ \
-	.display.has_ipc = 0, \
 	PLATFORM(INTEL_SKYLAKE)
 
 static const struct intel_device_info intel_skylake_gt1_info = {
@@ -640,6 +642,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.has_runtime_pm = 1, \
 	.display.has_csr = 1, \
 	.has_rc6 = 1, \
+	.has_rps = true, \
 	.display.has_dp_mst = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_preemption = 1, \

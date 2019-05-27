@@ -8,34 +8,27 @@
 
 #include "../i915_selftest.h"
 
-#include "mock_context.h"
+#include "igt_gem_utils.h"
 #include "igt_flush_test.h"
+#include "mock_context.h"
 
 static int switch_to_context(struct drm_i915_private *i915,
 			     struct i915_gem_context *ctx)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	intel_wakeref_t wakeref;
-	int err = 0;
-
-	wakeref = intel_runtime_pm_get(i915);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
 
-		rq = i915_request_alloc(engine, ctx);
-		if (IS_ERR(rq)) {
-			err = PTR_ERR(rq);
-			break;
-		}
+		rq = igt_request_alloc(ctx, engine);
+		if (IS_ERR(rq))
+			return PTR_ERR(rq);
 
 		i915_request_add(rq);
 	}
 
-	intel_runtime_pm_put(i915, wakeref);
-
-	return err;
+	return 0;
 }
 
 static void trash_stolen(struct drm_i915_private *i915)
@@ -120,7 +113,7 @@ static void pm_resume(struct drm_i915_private *i915)
 	 * that runtime-pm just works.
 	 */
 	with_intel_runtime_pm(i915, wakeref) {
-		intel_engines_sanitize(i915, false);
+		intel_gt_sanitize(i915, false);
 		i915_gem_sanitize(i915);
 		i915_gem_resume(i915);
 	}

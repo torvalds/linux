@@ -22,7 +22,9 @@
  */
 
 #include "intel_dp.h"
+#include "intel_dpio_phy.h"
 #include "intel_drv.h"
+#include "intel_sideband.h"
 
 /**
  * DOC: DPIO
@@ -648,7 +650,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	u32 val;
 	int i;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Clear calc init */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
@@ -729,8 +731,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
-
+	vlv_dpio_put(dev_priv);
 }
 
 void chv_data_lane_soft_reset(struct intel_encoder *encoder,
@@ -800,7 +801,7 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 
 	chv_phy_powergate_lanes(encoder, true, lane_mask);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Assert data lane reset */
 	chv_data_lane_soft_reset(encoder, crtc_state, true);
@@ -855,7 +856,7 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 		val |= CHV_CMN_USEDCLKCHANNEL;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW19(ch), val);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }
 
 void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
@@ -870,7 +871,7 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	int data, i, stagger;
 	u32 val;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* allow hardware to manage TX FIFO reset source */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
@@ -935,7 +936,7 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	/* Deassert data lane reset */
 	chv_data_lane_soft_reset(encoder, crtc_state, false);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }
 
 void chv_phy_release_cl2_override(struct intel_encoder *encoder)
@@ -956,7 +957,7 @@ void chv_phy_post_pll_disable(struct intel_encoder *encoder,
 	enum pipe pipe = to_intel_crtc(old_crtc_state->base.crtc)->pipe;
 	u32 val;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* disable left/right clock distribution */
 	if (pipe != PIPE_B) {
@@ -969,7 +970,7 @@ void chv_phy_post_pll_disable(struct intel_encoder *encoder,
 		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 
 	/*
 	 * Leave the power down bit cleared for at least one
@@ -993,7 +994,8 @@ void vlv_set_phy_signal_level(struct intel_encoder *encoder,
 	enum dpio_channel port = vlv_dport_to_channel(dport);
 	enum pipe pipe = intel_crtc->pipe;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
+
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0x00000000);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(port), demph_reg_value);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(port),
@@ -1006,7 +1008,8 @@ void vlv_set_phy_signal_level(struct intel_encoder *encoder,
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW11(port), 0x00030000);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), preemph_reg_value);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), DPIO_TX_OCALINIT_EN);
-	mutex_unlock(&dev_priv->sb_lock);
+
+	vlv_dpio_put(dev_priv);
 }
 
 void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,
@@ -1019,7 +1022,8 @@ void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	enum pipe pipe = crtc->pipe;
 
 	/* Program Tx lane resets to default */
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
+
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port),
 			 DPIO_PCS_TX_LANE2_RESET |
 			 DPIO_PCS_TX_LANE1_RESET);
@@ -1033,7 +1037,8 @@ void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW12(port), 0x00750f00);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW11(port), 0x00001500);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW14(port), 0x40400000);
-	mutex_unlock(&dev_priv->sb_lock);
+
+	vlv_dpio_put(dev_priv);
 }
 
 void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
@@ -1047,7 +1052,7 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	enum pipe pipe = crtc->pipe;
 	u32 val;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Enable clock channels for this port */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(port));
@@ -1063,7 +1068,7 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW14(port), 0x00760018);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }
 
 void vlv_phy_reset_lanes(struct intel_encoder *encoder,
@@ -1075,8 +1080,8 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 	enum dpio_channel port = vlv_dport_to_channel(dport);
 	enum pipe pipe = crtc->pipe;
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port), 0x00000000);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW1(port), 0x00e00060);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }

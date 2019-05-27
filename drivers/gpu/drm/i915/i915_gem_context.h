@@ -27,9 +27,10 @@
 
 #include "i915_gem_context_types.h"
 
+#include "gt/intel_context.h"
+
 #include "i915_gem.h"
 #include "i915_scheduler.h"
-#include "intel_context.h"
 #include "intel_device_info.h"
 
 struct drm_device;
@@ -111,6 +112,24 @@ static inline void i915_gem_context_set_force_single_submission(struct i915_gem_
 	__set_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
 }
 
+static inline bool
+i915_gem_context_user_engines(const struct i915_gem_context *ctx)
+{
+	return test_bit(CONTEXT_USER_ENGINES, &ctx->flags);
+}
+
+static inline void
+i915_gem_context_set_user_engines(struct i915_gem_context *ctx)
+{
+	set_bit(CONTEXT_USER_ENGINES, &ctx->flags);
+}
+
+static inline void
+i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
+{
+	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
+}
+
 int __i915_gem_context_pin_hw_id(struct i915_gem_context *ctx);
 static inline int i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
 {
@@ -139,10 +158,6 @@ void i915_gem_contexts_fini(struct drm_i915_private *dev_priv);
 int i915_gem_context_open(struct drm_i915_private *i915,
 			  struct drm_file *file);
 void i915_gem_context_close(struct drm_file *file);
-
-int i915_switch_context(struct i915_request *rq);
-int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915,
-				      intel_engine_mask_t engine_mask);
 
 void i915_gem_context_release(struct kref *ctx_ref);
 struct i915_gem_context *
@@ -178,6 +193,64 @@ static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 {
 	kref_put(&ctx->ref, i915_gem_context_release);
 }
+
+static inline struct i915_gem_engines *
+i915_gem_context_engines(struct i915_gem_context *ctx)
+{
+	return rcu_dereference_protected(ctx->engines,
+					 lockdep_is_held(&ctx->engines_mutex));
+}
+
+static inline struct i915_gem_engines *
+i915_gem_context_lock_engines(struct i915_gem_context *ctx)
+	__acquires(&ctx->engines_mutex)
+{
+	mutex_lock(&ctx->engines_mutex);
+	return i915_gem_context_engines(ctx);
+}
+
+static inline void
+i915_gem_context_unlock_engines(struct i915_gem_context *ctx)
+	__releases(&ctx->engines_mutex)
+{
+	mutex_unlock(&ctx->engines_mutex);
+}
+
+static inline struct intel_context *
+i915_gem_context_lookup_engine(struct i915_gem_context *ctx, unsigned int idx)
+{
+	return i915_gem_context_engines(ctx)->engines[idx];
+}
+
+static inline struct intel_context *
+i915_gem_context_get_engine(struct i915_gem_context *ctx, unsigned int idx)
+{
+	struct intel_context *ce = ERR_PTR(-EINVAL);
+
+	rcu_read_lock(); {
+		struct i915_gem_engines *e = rcu_dereference(ctx->engines);
+		if (likely(idx < e->num_engines && e->engines[idx]))
+			ce = intel_context_get(e->engines[idx]);
+	} rcu_read_unlock();
+
+	return ce;
+}
+
+static inline void
+i915_gem_engines_iter_init(struct i915_gem_engines_iter *it,
+			   struct i915_gem_engines *engines)
+{
+	GEM_BUG_ON(!engines);
+	it->engines = engines;
+	it->idx = 0;
+}
+
+struct intel_context *
+i915_gem_engines_iter_next(struct i915_gem_engines_iter *it);
+
+#define for_each_gem_engine(ce, engines, it) \
+	for (i915_gem_engines_iter_init(&(it), (engines)); \
+	     ((ce) = i915_gem_engines_iter_next(&(it)));)
 
 struct i915_lut_handle *i915_lut_handle_alloc(void);
 void i915_lut_handle_free(struct i915_lut_handle *lut);

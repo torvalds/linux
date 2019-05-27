@@ -27,7 +27,9 @@
 
 #include <drm/drm_dp_helper.h>
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_gmbus.h"
 
 #define _INTEL_BIOS_PRIVATE
 #include "intel_vbt_defs.h"

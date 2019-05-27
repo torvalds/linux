@@ -23,11 +23,13 @@
  * Author: Deepak M <m.deepak at intel.com>
  */
 
+#include <drm/drm_mipi_dsi.h>
+#include <video/mipi_display.h>
+
+#include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
-#include "i915_drv.h"
-#include <video/mipi_display.h>
-#include <drm/drm_mipi_dsi.h>
+#include "intel_dsi_dcs_backlight.h"
 
 #define CONTROL_DISPLAY_BCTRL		(1 << 5)
 #define CONTROL_DISPLAY_DD		(1 << 3)

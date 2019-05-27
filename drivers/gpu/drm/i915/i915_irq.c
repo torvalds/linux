@@ -38,8 +38,12 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include "intel_fifo_underrun.h"
+#include "intel_hotplug.h"
+#include "intel_lpe_audio.h"
 #include "intel_psr.h"
 
 /**
@@ -1301,7 +1305,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
 		goto out;
 
-	mutex_lock(&dev_priv->pcu_lock);
+	mutex_lock(&rps->lock);
 
 	pm_iir |= vlv_wa_c0_ei(dev_priv, pm_iir);
 
@@ -1367,7 +1371,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		rps->last_adj = 0;
 	}
 
-	mutex_unlock(&dev_priv->pcu_lock);
+	mutex_unlock(&rps->lock);
 
 out:
 	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */

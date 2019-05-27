@@ -24,18 +24,23 @@
  *
  */
 
-#include <drm/drm_crtc.h>
-#include <drm/drm_edid.h>
-#include <drm/i915_drm.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/slab.h>
-#include <video/mipi_display.h>
+
 #include <asm/intel-mid.h>
 #include <asm/unaligned.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/i915_drm.h>
+
+#include <video/mipi_display.h>
+
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_sideband.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
 #define MIPI_VIRTUAL_CHANNEL_SHIFT	1
@@ -248,7 +253,7 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 	pconf0 = VLV_GPIO_PCONF0(map->base_offset);
 	padval = VLV_GPIO_PAD_VAL(map->base_offset);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_iosf_sb_get(dev_priv, BIT(VLV_IOSF_SB_GPIO));
 	if (!map->init) {
 		/* FIXME: remove constant below */
 		vlv_iosf_sb_write(dev_priv, port, pconf0, 0x2000CC00);
@@ -257,7 +262,7 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 
 	tmp = 0x4 | value;
 	vlv_iosf_sb_write(dev_priv, port, padval, tmp);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_iosf_sb_put(dev_priv, BIT(VLV_IOSF_SB_GPIO));
 }
 
 static void chv_exec_gpio(struct drm_i915_private *dev_priv,
@@ -303,12 +308,12 @@ static void chv_exec_gpio(struct drm_i915_private *dev_priv,
 	cfg0 = CHV_GPIO_PAD_CFG0(family_num, gpio_index);
 	cfg1 = CHV_GPIO_PAD_CFG1(family_num, gpio_index);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_iosf_sb_get(dev_priv, BIT(VLV_IOSF_SB_GPIO));
 	vlv_iosf_sb_write(dev_priv, port, cfg1, 0);
 	vlv_iosf_sb_write(dev_priv, port, cfg0,
 			  CHV_GPIO_GPIOEN | CHV_GPIO_GPIOCFG_GPO |
 			  CHV_GPIO_GPIOTXSTATE(value));
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_iosf_sb_put(dev_priv, BIT(VLV_IOSF_SB_GPIO));
 }
 
 static void bxt_exec_gpio(struct drm_i915_private *dev_priv,

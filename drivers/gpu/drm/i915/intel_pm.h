@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#include "i915_reg.h"
+
 struct drm_atomic_state;
 struct drm_device;
 struct drm_i915_private;
@@ -67,5 +69,13 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);
 void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
+
+int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
+int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
+u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv, i915_reg_t reg);
+u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv, i915_reg_t reg);
+
+u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat1);
+
 
 #endif /* __INTEL_PM_H__ */

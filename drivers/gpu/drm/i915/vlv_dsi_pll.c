@@ -26,9 +26,11 @@
  */
 
 #include <linux/kernel.h>
-#include "intel_drv.h"
+
 #include "i915_drv.h"
+#include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_sideband.h"
 
 static const u16 lfsr_converts[] = {
 	426, 469, 234, 373, 442, 221, 110, 311, 411,		/* 62 - 70 */
@@ -149,7 +151,7 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_cck_get(dev_priv);
 
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, 0);
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_DIVIDER, config->dsi_pll.div);
@@ -166,11 +168,11 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 	if (wait_for(vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL) &
 						DSI_PLL_LOCK, 20)) {
 
-		mutex_unlock(&dev_priv->sb_lock);
+		vlv_cck_put(dev_priv);
 		DRM_ERROR("DSI PLL lock failed\n");
 		return;
 	}
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_cck_put(dev_priv);
 
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
@@ -182,14 +184,14 @@ void vlv_dsi_pll_disable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_cck_get(dev_priv);
 
 	tmp = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
 	tmp &= ~DSI_PLL_VCO_EN;
 	tmp |= DSI_PLL_LDO_GATE;
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, tmp);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_cck_put(dev_priv);
 }
 
 bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
@@ -266,10 +268,10 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_cck_get(dev_priv);
 	pll_ctl = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
 	pll_div = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_DIVIDER);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_cck_put(dev_priv);
 
 	config->dsi_pll.ctrl = pll_ctl & ~DSI_PLL_LOCK;
 	config->dsi_pll.div = pll_div;

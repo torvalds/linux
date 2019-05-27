@@ -1813,7 +1813,6 @@ enum i915_power_well_id {
 #define  PWR_DOWN_LN_3			(0x8 << 4)
 #define  PWR_DOWN_LN_2_1_0		(0x7 << 4)
 #define  PWR_DOWN_LN_1_0		(0x3 << 4)
-#define  PWR_DOWN_LN_1			(0x2 << 4)
 #define  PWR_DOWN_LN_3_1		(0xa << 4)
 #define  PWR_DOWN_LN_3_1_0		(0xb << 4)
 #define  PWR_DOWN_LN_MASK		(0xf << 4)
@@ -2870,6 +2869,7 @@ enum i915_power_well_id {
 #define GFX_FLSH_CNTL_GEN6	_MMIO(0x101008)
 #define   GFX_FLSH_CNTL_EN	(1 << 0)
 #define ECOSKPD		_MMIO(0x21d0)
+#define   ECO_CONSTANT_BUFFER_SR_DISABLE REG_BIT(4)
 #define   ECO_GATING_CX_ONLY	(1 << 3)
 #define   ECO_FLIP_DONE		(1 << 0)
 
@@ -5769,6 +5769,7 @@ enum {
 #define _PIPE_MISC_B			0x71030
 #define   PIPEMISC_YUV420_ENABLE	(1 << 27)
 #define   PIPEMISC_YUV420_MODE_FULL_BLEND (1 << 26)
+#define   PIPEMISC_HDR_MODE_PRECISION	(1 << 23) /* icl+ */
 #define   PIPEMISC_OUTPUT_COLORSPACE_YUV  (1 << 11)
 #define   PIPEMISC_DITHER_BPC_MASK	(7 << 5)
 #define   PIPEMISC_DITHER_8_BPC		(0 << 5)
@@ -7620,6 +7621,9 @@ enum {
   #define GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION		(1 << 8)
   #define GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE			(1 << 0)
 
+#define GEN8_L3CNTLREG	_MMIO(0x7034)
+  #define GEN8_ERRDETBCTRL (1 << 9)
+
 #define GEN11_COMMON_SLICE_CHICKEN3		_MMIO(0x7304)
   #define GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC	(1 << 11)
 
@@ -8862,6 +8866,7 @@ enum {
 #define   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC	(1 << 7)
 
 #define GEN10_SAMPLER_MODE		_MMIO(0xE18C)
+#define   GEN11_SAMPLER_ENABLE_HEADLESS_MSG	REG_BIT(5)
 
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1(slice)		_MMIO(0xB008 + (slice) * 0x200) /* L3CD Error Status 1 */
@@ -9009,32 +9014,32 @@ enum {
 /* HSW Audio */
 #define _HSW_AUD_CONFIG_A		0x65000
 #define _HSW_AUD_CONFIG_B		0x65100
-#define HSW_AUD_CFG(pipe)		_MMIO_PIPE(pipe, _HSW_AUD_CONFIG_A, _HSW_AUD_CONFIG_B)
+#define HSW_AUD_CFG(trans)		_MMIO_TRANS(trans, _HSW_AUD_CONFIG_A, _HSW_AUD_CONFIG_B)
 
 #define _HSW_AUD_MISC_CTRL_A		0x65010
 #define _HSW_AUD_MISC_CTRL_B		0x65110
-#define HSW_AUD_MISC_CTRL(pipe)		_MMIO_PIPE(pipe, _HSW_AUD_MISC_CTRL_A, _HSW_AUD_MISC_CTRL_B)
+#define HSW_AUD_MISC_CTRL(trans)	_MMIO_TRANS(trans, _HSW_AUD_MISC_CTRL_A, _HSW_AUD_MISC_CTRL_B)
 
 #define _HSW_AUD_M_CTS_ENABLE_A		0x65028
 #define _HSW_AUD_M_CTS_ENABLE_B		0x65128
-#define HSW_AUD_M_CTS_ENABLE(pipe)	_MMIO_PIPE(pipe, _HSW_AUD_M_CTS_ENABLE_A, _HSW_AUD_M_CTS_ENABLE_B)
+#define HSW_AUD_M_CTS_ENABLE(trans)	_MMIO_TRANS(trans, _HSW_AUD_M_CTS_ENABLE_A, _HSW_AUD_M_CTS_ENABLE_B)
 #define   AUD_M_CTS_M_VALUE_INDEX	(1 << 21)
 #define   AUD_M_CTS_M_PROG_ENABLE	(1 << 20)
 #define   AUD_CONFIG_M_MASK		0xfffff
 
 #define _HSW_AUD_DIP_ELD_CTRL_ST_A	0x650b4
 #define _HSW_AUD_DIP_ELD_CTRL_ST_B	0x651b4
-#define HSW_AUD_DIP_ELD_CTRL(pipe)	_MMIO_PIPE(pipe, _HSW_AUD_DIP_ELD_CTRL_ST_A, _HSW_AUD_DIP_ELD_CTRL_ST_B)
+#define HSW_AUD_DIP_ELD_CTRL(trans)	_MMIO_TRANS(trans, _HSW_AUD_DIP_ELD_CTRL_ST_A, _HSW_AUD_DIP_ELD_CTRL_ST_B)
 
 /* Audio Digital Converter */
 #define _HSW_AUD_DIG_CNVT_1		0x65080
 #define _HSW_AUD_DIG_CNVT_2		0x65180
-#define AUD_DIG_CNVT(pipe)		_MMIO_PIPE(pipe, _HSW_AUD_DIG_CNVT_1, _HSW_AUD_DIG_CNVT_2)
+#define AUD_DIG_CNVT(trans)		_MMIO_TRANS(trans, _HSW_AUD_DIG_CNVT_1, _HSW_AUD_DIG_CNVT_2)
 #define DIP_PORT_SEL_MASK		0x3
 
 #define _HSW_AUD_EDID_DATA_A		0x65050
 #define _HSW_AUD_EDID_DATA_B		0x65150
-#define HSW_AUD_EDID_DATA(pipe)		_MMIO_PIPE(pipe, _HSW_AUD_EDID_DATA_A, _HSW_AUD_EDID_DATA_B)
+#define HSW_AUD_EDID_DATA(trans)	_MMIO_TRANS(trans, _HSW_AUD_EDID_DATA_A, _HSW_AUD_EDID_DATA_B)
 
 #define HSW_AUD_PIPE_CONV_CFG		_MMIO(0x6507c)
 #define HSW_AUD_PIN_ELD_CP_VLD		_MMIO(0x650c0)
@@ -9523,6 +9528,7 @@ enum skl_power_gate {
 #define  TRANS_MSA_12_BPC		(3 << 5)
 #define  TRANS_MSA_16_BPC		(4 << 5)
 #define  TRANS_MSA_CEA_RANGE		(1 << 3)
+#define  TRANS_MSA_USE_VSC_SDP		(1 << 14)
 
 /* LCPLL Control */
 #define LCPLL_CTL			_MMIO(0x130040)

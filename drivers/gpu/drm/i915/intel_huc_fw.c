@@ -89,22 +89,28 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 {
 	struct intel_uc_fw *huc_fw = &huc->fw;
 
-	intel_uc_fw_init(huc_fw, INTEL_UC_FW_TYPE_HUC);
+	intel_uc_fw_init_early(huc_fw, INTEL_UC_FW_TYPE_HUC);
 	huc_fw_select(huc_fw);
 }
 
-/**
- * huc_fw_xfer() - DMA's the firmware
- * @huc_fw: the firmware descriptor
- * @vma: the firmware image (bound into the GGTT)
- *
- * Transfer the firmware image to RAM for execution by the microcontroller.
- *
- * Return: 0 on success, non-zero on failure
- */
-static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
+static void huc_xfer_rsa(struct intel_huc *huc)
 {
-	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
+	struct intel_uc_fw *fw = &huc->fw;
+	struct sg_table *pages = fw->obj->mm.pages;
+
+	/*
+	 * HuC firmware image is outside GuC accessible range.
+	 * Copy the RSA signature out of the image into
+	 * the perma-pinned region set aside for it
+	 */
+	sg_pcopy_to_buffer(pages->sgl, pages->nents,
+			   huc->rsa_data_vaddr, fw->rsa_size,
+			   fw->rsa_offset);
+}
+
+static int huc_xfer_ucode(struct intel_huc *huc)
+{
+	struct intel_uc_fw *huc_fw = &huc->fw;
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	unsigned long offset = 0;
@@ -116,7 +122,7 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
-	offset = intel_guc_ggtt_offset(&dev_priv->guc, vma) +
+	offset = intel_uc_fw_ggtt_offset(huc_fw) +
 		 huc_fw->header_offset;
 	intel_uncore_write(uncore, DMA_ADDR_0_LOW,
 			   lower_32_bits(offset));
@@ -148,6 +154,23 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
 	return ret;
+}
+
+/**
+ * huc_fw_xfer() - DMA's the firmware
+ * @huc_fw: the firmware descriptor
+ *
+ * Transfer the firmware image to RAM for execution by the microcontroller.
+ *
+ * Return: 0 on success, non-zero on failure
+ */
+static int huc_fw_xfer(struct intel_uc_fw *huc_fw)
+{
+	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
+
+	huc_xfer_rsa(huc);
+
+	return huc_xfer_ucode(huc);
 }
 
 /**

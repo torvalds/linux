@@ -29,6 +29,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include "intel_atomic.h"
 #include "intel_drv.h"
 #include "intel_pipe_crc.h"
 
@@ -313,17 +314,8 @@ retry:
 
 	if (IS_HASWELL(dev_priv) &&
 	    pipe_config->base.active && crtc->pipe == PIPE_A &&
-	    pipe_config->cpu_transcoder == TRANSCODER_EDP) {
-		bool old_need_power_well = pipe_config->pch_pfit.enabled ||
-			pipe_config->pch_pfit.force_thru;
-		bool new_need_power_well = pipe_config->pch_pfit.enabled ||
-			enable;
-
-		pipe_config->pch_pfit.force_thru = enable;
-
-		if (old_need_power_well != new_need_power_well)
-			pipe_config->base.connectors_changed = true;
-	}
+	    pipe_config->cpu_transcoder == TRANSCODER_EDP)
+		pipe_config->base.mode_changed = true;
 
 	ret = drm_atomic_commit(state);
 
