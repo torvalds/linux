@@ -2103,7 +2103,6 @@
 
 		target-module@9c000 {			/* 0x4809c000, ap 53 36.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mmc1";
 			reg = <0x9c000 0x4>,
 			      <0x9c010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2171,7 +2170,6 @@
 
 		target-module@ad000 {			/* 0x480ad000, ap 63 50.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mmc3";
 			reg = <0xad000 0x4>,
 			      <0xad010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2237,7 +2235,6 @@
 
 		target-module@b4000 {			/* 0x480b4000, ap 67 46.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mmc2";
 			reg = <0xb4000 0x4>,
 			      <0xb4010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2332,7 +2329,6 @@
 
 		target-module@d1000 {			/* 0x480d1000, ap 73 44.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mmc4";
 			reg = <0xd1000 0x4>,
 			      <0xd1010 0x4>;
 			reg-names = "rev", "sysc";
@@ -2365,7 +2361,6 @@
 
 		target-module@d5000 {			/* 0x480d5000, ap 75 4e.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mmc5";
 			reg = <0xd5000 0x4>,
 			      <0xd5010 0x4>;
 			reg-names = "rev", "sysc";
