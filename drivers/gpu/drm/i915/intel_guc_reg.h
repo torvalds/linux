@@ -51,6 +51,9 @@
 #define SOFT_SCRATCH(n)			_MMIO(0xc180 + (n) * 4)
 #define SOFT_SCRATCH_COUNT		16
 
+#define GEN11_SOFT_SCRATCH(n)		_MMIO(0x190240 + (n) * 4)
+#define GEN11_SOFT_SCRATCH_COUNT	4
+
 #define UOS_RSA_SCRATCH(i)		_MMIO(0xc200 + (i) * 4)
 #define UOS_RSA_SCRATCH_COUNT		64
 
