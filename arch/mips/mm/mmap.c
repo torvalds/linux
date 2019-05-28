@@ -201,12 +201,12 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	return ret;
 }
 
-int __virt_addr_valid(const volatile void *kaddr)
+bool __virt_addr_valid(const volatile void *kaddr)
 {
 	unsigned long vaddr = (unsigned long)vaddr;
 
 	if ((vaddr < PAGE_OFFSET) || (vaddr >= MAP_BASE))
-		return 0;
+		return false;
 
 	return pfn_valid(PFN_DOWN(virt_to_phys(kaddr)));
 }
