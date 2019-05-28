@@ -89,10 +89,12 @@ struct caam_rsa_key {
  * caam_rsa_ctx - per session context.
  * @key         : RSA key in DMA zone
  * @dev         : device structure
+ * @padding_dma : dma address of padding, for adding it to the input
  */
 struct caam_rsa_ctx {
 	struct caam_rsa_key key;
 	struct device *dev;
+	dma_addr_t padding_dma;
 };
 
 /**
