@@ -262,4 +262,10 @@ static inline u32 vepu_read(struct rockchip_vpu_dev *vpu, u32 reg)
 	return val;
 }
 
+static inline bool
+rockchip_vpu_is_encoder_ctx(const struct rockchip_vpu_ctx *ctx)
+{
+	return true;
+}
+
 #endif /* ROCKCHIP_VPU_H_ */
