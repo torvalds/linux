@@ -981,6 +981,9 @@ struct snd_soc_dai_link {
 	/* This DAI link can route to other DAI links at runtime (Frontend)*/
 	unsigned int dynamic:1;
 
+	/* This DAI link can be reconfigured at runtime (Backend) */
+	unsigned int dynamic_be:1;
+
 	/*
 	 * This DAI can support no host IO (no pcm data is
 	 * copied to from host)
