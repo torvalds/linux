@@ -1076,10 +1076,13 @@ err:
 static int tc_stream_disable(struct tc_data *tc)
 {
 	int ret;
+	u32 val;
 
 	dev_dbg(tc->dev, "disable video stream\n");
 
-	tc_write(DP0CTL, 0);
+	tc_read(DP0CTL, &val);
+	val &= ~VID_EN;
+	tc_write(DP0CTL, val);
 
 	tc_pxl_pll_dis(tc);
 
