@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_ARTPEC
 	bool "Axis Communications ARM based ARTPEC SoCs"
 	depends on ARCH_MULTI_V7

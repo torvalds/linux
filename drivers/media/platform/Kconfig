@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Platform drivers
 #	Most drivers here are currently for webcam support

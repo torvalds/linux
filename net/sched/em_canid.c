@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * em_canid.c  Ematch rule to match CAN frames according to their CAN IDs
- *
- *              This program is free software; you can distribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Idea:       Oliver Hartkopp <oliver.hartkopp@volkswagen.de>
  * Copyright:  (c) 2011 Czech Technical University in Prague

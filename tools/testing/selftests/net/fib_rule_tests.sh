@@ -15,6 +15,7 @@ GW_IP6=2001:db8:1::2
 SRC_IP6=2001:db8:1::3
 
 DEV_ADDR=192.51.100.1
+DEV_ADDR6=2001:db8:1::1
 DEV=dummy0
 
 log_test()
@@ -55,8 +56,8 @@ setup()
 
 	$IP link add dummy0 type dummy
 	$IP link set dev dummy0 up
-	$IP address add 198.51.100.1/24 dev dummy0
-	$IP -6 address add 2001:db8:1::1/64 dev dummy0
+	$IP address add $DEV_ADDR/24 dev dummy0
+	$IP -6 address add $DEV_ADDR6/64 dev dummy0
 
 	set +e
 }
@@ -186,8 +187,13 @@ fib_rule4_test()
 	match="oif $DEV"
 	fib_rule4_test_match_n_redirect "$match" "$match" "oif redirect to table"
 
+	# need enable forwarding and disable rp_filter temporarily as all the
+	# addresses are in the same subnet and egress device == ingress device.
+	ip netns exec testns sysctl -w net.ipv4.ip_forward=1
+	ip netns exec testns sysctl -w net.ipv4.conf.$DEV.rp_filter=0
 	match="from $SRC_IP iif $DEV"
 	fib_rule4_test_match_n_redirect "$match" "$match" "iif redirect to table"
+	ip netns exec testns sysctl -w net.ipv4.ip_forward=0
 
 	match="tos 0x10"
 	fib_rule4_test_match_n_redirect "$match" "$match" "tos redirect to table"
