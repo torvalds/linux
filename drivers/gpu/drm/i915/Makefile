@@ -88,6 +88,8 @@ i915-y += $(gt-y)
 obj-y += gem/
 gem-y += \
 	gem/i915_gem_object.o \
+	gem/i915_gem_pages.o \
+	gem/i915_gem_phys.o \
 	gem/i915_gem_shmem.o
 i915-y += \
 	  $(gem-y) \

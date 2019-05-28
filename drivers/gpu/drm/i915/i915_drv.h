@@ -2903,8 +2903,6 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view,
 				     unsigned int flags);
 void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
-int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
-				int align);
 int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 

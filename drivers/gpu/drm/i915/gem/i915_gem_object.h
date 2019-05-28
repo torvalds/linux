@@ -33,10 +33,16 @@ void __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				     struct sg_table *pages,
 				     bool needs_clflush);
 
+int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align);
+
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
 void i915_gem_free_object(struct drm_gem_object *obj);
 
 void i915_gem_flush_free_objects(struct drm_i915_private *i915);
+
+struct sg_table *
+__i915_gem_object_unset_pages(struct drm_i915_gem_object *obj);
+void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 /**
  * i915_gem_object_lookup_rcu - look up a temporary GEM object from its handle
@@ -236,6 +242,8 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,
 				 unsigned int sg_page_sizes);
+
+int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 
 static inline int __must_check
@@ -291,7 +299,8 @@ enum i915_mm_subclass { /* lockdep subclass for obj->mm.lock/struct_mutex */
 
 int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 				enum i915_mm_subclass subclass);
-void __i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+void i915_gem_object_writeback(struct drm_i915_gem_object *obj);
 
 enum i915_map_type {
 	I915_MAP_WB = 0,

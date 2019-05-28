@@ -213,6 +213,65 @@ err_pages:
 	return ret;
 }
 
+static void
+shmem_truncate(struct drm_i915_gem_object *obj)
+{
+	/*
+	 * Our goal here is to return as much of the memory as
+	 * is possible back to the system as we are called from OOM.
+	 * To do this we must instruct the shmfs to drop all of its
+	 * backing pages, *now*.
+	 */
+	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
+	obj->mm.madv = __I915_MADV_PURGED;
+	obj->mm.pages = ERR_PTR(-EFAULT);
+}
+
+static void
+shmem_writeback(struct drm_i915_gem_object *obj)
+{
+	struct address_space *mapping;
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_NONE,
+		.nr_to_write = SWAP_CLUSTER_MAX,
+		.range_start = 0,
+		.range_end = LLONG_MAX,
+		.for_reclaim = 1,
+	};
+	unsigned long i;
+
+	/*
+	 * Leave mmapings intact (GTT will have been revoked on unbinding,
+	 * leaving only CPU mmapings around) and add those pages to the LRU
+	 * instead of invoking writeback so they are aged and paged out
+	 * as normal.
+	 */
+	mapping = obj->base.filp->f_mapping;
+
+	/* Begin writeback on each dirty page */
+	for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
+		struct page *page;
+
+		page = find_lock_entry(mapping, i);
+		if (!page || xa_is_value(page))
+			continue;
+
+		if (!page_mapped(page) && clear_page_dirty_for_io(page)) {
+			int ret;
+
+			SetPageReclaim(page);
+			ret = mapping->a_ops->writepage(page, &wbc);
+			if (!PageWriteback(page))
+				ClearPageReclaim(page);
+			if (!ret)
+				goto put;
+		}
+		unlock_page(page);
+put:
+		put_page(page);
+	}
+}
+
 void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
@@ -362,6 +421,8 @@ const struct drm_i915_gem_object_ops i915_gem_shmem_ops = {
 
 	.get_pages = shmem_get_pages,
 	.put_pages = shmem_put_pages,
+	.truncate = shmem_truncate,
+	.writeback = shmem_writeback,
 
 	.pwrite = shmem_pwrite,
 };
