@@ -956,6 +956,13 @@ static int tc_main_link_setup(struct tc_data *tc)
 	if (ret < 0)
 		goto err_dpcd_write;
 
+	/* Reset voltage-swing & pre-emphasis */
+	tmp[0] = tmp[1] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 |
+			  DP_TRAIN_PRE_EMPH_LEVEL_0;
+	ret = drm_dp_dpcd_write(aux, DP_TRAINING_LANE0_SET, tmp, 2);
+	if (ret < 0)
+		goto err_dpcd_write;
+
 	ret = tc_link_training(tc, DP_TRAINING_PATTERN_1);
 	if (ret)
 		goto err;
