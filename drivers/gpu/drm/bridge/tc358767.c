@@ -542,7 +542,6 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	unsigned long rate;
 	u32 value;
 	int ret;
-	u32 dp_phy_ctrl;
 
 	rate = clk_get_rate(tc->refclk);
 	switch (rate) {
@@ -567,10 +566,7 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	value |= SYSCLK_SEL_LSCLK | LSCLK_DIV_2;
 	tc_write(SYS_PLLPARAM, value);
 
-	dp_phy_ctrl = BGREN | PWR_SW_EN | PHY_A0_EN;
-	if (tc->link.base.num_lanes == 2)
-		dp_phy_ctrl |= PHY_2LANE;
-	tc_write(DP_PHY_CTRL, dp_phy_ctrl);
+	tc_write(DP_PHY_CTRL, BGREN | PWR_SW_EN | PHY_A0_EN);
 
 	/*
 	 * Initially PLLs are in bypass. Force PLL parameter update,
@@ -587,8 +583,9 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	if (ret == -ETIMEDOUT) {
 		dev_err(tc->dev, "Timeout waiting for PHY to become ready");
 		return ret;
-	} else if (ret)
+	} else if (ret) {
 		goto err;
+	}
 
 	/* Setup AUX link */
 	tc_write(DP0_AUXCFG1, AUX_RX_FILTER_EN |
