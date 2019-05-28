@@ -26,6 +26,8 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "nal-h264.h"
+
 /*
  * Support up to 4k video streams. The hardware actually supports higher
  * resolutions, which are specified in PG252 June 6, 2018 (H.264/H.265 Video
@@ -1301,6 +1303,131 @@ static int allocate_reference_buffers(struct allegro_channel *channel,
 					 n, PAGE_ALIGN(size));
 }
 
+static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
+				      void *dest, size_t n)
+{
+	struct allegro_dev *dev = channel->dev;
+	struct nal_h264_sps *sps;
+	ssize_t size;
+	unsigned int size_mb = SIZE_MACROBLOCK;
+	/* Calculation of crop units in Rec. ITU-T H.264 (04/2017) p. 76 */
+	unsigned int crop_unit_x = 2;
+	unsigned int crop_unit_y = 2;
+
+	sps = kzalloc(sizeof(*sps), GFP_KERNEL);
+	if (!sps)
+		return -ENOMEM;
+
+	sps->profile_idc = nal_h264_profile_from_v4l2(channel->profile);
+	sps->constraint_set0_flag = 0;
+	sps->constraint_set1_flag = 1;
+	sps->constraint_set2_flag = 0;
+	sps->constraint_set3_flag = 0;
+	sps->constraint_set4_flag = 0;
+	sps->constraint_set5_flag = 0;
+	sps->level_idc = nal_h264_level_from_v4l2(channel->level);
+	sps->seq_parameter_set_id = 0;
+	sps->log2_max_frame_num_minus4 = 0;
+	sps->pic_order_cnt_type = 0;
+	sps->log2_max_pic_order_cnt_lsb_minus4 = 6;
+	sps->max_num_ref_frames = 3;
+	sps->gaps_in_frame_num_value_allowed_flag = 0;
+	sps->pic_width_in_mbs_minus1 =
+		DIV_ROUND_UP(channel->width, size_mb) - 1;
+	sps->pic_height_in_map_units_minus1 =
+		DIV_ROUND_UP(channel->height, size_mb) - 1;
+	sps->frame_mbs_only_flag = 1;
+	sps->mb_adaptive_frame_field_flag = 0;
+	sps->direct_8x8_inference_flag = 1;
+	sps->frame_cropping_flag =
+		(channel->width % size_mb) || (channel->height % size_mb);
+	if (sps->frame_cropping_flag) {
+		sps->crop_left = 0;
+		sps->crop_right = (round_up(channel->width, size_mb) - channel->width) / crop_unit_x;
+		sps->crop_top = 0;
+		sps->crop_bottom = (round_up(channel->height, size_mb) - channel->height) / crop_unit_y;
+	}
+	sps->vui_parameters_present_flag = 1;
+	sps->vui.aspect_ratio_info_present_flag = 0;
+	sps->vui.overscan_info_present_flag = 0;
+	sps->vui.video_signal_type_present_flag = 1;
+	sps->vui.video_format = 1;
+	sps->vui.video_full_range_flag = 0;
+	sps->vui.colour_description_present_flag = 1;
+	sps->vui.colour_primaries = 5;
+	sps->vui.transfer_characteristics = 5;
+	sps->vui.matrix_coefficients = 5;
+	sps->vui.chroma_loc_info_present_flag = 1;
+	sps->vui.chroma_sample_loc_type_top_field = 0;
+	sps->vui.chroma_sample_loc_type_bottom_field = 0;
+	sps->vui.timing_info_present_flag = 1;
+	sps->vui.num_units_in_tick = 1;
+	sps->vui.time_scale = 50;
+	sps->vui.fixed_frame_rate_flag = 1;
+	sps->vui.nal_hrd_parameters_present_flag = 0;
+	sps->vui.vcl_hrd_parameters_present_flag = 1;
+	sps->vui.vcl_hrd_parameters.cpb_cnt_minus1 = 0;
+	sps->vui.vcl_hrd_parameters.bit_rate_scale = 0;
+	sps->vui.vcl_hrd_parameters.cpb_size_scale = 1;
+	/* See Rec. ITU-T H.264 (04/2017) p. 410 E-53 */
+	sps->vui.vcl_hrd_parameters.bit_rate_value_minus1[0] =
+		channel->bitrate_peak / (1 << (6 + sps->vui.vcl_hrd_parameters.bit_rate_scale)) - 1;
+	/* See Rec. ITU-T H.264 (04/2017) p. 410 E-54 */
+	sps->vui.vcl_hrd_parameters.cpb_size_value_minus1[0] =
+		(channel->cpb_size * 1000) / (1 << (4 + sps->vui.vcl_hrd_parameters.cpb_size_scale)) - 1;
+	sps->vui.vcl_hrd_parameters.cbr_flag[0] = 1;
+	sps->vui.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1 = 31;
+	sps->vui.vcl_hrd_parameters.cpb_removal_delay_length_minus1 = 31;
+	sps->vui.vcl_hrd_parameters.dpb_output_delay_length_minus1 = 31;
+	sps->vui.vcl_hrd_parameters.time_offset_length = 0;
+	sps->vui.low_delay_hrd_flag = 0;
+	sps->vui.pic_struct_present_flag = 1;
+	sps->vui.bitstream_restriction_flag = 0;
+
+	size = nal_h264_write_sps(&dev->plat_dev->dev, dest, n, sps);
+
+	kfree(sps);
+
+	return size;
+}
+
+static ssize_t allegro_h264_write_pps(struct allegro_channel *channel,
+				      void *dest, size_t n)
+{
+	struct allegro_dev *dev = channel->dev;
+	struct nal_h264_pps *pps;
+	ssize_t size;
+
+	pps = kzalloc(sizeof(*pps), GFP_KERNEL);
+	if (!pps)
+		return -ENOMEM;
+
+	pps->pic_parameter_set_id = 0;
+	pps->seq_parameter_set_id = 0;
+	pps->entropy_coding_mode_flag = 0;
+	pps->bottom_field_pic_order_in_frame_present_flag = 0;
+	pps->num_slice_groups_minus1 = 0;
+	pps->num_ref_idx_l0_default_active_minus1 = 2;
+	pps->num_ref_idx_l1_default_active_minus1 = 2;
+	pps->weighted_pred_flag = 0;
+	pps->weighted_bipred_idc = 0;
+	pps->pic_init_qp_minus26 = 0;
+	pps->pic_init_qs_minus26 = 0;
+	pps->chroma_qp_index_offset = 0;
+	pps->deblocking_filter_control_present_flag = 1;
+	pps->constrained_intra_pred_flag = 0;
+	pps->redundant_pic_cnt_present_flag = 0;
+	pps->transform_8x8_mode_flag = 0;
+	pps->pic_scaling_matrix_present_flag = 0;
+	pps->second_chroma_qp_index_offset = 0;
+
+	size = nal_h264_write_pps(&dev->plat_dev->dev, dest, n, pps);
+
+	kfree(pps);
+
+	return size;
+}
+
 static bool allegro_channel_is_at_eos(struct allegro_channel *channel)
 {
 	bool is_at_eos = false;
@@ -1350,6 +1477,9 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 		u32 size;
 	} *partition;
 	enum vb2_buffer_state state = VB2_BUF_STATE_ERROR;
+	char *curr;
+	ssize_t len;
+	ssize_t free;
 
 	src_buf = v4l2_m2m_src_buf_remove(channel->fh.m2m_ctx);
 
@@ -1399,6 +1529,57 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 	 */
 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
 			      partition->offset + partition->size);
+
+	curr = vb2_plane_vaddr(&dst_buf->vb2_buf, 0);
+	free = partition->offset;
+	if (msg->is_idr) {
+		len = allegro_h264_write_sps(channel, curr, free);
+		if (len < 0) {
+			v4l2_err(&dev->v4l2_dev,
+				 "not enough space for sequence parameter set: %zd left\n",
+				 free);
+			goto err;
+		}
+		curr += len;
+		free -= len;
+		v4l2_dbg(1, debug, &dev->v4l2_dev,
+			 "channel %d: wrote %zd byte SPS nal unit\n",
+			 channel->mcu_channel_id, len);
+	}
+
+	if (msg->slice_type == AL_ENC_SLICE_TYPE_I) {
+		len = allegro_h264_write_pps(channel, curr, free);
+		if (len < 0) {
+			v4l2_err(&dev->v4l2_dev,
+				 "not enough space for picture parameter set: %zd left\n",
+				 free);
+			goto err;
+		}
+		curr += len;
+		free -= len;
+		v4l2_dbg(1, debug, &dev->v4l2_dev,
+			 "channel %d: wrote %zd byte PPS nal unit\n",
+			 channel->mcu_channel_id, len);
+	}
+
+	len = nal_h264_write_filler(&dev->plat_dev->dev, curr, free);
+	if (len < 0) {
+		v4l2_err(&dev->v4l2_dev,
+			 "failed to write %zd filler data\n", free);
+		goto err;
+	}
+	curr += len;
+	free -= len;
+	v4l2_dbg(2, debug, &dev->v4l2_dev,
+		 "channel %d: wrote %zd bytes filler nal unit\n",
+		 channel->mcu_channel_id, len);
+
+	if (free != 0) {
+		v4l2_err(&dev->v4l2_dev,
+			 "non-VCL NAL units do not fill space until VCL NAL unit: %zd bytes left\n",
+			 free);
+		goto err;
+	}
 
 	state = VB2_BUF_STATE_DONE;
 
