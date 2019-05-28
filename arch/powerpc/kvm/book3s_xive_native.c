@@ -535,6 +535,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	struct xive_q *q;
 	gfn_t gfn;
 	unsigned long page_size;
+	int srcu_idx;
 
 	/*
 	 * Demangle priority/server tuple from the EQ identifier
@@ -610,20 +611,24 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 		return -EINVAL;
 	}
 
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	gfn = gpa_to_gfn(kvm_eq.qaddr);
 	page = gfn_to_page(kvm, gfn);
 	if (is_error_page(page)) {
+		srcu_read_unlock(&kvm->srcu, srcu_idx);
 		pr_err("Couldn't get queue page %llx!\n", kvm_eq.qaddr);
 		return -EINVAL;
 	}
 
 	page_size = kvm_host_page_size(kvm, gfn);
 	if (1ull << kvm_eq.qshift > page_size) {
+		srcu_read_unlock(&kvm->srcu, srcu_idx);
 		pr_warn("Incompatible host page size %lx!\n", page_size);
 		return -EINVAL;
 	}
 
 	qaddr = page_to_virt(page) + (kvm_eq.qaddr & ~PAGE_MASK);
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 
 	/*
 	 * Backup the queue page guest address to the mark EQ page
@@ -854,6 +859,7 @@ static int kvmppc_xive_native_vcpu_eq_sync(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
 	unsigned int prio;
+	int srcu_idx;
 
 	if (!xc)
 		return -ENOENT;
@@ -865,7 +871,9 @@ static int kvmppc_xive_native_vcpu_eq_sync(struct kvm_vcpu *vcpu)
 			continue;
 
 		/* Mark EQ page dirty for migration */
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		mark_page_dirty(vcpu->kvm, gpa_to_gfn(q->guest_qaddr));
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 	}
 	return 0;
 }
