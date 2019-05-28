@@ -17,6 +17,8 @@
 #include <media/v4l2-device.h>
 #include <linux/platform_data/media/mmp-camera.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
@@ -194,6 +196,9 @@ static void mmpcam_calc_dphy(struct mcam_camera *mcam)
 	struct device *dev = &cam->pdev->dev;
 	unsigned long tx_clk_esc;
 
+	if (!pdata)
+		return;
+
 	/*
 	 * If CSI2_DPHY3 is calculated dynamically,
 	 * pdata->lane_clk should be already set
@@ -312,10 +317,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	struct mmp_camera_platform_data *pdata;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata)
-		return -ENODEV;
-
 	cam = devm_kzalloc(&pdev->dev, sizeof(*cam), GFP_KERNEL);
 	if (cam == NULL)
 		return -ENOMEM;
@@ -328,17 +329,29 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->calc_dphy = mmpcam_calc_dphy;
 	mcam->dev = &pdev->dev;
 	mcam->use_smbus = 0;
-	mcam->mclk_src = pdata->mclk_src;
-	mcam->mclk_div = pdata->mclk_div;
-	mcam->bus_type = pdata->bus_type;
-	mcam->dphy = pdata->dphy;
+	pdata = pdev->dev.platform_data;
+	if (pdata) {
+		mcam->mclk_src = pdata->mclk_src;
+		mcam->mclk_div = pdata->mclk_div;
+		mcam->bus_type = pdata->bus_type;
+		mcam->dphy = pdata->dphy;
+		mcam->lane = pdata->lane;
+	} else {
+		/*
+		 * These are values that used to be hardcoded in mcam-core and
+		 * work well on a OLPC XO 1.75 with a parallel bus sensor.
+		 * If it turns out other setups make sense, the values should
+		 * be obtained from the device tree.
+		 */
+		mcam->mclk_src = 3;
+		mcam->mclk_div = 2;
+	}
 	if (mcam->bus_type == V4L2_MBUS_CSI2_DPHY) {
 		cam->mipi_clk = devm_clk_get(mcam->dev, "mipi");
 		if ((IS_ERR(cam->mipi_clk) && mcam->dphy[2] == 0))
 			return PTR_ERR(cam->mipi_clk);
 	}
 	mcam->mipi_enabled = false;
-	mcam->lane = pdata->lane;
 	mcam->chip_id = MCAM_ARMADA610;
 	mcam->buffer_mode = B_DMA_sg;
 	strscpy(mcam->bus_info, "platform:mmp-camera", sizeof(mcam->bus_info));
@@ -473,6 +486,10 @@ static int mmpcam_resume(struct platform_device *pdev)
 
 #endif
 
+static const struct of_device_id mmpcam_of_match[] = {
+	{ .compatible = "marvell,mmp2-ccic", },
+	{},
+};
 
 static struct platform_driver mmpcam_driver = {
 	.probe		= mmpcam_probe,
@@ -483,6 +500,7 @@ static struct platform_driver mmpcam_driver = {
 #endif
 	.driver = {
 		.name	= "mmp-camera",
+		.of_match_table = of_match_ptr(mmpcam_of_match),
 	}
 };
 
