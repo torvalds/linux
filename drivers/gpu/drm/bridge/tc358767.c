@@ -188,7 +188,6 @@ struct tc_edp_link {
 	u8			assr;
 	int			scrambler_dis;
 	int			spread;
-	int			coding8b10b;
 	u8			swing;
 	u8			preemp;
 };
@@ -390,13 +389,10 @@ static u32 tc_srcctrl(struct tc_data *tc)
 	 * No training pattern, skew lane 1 data by two LSCLK cycles with
 	 * respect to lane 0 data, AutoCorrect Mode = 0
 	 */
-	u32 reg = DP0_SRCCTRL_NOTP | DP0_SRCCTRL_LANESKEW;
+	u32 reg = DP0_SRCCTRL_NOTP | DP0_SRCCTRL_LANESKEW | DP0_SRCCTRL_EN810B;
 
 	if (tc->link.scrambler_dis)
 		reg |= DP0_SRCCTRL_SCRMBLDIS;	/* Scrambler Disabled */
-	if (tc->link.coding8b10b)
-		/* Enable 8/10B Encoder (TxData[19:16] not used) */
-		reg |= DP0_SRCCTRL_EN810B;
 	if (tc->link.spread)
 		reg |= DP0_SRCCTRL_SSCG;	/* Spread Spectrum Enable */
 	if (tc->link.base.num_lanes == 2)
@@ -635,7 +631,7 @@ static int tc_get_display_props(struct tc_data *tc)
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAIN_LINK_CHANNEL_CODING, tmp);
 	if (ret < 0)
 		goto err_dpcd_read;
-	tc->link.coding8b10b = tmp[0] & BIT(0);
+
 	tc->link.scrambler_dis = 0;
 	/* read assr */
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_EDP_CONFIGURATION_SET, tmp);
@@ -649,7 +645,6 @@ static int tc_get_display_props(struct tc_data *tc)
 		tc->link.base.num_lanes,
 		(tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ?
 		"enhanced" : "non-enhanced");
-	dev_dbg(tc->dev, "ANSI 8B/10B: %d\n", tc->link.coding8b10b);
 	dev_dbg(tc->dev, "Display ASSR: %d, TC358767 ASSR: %d\n",
 		tc->link.assr, tc->assr);
 
@@ -951,7 +946,7 @@ static int tc_main_link_setup(struct tc_data *tc)
 	/* DOWNSPREAD_CTRL */
 	tmp[0] = tc->link.spread ? DP_SPREAD_AMP_0_5 : 0x00;
 	/* MAIN_LINK_CHANNEL_CODING_SET */
-	tmp[1] =  tc->link.coding8b10b ? DP_SET_ANSI_8B10B : 0x00;
+	tmp[1] =  DP_SET_ANSI_8B10B;
 	ret = drm_dp_dpcd_write(aux, DP_DOWNSPREAD_CTRL, tmp, 2);
 	if (ret < 0)
 		goto err_dpcd_write;
