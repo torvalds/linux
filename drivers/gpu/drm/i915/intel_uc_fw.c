@@ -159,7 +159,8 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		goto fail;
 	}
 
-	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
+	obj = i915_gem_object_create_shmem_from_data(dev_priv,
+						     fw->data, fw->size);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		DRM_DEBUG_DRIVER("%s fw object_create err=%d\n",

@@ -1510,7 +1510,7 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 	BUILD_BUG_ON_NOT_POWER_OF_2(OA_BUFFER_SIZE);
 	BUILD_BUG_ON(OA_BUFFER_SIZE < SZ_128K || OA_BUFFER_SIZE > SZ_16M);
 
-	bo = i915_gem_object_create(dev_priv, OA_BUFFER_SIZE);
+	bo = i915_gem_object_create_shmem(dev_priv, OA_BUFFER_SIZE);
 	if (IS_ERR(bo)) {
 		DRM_ERROR("Failed to allocate OA buffer\n");
 		ret = PTR_ERR(bo);

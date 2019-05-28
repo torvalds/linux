@@ -87,7 +87,8 @@ i915-y += $(gt-y)
 # GEM (Graphics Execution Management) code
 obj-y += gem/
 gem-y += \
-	gem/i915_gem_object.o
+	gem/i915_gem_object.o \
+	gem/i915_gem_shmem.o
 i915-y += \
 	  $(gem-y) \
 	  i915_active.o \

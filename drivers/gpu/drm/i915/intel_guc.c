@@ -695,7 +695,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	u64 flags;
 	int ret;
 
-	obj = i915_gem_object_create(dev_priv, size);
+	obj = i915_gem_object_create_shmem(dev_priv, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 

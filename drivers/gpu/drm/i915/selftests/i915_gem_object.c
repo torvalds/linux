@@ -36,7 +36,7 @@ static int igt_gem_object(void *arg)
 
 	/* Basic test to ensure we can create an object */
 
-	obj = i915_gem_object_create(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		pr_err("i915_gem_object_create failed, err=%d\n", err);
@@ -59,7 +59,7 @@ static int igt_phys_object(void *arg)
 	 * i.e. exercise the i915_gem_object_phys API.
 	 */
 
-	obj = i915_gem_object_create(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		pr_err("i915_gem_object_create failed, err=%d\n", err);

@@ -15,8 +15,28 @@
 
 #include "i915_gem_object_types.h"
 
+void i915_gem_init__objects(struct drm_i915_private *i915);
+
 struct drm_i915_gem_object *i915_gem_object_alloc(void);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
+
+void i915_gem_object_init(struct drm_i915_gem_object *obj,
+			  const struct drm_i915_gem_object_ops *ops);
+struct drm_i915_gem_object *
+i915_gem_object_create_shmem(struct drm_i915_private *i915, u64 size);
+struct drm_i915_gem_object *
+i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
+				       const void *data, size_t size);
+
+extern const struct drm_i915_gem_object_ops i915_gem_shmem_ops;
+void __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
+				     struct sg_table *pages,
+				     bool needs_clflush);
+
+void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
+void i915_gem_free_object(struct drm_gem_object *obj);
+
+void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 
 /**
  * i915_gem_object_lookup_rcu - look up a temporary GEM object from its handle
@@ -343,8 +363,23 @@ void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 
-void __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
-				     struct sg_table *pages,
-				     bool needs_clflush);
+static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
+{
+	if (obj->cache_dirty)
+		return false;
+
+	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
+		return true;
+
+	return obj->pin_global; /* currently in use by HW, keep flushed */
+}
+
+static inline void __start_cpu_write(struct drm_i915_gem_object *obj)
+{
+	obj->read_domains = I915_GEM_DOMAIN_CPU;
+	obj->write_domain = I915_GEM_DOMAIN_CPU;
+	if (cpu_write_needs_clflush(obj))
+		obj->cache_dirty = true;
+}
 
 #endif

@@ -1396,7 +1396,7 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	struct i915_vma *vma;
 	int err;
 
-	obj = i915_gem_object_create(i915, engine->context_size);
+	obj = i915_gem_object_create_shmem(i915, engine->context_size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 

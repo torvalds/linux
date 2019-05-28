@@ -1919,7 +1919,7 @@ static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
 	struct i915_vma *vma;
 	int err;
 
-	obj = i915_gem_object_create(engine->i915, CTX_WA_BB_OBJ_SIZE);
+	obj = i915_gem_object_create_shmem(engine->i915, CTX_WA_BB_OBJ_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -3010,7 +3010,7 @@ static int execlists_context_deferred_alloc(struct intel_context *ce,
 	 */
 	context_size += LRC_HEADER_PAGES * PAGE_SIZE;
 
-	ctx_obj = i915_gem_object_create(engine->i915, context_size);
+	ctx_obj = i915_gem_object_create_shmem(engine->i915, context_size);
 	if (IS_ERR(ctx_obj))
 		return PTR_ERR(ctx_obj);
 

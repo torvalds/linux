@@ -33,7 +33,7 @@ static int igt_dmabuf_export(void *arg)
 	struct drm_i915_gem_object *obj;
 	struct dma_buf *dmabuf;
 
-	obj = i915_gem_object_create(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -57,7 +57,7 @@ static int igt_dmabuf_import_self(void *arg)
 	struct dma_buf *dmabuf;
 	int err;
 
-	obj = i915_gem_object_create(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -232,7 +232,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 	void *ptr;
 	int err;
 
-	obj = i915_gem_object_create(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -279,7 +279,7 @@ static int igt_dmabuf_export_kmap(void *arg)
 	void *ptr;
 	int err;
 
-	obj = i915_gem_object_create(i915, 2*PAGE_SIZE);
+	obj = i915_gem_object_create_shmem(i915, 2 * PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 

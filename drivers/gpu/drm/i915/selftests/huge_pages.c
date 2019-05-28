@@ -1390,7 +1390,7 @@ static int igt_ppgtt_gemfs_huge(void *arg)
 	for (i = 0; i < ARRAY_SIZE(sizes); ++i) {
 		unsigned int size = sizes[i];
 
-		obj = i915_gem_object_create(i915, size);
+		obj = i915_gem_object_create_shmem(i915, size);
 		if (IS_ERR(obj))
 			return PTR_ERR(obj);
 
@@ -1568,7 +1568,7 @@ static int igt_tmpfs_fallback(void *arg)
 
 	i915->mm.gemfs = NULL;
 
-	obj = i915_gem_object_create(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		goto out_restore;
@@ -1628,7 +1628,7 @@ static int igt_shrink_thp(void *arg)
 		return 0;
 	}
 
-	obj = i915_gem_object_create(i915, SZ_2M);
+	obj = i915_gem_object_create_shmem(i915, SZ_2M);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 

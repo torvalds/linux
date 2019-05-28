@@ -2761,16 +2761,6 @@ void i915_gem_load_init_fences(struct drm_i915_private *dev_priv);
 int i915_gem_freeze(struct drm_i915_private *dev_priv);
 int i915_gem_freeze_late(struct drm_i915_private *dev_priv);
 
-void i915_gem_object_init(struct drm_i915_gem_object *obj,
-			 const struct drm_i915_gem_object_ops *ops);
-struct drm_i915_gem_object *
-i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size);
-struct drm_i915_gem_object *
-i915_gem_object_create_from_data(struct drm_i915_private *dev_priv,
-				 const void *data, size_t size);
-void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
-void i915_gem_free_object(struct drm_gem_object *obj);
-
 static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {
 	if (!atomic_read(&i915->mm.free_count))
