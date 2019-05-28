@@ -482,7 +482,7 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 						bb->obj->base.size);
 				bb->clflush &= ~CLFLUSH_AFTER;
 			}
-			i915_gem_obj_finish_shmem_access(bb->obj);
+			i915_gem_object_finish_access(bb->obj);
 			bb->accessing = false;
 
 		} else {
@@ -510,7 +510,7 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			if (ret)
 				goto err;
 
-			i915_gem_obj_finish_shmem_access(bb->obj);
+			i915_gem_object_finish_access(bb->obj);
 			bb->accessing = false;
 
 			ret = i915_vma_move_to_active(bb->vma,
@@ -588,7 +588,7 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 	list_for_each_entry_safe(bb, pos, &workload->shadow_bb, list) {
 		if (bb->obj) {
 			if (bb->accessing)
-				i915_gem_obj_finish_shmem_access(bb->obj);
+				i915_gem_object_finish_access(bb->obj);
 
 			if (bb->va && !IS_ERR(bb->va))
 				i915_gem_object_unpin_map(bb->obj);

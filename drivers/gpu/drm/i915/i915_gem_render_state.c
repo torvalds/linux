@@ -84,7 +84,7 @@ static int render_state_setup(struct intel_render_state *so,
 	u32 *d;
 	int ret;
 
-	ret = i915_gem_obj_prepare_shmem_write(so->obj, &needs_clflush);
+	ret = i915_gem_object_prepare_write(so->obj, &needs_clflush);
 	if (ret)
 		return ret;
 
@@ -166,7 +166,7 @@ static int render_state_setup(struct intel_render_state *so,
 
 	ret = 0;
 out:
-	i915_gem_obj_finish_shmem_access(so->obj);
+	i915_gem_object_finish_access(so->obj);
 	return ret;
 
 err:

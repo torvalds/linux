@@ -1026,7 +1026,7 @@ static void reloc_cache_reset(struct reloc_cache *cache)
 			mb();
 
 		kunmap_atomic(vaddr);
-		i915_gem_obj_finish_shmem_access((struct drm_i915_gem_object *)cache->node.mm);
+		i915_gem_object_finish_access((struct drm_i915_gem_object *)cache->node.mm);
 	} else {
 		wmb();
 		io_mapping_unmap_atomic((void __iomem *)vaddr);
@@ -1058,7 +1058,7 @@ static void *reloc_kmap(struct drm_i915_gem_object *obj,
 		unsigned int flushes;
 		int err;
 
-		err = i915_gem_obj_prepare_shmem_write(obj, &flushes);
+		err = i915_gem_object_prepare_write(obj, &flushes);
 		if (err)
 			return ERR_PTR(err);
 

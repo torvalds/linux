@@ -354,7 +354,7 @@ static int cpu_fill(struct drm_i915_gem_object *obj, u32 value)
 	unsigned int n, m, need_flush;
 	int err;
 
-	err = i915_gem_obj_prepare_shmem_write(obj, &need_flush);
+	err = i915_gem_object_prepare_write(obj, &need_flush);
 	if (err)
 		return err;
 
@@ -369,7 +369,7 @@ static int cpu_fill(struct drm_i915_gem_object *obj, u32 value)
 		kunmap_atomic(map);
 	}
 
-	i915_gem_obj_finish_shmem_access(obj);
+	i915_gem_object_finish_access(obj);
 	obj->read_domains = I915_GEM_DOMAIN_GTT | I915_GEM_DOMAIN_CPU;
 	obj->write_domain = 0;
 	return 0;
@@ -381,7 +381,7 @@ static noinline int cpu_check(struct drm_i915_gem_object *obj,
 	unsigned int n, m, needs_flush;
 	int err;
 
-	err = i915_gem_obj_prepare_shmem_read(obj, &needs_flush);
+	err = i915_gem_object_prepare_read(obj, &needs_flush);
 	if (err)
 		return err;
 
@@ -419,7 +419,7 @@ out_unmap:
 			break;
 	}
 
-	i915_gem_obj_finish_shmem_access(obj);
+	i915_gem_object_finish_access(obj);
 	return err;
 }
 

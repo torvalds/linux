@@ -87,6 +87,7 @@ i915-y += $(gt-y)
 # GEM (Graphics Execution Management) code
 obj-y += gem/
 gem-y += \
+	gem/i915_gem_domain.o \
 	gem/i915_gem_object.o \
 	gem/i915_gem_mman.o \
 	gem/i915_gem_pages.o \

@@ -15,6 +15,8 @@
 
 #include "i915_gem_object_types.h"
 
+#include "i915_gem_gtt.h"
+
 void i915_gem_init__objects(struct drm_i915_private *i915);
 
 struct drm_i915_gem_object *i915_gem_object_alloc(void);
@@ -358,6 +360,20 @@ void
 i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
 				   unsigned int flush_domains);
 
+int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
+				 unsigned int *needs_clflush);
+int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
+				  unsigned int *needs_clflush);
+#define CLFLUSH_BEFORE	BIT(0)
+#define CLFLUSH_AFTER	BIT(1)
+#define CLFLUSH_FLAGS	(CLFLUSH_BEFORE | CLFLUSH_AFTER)
+
+static inline void
+i915_gem_object_finish_access(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_unpin_pages(obj);
+}
+
 static inline struct intel_engine_cs *
 i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 {
@@ -378,6 +394,19 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
+
+int __must_check
+i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write);
+int __must_check
+i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write);
+int __must_check
+i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
+struct i915_vma * __must_check
+i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
+				     u32 alignment,
+				     const struct i915_ggtt_view *view,
+				     unsigned int flags);
+void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 
 static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {

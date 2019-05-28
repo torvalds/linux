@@ -1764,7 +1764,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		goto err_free_bb;
 	}
 
-	ret = i915_gem_obj_prepare_shmem_write(bb->obj, &bb->clflush);
+	ret = i915_gem_object_prepare_write(bb->obj, &bb->clflush);
 	if (ret)
 		goto err_free_obj;
 
@@ -1813,7 +1813,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 err_unmap:
 	i915_gem_object_unpin_map(bb->obj);
 err_finish_shmem_access:
-	i915_gem_obj_finish_shmem_access(bb->obj);
+	i915_gem_object_finish_access(bb->obj);
 err_free_obj:
 	i915_gem_object_put(bb->obj);
 err_free_bb:

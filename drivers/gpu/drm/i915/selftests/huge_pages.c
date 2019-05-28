@@ -1017,7 +1017,7 @@ static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 	unsigned long n;
 	int err;
 
-	err = i915_gem_obj_prepare_shmem_read(obj, &needs_flush);
+	err = i915_gem_object_prepare_read(obj, &needs_flush);
 	if (err)
 		return err;
 
@@ -1038,7 +1038,7 @@ static int cpu_check(struct drm_i915_gem_object *obj, u32 dword, u32 val)
 		kunmap_atomic(ptr);
 	}
 
-	i915_gem_obj_finish_shmem_access(obj);
+	i915_gem_object_finish_access(obj);
 
 	return err;
 }

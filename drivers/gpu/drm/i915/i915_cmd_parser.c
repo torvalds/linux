@@ -1058,11 +1058,11 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 	void *dst, *src;
 	int ret;
 
-	ret = i915_gem_obj_prepare_shmem_read(src_obj, &src_needs_clflush);
+	ret = i915_gem_object_prepare_read(src_obj, &src_needs_clflush);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = i915_gem_obj_prepare_shmem_write(dst_obj, &dst_needs_clflush);
+	ret = i915_gem_object_prepare_write(dst_obj, &dst_needs_clflush);
 	if (ret) {
 		dst = ERR_PTR(ret);
 		goto unpin_src;
@@ -1120,9 +1120,9 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 	*needs_clflush_after = dst_needs_clflush & CLFLUSH_AFTER;
 
 unpin_dst:
-	i915_gem_obj_finish_shmem_access(dst_obj);
+	i915_gem_object_finish_access(dst_obj);
 unpin_src:
-	i915_gem_obj_finish_shmem_access(src_obj);
+	i915_gem_object_finish_access(src_obj);
 	return dst;
 }
 

@@ -37,7 +37,7 @@ static int cpu_set(struct drm_i915_gem_object *obj,
 	u32 *cpu;
 	int err;
 
-	err = i915_gem_obj_prepare_shmem_write(obj, &needs_clflush);
+	err = i915_gem_object_prepare_write(obj, &needs_clflush);
 	if (err)
 		return err;
 
@@ -54,7 +54,7 @@ static int cpu_set(struct drm_i915_gem_object *obj,
 		drm_clflush_virt_range(cpu, sizeof(*cpu));
 
 	kunmap_atomic(map);
-	i915_gem_obj_finish_shmem_access(obj);
+	i915_gem_object_finish_access(obj);
 
 	return 0;
 }
@@ -69,7 +69,7 @@ static int cpu_get(struct drm_i915_gem_object *obj,
 	u32 *cpu;
 	int err;
 
-	err = i915_gem_obj_prepare_shmem_read(obj, &needs_clflush);
+	err = i915_gem_object_prepare_read(obj, &needs_clflush);
 	if (err)
 		return err;
 
@@ -83,7 +83,7 @@ static int cpu_get(struct drm_i915_gem_object *obj,
 	*v = *cpu;
 
 	kunmap_atomic(map);
-	i915_gem_obj_finish_shmem_access(obj);
+	i915_gem_object_finish_access(obj);
 
 	return 0;
 }

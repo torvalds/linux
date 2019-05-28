@@ -2814,20 +2814,6 @@ static inline int __sg_page_count(const struct scatterlist *sg)
 	return sg->length >> PAGE_SHIFT;
 }
 
-int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
-				    unsigned int *needs_clflush);
-int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
-				     unsigned int *needs_clflush);
-#define CLFLUSH_BEFORE	BIT(0)
-#define CLFLUSH_AFTER	BIT(1)
-#define CLFLUSH_FLAGS	(CLFLUSH_BEFORE | CLFLUSH_AFTER)
-
-static inline void
-i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
-{
-	i915_gem_object_unpin_pages(obj);
-}
-
 static inline int __must_check
 i915_mutex_lock_interruptible(struct drm_device *dev)
 {
@@ -2890,18 +2876,6 @@ int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 				  const struct i915_sched_attr *attr);
 #define I915_PRIORITY_DISPLAY I915_USER_PRIORITY(I915_PRIORITY_MAX)
 
-int __must_check
-i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write);
-int __must_check
-i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write);
-int __must_check
-i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
-struct i915_vma * __must_check
-i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
-				     u32 alignment,
-				     const struct i915_ggtt_view *view,
-				     unsigned int flags);
-void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
