@@ -144,8 +144,13 @@ struct elantech_device_info {
 	unsigned char debug;
 	unsigned char hw_version;
 	unsigned int fw_version;
+	unsigned int x_min;
+	unsigned int y_min;
+	unsigned int x_max;
+	unsigned int y_max;
 	unsigned int x_res;
 	unsigned int y_res;
+	unsigned int width;
 	unsigned int bus;
 	bool paritycheck;
 	bool jumpy_cursor;
