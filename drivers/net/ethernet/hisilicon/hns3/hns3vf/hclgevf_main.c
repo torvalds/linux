@@ -1621,7 +1621,8 @@ static void hclgevf_get_misc_vector(struct hclgevf_dev *hdev)
 
 void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev)
 {
-	if (!test_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state)) {
+	if (!test_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state) &&
+	    !test_bit(HCLGEVF_STATE_REMOVING, &hdev->state)) {
 		set_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
 		schedule_work(&hdev->rst_service_task);
 	}
@@ -2132,6 +2133,7 @@ static void hclgevf_state_init(struct hclgevf_dev *hdev)
 static void hclgevf_state_uninit(struct hclgevf_dev *hdev)
 {
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
+	set_bit(HCLGEVF_STATE_REMOVING, &hdev->state);
 
 	if (hdev->keep_alive_timer.function)
 		del_timer_sync(&hdev->keep_alive_timer);
