@@ -76,6 +76,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/crc32.h> /* For counting font checksums */
+#include <linux/uaccess.h>
 #include <asm/fb.h>
 #include <asm/irq.h>
 
@@ -3318,27 +3319,45 @@ void fbcon_get_requirement(struct fb_info *info,
 	}
 }
 
-static int fbcon_event_notify(struct notifier_block *self,
-			      unsigned long action, void *data)
+int fbcon_set_con2fb_map_ioctl(void __user *argp)
 {
-	struct fb_event *event = data;
-	struct fb_info *info = event->info;
-	struct fb_con2fbmap *con2fb;
-	int idx, ret = 0;
+	struct fb_con2fbmap con2fb;
+	int ret;
 
-	switch(action) {
-	case FB_EVENT_SET_CONSOLE_MAP:
-		/* called with console lock held */
-		con2fb = event->data;
-		ret = set_con2fb_map(con2fb->console - 1,
-				     con2fb->framebuffer, 1);
-		break;
-	case FB_EVENT_GET_CONSOLE_MAP:
-		con2fb = event->data;
-		con2fb->framebuffer = con2fb_map[con2fb->console - 1];
-		break;
+	if (copy_from_user(&con2fb, argp, sizeof(con2fb)))
+		return -EFAULT;
+	if (con2fb.console < 1 || con2fb.console > MAX_NR_CONSOLES)
+		return -EINVAL;
+	if (con2fb.framebuffer >= FB_MAX)
+		return -EINVAL;
+	if (!registered_fb[con2fb.framebuffer])
+		request_module("fb%d", con2fb.framebuffer);
+	if (!registered_fb[con2fb.framebuffer]) {
+		return -EINVAL;
 	}
+
+	console_lock();
+	ret = set_con2fb_map(con2fb.console - 1,
+			     con2fb.framebuffer, 1);
+	console_unlock();
+
 	return ret;
+}
+
+int fbcon_get_con2fb_map_ioctl(void __user *argp)
+{
+	struct fb_con2fbmap con2fb;
+
+	if (copy_from_user(&con2fb, argp, sizeof(con2fb)))
+		return -EFAULT;
+	if (con2fb.console < 1 || con2fb.console > MAX_NR_CONSOLES)
+		return -EINVAL;
+
+	console_lock();
+	con2fb.framebuffer = con2fb_map[con2fb.console - 1];
+	console_unlock();
+
+	return copy_to_user(argp, &con2fb, sizeof(con2fb)) ? -EFAULT : 0;
 }
 
 /*
@@ -3370,10 +3389,6 @@ static const struct consw fb_con = {
 	.con_resize             = fbcon_resize,
 	.con_debug_enter	= fbcon_debug_enter,
 	.con_debug_leave	= fbcon_debug_leave,
-};
-
-static struct notifier_block fbcon_event_notifier = {
-	.notifier_call	= fbcon_event_notify,
 };
 
 static ssize_t store_rotate(struct device *device,
@@ -3648,7 +3663,6 @@ void __init fb_console_init(void)
 	int i;
 
 	console_lock();
-	fb_register_client(&fbcon_event_notifier);
 	fbcon_device = device_create(fb_class, NULL, MKDEV(0, 0), NULL,
 				     "fbcon");
 
@@ -3684,7 +3698,6 @@ static void __exit fbcon_deinit_device(void)
 void __exit fb_console_exit(void)
 {
 	console_lock();
-	fb_unregister_client(&fbcon_event_notifier);
 	fbcon_deinit_device();
 	device_destroy(fb_class, MKDEV(0, 0));
 	fbcon_exit();
