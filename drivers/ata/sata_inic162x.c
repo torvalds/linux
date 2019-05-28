@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sata_inic162x.c - Driver for Initio 162x SATA controllers
  *
  * Copyright 2006  SUSE Linux Products GmbH
  * Copyright 2006  Tejun Heo <teheo@novell.com>
- *
- * This file is released under GPL v2.
  *
  * **** WARNING ****
  *
