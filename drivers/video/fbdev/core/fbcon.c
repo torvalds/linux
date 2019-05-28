@@ -3283,8 +3283,8 @@ void fbcon_new_modelist(struct fb_info *info)
 	}
 }
 
-static void fbcon_get_requirement(struct fb_info *info,
-				  struct fb_blit_caps *caps)
+void fbcon_get_requirement(struct fb_info *info,
+			   struct fb_blit_caps *caps)
 {
 	struct vc_data *vc;
 	struct fbcon_display *p;
@@ -3325,7 +3325,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 	struct fb_event *event = data;
 	struct fb_info *info = event->info;
 	struct fb_con2fbmap *con2fb;
-	struct fb_blit_caps *caps;
 	int idx, ret = 0;
 
 	switch(action) {
@@ -3347,10 +3346,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 		break;
 	case FB_EVENT_BLANK:
 		fbcon_fb_blanked(info, *(int *)event->data);
-		break;
-	case FB_EVENT_GET_REQ:
-		caps = event->data;
-		fbcon_get_requirement(info, caps);
 		break;
 	case FB_EVENT_REMAP_ALL_CONSOLE:
 		idx = info->node;
