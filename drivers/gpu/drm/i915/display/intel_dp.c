@@ -4221,8 +4221,14 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (!intel_dp_read_dpcd(intel_dp))
 		return false;
 
-	/* Don't clobber cached eDP rates. */
+	/*
+	 * Don't clobber cached eDP rates. Also skip re-reading
+	 * the OUI/ID since we know it won't change.
+	 */
 	if (!intel_dp_is_edp(intel_dp)) {
+		drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
+				 drm_dp_is_branch(intel_dp->dpcd));
+
 		intel_dp_set_sink_rates(intel_dp);
 		intel_dp_set_common_rates(intel_dp);
 	}
@@ -4231,7 +4237,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	 * Some eDP panels do not set a valid value for sink count, that is why
 	 * it don't care about read it here and in intel_edp_init_dpcd().
 	 */
-	if (!intel_dp_is_edp(intel_dp)) {
+	if (!intel_dp_is_edp(intel_dp) &&
+	    !drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_SINK_COUNT)) {
 		u8 count;
 		ssize_t r;
 
@@ -5376,9 +5383,6 @@ intel_dp_detect(struct drm_connector *connector,
 	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
 	if (INTEL_GEN(dev_priv) >= 11)
 		intel_dp_get_dsc_sink_cap(intel_dp);
-
-	drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
-			 drm_dp_is_branch(intel_dp->dpcd));
 
 	intel_dp_configure_mst(intel_dp);
 
