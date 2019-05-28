@@ -39,8 +39,6 @@
 enum efa_cmd_status {
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
-	/* Abort - canceled by the driver */
-	EFA_CMD_ABORTED,
 };
 
 struct efa_comp_ctx {
@@ -532,16 +530,6 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 		msleep(aq->poll_interval);
 	}
 
-	if (comp_ctx->status == EFA_CMD_ABORTED) {
-		ibdev_err(aq->efa_dev, "Command was aborted\n");
-		atomic64_inc(&aq->stats.aborted_cmd);
-		err = -ENODEV;
-		goto out;
-	}
-
-	WARN_ONCE(comp_ctx->status != EFA_CMD_COMPLETED,
-		  "Invalid completion status %d\n", comp_ctx->status);
-
 	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
@@ -666,66 +654,6 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 }
 
 /**
- * efa_com_abort_admin_commands - Abort all the outstanding admin commands.
- * @edev: EFA communication layer struct
- *
- * This method aborts all the outstanding admin commands.
- * The caller should then call efa_com_wait_for_abort_completion to make sure
- * all the commands were completed.
- */
-static void efa_com_abort_admin_commands(struct efa_com_dev *edev)
-{
-	struct efa_com_admin_queue *aq = &edev->aq;
-	struct efa_comp_ctx *comp_ctx;
-	unsigned long flags;
-	u16 i;
-
-	spin_lock(&aq->sq.lock);
-	spin_lock_irqsave(&aq->cq.lock, flags);
-	for (i = 0; i < aq->depth; i++) {
-		comp_ctx = efa_com_get_comp_ctx(aq, i, false);
-		if (!comp_ctx)
-			break;
-
-		comp_ctx->status = EFA_CMD_ABORTED;
-
-		complete(&comp_ctx->wait_event);
-	}
-	spin_unlock_irqrestore(&aq->cq.lock, flags);
-	spin_unlock(&aq->sq.lock);
-}
-
-/**
- * efa_com_wait_for_abort_completion - Wait for admin commands abort.
- * @edev: EFA communication layer struct
- *
- * This method wait until all the outstanding admin commands will be completed.
- */
-static void efa_com_wait_for_abort_completion(struct efa_com_dev *edev)
-{
-	struct efa_com_admin_queue *aq = &edev->aq;
-	int i;
-
-	/* all mine */
-	for (i = 0; i < aq->depth; i++)
-		down(&aq->avail_cmds);
-
-	/* let it go */
-	for (i = 0; i < aq->depth; i++)
-		up(&aq->avail_cmds);
-}
-
-static void efa_com_admin_flush(struct efa_com_dev *edev)
-{
-	struct efa_com_admin_queue *aq = &edev->aq;
-
-	clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
-
-	efa_com_abort_admin_commands(edev);
-	efa_com_wait_for_abort_completion(edev);
-}
-
-/**
  * efa_com_admin_destroy - Destroy the admin and the async events queues.
  * @edev: EFA communication layer struct
  */
@@ -737,7 +665,7 @@ void efa_com_admin_destroy(struct efa_com_dev *edev)
 	struct efa_com_admin_sq *sq = &aq->sq;
 	u16 size;
 
-	efa_com_admin_flush(edev);
+	clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 
 	devm_kfree(edev->dmadev, aq->comp_ctx_pool);
 	devm_kfree(edev->dmadev, aq->comp_ctx);
