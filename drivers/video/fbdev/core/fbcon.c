@@ -2364,8 +2364,7 @@ static void fbcon_generic_blank(struct vc_data *vc, struct fb_info *info,
 	}
 
 
-	if (!lock_fb_info(info))
-		return;
+	lock_fb_info(info);
 	event.info = info;
 	event.data = &blank;
 	fb_notifier_call_chain(FB_EVENT_CONBLANK, &event);

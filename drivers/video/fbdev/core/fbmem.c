@@ -80,17 +80,6 @@ static void put_fb_info(struct fb_info *fb_info)
 		fb_info->fbops->fb_destroy(fb_info);
 }
 
-int lock_fb_info(struct fb_info *info)
-{
-	mutex_lock(&info->lock);
-	if (!info->fbops) {
-		mutex_unlock(&info->lock);
-		return 0;
-	}
-	return 1;
-}
-EXPORT_SYMBOL(lock_fb_info);
-
 /*
  * Helpers
  */
@@ -1121,8 +1110,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 	switch (cmd) {
 	case FBIOGET_VSCREENINFO:
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		var = info->var;
 		unlock_fb_info(info);
 
@@ -1132,10 +1120,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (copy_from_user(&var, argp, sizeof(var)))
 			return -EFAULT;
 		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
+		lock_fb_info(info);
 		info->flags |= FBINFO_MISC_USEREVENT;
 		ret = fb_set_var(info, &var);
 		info->flags &= ~FBINFO_MISC_USEREVENT;
@@ -1145,8 +1130,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			ret = -EFAULT;
 		break;
 	case FBIOGET_FSCREENINFO:
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		fix = info->fix;
 		if (info->flags & FBINFO_HIDE_SMEM_START)
 			fix.smem_start = 0;
@@ -1162,8 +1146,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case FBIOGETCMAP:
 		if (copy_from_user(&cmap, argp, sizeof(cmap)))
 			return -EFAULT;
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		cmap_from = info->cmap;
 		unlock_fb_info(info);
 		ret = fb_cmap_to_user(&cmap_from, &cmap);
@@ -1172,10 +1155,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (copy_from_user(&var, argp, sizeof(var)))
 			return -EFAULT;
 		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
+		lock_fb_info(info);
 		ret = fb_pan_display(info, &var);
 		unlock_fb_info(info);
 		console_unlock();
@@ -1192,8 +1172,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			return -EINVAL;
 		con2fb.framebuffer = -1;
 		event.data = &con2fb;
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		event.info = info;
 		fb_notifier_call_chain(FB_EVENT_GET_CONSOLE_MAP, &event);
 		unlock_fb_info(info);
@@ -1214,10 +1193,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		}
 		event.data = &con2fb;
 		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
+		lock_fb_info(info);
 		event.info = info;
 		ret = fb_notifier_call_chain(FB_EVENT_SET_CONSOLE_MAP, &event);
 		unlock_fb_info(info);
@@ -1225,10 +1201,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		break;
 	case FBIOBLANK:
 		console_lock();
-		if (!lock_fb_info(info)) {
-			console_unlock();
-			return -ENODEV;
-		}
+		lock_fb_info(info);
 		info->flags |= FBINFO_MISC_USEREVENT;
 		ret = fb_blank(info, arg);
 		info->flags &= ~FBINFO_MISC_USEREVENT;
@@ -1236,8 +1209,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		console_unlock();
 		break;
 	default:
-		if (!lock_fb_info(info))
-			return -ENODEV;
+		lock_fb_info(info);
 		fb = info->fbops;
 		if (fb->fb_ioctl)
 			ret = fb->fb_ioctl(info, cmd, arg);
@@ -1357,8 +1329,7 @@ static int fb_get_fscreeninfo(struct fb_info *info, unsigned int cmd,
 {
 	struct fb_fix_screeninfo fix;
 
-	if (!lock_fb_info(info))
-		return -ENODEV;
+	lock_fb_info(info);
 	fix = info->fix;
 	if (info->flags & FBINFO_HIDE_SMEM_START)
 		fix.smem_start = 0;
@@ -1418,8 +1389,6 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (!info)
 		return -ENODEV;
 	fb = info->fbops;
-	if (!fb)
-		return -ENODEV;
 	mutex_lock(&info->mm_lock);
 	if (fb->fb_mmap) {
 		int res;
@@ -1483,7 +1452,7 @@ __releases(&info->lock)
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
-	mutex_lock(&info->lock);
+	lock_fb_info(info);
 	if (!try_module_get(info->fbops->owner)) {
 		res = -ENODEV;
 		goto out;
@@ -1499,7 +1468,7 @@ __releases(&info->lock)
 		fb_deferred_io_open(info, inode, file);
 #endif
 out:
-	mutex_unlock(&info->lock);
+	unlock_fb_info(info);
 	if (res)
 		put_fb_info(info);
 	return res;
@@ -1512,11 +1481,11 @@ __releases(&info->lock)
 {
 	struct fb_info * const info = file->private_data;
 
-	mutex_lock(&info->lock);
+	lock_fb_info(info);
 	if (info->fbops->fb_release)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
-	mutex_unlock(&info->lock);
+	unlock_fb_info(info);
 	put_fb_info(info);
 	return 0;
 }
@@ -1734,14 +1703,10 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 		console_lock();
 	else
 		atomic_inc(&ignore_console_lock_warning);
-	if (!lock_fb_info(fb_info)) {
-		ret = -ENODEV;
-		goto unlock_console;
-	}
-
+	lock_fb_info(fb_info);
 	ret = fbcon_fb_registered(fb_info);
 	unlock_fb_info(fb_info);
-unlock_console:
+
 	if (!lockless_register_fb)
 		console_unlock();
 	else
@@ -1759,11 +1724,7 @@ static int unbind_console(struct fb_info *fb_info)
 		return -EINVAL;
 
 	console_lock();
-	if (!lock_fb_info(fb_info)) {
-		console_unlock();
-		return -ENODEV;
-	}
-
+	lock_fb_info(fb_info);
 	event.info = fb_info;
 	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
 	unlock_fb_info(fb_info);
