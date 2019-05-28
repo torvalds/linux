@@ -6,11 +6,13 @@
 
 #include <linux/random.h>
 
-#include "../i915_selftest.h"
+#include "gem/selftests/igt_gem_utils.h"
+#include "gem/selftests/mock_context.h"
 
-#include "igt_gem_utils.h"
+#include "i915_selftest.h"
+
 #include "igt_flush_test.h"
-#include "mock_context.h"
+#include "mock_drm.h"
 
 static int switch_to_context(struct drm_i915_private *i915,
 			     struct i915_gem_context *ctx)

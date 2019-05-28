@@ -45,7 +45,6 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "i915_gem_clflush.h"
 #include "i915_trace.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"

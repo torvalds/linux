@@ -195,6 +195,8 @@
 #include <linux/sizes.h>
 #include <linux/uuid.h>
 
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
 #include "gt/intel_lrc_reg.h"
 
 #include "i915_drv.h"

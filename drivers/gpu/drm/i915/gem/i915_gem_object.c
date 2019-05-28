@@ -23,8 +23,9 @@
  */
 
 #include "i915_drv.h"
-#include "i915_gem_object.h"
 #include "i915_gem_clflush.h"
+#include "i915_gem_context.h"
+#include "i915_gem_object.h"
 #include "i915_globals.h"
 #include "intel_frontbuffer.h"
 
@@ -442,3 +443,10 @@ int __init i915_global_objects_init(void)
 	i915_global_register(&global.base);
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/huge_gem_object.c"
+#include "selftests/huge_pages.c"
+#include "selftests/i915_gem_object.c"
+#include "selftests/i915_gem_coherency.c"
+#endif

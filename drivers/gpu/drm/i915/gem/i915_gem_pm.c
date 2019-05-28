@@ -4,10 +4,10 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "gem/i915_gem_pm.h"
 #include "gt/intel_gt_pm.h"
 
 #include "i915_drv.h"
-#include "i915_gem_pm.h"
 #include "i915_globals.h"
 
 static void i915_gem_park(struct drm_i915_private *i915)

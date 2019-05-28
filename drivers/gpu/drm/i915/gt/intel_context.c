@@ -4,8 +4,10 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
+
 #include "i915_drv.h"
-#include "i915_gem_context.h"
 #include "i915_globals.h"
 
 #include "intel_context.h"

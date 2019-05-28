@@ -87,33 +87,33 @@ i915-y += $(gt-y)
 # GEM (Graphics Execution Management) code
 obj-y += gem/
 gem-y += \
+	gem/i915_gem_clflush.o \
+	gem/i915_gem_context.o \
+	gem/i915_gem_dmabuf.o \
 	gem/i915_gem_domain.o \
+	gem/i915_gem_execbuffer.o \
+	gem/i915_gem_internal.o \
 	gem/i915_gem_object.o \
 	gem/i915_gem_mman.o \
 	gem/i915_gem_pages.o \
 	gem/i915_gem_phys.o \
-	gem/i915_gem_shmem.o
+	gem/i915_gem_pm.o \
+	gem/i915_gem_shmem.o \
+	gem/i915_gem_shrinker.o \
+	gem/i915_gem_stolen.o \
+	gem/i915_gem_tiling.o \
+	gem/i915_gem_userptr.o \
+	gem/i915_gemfs.o
 i915-y += \
 	  $(gem-y) \
 	  i915_active.o \
 	  i915_cmd_parser.o \
 	  i915_gem_batch_pool.o \
-	  i915_gem_clflush.o \
-	  i915_gem_context.o \
-	  i915_gem_dmabuf.o \
 	  i915_gem_evict.o \
-	  i915_gem_execbuffer.o \
 	  i915_gem_fence_reg.o \
 	  i915_gem_gtt.o \
-	  i915_gem_internal.o \
 	  i915_gem.o \
-	  i915_gem_pm.o \
 	  i915_gem_render_state.o \
-	  i915_gem_shrinker.o \
-	  i915_gem_stolen.o \
-	  i915_gem_tiling.o \
-	  i915_gem_userptr.o \
-	  i915_gemfs.o \
 	  i915_globals.o \
 	  i915_query.o \
 	  i915_request.o \
@@ -199,10 +199,10 @@ i915-y += dvo_ch7017.o \
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
+	gem/selftests/igt_gem_utils.o \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
 	selftests/igt_flush_test.o \
-	selftests/igt_gem_utils.o \
 	selftests/igt_live_test.o \
 	selftests/igt_reset.o \
 	selftests/igt_spinner.o

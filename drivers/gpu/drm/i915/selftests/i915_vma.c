@@ -24,10 +24,11 @@
 
 #include <linux/prime_numbers.h>
 
-#include "../i915_selftest.h"
+#include "gem/selftests/mock_context.h"
+
+#include "i915_selftest.h"
 
 #include "mock_gem_device.h"
-#include "mock_context.h"
 #include "mock_gtt.h"
 
 static bool assert_vma(struct i915_vma *vma,

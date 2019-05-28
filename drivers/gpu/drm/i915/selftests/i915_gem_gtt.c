@@ -25,10 +25,11 @@
 #include <linux/list_sort.h>
 #include <linux/prime_numbers.h>
 
-#include "../i915_selftest.h"
-#include "i915_random.h"
+#include "gem/selftests/mock_context.h"
 
-#include "mock_context.h"
+#include "i915_random.h"
+#include "i915_selftest.h"
+
 #include "mock_drm.h"
 #include "mock_gem_device.h"
 

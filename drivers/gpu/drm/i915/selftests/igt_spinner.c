@@ -4,7 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "igt_gem_utils.h"
+#include "gem/selftests/igt_gem_utils.h"
+
 #include "igt_spinner.h"
 
 int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)

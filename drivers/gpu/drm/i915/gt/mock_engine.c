@@ -22,8 +22,9 @@
  *
  */
 
+#include "gem/i915_gem_context.h"
+
 #include "i915_drv.h"
-#include "i915_gem_context.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
 

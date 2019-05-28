@@ -5,6 +5,7 @@
  */
 
 #include "i915_drv.h"
+#include "intel_context.h"
 #include "intel_workarounds.h"
 
 /**

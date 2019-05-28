@@ -7,8 +7,8 @@
 #include <linux/prime_numbers.h>
 
 #include "gt/intel_gt_pm.h"
+#include "huge_gem_object.h"
 #include "i915_selftest.h"
-#include "selftests/huge_gem_object.h"
 #include "selftests/igt_flush_test.h"
 
 struct tile {

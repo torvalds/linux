@@ -8,7 +8,7 @@
 #include <linux/workqueue.h>
 
 #include "i915_active.h"
-#include "i915_gem_context.h"
+#include "gem/i915_gem_context.h"
 #include "gem/i915_gem_object.h"
 #include "i915_globals.h"
 #include "i915_request.h"

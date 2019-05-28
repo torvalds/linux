@@ -1,4 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * SPDX-License-Identifier: MIT
+ *
+ * Copyright © 2016 Intel Corporation
+ */
+
 #ifndef __MOCK_GEM_OBJECT_H__
 #define __MOCK_GEM_OBJECT_H__
 

@@ -22,7 +22,8 @@
  *
  */
 
-#include "../i915_selftest.h"
+#include "i915_selftest.h"
+#include "gem/i915_gem_pm.h"
 
 /* max doorbell number + negative test for each client type */
 #define ATTEMPTS (GUC_NUM_DOORBELLS + GUC_CLIENT_PRIORITY_NUM)

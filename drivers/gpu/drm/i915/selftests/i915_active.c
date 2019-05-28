@@ -4,7 +4,9 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "../i915_selftest.h"
+#include "gem/i915_gem_pm.h"
+
+#include "i915_selftest.h"
 
 #include "igt_flush_test.h"
 #include "lib_sw_fence.h"

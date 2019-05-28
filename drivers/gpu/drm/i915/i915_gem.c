@@ -38,7 +38,11 @@
 #include <linux/dma-buf.h>
 #include <linux/mman.h>
 
+#include "gem/i915_gem_clflush.h"
+#include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
+#include "gem/i915_gem_pm.h"
+#include "gem/i915_gemfs.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_mocs.h"
@@ -46,9 +50,6 @@
 #include "gt/intel_workarounds.h"
 
 #include "i915_drv.h"
-#include "i915_gem_clflush.h"
-#include "i915_gemfs.h"
-#include "i915_gem_pm.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 
@@ -2371,9 +2372,5 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/scatterlist.c"
 #include "selftests/mock_gem_device.c"
-#include "selftests/huge_gem_object.c"
-#include "selftests/huge_pages.c"
-#include "selftests/i915_gem_object.c"
-#include "selftests/i915_gem_coherency.c"
 #include "selftests/i915_gem.c"
 #endif

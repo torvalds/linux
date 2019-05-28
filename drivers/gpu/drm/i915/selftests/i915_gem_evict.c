@@ -22,11 +22,13 @@
  *
  */
 
-#include "../i915_selftest.h"
+#include "gem/i915_gem_pm.h"
+#include "gem/selftests/igt_gem_utils.h"
+#include "gem/selftests/mock_context.h"
 
-#include "igt_gem_utils.h"
+#include "i915_selftest.h"
+
 #include "lib_sw_fence.h"
-#include "mock_context.h"
 #include "mock_drm.h"
 #include "mock_gem_device.h"
 

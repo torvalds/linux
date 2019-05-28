@@ -29,6 +29,9 @@
 #include <linux/sched/clock.h>
 #include <linux/sched/signal.h>
 
+#include "gem/i915_gem_context.h"
+#include "gt/intel_context.h"
+
 #include "i915_active.h"
 #include "i915_drv.h"
 #include "i915_globals.h"

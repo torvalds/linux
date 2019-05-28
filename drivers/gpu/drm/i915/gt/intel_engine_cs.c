@@ -24,10 +24,13 @@
 
 #include <drm/drm_print.h>
 
+#include "gem/i915_gem_context.h"
+
 #include "i915_drv.h"
 
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
+#include "intel_context.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
 

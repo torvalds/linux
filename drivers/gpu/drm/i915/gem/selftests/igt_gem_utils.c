@@ -6,11 +6,11 @@
 
 #include "igt_gem_utils.h"
 
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
 
-#include "../i915_gem_context.h"
-#include "../i915_gem_pm.h"
-#include "../i915_request.h"
+#include "i915_request.h"
 
 struct i915_request *
 igt_request_alloc(struct i915_gem_context *ctx, struct intel_engine_cs *engine)

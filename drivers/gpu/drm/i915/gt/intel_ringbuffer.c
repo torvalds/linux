@@ -31,9 +31,12 @@
 
 #include <drm/i915_drm.h>
 
+#include "gem/i915_gem_context.h"
+
 #include "i915_drv.h"
 #include "i915_gem_render_state.h"
 #include "i915_trace.h"
+#include "intel_context.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
 

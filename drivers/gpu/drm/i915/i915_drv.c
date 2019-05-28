@@ -47,6 +47,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/i915_drm.h>
 
+#include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_reset.h"

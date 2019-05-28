@@ -1,42 +1,26 @@
 /*
+ * SPDX-License-Identifier: MIT
+ *
  * Copyright © 2017 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
  */
 
 #include <linux/prime_numbers.h>
 
+#include "gem/i915_gem_pm.h"
 #include "gt/intel_reset.h"
 #include "i915_selftest.h"
 
-#include "i915_random.h"
-#include "igt_flush_test.h"
-#include "igt_gem_utils.h"
-#include "igt_live_test.h"
-#include "igt_reset.h"
-#include "igt_spinner.h"
+#include "gem/selftests/igt_gem_utils.h"
+#include "selftests/i915_random.h"
+#include "selftests/igt_flush_test.h"
+#include "selftests/igt_live_test.h"
+#include "selftests/igt_reset.h"
+#include "selftests/igt_spinner.h"
+#include "selftests/mock_drm.h"
+#include "selftests/mock_gem_device.h"
 
-#include "mock_drm.h"
-#include "mock_gem_device.h"
 #include "huge_gem_object.h"
+#include "igt_gem_utils.h"
 
 #define DW_PER_PAGE (PAGE_SIZE / sizeof(u32))
 

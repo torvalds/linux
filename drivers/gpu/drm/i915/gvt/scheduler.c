@@ -35,8 +35,11 @@
 
 #include <linux/kthread.h>
 
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
+#include "gt/intel_context.h"
+
 #include "i915_drv.h"
-#include "i915_gem_pm.h"
 #include "gvt.h"
 
 #define RING_CTX_OFF(x) \

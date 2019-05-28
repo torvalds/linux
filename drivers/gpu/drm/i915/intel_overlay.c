@@ -29,6 +29,8 @@
 #include <drm/drm_fourcc.h>
 #include <drm/i915_drm.h>
 
+#include "gem/i915_gem_pm.h"
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_drv.h"

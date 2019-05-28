@@ -34,6 +34,7 @@
  */
 
 #include "i915_drv.h"
+#include "gt/intel_context.h"
 #include "gvt.h"
 #include "trace.h"
 

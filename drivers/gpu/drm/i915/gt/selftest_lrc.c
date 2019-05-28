@@ -6,15 +6,18 @@
 
 #include <linux/prime_numbers.h>
 
+#include "gem/i915_gem_pm.h"
 #include "gt/intel_reset.h"
+
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 #include "selftests/igt_flush_test.h"
-#include "selftests/igt_gem_utils.h"
 #include "selftests/igt_live_test.h"
 #include "selftests/igt_spinner.h"
 #include "selftests/lib_sw_fence.h"
-#include "selftests/mock_context.h"
+
+#include "gem/selftests/igt_gem_utils.h"
+#include "gem/selftests/mock_context.h"
 
 static int live_sanitycheck(void *arg)
 {
