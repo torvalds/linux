@@ -1285,30 +1285,30 @@ static int pbl_create(struct efa_dev *dev,
 	int err;
 
 	pbl->pbl_buf_size_in_bytes = hp_cnt * EFA_CHUNK_PAYLOAD_PTR_SIZE;
-	pbl->pbl_buf = kzalloc(pbl->pbl_buf_size_in_bytes,
-			       GFP_KERNEL | __GFP_NOWARN);
-	if (pbl->pbl_buf) {
+	pbl->pbl_buf = kvzalloc(pbl->pbl_buf_size_in_bytes, GFP_KERNEL);
+	if (!pbl->pbl_buf)
+		return -ENOMEM;
+
+	if (is_vmalloc_addr(pbl->pbl_buf)) {
+		pbl->physically_continuous = 0;
+		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
+					hp_shift);
+		if (err)
+			goto err_free;
+
+		err = pbl_indirect_initialize(dev, pbl);
+		if (err)
+			goto err_free;
+	} else {
 		pbl->physically_continuous = 1;
 		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
 					hp_shift);
 		if (err)
-			goto err_continuous;
+			goto err_free;
+
 		err = pbl_continuous_initialize(dev, pbl);
 		if (err)
-			goto err_continuous;
-	} else {
-		pbl->physically_continuous = 0;
-		pbl->pbl_buf = vzalloc(pbl->pbl_buf_size_in_bytes);
-		if (!pbl->pbl_buf)
-			return -ENOMEM;
-
-		err = umem_to_page_list(dev, umem, pbl->pbl_buf, hp_cnt,
-					hp_shift);
-		if (err)
-			goto err_indirect;
-		err = pbl_indirect_initialize(dev, pbl);
-		if (err)
-			goto err_indirect;
+			goto err_free;
 	}
 
 	ibdev_dbg(&dev->ibdev,
@@ -1317,24 +1317,20 @@ static int pbl_create(struct efa_dev *dev,
 
 	return 0;
 
-err_continuous:
-	kfree(pbl->pbl_buf);
-	return err;
-err_indirect:
-	vfree(pbl->pbl_buf);
+err_free:
+	kvfree(pbl->pbl_buf);
 	return err;
 }
 
 static void pbl_destroy(struct efa_dev *dev, struct pbl_context *pbl)
 {
-	if (pbl->physically_continuous) {
+	if (pbl->physically_continuous)
 		dma_unmap_single(&dev->pdev->dev, pbl->phys.continuous.dma_addr,
 				 pbl->pbl_buf_size_in_bytes, DMA_TO_DEVICE);
-		kfree(pbl->pbl_buf);
-	} else {
+	else
 		pbl_indirect_terminate(dev, pbl);
-		vfree(pbl->pbl_buf);
-	}
+
+	kvfree(pbl->pbl_buf);
 }
 
 static int efa_create_inline_pbl(struct efa_dev *dev, struct efa_mr *mr,
