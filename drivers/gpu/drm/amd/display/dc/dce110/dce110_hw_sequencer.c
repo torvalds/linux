@@ -1507,6 +1507,18 @@ static void disable_vga_and_power_gate_all_controllers(
 	}
 }
 
+
+static struct dc_stream_state *get_edp_stream(struct dc_state *context)
+{
+	int i;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
+			return context->streams[i];
+	}
+	return NULL;
+}
+
 static struct dc_link *get_edp_link(struct dc *dc)
 {
 	int i;
@@ -1550,11 +1562,15 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	int i;
 	struct dc_link *edp_link_with_sink = get_edp_link_with_sink(dc, context);
 	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_stream_state *edp_stream = NULL;
 	bool can_apply_edp_fast_boot = false;
 	bool can_apply_seamless_boot = false;
+	bool keep_edp_vdd_on = false;
 
 	if (dc->hwss.init_pipes)
 		dc->hwss.init_pipes(dc, context);
+
+	edp_stream = get_edp_stream(context);
 
 	// Check fastboot support, disable on DCE8 because of blank screens
 	if (edp_link && dc->ctx->dce_version != DCE_VERSION_8_0 &&
@@ -1563,15 +1579,16 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 
 		// enable fastboot if backend is enabled on eDP
 		if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
-			/* Find eDP stream and set optimization flag */
-			for (i = 0; i < context->stream_count; i++) {
-				if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
-					context->streams[i]->apply_edp_fast_boot_optimization = true;
-					can_apply_edp_fast_boot = true;
-					break;
-				}
+			/* Set optimization flag on eDP stream*/
+			if (edp_stream) {
+				edp_stream->apply_edp_fast_boot_optimization = true;
+				can_apply_edp_fast_boot = true;
 			}
 		}
+
+		// We are trying to enable eDP, don't power down VDD
+		if (edp_stream)
+			keep_edp_vdd_on = true;
 	}
 
 	// Check seamless boot support
@@ -1586,14 +1603,14 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	 * it should get turned off
 	 */
 	if (!can_apply_edp_fast_boot && !can_apply_seamless_boot) {
-		if (edp_link_with_sink) {
+		if (edp_link_with_sink && !keep_edp_vdd_on) {
 			/*turn off backlight before DP_blank and encoder powered down*/
 			dc->hwss.edp_backlight_control(edp_link_with_sink, false);
 		}
 		/*resume from S3, no vbios posting, no need to power down again*/
 		power_down_all_hw_blocks(dc);
 		disable_vga_and_power_gate_all_controllers(dc);
-		if (edp_link_with_sink)
+		if (edp_link_with_sink && !keep_edp_vdd_on)
 			dc->hwss.edp_power_control(edp_link_with_sink, false);
 	}
 	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
