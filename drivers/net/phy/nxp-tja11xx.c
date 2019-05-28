@@ -311,29 +311,9 @@ static umode_t tja11xx_hwmon_is_visible(const void *data,
 	return 0;
 }
 
-static u32 tja11xx_hwmon_in_config[] = {
-	HWMON_I_LCRIT_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info tja11xx_hwmon_in = {
-	.type		= hwmon_in,
-	.config		= tja11xx_hwmon_in_config,
-};
-
-static u32 tja11xx_hwmon_temp_config[] = {
-	HWMON_T_CRIT_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info tja11xx_hwmon_temp = {
-	.type		= hwmon_temp,
-	.config		= tja11xx_hwmon_temp_config,
-};
-
 static const struct hwmon_channel_info *tja11xx_hwmon_info[] = {
-	&tja11xx_hwmon_in,
-	&tja11xx_hwmon_temp,
+	HWMON_CHANNEL_INFO(in, HWMON_I_LCRIT_ALARM),
+	HWMON_CHANNEL_INFO(temp, HWMON_T_CRIT_ALARM),
 	NULL
 };
 
