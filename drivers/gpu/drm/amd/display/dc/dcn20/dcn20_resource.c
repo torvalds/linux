@@ -2156,7 +2156,10 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		}
 		if (force_split && context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 1)
 			context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] /= 2;
-
+		if (dc->config.forced_clocks == true) {
+			context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] =
+					context->bw_ctx.dml.soc.clock_limits[0].dppclk_mhz;
+		}
 		if (!pipe->top_pipe && !pipe->plane_state && context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]) {
 			hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
 			ASSERT(hsplit_pipe);
@@ -2257,6 +2260,10 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 						context->bw_ctx.dml.vba.ODMCombineEnablePerState[vlevel][pipe_split_from[i]];
 			else
 				pipes[pipe_cnt].pipe.dest.odm_combine = 0;
+		}
+		if (dc->config.forced_clocks) {
+			pipes[pipe_cnt].clks_cfg.dispclk_mhz = context->bw_ctx.dml.soc.clock_limits[0].dispclk_mhz;
+			pipes[pipe_cnt].clks_cfg.dppclk_mhz = context->bw_ctx.dml.soc.clock_limits[0].dppclk_mhz;
 		}
 		pipe_cnt++;
 	}
