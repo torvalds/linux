@@ -103,7 +103,7 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 
 	/* Only allow one queue per process can have GWS assigned */
 	if (gws && pdd->qpd.num_gws)
-		return -EINVAL;
+		return -EBUSY;
 
 	if (!gws && pdd->qpd.num_gws == 0)
 		return -EINVAL;

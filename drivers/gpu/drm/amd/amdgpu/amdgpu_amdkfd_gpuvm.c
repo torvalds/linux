@@ -2124,7 +2124,7 @@ int amdgpu_amdkfd_add_gws_to_process(void *info, void *gws, struct kgd_mem **mem
 
 	*mem = kzalloc(sizeof(struct kgd_mem), GFP_KERNEL);
 	if (!*mem)
-		return -EINVAL;
+		return -ENOMEM;
 
 	mutex_init(&(*mem)->lock);
 	(*mem)->bo = amdgpu_bo_ref(gws_bo);
