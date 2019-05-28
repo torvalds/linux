@@ -204,18 +204,20 @@ static int
 nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 {
 	switch (asyw->state.fb->format->format) {
-	case DRM_FORMAT_C8         : asyw->image.format = 0x1e; break;
-	case DRM_FORMAT_XRGB8888   :
-	case DRM_FORMAT_ARGB8888   : asyw->image.format = 0xcf; break;
-	case DRM_FORMAT_RGB565     : asyw->image.format = 0xe8; break;
-	case DRM_FORMAT_XRGB1555   :
-	case DRM_FORMAT_ARGB1555   : asyw->image.format = 0xe9; break;
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010: asyw->image.format = 0xd1; break;
-	case DRM_FORMAT_XBGR8888   :
-	case DRM_FORMAT_ABGR8888   : asyw->image.format = 0xd5; break;
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ARGB2101010: asyw->image.format = 0xdf; break;
+	case DRM_FORMAT_C8           : asyw->image.format = 0x1e; break;
+	case DRM_FORMAT_XRGB8888     :
+	case DRM_FORMAT_ARGB8888     : asyw->image.format = 0xcf; break;
+	case DRM_FORMAT_RGB565       : asyw->image.format = 0xe8; break;
+	case DRM_FORMAT_XRGB1555     :
+	case DRM_FORMAT_ARGB1555     : asyw->image.format = 0xe9; break;
+	case DRM_FORMAT_XBGR2101010  :
+	case DRM_FORMAT_ABGR2101010  : asyw->image.format = 0xd1; break;
+	case DRM_FORMAT_XBGR8888     :
+	case DRM_FORMAT_ABGR8888     : asyw->image.format = 0xd5; break;
+	case DRM_FORMAT_XRGB2101010  :
+	case DRM_FORMAT_ARGB2101010  : asyw->image.format = 0xdf; break;
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F: asyw->image.format = 0xca; break;
 	default:
 		return -EINVAL;
 	}
