@@ -469,6 +469,10 @@ struct sfp_bus;
 
 /**
  * struct sfp_upstream_ops - upstream operations structure
+ * @attach: called when the sfp socket driver is bound to the upstream
+ *   (mandatory).
+ * @detach: called when the sfp socket driver is unbound from the upstream
+ *   (mandatory).
  * @module_insert: called after a module has been detected to determine
  *   whether the module is supported for the upstream device.
  * @module_remove: called after the module has been removed.
@@ -481,6 +485,8 @@ struct sfp_bus;
  *   been removed.
  */
 struct sfp_upstream_ops {
+	void (*attach)(void *priv, struct sfp_bus *bus);
+	void (*detach)(void *priv, struct sfp_bus *bus);
 	int (*module_insert)(void *priv, const struct sfp_eeprom_id *id);
 	void (*module_remove)(void *priv);
 	void (*link_down)(void *priv);

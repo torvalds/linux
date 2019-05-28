@@ -1650,6 +1650,20 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 }
 EXPORT_SYMBOL_GPL(phylink_mii_ioctl);
 
+static void phylink_sfp_attach(void *upstream, struct sfp_bus *bus)
+{
+	struct phylink *pl = upstream;
+
+	pl->netdev->sfp_bus = bus;
+}
+
+static void phylink_sfp_detach(void *upstream, struct sfp_bus *bus)
+{
+	struct phylink *pl = upstream;
+
+	pl->netdev->sfp_bus = NULL;
+}
+
 static int phylink_sfp_module_insert(void *upstream,
 				     const struct sfp_eeprom_id *id)
 {
@@ -1768,6 +1782,8 @@ static void phylink_sfp_disconnect_phy(void *upstream)
 }
 
 static const struct sfp_upstream_ops sfp_phylink_ops = {
+	.attach = phylink_sfp_attach,
+	.detach = phylink_sfp_detach,
 	.module_insert = phylink_sfp_module_insert,
 	.link_up = phylink_sfp_link_up,
 	.link_down = phylink_sfp_link_down,

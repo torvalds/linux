@@ -351,7 +351,7 @@ static int sfp_register_bus(struct sfp_bus *bus)
 	bus->socket_ops->attach(bus->sfp);
 	if (bus->started)
 		bus->socket_ops->start(bus->sfp);
-	bus->netdev->sfp_bus = bus;
+	bus->upstream_ops->attach(bus->upstream, bus);
 	bus->registered = true;
 	return 0;
 }
@@ -360,8 +360,8 @@ static void sfp_unregister_bus(struct sfp_bus *bus)
 {
 	const struct sfp_upstream_ops *ops = bus->upstream_ops;
 
-	bus->netdev->sfp_bus = NULL;
 	if (bus->registered) {
+		bus->upstream_ops->detach(bus->upstream, bus);
 		if (bus->started)
 			bus->socket_ops->stop(bus->sfp);
 		bus->socket_ops->detach(bus->sfp);
