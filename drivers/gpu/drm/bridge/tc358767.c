@@ -286,12 +286,15 @@ static int tc_aux_get_status(struct tc_data *tc, u8 *reply)
 	ret = regmap_read(tc->regmap, DP0_AUXSTATUS, &value);
 	if (ret < 0)
 		return ret;
+
 	if (value & AUX_BUSY) {
-		if (value & AUX_TIMEOUT) {
-			dev_err(tc->dev, "i2c access timeout!\n");
-			return -ETIMEDOUT;
-		}
+		dev_err(tc->dev, "aux busy!\n");
 		return -EBUSY;
+	}
+
+	if (value & AUX_TIMEOUT) {
+		dev_err(tc->dev, "aux access timeout!\n");
+		return -ETIMEDOUT;
 	}
 
 	*reply = (value & AUX_STATUS_MASK) >> AUX_STATUS_SHIFT;
