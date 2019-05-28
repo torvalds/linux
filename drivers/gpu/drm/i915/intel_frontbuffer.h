@@ -24,7 +24,7 @@
 #ifndef __INTEL_FRONTBUFFER_H__
 #define __INTEL_FRONTBUFFER_H__
 
-#include "i915_gem_object.h"
+#include "gem/i915_gem_object.h"
 
 struct drm_i915_private;
 struct drm_i915_gem_object;

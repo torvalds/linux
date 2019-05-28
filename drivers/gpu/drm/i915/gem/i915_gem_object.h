@@ -13,7 +13,7 @@
 
 #include <drm/i915_drm.h>
 
-#include "gem/i915_gem_object_types.h"
+#include "i915_gem_object_types.h"
 
 struct drm_i915_gem_object *i915_gem_object_alloc(void);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
@@ -191,6 +191,136 @@ i915_gem_object_get_tile_row_size(const struct drm_i915_gem_object *obj)
 
 int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 			       unsigned int tiling, unsigned int stride);
+
+struct scatterlist *
+i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
+		       unsigned int n, unsigned int *offset);
+
+struct page *
+i915_gem_object_get_page(struct drm_i915_gem_object *obj,
+			 unsigned int n);
+
+struct page *
+i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
+			       unsigned int n);
+
+dma_addr_t
+i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj,
+				    unsigned long n,
+				    unsigned int *len);
+
+dma_addr_t
+i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
+				unsigned long n);
+
+void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
+				 struct sg_table *pages,
+				 unsigned int sg_page_sizes);
+int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+
+static inline int __must_check
+i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
+{
+	might_lock(&obj->mm.lock);
+
+	if (atomic_inc_not_zero(&obj->mm.pages_pin_count))
+		return 0;
+
+	return __i915_gem_object_get_pages(obj);
+}
+
+static inline bool
+i915_gem_object_has_pages(struct drm_i915_gem_object *obj)
+{
+	return !IS_ERR_OR_NULL(READ_ONCE(obj->mm.pages));
+}
+
+static inline void
+__i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
+{
+	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
+
+	atomic_inc(&obj->mm.pages_pin_count);
+}
+
+static inline bool
+i915_gem_object_has_pinned_pages(struct drm_i915_gem_object *obj)
+{
+	return atomic_read(&obj->mm.pages_pin_count);
+}
+
+static inline void
+__i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
+{
+	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+
+	atomic_dec(&obj->mm.pages_pin_count);
+}
+
+static inline void
+i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
+{
+	__i915_gem_object_unpin_pages(obj);
+}
+
+enum i915_mm_subclass { /* lockdep subclass for obj->mm.lock/struct_mutex */
+	I915_MM_NORMAL = 0,
+	I915_MM_SHRINKER /* called "recursively" from direct-reclaim-esque */
+};
+
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
+				enum i915_mm_subclass subclass);
+void __i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+
+enum i915_map_type {
+	I915_MAP_WB = 0,
+	I915_MAP_WC,
+#define I915_MAP_OVERRIDE BIT(31)
+	I915_MAP_FORCE_WB = I915_MAP_WB | I915_MAP_OVERRIDE,
+	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
+};
+
+/**
+ * i915_gem_object_pin_map - return a contiguous mapping of the entire object
+ * @obj: the object to map into kernel address space
+ * @type: the type of mapping, used to select pgprot_t
+ *
+ * Calls i915_gem_object_pin_pages() to prevent reaping of the object's
+ * pages and then returns a contiguous mapping of the backing storage into
+ * the kernel address space. Based on the @type of mapping, the PTE will be
+ * set to either WriteBack or WriteCombine (via pgprot_t).
+ *
+ * The caller is responsible for calling i915_gem_object_unpin_map() when the
+ * mapping is no longer required.
+ *
+ * Returns the pointer through which to access the mapped object, or an
+ * ERR_PTR() on error.
+ */
+void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
+					   enum i915_map_type type);
+
+void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
+				 unsigned long offset,
+				 unsigned long size);
+static inline void i915_gem_object_flush_map(struct drm_i915_gem_object *obj)
+{
+	__i915_gem_object_flush_map(obj, 0, obj->base.size);
+}
+
+/**
+ * i915_gem_object_unpin_map - releases an earlier mapping
+ * @obj: the object to unmap
+ *
+ * After pinning the object and mapping its pages, once you are finished
+ * with your access, call i915_gem_object_unpin_map() to release the pin
+ * upon the mapping. Once the pin count reaches zero, that mapping may be
+ * removed.
+ */
+static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_unpin_pages(obj);
+}
 
 static inline struct intel_engine_cs *
 i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)

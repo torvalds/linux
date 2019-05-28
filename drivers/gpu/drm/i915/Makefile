@@ -86,7 +86,10 @@ i915-y += $(gt-y)
 
 # GEM (Graphics Execution Management) code
 obj-y += gem/
+gem-y += \
+	gem/i915_gem_object.o
 i915-y += \
+	  $(gem-y) \
 	  i915_active.o \
 	  i915_cmd_parser.o \
 	  i915_gem_batch_pool.o \
@@ -99,7 +102,6 @@ i915-y += \
 	  i915_gem_gtt.o \
 	  i915_gem_internal.o \
 	  i915_gem.o \
-	  i915_gem_object.o \
 	  i915_gem_pm.o \
 	  i915_gem_render_state.o \
 	  i915_gem_shrinker.o \
