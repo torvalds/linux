@@ -1306,6 +1306,10 @@ static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 	struct hnae3_handle *handle = &hdev->nic;
 	int ret;
 
+	if (!test_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state) ||
+	    !client)
+		return 0;
+
 	if (!client->ops->reset_notify)
 		return -EOPNOTSUPP;
 
@@ -2265,6 +2269,7 @@ static int hclgevf_init_client_instance(struct hnae3_client *client,
 			goto clear_nic;
 
 		hnae3_set_client_init_flag(client, ae_dev, 1);
+		set_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state);
 
 		if (netif_msg_drv(&hdev->nic))
 			hclgevf_info_show(hdev);
@@ -2342,6 +2347,8 @@ static void hclgevf_uninit_client_instance(struct hnae3_client *client,
 	/* un-init nic/unic, if this was not called by roce client */
 	if (client->ops->uninit_instance && hdev->nic_client &&
 	    client->type != HNAE3_CLIENT_ROCE) {
+		clear_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state);
+
 		client->ops->uninit_instance(&hdev->nic, 0);
 		hdev->nic_client = NULL;
 		hdev->nic.client = NULL;
