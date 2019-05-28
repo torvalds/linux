@@ -71,6 +71,7 @@
 
 /* System */
 #define TC_IDREG		0x0500
+#define SYSSTAT			0x0508
 #define SYSCTRL			0x0510
 #define DP0_AUDSRC_NO_INPUT		(0 << 3)
 #define DP0_AUDSRC_I2S_RX		(1 << 3)
@@ -79,9 +80,16 @@
 #define DP0_VIDSRC_DPI_RX		(2 << 0)
 #define DP0_VIDSRC_COLOR_BAR		(3 << 0)
 #define GPIOM			0x0540
+#define GPIOC			0x0544
+#define GPIOO			0x0548
 #define GPIOI			0x054c
 #define INTCTL_G		0x0560
 #define INTSTS_G		0x0564
+
+#define INT_SYSERR		BIT(16)
+#define INT_GPIO_H(x)		(1 << (x == 0 ? 2 : 10))
+#define INT_GPIO_LC(x)		(1 << (x == 0 ? 3 : 11))
+
 #define INT_GP0_LCNT		0x0584
 #define INT_GP1_LCNT		0x0588
 
@@ -219,6 +227,12 @@ struct tc_data {
 	struct gpio_desc	*sd_gpio;
 	struct gpio_desc	*reset_gpio;
 	struct clk		*refclk;
+
+	/* do we have IRQ */
+	bool			have_irq;
+
+	/* HPD pin number (0 or 1) or -ENODEV */
+	int			hpd_pin;
 };
 
 static inline struct tc_data *aux_to_tc(struct drm_dp_aux *a)
@@ -1109,6 +1123,12 @@ static void tc_bridge_enable(struct drm_bridge *bridge)
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
 
+	ret = tc_get_display_props(tc);
+	if (ret < 0) {
+		dev_err(tc->dev, "failed to read display props: %d\n", ret);
+		return;
+	}
+
 	ret = tc_main_link_enable(tc);
 	if (ret < 0) {
 		dev_err(tc->dev, "main link enable error: %d\n", ret);
@@ -1221,19 +1241,40 @@ static int tc_connector_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static void tc_connector_set_polling(struct tc_data *tc,
-				     struct drm_connector *connector)
-{
-	/* TODO: add support for HPD */
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-			    DRM_CONNECTOR_POLL_DISCONNECT;
-}
-
 static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 	.get_modes = tc_connector_get_modes,
 };
 
+static enum drm_connector_status tc_connector_detect(struct drm_connector *connector,
+						     bool force)
+{
+	struct tc_data *tc = connector_to_tc(connector);
+	bool conn;
+	u32 val;
+	int ret;
+
+	if (tc->hpd_pin < 0) {
+		if (tc->panel)
+			return connector_status_connected;
+		else
+			return connector_status_unknown;
+	}
+
+	tc_read(GPIOI, &val);
+
+	conn = val & BIT(tc->hpd_pin);
+
+	if (conn)
+		return connector_status_connected;
+	else
+		return connector_status_disconnected;
+
+err:
+	return connector_status_unknown;
+}
+
 static const struct drm_connector_funcs tc_connector_funcs = {
+	.detect = tc_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -1248,13 +1289,22 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 	struct drm_device *drm = bridge->dev;
 	int ret;
 
-	/* Create eDP connector */
+	/* Create DP/eDP connector */
 	drm_connector_helper_add(&tc->connector, &tc_connector_helper_funcs);
 	ret = drm_connector_init(drm, &tc->connector, &tc_connector_funcs,
 				 tc->panel ? DRM_MODE_CONNECTOR_eDP :
 				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret)
 		return ret;
+
+	/* Don't poll if don't have HPD connected */
+	if (tc->hpd_pin >= 0) {
+		if (tc->have_irq)
+			tc->connector.polled = DRM_CONNECTOR_POLL_HPD;
+		else
+			tc->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
+					       DRM_CONNECTOR_POLL_DISCONNECT;
+	}
 
 	if (tc->panel)
 		drm_panel_attach(tc->panel, &tc->connector);
@@ -1322,6 +1372,49 @@ static const struct regmap_config tc_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
+static irqreturn_t tc_irq_handler(int irq, void *arg)
+{
+	struct tc_data *tc = arg;
+	u32 val;
+	int r;
+
+	r = regmap_read(tc->regmap, INTSTS_G, &val);
+	if (r)
+		return IRQ_NONE;
+
+	if (!val)
+		return IRQ_NONE;
+
+	if (val & INT_SYSERR) {
+		u32 stat = 0;
+
+		regmap_read(tc->regmap, SYSSTAT, &stat);
+
+		dev_err(tc->dev, "syserr %x\n", stat);
+	}
+
+	if (tc->hpd_pin >= 0 && tc->bridge.dev) {
+		/*
+		 * H is triggered when the GPIO goes high.
+		 *
+		 * LC is triggered when the GPIO goes low and stays low for
+		 * the duration of LCNT
+		 */
+		bool h = val & INT_GPIO_H(tc->hpd_pin);
+		bool lc = val & INT_GPIO_LC(tc->hpd_pin);
+
+		dev_dbg(tc->dev, "GPIO%d: %s %s\n", tc->hpd_pin,
+			h ? "H" : "", lc ? "LC" : "");
+
+		if (h || lc)
+			drm_kms_helper_hotplug_event(tc->bridge.dev);
+	}
+
+	regmap_write(tc->regmap, INTSTS_G, val);
+
+	return IRQ_HANDLED;
+}
+
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
@@ -1373,6 +1466,33 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
+	ret = of_property_read_u32(dev->of_node, "toshiba,hpd-pin",
+				   &tc->hpd_pin);
+	if (ret) {
+		tc->hpd_pin = -ENODEV;
+	} else {
+		if (tc->hpd_pin < 0 || tc->hpd_pin > 1) {
+			dev_err(dev, "failed to parse HPD number\n");
+			return ret;
+		}
+	}
+
+	if (client->irq > 0) {
+		/* enable SysErr */
+		regmap_write(tc->regmap, INTCTL_G, INT_SYSERR);
+
+		ret = devm_request_threaded_irq(dev, client->irq,
+						NULL, tc_irq_handler,
+						IRQF_ONESHOT,
+						"tc358767-irq", tc);
+		if (ret) {
+			dev_err(dev, "failed to register dp interrupt\n");
+			return ret;
+		}
+
+		tc->have_irq = true;
+	}
+
 	ret = regmap_read(tc->regmap, TC_IDREG, &tc->rev);
 	if (ret) {
 		dev_err(tc->dev, "can not read device ID: %d\n", ret);
@@ -1386,6 +1506,22 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tc->assr = (tc->rev == 0x6601); /* Enable ASSR for eDP panels */
 
+	if (tc->hpd_pin >= 0) {
+		u32 lcnt_reg = tc->hpd_pin == 0 ? INT_GP0_LCNT : INT_GP1_LCNT;
+		u32 h_lc = INT_GPIO_H(tc->hpd_pin) | INT_GPIO_LC(tc->hpd_pin);
+
+		/* Set LCNT to 2ms */
+		regmap_write(tc->regmap, lcnt_reg,
+			     clk_get_rate(tc->refclk) * 2 / 1000);
+		/* We need the "alternate" mode for HPD */
+		regmap_write(tc->regmap, GPIOM, BIT(tc->hpd_pin));
+
+		if (tc->have_irq) {
+			/* enable H & LC */
+			regmap_update_bits(tc->regmap, INTCTL_G, h_lc, h_lc);
+		}
+	}
+
 	ret = tc_aux_link_setup(tc);
 	if (ret)
 		return ret;
@@ -1398,12 +1534,6 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret)
 		return ret;
 
-	ret = tc_get_display_props(tc);
-	if (ret)
-		goto err_unregister_aux;
-
-	tc_connector_set_polling(tc, &tc->connector);
-
 	tc->bridge.funcs = &tc_bridge_funcs;
 	tc->bridge.of_node = dev->of_node;
 	drm_bridge_add(&tc->bridge);
@@ -1411,9 +1541,6 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, tc);
 
 	return 0;
-err_unregister_aux:
-	drm_dp_aux_unregister(&tc->aux);
-	return ret;
 }
 
 static int tc_remove(struct i2c_client *client)
