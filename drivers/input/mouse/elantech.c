@@ -1736,6 +1736,15 @@ static int elantech_query_info(struct psmouse *psmouse,
 			return -EINVAL;
 
 		info->width = info->x_max / (traces - 1);
+
+		/* column number of traces */
+		info->x_traces = traces;
+
+		/* row number of traces */
+		traces = info->capabilities[2];
+		if ((traces >= 2) && (traces <= info->y_max))
+			info->y_traces = traces;
+
 		break;
 	}
 
@@ -1781,17 +1790,45 @@ static int elantech_create_smbus(struct psmouse *psmouse,
 				 struct elantech_device_info *info,
 				 bool leave_breadcrumbs)
 {
-	const struct property_entry i2c_properties[] = {
-		PROPERTY_ENTRY_BOOL("elan,trackpoint"),
-		{ },
-	};
+	struct property_entry i2c_props[11] = {};
 	struct i2c_board_info smbus_board = {
 		I2C_BOARD_INFO("elan_i2c", 0x15),
 		.flags = I2C_CLIENT_HOST_NOTIFY,
 	};
+	unsigned int idx = 0;
+
+	smbus_board.properties = i2c_props;
+
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-size-x",
+						   info->x_max + 1);
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-size-y",
+						   info->y_max + 1);
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-min-x",
+						   info->x_min);
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-min-y",
+						   info->y_min);
+	if (info->x_res)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-x-mm",
+						      (info->x_max + 1) / info->x_res);
+	if (info->y_res)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-y-mm",
+						      (info->y_max + 1) / info->y_res);
 
 	if (info->has_trackpoint)
-		smbus_board.properties = i2c_properties;
+		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,trackpoint");
+
+	if (info->has_middle_button)
+		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,middle-button");
+
+	if (info->x_traces)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("elan,x_traces",
+						      info->x_traces);
+	if (info->y_traces)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("elan,y_traces",
+						      info->y_traces);
+
+	if (elantech_is_buttonpad(info))
+		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,clickpad");
 
 	return psmouse_smbus_init(psmouse, &smbus_board, NULL, 0, false,
 				  leave_breadcrumbs);
