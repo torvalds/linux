@@ -3197,6 +3197,8 @@ static int hclge_reset_prepare_down(struct hclge_dev *hdev)
 
 static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 {
+#define HCLGE_RESET_SYNC_TIME 100
+
 	u32 reg_val;
 	int ret = 0;
 
@@ -3205,7 +3207,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		/* There is no mechanism for PF to know if VF has stopped IO
 		 * for now, just wait 100 ms for VF to stop IO
 		 */
-		msleep(100);
+		msleep(HCLGE_RESET_SYNC_TIME);
 		ret = hclge_func_reset_cmd(hdev, 0);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -3225,7 +3227,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		/* There is no mechanism for PF to know if VF has stopped IO
 		 * for now, just wait 100 ms for VF to stop IO
 		 */
-		msleep(100);
+		msleep(HCLGE_RESET_SYNC_TIME);
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 		set_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
 		hdev->rst_stats.flr_rst_cnt++;
@@ -3239,6 +3241,10 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		break;
 	}
 
+	/* inform hardware that preparatory work is done */
+	msleep(HCLGE_RESET_SYNC_TIME);
+	hclge_write_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG,
+			HCLGE_NIC_CMQ_ENABLE);
 	dev_info(&hdev->pdev->dev, "prepare wait ok\n");
 
 	return ret;

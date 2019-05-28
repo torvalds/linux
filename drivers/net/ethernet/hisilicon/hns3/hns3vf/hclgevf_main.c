@@ -1414,6 +1414,8 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 
 static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 {
+#define HCLGEVF_RESET_SYNC_TIME 100
+
 	int ret = 0;
 
 	switch (hdev->reset_type) {
@@ -1431,7 +1433,10 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	}
 
 	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
-
+	/* inform hardware that preparatory work is done */
+	msleep(HCLGEVF_RESET_SYNC_TIME);
+	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG,
+			  HCLGEVF_NIC_CMQ_ENABLE);
 	dev_info(&hdev->pdev->dev, "prepare reset(%d) wait done, ret:%d\n",
 		 hdev->reset_type, ret);
 
