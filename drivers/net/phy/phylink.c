@@ -395,6 +395,34 @@ static const char *phylink_pause_to_str(int pause)
 	}
 }
 
+static void phylink_mac_link_up(struct phylink *pl,
+				struct phylink_link_state link_state)
+{
+	struct net_device *ndev = pl->netdev;
+
+	pl->ops->mac_link_up(ndev, pl->link_an_mode,
+			     pl->phy_state.interface,
+			     pl->phydev);
+
+	netif_carrier_on(ndev);
+
+	netdev_info(ndev,
+		    "Link is Up - %s/%s - flow control %s\n",
+		    phy_speed_to_str(link_state.speed),
+		    phy_duplex_to_str(link_state.duplex),
+		    phylink_pause_to_str(link_state.pause));
+}
+
+static void phylink_mac_link_down(struct phylink *pl)
+{
+	struct net_device *ndev = pl->netdev;
+
+	netif_carrier_off(ndev);
+	pl->ops->mac_link_down(ndev, pl->link_an_mode,
+			       pl->phy_state.interface);
+	netdev_info(ndev, "Link is Down\n");
+}
+
 static void phylink_resolve(struct work_struct *w)
 {
 	struct phylink *pl = container_of(w, struct phylink, resolve);
@@ -443,24 +471,10 @@ static void phylink_resolve(struct work_struct *w)
 	}
 
 	if (link_state.link != netif_carrier_ok(ndev)) {
-		if (!link_state.link) {
-			netif_carrier_off(ndev);
-			pl->ops->mac_link_down(ndev, pl->link_an_mode,
-					       pl->phy_state.interface);
-			netdev_info(ndev, "Link is Down\n");
-		} else {
-			pl->ops->mac_link_up(ndev, pl->link_an_mode,
-					     pl->phy_state.interface,
-					     pl->phydev);
-
-			netif_carrier_on(ndev);
-
-			netdev_info(ndev,
-				    "Link is Up - %s/%s - flow control %s\n",
-				    phy_speed_to_str(link_state.speed),
-				    phy_duplex_to_str(link_state.duplex),
-				    phylink_pause_to_str(link_state.pause));
-		}
+		if (!link_state.link)
+			phylink_mac_link_down(pl);
+		else
+			phylink_mac_link_up(pl, link_state);
 	}
 	if (!link_state.link && pl->mac_link_dropped) {
 		pl->mac_link_dropped = false;
