@@ -481,12 +481,15 @@ void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 				    phy_interface_t interface)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct net_device *dev = dp->slave;
+	struct phy_device *phydev = NULL;
 	struct dsa_switch *ds = dp->ds;
 
+	if (dsa_is_user_port(ds, dp->index))
+		phydev = dp->slave->phydev;
+
 	if (!ds->ops->phylink_mac_link_down) {
-		if (ds->ops->adjust_link && dev->phydev)
-			ds->ops->adjust_link(ds, dp->index, dev->phydev);
+		if (ds->ops->adjust_link && phydev)
+			ds->ops->adjust_link(ds, dp->index, phydev);
 		return;
 	}
 
@@ -500,12 +503,11 @@ void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 				  struct phy_device *phydev)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct net_device *dev = dp->slave;
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->phylink_mac_link_up) {
-		if (ds->ops->adjust_link && dev->phydev)
-			ds->ops->adjust_link(ds, dp->index, dev->phydev);
+		if (ds->ops->adjust_link && phydev)
+			ds->ops->adjust_link(ds, dp->index, phydev);
 		return;
 	}
 
@@ -599,8 +601,53 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 	return 0;
 }
 
+static int dsa_port_phylink_register(struct dsa_port *dp)
+{
+	struct dsa_switch *ds = dp->ds;
+	struct device_node *port_dn = dp->dn;
+	int mode, err;
+
+	mode = of_get_phy_mode(port_dn);
+	if (mode < 0)
+		mode = PHY_INTERFACE_MODE_NA;
+
+	dp->pl_config.dev = ds->dev;
+	dp->pl_config.type = PHYLINK_DEV;
+
+	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
+				mode, &dsa_port_phylink_mac_ops);
+	if (IS_ERR(dp->pl)) {
+		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
+		return PTR_ERR(dp->pl);
+	}
+
+	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
+	if (err) {
+		pr_err("could not attach to PHY: %d\n", err);
+		goto err_phy_connect;
+	}
+
+	rtnl_lock();
+	phylink_start(dp->pl);
+	rtnl_unlock();
+
+	return 0;
+
+err_phy_connect:
+	phylink_destroy(dp->pl);
+	return err;
+}
+
 int dsa_port_link_register_of(struct dsa_port *dp)
 {
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->adjust_link)
+		return dsa_port_phylink_register(dp);
+
+	dev_warn(ds->dev,
+		 "Using legacy PHYLIB callbacks. Please migrate to PHYLINK!\n");
+
 	if (of_phy_is_fixed_link(dp->dn))
 		return dsa_port_fixed_link_register_of(dp);
 	else
@@ -609,6 +656,16 @@ int dsa_port_link_register_of(struct dsa_port *dp)
 
 void dsa_port_link_unregister_of(struct dsa_port *dp)
 {
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->adjust_link) {
+		rtnl_lock();
+		phylink_disconnect_phy(dp->pl);
+		rtnl_unlock();
+		phylink_destroy(dp->pl);
+		return;
+	}
+
 	if (of_phy_is_fixed_link(dp->dn))
 		of_phy_deregister_fixed_link(dp->dn);
 	else
