@@ -44,6 +44,8 @@ struct usb_line6_podhd {
 	int firmware_version;
 };
 
+#define line6_to_podhd(x)	container_of(x, struct usb_line6_podhd, line6)
+
 static struct snd_ratden podhd_ratden = {
 	.num_min = 48000,
 	.num_max = 48000,
@@ -231,7 +233,7 @@ exit:
 
 static void podhd_startup(struct usb_line6 *line6)
 {
-	struct usb_line6_podhd *pod = (struct usb_line6_podhd *)line6;
+	struct usb_line6_podhd *pod = line6_to_podhd(line6);
 
 	podhd_dev_start(pod);
 	line6_read_serial_number(&pod->line6, &pod->serial_number);
@@ -241,7 +243,7 @@ static void podhd_startup(struct usb_line6 *line6)
 
 static void podhd_disconnect(struct usb_line6 *line6)
 {
-	struct usb_line6_podhd *pod = (struct usb_line6_podhd *)line6;
+	struct usb_line6_podhd *pod = line6_to_podhd(line6);
 
 	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL_INFO) {
 		struct usb_interface *intf;
@@ -260,7 +262,7 @@ static int podhd_init(struct usb_line6 *line6,
 		      const struct usb_device_id *id)
 {
 	int err;
-	struct usb_line6_podhd *pod = (struct usb_line6_podhd *) line6;
+	struct usb_line6_podhd *pod = line6_to_podhd(line6);
 	struct usb_interface *intf;
 
 	line6->disconnect = podhd_disconnect;

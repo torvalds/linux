@@ -74,6 +74,8 @@ struct usb_line6_pod {
 	int device_id;
 };
 
+#define line6_to_pod(x)		container_of(x, struct usb_line6_pod, line6)
+
 #define POD_SYSEX_CODE 3
 
 /* *INDENT-OFF* */
@@ -177,7 +179,7 @@ static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 */
 static void line6_pod_process_message(struct usb_line6 *line6)
 {
-	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
+	struct usb_line6_pod *pod = line6_to_pod(line6);
 	const unsigned char *buf = pod->line6.buffer_message;
 
 	if (memcmp(buf, pod_version_header, sizeof(pod_version_header)) == 0) {
@@ -274,7 +276,7 @@ static ssize_t device_id_show(struct device *dev,
 
 static void pod_startup(struct usb_line6 *line6)
 {
-	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
+	struct usb_line6_pod *pod = line6_to_pod(line6);
 
 	switch (pod->startup_progress) {
 	case POD_STARTUP_VERSIONREQ:
@@ -328,7 +330,7 @@ static int snd_pod_control_monitor_get(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
-	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6pcm->line6;
+	struct usb_line6_pod *pod = line6_to_pod(line6pcm->line6);
 
 	ucontrol->value.integer.value[0] = pod->monitor_level;
 	return 0;
@@ -339,7 +341,7 @@ static int snd_pod_control_monitor_put(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
-	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6pcm->line6;
+	struct usb_line6_pod *pod = line6_to_pod(line6pcm->line6);
 
 	if (ucontrol->value.integer.value[0] == pod->monitor_level)
 		return 0;
@@ -368,7 +370,7 @@ static int pod_init(struct usb_line6 *line6,
 		    const struct usb_device_id *id)
 {
 	int err;
-	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
+	struct usb_line6_pod *pod = line6_to_pod(line6);
 
 	line6->process_message = line6_pod_process_message;
 	line6->startup = pod_startup;
