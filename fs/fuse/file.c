@@ -3110,6 +3110,7 @@ static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 {
 	struct fuse_file *ff_in = file_in->private_data;
 	struct fuse_file *ff_out = file_out->private_data;
+	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
 	struct fuse_inode *fi_out = get_fuse_inode(inode_out);
 	struct fuse_conn *fc = ff_in->fc;
@@ -3132,6 +3133,17 @@ static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 
 	if (fc->no_copy_file_range)
 		return -EOPNOTSUPP;
+
+	if (fc->writeback_cache) {
+		inode_lock(inode_in);
+		err = filemap_write_and_wait_range(inode_in->i_mapping,
+						   pos_in, pos_in + len);
+		if (!err)
+			fuse_sync_writes(inode_in);
+		inode_unlock(inode_in);
+		if (err)
+			return err;
+	}
 
 	inode_lock(inode_out);
 
