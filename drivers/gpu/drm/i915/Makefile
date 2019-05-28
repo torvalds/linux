@@ -104,6 +104,7 @@ gem-y += \
 	gem/i915_gem_shmem.o \
 	gem/i915_gem_shrinker.o \
 	gem/i915_gem_stolen.o \
+	gem/i915_gem_throttle.o \
 	gem/i915_gem_tiling.o \
 	gem/i915_gem_userptr.o \
 	gem/i915_gem_wait.o \
