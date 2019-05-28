@@ -199,7 +199,7 @@ ext2_xattr_get(struct inode *inode, int name_index, const char *name,
 	struct ext2_xattr_entry *entry;
 	size_t name_len, size;
 	char *end;
-	int error;
+	int error, not_found;
 	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
 
 	ea_idebug(inode, "name=%d.%s, buffer=%p, buffer_size=%ld",
@@ -238,10 +238,14 @@ bad_block:
 		if (!ext2_xattr_entry_valid(entry, end,
 		    inode->i_sb->s_blocksize))
 			goto bad_block;
-		if (name_index == entry->e_name_index &&
-		    name_len == entry->e_name_len &&
-		    memcmp(name, entry->e_name, name_len) == 0)
+
+		not_found = ext2_xattr_cmp_entry(name_index, name_len, name,
+						 entry);
+		if (!not_found)
 			goto found;
+		if (not_found < 0)
+			break;
+
 		entry = EXT2_XATTR_NEXT(entry);
 	}
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
