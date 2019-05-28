@@ -22,15 +22,19 @@
  *
  */
 
-#include <drm/i915_drm.h>
-#include "i915_drv.h"
-#include "i915_trace.h"
-#include "intel_drv.h"
 #include <linux/mmu_context.h>
 #include <linux/mmu_notifier.h>
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
 #include <linux/sched/mm.h>
+
+#include <drm/i915_drm.h>
+
+#include "gem/i915_gem_ioctls.h"
+
+#include "i915_drv.h"
+#include "i915_trace.h"
+#include "intel_drv.h"
 
 struct i915_mm_struct {
 	struct mm_struct *mm;

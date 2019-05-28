@@ -39,6 +39,7 @@
 #include <linux/dma-buf.h>
 #include <linux/mman.h>
 
+#include "gem/i915_gem_ioctls.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_mocs.h"

@@ -34,6 +34,7 @@
 #include <drm/drm_syncobj.h>
 #include <drm/i915_drm.h>
 
+#include "gem/i915_gem_ioctls.h"
 #include "gt/intel_gt_pm.h"
 
 #include "i915_drv.h"
