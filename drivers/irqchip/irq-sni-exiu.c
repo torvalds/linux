@@ -1,7 +1,7 @@
 /*
  * Driver for Socionext External Interrupt Unit (EXIU)
  *
- * Copyright (c) 2017 Linaro, Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (c) 2017-2019 Linaro, Ltd. <ard.biesheuvel@linaro.org>
  *
  * Based on irq-tegra.c:
  *   Copyright (C) 2011 Google, Inc.
@@ -167,12 +167,45 @@ static const struct irq_domain_ops exiu_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int __init exiu_init(struct device_node *node,
-			    struct device_node *parent)
+static struct exiu_irq_data *exiu_init(const struct fwnode_handle *fwnode,
+				       struct resource *res)
+{
+	struct exiu_irq_data *data;
+	int err;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	if (fwnode_property_read_u32_array(fwnode, "socionext,spi-base",
+					   &data->spi_base, 1)) {
+		err = -ENODEV;
+		goto out_free;
+	}
+
+	data->base = ioremap(res->start, resource_size(res));
+	if (!data->base) {
+		err = -ENODEV;
+		goto out_free;
+	}
+
+	/* clear and mask all interrupts */
+	writel_relaxed(0xFFFFFFFF, data->base + EIREQCLR);
+	writel_relaxed(0xFFFFFFFF, data->base + EIMASK);
+
+	return data;
+
+out_free:
+	kfree(data);
+	return ERR_PTR(err);
+}
+
+static int __init exiu_dt_init(struct device_node *node,
+			       struct device_node *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	struct exiu_irq_data *data;
-	int err;
+	struct resource res;
 
 	if (!parent) {
 		pr_err("%pOF: no parent, giving up\n", node);
@@ -185,31 +218,19 @@ static int __init exiu_init(struct device_node *node,
 		return -ENXIO;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	if (of_property_read_u32(node, "socionext,spi-base", &data->spi_base)) {
-		pr_err("%pOF: failed to parse 'spi-base' property\n", node);
-		err = -ENODEV;
-		goto out_free;
+	if (of_address_to_resource(node, 0, &res)) {
+		pr_err("%pOF: failed to parse memory resource\n", node);
+		return -ENXIO;
 	}
 
-	data->base = of_iomap(node, 0);
-	if (!data->base) {
-		err = -ENODEV;
-		goto out_free;
-	}
-
-	/* clear and mask all interrupts */
-	writel_relaxed(0xFFFFFFFF, data->base + EIREQCLR);
-	writel_relaxed(0xFFFFFFFF, data->base + EIMASK);
+	data = exiu_init(of_node_to_fwnode(node), &res);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, NUM_IRQS, node,
 					  &exiu_domain_ops, data);
 	if (!domain) {
 		pr_err("%pOF: failed to allocate domain\n", node);
-		err = -ENOMEM;
 		goto out_unmap;
 	}
 
@@ -220,8 +241,7 @@ static int __init exiu_init(struct device_node *node,
 
 out_unmap:
 	iounmap(data->base);
-out_free:
 	kfree(data);
-	return err;
+	return -ENOMEM;
 }
-IRQCHIP_DECLARE(exiu, "socionext,synquacer-exiu", exiu_init);
+IRQCHIP_DECLARE(exiu, "socionext,synquacer-exiu", exiu_dt_init);
