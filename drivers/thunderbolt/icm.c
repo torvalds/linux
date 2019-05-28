@@ -484,6 +484,7 @@ static void add_switch(struct tb_switch *parent_sw, u64 route,
 	sw->authorized = authorized;
 	sw->security_level = security_level;
 	sw->boot = boot;
+	init_completion(&sw->rpm_complete);
 
 	vss = parse_intel_vss(ep_name, ep_name_size);
 	if (vss)
@@ -523,6 +524,9 @@ static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
 
 	/* This switch still exists */
 	sw->is_unplugged = false;
+
+	/* Runtime resume is now complete */
+	complete(&sw->rpm_complete);
 }
 
 static void remove_switch(struct tb_switch *sw)
@@ -1770,6 +1774,32 @@ static void icm_unplug_children(struct tb_switch *sw)
 	}
 }
 
+static int complete_rpm(struct device *dev, void *data)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	if (sw)
+		complete(&sw->rpm_complete);
+	return 0;
+}
+
+static void remove_unplugged_switch(struct tb_switch *sw)
+{
+	pm_runtime_get_sync(sw->dev.parent);
+
+	/*
+	 * Signal this and switches below for rpm_complete because
+	 * tb_switch_remove() calls pm_runtime_get_sync() that then waits
+	 * for it.
+	 */
+	complete_rpm(&sw->dev, NULL);
+	bus_for_each_dev(&tb_bus_type, &sw->dev, NULL, complete_rpm);
+	tb_switch_remove(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+}
+
 static void icm_free_unplugged_children(struct tb_switch *sw)
 {
 	unsigned int i;
@@ -1782,7 +1812,7 @@ static void icm_free_unplugged_children(struct tb_switch *sw)
 			port->xdomain = NULL;
 		} else if (tb_port_has_remote(port)) {
 			if (port->remote->sw->is_unplugged) {
-				tb_switch_remove(port->remote->sw);
+				remove_unplugged_switch(port->remote->sw);
 				port->remote = NULL;
 			} else {
 				icm_free_unplugged_children(port->remote->sw);
@@ -1828,6 +1858,24 @@ static void icm_complete(struct tb *tb)
 static int icm_runtime_suspend(struct tb *tb)
 {
 	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
+	return 0;
+}
+
+static int icm_runtime_suspend_switch(struct tb_switch *sw)
+{
+	if (tb_route(sw))
+		reinit_completion(&sw->rpm_complete);
+	return 0;
+}
+
+static int icm_runtime_resume_switch(struct tb_switch *sw)
+{
+	if (tb_route(sw)) {
+		if (!wait_for_completion_timeout(&sw->rpm_complete,
+						 msecs_to_jiffies(500))) {
+			dev_dbg(&sw->dev, "runtime resuming timed out\n");
+		}
+	}
 	return 0;
 }
 
@@ -1910,6 +1958,8 @@ static const struct tb_cm_ops icm_ar_ops = {
 	.complete = icm_complete,
 	.runtime_suspend = icm_runtime_suspend,
 	.runtime_resume = icm_runtime_resume,
+	.runtime_suspend_switch = icm_runtime_suspend_switch,
+	.runtime_resume_switch = icm_runtime_resume_switch,
 	.handle_event = icm_handle_event,
 	.get_boot_acl = icm_ar_get_boot_acl,
 	.set_boot_acl = icm_ar_set_boot_acl,
@@ -1930,6 +1980,8 @@ static const struct tb_cm_ops icm_tr_ops = {
 	.complete = icm_complete,
 	.runtime_suspend = icm_runtime_suspend,
 	.runtime_resume = icm_runtime_resume,
+	.runtime_suspend_switch = icm_runtime_suspend_switch,
+	.runtime_resume_switch = icm_runtime_resume_switch,
 	.handle_event = icm_handle_event,
 	.get_boot_acl = icm_ar_get_boot_acl,
 	.set_boot_acl = icm_ar_set_boot_acl,
