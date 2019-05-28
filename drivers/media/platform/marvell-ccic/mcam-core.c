@@ -4,6 +4,7 @@
  * so it needs platform-specific support outside of the core.
  *
  * Copyright 2011 Jonathan Corbet corbet@lwn.net
+ * Copyright 2018 Lubomir Rintel <lkundrak@v3.sk>
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -26,7 +27,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/i2c/ov7670.h>
 #include <media/videobuf2-vmalloc.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
@@ -92,6 +92,9 @@ MODULE_PARM_DESC(buffer_mode,
 
 #define sensor_call(cam, o, f, args...) \
 	v4l2_subdev_call(cam->sensor, o, f, ##args)
+
+#define notifier_to_mcam(notifier) \
+	container_of(notifier, struct mcam_camera, notifier)
 
 static struct mcam_format_struct {
 	__u8 *desc;
@@ -1715,23 +1718,94 @@ EXPORT_SYMBOL_GPL(mccic_irq);
 /*
  * Registration and such.
  */
-static struct ov7670_config sensor_cfg = {
-	/*
-	 * Exclude QCIF mode, because it only captures a tiny portion
-	 * of the sensor FOV
-	 */
-	.min_width = 320,
-	.min_height = 240,
-};
 
+static int mccic_notify_bound(struct v4l2_async_notifier *notifier,
+	struct v4l2_subdev *subdev, struct v4l2_async_subdev *asd)
+{
+	struct mcam_camera *cam = notifier_to_mcam(notifier);
+	int ret;
+
+	mutex_lock(&cam->s_mutex);
+	if (cam->sensor) {
+		cam_err(cam, "sensor already bound\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	v4l2_set_subdev_hostdata(subdev, cam);
+	cam->sensor = subdev;
+
+	ret = mcam_cam_init(cam);
+	if (ret) {
+		cam->sensor = NULL;
+		goto out;
+	}
+
+	ret = mcam_setup_vb2(cam);
+	if (ret) {
+		cam->sensor = NULL;
+		goto out;
+	}
+
+	cam->vdev = mcam_v4l_template;
+	cam->vdev.v4l2_dev = &cam->v4l2_dev;
+	cam->vdev.lock = &cam->s_mutex;
+	cam->vdev.queue = &cam->vb_queue;
+	video_set_drvdata(&cam->vdev, cam);
+	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
+	if (ret) {
+		cam->sensor = NULL;
+		goto out;
+	}
+
+	cam_dbg(cam, "sensor %s bound\n", subdev->name);
+out:
+	mutex_unlock(&cam->s_mutex);
+	return ret;
+}
+
+static void mccic_notify_unbind(struct v4l2_async_notifier *notifier,
+	struct v4l2_subdev *subdev, struct v4l2_async_subdev *asd)
+{
+	struct mcam_camera *cam = notifier_to_mcam(notifier);
+
+	mutex_lock(&cam->s_mutex);
+	if (cam->sensor != subdev) {
+		cam_err(cam, "sensor %s not bound\n", subdev->name);
+		goto out;
+	}
+
+	video_unregister_device(&cam->vdev);
+	cam->sensor = NULL;
+	cam_dbg(cam, "sensor %s unbound\n", subdev->name);
+
+out:
+	mutex_unlock(&cam->s_mutex);
+}
+
+static int mccic_notify_complete(struct v4l2_async_notifier *notifier)
+{
+	struct mcam_camera *cam = notifier_to_mcam(notifier);
+	int ret;
+
+	/*
+	 * Get the v4l2 setup done.
+	 */
+	ret = v4l2_ctrl_handler_init(&cam->ctrl_handler, 10);
+	if (!ret)
+		cam->v4l2_dev.ctrl_handler = &cam->ctrl_handler;
+
+	return ret;
+}
+
+static const struct v4l2_async_notifier_operations mccic_notify_ops = {
+	.bound = mccic_notify_bound,
+	.unbind = mccic_notify_unbind,
+	.complete = mccic_notify_complete,
+};
 
 int mccic_register(struct mcam_camera *cam)
 {
-	struct i2c_board_info ov7670_info = {
-		.type = "ov7670",
-		.addr = 0x42 >> 1,
-		.platform_data = &sensor_cfg,
-	};
 	int ret;
 
 	/*
@@ -1744,17 +1818,20 @@ int mccic_register(struct mcam_camera *cam)
 		printk(KERN_ERR "marvell-cam: Cafe can't do S/G I/O, attempting vmalloc mode instead\n");
 		cam->buffer_mode = B_vmalloc;
 	}
+
 	if (!mcam_buffer_mode_supported(cam->buffer_mode)) {
 		printk(KERN_ERR "marvell-cam: buffer mode %d unsupported\n",
 				cam->buffer_mode);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
+
 	/*
 	 * Register with V4L
 	 */
 	ret = v4l2_device_register(cam->dev, &cam->v4l2_dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	mutex_init(&cam->s_mutex);
 	cam->state = S_NOTREADY;
@@ -1764,43 +1841,20 @@ int mccic_register(struct mcam_camera *cam)
 	mcam_ctlr_init(cam);
 
 	/*
-	 * Get the v4l2 setup done.
+	 * Register sensor notifier.
 	 */
-	ret = v4l2_ctrl_handler_init(&cam->ctrl_handler, 10);
-	if (ret)
-		goto out_unregister;
-	cam->v4l2_dev.ctrl_handler = &cam->ctrl_handler;
-
-	/*
-	 * Try to find the sensor.
-	 */
-	sensor_cfg.clock_speed = cam->clock_speed;
-	sensor_cfg.use_smbus = cam->use_smbus;
-	cam->sensor = v4l2_i2c_new_subdev_board(&cam->v4l2_dev,
-			cam->i2c_adapter, &ov7670_info, NULL);
-	if (cam->sensor == NULL) {
-		ret = -ENODEV;
-		goto out_unregister;
+	v4l2_async_notifier_init(&cam->notifier);
+	ret = v4l2_async_notifier_add_subdev(&cam->notifier, &cam->asd);
+	if (ret) {
+		cam_warn(cam, "failed to add subdev to a notifier");
+		goto out;
 	}
 
-	ret = mcam_cam_init(cam);
-	if (ret)
-		goto out_unregister;
-
-	ret = mcam_setup_vb2(cam);
-	if (ret)
-		goto out_unregister;
-
-	mutex_lock(&cam->s_mutex);
-	cam->vdev = mcam_v4l_template;
-	cam->vdev.v4l2_dev = &cam->v4l2_dev;
-	cam->vdev.lock = &cam->s_mutex;
-	cam->vdev.queue = &cam->vb_queue;
-	video_set_drvdata(&cam->vdev, cam);
-	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
-	if (ret) {
-		mutex_unlock(&cam->s_mutex);
-		goto out_unregister;
+	cam->notifier.ops = &mccic_notify_ops;
+	ret = v4l2_async_notifier_register(&cam->v4l2_dev, &cam->notifier);
+	if (ret < 0) {
+		cam_warn(cam, "failed to register a sensor notifier");
+		goto out;
 	}
 
 	/*
@@ -1811,11 +1865,10 @@ int mccic_register(struct mcam_camera *cam)
 			cam_warn(cam, "Unable to alloc DMA buffers at load will try again later.");
 	}
 
-	mutex_unlock(&cam->s_mutex);
 	return 0;
 
-out_unregister:
-	v4l2_ctrl_handler_free(&cam->ctrl_handler);
+out:
+	v4l2_async_notifier_unregister(&cam->notifier);
 	v4l2_device_unregister(&cam->v4l2_dev);
 	return ret;
 }
@@ -1835,8 +1888,8 @@ void mccic_shutdown(struct mcam_camera *cam)
 	}
 	if (cam->buffer_mode == B_vmalloc)
 		mcam_free_dma_bufs(cam);
-	video_unregister_device(&cam->vdev);
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
+	v4l2_async_notifier_unregister(&cam->notifier);
 	v4l2_device_unregister(&cam->v4l2_dev);
 }
 EXPORT_SYMBOL_GPL(mccic_shutdown);

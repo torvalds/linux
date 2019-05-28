@@ -4,12 +4,12 @@
  * to work with the Armada 610 as used in the OLPC 1.75 system.
  *
  * Copyright 2011 Jonathan Corbet <corbet@lwn.net>
+ * Copyright 2018 Lubomir Rintel <lkundrak@v3.sk>
  */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -314,6 +314,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	struct mmp_camera *cam;
 	struct mcam_camera *mcam;
 	struct resource *res;
+	struct fwnode_handle *ep;
 	struct mmp_camera_platform_data *pdata;
 	int ret;
 
@@ -328,7 +329,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->plat_power_down = mmpcam_power_down;
 	mcam->calc_dphy = mmpcam_calc_dphy;
 	mcam->dev = &pdev->dev;
-	mcam->use_smbus = 0;
 	pdata = pdev->dev.platform_data;
 	if (pdata) {
 		mcam->mclk_src = pdata->mclk_src;
@@ -373,15 +373,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	if (IS_ERR(cam->power_regs))
 		return PTR_ERR(cam->power_regs);
 	/*
-	 * Find the i2c adapter.  This assumes, of course, that the
-	 * i2c bus is already up and functioning.
-	 */
-	mcam->i2c_adapter = platform_get_drvdata(pdata->i2c_device);
-	if (mcam->i2c_adapter == NULL) {
-		dev_err(&pdev->dev, "No i2c adapter\n");
-		return -ENODEV;
-	}
-	/*
 	 * Sensor GPIO pins.
 	 */
 	ret = devm_gpio_request(&pdev->dev, pdata->sensor_power_gpio,
@@ -404,6 +395,19 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam_init_clk(mcam);
 
 	/*
+	 * Create a match of the sensor against its OF node.
+	 */
+	ep = fwnode_graph_get_next_endpoint(of_fwnode_handle(pdev->dev.of_node),
+					    NULL);
+	if (!ep)
+		return -ENODEV;
+
+	mcam->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	mcam->asd.match.fwnode = fwnode_graph_get_remote_port_parent(ep);
+
+	fwnode_handle_put(ep);
+
+	/*
 	 * Power the device up and hand it off to the core.
 	 */
 	ret = mmpcam_power_up(mcam);
@@ -412,6 +416,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	ret = mccic_register(mcam);
 	if (ret)
 		goto out_power_down;
+
 	/*
 	 * Finally, set up our IRQ now that the core is ready to
 	 * deal with it.

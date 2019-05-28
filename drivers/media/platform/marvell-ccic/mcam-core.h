@@ -102,14 +102,11 @@ struct mcam_camera {
 	 * These fields should be set by the platform code prior to
 	 * calling mcam_register().
 	 */
-	struct i2c_adapter *i2c_adapter;
 	unsigned char __iomem *regs;
 	unsigned regs_size; /* size in bytes of the register space */
 	spinlock_t dev_lock;
 	struct device *dev; /* For messages, dma alloc */
 	enum mcam_chip_id chip_id;
-	short int clock_speed;	/* Sensor clock speed, default 30 */
-	short int use_smbus;	/* SMBUS or straight I2c? */
 	enum mcam_buffer_mode buffer_mode;
 
 	int mclk_src;	/* which clock source the mclk derives from */
@@ -150,6 +147,8 @@ struct mcam_camera {
 	 * Subsystem structures.
 	 */
 	struct video_device vdev;
+	struct v4l2_async_notifier notifier;
+	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *sensor;
 
 	/* Videobuf2 stuff */
