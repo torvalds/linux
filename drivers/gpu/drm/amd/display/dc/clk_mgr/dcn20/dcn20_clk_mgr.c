@@ -70,7 +70,7 @@ static const struct clk_mgr_mask clk_mgr_mask = {
 	CLK_MASK_SH_LIST_NV10(_MASK)
 };
 
-static uint32_t dentist_get_did_from_divider(int divider)
+uint32_t dentist_get_did_from_divider(int divider)
 {
 	uint32_t divider_id;
 

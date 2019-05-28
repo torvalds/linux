@@ -43,4 +43,6 @@ void dcn20_clk_mgr_construct(struct dc_context *ctx,
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg);
 
+uint32_t dentist_get_did_from_divider(int divider);
+
 #endif //__DCN20_CLK_MGR_H__
