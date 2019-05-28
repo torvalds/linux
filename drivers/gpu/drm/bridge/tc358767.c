@@ -186,8 +186,8 @@ module_param_named(test, tc_test_pattern, bool, 0644);
 struct tc_edp_link {
 	struct drm_dp_link	base;
 	u8			assr;
-	int			scrambler_dis;
-	int			spread;
+	bool			scrambler_dis;
+	bool			spread;
 	u8			swing;
 	u8			preemp;
 };
@@ -626,13 +626,13 @@ static int tc_get_display_props(struct tc_data *tc)
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAX_DOWNSPREAD, tmp);
 	if (ret < 0)
 		goto err_dpcd_read;
-	tc->link.spread = tmp[0] & BIT(0); /* 0.5% down spread */
+	tc->link.spread = tmp[0] & DP_MAX_DOWNSPREAD_0_5;
 
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAIN_LINK_CHANNEL_CODING, tmp);
 	if (ret < 0)
 		goto err_dpcd_read;
 
-	tc->link.scrambler_dis = 0;
+	tc->link.scrambler_dis = false;
 	/* read assr */
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_EDP_CONFIGURATION_SET, tmp);
 	if (ret < 0)
@@ -645,6 +645,9 @@ static int tc_get_display_props(struct tc_data *tc)
 		tc->link.base.num_lanes,
 		(tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ?
 		"enhanced" : "non-enhanced");
+	dev_dbg(tc->dev, "Downspread: %s, scrambler: %s\n",
+		tc->link.spread ? "0.5%" : "0.0%",
+		tc->link.scrambler_dis ? "disabled" : "enabled");
 	dev_dbg(tc->dev, "Display ASSR: %d, TC358767 ASSR: %d\n",
 		tc->link.assr, tc->assr);
 
@@ -934,7 +937,7 @@ static int tc_main_link_setup(struct tc_data *tc)
 			dev_dbg(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
 				 tc->assr);
 			/* trying with disabled scrambler */
-			tc->link.scrambler_dis = 1;
+			tc->link.scrambler_dis = true;
 		}
 	}
 
