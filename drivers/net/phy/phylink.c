@@ -59,6 +59,7 @@ struct phylink {
 	phy_interface_t cur_interface;
 
 	struct gpio_desc *link_gpio;
+	unsigned int link_irq;
 	struct timer_list link_poll;
 	void (*get_fixed_state)(struct net_device *dev,
 				struct phylink_link_state *s);
@@ -665,7 +666,7 @@ void phylink_destroy(struct phylink *pl)
 {
 	if (pl->sfp_bus)
 		sfp_unregister_upstream(pl->sfp_bus);
-	if (!IS_ERR_OR_NULL(pl->link_gpio))
+	if (pl->link_gpio)
 		gpiod_put(pl->link_gpio);
 
 	cancel_work_sync(&pl->resolve);
@@ -928,6 +929,15 @@ void phylink_mac_change(struct phylink *pl, bool up)
 }
 EXPORT_SYMBOL_GPL(phylink_mac_change);
 
+static irqreturn_t phylink_link_handler(int irq, void *data)
+{
+	struct phylink *pl = data;
+
+	phylink_run_resolve(pl);
+
+	return IRQ_HANDLED;
+}
+
 /**
  * phylink_start() - start a phylink instance
  * @pl: a pointer to a &struct phylink returned from phylink_create()
@@ -964,7 +974,22 @@ void phylink_start(struct phylink *pl)
 	clear_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	phylink_run_resolve(pl);
 
-	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
+	if (pl->link_an_mode == MLO_AN_FIXED && pl->link_gpio) {
+		int irq = gpiod_to_irq(pl->link_gpio);
+
+		if (irq > 0) {
+			if (!request_irq(irq, phylink_link_handler,
+					 IRQF_TRIGGER_RISING |
+					 IRQF_TRIGGER_FALLING,
+					 "netdev link", pl))
+				pl->link_irq = irq;
+			else
+				irq = 0;
+		}
+		if (irq <= 0)
+			mod_timer(&pl->link_poll, jiffies + HZ);
+	}
+	if (pl->link_an_mode == MLO_AN_FIXED && pl->get_fixed_state)
 		mod_timer(&pl->link_poll, jiffies + HZ);
 	if (pl->sfp_bus)
 		sfp_upstream_start(pl->sfp_bus);
@@ -990,8 +1015,11 @@ void phylink_stop(struct phylink *pl)
 		phy_stop(pl->phydev);
 	if (pl->sfp_bus)
 		sfp_upstream_stop(pl->sfp_bus);
-	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
-		del_timer_sync(&pl->link_poll);
+	del_timer_sync(&pl->link_poll);
+	if (pl->link_irq) {
+		free_irq(pl->link_irq, pl);
+		pl->link_irq = 0;
+	}
 
 	phylink_run_resolve_and_disable(pl, PHYLINK_DISABLE_STOPPED);
 }
