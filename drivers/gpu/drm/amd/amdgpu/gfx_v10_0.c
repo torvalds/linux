@@ -1017,7 +1017,7 @@ static void gfx_v10_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		gb_addr_config = RREG32_SOC15(GC, 0, mmGB_ADDR_CONFIG);
 		break;
@@ -1553,15 +1553,16 @@ static void gfx_v10_0_constants_init(struct amdgpu_device *adev)
 	 */
 	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 
-	WREG32_SOC15(GC, 0, mmPA_SC_FIFO_SIZE,
-		   (adev->gfx.config.sc_prim_fifo_size_frontend <<
-			PA_SC_FIFO_SIZE__SC_FRONTEND_PRIM_FIFO_SIZE__SHIFT) |
-		   (adev->gfx.config.sc_prim_fifo_size_backend <<
-			PA_SC_FIFO_SIZE__SC_BACKEND_PRIM_FIFO_SIZE__SHIFT) |
-		   (adev->gfx.config.sc_hiz_tile_fifo_size <<
-			PA_SC_FIFO_SIZE__SC_HIZ_TILE_FIFO_SIZE__SHIFT) |
-		   (adev->gfx.config.sc_earlyz_tile_fifo_size <<
-			PA_SC_FIFO_SIZE__SC_EARLYZ_TILE_FIFO_SIZE__SHIFT));
+	tmp = REG_SET_FIELD(0, PA_SC_FIFO_SIZE, SC_FRONTEND_PRIM_FIFO_SIZE,
+			    adev->gfx.config.sc_prim_fifo_size_frontend);
+	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_BACKEND_PRIM_FIFO_SIZE,
+			    adev->gfx.config.sc_prim_fifo_size_backend);
+	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_HIZ_TILE_FIFO_SIZE,
+			    adev->gfx.config.sc_hiz_tile_fifo_size);
+	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_EARLYZ_TILE_FIFO_SIZE,
+			    adev->gfx.config.sc_earlyz_tile_fifo_size);
+	WREG32_SOC15(GC, 0, mmPA_SC_FIFO_SIZE, tmp);
+
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
