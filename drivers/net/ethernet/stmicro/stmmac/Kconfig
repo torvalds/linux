@@ -15,6 +15,7 @@ if STMMAC_ETH
 
 config STMMAC_SELFTESTS
 	bool "Support for STMMAC Selftests"
+	depends on INET
 	depends on STMMAC_ETH
 	default n
 	---help---
