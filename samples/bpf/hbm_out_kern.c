@@ -119,13 +119,16 @@ int _hbm_out_cg(struct __sk_buff *skb)
 	// Set flags (drop, congestion, cwr)
 	// Dropping => we are congested, so ignore congestion flag
 	if (credit < -DROP_THRESH ||
-	    (len > LARGE_PKT_THRESH &&
-	     credit < -LARGE_PKT_DROP_THRESH)) {
-		// Very congested, set drop flag
+	    (len > LARGE_PKT_THRESH && credit < -LARGE_PKT_DROP_THRESH)) {
+		// Very congested, set drop packet
 		drop_flag = true;
+		if (pkti.ecn)
+			congestion_flag = true;
+		else if (pkti.is_tcp)
+			cwr_flag = true;
 	} else if (credit < 0) {
 		// Congested, set congestion flag
-		if (pkti.ecn) {
+		if (pkti.ecn || pkti.is_tcp) {
 			if (credit < -MARK_THRESH)
 				congestion_flag = true;
 			else
@@ -137,7 +140,15 @@ int _hbm_out_cg(struct __sk_buff *skb)
 
 	if (congestion_flag) {
 		if (!bpf_skb_ecn_set_ce(skb)) {
-			if (len > LARGE_PKT_THRESH) {
+			if (pkti.is_tcp) {
+				unsigned int rand = bpf_get_prandom_u32();
+
+				if (-credit >= MARK_THRESH +
+				    (rand % MARK_REGION_SIZE)) {
+					// Do congestion control
+					cwr_flag = true;
+				}
+			} else if (len > LARGE_PKT_THRESH) {
 				// Problem if too many small packets?
 				drop_flag = true;
 			}
@@ -146,12 +157,17 @@ int _hbm_out_cg(struct __sk_buff *skb)
 
 	if (drop_flag)
 		rv = DROP_PKT;
+	if (qsp != NULL)
+		if (qsp->no_cn)
+			cwr_flag = false;
 
 	hbm_update_stats(qsp, len, curtime, congestion_flag, drop_flag);
 
 	if (rv == DROP_PKT)
 		__sync_add_and_fetch(&(qdp->credit), len);
 
+	if (cwr_flag)
+		rv |= 2;
 	return rv;
 }
 char _license[] SEC("license") = "GPL";

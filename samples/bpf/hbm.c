@@ -16,6 +16,7 @@
  *    -l	Also limit flows doing loopback
  *    -n <#>	To create cgroup \"/hbm#\" and attach prog
  *		Default is /hbm1
+ *    --no_cn   Do not return cn notifications
  *    -r <rate>	Rate limit in Mbps
  *    -s	Get HBM stats (marked, dropped, etc.)
  *    -t <time>	Exit after specified seconds (default is 0)
@@ -42,6 +43,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
+#include <getopt.h>
 
 #include "bpf_load.h"
 #include "bpf_rlimit.h"
@@ -59,6 +61,7 @@ bool stats_flag;
 bool loopback_flag;
 bool debugFlag;
 bool work_conserving_flag;
+bool no_cn_flag;
 
 static void Usage(void);
 static void read_trace_pipe2(void);
@@ -185,6 +188,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 	qstats.rate = rate;
 	qstats.stats = stats_flag ? 1 : 0;
 	qstats.loopback = loopback_flag ? 1 : 0;
+	qstats.no_cn = no_cn_flag ? 1 : 0;
 	if (bpf_map_update_elem(map_fd, &key, &qstats, BPF_ANY)) {
 		printf("ERROR: Could not update map element\n");
 		goto err;
@@ -366,14 +370,15 @@ static void Usage(void)
 {
 	printf("This program loads a cgroup skb BPF program to enforce\n"
 	       "cgroup output (egress) bandwidth limits.\n\n"
-	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [-r <rate>] [-s]\n"
-	       "           [-t <secs>] [-w] [-h] [prog]\n"
+	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [--no_cn] [-r <rate>]\n"
+	       "           [-s] [-t <secs>] [-w] [-h] [prog]\n"
 	       "  Where:\n"
 	       "    -o         indicates egress direction (default)\n"
 	       "    -d         print BPF trace debug buffer\n"
 	       "    -l         also limit flows using loopback\n"
 	       "    -n <#>     to create cgroup \"/hbm#\" and attach prog\n"
 	       "               Default is /hbm1\n"
+	       "    --no_cn    disable CN notifcations\n"
 	       "    -r <rate>  Rate in Mbps\n"
 	       "    -s         Update HBM stats\n"
 	       "    -t <time>  Exit after specified seconds (default is 0)\n"
@@ -393,9 +398,16 @@ int main(int argc, char **argv)
 	int  k;
 	int cg_id = 1;
 	char *optstring = "iodln:r:st:wh";
+	struct option loptions[] = {
+		{"no_cn", 0, NULL, 1},
+		{NULL, 0, NULL, 0}
+	};
 
-	while ((k = getopt(argc, argv, optstring)) != -1) {
+	while ((k = getopt_long(argc, argv, optstring, loptions, NULL)) != -1) {
 		switch (k) {
+		case 1:
+			no_cn_flag = true;
+			break;
 		case'o':
 			break;
 		case 'd':
