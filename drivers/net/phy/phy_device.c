@@ -1164,6 +1164,16 @@ static void phy_sysfs_create_links(struct phy_device *phydev)
 	phydev->sysfs_links = true;
 }
 
+static ssize_t
+phy_standalone_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+
+	return sprintf(buf, "%d\n", !phydev->attached_dev);
+}
+static DEVICE_ATTR_RO(phy_standalone);
+
 /**
  * phy_attach_direct - attach a network device to a given PHY device pointer
  * @dev: network device to attach
@@ -1252,6 +1262,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	phydev->sysfs_links = false;
 
 	phy_sysfs_create_links(phydev);
+
+	if (!phydev->attached_dev) {
+		err = sysfs_create_file(&phydev->mdio.dev.kobj,
+					&dev_attr_phy_standalone.attr);
+		if (err)
+			phydev_err(phydev, "error creating 'phy_standalone' sysfs entry\n");
+	}
 
 	phydev->dev_flags = flags;
 
@@ -1380,6 +1397,11 @@ void phy_detach(struct phy_device *phydev)
 			sysfs_remove_link(&dev->dev.kobj, "phydev");
 		sysfs_remove_link(&phydev->mdio.dev.kobj, "attached_dev");
 	}
+
+	if (!phydev->attached_dev)
+		sysfs_remove_file(&phydev->mdio.dev.kobj,
+				  &dev_attr_phy_standalone.attr);
+
 	phy_suspend(phydev);
 	if (dev) {
 		phydev->attached_dev->phydev = NULL;
