@@ -137,6 +137,11 @@ static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
 		ret = regmap_read_poll_timeout(sdhci_am654->base, PHY_STAT1,
 					       val, val & DLLRDY_MASK, 1000,
 					       1000000);
+		if (ret) {
+			dev_err(mmc_dev(host->mmc), "DLL failed to relock\n");
+			return;
+		}
+
 		sdhci_am654->dll_on = true;
 	}
 }
