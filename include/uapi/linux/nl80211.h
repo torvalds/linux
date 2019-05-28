@@ -2354,6 +2354,8 @@ enum nl80211_commands {
  *	is used with %NL80211_CMD_CONNECT to provide password for offloading
  *	SAE authentication for WPA3-Personal networks.
  *
+ * @NL80211_ATTR_TWT_RESPONDER: Enable target wait time responder support.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2808,6 +2810,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_TX_POWER,
 
 	NL80211_ATTR_SAE_PASSWORD,
+
+	NL80211_ATTR_TWT_RESPONDER,
 
 	/* add attributes here, update the policy in nl80211.c */
 
