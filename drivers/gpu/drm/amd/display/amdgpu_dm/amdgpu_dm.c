@@ -3978,9 +3978,16 @@ amdgpu_dm_connector_atomic_check(struct drm_connector *conn,
 		 * DC considers the stream backends changed if the
 		 * static metadata changes. Forcing the modeset also
 		 * gives a simple way for userspace to switch from
-		 * 8bpc to 10bpc when setting the metadata.
+		 * 8bpc to 10bpc when setting the metadata to enter
+		 * or exit HDR.
+		 *
+		 * Changing the static metadata after it's been
+		 * set is permissible, however. So only force a
+		 * modeset if we're entering or exiting HDR.
 		 */
-		new_crtc_state->mode_changed = true;
+		new_crtc_state->mode_changed =
+			!old_con_state->hdr_output_metadata ||
+			!new_con_state->hdr_output_metadata;
 	}
 
 	return 0;
@@ -5881,7 +5888,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
 		struct dc_surface_update dummy_updates[MAX_SURFACES];
 		struct dc_stream_update stream_update;
+		struct dc_info_packet hdr_packet;
 		struct dc_stream_status *status = NULL;
+		bool abm_changed, hdr_changed, scaling_changed;
 
 		memset(&dummy_updates, 0, sizeof(dummy_updates));
 		memset(&stream_update, 0, sizeof(stream_update));
@@ -5898,11 +5907,19 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
-		if (!is_scaling_state_different(dm_new_con_state, dm_old_con_state) &&
-				(dm_new_crtc_state->abm_level == dm_old_crtc_state->abm_level))
+		scaling_changed = is_scaling_state_different(dm_new_con_state,
+							     dm_old_con_state);
+
+		abm_changed = dm_new_crtc_state->abm_level !=
+			      dm_old_crtc_state->abm_level;
+
+		hdr_changed =
+			is_hdr_metadata_different(old_con_state, new_con_state);
+
+		if (!scaling_changed && !abm_changed && !hdr_changed)
 			continue;
 
-		if (is_scaling_state_different(dm_new_con_state, dm_old_con_state)) {
+		if (scaling_changed) {
 			update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
 					dm_new_con_state, (struct dc_stream_state *)dm_new_crtc_state->stream);
 
@@ -5910,10 +5927,15 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			stream_update.dst = dm_new_crtc_state->stream->dst;
 		}
 
-		if (dm_new_crtc_state->abm_level != dm_old_crtc_state->abm_level) {
+		if (abm_changed) {
 			dm_new_crtc_state->stream->abm_level = dm_new_crtc_state->abm_level;
 
 			stream_update.abm_level = &dm_new_crtc_state->abm_level;
+		}
+
+		if (hdr_changed) {
+			fill_hdr_info_packet(new_con_state, &hdr_packet);
+			stream_update.hdr_static_metadata = &hdr_packet;
 		}
 
 		status = dc_stream_get_status(dm_new_crtc_state->stream);
