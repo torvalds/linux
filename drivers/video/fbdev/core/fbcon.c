@@ -2350,8 +2350,6 @@ static int fbcon_switch(struct vc_data *vc)
 static void fbcon_generic_blank(struct vc_data *vc, struct fb_info *info,
 				int blank)
 {
-	struct fb_event event;
-
 	if (blank) {
 		unsigned short charmask = vc->vc_hi_font_mask ?
 			0x1ff : 0xff;
@@ -2362,13 +2360,6 @@ static void fbcon_generic_blank(struct vc_data *vc, struct fb_info *info,
 		fbcon_clear(vc, 0, 0, vc->vc_rows, vc->vc_cols);
 		vc->vc_video_erase_char = oldc;
 	}
-
-
-	lock_fb_info(info);
-	event.info = info;
-	event.data = &blank;
-	fb_notifier_call_chain(FB_EVENT_CONBLANK, &event);
-	unlock_fb_info(info);
 }
 
 static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
@@ -3240,7 +3231,7 @@ int fbcon_fb_registered(struct fb_info *info)
 	return ret;
 }
 
-static void fbcon_fb_blanked(struct fb_info *info, int blank)
+void fbcon_fb_blanked(struct fb_info *info, int blank)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct vc_data *vc;
@@ -3343,9 +3334,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 	case FB_EVENT_GET_CONSOLE_MAP:
 		con2fb = event->data;
 		con2fb->framebuffer = con2fb_map[con2fb->console - 1];
-		break;
-	case FB_EVENT_BLANK:
-		fbcon_fb_blanked(info, *(int *)event->data);
 		break;
 	case FB_EVENT_REMAP_ALL_CONSOLE:
 		idx = info->node;
