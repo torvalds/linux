@@ -1498,14 +1498,36 @@ early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
 
 /*
  * Acquire the specified rcu_data structure's ->nocb_lock, but only
- * if it corresponds to a no-CBs CPU.
+ * if it corresponds to a no-CBs CPU.  If the lock isn't immediately
+ * available, increment ->nocb_lock_contended to flag the contention.
  */
 static void rcu_nocb_lock(struct rcu_data *rdp)
 {
-	if (rcu_segcblist_is_offloaded(&rdp->cblist)) {
-		lockdep_assert_irqs_disabled();
-		raw_spin_lock(&rdp->nocb_lock);
-	}
+	lockdep_assert_irqs_disabled();
+	if (!rcu_segcblist_is_offloaded(&rdp->cblist) ||
+	    raw_spin_trylock(&rdp->nocb_lock))
+		return;
+	atomic_inc(&rdp->nocb_lock_contended);
+	smp_mb__after_atomic(); /* atomic_inc() before lock. */
+	raw_spin_lock(&rdp->nocb_lock);
+	smp_mb__before_atomic(); /* atomic_dec() after lock. */
+	atomic_dec(&rdp->nocb_lock_contended);
+}
+
+/*
+ * Spinwait until the specified rcu_data structure's ->nocb_lock is
+ * not contended.  Please note that this is extremely special-purpose,
+ * relying on the fact that at most two kthreads and one CPU contend for
+ * this lock, and also that the two kthreads are guaranteed to have frequent
+ * grace-period-duration time intervals between successive acquisitions
+ * of the lock.  This allows us to use an extremely simple throttling
+ * mechanism, and further to apply it only to the CPU doing floods of
+ * call_rcu() invocations.  Don't try this at home!
+ */
+static void rcu_nocb_wait_contended(struct rcu_data *rdp)
+{
+	while (atomic_read(&rdp->nocb_lock_contended))
+		cpu_relax();
 }
 
 /*
@@ -1575,19 +1597,19 @@ static void wake_nocb_gp(struct rcu_data *rdp, bool force,
 
 	lockdep_assert_held(&rdp->nocb_lock);
 	if (!READ_ONCE(rdp_gp->nocb_gp_kthread)) {
-		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 		return;
 	}
 	if (READ_ONCE(rdp_gp->nocb_gp_sleep) || force) {
 		del_timer(&rdp->nocb_timer);
-		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 		smp_mb(); /* enqueue before ->nocb_gp_sleep. */
-		raw_spin_lock_irqsave(&rdp_gp->nocb_lock, flags);
+		rcu_nocb_lock_irqsave(rdp_gp, flags);
 		WRITE_ONCE(rdp_gp->nocb_gp_sleep, false);
-		raw_spin_unlock_irqrestore(&rdp_gp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(rdp_gp, flags);
 		wake_up_process(rdp_gp->nocb_gp_kthread);
 	} else {
-		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 	}
 }
 
@@ -1646,23 +1668,23 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 		if (!rdp->nocb_cb_sleep &&
 		    rcu_segcblist_ready_cbs(&rdp->cblist)) {
 			// Already going full tilt, so don't try to rewake.
-			rcu_nocb_unlock_irqrestore(rdp, flags);
 		} else if (rcu_segcblist_pend_cbs(&rdp->cblist) &&
 			   raw_spin_trylock_rcu_node(rdp->mynode)) {
 			rcu_advance_cbs_nowake(rdp->mynode, rdp);
 			raw_spin_unlock_rcu_node(rdp->mynode);
-			rcu_nocb_unlock_irqrestore(rdp, flags);
 		} else {
 			wake_nocb_gp_defer(rdp, RCU_NOCB_WAKE_FORCE,
 					   TPS("WakeOvfIsDeferred"));
-			rcu_nocb_unlock_irqrestore(rdp, flags);
 		}
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 	} else {
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WakeNot"));
 		rcu_nocb_unlock_irqrestore(rdp, flags);
 	}
-	if (!irqs_disabled_flags(flags))
+	if (!irqs_disabled_flags(flags)) {
 		lockdep_assert_irqs_enabled();
+		rcu_nocb_wait_contended(rdp);
+	}
 	return;
 }
 
@@ -1692,7 +1714,7 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 		if (rcu_segcblist_empty(&rdp->cblist))
 			continue; /* No callbacks here, try next. */
 		rnp = rdp->mynode;
-		raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
+		rcu_nocb_lock_irqsave(rdp, flags);
 		WRITE_ONCE(my_rdp->nocb_defer_wakeup, RCU_NOCB_WAKE_NOT);
 		del_timer(&my_rdp->nocb_timer);
 		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
@@ -1712,7 +1734,7 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 		} else {
 			needwake = false;
 		}
-		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 		if (needwake) {
 			swake_up_one(&rdp->nocb_cb_wq);
 			gotcbs = true;
@@ -1741,9 +1763,9 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 		trace_rcu_this_gp(rnp, my_rdp, wait_gp_seq, TPS("EndWait"));
 	}
 	if (!rcu_nocb_poll) {
-		raw_spin_lock_irqsave(&my_rdp->nocb_lock, flags);
+		rcu_nocb_lock_irqsave(my_rdp, flags);
 		WRITE_ONCE(my_rdp->nocb_gp_sleep, true);
-		raw_spin_unlock_irqrestore(&my_rdp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(my_rdp, flags);
 	}
 	WARN_ON(signal_pending(current));
 }
@@ -1784,12 +1806,12 @@ static void nocb_cb_wait(struct rcu_data *rdp)
 	rcu_do_batch(rdp);
 	local_bh_enable();
 	lockdep_assert_irqs_enabled();
-	raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
+	rcu_nocb_lock_irqsave(rdp, flags);
 	raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
 	needwake_gp = rcu_advance_cbs(rdp->mynode, rdp);
 	raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
 	if (rcu_segcblist_ready_cbs(&rdp->cblist)) {
-		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 		if (needwake_gp)
 			rcu_gp_kthread_wake();
 		return;
@@ -1797,7 +1819,7 @@ static void nocb_cb_wait(struct rcu_data *rdp)
 
 	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("CBSleep"));
 	WRITE_ONCE(rdp->nocb_cb_sleep, true);
-	raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
+	rcu_nocb_unlock_irqrestore(rdp, flags);
 	if (needwake_gp)
 		rcu_gp_kthread_wake();
 	swait_event_interruptible_exclusive(rdp->nocb_cb_wq,
@@ -1839,9 +1861,9 @@ static void do_nocb_deferred_wakeup_common(struct rcu_data *rdp)
 	unsigned long flags;
 	int ndw;
 
-	raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
+	rcu_nocb_lock_irqsave(rdp, flags);
 	if (!rcu_nocb_need_deferred_wakeup(rdp)) {
-		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
+		rcu_nocb_unlock_irqrestore(rdp, flags);
 		return;
 	}
 	ndw = READ_ONCE(rdp->nocb_defer_wakeup);

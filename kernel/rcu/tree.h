@@ -197,6 +197,7 @@ struct rcu_data {
 	struct swait_queue_head nocb_cb_wq; /* For nocb kthreads to sleep on. */
 	struct task_struct *nocb_gp_kthread;
 	raw_spinlock_t nocb_lock;	/* Guard following pair of fields. */
+	atomic_t nocb_lock_contended;	/* Contention experienced. */
 	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
 	struct timer_list nocb_timer;	/* Enforce finite deferral. */
 
@@ -430,7 +431,22 @@ static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
 				       unsigned long flags);
 #ifdef CONFIG_RCU_NOCB_CPU
 static void __init rcu_organize_nocb_kthreads(void);
-#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
+#define rcu_nocb_lock_irqsave(rdp, flags)				\
+do {									\
+	if (!rcu_segcblist_is_offloaded(&(rdp)->cblist)) {		\
+		local_irq_save(flags);					\
+	} else if (!raw_spin_trylock_irqsave(&(rdp)->nocb_lock, (flags))) {\
+		atomic_inc(&(rdp)->nocb_lock_contended);		\
+		smp_mb__after_atomic(); /* atomic_inc() before lock. */	\
+		raw_spin_lock_irqsave(&(rdp)->nocb_lock, (flags));	\
+		smp_mb__before_atomic(); /* atomic_dec() after lock. */	\
+		atomic_dec(&(rdp)->nocb_lock_contended);		\
+	}								\
+} while (0)
+#else /* #ifdef CONFIG_RCU_NOCB_CPU */
+#define rcu_nocb_lock_irqsave(rdp, flags) local_irq_save(flags)
+#endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
+
 static void rcu_bind_gp_kthread(void);
 static bool rcu_nohz_full_cpu(void);
 static void rcu_dynticks_task_enter(void);
