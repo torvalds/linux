@@ -3871,6 +3871,121 @@ fail:
 	return result;
 }
 
+static int fill_hdr_info_packet(const struct drm_connector_state *state,
+				struct dc_info_packet *out)
+{
+	struct hdmi_drm_infoframe frame;
+	unsigned char buf[30]; /* 26 + 4 */
+	ssize_t len;
+	int ret, i;
+
+	memset(out, 0, sizeof(*out));
+
+	if (!state->hdr_output_metadata)
+		return 0;
+
+	ret = drm_hdmi_infoframe_set_hdr_metadata(&frame, state);
+	if (ret)
+		return ret;
+
+	len = hdmi_drm_infoframe_pack_only(&frame, buf, sizeof(buf));
+	if (len < 0)
+		return (int)len;
+
+	/* Static metadata is a fixed 26 bytes + 4 byte header. */
+	if (len != 30)
+		return -EINVAL;
+
+	/* Prepare the infopacket for DC. */
+	switch (state->connector->connector_type) {
+	case DRM_MODE_CONNECTOR_HDMIA:
+		out->hb0 = 0x87; /* type */
+		out->hb1 = 0x01; /* version */
+		out->hb2 = 0x1A; /* length */
+		out->sb[0] = buf[3]; /* checksum */
+		i = 1;
+		break;
+
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_eDP:
+		out->hb0 = 0x00; /* sdp id, zero */
+		out->hb1 = 0x87; /* type */
+		out->hb2 = 0x1D; /* payload len - 1 */
+		out->hb3 = (0x13 << 2); /* sdp version */
+		out->sb[0] = 0x01; /* version */
+		out->sb[1] = 0x1A; /* length */
+		i = 2;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	memcpy(&out->sb[i], &buf[4], 26);
+	out->valid = true;
+
+	print_hex_dump(KERN_DEBUG, "HDR SB:", DUMP_PREFIX_NONE, 16, 1, out->sb,
+		       sizeof(out->sb), false);
+
+	return 0;
+}
+
+static bool
+is_hdr_metadata_different(const struct drm_connector_state *old_state,
+			  const struct drm_connector_state *new_state)
+{
+	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
+	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+
+	if (old_blob != new_blob) {
+		if (old_blob && new_blob &&
+		    old_blob->length == new_blob->length)
+			return memcmp(old_blob->data, new_blob->data,
+				      old_blob->length);
+
+		return true;
+	}
+
+	return false;
+}
+
+static int
+amdgpu_dm_connector_atomic_check(struct drm_connector *conn,
+				 struct drm_connector_state *new_con_state)
+{
+	struct drm_atomic_state *state = new_con_state->state;
+	struct drm_connector_state *old_con_state =
+		drm_atomic_get_old_connector_state(state, conn);
+	struct drm_crtc *crtc = new_con_state->crtc;
+	struct drm_crtc_state *new_crtc_state;
+	int ret;
+
+	if (!crtc)
+		return 0;
+
+	if (is_hdr_metadata_different(old_con_state, new_con_state)) {
+		struct dc_info_packet hdr_infopacket;
+
+		ret = fill_hdr_info_packet(new_con_state, &hdr_infopacket);
+		if (ret)
+			return ret;
+
+		new_crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(new_crtc_state))
+			return PTR_ERR(new_crtc_state);
+
+		/*
+		 * DC considers the stream backends changed if the
+		 * static metadata changes. Forcing the modeset also
+		 * gives a simple way for userspace to switch from
+		 * 8bpc to 10bpc when setting the metadata.
+		 */
+		new_crtc_state->mode_changed = true;
+	}
+
+	return 0;
+}
+
 static const struct drm_connector_helper_funcs
 amdgpu_dm_connector_helper_funcs = {
 	/*
@@ -3881,6 +3996,7 @@ amdgpu_dm_connector_helper_funcs = {
 	 */
 	.get_modes = get_modes,
 	.mode_valid = amdgpu_dm_connector_mode_valid,
+	.atomic_check = amdgpu_dm_connector_atomic_check,
 };
 
 static void dm_crtc_helper_disable(struct drm_crtc *crtc)
@@ -4677,6 +4793,10 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector_type == DRM_MODE_CONNECTOR_eDP) {
+		drm_object_attach_property(
+			&aconnector->base.base,
+			dm->ddev->mode_config.hdr_output_metadata_property, 0);
+
 		drm_connector_attach_vrr_capable_property(
 			&aconnector->base);
 	}
@@ -6140,6 +6260,11 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		}
 
 		dm_new_crtc_state->abm_level = dm_new_conn_state->abm_level;
+
+		ret = fill_hdr_info_packet(drm_new_conn_state,
+					   &new_stream->hdr_static_metadata);
+		if (ret)
+			goto fail;
 
 		if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
 		    dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
