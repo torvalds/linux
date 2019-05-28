@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+
 /* eBPF example program:
  *
  * - Creates arraymap in kernel with 4 bytes keys and 8 byte values
@@ -25,19 +27,26 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <linux/filter.h>
 
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
 
-#include "bpf_insn.h"
+#include "bpf_util.h"
 #include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
 #define FOO		"/foo"
 #define BAR		"/foo/bar/"
-#define PING_CMD	"ping -c1 -w1 127.0.0.1 > /dev/null"
+#define PING_CMD	"ping -q -c1 -w1 127.0.0.1 > /dev/null"
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];
+
+#ifdef DEBUG
+#define debug(args...) printf(args)
+#else
+#define debug(args...)
+#endif
 
 static int prog_load(int verdict)
 {
@@ -89,7 +98,7 @@ static int test_foo_bar(void)
 		goto err;
 	}
 
-	printf("Attached DROP prog. This ping in cgroup /foo should fail...\n");
+	debug("Attached DROP prog. This ping in cgroup /foo should fail...\n");
 	assert(system(PING_CMD) != 0);
 
 	/* Create cgroup /foo/bar, get fd, and join it */
@@ -100,7 +109,7 @@ static int test_foo_bar(void)
 	if (join_cgroup(BAR))
 		goto err;
 
-	printf("Attached DROP prog. This ping in cgroup /foo/bar should fail...\n");
+	debug("Attached DROP prog. This ping in cgroup /foo/bar should fail...\n");
 	assert(system(PING_CMD) != 0);
 
 	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS,
@@ -109,7 +118,7 @@ static int test_foo_bar(void)
 		goto err;
 	}
 
-	printf("Attached PASS prog. This ping in cgroup /foo/bar should pass...\n");
+	debug("Attached PASS prog. This ping in cgroup /foo/bar should pass...\n");
 	assert(system(PING_CMD) == 0);
 
 	if (bpf_prog_detach(bar, BPF_CGROUP_INET_EGRESS)) {
@@ -117,7 +126,7 @@ static int test_foo_bar(void)
 		goto err;
 	}
 
-	printf("Detached PASS from /foo/bar while DROP is attached to /foo.\n"
+	debug("Detached PASS from /foo/bar while DROP is attached to /foo.\n"
 	       "This ping in cgroup /foo/bar should fail...\n");
 	assert(system(PING_CMD) != 0);
 
@@ -132,7 +141,7 @@ static int test_foo_bar(void)
 		goto err;
 	}
 
-	printf("Attached PASS from /foo/bar and detached DROP from /foo.\n"
+	debug("Attached PASS from /foo/bar and detached DROP from /foo.\n"
 	       "This ping in cgroup /foo/bar should pass...\n");
 	assert(system(PING_CMD) == 0);
 
@@ -199,9 +208,9 @@ out:
 	close(bar);
 	cleanup_cgroup_environment();
 	if (!rc)
-		printf("### override:PASS\n");
+		printf("#override:PASS\n");
 	else
-		printf("### override:FAIL\n");
+		printf("#override:FAIL\n");
 	return rc;
 }
 
@@ -441,19 +450,122 @@ out:
 	close(cg5);
 	cleanup_cgroup_environment();
 	if (!rc)
-		printf("### multi:PASS\n");
+		printf("#multi:PASS\n");
 	else
-		printf("### multi:FAIL\n");
+		printf("#multi:FAIL\n");
 	return rc;
 }
 
-int main(int argc, char **argv)
+static int test_autodetach(void)
 {
-	int rc = 0;
+	__u32 prog_cnt = 4, attach_flags;
+	int allow_prog[2] = {0};
+	__u32 prog_ids[2] = {0};
+	int cg = 0, i, rc = -1;
+	void *ptr = NULL;
+	int attempts;
 
-	rc = test_foo_bar();
-	if (rc)
-		return rc;
+	for (i = 0; i < ARRAY_SIZE(allow_prog); i++) {
+		allow_prog[i] = prog_load_cnt(1, 1 << i);
+		if (!allow_prog[i])
+			goto err;
+	}
 
-	return test_multiprog();
+	if (setup_cgroup_environment())
+		goto err;
+
+	/* create a cgroup, attach two programs and remember their ids */
+	cg = create_and_get_cgroup("/cg_autodetach");
+	if (cg < 0)
+		goto err;
+
+	if (join_cgroup("/cg_autodetach"))
+		goto err;
+
+	for (i = 0; i < ARRAY_SIZE(allow_prog); i++) {
+		if (bpf_prog_attach(allow_prog[i], cg, BPF_CGROUP_INET_EGRESS,
+				    BPF_F_ALLOW_MULTI)) {
+			log_err("Attaching prog[%d] to cg:egress", i);
+			goto err;
+		}
+	}
+
+	/* make sure that programs are attached and run some traffic */
+	assert(bpf_prog_query(cg, BPF_CGROUP_INET_EGRESS, 0, &attach_flags,
+			      prog_ids, &prog_cnt) == 0);
+	assert(system(PING_CMD) == 0);
+
+	/* allocate some memory (4Mb) to pin the original cgroup */
+	ptr = malloc(4 * (1 << 20));
+	if (!ptr)
+		goto err;
+
+	/* close programs and cgroup fd */
+	for (i = 0; i < ARRAY_SIZE(allow_prog); i++) {
+		close(allow_prog[i]);
+		allow_prog[i] = 0;
+	}
+
+	close(cg);
+	cg = 0;
+
+	/* leave the cgroup and remove it. don't detach programs */
+	cleanup_cgroup_environment();
+
+	/* wait for the asynchronous auto-detachment.
+	 * wait for no more than 5 sec and give up.
+	 */
+	for (i = 0; i < ARRAY_SIZE(prog_ids); i++) {
+		for (attempts = 5; attempts >= 0; attempts--) {
+			int fd = bpf_prog_get_fd_by_id(prog_ids[i]);
+
+			if (fd < 0)
+				break;
+
+			/* don't leave the fd open */
+			close(fd);
+
+			if (!attempts)
+				goto err;
+
+			sleep(1);
+		}
+	}
+
+	rc = 0;
+err:
+	for (i = 0; i < ARRAY_SIZE(allow_prog); i++)
+		if (allow_prog[i] > 0)
+			close(allow_prog[i]);
+	if (cg)
+		close(cg);
+	free(ptr);
+	cleanup_cgroup_environment();
+	if (!rc)
+		printf("#autodetach:PASS\n");
+	else
+		printf("#autodetach:FAIL\n");
+	return rc;
+}
+
+int main(void)
+{
+	int (*tests[])(void) = {
+		test_foo_bar,
+		test_multiprog,
+		test_autodetach,
+	};
+	int errors = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++)
+		if (tests[i]())
+			errors++;
+
+	if (errors)
+		printf("test_cgroup_attach:FAIL\n");
+	else
+		printf("test_cgroup_attach:PASS\n");
+
+	return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
