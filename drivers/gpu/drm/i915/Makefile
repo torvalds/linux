@@ -105,6 +105,7 @@ gem-y += \
 	gem/i915_gem_stolen.o \
 	gem/i915_gem_tiling.o \
 	gem/i915_gem_userptr.o \
+	gem/i915_gem_wait.o \
 	gem/i915_gemfs.o
 i915-y += \
 	  $(gem-y) \

@@ -2758,13 +2758,6 @@ void i915_gem_suspend(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_late(struct drm_i915_private *dev_priv);
 void i915_gem_resume(struct drm_i915_private *dev_priv);
 vm_fault_t i915_gem_fault(struct vm_fault *vmf);
-int i915_gem_object_wait(struct drm_i915_gem_object *obj,
-			 unsigned int flags,
-			 long timeout);
-int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
-				  unsigned int flags,
-				  const struct i915_sched_attr *attr);
-#define I915_PRIORITY_DISPLAY I915_USER_PRIORITY(I915_PRIORITY_MAX)
 
 int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);

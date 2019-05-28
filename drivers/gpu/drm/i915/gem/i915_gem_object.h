@@ -441,4 +441,12 @@ static inline void __start_cpu_write(struct drm_i915_gem_object *obj)
 		obj->cache_dirty = true;
 }
 
+int i915_gem_object_wait(struct drm_i915_gem_object *obj,
+			 unsigned int flags,
+			 long timeout);
+int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
+				  unsigned int flags,
+				  const struct i915_sched_attr *attr);
+#define I915_PRIORITY_DISPLAY I915_USER_PRIORITY(I915_PRIORITY_MAX)
+
 #endif
