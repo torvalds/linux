@@ -1641,7 +1641,7 @@ static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	struct nes_vnic *nesvnic;
 	struct nes_adapter *nesadapter;
 	struct nes_hw_cqp_wqe *cqp_wqe;
-	struct nes_cqp_request *cqp_request;
+	struct nes_cqp_request cqp_request = {};
 	unsigned long flags;
 	u32 opcode = 0;
 	int ret;
@@ -1654,13 +1654,10 @@ static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	nes_debug(NES_DBG_CQ, "Destroy CQ%u\n", nescq->hw_cq.cq_number);
 
 	/* Send DestroyCQ request to CQP */
-	cqp_request = nes_get_cqp_request(nesdev);
-	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_CQ, "Failed to get a cqp_request.\n");
-		return -ENOMEM;
-	}
-	cqp_request->waiting = 1;
-	cqp_wqe = &cqp_request->cqp_wqe;
+	INIT_LIST_HEAD(&cqp_request.list);
+	init_waitqueue_head(&cqp_request.waitq);
+	cqp_request.waiting = 1;
+	cqp_wqe = &cqp_request.cqp_wqe;
 	opcode = NES_CQP_DESTROY_CQ | (nescq->hw_cq.cq_size << 16);
 	spin_lock_irqsave(&nesadapter->pbl_lock, flags);
 	if (nescq->virtual_cq == 1) {
@@ -1687,30 +1684,28 @@ static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	if (!nescq->mcrqf)
 		nes_free_resource(nesadapter, nesadapter->allocated_cqs, nescq->hw_cq.cq_number);
 
-	atomic_set(&cqp_request->refcount, 2);
-	nes_post_cqp_request(nesdev, cqp_request);
+	nes_post_cqp_request(nesdev, &cqp_request);
 
 	/* Wait for CQP */
 	nes_debug(NES_DBG_CQ, "Waiting for destroy iWARP CQ%u to complete.\n",
 			nescq->hw_cq.cq_number);
-	ret = wait_event_timeout(cqp_request->waitq, (0 != cqp_request->request_done),
-			NES_EVENT_TIMEOUT);
+	ret = wait_event_timeout(cqp_request.waitq, cqp_request.request_done,
+				 NES_EVENT_TIMEOUT);
 	nes_debug(NES_DBG_CQ, "Destroy iWARP CQ%u completed, wait_event_timeout ret = %u,"
 			" CQP Major:Minor codes = 0x%04X:0x%04X.\n",
-			nescq->hw_cq.cq_number, ret, cqp_request->major_code,
-			cqp_request->minor_code);
+			nescq->hw_cq.cq_number, ret, cqp_request.major_code,
+			cqp_request.minor_code);
 	if (!ret) {
 		nes_debug(NES_DBG_CQ, "iWARP CQ%u destroy timeout expired\n",
 					nescq->hw_cq.cq_number);
 		ret = -ETIME;
-	} else if (cqp_request->major_code) {
+	} else if (cqp_request.major_code) {
 		nes_debug(NES_DBG_CQ, "iWARP CQ%u destroy failed\n",
 					nescq->hw_cq.cq_number);
 		ret = -EIO;
 	} else {
 		ret = 0;
 	}
-	nes_put_cqp_request(nesdev, cqp_request);
 
 	if (nescq->cq_mem_size)
 		pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size,
@@ -1899,7 +1894,6 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	}
 	barrier();
 
-	atomic_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
