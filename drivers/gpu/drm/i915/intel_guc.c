@@ -154,7 +154,7 @@ int intel_guc_init_misc(struct intel_guc *guc)
 
 void intel_guc_fini_misc(struct intel_guc *guc)
 {
-	intel_uc_fw_fini(&guc->fw);
+	intel_uc_fw_cleanup_fetch(&guc->fw);
 	guc_fini_wq(guc);
 }
 
@@ -189,9 +189,13 @@ int intel_guc_init(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	int ret;
 
-	ret = guc_shared_data_create(guc);
+	ret = intel_uc_fw_init(&guc->fw);
 	if (ret)
 		goto err_fetch;
+
+	ret = guc_shared_data_create(guc);
+	if (ret)
+		goto err_fw;
 	GEM_BUG_ON(!guc->shared_data);
 
 	ret = intel_guc_log_create(&guc->log);
@@ -220,8 +224,10 @@ err_log:
 	intel_guc_log_destroy(&guc->log);
 err_shared:
 	guc_shared_data_destroy(guc);
-err_fetch:
+err_fw:
 	intel_uc_fw_fini(&guc->fw);
+err_fetch:
+	intel_uc_fw_cleanup_fetch(&guc->fw);
 	return ret;
 }
 
@@ -238,6 +244,7 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_log_destroy(&guc->log);
 	guc_shared_data_destroy(guc);
 	intel_uc_fw_fini(&guc->fw);
+	intel_uc_fw_cleanup_fetch(&guc->fw);
 }
 
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
@@ -720,4 +727,31 @@ err:
 u32 intel_guc_reserved_gtt_size(struct intel_guc *guc)
 {
 	return guc_to_i915(guc)->wopcm.guc.size;
+}
+
+int intel_guc_reserve_ggtt_top(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	u64 size;
+	int ret;
+
+	size = ggtt->vm.total - GUC_GGTT_TOP;
+
+	ret = i915_gem_gtt_reserve(&ggtt->vm, &ggtt->uc_fw, size,
+				   GUC_GGTT_TOP, I915_COLOR_UNEVICTABLE,
+				   PIN_NOEVICT);
+	if (ret)
+		DRM_DEBUG_DRIVER("GuC: failed to reserve top of ggtt\n");
+
+	return ret;
+}
+
+void intel_guc_release_ggtt_top(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct i915_ggtt *ggtt = &i915->ggtt;
+
+	if (drm_mm_node_allocated(&ggtt->uc_fw))
+		drm_mm_remove_node(&ggtt->uc_fw);
 }

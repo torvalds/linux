@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig RT2X00
 	tristate "Ralink driver support"
 	depends on MAC80211 && HAS_DMA

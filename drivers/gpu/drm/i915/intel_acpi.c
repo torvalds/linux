@@ -4,9 +4,12 @@
  *
  * _DSM related code stolen from nouveau_acpi.c.
  */
+
 #include <linux/pci.h>
 #include <linux/acpi.h>
+
 #include "i915_drv.h"
+#include "intel_acpi.h"
 
 #define INTEL_DSM_REVISION_ID 1 /* For Calpella anyway... */
 #define INTEL_DSM_FN_PLATFORM_MUX_INFO 1 /* No args */

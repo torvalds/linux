@@ -645,14 +645,6 @@ void __sock_tx_timestamp(__u16 tsflags, __u8 *tx_flags)
 }
 EXPORT_SYMBOL(__sock_tx_timestamp);
 
-/**
- *	sock_sendmsg - send a message through @sock
- *	@sock: socket
- *	@msg: message to send
- *
- *	Sends @msg through @sock, passing through LSM.
- *	Returns the number of bytes sent, or an error code.
- */
 INDIRECT_CALLABLE_DECLARE(int inet_sendmsg(struct socket *, struct msghdr *,
 					   size_t));
 static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
@@ -663,6 +655,14 @@ static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
 	return ret;
 }
 
+/**
+ *	sock_sendmsg - send a message through @sock
+ *	@sock: socket
+ *	@msg: message to send
+ *
+ *	Sends @msg through @sock, passing through LSM.
+ *	Returns the number of bytes sent, or an error code.
+ */
 int sock_sendmsg(struct socket *sock, struct msghdr *msg)
 {
 	int err = security_socket_sendmsg(sock, msg,
@@ -875,15 +875,6 @@ void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(__sock_recv_ts_and_drops);
 
-/**
- *	sock_recvmsg - receive a message from @sock
- *	@sock: socket
- *	@msg: message to receive
- *	@flags: message flags
- *
- *	Receives @msg from @sock, passing through LSM. Returns the total number
- *	of bytes received, or an error.
- */
 INDIRECT_CALLABLE_DECLARE(int inet_recvmsg(struct socket *, struct msghdr *,
 					   size_t , int ));
 static inline int sock_recvmsg_nosec(struct socket *sock, struct msghdr *msg,
@@ -893,6 +884,15 @@ static inline int sock_recvmsg_nosec(struct socket *sock, struct msghdr *msg,
 				   msg_data_left(msg), flags);
 }
 
+/**
+ *	sock_recvmsg - receive a message from @sock
+ *	@sock: socket
+ *	@msg: message to receive
+ *	@flags: message flags
+ *
+ *	Receives @msg from @sock, passing through LSM. Returns the total number
+ *	of bytes received, or an error.
+ */
 int sock_recvmsg(struct socket *sock, struct msghdr *msg, int flags)
 {
 	int err = security_socket_recvmsg(sock, msg, msg_data_left(msg), flags);

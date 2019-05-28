@@ -25,8 +25,9 @@
  *
  */
 
+#include "gt/intel_engine.h"
+
 #include "i915_drv.h"
-#include "intel_ringbuffer.h"
 
 /**
  * DOC: batch buffer command parser

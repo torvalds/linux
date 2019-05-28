@@ -30,6 +30,12 @@
 #ifndef _INTEL_BIOS_H_
 #define _INTEL_BIOS_H_
 
+#include <linux/types.h>
+
+#include <drm/i915_drm.h>
+
+struct drm_i915_private;
+
 enum intel_backlight_type {
 	INTEL_BACKLIGHT_PMIC,
 	INTEL_BACKLIGHT_LPSS,
@@ -219,5 +225,20 @@ struct mipi_pps_data {
 	u16 panel_off_delay;
 	u16 panel_power_cycle_delay;
 } __packed;
+
+void intel_bios_init(struct drm_i915_private *dev_priv);
+void intel_bios_cleanup(struct drm_i915_private *dev_priv);
+bool intel_bios_is_valid_vbt(const void *buf, size_t size);
+bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
+bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
+bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port port);
+bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
+bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port);
+bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
+bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
+				     enum port port);
+bool intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
+				  enum port port);
+enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
 
 #endif /* _INTEL_BIOS_H_ */

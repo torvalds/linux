@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_MGAG200
 	tristate "Kernel modesetting driver for MGA G200 server engines"
 	depends on DRM && PCI && MMU

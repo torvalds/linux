@@ -25,13 +25,15 @@
  *
  * Derived from Xorg ddx, xf86-video-intel, src/i830_video.c
  */
-#include <drm/i915_drm.h>
+
 #include <drm/drm_fourcc.h>
+#include <drm/i915_drm.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
+#include "intel_overlay.h"
 
 /* Limits for overlay size. According to intel doc, the real limits are:
  * Y width: 4095, UV width (planar): 2047, Y height: 2047,
@@ -235,10 +237,9 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 
 static struct i915_request *alloc_request(struct intel_overlay *overlay)
 {
-	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = dev_priv->engine[RCS0];
+	struct intel_engine_cs *engine = overlay->i915->engine[RCS0];
 
-	return i915_request_alloc(engine, dev_priv->kernel_context);
+	return i915_request_create(engine->kernel_context);
 }
 
 /* overlay needs to be disable in OCMD reg */

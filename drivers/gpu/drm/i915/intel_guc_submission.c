@@ -24,8 +24,10 @@
 
 #include <linux/circ_buf.h>
 
+#include "gt/intel_engine_pm.h"
+#include "gt/intel_lrc_reg.h"
+
 #include "intel_guc_submission.h"
-#include "intel_lrc_reg.h"
 #include "i915_drv.h"
 
 #define GUC_PREEMPT_FINISHED		0x1
@@ -362,11 +364,10 @@ static void guc_stage_desc_pool_destroy(struct intel_guc *guc)
 static void guc_stage_desc_init(struct intel_guc_client *client)
 {
 	struct intel_guc *guc = client->guc;
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx = client->owner;
+	struct i915_gem_engines_iter it;
 	struct guc_stage_desc *desc;
-	unsigned int tmp;
+	struct intel_context *ce;
 	u32 gfx_addr;
 
 	desc = __get_stage_desc(client);
@@ -380,10 +381,11 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 	desc->priority = client->priority;
 	desc->db_id = client->doorbell_id;
 
-	for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
-		struct intel_context *ce = intel_context_lookup(ctx, engine);
-		u32 guc_engine_id = engine->guc_id;
-		struct guc_execlist_context *lrc = &desc->lrc[guc_engine_id];
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		struct guc_execlist_context *lrc;
+
+		if (!(ce->engine->mask & client->engines))
+			continue;
 
 		/* TODO: We have a design issue to be solved here. Only when we
 		 * receive the first batch, we know which engine is used by the
@@ -392,7 +394,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 		 * for now who owns a GuC client. But for future owner of GuC
 		 * client, need to make sure lrc is pinned prior to enter here.
 		 */
-		if (!ce || !ce->state)
+		if (!ce->state)
 			break;	/* XXX: continue? */
 
 		/*
@@ -402,6 +404,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 		 * Instead, the GuC uses the LRCA of the user mode context (see
 		 * guc_add_request below).
 		 */
+		lrc = &desc->lrc[ce->engine->guc_id];
 		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
@@ -412,15 +415,16 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 		 * here. In proxy submission, it wants the stage id
 		 */
 		lrc->context_id = (client->stage_id << GUC_ELC_CTXID_OFFSET) |
-				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
+				(ce->engine->guc_id << GUC_ELC_ENGINE_OFFSET);
 
 		lrc->ring_begin = intel_guc_ggtt_offset(guc, ce->ring->vma);
 		lrc->ring_end = lrc->ring_begin + ce->ring->size - 1;
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
 
-		desc->engines_used |= (1 << guc_engine_id);
+		desc->engines_used |= BIT(ce->engine->guc_id);
 	}
+	i915_gem_context_unlock_engines(ctx);
 
 	DRM_DEBUG_DRIVER("Host engines 0x%x => GuC engines used 0x%x\n",
 			 client->engines, desc->engines_used);
@@ -742,7 +746,8 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 				&engine->i915->guc.preempt_work[engine->id];
 			int prio = execlists->queue_priority_hint;
 
-			if (__execlists_need_preempt(prio, port_prio(port))) {
+			if (i915_scheduler_need_preempt(prio,
+							port_prio(port))) {
 				execlists_set_active(execlists,
 						     EXECLISTS_ACTIVE_PREEMPT);
 				queue_work(engine->i915->guc.preempt_wq,
@@ -1194,7 +1199,7 @@ static void __guc_client_disable(struct intel_guc_client *client)
 	 * the case, instead of trying (in vain) to communicate with it, let's
 	 * just cleanup the doorbell HW and our internal state.
 	 */
-	if (intel_guc_is_alive(client->guc))
+	if (intel_guc_is_loaded(client->guc))
 		destroy_doorbell(client);
 	else
 		__fini_doorbell(client);
@@ -1359,6 +1364,7 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 
 static void guc_submission_park(struct intel_engine_cs *engine)
 {
+	intel_engine_park(engine);
 	intel_engine_unpin_breadcrumbs_irq(engine);
 	engine->flags &= ~I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 }

@@ -26,7 +26,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
-#include "dvo.h"
+#include "intel_drv.h"
+#include "intel_dvo_dev.h"
 
 #define CH7xxx_REG_VID		0x4a
 #define CH7xxx_REG_DID		0x4b

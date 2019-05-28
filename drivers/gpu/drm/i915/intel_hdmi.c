@@ -39,17 +39,24 @@
 #include <drm/i915_drm.h>
 #include <drm/intel_lpe_audio.h>
 
+#include "i915_debugfs.h"
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_dp.h"
+#include "intel_dpio_phy.h"
 #include "intel_drv.h"
+#include "intel_fifo_underrun.h"
+#include "intel_gmbus.h"
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
+#include "intel_hotplug.h"
 #include "intel_lspcon.h"
 #include "intel_sdvo.h"
 #include "intel_panel.h"
+#include "intel_sideband.h"
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
 {
@@ -846,19 +853,6 @@ static void g4x_set_infoframes(struct intel_encoder *encoder,
 			      &crtc_state->infoframes.hdmi);
 }
 
-static bool hdmi_sink_is_deep_color(const struct drm_connector_state *conn_state)
-{
-	struct drm_connector *connector = conn_state->connector;
-
-	/*
-	 * HDMI cloning is only supported on g4x which doesn't
-	 * support deep color or GCP infoframes anyway so no
-	 * need to worry about multiple HDMI sinks here.
-	 */
-
-	return connector->display_info.bpc > 8;
-}
-
 /*
  * Determine if default_phase=1 can be indicated in the GCP infoframe.
  *
@@ -963,8 +957,8 @@ static void intel_hdmi_compute_gcp_infoframe(struct intel_encoder *encoder,
 	crtc_state->infoframes.enable |=
 		intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GENERAL_CONTROL);
 
-	/* Indicate color depth whenever the sink supports deep color */
-	if (hdmi_sink_is_deep_color(conn_state))
+	/* Indicate color indication for deep color mode */
+	if (crtc_state->pipe_bpp > 24)
 		crtc_state->infoframes.gcp |= GCP_COLOR_INDICATION;
 
 	/* Enable default_phase whenever the display mode is suitably aligned */
@@ -2162,7 +2156,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	if (bpc == 10 && INTEL_GEN(dev_priv) < 11)
 		return false;
 
-	if (crtc_state->pipe_bpp <= 8*3)
+	if (crtc_state->pipe_bpp < bpc * 3)
 		return false;
 
 	if (!crtc_state->has_hdmi_sink)
@@ -2620,12 +2614,12 @@ static void chv_hdmi_post_disable(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	mutex_lock(&dev_priv->sb_lock);
+	vlv_dpio_get(dev_priv);
 
 	/* Assert data lane reset */
 	chv_data_lane_soft_reset(encoder, old_crtc_state, true);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_dpio_put(dev_priv);
 }
 
 static void chv_hdmi_pre_enable(struct intel_encoder *encoder,

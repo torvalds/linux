@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * proc/fs/generic.c --- generic routines for the proc-fs
  *

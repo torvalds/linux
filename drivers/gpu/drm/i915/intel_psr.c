@@ -229,16 +229,6 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 	}
 }
 
-static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
-{
-	u8 dprx = 0;
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
-			      &dprx) != 1)
-		return false;
-	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
-}
-
 static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 {
 	u8 alpm_caps = 0;
@@ -352,7 +342,7 @@ static void intel_psr_setup_vsc(struct intel_dp *intel_dp,
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct edp_vsc_psr psr_vsc;
+	struct dp_sdp psr_vsc;
 
 	if (dev_priv->psr.psr2_enabled) {
 		/* Prepare VSC Header for SU as per EDP 1.4 spec, Table 6.11 */

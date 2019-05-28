@@ -43,13 +43,17 @@ static inline bool icl_is_nv12_y_plane(enum plane_id id)
 	return false;
 }
 
+static inline u8 icl_hdr_plane_mask(void)
+{
+	return BIT(PLANE_PRIMARY) |
+		BIT(PLANE_SPRITE0) | BIT(PLANE_SPRITE1);
+}
+
 static inline bool icl_is_hdr_plane(struct drm_i915_private *dev_priv,
 				    enum plane_id plane_id)
 {
-	if (INTEL_GEN(dev_priv) < 11)
-		return false;
-
-	return plane_id < PLANE_SPRITE2;
+	return INTEL_GEN(dev_priv) >= 11 &&
+		icl_hdr_plane_mask() & BIT(plane_id);
 }
 
 #endif /* __INTEL_SPRITE_H__ */

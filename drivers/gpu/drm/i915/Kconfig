@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_I915
 	tristate "Intel 8xx/9xx/G3x/G4x/HD Graphics"
 	depends on DRM
@@ -131,4 +132,10 @@ menu "drm/i915 Debugging"
 depends on DRM_I915
 depends on EXPERT
 source "drivers/gpu/drm/i915/Kconfig.debug"
+endmenu
+
+menu "drm/i915 Profile Guided Optimisation"
+	visible if EXPERT
+	depends on DRM_I915
+	source "drivers/gpu/drm/i915/Kconfig.profile"
 endmenu

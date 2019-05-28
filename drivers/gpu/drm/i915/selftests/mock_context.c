@@ -30,6 +30,7 @@ mock_context(struct drm_i915_private *i915,
 	     const char *name)
 {
 	struct i915_gem_context *ctx;
+	struct i915_gem_engines *e;
 	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -40,18 +41,20 @@ mock_context(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&ctx->link);
 	ctx->i915 = i915;
 
-	ctx->hw_contexts = RB_ROOT;
-	spin_lock_init(&ctx->hw_contexts_lock);
+	mutex_init(&ctx->engines_mutex);
+	e = default_engines(ctx);
+	if (IS_ERR(e))
+		goto err_free;
+	RCU_INIT_POINTER(ctx->engines, e);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
 	INIT_LIST_HEAD(&ctx->hw_id_link);
-	INIT_LIST_HEAD(&ctx->active_engines);
 	mutex_init(&ctx->mutex);
 
 	ret = i915_gem_context_pin_hw_id(ctx);
 	if (ret < 0)
-		goto err_handles;
+		goto err_engines;
 
 	if (name) {
 		struct i915_hw_ppgtt *ppgtt;
@@ -69,7 +72,9 @@ mock_context(struct drm_i915_private *i915,
 
 	return ctx;
 
-err_handles:
+err_engines:
+	free_engines(rcu_access_pointer(ctx->engines));
+err_free:
 	kfree(ctx);
 	return NULL;
 

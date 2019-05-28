@@ -6,6 +6,7 @@
 #include <linux/dmi.h>
 
 #include "intel_drv.h"
+#include "intel_quirks.h"
 
 /*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason

@@ -26,11 +26,11 @@
 
 #include <drm/drm_edid.h>
 #include <drm/i915_component.h>
-#include <drm/intel_lpe_audio.h>
 
 #include "i915_drv.h"
 #include "intel_audio.h"
 #include "intel_drv.h"
+#include "intel_lpe_audio.h"
 
 /**
  * DOC: High Definition Audio over HDMI and Display Port
@@ -319,9 +319,8 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct i915_audio_component *acomp = dev_priv->audio_component;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum port port = encoder->port;
-	enum pipe pipe = crtc->pipe;
 	const struct dp_aud_n_m *nm;
 	int rate;
 	u32 tmp;
@@ -333,7 +332,7 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 	else
 		DRM_DEBUG_KMS("using automatic Maud, Naud\n");
 
-	tmp = I915_READ(HSW_AUD_CFG(pipe));
+	tmp = I915_READ(HSW_AUD_CFG(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
@@ -345,9 +344,9 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 		tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	}
 
-	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+	I915_WRITE(HSW_AUD_CFG(cpu_transcoder), tmp);
 
-	tmp = I915_READ(HSW_AUD_M_CTS_ENABLE(pipe));
+	tmp = I915_READ(HSW_AUD_M_CTS_ENABLE(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_M_MASK;
 	tmp &= ~AUD_M_CTS_M_VALUE_INDEX;
 	tmp &= ~AUD_M_CTS_M_PROG_ENABLE;
@@ -358,7 +357,7 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 		tmp |= AUD_M_CTS_M_PROG_ENABLE;
 	}
 
-	I915_WRITE(HSW_AUD_M_CTS_ENABLE(pipe), tmp);
+	I915_WRITE(HSW_AUD_M_CTS_ENABLE(cpu_transcoder), tmp);
 }
 
 static void
@@ -367,15 +366,14 @@ hsw_hdmi_audio_config_update(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct i915_audio_component *acomp = dev_priv->audio_component;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum port port = encoder->port;
-	enum pipe pipe = crtc->pipe;
 	int n, rate;
 	u32 tmp;
 
 	rate = acomp ? acomp->aud_sample_rate[port] : 0;
 
-	tmp = I915_READ(HSW_AUD_CFG(pipe));
+	tmp = I915_READ(HSW_AUD_CFG(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
@@ -392,16 +390,16 @@ hsw_hdmi_audio_config_update(struct intel_encoder *encoder,
 		DRM_DEBUG_KMS("using automatic N\n");
 	}
 
-	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+	I915_WRITE(HSW_AUD_CFG(cpu_transcoder), tmp);
 
 	/*
 	 * Let's disable "Enable CTS or M Prog bit"
 	 * and let HW calculate the value
 	 */
-	tmp = I915_READ(HSW_AUD_M_CTS_ENABLE(pipe));
+	tmp = I915_READ(HSW_AUD_M_CTS_ENABLE(cpu_transcoder));
 	tmp &= ~AUD_M_CTS_M_PROG_ENABLE;
 	tmp &= ~AUD_M_CTS_M_VALUE_INDEX;
-	I915_WRITE(HSW_AUD_M_CTS_ENABLE(pipe), tmp);
+	I915_WRITE(HSW_AUD_M_CTS_ENABLE(cpu_transcoder), tmp);
 }
 
 static void
@@ -419,28 +417,28 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct drm_connector_state *old_conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
-	enum pipe pipe = crtc->pipe;
+	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 	u32 tmp;
 
-	DRM_DEBUG_KMS("Disable audio codec on pipe %c\n", pipe_name(pipe));
+	DRM_DEBUG_KMS("Disable audio codec on transcoder %s\n",
+		      transcoder_name(cpu_transcoder));
 
 	mutex_lock(&dev_priv->av_mutex);
 
 	/* Disable timestamps */
-	tmp = I915_READ(HSW_AUD_CFG(pipe));
+	tmp = I915_READ(HSW_AUD_CFG(cpu_transcoder));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_UPPER_N_MASK;
 	tmp &= ~AUD_CONFIG_LOWER_N_MASK;
 	if (intel_crtc_has_dp_encoder(old_crtc_state))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
-	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+	I915_WRITE(HSW_AUD_CFG(cpu_transcoder), tmp);
 
 	/* Invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp &= ~AUDIO_ELD_VALID(pipe);
-	tmp &= ~AUDIO_OUTPUT_ENABLE(pipe);
+	tmp &= ~AUDIO_ELD_VALID(cpu_transcoder);
+	tmp &= ~AUDIO_OUTPUT_ENABLE(cpu_transcoder);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	mutex_unlock(&dev_priv->av_mutex);
@@ -451,22 +449,21 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 				   const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_connector *connector = conn_state->connector;
-	enum pipe pipe = crtc->pipe;
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	const u8 *eld = connector->eld;
 	u32 tmp;
 	int len, i;
 
-	DRM_DEBUG_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
-		      pipe_name(pipe), drm_eld_size(eld));
+	DRM_DEBUG_KMS("Enable audio codec on transcoder %s, %u bytes ELD\n",
+		      transcoder_name(cpu_transcoder), drm_eld_size(eld));
 
 	mutex_lock(&dev_priv->av_mutex);
 
 	/* Enable audio presence detect, invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp |= AUDIO_OUTPUT_ENABLE(pipe);
-	tmp &= ~AUDIO_ELD_VALID(pipe);
+	tmp |= AUDIO_OUTPUT_ENABLE(cpu_transcoder);
+	tmp &= ~AUDIO_ELD_VALID(cpu_transcoder);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	/*
@@ -477,18 +474,18 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	 */
 
 	/* Reset ELD write address */
-	tmp = I915_READ(HSW_AUD_DIP_ELD_CTRL(pipe));
+	tmp = I915_READ(HSW_AUD_DIP_ELD_CTRL(cpu_transcoder));
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
-	I915_WRITE(HSW_AUD_DIP_ELD_CTRL(pipe), tmp);
+	I915_WRITE(HSW_AUD_DIP_ELD_CTRL(cpu_transcoder), tmp);
 
 	/* Up to 84 bytes of hw ELD buffer */
 	len = min(drm_eld_size(eld), 84);
 	for (i = 0; i < len / 4; i++)
-		I915_WRITE(HSW_AUD_EDID_DATA(pipe), *((const u32 *)eld + i));
+		I915_WRITE(HSW_AUD_EDID_DATA(cpu_transcoder), *((const u32 *)eld + i));
 
 	/* ELD valid */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp |= AUDIO_ELD_VALID(pipe);
+	tmp |= AUDIO_ELD_VALID(cpu_transcoder);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	/* Enable timestamps */
@@ -644,8 +641,10 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum pipe pipe = crtc->pipe;
 
+	/* FIXME precompute the ELD in .compute_config() */
 	if (!connector->eld[0])
-		return;
+		DRM_DEBUG_KMS("Bogus ELD on [CONNECTOR:%d:%s]\n",
+			      connector->base.id, connector->name);
 
 	DRM_DEBUG_DRIVER("ELD on [CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 			 connector->base.id,

@@ -25,7 +25,8 @@
  *
  */
 
-#include "dvo.h"
+#include "intel_drv.h"
+#include "intel_dvo_dev.h"
 
 /* register definitions according to the TFP410 data sheet */
 #define TFP410_VID		0x014C

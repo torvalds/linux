@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config GFS2_FS
 	tristate "GFS2 file system support"
 	select FS_POSIX_ACL

@@ -9,9 +9,10 @@
 
 #include "../i915_selftest.h"
 
+#include "gt/intel_engine.h"
+
 #include "../i915_drv.h"
 #include "../i915_request.h"
-#include "../intel_ringbuffer.h"
 #include "../i915_gem_context.h"
 
 struct igt_spinner {

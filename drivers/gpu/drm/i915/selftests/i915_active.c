@@ -46,7 +46,7 @@ static int __live_active_setup(struct drm_i915_private *i915,
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
 
-		rq = i915_request_alloc(engine, i915->kernel_context);
+		rq = i915_request_create(engine->kernel_context);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			break;
