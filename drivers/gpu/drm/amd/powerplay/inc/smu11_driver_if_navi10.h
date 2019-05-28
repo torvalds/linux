@@ -26,7 +26,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x2F
+#define SMU11_DRIVER_IF_VERSION 0x32
 
 #define PPTABLE_NV10_SMU_VERSION 8
 
@@ -114,7 +114,7 @@
 
 #define FEATURE_MMHUB_PG_BIT            40
 #define FEATURE_ATHUB_PG_BIT            41
-#define FEATURE_SPARE_42_BIT            42
+#define FEATURE_APCC_DFLL_BIT           42
 #define FEATURE_SPARE_43_BIT            43
 #define FEATURE_SPARE_44_BIT            44
 #define FEATURE_SPARE_45_BIT            45
@@ -490,23 +490,26 @@ typedef struct {
   uint16_t FanTargetTemperature;
 
   uint16_t MemoryTemperatureLimit;
-  uint16_t Reserved2;
+  uint16_t MemoryTemperatureLimit1;
 
   uint16_t TGP;
-  uint16_t Reserved3;
+  uint16_t CardPower;
 
   uint32_t DieTemperatureRegisterOffset;
 
-  uint32_t Reserved4;
+  uint32_t Reserved2;
   
-  uint32_t Reserved5;
+  uint32_t Reserved3;
 
   uint32_t Status;
 
   uint16_t DieTemperature;
   uint16_t MemoryTemperature;
 
-  uint32_t     MmHubPadding[8]; // SMU internal use  
+  uint16_t SelectedCardPower;
+  uint16_t Reserved4; 
+
+  uint32_t BoardLevelEnergyAccumulator;  
 } OutOfBandMonitor_t;
 
 typedef struct {
@@ -794,8 +797,8 @@ typedef struct {
   uint16_t     BoardPadding; 
 
   // Mvdd Svi2 Div Ratio Setting
-  uint32_t MvddRatio; // This is used for MVDD Vid workaround. It has 16 fractional bits (Q16.16)
-  
+  uint32_t     MvddRatio; // This is used for MVDD Vid workaround. It has 16 fractional bits (Q16.16)
+
   uint32_t     BoardReserved[9];
 
   // Padding for MMHUB - do not modify this
@@ -865,7 +868,8 @@ typedef struct {
   uint32_t ThrottlerStatus       ; 
  
   uint8_t  LinkDpmLevel;
-  uint8_t  Padding[3];
+  uint8_t  Padding8_2;
+  uint16_t CurrFanSpeed;
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
