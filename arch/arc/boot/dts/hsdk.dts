@@ -241,6 +241,14 @@
 			dma-coherent;
 		};
 
+		creg_gpio: gpio@14b0 {
+			compatible = "snps,creg-gpio-hsdk";
+			reg = <0x14b0 0x4>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <2>;
+		};
+
 		gpio: gpio@3000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x3000 0x20>;
