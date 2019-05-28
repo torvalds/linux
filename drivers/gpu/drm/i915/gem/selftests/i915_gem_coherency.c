@@ -78,7 +78,9 @@ static int gtt_set(struct drm_i915_gem_object *obj,
 	u32 __iomem *map;
 	int err;
 
+	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
+	i915_gem_object_unlock(obj);
 	if (err)
 		return err;
 
@@ -105,7 +107,9 @@ static int gtt_get(struct drm_i915_gem_object *obj,
 	u32 __iomem *map;
 	int err;
 
+	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_gtt_domain(obj, false);
+	i915_gem_object_unlock(obj);
 	if (err)
 		return err;
 
@@ -131,7 +135,9 @@ static int wc_set(struct drm_i915_gem_object *obj,
 	u32 *map;
 	int err;
 
+	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_wc_domain(obj, true);
+	i915_gem_object_unlock(obj);
 	if (err)
 		return err;
 
@@ -152,7 +158,9 @@ static int wc_get(struct drm_i915_gem_object *obj,
 	u32 *map;
 	int err;
 
+	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_wc_domain(obj, false);
+	i915_gem_object_unlock(obj);
 	if (err)
 		return err;
 
@@ -176,7 +184,9 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	u32 *cs;
 	int err;
 
+	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
+	i915_gem_object_unlock(obj);
 	if (err)
 		return err;
 
@@ -215,7 +225,9 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	}
 	intel_ring_advance(rq, cs);
 
+	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(vma);
 	i915_vma_unpin(vma);
 
 	i915_request_add(rq);

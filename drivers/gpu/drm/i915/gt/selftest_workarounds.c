@@ -118,7 +118,9 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 		goto err_pin;
 	}
 
+	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(vma);
 	if (err)
 		goto err_req;
 
@@ -195,8 +197,10 @@ static int check_whitelist(struct i915_gem_context *ctx,
 		return PTR_ERR(results);
 
 	err = 0;
+	i915_gem_object_lock(results);
 	igt_wedge_on_timeout(&wedge, ctx->i915, HZ / 5) /* a safety net! */
 		err = i915_gem_object_set_to_cpu_domain(results, false);
+	i915_gem_object_unlock(results);
 	if (i915_terminally_wedged(ctx->i915))
 		err = -EIO;
 	if (err)
@@ -367,7 +371,9 @@ static struct i915_vma *create_batch(struct i915_gem_context *ctx)
 	if (err)
 		goto err_obj;
 
+	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_wc_domain(obj, true);
+	i915_gem_object_unlock(obj);
 	if (err)
 		goto err_obj;
 

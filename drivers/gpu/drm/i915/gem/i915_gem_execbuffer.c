@@ -1075,7 +1075,9 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 		if (use_cpu_reloc(cache, obj))
 			return NULL;
 
+		i915_gem_object_lock(obj);
 		err = i915_gem_object_set_to_gtt_domain(obj, true);
+		i915_gem_object_unlock(obj);
 		if (err)
 			return ERR_PTR(err);
 
@@ -1164,6 +1166,26 @@ static void clflush_write32(u32 *addr, u32 value, unsigned int flushes)
 		*addr = value;
 }
 
+static int reloc_move_to_gpu(struct i915_request *rq, struct i915_vma *vma)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+	int err;
+
+	i915_vma_lock(vma);
+
+	if (obj->cache_dirty & ~obj->cache_coherent)
+		i915_gem_clflush_object(obj, 0);
+	obj->write_domain = 0;
+
+	err = i915_request_await_object(rq, vma->obj, true);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+
+	i915_vma_unlock(vma);
+
+	return err;
+}
+
 static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 			     struct i915_vma *vma,
 			     unsigned int len)
@@ -1174,15 +1196,6 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	struct i915_vma *batch;
 	u32 *cmd;
 	int err;
-
-	if (DBG_FORCE_RELOC == FORCE_GPU_RELOC) {
-		obj = vma->obj;
-		if (obj->cache_dirty & ~obj->cache_coherent)
-			i915_gem_clflush_object(obj, 0);
-		obj->write_domain = 0;
-	}
-
-	GEM_BUG_ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
 
 	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -1212,7 +1225,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto err_unpin;
 	}
 
-	err = i915_request_await_object(rq, vma->obj, true);
+	err = reloc_move_to_gpu(rq, vma);
 	if (err)
 		goto err_request;
 
@@ -1220,14 +1233,12 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 					batch->node.start, PAGE_SIZE,
 					cache->gen > 5 ? 0 : I915_DISPATCH_SECURE);
 	if (err)
-		goto err_request;
-
-	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
-	err = i915_vma_move_to_active(batch, rq, 0);
-	if (err)
 		goto skip_request;
 
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_lock(batch);
+	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
+	err = i915_vma_move_to_active(batch, rq, 0);
+	i915_vma_unlock(batch);
 	if (err)
 		goto skip_request;
 
@@ -1837,24 +1848,59 @@ slow:
 static int eb_move_to_gpu(struct i915_execbuffer *eb)
 {
 	const unsigned int count = eb->buffer_count;
+	struct ww_acquire_ctx acquire;
 	unsigned int i;
-	int err;
+	int err = 0;
+
+	ww_acquire_init(&acquire, &reservation_ww_class);
 
 	for (i = 0; i < count; i++) {
+		struct i915_vma *vma = eb->vma[i];
+
+		err = ww_mutex_lock_interruptible(&vma->resv->lock, &acquire);
+		if (!err)
+			continue;
+
+		GEM_BUG_ON(err == -EALREADY); /* No duplicate vma */
+
+		if (err == -EDEADLK) {
+			GEM_BUG_ON(i == 0);
+			do {
+				int j = i - 1;
+
+				ww_mutex_unlock(&eb->vma[j]->resv->lock);
+
+				swap(eb->flags[i], eb->flags[j]);
+				swap(eb->vma[i],  eb->vma[j]);
+				eb->vma[i]->exec_flags = &eb->flags[i];
+			} while (--i);
+			GEM_BUG_ON(vma != eb->vma[0]);
+			vma->exec_flags = &eb->flags[0];
+
+			err = ww_mutex_lock_slow_interruptible(&vma->resv->lock,
+							       &acquire);
+		}
+		if (err)
+			break;
+	}
+	ww_acquire_done(&acquire);
+
+	while (i--) {
 		unsigned int flags = eb->flags[i];
 		struct i915_vma *vma = eb->vma[i];
 		struct drm_i915_gem_object *obj = vma->obj;
+
+		assert_vma_held(vma);
 
 		if (flags & EXEC_OBJECT_CAPTURE) {
 			struct i915_capture_list *capture;
 
 			capture = kmalloc(sizeof(*capture), GFP_KERNEL);
-			if (unlikely(!capture))
-				return -ENOMEM;
-
-			capture->next = eb->request->capture_list;
-			capture->vma = eb->vma[i];
-			eb->request->capture_list = capture;
+			if (capture) {
+				capture->next = eb->request->capture_list;
+				capture->vma = vma;
+				eb->request->capture_list = capture;
+			}
 		}
 
 		/*
@@ -1874,24 +1920,15 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 				flags &= ~EXEC_OBJECT_ASYNC;
 		}
 
-		if (flags & EXEC_OBJECT_ASYNC)
-			continue;
-
-		err = i915_request_await_object
-			(eb->request, obj, flags & EXEC_OBJECT_WRITE);
-		if (err)
-			return err;
-	}
-
-	for (i = 0; i < count; i++) {
-		unsigned int flags = eb->flags[i];
-		struct i915_vma *vma = eb->vma[i];
-
-		err = i915_vma_move_to_active(vma, eb->request, flags);
-		if (unlikely(err)) {
-			i915_request_skip(eb->request, err);
-			return err;
+		if (err == 0 && !(flags & EXEC_OBJECT_ASYNC)) {
+			err = i915_request_await_object
+				(eb->request, obj, flags & EXEC_OBJECT_WRITE);
 		}
+
+		if (err == 0)
+			err = i915_vma_move_to_active(vma, eb->request, flags);
+
+		i915_vma_unlock(vma);
 
 		__eb_unreserve_vma(vma, flags);
 		vma->exec_flags = NULL;
@@ -1899,12 +1936,20 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		if (unlikely(flags & __EXEC_OBJECT_HAS_REF))
 			i915_vma_put(vma);
 	}
+	ww_acquire_fini(&acquire);
+
+	if (unlikely(err))
+		goto err_skip;
+
 	eb->exec = NULL;
 
 	/* Unconditionally flush any chipset caches (for streaming writes). */
 	i915_gem_chipset_flush(eb->i915);
-
 	return 0;
+
+err_skip:
+	i915_request_skip(eb->request, err);
+	return err;
 }
 
 static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)

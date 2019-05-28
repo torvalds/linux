@@ -960,10 +960,6 @@ static int gpu_write(struct i915_vma *vma,
 
 	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
 
-	err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
-	if (err)
-		return err;
-
 	batch = gpu_write_dw(vma, dword * sizeof(u32), value);
 	if (IS_ERR(batch))
 		return PTR_ERR(batch);
@@ -974,13 +970,19 @@ static int gpu_write(struct i915_vma *vma,
 		goto err_batch;
 	}
 
+	i915_vma_lock(batch);
 	err = i915_vma_move_to_active(batch, rq, 0);
+	i915_vma_unlock(batch);
 	if (err)
 		goto err_request;
 
 	i915_gem_object_set_active_reference(batch->obj);
 
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_lock(vma);
+	err = i915_gem_object_set_to_gtt_domain(vma->obj, false);
+	if (err == 0)
+		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(vma);
 	if (err)
 		goto err_request;
 

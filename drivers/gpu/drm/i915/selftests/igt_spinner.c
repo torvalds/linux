@@ -76,7 +76,9 @@ static int move_to_active(struct i915_vma *vma,
 {
 	int err;
 
+	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, flags);
+	i915_vma_unlock(vma);
 	if (err)
 		return err;
 

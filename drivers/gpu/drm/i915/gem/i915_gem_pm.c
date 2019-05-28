@@ -187,12 +187,13 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	 * machine in an unusable condition.
 	 */
 
-	mutex_lock(&i915->drm.struct_mutex);
 	for (phase = phases; *phase; phase++) {
-		list_for_each_entry(obj, *phase, mm.link)
+		list_for_each_entry(obj, *phase, mm.link) {
+			i915_gem_object_lock(obj);
 			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
+			i915_gem_object_unlock(obj);
+		}
 	}
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	intel_uc_sanitize(i915);
 	i915_gem_sanitize(i915);

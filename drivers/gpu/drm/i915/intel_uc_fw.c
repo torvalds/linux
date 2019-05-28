@@ -246,14 +246,12 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->load_status));
 
-	intel_uc_fw_ggtt_bind(uc_fw);
-
 	/* Call custom loader */
+	intel_uc_fw_ggtt_bind(uc_fw);
 	err = xfer(uc_fw);
+	intel_uc_fw_ggtt_unbind(uc_fw);
 	if (err)
 		goto fail;
-
-	intel_uc_fw_ggtt_unbind(uc_fw);
 
 	uc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
 	DRM_DEBUG_DRIVER("%s fw load %s\n",

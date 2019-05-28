@@ -29,9 +29,9 @@ void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 	if (!READ_ONCE(obj->pin_global))
 		return;
 
-	mutex_lock(&obj->base.dev->struct_mutex);
+	i915_gem_object_lock(obj);
 	__i915_gem_object_flush_for_display(obj);
-	mutex_unlock(&obj->base.dev->struct_mutex);
+	i915_gem_object_unlock(obj);
 }
 
 /**
@@ -47,11 +47,10 @@ i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	int ret;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	assert_object_held(obj);
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
-				   I915_WAIT_LOCKED |
 				   (write ? I915_WAIT_ALL : 0),
 				   MAX_SCHEDULE_TIMEOUT);
 	if (ret)
@@ -109,11 +108,10 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	int ret;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	assert_object_held(obj);
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
-				   I915_WAIT_LOCKED |
 				   (write ? I915_WAIT_ALL : 0),
 				   MAX_SCHEDULE_TIMEOUT);
 	if (ret)
@@ -179,7 +177,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	assert_object_held(obj);
 
 	if (obj->cache_level == cache_level)
 		return 0;
@@ -228,7 +226,6 @@ restart:
 		 */
 		ret = i915_gem_object_wait(obj,
 					   I915_WAIT_INTERRUPTIBLE |
-					   I915_WAIT_LOCKED |
 					   I915_WAIT_ALL,
 					   MAX_SCHEDULE_TIMEOUT);
 		if (ret)
@@ -372,12 +369,16 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 	if (ret)
 		goto out;
 
-	ret = i915_gem_object_set_cache_level(obj, level);
-	mutex_unlock(&dev->struct_mutex);
+	ret = i915_gem_object_lock_interruptible(obj);
+	if (ret == 0) {
+		ret = i915_gem_object_set_cache_level(obj, level);
+		i915_gem_object_unlock(obj);
+	}
+	mutex_unlock(&i915->drm.struct_mutex);
 
 out:
 	i915_gem_object_put(obj);
@@ -399,7 +400,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	assert_object_held(obj);
 
 	/* Mark the global pin early so that we account for the
 	 * display coherency whilst setting up the cache domains.
@@ -484,16 +485,18 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 void
 i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
+	struct drm_i915_gem_object *obj = vma->obj;
 
-	if (WARN_ON(vma->obj->pin_global == 0))
+	assert_object_held(obj);
+
+	if (WARN_ON(obj->pin_global == 0))
 		return;
 
-	if (--vma->obj->pin_global == 0)
+	if (--obj->pin_global == 0)
 		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
-	i915_gem_object_bump_inactive_ggtt(vma->obj);
+	i915_gem_object_bump_inactive_ggtt(obj);
 
 	i915_vma_unpin(vma);
 }
@@ -511,11 +514,10 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	int ret;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	assert_object_held(obj);
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
-				   I915_WAIT_LOCKED |
 				   (write ? I915_WAIT_ALL : 0),
 				   MAX_SCHEDULE_TIMEOUT);
 	if (ret)
@@ -637,7 +639,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out;
 
-	err = i915_mutex_lock_interruptible(dev);
+	err = i915_gem_object_lock_interruptible(obj);
 	if (err)
 		goto out_unpin;
 
@@ -651,7 +653,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	/* And bump the LRU for this access */
 	i915_gem_object_bump_inactive_ggtt(obj);
 
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_object_unlock(obj);
 
 	if (write_domain != 0)
 		intel_fb_obj_invalidate(obj,
@@ -674,22 +676,23 @@ int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
 	*needs_clflush = 0;
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE |
-				   I915_WAIT_LOCKED,
-				   MAX_SCHEDULE_TIMEOUT);
+	ret = i915_gem_object_lock_interruptible(obj);
 	if (ret)
 		return ret;
 
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE,
+				   MAX_SCHEDULE_TIMEOUT);
+	if (ret)
+		goto err_unlock;
+
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
-		return ret;
+		goto err_unlock;
 
 	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
@@ -717,6 +720,8 @@ out:
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
+err_unlock:
+	i915_gem_object_unlock(obj);
 	return ret;
 }
 
@@ -725,23 +730,24 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
 	*needs_clflush = 0;
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE |
-				   I915_WAIT_LOCKED |
-				   I915_WAIT_ALL,
-				   MAX_SCHEDULE_TIMEOUT);
+	ret = i915_gem_object_lock_interruptible(obj);
 	if (ret)
 		return ret;
 
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT);
+	if (ret)
+		goto err_unlock;
+
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
-		return ret;
+		goto err_unlock;
 
 	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
@@ -778,5 +784,7 @@ out:
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
+err_unlock:
+	i915_gem_object_unlock(obj);
 	return ret;
 }

@@ -151,7 +151,6 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
-	struct drm_device *dev = obj->base.dev;
 	bool write = (direction == DMA_BIDIRECTIONAL || direction == DMA_TO_DEVICE);
 	int err;
 
@@ -159,12 +158,12 @@ static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, enum dma_data_dire
 	if (err)
 		return err;
 
-	err = i915_mutex_lock_interruptible(dev);
+	err = i915_gem_object_lock_interruptible(obj);
 	if (err)
 		goto out;
 
 	err = i915_gem_object_set_to_cpu_domain(obj, write);
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_object_unlock(obj);
 
 out:
 	i915_gem_object_unpin_pages(obj);
@@ -174,19 +173,18 @@ out:
 static int i915_gem_end_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
-	struct drm_device *dev = obj->base.dev;
 	int err;
 
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
 		return err;
 
-	err = i915_mutex_lock_interruptible(dev);
+	err = i915_gem_object_lock_interruptible(obj);
 	if (err)
 		goto out;
 
 	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_object_unlock(obj);
 
 out:
 	i915_gem_object_unpin_pages(obj);

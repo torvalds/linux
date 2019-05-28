@@ -99,15 +99,28 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 	__drm_gem_object_put(&obj->base);
 }
 
+#define assert_object_held(obj) reservation_object_assert_held((obj)->resv)
+
 static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 {
 	reservation_object_lock(obj->resv, NULL);
+}
+
+static inline int
+i915_gem_object_lock_interruptible(struct drm_i915_gem_object *obj)
+{
+	return reservation_object_lock_interruptible(obj->resv, NULL);
 }
 
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 {
 	reservation_object_unlock(obj->resv);
 }
+
+struct dma_fence *
+i915_gem_object_lock_fence(struct drm_i915_gem_object *obj);
+void i915_gem_object_unlock_fence(struct drm_i915_gem_object *obj,
+				  struct dma_fence *fence);
 
 static inline void
 i915_gem_object_set_readonly(struct drm_i915_gem_object *obj)
@@ -372,6 +385,7 @@ static inline void
 i915_gem_object_finish_access(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_unpin_pages(obj);
+	i915_gem_object_unlock(obj);
 }
 
 static inline struct intel_engine_cs *

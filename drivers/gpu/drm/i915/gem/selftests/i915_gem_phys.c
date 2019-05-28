@@ -46,9 +46,9 @@ static int mock_phys_object(void *arg)
 	}
 
 	/* Make the object dirty so that put_pages must do copy back the data */
-	mutex_lock(&i915->drm.struct_mutex);
+	i915_gem_object_lock(obj);
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
-	mutex_unlock(&i915->drm.struct_mutex);
+	i915_gem_object_unlock(obj);
 	if (err) {
 		pr_err("i915_gem_object_set_to_gtt_domain failed with err=%d\n",
 		       err);

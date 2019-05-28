@@ -378,6 +378,8 @@ i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 
+	assert_object_held(obj);
+
 	if (!(obj->write_domain & flush_domains))
 		return;
 

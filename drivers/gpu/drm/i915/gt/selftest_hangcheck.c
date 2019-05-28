@@ -117,7 +117,9 @@ static int move_to_active(struct i915_vma *vma,
 {
 	int err;
 
+	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, flags);
+	i915_vma_unlock(vma);
 	if (err)
 		return err;
 
@@ -1252,7 +1254,9 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 		}
 	}
 
+	i915_vma_lock(arg.vma);
 	err = i915_vma_move_to_active(arg.vma, rq, flags);
+	i915_vma_unlock(arg.vma);
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_vma_unpin_fence(arg.vma);

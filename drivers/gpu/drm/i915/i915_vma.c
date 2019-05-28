@@ -840,13 +840,14 @@ void i915_vma_destroy(struct i915_vma *vma)
 {
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 
-	GEM_BUG_ON(i915_vma_is_active(vma));
 	GEM_BUG_ON(i915_vma_is_pinned(vma));
 
 	if (i915_vma_is_closed(vma))
 		list_del(&vma->closed_link);
 
 	WARN_ON(i915_vma_unbind(vma));
+	GEM_BUG_ON(i915_vma_is_active(vma));
+
 	__i915_vma_destroy(vma);
 }
 
@@ -908,12 +909,10 @@ static void export_fence(struct i915_vma *vma,
 	 * handle an error right now. Worst case should be missed
 	 * synchronisation leading to rendering corruption.
 	 */
-	reservation_object_lock(resv, NULL);
 	if (flags & EXEC_OBJECT_WRITE)
 		reservation_object_add_excl_fence(resv, &rq->fence);
 	else if (reservation_object_reserve_shared(resv, 1) == 0)
 		reservation_object_add_shared_fence(resv, &rq->fence);
-	reservation_object_unlock(resv);
 }
 
 int i915_vma_move_to_active(struct i915_vma *vma,
@@ -922,7 +921,8 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	lockdep_assert_held(&rq->i915->drm.struct_mutex);
+	assert_vma_held(vma);
+	assert_object_held(obj);
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	/*

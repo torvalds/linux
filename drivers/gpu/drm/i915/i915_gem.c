@@ -104,18 +104,9 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
 	LIST_HEAD(still_in_list);
-	int ret;
+	int ret = 0;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
-	/* Closed vma are removed from the obj->vma_list - but they may
-	 * still have an active binding on the object. To remove those we
-	 * must wait for all rendering to complete to the object (as unbinding
-	 * must anyway), and retire the requests.
-	 */
-	ret = i915_gem_object_set_to_cpu_domain(obj, false);
-	if (ret)
-		return ret;
 
 	spin_lock(&obj->vma.lock);
 	while (!ret && (vma = list_first_entry_or_null(&obj->vma.list,
@@ -139,29 +130,17 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 			   unsigned int flags,
 			   long timeout)
 {
-	struct i915_request *rq;
-
 	BUILD_BUG_ON(I915_WAIT_INTERRUPTIBLE != 0x1);
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return timeout;
 
-	if (!dma_fence_is_i915(fence))
-		return dma_fence_wait_timeout(fence,
-					      flags & I915_WAIT_INTERRUPTIBLE,
-					      timeout);
+	if (dma_fence_is_i915(fence))
+		return i915_request_wait(to_request(fence), flags, timeout);
 
-	rq = to_request(fence);
-	if (i915_request_completed(rq))
-		goto out;
-
-	timeout = i915_request_wait(rq, flags, timeout);
-
-out:
-	if (flags & I915_WAIT_LOCKED && i915_request_completed(rq))
-		i915_request_retire_upto(rq);
-
-	return timeout;
+	return dma_fence_wait_timeout(fence,
+				      flags & I915_WAIT_INTERRUPTIBLE,
+				      timeout);
 }
 
 static long
@@ -487,20 +466,21 @@ static int
 i915_gem_shmem_pread(struct drm_i915_gem_object *obj,
 		     struct drm_i915_gem_pread *args)
 {
-	char __user *user_data;
-	u64 remain;
 	unsigned int needs_clflush;
 	unsigned int idx, offset;
+	struct dma_fence *fence;
+	char __user *user_data;
+	u64 remain;
 	int ret;
 
-	ret = mutex_lock_interruptible(&obj->base.dev->struct_mutex);
+	ret = i915_gem_object_prepare_read(obj, &needs_clflush);
 	if (ret)
 		return ret;
 
-	ret = i915_gem_object_prepare_read(obj, &needs_clflush);
-	mutex_unlock(&obj->base.dev->struct_mutex);
-	if (ret)
-		return ret;
+	fence = i915_gem_object_lock_fence(obj);
+	i915_gem_object_finish_access(obj);
+	if (!fence)
+		return -ENOMEM;
 
 	remain = args->size;
 	user_data = u64_to_user_ptr(args->data_ptr);
@@ -519,7 +499,7 @@ i915_gem_shmem_pread(struct drm_i915_gem_object *obj,
 		offset = 0;
 	}
 
-	i915_gem_object_finish_access(obj);
+	i915_gem_object_unlock_fence(obj, fence);
 	return ret;
 }
 
@@ -555,8 +535,9 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	intel_wakeref_t wakeref;
 	struct drm_mm_node node;
-	struct i915_vma *vma;
+	struct dma_fence *fence;
 	void __user *user_data;
+	struct i915_vma *vma;
 	u64 remain, offset;
 	int ret;
 
@@ -585,11 +566,24 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 		GEM_BUG_ON(!node.allocated);
 	}
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, false);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	ret = i915_gem_object_lock_interruptible(obj);
 	if (ret)
 		goto out_unpin;
 
-	mutex_unlock(&i915->drm.struct_mutex);
+	ret = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (ret) {
+		i915_gem_object_unlock(obj);
+		goto out_unpin;
+	}
+
+	fence = i915_gem_object_lock_fence(obj);
+	i915_gem_object_unlock(obj);
+	if (!fence) {
+		ret = -ENOMEM;
+		goto out_unpin;
+	}
 
 	user_data = u64_to_user_ptr(args->data_ptr);
 	remain = args->size;
@@ -627,8 +621,9 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 		offset += page_length;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
+	i915_gem_object_unlock_fence(obj, fence);
 out_unpin:
+	mutex_lock(&i915->drm.struct_mutex);
 	if (node.allocated) {
 		wmb();
 		ggtt->vm.clear_range(&ggtt->vm, node.start, node.size);
@@ -739,6 +734,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	intel_wakeref_t wakeref;
 	struct drm_mm_node node;
+	struct dma_fence *fence;
 	struct i915_vma *vma;
 	u64 remain, offset;
 	void __user *user_data;
@@ -786,11 +782,24 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		GEM_BUG_ON(!node.allocated);
 	}
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	ret = i915_gem_object_lock_interruptible(obj);
 	if (ret)
 		goto out_unpin;
 
-	mutex_unlock(&i915->drm.struct_mutex);
+	ret = i915_gem_object_set_to_gtt_domain(obj, true);
+	if (ret) {
+		i915_gem_object_unlock(obj);
+		goto out_unpin;
+	}
+
+	fence = i915_gem_object_lock_fence(obj);
+	i915_gem_object_unlock(obj);
+	if (!fence) {
+		ret = -ENOMEM;
+		goto out_unpin;
+	}
 
 	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 
@@ -835,8 +844,9 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 	}
 	intel_fb_obj_flush(obj, ORIGIN_CPU);
 
-	mutex_lock(&i915->drm.struct_mutex);
+	i915_gem_object_unlock_fence(obj, fence);
 out_unpin:
+	mutex_lock(&i915->drm.struct_mutex);
 	if (node.allocated) {
 		wmb();
 		ggtt->vm.clear_range(&ggtt->vm, node.start, node.size);
@@ -882,22 +892,22 @@ static int
 i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 		      const struct drm_i915_gem_pwrite *args)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	void __user *user_data;
-	u64 remain;
 	unsigned int partial_cacheline_write;
 	unsigned int needs_clflush;
 	unsigned int offset, idx;
+	struct dma_fence *fence;
+	void __user *user_data;
+	u64 remain;
 	int ret;
 
-	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
+	ret = i915_gem_object_prepare_write(obj, &needs_clflush);
 	if (ret)
 		return ret;
 
-	ret = i915_gem_object_prepare_write(obj, &needs_clflush);
-	mutex_unlock(&i915->drm.struct_mutex);
-	if (ret)
-		return ret;
+	fence = i915_gem_object_lock_fence(obj);
+	i915_gem_object_finish_access(obj);
+	if (!fence)
+		return -ENOMEM;
 
 	/* If we don't overwrite a cacheline completely we need to be
 	 * careful to have up-to-date data by first clflushing. Don't
@@ -926,7 +936,8 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 	}
 
 	intel_fb_obj_flush(obj, ORIGIN_CPU);
-	i915_gem_object_finish_access(obj);
+	i915_gem_object_unlock_fence(obj, fence);
+
 	return ret;
 }
 
@@ -1805,7 +1816,9 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 		if (err)
 			goto err_active;
 
+		i915_gem_object_lock(state->obj);
 		err = i915_gem_object_set_to_cpu_domain(state->obj, false);
+		i915_gem_object_unlock(state->obj);
 		if (err)
 			goto err_active;
 
@@ -2256,12 +2269,13 @@ int i915_gem_freeze_late(struct drm_i915_private *i915)
 	i915_gem_shrink(i915, -1UL, NULL, I915_SHRINK_UNBOUND);
 	i915_gem_drain_freed_objects(i915);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	for (phase = phases; *phase; phase++) {
-		list_for_each_entry(obj, *phase, mm.link)
+		list_for_each_entry(obj, *phase, mm.link) {
+			i915_gem_object_lock(obj);
 			WARN_ON(i915_gem_object_set_to_cpu_domain(obj, true));
+			i915_gem_object_unlock(obj);
+		}
 	}
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	return 0;
 }

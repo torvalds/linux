@@ -2113,6 +2113,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	 * pin/unpin/fence and not more.
 	 */
 	wakeref = intel_runtime_pm_get(dev_priv);
+	i915_gem_object_lock(obj);
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
@@ -2167,6 +2168,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 err:
 	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
 
+	i915_gem_object_unlock(obj);
 	intel_runtime_pm_put(dev_priv, wakeref);
 	return vma;
 }
@@ -2175,9 +2177,12 @@ void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
 {
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 
+	i915_gem_object_lock(vma->obj);
 	if (flags & PLANE_HAS_FENCE)
 		i915_vma_unpin_fence(vma);
 	i915_gem_object_unpin_from_display_plane(vma);
+	i915_gem_object_unlock(vma->obj);
+
 	i915_vma_put(vma);
 }
 

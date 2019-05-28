@@ -110,7 +110,9 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		GEM_BUG_ON(view.partial.size > nreal);
 		cond_resched();
 
+		i915_gem_object_lock(obj);
 		err = i915_gem_object_set_to_gtt_domain(obj, true);
+		i915_gem_object_unlock(obj);
 		if (err) {
 			pr_err("Failed to flush to GTT write domain; err=%d\n",
 			       err);
@@ -142,7 +144,9 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		if (offset >= obj->base.size)
 			continue;
 
+		i915_gem_object_lock(obj);
 		i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
+		i915_gem_object_unlock(obj);
 
 		p = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 		cpu = kmap(p) + offset_in_page(offset);
@@ -344,7 +348,9 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 		return PTR_ERR(rq);
 	}
 
+	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(vma);
 
 	i915_request_add(rq);
 

@@ -95,6 +95,8 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 {
 	struct clflush *clflush;
 
+	assert_object_held(obj);
+
 	/*
 	 * Stolen memory is always coherent with the GPU as it is explicitly
 	 * marked as wc by the system, or the system is cache-coherent.
@@ -144,9 +146,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 						true, I915_FENCE_TIMEOUT,
 						I915_FENCE_GFP);
 
-		reservation_object_lock(obj->resv, NULL);
 		reservation_object_add_excl_fence(obj->resv, &clflush->dma);
-		reservation_object_unlock(obj->resv);
 
 		i915_sw_fence_commit(&clflush->wait);
 	} else if (obj->mm.pages) {
