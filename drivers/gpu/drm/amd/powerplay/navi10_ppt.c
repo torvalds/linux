@@ -336,9 +336,12 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_FW_DSTATE_BIT)
 				| FEATURE_MASK(FEATURE_ACDC_BIT);
 
-	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK) {
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_SS_BIT)
 				| FEATURE_MASK(FEATURE_GFXOFF_BIT);
+		/* TODO: remove it once fw fix the bug */
+		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_FW_DSTATE_BIT);
+	}
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_VCN)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_VCN_PG_BIT);
