@@ -342,7 +342,7 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 
 	usleep_range(10, 20);
 
-	return dp83867_config_init(phydev);
+	return 0;
 }
 
 static struct phy_driver dp83867_driver[] = {
