@@ -82,7 +82,6 @@
 #include "i915_gem.h"
 #include "i915_gem_context.h"
 #include "i915_gem_fence_reg.h"
-#include "i915_gem_object.h"
 #include "i915_gem_gtt.h"
 #include "i915_gpu_error.h"
 #include "i915_request.h"
@@ -136,6 +135,8 @@ bool i915_error_injected(void);
 #define i915_load_error(i915, fmt, ...)					 \
 	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
+
+struct drm_i915_gem_object;
 
 enum hpd_pin {
 	HPD_NONE = 0,

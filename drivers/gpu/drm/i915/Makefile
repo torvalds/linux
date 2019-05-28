@@ -85,6 +85,7 @@ gt-$(CONFIG_DRM_I915_SELFTEST) += \
 i915-y += $(gt-y)
 
 # GEM (Graphics Execution Management) code
+obj-y += gem/
 i915-y += \
 	  i915_active.o \
 	  i915_cmd_parser.o \

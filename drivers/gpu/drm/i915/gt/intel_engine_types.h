@@ -29,6 +29,7 @@
 #define I915_CMD_HASH_ORDER 9
 
 struct dma_fence;
+struct drm_i915_gem_object;
 struct drm_i915_reg_table;
 struct i915_gem_context;
 struct i915_request;

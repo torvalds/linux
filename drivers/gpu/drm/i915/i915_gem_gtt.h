@@ -61,6 +61,7 @@
 
 struct drm_i915_file_private;
 struct drm_i915_fence_reg;
+struct drm_i915_gem_object;
 struct i915_vma;
 
 typedef u32 gen6_pte_t;
