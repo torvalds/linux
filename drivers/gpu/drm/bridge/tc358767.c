@@ -1004,15 +1004,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 		return -EAGAIN;
 	}
 
-	ret = tc_set_video_mode(tc, tc->mode);
-	if (ret)
-		goto err;
-
-	/* Set M/N */
-	ret = tc_stream_clock_calc(tc);
-	if (ret)
-		goto err;
-
 	return 0;
 err_dpcd_read:
 	dev_err(tc->dev, "Failed to read DPCD: %d\n", ret);
@@ -1031,6 +1022,15 @@ static int tc_main_link_stream(struct tc_data *tc, int state)
 	dev_dbg(tc->dev, "stream: %d\n", state);
 
 	if (state) {
+		ret = tc_set_video_mode(tc, tc->mode);
+		if (ret)
+			goto err;
+
+		/* Set M/N */
+		ret = tc_stream_clock_calc(tc);
+		if (ret)
+			goto err;
+
 		value = VID_MN_GEN | DP_EN;
 		if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
 			value |= EF_EN;
