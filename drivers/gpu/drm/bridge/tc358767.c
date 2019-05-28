@@ -1154,10 +1154,10 @@ static bool tc_bridge_mode_fixup(struct drm_bridge *bridge,
 	return true;
 }
 
-static enum drm_mode_status tc_connector_mode_valid(struct drm_connector *connector,
-				   struct drm_display_mode *mode)
+static enum drm_mode_status tc_mode_valid(struct drm_bridge *bridge,
+					  const struct drm_display_mode *mode)
 {
-	struct tc_data *tc = connector_to_tc(connector);
+	struct tc_data *tc = bridge_to_tc(bridge);
 	u32 req, avail;
 	u32 bits_per_pixel = 24;
 
@@ -1226,7 +1226,6 @@ tc_connector_best_encoder(struct drm_connector *connector)
 
 static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 	.get_modes = tc_connector_get_modes,
-	.mode_valid = tc_connector_mode_valid,
 	.best_encoder = tc_connector_best_encoder,
 };
 
@@ -1269,6 +1268,7 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 
 static const struct drm_bridge_funcs tc_bridge_funcs = {
 	.attach = tc_bridge_attach,
+	.mode_valid = tc_mode_valid,
 	.mode_set = tc_bridge_mode_set,
 	.pre_enable = tc_bridge_pre_enable,
 	.enable = tc_bridge_enable,
