@@ -1085,14 +1085,14 @@ err:
  */
 static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 {
-	unsigned int entry, payloads_in_sg, chunk_list_size, chunk_idx, payload_idx;
 	struct pbl_chunk_list *chunk_list = &pbl->phys.indirect.chunk_list;
 	int page_cnt = pbl->phys.indirect.pbl_buf_size_in_pages;
 	struct scatterlist *pages_sgl = pbl->phys.indirect.sgl;
+	unsigned int chunk_list_size, chunk_idx, payload_idx;
 	int sg_dma_cnt = pbl->phys.indirect.sg_dma_cnt;
 	struct efa_com_ctrl_buff_info *ctrl_buf;
 	u64 *cur_chunk_buf, *prev_chunk_buf;
-	struct scatterlist *sg;
+	struct ib_block_iter biter;
 	dma_addr_t dma_addr;
 	int i;
 
@@ -1126,18 +1126,15 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 	chunk_idx = 0;
 	payload_idx = 0;
 	cur_chunk_buf = chunk_list->chunks[0].buf;
-	for_each_sg(pages_sgl, sg, sg_dma_cnt, entry) {
-		payloads_in_sg = sg_dma_len(sg) >> EFA_CHUNK_PAYLOAD_SHIFT;
-		for (i = 0; i < payloads_in_sg; i++) {
-			cur_chunk_buf[payload_idx++] =
-				(sg_dma_address(sg) & ~(EFA_CHUNK_PAYLOAD_SIZE - 1)) +
-				(EFA_CHUNK_PAYLOAD_SIZE * i);
+	rdma_for_each_block(pages_sgl, &biter, sg_dma_cnt,
+			    EFA_CHUNK_PAYLOAD_SIZE) {
+		cur_chunk_buf[payload_idx++] =
+			rdma_block_iter_dma_address(&biter);
 
-			if (payload_idx == EFA_PTRS_PER_CHUNK) {
-				chunk_idx++;
-				cur_chunk_buf = chunk_list->chunks[chunk_idx].buf;
-				payload_idx = 0;
-			}
+		if (payload_idx == EFA_PTRS_PER_CHUNK) {
+			chunk_idx++;
+			cur_chunk_buf = chunk_list->chunks[chunk_idx].buf;
+			payload_idx = 0;
 		}
 	}
 
