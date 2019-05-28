@@ -464,7 +464,6 @@ enum {
 struct fwnode_handle;
 struct ethtool_eeprom;
 struct ethtool_modinfo;
-struct net_device;
 struct sfp_bus;
 
 /**
@@ -510,7 +509,7 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
 struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
-				      struct net_device *ndev, void *upstream,
+				      void *upstream,
 				      const struct sfp_upstream_ops *ops);
 void sfp_unregister_upstream(struct sfp_bus *bus);
 #else
@@ -555,8 +554,7 @@ static inline void sfp_upstream_stop(struct sfp_bus *bus)
 }
 
 static inline struct sfp_bus *sfp_register_upstream(
-	struct fwnode_handle *fwnode,
-	struct net_device *ndev, void *upstream,
+	struct fwnode_handle *fwnode, void *upstream,
 	const struct sfp_upstream_ops *ops)
 {
 	return (struct sfp_bus *)-1;
