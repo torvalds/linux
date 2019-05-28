@@ -1014,47 +1014,56 @@ err:
 	return ret;
 }
 
-static int tc_main_link_stream(struct tc_data *tc, int state)
+static int tc_stream_enable(struct tc_data *tc)
 {
 	int ret;
 	u32 value;
 
-	dev_dbg(tc->dev, "stream: %d\n", state);
+	dev_dbg(tc->dev, "enable video stream\n");
 
-	if (state) {
-		ret = tc_set_video_mode(tc, tc->mode);
-		if (ret)
-			goto err;
+	ret = tc_set_video_mode(tc, tc->mode);
+	if (ret)
+		return ret;
 
-		/* Set M/N */
-		ret = tc_stream_clock_calc(tc);
-		if (ret)
-			goto err;
+	/* Set M/N */
+	ret = tc_stream_clock_calc(tc);
+	if (ret)
+		return ret;
 
-		value = VID_MN_GEN | DP_EN;
-		if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
-			value |= EF_EN;
-		tc_write(DP0CTL, value);
-		/*
-		 * VID_EN assertion should be delayed by at least N * LSCLK
-		 * cycles from the time VID_MN_GEN is enabled in order to
-		 * generate stable values for VID_M. LSCLK is 270 MHz or
-		 * 162 MHz, VID_N is set to 32768 in  tc_stream_clock_calc(),
-		 * so a delay of at least 203 us should suffice.
-		 */
-		usleep_range(500, 1000);
-		value |= VID_EN;
-		tc_write(DP0CTL, value);
-		/* Set input interface */
-		value = DP0_AUDSRC_NO_INPUT;
-		if (tc_test_pattern)
-			value |= DP0_VIDSRC_COLOR_BAR;
-		else
-			value |= DP0_VIDSRC_DPI_RX;
-		tc_write(SYSCTRL, value);
-	} else {
-		tc_write(DP0CTL, 0);
-	}
+	value = VID_MN_GEN | DP_EN;
+	if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+		value |= EF_EN;
+	tc_write(DP0CTL, value);
+	/*
+	 * VID_EN assertion should be delayed by at least N * LSCLK
+	 * cycles from the time VID_MN_GEN is enabled in order to
+	 * generate stable values for VID_M. LSCLK is 270 MHz or
+	 * 162 MHz, VID_N is set to 32768 in  tc_stream_clock_calc(),
+	 * so a delay of at least 203 us should suffice.
+	 */
+	usleep_range(500, 1000);
+	value |= VID_EN;
+	tc_write(DP0CTL, value);
+	/* Set input interface */
+	value = DP0_AUDSRC_NO_INPUT;
+	if (tc_test_pattern)
+		value |= DP0_VIDSRC_COLOR_BAR;
+	else
+		value |= DP0_VIDSRC_DPI_RX;
+	tc_write(SYSCTRL, value);
+
+	return 0;
+err:
+	return ret;
+}
+
+static int tc_stream_disable(struct tc_data *tc)
+{
+	int ret;
+
+	dev_dbg(tc->dev, "disable video stream\n");
+
+	tc_write(DP0CTL, 0);
 
 	return 0;
 err:
@@ -1079,7 +1088,7 @@ static void tc_bridge_enable(struct drm_bridge *bridge)
 		return;
 	}
 
-	ret = tc_main_link_stream(tc, 1);
+	ret = tc_stream_enable(tc);
 	if (ret < 0) {
 		dev_err(tc->dev, "main link stream start error: %d\n", ret);
 		return;
@@ -1095,7 +1104,7 @@ static void tc_bridge_disable(struct drm_bridge *bridge)
 
 	drm_panel_disable(tc->panel);
 
-	ret = tc_main_link_stream(tc, 0);
+	ret = tc_stream_disable(tc);
 	if (ret < 0)
 		dev_err(tc->dev, "main link stream stop error: %d\n", ret);
 }
