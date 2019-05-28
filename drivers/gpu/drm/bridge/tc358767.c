@@ -961,15 +961,24 @@ static int tc_main_link_enable(struct tc_data *tc)
 	if (ret)
 		goto err;
 
+	/*
+	 * Toshiba's documentation suggests to first clear DPCD 0x102, then
+	 * clear the training pattern bit in DP0_SRCCTRL. Testing shows
+	 * that the link sometimes drops if those steps are done in that order,
+	 * but if the steps are done in reverse order, the link stays up.
+	 *
+	 * So we do the steps differently than documented here.
+	 */
+
+	/* Clear Training Pattern, set AutoCorrect Mode = 1 */
+	tc_write(DP0_SRCCTRL, tc_srcctrl(tc) | DP0_SRCCTRL_AUTOCORRECT);
+
 	/* Clear DPCD 0x102 */
 	/* Note: Can Not use DP0_SNKLTCTRL (0x06E4) short cut */
 	tmp[0] = tc->link.scrambler_dis ? DP_LINK_SCRAMBLING_DISABLE : 0x00;
 	ret = drm_dp_dpcd_writeb(aux, DP_TRAINING_PATTERN_SET, tmp[0]);
 	if (ret < 0)
 		goto err_dpcd_write;
-
-	/* Clear Training Pattern, set AutoCorrect Mode = 1 */
-	tc_write(DP0_SRCCTRL, tc_srcctrl(tc) | DP0_SRCCTRL_AUTOCORRECT);
 
 	/* Wait */
 	timeout = 100;
