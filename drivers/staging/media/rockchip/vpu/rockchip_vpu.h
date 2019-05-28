@@ -71,12 +71,47 @@ enum rockchip_vpu_codec_mode {
 	RK_VPU_MODE_JPEG_ENC,
 };
 
+/*
+ * struct rockchip_vpu_func - rockchip VPU functionality
+ *
+ * @id:			processing functionality ID (can be
+ *			%MEDIA_ENT_F_PROC_VIDEO_ENCODER or
+ *			%MEDIA_ENT_F_PROC_VIDEO_DECODER)
+ * @vdev:		&struct video_device that exposes the encoder or
+ *			decoder functionality
+ * @source_pad:		&struct media_pad with the source pad.
+ * @sink:		&struct media_entity pointer with the sink entity
+ * @sink_pad:		&struct media_pad with the sink pad.
+ * @proc:		&struct media_entity pointer with the M2M device itself.
+ * @proc_pads:		&struct media_pad with the @proc pads.
+ * @intf_devnode:	&struct media_intf devnode pointer with the interface
+ *			with controls the M2M device.
+ *
+ * Contains everything needed to attach the video device to the media device.
+ */
+struct rockchip_vpu_func {
+	unsigned int id;
+	struct video_device vdev;
+	struct media_pad source_pad;
+	struct media_entity sink;
+	struct media_pad sink_pad;
+	struct media_entity proc;
+	struct media_pad proc_pads[2];
+	struct media_intf_devnode *intf_devnode;
+};
+
+static inline struct rockchip_vpu_func *
+rockchip_vpu_vdev_to_func(struct video_device *vdev)
+{
+	return container_of(vdev, struct rockchip_vpu_func, vdev);
+}
+
 /**
  * struct rockchip_vpu_dev - driver data
  * @v4l2_dev:		V4L2 device to register video devices for.
  * @m2m_dev:		mem2mem device associated to this device.
  * @mdev:		media device associated to this device.
- * @vfd_enc:		Video device for encoder.
+ * @encoder:		encoder functionality.
  * @pdev:		Pointer to VPU platform device.
  * @dev:		Pointer to device for convenient logging using
  *			dev_ macros.
@@ -93,7 +128,7 @@ struct rockchip_vpu_dev {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_m2m_dev *m2m_dev;
 	struct media_device mdev;
-	struct video_device *vfd_enc;
+	struct rockchip_vpu_func *encoder;
 	struct platform_device *pdev;
 	struct device *dev;
 	struct clk_bulk_data clocks[ROCKCHIP_VPU_MAX_CLOCKS];
