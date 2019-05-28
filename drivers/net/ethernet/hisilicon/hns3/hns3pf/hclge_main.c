@@ -5682,7 +5682,6 @@ static void hclge_fd_build_arfs_rule(const struct hclge_fd_rule_tuples *tuples,
 static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 				      u16 flow_id, struct flow_keys *fkeys)
 {
-#ifdef CONFIG_RFS_ACCEL
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_fd_rule_tuples new_tuples;
 	struct hclge_dev *hdev = vport->back;
@@ -5758,7 +5757,6 @@ static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 	}
 
 	return rule->location;
-#endif
 }
 
 static void hclge_rfs_filter_expire(struct hclge_dev *hdev)
