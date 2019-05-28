@@ -78,6 +78,12 @@
 #define DP0_VIDSRC_DSI_RX		(1 << 0)
 #define DP0_VIDSRC_DPI_RX		(2 << 0)
 #define DP0_VIDSRC_COLOR_BAR		(3 << 0)
+#define GPIOM			0x0540
+#define GPIOI			0x054c
+#define INTCTL_G		0x0560
+#define INTSTS_G		0x0564
+#define INT_GP0_LCNT		0x0584
+#define INT_GP1_LCNT		0x0588
 
 /* Control */
 #define DP0CTL			0x0600
@@ -1286,6 +1292,8 @@ static const struct regmap_range tc_volatile_ranges[] = {
 	regmap_reg_range(DP_PHY_CTRL, DP_PHY_CTRL),
 	regmap_reg_range(DP0_PLLCTRL, PXL_PLLCTRL),
 	regmap_reg_range(VFUEN0, VFUEN0),
+	regmap_reg_range(INTSTS_G, INTSTS_G),
+	regmap_reg_range(GPIOI, GPIOI),
 };
 
 static const struct regmap_access_table tc_volatile_table = {
