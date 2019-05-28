@@ -773,10 +773,6 @@ static int tc_main_link_enable(struct tc_data *tc)
 	int ret;
 	u8 tmp[8];
 
-	/* display mode should be set at this point */
-	if (!tc->mode)
-		return -EINVAL;
-
 	dev_dbg(tc->dev, "link enable\n");
 
 	tc_read(DP0CTL, &value);
